@@ -389,12 +389,13 @@ static void iep2_config(struct mpp_dev *mpp, struct iep_task *task)
 		| IEP2_REG_DIL_OSD_EN
 		| IEP2_REG_DIL_PD_EN
 		| IEP2_REG_DIL_FF_EN
-		| IEP2_REG_DIL_MD_PRE_EN
 		| IEP2_REG_DIL_FIELD_ORDER(cfg->dil_field_order)
 		| IEP2_REG_DIL_OUT_MODE(cfg->dil_out_mode)
 		| IEP2_REG_DIL_MODE(cfg->dil_mode);
 	if (cfg->roi_en)
 		reg |= IEP2_REG_DIL_ROI_EN;
+	if (cfg->md_lambda < 8)
+		reg |= IEP2_REG_DIL_MD_PRE_EN;
 	mpp_write_relaxed(mpp, IEP2_REG_DIL_CONFIG0, reg);
 
 	if (cfg->dil_mode != ROCKCHIP_IEP2_DIL_MODE_PD) {
@@ -437,6 +438,9 @@ static void iep2_config(struct mpp_dev *mpp, struct iep_task *task)
 		mpp_write_relaxed(mpp, IEP2_REG_SRC_ADDR_NXTUV, bot->cbcr);
 		mpp_write_relaxed(mpp, IEP2_REG_SRC_ADDR_NXTV, bot->cr);
 	}
+
+	reg = IEP2_REG_TIMEOUT_CFG_EN | 0x7fffff;
+	mpp_write_relaxed(mpp, IEP2_REG_TIMEOUT_CFG, reg);
 
 	mpp_write_relaxed(mpp, IEP2_REG_SRC_ADDR_PREY, cfg->src[2].y);
 	mpp_write_relaxed(mpp, IEP2_REG_SRC_ADDR_PREUV, cfg->src[2].cbcr);
@@ -599,7 +603,8 @@ static int iep2_run(struct mpp_dev *mpp,
 	mpp_write_relaxed(mpp, IEP2_REG_INT_EN,
 			  IEP2_REG_FRM_DONE_EN
 			  | IEP2_REG_OSD_MAX_EN
-			  | IEP2_REG_BUS_ERROR_EN);
+			  | IEP2_REG_BUS_ERROR_EN
+			  | IEP2_REG_TIMEOUT_EN);
 
 	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
 
@@ -649,7 +654,8 @@ static int iep2_isr(struct mpp_dev *mpp)
 	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n",
 		  task->irq_status);
 
-	if (IEP2_REG_RO_BUS_ERROR_STS(task->irq_status))
+	if (IEP2_REG_RO_BUS_ERROR_STS(task->irq_status) ||
+	    IEP2_REG_RO_TIMEOUT_STS(task->irq_status))
 		atomic_inc(&mpp->reset_request);
 
 	mpp_task_finish(mpp_task->session, mpp_task);
@@ -883,17 +889,29 @@ static int iep2_reset(struct mpp_dev *mpp)
 {
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
-	if (iep->rst_a && iep->rst_h && iep->rst_s) {
-		/* Don't skip this or iommu won't work after reset */
-		mpp_pmu_idle_request(mpp, true);
-		mpp_safe_reset(iep->rst_a);
-		mpp_safe_reset(iep->rst_h);
-		mpp_safe_reset(iep->rst_s);
-		udelay(5);
-		mpp_safe_unreset(iep->rst_a);
-		mpp_safe_unreset(iep->rst_h);
-		mpp_safe_unreset(iep->rst_s);
-		mpp_pmu_idle_request(mpp, false);
+	int ret = 0;
+	u32 rst_status = 0;
+
+	/* soft rest first */
+	mpp_write(mpp, IEP2_REG_IEP_CONFIG0, IEP2_REG_ACLK_SRESET_P);
+	ret = readl_relaxed_poll_timeout(mpp->reg_base + IEP2_REG_STATUS,
+					 rst_status,
+					 rst_status & IEP2_REG_ARST_FINISH_DONE,
+					 0, 5);
+	if (ret) {
+		mpp_err("soft reset timeout, use cru reset\n");
+		if (iep->rst_a && iep->rst_h && iep->rst_s) {
+			/* Don't skip this or iommu won't work after reset */
+			mpp_pmu_idle_request(mpp, true);
+			mpp_safe_reset(iep->rst_a);
+			mpp_safe_reset(iep->rst_h);
+			mpp_safe_reset(iep->rst_s);
+			udelay(5);
+			mpp_safe_unreset(iep->rst_a);
+			mpp_safe_unreset(iep->rst_h);
+			mpp_safe_unreset(iep->rst_s);
+			mpp_pmu_idle_request(mpp, false);
+		}
 	}
 
 	return 0;

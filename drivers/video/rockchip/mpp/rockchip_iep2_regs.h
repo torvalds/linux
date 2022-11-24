@@ -11,6 +11,7 @@
 #define __ROCKCHIP_IEP2_REGS_H__
 
 #define IEP2_REG_FRM_START			0x0000
+#define     IEP2_REG_FRM_EN                             BIT(0)
 #define IEP2_REG_IEP_CONFIG0			0x0004
 #define     IEP2_REG_CCLK_SRESET_P			BIT(22)
 #define     IEP2_REG_ACLK_SRESET_P			BIT(21)
@@ -37,15 +38,19 @@
 #define     IEP2_REG_MD_CLK_ON				BIT(1)
 #define     IEP2_REG_CLK_ON				BIT(0)
 #define IEP2_REG_STATUS				0x0014
+#define     IEP2_REG_ARST_FINISH_DONE                   BIT(0)
 #define IEP2_REG_INT_EN				0x0020
+#define     IEP2_REG_TIMEOUT_EN			        BIT(5)
 #define     IEP2_REG_BUS_ERROR_EN			BIT(4)
 #define     IEP2_REG_OSD_MAX_EN				BIT(1)
 #define     IEP2_REG_FRM_DONE_EN			BIT(0)
 #define IEP2_REG_INT_CLR			0x0024
+#define     IEP2_REG_TIMEOUT_CLR			BIT(5)
 #define     IEP2_REG_BUS_ERROR_CLR			BIT(4)
 #define     IEP2_REG_OSD_MAX_CLR			BIT(1)
 #define     IEP2_REG_FRM_DONE_CLR			BIT(0)
 #define IEP2_REG_INT_STS			0x0028
+#define     IEP2_REG_RO_TIMEOUT_STS(x)		        ((x) & BIT(5))
 #define     IEP2_REG_RO_BUS_ERROR_STS(x)		((x) & BIT(4))
 #define     IEP2_REG_RO_OSD_MAX_STS(x)			((x) & BIT(1))
 #define     IEP2_REG_RO_FRM_DONE_STS(x)			((x) & BIT(0))
@@ -73,6 +78,8 @@
 #define     IEP2_REG_DIL_FIELD_ORDER(x)			(((x) & 1) << 5)
 #define     IEP2_REG_DIL_OUT_MODE(x)			(((x) & 1) << 4)
 #define     IEP2_REG_DIL_MODE(x)			((x) & 0xf)
+#define IEP2_REG_TIMEOUT_CFG                    0x0050
+#define     IEP2_REG_TIMEOUT_CFG_EN			BIT(31)
 #define IEP2_REG_DBG_FRM_CNT			0x0058
 #define IEP2_REG_DBG_TIMEOUT_CNT		0x005c
 #define IEP2_REG_SRC_ADDR_CURY			0x0060
