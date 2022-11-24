@@ -404,18 +404,75 @@ void *__bch2_trans_kmalloc(struct btree_trans *, size_t);
 
 static inline void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 {
-	unsigned new_top = trans->mem_top + size;
-	void *p = trans->mem + trans->mem_top;
+	size = roundup(size, 8);
 
-	if (likely(new_top <= trans->mem_bytes)) {
+	if (likely(trans->mem_top + size <= trans->mem_bytes)) {
+		void *p = trans->mem + trans->mem_top;
+
 		trans->mem_top += size;
 		memset(p, 0, size);
 		return p;
 	} else {
 		return __bch2_trans_kmalloc(trans, size);
-
 	}
 }
+
+static inline void *bch2_trans_kmalloc_nomemzero(struct btree_trans *trans, size_t size)
+{
+	size = roundup(size, 8);
+
+	if (likely(trans->mem_top + size <= trans->mem_bytes)) {
+		void *p = trans->mem + trans->mem_top;
+
+		trans->mem_top += size;
+		return p;
+	} else {
+		return __bch2_trans_kmalloc(trans, size);
+	}
+}
+
+static inline struct bkey_i *bch2_bkey_make_mut(struct btree_trans *trans, struct bkey_s_c k)
+{
+	struct bkey_i *mut = bch2_trans_kmalloc_nomemzero(trans, bkey_bytes(k.k));
+
+	if (!IS_ERR(mut))
+		bkey_reassemble(mut, k);
+	return mut;
+}
+
+static inline struct bkey_i *bch2_bkey_get_mut(struct btree_trans *trans,
+					       struct btree_iter *iter)
+{
+	struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
+
+	return unlikely(IS_ERR(k.k))
+		? ERR_CAST(k.k)
+		: bch2_bkey_make_mut(trans, k);
+}
+
+#define bch2_bkey_get_mut_typed(_trans, _iter, _type)			\
+({									\
+	struct bkey_i *_k = bch2_bkey_get_mut(_trans, _iter);		\
+	struct bkey_i_##_type *_ret;					\
+									\
+	if (IS_ERR(_k))							\
+		_ret = ERR_CAST(_k);					\
+	else if (unlikely(_k->k.type != KEY_TYPE_##_type))		\
+		_ret = ERR_PTR(-ENOENT);				\
+	else								\
+		_ret = bkey_i_to_##_type(_k);				\
+	_ret;								\
+})
+
+#define bch2_bkey_alloc(_trans, _iter, _type)				\
+({									\
+	struct bkey_i_##_type *_k = bch2_trans_kmalloc_nomemzero(_trans, sizeof(*_k));\
+	if (!IS_ERR(_k)) {						\
+		bkey_##_type##_init(&_k->k_i);				\
+		_k->k.p	= (_iter)->pos;					\
+	}								\
+	_k;								\
+})
 
 u32 bch2_trans_begin(struct btree_trans *);
 

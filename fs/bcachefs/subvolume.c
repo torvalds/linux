@@ -377,33 +377,22 @@ int bch2_fs_snapshots_start(struct bch_fs *c)
 static int bch2_snapshot_node_set_deleted(struct btree_trans *trans, u32 id)
 {
 	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct bkey_i_snapshot *s;
 	int ret = 0;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_snapshots, POS(0, id),
 			     BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
-
-	if (k.k->type != KEY_TYPE_snapshot) {
-		bch2_fs_inconsistent(trans->c, "missing snapshot %u", id);
-		ret = -ENOENT;
+	s = bch2_bkey_get_mut_typed(trans, &iter, snapshot);
+	ret = PTR_ERR_OR_ZERO(s);
+	if (unlikely(ret)) {
+		bch2_fs_inconsistent_on(ret == -ENOENT, trans->c, "missing snapshot %u", id);
 		goto err;
 	}
 
 	/* already deleted? */
-	if (BCH_SNAPSHOT_DELETED(bkey_s_c_to_snapshot(k).v))
+	if (BCH_SNAPSHOT_DELETED(&s->v))
 		goto err;
 
-	s = bch2_trans_kmalloc(trans, sizeof(*s));
-	ret = PTR_ERR_OR_ZERO(s);
-	if (ret)
-		goto err;
-
-	bkey_reassemble(&s->k_i, k);
 	SET_BCH_SNAPSHOT_DELETED(&s->v, true);
 	SET_BCH_SNAPSHOT_SUBVOL(&s->v, false);
 	s->v.subvol = 0;
@@ -421,7 +410,6 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 	struct btree_iter iter, p_iter = (struct btree_iter) { NULL };
 	struct bkey_s_c k;
 	struct bkey_s_c_snapshot s;
-	struct bkey_i_snapshot *parent;
 	u32 parent_id;
 	unsigned i;
 	int ret = 0;
@@ -445,26 +433,17 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 	parent_id = le32_to_cpu(s.v->parent);
 
 	if (parent_id) {
+		struct bkey_i_snapshot *parent;
+
 		bch2_trans_iter_init(trans, &p_iter, BTREE_ID_snapshots,
 				     POS(0, parent_id),
 				     BTREE_ITER_INTENT);
-		k = bch2_btree_iter_peek_slot(&p_iter);
-		ret = bkey_err(k);
-		if (ret)
-			goto err;
-
-		if (k.k->type != KEY_TYPE_snapshot) {
-			bch2_fs_inconsistent(trans->c, "missing snapshot %u", parent_id);
-			ret = -ENOENT;
+		parent = bch2_bkey_get_mut_typed(trans, &p_iter, snapshot);
+		ret = PTR_ERR_OR_ZERO(parent);
+		if (unlikely(ret)) {
+			bch2_fs_inconsistent_on(ret == -ENOENT, trans->c, "missing snapshot %u", parent_id);
 			goto err;
 		}
-
-		parent = bch2_trans_kmalloc(trans, sizeof(*parent));
-		ret = PTR_ERR_OR_ZERO(parent);
-		if (ret)
-			goto err;
-
-		bkey_reassemble(&parent->k_i, k);
 
 		for (i = 0; i < 2; i++)
 			if (le32_to_cpu(parent->v.children[i]) == id)
@@ -522,13 +501,11 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 			goto err;
 		}
 
-		n = bch2_trans_kmalloc(trans, sizeof(*n));
+		n = bch2_bkey_alloc(trans, &iter, snapshot);
 		ret = PTR_ERR_OR_ZERO(n);
 		if (ret)
 			goto err;
 
-		bkey_snapshot_init(&n->k_i);
-		n->k.p		= iter.pos;
 		n->v.flags	= 0;
 		n->v.parent	= cpu_to_le32(parent);
 		n->v.subvol	= cpu_to_le32(snapshot_subvols[i]);
@@ -545,23 +522,13 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 
 	if (parent) {
 		bch2_btree_iter_set_pos(&iter, POS(0, parent));
-		k = bch2_btree_iter_peek(&iter);
-		ret = bkey_err(k);
-		if (ret)
-			goto err;
-
-		if (k.k->type != KEY_TYPE_snapshot) {
-			bch_err(trans->c, "snapshot %u not found", parent);
-			ret = -ENOENT;
+		n = bch2_bkey_get_mut_typed(trans, &iter, snapshot);
+		ret = PTR_ERR_OR_ZERO(n);
+		if (unlikely(ret)) {
+			if (ret == -ENOENT)
+				bch_err(trans->c, "snapshot %u not found", parent);
 			goto err;
 		}
-
-		n = bch2_trans_kmalloc(trans, sizeof(*n));
-		ret = PTR_ERR_OR_ZERO(n);
-		if (ret)
-			goto err;
-
-		bkey_reassemble(&n->k_i, k);
 
 		if (n->v.children[0] || n->v.children[1]) {
 			bch_err(trans->c, "Trying to add child snapshot nodes to parent that already has children");
@@ -967,7 +934,6 @@ int bch2_subvolume_wait_for_pagecache_and_delete_hook(struct btree_trans *trans,
 int bch2_subvolume_unlink(struct btree_trans *trans, u32 subvolid)
 {
 	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct bkey_i_subvolume *n;
 	struct subvolume_unlink_hook *h;
 	int ret = 0;
@@ -976,23 +942,13 @@ int bch2_subvolume_unlink(struct btree_trans *trans, u32 subvolid)
 			     POS(0, subvolid),
 			     BTREE_ITER_CACHED|
 			     BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
-
-	if (k.k->type != KEY_TYPE_subvolume) {
-		bch2_fs_inconsistent(trans->c, "missing subvolume %u", subvolid);
-		ret = -EIO;
+	n = bch2_bkey_get_mut_typed(trans, &iter, subvolume);
+	ret = PTR_ERR_OR_ZERO(n);
+	if (unlikely(ret)) {
+		bch2_fs_inconsistent_on(ret == -ENOENT, trans->c, "missing subvolume %u", subvolid);
 		goto err;
 	}
 
-	n = bch2_trans_kmalloc(trans, sizeof(*n));
-	ret = PTR_ERR_OR_ZERO(n);
-	if (ret)
-		goto err;
-
-	bkey_reassemble(&n->k_i, k);
 	SET_BCH_SUBVOLUME_UNLINKED(&n->v, true);
 
 	ret = bch2_trans_update(trans, &iter, &n->k_i, 0);
@@ -1049,27 +1005,19 @@ found_slot:
 
 	if (src_subvolid) {
 		/* Creating a snapshot: */
-		src_subvol = bch2_trans_kmalloc(trans, sizeof(*src_subvol));
-		ret = PTR_ERR_OR_ZERO(src_subvol);
-		if (ret)
-			goto err;
 
 		bch2_trans_iter_init(trans, &src_iter, BTREE_ID_subvolumes,
 				     POS(0, src_subvolid),
 				     BTREE_ITER_CACHED|
 				     BTREE_ITER_INTENT);
-		k = bch2_btree_iter_peek_slot(&src_iter);
-		ret = bkey_err(k);
-		if (ret)
-			goto err;
-
-		if (k.k->type != KEY_TYPE_subvolume) {
-			bch_err(c, "subvolume %u not found", src_subvolid);
-			ret = -ENOENT;
+		src_subvol = bch2_bkey_get_mut_typed(trans, &src_iter, subvolume);
+		ret = PTR_ERR_OR_ZERO(src_subvol);
+		if (unlikely(ret)) {
+			bch2_fs_inconsistent_on(ret == -ENOENT, trans->c,
+						"subvolume %u not found", src_subvolid);
 			goto err;
 		}
 
-		bkey_reassemble(&src_subvol->k_i, k);
 		parent = le32_to_cpu(src_subvol->v.snapshot);
 	}
 
@@ -1086,18 +1034,16 @@ found_slot:
 			goto err;
 	}
 
-	new_subvol = bch2_trans_kmalloc(trans, sizeof(*new_subvol));
+	new_subvol = bch2_bkey_alloc(trans, &dst_iter, subvolume);
 	ret = PTR_ERR_OR_ZERO(new_subvol);
 	if (ret)
 		goto err;
 
-	bkey_subvolume_init(&new_subvol->k_i);
 	new_subvol->v.flags	= 0;
 	new_subvol->v.snapshot	= cpu_to_le32(new_nodes[0]);
 	new_subvol->v.inode	= cpu_to_le64(inode);
 	SET_BCH_SUBVOLUME_RO(&new_subvol->v, ro);
 	SET_BCH_SUBVOLUME_SNAP(&new_subvol->v, src_subvolid != 0);
-	new_subvol->k.p		= dst_iter.pos;
 	ret = bch2_trans_update(trans, &dst_iter, &new_subvol->k_i, 0);
 	if (ret)
 		goto err;

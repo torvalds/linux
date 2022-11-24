@@ -491,7 +491,7 @@ static int bch2_bucket_do_index(struct btree_trans *trans,
 	    a->data_type != BCH_DATA_need_discard)
 		return 0;
 
-	k = bch2_trans_kmalloc(trans, sizeof(*k));
+	k = bch2_trans_kmalloc_nomemzero(trans, sizeof(*k));
 	if (IS_ERR(k))
 		return PTR_ERR(k);
 

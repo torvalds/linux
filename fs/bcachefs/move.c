@@ -192,12 +192,10 @@ static int bch2_extent_drop_ptrs(struct btree_trans *trans,
 	struct bkey_i *n;
 	int ret;
 
-	n = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+	n = bch2_bkey_make_mut(trans, k);
 	ret = PTR_ERR_OR_ZERO(n);
 	if (ret)
 		return ret;
-
-	bkey_reassemble(n, k);
 
 	while (data_opts.kill_ptrs) {
 		unsigned i = 0, drop = __fls(data_opts.kill_ptrs);

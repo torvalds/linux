@@ -779,11 +779,9 @@ static int hash_redo_key(struct btree_trans *trans,
 	if (IS_ERR(delete))
 		return PTR_ERR(delete);
 
-	tmp = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+	tmp = bch2_bkey_make_mut(trans, k);
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
-
-	bkey_reassemble(tmp, k);
 
 	bkey_init(&delete->k);
 	delete->k.p = k_iter->pos;

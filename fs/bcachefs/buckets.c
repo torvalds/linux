@@ -1400,7 +1400,6 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 			s64 sectors, enum bch_data_type data_type)
 {
 	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct bkey_i_stripe *s;
 	struct bch_replicas_padded r;
 	int ret = 0;
@@ -1408,20 +1407,16 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_stripes, POS(0, p.ec.idx),
 			     BTREE_ITER_INTENT|
 			     BTREE_ITER_WITH_UPDATES);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
-
-	if (k.k->type != KEY_TYPE_stripe) {
-		bch2_trans_inconsistent(trans,
+	s = bch2_bkey_get_mut_typed(trans, &iter, stripe);
+	ret = PTR_ERR_OR_ZERO(s);
+	if (unlikely(ret)) {
+		bch2_trans_inconsistent_on(ret == -ENOENT, trans,
 			"pointer to nonexistent stripe %llu",
 			(u64) p.ec.idx);
-		ret = -EIO;
 		goto err;
 	}
 
-	if (!bch2_ptr_matches_stripe(bkey_s_c_to_stripe(k).v, p)) {
+	if (!bch2_ptr_matches_stripe(&s->v, p)) {
 		bch2_trans_inconsistent(trans,
 			"stripe pointer doesn't match stripe %llu",
 			(u64) p.ec.idx);
@@ -1429,12 +1424,6 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 		goto err;
 	}
 
-	s = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
-	ret = PTR_ERR_OR_ZERO(s);
-	if (ret)
-		goto err;
-
-	bkey_reassemble(&s->k_i, k);
 	stripe_blockcount_set(&s->v, p.ec.block,
 		stripe_blockcount_get(&s->v, p.ec.block) +
 		sectors);
@@ -1710,8 +1699,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bkey_i *n;
+	struct bkey_i *k;
 	__le64 *refcount;
 	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
 	struct printbuf buf = PRINTBUF;
@@ -1720,19 +1708,12 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_reflink, POS(0, *idx),
 			     BTREE_ITER_INTENT|
 			     BTREE_ITER_WITH_UPDATES);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
+	k = bch2_bkey_get_mut(trans, &iter);
+	ret = PTR_ERR_OR_ZERO(k);
 	if (ret)
 		goto err;
 
-	n = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
-	ret = PTR_ERR_OR_ZERO(n);
-	if (ret)
-		goto err;
-
-	bkey_reassemble(n, k);
-
-	refcount = bkey_refcount(n);
+	refcount = bkey_refcount(k);
 	if (!refcount) {
 		bch2_bkey_val_to_text(&buf, c, p.s_c);
 		bch2_trans_inconsistent(trans,
@@ -1756,12 +1737,12 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 		u64 pad;
 
 		pad = max_t(s64, le32_to_cpu(v->front_pad),
-			    le64_to_cpu(v->idx) - bkey_start_offset(k.k));
+			    le64_to_cpu(v->idx) - bkey_start_offset(&k->k));
 		BUG_ON(pad > U32_MAX);
 		v->front_pad = cpu_to_le32(pad);
 
 		pad = max_t(s64, le32_to_cpu(v->back_pad),
-			    k.k->p.offset - p.k->size - le64_to_cpu(v->idx));
+			    k->k.p.offset - p.k->size - le64_to_cpu(v->idx));
 		BUG_ON(pad > U32_MAX);
 		v->back_pad = cpu_to_le32(pad);
 	}
@@ -1769,11 +1750,11 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	le64_add_cpu(refcount, add);
 
 	bch2_btree_iter_set_pos_to_extent_start(&iter);
-	ret = bch2_trans_update(trans, &iter, n, 0);
+	ret = bch2_trans_update(trans, &iter, k, 0);
 	if (ret)
 		goto err;
 
-	*idx = k.k->p.offset;
+	*idx = k->k.p.offset;
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	printbuf_exit(&buf);

@@ -49,12 +49,10 @@ static int bch2_dev_usrdata_drop_key(struct btree_trans *trans,
 	if (!bch2_bkey_has_device(k, dev_idx))
 		return 0;
 
-	n = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+	n = bch2_bkey_make_mut(trans, k);
 	ret = PTR_ERR_OR_ZERO(n);
 	if (ret)
 		return ret;
-
-	bkey_reassemble(n, k);
 
 	ret = drop_dev_ptrs(c, bkey_i_to_s(n), dev_idx, flags, false);
 	if (ret)

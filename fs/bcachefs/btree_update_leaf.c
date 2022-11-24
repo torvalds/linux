@@ -1196,12 +1196,10 @@ static noinline int extent_front_merge(struct btree_trans *trans,
 	struct bkey_i *update;
 	int ret;
 
-	update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+	update = bch2_bkey_make_mut(trans, k);
 	ret = PTR_ERR_OR_ZERO(update);
 	if (ret)
 		return ret;
-
-	bkey_reassemble(update, k);
 
 	if (!bch2_bkey_merge(c, bkey_i_to_s(update), bkey_i_to_s_c(*insert)))
 		return 0;
@@ -1287,11 +1285,9 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 			trans->extra_journal_res += compressed_sectors;
 
 		if (front_split) {
-			update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+			update = bch2_bkey_make_mut(trans, k);
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
-
-			bkey_reassemble(update, k);
 
 			bch2_cut_back(start, update);
 
@@ -1311,11 +1307,9 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 
 		if (k.k->p.snapshot != insert->k.p.snapshot &&
 		    (front_split || back_split)) {
-			update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+			update = bch2_bkey_make_mut(trans, k);
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
-
-			bkey_reassemble(update, k);
 
 			bch2_cut_front(start, update);
 			bch2_cut_back(insert->k.p, update);
@@ -1360,11 +1354,10 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 		}
 
 		if (back_split) {
-			update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+			update = bch2_bkey_make_mut(trans, k);
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
 
-			bkey_reassemble(update, k);
 			bch2_cut_front(insert->k.p, update);
 
 			ret = bch2_trans_update_by_path(trans, iter.path, update,

@@ -101,14 +101,12 @@ int bch2_lru_set(struct btree_trans *trans, u64 lru_id, u64 idx, u64 *time)
 	BUG_ON(iter.pos.inode != lru_id);
 	*time = iter.pos.offset;
 
-	lru = bch2_trans_kmalloc(trans, sizeof(*lru));
+	lru = bch2_bkey_alloc(trans, &iter, lru);
 	ret = PTR_ERR_OR_ZERO(lru);
 	if (ret)
 		goto err;
 
-	bkey_lru_init(&lru->k_i);
-	lru->k.p	= iter.pos;
-	lru->v.idx	= cpu_to_le64(idx);
+	lru->v.idx = cpu_to_le64(idx);
 
 	ret = bch2_trans_update(trans, &iter, &lru->k_i, 0);
 	if (ret)
@@ -164,17 +162,7 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 			"  for %s",
 			(bch2_bkey_val_to_text(&buf1, c, lru_k), buf1.buf),
 			(bch2_bkey_val_to_text(&buf2, c, k), buf2.buf))) {
-		struct bkey_i *update =
-			bch2_trans_kmalloc(trans, sizeof(*update));
-
-		ret = PTR_ERR_OR_ZERO(update);
-		if (ret)
-			goto err;
-
-		bkey_init(&update->k);
-		update->k.p = lru_iter->pos;
-
-		ret = bch2_trans_update(trans, lru_iter, update, 0);
+		ret = bch2_btree_delete_at(trans, lru_iter, 0);
 		if (ret)
 			goto err;
 	}
