@@ -317,7 +317,7 @@ static void io_apoll_task_func(struct io_kiocb *req, bool *locked)
 	else if (ret == IOU_POLL_DONE)
 		io_req_task_submit(req, locked);
 	else
-		io_req_complete_failed(req, ret);
+		io_req_defer_failed(req, ret);
 }
 
 static void __io_poll_execute(struct io_kiocb *req, int mask)

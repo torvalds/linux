@@ -864,7 +864,7 @@ void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 	}
 }
 
-void io_req_complete_failed(struct io_kiocb *req, s32 res)
+void io_req_defer_failed(struct io_kiocb *req, s32 res)
 	__must_hold(&ctx->uring_lock)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
@@ -875,7 +875,7 @@ void io_req_complete_failed(struct io_kiocb *req, s32 res)
 	io_req_set_res(req, res, io_put_kbuf(req, IO_URING_F_UNLOCKED));
 	if (def->fail)
 		def->fail(req);
-	io_req_complete_post(req, 0);
+	io_req_complete_defer(req);
 }
 
 /*
@@ -1231,9 +1231,8 @@ int io_run_local_work(struct io_ring_ctx *ctx)
 
 static void io_req_task_cancel(struct io_kiocb *req, bool *locked)
 {
-	/* not needed for normal modes, but SQPOLL depends on it */
 	io_tw_lock(req->ctx, locked);
-	io_req_complete_failed(req, req->cqe.res);
+	io_req_defer_failed(req, req->cqe.res);
 }
 
 void io_req_task_submit(struct io_kiocb *req, bool *locked)
@@ -1243,7 +1242,7 @@ void io_req_task_submit(struct io_kiocb *req, bool *locked)
 	if (likely(!(req->task->flags & PF_EXITING)))
 		io_queue_sqe(req);
 	else
-		io_req_complete_failed(req, -EFAULT);
+		io_req_defer_failed(req, -EFAULT);
 }
 
 void io_req_task_queue_fail(struct io_kiocb *req, int ret)
@@ -1630,7 +1629,7 @@ queue:
 	ret = io_req_prep_async(req);
 	if (ret) {
 fail:
-		io_req_complete_failed(req, ret);
+		io_req_defer_failed(req, ret);
 		return;
 	}
 	io_prep_async_link(req);
@@ -1860,7 +1859,7 @@ static void io_queue_async(struct io_kiocb *req, int ret)
 	struct io_kiocb *linked_timeout;
 
 	if (ret != -EAGAIN || (req->flags & REQ_F_NOWAIT)) {
-		io_req_complete_failed(req, ret);
+		io_req_defer_failed(req, ret);
 		return;
 	}
 
@@ -1910,14 +1909,14 @@ static void io_queue_sqe_fallback(struct io_kiocb *req)
 		 */
 		req->flags &= ~REQ_F_HARDLINK;
 		req->flags |= REQ_F_LINK;
-		io_req_complete_failed(req, req->cqe.res);
+		io_req_defer_failed(req, req->cqe.res);
 	} else if (unlikely(req->ctx->drain_active)) {
 		io_drain_req(req);
 	} else {
 		int ret = io_req_prep_async(req);
 
 		if (unlikely(ret))
-			io_req_complete_failed(req, ret);
+			io_req_defer_failed(req, ret);
 		else
 			io_queue_iowq(req, NULL);
 	}
