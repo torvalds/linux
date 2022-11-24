@@ -170,10 +170,10 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 		if (prsrc->tag) {
 			if (ctx->flags & IORING_SETUP_IOPOLL) {
 				mutex_lock(&ctx->uring_lock);
-				io_post_aux_cqe(ctx, prsrc->tag, 0, 0, true);
+				io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
 				mutex_unlock(&ctx->uring_lock);
 			} else {
-				io_post_aux_cqe(ctx, prsrc->tag, 0, 0, true);
+				io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
 			}
 		}
 

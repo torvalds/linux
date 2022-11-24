@@ -820,9 +820,8 @@ static void __io_flush_post_cqes(struct io_ring_ctx *ctx)
 	state->cqes_count = 0;
 }
 
-bool io_post_aux_cqe(struct io_ring_ctx *ctx,
-		     u64 user_data, s32 res, u32 cflags,
-		     bool allow_overflow)
+static bool __io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags,
+			      bool allow_overflow)
 {
 	bool filled;
 
@@ -832,6 +831,11 @@ bool io_post_aux_cqe(struct io_ring_ctx *ctx,
 	return filled;
 }
 
+bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags)
+{
+	return __io_post_aux_cqe(ctx, user_data, res, cflags, true);
+}
+
 bool io_aux_cqe(struct io_ring_ctx *ctx, bool defer, u64 user_data, s32 res, u32 cflags,
 		bool allow_overflow)
 {
@@ -839,7 +843,7 @@ bool io_aux_cqe(struct io_ring_ctx *ctx, bool defer, u64 user_data, s32 res, u32
 	unsigned int length;
 
 	if (!defer)
-		return io_post_aux_cqe(ctx, user_data, res, cflags, allow_overflow);
+		return __io_post_aux_cqe(ctx, user_data, res, cflags, allow_overflow);
 
 	length = ARRAY_SIZE(ctx->submit_state.cqes);
 
