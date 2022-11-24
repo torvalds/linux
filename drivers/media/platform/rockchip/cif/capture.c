@@ -150,6 +150,13 @@ static const struct cif_output_fmt out_fmts[] = {
 		.csi_fmt_val = CSI_WRDDR_TYPE_RGB888,
 		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
+		.fourcc = V4L2_PIX_FMT_BGR24,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = { 24 },
+		.csi_fmt_val = CSI_WRDDR_TYPE_RGB888,
+		.fmt_type = CIF_FMT_TYPE_RAW,
+	}, {
 		.fourcc = V4L2_PIX_FMT_RGB565,
 		.cplanes = 1,
 		.mplanes = 1,
@@ -477,6 +484,10 @@ static const struct cif_input_fmt in_fmts[] = {
 		.csi_fmt_val	= CSI_WRDDR_TYPE_RGB888,
 		.field		= V4L2_FIELD_NONE,
 	}, {
+		.mbus_code	= MEDIA_BUS_FMT_BGR888_1X24,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RGB888,
+		.field		= V4L2_FIELD_NONE,
+	}, {
 		.mbus_code	= MEDIA_BUS_FMT_RGB565_1X16,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_RGB565,
 		.field		= V4L2_FIELD_NONE,
@@ -630,6 +641,7 @@ static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en, u8 dsi_input
 	case MEDIA_BUS_FMT_YVYU8_2X8:
 		return 0x1e;
 	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_BGR888_1X24:
 		if (dsi_input) {
 			if (cmd_mode_en) /* dsi command mode*/
 				return 0x39;
@@ -3002,6 +3014,7 @@ static int rkcif_csi_get_output_type_mask(struct rkcif_stream *stream)
 		mask = CSI_WRDDR_TYPE_YUV_PACKET | CSI_YUV_OUTPUT_ORDER_VYUY;
 		break;
 	case V4L2_PIX_FMT_RGB24:
+	case V4L2_PIX_FMT_BGR24:
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_BGR666:
 		mask = CSI_WRDDR_TYPE_RAW_COMPACT;
@@ -3086,6 +3099,7 @@ static int rkcif_lvds_get_output_type_mask(struct rkcif_stream *stream)
 			(CSI_YUV_OUTPUT_ORDER_VYUY << yuvout_offset);
 		break;
 	case V4L2_PIX_FMT_RGB24:
+	case V4L2_PIX_FMT_BGR24:
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_BGR666:
 		mask = CSI_WRDDR_TYPE_RAW_COMPACT << wr_type_offset;
@@ -3875,7 +3889,8 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 				if (tmp_dev->terminal_sensor.sd) {
 					input_fmt = get_input_fmt(tmp_dev->terminal_sensor.sd,
 								  &rect, i, &csi_info);
-					if (input_fmt && input_fmt->mbus_code == MEDIA_BUS_FMT_RGB888_1X24)
+					if (input_fmt && (input_fmt->mbus_code == MEDIA_BUS_FMT_RGB888_1X24 ||
+						input_fmt->mbus_code == MEDIA_BUS_FMT_BGR888_1X24))
 						size = rect.width * rect.height * 3;
 					else
 						size = rect.width * rect.height * 2;
@@ -4375,6 +4390,7 @@ static u32 rkcif_align_bits_per_pixel(struct rkcif_stream *stream,
 				bpp = fmt->bpp[plane_index + 1];
 			break;
 		case V4L2_PIX_FMT_RGB24:
+		case V4L2_PIX_FMT_BGR24:
 		case V4L2_PIX_FMT_RGB565:
 		case V4L2_PIX_FMT_BGR666:
 		case V4L2_PIX_FMT_SRGGB8:
@@ -4679,6 +4695,7 @@ static int rkcif_dvp_get_output_type_mask(struct rkcif_stream *stream)
 		       (CSI_YUV_OUTPUT_ORDER_VYUY << 1);
 		break;
 	case V4L2_PIX_FMT_RGB24:
+	case V4L2_PIX_FMT_BGR24:
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_BGR666:
 		mask = CSI_WRDDR_TYPE_RAW_COMPACT << 11;
