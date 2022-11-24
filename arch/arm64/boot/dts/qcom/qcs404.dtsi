@@ -487,27 +487,31 @@
 			interrupt-names = "wdog", "fatal", "ready",
 					  "handover", "stop-ack";
 
-			clocks = <&xo_board>,
-				 <&gcc GCC_CDSP_CFG_AHB_CLK>,
-				 <&gcc GCC_CDSP_TBU_CLK>,
-				 <&gcc GCC_BIMC_CDSP_CLK>,
-				 <&turingcc TURING_WRAPPER_AON_CLK>,
-				 <&turingcc TURING_Q6SS_AHBS_AON_CLK>,
-				 <&turingcc TURING_Q6SS_AHBM_AON_CLK>,
-				 <&turingcc TURING_Q6SS_Q6_AXIM_CLK>;
-			clock-names = "xo",
-				      "sway",
-				      "tbu",
-				      "bimc",
-				      "ahb_aon",
-				      "q6ss_slave",
-				      "q6ss_master",
-				      "q6_axim";
+			clocks = <&xo_board>;
+			clock-names = "xo";
 
-			resets = <&gcc GCC_CDSP_RESTART>;
-			reset-names = "restart";
-
-			qcom,halt-regs = <&tcsr 0x19004>;
+			/*
+			 * If the node was using the PIL binding, then include properties:
+			 * clocks = <&xo_board>,
+			 *          <&gcc GCC_CDSP_CFG_AHB_CLK>,
+			 *          <&gcc GCC_CDSP_TBU_CLK>,
+			 *          <&gcc GCC_BIMC_CDSP_CLK>,
+			 *          <&turingcc TURING_WRAPPER_AON_CLK>,
+			 *          <&turingcc TURING_Q6SS_AHBS_AON_CLK>,
+			 *          <&turingcc TURING_Q6SS_AHBM_AON_CLK>,
+			 *          <&turingcc TURING_Q6SS_Q6_AXIM_CLK>;
+			 * clock-names = "xo",
+			 *               "sway",
+			 *               "tbu",
+			 *               "bimc",
+			 *               "ahb_aon",
+			 *               "q6ss_slave",
+			 *               "q6ss_master",
+			 *               "q6_axim";
+			 * resets = <&gcc GCC_CDSP_RESTART>;
+			 * reset-names = "restart";
+			 * qcom,halt-regs = <&tcsr 0x19004>;
+			 */
 
 			memory-region = <&cdsp_fw_mem>;
 
