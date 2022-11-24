@@ -1502,9 +1502,12 @@ static void handle_uaudio_stream_req(struct qmi_handle *handle,
 			subs->cur_audiofmt->iface : -1, req_msg->enable);
 	if (atomic_read(&chip->shutdown) || !subs->stream || !subs->stream->pcm
 			|| !subs->stream->chip) {
-		uaudio_err("chip or sub not available: shutdown:%d stream:%p pcm:%p chip:%p\n",
-				atomic_read(&chip->shutdown), subs->stream,
-				subs->stream->pcm, subs->stream->chip);
+		uaudio_err("chip or sub not available: shutdown:%d stream:%p\n",
+				atomic_read(&chip->shutdown), subs->stream);
+
+		if (subs->stream)
+			uaudio_err("pcm:%p chip:%p\n", subs->stream->pcm, subs->stream->chip);
+
 		ret = -ENODEV;
 		goto response;
 	}
