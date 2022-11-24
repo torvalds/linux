@@ -5821,9 +5821,19 @@ static u32 get_ctx_arg_idx(struct btf *btf, const struct btf_type *func_proto,
 	return nr_args + 1;
 }
 
-static bool prog_type_args_trusted(enum bpf_prog_type prog_type)
+static bool prog_args_trusted(const struct bpf_prog *prog)
 {
-	return prog_type == BPF_PROG_TYPE_TRACING || prog_type == BPF_PROG_TYPE_STRUCT_OPS;
+	enum bpf_attach_type atype = prog->expected_attach_type;
+
+	switch (prog->type) {
+	case BPF_PROG_TYPE_TRACING:
+		return atype == BPF_TRACE_RAW_TP || atype == BPF_TRACE_ITER;
+	case BPF_PROG_TYPE_LSM:
+	case BPF_PROG_TYPE_STRUCT_OPS:
+		return true;
+	default:
+		return false;
+	}
 }
 
 bool btf_ctx_access(int off, int size, enum bpf_access_type type,
@@ -5969,7 +5979,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	}
 
 	info->reg_type = PTR_TO_BTF_ID;
-	if (prog_type_args_trusted(prog->type))
+	if (prog_args_trusted(prog))
 		info->reg_type |= PTR_TRUSTED;
 
 	if (tgt_prog) {
