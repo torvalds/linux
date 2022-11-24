@@ -152,7 +152,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		childregs->csr_crmd = p->thread.csr_crmd;
 		childregs->csr_prmd = p->thread.csr_prmd;
 		childregs->csr_ecfg = p->thread.csr_ecfg;
-		return 0;
+		goto out;
 	}
 
 	/* user thread */
@@ -171,13 +171,14 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	 */
 	childregs->csr_euen = 0;
 
+	if (clone_flags & CLONE_SETTLS)
+		childregs->regs[2] = tls;
+
+out:
 	clear_tsk_thread_flag(p, TIF_USEDFPU);
 	clear_tsk_thread_flag(p, TIF_USEDSIMD);
 	clear_tsk_thread_flag(p, TIF_LSX_CTX_LIVE);
 	clear_tsk_thread_flag(p, TIF_LASX_CTX_LIVE);
-
-	if (clone_flags & CLONE_SETTLS)
-		childregs->regs[2] = tls;
 
 	return 0;
 }
