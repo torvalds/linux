@@ -498,6 +498,11 @@ static struct memblock_region *find_mem_range(phys_addr_t addr, struct kvm_mem_r
 	return NULL;
 }
 
+static enum kvm_pgtable_prot default_host_prot(bool is_memory)
+{
+	return is_memory ? PKVM_HOST_MEM_PROT : PKVM_HOST_MMIO_PROT;
+}
+
 bool addr_is_memory(phys_addr_t phys)
 {
 	struct kvm_mem_range range;
@@ -652,10 +657,7 @@ static bool host_stage2_force_pte(u64 addr, u64 end, enum kvm_pgtable_prot prot)
 	 * mappings, hence avoiding to lose the state because of side-effects in
 	 * kvm_pgtable_stage2_map().
 	 */
-	if (range_is_memory(addr, end))
-		return prot != PKVM_HOST_MEM_PROT;
-	else
-		return prot != PKVM_HOST_MMIO_PROT;
+	return prot != default_host_prot(range_is_memory(addr, end));
 }
 
 static bool host_stage2_pte_is_counted(kvm_pte_t pte, u32 level)
@@ -686,12 +688,11 @@ static int host_stage2_idmap(u64 addr)
 {
 	struct kvm_mem_range range;
 	bool is_memory = !!find_mem_range(addr, &range);
-	enum kvm_pgtable_prot prot;
+	enum kvm_pgtable_prot prot = default_host_prot(is_memory);
 	int ret;
 
 	hyp_assert_lock_held(&host_mmu.lock);
 
-	prot = is_memory ? PKVM_HOST_MEM_PROT : PKVM_HOST_MMIO_PROT;
 	/*
 	 * Adjust against IOMMU devices first. host_stage2_adjust_range() should
 	 * be called last for proper alignment.
