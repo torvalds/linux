@@ -4,19 +4,24 @@
 $id: http://devicetree.org/schemas/net/marvell,prestera.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Marvell Prestera AlleyCat3 switch
+title: Marvell Prestera switch family
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
 
 properties:
   compatible:
-    items:
+    oneOf:
+      - items:
+          - enum:
+              - marvell,prestera-98dx3236
+              - marvell,prestera-98dx3336
+              - marvell,prestera-98dx4251
+          - const: marvell,prestera
       - enum:
-          - marvell,prestera-98dx3236
-          - marvell,prestera-98dx3336
-          - marvell,prestera-98dx4251
-      - const: marvell,prestera
+          - pci11ab,c804
+          - pci11ab,c80c
+          - pci11ab,cc1e
 
   reg:
     maxItems: 1
@@ -28,12 +33,37 @@ properties:
     description: Reference to the DFX Server bus node.
     $ref: /schemas/types.yaml#/definitions/phandle
 
+  nvmem-cells: true
+
+  nvmem-cell-names: true
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: marvell,prestera
+
+# Memory mapped AlleyCat3 family
+then:
+  properties:
+    nvmem-cells: false
+    nvmem-cell-names: false
+  required:
+    - interrupts
+
+# PCI Aldrin family
+else:
+  properties:
+    interrupts: false
+    dfx: false
+
 required:
   - compatible
   - reg
-  - interrupts
 
-additionalProperties: false
+# Ports can also be described
+additionalProperties:
+  type: object
 
 examples:
   - |
@@ -42,4 +72,20 @@ examples:
         reg = <0 0x4000000>;
         interrupts = <33>, <34>, <35>;
         dfx = <&dfx>;
+    };
+
+  - |
+    pcie@0 {
+        #address-cells = <3>;
+        #size-cells = <2>;
+        ranges = <0x0 0x0 0x0 0x0 0x0 0x0>;
+        reg = <0x0 0x0 0x0 0x0 0x0 0x0>;
+        device_type = "pci";
+
+        switch@0,0 {
+            reg = <0x0 0x0 0x0 0x0 0x0>;
+            compatible = "pci11ab,c80c";
+            nvmem-cells = <&mac_address 0>;
+            nvmem-cell-names = "mac-address";
+        };
     };
