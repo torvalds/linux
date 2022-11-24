@@ -772,6 +772,17 @@ struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 {
 	struct irq_domain *domain;
 
+	if (info->hwsize > MSI_XA_DOMAIN_SIZE)
+		return NULL;
+
+	/*
+	 * Hardware size 0 is valid for backwards compatibility and for
+	 * domains which are not backed by a hardware table. Grant the
+	 * maximum index space.
+	 */
+	if (!info->hwsize)
+		info->hwsize = MSI_XA_DOMAIN_SIZE;
+
 	msi_domain_update_dom_ops(info);
 	if (info->flags & MSI_FLAG_USE_DEF_CHIP_OPS)
 		msi_domain_update_chip_ops(info);

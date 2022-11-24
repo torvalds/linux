@@ -422,6 +422,10 @@ struct msi_domain_ops {
  * struct msi_domain_info - MSI interrupt domain data
  * @flags:		Flags to decribe features and capabilities
  * @bus_token:		The domain bus token
+ * @hwsize:		The hardware table size or the software index limit.
+ *			If 0 then the size is considered unlimited and
+ *			gets initialized to the maximum software index limit
+ *			by the domain creation code.
  * @ops:		The callback data structure
  * @chip:		Optional: associated interrupt chip
  * @chip_data:		Optional: associated interrupt chip data
@@ -433,6 +437,7 @@ struct msi_domain_ops {
 struct msi_domain_info {
 	u32				flags;
 	enum irq_domain_bus_token	bus_token;
+	unsigned int			hwsize;
 	struct msi_domain_ops		*ops;
 	struct irq_chip			*chip;
 	void				*chip_data;
