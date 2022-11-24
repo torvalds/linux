@@ -77,13 +77,15 @@ static int msi_insert_desc(struct msi_device_data *md, struct msi_desc *desc, un
 }
 
 /**
- * msi_add_msi_desc - Allocate and initialize a MSI descriptor
+ * msi_insert_msi_desc - Allocate and initialize a MSI descriptor and
+ *			 insert it at @init_desc->msi_index
+ *
  * @dev:	Pointer to the device for which the descriptor is allocated
  * @init_desc:	Pointer to an MSI descriptor to initialize the new descriptor
  *
  * Return: 0 on success or an appropriate failure code.
  */
-int msi_add_msi_desc(struct device *dev, struct msi_desc *init_desc)
+int msi_insert_msi_desc(struct device *dev, struct msi_desc *init_desc)
 {
 	struct msi_desc *desc;
 

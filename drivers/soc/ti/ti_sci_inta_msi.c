@@ -73,13 +73,13 @@ static int ti_sci_inta_msi_alloc_descs(struct device *dev,
 	for (set = 0; set < res->sets; set++) {
 		for (i = 0; i < res->desc[set].num; i++, count++) {
 			msi_desc.msi_index = res->desc[set].start + i;
-			if (msi_add_msi_desc(dev, &msi_desc))
+			if (msi_insert_msi_desc(dev, &msi_desc))
 				goto fail;
 		}
 
 		for (i = 0; i < res->desc[set].num_sec; i++, count++) {
 			msi_desc.msi_index = res->desc[set].start_sec + i;
-			if (msi_add_msi_desc(dev, &msi_desc))
+			if (msi_insert_msi_desc(dev, &msi_desc))
 				goto fail;
 		}
 	}

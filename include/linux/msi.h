@@ -286,7 +286,7 @@ static inline void msi_desc_set_iommu_cookie(struct msi_desc *desc,
 }
 #endif
 
-int msi_add_msi_desc(struct device *dev, struct msi_desc *init_desc);
+int msi_insert_msi_desc(struct device *dev, struct msi_desc *init_desc);
 void msi_free_msi_descs_range(struct device *dev, unsigned int first_index, unsigned int last_index);
 
 /**

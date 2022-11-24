@@ -308,7 +308,7 @@ static int msi_setup_msi_desc(struct pci_dev *dev, int nvec,
 	if (desc.pci.msi_attrib.can_mask)
 		pci_read_config_dword(dev, desc.pci.mask_pos, &desc.pci.msi_mask);
 
-	return msi_add_msi_desc(&dev->dev, &desc);
+	return msi_insert_msi_desc(&dev->dev, &desc);
 }
 
 static int msi_verify_entries(struct pci_dev *dev)
@@ -591,7 +591,7 @@ static int msix_setup_msi_descs(struct pci_dev *dev, void __iomem *base,
 			desc.pci.msix_ctrl = readl(addr + PCI_MSIX_ENTRY_VECTOR_CTRL);
 		}
 
-		ret = msi_add_msi_desc(&dev->dev, &desc);
+		ret = msi_insert_msi_desc(&dev->dev, &desc);
 		if (ret)
 			break;
 	}
