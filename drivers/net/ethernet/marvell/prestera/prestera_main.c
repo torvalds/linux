@@ -858,17 +858,10 @@ static void prestera_event_handlers_unregister(struct prestera_switch *sw)
 
 static int prestera_switch_set_base_mac_addr(struct prestera_switch *sw)
 {
-	struct device_node *base_mac_np;
-	int ret = 0;
+	int ret;
 
-	if (sw->np) {
-		base_mac_np = of_parse_phandle(sw->np, "base-mac-provider", 0);
-		if (base_mac_np) {
-			ret = of_get_mac_address(base_mac_np, sw->base_mac);
-			of_node_put(base_mac_np);
-		}
-	}
-
+	if (sw->np)
+		ret = of_get_mac_address(sw->np, sw->base_mac);
 	if (!is_valid_ether_addr(sw->base_mac) || ret) {
 		eth_random_addr(sw->base_mac);
 		dev_info(prestera_dev(sw), "using random base mac address\n");
@@ -1372,7 +1365,7 @@ static int prestera_switch_init(struct prestera_switch *sw)
 {
 	int err;
 
-	sw->np = of_find_compatible_node(NULL, NULL, "marvell,prestera");
+	sw->np = sw->dev->dev->of_node;
 
 	err = prestera_hw_switch_init(sw);
 	if (err) {
