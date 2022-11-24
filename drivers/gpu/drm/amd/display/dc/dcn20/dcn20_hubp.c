@@ -623,6 +623,10 @@ void hubp2_cursor_set_attributes(
 	hubp->att.size.bits.width    = attr->width;
 	hubp->att.size.bits.height   = attr->height;
 	hubp->att.cur_ctl.bits.mode  = attr->color_format;
+
+	hubp->cur_rect.w = attr->width;
+	hubp->cur_rect.h = attr->height;
+
 	hubp->att.cur_ctl.bits.pitch = hw_pitch;
 	hubp->att.cur_ctl.bits.line_per_chunk = lpc;
 	hubp->att.cur_ctl.bits.cur_2x_magnify = attr->attribute_flags.bits.ENABLE_MAGNIFICATION;

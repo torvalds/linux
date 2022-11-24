@@ -19,26 +19,23 @@
 #define P2SBC			0xe0
 #define P2SBC_HIDE		BIT(8)
 
+#define P2SB_DEVFN_DEFAULT	PCI_DEVFN(31, 1)
+
 static const struct x86_cpu_id p2sb_cpu_ids[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT,	PCI_DEVFN(13, 0)),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_D,	PCI_DEVFN(31, 1)),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT_D,	PCI_DEVFN(31, 1)),
-	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE,		PCI_DEVFN(31, 1)),
-	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE_L,		PCI_DEVFN(31, 1)),
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE,		PCI_DEVFN(31, 1)),
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_L,		PCI_DEVFN(31, 1)),
 	{}
 };
 
 static int p2sb_get_devfn(unsigned int *devfn)
 {
+	unsigned int fn = P2SB_DEVFN_DEFAULT;
 	const struct x86_cpu_id *id;
 
 	id = x86_match_cpu(p2sb_cpu_ids);
-	if (!id)
-		return -ENODEV;
+	if (id)
+		fn = (unsigned int)id->driver_data;
 
-	*devfn = (unsigned int)id->driver_data;
+	*devfn = fn;
 	return 0;
 }
 

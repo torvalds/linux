@@ -46,6 +46,7 @@
 #include "g4x_dp.h"
 #include "i915_debugfs.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_backlight.h"
@@ -4875,6 +4876,12 @@ void intel_dp_encoder_flush_work(struct drm_encoder *encoder)
 	intel_dp_mst_encoder_cleanup(dig_port);
 
 	intel_pps_vdd_off_sync(intel_dp);
+
+	/*
+	 * Ensure power off delay is respected on module remove, so that we can
+	 * reduce delays at driver probe. See pps_init_timestamps().
+	 */
+	intel_pps_wait_power_cycle(intel_dp);
 
 	intel_dp_aux_fini(intel_dp);
 }

@@ -104,7 +104,7 @@ static int expose_firmware_sysfs(struct intel_gvt *gvt)
 
 	memcpy(p, gvt->firmware.mmio, info->mmio_size);
 
-	crc32_start = offsetof(struct gvt_firmware_header, crc32) + 4;
+	crc32_start = offsetof(struct gvt_firmware_header, version);
 	h->crc32 = crc32_le(0, firmware + crc32_start, size - crc32_start);
 
 	firmware_attr.size = size;

@@ -1244,7 +1244,8 @@ void dcn32_restore_mall_state(struct dc *dc,
       SR(DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_C),                         \
       SR(DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_D),                         \
       SR(DCN_VM_FAULT_ADDR_MSB), SR(DCN_VM_FAULT_ADDR_LSB),                    \
-      SR(DCN_VM_FAULT_CNTL), SR(DCN_VM_FAULT_STATUS)                           \
+      SR(DCN_VM_FAULT_CNTL), SR(DCN_VM_FAULT_STATUS),                          \
+      SR(SDPIF_REQUEST_RATE_LIMIT)                                             \
   )
 
 /* DCCG */

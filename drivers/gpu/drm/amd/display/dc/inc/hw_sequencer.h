@@ -263,6 +263,7 @@ struct hw_sequencer_funcs {
 	void (*update_phantom_vp_position)(struct dc *dc,
 			struct dc_state *context,
 			struct pipe_ctx *phantom_pipe);
+	void (*apply_update_flags_for_phantom)(struct pipe_ctx *phantom_pipe);
 
 	void (*commit_subvp_config)(struct dc *dc, struct dc_state *context);
 	void (*subvp_pipe_control_lock)(struct dc *dc,

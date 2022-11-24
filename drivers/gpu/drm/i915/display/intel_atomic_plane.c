@@ -757,7 +757,7 @@ void intel_plane_update_noarm(struct intel_plane *plane,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_plane_update_noarm(&plane->base, crtc);
+	trace_intel_plane_update_noarm(plane, crtc);
 
 	if (plane->update_noarm)
 		plane->update_noarm(plane, crtc_state, plane_state);
@@ -769,7 +769,7 @@ void intel_plane_update_arm(struct intel_plane *plane,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_plane_update_arm(&plane->base, crtc);
+	trace_intel_plane_update_arm(plane, crtc);
 
 	if (crtc_state->do_async_flip && plane->async_flip)
 		plane->async_flip(plane, crtc_state, plane_state, true);
@@ -782,7 +782,7 @@ void intel_plane_disable_arm(struct intel_plane *plane,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_plane_disable_arm(&plane->base, crtc);
+	trace_intel_plane_disable_arm(plane, crtc);
 	plane->disable_arm(plane, crtc_state);
 }
 

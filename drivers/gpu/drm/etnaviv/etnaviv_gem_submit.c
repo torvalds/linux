@@ -399,6 +399,9 @@ static void submit_cleanup(struct kref *kref)
 		mutex_unlock(&submit->gpu->fence_lock);
 		dma_fence_put(submit->out_fence);
 	}
+
+	put_pid(submit->pid);
+
 	kfree(submit->pmrs);
 	kfree(submit);
 }
@@ -422,6 +425,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct sync_file *sync_file = NULL;
 	struct ww_acquire_ctx ticket;
 	int out_fence_fd = -1;
+	struct pid *pid = get_pid(task_pid(current));
 	void *stream;
 	int ret;
 
@@ -518,6 +522,8 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		ret = -ENOMEM;
 		goto err_submit_ww_acquire;
 	}
+
+	submit->pid = pid;
 
 	ret = etnaviv_cmdbuf_init(priv->cmdbuf_suballoc, &submit->cmdbuf,
 				  ALIGN(args->stream_size, 8) + 8);

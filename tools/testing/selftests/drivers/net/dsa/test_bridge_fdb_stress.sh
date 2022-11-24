@@ -18,8 +18,8 @@ NUM_NETIFS=1
 REQUIRE_JQ="no"
 REQUIRE_MZ="no"
 NETIF_CREATE="no"
-lib_dir=$(dirname $0)/../../../net/forwarding
-source $lib_dir/lib.sh
+lib_dir=$(dirname "$0")
+source "$lib_dir"/lib.sh
 
 cleanup() {
 	echo "Cleaning up"

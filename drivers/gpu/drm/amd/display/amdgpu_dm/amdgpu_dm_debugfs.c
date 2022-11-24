@@ -38,6 +38,10 @@
 #include "link_hwss.h"
 #include "dc/dc_dmub_srv.h"
 
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+#include "amdgpu_dm_psr.h"
+#endif
+
 struct dmub_debugfs_trace_header {
 	uint32_t entry_count;
 	uint32_t reserved[3];
@@ -299,6 +303,8 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	case LINK_RATE_HIGH2:
 	case LINK_RATE_HIGH3:
 	case LINK_RATE_UHBR10:
+	case LINK_RATE_UHBR13_5:
+	case LINK_RATE_UHBR20:
 		break;
 	default:
 		valid_input = false;
@@ -3079,8 +3085,8 @@ static int crc_win_x_start_set(void *data, u64 val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	acrtc->dm_irq_params.crc_window.x_start = (uint16_t) val;
-	acrtc->dm_irq_params.crc_window.update_win = false;
+	acrtc->dm_irq_params.window_param.x_start = (uint16_t) val;
+	acrtc->dm_irq_params.window_param.update_win = false;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3096,7 +3102,7 @@ static int crc_win_x_start_get(void *data, u64 *val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	*val = acrtc->dm_irq_params.crc_window.x_start;
+	*val = acrtc->dm_irq_params.window_param.x_start;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3116,8 +3122,8 @@ static int crc_win_y_start_set(void *data, u64 val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	acrtc->dm_irq_params.crc_window.y_start = (uint16_t) val;
-	acrtc->dm_irq_params.crc_window.update_win = false;
+	acrtc->dm_irq_params.window_param.y_start = (uint16_t) val;
+	acrtc->dm_irq_params.window_param.update_win = false;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3133,7 +3139,7 @@ static int crc_win_y_start_get(void *data, u64 *val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	*val = acrtc->dm_irq_params.crc_window.y_start;
+	*val = acrtc->dm_irq_params.window_param.y_start;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3152,8 +3158,8 @@ static int crc_win_x_end_set(void *data, u64 val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	acrtc->dm_irq_params.crc_window.x_end = (uint16_t) val;
-	acrtc->dm_irq_params.crc_window.update_win = false;
+	acrtc->dm_irq_params.window_param.x_end = (uint16_t) val;
+	acrtc->dm_irq_params.window_param.update_win = false;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3169,7 +3175,7 @@ static int crc_win_x_end_get(void *data, u64 *val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	*val = acrtc->dm_irq_params.crc_window.x_end;
+	*val = acrtc->dm_irq_params.window_param.x_end;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3188,8 +3194,8 @@ static int crc_win_y_end_set(void *data, u64 val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	acrtc->dm_irq_params.crc_window.y_end = (uint16_t) val;
-	acrtc->dm_irq_params.crc_window.update_win = false;
+	acrtc->dm_irq_params.window_param.y_end = (uint16_t) val;
+	acrtc->dm_irq_params.window_param.update_win = false;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3205,7 +3211,7 @@ static int crc_win_y_end_get(void *data, u64 *val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	*val = acrtc->dm_irq_params.crc_window.y_end;
+	*val = acrtc->dm_irq_params.window_param.y_end;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3228,31 +3234,38 @@ static int crc_win_update_set(void *data, u64 val)
 		return 0;
 
 	if (val) {
+		new_acrtc = to_amdgpu_crtc(new_crtc);
+		mutex_lock(&adev->dm.dc_lock);
+		/* PSR may write to OTG CRC window control register,
+		 * so close it before starting secure_display.
+		 */
+		amdgpu_dm_psr_disable(new_acrtc->dm_irq_params.stream);
+
 		spin_lock_irq(&adev_to_drm(adev)->event_lock);
 		spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
 		if (crc_rd_wrk->crtc) {
 			old_crtc = crc_rd_wrk->crtc;
 			old_acrtc = to_amdgpu_crtc(old_crtc);
 		}
-		new_acrtc = to_amdgpu_crtc(new_crtc);
 
 		if (old_crtc && old_crtc != new_crtc) {
-			old_acrtc->dm_irq_params.crc_window.activated = false;
-			old_acrtc->dm_irq_params.crc_window.update_win = false;
-			old_acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+			old_acrtc->dm_irq_params.window_param.activated = false;
+			old_acrtc->dm_irq_params.window_param.update_win = false;
+			old_acrtc->dm_irq_params.window_param.skip_frame_cnt = 0;
 
-			new_acrtc->dm_irq_params.crc_window.activated = true;
-			new_acrtc->dm_irq_params.crc_window.update_win = true;
-			new_acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+			new_acrtc->dm_irq_params.window_param.activated = true;
+			new_acrtc->dm_irq_params.window_param.update_win = true;
+			new_acrtc->dm_irq_params.window_param.skip_frame_cnt = 0;
 			crc_rd_wrk->crtc = new_crtc;
 		} else {
-			new_acrtc->dm_irq_params.crc_window.activated = true;
-			new_acrtc->dm_irq_params.crc_window.update_win = true;
-			new_acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+			new_acrtc->dm_irq_params.window_param.activated = true;
+			new_acrtc->dm_irq_params.window_param.update_win = true;
+			new_acrtc->dm_irq_params.window_param.skip_frame_cnt = 0;
 			crc_rd_wrk->crtc = new_crtc;
 		}
 		spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
 		spin_unlock_irq(&adev_to_drm(adev)->event_lock);
+		mutex_unlock(&adev->dm.dc_lock);
 	}
 
 	return 0;

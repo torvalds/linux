@@ -206,45 +206,12 @@ nvkm_device_tegra_resource_size(struct nvkm_device *device, unsigned bar)
 	return res ? resource_size(res) : 0;
 }
 
-static irqreturn_t
-nvkm_device_tegra_intr(int irq, void *arg)
-{
-	struct nvkm_device_tegra *tdev = arg;
-	struct nvkm_device *device = &tdev->device;
-	bool handled = false;
-	nvkm_mc_intr_unarm(device);
-	nvkm_mc_intr(device, &handled);
-	nvkm_mc_intr_rearm(device);
-	return handled ? IRQ_HANDLED : IRQ_NONE;
-}
-
-static void
-nvkm_device_tegra_fini(struct nvkm_device *device, bool suspend)
-{
-	struct nvkm_device_tegra *tdev = nvkm_device_tegra(device);
-	if (tdev->irq) {
-		free_irq(tdev->irq, tdev);
-		tdev->irq = 0;
-	}
-}
-
 static int
-nvkm_device_tegra_init(struct nvkm_device *device)
+nvkm_device_tegra_irq(struct nvkm_device *device)
 {
 	struct nvkm_device_tegra *tdev = nvkm_device_tegra(device);
-	int irq, ret;
 
-	irq = platform_get_irq_byname(tdev->pdev, "stall");
-	if (irq < 0)
-		return irq;
-
-	ret = request_irq(irq, nvkm_device_tegra_intr,
-			  IRQF_SHARED, "nvkm", tdev);
-	if (ret)
-		return ret;
-
-	tdev->irq = irq;
-	return 0;
+	return platform_get_irq_byname(tdev->pdev, "stall");
 }
 
 static void *
@@ -260,8 +227,7 @@ static const struct nvkm_device_func
 nvkm_device_tegra_func = {
 	.tegra = nvkm_device_tegra,
 	.dtor = nvkm_device_tegra_dtor,
-	.init = nvkm_device_tegra_init,
-	.fini = nvkm_device_tegra_fini,
+	.irq = nvkm_device_tegra_irq,
 	.resource_addr = nvkm_device_tegra_resource_addr,
 	.resource_size = nvkm_device_tegra_resource_size,
 	.cpu_coherent = false,

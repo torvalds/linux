@@ -54,14 +54,14 @@
 #define PPSMC_MSG_TestMessage                   0x01 ///< To check if PMFW is alive and responding. Requirement specified by PMFW team
 #define PPSMC_MSG_GetPmfwVersion                0x02 ///< Get PMFW version
 #define PPSMC_MSG_GetDriverIfVersion            0x03 ///< Get PMFW_DRIVER_IF version
-#define PPSMC_MSG_EnableGfxOff                  0x04 ///< Enable GFXOFF
-#define PPSMC_MSG_DisableGfxOff                 0x05 ///< Disable GFXOFF
+#define PPSMC_MSG_SPARE0                        0x04 ///< SPARE
+#define PPSMC_MSG_SPARE1                        0x05 ///< SPARE
 #define PPSMC_MSG_PowerDownVcn                  0x06 ///< Power down VCN
 #define PPSMC_MSG_PowerUpVcn                    0x07 ///< Power up VCN; VCN is power gated by default
 #define PPSMC_MSG_SetHardMinVcn                 0x08 ///< For wireless display
 #define PPSMC_MSG_SetSoftMinGfxclk              0x09 ///< Set SoftMin for GFXCLK, argument is frequency in MHz
-#define PPSMC_MSG_ActiveProcessNotify           0x0A ///< Needs update
-#define PPSMC_MSG_ForcePowerDownGfx             0x0B ///< Force power down GFX, i.e. enter GFXOFF
+#define PPSMC_MSG_SPARE2                        0x0A ///< SPARE
+#define PPSMC_MSG_SPARE3                        0x0B ///< SPARE
 #define PPSMC_MSG_PrepareMp1ForUnload           0x0C ///< Prepare PMFW for GFX driver unload
 #define PPSMC_MSG_SetDriverDramAddrHigh         0x0D ///< Set high 32 bits of DRAM address for Driver table transfer
 #define PPSMC_MSG_SetDriverDramAddrLow          0x0E ///< Set low 32 bits of DRAM address for Driver table transfer
@@ -73,8 +73,7 @@
 #define PPSMC_MSG_SetSoftMinFclk                0x14 ///< Set hard min for FCLK
 #define PPSMC_MSG_SetSoftMinVcn                 0x15 ///< Set soft min for VCN clocks (VCLK and DCLK)
 
-
-#define PPSMC_MSG_EnableGfxImu                  0x16 ///< Needs update
+#define PPSMC_MSG_EnableGfxImu                  0x16 ///< Enable GFX IMU
 
 #define PPSMC_MSG_GetGfxclkFrequency            0x17 ///< Get GFX clock frequency
 #define PPSMC_MSG_GetFclkFrequency              0x18 ///< Get FCLK frequency
@@ -102,8 +101,8 @@
 #define PPSMC_MSG_SetHardMinIspxclkByFreq       0x2C ///< Set HardMin by frequency for ISPXCLK
 #define PPSMC_MSG_PowerDownUmsch                0x2D ///< Power down VCN.UMSCH (aka VSCH) scheduler
 #define PPSMC_MSG_PowerUpUmsch                  0x2E ///< Power up VCN.UMSCH (aka VSCH) scheduler
-#define PPSMC_Message_IspStutterOn_MmhubPgDis   0x2F ///< ISP StutterOn mmHub PgDis
-#define PPSMC_Message_IspStutterOff_MmhubPgEn   0x30 ///< ISP StufferOff mmHub PgEn
+#define PPSMC_MSG_IspStutterOn_MmhubPgDis       0x2F ///< ISP StutterOn mmHub PgDis
+#define PPSMC_MSG_IspStutterOff_MmhubPgEn       0x30 ///< ISP StufferOff mmHub PgEn
 
 #define PPSMC_Message_Count                     0x31 ///< Total number of PPSMC messages
 /** @}*/

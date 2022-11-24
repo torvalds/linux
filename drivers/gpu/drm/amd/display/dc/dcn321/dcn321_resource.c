@@ -109,8 +109,6 @@ enum dcn321_clk_src_array_id {
  */
 
 /* DCN */
-/* TODO awful hack. fixup dcn20_dwb.h */
-#undef BASE_INNER
 #define BASE_INNER(seg) ctx->dcn_reg_offsets[seg]
 
 #define BASE(seg) BASE_INNER(seg)
@@ -173,6 +171,9 @@ enum dcn321_clk_src_array_id {
 #define DCCG_SRII(reg_name, block, id)\
 	REG_STRUCT.block ## _ ## reg_name[id] = BASE(reg ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 		reg ## block ## id ## _ ## reg_name
+
+#define SF_DWB2(reg_name, block, id, field_name, post_fix) \
+	.field_name = reg_name ## __ ## field_name ## post_fix
 
 #define VUPDATE_SRII(reg_name, block, id)\
 	REG_STRUCT.reg_name[id] = BASE(reg ## reg_name ## _ ## block ## id ## _BASE_IDX) + \
@@ -722,6 +723,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.enable_dp_dig_pixel_rate_div_policy = 1,
 	.allow_sw_cursor_fallback = false,
 	.alloc_extra_way_for_cursor = true,
+	.min_prefetch_in_strobe_ns = 60000, // 60us
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -828,6 +830,7 @@ static struct clock_source *dcn321_clock_source_create(
 		return &clk_src->base;
 	}
 
+	kfree(clk_src);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }
@@ -1703,6 +1706,7 @@ static bool dcn321_resource_construct(
 	dc->caps.cache_num_ways = 16;
 	dc->caps.max_cab_allocation_bytes = 33554432; // 32MB = 1024 * 1024 * 32
 	dc->caps.subvp_fw_processing_delay_us = 15;
+	dc->caps.subvp_drr_max_vblank_margin_us = 40;
 	dc->caps.subvp_prefetch_end_to_mall_start_us = 15;
 	dc->caps.subvp_swath_height_margin_lines = 16;
 	dc->caps.subvp_pstate_allow_width_us = 20;

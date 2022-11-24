@@ -2424,9 +2424,26 @@ int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
 
 		if (!zeropage) {	/* COPY */
 			page_kaddr = kmap_local_folio(folio, 0);
+			/*
+			 * The read mmap_lock is held here.  Despite the
+			 * mmap_lock being read recursive a deadlock is still
+			 * possible if a writer has taken a lock.  For example:
+			 *
+			 * process A thread 1 takes read lock on own mmap_lock
+			 * process A thread 2 calls mmap, blocks taking write lock
+			 * process B thread 1 takes page fault, read lock on own mmap lock
+			 * process B thread 2 calls mmap, blocks taking write lock
+			 * process A thread 1 blocks taking read lock on process B
+			 * process B thread 1 blocks taking read lock on process A
+			 *
+			 * Disable page faults to prevent potential deadlock
+			 * and retry the copy outside the mmap_lock.
+			 */
+			pagefault_disable();
 			ret = copy_from_user(page_kaddr,
 					     (const void __user *)src_addr,
 					     PAGE_SIZE);
+			pagefault_enable();
 			kunmap_local(page_kaddr);
 
 			/* fallback to copy_from_user outside mmap_lock */
