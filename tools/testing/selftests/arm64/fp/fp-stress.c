@@ -290,11 +290,11 @@ static void start_fpsimd(struct child_data *child, int cpu, int copy)
 {
 	int ret;
 
-	child_start(child, "./fpsimd-test");
-
 	ret = asprintf(&child->name, "FPSIMD-%d-%d", cpu, copy);
 	if (ret == -1)
 		ksft_exit_fail_msg("asprintf() failed\n");
+
+	child_start(child, "./fpsimd-test");
 
 	ksft_print_msg("Started %s\n", child->name);
 }
@@ -307,11 +307,11 @@ static void start_sve(struct child_data *child, int vl, int cpu)
 	if (ret < 0)
 		ksft_exit_fail_msg("Failed to set SVE VL %d\n", vl);
 
-	child_start(child, "./sve-test");
-
 	ret = asprintf(&child->name, "SVE-VL-%d-%d", vl, cpu);
 	if (ret == -1)
 		ksft_exit_fail_msg("asprintf() failed\n");
+
+	child_start(child, "./sve-test");
 
 	ksft_print_msg("Started %s\n", child->name);
 }
@@ -320,15 +320,15 @@ static void start_ssve(struct child_data *child, int vl, int cpu)
 {
 	int ret;
 
+	ret = asprintf(&child->name, "SSVE-VL-%d-%d", vl, cpu);
+	if (ret == -1)
+		ksft_exit_fail_msg("asprintf() failed\n");
+
 	ret = prctl(PR_SME_SET_VL, vl | PR_SME_VL_INHERIT);
 	if (ret < 0)
 		ksft_exit_fail_msg("Failed to set SME VL %d\n", ret);
 
 	child_start(child, "./ssve-test");
-
-	ret = asprintf(&child->name, "SSVE-VL-%d-%d", vl, cpu);
-	if (ret == -1)
-		ksft_exit_fail_msg("asprintf() failed\n");
 
 	ksft_print_msg("Started %s\n", child->name);
 }
@@ -341,11 +341,11 @@ static void start_za(struct child_data *child, int vl, int cpu)
 	if (ret < 0)
 		ksft_exit_fail_msg("Failed to set SME VL %d\n", ret);
 
-	child_start(child, "./za-test");
-
 	ret = asprintf(&child->name, "ZA-VL-%d-%d", vl, cpu);
 	if (ret == -1)
 		ksft_exit_fail_msg("asprintf() failed\n");
+
+	child_start(child, "./za-test");
 
 	ksft_print_msg("Started %s\n", child->name);
 }
