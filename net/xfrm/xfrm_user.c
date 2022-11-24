@@ -862,12 +862,12 @@ static int xfrm_del_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto out;
 
 	if (xfrm_state_kern(x)) {
+		NL_SET_ERR_MSG(extack, "SA is in use by tunnels");
 		err = -EPERM;
 		goto out;
 	}
 
 	err = xfrm_state_delete(x);
-
 	if (err < 0)
 		goto out;
 
