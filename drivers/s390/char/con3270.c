@@ -128,6 +128,7 @@ struct tty3270 {
 #define TTY_UPDATE_STATUS	8	/* Update status line. */
 #define TTY_UPDATE_ALL		16	/* Recreate screen. */
 
+#define TTY3270_INPUT_AREA_ROWS 2
 static void tty3270_update(struct timer_list *);
 /*
  * Setup timeout for a device. On timeout trigger an update.
@@ -135,6 +136,11 @@ static void tty3270_update(struct timer_list *);
 static void tty3270_set_timer(struct tty3270 *tp, int expires)
 {
 	mod_timer(&tp->timer, jiffies + expires);
+}
+
+static int tty3270_tty_rows(struct tty3270 *tp)
+{
+	return tp->view.rows - TTY3270_INPUT_AREA_ROWS;
 }
 
 /*
@@ -183,7 +189,7 @@ static void tty3270_create_prompt(struct tty3270 *tp)
 	memcpy(line->string, blueprint, sizeof(blueprint));
 	line->len = sizeof(blueprint);
 	/* Set output offsets. */
-	offset = tp->view.cols * (tp->view.rows - 2);
+	offset = tp->view.cols * tty3270_tty_rows(tp);
 	raw3270_buffer_address(tp->view.dev, line->string + 1, offset);
 	offset = tp->view.cols * tp->view.rows - 9;
 	raw3270_buffer_address(tp->view.dev, line->string + 8, offset);
@@ -255,7 +261,7 @@ static void tty3270_rebuild_update(struct tty3270 *tp)
 	 */
 	list_for_each_entry_safe(s, n, &tp->update, update)
 		list_del_init(&s->update);
-	line = tp->view.rows - 3;
+	line = tty3270_tty_rows(tp) - 1;
 	nr_up = tp->nr_up;
 	list_for_each_entry_reverse(s, &tp->lines, list) {
 		if (nr_up > 0) {
@@ -282,7 +288,7 @@ static struct string *tty3270_alloc_string(struct tty3270 *tp, size_t size)
 	if (s)
 		return s;
 	list_for_each_entry_safe(s, n, &tp->lines, list) {
-		BUG_ON(tp->nr_lines <= tp->view.rows - 2);
+		BUG_ON(tp->nr_lines <= tty3270_tty_rows(tp));
 		list_del(&s->list);
 		if (!list_empty(&s->update))
 			list_del(&s->update);
@@ -293,8 +299,8 @@ static struct string *tty3270_alloc_string(struct tty3270 *tp, size_t size)
 	s = alloc_string(&tp->freemem, size);
 	BUG_ON(!s);
 	if (tp->nr_up != 0 &&
-	    tp->nr_up + tp->view.rows - 2 >= tp->nr_lines) {
-		tp->nr_up = tp->nr_lines - tp->view.rows + 2;
+	    tp->nr_up + tty3270_tty_rows(tp) >= tp->nr_lines) {
+		tp->nr_up = tp->nr_lines - tp->view.rows + TTY3270_INPUT_AREA_ROWS;
 		tty3270_rebuild_update(tp);
 		tty3270_update_status(tp);
 	}
@@ -329,7 +335,7 @@ static void tty3270_blank_screen(struct tty3270 *tp)
 	struct string *s, *n;
 	int i;
 
-	for (i = 0; i < tp->view.rows - 2; i++)
+	for (i = 0; i < tty3270_tty_rows(tp); i++)
 		tp->screen[i].len = 0;
 	tp->nr_up = 0;
 	list_for_each_entry_safe(s, n, &tp->lines, list) {
@@ -514,7 +520,7 @@ static void tty3270_scroll_forward(struct kbd_data *kbd)
 	int nr_up;
 
 	spin_lock_irq(&tp->view.lock);
-	nr_up = tp->nr_up - tp->view.rows + 2;
+	nr_up = tp->nr_up - tp->view.rows + TTY3270_INPUT_AREA_ROWS;
 	if (nr_up < 0)
 		nr_up = 0;
 	if (nr_up != tp->nr_up) {
@@ -535,9 +541,9 @@ static void tty3270_scroll_backward(struct kbd_data *kbd)
 	int nr_up;
 
 	spin_lock_irq(&tp->view.lock);
-	nr_up = tp->nr_up + tp->view.rows - 2;
-	if (nr_up + tp->view.rows - 2 > tp->nr_lines)
-		nr_up = tp->nr_lines - tp->view.rows + 2;
+	nr_up = tp->nr_up + tty3270_tty_rows(tp);
+	if (nr_up + tty3270_tty_rows(tp) > tp->nr_lines)
+		nr_up = tp->nr_lines - tp->view.rows + TTY3270_INPUT_AREA_ROWS;
 	if (nr_up != tp->nr_up) {
 		tp->nr_up = nr_up;
 		tty3270_rebuild_update(tp);
@@ -873,7 +879,7 @@ static void tty3270_resize(struct raw3270_view *view,
 	free_string(&tp->freemem, tp->status);
 	tty3270_create_prompt(tp);
 	tty3270_create_status(tp);
-	while (tp->nr_lines < tp->view.rows - 2)
+	while (tp->nr_lines < tty3270_tty_rows(tp))
 		tty3270_blank_line(tp);
 	tp->update_flags = TTY_UPDATE_ALL;
 	spin_unlock_irq(&tp->view.lock);
@@ -883,7 +889,7 @@ static void tty3270_resize(struct raw3270_view *view,
 	tty = tty_port_tty_get(&tp->port);
 	if (!tty)
 		return;
-	ws.ws_row = tp->view.rows - 2;
+	ws.ws_row = tty3270_tty_rows(tp);
 	ws.ws_col = tp->view.cols;
 	tty_do_resize(tty, &ws);
 	tty_kref_put(tty);
@@ -977,7 +983,7 @@ tty3270_create_view(int index, struct tty3270 **newtp)
 	tty3270_update_status(tp);
 
 	/* Create blank line for every line in the tty output area. */
-	for (i = 0; i < tp->view.rows - 2; i++)
+	for (i = 0; i < tty3270_tty_rows(tp); i++)
 		tty3270_blank_line(tp);
 
 	tp->kbd->port = &tp->port;
@@ -1015,7 +1021,7 @@ tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		tp->inattr = TF_INPUT;
 	}
 
-	tty->winsize.ws_row = tp->view.rows - 2;
+	tty->winsize.ws_row = tty3270_tty_rows(tp);
 	tty->winsize.ws_col = tp->view.cols;
 	rc = tty_port_install(&tp->port, driver, tty);
 	if (rc) {
@@ -1265,7 +1271,7 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 	/* Determine how long the fragment will be. */
 	flen = tty3270_required_length(tp, line_nr);
 	/* Find the line in the list. */
-	i = tp->view.rows - 2 - line_nr;
+	i = tty3270_tty_rows(tp) - line_nr;
 	list_for_each_entry_reverse(s, &tp->lines, list)
 		if (--i <= 0)
 			break;
@@ -1279,7 +1285,7 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 	tty3270_reset_attributes(&attr);
 	cp = tty3270_add_attributes(line, &attr, s->string);
 	cp = tty3270_add_reset_attributes(tp, line, cp, &attr);
-	if (tp->nr_up + line_nr < tp->view.rows - 2) {
+	if (tp->nr_up + line_nr < tty3270_tty_rows(tp)) {
 		/* Line is currently visible on screen. */
 		tty3270_update_string(tp, s, line_nr);
 		/* Add line to update list. */
@@ -1307,7 +1313,7 @@ static void tty3270_lf(struct tty3270 *tp)
 	int i;
 
 	tty3270_convert_line(tp, tp->cy);
-	if (tp->cy < tp->view.rows - 3) {
+	if (tp->cy < tty3270_tty_rows(tp) - 1) {
 		tp->cy++;
 		return;
 	}
@@ -1315,9 +1321,9 @@ static void tty3270_lf(struct tty3270 *tp)
 	tty3270_blank_line(tp);
 	temp = tp->screen[0];
 	temp.len = 0;
-	for (i = 0; i < tp->view.rows - 3; i++)
+	for (i = 0; i < tty3270_tty_rows(tp) - 1; i++)
 		tp->screen[i] = tp->screen[i+1];
-	tp->screen[tp->view.rows - 3] = temp;
+	tp->screen[tty3270_tty_rows(tp) - 1] = temp;
 	tty3270_rebuild_update(tp);
 }
 
@@ -1454,7 +1460,7 @@ static void tty3270_erase_display(struct tty3270 *tp, int mode)
 	case 0:
 		tty3270_erase_line(tp, 0);
 		start = tp->cy + 1;
-		end = tp->view.rows - 2;
+		end = tty3270_tty_rows(tp);
 		break;
 	case 1:
 		start = 0;
@@ -1463,7 +1469,7 @@ static void tty3270_erase_display(struct tty3270 *tp, int mode)
 		break;
 	case 2:
 		start = 0;
-		end = tp->view.rows - 2;
+		end = tty3270_tty_rows(tp);
 		break;
 	default:
 		return;
@@ -1564,7 +1570,7 @@ static void tty3270_goto_xy(struct tty3270 *tp, int cx, int cy)
 		line->len++;
 	}
 
-	cy = min_t(int, tp->view.rows - 3, max_cy);
+	cy = min_t(int, tty3270_tty_rows(tp) - 1, max_cy);
 	if (cy != tp->cy) {
 		tty3270_convert_line(tp, tp->cy);
 		tp->cy = cy;
@@ -1947,7 +1953,7 @@ static void tty3270_hangup(struct tty_struct *tty)
 	tty3270_reset_attributes(&tp->attributes);
 	tty3270_reset_attributes(&tp->saved_attributes);
 	tty3270_blank_screen(tp);
-	while (tp->nr_lines < tp->view.rows - 2)
+	while (tp->nr_lines < tty3270_tty_rows(tp))
 		tty3270_blank_line(tp);
 	tp->update_flags = TTY_UPDATE_ALL;
 	spin_unlock_irq(&tp->view.lock);
