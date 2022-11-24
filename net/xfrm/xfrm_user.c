@@ -515,7 +515,8 @@ static int attach_aead(struct xfrm_state *x, struct nlattr *rta,
 }
 
 static inline int xfrm_replay_verify_len(struct xfrm_replay_state_esn *replay_esn,
-					 struct nlattr *rp)
+					 struct nlattr *rp,
+					 struct netlink_ext_ack *extack)
 {
 	struct xfrm_replay_state_esn *up;
 	unsigned int ulen;
@@ -528,13 +529,25 @@ static inline int xfrm_replay_verify_len(struct xfrm_replay_state_esn *replay_es
 
 	/* Check the overall length and the internal bitmap length to avoid
 	 * potential overflow. */
-	if (nla_len(rp) < (int)ulen ||
-	    xfrm_replay_state_esn_len(replay_esn) != ulen ||
-	    replay_esn->bmp_len != up->bmp_len)
+	if (nla_len(rp) < (int)ulen) {
+		NL_SET_ERR_MSG(extack, "ESN attribute is too short");
 		return -EINVAL;
+	}
 
-	if (up->replay_window > up->bmp_len * sizeof(__u32) * 8)
+	if (xfrm_replay_state_esn_len(replay_esn) != ulen) {
+		NL_SET_ERR_MSG(extack, "New ESN size doesn't match the existing SA's ESN size");
 		return -EINVAL;
+	}
+
+	if (replay_esn->bmp_len != up->bmp_len) {
+		NL_SET_ERR_MSG(extack, "New ESN bitmap size doesn't match the existing SA's ESN bitmap");
+		return -EINVAL;
+	}
+
+	if (up->replay_window > up->bmp_len * sizeof(__u32) * 8) {
+		NL_SET_ERR_MSG(extack, "ESN replay window is longer than the bitmap");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -2433,12 +2446,16 @@ static int xfrm_new_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct nlattr *et = attrs[XFRMA_ETIMER_THRESH];
 	struct nlattr *rt = attrs[XFRMA_REPLAY_THRESH];
 
-	if (!lt && !rp && !re && !et && !rt)
+	if (!lt && !rp && !re && !et && !rt) {
+		NL_SET_ERR_MSG(extack, "Missing required attribute for AE");
 		return err;
+	}
 
 	/* pedantic mode - thou shalt sayeth replaceth */
-	if (!(nlh->nlmsg_flags&NLM_F_REPLACE))
+	if (!(nlh->nlmsg_flags & NLM_F_REPLACE)) {
+		NL_SET_ERR_MSG(extack, "NLM_F_REPLACE flag is required");
 		return err;
+	}
 
 	mark = xfrm_mark_get(attrs, &m);
 
@@ -2446,10 +2463,12 @@ static int xfrm_new_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (x == NULL)
 		return -ESRCH;
 
-	if (x->km.state != XFRM_STATE_VALID)
+	if (x->km.state != XFRM_STATE_VALID) {
+		NL_SET_ERR_MSG(extack, "SA must be in VALID state");
 		goto out;
+	}
 
-	err = xfrm_replay_verify_len(x->replay_esn, re);
+	err = xfrm_replay_verify_len(x->replay_esn, re, extack);
 	if (err)
 		goto out;
 
