@@ -48,6 +48,13 @@ struct msi_map {
 	int	virq;
 };
 
+/*
+ * Constant to be used for dynamic allocations when the allocation is any
+ * free MSI index, which is either an entry in a hardware table or a
+ * software managed index.
+ */
+#define MSI_ANY_INDEX		UINT_MAX
+
 unsigned int msi_domain_get_virq(struct device *dev, unsigned int domid, unsigned int index);
 
 /**
