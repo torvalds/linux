@@ -349,7 +349,7 @@ config SND_SOC_WM_HUBS
 
 config SND_SOC_WM_ADSP
 	tristate
-	select CS_DSP
+	select FW_CS_DSP
 	select SND_SOC_COMPRESS
 	default y if SND_SOC_MADERA=y
 	default y if SND_SOC_CS47L24=y
