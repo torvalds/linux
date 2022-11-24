@@ -12,3 +12,4 @@
 
    submitting-patches
    kernel-docs
+   coding-style
