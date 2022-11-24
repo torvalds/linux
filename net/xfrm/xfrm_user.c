@@ -2687,7 +2687,8 @@ nomem:
 #ifdef CONFIG_XFRM_MIGRATE
 static int copy_from_user_migrate(struct xfrm_migrate *ma,
 				  struct xfrm_kmaddress *k,
-				  struct nlattr **attrs, int *num)
+				  struct nlattr **attrs, int *num,
+				  struct netlink_ext_ack *extack)
 {
 	struct nlattr *rt = attrs[XFRMA_MIGRATE];
 	struct xfrm_user_migrate *um;
@@ -2706,8 +2707,10 @@ static int copy_from_user_migrate(struct xfrm_migrate *ma,
 	um = nla_data(rt);
 	num_migrate = nla_len(rt) / sizeof(*um);
 
-	if (num_migrate <= 0 || num_migrate > XFRM_MAX_DEPTH)
+	if (num_migrate <= 0 || num_migrate > XFRM_MAX_DEPTH) {
+		NL_SET_ERR_MSG(extack, "Invalid number of SAs to migrate, must be 0 < num <= XFRM_MAX_DEPTH (6)");
 		return -EINVAL;
+	}
 
 	for (i = 0; i < num_migrate; i++, um++, ma++) {
 		memcpy(&ma->old_daddr, &um->old_daddr, sizeof(ma->old_daddr));
@@ -2740,8 +2743,10 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_encap_tmpl  *encap = NULL;
 	u32 if_id = 0;
 
-	if (!attrs[XFRMA_MIGRATE])
+	if (!attrs[XFRMA_MIGRATE]) {
+		NL_SET_ERR_MSG(extack, "Missing required MIGRATE attribute");
 		return -EINVAL;
+	}
 
 	kmp = attrs[XFRMA_KMADDRESS] ? &km : NULL;
 
@@ -2749,7 +2754,7 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err)
 		return err;
 
-	err = copy_from_user_migrate(m, kmp, attrs, &n);
+	err = copy_from_user_migrate(m, kmp, attrs, &n, extack);
 	if (err)
 		return err;
 
@@ -2766,7 +2771,8 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (attrs[XFRMA_IF_ID])
 		if_id = nla_get_u32(attrs[XFRMA_IF_ID]);
 
-	err = xfrm_migrate(&pi->sel, pi->dir, type, m, n, kmp, net, encap, if_id);
+	err = xfrm_migrate(&pi->sel, pi->dir, type, m, n, kmp, net, encap,
+			   if_id, extack);
 
 	kfree(encap);
 
