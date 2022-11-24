@@ -286,7 +286,21 @@ static inline void msi_desc_set_iommu_cookie(struct msi_desc *desc,
 }
 #endif
 
-int msi_insert_msi_desc(struct device *dev, struct msi_desc *init_desc);
+int msi_domain_insert_msi_desc(struct device *dev, unsigned int domid,
+			       struct msi_desc *init_desc);
+/**
+ * msi_insert_msi_desc - Allocate and initialize a MSI descriptor in the
+ *			 default irqdomain and insert it at @init_desc->msi_index
+ * @dev:	Pointer to the device for which the descriptor is allocated
+ * @init_desc:	Pointer to an MSI descriptor to initialize the new descriptor
+ *
+ * Return: 0 on success or an appropriate failure code.
+ */
+static inline int msi_insert_msi_desc(struct device *dev, struct msi_desc *init_desc)
+{
+	return msi_domain_insert_msi_desc(dev, MSI_DEFAULT_DOMAIN, init_desc);
+}
+
 void msi_free_msi_descs_range(struct device *dev, unsigned int first_index, unsigned int last_index);
 
 /**
