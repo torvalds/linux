@@ -1990,6 +1990,16 @@ void *bpf_rdonly_cast(void *obj__ign, u32 btf_id__k)
 	return obj__ign;
 }
 
+void bpf_rcu_read_lock(void)
+{
+	rcu_read_lock();
+}
+
+void bpf_rcu_read_unlock(void)
+{
+	rcu_read_unlock();
+}
+
 __diag_pop();
 
 BTF_SET8_START(generic_btf_ids)
@@ -2031,6 +2041,8 @@ BTF_ID(func, bpf_cgroup_release)
 BTF_SET8_START(common_btf_ids)
 BTF_ID_FLAGS(func, bpf_cast_to_kern_ctx)
 BTF_ID_FLAGS(func, bpf_rdonly_cast)
+BTF_ID_FLAGS(func, bpf_rcu_read_lock)
+BTF_ID_FLAGS(func, bpf_rcu_read_unlock)
 BTF_SET8_END(common_btf_ids)
 
 static const struct btf_kfunc_id_set common_kfunc_set = {

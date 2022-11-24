@@ -6238,6 +6238,9 @@ error:
 				/* check __percpu tag */
 				if (strcmp(tag_value, "percpu") == 0)
 					tmp_flag = MEM_PERCPU;
+				/* check __rcu tag */
+				if (strcmp(tag_value, "rcu") == 0)
+					tmp_flag = MEM_RCU;
 			}
 
 			stype = btf_type_skip_modifiers(btf, mtype->type, &id);

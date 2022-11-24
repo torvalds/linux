@@ -344,6 +344,7 @@ struct bpf_verifier_state {
 		u32 id;
 	} active_lock;
 	bool speculative;
+	bool active_rcu_lock;
 
 	/* first and last insn idx of this verifier state */
 	u32 first_insn_idx;
@@ -445,6 +446,7 @@ struct bpf_insn_aux_data {
 	u32 seen; /* this insn was processed by the verifier at env->pass_cnt */
 	bool sanitize_stack_spill; /* subject to Spectre v4 sanitation */
 	bool zext_dst; /* this insn zero extends dst reg */
+	bool storage_get_func_atomic; /* bpf_*_storage_get() with atomic memory alloc */
 	u8 alu_state; /* used in combination with alu_limit */
 
 	/* below fields are initialized once */
@@ -534,6 +536,7 @@ struct bpf_verifier_env {
 	bool bypass_spec_v1;
 	bool bypass_spec_v4;
 	bool seen_direct_write;
+	bool rcu_tag_supported;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
 	const struct bpf_line_info *prev_linfo;
 	struct bpf_verifier_log log;
@@ -680,7 +683,7 @@ static inline bool bpf_prog_check_recur(const struct bpf_prog *prog)
 	}
 }
 
-#define BPF_REG_TRUSTED_MODIFIERS (MEM_ALLOC | PTR_TRUSTED)
+#define BPF_REG_TRUSTED_MODIFIERS (MEM_ALLOC | MEM_RCU | PTR_TRUSTED)
 
 static inline bool bpf_type_has_unsafe_modifiers(u32 type)
 {
