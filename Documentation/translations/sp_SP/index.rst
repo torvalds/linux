@@ -1,4 +1,3 @@
-.. _sp_linux_doc:
 
 =====================
 Traducción al español
@@ -78,4 +77,4 @@ Traducciones al español
    :maxdepth: 1
 
    howto
-   submitting-patches
+   process/index

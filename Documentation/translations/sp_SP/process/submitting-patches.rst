@@ -1,4 +1,4 @@
-.. include:: ./disclaimer-sp.rst
+.. include:: ../disclaimer-sp.rst
 
 :Original: :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
 :Translator: Carlos Bilbao <carlos.bilbao@amd.com>
