@@ -5,6 +5,8 @@
 
 readonly PEER_NS="ns-peer-$(mktemp -u XXXXXX)"
 
+BPF_FILE="../bpf/xdp_dummy.bpf.o"
+
 # set global exit status, but never reset nonzero one.
 check_err()
 {
@@ -34,7 +36,7 @@ cfg_veth() {
 	ip -netns "${PEER_NS}" addr add dev veth1 192.168.1.1/24
 	ip -netns "${PEER_NS}" addr add dev veth1 2001:db8::1/64 nodad
 	ip -netns "${PEER_NS}" link set dev veth1 up
-	ip -n "${PEER_NS}" link set veth1 xdp object ../bpf/xdp_dummy.o section xdp
+	ip -n "${PEER_NS}" link set veth1 xdp object ${BPF_FILE} section xdp
 }
 
 run_one() {
@@ -195,8 +197,8 @@ run_all() {
 	return $ret
 }
 
-if [ ! -f ../bpf/xdp_dummy.o ]; then
-	echo "Missing xdp_dummy helper. Build bpf selftest first"
+if [ ! -f ${BPF_FILE} ]; then
+	echo "Missing ${BPF_FILE}. Build bpf selftest first"
 	exit -1
 fi
 

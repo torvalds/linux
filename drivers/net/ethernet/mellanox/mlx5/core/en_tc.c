@@ -1634,7 +1634,6 @@ set_encap_dests(struct mlx5e_priv *priv,
 		struct mlx5e_tc_flow *flow,
 		struct mlx5_flow_attr *attr,
 		struct netlink_ext_ack *extack,
-		bool *encap_valid,
 		bool *vf_tun)
 {
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
@@ -1651,7 +1650,6 @@ set_encap_dests(struct mlx5e_priv *priv,
 	parse_attr = attr->parse_attr;
 	esw_attr = attr->esw_attr;
 	*vf_tun = false;
-	*encap_valid = true;
 
 	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
 		struct net_device *out_dev;
@@ -1668,7 +1666,7 @@ set_encap_dests(struct mlx5e_priv *priv,
 			goto out;
 		}
 		err = mlx5e_attach_encap(priv, flow, attr, out_dev, out_index,
-					 extack, &encap_dev, encap_valid);
+					 extack, &encap_dev);
 		dev_put(out_dev);
 		if (err)
 			goto out;
@@ -1732,8 +1730,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5_flow_attr *attr = flow->attr;
 	struct mlx5_esw_flow_attr *esw_attr;
-	bool vf_tun, encap_valid;
 	u32 max_prio, max_chain;
+	bool vf_tun;
 	int err = 0;
 
 	parse_attr = attr->parse_attr;
@@ -1823,7 +1821,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		esw_attr->int_port = int_port;
 	}
 
-	err = set_encap_dests(priv, flow, attr, extack, &encap_valid, &vf_tun);
+	err = set_encap_dests(priv, flow, attr, extack, &vf_tun);
 	if (err)
 		goto err_out;
 
@@ -1853,7 +1851,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	 * (1) there's no error
 	 * (2) there's an encap action and we don't have valid neigh
 	 */
-	if (!encap_valid || flow_flag_test(flow, SLOW))
+	if (flow_flag_test(flow, SLOW))
 		flow->rule[0] = mlx5e_tc_offload_to_slow_path(esw, flow, &parse_attr->spec);
 	else
 		flow->rule[0] = mlx5e_tc_offload_fdb_rules(esw, flow, &parse_attr->spec, attr);
@@ -3759,7 +3757,7 @@ alloc_flow_post_acts(struct mlx5e_tc_flow *flow, struct netlink_ext_ack *extack)
 	struct mlx5e_post_act *post_act = get_post_action(flow->priv);
 	struct mlx5_flow_attr *attr, *next_attr = NULL;
 	struct mlx5e_post_act_handle *handle;
-	bool vf_tun, encap_valid = true;
+	bool vf_tun;
 	int err;
 
 	/* This is going in reverse order as needed.
@@ -3781,12 +3779,9 @@ alloc_flow_post_acts(struct mlx5e_tc_flow *flow, struct netlink_ext_ack *extack)
 		if (list_is_last(&attr->list, &flow->attrs))
 			break;
 
-		err = set_encap_dests(flow->priv, flow, attr, extack, &encap_valid, &vf_tun);
+		err = set_encap_dests(flow->priv, flow, attr, extack, &vf_tun);
 		if (err)
 			goto out_free;
-
-		if (!encap_valid)
-			flow_flag_set(flow, SLOW);
 
 		err = actions_prepare_mod_hdr_actions(flow->priv, flow, attr, extack);
 		if (err)
