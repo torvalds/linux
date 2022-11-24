@@ -526,9 +526,9 @@ mtk_wed_dma_disable(struct mtk_wed_device *dev)
 			MTK_WED_WPDMA_RX_D_RX_DRV_EN);
 		wed_clr(dev, MTK_WED_WDMA_GLO_CFG,
 			MTK_WED_WDMA_GLO_CFG_TX_DDONE_CHK);
-
-		mtk_wed_set_512_support(dev, false);
 	}
+
+	mtk_wed_set_512_support(dev, false);
 }
 
 static void
@@ -1290,8 +1290,9 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
 		if (mtk_wed_rro_cfg(dev))
 			return;
 
-		mtk_wed_set_512_support(dev, dev->wlan.wcid_512);
 	}
+
+	mtk_wed_set_512_support(dev, dev->wlan.wcid_512);
 
 	mtk_wed_dma_enable(dev);
 	dev->running = true;
@@ -1358,11 +1359,13 @@ mtk_wed_attach(struct mtk_wed_device *dev)
 	}
 
 	mtk_wed_hw_init_early(dev);
-	if (hw->version == 1)
+	if (hw->version == 1) {
 		regmap_update_bits(hw->hifsys, HIFSYS_DMA_AG_MAP,
 				   BIT(hw->index), 0);
-	else
+	} else {
+		dev->rev_id = wed_r32(dev, MTK_WED_REV_ID);
 		ret = mtk_wed_wo_init(hw);
+	}
 out:
 	if (ret)
 		mtk_wed_detach(dev);
