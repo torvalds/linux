@@ -1207,10 +1207,9 @@ static int mux_ul_dg_update_tbl_index(struct iosm_mux *ipc_mux,
 				 qlth_n_ql_size, ul_list);
 	ipc_mux_ul_adb_finish(ipc_mux);
 	if (ipc_mux_ul_adb_allocate(ipc_mux, adb, &ipc_mux->size_needed,
-				    IOSM_AGGR_MUX_SIG_ADBH)) {
-		dev_kfree_skb(src_skb);
+				    IOSM_AGGR_MUX_SIG_ADBH))
 		return -ENOMEM;
-	}
+
 	ipc_mux->size_needed = le32_to_cpu(adb->adbh->block_length);
 
 	ipc_mux->size_needed += offsetof(struct mux_adth, dg);
