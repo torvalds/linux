@@ -26,8 +26,10 @@ static const char * const npc_flow_names[] = {
 	[NPC_VLAN_ETYPE_STAG] = "vlan ether type stag",
 	[NPC_OUTER_VID]	= "outer vlan id",
 	[NPC_TOS]	= "tos",
+	[NPC_IPFRAG_IPV4] = "fragmented IPv4 header ",
 	[NPC_SIP_IPV4]	= "ipv4 source ip",
 	[NPC_DIP_IPV4]	= "ipv4 destination ip",
+	[NPC_IPFRAG_IPV6] = "fragmented IPv6 header ",
 	[NPC_SIP_IPV6]	= "ipv6 source ip",
 	[NPC_DIP_IPV6]	= "ipv6 destination ip",
 	[NPC_IPPROTO_TCP] = "ip proto tcp",
@@ -484,8 +486,10 @@ do {									       \
 	 * Example: Source IP is 4 bytes and starts at 12th byte of IP header
 	 */
 	NPC_SCAN_HDR(NPC_TOS, NPC_LID_LC, NPC_LT_LC_IP, 1, 1);
+	NPC_SCAN_HDR(NPC_IPFRAG_IPV4, NPC_LID_LC, NPC_LT_LC_IP, 6, 1);
 	NPC_SCAN_HDR(NPC_SIP_IPV4, NPC_LID_LC, NPC_LT_LC_IP, 12, 4);
 	NPC_SCAN_HDR(NPC_DIP_IPV4, NPC_LID_LC, NPC_LT_LC_IP, 16, 4);
+	NPC_SCAN_HDR(NPC_IPFRAG_IPV6, NPC_LID_LC, NPC_LT_LC_IP6_EXT, 6, 1);
 	NPC_SCAN_HDR(NPC_SIP_IPV6, NPC_LID_LC, NPC_LT_LC_IP6, 8, 16);
 	NPC_SCAN_HDR(NPC_DIP_IPV6, NPC_LID_LC, NPC_LT_LC_IP6, 24, 16);
 	NPC_SCAN_HDR(NPC_SPORT_UDP, NPC_LID_LD, NPC_LT_LD_UDP, 0, 2);
@@ -899,6 +903,8 @@ do {									      \
 	NPC_WRITE_FLOW(NPC_ETYPE, etype, ntohs(pkt->etype), 0,
 		       ntohs(mask->etype), 0);
 	NPC_WRITE_FLOW(NPC_TOS, tos, pkt->tos, 0, mask->tos, 0);
+	NPC_WRITE_FLOW(NPC_IPFRAG_IPV4, ip_flag, pkt->ip_flag, 0,
+		       mask->ip_flag, 0);
 	NPC_WRITE_FLOW(NPC_SIP_IPV4, ip4src, ntohl(pkt->ip4src), 0,
 		       ntohl(mask->ip4src), 0);
 	NPC_WRITE_FLOW(NPC_DIP_IPV4, ip4dst, ntohl(pkt->ip4dst), 0,
@@ -919,6 +925,8 @@ do {									      \
 	NPC_WRITE_FLOW(NPC_OUTER_VID, vlan_tci, ntohs(pkt->vlan_tci), 0,
 		       ntohs(mask->vlan_tci), 0);
 
+	NPC_WRITE_FLOW(NPC_IPFRAG_IPV6, next_header, pkt->next_header, 0,
+		       mask->next_header, 0);
 	npc_update_ipv6_flow(rvu, entry, features, pkt, mask, output, intf);
 	npc_update_vlan_features(rvu, entry, features, intf);
 

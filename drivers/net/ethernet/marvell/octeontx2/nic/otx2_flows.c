@@ -711,6 +711,11 @@ static int otx2_prepare_ipv6_flow(struct ethtool_rx_flow_spec *fsp,
 			       sizeof(pmask->ip6dst));
 			req->features |= BIT_ULL(NPC_DIP_IPV6);
 		}
+		if (ipv6_usr_hdr->l4_proto == IPPROTO_FRAGMENT) {
+			pkt->next_header = ipv6_usr_hdr->l4_proto;
+			pmask->next_header = ipv6_usr_mask->l4_proto;
+			req->features |= BIT_ULL(NPC_IPFRAG_IPV6);
+		}
 		pkt->etype = cpu_to_be16(ETH_P_IPV6);
 		pmask->etype = cpu_to_be16(0xFFFF);
 		req->features |= BIT_ULL(NPC_ETYPE);
@@ -891,10 +896,22 @@ static int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
 			req->features |= BIT_ULL(NPC_OUTER_VID);
 		}
 
-		/* Not Drop/Direct to queue but use action in default entry */
-		if (fsp->m_ext.data[1] &&
-		    fsp->h_ext.data[1] == cpu_to_be32(OTX2_DEFAULT_ACTION))
-			req->op = NIX_RX_ACTION_DEFAULT;
+		if (fsp->m_ext.data[1]) {
+			if (flow_type == IP_USER_FLOW) {
+				if (be32_to_cpu(fsp->h_ext.data[1]) != IPV4_FLAG_MORE)
+					return -EINVAL;
+
+				pkt->ip_flag = be32_to_cpu(fsp->h_ext.data[1]);
+				pmask->ip_flag = be32_to_cpu(fsp->m_ext.data[1]);
+				req->features |= BIT_ULL(NPC_IPFRAG_IPV4);
+			} else if (fsp->h_ext.data[1] ==
+					cpu_to_be32(OTX2_DEFAULT_ACTION)) {
+				/* Not Drop/Direct to queue but use action
+				 * in default entry
+				 */
+				req->op = NIX_RX_ACTION_DEFAULT;
+			}
+		}
 	}
 
 	if (fsp->flow_type & FLOW_MAC_EXT &&
