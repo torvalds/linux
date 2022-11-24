@@ -187,4 +187,6 @@ static inline void bch2_inode_nlink_set(struct bch_inode_unpacked *bi,
 int bch2_inode_nlink_inc(struct bch_inode_unpacked *);
 void bch2_inode_nlink_dec(struct btree_trans *, struct bch_inode_unpacked *);
 
+struct bch_opts bch2_inode_opts_to_opts(struct bch_inode_unpacked *);
+
 #endif /* _BCACHEFS_INODE_H */

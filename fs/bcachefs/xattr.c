@@ -444,7 +444,7 @@ static int __bch2_xattr_bcachefs_get(const struct xattr_handler *handler,
 	struct bch_inode_info *inode = to_bch_ei(vinode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_opts opts =
-		bch2_inode_opts_to_opts(bch2_inode_opts_get(&inode->ei_inode));
+		bch2_inode_opts_to_opts(&inode->ei_inode);
 	const struct bch_option *opt;
 	int id, inode_opt_id;
 	struct printbuf out = PRINTBUF;

@@ -513,7 +513,6 @@ struct bch_io_opts {
 };
 
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts);
-struct bch_opts bch2_inode_opts_to_opts(struct bch_io_opts);
 void bch2_io_opts_apply(struct bch_io_opts *, struct bch_io_opts);
 bool bch2_opt_is_inode_opt(enum bch_opt_id);
 

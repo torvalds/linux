@@ -763,3 +763,14 @@ void bch2_inode_nlink_dec(struct btree_trans *trans, struct bch_inode_unpacked *
 	else
 		bi->bi_flags |= BCH_INODE_UNLINKED;
 }
+
+struct bch_opts bch2_inode_opts_to_opts(struct bch_inode_unpacked *inode)
+{
+	struct bch_opts ret = { 0 };
+#define x(_name, _bits)							\
+	if (inode->bi_##_name)						\
+		opt_set(ret, _name, inode->bi_##_name - 1);
+	BCH_INODE_OPTS()
+#undef x
+	return ret;
+}
