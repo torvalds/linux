@@ -19,6 +19,18 @@
 
 #include "internals.h"
 
+/**
+ * struct msi_ctrl - MSI internal management control structure
+ * @domid:	ID of the domain on which management operations should be done
+ * @first:	First (hardware) slot index to operate on
+ * @last:	Last (hardware) slot index to operate on
+ */
+struct msi_ctrl {
+	unsigned int			domid;
+	unsigned int			first;
+	unsigned int			last;
+};
+
 /* Invalid Xarray index which is outside of any searchable range */
 #define MSI_XA_MAX_INDEX	(ULONG_MAX - 1)
 /* The maximum domain size */
@@ -151,22 +163,29 @@ static bool msi_desc_match(struct msi_desc *desc, enum msi_desc_filter filter)
 	return false;
 }
 
-/**
- * msi_free_msi_descs_range - Free MSI descriptors of a device
- * @dev:		Device to free the descriptors
- * @first_index:	Index to start freeing from
- * @last_index:		Last index to be freed
- */
-void msi_free_msi_descs_range(struct device *dev, unsigned int first_index,
-			      unsigned int last_index)
+static bool msi_ctrl_valid(struct device *dev, struct msi_ctrl *ctrl)
 {
-	struct xarray *xa = &dev->msi.data->__domains[MSI_DEFAULT_DOMAIN].store;
+	if (WARN_ON_ONCE(ctrl->domid >= MSI_MAX_DEVICE_IRQDOMAINS ||
+			 ctrl->first > ctrl->last ||
+			 ctrl->first > MSI_MAX_INDEX ||
+			 ctrl->last > MSI_MAX_INDEX))
+		return false;
+	return true;
+}
+
+static void msi_domain_free_descs(struct device *dev, struct msi_ctrl *ctrl)
+{
 	struct msi_desc *desc;
+	struct xarray *xa;
 	unsigned long idx;
 
 	lockdep_assert_held(&dev->msi.data->mutex);
 
-	xa_for_each_range(xa, idx, desc, first_index, last_index) {
+	if (!msi_ctrl_valid(dev, ctrl))
+		return;
+
+	xa = &dev->msi.data->__domains[ctrl->domid].store;
+	xa_for_each_range(xa, idx, desc, ctrl->first, ctrl->last) {
 		xa_erase(xa, idx);
 
 		/* Leak the descriptor when it is still referenced */
@@ -174,6 +193,25 @@ void msi_free_msi_descs_range(struct device *dev, unsigned int first_index,
 			continue;
 		msi_free_desc(desc);
 	}
+}
+
+/**
+ * msi_domain_free_msi_descs_range - Free a range of MSI descriptors of a device in an irqdomain
+ * @dev:	Device for which to free the descriptors
+ * @domid:	Id of the domain to operate on
+ * @first:	Index to start freeing from (inclusive)
+ * @last:	Last index to be freed (inclusive)
+ */
+void msi_domain_free_msi_descs_range(struct device *dev, unsigned int domid,
+				     unsigned int first, unsigned int last)
+{
+	struct msi_ctrl ctrl = {
+		.domid	= domid,
+		.first	= first,
+		.last	= last,
+	};
+
+	msi_domain_free_descs(dev, &ctrl);
 }
 
 void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
