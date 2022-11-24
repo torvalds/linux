@@ -219,7 +219,6 @@ void raw3270_unregister_notifier(struct raw3270_notifier *);
 struct string
 {
 	struct list_head list;
-	struct list_head update;
 	unsigned long size;
 	unsigned long len;
 	char string[];
@@ -245,7 +244,6 @@ alloc_string(struct list_head *free_list, unsigned long len)
 			list_del(&cs->list);
 		cs->len = len;
 		INIT_LIST_HEAD(&cs->list);
-		INIT_LIST_HEAD(&cs->update);
 		return cs;
 	}
 	return NULL;
