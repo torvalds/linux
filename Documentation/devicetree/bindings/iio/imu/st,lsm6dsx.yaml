@@ -43,6 +43,9 @@ properties:
       - items:
           - const: st,lsm6dsv16x
           - const: st,lsm6dsv
+      - items:
+          - const: st,ism330is
+          - const: st,lsm6dso16is
 
   reg:
     maxItems: 1
