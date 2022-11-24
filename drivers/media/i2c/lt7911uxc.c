@@ -11,6 +11,7 @@
  * V0.0X01.0X02 add CPHY support.
  * V0.0X01.0X03 add rk3588 dcphy param.
  * V0.0X01.0X04 add 5K60 support for CPHY.
+ * V0.0X01.0X05 add CSI BGR888 fmt.
  *
  */
 
@@ -38,7 +39,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
 
 static int debug;
 module_param(debug, int, 0644);
@@ -92,6 +93,12 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define STREAM_CTL		0xe0b0
 #define ENABLE_STREAM		0x01
 #define DISABLE_STREAM		0x00
+
+#ifdef LT7911UXC_OUT_RGB
+#define LT7911UXC_MEDIA_BUS_FMT		MEDIA_BUS_FMT_BGR888_1X24
+#else
+#define LT7911UXC_MEDIA_BUS_FMT		MEDIA_BUS_FMT_UYVY8_2X8
+#endif
 
 #define LT7911UXC_NAME			"LT7911UXC"
 
@@ -893,7 +900,7 @@ static int lt7911uxc_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	switch (code->index) {
 	case 0:
-		code->code = MEDIA_BUS_FMT_UYVY8_2X8;
+		code->code = LT7911UXC_MEDIA_BUS_FMT;
 		break;
 
 	default:
@@ -912,7 +919,7 @@ static int lt7911uxc_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= lt7911uxc->cfg_num)
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_UYVY8_2X8)
+	if (fse->code != LT7911UXC_MEDIA_BUS_FMT)
 		return -EINVAL;
 
 	fse->min_width  = lt7911uxc->support_modes[fse->index].width;
@@ -955,7 +962,7 @@ static int lt7911uxc_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= lt7911uxc->cfg_num)
 		return -EINVAL;
 
-	if (fie->code != MEDIA_BUS_FMT_UYVY8_2X8)
+	if (fie->code != LT7911UXC_MEDIA_BUS_FMT)
 		return -EINVAL;
 
 	fie->width = lt7911uxc->support_modes[fie->index].width;
@@ -1009,7 +1016,7 @@ static int lt7911uxc_set_fmt(struct v4l2_subdev *sd,
 		return ret;
 
 	switch (code) {
-	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case LT7911UXC_MEDIA_BUS_FMT:
 		break;
 
 	default:
@@ -1205,7 +1212,7 @@ static int lt7911uxc_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	try_fmt->code = LT7911UXC_MEDIA_BUS_FMT;
 	try_fmt->field = V4L2_FIELD_NONE;
 	mutex_unlock(&lt7911uxc->confctl_mutex);
 
@@ -1469,7 +1476,7 @@ static int lt7911uxc_probe(struct i2c_client *client,
 
 	sd = &lt7911uxc->sd;
 	lt7911uxc->i2c_client = client;
-	lt7911uxc->mbus_fmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
+	lt7911uxc->mbus_fmt_code = LT7911UXC_MEDIA_BUS_FMT;
 
 	err = lt7911uxc_probe_of(lt7911uxc);
 	if (err) {
