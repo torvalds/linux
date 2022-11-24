@@ -545,7 +545,25 @@ static inline void msi_sysfs_remove_desc(struct device *dev, struct msi_desc *de
 #endif /* !CONFIG_SYSFS */
 
 static int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev, int nvec);
-static void __msi_domain_free_irqs(struct irq_domain *domain, struct device *dev);
+
+static struct irq_domain *msi_get_device_domain(struct device *dev, unsigned int domid)
+{
+	struct irq_domain *domain;
+
+	lockdep_assert_held(&dev->msi.data->mutex);
+
+	if (WARN_ON_ONCE(domid >= MSI_MAX_DEVICE_IRQDOMAINS))
+		return NULL;
+
+	domain = dev->msi.data->__domains[domid].domain;
+	if (!domain)
+		return NULL;
+
+	if (WARN_ON_ONCE(irq_domain_is_msi_parent(domain)))
+		return NULL;
+
+	return domain;
+}
 
 static inline void irq_chip_write_msi_msg(struct irq_data *data,
 					  struct msi_msg *msg)
@@ -706,7 +724,6 @@ static struct msi_domain_ops msi_domain_ops_default = {
 	.msi_prepare		= msi_domain_ops_prepare,
 	.set_desc		= msi_domain_ops_set_desc,
 	.domain_alloc_irqs	= __msi_domain_alloc_irqs,
-	.domain_free_irqs	= __msi_domain_free_irqs,
 };
 
 static void msi_domain_update_dom_ops(struct msi_domain_info *info)
@@ -720,8 +737,6 @@ static void msi_domain_update_dom_ops(struct msi_domain_info *info)
 
 	if (ops->domain_alloc_irqs == NULL)
 		ops->domain_alloc_irqs = msi_domain_ops_default.domain_alloc_irqs;
-	if (ops->domain_free_irqs == NULL)
-		ops->domain_free_irqs = msi_domain_ops_default.domain_free_irqs;
 
 	if (!(info->flags & MSI_FLAG_USE_DEF_DOM_OPS))
 		return;
@@ -1073,15 +1088,21 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev, int nve
 	return ret;
 }
 
-static void __msi_domain_free_irqs(struct irq_domain *domain, struct device *dev)
+static void __msi_domain_free_irqs(struct device *dev, struct irq_domain *domain,
+				   struct msi_ctrl *ctrl)
 {
+	struct xarray *xa = &dev->msi.data->__domains[ctrl->domid].store;
 	struct msi_domain_info *info = domain->host_data;
 	struct irq_data *irqd;
 	struct msi_desc *desc;
+	unsigned long idx;
 	int i;
 
-	/* Only handle MSI entries which have an interrupt associated */
-	msi_for_each_desc(desc, dev, MSI_DESC_ASSOCIATED) {
+	xa_for_each_range(xa, idx, desc, ctrl->first, ctrl->last) {
+		/* Only handle MSI entries which have an interrupt associated */
+		if (!msi_desc_match(desc, MSI_DESC_ASSOCIATED))
+			continue;
+
 		/* Make sure all interrupts are deactivated */
 		for (i = 0; i < desc->nvec_used; i++) {
 			irqd = irq_domain_get_irq_data(domain, desc->irq + i);
@@ -1096,11 +1117,99 @@ static void __msi_domain_free_irqs(struct irq_domain *domain, struct device *dev
 	}
 }
 
-static void msi_domain_free_msi_descs(struct msi_domain_info *info,
-				      struct device *dev)
+static void msi_domain_free_locked(struct device *dev, struct msi_ctrl *ctrl)
 {
+	struct msi_domain_info *info;
+	struct msi_domain_ops *ops;
+	struct irq_domain *domain;
+
+	if (!msi_ctrl_valid(dev, ctrl))
+		return;
+
+	domain = msi_get_device_domain(dev, ctrl->domid);
+	if (!domain)
+		return;
+
+	info = domain->host_data;
+	ops = info->ops;
+
+	if (ops->domain_free_irqs)
+		ops->domain_free_irqs(domain, dev);
+	else
+		__msi_domain_free_irqs(dev, domain, ctrl);
+
+	if (ops->msi_post_free)
+		ops->msi_post_free(domain, dev);
+
 	if (info->flags & MSI_FLAG_FREE_MSI_DESCS)
-		msi_free_msi_descs(dev);
+		msi_domain_free_descs(dev, ctrl);
+}
+
+/**
+ * msi_domain_free_irqs_range_locked - Free a range of interrupts from a MSI interrupt domain
+ *				       associated to @dev with msi_lock held
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are freed
+ * @domid:	Id of the interrupt domain to operate on
+ * @first:	First index to free (inclusive)
+ * @last:	Last index to free (inclusive)
+ */
+void msi_domain_free_irqs_range_locked(struct device *dev, unsigned int domid,
+				       unsigned int first, unsigned int last)
+{
+	struct msi_ctrl ctrl = {
+		.domid	= domid,
+		.first	= first,
+		.last	= last,
+	};
+	msi_domain_free_locked(dev, &ctrl);
+}
+
+/**
+ * msi_domain_free_irqs_range - Free a range of interrupts from a MSI interrupt domain
+ *				associated to @dev
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are freed
+ * @domid:	Id of the interrupt domain to operate on
+ * @first:	First index to free (inclusive)
+ * @last:	Last index to free (inclusive)
+ */
+void msi_domain_free_irqs_range(struct device *dev, unsigned int domid,
+				unsigned int first, unsigned int last)
+{
+	msi_lock_descs(dev);
+	msi_domain_free_irqs_range_locked(dev, domid, first, last);
+	msi_unlock_descs(dev);
+}
+
+/**
+ * msi_domain_free_irqs_all_locked - Free all interrupts from a MSI interrupt domain
+ *				     associated to a device
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are freed
+ * @domid:	The id of the domain to operate on
+ *
+ * Must be invoked from within a msi_lock_descs() / msi_unlock_descs()
+ * pair. Use this for MSI irqdomains which implement their own vector
+ * allocation.
+ */
+void msi_domain_free_irqs_all_locked(struct device *dev, unsigned int domid)
+{
+	msi_domain_free_irqs_range_locked(dev, domid, 0, MSI_MAX_INDEX);
+}
+
+/**
+ * msi_domain_free_irqs_all - Free all interrupts from a MSI interrupt domain
+ *			      associated to a device
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are freed
+ * @domid:	The id of the domain to operate on
+ */
+void msi_domain_free_irqs_all(struct device *dev, unsigned int domid)
+{
+	msi_lock_descs(dev);
+	msi_domain_free_irqs_all_locked(dev, domid);
+	msi_unlock_descs(dev);
 }
 
 /**
@@ -1115,18 +1224,7 @@ static void msi_domain_free_msi_descs(struct msi_domain_info *info,
  */
 void msi_domain_free_irqs_descs_locked(struct irq_domain *domain, struct device *dev)
 {
-	struct msi_domain_info *info = domain->host_data;
-	struct msi_domain_ops *ops = info->ops;
-
-	lockdep_assert_held(&dev->msi.data->mutex);
-
-	if (WARN_ON_ONCE(irq_domain_is_msi_parent(domain)))
-		return;
-
-	ops->domain_free_irqs(domain, dev);
-	if (ops->msi_post_free)
-		ops->msi_post_free(domain, dev);
-	msi_domain_free_msi_descs(info, dev);
+	msi_domain_free_irqs_range_locked(dev, MSI_DEFAULT_DOMAIN, 0, MSI_MAX_INDEX);
 }
 
 /**
