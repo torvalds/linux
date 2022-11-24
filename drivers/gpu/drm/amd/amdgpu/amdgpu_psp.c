@@ -858,7 +858,7 @@ static int psp_tmr_unload(struct psp_context *psp)
 	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_tmr_unload_cmd_buf(psp, cmd);
-	dev_info(psp->adev->dev, "free PSP TMR buffer\n");
+	dev_dbg(psp->adev->dev, "free PSP TMR buffer\n");
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
