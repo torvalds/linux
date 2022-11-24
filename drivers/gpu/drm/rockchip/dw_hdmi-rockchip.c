@@ -1575,6 +1575,9 @@ static void dw_hdmi_rockchip_encoder_disable(struct drm_encoder *encoder)
 	struct drm_crtc *crtc = encoder->crtc;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 
+	if (WARN_ON(!crtc || !crtc->state))
+		return;
+
 	if (crtc->state->active_changed) {
 		if (hdmi->plat_data->split_mode) {
 			s->output_if &= ~(VOP_OUTPUT_IF_HDMI0 | VOP_OUTPUT_IF_HDMI1);
@@ -1937,7 +1940,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	else
 		*enc_out_encoding = V4L2_YCBCR_ENC_709;
 
-	if (*enc_out_encoding == V4L2_YCBCR_ENC_BT2020) {
+	if (*enc_out_encoding == V4L2_YCBCR_ENC_BT2020 && color_depth == 8) {
 		/* BT2020 require color depth at lest 10bit */
 		color_depth = 10;
 		/* We prefer use YCbCr422 to send 10bit */
@@ -2226,6 +2229,14 @@ dw_hdmi_rockchip_get_hdr_blob(void *data)
 	return hdmi->hdr_panel_blob_ptr;
 }
 
+static void dw_hdmi_rockchip_update_color_format(struct drm_connector_state *conn_state,
+						 void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	dw_hdmi_rockchip_check_color(conn_state, hdmi);
+}
+
 static bool
 dw_hdmi_rockchip_get_color_changed(void *data)
 {
@@ -2365,6 +2376,21 @@ static int dw_hdmi_link_clk_set(void *data, bool enable)
 		clk_disable_unprepare(hdmi->link_clk);
 	}
 	return 0;
+}
+
+static bool
+dw_hdmi_rockchip_check_hdr_color_change(struct drm_connector_state *conn_state,
+					void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	if (!conn_state || !data)
+		return false;
+
+	if (dw_hdmi_rockchip_check_color(conn_state, hdmi))
+		return true;
+
+	return false;
 }
 
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
@@ -3295,7 +3321,10 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	plat_data->dclk_set = dw_hdmi_dclk_set;
 	plat_data->link_clk_set = dw_hdmi_link_clk_set;
 	plat_data->get_vp_id = dw_hdmi_rockchip_get_vp_id;
-
+	plat_data->update_color_format =
+		dw_hdmi_rockchip_update_color_format;
+	plat_data->check_hdr_color_change =
+		dw_hdmi_rockchip_check_hdr_color_change;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	secondary = rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);
