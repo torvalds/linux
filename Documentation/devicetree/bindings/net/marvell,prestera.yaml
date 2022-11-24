@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/marvell,prestera.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Prestera AlleyCat3 switch
+
+maintainers:
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - marvell,prestera-98dx3236
+          - marvell,prestera-98dx3336
+          - marvell,prestera-98dx4251
+      - const: marvell,prestera
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 3
+
+  dfx:
+    description: Reference to the DFX Server bus node.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    packet-processor@0 {
+        compatible = "marvell,prestera-98dx3236", "marvell,prestera";
+        reg = <0 0x4000000>;
+        interrupts = <33>, <34>, <35>;
+        dfx = <&dfx>;
+    };
