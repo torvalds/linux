@@ -308,11 +308,12 @@ static void io_apoll_task_func(struct io_kiocb *req, bool *locked)
 	if (ret == IOU_POLL_NO_ACTION)
 		return;
 
+	io_tw_lock(req->ctx, locked);
 	io_poll_remove_entries(req);
 	io_poll_tw_hash_eject(req, locked);
 
 	if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
-		io_req_complete_post_tw(req, locked);
+		io_req_task_complete(req, locked);
 	else if (ret == IOU_POLL_DONE)
 		io_req_task_submit(req, locked);
 	else
