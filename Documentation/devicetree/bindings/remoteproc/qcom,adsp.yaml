@@ -61,11 +61,11 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 8
+    maxItems: 2
 
   clock-names:
     minItems: 1
-    maxItems: 8
+    maxItems: 2
 
   interconnects:
     maxItems: 1
@@ -89,14 +89,6 @@ properties:
       - const: handover
       - const: stop-ack
       - const: shutdown-ack
-
-  resets:
-    minItems: 1
-    maxItems: 3
-
-  reset-names:
-    minItems: 1
-    maxItems: 3
 
   cx-supply:
     description: Phandle to the CX regulator
@@ -135,18 +127,6 @@ properties:
     items:
       - const: stop
 
-  qcom,halt-regs:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
-    items:
-      - items:
-          - description: Phandle reference to a syscon representing TCSR
-          - description: offsets within syscon for q6 halt registers
-          - description: offsets within syscon for modem halt registers
-          - description: offsets within syscon for nc halt registers
-    description:
-      Phandle reference to a syscon representing TCSR followed by the
-      three offsets within syscon for q6, modem and nc halt registers.
-
   smd-edge:
     $ref: /schemas/remoteproc/qcom,smd-edge.yaml#
     description:
@@ -184,7 +164,9 @@ allOf:
               - qcom,msm8996-slpi-pil
               - qcom,msm8998-adsp-pas
               - qcom,qcs404-adsp-pas
+              - qcom,qcs404-cdsp-pas
               - qcom,qcs404-wcss-pas
+              - qcom,sc7180-mpss-pas
               - qcom,sc7280-mpss-pas
               - qcom,sc8180x-adsp-pas
               - qcom,sc8180x-cdsp-pas
@@ -237,60 +219,6 @@ allOf:
           items:
             - const: xo
             - const: aggre2
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,qcs404-cdsp-pas
-    then:
-      properties:
-        clocks:
-          items:
-            - description: XO clock
-            - description: SWAY clock
-            - description: TBU clock
-            - description: BIMC clock
-            - description: AHB AON clock
-            - description: Q6SS SLAVE clock
-            - description: Q6SS MASTER clock
-            - description: Q6 AXIM clock
-        clock-names:
-          items:
-            - const: xo
-            - const: sway
-            - const: tbu
-            - const: bimc
-            - const: ahb_aon
-            - const: q6ss_slave
-            - const: q6ss_master
-            - const: q6_axim
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,sc7180-mpss-pas
-    then:
-      properties:
-        clocks:
-          items:
-            - description: XO clock
-            - description: IFACE clock
-            - description: BUS clock
-            - description: NAC clock
-            - description: SNOC AXI clock
-            - description: MNOC AXI clock
-        clock-names:
-          items:
-            - const: xo
-            - const: iface
-            - const: bus
-            - const: nav
-            - const: snoc_axi
-            - const: mnoc_axi
 
   - if:
       properties:
@@ -519,39 +447,6 @@ allOf:
         power-domain-names:
           items:
             - const: nsp
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,qcs404-cdsp-pas
-    then:
-      properties:
-        resets:
-          items:
-            - description: CDSP restart
-        reset-names:
-          items:
-            - const: restart
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,sc7180-mpss-pas
-              - qcom,sc7280-mpss-pas
-    then:
-      properties:
-        resets:
-          items:
-            - description: MSS restart
-            - description: PDC reset
-        reset-names:
-          items:
-            - const: mss_restart
-            - const: pdc_reset
 
   - if:
       properties:
