@@ -11,3 +11,4 @@
    :maxdepth: 1
 
    submitting-patches
+   kernel-docs
