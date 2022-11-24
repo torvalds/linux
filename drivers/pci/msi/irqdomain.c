@@ -225,7 +225,8 @@ static const struct msi_domain_template pci_msix_template = {
 	},
 
 	.info = {
-		.flags			= MSI_COMMON_FLAGS | MSI_FLAG_PCI_MSIX,
+		.flags			= MSI_COMMON_FLAGS | MSI_FLAG_PCI_MSIX |
+					  MSI_FLAG_PCI_MSIX_ALLOC_DYN,
 		.bus_token		= DOMAIN_BUS_PCI_DEVICE_MSIX,
 	},
 };
