@@ -1107,7 +1107,7 @@ error:
  */
 void intel_irq_remap_add_device(struct dmar_pci_notify_info *info)
 {
-	if (!irq_remapping_enabled || pci_dev_has_special_msi_domain(info->dev))
+	if (!irq_remapping_enabled || !pci_dev_has_default_msi_parent_domain(info->dev))
 		return;
 
 	dev_set_msi_domain(&info->dev->dev, map_dev_to_ir(info->dev));
