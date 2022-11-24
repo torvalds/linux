@@ -782,6 +782,29 @@ static const struct hid_sensor_custom_match hid_sensor_custom_known_table[] = {
 		.luid = "020B000000000000",
 		.manufacturer = "INTEL",
 	},
+	/*
+	 * Lenovo Intelligent Sensing Solution (LISS)
+	 */
+	{	/* ambient light */
+		.tag = "LISS",
+		.luid = "0041010200000082",
+		.model = "STK3X3X Sensor",
+		.manufacturer = "Vendor 258",
+		.check_dmi = true,
+		.dmi.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		}
+	},
+	{	/* human presence */
+		.tag = "LISS",
+		.luid = "0226000171AC0081",
+		.model = "VL53L1_HOD Sensor",
+		.manufacturer = "ST_MICRO",
+		.check_dmi = true,
+		.dmi.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		}
+	},
 	{}
 };
 
