@@ -184,6 +184,12 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 		if (err)
 			break;
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+		/* if we're just probing, do a single pass */
+		if (ocr == 0)
+			break;
+#endif
+
 		/*
 		 * According to eMMC specification v5.1 section A6.1, the R3
 		 * response value should be 0x00FF8080, 0x40FF8080, 0x80FF8080
