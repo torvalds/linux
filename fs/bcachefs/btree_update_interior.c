@@ -71,7 +71,7 @@ static void btree_node_interior_verify(struct bch_fs *c, struct btree *b)
 			break;
 		bp = bkey_s_c_to_btree_ptr_v2(k);
 
-		if (bpos_cmp(next_node, bp.v->min_key)) {
+		if (!bpos_eq(next_node, bp.v->min_key)) {
 			bch2_dump_btree_node(c, b);
 			bch2_bpos_to_text(&buf1, next_node);
 			bch2_bpos_to_text(&buf2, bp.v->min_key);
@@ -81,7 +81,7 @@ static void btree_node_interior_verify(struct bch_fs *c, struct btree *b)
 		bch2_btree_node_iter_advance(&iter, b);
 
 		if (bch2_btree_node_iter_end(&iter)) {
-			if (bpos_cmp(k.k->p, b->key.k.p)) {
+			if (!bpos_eq(k.k->p, b->key.k.p)) {
 				bch2_dump_btree_node(c, b);
 				bch2_bpos_to_text(&buf1, b->key.k.p);
 				bch2_bpos_to_text(&buf2, k.k->p);
@@ -1328,7 +1328,7 @@ __bch2_btree_insert_keys_interior(struct btree_update *as,
 	while (!bch2_keylist_empty(keys)) {
 		struct bkey_i *k = bch2_keylist_front(keys);
 
-		if (bpos_cmp(k->k.p, b->key.k.p) > 0)
+		if (bpos_gt(k->k.p, b->key.k.p))
 			break;
 
 		bch2_insert_fixup_btree_ptr(as, trans, path, b, &node_iter, k);
@@ -1445,8 +1445,7 @@ static void btree_split_insert_keys(struct btree_update *as,
 				    struct keylist *keys)
 {
 	if (!bch2_keylist_empty(keys) &&
-	    bpos_cmp(bch2_keylist_front(keys)->k.p,
-		     b->data->max_key) <= 0) {
+	    bpos_le(bch2_keylist_front(keys)->k.p, b->data->max_key)) {
 		struct btree_node_iter node_iter;
 
 		bch2_btree_node_iter_init(&node_iter, b, &bch2_keylist_front(keys)->k.p);
@@ -1770,8 +1769,8 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 
 	b = path->l[level].b;
 
-	if ((sib == btree_prev_sib && !bpos_cmp(b->data->min_key, POS_MIN)) ||
-	    (sib == btree_next_sib && !bpos_cmp(b->data->max_key, SPOS_MAX))) {
+	if ((sib == btree_prev_sib && bpos_eq(b->data->min_key, POS_MIN)) ||
+	    (sib == btree_next_sib && bpos_eq(b->data->max_key, SPOS_MAX))) {
 		b->sib_u64s[sib] = U16_MAX;
 		return 0;
 	}
@@ -1804,7 +1803,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 		next = m;
 	}
 
-	if (bkey_cmp(bpos_successor(prev->data->max_key), next->data->min_key)) {
+	if (!bpos_eq(bpos_successor(prev->data->max_key), next->data->min_key)) {
 		struct printbuf buf1 = PRINTBUF, buf2 = PRINTBUF;
 
 		bch2_bpos_to_text(&buf1, prev->data->max_key);
@@ -2097,7 +2096,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 				iter2.flags & BTREE_ITER_INTENT);
 
 		BUG_ON(iter2.path->level != b->c.level);
-		BUG_ON(bpos_cmp(iter2.path->pos, new_key->k.p));
+		BUG_ON(!bpos_eq(iter2.path->pos, new_key->k.p));
 
 		btree_path_set_level_up(trans, iter2.path);
 

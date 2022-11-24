@@ -350,8 +350,8 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		bkey_init(&new_src->k);
 		new_src->k.p = src_iter.pos;
 
-		if (bkey_cmp(dst_pos, src_iter.pos) <= 0 &&
-		    bkey_cmp(src_iter.pos, dst_iter.pos) < 0) {
+		if (bkey_le(dst_pos, src_iter.pos) &&
+		    bkey_lt(src_iter.pos, dst_iter.pos)) {
 			/*
 			 * We have a hash collision for the new dst key,
 			 * and new_src - the key we're deleting - is between

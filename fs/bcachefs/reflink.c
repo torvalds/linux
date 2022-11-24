@@ -252,14 +252,14 @@ static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
 	int ret;
 
 	for_each_btree_key_continue_norestart(*iter, 0, k, ret) {
-		if (bkey_cmp(iter->pos, end) >= 0)
+		if (bkey_ge(iter->pos, end))
 			break;
 
 		if (bkey_extent_is_data(k.k))
 			return k;
 	}
 
-	if (bkey_cmp(iter->pos, end) >= 0)
+	if (bkey_ge(iter->pos, end))
 		bch2_btree_iter_set_pos(iter, end);
 	return ret ? bkey_s_c_err(ret) : bkey_s_c_null;
 }
@@ -301,7 +301,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 
 	while ((ret == 0 ||
 		bch2_err_matches(ret, BCH_ERR_transaction_restart)) &&
-	       bkey_cmp(dst_iter.pos, dst_end) < 0) {
+	       bkey_lt(dst_iter.pos, dst_end)) {
 		struct disk_reservation disk_res = { 0 };
 
 		bch2_trans_begin(&trans);
@@ -334,7 +334,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 		if (ret)
 			continue;
 
-		if (bkey_cmp(src_want, src_iter.pos) < 0) {
+		if (bkey_lt(src_want, src_iter.pos)) {
 			ret = bch2_fpunch_at(&trans, &dst_iter, dst_inum,
 					min(dst_end.offset,
 					    dst_iter.pos.offset +
@@ -386,8 +386,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 	bch2_trans_iter_exit(&trans, &dst_iter);
 	bch2_trans_iter_exit(&trans, &src_iter);
 
-	BUG_ON(!ret && bkey_cmp(dst_iter.pos, dst_end));
-	BUG_ON(bkey_cmp(dst_iter.pos, dst_end) > 0);
+	BUG_ON(!ret && !bkey_eq(dst_iter.pos, dst_end));
+	BUG_ON(bkey_gt(dst_iter.pos, dst_end));
 
 	dst_done = dst_iter.pos.offset - dst_start.offset;
 	new_i_size = min(dst_iter.pos.offset << 9, new_i_size);

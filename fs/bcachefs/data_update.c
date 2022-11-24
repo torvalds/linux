@@ -30,7 +30,7 @@ static int insert_snapshot_whiteouts(struct btree_trans *trans,
 
 	darray_init(&s);
 
-	if (!bkey_cmp(old_pos, new_pos))
+	if (bkey_eq(old_pos, new_pos))
 		return 0;
 
 	if (!snapshot_t(c, old_pos.snapshot)->children[0])
@@ -45,7 +45,7 @@ static int insert_snapshot_whiteouts(struct btree_trans *trans,
 		if (ret)
 			break;
 
-		if (bkey_cmp(old_pos, k.k->p))
+		if (!bkey_eq(old_pos, k.k->p))
 			break;
 
 		if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, old_pos.snapshot)) {
@@ -244,7 +244,7 @@ err:
 		if (ret)
 			break;
 next:
-		while (bkey_cmp(iter.pos, bch2_keylist_front(keys)->k.p) >= 0) {
+		while (bkey_ge(iter.pos, bch2_keylist_front(keys)->k.p)) {
 			bch2_keylist_pop_front(keys);
 			if (bch2_keylist_empty(keys))
 				goto out;

@@ -793,9 +793,9 @@ static inline void btree_check_header(struct bch_fs *c, struct btree *b)
 {
 	if (b->c.btree_id != BTREE_NODE_ID(b->data) ||
 	    b->c.level != BTREE_NODE_LEVEL(b->data) ||
-	    bpos_cmp(b->data->max_key, b->key.k.p) ||
+	    !bpos_eq(b->data->max_key, b->key.k.p) ||
 	    (b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
-	     bpos_cmp(b->data->min_key,
+	     !bpos_eq(b->data->min_key,
 		      bkey_i_to_btree_ptr_v2(&b->key)->v.min_key)))
 		btree_bad_header(c, b);
 }

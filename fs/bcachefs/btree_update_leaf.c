@@ -92,8 +92,8 @@ bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 	EBUG_ON(btree_node_just_written(b));
 	EBUG_ON(bset_written(b, btree_bset_last(b)));
 	EBUG_ON(bkey_deleted(&insert->k) && bkey_val_u64s(&insert->k));
-	EBUG_ON(bpos_cmp(insert->k.p, b->data->min_key) < 0);
-	EBUG_ON(bpos_cmp(insert->k.p, b->data->max_key) > 0);
+	EBUG_ON(bpos_lt(insert->k.p, b->data->min_key));
+	EBUG_ON(bpos_gt(insert->k.p, b->data->max_key));
 	EBUG_ON(insert->k.u64s >
 		bch_btree_keys_u64s_remaining(trans->c, b));
 
@@ -257,7 +257,7 @@ static void btree_insert_key_leaf(struct btree_trans *trans,
 static inline void btree_insert_entry_checks(struct btree_trans *trans,
 					     struct btree_insert_entry *i)
 {
-	BUG_ON(bpos_cmp(i->k->k.p, i->path->pos));
+	BUG_ON(!bpos_eq(i->k->k.p, i->path->pos));
 	BUG_ON(i->cached	!= i->path->cached);
 	BUG_ON(i->level		!= i->path->level);
 	BUG_ON(i->btree_id	!= i->path->btree_id);
@@ -1141,7 +1141,7 @@ static noinline int __check_pos_snapshot_overwritten(struct btree_trans *trans,
 		if (!k.k)
 			break;
 
-		if (bkey_cmp(pos, k.k->p))
+		if (!bkey_eq(pos, k.k->p))
 			break;
 
 		if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, pos.snapshot)) {
@@ -1242,7 +1242,7 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 	if (!k.k)
 		goto out;
 
-	if (!bkey_cmp(k.k->p, bkey_start_pos(&insert->k))) {
+	if (bkey_eq(k.k->p, bkey_start_pos(&insert->k))) {
 		if (bch2_bkey_maybe_mergable(k.k, &insert->k)) {
 			ret = extent_front_merge(trans, &iter, k, &insert, flags);
 			if (ret)
@@ -1252,9 +1252,9 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 		goto next;
 	}
 
-	while (bkey_cmp(insert->k.p, bkey_start_pos(k.k)) > 0) {
-		bool front_split = bkey_cmp(bkey_start_pos(k.k), start) < 0;
-		bool back_split  = bkey_cmp(k.k->p, insert->k.p) > 0;
+	while (bkey_gt(insert->k.p, bkey_start_pos(k.k))) {
+		bool front_split = bkey_lt(bkey_start_pos(k.k), start);
+		bool back_split  = bkey_gt(k.k->p, insert->k.p);
 
 		/*
 		 * If we're going to be splitting a compressed extent, note it
@@ -1313,7 +1313,7 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 				goto err;
 		}
 
-		if (bkey_cmp(k.k->p, insert->k.p) <= 0) {
+		if (bkey_le(k.k->p, insert->k.p)) {
 			update = bch2_trans_kmalloc(trans, sizeof(*update));
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
@@ -1407,7 +1407,7 @@ static int need_whiteout_for_snapshot(struct btree_trans *trans,
 	for_each_btree_key_norestart(trans, iter, btree_id, pos,
 			   BTREE_ITER_ALL_SNAPSHOTS|
 			   BTREE_ITER_NOPRESERVE, k, ret) {
-		if (bkey_cmp(k.k->p, pos))
+		if (!bkey_eq(k.k->p, pos))
 			break;
 
 		if (bch2_snapshot_is_ancestor(trans->c, snapshot,
@@ -1463,7 +1463,7 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 
 	EBUG_ON(!path->should_be_locked);
 	EBUG_ON(trans->nr_updates >= BTREE_ITER_MAX);
-	EBUG_ON(bpos_cmp(k->k.p, path->pos));
+	EBUG_ON(!bpos_eq(k->k.p, path->pos));
 
 	n = (struct btree_insert_entry) {
 		.flags		= flags,
@@ -1573,7 +1573,7 @@ int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter 
 	    btree_id_cached(trans->c, path->btree_id)) {
 		if (!iter->key_cache_path ||
 		    !iter->key_cache_path->should_be_locked ||
-		    bpos_cmp(iter->key_cache_path->pos, k->k.p)) {
+		    !bpos_eq(iter->key_cache_path->pos, k->k.p)) {
 			if (!iter->key_cache_path)
 				iter->key_cache_path =
 					bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
@@ -1682,7 +1682,7 @@ int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
 		if (ret)
 			goto err;
 
-		if (bkey_cmp(iter.pos, end) >= 0)
+		if (bkey_ge(iter.pos, end))
 			break;
 
 		bkey_init(&delete.k);

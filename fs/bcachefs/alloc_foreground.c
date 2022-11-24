@@ -399,7 +399,7 @@ again:
 			   BTREE_ITER_SLOTS, k, ret) {
 		struct bch_alloc_v4 a;
 
-		if (bkey_cmp(k.k->p, POS(ca->dev_idx, ca->mi.nbuckets)) >= 0)
+		if (bkey_ge(k.k->p, POS(ca->dev_idx, ca->mi.nbuckets)))
 			break;
 
 		if (ca->new_fs_bucket_idx &&

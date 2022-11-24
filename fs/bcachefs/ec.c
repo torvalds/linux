@@ -107,7 +107,7 @@ int bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k,
 {
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 
-	if (!bkey_cmp(k.k->p, POS_MIN)) {
+	if (bkey_eq(k.k->p, POS_MIN)) {
 		prt_printf(err, "stripe at POS_MIN");
 		return -EINVAL;
 	}
@@ -724,7 +724,7 @@ static int ec_stripe_bkey_insert(struct btree_trans *trans,
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_stripes, start_pos,
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
-		if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0) {
+		if (bkey_gt(k.k->p, POS(0, U32_MAX))) {
 			if (start_pos.offset) {
 				start_pos = min_pos;
 				bch2_btree_iter_set_pos(&iter, start_pos);

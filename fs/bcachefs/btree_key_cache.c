@@ -27,8 +27,8 @@ static int bch2_btree_key_cache_cmp_fn(struct rhashtable_compare_arg *arg,
 	const struct bkey_cached *ck = obj;
 	const struct bkey_cached_key *key = arg->key;
 
-	return cmp_int(ck->key.btree_id, key->btree_id) ?:
-		bpos_cmp(ck->key.pos, key->pos);
+	return ck->key.btree_id != key->btree_id ||
+		!bpos_eq(ck->key.pos, key->pos);
 }
 
 static const struct rhashtable_params bch2_btree_key_cache_params = {
@@ -476,7 +476,7 @@ retry:
 		BUG_ON(ret);
 
 		if (ck->key.btree_id != path->btree_id ||
-		    bpos_cmp(ck->key.pos, path->pos)) {
+		    !bpos_eq(ck->key.pos, path->pos)) {
 			six_unlock_type(&ck->c.lock, lock_want);
 			goto retry;
 		}
@@ -550,7 +550,7 @@ retry:
 			return ret;
 
 		if (ck->key.btree_id != path->btree_id ||
-		    bpos_cmp(ck->key.pos, path->pos)) {
+		    !bpos_eq(ck->key.pos, path->pos)) {
 			six_unlock_type(&ck->c.lock, lock_want);
 			goto retry;
 		}

@@ -76,7 +76,7 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 	if (cur.k->k.type == KEY_TYPE_btree_ptr_v2) {
 		struct bkey_i_btree_ptr_v2 *bp = bkey_i_to_btree_ptr_v2(cur.k);
 
-		if (bpos_cmp(expected_start, bp->v.min_key)) {
+		if (!bpos_eq(expected_start, bp->v.min_key)) {
 			bch2_topology_error(c);
 
 			if (bkey_deleted(&prev->k->k)) {
@@ -106,7 +106,7 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 		}
 	}
 
-	if (is_last && bpos_cmp(cur.k->k.p, node_end)) {
+	if (is_last && !bpos_eq(cur.k->k.p, node_end)) {
 		bch2_topology_error(c);
 
 		printbuf_reset(&buf1);
@@ -274,12 +274,12 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 	bch2_bkey_val_to_text(&buf2, c, bkey_i_to_s_c(&cur->key));
 
 	if (prev &&
-	    bpos_cmp(expected_start, cur->data->min_key) > 0 &&
+	    bpos_gt(expected_start, cur->data->min_key) &&
 	    BTREE_NODE_SEQ(cur->data) > BTREE_NODE_SEQ(prev->data)) {
 		/* cur overwrites prev: */
 
-		if (mustfix_fsck_err_on(bpos_cmp(prev->data->min_key,
-						 cur->data->min_key) >= 0, c,
+		if (mustfix_fsck_err_on(bpos_ge(prev->data->min_key,
+						cur->data->min_key), c,
 				"btree node overwritten by next node at btree %s level %u:\n"
 				"  node %s\n"
 				"  next %s",
@@ -289,7 +289,7 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 			goto out;
 		}
 
-		if (mustfix_fsck_err_on(bpos_cmp(prev->key.k.p,
+		if (mustfix_fsck_err_on(!bpos_eq(prev->key.k.p,
 						 bpos_predecessor(cur->data->min_key)), c,
 				"btree node with incorrect max_key at btree %s level %u:\n"
 				"  node %s\n"
@@ -301,8 +301,8 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 	} else {
 		/* prev overwrites cur: */
 
-		if (mustfix_fsck_err_on(bpos_cmp(expected_start,
-						 cur->data->max_key) >= 0, c,
+		if (mustfix_fsck_err_on(bpos_ge(expected_start,
+						cur->data->max_key), c,
 				"btree node overwritten by prev node at btree %s level %u:\n"
 				"  prev %s\n"
 				"  node %s",
@@ -312,7 +312,7 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 			goto out;
 		}
 
-		if (mustfix_fsck_err_on(bpos_cmp(expected_start, cur->data->min_key), c,
+		if (mustfix_fsck_err_on(!bpos_eq(expected_start, cur->data->min_key), c,
 				"btree node with incorrect min_key at btree %s level %u:\n"
 				"  prev %s\n"
 				"  node %s",
@@ -336,7 +336,7 @@ static int btree_repair_node_end(struct bch_fs *c, struct btree *b,
 	bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(&child->key));
 	bch2_bpos_to_text(&buf2, b->key.k.p);
 
-	if (mustfix_fsck_err_on(bpos_cmp(child->key.k.p, b->key.k.p), c,
+	if (mustfix_fsck_err_on(!bpos_eq(child->key.k.p, b->key.k.p), c,
 			"btree node with incorrect max_key at btree %s level %u:\n"
 			"  %s\n"
 			"  expected %s",
@@ -374,8 +374,8 @@ again:
 	bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-		BUG_ON(bpos_cmp(k.k->p, b->data->min_key) < 0);
-		BUG_ON(bpos_cmp(k.k->p, b->data->max_key) > 0);
+		BUG_ON(bpos_lt(k.k->p, b->data->min_key));
+		BUG_ON(bpos_gt(k.k->p, b->data->max_key));
 
 		bch2_btree_and_journal_iter_advance(&iter);
 		bch2_bkey_buf_reassemble(&cur_k, c, k);
@@ -912,8 +912,8 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 	bkey_init(&prev.k->k);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-		BUG_ON(bpos_cmp(k.k->p, b->data->min_key) < 0);
-		BUG_ON(bpos_cmp(k.k->p, b->data->max_key) > 0);
+		BUG_ON(bpos_lt(k.k->p, b->data->min_key));
+		BUG_ON(bpos_gt(k.k->p, b->data->max_key));
 
 		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level,
 				       false, &k, true);
@@ -1018,7 +1018,7 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 	six_lock_read(&b->c.lock, NULL, NULL);
 	printbuf_reset(&buf);
 	bch2_bpos_to_text(&buf, b->data->min_key);
-	if (mustfix_fsck_err_on(bpos_cmp(b->data->min_key, POS_MIN), c,
+	if (mustfix_fsck_err_on(!bpos_eq(b->data->min_key, POS_MIN), c,
 			"btree root with incorrect min_key: %s", buf.buf)) {
 		bch_err(c, "repair unimplemented");
 		ret = -BCH_ERR_fsck_repair_unimplemented;
@@ -1027,7 +1027,7 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 
 	printbuf_reset(&buf);
 	bch2_bpos_to_text(&buf, b->data->max_key);
-	if (mustfix_fsck_err_on(bpos_cmp(b->data->max_key, SPOS_MAX), c,
+	if (mustfix_fsck_err_on(!bpos_eq(b->data->max_key, SPOS_MAX), c,
 			"btree root with incorrect max_key: %s", buf.buf)) {
 		bch_err(c, "repair unimplemented");
 		ret = -BCH_ERR_fsck_repair_unimplemented;
@@ -1341,7 +1341,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	enum bch_data_type type;
 	int ret;
 
-	if (bkey_cmp(iter->pos, POS(ca->dev_idx, ca->mi.nbuckets)) >= 0)
+	if (bkey_ge(iter->pos, POS(ca->dev_idx, ca->mi.nbuckets)))
 		return 1;
 
 	bch2_alloc_to_v4(k, &old);

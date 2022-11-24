@@ -60,7 +60,7 @@ static inline bool bch2_bkey_maybe_mergable(const struct bkey *l, const struct b
 {
 	return l->type == r->type &&
 		!bversion_cmp(l->version, r->version) &&
-		!bpos_cmp(l->p, bkey_start_pos(r));
+		bpos_eq(l->p, bkey_start_pos(r));
 }
 
 bool bch2_bkey_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);

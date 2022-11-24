@@ -227,7 +227,7 @@ void bch2_btree_ptr_v2_compat(enum btree_id btree_id, unsigned version,
 
 	if (version < bcachefs_metadata_version_inode_btree_change &&
 	    btree_node_type_is_extents(btree_id) &&
-	    bkey_cmp(bp.v->min_key, POS_MIN))
+	    !bkey_eq(bp.v->min_key, POS_MIN))
 		bp.v->min_key = write
 			? bpos_nosnap_predecessor(bp.v->min_key)
 			: bpos_nosnap_successor(bp.v->min_key);
@@ -1211,10 +1211,10 @@ int bch2_cut_front_s(struct bpos where, struct bkey_s k)
 	int val_u64s_delta;
 	u64 sub;
 
-	if (bkey_cmp(where, bkey_start_pos(k.k)) <= 0)
+	if (bkey_le(where, bkey_start_pos(k.k)))
 		return 0;
 
-	EBUG_ON(bkey_cmp(where, k.k->p) > 0);
+	EBUG_ON(bkey_gt(where, k.k->p));
 
 	sub = where.offset - bkey_start_offset(k.k);
 
@@ -1291,10 +1291,10 @@ int bch2_cut_back_s(struct bpos where, struct bkey_s k)
 	int val_u64s_delta;
 	u64 len = 0;
 
-	if (bkey_cmp(where, k.k->p) >= 0)
+	if (bkey_ge(where, k.k->p))
 		return 0;
 
-	EBUG_ON(bkey_cmp(where, bkey_start_pos(k.k)) < 0);
+	EBUG_ON(bkey_lt(where, bkey_start_pos(k.k)));
 
 	len = where.offset - bkey_start_offset(k.k);
 

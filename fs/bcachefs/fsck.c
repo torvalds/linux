@@ -133,7 +133,7 @@ static int lookup_first_inode(struct btree_trans *trans, u64 inode_nr,
 	if (ret)
 		goto err;
 
-	if (!k.k || bkey_cmp(k.k->p, POS(0, inode_nr))) {
+	if (!k.k || !bkey_eq(k.k->p, POS(0, inode_nr))) {
 		ret = -ENOENT;
 		goto err;
 	}
@@ -527,7 +527,7 @@ static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 	};
 	int ret = 0;
 
-	if (bkey_cmp(s->pos, pos))
+	if (!bkey_eq(s->pos, pos))
 		s->ids.nr = 0;
 
 	pos.snapshot = n.equiv;
@@ -825,7 +825,7 @@ static int hash_check_key(struct btree_trans *trans,
 	for_each_btree_key_norestart(trans, iter, desc.btree_id,
 				     POS(hash_k.k->p.inode, hash),
 				     BTREE_ITER_SLOTS, k, ret) {
-		if (!bkey_cmp(k.k->p, hash_k.k->p))
+		if (bkey_eq(k.k->p, hash_k.k->p))
 			break;
 
 		if (fsck_err_on(k.k->type == desc.key_type &&
@@ -1199,7 +1199,7 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 
 	BUG_ON(!iter->path->should_be_locked);
 #if 0
-	if (bkey_cmp(prev.k->k.p, bkey_start_pos(k.k)) > 0) {
+	if (bkey_gt(prev.k->k.p, bkey_start_pos(k.k))) {
 		char buf1[200];
 		char buf2[200];
 

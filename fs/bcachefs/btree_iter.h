@@ -478,7 +478,7 @@ static inline struct bkey_s_c bch2_btree_iter_peek_upto_type(struct btree_iter *
 	if (!(flags & BTREE_ITER_SLOTS))
 		return bch2_btree_iter_peek_upto(iter, end);
 
-	if (bkey_cmp(iter->pos, end) > 0)
+	if (bkey_gt(iter->pos, end))
 		return bkey_s_c_null;
 
 	return bch2_btree_iter_peek_slot(iter);

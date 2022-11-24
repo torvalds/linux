@@ -77,7 +77,7 @@ static void verify_no_dups(struct btree *b,
 		struct bkey l = bkey_unpack_key(b, p);
 		struct bkey r = bkey_unpack_key(b, k);
 
-		BUG_ON(bpos_cmp(l.p, bkey_start_pos(&r)) >= 0);
+		BUG_ON(bpos_ge(l.p, bkey_start_pos(&r)));
 	}
 #endif
 }
@@ -645,8 +645,8 @@ void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 	bch2_btree_build_aux_trees(b);
 
 	for_each_btree_node_key_unpack(b, k, &iter, &unpacked) {
-		BUG_ON(bpos_cmp(k.k->p, b->data->min_key) < 0);
-		BUG_ON(bpos_cmp(k.k->p, b->data->max_key) > 0);
+		BUG_ON(bpos_lt(k.k->p, b->data->min_key));
+		BUG_ON(bpos_gt(k.k->p, b->data->max_key));
 	}
 }
 
@@ -744,7 +744,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 				b->data->max_key = b->key.k.p;
 			}
 
-			btree_err_on(bpos_cmp(b->data->min_key, bp->min_key),
+			btree_err_on(!bpos_eq(b->data->min_key, bp->min_key),
 				     BTREE_ERR_MUST_RETRY, c, ca, b, NULL,
 				     "incorrect min_key: got %s should be %s",
 				     (printbuf_reset(&buf1),
@@ -753,7 +753,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 				      bch2_bpos_to_text(&buf2, bp->min_key), buf2.buf));
 		}
 
-		btree_err_on(bpos_cmp(bn->max_key, b->key.k.p),
+		btree_err_on(!bpos_eq(bn->max_key, b->key.k.p),
 			     BTREE_ERR_MUST_RETRY, c, ca, b, i,
 			     "incorrect max key %s",
 			     (printbuf_reset(&buf1),

@@ -2043,7 +2043,7 @@ retry:
 	for_each_btree_key_norestart(&trans, iter, BTREE_ID_extents,
 			   SPOS(inum.inum, offset, snapshot),
 			   BTREE_ITER_SLOTS, k, err) {
-		if (bkey_cmp(bkey_start_pos(k.k), POS(inum.inum, end)) >= 0)
+		if (bkey_ge(bkey_start_pos(k.k), POS(inum.inum, end)))
 			break;
 
 		if (k.k->p.snapshot != snapshot ||
@@ -2532,7 +2532,7 @@ retry:
 		goto err;
 
 	for_each_btree_key_norestart(&trans, iter, BTREE_ID_extents, start, 0, k, ret) {
-		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
+		if (bkey_ge(bkey_start_pos(k.k), end))
 			break;
 
 		if (bkey_extent_is_data(k.k)) {
@@ -2970,13 +2970,13 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 			break;
 
 		if (insert &&
-		    bkey_cmp(k.k->p, POS(inode->v.i_ino, offset >> 9)) <= 0)
+		    bkey_le(k.k->p, POS(inode->v.i_ino, offset >> 9)))
 			break;
 reassemble:
 		bch2_bkey_buf_reassemble(&copy, c, k);
 
 		if (insert &&
-		    bkey_cmp(bkey_start_pos(k.k), move_pos) < 0)
+		    bkey_lt(bkey_start_pos(k.k), move_pos))
 			bch2_cut_front(move_pos, copy.k);
 
 		copy.k->k.p.offset += shift >> 9;
@@ -2986,7 +2986,7 @@ reassemble:
 		if (ret)
 			continue;
 
-		if (bkey_cmp(atomic_end, copy.k->k.p)) {
+		if (!bkey_eq(atomic_end, copy.k->k.p)) {
 			if (insert) {
 				move_pos = atomic_end;
 				move_pos.offset -= shift >> 9;
@@ -3064,7 +3064,7 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 			POS(inode->v.i_ino, start_sector),
 			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
-	while (!ret && bkey_cmp(iter.pos, end_pos) < 0) {
+	while (!ret && bkey_lt(iter.pos, end_pos)) {
 		s64 i_sectors_delta = 0;
 		struct disk_reservation disk_res = { 0 };
 		struct quota_res quota_res = { 0 };

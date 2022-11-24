@@ -636,9 +636,8 @@ enum bch_extent_overlap {
 static inline enum bch_extent_overlap bch2_extent_overlap(const struct bkey *k,
 							  const struct bkey *m)
 {
-	int cmp1 = bkey_cmp(k->p, m->p) < 0;
-	int cmp2 = bkey_cmp(bkey_start_pos(k),
-			    bkey_start_pos(m)) > 0;
+	int cmp1 = bkey_lt(k->p, m->p);
+	int cmp2 = bkey_gt(bkey_start_pos(k), bkey_start_pos(m));
 
 	return (cmp1 << 1) + cmp2;
 }

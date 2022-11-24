@@ -340,7 +340,7 @@ static int lookup_inode(struct btree_trans *trans, struct bpos pos,
 	if (ret)
 		goto err;
 
-	if (!k.k || bkey_cmp(k.k->p, pos)) {
+	if (!k.k || !bkey_eq(k.k->p, pos)) {
 		ret = -ENOENT;
 		goto err;
 	}
@@ -446,7 +446,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		if (ret)
 			break;
 
-		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
+		if (bkey_ge(bkey_start_pos(k.k), end))
 			break;
 
 		ctxt->stats->pos = iter.pos;

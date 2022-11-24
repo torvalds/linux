@@ -982,7 +982,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 		goto out;
 	}
 
-	if (bkey_cmp(*discard_pos_done, iter.pos) &&
+	if (!bkey_eq(*discard_pos_done, iter.pos) &&
 	    ca->mi.discard && !c->opts.nochanges) {
 		/*
 		 * This works without any other locks because this is the only

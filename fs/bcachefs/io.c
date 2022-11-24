@@ -237,7 +237,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 		     (!new_compressed && bch2_bkey_sectors_compressed(old))))
 			*usage_increasing = true;
 
-		if (bkey_cmp(old.k->p, new->k.p) >= 0) {
+		if (bkey_ge(old.k->p, new->k.p)) {
 			/*
 			 * Check if there's already data above where we're
 			 * going to be writing to - this means we're definitely
@@ -420,7 +420,7 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 		bch2_btree_iter_set_snapshot(iter, snapshot);
 
 		k = bch2_btree_iter_peek(iter);
-		if (bkey_cmp(iter->pos, end_pos) >= 0) {
+		if (bkey_ge(iter->pos, end_pos)) {
 			bch2_btree_iter_set_pos(iter, end_pos);
 			break;
 		}
@@ -518,7 +518,7 @@ static int bch2_write_index_default(struct bch_write_op *op)
 		if (ec_ob)
 			bch2_ob_add_backpointer(c, ec_ob, &sk.k->k);
 
-		if (bkey_cmp(iter.pos, k->k.p) >= 0)
+		if (bkey_ge(iter.pos, k->k.p))
 			bch2_keylist_pop_front(&op->insert_keys);
 		else
 			bch2_cut_front(iter.pos, k);
@@ -1398,7 +1398,7 @@ void bch2_write(struct closure *cl)
 	EBUG_ON(op->cl.parent);
 	BUG_ON(!op->nr_replicas);
 	BUG_ON(!op->write_point.v);
-	BUG_ON(!bkey_cmp(op->pos, POS_MAX));
+	BUG_ON(bkey_eq(op->pos, POS_MAX));
 
 	op->start_time = local_clock();
 	bch2_keylist_init(&op->insert_keys, op->inline_keys);

@@ -30,8 +30,8 @@ int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_s_c_snapshot s;
 	u32 i, id;
 
-	if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0 ||
-	    bkey_cmp(k.k->p, POS(0, 1)) < 0) {
+	if (bkey_gt(k.k->p, POS(0, U32_MAX)) ||
+	    bkey_lt(k.k->p, POS(0, 1))) {
 		prt_printf(err, "bad pos");
 		return -EINVAL;
 	}
@@ -592,7 +592,7 @@ static int snapshot_delete_key(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	u32 equiv = snapshot_t(c, k.k->p.snapshot)->equiv;
 
-	if (bkey_cmp(k.k->p, *last_pos))
+	if (!bkey_eq(k.k->p, *last_pos))
 		equiv_seen->nr = 0;
 	*last_pos = k.k->p;
 
@@ -770,8 +770,8 @@ static int bch2_delete_dead_snapshots_hook(struct btree_trans *trans,
 int bch2_subvolume_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			   int rw, struct printbuf *err)
 {
-	if (bkey_cmp(k.k->p, SUBVOL_POS_MIN) < 0 ||
-	    bkey_cmp(k.k->p, SUBVOL_POS_MAX) > 0) {
+	if (bkey_lt(k.k->p, SUBVOL_POS_MIN) ||
+	    bkey_gt(k.k->p, SUBVOL_POS_MAX)) {
 		prt_printf(err, "invalid pos");
 		return -EINVAL;
 	}
@@ -1028,7 +1028,7 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 
 	for_each_btree_key(trans, dst_iter, BTREE_ID_subvolumes, SUBVOL_POS_MIN,
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
-		if (bkey_cmp(k.k->p, SUBVOL_POS_MAX) > 0)
+		if (bkey_gt(k.k->p, SUBVOL_POS_MAX))
 			break;
 
 		/*

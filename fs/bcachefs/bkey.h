@@ -144,11 +144,72 @@ static inline int bkey_cmp_left_packed_byval(const struct btree *b,
 	return bkey_cmp_left_packed(b, l, &r);
 }
 
+static __always_inline bool bpos_eq(struct bpos l, struct bpos r)
+{
+	return  !((l.inode	^ r.inode) |
+		  (l.offset	^ r.offset) |
+		  (l.snapshot	^ r.snapshot));
+}
+
+static __always_inline bool bpos_lt(struct bpos l, struct bpos r)
+{
+	return  l.inode	!= r.inode ? l.inode < r.inode :
+		l.offset != r.offset ? l.offset < r.offset :
+		l.snapshot != r.snapshot ? l.snapshot < r.snapshot : false;
+}
+
+static __always_inline bool bpos_le(struct bpos l, struct bpos r)
+{
+	return  l.inode	!= r.inode ? l.inode < r.inode :
+		l.offset != r.offset ? l.offset < r.offset :
+		l.snapshot != r.snapshot ? l.snapshot < r.snapshot : true;
+}
+
+static __always_inline bool bpos_gt(struct bpos l, struct bpos r)
+{
+	return bpos_lt(r, l);
+}
+
+static __always_inline bool bpos_ge(struct bpos l, struct bpos r)
+{
+	return bpos_le(r, l);
+}
+
 static __always_inline int bpos_cmp(struct bpos l, struct bpos r)
 {
 	return  cmp_int(l.inode,    r.inode) ?:
 		cmp_int(l.offset,   r.offset) ?:
 		cmp_int(l.snapshot, r.snapshot);
+}
+
+static __always_inline bool bkey_eq(struct bpos l, struct bpos r)
+{
+	return  !((l.inode	^ r.inode) |
+		  (l.offset	^ r.offset));
+}
+
+static __always_inline bool bkey_lt(struct bpos l, struct bpos r)
+{
+	return  l.inode	!= r.inode
+		? l.inode < r.inode
+		: l.offset < r.offset;
+}
+
+static __always_inline bool bkey_le(struct bpos l, struct bpos r)
+{
+	return  l.inode	!= r.inode
+		? l.inode < r.inode
+		: l.offset <= r.offset;
+}
+
+static __always_inline bool bkey_gt(struct bpos l, struct bpos r)
+{
+	return bkey_lt(r, l);
+}
+
+static __always_inline bool bkey_ge(struct bpos l, struct bpos r)
+{
+	return bkey_le(r, l);
 }
 
 static __always_inline int bkey_cmp(struct bpos l, struct bpos r)
@@ -159,12 +220,12 @@ static __always_inline int bkey_cmp(struct bpos l, struct bpos r)
 
 static inline struct bpos bpos_min(struct bpos l, struct bpos r)
 {
-	return bpos_cmp(l, r) < 0 ? l : r;
+	return bpos_lt(l, r) ? l : r;
 }
 
 static inline struct bpos bpos_max(struct bpos l, struct bpos r)
 {
-	return bpos_cmp(l, r) > 0 ? l : r;
+	return bpos_gt(l, r) ? l : r;
 }
 
 void bch2_bpos_swab(struct bpos *);

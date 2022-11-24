@@ -132,9 +132,8 @@ search:
 	       (k = idx_to_key(keys, *idx),
 		k->btree_id == btree_id &&
 		k->level == level &&
-		bpos_cmp(k->k->k.p, end_pos) <= 0)) {
-		if (bpos_cmp(k->k->k.p, pos) >= 0 &&
-		    !k->overwritten)
+		bpos_le(k->k->k.p, end_pos))) {
+		if (bpos_ge(k->k->k.p, pos) && !k->overwritten)
 			return k->k;
 
 		(*idx)++;
@@ -295,7 +294,7 @@ void bch2_journal_key_overwritten(struct bch_fs *c, enum btree_id btree,
 	if (idx < keys->size &&
 	    keys->d[idx].btree_id	== btree &&
 	    keys->d[idx].level		== level &&
-	    !bpos_cmp(keys->d[idx].k->k.p, pos))
+	    bpos_eq(keys->d[idx].k->k.p, pos))
 		keys->d[idx].overwritten = true;
 }
 
@@ -354,7 +353,7 @@ static void bch2_journal_iter_advance_btree(struct btree_and_journal_iter *iter)
 
 void bch2_btree_and_journal_iter_advance(struct btree_and_journal_iter *iter)
 {
-	if (!bpos_cmp(iter->pos, SPOS_MAX))
+	if (bpos_eq(iter->pos, SPOS_MAX))
 		iter->at_end = true;
 	else
 		iter->pos = bpos_successor(iter->pos);
@@ -368,19 +367,19 @@ again:
 		return bkey_s_c_null;
 
 	while ((btree_k = bch2_journal_iter_peek_btree(iter)).k &&
-	       bpos_cmp(btree_k.k->p, iter->pos) < 0)
+	       bpos_lt(btree_k.k->p, iter->pos))
 		bch2_journal_iter_advance_btree(iter);
 
 	while ((journal_k = bch2_journal_iter_peek(&iter->journal)).k &&
-	       bpos_cmp(journal_k.k->p, iter->pos) < 0)
+	       bpos_lt(journal_k.k->p, iter->pos))
 		bch2_journal_iter_advance(&iter->journal);
 
 	ret = journal_k.k &&
-		(!btree_k.k || bpos_cmp(journal_k.k->p, btree_k.k->p) <= 0)
+		(!btree_k.k || bpos_le(journal_k.k->p, btree_k.k->p))
 		? journal_k
 		: btree_k;
 
-	if (ret.k && iter->b && bpos_cmp(ret.k->p, iter->b->data->max_key) > 0)
+	if (ret.k && iter->b && bpos_gt(ret.k->p, iter->b->data->max_key))
 		ret = bkey_s_c_null;
 
 	if (ret.k) {
@@ -528,7 +527,7 @@ static int journal_keys_sort(struct bch_fs *c)
 		while (src + 1 < keys->d + keys->nr &&
 		       src[0].btree_id	== src[1].btree_id &&
 		       src[0].level	== src[1].level &&
-		       !bpos_cmp(src[0].k->k.p, src[1].k->k.p))
+		       bpos_eq(src[0].k->k.p, src[1].k->k.p))
 			src++;
 
 		*dst++ = *src++;

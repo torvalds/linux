@@ -306,7 +306,7 @@ static ssize_t bch2_read_btree_formats(struct file *file, char __user *buf,
 	if (ret)
 		return ret;
 
-	if (!bpos_cmp(SPOS_MAX, i->from))
+	if (bpos_eq(SPOS_MAX, i->from))
 		return i->ret;
 
 	bch2_trans_init(&trans, i->c, 0, 0);
@@ -317,7 +317,7 @@ static ssize_t bch2_read_btree_formats(struct file *file, char __user *buf,
 			break;
 
 		bch2_btree_node_to_text(&i->buf, i->c, b);
-		i->from = bpos_cmp(SPOS_MAX, b->key.k.p)
+		i->from = !bpos_eq(SPOS_MAX, b->key.k.p)
 			? bpos_successor(b->key.k.p)
 			: b->key.k.p;
 	}
@@ -368,7 +368,7 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 		if (ret)
 			break;
 
-		if (bpos_cmp(l->b->key.k.p, i->prev_node) > 0) {
+		if (bpos_gt(l->b->key.k.p, i->prev_node)) {
 			bch2_btree_node_to_text(&i->buf, i->c, l->b);
 			i->prev_node = l->b->key.k.p;
 		}

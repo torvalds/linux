@@ -245,7 +245,7 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	}
 
 	if (type != BKEY_TYPE_btree &&
-	    !bkey_cmp(k.k->p, POS_MAX)) {
+	    bkey_eq(k.k->p, POS_MAX)) {
 		prt_printf(err, "key at POS_MAX");
 		return -EINVAL;
 	}
@@ -264,12 +264,12 @@ int bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 int bch2_bkey_in_btree_node(struct btree *b, struct bkey_s_c k,
 			    struct printbuf *err)
 {
-	if (bpos_cmp(k.k->p, b->data->min_key) < 0) {
+	if (bpos_lt(k.k->p, b->data->min_key)) {
 		prt_printf(err, "key before start of btree node");
 		return -EINVAL;
 	}
 
-	if (bpos_cmp(k.k->p, b->data->max_key) > 0) {
+	if (bpos_gt(k.k->p, b->data->max_key)) {
 		prt_printf(err, "key past end of btree node");
 		return -EINVAL;
 	}
@@ -279,11 +279,11 @@ int bch2_bkey_in_btree_node(struct btree *b, struct bkey_s_c k,
 
 void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)
 {
-	if (!bpos_cmp(pos, POS_MIN))
+	if (bpos_eq(pos, POS_MIN))
 		prt_printf(out, "POS_MIN");
-	else if (!bpos_cmp(pos, POS_MAX))
+	else if (bpos_eq(pos, POS_MAX))
 		prt_printf(out, "POS_MAX");
-	else if (!bpos_cmp(pos, SPOS_MAX))
+	else if (bpos_eq(pos, SPOS_MAX))
 		prt_printf(out, "SPOS_MAX");
 	else {
 		if (pos.inode == U64_MAX)
