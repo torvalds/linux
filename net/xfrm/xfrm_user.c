@@ -1523,7 +1523,7 @@ static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u32 if_id = 0;
 
 	p = nlmsg_data(nlh);
-	err = verify_spi_info(p->info.id.proto, p->min, p->max);
+	err = verify_spi_info(p->info.id.proto, p->min, p->max, extack);
 	if (err)
 		goto out_noput;
 
@@ -1551,10 +1551,12 @@ static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 				  &p->info.saddr, 1,
 				  family);
 	err = -ENOENT;
-	if (!x)
+	if (!x) {
+		NL_SET_ERR_MSG(extack, "Target ACQUIRE not found");
 		goto out_noput;
+	}
 
-	err = xfrm_alloc_spi(x, p->min, p->max);
+	err = xfrm_alloc_spi(x, p->min, p->max, extack);
 	if (err)
 		goto out;
 

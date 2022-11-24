@@ -1681,8 +1681,9 @@ struct xfrm_policy *xfrm_policy_byid(struct net *net,
 int xfrm_policy_flush(struct net *net, u8 type, bool task_valid);
 void xfrm_policy_hash_rebuild(struct net *net);
 u32 xfrm_get_acqseq(void);
-int verify_spi_info(u8 proto, u32 min, u32 max);
-int xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi);
+int verify_spi_info(u8 proto, u32 min, u32 max, struct netlink_ext_ack *extack);
+int xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi,
+		   struct netlink_ext_ack *extack);
 struct xfrm_state *xfrm_find_acq(struct net *net, const struct xfrm_mark *mark,
 				 u8 mode, u32 reqid, u32 if_id, u8 proto,
 				 const xfrm_address_t *daddr,
