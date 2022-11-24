@@ -3,9 +3,6 @@
 Index of Further Kernel Documentation
 =====================================
 
-Initial Author: Juan-Mariano de Goyeneche (<jmseyas@dit.upm.es>;
-email address is defunct now.)
-
 The need for a document like this one became apparent in the
 linux-kernel mailing list as the same questions, asking for pointers
 to information, appeared again and again.
@@ -614,7 +611,8 @@ Miscellaneous
 
 -------
 
-Document last updated on Tue 2016-Sep-20
+This document was originally based on:
 
-This document is based on:
  https://www.dit.upm.es/~jmseyas/linux/kernel/hackers-docs.html
+
+and written by Juan-Mariano de Goyeneche
