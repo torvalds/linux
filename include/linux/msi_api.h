@@ -10,6 +10,14 @@
 
 struct device;
 
+/*
+ * Per device interrupt domain related constants.
+ */
+enum msi_domain_ids {
+	MSI_DEFAULT_DOMAIN,
+	MSI_MAX_DEVICE_IRQDOMAINS,
+};
+
 unsigned int msi_get_virq(struct device *dev, unsigned int index);
 
 #endif

@@ -60,10 +60,11 @@ static void msi_free_desc(struct msi_desc *desc)
 
 static int msi_insert_desc(struct msi_device_data *md, struct msi_desc *desc, unsigned int index)
 {
+	struct xarray *xa = &md->__domains[MSI_DEFAULT_DOMAIN].store;
 	int ret;
 
 	desc->msi_index = index;
-	ret = xa_insert(&md->__store, index, desc, GFP_KERNEL);
+	ret = xa_insert(xa, index, desc, GFP_KERNEL);
 	if (ret)
 		msi_free_desc(desc);
 	return ret;
@@ -147,7 +148,7 @@ static bool msi_desc_match(struct msi_desc *desc, enum msi_desc_filter filter)
 void msi_free_msi_descs_range(struct device *dev, unsigned int first_index,
 			      unsigned int last_index)
 {
-	struct xarray *xa = &dev->msi.data->__store;
+	struct xarray *xa = &dev->msi.data->__domains[MSI_DEFAULT_DOMAIN].store;
 	struct msi_desc *desc;
 	unsigned long idx;
 
@@ -179,9 +180,12 @@ EXPORT_SYMBOL_GPL(get_cached_msi_msg);
 static void msi_device_data_release(struct device *dev, void *res)
 {
 	struct msi_device_data *md = res;
+	int i;
 
-	WARN_ON_ONCE(!xa_empty(&md->__store));
-	xa_destroy(&md->__store);
+	for (i = 0; i < MSI_MAX_DEVICE_IRQDOMAINS; i++) {
+		WARN_ON_ONCE(!xa_empty(&md->__domains[i].store));
+		xa_destroy(&md->__domains[i].store);
+	}
 	dev->msi.data = NULL;
 }
 
@@ -198,7 +202,7 @@ static void msi_device_data_release(struct device *dev, void *res)
 int msi_setup_device_data(struct device *dev)
 {
 	struct msi_device_data *md;
-	int ret;
+	int ret, i;
 
 	if (dev->msi.data)
 		return 0;
@@ -213,7 +217,9 @@ int msi_setup_device_data(struct device *dev)
 		return ret;
 	}
 
-	xa_init(&md->__store);
+	for (i = 0; i < MSI_MAX_DEVICE_IRQDOMAINS; i++)
+		xa_init(&md->__domains[i].store);
+
 	mutex_init(&md->mutex);
 	dev->msi.data = md;
 	devres_add(dev, md);
@@ -236,7 +242,7 @@ EXPORT_SYMBOL_GPL(msi_lock_descs);
  */
 void msi_unlock_descs(struct device *dev)
 {
-	/* Invalidate the index wich was cached by the iterator */
+	/* Invalidate the index which was cached by the iterator */
 	dev->msi.data->__iter_idx = MSI_MAX_INDEX;
 	mutex_unlock(&dev->msi.data->mutex);
 }
@@ -244,9 +250,10 @@ EXPORT_SYMBOL_GPL(msi_unlock_descs);
 
 static struct msi_desc *msi_find_desc(struct msi_device_data *md, enum msi_desc_filter filter)
 {
+	struct xarray *xa = &md->__domains[MSI_DEFAULT_DOMAIN].store;
 	struct msi_desc *desc;
 
-	xa_for_each_start(&md->__store, md->__iter_idx, desc, md->__iter_idx) {
+	xa_for_each_start(xa, md->__iter_idx, desc, md->__iter_idx) {
 		if (msi_desc_match(desc, filter))
 			return desc;
 	}
@@ -320,6 +327,7 @@ unsigned int msi_get_virq(struct device *dev, unsigned int index)
 {
 	struct msi_desc *desc;
 	unsigned int ret = 0;
+	struct xarray *xa;
 	bool pcimsi;
 
 	if (!dev->msi.data)
@@ -328,7 +336,8 @@ unsigned int msi_get_virq(struct device *dev, unsigned int index)
 	pcimsi = dev_is_pci(dev) ? to_pci_dev(dev)->msi_enabled : false;
 
 	msi_lock_descs(dev);
-	desc = xa_load(&dev->msi.data->__store, pcimsi ? 0 : index);
+	xa = &dev->msi.data->__domains[MSI_DEFAULT_DOMAIN].store;
+	desc = xa_load(xa, pcimsi ? 0 : index);
 	if (desc && desc->irq) {
 		/*
 		 * PCI-MSI has only one descriptor for multiple interrupts.
@@ -707,6 +716,7 @@ int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
 	struct msi_domain_info *info = domain->host_data;
 	struct msi_domain_ops *ops = info->ops;
 	struct msi_desc *desc;
+	struct xarray *xa;
 	int ret, virq;
 
 	msi_lock_descs(dev);
@@ -714,8 +724,10 @@ int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
 	if (ret)
 		goto unlock;
 
+	xa = &dev->msi.data->__domains[MSI_DEFAULT_DOMAIN].store;
+
 	for (virq = virq_base; virq < virq_base + nvec; virq++) {
-		desc = xa_load(&dev->msi.data->__store, virq);
+		desc = xa_load(xa, virq);
 		desc->irq = virq;
 
 		ops->set_desc(arg, desc);

@@ -173,19 +173,28 @@ enum msi_desc_filter {
 	MSI_DESC_ASSOCIATED,
 };
 
+
+/**
+ * struct msi_dev_domain - The internals of MSI domain info per device
+ * @store:		Xarray for storing MSI descriptor pointers
+ */
+struct msi_dev_domain {
+	struct xarray		store;
+};
+
 /**
  * msi_device_data - MSI per device data
  * @properties:		MSI properties which are interesting to drivers
  * @platform_data:	Platform-MSI specific data
  * @mutex:		Mutex protecting the MSI descriptor store
- * @__store:		Xarray for storing MSI descriptor pointers
+ * @__domains:		Internal data for per device MSI domains
  * @__iter_idx:		Index to search the next entry for iterators
  */
 struct msi_device_data {
 	unsigned long			properties;
 	struct platform_msi_priv_data	*platform_data;
 	struct mutex			mutex;
-	struct xarray			__store;
+	struct msi_dev_domain		__domains[MSI_MAX_DEVICE_IRQDOMAINS];
 	unsigned long			__iter_idx;
 };
 
