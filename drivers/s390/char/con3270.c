@@ -36,6 +36,8 @@
 #define TTY3270_OUTPUT_BUFFER_SIZE 1024
 #define TTY3270_STRING_PAGES 5
 
+#define TTY3270_SCREEN_PAGES 8 /* has to be power-of-two */
+
 static struct tty_driver *tty3270_driver;
 static int tty3270_max_index;
 static struct tty3270 *condev;
@@ -56,6 +58,7 @@ struct tty3270_cell {
 struct tty3270_line {
 	struct tty3270_cell *cells;
 	int len;
+	int dirty;
 };
 
 static const unsigned char sfq_read_partition[] = {
@@ -92,6 +95,7 @@ struct tty3270 {
 	unsigned int cx, cy;		/* Current output position. */
 	struct tty3270_attribute attributes;
 	struct tty3270_attribute saved_attributes;
+	int allocated_lines;
 	struct tty3270_line *screen;
 
 	/* Input stuff. */
@@ -805,22 +809,22 @@ static void tty3270_free_view(struct tty3270 *tp)
 /*
  * Allocate tty3270 screen.
  */
-static struct tty3270_line *tty3270_alloc_screen(unsigned int rows, unsigned int cols)
+static struct tty3270_line *tty3270_alloc_screen(struct tty3270 *tp, unsigned int rows,
+						 unsigned int cols, int *allocated_out)
 {
 	struct tty3270_line *screen;
-	unsigned long size;
-	int lines;
+	int allocated, lines;
 
-	size = sizeof(struct tty3270_line) * (rows - 2);
-	screen = kzalloc(size, GFP_KERNEL);
+	allocated = __roundup_pow_of_two(rows) * TTY3270_SCREEN_PAGES;
+	screen = kcalloc(allocated, sizeof(struct tty3270_line), GFP_KERNEL);
 	if (!screen)
 		goto out_err;
-	for (lines = 0; lines < rows - 2; lines++) {
-		size = sizeof(struct tty3270_cell) * cols;
-		screen[lines].cells = kzalloc(size, GFP_KERNEL);
+	for (lines = 0; lines < allocated; lines++) {
+		screen[lines].cells = kcalloc(cols, sizeof(struct tty3270_cell), GFP_KERNEL);
 		if (!screen[lines].cells)
 			goto out_screen;
 	}
+	*allocated_out = allocated;
 	return screen;
 out_screen:
 	while (lines--)
@@ -833,11 +837,11 @@ out_err:
 /*
  * Free tty3270 screen.
  */
-static void tty3270_free_screen(struct tty3270_line *screen, unsigned int rows)
+static void tty3270_free_screen(struct tty3270_line *screen, int old_lines)
 {
 	int lines;
 
-	for (lines = 0; lines < rows - 2; lines++)
+	for (lines = 0; lines < old_lines; lines++)
 		kfree(screen[lines].cells);
 	kfree(screen);
 }
@@ -853,6 +857,7 @@ static void tty3270_resize(struct raw3270_view *view,
 	struct tty3270_line *screen, *oscreen;
 	struct tty_struct *tty;
 	struct winsize ws;
+	int new_allocated, old_allocated = tp->allocated_lines;
 
 	if (old_model == new_model &&
 	    old_cols == new_cols &&
@@ -863,7 +868,7 @@ static void tty3270_resize(struct raw3270_view *view,
 		spin_unlock_irq(&tp->view.lock);
 		return;
 	}
-	screen = tty3270_alloc_screen(new_rows, new_cols);
+	screen = tty3270_alloc_screen(tp, new_rows, new_cols, &new_allocated);
 	if (IS_ERR(screen))
 		return;
 	/* Switch to new output size */
@@ -871,6 +876,7 @@ static void tty3270_resize(struct raw3270_view *view,
 	tty3270_blank_screen(tp);
 	oscreen = tp->screen;
 	tp->screen = screen;
+	tp->allocated_lines = new_allocated;
 	tp->view.rows = new_rows;
 	tp->view.cols = new_cols;
 	tp->view.model = new_model;
@@ -883,7 +889,7 @@ static void tty3270_resize(struct raw3270_view *view,
 		tty3270_blank_line(tp);
 	tp->update_flags = TTY_UPDATE_ALL;
 	spin_unlock_irq(&tp->view.lock);
-	tty3270_free_screen(oscreen, old_rows);
+	tty3270_free_screen(oscreen, old_allocated);
 	tty3270_set_timer(tp, 1);
 	/* Informat tty layer about new size */
 	tty = tty_port_tty_get(&tp->port);
@@ -920,7 +926,7 @@ static void tty3270_free(struct raw3270_view *view)
 	struct tty3270 *tp = container_of(view, struct tty3270, view);
 
 	del_timer_sync(&tp->timer);
-	tty3270_free_screen(tp->screen, tp->view.rows);
+	tty3270_free_screen(tp->screen, tp->allocated_lines);
 	tty3270_free_view(tp);
 }
 
@@ -969,7 +975,8 @@ tty3270_create_view(int index, struct tty3270 **newtp)
 		return rc;
 	}
 
-	tp->screen = tty3270_alloc_screen(tp->view.rows, tp->view.cols);
+	tp->screen = tty3270_alloc_screen(tp, tp->view.rows, tp->view.cols,
+					  &tp->allocated_lines);
 	if (IS_ERR(tp->screen)) {
 		rc = PTR_ERR(tp->screen);
 		raw3270_put_view(&tp->view);
