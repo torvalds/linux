@@ -830,6 +830,40 @@ bool io_post_aux_cqe(struct io_ring_ctx *ctx,
 	return filled;
 }
 
+bool io_aux_cqe(struct io_ring_ctx *ctx, bool defer, u64 user_data, s32 res, u32 cflags,
+		bool allow_overflow)
+{
+	struct io_uring_cqe *cqe;
+	unsigned int length;
+
+	if (!defer)
+		return io_post_aux_cqe(ctx, user_data, res, cflags, allow_overflow);
+
+	length = ARRAY_SIZE(ctx->submit_state.cqes);
+
+	lockdep_assert_held(&ctx->uring_lock);
+
+	if (ctx->submit_state.cqes_count == length) {
+		io_cq_lock(ctx);
+		__io_flush_post_cqes(ctx);
+		/* no need to flush - flush is deferred */
+		spin_unlock(&ctx->completion_lock);
+	}
+
+	/* For defered completions this is not as strict as it is otherwise,
+	 * however it's main job is to prevent unbounded posted completions,
+	 * and in that it works just as well.
+	 */
+	if (!allow_overflow && test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq))
+		return false;
+
+	cqe = &ctx->submit_state.cqes[ctx->submit_state.cqes_count++];
+	cqe->user_data = user_data;
+	cqe->res = res;
+	cqe->flags = cflags;
+	return true;
+}
+
 static void __io_req_complete_post(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
