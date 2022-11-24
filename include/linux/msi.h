@@ -383,8 +383,8 @@ struct msi_domain_info;
  * @get_hwirq, @msi_init and @msi_free are callbacks used by the underlying
  * irqdomain.
  *
- * @msi_check, @msi_prepare and @set_desc are callbacks used by
- * msi_domain_alloc/free_irqs().
+ * @msi_check, @msi_prepare and @set_desc are callbacks used by the
+ * msi_domain_alloc/free_irqs*() variants.
  *
  * @domain_alloc_irqs, @domain_free_irqs can be used to override the
  * default allocation/free functions (__msi_domain_alloc/free_irqs). This
@@ -392,11 +392,6 @@ struct msi_domain_info;
  * be wrapped into the regular irq domains concepts by mere mortals.  This
  * allows to universally use msi_domain_alloc/free_irqs without having to
  * special case XEN all over the place.
- *
- * Contrary to other operations @domain_alloc_irqs and @domain_free_irqs
- * are set to the default implementation if NULL and even when
- * MSI_FLAG_USE_DEF_DOM_OPS is not set to avoid breaking existing users and
- * because these callbacks are obviously mandatory.
  */
 struct msi_domain_ops {
 	irq_hw_number_t	(*get_hwirq)(struct msi_domain_info *info,
@@ -496,14 +491,21 @@ int msi_domain_alloc_irqs_descs_locked(struct irq_domain *domain, struct device 
 				       int nvec);
 int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			  int nvec);
+
 void msi_domain_free_irqs_descs_locked(struct irq_domain *domain, struct device *dev);
 void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev);
+
+int msi_domain_alloc_irqs_range_locked(struct device *dev, unsigned int domid,
+				       unsigned int first, unsigned int last);
+int msi_domain_alloc_irqs_range(struct device *dev, unsigned int domid,
+				unsigned int first, unsigned int last);
+int msi_domain_alloc_irqs_all_locked(struct device *dev, unsigned int domid, int nirqs);
+
 
 void msi_domain_free_irqs_range_locked(struct device *dev, unsigned int domid,
 				       unsigned int first, unsigned int last);
 void msi_domain_free_irqs_range(struct device *dev, unsigned int domid,
 				unsigned int first, unsigned int last);
-
 void msi_domain_free_irqs_all_locked(struct device *dev, unsigned int domid);
 void msi_domain_free_irqs_all(struct device *dev, unsigned int domid);
 

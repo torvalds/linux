@@ -24,11 +24,14 @@
  * @domid:	ID of the domain on which management operations should be done
  * @first:	First (hardware) slot index to operate on
  * @last:	Last (hardware) slot index to operate on
+ * @nirqs:	The number of Linux interrupts to allocate. Can be larger
+ *		than the range due to PCI/multi-MSI.
  */
 struct msi_ctrl {
 	unsigned int			domid;
 	unsigned int			first;
 	unsigned int			last;
+	unsigned int			nirqs;
 };
 
 /* Invalid Xarray index which is outside of any searchable range */
@@ -36,6 +39,7 @@ struct msi_ctrl {
 /* The maximum domain size */
 #define MSI_XA_DOMAIN_SIZE	(MSI_MAX_INDEX + 1)
 
+static void msi_domain_free_locked(struct device *dev, struct msi_ctrl *ctrl);
 static inline int msi_sysfs_create_group(struct device *dev);
 
 
@@ -544,8 +548,6 @@ static inline int msi_sysfs_populate_desc(struct device *dev, struct msi_desc *d
 static inline void msi_sysfs_remove_desc(struct device *dev, struct msi_desc *desc) { }
 #endif /* !CONFIG_SYSFS */
 
-static int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev, int nvec);
-
 static struct irq_domain *msi_get_device_domain(struct device *dev, unsigned int domid)
 {
 	struct irq_domain *domain;
@@ -723,7 +725,6 @@ static struct msi_domain_ops msi_domain_ops_default = {
 	.msi_init		= msi_domain_ops_init,
 	.msi_prepare		= msi_domain_ops_prepare,
 	.set_desc		= msi_domain_ops_set_desc,
-	.domain_alloc_irqs	= __msi_domain_alloc_irqs,
 };
 
 static void msi_domain_update_dom_ops(struct msi_domain_info *info)
@@ -734,9 +735,6 @@ static void msi_domain_update_dom_ops(struct msi_domain_info *info)
 		info->ops = &msi_domain_ops_default;
 		return;
 	}
-
-	if (ops->domain_alloc_irqs == NULL)
-		ops->domain_alloc_irqs = msi_domain_ops_default.domain_alloc_irqs;
 
 	if (!(info->flags & MSI_FLAG_USE_DEF_DOM_OPS))
 		return;
@@ -951,18 +949,19 @@ static int msi_init_virq(struct irq_domain *domain, int virq, unsigned int vflag
 	return 0;
 }
 
-static int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
-				   int nvec)
+static int __msi_domain_alloc_irqs(struct device *dev, struct irq_domain *domain,
+				   struct msi_ctrl *ctrl)
 {
+	struct xarray *xa = &dev->msi.data->__domains[ctrl->domid].store;
 	struct msi_domain_info *info = domain->host_data;
 	struct msi_domain_ops *ops = info->ops;
+	unsigned int vflags = 0, allocated = 0;
 	msi_alloc_info_t arg = { };
-	unsigned int vflags = 0;
 	struct msi_desc *desc;
-	int allocated = 0;
+	unsigned long idx;
 	int i, ret, virq;
 
-	ret = msi_domain_prepare_irqs(domain, dev, nvec, &arg);
+	ret = msi_domain_prepare_irqs(domain, dev, ctrl->nirqs, &arg);
 	if (ret)
 		return ret;
 
@@ -988,7 +987,14 @@ static int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev
 			vflags |= VIRQ_NOMASK_QUIRK;
 	}
 
-	msi_for_each_desc(desc, dev, MSI_DESC_NOTASSOCIATED) {
+	xa_for_each_range(xa, idx, desc, ctrl->first, ctrl->last) {
+		if (!msi_desc_match(desc, MSI_DESC_NOTASSOCIATED))
+			continue;
+
+		/* This should return -ECONFUSED... */
+		if (WARN_ON_ONCE(allocated >= ctrl->nirqs))
+			return -EINVAL;
+
 		ops->set_desc(&arg, desc);
 
 		virq = __irq_domain_alloc_irqs(domain, -1, desc->nvec_used,
@@ -1016,17 +1022,122 @@ static int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev
 
 static int msi_domain_alloc_simple_msi_descs(struct device *dev,
 					     struct msi_domain_info *info,
-					     unsigned int num_descs)
+					     struct msi_ctrl *ctrl)
 {
-	struct msi_ctrl ctrl = {
-		.domid	= MSI_DEFAULT_DOMAIN,
-		.last	= num_descs - 1,
-	};
-
 	if (!(info->flags & MSI_FLAG_ALLOC_SIMPLE_MSI_DESCS))
 		return 0;
 
-	return msi_domain_add_simple_msi_descs(dev, &ctrl);
+	return msi_domain_add_simple_msi_descs(dev, ctrl);
+}
+
+static int __msi_domain_alloc_locked(struct device *dev, struct msi_ctrl *ctrl)
+{
+	struct msi_domain_info *info;
+	struct msi_domain_ops *ops;
+	struct irq_domain *domain;
+	int ret;
+
+	if (!msi_ctrl_valid(dev, ctrl))
+		return -EINVAL;
+
+	domain = msi_get_device_domain(dev, ctrl->domid);
+	if (!domain)
+		return -ENODEV;
+
+	info = domain->host_data;
+
+	ret = msi_domain_alloc_simple_msi_descs(dev, info, ctrl);
+	if (ret)
+		return ret;
+
+	ops = info->ops;
+	if (ops->domain_alloc_irqs)
+		return ops->domain_alloc_irqs(domain, dev, ctrl->nirqs);
+
+	return __msi_domain_alloc_irqs(dev, domain, ctrl);
+}
+
+static int msi_domain_alloc_locked(struct device *dev, struct msi_ctrl *ctrl)
+{
+	int ret = __msi_domain_alloc_locked(dev, ctrl);
+
+	if (ret)
+		msi_domain_free_locked(dev, ctrl);
+	return ret;
+}
+
+/**
+ * msi_domain_alloc_irqs_range_locked - Allocate interrupts from a MSI interrupt domain
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are allocated
+ * @domid:	Id of the interrupt domain to operate on
+ * @first:	First index to allocate (inclusive)
+ * @last:	Last index to allocate (inclusive)
+ *
+ * Must be invoked from within a msi_lock_descs() / msi_unlock_descs()
+ * pair. Use this for MSI irqdomains which implement their own descriptor
+ * allocation/free.
+ *
+ * Return: %0 on success or an error code.
+ */
+int msi_domain_alloc_irqs_range_locked(struct device *dev, unsigned int domid,
+				       unsigned int first, unsigned int last)
+{
+	struct msi_ctrl ctrl = {
+		.domid	= domid,
+		.first	= first,
+		.last	= last,
+		.nirqs	= last + 1 - first,
+	};
+
+	return msi_domain_alloc_locked(dev, &ctrl);
+}
+
+/**
+ * msi_domain_alloc_irqs_range - Allocate interrupts from a MSI interrupt domain
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are allocated
+ * @domid:	Id of the interrupt domain to operate on
+ * @first:	First index to allocate (inclusive)
+ * @last:	Last index to allocate (inclusive)
+ *
+ * Return: %0 on success or an error code.
+ */
+int msi_domain_alloc_irqs_range(struct device *dev, unsigned int domid,
+				unsigned int first, unsigned int last)
+{
+	int ret;
+
+	msi_lock_descs(dev);
+	ret = msi_domain_alloc_irqs_range_locked(dev, domid, first, last);
+	msi_unlock_descs(dev);
+	return ret;
+}
+
+/**
+ * msi_domain_alloc_irqs_all_locked - Allocate all interrupts from a MSI interrupt domain
+ *
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are allocated
+ * @domid:	Id of the interrupt domain to operate on
+ * @nirqs:	The number of interrupts to allocate
+ *
+ * This function scans all MSI descriptors of the MSI domain and allocates interrupts
+ * for all unassigned ones. That function is to be used for MSI domain usage where
+ * the descriptor allocation is handled at the call site, e.g. PCI/MSI[X].
+ *
+ * Return: %0 on success or an error code.
+ */
+int msi_domain_alloc_irqs_all_locked(struct device *dev, unsigned int domid, int nirqs)
+{
+	struct msi_ctrl ctrl = {
+		.domid	= domid,
+		.first	= 0,
+		.last	= MSI_MAX_INDEX,
+		.nirqs	= nirqs,
+	};
+
+	return msi_domain_alloc_locked(dev, &ctrl);
 }
 
 /**
@@ -1045,28 +1156,14 @@ static int msi_domain_alloc_simple_msi_descs(struct device *dev,
 int msi_domain_alloc_irqs_descs_locked(struct irq_domain *domain, struct device *dev,
 				       int nvec)
 {
-	struct msi_domain_info *info = domain->host_data;
-	struct msi_domain_ops *ops = info->ops;
-	int ret;
+	struct msi_ctrl ctrl = {
+		.domid	= MSI_DEFAULT_DOMAIN,
+		.first	= 0,
+		.last	= MSI_MAX_INDEX,
+		.nirqs	= nvec,
+	};
 
-	lockdep_assert_held(&dev->msi.data->mutex);
-
-	if (WARN_ON_ONCE(irq_domain_is_msi_parent(domain))) {
-		ret = -EINVAL;
-		goto free;
-	}
-
-	/* Frees allocated descriptors in case of failure. */
-	ret = msi_domain_alloc_simple_msi_descs(dev, info, nvec);
-	if (ret)
-		goto free;
-
-	ret = ops->domain_alloc_irqs(domain, dev, nvec);
-	if (!ret)
-		return 0;
-free:
-	msi_domain_free_irqs_descs_locked(domain, dev);
-	return ret;
+	return msi_domain_alloc_locked(dev, &ctrl);
 }
 
 /**
