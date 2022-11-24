@@ -1254,6 +1254,9 @@ static int __msi_domain_alloc_irqs(struct device *dev, struct irq_domain *domain
 		if (WARN_ON_ONCE(allocated >= ctrl->nirqs))
 			return -EINVAL;
 
+		if (ops->prepare_desc)
+			ops->prepare_desc(domain, &arg, desc);
+
 		ops->set_desc(&arg, desc);
 
 		virq = __irq_domain_alloc_irqs(domain, -1, desc->nvec_used,
