@@ -97,17 +97,6 @@ do {								\
 
 struct btree;
 
-struct bkey_format_state {
-	u64 field_min[BKEY_NR_FIELDS];
-	u64 field_max[BKEY_NR_FIELDS];
-};
-
-void bch2_bkey_format_init(struct bkey_format_state *);
-void bch2_bkey_format_add_key(struct bkey_format_state *, const struct bkey *);
-void bch2_bkey_format_add_pos(struct bkey_format_state *, struct bpos);
-struct bkey_format bch2_bkey_format_done(struct bkey_format_state *);
-const char *bch2_bkey_format_validate(struct bkey_format *);
-
 __pure
 unsigned bch2_bkey_greatest_differing_bit(const struct btree *,
 					  const struct bkey_packed *,
@@ -670,5 +659,41 @@ void bch2_bkey_pack_test(void);
 #else
 static inline void bch2_bkey_pack_test(void) {}
 #endif
+
+#define bkey_fields()							\
+	x(BKEY_FIELD_INODE,		p.inode)			\
+	x(BKEY_FIELD_OFFSET,		p.offset)			\
+	x(BKEY_FIELD_SNAPSHOT,		p.snapshot)			\
+	x(BKEY_FIELD_SIZE,		size)				\
+	x(BKEY_FIELD_VERSION_HI,	version.hi)			\
+	x(BKEY_FIELD_VERSION_LO,	version.lo)
+
+struct bkey_format_state {
+	u64 field_min[BKEY_NR_FIELDS];
+	u64 field_max[BKEY_NR_FIELDS];
+};
+
+void bch2_bkey_format_init(struct bkey_format_state *);
+
+static inline void __bkey_format_add(struct bkey_format_state *s, unsigned field, u64 v)
+{
+	s->field_min[field] = min(s->field_min[field], v);
+	s->field_max[field] = max(s->field_max[field], v);
+}
+
+/*
+ * Changes @format so that @k can be successfully packed with @format
+ */
+static inline void bch2_bkey_format_add_key(struct bkey_format_state *s, const struct bkey *k)
+{
+#define x(id, field) __bkey_format_add(s, id, k->field);
+	bkey_fields()
+#undef x
+	__bkey_format_add(s, BKEY_FIELD_OFFSET, bkey_start_offset(k));
+}
+
+void bch2_bkey_format_add_pos(struct bkey_format_state *, struct bpos);
+struct bkey_format bch2_bkey_format_done(struct bkey_format_state *);
+const char *bch2_bkey_format_validate(struct bkey_format *);
 
 #endif /* _BCACHEFS_BKEY_H */
