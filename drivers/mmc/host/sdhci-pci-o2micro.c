@@ -326,8 +326,7 @@ static int sdhci_o2_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		(host->timing != MMC_TIMING_UHS_SDR50))
 		return sdhci_execute_tuning(mmc, opcode);
 
-	if (WARN_ON((opcode != MMC_SEND_TUNING_BLOCK_HS200) &&
-			(opcode != MMC_SEND_TUNING_BLOCK)))
+	if (WARN_ON(!mmc_op_tuning(opcode)))
 		return -EINVAL;
 
 	/* Force power mode enter L0 */
