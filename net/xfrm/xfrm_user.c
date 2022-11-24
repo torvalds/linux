@@ -1367,20 +1367,28 @@ static int xfrm_set_spdinfo(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (attrs[XFRMA_SPD_IPV4_HTHRESH]) {
 		struct nlattr *rta = attrs[XFRMA_SPD_IPV4_HTHRESH];
 
-		if (nla_len(rta) < sizeof(*thresh4))
+		if (nla_len(rta) < sizeof(*thresh4)) {
+			NL_SET_ERR_MSG(extack, "Invalid SPD_IPV4_HTHRESH attribute length");
 			return -EINVAL;
+		}
 		thresh4 = nla_data(rta);
-		if (thresh4->lbits > 32 || thresh4->rbits > 32)
+		if (thresh4->lbits > 32 || thresh4->rbits > 32) {
+			NL_SET_ERR_MSG(extack, "Invalid hash threshold (must be <= 32 for IPv4)");
 			return -EINVAL;
+		}
 	}
 	if (attrs[XFRMA_SPD_IPV6_HTHRESH]) {
 		struct nlattr *rta = attrs[XFRMA_SPD_IPV6_HTHRESH];
 
-		if (nla_len(rta) < sizeof(*thresh6))
+		if (nla_len(rta) < sizeof(*thresh6)) {
+			NL_SET_ERR_MSG(extack, "Invalid SPD_IPV6_HTHRESH attribute length");
 			return -EINVAL;
+		}
 		thresh6 = nla_data(rta);
-		if (thresh6->lbits > 128 || thresh6->rbits > 128)
+		if (thresh6->lbits > 128 || thresh6->rbits > 128) {
+			NL_SET_ERR_MSG(extack, "Invalid hash threshold (must be <= 128 for IPv6)");
 			return -EINVAL;
+		}
 	}
 
 	if (thresh4 || thresh6) {
