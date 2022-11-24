@@ -243,6 +243,7 @@ struct rockchip_usb2phy_cfg {
  * @vbus_enabled: vbus regulator status.
  * @bypass_uart_en: usb bypass uart enable, passed from DT.
  * @host_disconnect: usb host disconnect status.
+ * @dis_u2_susphy: disable usb2 phy suspend.
  * @bvalid_irq: IRQ number assigned for vbus valid rise detection.
  * @ls_irq: IRQ number assigned for linestate detection.
  * @id_irq: IRQ number assigned for id fall or rise detection.
@@ -275,6 +276,7 @@ struct rockchip_usb2phy_port {
 	bool		vbus_enabled;
 	bool		bypass_uart_en;
 	bool		host_disconnect;
+	bool		dis_u2_susphy;
 	int		bvalid_irq;
 	int		ls_irq;
 	int             id_irq;
@@ -1184,7 +1186,8 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 		rport->state = OTG_STATE_B_IDLE;
 		if (!rport->vbus_attached) {
 			mutex_unlock(&rport->mutex);
-			rockchip_usb2phy_power_off(rport->phy);
+			if (!rport->dis_u2_susphy)
+				rockchip_usb2phy_power_off(rport->phy);
 			mutex_lock(&rport->mutex);
 		}
 		fallthrough;
@@ -1245,7 +1248,8 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			rphy->chg_state = USB_CHG_STATE_UNDEFINED;
 			rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
 			mutex_unlock(&rport->mutex);
-			rockchip_usb2phy_power_off(rport->phy);
+			if (!rport->dis_u2_susphy)
+				rockchip_usb2phy_power_off(rport->phy);
 			mutex_lock(&rport->mutex);
 		}
 		break;
@@ -2054,6 +2058,8 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		of_property_read_bool(child_np, "rockchip,vbus-always-on");
 	rport->utmi_avalid =
 		of_property_read_bool(child_np, "rockchip,utmi-avalid");
+	rport->dis_u2_susphy =
+		of_property_read_bool(child_np, "rockchip,dis-u2-susphy");
 
 	/* enter lower power state when suspend */
 	rport->low_power_en =

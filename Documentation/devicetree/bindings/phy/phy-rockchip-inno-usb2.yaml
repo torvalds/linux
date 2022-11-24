@@ -166,6 +166,10 @@ properties:
          controller. It's used when the usb3 phy is disabled, and it needs
          to combine with the usbctrl-grf.
 
+     rockchip,dis-u2-susphy:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, disable the usb2 phy enter suspend automatically.
+
     required:
       - "#phy-cells"
       - interrupts
