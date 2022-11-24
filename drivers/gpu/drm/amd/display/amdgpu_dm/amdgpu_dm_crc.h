@@ -54,7 +54,7 @@ struct crc_window_param {
 };
 
 struct secure_display_context {
-	/* work to notify PSP TA to transmit CRC over I2C */
+	/* work to notify PSP TA*/
 	struct work_struct notify_ta_work;
 
 	/* work to forward ROI to dmcu/dmub */
@@ -95,7 +95,8 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc);
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 bool amdgpu_dm_crc_window_is_activated(struct drm_crtc *crtc);
 void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc);
-struct secure_display_context *amdgpu_dm_crtc_secure_display_create_contexts(int num_crtc);
+struct secure_display_context *amdgpu_dm_crtc_secure_display_create_contexts(
+						struct amdgpu_device *adev);
 #else
 #define amdgpu_dm_crc_window_is_activated(x)
 #define amdgpu_dm_crtc_handle_crc_window_irq(x)
