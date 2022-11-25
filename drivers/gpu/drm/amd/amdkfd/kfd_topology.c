@@ -2012,10 +2012,9 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	kfd_debug_print_topology();
 
-	if (!res)
-		kfd_notify_gpu_change(gpu_id, 1);
+	kfd_notify_gpu_change(gpu_id, 1);
 
-	return res;
+	return 0;
 }
 
 /**
