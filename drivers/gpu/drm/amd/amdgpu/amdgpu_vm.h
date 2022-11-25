@@ -119,9 +119,6 @@ struct amdgpu_bo_vm;
 /* Reserve 2MB at top/bottom of address space for kernel use */
 #define AMDGPU_VA_RESERVED_SIZE			(2ULL << 20)
 
-/* max vmids dedicated for process */
-#define AMDGPU_VM_MAX_RESERVED_VMID	1
-
 /* See vm_update_mode */
 #define AMDGPU_VM_USE_CPU_FOR_GFX (1 << 0)
 #define AMDGPU_VM_USE_CPU_FOR_COMPUTE (1 << 1)
@@ -298,8 +295,7 @@ struct amdgpu_vm {
 	struct dma_fence	*last_unlocked;
 
 	unsigned int		pasid;
-	/* dedicated to vm */
-	struct amdgpu_vmid	*reserved_vmid[AMDGPU_MAX_VMHUBS];
+	bool			reserved_vmid[AMDGPU_MAX_VMHUBS];
 
 	/* Flag to indicate if VM tables are updated by CPU or GPU (SDMA) */
 	bool					use_cpu_for_update;

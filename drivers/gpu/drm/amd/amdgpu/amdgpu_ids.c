@@ -278,12 +278,13 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 {
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->funcs->vmhub;
+	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	uint64_t fence_context = adev->fence_context + ring->idx;
 	bool needs_flush = vm->use_cpu_for_update;
 	uint64_t updates = amdgpu_vm_tlb_seq(vm);
 	int r;
 
-	*id = vm->reserved_vmid[vmhub];
+	*id = id_mgr->reserved;
 	if ((*id)->owner != vm->immediate.fence_context ||
 	    !amdgpu_vmid_compatible(*id, job) ||
 	    (*id)->flushed_updates < updates ||
@@ -462,31 +463,27 @@ int amdgpu_vmid_alloc_reserved(struct amdgpu_device *adev,
 			       struct amdgpu_vm *vm,
 			       unsigned vmhub)
 {
-	struct amdgpu_vmid_mgr *id_mgr;
-	struct amdgpu_vmid *idle;
-	int r = 0;
+	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 
-	id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	mutex_lock(&id_mgr->lock);
 	if (vm->reserved_vmid[vmhub])
 		goto unlock;
-	if (atomic_inc_return(&id_mgr->reserved_vmid_num) >
-	    AMDGPU_VM_MAX_RESERVED_VMID) {
-		DRM_ERROR("Over limitation of reserved vmid\n");
-		atomic_dec(&id_mgr->reserved_vmid_num);
-		r = -EINVAL;
-		goto unlock;
-	}
-	/* Select the first entry VMID */
-	idle = list_first_entry(&id_mgr->ids_lru, struct amdgpu_vmid, list);
-	list_del_init(&idle->list);
-	vm->reserved_vmid[vmhub] = idle;
-	mutex_unlock(&id_mgr->lock);
 
-	return 0;
+	++id_mgr->reserved_use_count;
+	if (!id_mgr->reserved) {
+		struct amdgpu_vmid *id;
+
+		id = list_first_entry(&id_mgr->ids_lru, struct amdgpu_vmid,
+				      list);
+		/* Remove from normal round robin handling */
+		list_del_init(&id->list);
+		id_mgr->reserved = id;
+	}
+	vm->reserved_vmid[vmhub] = true;
+
 unlock:
 	mutex_unlock(&id_mgr->lock);
-	return r;
+	return 0;
 }
 
 void amdgpu_vmid_free_reserved(struct amdgpu_device *adev,
@@ -496,12 +493,12 @@ void amdgpu_vmid_free_reserved(struct amdgpu_device *adev,
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 
 	mutex_lock(&id_mgr->lock);
-	if (vm->reserved_vmid[vmhub]) {
-		list_add(&vm->reserved_vmid[vmhub]->list,
-			&id_mgr->ids_lru);
-		vm->reserved_vmid[vmhub] = NULL;
-		atomic_dec(&id_mgr->reserved_vmid_num);
+	if (vm->reserved_vmid[vmhub] &&
+	    !--id_mgr->reserved_use_count) {
+		/* give the reserved ID back to normal round robin */
+		list_add(&id_mgr->reserved->list, &id_mgr->ids_lru);
 	}
+	vm->reserved_vmid[vmhub] = false;
 	mutex_unlock(&id_mgr->lock);
 }
 
@@ -568,7 +565,7 @@ void amdgpu_vmid_mgr_init(struct amdgpu_device *adev)
 
 		mutex_init(&id_mgr->lock);
 		INIT_LIST_HEAD(&id_mgr->ids_lru);
-		atomic_set(&id_mgr->reserved_vmid_num, 0);
+		id_mgr->reserved_use_count = 0;
 
 		/* manage only VMIDs not used by KFD */
 		id_mgr->num_ids = adev->vm_manager.first_kfd_vmid;
