@@ -1731,7 +1731,10 @@ fallback:
 		 * cache, or is just a kallsyms file, well, lets hope that this
 		 * DSO is the same as when 'perf record' ran.
 		 */
-		__symbol__join_symfs(filename, filename_size, dso->long_name);
+		if (dso->kernel && dso->long_name[0] == '/')
+			snprintf(filename, filename_size, "%s", dso->long_name);
+		else
+			__symbol__join_symfs(filename, filename_size, dso->long_name);
 
 		mutex_lock(&dso->lock);
 		if (access(filename, R_OK) && errno == ENOENT && dso->nsinfo) {
