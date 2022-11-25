@@ -43,7 +43,7 @@ core-y += arch/lkl/kernel/
 core-y += arch/lkl/mm/
 core-y += arch/lkl/drivers/
 
-all: lkl.o
+all: lkl.o arch/lkl/include/generated/uapi/asm/syscall_defs.h
 
 lkl.o: vmlinux
 	$(OBJCOPY) -R .eh_frame -R .syscall_defs $(foreach sym,$(LKL_ENTRY_POINTS),-G$(prefix)$(sym)) --prefix-symbols=$(prefix) vmlinux lkl.o
@@ -53,7 +53,7 @@ arch/lkl/include/generated/uapi/asm/syscall_defs.h: vmlinux
 	$(Q) export tmpfile=$(shell mktemp); \
 	sed 's/\x0//g' $@ > $$tmpfile; mv $$tmpfile $@ ; rm -f $$tmpfile
 
-install: lkl.o headers arch/lkl/include/generated/uapi/asm/syscall_defs.h
+install: scripts_unifdef
 	@echo "  INSTALL	$(INSTALL_PATH)/lib/lkl.o"
 	@mkdir -p $(INSTALL_PATH)/lib/
 	@cp lkl.o $(INSTALL_PATH)/lib/

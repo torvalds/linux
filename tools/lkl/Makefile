@@ -75,6 +75,7 @@ $(ASM_CONFIG): $(OUTPUT)include/kernel_config.h
 $(OUTPUT)lib/lkl.o: bin/stat $(ASM_CONFIG) $(DOT_CONFIG)
 # this workaround is for arm32 linker (ld.gold)
 	$(Q)export PATH=$(srctree)/tools/lkl/bin/:${PATH} ;\
+	$(MAKE) -C ../.. ARCH=lkl $(KOPT)
 	$(MAKE) -C ../.. ARCH=lkl $(KOPT) install INSTALL_PATH=$(OUTPUT)
 
 # rules to link libs
