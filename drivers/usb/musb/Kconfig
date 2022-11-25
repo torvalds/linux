@@ -88,11 +88,6 @@ config USB_MUSB_OMAP2PLUS
 	depends on OMAP_CONTROL_PHY || !OMAP_CONTROL_PHY
 	select GENERIC_PHY
 
-config USB_MUSB_AM35X
-	tristate "AM35x"
-	depends on ARCH_OMAP
-	depends on NOP_USB_XCEIV
-
 config USB_MUSB_DSPS
 	tristate "TI DSPS platforms"
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
