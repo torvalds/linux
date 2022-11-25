@@ -111,7 +111,7 @@ The tracer has a set of options inside the osnoise directory, they are:
    be used, which is currently 5 us.
  - osnoise/options: a set of on/off options that can be enabled by
    writing the option name to the file or disabled by writing the option
-   name preceded with the 'NO_' prefix. For example, writing
+   name preceded with the 'NO\_' prefix. For example, writing
    NO_OSNOISE_WORKLOAD disables the OSNOISE_WORKLOAD option. The
    special DEAFAULTS option resets all options to the default value.
 
