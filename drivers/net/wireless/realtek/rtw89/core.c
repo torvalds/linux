@@ -1405,6 +1405,9 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	const u8 *bssid = iter_data->bssid;
 
+	if (!vif->bss_conf.bssid)
+		return;
+
 	if (ieee80211_is_trigger(hdr->frame_control)) {
 		rtw89_stats_trigger_frame(rtwdev, vif, skb);
 		return;
@@ -2386,6 +2389,8 @@ void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc)
 		rtwvif->self_role = RTW89_SELF_ROLE_CLIENT;
 		rtwvif->addr_cam.sec_ent_mode = RTW89_ADDR_CAM_SEC_NORMAL;
 		break;
+	case NL80211_IFTYPE_MONITOR:
+		break;
 	default:
 		WARN_ON(1);
 		break;
@@ -3266,6 +3271,7 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
 	ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
+	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				     BIT(NL80211_IFTYPE_AP) |
