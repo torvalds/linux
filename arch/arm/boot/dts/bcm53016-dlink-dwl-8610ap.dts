@@ -20,14 +20,14 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power {
+		led-power {
 			function = LED_FUNCTION_POWER;
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
-		diag {
+		led-diag {
 			/* Actually "diag" unclear what this means */
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_RED>;
@@ -36,13 +36,13 @@
 			linux,default-trigger = "heartbeat";
 		};
 
-		wlan-2g {
+		led-wlan-2g {
 			function = LED_FUNCTION_WLAN;
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&chipcommon 5 GPIO_ACTIVE_LOW>;
 		};
 
-		wlan-5g {
+		led-wlan-5g {
 			function = LED_FUNCTION_WLAN;
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&chipcommon 8 GPIO_ACTIVE_LOW>;
