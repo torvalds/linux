@@ -38,9 +38,6 @@
 #define IFCVF_DBG(pdev, fmt, ...)	dev_dbg(&pdev->dev, fmt, ##__VA_ARGS__)
 #define IFCVF_INFO(pdev, fmt, ...)	dev_info(&pdev->dev, fmt, ##__VA_ARGS__)
 
-#define ifcvf_private_to_vf(adapter) \
-	(((struct ifcvf_adapter *)adapter)->vf)
-
 /* all vqs and config interrupt has its own vector */
 #define MSIX_VECTOR_PER_VQ_AND_CONFIG		1
 /* all vqs share a vector, and config interrupt has a separate vector */
