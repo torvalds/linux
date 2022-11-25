@@ -17,10 +17,10 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/android_debug_symbols.h>
 #include <linux/gunyah/gh_rm_drv.h>
 #include <linux/soc/qcom/smem.h>
 #include <soc/qcom/minidump.h>
+#include "debug_symbol.h"
 #include "minidump_private.h"
 #include "elf.h"
 
@@ -833,7 +833,7 @@ static int msm_minidump_add_header(void)
 	char *banner, *linux_banner;
 	int slot_num;
 
-	linux_banner = android_debug_symbol(ADS_LINUX_BANNER);
+	linux_banner = (void *)debug_symbol_lookup_name("linux_banner");
 	/* Header buffer contains:
 	 * elf header, MAX_NUM_ENTRIES+4 of section and program elf headers,
 	 * string table section and linux banner.
@@ -962,6 +962,9 @@ static int msm_minidump_driver_probe(struct platform_device *pdev)
 	struct md_ss_toc *md_ss_toc;
 	unsigned long flags;
 	int ret;
+
+	if (debug_symbol_available())
+		return -EPROBE_DEFER;
 
 	is_rm_minidump =
 		of_device_is_compatible(pdev->dev.of_node, "qcom,minidump-rm");
