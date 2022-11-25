@@ -1913,7 +1913,7 @@ int rvu_npc_exact_init(struct rvu *rvu)
 
 	dev_dbg(rvu->dev, "%s: Allocated bitmap for 32 entry cam\n", __func__);
 
-	table->tot_ids = (table->mem_table.depth * table->mem_table.ways) + table->cam_table.depth;
+	table->tot_ids = table_size + table->cam_table.depth;
 	table->id_bmap = devm_bitmap_zalloc(rvu->dev, table->tot_ids,
 					    GFP_KERNEL);
 
