@@ -348,6 +348,7 @@ static bool proto_cmd_ok(const struct send_ctx *sctx, int cmd)
 	switch (sctx->proto) {
 	case 1:	 return cmd <= BTRFS_SEND_C_MAX_V1;
 	case 2:	 return cmd <= BTRFS_SEND_C_MAX_V2;
+	case 3:	 return cmd <= BTRFS_SEND_C_MAX_V3;
 	default: return false;
 	}
 }
@@ -6469,7 +6470,9 @@ static int finish_inode_if_needed(struct send_ctx *sctx, int at_end)
 		if (ret < 0)
 			goto out;
 	}
-	if (sctx->cur_inode_needs_verity) {
+
+	if (proto_cmd_ok(sctx, BTRFS_SEND_C_ENABLE_VERITY)
+	    && sctx->cur_inode_needs_verity) {
 		ret = process_verity(sctx);
 		if (ret < 0)
 			goto out;
@@ -6665,17 +6668,19 @@ static int changed_inode(struct send_ctx *sctx,
 			/*
 			 * First, process the inode as if it was deleted.
 			 */
-			sctx->cur_inode_gen = right_gen;
-			sctx->cur_inode_new = false;
-			sctx->cur_inode_deleted = true;
-			sctx->cur_inode_size = btrfs_inode_size(
-					sctx->right_path->nodes[0], right_ii);
-			sctx->cur_inode_mode = btrfs_inode_mode(
-					sctx->right_path->nodes[0], right_ii);
-			ret = process_all_refs(sctx,
-					BTRFS_COMPARE_TREE_DELETED);
-			if (ret < 0)
-				goto out;
+			if (old_nlinks > 0) {
+				sctx->cur_inode_gen = right_gen;
+				sctx->cur_inode_new = false;
+				sctx->cur_inode_deleted = true;
+				sctx->cur_inode_size = btrfs_inode_size(
+						sctx->right_path->nodes[0], right_ii);
+				sctx->cur_inode_mode = btrfs_inode_mode(
+						sctx->right_path->nodes[0], right_ii);
+				ret = process_all_refs(sctx,
+						BTRFS_COMPARE_TREE_DELETED);
+				if (ret < 0)
+					goto out;
+			}
 
 			/*
 			 * Now process the inode as if it was new.

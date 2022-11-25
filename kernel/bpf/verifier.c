@@ -6946,6 +6946,7 @@ static int set_user_ringbuf_callback_state(struct bpf_verifier_env *env,
 	__mark_reg_not_init(env, &callee->regs[BPF_REG_5]);
 
 	callee->in_callback_fn = true;
+	callee->callback_ret_range = tnum_range(0, 1);
 	return 0;
 }
 

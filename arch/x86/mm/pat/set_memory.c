@@ -587,6 +587,10 @@ static inline pgprot_t verify_rwx(pgprot_t old, pgprot_t new, unsigned long star
 {
 	unsigned long end;
 
+	/* Kernel text is rw at boot up */
+	if (system_state == SYSTEM_BOOTING)
+		return new;
+
 	/*
 	 * 32-bit has some unfixable W+X issues, like EFI code
 	 * and writeable data being in the same page.  Disable

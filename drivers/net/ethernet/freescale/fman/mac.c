@@ -279,7 +279,6 @@ static int mac_probe(struct platform_device *_of_dev)
 	struct device_node	*mac_node, *dev_node;
 	struct mac_device	*mac_dev;
 	struct platform_device	*of_dev;
-	struct resource		*res;
 	struct mac_priv_s	*priv;
 	struct fman_mac_params	 params;
 	u32			 val;
@@ -338,24 +337,25 @@ static int mac_probe(struct platform_device *_of_dev)
 	of_node_put(dev_node);
 
 	/* Get the address of the memory mapped registers */
-	res = platform_get_mem_or_io(_of_dev, 0);
-	if (!res) {
+	mac_dev->res = platform_get_mem_or_io(_of_dev, 0);
+	if (!mac_dev->res) {
 		dev_err(dev, "could not get registers\n");
 		return -EINVAL;
 	}
 
-	err = devm_request_resource(dev, fman_get_mem_region(priv->fman), res);
+	err = devm_request_resource(dev, fman_get_mem_region(priv->fman),
+				    mac_dev->res);
 	if (err) {
 		dev_err_probe(dev, err, "could not request resource\n");
 		return err;
 	}
 
-	mac_dev->vaddr = devm_ioremap(dev, res->start, resource_size(res));
+	mac_dev->vaddr = devm_ioremap(dev, mac_dev->res->start,
+				      resource_size(mac_dev->res));
 	if (!mac_dev->vaddr) {
 		dev_err(dev, "devm_ioremap() failed\n");
 		return -EIO;
 	}
-	mac_dev->vaddr_end = mac_dev->vaddr + resource_size(res);
 
 	if (!of_device_is_available(mac_node))
 		return -ENODEV;

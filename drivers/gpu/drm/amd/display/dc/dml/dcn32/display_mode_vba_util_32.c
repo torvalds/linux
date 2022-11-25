@@ -1726,7 +1726,8 @@ unsigned int dml32_DSCDelayRequirement(bool DSCEnabled,
 		enum output_format_class  OutputFormat,
 		enum output_encoder_class Output,
 		double PixelClock,
-		double PixelClockBackEnd)
+		double PixelClockBackEnd,
+		double dsc_delay_factor_wa)
 {
 	unsigned int DSCDelayRequirement_val;
 
@@ -1746,7 +1747,7 @@ unsigned int dml32_DSCDelayRequirement(bool DSCEnabled,
 		}
 
 		DSCDelayRequirement_val = DSCDelayRequirement_val + (HTotal - HActive) *
-				dml_ceil(DSCDelayRequirement_val / HActive, 1);
+				dml_ceil((double)DSCDelayRequirement_val / HActive, 1);
 
 		DSCDelayRequirement_val = DSCDelayRequirement_val * PixelClock / PixelClockBackEnd;
 
@@ -1764,7 +1765,7 @@ unsigned int dml32_DSCDelayRequirement(bool DSCEnabled,
 	dml_print("DML::%s: DSCDelayRequirement_val = %d\n", __func__, DSCDelayRequirement_val);
 #endif
 
-	return DSCDelayRequirement_val;
+	return dml_ceil(DSCDelayRequirement_val * dsc_delay_factor_wa, 1);
 }
 
 void dml32_CalculateSurfaceSizeInMall(

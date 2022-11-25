@@ -656,7 +656,15 @@ void lan966x_stats_get(struct net_device *dev,
 	stats->rx_dropped = dev->stats.rx_dropped +
 		lan966x->stats[idx + SYS_COUNT_RX_LONG] +
 		lan966x->stats[idx + SYS_COUNT_DR_LOCAL] +
-		lan966x->stats[idx + SYS_COUNT_DR_TAIL];
+		lan966x->stats[idx + SYS_COUNT_DR_TAIL] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_0] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_1] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_2] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_3] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_4] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_5] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_6] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_7];
 
 	for (i = 0; i < LAN966X_NUM_TC; i++) {
 		stats->rx_dropped +=

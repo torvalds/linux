@@ -31,12 +31,23 @@
 #include "amdgpu_psp.h"
 #include "amdgpu_xgmi.h"
 
+static bool sienna_cichlid_is_mode2_default(struct amdgpu_reset_control *reset_ctl)
+{
+#if 0
+	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
+
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 7) &&
+	    adev->pm.fw_version >= 0x3a5500 && !amdgpu_sriov_vf(adev))
+		return true;
+#endif
+	return false;
+}
+
 static struct amdgpu_reset_handler *
 sienna_cichlid_get_reset_handler(struct amdgpu_reset_control *reset_ctl,
 			    struct amdgpu_reset_context *reset_context)
 {
 	struct amdgpu_reset_handler *handler;
-	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
 
 	if (reset_context->method != AMD_RESET_METHOD_NONE) {
 		list_for_each_entry(handler, &reset_ctl->reset_handlers,
@@ -44,15 +55,13 @@ sienna_cichlid_get_reset_handler(struct amdgpu_reset_control *reset_ctl,
 			if (handler->reset_method == reset_context->method)
 				return handler;
 		}
-	} else {
-		list_for_each_entry(handler, &reset_ctl->reset_handlers,
+	}
+
+	if (sienna_cichlid_is_mode2_default(reset_ctl)) {
+		list_for_each_entry (handler, &reset_ctl->reset_handlers,
 				     handler_list) {
-			if (handler->reset_method == AMD_RESET_METHOD_MODE2 &&
-			    adev->pm.fw_version >= 0x3a5500 &&
-			    !amdgpu_sriov_vf(adev)) {
-				reset_context->method = AMD_RESET_METHOD_MODE2;
+			if (handler->reset_method == AMD_RESET_METHOD_MODE2)
 				return handler;
-			}
 		}
 	}
 

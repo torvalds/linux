@@ -649,7 +649,7 @@ static int record__pushfn(struct mmap *map, void *to, void *bf, size_t size)
 static volatile int signr = -1;
 static volatile int child_finished;
 #ifdef HAVE_EVENTFD_SUPPORT
-static int done_fd = -1;
+static volatile int done_fd = -1;
 #endif
 
 static void sig_handler(int sig)
@@ -661,19 +661,24 @@ static void sig_handler(int sig)
 
 	done = 1;
 #ifdef HAVE_EVENTFD_SUPPORT
-{
-	u64 tmp = 1;
-	/*
-	 * It is possible for this signal handler to run after done is checked
-	 * in the main loop, but before the perf counter fds are polled. If this
-	 * happens, the poll() will continue to wait even though done is set,
-	 * and will only break out if either another signal is received, or the
-	 * counters are ready for read. To ensure the poll() doesn't sleep when
-	 * done is set, use an eventfd (done_fd) to wake up the poll().
-	 */
-	if (write(done_fd, &tmp, sizeof(tmp)) < 0)
-		pr_err("failed to signal wakeup fd, error: %m\n");
-}
+	if (done_fd >= 0) {
+		u64 tmp = 1;
+		int orig_errno = errno;
+
+		/*
+		 * It is possible for this signal handler to run after done is
+		 * checked in the main loop, but before the perf counter fds are
+		 * polled. If this happens, the poll() will continue to wait
+		 * even though done is set, and will only break out if either
+		 * another signal is received, or the counters are ready for
+		 * read. To ensure the poll() doesn't sleep when done is set,
+		 * use an eventfd (done_fd) to wake up the poll().
+		 */
+		if (write(done_fd, &tmp, sizeof(tmp)) < 0)
+			pr_err("failed to signal wakeup fd, error: %m\n");
+
+		errno = orig_errno;
+	}
 #endif // HAVE_EVENTFD_SUPPORT
 }
 
@@ -2834,8 +2839,12 @@ out_free_threads:
 
 out_delete_session:
 #ifdef HAVE_EVENTFD_SUPPORT
-	if (done_fd >= 0)
-		close(done_fd);
+	if (done_fd >= 0) {
+		fd = done_fd;
+		done_fd = -1;
+
+		close(fd);
+	}
 #endif
 	zstd_fini(&session->zstd_data);
 	perf_session__delete(session);

@@ -10,7 +10,7 @@ Description:	A collection of all the memory tiers allocated.
 
 
 What:		/sys/devices/virtual/memory_tiering/memory_tierN/
-		/sys/devices/virtual/memory_tiering/memory_tierN/nodes
+		/sys/devices/virtual/memory_tiering/memory_tierN/nodelist
 Date:		August 2022
 Contact:	Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Directory with details of a specific memory tier
@@ -21,5 +21,5 @@ Description:	Directory with details of a specific memory tier
 		A smaller value of N implies a higher (faster) memory tier in the
 		hierarchy.
 
-		nodes: NUMA nodes that are part of this memory tier.
+		nodelist: NUMA nodes that are part of this memory tier.
 

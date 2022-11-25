@@ -4,6 +4,7 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 #include <asm/ptrace.h>
 #include <asm/ftrace.h>
 #include <asm/export.h>
@@ -129,6 +130,14 @@
 
 	.endm
 
+SYM_TYPED_FUNC_START(ftrace_stub)
+	RET
+SYM_FUNC_END(ftrace_stub)
+
+SYM_TYPED_FUNC_START(ftrace_stub_graph)
+	RET
+SYM_FUNC_END(ftrace_stub_graph)
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 SYM_FUNC_START(__fentry__)
@@ -172,20 +181,9 @@ SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
 	 */
 SYM_INNER_LABEL(ftrace_caller_end, SYM_L_GLOBAL)
 	ANNOTATE_NOENDBR
-
-	jmp ftrace_epilogue
+	RET
 SYM_FUNC_END(ftrace_caller);
 STACK_FRAME_NON_STANDARD_FP(ftrace_caller)
-
-SYM_FUNC_START(ftrace_epilogue)
-/*
- * This is weak to keep gas from relaxing the jumps.
- */
-SYM_INNER_LABEL_ALIGN(ftrace_stub, SYM_L_WEAK)
-	UNWIND_HINT_FUNC
-	ENDBR
-	RET
-SYM_FUNC_END(ftrace_epilogue)
 
 SYM_FUNC_START(ftrace_regs_caller)
 	/* Save the current flags before any operations that can change them */
@@ -262,14 +260,11 @@ SYM_INNER_LABEL(ftrace_regs_caller_jmp, SYM_L_GLOBAL)
 	popfq
 
 	/*
-	 * As this jmp to ftrace_epilogue can be a short jump
-	 * it must not be copied into the trampoline.
-	 * The trampoline will add the code to jump
-	 * to the return.
+	 * The trampoline will add the return.
 	 */
 SYM_INNER_LABEL(ftrace_regs_caller_end, SYM_L_GLOBAL)
 	ANNOTATE_NOENDBR
-	jmp ftrace_epilogue
+	RET
 
 	/* Swap the flags with orig_rax */
 1:	movq MCOUNT_REG_SIZE(%rsp), %rdi
@@ -280,7 +275,7 @@ SYM_INNER_LABEL(ftrace_regs_caller_end, SYM_L_GLOBAL)
 	/* Restore flags */
 	popfq
 	UNWIND_HINT_FUNC
-	jmp	ftrace_epilogue
+	RET
 
 SYM_FUNC_END(ftrace_regs_caller)
 STACK_FRAME_NON_STANDARD_FP(ftrace_regs_caller)
@@ -291,9 +286,6 @@ STACK_FRAME_NON_STANDARD_FP(ftrace_regs_caller)
 SYM_FUNC_START(__fentry__)
 	cmpq $ftrace_stub, ftrace_trace_function
 	jnz trace
-
-SYM_INNER_LABEL(ftrace_stub, SYM_L_GLOBAL)
-	ENDBR
 	RET
 
 trace:

@@ -1981,7 +1981,7 @@ repeat:
 }
 
 #if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_KFENCE)
-static DEFINE_SPINLOCK(linear_map_hash_lock);
+static DEFINE_RAW_SPINLOCK(linear_map_hash_lock);
 
 static void kernel_map_linear_page(unsigned long vaddr, unsigned long lmi)
 {
@@ -2005,10 +2005,10 @@ static void kernel_map_linear_page(unsigned long vaddr, unsigned long lmi)
 				    mmu_linear_psize, mmu_kernel_ssize);
 
 	BUG_ON (ret < 0);
-	spin_lock(&linear_map_hash_lock);
+	raw_spin_lock(&linear_map_hash_lock);
 	BUG_ON(linear_map_hash_slots[lmi] & 0x80);
 	linear_map_hash_slots[lmi] = ret | 0x80;
-	spin_unlock(&linear_map_hash_lock);
+	raw_spin_unlock(&linear_map_hash_lock);
 }
 
 static void kernel_unmap_linear_page(unsigned long vaddr, unsigned long lmi)
@@ -2018,14 +2018,14 @@ static void kernel_unmap_linear_page(unsigned long vaddr, unsigned long lmi)
 	unsigned long vpn = hpt_vpn(vaddr, vsid, mmu_kernel_ssize);
 
 	hash = hpt_hash(vpn, PAGE_SHIFT, mmu_kernel_ssize);
-	spin_lock(&linear_map_hash_lock);
+	raw_spin_lock(&linear_map_hash_lock);
 	if (!(linear_map_hash_slots[lmi] & 0x80)) {
-		spin_unlock(&linear_map_hash_lock);
+		raw_spin_unlock(&linear_map_hash_lock);
 		return;
 	}
 	hidx = linear_map_hash_slots[lmi] & 0x7f;
 	linear_map_hash_slots[lmi] = 0;
-	spin_unlock(&linear_map_hash_lock);
+	raw_spin_unlock(&linear_map_hash_lock);
 	if (hidx & _PTEIDX_SECONDARY)
 		hash = ~hash;
 	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
