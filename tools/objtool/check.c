@@ -186,6 +186,7 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 		"snp_abort",
 		"stop_this_cpu",
 		"usercopy_abort",
+		"xen_cpu_bringup_again",
 		"xen_start_kernel",
 	};
 
