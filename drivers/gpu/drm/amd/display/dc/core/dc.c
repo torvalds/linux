@@ -1988,7 +1988,7 @@ context_alloc_fail:
 
 	DC_LOG_DC("%s Finished.\n", __func__);
 
-	return (res == DC_OK);
+	return res;
 }
 
 /* TODO: When the transition to the new commit sequence is done, remove this
