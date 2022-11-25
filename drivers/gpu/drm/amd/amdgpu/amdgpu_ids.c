@@ -165,6 +165,26 @@ bool amdgpu_vmid_had_gpu_reset(struct amdgpu_device *adev,
 		atomic_read(&adev->gpu_reset_counter);
 }
 
+/* Check if we need to switch to another set of resources */
+static bool amdgpu_vmid_gds_switch_needed(struct amdgpu_vmid *id,
+					  struct amdgpu_job *job)
+{
+	return id->gds_base != job->gds_base ||
+		id->gds_size != job->gds_size ||
+		id->gws_base != job->gws_base ||
+		id->gws_size != job->gws_size ||
+		id->oa_base != job->oa_base ||
+		id->oa_size != job->oa_size;
+}
+
+/* Check if the id is compatible with the job */
+static bool amdgpu_vmid_compatible(struct amdgpu_vmid *id,
+				   struct amdgpu_job *job)
+{
+	return  id->pd_gpu_addr == job->vm_pd_addr &&
+		!amdgpu_vmid_gds_switch_needed(id, job);
+}
+
 /**
  * amdgpu_vmid_grab_idle - grab idle VMID
  *
@@ -265,7 +285,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 
 	*id = vm->reserved_vmid[vmhub];
 	if ((*id)->owner != vm->immediate.fence_context ||
-	    (*id)->pd_gpu_addr != job->vm_pd_addr ||
+	    !amdgpu_vmid_compatible(*id, job) ||
 	    (*id)->flushed_updates < updates ||
 	    !(*id)->last_flush ||
 	    ((*id)->last_flush->context != fence_context &&
@@ -294,7 +314,6 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	if (r)
 		return r;
 
-	(*id)->flushed_updates = updates;
 	job->vm_needs_flush = needs_flush;
 	return 0;
 }
@@ -333,7 +352,7 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 		if ((*id)->owner != vm->immediate.fence_context)
 			continue;
 
-		if ((*id)->pd_gpu_addr != job->vm_pd_addr)
+		if (!amdgpu_vmid_compatible(*id, job))
 			continue;
 
 		if (!(*id)->last_flush ||
@@ -355,7 +374,6 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 		if (r)
 			return r;
 
-		(*id)->flushed_updates = updates;
 		job->vm_needs_flush |= needs_flush;
 		return 0;
 	}
@@ -408,22 +426,30 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			if (r)
 				goto error;
 
-			id->flushed_updates = amdgpu_vm_tlb_seq(vm);
 			job->vm_needs_flush = true;
 		}
 
 		list_move_tail(&id->list, &id_mgr->ids_lru);
 	}
 
-	id->pd_gpu_addr = job->vm_pd_addr;
-	id->owner = vm->immediate.fence_context;
-
+	job->gds_switch_needed = amdgpu_vmid_gds_switch_needed(id, job);
 	if (job->vm_needs_flush) {
+		id->flushed_updates = amdgpu_vm_tlb_seq(vm);
 		dma_fence_put(id->last_flush);
 		id->last_flush = NULL;
 	}
 	job->vmid = id - id_mgr->ids;
 	job->pasid = vm->pasid;
+
+	id->gds_base = job->gds_base;
+	id->gds_size = job->gds_size;
+	id->gws_base = job->gws_base;
+	id->gws_size = job->gws_size;
+	id->oa_base = job->oa_base;
+	id->oa_size = job->oa_size;
+	id->pd_gpu_addr = job->vm_pd_addr;
+	id->owner = vm->immediate.fence_context;
+
 	trace_amdgpu_vm_grab_id(vm, ring, job);
 
 error:

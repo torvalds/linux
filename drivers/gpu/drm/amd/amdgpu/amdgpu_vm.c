@@ -484,25 +484,20 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->funcs->vmhub;
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
-	struct amdgpu_vmid *id;
-	bool gds_switch_needed;
-	bool vm_flush_needed = job->vm_needs_flush || ring->has_compute_vm_bug;
 
 	if (job->vmid == 0)
 		return false;
-	id = &id_mgr->ids[job->vmid];
-	gds_switch_needed = ring->funcs->emit_gds_switch && (
-		id->gds_base != job->gds_base ||
-		id->gds_size != job->gds_size ||
-		id->gws_base != job->gws_base ||
-		id->gws_size != job->gws_size ||
-		id->oa_base != job->oa_base ||
-		id->oa_size != job->oa_size);
 
-	if (amdgpu_vmid_had_gpu_reset(adev, id))
+	if (job->vm_needs_flush || ring->has_compute_vm_bug)
 		return true;
 
-	return vm_flush_needed || gds_switch_needed;
+	if (ring->funcs->emit_gds_switch && job->gds_switch_needed)
+		return true;
+
+	if (amdgpu_vmid_had_gpu_reset(adev, &id_mgr->ids[job->vmid]))
+		return true;
+
+	return false;
 }
 
 /**
@@ -524,13 +519,8 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	unsigned vmhub = ring->funcs->vmhub;
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	struct amdgpu_vmid *id = &id_mgr->ids[job->vmid];
-	bool gds_switch_needed = ring->funcs->emit_gds_switch && (
-		id->gds_base != job->gds_base ||
-		id->gds_size != job->gds_size ||
-		id->gws_base != job->gws_base ||
-		id->gws_size != job->gws_size ||
-		id->oa_base != job->oa_base ||
-		id->oa_size != job->oa_size);
+	bool gds_switch_needed = ring->funcs->emit_gds_switch &&
+		job->gds_switch_needed;
 	bool vm_flush_needed = job->vm_needs_flush;
 	struct dma_fence *fence = NULL;
 	bool pasid_mapping_needed = false;
@@ -577,6 +567,14 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	if (pasid_mapping_needed)
 		amdgpu_gmc_emit_pasid_mapping(ring, job->vmid, job->pasid);
 
+	if (!ring->is_mes_queue && ring->funcs->emit_gds_switch &&
+	    gds_switch_needed) {
+		amdgpu_ring_emit_gds_switch(ring, job->vmid, job->gds_base,
+					    job->gds_size, job->gws_base,
+					    job->gws_size, job->oa_base,
+					    job->oa_size);
+	}
+
 	if (vm_flush_needed || pasid_mapping_needed) {
 		r = amdgpu_fence_emit(ring, &fence, NULL, 0);
 		if (r)
@@ -600,20 +598,6 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 		mutex_unlock(&id_mgr->lock);
 	}
 	dma_fence_put(fence);
-
-	if (!ring->is_mes_queue && ring->funcs->emit_gds_switch &&
-	    gds_switch_needed) {
-		id->gds_base = job->gds_base;
-		id->gds_size = job->gds_size;
-		id->gws_base = job->gws_base;
-		id->gws_size = job->gws_size;
-		id->oa_base = job->oa_base;
-		id->oa_size = job->oa_size;
-		amdgpu_ring_emit_gds_switch(ring, job->vmid, job->gds_base,
-					    job->gds_size, job->gws_base,
-					    job->gws_size, job->oa_base,
-					    job->oa_size);
-	}
 
 	if (ring->funcs->patch_cond_exec)
 		amdgpu_ring_patch_cond_exec(ring, patch_offset);

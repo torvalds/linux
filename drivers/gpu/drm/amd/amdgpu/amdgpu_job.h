@@ -53,6 +53,7 @@ struct amdgpu_job {
 	uint32_t		preamble_status;
 	uint32_t                preemption_status;
 	bool                    vm_needs_flush;
+	bool			gds_switch_needed;
 	uint64_t		vm_pd_addr;
 	unsigned		vmid;
 	unsigned		pasid;
