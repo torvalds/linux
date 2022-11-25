@@ -218,6 +218,10 @@
 	status = "okay";
 };
 
+&avsd {
+	status = "okay";
+};
+
 &cpu_l0 {
 	cpu-supply = <&vdd_cpu_lit_s0>;
 	mem-supply = <&vdd_cpu_lit_mem_s0>;
