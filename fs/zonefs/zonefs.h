@@ -209,6 +209,28 @@ static inline struct zonefs_sb_info *ZONEFS_SB(struct super_block *sb)
 #define zonefs_warn(sb, format, args...)	\
 	pr_warn("zonefs (%s) WARNING: " format, sb->s_id, ## args)
 
+/* In super.c */
+void zonefs_account_active(struct inode *inode);
+int zonefs_zone_mgmt(struct inode *inode, enum req_op op);
+void zonefs_i_size_write(struct inode *inode, loff_t isize);
+void zonefs_update_stats(struct inode *inode, loff_t new_isize);
+void __zonefs_io_error(struct inode *inode, bool write);
+
+static inline void zonefs_io_error(struct inode *inode, bool write)
+{
+	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+
+	mutex_lock(&zi->i_truncate_mutex);
+	__zonefs_io_error(inode, write);
+	mutex_unlock(&zi->i_truncate_mutex);
+}
+
+/* In file.c */
+extern const struct address_space_operations zonefs_file_aops;
+extern const struct file_operations zonefs_file_operations;
+int zonefs_file_truncate(struct inode *inode, loff_t isize);
+
+/* In sysfs.c */
 int zonefs_sysfs_register(struct super_block *sb);
 void zonefs_sysfs_unregister(struct super_block *sb);
 int zonefs_sysfs_init(void);
