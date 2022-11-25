@@ -155,9 +155,27 @@ struct sdw_intel_ops sdw_callback = {
 	.free_stream = sdw_free_stream,
 };
 
+void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
+{
+	struct sof_intel_hda_dev *hdev;
+
+	hdev = sdev->pdata->hw_pdata;
+
+	if (!hdev->sdw)
+		return;
+
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC2,
+				HDA_DSP_REG_ADSPIC2_SNDW,
+				enable ? HDA_DSP_REG_ADSPIC2_SNDW : 0);
+}
+
 void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable)
 {
-	sdw_intel_enable_irq(sdev->bar[HDA_DSP_BAR], enable);
+	const struct sof_intel_dsp_desc *chip;
+
+	chip = get_chip_info(sdev->pdata);
+	if (chip && chip->enable_sdw_irq)
+		chip->enable_sdw_irq(sdev, enable);
 }
 
 static int hda_sdw_acpi_scan(struct snd_sof_dev *sdev)
@@ -220,10 +238,45 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+int hda_sdw_check_lcount_common(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hdev;
+	struct sdw_intel_ctx *ctx;
+	u32 caps;
+
+	hdev = sdev->pdata->hw_pdata;
+	ctx = hdev->sdw;
+
+	caps = snd_sof_dsp_read(sdev, HDA_DSP_BAR, ctx->shim_base + SDW_SHIM_LCAP);
+	caps &= SDW_SHIM_LCAP_LCOUNT_MASK;
+
+	/* Check HW supported vs property value */
+	if (caps < ctx->count) {
+		dev_err(sdev->dev,
+			"BIOS master count %d is larger than hardware capabilities %d\n",
+			ctx->count, caps);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hda_sdw_check_lcount(struct snd_sof_dev *sdev)
+{
+	const struct sof_intel_dsp_desc *chip;
+
+	chip = get_chip_info(sdev->pdata);
+	if (chip && chip->read_sdw_lcount)
+		return chip->read_sdw_lcount(sdev);
+
+	return 0;
+}
+
 int hda_sdw_startup(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hdev;
 	struct snd_sof_pdata *pdata = sdev->pdata;
+	int ret;
 
 	hdev = sdev->pdata->hw_pdata;
 
@@ -232,6 +285,10 @@ int hda_sdw_startup(struct snd_sof_dev *sdev)
 
 	if (pdata->machine && !pdata->machine->mach_params.link_mask)
 		return 0;
+
+	ret = hda_sdw_check_lcount(sdev);
+	if (ret < 0)
+		return ret;
 
 	return sdw_intel_startup(hdev->sdw);
 }
@@ -887,6 +944,8 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
+	hda_bus_ml_get_capabilities(bus);
+
 	/* scan SoundWire capabilities exposed by DSDT */
 	ret = hda_sdw_acpi_scan(sdev);
 	if (ret < 0) {
@@ -914,8 +973,6 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	}
 
 skip_soundwire:
-
-	hda_bus_ml_get_capabilities(bus);
 
 	/* create codec instances */
 	hda_codec_probe_bus(sdev);
