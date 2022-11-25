@@ -65,10 +65,17 @@ static void mt7915_put_hif2(struct mt7915_hif *hif)
 
 static struct mt7915_hif *mt7915_pci_init_hif2(struct pci_dev *pdev)
 {
+	struct pci_dev *tmp_pdev;
+
 	hif_idx++;
-	if (!pci_get_device(PCI_VENDOR_ID_MEDIATEK, 0x7916, NULL) &&
-	    !pci_get_device(PCI_VENDOR_ID_MEDIATEK, 0x790a, NULL))
-		return NULL;
+
+	tmp_pdev = pci_get_device(PCI_VENDOR_ID_MEDIATEK, 0x7916, NULL);
+	if (!tmp_pdev) {
+		tmp_pdev = pci_get_device(PCI_VENDOR_ID_MEDIATEK, 0x790a, NULL);
+		if (!tmp_pdev)
+			return NULL;
+	}
+	pci_dev_put(tmp_pdev);
 
 	writel(hif_idx | MT_PCIE_RECOG_ID_SEM,
 	       pcim_iomap_table(pdev)[0] + MT_PCIE_RECOG_ID);
