@@ -102,7 +102,6 @@ static int alt_tse_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 		if_mode |= PCS_IF_MODE_USE_SGMII_AN | PCS_IF_MODE_SGMII_ENA;
 	} else if (interface == PHY_INTERFACE_MODE_1000BASEX) {
 		if_mode &= ~(PCS_IF_MODE_USE_SGMII_AN | PCS_IF_MODE_SGMII_ENA);
-		if_mode |= PCS_IF_MODE_SGMI_SPEED_1000;
 	}
 
 	ctrl |= (BMCR_SPEED1000 | BMCR_FULLDPLX | BMCR_ANENABLE);
