@@ -467,7 +467,7 @@ struct mptcp_subflow_context {
 		send_fastclose : 1,
 		send_infinite_map : 1,
 		rx_eof : 1,
-		can_ack : 1,        /* only after processing the remote a key */
+		remote_key_valid : 1,        /* received the peer key from */
 		disposable : 1,	    /* ctx can be free at ulp release time */
 		stale : 1,	    /* unable to snd/rcv data, do not use for xmit */
 		local_id_valid : 1, /* local_id is correctly initialized */
@@ -477,7 +477,10 @@ struct mptcp_subflow_context {
 	u64	thmac;
 	u32	local_nonce;
 	u32	remote_token;
-	u8	hmac[MPTCPOPT_HMAC_LEN];
+	union {
+		u8	hmac[MPTCPOPT_HMAC_LEN]; /* MPJ subflow only */
+		u64	iasn;	    /* initial ack sequence number, MPC subflows only */
+	};
 	u8	local_id;
 	u8	remote_id;
 	u8	reset_seen:1;
@@ -603,7 +606,7 @@ unsigned int mptcp_stale_loss_cnt(const struct net *net);
 int mptcp_get_pm_type(const struct net *net);
 void mptcp_copy_inaddrs(struct sock *msk, const struct sock *ssk);
 void mptcp_subflow_fully_established(struct mptcp_subflow_context *subflow,
-				     struct mptcp_options_received *mp_opt);
+				     const struct mptcp_options_received *mp_opt);
 bool __mptcp_retransmit_pending_data(struct sock *sk);
 void mptcp_check_and_set_pending(struct sock *sk);
 void __mptcp_push_pending(struct sock *sk, unsigned int flags);
