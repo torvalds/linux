@@ -660,13 +660,8 @@ static void __bch2_write_index(struct bch_write_op *op)
 	 * particularly want to plumb io_opts all the way through the btree
 	 * update stack right now
 	 */
-	for_each_keylist_key(keys, k) {
+	for_each_keylist_key(keys, k)
 		bch2_rebalance_add_key(c, bkey_i_to_s_c(k), &op->opts);
-
-		if (bch2_bkey_is_incompressible(bkey_i_to_s_c(k)))
-			bch2_check_set_feature(op->c, BCH_FEATURE_incompressible);
-
-	}
 
 	if (!bch2_keylist_empty(keys)) {
 		u64 sectors_start = keylist_sectors(keys);
