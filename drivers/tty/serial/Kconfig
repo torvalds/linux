@@ -1507,7 +1507,7 @@ config SERIAL_MILBEAUT_USIO_CONSOLE
 config SERIAL_LITEUART
 	tristate "LiteUART serial port support"
 	depends on HAS_IOMEM
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on LITEX || COMPILE_TEST
 	select SERIAL_CORE
 	help
