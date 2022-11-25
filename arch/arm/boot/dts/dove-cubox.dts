@@ -21,7 +21,7 @@
 		pinctrl-0 = <&pmx_gpio_18>;
 		pinctrl-names = "default";
 
-		power {
+		led-power {
 			label = "Power";
 			gpios = <&gpio0 18 1>;
 			default-state = "keep";
