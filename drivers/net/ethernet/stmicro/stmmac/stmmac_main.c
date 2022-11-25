@@ -7562,31 +7562,31 @@ static int __init stmmac_cmdline_opt(char *str)
 	if (!str || !*str)
 		return 1;
 	while ((opt = strsep(&str, ",")) != NULL) {
-		if (sysfs_streq(opt, "debug:")) {
+		if (!strncmp(opt, "debug:", 6)) {
 			if (kstrtoint(opt + 6, 0, &debug))
 				goto err;
-		} else if (sysfs_streq(opt, "phyaddr:")) {
+		} else if (!strncmp(opt, "phyaddr:", 8)) {
 			if (kstrtoint(opt + 8, 0, &phyaddr))
 				goto err;
-		} else if (sysfs_streq(opt, "buf_sz:")) {
+		} else if (!strncmp(opt, "buf_sz:", 7)) {
 			if (kstrtoint(opt + 7, 0, &buf_sz))
 				goto err;
-		} else if (sysfs_streq(opt, "tc:")) {
+		} else if (!strncmp(opt, "tc:", 3)) {
 			if (kstrtoint(opt + 3, 0, &tc))
 				goto err;
-		} else if (sysfs_streq(opt, "watchdog:")) {
+		} else if (!strncmp(opt, "watchdog:", 9)) {
 			if (kstrtoint(opt + 9, 0, &watchdog))
 				goto err;
-		} else if (sysfs_streq(opt, "flow_ctrl:")) {
+		} else if (!strncmp(opt, "flow_ctrl:", 10)) {
 			if (kstrtoint(opt + 10, 0, &flow_ctrl))
 				goto err;
-		} else if (sysfs_streq(opt, "pause:", 6)) {
+		} else if (!strncmp(opt, "pause:", 6)) {
 			if (kstrtoint(opt + 6, 0, &pause))
 				goto err;
-		} else if (sysfs_streq(opt, "eee_timer:")) {
+		} else if (!strncmp(opt, "eee_timer:", 10)) {
 			if (kstrtoint(opt + 10, 0, &eee_timer))
 				goto err;
-		} else if (sysfs_streq(opt, "chain_mode:")) {
+		} else if (!strncmp(opt, "chain_mode:", 11)) {
 			if (kstrtoint(opt + 11, 0, &chain_mode))
 				goto err;
 		}
