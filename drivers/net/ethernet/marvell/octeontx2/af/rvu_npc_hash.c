@@ -1898,15 +1898,15 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	table_size = table->mem_table.depth * table->mem_table.ways;
 
 	/* Allocate bitmap for 4way 2K table */
-	table->mem_table.bmap = devm_kcalloc(rvu->dev, BITS_TO_LONGS(table_size),
-					     sizeof(long), GFP_KERNEL);
+	table->mem_table.bmap = devm_bitmap_zalloc(rvu->dev, table_size,
+						   GFP_KERNEL);
 	if (!table->mem_table.bmap)
 		return -ENOMEM;
 
 	dev_dbg(rvu->dev, "%s: Allocated bitmap for 4way 2K entry table\n", __func__);
 
 	/* Allocate bitmap for 32 entry mcam */
-	table->cam_table.bmap = devm_kcalloc(rvu->dev, 1, sizeof(long), GFP_KERNEL);
+	table->cam_table.bmap = devm_bitmap_zalloc(rvu->dev, 32, GFP_KERNEL);
 
 	if (!table->cam_table.bmap)
 		return -ENOMEM;
