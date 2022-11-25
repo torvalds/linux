@@ -527,7 +527,8 @@ void intel_pps_check_power_unlocked(struct intel_dp *intel_dp)
 	if (!edp_have_panel_power(intel_dp) && !edp_have_panel_vdd(intel_dp)) {
 		drm_WARN(&dev_priv->drm, 1,
 			 "eDP powered off while attempting aux channel communication.\n");
-		drm_dbg_kms(&dev_priv->drm, "Status 0x%08x Control 0x%08x\n",
+		drm_dbg_kms(&dev_priv->drm,
+			    "PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 			    intel_de_read(dev_priv, _pp_stat_reg(intel_dp)),
 			    intel_de_read(dev_priv, _pp_ctrl_reg(intel_dp)));
 	}
@@ -559,7 +560,7 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 
 	drm_dbg_kms(&dev_priv->drm,
-		    "mask %08x value %08x status %08x control %08x\n",
+		    "mask: 0x%08x value: 0x%08x PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 		    mask, value,
 		    intel_de_read(dev_priv, pp_stat_reg),
 		    intel_de_read(dev_priv, pp_ctrl_reg));
@@ -567,7 +568,7 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 	if (intel_de_wait_for_register(dev_priv, pp_stat_reg,
 				       mask, value, 5000))
 		drm_err(&dev_priv->drm,
-			"Panel status timeout: status %08x control %08x\n",
+			"Panel status timeout: PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 			intel_de_read(dev_priv, pp_stat_reg),
 			intel_de_read(dev_priv, pp_ctrl_reg));
 
