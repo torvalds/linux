@@ -842,6 +842,7 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	vf = &adapter->vf;
 	vf->dev_type = get_dev_type(pdev);
 	vf->base = pcim_iomap_table(pdev);
+	vf->pdev = pdev;
 
 	adapter->pdev = pdev;
 	adapter->vdpa.dma_dev = &pdev->dev;
