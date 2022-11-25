@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -42,6 +43,21 @@ do { \
 	set_xhdr_property(hdr, arg, class, member, value)
 #define set_phdr_property(arg, class, member, value) \
 	set_xhdr_property(phdr, arg, class, member, value)
+
+#define RAMDUMP_NUM_DEVICES	256
+#define RAMDUMP_NAME		"ramdump"
+
+static struct class *ramdump_class;
+static dev_t ramdump_dev;
+static DEFINE_MUTEX(rd_minor_mutex);
+static DEFINE_IDA(rd_minor_id);
+static bool ramdump_devnode_inited;
+
+struct ramdump_device {
+	char name[256];
+	struct cdev cdev;
+	struct device *dev;
+};
 
 struct qcom_ramdump_desc {
 	void *data;
@@ -251,6 +267,106 @@ int qcom_fw_elf_dump(struct firmware *fw, struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(qcom_fw_elf_dump);
+
+static int ramdump_devnode_init(void)
+{
+	int ret;
+
+	ramdump_class = class_create(THIS_MODULE, RAMDUMP_NAME);
+	ret = alloc_chrdev_region(&ramdump_dev, 0, RAMDUMP_NUM_DEVICES,
+				  RAMDUMP_NAME);
+	if (ret) {
+		pr_err("%s: unable to allocate major\n", __func__);
+		return ret;
+	}
+
+	ramdump_devnode_inited = true;
+
+	return 0;
+}
+
+void *qcom_create_ramdump_device(const char *dev_name, struct device *parent)
+{
+	int ret, minor;
+	struct ramdump_device *rd_dev;
+
+	if (!dev_name) {
+		pr_err("%s: Invalid device name.\n", __func__);
+		return NULL;
+	}
+
+	mutex_lock(&rd_minor_mutex);
+	if (!ramdump_devnode_inited) {
+		ret = ramdump_devnode_init();
+		if (ret) {
+			mutex_unlock(&rd_minor_mutex);
+			return ERR_PTR(ret);
+		}
+	}
+	mutex_unlock(&rd_minor_mutex);
+
+	rd_dev = kzalloc(sizeof(struct ramdump_device), GFP_KERNEL);
+
+	if (!rd_dev)
+		return NULL;
+
+	/* get a minor number */
+	minor = ida_simple_get(&rd_minor_id, 0, RAMDUMP_NUM_DEVICES,
+			GFP_KERNEL);
+	if (minor < 0) {
+		pr_err("%s: No more minor numbers left! rc:%d\n", __func__,
+			minor);
+		ret = -ENODEV;
+		goto fail_out_of_minors;
+	}
+
+	snprintf(rd_dev->name, ARRAY_SIZE(rd_dev->name), "%s",
+		 dev_name);
+
+	rd_dev->dev = device_create(ramdump_class, parent,
+				    MKDEV(MAJOR(ramdump_dev), minor),
+				   rd_dev, rd_dev->name);
+	if (IS_ERR(rd_dev->dev)) {
+		ret = PTR_ERR(rd_dev->dev);
+		pr_err("%s: device_create failed for %s (%d)\n", __func__,
+				dev_name, ret);
+		goto fail_return_minor;
+	}
+
+	cdev_init(&rd_dev->cdev, NULL);
+	ret = cdev_add(&rd_dev->cdev, MKDEV(MAJOR(ramdump_dev), minor), 1);
+	if (ret) {
+		pr_err("%s: cdev_add failed for %s (%d)\n", __func__,
+				dev_name, ret);
+		goto fail_cdev_add;
+	}
+
+	return (void *)rd_dev->dev;
+
+fail_cdev_add:
+	device_unregister(rd_dev->dev);
+fail_return_minor:
+	ida_simple_remove(&rd_minor_id, minor);
+fail_out_of_minors:
+	kfree(rd_dev);
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL(qcom_create_ramdump_device);
+
+void qcom_destroy_ramdump_device(void *dev)
+{
+	struct ramdump_device *rd_dev = container_of(dev, struct ramdump_device, dev);
+	int minor = MINOR(rd_dev->cdev.dev);
+
+	if (IS_ERR_OR_NULL(rd_dev))
+		return;
+
+	cdev_del(&rd_dev->cdev);
+	device_unregister(rd_dev->dev);
+	ida_simple_remove(&rd_minor_id, minor);
+	kfree(rd_dev);
+}
+EXPORT_SYMBOL(qcom_destroy_ramdump_device);
 
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Ramdump driver");
 MODULE_LICENSE("GPL");
