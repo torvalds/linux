@@ -21,6 +21,7 @@ properties:
       - rockchip,rk1808-i2s-tdm
       - rockchip,rk3308-i2s-tdm
       - rockchip,rk3568-i2s-tdm
+      - rockchip,rk3588-i2s-tdm
       - rockchip,rv1126-i2s-tdm
 
   reg:
@@ -135,7 +136,6 @@ required:
   - clock-names
   - resets
   - reset-names
-  - rockchip,grf
   - "#sound-dai-cells"
 
 additionalProperties: false
