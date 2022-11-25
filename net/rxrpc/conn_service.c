@@ -125,7 +125,7 @@ replace_old_connection:
 struct rxrpc_connection *rxrpc_prealloc_service_connection(struct rxrpc_net *rxnet,
 							   gfp_t gfp)
 {
-	struct rxrpc_connection *conn = rxrpc_alloc_connection(gfp);
+	struct rxrpc_connection *conn = rxrpc_alloc_connection(rxnet, gfp);
 
 	if (conn) {
 		/* We maintain an extra ref on the connection whilst it is on
@@ -180,6 +180,8 @@ void rxrpc_new_incoming_connection(struct rxrpc_sock *rx,
 	if (sp->hdr.userStatus == RXRPC_USERSTATUS_SERVICE_UPGRADE &&
 	    conn->service_id == rx->service_upgrade.from)
 		conn->service_id = rx->service_upgrade.to;
+
+	atomic_set(&conn->active, 1);
 
 	/* Make the connection a target for incoming packets. */
 	rxrpc_publish_service_conn(conn->peer, conn);

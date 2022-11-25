@@ -159,7 +159,7 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq,
 			 "Proto Local                                          "
 			 " Remote                                         "
-			 " SvID ConnID   End Use State    Key     "
+			 " SvID ConnID   End Ref Act State    Key     "
 			 " Serial   ISerial  CallId0  CallId1  CallId2  CallId3\n"
 			 );
 		return 0;
@@ -177,7 +177,7 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 	sprintf(rbuff, "%pISpc", &conn->peer->srx.transport);
 print:
 	seq_printf(seq,
-		   "UDP   %-47.47s %-47.47s %4x %08x %s %3u"
+		   "UDP   %-47.47s %-47.47s %4x %08x %s %3u %3d"
 		   " %s %08x %08x %08x %08x %08x %08x %08x\n",
 		   lbuff,
 		   rbuff,
@@ -185,6 +185,7 @@ print:
 		   conn->proto.cid,
 		   rxrpc_conn_is_service(conn) ? "Svc" : "Clt",
 		   refcount_read(&conn->ref),
+		   atomic_read(&conn->active),
 		   rxrpc_conn_states[conn->state],
 		   key_serial(conn->key),
 		   atomic_read(&conn->serial),

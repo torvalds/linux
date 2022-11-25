@@ -478,8 +478,4 @@ void rxrpc_process_connection(struct work_struct *work)
 		rxrpc_do_process_connection(conn);
 		rxrpc_unuse_local(conn->local, rxrpc_local_unuse_conn_work);
 	}
-
-	rxrpc_put_connection(conn, rxrpc_conn_put_work);
-	_leave("");
-	return;
 }

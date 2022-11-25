@@ -76,7 +76,7 @@ struct rxrpc_net {
 	bool			kill_all_client_conns;
 	atomic_t		nr_client_conns;
 	spinlock_t		client_conn_cache_lock; /* Lock for ->*_client_conns */
-	spinlock_t		client_conn_discard_lock; /* Prevent multiple discarders */
+	struct mutex		client_conn_discard_lock; /* Prevent multiple discarders */
 	struct list_head	idle_client_conns;
 	struct work_struct	client_conn_reaper;
 	struct timer_list	client_conn_reap_timer;
@@ -432,9 +432,11 @@ struct rxrpc_connection {
 	struct rxrpc_conn_proto	proto;
 	struct rxrpc_local	*local;		/* Representation of local endpoint */
 	struct rxrpc_peer	*peer;		/* Remote endpoint */
+	struct rxrpc_net	*rxnet;		/* Network namespace to which call belongs */
 	struct key		*key;		/* Security details */
 
 	refcount_t		ref;
+	atomic_t		active;		/* Active count for service conns */
 	struct rcu_head		rcu;
 	struct list_head	cache_link;
 
@@ -455,6 +457,7 @@ struct rxrpc_connection {
 
 	struct timer_list	timer;		/* Conn event timer */
 	struct work_struct	processor;	/* connection event processor */
+	struct work_struct	destructor;	/* In-process-context destroyer */
 	struct rxrpc_bundle	*bundle;	/* Client connection bundle */
 	struct rb_node		service_node;	/* Node in peer->service_conns */
 	struct list_head	proc_link;	/* link in procfs list */
@@ -897,20 +900,20 @@ void rxrpc_process_delayed_final_acks(struct rxrpc_connection *, bool);
 extern unsigned int rxrpc_connection_expiry;
 extern unsigned int rxrpc_closed_conn_expiry;
 
-struct rxrpc_connection *rxrpc_alloc_connection(gfp_t);
+struct rxrpc_connection *rxrpc_alloc_connection(struct rxrpc_net *, gfp_t);
 struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *,
 						   struct sk_buff *,
 						   struct rxrpc_peer **);
 void __rxrpc_disconnect_call(struct rxrpc_connection *, struct rxrpc_call *);
 void rxrpc_disconnect_call(struct rxrpc_call *);
-void rxrpc_kill_connection(struct rxrpc_connection *);
-bool rxrpc_queue_conn(struct rxrpc_connection *, enum rxrpc_conn_trace);
+void rxrpc_kill_client_conn(struct rxrpc_connection *);
+void rxrpc_queue_conn(struct rxrpc_connection *, enum rxrpc_conn_trace);
 void rxrpc_see_connection(struct rxrpc_connection *, enum rxrpc_conn_trace);
 struct rxrpc_connection *rxrpc_get_connection(struct rxrpc_connection *,
 					      enum rxrpc_conn_trace);
 struct rxrpc_connection *rxrpc_get_connection_maybe(struct rxrpc_connection *,
 						    enum rxrpc_conn_trace);
-void rxrpc_put_service_conn(struct rxrpc_connection *, enum rxrpc_conn_trace);
+void rxrpc_put_connection(struct rxrpc_connection *, enum rxrpc_conn_trace);
 void rxrpc_service_connection_reaper(struct work_struct *);
 void rxrpc_destroy_all_connections(struct rxrpc_net *);
 
@@ -922,18 +925,6 @@ static inline bool rxrpc_conn_is_client(const struct rxrpc_connection *conn)
 static inline bool rxrpc_conn_is_service(const struct rxrpc_connection *conn)
 {
 	return !rxrpc_conn_is_client(conn);
-}
-
-static inline void rxrpc_put_connection(struct rxrpc_connection *conn,
-					enum rxrpc_conn_trace why)
-{
-	if (!conn)
-		return;
-
-	if (rxrpc_conn_is_client(conn))
-		rxrpc_put_client_conn(conn, why);
-	else
-		rxrpc_put_service_conn(conn, why);
 }
 
 static inline void rxrpc_reduce_conn_timer(struct rxrpc_connection *conn,

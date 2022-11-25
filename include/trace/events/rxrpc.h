@@ -112,7 +112,6 @@
 	EM(rxrpc_conn_get_service_conn,		"GET svc-conn") \
 	EM(rxrpc_conn_new_client,		"NEW client  ") \
 	EM(rxrpc_conn_new_service,		"NEW service ") \
-	EM(rxrpc_conn_put_already_queued,	"PUT alreadyq") \
 	EM(rxrpc_conn_put_call,			"PUT call    ") \
 	EM(rxrpc_conn_put_call_input,		"PUT inp-call") \
 	EM(rxrpc_conn_put_conn_input,		"PUT inp-conn") \
@@ -121,13 +120,13 @@
 	EM(rxrpc_conn_put_local_dead,		"PUT loc-dead") \
 	EM(rxrpc_conn_put_noreuse,		"PUT noreuse ") \
 	EM(rxrpc_conn_put_poke,			"PUT poke    ") \
+	EM(rxrpc_conn_put_service_reaped,	"PUT svc-reap") \
 	EM(rxrpc_conn_put_unbundle,		"PUT unbundle") \
 	EM(rxrpc_conn_put_unidle,		"PUT unidle  ") \
-	EM(rxrpc_conn_put_work,			"PUT work    ") \
-	EM(rxrpc_conn_queue_challenge,		"GQ  chall   ") \
-	EM(rxrpc_conn_queue_retry_work,		"GQ  retry-wk") \
-	EM(rxrpc_conn_queue_rx_work,		"GQ  rx-work ") \
-	EM(rxrpc_conn_queue_timer,		"GQ  timer   ") \
+	EM(rxrpc_conn_queue_challenge,		"QUE chall   ") \
+	EM(rxrpc_conn_queue_retry_work,		"QUE retry-wk") \
+	EM(rxrpc_conn_queue_rx_work,		"QUE rx-work ") \
+	EM(rxrpc_conn_queue_timer,		"QUE timer   ") \
 	EM(rxrpc_conn_see_new_service_conn,	"SEE new-svc ") \
 	EM(rxrpc_conn_see_reap_service,		"SEE reap-svc") \
 	E_(rxrpc_conn_see_work,			"SEE work    ")
