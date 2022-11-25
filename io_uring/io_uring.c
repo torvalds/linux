@@ -2706,7 +2706,7 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 	 * lock(&ep->mtx);
 	 *
 	 * Users may get EPOLLIN meanwhile seeing nothing in cqring, this
-	 * pushs them to do the flush.
+	 * pushes them to do the flush.
 	 */
 
 	if (io_cqring_events(ctx) || io_has_work(ctx))
