@@ -7,11 +7,6 @@
  * https://github.com/microchip-ung/sparx-5_reginfo
  */
 
-#include <linux/types.h>
-#include <linux/list.h>
-
-#include "vcap_api.h"
-#include "vcap_api_client.h"
 #include "vcap_api_debugfs.h"
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
@@ -277,6 +272,19 @@ static int sparx5_vcap_is2_get_port_keysets(struct net_device *ndev,
 		}
 	}
 	return 0;
+}
+
+/* Get the port keyset for the vcap lookup */
+int sparx5_vcap_get_port_keyset(struct net_device *ndev,
+				struct vcap_admin *admin,
+				int cid,
+				u16 l3_proto,
+				struct vcap_keyset_list *kslist)
+{
+	int lookup;
+
+	lookup = sparx5_vcap_cid_to_lookup(cid);
+	return sparx5_vcap_is2_get_port_keysets(ndev, lookup, kslist, l3_proto);
 }
 
 /* API callback used for validating a field keyset (check the port keysets) */

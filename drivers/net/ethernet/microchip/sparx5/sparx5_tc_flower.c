@@ -12,6 +12,20 @@
 #include "sparx5_main.h"
 #include "sparx5_vcap_impl.h"
 
+#define SPX5_MAX_RULE_SIZE 13 /* allows X1, X2, X4, X6 and X12 rules */
+
+/* Collect keysets and type ids for multiple rules per size */
+struct sparx5_wildcard_rule {
+	bool selected;
+	u8 value;
+	u8 mask;
+	enum vcap_keyfield_set keyset;
+};
+
+struct sparx5_multiple_rules {
+	struct sparx5_wildcard_rule rule[SPX5_MAX_RULE_SIZE];
+};
+
 struct sparx5_tc_flower_parse_usage {
 	struct flow_cls_offload *fco;
 	struct flow_rule *frule;
@@ -618,11 +632,189 @@ static int sparx5_tc_add_rule_counter(struct vcap_admin *admin,
 {
 	int err;
 
-	err = vcap_rule_add_action_u32(vrule, VCAP_AF_CNT_ID, vrule->id);
+	err = vcap_rule_mod_action_u32(vrule, VCAP_AF_CNT_ID, vrule->id);
 	if (err)
 		return err;
 
 	vcap_rule_set_counter_id(vrule, vrule->id);
+	return err;
+}
+
+/* Collect all port keysets and apply the first of them, possibly wildcarded */
+static int sparx5_tc_select_protocol_keyset(struct net_device *ndev,
+					    struct vcap_rule *vrule,
+					    struct vcap_admin *admin,
+					    u16 l3_proto,
+					    struct sparx5_multiple_rules *multi)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct vcap_keyset_list portkeysetlist = {};
+	enum vcap_keyfield_set portkeysets[10] = {};
+	struct vcap_keyset_list matches = {};
+	enum vcap_keyfield_set keysets[10];
+	int idx, jdx, err = 0, count = 0;
+	struct sparx5_wildcard_rule *mru;
+	const struct vcap_set *kinfo;
+	struct vcap_control *vctrl;
+
+	vctrl = port->sparx5->vcap_ctrl;
+
+	/* Find the keysets that the rule can use */
+	matches.keysets = keysets;
+	matches.max = ARRAY_SIZE(keysets);
+	if (vcap_rule_find_keysets(vrule, &matches) == 0)
+		return -EINVAL;
+
+	/* Find the keysets that the port configuration supports */
+	portkeysetlist.max = ARRAY_SIZE(portkeysets);
+	portkeysetlist.keysets = portkeysets;
+	err = sparx5_vcap_get_port_keyset(ndev,
+					  admin, vrule->vcap_chain_id,
+					  l3_proto,
+					  &portkeysetlist);
+	if (err)
+		return err;
+
+	/* Find the intersection of the two sets of keyset */
+	for (idx = 0; idx < portkeysetlist.cnt; ++idx) {
+		kinfo = vcap_keyfieldset(vctrl, admin->vtype,
+					 portkeysetlist.keysets[idx]);
+		if (!kinfo)
+			continue;
+
+		/* Find a port keyset that matches the required keys
+		 * If there are multiple keysets then compose a type id mask
+		 */
+		for (jdx = 0; jdx < matches.cnt; ++jdx) {
+			if (portkeysetlist.keysets[idx] != matches.keysets[jdx])
+				continue;
+
+			mru = &multi->rule[kinfo->sw_per_item];
+			if (!mru->selected) {
+				mru->selected = true;
+				mru->keyset = portkeysetlist.keysets[idx];
+				mru->value = kinfo->type_id;
+			}
+			mru->value &= kinfo->type_id;
+			mru->mask |= kinfo->type_id;
+			++count;
+		}
+	}
+	if (count == 0)
+		return -EPROTO;
+
+	if (l3_proto == ETH_P_ALL && count < portkeysetlist.cnt)
+		return -ENOENT;
+
+	for (idx = 0; idx < SPX5_MAX_RULE_SIZE; ++idx) {
+		mru = &multi->rule[idx];
+		if (!mru->selected)
+			continue;
+
+		/* Align the mask to the combined value */
+		mru->mask ^= mru->value;
+	}
+
+	/* Set the chosen keyset on the rule and set a wildcarded type if there
+	 * are more than one keyset
+	 */
+	for (idx = 0; idx < SPX5_MAX_RULE_SIZE; ++idx) {
+		mru = &multi->rule[idx];
+		if (!mru->selected)
+			continue;
+
+		vcap_set_rule_set_keyset(vrule, mru->keyset);
+		if (count > 1)
+			/* Some keysets do not have a type field */
+			vcap_rule_mod_key_u32(vrule, VCAP_KF_TYPE,
+					      mru->value,
+					      ~mru->mask);
+		mru->selected = false; /* mark as done */
+		break; /* Stop here and add more rules later */
+	}
+	return err;
+}
+
+static int sparx5_tc_add_rule_copy(struct vcap_control *vctrl,
+				   struct flow_cls_offload *fco,
+				   struct vcap_rule *erule,
+				   struct vcap_admin *admin,
+				   struct sparx5_wildcard_rule *rule)
+{
+	enum vcap_key_field keylist[] = {
+		VCAP_KF_IF_IGR_PORT_MASK,
+		VCAP_KF_IF_IGR_PORT_MASK_SEL,
+		VCAP_KF_IF_IGR_PORT_MASK_RNG,
+		VCAP_KF_LOOKUP_FIRST_IS,
+		VCAP_KF_TYPE,
+	};
+	struct vcap_rule *vrule;
+	int err;
+
+	/* Add an extra rule with a special user and the new keyset */
+	erule->user = VCAP_USER_TC_EXTRA;
+	vrule = vcap_copy_rule(erule);
+	if (IS_ERR(vrule))
+		return PTR_ERR(vrule);
+
+	/* Link the new rule to the existing rule with the cookie */
+	vrule->cookie = erule->cookie;
+	vcap_filter_rule_keys(vrule, keylist, ARRAY_SIZE(keylist), true);
+	err = vcap_set_rule_set_keyset(vrule, rule->keyset);
+	if (err) {
+		pr_err("%s:%d: could not set keyset %s in rule: %u\n",
+		       __func__, __LINE__,
+		       vcap_keyset_name(vctrl, rule->keyset),
+		       vrule->id);
+		goto out;
+	}
+
+	/* Some keysets do not have a type field, so ignore return value */
+	vcap_rule_mod_key_u32(vrule, VCAP_KF_TYPE, rule->value, ~rule->mask);
+
+	err = vcap_set_rule_set_actionset(vrule, erule->actionset);
+	if (err)
+		goto out;
+
+	err = sparx5_tc_add_rule_counter(admin, vrule);
+	if (err)
+		goto out;
+
+	err = vcap_val_rule(vrule, ETH_P_ALL);
+	if (err) {
+		pr_err("%s:%d: could not validate rule: %u\n",
+		       __func__, __LINE__, vrule->id);
+		vcap_set_tc_exterr(fco, vrule);
+		goto out;
+	}
+	err = vcap_add_rule(vrule);
+	if (err) {
+		pr_err("%s:%d: could not add rule: %u\n",
+		       __func__, __LINE__, vrule->id);
+		goto out;
+	}
+out:
+	vcap_free_rule(vrule);
+	return err;
+}
+
+static int sparx5_tc_add_remaining_rules(struct vcap_control *vctrl,
+					 struct flow_cls_offload *fco,
+					 struct vcap_rule *erule,
+					 struct vcap_admin *admin,
+					 struct sparx5_multiple_rules *multi)
+{
+	int idx, err = 0;
+
+	for (idx = 0; idx < SPX5_MAX_RULE_SIZE; ++idx) {
+		if (!multi->rule[idx].selected)
+			continue;
+
+		err = sparx5_tc_add_rule_copy(vctrl, fco, erule, admin,
+					      &multi->rule[idx]);
+		if (err)
+			break;
+	}
 	return err;
 }
 
@@ -631,6 +823,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 				    struct vcap_admin *admin)
 {
 	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5_multiple_rules multi = {};
 	struct flow_action_entry *act;
 	struct vcap_control *vctrl;
 	struct flow_rule *frule;
@@ -700,6 +893,15 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 			goto out;
 		}
 	}
+
+	err = sparx5_tc_select_protocol_keyset(ndev, vrule, admin, l3_proto,
+					       &multi);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "No matching port keyset for filter protocol and keys");
+		goto out;
+	}
+
 	/* provide the l3 protocol to guide the keyset selection */
 	err = vcap_val_rule(vrule, l3_proto);
 	if (err) {
@@ -710,6 +912,11 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 	if (err)
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
 				   "Could not add the filter");
+
+	if (l3_proto == ETH_P_ALL)
+		err = sparx5_tc_add_remaining_rules(vctrl, fco, vrule, admin,
+						    &multi);
+
 out:
 	vcap_free_rule(vrule);
 	return err;

@@ -168,6 +168,8 @@ int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto);
 int vcap_add_rule(struct vcap_rule *rule);
 /* Delete rule in a VCAP instance */
 int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id);
+/* Make a full copy of an existing rule with a new rule id */
+struct vcap_rule *vcap_copy_rule(struct vcap_rule *rule);
 
 /* Update the keyset for the rule */
 int vcap_set_rule_set_keyset(struct vcap_rule *rule,
@@ -213,7 +215,13 @@ bool vcap_is_next_lookup(struct vcap_control *vctrl, int cur_cid, int next_cid);
 /* Provide all rules via a callback interface */
 int vcap_rule_iter(struct vcap_control *vctrl,
 		   int (*callback)(void *, struct vcap_rule *), void *arg);
-
+/* Match a list of keys against the keysets available in a vcap type */
+bool vcap_rule_find_keysets(struct vcap_rule *rule,
+			    struct vcap_keyset_list *matches);
+/* Return the keyset information for the keyset */
+const struct vcap_set *vcap_keyfieldset(struct vcap_control *vctrl,
+					enum vcap_type vt,
+					enum vcap_keyfield_set keyset);
 /* Copy to host byte order */
 void vcap_netbytes_copy(u8 *dst, u8 *src, int count);
 
@@ -226,6 +234,10 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin);
 /* Add a keyset to a keyset list */
 bool vcap_keyset_list_add(struct vcap_keyset_list *keysetlist,
 			  enum vcap_keyfield_set keyset);
+/* Drop keys in a keylist and any keys that are not supported by the keyset */
+int vcap_filter_rule_keys(struct vcap_rule *rule,
+			  enum vcap_key_field keylist[], int length,
+			  bool drop_unsupported);
 
 /* map keyset id to a string with the keyset name */
 const char *vcap_keyset_name(struct vcap_control *vctrl,
@@ -233,5 +245,13 @@ const char *vcap_keyset_name(struct vcap_control *vctrl,
 /* map key field id to a string with the key name */
 const char *vcap_keyfield_name(struct vcap_control *vctrl,
 			       enum vcap_key_field key);
+
+/* Modify a 32 bit key field with value and mask in the rule */
+int vcap_rule_mod_key_u32(struct vcap_rule *rule, enum vcap_key_field key,
+			  u32 value, u32 mask);
+/* Modify a 32 bit action field with value in the rule */
+int vcap_rule_mod_action_u32(struct vcap_rule *rule,
+			     enum vcap_action_field action,
+			     u32 value);
 
 #endif /* __VCAP_API_CLIENT__ */

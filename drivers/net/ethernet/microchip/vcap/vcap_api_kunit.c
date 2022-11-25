@@ -1197,7 +1197,7 @@ static void vcap_api_rule_find_keyset_basic_test(struct kunit *test)
 	for (idx = 0; idx < ARRAY_SIZE(ckf); idx++)
 		list_add_tail(&ckf[idx].ctrl.list, &ri.data.keyfields);
 
-	ret = vcap_rule_find_keysets(&ri, &matches);
+	ret = vcap_rule_find_keysets(&ri.data, &matches);
 
 	KUNIT_EXPECT_EQ(test, true, ret);
 	KUNIT_EXPECT_EQ(test, 1, matches.cnt);
@@ -1244,7 +1244,7 @@ static void vcap_api_rule_find_keyset_failed_test(struct kunit *test)
 	for (idx = 0; idx < ARRAY_SIZE(ckf); idx++)
 		list_add_tail(&ckf[idx].ctrl.list, &ri.data.keyfields);
 
-	ret = vcap_rule_find_keysets(&ri, &matches);
+	ret = vcap_rule_find_keysets(&ri.data, &matches);
 
 	KUNIT_EXPECT_EQ(test, false, ret);
 	KUNIT_EXPECT_EQ(test, 0, matches.cnt);
@@ -1291,7 +1291,7 @@ static void vcap_api_rule_find_keyset_many_test(struct kunit *test)
 	for (idx = 0; idx < ARRAY_SIZE(ckf); idx++)
 		list_add_tail(&ckf[idx].ctrl.list, &ri.data.keyfields);
 
-	ret = vcap_rule_find_keysets(&ri, &matches);
+	ret = vcap_rule_find_keysets(&ri.data, &matches);
 
 	KUNIT_EXPECT_EQ(test, true, ret);
 	KUNIT_EXPECT_EQ(test, 6, matches.cnt);
@@ -1954,6 +1954,198 @@ static void vcap_api_next_lookup_advanced_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, true, ret);
 }
 
+static void vcap_api_filter_unsupported_keys_test(struct kunit *test)
+{
+	struct vcap_admin admin = {
+		.vtype = VCAP_TYPE_IS2,
+	};
+	struct vcap_rule_internal ri = {
+		.admin = &admin,
+		.vctrl = &test_vctrl,
+		.data.keyset = VCAP_KFS_MAC_ETYPE,
+	};
+	enum vcap_key_field keylist[] = {
+		VCAP_KF_TYPE,
+		VCAP_KF_LOOKUP_FIRST_IS,
+		VCAP_KF_ARP_ADDR_SPACE_OK_IS,  /* arp keys are not in keyset */
+		VCAP_KF_ARP_PROTO_SPACE_OK_IS,
+		VCAP_KF_ARP_LEN_OK_IS,
+		VCAP_KF_ARP_TGT_MATCH_IS,
+		VCAP_KF_ARP_SENDER_MATCH_IS,
+		VCAP_KF_ARP_OPCODE_UNKNOWN_IS,
+		VCAP_KF_ARP_OPCODE,
+		VCAP_KF_8021Q_DEI_CLS,
+		VCAP_KF_8021Q_PCP_CLS,
+		VCAP_KF_8021Q_VID_CLS,
+		VCAP_KF_L2_MC_IS,
+		VCAP_KF_L2_BC_IS,
+	};
+	enum vcap_key_field expected[] = {
+		VCAP_KF_TYPE,
+		VCAP_KF_LOOKUP_FIRST_IS,
+		VCAP_KF_8021Q_DEI_CLS,
+		VCAP_KF_8021Q_PCP_CLS,
+		VCAP_KF_8021Q_VID_CLS,
+		VCAP_KF_L2_MC_IS,
+		VCAP_KF_L2_BC_IS,
+	};
+	struct vcap_client_keyfield *ckf, *next;
+	bool ret;
+	int idx;
+
+	/* Add all keys to the rule */
+	INIT_LIST_HEAD(&ri.data.keyfields);
+	for (idx = 0; idx < ARRAY_SIZE(keylist); idx++) {
+		ckf = kzalloc(sizeof(*ckf), GFP_KERNEL);
+		if (ckf) {
+			ckf->ctrl.key = keylist[idx];
+			list_add_tail(&ckf->ctrl.list, &ri.data.keyfields);
+		}
+	}
+
+	KUNIT_EXPECT_EQ(test, 14, ARRAY_SIZE(keylist));
+
+	/* Drop unsupported keys from the rule */
+	ret = vcap_filter_rule_keys(&ri.data, NULL, 0, true);
+
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	/* Check remaining keys in the rule */
+	idx = 0;
+	list_for_each_entry_safe(ckf, next, &ri.data.keyfields, ctrl.list) {
+		KUNIT_EXPECT_EQ(test, expected[idx], ckf->ctrl.key);
+		list_del(&ckf->ctrl.list);
+		kfree(ckf);
+		++idx;
+	}
+	KUNIT_EXPECT_EQ(test, 7, idx);
+}
+
+static void vcap_api_filter_keylist_test(struct kunit *test)
+{
+	struct vcap_admin admin = {
+		.vtype = VCAP_TYPE_IS0,
+	};
+	struct vcap_rule_internal ri = {
+		.admin = &admin,
+		.vctrl = &test_vctrl,
+		.data.keyset = VCAP_KFS_NORMAL_7TUPLE,
+	};
+	enum vcap_key_field keylist[] = {
+		VCAP_KF_TYPE,
+		VCAP_KF_LOOKUP_FIRST_IS,
+		VCAP_KF_LOOKUP_GEN_IDX_SEL,
+		VCAP_KF_LOOKUP_GEN_IDX,
+		VCAP_KF_IF_IGR_PORT_MASK_SEL,
+		VCAP_KF_IF_IGR_PORT_MASK,
+		VCAP_KF_L2_MC_IS,
+		VCAP_KF_L2_BC_IS,
+		VCAP_KF_8021Q_VLAN_TAGS,
+		VCAP_KF_8021Q_TPID0,
+		VCAP_KF_8021Q_PCP0,
+		VCAP_KF_8021Q_DEI0,
+		VCAP_KF_8021Q_VID0,
+		VCAP_KF_8021Q_TPID1,
+		VCAP_KF_8021Q_PCP1,
+		VCAP_KF_8021Q_DEI1,
+		VCAP_KF_8021Q_VID1,
+		VCAP_KF_8021Q_TPID2,
+		VCAP_KF_8021Q_PCP2,
+		VCAP_KF_8021Q_DEI2,
+		VCAP_KF_8021Q_VID2,
+		VCAP_KF_L2_DMAC,
+		VCAP_KF_L2_SMAC,
+		VCAP_KF_IP_MC_IS,
+		VCAP_KF_ETYPE_LEN_IS,
+		VCAP_KF_ETYPE,
+		VCAP_KF_IP_SNAP_IS,
+		VCAP_KF_IP4_IS,
+		VCAP_KF_L3_FRAGMENT_TYPE,
+		VCAP_KF_L3_FRAG_INVLD_L4_LEN,
+		VCAP_KF_L3_OPTIONS_IS,
+		VCAP_KF_L3_DSCP,
+		VCAP_KF_L3_IP6_DIP,
+		VCAP_KF_L3_IP6_SIP,
+		VCAP_KF_TCP_UDP_IS,
+		VCAP_KF_TCP_IS,
+		VCAP_KF_L4_SPORT,
+		VCAP_KF_L4_RNG,
+	};
+	enum vcap_key_field droplist[] = {
+		VCAP_KF_8021Q_TPID1,
+		VCAP_KF_8021Q_PCP1,
+		VCAP_KF_8021Q_DEI1,
+		VCAP_KF_8021Q_VID1,
+		VCAP_KF_8021Q_TPID2,
+		VCAP_KF_8021Q_PCP2,
+		VCAP_KF_8021Q_DEI2,
+		VCAP_KF_8021Q_VID2,
+		VCAP_KF_L3_IP6_DIP,
+		VCAP_KF_L3_IP6_SIP,
+		VCAP_KF_L4_SPORT,
+		VCAP_KF_L4_RNG,
+	};
+	enum vcap_key_field expected[] = {
+		VCAP_KF_TYPE,
+		VCAP_KF_LOOKUP_FIRST_IS,
+		VCAP_KF_LOOKUP_GEN_IDX_SEL,
+		VCAP_KF_LOOKUP_GEN_IDX,
+		VCAP_KF_IF_IGR_PORT_MASK_SEL,
+		VCAP_KF_IF_IGR_PORT_MASK,
+		VCAP_KF_L2_MC_IS,
+		VCAP_KF_L2_BC_IS,
+		VCAP_KF_8021Q_VLAN_TAGS,
+		VCAP_KF_8021Q_TPID0,
+		VCAP_KF_8021Q_PCP0,
+		VCAP_KF_8021Q_DEI0,
+		VCAP_KF_8021Q_VID0,
+		VCAP_KF_L2_DMAC,
+		VCAP_KF_L2_SMAC,
+		VCAP_KF_IP_MC_IS,
+		VCAP_KF_ETYPE_LEN_IS,
+		VCAP_KF_ETYPE,
+		VCAP_KF_IP_SNAP_IS,
+		VCAP_KF_IP4_IS,
+		VCAP_KF_L3_FRAGMENT_TYPE,
+		VCAP_KF_L3_FRAG_INVLD_L4_LEN,
+		VCAP_KF_L3_OPTIONS_IS,
+		VCAP_KF_L3_DSCP,
+		VCAP_KF_TCP_UDP_IS,
+		VCAP_KF_TCP_IS,
+	};
+	struct vcap_client_keyfield *ckf, *next;
+	bool ret;
+	int idx;
+
+	/* Add all keys to the rule */
+	INIT_LIST_HEAD(&ri.data.keyfields);
+	for (idx = 0; idx < ARRAY_SIZE(keylist); idx++) {
+		ckf = kzalloc(sizeof(*ckf), GFP_KERNEL);
+		if (ckf) {
+			ckf->ctrl.key = keylist[idx];
+			list_add_tail(&ckf->ctrl.list, &ri.data.keyfields);
+		}
+	}
+
+	KUNIT_EXPECT_EQ(test, 38, ARRAY_SIZE(keylist));
+
+	/* Drop listed keys from the rule */
+	ret = vcap_filter_rule_keys(&ri.data, droplist, ARRAY_SIZE(droplist),
+				    false);
+
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	/* Check remaining keys in the rule */
+	idx = 0;
+	list_for_each_entry_safe(ckf, next, &ri.data.keyfields, ctrl.list) {
+		KUNIT_EXPECT_EQ(test, expected[idx], ckf->ctrl.key);
+		list_del(&ckf->ctrl.list);
+		kfree(ckf);
+		++idx;
+	}
+	KUNIT_EXPECT_EQ(test, 26, idx);
+}
+
 static struct kunit_suite vcap_api_rule_remove_test_suite = {
 	.name = "VCAP_API_Rule_Remove_Testsuite",
 	.test_cases = vcap_api_rule_remove_test_cases,
@@ -1984,6 +2176,8 @@ static struct kunit_suite vcap_api_rule_counter_test_suite = {
 static struct kunit_case vcap_api_support_test_cases[] = {
 	KUNIT_CASE(vcap_api_next_lookup_basic_test),
 	KUNIT_CASE(vcap_api_next_lookup_advanced_test),
+	KUNIT_CASE(vcap_api_filter_unsupported_keys_test),
+	KUNIT_CASE(vcap_api_filter_keylist_test),
 	{}
 };
 

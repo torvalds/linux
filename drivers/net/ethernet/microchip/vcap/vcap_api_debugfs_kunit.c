@@ -316,24 +316,34 @@ static void vcap_api_addr_keyset_test(struct kunit *test)
 			.actionstream = actdata,
 		},
 	};
+	enum vcap_keyfield_set keysets[10];
+	struct vcap_keyset_list matches;
 	int ret, idx, addr;
 
 	vcap_test_api_init(&admin);
 
 	/* Go from higher to lower addresses searching for a keyset */
+	matches.keysets = keysets;
+	matches.cnt = 0;
+	matches.max = ARRAY_SIZE(keysets);
 	for (idx = ARRAY_SIZE(keydata) - 1, addr = 799; idx > 0;
 	     --idx, --addr) {
 		admin.cache.keystream = &keydata[idx];
 		admin.cache.maskstream = &mskdata[idx];
-		ret = vcap_addr_keyset(&test_vctrl, &test_netdev, &admin, addr);
+		ret = vcap_addr_keysets(&test_vctrl, &test_netdev, &admin,
+					addr, &matches);
 		KUNIT_EXPECT_EQ(test, -EINVAL, ret);
 	}
 
 	/* Finally we hit the start of the rule */
 	admin.cache.keystream = &keydata[idx];
 	admin.cache.maskstream = &mskdata[idx];
-	ret = vcap_addr_keyset(&test_vctrl, &test_netdev, &admin,  addr);
-	KUNIT_EXPECT_EQ(test, VCAP_KFS_MAC_ETYPE, ret);
+	matches.cnt = 0;
+	ret = vcap_addr_keysets(&test_vctrl, &test_netdev, &admin,
+				addr, &matches);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+	KUNIT_EXPECT_EQ(test, matches.cnt, 1);
+	KUNIT_EXPECT_EQ(test, matches.keysets[0], VCAP_KFS_MAC_ETYPE);
 }
 
 static void vcap_api_show_admin_raw_test(struct kunit *test)
@@ -362,7 +372,7 @@ static void vcap_api_show_admin_raw_test(struct kunit *test)
 		.prf = (void *)test_prf,
 	};
 	const char *test_expected =
-		"  addr: 786, X6 rule, keyset: VCAP_KFS_MAC_ETYPE\n";
+		"  addr: 786, X6 rule, keysets: VCAP_KFS_MAC_ETYPE\n";
 	int ret;
 
 	vcap_test_api_init(&admin);
@@ -442,7 +452,7 @@ static const char * const test_admin_expect[] = {
 	"  chain_id: 0\n",
 	"  user: 0\n",
 	"  priority: 0\n",
-	"  keyset: VCAP_KFS_MAC_ETYPE\n",
+	"  keysets: VCAP_KFS_MAC_ETYPE\n",
 	"  keyset_sw: 6\n",
 	"  keyset_sw_regs: 2\n",
 	"    ETYPE_LEN_IS: W1: 1/1\n",

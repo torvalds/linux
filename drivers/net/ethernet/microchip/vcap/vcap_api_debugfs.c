@@ -192,22 +192,22 @@ static bool vcap_verify_keystream_keyset(struct vcap_control *vctrl,
 	vcap_iter_init(&iter, vcap->sw_width, tgt, typefld->offset);
 	vcap_decode_field(keystream, &iter, typefld->width, (u8 *)&value);
 
-	return (value == info->type_id);
+	return (value & mask) == (info->type_id & mask);
 }
 
 /* Verify that the typegroup information, subword count, keyset and type id
- * are in sync and correct, return the keyset
+ * are in sync and correct, return the list of matching keysets
  */
-static enum
-vcap_keyfield_set vcap_find_keystream_keyset(struct vcap_control *vctrl,
-					     enum vcap_type vt,
-					     u32 *keystream,
-					     u32 *mskstream,
-					     bool mask, int sw_max)
+static int
+vcap_find_keystream_keysets(struct vcap_control *vctrl,
+			    enum vcap_type vt,
+			    u32 *keystream,
+			    u32 *mskstream,
+			    bool mask, int sw_max,
+			    struct vcap_keyset_list *kslist)
 {
 	const struct vcap_set *keyfield_set;
 	int sw_count, idx;
-	bool res;
 
 	sw_count = vcap_find_keystream_typegroup_sw(vctrl, vt, keystream, mask,
 						    sw_max);
@@ -219,11 +219,12 @@ vcap_keyfield_set vcap_find_keystream_keyset(struct vcap_control *vctrl,
 		if (keyfield_set[idx].sw_per_item != sw_count)
 			continue;
 
-		res = vcap_verify_keystream_keyset(vctrl, vt, keystream,
-						   mskstream, idx);
-		if (res)
-			return idx;
+		if (vcap_verify_keystream_keyset(vctrl, vt, keystream,
+						 mskstream, idx))
+			vcap_keyset_list_add(kslist, idx);
 	}
+	if (kslist->cnt > 0)
+		return 0;
 	return -EINVAL;
 }
 
@@ -296,13 +297,14 @@ vcap_find_actionstream_actionset(struct vcap_control *vctrl,
 	return -EINVAL;
 }
 
-/* Read key data from a VCAP address and discover if there is a rule keyset
+/* Read key data from a VCAP address and discover if there are any rule keysets
  * here
  */
-static int vcap_addr_keyset(struct vcap_control *vctrl,
-			    struct net_device *ndev,
-			    struct vcap_admin *admin,
-			    int addr)
+static int vcap_addr_keysets(struct vcap_control *vctrl,
+			     struct net_device *ndev,
+			     struct vcap_admin *admin,
+			     int addr,
+			     struct vcap_keyset_list *kslist)
 {
 	enum vcap_type vt = admin->vtype;
 	int keyset_sw_regs, idx;
@@ -320,9 +322,10 @@ static int vcap_addr_keyset(struct vcap_control *vctrl,
 	}
 	if (key == 0 && mask == 0)
 		return -EINVAL;
-	/* Decode and locate the keyset */
-	return vcap_find_keystream_keyset(vctrl, vt, admin->cache.keystream,
-					  admin->cache.maskstream, false, 0);
+	/* Decode and locate the keysets */
+	return vcap_find_keystream_keysets(vctrl, vt, admin->cache.keystream,
+					   admin->cache.maskstream, false, 0,
+					   kslist);
 }
 
 static int vcap_read_rule(struct vcap_rule_internal *ri)
@@ -471,9 +474,11 @@ static int vcap_debugfs_show_rule_keyset(struct vcap_rule_internal *ri,
 	struct vcap_control *vctrl = ri->vctrl;
 	struct vcap_stream_iter kiter, miter;
 	struct vcap_admin *admin = ri->admin;
+	enum vcap_keyfield_set keysets[10];
 	const struct vcap_field *keyfield;
 	enum vcap_type vt = admin->vtype;
 	const struct vcap_typegroup *tgt;
+	struct vcap_keyset_list matches;
 	enum vcap_keyfield_set keyset;
 	int idx, res, keyfield_count;
 	u32 *maskstream;
@@ -483,16 +488,22 @@ static int vcap_debugfs_show_rule_keyset(struct vcap_rule_internal *ri,
 
 	keystream = admin->cache.keystream;
 	maskstream = admin->cache.maskstream;
-	res = vcap_find_keystream_keyset(vctrl, vt, keystream, maskstream,
-					 false, 0);
+	matches.keysets = keysets;
+	matches.cnt = 0;
+	matches.max = ARRAY_SIZE(keysets);
+	res = vcap_find_keystream_keysets(vctrl, vt, keystream, maskstream,
+					  false, 0, &matches);
 	if (res < 0) {
-		pr_err("%s:%d: could not find valid keyset: %d\n",
+		pr_err("%s:%d: could not find valid keysets: %d\n",
 		       __func__, __LINE__, res);
 		return -EINVAL;
 	}
-	keyset = res;
-	out->prf(out->dst, "  keyset: %s\n",
-		 vcap_keyset_name(vctrl, ri->data.keyset));
+	keyset = matches.keysets[0];
+	out->prf(out->dst, "  keysets:");
+	for (idx = 0; idx < matches.cnt; ++idx)
+		out->prf(out->dst, " %s",
+			 vcap_keyset_name(vctrl, matches.keysets[idx]));
+	out->prf(out->dst, "\n");
 	out->prf(out->dst, "  keyset_sw: %d\n", ri->keyset_sw);
 	out->prf(out->dst, "  keyset_sw_regs: %d\n", ri->keyset_sw_regs);
 	keyfield_count = vcap_keyfield_count(vctrl, vt, keyset);
@@ -647,11 +658,12 @@ static int vcap_show_admin_raw(struct vcap_control *vctrl,
 			       struct vcap_admin *admin,
 			       struct vcap_output_print *out)
 {
+	enum vcap_keyfield_set keysets[10];
 	enum vcap_type vt = admin->vtype;
+	struct vcap_keyset_list kslist;
 	struct vcap_rule_internal *ri;
 	const struct vcap_set *info;
-	int keyset;
-	int addr;
+	int addr, idx;
 	int ret;
 
 	if (list_empty(&admin->rules))
@@ -664,24 +676,32 @@ static int vcap_show_admin_raw(struct vcap_control *vctrl,
 	ri = list_first_entry(&admin->rules, struct vcap_rule_internal, list);
 
 	/* Go from higher to lower addresses searching for a keyset */
+	kslist.keysets = keysets;
+	kslist.max = ARRAY_SIZE(keysets);
 	for (addr = admin->last_valid_addr; addr >= admin->first_valid_addr;
 	     --addr) {
-		keyset = vcap_addr_keyset(vctrl, ri->ndev, admin,  addr);
-		if (keyset < 0)
+		kslist.cnt = 0;
+		ret = vcap_addr_keysets(vctrl, ri->ndev, admin, addr, &kslist);
+		if (ret < 0)
 			continue;
-		info = vcap_keyfieldset(vctrl, vt, keyset);
+		info = vcap_keyfieldset(vctrl, vt, kslist.keysets[0]);
 		if (!info)
 			continue;
-		if (addr % info->sw_per_item)
+		if (addr % info->sw_per_item) {
 			pr_info("addr: %d X%d error rule, keyset: %s\n",
 				addr,
 				info->sw_per_item,
-				vcap_keyset_name(vctrl, keyset));
-		else
-			out->prf(out->dst, "  addr: %d, X%d rule, keyset: %s\n",
-			   addr,
-			   info->sw_per_item,
-			   vcap_keyset_name(vctrl, keyset));
+				vcap_keyset_name(vctrl, kslist.keysets[0]));
+		} else {
+			out->prf(out->dst, "  addr: %d, X%d rule, keysets:",
+				 addr,
+				 info->sw_per_item);
+			for (idx = 0; idx < kslist.cnt; ++idx)
+				out->prf(out->dst, " %s",
+					 vcap_keyset_name(vctrl,
+							  kslist.keysets[idx]));
+			out->prf(out->dst, "\n");
+		}
 	}
 	return 0;
 }
