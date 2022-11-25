@@ -392,13 +392,13 @@
 		pinctrl-0 = <&pinctrl_gpio_leds>;
 		status = "okay";
 
-		d2 {
+		led-d2 {
 			label = "d2";
 			gpios = <&pioE 23 GPIO_ACTIVE_LOW>;	/* PE23, conflicts with A23, CTS2 */
 			linux,default-trigger = "heartbeat";
 		};
 
-		d3 {
+		led-d3 {
 			label = "d3"; /* Conflict with EBI CS0, USART2 CTS. */
 			gpios = <&pioE 24 GPIO_ACTIVE_HIGH>;
 		};
