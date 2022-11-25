@@ -1051,7 +1051,7 @@ static void *tbnet_kmap_frag(struct sk_buff *skb, unsigned int frag_num,
 	const skb_frag_t *frag = &skb_shinfo(skb)->frags[frag_num];
 
 	*len = skb_frag_size(frag);
-	return kmap_atomic(skb_frag_page(frag)) + skb_frag_off(frag);
+	return kmap_local_page(skb_frag_page(frag)) + skb_frag_off(frag);
 }
 
 static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
@@ -1109,7 +1109,7 @@ static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
 			dest += len;
 
 			if (unmap) {
-				kunmap_atomic(src);
+				kunmap_local(src);
 				unmap = false;
 			}
 
@@ -1147,7 +1147,7 @@ static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
 		dest += len;
 
 		if (unmap) {
-			kunmap_atomic(src);
+			kunmap_local(src);
 			unmap = false;
 		}
 
@@ -1162,7 +1162,7 @@ static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
 	memcpy(dest, src, data_len);
 
 	if (unmap)
-		kunmap_atomic(src);
+		kunmap_local(src);
 
 	if (!tbnet_xmit_csum_and_map(net, skb, frames, frame_index + 1))
 		goto err_drop;
