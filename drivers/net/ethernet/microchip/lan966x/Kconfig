@@ -8,5 +8,6 @@ config LAN966X_SWITCH
 	select PHYLINK
 	select PACKING
 	select PAGE_POOL
+	select VCAP
 	help
 	  This driver supports the Lan966x network switch device.

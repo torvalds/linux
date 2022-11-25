@@ -1157,7 +1157,14 @@ static int lan966x_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_ptp;
 
+	err = lan966x_vcap_init(lan966x);
+	if (err)
+		goto cleanup_fdma;
+
 	return 0;
+
+cleanup_fdma:
+	lan966x_fdma_deinit(lan966x);
 
 cleanup_ptp:
 	lan966x_ptp_deinit(lan966x);
@@ -1182,6 +1189,7 @@ static int lan966x_remove(struct platform_device *pdev)
 	struct lan966x *lan966x = platform_get_drvdata(pdev);
 
 	lan966x_taprio_deinit(lan966x);
+	lan966x_vcap_deinit(lan966x);
 	lan966x_fdma_deinit(lan966x);
 	lan966x_cleanup_ports(lan966x);
 

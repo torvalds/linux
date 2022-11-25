@@ -300,6 +300,9 @@ struct lan966x {
 	struct lan966x_port *mirror_monitor;
 	u32 mirror_mask[2];
 	u32 mirror_count;
+
+	/* vcap */
+	struct vcap_control *vcap_ctrl;
 };
 
 struct lan966x_port_config {
@@ -581,6 +584,9 @@ static inline bool lan966x_xdp_port_present(struct lan966x_port *port)
 {
 	return !!port->xdp_prog;
 }
+
+int lan966x_vcap_init(struct lan966x *lan966x);
+void lan966x_vcap_deinit(struct lan966x *lan966x);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,
