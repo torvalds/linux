@@ -498,8 +498,7 @@ static const struct iio_buffer_setup_ops stk8312_buffer_setup_ops = {
 	.postdisable = stk8312_buffer_postdisable,
 };
 
-static int stk8312_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int stk8312_probe(struct i2c_client *client)
 {
 	int ret;
 	struct iio_dev *indio_dev;
@@ -645,7 +644,7 @@ static struct i2c_driver stk8312_driver = {
 		.name = STK8312_DRIVER_NAME,
 		.pm = pm_sleep_ptr(&stk8312_pm_ops),
 	},
-	.probe =            stk8312_probe,
+	.probe_new =        stk8312_probe,
 	.remove =           stk8312_remove,
 	.id_table =         stk8312_i2c_id,
 };

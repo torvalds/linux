@@ -198,7 +198,7 @@ static int iio_event_getfd(struct iio_dev *indio_dev)
 	if (ev_int == NULL)
 		return -ENODEV;
 
-	fd = mutex_lock_interruptible(&indio_dev->mlock);
+	fd = mutex_lock_interruptible(&iio_dev_opaque->mlock);
 	if (fd)
 		return fd;
 
@@ -219,7 +219,7 @@ static int iio_event_getfd(struct iio_dev *indio_dev)
 	}
 
 unlock:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&iio_dev_opaque->mlock);
 	return fd;
 }
 
