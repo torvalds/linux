@@ -2368,7 +2368,6 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	union drm_amdgpu_vm *args = data;
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
-	long timeout = msecs_to_jiffies(2000);
 	int r;
 
 	switch (args->in.op) {
@@ -2380,21 +2379,6 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			return r;
 		break;
 	case AMDGPU_VM_OP_UNRESERVE_VMID:
-		if (amdgpu_sriov_runtime(adev))
-			timeout = 8 * timeout;
-
-		/* Wait vm idle to make sure the vmid set in SPM_VMID is
-		 * not referenced anymore.
-		 */
-		r = amdgpu_bo_reserve(fpriv->vm.root.bo, true);
-		if (r)
-			return r;
-
-		r = amdgpu_vm_wait_idle(&fpriv->vm, timeout);
-		if (r < 0)
-			return r;
-
-		amdgpu_bo_unreserve(fpriv->vm.root.bo);
 		amdgpu_vmid_free_reserved(adev, &fpriv->vm, AMDGPU_GFXHUB_0);
 		break;
 	default:
