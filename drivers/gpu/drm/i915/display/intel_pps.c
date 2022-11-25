@@ -234,31 +234,26 @@ bxt_power_sequencer_idx(struct intel_dp *intel_dp)
 	return backlight_controller;
 }
 
-typedef bool (*vlv_pipe_check)(struct drm_i915_private *dev_priv,
-			       enum pipe pipe);
+typedef bool (*pps_check)(struct drm_i915_private *dev_priv, int pps_idx);
 
-static bool vlv_pipe_has_pp_on(struct drm_i915_private *dev_priv,
-			       enum pipe pipe)
+static bool pps_has_pp_on(struct drm_i915_private *dev_priv, int pps_idx)
 {
-	return intel_de_read(dev_priv, PP_STATUS(pipe)) & PP_ON;
+	return intel_de_read(dev_priv, PP_STATUS(pps_idx)) & PP_ON;
 }
 
-static bool vlv_pipe_has_vdd_on(struct drm_i915_private *dev_priv,
-				enum pipe pipe)
+static bool pps_has_vdd_on(struct drm_i915_private *dev_priv, int pps_idx)
 {
-	return intel_de_read(dev_priv, PP_CONTROL(pipe)) & EDP_FORCE_VDD;
+	return intel_de_read(dev_priv, PP_CONTROL(pps_idx)) & EDP_FORCE_VDD;
 }
 
-static bool vlv_pipe_any(struct drm_i915_private *dev_priv,
-			 enum pipe pipe)
+static bool pps_any(struct drm_i915_private *dev_priv, int pps_idx)
 {
 	return true;
 }
 
 static enum pipe
 vlv_initial_pps_pipe(struct drm_i915_private *dev_priv,
-		     enum port port,
-		     vlv_pipe_check pipe_check)
+		     enum port port, pps_check check)
 {
 	enum pipe pipe;
 
@@ -269,7 +264,7 @@ vlv_initial_pps_pipe(struct drm_i915_private *dev_priv,
 		if (port_sel != PANEL_PORT_SELECT_VLV(port))
 			continue;
 
-		if (!pipe_check(dev_priv, pipe))
+		if (!check(dev_priv, pipe))
 			continue;
 
 		return pipe;
@@ -290,15 +285,15 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 	/* try to find a pipe with this port selected */
 	/* first pick one where the panel is on */
 	intel_dp->pps.pps_pipe = vlv_initial_pps_pipe(dev_priv, port,
-						      vlv_pipe_has_pp_on);
+						      pps_has_pp_on);
 	/* didn't find one? pick one where vdd is on */
 	if (intel_dp->pps.pps_pipe == INVALID_PIPE)
 		intel_dp->pps.pps_pipe = vlv_initial_pps_pipe(dev_priv, port,
-							      vlv_pipe_has_vdd_on);
+							      pps_has_vdd_on);
 	/* didn't find one? pick one with just the correct port */
 	if (intel_dp->pps.pps_pipe == INVALID_PIPE)
 		intel_dp->pps.pps_pipe = vlv_initial_pps_pipe(dev_priv, port,
-							      vlv_pipe_any);
+							      pps_any);
 
 	/* didn't find one? just let vlv_power_sequencer_pipe() pick one when needed */
 	if (intel_dp->pps.pps_pipe == INVALID_PIPE) {
