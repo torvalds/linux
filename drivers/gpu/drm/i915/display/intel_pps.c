@@ -535,7 +535,7 @@ void intel_pps_check_power_unlocked(struct intel_dp *intel_dp)
 }
 
 #define IDLE_ON_MASK		(PP_ON | PP_SEQUENCE_MASK | 0                     | PP_SEQUENCE_STATE_MASK)
-#define IDLE_ON_VALUE   	(PP_ON | PP_SEQUENCE_NONE | 0                     | PP_SEQUENCE_STATE_ON_IDLE)
+#define IDLE_ON_VALUE		(PP_ON | PP_SEQUENCE_NONE | 0                     | PP_SEQUENCE_STATE_ON_IDLE)
 
 #define IDLE_OFF_MASK		(PP_ON | PP_SEQUENCE_MASK | 0                     | 0)
 #define IDLE_OFF_VALUE		(0     | PP_SEQUENCE_NONE | 0                     | 0)
