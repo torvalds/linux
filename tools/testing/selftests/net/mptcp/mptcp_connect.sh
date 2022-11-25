@@ -762,6 +762,23 @@ run_tests_peekmode()
 	run_tests_lo "$ns1" "$ns1" dead:beef:1::1 1 "-P ${peekmode}"
 }
 
+run_tests_mptfo()
+{
+	echo "INFO: with MPTFO start"
+	ip netns exec "$ns1" sysctl -q net.ipv4.tcp_fastopen=2
+	ip netns exec "$ns2" sysctl -q net.ipv4.tcp_fastopen=1
+
+	run_tests_lo "$ns1" "$ns2" 10.0.1.1 0 "-o MPTFO"
+	run_tests_lo "$ns1" "$ns2" 10.0.1.1 0 "-o MPTFO"
+
+	run_tests_lo "$ns1" "$ns2" dead:beef:1::1 0 "-o MPTFO"
+	run_tests_lo "$ns1" "$ns2" dead:beef:1::1 0 "-o MPTFO"
+
+	ip netns exec "$ns1" sysctl -q net.ipv4.tcp_fastopen=0
+	ip netns exec "$ns2" sysctl -q net.ipv4.tcp_fastopen=0
+	echo "INFO: with MPTFO end"
+}
+
 run_tests_disconnect()
 {
 	local peekmode="$1"
@@ -900,6 +917,10 @@ done
 run_tests_peekmode "saveWithPeek"
 run_tests_peekmode "saveAfterPeek"
 stop_if_error "Tests with peek mode have failed"
+
+# MPTFO (MultiPath TCP Fatopen tests)
+run_tests_mptfo
+stop_if_error "Tests with MPTFO have failed"
 
 # connect to ns4 ip address, ns2 should intercept/proxy
 run_test_transparent 10.0.3.1 "tproxy ipv4"
