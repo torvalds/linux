@@ -1480,6 +1480,27 @@ static void rtw89_core_hw_to_sband_rate(struct ieee80211_rx_status *rx_status)
 	rx_status->rate_idx -= 4;
 }
 
+static void rtw89_core_update_radiotap(struct rtw89_dev *rtwdev,
+				       struct sk_buff *skb,
+				       struct ieee80211_rx_status *rx_status)
+{
+	static const struct ieee80211_radiotap_he known_he = {
+		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
+				     IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN),
+		.data2 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN),
+	};
+	struct ieee80211_radiotap_he *he;
+
+	if (!(rtwdev->hw->conf.flags & IEEE80211_CONF_MONITOR))
+		return;
+
+	if (rx_status->encoding == RX_ENC_HE) {
+		rx_status->flag |= RX_FLAG_RADIOTAP_HE;
+		he = skb_push(skb, sizeof(*he));
+		*he = known_he;
+	}
+}
+
 static void rtw89_core_rx_to_mac80211(struct rtw89_dev *rtwdev,
 				      struct rtw89_rx_phy_ppdu *phy_ppdu,
 				      struct rtw89_rx_desc_info *desc_info,
@@ -1494,6 +1515,7 @@ static void rtw89_core_rx_to_mac80211(struct rtw89_dev *rtwdev,
 
 	rtw89_core_hw_to_sband_rate(rx_status);
 	rtw89_core_rx_stats(rtwdev, phy_ppdu, desc_info, skb_ppdu);
+	rtw89_core_update_radiotap(rtwdev, skb_ppdu, rx_status);
 	/* In low power mode, it does RX in thread context. */
 	local_bh_disable();
 	ieee80211_rx_napi(rtwdev->hw, NULL, skb_ppdu, napi);

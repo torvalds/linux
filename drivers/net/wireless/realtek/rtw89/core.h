@@ -35,6 +35,7 @@ extern const struct ieee80211_ops rtw89_ops;
 #define RSSI_FACTOR 1
 #define RTW89_RSSI_RAW_TO_DBM(rssi) ((s8)((rssi) >> RSSI_FACTOR) - MAX_RSSI)
 #define RTW89_TX_DIV_RSSI_RAW_TH (2 << RSSI_FACTOR)
+#define RTW89_RADIOTAP_ROOM ALIGN(sizeof(struct ieee80211_radiotap_he), 64)
 
 #define RTW89_HTC_MASK_VARIANT GENMASK(1, 0)
 #define RTW89_HTC_VARIANT_HE 3
@@ -4381,6 +4382,23 @@ static inline struct rtw89_fw_suit *rtw89_fw_suit_get(struct rtw89_dev *rtwdev,
 	if (type == RTW89_FW_WOWLAN)
 		return &fw_info->wowlan;
 	return &fw_info->normal;
+}
+
+static inline struct sk_buff *rtw89_alloc_skb_for_rx(struct rtw89_dev *rtwdev,
+						     unsigned int length)
+{
+	struct sk_buff *skb;
+
+	if (rtwdev->hw->conf.flags & IEEE80211_CONF_MONITOR) {
+		skb = dev_alloc_skb(length + RTW89_RADIOTAP_ROOM);
+		if (!skb)
+			return NULL;
+
+		skb_reserve(skb, RTW89_RADIOTAP_ROOM);
+		return skb;
+	}
+
+	return dev_alloc_skb(length);
 }
 
 int rtw89_core_tx_write(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,

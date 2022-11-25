@@ -267,7 +267,7 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 
 		rtw89_core_query_rxdesc(rtwdev, desc_info, skb->data, rxinfo_size);
 
-		new = dev_alloc_skb(desc_info->pkt_size);
+		new = rtw89_alloc_skb_for_rx(rtwdev, desc_info->pkt_size);
 		if (!new)
 			goto err_sync_device;
 
