@@ -9907,8 +9907,8 @@ void devlink_free(struct devlink *devlink)
 
 	xa_destroy(&devlink->snapshot_ids);
 
-	unregister_netdevice_notifier_net(devlink_net(devlink),
-					  &devlink->netdevice_nb);
+	WARN_ON_ONCE(unregister_netdevice_notifier_net(devlink_net(devlink),
+						       &devlink->netdevice_nb));
 
 	xa_erase(&devlinks, devlink->index);
 
