@@ -16,6 +16,7 @@
 #include <linux/container_of.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/jump_label.h>
 #include <linux/kconfig.h>
 #include <linux/kref.h>
 #include <linux/list.h>
@@ -26,6 +27,9 @@
 #include <linux/types.h>
 
 #include <asm/rwonce.h>
+
+/* Static key: true if any KUnit tests are currently running */
+DECLARE_STATIC_KEY_FALSE(kunit_running);
 
 struct kunit;
 
