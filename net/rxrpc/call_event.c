@@ -323,8 +323,8 @@ recheck_state:
 		rxrpc_shrink_call_tx_buffer(call);
 
 	if (call->state == RXRPC_CALL_COMPLETE) {
-		rxrpc_delete_call_timer(call);
-		goto out_put;
+		del_timer_sync(&call->timer);
+		goto out;
 	}
 
 	/* Work out if any timeouts tripped */
@@ -432,16 +432,15 @@ recheck_state:
 	rxrpc_reduce_call_timer(call, next, now, rxrpc_timer_restart);
 
 	/* other events may have been raised since we started checking */
-	if (call->events && call->state < RXRPC_CALL_COMPLETE)
+	if (call->events)
 		goto requeue;
 
-out_put:
-	rxrpc_put_call(call, rxrpc_call_put_work);
 out:
 	_leave("");
 	return;
 
 requeue:
-	__rxrpc_queue_call(call, rxrpc_call_queue_requeue);
+	if (call->state < RXRPC_CALL_COMPLETE)
+		rxrpc_queue_call(call, rxrpc_call_queue_requeue);
 	goto out;
 }

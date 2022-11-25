@@ -53,9 +53,7 @@ static void rxrpc_call_timer_expired(struct timer_list *t)
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
 		trace_rxrpc_timer_expired(call, jiffies);
-		__rxrpc_queue_call(call, rxrpc_call_queue_timer);
-	} else {
-		rxrpc_put_call(call, rxrpc_call_put_already_queued);
+		rxrpc_queue_call(call, rxrpc_call_queue_timer);
 	}
 }
 
@@ -64,20 +62,13 @@ void rxrpc_reduce_call_timer(struct rxrpc_call *call,
 			     unsigned long now,
 			     enum rxrpc_timer_trace why)
 {
-	if (rxrpc_try_get_call(call, rxrpc_call_get_timer)) {
-		trace_rxrpc_timer(call, why, now);
-		if (timer_reduce(&call->timer, expire_at))
-			rxrpc_put_call(call, rxrpc_call_put_timer_already);
-	}
-}
-
-void rxrpc_delete_call_timer(struct rxrpc_call *call)
-{
-	if (del_timer_sync(&call->timer))
-		rxrpc_put_call(call, rxrpc_call_put_timer);
+	trace_rxrpc_timer(call, why, now);
+	timer_reduce(&call->timer, expire_at);
 }
 
 static struct lock_class_key rxrpc_call_user_mutex_lock_class_key;
+
+static void rxrpc_destroy_call(struct work_struct *);
 
 /*
  * find an extant server call
@@ -139,7 +130,8 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 				  &rxrpc_call_user_mutex_lock_class_key);
 
 	timer_setup(&call->timer, rxrpc_call_timer_expired, 0);
-	INIT_WORK(&call->processor, &rxrpc_process_call);
+	INIT_WORK(&call->processor, rxrpc_process_call);
+	INIT_WORK(&call->destroyer, rxrpc_destroy_call);
 	INIT_LIST_HEAD(&call->link);
 	INIT_LIST_HEAD(&call->chan_wait_link);
 	INIT_LIST_HEAD(&call->accept_link);
@@ -423,34 +415,12 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 }
 
 /*
- * Queue a call's work processor, getting a ref to pass to the work queue.
+ * Queue a call's work processor.
  */
-bool rxrpc_queue_call(struct rxrpc_call *call, enum rxrpc_call_trace why)
+void rxrpc_queue_call(struct rxrpc_call *call, enum rxrpc_call_trace why)
 {
-	int n;
-
-	if (!__refcount_inc_not_zero(&call->ref, &n))
-		return false;
 	if (rxrpc_queue_work(&call->processor))
-		trace_rxrpc_call(call->debug_id, n + 1, 0, why);
-	else
-		rxrpc_put_call(call, rxrpc_call_put_already_queued);
-	return true;
-}
-
-/*
- * Queue a call's work processor, passing the callers ref to the work queue.
- */
-bool __rxrpc_queue_call(struct rxrpc_call *call, enum rxrpc_call_trace why)
-{
-	int n = refcount_read(&call->ref);
-
-	ASSERTCMP(n, >=, 1);
-	if (rxrpc_queue_work(&call->processor))
-		trace_rxrpc_call(call->debug_id, n, 0, why);
-	else
-		rxrpc_put_call(call, rxrpc_call_put_already_queued);
-	return true;
+		trace_rxrpc_call(call->debug_id, refcount_read(&call->ref), 0, why);
 }
 
 /*
@@ -514,7 +484,7 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 		BUG();
 
 	rxrpc_put_call_slot(call);
-	rxrpc_delete_call_timer(call);
+	del_timer_sync(&call->timer);
 
 	/* Make sure we don't get any more notifications */
 	write_lock_bh(&rx->recvmsg_lock);
@@ -612,49 +582,29 @@ void rxrpc_put_call(struct rxrpc_call *call, enum rxrpc_call_trace why)
 }
 
 /*
- * Final call destruction - but must be done in process context.
+ * Free up the call under RCU.
  */
-static void rxrpc_destroy_call(struct work_struct *work)
+static void rxrpc_rcu_free_call(struct rcu_head *rcu)
 {
-	struct rxrpc_call *call = container_of(work, struct rxrpc_call, processor);
-	struct rxrpc_net *rxnet = call->rxnet;
+	struct rxrpc_call *call = container_of(rcu, struct rxrpc_call, rcu);
+	struct rxrpc_net *rxnet = READ_ONCE(call->rxnet);
 
-	rxrpc_delete_call_timer(call);
-
-	rxrpc_put_connection(call->conn, rxrpc_conn_put_call);
-	rxrpc_put_peer(call->peer, rxrpc_peer_put_call);
 	kmem_cache_free(rxrpc_call_jar, call);
 	if (atomic_dec_and_test(&rxnet->nr_calls))
 		wake_up_var(&rxnet->nr_calls);
 }
 
 /*
- * Final call destruction under RCU.
+ * Final call destruction - but must be done in process context.
  */
-static void rxrpc_rcu_destroy_call(struct rcu_head *rcu)
+static void rxrpc_destroy_call(struct work_struct *work)
 {
-	struct rxrpc_call *call = container_of(rcu, struct rxrpc_call, rcu);
-
-	if (in_softirq()) {
-		INIT_WORK(&call->processor, rxrpc_destroy_call);
-		if (!rxrpc_queue_work(&call->processor))
-			BUG();
-	} else {
-		rxrpc_destroy_call(&call->processor);
-	}
-}
-
-/*
- * clean up a call
- */
-void rxrpc_cleanup_call(struct rxrpc_call *call)
-{
+	struct rxrpc_call *call = container_of(work, struct rxrpc_call, destroyer);
 	struct rxrpc_txbuf *txb;
 
-	memset(&call->sock_node, 0xcd, sizeof(call->sock_node));
-
-	ASSERTCMP(call->state, ==, RXRPC_CALL_COMPLETE);
-	ASSERT(test_bit(RXRPC_CALL_RELEASED, &call->flags));
+	del_timer_sync(&call->timer);
+	cancel_work_sync(&call->processor); /* The processor may restart the timer */
+	del_timer_sync(&call->timer);
 
 	rxrpc_cleanup_ring(call);
 	while ((txb = list_first_entry_or_null(&call->tx_buffer,
@@ -664,8 +614,31 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 	}
 	rxrpc_put_txbuf(call->tx_pending, rxrpc_txbuf_put_cleaned);
 	rxrpc_free_skb(call->acks_soft_tbl, rxrpc_skb_put_ack);
+	rxrpc_put_connection(call->conn, rxrpc_conn_put_call);
+	rxrpc_put_peer(call->peer, rxrpc_peer_put_call);
+	call_rcu(&call->rcu, rxrpc_rcu_free_call);
+}
 
-	call_rcu(&call->rcu, rxrpc_rcu_destroy_call);
+/*
+ * clean up a call
+ */
+void rxrpc_cleanup_call(struct rxrpc_call *call)
+{
+	memset(&call->sock_node, 0xcd, sizeof(call->sock_node));
+
+	ASSERTCMP(call->state, ==, RXRPC_CALL_COMPLETE);
+	ASSERT(test_bit(RXRPC_CALL_RELEASED, &call->flags));
+
+	del_timer_sync(&call->timer);
+	cancel_work(&call->processor);
+
+	if (in_softirq() || work_busy(&call->processor))
+		/* Can't use the rxrpc workqueue as we need to cancel/flush
+		 * something that may be running/waiting there.
+		 */
+		schedule_work(&call->destroyer);
+	else
+		rxrpc_destroy_call(&call->destroyer);
 }
 
 /*

@@ -120,6 +120,8 @@ void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *call)
 		if (before(hard_ack, txb->seq))
 			break;
 
+		if (txb->seq != call->tx_bottom + 1)
+			rxrpc_see_txbuf(txb, rxrpc_txbuf_see_out_of_step);
 		ASSERTCMP(txb->seq, ==, call->tx_bottom + 1);
 		call->tx_bottom++;
 		list_del_rcu(&txb->call_link);
