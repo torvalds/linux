@@ -315,6 +315,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 		return r;
 
 	job->vm_needs_flush = needs_flush;
+	job->spm_update_needed = true;
 	return 0;
 }
 
