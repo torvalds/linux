@@ -221,8 +221,8 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	net_dev->netdev_ops = dpaa_ops;
 	mac_addr = mac_dev->addr;
 
-	net_dev->mem_start = (unsigned long)mac_dev->vaddr;
-	net_dev->mem_end = (unsigned long)mac_dev->vaddr_end;
+	net_dev->mem_start = (unsigned long)priv->mac_dev->res->start;
+	net_dev->mem_end = (unsigned long)priv->mac_dev->res->end;
 
 	net_dev->min_mtu = ETH_MIN_MTU;
 	net_dev->max_mtu = dpaa_get_max_mtu();

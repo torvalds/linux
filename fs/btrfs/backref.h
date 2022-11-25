@@ -29,6 +29,7 @@ struct btrfs_backref_shared_cache {
 	 * a given data extent should never exceed the maximum b+tree height.
 	 */
 	struct btrfs_backref_shared_cache_entry entries[BTRFS_MAX_LEVEL];
+	bool use_cache;
 };
 
 typedef int (iterate_extent_inodes_t)(u64 inum, u64 offset, u64 root,

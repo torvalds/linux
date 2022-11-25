@@ -67,21 +67,22 @@ int vega10_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
 int vega10_fan_ctrl_get_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 		uint32_t *speed)
 {
-	struct amdgpu_device *adev = hwmgr->adev;
-	uint32_t duty100, duty;
-	uint64_t tmp64;
+	uint32_t current_rpm;
+	uint32_t percent = 0;
 
-	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1),
-				CG_FDO_CTRL1, FMAX_DUTY100);
-	duty = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_THERMAL_STATUS),
-				CG_THERMAL_STATUS, FDO_PWM_DUTY);
+	if (hwmgr->thermal_controller.fanInfo.bNoFan)
+		return 0;
 
-	if (!duty100)
-		return -EINVAL;
+	if (vega10_get_current_rpm(hwmgr, &current_rpm))
+		return -1;
 
-	tmp64 = (uint64_t)duty * 255;
-	do_div(tmp64, duty100);
-	*speed = MIN((uint32_t)tmp64, 255);
+	if (hwmgr->thermal_controller.
+			advanceFanControlParameters.usMaxFanRPM != 0)
+		percent = current_rpm * 255 /
+			hwmgr->thermal_controller.
+			advanceFanControlParameters.usMaxFanRPM;
+
+	*speed = MIN(percent, 255);
 
 	return 0;
 }

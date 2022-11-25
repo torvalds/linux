@@ -235,25 +235,29 @@ struct drm_panfrost_madvise {
 #define PANFROSTDUMP_BUF_BO (PANFROSTDUMP_BUF_BOMAP + 1)
 #define PANFROSTDUMP_BUF_TRAILER (PANFROSTDUMP_BUF_BO + 1)
 
+/*
+ * This structure is the native endianness of the dumping machine, tools can
+ * detect the endianness by looking at the value in 'magic'.
+ */
 struct panfrost_dump_object_header {
-	__le32 magic;
-	__le32 type;
-	__le32 file_size;
-	__le32 file_offset;
+	__u32 magic;
+	__u32 type;
+	__u32 file_size;
+	__u32 file_offset;
 
 	union {
-		struct pan_reg_hdr {
-			__le64 jc;
-			__le32 gpu_id;
-			__le32 major;
-			__le32 minor;
-			__le64 nbos;
+		struct {
+			__u64 jc;
+			__u32 gpu_id;
+			__u32 major;
+			__u32 minor;
+			__u64 nbos;
 		} reghdr;
 
 		struct pan_bomap_hdr {
-			__le32 valid;
-			__le64 iova;
-			__le32 data[2];
+			__u32 valid;
+			__u64 iova;
+			__u32 data[2];
 		} bomap;
 
 		/*
@@ -261,14 +265,14 @@ struct panfrost_dump_object_header {
 		 * with new fields and also keep it 512-byte aligned
 		 */
 
-		__le32 sizer[496];
+		__u32 sizer[496];
 	};
 };
 
 /* Registers object, an array of these */
 struct panfrost_dump_registers {
-	__le32 reg;
-	__le32 value;
+	__u32 reg;
+	__u32 value;
 };
 
 #if defined(__cplusplus)
