@@ -310,10 +310,27 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 		    pipe_name(intel_dp->pps.pps_pipe));
 }
 
+static int intel_num_pps(struct drm_i915_private *i915)
+{
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+		return 2;
+
+	if (IS_GEMINILAKE(i915) || IS_BROXTON(i915))
+		return 2;
+
+	if (INTEL_PCH_TYPE(i915) >= PCH_DG1)
+		return 1;
+
+	if (INTEL_PCH_TYPE(i915) >= PCH_ICP)
+		return 2;
+
+	return 1;
+}
+
 static int
 bxt_initial_pps_idx(struct drm_i915_private *i915, pps_check check)
 {
-	int pps_idx, pps_num = 2;
+	int pps_idx, pps_num = intel_num_pps(i915);
 
 	for (pps_idx = 0; pps_idx < pps_num; pps_idx++) {
 		if (check(i915, pps_idx))
@@ -337,12 +354,13 @@ pps_initial_setup(struct intel_dp *intel_dp)
 		return;
 	}
 
-	if (!IS_GEMINILAKE(i915) && !IS_BROXTON(i915))
-		return;
-
 	/* first ask the VBT */
-	intel_dp->pps.pps_idx = connector->panel.vbt.backlight.controller;
-	if (drm_WARN_ON(&i915->drm, intel_dp->pps.pps_idx >= 2))
+	if (intel_num_pps(i915) > 1)
+		intel_dp->pps.pps_idx = connector->panel.vbt.backlight.controller;
+	else
+		intel_dp->pps.pps_idx = 0;
+
+	if (drm_WARN_ON(&i915->drm, intel_dp->pps.pps_idx >= intel_num_pps(i915)))
 		intel_dp->pps.pps_idx = -1;
 
 	/* VBT wasn't parsed yet? pick one where the panel is on */
@@ -416,7 +434,7 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 				    struct pps_registers *regs)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	int pps_idx = 0;
+	int pps_idx;
 
 	memset(regs, 0, sizeof(*regs));
 
@@ -424,6 +442,8 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 		pps_idx = vlv_power_sequencer_pipe(intel_dp);
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		pps_idx = bxt_power_sequencer_idx(intel_dp);
+	else
+		pps_idx = intel_dp->pps.pps_idx;
 
 	regs->pp_ctrl = PP_CONTROL(pps_idx);
 	regs->pp_stat = PP_STATUS(pps_idx);
@@ -1508,7 +1528,10 @@ static void pps_init_late(struct intel_dp *intel_dp)
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	struct intel_connector *connector = intel_dp->attached_connector;
 
-	if (!IS_GEMINILAKE(i915) && !IS_BROXTON(i915))
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+		return;
+
+	if (intel_num_pps(i915) < 2)
 		return;
 
 	drm_WARN(&i915->drm, connector->panel.vbt.backlight.controller >= 0 &&
@@ -1551,10 +1574,7 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
 	 * This w/a is needed at least on CPT/PPT, but to be sure apply it
 	 * everywhere where registers can be write protected.
 	 */
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		pps_num = 2;
-	else
-		pps_num = 1;
+	pps_num = intel_num_pps(dev_priv);
 
 	for (pps_idx = 0; pps_idx < pps_num; pps_idx++) {
 		u32 val = intel_de_read(dev_priv, PP_CONTROL(pps_idx));
