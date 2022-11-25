@@ -12,6 +12,11 @@
 #include <uapi/linux/serial.h>
 #include <uapi/linux/serial_reg.h>
 
+#define UART_IER_ALL_INTR	(UART_IER_MSI | \
+				 UART_IER_RLSI | \
+				 UART_IER_THRI | \
+				 UART_IER_RDI)
+
 /* Helper for dealing with UART_LCR_WLEN* defines */
 #define UART_LCR_WLEN(x)	((x) - 5)
 
