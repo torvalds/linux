@@ -1267,7 +1267,7 @@ static void autoconfig(struct uart_8250_port *up)
 	 * that conflicts with COM 1-4 --- we hope!
 	 */
 	if (!(port->flags & UPF_SKIP_TEST)) {
-		serial8250_out_MCR(up, UART_MCR_LOOP | 0x0A);
+		serial8250_out_MCR(up, UART_MCR_LOOP | UART_MCR_OUT2 | UART_MCR_RTS);
 		status1 = serial_in(up, UART_MSR) & UART_MSR_STATUS_BITS;
 		serial8250_out_MCR(up, save_mcr);
 		if (status1 != (UART_MSR_DCD | UART_MSR_CTS)) {
