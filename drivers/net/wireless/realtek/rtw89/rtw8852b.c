@@ -1411,6 +1411,12 @@ static void rtw8852b_bb_sethw(struct rtw89_dev *rtwdev)
 		rtw89_phy_read32_mask(rtwdev, R_P1_RPL1, B_P0_RPL1_BIAS_MASK);
 }
 
+static void rtw8852b_bb_set_pop(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->hw->conf.flags & IEEE80211_CONF_MONITOR)
+		rtw89_phy_write32_clr(rtwdev, R_PKT_CTRL, B_PKT_POP_EN);
+}
+
 static void rtw8852b_set_channel_bb(struct rtw89_dev *rtwdev, const struct rtw89_chan *chan,
 				    enum rtw89_phy_idx phy_idx)
 {
@@ -1441,6 +1447,7 @@ static void rtw8852b_set_channel_bb(struct rtw89_dev *rtwdev, const struct rtw89
 	rtw89_phy_write32_mask(rtwdev, R_MAC_PIN_SEL, B_CH_IDX_SEG0,
 			       chan->primary_channel);
 	rtw8852b_5m_mask(rtwdev, chan, phy_idx);
+	rtw8852b_bb_set_pop(rtwdev);
 	rtw8852b_bb_reset_all(rtwdev, phy_idx);
 }
 
