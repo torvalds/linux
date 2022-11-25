@@ -263,11 +263,7 @@ xfs_alloc_get_rec(
 		goto out_bad_rec;
 
 	/* check for valid extent range, including overflow */
-	if (!xfs_verify_agbno(pag, *bno))
-		goto out_bad_rec;
-	if (*bno > *bno + *len)
-		goto out_bad_rec;
-	if (!xfs_verify_agbno(pag, *bno + *len - 1))
+	if (!xfs_verify_agbext(pag, *bno, *len))
 		goto out_bad_rec;
 
 	return 0;

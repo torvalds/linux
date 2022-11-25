@@ -807,6 +807,38 @@ static bool is_listed_fourcc(const uint32_t *fourccs, size_t nfourccs, uint32_t 
 	return false;
 }
 
+static const uint32_t conv_from_xrgb8888[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_ARGB2101010,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB888,
+};
+
+static const uint32_t conv_from_rgb565_888[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+};
+
+static bool is_conversion_supported(uint32_t from, uint32_t to)
+{
+	switch (from) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+		return is_listed_fourcc(conv_from_xrgb8888, ARRAY_SIZE(conv_from_xrgb8888), to);
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_RGB888:
+		return is_listed_fourcc(conv_from_rgb565_888, ARRAY_SIZE(conv_from_rgb565_888), to);
+	case DRM_FORMAT_XRGB2101010:
+		return to == DRM_FORMAT_ARGB2101010;
+	case DRM_FORMAT_ARGB2101010:
+		return to == DRM_FORMAT_XRGB2101010;
+	default:
+		return false;
+	}
+}
+
 /**
  * drm_fb_build_fourcc_list - Filters a list of supported color formats against
  *                            the device's native formats
@@ -827,7 +859,9 @@ static bool is_listed_fourcc(const uint32_t *fourccs, size_t nfourccs, uint32_t 
  * be handed over to drm_universal_plane_init() et al. Native formats
  * will go before emulated formats. Other heuristics might be applied
  * to optimize the order. Formats near the beginning of the list are
- * usually preferred over formats near the end of the list.
+ * usually preferred over formats near the end of the list. Formats
+ * without conversion helpers will be skipped. New drivers should only
+ * pass in XRGB8888 and avoid exposing additional emulated formats.
  *
  * Returns:
  * The number of color-formats 4CC codes returned in @fourccs_out.
@@ -839,7 +873,7 @@ size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 {
 	u32 *fourccs = fourccs_out;
 	const u32 *fourccs_end = fourccs_out + nfourccs_out;
-	bool found_native = false;
+	uint32_t native_format = 0;
 	size_t i;
 
 	/*
@@ -858,24 +892,16 @@ size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 
 		drm_dbg_kms(dev, "adding native format %p4cc\n", &fourcc);
 
-		if (!found_native)
-			found_native = is_listed_fourcc(driver_fourccs, driver_nfourccs, fourcc);
+		/*
+		 * There should only be one native format with the current API.
+		 * This API needs to be refactored to correctly support arbitrary
+		 * sets of native formats, since it needs to report which native
+		 * format to use for each emulated format.
+		 */
+		if (!native_format)
+			native_format = fourcc;
 		*fourccs = fourcc;
 		++fourccs;
-	}
-
-	/*
-	 * The plane's atomic_update helper converts the framebuffer's color format
-	 * to a native format when copying to device memory.
-	 *
-	 * If there is not a single format supported by both, device and
-	 * driver, the native formats are likely not supported by the conversion
-	 * helpers. Therefore *only* support the native formats and add a
-	 * conversion helper ASAP.
-	 */
-	if (!found_native) {
-		drm_warn(dev, "Format conversion helpers required to add extra formats.\n");
-		goto out;
 	}
 
 	/*
@@ -890,6 +916,9 @@ size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 		} else if (fourccs == fourccs_end) {
 			drm_warn(dev, "Ignoring emulated format %p4cc\n", &fourcc);
 			continue; /* end of available output buffer */
+		} else if (!is_conversion_supported(fourcc, native_format)) {
+			drm_dbg_kms(dev, "Unsupported emulated format %p4cc\n", &fourcc);
+			continue; /* format is not supported for conversion */
 		}
 
 		drm_dbg_kms(dev, "adding emulated format %p4cc\n", &fourcc);
@@ -898,7 +927,6 @@ size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 		++fourccs;
 	}
 
-out:
 	return fourccs - fourccs_out;
 }
 EXPORT_SYMBOL(drm_fb_build_fourcc_list);

@@ -1796,6 +1796,7 @@ failed_ioremap:
 failed_regions:
 	cyberpro_free_fb_info(cfb);
 failed_release:
+	pci_disable_device(dev);
 	return err;
 }
 
@@ -1812,6 +1813,7 @@ static void cyberpro_pci_remove(struct pci_dev *dev)
 			int_cfb_info = NULL;
 
 		pci_release_regions(dev);
+		pci_disable_device(dev);
 	}
 }
 
