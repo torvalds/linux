@@ -641,17 +641,23 @@ as shown in next section: *Accessing The Current Test*.
 Accessing The Current Test
 --------------------------
 
-In some cases, we need to call test-only code from outside the test file.
-For example, see example in section *Injecting Test-Only Code* or if
-we are providing a fake implementation of an ops struct. Using
-``kunit_test`` field in ``task_struct``, we can access it via
-``current->kunit_test``.
+In some cases, we need to call test-only code from outside the test file.  This
+is helpful, for example, when providing a fake implementation of a function, or
+to fail any current test from within an error handler.
+We can do this via the ``kunit_test`` field in ``task_struct``, which we can
+access using the ``kunit_get_current_test()`` function in ``kunit/test-bug.h``.
 
-The example below includes how to implement "mocking":
+``kunit_get_current_test()`` is safe to call even if KUnit is not enabled. If
+KUnit is not enabled, was built as a module (``CONFIG_KUNIT=m``), or no test is
+running in the current task, it will return ``NULL``. This compiles down to
+either a no-op or a static key check, so will have a negligible performance
+impact when no test is running.
+
+The example below uses this to implement a "mock" implementation of a function, ``foo``:
 
 .. code-block:: c
 
-	#include <linux/sched.h> /* for current */
+	#include <kunit/test-bug.h> /* for kunit_get_current_test */
 
 	struct test_data {
 		int foo_result;
@@ -660,7 +666,7 @@ The example below includes how to implement "mocking":
 
 	static int fake_foo(int arg)
 	{
-		struct kunit *test = current->kunit_test;
+		struct kunit *test = kunit_get_current_test();
 		struct test_data *test_data = test->priv;
 
 		KUNIT_EXPECT_EQ(test, test_data->want_foo_called_with, arg);
@@ -691,7 +697,7 @@ Each test can have multiple resources which have string names providing the same
 flexibility as a ``priv`` member, but also, for example, allowing helper
 functions to create resources without conflicting with each other. It is also
 possible to define a clean up function for each resource, making it easy to
-avoid resource leaks. For more information, see Documentation/dev-tools/kunit/api/test.rst.
+avoid resource leaks. For more information, see Documentation/dev-tools/kunit/api/resource.rst.
 
 Failing The Current Test
 ------------------------
@@ -718,4 +724,10 @@ structures as shown below:
 	#else
 	static void my_debug_function(void) { }
 	#endif
+
+``kunit_fail_current_test()`` is safe to call even if KUnit is not enabled. If
+KUnit is not enabled, was built as a module (``CONFIG_KUNIT=m``), or no test is
+running in the current task, it will do nothing. This compiles down to either a
+no-op or a static key check, so will have a negligible performance impact when
+no test is running.
 
