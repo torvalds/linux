@@ -284,6 +284,8 @@ static long bch2_ioctl_disk_set_state(struct bch_fs *c,
 		return PTR_ERR(ca);
 
 	ret = bch2_dev_set_state(c, ca, arg.new_state, arg.flags);
+	if (ret)
+		bch_err(c, "Error setting device state: %s", bch2_err_str(ret));
 
 	percpu_ref_put(&ca->ref);
 	return ret;
@@ -631,11 +633,14 @@ do {									\
 									\
 	if (copy_from_user(&i, arg, sizeof(i)))				\
 		return -EFAULT;						\
-	return bch2_ioctl_##_name(c, i);				\
+	ret = bch2_ioctl_##_name(c, i);					\
+	goto out;							\
 } while (0)
 
 long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 {
+	long ret;
+
 	switch (cmd) {
 	case BCH_IOCTL_QUERY_UUID:
 		return bch2_ioctl_query_uuid(c, arg);
@@ -679,6 +684,10 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 	default:
 		return -ENOTTY;
 	}
+out:
+	if (ret < 0)
+		ret = bch2_err_class(ret);
+	return ret;
 }
 
 static DEFINE_IDR(bch_chardev_minor);
