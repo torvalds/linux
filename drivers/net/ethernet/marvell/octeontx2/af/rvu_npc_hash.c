@@ -1870,12 +1870,11 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	/* Set capability to true */
 	rvu->hw->cap.npc_exact_match_enabled = true;
 
-	table = kmalloc(sizeof(*table), GFP_KERNEL);
+	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
 
 	dev_dbg(rvu->dev, "%s: Memory allocation for table success\n", __func__);
-	memset(table, 0, sizeof(*table));
 	rvu->hw->table = table;
 
 	/* Read table size, ways and depth */
