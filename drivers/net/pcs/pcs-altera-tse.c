@@ -60,7 +60,6 @@ static void tse_pcs_write(struct altera_tse_pcs *tse_pcs, int regnum,
 
 static int tse_pcs_reset(struct altera_tse_pcs *tse_pcs)
 {
-	int i = 0;
 	u16 bmcr;
 
 	/* Reset PCS block */
@@ -68,13 +67,9 @@ static int tse_pcs_reset(struct altera_tse_pcs *tse_pcs)
 	bmcr |= BMCR_RESET;
 	tse_pcs_write(tse_pcs, MII_BMCR, bmcr);
 
-	for (i = 0; i < SGMII_PCS_SW_RESET_TIMEOUT; i++) {
-		if (!(tse_pcs_read(tse_pcs, MII_BMCR) & BMCR_RESET))
-			return 0;
-		udelay(1);
-	}
-
-	return -ETIMEDOUT;
+	return read_poll_timeout(tse_pcs_read, bmcr, (bmcr & BMCR_RESET),
+				 10, SGMII_PCS_SW_RESET_TIMEOUT, 1,
+				 tse_pcs, MII_BMCR);
 }
 
 static int alt_tse_pcs_validate(struct phylink_pcs *pcs,
