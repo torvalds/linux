@@ -3559,7 +3559,9 @@ EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu_full);
  * If @false is returned, it is the caller's responsibility to invoke this
  * function later on until it does return @true.  Alternatively, the caller
  * can explicitly wait for a grace period, for example, by passing @oldstate
- * to cond_synchronize_rcu() or by directly invoking synchronize_rcu().
+ * to either cond_synchronize_rcu() or cond_synchronize_rcu_expedited()
+ * on the one hand or by directly invoking either synchronize_rcu() or
+ * synchronize_rcu_expedited() on the other.
  *
  * Yes, this function does not take counter wrap into account.
  * But counter wrap is harmless.  If the counter wraps, we have waited for
@@ -3569,6 +3571,12 @@ EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu_full);
  * either refresh them or set a flag indicating that the grace period has
  * completed.  Alternatively, they can use get_completed_synchronize_rcu()
  * to get a guaranteed-completed grace-period state.
+ *
+ * In addition, because oldstate compresses the grace-period state for
+ * both normal and expedited grace periods into a single unsigned long,
+ * it can miss a grace period when synchronize_rcu() runs concurrently
+ * with synchronize_rcu_expedited().  If this is unacceptable, please
+ * instead use the _full() variant of these polling APIs.
  *
  * This function provides the same memory-ordering guarantees that
  * would be provided by a synchronize_rcu() that was invoked at the call
