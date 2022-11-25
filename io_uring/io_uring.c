@@ -1519,7 +1519,7 @@ void io_req_task_complete(struct io_kiocb *req, bool *locked)
 	if (*locked)
 		io_req_complete_defer(req);
 	else
-		io_req_complete_post_tw(req, locked);
+		io_req_complete_post(req, IO_URING_F_UNLOCKED);
 }
 
 /*

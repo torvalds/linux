@@ -37,13 +37,6 @@ bool io_aux_cqe(struct io_ring_ctx *ctx, bool defer, u64 user_data, s32 res, u32
 		bool allow_overflow);
 void __io_commit_cqring_flush(struct io_ring_ctx *ctx);
 
-static inline void io_req_complete_post_tw(struct io_kiocb *req, bool *locked)
-{
-	unsigned flags = *locked ? 0 : IO_URING_F_UNLOCKED;
-
-	io_req_complete_post(req, flags);
-}
-
 struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
 
 struct file *io_file_get_normal(struct io_kiocb *req, int fd);
