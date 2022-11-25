@@ -290,8 +290,7 @@ static int __maybe_unused ad5820_resume(struct device *dev)
 	return ad5820_power_on(coil, true);
 }
 
-static int ad5820_probe(struct i2c_client *client,
-			const struct i2c_device_id *devid)
+static int ad5820_probe(struct i2c_client *client)
 {
 	struct ad5820_device *coil;
 	int ret;
@@ -377,7 +376,7 @@ static struct i2c_driver ad5820_i2c_driver = {
 		.pm	= &ad5820_pm,
 		.of_match_table = ad5820_of_table,
 	},
-	.probe		= ad5820_probe,
+	.probe_new	= ad5820_probe,
 	.remove		= ad5820_remove,
 	.id_table	= ad5820_id_table,
 };

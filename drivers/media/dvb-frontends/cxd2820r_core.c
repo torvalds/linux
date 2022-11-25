@@ -547,8 +547,7 @@ static struct dvb_frontend *cxd2820r_get_dvb_frontend(struct i2c_client *client)
 	return &priv->fe;
 }
 
-static int cxd2820r_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int cxd2820r_probe(struct i2c_client *client)
 {
 	struct cxd2820r_platform_data *pdata = client->dev.platform_data;
 	struct cxd2820r_priv *priv;
@@ -734,7 +733,7 @@ static struct i2c_driver cxd2820r_driver = {
 		.name                = "cxd2820r",
 		.suppress_bind_attrs = true,
 	},
-	.probe    = cxd2820r_probe,
+	.probe_new = cxd2820r_probe,
 	.remove   = cxd2820r_remove,
 	.id_table = cxd2820r_id_table,
 };
