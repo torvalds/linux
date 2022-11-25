@@ -490,7 +490,7 @@ static bool rvu_npc_exact_alloc_id(struct rvu *rvu, u32 *seq_id)
 	if (idx == table->tot_ids) {
 		mutex_unlock(&table->lock);
 		dev_err(rvu->dev, "%s: No space in id bitmap (%d)\n",
-			__func__, bitmap_weight(table->id_bmap, table->tot_ids));
+			__func__, table->tot_ids);
 
 		return false;
 	}
