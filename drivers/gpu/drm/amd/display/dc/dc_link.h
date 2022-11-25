@@ -294,6 +294,8 @@ struct dc_link {
 
 	struct gpio *hpd_gpio;
 	enum dc_link_fec_state fec_state;
+	bool link_powered_externally;	// Used to bypass hardware sequencing delays when panel is powered down forcibly
+
 	struct dc_panel_config panel_config;
 	struct phy_state phy_state;
 };

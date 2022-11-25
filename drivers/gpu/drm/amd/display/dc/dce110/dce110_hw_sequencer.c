@@ -875,14 +875,16 @@ void dce110_edp_power_control(
 
 		if (ctx->dc->ctx->dmub_srv &&
 				ctx->dc->debug.dmub_command_table) {
-			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON)
+
+			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON) {
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 						LVTMA_CONTROL_POWER_ON,
-						panel_instance);
-			else
+						panel_instance, link->link_powered_externally);
+			} else {
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 						LVTMA_CONTROL_POWER_OFF,
-						panel_instance);
+						panel_instance, link->link_powered_externally);
+			}
 		}
 
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
@@ -1025,11 +1027,11 @@ void dce110_edp_backlight_control(
 		if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 					LVTMA_CONTROL_LCD_BLON,
-					panel_instance);
+					panel_instance, 0);
 		else
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 					LVTMA_CONTROL_LCD_BLOFF,
-					panel_instance);
+					panel_instance, 0);
 	}
 
 	link_transmitter_control(ctx->dc_bios, &cntl);
