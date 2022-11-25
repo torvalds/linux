@@ -169,6 +169,11 @@ struct socinfo {
 	__le32 ndefective_parts_array_offset;
 	/* Version 15 */
 	__le32 nmodem_supported;
+	/* Version 16 */
+	__le32  feature_code;
+	__le32  pcode;
+	__le32  npartnamemap_offset;
+	__le32  nnum_partname_mapping;
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -189,6 +194,8 @@ struct socinfo_params {
 	u32 num_defective_parts;
 	u32 ndefective_parts_array_offset;
 	u32 nmodem_supported;
+	u32 feature_code;
+	u32 pcode;
 };
 
 struct smem_image_version {
@@ -512,6 +519,15 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 			   &qcom_socinfo->info.fmt);
 
 	switch (qcom_socinfo->info.fmt) {
+	case SOCINFO_VERSION(0, 16):
+		qcom_socinfo->info.feature_code = __le32_to_cpu(info->feature_code);
+		qcom_socinfo->info.pcode = __le32_to_cpu(info->pcode);
+
+		debugfs_create_u32("feature_code", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.feature_code);
+		debugfs_create_u32("pcode", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.pcode);
+		fallthrough;
 	case SOCINFO_VERSION(0, 15):
 		qcom_socinfo->info.nmodem_supported = __le32_to_cpu(info->nmodem_supported);
 
