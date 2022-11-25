@@ -44,6 +44,46 @@ static int rga_mmu_buf_get(struct rga_mmu_buf_t *t, uint32_t size)
     return 0;
 }
 
+static void rga_current_mm_read_lock(struct mm_struct *mm)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	mmap_read_lock(mm);
+#else
+	down_read(&mm->mmap_sem);
+#endif
+}
+
+static void rga_current_mm_read_unlock(struct mm_struct *mm)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	mmap_read_unlock(mm);
+#else
+	up_read(&mm->mmap_sem);
+#endif
+}
+
+static long rga_get_user_pages(struct page **pages, unsigned long Memory,
+			       uint32_t pageCount, int writeFlag,
+			       struct mm_struct *current_mm)
+{
+	#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 168) && \
+		LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
+		return get_user_pages(current, current_mm, Memory << PAGE_SHIFT,
+				      pageCount, writeFlag ? FOLL_WRITE : 0, pages, NULL);
+	#elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+		return get_user_pages(current, current_mm, Memory << PAGE_SHIFT,
+				      pageCount, writeFlag ? FOLL_WRITE : 0, 0, pages, NULL);
+	#elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+		return get_user_pages_remote(current, current_mm, Memory << PAGE_SHIFT,
+					     pageCount, writeFlag ? FOLL_WRITE : 0, pages,
+					     NULL, NULL);
+	#else
+		return get_user_pages_remote(current_mm, Memory << PAGE_SHIFT,
+					     pageCount, writeFlag ? FOLL_WRITE : 0, pages,
+					     NULL, NULL);
+	#endif
+}
+
 static int rga_mmu_buf_get_try(struct rga_mmu_buf_t *t, uint32_t size)
 {
 	int ret = 0;
@@ -333,29 +373,11 @@ static int rga_MapUserMemory(struct page **pages,
     Address = 0;
 
     do {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-        mmap_read_lock(current->mm);
-#else
-        down_read(&current->mm->mmap_sem);
-#endif
+        rga_current_mm_read_lock(current->mm);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
-        result = get_user_pages(current, current->mm,
-            Memory << PAGE_SHIFT, pageCount, 1, 0,
-            pages, NULL);
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
-		result = get_user_pages_remote(current, current->mm,
-			Memory << PAGE_SHIFT, pageCount, 1, pages, NULL, NULL);
-#else
-		result = get_user_pages_remote(current->mm, Memory << PAGE_SHIFT,
-									   pageCount, 1, pages, NULL, NULL);
-#endif
+	result = rga_get_user_pages(pages, Memory, pageCount, 1, current->mm);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-		mmap_read_unlock(current->mm);
-#else
-		up_read(&current->mm->mmap_sem);
-#endif
+        rga_current_mm_read_unlock(current->mm);
 
         #if 0
         if(result <= 0 || result < pageCount)
@@ -383,19 +405,13 @@ static int rga_MapUserMemory(struct page **pages,
             struct vm_area_struct *vma;
 
             if (result>0) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-				mmap_read_lock(current->mm);
-#else
-				down_read(&current->mm->mmap_sem);
-#endif
-			    for (i = 0; i < result; i++)
-				    put_page(pages[i]);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-				mmap_read_unlock(current->mm);
-#else
-				up_read(&current->mm->mmap_sem);
-#endif
-		    }
+		rga_current_mm_read_lock(current->mm);
+
+		for (i = 0; i < result; i++)
+			put_page(pages[i]);
+
+		rga_current_mm_read_unlock(current->mm);
+	    }
 
             for(i=0; i<pageCount; i++)
             {
@@ -484,18 +500,12 @@ static int rga_MapUserMemory(struct page **pages,
             pageTable[i] = page_to_phys(pages[i]);
         }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-        mmap_read_lock(current->mm);
-#else
-        down_read(&current->mm->mmap_sem);
-#endif
-		for (i = 0; i < result; i++)
-			put_page(pages[i]);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-		mmap_read_unlock(current->mm);
-#else
-		up_read(&current->mm->mmap_sem);
-#endif
+	rga_current_mm_read_lock(current->mm);
+
+	for (i = 0; i < result; i++)
+		put_page(pages[i]);
+
+	rga_current_mm_read_unlock(current->mm);
 
         return 0;
     }
