@@ -18,6 +18,8 @@
 
 #include "internal.h"
 
+#define MAX_SHASH_ALIGNMASK 63
+
 static const struct crypto_type crypto_shash_type;
 
 int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
@@ -88,7 +90,7 @@ static int shash_update_unaligned(struct shash_desc *desc, const u8 *data,
 	 * We cannot count on __aligned() working for large values:
 	 * https://patchwork.kernel.org/patch/9507697/
 	 */
-	u8 ubuf[MAX_ALGAPI_ALIGNMASK * 2];
+	u8 ubuf[MAX_SHASH_ALIGNMASK * 2];
 	u8 *buf = PTR_ALIGN(&ubuf[0], alignmask + 1);
 	int err;
 
@@ -130,7 +132,7 @@ static int shash_final_unaligned(struct shash_desc *desc, u8 *out)
 	 * We cannot count on __aligned() working for large values:
 	 * https://patchwork.kernel.org/patch/9507697/
 	 */
-	u8 ubuf[MAX_ALGAPI_ALIGNMASK + HASH_MAX_DIGESTSIZE];
+	u8 ubuf[MAX_SHASH_ALIGNMASK + HASH_MAX_DIGESTSIZE];
 	u8 *buf = PTR_ALIGN(&ubuf[0], alignmask + 1);
 	int err;
 
@@ -522,6 +524,9 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	if (alg->digestsize > HASH_MAX_DIGESTSIZE ||
 	    alg->descsize > HASH_MAX_DESCSIZE ||
 	    alg->statesize > HASH_MAX_STATESIZE)
+		return -EINVAL;
+
+	if (base->cra_alignmask > MAX_SHASH_ALIGNMASK)
 		return -EINVAL;
 
 	if ((alg->export && !alg->import) || (alg->import && !alg->export))

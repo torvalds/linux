@@ -22,7 +22,7 @@
  * algs and architectures. Ciphers have a lower maximum size.
  */
 #define MAX_ALGAPI_BLOCKSIZE		160
-#define MAX_ALGAPI_ALIGNMASK		63
+#define MAX_ALGAPI_ALIGNMASK		127
 #define MAX_CIPHER_BLOCKSIZE		16
 #define MAX_CIPHER_ALIGNMASK		15
 
