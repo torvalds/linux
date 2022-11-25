@@ -206,7 +206,7 @@ u64 ifcvf_get_hw_features(struct ifcvf_hw *hw)
 
 u64 ifcvf_get_features(struct ifcvf_hw *hw)
 {
-	return hw->hw_features;
+	return hw->dev_features;
 }
 
 int ifcvf_verify_min_features(struct ifcvf_hw *hw, u64 features)
