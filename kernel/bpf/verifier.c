@@ -4703,6 +4703,18 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 	u32 btf_id;
 	int ret;
 
+	if (!env->allow_ptr_leaks) {
+		verbose(env,
+			"'struct %s' access is allowed only to CAP_PERFMON and CAP_SYS_ADMIN\n",
+			tname);
+		return -EPERM;
+	}
+	if (!env->prog->gpl_compatible && btf_is_kernel(reg->btf)) {
+		verbose(env,
+			"Cannot access kernel 'struct %s' from non-GPL compatible program\n",
+			tname);
+		return -EINVAL;
+	}
 	if (off < 0) {
 		verbose(env,
 			"R%d is ptr_%s invalid negative access: off=%d\n",
@@ -4823,9 +4835,9 @@ static int check_ptr_to_map_access(struct bpf_verifier_env *env,
 	t = btf_type_by_id(btf_vmlinux, *map->ops->map_btf_id);
 	tname = btf_name_by_offset(btf_vmlinux, t->name_off);
 
-	if (!env->allow_ptr_to_map_access) {
+	if (!env->allow_ptr_leaks) {
 		verbose(env,
-			"%s access is allowed only to CAP_PERFMON and CAP_SYS_ADMIN\n",
+			"'struct %s' access is allowed only to CAP_PERFMON and CAP_SYS_ADMIN\n",
 			tname);
 		return -EPERM;
 	}
@@ -16679,7 +16691,6 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr)
 
 	env->allow_ptr_leaks = bpf_allow_ptr_leaks();
 	env->allow_uninit_stack = bpf_allow_uninit_stack();
-	env->allow_ptr_to_map_access = bpf_allow_ptr_to_map_access();
 	env->bypass_spec_v1 = bpf_bypass_spec_v1();
 	env->bypass_spec_v4 = bpf_bypass_spec_v4();
 	env->bpf_capable = bpf_capable();
