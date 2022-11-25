@@ -33,7 +33,7 @@ menu "USB Peripheral Controller"
 config USB_AT91
 	tristate "Atmel AT91 USB Device Port"
 	depends on ARCH_AT91
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	   Many Atmel AT91 processors (such as the AT91RM2000) have a
 	   full speed USB Device Port with support for five configurable
@@ -419,7 +419,7 @@ config USB_EG20T
 config USB_GADGET_XILINX
 	tristate "Xilinx USB Driver"
 	depends on HAS_DMA
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  USB peripheral controller driver for Xilinx USB2 device.
 	  Xilinx USB2 device is a soft IP which supports both full
