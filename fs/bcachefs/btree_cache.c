@@ -707,6 +707,12 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	if (IS_ERR(b))
 		return b;
 
+	/*
+	 * Btree nodes read in from disk should not have the accessed bit set
+	 * initially, so that linear scans don't thrash the cache:
+	 */
+	clear_btree_node_accessed(b);
+
 	bkey_copy(&b->key, k);
 	if (bch2_btree_node_hash_insert(bc, b, level, btree_id)) {
 		/* raced with another fill: */
@@ -843,6 +849,10 @@ retry:
 			trace_and_count(c, trans_restart_btree_node_reused, trans, trace_ip, path);
 			return ERR_PTR(btree_trans_restart(trans, BCH_ERR_transaction_restart_lock_node_reused));
 		}
+
+		/* avoid atomic set bit if it's not needed: */
+		if (!btree_node_accessed(b))
+			set_btree_node_accessed(b);
 	}
 
 	if (unlikely(btree_node_read_in_flight(b))) {
@@ -879,10 +889,6 @@ retry:
 		prefetch(p + L1_CACHE_BYTES * 1);
 		prefetch(p + L1_CACHE_BYTES * 2);
 	}
-
-	/* avoid atomic set bit if it's not needed: */
-	if (!btree_node_accessed(b))
-		set_btree_node_accessed(b);
 
 	if (unlikely(btree_node_read_error(b))) {
 		six_unlock_type(&b->c.lock, lock_type);
