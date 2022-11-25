@@ -119,10 +119,6 @@
 #define TCLK_WDT_NS                    115
 #define HCLK_TRNG_NS                   116
 #define PCLK_UART0                     117
-#define CLK_CORE_CRYPTO                119
-#define CLK_PKA_CRYPTO                 120
-#define ACLK_CRYPTO                    121
-#define HCLK_CRYPTO                    122
 #define PCLK_DMA2DDR                   123
 #define ACLK_DMA2DDR                   124
 #define PCLK_PWM0                      126
@@ -365,9 +361,6 @@
 #define PCLK_WDT_S                     480
 #define TCLK_WDT_S                     481
 #define HCLK_TRNG_S                    482
-#define PCLK_KLAD                      483
-#define HCLK_CRYPTO_S                  484
-#define HCLK_KLAD                      485
 #define HCLK_BOOTROM                   486
 #define PCLK_DCF                       487
 #define ACLK_SYSMEM                    488
@@ -458,6 +451,15 @@
 #define SCMI_CLK_DDR                   20
 #define SCMI_CLK_CPU                   21
 #define SCMI_CLK_GPU                   22
+#define SCMI_CORE_CRYPTO               23
+#define SCMI_ACLK_CRYPTO               24
+#define SCMI_PKA_CRYPTO                25
+#define SCMI_HCLK_CRYPTO               26
+#define SCMI_CORE_CRYPTO_S             27
+#define SCMI_ACLK_CRYPTO_S             28
+#define SCMI_PKA_CRYPTO_S              29
+#define SCMI_CORE_KLAD                 30
+#define SCMI_ACLK_KLAD                 31
 
 // CRU_SOFTRST_CON03(Offset:0xA0C)
 #define SRST_NCOREPORESET0             0x00000030
@@ -470,6 +472,7 @@
 #define SRST_NCORESET3                 0x00000037
 #define SRST_NL2RESET                  0x00000038
 #define SRST_ARESETN_M_CORE_BIU        0x00000039
+#define SRST_RESETN_CORE_CRYPTO        0x0000003A
 
 // CRU_SOFTRST_CON05(Offset:0xA14)
 #define SRST_PRESETN_DBG               0x0000005D
@@ -513,7 +516,6 @@
 #define SRST_HRESETN_TRNG_NS           0x000000A3
 #define SRST_PRESETN_UART0             0x000000A7
 #define SRST_SRESETN_UART0             0x000000A8
-#define SRST_RESETN_CORE_CRYPTO        0x000000A9
 #define SRST_RESETN_PKA_CRYPTO         0x000000AA
 #define SRST_ARESETN_CRYPTO            0x000000AB
 #define SRST_HRESETN_CRYPTO            0x000000AC
