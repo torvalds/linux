@@ -315,8 +315,80 @@ static inline void bch2_btree_iter_set_snapshot(struct btree_iter *iter, u32 sna
 }
 
 void bch2_trans_iter_exit(struct btree_trans *, struct btree_iter *);
-void bch2_trans_iter_init(struct btree_trans *, struct btree_iter *,
-			  unsigned, struct bpos, unsigned);
+
+static inline unsigned __bch2_btree_iter_flags(struct btree_trans *trans,
+					       unsigned btree_id,
+					       unsigned flags)
+{
+	if (flags & BTREE_ITER_ALL_LEVELS)
+		flags |= BTREE_ITER_ALL_SNAPSHOTS|__BTREE_ITER_ALL_SNAPSHOTS;
+
+	if (!(flags & (BTREE_ITER_ALL_SNAPSHOTS|BTREE_ITER_NOT_EXTENTS)) &&
+	    btree_node_type_is_extents(btree_id))
+		flags |= BTREE_ITER_IS_EXTENTS;
+
+	if (!(flags & __BTREE_ITER_ALL_SNAPSHOTS) &&
+	    !btree_type_has_snapshots(btree_id))
+		flags &= ~BTREE_ITER_ALL_SNAPSHOTS;
+
+	if (!(flags & BTREE_ITER_ALL_SNAPSHOTS) &&
+	    btree_type_has_snapshots(btree_id))
+		flags |= BTREE_ITER_FILTER_SNAPSHOTS;
+
+	if (trans->journal_replay_not_finished)
+		flags |= BTREE_ITER_WITH_JOURNAL;
+
+	return flags;
+}
+
+static inline unsigned bch2_btree_iter_flags(struct btree_trans *trans,
+					     unsigned btree_id,
+					     unsigned flags)
+{
+	if (!btree_id_cached(trans->c, btree_id)) {
+		flags &= ~BTREE_ITER_CACHED;
+		flags &= ~BTREE_ITER_WITH_KEY_CACHE;
+	} else if (!(flags & BTREE_ITER_CACHED))
+		flags |= BTREE_ITER_WITH_KEY_CACHE;
+
+	return __bch2_btree_iter_flags(trans, btree_id, flags);
+}
+
+static inline void bch2_trans_iter_init_common(struct btree_trans *trans,
+					  struct btree_iter *iter,
+					  unsigned btree_id, struct bpos pos,
+					  unsigned locks_want,
+					  unsigned depth,
+					  unsigned flags)
+{
+	memset(iter, 0, sizeof(*iter));
+	iter->trans	= trans;
+	iter->btree_id	= btree_id;
+	iter->flags	= flags;
+	iter->snapshot	= pos.snapshot;
+	iter->pos	= pos;
+	iter->k.p	= pos;
+
+	iter->path = bch2_path_get(trans, btree_id, iter->pos,
+				   locks_want, depth, flags);
+}
+
+void bch2_trans_iter_init_outlined(struct btree_trans *, struct btree_iter *,
+			  enum btree_id, struct bpos, unsigned);
+
+static inline void bch2_trans_iter_init(struct btree_trans *trans,
+			  struct btree_iter *iter,
+			  unsigned btree_id, struct bpos pos,
+			  unsigned flags)
+{
+	if (__builtin_constant_p(btree_id) &&
+	    __builtin_constant_p(flags))
+		bch2_trans_iter_init_common(trans, iter, btree_id, pos, 0, 0,
+				bch2_btree_iter_flags(trans, btree_id, flags));
+	else
+		bch2_trans_iter_init_outlined(trans, iter, btree_id, pos, flags);
+}
+
 void bch2_trans_node_iter_init(struct btree_trans *, struct btree_iter *,
 			       enum btree_id, struct bpos,
 			       unsigned, unsigned, unsigned);

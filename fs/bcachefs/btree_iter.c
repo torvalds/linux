@@ -2623,68 +2623,22 @@ void bch2_trans_iter_exit(struct btree_trans *trans, struct btree_iter *iter)
 	iter->key_cache_path = NULL;
 }
 
-static inline void __bch2_trans_iter_init(struct btree_trans *trans,
-					  struct btree_iter *iter,
-					  enum btree_id btree_id, struct bpos pos,
-					  unsigned locks_want,
-					  unsigned depth,
-					  unsigned flags)
-{
-	if (unlikely(trans->restarted))
-		panic("bch2_trans_iter_init(): in transaction restart, %s by %pS\n",
-		      bch2_err_str(trans->restarted),
-		      (void *) trans->last_restarted_ip);
-
-	if (flags & BTREE_ITER_ALL_LEVELS)
-		flags |= BTREE_ITER_ALL_SNAPSHOTS|__BTREE_ITER_ALL_SNAPSHOTS;
-
-	if (!(flags & (BTREE_ITER_ALL_SNAPSHOTS|BTREE_ITER_NOT_EXTENTS)) &&
-	    btree_node_type_is_extents(btree_id))
-		flags |= BTREE_ITER_IS_EXTENTS;
-
-	if (!(flags & __BTREE_ITER_ALL_SNAPSHOTS) &&
-	    !btree_type_has_snapshots(btree_id))
-		flags &= ~BTREE_ITER_ALL_SNAPSHOTS;
-
-	if (!(flags & BTREE_ITER_ALL_SNAPSHOTS) &&
-	    btree_type_has_snapshots(btree_id))
-		flags |= BTREE_ITER_FILTER_SNAPSHOTS;
-
-	if (trans->journal_replay_not_finished)
-		flags |= BTREE_ITER_WITH_JOURNAL;
-
-	iter->trans	= trans;
-	iter->path	= NULL;
-	iter->update_path = NULL;
-	iter->key_cache_path = NULL;
-	iter->btree_id	= btree_id;
-	iter->min_depth	= depth;
-	iter->flags	= flags;
-	iter->snapshot	= pos.snapshot;
-	iter->pos	= pos;
-	iter->k.type	= KEY_TYPE_deleted;
-	iter->k.p	= pos;
-	iter->k.size	= 0;
-	iter->journal_idx = 0;
-	iter->journal_pos = POS_MIN;
-
-	iter->path = bch2_path_get(trans, btree_id, iter->pos,
-				   locks_want, depth, flags);
-}
-
-void bch2_trans_iter_init(struct btree_trans *trans,
+static inline void bch2_trans_iter_init_inlined(struct btree_trans *trans,
 			  struct btree_iter *iter,
 			  unsigned btree_id, struct bpos pos,
 			  unsigned flags)
 {
-	if (!btree_id_cached(trans->c, btree_id)) {
-		flags &= ~BTREE_ITER_CACHED;
-		flags &= ~BTREE_ITER_WITH_KEY_CACHE;
-	} else if (!(flags & BTREE_ITER_CACHED))
-		flags |= BTREE_ITER_WITH_KEY_CACHE;
+	bch2_trans_iter_init_common(trans, iter, btree_id, pos, 0, 0,
+			       bch2_btree_iter_flags(trans, btree_id, flags));
+}
 
-	__bch2_trans_iter_init(trans, iter, btree_id, pos,
-			       0, 0, flags);
+void bch2_trans_iter_init_outlined(struct btree_trans *trans,
+			  struct btree_iter *iter,
+			  enum btree_id btree_id, struct bpos pos,
+			  unsigned flags)
+{
+	bch2_trans_iter_init_common(trans, iter, btree_id, pos, 0, 0,
+			       bch2_btree_iter_flags(trans, btree_id, flags));
 }
 
 void bch2_trans_node_iter_init(struct btree_trans *trans,
@@ -2695,11 +2649,15 @@ void bch2_trans_node_iter_init(struct btree_trans *trans,
 			       unsigned depth,
 			       unsigned flags)
 {
-	__bch2_trans_iter_init(trans, iter, btree_id, pos, locks_want, depth,
-			       BTREE_ITER_NOT_EXTENTS|
-			       __BTREE_ITER_ALL_SNAPSHOTS|
-			       BTREE_ITER_ALL_SNAPSHOTS|
-			       flags);
+       flags |= BTREE_ITER_NOT_EXTENTS;
+       flags |= __BTREE_ITER_ALL_SNAPSHOTS;
+       flags |= BTREE_ITER_ALL_SNAPSHOTS;
+
+	bch2_trans_iter_init_common(trans, iter, btree_id, pos, locks_want, depth,
+			       __bch2_btree_iter_flags(trans, btree_id, flags));
+
+	iter->min_depth	= depth;
+
 	BUG_ON(iter->path->locks_want	 < min(locks_want, BTREE_MAX_DEPTH));
 	BUG_ON(iter->path->level	!= depth);
 	BUG_ON(iter->min_depth		!= depth);

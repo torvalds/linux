@@ -278,7 +278,6 @@ struct btree_iter {
 	unsigned		snapshot;
 
 	struct bpos		pos;
-	struct bpos		pos_after_commit;
 	/*
 	 * Current unpacked key - so that bch2_btree_iter_next()/
 	 * bch2_btree_iter_next_slot() can correctly advance pos.
