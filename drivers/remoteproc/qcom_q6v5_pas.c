@@ -61,6 +61,7 @@ struct adsp_data {
 	int dtb_pas_id;
 	bool free_after_auth_reset;
 	unsigned int minidump_id;
+	bool both_dumps;
 	bool uses_elf64;
 	bool has_aggre2_clk;
 	bool auto_boot;
@@ -106,6 +107,7 @@ struct qcom_adsp {
 	struct qcom_mdt_metadata *mdata;
 	struct qcom_mdt_metadata dtb_mdata;
 	unsigned int minidump_id;
+	bool both_dumps;
 	bool retry_shutdown;
 	struct icc_path *bus_client;
 	int crash_reason_smem;
@@ -170,7 +172,8 @@ static void adsp_minidump(struct rproc *rproc)
 	if (rproc->dump_conf == RPROC_COREDUMP_DISABLED)
 		goto exit;
 
-	qcom_minidump(rproc, adsp->minidump_dev, adsp->minidump_id, adsp_segment_dump);
+	qcom_minidump(rproc, adsp->minidump_dev, adsp->minidump_id, adsp_segment_dump,
+			adsp->both_dumps);
 
 exit:
 	trace_rproc_qcom_event(dev_name(adsp->dev), "adsp_minidump", "exit");
@@ -1056,6 +1059,7 @@ static int adsp_probe(struct platform_device *pdev)
 	adsp->decrypt_shutdown = desc->decrypt_shutdown;
 	adsp->qmp_name = desc->qmp_name;
 	adsp->dma_phys_below_32b = desc->dma_phys_below_32b;
+	adsp->both_dumps = desc->both_dumps;
 
 	if (desc->free_after_auth_reset) {
 		adsp->mdata = devm_kzalloc(adsp->dev, sizeof(struct qcom_mdt_metadata), GFP_KERNEL);
@@ -1538,6 +1542,7 @@ static const struct adsp_data pineapple_mpss_resource = {
 	.qmp_name = "modem",
 	.ssctl_id = 0x12,
 	.dma_phys_below_32b = true,
+	.both_dumps = true,
 };
 
 static const struct adsp_data cinder_mpss_resource = {

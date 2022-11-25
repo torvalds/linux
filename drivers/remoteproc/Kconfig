@@ -344,6 +344,14 @@ config RPROC_SSR_NOTIF_TIMEOUT
 	  the start and end of SSR notifications through the subsystem
 	  notifier, before a warning is emitted.
 
+config QCOM_RPROC_BOTH_DUMPS
+	bool "Collect both minidump and fulldump for subsystem crash"
+	help
+	  Say y here to allow dumping both fulldump and minidump for the
+	  case where subsystem minidump is enabled by policy and the feature
+	  is enabled for a client. The case where minidump is not enabled,
+	  and fulldump is collected by default remains unaffected.
+
 config ST_REMOTEPROC
 	tristate "ST remoteproc support"
 	depends on ARCH_STI
