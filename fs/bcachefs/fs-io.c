@@ -2218,7 +2218,7 @@ static __always_inline void bch2_dio_write_end(struct dio_write *dio)
 		set_bit(EI_INODE_ERROR, &inode->ei_flags);
 }
 
-static long bch2_dio_write_loop(struct dio_write *dio)
+static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
 {
 	struct bch_fs *c = dio->op.c;
 	struct kiocb *req = dio->req;
@@ -2333,17 +2333,9 @@ err:
 	goto out;
 }
 
-static void bch2_dio_write_loop_async(struct bch_write_op *op)
+static noinline __cold void bch2_dio_write_continue(struct dio_write *dio)
 {
-	struct dio_write *dio = container_of(op, struct dio_write, op);
 	struct mm_struct *mm = dio->mm;
-
-	bch2_dio_write_end(dio);
-
-	if (likely(!dio->iter.count) || dio->op.error) {
-		bch2_dio_write_done(dio);
-		return;
-	}
 
 	bio_reset(&dio->op.wbio.bio, NULL, REQ_OP_WRITE);
 
@@ -2352,6 +2344,18 @@ static void bch2_dio_write_loop_async(struct bch_write_op *op)
 	bch2_dio_write_loop(dio);
 	if (mm)
 		kthread_unuse_mm(mm);
+}
+
+static void bch2_dio_write_loop_async(struct bch_write_op *op)
+{
+	struct dio_write *dio = container_of(op, struct dio_write, op);
+
+	bch2_dio_write_end(dio);
+
+	if (likely(!dio->iter.count) || dio->op.error)
+		bch2_dio_write_done(dio);
+	else
+		bch2_dio_write_continue(dio);
 }
 
 static noinline
