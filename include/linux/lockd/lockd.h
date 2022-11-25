@@ -312,7 +312,7 @@ static inline struct file *nlmsvc_file_file(struct nlm_file *file)
 
 static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
 {
-	return locks_inode(nlmsvc_file_file(file));
+	return file_inode(nlmsvc_file_file(file));
 }
 
 static inline int __nlm_privileged_request4(const struct sockaddr *sap)
@@ -372,7 +372,7 @@ static inline int nlm_privileged_requester(const struct svc_rqst *rqstp)
 static inline int nlm_compare_locks(const struct file_lock *fl1,
 				    const struct file_lock *fl2)
 {
-	return locks_inode(fl1->fl_file) == locks_inode(fl2->fl_file)
+	return file_inode(fl1->fl_file) == file_inode(fl2->fl_file)
 	     && fl1->fl_pid   == fl2->fl_pid
 	     && fl1->fl_owner == fl2->fl_owner
 	     && fl1->fl_start == fl2->fl_start

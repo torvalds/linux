@@ -133,8 +133,6 @@ struct file_lock_context {
 	struct list_head	flc_lease;
 };
 
-#define locks_inode(f) file_inode(f)
-
 #ifdef CONFIG_FILE_LOCKING
 int fcntl_getlk(struct file *, unsigned int, struct flock *);
 int fcntl_setlk(unsigned int, struct file *, unsigned int,
@@ -345,7 +343,7 @@ locks_inode_context(const struct inode *inode)
 
 static inline int locks_lock_file_wait(struct file *filp, struct file_lock *fl)
 {
-	return locks_lock_inode_wait(locks_inode(filp), fl);
+	return locks_lock_inode_wait(file_inode(filp), fl);
 }
 
 #ifdef CONFIG_FILE_LOCKING
