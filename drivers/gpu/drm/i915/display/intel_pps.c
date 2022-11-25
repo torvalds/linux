@@ -212,8 +212,7 @@ static int
 bxt_power_sequencer_idx(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct intel_connector *connector = intel_dp->attached_connector;
-	int backlight_controller = connector->panel.vbt.backlight.controller;
+	int pps_idx = intel_dp->pps.pps_idx;
 
 	lockdep_assert_held(&dev_priv->display.pps.mutex);
 
@@ -221,7 +220,7 @@ bxt_power_sequencer_idx(struct intel_dp *intel_dp)
 	drm_WARN_ON(&dev_priv->drm, !intel_dp_is_edp(intel_dp));
 
 	if (!intel_dp->pps.pps_reset)
-		return backlight_controller;
+		return pps_idx;
 
 	intel_dp->pps.pps_reset = false;
 
@@ -231,7 +230,7 @@ bxt_power_sequencer_idx(struct intel_dp *intel_dp)
 	 */
 	pps_init_registers(intel_dp, false);
 
-	return backlight_controller;
+	return pps_idx;
 }
 
 typedef bool (*pps_check)(struct drm_i915_private *dev_priv, int pps_idx);
@@ -311,6 +310,64 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 		    pipe_name(intel_dp->pps.pps_pipe));
 }
 
+static int
+bxt_initial_pps_idx(struct drm_i915_private *i915, pps_check check)
+{
+	int pps_idx, pps_num = 2;
+
+	for (pps_idx = 0; pps_idx < pps_num; pps_idx++) {
+		if (check(i915, pps_idx))
+			return pps_idx;
+	}
+
+	return -1;
+}
+
+static void
+pps_initial_setup(struct intel_dp *intel_dp)
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct intel_connector *connector = intel_dp->attached_connector;
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	lockdep_assert_held(&i915->display.pps.mutex);
+
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+		vlv_initial_power_sequencer_setup(intel_dp);
+		return;
+	}
+
+	if (!IS_GEMINILAKE(i915) && !IS_BROXTON(i915))
+		return;
+
+	/* first ask the VBT */
+	intel_dp->pps.pps_idx = connector->panel.vbt.backlight.controller;
+	if (drm_WARN_ON(&i915->drm, intel_dp->pps.pps_idx >= 2))
+		intel_dp->pps.pps_idx = -1;
+
+	/* VBT wasn't parsed yet? pick one where the panel is on */
+	if (intel_dp->pps.pps_idx < 0)
+		intel_dp->pps.pps_idx = bxt_initial_pps_idx(i915, pps_has_pp_on);
+	/* didn't find one? pick one where vdd is on */
+	if (intel_dp->pps.pps_idx < 0)
+		intel_dp->pps.pps_idx = bxt_initial_pps_idx(i915, pps_has_vdd_on);
+	/* didn't find one? pick any */
+	if (intel_dp->pps.pps_idx < 0) {
+		intel_dp->pps.pps_idx = bxt_initial_pps_idx(i915, pps_any);
+
+		drm_dbg_kms(&i915->drm,
+			    "[ENCODER:%d:%s] no initial power sequencer, assuming %d\n",
+			    encoder->base.base.id, encoder->base.name,
+			    intel_dp->pps.pps_idx);
+		return;
+	}
+
+	drm_dbg_kms(&i915->drm,
+		    "[ENCODER:%d:%s] initial power sequencer: %d\n",
+		    encoder->base.base.id, encoder->base.name,
+		    intel_dp->pps.pps_idx);
+}
+
 void intel_pps_reset_all(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder;
@@ -363,10 +420,10 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 
 	memset(regs, 0, sizeof(*regs));
 
-	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
-		pps_idx = bxt_power_sequencer_idx(intel_dp);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		pps_idx = vlv_power_sequencer_pipe(intel_dp);
+	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
+		pps_idx = bxt_power_sequencer_idx(intel_dp);
 
 	regs->pp_ctrl = PP_CONTROL(pps_idx);
 	regs->pp_stat = PP_STATUS(pps_idx);
@@ -1429,7 +1486,6 @@ void intel_pps_encoder_reset(struct intel_dp *intel_dp)
 
 void intel_pps_init(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	intel_wakeref_t wakeref;
 
 	intel_dp->pps.initializing = true;
@@ -1438,13 +1494,31 @@ void intel_pps_init(struct intel_dp *intel_dp)
 	pps_init_timestamps(intel_dp);
 
 	with_intel_pps_lock(intel_dp, wakeref) {
-		if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
-			vlv_initial_power_sequencer_setup(intel_dp);
+		pps_initial_setup(intel_dp);
 
 		pps_init_delays(intel_dp);
 		pps_init_registers(intel_dp, false);
 		pps_vdd_init(intel_dp);
 	}
+}
+
+static void pps_init_late(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct intel_connector *connector = intel_dp->attached_connector;
+
+	if (!IS_GEMINILAKE(i915) && !IS_BROXTON(i915))
+		return;
+
+	drm_WARN(&i915->drm, connector->panel.vbt.backlight.controller >= 0 &&
+		 intel_dp->pps.pps_idx != connector->panel.vbt.backlight.controller,
+		 "[ENCODER:%d:%s] power sequencer mismatch: %d (initial) vs. %d (VBT)\n",
+		 encoder->base.base.id, encoder->base.name,
+		 intel_dp->pps.pps_idx, connector->panel.vbt.backlight.controller);
+
+	if (connector->panel.vbt.backlight.controller >= 0)
+		intel_dp->pps.pps_idx = connector->panel.vbt.backlight.controller;
 }
 
 void intel_pps_init_late(struct intel_dp *intel_dp)
@@ -1453,6 +1527,8 @@ void intel_pps_init_late(struct intel_dp *intel_dp)
 
 	with_intel_pps_lock(intel_dp, wakeref) {
 		/* Reinit delays after per-panel info has been parsed from VBT */
+		pps_init_late(intel_dp);
+
 		memset(&intel_dp->pps.pps_delays, 0, sizeof(intel_dp->pps.pps_delays));
 		pps_init_delays(intel_dp);
 		pps_init_registers(intel_dp, false);
