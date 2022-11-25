@@ -5694,6 +5694,13 @@ int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 		mlx5e_fs_set_state_destroy(priv->fs,
 					   !test_bit(MLX5E_STATE_DESTROYING, &priv->state));
 
+	/* Validate the max_wqe_size_sq capability. */
+	if (WARN_ON_ONCE(mlx5e_get_max_sq_wqebbs(priv->mdev) < MLX5E_MAX_TX_WQEBBS)) {
+		mlx5_core_warn(priv->mdev, "MLX5E: Max SQ WQEBBs firmware capability: %u, needed %lu\n",
+			       mlx5e_get_max_sq_wqebbs(priv->mdev), MLX5E_MAX_TX_WQEBBS);
+		return -EIO;
+	}
+
 	/* max number of channels may have changed */
 	max_nch = mlx5e_calc_max_nch(priv->mdev, priv->netdev, profile);
 	if (priv->channels.params.num_channels > max_nch) {

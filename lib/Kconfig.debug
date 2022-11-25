@@ -395,12 +395,12 @@ endif # DEBUG_INFO
 config FRAME_WARN
 	int "Warn for stack frames larger than"
 	range 0 8192
+	default 0 if KMSAN
 	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
 	default 2048 if PARISC
 	default 1536 if (!64BIT && XTENSA)
 	default 1024 if !64BIT
 	default 2048 if 64BIT
-	default 0 if KMSAN
 	help
 	  Tell the compiler to warn at build time for stack frames larger than this.
 	  Setting this too low will cause a lot of warnings.
@@ -2240,6 +2240,10 @@ config TEST_UUID
 
 config TEST_XARRAY
 	tristate "Test the XArray code at runtime"
+
+config TEST_MAPLE_TREE
+	select DEBUG_MAPLE_TREE
+	tristate "Test the Maple Tree code at runtime"
 
 config TEST_RHASHTABLE
 	tristate "Perform selftest on resizable hash table"

@@ -3796,9 +3796,11 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 			       const char *function,
 			       unsigned int line, int errno, bool first_hit);
 
+bool __cold abort_should_print_stack(int errno);
+
 /*
  * Call btrfs_abort_transaction as early as possible when an error condition is
- * detected, that way the exact line number is reported.
+ * detected, that way the exact stack trace is reported for some errors.
  */
 #define btrfs_abort_transaction(trans, errno)		\
 do {								\
@@ -3807,10 +3809,11 @@ do {								\
 	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
 			&((trans)->fs_info->fs_state))) {	\
 		first = true;					\
-		if ((errno) != -EIO && (errno) != -EROFS) {		\
-			WARN(1, KERN_DEBUG				\
+		if (WARN(abort_should_print_stack(errno), 	\
+			KERN_DEBUG				\
 			"BTRFS: Transaction aborted (error %d)\n",	\
-			(errno));					\
+			(errno))) {					\
+			/* Stack trace printed. */			\
 		} else {						\
 			btrfs_debug((trans)->fs_info,			\
 				    "Transaction aborted (error %d)", \
