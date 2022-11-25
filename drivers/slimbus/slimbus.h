@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2011-2017, The Linux Foundation
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DRIVERS_SLIMBUS_H
 #define _DRIVERS_SLIMBUS_H
+#include <linux/ipc_logging.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
@@ -87,6 +89,37 @@
 #define SLIM_LA_MANAGER 0xFF
 
 #define SLIM_MAX_TIDS			256
+
+void __slimbus_dbg(const char *func, const char *fmt, ...);
+#define slimbus_dbg(fmt, ...)			\
+	__slimbus_dbg(__func__,			\
+		fmt, ##__VA_ARGS__)		\
+
+
+/* slimbus supported frequency values */
+#define	SLIM_FREQ_441	44100
+#define	SLIM_FREQ_882	88200
+
+/* slimbus base frequency values */
+#define	SLIM_BASE_FREQ_11	11025
+#define	SLIM_BASE_FREQ_4	4000
+
+/**
+ * This is Workaround implementation to avoid redzone overwritten corruption
+ * causing by ngd child device name change in BT driver, changed device name
+ * must be having the same size according to the device name allocated in
+ * slimbus driver.
+ * Adding EXTRA_CHAR to support the name change as expected name change in
+ * BT driver is not possible due to dependent drivers.
+ */
+#define BT_WAR
+
+#ifdef BT_WAR
+#define EXTRA_CHAR "   "
+#else
+#define EXTRA_CHAR ""
+#endif
+
 /**
  * struct slim_framer - Represents SLIMbus framer.
  * Every controller may have multiple framers. There is 1 active framer device
@@ -295,6 +328,7 @@ struct slim_port {
  *	Table 47 of SLIMbus 2.0 specs.
  * @SLIM_PROTO_ISO: Isochronous Protocol, no flow control as data rate match
  *		channel rate flow control embedded in the data.
+ * @SLIM_RESERVED: Reserved protocol bit specific to satellite driver.
  * @SLIM_PROTO_PUSH: Pushed Protocol, includes flow control, Used to carry
  *		data whose rate	is equal to, or lower than the channel rate.
  * @SLIM_PROTO_PULL: Pulled Protocol, similar usage as pushed protocol
@@ -307,6 +341,7 @@ struct slim_port {
  */
 enum slim_transport_protocol {
 	SLIM_PROTO_ISO = 0,
+	SLIM_RESERVED,
 	SLIM_PROTO_PUSH,
 	SLIM_PROTO_PULL,
 	SLIM_PROTO_LOCKED,
@@ -314,6 +349,18 @@ enum slim_transport_protocol {
 	SLIM_PROTO_ASYNC_HALF_DUP,
 	SLIM_PROTO_EXT_SMPLX,
 	SLIM_PROTO_EXT_HALF_DUP,
+};
+
+/*
+ * enum slim_ch_control: Channel control.
+ * Activate will schedule channel and/or group of channels in the TDM frame.
+ * Suspend will keep the schedule but data-transfer won't happen.
+ * Remove will remove the channel/group from the TDM frame.
+ */
+enum slim_ch_control {
+	SLIM_CH_ACTIVATE,
+	SLIM_CH_SUSPEND,
+	SLIM_CH_REMOVE,
 };
 
 /**
@@ -420,7 +467,76 @@ struct slim_controller {
 	int		(*enable_stream)(struct slim_stream_runtime *rt);
 	int		(*disable_stream)(struct slim_stream_runtime *rt);
 	int			(*wakeup)(struct slim_controller *ctrl);
+	struct mutex            stream_lock;
 };
+
+/* IPC logging stuff */
+#define IPC_SLIMBUS_LOG_PAGES 10
+
+/* Log levels */
+enum {
+	FATAL_LEV = 0U,
+	ERR_LEV = 1U,
+	WARN_LEV = 2U,
+	INFO_LEV = 3U,
+	DBG_LEV = 4U,
+};
+
+/* Default IPC log level INFO */
+#define SLIM_DBG(dev, x...) do { \
+	pr_debug(x); \
+	slimbus_dbg(x); \
+	if (dev->ipc_log_mask >= DBG_LEV) { \
+		ipc_log_string(dev->ipc_slimbus_log, x); \
+	} \
+	if (dev->ipc_log_mask == FATAL_LEV) { \
+		ipc_log_string(dev->ipc_slimbus_log_err, x); \
+	} \
+} while (0)
+
+#define SLIM_INFO(dev, x...) do { \
+	pr_debug(x); \
+	slimbus_dbg(x); \
+	if (dev->ipc_log_mask >= INFO_LEV) {\
+		ipc_log_string(dev->ipc_slimbus_log, x); \
+	} \
+	if (dev->ipc_log_mask == FATAL_LEV) { \
+		ipc_log_string(dev->ipc_slimbus_log_err, x); \
+	} \
+} while (0)
+
+/* warnings and errors show up on console always */
+#define SLIM_WARN(dev, x...) do { \
+	slimbus_dbg(x); \
+	if (dev->ipc_log_mask >= WARN_LEV) { \
+		pr_warn(x); \
+		ipc_log_string(dev->ipc_slimbus_log, x); \
+	} \
+	if (dev->ipc_log_mask == FATAL_LEV) { \
+		ipc_log_string(dev->ipc_slimbus_log_err, x); \
+	} \
+} while (0)
+
+/* ERROR condition in the driver sets the ipc_log_mask
+ * to ERR_FATAL level, so that this message can be seen
+ * in IPC logging. Further errors continue to log on the error IPC logging.
+ */
+#define SLIM_ERR(dev, x...) do { \
+	slimbus_dbg(x); \
+	if (dev->ipc_log_mask >= ERR_LEV) { \
+		pr_err(x); \
+		ipc_log_string(dev->ipc_slimbus_log, x); \
+		dev->default_ipc_log_mask = dev->ipc_log_mask; \
+		dev->ipc_log_mask = FATAL_LEV; \
+	} \
+	if (dev->ipc_log_mask == FATAL_LEV) { \
+		ipc_log_string(dev->ipc_slimbus_log_err, x); \
+	} \
+} while (0)
+
+#define SLIM_RST_LOGLVL(dev) { \
+	dev->ipc_log_mask = dev->default_ipc_log_mask; \
+}
 
 int slim_device_report_present(struct slim_controller *ctrl,
 			       struct slim_eaddr *e_addr, u8 *laddr);

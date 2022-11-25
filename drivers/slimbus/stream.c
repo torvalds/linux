@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018, Linaro Limited
+// Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -46,42 +47,6 @@ static const struct segdist_code {
 	{192,	8,	0xc08,	 0x007},
 	{364,	4,	0xc04,	 0x003},
 	{768,	2,	0xc02,	 0x001},
-};
-
-/*
- * Presence Rate table for all Natural Frequencies
- * The Presence rate of a constant bitrate stream is mean flow rate of the
- * stream expressed in occupied Segments of that Data Channel per second.
- * Table 66 from SLIMbus 2.0 Specs
- *
- * Index of the table corresponds to Presence rate code for the respective rate
- * in the table.
- */
-static const int slim_presence_rate_table[] = {
-	0, /* Not Indicated */
-	12000,
-	24000,
-	48000,
-	96000,
-	192000,
-	384000,
-	768000,
-	0, /* Reserved */
-	110250,
-	220500,
-	441000,
-	882000,
-	176400,
-	352800,
-	705600,
-	4000,
-	8000,
-	16000,
-	32000,
-	64000,
-	128000,
-	256000,
-	512000,
 };
 
 /**
@@ -179,14 +144,49 @@ static int slim_deactivate_remove_channel(struct slim_stream_runtime *stream,
 
 static int slim_get_prate_code(int rate)
 {
-	int i;
+	int ratem, ratefam, pr, exp = 0;
+	bool done = false, exact = true;
 
-	for (i = 0; i < ARRAY_SIZE(slim_presence_rate_table); i++) {
-		if (rate == slim_presence_rate_table[i])
-			return i;
+	ratem = ((rate == SLIM_FREQ_441) || (rate == SLIM_FREQ_882)) ?
+			(rate/SLIM_BASE_FREQ_11) : (rate/SLIM_BASE_FREQ_4);
+
+	ratefam = ((rate == SLIM_FREQ_441) || (rate == SLIM_FREQ_882)) ?
+			2 : 1;
+
+	while (!done) {
+		while ((ratem & 0x1) != 0x1) {
+			ratem >>= 1;
+			exp++;
+		}
+		if (ratem > 3) {
+			ratem++;
+			exact = false;
+		} else {
+			done = true;
+		}
 	}
 
-	return -EINVAL;
+	if (ratefam == 1) {
+		if (ratem == 1) {
+			pr = 0x10;
+		} else {
+			pr = 0;
+			exp++;
+		}
+	} else {
+		pr = 8;
+		exp++;
+	}
+
+	if (exp <= 7) {
+		pr |= exp;
+		if (exact)
+			pr |= 0x80;
+	} else {
+		pr = 0;
+	}
+
+	return pr;
 }
 
 /**
@@ -202,10 +202,16 @@ static int slim_get_prate_code(int rate)
 int slim_stream_prepare(struct slim_stream_runtime *rt,
 			struct slim_stream_config *cfg)
 {
-	struct slim_controller *ctrl = rt->dev->ctrl;
+	struct slim_controller *ctrl;
 	struct slim_port *port;
 	int num_ports, i, port_id;
 
+	if (!rt || !cfg) {
+		pr_err("%s: Stream or cfg is NULL, Check from client side\n", __func__);
+		return -EINVAL;
+	}
+
+	ctrl = rt->dev->ctrl;
 	if (rt->ports) {
 		dev_err(&rt->dev->dev, "Stream already Prepared\n");
 		return -EINVAL;
@@ -351,17 +357,27 @@ int slim_stream_enable(struct slim_stream_runtime *stream)
 {
 	DEFINE_SLIM_BCAST_TXN(txn, SLIM_MSG_MC_BEGIN_RECONFIGURATION,
 				3, SLIM_LA_MANAGER, NULL);
-	struct slim_controller *ctrl = stream->dev->ctrl;
+	struct slim_controller *ctrl;
 	int ret, i;
 
+	if (!stream) {
+		pr_err("%s: Stream is NULL, Check from client side\n", __func__);
+		return -EINVAL;
+	}
+
+	ctrl = stream->dev->ctrl;
 	if (ctrl->enable_stream) {
+		mutex_lock(&ctrl->stream_lock);
 		ret = ctrl->enable_stream(stream);
-		if (ret)
+		if (ret) {
+			mutex_unlock(&ctrl->stream_lock);
 			return ret;
+		}
 
 		for (i = 0; i < stream->num_ports; i++)
 			stream->ports[i].ch.state = SLIM_CH_STATE_ACTIVE;
 
+		mutex_unlock(&ctrl->stream_lock);
 		return ret;
 	}
 
@@ -404,11 +420,29 @@ int slim_stream_disable(struct slim_stream_runtime *stream)
 {
 	DEFINE_SLIM_BCAST_TXN(txn, SLIM_MSG_MC_BEGIN_RECONFIGURATION,
 				3, SLIM_LA_MANAGER, NULL);
-	struct slim_controller *ctrl = stream->dev->ctrl;
+	struct slim_controller *ctrl;
 	int ret, i;
 
-	if (ctrl->disable_stream)
-		ctrl->disable_stream(stream);
+	if (!stream) {
+		pr_err("%s: Stream is NULL, Check from client side\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!stream->ports || !stream->num_ports) {
+		pr_err("%s: Stream port is NULL %d\n", __func__, stream->num_ports);
+		return -EINVAL;
+	}
+
+	ctrl = stream->dev->ctrl;
+	if (ctrl->disable_stream) {
+		mutex_lock(&ctrl->stream_lock);
+		ret = ctrl->disable_stream(stream);
+		if (ret) {
+			mutex_unlock(&ctrl->stream_lock);
+			return ret;
+		}
+		mutex_unlock(&ctrl->stream_lock);
+	}
 
 	ret = slim_do_transfer(ctrl, &txn);
 	if (ret)
@@ -437,6 +471,16 @@ EXPORT_SYMBOL_GPL(slim_stream_disable);
 int slim_stream_unprepare(struct slim_stream_runtime *stream)
 {
 	int i;
+
+	if (!stream) {
+		pr_err("%s: Stream is NULL, Check from client side\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!stream->ports || !stream->num_ports) {
+		pr_err("%s: Stream port is NULL %d\n", __func__, stream->num_ports);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < stream->num_ports; i++)
 		slim_disconnect_port(stream, &stream->ports[i]);
@@ -507,8 +551,14 @@ EXPORT_SYMBOL(slim_stream_unprepare_disconnect_port);
  */
 int slim_stream_free(struct slim_stream_runtime *stream)
 {
-	struct slim_device *sdev = stream->dev;
+	struct slim_device *sdev;
 
+	if (!stream) {
+		pr_err("%s: Stream is NULL, Check from client side\n", __func__);
+		return -EINVAL;
+	}
+
+	sdev = stream->dev;
 	spin_lock(&sdev->stream_list_lock);
 	list_del(&stream->node);
 	spin_unlock(&sdev->stream_list_lock);
