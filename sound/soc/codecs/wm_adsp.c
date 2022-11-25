@@ -19,6 +19,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <sound/core.h>
@@ -419,16 +420,21 @@ static int wm_coeff_tlv_put(struct snd_kcontrol *kctl,
 		(struct soc_bytes_ext *)kctl->private_value;
 	struct wm_coeff_ctl *ctl = bytes_ext_to_ctl(bytes_ext);
 	struct cs_dsp_coeff_ctl *cs_ctl = ctl->cs_ctl;
+	void *scratch;
 	int ret = 0;
 
-	mutex_lock(&cs_ctl->dsp->pwr_lock);
+	scratch = vmalloc(size);
+	if (!scratch)
+		return -ENOMEM;
 
-	if (copy_from_user(cs_ctl->cache, bytes, size))
+	if (copy_from_user(scratch, bytes, size)) {
 		ret = -EFAULT;
-	else
-		ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, cs_ctl->cache, size);
-
-	mutex_unlock(&cs_ctl->dsp->pwr_lock);
+	} else {
+		mutex_lock(&cs_ctl->dsp->pwr_lock);
+		ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, scratch, size);
+		mutex_unlock(&cs_ctl->dsp->pwr_lock);
+	}
+	vfree(scratch);
 
 	return ret;
 }
@@ -455,7 +461,10 @@ static int wm_coeff_put_acked(struct snd_kcontrol *kctl,
 
 	mutex_unlock(&cs_ctl->dsp->pwr_lock);
 
-	return ret;
+	if (ret < 0)
+		return ret;
+
+	return 1;
 }
 
 static int wm_coeff_get(struct snd_kcontrol *kctl,
@@ -682,10 +691,10 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 	int ret;
 
 	ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, buf, len);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
-	if (cs_ctl->flags & WMFW_CTL_FLAG_SYS)
+	if (ret == 0 || (cs_ctl->flags & WMFW_CTL_FLAG_SYS))
 		return 0;
 
 	ctl = cs_ctl->priv;
