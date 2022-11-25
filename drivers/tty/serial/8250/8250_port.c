@@ -1293,21 +1293,18 @@ static void autoconfig(struct uart_8250_port *up)
 
 	serial_out(up, UART_FCR, UART_FCR_ENABLE_FIFO);
 
-	/* Assign this as it is to truncate any bits above 7.  */
-	scratch = serial_in(up, UART_IIR);
-
-	switch (scratch >> 6) {
-	case 0:
+	switch (serial_in(up, UART_IIR) & UART_IIR_FIFO_ENABLED) {
+	case UART_IIR_FIFO_ENABLED_8250:
 		autoconfig_8250(up);
 		break;
-	case 1:
-		port->type = PORT_UNKNOWN;
-		break;
-	case 2:
+	case UART_IIR_FIFO_ENABLED_16550:
 		port->type = PORT_16550;
 		break;
-	case 3:
+	case UART_IIR_FIFO_ENABLED_16550A:
 		autoconfig_16550a(up);
+		break;
+	default:
+		port->type = PORT_UNKNOWN;
 		break;
 	}
 
