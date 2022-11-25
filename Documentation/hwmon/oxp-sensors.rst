@@ -12,9 +12,19 @@ Description:
 One X Player devices from One Netbook provide fan readings and fan control
 through its Embedded Controller.
 
-Currently only supports AMD boards from the One X Player lineup. Intel boards
-could be supported if we could figure out the EC registers and values to write
-to since the EC layout and model is different.
+Currently only supports AMD boards from the One X Player and AOK ZOE lineup.
+Intel boards could be supported if we could figure out the EC registers and
+values to write to since the EC layout and model is different.
+
+Supported devices
+-----------------
+
+Currently the driver supports the following handhelds:
+
+ - AOK ZOE A1
+ - OneXPlayer AMD
+ - OneXPlayer mini AMD
+ - OneXPlayer mini AMD PRO
 
 Sysfs entries
 -------------
