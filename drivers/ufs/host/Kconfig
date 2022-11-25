@@ -79,6 +79,15 @@ config SCSI_UFS_QCOM
 	  Select this if you have UFS controller on QCOM chipset.
 	  If unsure, say N.
 
+config SCSI_UFS_CRYPTO_QTI
+	tristate "Vendor specific UFS crypto engine support"
+	depends on SCSI_UFS_CRYPTO
+	help
+	  Enable Vendor Crypto Engine Support in UFS
+	  Enabling this allows kernel to use UFS crypto operations defined
+	  and implemented by QTI. This is mainly required for implementing
+	  storage encryption using wrapped keys.
+
 config SCSI_UFS_MEDIATEK
 	tristate "Mediatek specific hooks to UFS controller platform driver"
 	depends on SCSI_UFSHCD_PLATFORM && ARCH_MEDIATEK

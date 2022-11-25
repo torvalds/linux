@@ -478,6 +478,7 @@ struct ufs_qcom_host {
 	void __iomem *ice_hwkm_mmio;
 #endif
 
+	bool reset_in_progress;
 	u32 dev_ref_clk_en_mask;
 
 	/* Bitmask for enabling debug prints */

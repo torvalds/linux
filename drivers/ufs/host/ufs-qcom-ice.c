@@ -3,13 +3,17 @@
  * Qualcomm ICE (Inline Crypto Engine) support.
  *
  * Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright 2019 Google LLC
  */
 
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/qcom_scm.h>
+#include <linux/qtee_shmbridge.h>
 
+#include <ufs/ufshcd-crypto.h>
+#include <linux/crypto-qti-common.h>
 #include "ufs-qcom.h"
 
 #define AES_256_XTS_KEY_SIZE			64
@@ -72,7 +76,7 @@ static bool qcom_ice_supported(struct ufs_qcom_host *host)
 	int step = regval & 0xFFFF;
 
 	/* For now this driver only supports ICE version 3. */
-	if (major != 3) {
+	if (major < 3) {
 		dev_warn(dev, "Unsupported ICE version: v%d.%d.%d\n",
 			 major, minor, step);
 		return false;
@@ -97,15 +101,18 @@ int ufs_qcom_ice_init(struct ufs_qcom_host *host)
 	struct ufs_hba *hba = host->hba;
 	struct device *dev = hba->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct resource *res;
+	struct resource *ice_base_res;
+#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+	struct resource *ice_hwkm_res;
+#endif
 	int err;
 
 	if (!(ufshcd_readl(hba, REG_CONTROLLER_CAPABILITIES) &
 	      MASK_CRYPTO_SUPPORT))
 		return 0;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ice");
-	if (!res) {
+	ice_base_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ufs_ice");
+	if (!ice_base_res) {
 		dev_warn(dev, "ICE registers not found\n");
 		goto disable;
 	}
@@ -115,12 +122,26 @@ int ufs_qcom_ice_init(struct ufs_qcom_host *host)
 		goto disable;
 	}
 
-	host->ice_mmio = devm_ioremap_resource(dev, res);
+	host->ice_mmio = devm_ioremap_resource(dev, ice_base_res);
 	if (IS_ERR(host->ice_mmio)) {
 		err = PTR_ERR(host->ice_mmio);
 		dev_err(dev, "Failed to map ICE registers; err=%d\n", err);
 		return err;
 	}
+
+#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+	ice_hwkm_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ufs_ice_hwkm");
+	if (!ice_hwkm_res) {
+		dev_warn(dev, "ICE HWKM registers not found\n");
+		goto disable;
+	}
+	host->ice_hwkm_mmio = devm_ioremap_resource(dev, ice_hwkm_res);
+	if (IS_ERR(host->ice_hwkm_mmio)) {
+		err = PTR_ERR(host->ice_hwkm_mmio);
+		dev_err(dev, "Failed to map ICE HWKM registers; err=%d\n", err);
+		return err;
+	}
+#endif
 
 	if (!qcom_ice_supported(host))
 		goto disable;
@@ -142,7 +163,7 @@ static void qcom_ice_low_power_mode_enable(struct ufs_qcom_host *host)
 	 * Enable low power mode sequence
 	 * [0]-0, [1]-0, [2]-0, [3]-E, [4]-0, [5]-0, [6]-0, [7]-0
 	 */
-	regval |= 0x7000;
+	regval |= 0xF000;
 	qcom_ice_writel(host, regval, QCOM_ICE_REG_ADVANCED_CONTROL);
 }
 
@@ -152,7 +173,7 @@ static void qcom_ice_optimization_enable(struct ufs_qcom_host *host)
 
 	/* ICE Optimizations Enable Sequence */
 	regval = qcom_ice_readl(host, QCOM_ICE_REG_ADVANCED_CONTROL);
-	regval |= 0xD807100;
+	regval |= 0xD80F100;
 	/* ICE HPG requires delay before writing */
 	udelay(5);
 	qcom_ice_writel(host, regval, QCOM_ICE_REG_ADVANCED_CONTROL);
@@ -170,6 +191,10 @@ int ufs_qcom_ice_enable(struct ufs_qcom_host *host)
 
 void ufs_qcom_ice_disable(struct ufs_qcom_host *host)
 {
+	if (!(host->hba->caps & UFSHCD_CAP_CRYPTO))
+		return;
+	if (host->hba->quirks & UFSHCD_QUIRK_CUSTOM_CRYPTO_PROFILE)
+		return crypto_qti_disable();
 }
 
 /* Poll until all BIST bits are reset */
@@ -218,6 +243,11 @@ int ufs_qcom_ice_program_key(struct ufs_hba *hba,
 	} key;
 	int i;
 	int err;
+	struct qtee_shm shm;
+
+	err = qtee_shmbridge_allocate_shm(AES_256_XTS_KEY_SIZE, &shm);
+	if (err)
+		return -ENOMEM;
 
 	if (!(cfg->config_enable & UFS_CRYPTO_CONFIGURATION_ENABLE))
 		return qcom_scm_ice_invalidate_key(slot);
@@ -241,9 +271,20 @@ int ufs_qcom_ice_program_key(struct ufs_hba *hba,
 	for (i = 0; i < ARRAY_SIZE(key.words); i++)
 		__cpu_to_be32s(&key.words[i]);
 
-	err = qcom_scm_ice_set_key(slot, key.bytes, AES_256_XTS_KEY_SIZE,
+	memcpy(shm.vaddr, key.bytes, AES_256_XTS_KEY_SIZE);
+	qtee_shmbridge_flush_shm_buf(&shm);
+
+	err = qcom_scm_config_set_ice_key(slot, shm.paddr,
+					AES_256_XTS_KEY_SIZE,
 				   QCOM_SCM_ICE_CIPHER_AES_256_XTS,
-				   cfg->data_unit_size);
+					cfg->data_unit_size, UFS_CE);
+	if (err)
+		pr_err("%s:SCM call Error: 0x%x slot %d\n",
+				__func__, err, slot);
+
+	qtee_shmbridge_inv_shm_buf(&shm);
+	qtee_shmbridge_free_shm(&shm);
 	memzero_explicit(&key, sizeof(key));
+
 	return err;
 }
