@@ -561,6 +561,7 @@ static bool mptcp_supported_sockopt(int level, int optname)
 		case TCP_INQ:
 		case TCP_FASTOPEN:
 		case TCP_FASTOPEN_CONNECT:
+		case TCP_FASTOPEN_KEY:
 		case TCP_FASTOPEN_NO_COOKIE:
 			return true;
 		}
@@ -569,9 +570,6 @@ static bool mptcp_supported_sockopt(int level, int optname)
 
 		/* TCP_REPAIR, TCP_REPAIR_QUEUE, TCP_QUEUE_SEQ, TCP_REPAIR_OPTIONS,
 		 * TCP_REPAIR_WINDOW are not supported, better avoid this mess
-		 */
-		/* TCP_FASTOPEN_KEY is not supported because
-		 * fastopen for the listener side is currently unsupported
 		 */
 	}
 	return false;
@@ -804,6 +802,7 @@ static int mptcp_setsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
 		return 0;
 	case TCP_FASTOPEN:
 	case TCP_FASTOPEN_CONNECT:
+	case TCP_FASTOPEN_KEY:
 	case TCP_FASTOPEN_NO_COOKIE:
 		return mptcp_setsockopt_first_sf_only(msk, SOL_TCP, optname,
 						      optval, optlen);
@@ -1170,6 +1169,7 @@ static int mptcp_getsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
 	case TCP_DEFER_ACCEPT:
 	case TCP_FASTOPEN:
 	case TCP_FASTOPEN_CONNECT:
+	case TCP_FASTOPEN_KEY:
 	case TCP_FASTOPEN_NO_COOKIE:
 		return mptcp_getsockopt_first_sf_only(msk, SOL_TCP, optname,
 						      optval, optlen);
