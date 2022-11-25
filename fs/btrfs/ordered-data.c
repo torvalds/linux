@@ -761,11 +761,11 @@ int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 	struct btrfs_ordered_extent *ordered;
 
 	if (start + len < start) {
-		orig_end = INT_LIMIT(loff_t);
+		orig_end = OFFSET_MAX;
 	} else {
 		orig_end = start + len - 1;
-		if (orig_end > INT_LIMIT(loff_t))
-			orig_end = INT_LIMIT(loff_t);
+		if (orig_end > OFFSET_MAX)
+			orig_end = OFFSET_MAX;
 	}
 
 	/* start IO across the range first to instantiate any delalloc
