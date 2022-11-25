@@ -3515,8 +3515,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 		q = next_mnt(q, new);
 		if (!q)
 			break;
+		// an mntns binding we'd skipped?
 		while (p->mnt.mnt_root != q->mnt.mnt_root)
-			p = next_mnt(p, old);
+			p = next_mnt(skip_mnt_tree(p), old);
 	}
 	namespace_unlock();
 
