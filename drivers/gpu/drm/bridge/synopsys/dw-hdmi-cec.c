@@ -75,6 +75,7 @@ struct dw_hdmi_cec {
 	int wake_irq;
 	bool wake_en;
 	bool standby_en;
+	struct mutex wake_lock;
 };
 
 static void dw_hdmi_write(struct dw_hdmi_cec *cec, u8 val, int offset)
@@ -277,11 +278,20 @@ static irqreturn_t dw_hdmi_cec_wake_thread(int irq, void *data)
 	struct cec_adapter *adap = data;
 	struct dw_hdmi_cec *cec = cec_get_drvdata(adap);
 
+	mutex_lock(&cec->wake_lock);
+
+	if (!cec->standby_en) {
+		mutex_unlock(&cec->wake_lock);
+		return IRQ_HANDLED;
+	}
+	cec->standby_en = false;
+
 	dev_dbg(cec->dev, "wakeup opcode:0x%x\n", dw_hdmi_read(cec, HDMI_CEC_RX_DATA1));
 	input_event(cec->devinput, EV_KEY, KEY_POWER, 1);
 	input_sync(cec->devinput);
 	input_event(cec->devinput, EV_KEY, KEY_POWER, 0);
 	input_sync(cec->devinput);
+	mutex_unlock(&cec->wake_lock);
 
 	return IRQ_HANDLED;
 }
@@ -314,13 +324,20 @@ static int rockchip_hdmi_cec_input_init(struct dw_hdmi_cec *cec)
 static long cec_standby(struct cec_adapter *adap, __u8 __user *parg)
 {
 	u8 en;
+	int ret;
 	struct dw_hdmi_cec *cec = cec_get_drvdata(adap);
 
-	if (copy_from_user(&en, parg, sizeof(en)))
+	mutex_lock(&cec->wake_lock);
+	if (copy_from_user(&en, parg, sizeof(en))) {
+		mutex_unlock(&cec->wake_lock);
 		return -EFAULT;
+	}
 
 	cec->standby_en = !en;
-	return adap->ops->adap_enable(adap, en);
+	ret = adap->ops->adap_enable(adap, en);
+	mutex_unlock(&cec->wake_lock);
+
+	return ret;
 }
 
 static long cec_func_en(struct dw_hdmi_cec *cec, int __user *parg)
@@ -378,6 +395,28 @@ static const struct file_operations dw_hdmi_cec_file_operations = {
 	.owner = THIS_MODULE,
 };
 
+void dw_hdmi_hpd_wake_up(struct platform_device *pdev)
+{
+	struct dw_hdmi_cec *cec = platform_get_drvdata(pdev);
+
+	mutex_lock(&cec->wake_lock);
+
+	if (!cec->standby_en) {
+		mutex_unlock(&cec->wake_lock);
+		return;
+	}
+	cec->standby_en = false;
+
+	dw_hdmi_write(cec, 0x02, HDMI_IH_MUTE);
+
+	input_event(cec->devinput, EV_KEY, KEY_POWER, 1);
+	input_sync(cec->devinput);
+	input_event(cec->devinput, EV_KEY, KEY_POWER, 0);
+	input_sync(cec->devinput);
+	mutex_unlock(&cec->wake_lock);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_hpd_wake_up);
+
 static int dw_hdmi_cec_probe(struct platform_device *pdev)
 {
 	struct dw_hdmi_cec_data *data = dev_get_platdata(&pdev->dev);
@@ -401,6 +440,8 @@ static int dw_hdmi_cec_probe(struct platform_device *pdev)
 	cec->wake_irq = data->wake_irq;
 	cec->ops = data->ops;
 	cec->hdmi = data->hdmi;
+
+	mutex_init(&cec->wake_lock);
 
 	platform_set_drvdata(pdev, cec);
 

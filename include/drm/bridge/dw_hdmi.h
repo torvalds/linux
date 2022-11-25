@@ -329,5 +329,6 @@ int dw_hdmi_qp_set_plugged_cb(struct dw_hdmi_qp *hdmi, hdmi_codec_plugged_cb fn,
 void dw_hdmi_qp_set_output_type(struct dw_hdmi_qp *hdmi, u64 val);
 bool dw_hdmi_qp_get_output_whether_hdmi(struct dw_hdmi_qp *hdmi);
 int dw_hdmi_qp_get_output_type_cap(struct dw_hdmi_qp *hdmi);
+void dw_hdmi_set_hpd_wake(struct dw_hdmi *hdmi);
 
 #endif /* __IMX_HDMI_H__ */

@@ -3149,6 +3149,15 @@ int dw_hdmi_get_output_type_cap(struct dw_hdmi *hdmi)
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_get_output_type_cap);
 
+void dw_hdmi_set_hpd_wake(struct dw_hdmi *hdmi)
+{
+	if (!hdmi->cec)
+		return;
+
+	dw_hdmi_hpd_wake_up(hdmi->cec);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_set_hpd_wake);
+
 static void dw_hdmi_connector_force(struct drm_connector *connector)
 {
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,

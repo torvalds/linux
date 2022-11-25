@@ -21,4 +21,6 @@ struct dw_hdmi_cec_data {
 	int wake_irq;
 };
 
+void dw_hdmi_hpd_wake_up(struct platform_device *pdev);
+
 #endif
