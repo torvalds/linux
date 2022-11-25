@@ -28,6 +28,11 @@ static inline bool uart_lsr_tx_empty(u16 lsr)
 	return (lsr & UART_LSR_BOTH_EMPTY) == UART_LSR_BOTH_EMPTY;
 }
 
+#define UART_MSR_STATUS_BITS	(UART_MSR_DCD | \
+				 UART_MSR_RI | \
+				 UART_MSR_DSR | \
+				 UART_MSR_CTS)
+
 /*
  * Counters of the input lines (CTS, DSR, RI, CD) interrupts
  */
