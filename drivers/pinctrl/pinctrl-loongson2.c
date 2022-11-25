@@ -45,7 +45,7 @@ struct loongson2_pinctrl {
 	struct pinctrl_desc desc;
 	struct device_node *of_node;
 	spinlock_t lock;
-	void * __iomem reg_base;
+	void __iomem *reg_base;
 };
 
 struct loongson2_pmx_group {
@@ -202,7 +202,7 @@ static int loongson2_pmx_set_mux(struct pinctrl_dev *pcdev, unsigned int func_nu
 			      unsigned int group_num)
 {
 	struct loongson2_pinctrl *pctrl = pinctrl_dev_get_drvdata(pcdev);
-	void * __iomem reg = pctrl->reg_base +
+	void __iomem *reg = pctrl->reg_base +
 				loongson2_pmx_groups[group_num].reg;
 	unsigned int mux_bit = loongson2_pmx_groups[group_num].bit;
 	unsigned int val;
