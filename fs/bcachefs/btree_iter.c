@@ -2022,10 +2022,8 @@ struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos e
 		 */
 		if (!(iter->flags & BTREE_ITER_IS_EXTENTS))
 			iter_pos = k.k->p;
-		else if (bkey_gt(bkey_start_pos(k.k), iter->pos))
-			iter_pos = bkey_start_pos(k.k);
 		else
-			iter_pos = iter->pos;
+			iter_pos = bkey_max(iter->pos, bkey_start_pos(k.k));
 
 		if (bkey_gt(iter_pos, end)) {
 			bch2_btree_iter_set_pos(iter, end);
