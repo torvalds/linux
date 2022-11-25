@@ -490,7 +490,8 @@ static int __pkvm_cmp_mod_sec(const void *p1, const void *p2)
 	return s1->sec->start < s2->sec->start ? -1 : s1->sec->start > s2->sec->start;
 }
 
-int __pkvm_load_el2_module(struct pkvm_el2_module *mod, struct module *this)
+int __pkvm_load_el2_module(struct pkvm_el2_module *mod, struct module *this,
+			   unsigned long *token)
 {
 	struct pkvm_mod_sec_mapping secs_map[] = {
 		{ &mod->text, KVM_PGTABLE_PROT_R | KVM_PGTABLE_PROT_X },
@@ -529,6 +530,15 @@ int __pkvm_load_el2_module(struct pkvm_el2_module *mod, struct module *this)
 		module_put(this);
 		return -ENOMEM;
 	}
+
+	/*
+	 * The token can be used for other calls related to this module.
+	 * Conveniently the only information needed is this addr so let's use it
+	 * as an identifier.
+	 */
+	if (token)
+		*token = (unsigned long)hyp_va;
+
 	endrel = (void *)mod->relocs + mod->nr_relocs * sizeof(*endrel);
 	kvm_apply_hyp_module_relocations(start, hyp_va, mod->relocs, endrel);
 
