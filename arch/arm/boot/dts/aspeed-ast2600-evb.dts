@@ -1026,8 +1026,3 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 &rng {
 	status = "okay";
 };
-
-&video {
-	status = "okay";
-	memory-region = <&video_engine_memory>;
-};
