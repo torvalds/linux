@@ -724,7 +724,7 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 		if (match != MATCH_ERROR)
 			break;
 		/* otherwise fall-back to symbol-based comparison below */
-		__fallthrough;
+		fallthrough;
 	case CCKEY_FUNCTION:
 		if (node->ms.sym && cnode->ms.sym) {
 			/*
@@ -745,7 +745,7 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 			}
 		}
 		/* otherwise fall-back to IP-based comparison below */
-		__fallthrough;
+		fallthrough;
 	case CCKEY_ADDRESS:
 	default:
 		match = match_chain_dso_addresses(cnode->ms.map, cnode->ip, node->ms.map, node->ip);

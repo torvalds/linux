@@ -284,7 +284,7 @@ static int __ordered_events__flush(struct ordered_events *oe, enum oe_flush how,
 	switch (how) {
 	case OE_FLUSH__FINAL:
 		show_progress = true;
-		__fallthrough;
+		fallthrough;
 	case OE_FLUSH__TOP:
 		oe->next_flush = ULLONG_MAX;
 		break;

@@ -278,10 +278,10 @@ static void fix_escape_printf(struct strbuf *buf, const char *fmt, ...)
 						strbuf_addstr(buf, "\\n");
 						break;
 					case '\\':
-						__fallthrough;
+						fallthrough;
 					case '\"':
 						strbuf_addch(buf, '\\');
-						__fallthrough;
+						fallthrough;
 					default:
 						strbuf_addch(buf, s[s_pos]);
 						break;
