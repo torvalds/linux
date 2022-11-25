@@ -4541,11 +4541,11 @@ static int msm_pcie_get_vreg(struct msm_pcie_dev_t *pcie_dev)
 		PCIE_ERR(pcie_dev, "PCIe: RC%d: Failed to get %s GDSC-PHY:%ld\n",
 			 pcie_dev->rc_idx, pdev->name,
 			 PTR_ERR(pcie_dev->gdsc_phy));
-		if (PTR_ERR(pcie_dev->gdsc_phy) == -EPROBE_DEFER)
+		if (PTR_ERR(pcie_dev->gdsc_phy) == -EPROBE_DEFER) {
 			PCIE_DBG(pcie_dev, "PCIe: EPROBE_DEFER for %s GDSC-PHY\n",
 				pdev->name);
-		if (!pcie_dev->pcie_sm)
 			return PTR_ERR(pcie_dev->gdsc_phy);
+		}
 	}
 
 	return 0;
