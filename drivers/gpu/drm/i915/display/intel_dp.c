@@ -5224,7 +5224,17 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_bios_init_panel_early(dev_priv, &intel_connector->panel,
 				    encoder->devdata);
 
-	intel_pps_init(intel_dp);
+	if (!intel_pps_init(intel_dp)) {
+		drm_info(&dev_priv->drm,
+			 "[ENCODER:%d:%s] unusable PPS, disabling eDP\n",
+			 encoder->base.base.id, encoder->base.name);
+		/*
+		 * The BIOS may have still enabled VDD on the PPS even
+		 * though it's unusable. Make sure we turn it back off
+		 * and to release the power domain references/etc.
+		 */
+		goto out_vdd_off;
+	}
 
 	/* Cache DPCD and EDID for edp. */
 	has_dpcd = intel_edp_init_dpcd(intel_dp);

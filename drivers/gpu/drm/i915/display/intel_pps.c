@@ -327,6 +327,18 @@ static int intel_num_pps(struct drm_i915_private *i915)
 	return 1;
 }
 
+static bool intel_pps_is_valid(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	if (intel_dp->pps.pps_idx == 1 &&
+	    INTEL_PCH_TYPE(i915) >= PCH_ICP &&
+	    INTEL_PCH_TYPE(i915) < PCH_MTP)
+		return intel_de_read(i915, SOUTH_CHICKEN1) & ICP_SECOND_PPS_IO_SELECT;
+
+	return true;
+}
+
 static int
 bxt_initial_pps_idx(struct drm_i915_private *i915, pps_check check)
 {
@@ -340,7 +352,7 @@ bxt_initial_pps_idx(struct drm_i915_private *i915, pps_check check)
 	return -1;
 }
 
-static void
+static bool
 pps_initial_setup(struct intel_dp *intel_dp)
 {
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
@@ -351,7 +363,7 @@ pps_initial_setup(struct intel_dp *intel_dp)
 
 	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
 		vlv_initial_power_sequencer_setup(intel_dp);
-		return;
+		return true;
 	}
 
 	/* first ask the VBT */
@@ -377,13 +389,14 @@ pps_initial_setup(struct intel_dp *intel_dp)
 			    "[ENCODER:%d:%s] no initial power sequencer, assuming %d\n",
 			    encoder->base.base.id, encoder->base.name,
 			    intel_dp->pps.pps_idx);
-		return;
+	} else {
+		drm_dbg_kms(&i915->drm,
+			    "[ENCODER:%d:%s] initial power sequencer: %d\n",
+			    encoder->base.base.id, encoder->base.name,
+			    intel_dp->pps.pps_idx);
 	}
 
-	drm_dbg_kms(&i915->drm,
-		    "[ENCODER:%d:%s] initial power sequencer: %d\n",
-		    encoder->base.base.id, encoder->base.name,
-		    intel_dp->pps.pps_idx);
+	return intel_pps_is_valid(intel_dp);
 }
 
 void intel_pps_reset_all(struct drm_i915_private *dev_priv)
@@ -1504,9 +1517,10 @@ void intel_pps_encoder_reset(struct intel_dp *intel_dp)
 	}
 }
 
-void intel_pps_init(struct intel_dp *intel_dp)
+bool intel_pps_init(struct intel_dp *intel_dp)
 {
 	intel_wakeref_t wakeref;
+	bool ret;
 
 	intel_dp->pps.initializing = true;
 	INIT_DELAYED_WORK(&intel_dp->pps.panel_vdd_work, edp_panel_vdd_work);
@@ -1514,12 +1528,14 @@ void intel_pps_init(struct intel_dp *intel_dp)
 	pps_init_timestamps(intel_dp);
 
 	with_intel_pps_lock(intel_dp, wakeref) {
-		pps_initial_setup(intel_dp);
+		ret = pps_initial_setup(intel_dp);
 
 		pps_init_delays(intel_dp);
 		pps_init_registers(intel_dp, false);
 		pps_vdd_init(intel_dp);
 	}
+
+	return ret;
 }
 
 static void pps_init_late(struct intel_dp *intel_dp)
