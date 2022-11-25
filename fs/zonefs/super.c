@@ -155,48 +155,31 @@ void zonefs_update_stats(struct inode *inode, loff_t new_isize)
  * amount of readable data in the zone.
  */
 static loff_t zonefs_check_zone_condition(struct inode *inode,
-					  struct blk_zone *zone, bool warn,
-					  bool mount)
+					  struct blk_zone *zone)
 {
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
 
 	switch (zone->cond) {
 	case BLK_ZONE_COND_OFFLINE:
-		/*
-		 * Dead zone: make the inode immutable, disable all accesses
-		 * and set the file size to 0 (zone wp set to zone start).
-		 */
-		if (warn)
-			zonefs_warn(inode->i_sb, "inode %lu: offline zone\n",
-				    inode->i_ino);
-		inode->i_flags |= S_IMMUTABLE;
-		inode->i_mode &= ~0777;
-		zone->wp = zone->start;
+		zonefs_warn(inode->i_sb, "inode %lu: offline zone\n",
+			    inode->i_ino);
 		zi->i_flags |= ZONEFS_ZONE_OFFLINE;
 		return 0;
 	case BLK_ZONE_COND_READONLY:
 		/*
-		 * The write pointer of read-only zones is invalid. If such a
-		 * zone is found during mount, the file size cannot be retrieved
-		 * so we treat the zone as offline (mount == true case).
-		 * Otherwise, keep the file size as it was when last updated
-		 * so that the user can recover data. In both cases, writes are
-		 * always disabled for the zone.
+		 * The write pointer of read-only zones is invalid, so we cannot
+		 * determine the zone wpoffset (inode size). We thus keep the
+		 * zone wpoffset as is, which leads to an empty file
+		 * (wpoffset == 0) on mount. For a runtime error, this keeps
+		 * the inode size as it was when last updated so that the user
+		 * can recover data.
 		 */
-		if (warn)
-			zonefs_warn(inode->i_sb, "inode %lu: read-only zone\n",
-				    inode->i_ino);
-		inode->i_flags |= S_IMMUTABLE;
-		if (mount) {
-			zone->cond = BLK_ZONE_COND_OFFLINE;
-			inode->i_mode &= ~0777;
-			zone->wp = zone->start;
-			zi->i_flags |= ZONEFS_ZONE_OFFLINE;
-			return 0;
-		}
+		zonefs_warn(inode->i_sb, "inode %lu: read-only zone\n",
+			    inode->i_ino);
 		zi->i_flags |= ZONEFS_ZONE_READONLY;
-		inode->i_mode &= ~0222;
-		return i_size_read(inode);
+		if (zi->i_ztype == ZONEFS_ZTYPE_CNV)
+			return zi->i_max_size;
+		return zi->i_wpoffset;
 	case BLK_ZONE_COND_FULL:
 		/* The write pointer of full zones is invalid. */
 		return zi->i_max_size;
@@ -205,6 +188,30 @@ static loff_t zonefs_check_zone_condition(struct inode *inode,
 			return zi->i_max_size;
 		return (zone->wp - zone->start) << SECTOR_SHIFT;
 	}
+}
+
+/*
+ * Check a zone condition and adjust its inode access permissions for
+ * offline and readonly zones.
+ */
+static void zonefs_inode_update_mode(struct inode *inode)
+{
+	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+
+	if (zi->i_flags & ZONEFS_ZONE_OFFLINE) {
+		/* Offline zones cannot be read nor written */
+		inode->i_flags |= S_IMMUTABLE;
+		inode->i_mode &= ~0777;
+	} else if (zi->i_flags & ZONEFS_ZONE_READONLY) {
+		/* Readonly zones cannot be written */
+		inode->i_flags |= S_IMMUTABLE;
+		if (zi->i_flags & ZONEFS_ZONE_INIT_MODE)
+			inode->i_mode &= ~0777;
+		else
+			inode->i_mode &= ~0222;
+	}
+
+	zi->i_flags &= ~ZONEFS_ZONE_INIT_MODE;
 }
 
 struct zonefs_ioerr_data {
@@ -228,10 +235,9 @@ static int zonefs_io_error_cb(struct blk_zone *zone, unsigned int idx,
 	 * as there is no inconsistency between the inode size and the amount of
 	 * data writen in the zone (data_size).
 	 */
-	data_size = zonefs_check_zone_condition(inode, zone, true, false);
+	data_size = zonefs_check_zone_condition(inode, zone);
 	isize = i_size_read(inode);
-	if (zone->cond != BLK_ZONE_COND_OFFLINE &&
-	    zone->cond != BLK_ZONE_COND_READONLY &&
+	if (!(zi->i_flags & (ZONEFS_ZONE_READONLY | ZONEFS_ZONE_OFFLINE)) &&
 	    !err->write && isize == data_size)
 		return 0;
 
@@ -264,24 +270,22 @@ static int zonefs_io_error_cb(struct blk_zone *zone, unsigned int idx,
 	 * zone condition to read-only and offline respectively, as if the
 	 * condition was signaled by the hardware.
 	 */
-	if (zone->cond == BLK_ZONE_COND_OFFLINE ||
-	    sbi->s_mount_opts & ZONEFS_MNTOPT_ERRORS_ZOL) {
+	if ((zi->i_flags & ZONEFS_ZONE_OFFLINE) ||
+	    (sbi->s_mount_opts & ZONEFS_MNTOPT_ERRORS_ZOL)) {
 		zonefs_warn(sb, "inode %lu: read/write access disabled\n",
 			    inode->i_ino);
-		if (zone->cond != BLK_ZONE_COND_OFFLINE) {
-			zone->cond = BLK_ZONE_COND_OFFLINE;
-			data_size = zonefs_check_zone_condition(inode, zone,
-								false, false);
-		}
-	} else if (zone->cond == BLK_ZONE_COND_READONLY ||
-		   sbi->s_mount_opts & ZONEFS_MNTOPT_ERRORS_ZRO) {
+		if (!(zi->i_flags & ZONEFS_ZONE_OFFLINE))
+			zi->i_flags |= ZONEFS_ZONE_OFFLINE;
+		zonefs_inode_update_mode(inode);
+		data_size = 0;
+	} else if ((zi->i_flags & ZONEFS_ZONE_READONLY) ||
+		   (sbi->s_mount_opts & ZONEFS_MNTOPT_ERRORS_ZRO)) {
 		zonefs_warn(sb, "inode %lu: write access disabled\n",
 			    inode->i_ino);
-		if (zone->cond != BLK_ZONE_COND_READONLY) {
-			zone->cond = BLK_ZONE_COND_READONLY;
-			data_size = zonefs_check_zone_condition(inode, zone,
-								false, false);
-		}
+		if (!(zi->i_flags & ZONEFS_ZONE_READONLY))
+			zi->i_flags |= ZONEFS_ZONE_READONLY;
+		zonefs_inode_update_mode(inode);
+		data_size = isize;
 	} else if (sbi->s_mount_opts & ZONEFS_MNTOPT_ERRORS_RO &&
 		   data_size > isize) {
 		/* Do not expose garbage data */
@@ -295,8 +299,7 @@ static int zonefs_io_error_cb(struct blk_zone *zone, unsigned int idx,
 	 * close of the zone when the inode file is closed.
 	 */
 	if ((sbi->s_mount_opts & ZONEFS_MNTOPT_EXPLICIT_OPEN) &&
-	    (zone->cond == BLK_ZONE_COND_OFFLINE ||
-	     zone->cond == BLK_ZONE_COND_READONLY))
+	    (zi->i_flags & (ZONEFS_ZONE_READONLY | ZONEFS_ZONE_OFFLINE)))
 		zi->i_flags &= ~ZONEFS_ZONE_OPEN;
 
 	/*
@@ -378,6 +381,7 @@ static struct inode *zonefs_alloc_inode(struct super_block *sb)
 
 	inode_init_once(&zi->i_vnode);
 	mutex_init(&zi->i_truncate_mutex);
+	zi->i_wpoffset = 0;
 	zi->i_wr_refcnt = 0;
 	zi->i_flags = 0;
 
@@ -594,7 +598,7 @@ static int zonefs_init_file_inode(struct inode *inode, struct blk_zone *zone,
 
 	zi->i_max_size = min_t(loff_t, MAX_LFS_FILESIZE,
 			       zone->capacity << SECTOR_SHIFT);
-	zi->i_wpoffset = zonefs_check_zone_condition(inode, zone, true, true);
+	zi->i_wpoffset = zonefs_check_zone_condition(inode, zone);
 
 	inode->i_uid = sbi->s_uid;
 	inode->i_gid = sbi->s_gid;
@@ -604,6 +608,10 @@ static int zonefs_init_file_inode(struct inode *inode, struct blk_zone *zone,
 	inode->i_op = &zonefs_file_inode_operations;
 	inode->i_fop = &zonefs_file_operations;
 	inode->i_mapping->a_ops = &zonefs_file_aops;
+
+	/* Update the inode access rights depending on the zone condition */
+	zi->i_flags |= ZONEFS_ZONE_INIT_MODE;
+	zonefs_inode_update_mode(inode);
 
 	sb->s_maxbytes = max(zi->i_max_size, sb->s_maxbytes);
 	sbi->s_blocks += zi->i_max_size >> sb->s_blocksize_bits;

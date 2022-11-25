@@ -39,10 +39,11 @@ static inline enum zonefs_ztype zonefs_zone_type(struct blk_zone *zone)
 	return ZONEFS_ZTYPE_SEQ;
 }
 
-#define ZONEFS_ZONE_OPEN	(1U << 0)
-#define ZONEFS_ZONE_ACTIVE	(1U << 1)
-#define ZONEFS_ZONE_OFFLINE	(1U << 2)
-#define ZONEFS_ZONE_READONLY	(1U << 3)
+#define ZONEFS_ZONE_INIT_MODE	(1U << 0)
+#define ZONEFS_ZONE_OPEN	(1U << 1)
+#define ZONEFS_ZONE_ACTIVE	(1U << 2)
+#define ZONEFS_ZONE_OFFLINE	(1U << 3)
+#define ZONEFS_ZONE_READONLY	(1U << 4)
 
 /*
  * In-memory inode data.
