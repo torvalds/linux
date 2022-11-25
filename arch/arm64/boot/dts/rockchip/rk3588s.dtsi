@@ -2965,6 +2965,7 @@
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
 		reset-names = "shared_video_a", "shared_video_h";
+		rockchip,skip-pmu-idle-request;
 		iommus = <&vdpu_mmu>;
 		power-domains = <&power RK3588_PD_VDPU>;
 		rockchip,srv = <&mpp_srv>;
