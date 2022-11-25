@@ -168,6 +168,15 @@ static int mlx5i_pkey_dev_init(struct net_device *dev)
 		return -EINVAL;
 	}
 
+	if (dev->num_rx_queues < parent_dev->real_num_rx_queues) {
+		mlx5_core_warn(priv->mdev,
+			       "failed to create child device with rx queues [%d] less than parent's [%d]\n",
+			       dev->num_rx_queues,
+			       parent_dev->real_num_rx_queues);
+		mlx5i_parent_put(dev);
+		return -EINVAL;
+	}
+
 	/* Get QPN to netdevice hash table from parent */
 	parent_ipriv = netdev_priv(parent_dev);
 	ipriv->qpn_htbl = parent_ipriv->qpn_htbl;
