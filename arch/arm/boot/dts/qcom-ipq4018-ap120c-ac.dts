@@ -7,7 +7,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		status: status {
+		status: led-status {
 			label = "ap120c-ac:blue:status";
 			function = LED_FUNCTION_STATUS;
 			color = <LED_COLOR_ID_BLUE>;
@@ -15,7 +15,7 @@
 			default-state = "keep";
 		};
 
-		wlan2g {
+		led-wlan2g {
 			label = "ap120c-ac:green:wlan2g";
 			function = LED_FUNCTION_WLAN;
 			color = <LED_COLOR_ID_GREEN>;
@@ -23,7 +23,7 @@
 			linux,default-trigger = "phy0tpt";
 		};
 
-		wlan5g {
+		led-wlan5g {
 			label = "ap120c-ac:red:wlan5g";
 			function = LED_FUNCTION_WLAN;
 			color = <LED_COLOR_ID_RED>;
