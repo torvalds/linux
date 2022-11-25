@@ -36,15 +36,6 @@ struct mptcp6_sock {
 };
 #endif
 
-struct mptcp_skb_cb {
-	u64 map_seq;
-	u64 end_seq;
-	u32 offset;
-	u8  has_rxtstamp:1;
-};
-
-#define MPTCP_SKB_CB(__skb)	((struct mptcp_skb_cb *)&((__skb)->cb[0]))
-
 enum {
 	MPTCP_CMSG_TS = BIT(0),
 	MPTCP_CMSG_INQ = BIT(1),

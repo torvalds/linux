@@ -664,6 +664,9 @@ void mptcp_subflow_fully_established(struct mptcp_subflow_context *subflow,
 	subflow_set_remote_key(msk, subflow, mp_opt);
 	subflow->fully_established = 1;
 	WRITE_ONCE(msk->fully_established, true);
+
+	if (subflow->is_mptfo)
+		mptcp_fastopen_gen_msk_ackseq(msk, subflow, mp_opt);
 }
 
 static struct sock *subflow_syn_recv_sock(const struct sock *sk,
@@ -779,7 +782,7 @@ create_child:
 			/* with OoO packets we can reach here without ingress
 			 * mpc option
 			 */
-			if (mp_opt.suboptions & OPTIONS_MPTCP_MPC)
+			if (mp_opt.suboptions & OPTION_MPTCP_MPC_ACK)
 				mptcp_subflow_fully_established(ctx, &mp_opt);
 		} else if (ctx->mp_join) {
 			struct mptcp_sock *owner;
