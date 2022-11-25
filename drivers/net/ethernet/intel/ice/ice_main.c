@@ -130,10 +130,15 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
 
 	ice_for_each_txq(vsi, i) {
 		struct ice_tx_ring *tx_ring = vsi->tx_rings[i];
+		struct ice_ring_stats *ring_stats;
 
 		if (!tx_ring)
 			continue;
 		if (ice_ring_ch_enabled(tx_ring))
+			continue;
+
+		ring_stats = tx_ring->ring_stats;
+		if (!ring_stats)
 			continue;
 
 		if (tx_ring->desc) {
@@ -144,8 +149,8 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
 			 * prev_pkt would be negative if there was no
 			 * pending work.
 			 */
-			packets = tx_ring->stats.pkts & INT_MAX;
-			if (tx_ring->tx_stats.prev_pkt == packets) {
+			packets = ring_stats->stats.pkts & INT_MAX;
+			if (ring_stats->tx_stats.prev_pkt == packets) {
 				/* Trigger sw interrupt to revive the queue */
 				ice_trigger_sw_intr(hw, tx_ring->q_vector);
 				continue;
@@ -155,7 +160,7 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
 			 * to ice_get_tx_pending()
 			 */
 			smp_rmb();
-			tx_ring->tx_stats.prev_pkt =
+			ring_stats->tx_stats.prev_pkt =
 			    ice_get_tx_pending(tx_ring) ? packets : -1;
 		}
 	}
@@ -2546,13 +2551,20 @@ static int ice_xdp_alloc_setup_rings(struct ice_vsi *vsi)
 
 	ice_for_each_xdp_txq(vsi, i) {
 		u16 xdp_q_idx = vsi->alloc_txq + i;
+		struct ice_ring_stats *ring_stats;
 		struct ice_tx_ring *xdp_ring;
 
 		xdp_ring = kzalloc(sizeof(*xdp_ring), GFP_KERNEL);
-
 		if (!xdp_ring)
 			goto free_xdp_rings;
 
+		ring_stats = kzalloc(sizeof(*ring_stats), GFP_KERNEL);
+		if (!ring_stats) {
+			ice_free_tx_ring(xdp_ring);
+			goto free_xdp_rings;
+		}
+
+		xdp_ring->ring_stats = ring_stats;
 		xdp_ring->q_index = xdp_q_idx;
 		xdp_ring->reg_idx = vsi->txq_map[xdp_q_idx];
 		xdp_ring->vsi = vsi;
@@ -2575,9 +2587,13 @@ static int ice_xdp_alloc_setup_rings(struct ice_vsi *vsi)
 	return 0;
 
 free_xdp_rings:
-	for (; i >= 0; i--)
-		if (vsi->xdp_rings[i] && vsi->xdp_rings[i]->desc)
+	for (; i >= 0; i--) {
+		if (vsi->xdp_rings[i] && vsi->xdp_rings[i]->desc) {
+			kfree_rcu(vsi->xdp_rings[i]->ring_stats, rcu);
+			vsi->xdp_rings[i]->ring_stats = NULL;
 			ice_free_tx_ring(vsi->xdp_rings[i]);
+		}
+	}
 	return -ENOMEM;
 }
 
@@ -2778,6 +2794,8 @@ free_qmap:
 				synchronize_rcu();
 				ice_free_tx_ring(vsi->xdp_rings[i]);
 			}
+			kfree_rcu(vsi->xdp_rings[i]->ring_stats, rcu);
+			vsi->xdp_rings[i]->ring_stats = NULL;
 			kfree_rcu(vsi->xdp_rings[i], rcu);
 			vsi->xdp_rings[i] = NULL;
 		}
@@ -4756,11 +4774,18 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		goto err_init_pf_unroll;
 	}
 
+	pf->vsi_stats = devm_kcalloc(dev, pf->num_alloc_vsi,
+				     sizeof(*pf->vsi_stats), GFP_KERNEL);
+	if (!pf->vsi_stats) {
+		err = -ENOMEM;
+		goto err_init_vsi_unroll;
+	}
+
 	err = ice_init_interrupt_scheme(pf);
 	if (err) {
 		dev_err(dev, "ice_init_interrupt_scheme failed: %d\n", err);
 		err = -EIO;
-		goto err_init_vsi_unroll;
+		goto err_init_vsi_stats_unroll;
 	}
 
 	/* In case of MSIX we are going to setup the misc vector right here
@@ -4941,6 +4966,9 @@ err_msix_misc_unroll:
 	ice_free_irq_msix_misc(pf);
 err_init_interrupt_unroll:
 	ice_clear_interrupt_scheme(pf);
+err_init_vsi_stats_unroll:
+	devm_kfree(dev, pf->vsi_stats);
+	pf->vsi_stats = NULL;
 err_init_vsi_unroll:
 	devm_kfree(dev, pf->vsi);
 err_init_pf_unroll:
@@ -5063,6 +5091,8 @@ static void ice_remove(struct pci_dev *pdev)
 			continue;
 		ice_vsi_free_q_vectors(pf->vsi[i]);
 	}
+	devm_kfree(&pdev->dev, pf->vsi_stats);
+	pf->vsi_stats = NULL;
 	ice_deinit_pf(pf);
 	ice_devlink_destroy_regions(pf);
 	ice_deinit_hw(&pf->hw);
@@ -6380,14 +6410,16 @@ ice_update_vsi_tx_ring_stats(struct ice_vsi *vsi,
 		u64 pkts = 0, bytes = 0;
 
 		ring = READ_ONCE(rings[i]);
-		if (!ring)
+		if (!ring || !ring->ring_stats)
 			continue;
-		ice_fetch_u64_stats_per_ring(&ring->syncp, ring->stats, &pkts, &bytes);
+		ice_fetch_u64_stats_per_ring(&ring->ring_stats->syncp,
+					     ring->ring_stats->stats, &pkts,
+					     &bytes);
 		vsi_stats->tx_packets += pkts;
 		vsi_stats->tx_bytes += bytes;
-		vsi->tx_restart += ring->tx_stats.restart_q;
-		vsi->tx_busy += ring->tx_stats.tx_busy;
-		vsi->tx_linearize += ring->tx_stats.tx_linearize;
+		vsi->tx_restart += ring->ring_stats->tx_stats.restart_q;
+		vsi->tx_busy += ring->ring_stats->tx_stats.tx_busy;
+		vsi->tx_linearize += ring->ring_stats->tx_stats.tx_linearize;
 	}
 }
 
@@ -6397,6 +6429,7 @@ ice_update_vsi_tx_ring_stats(struct ice_vsi *vsi,
  */
 static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 {
+	struct rtnl_link_stats64 *net_stats, *stats_prev;
 	struct rtnl_link_stats64 *vsi_stats;
 	u64 pkts, bytes;
 	int i;
@@ -6421,12 +6454,16 @@ static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 	/* update Rx rings counters */
 	ice_for_each_rxq(vsi, i) {
 		struct ice_rx_ring *ring = READ_ONCE(vsi->rx_rings[i]);
+		struct ice_ring_stats *ring_stats;
 
-		ice_fetch_u64_stats_per_ring(&ring->syncp, ring->stats, &pkts, &bytes);
+		ring_stats = ring->ring_stats;
+		ice_fetch_u64_stats_per_ring(&ring_stats->syncp,
+					     ring_stats->stats, &pkts,
+					     &bytes);
 		vsi_stats->rx_packets += pkts;
 		vsi_stats->rx_bytes += bytes;
-		vsi->rx_buf_failed += ring->rx_stats.alloc_buf_failed;
-		vsi->rx_page_failed += ring->rx_stats.alloc_page_failed;
+		vsi->rx_buf_failed += ring_stats->rx_stats.alloc_buf_failed;
+		vsi->rx_page_failed += ring_stats->rx_stats.alloc_page_failed;
 	}
 
 	/* update XDP Tx rings counters */
@@ -6436,10 +6473,28 @@ static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 
 	rcu_read_unlock();
 
-	vsi->net_stats.tx_packets = vsi_stats->tx_packets;
-	vsi->net_stats.tx_bytes = vsi_stats->tx_bytes;
-	vsi->net_stats.rx_packets = vsi_stats->rx_packets;
-	vsi->net_stats.rx_bytes = vsi_stats->rx_bytes;
+	net_stats = &vsi->net_stats;
+	stats_prev = &vsi->net_stats_prev;
+
+	/* clear prev counters after reset */
+	if (vsi_stats->tx_packets < stats_prev->tx_packets ||
+	    vsi_stats->rx_packets < stats_prev->rx_packets) {
+		stats_prev->tx_packets = 0;
+		stats_prev->tx_bytes = 0;
+		stats_prev->rx_packets = 0;
+		stats_prev->rx_bytes = 0;
+	}
+
+	/* update netdev counters */
+	net_stats->tx_packets += vsi_stats->tx_packets - stats_prev->tx_packets;
+	net_stats->tx_bytes += vsi_stats->tx_bytes - stats_prev->tx_bytes;
+	net_stats->rx_packets += vsi_stats->rx_packets - stats_prev->rx_packets;
+	net_stats->rx_bytes += vsi_stats->rx_bytes - stats_prev->rx_bytes;
+
+	stats_prev->tx_packets = vsi_stats->tx_packets;
+	stats_prev->tx_bytes = vsi_stats->tx_bytes;
+	stats_prev->rx_packets = vsi_stats->rx_packets;
+	stats_prev->rx_bytes = vsi_stats->rx_bytes;
 
 	kfree(vsi_stats);
 }
@@ -6500,6 +6555,9 @@ void ice_update_pf_stats(struct ice_pf *pf)
 	port = hw->port_info->lport;
 	prev_ps = &pf->stats_prev;
 	cur_ps = &pf->stats;
+
+	if (ice_is_reset_in_progress(pf->state))
+		pf->stat_prev_loaded = false;
 
 	ice_stat_update40(hw, GLPRT_GORCL(port), pf->stat_prev_loaded,
 			  &prev_ps->eth.rx_bytes,

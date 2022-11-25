@@ -156,18 +156,20 @@ ice_repr_sp_stats64(const struct net_device *dev,
 	u64 pkts, bytes;
 
 	tx_ring = np->vsi->tx_rings[vf_id];
-	ice_fetch_u64_stats_per_ring(&tx_ring->syncp, tx_ring->stats,
+	ice_fetch_u64_stats_per_ring(&tx_ring->ring_stats->syncp,
+				     tx_ring->ring_stats->stats,
 				     &pkts, &bytes);
 	stats->rx_packets = pkts;
 	stats->rx_bytes = bytes;
 
 	rx_ring = np->vsi->rx_rings[vf_id];
-	ice_fetch_u64_stats_per_ring(&rx_ring->syncp, rx_ring->stats,
+	ice_fetch_u64_stats_per_ring(&rx_ring->ring_stats->syncp,
+				     rx_ring->ring_stats->stats,
 				     &pkts, &bytes);
 	stats->tx_packets = pkts;
 	stats->tx_bytes = bytes;
-	stats->tx_dropped = rx_ring->rx_stats.alloc_page_failed +
-			    rx_ring->rx_stats.alloc_buf_failed;
+	stats->tx_dropped = rx_ring->ring_stats->rx_stats.alloc_page_failed +
+			    rx_ring->ring_stats->rx_stats.alloc_buf_failed;
 
 	return 0;
 }

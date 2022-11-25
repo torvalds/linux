@@ -1544,9 +1544,9 @@ __ice_get_ethtool_stats(struct net_device *netdev,
 
 	ice_for_each_alloc_txq(vsi, j) {
 		tx_ring = READ_ONCE(vsi->tx_rings[j]);
-		if (tx_ring) {
-			data[i++] = tx_ring->stats.pkts;
-			data[i++] = tx_ring->stats.bytes;
+		if (tx_ring && tx_ring->ring_stats) {
+			data[i++] = tx_ring->ring_stats->stats.pkts;
+			data[i++] = tx_ring->ring_stats->stats.bytes;
 		} else {
 			data[i++] = 0;
 			data[i++] = 0;
@@ -1555,9 +1555,9 @@ __ice_get_ethtool_stats(struct net_device *netdev,
 
 	ice_for_each_alloc_rxq(vsi, j) {
 		rx_ring = READ_ONCE(vsi->rx_rings[j]);
-		if (rx_ring) {
-			data[i++] = rx_ring->stats.pkts;
-			data[i++] = rx_ring->stats.bytes;
+		if (rx_ring && rx_ring->ring_stats) {
+			data[i++] = rx_ring->ring_stats->stats.pkts;
+			data[i++] = rx_ring->ring_stats->stats.bytes;
 		} else {
 			data[i++] = 0;
 			data[i++] = 0;
