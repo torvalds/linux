@@ -2,7 +2,7 @@
 #ifndef _BCACHEFS_EC_TYPES_H
 #define _BCACHEFS_EC_TYPES_H
 
-#include <linux/llist.h>
+#include "bcachefs_format.h"
 
 struct bch_replicas_padded {
 	struct bch_replicas_entry	e;
