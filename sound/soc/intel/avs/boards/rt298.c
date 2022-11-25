@@ -15,6 +15,8 @@
 #include <sound/soc-acpi.h>
 #include "../../../codecs/rt298.h"
 
+#define RT298_CODEC_DAI		"rt298-aif1"
+
 static const struct dmi_system_id kblr_dmi_table[] = {
 	{
 		.matches = {
@@ -147,7 +149,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 
 	dl->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_port);
 	dl->codecs->name = devm_kasprintf(dev, GFP_KERNEL, "i2c-INT343A:00");
-	dl->codecs->dai_name = devm_kasprintf(dev, GFP_KERNEL, "rt298-aif1");
+	dl->codecs->dai_name = devm_kasprintf(dev, GFP_KERNEL, RT298_CODEC_DAI);
 	if (!dl->cpus->dai_name || !dl->codecs->name || !dl->codecs->dai_name)
 		return -ENOMEM;
 
