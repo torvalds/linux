@@ -19,12 +19,12 @@ static __always_inline int queued_spin_value_unlocked(struct qspinlock lock)
 
 static __always_inline int queued_spin_is_contended(struct qspinlock *lock)
 {
-	return 0;
+	return !!(atomic_read(&lock->val) & _Q_TAIL_CPU_MASK);
 }
 
 static __always_inline int queued_spin_trylock(struct qspinlock *lock)
 {
-	return atomic_cmpxchg_acquire(&lock->val, 0, 1) == 0;
+	return atomic_cmpxchg_acquire(&lock->val, 0, _Q_LOCKED_VAL) == 0;
 }
 
 void queued_spin_lock_slowpath(struct qspinlock *lock);
@@ -37,7 +37,11 @@ static __always_inline void queued_spin_lock(struct qspinlock *lock)
 
 static inline void queued_spin_unlock(struct qspinlock *lock)
 {
-	atomic_set_release(&lock->val, 0);
+	for (;;) {
+		int val = atomic_read(&lock->val);
+		if (atomic_cmpxchg_release(&lock->val, val, val & ~_Q_LOCKED_VAL) == val)
+			return;
+	}
 }
 
 #define arch_spin_is_locked(l)		queued_spin_is_locked(l)
