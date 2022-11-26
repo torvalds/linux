@@ -87,9 +87,9 @@ struct tty3270 {
 	int nr_lines;			/* # lines in list. */
 	int nr_up;			/* # lines up in history. */
 	unsigned long update_flags;	/* Update indication bits. */
-	struct string *status;		/* Lower right of display. */
 	struct raw3270_request *write;	/* Single write request. */
 	struct timer_list timer;	/* Output delay timer. */
+	char *converted_line;		/* RAW 3270 data stream */
 
 	/* Current tty screen. */
 	unsigned int cx, cy;		/* Current output position. */
@@ -177,6 +177,13 @@ static char *tty3270_add_ge(struct tty3270 *tp, char *cp, char c)
 	return cp;
 }
 
+static char *tty3270_add_sf(struct tty3270 *tp, char *cp, char type)
+{
+	*cp++ = TO_SF;
+	*cp++ = type;
+	return cp;
+}
+
 /*
  * The input line are the two last lines of the screen.
  */
@@ -232,35 +239,28 @@ static void tty3270_create_prompt(struct tty3270 *tp)
  */
 static void tty3270_update_status(struct tty3270 *tp)
 {
-	char *str;
-
-	str = (tp->nr_up != 0) ? "History" : "Running";
-	memcpy(tp->status->string + 8, str, 7);
-	codepage_convert(tp->view.ascebc, tp->status->string + 8, 7);
 	tp->update_flags |= TTY_UPDATE_STATUS;
+	tty3270_set_timer(tp, 1);
 }
 
 /*
  * The status line is the last line of the screen. It shows the string
  * "Running"/"Holding" in the lower right corner of the screen.
  */
-static void tty3270_create_status(struct tty3270 * tp)
+static int tty3270_add_status(struct tty3270 *tp)
 {
-	static const unsigned char blueprint[] = {
-		TO_SBA, 0, 0, TO_SF, TF_LOG, TO_SA, TAT_FGCOLOR, TAC_GREEN,
-		0, 0, 0, 0, 0, 0, 0, TO_SF, TF_LOG, TO_SA, TAT_FGCOLOR,
-		TAC_RESET
-	};
-	struct string *line;
-	unsigned int offset;
+	char *cp = tp->converted_line;
+	int len;
 
-	line = alloc_string(&tp->freemem,sizeof(blueprint));
-	tp->status = line;
-	/* Copy blueprint to status line */
-	memcpy(line->string, blueprint, sizeof(blueprint));
-	/* Set address to start of status string (= last 9 characters). */
-	offset = tp->view.cols * tp->view.rows - 9;
-	raw3270_buffer_address(tp->view.dev, line->string + 1, -9, -1);
+	cp = tty3270_add_ba(tp, cp, TO_SBA, -9, -1);
+	cp = tty3270_add_sf(tp, cp, TF_LOG);
+	cp = tty3270_add_sa(tp, cp, TAT_FGCOLOR, TAC_GREEN);
+	len = sprintf(cp, tp->nr_up ? "History" : "Running");
+	codepage_convert(tp->view.ascebc, cp, len);
+	cp += len;
+	cp = tty3270_add_sf(tp, cp, TF_LOG);
+	cp = tty3270_add_sa(tp, cp, TAT_FGCOLOR, TAC_RESET);
+	return cp - (char *)tp->converted_line;
 }
 
 /*
@@ -589,7 +589,6 @@ static void tty3270_update(struct timer_list *t)
 	updated = 0;
 	if (tp->update_flags & TTY_UPDATE_ALL) {
 		tty3270_rebuild_update(tp);
-		tty3270_update_status(tp);
 		tp->update_flags = TTY_UPDATE_ERASE | TTY_UPDATE_LIST |
 			TTY_UPDATE_INPUT | TTY_UPDATE_STATUS;
 	}
@@ -606,10 +605,11 @@ static void tty3270_update(struct timer_list *t)
 	/*
 	 * Update status line.
 	 */
-	if (tp->update_flags & TTY_UPDATE_STATUS)
-		if (raw3270_request_add_data(wrq, tp->status->string,
-					     tp->status->len) == 0)
+	if (tp->update_flags & TTY_UPDATE_STATUS) {
+		len = tty3270_add_status(tp);
+		if (raw3270_request_add_data(wrq, tp->converted_line, len) == 0)
 			updated |= TTY_UPDATE_STATUS;
+	}
 
 	/*
 	 * Write input line.
@@ -729,7 +729,7 @@ static void tty3270_scroll_forward(struct kbd_data *kbd)
 	if (nr_up != tp->nr_up) {
 		tp->nr_up = nr_up;
 		tty3270_rebuild_update(tp);
-		tty3270_update_status(tp);
+		tp->update_flags |= TTY_UPDATE_STATUS;
 		tty3270_set_timer(tp, 1);
 	}
 	spin_unlock_irq(&tp->view.lock);
@@ -751,7 +751,6 @@ static void tty3270_scroll_backward(struct kbd_data *kbd)
 		tp->nr_up = nr_up;
 		tty3270_rebuild_update(tp);
 		tty3270_update_status(tp);
-		tty3270_set_timer(tp, 1);
 	}
 	spin_unlock_irq(&tp->view.lock);
 }
@@ -1081,9 +1080,7 @@ static void tty3270_resize(struct raw3270_view *view,
 	tp->view.model = new_model;
 
 	free_string(&tp->freemem, tp->prompt);
-	free_string(&tp->freemem, tp->status);
 	tty3270_create_prompt(tp);
-	tty3270_create_status(tp);
 	while (tp->nr_lines < tty3270_tty_rows(tp))
 		tty3270_blank_line(tp);
 	tp->update_flags = TTY_UPDATE_ALL;
@@ -1126,6 +1123,7 @@ static void tty3270_free(struct raw3270_view *view)
 
 	del_timer_sync(&tp->timer);
 	tty3270_free_screen(tp->screen, tp->allocated_lines);
+	free_page((unsigned long)tp->converted_line);
 	tty3270_free_view(tp);
 }
 
@@ -1169,24 +1167,23 @@ tty3270_create_view(int index, struct tty3270 **newtp)
 	rc = raw3270_add_view(&tp->view, &tty3270_fn,
 			      index + RAW3270_FIRSTMINOR,
 			      RAW3270_VIEW_LOCK_IRQ);
-	if (rc) {
-		tty3270_free_view(tp);
-		return rc;
-	}
+	if (rc)
+		goto out_free_view;
 
 	tp->screen = tty3270_alloc_screen(tp, tp->view.rows, tp->view.cols,
 					  &tp->allocated_lines);
 	if (IS_ERR(tp->screen)) {
 		rc = PTR_ERR(tp->screen);
-		raw3270_put_view(&tp->view);
-		raw3270_del_view(&tp->view);
-		tty3270_free_view(tp);
-		return rc;
+		goto out_put_view;
+	}
+
+	tp->converted_line = (void *)__get_free_page(GFP_KERNEL);
+	if (!tp->converted_line) {
+		rc = -ENOMEM;
+		goto out_free_screen;
 	}
 
 	tty3270_create_prompt(tp);
-	tty3270_create_status(tp);
-	tty3270_update_status(tp);
 
 	/* Create blank line for every line in the tty output area. */
 	for (i = 0; i < tty3270_tty_rows(tp); i++)
@@ -1203,6 +1200,15 @@ tty3270_create_view(int index, struct tty3270 **newtp)
 	raw3270_put_view(&tp->view);
 	*newtp = tp;
 	return 0;
+
+out_free_screen:
+	tty3270_free_screen(tp->screen, tp->view.rows);
+out_put_view:
+	raw3270_put_view(&tp->view);
+	raw3270_del_view(&tp->view);
+out_free_view:
+	tty3270_free_view(tp);
+	return rc;
 }
 
 /*
