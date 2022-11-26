@@ -30,7 +30,7 @@ typedef struct qspinlock {
  *
  *     0: locked bit
  *  1-14: lock holder cpu
- *    15: unused bit
+ *    15: lock owner or queuer vcpus observed to be preempted bit
  *    16: must queue bit
  * 17-31: tail cpu (+1)
  */
@@ -49,6 +49,11 @@ typedef struct qspinlock {
 #if CONFIG_NR_CPUS > (1U << _Q_OWNER_CPU_BITS)
 #error "qspinlock does not support such large CONFIG_NR_CPUS"
 #endif
+
+/* 0x00008000 */
+#define _Q_SLEEPY_OFFSET	15
+#define _Q_SLEEPY_BITS		1
+#define _Q_SLEEPY_VAL		(1U << _Q_SLEEPY_OFFSET)
 
 /* 0x00010000 */
 #define _Q_MUST_Q_OFFSET	16
