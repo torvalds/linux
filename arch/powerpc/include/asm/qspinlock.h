@@ -37,11 +37,7 @@ static __always_inline void queued_spin_lock(struct qspinlock *lock)
 
 static inline void queued_spin_unlock(struct qspinlock *lock)
 {
-	for (;;) {
-		int val = atomic_read(&lock->val);
-		if (atomic_cmpxchg_release(&lock->val, val, val & ~_Q_LOCKED_VAL) == val)
-			return;
-	}
+	smp_store_release(&lock->locked, 0);
 }
 
 #define arch_spin_is_locked(l)		queued_spin_is_locked(l)

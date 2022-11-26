@@ -3,12 +3,27 @@
 #define _ASM_POWERPC_QSPINLOCK_TYPES_H
 
 #include <linux/types.h>
+#include <asm/byteorder.h>
 
 typedef struct qspinlock {
-	atomic_t val;
+	union {
+		atomic_t val;
+
+#ifdef __LITTLE_ENDIAN
+		struct {
+			u16	locked;
+			u8	reserved[2];
+		};
+#else
+		struct {
+			u8	reserved[2];
+			u16	locked;
+		};
+#endif
+	};
 } arch_spinlock_t;
 
-#define	__ARCH_SPIN_LOCK_UNLOCKED	{ .val = ATOMIC_INIT(0) }
+#define	__ARCH_SPIN_LOCK_UNLOCKED	{ { .val = ATOMIC_INIT(0) } }
 
 /*
  * Bitfields in the lock word:
