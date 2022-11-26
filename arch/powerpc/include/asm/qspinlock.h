@@ -21,8 +21,15 @@ static __always_inline int queued_spin_is_contended(struct qspinlock *lock)
 	return !!(READ_ONCE(lock->val) & _Q_TAIL_CPU_MASK);
 }
 
+static __always_inline u32 queued_spin_encode_locked_val(void)
+{
+	/* XXX: make this use lock value in paca like simple spinlocks? */
+	return _Q_LOCKED_VAL | (smp_processor_id() << _Q_OWNER_CPU_OFFSET);
+}
+
 static __always_inline int queued_spin_trylock(struct qspinlock *lock)
 {
+	u32 new = queued_spin_encode_locked_val();
 	u32 prev;
 
 	asm volatile(
@@ -34,7 +41,7 @@ static __always_inline int queued_spin_trylock(struct qspinlock *lock)
 "\t"	PPC_ACQUIRE_BARRIER "						\n"
 "2:									\n"
 	: "=&r" (prev)
-	: "r" (&lock->val), "r" (_Q_LOCKED_VAL),
+	: "r" (&lock->val), "r" (new),
 	  "i" (IS_ENABLED(CONFIG_PPC64))
 	: "cr0", "memory");
 
@@ -43,6 +50,7 @@ static __always_inline int queued_spin_trylock(struct qspinlock *lock)
 
 static __always_inline int __queued_spin_trylock_steal(struct qspinlock *lock)
 {
+	u32 new = queued_spin_encode_locked_val();
 	u32 prev, tmp;
 
 	/* Trylock may get ahead of queued nodes if it finds unlocked */
@@ -57,7 +65,7 @@ static __always_inline int __queued_spin_trylock_steal(struct qspinlock *lock)
 "\t"	PPC_ACQUIRE_BARRIER "						\n"
 "2:									\n"
 	: "=&r" (prev), "=&r" (tmp)
-	: "r" (&lock->val), "r" (_Q_LOCKED_VAL), "r" (_Q_TAIL_CPU_MASK),
+	: "r" (&lock->val), "r" (new), "r" (_Q_TAIL_CPU_MASK),
 	  "i" (IS_ENABLED(CONFIG_PPC64))
 	: "cr0", "memory");
 

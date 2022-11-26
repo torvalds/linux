@@ -55,7 +55,7 @@ static inline int decode_tail_cpu(u32 val)
  */
 static __always_inline u32 trylock_clean_tail(struct qspinlock *lock, u32 tail)
 {
-	u32 newval = _Q_LOCKED_VAL;
+	u32 newval = queued_spin_encode_locked_val();
 	u32 prev, tmp;
 
 	asm volatile(
