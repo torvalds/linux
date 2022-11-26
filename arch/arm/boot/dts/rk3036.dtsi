@@ -560,7 +560,7 @@
 	};
 
 	pwm0: pwm@20050000 {
-		compatible = "rockchip,rk3036-pwm", "rockchip,rk2928-pwm";
+		compatible = "rockchip,rk3036-pwm", "rockchip,rk3288-pwm";
 		reg = <0x20050000 0x10>;
 		#pwm-cells = <3>;
 		clocks = <&cru PCLK_PWM>;
@@ -571,7 +571,7 @@
 	};
 
 	pwm1: pwm@20050010 {
-		compatible = "rockchip,rk3036-pwm", "rockchip,rk2928-pwm";
+		compatible = "rockchip,rk3036-pwm", "rockchip,rk3288-pwm";
 		reg = <0x20050010 0x10>;
 		#pwm-cells = <3>;
 		clocks = <&cru PCLK_PWM>;
@@ -582,7 +582,7 @@
 	};
 
 	pwm2: pwm@20050020 {
-		compatible = "rockchip,rk3036-pwm", "rockchip,rk2928-pwm";
+		compatible = "rockchip,rk3036-pwm", "rockchip,rk3288-pwm";
 		reg = <0x20050020 0x10>;
 		#pwm-cells = <3>;
 		clocks = <&cru PCLK_PWM>;
@@ -593,9 +593,9 @@
 	};
 
 	pwm3: pwm@20050030 {
-		compatible = "rockchip,rk3036-pwm", "rockchip,rk2928-pwm";
+		compatible = "rockchip,rk3036-pwm", "rockchip,rk3288-pwm";
 		reg = <0x20050030 0x10>;
-		#pwm-cells = <2>;
+		#pwm-cells = <3>;
 		clocks = <&cru PCLK_PWM>;
 		clock-names = "pwm";
 		pinctrl-names = "active";
