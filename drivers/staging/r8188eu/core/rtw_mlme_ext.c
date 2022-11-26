@@ -597,19 +597,19 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 
 	if (((pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE) && (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
 		psta = rtw_get_stainfo(pstapriv, mgmt->sa);
-		if (psta) {
-			ret = rtw_check_bcn_info(padapter, pframe, len);
-			if (!ret) {
-				receive_disconnect(padapter,
-						   pmlmeinfo->network.MacAddress, 0);
-				return;
-			}
-			/* update WMM, ERP in the beacon */
-			/* todo: the timer is used instead of the number of the beacon received */
-			if ((sta_rx_pkts(psta) & 0xf) == 0)
-				update_beacon_info(padapter, ie_ptr, ie_len, psta);
-			process_p2p_ps_ie(padapter, ie_ptr, ie_len);
+		if (!psta)
+			return;
+
+		ret = rtw_check_bcn_info(padapter, pframe, len);
+		if (!ret) {
+			receive_disconnect(padapter, pmlmeinfo->network.MacAddress, 0);
+			return;
 		}
+		/* update WMM, ERP in the beacon */
+		/* todo: the timer is used instead of the number of the beacon received */
+		if ((sta_rx_pkts(psta) & 0xf) == 0)
+			update_beacon_info(padapter, ie_ptr, ie_len, psta);
+		process_p2p_ps_ie(padapter, ie_ptr, ie_len);
 	} else if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
 		psta = rtw_get_stainfo(pstapriv, mgmt->sa);
 		if (psta) {
