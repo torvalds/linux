@@ -621,7 +621,7 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 					return;
 
 				/* get supported rate */
-				if (update_sta_support_rate(padapter, (pframe + WLAN_HDR_A3_LEN + _BEACON_IE_OFFSET_), (len - WLAN_HDR_A3_LEN - _BEACON_IE_OFFSET_), cam_idx) == _FAIL) {
+				if (update_sta_support_rate(padapter, ie_ptr, ie_len, cam_idx) == _FAIL) {
 					pmlmeinfo->FW_sta_info[cam_idx].status = 0;
 					return;
 				}
