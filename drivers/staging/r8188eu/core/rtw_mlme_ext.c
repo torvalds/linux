@@ -555,7 +555,6 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 	u8 *pframe = precv_frame->rx_data;
 	uint len = precv_frame->len;
 	struct wlan_bssid_ex *pbss;
-	int ret = _SUCCESS;
 	u8 *ie_ptr;
 	u32 ie_len;
 
@@ -600,8 +599,7 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 		if (!psta)
 			return;
 
-		ret = rtw_check_bcn_info(padapter, pframe, len);
-		if (!ret) {
+		if (rtw_check_bcn_info(padapter, pframe, len) != _SUCCESS) {
 			receive_disconnect(padapter, pmlmeinfo->network.MacAddress, 0);
 			return;
 		}
