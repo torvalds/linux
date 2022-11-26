@@ -3309,7 +3309,9 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	void *resmem_va;
 	long ret = 0;
 
-	if (!arg && cmd != RKISP_CMD_FREE_SHARED_BUF)
+	if (!arg &&
+	    (cmd != RKISP_CMD_FREE_SHARED_BUF &&
+	     cmd != RKISP_CMD_MULTI_DEV_FORCE_ENUM))
 		return -EINVAL;
 
 	switch (cmd) {
@@ -3410,6 +3412,15 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		dbufs = (struct rkisp_rx_buf *)arg;
 		rkisp_rx_buf_free(isp_dev, dbufs);
 		break;
+	case RKISP_CMD_MULTI_DEV_FORCE_ENUM:
+		if (isp_dev->hw_dev->is_runing) {
+			ret = -EINVAL;
+		} else {
+			isp_dev->hw_dev->is_single = true;
+			isp_dev->hw_dev->is_multi_overflow = false;
+			rkisp_hw_enum_isp_size(isp_dev->hw_dev);
+		}
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -3508,6 +3519,9 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 		if (copy_from_user(&module_id, up, sizeof(module_id)))
 			return -EFAULT;
 		ret = rkisp_ioctl(sd, cmd, &module_id);
+		break;
+	case RKISP_CMD_MULTI_DEV_FORCE_ENUM:
+		ret = rkisp_ioctl(sd, cmd, NULL);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

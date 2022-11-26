@@ -52,6 +52,10 @@
 
 /* BASE_VIDIOC_PRIVATE + 12 for RKISP_CMD_GET_TB_HEAD_V32 */
 
+/* for all isp device stop and no power off but resolution change */
+#define RKISP_CMD_MULTI_DEV_FORCE_ENUM \
+	_IO('V', BASE_VIDIOC_PRIVATE + 13)
+
 /****************ISP VIDEO IOCTL******************************/
 
 #define RKISP_CMD_GET_CSI_MEMORY_MODE \
