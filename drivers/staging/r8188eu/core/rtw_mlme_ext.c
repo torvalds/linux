@@ -586,7 +586,7 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 		}
 
 		if (((pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE) && (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
-			psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
+			psta = rtw_get_stainfo(pstapriv, mgmt->sa);
 			if (psta) {
 				ret = rtw_check_bcn_info(padapter, pframe, len);
 				if (!ret) {
@@ -601,7 +601,7 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 				process_p2p_ps_ie(padapter, (pframe + WLAN_HDR_A3_LEN), (len - WLAN_HDR_A3_LEN));
 			}
 		} else if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
-			psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
+			psta = rtw_get_stainfo(pstapriv, mgmt->sa);
 			if (psta) {
 				/* update WMM, ERP in the beacon */
 				/* todo: the timer is used instead of the number of the beacon received */
@@ -621,8 +621,7 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 
 				pmlmeext->TSFValue = le64_to_cpu(mgmt->u.beacon.timestamp);
 
-				/* report sta add event */
-				report_add_sta_event(padapter, GetAddr2Ptr(pframe), cam_idx);
+				report_add_sta_event(padapter, mgmt->sa, cam_idx);
 			}
 		}
 	}
