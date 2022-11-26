@@ -1280,8 +1280,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	/* Also give the program a chance to reject this call: */
 	if (auth_res == SVC_OK && progp)
 		auth_res = progp->pg_authenticate(rqstp);
-	if (auth_res != SVC_OK)
-		trace_svc_authenticate(rqstp, auth_res);
+	trace_svc_authenticate(rqstp, auth_res);
 	switch (auth_res) {
 	case SVC_OK:
 		break;
