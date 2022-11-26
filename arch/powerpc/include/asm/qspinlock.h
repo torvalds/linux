@@ -2,29 +2,43 @@
 #ifndef _ASM_POWERPC_QSPINLOCK_H
 #define _ASM_POWERPC_QSPINLOCK_H
 
-#include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <asm/qspinlock_types.h>
 #include <asm/paravirt.h>
 
 static __always_inline int queued_spin_is_locked(struct qspinlock *lock)
 {
-	return atomic_read(&lock->val);
+	return READ_ONCE(lock->val);
 }
 
 static __always_inline int queued_spin_value_unlocked(struct qspinlock lock)
 {
-	return !atomic_read(&lock.val);
+	return !lock.val;
 }
 
 static __always_inline int queued_spin_is_contended(struct qspinlock *lock)
 {
-	return !!(atomic_read(&lock->val) & _Q_TAIL_CPU_MASK);
+	return !!(READ_ONCE(lock->val) & _Q_TAIL_CPU_MASK);
 }
 
 static __always_inline int queued_spin_trylock(struct qspinlock *lock)
 {
-	return atomic_cmpxchg_acquire(&lock->val, 0, _Q_LOCKED_VAL) == 0;
+	u32 prev;
+
+	asm volatile(
+"1:	lwarx	%0,0,%1,%3	# queued_spin_trylock			\n"
+"	cmpwi	0,%0,0							\n"
+"	bne-	2f							\n"
+"	stwcx.	%2,0,%1							\n"
+"	bne-	1b							\n"
+"\t"	PPC_ACQUIRE_BARRIER "						\n"
+"2:									\n"
+	: "=&r" (prev)
+	: "r" (&lock->val), "r" (_Q_LOCKED_VAL),
+	  "i" (IS_ENABLED(CONFIG_PPC64))
+	: "cr0", "memory");
+
+	return likely(prev == 0);
 }
 
 void queued_spin_lock_slowpath(struct qspinlock *lock);

@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include <linux/atomic.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/export.h>
@@ -22,12 +21,12 @@ struct qnodes {
 
 static DEFINE_PER_CPU_ALIGNED(struct qnodes, qnodes);
 
-static inline int encode_tail_cpu(int cpu)
+static inline u32 encode_tail_cpu(int cpu)
 {
 	return (cpu + 1) << _Q_TAIL_CPU_OFFSET;
 }
 
-static inline int decode_tail_cpu(int val)
+static inline int decode_tail_cpu(u32 val)
 {
 	return (val >> _Q_TAIL_CPU_OFFSET) - 1;
 }
@@ -39,26 +38,34 @@ static inline int decode_tail_cpu(int val)
  * This is used by the head of the queue to acquire the lock and clean up
  * its tail if it was the last one queued.
  */
-static __always_inline int set_locked_clean_tail(struct qspinlock *lock, int tail)
+static __always_inline u32 set_locked_clean_tail(struct qspinlock *lock, u32 tail)
 {
-	int val = atomic_read(&lock->val);
+	u32 newval = _Q_LOCKED_VAL;
+	u32 prev, tmp;
 
-	BUG_ON(val & _Q_LOCKED_VAL);
+	asm volatile(
+"1:	lwarx	%0,0,%2,%6	# set_locked_clean_tail			\n"
+	/* Test whether the lock tail == tail */
+"	and	%1,%0,%5						\n"
+"	cmpw	0,%1,%3							\n"
+	/* Merge the new locked value */
+"	or	%1,%1,%4						\n"
+"	bne	2f							\n"
+	/* If the lock tail matched, then clear it, otherwise leave it. */
+"	andc	%1,%1,%5						\n"
+"2:	stwcx.	%1,0,%2							\n"
+"	bne-	1b							\n"
+"\t"	PPC_ACQUIRE_BARRIER "						\n"
+"3:									\n"
+	: "=&r" (prev), "=&r" (tmp)
+	: "r" (&lock->val), "r"(tail), "r" (newval),
+	  "r" (_Q_TAIL_CPU_MASK),
+	  "i" (IS_ENABLED(CONFIG_PPC64))
+	: "cr0", "memory");
 
-	/* If we're the last queued, must clean up the tail. */
-	if ((val & _Q_TAIL_CPU_MASK) == tail) {
-		if (atomic_cmpxchg_acquire(&lock->val, val, _Q_LOCKED_VAL) == val)
-			return val;
-		/* Another waiter must have enqueued */
-		val = atomic_read(&lock->val);
-		BUG_ON(val & _Q_LOCKED_VAL);
-	}
+	BUG_ON(prev & _Q_LOCKED_VAL);
 
-	/* We must be the owner, just set the lock bit and acquire */
-	atomic_or(_Q_LOCKED_VAL, &lock->val);
-	__atomic_acquire_fence();
-
-	return val;
+	return prev;
 }
 
 /*
@@ -68,20 +75,25 @@ static __always_inline int set_locked_clean_tail(struct qspinlock *lock, int tai
  * acquire barrier in get_tail_qnode() when the next CPU finds this tail
  * value.
  */
-static __always_inline int publish_tail_cpu(struct qspinlock *lock, int tail)
+static __always_inline u32 publish_tail_cpu(struct qspinlock *lock, u32 tail)
 {
-	for (;;) {
-		int val = atomic_read(&lock->val);
-		int newval = (val & ~_Q_TAIL_CPU_MASK) | tail;
-		int old;
+	u32 prev, tmp;
 
-		old = atomic_cmpxchg_release(&lock->val, val, newval);
-		if (old == val)
-			return old;
-	}
+	asm volatile(
+"\t"	PPC_RELEASE_BARRIER "						\n"
+"1:	lwarx	%0,0,%2		# publish_tail_cpu			\n"
+"	andc	%1,%0,%4						\n"
+"	or	%1,%1,%3						\n"
+"	stwcx.	%1,0,%2							\n"
+"	bne-	1b							\n"
+	: "=&r" (prev), "=&r"(tmp)
+	: "r" (&lock->val), "r" (tail), "r"(_Q_TAIL_CPU_MASK)
+	: "cr0", "memory");
+
+	return prev;
 }
 
-static struct qnode *get_tail_qnode(struct qspinlock *lock, int val)
+static struct qnode *get_tail_qnode(struct qspinlock *lock, u32 val)
 {
 	int cpu = decode_tail_cpu(val);
 	struct qnodes *qnodesp = per_cpu_ptr(&qnodes, cpu);
@@ -109,7 +121,7 @@ static inline void queued_spin_lock_mcs_queue(struct qspinlock *lock)
 {
 	struct qnodes *qnodesp;
 	struct qnode *next, *node;
-	int val, old, tail;
+	u32 val, old, tail;
 	int idx;
 
 	BUILD_BUG_ON(CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS));
@@ -156,7 +168,7 @@ static inline void queued_spin_lock_mcs_queue(struct qspinlock *lock)
 
 	/* We're at the head of the waitqueue, wait for the lock. */
 	for (;;) {
-		val = atomic_read(&lock->val);
+		val = READ_ONCE(lock->val);
 		if (!(val & _Q_LOCKED_VAL))
 			break;
 
