@@ -4,6 +4,7 @@
 #include <linux/export.h>
 #include <linux/percpu.h>
 #include <linux/smp.h>
+#include <linux/topology.h>
 #include <asm/qspinlock.h>
 #include <asm/paravirt.h>
 
@@ -24,6 +25,7 @@ struct qnodes {
 
 /* Tuning parameters */
 static int steal_spins __read_mostly = (1 << 5);
+static int remote_steal_spins __read_mostly = (1 << 2);
 #if _Q_SPIN_TRY_LOCK_STEAL == 1
 static const bool maybe_stealers = true;
 #else
@@ -42,6 +44,11 @@ static DEFINE_PER_CPU_ALIGNED(struct qnodes, qnodes);
 static __always_inline int get_steal_spins(bool paravirt)
 {
 	return steal_spins;
+}
+
+static __always_inline int get_remote_steal_spins(bool paravirt)
+{
+	return remote_steal_spins;
 }
 
 static __always_inline int get_head_spins(bool paravirt)
@@ -335,10 +342,24 @@ relax:
 	spin_cpu_relax();
 }
 
+static __always_inline bool steal_break(u32 val, int iters, bool paravirt)
+{
+	if (iters >= get_steal_spins(paravirt))
+		return true;
+
+	if (IS_ENABLED(CONFIG_NUMA) &&
+	    (iters >= get_remote_steal_spins(paravirt))) {
+		int cpu = get_owner_cpu(val);
+		if (numa_node_id() != cpu_to_node(cpu))
+			return true;
+	}
+	return false;
+}
 
 static __always_inline bool try_to_steal_lock(struct qspinlock *lock, bool paravirt)
 {
 	int iters = 0;
+	u32 val;
 
 	if (!steal_spins)
 		return false;
@@ -347,8 +368,7 @@ static __always_inline bool try_to_steal_lock(struct qspinlock *lock, bool parav
 	spin_begin();
 
 	do {
-		u32 val = READ_ONCE(lock->val);
-
+		val = READ_ONCE(lock->val);
 		if (val & _Q_MUST_Q_VAL)
 			break;
 
@@ -362,7 +382,7 @@ static __always_inline bool try_to_steal_lock(struct qspinlock *lock, bool parav
 		}
 
 		iters++;
-	} while (iters < get_steal_spins(paravirt));
+	} while (!steal_break(val, iters, paravirt));
 
 	spin_end();
 
@@ -560,6 +580,22 @@ static int steal_spins_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_steal_spins, steal_spins_get, steal_spins_set, "%llu\n");
 
+static int remote_steal_spins_set(void *data, u64 val)
+{
+	remote_steal_spins = val;
+
+	return 0;
+}
+
+static int remote_steal_spins_get(void *data, u64 *val)
+{
+	*val = remote_steal_spins;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_remote_steal_spins, remote_steal_spins_get, remote_steal_spins_set, "%llu\n");
+
 static int head_spins_set(void *data, u64 val)
 {
 	head_spins = val;
@@ -659,6 +695,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_pv_prod_head, pv_prod_head_get, pv_prod_head_set, "
 static __init int spinlock_debugfs_init(void)
 {
 	debugfs_create_file("qspl_steal_spins", 0600, arch_debugfs_dir, NULL, &fops_steal_spins);
+	debugfs_create_file("qspl_remote_steal_spins", 0600, arch_debugfs_dir, NULL, &fops_remote_steal_spins);
 	debugfs_create_file("qspl_head_spins", 0600, arch_debugfs_dir, NULL, &fops_head_spins);
 	if (is_shared_processor()) {
 		debugfs_create_file("qspl_pv_yield_owner", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_owner);
