@@ -4483,20 +4483,20 @@ inline void issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *ps
 }
 
 void issue_probereq_ex(struct adapter *padapter, struct ndis_802_11_ssid *pssid, u8 *da,
-		       int try_cnt, int wait_ms)
+		       int try_cnt)
 {
 	int ret;
 	int i = 0;
 
 	do {
-		ret = _issue_probereq(padapter, pssid, da, wait_ms > 0);
+		ret = _issue_probereq(padapter, pssid, da, true);
 
 		i++;
 
-		if (i < try_cnt && wait_ms > 0 && ret == _FAIL)
-			msleep(wait_ms);
+		if (i < try_cnt && ret == _FAIL)
+			msleep(1);
 
-	} while ((i < try_cnt) && ((ret == _FAIL) || (wait_ms == 0)));
+	} while ((i < try_cnt) && (ret == _FAIL));
 }
 
 /*  if psta == NULL, indicate we are station (client) now... */
@@ -7046,7 +7046,7 @@ void linked_status_chk(struct adapter *padapter)
 				}
 
 				if (rx_chk != _SUCCESS)
-					issue_probereq_ex(padapter, &pmlmeinfo->network.Ssid, psta->hwaddr, 3, 1);
+					issue_probereq_ex(padapter, &pmlmeinfo->network.Ssid, psta->hwaddr, 3);
 
 				if ((tx_chk != _SUCCESS && pmlmeinfo->link_count++ == 0xf) || rx_chk != _SUCCESS) {
 					tx_chk = issue_nulldata(padapter, psta->hwaddr, 0, 3, 1);
