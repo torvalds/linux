@@ -622,9 +622,9 @@ static void lt6911uxe_format_change(struct v4l2_subdev *sd)
 		v4l2_print_dv_timings(sd->name,
 				"Format_change: New format: ",
 				&timings, false);
-		if (sd->devnode)
-			v4l2_subdev_notify_event(sd, &lt6911uxe_ev_fmt);
 	}
+	if (sd->devnode)
+		v4l2_subdev_notify_event(sd, &lt6911uxe_ev_fmt);
 }
 
 static int lt6911uxe_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
