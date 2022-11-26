@@ -1060,7 +1060,7 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	svcxdr_init_encode(rqstp);
 
 	*statp = proc->pc_func(rqstp);
-	if (*statp == rpc_drop_reply || test_bit(RQ_DROPME, &rqstp->rq_flags))
+	if (test_bit(RQ_DROPME, &rqstp->rq_flags))
 		goto out_update_drop;
 
 	if (!proc->pc_encode(rqstp, &rqstp->rq_res_stream))
