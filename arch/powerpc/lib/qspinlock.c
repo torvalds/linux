@@ -5,6 +5,7 @@
 #include <linux/percpu.h>
 #include <linux/smp.h>
 #include <asm/qspinlock.h>
+#include <asm/paravirt.h>
 
 #define MAX_NODES	4
 
@@ -24,14 +25,16 @@ static int steal_spins __read_mostly = (1 << 5);
 static bool maybe_stealers __read_mostly = true;
 static int head_spins __read_mostly = (1 << 8);
 
+static bool pv_yield_owner __read_mostly = true;
+
 static DEFINE_PER_CPU_ALIGNED(struct qnodes, qnodes);
 
-static __always_inline int get_steal_spins(void)
+static __always_inline int get_steal_spins(bool paravirt)
 {
 	return steal_spins;
 }
 
-static __always_inline int get_head_spins(void)
+static __always_inline int get_head_spins(bool paravirt)
 {
 	return head_spins;
 }
@@ -44,6 +47,11 @@ static inline u32 encode_tail_cpu(int cpu)
 static inline int decode_tail_cpu(u32 val)
 {
 	return (val >> _Q_TAIL_CPU_OFFSET) - 1;
+}
+
+static inline int get_owner_cpu(u32 val)
+{
+	return (val & _Q_OWNER_CPU_MASK) >> _Q_OWNER_CPU_OFFSET;
 }
 
 /*
@@ -150,7 +158,45 @@ static struct qnode *get_tail_qnode(struct qspinlock *lock, u32 val)
 	BUG();
 }
 
-static inline bool try_to_steal_lock(struct qspinlock *lock)
+static __always_inline void yield_to_locked_owner(struct qspinlock *lock, u32 val, bool paravirt)
+{
+	int owner;
+	u32 yield_count;
+
+	BUG_ON(!(val & _Q_LOCKED_VAL));
+
+	if (!paravirt)
+		goto relax;
+
+	if (!pv_yield_owner)
+		goto relax;
+
+	owner = get_owner_cpu(val);
+	yield_count = yield_count_of(owner);
+
+	if ((yield_count & 1) == 0)
+		goto relax; /* owner vcpu is running */
+
+	/*
+	 * Read the lock word after sampling the yield count. On the other side
+	 * there may a wmb because the yield count update is done by the
+	 * hypervisor preemption and the value update by the OS, however this
+	 * ordering might reduce the chance of out of order accesses and
+	 * improve the heuristic.
+	 */
+	smp_rmb();
+
+	if (READ_ONCE(lock->val) == val) {
+		yield_to_preempted(owner, yield_count);
+		/* Don't relax if we yielded. Maybe we should? */
+		return;
+	}
+relax:
+	cpu_relax();
+}
+
+
+static __always_inline bool try_to_steal_lock(struct qspinlock *lock, bool paravirt)
 {
 	int iters = 0;
 
@@ -168,16 +214,16 @@ static inline bool try_to_steal_lock(struct qspinlock *lock)
 			if (__queued_spin_trylock_steal(lock))
 				return true;
 		} else {
-			cpu_relax();
+			yield_to_locked_owner(lock, val, paravirt);
 		}
 
 		iters++;
-	} while (iters < get_steal_spins());
+	} while (iters < get_steal_spins(paravirt));
 
 	return false;
 }
 
-static inline void queued_spin_lock_mcs_queue(struct qspinlock *lock)
+static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, bool paravirt)
 {
 	struct qnodes *qnodesp;
 	struct qnode *next, *node;
@@ -235,12 +281,12 @@ again:
 		if (!(val & _Q_LOCKED_VAL))
 			break;
 
-		cpu_relax();
+		yield_to_locked_owner(lock, val, paravirt);
 		if (!maybe_stealers)
 			continue;
 		iters++;
 
-		if (!mustq && iters >= get_head_spins()) {
+		if (!mustq && iters >= get_head_spins(paravirt)) {
 			mustq = true;
 			set_mustq(lock);
 			val |= _Q_MUST_Q_VAL;
@@ -276,10 +322,20 @@ release:
 
 void queued_spin_lock_slowpath(struct qspinlock *lock)
 {
-	if (try_to_steal_lock(lock))
-		return;
-
-	queued_spin_lock_mcs_queue(lock);
+	/*
+	 * This looks funny, but it induces the compiler to inline both
+	 * sides of the branch rather than share code as when the condition
+	 * is passed as the paravirt argument to the functions.
+	 */
+	if (IS_ENABLED(CONFIG_PARAVIRT_SPINLOCKS) && is_shared_processor()) {
+		if (try_to_steal_lock(lock, true))
+			return;
+		queued_spin_lock_mcs_queue(lock, true);
+	} else {
+		if (try_to_steal_lock(lock, false))
+			return;
+		queued_spin_lock_mcs_queue(lock, false);
+	}
 }
 EXPORT_SYMBOL(queued_spin_lock_slowpath);
 
@@ -345,10 +401,29 @@ static int head_spins_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_head_spins, head_spins_get, head_spins_set, "%llu\n");
 
+static int pv_yield_owner_set(void *data, u64 val)
+{
+	pv_yield_owner = !!val;
+
+	return 0;
+}
+
+static int pv_yield_owner_get(void *data, u64 *val)
+{
+	*val = pv_yield_owner;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_pv_yield_owner, pv_yield_owner_get, pv_yield_owner_set, "%llu\n");
+
 static __init int spinlock_debugfs_init(void)
 {
 	debugfs_create_file("qspl_steal_spins", 0600, arch_debugfs_dir, NULL, &fops_steal_spins);
 	debugfs_create_file("qspl_head_spins", 0600, arch_debugfs_dir, NULL, &fops_head_spins);
+	if (is_shared_processor()) {
+		debugfs_create_file("qspl_pv_yield_owner", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_owner);
+	}
 
 	return 0;
 }
