@@ -25,9 +25,13 @@ a consistency checking tool (fsck.f2fs), and a debugging tool (dump.f2fs).
 
 - git://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs-tools.git
 
-For reporting bugs and sending patches, please use the following mailing list:
+For sending patches, please use the following mailing list:
 
 - linux-f2fs-devel@lists.sourceforge.net
+
+For reporting bugs, please use the following f2fs bug tracker link:
+
+- https://bugzilla.kernel.org/enter_bug.cgi?product=File%20System&component=f2fs
 
 Background and Design issues
 ============================
