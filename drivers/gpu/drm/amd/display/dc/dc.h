@@ -872,6 +872,7 @@ struct dc_debug_options {
 	enum lttpr_mode lttpr_mode_override;
 	unsigned int dsc_delay_factor_wa_x1000;
 	unsigned int min_prefetch_in_strobe_ns;
+	bool disable_unbounded_requesting;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
