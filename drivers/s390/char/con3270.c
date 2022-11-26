@@ -430,8 +430,38 @@ static char *tty3270_add_reset_attributes(struct tty3270 *tp, struct tty3270_lin
 	return cp;
 }
 
-static char *tty3270_add_attributes(struct tty3270_line *line, struct tty3270_attribute *attr,
-				    char *cp)
+static char tty3270_graphics_translate(struct tty3270 *tp, char ch)
+{
+	switch (ch) {
+	case 'q': /* - */
+		return 0xa2;
+	case 'x': /* '|' */
+		return 0x85;
+	case 'l': /* |- */
+		return 0xc5;
+	case 't': /* |_ */
+		return 0xc6;
+	case 'u': /* _| */
+		return 0xd6;
+	case 'k': /* -| */
+		return 0xd5;
+	case 'j':
+		return 0xd4;
+	case 'm':
+		return 0xc4;
+	case 'n': /* + */
+		return 0xd3;
+	case 'v':
+		return 0xc7;
+	case 'w':
+		return 0xd7;
+	default:
+		return ch;
+	}
+}
+
+static char *tty3270_add_attributes(struct tty3270 *tp, struct tty3270_line *line,
+				    struct tty3270_attribute *attr, char *cp)
 {
 	struct tty3270_cell *cell;
 	int i;
@@ -459,9 +489,12 @@ static char *tty3270_add_attributes(struct tty3270_line *line, struct tty3270_at
 			*cp++ = cell->attributes.b_color;
 			attr->b_color = cell->attributes.b_color;
 		}
-		if (cell->attributes.alternate_charset)
+		if (cell->attributes.alternate_charset) {
 			*cp++ = TO_GE;
-		*cp++ = cell->character;
+			*cp++ = tty3270_graphics_translate(tp, cell->character);
+		} else {
+			*cp++ = tp->view.ascebc[(int)cell->character];
+		}
 	}
 	return cp;
 }
@@ -511,7 +544,7 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 
 	/* Write 3270 data fragment. */
 	tty3270_reset_attributes(&attr);
-	cp = tty3270_add_attributes(line, &attr, s->string);
+	cp = tty3270_add_attributes(tp, line, &attr, s->string);
 	cp = tty3270_add_reset_attributes(tp, line, cp, &attr);
 	if (tp->nr_up + line_nr < tty3270_tty_rows(tp)) {
 		/* Line is currently visible on screen. */
@@ -1241,36 +1274,6 @@ static unsigned int tty3270_write_room(struct tty_struct *tty)
 	return INT_MAX;
 }
 
-static char tty3270_graphics_translate(struct tty3270 *tp, char ch)
-{
-	switch (ch) {
-	case 'q': /* - */
-		return 0xa2;
-	case 'x': /* '|' */
-		return 0x85;
-	case 'l': /* |- */
-		return 0xc5;
-	case 't': /* |_ */
-		return 0xc6;
-	case 'u': /* _| */
-		return 0xd6;
-	case 'k': /* -| */
-		return 0xd5;
-	case 'j':
-		return 0xd4;
-	case 'm':
-		return 0xc4;
-	case 'n': /* + */
-		return 0xd3;
-	case 'v':
-		return 0xc7;
-	case 'w':
-		return 0xd7;
-	default:
-		return ch;
-	}
-}
-
 /*
  * Insert character into the screen at the current position with the
  * current color and highlight. This function does NOT do cursor movement.
@@ -1284,17 +1287,14 @@ static void tty3270_put_character(struct tty3270 *tp, char ch)
 	if (line->len <= tp->cx) {
 		while (line->len < tp->cx) {
 			cell = line->cells + line->len;
-			cell->character = tp->view.ascebc[' '];
+			cell->character = ' ';
 			cell->attributes = tp->attributes;
 			line->len++;
 		}
 		line->len++;
 	}
 	cell = line->cells + tp->cx;
-	if (tp->attributes.alternate_charset)
-		cell->character = tty3270_graphics_translate(tp, ch);
-	else
-		cell->character = tp->view.ascebc[(unsigned int)ch];
+	cell->character = ch;
 	cell->attributes = tp->attributes;
 }
 
@@ -1339,7 +1339,7 @@ static void tty3270_ri(struct tty3270 *tp)
 
 static void tty3270_reset_cell(struct tty3270 *tp, struct tty3270_cell *cell)
 {
-	cell->character = tp->view.ascebc[' '];
+	cell->character = ' ';
 	tty3270_reset_attributes(&cell->attributes);
 }
 
@@ -1363,7 +1363,7 @@ static void tty3270_insert_characters(struct tty3270 *tp, int n)
 	if (line->len > tp->view.cols)
 		line->len = tp->view.cols;
 	while (n-- > 0) {
-		line->cells[tp->cx + n].character = tp->view.ascebc[' '];
+		line->cells[tp->cx + n].character = ' ';
 		line->cells[tp->cx + n].attributes = tp->attributes;
 	}
 }
