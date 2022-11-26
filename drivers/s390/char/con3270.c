@@ -133,6 +133,7 @@ struct tty3270 {
 #define TTY_UPDATE_ALL		16	/* Recreate screen. */
 
 #define TTY3270_INPUT_AREA_ROWS 2
+
 static void tty3270_update(struct timer_list *);
 /*
  * Setup timeout for a device. On timeout trigger an update.
@@ -153,7 +154,6 @@ static int tty3270_tty_rows(struct tty3270 *tp)
 static void tty3270_update_prompt(struct tty3270 *tp, char *input, int count)
 {
 	struct string *line;
-	unsigned int off;
 
 	line = tp->prompt;
 	if (count != 0)
@@ -168,8 +168,7 @@ static void tty3270_update_prompt(struct tty3270 *tp, char *input, int count)
 	if (count < tp->view.cols * 2 - 11) {
 		line->string[7 + count] = TO_RA;
 		line->string[10 + count] = 0;
-		off = tp->view.cols * tp->view.rows - 9;
-		raw3270_buffer_address(tp->view.dev, line->string+count+8, off);
+		raw3270_buffer_address(tp->view.dev, line->string+count+8, -9, -1);
 		line->len = 11 + count;
 	} else
 		line->len = 7 + count;
@@ -183,7 +182,6 @@ static void tty3270_create_prompt(struct tty3270 *tp)
 		  /* empty input string */
 		  TO_IC, TO_RA, 0, 0, 0 };
 	struct string *line;
-	unsigned int offset;
 
 	line = alloc_string(&tp->freemem,
 			    sizeof(blueprint) + tp->view.cols * 2 - 9);
@@ -193,10 +191,9 @@ static void tty3270_create_prompt(struct tty3270 *tp)
 	memcpy(line->string, blueprint, sizeof(blueprint));
 	line->len = sizeof(blueprint);
 	/* Set output offsets. */
-	offset = tp->view.cols * tty3270_tty_rows(tp);
-	raw3270_buffer_address(tp->view.dev, line->string + 1, offset);
-	offset = tp->view.cols * tp->view.rows - 9;
-	raw3270_buffer_address(tp->view.dev, line->string + 8, offset);
+
+	raw3270_buffer_address(tp->view.dev, line->string + 1, 0, -2);
+	raw3270_buffer_address(tp->view.dev, line->string + 8, -9, -1);
 
 	/* Allocate input string for reading. */
 	tp->input = alloc_string(&tp->freemem, tp->view.cols * 2 - 9 + 6);
@@ -232,7 +229,7 @@ static void tty3270_create_status(struct tty3270 *tp)
 	memcpy(line->string, blueprint, sizeof(blueprint));
 	/* Set address to start of status string (= last 9 characters). */
 	offset = tp->view.cols * tp->view.rows - 9;
-	raw3270_buffer_address(tp->view.dev, line->string + 1, offset);
+	raw3270_buffer_address(tp->view.dev, line->string + 1, -9, -1);
 }
 
 /*
@@ -243,12 +240,10 @@ static void tty3270_update_string(struct tty3270 *tp, struct string *line, int n
 {
 	unsigned char *cp;
 
-	raw3270_buffer_address(tp->view.dev, line->string + 1,
-			       tp->view.cols * nr);
+	raw3270_buffer_address(tp->view.dev, line->string + 1, 0, nr);
 	cp = line->string + line->len - 4;
 	if (*cp == TO_RA)
-		raw3270_buffer_address(tp->view.dev, cp + 1,
-				       tp->view.cols * (nr + 1));
+		raw3270_buffer_address(tp->view.dev, cp + 1, 0, nr + 1);
 }
 
 /*

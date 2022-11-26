@@ -113,8 +113,15 @@ static inline int raw3270_state_ready(struct raw3270 *rp)
 	return rp->state == RAW3270_STATE_READY;
 }
 
-void raw3270_buffer_address(struct raw3270 *rp, char *cp, unsigned short addr)
+void raw3270_buffer_address(struct raw3270 *rp, char *cp, int x, int y)
 {
+	int addr;
+
+	if (x < 0)
+		x = max_t(int, 0, rp->view->cols + x);
+	if (y < 0)
+		y = max_t(int, 0, rp->view->rows + y);
+	addr = (y * rp->view->cols) + x;
 	if (test_bit(RAW3270_FLAGS_14BITADDR, &rp->flags)) {
 		cp[0] = (addr >> 8) & 0x3f;
 		cp[1] = addr & 0xff;

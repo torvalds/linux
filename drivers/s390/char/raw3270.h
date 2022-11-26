@@ -132,7 +132,7 @@ raw3270_request_final(struct raw3270_request *rq)
 	return list_empty(&rq->list);
 }
 
-void raw3270_buffer_address(struct raw3270 *, char *, unsigned short);
+void raw3270_buffer_address(struct raw3270 *, char *, int, int);
 
 /*
  * Functions of a 3270 view.
