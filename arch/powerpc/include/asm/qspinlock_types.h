@@ -29,7 +29,8 @@ typedef struct qspinlock {
  * Bitfields in the lock word:
  *
  *     0: locked bit
- *  1-16: unused bits
+ *  1-15: unused bits
+ *    16: must queue bit
  * 17-31: tail cpu (+1)
  */
 #define	_Q_SET_MASK(type)	(((1U << _Q_ ## type ## _BITS) - 1)\
@@ -38,6 +39,11 @@ typedef struct qspinlock {
 #define _Q_LOCKED_OFFSET	0
 #define _Q_LOCKED_BITS		1
 #define _Q_LOCKED_VAL		(1U << _Q_LOCKED_OFFSET)
+
+/* 0x00010000 */
+#define _Q_MUST_Q_OFFSET	16
+#define _Q_MUST_Q_BITS		1
+#define _Q_MUST_Q_VAL		(1U << _Q_MUST_Q_OFFSET)
 
 /* 0xfffe0000 */
 #define _Q_TAIL_CPU_OFFSET	17

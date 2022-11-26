@@ -22,12 +22,18 @@ struct qnodes {
 /* Tuning parameters */
 static int steal_spins __read_mostly = (1 << 5);
 static bool maybe_stealers __read_mostly = true;
+static int head_spins __read_mostly = (1 << 8);
 
 static DEFINE_PER_CPU_ALIGNED(struct qnodes, qnodes);
 
 static __always_inline int get_steal_spins(void)
 {
 	return steal_spins;
+}
+
+static __always_inline int get_head_spins(void)
+{
+	return head_spins;
 }
 
 static inline u32 encode_tail_cpu(int cpu)
@@ -104,6 +110,22 @@ static __always_inline u32 publish_tail_cpu(struct qspinlock *lock, u32 tail)
 	return prev;
 }
 
+static __always_inline u32 set_mustq(struct qspinlock *lock)
+{
+	u32 prev;
+
+	asm volatile(
+"1:	lwarx	%0,0,%1		# set_mustq				\n"
+"	or	%0,%0,%2						\n"
+"	stwcx.	%0,0,%1							\n"
+"	bne-	1b							\n"
+	: "=&r" (prev)
+	: "r" (&lock->val), "r" (_Q_MUST_Q_VAL)
+	: "cr0", "memory");
+
+	return prev;
+}
+
 static struct qnode *get_tail_qnode(struct qspinlock *lock, u32 val)
 {
 	int cpu = decode_tail_cpu(val);
@@ -139,6 +161,9 @@ static inline bool try_to_steal_lock(struct qspinlock *lock)
 	do {
 		u32 val = READ_ONCE(lock->val);
 
+		if (val & _Q_MUST_Q_VAL)
+			break;
+
 		if (unlikely(!(val & _Q_LOCKED_VAL))) {
 			if (__queued_spin_trylock_steal(lock))
 				return true;
@@ -157,7 +182,9 @@ static inline void queued_spin_lock_mcs_queue(struct qspinlock *lock)
 	struct qnodes *qnodesp;
 	struct qnode *next, *node;
 	u32 val, old, tail;
+	bool mustq = false;
 	int idx;
+	int iters = 0;
 
 	BUILD_BUG_ON(CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS));
 
@@ -209,6 +236,15 @@ again:
 			break;
 
 		cpu_relax();
+		if (!maybe_stealers)
+			continue;
+		iters++;
+
+		if (!mustq && iters >= get_head_spins()) {
+			mustq = true;
+			set_mustq(lock);
+			val |= _Q_MUST_Q_VAL;
+		}
 	}
 
 	/* If we're the last queued, must clean up the tail. */
@@ -293,9 +329,26 @@ static int steal_spins_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_steal_spins, steal_spins_get, steal_spins_set, "%llu\n");
 
+static int head_spins_set(void *data, u64 val)
+{
+	head_spins = val;
+
+	return 0;
+}
+
+static int head_spins_get(void *data, u64 *val)
+{
+	*val = head_spins;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_head_spins, head_spins_get, head_spins_set, "%llu\n");
+
 static __init int spinlock_debugfs_init(void)
 {
 	debugfs_create_file("qspl_steal_spins", 0600, arch_debugfs_dir, NULL, &fops_steal_spins);
+	debugfs_create_file("qspl_head_spins", 0600, arch_debugfs_dir, NULL, &fops_head_spins);
 
 	return 0;
 }
