@@ -556,6 +556,13 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 	uint len = precv_frame->len;
 	struct wlan_bssid_ex *pbss;
 	int ret = _SUCCESS;
+	u8 *ie_ptr;
+	u32 ie_len;
+
+	ie_ptr = (u8 *)&mgmt->u.beacon.variable;
+	if (precv_frame->len < offsetof(struct ieee80211_mgmt, u.beacon.variable))
+		return;
+	ie_len = precv_frame->len - offsetof(struct ieee80211_mgmt, u.beacon.variable);
 
 	if (pmlmeext->sitesurvey_res.state == SCAN_PROCESS) {
 		report_survey_event(padapter, precv_frame);
@@ -598,7 +605,7 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 				/* todo: the timer is used instead of the number of the beacon received */
 				if ((sta_rx_pkts(psta) & 0xf) == 0)
 					update_beacon_info(padapter, pframe, len, psta);
-				process_p2p_ps_ie(padapter, (pframe + WLAN_HDR_A3_LEN), (len - WLAN_HDR_A3_LEN));
+				process_p2p_ps_ie(padapter, ie_ptr, ie_len);
 			}
 		} else if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
 			psta = rtw_get_stainfo(pstapriv, mgmt->sa);

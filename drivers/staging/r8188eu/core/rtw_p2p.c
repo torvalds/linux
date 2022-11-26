@@ -1505,8 +1505,6 @@ void p2p_protocol_wk_hdl(struct adapter *padapter, int intCmdType)
 
 void process_p2p_ps_ie(struct adapter *padapter, u8 *IEs, u32 IELength)
 {
-	u8 *ies;
-	u32 ies_len;
 	u8 *p2p_ie;
 	u32	p2p_ielen = 0;
 	u8	noa_attr[MAX_P2P_IE_LEN] = { 0x00 };/*  NoA length should be n*(13) + 2 */
@@ -1518,13 +1516,8 @@ void process_p2p_ps_ie(struct adapter *padapter, u8 *IEs, u32 IELength)
 
 	if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
 		return;
-	if (IELength <= _BEACON_IE_OFFSET_)
-		return;
 
-	ies = IEs + _BEACON_IE_OFFSET_;
-	ies_len = IELength - _BEACON_IE_OFFSET_;
-
-	p2p_ie = rtw_get_p2p_ie(ies, ies_len, NULL, &p2p_ielen);
+	p2p_ie = rtw_get_p2p_ie(IEs, IELength, NULL, &p2p_ielen);
 
 	while (p2p_ie) {
 		find_p2p = true;
@@ -1579,7 +1572,7 @@ void process_p2p_ps_ie(struct adapter *padapter, u8 *IEs, u32 IELength)
 		}
 
 		/* Get the next P2P IE */
-		p2p_ie = rtw_get_p2p_ie(p2p_ie + p2p_ielen, ies_len - (p2p_ie - ies + p2p_ielen), NULL, &p2p_ielen);
+		p2p_ie = rtw_get_p2p_ie(p2p_ie + p2p_ielen, IELength - (p2p_ie - IEs + p2p_ielen), NULL, &p2p_ielen);
 	}
 
 	if (find_p2p) {
