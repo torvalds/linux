@@ -338,18 +338,20 @@ static int rk_multicodecs_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *codec_dai;
 	struct multicodecs_data *mc_data = snd_soc_card_get_drvdata(rtd->card);
 	unsigned int mclk;
-	int ret;
+	int ret, i;
 
 	mclk = params_rate(params) * mc_data->mclk_fs;
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, substream->stream, mclk,
-				     SND_SOC_CLOCK_IN);
-	if (ret && ret != -ENOTSUPP) {
-		pr_err("Set codec_dai sysclk failed: %d\n", ret);
-		goto out;
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
+		ret = snd_soc_dai_set_sysclk(codec_dai, substream->stream, mclk,
+					     SND_SOC_CLOCK_IN);
+		if (ret && ret != -ENOTSUPP) {
+			pr_err("Set codec_dai sysclk failed: %d\n", ret);
+			goto out;
+		}
 	}
 
 	ret = snd_soc_dai_set_sysclk(cpu_dai, substream->stream, mclk,
