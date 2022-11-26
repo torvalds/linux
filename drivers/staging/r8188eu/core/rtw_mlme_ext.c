@@ -604,7 +604,7 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 				/* update WMM, ERP in the beacon */
 				/* todo: the timer is used instead of the number of the beacon received */
 				if ((sta_rx_pkts(psta) & 0xf) == 0)
-					update_beacon_info(padapter, pframe, len, psta);
+					update_beacon_info(padapter, ie_ptr, ie_len, psta);
 				process_p2p_ps_ie(padapter, ie_ptr, ie_len);
 			}
 		} else if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
@@ -613,7 +613,7 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 				/* update WMM, ERP in the beacon */
 				/* todo: the timer is used instead of the number of the beacon received */
 				if ((sta_rx_pkts(psta) & 0xf) == 0)
-					update_beacon_info(padapter, pframe, len, psta);
+					update_beacon_info(padapter, ie_ptr, ie_len, psta);
 			} else {
 				/* allocate a new CAM entry for IBSS station */
 				cam_idx = allocate_fw_sta_entry(padapter);
