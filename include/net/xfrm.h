@@ -1681,8 +1681,9 @@ struct xfrm_policy *xfrm_policy_byid(struct net *net,
 int xfrm_policy_flush(struct net *net, u8 type, bool task_valid);
 void xfrm_policy_hash_rebuild(struct net *net);
 u32 xfrm_get_acqseq(void);
-int verify_spi_info(u8 proto, u32 min, u32 max);
-int xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi);
+int verify_spi_info(u8 proto, u32 min, u32 max, struct netlink_ext_ack *extack);
+int xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi,
+		   struct netlink_ext_ack *extack);
 struct xfrm_state *xfrm_find_acq(struct net *net, const struct xfrm_mark *mark,
 				 u8 mode, u32 reqid, u32 if_id, u8 proto,
 				 const xfrm_address_t *daddr,
@@ -1703,7 +1704,8 @@ struct xfrm_state *xfrm_state_migrate(struct xfrm_state *x,
 int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 		 struct xfrm_migrate *m, int num_bundles,
 		 struct xfrm_kmaddress *k, struct net *net,
-		 struct xfrm_encap_tmpl *encap, u32 if_id);
+		 struct xfrm_encap_tmpl *encap, u32 if_id,
+		 struct netlink_ext_ack *extack);
 #endif
 
 int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport);
