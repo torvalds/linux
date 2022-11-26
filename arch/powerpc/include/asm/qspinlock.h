@@ -6,14 +6,67 @@
 #include <asm/qspinlock_types.h>
 #include <asm/paravirt.h>
 
+#ifdef CONFIG_PPC64
+/*
+ * Use the EH=1 hint for accesses that result in the lock being acquired.
+ * The hardware is supposed to optimise this pattern by holding the lock
+ * cacheline longer, and releasing when a store to the same memory (the
+ * unlock) is performed.
+ */
+#define _Q_SPIN_EH_HINT 1
+#else
+#define _Q_SPIN_EH_HINT 0
+#endif
+
 /*
  * The trylock itself may steal. This makes trylocks slightly stronger, and
- * might make spin locks slightly more efficient when stealing.
+ * makes locks slightly more efficient when stealing.
  *
  * This is compile-time, so if true then there may always be stealers, so the
  * nosteal paths become unused.
  */
 #define _Q_SPIN_TRY_LOCK_STEAL 1
+
+/*
+ * Put a speculation barrier after testing the lock/node and finding it
+ * busy. Try to prevent pointless speculation in slow paths.
+ *
+ * Slows down the lockstorm microbenchmark with no stealing, where locking
+ * is purely FIFO through the queue. May have more benefit in real workload
+ * where speculating into the wrong place could have a greater cost.
+ */
+#define _Q_SPIN_SPEC_BARRIER 0
+
+#ifdef CONFIG_PPC64
+/*
+ * Execute a miso instruction after passing the MCS lock ownership to the
+ * queue head. Miso is intended to make stores visible to other CPUs sooner.
+ *
+ * This seems to make the lockstorm microbenchmark nospin test go slightly
+ * faster on POWER10, but disable for now.
+ */
+#define _Q_SPIN_MISO 0
+#else
+#define _Q_SPIN_MISO 0
+#endif
+
+#ifdef CONFIG_PPC64
+/*
+ * This executes miso after an unlock of the lock word, having ownership
+ * pass to the next CPU sooner. This will slow the uncontended path to some
+ * degree. Not evidence it helps yet.
+ */
+#define _Q_SPIN_MISO_UNLOCK 0
+#else
+#define _Q_SPIN_MISO_UNLOCK 0
+#endif
+
+/*
+ * Seems to slow down lockstorm microbenchmark, suspect queue node just
+ * has to become shared again right afterwards when its waiter spins on
+ * the lock field.
+ */
+#define _Q_SPIN_PREFETCH_NEXT 0
 
 static __always_inline int queued_spin_is_locked(struct qspinlock *lock)
 {
@@ -52,7 +105,7 @@ static __always_inline int __queued_spin_trylock_nosteal(struct qspinlock *lock)
 "2:									\n"
 	: "=&r" (prev)
 	: "r" (&lock->val), "r" (new),
-	  "i" (IS_ENABLED(CONFIG_PPC64))
+	  "i" (_Q_SPIN_EH_HINT)
 	: "cr0", "memory");
 
 	return likely(prev == 0);
@@ -76,7 +129,7 @@ static __always_inline int __queued_spin_trylock_steal(struct qspinlock *lock)
 "2:									\n"
 	: "=&r" (prev), "=&r" (tmp)
 	: "r" (&lock->val), "r" (new), "r" (_Q_TAIL_CPU_MASK),
-	  "i" (IS_ENABLED(CONFIG_PPC64))
+	  "i" (_Q_SPIN_EH_HINT)
 	: "cr0", "memory");
 
 	return likely(!(prev & ~_Q_TAIL_CPU_MASK));
@@ -101,6 +154,8 @@ static __always_inline void queued_spin_lock(struct qspinlock *lock)
 static inline void queued_spin_unlock(struct qspinlock *lock)
 {
 	smp_store_release(&lock->locked, 0);
+	if (_Q_SPIN_MISO_UNLOCK)
+		asm volatile("miso" ::: "memory");
 }
 
 #define arch_spin_is_locked(l)		queued_spin_is_locked(l)

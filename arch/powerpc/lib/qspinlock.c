@@ -48,6 +48,12 @@ static bool pv_prod_head __read_mostly = false;
 static DEFINE_PER_CPU_ALIGNED(struct qnodes, qnodes);
 static DEFINE_PER_CPU_ALIGNED(u64, sleepy_lock_seen_clock);
 
+#if _Q_SPIN_SPEC_BARRIER == 1
+#define spec_barrier() do { asm volatile("ori 31,31,0" ::: "memory"); } while (0)
+#else
+#define spec_barrier() do { } while (0)
+#endif
+
 static __always_inline bool recently_sleepy(void)
 {
 	/* pv_sleepy_lock is true when this is called */
@@ -137,7 +143,7 @@ static __always_inline u32 trylock_clean_tail(struct qspinlock *lock, u32 tail)
 	: "r" (&lock->val), "r"(tail), "r" (newval),
 	  "i" (_Q_LOCKED_VAL),
 	  "r" (_Q_TAIL_CPU_MASK),
-	  "i" (IS_ENABLED(CONFIG_PPC64))
+	  "i" (_Q_SPIN_EH_HINT)
 	: "cr0", "memory");
 
 	return prev;
@@ -475,6 +481,7 @@ static __always_inline bool try_to_steal_lock(struct qspinlock *lock, bool parav
 		val = READ_ONCE(lock->val);
 		if (val & _Q_MUST_Q_VAL)
 			break;
+		spec_barrier();
 
 		if (unlikely(!(val & _Q_LOCKED_VAL))) {
 			spin_end();
@@ -540,6 +547,7 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 
 	qnodesp = this_cpu_ptr(&qnodes);
 	if (unlikely(qnodesp->count >= MAX_NODES)) {
+		spec_barrier();
 		while (!queued_spin_trylock(lock))
 			cpu_relax();
 		return;
@@ -576,9 +584,12 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 		/* Wait for mcs node lock to be released */
 		spin_begin();
 		while (!node->locked) {
+			spec_barrier();
+
 			if (yield_to_prev(lock, node, old, paravirt))
 				seen_preempted = true;
 		}
+		spec_barrier();
 		spin_end();
 
 		/* Clear out stale propagated yield_cpu */
@@ -586,6 +597,17 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 			node->yield_cpu = -1;
 
 		smp_rmb(); /* acquire barrier for the mcs lock */
+
+		/*
+		 * Generic qspinlocks have this prefetch here, but it seems
+		 * like it could cause additional line transitions because
+		 * the waiter will keep loading from it.
+		 */
+		if (_Q_SPIN_PREFETCH_NEXT) {
+			next = READ_ONCE(node->next);
+			if (next)
+				prefetchw(next);
+		}
 	}
 
 	/* We're at the head of the waitqueue, wait for the lock. */
@@ -597,6 +619,7 @@ again:
 		val = READ_ONCE(lock->val);
 		if (!(val & _Q_LOCKED_VAL))
 			break;
+		spec_barrier();
 
 		if (paravirt && pv_sleepy_lock && maybe_stealers) {
 			if (!sleepy) {
@@ -637,6 +660,7 @@ again:
 			val |= _Q_MUST_Q_VAL;
 		}
 	}
+	spec_barrier();
 	spin_end();
 
 	/* If we're the last queued, must clean up the tail. */
@@ -657,6 +681,7 @@ again:
 			cpu_relax();
 		spin_end();
 	}
+	spec_barrier();
 
 	/*
 	 * Unlock the next mcs waiter node. Release barrier is not required
@@ -668,10 +693,14 @@ again:
 	if (paravirt && pv_prod_head) {
 		int next_cpu = next->cpu;
 		WRITE_ONCE(next->locked, 1);
+		if (_Q_SPIN_MISO)
+			asm volatile("miso" ::: "memory");
 		if (vcpu_is_preempted(next_cpu))
 			prod_cpu(next_cpu);
 	} else {
 		WRITE_ONCE(next->locked, 1);
+		if (_Q_SPIN_MISO)
+			asm volatile("miso" ::: "memory");
 	}
 
 release:
@@ -686,12 +715,16 @@ void queued_spin_lock_slowpath(struct qspinlock *lock)
 	 * is passed as the paravirt argument to the functions.
 	 */
 	if (IS_ENABLED(CONFIG_PARAVIRT_SPINLOCKS) && is_shared_processor()) {
-		if (try_to_steal_lock(lock, true))
+		if (try_to_steal_lock(lock, true)) {
+			spec_barrier();
 			return;
+		}
 		queued_spin_lock_mcs_queue(lock, true);
 	} else {
-		if (try_to_steal_lock(lock, false))
+		if (try_to_steal_lock(lock, false)) {
+			spec_barrier();
 			return;
+		}
 		queued_spin_lock_mcs_queue(lock, false);
 	}
 }
