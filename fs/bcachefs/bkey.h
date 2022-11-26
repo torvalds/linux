@@ -689,7 +689,6 @@ static inline void bch2_bkey_format_add_key(struct bkey_format_state *s, const s
 #define x(id, field) __bkey_format_add(s, id, k->field);
 	bkey_fields()
 #undef x
-	__bkey_format_add(s, BKEY_FIELD_OFFSET, bkey_start_offset(k));
 }
 
 void bch2_bkey_format_add_pos(struct bkey_format_state *, struct bpos);

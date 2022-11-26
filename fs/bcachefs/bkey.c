@@ -323,15 +323,6 @@ bool bch2_bkey_pack_key(struct bkey_packed *out, const struct bkey *in,
 #define x(id, field)	if (!set_inc_field(&state, id, in->field)) return false;
 	bkey_fields()
 #undef x
-
-	/*
-	 * Extents - we have to guarantee that if an extent is packed, a trimmed
-	 * version will also pack:
-	 */
-	if (bkey_start_offset(in) <
-	    le64_to_cpu(format->field_offset[BKEY_FIELD_OFFSET]))
-		return false;
-
 	pack_state_finish(&state, out);
 	out->u64s	= format->key_u64s + in->u64s - BKEY_U64s;
 	out->format	= KEY_FORMAT_LOCAL_BTREE;
