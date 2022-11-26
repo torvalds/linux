@@ -41,6 +41,29 @@ static __always_inline int queued_spin_trylock(struct qspinlock *lock)
 	return likely(prev == 0);
 }
 
+static __always_inline int __queued_spin_trylock_steal(struct qspinlock *lock)
+{
+	u32 prev, tmp;
+
+	/* Trylock may get ahead of queued nodes if it finds unlocked */
+	asm volatile(
+"1:	lwarx	%0,0,%2,%5	# __queued_spin_trylock_steal		\n"
+"	andc.	%1,%0,%4						\n"
+"	bne-	2f							\n"
+"	and	%1,%0,%4						\n"
+"	or	%1,%1,%3						\n"
+"	stwcx.	%1,0,%2							\n"
+"	bne-	1b							\n"
+"\t"	PPC_ACQUIRE_BARRIER "						\n"
+"2:									\n"
+	: "=&r" (prev), "=&r" (tmp)
+	: "r" (&lock->val), "r" (_Q_LOCKED_VAL), "r" (_Q_TAIL_CPU_MASK),
+	  "i" (IS_ENABLED(CONFIG_PPC64))
+	: "cr0", "memory");
+
+	return likely(!(prev & ~_Q_TAIL_CPU_MASK));
+}
+
 void queued_spin_lock_slowpath(struct qspinlock *lock);
 
 static __always_inline void queued_spin_lock(struct qspinlock *lock)
