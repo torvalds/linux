@@ -274,10 +274,13 @@ static void
 xfs_buf_free_pages(
 	struct xfs_buf	*bp)
 {
+#ifdef CONFIG_MMU
 	uint		i;
+#endif
 
 	ASSERT(bp->b_flags & _XBF_PAGES);
 
+#ifdef CONFIG_MMU
 	if (xfs_buf_is_vmapped(bp))
 		vm_unmap_ram(bp->b_addr, bp->b_page_count);
 
@@ -285,6 +288,10 @@ xfs_buf_free_pages(
 		if (bp->b_pages[i])
 			__free_page(bp->b_pages[i]);
 	}
+#else
+	free_pages((unsigned long)page_to_virt(bp->b_pages[0]),
+		order_base_2(bp->b_page_count));
+#endif
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += bp->b_page_count;
 
@@ -303,12 +310,7 @@ xfs_buf_free(
 	ASSERT(list_empty(&bp->b_lru));
 
 	if (bp->b_flags & _XBF_PAGES)
-#ifdef CONFIG_MMU
 		xfs_buf_free_pages(bp);
-#else
-		free_pages((unsigned long)page_to_virt(bp->b_pages[0]),
-			   order_base_2(bp->b_page_count));
-#endif
 	else if (bp->b_flags & _XBF_KMEM)
 		kmem_free(bp->b_addr);
 
@@ -383,9 +385,21 @@ xfs_buf_alloc_pages(
 	 */
 	for (;;) {
 		long	last = filled;
+#ifndef CONFIG_MMU
+		int i;
+		struct page *pages;
+		int count = bp->b_page_count;
 
+		pages = alloc_pages(gfp_mask, order_base_2(count));
+		if (pages) {
+			for (i = 0; i < count; i++)
+				bp->b_pages[i] = pages + i;
+		}
+		filled = count;
+#else
 		filled = alloc_pages_bulk_array(gfp_mask, bp->b_page_count,
 						bp->b_pages);
+#endif
 		if (filled == bp->b_page_count) {
 			XFS_STATS_INC(bp->b_mount, xb_page_found);
 			break;
