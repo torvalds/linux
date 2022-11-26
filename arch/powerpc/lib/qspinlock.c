@@ -24,7 +24,11 @@ struct qnodes {
 
 /* Tuning parameters */
 static int steal_spins __read_mostly = (1 << 5);
+#if _Q_SPIN_TRY_LOCK_STEAL == 1
+static const bool maybe_stealers = true;
+#else
 static bool maybe_stealers __read_mostly = true;
+#endif
 static int head_spins __read_mostly = (1 << 8);
 
 static bool pv_yield_owner __read_mostly = true;
@@ -483,6 +487,10 @@ void pv_spinlocks_init(void)
 #include <linux/debugfs.h>
 static int steal_spins_set(void *data, u64 val)
 {
+#if _Q_SPIN_TRY_LOCK_STEAL == 1
+	/* MAYBE_STEAL remains true */
+	steal_spins = val;
+#else
 	static DEFINE_MUTEX(lock);
 
 	/*
@@ -507,6 +515,7 @@ static int steal_spins_set(void *data, u64 val)
 		steal_spins = val;
 	}
 	mutex_unlock(&lock);
+#endif
 
 	return 0;
 }

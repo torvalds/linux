@@ -6,6 +6,15 @@
 #include <asm/qspinlock_types.h>
 #include <asm/paravirt.h>
 
+/*
+ * The trylock itself may steal. This makes trylocks slightly stronger, and
+ * might make spin locks slightly more efficient when stealing.
+ *
+ * This is compile-time, so if true then there may always be stealers, so the
+ * nosteal paths become unused.
+ */
+#define _Q_SPIN_TRY_LOCK_STEAL 1
+
 static __always_inline int queued_spin_is_locked(struct qspinlock *lock)
 {
 	return READ_ONCE(lock->val);
@@ -27,13 +36,14 @@ static __always_inline u32 queued_spin_encode_locked_val(void)
 	return _Q_LOCKED_VAL | (smp_processor_id() << _Q_OWNER_CPU_OFFSET);
 }
 
-static __always_inline int queued_spin_trylock(struct qspinlock *lock)
+static __always_inline int __queued_spin_trylock_nosteal(struct qspinlock *lock)
 {
 	u32 new = queued_spin_encode_locked_val();
 	u32 prev;
 
+	/* Trylock succeeds only when unlocked and no queued nodes */
 	asm volatile(
-"1:	lwarx	%0,0,%1,%3	# queued_spin_trylock			\n"
+"1:	lwarx	%0,0,%1,%3	# __queued_spin_trylock_nosteal		\n"
 "	cmpwi	0,%0,0							\n"
 "	bne-	2f							\n"
 "	stwcx.	%2,0,%1							\n"
@@ -70,6 +80,14 @@ static __always_inline int __queued_spin_trylock_steal(struct qspinlock *lock)
 	: "cr0", "memory");
 
 	return likely(!(prev & ~_Q_TAIL_CPU_MASK));
+}
+
+static __always_inline int queued_spin_trylock(struct qspinlock *lock)
+{
+	if (!_Q_SPIN_TRY_LOCK_STEAL)
+		return __queued_spin_trylock_nosteal(lock);
+	else
+		return __queued_spin_trylock_steal(lock);
 }
 
 void queued_spin_lock_slowpath(struct qspinlock *lock);
