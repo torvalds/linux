@@ -362,6 +362,168 @@ static void tty3270_write_callback(struct raw3270_request *rq, void *data)
 	xchg(&tp->write, rq);
 }
 
+static int tty3270_required_length(struct tty3270 *tp, int line_nr)
+{
+	unsigned char f_color, b_color, highlight;
+	struct tty3270_line *line;
+	struct tty3270_cell *cell;
+	int i, flen = 3;		/* Prefix (TO_SBA). */
+
+	line = tp->screen + line_nr;
+	flen += line->len;
+	highlight = TAX_RESET;
+	f_color = TAC_RESET;
+	b_color = TAC_RESET;
+
+	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
+		if (cell->attributes.highlight != highlight) {
+			flen += 3;	/* TO_SA to switch highlight. */
+			highlight = cell->attributes.highlight;
+		}
+		if (cell->attributes.f_color != f_color) {
+			flen += 3;	/* TO_SA to switch color. */
+			f_color = cell->attributes.f_color;
+		}
+		if (cell->attributes.b_color != b_color) {
+			flen += 3;	/* TO_SA to switch color. */
+			b_color = cell->attributes.b_color;
+		}
+		if (cell->attributes.alternate_charset)
+			flen += 1;	/* TO_GE to switch to graphics extensions */
+	}
+	if (highlight != TAX_RESET)
+		flen += 3;	/* TO_SA to reset hightlight. */
+	if (f_color != TAC_RESET)
+		flen += 3;	/* TO_SA to reset color. */
+	if (b_color != TAC_RESET)
+		flen += 3;	/* TO_SA to reset color. */
+	if (line->len < tp->view.cols)
+		flen += 4;	/* Postfix (TO_RA). */
+
+	return flen;
+}
+
+static char *tty3270_add_reset_attributes(struct tty3270 *tp, struct tty3270_line *line,
+					  char *cp, struct tty3270_attribute *attr)
+{
+	if (attr->highlight != TAX_RESET) {
+		*cp++ = TO_SA;
+		*cp++ = TAT_EXTHI;
+		*cp++ = TAX_RESET;
+	}
+	if (attr->f_color != TAC_RESET) {
+		*cp++ = TO_SA;
+		*cp++ = TAT_FGCOLOR;
+		*cp++ = TAC_RESET;
+	}
+	if (attr->b_color != TAC_RESET) {
+		*cp++ = TO_SA;
+		*cp++ = TAT_BGCOLOR;
+		*cp++ = TAC_RESET;
+	}
+	if (line->len < tp->view.cols) {
+		*cp++ = TO_RA;
+		*cp++ = 0;
+		*cp++ = 0;
+		*cp++ = 0;
+	}
+	return cp;
+}
+
+static char *tty3270_add_attributes(struct tty3270_line *line, struct tty3270_attribute *attr,
+				    char *cp)
+{
+	struct tty3270_cell *cell;
+	int i;
+
+	*cp++ = TO_SBA;
+	*cp++ = 0;
+	*cp++ = 0;
+
+	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
+		if (cell->attributes.highlight != attr->highlight) {
+			*cp++ = TO_SA;
+			*cp++ = TAT_EXTHI;
+			*cp++ = cell->attributes.highlight;
+			attr->highlight = cell->attributes.highlight;
+		}
+		if (cell->attributes.f_color != attr->f_color) {
+			*cp++ = TO_SA;
+			*cp++ = TAT_FGCOLOR;
+			*cp++ = cell->attributes.f_color;
+			attr->f_color = cell->attributes.f_color;
+		}
+		if (cell->attributes.b_color != attr->b_color) {
+			*cp++ = TO_SA;
+			*cp++ = TAT_BGCOLOR;
+			*cp++ = cell->attributes.b_color;
+			attr->b_color = cell->attributes.b_color;
+		}
+		if (cell->attributes.alternate_charset)
+			*cp++ = TO_GE;
+		*cp++ = cell->character;
+	}
+	return cp;
+}
+
+static void tty3270_reset_attributes(struct tty3270_attribute *attr)
+{
+	attr->highlight = TAX_RESET;
+	attr->f_color = TAC_RESET;
+	attr->b_color = TAC_RESET;
+}
+
+static struct string *tty3270_resize_line(struct tty3270 *tp, struct string *s, int newlen)
+{
+	struct string *n = tty3270_alloc_string(tp, newlen);
+
+	list_add(&n->list, &s->list);
+	list_del_init(&s->list);
+	if (!list_empty(&s->update))
+		list_del_init(&s->update);
+	free_string(&tp->freemem, s);
+	return n;
+}
+
+/*
+ * Convert a tty3270_line to a 3270 data fragment usable for output.
+ */
+static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
+{
+	struct tty3270_line *line = tp->screen + line_nr;
+	struct tty3270_attribute attr;
+	struct string *s;
+	int flen, i;
+	char *cp;
+
+	/* Determine how long the fragment will be. */
+	flen = tty3270_required_length(tp, line_nr);
+	/* Find the line in the list. */
+	i = tty3270_tty_rows(tp) - line_nr;
+	list_for_each_entry_reverse(s, &tp->lines, list)
+		if (--i <= 0)
+			break;
+	/*
+	 * Check if the line needs to get reallocated.
+	 */
+	if (s->len != flen)
+		s = tty3270_resize_line(tp, s, flen);
+
+	/* Write 3270 data fragment. */
+	tty3270_reset_attributes(&attr);
+	cp = tty3270_add_attributes(line, &attr, s->string);
+	cp = tty3270_add_reset_attributes(tp, line, cp, &attr);
+	if (tp->nr_up + line_nr < tty3270_tty_rows(tp)) {
+		/* Line is currently visible on screen. */
+		tty3270_update_string(tp, s, line_nr);
+		/* Add line to update list. */
+		if (list_empty(&s->update)) {
+			list_add_tail(&s->update, &tp->update);
+			tp->update_flags |= TTY_UPDATE_LIST;
+		}
+	}
+}
+
 /*
  * Update 3270 display.
  */
@@ -1109,18 +1271,6 @@ static char tty3270_graphics_translate(struct tty3270 *tp, char ch)
 	}
 }
 
-static struct string *tty3270_resize_line(struct tty3270 *tp, struct string *s, int newlen)
-{
-	struct string *n = tty3270_alloc_string(tp, newlen);
-
-	list_add(&n->list, &s->list);
-	list_del_init(&s->list);
-	if (!list_empty(&s->update))
-		list_del_init(&s->update);
-	free_string(&tp->freemem, s);
-	return n;
-}
-
 /*
  * Insert character into the screen at the current position with the
  * current color and highlight. This function does NOT do cursor movement.
@@ -1146,156 +1296,6 @@ static void tty3270_put_character(struct tty3270 *tp, char ch)
 	else
 		cell->character = tp->view.ascebc[(unsigned int)ch];
 	cell->attributes = tp->attributes;
-}
-
-static int tty3270_required_length(struct tty3270 *tp, int line_nr)
-{
-	unsigned char f_color, b_color, highlight;
-	struct tty3270_line *line;
-	struct tty3270_cell *cell;
-	int i, flen = 3;		/* Prefix (TO_SBA). */
-
-	line = tp->screen + line_nr;
-	flen += line->len;
-	highlight = TAX_RESET;
-	f_color = TAC_RESET;
-	b_color = TAC_RESET;
-
-	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
-		if (cell->attributes.highlight != highlight) {
-			flen += 3;	/* TO_SA to switch highlight. */
-			highlight = cell->attributes.highlight;
-		}
-		if (cell->attributes.f_color != f_color) {
-			flen += 3;	/* TO_SA to switch color. */
-			f_color = cell->attributes.f_color;
-		}
-		if (cell->attributes.b_color != b_color) {
-			flen += 3;	/* TO_SA to switch color. */
-			b_color = cell->attributes.b_color;
-		}
-		if (cell->attributes.alternate_charset)
-			flen += 1;	/* TO_GE to switch to graphics extensions */
-	}
-	if (highlight != TAX_RESET)
-		flen += 3;	/* TO_SA to reset hightlight. */
-	if (f_color != TAC_RESET)
-		flen += 3;	/* TO_SA to reset color. */
-	if (b_color != TAC_RESET)
-		flen += 3;	/* TO_SA to reset color. */
-	if (line->len < tp->view.cols)
-		flen += 4;	/* Postfix (TO_RA). */
-
-	return flen;
-}
-
-static char *tty3270_add_reset_attributes(struct tty3270 *tp, struct tty3270_line *line,
-					  char *cp, struct tty3270_attribute *attr)
-{
-	if (attr->highlight != TAX_RESET) {
-		*cp++ = TO_SA;
-		*cp++ = TAT_EXTHI;
-		*cp++ = TAX_RESET;
-	}
-	if (attr->f_color != TAC_RESET) {
-		*cp++ = TO_SA;
-		*cp++ = TAT_FGCOLOR;
-		*cp++ = TAC_RESET;
-	}
-	if (attr->b_color != TAC_RESET) {
-		*cp++ = TO_SA;
-		*cp++ = TAT_BGCOLOR;
-		*cp++ = TAC_RESET;
-	}
-	if (line->len < tp->view.cols) {
-		*cp++ = TO_RA;
-		*cp++ = 0;
-		*cp++ = 0;
-		*cp++ = 0;
-	}
-	return cp;
-}
-
-static char *tty3270_add_attributes(struct tty3270_line *line, struct tty3270_attribute *attr,
-				    char *cp)
-{
-	struct tty3270_cell *cell;
-	int i;
-
-	*cp++ = TO_SBA;
-	*cp++ = 0;
-	*cp++ = 0;
-
-	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
-		if (cell->attributes.highlight != attr->highlight) {
-			*cp++ = TO_SA;
-			*cp++ = TAT_EXTHI;
-			*cp++ = cell->attributes.highlight;
-			attr->highlight = cell->attributes.highlight;
-		}
-		if (cell->attributes.f_color != attr->f_color) {
-			*cp++ = TO_SA;
-			*cp++ = TAT_FGCOLOR;
-			*cp++ = cell->attributes.f_color;
-			attr->f_color = cell->attributes.f_color;
-		}
-		if (cell->attributes.b_color != attr->b_color) {
-			*cp++ = TO_SA;
-			*cp++ = TAT_BGCOLOR;
-			*cp++ = cell->attributes.b_color;
-			attr->b_color = cell->attributes.b_color;
-		}
-		if (cell->attributes.alternate_charset)
-			*cp++ = TO_GE;
-		*cp++ = cell->character;
-	}
-	return cp;
-}
-
-static void tty3270_reset_attributes(struct tty3270_attribute *attr)
-{
-	attr->highlight = TAX_RESET;
-	attr->f_color = TAC_RESET;
-	attr->b_color = TAC_RESET;
-}
-
-/*
- * Convert a tty3270_line to a 3270 data fragment usable for output.
- */
-static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
-{
-	struct tty3270_line *line = tp->screen + line_nr;
-	struct tty3270_attribute attr;
-	struct string *s;
-	int flen, i;
-	char *cp;
-
-	/* Determine how long the fragment will be. */
-	flen = tty3270_required_length(tp, line_nr);
-	/* Find the line in the list. */
-	i = tty3270_tty_rows(tp) - line_nr;
-	list_for_each_entry_reverse(s, &tp->lines, list)
-		if (--i <= 0)
-			break;
-	/*
-	 * Check if the line needs to get reallocated.
-	 */
-	if (s->len != flen)
-		s = tty3270_resize_line(tp, s, flen);
-
-	/* Write 3270 data fragment. */
-	tty3270_reset_attributes(&attr);
-	cp = tty3270_add_attributes(line, &attr, s->string);
-	cp = tty3270_add_reset_attributes(tp, line, cp, &attr);
-	if (tp->nr_up + line_nr < tty3270_tty_rows(tp)) {
-		/* Line is currently visible on screen. */
-		tty3270_update_string(tp, s, line_nr);
-		/* Add line to update list. */
-		if (list_empty(&s->update)) {
-			list_add_tail(&s->update, &tp->update);
-			tp->update_flags |= TTY_UPDATE_LIST;
-		}
-	}
 }
 
 /*
