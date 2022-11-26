@@ -40,7 +40,14 @@ struct io_poll_table {
 };
 
 #define IO_POLL_CANCEL_FLAG	BIT(31)
-#define IO_POLL_REF_MASK	GENMASK(30, 0)
+#define IO_POLL_RETRY_FLAG	BIT(30)
+#define IO_POLL_REF_MASK	GENMASK(29, 0)
+
+/*
+ * We usually have 1-2 refs taken, 128 is more than enough and we want to
+ * maximise the margin between this amount and the moment when it overflows.
+ */
+#define IO_POLL_REF_BIAS	128
 
 #define IO_WQE_F_DOUBLE		1
 
@@ -58,6 +65,21 @@ static inline bool wqe_is_double(struct wait_queue_entry *wqe)
 	return priv & IO_WQE_F_DOUBLE;
 }
 
+static bool io_poll_get_ownership_slowpath(struct io_kiocb *req)
+{
+	int v;
+
+	/*
+	 * poll_refs are already elevated and we don't have much hope for
+	 * grabbing the ownership. Instead of incrementing set a retry flag
+	 * to notify the loop that there might have been some change.
+	 */
+	v = atomic_fetch_or(IO_POLL_RETRY_FLAG, &req->poll_refs);
+	if (v & IO_POLL_REF_MASK)
+		return false;
+	return !(atomic_fetch_inc(&req->poll_refs) & IO_POLL_REF_MASK);
+}
+
 /*
  * If refs part of ->poll_refs (see IO_POLL_REF_MASK) is 0, it's free. We can
  * bump it and acquire ownership. It's disallowed to modify requests while not
@@ -66,6 +88,8 @@ static inline bool wqe_is_double(struct wait_queue_entry *wqe)
  */
 static inline bool io_poll_get_ownership(struct io_kiocb *req)
 {
+	if (unlikely(atomic_read(&req->poll_refs) >= IO_POLL_REF_BIAS))
+		return io_poll_get_ownership_slowpath(req);
 	return !(atomic_fetch_inc(&req->poll_refs) & IO_POLL_REF_MASK);
 }
 
@@ -235,6 +259,16 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 		 */
 		if ((v & IO_POLL_REF_MASK) != 1)
 			req->cqe.res = 0;
+		if (v & IO_POLL_RETRY_FLAG) {
+			req->cqe.res = 0;
+			/*
+			 * We won't find new events that came in between
+			 * vfs_poll and the ref put unless we clear the flag
+			 * in advance.
+			 */
+			atomic_andnot(IO_POLL_RETRY_FLAG, &req->poll_refs);
+			v &= ~IO_POLL_RETRY_FLAG;
+		}
 
 		/* the mask was stashed in __io_poll_execute */
 		if (!req->cqe.res) {
@@ -274,7 +308,8 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 		 * Release all references, retry if someone tried to restart
 		 * task_work while we were executing it.
 		 */
-	} while (atomic_sub_return(v & IO_POLL_REF_MASK, &req->poll_refs));
+	} while (atomic_sub_return(v & IO_POLL_REF_MASK, &req->poll_refs) &
+					IO_POLL_REF_MASK);
 
 	return IOU_POLL_NO_ACTION;
 }
@@ -518,7 +553,6 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 				 unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	int v;
 
 	INIT_HLIST_NODE(&req->hash_node);
 	req->work.cancel_seq = atomic_read(&ctx->cancel_seq);
@@ -586,11 +620,10 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 
 	if (ipt->owning) {
 		/*
-		 * Release ownership. If someone tried to queue a tw while it was
-		 * locked, kick it off for them.
+		 * Try to release ownership. If we see a change of state, e.g.
+		 * poll was waken up, queue up a tw, it'll deal with it.
 		 */
-		v = atomic_dec_return(&req->poll_refs);
-		if (unlikely(v & IO_POLL_REF_MASK))
+		if (atomic_cmpxchg(&req->poll_refs, 1, 0) != 1)
 			__io_poll_execute(req, 0);
 	}
 	return 0;
