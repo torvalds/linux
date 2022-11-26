@@ -136,6 +136,7 @@ static u8 quadro_sensor_fan_offsets[] = { 0x70, 0x7D, 0x8A, 0x97 };
 
 /* Control report offsets for the Quadro */
 #define QUADRO_TEMP_CTRL_OFFSET		0xA
+#define QUADRO_FLOW_PULSES_CTRL_OFFSET	0x6
 static u16 quadro_ctrl_fan_offsets[] = { 0x37, 0x8c, 0xe1, 0x136 }; /* Fan speed offsets (0-100%) */
 
 /* Specs of High Flow Next flow sensor */
@@ -303,6 +304,7 @@ struct aqc_data {
 	u16 temp_ctrl_offset;
 	u16 power_cycle_count_offset;
 	u8 flow_sensor_offset;
+	u8 flow_pulses_ctrl_offset;
 
 	/* General info, same across all devices */
 	u32 serial_number[2];
@@ -461,20 +463,34 @@ static umode_t aqc_is_visible(const void *data, enum hwmon_sensor_types type, u3
 		}
 		break;
 	case hwmon_fan:
-		switch (priv->kind) {
-		case highflownext:
-			/* Special case to support flow sensor, water quality and conductivity */
-			if (channel < 3)
-				return 0444;
+		switch (attr) {
+		case hwmon_fan_input:
+		case hwmon_fan_label:
+			switch (priv->kind) {
+			case highflownext:
+				/* Special case to support flow sensor, water quality
+				 * and conductivity
+				 */
+				if (channel < 3)
+					return 0444;
+				break;
+			case quadro:
+				/* Special case to support flow sensor */
+				if (channel < priv->num_fans + 1)
+					return 0444;
+				break;
+			default:
+				if (channel < priv->num_fans)
+					return 0444;
+				break;
+			}
 			break;
-		case quadro:
-			/* Special case to support flow sensor */
-			if (channel < priv->num_fans + 1)
-				return 0444;
+		case hwmon_fan_pulses:
+			/* Special case for Quadro flow sensor */
+			if (priv->kind == quadro && channel == priv->num_fans)
+				return 0644;
 			break;
 		default:
-			if (channel < priv->num_fans)
-				return 0444;
 			break;
 		}
 		break;
@@ -552,7 +568,18 @@ static int aqc_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		}
 		break;
 	case hwmon_fan:
-		*val = priv->speed_input[channel];
+		switch (attr) {
+		case hwmon_fan_input:
+			*val = priv->speed_input[channel];
+			break;
+		case hwmon_fan_pulses:
+			ret = aqc_get_ctrl_val(priv, priv->flow_pulses_ctrl_offset, val);
+			if (ret < 0)
+				return ret;
+			break;
+		default:
+			break;
+		}
 		break;
 	case hwmon_power:
 		*val = priv->power_input[channel];
@@ -632,6 +659,18 @@ static int aqc_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			return -EOPNOTSUPP;
 		}
 		break;
+	case hwmon_fan:
+		switch (attr) {
+		case hwmon_fan_pulses:
+			val = clamp_val(val, 10, 1000);
+			ret = aqc_set_ctrl_val(priv, priv->flow_pulses_ctrl_offset, val);
+			if (ret < 0)
+				return ret;
+			break;
+		default:
+			break;
+		}
+		break;
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_input:
@@ -691,7 +730,7 @@ static const struct hwmon_channel_info *aqc_info[] = {
 			   HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL,
-			   HWMON_F_INPUT | HWMON_F_LABEL,
+			   HWMON_F_INPUT | HWMON_F_LABEL | HWMON_F_PULSES,
 			   HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL),
@@ -1000,6 +1039,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->buffer_size = QUADRO_CTRL_REPORT_SIZE;
 
 		priv->flow_sensor_offset = QUADRO_FLOW_SENSOR_OFFSET;
+		priv->flow_pulses_ctrl_offset = QUADRO_FLOW_PULSES_CTRL_OFFSET;
 		priv->power_cycle_count_offset = QUADRO_POWER_CYCLES;
 
 		priv->temp_label = label_temp_sensors;
