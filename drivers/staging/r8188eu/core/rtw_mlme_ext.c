@@ -575,13 +575,14 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 	if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
 		/* we should update current network before auth, or some IE is wrong */
 		pbss = kmalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
-		if (pbss) {
-			if (collect_bss_info(padapter, precv_frame, pbss) == _SUCCESS) {
-				update_network(&pmlmepriv->cur_network.network, pbss, padapter, true);
-				rtw_get_bcn_info(&pmlmepriv->cur_network);
-			}
-			kfree(pbss);
+		if (!pbss)
+			return;
+
+		if (collect_bss_info(padapter, precv_frame, pbss) == _SUCCESS) {
+			update_network(&pmlmepriv->cur_network.network, pbss, padapter, true);
+			rtw_get_bcn_info(&pmlmepriv->cur_network);
 		}
+		kfree(pbss);
 
 		/* check the vendor of the assoc AP */
 		pmlmeinfo->assoc_AP_vendor = check_assoc_AP(pframe + sizeof(struct ieee80211_hdr_3addr), len - sizeof(struct ieee80211_hdr_3addr));
