@@ -12,6 +12,7 @@
 struct qnode {
 	struct qnode	*next;
 	struct qspinlock *lock;
+	int		cpu;
 	int		yield_cpu;
 	u8		locked; /* 1 if lock acquired */
 };
@@ -30,6 +31,7 @@ static bool pv_yield_owner __read_mostly = true;
 static bool pv_yield_allow_steal __read_mostly = false;
 static bool pv_yield_prev __read_mostly = true;
 static bool pv_yield_propagate_owner __read_mostly = true;
+static bool pv_prod_head __read_mostly = false;
 
 static DEFINE_PER_CPU_ALIGNED(struct qnodes, qnodes);
 
@@ -370,10 +372,11 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 	node = &qnodesp->nodes[idx];
 	node->next = NULL;
 	node->lock = lock;
+	node->cpu = smp_processor_id();
 	node->yield_cpu = -1;
 	node->locked = 0;
 
-	tail = encode_tail_cpu(smp_processor_id());
+	tail = encode_tail_cpu(node->cpu);
 
 	old = publish_tail_cpu(lock, tail);
 
@@ -439,7 +442,14 @@ again:
 	 * this store to locked. The corresponding barrier is the smp_rmb()
 	 * acquire barrier for mcs lock, above.
 	 */
-	WRITE_ONCE(next->locked, 1);
+	if (paravirt && pv_prod_head) {
+		int next_cpu = next->cpu;
+		WRITE_ONCE(next->locked, 1);
+		if (vcpu_is_preempted(next_cpu))
+			prod_cpu(next_cpu);
+	} else {
+		WRITE_ONCE(next->locked, 1);
+	}
 
 release:
 	qnodesp->count--; /* release the node */
@@ -590,6 +600,22 @@ static int pv_yield_propagate_owner_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_pv_yield_propagate_owner, pv_yield_propagate_owner_get, pv_yield_propagate_owner_set, "%llu\n");
 
+static int pv_prod_head_set(void *data, u64 val)
+{
+	pv_prod_head = !!val;
+
+	return 0;
+}
+
+static int pv_prod_head_get(void *data, u64 *val)
+{
+	*val = pv_prod_head;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_pv_prod_head, pv_prod_head_get, pv_prod_head_set, "%llu\n");
+
 static __init int spinlock_debugfs_init(void)
 {
 	debugfs_create_file("qspl_steal_spins", 0600, arch_debugfs_dir, NULL, &fops_steal_spins);
@@ -599,6 +625,7 @@ static __init int spinlock_debugfs_init(void)
 		debugfs_create_file("qspl_pv_yield_allow_steal", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_allow_steal);
 		debugfs_create_file("qspl_pv_yield_prev", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_prev);
 		debugfs_create_file("qspl_pv_yield_propagate_owner", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_propagate_owner);
+		debugfs_create_file("qspl_pv_prod_head", 0600, arch_debugfs_dir, NULL, &fops_pv_prod_head);
 	}
 
 	return 0;
