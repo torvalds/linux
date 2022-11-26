@@ -569,67 +569,68 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 		return;
 	}
 
-	if (!memcmp(mgmt->bssid, get_my_bssid(&pmlmeinfo->network), ETH_ALEN)) {
-		if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
-			/* we should update current network before auth, or some IE is wrong */
-			pbss = kmalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
-			if (pbss) {
-				if (collect_bss_info(padapter, precv_frame, pbss) == _SUCCESS) {
-					update_network(&pmlmepriv->cur_network.network, pbss, padapter, true);
-					rtw_get_bcn_info(&pmlmepriv->cur_network);
-				}
-				kfree(pbss);
-			}
+	if (memcmp(mgmt->bssid, get_my_bssid(&pmlmeinfo->network), ETH_ALEN))
+		return;
 
-			/* check the vendor of the assoc AP */
-			pmlmeinfo->assoc_AP_vendor = check_assoc_AP(pframe + sizeof(struct ieee80211_hdr_3addr), len - sizeof(struct ieee80211_hdr_3addr));
+	if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
+		/* we should update current network before auth, or some IE is wrong */
+		pbss = kmalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
+		if (pbss) {
+			if (collect_bss_info(padapter, precv_frame, pbss) == _SUCCESS) {
+				update_network(&pmlmepriv->cur_network.network, pbss, padapter, true);
+				rtw_get_bcn_info(&pmlmepriv->cur_network);
+			}
+			kfree(pbss);
+		}
+
+		/* check the vendor of the assoc AP */
+		pmlmeinfo->assoc_AP_vendor = check_assoc_AP(pframe + sizeof(struct ieee80211_hdr_3addr), len - sizeof(struct ieee80211_hdr_3addr));
+
+		pmlmeext->TSFValue = le64_to_cpu(mgmt->u.beacon.timestamp);
+
+		/* start auth */
+		start_clnt_auth(padapter);
+
+		return;
+	}
+
+	if (((pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE) && (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
+		psta = rtw_get_stainfo(pstapriv, mgmt->sa);
+		if (psta) {
+			ret = rtw_check_bcn_info(padapter, pframe, len);
+			if (!ret) {
+				receive_disconnect(padapter,
+						   pmlmeinfo->network.MacAddress, 0);
+				return;
+			}
+			/* update WMM, ERP in the beacon */
+			/* todo: the timer is used instead of the number of the beacon received */
+			if ((sta_rx_pkts(psta) & 0xf) == 0)
+				update_beacon_info(padapter, ie_ptr, ie_len, psta);
+			process_p2p_ps_ie(padapter, ie_ptr, ie_len);
+		}
+	} else if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
+		psta = rtw_get_stainfo(pstapriv, mgmt->sa);
+		if (psta) {
+			/* update WMM, ERP in the beacon */
+			/* todo: the timer is used instead of the number of the beacon received */
+			if ((sta_rx_pkts(psta) & 0xf) == 0)
+				update_beacon_info(padapter, ie_ptr, ie_len, psta);
+		} else {
+			/* allocate a new CAM entry for IBSS station */
+			cam_idx = allocate_fw_sta_entry(padapter);
+			if (cam_idx == NUM_STA)
+				return;
+
+			/* get supported rate */
+			if (update_sta_support_rate(padapter, ie_ptr, ie_len, cam_idx) == _FAIL) {
+				pmlmeinfo->FW_sta_info[cam_idx].status = 0;
+				return;
+			}
 
 			pmlmeext->TSFValue = le64_to_cpu(mgmt->u.beacon.timestamp);
 
-			/* start auth */
-			start_clnt_auth(padapter);
-
-			return;
-		}
-
-		if (((pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE) && (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
-			psta = rtw_get_stainfo(pstapriv, mgmt->sa);
-			if (psta) {
-				ret = rtw_check_bcn_info(padapter, pframe, len);
-				if (!ret) {
-					receive_disconnect(padapter,
-							   pmlmeinfo->network.MacAddress, 0);
-					return;
-				}
-				/* update WMM, ERP in the beacon */
-				/* todo: the timer is used instead of the number of the beacon received */
-				if ((sta_rx_pkts(psta) & 0xf) == 0)
-					update_beacon_info(padapter, ie_ptr, ie_len, psta);
-				process_p2p_ps_ie(padapter, ie_ptr, ie_len);
-			}
-		} else if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
-			psta = rtw_get_stainfo(pstapriv, mgmt->sa);
-			if (psta) {
-				/* update WMM, ERP in the beacon */
-				/* todo: the timer is used instead of the number of the beacon received */
-				if ((sta_rx_pkts(psta) & 0xf) == 0)
-					update_beacon_info(padapter, ie_ptr, ie_len, psta);
-			} else {
-				/* allocate a new CAM entry for IBSS station */
-				cam_idx = allocate_fw_sta_entry(padapter);
-				if (cam_idx == NUM_STA)
-					return;
-
-				/* get supported rate */
-				if (update_sta_support_rate(padapter, ie_ptr, ie_len, cam_idx) == _FAIL) {
-					pmlmeinfo->FW_sta_info[cam_idx].status = 0;
-					return;
-				}
-
-				pmlmeext->TSFValue = le64_to_cpu(mgmt->u.beacon.timestamp);
-
-				report_add_sta_event(padapter, mgmt->sa, cam_idx);
-			}
+			report_add_sta_event(padapter, mgmt->sa, cam_idx);
 		}
 	}
 }
