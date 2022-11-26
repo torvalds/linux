@@ -196,6 +196,9 @@ static unsigned bch2_key_types_allowed[] = {
 	[BKEY_TYPE_backpointers] =
 		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_backpointer),
+	[BKEY_TYPE_bucket_gens] =
+		(1U << KEY_TYPE_deleted)|
+		(1U << KEY_TYPE_bucket_gens),
 	[BKEY_TYPE_btree] =
 		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_btree_ptr)|

@@ -371,7 +371,8 @@ static inline void bkey_init(struct bkey *k)
 	x(lru,			26)			\
 	x(alloc_v4,		27)			\
 	x(backpointer,		28)			\
-	x(inode_v3,		29)
+	x(inode_v3,		29)			\
+	x(bucket_gens,		30)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -1013,6 +1014,15 @@ struct bch_backpointer {
 	struct bpos		pos;
 } __packed __aligned(8);
 
+#define KEY_TYPE_BUCKET_GENS_BITS	8
+#define KEY_TYPE_BUCKET_GENS_NR		(1U << KEY_TYPE_BUCKET_GENS_BITS)
+#define KEY_TYPE_BUCKET_GENS_MASK	(KEY_TYPE_BUCKET_GENS_NR - 1)
+
+struct bch_bucket_gens {
+	struct bch_val		v;
+	u8			gens[KEY_TYPE_BUCKET_GENS_NR];
+} __packed __aligned(8);
+
 /* Quotas: */
 
 enum quota_types {
@@ -1551,7 +1561,8 @@ struct bch_sb_field_journal_seq_blacklist {
 	x(new_data_types,		21)		\
 	x(backpointers,			22)		\
 	x(inode_v3,			23)		\
-	x(unwritten_extents,		24)
+	x(unwritten_extents,		24)		\
+	x(bucket_gens,			25)
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -2086,7 +2097,8 @@ LE32_BITMASK(JSET_NO_FLUSH,	struct jset, flags, 5, 6);
 	x(lru,			10)		\
 	x(freespace,		11)		\
 	x(need_discard,		12)		\
-	x(backpointers,		13)
+	x(backpointers,		13)		\
+	x(bucket_gens,		14)
 
 enum btree_id {
 #define x(kwd, val) BTREE_ID_##kwd = val,

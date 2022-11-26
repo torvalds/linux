@@ -148,6 +148,16 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.atomic_trigger	= bch2_mark_alloc,		\
 })
 
+int bch2_bucket_gens_invalid(const struct bch_fs *, struct bkey_s_c, int, struct printbuf *);
+void bch2_bucket_gens_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
+
+#define bch2_bkey_ops_bucket_gens ((struct bkey_ops) {	\
+	.key_invalid	= bch2_bucket_gens_invalid,	\
+	.val_to_text	= bch2_bucket_gens_to_text,	\
+})
+
+int bch2_bucket_gens_init(struct bch_fs *);
+
 static inline bool bkey_is_alloc(const struct bkey *k)
 {
 	return  k->type == KEY_TYPE_alloc ||
@@ -156,6 +166,7 @@ static inline bool bkey_is_alloc(const struct bkey *k)
 }
 
 int bch2_alloc_read(struct bch_fs *);
+int bch2_bucket_gens_read(struct bch_fs *);
 
 int bch2_trans_mark_alloc(struct btree_trans *, enum btree_id, unsigned,
 			  struct bkey_s_c, struct bkey_i *, unsigned);

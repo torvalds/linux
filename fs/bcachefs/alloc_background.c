@@ -597,6 +597,159 @@ int bch2_alloc_read(struct bch_fs *c)
 	return ret;
 }
 
+static struct bpos alloc_gens_pos(struct bpos pos, unsigned *offset)
+{
+	*offset = pos.offset & KEY_TYPE_BUCKET_GENS_MASK;
+
+	pos.offset >>= KEY_TYPE_BUCKET_GENS_BITS;
+	return pos;
+}
+
+static struct bpos bucket_gens_pos_to_alloc(struct bpos pos, unsigned offset)
+{
+	pos.offset <<= KEY_TYPE_BUCKET_GENS_BITS;
+	pos.offset += offset;
+	return pos;
+}
+
+static unsigned alloc_gen(struct bkey_s_c k, unsigned offset)
+{
+	return k.k->type == KEY_TYPE_bucket_gens
+		? bkey_s_c_to_bucket_gens(k).v->gens[offset]
+		: 0;
+}
+
+int bch2_bucket_gens_invalid(const struct bch_fs *c, struct bkey_s_c k,
+			     int rw, struct printbuf *err)
+{
+	if (bkey_val_bytes(k.k) != sizeof(struct bch_bucket_gens)) {
+		prt_printf(err, "bad val size (%lu != %zu)",
+		       bkey_val_bytes(k.k), sizeof(struct bch_bucket_gens));
+		return -BCH_ERR_invalid_bkey;
+	}
+
+	return 0;
+}
+
+void bch2_bucket_gens_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_s_c_bucket_gens g = bkey_s_c_to_bucket_gens(k);
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(g.v->gens); i++) {
+		if (i)
+			prt_char(out, ' ');
+		prt_printf(out, "%u", g.v->gens[i]);
+	}
+}
+
+int bch2_bucket_gens_init(struct bch_fs *c)
+{
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bch_alloc_v4 a;
+	struct bkey_i_bucket_gens g;
+	bool have_bucket_gens_key = false;
+	unsigned offset;
+	struct bpos pos;
+	u8 gen;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
+			   BTREE_ITER_PREFETCH, k, ret) {
+		/*
+		 * Not a fsck error because this is checked/repaired by
+		 * bch2_check_alloc_key() which runs later:
+		 */
+		if (!bch2_dev_bucket_exists(c, k.k->p))
+			continue;
+
+		gen = bch2_alloc_to_v4(k, &a)->gen;
+		pos = alloc_gens_pos(iter.pos, &offset);
+
+		if (have_bucket_gens_key && bkey_cmp(iter.pos, pos)) {
+			ret = commit_do(&trans, NULL, NULL,
+					BTREE_INSERT_NOFAIL|
+					BTREE_INSERT_LAZY_RW,
+				__bch2_btree_insert(&trans, BTREE_ID_bucket_gens, &g.k_i));
+			if (ret)
+				break;
+			have_bucket_gens_key = false;
+		}
+
+		if (!have_bucket_gens_key) {
+			bkey_bucket_gens_init(&g.k_i);
+			g.k.p = pos;
+			have_bucket_gens_key = true;
+		}
+
+		g.v.gens[offset] = gen;
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+
+	if (have_bucket_gens_key && !ret)
+		ret = commit_do(&trans, NULL, NULL,
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_LAZY_RW,
+			__bch2_btree_insert(&trans, BTREE_ID_bucket_gens, &g.k_i));
+
+	bch2_trans_exit(&trans);
+
+	if (ret)
+		bch_err(c, "%s: error %s", __func__, bch2_err_str(ret));
+
+	return ret;
+}
+
+int bch2_bucket_gens_read(struct bch_fs *c)
+{
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	const struct bch_bucket_gens *g;
+	struct bch_dev *ca;
+	u64 b;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_bucket_gens, POS_MIN,
+			   BTREE_ITER_PREFETCH, k, ret) {
+		u64 start = bucket_gens_pos_to_alloc(k.k->p, 0).offset;
+		u64 end = bucket_gens_pos_to_alloc(bpos_nosnap_successor(k.k->p), 0).offset;
+
+		if (k.k->type != KEY_TYPE_bucket_gens)
+			continue;
+
+		g = bkey_s_c_to_bucket_gens(k).v;
+
+		/*
+		 * Not a fsck error because this is checked/repaired by
+		 * bch2_check_alloc_key() which runs later:
+		 */
+		if (!bch2_dev_exists2(c, k.k->p.inode))
+			continue;
+
+		ca = bch_dev_bkey_exists(c, k.k->p.inode);
+
+		for (b = max_t(u64, ca->mi.first_bucket, start);
+		     b < min_t(u64, ca->mi.nbuckets, end);
+		     b++)
+			*bucket_gen(ca, b) = g->gens[b & KEY_TYPE_BUCKET_GENS_MASK];
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+
+	bch2_trans_exit(&trans);
+
+	if (ret)
+		bch_err(c, "error reading alloc info: %s", bch2_err_str(ret));
+
+	return ret;
+}
+
 /* Free space/discard btree: */
 
 static int bch2_bucket_do_index(struct btree_trans *trans,
@@ -669,6 +822,44 @@ err:
 	return ret;
 }
 
+static noinline int bch2_bucket_gen_update(struct btree_trans *trans,
+					   struct bpos bucket, u8 gen)
+{
+	struct btree_iter iter;
+	unsigned offset;
+	struct bpos pos = alloc_gens_pos(bucket, &offset);
+	struct bkey_i_bucket_gens *g;
+	struct bkey_s_c k;
+	int ret;
+
+	g = bch2_trans_kmalloc(trans, sizeof(*g));
+	ret = PTR_ERR_OR_ZERO(g);
+	if (ret)
+		return ret;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_bucket_gens, pos,
+			     BTREE_ITER_INTENT|
+			     BTREE_ITER_WITH_UPDATES);
+	k = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (k.k->type != KEY_TYPE_bucket_gens) {
+		bkey_bucket_gens_init(&g->k_i);
+		g->k.p = iter.pos;
+	} else {
+		bkey_reassemble(&g->k_i, k);
+	}
+
+	g->v.gens[offset] = gen;
+
+	ret = bch2_trans_update(trans, &iter, &g->k_i, 0);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 int bch2_trans_mark_alloc(struct btree_trans *trans,
 			  enum btree_id btree_id, unsigned level,
 			  struct bkey_s_c old, struct bkey_i *new,
@@ -730,6 +921,12 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 
 		if (new_a->data_type == BCH_DATA_cached)
 			new_a->io_time[READ] = new_lru;
+	}
+
+	if (old_a->gen != new_a->gen) {
+		ret = bch2_bucket_gen_update(trans, new->k.p, new_a->gen);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -837,13 +1034,15 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 				struct bkey_s_c alloc_k,
 				struct btree_iter *alloc_iter,
 				struct btree_iter *discard_iter,
-				struct btree_iter *freespace_iter)
+				struct btree_iter *freespace_iter,
+				struct btree_iter *bucket_gens_iter)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca;
 	struct bch_alloc_v4 a_convert;
 	const struct bch_alloc_v4 *a;
 	unsigned discard_key_type, freespace_key_type;
+	unsigned gens_offset;
 	struct bkey_s_c k;
 	struct printbuf buf = PRINTBUF;
 	int ret;
@@ -859,14 +1058,8 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 
 	a = bch2_alloc_to_v4(alloc_k, &a_convert);
 
-	discard_key_type = a->data_type == BCH_DATA_need_discard
-		? KEY_TYPE_set : 0;
-	freespace_key_type = a->data_type == BCH_DATA_free
-		? KEY_TYPE_set : 0;
-
+	discard_key_type = a->data_type == BCH_DATA_need_discard ? KEY_TYPE_set : 0;
 	bch2_btree_iter_set_pos(discard_iter, alloc_k.k->p);
-	bch2_btree_iter_set_pos(freespace_iter, alloc_freespace_pos(alloc_k.k->p, *a));
-
 	k = bch2_btree_iter_peek_slot(discard_iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -895,6 +1088,8 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 			goto err;
 	}
 
+	freespace_key_type = a->data_type == BCH_DATA_free ? KEY_TYPE_set : 0;
+	bch2_btree_iter_set_pos(freespace_iter, alloc_freespace_pos(alloc_k.k->p, *a));
 	k = bch2_btree_iter_peek_slot(freespace_iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -924,13 +1119,47 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 		if (ret)
 			goto err;
 	}
+
+	bch2_btree_iter_set_pos(bucket_gens_iter, alloc_gens_pos(alloc_k.k->p, &gens_offset));
+	k = bch2_btree_iter_peek_slot(bucket_gens_iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (a->gen != alloc_gen(k, gens_offset) &&
+	    (c->opts.reconstruct_alloc ||
+	     fsck_err(c, "incorrect gen in bucket_gens btree (got %u should be %u)\n"
+		      "  %s",
+		      alloc_gen(k, gens_offset), a->gen,
+		      (printbuf_reset(&buf),
+		       bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf)))) {
+		struct bkey_i_bucket_gens *g =
+			bch2_trans_kmalloc(trans, sizeof(*g));
+
+		ret = PTR_ERR_OR_ZERO(g);
+		if (ret)
+			goto err;
+
+		if (k.k->type == KEY_TYPE_bucket_gens) {
+			bkey_reassemble(&g->k_i, k);
+		} else {
+			bkey_bucket_gens_init(&g->k_i);
+			g->k.p = alloc_gens_pos(alloc_k.k->p, &gens_offset);
+		}
+
+		g->v.gens[gens_offset] = a->gen;
+
+		ret = bch2_trans_update(trans, bucket_gens_iter, &g->k_i, 0);
+		if (ret)
+			goto err;
+	}
 err:
 fsck_err:
 	printbuf_exit(&buf);
 	return ret;
 }
 
-static int bch2_check_alloc_hole(struct btree_trans *trans,
+static int bch2_check_alloc_hole_freespace(struct btree_trans *trans,
 				 struct bpos start,
 				 struct bpos *end,
 				 struct btree_iter *freespace_iter)
@@ -979,6 +1208,71 @@ static int bch2_check_alloc_hole(struct btree_trans *trans,
 		if (ret)
 			goto err;
 	}
+err:
+fsck_err:
+	printbuf_exit(&buf);
+	return ret;
+}
+
+static int bch2_check_alloc_hole_bucket_gens(struct btree_trans *trans,
+				 struct bpos start,
+				 struct bpos *end,
+				 struct btree_iter *bucket_gens_iter)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_s_c k;
+	struct printbuf buf = PRINTBUF;
+	unsigned i, gens_offset, gens_end_offset;
+	int ret;
+
+	if (c->sb.version < bcachefs_metadata_version_bucket_gens &&
+	    !c->opts.version_upgrade)
+		return 0;
+
+	bch2_btree_iter_set_pos(bucket_gens_iter, alloc_gens_pos(start, &gens_offset));
+
+	k = bch2_btree_iter_peek_slot(bucket_gens_iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (bkey_cmp(alloc_gens_pos(start, &gens_offset),
+		     alloc_gens_pos(*end,  &gens_end_offset)))
+		gens_end_offset = KEY_TYPE_BUCKET_GENS_NR;
+
+	if (k.k->type == KEY_TYPE_bucket_gens) {
+		struct bkey_i_bucket_gens g;
+		bool need_update = false;
+
+		bkey_reassemble(&g.k_i, k);
+
+		for (i = gens_offset; i < gens_end_offset; i++) {
+			if (fsck_err_on(g.v.gens[i], c,
+					"hole in alloc btree at %llu:%llu with nonzero gen in bucket_gens btree (%u)",
+					bucket_gens_pos_to_alloc(k.k->p, i).inode,
+					bucket_gens_pos_to_alloc(k.k->p, i).offset,
+					g.v.gens[i])) {
+				g.v.gens[i] = 0;
+				need_update = true;
+			}
+		}
+
+		if (need_update) {
+			struct bkey_i *k = bch2_trans_kmalloc(trans, sizeof(g));
+
+			ret = PTR_ERR_OR_ZERO(k);
+			if (ret)
+				goto err;
+
+			memcpy(k, &g, sizeof(g));
+
+			ret = bch2_trans_update(trans, bucket_gens_iter, k, 0);
+			if (ret)
+				goto err;
+		}
+	}
+
+	*end = bkey_min(*end, bucket_gens_pos_to_alloc(bpos_nosnap_successor(k.k->p), 0));
 err:
 fsck_err:
 	printbuf_exit(&buf);
@@ -1040,10 +1334,79 @@ delete:
 	goto out;
 }
 
+/*
+ * We've already checked that generation numbers in the bucket_gens btree are
+ * valid for buckets that exist; this just checks for keys for nonexistent
+ * buckets.
+ */
+static int bch2_check_bucket_gens_key(struct btree_trans *trans,
+				      struct btree_iter *iter,
+				      struct bkey_s_c k)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_i_bucket_gens g;
+	struct bch_dev *ca;
+	u64 start = bucket_gens_pos_to_alloc(k.k->p, 0).offset;
+	u64 end = bucket_gens_pos_to_alloc(bpos_nosnap_successor(k.k->p), 0).offset;
+	u64 b;
+	bool need_update = false;
+	struct printbuf buf = PRINTBUF;
+	int ret = 0;
+
+	BUG_ON(k.k->type != KEY_TYPE_bucket_gens);
+	bkey_reassemble(&g.k_i, k);
+
+	if (fsck_err_on(!bch2_dev_exists2(c, k.k->p.inode), c,
+			"bucket_gens key for invalid device:\n  %s",
+			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+		ret = bch2_btree_delete_at(trans, iter, 0);
+		goto out;
+	}
+
+	ca = bch_dev_bkey_exists(c, k.k->p.inode);
+	if (fsck_err_on(end <= ca->mi.first_bucket ||
+			start >= ca->mi.nbuckets, c,
+			"bucket_gens key for invalid buckets:\n  %s",
+			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+		ret = bch2_btree_delete_at(trans, iter, 0);
+		goto out;
+	}
+
+	for (b = start; b < ca->mi.first_bucket; b++)
+		if (fsck_err_on(g.v.gens[b & KEY_TYPE_BUCKET_GENS_MASK], c,
+				"bucket_gens key has nonzero gen for invalid bucket")) {
+			g.v.gens[b & KEY_TYPE_BUCKET_GENS_MASK] = 0;
+			need_update = true;
+		}
+
+	for (b = ca->mi.nbuckets; b < end; b++)
+		if (fsck_err_on(g.v.gens[b & KEY_TYPE_BUCKET_GENS_MASK], c,
+				"bucket_gens key has nonzero gen for invalid bucket")) {
+			g.v.gens[b & KEY_TYPE_BUCKET_GENS_MASK] = 0;
+			need_update = true;
+		}
+
+	if (need_update) {
+		struct bkey_i *k;
+
+		k = bch2_trans_kmalloc(trans, sizeof(g));
+		ret = PTR_ERR_OR_ZERO(k);
+		if (ret)
+			goto out;
+
+		memcpy(k, &g, sizeof(g));
+		ret = bch2_trans_update(trans, iter, k, 0);
+	}
+out:
+fsck_err:
+	printbuf_exit(&buf);
+	return ret;
+}
+
 int bch2_check_alloc_info(struct bch_fs *c)
 {
 	struct btree_trans trans;
-	struct btree_iter iter, discard_iter, freespace_iter;
+	struct btree_iter iter, discard_iter, freespace_iter, bucket_gens_iter;
 	struct bkey hole;
 	struct bkey_s_c k;
 	int ret = 0;
@@ -1055,6 +1418,8 @@ int bch2_check_alloc_info(struct bch_fs *c)
 	bch2_trans_iter_init(&trans, &discard_iter, BTREE_ID_need_discard, POS_MIN,
 			     BTREE_ITER_PREFETCH);
 	bch2_trans_iter_init(&trans, &freespace_iter, BTREE_ID_freespace, POS_MIN,
+			     BTREE_ITER_PREFETCH);
+	bch2_trans_iter_init(&trans, &bucket_gens_iter, BTREE_ID_bucket_gens, POS_MIN,
 			     BTREE_ITER_PREFETCH);
 
 	while (1) {
@@ -1076,16 +1441,21 @@ int bch2_check_alloc_info(struct bch_fs *c)
 			ret = bch2_check_alloc_key(&trans,
 						   k, &iter,
 						   &discard_iter,
-						   &freespace_iter);
+						   &freespace_iter,
+						   &bucket_gens_iter);
 			if (ret)
-				break;
+				goto bkey_err;
 		} else {
 			next = k.k->p;
 
-			ret = bch2_check_alloc_hole(&trans,
+			ret = bch2_check_alloc_hole_freespace(&trans,
 						    bkey_start_pos(k.k),
 						    &next,
-						    &freespace_iter);
+						    &freespace_iter) ?:
+				bch2_check_alloc_hole_bucket_gens(&trans,
+						    bkey_start_pos(k.k),
+						    &next,
+						    &bucket_gens_iter);
 			if (ret)
 				goto bkey_err;
 		}
@@ -1103,6 +1473,7 @@ bkey_err:
 		if (ret)
 			break;
 	}
+	bch2_trans_iter_exit(&trans, &bucket_gens_iter);
 	bch2_trans_iter_exit(&trans, &freespace_iter);
 	bch2_trans_iter_exit(&trans, &discard_iter);
 	bch2_trans_iter_exit(&trans, &iter);
@@ -1119,7 +1490,12 @@ bkey_err:
 			BTREE_ID_freespace, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
 			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
-		bch2_check_discard_freespace_key(&trans, &iter));
+		bch2_check_discard_freespace_key(&trans, &iter)) ?:
+	      for_each_btree_key_commit(&trans, iter,
+			BTREE_ID_bucket_gens, POS_MIN,
+			BTREE_ITER_PREFETCH, k,
+			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+		bch2_check_bucket_gens_key(&trans, &iter, k));
 err:
 	bch2_trans_exit(&trans);
 	return ret < 0 ? ret : 0;
