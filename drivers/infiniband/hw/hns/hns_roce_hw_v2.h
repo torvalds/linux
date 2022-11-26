@@ -273,6 +273,11 @@ enum hns_roce_cmd_return_status {
 	CMD_OTHER_ERR = 0xff
 };
 
+struct hns_roce_cmd_errcode {
+	enum hns_roce_cmd_return_status return_status;
+	int errno;
+};
+
 enum hns_roce_sgid_type {
 	GID_TYPE_FLAG_ROCE_V1 = 0,
 	GID_TYPE_FLAG_ROCE_V2_IPV4,
