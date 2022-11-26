@@ -210,6 +210,7 @@ struct atomisp_device {
 	void __iomem *base;
 	const struct firmware *firmware;
 
+	struct dev_pm_domain pm_domain;
 	struct pm_qos_request pm_qos;
 	s32 max_isr_latency;
 

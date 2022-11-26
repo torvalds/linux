@@ -19,6 +19,7 @@
  */
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
 #include <linux/timer.h>
@@ -524,7 +525,7 @@ static int atomisp_save_iunit_reg(struct atomisp_device *isp)
 	return 0;
 }
 
-static int __maybe_unused atomisp_restore_iunit_reg(struct atomisp_device *isp)
+static int atomisp_restore_iunit_reg(struct atomisp_device *isp)
 {
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 
@@ -662,6 +663,7 @@ static void punit_ddr_dvfs_enable(bool enable)
 
 static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	unsigned long timeout;
 	u32 val = enable ? MRFLD_ISPSSPM0_IUNIT_POWER_ON :
 			   MRFLD_ISPSSPM0_IUNIT_POWER_OFF;
@@ -703,6 +705,7 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 		tmp = (tmp >> MRFLD_ISPSSPM0_ISPSSS_OFFSET) & MRFLD_ISPSSPM0_ISPSSC_MASK;
 		if (tmp == val) {
 			trace_ipu_cstate(enable);
+			pdev->current_state = enable ? PCI_D0 : PCI_D3cold;
 			return 0;
 		}
 
@@ -743,6 +746,7 @@ int atomisp_power_off(struct device *dev)
 	pci_write_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, reg);
 
 	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
+	pci_save_state(pdev);
 	return atomisp_mrfld_power(isp, false);
 }
 
@@ -756,6 +760,7 @@ int atomisp_power_on(struct device *dev)
 	if (ret)
 		return ret;
 
+	pci_restore_state(to_pci_dev(dev));
 	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
 
 	/*restore register values for iUnit and iUnitPHY registers*/
@@ -767,7 +772,7 @@ int atomisp_power_on(struct device *dev)
 	return atomisp_css_init(isp);
 }
 
-static int __maybe_unused atomisp_suspend(struct device *dev)
+static int atomisp_suspend(struct device *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
 				     dev_get_drvdata(dev);
@@ -790,10 +795,12 @@ static int __maybe_unused atomisp_suspend(struct device *dev)
 	}
 	spin_unlock_irqrestore(&isp->lock, flags);
 
+	pm_runtime_resume(dev);
+
 	return atomisp_power_off(dev);
 }
 
-static int __maybe_unused atomisp_resume(struct device *dev)
+static int atomisp_resume(struct device *dev)
 {
 	return atomisp_power_on(dev);
 }
@@ -1603,6 +1610,26 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	/* save the iunit context only once after all the values are init'ed. */
 	atomisp_save_iunit_reg(isp);
 
+	/*
+	 * The atomisp does not use standard PCI power-management through the
+	 * PCI config space. Instead this driver directly tells the P-Unit to
+	 * disable the ISP over the IOSF. The standard PCI subsystem pm_ops will
+	 * try to access the config space before (resume) / after (suspend) this
+	 * driver has turned the ISP on / off, resulting in the following errors:
+	 *
+	 * "Unable to change power state from D0 to D3hot, device inaccessible"
+	 * "Unable to change power state from D3cold to D0, device inaccessible"
+	 *
+	 * To avoid these errors override the pm_domain so that all the PCI
+	 * subsys suspend / resume handling is skipped.
+	 */
+	isp->pm_domain.ops.runtime_suspend = atomisp_power_off;
+	isp->pm_domain.ops.runtime_resume = atomisp_power_on;
+	isp->pm_domain.ops.suspend = atomisp_suspend;
+	isp->pm_domain.ops.resume = atomisp_resume;
+
+	dev_pm_domain_set(&pdev->dev, &isp->pm_domain);
+
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
@@ -1645,6 +1672,7 @@ css_init_fail:
 request_irq_fail:
 	hmm_cleanup();
 	pm_runtime_get_noresume(&pdev->dev);
+	dev_pm_domain_set(&pdev->dev, NULL);
 	atomisp_unregister_entities(isp);
 register_entities_fail:
 	atomisp_uninitialize_modules(isp);
@@ -1697,6 +1725,7 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
+	dev_pm_domain_set(&pdev->dev, NULL);
 	cpu_latency_qos_remove_request(&isp->pm_qos);
 
 	atomisp_msi_irq_uninit(isp);
@@ -1721,17 +1750,8 @@ static const struct pci_device_id atomisp_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, atomisp_pci_tbl);
 
-static const struct dev_pm_ops atomisp_pm_ops = {
-	.runtime_suspend = atomisp_power_off,
-	.runtime_resume = atomisp_power_on,
-	.suspend = atomisp_suspend,
-	.resume = atomisp_resume,
-};
 
 static struct pci_driver atomisp_pci_driver = {
-	.driver = {
-		.pm = &atomisp_pm_ops,
-	},
 	.name = "atomisp-isp2",
 	.id_table = atomisp_pci_tbl,
 	.probe = atomisp_pci_probe,
