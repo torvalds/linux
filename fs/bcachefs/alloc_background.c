@@ -1317,35 +1317,110 @@ void bch2_do_invalidates(struct bch_fs *c)
 		bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 }
 
-static int bucket_freespace_init(struct btree_trans *trans, struct btree_iter *iter,
-				 struct bkey_s_c k, struct bch_dev *ca)
-{
-	struct bch_alloc_v4 a_convert;
-	const struct bch_alloc_v4 *a;
-
-	if (iter->pos.offset >= ca->mi.nbuckets)
-		return 1;
-
-	a = bch2_alloc_to_v4(k, &a_convert);
-	return bch2_bucket_do_index(trans, k, a, true);
-}
-
 static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	struct bpos end = POS(ca->dev_idx, ca->mi.nbuckets);
 	struct bch_member *m;
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_alloc,
-			POS(ca->dev_idx, ca->mi.first_bucket),
-			BTREE_ITER_SLOTS|BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BTREE_INSERT_LAZY_RW,
-		bucket_freespace_init(&trans, &iter, k, ca));
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_alloc,
+			     POS(ca->dev_idx, ca->mi.first_bucket),
+			     BTREE_ITER_PREFETCH);
+	/*
+	 * Scan the alloc btree for every bucket on @ca, and add buckets to the
+	 * freespace/need_discard/need_gc_gens btrees as needed:
+	 */
+	while (1) {
+		bch2_trans_begin(&trans);
+		ret = 0;
 
+		if (bkey_ge(iter.pos, end))
+			break;
+
+		k = bch2_btree_iter_peek_slot(&iter);
+		ret = bkey_err(k);
+		if (ret)
+			goto bkey_err;
+
+		if (k.k->type) {
+			/*
+			 * We process live keys in the alloc btree one at a
+			 * time:
+			 */
+			struct bch_alloc_v4 a_convert;
+			const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
+
+			ret =   bch2_bucket_do_index(&trans, k, a, true) ?:
+				bch2_trans_commit(&trans, NULL, NULL,
+						  BTREE_INSERT_LAZY_RW|
+						  BTREE_INSERT_NOFAIL);
+			if (ret)
+				goto bkey_err;
+
+			bch2_btree_iter_advance(&iter);
+		} else {
+			/*
+			 * When there's a hole, process a whole range of keys
+			 * all at once:
+			 *
+			 * This is similar to how extent btree iterators in
+			 * slots mode will synthesize a whole range - a
+			 * KEY_TYPE_deleted extent.
+			 *
+			 * But alloc keys aren't extents (they have zero size),
+			 * so we're open coding it here:
+			 */
+			struct btree_iter iter2;
+			struct bkey_i *freespace;
+			struct bpos next;
+
+			bch2_trans_copy_iter(&iter2, &iter);
+			k = bch2_btree_iter_peek_upto(&iter2,
+					bkey_min(bkey_min(end,
+							  iter.path->l[0].b->key.k.p),
+							  POS(iter.pos.inode, iter.pos.offset + U32_MAX - 1)));
+			next = iter2.pos;
+			ret = bkey_err(k);
+			bch2_trans_iter_exit(&trans, &iter2);
+
+			BUG_ON(next.offset >= iter.pos.offset + U32_MAX);
+
+			if (ret)
+				goto bkey_err;
+
+			freespace = bch2_trans_kmalloc(&trans, sizeof(*freespace));
+			ret = PTR_ERR_OR_ZERO(freespace);
+			if (ret)
+				goto bkey_err;
+
+			bkey_init(&freespace->k);
+			freespace->k.type = KEY_TYPE_set;
+			freespace->k.p = iter.pos;
+
+			bch2_key_resize(&freespace->k, next.offset - iter.pos.offset);
+
+			ret = __bch2_btree_insert(&trans, BTREE_ID_freespace, freespace) ?:
+				bch2_trans_commit(&trans, NULL, NULL,
+						  BTREE_INSERT_LAZY_RW|
+						  BTREE_INSERT_NOFAIL);
+			if (ret)
+				goto bkey_err;
+
+			bch2_btree_iter_set_pos(&iter, next);
+		}
+bkey_err:
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			continue;
+		if (ret)
+			break;
+	}
+
+	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 
 	if (ret < 0) {
