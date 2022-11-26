@@ -389,21 +389,6 @@ static u32 p2p_listen_state_process(struct adapter *padapter, unsigned char *da)
 	return _SUCCESS;
 }
 
-static void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe)
-{
-	u8 *pIE;
-	__le32 *pbuf;
-
-	pIE = pframe + sizeof(struct ieee80211_hdr_3addr);
-	pbuf = (__le32 *)pIE;
-
-	pmlmeext->TSFValue = le32_to_cpu(*(pbuf + 1));
-
-	pmlmeext->TSFValue = pmlmeext->TSFValue << 32;
-
-	pmlmeext->TSFValue |= le32_to_cpu(*pbuf);
-}
-
 static void correct_TSF(struct adapter *padapter)
 {
 	u8 reg;
@@ -592,8 +577,7 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 			/* check the vendor of the assoc AP */
 			pmlmeinfo->assoc_AP_vendor = check_assoc_AP(pframe + sizeof(struct ieee80211_hdr_3addr), len - sizeof(struct ieee80211_hdr_3addr));
 
-			/* update TSF Value */
-			update_TSF(pmlmeext, pframe);
+			pmlmeext->TSFValue = le64_to_cpu(mgmt->u.beacon.timestamp);
 
 			/* start auth */
 			start_clnt_auth(padapter);
@@ -635,8 +619,7 @@ static void OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 					return;
 				}
 
-				/* update TSF Value */
-				update_TSF(pmlmeext, pframe);
+				pmlmeext->TSFValue = le64_to_cpu(mgmt->u.beacon.timestamp);
 
 				/* report sta add event */
 				report_add_sta_event(padapter, GetAddr2Ptr(pframe), cam_idx);
