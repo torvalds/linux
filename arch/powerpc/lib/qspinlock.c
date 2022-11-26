@@ -35,6 +35,7 @@ static int head_spins __read_mostly = (1 << 8);
 
 static bool pv_yield_owner __read_mostly = true;
 static bool pv_yield_allow_steal __read_mostly = false;
+static bool pv_spin_on_preempted_owner __read_mostly = false;
 static bool pv_yield_prev __read_mostly = true;
 static bool pv_yield_propagate_owner __read_mostly = true;
 static bool pv_prod_head __read_mostly = false;
@@ -191,11 +192,12 @@ static struct qnode *get_tail_qnode(struct qspinlock *lock, u32 val)
 	BUG();
 }
 
-/* Called inside spin_begin() */
-static __always_inline void __yield_to_locked_owner(struct qspinlock *lock, u32 val, bool paravirt, bool mustq)
+/* Called inside spin_begin(). Returns whether or not the vCPU was preempted. */
+static __always_inline bool __yield_to_locked_owner(struct qspinlock *lock, u32 val, bool paravirt, bool mustq)
 {
 	int owner;
 	u32 yield_count;
+	bool preempted = false;
 
 	BUG_ON(!(val & _Q_LOCKED_VAL));
 
@@ -213,6 +215,8 @@ static __always_inline void __yield_to_locked_owner(struct qspinlock *lock, u32 
 
 	spin_end();
 
+	preempted = true;
+
 	/*
 	 * Read the lock word after sampling the yield count. On the other side
 	 * there may a wmb because the yield count update is done by the
@@ -229,29 +233,32 @@ static __always_inline void __yield_to_locked_owner(struct qspinlock *lock, u32 
 		if (mustq)
 			set_mustq(lock);
 		spin_begin();
+
 		/* Don't relax if we yielded. Maybe we should? */
-		return;
+		return preempted;
 	}
 	spin_begin();
 relax:
 	spin_cpu_relax();
+
+	return preempted;
 }
 
-/* Called inside spin_begin() */
-static __always_inline void yield_to_locked_owner(struct qspinlock *lock, u32 val, bool paravirt)
+/* Called inside spin_begin(). Returns whether or not the vCPU was preempted. */
+static __always_inline bool yield_to_locked_owner(struct qspinlock *lock, u32 val, bool paravirt)
 {
-	__yield_to_locked_owner(lock, val, paravirt, false);
+	return __yield_to_locked_owner(lock, val, paravirt, false);
 }
 
-/* Called inside spin_begin() */
-static __always_inline void yield_head_to_locked_owner(struct qspinlock *lock, u32 val, bool paravirt)
+/* Called inside spin_begin(). Returns whether or not the vCPU was preempted. */
+static __always_inline bool yield_head_to_locked_owner(struct qspinlock *lock, u32 val, bool paravirt)
 {
 	bool mustq = false;
 
 	if ((val & _Q_MUST_Q_VAL) && pv_yield_allow_steal)
 		mustq = true;
 
-	__yield_to_locked_owner(lock, val, paravirt, mustq);
+	return __yield_to_locked_owner(lock, val, paravirt, mustq);
 }
 
 static __always_inline void propagate_yield_cpu(struct qnode *node, u32 val, int *set_yield_cpu, bool paravirt)
@@ -361,13 +368,16 @@ static __always_inline bool try_to_steal_lock(struct qspinlock *lock, bool parav
 	int iters = 0;
 	u32 val;
 
-	if (!steal_spins)
+	if (!steal_spins) {
+		/* XXX: should spin_on_preempted_owner do anything here? */
 		return false;
+	}
 
 	/* Attempt to steal the lock */
 	spin_begin();
-
 	do {
+		bool preempted = false;
+
 		val = READ_ONCE(lock->val);
 		if (val & _Q_MUST_Q_VAL)
 			break;
@@ -378,10 +388,23 @@ static __always_inline bool try_to_steal_lock(struct qspinlock *lock, bool parav
 				return true;
 			spin_begin();
 		} else {
-			yield_to_locked_owner(lock, val, paravirt);
+			preempted = yield_to_locked_owner(lock, val, paravirt);
 		}
 
-		iters++;
+		if (preempted) {
+			if (!pv_spin_on_preempted_owner)
+				iters++;
+			/*
+			 * pv_spin_on_preempted_owner don't increase iters
+			 * while the owner is preempted -- we won't interfere
+			 * with it by definition. This could introduce some
+			 * latency issue if we continually observe preempted
+			 * owners, but hopefully that's a rare corner case of
+			 * a badly oversubscribed system.
+			 */
+		} else {
+			iters++;
+		}
 	} while (!steal_break(val, iters, paravirt));
 
 	spin_end();
@@ -453,15 +476,22 @@ again:
 	/* We're at the head of the waitqueue, wait for the lock. */
 	spin_begin();
 	for (;;) {
+		bool preempted;
+
 		val = READ_ONCE(lock->val);
 		if (!(val & _Q_LOCKED_VAL))
 			break;
 
 		propagate_yield_cpu(node, val, &set_yield_cpu, paravirt);
-		yield_head_to_locked_owner(lock, val, paravirt);
+		preempted = yield_head_to_locked_owner(lock, val, paravirt);
 		if (!maybe_stealers)
 			continue;
-		iters++;
+		if (preempted) {
+			if (!pv_spin_on_preempted_owner)
+				iters++;
+		} else {
+			iters++;
+		}
 
 		if (!mustq && iters >= get_head_spins(paravirt)) {
 			mustq = true;
@@ -644,6 +674,22 @@ static int pv_yield_allow_steal_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_pv_yield_allow_steal, pv_yield_allow_steal_get, pv_yield_allow_steal_set, "%llu\n");
 
+static int pv_spin_on_preempted_owner_set(void *data, u64 val)
+{
+	pv_spin_on_preempted_owner = !!val;
+
+	return 0;
+}
+
+static int pv_spin_on_preempted_owner_get(void *data, u64 *val)
+{
+	*val = pv_spin_on_preempted_owner;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_pv_spin_on_preempted_owner, pv_spin_on_preempted_owner_get, pv_spin_on_preempted_owner_set, "%llu\n");
+
 static int pv_yield_prev_set(void *data, u64 val)
 {
 	pv_yield_prev = !!val;
@@ -700,6 +746,7 @@ static __init int spinlock_debugfs_init(void)
 	if (is_shared_processor()) {
 		debugfs_create_file("qspl_pv_yield_owner", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_owner);
 		debugfs_create_file("qspl_pv_yield_allow_steal", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_allow_steal);
+		debugfs_create_file("qspl_pv_spin_on_preempted_owner", 0600, arch_debugfs_dir, NULL, &fops_pv_spin_on_preempted_owner);
 		debugfs_create_file("qspl_pv_yield_prev", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_prev);
 		debugfs_create_file("qspl_pv_yield_propagate_owner", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_propagate_owner);
 		debugfs_create_file("qspl_pv_prod_head", 0600, arch_debugfs_dir, NULL, &fops_pv_prod_head);
