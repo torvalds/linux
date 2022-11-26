@@ -809,7 +809,7 @@ static void OnAuthClient(struct adapter *padapter, struct recv_frame *precv_fram
 	if (!(pmlmeinfo->state & WIFI_FW_AUTH_STATE))
 		return;
 
-	offset = (GetPrivacy(pframe)) ? 4 : 0;
+	offset = ieee80211_has_protected(hdr->frame_control) ? 4 : 0;
 
 	seq	= le16_to_cpu(*(__le16 *)((size_t)pframe + WLAN_HDR_A3_LEN + offset + 2));
 	status	= le16_to_cpu(*(__le16 *)((size_t)pframe + WLAN_HDR_A3_LEN + offset + 4));
