@@ -2157,9 +2157,12 @@ static inline int valid_emergency_stack(unsigned long sp, struct task_struct *p,
 	return 0;
 }
 
-
-int validate_sp(unsigned long sp, struct task_struct *p,
-		       unsigned long nbytes)
+/*
+ * validate the stack frame of a particular minimum size, used for when we are
+ * looking at a certain object in the stack beyond the minimum.
+ */
+int validate_sp_size(unsigned long sp, struct task_struct *p,
+		     unsigned long nbytes)
 {
 	unsigned long stack_page = (unsigned long)task_stack_page(p);
 
@@ -2175,7 +2178,10 @@ int validate_sp(unsigned long sp, struct task_struct *p,
 	return valid_emergency_stack(sp, p, nbytes);
 }
 
-EXPORT_SYMBOL(validate_sp);
+int validate_sp(unsigned long sp, struct task_struct *p)
+{
+	return validate_sp_size(sp, p, STACK_FRAME_OVERHEAD);
+}
 
 static unsigned long ___get_wchan(struct task_struct *p)
 {
@@ -2183,13 +2189,12 @@ static unsigned long ___get_wchan(struct task_struct *p)
 	int count = 0;
 
 	sp = p->thread.ksp;
-	if (!validate_sp(sp, p, STACK_FRAME_OVERHEAD))
+	if (!validate_sp(sp, p))
 		return 0;
 
 	do {
 		sp = READ_ONCE_NOCHECK(*(unsigned long *)sp);
-		if (!validate_sp(sp, p, STACK_FRAME_OVERHEAD) ||
-		    task_is_running(p))
+		if (!validate_sp(sp, p) || task_is_running(p))
 			return 0;
 		if (count > 0) {
 			ip = READ_ONCE_NOCHECK(((unsigned long *)sp)[STACK_FRAME_LR_SAVE]);
@@ -2243,7 +2248,7 @@ void __no_sanitize_address show_stack(struct task_struct *tsk,
 	lr = 0;
 	printk("%sCall Trace:\n", loglvl);
 	do {
-		if (!validate_sp(sp, tsk, STACK_FRAME_OVERHEAD))
+		if (!validate_sp(sp, tsk))
 			break;
 
 		stack = (unsigned long *) sp;
@@ -2270,7 +2275,7 @@ void __no_sanitize_address show_stack(struct task_struct *tsk,
 		 * could hold a pt_regs, if that does not fit then it can't
 		 * have regs.
 		 */
-		if (validate_sp(sp, tsk, STACK_SWITCH_FRAME_SIZE)
+		if (validate_sp_size(sp, tsk, STACK_SWITCH_FRAME_SIZE)
 		    && stack[STACK_INT_FRAME_MARKER_LONGS] == STACK_FRAME_REGS_MARKER) {
 			struct pt_regs *regs = (struct pt_regs *)
 				(sp + STACK_INT_FRAME_REGS);

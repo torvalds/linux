@@ -43,7 +43,7 @@ void __no_sanitize_address arch_stack_walk(stack_trace_consume_fn consume_entry,
 		unsigned long *stack = (unsigned long *) sp;
 		unsigned long newsp, ip;
 
-		if (!validate_sp(sp, task, STACK_FRAME_OVERHEAD))
+		if (!validate_sp(sp, task))
 			return;
 
 		newsp = stack[0];

@@ -27,7 +27,7 @@ static int valid_next_sp(unsigned long sp, unsigned long prev_sp)
 {
 	if (sp & 0xf)
 		return 0;		/* must be 16-byte aligned */
-	if (!validate_sp(sp, current, STACK_FRAME_OVERHEAD))
+	if (!validate_sp(sp, current))
 		return 0;
 	if (sp >= prev_sp + STACK_FRAME_MIN_SIZE)
 		return 1;
@@ -53,7 +53,7 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 	sp = regs->gpr[1];
 	perf_callchain_store(entry, perf_instruction_pointer(regs));
 
-	if (!validate_sp(sp, current, STACK_FRAME_OVERHEAD))
+	if (!validate_sp(sp, current))
 		return;
 
 	for (;;) {
@@ -61,7 +61,7 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 		next_sp = fp[0];
 
 		if (next_sp == sp + STACK_INT_FRAME_SIZE &&
-		    validate_sp(sp, current, STACK_INT_FRAME_SIZE) &&
+		    validate_sp_size(sp, current, STACK_INT_FRAME_SIZE) &&
 		    fp[STACK_INT_FRAME_MARKER_LONGS] == STACK_FRAME_REGS_MARKER) {
 			/*
 			 * This looks like an interrupt frame for an
