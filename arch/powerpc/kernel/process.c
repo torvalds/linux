@@ -1757,12 +1757,13 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 	/* Create initial stack frame. */
 	sp -= STACK_USER_INT_FRAME_SIZE;
-	((unsigned long *)sp)[0] = 0;
+	*(unsigned long *)(sp + STACK_INT_FRAME_MARKER) = STACK_FRAME_REGS_MARKER;
 
 	/* Copy registers */
 	childregs = (struct pt_regs *)(sp + STACK_INT_FRAME_REGS);
 	if (unlikely(args->fn)) {
 		/* kernel thread */
+		((unsigned long *)sp)[0] = 0;
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gpr[1] = sp + STACK_USER_INT_FRAME_SIZE;
 		/* function */
@@ -1782,6 +1783,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		*childregs = *regs;
 		if (usp)
 			childregs->gpr[1] = usp;
+		((unsigned long *)sp)[0] = childregs->gpr[1];
 		p->thread.regs = childregs;
 		/* 64s sets this in ret_from_fork */
 		if (!IS_ENABLED(CONFIG_PPC_BOOK3S_64))
