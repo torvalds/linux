@@ -120,16 +120,26 @@ struct pt_regs
 
 #define STACK_FRAME_OVERHEAD	112	/* size of minimum stack frame */
 #define STACK_FRAME_LR_SAVE	2	/* Location of LR in stack frame */
+
+#ifdef CONFIG_PPC64_ELF_ABI_V2
+#define STACK_FRAME_MIN_SIZE	32
+#define STACK_USER_INT_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_MIN_SIZE + 16)
+#define STACK_INT_FRAME_REGS	(STACK_FRAME_MIN_SIZE + 16)
+#define STACK_INT_FRAME_MARKER	STACK_FRAME_MIN_SIZE
+#define STACK_SWITCH_FRAME_SIZE (sizeof(struct pt_regs) + STACK_FRAME_MIN_SIZE + 16)
+#define STACK_SWITCH_FRAME_REGS	(STACK_FRAME_MIN_SIZE + 16)
+#else
+/*
+ * The ELFv1 ABI specifies 48 bytes plus a minimum 64 byte parameter save
+ * area. This parameter area is not used by calls to C from interrupt entry,
+ * so the second from last one of those is used for the frame marker.
+ */
+#define STACK_FRAME_MIN_SIZE	112
 #define STACK_USER_INT_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD)
 #define STACK_INT_FRAME_REGS	STACK_FRAME_OVERHEAD
 #define STACK_INT_FRAME_MARKER	(STACK_FRAME_OVERHEAD - 16)
 #define STACK_SWITCH_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD)
 #define STACK_SWITCH_FRAME_REGS	STACK_FRAME_OVERHEAD
-
-#ifdef CONFIG_PPC64_ELF_ABI_V2
-#define STACK_FRAME_MIN_SIZE	32
-#else
-#define STACK_FRAME_MIN_SIZE	STACK_FRAME_OVERHEAD
 #endif
 
 /* Size of dummy stack frame allocated when calling signal handler. */
