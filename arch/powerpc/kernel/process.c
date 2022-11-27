@@ -1756,15 +1756,15 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	klp_init_thread_info(p);
 
 	/* Create initial stack frame. */
-	sp -= (sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD);
+	sp -= STACK_USER_INT_FRAME_SIZE;
 	((unsigned long *)sp)[0] = 0;
 
 	/* Copy registers */
-	childregs = (struct pt_regs *)(sp + STACK_FRAME_OVERHEAD);
+	childregs = (struct pt_regs *)(sp + STACK_INT_FRAME_REGS);
 	if (unlikely(args->fn)) {
 		/* kernel thread */
 		memset(childregs, 0, sizeof(struct pt_regs));
-		childregs->gpr[1] = sp + (sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD);
+		childregs->gpr[1] = sp + STACK_USER_INT_FRAME_SIZE;
 		/* function */
 		if (args->fn)
 			childregs->gpr[14] = ppc_function_entry((void *)args->fn);

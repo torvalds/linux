@@ -77,7 +77,7 @@ int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consum
 		/*
 		 * For user tasks, this is the SP value loaded on
 		 * kernel entry, see "PACAKSAVE(r13)" in _switch() and
-		 * system_call_common()/EXCEPTION_PROLOG_COMMON().
+		 * system_call_common().
 		 *
 		 * Likewise for non-swapper kernel threads,
 		 * this also happens to be the top of the stack
@@ -88,7 +88,7 @@ int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consum
 		 * an unreliable stack trace until it's been
 		 * _switch()'ed to for the first time.
 		 */
-		stack_end -= STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
+		stack_end -= STACK_USER_INT_FRAME_SIZE;
 	} else {
 		/*
 		 * idle tasks have a custom stack layout,
