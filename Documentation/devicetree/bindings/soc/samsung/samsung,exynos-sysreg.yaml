@@ -36,9 +36,26 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
 required:
   - compatible
   - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos850-sysreg
+    then:
+      required:
+        - clocks
+    else:
+      properties:
+        clocks: false
 
 additionalProperties: false
 
