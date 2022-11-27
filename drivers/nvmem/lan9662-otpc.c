@@ -36,7 +36,7 @@ struct lan9662_otp {
 	void __iomem *base;
 };
 
-static bool lan9662_otp_wait_flag_clear(void __iomem *reg, u32 flag)
+static int lan9662_otp_wait_flag_clear(void __iomem *reg, u32 flag)
 {
 	u32 val;
 
