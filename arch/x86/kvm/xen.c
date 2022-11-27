@@ -179,7 +179,8 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 	struct vcpu_runstate_info rs;
 	unsigned long flags;
 	size_t times_ofs;
-	uint8_t *update_bit;
+	uint8_t *update_bit = NULL;
+	uint64_t entry_time;
 	uint64_t *rs_times;
 	int *rs_state;
 
@@ -297,7 +298,8 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 		 */
 		rs_state = gpc1->khva;
 		rs_times = gpc1->khva + times_ofs;
-		update_bit = ((void *)(&rs_times[1])) - 1;
+		if (v->kvm->arch.xen.runstate_update_flag)
+			update_bit = ((void *)(&rs_times[1])) - 1;
 	} else {
 		/*
 		 * The guest's runstate_info is split across two pages and we
@@ -351,12 +353,14 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 		 * The update_bit is still directly in the guest memory,
 		 * via one GPC or the other.
 		 */
-		if (user_len1 >= times_ofs + sizeof(uint64_t))
-			update_bit = gpc1->khva + times_ofs +
-				sizeof(uint64_t) - 1;
-		else
-			update_bit = gpc2->khva + times_ofs +
-				sizeof(uint64_t) - 1 - user_len1;
+		if (v->kvm->arch.xen.runstate_update_flag) {
+			if (user_len1 >= times_ofs + sizeof(uint64_t))
+				update_bit = gpc1->khva + times_ofs +
+					sizeof(uint64_t) - 1;
+			else
+				update_bit = gpc2->khva + times_ofs +
+					sizeof(uint64_t) - 1 - user_len1;
+		}
 
 #ifdef CONFIG_X86_64
 		/*
@@ -376,8 +380,12 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 	 * different cache line to the rest of the 64-bit word, due to
 	 * the (lack of) alignment constraints.
 	 */
-	*update_bit = (vx->runstate_entry_time | XEN_RUNSTATE_UPDATE) >> 56;
-	smp_wmb();
+	entry_time = vx->runstate_entry_time;
+	if (update_bit) {
+		entry_time |= XEN_RUNSTATE_UPDATE;
+		*update_bit = (vx->runstate_entry_time | XEN_RUNSTATE_UPDATE) >> 56;
+		smp_wmb();
+	}
 
 	/*
 	 * Now assemble the actual structure, either on our kernel stack
@@ -385,7 +393,7 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 	 * rs_times pointers were set up above.
 	 */
 	*rs_state = vx->current_runstate;
-	rs_times[0] = vx->runstate_entry_time | XEN_RUNSTATE_UPDATE;
+	rs_times[0] = entry_time;
 	memcpy(rs_times + 1, vx->runstate_times, sizeof(vx->runstate_times));
 
 	/* For the split case, we have to then copy it to the guest. */
@@ -396,8 +404,11 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 	smp_wmb();
 
 	/* Finally, clear the XEN_RUNSTATE_UPDATE bit. */
-	*update_bit = vx->runstate_entry_time >> 56;
-	smp_wmb();
+	if (update_bit) {
+		entry_time &= ~XEN_RUNSTATE_UPDATE;
+		*update_bit = entry_time >> 56;
+		smp_wmb();
+	}
 
 	if (user_len2)
 		read_unlock(&gpc2->lock);
@@ -619,6 +630,17 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		r = 0;
 		break;
 
+	case KVM_XEN_ATTR_TYPE_RUNSTATE_UPDATE_FLAG:
+		if (!sched_info_on()) {
+			r = -EOPNOTSUPP;
+			break;
+		}
+		mutex_lock(&kvm->lock);
+		kvm->arch.xen.runstate_update_flag = !!data->u.runstate_update_flag;
+		mutex_unlock(&kvm->lock);
+		r = 0;
+		break;
+
 	default:
 		break;
 	}
@@ -653,6 +675,15 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 
 	case KVM_XEN_ATTR_TYPE_XEN_VERSION:
 		data->u.xen_version = kvm->arch.xen.xen_version;
+		r = 0;
+		break;
+
+	case KVM_XEN_ATTR_TYPE_RUNSTATE_UPDATE_FLAG:
+		if (!sched_info_on()) {
+			r = -EOPNOTSUPP;
+			break;
+		}
+		data->u.runstate_update_flag = kvm->arch.xen.runstate_update_flag;
 		r = 0;
 		break;
 

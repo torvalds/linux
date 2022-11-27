@@ -1113,6 +1113,7 @@ struct msr_bitmap_range {
 struct kvm_xen {
 	u32 xen_version;
 	bool long_mode;
+	bool runstate_update_flag;
 	u8 upcall_vector;
 	struct gfn_to_pfn_cache shinfo_cache;
 	struct idr evtchn_ports;

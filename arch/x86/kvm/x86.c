@@ -4431,7 +4431,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		    KVM_XEN_HVM_CONFIG_EVTCHN_2LEVEL |
 		    KVM_XEN_HVM_CONFIG_EVTCHN_SEND;
 		if (sched_info_on())
-			r |= KVM_XEN_HVM_CONFIG_RUNSTATE;
+			r |= KVM_XEN_HVM_CONFIG_RUNSTATE |
+			     KVM_XEN_HVM_CONFIG_RUNSTATE_UPDATE_FLAG;
 		break;
 #endif
 	case KVM_CAP_SYNC_REGS:

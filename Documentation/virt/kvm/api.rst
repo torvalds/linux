@@ -5339,6 +5339,7 @@ KVM_PV_ASYNC_CLEANUP_PERFORM
 	union {
 		__u8 long_mode;
 		__u8 vector;
+		__u8 runstate_update_flag;
 		struct {
 			__u64 gfn;
 		} shared_info;
@@ -5415,6 +5416,14 @@ KVM_XEN_ATTR_TYPE_XEN_VERSION
   Xen guests will often use this to as a dummy hypercall to trigger
   event channel delivery, so responding within the kernel without
   exiting to userspace is beneficial.
+
+KVM_XEN_ATTR_TYPE_RUNSTATE_UPDATE_FLAG
+  This attribute is available when the KVM_CAP_XEN_HVM ioctl indicates
+  support for KVM_XEN_HVM_CONFIG_RUNSTATE_UPDATE_FLAG. It enables the
+  XEN_RUNSTATE_UPDATE flag which allows guest vCPUs to safely read
+  other vCPUs' vcpu_runstate_info. Xen guests enable this feature via
+  the VM_ASST_TYPE_runstate_update_flag of the HYPERVISOR_vm_assist
+  hypercall.
 
 4.127 KVM_XEN_HVM_GET_ATTR
 --------------------------
@@ -8059,12 +8068,13 @@ to userspace.
 This capability indicates the features that Xen supports for hosting Xen
 PVHVM guests. Valid flags are::
 
-  #define KVM_XEN_HVM_CONFIG_HYPERCALL_MSR	(1 << 0)
-  #define KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL	(1 << 1)
-  #define KVM_XEN_HVM_CONFIG_SHARED_INFO	(1 << 2)
-  #define KVM_XEN_HVM_CONFIG_RUNSTATE		(1 << 3)
-  #define KVM_XEN_HVM_CONFIG_EVTCHN_2LEVEL	(1 << 4)
-  #define KVM_XEN_HVM_CONFIG_EVTCHN_SEND	(1 << 5)
+  #define KVM_XEN_HVM_CONFIG_HYPERCALL_MSR		(1 << 0)
+  #define KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL		(1 << 1)
+  #define KVM_XEN_HVM_CONFIG_SHARED_INFO		(1 << 2)
+  #define KVM_XEN_HVM_CONFIG_RUNSTATE			(1 << 3)
+  #define KVM_XEN_HVM_CONFIG_EVTCHN_2LEVEL		(1 << 4)
+  #define KVM_XEN_HVM_CONFIG_EVTCHN_SEND		(1 << 5)
+  #define KVM_XEN_HVM_CONFIG_RUNSTATE_UPDATE_FLAG	(1 << 6)
 
 The KVM_XEN_HVM_CONFIG_HYPERCALL_MSR flag indicates that the KVM_XEN_HVM_CONFIG
 ioctl is available, for the guest to set its hypercall page.
@@ -8095,6 +8105,18 @@ KVM_XEN_ATTR_TYPE_EVTCHN/XEN_VERSION HVM attributes and the
 KVM_XEN_VCPU_ATTR_TYPE_VCPU_ID/TIMER/UPCALL_VECTOR vCPU attributes.
 related to event channel delivery, timers, and the XENVER_version
 interception.
+
+The KVM_XEN_HVM_CONFIG_RUNSTATE_UPDATE_FLAG flag indicates that KVM supports
+the KVM_XEN_ATTR_TYPE_RUNSTATE_UPDATE_FLAG attribute in the KVM_XEN_SET_ATTR
+and KVM_XEN_GET_ATTR ioctls. This controls whether KVM will set the
+XEN_RUNSTATE_UPDATE flag in guest memory mapped vcpu_runstate_info during
+updates of the runstate information. Note that versions of KVM which support
+the RUNSTATE feature above, but not thie RUNSTATE_UPDATE_FLAG feature, will
+always set the XEN_RUNSTATE_UPDATE flag when updating the guest structure,
+which is perhaps counterintuitive. When this flag is advertised, KVM will
+behave more correctly, not using the XEN_RUNSTATE_UPDATE flag until/unless
+specifically enabled (by the guest making the hypercall, causing the VMM
+to enable the KVM_XEN_ATTR_TYPE_RUNSTATE_UPDATE_FLAG attribute).
 
 8.31 KVM_CAP_PPC_MULTITCE
 -------------------------

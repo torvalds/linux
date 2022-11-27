@@ -440,6 +440,7 @@ int main(int argc, char *argv[])
 	TEST_REQUIRE(xen_caps & KVM_XEN_HVM_CONFIG_SHARED_INFO);
 
 	bool do_runstate_tests = !!(xen_caps & KVM_XEN_HVM_CONFIG_RUNSTATE);
+	bool do_runstate_flag = !!(xen_caps & KVM_XEN_HVM_CONFIG_RUNSTATE_UPDATE_FLAG);
 	bool do_eventfd_tests = !!(xen_caps & KVM_XEN_HVM_CONFIG_EVTCHN_2LEVEL);
 	bool do_evtchn_tests = do_eventfd_tests && !!(xen_caps & KVM_XEN_HVM_CONFIG_EVTCHN_SEND);
 
@@ -474,6 +475,19 @@ int main(int argc, char *argv[])
 		.u.long_mode = 1,
 	};
 	vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &lm);
+
+	if (do_runstate_flag) {
+		struct kvm_xen_hvm_attr ruf = {
+			.type = KVM_XEN_ATTR_TYPE_RUNSTATE_UPDATE_FLAG,
+			.u.runstate_update_flag = 1,
+		};
+		vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &ruf);
+
+		ruf.u.runstate_update_flag = 0;
+		vm_ioctl(vm, KVM_XEN_HVM_GET_ATTR, &ruf);
+		TEST_ASSERT(ruf.u.runstate_update_flag == 1,
+			    "Failed to read back RUNSTATE_UPDATE_FLAG attr");
+	}
 
 	struct kvm_xen_hvm_attr ha = {
 		.type = KVM_XEN_ATTR_TYPE_SHARED_INFO,
