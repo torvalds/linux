@@ -43,7 +43,7 @@ properties:
       - 1 # internal
       - 2 # external
 
-  enable-gpio:
+  enable-gpios:
     maxItems: 1
     description: |
       GPIO attached to the chip's enable pin
