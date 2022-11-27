@@ -2946,6 +2946,8 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 	}
 	intel_de_write(dev_priv, DDI_BUF_CTL(port), buf_ctl);
 
+	intel_wait_ddi_buf_active(dev_priv, port);
+
 	intel_audio_codec_enable(encoder, crtc_state, conn_state);
 }
 
