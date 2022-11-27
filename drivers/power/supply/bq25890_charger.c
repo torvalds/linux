@@ -1161,6 +1161,8 @@ static int bq25890_register_regulator(struct bq25890_device *bq)
 				     "registering vbus regulator");
 	}
 
+	/* pdata->regulator_init_data is for vbus only */
+	cfg.init_data = NULL;
 	reg = devm_regulator_register(bq->dev, &bq25890_vsys_desc, &cfg);
 	if (IS_ERR(reg)) {
 		return dev_err_probe(bq->dev, PTR_ERR(reg),
