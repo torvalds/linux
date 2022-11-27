@@ -114,7 +114,7 @@ transfer_to_syscall:
 	addi	r12,r12,STACK_FRAME_REGS_MARKER@l
 	stw	r9,_MSR(r1)
 	li	r2, INTERRUPT_SYSCALL
-	stw	r12,8(r1)
+	stw	r12,STACK_INT_FRAME_MARKER(r1)
 	stw	r2,_TRAP(r1)
 	SAVE_GPR(0, r1)
 	SAVE_GPRS(3, 8, r1)

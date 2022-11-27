@@ -84,7 +84,7 @@ END_BTB_FLUSH_SECTION
 	stw	r0,GPR0(r1)
 	lis	r10, STACK_FRAME_REGS_MARKER@ha	/* exception frame marker */
 	addi	r10, r10, STACK_FRAME_REGS_MARKER@l
-	stw	r10, 8(r1)
+	stw	r10, STACK_INT_FRAME_MARKER(r1)
 	li	r10, \trapno
 	stw	r10,_TRAP(r1)
 	SAVE_GPRS(3, 8, r1)

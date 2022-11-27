@@ -591,7 +591,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	li	r10,0
 	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
 	std	r10,RESULT(r1)		/* clear regs->result		*/
-	std	r11,STACK_FRAME_OVERHEAD-16(r1) /* mark the frame	*/
+	std	r11,STACK_INT_FRAME_MARKER(r1) /* mark the frame	*/
 .endm
 
 /*

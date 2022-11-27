@@ -2729,7 +2729,7 @@ kvmppc_bad_host_intr:
 	std	r6, SOFTE(r1)
 	LOAD_PACA_TOC()
 	LOAD_REG_IMMEDIATE(3, STACK_FRAME_REGS_MARKER)
-	std	r3, STACK_FRAME_OVERHEAD-16(r1)
+	std	r3, STACK_INT_FRAME_MARKER(r1)
 
 	/*
 	 * XXX On POWER7 and POWER8, we just spin here since we don't
