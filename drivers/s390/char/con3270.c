@@ -148,6 +148,35 @@ static int tty3270_tty_rows(struct tty3270 *tp)
 	return tp->view.rows - TTY3270_INPUT_AREA_ROWS;
 }
 
+static char *tty3270_add_ba(struct tty3270 *tp, char *cp, char order, int x, int y)
+{
+	*cp++ = order;
+	raw3270_buffer_address(tp->view.dev, cp, x, y);
+	return cp + 2;
+}
+
+static char *tty3270_add_ra(struct tty3270 *tp, char *cp, int x, int y, char c)
+{
+	cp = tty3270_add_ba(tp, cp, TO_RA, x, y);
+	*cp++ = c;
+	return cp;
+}
+
+static char *tty3270_add_sa(struct tty3270 *tp, char *cp, char attr, char value)
+{
+	*cp++ = TO_SA;
+	*cp++ = attr;
+	*cp++ = value;
+	return cp;
+}
+
+static char *tty3270_add_ge(struct tty3270 *tp, char *cp, char c)
+{
+	*cp++ = TO_GE;
+	*cp++ = c;
+	return cp;
+}
+
 /*
  * The input line are the two last lines of the screen.
  */
@@ -166,9 +195,7 @@ static void tty3270_update_prompt(struct tty3270 *tp, char *input, int count)
 	line->string[6 + count] = TO_IC;
 	/* Clear to end of input line. */
 	if (count < tp->view.cols * 2 - 11) {
-		line->string[7 + count] = TO_RA;
-		line->string[10 + count] = 0;
-		raw3270_buffer_address(tp->view.dev, line->string+count+8, -9, -1);
+		tty3270_add_ra(tp, line->string + count + 7, -9, -1, 0);
 		line->len = 11 + count;
 	} else
 		line->len = 7 + count;
@@ -213,7 +240,11 @@ static void tty3270_update_status(struct tty3270 *tp)
 	tp->update_flags |= TTY_UPDATE_STATUS;
 }
 
-static void tty3270_create_status(struct tty3270 *tp)
+/*
+ * The status line is the last line of the screen. It shows the string
+ * "Running"/"Holding" in the lower right corner of the screen.
+ */
+static void tty3270_create_status(struct tty3270 * tp)
 {
 	static const unsigned char blueprint[] = {
 		TO_SBA, 0, 0, TO_SF, TF_LOG, TO_SA, TAT_FGCOLOR, TAC_GREEN,
@@ -406,27 +437,14 @@ static int tty3270_required_length(struct tty3270 *tp, int line_nr)
 static char *tty3270_add_reset_attributes(struct tty3270 *tp, struct tty3270_line *line,
 					  char *cp, struct tty3270_attribute *attr)
 {
-	if (attr->highlight != TAX_RESET) {
-		*cp++ = TO_SA;
-		*cp++ = TAT_EXTHI;
-		*cp++ = TAX_RESET;
-	}
-	if (attr->f_color != TAC_RESET) {
-		*cp++ = TO_SA;
-		*cp++ = TAT_FGCOLOR;
-		*cp++ = TAC_RESET;
-	}
-	if (attr->b_color != TAC_RESET) {
-		*cp++ = TO_SA;
-		*cp++ = TAT_BGCOLOR;
-		*cp++ = TAC_RESET;
-	}
-	if (line->len < tp->view.cols) {
-		*cp++ = TO_RA;
-		*cp++ = 0;
-		*cp++ = 0;
-		*cp++ = 0;
-	}
+	if (attr->highlight != TAX_RESET)
+		cp = tty3270_add_sa(tp, cp, TAT_EXTHI, TAX_RESET);
+	if (attr->f_color != TAC_RESET)
+		cp = tty3270_add_sa(tp, cp, TAT_FGCOLOR, TAX_RESET);
+	if (attr->b_color != TAC_RESET)
+		cp = tty3270_add_sa(tp, cp, TAT_BGCOLOR, TAX_RESET);
+	if (line->len < tp->view.cols)
+		cp = tty3270_add_ra(tp, cp, 0, 0, 0);
 	return cp;
 }
 
@@ -464,37 +482,28 @@ static char *tty3270_add_attributes(struct tty3270 *tp, struct tty3270_line *lin
 				    struct tty3270_attribute *attr, char *cp)
 {
 	struct tty3270_cell *cell;
-	int i;
+	int c, i;
 
-	*cp++ = TO_SBA;
-	*cp++ = 0;
-	*cp++ = 0;
+	cp = tty3270_add_ba(tp, cp, TO_SBA, 0, 0);
 
 	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
 		if (cell->attributes.highlight != attr->highlight) {
-			*cp++ = TO_SA;
-			*cp++ = TAT_EXTHI;
-			*cp++ = cell->attributes.highlight;
 			attr->highlight = cell->attributes.highlight;
+			cp = tty3270_add_sa(tp, cp, TAT_EXTHI, attr->highlight);
 		}
 		if (cell->attributes.f_color != attr->f_color) {
-			*cp++ = TO_SA;
-			*cp++ = TAT_FGCOLOR;
-			*cp++ = cell->attributes.f_color;
 			attr->f_color = cell->attributes.f_color;
+			cp = tty3270_add_sa(tp, cp, TAT_FGCOLOR, attr->f_color);
 		}
 		if (cell->attributes.b_color != attr->b_color) {
-			*cp++ = TO_SA;
-			*cp++ = TAT_BGCOLOR;
-			*cp++ = cell->attributes.b_color;
 			attr->b_color = cell->attributes.b_color;
+			cp = tty3270_add_sa(tp, cp, TAT_BGCOLOR, attr->b_color);
 		}
-		if (cell->attributes.alternate_charset) {
-			*cp++ = TO_GE;
-			*cp++ = tty3270_graphics_translate(tp, cell->character);
-		} else {
-			*cp++ = tp->view.ascebc[(int)cell->character];
-		}
+		c = cell->character;
+		if (cell->attributes.alternate_charset)
+			cp = tty3270_add_ge(tp, cp, tty3270_graphics_translate(tp, c));
+		else
+			*cp++ = tp->view.ascebc[c];
 	}
 	return cp;
 }
