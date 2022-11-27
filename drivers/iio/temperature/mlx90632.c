@@ -1168,9 +1168,9 @@ static int mlx90632_enable_regulator(struct mlx90632_data *data)
 	return ret;
 }
 
-static int mlx90632_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int mlx90632_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct mlx90632_data *mlx90632;
 	struct iio_dev *indio_dev;
 	struct regmap *regmap;
@@ -1337,7 +1337,7 @@ static struct i2c_driver mlx90632_driver = {
 		.of_match_table = mlx90632_of_match,
 		.pm	= pm_ptr(&mlx90632_pm_ops),
 	},
-	.probe = mlx90632_probe,
+	.probe_new = mlx90632_probe,
 	.id_table = mlx90632_id,
 };
 module_i2c_driver(mlx90632_driver);

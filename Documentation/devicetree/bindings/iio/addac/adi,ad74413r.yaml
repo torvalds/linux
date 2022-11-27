@@ -51,6 +51,9 @@ properties:
       Shunt (sense) resistor value in micro-Ohms.
     default: 100000000
 
+  reset-gpios:
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -129,6 +132,7 @@ examples:
         interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
 
         refin-supply = <&ad74413r_refin>;
+        reset-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
 
         channel@0 {
           reg = <0>;

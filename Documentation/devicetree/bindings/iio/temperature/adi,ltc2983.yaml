@@ -325,7 +325,6 @@ patternProperties:
         description:
           Excitation current applied to the thermistor.
           0 sets the sensor in auto-range mode.
-        $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 250, 500, 1000, 5000, 10000, 25000, 50000, 100000, 250000,
                500000, 1000000]
         default: 0

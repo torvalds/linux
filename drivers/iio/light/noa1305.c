@@ -186,8 +186,7 @@ static const struct regmap_config noa1305_regmap_config = {
 	.writeable_reg = noa1305_writable_reg,
 };
 
-static int noa1305_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int noa1305_probe(struct i2c_client *client)
 {
 	struct noa1305_priv *priv;
 	struct iio_dev *indio_dev;
@@ -279,7 +278,7 @@ static struct i2c_driver noa1305_driver = {
 		.name		= NOA1305_DRIVER_NAME,
 		.of_match_table	= noa1305_of_match,
 	},
-	.probe		= noa1305_probe,
+	.probe_new	= noa1305_probe,
 	.id_table	= noa1305_ids,
 };
 
