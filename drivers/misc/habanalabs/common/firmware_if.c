@@ -2582,6 +2582,10 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 			hdev->decoder_binning = le32_to_cpu(binning_info->dec_mask);
 			hdev->rotator_binning = le32_to_cpu(binning_info->rot_mask);
 
+			rc = hdev->asic_funcs->set_dram_properties(hdev);
+			if (rc)
+				goto out;
+
 			dev_dbg(hdev->dev,
 				"Read binning masks: tpc: 0x%llx, dram: 0x%llx, edma: 0x%x, dec: 0x%x, rot:0x%x\n",
 				hdev->tpc_binning, hdev->dram_binning, hdev->edma_binning,
