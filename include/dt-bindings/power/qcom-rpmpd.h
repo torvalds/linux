@@ -306,6 +306,16 @@
 #define SDM660_SSCMX		8
 #define SDM660_SSCMX_VFL	9
 
+/* SM4250 Power Domains */
+#define SM4250_VDDCX		0
+#define SM4250_VDDCX_AO		1
+#define SM4250_VDDCX_VFL	2
+#define SM4250_VDDMX		3
+#define SM4250_VDDMX_AO		4
+#define SM4250_VDDMX_VFL	5
+#define SM4250_VDD_LPI_CX	6
+#define SM4250_VDD_LPI_MX	7
+
 /* SM6115 Power Domains */
 #define SM6115_VDDCX		0
 #define SM6115_VDDCX_AO		1
