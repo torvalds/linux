@@ -180,10 +180,10 @@ void noinstr s390_handle_mcck(struct pt_regs *regs)
 	trace_hardirqs_on();
 }
 /*
- * returns 0 if all required registers are available
+ * returns 0 if register contents could be validated
  * returns 1 otherwise
  */
-static int notrace s390_validate_registers(union mci mci, int umode)
+static int notrace s390_validate_registers(union mci mci)
 {
 	struct mcesa *mcesa;
 	void *fpt_save_area;
@@ -194,45 +194,15 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 	kill_task = 0;
 	zero = 0;
 
-	if (!mci.gr) {
-		/*
-		 * General purpose registers couldn't be restored and have
-		 * unknown contents. Stop system or terminate process.
-		 */
-		if (!umode)
-			s390_handle_damage();
+	if (!mci.gr || !mci.fp)
 		kill_task = 1;
-	}
-	if (!mci.fp) {
-		/*
-		 * Floating point registers can't be restored. If the
-		 * kernel currently uses floating point registers the
-		 * system is stopped. If the process has its floating
-		 * pointer registers loaded it is terminated.
-		 */
-		if (S390_lowcore.fpu_flags & KERNEL_VXR_V0V7)
-			s390_handle_damage();
-		if (!test_cpu_flag(CIF_FPU))
-			kill_task = 1;
-	}
 	fpt_save_area = &S390_lowcore.floating_pt_save_area;
 	if (!mci.fc) {
-		/*
-		 * Floating point control register can't be restored.
-		 * If the kernel currently uses the floating pointer
-		 * registers and needs the FPC register the system is
-		 * stopped. If the process has its floating pointer
-		 * registers loaded it is terminated. Otherwise the
-		 * FPC is just validated.
-		 */
-		if (S390_lowcore.fpu_flags & KERNEL_FPC)
-			s390_handle_damage();
+		kill_task = 1;
 		asm volatile(
 			"	lfpc	%0\n"
 			:
 			: "Q" (zero));
-		if (!test_cpu_flag(CIF_FPU))
-			kill_task = 1;
 	} else {
 		asm volatile(
 			"	lfpc	%0\n"
@@ -274,19 +244,8 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 		 * appropriate actions. The host vector or FPU values have been
 		 * saved by KVM and will be restored by KVM.
 		 */
-		if (!mci.vr && !test_cpu_flag(CIF_MCCK_GUEST)) {
-			/*
-			 * Vector registers can't be restored. If the kernel
-			 * currently uses vector registers the system is
-			 * stopped. If the process has its vector registers
-			 * loaded it is terminated. Otherwise just validate
-			 * the registers.
-			 */
-			if (S390_lowcore.fpu_flags & KERNEL_VXR)
-				s390_handle_damage();
-			if (!test_cpu_flag(CIF_FPU))
-				kill_task = 1;
-		}
+		if (!mci.vr && !test_cpu_flag(CIF_MCCK_GUEST))
+			kill_task = 1;
 		cr0.val = S390_lowcore.cregs_save_area[0];
 		cr0.afp = cr0.vx = 1;
 		__ctl_load(cr0.val, 0, 0);
@@ -305,13 +264,8 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 		:
 		: "a" (&S390_lowcore.access_regs_save_area)
 		: "memory");
-	if (!mci.ar) {
-		/*
-		 * Access registers have unknown contents.
-		 * Terminating task.
-		 */
+	if (!mci.ar)
 		kill_task = 1;
-	}
 	/* Validate guarded storage registers */
 	cr2.val = S390_lowcore.cregs_save_area[2];
 	if (cr2.gse) {
@@ -450,7 +404,9 @@ int notrace s390_do_machine_check(struct pt_regs *regs)
 			s390_handle_damage();
 		}
 	}
-	if (s390_validate_registers(mci, user_mode(regs))) {
+	if (s390_validate_registers(mci)) {
+		if (!user_mode(regs))
+			s390_handle_damage();
 		/*
 		 * Couldn't restore all register contents for the
 		 * user space process -> mark task for termination.
