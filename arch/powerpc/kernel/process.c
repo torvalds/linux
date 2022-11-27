@@ -1810,7 +1810,9 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	 * do some house keeping and then return from the fork or clone
 	 * system call, using the stack frame created above.
 	 */
+	((unsigned long *)sp)[STACK_FRAME_LR_SAVE] = (unsigned long)f;
 	sp -= STACK_SWITCH_FRAME_SIZE;
+	((unsigned long *)sp)[0] = sp + STACK_SWITCH_FRAME_SIZE;
 	kregs = (struct pt_regs *)(sp + STACK_SWITCH_FRAME_REGS);
 	p->thread.ksp = sp;
 
