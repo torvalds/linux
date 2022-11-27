@@ -22,7 +22,7 @@
  */
 _GLOBAL(ppc_save_regs)
 	/* This allows stack frame accessor macros and offsets to be used */
-	subi	r3,r3,STACK_FRAME_OVERHEAD
+	subi	r3,r3,STACK_INT_FRAME_REGS
 	PPC_STL	r0,GPR0(r3)
 #ifdef CONFIG_PPC32
 	stmw	r2,GPR2(r3)

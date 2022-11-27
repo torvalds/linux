@@ -78,7 +78,7 @@ _ASM_NOKPROBE_SYMBOL(system_call_vectored_\name)
 	std	r12,_CCR(r1)
 	std	r3,ORIG_GPR3(r1)
 	/* Calling convention has r3 = regs, r4 = orig r0 */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	mr	r4,r0
 	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
 	std	r11,-16(r3)		/* "regshere" marker */
@@ -99,7 +99,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	bl	system_call_exception
 
 .Lsyscall_vectored_\name\()_exit:
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r5,1 /* scv */
 	bl	syscall_exit_prepare
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
@@ -176,7 +176,7 @@ _ASM_NOKPROBE_SYMBOL(syscall_vectored_\name\()_restart)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
 	ld	r3,RESULT(r1)
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
 	bl	syscall_exit_restart
@@ -251,7 +251,7 @@ END_BTB_FLUSH_SECTION
 	std	r12,_CCR(r1)
 	std	r3,ORIG_GPR3(r1)
 	/* Calling convention has r3 = regs, r4 = orig r0 */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	mr	r4,r0
 	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
 	std	r11,-16(r3)		/* "regshere" marker */
@@ -278,7 +278,7 @@ END_BTB_FLUSH_SECTION
 	bl	system_call_exception
 
 .Lsyscall_exit:
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r5,0 /* !scv */
 	bl	syscall_exit_prepare
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
@@ -357,7 +357,7 @@ _ASM_NOKPROBE_SYMBOL(syscall_restart)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
 	ld	r3,RESULT(r1)
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
 	bl	syscall_exit_restart
@@ -388,7 +388,7 @@ _ASM_NOKPROBE_SYMBOL(fast_interrupt_return_srr)
 	andi.	r0,r5,MSR_RI
 	li	r3,0 /* 0 return value, no EMULATE_STACK_STORE */
 	bne+	.Lfast_kernel_interrupt_return_srr
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	unrecoverable_exception
 	b	. /* should not get here */
 #else
@@ -406,7 +406,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\())
 	beq	interrupt_return_\srr\()_kernel
 interrupt_return_\srr\()_user: /* make backtraces match the _kernel variant */
 _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_user)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	interrupt_exit_user_prepare
 	cmpdi	r3,0
 	bne-	.Lrestore_nvgprs_\srr
@@ -503,7 +503,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_user_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
 	bl	interrupt_exit_user_restart
@@ -518,7 +518,7 @@ RESTART_TABLE(.Linterrupt_return_\srr\()_user_rst_start, .Linterrupt_return_\srr
 	.balign IFETCH_ALIGN_BYTES
 interrupt_return_\srr\()_kernel:
 _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	interrupt_exit_kernel_prepare
 
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
@@ -684,7 +684,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
 	bl	interrupt_exit_kernel_restart

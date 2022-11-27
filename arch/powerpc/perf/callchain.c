@@ -67,7 +67,7 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 			 * This looks like an interrupt frame for an
 			 * interrupt that occurred in the kernel
 			 */
-			regs = (struct pt_regs *)(sp + STACK_FRAME_OVERHEAD);
+			regs = (struct pt_regs *)(sp + STACK_INT_FRAME_REGS);
 			next_ip = regs->nip;
 			lr = regs->link;
 			level = 0;

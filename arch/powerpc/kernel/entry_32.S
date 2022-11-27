@@ -123,12 +123,12 @@ transfer_to_syscall:
 	kuep_lock
 
 	/* Calling convention has r3 = regs, r4 = orig r0 */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	mr	r4,r0
 	bl	system_call_exception
 
 ret_from_syscall:
-	addi    r4,r1,STACK_FRAME_OVERHEAD
+	addi    r4,r1,STACK_INT_FRAME_REGS
 	li	r5,0
 	bl	syscall_exit_prepare
 #ifdef CONFIG_PPC_47x
@@ -293,7 +293,7 @@ _ASM_NOKPROBE_SYMBOL(fast_exception_return)
 	.globl interrupt_return
 interrupt_return:
 	lwz	r4,_MSR(r1)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	andi.	r0,r4,MSR_PR
 	beq	.Lkernel_interrupt_return
 	bl	interrupt_exit_user_prepare

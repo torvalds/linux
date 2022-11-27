@@ -99,7 +99,7 @@ END_BTB_FLUSH_SECTION
 	mfspr	r10,SPRN_XER
 	addi	r2, r2, -THREAD
 	stw	r10,_XER(r1)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 .endm
 
 .macro prepare_transfer_to_handler

@@ -972,10 +972,10 @@ _GLOBAL(__giveup_spe)
 	li	r4,THREAD_ACC
 	evstddx	evr6, r4, r3		/* save off accumulator */
 	beq	1f
-	lwz	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	lwz	r4,_MSR-STACK_INT_FRAME_REGS(r5)
 	lis	r3,MSR_SPE@h
 	andc	r4,r4,r3		/* disable SPE for previous task */
-	stw	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	stw	r4,_MSR-STACK_INT_FRAME_REGS(r5)
 1:
 	blr
 #endif /* CONFIG_SPE */
