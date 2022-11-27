@@ -1337,25 +1337,29 @@ static void tty3270_erase_line(struct tty3270 *tp, int mode)
  */
 static void tty3270_erase_display(struct tty3270 *tp, int mode)
 {
-	int i;
+	int i, start, end;
 
-	if (mode == 0) {
+	switch (mode) {
+	case 0:
 		tty3270_erase_line(tp, 0);
-		for (i = tp->cy + 1; i < tp->view.rows - 2; i++) {
-			tp->screen[i].len = 0;
-			tty3270_convert_line(tp, i);
-		}
-	} else if (mode == 1) {
-		for (i = 0; i < tp->cy; i++) {
-			tp->screen[i].len = 0;
-			tty3270_convert_line(tp, i);
-		}
+		start = tp->cy + 1;
+		end = tp->view.rows - 2;
+		break;
+	case 1:
+		start = 0;
+		end = tp->cy;
 		tty3270_erase_line(tp, 1);
-	} else if (mode == 2) {
-		for (i = 0; i < tp->view.rows - 2; i++) {
-			tp->screen[i].len = 0;
-			tty3270_convert_line(tp, i);
-		}
+		break;
+	case 2:
+		start = 0;
+		end = tp->view.rows - 2;
+		break;
+	default:
+		return;
+	}
+	for (i = start; i < end; i++) {
+		tp->screen[i].len = 0;
+		tty3270_convert_line(tp, i);
 	}
 	tty3270_rebuild_update(tp);
 }
