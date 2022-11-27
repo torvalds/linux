@@ -9134,6 +9134,11 @@ static u32 *gaudi_get_stream_master_qid_arr(void)
 	return gaudi_stream_master;
 }
 
+static int gaudi_set_dram_properties(struct hl_device *hdev)
+{
+	return 0;
+}
+
 static void gaudi_check_if_razwi_happened(struct hl_device *hdev)
 {
 }
@@ -9260,6 +9265,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.access_dev_mem = hl_access_dev_mem,
 	.set_dram_bar_base = gaudi_set_hbm_bar_base,
 	.send_device_activity = gaudi_send_device_activity,
+	.set_dram_properties = gaudi_set_dram_properties,
 };
 
 /**

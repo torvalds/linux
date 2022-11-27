@@ -2485,7 +2485,7 @@ static int gaudi2_cpucp_info_get(struct hl_device *hdev)
 	 * at this point the DRAM parameters need to be updated according to data obtained
 	 * from the FW
 	 */
-	rc = gaudi2_set_dram_properties(hdev);
+	rc = hdev->asic_funcs->set_dram_properties(hdev);
 	if (rc)
 		return rc;
 
@@ -10467,6 +10467,7 @@ static const struct hl_asic_funcs gaudi2_funcs = {
 	.set_dram_bar_base = gaudi2_set_hbm_bar_base,
 	.set_engine_cores = gaudi2_set_engine_cores,
 	.send_device_activity = gaudi2_send_device_activity,
+	.set_dram_properties = gaudi2_set_dram_properties,
 };
 
 void gaudi2_set_asic_funcs(struct hl_device *hdev)

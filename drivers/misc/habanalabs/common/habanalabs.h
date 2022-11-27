@@ -1683,6 +1683,7 @@ struct hl_asic_funcs {
 	int (*set_engine_cores)(struct hl_device *hdev, u32 *core_ids,
 					u32 num_cores, u32 core_command);
 	int (*send_device_activity)(struct hl_device *hdev, bool open);
+	int (*set_dram_properties)(struct hl_device *hdev);
 };
 
 
