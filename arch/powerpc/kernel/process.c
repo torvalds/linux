@@ -1808,10 +1808,10 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	 * do some house keeping and then return from the fork or clone
 	 * system call, using the stack frame created above.
 	 */
-	sp -= sizeof(struct pt_regs);
-	kregs = (struct pt_regs *) sp;
-	sp -= STACK_FRAME_OVERHEAD;
+	sp -= STACK_SWITCH_FRAME_SIZE;
+	kregs = (struct pt_regs *)(sp + STACK_SWITCH_FRAME_REGS);
 	p->thread.ksp = sp;
+
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	for (i = 0; i < nr_wp_slots(); i++)
 		p->thread.ptrace_bps[i] = NULL;
@@ -2261,8 +2261,12 @@ void __no_sanitize_address show_stack(struct task_struct *tsk,
 		/*
 		 * See if this is an exception frame.
 		 * We look for the "regs" marker in the current frame.
+		 *
+		 * STACK_SWITCH_FRAME_SIZE being the smallest frame that
+		 * could hold a pt_regs, if that does not fit then it can't
+		 * have regs.
 		 */
-		if (validate_sp(sp, tsk, STACK_FRAME_WITH_PT_REGS)
+		if (validate_sp(sp, tsk, STACK_SWITCH_FRAME_SIZE)
 		    && stack[STACK_INT_FRAME_MARKER_LONGS] == STACK_FRAME_REGS_MARKER) {
 			struct pt_regs *regs = (struct pt_regs *)
 				(sp + STACK_INT_FRAME_REGS);

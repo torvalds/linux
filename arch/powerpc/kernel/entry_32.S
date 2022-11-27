@@ -215,9 +215,9 @@ ret_from_kernel_thread:
  * in arch/ppc/kernel/process.c
  */
 _GLOBAL(_switch)
-	stwu	r1,-INT_FRAME_SIZE(r1)
+	stwu	r1,-SWITCH_FRAME_SIZE(r1)
 	mflr	r0
-	stw	r0,INT_FRAME_SIZE+4(r1)
+	stw	r0,SWITCH_FRAME_SIZE+4(r1)
 	/* r3-r12 are caller saved -- Cort */
 	SAVE_NVGPRS(r1)
 	stw	r0,_NIP(r1)	/* Return to switch caller */
@@ -248,7 +248,7 @@ _GLOBAL(_switch)
 
 	lwz	r4,_NIP(r1)	/* Return to _switch caller in new task */
 	mtlr	r4
-	addi	r1,r1,INT_FRAME_SIZE
+	addi	r1,r1,SWITCH_FRAME_SIZE
 	blr
 
 	.globl	fast_exception_return
