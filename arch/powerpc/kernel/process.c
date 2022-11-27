@@ -1755,13 +1755,16 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 	klp_init_thread_info(p);
 
+	/* Create initial stack frame. */
+	sp -= (sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD);
+	((unsigned long *)sp)[0] = 0;
+
 	/* Copy registers */
-	sp -= sizeof(struct pt_regs);
-	childregs = (struct pt_regs *) sp;
+	childregs = (struct pt_regs *)(sp + STACK_FRAME_OVERHEAD);
 	if (unlikely(args->fn)) {
 		/* kernel thread */
 		memset(childregs, 0, sizeof(struct pt_regs));
-		childregs->gpr[1] = sp + sizeof(struct pt_regs);
+		childregs->gpr[1] = sp + (sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD);
 		/* function */
 		if (args->fn)
 			childregs->gpr[14] = ppc_function_entry((void *)args->fn);
@@ -1796,7 +1799,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 			f = ret_from_fork;
 	}
 	childregs->msr &= ~(MSR_FP|MSR_VEC|MSR_VSX);
-	sp -= STACK_FRAME_OVERHEAD;
 
 	/*
 	 * The way this works is that at some point in the future
@@ -1806,7 +1808,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	 * do some house keeping and then return from the fork or clone
 	 * system call, using the stack frame created above.
 	 */
-	((unsigned long *)sp)[0] = 0;
 	sp -= sizeof(struct pt_regs);
 	kregs = (struct pt_regs *) sp;
 	sp -= STACK_FRAME_OVERHEAD;
