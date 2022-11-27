@@ -537,7 +537,7 @@ start_here:
 	ori	r0, r0, STACK_END_MAGIC@l
 	stw	r0, 0(r1)
 	li	r0,0
-	stwu	r0,THREAD_SIZE-STACK_FRAME_OVERHEAD(r1)
+	stwu	r0,THREAD_SIZE-STACK_FRAME_MIN_SIZE(r1)
 
 	lis	r6, swapper_pg_dir@ha
 	tophys(r6,r6)

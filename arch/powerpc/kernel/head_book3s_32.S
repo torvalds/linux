@@ -840,7 +840,7 @@ __secondary_start:
 	lwz	r1,TASK_STACK(r1)
 
 	/* stack */
-	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
+	addi	r1,r1,THREAD_SIZE-STACK_FRAME_MIN_SIZE
 	li	r0,0
 	tophys(r3,r1)
 	stw	r0,0(r3)
@@ -966,7 +966,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
 	lis	r1,init_thread_union@ha
 	addi	r1,r1,init_thread_union@l
 	li	r0,0
-	stwu	r0,THREAD_SIZE-STACK_FRAME_OVERHEAD(r1)
+	stwu	r0,THREAD_SIZE-STACK_FRAME_MIN_SIZE(r1)
 /*
  * Do early platform-specific initialization,
  * and set up the MMU.

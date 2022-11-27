@@ -384,7 +384,7 @@ _GLOBAL(kexec_sequence)
 	std	r0,16(r1)
 
 	/* switch stacks to newstack -- &kexec_stack.stack */
-	stdu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r3)
+	stdu	r1,THREAD_SIZE-STACK_FRAME_MIN_SIZE(r3)
 	mr	r1,r3
 
 	li	r0,0
@@ -401,7 +401,7 @@ _GLOBAL(kexec_sequence)
 	std	r26,-48(r1)
 	std	r25,-56(r1)
 
-	stdu	r1,-STACK_FRAME_OVERHEAD-64(r1)
+	stdu	r1,-STACK_FRAME_MIN_SIZE-64(r1)
 
 	/* save args into preserved regs */
 	mr	r31,r3			/* newstack (both) */

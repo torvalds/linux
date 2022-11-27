@@ -2180,7 +2180,7 @@ int validate_sp_size(unsigned long sp, struct task_struct *p,
 
 int validate_sp(unsigned long sp, struct task_struct *p)
 {
-	return validate_sp_size(sp, p, STACK_FRAME_OVERHEAD);
+	return validate_sp_size(sp, p, STACK_FRAME_MIN_SIZE);
 }
 
 static unsigned long ___get_wchan(struct task_struct *p)

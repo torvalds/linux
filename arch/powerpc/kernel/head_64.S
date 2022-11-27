@@ -424,7 +424,7 @@ generic_secondary_common_init:
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
-	subi	r1,r1,STACK_FRAME_OVERHEAD
+	subi	r1,r1,STACK_FRAME_MIN_SIZE
 
 	/* See if we need to call a cpu state restore handler */
 	LOAD_REG_ADDR(r23, cur_cpu_spec)
@@ -780,7 +780,7 @@ _GLOBAL(pmac_secondary_start)
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
-	subi	r1,r1,STACK_FRAME_OVERHEAD
+	subi	r1,r1,STACK_FRAME_MIN_SIZE
 
 	b	__secondary_start
 
@@ -958,7 +958,7 @@ start_here_multiplatform:
 	LOAD_REG_IMMEDIATE(r1,THREAD_SIZE)
 	add	r1,r3,r1
 	li	r0,0
-	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
+	stdu	r0,-STACK_FRAME_MIN_SIZE(r1)
 
 	/*
 	 * Do very early kernel initializations, including initial hash table

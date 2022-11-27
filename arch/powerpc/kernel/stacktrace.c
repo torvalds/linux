@@ -94,7 +94,7 @@ int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consum
 		 * idle tasks have a custom stack layout,
 		 * c.f. cpu_idle_thread_init().
 		 */
-		stack_end -= STACK_FRAME_OVERHEAD;
+		stack_end -= STACK_FRAME_MIN_SIZE;
 	}
 
 	if (task == current)
