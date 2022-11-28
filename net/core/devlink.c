@@ -6507,10 +6507,10 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	u64 ret_offset, start_offset, end_offset = U64_MAX;
+	struct nlattr *chunks_attr, *region_attr;
 	struct nlattr **attrs = info->attrs;
 	struct devlink_port *port = NULL;
 	struct devlink_region *region;
-	struct nlattr *chunks_attr;
 	const char *region_name;
 	struct devlink *devlink;
 	unsigned int index;
@@ -6525,8 +6525,14 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 
 	devl_lock(devlink);
 
-	if (!attrs[DEVLINK_ATTR_REGION_NAME] ||
-	    !attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]) {
+	if (!attrs[DEVLINK_ATTR_REGION_NAME]) {
+		NL_SET_ERR_MSG(cb->extack, "No region name provided");
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (!attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]) {
+		NL_SET_ERR_MSG(cb->extack, "No snapshot id provided");
 		err = -EINVAL;
 		goto out_unlock;
 	}
@@ -6541,7 +6547,8 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		}
 	}
 
-	region_name = nla_data(attrs[DEVLINK_ATTR_REGION_NAME]);
+	region_attr = attrs[DEVLINK_ATTR_REGION_NAME];
+	region_name = nla_data(region_attr);
 
 	if (port)
 		region = devlink_port_region_get_by_name(port, region_name);
@@ -6549,6 +6556,7 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		region = devlink_region_get_by_name(devlink, region_name);
 
 	if (!region) {
+		NL_SET_ERR_MSG_ATTR(cb->extack, region_attr, "Requested region does not exist");
 		err = -EINVAL;
 		goto out_unlock;
 	}
