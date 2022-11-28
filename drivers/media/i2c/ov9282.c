@@ -130,6 +130,7 @@ struct ov9282_reg_list {
  * @vblank_min: Minimum vertical blanking in lines
  * @vblank_max: Maximum vertical blanking in lines
  * @link_freq_idx: Link frequency index
+ * @crop: on-sensor cropping for this mode
  * @reg_list: Register list for sensor mode
  */
 struct ov9282_mode {
@@ -152,13 +153,16 @@ struct ov9282_mode {
  * @pad: Media pad. Only one pad supported
  * @reset_gpio: Sensor reset gpio
  * @inclk: Sensor input clock
+ * @supplies: Regulator supplies for the sensor
  * @ctrl_handler: V4L2 control handler
  * @link_freq_ctrl: Pointer to link frequency control
  * @hblank_ctrl: Pointer to horizontal blanking control
  * @vblank_ctrl: Pointer to vertical blanking control
  * @exp_ctrl: Pointer to exposure control
  * @again_ctrl: Pointer to analog gain control
+ * @pixel_rate: Pointer to pixel rate control
  * @vblank: Vertical blanking in lines
+ * @noncontinuous_clock: Selection of CSI2 noncontinuous clock mode
  * @cur_mode: Pointer to current selected sensor mode
  * @code: Mbus code currently selected
  * @mutex: Mutex for serializing sensor controls
