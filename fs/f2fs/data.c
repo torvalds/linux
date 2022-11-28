@@ -1214,14 +1214,9 @@ int f2fs_reserve_block(struct dnode_of_data *dn, pgoff_t index)
 
 int f2fs_get_block(struct dnode_of_data *dn, pgoff_t index)
 {
-	struct extent_info ei = {0, };
-	struct inode *inode = dn->inode;
-
-	if (f2fs_lookup_read_extent_cache(inode, index, &ei)) {
-		dn->data_blkaddr = ei.blk + index - ei.fofs;
+	if (f2fs_lookup_read_extent_cache_block(dn->inode, index,
+						&dn->data_blkaddr))
 		return 0;
-	}
-
 	return f2fs_reserve_block(dn, index);
 }
 
@@ -1232,15 +1227,14 @@ struct page *f2fs_get_read_data_page(struct inode *inode, pgoff_t index,
 	struct address_space *mapping = inode->i_mapping;
 	struct dnode_of_data dn;
 	struct page *page;
-	struct extent_info ei = {0, };
 	int err;
 
 	page = f2fs_grab_cache_page(mapping, index, for_write);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
-	if (f2fs_lookup_read_extent_cache(inode, index, &ei)) {
-		dn.data_blkaddr = ei.blk + index - ei.fofs;
+	if (f2fs_lookup_read_extent_cache_block(inode, index,
+						&dn.data_blkaddr)) {
 		if (!f2fs_is_valid_blkaddr(F2FS_I_SB(inode), dn.data_blkaddr,
 						DATA_GENERIC_ENHANCE_READ)) {
 			err = -EFSCORRUPTED;
@@ -2641,7 +2635,6 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
 	struct page *page = fio->page;
 	struct inode *inode = page->mapping->host;
 	struct dnode_of_data dn;
-	struct extent_info ei = {0, };
 	struct node_info ni;
 	bool ipu_force = false;
 	int err = 0;
@@ -2653,9 +2646,8 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 
 	if (need_inplace_update(fio) &&
-	    f2fs_lookup_read_extent_cache(inode, page->index, &ei)) {
-		fio->old_blkaddr = ei.blk + page->index - ei.fofs;
-
+	    f2fs_lookup_read_extent_cache_block(inode, page->index,
+						&fio->old_blkaddr)) {
 		if (!f2fs_is_valid_blkaddr(fio->sbi, fio->old_blkaddr,
 						DATA_GENERIC_ENHANCE)) {
 			f2fs_handle_error(fio->sbi,
@@ -3328,7 +3320,6 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
 	struct dnode_of_data dn;
 	struct page *ipage;
 	bool locked = false;
-	struct extent_info ei = {0, };
 	int err = 0;
 	int flag;
 
@@ -3376,20 +3367,16 @@ restart:
 		}
 	} else if (locked) {
 		err = f2fs_get_block(&dn, index);
-	} else {
-		if (f2fs_lookup_read_extent_cache(inode, index, &ei)) {
-			dn.data_blkaddr = ei.blk + index - ei.fofs;
-		} else {
-			/* hole case */
-			err = f2fs_get_dnode_of_data(&dn, index, LOOKUP_NODE);
-			if (err || dn.data_blkaddr == NULL_ADDR) {
-				f2fs_put_dnode(&dn);
-				f2fs_do_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO,
-								true);
-				WARN_ON(flag != F2FS_GET_BLOCK_PRE_AIO);
-				locked = true;
-				goto restart;
-			}
+	} else if (!f2fs_lookup_read_extent_cache_block(inode, index,
+							&dn.data_blkaddr)) {
+		/* hole case */
+		err = f2fs_get_dnode_of_data(&dn, index, LOOKUP_NODE);
+		if (err || dn.data_blkaddr == NULL_ADDR) {
+			f2fs_put_dnode(&dn);
+			f2fs_do_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO, true);
+			WARN_ON(flag != F2FS_GET_BLOCK_PRE_AIO);
+			locked = true;
+			goto restart;
 		}
 	}
 
@@ -3409,7 +3396,6 @@ static int __find_data_block(struct inode *inode, pgoff_t index,
 {
 	struct dnode_of_data dn;
 	struct page *ipage;
-	struct extent_info ei = {0, };
 	int err = 0;
 
 	ipage = f2fs_get_node_page(F2FS_I_SB(inode), inode->i_ino);
@@ -3418,9 +3404,8 @@ static int __find_data_block(struct inode *inode, pgoff_t index,
 
 	set_new_dnode(&dn, inode, ipage, ipage, 0);
 
-	if (f2fs_lookup_read_extent_cache(inode, index, &ei)) {
-		dn.data_blkaddr = ei.blk + index - ei.fofs;
-	} else {
+	if (!f2fs_lookup_read_extent_cache_block(inode, index,
+						 &dn.data_blkaddr)) {
 		/* hole case */
 		err = f2fs_get_dnode_of_data(&dn, index, LOOKUP_NODE);
 		if (err) {
