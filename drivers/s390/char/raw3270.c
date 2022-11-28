@@ -264,6 +264,19 @@ int raw3270_start(struct raw3270_view *view, struct raw3270_request *rq)
 	return rc;
 }
 
+int raw3270_start_request(struct raw3270_view *view, struct raw3270_request *rq,
+			  int cmd, void *data, size_t len)
+{
+	int rc;
+
+	raw3270_request_reset(rq);
+	raw3270_request_set_cmd(rq, cmd);
+	rc = raw3270_request_add_data(rq, data, len);
+	if (rc)
+		return rc;
+	return raw3270_start(view, rq);
+}
+
 int raw3270_start_locked(struct raw3270_view *view, struct raw3270_request *rq)
 {
 	struct raw3270 *rp;
@@ -1272,6 +1285,7 @@ EXPORT_SYMBOL(raw3270_find_view);
 EXPORT_SYMBOL(raw3270_activate_view);
 EXPORT_SYMBOL(raw3270_deactivate_view);
 EXPORT_SYMBOL(raw3270_start);
+EXPORT_SYMBOL(raw3270_start_request);
 EXPORT_SYMBOL(raw3270_start_locked);
 EXPORT_SYMBOL(raw3270_start_irq);
 EXPORT_SYMBOL(raw3270_reset);

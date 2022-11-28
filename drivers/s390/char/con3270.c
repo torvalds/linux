@@ -591,10 +591,7 @@ static void tty3270_read_tasklet(unsigned long data)
 	spin_unlock_irq(&tp->view.lock);
 
 	/* Start keyboard reset command. */
-	raw3270_request_reset(tp->kreset);
-	raw3270_request_set_cmd(tp->kreset, TC_WRITE);
-	raw3270_request_add_data(tp->kreset, &kreset_data, 1);
-	raw3270_start(&tp->view, tp->kreset);
+	raw3270_start_request(&tp->view, tp->kreset, TC_WRITE, &kreset_data, 1);
 
 	while (len-- > 0)
 		kbd_keycode(tp->kbd, *input++);
