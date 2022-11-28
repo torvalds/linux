@@ -155,24 +155,40 @@
 	};
 
 	gpu: gpu@10090000 {
-		compatible = "rockchip,rk3036-mali", "arm,mali-400";
+		compatible = "arm,mali400";
 		reg = <0x10090000 0x10000>;
+		upthreshold = <40>;
+		downdifferential = <10>;
+
 		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "gp",
-				  "gpmmu",
-				  "pp0",
-				  "ppmmu0";
+			    <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+			    <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+			    <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+
+		interrupt-names = "Mali_GP_IRQ",
+				  "Mali_GP_MMU_IRQ",
+				  "Mali_PP0_IRQ",
+				  "Mali_PP0_MMU_IRQ";
+
+		clocks = <&cru SCLK_GPU>;
+		clock-names = "clk_mali";
 		assigned-clocks = <&cru SCLK_GPU>;
 		assigned-clock-rates = <400000000>;
 		assigned-clock-parents = <&cru PLL_DPLL>;
+		power-domains = <&power RK3036_PD_GPU>;
 		operating-points-v2 = <&gpu_opp_table>;
-		clocks = <&cru SCLK_GPU>, <&cru SCLK_GPU>;
-		clock-names = "bus", "core";
-		resets = <&cru SRST_GPU>;
+
 		status = "disabled";
+
+		gpu_power_model: power_model {
+			compatible = "arm,mali-simple-power-model";
+			voltage = <900>;
+			frequency = <500>;
+			static-power = <300>;
+			dynamic-power = <396>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "soc-thermal";
+		};
 	};
 
 	gpu_opp_table: opp-table1 {
