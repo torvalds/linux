@@ -6463,23 +6463,15 @@ nla_put_failure:
 
 static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
 						struct devlink *devlink,
-						struct devlink_region *region,
-						struct nlattr **attrs,
+						struct devlink_snapshot *snapshot,
 						u64 start_offset,
 						u64 end_offset,
 						u64 *new_offset)
 {
-	struct devlink_snapshot *snapshot;
 	u64 curr_offset = start_offset;
-	u32 snapshot_id;
 	int err = 0;
 
 	*new_offset = start_offset;
-
-	snapshot_id = nla_get_u32(attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]);
-	snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
-	if (!snapshot)
-		return -EINVAL;
 
 	while (curr_offset < end_offset) {
 		u32 data_size;
@@ -6506,14 +6498,16 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 					     struct netlink_callback *cb)
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	struct nlattr *chunks_attr, *region_attr, *snapshot_attr;
 	u64 ret_offset, start_offset, end_offset = U64_MAX;
-	struct nlattr *chunks_attr, *region_attr;
 	struct nlattr **attrs = info->attrs;
 	struct devlink_port *port = NULL;
+	struct devlink_snapshot *snapshot;
 	struct devlink_region *region;
 	const char *region_name;
 	struct devlink *devlink;
 	unsigned int index;
+	u32 snapshot_id;
 	void *hdr;
 	int err;
 
@@ -6557,6 +6551,15 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 
 	if (!region) {
 		NL_SET_ERR_MSG_ATTR(cb->extack, region_attr, "Requested region does not exist");
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	snapshot_attr = attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID];
+	snapshot_id = nla_get_u32(snapshot_attr);
+	snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
+	if (!snapshot) {
+		NL_SET_ERR_MSG_ATTR(cb->extack, snapshot_attr, "Requested snapshot does not exist");
 		err = -EINVAL;
 		goto out_unlock;
 	}
@@ -6610,7 +6613,7 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 	}
 
 	err = devlink_nl_region_read_snapshot_fill(skb, devlink,
-						   region, attrs,
+						   snapshot,
 						   start_offset,
 						   end_offset, &ret_offset);
 
