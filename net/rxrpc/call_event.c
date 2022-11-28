@@ -198,7 +198,6 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 
 			if (list_empty(&txb->tx_link)) {
 				rxrpc_get_txbuf(txb, rxrpc_txbuf_get_retrans);
-				rxrpc_get_call(call, rxrpc_call_got_tx);
 				list_add_tail(&txb->tx_link, &retrans_queue);
 				set_bit(RXRPC_TXBUF_RESENT, &txb->flags);
 			}
