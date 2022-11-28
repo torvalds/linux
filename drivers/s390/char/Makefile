@@ -22,7 +22,6 @@ obj-y += ctrlchar.o keyboard.o defkeymap.o sclp.o sclp_rw.o sclp_quiesce.o \
 	 sclp_early.o sclp_early_core.o sclp_sd.o
 
 obj-$(CONFIG_TN3270) += raw3270.o
-obj-$(CONFIG_TN3270_CONSOLE) += con3270.o
 obj-$(CONFIG_TN3270_TTY) += tty3270.o
 obj-$(CONFIG_TN3270_FS) += fs3270.o
 
