@@ -2019,9 +2019,10 @@ static int hl_fw_dynamic_read_and_validate_descriptor(struct hl_device *hdev,
 						struct fw_load_mgr *fw_loader)
 {
 	struct lkd_fw_comms_desc *fw_desc;
-	void __iomem *src, *temp_fw_desc;
 	struct pci_mem_region *region;
 	struct fw_response *response;
+	void *temp_fw_desc;
+	void __iomem *src;
 	u16 fw_data_size;
 	enum pci_region region_id;
 	int rc;
