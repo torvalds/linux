@@ -12,6 +12,7 @@ intel_qat-objs := adf_cfg.o \
 	adf_hw_arbiter.o \
 	adf_sysfs.o \
 	adf_gen2_hw_data.o \
+	adf_gen2_config.o \
 	adf_gen4_hw_data.o \
 	adf_gen4_pm.o \
 	qat_crypto.o \
