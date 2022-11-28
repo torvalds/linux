@@ -8,7 +8,7 @@
 
 / {
 	model = "Fairphone 2";
-	compatible = "fairphone,fp2", "qcom,msm8974";
+	compatible = "fairphone,fp2", "qcom,msm8974pro", "qcom,msm8974";
 	chassis-type = "handset";
 
 	aliases {

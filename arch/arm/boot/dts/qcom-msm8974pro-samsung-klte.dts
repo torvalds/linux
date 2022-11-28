@@ -7,7 +7,7 @@
 
 / {
 	model = "Samsung Galaxy S5";
-	compatible = "samsung,klte", "qcom,msm8974";
+	compatible = "samsung,klte", "qcom,msm8974pro", "qcom,msm8974";
 	chassis-type = "handset";
 
 	aliases {

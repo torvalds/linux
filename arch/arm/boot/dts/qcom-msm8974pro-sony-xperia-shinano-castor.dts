@@ -8,7 +8,7 @@
 
 / {
 	model = "Sony Xperia Z2 Tablet";
-	compatible = "sony,xperia-castor", "qcom,msm8974";
+	compatible = "sony,xperia-castor", "qcom,msm8974pro", "qcom,msm8974";
 	chassis-type = "tablet";
 
 	aliases {
