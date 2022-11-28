@@ -6460,25 +6460,36 @@ nla_put_failure:
 
 #define DEVLINK_REGION_READ_CHUNK_SIZE 256
 
-static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
-						struct devlink_snapshot *snapshot,
-						u64 start_offset,
-						u64 end_offset,
-						u64 *new_offset)
+typedef int devlink_chunk_fill_t(void *cb_priv, u8 *chunk, u32 chunk_size,
+				 u64 curr_offset,
+				 struct netlink_ext_ack *extack);
+
+static int
+devlink_nl_region_read_fill(struct sk_buff *skb, devlink_chunk_fill_t *cb,
+			    void *cb_priv, u64 start_offset, u64 end_offset,
+			    u64 *new_offset, struct netlink_ext_ack *extack)
 {
 	u64 curr_offset = start_offset;
 	int err = 0;
+	u8 *data;
+
+	/* Allocate and re-use a single buffer */
+	data = kmalloc(DEVLINK_REGION_READ_CHUNK_SIZE, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	*new_offset = start_offset;
 
 	while (curr_offset < end_offset) {
 		u32 data_size;
-		u8 *data;
 
 		data_size = min_t(u32, end_offset - curr_offset,
 				  DEVLINK_REGION_READ_CHUNK_SIZE);
 
-		data = &snapshot->data[curr_offset];
+		err = cb(cb_priv, data, data_size, curr_offset, extack);
+		if (err)
+			break;
+
 		err = devlink_nl_cmd_region_read_chunk_fill(skb, data, data_size, curr_offset);
 		if (err)
 			break;
@@ -6487,7 +6498,21 @@ static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
 	}
 	*new_offset = curr_offset;
 
+	kfree(data);
+
 	return err;
+}
+
+static int
+devlink_region_snapshot_fill(void *cb_priv, u8 *chunk, u32 chunk_size,
+			     u64 curr_offset,
+			     struct netlink_ext_ack __always_unused *extack)
+{
+	struct devlink_snapshot *snapshot = cb_priv;
+
+	memcpy(chunk, &snapshot->data[curr_offset], chunk_size);
+
+	return 0;
 }
 
 static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
@@ -6608,8 +6633,9 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		goto nla_put_failure;
 	}
 
-	err = devlink_nl_region_read_snapshot_fill(skb, snapshot, start_offset,
-						   end_offset, &ret_offset);
+	err = devlink_nl_region_read_fill(skb, &devlink_region_snapshot_fill,
+					  snapshot, start_offset, end_offset,
+					  &ret_offset, cb->extack);
 
 	if (err && err != -EMSGSIZE)
 		goto nla_put_failure;
