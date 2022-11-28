@@ -268,7 +268,7 @@ static const struct ov9282_reg common_regs[] = {
 	{0x5a08, 0x84},
 };
 
-struct ov9282_reg_list common_regs_list = {
+static struct ov9282_reg_list common_regs_list = {
 	.num_of_regs = ARRAY_SIZE(common_regs),
 	.regs = common_regs,
 };
