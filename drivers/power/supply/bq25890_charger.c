@@ -795,6 +795,7 @@ static int bq25890_get_chip_state(struct bq25890_device *bq,
 
 static irqreturn_t __bq25890_handle_irq(struct bq25890_device *bq)
 {
+	bool adc_conv_rate, new_adc_conv_rate;
 	struct bq25890_state new_state;
 	int ret;
 
@@ -805,33 +806,25 @@ static irqreturn_t __bq25890_handle_irq(struct bq25890_device *bq)
 	if (!memcmp(&bq->state, &new_state, sizeof(new_state)))
 		return IRQ_NONE;
 
-	/* power removed or HiZ */
-	if ((!new_state.online || new_state.hiz) && bq->state.online) {
-		/* disable ADC */
-		ret = bq25890_field_write(bq, F_CONV_RATE, 0);
+	/*
+	 * Restore HiZ bit in case it was set by user. The chip does not retain
+	 * this bit on cable replug, hence the bit must be reset manually here.
+	 */
+	if (new_state.online && !bq->state.online && bq->force_hiz) {
+		ret = bq25890_field_write(bq, F_EN_HIZ, bq->force_hiz);
 		if (ret < 0)
 			goto error;
-	} else if (new_state.online && !bq->state.online) {
-		/*
-		 * Restore HiZ bit in case it was set by user.
-		 * The chip does not retain this bit once the
-		 * cable is re-plugged, hence the bit must be
-		 * reset manually here.
-		 */
-		if (bq->force_hiz) {
-			ret = bq25890_field_write(bq, F_EN_HIZ, bq->force_hiz);
-			if (ret < 0)
-				goto error;
-			new_state.hiz = 1;
-		}
+		new_state.hiz = 1;
+	}
 
-		if (!new_state.hiz) {
-			/* power inserted and not HiZ */
-			/* enable ADC, to have control of charge current/voltage */
-			ret = bq25890_field_write(bq, F_CONV_RATE, 1);
-			if (ret < 0)
-				goto error;
-		}
+	/* Should period ADC sampling be enabled? */
+	adc_conv_rate = bq->state.online && !bq->state.hiz;
+	new_adc_conv_rate = new_state.online && !new_state.hiz;
+
+	if (new_adc_conv_rate != adc_conv_rate) {
+		ret = bq25890_field_write(bq, F_CONV_RATE, new_adc_conv_rate);
+		if (ret < 0)
+			goto error;
 	}
 
 	bq->state = new_state;
