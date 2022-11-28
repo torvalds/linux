@@ -53,6 +53,7 @@
 #define REG_PAGE6_CP_CURRENT			0x17
 #define REG_PAGE6_ADC_OP_BIAS			0x18
 #define REG_PAGE6_RX_DECTOR			0x19
+#define REG_PAGE6_TX_MOS_DRV			0x1B
 #define REG_PAGE6_AFE_PDCW			0x1c
 
 /* PAGE 8 */
@@ -238,6 +239,8 @@ static void rk630_phy_t22_config_init(struct phy_device *phydev)
 	phy_write(phydev, REG_PAGE6_RX_DECTOR, 0x0408);
 	/* PHYAFE PDCW optimization */
 	phy_write(phydev, REG_PAGE6_AFE_PDCW, 0x8880);
+	/* Add PHY Tx mos drive, reduce power noise/jitter */
+	phy_write(phydev, REG_PAGE6_TX_MOS_DRV, 0x888e);
 
 	/* Switch to page 8 */
 	phy_write(phydev, REG_PAGE_SEL, 0x0800);
