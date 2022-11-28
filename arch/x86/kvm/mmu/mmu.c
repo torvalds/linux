@@ -4556,10 +4556,12 @@ void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd)
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
 	union kvm_mmu_page_role new_role = mmu->root_role;
 
-	if (!fast_pgd_switch(vcpu->kvm, mmu, new_pgd, new_role)) {
-		/* kvm_mmu_ensure_valid_pgd will set up a new root.  */
+	/*
+	 * Return immediately if no usable root was found, kvm_mmu_reload()
+	 * will establish a valid root prior to the next VM-Enter.
+	 */
+	if (!fast_pgd_switch(vcpu->kvm, mmu, new_pgd, new_role))
 		return;
-	}
 
 	/*
 	 * It's possible that the cached previous root page is obsolete because
