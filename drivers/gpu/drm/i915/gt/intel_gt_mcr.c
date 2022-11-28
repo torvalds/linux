@@ -347,10 +347,9 @@ static u32 rw_with_mcr_steering(struct intel_gt *gt,
  * @flags: storage to save IRQ flags to
  *
  * Performs locking to protect the steering for the duration of an MCR
- * operation.  Depending on the platform, this may be a software lock
- * (gt->mcr_lock) or a hardware lock (i.e., a register that synchronizes
- * access not only for the driver, but also for external hardware and
- * firmware agents).
+ * operation.  On MTL and beyond, a hardware lock will also be taken to
+ * serialize access not only for the driver, but also for external hardware and
+ * firmware agents.
  *
  * Context: Takes gt->mcr_lock.  uncore->lock should *not* be held when this
  *          function is called, although it may be acquired after this
@@ -359,12 +358,40 @@ static u32 rw_with_mcr_steering(struct intel_gt *gt,
 void intel_gt_mcr_lock(struct intel_gt *gt, unsigned long *flags)
 {
 	unsigned long __flags;
+	int err = 0;
 
 	lockdep_assert_not_held(&gt->uncore->lock);
 
+	/*
+	 * Starting with MTL, we need to coordinate not only with other
+	 * driver threads, but also with hardware/firmware agents.  A dedicated
+	 * locking register is used.
+	 */
+	if (GRAPHICS_VER(gt->i915) >= IP_VER(12, 70))
+		err = wait_for(intel_uncore_read_fw(gt->uncore,
+						    MTL_STEER_SEMAPHORE) == 0x1, 100);
+
+	/*
+	 * Even on platforms with a hardware lock, we'll continue to grab
+	 * a software spinlock too for lockdep purposes.  If the hardware lock
+	 * was already acquired, there should never be contention on the
+	 * software lock.
+	 */
 	spin_lock_irqsave(&gt->mcr_lock, __flags);
 
 	*flags = __flags;
+
+	/*
+	 * In theory we should never fail to acquire the HW semaphore; this
+	 * would indicate some hardware/firmware is misbehaving and not
+	 * releasing it properly.
+	 */
+	if (err == -ETIMEDOUT) {
+		drm_err_ratelimited(&gt->i915->drm,
+				    "GT%u hardware MCR steering semaphore timed out",
+				    gt->info.id);
+		add_taint_for_CI(gt->i915, TAINT_WARN);  /* CI is now unreliable */
+	}
 }
 
 /**
@@ -379,6 +406,9 @@ void intel_gt_mcr_lock(struct intel_gt *gt, unsigned long *flags)
 void intel_gt_mcr_unlock(struct intel_gt *gt, unsigned long flags)
 {
 	spin_unlock_irqrestore(&gt->mcr_lock, flags);
+
+	if (GRAPHICS_VER(gt->i915) >= IP_VER(12, 70))
+		intel_uncore_write_fw(gt->uncore, MTL_STEER_SEMAPHORE, 0x1);
 }
 
 /**
