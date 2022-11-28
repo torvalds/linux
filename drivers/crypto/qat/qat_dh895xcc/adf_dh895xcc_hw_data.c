@@ -3,6 +3,7 @@
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
 #include <adf_gen2_config.h>
+#include <adf_gen2_dc.h>
 #include <adf_gen2_hw_data.h>
 #include <adf_gen2_pfvf.h>
 #include "adf_dh895xcc_hw_data.h"
@@ -242,6 +243,7 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->pfvf_ops.disable_all_vf2pf_interrupts = disable_all_vf2pf_interrupts;
 	hw_data->pfvf_ops.disable_pending_vf2pf_interrupts = disable_pending_vf2pf_interrupts;
 	adf_gen2_init_hw_csr_ops(&hw_data->csr_ops);
+	adf_gen2_init_dc_ops(&hw_data->dc_ops);
 }
 
 void adf_clean_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)

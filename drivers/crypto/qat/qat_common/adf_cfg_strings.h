@@ -20,6 +20,7 @@
 #define ADF_ETRMGR_BANK "Bank"
 #define ADF_RING_SYM_BANK_NUM "BankSymNumber"
 #define ADF_RING_ASYM_BANK_NUM "BankAsymNumber"
+#define ADF_RING_DC_BANK_NUM "BankDcNumber"
 #define ADF_CY "Cy"
 #define ADF_DC "Dc"
 #define ADF_CFG_DC "dc"

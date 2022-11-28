@@ -155,6 +155,12 @@ int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
 	if (ret)
 		goto err;
 
+	val = 0;
+	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_DC,
+					  &val, ADF_DEC);
+	if (ret)
+		goto err;
+
 	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
 	return 0;
 err:
