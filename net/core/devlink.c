@@ -6485,10 +6485,8 @@ static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
 		u32 data_size;
 		u8 *data;
 
-		if (end_offset - curr_offset < DEVLINK_REGION_READ_CHUNK_SIZE)
-			data_size = end_offset - curr_offset;
-		else
-			data_size = DEVLINK_REGION_READ_CHUNK_SIZE;
+		data_size = min_t(u32, end_offset - curr_offset,
+				  DEVLINK_REGION_READ_CHUNK_SIZE);
 
 		data = &snapshot->data[curr_offset];
 		err = devlink_nl_cmd_region_read_chunk_fill(skb, devlink,
