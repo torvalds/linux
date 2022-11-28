@@ -37,7 +37,8 @@ struct raw3270 {
 	struct ccw_device *cdev;
 	int minor;
 
-	short model, rows, cols;
+	int model, rows, cols;
+	int old_model, old_rows, old_cols;
 	unsigned int state;
 	unsigned long flags;
 
@@ -54,6 +55,7 @@ struct raw3270 {
 	struct raw3270_request init_readpart;
 	struct raw3270_request init_readmod;
 	unsigned char init_data[256];
+	struct work_struct resize_work;
 };
 
 /* raw3270->state */
@@ -502,16 +504,20 @@ static void raw3270_size_device(struct raw3270 *rp)
 		rp->model = 5;
 }
 
-static void raw3270_size_device_done(struct raw3270 *rp)
+static void raw3270_resize_work(struct work_struct *work)
 {
+	struct raw3270 *rp = container_of(work, struct raw3270, resize_work);
 	struct raw3270_view *view;
 
-	rp->view = NULL;
-	rp->state = RAW3270_STATE_READY;
 	/* Notify views about new size */
-	list_for_each_entry(view, &rp->view_list, list)
+	list_for_each_entry(view, &rp->view_list, list) {
 		if (view->fn->resize)
-			view->fn->resize(view, rp->model, rp->rows, rp->cols);
+			view->fn->resize(view, rp->model, rp->rows, rp->cols,
+					 rp->old_model, rp->old_rows, rp->old_cols);
+	}
+	rp->old_cols = rp->cols;
+	rp->old_rows = rp->rows;
+	rp->old_model = rp->model;
 	/* Setup processing done, now activate a view */
 	list_for_each_entry(view, &rp->view_list, list) {
 		rp->view = view;
@@ -519,6 +525,13 @@ static void raw3270_size_device_done(struct raw3270 *rp)
 			break;
 		rp->view = NULL;
 	}
+}
+
+static void raw3270_size_device_done(struct raw3270 *rp)
+{
+	rp->view = NULL;
+	rp->state = RAW3270_STATE_READY;
+	schedule_work(&rp->resize_work);
 }
 
 static void raw3270_read_modified_cb(struct raw3270_request *rq, void *data)
@@ -697,6 +710,8 @@ static int raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp,
 	/* Set defaults. */
 	rp->rows = 24;
 	rp->cols = 80;
+	rp->old_rows = rp->rows;
+	rp->old_cols = rp->cols;
 
 	INIT_LIST_HEAD(&rp->req_queue);
 	INIT_LIST_HEAD(&rp->view_list);
@@ -704,6 +719,7 @@ static int raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp,
 	rp->init_view.dev = rp;
 	rp->init_view.fn = &raw3270_init_fn;
 	rp->view = &rp->init_view;
+	INIT_WORK(&rp->resize_work, raw3270_resize_work);
 
 	/*
 	 * Add device to list and find the smallest unused minor

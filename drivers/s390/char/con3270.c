@@ -89,8 +89,6 @@ struct tty3270 {
 	struct tty3270_attribute attributes;
 	struct tty3270_attribute saved_attributes;
 	struct tty3270_line *screen;
-	unsigned int n_model, n_cols, n_rows;	/* New model & size */
-	struct work_struct resize_work;
 
 	/* Input stuff. */
 	struct string *prompt;		/* Output string for input area. */
@@ -126,8 +124,6 @@ struct tty3270 {
 #define TTY_UPDATE_ALL		16	/* Recreate screen. */
 
 static void tty3270_update(struct timer_list *);
-static void tty3270_resize_work(struct work_struct *work);
-
 /*
  * Setup timeout for a device. On timeout trigger an update.
  */
@@ -745,8 +741,6 @@ static struct tty3270 *tty3270_alloc_view(void)
 		     (unsigned long) tp->read);
 	tasklet_init(&tp->hanglet, tty3270_hangup_tasklet,
 		     (unsigned long) tp);
-	INIT_WORK(&tp->resize_work, tty3270_resize_work);
-
 	return tp;
 
 out_reset:
@@ -827,26 +821,36 @@ static void tty3270_free_screen(struct tty3270_line *screen, unsigned int rows)
 /*
  * Resize tty3270 screen
  */
-static void tty3270_resize_work(struct work_struct *work)
+static void tty3270_resize(struct raw3270_view *view,
+			   int new_model, int new_rows, int new_cols,
+			   int old_model, int old_rows, int old_cols)
 {
-	struct tty3270 *tp = container_of(work, struct tty3270, resize_work);
+	struct tty3270 *tp = container_of(view, struct tty3270, view);
 	struct tty3270_line *screen, *oscreen;
 	struct tty_struct *tty;
-	unsigned int orows;
 	struct winsize ws;
 
-	screen = tty3270_alloc_screen(tp->n_rows, tp->n_cols);
+	if (old_model == new_model &&
+	    old_cols == new_cols &&
+	    old_rows == new_rows) {
+		spin_lock_irq(&tp->view.lock);
+		tp->update_flags = TTY_UPDATE_ALL;
+		tty3270_set_timer(tp, 1);
+		spin_unlock_irq(&tp->view.lock);
+		return;
+	}
+	screen = tty3270_alloc_screen(new_rows, new_cols);
 	if (IS_ERR(screen))
 		return;
 	/* Switch to new output size */
 	spin_lock_irq(&tp->view.lock);
 	tty3270_blank_screen(tp);
 	oscreen = tp->screen;
-	orows = tp->view.rows;
-	tp->view.model = tp->n_model;
-	tp->view.rows = tp->n_rows;
-	tp->view.cols = tp->n_cols;
 	tp->screen = screen;
+	tp->view.rows = new_rows;
+	tp->view.cols = new_cols;
+	tp->view.model = new_model;
+
 	free_string(&tp->freemem, tp->prompt);
 	free_string(&tp->freemem, tp->status);
 	tty3270_create_prompt(tp);
@@ -855,7 +859,7 @@ static void tty3270_resize_work(struct work_struct *work)
 		tty3270_blank_line(tp);
 	tp->update_flags = TTY_UPDATE_ALL;
 	spin_unlock_irq(&tp->view.lock);
-	tty3270_free_screen(oscreen, orows);
+	tty3270_free_screen(oscreen, old_rows);
 	tty3270_set_timer(tp, 1);
 	/* Informat tty layer about new size */
 	tty = tty_port_tty_get(&tp->port);
@@ -865,18 +869,6 @@ static void tty3270_resize_work(struct work_struct *work)
 	ws.ws_col = tp->view.cols;
 	tty_do_resize(tty, &ws);
 	tty_kref_put(tty);
-}
-
-static void tty3270_resize(struct raw3270_view *view, int model, int rows, int cols)
-{
-	struct tty3270 *tp = container_of(view, struct tty3270, view);
-
-	if (tp->n_model == model && tp->n_rows == rows && tp->n_cols == cols)
-		return;
-	tp->n_model = model;
-	tp->n_rows = rows;
-	tp->n_cols = cols;
-	schedule_work(&tp->resize_work);
 }
 
 /*

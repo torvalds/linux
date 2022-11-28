@@ -144,7 +144,7 @@ struct raw3270_fn {
 		     struct raw3270_request *, struct irb *);
 	void (*release)(struct raw3270_view *);
 	void (*free)(struct raw3270_view *);
-	void (*resize)(struct raw3270_view *, int, int, int);
+	void (*resize)(struct raw3270_view *, int, int, int, int, int, int);
 };
 
 /*
