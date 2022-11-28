@@ -10,16 +10,16 @@
 #include "qat_bl.h"
 #include "qat_crypto.h"
 
-void qat_bl_free_bufl(struct qat_crypto_instance *inst,
-		      struct qat_crypto_request *qat_req)
+void qat_bl_free_bufl(struct adf_accel_dev *accel_dev,
+		      struct qat_crypto_request_buffs *buf)
 {
-	struct device *dev = &GET_DEV(inst->accel_dev);
-	struct qat_alg_buf_list *bl = qat_req->buf.bl;
-	struct qat_alg_buf_list *blout = qat_req->buf.blout;
-	dma_addr_t blp = qat_req->buf.blp;
-	dma_addr_t blpout = qat_req->buf.bloutp;
-	size_t sz = qat_req->buf.sz;
-	size_t sz_out = qat_req->buf.sz_out;
+	struct device *dev = &GET_DEV(accel_dev);
+	struct qat_alg_buf_list *bl = buf->bl;
+	struct qat_alg_buf_list *blout = buf->blout;
+	dma_addr_t blp = buf->blp;
+	dma_addr_t blpout = buf->bloutp;
+	size_t sz = buf->sz;
+	size_t sz_out = buf->sz_out;
 	int bl_dma_dir;
 	int i;
 
@@ -31,7 +31,7 @@ void qat_bl_free_bufl(struct qat_crypto_instance *inst,
 
 	dma_unmap_single(dev, blp, sz, DMA_TO_DEVICE);
 
-	if (!qat_req->buf.sgl_src_valid)
+	if (!buf->sgl_src_valid)
 		kfree(bl);
 
 	if (blp != blpout) {
@@ -45,18 +45,18 @@ void qat_bl_free_bufl(struct qat_crypto_instance *inst,
 		}
 		dma_unmap_single(dev, blpout, sz_out, DMA_TO_DEVICE);
 
-		if (!qat_req->buf.sgl_dst_valid)
+		if (!buf->sgl_dst_valid)
 			kfree(blout);
 	}
 }
 
-int qat_bl_sgl_to_bufl(struct qat_crypto_instance *inst,
+int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 		       struct scatterlist *sgl,
 		       struct scatterlist *sglout,
-		       struct qat_crypto_request *qat_req,
+		       struct qat_crypto_request_buffs *buf,
 		       gfp_t flags)
 {
-	struct device *dev = &GET_DEV(inst->accel_dev);
+	struct device *dev = &GET_DEV(accel_dev);
 	int i, sg_nctr = 0;
 	int n = sg_nents(sgl);
 	struct qat_alg_buf_list *bufl;
@@ -65,23 +65,23 @@ int qat_bl_sgl_to_bufl(struct qat_crypto_instance *inst,
 	dma_addr_t bloutp = DMA_MAPPING_ERROR;
 	struct scatterlist *sg;
 	size_t sz_out, sz = struct_size(bufl, bufers, n);
-	int node = dev_to_node(&GET_DEV(inst->accel_dev));
+	int node = dev_to_node(&GET_DEV(accel_dev));
 	int bufl_dma_dir;
 
 	if (unlikely(!n))
 		return -EINVAL;
 
-	qat_req->buf.sgl_src_valid = false;
-	qat_req->buf.sgl_dst_valid = false;
+	buf->sgl_src_valid = false;
+	buf->sgl_dst_valid = false;
 
 	if (n > QAT_MAX_BUFF_DESC) {
 		bufl = kzalloc_node(sz, flags, node);
 		if (unlikely(!bufl))
 			return -ENOMEM;
 	} else {
-		bufl = &qat_req->buf.sgl_src.sgl_hdr;
+		bufl = &buf->sgl_src.sgl_hdr;
 		memset(bufl, 0, sizeof(struct qat_alg_buf_list));
-		qat_req->buf.sgl_src_valid = true;
+		buf->sgl_src_valid = true;
 	}
 
 	bufl_dma_dir = sgl != sglout ? DMA_TO_DEVICE : DMA_BIDIRECTIONAL;
@@ -107,9 +107,9 @@ int qat_bl_sgl_to_bufl(struct qat_crypto_instance *inst,
 	blp = dma_map_single(dev, bufl, sz, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(dev, blp)))
 		goto err_in;
-	qat_req->buf.bl = bufl;
-	qat_req->buf.blp = blp;
-	qat_req->buf.sz = sz;
+	buf->bl = bufl;
+	buf->blp = blp;
+	buf->sz = sz;
 	/* Handle out of place operation */
 	if (sgl != sglout) {
 		struct qat_alg_buf *bufers;
@@ -123,9 +123,9 @@ int qat_bl_sgl_to_bufl(struct qat_crypto_instance *inst,
 			if (unlikely(!buflout))
 				goto err_in;
 		} else {
-			buflout = &qat_req->buf.sgl_dst.sgl_hdr;
+			buflout = &buf->sgl_dst.sgl_hdr;
 			memset(buflout, 0, sizeof(struct qat_alg_buf_list));
-			qat_req->buf.sgl_dst_valid = true;
+			buf->sgl_dst_valid = true;
 		}
 
 		bufers = buflout->bufers;
@@ -151,13 +151,13 @@ int qat_bl_sgl_to_bufl(struct qat_crypto_instance *inst,
 		bloutp = dma_map_single(dev, buflout, sz_out, DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(dev, bloutp)))
 			goto err_out;
-		qat_req->buf.blout = buflout;
-		qat_req->buf.bloutp = bloutp;
-		qat_req->buf.sz_out = sz_out;
+		buf->blout = buflout;
+		buf->bloutp = bloutp;
+		buf->sz_out = sz_out;
 	} else {
 		/* Otherwise set the src and dst to the same address */
-		qat_req->buf.bloutp = qat_req->buf.blp;
-		qat_req->buf.sz_out = 0;
+		buf->bloutp = buf->blp;
+		buf->sz_out = 0;
 	}
 	return 0;
 
@@ -172,7 +172,7 @@ err_out:
 					 buflout->bufers[i].len,
 					 DMA_FROM_DEVICE);
 
-	if (!qat_req->buf.sgl_dst_valid)
+	if (!buf->sgl_dst_valid)
 		kfree(buflout);
 
 err_in:
@@ -186,7 +186,7 @@ err_in:
 					 bufl->bufers[i].len,
 					 bufl_dma_dir);
 
-	if (!qat_req->buf.sgl_src_valid)
+	if (!buf->sgl_src_valid)
 		kfree(bufl);
 
 	dev_err(dev, "Failed to map buf for dma\n");
