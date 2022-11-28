@@ -376,28 +376,6 @@
 	status = "okay";
 };
 
-&otg {
-	status = "okay";
-
-	phys = <&usb_hs1_phy>;
-	phy-select = <&tcsr 0xb000 0>;
-
-	hnp-disable;
-	srp-disable;
-	adp-disable;
-
-	ulpi {
-		phy@a {
-			status = "okay";
-
-			v1p8-supply = <&pma8084_l6>;
-			v3p3-supply = <&pma8084_l24>;
-
-			qcom,init-seq = /bits/ 8 <0x1 0x64>;
-		};
-	};
-};
-
 &pma8084_gpios {
 	gpio_keys_pin_a: gpio-keys-active-state {
 		pins = "gpio2", "gpio3", "gpio5";
@@ -813,4 +791,24 @@
 		drive-strength = <2>;
 		bias-disable;
 	};
+};
+
+&usb {
+	status = "okay";
+
+	phys = <&usb_hs1_phy>;
+	phy-select = <&tcsr 0xb000 0>;
+
+	hnp-disable;
+	srp-disable;
+	adp-disable;
+};
+
+&usb_hs1_phy {
+	status = "okay";
+
+	v1p8-supply = <&pma8084_l6>;
+	v3p3-supply = <&pma8084_l24>;
+
+	qcom,init-seq = /bits/ 8 <0x1 0x64>;
 };

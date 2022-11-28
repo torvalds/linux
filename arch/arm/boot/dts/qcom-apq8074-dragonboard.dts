@@ -35,28 +35,6 @@
 	};
 };
 
-&otg {
-	status = "okay";
-
-	phys = <&usb_hs2_phy>;
-	phy-select = <&tcsr 0xb000 1>;
-	extcon = <&smbb>, <&usb_id>;
-	vbus-supply = <&chg_otg>;
-	hnp-disable;
-	srp-disable;
-	adp-disable;
-
-	ulpi {
-		phy@b {
-			status = "okay";
-			v3p3-supply = <&pm8941_l24>;
-			v1p8-supply = <&pm8941_l6>;
-			extcon = <&smbb>;
-			qcom,init-seq = /bits/ 8 <0x1 0x63>;
-		};
-	};
-};
-
 &rpm_requests {
 	regulators-0 {
 		compatible = "qcom,rpm-pm8841-regulators";
@@ -306,4 +284,24 @@
 			bias-disable;
 		};
 	};
+};
+
+&usb {
+	status = "okay";
+
+	phys = <&usb_hs2_phy>;
+	phy-select = <&tcsr 0xb000 1>;
+	extcon = <&smbb>, <&usb_id>;
+	vbus-supply = <&chg_otg>;
+	hnp-disable;
+	srp-disable;
+	adp-disable;
+};
+
+&usb_hs2_phy {
+	status = "okay";
+	v3p3-supply = <&pm8941_l24>;
+	v1p8-supply = <&pm8941_l6>;
+	extcon = <&smbb>;
+	qcom,init-seq = /bits/ 8 <0x1 0x63>;
 };

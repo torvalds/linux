@@ -653,7 +653,7 @@
 			#size-cells = <0>;
 		};
 
-		otg: usb@f9a55000 {
+		usb: usb@f9a55000 {
 			compatible = "qcom,ci-hdrc";
 			reg = <0xf9a55000 0x200>,
 			      <0xf9a55200 0x200>;
@@ -679,7 +679,7 @@
 					#phy-cells = <0>;
 					clocks = <&xo_board>, <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
 					clock-names = "ref", "sleep";
-					resets = <&gcc GCC_USB2A_PHY_BCR>, <&otg 0>;
+					resets = <&gcc GCC_USB2A_PHY_BCR>, <&usb 0>;
 					reset-names = "phy", "por";
 					status = "disabled";
 				};
@@ -690,7 +690,7 @@
 					#phy-cells = <0>;
 					clocks = <&xo_board>, <&gcc GCC_USB2B_PHY_SLEEP_CLK>;
 					clock-names = "ref", "sleep";
-					resets = <&gcc GCC_USB2B_PHY_BCR>, <&otg 1>;
+					resets = <&gcc GCC_USB2B_PHY_BCR>, <&usb 1>;
 					reset-names = "phy", "por";
 					status = "disabled";
 				};
