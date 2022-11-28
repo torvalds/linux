@@ -692,13 +692,11 @@ struct extent_tree_info {
 };
 
 /*
- * This structure is taken from ext4_map_blocks.
- *
- * Note that, however, f2fs uses NEW and MAPPED flags for f2fs_map_blocks().
+ * State of block returned by f2fs_map_blocks.
  */
-#define F2FS_MAP_NEW		(1 << BH_New)
-#define F2FS_MAP_MAPPED		(1 << BH_Mapped)
-#define F2FS_MAP_UNWRITTEN	(1 << BH_Unwritten)
+#define F2FS_MAP_NEW		(1U << 0)
+#define F2FS_MAP_MAPPED		(1U << 1)
+#define F2FS_MAP_UNWRITTEN	(1U << 2)
 #define F2FS_MAP_FLAGS		(F2FS_MAP_NEW | F2FS_MAP_MAPPED |\
 				F2FS_MAP_UNWRITTEN)
 
