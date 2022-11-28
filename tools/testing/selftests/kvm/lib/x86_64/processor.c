@@ -601,21 +601,24 @@ void vcpu_arch_free(struct kvm_vcpu *vcpu)
 		free(vcpu->cpuid);
 }
 
+/* Do not use kvm_supported_cpuid directly except for validity checks. */
+static void *kvm_supported_cpuid;
+
 const struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
 {
-	static struct kvm_cpuid2 *cpuid;
 	int kvm_fd;
 
-	if (cpuid)
-		return cpuid;
+	if (kvm_supported_cpuid)
+		return kvm_supported_cpuid;
 
-	cpuid = allocate_kvm_cpuid2(MAX_NR_CPUID_ENTRIES);
+	kvm_supported_cpuid = allocate_kvm_cpuid2(MAX_NR_CPUID_ENTRIES);
 	kvm_fd = open_kvm_dev_path_or_exit();
 
-	kvm_ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID, cpuid);
+	kvm_ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID,
+		  (struct kvm_cpuid2 *)kvm_supported_cpuid);
 
 	close(kvm_fd);
-	return cpuid;
+	return kvm_supported_cpuid;
 }
 
 static uint32_t __kvm_cpu_has(const struct kvm_cpuid2 *cpuid,
@@ -683,6 +686,9 @@ void __vm_xsave_require_permission(int bit, const char *name)
 		.attr = KVM_X86_XCOMP_GUEST_SUPP,
 		.addr = (unsigned long) &bitmask
 	};
+
+	TEST_ASSERT(!kvm_supported_cpuid,
+		    "kvm_get_supported_cpuid() cannot be used before ARCH_REQ_XCOMP_GUEST_PERM");
 
 	kvm_fd = open_kvm_dev_path_or_exit();
 	rc = __kvm_ioctl(kvm_fd, KVM_GET_DEVICE_ATTR, &attr);
