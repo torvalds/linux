@@ -1745,16 +1745,16 @@ void mptcp_subflow_queue_clean(struct sock *listener_ssk)
 
 	for (msk = head; msk; msk = next) {
 		struct sock *sk = (struct sock *)msk;
-		bool slow, do_cancel_work;
+		bool do_cancel_work;
 
 		sock_hold(sk);
-		slow = lock_sock_fast_nested(sk);
+		lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
 		next = msk->dl_next;
 		msk->first = NULL;
 		msk->dl_next = NULL;
 
 		do_cancel_work = __mptcp_close(sk, 0);
-		unlock_sock_fast(sk, slow);
+		release_sock(sk);
 		if (do_cancel_work)
 			mptcp_cancel_work(sk);
 		sock_put(sk);
