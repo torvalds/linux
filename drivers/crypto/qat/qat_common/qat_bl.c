@@ -35,10 +35,7 @@ void qat_bl_free_bufl(struct adf_accel_dev *accel_dev,
 		kfree(bl);
 
 	if (blp != blpout) {
-		/* If out of place operation dma unmap only data */
-		int bufless = blout->num_bufs - blout->num_mapped_bufs;
-
-		for (i = bufless; i < blout->num_bufs; i++) {
+		for (i = 0; i < blout->num_mapped_bufs; i++) {
 			dma_unmap_single(dev, blout->bufers[i].addr,
 					 blout->bufers[i].len,
 					 DMA_FROM_DEVICE);
@@ -50,11 +47,13 @@ void qat_bl_free_bufl(struct adf_accel_dev *accel_dev,
 	}
 }
 
-int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
-		       struct scatterlist *sgl,
-		       struct scatterlist *sglout,
-		       struct qat_request_buffs *buf,
-		       gfp_t flags)
+static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
+				struct scatterlist *sgl,
+				struct scatterlist *sglout,
+				struct qat_request_buffs *buf,
+				dma_addr_t extra_dst_buff,
+				size_t sz_extra_dst_buff,
+				gfp_t flags)
 {
 	struct device *dev = &GET_DEV(accel_dev);
 	int i, sg_nctr = 0;
@@ -86,7 +85,7 @@ int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 
 	bufl_dma_dir = sgl != sglout ? DMA_TO_DEVICE : DMA_BIDIRECTIONAL;
 
-	for_each_sg(sgl, sg, n, i)
+	for (i = 0; i < n; i++)
 		bufl->bufers[i].addr = DMA_MAPPING_ERROR;
 
 	for_each_sg(sgl, sg, n, i) {
@@ -113,8 +112,10 @@ int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 	/* Handle out of place operation */
 	if (sgl != sglout) {
 		struct qat_alg_buf *bufers;
+		int extra_buff = extra_dst_buff ? 1 : 0;
+		int n_sglout = sg_nents(sglout);
 
-		n = sg_nents(sglout);
+		n = n_sglout + extra_buff;
 		sz_out = struct_size(buflout, bufers, n);
 		sg_nctr = 0;
 
@@ -129,10 +130,10 @@ int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 		}
 
 		bufers = buflout->bufers;
-		for_each_sg(sglout, sg, n, i)
+		for (i = 0; i < n; i++)
 			bufers[i].addr = DMA_MAPPING_ERROR;
 
-		for_each_sg(sglout, sg, n, i) {
+		for_each_sg(sglout, sg, n_sglout, i) {
 			int y = sg_nctr;
 
 			if (!sg->length)
@@ -146,7 +147,13 @@ int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 			bufers[y].len = sg->length;
 			sg_nctr++;
 		}
+		if (extra_buff) {
+			bufers[sg_nctr].addr = extra_dst_buff;
+			bufers[sg_nctr].len = sz_extra_dst_buff;
+		}
+
 		buflout->num_bufs = sg_nctr;
+		buflout->num_bufs += extra_buff;
 		buflout->num_mapped_bufs = sg_nctr;
 		bloutp = dma_map_single(dev, buflout, sz_out, DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(dev, bloutp)))
@@ -166,11 +173,14 @@ err_out:
 		dma_unmap_single(dev, bloutp, sz_out, DMA_TO_DEVICE);
 
 	n = sg_nents(sglout);
-	for (i = 0; i < n; i++)
+	for (i = 0; i < n; i++) {
+		if (buflout->bufers[i].addr == extra_dst_buff)
+			break;
 		if (!dma_mapping_error(dev, buflout->bufers[i].addr))
 			dma_unmap_single(dev, buflout->bufers[i].addr,
 					 buflout->bufers[i].len,
 					 DMA_FROM_DEVICE);
+	}
 
 	if (!buf->sgl_dst_valid)
 		kfree(buflout);
@@ -191,4 +201,24 @@ err_in:
 
 	dev_err(dev, "Failed to map buf for dma\n");
 	return -ENOMEM;
+}
+
+int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
+		       struct scatterlist *sgl,
+		       struct scatterlist *sglout,
+		       struct qat_request_buffs *buf,
+		       struct qat_sgl_to_bufl_params *params,
+		       gfp_t flags)
+{
+	dma_addr_t extra_dst_buff = 0;
+	size_t sz_extra_dst_buff = 0;
+
+	if (params) {
+		extra_dst_buff = params->extra_dst_buff;
+		sz_extra_dst_buff = params->sz_extra_dst_buff;
+	}
+
+	return __qat_bl_sgl_to_bufl(accel_dev, sgl, sglout, buf,
+				    extra_dst_buff, sz_extra_dst_buff,
+				    flags);
 }

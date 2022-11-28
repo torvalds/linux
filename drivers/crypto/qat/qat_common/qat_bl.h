@@ -38,12 +38,18 @@ struct qat_request_buffs {
 	struct qat_alg_fixed_buf_list sgl_dst;
 };
 
+struct qat_sgl_to_bufl_params {
+	dma_addr_t extra_dst_buff;
+	size_t sz_extra_dst_buff;
+};
+
 void qat_bl_free_bufl(struct adf_accel_dev *accel_dev,
 		      struct qat_request_buffs *buf);
 int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 		       struct scatterlist *sgl,
 		       struct scatterlist *sglout,
 		       struct qat_request_buffs *buf,
+		       struct qat_sgl_to_bufl_params *params,
 		       gfp_t flags);
 
 #endif
