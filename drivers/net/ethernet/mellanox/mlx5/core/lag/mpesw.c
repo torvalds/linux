@@ -7,18 +7,19 @@
 #include "eswitch.h"
 #include "lib/mlx5.h"
 
-static int add_mpesw_rule(struct mlx5_lag *ldev)
+static int enable_mpesw(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev = ldev->pf[MLX5_LAG_P1].dev;
 	int err;
 
-	if (atomic_add_return(1, &ldev->lag_mpesw.mpesw_rule_count) != 1)
-		return 0;
+	if (ldev->mode != MLX5_LAG_MODE_NONE)
+		return -EINVAL;
 
-	if (ldev->mode != MLX5_LAG_MODE_NONE) {
-		err = -EINVAL;
-		goto out_err;
-	}
+	if (mlx5_eswitch_mode(dev) != MLX5_ESWITCH_OFFLOADS ||
+	    !MLX5_CAP_PORT_SELECTION(dev, port_select_flow_table) ||
+	    !MLX5_CAP_GEN(dev, create_lag_when_not_master_up) ||
+	    !mlx5_lag_check_prereq(ldev))
+		return -EOPNOTSUPP;
 
 	err = mlx5_activate_lag(ldev, NULL, MLX5_LAG_MODE_MPESW, false);
 	if (err) {
@@ -29,14 +30,12 @@ static int add_mpesw_rule(struct mlx5_lag *ldev)
 	return 0;
 
 out_err:
-	atomic_dec(&ldev->lag_mpesw.mpesw_rule_count);
 	return err;
 }
 
-static void del_mpesw_rule(struct mlx5_lag *ldev)
+static void disable_mpesw(struct mlx5_lag *ldev)
 {
-	if (!atomic_dec_return(&ldev->lag_mpesw.mpesw_rule_count) &&
-	    ldev->mode == MLX5_LAG_MODE_MPESW)
+	if (ldev->mode == MLX5_LAG_MODE_MPESW)
 		mlx5_disable_lag(ldev);
 }
 
@@ -46,12 +45,17 @@ static void mlx5_mpesw_work(struct work_struct *work)
 	struct mlx5_lag *ldev = mpesww->lag;
 
 	mutex_lock(&ldev->lock);
-	if (mpesww->op == MLX5_MPESW_OP_ENABLE)
-		mpesww->result = add_mpesw_rule(ldev);
-	else if (mpesww->op == MLX5_MPESW_OP_DISABLE)
-		del_mpesw_rule(ldev);
-	mutex_unlock(&ldev->lock);
+	if (ldev->mode_changes_in_progress) {
+		mpesww->result = -EAGAIN;
+		goto unlock;
+	}
 
+	if (mpesww->op == MLX5_MPESW_OP_ENABLE)
+		mpesww->result = enable_mpesw(ldev);
+	else if (mpesww->op == MLX5_MPESW_OP_DISABLE)
+		disable_mpesw(ldev);
+unlock:
+	mutex_unlock(&ldev->lock);
 	complete(&mpesww->comp);
 }
 
@@ -86,12 +90,12 @@ out:
 	return err;
 }
 
-void mlx5_lag_del_mpesw_rule(struct mlx5_core_dev *dev)
+void mlx5_lag_mpesw_disable(struct mlx5_core_dev *dev)
 {
 	mlx5_lag_mpesw_queue_work(dev, MLX5_MPESW_OP_DISABLE);
 }
 
-int mlx5_lag_add_mpesw_rule(struct mlx5_core_dev *dev)
+int mlx5_lag_mpesw_enable(struct mlx5_core_dev *dev)
 {
 	return mlx5_lag_mpesw_queue_work(dev, MLX5_MPESW_OP_ENABLE);
 }
@@ -117,14 +121,4 @@ bool mlx5_lag_mpesw_is_activated(struct mlx5_core_dev *dev)
 	struct mlx5_lag *ldev = mlx5_lag_dev(dev);
 
 	return ldev && ldev->mode == MLX5_LAG_MODE_MPESW;
-}
-
-void mlx5_lag_mpesw_init(struct mlx5_lag *ldev)
-{
-	atomic_set(&ldev->lag_mpesw.mpesw_rule_count, 0);
-}
-
-void mlx5_lag_mpesw_cleanup(struct mlx5_lag *ldev)
-{
-	WARN_ON(atomic_read(&ldev->lag_mpesw.mpesw_rule_count));
 }

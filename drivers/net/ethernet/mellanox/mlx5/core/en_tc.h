@@ -92,12 +92,6 @@ struct mlx5_flow_attr {
 	u32 exe_aso_type;
 	struct list_head list;
 	struct mlx5e_post_act_handle *post_act_handle;
-	struct {
-		/* Indicate whether the parsed flow should be counted for lag mode decision
-		 * making
-		 */
-		bool count;
-	} lag;
 	struct mlx5_flow_attr *branch_true;
 	struct mlx5_flow_attr *branch_false;
 	struct mlx5_flow_attr *jumping_attr;
