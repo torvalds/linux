@@ -1274,6 +1274,16 @@ config TI_AM335X_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called ti_am335x_adc.
 
+config TI_LMP92064
+	tristate "Texas Instruments LMP92064 ADC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the LMP92064 Precision Current and Voltage
+	  sensor.
+
+	  This driver can also be built as a module. If so, the module will be called
+	  ti-lmp92064.
+
 config TI_TLC4541
 	tristate "Texas Instruments TLC4541 ADC driver"
 	depends on SPI
