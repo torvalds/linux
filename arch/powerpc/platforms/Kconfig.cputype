@@ -580,10 +580,10 @@ config CPU_LITTLE_ENDIAN
 endchoice
 
 config PPC64_ELF_ABI_V1
-	def_bool PPC64 && CPU_BIG_ENDIAN
+	def_bool PPC64 && (CPU_BIG_ENDIAN && !PPC64_BIG_ENDIAN_ELF_ABI_V2)
 
 config PPC64_ELF_ABI_V2
-	def_bool PPC64 && CPU_LITTLE_ENDIAN
+	def_bool PPC64 && !PPC64_ELF_ABI_V1
 
 config PPC64_BOOT_WRAPPER
 	def_bool n
