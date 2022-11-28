@@ -2316,7 +2316,7 @@ static int drm_mode_parse_cmdline_named_mode(const char *name,
 		if (ret != name_end)
 			continue;
 
-		strcpy(cmdline_mode->name, mode->name);
+		strscpy(cmdline_mode->name, mode->name, sizeof(cmdline_mode->name));
 		cmdline_mode->pixel_clock = mode->pixel_clock_khz;
 		cmdline_mode->xres = mode->xres;
 		cmdline_mode->yres = mode->yres;
