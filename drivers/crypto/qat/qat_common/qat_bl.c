@@ -11,7 +11,7 @@
 #include "qat_crypto.h"
 
 void qat_bl_free_bufl(struct adf_accel_dev *accel_dev,
-		      struct qat_crypto_request_buffs *buf)
+		      struct qat_request_buffs *buf)
 {
 	struct device *dev = &GET_DEV(accel_dev);
 	struct qat_alg_buf_list *bl = buf->bl;
@@ -53,7 +53,7 @@ void qat_bl_free_bufl(struct adf_accel_dev *accel_dev,
 int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 		       struct scatterlist *sgl,
 		       struct scatterlist *sglout,
-		       struct qat_crypto_request_buffs *buf,
+		       struct qat_request_buffs *buf,
 		       gfp_t flags)
 {
 	struct device *dev = &GET_DEV(accel_dev);
