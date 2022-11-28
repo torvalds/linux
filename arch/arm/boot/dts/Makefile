@@ -995,6 +995,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1106g-evb2-v10.dtb \
 	rv1106g-evb2-v11-emmc.dtb \
 	rv1106g-smart-door-lock-rmsl-v10.dtb \
+	rv1106g-smart-door-lock-rmsl-v12.dtb \
 	rv1106g-uvc-demo-v10.dtb \
 	rv1106g-uvc-demo-v10-spi-nor.dtb \
 	rv1108-elgin-r1.dtb \

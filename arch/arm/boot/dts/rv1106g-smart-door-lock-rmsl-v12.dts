@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106g-smart-door-lock-rmsl-v10.dts"
+
+/ {
+	model = "Rockchip RV1106G Smart Door Lock RMSL V12 Board";
+	compatible = "rockchip,rv1106g-smart-door-lock-rmsl-v12", "rockchip,rv1106";
+};
+
+&sdio {
+	max-frequency = <50000000>;
+	bus-width = <1>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	non-removable;
+	rockchip,default-sample-phase = <90>;
+	no-mmc;
+	no-sd;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc1m0_cmd &sdmmc1m0_clk &sdmmc1m0_bus1>;
+	status = "okay";
+};
+
+&sdmmc {
+	status = "disabled";
+};
+
+&vcsel_rk803 {
+	gpio-encc1-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>; //Flood
+	gpio-encc2-gpios = <&gpio2 RK_PA0 GPIO_ACTIVE_HIGH>; //PRO
+};
