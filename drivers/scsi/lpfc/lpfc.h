@@ -920,10 +920,6 @@ struct lpfc_hba {
 		(struct lpfc_vport *vport,
 		 struct lpfc_io_buf *lpfc_cmd,
 		 uint8_t tmo);
-	int (*lpfc_scsi_prep_task_mgmt_cmd)
-		(struct lpfc_vport *vport,
-		 struct lpfc_io_buf *lpfc_cmd,
-		 u64 lun, u8 task_mgmt_cmd);
 
 	/* IOCB interface function jump table entries */
 	int (*__lpfc_sli_issue_iocb)
@@ -1562,10 +1558,7 @@ struct lpfc_hba {
 	u32 cgn_acqe_cnt;
 
 	/* RX monitor handling for CMF */
-	struct rxtable_entry *rxtable;  /* RX_monitor information */
-	atomic_t rxtable_idx_head;
-#define LPFC_RXMONITOR_TABLE_IN_USE     (LPFC_MAX_RXMONITOR_ENTRY + 73)
-	atomic_t rxtable_idx_tail;
+	struct lpfc_rx_info_monitor *rx_monitor;
 	atomic_t rx_max_read_cnt;       /* Maximum read bytes */
 	uint64_t rx_block_cnt;
 
@@ -1614,7 +1607,8 @@ struct lpfc_hba {
 
 #define LPFC_MAX_RXMONITOR_ENTRY	800
 #define LPFC_MAX_RXMONITOR_DUMP		32
-struct rxtable_entry {
+struct rx_info_entry {
+	uint64_t cmf_bytes;	/* Total no of read bytes for CMF_SYNC_WQE */
 	uint64_t total_bytes;   /* Total no of read bytes requested */
 	uint64_t rcv_bytes;     /* Total no of read bytes completed */
 	uint64_t avg_io_size;
@@ -1626,6 +1620,13 @@ struct rxtable_entry {
 	uint32_t io_cnt;
 	uint32_t timer_utilization;
 	uint32_t timer_interval;
+};
+
+struct lpfc_rx_info_monitor {
+	struct rx_info_entry *ring; /* info organized in a circular buffer */
+	u32 head_idx, tail_idx; /* index to head/tail of ring */
+	spinlock_t lock; /* spinlock for ring */
+	u32 entries; /* storing number entries/size of ring */
 };
 
 static inline struct Scsi_Host *
@@ -1806,40 +1807,4 @@ static const char *routine(enum enum_name table_key)			\
 static inline int lpfc_is_vmid_enabled(struct lpfc_hba *phba)
 {
 	return phba->cfg_vmid_app_header || phba->cfg_vmid_priority_tagging;
-}
-
-static inline
-u8 get_job_ulpstatus(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
-{
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		return bf_get(lpfc_wcqe_c_status, &iocbq->wcqe_cmpl);
-	else
-		return iocbq->iocb.ulpStatus;
-}
-
-static inline
-u32 get_job_word4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
-{
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		return iocbq->wcqe_cmpl.parameter;
-	else
-		return iocbq->iocb.un.ulpWord[4];
-}
-
-static inline
-u8 get_job_cmnd(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
-{
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		return bf_get(wqe_cmnd, &iocbq->wqe.generic.wqe_com);
-	else
-		return iocbq->iocb.ulpCommand;
-}
-
-static inline
-u16 get_job_ulpcontext(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
-{
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		return bf_get(wqe_ctxt_tag, &iocbq->wqe.generic.wqe_com);
-	else
-		return iocbq->iocb.ulpContext;
 }

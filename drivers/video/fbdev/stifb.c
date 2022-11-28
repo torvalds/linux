@@ -1041,6 +1041,48 @@ stifb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 	SETUP_FB(fb);
 }
 
+#define ARTIST_VRAM_SIZE			0x000804
+#define ARTIST_VRAM_SRC				0x000808
+#define ARTIST_VRAM_SIZE_TRIGGER_WINFILL	0x000a04
+#define ARTIST_VRAM_DEST_TRIGGER_BLOCKMOVE	0x000b00
+#define ARTIST_SRC_BM_ACCESS			0x018008
+#define ARTIST_FGCOLOR				0x018010
+#define ARTIST_BGCOLOR				0x018014
+#define ARTIST_BITMAP_OP			0x01801c
+
+static void
+stifb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
+{
+	struct stifb_info *fb = container_of(info, struct stifb_info, info);
+
+	if (rect->rop != ROP_COPY ||
+	    (fb->id == S9000_ID_HCRX && fb->info.var.bits_per_pixel == 32))
+		return cfb_fillrect(info, rect);
+
+	SETUP_HW(fb);
+
+	if (fb->info.var.bits_per_pixel == 32) {
+		WRITE_WORD(0xBBA0A000, fb, REG_10);
+
+		NGLE_REALLY_SET_IMAGE_PLANEMASK(fb, 0xffffffff);
+	} else {
+		WRITE_WORD(fb->id == S9000_ID_HCRX ? 0x13a02000 : 0x13a01000, fb, REG_10);
+
+		NGLE_REALLY_SET_IMAGE_PLANEMASK(fb, 0xff);
+	}
+
+	WRITE_WORD(0x03000300, fb, ARTIST_BITMAP_OP);
+	WRITE_WORD(0x2ea01000, fb, ARTIST_SRC_BM_ACCESS);
+	NGLE_QUICK_SET_DST_BM_ACCESS(fb, 0x2ea01000);
+	NGLE_REALLY_SET_IMAGE_FG_COLOR(fb, rect->color);
+	WRITE_WORD(0, fb, ARTIST_BGCOLOR);
+
+	NGLE_SET_DSTXY(fb, (rect->dx << 16) | (rect->dy));
+	SET_LENXY_START_RECFILL(fb, (rect->width << 16) | (rect->height));
+
+	SETUP_FB(fb);
+}
+
 static void __init
 stifb_init_display(struct stifb_info *fb)
 {
@@ -1105,7 +1147,7 @@ static const struct fb_ops stifb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= stifb_setcolreg,
 	.fb_blank	= stifb_blank,
-	.fb_fillrect	= cfb_fillrect,
+	.fb_fillrect	= stifb_fillrect,
 	.fb_copyarea	= stifb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 };
@@ -1297,7 +1339,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		goto out_err0;
 	}
 	info->screen_size = fix->smem_len;
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA;
+	info->flags = FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT;
 	info->pseudo_palette = &fb->pseudo_palette;
 
 	/* This has to be done !!! */

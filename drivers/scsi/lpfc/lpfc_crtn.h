@@ -90,6 +90,14 @@ void lpfc_cgn_dump_rxmonitor(struct lpfc_hba *phba);
 void lpfc_cgn_update_stat(struct lpfc_hba *phba, uint32_t dtag);
 void lpfc_unblock_requests(struct lpfc_hba *phba);
 void lpfc_block_requests(struct lpfc_hba *phba);
+int lpfc_rx_monitor_create_ring(struct lpfc_rx_info_monitor *rx_monitor,
+				u32 entries);
+void lpfc_rx_monitor_destroy_ring(struct lpfc_rx_info_monitor *rx_monitor);
+void lpfc_rx_monitor_record(struct lpfc_rx_info_monitor *rx_monitor,
+			    struct rx_info_entry *entry);
+u32 lpfc_rx_monitor_report(struct lpfc_hba *phba,
+			   struct lpfc_rx_info_monitor *rx_monitor, char *buf,
+			   u32 buf_len, u32 max_read_entries);
 
 void lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -129,7 +137,6 @@ void lpfc_disc_list_loopmap(struct lpfc_vport *);
 void lpfc_disc_start(struct lpfc_vport *);
 void lpfc_cleanup_discovery_resources(struct lpfc_vport *);
 void lpfc_cleanup(struct lpfc_vport *);
-void lpfc_prep_embed_io(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_ncmd);
 void lpfc_disc_timeout(struct timer_list *);
 
 int lpfc_unregister_fcf_prep(struct lpfc_hba *);
@@ -211,7 +218,7 @@ int lpfc_config_port_post(struct lpfc_hba *);
 int lpfc_hba_down_prep(struct lpfc_hba *);
 int lpfc_hba_down_post(struct lpfc_hba *);
 void lpfc_hba_init(struct lpfc_hba *, uint32_t *);
-int lpfc_sli3_post_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring, int cnt);
+int lpfc_post_buffer(struct lpfc_hba *, struct lpfc_sli_ring *, int);
 void lpfc_decode_firmware_rev(struct lpfc_hba *, char *, int);
 int lpfc_online(struct lpfc_hba *);
 void lpfc_unblock_mgmt_io(struct lpfc_hba *);

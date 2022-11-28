@@ -239,7 +239,7 @@ lpfc_ct_reject_event(struct lpfc_nodelist *ndlp,
 	cmdiocbq->context1 = lpfc_nlp_get(ndlp);
 	cmdiocbq->context2 = (uint8_t *)mp;
 	cmdiocbq->context3 = (uint8_t *)bmp;
-	cmdiocbq->cmd_cmpl = lpfc_ct_unsol_cmpl;
+	cmdiocbq->iocb_cmpl = lpfc_ct_unsol_cmpl;
 	icmd->ulpContext = rx_id;  /* Xri / rx_id */
 	icmd->unsli3.rcvsli3.ox_id = ox_id;
 	icmd->un.ulpWord[3] =
@@ -370,7 +370,7 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		/* Not enough posted buffers; Try posting more buffers */
 		phba->fc_stat.NoRcvBuf++;
 		if (!(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED))
-			lpfc_sli3_post_buffer(phba, pring, 2);
+			lpfc_post_buffer(phba, pring, 2);
 		return;
 	}
 
@@ -447,7 +447,7 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 				lpfc_ct_unsol_buffer(phba, iocbq, mp, size);
 				lpfc_in_buf_free(phba, mp);
 			}
-			lpfc_sli3_post_buffer(phba, pring, i);
+			lpfc_post_buffer(phba, pring, i);
 		}
 		list_del(&head);
 	}
@@ -652,7 +652,7 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 			 "Data: x%x x%x\n",
 			 ndlp->nlp_DID, icmd->ulpIoTag,
 			 vport->port_state);
-	geniocb->cmd_cmpl = cmpl;
+	geniocb->iocb_cmpl = cmpl;
 	geniocb->drvrTimeout = icmd->ulpTimeout + LPFC_DRVR_TIMEOUT;
 	geniocb->vport = vport;
 	geniocb->retry = retry;

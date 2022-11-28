@@ -63,7 +63,7 @@ int mfill_atomic_install_pte(struct mm_struct *dst_mm, pmd_t *dst_pmd,
 	pte_t _dst_pte, *dst_pte;
 	bool writable = dst_vma->vm_flags & VM_WRITE;
 	bool vm_shared = dst_vma->vm_flags & VM_SHARED;
-	bool page_in_cache = page->mapping;
+	bool page_in_cache = page_mapping(page);
 	spinlock_t *ptl;
 	struct inode *inode;
 	pgoff_t offset, max_off;
@@ -236,6 +236,11 @@ static int mcontinue_atomic_pte(struct mm_struct *dst_mm,
 	if (!page) {
 		ret = -EFAULT;
 		goto out;
+	}
+
+	if (PageHWPoison(page)) {
+		ret = -EIO;
+		goto out_release;
 	}
 
 	ret = mfill_atomic_install_pte(dst_mm, dst_pmd, dst_vma, dst_addr,
