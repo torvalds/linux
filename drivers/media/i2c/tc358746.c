@@ -1668,8 +1668,8 @@ err:
 	return err;
 }
 
-DEFINE_RUNTIME_DEV_PM_OPS(tc358746_pm_ops, tc358746_suspend,
-			  tc358746_resume, NULL);
+static DEFINE_RUNTIME_DEV_PM_OPS(tc358746_pm_ops, tc358746_suspend,
+				 tc358746_resume, NULL);
 
 static const struct of_device_id __maybe_unused tc358746_of_match[] = {
 	{ .compatible = "toshiba,tc358746" },
