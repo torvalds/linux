@@ -100,8 +100,8 @@ struct tty3270 {
 	struct tty3270_line *screen;
 
 	/* Input stuff. */
-	struct string *prompt;		/* Output string for input area. */
-	struct string *input;		/* Input string for read request. */
+	char *prompt;			/* Output string for input area. */
+	char *input;			/* Input string for read request. */
 	struct raw3270_request *read;	/* Single read request. */
 	struct raw3270_request *kreset;	/* Single keyboard reset request. */
 	struct raw3270_request *readpartreq;
@@ -198,53 +198,44 @@ static struct tty3270_line *tty3270_get_view_line(struct tty3270 *tp, unsigned i
 	return tp->screen + tty3270_line_increment(tp, tp->line_view_start, num - tp->nr_up);
 }
 
+static int tty3270_input_size(int cols)
+{
+	return cols * 2 - 11;
+}
+
+static void tty3270_update_prompt(struct tty3270 *tp, char *input, int count)
+{
+	memcpy(tp->prompt, input, count);
+	tp->prompt[count] = '\0';
+	tp->update_flags |= TTY_UPDATE_INPUT;
+	tty3270_set_timer(tp, 1);
+}
+
 /*
  * The input line are the two last lines of the screen.
  */
-static void tty3270_update_prompt(struct tty3270 *tp, char *input, int count)
+static int tty3270_add_prompt(struct tty3270 *tp)
 {
-	struct string *line;
+	int count = 0;
+	char *cp;
 
-	line = tp->prompt;
-	if (count != 0)
-		line->string[5] = TF_INMDT;
-	else
-		line->string[5] = tp->inattr;
-	if (count > tp->view.cols * 2 - 11)
-		count = tp->view.cols * 2 - 11;
-	memcpy(line->string + 6, input, count);
-	line->string[6 + count] = TO_IC;
+	cp = tp->converted_line;
+	cp = tty3270_add_ba(tp, cp, TO_SBA, 0, -2);
+	*cp++ = tp->view.ascebc['>'];
+
+	if (*tp->prompt) {
+		cp = tty3270_add_sf(tp, cp, TF_INMDT);
+		count = min_t(int, strlen(tp->prompt), tp->view.cols * 2 - 11);
+		memcpy(cp, tp->prompt, count);
+		cp += count;
+	} else {
+		cp = tty3270_add_sf(tp, cp, tp->inattr);
+	}
+	*cp++ = TO_IC;
 	/* Clear to end of input line. */
-	if (count < tp->view.cols * 2 - 11) {
-		tty3270_add_ra(tp, line->string + count + 7, -9, -1, 0);
-		line->len = 11 + count;
-	} else
-		line->len = 7 + count;
-	tp->update_flags |= TTY_UPDATE_INPUT;
-}
-
-static void tty3270_create_prompt(struct tty3270 *tp)
-{
-	static const unsigned char blueprint[] =
-		{ TO_SBA, 0, 0, 0x6e, TO_SF, TF_INPUT,
-		  /* empty input string */
-		  TO_IC, TO_RA, 0, 0, 0 };
-	struct string *line;
-
-	line = alloc_string(&tp->freemem,
-			    sizeof(blueprint) + tp->view.cols * 2 - 9);
-	tp->prompt = line;
-	tp->inattr = TF_INPUT;
-	/* Copy blueprint to status line */
-	memcpy(line->string, blueprint, sizeof(blueprint));
-	line->len = sizeof(blueprint);
-	/* Set output offsets. */
-
-	raw3270_buffer_address(tp->view.dev, line->string + 1, 0, -2);
-	raw3270_buffer_address(tp->view.dev, line->string + 8, -9, -1);
-
-	/* Allocate input string for reading. */
-	tp->input = alloc_string(&tp->freemem, tp->view.cols * 2 - 9 + 6);
+	if (count < tp->view.cols * 2 - 11)
+		cp = tty3270_add_ra(tp, cp, -9, -1, 0);
+	return cp - tp->converted_line;
 }
 
 /*
@@ -513,10 +504,11 @@ static void tty3270_update(struct timer_list *t)
 	/*
 	 * Write input line.
 	 */
-	if (tp->update_flags & TTY_UPDATE_INPUT)
-		if (raw3270_request_add_data(wrq, tp->prompt->string,
-					     tp->prompt->len) == 0)
+	if (tp->update_flags & TTY_UPDATE_INPUT) {
+		len = tty3270_add_prompt(tp);
+		if (raw3270_request_add_data(wrq, tp->converted_line, len) == 0)
 			updated |= TTY_UPDATE_INPUT;
+	}
 
 	for (i = 0; i < tty3270_tty_rows(tp); i++) {
 		line = tty3270_get_view_line(tp, i);
@@ -662,11 +654,11 @@ static void tty3270_read_tasklet(unsigned long data)
 	 */
 	input = NULL;
 	len = 0;
-	switch (tp->input->string[0]) {
+	switch (tp->input[0]) {
 	case AID_ENTER:
 		/* Enter: write input to tty. */
-		input = tp->input->string + 6;
-		len = tp->input->len - 6 - rrq->rescnt;
+		input = tp->input + 6;
+		len = tty3270_input_size(tp->view.cols) - 6 - rrq->rescnt;
 		if (tp->inattr != TF_INPUTN)
 			tty3270_rcl_add(tp, input, len);
 		if (tp->nr_up > 0)
@@ -685,7 +677,7 @@ static void tty3270_read_tasklet(unsigned long data)
 				      (char *)sfq_read_partition, sizeof(sfq_read_partition));
 		break;
 	case AID_READ_PARTITION:
-		raw3270_read_modified_cb(tp->readpartreq, tp->input->string);
+		raw3270_read_modified_cb(tp->readpartreq, tp->input);
 		break;
 	default:
 		break;
@@ -698,7 +690,7 @@ static void tty3270_read_tasklet(unsigned long data)
 	while (len-- > 0)
 		kbd_keycode(tp->kbd, *input++);
 	/* Emit keycode for AID byte. */
-	kbd_keycode(tp->kbd, 256 + tp->input->string[0]);
+	kbd_keycode(tp->kbd, 256 + tp->input[0]);
 
 	raw3270_request_reset(rrq);
 	xchg(&tp->read, rrq);
@@ -731,7 +723,7 @@ static void tty3270_issue_read(struct tty3270 *tp, int lock)
 	rrq->callback = tty3270_read_callback;
 	rrq->callback_data = tp;
 	raw3270_request_set_cmd(rrq, TC_READMOD);
-	raw3270_request_set_data(rrq, tp->input->string, tp->input->len);
+	raw3270_request_set_data(rrq, tp->input, tty3270_input_size(tp->view.cols));
 	/* Issue the read modified request. */
 	if (lock) {
 		rc = raw3270_start(&tp->view, rrq);
@@ -938,6 +930,8 @@ static void tty3270_resize(struct raw3270_view *view,
 {
 	struct tty3270 *tp = container_of(view, struct tty3270, view);
 	struct tty3270_line *screen, *oscreen;
+	char *old_prompt, *new_prompt;
+	char *old_input, *new_input;
 	struct tty_struct *tty;
 	struct winsize ws;
 	int new_allocated, old_allocated = tp->allocated_lines;
@@ -950,9 +944,17 @@ static void tty3270_resize(struct raw3270_view *view,
 		spin_unlock_irq(&tp->view.lock);
 		return;
 	}
+
+	new_input = kzalloc(tty3270_input_size(new_cols), GFP_KERNEL | GFP_DMA);
+	if (!new_input)
+		return;
+	new_prompt = kzalloc(tty3270_input_size(new_cols), GFP_KERNEL);
+	if (!new_prompt)
+		goto out_input;
 	screen = tty3270_alloc_screen(tp, new_rows, new_cols, &new_allocated);
 	if (IS_ERR(screen))
-		return;
+		goto out_prompt;
+
 	/* Switch to new output size */
 	spin_lock_irq(&tp->view.lock);
 	tty3270_blank_screen(tp);
@@ -962,12 +964,15 @@ static void tty3270_resize(struct raw3270_view *view,
 	tp->view.rows = new_rows;
 	tp->view.cols = new_cols;
 	tp->view.model = new_model;
-
-	free_string(&tp->freemem, tp->prompt);
-	tty3270_create_prompt(tp);
 	tp->update_flags = TTY_UPDATE_ALL;
+	old_input = tp->input;
+	old_prompt = tp->prompt;
+	tp->input = new_input;
+	tp->prompt = new_prompt;
 	spin_unlock_irq(&tp->view.lock);
 	tty3270_free_screen(oscreen, old_allocated);
+	kfree(old_input);
+	kfree(old_prompt);
 	tty3270_set_timer(tp, 1);
 	/* Informat tty layer about new size */
 	tty = tty_port_tty_get(&tp->port);
@@ -977,6 +982,11 @@ static void tty3270_resize(struct raw3270_view *view,
 	ws.ws_col = tp->view.cols;
 	tty_do_resize(tty, &ws);
 	tty_kref_put(tty);
+	return;
+out_prompt:
+	kfree(new_prompt);
+out_input:
+	kfree(new_input);
 }
 
 /*
@@ -1006,6 +1016,8 @@ static void tty3270_free(struct raw3270_view *view)
 	del_timer_sync(&tp->timer);
 	tty3270_free_screen(tp->screen, tp->allocated_lines);
 	free_page((unsigned long)tp->converted_line);
+	kfree(tp->input);
+	kfree(tp->prompt);
 	tty3270_free_view(tp);
 }
 
@@ -1065,7 +1077,17 @@ tty3270_create_view(int index, struct tty3270 **newtp)
 		goto out_free_screen;
 	}
 
-	tty3270_create_prompt(tp);
+	tp->input = kzalloc(tty3270_input_size(tp->view.cols), GFP_KERNEL | GFP_DMA);
+	if (!tp->input) {
+		rc = -ENOMEM;
+		goto out_free_converted_line;
+	}
+
+	tp->prompt = kzalloc(tty3270_input_size(tp->view.cols), GFP_KERNEL);
+	if (!tp->prompt) {
+		rc = -ENOMEM;
+		goto out_free_input;
+	}
 
 	/* Create blank line for every line in the tty output area. */
 	tty3270_blank_screen(tp);
@@ -1082,6 +1104,10 @@ tty3270_create_view(int index, struct tty3270 **newtp)
 	*newtp = tp;
 	return 0;
 
+out_free_input:
+	kfree(tp->input);
+out_free_converted_line:
+	free_page((unsigned long)tp->converted_line);
 out_free_screen:
 	tty3270_free_screen(tp->screen, tp->view.rows);
 out_put_view:
