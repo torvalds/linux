@@ -189,6 +189,11 @@ device data.
     * - ``nvm-flash``
       - The contents of the entire flash chip, sometimes referred to as
         the device's Non Volatile Memory.
+    * - ``shadow-ram``
+      - The contents of the Shadow RAM, which is loaded from the beginning
+        of the flash. Although the contents are primarily from the flash,
+        this area also contains data generated during device boot which is
+        not stored in flash.
     * - ``device-caps``
       - The contents of the device firmware's capabilities buffer. Useful to
         determine the current state and configuration of the device.
