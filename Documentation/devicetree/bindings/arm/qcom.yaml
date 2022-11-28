@@ -179,6 +179,7 @@ properties:
       - items:
           - enum:
               - fairphone,fp2
+              - oneplus,bacon
               - samsung,klte
               - sony,xperia-castor
           - const: qcom,msm8974pro
