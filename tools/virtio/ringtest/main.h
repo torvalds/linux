@@ -149,16 +149,16 @@ static inline void busy_wait(void)
 static __always_inline
 void __read_once_size(const volatile void *p, void *res, int size)
 {
-        switch (size) {                                                 \
-        case 1: *(unsigned char *)res = *(volatile unsigned char *)p; break;              \
-        case 2: *(unsigned short *)res = *(volatile unsigned short *)p; break;            \
-        case 4: *(unsigned int *)res = *(volatile unsigned int *)p; break;            \
-        case 8: *(unsigned long long *)res = *(volatile unsigned long long *)p; break;            \
-        default:                                                        \
-                barrier();                                              \
-                __builtin_memcpy((void *)res, (const void *)p, size);   \
-                barrier();                                              \
-        }                                                               \
+	switch (size) {
+	case 1: *(unsigned char *)res = *(volatile unsigned char *)p; break;
+	case 2: *(unsigned short *)res = *(volatile unsigned short *)p; break;
+	case 4: *(unsigned int *)res = *(volatile unsigned int *)p; break;
+	case 8: *(unsigned long long *)res = *(volatile unsigned long long *)p; break;
+	default:
+		barrier();
+		__builtin_memcpy((void *)res, (const void *)p, size);
+		barrier();
+	}
 }
 
 static __always_inline void __write_once_size(volatile void *p, void *res, int size)
