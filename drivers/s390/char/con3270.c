@@ -42,6 +42,7 @@ static struct tty3270 *condev;
 static struct raw3270_fn tty3270_fn;
 
 struct tty3270_attribute {
+	unsigned char alternate_charset:1;	/* Graphics charset */
 	unsigned char highlight;		/* Blink/reverse/underscore */
 	unsigned char f_color;			/* Foreground color */
 	unsigned char b_color;			/* Background color */
@@ -1059,6 +1060,36 @@ static unsigned int tty3270_write_room(struct tty_struct *tty)
 	return INT_MAX;
 }
 
+static char tty3270_graphics_translate(struct tty3270 *tp, char ch)
+{
+	switch (ch) {
+	case 'q': /* - */
+		return 0xa2;
+	case 'x': /* '|' */
+		return 0x85;
+	case 'l': /* |- */
+		return 0xc5;
+	case 't': /* |_ */
+		return 0xc6;
+	case 'u': /* _| */
+		return 0xd6;
+	case 'k': /* -| */
+		return 0xd5;
+	case 'j':
+		return 0xd4;
+	case 'm':
+		return 0xc4;
+	case 'n': /* + */
+		return 0xd3;
+	case 'v':
+		return 0xc7;
+	case 'w':
+		return 0xd7;
+	default:
+		return ch;
+	}
+}
+
 /*
  * Insert character into the screen at the current position with the
  * current color and highlight. This function does NOT do cursor movement.
@@ -1079,7 +1110,10 @@ static void tty3270_put_character(struct tty3270 *tp, char ch)
 		line->len++;
 	}
 	cell = line->cells + tp->cx;
-	cell->character = tp->view.ascebc[(unsigned int) ch];
+	if (tp->attributes.alternate_charset)
+		cell->character = tty3270_graphics_translate(tp, ch);
+	else
+		cell->character = tp->view.ascebc[(unsigned int)ch];
 	cell->attributes = tp->attributes;
 }
 
@@ -1116,6 +1150,8 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 			flen += 3;	/* TO_SA to switch color. */
 			b_color = cell->attributes.b_color;
 		}
+		if (cell->attributes.alternate_charset)
+			flen += 1;	/* TO_GE to switch to graphics extensions */
 	}
 	if (highlight != TAX_RESET)
 		flen += 3;	/* TO_SA to reset hightlight. */
@@ -1173,6 +1209,8 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 			*cp++ = cell->attributes.b_color;
 			b_color = cell->attributes.b_color;
 		}
+		if (cell->attributes.alternate_charset)
+			*cp++ = TO_GE;
 
 		*cp++ = cell->character;
 	}
@@ -1706,7 +1744,11 @@ static void tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
 		case 0x0d:		/* '\r' -- Carriage Return */
 			tp->cx = 0;
 			break;
+		case 0x0e:
+			tp->attributes.alternate_charset = 1;
+			break;
 		case 0x0f:		/* SuSE "exit alternate mode" */
+			tp->attributes.alternate_charset = 0;
 			break;
 		case 0x1b:		/* Start escape sequence. */
 			tty3270_escape_sequence(tp, buf[i_msg]);

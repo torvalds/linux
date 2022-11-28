@@ -28,6 +28,7 @@
 #define TC_WRITESF	0x11		/* Write structured field */
 
 /* Buffer Control Orders */
+#define TO_GE		0x08		/* Graphics Escape */
 #define TO_SF		0x1d		/* Start field */
 #define TO_SBA		0x11		/* Set buffer address */
 #define TO_IC		0x13		/* Insert cursor */
