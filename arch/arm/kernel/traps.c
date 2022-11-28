@@ -186,12 +186,14 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 			else
 				bad = get_kernel_nofault(tmp, &((u16 *)addr)[i]);
 
-			val = tmp;
+			val = __mem_to_opcode_thumb16(tmp);
 		} else {
 			if (user_mode(regs))
 				bad = get_user(val, &((u32 __user *)addr)[i]);
 			else
 				bad = get_kernel_nofault(val, &((u32 *)addr)[i]);
+
+			val = __mem_to_opcode_arm(val);
 		}
 
 		if (!bad)
