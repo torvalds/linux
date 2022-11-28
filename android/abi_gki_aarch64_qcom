@@ -1,6 +1,7 @@
 [abi_symbol_list]
   __ClearPageMovable
   __SetPageMovable
+  ___pskb_trim
   ___ratelimit
   __alloc_pages
   __alloc_percpu
@@ -36,7 +37,9 @@
   __cpuhp_setup_state_cpuslocked
   __cpuhp_state_add_instance
   __cpuhp_state_remove_instance
+  __dev_get_by_index
   __dev_kfree_skb_any
+  __dev_queue_xmit
   __devm_iio_device_register
   __devm_of_phy_provider_register
   __devm_regmap_init
@@ -108,6 +111,8 @@
   __napi_schedule
   __netdev_alloc_skb
   __netif_napi_del
+  __nla_parse
+  __nlmsg_put
   __num_online_cpus
   __of_get_address
   __of_parse_phandle_with_args
@@ -142,6 +147,8 @@
   __sg_page_iter_dma_next
   __sg_page_iter_next
   __sg_page_iter_start
+  __skb_get_hash
+  __skb_gso_segment
   __skb_pad
   __spi_alloc_controller
   __spi_register_driver
@@ -372,6 +379,7 @@
   bpf_trace_run7
   bpf_trace_run8
   bpf_trace_run9
+  build_skb
   bus_find_device
   bus_for_each_dev
   bus_register
@@ -566,13 +574,16 @@
   delayed_work_timer_fn
   desc_to_gpio
   destroy_workqueue
+  dev_addr_mod
   dev_change_flags
   dev_coredumpm
   dev_coredumpv
   dev_driver_string
   dev_err_probe
   dev_fwnode
+  dev_get_by_index
   dev_get_by_name
+  dev_get_by_name_rcu
   dev_get_regmap
   dev_get_stats
   dev_pm_clear_wake_irq
@@ -795,6 +806,7 @@
   dma_unmap_sg_attrs
   dmam_alloc_attrs
   dmam_free_coherent
+  do_trace_netlink_extack
   do_trace_rcu_torture_read
   do_wait_intr
   do_wait_intr_irq
@@ -967,6 +979,7 @@
   drm_universal_plane_init
   drm_vblank_init
   drmm_mode_config_init
+  dst_release
   dump_stack
   edac_device_add_device
   edac_device_alloc_ctl_info
@@ -1069,6 +1082,9 @@
   geni_se_select_mode
   geni_se_tx_dma_prep
   geni_se_tx_dma_unprep
+  genl_register_family
+  genl_unregister_family
+  genlmsg_put
   genphy_read_abilities
   genphy_read_mmd_unsupported
   genphy_read_status
@@ -1127,6 +1143,9 @@
   gpiod_set_value
   gpiod_set_value_cansleep
   gpiod_to_irq
+  gro_cells_destroy
+  gro_cells_init
+  gro_cells_receive
   handle_bad_irq
   handle_edge_irq
   handle_fasteoi_ack_irq
@@ -1207,6 +1226,7 @@
   iio_read_channel_processed
   iio_write_channel_raw
   in4_pton
+  in6_pton
   in_egroup_p
   inc_node_page_state
   inc_zone_page_state
@@ -1274,9 +1294,13 @@
   iounmap
   iov_iter_init
   iov_iter_revert
+  ip_compute_csum
+  ip_route_output_flow
   ipi_desc_get
   iput
   ipv6_ext_hdr
+  ipv6_skip_exthdr
+  ipv6_stub
   irq_check_status_bit
   irq_chip_ack_parent
   irq_chip_disable_parent
@@ -1425,6 +1449,7 @@
   ktime_get_ts64
   ktime_get_with_offset
   kvfree
+  kvfree_call_rcu
   kvmalloc_node
   led_classdev_flash_register_ext
   led_classdev_flash_unregister
@@ -1511,8 +1536,13 @@
   napi_disable
   napi_enable
   napi_schedule_prep
+  neigh_destroy
+  neigh_resolve_output
   netdev_alert
+  netdev_core_stats_alloc
   netdev_rss_key_fill
+  netdev_rx_handler_register
+  netdev_rx_handler_unregister
   netif_carrier_off
   netif_carrier_on
   netif_device_attach
@@ -1520,7 +1550,13 @@
   netif_napi_add_weight
   netif_receive_skb
   netif_rx
+  netif_tx_lock
+  netif_tx_unlock
   netif_tx_wake_queue
+  netlink_broadcast
+  netlink_unicast
+  nla_memcpy
+  nla_put
   nonseekable_open
   noop_llseek
   nr_cpu_ids
@@ -1642,12 +1678,14 @@
   panic_timeout
   param_array_ops
   param_get_int
+  param_get_ullong
   param_ops_bool
   param_ops_charp
   param_ops_int
   param_ops_string
   param_ops_uint
   param_ops_ullong
+  param_ops_ulong
   param_set_bool
   param_set_int
   pci_aer_clear_nonfatal_status
@@ -1813,14 +1851,17 @@
   preempt_schedule_notrace
   prepare_to_wait_event
   print_hex_dump
+  proc_create
   proc_create_data
   proc_dointvec
   proc_dointvec_minmax
   proc_dostring
   proc_douintvec_minmax
   proc_mkdir
+  proc_set_user
   proto_register
   proto_unregister
+  pskb_expand_head
   ptp_clock_event
   ptp_clock_index
   ptp_clock_register
@@ -1900,6 +1941,8 @@
   register_memory_notifier
   register_module_notifier
   register_netdev
+  register_netdevice
+  register_netdevice_notifier
   register_oom_notifier
   register_pm_notifier
   register_qdisc
@@ -1997,6 +2040,13 @@
   rtc_time64_to_tm
   rtc_tm_to_time64
   rtc_update_irq
+  rtnl_is_locked
+  rtnl_link_register
+  rtnl_link_unregister
+  rtnl_lock
+  rtnl_trylock
+  rtnl_unicast
+  rtnl_unlock
   runqueues
   scatterwalk_ffwd
   scatterwalk_map_and_copy
@@ -2083,6 +2133,8 @@
   sk_error_report
   sk_free
   skb_add_rx_frag
+  skb_append_pagefrags
+  skb_checksum
   skb_clone
   skb_copy
   skb_copy_bits
@@ -2090,6 +2142,7 @@
   skb_copy_datagram_iter
   skb_copy_expand
   skb_dequeue
+  skb_dequeue_tail
   skb_free_datagram
   skb_pull
   skb_push
@@ -2125,6 +2178,7 @@
   sock_release
   sock_setsockopt
   sock_unregister
+  softnet_data
   sort
   spi_register_controller
   spi_setup
@@ -2163,6 +2217,7 @@
   stop_one_cpu
   stop_one_cpu_nowait
   strcasecmp
+  strchr
   strcmp
   strcpy
   strim
@@ -2334,6 +2389,9 @@
   unregister_kprobe
   unregister_kretprobe
   unregister_netdev
+  unregister_netdevice_many
+  unregister_netdevice_notifier
+  unregister_netdevice_queue
   unregister_oom_notifier
   unregister_pm_notifier
   unregister_qdisc
@@ -2461,6 +2519,7 @@
   xa_store
   xdp_rxq_info_is_reg
   xdp_rxq_info_unreg_mem_model
+  xfrm_lookup
   xhci_get_endpoint_index
   xp_alloc
   xp_dma_map
