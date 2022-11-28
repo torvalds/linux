@@ -171,12 +171,17 @@ properties:
 
       - items:
           - enum:
-              - fairphone,fp2
               - lge,hammerhead
-              - samsung,klte
               - sony,xperia-amami
-              - sony,xperia-castor
               - sony,xperia-honami
+          - const: qcom,msm8974
+
+      - items:
+          - enum:
+              - fairphone,fp2
+              - samsung,klte
+              - sony,xperia-castor
+          - const: qcom,msm8974pro
           - const: qcom,msm8974
 
       - items:
