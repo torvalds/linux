@@ -429,7 +429,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 
 	aqic_gisa.isc = nisc;
 	aqic_gisa.ir = 1;
-	aqic_gisa.gisa = (uint64_t)gisa >> 4;
+	aqic_gisa.gisa = virt_to_phys(gisa) >> 4;
 
 	status = ap_aqic(q->apqn, aqic_gisa, h_nib);
 	switch (status.response_code) {
