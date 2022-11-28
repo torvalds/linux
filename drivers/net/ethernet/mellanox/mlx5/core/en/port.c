@@ -287,6 +287,78 @@ int mlx5e_port_set_pbmc(struct mlx5_core_dev *mdev, void *in)
 	return err;
 }
 
+int mlx5e_port_query_sbpr(struct mlx5_core_dev *mdev, u32 desc, u8 dir,
+			  u8 pool_idx, void *out, int size_out)
+{
+	u32 in[MLX5_ST_SZ_DW(sbpr_reg)] = {};
+
+	MLX5_SET(sbpr_reg, in, desc, desc);
+	MLX5_SET(sbpr_reg, in, dir, dir);
+	MLX5_SET(sbpr_reg, in, pool, pool_idx);
+
+	return mlx5_core_access_reg(mdev, in, sizeof(in), out, size_out, MLX5_REG_SBPR, 0, 0);
+}
+
+int mlx5e_port_set_sbpr(struct mlx5_core_dev *mdev, u32 desc, u8 dir,
+			u8 pool_idx, u32 infi_size, u32 size)
+{
+	u32 out[MLX5_ST_SZ_DW(sbpr_reg)] = {};
+	u32 in[MLX5_ST_SZ_DW(sbpr_reg)] = {};
+
+	MLX5_SET(sbpr_reg, in, desc, desc);
+	MLX5_SET(sbpr_reg, in, dir, dir);
+	MLX5_SET(sbpr_reg, in, pool, pool_idx);
+	MLX5_SET(sbpr_reg, in, infi_size, infi_size);
+	MLX5_SET(sbpr_reg, in, size, size);
+	MLX5_SET(sbpr_reg, in, mode, 1);
+
+	return mlx5_core_access_reg(mdev, in, sizeof(in), out, sizeof(out), MLX5_REG_SBPR, 0, 1);
+}
+
+static int mlx5e_port_query_sbcm(struct mlx5_core_dev *mdev, u32 desc,
+				 u8 pg_buff_idx, u8 dir, void *out,
+				 int size_out)
+{
+	u32 in[MLX5_ST_SZ_DW(sbcm_reg)] = {};
+
+	MLX5_SET(sbcm_reg, in, desc, desc);
+	MLX5_SET(sbcm_reg, in, local_port, 1);
+	MLX5_SET(sbcm_reg, in, pg_buff, pg_buff_idx);
+	MLX5_SET(sbcm_reg, in, dir, dir);
+
+	return mlx5_core_access_reg(mdev, in, sizeof(in), out, size_out, MLX5_REG_SBCM, 0, 0);
+}
+
+int mlx5e_port_set_sbcm(struct mlx5_core_dev *mdev, u32 desc, u8 pg_buff_idx,
+			u8 dir, u8 infi_size, u32 max_buff, u8 pool_idx)
+{
+	u32 out[MLX5_ST_SZ_DW(sbcm_reg)] = {};
+	u32 in[MLX5_ST_SZ_DW(sbcm_reg)] = {};
+	u32 min_buff;
+	int err;
+	u8 exc;
+
+	err = mlx5e_port_query_sbcm(mdev, desc, pg_buff_idx, dir, out,
+				    sizeof(out));
+	if (err)
+		return err;
+
+	exc = MLX5_GET(sbcm_reg, out, exc);
+	min_buff = MLX5_GET(sbcm_reg, out, min_buff);
+
+	MLX5_SET(sbcm_reg, in, desc, desc);
+	MLX5_SET(sbcm_reg, in, local_port, 1);
+	MLX5_SET(sbcm_reg, in, pg_buff, pg_buff_idx);
+	MLX5_SET(sbcm_reg, in, dir, dir);
+	MLX5_SET(sbcm_reg, in, exc, exc);
+	MLX5_SET(sbcm_reg, in, min_buff, min_buff);
+	MLX5_SET(sbcm_reg, in, infi_max, infi_size);
+	MLX5_SET(sbcm_reg, in, max_buff, max_buff);
+	MLX5_SET(sbcm_reg, in, pool, pool_idx);
+
+	return mlx5_core_access_reg(mdev, in, sizeof(in), out, sizeof(out), MLX5_REG_SBCM, 0, 1);
+}
+
 /* buffer[i]: buffer that priority i mapped to */
 int mlx5e_port_query_priority2buffer(struct mlx5_core_dev *mdev, u8 *buffer)
 {
