@@ -552,38 +552,6 @@ static void vcpu_setup(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 	vcpu_sregs_set(vcpu, &sregs);
 }
 
-void __vm_xsave_require_permission(int bit, const char *name)
-{
-	int kvm_fd;
-	u64 bitmask;
-	long rc;
-	struct kvm_device_attr attr = {
-		.group = 0,
-		.attr = KVM_X86_XCOMP_GUEST_SUPP,
-		.addr = (unsigned long) &bitmask
-	};
-
-	kvm_fd = open_kvm_dev_path_or_exit();
-	rc = __kvm_ioctl(kvm_fd, KVM_GET_DEVICE_ATTR, &attr);
-	close(kvm_fd);
-
-	if (rc == -1 && (errno == ENXIO || errno == EINVAL))
-		__TEST_REQUIRE(0, "KVM_X86_XCOMP_GUEST_SUPP not supported");
-
-	TEST_ASSERT(rc == 0, "KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) error: %ld", rc);
-
-	__TEST_REQUIRE(bitmask & (1ULL << bit),
-		       "Required XSAVE feature '%s' not supported", name);
-
-	TEST_REQUIRE(!syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM, bit));
-
-	rc = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_GUEST_PERM, &bitmask);
-	TEST_ASSERT(rc == 0, "prctl(ARCH_GET_XCOMP_GUEST_PERM) error: %ld", rc);
-	TEST_ASSERT(bitmask & (1ULL << bit),
-		    "prctl(ARCH_REQ_XCOMP_GUEST_PERM) failure bitmask=0x%lx",
-		    bitmask);
-}
-
 void kvm_arch_vm_post_create(struct kvm_vm *vm)
 {
 	vm_create_irqchip(vm);
@@ -703,6 +671,38 @@ uint64_t kvm_get_feature_msr(uint64_t msr_index)
 
 	close(kvm_fd);
 	return buffer.entry.data;
+}
+
+void __vm_xsave_require_permission(int bit, const char *name)
+{
+	int kvm_fd;
+	u64 bitmask;
+	long rc;
+	struct kvm_device_attr attr = {
+		.group = 0,
+		.attr = KVM_X86_XCOMP_GUEST_SUPP,
+		.addr = (unsigned long) &bitmask
+	};
+
+	kvm_fd = open_kvm_dev_path_or_exit();
+	rc = __kvm_ioctl(kvm_fd, KVM_GET_DEVICE_ATTR, &attr);
+	close(kvm_fd);
+
+	if (rc == -1 && (errno == ENXIO || errno == EINVAL))
+		__TEST_REQUIRE(0, "KVM_X86_XCOMP_GUEST_SUPP not supported");
+
+	TEST_ASSERT(rc == 0, "KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) error: %ld", rc);
+
+	__TEST_REQUIRE(bitmask & (1ULL << bit),
+		       "Required XSAVE feature '%s' not supported", name);
+
+	TEST_REQUIRE(!syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM, bit));
+
+	rc = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_GUEST_PERM, &bitmask);
+	TEST_ASSERT(rc == 0, "prctl(ARCH_GET_XCOMP_GUEST_PERM) error: %ld", rc);
+	TEST_ASSERT(bitmask & (1ULL << bit),
+		    "prctl(ARCH_REQ_XCOMP_GUEST_PERM) failure bitmask=0x%lx",
+		    bitmask);
 }
 
 void vcpu_init_cpuid(struct kvm_vcpu *vcpu, const struct kvm_cpuid2 *cpuid)
