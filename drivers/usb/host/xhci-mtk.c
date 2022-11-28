@@ -646,7 +646,6 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 
 dealloc_usb3_hcd:
 	usb_remove_hcd(xhci->shared_hcd);
-	xhci->shared_hcd = NULL;
 
 put_usb3_hcd:
 	usb_put_hcd(xhci->shared_hcd);
