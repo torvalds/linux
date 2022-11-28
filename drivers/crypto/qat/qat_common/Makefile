@@ -16,6 +16,7 @@ intel_qat-objs := adf_cfg.o \
 	adf_gen4_hw_data.o \
 	adf_gen4_pm.o \
 	adf_gen2_dc.o \
+	adf_gen4_dc.o \
 	qat_crypto.o \
 	qat_compression.o \
 	qat_comp_algs.o \
