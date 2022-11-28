@@ -1047,6 +1047,17 @@ bool f2fs_lookup_read_extent_cache(struct inode *inode, pgoff_t pgofs,
 	return __lookup_extent_tree(inode, pgofs, ei, EX_READ);
 }
 
+bool f2fs_lookup_read_extent_cache_block(struct inode *inode, pgoff_t index,
+				block_t *blkaddr)
+{
+	struct extent_info ei = {};
+
+	if (!f2fs_lookup_read_extent_cache(inode, index, &ei))
+		return false;
+	*blkaddr = ei.blk + index - ei.fofs;
+	return true;
+}
+
 void f2fs_update_read_extent_cache(struct dnode_of_data *dn)
 {
 	return __update_extent_cache(dn, EX_READ);
