@@ -1195,16 +1195,29 @@ svm_range_get_pte_flags(struct kfd_node *node,
 		//e.g. NPS4. Current approch is only applicable without memory
 		//partitions.
 		snoop = true;
-		if (uncached)
+		if (uncached) {
 			mapping_flags |= AMDGPU_VM_MTYPE_UC;
-		/* local HBM region close to partition*/
-		else if (bo_node == node)
-			mapping_flags |= AMDGPU_VM_MTYPE_RW;
-		/* local HBM region far from partition or remote XGMI GPU or
-		 * system memory
-		 */
-		else
+		} else if (domain == SVM_RANGE_VRAM_DOMAIN) {
+			/* local HBM region close to partition with a workaround
+			 * for Endpoint systems.
+			 */
+			if (bo_node == node)
+				mapping_flags |=
+					(node->adev->flags & AMD_IS_APU) ?
+					AMDGPU_VM_MTYPE_RW : AMDGPU_VM_MTYPE_NC;
+			/* local HBM region far from partition or remote XGMI GPU */
+			else if (svm_nodes_in_same_hive(bo_node, node))
+				mapping_flags |= AMDGPU_VM_MTYPE_NC;
+			/* PCIe P2P */
+			else
+				mapping_flags |= AMDGPU_VM_MTYPE_UC;
+		/* system memory accessed by the APU */
+		} else if (node->adev->flags & AMD_IS_APU) {
 			mapping_flags |= AMDGPU_VM_MTYPE_NC;
+		/* system memory accessed by the dGPU */
+		} else {
+			mapping_flags |= AMDGPU_VM_MTYPE_UC;
+		}
 		break;
 	default:
 		mapping_flags |= coherent ?
