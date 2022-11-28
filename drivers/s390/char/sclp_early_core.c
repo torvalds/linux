@@ -17,7 +17,7 @@
 
 static struct read_info_sccb __bootdata(sclp_info_sccb);
 static int __bootdata(sclp_info_sccb_valid);
-char *__bootdata(sclp_early_sccb);
+char *__bootdata_preserved(sclp_early_sccb);
 int sclp_init_state = sclp_init_state_uninitialized;
 /*
  * Used to keep track of the size of the event masks. Qemu until version 2.11
