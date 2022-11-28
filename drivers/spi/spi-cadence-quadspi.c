@@ -1119,6 +1119,14 @@ static void cqspi_config_baudrate_div(struct cqspi_st *cqspi)
 	/* Recalculate the baudrate divisor based on QSPI specification. */
 	div = DIV_ROUND_UP(ref_clk_hz, 2 * cqspi->sclk) - 1;
 
+	/* Maximum baud divisor */
+	if (div > CQSPI_REG_CONFIG_BAUD_MASK) {
+		div = CQSPI_REG_CONFIG_BAUD_MASK;
+		dev_warn(&cqspi->pdev->dev,
+			"Unable to adjust clock <= %d hz. Reduced to %d hz\n",
+			cqspi->sclk, ref_clk_hz/((div+1)*2));
+	}
+
 	reg = readl(reg_base + CQSPI_REG_CONFIG);
 	reg &= ~(CQSPI_REG_CONFIG_BAUD_MASK << CQSPI_REG_CONFIG_BAUD_LSB);
 	reg |= (div & CQSPI_REG_CONFIG_BAUD_MASK) << CQSPI_REG_CONFIG_BAUD_LSB;
