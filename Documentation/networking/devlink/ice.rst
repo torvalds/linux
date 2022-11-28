@@ -198,8 +198,12 @@ device data.
       - The contents of the device firmware's capabilities buffer. Useful to
         determine the current state and configuration of the device.
 
-Users can request an immediate capture of a snapshot via the
-``DEVLINK_CMD_REGION_NEW``
+Both the ``nvm-flash`` and ``shadow-ram`` regions can be accessed without a
+snapshot. The ``device-caps`` region requires a snapshot as the contents are
+sent by firmware and can't be split into separate reads.
+
+Users can request an immediate capture of a snapshot for all three regions
+via the ``DEVLINK_CMD_REGION_NEW`` command.
 
 .. code:: shell
 
