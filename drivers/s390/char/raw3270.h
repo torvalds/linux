@@ -182,6 +182,7 @@ struct raw3270_view *raw3270_view(struct raw3270_view *);
 int raw3270_view_active(struct raw3270_view *);
 int raw3270_start_request(struct raw3270_view *view, struct raw3270_request *rq,
 			  int cmd, void *data, size_t len);
+void raw3270_read_modified_cb(struct raw3270_request *rq, void *data);
 
 /* Reference count inliner for view structures. */
 static inline void

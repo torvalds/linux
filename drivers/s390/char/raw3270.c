@@ -465,15 +465,14 @@ static void raw3270_size_device_vm(struct raw3270 *rp)
 	}
 }
 
-static void raw3270_size_device(struct raw3270 *rp)
+static void raw3270_size_device(struct raw3270 *rp, char *init_data)
 {
 	struct raw3270_ua *uap;
 
 	/* Got a Query Reply */
-	uap = (struct raw3270_ua *) (rp->init_data + 1);
+	uap = (struct raw3270_ua *)(init_data + 1);
 	/* Paranoia check. */
-	if (rp->init_readmod.rc || rp->init_data[0] != 0x88 ||
-	    uap->uab.qcode != 0x81) {
+	if (init_data[0] != 0x88 || uap->uab.qcode != 0x81) {
 		/* Couldn't detect size. Use default model 2. */
 		rp->model = 2;
 		rp->rows = 24;
@@ -534,11 +533,10 @@ static void raw3270_size_device_done(struct raw3270 *rp)
 	schedule_work(&rp->resize_work);
 }
 
-static void raw3270_read_modified_cb(struct raw3270_request *rq, void *data)
+void raw3270_read_modified_cb(struct raw3270_request *rq, void *data)
 {
 	struct raw3270 *rp = rq->view->dev;
-
-	raw3270_size_device(rp);
+	raw3270_size_device(rp, data);
 	raw3270_size_device_done(rp);
 }
 
@@ -554,6 +552,7 @@ static void raw3270_read_modified(struct raw3270 *rp)
 	rp->init_readmod.ccw.count = sizeof(rp->init_data);
 	rp->init_readmod.ccw.cda = (__u32) __pa(rp->init_data);
 	rp->init_readmod.callback = raw3270_read_modified_cb;
+	rp->init_readmod.callback_data = rp->init_data;
 	rp->state = RAW3270_STATE_READMOD;
 	raw3270_start_irq(&rp->init_view, &rp->init_readmod);
 }
@@ -1287,6 +1286,7 @@ module_init(raw3270_init);
 module_exit(raw3270_exit);
 
 EXPORT_SYMBOL(class3270);
+EXPORT_SYMBOL(raw3270_read_modified_cb);
 EXPORT_SYMBOL(raw3270_request_alloc);
 EXPORT_SYMBOL(raw3270_request_free);
 EXPORT_SYMBOL(raw3270_request_reset);

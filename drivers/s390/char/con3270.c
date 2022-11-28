@@ -58,6 +58,10 @@ struct tty3270_line {
 	int len;
 };
 
+static const unsigned char sfq_read_partition[] = {
+	0x00, 0x07, 0x01, 0xff, 0x03, 0x00, 0x81
+};
+
 #define ESCAPE_NPAR 8
 
 /*
@@ -95,6 +99,7 @@ struct tty3270 {
 	struct string *input;		/* Input string for read request. */
 	struct raw3270_request *read;	/* Single read request. */
 	struct raw3270_request *kreset;	/* Single keyboard reset request. */
+	struct raw3270_request *readpartreq;
 	unsigned char inattr;		/* Visible/invisible input. */
 	int throttle, attn;		/* tty throttle/unthrottle. */
 	struct tasklet_struct readlet;	/* Tasklet to issue read request. */
@@ -581,6 +586,14 @@ static void tty3270_read_tasklet(unsigned long data)
 		/* Display has been cleared. Redraw. */
 		tp->update_flags = TTY_UPDATE_ALL;
 		tty3270_set_timer(tp, 1);
+		if (!list_empty(&tp->readpartreq->list))
+			break;
+		raw3270_start_request(&tp->view, tp->readpartreq, TC_WRITESF,
+				      (char *)sfq_read_partition, sizeof(sfq_read_partition));
+		break;
+	case AID_READ_PARTITION:
+		raw3270_read_modified_cb(tp->readpartreq, tp->input->string);
+		break;
 	default:
 		break;
 	}
@@ -731,9 +744,12 @@ static struct tty3270 *tty3270_alloc_view(void)
 	tp->kreset = raw3270_request_alloc(1);
 	if (IS_ERR(tp->kreset))
 		goto out_read;
+	tp->readpartreq = raw3270_request_alloc(sizeof(sfq_read_partition));
+	if (IS_ERR(tp->readpartreq))
+		goto out_reset;
 	tp->kbd = kbd_alloc();
 	if (!tp->kbd)
-		goto out_reset;
+		goto out_readpartreq;
 
 	tty_port_init(&tp->port);
 	timer_setup(&tp->timer, tty3270_update, 0);
@@ -743,6 +759,8 @@ static struct tty3270 *tty3270_alloc_view(void)
 		     (unsigned long) tp);
 	return tp;
 
+out_readpartreq:
+	raw3270_request_free(tp->readpartreq);
 out_reset:
 	raw3270_request_free(tp->kreset);
 out_read:
