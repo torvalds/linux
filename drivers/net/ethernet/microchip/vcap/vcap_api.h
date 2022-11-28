@@ -268,7 +268,6 @@ struct vcap_operations {
 
 /* VCAP API Client control interface */
 struct vcap_control {
-	u32 rule_id; /* last used rule id (unique across VCAP instances) */
 	struct vcap_operations *ops;  /* client supplied operations */
 	const struct vcap_info *vcaps; /* client supplied vcap models */
 	const struct vcap_statistics *stats; /* client supplied vcap stats */

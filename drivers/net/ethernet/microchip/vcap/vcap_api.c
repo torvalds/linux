@@ -985,17 +985,12 @@ static u32 vcap_next_rule_addr(u32 addr, struct vcap_rule_internal *ri)
 /* Assign a unique rule id and autogenerate one if id == 0 */
 static u32 vcap_set_rule_id(struct vcap_rule_internal *ri)
 {
-	u32 next_id;
-
 	if (ri->data.id != 0)
 		return ri->data.id;
 
-	next_id = ri->vctrl->rule_id + 1;
-
-	for (next_id = ri->vctrl->rule_id + 1; next_id < ~0; ++next_id) {
+	for (u32 next_id = 1; next_id < ~0; ++next_id) {
 		if (!vcap_lookup_rule(ri->vctrl, next_id)) {
 			ri->data.id = next_id;
-			ri->vctrl->rule_id = next_id;
 			break;
 		}
 	}
