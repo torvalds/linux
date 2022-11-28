@@ -158,7 +158,7 @@ static int oxp_platform_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_input:
-			ret = read_from_ec(OXP_SENSOR_PWM_REG, 2, val);
+			ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);
 			if (ret)
 				return ret;
 			if (board == oxp_mini_amd)
