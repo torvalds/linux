@@ -415,8 +415,7 @@ static int sun6i_csi_bridge_s_stream(struct v4l2_subdev *subdev, int on)
 	struct sun6i_csi_bridge_source *source;
 	struct v4l2_subdev *source_subdev;
 	struct media_pad *remote_pad;
-	/* Initialize to 0 to use both in disable label (ret != 0) and off. */
-	int ret = 0;
+	int ret;
 
 	/* Source */
 
@@ -436,6 +435,7 @@ static int sun6i_csi_bridge_s_stream(struct v4l2_subdev *subdev, int on)
 
 	if (!on) {
 		v4l2_subdev_call(source_subdev, video, s_stream, 0);
+		ret = 0;
 		goto disable;
 	}
 
@@ -587,7 +587,7 @@ static const struct v4l2_subdev_pad_ops sun6i_csi_bridge_pad_ops = {
 	.set_fmt	= sun6i_csi_bridge_set_fmt,
 };
 
-const struct v4l2_subdev_ops sun6i_csi_bridge_subdev_ops = {
+static const struct v4l2_subdev_ops sun6i_csi_bridge_subdev_ops = {
 	.video	= &sun6i_csi_bridge_video_ops,
 	.pad	= &sun6i_csi_bridge_pad_ops,
 };
@@ -652,7 +652,7 @@ sun6i_csi_bridge_notifier_bound(struct v4l2_async_notifier *notifier,
 			     async_subdev);
 	struct sun6i_csi_bridge *bridge = &csi_dev->bridge;
 	struct sun6i_csi_bridge_source *source = bridge_async_subdev->source;
-	bool enabled;
+	bool enabled = false;
 	int ret;
 
 	switch (source->endpoint.base.port) {
