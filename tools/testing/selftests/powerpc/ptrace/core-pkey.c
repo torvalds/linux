@@ -383,13 +383,15 @@ static int setup_core_pattern(char **core_pattern_, bool *changed_)
 		goto out;
 	}
 
-	ret = fread(core_pattern, 1, PATH_MAX, f);
+	ret = fread(core_pattern, 1, PATH_MAX - 1, f);
 	fclose(f);
 	if (!ret) {
 		perror("Error reading core_pattern file");
 		ret = TEST_FAIL;
 		goto out;
 	}
+
+	core_pattern[ret] = '\0';
 
 	/* Check whether we can predict the name of the core file. */
 	if (!strcmp(core_pattern, "core") || !strcmp(core_pattern, "core.%p"))
