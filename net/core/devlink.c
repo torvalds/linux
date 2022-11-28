@@ -6431,7 +6431,6 @@ unlock:
 }
 
 static int devlink_nl_cmd_region_read_chunk_fill(struct sk_buff *msg,
-						 struct devlink *devlink,
 						 u8 *chunk, u32 chunk_size,
 						 u64 addr)
 {
@@ -6462,7 +6461,6 @@ nla_put_failure:
 #define DEVLINK_REGION_READ_CHUNK_SIZE 256
 
 static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
-						struct devlink *devlink,
 						struct devlink_snapshot *snapshot,
 						u64 start_offset,
 						u64 end_offset,
@@ -6481,9 +6479,7 @@ static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
 				  DEVLINK_REGION_READ_CHUNK_SIZE);
 
 		data = &snapshot->data[curr_offset];
-		err = devlink_nl_cmd_region_read_chunk_fill(skb, devlink,
-							    data, data_size,
-							    curr_offset);
+		err = devlink_nl_cmd_region_read_chunk_fill(skb, data, data_size, curr_offset);
 		if (err)
 			break;
 
@@ -6612,9 +6608,7 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		goto nla_put_failure;
 	}
 
-	err = devlink_nl_region_read_snapshot_fill(skb, devlink,
-						   snapshot,
-						   start_offset,
+	err = devlink_nl_region_read_snapshot_fill(skb, snapshot, start_offset,
 						   end_offset, &ret_offset);
 
 	if (err && err != -EMSGSIZE)
