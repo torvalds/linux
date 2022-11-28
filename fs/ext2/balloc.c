@@ -667,7 +667,7 @@ ext2_try_to_allocate(struct super_block *sb, int group,
 {
 	ext2_fsblk_t group_first_block = ext2_group_first_block_no(sb, group);
 	ext2_fsblk_t group_last_block = ext2_group_last_block_no(sb, group);
-       	ext2_grpblk_t start, end;
+	ext2_grpblk_t start, end;
 	unsigned long num = 0;
 
 	start = 0;
@@ -1481,11 +1481,11 @@ unsigned long ext2_count_free_blocks (struct super_block * sb)
 		desc_count, bitmap_count);
 	return bitmap_count;
 #else
-        for (i = 0; i < EXT2_SB(sb)->s_groups_count; i++) {
-                desc = ext2_get_group_desc (sb, i, NULL);
-                if (!desc)
-                        continue;
-                desc_count += le16_to_cpu(desc->bg_free_blocks_count);
+	for (i = 0; i < EXT2_SB(sb)->s_groups_count; i++) {
+		desc = ext2_get_group_desc(sb, i, NULL);
+		if (!desc)
+			continue;
+		desc_count += le16_to_cpu(desc->bg_free_blocks_count);
 	}
 	return desc_count;
 #endif
