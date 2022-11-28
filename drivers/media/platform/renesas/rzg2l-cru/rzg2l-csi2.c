@@ -431,8 +431,6 @@ static int rzg2l_csi2_s_stream(struct v4l2_subdev *sd, int enable)
 	int ret;
 
 	if (enable) {
-		int ret;
-
 		ret = pm_runtime_resume_and_get(csi2->dev);
 		if (ret)
 			return ret;
