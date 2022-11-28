@@ -148,16 +148,18 @@ static int rockchip_drm_reserve_vm(struct drm_device *drm, struct drm_mm *mm,
 }
 
 static unsigned long
-rockchip_drm_free_reserved_area(void *start, void *end, int poison, const char *s)
+rockchip_drm_free_reserved_area(phys_addr_t start, phys_addr_t end, int poison, const char *s)
 {
-	void *pos;
 	unsigned long pages = 0;
 
-	start = (void *)PAGE_ALIGN((unsigned long)start);
-	end = (void *)((unsigned long)end & PAGE_MASK);
-	for (pos = start; pos < end; pos += PAGE_SIZE, pages++) {
-		struct page *page = virt_to_page(pos);
+	start = ALIGN_DOWN(start, PAGE_SIZE);
+	end = PAGE_ALIGN(end);
+	for (; start < end; start += PAGE_SIZE) {
+		struct page *page = phys_to_page(start);
 		void *direct_map_addr;
+
+		if (!pfn_valid(__phys_to_pfn(start)))
+			continue;
 
 		/*
 		 * 'direct_map_addr' might be different from 'pos'
@@ -176,6 +178,7 @@ rockchip_drm_free_reserved_area(void *start, void *end, int poison, const char *
 			memset(direct_map_addr, poison, PAGE_SIZE);
 
 		free_reserved_page(page);
+		pages++;
 	}
 
 	if (pages && s)
@@ -188,14 +191,11 @@ void rockchip_free_loader_memory(struct drm_device *drm)
 {
 	struct rockchip_drm_private *private = drm->dev_private;
 	struct rockchip_logo *logo;
-	void *start, *end;
 
 	if (!private || !private->logo || --private->logo->count)
 		return;
 
 	logo = private->logo;
-	start = phys_to_virt(logo->dma_addr);
-	end = phys_to_virt(logo->dma_addr + logo->size);
 
 	if (private->domain) {
 		u32 pg_size = 1UL << __ffs(private->domain->pgsize_bitmap);
@@ -205,7 +205,8 @@ void rockchip_free_loader_memory(struct drm_device *drm)
 	}
 
 	memblock_free(logo->start, logo->size);
-	rockchip_drm_free_reserved_area(start, end, -1, "drm_logo");
+	rockchip_drm_free_reserved_area(logo->dma_addr, logo->dma_addr + logo->size,
+					-1, "drm_logo");
 	kfree(logo);
 	private->logo = NULL;
 	private->loader_protect = false;
