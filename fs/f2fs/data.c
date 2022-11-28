@@ -1212,14 +1212,6 @@ int f2fs_reserve_block(struct dnode_of_data *dn, pgoff_t index)
 	return err;
 }
 
-static int f2fs_get_block(struct dnode_of_data *dn, pgoff_t index)
-{
-	if (f2fs_lookup_read_extent_cache_block(dn->inode, index,
-						&dn->data_blkaddr))
-		return 0;
-	return f2fs_reserve_block(dn, index);
-}
-
 struct page *f2fs_get_read_data_page(struct inode *inode, pgoff_t index,
 				     blk_opf_t op_flags, bool for_write,
 				     pgoff_t *next_pgofs)
@@ -1469,10 +1461,12 @@ static void f2fs_map_unlock(struct f2fs_sb_info *sbi, int flag)
 int f2fs_get_block_locked(struct dnode_of_data *dn, pgoff_t index)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
-	int err;
+	int err = 0;
 
 	f2fs_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO);
-	err = f2fs_get_block(dn, index);
+	if (!f2fs_lookup_read_extent_cache_block(dn->inode, index,
+						&dn->data_blkaddr))
+		err = f2fs_reserve_block(dn, index);
 	f2fs_map_unlock(sbi, F2FS_GET_BLOCK_PRE_AIO);
 
 	return err;
@@ -3450,7 +3444,9 @@ static int __reserve_data_block(struct inode *inode, pgoff_t index,
 	}
 	set_new_dnode(&dn, inode, ipage, ipage, 0);
 
-	err = f2fs_get_block(&dn, index);
+	if (!f2fs_lookup_read_extent_cache_block(dn.inode, index,
+						&dn.data_blkaddr))
+		err = f2fs_reserve_block(&dn, index);
 
 	*blk_addr = dn.data_blkaddr;
 	*node_changed = dn.node_changed;
