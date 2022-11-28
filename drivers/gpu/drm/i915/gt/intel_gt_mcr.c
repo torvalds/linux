@@ -143,6 +143,8 @@ void intel_gt_mcr_init(struct intel_gt *gt)
 	unsigned long fuse;
 	int i;
 
+	spin_lock_init(&gt->mcr_lock);
+
 	/*
 	 * An mslice is unavailable only if both the meml3 for the slice is
 	 * disabled *and* all of the DSS in the slice (quadrant) are disabled.
@@ -228,6 +230,7 @@ static i915_reg_t mcr_reg_cast(const i915_mcr_reg_t mcr)
  * @instance: instance number (documented as "subsliceid" on older platforms)
  * @value: register value to be written (ignored for read)
  *
+ * Context: The caller must hold the MCR lock
  * Return: 0 for write access. register value for read access.
  *
  * Caller needs to make sure the relevant forcewake wells are up.
@@ -239,7 +242,7 @@ static u32 rw_with_mcr_steering_fw(struct intel_gt *gt,
 	struct intel_uncore *uncore = gt->uncore;
 	u32 mcr_mask, mcr_ss, mcr, old_mcr, val = 0;
 
-	lockdep_assert_held(&uncore->lock);
+	lockdep_assert_held(&gt->mcr_lock);
 
 	if (GRAPHICS_VER_FULL(uncore->i915) >= IP_VER(12, 70)) {
 		/*
@@ -316,6 +319,7 @@ static u32 rw_with_mcr_steering(struct intel_gt *gt,
 {
 	struct intel_uncore *uncore = gt->uncore;
 	enum forcewake_domains fw_domains;
+	unsigned long flags;
 	u32 val;
 
 	fw_domains = intel_uncore_forcewake_for_reg(uncore, mcr_reg_cast(reg),
@@ -324,15 +328,57 @@ static u32 rw_with_mcr_steering(struct intel_gt *gt,
 						     GEN8_MCR_SELECTOR,
 						     FW_REG_READ | FW_REG_WRITE);
 
-	spin_lock_irq(&uncore->lock);
+	intel_gt_mcr_lock(gt, &flags);
+	spin_lock(&uncore->lock);
 	intel_uncore_forcewake_get__locked(uncore, fw_domains);
 
 	val = rw_with_mcr_steering_fw(gt, reg, rw_flag, group, instance, value);
 
 	intel_uncore_forcewake_put__locked(uncore, fw_domains);
-	spin_unlock_irq(&uncore->lock);
+	spin_unlock(&uncore->lock);
+	intel_gt_mcr_unlock(gt, flags);
 
 	return val;
+}
+
+/**
+ * intel_gt_mcr_lock - Acquire MCR steering lock
+ * @gt: GT structure
+ * @flags: storage to save IRQ flags to
+ *
+ * Performs locking to protect the steering for the duration of an MCR
+ * operation.  Depending on the platform, this may be a software lock
+ * (gt->mcr_lock) or a hardware lock (i.e., a register that synchronizes
+ * access not only for the driver, but also for external hardware and
+ * firmware agents).
+ *
+ * Context: Takes gt->mcr_lock.  uncore->lock should *not* be held when this
+ *          function is called, although it may be acquired after this
+ *          function call.
+ */
+void intel_gt_mcr_lock(struct intel_gt *gt, unsigned long *flags)
+{
+	unsigned long __flags;
+
+	lockdep_assert_not_held(&gt->uncore->lock);
+
+	spin_lock_irqsave(&gt->mcr_lock, __flags);
+
+	*flags = __flags;
+}
+
+/**
+ * intel_gt_mcr_unlock - Release MCR steering lock
+ * @gt: GT structure
+ * @flags: IRQ flags to restore
+ *
+ * Releases the lock acquired by intel_gt_mcr_lock().
+ *
+ * Context: Releases gt->mcr_lock
+ */
+void intel_gt_mcr_unlock(struct intel_gt *gt, unsigned long flags)
+{
+	spin_unlock_irqrestore(&gt->mcr_lock, flags);
 }
 
 /**
@@ -341,6 +387,8 @@ static u32 rw_with_mcr_steering(struct intel_gt *gt,
  * @reg: the MCR register to read
  * @group: the MCR group
  * @instance: the MCR instance
+ *
+ * Context: Takes and releases gt->mcr_lock
  *
  * Returns the value read from an MCR register after steering toward a specific
  * group/instance.
@@ -362,6 +410,8 @@ u32 intel_gt_mcr_read(struct intel_gt *gt,
  *
  * Write an MCR register in unicast mode after steering toward a specific
  * group/instance.
+ *
+ * Context: Calls a function that takes and releases gt->mcr_lock
  */
 void intel_gt_mcr_unicast_write(struct intel_gt *gt, i915_mcr_reg_t reg, u32 value,
 				int group, int instance)
@@ -376,10 +426,16 @@ void intel_gt_mcr_unicast_write(struct intel_gt *gt, i915_mcr_reg_t reg, u32 val
  * @value: value to write
  *
  * Write an MCR register in multicast mode to update all instances.
+ *
+ * Context: Takes and releases gt->mcr_lock
  */
 void intel_gt_mcr_multicast_write(struct intel_gt *gt,
 				  i915_mcr_reg_t reg, u32 value)
 {
+	unsigned long flags;
+
+	intel_gt_mcr_lock(gt, &flags);
+
 	/*
 	 * Ensure we have multicast behavior, just in case some non-i915 agent
 	 * left the hardware in unicast mode.
@@ -388,6 +444,8 @@ void intel_gt_mcr_multicast_write(struct intel_gt *gt,
 		intel_uncore_write_fw(gt->uncore, MTL_MCR_SELECTOR, GEN11_MCR_MULTICAST);
 
 	intel_uncore_write(gt->uncore, mcr_reg_cast(reg), value);
+
+	intel_gt_mcr_unlock(gt, flags);
 }
 
 /**
@@ -400,9 +458,13 @@ void intel_gt_mcr_multicast_write(struct intel_gt *gt,
  * function assumes the caller is already holding any necessary forcewake
  * domains; use intel_gt_mcr_multicast_write() in cases where forcewake should
  * be obtained automatically.
+ *
+ * Context: The caller must hold gt->mcr_lock.
  */
 void intel_gt_mcr_multicast_write_fw(struct intel_gt *gt, i915_mcr_reg_t reg, u32 value)
 {
+	lockdep_assert_held(&gt->mcr_lock);
+
 	/*
 	 * Ensure we have multicast behavior, just in case some non-i915 agent
 	 * left the hardware in unicast mode.
@@ -428,6 +490,8 @@ void intel_gt_mcr_multicast_write_fw(struct intel_gt *gt, i915_mcr_reg_t reg, u3
  * This function assumes the caller is already holding any necessary forcewake
  * domains; use intel_gt_mcr_multicast_rmw() in cases where forcewake should
  * be obtained automatically.
+ *
+ * Context: Calls functions that take and release gt->mcr_lock
  *
  * Returns the old (unmodified) value read.
  */
@@ -580,12 +644,16 @@ void intel_gt_mcr_get_nonterminated_steering(struct intel_gt *gt,
  * domains; use intel_gt_mcr_read_any() in cases where forcewake should be
  * obtained automatically.
  *
+ * Context: The caller must hold gt->mcr_lock.
+ *
  * Returns the value from a non-terminated instance of @reg.
  */
 u32 intel_gt_mcr_read_any_fw(struct intel_gt *gt, i915_mcr_reg_t reg)
 {
 	int type;
 	u8 group, instance;
+
+	lockdep_assert_held(&gt->mcr_lock);
 
 	for (type = 0; type < NUM_STEERING_TYPES; type++) {
 		if (reg_needs_read_steering(gt, reg, type)) {
@@ -606,6 +674,8 @@ u32 intel_gt_mcr_read_any_fw(struct intel_gt *gt, i915_mcr_reg_t reg)
  *
  * Reads a GT MCR register.  The read will be steered to a non-terminated
  * instance (i.e., one that isn't fused off or powered down by power gating).
+ *
+ * Context: Calls a function that takes and releases gt->mcr_lock.
  *
  * Returns the value from a non-terminated instance of @reg.
  */
@@ -730,6 +800,7 @@ void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
  * Note that this routine assumes the caller holds forcewake asserted, it is
  * not suitable for very long waits.
  *
+ * Context: Calls a function that takes and releases gt->mcr_lock
  * Return: 0 if the register matches the desired condition, or -ETIMEDOUT.
  */
 int intel_gt_mcr_wait_for_reg(struct intel_gt *gt,
@@ -741,7 +812,7 @@ int intel_gt_mcr_wait_for_reg(struct intel_gt *gt,
 {
 	int ret;
 
-	lockdep_assert_not_held(&gt->uncore->lock);
+	lockdep_assert_not_held(&gt->mcr_lock);
 
 #define done ((intel_gt_mcr_read_any(gt, reg) & mask) == value)
 
