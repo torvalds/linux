@@ -10294,7 +10294,7 @@ T:	git https://github.com/intel/gvt-linux.git
 F:	drivers/gpu/drm/i915/gvt/
 
 INTEL HID EVENT DRIVER
-M:	Alex Hung <alex.hung@canonical.com>
+M:	Alex Hung <alexhung@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/intel/hid.c
@@ -18018,7 +18018,7 @@ L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/savage/
 
-S390
+S390 ARCHITECTURE
 M:	Heiko Carstens <hca@linux.ibm.com>
 M:	Vasily Gorbik <gor@linux.ibm.com>
 M:	Alexander Gordeev <agordeev@linux.ibm.com>
@@ -18072,6 +18072,15 @@ L:	linux-s390@vger.kernel.org
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/s390/net/
+
+S390 MM
+M:	Alexander Gordeev <agordeev@linux.ibm.com>
+M:	Gerald Schaefer <gerald.schaefer@linux.ibm.com>
+L:	linux-s390@vger.kernel.org
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/s390/linux.git
+F:	arch/s390/include/asm/pgtable.h
+F:	arch/s390/mm
 
 S390 PCI SUBSYSTEM
 M:	Niklas Schnelle <schnelle@linux.ibm.com>
