@@ -3333,8 +3333,8 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
 	struct dnode_of_data dn;
 	struct page *ipage;
 	bool locked = false;
+	int flag = F2FS_GET_BLOCK_PRE_AIO;
 	int err = 0;
-	int flag;
 
 	/*
 	 * If a whole page is being written and we already preallocated all the
@@ -3344,13 +3344,12 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
 		return 0;
 
 	/* f2fs_lock_op avoids race between write CP and convert_inline_page */
-	if (f2fs_has_inline_data(inode) && pos + len > MAX_INLINE_DATA(inode))
-		flag = F2FS_GET_BLOCK_DEFAULT;
-	else
-		flag = F2FS_GET_BLOCK_PRE_AIO;
-
-	if (f2fs_has_inline_data(inode) ||
-			(pos & PAGE_MASK) >= i_size_read(inode)) {
+	if (f2fs_has_inline_data(inode)) {
+		if (pos + len > MAX_INLINE_DATA(inode))
+			flag = F2FS_GET_BLOCK_DEFAULT;
+		f2fs_map_lock(sbi, flag);
+		locked = true;
+	} else if ((pos & PAGE_MASK) >= i_size_read(inode)) {
 		f2fs_map_lock(sbi, flag);
 		locked = true;
 	}
@@ -3371,32 +3370,36 @@ restart:
 			set_inode_flag(inode, FI_DATA_EXIST);
 			if (inode->i_nlink)
 				set_page_private_inline(ipage);
-		} else {
-			err = f2fs_convert_inline_page(&dn, page);
-			if (err)
-				goto out;
-			if (dn.data_blkaddr == NULL_ADDR)
-				err = f2fs_get_block(&dn, index);
+			goto out;
 		}
-	} else if (locked) {
-		err = f2fs_get_block(&dn, index);
-	} else if (!f2fs_lookup_read_extent_cache_block(inode, index,
-							&dn.data_blkaddr)) {
-		/* hole case */
-		err = f2fs_get_dnode_of_data(&dn, index, LOOKUP_NODE);
-		if (err || dn.data_blkaddr == NULL_ADDR) {
-			f2fs_put_dnode(&dn);
-			f2fs_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO);
-			WARN_ON(flag != F2FS_GET_BLOCK_PRE_AIO);
-			locked = true;
-			goto restart;
-		}
+		err = f2fs_convert_inline_page(&dn, page);
+		if (err || dn.data_blkaddr != NULL_ADDR)
+			goto out;
 	}
 
-	/* convert_inline_page can make node_changed */
-	*blk_addr = dn.data_blkaddr;
-	*node_changed = dn.node_changed;
+	if (!f2fs_lookup_read_extent_cache_block(inode, index,
+						 &dn.data_blkaddr)) {
+		if (locked) {
+			err = f2fs_reserve_block(&dn, index);
+			goto out;
+		}
+
+		/* hole case */
+		err = f2fs_get_dnode_of_data(&dn, index, LOOKUP_NODE);
+		if (!err && dn.data_blkaddr != NULL_ADDR)
+			goto out;
+		f2fs_put_dnode(&dn);
+		f2fs_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO);
+		WARN_ON(flag != F2FS_GET_BLOCK_PRE_AIO);
+		locked = true;
+		goto restart;
+	}
 out:
+	if (!err) {
+		/* convert_inline_page can make node_changed */
+		*blk_addr = dn.data_blkaddr;
+		*node_changed = dn.node_changed;
+	}
 	f2fs_put_dnode(&dn);
 unlock_out:
 	if (locked)
