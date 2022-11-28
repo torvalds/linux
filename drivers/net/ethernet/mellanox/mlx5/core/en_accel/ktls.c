@@ -9,9 +9,8 @@
 #include "en_accel/ktls_utils.h"
 #include "en_accel/fs_tcp.h"
 
-int mlx5_ktls_create_key(struct mlx5_core_dev *mdev,
-			 struct tls_crypto_info *crypto_info,
-			 u32 *p_key_id)
+struct mlx5_crypto_dek *mlx5_ktls_create_key(struct mlx5_crypto_dek_pool *dek_pool,
+					     struct tls_crypto_info *crypto_info)
 {
 	const void *key;
 	u32 sz_bytes;
@@ -34,17 +33,16 @@ int mlx5_ktls_create_key(struct mlx5_core_dev *mdev,
 		break;
 	}
 	default:
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
-	return mlx5_create_encryption_key(mdev, key, sz_bytes,
-					  MLX5_ACCEL_OBJ_TLS_KEY,
-					  p_key_id);
+	return mlx5_crypto_dek_create(dek_pool, key, sz_bytes);
 }
 
-void mlx5_ktls_destroy_key(struct mlx5_core_dev *mdev, u32 key_id)
+void mlx5_ktls_destroy_key(struct mlx5_crypto_dek_pool *dek_pool,
+			   struct mlx5_crypto_dek *dek)
 {
-	mlx5_destroy_encryption_key(mdev, key_id);
+	mlx5_crypto_dek_destroy(dek_pool, dek);
 }
 
 static int mlx5e_ktls_add(struct net_device *netdev, struct sock *sk,
@@ -190,6 +188,7 @@ static void mlx5e_tls_debugfs_init(struct mlx5e_tls *tls,
 
 int mlx5e_ktls_init(struct mlx5e_priv *priv)
 {
+	struct mlx5_crypto_dek_pool *dek_pool;
 	struct mlx5e_tls *tls;
 
 	if (!mlx5e_is_ktls_device(priv->mdev))
@@ -198,9 +197,15 @@ int mlx5e_ktls_init(struct mlx5e_priv *priv)
 	tls = kzalloc(sizeof(*tls), GFP_KERNEL);
 	if (!tls)
 		return -ENOMEM;
+	tls->mdev = priv->mdev;
 
+	dek_pool = mlx5_crypto_dek_pool_create(priv->mdev, MLX5_ACCEL_OBJ_TLS_KEY);
+	if (IS_ERR(dek_pool)) {
+		kfree(tls);
+		return PTR_ERR(dek_pool);
+	}
+	tls->dek_pool = dek_pool;
 	priv->tls = tls;
-	priv->tls->mdev = priv->mdev;
 
 	mlx5e_tls_debugfs_init(tls, priv->dfs_root);
 
@@ -217,6 +222,7 @@ void mlx5e_ktls_cleanup(struct mlx5e_priv *priv)
 	debugfs_remove_recursive(tls->debugfs.dfs);
 	tls->debugfs.dfs = NULL;
 
+	mlx5_crypto_dek_pool_destroy(tls->dek_pool);
 	kfree(priv->tls);
 	priv->tls = NULL;
 }

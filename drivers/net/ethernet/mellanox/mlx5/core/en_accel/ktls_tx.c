@@ -98,7 +98,7 @@ struct mlx5e_ktls_offload_context_tx {
 	struct tls_offload_context_tx *tx_ctx;
 	struct mlx5_core_dev *mdev;
 	struct mlx5e_tls_sw_stats *sw_stats;
-	u32 key_id;
+	struct mlx5_crypto_dek *dek;
 	u8 create_err : 1;
 };
 
@@ -457,6 +457,7 @@ int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
 	struct mlx5e_tls_tx_pool *pool;
 	struct tls_context *tls_ctx;
+	struct mlx5_crypto_dek *dek;
 	struct mlx5e_priv *priv;
 	int err;
 
@@ -468,9 +469,12 @@ int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 	if (IS_ERR(priv_tx))
 		return PTR_ERR(priv_tx);
 
-	err = mlx5_ktls_create_key(pool->mdev, crypto_info, &priv_tx->key_id);
-	if (err)
+	dek = mlx5_ktls_create_key(priv->tls->dek_pool, crypto_info);
+	if (IS_ERR(dek)) {
+		err = PTR_ERR(dek);
 		goto err_create_key;
+	}
+	priv_tx->dek = dek;
 
 	priv_tx->expected_seq = start_offload_tcp_sn;
 	switch (crypto_info->cipher_type) {
@@ -512,7 +516,7 @@ void mlx5e_ktls_del_tx(struct net_device *netdev, struct tls_context *tls_ctx)
 	pool = priv->tls->tx_pool;
 
 	atomic64_inc(&priv_tx->sw_stats->tx_tls_del);
-	mlx5_ktls_destroy_key(priv_tx->mdev, priv_tx->key_id);
+	mlx5_ktls_destroy_key(priv->tls->dek_pool, priv_tx->dek);
 	pool_push(pool, priv_tx);
 }
 
@@ -551,8 +555,9 @@ post_static_params(struct mlx5e_txqsq *sq,
 	pi = mlx5e_txqsq_get_next_pi(sq, num_wqebbs);
 	wqe = MLX5E_TLS_FETCH_SET_STATIC_PARAMS_WQE(sq, pi);
 	mlx5e_ktls_build_static_params(wqe, sq->pc, sq->sqn, &priv_tx->crypto_info,
-				       priv_tx->tisn, priv_tx->key_id, 0, fence,
-				       TLS_OFFLOAD_CTX_DIR_TX);
+				       priv_tx->tisn,
+				       mlx5_crypto_dek_get_id(priv_tx->dek),
+				       0, fence, TLS_OFFLOAD_CTX_DIR_TX);
 	tx_fill_wi(sq, pi, num_wqebbs, 0, NULL);
 	sq->pc += num_wqebbs;
 }
