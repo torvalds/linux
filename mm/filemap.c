@@ -506,9 +506,6 @@ static void __filemap_fdatawait_range(struct address_space *mapping,
 	struct pagevec pvec;
 	int nr_pages;
 
-	if (end_byte < start_byte)
-		return;
-
 	pagevec_init(&pvec);
 	while (index <= end) {
 		unsigned i;
@@ -670,6 +667,9 @@ int filemap_write_and_wait_range(struct address_space *mapping,
 {
 	int err = 0, err2;
 
+	if (lend < lstart)
+		return 0;
+
 	if (mapping_needs_writeback(mapping)) {
 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
 						 WB_SYNC_ALL);
@@ -769,6 +769,9 @@ int file_write_and_wait_range(struct file *file, loff_t lstart, loff_t lend)
 {
 	int err = 0, err2;
 	struct address_space *mapping = file->f_mapping;
+
+	if (lend < lstart)
+		return 0;
 
 	if (mapping_needs_writeback(mapping)) {
 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
