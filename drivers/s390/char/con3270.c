@@ -34,9 +34,8 @@
 
 #define TTY3270_CHAR_BUF_SIZE 256
 #define TTY3270_OUTPUT_BUFFER_SIZE 4096
-#define TTY3270_STRING_PAGES 5
-
 #define TTY3270_SCREEN_PAGES 8 /* has to be power-of-two */
+#define TTY3270_RECALL_SIZE 16 /* has to be power-of-two */
 
 static struct tty_driver *tty3270_driver;
 static int tty3270_max_index;
@@ -77,13 +76,9 @@ static const unsigned char sfq_read_partition[] = {
 struct tty3270 {
 	struct raw3270_view view;
 	struct tty_port port;
-	void **freemem_pages;		/* Array of pages used for freemem. */
-	struct list_head freemem;	/* List of free memory for strings. */
 
 	/* Output stuff. */
-	struct list_head lines;		/* List of lines. */
 	unsigned char wcc;		/* Write control character. */
-	int nr_lines;			/* # lines in list. */
 	int nr_up;			/* # lines up in history. */
 	unsigned long update_flags;	/* Update indication bits. */
 	struct raw3270_request *write;	/* Single write request. */
@@ -117,9 +112,9 @@ struct tty3270 {
 	unsigned int saved_cx, saved_cy;
 
 	/* Command recalling. */
-	struct list_head rcl_lines;	/* List of recallable lines. */
-	struct list_head *rcl_walk;	/* Point in rcl_lines list. */
-	int rcl_nr, rcl_max;		/* Number/max number of rcl_lines. */
+	char **rcl_lines;		/* Array of recallable lines */
+	int rcl_write_index;		/* Write index of recallable items */
+	int rcl_read_index;		/* Read index of recallable items */
 
 	/* Character array for put_char/flush_chars. */
 	unsigned int char_count;
@@ -203,10 +198,9 @@ static int tty3270_input_size(int cols)
 	return cols * 2 - 11;
 }
 
-static void tty3270_update_prompt(struct tty3270 *tp, char *input, int count)
+static void tty3270_update_prompt(struct tty3270 *tp, char *input)
 {
-	memcpy(tp->prompt, input, count);
-	tp->prompt[count] = '\0';
+	strcpy(tp->prompt, input);
 	tp->update_flags |= TTY_UPDATE_INPUT;
 	tty3270_set_timer(tp, 1);
 }
@@ -269,25 +263,6 @@ static void tty3270_update_string(struct tty3270 *tp, char *line, int len, int n
 	cp = line + len - 4;
 	if (*cp == TO_RA)
 		raw3270_buffer_address(tp->view.dev, cp + 1, 0, nr + 1);
-}
-
-/*
- * Alloc string for size bytes. If there is not enough room in
- * freemem, free strings until there is room.
- */
-static struct string *tty3270_alloc_string(struct tty3270 *tp, size_t size)
-{
-	struct string *s, *n;
-
-	s = alloc_string(&tp->freemem, size);
-	if (s)
-		return s;
-	list_for_each_entry_safe(s, n, &tp->lines, list) {
-		list_del(&s->list);
-		if (free_string(&tp->freemem, s) >= size)
-			break;
-	}
-	return alloc_string(&tp->freemem, size);
 }
 
 static void tty3270_blank_screen(struct tty3270 *tp)
@@ -542,44 +517,29 @@ static void tty3270_update(struct timer_list *t)
  */
 static void tty3270_rcl_add(struct tty3270 *tp, char *input, int len)
 {
-	struct string *s;
-
-	tp->rcl_walk = NULL;
+	char *p;
 	if (len <= 0)
 		return;
-	if (tp->rcl_nr >= tp->rcl_max) {
-		s = list_entry(tp->rcl_lines.next, struct string, list);
-		list_del(&s->list);
-		free_string(&tp->freemem, s);
-		tp->rcl_nr--;
-	}
-	s = tty3270_alloc_string(tp, len);
-	if (!s)
-		return;
-	memcpy(s->string, input, len);
-	list_add_tail(&s->list, &tp->rcl_lines);
-	tp->rcl_nr++;
+	p = tp->rcl_lines[tp->rcl_write_index++];
+	tp->rcl_write_index &= TTY3270_RECALL_SIZE - 1;
+	memcpy(p, input, len);
+	p[len] = '\0';
+	tp->rcl_read_index = tp->rcl_write_index;
 }
 
 static void tty3270_rcl_backward(struct kbd_data *kbd)
 {
 	struct tty3270 *tp = container_of(kbd->port, struct tty3270, port);
-	struct string *s;
+	int i = 0;
 
 	spin_lock_irq(&tp->view.lock);
 	if (tp->inattr == TF_INPUT) {
-		if (tp->rcl_walk && tp->rcl_walk->prev != &tp->rcl_lines)
-			tp->rcl_walk = tp->rcl_walk->prev;
-		else if (!list_empty(&tp->rcl_lines))
-			tp->rcl_walk = tp->rcl_lines.prev;
-		s = tp->rcl_walk ? 
-			list_entry(tp->rcl_walk, struct string, list) : NULL;
-		if (tp->rcl_walk) {
-			s = list_entry(tp->rcl_walk, struct string, list);
-			tty3270_update_prompt(tp, s->string, s->len);
-		} else
-			tty3270_update_prompt(tp, NULL, 0);
-		tty3270_set_timer(tp, 1);
+		do {
+			tp->rcl_read_index--;
+			tp->rcl_read_index &= TTY3270_RECALL_SIZE - 1;
+		} while (!*tp->rcl_lines[tp->rcl_read_index] &&
+			 i++ < TTY3270_RECALL_SIZE - 1);
+		tty3270_update_prompt(tp, tp->rcl_lines[tp->rcl_read_index]);
 	}
 	spin_unlock_irq(&tp->view.lock);
 }
@@ -664,7 +624,7 @@ static void tty3270_read_tasklet(unsigned long data)
 		if (tp->nr_up > 0)
 			tp->nr_up = 0;
 		/* Clear input area. */
-		tty3270_update_prompt(tp, NULL, 0);
+		tty3270_update_prompt(tp, "");
 		tty3270_set_timer(tp, 1);
 		break;
 	case AID_CLEAR:
@@ -796,32 +756,14 @@ static void tty3270_irq(struct tty3270 *tp, struct raw3270_request *rq, struct i
 static struct tty3270 *tty3270_alloc_view(void)
 {
 	struct tty3270 *tp;
-	int pages;
 
 	tp = kzalloc(sizeof(struct tty3270), GFP_KERNEL);
 	if (!tp)
 		goto out_err;
-	tp->freemem_pages =
-		kmalloc_array(TTY3270_STRING_PAGES, sizeof(void *),
-			      GFP_KERNEL);
-	if (!tp->freemem_pages)
-		goto out_tp;
-	INIT_LIST_HEAD(&tp->freemem);
-	INIT_LIST_HEAD(&tp->lines);
-	INIT_LIST_HEAD(&tp->rcl_lines);
-	tp->rcl_max = 20;
 
-	for (pages = 0; pages < TTY3270_STRING_PAGES; pages++) {
-		tp->freemem_pages[pages] = (void *)
-			__get_free_pages(GFP_KERNEL|GFP_DMA, 0);
-		if (!tp->freemem_pages[pages])
-			goto out_pages;
-		add_string_memory(&tp->freemem,
-				  tp->freemem_pages[pages], PAGE_SIZE);
-	}
 	tp->write = raw3270_request_alloc(TTY3270_OUTPUT_BUFFER_SIZE);
 	if (IS_ERR(tp->write))
-		goto out_pages;
+		goto out_tp;
 	tp->read = raw3270_request_alloc(0);
 	if (IS_ERR(tp->read))
 		goto out_write;
@@ -851,11 +793,6 @@ out_read:
 	raw3270_request_free(tp->read);
 out_write:
 	raw3270_request_free(tp->write);
-out_pages:
-	while (pages--)
-		free_pages((unsigned long) tp->freemem_pages[pages], 0);
-	kfree(tp->freemem_pages);
-	tty_port_destroy(&tp->port);
 out_tp:
 	kfree(tp);
 out_err:
@@ -867,15 +804,10 @@ out_err:
  */
 static void tty3270_free_view(struct tty3270 *tp)
 {
-	int pages;
-
 	kbd_free(tp->kbd);
 	raw3270_request_free(tp->kreset);
 	raw3270_request_free(tp->read);
 	raw3270_request_free(tp->write);
-	for (pages = 0; pages < TTY3270_STRING_PAGES; pages++)
-		free_pages((unsigned long) tp->freemem_pages[pages], 0);
-	kfree(tp->freemem_pages);
 	free_page((unsigned long)tp->converted_line);
 	tty_port_destroy(&tp->port);
 	kfree(tp);
@@ -909,6 +841,38 @@ out_err:
 	return ERR_PTR(-ENOMEM);
 }
 
+static char **tty3270_alloc_recall(int cols)
+{
+	char **lines;
+	int i;
+
+	lines = kmalloc_array(TTY3270_RECALL_SIZE, sizeof(char *), GFP_KERNEL);
+	if (!lines)
+		return NULL;
+	for (i = 0; i < TTY3270_RECALL_SIZE; i++) {
+		lines[i] = kcalloc(1, tty3270_input_size(cols) + 1, GFP_KERNEL);
+		if (!lines[i])
+			break;
+	}
+
+	if (i == TTY3270_RECALL_SIZE)
+		return lines;
+
+	while (i--)
+		kfree(lines[i]);
+	kfree(lines);
+	return NULL;
+}
+
+static void tty3270_free_recall(char **lines)
+{
+	int i;
+
+	for (i = 0; i < TTY3270_RECALL_SIZE; i++)
+		kfree(lines[i]);
+	kfree(lines);
+}
+
 /*
  * Free tty3270 screen.
  */
@@ -930,6 +894,7 @@ static void tty3270_resize(struct raw3270_view *view,
 {
 	struct tty3270 *tp = container_of(view, struct tty3270, view);
 	struct tty3270_line *screen, *oscreen;
+	char **old_rcl_lines, **new_rcl_lines;
 	char *old_prompt, *new_prompt;
 	char *old_input, *new_input;
 	struct tty_struct *tty;
@@ -954,6 +919,9 @@ static void tty3270_resize(struct raw3270_view *view,
 	screen = tty3270_alloc_screen(tp, new_rows, new_cols, &new_allocated);
 	if (IS_ERR(screen))
 		goto out_prompt;
+	new_rcl_lines = tty3270_alloc_recall(new_cols);
+	if (!new_rcl_lines)
+		goto out_screen;
 
 	/* Switch to new output size */
 	spin_lock_irq(&tp->view.lock);
@@ -967,12 +935,17 @@ static void tty3270_resize(struct raw3270_view *view,
 	tp->update_flags = TTY_UPDATE_ALL;
 	old_input = tp->input;
 	old_prompt = tp->prompt;
+	old_rcl_lines = tp->rcl_lines;
 	tp->input = new_input;
 	tp->prompt = new_prompt;
+	tp->rcl_lines = new_rcl_lines;
+	tp->rcl_read_index = 0;
+	tp->rcl_write_index = 0;
 	spin_unlock_irq(&tp->view.lock);
 	tty3270_free_screen(oscreen, old_allocated);
 	kfree(old_input);
 	kfree(old_prompt);
+	tty3270_free_recall(old_rcl_lines);
 	tty3270_set_timer(tp, 1);
 	/* Informat tty layer about new size */
 	tty = tty_port_tty_get(&tp->port);
@@ -983,6 +956,8 @@ static void tty3270_resize(struct raw3270_view *view,
 	tty_do_resize(tty, &ws);
 	tty_kref_put(tty);
 	return;
+out_screen:
+	tty3270_free_screen(screen, new_rows);
 out_prompt:
 	kfree(new_prompt);
 out_input:
@@ -1089,6 +1064,12 @@ tty3270_create_view(int index, struct tty3270 **newtp)
 		goto out_free_input;
 	}
 
+	tp->rcl_lines = tty3270_alloc_recall(tp->view.cols);
+	if (!tp->rcl_lines) {
+		rc = -ENOMEM;
+		goto out_free_prompt;
+	}
+
 	/* Create blank line for every line in the tty output area. */
 	tty3270_blank_screen(tp);
 
@@ -1104,6 +1085,8 @@ tty3270_create_view(int index, struct tty3270 **newtp)
 	*newtp = tp;
 	return 0;
 
+out_free_prompt:
+	kfree(tp->prompt);
 out_free_input:
 	kfree(tp->input);
 out_free_converted_line:
@@ -1813,7 +1796,7 @@ static void tty3270_set_termios(struct tty_struct *tty, const struct ktermios *o
 		new = L_ECHO(tty) ? TF_INPUT: TF_INPUTN;
 		if (new != tp->inattr) {
 			tp->inattr = new;
-			tty3270_update_prompt(tp, NULL, 0);
+			tty3270_update_prompt(tp, "");
 			tty3270_set_timer(tp, 1);
 		}
 	}
