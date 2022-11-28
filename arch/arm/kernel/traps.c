@@ -178,19 +178,20 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 	for (i = -4; i < 1 + !!thumb; i++) {
 		unsigned int val, bad;
 
-		if (!user_mode(regs)) {
-			if (thumb) {
-				u16 val16;
-				bad = get_kernel_nofault(val16, &((u16 *)addr)[i]);
-				val = val16;
-			} else {
-				bad = get_kernel_nofault(val, &((u32 *)addr)[i]);
-			}
-		} else {
-			if (thumb)
-				bad = get_user(val, &((u16 *)addr)[i]);
+		if (thumb) {
+			u16 tmp;
+
+			if (user_mode(regs))
+				bad = get_user(tmp, &((u16 __user *)addr)[i]);
 			else
-				bad = get_user(val, &((u32 *)addr)[i]);
+				bad = get_kernel_nofault(tmp, &((u16 *)addr)[i]);
+
+			val = tmp;
+		} else {
+			if (user_mode(regs))
+				bad = get_user(val, &((u32 __user *)addr)[i]);
+			else
+				bad = get_kernel_nofault(val, &((u32 *)addr)[i]);
 		}
 
 		if (!bad)
