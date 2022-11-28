@@ -188,34 +188,32 @@
 		};
 	};
 
-	vpu: video-codec@10108000 {
-		compatible = "rockchip,rk3036-vpu", "rockchip,rk3288-vpu";
-		reg = <0x10108000 0x800>;
-		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "vepu", "vdpu";
-		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
-		clock-names = "aclk", "hclk";
-		iommus = <&vpu_mmu>;
-		/*
-		 * 3036's vpu could not run higher than 300M
-		 */
-		assigned-clocks = <&cru ACLK_VCODEC>;
-		assigned-clock-rates = <297000000>;
-		assigned-clock-parents = <&cru PLL_GPLL>;
-		power-domains = <&power RK3036_PD_VPU>;
+	mpp_srv: mpp-srv {
+		compatible = "rockchip,mpp-service";
+		rockchip,taskqueue-count = <1>;
+		rockchip,resetgroup-count = <1>;
 		status = "disabled";
 	};
 
-	vpu_service: vpu-service@10108400 {
-		compatible = "rockchip,sub";
+	vdpu: vdpu@10108400 {
+		compatible = "rockchip,vpu-decoder-v1";
 		reg = <0x10108400 0x400>;
-		dev_mode = <0>;
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		rockchip,normal-rates = <297000000>, <0>;
+		assigned-clocks = <&cru ACLK_VCODEC>;
+		assigned-clock-rates = <297000000>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+		resets = <&cru SRST_VCODEC_A>, <&cru SRST_VCODEC_H>;
+		reset-names = "shared_video_a", "shared_video_h";
 		iommus = <&vpu_mmu>;
-		allocator = <1>;
 		power-domains = <&power RK3036_PD_VPU>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
+		status = "disabled";
 	};
 
 	vpu_mmu: iommu@10108800 {
@@ -223,20 +221,32 @@
 		reg = <0x10108800 0x100>;
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vpu_mmu";
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
 		power-domains = <&power RK3036_PD_VPU>;
 		status = "disabled";
 	};
 
-	hevc_service: hevc-service@1010c000 {
-		compatible = "rockchip,sub";
+	hevc: hevc_service@1010c000 {
+		compatible = "rockchip,hevc-decoder";
 		reg = <0x1010c000 0x400>;
-		dev_mode = <1>;
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
-		allocator = <1>;
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>, <&cru ACLK_HEVC>;
+		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
+		rockchip,normal-rates = <297000000>, <0>, <200000000>;
+		assigned-clocks = <&cru ACLK_VCODEC>;
+		assigned-clock-rates = <297000000>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+		resets = <&cru SRST_VCODEC_A>, <&cru SRST_VCODEC_H>, <&cru SRST_HEVC>;
+		reset-names = "shared_video_a", "shared_video_h", "video_core";
 		iommus = <&hevc_mmu>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
 		power-domains = <&power RK3036_PD_VPU>;
+		status = "disabled";
 	};
 
 	hevc_mmu: iommu@1010c440 {
@@ -244,28 +254,9 @@
 		reg = <0x1010c440 0x40>, <0x1010c480 0x40>;
 		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "hevc_mmu";
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
-		power-domains = <&power RK3036_PD_VPU>;
-		status = "disabled";
-	};
-
-	vpu_combo: vpu-combo {
-		compatible = "rockchip,vpu_combo";
-		rockchip,grf = <&grf>;
-		subcnt = <2>;
-		rockchip,sub = <&hevc_service>, <&vpu_service>;
-		mode_bit = <3>;
-		mode_ctrl = <0x144>;
-		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>,
-			 <&cru ACLK_HEVC>;
-		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
-		/* RK3036's vpu could not run higher than 300M */
-		assigned-clocks = <&cru ACLK_VCODEC>;
-		assigned-clock-rates = <297000000>;
-		assigned-clock-parents = <&cru PLL_GPLL>;
-		resets = <&cru SRST_VCODEC_A>, <&cru SRST_VCODEC_H>,
-			 <&cru SRST_HEVC>;
-		reset-names = "video_a", "video_h", "video";
 		power-domains = <&power RK3036_PD_VPU>;
 		status = "disabled";
 	};
