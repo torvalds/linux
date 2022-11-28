@@ -68,6 +68,8 @@ struct rzg2l_cru_ip {
  *
  * @vclk:		CRU Main clock
  *
+ * @image_conv_irq:	Holds image conversion interrupt number
+ *
  * @vdev:		V4L2 video device associated with CRU
  * @v4l2_dev:		V4L2 device
  * @num_buf:		Holds the current number of buffers enabled
