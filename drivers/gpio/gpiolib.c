@@ -549,7 +549,7 @@ EXPORT_SYMBOL_GPL(gpiochip_line_is_valid);
 
 static void gpiodevice_release(struct device *dev)
 {
-	struct gpio_device *gdev = container_of(dev, struct gpio_device, dev);
+	struct gpio_device *gdev = to_gpio_device(dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);

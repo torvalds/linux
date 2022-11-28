@@ -20,9 +20,9 @@
 
 /**
  * struct gpio_device - internal state container for GPIO devices
- * @id: numerical ID number for the GPIO chip
  * @dev: the GPIO device struct
  * @chrdev: character device for the GPIO device
+ * @id: numerical ID number for the GPIO chip
  * @mockdev: class device used by the deprecated sysfs interface (may be
  * NULL)
  * @owner: helps prevent removal of modules exporting active GPIOs
@@ -47,9 +47,9 @@
  * userspace.
  */
 struct gpio_device {
-	int			id;
 	struct device		dev;
 	struct cdev		chrdev;
+	int			id;
 	struct device		*mockdev;
 	struct module		*owner;
 	struct gpio_chip	*chip;
@@ -71,6 +71,11 @@ struct gpio_device {
 	struct list_head pin_ranges;
 #endif
 };
+
+static inline struct gpio_device *to_gpio_device(struct device *dev)
+{
+	return container_of(dev, struct gpio_device, dev);
+}
 
 /* gpio suffixes used for ACPI and device tree lookup */
 static __maybe_unused const char * const gpio_suffixes[] = { "gpios", "gpio" };
