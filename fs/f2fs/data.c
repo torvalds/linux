@@ -1472,6 +1472,41 @@ int f2fs_get_block_locked(struct dnode_of_data *dn, pgoff_t index)
 	return err;
 }
 
+static bool f2fs_map_blocks_cached(struct inode *inode,
+		struct f2fs_map_blocks *map, int flag)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	unsigned int maxblocks = map->m_len;
+	pgoff_t pgoff = (pgoff_t)map->m_lblk;
+	struct extent_info ei = {};
+
+	if (!f2fs_lookup_read_extent_cache(inode, pgoff, &ei))
+		return false;
+
+	map->m_pblk = ei.blk + pgoff - ei.fofs;
+	map->m_len = min((pgoff_t)maxblocks, ei.fofs + ei.len - pgoff);
+	map->m_flags = F2FS_MAP_MAPPED;
+	if (map->m_next_extent)
+		*map->m_next_extent = pgoff + map->m_len;
+
+	/* for hardware encryption, but to avoid potential issue in future */
+	if (flag == F2FS_GET_BLOCK_DIO)
+		f2fs_wait_on_block_writeback_range(inode,
+					map->m_pblk, map->m_len);
+
+	if (f2fs_allow_multi_device_dio(sbi, flag)) {
+		int bidx = f2fs_target_device_index(sbi, map->m_pblk);
+		struct f2fs_dev_info *dev = &sbi->devs[bidx];
+
+		map->m_bdev = dev->bdev;
+		map->m_pblk -= dev->start_blk;
+		map->m_len = min(map->m_len, dev->end_blk + 1 - map->m_pblk);
+	} else {
+		map->m_bdev = inode->i_sb->s_bdev;
+	}
+	return true;
+}
+
 /*
  * f2fs_map_blocks() tries to find or build mapping relationship which
  * maps continuous logical blocks to physical blocks, and return such
@@ -1487,13 +1522,15 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map, int flag)
 	int err = 0, ofs = 1;
 	unsigned int ofs_in_node, last_ofs_in_node;
 	blkcnt_t prealloc;
-	struct extent_info ei = {0, };
 	block_t blkaddr;
 	unsigned int start_pgofs;
 	int bidx = 0;
 
 	if (!maxblocks)
 		return 0;
+
+	if (!map->m_may_create && f2fs_map_blocks_cached(inode, map, flag))
+		goto out;
 
 	map->m_bdev = inode->i_sb->s_bdev;
 	map->m_multidev_dio =
@@ -1505,32 +1542,6 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map, int flag)
 	/* it only supports block size == page size */
 	pgofs =	(pgoff_t)map->m_lblk;
 	end = pgofs + maxblocks;
-
-	if (map->m_may_create ||
-	    !f2fs_lookup_read_extent_cache(inode, pgofs, &ei))
-		goto next_dnode;
-
-	/* Found the map in read extent cache */
-	map->m_pblk = ei.blk + pgofs - ei.fofs;
-	map->m_len = min((pgoff_t)maxblocks, ei.fofs + ei.len - pgofs);
-	map->m_flags = F2FS_MAP_MAPPED;
-	if (map->m_next_extent)
-		*map->m_next_extent = pgofs + map->m_len;
-
-	/* for hardware encryption, but to avoid potential issue in future */
-	if (flag == F2FS_GET_BLOCK_DIO)
-		f2fs_wait_on_block_writeback_range(inode,
-						map->m_pblk, map->m_len);
-
-	if (map->m_multidev_dio) {
-		bidx = f2fs_target_device_index(sbi, map->m_pblk);
-
-		map->m_bdev = FDEV(bidx).bdev;
-		map->m_pblk -= FDEV(bidx).start_blk;
-		map->m_len = min(map->m_len,
-				FDEV(bidx).end_blk + 1 - map->m_pblk);
-	}
-	goto out;
 
 next_dnode:
 	if (map->m_may_create)
