@@ -565,7 +565,8 @@ static void tty3270_read_tasklet(unsigned long data)
 	 */
 	input = NULL;
 	len = 0;
-	if (tp->input->string[0] == 0x7d) {
+	switch (tp->input->string[0]) {
+	case AID_ENTER:
 		/* Enter: write input to tty. */
 		input = tp->input->string + 6;
 		len = tp->input->len - 6 - rrq->rescnt;
@@ -579,10 +580,13 @@ static void tty3270_read_tasklet(unsigned long data)
 		/* Clear input area. */
 		tty3270_update_prompt(tp, NULL, 0);
 		tty3270_set_timer(tp, 1);
-	} else if (tp->input->string[0] == 0x6d) {
+		break;
+	case AID_CLEAR:
 		/* Display has been cleared. Redraw. */
 		tp->update_flags = TTY_UPDATE_ALL;
 		tty3270_set_timer(tp, 1);
+	default:
+		break;
 	}
 	spin_unlock_irq(&tp->view.lock);
 

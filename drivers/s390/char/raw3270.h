@@ -82,6 +82,13 @@
 #define RAW3270_FIRSTMINOR	1	/* First minor number */
 #define RAW3270_MAXDEVS		255	/* Max number of 3270 devices */
 
+#define AID_CLEAR		0x6d
+#define AID_ENTER		0x7d
+#define AID_PF3			0xf3
+#define AID_PF7			0xf7
+#define AID_PF8			0xf8
+#define AID_READ_PARTITION	0x88
+
 /* For TUBGETMOD and TUBSETMOD. Should include. */
 struct raw3270_iocb {
 	short model;
