@@ -10,8 +10,8 @@
 #include "qat_bl.h"
 #include "qat_crypto.h"
 
-void qat_alg_free_bufl(struct qat_crypto_instance *inst,
-		       struct qat_crypto_request *qat_req)
+void qat_bl_free_bufl(struct qat_crypto_instance *inst,
+		      struct qat_crypto_request *qat_req)
 {
 	struct device *dev = &GET_DEV(inst->accel_dev);
 	struct qat_alg_buf_list *bl = qat_req->buf.bl;
@@ -50,11 +50,11 @@ void qat_alg_free_bufl(struct qat_crypto_instance *inst,
 	}
 }
 
-int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
-			struct scatterlist *sgl,
-			struct scatterlist *sglout,
-			struct qat_crypto_request *qat_req,
-			gfp_t flags)
+int qat_bl_sgl_to_bufl(struct qat_crypto_instance *inst,
+		       struct scatterlist *sgl,
+		       struct scatterlist *sglout,
+		       struct qat_crypto_request *qat_req,
+		       gfp_t flags)
 {
 	struct device *dev = &GET_DEV(inst->accel_dev);
 	int i, sg_nctr = 0;
