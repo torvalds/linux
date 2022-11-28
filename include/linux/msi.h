@@ -649,6 +649,19 @@ int platform_msi_device_domain_alloc(struct irq_domain *domain, unsigned int vir
 void platform_msi_device_domain_free(struct irq_domain *domain, unsigned int virq,
 				     unsigned int nvec);
 void *platform_msi_get_host_data(struct irq_domain *domain);
+
+bool msi_device_has_isolated_msi(struct device *dev);
+#else /* CONFIG_GENERIC_MSI_IRQ */
+static inline bool msi_device_has_isolated_msi(struct device *dev)
+{
+	/*
+	 * Arguably if the platform does not enable MSI support then it has
+	 * "isolated MSI", as an interrupt controller that cannot receive MSIs
+	 * is inherently isolated by our definition. As nobody seems to needs
+	 * this be conservative and return false anyhow.
+	 */
+	return false;
+}
 #endif /* CONFIG_GENERIC_MSI_IRQ */
 
 /* PCI specific interfaces */
