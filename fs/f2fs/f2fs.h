@@ -696,9 +696,9 @@ struct extent_tree_info {
  */
 #define F2FS_MAP_NEW		(1U << 0)
 #define F2FS_MAP_MAPPED		(1U << 1)
-#define F2FS_MAP_UNWRITTEN	(1U << 2)
+#define F2FS_MAP_DELALLOC	(1U << 2)
 #define F2FS_MAP_FLAGS		(F2FS_MAP_NEW | F2FS_MAP_MAPPED |\
-				F2FS_MAP_UNWRITTEN)
+				F2FS_MAP_DELALLOC)
 
 struct f2fs_map_blocks {
 	struct block_device *m_bdev;	/* for multi-device dio */

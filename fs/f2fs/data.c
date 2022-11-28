@@ -1660,9 +1660,9 @@ next_block:
 		bidx = f2fs_target_device_index(sbi, blkaddr);
 
 	if (map->m_len == 0) {
-		/* preallocated unwritten block should be mapped for fiemap. */
+		/* reserved delalloc block should be mapped for fiemap. */
 		if (blkaddr == NEW_ADDR)
-			map->m_flags |= F2FS_MAP_UNWRITTEN;
+			map->m_flags |= F2FS_MAP_DELALLOC;
 		map->m_flags |= F2FS_MAP_MAPPED;
 
 		map->m_pblk = blkaddr;
@@ -1984,7 +1984,7 @@ next:
 
 	compr_appended = false;
 	/* In a case of compressed cluster, append this to the last extent */
-	if (compr_cluster && ((map.m_flags & F2FS_MAP_UNWRITTEN) ||
+	if (compr_cluster && ((map.m_flags & F2FS_MAP_DELALLOC) ||
 			!(map.m_flags & F2FS_MAP_FLAGS))) {
 		compr_appended = true;
 		goto skip_fill;
@@ -2030,7 +2030,7 @@ skip_fill:
 				compr_cluster = false;
 				size += blks_to_bytes(inode, 1);
 			}
-		} else if (map.m_flags & F2FS_MAP_UNWRITTEN) {
+		} else if (map.m_flags & F2FS_MAP_DELALLOC) {
 			flags = FIEMAP_EXTENT_UNWRITTEN;
 		}
 
