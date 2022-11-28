@@ -467,7 +467,7 @@ static void bq25890_update_state(struct bq25890_device *bq,
 	/* update state in case we lost an interrupt */
 	__bq25890_handle_irq(bq);
 	*state = bq->state;
-	do_adc_conv = !state->online && bq25890_is_adc_property(psp);
+	do_adc_conv = (!state->online || state->hiz) && bq25890_is_adc_property(psp);
 	if (do_adc_conv)
 		bq25890_field_write(bq, F_CONV_START, 1);
 	mutex_unlock(&bq->lock);
@@ -956,7 +956,7 @@ static int bq25890_hw_init(struct bq25890_device *bq)
 	}
 
 	/* Configure ADC for continuous conversions when charging */
-	ret = bq25890_field_write(bq, F_CONV_RATE, !!bq->state.online);
+	ret = bq25890_field_write(bq, F_CONV_RATE, bq->state.online && !bq->state.hiz);
 	if (ret < 0) {
 		dev_dbg(bq->dev, "Config ADC failed %d\n", ret);
 		return ret;
