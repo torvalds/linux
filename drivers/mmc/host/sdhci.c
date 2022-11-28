@@ -2403,8 +2403,21 @@ void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (host->version >= SDHCI_SPEC_300) {
 		u16 clk, ctrl_2;
 
+		/*
+		 * According to SDHCI Spec v3.00, if the Preset Value
+		 * Enable in the Host Control 2 register is set, we
+		 * need to reset SD Clock Enable before changing High
+		 * Speed Enable to avoid generating clock glitches.
+		 */
+		clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+		if (clk & SDHCI_CLOCK_CARD_EN) {
+			clk &= ~SDHCI_CLOCK_CARD_EN;
+			sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+		}
+
+		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+
 		if (!host->preset_enabled) {
-			sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 			/*
 			 * We only need to set Driver Strength if the
 			 * preset value enable is not set.
@@ -2427,29 +2440,7 @@ void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 			sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
 			host->drv_type = ios->drv_type;
-		} else {
-			/*
-			 * According to SDHC Spec v3.00, if the Preset Value
-			 * Enable in the Host Control 2 register is set, we
-			 * need to reset SD Clock Enable before changing High
-			 * Speed Enable to avoid generating clock gliches.
-			 */
-
-			/* Reset SD Clock Enable */
-			clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
-			clk &= ~SDHCI_CLOCK_CARD_EN;
-			sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
-
-			sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
-
-			/* Re-enable SD Clock */
-			host->ops->set_clock(host, host->clock);
 		}
-
-		/* Reset SD Clock Enable */
-		clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
-		clk &= ~SDHCI_CLOCK_CARD_EN;
-		sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
 
 		host->ops->set_uhs_signaling(host, ios->timing);
 		host->timing = ios->timing;
