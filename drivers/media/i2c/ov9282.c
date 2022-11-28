@@ -1253,11 +1253,13 @@ static int ov9282_power_on(struct device *dev)
 					OV9282_GATED_CLOCK : 0);
 	if (ret) {
 		dev_err(ov9282->dev, "fail to write MIPI_CTRL00");
-		return ret;
+		goto error_clk;
 	}
 
 	return 0;
 
+error_clk:
+	clk_disable_unprepare(ov9282->inclk);
 error_reset:
 	gpiod_set_value_cansleep(ov9282->reset_gpio, 0);
 
