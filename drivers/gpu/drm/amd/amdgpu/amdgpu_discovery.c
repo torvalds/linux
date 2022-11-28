@@ -574,6 +574,14 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 				1 << (le16_to_cpu(harvest_info->list[i].number_instance));
 			(*umc_harvest_count)++;
 			break;
+		case GC_HWID:
+			adev->gfx.xcc_mask &=
+				~(1U << harvest_info->list[i].number_instance);
+			break;
+		case SDMA0_HWID:
+			adev->sdma.sdma_mask &=
+				~(1U << harvest_info->list[i].number_instance);
+			break;
 		default:
 			break;
 		}
@@ -1106,6 +1114,8 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 		return r;
 	}
 
+	adev->gfx.xcc_mask = 0;
+	adev->sdma.sdma_mask = 0;
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
 	ihdr = (struct ip_discovery_header *)(adev->mman.discovery_bin +
 			le16_to_cpu(bhdr->table_list[IP_DISCOVERY].offset));
@@ -1164,18 +1174,26 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 			    le16_to_cpu(ip->hw_id) == SDMA1_HWID ||
 			    le16_to_cpu(ip->hw_id) == SDMA2_HWID ||
 			    le16_to_cpu(ip->hw_id) == SDMA3_HWID) {
-				if (adev->sdma.num_instances < AMDGPU_MAX_SDMA_INSTANCES)
+				if (adev->sdma.num_instances <
+				    AMDGPU_MAX_SDMA_INSTANCES) {
 					adev->sdma.num_instances++;
-				else
+					adev->sdma.sdma_mask |=
+						(1U << ip->instance_number);
+				} else {
 					dev_err(adev->dev, "Too many SDMA instances: %d vs %d\n",
 						adev->sdma.num_instances + 1,
 						AMDGPU_MAX_SDMA_INSTANCES);
+				}
 			}
 
 			if (le16_to_cpu(ip->hw_id) == UMC_HWID) {
 				adev->gmc.num_umc++;
 				adev->umc.node_inst_num++;
 			}
+
+			if (le16_to_cpu(ip->hw_id) == GC_HWID)
+				adev->gfx.xcc_mask |=
+					(1U << ip->instance_number);
 
 			for (k = 0; k < num_base_address; k++) {
 				/*
@@ -1243,7 +1261,8 @@ static void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 	 * so read harvest bit per IP data structure to set
 	 * harvest configuration.
 	 */
-	if (adev->ip_versions[GC_HWIP][0] < IP_VERSION(10, 2, 0)) {
+	if (adev->ip_versions[GC_HWIP][0] < IP_VERSION(10, 2, 0) &&
+	    adev->ip_versions[GC_HWIP][0] != IP_VERSION(9, 4, 3)) {
 		if ((adev->pdev->device == 0x731E &&
 			(adev->pdev->revision == 0xC6 ||
 			 adev->pdev->revision == 0xC7)) ||
