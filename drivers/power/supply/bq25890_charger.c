@@ -108,6 +108,9 @@ struct bq25890_device {
 	struct i2c_client *client;
 	struct device *dev;
 	struct power_supply *charger;
+	struct power_supply_desc desc;
+	char name[28]; /* "bq25890-charger-%d" */
+	int id;
 
 	struct usb_phy *usb_phy;
 	struct notifier_block usb_nb;
@@ -128,6 +131,9 @@ struct bq25890_device {
 
 	struct mutex lock; /* protect state data */
 };
+
+static DEFINE_IDR(bq25890_id);
+static DEFINE_MUTEX(bq25890_id_mutex);
 
 static const struct regmap_range bq25890_readonly_reg_ranges[] = {
 	regmap_reg_range(0x0b, 0x0c),
@@ -989,7 +995,6 @@ static char *bq25890_charger_supplied_to[] = {
 };
 
 static const struct power_supply_desc bq25890_power_supply_desc = {
-	.name = "bq25890-charger",
 	.type = POWER_SUPPLY_TYPE_USB,
 	.properties = bq25890_power_supply_props,
 	.num_properties = ARRAY_SIZE(bq25890_power_supply_props),
@@ -1003,12 +1008,21 @@ static int bq25890_power_supply_init(struct bq25890_device *bq)
 {
 	struct power_supply_config psy_cfg = { .drv_data = bq, };
 
+	/* Get ID for the device */
+	mutex_lock(&bq25890_id_mutex);
+	bq->id = idr_alloc(&bq25890_id, bq, 0, 0, GFP_KERNEL);
+	mutex_unlock(&bq25890_id_mutex);
+	if (bq->id < 0)
+		return bq->id;
+
+	snprintf(bq->name, sizeof(bq->name), "bq25890-charger-%d", bq->id);
+	bq->desc = bq25890_power_supply_desc;
+	bq->desc.name = bq->name;
+
 	psy_cfg.supplied_to = bq25890_charger_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(bq25890_charger_supplied_to);
 
-	bq->charger = devm_power_supply_register(bq->dev,
-						 &bq25890_power_supply_desc,
-						 &psy_cfg);
+	bq->charger = devm_power_supply_register(bq->dev, &bq->desc, &psy_cfg);
 
 	return PTR_ERR_OR_ZERO(bq->charger);
 }
@@ -1354,6 +1368,12 @@ static void bq25890_non_devm_cleanup(void *data)
 	struct bq25890_device *bq = data;
 
 	cancel_delayed_work_sync(&bq->pump_express_work);
+
+	if (bq->id >= 0) {
+		mutex_lock(&bq25890_id_mutex);
+		idr_remove(&bq25890_id, bq->id);
+		mutex_unlock(&bq25890_id_mutex);
+	}
 }
 
 static int bq25890_probe(struct i2c_client *client)
@@ -1368,6 +1388,7 @@ static int bq25890_probe(struct i2c_client *client)
 
 	bq->client = client;
 	bq->dev = dev;
+	bq->id = -1;
 
 	mutex_init(&bq->lock);
 	INIT_DELAYED_WORK(&bq->pump_express_work, bq25890_pump_express_work);
