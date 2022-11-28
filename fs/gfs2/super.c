@@ -381,7 +381,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
 
 relock_shared:
-	error2 = gfs2_freeze_lock_shared(sdp, &sdp->sd_freeze_gh, 0);
+	error2 = gfs2_freeze_lock_shared(sdp);
 	gfs2_assert_withdraw(sdp, !error2);
 
 out:
@@ -709,7 +709,7 @@ static int gfs2_do_thaw(struct gfs2_sbd *sdp)
 	struct super_block *sb = sdp->sd_vfs;
 	int error;
 
-	error = gfs2_freeze_lock_shared(sdp, &sdp->sd_freeze_gh, 0);
+	error = gfs2_freeze_lock_shared(sdp);
 	if (error)
 		goto fail;
 	error = thaw_super(sb);
