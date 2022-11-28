@@ -8,20 +8,8 @@
 #include <linux/slab.h>
 #include "adf_accel_devices.h"
 #include "icp_qat_fw_la.h"
+#include "qat_algs_send.h"
 #include "qat_bl.h"
-
-struct qat_instance_backlog {
-	struct list_head list;
-	spinlock_t lock; /* protects backlog list */
-};
-
-struct qat_alg_req {
-	u32 *fw_req;
-	struct adf_etr_ring_data *tx_ring;
-	struct crypto_async_request *base;
-	struct list_head list;
-	struct qat_instance_backlog *backlog;
-};
 
 struct qat_crypto_instance {
 	struct adf_etr_ring_data *sym_tx;
