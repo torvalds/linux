@@ -853,7 +853,7 @@ static void rga_try_set_reg(void)
             rga_write(rga_read(RGA_INT)|(0x1<<10)|(0x1<<8), RGA_INT);
 
 #if RGA_DEBUGFS
-	if (RGA_TEST_REG)
+	if (RGA_TEST_TIME)
 		rga_start = ktime_get();
 #endif
 
@@ -1566,7 +1566,7 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
 	if (RGA_TEST_TIME) {
 		rga_end = ktime_get();
 		rga_end = ktime_sub(rga_end, rga_start);
-		DBG("sync one cmd end time %d\n", (int)ktime_to_us(rga_end));
+		DBG("sync one cmd end time %d us\n", (int)ktime_to_us(rga_end));
 	}
 #endif
 
@@ -1740,7 +1740,6 @@ static int rga_release(struct inode *inode, struct file *file)
     {
 		pr_err("rga_service session %d still has %d task running when closing\n", session->pid, task_running);
 		msleep(100);
-        /*Í¬²½*/
 	}
 
 	wake_up(&session->wait);
@@ -2356,7 +2355,7 @@ static int __init rga_init(void)
 	rga_debugfs_add();
 #endif
 
-	INFO("Module initialized.\n");
+	INFO("RGA Module initialized.\n");
 
 	return 0;
 }
