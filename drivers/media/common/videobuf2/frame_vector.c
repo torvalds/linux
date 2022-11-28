@@ -14,6 +14,7 @@
  * get_vaddr_frames() - map virtual addresses to pfns
  * @start:	starting user address
  * @nr_frames:	number of pages / pfns from start to map
+ * @write:	the mapped address has write permission
  * @vec:	structure which receives pages / pfns of the addresses mapped.
  *		It should have space for at least nr_frames entries.
  *
@@ -32,7 +33,7 @@
  *
  * This function takes care of grabbing mmap_lock as necessary.
  */
-int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
+int get_vaddr_frames(unsigned long start, unsigned int nr_frames, bool write,
 		     struct frame_vector *vec)
 {
 	struct mm_struct *mm = current->mm;
@@ -40,6 +41,7 @@ int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
 	int ret_pin_user_pages_fast = 0;
 	int ret = 0;
 	int err;
+	unsigned int gup_flags = FOLL_FORCE | FOLL_LONGTERM;
 
 	if (nr_frames == 0)
 		return 0;
@@ -49,8 +51,10 @@ int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
 
 	start = untagged_addr(start);
 
-	ret = pin_user_pages_fast(start, nr_frames,
-				  FOLL_FORCE | FOLL_WRITE | FOLL_LONGTERM,
+	if (write)
+		gup_flags |= FOLL_WRITE;
+
+	ret = pin_user_pages_fast(start, nr_frames, gup_flags,
 				  (struct page **)(vec->ptrs));
 	if (ret > 0) {
 		vec->got_ref = true;

@@ -241,7 +241,9 @@ static void *vb2_dma_sg_get_userptr(struct vb2_buffer *vb, struct device *dev,
 	buf->size = size;
 	buf->dma_sgt = &buf->sg_table;
 	buf->vb = vb;
-	vec = vb2_create_framevec(vaddr, size);
+	vec = vb2_create_framevec(vaddr, size,
+				  buf->dma_dir == DMA_FROM_DEVICE ||
+				  buf->dma_dir == DMA_BIDIRECTIONAL);
 	if (IS_ERR(vec))
 		goto userptr_fail_pfnvec;
 	buf->vec = vec;
