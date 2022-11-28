@@ -563,7 +563,7 @@ static int yt8531S_config_init(struct phy_device *phydev)
 
 static int yt8531_config_init(struct phy_device *phydev)
 {
-	int ret = 0;
+	int ret = 0, val;
 
 #if (YTPHY8531A_XTAL_INIT)
 	ret = yt8531a_xtal_init(phydev);
@@ -585,6 +585,13 @@ static int yt8531_config_init(struct phy_device *phydev)
 	 * If the io voltage is 3.3v, PHY_CLK_OUT = 2, set 0xa010 = 0x9acf
 	 */
 	ret = ytphy_write_ext(phydev, 0xa010, 0x9bcf);
+	if (ret < 0)
+		return ret;
+
+	/* Change 100M default BGS voltage from 0x294c to 0x274c */
+	val = ytphy_read_ext(phydev, 0x57);
+	val = (val & ~(0xf << 8)) | (7 << 8);
+	ret = ytphy_write_ext(phydev, 0x57, val);
 	if (ret < 0)
 		return ret;
 
