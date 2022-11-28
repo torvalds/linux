@@ -368,15 +368,15 @@ static int mlx5e_macsec_init_sa(struct macsec_context *ctx,
 	obj_attrs.aso_pdn = macsec->aso.pdn;
 	obj_attrs.epn_state = sa->epn_state;
 
-	if (is_tx) {
-		obj_attrs.ssci = cpu_to_be32((__force u32)ctx->sa.tx_sa->ssci);
-		key = &ctx->sa.tx_sa->key;
-	} else {
-		obj_attrs.ssci = cpu_to_be32((__force u32)ctx->sa.rx_sa->ssci);
-		key = &ctx->sa.rx_sa->key;
+	key = (is_tx) ? &ctx->sa.tx_sa->key : &ctx->sa.rx_sa->key;
+
+	if (sa->epn_state.epn_enabled) {
+		obj_attrs.ssci = (is_tx) ? cpu_to_be32((__force u32)ctx->sa.tx_sa->ssci) :
+					   cpu_to_be32((__force u32)ctx->sa.rx_sa->ssci);
+
+		memcpy(&obj_attrs.salt, &key->salt, sizeof(key->salt));
 	}
 
-	memcpy(&obj_attrs.salt, &key->salt, sizeof(key->salt));
 	obj_attrs.replay_window = ctx->secy->replay_window;
 	obj_attrs.replay_protect = ctx->secy->replay_protect;
 
@@ -1155,7 +1155,7 @@ static int macsec_upd_secy_hw_address(struct macsec_context *ctx,
 				continue;
 
 			if (rx_sa->active) {
-				err = mlx5e_macsec_init_sa(ctx, rx_sa, false, false);
+				err = mlx5e_macsec_init_sa(ctx, rx_sa, true, false);
 				if (err)
 					goto out;
 			}
@@ -1536,6 +1536,8 @@ static void macsec_async_event(struct work_struct *work)
 
 	async_work = container_of(work, struct mlx5e_macsec_async_work, work);
 	macsec = async_work->macsec;
+	mutex_lock(&macsec->lock);
+
 	mdev = async_work->mdev;
 	obj_id = async_work->obj_id;
 	macsec_sa = get_macsec_tx_sa_from_obj_id(macsec, obj_id);
@@ -1557,6 +1559,7 @@ static void macsec_async_event(struct work_struct *work)
 
 out_async_work:
 	kfree(async_work);
+	mutex_unlock(&macsec->lock);
 }
 
 static int macsec_obj_change_event(struct notifier_block *nb, unsigned long event, void *data)
