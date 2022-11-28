@@ -1547,6 +1547,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map, int flag)
 	block_t blkaddr;
 	unsigned int start_pgofs;
 	int bidx = 0;
+	bool is_hole;
 
 	if (!maxblocks)
 		return 0;
@@ -1587,78 +1588,76 @@ next_dnode:
 
 next_block:
 	blkaddr = f2fs_data_blkaddr(&dn);
-
-	if (__is_valid_data_blkaddr(blkaddr) &&
-		!f2fs_is_valid_blkaddr(sbi, blkaddr, DATA_GENERIC_ENHANCE)) {
+	is_hole = !__is_valid_data_blkaddr(blkaddr);
+	if (!is_hole &&
+	    !f2fs_is_valid_blkaddr(sbi, blkaddr, DATA_GENERIC_ENHANCE)) {
 		err = -EFSCORRUPTED;
 		f2fs_handle_error(sbi, ERROR_INVALID_BLKADDR);
 		goto sync_out;
 	}
 
-	if (__is_valid_data_blkaddr(blkaddr)) {
-		/* use out-place-update for driect IO under LFS mode */
-		if (f2fs_lfs_mode(sbi) && flag == F2FS_GET_BLOCK_DIO &&
-							map->m_may_create) {
+	/* use out-place-update for direct IO under LFS mode */
+	if (map->m_may_create &&
+	    (is_hole || (f2fs_lfs_mode(sbi) && flag == F2FS_GET_BLOCK_DIO))) {
+		if (unlikely(f2fs_cp_error(sbi))) {
+			err = -EIO;
+			goto sync_out;
+		}
+
+		switch (flag) {
+		case F2FS_GET_BLOCK_PRE_AIO:
+			if (blkaddr == NULL_ADDR) {
+				prealloc++;
+				last_ofs_in_node = dn.ofs_in_node;
+			}
+			break;
+		case F2FS_GET_BLOCK_PRE_DIO:
+		case F2FS_GET_BLOCK_DIO:
 			err = __allocate_data_block(&dn, map->m_seg_type);
 			if (err)
 				goto sync_out;
-			blkaddr = dn.data_blkaddr;
+			if (flag == F2FS_GET_BLOCK_PRE_DIO)
+				file_need_truncate(inode);
 			set_inode_flag(inode, FI_APPEND_WRITE);
+			break;
+		default:
+			WARN_ON_ONCE(1);
+			err = -EIO;
+			goto sync_out;
 		}
-	} else {
-		if (map->m_may_create) {
-			if (unlikely(f2fs_cp_error(sbi))) {
-				err = -EIO;
-				goto sync_out;
-			}
-			if (flag == F2FS_GET_BLOCK_PRE_AIO) {
-				if (blkaddr == NULL_ADDR) {
-					prealloc++;
-					last_ofs_in_node = dn.ofs_in_node;
-				}
-			} else {
-				WARN_ON(flag != F2FS_GET_BLOCK_PRE_DIO &&
-					flag != F2FS_GET_BLOCK_DIO);
-				err = __allocate_data_block(&dn,
-							map->m_seg_type);
-				if (!err) {
-					if (flag == F2FS_GET_BLOCK_PRE_DIO)
-						file_need_truncate(inode);
-					set_inode_flag(inode, FI_APPEND_WRITE);
-				}
-			}
-			if (err)
-				goto sync_out;
+
+		blkaddr = dn.data_blkaddr;
+		if (is_hole)
 			map->m_flags |= F2FS_MAP_NEW;
-			blkaddr = dn.data_blkaddr;
-		} else {
-			if (f2fs_compressed_file(inode) &&
-					f2fs_sanity_check_cluster(&dn) &&
-					(flag != F2FS_GET_BLOCK_FIEMAP ||
-					IS_ENABLED(CONFIG_F2FS_CHECK_FS))) {
-				err = -EFSCORRUPTED;
-				f2fs_handle_error(sbi,
-						ERROR_CORRUPTED_CLUSTER);
-				goto sync_out;
-			}
-			if (flag == F2FS_GET_BLOCK_BMAP) {
-				map->m_pblk = 0;
-				goto sync_out;
-			}
-			if (flag == F2FS_GET_BLOCK_PRECACHE)
-				goto sync_out;
-			if (flag == F2FS_GET_BLOCK_FIEMAP &&
-						blkaddr == NULL_ADDR) {
+	} else if (is_hole) {
+		if (f2fs_compressed_file(inode) &&
+		    f2fs_sanity_check_cluster(&dn) &&
+		    (flag != F2FS_GET_BLOCK_FIEMAP ||
+		     IS_ENABLED(CONFIG_F2FS_CHECK_FS))) {
+			err = -EFSCORRUPTED;
+			f2fs_handle_error(sbi,
+					ERROR_CORRUPTED_CLUSTER);
+			goto sync_out;
+		}
+
+		switch (flag) {
+		case F2FS_GET_BLOCK_PRECACHE:
+			goto sync_out;
+		case F2FS_GET_BLOCK_BMAP:
+			map->m_pblk = 0;
+			goto sync_out;
+		case F2FS_GET_BLOCK_FIEMAP:
+			if (blkaddr == NULL_ADDR) {
 				if (map->m_next_pgofs)
 					*map->m_next_pgofs = pgofs + 1;
 				goto sync_out;
 			}
-			if (flag != F2FS_GET_BLOCK_FIEMAP) {
-				/* for defragment case */
-				if (map->m_next_pgofs)
-					*map->m_next_pgofs = pgofs + 1;
-				goto sync_out;
-			}
+			break;
+		default:
+			/* for defragment case */
+			if (map->m_next_pgofs)
+				*map->m_next_pgofs = pgofs + 1;
+			goto sync_out;
 		}
 	}
 
