@@ -221,7 +221,7 @@ static i915_reg_t mcr_reg_cast(const i915_mcr_reg_t mcr)
 
 /*
  * rw_with_mcr_steering_fw - Access a register with specific MCR steering
- * @uncore: pointer to struct intel_uncore
+ * @gt: GT to read register from
  * @reg: register being accessed
  * @rw_flag: FW_REG_READ for read access or FW_REG_WRITE for write access
  * @group: group number (documented as "sliceid" on older platforms)
@@ -232,10 +232,11 @@ static i915_reg_t mcr_reg_cast(const i915_mcr_reg_t mcr)
  *
  * Caller needs to make sure the relevant forcewake wells are up.
  */
-static u32 rw_with_mcr_steering_fw(struct intel_uncore *uncore,
+static u32 rw_with_mcr_steering_fw(struct intel_gt *gt,
 				   i915_mcr_reg_t reg, u8 rw_flag,
 				   int group, int instance, u32 value)
 {
+	struct intel_uncore *uncore = gt->uncore;
 	u32 mcr_mask, mcr_ss, mcr, old_mcr, val = 0;
 
 	lockdep_assert_held(&uncore->lock);
@@ -308,11 +309,12 @@ static u32 rw_with_mcr_steering_fw(struct intel_uncore *uncore,
 	return val;
 }
 
-static u32 rw_with_mcr_steering(struct intel_uncore *uncore,
+static u32 rw_with_mcr_steering(struct intel_gt *gt,
 				i915_mcr_reg_t reg, u8 rw_flag,
 				int group, int instance,
 				u32 value)
 {
+	struct intel_uncore *uncore = gt->uncore;
 	enum forcewake_domains fw_domains;
 	u32 val;
 
@@ -325,7 +327,7 @@ static u32 rw_with_mcr_steering(struct intel_uncore *uncore,
 	spin_lock_irq(&uncore->lock);
 	intel_uncore_forcewake_get__locked(uncore, fw_domains);
 
-	val = rw_with_mcr_steering_fw(uncore, reg, rw_flag, group, instance, value);
+	val = rw_with_mcr_steering_fw(gt, reg, rw_flag, group, instance, value);
 
 	intel_uncore_forcewake_put__locked(uncore, fw_domains);
 	spin_unlock_irq(&uncore->lock);
@@ -347,7 +349,7 @@ u32 intel_gt_mcr_read(struct intel_gt *gt,
 		      i915_mcr_reg_t reg,
 		      int group, int instance)
 {
-	return rw_with_mcr_steering(gt->uncore, reg, FW_REG_READ, group, instance, 0);
+	return rw_with_mcr_steering(gt, reg, FW_REG_READ, group, instance, 0);
 }
 
 /**
@@ -364,7 +366,7 @@ u32 intel_gt_mcr_read(struct intel_gt *gt,
 void intel_gt_mcr_unicast_write(struct intel_gt *gt, i915_mcr_reg_t reg, u32 value,
 				int group, int instance)
 {
-	rw_with_mcr_steering(gt->uncore, reg, FW_REG_WRITE, group, instance, value);
+	rw_with_mcr_steering(gt, reg, FW_REG_WRITE, group, instance, value);
 }
 
 /**
@@ -588,7 +590,7 @@ u32 intel_gt_mcr_read_any_fw(struct intel_gt *gt, i915_mcr_reg_t reg)
 	for (type = 0; type < NUM_STEERING_TYPES; type++) {
 		if (reg_needs_read_steering(gt, reg, type)) {
 			get_nonterminated_steering(gt, type, &group, &instance);
-			return rw_with_mcr_steering_fw(gt->uncore, reg,
+			return rw_with_mcr_steering_fw(gt, reg,
 						       FW_REG_READ,
 						       group, instance, 0);
 		}
@@ -615,7 +617,7 @@ u32 intel_gt_mcr_read_any(struct intel_gt *gt, i915_mcr_reg_t reg)
 	for (type = 0; type < NUM_STEERING_TYPES; type++) {
 		if (reg_needs_read_steering(gt, reg, type)) {
 			get_nonterminated_steering(gt, type, &group, &instance);
-			return rw_with_mcr_steering(gt->uncore, reg,
+			return rw_with_mcr_steering(gt, reg,
 						    FW_REG_READ,
 						    group, instance, 0);
 		}
