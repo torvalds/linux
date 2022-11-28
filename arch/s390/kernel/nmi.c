@@ -114,9 +114,61 @@ void nmi_free_mcesa(u64 *mcesad)
 	kmem_cache_free(mcesa_cache, __va(*mcesad & MCESA_ORIGIN_MASK));
 }
 
+static __always_inline char *nmi_puts(char *dest, const char *src)
+{
+	while (*src)
+		*dest++ = *src++;
+	*dest = 0;
+	return dest;
+}
+
+static __always_inline char *u64_to_hex(char *dest, u64 val)
+{
+	int i, num;
+
+	for (i = 1; i <= 16; i++) {
+		num = (val >> (64 - 4 * i)) & 0xf;
+		if (num >= 10)
+			*dest++ = 'A' + num - 10;
+		else
+			*dest++ = '0' + num;
+	}
+	*dest = 0;
+	return dest;
+}
+
 static notrace void s390_handle_damage(void)
 {
+	union ctlreg0 cr0, cr0_new;
+	char message[100];
+	psw_t psw_save;
+	char *ptr;
+
 	smp_emergency_stop();
+	diag_amode31_ops.diag308_reset();
+	ptr = nmi_puts(message, "System stopped due to unrecoverable machine check, code: 0x");
+	u64_to_hex(ptr, S390_lowcore.mcck_interruption_code);
+
+	/*
+	 * Disable low address protection and make machine check new PSW a
+	 * disabled wait PSW. Any additional machine check cannot be handled.
+	 */
+	__ctl_store(cr0.val, 0, 0);
+	cr0_new = cr0;
+	cr0_new.lap = 0;
+	__ctl_load(cr0_new.val, 0, 0);
+	psw_save = S390_lowcore.mcck_new_psw;
+	psw_bits(S390_lowcore.mcck_new_psw).io = 0;
+	psw_bits(S390_lowcore.mcck_new_psw).ext = 0;
+	psw_bits(S390_lowcore.mcck_new_psw).wait = 1;
+	sclp_emergency_printk(message);
+
+	/*
+	 * Restore machine check new PSW and control register 0 to original
+	 * values. This makes possible system dump analysis easier.
+	 */
+	S390_lowcore.mcck_new_psw = psw_save;
+	__ctl_load(cr0.val, 0, 0);
 	disabled_wait();
 	while (1);
 }
