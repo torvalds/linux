@@ -84,7 +84,7 @@
 ktime_t rga_start;
 ktime_t rga_end;
 
-rga_session rga_session_global;
+static rga_session rga_session_global;
 
 long (*rga_ioctl_kernel_p)(struct rga_req *);
 
@@ -97,7 +97,7 @@ unsigned char RGA_NONUSE;
 unsigned char RGA_INT_FLAG;
 #endif
 
-struct rga_drvdata *drvdata;
+struct rga_drvdata *rga_drvdata;
 rga_service_info rga_service;
 struct rga_mmu_buf_t rga_mmu_buf;
 
@@ -410,12 +410,12 @@ static int rga_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd)
 
 static inline void rga_write(u32 b, u32 r)
 {
-	__raw_writel(b, drvdata->rga_base + r);
+	__raw_writel(b, rga_drvdata->rga_base + r);
 }
 
 static inline u32 rga_read(u32 r)
 {
-	return __raw_readl(drvdata->rga_base + r);
+	return __raw_readl(rga_drvdata->rga_base + r);
 }
 
 static void rga_soft_reset(void)
@@ -509,9 +509,9 @@ static void rga_dump(void)
 static inline void rga_queue_power_off_work(void)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
-	queue_delayed_work(system_wq, &drvdata->power_off_work, RGA_POWER_OFF_DELAY);
+	queue_delayed_work(system_wq, &rga_drvdata->power_off_work, RGA_POWER_OFF_DELAY);
 #else
-	queue_delayed_work(system_nrt_wq, &drvdata->power_off_work, RGA_POWER_OFF_DELAY);
+	queue_delayed_work(system_nrt_wq, &rga_drvdata->power_off_work, RGA_POWER_OFF_DELAY);
 #endif
 }
 
@@ -522,7 +522,7 @@ static void rga_power_on(void)
 	ktime_t now = ktime_get();
 
 	if (ktime_to_ns(ktime_sub(now, last)) > NSEC_PER_SEC) {
-		cancel_delayed_work_sync(&drvdata->power_off_work);
+		cancel_delayed_work_sync(&rga_drvdata->power_off_work);
 		rga_queue_power_off_work();
 		last = now;
 	}
@@ -530,17 +530,17 @@ static void rga_power_on(void)
 		return;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
-	clk_prepare_enable(drvdata->aclk_rga);
-	clk_prepare_enable(drvdata->hclk_rga);
-	pm_runtime_get_sync(drvdata->dev);
+	clk_prepare_enable(rga_drvdata->aclk_rga);
+	clk_prepare_enable(rga_drvdata->hclk_rga);
+	pm_runtime_get_sync(rga_drvdata->dev);
 #else
-	clk_prepare_enable(drvdata->aclk_rga);
-	clk_prepare_enable(drvdata->hclk_rga);
-	if (drvdata->pd_rga)
-		clk_prepare_enable(drvdata->pd_rga);
+	clk_prepare_enable(rga_drvdata->aclk_rga);
+	clk_prepare_enable(rga_drvdata->hclk_rga);
+	if (rga_drvdata->pd_rga)
+		clk_prepare_enable(rga_drvdata->pd_rga);
 #endif
 
-	wake_lock(&drvdata->wake_lock);
+	wake_lock(&rga_drvdata->wake_lock);
 	rga_service.enable = true;
 }
 
@@ -562,16 +562,16 @@ static void rga_power_off(void)
 	}
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
-	pm_runtime_put(drvdata->dev);
-	clk_disable_unprepare(drvdata->aclk_rga);
-	clk_disable_unprepare(drvdata->hclk_rga);
+	pm_runtime_put(rga_drvdata->dev);
+	clk_disable_unprepare(rga_drvdata->aclk_rga);
+	clk_disable_unprepare(rga_drvdata->hclk_rga);
 #else
-	if (drvdata->pd_rga)
-		clk_disable_unprepare(drvdata->pd_rga);
-	clk_disable_unprepare(drvdata->aclk_rga);
-	clk_disable_unprepare(drvdata->hclk_rga);
+	if (rga_drvdata->pd_rga)
+		clk_disable_unprepare(rga_drvdata->pd_rga);
+	clk_disable_unprepare(rga_drvdata->aclk_rga);
+	clk_disable_unprepare(rga_drvdata->hclk_rga);
 #endif
-	wake_unlock(&drvdata->wake_lock);
+	wake_unlock(&rga_drvdata->wake_lock);
 	rga_service.enable = false;
 }
 
@@ -628,7 +628,7 @@ static int rga_flush(rga_session *session, unsigned long arg)
 
 static int rga_get_result(rga_session *session, unsigned long arg)
 {
-	//printk("rga_get_result %d\n",drvdata->rga_result);
+	//printk("rga_get_result %d\n",rga_drvdata->rga_result);
 
     int ret = 0;
 
@@ -1010,7 +1010,7 @@ static int rga_convert_dma_buf(struct rga_req *req)
 	dst_offset = req->line_draw_info.line_width;
 
 	if (req->src.yrgb_addr) {
-		hdl = ion_import_dma_buf(drvdata->ion_client, req->src.yrgb_addr);
+		hdl = ion_import_dma_buf(rga_drvdata->ion_client, req->src.yrgb_addr);
 		if (IS_ERR(hdl)) {
 		ret = PTR_ERR(hdl);
 		pr_err("RGA ERROR ion buf handle\n");
@@ -1025,26 +1025,26 @@ static int rga_convert_dma_buf(struct rga_req *req)
 
 #if RGA_DEBUGFS
 	if (RGA_CHECK_MODE) {
-		vaddr = ion_map_kernel(drvdata->ion_client, hdl);
+		vaddr = ion_map_kernel(rga_drvdata->ion_client, hdl);
 		if (vaddr)
 			rga_memory_check(vaddr, req->src.vir_h, req->src.vir_w,
 					req->src.format, req->src.yrgb_addr);
-		ion_unmap_kernel(drvdata->ion_client, hdl);
+		ion_unmap_kernel(rga_drvdata->ion_client, hdl);
 	}
 #endif
         if ((req->mmu_info.mmu_flag >> 8) & 1) {
-            req->sg_src = ion_sg_table(drvdata->ion_client, hdl);
+            req->sg_src = ion_sg_table(rga_drvdata->ion_client, hdl);
             req->src.yrgb_addr = req->src.uv_addr;
             req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
             req->src.v_addr = req->src.uv_addr + (req->src.vir_w * req->src.vir_h)/4;
         }
         else {
-            ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
+            ion_phys(rga_drvdata->ion_client, hdl, &phy_addr, &len);
             req->src.yrgb_addr = phy_addr + src_offset;
             req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
             req->src.v_addr = req->src.uv_addr + (req->src.vir_w * req->src.vir_h)/4;
         }
-        ion_free(drvdata->ion_client, hdl);
+        ion_free(rga_drvdata->ion_client, hdl);
     }
     else {
         req->src.yrgb_addr = req->src.uv_addr;
@@ -1053,7 +1053,7 @@ static int rga_convert_dma_buf(struct rga_req *req)
     }
 
     if(req->dst.yrgb_addr) {
-        hdl = ion_import_dma_buf(drvdata->ion_client, req->dst.yrgb_addr);
+        hdl = ion_import_dma_buf(rga_drvdata->ion_client, req->dst.yrgb_addr);
         if (IS_ERR(hdl)) {
             ret = PTR_ERR(hdl);
             printk("RGA2 ERROR ion buf handle\n");
@@ -1068,26 +1068,26 @@ static int rga_convert_dma_buf(struct rga_req *req)
 
 #if RGA_DEBUGFS
 	if (RGA_CHECK_MODE) {
-		vaddr = ion_map_kernel(drvdata->ion_client, hdl);
+		vaddr = ion_map_kernel(rga_drvdata->ion_client, hdl);
 		if (vaddr)
 			rga_memory_check(vaddr, req->src.vir_h, req->src.vir_w,
 				 req->src.format, req->src.yrgb_addr);
-		ion_unmap_kernel(drvdata->ion_client, hdl);
+		ion_unmap_kernel(rga_drvdata->ion_client, hdl);
 	}
 #endif
         if ((req->mmu_info.mmu_flag >> 10) & 1) {
-            req->sg_dst = ion_sg_table(drvdata->ion_client, hdl);
+            req->sg_dst = ion_sg_table(rga_drvdata->ion_client, hdl);
             req->dst.yrgb_addr = req->dst.uv_addr;
             req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
             req->dst.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
         }
         else {
-            ion_phys(drvdata->ion_client, hdl, &phy_addr, &len);
+            ion_phys(rga_drvdata->ion_client, hdl, &phy_addr, &len);
             req->dst.yrgb_addr = phy_addr + dst_offset;
             req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
             req->dst.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
         }
-        ion_free(drvdata->ion_client, hdl);
+        ion_free(rga_drvdata->ion_client, hdl);
     }
     else {
         req->dst.yrgb_addr = req->dst.uv_addr;
@@ -1114,7 +1114,7 @@ static int rga_get_img_info(rga_img_info_t *img,
 	int ret = 0;
 	void *vaddr = NULL;
 
-	rga_dev = drvdata->dev;
+	rga_dev = rga_drvdata->dev;
 	yrgb_addr = (int)img->yrgb_addr;
 	vir_w = img->vir_w;
 	vir_h = img->vir_h;
@@ -1634,21 +1634,21 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
             ret = rga_get_result(session, arg);
             break;
         case RGA_GET_VERSION:
-		if (!drvdata->version) {
-			drvdata->version = kzalloc(16, GFP_KERNEL);
-			if (!drvdata->version) {
+		if (!rga_drvdata->version) {
+			rga_drvdata->version = kzalloc(16, GFP_KERNEL);
+			if (!rga_drvdata->version) {
 				ret = -ENOMEM;
 				break;
 			}
 			rga_power_on();
 			udelay(1);
 			if (rga_read(RGA_VERSION) == 0x02018632)
-				snprintf(drvdata->version, 16, "1.6");
+				snprintf(rga_drvdata->version, 16, "1.6");
 			else
-				snprintf(drvdata->version, 16, "1.003");
+				snprintf(rga_drvdata->version, 16, "1.003");
 		}
 
-			ret = copy_to_user((void *)arg, drvdata->version, 16);
+			ret = copy_to_user((void *)arg, rga_drvdata->version, 16);
             break;
 		default:
 			ERR("unknown ioctl cmd!\n");
@@ -1867,7 +1867,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 	data->dev = &pdev->dev;
-	drvdata = data;
+	rga_drvdata = data;
 
     #if defined(CONFIG_ION_ROCKCHIP)
 	data->ion_client = rockchip_ion_client_create("rga");
@@ -2069,7 +2069,7 @@ void rga_slt(void)
 	unsigned int *pstd;
 	unsigned int *pnow;
 
-	data = drvdata;
+	data = rga_drvdata;
 	srcW = 1280;
 	srcH = 720;
 	dstW = 1280;

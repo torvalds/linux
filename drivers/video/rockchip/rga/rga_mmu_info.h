@@ -13,7 +13,7 @@
 #define MAX(X, Y)           ((X)>(Y)?(X):(Y))
 #endif
 
-extern struct rga_drvdata *drvdata;
+extern struct rga_drvdata *rga_drvdata;
 
 void rga_dma_flush_range(void *pstart, void *pend);
 int rga_set_mmu_info(struct rga_reg *reg, struct rga_req *req);

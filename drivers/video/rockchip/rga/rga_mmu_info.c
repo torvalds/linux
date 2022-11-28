@@ -32,7 +32,7 @@ extern int RGA_CHECK_MODE;
 
 void rga_dma_flush_range(void *pstart, void *pend)
 {
-	dma_sync_single_for_device(drvdata->dev, virt_to_phys(pstart), pend - pstart, DMA_TO_DEVICE);
+	dma_sync_single_for_device(rga_drvdata->dev, virt_to_phys(pstart), pend - pstart, DMA_TO_DEVICE);
 }
 
 static int rga_mmu_buf_get(struct rga_mmu_buf_t *t, uint32_t size)
