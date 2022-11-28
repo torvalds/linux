@@ -953,27 +953,14 @@ static struct raw3270_fn tty3270_fn = {
 	.resize = tty3270_resize
 };
 
-/*
- * This routine is called whenever a 3270 tty is opened first time.
- */
-static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
+static int
+tty3270_create_view(int index, struct tty3270 **newtp)
 {
-	struct raw3270_view *view;
 	struct tty3270 *tp;
 	int i, rc;
 
-	/* Check if the tty3270 is already there. */
-	view = raw3270_find_view(&tty3270_fn, tty->index + RAW3270_FIRSTMINOR);
-	if (!IS_ERR(view)) {
-		tp = container_of(view, struct tty3270, view);
-		tty->driver_data = tp;
-		tty->winsize.ws_row = tp->view.rows - 2;
-		tty->winsize.ws_col = tp->view.cols;
-		tp->inattr = TF_INPUT;
-		goto port_install;
-	}
-	if (tty3270_max_index < tty->index + 1)
-		tty3270_max_index = tty->index + 1;
+	if (tty3270_max_index < index + 1)
+		tty3270_max_index = index + 1;
 
 	/* Allocate tty3270 structure on first open. */
 	tp = tty3270_alloc_view();
@@ -981,7 +968,7 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		return PTR_ERR(tp);
 
 	rc = raw3270_add_view(&tp->view, &tty3270_fn,
-			      tty->index + RAW3270_FIRSTMINOR,
+			      index + RAW3270_FIRSTMINOR,
 			      RAW3270_VIEW_LOCK_BH);
 	if (rc) {
 		tty3270_free_view(tp);
@@ -996,9 +983,6 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		tty3270_free_view(tp);
 		return rc;
 	}
-
-	tty->winsize.ws_row = tp->view.rows - 2;
-	tty->winsize.ws_col = tp->view.cols;
 
 	tty3270_create_prompt(tp);
 	tty3270_create_status(tp);
@@ -1016,16 +1000,41 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 	kbd_ascebc(tp->kbd, tp->view.ascebc);
 
 	raw3270_activate_view(&tp->view);
+	raw3270_put_view(&tp->view);
+	*newtp = tp;
+	return 0;
+}
 
-port_install:
+/*
+ * This routine is called whenever a 3270 tty is opened first time.
+ */
+static int
+tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	struct raw3270_view *view;
+	struct tty3270 *tp;
+	int rc;
+
+	/* Check if the tty3270 is already there. */
+	view = raw3270_find_view(&tty3270_fn, tty->index + RAW3270_FIRSTMINOR);
+	if (IS_ERR(view)) {
+		rc = tty3270_create_view(tty->index, &tp);
+		if (rc)
+			return rc;
+	} else {
+		tp = container_of(view, struct tty3270, view);
+		tty->driver_data = tp;
+		tp->inattr = TF_INPUT;
+	}
+
+	tty->winsize.ws_row = tp->view.rows - 2;
+	tty->winsize.ws_col = tp->view.cols;
 	rc = tty_port_install(&tp->port, driver, tty);
 	if (rc) {
 		raw3270_put_view(&tp->view);
 		return rc;
 	}
-
 	tty->driver_data = tp;
-
 	return 0;
 }
 
