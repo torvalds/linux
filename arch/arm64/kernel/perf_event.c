@@ -1150,7 +1150,8 @@ static void __armv8pmu_probe_pmu(void *info)
 	dfr0 = read_sysreg(id_aa64dfr0_el1);
 	pmuver = cpuid_feature_extract_unsigned_field(dfr0,
 			ID_AA64DFR0_EL1_PMUVer_SHIFT);
-	if (pmuver == ID_AA64DFR0_EL1_PMUVer_IMP_DEF || pmuver == 0)
+	if (pmuver == ID_AA64DFR0_EL1_PMUVer_IMP_DEF ||
+	    pmuver == ID_AA64DFR0_EL1_PMUVer_NI)
 		return;
 
 	cpu_pmu->pmuver = pmuver;
