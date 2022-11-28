@@ -906,12 +906,28 @@ out:
 	return ret;
 }
 
-int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
+static
+int _rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
 {
 	if (rtw_chip_wcpu_11n(rtwdev))
 		return __rtw_download_firmware_legacy(rtwdev, fw);
 
 	return __rtw_download_firmware(rtwdev, fw);
+}
+
+int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
+{
+	int ret;
+
+	ret = _rtw_download_firmware(rtwdev, fw);
+	if (ret)
+		return ret;
+
+	if (rtw_hci_type(rtwdev) == RTW_HCI_TYPE_PCIE &&
+	    rtwdev->chip->id == RTW_CHIP_TYPE_8821C)
+		rtw_fw_set_recover_bt_device(rtwdev);
+
+	return 0;
 }
 
 static u32 get_priority_queues(struct rtw_dev *rtwdev, u32 queues)

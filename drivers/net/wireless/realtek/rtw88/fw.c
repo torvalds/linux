@@ -822,6 +822,16 @@ void rtw_fw_set_nlo_info(struct rtw_dev *rtwdev, bool enable)
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
+void rtw_fw_set_recover_bt_device(struct rtw_dev *rtwdev)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_RECOVER_BT_DEV);
+	SET_RECOVER_BT_DEV_EN(h2c_pkt, 1);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
 void rtw_fw_set_pg_info(struct rtw_dev *rtwdev)
 {
 	struct rtw_lps_conf *conf = &rtwdev->lps_conf;
