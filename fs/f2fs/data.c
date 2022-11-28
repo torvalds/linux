@@ -1472,6 +1472,28 @@ int f2fs_get_block_locked(struct dnode_of_data *dn, pgoff_t index)
 	return err;
 }
 
+static int f2fs_map_no_dnode(struct inode *inode,
+		struct f2fs_map_blocks *map, struct dnode_of_data *dn,
+		pgoff_t pgoff)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+
+	/*
+	 * There is one exceptional case that read_node_page() may return
+	 * -ENOENT due to filesystem has been shutdown or cp_error, return
+	 * -EIO in that case.
+	 */
+	if (map->m_may_create &&
+	    (is_sbi_flag_set(sbi, SBI_IS_SHUTDOWN) || f2fs_cp_error(sbi)))
+		return -EIO;
+
+	if (map->m_next_pgofs)
+		*map->m_next_pgofs = f2fs_get_next_page_offset(dn, pgoff);
+	if (map->m_next_extent)
+		*map->m_next_extent = f2fs_get_next_page_offset(dn, pgoff);
+	return 0;
+}
+
 static bool f2fs_map_blocks_cached(struct inode *inode,
 		struct f2fs_map_blocks *map, int flag)
 {
@@ -1553,29 +1575,8 @@ next_dnode:
 	if (err) {
 		if (flag == F2FS_GET_BLOCK_BMAP)
 			map->m_pblk = 0;
-
-		if (err == -ENOENT) {
-			/*
-			 * There is one exceptional case that read_node_page()
-			 * may return -ENOENT due to filesystem has been
-			 * shutdown or cp_error, so force to convert error
-			 * number to EIO for such case.
-			 */
-			if (map->m_may_create &&
-				(is_sbi_flag_set(sbi, SBI_IS_SHUTDOWN) ||
-				f2fs_cp_error(sbi))) {
-				err = -EIO;
-				goto unlock_out;
-			}
-
-			err = 0;
-			if (map->m_next_pgofs)
-				*map->m_next_pgofs =
-					f2fs_get_next_page_offset(&dn, pgofs);
-			if (map->m_next_extent)
-				*map->m_next_extent =
-					f2fs_get_next_page_offset(&dn, pgofs);
-		}
+		if (err == -ENOENT)
+			err = f2fs_map_no_dnode(inode, map, &dn, pgofs);
 		goto unlock_out;
 	}
 
