@@ -41,10 +41,14 @@ static int tty3270_max_index;
 static struct tty3270 *condev;
 static struct raw3270_fn tty3270_fn;
 
+struct tty3270_attribute {
+	unsigned char highlight;	/* Blink/reverse/underscore */
+	unsigned char f_color;		/* Foreground color */
+};
+
 struct tty3270_cell {
 	unsigned char character;
-	unsigned char highlight;
-	unsigned char f_color;
+	struct tty3270_attribute attributes;
 };
 
 struct tty3270_line {
@@ -80,8 +84,8 @@ struct tty3270 {
 
 	/* Current tty screen. */
 	unsigned int cx, cy;		/* Current output position. */
-	unsigned int highlight;		/* Blink/reverse/underscore */
-	unsigned int f_color;		/* Foreground color */
+	struct tty3270_attribute attributes;
+	struct tty3270_attribute saved_attributes;
 	struct tty3270_line *screen;
 	unsigned int n_model, n_cols, n_rows;	/* New model & size */
 	struct work_struct resize_work;
@@ -101,7 +105,6 @@ struct tty3270 {
 	int esc_state, esc_ques, esc_npar;
 	int esc_par[ESCAPE_NPAR];
 	unsigned int saved_cx, saved_cy;
-	unsigned int saved_highlight, saved_f_color;
 
 	/* Command recalling. */
 	struct list_head rcl_lines;	/* List of recallable lines. */
@@ -1067,16 +1070,14 @@ static void tty3270_put_character(struct tty3270 *tp, char ch)
 		while (line->len < tp->cx) {
 			cell = line->cells + line->len;
 			cell->character = tp->view.ascebc[' '];
-			cell->highlight = tp->highlight;
-			cell->f_color = tp->f_color;
+			cell->attributes = tp->attributes;
 			line->len++;
 		}
 		line->len++;
 	}
 	cell = line->cells + tp->cx;
 	cell->character = tp->view.ascebc[(unsigned int) ch];
-	cell->highlight = tp->highlight;
-	cell->f_color = tp->f_color;
+	cell->attributes = tp->attributes;
 }
 
 /*
@@ -1099,13 +1100,13 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 	highlight = TAX_RESET;
 	f_color = TAC_RESET;
 	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
-		if (cell->highlight != highlight) {
+		if (cell->attributes.highlight != highlight) {
 			flen += 3;	/* TO_SA to switch highlight. */
-			highlight = cell->highlight;
+			highlight = cell->attributes.highlight;
 		}
-		if (cell->f_color != f_color) {
+		if (cell->attributes.f_color != f_color) {
 			flen += 3;	/* TO_SA to switch color. */
-			f_color = cell->f_color;
+			f_color = cell->attributes.f_color;
 		}
 	}
 	if (highlight != TAX_RESET)
@@ -1143,17 +1144,17 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 	highlight = TAX_RESET;
 	f_color = TAC_RESET;
 	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
-		if (cell->highlight != highlight) {
+		if (cell->attributes.highlight != highlight) {
 			*cp++ = TO_SA;
 			*cp++ = TAT_EXTHI;
-			*cp++ = cell->highlight;
-			highlight = cell->highlight;
+			*cp++ = cell->attributes.highlight;
+			highlight = cell->attributes.highlight;
 		}
-		if (cell->f_color != f_color) {
+		if (cell->attributes.f_color != f_color) {
 			*cp++ = TO_SA;
 			*cp++ = TAT_COLOR;
-			*cp++ = cell->f_color;
-			f_color = cell->f_color;
+			*cp++ = cell->attributes.f_color;
+			f_color = cell->attributes.f_color;
 		}
 		*cp++ = cell->character;
 	}
@@ -1224,6 +1225,18 @@ static void tty3270_ri(struct tty3270 *tp)
 	}
 }
 
+static void tty3270_reset_attributes(struct tty3270_attribute *attr)
+{
+	attr->highlight = TAX_RESET;
+	attr->f_color = TAC_RESET;
+}
+
+static void tty3270_reset_cell(struct tty3270 *tp, struct tty3270_cell *cell)
+{
+	cell->character = tp->view.ascebc[' '];
+	tty3270_reset_attributes(&cell->attributes);
+}
+
 /*
  * Insert characters at current position.
  */
@@ -1233,12 +1246,8 @@ static void tty3270_insert_characters(struct tty3270 *tp, int n)
 	int k;
 
 	line = tp->screen + tp->cy;
-	while (line->len < tp->cx) {
-		line->cells[line->len].character = tp->view.ascebc[' '];
-		line->cells[line->len].highlight = TAX_RESET;
-		line->cells[line->len].f_color = TAC_RESET;
-		line->len++;
-	}
+	while (line->len < tp->cx)
+		tty3270_reset_cell(tp, &line->cells[line->len++]);
 	if (n > tp->view.cols - tp->cx)
 		n = tp->view.cols - tp->cx;
 	k = min_t(int, line->len - tp->cx, tp->view.cols - tp->cx - n);
@@ -1249,8 +1258,7 @@ static void tty3270_insert_characters(struct tty3270 *tp, int n)
 		line->len = tp->view.cols;
 	while (n-- > 0) {
 		line->cells[tp->cx + n].character = tp->view.ascebc[' '];
-		line->cells[tp->cx + n].highlight = tp->highlight;
-		line->cells[tp->cx + n].f_color = tp->f_color;
+		line->cells[tp->cx + n].attributes = tp->attributes;
 	}
 }
 
@@ -1285,9 +1293,7 @@ static void tty3270_erase_characters(struct tty3270 *tp, int n)
 	line = tp->screen + tp->cy;
 	while (line->len > tp->cx && n-- > 0) {
 		cell = line->cells + tp->cx++;
-		cell->character = ' ';
-		cell->highlight = TAX_RESET;
-		cell->f_color = TAC_RESET;
+		tty3270_reset_cell(tp, cell);
 	}
 	tp->cx += n;
 	tp->cx = min_t(int, tp->cx, tp->view.cols - 1);
@@ -1314,8 +1320,8 @@ static void tty3270_erase_line(struct tty3270 *tp, int mode)
 		for (i = 0; i < tp->cx; i++) {
 			cell = line->cells + i;
 			cell->character = ' ';
-			cell->highlight = TAX_RESET;
-			cell->f_color = TAC_RESET;
+			cell->attributes.highlight = TAX_RESET;
+			cell->attributes.f_color = TAC_RESET;
 		}
 		if (line->len <= tp->cx)
 			line->len = tp->cx + 1;
@@ -1380,30 +1386,29 @@ static void tty3270_set_attributes(struct tty3270 *tp)
 		attr = tp->esc_par[i];
 		switch (attr) {
 		case 0:		/* Reset */
-			tp->highlight = TAX_RESET;
-			tp->f_color = TAC_RESET;
+			tty3270_reset_attributes(&tp->attributes);
 			break;
 		/* Highlight. */
 		case 4:		/* Start underlining. */
-			tp->highlight = TAX_UNDER;
+			tp->attributes.highlight = TAX_UNDER;
 			break;
 		case 5:		/* Start blink. */
-			tp->highlight = TAX_BLINK;
+			tp->attributes.highlight = TAX_BLINK;
 			break;
 		case 7:		/* Start reverse. */
-			tp->highlight = TAX_REVER;
+			tp->attributes.highlight = TAX_REVER;
 			break;
 		case 24:	/* End underlining */
-			if (tp->highlight == TAX_UNDER)
-				tp->highlight = TAX_RESET;
+			if (tp->attributes.highlight == TAX_UNDER)
+				tp->attributes.highlight = TAX_RESET;
 			break;
 		case 25:	/* End blink. */
-			if (tp->highlight == TAX_BLINK)
-				tp->highlight = TAX_RESET;
+			if (tp->attributes.highlight == TAX_BLINK)
+				tp->attributes.highlight = TAX_RESET;
 			break;
 		case 27:	/* End reverse. */
-			if (tp->highlight == TAX_REVER)
-				tp->highlight = TAX_RESET;
+			if (tp->attributes.highlight == TAX_REVER)
+				tp->attributes.highlight = TAX_RESET;
 			break;
 		/* Foreground color. */
 		case 30:	/* Black */
@@ -1415,7 +1420,7 @@ static void tty3270_set_attributes(struct tty3270 *tp)
 		case 36:	/* Cyan */
 		case 37:	/* White */
 		case 39:	/* Black */
-			tp->f_color = f_colors[attr - 30];
+			tp->attributes.f_color = f_colors[attr - 30];
 			break;
 		}
 	}
@@ -1491,20 +1496,18 @@ static void tty3270_escape_sequence(struct tty3270 *tp, char ch)
 		case '7':		/* Save cursor position. */
 			tp->saved_cx = tp->cx;
 			tp->saved_cy = tp->cy;
-			tp->saved_highlight = tp->highlight;
-			tp->saved_f_color = tp->f_color;
+			tp->saved_attributes = tp->attributes;
 			break;
 		case '8':		/* Restore cursor position. */
 			tty3270_convert_line(tp, tp->cy);
 			tty3270_goto_xy(tp, tp->saved_cx, tp->saved_cy);
-			tp->highlight = tp->saved_highlight;
-			tp->f_color = tp->saved_f_color;
+			tp->attributes = tp->saved_attributes;
 			break;
 		case 'c':		/* Reset terminal. */
 			tp->cx = tp->saved_cx = 0;
 			tp->cy = tp->saved_cy = 0;
-			tp->highlight = tp->saved_highlight = TAX_RESET;
-			tp->f_color = tp->saved_f_color = TAC_RESET;
+			tty3270_reset_attributes(&tp->attributes);
+			tty3270_reset_attributes(&tp->saved_attributes);
 			tty3270_erase_display(tp, 2);
 			break;
 		}
@@ -1592,14 +1595,12 @@ static void tty3270_escape_sequence(struct tty3270 *tp, char ch)
 	case 's':	/* Save cursor position. */
 		tp->saved_cx = tp->cx;
 		tp->saved_cy = tp->cy;
-		tp->saved_highlight = tp->highlight;
-		tp->saved_f_color = tp->f_color;
+		tp->saved_attributes = tp->attributes;
 		break;
 	case 'u':	/* Restore cursor position. */
 		tty3270_convert_line(tp, tp->cy);
 		tty3270_goto_xy(tp, tp->saved_cx, tp->saved_cy);
-		tp->highlight = tp->saved_highlight;
-		tp->f_color = tp->saved_f_color;
+		tp->attributes = tp->saved_attributes;
 		break;
 	}
 }
@@ -1791,8 +1792,8 @@ static void tty3270_hangup(struct tty_struct *tty)
 	spin_lock_irq(&tp->view.lock);
 	tp->cx = tp->saved_cx = 0;
 	tp->cy = tp->saved_cy = 0;
-	tp->highlight = tp->saved_highlight = TAX_RESET;
-	tp->f_color = tp->saved_f_color = TAC_RESET;
+	tty3270_reset_attributes(&tp->attributes);
+	tty3270_reset_attributes(&tp->saved_attributes);
 	tty3270_blank_screen(tp);
 	while (tp->nr_lines < tp->view.rows - 2)
 		tty3270_blank_line(tp);
