@@ -35,7 +35,6 @@
 #include "en.h"
 #include "en/port.h"
 #include "en/params.h"
-#include "en/xsk/pool.h"
 #include "en/ptp.h"
 #include "lib/clock.h"
 #include "en/fs_ethtool.h"
@@ -412,15 +411,8 @@ void mlx5e_ethtool_get_channels(struct mlx5e_priv *priv,
 				struct ethtool_channels *ch)
 {
 	mutex_lock(&priv->state_lock);
-
 	ch->max_combined   = priv->max_nch;
 	ch->combined_count = priv->channels.params.num_channels;
-	if (priv->xsk.refcnt) {
-		/* The upper half are XSK queues. */
-		ch->max_combined *= 2;
-		ch->combined_count *= 2;
-	}
-
 	mutex_unlock(&priv->state_lock);
 }
 
@@ -453,16 +445,6 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 		return 0;
 
 	mutex_lock(&priv->state_lock);
-
-	/* Don't allow changing the number of channels if there is an active
-	 * XSK, because the numeration of the XSK and regular RQs will change.
-	 */
-	if (priv->xsk.refcnt) {
-		err = -EINVAL;
-		netdev_err(priv->netdev, "%s: AF_XDP is active, cannot change the number of channels\n",
-			   __func__);
-		goto out;
-	}
 
 	/* Don't allow changing the number of channels if HTB offload is active,
 	 * because the numeration of the QoS SQs will change, while per-queue
