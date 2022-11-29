@@ -1529,7 +1529,6 @@ static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 	}
 
 	if (status & DPSW_IRQ_EVENT_ENDPOINT_CHANGED) {
-		rtnl_lock();
 		/* We can avoid locking because the "endpoint changed" IRQ
 		 * handler is the only one who changes priv->mac at runtime,
 		 * so we are not racing with anyone.
@@ -1539,7 +1538,6 @@ static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 			dpaa2_switch_port_disconnect_mac(port_priv);
 		else
 			dpaa2_switch_port_connect_mac(port_priv);
-		rtnl_unlock();
 	}
 
 out:
@@ -2957,9 +2955,7 @@ static void dpaa2_switch_remove_port(struct ethsw_core *ethsw,
 {
 	struct ethsw_port_priv *port_priv = ethsw->ports[port_idx];
 
-	rtnl_lock();
 	dpaa2_switch_port_disconnect_mac(port_priv);
-	rtnl_unlock();
 	free_netdev(port_priv->netdev);
 	ethsw->ports[port_idx] = NULL;
 }

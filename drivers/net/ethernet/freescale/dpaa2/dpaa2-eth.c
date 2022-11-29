@@ -4715,7 +4715,6 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 		dpaa2_eth_set_mac_addr(netdev_priv(net_dev));
 		dpaa2_eth_update_tx_fqids(priv);
 
-		rtnl_lock();
 		/* We can avoid locking because the "endpoint changed" IRQ
 		 * handler is the only one who changes priv->mac at runtime,
 		 * so we are not racing with anyone.
@@ -4725,7 +4724,6 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 			dpaa2_eth_disconnect_mac(priv);
 		else
 			dpaa2_eth_connect_mac(priv);
-		rtnl_unlock();
 	}
 
 	return IRQ_HANDLED;
@@ -5045,9 +5043,7 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 	else
 		fsl_mc_free_irqs(ls_dev);
 
-	rtnl_lock();
 	dpaa2_eth_disconnect_mac(priv);
-	rtnl_unlock();
 	dpaa2_eth_free_rings(priv);
 	free_percpu(priv->fd);
 	free_percpu(priv->sgt_cache);
