@@ -700,10 +700,13 @@ static bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)
 			return false;
 
 #ifdef CONFIG_MLX5_ESWITCH
-	dev = ldev->pf[MLX5_LAG_P1].dev;
-	if ((mlx5_sriov_is_enabled(dev)) && !is_mdev_switchdev_mode(dev))
-		return false;
+	for (i = 0; i < ldev->ports; i++) {
+		dev = ldev->pf[i].dev;
+		if (mlx5_eswitch_num_vfs(dev->priv.eswitch) && !is_mdev_switchdev_mode(dev))
+			return false;
+	}
 
+	dev = ldev->pf[MLX5_LAG_P1].dev;
 	mode = mlx5_eswitch_mode(dev);
 	for (i = 0; i < ldev->ports; i++)
 		if (mlx5_eswitch_mode(ldev->pf[i].dev) != mode)
