@@ -192,3 +192,8 @@ void brcmf_fwvid_detach_ops(struct brcmf_pub *drvr)
 
 	mutex_unlock(&fwvid_list_lock);
 }
+
+const char *brcmf_fwvid_vendor_name(struct brcmf_pub *drvr)
+{
+	return fwvid_list[drvr->bus_if->fwvid].name;
+}
