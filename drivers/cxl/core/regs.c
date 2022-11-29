@@ -83,6 +83,12 @@ void cxl_probe_component_regs(struct device *dev, void __iomem *base,
 			rmap = &map->hdm_decoder;
 			break;
 		}
+		case CXL_CM_CAP_CAP_ID_RAS:
+			dev_dbg(dev, "found RAS capability (0x%x)\n",
+				offset);
+			length = CXL_RAS_CAPABILITY_LENGTH;
+			rmap = &map->ras;
+			break;
 		default:
 			dev_dbg(dev, "Unknown CM cap ID: %d (0x%x)\n", cap_id,
 				offset);
@@ -196,6 +202,7 @@ int cxl_map_component_regs(struct device *dev, struct cxl_component_regs *regs,
 		void __iomem **addr;
 	} mapinfo[] = {
 		{ &map->component_map.hdm_decoder, &regs->hdm_decoder },
+		{ &map->component_map.ras, &regs->ras },
 	};
 	int i;
 
