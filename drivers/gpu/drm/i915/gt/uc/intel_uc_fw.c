@@ -278,8 +278,8 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 
 		uc_fw->file_selected.path = blob->path;
 		uc_fw->file_wanted.path = blob->path;
-		uc_fw->file_wanted.major_ver = blob->major;
-		uc_fw->file_wanted.minor_ver = blob->minor;
+		uc_fw->file_wanted.ver.major = blob->major;
+		uc_fw->file_wanted.ver.minor = blob->minor;
 		uc_fw->loaded_via_gsc = blob->loaded_via_gsc;
 		found = true;
 		break;
@@ -439,28 +439,28 @@ static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw, int e)
 		uc_fw->user_overridden = user;
 	} else if (i915_inject_probe_error(i915, e)) {
 		/* require next major version */
-		uc_fw->file_wanted.major_ver += 1;
-		uc_fw->file_wanted.minor_ver = 0;
+		uc_fw->file_wanted.ver.major += 1;
+		uc_fw->file_wanted.ver.minor = 0;
 		uc_fw->user_overridden = user;
 	} else if (i915_inject_probe_error(i915, e)) {
 		/* require next minor version */
-		uc_fw->file_wanted.minor_ver += 1;
+		uc_fw->file_wanted.ver.minor += 1;
 		uc_fw->user_overridden = user;
-	} else if (uc_fw->file_wanted.major_ver &&
+	} else if (uc_fw->file_wanted.ver.major &&
 		   i915_inject_probe_error(i915, e)) {
 		/* require prev major version */
-		uc_fw->file_wanted.major_ver -= 1;
-		uc_fw->file_wanted.minor_ver = 0;
+		uc_fw->file_wanted.ver.major -= 1;
+		uc_fw->file_wanted.ver.minor = 0;
 		uc_fw->user_overridden = user;
-	} else if (uc_fw->file_wanted.minor_ver &&
+	} else if (uc_fw->file_wanted.ver.minor &&
 		   i915_inject_probe_error(i915, e)) {
 		/* require prev minor version - hey, this should work! */
-		uc_fw->file_wanted.minor_ver -= 1;
+		uc_fw->file_wanted.ver.minor -= 1;
 		uc_fw->user_overridden = user;
 	} else if (user && i915_inject_probe_error(i915, e)) {
 		/* officially unsupported platform */
-		uc_fw->file_wanted.major_ver = 0;
-		uc_fw->file_wanted.minor_ver = 0;
+		uc_fw->file_wanted.ver.major = 0;
+		uc_fw->file_wanted.ver.minor = 0;
 		uc_fw->user_overridden = true;
 	}
 }
@@ -472,9 +472,9 @@ static int check_gsc_manifest(const struct firmware *fw,
 	u32 version_hi = dw[HUC_GSC_VERSION_HI_DW];
 	u32 version_lo = dw[HUC_GSC_VERSION_LO_DW];
 
-	uc_fw->file_selected.major_ver = FIELD_GET(HUC_GSC_MAJOR_VER_HI_MASK, version_hi);
-	uc_fw->file_selected.minor_ver = FIELD_GET(HUC_GSC_MINOR_VER_HI_MASK, version_hi);
-	uc_fw->file_selected.patch_ver = FIELD_GET(HUC_GSC_PATCH_VER_LO_MASK, version_lo);
+	uc_fw->file_selected.ver.major = FIELD_GET(HUC_GSC_MAJOR_VER_HI_MASK, version_hi);
+	uc_fw->file_selected.ver.minor = FIELD_GET(HUC_GSC_MINOR_VER_HI_MASK, version_hi);
+	uc_fw->file_selected.ver.patch = FIELD_GET(HUC_GSC_PATCH_VER_LO_MASK, version_lo);
 
 	return 0;
 }
@@ -533,11 +533,11 @@ static int check_ccs_header(struct intel_gt *gt,
 	}
 
 	/* Get version numbers from the CSS header */
-	uc_fw->file_selected.major_ver = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
+	uc_fw->file_selected.ver.major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
 						   css->sw_version);
-	uc_fw->file_selected.minor_ver = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
+	uc_fw->file_selected.ver.minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
 						   css->sw_version);
-	uc_fw->file_selected.patch_ver = FIELD_GET(CSS_SW_VERSION_UC_PATCH,
+	uc_fw->file_selected.ver.patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH,
 						   css->sw_version);
 
 	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
@@ -622,19 +622,19 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	if (err)
 		goto fail;
 
-	if (uc_fw->file_wanted.major_ver) {
+	if (uc_fw->file_wanted.ver.major) {
 		/* Check the file's major version was as it claimed */
-		if (uc_fw->file_selected.major_ver != uc_fw->file_wanted.major_ver) {
+		if (uc_fw->file_selected.ver.major != uc_fw->file_wanted.ver.major) {
 			drm_notice(&i915->drm, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
 				   intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
-				   uc_fw->file_selected.major_ver, uc_fw->file_selected.minor_ver,
-				   uc_fw->file_wanted.major_ver, uc_fw->file_wanted.minor_ver);
+				   uc_fw->file_selected.ver.major, uc_fw->file_selected.ver.minor,
+				   uc_fw->file_wanted.ver.major, uc_fw->file_wanted.ver.minor);
 			if (!intel_uc_fw_is_overridden(uc_fw)) {
 				err = -ENOEXEC;
 				goto fail;
 			}
 		} else {
-			if (uc_fw->file_selected.minor_ver < uc_fw->file_wanted.minor_ver)
+			if (uc_fw->file_selected.ver.minor < uc_fw->file_wanted.ver.minor)
 				old_ver = true;
 		}
 	}
@@ -647,9 +647,9 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 			   "%s firmware %s (%d.%d) is recommended, but only %s (%d.%d) was found\n",
 			   intel_uc_fw_type_repr(uc_fw->type),
 			   uc_fw->file_wanted.path,
-			   uc_fw->file_wanted.major_ver, uc_fw->file_wanted.minor_ver,
+			   uc_fw->file_wanted.ver.major, uc_fw->file_wanted.ver.minor,
 			   uc_fw->file_selected.path,
-			   uc_fw->file_selected.major_ver, uc_fw->file_selected.minor_ver);
+			   uc_fw->file_selected.ver.major, uc_fw->file_selected.ver.minor);
 		drm_info(&i915->drm,
 			 "Consider updating your linux-firmware pkg or downloading from %s\n",
 			 INTEL_UC_FIRMWARE_URL);
@@ -1064,25 +1064,21 @@ void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 			   intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_wanted.path);
 	drm_printf(p, "\tstatus: %s\n",
 		   intel_uc_fw_status_repr(uc_fw->status));
-	ver_sel = MAKE_UC_VER(uc_fw->file_selected.major_ver,
-			      uc_fw->file_selected.minor_ver,
-			      uc_fw->file_selected.patch_ver);
-	ver_want = MAKE_UC_VER(uc_fw->file_wanted.major_ver,
-			       uc_fw->file_wanted.minor_ver,
-			       uc_fw->file_wanted.patch_ver);
+	ver_sel = MAKE_UC_VER_STRUCT(uc_fw->file_selected.ver);
+	ver_want = MAKE_UC_VER_STRUCT(uc_fw->file_wanted.ver);
 	if (ver_sel < ver_want)
 		drm_printf(p, "\tversion: wanted %u.%u.%u, found %u.%u.%u\n",
-			   uc_fw->file_wanted.major_ver,
-			   uc_fw->file_wanted.minor_ver,
-			   uc_fw->file_wanted.patch_ver,
-			   uc_fw->file_selected.major_ver,
-			   uc_fw->file_selected.minor_ver,
-			   uc_fw->file_selected.patch_ver);
+			   uc_fw->file_wanted.ver.major,
+			   uc_fw->file_wanted.ver.minor,
+			   uc_fw->file_wanted.ver.patch,
+			   uc_fw->file_selected.ver.major,
+			   uc_fw->file_selected.ver.minor,
+			   uc_fw->file_selected.ver.patch);
 	else
 		drm_printf(p, "\tversion: found %u.%u.%u\n",
-			   uc_fw->file_selected.major_ver,
-			   uc_fw->file_selected.minor_ver,
-			   uc_fw->file_selected.patch_ver);
+			   uc_fw->file_selected.ver.major,
+			   uc_fw->file_selected.ver.minor,
+			   uc_fw->file_selected.ver.patch);
 	drm_printf(p, "\tuCode: %u bytes\n", uc_fw->ucode_size);
 	drm_printf(p, "\tRSA: %u bytes\n", uc_fw->rsa_size);
 }

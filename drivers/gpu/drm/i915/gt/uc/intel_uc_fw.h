@@ -65,6 +65,12 @@ enum intel_uc_fw_type {
 };
 #define INTEL_UC_FW_NUM_TYPES 2
 
+struct intel_uc_fw_ver {
+	u16 major;
+	u16 minor;
+	u16 patch;
+};
+
 /*
  * The firmware build process will generate a version header file with major and
  * minor version defined. The versions are built into CSS header of firmware.
@@ -72,9 +78,7 @@ enum intel_uc_fw_type {
  */
 struct intel_uc_fw_file {
 	const char *path;
-	u16 major_ver;
-	u16 minor_ver;
-	u16 patch_ver;
+	struct intel_uc_fw_ver ver;
 };
 
 /*
@@ -111,9 +115,8 @@ struct intel_uc_fw {
 };
 
 #define MAKE_UC_VER(maj, min, pat)	((pat) | ((min) << 8) | ((maj) << 16))
-#define GET_UC_VER(uc)			(MAKE_UC_VER((uc)->fw.file_selected.major_ver, \
-						     (uc)->fw.file_selected.minor_ver, \
-						     (uc)->fw.file_selected.patch_ver))
+#define MAKE_UC_VER_STRUCT(ver)		MAKE_UC_VER((ver).major, (ver).minor, (ver).patch)
+#define GET_UC_VER(uc)			(MAKE_UC_VER_STRUCT((uc)->fw.file_selected.ver))
 
 /*
  * When we load the uC binaries, we pin them in a reserved section at the top of
