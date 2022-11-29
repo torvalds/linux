@@ -92,7 +92,6 @@ static unsigned int last_nr_big;
 
 static unsigned int get_active_cpu_count(const struct cluster_data *cluster);
 static unsigned int get_assist_active_cpu_count(const struct cluster_data *cluster);
-static unsigned int get_active_count(cpumask_t *cpumask);
 static void __ref do_core_ctl(void);
 
 /* ========================= sysfs interface =========================== */
@@ -834,34 +833,33 @@ static int cluster_real_big_tasks(int index)
  * capacity CPUs from the nr and consider the remaining nr as
  * strict and consider that many little CPUs are needed.
  */
-static int compute_cluster_strict_nr_run(int index)
+static int compute_cluster_nr_strict_need(int index)
 {
 	int cpu;
 	struct cluster_data *cluster;
 	int nr_strict_need = 0;
-	int nr_scaled = 0;
 
 	if (index != 0)
 		return 0;
 
-	cluster = &cluster_state[index];
+	for_each_cluster(cluster, index) {
+		int nr_scaled = 0;
+		int active_cpus = cluster->active_cpus;
 
-	for_each_cpu(cpu, &cluster->nrrun_cpu_mask)
-		nr_scaled += nr_stats[cpu].nr_scaled;
+		for_each_cpu(cpu, &cluster->cpu_mask)
+			nr_scaled += nr_stats[cpu].nr_scaled;
 
-	nr_scaled /= 100;
+		nr_scaled /= 100;
 
-	/*
-	 * For little cluster, nr_scaled becomes the nr_strict,
-	 * for other cluster, overflow is counted towards
-	 * the little cluster need.
-	 */
-	if (index == 0) {
-		nr_strict_need += nr_scaled;
-	} else {
-		int active_cpus = get_active_count(&cluster->nrrun_cpu_mask);
-
-		nr_strict_need += max(0, nr_scaled - active_cpus);
+		/*
+		 * For little cluster, nr_scaled becomes the nr_strict,
+		 * for other cluster, overflow is counted towards
+		 * the little cluster need.
+		 */
+		if (index == 0)
+			nr_strict_need += nr_scaled;
+		else
+			nr_strict_need += max(0, nr_scaled - active_cpus);
 	}
 
 	return nr_strict_need;
@@ -893,7 +891,7 @@ static void update_running_avg(void)
 		nr_assist_need = compute_cluster_nr_run_assist(index);
 		nr_misfit_assist_need = compute_cluster_nr_misfit_assist(index);
 
-		cluster->strict_nrrun = compute_cluster_strict_nr_run(index);
+		cluster->strict_nrrun = compute_cluster_nr_strict_need(index);
 		nr_assist_active = get_assist_active_cpu_count(cluster);
 
 		if (!cpumask_intersects(&cluster->assist_cpu_mask, &cpus_paused_by_us) &&
@@ -961,14 +959,6 @@ static unsigned int apply_limits(const struct cluster_data *cluster,
 				 unsigned int need_cpus)
 {
 	return min(max(cluster->min_cpus, need_cpus), cluster->max_cpus);
-}
-
-static unsigned int get_active_count(cpumask_t *cpumask)
-{
-	cpumask_t cpus;
-
-	cpumask_andnot(&cpus, cpumask, cpu_halt_mask);
-	return cpumask_weight(&cpus);
 }
 
 static unsigned int get_active_cpu_count(const struct cluster_data *cluster)
