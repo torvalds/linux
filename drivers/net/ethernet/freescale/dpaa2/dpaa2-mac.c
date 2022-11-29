@@ -448,9 +448,6 @@ err_pcs_destroy:
 
 void dpaa2_mac_disconnect(struct dpaa2_mac *mac)
 {
-	if (!mac->phylink)
-		return;
-
 	phylink_disconnect_phy(mac->phylink);
 	phylink_destroy(mac->phylink);
 	dpaa2_pcs_destroy(mac);
