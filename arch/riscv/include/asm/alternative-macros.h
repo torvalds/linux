@@ -49,14 +49,7 @@
 
 .macro __ALTERNATIVE_CFG_2 old_c, new_c_1, vendor_id_1, errata_id_1, enable_1, \
 				  new_c_2, vendor_id_2, errata_id_2, enable_2
-886 :
-	.option push
-	.option norvc
-	.option norelax
-	\old_c
-	.option pop
-887 :
-	ALT_NEW_CONTENT \vendor_id_1, \errata_id_1, \enable_1, \new_c_1
+	__ALTERNATIVE_CFG \old_c, \new_c_1, \vendor_id_1, \errata_id_1, \enable_1
 	ALT_NEW_CONTENT \vendor_id_2, \errata_id_2, \enable_2, \new_c_2
 .endm
 
@@ -116,14 +109,7 @@
 					enable_1,			\
 				   new_c_2, vendor_id_2, errata_id_2,	\
 					enable_2)			\
-	"886 :\n"							\
-	".option push\n"						\
-	".option norvc\n"						\
-	".option norelax\n"						\
-	old_c "\n"							\
-	".option pop\n"							\
-	"887 :\n"							\
-	ALT_NEW_CONTENT(vendor_id_1, errata_id_1, enable_1, new_c_1)	\
+	__ALTERNATIVE_CFG(old_c, new_c_1, vendor_id_1, errata_id_1, enable_1) \
 	ALT_NEW_CONTENT(vendor_id_2, errata_id_2, enable_2, new_c_2)
 
 #define _ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1,	\
