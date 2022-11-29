@@ -767,10 +767,12 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 	if (!elv_support_iosched(q))
 		return sprintf(name, "none\n");
 
-	if (!q->elevator)
+	if (!q->elevator) {
 		len += sprintf(name+len, "[none] ");
-	else
+	} else {
+		len += sprintf(name+len, "none ");
 		cur = eq->type;
+	}
 
 	spin_lock(&elv_list_lock);
 	list_for_each_entry(e, &elv_list, list) {
@@ -782,9 +784,6 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 			len += sprintf(name+len, "%s ", e->elevator_name);
 	}
 	spin_unlock(&elv_list_lock);
-
-	if (q->elevator)
-		len += sprintf(name+len, "none");
 
 	len += sprintf(len+name, "\n");
 	return len;
