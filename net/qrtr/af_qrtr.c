@@ -1577,9 +1577,9 @@ static int qrtr_port_assign(struct qrtr_sock *ipc, int *port)
 		   in_egroup_p(GLOBAL_ROOT_GID))) {
 		rc = -EACCES;
 	} else if (*port == QRTR_PORT_CTRL) {
-		rc = xa_insert(&qrtr_ports, 0, ipc, GFP_KERNEL);
+		rc = xa_insert(&qrtr_ports, 0, ipc, GFP_ATOMIC);
 	} else {
-		rc = xa_insert(&qrtr_ports, *port, ipc, GFP_KERNEL);
+		rc = xa_insert(&qrtr_ports, *port, ipc, GFP_ATOMIC);
 	}
 
 	if (rc == -EBUSY)
