@@ -100,7 +100,6 @@ static int vcn_v4_0_sw_init(void *handle)
 	struct amdgpu_ring *ring;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i, r;
-	int vcn_doorbell_index = 0;
 
 	r = amdgpu_vcn_sw_init(adev);
 	if (r)
@@ -111,12 +110,6 @@ static int vcn_v4_0_sw_init(void *handle)
 	r = amdgpu_vcn_resume(adev);
 	if (r)
 		return r;
-
-	if (amdgpu_sriov_vf(adev)) {
-		vcn_doorbell_index = adev->doorbell_index.vcn.vcn_ring0_1 - MMSCH_DOORBELL_OFFSET;
-		/* get DWORD offset */
-		vcn_doorbell_index = vcn_doorbell_index << 1;
-	}
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 		volatile struct amdgpu_vcn4_fw_shared *fw_shared;
@@ -135,7 +128,7 @@ static int vcn_v4_0_sw_init(void *handle)
 		ring = &adev->vcn.inst[i].ring_enc[0];
 		ring->use_doorbell = true;
 		if (amdgpu_sriov_vf(adev))
-			ring->doorbell_index = vcn_doorbell_index + i * (adev->vcn.num_enc_rings + 1) + 1;
+			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + i * (adev->vcn.num_enc_rings + 1) + 1;
 		else
 			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 2 + 8 * i;
 
