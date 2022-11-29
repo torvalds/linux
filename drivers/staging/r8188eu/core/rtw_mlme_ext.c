@@ -1427,6 +1427,7 @@ static void OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 
 static void OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame)
 {
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 	u16 reason;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -1434,8 +1435,7 @@ static void OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame)
 	u8 *pframe = precv_frame->rx_data;
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 
-	/* check A3 */
-	if (!(!memcmp(GetAddr3Ptr(pframe), get_my_bssid(&pmlmeinfo->network), ETH_ALEN)))
+	if (memcmp(mgmt->bssid, get_my_bssid(&pmlmeinfo->network), ETH_ALEN))
 		return;
 
 	if (pwdinfo->rx_invitereq_info.scan_op_ch_only) {
@@ -1449,7 +1449,7 @@ static void OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame)
 		struct sta_info *psta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
-		psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
+		psta = rtw_get_stainfo(pstapriv, mgmt->sa);
 		if (psta) {
 			u8 updated = 0;
 
@@ -1466,7 +1466,7 @@ static void OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame)
 
 		return;
 	} else {
-		receive_disconnect(padapter, GetAddr3Ptr(pframe), reason);
+		receive_disconnect(padapter, mgmt->bssid, reason);
 	}
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
 }
