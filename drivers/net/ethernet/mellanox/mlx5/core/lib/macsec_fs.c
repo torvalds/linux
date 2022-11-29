@@ -7,7 +7,7 @@
 #include <linux/if_vlan.h>
 #include "fs_core.h"
 #include "en/fs.h"
-#include "en_accel/macsec_fs.h"
+#include "lib/macsec_fs.h"
 #include "mlx5_core.h"
 
 /* MACsec TX flow steering */

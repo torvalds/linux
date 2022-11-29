@@ -4,9 +4,13 @@
 #ifndef __MLX5_MACSEC_STEERING_H__
 #define __MLX5_MACSEC_STEERING_H__
 
-#ifdef CONFIG_MLX5_EN_MACSEC
+#ifdef CONFIG_MLX5_MACSEC
 
-#include "en_accel/macsec.h"
+/* Bit31 - 30: MACsec marker, Bit15-0: MACsec id */
+#define MLX5_MACEC_RX_FS_ID_MAX USHRT_MAX /* Must be power of two */
+#define MLX5_MACSEC_RX_FS_ID_MASK MLX5_MACEC_RX_FS_ID_MAX
+#define MLX5_MACSEC_METADATA_MARKER(metadata)  ((((metadata) >> 30) & 0x3)  == 0x1)
+#define MLX5_MACSEC_RX_METADAT_HANDLE(metadata)  ((metadata) & MLX5_MACSEC_RX_FS_ID_MASK)
 
 #define MLX5_MACSEC_NUM_OF_SUPPORTED_INTERFACES 16
 
@@ -18,6 +22,17 @@ struct mlx5_macsec_rule_attrs {
 	u32 macsec_obj_id;
 	u8 assoc_num;
 	int action;
+};
+
+struct mlx5e_macsec_stats {
+	u64 macsec_rx_pkts;
+	u64 macsec_rx_bytes;
+	u64 macsec_rx_pkts_drop;
+	u64 macsec_rx_bytes_drop;
+	u64 macsec_tx_pkts;
+	u64 macsec_tx_bytes;
+	u64 macsec_tx_pkts_drop;
+	u64 macsec_tx_bytes_drop;
 };
 
 enum mlx5_macsec_action {

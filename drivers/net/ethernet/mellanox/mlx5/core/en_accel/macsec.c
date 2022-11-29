@@ -10,7 +10,6 @@
 #include "lib/aso.h"
 #include "lib/crypto.h"
 #include "en_accel/macsec.h"
-#include "en_accel/macsec_fs.h"
 
 #define MLX5_MACSEC_EPN_SCOPE_MID 0x80000000L
 #define MLX5E_MACSEC_ASO_CTX_SZ MLX5_ST_SZ_BYTES(macsec_aso)
