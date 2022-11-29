@@ -9,6 +9,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane.h>
 #include <linux/io.h>
+#include <linux/pm.h>
 #include <video/videomode.h>
 
 #define SET			0x04
@@ -95,12 +96,10 @@ struct dcss_dev *dcss_drv_dev_to_dcss(struct device *dev);
 struct drm_device *dcss_drv_dev_to_drm(struct device *dev);
 struct dcss_dev *dcss_dev_create(struct device *dev, bool hdmi_output);
 void dcss_dev_destroy(struct dcss_dev *dcss);
-int dcss_dev_runtime_suspend(struct device *dev);
-int dcss_dev_runtime_resume(struct device *dev);
-int dcss_dev_suspend(struct device *dev);
-int dcss_dev_resume(struct device *dev);
 void dcss_enable_dtg_and_ss(struct dcss_dev *dcss);
 void dcss_disable_dtg_and_ss(struct dcss_dev *dcss);
+
+extern const struct dev_pm_ops dcss_dev_pm_ops;
 
 /* BLKCTL */
 int dcss_blkctl_init(struct dcss_dev *dcss, unsigned long blkctl_base);
