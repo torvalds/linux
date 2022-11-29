@@ -767,6 +767,7 @@ intel_hdmi_compute_spd_infoframe(struct intel_encoder *encoder,
 				 struct intel_crtc_state *crtc_state,
 				 struct drm_connector_state *conn_state)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct hdmi_spd_infoframe *frame = &crtc_state->infoframes.spd.spd;
 	int ret;
 
@@ -776,7 +777,11 @@ intel_hdmi_compute_spd_infoframe(struct intel_encoder *encoder,
 	crtc_state->infoframes.enable |=
 		intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_SPD);
 
-	ret = hdmi_spd_infoframe_init(frame, "Intel", "Integrated gfx");
+	if (IS_DGFX(i915))
+		ret = hdmi_spd_infoframe_init(frame, "Intel", "Discrete gfx");
+	else
+		ret = hdmi_spd_infoframe_init(frame, "Intel", "Integrated gfx");
+
 	if (drm_WARN_ON(encoder->base.dev, ret))
 		return false;
 
