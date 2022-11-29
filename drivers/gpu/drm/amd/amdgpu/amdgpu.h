@@ -1070,7 +1070,8 @@ struct amdgpu_device {
 
 	bool                            job_hang;
 	bool                            dc_enabled;
-	uint32_t			num_aid;
+	/* Mask of active clusters */
+	uint32_t			aid_mask;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)

@@ -1674,6 +1674,7 @@ static int gmc_v9_0_sw_init(void *handle)
 {
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0, dma_addr_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	unsigned long inst_mask = adev->aid_mask;
 
 	adev->gfxhub.funcs->init(adev);
 
@@ -1757,7 +1758,9 @@ static int gmc_v9_0_sw_init(void *handle)
 	case IP_VERSION(9, 4, 3):
 		bitmap_set(adev->vmhubs_mask, AMDGPU_GFXHUB(0),
 				  NUM_XCC(adev->gfx.xcc_mask));
-		bitmap_set(adev->vmhubs_mask, AMDGPU_MMHUB0(0), adev->num_aid);
+
+		inst_mask <<= AMDGPU_MMHUB0(0);
+		bitmap_or(adev->vmhubs_mask, adev->vmhubs_mask, &inst_mask, 32);
 
 		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		break;

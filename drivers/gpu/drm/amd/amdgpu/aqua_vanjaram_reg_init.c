@@ -358,25 +358,26 @@ static int aqua_vanjaram_xcp_mgr_init(struct amdgpu_device *adev)
 int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev)
 {
 	u32 inst_mask = adev->sdma.sdma_mask;
-	int ret;
+	int ret, i, num_inst;
 
 	/* generally 1 AID supports 4 instances */
 	adev->sdma.num_inst_per_aid = 4;
 	adev->sdma.num_instances = NUM_SDMA(adev->sdma.sdma_mask);
 
-	adev->num_aid = 1;
+	adev->aid_mask = i = 1;
 	inst_mask >>= adev->sdma.num_inst_per_aid;
 
 	for (const u32 mask = (1 << adev->sdma.num_inst_per_aid) - 1; inst_mask;
-	     inst_mask >>= adev->sdma.num_inst_per_aid) {
+	     inst_mask >>= adev->sdma.num_inst_per_aid, ++i) {
 		if ((inst_mask & mask) == mask)
-			adev->num_aid++;
+			adev->aid_mask |= (1 << i);
 	}
 
+	num_inst = hweight32(adev->aid_mask);
 	adev->vcn.num_inst_per_aid = 1;
-	adev->vcn.num_vcn_inst = adev->vcn.num_inst_per_aid * adev->num_aid;
+	adev->vcn.num_vcn_inst = adev->vcn.num_inst_per_aid * num_inst;
 	adev->jpeg.num_inst_per_aid = 1;
-	adev->jpeg.num_jpeg_inst = adev->jpeg.num_inst_per_aid * adev->num_aid;
+	adev->jpeg.num_jpeg_inst = adev->jpeg.num_inst_per_aid * num_inst;
 
 	ret = aqua_vanjaram_xcp_mgr_init(adev);
 	if (ret)
