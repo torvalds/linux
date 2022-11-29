@@ -2263,7 +2263,7 @@ fail:
 int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
-	struct rtw89_mcc_info *mcc_info = &rtwdev->mcc;
+	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
 	struct rtw89_fw_h2c_rf_get_mccch *mccch;
 	struct sk_buff *skb;
 	int ret;
@@ -2276,10 +2276,10 @@ int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev)
 	skb_put(skb, sizeof(*mccch));
 	mccch = (struct rtw89_fw_h2c_rf_get_mccch *)skb->data;
 
-	mccch->ch_0 = cpu_to_le32(mcc_info->ch[0]);
-	mccch->ch_1 = cpu_to_le32(mcc_info->ch[1]);
-	mccch->band_0 = cpu_to_le32(mcc_info->band[0]);
-	mccch->band_1 = cpu_to_le32(mcc_info->band[1]);
+	mccch->ch_0 = cpu_to_le32(rfk_mcc->ch[0]);
+	mccch->ch_1 = cpu_to_le32(rfk_mcc->ch[1]);
+	mccch->band_0 = cpu_to_le32(rfk_mcc->band[0]);
+	mccch->band_1 = cpu_to_le32(rfk_mcc->band[1]);
 	mccch->current_channel = cpu_to_le32(chan->channel);
 	mccch->current_band_type = cpu_to_le32(chan->band_type);
 
