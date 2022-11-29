@@ -300,6 +300,9 @@ struct lan966x {
 	struct lan966x_port *mirror_monitor;
 	u32 mirror_mask[2];
 	u32 mirror_count;
+
+	/* vcap */
+	struct vcap_control *vcap_ctrl;
 };
 
 struct lan966x_port_config {
@@ -317,6 +320,7 @@ struct lan966x_port_tc {
 	unsigned long police_id;
 	unsigned long ingress_mirror_id;
 	unsigned long egress_mirror_id;
+	unsigned long goto_id;
 	struct flow_stats police_stat;
 	struct flow_stats mirror_stat;
 };
@@ -581,6 +585,20 @@ static inline bool lan966x_xdp_port_present(struct lan966x_port *port)
 {
 	return !!port->xdp_prog;
 }
+
+int lan966x_vcap_init(struct lan966x *lan966x);
+void lan966x_vcap_deinit(struct lan966x *lan966x);
+
+int lan966x_tc_flower(struct lan966x_port *port,
+		      struct flow_cls_offload *f);
+
+int lan966x_goto_port_add(struct lan966x_port *port,
+			  struct flow_action_entry *act,
+			  unsigned long goto_id,
+			  struct netlink_ext_ack *extack);
+int lan966x_goto_port_del(struct lan966x_port *port,
+			  unsigned long goto_id,
+			  struct netlink_ext_ack *extack);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,
