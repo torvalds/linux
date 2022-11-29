@@ -2778,6 +2778,20 @@ static inline void RTW89_SET_FWCMD_TSF32_TOGL_EARLY(void *cmd, u32 val)
 #define RTW89_GET_C2H_LEN(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 1), GENMASK(13, 0))
 
+struct rtw89_fw_c2h_attr {
+	u8 category;
+	u8 class;
+	u8 func;
+	u16 len;
+};
+
+static inline struct rtw89_fw_c2h_attr *RTW89_SKB_C2H_CB(struct sk_buff *skb)
+{
+	static_assert(sizeof(skb->cb) >= sizeof(struct rtw89_fw_c2h_attr));
+
+	return (struct rtw89_fw_c2h_attr *)skb->cb;
+}
+
 #define RTW89_GET_C2H_LOG_SRT_PRT(c2h) (char *)((__le32 *)(c2h) + 2)
 #define RTW89_GET_C2H_LOG_LEN(len) ((len) - RTW89_C2H_HEADER_LEN)
 

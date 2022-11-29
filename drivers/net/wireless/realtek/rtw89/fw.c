@@ -11,6 +11,9 @@
 #include "phy.h"
 #include "reg.h"
 
+static void rtw89_fw_c2h_cmd_handle(struct rtw89_dev *rtwdev,
+				    struct sk_buff *skb);
+
 static struct sk_buff *rtw89_fw_h2c_alloc_skb(struct rtw89_dev *rtwdev, u32 len,
 					      bool header)
 {
@@ -2382,8 +2385,43 @@ void rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev)
 	mutex_unlock(&rtwdev->mutex);
 }
 
+static void rtw89_fw_c2h_parse_attr(struct sk_buff *c2h)
+{
+	struct rtw89_fw_c2h_attr *attr = RTW89_SKB_C2H_CB(c2h);
+
+	attr->category = RTW89_GET_C2H_CATEGORY(c2h->data);
+	attr->class = RTW89_GET_C2H_CLASS(c2h->data);
+	attr->func = RTW89_GET_C2H_FUNC(c2h->data);
+	attr->len = RTW89_GET_C2H_LEN(c2h->data);
+}
+
+static bool rtw89_fw_c2h_chk_atomic(struct rtw89_dev *rtwdev,
+				    struct sk_buff *c2h)
+{
+	struct rtw89_fw_c2h_attr *attr = RTW89_SKB_C2H_CB(c2h);
+	u8 category = attr->category;
+	u8 class = attr->class;
+	u8 func = attr->func;
+
+	switch (category) {
+	default:
+		return false;
+	case RTW89_C2H_CAT_MAC:
+		return rtw89_mac_c2h_chk_atomic(rtwdev, class, func);
+	}
+}
+
 void rtw89_fw_c2h_irqsafe(struct rtw89_dev *rtwdev, struct sk_buff *c2h)
 {
+	rtw89_fw_c2h_parse_attr(c2h);
+	if (!rtw89_fw_c2h_chk_atomic(rtwdev, c2h))
+		goto enqueue;
+
+	rtw89_fw_c2h_cmd_handle(rtwdev, c2h);
+	dev_kfree_skb_any(c2h);
+	return;
+
+enqueue:
 	skb_queue_tail(&rtwdev->c2h_queue, c2h);
 	ieee80211_queue_work(rtwdev->hw, &rtwdev->c2h_work);
 }
@@ -2391,10 +2429,11 @@ void rtw89_fw_c2h_irqsafe(struct rtw89_dev *rtwdev, struct sk_buff *c2h)
 static void rtw89_fw_c2h_cmd_handle(struct rtw89_dev *rtwdev,
 				    struct sk_buff *skb)
 {
-	u8 category = RTW89_GET_C2H_CATEGORY(skb->data);
-	u8 class = RTW89_GET_C2H_CLASS(skb->data);
-	u8 func = RTW89_GET_C2H_FUNC(skb->data);
-	u16 len = RTW89_GET_C2H_LEN(skb->data);
+	struct rtw89_fw_c2h_attr *attr = RTW89_SKB_C2H_CB(skb);
+	u8 category = attr->category;
+	u8 class = attr->class;
+	u8 func = attr->func;
+	u16 len = attr->len;
 	bool dump = true;
 
 	if (!test_bit(RTW89_FLAG_RUNNING, rtwdev->flags))
