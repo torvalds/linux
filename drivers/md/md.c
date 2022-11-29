@@ -2468,7 +2468,22 @@ static void rdev_delayed_delete(struct work_struct *ws)
 	kobject_put(&rdev->kobj);
 }
 
-static void unbind_rdev_from_array(struct md_rdev *rdev)
+void md_autodetect_dev(dev_t dev);
+
+static void export_rdev(struct md_rdev *rdev)
+{
+	pr_debug("md: export_rdev(%pg)\n", rdev->bdev);
+	md_rdev_clear(rdev);
+#ifndef MODULE
+	if (test_bit(AutoDetected, &rdev->flags))
+		md_autodetect_dev(rdev->bdev->bd_dev);
+#endif
+	blkdev_put(rdev->bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
+	rdev->bdev = NULL;
+	kobject_put(&rdev->kobj);
+}
+
+static void md_kick_rdev_from_array(struct md_rdev *rdev)
 {
 	bd_unlink_disk_holder(rdev->bdev, rdev->mddev->gendisk);
 	list_del_rcu(&rdev->same_set);
@@ -2491,26 +2506,6 @@ static void unbind_rdev_from_array(struct md_rdev *rdev)
 	INIT_WORK(&rdev->del_work, rdev_delayed_delete);
 	kobject_get(&rdev->kobj);
 	queue_work(md_rdev_misc_wq, &rdev->del_work);
-}
-
-void md_autodetect_dev(dev_t dev);
-
-static void export_rdev(struct md_rdev *rdev)
-{
-	pr_debug("md: export_rdev(%pg)\n", rdev->bdev);
-	md_rdev_clear(rdev);
-#ifndef MODULE
-	if (test_bit(AutoDetected, &rdev->flags))
-		md_autodetect_dev(rdev->bdev->bd_dev);
-#endif
-	blkdev_put(rdev->bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
-	rdev->bdev = NULL;
-	kobject_put(&rdev->kobj);
-}
-
-static void md_kick_rdev_from_array(struct md_rdev *rdev)
-{
-	unbind_rdev_from_array(rdev);
 	export_rdev(rdev);
 }
 
