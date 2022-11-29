@@ -433,7 +433,7 @@ static int __init pkvm_firmware_rmem_clear(void)
 	void *addr;
 	phys_addr_t size;
 
-	if (likely(!pkvm_firmware_mem) || is_protected_kvm_enabled())
+	if (likely(!pkvm_firmware_mem))
 		return 0;
 
 	kvm_info("Clearing unused pKVM firmware memory\n");
@@ -447,7 +447,32 @@ static int __init pkvm_firmware_rmem_clear(void)
 	memunmap(addr);
 	return 0;
 }
-device_initcall_sync(pkvm_firmware_rmem_clear);
+
+static int __init finalize_pkvm(void)
+{
+	int ret;
+
+	if (!is_protected_kvm_enabled()) {
+		pkvm_firmware_rmem_clear();
+		return 0;
+	}
+
+	/*
+	 * Exclude HYP sections from kmemleak so that they don't get peeked
+	 * at, which would end badly once inaccessible.
+	 */
+	kmemleak_free_part(__hyp_bss_start, __hyp_bss_end - __hyp_bss_start);
+	kmemleak_free_part_phys(hyp_mem_base, hyp_mem_size);
+
+	ret = pkvm_drop_host_privileges();
+	if (ret) {
+		pr_err("Failed to de-privilege the host kernel: %d\n", ret);
+		pkvm_firmware_rmem_clear();
+	}
+
+	return ret;
+}
+device_initcall_sync(finalize_pkvm);
 
 static int pkvm_vm_ioctl_set_fw_ipa(struct kvm *kvm, u64 ipa)
 {
