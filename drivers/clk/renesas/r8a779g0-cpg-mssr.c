@@ -211,20 +211,20 @@ static const struct mssr_mod_clk r8a779g0_mod_clks[] __initconst = {
  *   MD	 EXTAL		PLL1	PLL2	PLL3	PLL4	PLL5	PLL6	OSC
  * 14 13 (MHz)
  * ------------------------------------------------------------------------
- * 0  0	 16.66 / 1	x192	x204	x192	x144	x192	x168	/15
+ * 0  0	 16.66 / 1	x192	x204	x192	x144	x192	x168	/16
  * 0  1	 20    / 1	x160	x170	x160	x120	x160	x140	/19
  * 1  0	 Prohibited setting
- * 1  1	 33.33 / 2	x192	x204	x192	x144	x192	x168	/38
+ * 1  1	 33.33 / 2	x192	x204	x192	x144	x192	x168	/32
  */
 #define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 13) | \
 					 (((md) & BIT(13)) >> 13))
 
 static const struct rcar_gen4_cpg_pll_config cpg_pll_configs[4] = {
 	/* EXTAL div	PLL1 mult/div	PLL2 mult/div	PLL3 mult/div	PLL4 mult/div	PLL5 mult/div	PLL6 mult/div	OSC prediv */
-	{ 1,		192,	1,	204,	1,	192,	1,	144,	1,	192,	1,	168,	1,	15,	},
+	{ 1,		192,	1,	204,	1,	192,	1,	144,	1,	192,	1,	168,	1,	16,	},
 	{ 1,		160,	1,	170,	1,	160,	1,	120,	1,	160,	1,	140,	1,	19,	},
 	{ 0,		0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	},
-	{ 2,		192,	1,	204,	1,	192,	1,	144,	1,	192,	1,	168,	1,	38,	},
+	{ 2,		192,	1,	204,	1,	192,	1,	144,	1,	192,	1,	168,	1,	32,	},
 };
 
 static int __init r8a779g0_cpg_mssr_init(struct device *dev)
