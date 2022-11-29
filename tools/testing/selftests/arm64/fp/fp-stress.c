@@ -42,8 +42,6 @@ static struct child_data *children;
 static int num_children;
 static bool terminate;
 
-static void drain_output(bool flush);
-
 static int startup_pipe[2];
 
 static int num_processors(void)
@@ -138,12 +136,6 @@ static void child_start(struct child_data *child, const char *program)
 			ksft_exit_fail_msg("%s EPOLL_CTL_ADD failed: %s (%d)\n",
 					   child->name, strerror(errno), errno);
 		}
-
-		/*
-		 * Keep output flowing during child startup so logs
-		 * are more timely, can help debugging.
-		 */
-		drain_output(false);
 	}
 }
 
