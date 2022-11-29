@@ -137,6 +137,8 @@ struct brcmf_pub {
 
 	u8 clmver[BRCMF_DCMD_SMLEN];
 	u8 sta_mac_idx;
+	const struct brcmf_fwvid_ops *vops;
+	void *vdata;
 };
 
 /* forward declarations */

@@ -155,7 +155,9 @@ struct brcmf_bus_stats {
  * @fwvid: firmware vendor-support identifier of the device.
  * @always_use_fws_queue: bus wants use queue also when fwsignal is inactive.
  * @wowl_supported: is wowl supported by bus driver.
+ * @ops: callbacks for this bus instance.
  * @msgbuf: msgbuf protocol parameters provided by bus layer.
+ * @list: member used to add this bus instance to linked list.
  */
 struct brcmf_bus {
 	union {
@@ -177,6 +179,8 @@ struct brcmf_bus {
 
 	const struct brcmf_bus_ops *ops;
 	struct brcmf_bus_msgbuf *msgbuf;
+
+	struct list_head list;
 };
 
 /*

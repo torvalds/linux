@@ -20,6 +20,7 @@ brcmfmac-objs += \
 		common.o \
 		core.o \
 		firmware.o \
+		fwvid.o \
 		feature.o \
 		btcoex.o \
 		vendor.o \
@@ -47,3 +48,9 @@ brcmfmac-$(CONFIG_OF) += \
 		of.o
 brcmfmac-$(CONFIG_DMI) += \
 		dmi.o
+
+ifeq ($(CONFIG_BRCMFMAC),m)
+obj-m += wcc/
+else
+brcmfmac-$(CONFIG_BRCMFMAC) += wcc/core.o
+endif
