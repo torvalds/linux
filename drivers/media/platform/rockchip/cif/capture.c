@@ -3878,10 +3878,7 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 	struct rkcif_hw *hw = dev->hw_dev;
 	struct rkcif_dummy_buffer *dummy_buf = &hw->dummy_buf;
 	struct rkcif_device *tmp_dev = NULL;
-	struct rkcif_stream *tmp_stream = NULL;
-	struct v4l2_rect rect;
-	struct csi_channel_info csi_info;
-	const struct cif_input_fmt *input_fmt;
+	struct v4l2_subdev_frame_interval_enum fie;
 	u32 max_size = 0;
 	u32 size = 0;
 	int ret = 0;
@@ -3889,25 +3886,31 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 
 	for (i = 0; i < hw->dev_num; i++) {
 		tmp_dev = hw->cif_dev[i];
-		for (j = 0; j < tmp_dev->num_channels; j++) {
-			tmp_stream = &tmp_dev->stream[j];
-			if (tmp_stream) {
-				if (!tmp_dev->terminal_sensor.sd)
-					rkcif_update_sensor_info(tmp_stream);
-				if (tmp_dev->terminal_sensor.sd) {
-					input_fmt = get_input_fmt(tmp_dev->terminal_sensor.sd,
-								  &rect, i, &csi_info);
-					if (input_fmt && (input_fmt->mbus_code == MEDIA_BUS_FMT_RGB888_1X24 ||
-						input_fmt->mbus_code == MEDIA_BUS_FMT_BGR888_1X24))
-						size = rect.width * rect.height * 3;
+		if (tmp_dev->terminal_sensor.sd) {
+			for (j = 0; j < 32; j++) {
+				memset(&fie, 0, sizeof(fie));
+				fie.index = j;
+				fie.pad = 0;
+				fie.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+				ret = v4l2_subdev_call(tmp_dev->terminal_sensor.sd,
+						       pad, enum_frame_interval,
+						       NULL, &fie);
+				if (!ret) {
+					if (fie.code == MEDIA_BUS_FMT_RGB888_1X24)
+						size = fie.width * fie.height * 3;
 					else
-						size = rect.width * rect.height * 2;
-					if (size > max_size)
-						max_size = size;
+						size = fie.width * fie.height * 2;
+					v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
+						 "%s enum fmt, width %d, height %d\n",
+						 __func__, fie.width, fie.height);
 				} else {
-					continue;
+					break;
 				}
+				if (size > max_size)
+					max_size = size;
 			}
+		} else {
+			continue;
 		}
 	}
 	dummy_buf->size = max_size;
