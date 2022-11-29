@@ -14,8 +14,8 @@
 
 #define MLX5_MACSEC_NUM_OF_SUPPORTED_INTERFACES 16
 
-struct mlx5e_macsec_fs;
-union mlx5e_macsec_rule;
+struct mlx5_macsec_fs;
+union mlx5_macsec_rule;
 
 struct mlx5_macsec_rule_attrs {
 	sci_t sci;
@@ -24,7 +24,7 @@ struct mlx5_macsec_rule_attrs {
 	int action;
 };
 
-struct mlx5e_macsec_stats {
+struct mlx5_macsec_stats {
 	u64 macsec_rx_pkts;
 	u64 macsec_rx_bytes;
 	u64 macsec_rx_pkts_drop;
@@ -40,22 +40,22 @@ enum mlx5_macsec_action {
 	MLX5_ACCEL_MACSEC_ACTION_DECRYPT,
 };
 
-void mlx5e_macsec_fs_cleanup(struct mlx5e_macsec_fs *macsec_fs);
+void mlx5_macsec_fs_cleanup(struct mlx5_macsec_fs *macsec_fs);
 
-struct mlx5e_macsec_fs *
-mlx5e_macsec_fs_init(struct mlx5_core_dev *mdev, struct net_device *netdev);
+struct mlx5_macsec_fs *
+mlx5_macsec_fs_init(struct mlx5_core_dev *mdev, struct net_device *netdev);
 
-union mlx5e_macsec_rule *
-mlx5e_macsec_fs_add_rule(struct mlx5e_macsec_fs *macsec_fs,
-			 const struct macsec_context *ctx,
-			 struct mlx5_macsec_rule_attrs *attrs,
-			 u32 *sa_fs_id);
+union mlx5_macsec_rule *
+mlx5_macsec_fs_add_rule(struct mlx5_macsec_fs *macsec_fs,
+			const struct macsec_context *ctx,
+			struct mlx5_macsec_rule_attrs *attrs,
+			u32 *sa_fs_id);
 
-void mlx5e_macsec_fs_del_rule(struct mlx5e_macsec_fs *macsec_fs,
-			      union mlx5e_macsec_rule *macsec_rule,
-			      int action);
+void mlx5_macsec_fs_del_rule(struct mlx5_macsec_fs *macsec_fs,
+			     union mlx5_macsec_rule *macsec_rule,
+			     int action);
 
-void mlx5e_macsec_fs_get_stats_fill(struct mlx5e_macsec_fs *macsec_fs, void *macsec_stats);
+void mlx5_macsec_fs_get_stats_fill(struct mlx5_macsec_fs *macsec_fs, void *macsec_stats);
 
 #endif
 

@@ -67,7 +67,7 @@ struct mlx5e_macsec_sa {
 
 	struct rhash_head hash;
 	u32 fs_id;
-	union mlx5e_macsec_rule *macsec_rule;
+	union mlx5_macsec_rule *macsec_rule;
 	struct rcu_head rcu_head;
 	struct mlx5e_macsec_epn_state epn_state;
 };
@@ -124,7 +124,7 @@ struct mlx5e_macsec_device {
 struct mlx5e_macsec {
 	struct list_head macsec_device_list_head;
 	int num_of_devices;
-	struct mlx5e_macsec_fs *macsec_fs;
+	struct mlx5_macsec_fs *macsec_fs;
 	struct mutex lock; /* Protects mlx5e_macsec internal contexts */
 
 	/* Tx sci -> fs id mapping handling */
@@ -136,7 +136,7 @@ struct mlx5e_macsec {
 	struct mlx5_core_dev *mdev;
 
 	/* Stats manage */
-	struct mlx5e_macsec_stats stats;
+	struct mlx5_macsec_stats stats;
 
 	/* ASO */
 	struct mlx5e_macsec_aso aso;
@@ -343,7 +343,7 @@ static void mlx5e_macsec_cleanup_sa(struct mlx5e_macsec *macsec,
 	if (!sa->macsec_rule)
 		return;
 
-	mlx5e_macsec_fs_del_rule(macsec->macsec_fs, sa->macsec_rule, action);
+	mlx5_macsec_fs_del_rule(macsec->macsec_fs, sa->macsec_rule, action);
 	mlx5e_macsec_destroy_object(macsec->mdev, sa->macsec_obj_id);
 	sa->macsec_rule = NULL;
 }
@@ -358,7 +358,7 @@ static int mlx5e_macsec_init_sa(struct macsec_context *ctx,
 	struct mlx5_macsec_rule_attrs rule_attrs;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_macsec_obj_attrs obj_attrs;
-	union mlx5e_macsec_rule *macsec_rule;
+	union mlx5_macsec_rule *macsec_rule;
 	int err;
 
 	obj_attrs.next_pn = sa->next_pn;
@@ -386,7 +386,7 @@ static int mlx5e_macsec_init_sa(struct macsec_context *ctx,
 	rule_attrs.action = (is_tx) ? MLX5_ACCEL_MACSEC_ACTION_ENCRYPT :
 				      MLX5_ACCEL_MACSEC_ACTION_DECRYPT;
 
-	macsec_rule = mlx5e_macsec_fs_add_rule(macsec->macsec_fs, ctx, &rule_attrs, &sa->fs_id);
+	macsec_rule = mlx5_macsec_fs_add_rule(macsec->macsec_fs, ctx, &rule_attrs, &sa->fs_id);
 	if (!macsec_rule) {
 		err = -ENOMEM;
 		goto destroy_macsec_object;
@@ -1679,10 +1679,10 @@ bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev)
 
 void mlx5e_macsec_get_stats_fill(struct mlx5e_macsec *macsec, void *macsec_stats)
 {
-	mlx5e_macsec_fs_get_stats_fill(macsec->macsec_fs, macsec_stats);
+	mlx5_macsec_fs_get_stats_fill(macsec->macsec_fs, macsec_stats);
 }
 
-struct mlx5e_macsec_stats *mlx5e_macsec_get_stats(struct mlx5e_macsec *macsec)
+struct mlx5_macsec_stats *mlx5e_macsec_get_stats(struct mlx5e_macsec *macsec)
 {
 	if (!macsec)
 		return NULL;
@@ -1781,7 +1781,7 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_macsec *macsec = NULL;
-	struct mlx5e_macsec_fs *macsec_fs;
+	struct mlx5_macsec_fs *macsec_fs;
 	int err;
 
 	if (!mlx5e_is_macsec_device(priv->mdev)) {
@@ -1821,7 +1821,7 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 
 	macsec->mdev = mdev;
 
-	macsec_fs = mlx5e_macsec_fs_init(mdev, priv->netdev);
+	macsec_fs = mlx5_macsec_fs_init(mdev, priv->netdev);
 	if (!macsec_fs) {
 		err = -ENOMEM;
 		goto err_out;
@@ -1857,7 +1857,7 @@ void mlx5e_macsec_cleanup(struct mlx5e_priv *priv)
 		return;
 
 	mlx5_notifier_unregister(mdev, &macsec->nb);
-	mlx5e_macsec_fs_cleanup(macsec->macsec_fs);
+	mlx5_macsec_fs_cleanup(macsec->macsec_fs);
 	destroy_workqueue(macsec->wq);
 	mlx5e_macsec_aso_cleanup(&macsec->aso, mdev);
 	rhashtable_destroy(&macsec->sci_hash);

@@ -8,14 +8,14 @@
 #include "en_accel/macsec.h"
 
 static const struct counter_desc mlx5e_macsec_hw_stats_desc[] = {
-	{ MLX5E_DECLARE_STAT(struct mlx5e_macsec_stats, macsec_rx_pkts) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_macsec_stats, macsec_rx_bytes) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_macsec_stats, macsec_rx_pkts_drop) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_macsec_stats, macsec_rx_bytes_drop) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_macsec_stats, macsec_tx_pkts) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_macsec_stats, macsec_tx_bytes) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_macsec_stats, macsec_tx_pkts_drop) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_macsec_stats, macsec_tx_bytes_drop) },
+	{ MLX5E_DECLARE_STAT(struct mlx5_macsec_stats, macsec_rx_pkts) },
+	{ MLX5E_DECLARE_STAT(struct mlx5_macsec_stats, macsec_rx_bytes) },
+	{ MLX5E_DECLARE_STAT(struct mlx5_macsec_stats, macsec_rx_pkts_drop) },
+	{ MLX5E_DECLARE_STAT(struct mlx5_macsec_stats, macsec_rx_bytes_drop) },
+	{ MLX5E_DECLARE_STAT(struct mlx5_macsec_stats, macsec_tx_pkts) },
+	{ MLX5E_DECLARE_STAT(struct mlx5_macsec_stats, macsec_tx_bytes) },
+	{ MLX5E_DECLARE_STAT(struct mlx5_macsec_stats, macsec_tx_pkts_drop) },
+	{ MLX5E_DECLARE_STAT(struct mlx5_macsec_stats, macsec_tx_bytes_drop) },
 };
 
 #define NUM_MACSEC_HW_COUNTERS ARRAY_SIZE(mlx5e_macsec_hw_stats_desc)

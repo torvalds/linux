@@ -50,7 +50,7 @@ struct mlx5_sectag_header {
 	u8 sci[MACSEC_SCI_LEN]; /* optional */
 }  __packed;
 
-struct mlx5e_macsec_tx_rule {
+struct mlx5_macsec_tx_rule {
 	struct mlx5_flow_handle *rule;
 	struct mlx5_pkt_reformat *pkt_reformat;
 	u32 fs_id;
@@ -62,7 +62,7 @@ struct mlx5_macsec_flow_table {
 	struct mlx5_flow_group **g;
 };
 
-struct mlx5e_macsec_tables {
+struct mlx5_macsec_tables {
 	struct mlx5_macsec_flow_table ft_crypto;
 	struct mlx5_flow_handle *crypto_miss_rule;
 
@@ -75,37 +75,37 @@ struct mlx5e_macsec_tables {
 	u32 refcnt;
 };
 
-struct mlx5e_macsec_tx {
+struct mlx5_macsec_tx {
 	struct mlx5_flow_handle *crypto_mke_rule;
 	struct mlx5_flow_handle *check_rule;
 
 	struct ida tx_halloc;
 
-	struct mlx5e_macsec_tables tables;
+	struct mlx5_macsec_tables tables;
 };
 
-struct mlx5e_macsec_rx_rule {
+struct mlx5_macsec_rx_rule {
 	struct mlx5_flow_handle *rule[RX_NUM_OF_RULES_PER_SA];
 	struct mlx5_modify_hdr *meta_modhdr;
 };
 
-struct mlx5e_macsec_rx {
+struct mlx5_macsec_rx {
 	struct mlx5_flow_handle *check_rule[2];
 	struct mlx5_pkt_reformat *check_rule_pkt_reformat[2];
 
-	struct mlx5e_macsec_tables tables;
+	struct mlx5_macsec_tables tables;
 };
 
-union mlx5e_macsec_rule {
-	struct mlx5e_macsec_tx_rule tx_rule;
-	struct mlx5e_macsec_rx_rule rx_rule;
+union mlx5_macsec_rule {
+	struct mlx5_macsec_tx_rule tx_rule;
+	struct mlx5_macsec_rx_rule rx_rule;
 };
 
-struct mlx5e_macsec_fs {
+struct mlx5_macsec_fs {
 	struct mlx5_core_dev *mdev;
 	struct net_device *netdev;
-	struct mlx5e_macsec_tx *tx_fs;
-	struct mlx5e_macsec_rx *rx_fs;
+	struct mlx5_macsec_tx *tx_fs;
+	struct mlx5_macsec_rx *rx_fs;
 };
 
 static void macsec_fs_destroy_groups(struct mlx5_macsec_flow_table *ft)
@@ -128,10 +128,10 @@ static void macsec_fs_destroy_flow_table(struct mlx5_macsec_flow_table *ft)
 	ft->t = NULL;
 }
 
-static void macsec_fs_tx_destroy(struct mlx5e_macsec_fs *macsec_fs)
+static void macsec_fs_tx_destroy(struct mlx5_macsec_fs *macsec_fs)
 {
-	struct mlx5e_macsec_tx *tx_fs = macsec_fs->tx_fs;
-	struct mlx5e_macsec_tables *tx_tables;
+	struct mlx5_macsec_tx *tx_fs = macsec_fs->tx_fs;
+	struct mlx5_macsec_tables *tx_tables;
 
 	tx_tables = &tx_fs->tables;
 
@@ -260,14 +260,14 @@ static struct mlx5_flow_table
 	return fdb;
 }
 
-static int macsec_fs_tx_create(struct mlx5e_macsec_fs *macsec_fs)
+static int macsec_fs_tx_create(struct mlx5_macsec_fs *macsec_fs)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
-	struct mlx5e_macsec_tx *tx_fs = macsec_fs->tx_fs;
+	struct mlx5_macsec_tx *tx_fs = macsec_fs->tx_fs;
 	struct net_device *netdev = macsec_fs->netdev;
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_destination dest = {};
-	struct mlx5e_macsec_tables *tx_tables;
+	struct mlx5_macsec_tables *tx_tables;
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5_macsec_flow_table *ft_crypto;
 	struct mlx5_flow_table *flow_table;
@@ -413,10 +413,10 @@ out_spec:
 	return err;
 }
 
-static int macsec_fs_tx_ft_get(struct mlx5e_macsec_fs *macsec_fs)
+static int macsec_fs_tx_ft_get(struct mlx5_macsec_fs *macsec_fs)
 {
-	struct mlx5e_macsec_tx *tx_fs = macsec_fs->tx_fs;
-	struct mlx5e_macsec_tables *tx_tables;
+	struct mlx5_macsec_tx *tx_fs = macsec_fs->tx_fs;
+	struct mlx5_macsec_tables *tx_tables;
 	int err = 0;
 
 	tx_tables = &tx_fs->tables;
@@ -432,9 +432,9 @@ out:
 	return err;
 }
 
-static void macsec_fs_tx_ft_put(struct mlx5e_macsec_fs *macsec_fs)
+static void macsec_fs_tx_ft_put(struct mlx5_macsec_fs *macsec_fs)
 {
-	struct mlx5e_macsec_tables *tx_tables = &macsec_fs->tx_fs->tables;
+	struct mlx5_macsec_tables *tx_tables = &macsec_fs->tx_fs->tables;
 
 	if (--tx_tables->refcnt)
 		return;
@@ -442,13 +442,13 @@ static void macsec_fs_tx_ft_put(struct mlx5e_macsec_fs *macsec_fs)
 	macsec_fs_tx_destroy(macsec_fs);
 }
 
-static int macsec_fs_tx_setup_fte(struct mlx5e_macsec_fs *macsec_fs,
+static int macsec_fs_tx_setup_fte(struct mlx5_macsec_fs *macsec_fs,
 				  struct mlx5_flow_spec *spec,
 				  struct mlx5_flow_act *flow_act,
 				  u32 macsec_obj_id,
 				  u32 *fs_id)
 {
-	struct mlx5e_macsec_tx *tx_fs = macsec_fs->tx_fs;
+	struct mlx5_macsec_tx *tx_fs = macsec_fs->tx_fs;
 	int err = 0;
 	u32 id;
 
@@ -511,8 +511,8 @@ static void macsec_fs_tx_create_sectag_header(const struct macsec_context *ctx,
 	memcpy(reformatbf, &sectag, *reformat_size);
 }
 
-static void macsec_fs_tx_del_rule(struct mlx5e_macsec_fs *macsec_fs,
-				  struct mlx5e_macsec_tx_rule *tx_rule)
+static void macsec_fs_tx_del_rule(struct mlx5_macsec_fs *macsec_fs,
+				  struct mlx5_macsec_tx_rule *tx_rule)
 {
 	if (tx_rule->rule) {
 		mlx5_del_flow_rules(tx_rule->rule);
@@ -536,20 +536,20 @@ static void macsec_fs_tx_del_rule(struct mlx5e_macsec_fs *macsec_fs,
 
 #define MLX5_REFORMAT_PARAM_ADD_MACSEC_OFFSET_4_BYTES 1
 
-static union mlx5e_macsec_rule *
-macsec_fs_tx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
+static union mlx5_macsec_rule *
+macsec_fs_tx_add_rule(struct mlx5_macsec_fs *macsec_fs,
 		      const struct macsec_context *macsec_ctx,
 		      struct mlx5_macsec_rule_attrs *attrs,
 		      u32 *sa_fs_id)
 {
 	char reformatbf[MLX5_MACSEC_TAG_LEN + MACSEC_SCI_LEN];
 	struct mlx5_pkt_reformat_params reformat_params = {};
-	struct mlx5e_macsec_tx *tx_fs = macsec_fs->tx_fs;
+	struct mlx5_macsec_tx *tx_fs = macsec_fs->tx_fs;
 	struct net_device *netdev = macsec_fs->netdev;
-	union mlx5e_macsec_rule *macsec_rule = NULL;
+	union mlx5_macsec_rule *macsec_rule = NULL;
 	struct mlx5_flow_destination dest = {};
-	struct mlx5e_macsec_tables *tx_tables;
-	struct mlx5e_macsec_tx_rule *tx_rule;
+	struct mlx5_macsec_tables *tx_tables;
+	struct mlx5_macsec_tx_rule *tx_rule;
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
@@ -630,11 +630,11 @@ out_spec:
 	return macsec_rule;
 }
 
-static void macsec_fs_tx_cleanup(struct mlx5e_macsec_fs *macsec_fs)
+static void macsec_fs_tx_cleanup(struct mlx5_macsec_fs *macsec_fs)
 {
-	struct mlx5e_macsec_tx *tx_fs = macsec_fs->tx_fs;
+	struct mlx5_macsec_tx *tx_fs = macsec_fs->tx_fs;
 	struct mlx5_core_dev *mdev = macsec_fs->mdev;
-	struct mlx5e_macsec_tables *tx_tables;
+	struct mlx5_macsec_tables *tx_tables;
 
 	if (!tx_fs)
 		return;
@@ -663,12 +663,12 @@ static void macsec_fs_tx_cleanup(struct mlx5e_macsec_fs *macsec_fs)
 	macsec_fs->tx_fs = NULL;
 }
 
-static int macsec_fs_tx_init(struct mlx5e_macsec_fs *macsec_fs)
+static int macsec_fs_tx_init(struct mlx5_macsec_fs *macsec_fs)
 {
 	struct net_device *netdev = macsec_fs->netdev;
 	struct mlx5_core_dev *mdev = macsec_fs->mdev;
-	struct mlx5e_macsec_tables *tx_tables;
-	struct mlx5e_macsec_tx *tx_fs;
+	struct mlx5_macsec_tables *tx_tables;
+	struct mlx5_macsec_tx *tx_fs;
 	struct mlx5_fc *flow_counter;
 	int err;
 
@@ -715,10 +715,10 @@ err_encrypt_counter:
 	return err;
 }
 
-static void macsec_fs_rx_destroy(struct mlx5e_macsec_fs *macsec_fs)
+static void macsec_fs_rx_destroy(struct mlx5_macsec_fs *macsec_fs)
 {
-	struct mlx5e_macsec_rx *rx_fs = macsec_fs->rx_fs;
-	struct mlx5e_macsec_tables *rx_tables;
+	struct mlx5_macsec_rx *rx_fs = macsec_fs->rx_fs;
+	struct mlx5_macsec_tables *rx_tables;
 	int i;
 
 	/* Rx check table */
@@ -843,7 +843,7 @@ err:
 	return err;
 }
 
-static int macsec_fs_rx_create_check_decap_rule(struct mlx5e_macsec_fs *macsec_fs,
+static int macsec_fs_rx_create_check_decap_rule(struct mlx5_macsec_fs *macsec_fs,
 						struct mlx5_flow_destination *dest,
 						struct mlx5_flow_act *flow_act,
 						struct mlx5_flow_spec *spec,
@@ -852,9 +852,9 @@ static int macsec_fs_rx_create_check_decap_rule(struct mlx5e_macsec_fs *macsec_f
 	int rule_index = (reformat_param_size == MLX5_SECTAG_HEADER_SIZE_WITH_SCI) ? 0 : 1;
 	u8 mlx5_reformat_buf[MLX5_SECTAG_HEADER_SIZE_WITH_SCI];
 	struct mlx5_pkt_reformat_params reformat_params = {};
-	struct mlx5e_macsec_rx *rx_fs = macsec_fs->rx_fs;
+	struct mlx5_macsec_rx *rx_fs = macsec_fs->rx_fs;
 	struct net_device *netdev = macsec_fs->netdev;
-	struct mlx5e_macsec_tables *rx_tables;
+	struct mlx5_macsec_tables *rx_tables;
 	struct mlx5_flow_handle *rule;
 	int err = 0;
 
@@ -914,15 +914,15 @@ static int macsec_fs_rx_create_check_decap_rule(struct mlx5e_macsec_fs *macsec_f
 	return 0;
 }
 
-static int macsec_fs_rx_create(struct mlx5e_macsec_fs *macsec_fs)
+static int macsec_fs_rx_create(struct mlx5_macsec_fs *macsec_fs)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
-	struct mlx5e_macsec_rx *rx_fs = macsec_fs->rx_fs;
+	struct mlx5_macsec_rx *rx_fs = macsec_fs->rx_fs;
 	struct net_device *netdev = macsec_fs->netdev;
 	struct mlx5_macsec_flow_table *ft_crypto;
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_destination dest = {};
-	struct mlx5e_macsec_tables *rx_tables;
+	struct mlx5_macsec_tables *rx_tables;
 	struct mlx5_flow_table *flow_table;
 	struct mlx5_flow_group *flow_group;
 	struct mlx5_flow_act flow_act = {};
@@ -1042,9 +1042,9 @@ free_spec:
 	return err;
 }
 
-static int macsec_fs_rx_ft_get(struct mlx5e_macsec_fs *macsec_fs)
+static int macsec_fs_rx_ft_get(struct mlx5_macsec_fs *macsec_fs)
 {
-	struct mlx5e_macsec_tables *rx_tables = &macsec_fs->rx_fs->tables;
+	struct mlx5_macsec_tables *rx_tables = &macsec_fs->rx_fs->tables;
 	int err = 0;
 
 	if (rx_tables->refcnt)
@@ -1059,9 +1059,9 @@ out:
 	return err;
 }
 
-static void macsec_fs_rx_ft_put(struct mlx5e_macsec_fs *macsec_fs)
+static void macsec_fs_rx_ft_put(struct mlx5_macsec_fs *macsec_fs)
 {
-	struct mlx5e_macsec_tables *rx_tables = &macsec_fs->rx_fs->tables;
+	struct mlx5_macsec_tables *rx_tables = &macsec_fs->rx_fs->tables;
 
 	if (--rx_tables->refcnt)
 		return;
@@ -1069,8 +1069,8 @@ static void macsec_fs_rx_ft_put(struct mlx5e_macsec_fs *macsec_fs)
 	macsec_fs_rx_destroy(macsec_fs);
 }
 
-static void macsec_fs_rx_del_rule(struct mlx5e_macsec_fs *macsec_fs,
-				  struct mlx5e_macsec_rx_rule *rx_rule)
+static void macsec_fs_rx_del_rule(struct mlx5_macsec_fs *macsec_fs,
+				  struct mlx5_macsec_rx_rule *rx_rule)
 {
 	int i;
 
@@ -1137,20 +1137,20 @@ static void macsec_fs_rx_setup_fte(struct mlx5_flow_spec *spec,
 	crypto_params->obj_id = attrs->macsec_obj_id;
 }
 
-static union mlx5e_macsec_rule *
-macsec_fs_rx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
+static union mlx5_macsec_rule *
+macsec_fs_rx_add_rule(struct mlx5_macsec_fs *macsec_fs,
 		      struct mlx5_macsec_rule_attrs *attrs,
 		      u32 fs_id)
 {
 	u8 action[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
-	struct mlx5e_macsec_rx *rx_fs = macsec_fs->rx_fs;
+	struct mlx5_macsec_rx *rx_fs = macsec_fs->rx_fs;
 	struct net_device *netdev = macsec_fs->netdev;
-	union mlx5e_macsec_rule *macsec_rule = NULL;
+	union mlx5_macsec_rule *macsec_rule = NULL;
 	struct mlx5_modify_hdr *modify_hdr = NULL;
 	struct mlx5_macsec_flow_table *ft_crypto;
 	struct mlx5_flow_destination dest = {};
-	struct mlx5e_macsec_tables *rx_tables;
-	struct mlx5e_macsec_rx_rule *rx_rule;
+	struct mlx5_macsec_tables *rx_tables;
+	struct mlx5_macsec_rx_rule *rx_rule;
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
@@ -1249,12 +1249,12 @@ out_spec:
 	return macsec_rule;
 }
 
-static int macsec_fs_rx_init(struct mlx5e_macsec_fs *macsec_fs)
+static int macsec_fs_rx_init(struct mlx5_macsec_fs *macsec_fs)
 {
 	struct net_device *netdev = macsec_fs->netdev;
 	struct mlx5_core_dev *mdev = macsec_fs->mdev;
-	struct mlx5e_macsec_tables *rx_tables;
-	struct mlx5e_macsec_rx *rx_fs;
+	struct mlx5_macsec_tables *rx_tables;
+	struct mlx5_macsec_rx *rx_fs;
 	struct mlx5_fc *flow_counter;
 	int err;
 
@@ -1299,11 +1299,11 @@ err_encrypt_counter:
 	return err;
 }
 
-static void macsec_fs_rx_cleanup(struct mlx5e_macsec_fs *macsec_fs)
+static void macsec_fs_rx_cleanup(struct mlx5_macsec_fs *macsec_fs)
 {
-	struct mlx5e_macsec_rx *rx_fs = macsec_fs->rx_fs;
+	struct mlx5_macsec_rx *rx_fs = macsec_fs->rx_fs;
 	struct mlx5_core_dev *mdev = macsec_fs->mdev;
-	struct mlx5e_macsec_tables *rx_tables;
+	struct mlx5_macsec_tables *rx_tables;
 
 	if (!rx_fs)
 		return;
@@ -1331,11 +1331,11 @@ static void macsec_fs_rx_cleanup(struct mlx5e_macsec_fs *macsec_fs)
 	macsec_fs->rx_fs = NULL;
 }
 
-void mlx5e_macsec_fs_get_stats_fill(struct mlx5e_macsec_fs *macsec_fs, void *macsec_stats)
+void mlx5_macsec_fs_get_stats_fill(struct mlx5_macsec_fs *macsec_fs, void *macsec_stats)
 {
-	struct mlx5e_macsec_stats *stats = (struct mlx5e_macsec_stats *)macsec_stats;
-	struct mlx5e_macsec_tables *tx_tables = &macsec_fs->tx_fs->tables;
-	struct mlx5e_macsec_tables *rx_tables = &macsec_fs->rx_fs->tables;
+	struct mlx5_macsec_stats *stats = (struct mlx5_macsec_stats *)macsec_stats;
+	struct mlx5_macsec_tables *tx_tables = &macsec_fs->tx_fs->tables;
+	struct mlx5_macsec_tables *rx_tables = &macsec_fs->rx_fs->tables;
 	struct mlx5_core_dev *mdev = macsec_fs->mdev;
 
 	if (tx_tables->check_rule_counter)
@@ -1355,38 +1355,38 @@ void mlx5e_macsec_fs_get_stats_fill(struct mlx5e_macsec_fs *macsec_fs, void *mac
 			      &stats->macsec_rx_pkts_drop, &stats->macsec_rx_bytes_drop);
 }
 
-union mlx5e_macsec_rule *
-mlx5e_macsec_fs_add_rule(struct mlx5e_macsec_fs *macsec_fs,
-			 const struct macsec_context *macsec_ctx,
-			 struct mlx5_macsec_rule_attrs *attrs,
-			 u32 *sa_fs_id)
+union mlx5_macsec_rule *
+mlx5_macsec_fs_add_rule(struct mlx5_macsec_fs *macsec_fs,
+			const struct macsec_context *macsec_ctx,
+			struct mlx5_macsec_rule_attrs *attrs,
+			u32 *sa_fs_id)
 {
 	return (attrs->action == MLX5_ACCEL_MACSEC_ACTION_ENCRYPT) ?
 		macsec_fs_tx_add_rule(macsec_fs, macsec_ctx, attrs, sa_fs_id) :
 		macsec_fs_rx_add_rule(macsec_fs, attrs, *sa_fs_id);
 }
 
-void mlx5e_macsec_fs_del_rule(struct mlx5e_macsec_fs *macsec_fs,
-			      union mlx5e_macsec_rule *macsec_rule,
-			      int action)
+void mlx5_macsec_fs_del_rule(struct mlx5_macsec_fs *macsec_fs,
+			     union mlx5_macsec_rule *macsec_rule,
+			     int action)
 {
 	(action == MLX5_ACCEL_MACSEC_ACTION_ENCRYPT) ?
 		macsec_fs_tx_del_rule(macsec_fs, &macsec_rule->tx_rule) :
 		macsec_fs_rx_del_rule(macsec_fs, &macsec_rule->rx_rule);
 }
 
-void mlx5e_macsec_fs_cleanup(struct mlx5e_macsec_fs *macsec_fs)
+void mlx5_macsec_fs_cleanup(struct mlx5_macsec_fs *macsec_fs)
 {
 	macsec_fs_rx_cleanup(macsec_fs);
 	macsec_fs_tx_cleanup(macsec_fs);
 	kfree(macsec_fs);
 }
 
-struct mlx5e_macsec_fs *
-mlx5e_macsec_fs_init(struct mlx5_core_dev *mdev,
-		     struct net_device *netdev)
+struct mlx5_macsec_fs *
+mlx5_macsec_fs_init(struct mlx5_core_dev *mdev,
+		    struct net_device *netdev)
 {
-	struct mlx5e_macsec_fs *macsec_fs;
+	struct mlx5_macsec_fs *macsec_fs;
 	int err;
 
 	macsec_fs = kzalloc(sizeof(*macsec_fs), GFP_KERNEL);
