@@ -2147,8 +2147,11 @@ static int dpaa2_eth_link_state_update(struct dpaa2_eth_priv *priv)
 
 	/* When we manage the MAC/PHY using phylink there is no need
 	 * to manually update the netif_carrier.
+	 * We can avoid locking because we are called from the "link changed"
+	 * IRQ handler, which is the same as the "endpoint changed" IRQ handler
+	 * (the writer to priv->mac), so we cannot race with it.
 	 */
-	if (dpaa2_eth_is_type_phy(priv))
+	if (dpaa2_mac_is_type_phy(priv->mac))
 		goto out;
 
 	/* Chech link state; speed / duplex changes are not treated yet */
@@ -2179,6 +2182,8 @@ static int dpaa2_eth_open(struct net_device *net_dev)
 
 	dpaa2_eth_seed_pools(priv);
 
+	mutex_lock(&priv->mac_lock);
+
 	if (!dpaa2_eth_is_type_phy(priv)) {
 		/* We'll only start the txqs when the link is actually ready;
 		 * make sure we don't race against the link up notification,
@@ -2197,12 +2202,15 @@ static int dpaa2_eth_open(struct net_device *net_dev)
 
 	err = dpni_enable(priv->mc_io, 0, priv->mc_token);
 	if (err < 0) {
+		mutex_unlock(&priv->mac_lock);
 		netdev_err(net_dev, "dpni_enable() failed\n");
 		goto enable_err;
 	}
 
 	if (dpaa2_eth_is_type_phy(priv))
 		dpaa2_mac_start(priv->mac);
+
+	mutex_unlock(&priv->mac_lock);
 
 	return 0;
 
@@ -2275,12 +2283,16 @@ static int dpaa2_eth_stop(struct net_device *net_dev)
 	int dpni_enabled = 0;
 	int retries = 10;
 
+	mutex_lock(&priv->mac_lock);
+
 	if (dpaa2_eth_is_type_phy(priv)) {
 		dpaa2_mac_stop(priv->mac);
 	} else {
 		netif_tx_stop_all_queues(net_dev);
 		netif_carrier_off(net_dev);
 	}
+
+	mutex_unlock(&priv->mac_lock);
 
 	/* On dpni_disable(), the MC firmware will:
 	 * - stop MAC Rx and wait for all Rx frames to be enqueued to software
@@ -2607,12 +2619,20 @@ static int dpaa2_eth_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 static int dpaa2_eth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+	int err;
 
 	if (cmd == SIOCSHWTSTAMP)
 		return dpaa2_eth_ts_ioctl(dev, rq, cmd);
 
-	if (dpaa2_eth_is_type_phy(priv))
-		return phylink_mii_ioctl(priv->mac->phylink, rq, cmd);
+	mutex_lock(&priv->mac_lock);
+
+	if (dpaa2_eth_is_type_phy(priv)) {
+		err = phylink_mii_ioctl(priv->mac->phylink, rq, cmd);
+		mutex_unlock(&priv->mac_lock);
+		return err;
+	}
+
+	mutex_unlock(&priv->mac_lock);
 
 	return -EOPNOTSUPP;
 }
@@ -4639,7 +4659,9 @@ static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
 		}
 	}
 
+	mutex_lock(&priv->mac_lock);
 	priv->mac = mac;
+	mutex_unlock(&priv->mac_lock);
 
 	return 0;
 
@@ -4652,9 +4674,12 @@ err_free_mac:
 
 static void dpaa2_eth_disconnect_mac(struct dpaa2_eth_priv *priv)
 {
-	struct dpaa2_mac *mac = priv->mac;
+	struct dpaa2_mac *mac;
 
+	mutex_lock(&priv->mac_lock);
+	mac = priv->mac;
 	priv->mac = NULL;
+	mutex_unlock(&priv->mac_lock);
 
 	if (!mac)
 		return;
@@ -4673,6 +4698,7 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 	struct fsl_mc_device *dpni_dev = to_fsl_mc_device(dev);
 	struct net_device *net_dev = dev_get_drvdata(dev);
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	bool had_mac;
 	int err;
 
 	err = dpni_get_irq_status(dpni_dev->mc_io, 0, dpni_dev->mc_handle,
@@ -4690,7 +4716,12 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 		dpaa2_eth_update_tx_fqids(priv);
 
 		rtnl_lock();
-		if (dpaa2_eth_has_mac(priv))
+		/* We can avoid locking because the "endpoint changed" IRQ
+		 * handler is the only one who changes priv->mac at runtime,
+		 * so we are not racing with anyone.
+		 */
+		had_mac = !!priv->mac;
+		if (had_mac)
 			dpaa2_eth_disconnect_mac(priv);
 		else
 			dpaa2_eth_connect_mac(priv);
@@ -4791,6 +4822,8 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	priv = netdev_priv(net_dev);
 	priv->net_dev = net_dev;
 	SET_NETDEV_DEVLINK_PORT(net_dev, &priv->devlink_port);
+
+	mutex_init(&priv->mac_lock);
 
 	priv->iommu_domain = iommu_get_domain_for_dev(dev);
 
