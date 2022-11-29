@@ -45,14 +45,13 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/nuvoton,wpcm450-clk.h>
     spi@c8000000 {
       compatible = "nuvoton,wpcm450-fiu";
       reg = <0xc8000000 0x1000>, <0xc0000000 0x4000000>;
       #address-cells = <1>;
       #size-cells = <0>;
       reg-names = "control", "memory";
-      clocks = <&clk WPCM450_CLK_FIU>;
+      clocks = <&clk 0>;
       nuvoton,shm = <&shm>;
 
       flash@0 {
