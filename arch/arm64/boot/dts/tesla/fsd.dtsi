@@ -468,6 +468,11 @@
 			clock-names = "fin_pll";
 		};
 
+		sysreg_cam: system-controller@12630000 {
+			compatible = "tesla,fsd-cam-sysreg", "syscon";
+			reg = <0x0 0x12630000 0x0 0x500>;
+		};
+
 		clock_mfc: clock-controller@12810000 {
 			compatible = "tesla,fsd-clock-mfc";
 			reg = <0x0 0x12810000 0x0 0x3000>;
@@ -494,6 +499,11 @@
 				"dout_cmu_peric_shared1div4_dmaclk";
 		};
 
+		sysreg_peric: system-controller@14030000 {
+			compatible = "tesla,fsd-peric-sysreg", "syscon";
+			reg = <0x0 0x14030000 0x0 0x1000>;
+		};
+
 		clock_fsys0: clock-controller@15010000 {
 			compatible = "tesla,fsd-clock-fsys0";
 			reg = <0x0 0x15010000 0x0 0x3000>;
@@ -508,6 +518,11 @@
 				"dout_cmu_fsys0_shared0div4";
 		};
 
+		sysreg_fsys0: system-controller@15030000 {
+			compatible = "tesla,fsd-fsys0-sysreg", "syscon";
+			reg = <0x0 0x15030000 0x0 0x1000>;
+		};
+
 		clock_fsys1: clock-controller@16810000 {
 			compatible = "tesla,fsd-clock-fsys1";
 			reg = <0x0 0x16810000 0x0 0x3000>;
@@ -518,6 +533,11 @@
 			clock-names = "fin_pll",
 				"dout_cmu_fsys1_shared0div8",
 				"dout_cmu_fsys1_shared0div4";
+		};
+
+		sysreg_fsys1: system-controller@16830000 {
+			compatible = "tesla,fsd-fsys1-sysreg", "syscon";
+			reg = <0x0 0x16830000 0x0 0x1000>;
 		};
 
 		mdma0: dma-controller@10100000 {
