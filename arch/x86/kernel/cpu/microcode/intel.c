@@ -554,7 +554,6 @@ void reload_ucode_intel(void)
 
 static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)
 {
-	static struct cpu_signature prev;
 	struct cpuinfo_x86 *c = &cpu_data(cpu_num);
 	unsigned int val[2];
 
@@ -569,13 +568,6 @@ static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)
 	}
 
 	csig->rev = c->microcode;
-
-	/* No extra locking on prev, races are harmless. */
-	if (csig->sig != prev.sig || csig->pf != prev.pf || csig->rev != prev.rev) {
-		pr_info("sig=0x%x, pf=0x%x, revision=0x%x\n",
-			csig->sig, csig->pf, csig->rev);
-		prev = *csig;
-	}
 
 	return 0;
 }
