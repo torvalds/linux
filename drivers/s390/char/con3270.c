@@ -36,6 +36,7 @@
 #define TTY3270_OUTPUT_BUFFER_SIZE 4096
 #define TTY3270_SCREEN_PAGES 8 /* has to be power-of-two */
 #define TTY3270_RECALL_SIZE 16 /* has to be power-of-two */
+#define TTY3270_STATUS_AREA_SIZE 40
 
 static struct tty_driver *tty3270_driver;
 static int tty3270_max_index;
@@ -223,7 +224,8 @@ static int tty3270_add_prompt(struct tty3270 *tp)
 
 	if (*tp->prompt) {
 		cp = tty3270_add_sf(tp, cp, TF_INMDT);
-		count = min_t(int, strlen(tp->prompt), tp->view.cols * 2 - 11);
+		count = min_t(int, strlen(tp->prompt),
+			      tp->view.cols * 2 - TTY3270_STATUS_AREA_SIZE - 2);
 		memcpy(cp, tp->prompt, count);
 		cp += count;
 	} else {
@@ -232,25 +234,49 @@ static int tty3270_add_prompt(struct tty3270 *tp)
 	*cp++ = TO_IC;
 	/* Clear to end of input line. */
 	if (count < tp->view.cols * 2 - 11)
-		cp = tty3270_add_ra(tp, cp, -9, -1, 0);
+		cp = tty3270_add_ra(tp, cp, -TTY3270_STATUS_AREA_SIZE, -1, 0);
 	return cp - tp->converted_line;
+}
+
+static char *tty3270_ebcdic_convert(struct tty3270 *tp, char *d, char *s)
+{
+	while (*s)
+		*d++ = tp->view.ascebc[(int)*s++];
+	return d;
 }
 
 /*
  * The status line is the last line of the screen. It shows the string
- * "Running"/"Holding" in the lower right corner of the screen.
+ * "Running"/"History X" in the lower right corner of the screen.
  */
 static int tty3270_add_status(struct tty3270 *tp)
 {
 	char *cp = tp->converted_line;
 	int len;
 
-	cp = tty3270_add_ba(tp, cp, TO_SBA, -9, -1);
+	cp = tty3270_add_ba(tp, cp, TO_SBA, -TTY3270_STATUS_AREA_SIZE, -1);
 	cp = tty3270_add_sf(tp, cp, TF_LOG);
 	cp = tty3270_add_sa(tp, cp, TAT_FGCOLOR, TAC_GREEN);
-	len = sprintf(cp, tp->nr_up ? "History" : "Running");
-	codepage_convert(tp->view.ascebc, cp, len);
-	cp += len;
+	cp = tty3270_ebcdic_convert(tp, cp, " 7");
+	cp = tty3270_add_sa(tp, cp, TAT_EXTHI, TAX_REVER);
+	cp = tty3270_ebcdic_convert(tp, cp, "PrevPg");
+	cp = tty3270_add_sa(tp, cp, TAT_EXTHI, TAX_RESET);
+	cp = tty3270_ebcdic_convert(tp, cp, " 8");
+	cp = tty3270_add_sa(tp, cp, TAT_EXTHI, TAX_REVER);
+	cp = tty3270_ebcdic_convert(tp, cp, "NextPg");
+	cp = tty3270_add_sa(tp, cp, TAT_EXTHI, TAX_RESET);
+	cp = tty3270_ebcdic_convert(tp, cp, " 12");
+	cp = tty3270_add_sa(tp, cp, TAT_EXTHI, TAX_REVER);
+	cp = tty3270_ebcdic_convert(tp, cp, "Recall");
+	cp = tty3270_add_sa(tp, cp, TAT_EXTHI, TAX_RESET);
+	cp = tty3270_ebcdic_convert(tp, cp, "  ");
+	if (tp->nr_up) {
+		len = sprintf(cp, "History %d", -tp->nr_up);
+		codepage_convert(tp->view.ascebc, cp, len);
+		cp += len;
+	} else {
+		cp = tty3270_ebcdic_convert(tp, cp, "Running");
+	}
 	cp = tty3270_add_sf(tp, cp, TF_LOG);
 	cp = tty3270_add_sa(tp, cp, TAT_FGCOLOR, TAC_RESET);
 	return cp - (char *)tp->converted_line;
