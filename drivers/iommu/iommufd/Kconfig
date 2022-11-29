@@ -12,6 +12,26 @@ config IOMMUFD
 	  If you don't know what to do here, say N.
 
 if IOMMUFD
+config IOMMUFD_VFIO_CONTAINER
+	bool "IOMMUFD provides the VFIO container /dev/vfio/vfio"
+	depends on VFIO && !VFIO_CONTAINER
+	default VFIO && !VFIO_CONTAINER
+	help
+	  IOMMUFD will provide /dev/vfio/vfio instead of VFIO. This relies on
+	  IOMMUFD providing compatibility emulation to give the same ioctls.
+	  It provides an option to build a kernel with legacy VFIO components
+	  removed.
+
+	  IOMMUFD VFIO container emulation is known to lack certain features
+	  of the native VFIO container, such as no-IOMMU support, peer-to-peer
+	  DMA mapping, PPC IOMMU support, as well as other potentially
+	  undiscovered gaps.  This option is currently intended for the
+	  purpose of testing IOMMUFD with unmodified userspace supporting VFIO
+	  and making use of the Type1 VFIO IOMMU backend.  General purpose
+	  enabling of this option is currently discouraged.
+
+	  Unless testing IOMMUFD, say N here.
+
 config IOMMUFD_TEST
 	bool "IOMMU Userspace API Test support"
 	depends on DEBUG_KERNEL

@@ -588,6 +588,9 @@ static const struct vfio_device_ops vfio_ccw_dev_ops = {
 	.ioctl = vfio_ccw_mdev_ioctl,
 	.request = vfio_ccw_mdev_request,
 	.dma_unmap = vfio_ccw_dma_unmap,
+	.bind_iommufd = vfio_iommufd_emulated_bind,
+	.unbind_iommufd = vfio_iommufd_emulated_unbind,
+	.attach_ioas = vfio_iommufd_emulated_attach_ioas,
 };
 
 struct mdev_driver vfio_ccw_mdev_driver = {
