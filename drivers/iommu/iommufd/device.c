@@ -6,6 +6,7 @@
 #include <linux/iommu.h>
 #include <linux/irqdomain.h>
 
+#include "io_pagetable.h"
 #include "iommufd_private.h"
 
 static bool allow_unsafe_interrupts;
@@ -417,3 +418,318 @@ void iommufd_device_detach(struct iommufd_device *idev)
 	refcount_dec(&idev->obj.users);
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_device_detach, IOMMUFD);
+
+void iommufd_access_destroy_object(struct iommufd_object *obj)
+{
+	struct iommufd_access *access =
+		container_of(obj, struct iommufd_access, obj);
+
+	iopt_remove_access(&access->ioas->iopt, access);
+	iommufd_ctx_put(access->ictx);
+	refcount_dec(&access->ioas->obj.users);
+}
+
+/**
+ * iommufd_access_create - Create an iommufd_access
+ * @ictx: iommufd file descriptor
+ * @ioas_id: ID for a IOMMUFD_OBJ_IOAS
+ * @ops: Driver's ops to associate with the access
+ * @data: Opaque data to pass into ops functions
+ *
+ * An iommufd_access allows a driver to read/write to the IOAS without using
+ * DMA. The underlying CPU memory can be accessed using the
+ * iommufd_access_pin_pages() or iommufd_access_rw() functions.
+ *
+ * The provided ops are required to use iommufd_access_pin_pages().
+ */
+struct iommufd_access *
+iommufd_access_create(struct iommufd_ctx *ictx, u32 ioas_id,
+		      const struct iommufd_access_ops *ops, void *data)
+{
+	struct iommufd_access *access;
+	struct iommufd_object *obj;
+	int rc;
+
+	/*
+	 * There is no uAPI for the access object, but to keep things symmetric
+	 * use the object infrastructure anyhow.
+	 */
+	access = iommufd_object_alloc(ictx, access, IOMMUFD_OBJ_ACCESS);
+	if (IS_ERR(access))
+		return access;
+
+	access->data = data;
+	access->ops = ops;
+
+	obj = iommufd_get_object(ictx, ioas_id, IOMMUFD_OBJ_IOAS);
+	if (IS_ERR(obj)) {
+		rc = PTR_ERR(obj);
+		goto out_abort;
+	}
+	access->ioas = container_of(obj, struct iommufd_ioas, obj);
+	iommufd_ref_to_users(obj);
+
+	if (ops->needs_pin_pages)
+		access->iova_alignment = PAGE_SIZE;
+	else
+		access->iova_alignment = 1;
+	rc = iopt_add_access(&access->ioas->iopt, access);
+	if (rc)
+		goto out_put_ioas;
+
+	/* The calling driver is a user until iommufd_access_destroy() */
+	refcount_inc(&access->obj.users);
+	access->ictx = ictx;
+	iommufd_ctx_get(ictx);
+	iommufd_object_finalize(ictx, &access->obj);
+	return access;
+out_put_ioas:
+	refcount_dec(&access->ioas->obj.users);
+out_abort:
+	iommufd_object_abort(ictx, &access->obj);
+	return ERR_PTR(rc);
+}
+EXPORT_SYMBOL_NS_GPL(iommufd_access_create, IOMMUFD);
+
+/**
+ * iommufd_access_destroy - Destroy an iommufd_access
+ * @access: The access to destroy
+ *
+ * The caller must stop using the access before destroying it.
+ */
+void iommufd_access_destroy(struct iommufd_access *access)
+{
+	bool was_destroyed;
+
+	was_destroyed = iommufd_object_destroy_user(access->ictx, &access->obj);
+	WARN_ON(!was_destroyed);
+}
+EXPORT_SYMBOL_NS_GPL(iommufd_access_destroy, IOMMUFD);
+
+/**
+ * iommufd_access_notify_unmap - Notify users of an iopt to stop using it
+ * @iopt: iopt to work on
+ * @iova: Starting iova in the iopt
+ * @length: Number of bytes
+ *
+ * After this function returns there should be no users attached to the pages
+ * linked to this iopt that intersect with iova,length. Anyone that has attached
+ * a user through iopt_access_pages() needs to detach it through
+ * iommufd_access_unpin_pages() before this function returns.
+ *
+ * iommufd_access_destroy() will wait for any outstanding unmap callback to
+ * complete. Once iommufd_access_destroy() no unmap ops are running or will
+ * run in the future. Due to this a driver must not create locking that prevents
+ * unmap to complete while iommufd_access_destroy() is running.
+ */
+void iommufd_access_notify_unmap(struct io_pagetable *iopt, unsigned long iova,
+				 unsigned long length)
+{
+	struct iommufd_ioas *ioas =
+		container_of(iopt, struct iommufd_ioas, iopt);
+	struct iommufd_access *access;
+	unsigned long index;
+
+	xa_lock(&ioas->iopt.access_list);
+	xa_for_each(&ioas->iopt.access_list, index, access) {
+		if (!iommufd_lock_obj(&access->obj))
+			continue;
+		xa_unlock(&ioas->iopt.access_list);
+
+		access->ops->unmap(access->data, iova, length);
+
+		iommufd_put_object(&access->obj);
+		xa_lock(&ioas->iopt.access_list);
+	}
+	xa_unlock(&ioas->iopt.access_list);
+}
+
+/**
+ * iommufd_access_unpin_pages() - Undo iommufd_access_pin_pages
+ * @access: IOAS access to act on
+ * @iova: Starting IOVA
+ * @length: Number of bytes to access
+ *
+ * Return the struct page's. The caller must stop accessing them before calling
+ * this. The iova/length must exactly match the one provided to access_pages.
+ */
+void iommufd_access_unpin_pages(struct iommufd_access *access,
+				unsigned long iova, unsigned long length)
+{
+	struct io_pagetable *iopt = &access->ioas->iopt;
+	struct iopt_area_contig_iter iter;
+	unsigned long last_iova;
+	struct iopt_area *area;
+
+	if (WARN_ON(!length) ||
+	    WARN_ON(check_add_overflow(iova, length - 1, &last_iova)))
+		return;
+
+	down_read(&iopt->iova_rwsem);
+	iopt_for_each_contig_area(&iter, area, iopt, iova, last_iova)
+		iopt_area_remove_access(
+			area, iopt_area_iova_to_index(area, iter.cur_iova),
+			iopt_area_iova_to_index(
+				area,
+				min(last_iova, iopt_area_last_iova(area))));
+	up_read(&iopt->iova_rwsem);
+	WARN_ON(!iopt_area_contig_done(&iter));
+}
+EXPORT_SYMBOL_NS_GPL(iommufd_access_unpin_pages, IOMMUFD);
+
+static bool iopt_area_contig_is_aligned(struct iopt_area_contig_iter *iter)
+{
+	if (iopt_area_start_byte(iter->area, iter->cur_iova) % PAGE_SIZE)
+		return false;
+
+	if (!iopt_area_contig_done(iter) &&
+	    (iopt_area_start_byte(iter->area, iopt_area_last_iova(iter->area)) %
+	     PAGE_SIZE) != (PAGE_SIZE - 1))
+		return false;
+	return true;
+}
+
+static bool check_area_prot(struct iopt_area *area, unsigned int flags)
+{
+	if (flags & IOMMUFD_ACCESS_RW_WRITE)
+		return area->iommu_prot & IOMMU_WRITE;
+	return area->iommu_prot & IOMMU_READ;
+}
+
+/**
+ * iommufd_access_pin_pages() - Return a list of pages under the iova
+ * @access: IOAS access to act on
+ * @iova: Starting IOVA
+ * @length: Number of bytes to access
+ * @out_pages: Output page list
+ * @flags: IOPMMUFD_ACCESS_RW_* flags
+ *
+ * Reads @length bytes starting at iova and returns the struct page * pointers.
+ * These can be kmap'd by the caller for CPU access.
+ *
+ * The caller must perform iommufd_access_unpin_pages() when done to balance
+ * this.
+ *
+ * This API always requires a page aligned iova. This happens naturally if the
+ * ioas alignment is >= PAGE_SIZE and the iova is PAGE_SIZE aligned. However
+ * smaller alignments have corner cases where this API can fail on otherwise
+ * aligned iova.
+ */
+int iommufd_access_pin_pages(struct iommufd_access *access, unsigned long iova,
+			     unsigned long length, struct page **out_pages,
+			     unsigned int flags)
+{
+	struct io_pagetable *iopt = &access->ioas->iopt;
+	struct iopt_area_contig_iter iter;
+	unsigned long last_iova;
+	struct iopt_area *area;
+	int rc;
+
+	if (!length)
+		return -EINVAL;
+	if (check_add_overflow(iova, length - 1, &last_iova))
+		return -EOVERFLOW;
+
+	down_read(&iopt->iova_rwsem);
+	iopt_for_each_contig_area(&iter, area, iopt, iova, last_iova) {
+		unsigned long last = min(last_iova, iopt_area_last_iova(area));
+		unsigned long last_index = iopt_area_iova_to_index(area, last);
+		unsigned long index =
+			iopt_area_iova_to_index(area, iter.cur_iova);
+
+		if (area->prevent_access ||
+		    !iopt_area_contig_is_aligned(&iter)) {
+			rc = -EINVAL;
+			goto err_remove;
+		}
+
+		if (!check_area_prot(area, flags)) {
+			rc = -EPERM;
+			goto err_remove;
+		}
+
+		rc = iopt_area_add_access(area, index, last_index, out_pages,
+					  flags);
+		if (rc)
+			goto err_remove;
+		out_pages += last_index - index + 1;
+	}
+	if (!iopt_area_contig_done(&iter)) {
+		rc = -ENOENT;
+		goto err_remove;
+	}
+
+	up_read(&iopt->iova_rwsem);
+	return 0;
+
+err_remove:
+	if (iova < iter.cur_iova) {
+		last_iova = iter.cur_iova - 1;
+		iopt_for_each_contig_area(&iter, area, iopt, iova, last_iova)
+			iopt_area_remove_access(
+				area,
+				iopt_area_iova_to_index(area, iter.cur_iova),
+				iopt_area_iova_to_index(
+					area, min(last_iova,
+						  iopt_area_last_iova(area))));
+	}
+	up_read(&iopt->iova_rwsem);
+	return rc;
+}
+EXPORT_SYMBOL_NS_GPL(iommufd_access_pin_pages, IOMMUFD);
+
+/**
+ * iommufd_access_rw - Read or write data under the iova
+ * @access: IOAS access to act on
+ * @iova: Starting IOVA
+ * @data: Kernel buffer to copy to/from
+ * @length: Number of bytes to access
+ * @flags: IOMMUFD_ACCESS_RW_* flags
+ *
+ * Copy kernel to/from data into the range given by IOVA/length. If flags
+ * indicates IOMMUFD_ACCESS_RW_KTHREAD then a large copy can be optimized
+ * by changing it into copy_to/from_user().
+ */
+int iommufd_access_rw(struct iommufd_access *access, unsigned long iova,
+		      void *data, size_t length, unsigned int flags)
+{
+	struct io_pagetable *iopt = &access->ioas->iopt;
+	struct iopt_area_contig_iter iter;
+	struct iopt_area *area;
+	unsigned long last_iova;
+	int rc;
+
+	if (!length)
+		return -EINVAL;
+	if (check_add_overflow(iova, length - 1, &last_iova))
+		return -EOVERFLOW;
+
+	down_read(&iopt->iova_rwsem);
+	iopt_for_each_contig_area(&iter, area, iopt, iova, last_iova) {
+		unsigned long last = min(last_iova, iopt_area_last_iova(area));
+		unsigned long bytes = (last - iter.cur_iova) + 1;
+
+		if (area->prevent_access) {
+			rc = -EINVAL;
+			goto err_out;
+		}
+
+		if (!check_area_prot(area, flags)) {
+			rc = -EPERM;
+			goto err_out;
+		}
+
+		rc = iopt_pages_rw_access(
+			area->pages, iopt_area_start_byte(area, iter.cur_iova),
+			data, bytes, flags);
+		if (rc)
+			goto err_out;
+		data += bytes;
+	}
+	if (!iopt_area_contig_done(&iter))
+		rc = -ENOENT;
+err_out:
+	up_read(&iopt->iova_rwsem);
+	return rc;
+}
+EXPORT_SYMBOL_NS_GPL(iommufd_access_rw, IOMMUFD);
