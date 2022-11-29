@@ -371,12 +371,6 @@ static int free_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args)
 		return -EINVAL;
 	}
 
-	if (phys_pg_pack->exporting_cnt) {
-		spin_unlock(&vm->idr_lock);
-		dev_dbg(hdev->dev, "handle %u is exported, cannot free\n", handle);
-		return -EINVAL;
-	}
-
 	/* must remove from idr before the freeing of the physical pages as the refcount of the pool
 	 * is also the trigger of the idr destroy
 	 */
@@ -1700,29 +1694,19 @@ static struct sg_table *hl_map_dmabuf(struct dma_buf_attachment *attachment,
 					enum dma_data_direction dir)
 {
 	struct dma_buf *dma_buf = attachment->dmabuf;
-	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct hl_dmabuf_priv *hl_dmabuf;
 	struct hl_device *hdev;
 	struct sg_table *sgt;
 
 	hl_dmabuf = dma_buf->priv;
 	hdev = hl_dmabuf->ctx->hdev;
-	phys_pg_pack = hl_dmabuf->phys_pg_pack;
 
 	if (!attachment->peer2peer) {
 		dev_dbg(hdev->dev, "Failed to map dmabuf because p2p is disabled\n");
 		return ERR_PTR(-EPERM);
 	}
 
-	if (phys_pg_pack)
-		sgt = alloc_sgt_from_device_pages(hdev,
-						phys_pg_pack->pages,
-						phys_pg_pack->npages,
-						phys_pg_pack->page_size,
-						attachment->dev,
-						dir);
-	else
-		sgt = alloc_sgt_from_device_pages(hdev,
+	sgt = alloc_sgt_from_device_pages(hdev,
 						&hl_dmabuf->device_address,
 						1,
 						hl_dmabuf->dmabuf->size,
@@ -1763,18 +1747,8 @@ static void hl_unmap_dmabuf(struct dma_buf_attachment *attachment,
 static void hl_release_dmabuf(struct dma_buf *dmabuf)
 {
 	struct hl_dmabuf_priv *hl_dmabuf = dmabuf->priv;
-	struct hl_ctx *ctx = hl_dmabuf->ctx;
-	struct hl_device *hdev = ctx->hdev;
-	struct hl_vm *vm = &hdev->vm;
-
-	if (hl_dmabuf->phys_pg_pack) {
-		spin_lock(&vm->idr_lock);
-		hl_dmabuf->phys_pg_pack->exporting_cnt--;
-		spin_unlock(&vm->idr_lock);
-	}
 
 	hl_ctx_put(hl_dmabuf->ctx);
-
 	kfree(hl_dmabuf);
 }
 
@@ -1785,7 +1759,7 @@ static const struct dma_buf_ops habanalabs_dmabuf_ops = {
 	.release = hl_release_dmabuf,
 };
 
-static int export_dmabuf_common(struct hl_ctx *ctx,
+static int export_dmabuf(struct hl_ctx *ctx,
 				struct hl_dmabuf_priv *hl_dmabuf,
 				u64 total_size, int flags, int *dmabuf_fd)
 {
@@ -1849,6 +1823,11 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 device_addr,
 
 	prop = &hdev->asic_prop;
 
+	if (prop->dram_supports_virtual_memory) {
+		dev_dbg(hdev->dev, "Export not supported for devices with virtual memory\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (!IS_ALIGNED(device_addr, PAGE_SIZE)) {
 		dev_dbg(hdev->dev,
 			"exported device memory address 0x%llx should be aligned to 0x%lx\n",
@@ -1890,7 +1869,7 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 device_addr,
 
 	hl_dmabuf->device_address = device_addr;
 
-	rc = export_dmabuf_common(ctx, hl_dmabuf, size, flags, dmabuf_fd);
+	rc = export_dmabuf(ctx, hl_dmabuf, size, flags, dmabuf_fd);
 	if (rc)
 		goto err_free_dmabuf_wrapper;
 
@@ -1898,104 +1877,6 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 device_addr,
 
 err_free_dmabuf_wrapper:
 	kfree(hl_dmabuf);
-	return rc;
-}
-
-/**
- * export_dmabuf_from_handle() - export a dma-buf object for the given memory
- *                               handle.
- * @ctx: pointer to the context structure.
- * @handle: device memory allocation handle.
- * @flags: DMA-BUF file/FD flags.
- * @dmabuf_fd: pointer to result FD that represents the dma-buf object.
- *
- * Create and export a dma-buf object for an existing memory allocation inside
- * the device memory, and return a FD which is associated with the dma-buf
- * object.
- *
- * Return: 0 on success, non-zero for failure.
- */
-static int export_dmabuf_from_handle(struct hl_ctx *ctx, u64 handle, int flags,
-					int *dmabuf_fd)
-{
-	struct hl_vm_phys_pg_pack *phys_pg_pack;
-	struct hl_dmabuf_priv *hl_dmabuf;
-	struct hl_device *hdev = ctx->hdev;
-	struct asic_fixed_properties *prop;
-	struct hl_vm *vm = &hdev->vm;
-	u64 bar_address;
-	int rc, i;
-
-	prop = &hdev->asic_prop;
-
-	if (upper_32_bits(handle)) {
-		dev_dbg(hdev->dev, "no match for handle 0x%llx\n", handle);
-		return -EINVAL;
-	}
-
-	spin_lock(&vm->idr_lock);
-
-	phys_pg_pack = idr_find(&vm->phys_pg_pack_handles, (u32) handle);
-	if (!phys_pg_pack) {
-		spin_unlock(&vm->idr_lock);
-		dev_dbg(hdev->dev, "no match for handle 0x%x\n", (u32) handle);
-		return -EINVAL;
-	}
-
-	/* increment now to avoid freeing device memory while exporting */
-	phys_pg_pack->exporting_cnt++;
-
-	spin_unlock(&vm->idr_lock);
-
-	if (phys_pg_pack->vm_type != VM_TYPE_PHYS_PACK) {
-		dev_dbg(hdev->dev, "handle 0x%llx does not represent DRAM memory\n", handle);
-		rc = -EINVAL;
-		goto err_dec_exporting_cnt;
-	}
-
-	for (i = 0 ; i < phys_pg_pack->npages ; i++) {
-
-		bar_address = hdev->dram_pci_bar_start +
-						(phys_pg_pack->pages[i] -
-						prop->dram_base_address);
-
-		if (bar_address + phys_pg_pack->page_size >
-			hdev->dram_pci_bar_start + prop->dram_pci_bar_size ||
-			bar_address + phys_pg_pack->page_size < bar_address) {
-
-			dev_dbg(hdev->dev,
-				"DRAM memory range 0x%llx (+0x%x) is outside of PCI BAR boundaries\n",
-				phys_pg_pack->pages[i],
-				phys_pg_pack->page_size);
-
-			rc = -EINVAL;
-			goto err_dec_exporting_cnt;
-		}
-	}
-
-	hl_dmabuf = kzalloc(sizeof(*hl_dmabuf), GFP_KERNEL);
-	if (!hl_dmabuf) {
-		rc = -ENOMEM;
-		goto err_dec_exporting_cnt;
-	}
-
-	hl_dmabuf->phys_pg_pack = phys_pg_pack;
-
-	rc = export_dmabuf_common(ctx, hl_dmabuf, phys_pg_pack->total_size,
-				flags, dmabuf_fd);
-	if (rc)
-		goto err_free_dmabuf_wrapper;
-
-	return 0;
-
-err_free_dmabuf_wrapper:
-	kfree(hl_dmabuf);
-
-err_dec_exporting_cnt:
-	spin_lock(&vm->idr_lock);
-	phys_pg_pack->exporting_cnt--;
-	spin_unlock(&vm->idr_lock);
-
 	return rc;
 }
 
@@ -2269,13 +2150,7 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 		break;
 
 	case HL_MEM_OP_EXPORT_DMABUF_FD:
-		if (hdev->asic_prop.dram_supports_virtual_memory)
-			rc = export_dmabuf_from_handle(ctx,
-					args->in.export_dmabuf_fd.handle,
-					args->in.flags,
-					&dmabuf_fd);
-		else
-			rc = export_dmabuf_from_addr(ctx,
+		rc = export_dmabuf_from_addr(ctx,
 					args->in.export_dmabuf_fd.handle,
 					args->in.export_dmabuf_fd.mem_size,
 					args->in.flags,

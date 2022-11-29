@@ -1744,8 +1744,6 @@ struct hl_cs_counters_atomic {
  * struct hl_dmabuf_priv - a dma-buf private object.
  * @dmabuf: pointer to dma-buf object.
  * @ctx: pointer to the dma-buf owner's context.
- * @phys_pg_pack: pointer to physical page pack if the dma-buf was exported for
- *                memory allocation handle.
  * @device_address: physical address of the device's memory. Relevant only
  *                  if phys_pg_pack is NULL (dma-buf was exported from address).
  *                  The total size can be taken from the dmabuf object.
@@ -1753,7 +1751,6 @@ struct hl_cs_counters_atomic {
 struct hl_dmabuf_priv {
 	struct dma_buf			*dmabuf;
 	struct hl_ctx			*ctx;
-	struct hl_vm_phys_pg_pack	*phys_pg_pack;
 	uint64_t			device_address;
 };
 
@@ -2117,7 +2114,6 @@ struct hl_vm_hw_block_list_node {
  * @node: used to attach to deletion list that is used when all the allocations are cleared
  *        at the teardown of the context.
  * @mapping_cnt: number of shared mappings.
- * @exporting_cnt: number of dma-buf exporting.
  * @asid: the context related to this list.
  * @page_size: size of each page in the pack.
  * @flags: HL_MEM_* flags related to this list.
@@ -2133,7 +2129,6 @@ struct hl_vm_phys_pg_pack {
 	u64			total_size;
 	struct list_head	node;
 	atomic_t		mapping_cnt;
-	u32			exporting_cnt;
 	u32			asid;
 	u32			page_size;
 	u32			flags;
