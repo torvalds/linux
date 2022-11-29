@@ -46,7 +46,17 @@ struct iopt_area {
 	unsigned int page_offset;
 	/* IOMMU_READ, IOMMU_WRITE, etc */
 	int iommu_prot;
+	bool prevent_access : 1;
 	unsigned int num_accesses;
+};
+
+struct iopt_allowed {
+	struct interval_tree_node node;
+};
+
+struct iopt_reserved {
+	struct interval_tree_node node;
+	void *owner;
 };
 
 int iopt_area_fill_domains(struct iopt_area *area, struct iopt_pages *pages);
@@ -83,6 +93,24 @@ static inline size_t iopt_area_length(struct iopt_area *area)
 	return (area->node.last - area->node.start) + 1;
 }
 
+/*
+ * Number of bytes from the start of the iopt_pages that the iova begins.
+ * iopt_area_start_byte() / PAGE_SIZE encodes the starting page index
+ * iopt_area_start_byte() % PAGE_SIZE encodes the offset within that page
+ */
+static inline unsigned long iopt_area_start_byte(struct iopt_area *area,
+						 unsigned long iova)
+{
+	return (iova - iopt_area_iova(area)) + area->page_offset +
+	       iopt_area_index(area) * PAGE_SIZE;
+}
+
+static inline unsigned long iopt_area_iova_to_index(struct iopt_area *area,
+						    unsigned long iova)
+{
+	return iopt_area_start_byte(area, iova) / PAGE_SIZE;
+}
+
 #define __make_iopt_iter(name)                                                 \
 	static inline struct iopt_##name *iopt_##name##_iter_first(            \
 		struct io_pagetable *iopt, unsigned long start,                \
@@ -110,6 +138,33 @@ static inline size_t iopt_area_length(struct iopt_area *area)
 	}
 
 __make_iopt_iter(area)
+__make_iopt_iter(allowed)
+__make_iopt_iter(reserved)
+
+struct iopt_area_contig_iter {
+	unsigned long cur_iova;
+	unsigned long last_iova;
+	struct iopt_area *area;
+};
+struct iopt_area *iopt_area_contig_init(struct iopt_area_contig_iter *iter,
+					struct io_pagetable *iopt,
+					unsigned long iova,
+					unsigned long last_iova);
+struct iopt_area *iopt_area_contig_next(struct iopt_area_contig_iter *iter);
+
+static inline bool iopt_area_contig_done(struct iopt_area_contig_iter *iter)
+{
+	return iter->area && iter->last_iova <= iopt_area_last_iova(iter->area);
+}
+
+/*
+ * Iterate over a contiguous list of areas that span the iova,last_iova range.
+ * The caller must check iopt_area_contig_done() after the loop to see if
+ * contiguous areas existed.
+ */
+#define iopt_for_each_contig_area(iter, area, iopt, iova, last_iova)          \
+	for (area = iopt_area_contig_init(iter, iopt, iova, last_iova); area; \
+	     area = iopt_area_contig_next(iter))
 
 enum {
 	IOPT_PAGES_ACCOUNT_NONE = 0,

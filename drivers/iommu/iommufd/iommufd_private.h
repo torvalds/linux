@@ -9,9 +9,14 @@
 #include <linux/refcount.h>
 #include <linux/uaccess.h>
 
+struct iommu_domain;
+struct iommu_group;
+
 struct iommufd_ctx {
 	struct file *file;
 	struct xarray objects;
+
+	u8 account_mode;
 };
 
 /*
@@ -27,6 +32,7 @@ struct iommufd_ctx {
 struct io_pagetable {
 	struct rw_semaphore domains_rwsem;
 	struct xarray domains;
+	struct xarray access_list;
 	unsigned int next_domain_id;
 
 	struct rw_semaphore iova_rwsem;
@@ -36,7 +42,45 @@ struct io_pagetable {
 	/* IOVA that cannot be allocated, struct iopt_reserved */
 	struct rb_root_cached reserved_itree;
 	u8 disable_large_pages;
+	unsigned long iova_alignment;
 };
+
+void iopt_init_table(struct io_pagetable *iopt);
+void iopt_destroy_table(struct io_pagetable *iopt);
+int iopt_get_pages(struct io_pagetable *iopt, unsigned long iova,
+		   unsigned long length, struct list_head *pages_list);
+void iopt_free_pages_list(struct list_head *pages_list);
+enum {
+	IOPT_ALLOC_IOVA = 1 << 0,
+};
+int iopt_map_user_pages(struct iommufd_ctx *ictx, struct io_pagetable *iopt,
+			unsigned long *iova, void __user *uptr,
+			unsigned long length, int iommu_prot,
+			unsigned int flags);
+int iopt_map_pages(struct io_pagetable *iopt, struct list_head *pages_list,
+		   unsigned long length, unsigned long *dst_iova,
+		   int iommu_prot, unsigned int flags);
+int iopt_unmap_iova(struct io_pagetable *iopt, unsigned long iova,
+		    unsigned long length, unsigned long *unmapped);
+int iopt_unmap_all(struct io_pagetable *iopt, unsigned long *unmapped);
+
+int iopt_table_add_domain(struct io_pagetable *iopt,
+			  struct iommu_domain *domain);
+void iopt_table_remove_domain(struct io_pagetable *iopt,
+			      struct iommu_domain *domain);
+int iopt_table_enforce_group_resv_regions(struct io_pagetable *iopt,
+					  struct device *device,
+					  struct iommu_group *group,
+					  phys_addr_t *sw_msi_start);
+int iopt_set_allow_iova(struct io_pagetable *iopt,
+			struct rb_root_cached *allowed_iova);
+int iopt_reserve_iova(struct io_pagetable *iopt, unsigned long start,
+		      unsigned long last, void *owner);
+void iopt_remove_reserved_iova(struct io_pagetable *iopt, void *owner);
+int iopt_cut_iova(struct io_pagetable *iopt, unsigned long *iovas,
+		  size_t num_iovas);
+void iopt_enable_large_pages(struct io_pagetable *iopt);
+int iopt_disable_large_pages(struct io_pagetable *iopt);
 
 struct iommufd_ucmd {
 	struct iommufd_ctx *ictx;
@@ -130,4 +174,12 @@ struct iommufd_object *_iommufd_object_alloc(struct iommufd_ctx *ictx,
 			     type),                                            \
 		     typeof(*(ptr)), obj)
 
+struct iommufd_access {
+	unsigned long iova_alignment;
+	u32 iopt_access_list_id;
+};
+
+int iopt_add_access(struct io_pagetable *iopt, struct iommufd_access *access);
+void iopt_remove_access(struct io_pagetable *iopt,
+			struct iommufd_access *access);
 #endif
