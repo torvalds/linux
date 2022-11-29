@@ -101,6 +101,9 @@ static inline size_t iopt_area_length(struct iopt_area *area)
 static inline unsigned long iopt_area_start_byte(struct iopt_area *area,
 						 unsigned long iova)
 {
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+		WARN_ON(iova < iopt_area_iova(area) ||
+			iova > iopt_area_last_iova(area));
 	return (iova - iopt_area_iova(area)) + area->page_offset +
 	       iopt_area_index(area) * PAGE_SIZE;
 }

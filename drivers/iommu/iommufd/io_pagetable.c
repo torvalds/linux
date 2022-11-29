@@ -251,6 +251,11 @@ static int iopt_alloc_area_pages(struct io_pagetable *iopt,
 			(uintptr_t)elm->pages->uptr + elm->start_byte, length);
 		if (rc)
 			goto out_unlock;
+		if (IS_ENABLED(CONFIG_IOMMUFD_TEST) &&
+		    WARN_ON(iopt_check_iova(iopt, *dst_iova, length))) {
+			rc = -EINVAL;
+			goto out_unlock;
+		}
 	} else {
 		rc = iopt_check_iova(iopt, *dst_iova, length);
 		if (rc)
@@ -277,6 +282,8 @@ out_unlock:
 
 static void iopt_abort_area(struct iopt_area *area)
 {
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+		WARN_ON(area->pages);
 	if (area->iopt) {
 		down_write(&area->iopt->iova_rwsem);
 		interval_tree_remove(&area->node, &area->iopt->area_itree);
@@ -642,6 +649,9 @@ void iopt_destroy_table(struct io_pagetable *iopt)
 {
 	struct interval_tree_node *node;
 
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+		iopt_remove_reserved_iova(iopt, NULL);
+
 	while ((node = interval_tree_iter_first(&iopt->allowed_itree, 0,
 						ULONG_MAX))) {
 		interval_tree_remove(node, &iopt->allowed_itree);
@@ -688,6 +698,8 @@ static void iopt_unfill_domain(struct io_pagetable *iopt,
 				continue;
 
 			mutex_lock(&pages->mutex);
+			if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+				WARN_ON(!area->storage_domain);
 			if (area->storage_domain == domain)
 				area->storage_domain = storage_domain;
 			mutex_unlock(&pages->mutex);
@@ -792,6 +804,16 @@ static int iopt_check_iova_alignment(struct io_pagetable *iopt,
 		    (iopt_area_length(area) & align_mask) ||
 		    (area->page_offset & align_mask))
 			return -EADDRINUSE;
+
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST)) {
+		struct iommufd_access *access;
+		unsigned long index;
+
+		xa_for_each(&iopt->access_list, index, access)
+			if (WARN_ON(access->iova_alignment >
+				    new_iova_alignment))
+				return -EADDRINUSE;
+	}
 	return 0;
 }
 

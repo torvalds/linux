@@ -625,6 +625,11 @@ int iommufd_access_pin_pages(struct iommufd_access *access, unsigned long iova,
 	struct iopt_area *area;
 	int rc;
 
+	/* Driver's ops don't support pin_pages */
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST) &&
+	    WARN_ON(access->iova_alignment != PAGE_SIZE || !access->ops->unmap))
+		return -EINVAL;
+
 	if (!length)
 		return -EINVAL;
 	if (check_add_overflow(iova, length - 1, &last_iova))
