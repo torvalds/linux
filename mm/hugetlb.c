@@ -1800,6 +1800,7 @@ static bool __prep_compound_gigantic_page(struct page *page, unsigned int order,
 
 	/* we rely on prep_new_huge_page to set the destructor */
 	set_compound_order(page, order);
+	__ClearPageReserved(page);
 	__SetPageHead(page);
 	for (i = 0; i < nr_pages; i++) {
 		p = nth_page(page, i);
@@ -1816,7 +1817,8 @@ static bool __prep_compound_gigantic_page(struct page *page, unsigned int order,
 		 * on the head page when they need know if put_page() is needed
 		 * after get_user_pages().
 		 */
-		__ClearPageReserved(p);
+		if (i != 0)	/* head page cleared above */
+			__ClearPageReserved(p);
 		/*
 		 * Subtle and very unlikely
 		 *
@@ -6110,6 +6112,10 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
 	}
 
 	ptl = huge_pte_lock(h, dst_mm, dst_pte);
+
+	ret = -EIO;
+	if (PageHWPoison(page))
+		goto out_release_unlock;
 
 	/*
 	 * We allow to overwrite a pte marker: consider when both MISSING|WP

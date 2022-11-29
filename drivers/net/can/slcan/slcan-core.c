@@ -594,7 +594,7 @@ static netdev_tx_t slcan_netdev_xmit(struct sk_buff *skb,
 {
 	struct slcan *sl = netdev_priv(dev);
 
-	if (can_dropped_invalid_skb(dev, skb))
+	if (can_dev_dropped_skb(dev, skb))
 		return NETDEV_TX_OK;
 
 	spin_lock(&sl->lock);

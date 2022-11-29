@@ -16,6 +16,9 @@ enum io_uring_cmd_flags {
 	IO_URING_F_SQE128		= 4,
 	IO_URING_F_CQE32		= 8,
 	IO_URING_F_IOPOLL		= 16,
+
+	/* the request is executed from poll, it should not be freed */
+	IO_URING_F_MULTISHOT		= 32,
 };
 
 struct io_uring_cmd {

@@ -337,12 +337,14 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->feature = adev->psp.cap_feature_version;
 		break;
 	case AMDGPU_INFO_FW_MES_KIQ:
-		fw_info->ver = adev->mes.ucode_fw_version[0];
-		fw_info->feature = 0;
+		fw_info->ver = adev->mes.kiq_version & AMDGPU_MES_VERSION_MASK;
+		fw_info->feature = (adev->mes.kiq_version & AMDGPU_MES_FEAT_VERSION_MASK)
+					>> AMDGPU_MES_FEAT_VERSION_SHIFT;
 		break;
 	case AMDGPU_INFO_FW_MES:
-		fw_info->ver = adev->mes.ucode_fw_version[1];
-		fw_info->feature = 0;
+		fw_info->ver = adev->mes.sched_version & AMDGPU_MES_VERSION_MASK;
+		fw_info->feature = (adev->mes.sched_version & AMDGPU_MES_FEAT_VERSION_MASK)
+					>> AMDGPU_MES_FEAT_VERSION_SHIFT;
 		break;
 	case AMDGPU_INFO_FW_IMU:
 		fw_info->ver = adev->gfx.imu_fw_version;
