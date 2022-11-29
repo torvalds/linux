@@ -385,7 +385,7 @@ struct raw3270_ua {	/* Query Reply structure for Usable Area */
 		char  ymin;
 		char  xmax;
 		char  ymax;
-	} __attribute__ ((packed)) uab;
+	} __packed uab;
 	struct {	/* Alternate Usable Area Self-Defining Parameter */
 		char  l;	/* Length of this Self-Defining Parm */
 		char  sdpid;	/* 0x02 if Alternate Usable Area */
@@ -398,8 +398,8 @@ struct raw3270_ua {	/* Query Reply structure for Usable Area */
 		int   auayr;
 		char  awauai;
 		char  ahauai;
-	} __attribute__ ((packed)) aua;
-} __attribute__ ((packed));
+	} __packed aua;
+} __packed;
 
 static void raw3270_size_device_vm(struct raw3270 *rp)
 {
