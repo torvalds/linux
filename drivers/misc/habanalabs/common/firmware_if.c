@@ -1932,11 +1932,11 @@ static int hl_fw_dynamic_validate_descriptor(struct hl_device *hdev,
 	int rc;
 
 	if (le32_to_cpu(fw_desc->header.magic) != HL_COMMS_DESC_MAGIC)
-		dev_warn(hdev->dev, "Invalid magic for dynamic FW descriptor (%x)\n",
+		dev_dbg(hdev->dev, "Invalid magic for dynamic FW descriptor (%x)\n",
 				fw_desc->header.magic);
 
 	if (fw_desc->header.version != HL_COMMS_DESC_VER)
-		dev_warn(hdev->dev, "Invalid version for dynamic FW descriptor (%x)\n",
+		dev_dbg(hdev->dev, "Invalid version for dynamic FW descriptor (%x)\n",
 				fw_desc->header.version);
 
 	/*
