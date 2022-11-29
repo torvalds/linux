@@ -1306,9 +1306,11 @@ static void tty3270_erase_line(struct tty3270 *tp, int mode)
 	int i;
 
 	line = tp->screen + tp->cy;
-	if (mode == 0)
+	switch (mode) {
+	case 0:
 		line->len = tp->cx;
-	else if (mode == 1) {
+		break;
+	case 1:
 		for (i = 0; i < tp->cx; i++) {
 			cell = line->cells + i;
 			cell->character = ' ';
@@ -1317,8 +1319,13 @@ static void tty3270_erase_line(struct tty3270 *tp, int mode)
 		}
 		if (line->len <= tp->cx)
 			line->len = tp->cx + 1;
-	} else if (mode == 2)
+		break;
+	case 2:
 		line->len = 0;
+		break;
+	default:
+		return;
+	}
 	tty3270_convert_line(tp, tp->cy);
 }
 
