@@ -22,6 +22,7 @@
 			      <&adc_mux 3>;
 		pinctrl-0 = <&joy_mux_en>;
 		pinctrl-names = "default";
+		poll-interval = <60>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -217,37 +218,6 @@
 		};
 	};
 
-	/* Channels reversed for both headphones and speakers. */
-	sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "anbernic_rk817";
-		simple-audio-card,aux-devs = <&spk_amp>;
-		simple-audio-card,format = "i2s";
-		simple-audio-card,hp-det-gpio = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,widgets =
-			"Microphone", "Mic Jack",
-			"Headphone", "Headphones",
-			"Speaker", "Internal Speakers";
-		simple-audio-card,routing =
-			"MICL", "Mic Jack",
-			"Headphones", "HPOL",
-			"Headphones", "HPOR",
-			"Internal Speakers", "Speaker Amp OUTL",
-			"Internal Speakers", "Speaker Amp OUTR",
-			"Speaker Amp INL", "HPOL",
-			"Speaker Amp INR", "HPOR";
-		simple-audio-card,pin-switches = "Internal Speakers";
-
-		simple-audio-card,codec {
-			sound-dai = <&rk817>;
-		};
-
-		simple-audio-card,cpu {
-			sound-dai = <&i2s1_8ch>;
-		};
-	};
-
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&rk817 1>;
@@ -256,14 +226,6 @@
 		pinctrl-names = "default";
 		post-power-on-delay-ms = <200>;
 		reset-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_LOW>;
-	};
-
-	spk_amp: audio-amplifier {
-		compatible = "simple-audio-amplifier";
-		enable-gpios = <&gpio4 RK_PC2 GPIO_ACTIVE_HIGH>;
-		pinctrl-0 = <&spk_amp_enable_h>;
-		pinctrl-names = "default";
-		sound-name-prefix = "Speaker Amp";
 	};
 
 	vcc3v3_lcd0_n: regulator-vcc3v3-lcd0 {
@@ -607,13 +569,6 @@
 };
 
 &pinctrl {
-	audio-amplifier {
-		spk_amp_enable_h: spk-amp-enable-h {
-			rockchip,pins =
-				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
 	gpio-btns {
 		btn_pins_ctrl: btn-pins-ctrl {
 			rockchip,pins =

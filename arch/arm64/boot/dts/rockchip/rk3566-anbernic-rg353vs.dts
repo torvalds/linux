@@ -8,19 +8,18 @@
 #include "rk3566-anbernic-rg353x.dtsi"
 
 / {
-	model = "RG353P";
-	compatible = "anbernic,rg353p", "rockchip,rk3566";
+	model = "RG353VS";
+	compatible = "anbernic,rg353vs", "rockchip,rk3566";
 
 	aliases {
-		mmc0 = &sdhci;
-		mmc1 = &sdmmc0;
-		mmc2 = &sdmmc1;
-		mmc3 = &sdmmc2;
+		mmc0 = &sdmmc0;
+		mmc1 = &sdmmc1;
+		mmc2 = &sdmmc2;
 	};
 
 	battery: battery {
 		compatible = "simple-battery";
-		charge-full-design-microamp-hours = <3472000>;
+		charge-full-design-microamp-hours = <3151000>;
 		charge-term-current-microamp = <300000>;
 		constant-charge-current-max-microamp = <2000000>;
 		constant-charge-voltage-max-microvolt = <4200000>;
@@ -37,11 +36,10 @@
 					<3400000 0>;
 	};
 
-	/* Channels reversed for both headphones and speakers. */
+	/* Channels reversed for headphones. */
 	sound {
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "rk817_ext";
-		simple-audio-card,aux-devs = <&spk_amp>;
+		simple-audio-card,name = "rk817_int";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,hp-det-gpio = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 		simple-audio-card,mclk-fs = <256>;
@@ -53,11 +51,7 @@
 			"MICL", "Mic Jack",
 			"Headphones", "HPOL",
 			"Headphones", "HPOR",
-			"Internal Speakers", "Speaker Amp OUTL",
-			"Internal Speakers", "Speaker Amp OUTR",
-			"Speaker Amp INL", "HPOL",
-			"Speaker Amp INR", "HPOR";
-		simple-audio-card,pin-switches = "Internal Speakers";
+			"Internal Speakers", "SPKO";
 
 		simple-audio-card,codec {
 			sound-dai = <&rk817>;
@@ -67,42 +61,19 @@
 			sound-dai = <&i2s1_8ch>;
 		};
 	};
-
-	spk_amp: audio-amplifier {
-		compatible = "simple-audio-amplifier";
-		enable-gpios = <&gpio4 RK_PC2 GPIO_ACTIVE_HIGH>;
-		pinctrl-0 = <&spk_amp_enable_h>;
-		pinctrl-names = "default";
-		sound-name-prefix = "Speaker Amp";
-	};
 };
 
 &gpio_keys_control {
 	button-r1 {
-		gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_LOW>;
 		label = "TR";
 		linux,code = <BTN_TR>;
 	};
 
 	button-r2 {
-		gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;
 		label = "TR2";
 		linux,code = <BTN_TR2>;
-	};
-};
-
-&i2c2 {
-	pintctrl-names = "default";
-	pinctrl-0 = <&i2c2m1_xfer>;
-	status = "okay";
-};
-
-&pinctrl {
-	audio-amplifier {
-		spk_amp_enable_h: spk-amp-enable-h {
-			rockchip,pins =
-				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
 	};
 };
 
@@ -113,15 +84,4 @@
 		rockchip,sleep-enter-current-microamp = <300000>;
 		rockchip,sleep-filter-current-microamp = <100000>;
 	};
-};
-
-&sdhci {
-	pinctrl-0 = <&emmc_bus8>, <&emmc_clk>, <&emmc_cmd>, <&emmc_datastrobe>, <&emmc_rstnout>;
-	pinctrl-names = "default";
-	bus-width = <8>;
-	mmc-hs200-1_8v;
-	non-removable;
-	vmmc-supply = <&vcc_3v3>;
-	vqmmc-supply = <&vcc_1v8>;
-	status = "okay";
 };

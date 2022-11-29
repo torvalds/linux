@@ -2,35 +2,49 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
 #include "rk3566-soquartz.dtsi"
 
 / {
-	model = "Pine64 RK3566 SoQuartz with CM4-IO Carrier Board";
-	compatible = "pine64,soquartz-cm4io", "pine64,soquartz", "rockchip,rk3566";
+	model = "PINE64 RK3566 SOQuartz on Blade carrier board";
+	compatible = "pine64,soquartz-blade", "pine64,soquartz", "rockchip,rk3566";
 
-	/* labeled +12v in schematic */
-	vcc12v_dcin: vcc12v-dcin-regulator {
+	/* labeled VCC3V0_SD in schematic to not conflict with PMIC regulator */
+	vcc3v0_sd: vcc3v0-sd-regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "vcc12v_dcin";
+		regulator-name = "vcc3v0_sd";
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc3v3_sys>;
 	};
 
-	/* labeled +5v in schematic */
-	vcc_5v: vcc-5v-regulator {
+	/* labeled VCC_SSD in schematic */
+	vcc3v3_pcie_p: vcc3v3-pcie-regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "vcc_5v";
+		regulator-name = "vcc3v3_pcie_p";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vbus>;
+	};
+
+	vcc5v_dcin: vcc5v-dcin-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v_dcin";
 		regulator-always-on;
 		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		vin-supply = <&vcc12v_dcin>;
 	};
 };
 
-/* phy for pcie */
 &combphy2 {
 	phy-supply = <&vcc3v3_sys>;
 	status = "okay";
@@ -48,14 +62,6 @@
 &i2c1 {
 	status = "okay";
 
-	/*
-	 * the rtc interrupt is tied to PMIC_PWRON,
-	 * it will force reset the board if triggered.
-	 */
-	pcf85063: rtc@51 {
-		compatible = "nxp,pcf85063";
-		reg = <0x51>;
-	};
 };
 
 /*
@@ -104,15 +110,21 @@
 };
 
 &led_diy {
+	color = <LED_COLOR_ID_RED>;
+	function = LED_FUNCTION_DISK_ACTIVITY;
+	linux,default-trigger = "disk-activity";
 	status = "okay";
 };
 
 &led_work {
+	color = <LED_COLOR_ID_GREEN>;
+	function = LED_FUNCTION_STATUS;
+	linux,default-trigger = "heartbeat";
 	status = "okay";
 };
 
 &pcie2x1 {
-	vpcie3v3-supply = <&vcc_3v3>;
+	vpcie3v3-supply = <&vcc3v3_pcie_p>;
 	status = "okay";
 };
 
@@ -130,18 +142,12 @@
 };
 
 &sdmmc0 {
-	vmmc-supply = <&sdmmc_pwr>;
-	status = "okay";
-};
-
-&sdmmc_pwr {
-	regulator-min-microvolt = <3300000>;
-	regulator-max-microvolt = <3300000>;
+	vmmc-supply = <&vcc3v0_sd>;
 	status = "okay";
 };
 
 /*
- *  spi3 is exposed on CM1 / Module1A - to PI40
+ * spi3 is exposed on CM1 / Module1A - to PI40
  * pin 37 - GPIO7  - spi3_cs1_m0
  * pin 38 - GPIO11 - spi3_clk_m0
  * pin 39 - GPIO8  - spi3_cs0_m0
@@ -175,7 +181,7 @@
 };
 
 &usb2phy0_otg {
-	phy-supply = <&vcc_5v>;
+	phy-supply = <&vbus>;
 	status = "okay";
 };
 
@@ -184,5 +190,5 @@
 };
 
 &vbus {
-	vin-supply = <&vcc_5v>;
+	vin-supply = <&vcc5v_dcin>;
 };
