@@ -1468,14 +1468,12 @@ static void nvme_free_queues(struct nvme_dev *dev, int lowest)
 	}
 }
 
-/**
- * nvme_suspend_queue - put queue into suspended state
- * @nvmeq: queue to suspend
- */
-static int nvme_suspend_queue(struct nvme_queue *nvmeq)
+static void nvme_suspend_queue(struct nvme_dev *dev, unsigned int qid)
 {
+	struct nvme_queue *nvmeq = &dev->queues[qid];
+
 	if (!test_and_clear_bit(NVMEQ_ENABLED, &nvmeq->flags))
-		return 1;
+		return;
 
 	/* ensure that nvme_queue_rq() sees NVMEQ_ENABLED cleared */
 	mb();
@@ -1484,8 +1482,7 @@ static int nvme_suspend_queue(struct nvme_queue *nvmeq)
 	if (!nvmeq->qid && nvmeq->dev->ctrl.admin_q)
 		nvme_quiesce_admin_queue(&nvmeq->dev->ctrl);
 	if (!test_and_clear_bit(NVMEQ_POLLED, &nvmeq->flags))
-		pci_free_irq(to_pci_dev(nvmeq->dev->dev), nvmeq->cq_vector, nvmeq);
-	return 0;
+		pci_free_irq(to_pci_dev(dev->dev), nvmeq->cq_vector, nvmeq);
 }
 
 static void nvme_suspend_io_queues(struct nvme_dev *dev)
@@ -1493,7 +1490,7 @@ static void nvme_suspend_io_queues(struct nvme_dev *dev)
 	int i;
 
 	for (i = dev->ctrl.queue_count - 1; i > 0; i--)
-		nvme_suspend_queue(&dev->queues[i]);
+		nvme_suspend_queue(dev, i);
 }
 
 /*
@@ -2695,7 +2692,7 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 		nvme_poll_irqdisable(&dev->queues[0]);
 	}
 	nvme_suspend_io_queues(dev);
-	nvme_suspend_queue(&dev->queues[0]);
+	nvme_suspend_queue(dev, 0);
 	pci_free_irq_vectors(pdev);
 	if (pci_is_enabled(pdev)) {
 		pci_disable_pcie_error_reporting(pdev);
