@@ -502,7 +502,7 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
 
 	switch (type) {
 	case MT76_WED_Q_TX:
-		ret = mtk_wed_device_tx_ring_setup(wed, ring, q->regs);
+		ret = mtk_wed_device_tx_ring_setup(wed, ring, q->regs, false);
 		if (!ret)
 			q->wed_regs = wed->tx_ring[ring].reg_base;
 		break;
