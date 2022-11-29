@@ -1466,8 +1466,8 @@ static void OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame)
 		return;
 	} else {
 		receive_disconnect(padapter, mgmt->bssid, reason);
+		pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
 	}
-	pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
 }
 
 static void OnAction_back(struct adapter *padapter, struct recv_frame *precv_frame)
