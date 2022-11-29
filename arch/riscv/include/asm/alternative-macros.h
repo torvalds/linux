@@ -130,28 +130,22 @@
 	\old_c
 .endm
 
-#define _ALTERNATIVE_CFG(old_c, new_c, vendor_id, errata_id, CONFIG_k) \
+#define _ALTERNATIVE_CFG(old_c, ...)	\
 	__ALTERNATIVE_CFG old_c
 
-#define _ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1,	\
-					CONFIG_k_1,			\
-				  new_c_2, vendor_id_2, errata_id_2,	\
-					CONFIG_k_2)			\
-       __ALTERNATIVE_CFG old_c
+#define _ALTERNATIVE_CFG_2(old_c, ...)	\
+	__ALTERNATIVE_CFG old_c
 
 #else /* !__ASSEMBLY__ */
 
-#define __ALTERNATIVE_CFG(old_c)  \
+#define __ALTERNATIVE_CFG(old_c)	\
 	old_c "\n"
 
-#define _ALTERNATIVE_CFG(old_c, new_c, vendor_id, errata_id, CONFIG_k) \
+#define _ALTERNATIVE_CFG(old_c, ...)	\
 	__ALTERNATIVE_CFG(old_c)
 
-#define _ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1,	\
-					CONFIG_k_1,			\
-				  new_c_2, vendor_id_2, errata_id_2,	\
-					CONFIG_k_2) \
-       __ALTERNATIVE_CFG(old_c)
+#define _ALTERNATIVE_CFG_2(old_c, ...)	\
+	__ALTERNATIVE_CFG(old_c)
 
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_RISCV_ALTERNATIVE */
