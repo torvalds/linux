@@ -11,12 +11,12 @@
  */
 
 #include <arpa/inet.h>
-#include <linux/if.h>
 #include <linux/if_tun.h>
 #include <linux/limits.h>
 #include <linux/sysctl.h>
 #include <linux/time_types.h>
 #include <linux/net_tstamp.h>
+#include <net/if.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -115,7 +115,9 @@ static void netns_setup_namespaces_nofail(const char *verb)
 }
 
 struct netns_setup_result {
+	int ifindex_veth_src;
 	int ifindex_veth_src_fwd;
+	int ifindex_veth_dst;
 	int ifindex_veth_dst_fwd;
 };
 
@@ -137,27 +139,6 @@ static int get_ifaddr(const char *name, char *ifaddr)
 	}
 	fclose(f);
 	return 0;
-}
-
-static int get_ifindex(const char *name)
-{
-	char path[PATH_MAX];
-	char buf[32];
-	FILE *f;
-	int ret;
-
-	snprintf(path, PATH_MAX, "/sys/class/net/%s/ifindex", name);
-	f = fopen(path, "r");
-	if (!ASSERT_OK_PTR(f, path))
-		return -1;
-
-	ret = fread(buf, 1, sizeof(buf), f);
-	if (!ASSERT_GT(ret, 0, "fread ifindex")) {
-		fclose(f);
-		return -1;
-	}
-	fclose(f);
-	return atoi(buf);
 }
 
 #define SYS(fmt, ...)						\
@@ -182,11 +163,20 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 	if (get_ifaddr("veth_src_fwd", veth_src_fwd_addr))
 		goto fail;
 
-	result->ifindex_veth_src_fwd = get_ifindex("veth_src_fwd");
-	if (result->ifindex_veth_src_fwd < 0)
+	result->ifindex_veth_src = if_nametoindex("veth_src");
+	if (!ASSERT_GT(result->ifindex_veth_src, 0, "ifindex_veth_src"))
 		goto fail;
-	result->ifindex_veth_dst_fwd = get_ifindex("veth_dst_fwd");
-	if (result->ifindex_veth_dst_fwd < 0)
+
+	result->ifindex_veth_src_fwd = if_nametoindex("veth_src_fwd");
+	if (!ASSERT_GT(result->ifindex_veth_src_fwd, 0, "ifindex_veth_src_fwd"))
+		goto fail;
+
+	result->ifindex_veth_dst = if_nametoindex("veth_dst");
+	if (!ASSERT_GT(result->ifindex_veth_dst, 0, "ifindex_veth_dst"))
+		goto fail;
+
+	result->ifindex_veth_dst_fwd = if_nametoindex("veth_dst_fwd");
+	if (!ASSERT_GT(result->ifindex_veth_dst_fwd, 0, "ifindex_veth_dst_fwd"))
 		goto fail;
 
 	SYS("ip link set veth_src netns " NS_SRC);
@@ -1034,8 +1024,8 @@ static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 	if (!ASSERT_OK_PTR(skel, "test_tc_peer__open"))
 		goto fail;
 
-	ifindex = get_ifindex("tun_fwd");
-	if (!ASSERT_GE(ifindex, 0, "get_ifindex tun_fwd"))
+	ifindex = if_nametoindex("tun_fwd");
+	if (!ASSERT_GT(ifindex, 0, "if_indextoname tun_fwd"))
 		goto fail;
 
 	skel->rodata->IFINDEX_SRC = ifindex;
