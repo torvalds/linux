@@ -776,11 +776,9 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 
 	spin_lock(&elv_list_lock);
 	list_for_each_entry(e, &elv_list, list) {
-		if (e == cur) {
+		if (e == cur)
 			len += sprintf(name+len, "[%s] ", cur->elevator_name);
-			continue;
-		}
-		if (elv_support_features(q, e))
+		else if (elv_support_features(q, e))
 			len += sprintf(name+len, "%s ", e->elevator_name);
 	}
 	spin_unlock(&elv_list_lock);
