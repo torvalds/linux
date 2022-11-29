@@ -131,10 +131,9 @@ static int tcp_bpf_push_locked(struct sock *sk, struct sk_msg *msg,
 	return ret;
 }
 
-int tcp_bpf_sendmsg_redir(struct sock *sk, struct sk_msg *msg,
-			  u32 bytes, int flags)
+int tcp_bpf_sendmsg_redir(struct sock *sk, bool ingress,
+			  struct sk_msg *msg, u32 bytes, int flags)
 {
-	bool ingress = sk_msg_to_ingress(msg);
 	struct sk_psock *psock = sk_psock_get(sk);
 	int ret;
 
@@ -276,7 +275,7 @@ msg_bytes_ready:
 static int tcp_bpf_send_verdict(struct sock *sk, struct sk_psock *psock,
 				struct sk_msg *msg, int *copied, int flags)
 {
-	bool cork = false, enospc = sk_msg_full(msg);
+	bool cork = false, enospc = sk_msg_full(msg), redir_ingress;
 	struct sock *sk_redir;
 	u32 tosend, origsize, sent, delta = 0;
 	u32 eval;
@@ -322,6 +321,7 @@ more_data:
 		sk_msg_apply_bytes(psock, tosend);
 		break;
 	case __SK_REDIRECT:
+		redir_ingress = psock->redir_ingress;
 		sk_redir = psock->sk_redir;
 		sk_msg_apply_bytes(psock, tosend);
 		if (!psock->apply_bytes) {
@@ -338,7 +338,8 @@ more_data:
 		release_sock(sk);
 
 		origsize = msg->sg.size;
-		ret = tcp_bpf_sendmsg_redir(sk_redir, msg, tosend, flags);
+		ret = tcp_bpf_sendmsg_redir(sk_redir, redir_ingress,
+					    msg, tosend, flags);
 		sent = origsize - msg->sg.size;
 
 		if (eval == __SK_REDIRECT)
