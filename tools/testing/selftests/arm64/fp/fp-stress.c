@@ -44,6 +44,8 @@ static bool terminate;
 
 static void drain_output(bool flush);
 
+static int startup_pipe[2];
+
 static int num_processors(void)
 {
 	long nproc = sysconf(_SC_NPROCESSORS_CONF);
@@ -82,11 +84,35 @@ static void child_start(struct child_data *child, const char *program)
 		}
 
 		/*
+		 * Duplicate the read side of the startup pipe to
+		 * FD 3 so we can close everything else.
+		 */
+		ret = dup2(startup_pipe[0], 3);
+		if (ret == -1) {
+			fprintf(stderr, "dup2() %d\n", errno);
+			exit(EXIT_FAILURE);
+		}
+
+		/*
 		 * Very dumb mechanism to clean open FDs other than
 		 * stdio. We don't want O_CLOEXEC for the pipes...
 		 */
-		for (i = 3; i < 8192; i++)
+		for (i = 4; i < 8192; i++)
 			close(i);
+
+		/*
+		 * Read from the startup pipe, there should be no data
+		 * and we should block until it is closed.  We just
+		 * carry on on error since this isn't super critical.
+		 */
+		ret = read(3, &i, sizeof(i));
+		if (ret < 0)
+			fprintf(stderr, "read(startp pipe) failed: %s (%d)\n",
+				strerror(errno), errno);
+		if (ret > 0)
+			fprintf(stderr, "%d bytes of data on startup pipe\n",
+				ret);
+		close(3);
 
 		ret = execl(program, program, NULL);
 		fprintf(stderr, "execl(%s) failed: %d (%s)\n",
@@ -467,6 +493,12 @@ int main(int argc, char **argv)
 				   strerror(errno), ret);
 	epoll_fd = ret;
 
+	/* Create a pipe which children will block on before execing */
+	ret = pipe(startup_pipe);
+	if (ret != 0)
+		ksft_exit_fail_msg("Failed to create startup pipe: %s (%d)\n",
+				   strerror(errno), errno);
+
 	/* Get signal handers ready before we start any children */
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_sigaction = handle_exit_signal;
@@ -498,6 +530,13 @@ int main(int argc, char **argv)
 			start_za(&children[num_children++], sme_vls[j], i);
 		}
 	}
+
+	/*
+	 * All children started, close the startup pipe and let them
+	 * run.
+	 */
+	close(startup_pipe[0]);
+	close(startup_pipe[1]);
 
 	for (;;) {
 		/* Did we get a signal asking us to exit? */
