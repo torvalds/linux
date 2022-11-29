@@ -42,6 +42,9 @@ static void dr_rule_set_last_ste_miss_addr(struct mlx5dr_matcher *matcher,
 	struct mlx5dr_ste_ctx *ste_ctx = matcher->tbl->dmn->ste_ctx;
 	u64 icm_addr;
 
+	if (mlx5dr_ste_is_miss_addr_set(ste_ctx, hw_ste))
+		return;
+
 	icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
 	mlx5dr_ste_set_miss_addr(ste_ctx, hw_ste, icm_addr);
 }

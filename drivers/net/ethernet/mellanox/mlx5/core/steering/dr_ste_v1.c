@@ -267,6 +267,11 @@ static void dr_ste_v1_set_entry_type(u8 *hw_ste_p, u8 entry_type)
 	MLX5_SET(ste_match_bwc_v1, hw_ste_p, entry_format, entry_type);
 }
 
+bool dr_ste_v1_is_miss_addr_set(u8 *hw_ste_p)
+{
+	return false;
+}
+
 void dr_ste_v1_set_miss_addr(u8 *hw_ste_p, u64 miss_addr)
 {
 	u64 index = miss_addr >> 6;
@@ -2144,6 +2149,7 @@ static struct mlx5dr_ste_ctx ste_ctx_v1 = {
 	.ste_init			= &dr_ste_v1_init,
 	.set_next_lu_type		= &dr_ste_v1_set_next_lu_type,
 	.get_next_lu_type		= &dr_ste_v1_get_next_lu_type,
+	.is_miss_addr_set		= &dr_ste_v1_is_miss_addr_set,
 	.set_miss_addr			= &dr_ste_v1_set_miss_addr,
 	.get_miss_addr			= &dr_ste_v1_get_miss_addr,
 	.set_hit_addr			= &dr_ste_v1_set_hit_addr,

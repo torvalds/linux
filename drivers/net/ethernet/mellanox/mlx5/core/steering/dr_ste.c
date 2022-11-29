@@ -90,6 +90,16 @@ static void dr_ste_set_always_miss(struct dr_hw_ste_format *hw_ste)
 	hw_ste->mask[0] = 0;
 }
 
+bool mlx5dr_ste_is_miss_addr_set(struct mlx5dr_ste_ctx *ste_ctx,
+				 u8 *hw_ste_p)
+{
+	if (!ste_ctx->is_miss_addr_set)
+		return false;
+
+	/* check if miss address is already set for this type of STE */
+	return ste_ctx->is_miss_addr_set(hw_ste_p);
+}
+
 void mlx5dr_ste_set_miss_addr(struct mlx5dr_ste_ctx *ste_ctx,
 			      u8 *hw_ste_p, u64 miss_addr)
 {
