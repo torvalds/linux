@@ -3547,6 +3547,10 @@ struct rtw89_wow_param {
 	struct list_head pkt_list;
 };
 
+struct rtw89_mcc_info {
+	struct rtw89_wait_info wait;
+};
+
 struct rtw89_dev {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -3557,6 +3561,7 @@ struct rtw89_dev {
 	const struct rtw89_chip_info *chip;
 	const struct rtw89_pci_info *pci_info;
 	struct rtw89_hal hal;
+	struct rtw89_mcc_info mcc;
 	struct rtw89_mac_info mac;
 	struct rtw89_fw_info fw;
 	struct rtw89_hci_info hci;

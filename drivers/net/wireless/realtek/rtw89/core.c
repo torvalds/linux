@@ -3130,6 +3130,8 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	mutex_init(&rtwdev->rf_mutex);
 	rtwdev->total_sta_assoc = 0;
 
+	rtw89_init_wait(&rtwdev->mcc.wait);
+
 	INIT_WORK(&rtwdev->c2h_work, rtw89_fw_c2h_work);
 	INIT_WORK(&rtwdev->ips_work, rtw89_ips_work);
 	skb_queue_head_init(&rtwdev->c2h_queue);

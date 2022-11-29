@@ -4187,6 +4187,164 @@ rtw89_mac_c2h_tsf32_toggle_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 {
 }
 
+static void
+rtw89_mac_c2h_mcc_rcv_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	u8 group = RTW89_GET_MAC_C2H_MCC_RCV_ACK_GROUP(c2h->data);
+	u8 func = RTW89_GET_MAC_C2H_MCC_RCV_ACK_H2C_FUNC(c2h->data);
+
+	switch (func) {
+	case H2C_FUNC_ADD_MCC:
+	case H2C_FUNC_START_MCC:
+	case H2C_FUNC_STOP_MCC:
+	case H2C_FUNC_DEL_MCC_GROUP:
+	case H2C_FUNC_RESET_MCC_GROUP:
+	case H2C_FUNC_MCC_REQ_TSF:
+	case H2C_FUNC_MCC_MACID_BITMAP:
+	case H2C_FUNC_MCC_SYNC:
+	case H2C_FUNC_MCC_SET_DURATION:
+		break;
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "invalid MCC C2H RCV ACK: func %d\n", func);
+		return;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_FW,
+		    "MCC C2H RCV ACK: group %d, func %d\n", group, func);
+}
+
+static void
+rtw89_mac_c2h_mcc_req_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	u8 group = RTW89_GET_MAC_C2H_MCC_REQ_ACK_GROUP(c2h->data);
+	u8 func = RTW89_GET_MAC_C2H_MCC_REQ_ACK_H2C_FUNC(c2h->data);
+	u8 retcode = RTW89_GET_MAC_C2H_MCC_REQ_ACK_H2C_RETURN(c2h->data);
+	struct rtw89_completion_data data = {};
+	unsigned int cond;
+	bool next = false;
+
+	switch (func) {
+	case H2C_FUNC_MCC_REQ_TSF:
+		next = true;
+		break;
+	case H2C_FUNC_MCC_MACID_BITMAP:
+	case H2C_FUNC_MCC_SYNC:
+	case H2C_FUNC_MCC_SET_DURATION:
+		break;
+	case H2C_FUNC_ADD_MCC:
+	case H2C_FUNC_START_MCC:
+	case H2C_FUNC_STOP_MCC:
+	case H2C_FUNC_DEL_MCC_GROUP:
+	case H2C_FUNC_RESET_MCC_GROUP:
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "invalid MCC C2H REQ ACK: func %d\n", func);
+		return;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_FW,
+		    "MCC C2H REQ ACK: group %d, func %d, return code %d\n",
+		    group, func, retcode);
+
+	if (!retcode && next)
+		return;
+
+	data.err = !!retcode;
+	cond = RTW89_MCC_WAIT_COND(group, func);
+	rtw89_complete_cond(&rtwdev->mcc.wait, cond, &data);
+}
+
+static void
+rtw89_mac_c2h_mcc_tsf_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	u8 group = RTW89_GET_MAC_C2H_MCC_TSF_RPT_GROUP(c2h->data);
+	struct rtw89_completion_data data = {};
+	struct rtw89_mac_mcc_tsf_rpt *rpt;
+	unsigned int cond;
+
+	rpt = (struct rtw89_mac_mcc_tsf_rpt *)data.buf;
+	rpt->macid_x = RTW89_GET_MAC_C2H_MCC_TSF_RPT_MACID_X(c2h->data);
+	rpt->macid_y = RTW89_GET_MAC_C2H_MCC_TSF_RPT_MACID_Y(c2h->data);
+	rpt->tsf_x_low = RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_LOW_X(c2h->data);
+	rpt->tsf_x_high = RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_HIGH_X(c2h->data);
+	rpt->tsf_y_low = RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_LOW_Y(c2h->data);
+	rpt->tsf_y_high = RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_HIGH_Y(c2h->data);
+
+	cond = RTW89_MCC_WAIT_COND(group, H2C_FUNC_MCC_REQ_TSF);
+	rtw89_complete_cond(&rtwdev->mcc.wait, cond, &data);
+}
+
+static void
+rtw89_mac_c2h_mcc_status_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	u8 group = RTW89_GET_MAC_C2H_MCC_STATUS_RPT_GROUP(c2h->data);
+	u8 macid = RTW89_GET_MAC_C2H_MCC_STATUS_RPT_MACID(c2h->data);
+	u8 status = RTW89_GET_MAC_C2H_MCC_STATUS_RPT_STATUS(c2h->data);
+	u32 tsf_low = RTW89_GET_MAC_C2H_MCC_STATUS_RPT_TSF_LOW(c2h->data);
+	u32 tsf_high = RTW89_GET_MAC_C2H_MCC_STATUS_RPT_TSF_HIGH(c2h->data);
+	struct rtw89_completion_data data = {};
+	unsigned int cond;
+	bool rsp = true;
+	bool err;
+	u8 func;
+
+	switch (status) {
+	case RTW89_MAC_MCC_ADD_ROLE_OK:
+	case RTW89_MAC_MCC_ADD_ROLE_FAIL:
+		func = H2C_FUNC_ADD_MCC;
+		err = status == RTW89_MAC_MCC_ADD_ROLE_FAIL;
+		break;
+	case RTW89_MAC_MCC_START_GROUP_OK:
+	case RTW89_MAC_MCC_START_GROUP_FAIL:
+		func = H2C_FUNC_START_MCC;
+		err = status == RTW89_MAC_MCC_START_GROUP_FAIL;
+		break;
+	case RTW89_MAC_MCC_STOP_GROUP_OK:
+	case RTW89_MAC_MCC_STOP_GROUP_FAIL:
+		func = H2C_FUNC_STOP_MCC;
+		err = status == RTW89_MAC_MCC_STOP_GROUP_FAIL;
+		break;
+	case RTW89_MAC_MCC_DEL_GROUP_OK:
+	case RTW89_MAC_MCC_DEL_GROUP_FAIL:
+		func = H2C_FUNC_DEL_MCC_GROUP;
+		err = status == RTW89_MAC_MCC_DEL_GROUP_FAIL;
+		break;
+	case RTW89_MAC_MCC_RESET_GROUP_OK:
+	case RTW89_MAC_MCC_RESET_GROUP_FAIL:
+		func = H2C_FUNC_RESET_MCC_GROUP;
+		err = status == RTW89_MAC_MCC_RESET_GROUP_FAIL;
+		break;
+	case RTW89_MAC_MCC_SWITCH_CH_OK:
+	case RTW89_MAC_MCC_SWITCH_CH_FAIL:
+	case RTW89_MAC_MCC_TXNULL0_OK:
+	case RTW89_MAC_MCC_TXNULL0_FAIL:
+	case RTW89_MAC_MCC_TXNULL1_OK:
+	case RTW89_MAC_MCC_TXNULL1_FAIL:
+	case RTW89_MAC_MCC_SWITCH_EARLY:
+	case RTW89_MAC_MCC_TBTT:
+	case RTW89_MAC_MCC_DURATION_START:
+	case RTW89_MAC_MCC_DURATION_END:
+		rsp = false;
+		break;
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "invalid MCC C2H STS RPT: status %d\n", status);
+		return;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_FW,
+		    "MCC C2H STS RPT: group %d, macid %d, status %d, tsf {%d, %d}\n",
+		     group, macid, status, tsf_low, tsf_high);
+
+	if (!rsp)
+		return;
+
+	data.err = err;
+	cond = RTW89_MCC_WAIT_COND(group, func);
+	rtw89_complete_cond(&rtwdev->mcc.wait, cond, &data);
+}
+
 static
 void (* const rtw89_mac_c2h_ofld_handler[])(struct rtw89_dev *rtwdev,
 					    struct sk_buff *c2h, u32 len) = {
@@ -4206,6 +4364,15 @@ void (* const rtw89_mac_c2h_info_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_MAC_C2H_FUNC_DONE_ACK] = rtw89_mac_c2h_done_ack,
 	[RTW89_MAC_C2H_FUNC_C2H_LOG] = rtw89_mac_c2h_log,
 	[RTW89_MAC_C2H_FUNC_BCN_CNT] = rtw89_mac_c2h_bcn_cnt,
+};
+
+static
+void (* const rtw89_mac_c2h_mcc_handler[])(struct rtw89_dev *rtwdev,
+					   struct sk_buff *c2h, u32 len) = {
+	[RTW89_MAC_C2H_FUNC_MCC_RCV_ACK] = rtw89_mac_c2h_mcc_rcv_ack,
+	[RTW89_MAC_C2H_FUNC_MCC_REQ_ACK] = rtw89_mac_c2h_mcc_req_ack,
+	[RTW89_MAC_C2H_FUNC_MCC_TSF_RPT] = rtw89_mac_c2h_mcc_tsf_rpt,
+	[RTW89_MAC_C2H_FUNC_MCC_STATUS_RPT] = rtw89_mac_c2h_mcc_status_rpt,
 };
 
 bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func)
@@ -4232,6 +4399,10 @@ void rtw89_mac_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	case RTW89_MAC_C2H_CLASS_OFLD:
 		if (func < RTW89_MAC_C2H_FUNC_OFLD_MAX)
 			handler = rtw89_mac_c2h_ofld_handler[func];
+		break;
+	case RTW89_MAC_C2H_CLASS_MCC:
+		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_MCC)
+			handler = rtw89_mac_c2h_mcc_handler[func];
 		break;
 	case RTW89_MAC_C2H_CLASS_FWDBG:
 		return;
