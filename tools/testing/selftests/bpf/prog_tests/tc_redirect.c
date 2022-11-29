@@ -59,10 +59,6 @@
 #define IFADDR_STR_LEN 18
 #define PING_ARGS "-i 0.2 -c 3 -w 10 -q"
 
-#define SRC_PROG_PIN_FILE "/sys/fs/bpf/test_tc_src"
-#define DST_PROG_PIN_FILE "/sys/fs/bpf/test_tc_dst"
-#define CHK_PROG_PIN_FILE "/sys/fs/bpf/test_tc_chk"
-
 #define TIMEOUT_MILLIS 10000
 #define NSEC_PER_SEC 1000000000ULL
 
@@ -300,19 +296,28 @@ static int xgress_filter_add(struct bpf_tc_hook *qdisc_hook,
 		goto fail;							\
 })
 
-static int netns_load_bpf(void)
+static int netns_load_bpf(const struct bpf_program *src_prog,
+			  const struct bpf_program *dst_prog,
+			  const struct bpf_program *chk_prog,
+			  const struct netns_setup_result *setup_result)
 {
-	SYS("tc qdisc add dev veth_src_fwd clsact");
-	SYS("tc filter add dev veth_src_fwd ingress bpf da object-pinned "
-	    SRC_PROG_PIN_FILE);
-	SYS("tc filter add dev veth_src_fwd egress bpf da object-pinned "
-	    CHK_PROG_PIN_FILE);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_src_fwd);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_dst_fwd);
+	int err;
 
-	SYS("tc qdisc add dev veth_dst_fwd clsact");
-	SYS("tc filter add dev veth_dst_fwd ingress bpf da object-pinned "
-	    DST_PROG_PIN_FILE);
-	SYS("tc filter add dev veth_dst_fwd egress bpf da object-pinned "
-	    CHK_PROG_PIN_FILE);
+	/* tc qdisc add dev veth_src_fwd clsact */
+	QDISC_CLSACT_CREATE(&qdisc_veth_src_fwd, setup_result->ifindex_veth_src_fwd);
+	/* tc filter add dev veth_src_fwd ingress bpf da src_prog */
+	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_INGRESS, src_prog, 0);
+	/* tc filter add dev veth_src_fwd egress bpf da chk_prog */
+	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_EGRESS, chk_prog, 0);
+
+	/* tc qdisc add dev veth_dst_fwd clsact */
+	QDISC_CLSACT_CREATE(&qdisc_veth_dst_fwd, setup_result->ifindex_veth_dst_fwd);
+	/* tc filter add dev veth_dst_fwd ingress bpf da dst_prog */
+	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_INGRESS, dst_prog, 0);
+	/* tc filter add dev veth_dst_fwd egress bpf da chk_prog */
+	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_EGRESS, chk_prog, 0);
 
 	return 0;
 fail:
@@ -829,7 +834,6 @@ static void test_tc_redirect_neigh_fib(struct netns_setup_result *setup_result)
 {
 	struct nstoken *nstoken = NULL;
 	struct test_tc_neigh_fib *skel = NULL;
-	int err;
 
 	nstoken = open_netns(NS_FWD);
 	if (!ASSERT_OK_PTR(nstoken, "setns fwd"))
@@ -842,19 +846,8 @@ static void test_tc_redirect_neigh_fib(struct netns_setup_result *setup_result)
 	if (!ASSERT_OK(test_tc_neigh_fib__load(skel), "test_tc_neigh_fib__load"))
 		goto done;
 
-	err = bpf_program__pin(skel->progs.tc_src, SRC_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " SRC_PROG_PIN_FILE))
-		goto done;
-
-	err = bpf_program__pin(skel->progs.tc_chk, CHK_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " CHK_PROG_PIN_FILE))
-		goto done;
-
-	err = bpf_program__pin(skel->progs.tc_dst, DST_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " DST_PROG_PIN_FILE))
-		goto done;
-
-	if (netns_load_bpf())
+	if (netns_load_bpf(skel->progs.tc_src, skel->progs.tc_dst,
+			   skel->progs.tc_chk, setup_result))
 		goto done;
 
 	/* bpf_fib_lookup() checks if forwarding is enabled */
@@ -890,19 +883,8 @@ static void test_tc_redirect_neigh(struct netns_setup_result *setup_result)
 	if (!ASSERT_OK(err, "test_tc_neigh__load"))
 		goto done;
 
-	err = bpf_program__pin(skel->progs.tc_src, SRC_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " SRC_PROG_PIN_FILE))
-		goto done;
-
-	err = bpf_program__pin(skel->progs.tc_chk, CHK_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " CHK_PROG_PIN_FILE))
-		goto done;
-
-	err = bpf_program__pin(skel->progs.tc_dst, DST_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " DST_PROG_PIN_FILE))
-		goto done;
-
-	if (netns_load_bpf())
+	if (netns_load_bpf(skel->progs.tc_src, skel->progs.tc_dst,
+			   skel->progs.tc_chk, setup_result))
 		goto done;
 
 	if (!ASSERT_OK(set_forwarding(false), "disable forwarding"))
@@ -937,19 +919,8 @@ static void test_tc_redirect_peer(struct netns_setup_result *setup_result)
 	if (!ASSERT_OK(err, "test_tc_peer__load"))
 		goto done;
 
-	err = bpf_program__pin(skel->progs.tc_src, SRC_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " SRC_PROG_PIN_FILE))
-		goto done;
-
-	err = bpf_program__pin(skel->progs.tc_chk, CHK_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " CHK_PROG_PIN_FILE))
-		goto done;
-
-	err = bpf_program__pin(skel->progs.tc_dst, DST_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " DST_PROG_PIN_FILE))
-		goto done;
-
-	if (netns_load_bpf())
+	if (netns_load_bpf(skel->progs.tc_src, skel->progs.tc_dst,
+			   skel->progs.tc_chk, setup_result))
 		goto done;
 
 	if (!ASSERT_OK(set_forwarding(false), "disable forwarding"))
