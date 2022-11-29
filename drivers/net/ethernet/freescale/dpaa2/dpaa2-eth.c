@@ -3791,7 +3791,7 @@ static int dpaa2_eth_setup_dpni(struct fsl_mc_device *ls_dev)
 		dev_err(dev, "DPNI version %u.%u not supported, need >= %u.%u\n",
 			priv->dpni_ver_major, priv->dpni_ver_minor,
 			DPNI_VER_MAJOR, DPNI_VER_MINOR);
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		goto close;
 	}
 

@@ -117,7 +117,7 @@ dpaa2_eth_set_link_ksettings(struct net_device *net_dev,
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 
 	if (!dpaa2_eth_is_type_phy(priv))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	return phylink_ethtool_ksettings_set(priv->mac->phylink, link_settings);
 }
