@@ -487,7 +487,21 @@ int notrace s390_do_machine_check(struct pt_regs *regs)
 			mcck->stp_queue |= stp_island_check();
 		mcck_pending = 1;
 	}
-
+	/*
+	 * Reinject storage related machine checks into the guest if they
+	 * happen when the guest is running.
+	 */
+	if (!test_cpu_flag(CIF_MCCK_GUEST)) {
+		/* Storage error uncorrected */
+		if (mci.se)
+			s390_handle_damage();
+		/* Storage key-error uncorrected */
+		if (mci.ke)
+			s390_handle_damage();
+		/* Storage degradation */
+		if (mci.ds && mci.fa)
+			s390_handle_damage();
+	}
 	if (mci.cp) {
 		/* Channel report word pending */
 		mcck->channel_report = 1;
