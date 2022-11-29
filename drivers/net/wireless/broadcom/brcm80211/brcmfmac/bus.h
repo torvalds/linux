@@ -31,6 +31,13 @@
 /* The maximum console interval value (5 mins) */
 #define MAX_CONSOLE_INTERVAL	(5 * 60)
 
+enum brcmf_fwvendor {
+	BRCMF_FWVENDOR_WCC,
+	/* keep last */
+	BRCMF_FWVENDOR_NUM,
+	BRCMF_FWVENDOR_INVALID
+};
+
 /* The level of bus communication with the dongle */
 enum brcmf_bus_state {
 	BRCMF_BUS_DOWN,		/* Not ready for frame transfers */
@@ -144,9 +151,10 @@ struct brcmf_bus_stats {
  * @stats: statistics shared between common and bus layer.
  * @maxctl: maximum size for rxctl request message.
  * @chip: device identifier of the dongle chip.
+ * @chiprev: revision of the dongle chip.
+ * @fwvid: firmware vendor-support identifier of the device.
  * @always_use_fws_queue: bus wants use queue also when fwsignal is inactive.
  * @wowl_supported: is wowl supported by bus driver.
- * @chiprev: revision of the dongle chip.
  * @msgbuf: msgbuf protocol parameters provided by bus layer.
  */
 struct brcmf_bus {
@@ -163,6 +171,7 @@ struct brcmf_bus {
 	uint maxctl;
 	u32 chip;
 	u32 chiprev;
+	enum brcmf_fwvendor fwvid;
 	bool always_use_fws_queue;
 	bool wowl_supported;
 

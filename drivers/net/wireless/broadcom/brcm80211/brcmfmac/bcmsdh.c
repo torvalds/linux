@@ -960,7 +960,10 @@ out:
 }
 
 #define BRCMF_SDIO_DEVICE(dev_id)	\
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, dev_id)}
+	{ \
+		SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, dev_id), \
+		.driver_data = BRCMF_FWVENDOR_WCC \
+	}
 
 /* devices we support, null terminated */
 static const struct sdio_device_id brcmf_sdmmc_ids[] = {
@@ -1051,6 +1054,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	sdiodev->bus_if = bus_if;
 	bus_if->bus_priv.sdio = sdiodev;
 	bus_if->proto_type = BRCMF_PROTO_BCDC;
+	bus_if->fwvid = id->driver_data;
 	dev_set_drvdata(&func->dev, bus_if);
 	dev_set_drvdata(&sdiodev->func1->dev, bus_if);
 	sdiodev->dev = &sdiodev->func1->dev;

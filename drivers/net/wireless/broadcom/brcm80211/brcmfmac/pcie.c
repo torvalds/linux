@@ -2389,6 +2389,7 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	bus->bus_priv.pcie = pcie_bus_dev;
 	bus->ops = &brcmf_pcie_bus_ops;
 	bus->proto_type = BRCMF_PROTO_MSGBUF;
+	bus->fwvid = id->driver_data;
 	bus->chip = devinfo->coreid;
 	bus->wowl_supported = pci_pme_capable(pdev, PCI_D3hot);
 	dev_set_drvdata(&pdev->dev, bus);
@@ -2570,11 +2571,20 @@ static const struct dev_pm_ops brcmf_pciedrvr_pm = {
 #endif /* CONFIG_PM */
 
 
-#define BRCMF_PCIE_DEVICE(dev_id)	{ BRCM_PCIE_VENDOR_ID_BROADCOM, dev_id,\
-	PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, 0 }
-#define BRCMF_PCIE_DEVICE_SUB(dev_id, subvend, subdev)	{ \
-	BRCM_PCIE_VENDOR_ID_BROADCOM, dev_id,\
-	subvend, subdev, PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, 0 }
+#define BRCMF_PCIE_DEVICE(dev_id) \
+	{ \
+		BRCM_PCIE_VENDOR_ID_BROADCOM, (dev_id), \
+		PCI_ANY_ID, PCI_ANY_ID, \
+		PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, \
+		BRCMF_FWVENDOR_WCC \
+	}
+#define BRCMF_PCIE_DEVICE_SUB(dev_id, subvend, subdev) \
+	{ \
+		BRCM_PCIE_VENDOR_ID_BROADCOM, (dev_id), \
+		(subvend), (subdev), \
+		PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, \
+		BRCMF_FWVENDOR_WCC \
+	}
 
 static const struct pci_device_id brcmf_pcie_devid_table[] = {
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4350_DEVICE_ID),
