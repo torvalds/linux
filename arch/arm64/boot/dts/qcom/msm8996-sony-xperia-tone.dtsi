@@ -629,7 +629,7 @@
 };
 
 &rpm_requests {
-	pm8994-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm8994-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -847,28 +847,28 @@
 	pinctrl-0 = <&sw_service_gpio>;
 	pinctrl-names = "default";
 
-	disp_reset_n_gpio: disp-reset-n {
+	disp_reset_n_gpio: disp-reset-n-state {
 		pins = "gpio8";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	mdp_vsync_p_gpio: mdp-vsync-p {
+	mdp_vsync_p_gpio: mdp-vsync-p-state {
 		pins = "gpio10";
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	sw_service_gpio: sw-service-gpio {
+	sw_service_gpio: sw-service-gpio-state {
 		pins = "gpio16";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-up;
 	};
 
-	usb_detect: usb-detect {
+	usb_detect: usb-detect-state {
 		pins = "gpio25";
 		function = "gpio";
 		drive-strength = <2>;
@@ -876,7 +876,7 @@
 		output-high;
 	};
 
-	uim_detect_en: uim-detect-en {
+	uim_detect_en: uim-detect-en-state {
 		pins = "gpio29";
 		function = "gpio";
 		drive-strength = <2>;
@@ -884,14 +884,14 @@
 		output-high;
 	};
 
-	tray_det_pin: tray-det {
+	tray_det_pin: tray-det-state {
 		pins = "gpio40";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	tp_vddio_en: tp-vddio-en {
+	tp_vddio_en: tp-vddio-en-state {
 		pins = "gpio50";
 		function = "gpio";
 		drive-strength = <2>;
@@ -899,7 +899,7 @@
 		output-high;
 	};
 
-	lcd_vddio_en: lcd-vddio-en {
+	lcd_vddio_en: lcd-vddio-en-state {
 		pins = "gpio51";
 		function = "gpio";
 		drive-strength = <2>;
@@ -907,15 +907,14 @@
 		output-low;
 	};
 
-	wl_host_wake: wl-host-wake {
+	wl_host_wake: wl-host-wake-state {
 		pins = "gpio79";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
-		input-high;
 	};
 
-	wl_reg_on: wl-reg-on {
+	wl_reg_on: wl-reg-on-state {
 		pins = "gpio84";
 		function = "gpio";
 		drive-strength = <2>;
@@ -923,20 +922,20 @@
 		output-low;
 	};
 
-	ts_reset_n: ts-rst-n {
+	ts_reset_n: ts-rst-n-state {
 		pins = "gpio89";
 		function = "gpio";
 		drive-strength = <2>;
 	};
 
-	touch_int_n: touch-int-n {
+	touch_int_n: touch-int-n-state {
 		pins = "gpio125";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-up;
 	};
 
-	touch_int_sleep: touch-int-sleep {
+	touch_int_sleep: touch-int-sleep-state {
 		pins = "gpio125";
 		function = "gpio";
 		drive-strength = <2>;

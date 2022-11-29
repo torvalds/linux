@@ -75,21 +75,13 @@ ap_ts_pen_1v8: &i2c4 {
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
 
 &trackpad_int_1v8_odl {
-	pinmux {
-		pins = "gpio58";
-	};
-
-	pinconf {
-		pins = "gpio58";
-	};
+	pins = "gpio58";
 };
 
 &ts_reset_l {
-	pinconf {
-		/* This pin is not connected on -rev0, pull up to park. */
-		/delete-property/bias-disable;
-		bias-pull-up;
-	};
+	/* This pin is not connected on -rev0, pull up to park. */
+	/delete-property/bias-disable;
+	bias-pull-up;
 };
 
 /* PINCTRL - board-specific pinctrl */

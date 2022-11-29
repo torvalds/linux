@@ -48,7 +48,7 @@
 			#thermal-sensor-cells = <0>;
 		};
 
-		pm660l_gpios: gpios@c000 {
+		pm660l_gpios: gpio@c000 {
 			compatible = "qcom,pm660l-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;

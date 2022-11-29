@@ -83,29 +83,17 @@ edp_brij_i2c: &i2c2 {
 };
 
 &tlmm {
-	edp_brij_ps8640_rst: edp-brij-ps8640-rst {
-		pinmux {
-			pins = "gpio11";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio11";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	edp_brij_ps8640_rst: edp-brij-ps8640-rst-state {
+		pins = "gpio11";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
-	en_pp3300_edp_brij_ps8640: en-pp3300-edp-brij-ps8640 {
-		pinmux {
-			pins = "gpio32";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio32";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	en_pp3300_edp_brij_ps8640: en-pp3300-edp-brij-ps8640-state {
+		pins = "gpio32";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 };

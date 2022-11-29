@@ -5,6 +5,7 @@
 
 /dts-v1/;
 
+#include "msm8996pro.dtsi"
 #include "msm8996-xiaomi-common.dtsi"
 #include "pmi8996.dtsi"
 #include <dt-bindings/sound/qcom,q6afe.h>
@@ -13,7 +14,7 @@
 
 / {
 	model = "Xiaomi Mi Note 2";
-	compatible = "xiaomi,scorpio", "qcom,msm8996";
+	compatible = "xiaomi,scorpio", "qcom,msm8996pro", "qcom,msm8996";
 	chassis-type = "handset";
 	qcom,msm-id = <305 0x10000>;
 	qcom,board-id = <34 0>;
@@ -216,7 +217,7 @@
 };
 
 &rpm_requests {
-	pm8994-regulators {
+	regulators-0 {
 		vreg_l3a_0p875: l3 {
 			regulator-name = "vreg_l3a_0p875";
 			regulator-min-microvolt = <850000>;
@@ -468,28 +469,28 @@
 		"RFFE1_DATA",		/* GPIO_148 */
 		"RFFE1_CLK";		/* GPIO_149 */
 
-	touchkey_default: touchkey_default {
+	touchkey_default: touchkey-default-state {
 		pins = "gpio77";
 		function = "gpio";
 		drive-strength = <16>;
 		bias-pull-up;
 	};
 
-	touchkey_sleep: touchkey_sleep {
+	touchkey_sleep: touchkey-sleep-state {
 		pins = "gpio77";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	touchscreen_default: touchscreen_default {
+	touchscreen_default: touchscreen-default-state {
 		pins = "gpio75", "gpio125";
 		function = "gpio";
 		drive-strength = <10>;
 		bias-pull-up;
 	};
 
-	touchscreen_sleep: touchscreen_sleep {
+	touchscreen_sleep: touchscreen-sleep-state {
 		pins = "gpio75", "gpio125";
 		function = "gpio";
 		drive-strength = <2>;

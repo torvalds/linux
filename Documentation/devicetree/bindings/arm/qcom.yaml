@@ -54,6 +54,8 @@ description: |
         sdm845
         sdx55
         sdx65
+        sm4250
+        sm6115
         sm6125
         sm6350
         sm7225
@@ -221,13 +223,20 @@ properties:
 
       - items:
           - enum:
+              - oneplus,oneplus3
+              - oneplus,oneplus3t
               - qcom,msm8996-mtp
               - sony,dora-row
               - sony,kagura-row
               - sony,keyaki-row
               - xiaomi,gemini
+          - const: qcom,msm8996
+
+      - items:
+          - enum:
               - xiaomi,natrium
               - xiaomi,scorpio
+          - const: qcom,msm8996pro
           - const: qcom,msm8996
 
       - items:
@@ -463,6 +472,17 @@ properties:
           - const: google,pazquel-sku2
           - const: qcom,sc7180
 
+      - description: Google Pazquel360 with LTE (newest rev)
+        items:
+          - const: google,pazquel-sku22
+          - const: google,pazquel-sku20
+          - const: qcom,sc7180
+
+      - description: Google Pazquel360 with WiFi (newest rev)
+        items:
+          - const: google,pazquel-sku21
+          - const: qcom,sc7180
+
       - description: Sharp Dynabook Chromebook C1 (rev1)
         items:
           - const: google,pompom-rev1
@@ -674,6 +694,9 @@ properties:
 
       - items:
           - enum:
+              - google,cheza
+              - google,cheza-rev1
+              - google,cheza-rev2
               - lenovo,yoga-c630
               - lg,judyln
               - lg,judyp
@@ -681,14 +704,21 @@ properties:
               - oneplus,fajita
               - qcom,sdm845-mtp
               - shift,axolotl
+              - samsung,starqltechn
               - samsung,w737
               - sony,akari-row
               - sony,akatsuki-row
               - sony,apollo-row
               - thundercomm,db845c
               - xiaomi,beryllium
+              - xiaomi,beryllium-ebbg
               - xiaomi,polaris
           - const: qcom,sdm845
+
+      - items:
+          - enum:
+              - oneplus,billie2
+          - const: qcom,sm4250
 
       - items:
           - enum:

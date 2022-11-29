@@ -33,6 +33,7 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,pm6125
           - qcom,pm6150
           - qcom,pm6150l
           - qcom,pm6350
