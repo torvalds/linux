@@ -185,10 +185,9 @@ static void mark_vcpu_memory_idle(struct kvm_vm *vm,
 	 * happens, much more pages are cached there and guest won't see the
 	 * "idle" bit cleared.
 	 */
-	if (still_idle < pages / 10)
-		printf("WARNING: vCPU%d: Too many pages still idle (%" PRIu64
-		       "out of %" PRIu64 "), this will affect performance results"
-		       ".\n",
+	if (still_idle >= pages / 10)
+		printf("WARNING: vCPU%d: Too many pages still idle (%lu out of %lu), "
+		       "this will affect performance results.\n",
 		       vcpu_idx, still_idle, pages);
 
 	close(page_idle_fd);
