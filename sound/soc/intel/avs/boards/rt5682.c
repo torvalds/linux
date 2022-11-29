@@ -26,6 +26,7 @@
 #define AVS_RT5682_SSP_CODEC_MASK	(GENMASK(2, 0))
 #define AVS_RT5682_MCLK_EN		BIT(3)
 #define AVS_RT5682_MCLK_24MHZ		BIT(4)
+#define AVS_RT5682_CODEC_DAI_NAME	"rt5682-aif1"
 
 /* Default: MCLK on, MCLK 19.2M, SSP0 */
 static unsigned long avs_rt5682_quirk = AVS_RT5682_MCLK_EN | AVS_RT5682_SSP_CODEC(0);
@@ -184,7 +185,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 
 	dl->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_port);
 	dl->codecs->name = devm_kasprintf(dev, GFP_KERNEL, "i2c-10EC5682:00");
-	dl->codecs->dai_name = devm_kasprintf(dev, GFP_KERNEL, "rt5682-aif1");
+	dl->codecs->dai_name = devm_kasprintf(dev, GFP_KERNEL, AVS_RT5682_CODEC_DAI_NAME);
 	if (!dl->cpus->dai_name || !dl->codecs->name || !dl->codecs->dai_name)
 		return -ENOMEM;
 
