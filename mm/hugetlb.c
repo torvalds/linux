@@ -54,13 +54,13 @@ struct hstate hstates[HUGE_MAX_HSTATE];
 #ifdef CONFIG_CMA
 static struct cma *hugetlb_cma[MAX_NUMNODES];
 static unsigned long hugetlb_cma_size_in_node[MAX_NUMNODES] __initdata;
-static bool hugetlb_cma_page(struct page *page, unsigned int order)
+static bool hugetlb_cma_folio(struct folio *folio, unsigned int order)
 {
-	return cma_pages_valid(hugetlb_cma[page_to_nid(page)], page,
+	return cma_pages_valid(hugetlb_cma[folio_nid(folio)], &folio->page,
 				1 << order);
 }
 #else
-static bool hugetlb_cma_page(struct page *page, unsigned int order)
+static bool hugetlb_cma_folio(struct folio *folio, unsigned int order)
 {
 	return false;
 }
@@ -1506,17 +1506,17 @@ static void remove_hugetlb_folio_for_demote(struct hstate *h, struct folio *foli
 	__remove_hugetlb_folio(h, folio, adjust_surplus, true);
 }
 
-static void add_hugetlb_page(struct hstate *h, struct page *page,
+static void add_hugetlb_folio(struct hstate *h, struct folio *folio,
 			     bool adjust_surplus)
 {
 	int zeroed;
-	int nid = page_to_nid(page);
+	int nid = folio_nid(folio);
 
-	VM_BUG_ON_PAGE(!HPageVmemmapOptimized(page), page);
+	VM_BUG_ON_FOLIO(!folio_test_hugetlb_vmemmap_optimized(folio), folio);
 
 	lockdep_assert_held(&hugetlb_lock);
 
-	INIT_LIST_HEAD(&page->lru);
+	INIT_LIST_HEAD(&folio->lru);
 	h->nr_huge_pages++;
 	h->nr_huge_pages_node[nid]++;
 
@@ -1525,21 +1525,21 @@ static void add_hugetlb_page(struct hstate *h, struct page *page,
 		h->surplus_huge_pages_node[nid]++;
 	}
 
-	set_compound_page_dtor(page, HUGETLB_PAGE_DTOR);
-	set_page_private(page, 0);
+	folio_set_compound_dtor(folio, HUGETLB_PAGE_DTOR);
+	folio_change_private(folio, NULL);
 	/*
-	 * We have to set HPageVmemmapOptimized again as above
-	 * set_page_private(page, 0) cleared it.
+	 * We have to set hugetlb_vmemmap_optimized again as above
+	 * folio_change_private(folio, NULL) cleared it.
 	 */
-	SetHPageVmemmapOptimized(page);
+	folio_set_hugetlb_vmemmap_optimized(folio);
 
 	/*
-	 * This page is about to be managed by the hugetlb allocator and
+	 * This folio is about to be managed by the hugetlb allocator and
 	 * should have no users.  Drop our reference, and check for others
 	 * just in case.
 	 */
-	zeroed = put_page_testzero(page);
-	if (!zeroed)
+	zeroed = folio_put_testzero(folio);
+	if (unlikely(!zeroed))
 		/*
 		 * It is VERY unlikely soneone else has taken a ref on
 		 * the page.  In this case, we simply return as the
@@ -1548,8 +1548,8 @@ static void add_hugetlb_page(struct hstate *h, struct page *page,
 		 */
 		return;
 
-	arch_clear_hugepage_flags(page);
-	enqueue_huge_page(h, page);
+	arch_clear_hugepage_flags(&folio->page);
+	enqueue_huge_page(h, &folio->page);
 }
 
 static void __update_and_free_page(struct hstate *h, struct page *page)
@@ -1575,7 +1575,7 @@ static void __update_and_free_page(struct hstate *h, struct page *page)
 		 * page and put the page back on the hugetlb free list and treat
 		 * as a surplus page.
 		 */
-		add_hugetlb_page(h, page, true);
+		add_hugetlb_folio(h, page_folio(page), true);
 		spin_unlock_irq(&hugetlb_lock);
 		return;
 	}
@@ -1600,7 +1600,7 @@ static void __update_and_free_page(struct hstate *h, struct page *page)
 	 * need to be given back to CMA in free_gigantic_page.
 	 */
 	if (hstate_is_gigantic(h) ||
-	    hugetlb_cma_page(page, huge_page_order(h))) {
+	    hugetlb_cma_folio(folio, huge_page_order(h))) {
 		destroy_compound_gigantic_folio(folio, huge_page_order(h));
 		free_gigantic_page(page, huge_page_order(h));
 	} else {
@@ -2186,7 +2186,7 @@ retry:
 			update_and_free_hugetlb_folio(h, folio, false);
 		} else {
 			spin_lock_irq(&hugetlb_lock);
-			add_hugetlb_page(h, &folio->page, false);
+			add_hugetlb_folio(h, folio, false);
 			h->max_huge_pages++;
 			spin_unlock_irq(&hugetlb_lock);
 		}
@@ -3453,7 +3453,7 @@ static int demote_free_huge_page(struct hstate *h, struct page *page)
 		/* Allocation of vmemmmap failed, we can not demote page */
 		spin_lock_irq(&hugetlb_lock);
 		set_page_refcounted(page);
-		add_hugetlb_page(h, page, false);
+		add_hugetlb_folio(h, page_folio(page), false);
 		return rc;
 	}
 
