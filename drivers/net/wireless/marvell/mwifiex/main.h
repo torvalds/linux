@@ -1054,6 +1054,8 @@ struct mwifiex_adapter {
 	void *devdump_data;
 	int devdump_len;
 	struct timer_list devdump_timer;
+
+	bool ignore_btcoex_events;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);

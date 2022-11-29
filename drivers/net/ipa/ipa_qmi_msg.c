@@ -271,7 +271,7 @@ struct qmi_elem_info ipa_init_modem_driver_req_ei[] = {
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct ipa_init_modem_driver_req,
 					   v4_route_tbl_info),
-		.ei_array	= ipa_mem_array_ei,
+		.ei_array	= ipa_mem_bounds_ei,
 	},
 	{
 		.data_type	= QMI_OPT_FLAG,
@@ -292,7 +292,7 @@ struct qmi_elem_info ipa_init_modem_driver_req_ei[] = {
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct ipa_init_modem_driver_req,
 					   v6_route_tbl_info),
-		.ei_array	= ipa_mem_array_ei,
+		.ei_array	= ipa_mem_bounds_ei,
 	},
 	{
 		.data_type	= QMI_OPT_FLAG,
@@ -456,7 +456,7 @@ struct qmi_elem_info ipa_init_modem_driver_req_ei[] = {
 		.tlv_type	= 0x1b,
 		.offset		= offsetof(struct ipa_init_modem_driver_req,
 					   v4_hash_route_tbl_info),
-		.ei_array	= ipa_mem_array_ei,
+		.ei_array	= ipa_mem_bounds_ei,
 	},
 	{
 		.data_type	= QMI_OPT_FLAG,
@@ -477,7 +477,7 @@ struct qmi_elem_info ipa_init_modem_driver_req_ei[] = {
 		.tlv_type	= 0x1c,
 		.offset		= offsetof(struct ipa_init_modem_driver_req,
 					   v6_hash_route_tbl_info),
-		.ei_array	= ipa_mem_array_ei,
+		.ei_array	= ipa_mem_bounds_ei,
 	},
 	{
 		.data_type	= QMI_OPT_FLAG,

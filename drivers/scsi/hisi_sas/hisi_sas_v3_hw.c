@@ -2738,7 +2738,6 @@ static int slave_configure_v3_hw(struct scsi_device *sdev)
 	struct hisi_hba *hisi_hba = shost_priv(shost);
 	struct device *dev = hisi_hba->dev;
 	int ret = sas_slave_configure(sdev);
-	unsigned int max_sectors;
 
 	if (ret)
 		return ret;
@@ -2755,12 +2754,6 @@ static int slave_configure_v3_hw(struct scsi_device *sdev)
 			pm_runtime_disable(dev);
 		}
 	}
-
-	/* Set according to IOMMU IOVA caching limit */
-	max_sectors = min_t(size_t, queue_max_hw_sectors(sdev->request_queue),
-			    (PAGE_SIZE * 32) >> SECTOR_SHIFT);
-
-	blk_queue_max_hw_sectors(sdev->request_queue, max_sectors);
 
 	return 0;
 }

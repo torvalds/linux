@@ -529,15 +529,18 @@ int gma_crtc_page_flip(struct drm_crtc *crtc,
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 
 		gma_crtc->page_flip_event = event;
+		spin_unlock_irqrestore(&dev->event_lock, flags);
 
 		/* Call this locked if we want an event at vblank interrupt. */
 		ret = crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y, old_fb);
 		if (ret) {
-			gma_crtc->page_flip_event = NULL;
-			drm_crtc_vblank_put(crtc);
+			spin_lock_irqsave(&dev->event_lock, flags);
+			if (gma_crtc->page_flip_event) {
+				gma_crtc->page_flip_event = NULL;
+				drm_crtc_vblank_put(crtc);
+			}
+			spin_unlock_irqrestore(&dev->event_lock, flags);
 		}
-
-		spin_unlock_irqrestore(&dev->event_lock, flags);
 	} else {
 		ret = crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y, old_fb);
 	}

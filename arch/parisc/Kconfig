@@ -316,6 +316,16 @@ config IRQSTACKS
 	  for handling hard and soft interrupts.  This can help avoid
 	  overflowing the process kernel stacks.
 
+config TLB_PTLOCK
+	bool "Use page table locks in TLB fault handler"
+	depends on SMP
+	default n
+	help
+	  Select this option to enable page table locking in the TLB
+	  fault handler. This ensures that page table entries are
+	  updated consistently on SMP machines at the expense of some
+	  loss in performance.
+
 config HOTPLUG_CPU
 	bool
 	default y if SMP

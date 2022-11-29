@@ -2193,9 +2193,9 @@ static int check_module_params(void)
 		       sess_queue_depth, 1, MAX_SESS_QUEUE_DEPTH);
 		return -EINVAL;
 	}
-	if (max_chunk_size < 4096 || !is_power_of_2(max_chunk_size)) {
+	if (max_chunk_size < MIN_CHUNK_SIZE || !is_power_of_2(max_chunk_size)) {
 		pr_err("Invalid max_chunk_size value %d, has to be >= %d and should be power of two.\n",
-		       max_chunk_size, 4096);
+		       max_chunk_size, MIN_CHUNK_SIZE);
 		return -EINVAL;
 	}
 

@@ -432,7 +432,7 @@ static void *get_vmcoreinfo_old(unsigned long *size)
 	Elf64_Nhdr note;
 	void *addr;
 
-	if (copy_oldmem_kernel(&addr, &S390_lowcore.vmcore_info, sizeof(addr)))
+	if (copy_oldmem_kernel(&addr, (void *)__LC_VMCORE_INFO, sizeof(addr)))
 		return NULL;
 	memset(nt_name, 0, sizeof(nt_name));
 	if (copy_oldmem_kernel(&note, addr, sizeof(note)))

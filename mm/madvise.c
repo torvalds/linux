@@ -446,8 +446,11 @@ regular_page:
 			continue;
 		}
 
-		/* Do not interfere with other mappings of this page */
-		if (!allow_shared && page_mapcount(page) != 1)
+		/*
+		 * Do not interfere with other mappings of this page and
+		 * non-LRU page.
+		 */
+		if (!allow_shared && (!PageLRU(page) || page_mapcount(page) != 1))
 			continue;
 
 		if (pageout_anon_only && !PageAnon(page))

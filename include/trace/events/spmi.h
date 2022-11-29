@@ -21,15 +21,15 @@ TRACE_EVENT(spmi_write_begin,
 		__field		( u8,         sid       )
 		__field		( u16,        addr      )
 		__field		( u8,         len       )
-		__dynamic_array	( u8,   buf,  len + 1   )
+		__dynamic_array	( u8,   buf,  len       )
 	),
 
 	TP_fast_assign(
 		__entry->opcode = opcode;
 		__entry->sid    = sid;
 		__entry->addr   = addr;
-		__entry->len    = len + 1;
-		memcpy(__get_dynamic_array(buf), buf, len + 1);
+		__entry->len    = len;
+		memcpy(__get_dynamic_array(buf), buf, len);
 	),
 
 	TP_printk("opc=%d sid=%02d addr=0x%04x len=%d buf=0x[%*phD]",
@@ -92,7 +92,7 @@ TRACE_EVENT(spmi_read_end,
 		__field		( u16,        addr      )
 		__field		( int,        ret       )
 		__field		( u8,         len       )
-		__dynamic_array	( u8,   buf,  len + 1   )
+		__dynamic_array	( u8,   buf,  len       )
 	),
 
 	TP_fast_assign(
@@ -100,8 +100,8 @@ TRACE_EVENT(spmi_read_end,
 		__entry->sid    = sid;
 		__entry->addr   = addr;
 		__entry->ret    = ret;
-		__entry->len    = len + 1;
-		memcpy(__get_dynamic_array(buf), buf, len + 1);
+		__entry->len    = len;
+		memcpy(__get_dynamic_array(buf), buf, len);
 	),
 
 	TP_printk("opc=%d sid=%02d addr=0x%04x ret=%d len=%02d buf=0x[%*phD]",

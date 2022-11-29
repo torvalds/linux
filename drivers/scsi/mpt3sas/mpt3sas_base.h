@@ -1257,6 +1257,7 @@ struct MPT3SAS_ADAPTER {
 	u16		thresh_hold;
 	u8		high_iops_queues;
 	u32		drv_support_bitmap;
+	u32             dma_mask;
 	bool		enable_sdev_max_qd;
 	bool		use_32bit_dma;
 

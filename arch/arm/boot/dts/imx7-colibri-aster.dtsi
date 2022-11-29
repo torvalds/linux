@@ -99,7 +99,7 @@
 		reg = <0x4a>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;	/* SODIMM 107 */
-		reset-gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;	/* SODIMM 106 */
+		reset-gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;	/* SODIMM 106 */
 	};
 
 	/* M41T0M6 real time clock on carrier board */

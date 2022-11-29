@@ -3183,7 +3183,23 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long pgd,
 		vmcs_writel(GUEST_CR3, guest_cr3);
 }
 
-int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
+static bool vmx_is_valid_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
+{
+	/*
+	 * We operate under the default treatment of SMM, so VMX cannot be
+	 * enabled under SMM.  Note, whether or not VMXE is allowed at all is
+	 * handled by kvm_valid_cr4().
+	 */
+	if ((cr4 & X86_CR4_VMXE) && is_smm(vcpu))
+		return false;
+
+	if (to_vmx(vcpu)->nested.vmxon && !nested_cr4_valid(vcpu, cr4))
+		return false;
+
+	return true;
+}
+
+void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	/*
@@ -3210,21 +3226,6 @@ int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 			secondary_exec_controls_clearbit(vmx, SECONDARY_EXEC_DESC);
 		}
 	}
-
-	if (cr4 & X86_CR4_VMXE) {
-		/*
-		 * To use VMXON (and later other VMX instructions), a guest
-		 * must first be able to turn on cr4.VMXE (see handle_vmon()).
-		 * So basically the check on whether to allow nested VMX
-		 * is here.  We operate under the default treatment of SMM,
-		 * so VMX cannot be enabled under SMM.
-		 */
-		if (!nested_vmx_allowed(vcpu) || is_smm(vcpu))
-			return 1;
-	}
-
-	if (vmx->nested.vmxon && !nested_cr4_valid(vcpu, cr4))
-		return 1;
 
 	vcpu->arch.cr4 = cr4;
 	kvm_register_mark_available(vcpu, VCPU_EXREG_CR4);
@@ -3256,7 +3257,6 @@ int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 
 	vmcs_writel(CR4_READ_SHADOW, cr4);
 	vmcs_writel(GUEST_CR4, hw_cr4);
-	return 0;
 }
 
 void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
@@ -7752,6 +7752,7 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 	.get_cpl = vmx_get_cpl,
 	.get_cs_db_l_bits = vmx_get_cs_db_l_bits,
 	.set_cr0 = vmx_set_cr0,
+	.is_valid_cr4 = vmx_is_valid_cr4,
 	.set_cr4 = vmx_set_cr4,
 	.set_efer = vmx_set_efer,
 	.get_idt = vmx_get_idt,
