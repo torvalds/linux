@@ -18,6 +18,7 @@ struct iommufd_ctx {
 	struct xarray objects;
 
 	u8 account_mode;
+	struct iommufd_ioas *vfio_ioas;
 };
 
 /*
@@ -91,6 +92,9 @@ struct iommufd_ucmd {
 	u32 user_size;
 	void *cmd;
 };
+
+int iommufd_vfio_ioctl(struct iommufd_ctx *ictx, unsigned int cmd,
+		       unsigned long arg);
 
 /* Copy the response in ucmd->cmd back to userspace. */
 static inline int iommufd_ucmd_respond(struct iommufd_ucmd *ucmd,
@@ -221,6 +225,8 @@ int iommufd_ioas_unmap(struct iommufd_ucmd *ucmd);
 int iommufd_ioas_option(struct iommufd_ucmd *ucmd);
 int iommufd_option_rlimit_mode(struct iommu_option *cmd,
 			       struct iommufd_ctx *ictx);
+
+int iommufd_vfio_ioas(struct iommufd_ucmd *ucmd);
 
 /*
  * A HW pagetable is called an iommu_domain inside the kernel. This user object
