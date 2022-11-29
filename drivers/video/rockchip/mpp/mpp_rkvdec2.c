@@ -1142,12 +1142,38 @@ static int rkvdec2_set_freq(struct mpp_dev *mpp,
 	return 0;
 }
 
+static int rkvdec2_soft_reset(struct mpp_dev *mpp)
+{
+	u32 rst_status = 0;
+	int ret = 0;
+
+	/* soft reset */
+	mpp_write(mpp, RKVDEC_REG_IMPORTANT_BASE, RKVDEC_SOFTREST_EN);
+	ret = readl_relaxed_poll_timeout(mpp->reg_base + RKVDEC_REG_INT_EN,
+					 rst_status,
+					 rst_status & RKVDEC_SOFT_RESET_READY,
+					 5, 500);
+	if (ret)
+		mpp_err("soft reset fail, int %08x\n", rst_status);
+	mpp_write(mpp, RKVDEC_REG_INT_EN, 0);
+
+	return ret;
+
+}
+
 int rkvdec2_reset(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	int ret = 0;
 
 	mpp_debug_enter();
-	if (dec->rst_a && dec->rst_h) {
+
+	/* safe reset first*/
+	ret = rkvdec2_soft_reset(mpp);
+
+	/* cru reset */
+	if (ret && dec->rst_a && dec->rst_h) {
+		mpp_err("soft reset timeout, use cru reset\n");
 		mpp_pmu_idle_request(mpp, true);
 		mpp_safe_reset(dec->rst_niu_a);
 		mpp_safe_reset(dec->rst_niu_h);

@@ -33,6 +33,10 @@
 
 #define RKVDEC_DRIVER_NAME		"mpp_rkvdec2"
 
+#define RKVDEC_REG_IMPORTANT_BASE	0x2c
+#define RKVDEC_REG_IMPORTANT_INDEX	11
+#define RKVDEC_SOFTREST_EN		BIT(20)
+
 #define	RKVDEC_SESSION_MAX_BUFFERS	40
 /* The maximum registers number of all the version */
 #define RKVDEC_REG_NUM			279

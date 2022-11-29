@@ -43,6 +43,7 @@
 #define RKVENC_MAX_CORE_NUM			4
 #define RKVENC_MAX_DCHS_ID			4
 #define RKVENC_MAX_SLICE_FIFO_LEN		256
+#define RKVENC_SCLR_DONE_STA			BIT(2)
 
 #define to_rkvenc_info(info)		\
 		container_of(info, struct rkvenc_hw_info, hw)
@@ -1712,23 +1713,41 @@ static int rkvenc_init(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int rkvenc_reset(struct mpp_dev *mpp)
+static int rkvenc_soft_reset(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 	struct rkvenc_hw_info *hw = enc->hw_info;
-	struct mpp_taskqueue *queue = mpp->queue;
-
-	mpp_debug_enter();
+	u32 rst_status = 0;
+	int ret = 0;
 
 	/* safe reset */
 	mpp_write(mpp, hw->int_mask_base, 0x3FF);
 	mpp_write(mpp, hw->enc_clr_base, 0x1);
-	udelay(5);
+	ret = readl_relaxed_poll_timeout(mpp->reg_base + hw->int_sta_base,
+					 rst_status,
+					 rst_status & RKVENC_SCLR_DONE_STA,
+					 0, 5);
 	mpp_write(mpp, hw->int_clr_base, 0xffffffff);
 	mpp_write(mpp, hw->int_sta_base, 0);
 
+	return ret;
+
+}
+
+static int rkvenc_reset(struct mpp_dev *mpp)
+{
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	int ret = 0;
+	struct mpp_taskqueue *queue = mpp->queue;
+
+	mpp_debug_enter();
+
+	/* safe reset first*/
+	ret = rkvenc_soft_reset(mpp);
+
 	/* cru reset */
-	if (enc->rst_a && enc->rst_h && enc->rst_core) {
+	if (ret && enc->rst_a && enc->rst_h && enc->rst_core) {
+		mpp_err("soft reset timeout, use cru reset\n");
 		mpp_pmu_idle_request(mpp, true);
 		mpp_safe_reset(enc->rst_a);
 		mpp_safe_reset(enc->rst_h);
