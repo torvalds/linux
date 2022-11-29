@@ -81,6 +81,7 @@ struct aspeed_tach_data {
 	struct reset_control *reset;
 	bool tach_present[TACH_ASPEED_NR_TACHS];
 	struct aspeed_tach_channel_params tach_channel[TACH_ASPEED_NR_TACHS];
+	unsigned long clk_source;
 };
 
 static void aspeed_tach_ch_enable(struct aspeed_tach_data *priv, u8 tach_ch,
@@ -97,7 +98,6 @@ static void aspeed_tach_ch_enable(struct aspeed_tach_data *priv, u8 tach_ch,
 static u64 aspeed_tach_val_to_rpm(struct aspeed_tach_data *priv, u8 fan_tach_ch,
 				  u32 tach_val)
 {
-	unsigned long clk_source;
 	u64 rpm;
 	u32 tach_div;
 
@@ -111,11 +111,10 @@ static u64 aspeed_tach_val_to_rpm(struct aspeed_tach_data *priv, u8 fan_tach_ch,
 	tach_div = tach_val * (priv->tach_channel[fan_tach_ch].divisor) *
 		   (priv->tach_channel[fan_tach_ch].pulse_pr);
 
-	clk_source = clk_get_rate(priv->clk);
-	dev_dbg(priv->dev, "clk %ld, tach_val %d , tach_div %d\n", clk_source,
-		tach_val, tach_div);
+	dev_dbg(priv->dev, "clk %ld, tach_val %d , tach_div %d\n",
+		priv->clk_source, tach_val, tach_div);
 
-	rpm = (u64)clk_source * 60;
+	rpm = (u64)priv->clk_source * 60;
 	do_div(rpm, tach_div);
 
 	return rpm;
@@ -339,6 +338,7 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 				     "Couldn't get clock\n");
 
 	priv->reset = devm_reset_control_get_shared(&parent_dev->dev, NULL);
+	priv->clk_source = clk_get_rate(priv->clk);
 	if (IS_ERR(priv->reset))
 		return dev_err_probe(dev, PTR_ERR(priv->reset),
 				     "Couldn't get reset control\n");
