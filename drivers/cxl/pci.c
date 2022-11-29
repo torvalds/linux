@@ -13,6 +13,8 @@
 #include "cxlmem.h"
 #include "cxlpci.h"
 #include "cxl.h"
+#define CREATE_TRACE_POINTS
+#include <trace/events/cxl.h>
 
 /**
  * DOC: cxl pci
