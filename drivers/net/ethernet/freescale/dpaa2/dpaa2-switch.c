@@ -702,10 +702,8 @@ static int dpaa2_switch_port_open(struct net_device *netdev)
 
 	dpaa2_switch_enable_ctrl_if_napi(ethsw);
 
-	if (dpaa2_switch_port_is_type_phy(port_priv)) {
+	if (dpaa2_switch_port_is_type_phy(port_priv))
 		dpaa2_mac_start(port_priv->mac);
-		phylink_start(port_priv->mac->phylink);
-	}
 
 	return 0;
 }
@@ -717,7 +715,6 @@ static int dpaa2_switch_port_stop(struct net_device *netdev)
 	int err;
 
 	if (dpaa2_switch_port_is_type_phy(port_priv)) {
-		phylink_stop(port_priv->mac->phylink);
 		dpaa2_mac_stop(port_priv->mac);
 	} else {
 		netif_tx_stop_all_queues(netdev);
