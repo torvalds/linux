@@ -167,6 +167,10 @@
 	status = "okay";
 };
 
+&hevc {
+	status = "okay";
+};
+
 &hevc_mmu {
 	status = "okay";
 };
@@ -644,6 +648,10 @@
 	status = "okay";
 };
 
+&mpp_srv {
+	status = "okay";
+};
+
 &sdio {
 	status = "okay";
 
@@ -690,6 +698,14 @@
 };
 
 &usb_otg {
+	status = "okay";
+};
+
+&vdpu {
+	status = "okay";
+};
+
+&vpu_mmu {
 	status = "okay";
 };
 
