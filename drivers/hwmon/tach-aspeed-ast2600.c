@@ -80,7 +80,7 @@ struct aspeed_tach_data {
 	struct clk *clk;
 	struct reset_control *reset;
 	bool tach_present[TACH_ASPEED_NR_TACHS];
-	struct aspeed_tach_channel_params *tach_channel;
+	struct aspeed_tach_channel_params tach_channel[TACH_ASPEED_NR_TACHS];
 };
 
 static void aspeed_tach_ch_enable(struct aspeed_tach_data *priv, u8 tach_ch,
@@ -328,12 +328,6 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = &pdev->dev;
-	priv->tach_channel =
-		devm_kcalloc(dev, TACH_ASPEED_NR_TACHS,
-			     sizeof(*priv->tach_channel), GFP_KERNEL);
-	if (!priv->tach_channel)
-		return -ENOMEM;
-
 	priv->regmap = syscon_node_to_regmap(np);
 	if (IS_ERR(priv->regmap))
 		return dev_err_probe(dev, PTR_ERR(priv->regmap),
