@@ -295,7 +295,7 @@ def parse_ktap_header(lines: LineStream, test: Test) -> bool:
 		check_version(version_num, TAP_VERSIONS, 'TAP', test)
 	else:
 		return False
-	test.log.append(lines.pop())
+	lines.pop()
 	return True
 
 TEST_HEADER = re.compile(r'^# Subtest: (.*)$')
@@ -318,8 +318,8 @@ def parse_test_header(lines: LineStream, test: Test) -> bool:
 	match = TEST_HEADER.match(lines.peek())
 	if not match:
 		return False
-	test.log.append(lines.pop())
 	test.name = match.group(1)
+	lines.pop()
 	return True
 
 TEST_PLAN = re.compile(r'1\.\.([0-9]+)')
@@ -345,9 +345,9 @@ def parse_test_plan(lines: LineStream, test: Test) -> bool:
 	if not match:
 		test.expected_count = None
 		return False
-	test.log.append(lines.pop())
 	expected_count = int(match.group(1))
 	test.expected_count = expected_count
+	lines.pop()
 	return True
 
 TEST_RESULT = re.compile(r'^(ok|not ok) ([0-9]+) (- )?([^#]*)( # .*)?$')
@@ -409,7 +409,7 @@ def parse_test_result(lines: LineStream, test: Test,
 	# Check if line matches test result line format
 	if not match:
 		return False
-	test.log.append(lines.pop())
+	lines.pop()
 
 	# Set name of test object
 	if skip_match:
