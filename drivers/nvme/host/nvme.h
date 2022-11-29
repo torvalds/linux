@@ -162,6 +162,9 @@ struct nvme_request {
 	u8			retries;
 	u8			flags;
 	u16			status;
+#ifdef CONFIG_NVME_MULTIPATH
+	unsigned long		start_time;
+#endif
 	struct nvme_ctrl	*ctrl;
 };
 
@@ -173,6 +176,7 @@ struct nvme_request {
 enum {
 	NVME_REQ_CANCELLED		= (1 << 0),
 	NVME_REQ_USERCMD		= (1 << 1),
+	NVME_MPATH_IO_STATS		= (1 << 2),
 };
 
 static inline struct nvme_request *nvme_req(struct request *req)
@@ -882,6 +886,8 @@ bool nvme_mpath_clear_current_path(struct nvme_ns *ns);
 void nvme_mpath_revalidate_paths(struct nvme_ns *ns);
 void nvme_mpath_clear_ctrl_paths(struct nvme_ctrl *ctrl);
 void nvme_mpath_shutdown_disk(struct nvme_ns_head *head);
+void nvme_mpath_start_request(struct request *rq);
+void nvme_mpath_end_request(struct request *rq);
 
 static inline void nvme_trace_bio_complete(struct request *req)
 {
@@ -967,6 +973,12 @@ static inline void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
 static inline void nvme_mpath_default_iopolicy(struct nvme_subsystem *subsys)
 {
 }
+static inline void nvme_mpath_start_request(struct request *rq)
+{
+}
+static inline void nvme_mpath_end_request(struct request *rq)
+{
+}
 #endif /* CONFIG_NVME_MULTIPATH */
 
 int nvme_revalidate_zones(struct nvme_ns *ns);
@@ -1014,6 +1026,8 @@ static inline void nvme_hwmon_exit(struct nvme_ctrl *ctrl)
 
 static inline void nvme_start_request(struct request *rq)
 {
+	if (rq->cmd_flags & REQ_NVME_MPATH)
+		nvme_mpath_start_request(rq);
 	blk_mq_start_request(rq);
 }
 
