@@ -19,6 +19,10 @@ properties:
               - samsung,exynos5-sysreg
               - samsung,exynos850-sysreg
               - samsung,exynosautov9-sysreg
+              - tesla,fsd-cam-sysreg
+              - tesla,fsd-fsys0-sysreg
+              - tesla,fsd-fsys1-sysreg
+              - tesla,fsd-peric-sysreg
           - const: syscon
       - items:
           - enum:
