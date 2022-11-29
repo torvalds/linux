@@ -27,6 +27,8 @@
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
 #include "xfs_reflink.h"
+#include "xfs_error.h"
+#include "xfs_errortag.h"
 
 #define XFS_ALLOC_ALIGN(mp, off) \
 	(((off) >> mp->m_allocsize_log) << mp->m_allocsize_log)
@@ -71,8 +73,16 @@ xfs_iomap_valid(
 	struct inode		*inode,
 	const struct iomap	*iomap)
 {
-	return iomap->validity_cookie ==
-			xfs_iomap_inode_sequence(XFS_I(inode), iomap->flags);
+	struct xfs_inode	*ip = XFS_I(inode);
+
+	if (iomap->validity_cookie !=
+			xfs_iomap_inode_sequence(ip, iomap->flags)) {
+		trace_xfs_iomap_invalid(ip, iomap);
+		return false;
+	}
+
+	XFS_ERRORTAG_DELAY(ip->i_mount, XFS_ERRTAG_WRITE_DELAY_MS);
+	return true;
 }
 
 const struct iomap_page_ops xfs_iomap_page_ops = {
