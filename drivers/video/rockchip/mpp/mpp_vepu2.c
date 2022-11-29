@@ -202,12 +202,13 @@ static int vepu_process_reg_fd(struct mpp_session *session,
 	if (fmt == VEPU2_FMT_JPEGE) {
 		task->offset_bs = mpp_query_reg_offset_info(&task->off_inf, VEPU2_REG_OUT_INDEX);
 
-		if (task->offset_bs > 0)
-			task->dmabuf_bs = dma_buf_get(fd_bs);
+		task->dmabuf_bs = dma_buf_get(fd_bs);
 
-		if (IS_ERR_OR_NULL(task->dmabuf_bs))
+		if (IS_ERR_OR_NULL(task->dmabuf_bs)) {
 			task->dmabuf_bs = NULL;
-		else
+			return 0;
+		}
+		if (task->offset_bs > 0)
 			dma_buf_end_cpu_access_partial(task->dmabuf_bs, DMA_TO_DEVICE, 0,
 						       task->offset_bs);
 	}
