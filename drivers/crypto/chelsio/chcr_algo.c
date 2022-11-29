@@ -98,17 +98,17 @@ static int chcr_handle_cipher_resp(struct skcipher_request *req,
 
 static inline  struct chcr_aead_ctx *AEAD_CTX(struct chcr_context *ctx)
 {
-	return ctx->crypto_ctx->aeadctx;
+	return &ctx->crypto_ctx->aeadctx;
 }
 
 static inline struct ablk_ctx *ABLK_CTX(struct chcr_context *ctx)
 {
-	return ctx->crypto_ctx->ablkctx;
+	return &ctx->crypto_ctx->ablkctx;
 }
 
 static inline struct hmac_ctx *HMAC_CTX(struct chcr_context *ctx)
 {
-	return ctx->crypto_ctx->hmacctx;
+	return &ctx->crypto_ctx->hmacctx;
 }
 
 static inline struct chcr_gcm_ctx *GCM_CTX(struct chcr_aead_ctx *gctx)
