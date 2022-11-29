@@ -188,7 +188,8 @@ static bool dcn32_check_no_memory_request_for_cab(struct dc *dc)
 
     /* First, check no-memory-request case */
 	for (i = 0; i < dc->current_state->stream_count; i++) {
-		if (dc->current_state->stream_status[i].plane_count)
+		if ((dc->current_state->stream_status[i].plane_count) &&
+			(dc->current_state->streams[i]->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED))
 			/* Fail eligibility on a visible stream */
 			break;
 	}
