@@ -3263,3 +3263,332 @@ fail:
 
 	return ret;
 }
+
+static int rtw89_h2c_tx_and_wait(struct rtw89_dev *rtwdev, struct sk_buff *skb,
+				 struct rtw89_wait_info *wait, unsigned int cond)
+{
+	int ret;
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		dev_kfree_skb_any(skb);
+		return -EBUSY;
+	}
+
+	return rtw89_wait_for_cond(wait, cond);
+}
+
+#define H2C_ADD_MCC_LEN 16
+int rtw89_fw_h2c_add_mcc(struct rtw89_dev *rtwdev,
+			 const struct rtw89_fw_mcc_add_req *p)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct sk_buff *skb;
+	unsigned int cond;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_ADD_MCC_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev,
+			  "failed to alloc skb for add mcc\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_ADD_MCC_LEN);
+	RTW89_SET_FWCMD_ADD_MCC_MACID(skb->data, p->macid);
+	RTW89_SET_FWCMD_ADD_MCC_CENTRAL_CH_SEG0(skb->data, p->central_ch_seg0);
+	RTW89_SET_FWCMD_ADD_MCC_CENTRAL_CH_SEG1(skb->data, p->central_ch_seg1);
+	RTW89_SET_FWCMD_ADD_MCC_PRIMARY_CH(skb->data, p->primary_ch);
+	RTW89_SET_FWCMD_ADD_MCC_BANDWIDTH(skb->data, p->bandwidth);
+	RTW89_SET_FWCMD_ADD_MCC_GROUP(skb->data, p->group);
+	RTW89_SET_FWCMD_ADD_MCC_C2H_RPT(skb->data, p->c2h_rpt);
+	RTW89_SET_FWCMD_ADD_MCC_DIS_TX_NULL(skb->data, p->dis_tx_null);
+	RTW89_SET_FWCMD_ADD_MCC_DIS_SW_RETRY(skb->data, p->dis_sw_retry);
+	RTW89_SET_FWCMD_ADD_MCC_IN_CURR_CH(skb->data, p->in_curr_ch);
+	RTW89_SET_FWCMD_ADD_MCC_SW_RETRY_COUNT(skb->data, p->sw_retry_count);
+	RTW89_SET_FWCMD_ADD_MCC_TX_NULL_EARLY(skb->data, p->tx_null_early);
+	RTW89_SET_FWCMD_ADD_MCC_BTC_IN_2G(skb->data, p->btc_in_2g);
+	RTW89_SET_FWCMD_ADD_MCC_PTA_EN(skb->data, p->pta_en);
+	RTW89_SET_FWCMD_ADD_MCC_RFK_BY_PASS(skb->data, p->rfk_by_pass);
+	RTW89_SET_FWCMD_ADD_MCC_CH_BAND_TYPE(skb->data, p->ch_band_type);
+	RTW89_SET_FWCMD_ADD_MCC_DURATION(skb->data, p->duration);
+	RTW89_SET_FWCMD_ADD_MCC_COURTESY_EN(skb->data, p->courtesy_en);
+	RTW89_SET_FWCMD_ADD_MCC_COURTESY_NUM(skb->data, p->courtesy_num);
+	RTW89_SET_FWCMD_ADD_MCC_COURTESY_TARGET(skb->data, p->courtesy_target);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MCC,
+			      H2C_FUNC_ADD_MCC, 0, 0,
+			      H2C_ADD_MCC_LEN);
+
+	cond = RTW89_MCC_WAIT_COND(p->group, H2C_FUNC_ADD_MCC);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+}
+
+#define H2C_START_MCC_LEN 12
+int rtw89_fw_h2c_start_mcc(struct rtw89_dev *rtwdev,
+			   const struct rtw89_fw_mcc_start_req *p)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct sk_buff *skb;
+	unsigned int cond;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_START_MCC_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev,
+			  "failed to alloc skb for start mcc\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_START_MCC_LEN);
+	RTW89_SET_FWCMD_START_MCC_GROUP(skb->data, p->group);
+	RTW89_SET_FWCMD_START_MCC_BTC_IN_GROUP(skb->data, p->btc_in_group);
+	RTW89_SET_FWCMD_START_MCC_OLD_GROUP_ACTION(skb->data, p->old_group_action);
+	RTW89_SET_FWCMD_START_MCC_OLD_GROUP(skb->data, p->old_group);
+	RTW89_SET_FWCMD_START_MCC_NOTIFY_CNT(skb->data, p->notify_cnt);
+	RTW89_SET_FWCMD_START_MCC_NOTIFY_RXDBG_EN(skb->data, p->notify_rxdbg_en);
+	RTW89_SET_FWCMD_START_MCC_MACID(skb->data, p->macid);
+	RTW89_SET_FWCMD_START_MCC_TSF_LOW(skb->data, p->tsf_low);
+	RTW89_SET_FWCMD_START_MCC_TSF_HIGH(skb->data, p->tsf_high);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MCC,
+			      H2C_FUNC_START_MCC, 0, 0,
+			      H2C_START_MCC_LEN);
+
+	cond = RTW89_MCC_WAIT_COND(p->group, H2C_FUNC_START_MCC);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+}
+
+#define H2C_STOP_MCC_LEN 4
+int rtw89_fw_h2c_stop_mcc(struct rtw89_dev *rtwdev, u8 group, u8 macid,
+			  bool prev_groups)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct sk_buff *skb;
+	unsigned int cond;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_STOP_MCC_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev,
+			  "failed to alloc skb for stop mcc\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_STOP_MCC_LEN);
+	RTW89_SET_FWCMD_STOP_MCC_MACID(skb->data, macid);
+	RTW89_SET_FWCMD_STOP_MCC_GROUP(skb->data, group);
+	RTW89_SET_FWCMD_STOP_MCC_PREV_GROUPS(skb->data, prev_groups);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MCC,
+			      H2C_FUNC_STOP_MCC, 0, 0,
+			      H2C_STOP_MCC_LEN);
+
+	cond = RTW89_MCC_WAIT_COND(group, H2C_FUNC_STOP_MCC);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+}
+
+#define H2C_DEL_MCC_GROUP_LEN 4
+int rtw89_fw_h2c_del_mcc_group(struct rtw89_dev *rtwdev, u8 group,
+			       bool prev_groups)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct sk_buff *skb;
+	unsigned int cond;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_DEL_MCC_GROUP_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev,
+			  "failed to alloc skb for del mcc group\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_DEL_MCC_GROUP_LEN);
+	RTW89_SET_FWCMD_DEL_MCC_GROUP_GROUP(skb->data, group);
+	RTW89_SET_FWCMD_DEL_MCC_GROUP_PREV_GROUPS(skb->data, prev_groups);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MCC,
+			      H2C_FUNC_DEL_MCC_GROUP, 0, 0,
+			      H2C_DEL_MCC_GROUP_LEN);
+
+	cond = RTW89_MCC_WAIT_COND(group, H2C_FUNC_DEL_MCC_GROUP);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+}
+
+#define H2C_RESET_MCC_GROUP_LEN 4
+int rtw89_fw_h2c_reset_mcc_group(struct rtw89_dev *rtwdev, u8 group)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct sk_buff *skb;
+	unsigned int cond;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_RESET_MCC_GROUP_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev,
+			  "failed to alloc skb for reset mcc group\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_RESET_MCC_GROUP_LEN);
+	RTW89_SET_FWCMD_RESET_MCC_GROUP_GROUP(skb->data, group);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MCC,
+			      H2C_FUNC_RESET_MCC_GROUP, 0, 0,
+			      H2C_RESET_MCC_GROUP_LEN);
+
+	cond = RTW89_MCC_WAIT_COND(group, H2C_FUNC_RESET_MCC_GROUP);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+}
+
+#define H2C_MCC_REQ_TSF_LEN 4
+int rtw89_fw_h2c_mcc_req_tsf(struct rtw89_dev *rtwdev,
+			     const struct rtw89_fw_mcc_tsf_req *req,
+			     struct rtw89_mac_mcc_tsf_rpt *rpt)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct rtw89_mac_mcc_tsf_rpt *tmp;
+	struct sk_buff *skb;
+	unsigned int cond;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_MCC_REQ_TSF_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev,
+			  "failed to alloc skb for mcc req tsf\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_MCC_REQ_TSF_LEN);
+	RTW89_SET_FWCMD_MCC_REQ_TSF_GROUP(skb->data, req->group);
+	RTW89_SET_FWCMD_MCC_REQ_TSF_MACID_X(skb->data, req->macid_x);
+	RTW89_SET_FWCMD_MCC_REQ_TSF_MACID_Y(skb->data, req->macid_y);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MCC,
+			      H2C_FUNC_MCC_REQ_TSF, 0, 0,
+			      H2C_MCC_REQ_TSF_LEN);
+
+	cond = RTW89_MCC_WAIT_COND(req->group, H2C_FUNC_MCC_REQ_TSF);
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+	if (ret)
+		return ret;
+
+	tmp = (struct rtw89_mac_mcc_tsf_rpt *)wait->data.buf;
+	*rpt = *tmp;
+
+	return 0;
+}
+
+#define H2C_MCC_MACID_BITMAP_DSC_LEN 4
+int rtw89_fw_h2c_mcc_macid_bitamp(struct rtw89_dev *rtwdev, u8 group, u8 macid,
+				  u8 *bitmap)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct sk_buff *skb;
+	unsigned int cond;
+	u8 map_len;
+	u8 h2c_len;
+
+	BUILD_BUG_ON(RTW89_MAX_MAC_ID_NUM % 8);
+	map_len = RTW89_MAX_MAC_ID_NUM / 8;
+	h2c_len = H2C_MCC_MACID_BITMAP_DSC_LEN + map_len;
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, h2c_len);
+	if (!skb) {
+		rtw89_err(rtwdev,
+			  "failed to alloc skb for mcc macid bitmap\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, h2c_len);
+	RTW89_SET_FWCMD_MCC_MACID_BITMAP_GROUP(skb->data, group);
+	RTW89_SET_FWCMD_MCC_MACID_BITMAP_MACID(skb->data, macid);
+	RTW89_SET_FWCMD_MCC_MACID_BITMAP_BITMAP_LENGTH(skb->data, map_len);
+	RTW89_SET_FWCMD_MCC_MACID_BITMAP_BITMAP(skb->data, bitmap, map_len);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MCC,
+			      H2C_FUNC_MCC_MACID_BITMAP, 0, 0,
+			      h2c_len);
+
+	cond = RTW89_MCC_WAIT_COND(group, H2C_FUNC_MCC_MACID_BITMAP);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+}
+
+#define H2C_MCC_SYNC_LEN 4
+int rtw89_fw_h2c_mcc_sync(struct rtw89_dev *rtwdev, u8 group, u8 source,
+			  u8 target, u8 offset)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct sk_buff *skb;
+	unsigned int cond;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_MCC_SYNC_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev,
+			  "failed to alloc skb for mcc sync\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_MCC_SYNC_LEN);
+	RTW89_SET_FWCMD_MCC_SYNC_GROUP(skb->data, group);
+	RTW89_SET_FWCMD_MCC_SYNC_MACID_SOURCE(skb->data, source);
+	RTW89_SET_FWCMD_MCC_SYNC_MACID_TARGET(skb->data, target);
+	RTW89_SET_FWCMD_MCC_SYNC_SYNC_OFFSET(skb->data, offset);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MCC,
+			      H2C_FUNC_MCC_SYNC, 0, 0,
+			      H2C_MCC_SYNC_LEN);
+
+	cond = RTW89_MCC_WAIT_COND(group, H2C_FUNC_MCC_SYNC);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+}
+
+#define H2C_MCC_SET_DURATION_LEN 20
+int rtw89_fw_h2c_mcc_set_duration(struct rtw89_dev *rtwdev,
+				  const struct rtw89_fw_mcc_duration *p)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct sk_buff *skb;
+	unsigned int cond;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_MCC_SET_DURATION_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev,
+			  "failed to alloc skb for mcc set duration\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_MCC_SET_DURATION_LEN);
+	RTW89_SET_FWCMD_MCC_SET_DURATION_GROUP(skb->data, p->group);
+	RTW89_SET_FWCMD_MCC_SET_DURATION_BTC_IN_GROUP(skb->data, p->btc_in_group);
+	RTW89_SET_FWCMD_MCC_SET_DURATION_START_MACID(skb->data, p->start_macid);
+	RTW89_SET_FWCMD_MCC_SET_DURATION_MACID_X(skb->data, p->macid_x);
+	RTW89_SET_FWCMD_MCC_SET_DURATION_MACID_Y(skb->data, p->macid_y);
+	RTW89_SET_FWCMD_MCC_SET_DURATION_START_TSF_LOW(skb->data,
+						       p->start_tsf_low);
+	RTW89_SET_FWCMD_MCC_SET_DURATION_START_TSF_HIGH(skb->data,
+							p->start_tsf_high);
+	RTW89_SET_FWCMD_MCC_SET_DURATION_DURATION_X(skb->data, p->duration_x);
+	RTW89_SET_FWCMD_MCC_SET_DURATION_DURATION_Y(skb->data, p->duration_y);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MCC,
+			      H2C_FUNC_MCC_SET_DURATION, 0, 0,
+			      H2C_MCC_SET_DURATION_LEN);
+
+	cond = RTW89_MCC_WAIT_COND(p->group, H2C_FUNC_MCC_SET_DURATION);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+}
