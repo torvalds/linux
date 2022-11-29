@@ -242,6 +242,9 @@ int iommufd_ioas_copy(struct iommufd_ucmd *ucmd)
 	unsigned long iova;
 	int rc;
 
+	iommufd_test_syz_conv_iova_id(ucmd, cmd->src_ioas_id, &cmd->src_iova,
+				      &cmd->flags);
+
 	if ((cmd->flags &
 	     ~(IOMMU_IOAS_MAP_FIXED_IOVA | IOMMU_IOAS_MAP_WRITEABLE |
 	       IOMMU_IOAS_MAP_READABLE)))

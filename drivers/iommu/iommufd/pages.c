@@ -56,7 +56,11 @@
 #include "io_pagetable.h"
 #include "double_span.h"
 
+#ifndef CONFIG_IOMMUFD_TEST
 #define TEMP_MEMORY_LIMIT 65536
+#else
+#define TEMP_MEMORY_LIMIT iommufd_test_memory_limit
+#endif
 #define BATCH_BACKUP_SIZE 32
 
 /*
@@ -1755,6 +1759,10 @@ int iopt_pages_rw_access(struct iopt_pages *pages, unsigned long start_byte,
 	unsigned long last_index = (start_byte + length - 1) / PAGE_SIZE;
 	bool change_mm = current->mm != pages->source_mm;
 	int rc = 0;
+
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST) &&
+	    (flags & __IOMMUFD_ACCESS_RW_SLOW_PATH))
+		change_mm = true;
 
 	if ((flags & IOMMUFD_ACCESS_RW_WRITE) && !pages->writable)
 		return -EPERM;

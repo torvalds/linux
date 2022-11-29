@@ -34,6 +34,9 @@ enum {
 	IOMMUFD_ACCESS_RW_WRITE = 1 << 0,
 	/* Set if the caller is in a kthread then rw will use kthread_use_mm() */
 	IOMMUFD_ACCESS_RW_KTHREAD = 1 << 1,
+
+	/* Only for use by selftest */
+	__IOMMUFD_ACCESS_RW_SLOW_PATH = 1 << 2,
 };
 
 struct iommufd_access *
