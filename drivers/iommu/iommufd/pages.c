@@ -212,6 +212,18 @@ static void iommu_unmap_nofail(struct iommu_domain *domain, unsigned long iova,
 	WARN_ON(ret != size);
 }
 
+static void iopt_area_unmap_domain_range(struct iopt_area *area,
+					 struct iommu_domain *domain,
+					 unsigned long start_index,
+					 unsigned long last_index)
+{
+	unsigned long start_iova = iopt_area_index_to_iova(area, start_index);
+
+	iommu_unmap_nofail(domain, start_iova,
+			   iopt_area_index_to_iova_last(area, last_index) -
+				   start_iova + 1);
+}
+
 static struct iopt_area *iopt_pages_find_domain_area(struct iopt_pages *pages,
 						     unsigned long index)
 {
@@ -1063,4 +1075,835 @@ static int pfn_reader_first(struct pfn_reader *pfns, struct iopt_pages *pages,
 		return rc;
 	}
 	return 0;
+}
+
+struct iopt_pages *iopt_alloc_pages(void __user *uptr, unsigned long length,
+				    bool writable)
+{
+	struct iopt_pages *pages;
+
+	/*
+	 * The iommu API uses size_t as the length, and protect the DIV_ROUND_UP
+	 * below from overflow
+	 */
+	if (length > SIZE_MAX - PAGE_SIZE || length == 0)
+		return ERR_PTR(-EINVAL);
+
+	pages = kzalloc(sizeof(*pages), GFP_KERNEL_ACCOUNT);
+	if (!pages)
+		return ERR_PTR(-ENOMEM);
+
+	kref_init(&pages->kref);
+	xa_init_flags(&pages->pinned_pfns, XA_FLAGS_ACCOUNT);
+	mutex_init(&pages->mutex);
+	pages->source_mm = current->mm;
+	mmgrab(pages->source_mm);
+	pages->uptr = (void __user *)ALIGN_DOWN((uintptr_t)uptr, PAGE_SIZE);
+	pages->npages = DIV_ROUND_UP(length + (uptr - pages->uptr), PAGE_SIZE);
+	pages->access_itree = RB_ROOT_CACHED;
+	pages->domains_itree = RB_ROOT_CACHED;
+	pages->writable = writable;
+	if (capable(CAP_IPC_LOCK))
+		pages->account_mode = IOPT_PAGES_ACCOUNT_NONE;
+	else
+		pages->account_mode = IOPT_PAGES_ACCOUNT_USER;
+	pages->source_task = current->group_leader;
+	get_task_struct(current->group_leader);
+	pages->source_user = get_uid(current_user());
+	return pages;
+}
+
+void iopt_release_pages(struct kref *kref)
+{
+	struct iopt_pages *pages = container_of(kref, struct iopt_pages, kref);
+
+	WARN_ON(!RB_EMPTY_ROOT(&pages->access_itree.rb_root));
+	WARN_ON(!RB_EMPTY_ROOT(&pages->domains_itree.rb_root));
+	WARN_ON(pages->npinned);
+	WARN_ON(!xa_empty(&pages->pinned_pfns));
+	mmdrop(pages->source_mm);
+	mutex_destroy(&pages->mutex);
+	put_task_struct(pages->source_task);
+	free_uid(pages->source_user);
+	kfree(pages);
+}
+
+static void
+iopt_area_unpin_domain(struct pfn_batch *batch, struct iopt_area *area,
+		       struct iopt_pages *pages, struct iommu_domain *domain,
+		       unsigned long start_index, unsigned long last_index,
+		       unsigned long *unmapped_end_index,
+		       unsigned long real_last_index)
+{
+	while (start_index <= last_index) {
+		unsigned long batch_last_index;
+
+		if (*unmapped_end_index <= last_index) {
+			unsigned long start =
+				max(start_index, *unmapped_end_index);
+
+			batch_from_domain(batch, domain, area, start,
+					  last_index);
+			batch_last_index = start + batch->total_pfns - 1;
+		} else {
+			batch_last_index = last_index;
+		}
+
+		/*
+		 * unmaps must always 'cut' at a place where the pfns are not
+		 * contiguous to pair with the maps that always install
+		 * contiguous pages. Thus, if we have to stop unpinning in the
+		 * middle of the domains we need to keep reading pfns until we
+		 * find a cut point to do the unmap. The pfns we read are
+		 * carried over and either skipped or integrated into the next
+		 * batch.
+		 */
+		if (batch_last_index == last_index &&
+		    last_index != real_last_index)
+			batch_from_domain_continue(batch, domain, area,
+						   last_index + 1,
+						   real_last_index);
+
+		if (*unmapped_end_index <= batch_last_index) {
+			iopt_area_unmap_domain_range(
+				area, domain, *unmapped_end_index,
+				start_index + batch->total_pfns - 1);
+			*unmapped_end_index = start_index + batch->total_pfns;
+		}
+
+		/* unpin must follow unmap */
+		batch_unpin(batch, pages, 0,
+			    batch_last_index - start_index + 1);
+		start_index = batch_last_index + 1;
+
+		batch_clear_carry(batch,
+				  *unmapped_end_index - batch_last_index - 1);
+	}
+}
+
+static void __iopt_area_unfill_domain(struct iopt_area *area,
+				      struct iopt_pages *pages,
+				      struct iommu_domain *domain,
+				      unsigned long last_index)
+{
+	struct interval_tree_double_span_iter span;
+	unsigned long start_index = iopt_area_index(area);
+	unsigned long unmapped_end_index = start_index;
+	u64 backup[BATCH_BACKUP_SIZE];
+	struct pfn_batch batch;
+
+	lockdep_assert_held(&pages->mutex);
+
+	/*
+	 * For security we must not unpin something that is still DMA mapped,
+	 * so this must unmap any IOVA before we go ahead and unpin the pages.
+	 * This creates a complexity where we need to skip over unpinning pages
+	 * held in the xarray, but continue to unmap from the domain.
+	 *
+	 * The domain unmap cannot stop in the middle of a contiguous range of
+	 * PFNs. To solve this problem the unpinning step will read ahead to the
+	 * end of any contiguous span, unmap that whole span, and then only
+	 * unpin the leading part that does not have any accesses. The residual
+	 * PFNs that were unmapped but not unpinned are called a "carry" in the
+	 * batch as they are moved to the front of the PFN list and continue on
+	 * to the next iteration(s).
+	 */
+	batch_init_backup(&batch, last_index + 1, backup, sizeof(backup));
+	interval_tree_for_each_double_span(&span, &pages->domains_itree,
+					   &pages->access_itree, start_index,
+					   last_index) {
+		if (span.is_used) {
+			batch_skip_carry(&batch,
+					 span.last_used - span.start_used + 1);
+			continue;
+		}
+		iopt_area_unpin_domain(&batch, area, pages, domain,
+				       span.start_hole, span.last_hole,
+				       &unmapped_end_index, last_index);
+	}
+	/*
+	 * If the range ends in a access then we do the residual unmap without
+	 * any unpins.
+	 */
+	if (unmapped_end_index != last_index + 1)
+		iopt_area_unmap_domain_range(area, domain, unmapped_end_index,
+					     last_index);
+	WARN_ON(batch.total_pfns);
+	batch_destroy(&batch, backup);
+	update_unpinned(pages);
+}
+
+static void iopt_area_unfill_partial_domain(struct iopt_area *area,
+					    struct iopt_pages *pages,
+					    struct iommu_domain *domain,
+					    unsigned long end_index)
+{
+	if (end_index != iopt_area_index(area))
+		__iopt_area_unfill_domain(area, pages, domain, end_index - 1);
+}
+
+/**
+ * iopt_area_unmap_domain() - Unmap without unpinning PFNs in a domain
+ * @area: The IOVA range to unmap
+ * @domain: The domain to unmap
+ *
+ * The caller must know that unpinning is not required, usually because there
+ * are other domains in the iopt.
+ */
+void iopt_area_unmap_domain(struct iopt_area *area, struct iommu_domain *domain)
+{
+	iommu_unmap_nofail(domain, iopt_area_iova(area),
+			   iopt_area_length(area));
+}
+
+/**
+ * iopt_area_unfill_domain() - Unmap and unpin PFNs in a domain
+ * @area: IOVA area to use
+ * @pages: page supplier for the area (area->pages is NULL)
+ * @domain: Domain to unmap from
+ *
+ * The domain should be removed from the domains_itree before calling. The
+ * domain will always be unmapped, but the PFNs may not be unpinned if there are
+ * still accesses.
+ */
+void iopt_area_unfill_domain(struct iopt_area *area, struct iopt_pages *pages,
+			     struct iommu_domain *domain)
+{
+	__iopt_area_unfill_domain(area, pages, domain,
+				  iopt_area_last_index(area));
+}
+
+/**
+ * iopt_area_fill_domain() - Map PFNs from the area into a domain
+ * @area: IOVA area to use
+ * @domain: Domain to load PFNs into
+ *
+ * Read the pfns from the area's underlying iopt_pages and map them into the
+ * given domain. Called when attaching a new domain to an io_pagetable.
+ */
+int iopt_area_fill_domain(struct iopt_area *area, struct iommu_domain *domain)
+{
+	unsigned long done_end_index;
+	struct pfn_reader pfns;
+	int rc;
+
+	lockdep_assert_held(&area->pages->mutex);
+
+	rc = pfn_reader_first(&pfns, area->pages, iopt_area_index(area),
+			      iopt_area_last_index(area));
+	if (rc)
+		return rc;
+
+	while (!pfn_reader_done(&pfns)) {
+		done_end_index = pfns.batch_start_index;
+		rc = batch_to_domain(&pfns.batch, domain, area,
+				     pfns.batch_start_index);
+		if (rc)
+			goto out_unmap;
+		done_end_index = pfns.batch_end_index;
+
+		rc = pfn_reader_next(&pfns);
+		if (rc)
+			goto out_unmap;
+	}
+
+	rc = pfn_reader_update_pinned(&pfns);
+	if (rc)
+		goto out_unmap;
+	goto out_destroy;
+
+out_unmap:
+	pfn_reader_release_pins(&pfns);
+	iopt_area_unfill_partial_domain(area, area->pages, domain,
+					done_end_index);
+out_destroy:
+	pfn_reader_destroy(&pfns);
+	return rc;
+}
+
+/**
+ * iopt_area_fill_domains() - Install PFNs into the area's domains
+ * @area: The area to act on
+ * @pages: The pages associated with the area (area->pages is NULL)
+ *
+ * Called during area creation. The area is freshly created and not inserted in
+ * the domains_itree yet. PFNs are read and loaded into every domain held in the
+ * area's io_pagetable and the area is installed in the domains_itree.
+ *
+ * On failure all domains are left unchanged.
+ */
+int iopt_area_fill_domains(struct iopt_area *area, struct iopt_pages *pages)
+{
+	unsigned long done_first_end_index;
+	unsigned long done_all_end_index;
+	struct iommu_domain *domain;
+	unsigned long unmap_index;
+	struct pfn_reader pfns;
+	unsigned long index;
+	int rc;
+
+	lockdep_assert_held(&area->iopt->domains_rwsem);
+
+	if (xa_empty(&area->iopt->domains))
+		return 0;
+
+	mutex_lock(&pages->mutex);
+	rc = pfn_reader_first(&pfns, pages, iopt_area_index(area),
+			      iopt_area_last_index(area));
+	if (rc)
+		goto out_unlock;
+
+	while (!pfn_reader_done(&pfns)) {
+		done_first_end_index = pfns.batch_end_index;
+		done_all_end_index = pfns.batch_start_index;
+		xa_for_each(&area->iopt->domains, index, domain) {
+			rc = batch_to_domain(&pfns.batch, domain, area,
+					     pfns.batch_start_index);
+			if (rc)
+				goto out_unmap;
+		}
+		done_all_end_index = done_first_end_index;
+
+		rc = pfn_reader_next(&pfns);
+		if (rc)
+			goto out_unmap;
+	}
+	rc = pfn_reader_update_pinned(&pfns);
+	if (rc)
+		goto out_unmap;
+
+	area->storage_domain = xa_load(&area->iopt->domains, 0);
+	interval_tree_insert(&area->pages_node, &pages->domains_itree);
+	goto out_destroy;
+
+out_unmap:
+	pfn_reader_release_pins(&pfns);
+	xa_for_each(&area->iopt->domains, unmap_index, domain) {
+		unsigned long end_index;
+
+		if (unmap_index < index)
+			end_index = done_first_end_index;
+		else
+			end_index = done_all_end_index;
+
+		/*
+		 * The area is not yet part of the domains_itree so we have to
+		 * manage the unpinning specially. The last domain does the
+		 * unpin, every other domain is just unmapped.
+		 */
+		if (unmap_index != area->iopt->next_domain_id - 1) {
+			if (end_index != iopt_area_index(area))
+				iopt_area_unmap_domain_range(
+					area, domain, iopt_area_index(area),
+					end_index - 1);
+		} else {
+			iopt_area_unfill_partial_domain(area, pages, domain,
+							end_index);
+		}
+	}
+out_destroy:
+	pfn_reader_destroy(&pfns);
+out_unlock:
+	mutex_unlock(&pages->mutex);
+	return rc;
+}
+
+/**
+ * iopt_area_unfill_domains() - unmap PFNs from the area's domains
+ * @area: The area to act on
+ * @pages: The pages associated with the area (area->pages is NULL)
+ *
+ * Called during area destruction. This unmaps the iova's covered by all the
+ * area's domains and releases the PFNs.
+ */
+void iopt_area_unfill_domains(struct iopt_area *area, struct iopt_pages *pages)
+{
+	struct io_pagetable *iopt = area->iopt;
+	struct iommu_domain *domain;
+	unsigned long index;
+
+	lockdep_assert_held(&iopt->domains_rwsem);
+
+	mutex_lock(&pages->mutex);
+	if (!area->storage_domain)
+		goto out_unlock;
+
+	xa_for_each(&iopt->domains, index, domain)
+		if (domain != area->storage_domain)
+			iopt_area_unmap_domain_range(
+				area, domain, iopt_area_index(area),
+				iopt_area_last_index(area));
+
+	interval_tree_remove(&area->pages_node, &pages->domains_itree);
+	iopt_area_unfill_domain(area, pages, area->storage_domain);
+	area->storage_domain = NULL;
+out_unlock:
+	mutex_unlock(&pages->mutex);
+}
+
+static void iopt_pages_unpin_xarray(struct pfn_batch *batch,
+				    struct iopt_pages *pages,
+				    unsigned long start_index,
+				    unsigned long end_index)
+{
+	while (start_index <= end_index) {
+		batch_from_xarray_clear(batch, &pages->pinned_pfns, start_index,
+					end_index);
+		batch_unpin(batch, pages, 0, batch->total_pfns);
+		start_index += batch->total_pfns;
+		batch_clear(batch);
+	}
+}
+
+/**
+ * iopt_pages_unfill_xarray() - Update the xarry after removing an access
+ * @pages: The pages to act on
+ * @start_index: Starting PFN index
+ * @last_index: Last PFN index
+ *
+ * Called when an iopt_pages_access is removed, removes pages from the itree.
+ * The access should already be removed from the access_itree.
+ */
+void iopt_pages_unfill_xarray(struct iopt_pages *pages,
+			      unsigned long start_index,
+			      unsigned long last_index)
+{
+	struct interval_tree_double_span_iter span;
+	u64 backup[BATCH_BACKUP_SIZE];
+	struct pfn_batch batch;
+	bool batch_inited = false;
+
+	lockdep_assert_held(&pages->mutex);
+
+	interval_tree_for_each_double_span(&span, &pages->access_itree,
+					   &pages->domains_itree, start_index,
+					   last_index) {
+		if (!span.is_used) {
+			if (!batch_inited) {
+				batch_init_backup(&batch,
+						  last_index - start_index + 1,
+						  backup, sizeof(backup));
+				batch_inited = true;
+			}
+			iopt_pages_unpin_xarray(&batch, pages, span.start_hole,
+						span.last_hole);
+		} else if (span.is_used == 2) {
+			/* Covered by a domain */
+			clear_xarray(&pages->pinned_pfns, span.start_used,
+				     span.last_used);
+		}
+		/* Otherwise covered by an existing access */
+	}
+	if (batch_inited)
+		batch_destroy(&batch, backup);
+	update_unpinned(pages);
+}
+
+/**
+ * iopt_pages_fill_from_xarray() - Fast path for reading PFNs
+ * @pages: The pages to act on
+ * @start_index: The first page index in the range
+ * @last_index: The last page index in the range
+ * @out_pages: The output array to return the pages
+ *
+ * This can be called if the caller is holding a refcount on an
+ * iopt_pages_access that is known to have already been filled. It quickly reads
+ * the pages directly from the xarray.
+ *
+ * This is part of the SW iommu interface to read pages for in-kernel use.
+ */
+void iopt_pages_fill_from_xarray(struct iopt_pages *pages,
+				 unsigned long start_index,
+				 unsigned long last_index,
+				 struct page **out_pages)
+{
+	XA_STATE(xas, &pages->pinned_pfns, start_index);
+	void *entry;
+
+	rcu_read_lock();
+	while (start_index <= last_index) {
+		entry = xas_next(&xas);
+		if (xas_retry(&xas, entry))
+			continue;
+		WARN_ON(!xa_is_value(entry));
+		*(out_pages++) = pfn_to_page(xa_to_value(entry));
+		start_index++;
+	}
+	rcu_read_unlock();
+}
+
+static int iopt_pages_fill_from_domain(struct iopt_pages *pages,
+				       unsigned long start_index,
+				       unsigned long last_index,
+				       struct page **out_pages)
+{
+	while (start_index != last_index + 1) {
+		unsigned long domain_last;
+		struct iopt_area *area;
+
+		area = iopt_pages_find_domain_area(pages, start_index);
+		if (WARN_ON(!area))
+			return -EINVAL;
+
+		domain_last = min(iopt_area_last_index(area), last_index);
+		out_pages = raw_pages_from_domain(area->storage_domain, area,
+						  start_index, domain_last,
+						  out_pages);
+		start_index = domain_last + 1;
+	}
+	return 0;
+}
+
+static int iopt_pages_fill_from_mm(struct iopt_pages *pages,
+				   struct pfn_reader_user *user,
+				   unsigned long start_index,
+				   unsigned long last_index,
+				   struct page **out_pages)
+{
+	unsigned long cur_index = start_index;
+	int rc;
+
+	while (cur_index != last_index + 1) {
+		user->upages = out_pages + (cur_index - start_index);
+		rc = pfn_reader_user_pin(user, pages, cur_index, last_index);
+		if (rc)
+			goto out_unpin;
+		cur_index = user->upages_end;
+	}
+	return 0;
+
+out_unpin:
+	if (start_index != cur_index)
+		iopt_pages_err_unpin(pages, start_index, cur_index - 1,
+				     out_pages);
+	return rc;
+}
+
+/**
+ * iopt_pages_fill_xarray() - Read PFNs
+ * @pages: The pages to act on
+ * @start_index: The first page index in the range
+ * @last_index: The last page index in the range
+ * @out_pages: The output array to return the pages, may be NULL
+ *
+ * This populates the xarray and returns the pages in out_pages. As the slow
+ * path this is able to copy pages from other storage tiers into the xarray.
+ *
+ * On failure the xarray is left unchanged.
+ *
+ * This is part of the SW iommu interface to read pages for in-kernel use.
+ */
+int iopt_pages_fill_xarray(struct iopt_pages *pages, unsigned long start_index,
+			   unsigned long last_index, struct page **out_pages)
+{
+	struct interval_tree_double_span_iter span;
+	unsigned long xa_end = start_index;
+	struct pfn_reader_user user;
+	int rc;
+
+	lockdep_assert_held(&pages->mutex);
+
+	pfn_reader_user_init(&user, pages);
+	user.upages_len = (last_index - start_index + 1) * sizeof(*out_pages);
+	interval_tree_for_each_double_span(&span, &pages->access_itree,
+					   &pages->domains_itree, start_index,
+					   last_index) {
+		struct page **cur_pages;
+
+		if (span.is_used == 1) {
+			cur_pages = out_pages + (span.start_used - start_index);
+			iopt_pages_fill_from_xarray(pages, span.start_used,
+						    span.last_used, cur_pages);
+			continue;
+		}
+
+		if (span.is_used == 2) {
+			cur_pages = out_pages + (span.start_used - start_index);
+			iopt_pages_fill_from_domain(pages, span.start_used,
+						    span.last_used, cur_pages);
+			rc = pages_to_xarray(&pages->pinned_pfns,
+					     span.start_used, span.last_used,
+					     cur_pages);
+			if (rc)
+				goto out_clean_xa;
+			xa_end = span.last_used + 1;
+			continue;
+		}
+
+		/* hole */
+		cur_pages = out_pages + (span.start_hole - start_index);
+		rc = iopt_pages_fill_from_mm(pages, &user, span.start_hole,
+					     span.last_hole, cur_pages);
+		if (rc)
+			goto out_clean_xa;
+		rc = pages_to_xarray(&pages->pinned_pfns, span.start_hole,
+				     span.last_hole, cur_pages);
+		if (rc) {
+			iopt_pages_err_unpin(pages, span.start_hole,
+					     span.last_hole, cur_pages);
+			goto out_clean_xa;
+		}
+		xa_end = span.last_hole + 1;
+	}
+	rc = pfn_reader_user_update_pinned(&user, pages);
+	if (rc)
+		goto out_clean_xa;
+	user.upages = NULL;
+	pfn_reader_user_destroy(&user, pages);
+	return 0;
+
+out_clean_xa:
+	if (start_index != xa_end)
+		iopt_pages_unfill_xarray(pages, start_index, xa_end - 1);
+	user.upages = NULL;
+	pfn_reader_user_destroy(&user, pages);
+	return rc;
+}
+
+/*
+ * This uses the pfn_reader instead of taking a shortcut by using the mm. It can
+ * do every scenario and is fully consistent with what an iommu_domain would
+ * see.
+ */
+static int iopt_pages_rw_slow(struct iopt_pages *pages,
+			      unsigned long start_index,
+			      unsigned long last_index, unsigned long offset,
+			      void *data, unsigned long length,
+			      unsigned int flags)
+{
+	struct pfn_reader pfns;
+	int rc;
+
+	mutex_lock(&pages->mutex);
+
+	rc = pfn_reader_first(&pfns, pages, start_index, last_index);
+	if (rc)
+		goto out_unlock;
+
+	while (!pfn_reader_done(&pfns)) {
+		unsigned long done;
+
+		done = batch_rw(&pfns.batch, data, offset, length, flags);
+		data += done;
+		length -= done;
+		offset = 0;
+		pfn_reader_unpin(&pfns);
+
+		rc = pfn_reader_next(&pfns);
+		if (rc)
+			goto out_destroy;
+	}
+	if (WARN_ON(length != 0))
+		rc = -EINVAL;
+out_destroy:
+	pfn_reader_destroy(&pfns);
+out_unlock:
+	mutex_unlock(&pages->mutex);
+	return rc;
+}
+
+/*
+ * A medium speed path that still allows DMA inconsistencies, but doesn't do any
+ * memory allocations or interval tree searches.
+ */
+static int iopt_pages_rw_page(struct iopt_pages *pages, unsigned long index,
+			      unsigned long offset, void *data,
+			      unsigned long length, unsigned int flags)
+{
+	struct page *page = NULL;
+	int rc;
+
+	if (!mmget_not_zero(pages->source_mm))
+		return iopt_pages_rw_slow(pages, index, index, offset, data,
+					  length, flags);
+
+	mmap_read_lock(pages->source_mm);
+	rc = pin_user_pages_remote(
+		pages->source_mm, (uintptr_t)(pages->uptr + index * PAGE_SIZE),
+		1, (flags & IOMMUFD_ACCESS_RW_WRITE) ? FOLL_WRITE : 0, &page,
+		NULL, NULL);
+	mmap_read_unlock(pages->source_mm);
+	if (rc != 1) {
+		if (WARN_ON(rc >= 0))
+			rc = -EINVAL;
+		goto out_mmput;
+	}
+	copy_data_page(page, data, offset, length, flags);
+	unpin_user_page(page);
+	rc = 0;
+
+out_mmput:
+	mmput(pages->source_mm);
+	return rc;
+}
+
+/**
+ * iopt_pages_rw_access - Copy to/from a linear slice of the pages
+ * @pages: pages to act on
+ * @start_byte: First byte of pages to copy to/from
+ * @data: Kernel buffer to get/put the data
+ * @length: Number of bytes to copy
+ * @flags: IOMMUFD_ACCESS_RW_* flags
+ *
+ * This will find each page in the range, kmap it and then memcpy to/from
+ * the given kernel buffer.
+ */
+int iopt_pages_rw_access(struct iopt_pages *pages, unsigned long start_byte,
+			 void *data, unsigned long length, unsigned int flags)
+{
+	unsigned long start_index = start_byte / PAGE_SIZE;
+	unsigned long last_index = (start_byte + length - 1) / PAGE_SIZE;
+	bool change_mm = current->mm != pages->source_mm;
+	int rc = 0;
+
+	if ((flags & IOMMUFD_ACCESS_RW_WRITE) && !pages->writable)
+		return -EPERM;
+
+	if (!(flags & IOMMUFD_ACCESS_RW_KTHREAD) && change_mm) {
+		if (start_index == last_index)
+			return iopt_pages_rw_page(pages, start_index,
+						  start_byte % PAGE_SIZE, data,
+						  length, flags);
+		return iopt_pages_rw_slow(pages, start_index, last_index,
+					  start_byte % PAGE_SIZE, data, length,
+					  flags);
+	}
+
+	/*
+	 * Try to copy using copy_to_user(). We do this as a fast path and
+	 * ignore any pinning inconsistencies, unlike a real DMA path.
+	 */
+	if (change_mm) {
+		if (!mmget_not_zero(pages->source_mm))
+			return iopt_pages_rw_slow(pages, start_index,
+						  last_index,
+						  start_byte % PAGE_SIZE, data,
+						  length, flags);
+		kthread_use_mm(pages->source_mm);
+	}
+
+	if (flags & IOMMUFD_ACCESS_RW_WRITE) {
+		if (copy_to_user(pages->uptr + start_byte, data, length))
+			rc = -EFAULT;
+	} else {
+		if (copy_from_user(data, pages->uptr + start_byte, length))
+			rc = -EFAULT;
+	}
+
+	if (change_mm) {
+		kthread_unuse_mm(pages->source_mm);
+		mmput(pages->source_mm);
+	}
+
+	return rc;
+}
+
+static struct iopt_pages_access *
+iopt_pages_get_exact_access(struct iopt_pages *pages, unsigned long index,
+			    unsigned long last)
+{
+	struct interval_tree_node *node;
+
+	lockdep_assert_held(&pages->mutex);
+
+	/* There can be overlapping ranges in this interval tree */
+	for (node = interval_tree_iter_first(&pages->access_itree, index, last);
+	     node; node = interval_tree_iter_next(node, index, last))
+		if (node->start == index && node->last == last)
+			return container_of(node, struct iopt_pages_access,
+					    node);
+	return NULL;
+}
+
+/**
+ * iopt_area_add_access() - Record an in-knerel access for PFNs
+ * @area: The source of PFNs
+ * @start_index: First page index
+ * @last_index: Inclusive last page index
+ * @out_pages: Output list of struct page's representing the PFNs
+ * @flags: IOMMUFD_ACCESS_RW_* flags
+ *
+ * Record that an in-kernel access will be accessing the pages, ensure they are
+ * pinned, and return the PFNs as a simple list of 'struct page *'.
+ *
+ * This should be undone through a matching call to iopt_area_remove_access()
+ */
+int iopt_area_add_access(struct iopt_area *area, unsigned long start_index,
+			  unsigned long last_index, struct page **out_pages,
+			  unsigned int flags)
+{
+	struct iopt_pages *pages = area->pages;
+	struct iopt_pages_access *access;
+	int rc;
+
+	if ((flags & IOMMUFD_ACCESS_RW_WRITE) && !pages->writable)
+		return -EPERM;
+
+	mutex_lock(&pages->mutex);
+	access = iopt_pages_get_exact_access(pages, start_index, last_index);
+	if (access) {
+		area->num_accesses++;
+		access->users++;
+		iopt_pages_fill_from_xarray(pages, start_index, last_index,
+					    out_pages);
+		mutex_unlock(&pages->mutex);
+		return 0;
+	}
+
+	access = kzalloc(sizeof(*access), GFP_KERNEL_ACCOUNT);
+	if (!access) {
+		rc = -ENOMEM;
+		goto err_unlock;
+	}
+
+	rc = iopt_pages_fill_xarray(pages, start_index, last_index, out_pages);
+	if (rc)
+		goto err_free;
+
+	access->node.start = start_index;
+	access->node.last = last_index;
+	access->users = 1;
+	area->num_accesses++;
+	interval_tree_insert(&access->node, &pages->access_itree);
+	mutex_unlock(&pages->mutex);
+	return 0;
+
+err_free:
+	kfree(access);
+err_unlock:
+	mutex_unlock(&pages->mutex);
+	return rc;
+}
+
+/**
+ * iopt_area_remove_access() - Release an in-kernel access for PFNs
+ * @area: The source of PFNs
+ * @start_index: First page index
+ * @last_index: Inclusive last page index
+ *
+ * Undo iopt_area_add_access() and unpin the pages if necessary. The caller
+ * must stop using the PFNs before calling this.
+ */
+void iopt_area_remove_access(struct iopt_area *area, unsigned long start_index,
+			     unsigned long last_index)
+{
+	struct iopt_pages *pages = area->pages;
+	struct iopt_pages_access *access;
+
+	mutex_lock(&pages->mutex);
+	access = iopt_pages_get_exact_access(pages, start_index, last_index);
+	if (WARN_ON(!access))
+		goto out_unlock;
+
+	WARN_ON(area->num_accesses == 0 || access->users == 0);
+	area->num_accesses--;
+	access->users--;
+	if (access->users)
+		goto out_unlock;
+
+	interval_tree_remove(&access->node, &pages->access_itree);
+	iopt_pages_unfill_xarray(pages, start_index, last_index);
+	kfree(access);
+out_unlock:
+	mutex_unlock(&pages->mutex);
 }
