@@ -783,7 +783,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 	}
 	spin_unlock(&elv_list_lock);
 
-	len += sprintf(len+name, "\n");
+	len += sprintf(name+len, "\n");
 	return len;
 }
 
