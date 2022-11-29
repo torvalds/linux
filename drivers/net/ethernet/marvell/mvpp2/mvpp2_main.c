@@ -6104,6 +6104,13 @@ static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
 		}
 	}
 
+	/* Only valid on OF enabled platforms */
+	if (!of_get_mac_address_nvmem(to_of_node(fwnode), fw_mac_addr)) {
+		*mac_from = "nvmem cell";
+		eth_hw_addr_set(dev, fw_mac_addr);
+		return;
+	}
+
 	*mac_from = "random";
 	eth_hw_addr_random(dev);
 }
