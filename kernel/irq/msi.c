@@ -1645,7 +1645,7 @@ bool msi_device_has_isolated_msi(struct device *dev)
 	struct irq_domain *domain = dev_get_msi_domain(dev);
 
 	for (; domain; domain = domain->parent)
-		if (domain->flags & IRQ_DOMAIN_FLAG_MSI_REMAP)
+		if (domain->flags & IRQ_DOMAIN_FLAG_ISOLATED_MSI)
 			return true;
 	return false;
 }
