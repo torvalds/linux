@@ -1236,15 +1236,13 @@ struct entropy_timer_state {
 };
 
 /*
- * Each time the timer fires, we expect that we got an unpredictable
- * jump in the cycle counter. Even if the timer is running on another
- * CPU, the timer activity will be touching the stack of the CPU that is
- * generating entropy..
+ * Each time the timer fires, we expect that we got an unpredictable jump in
+ * the cycle counter. Even if the timer is running on another CPU, the timer
+ * activity will be touching the stack of the CPU that is generating entropy.
  *
- * Note that we don't re-arm the timer in the timer itself - we are
- * happy to be scheduled away, since that just makes the load more
- * complex, but we do not want the timer to keep ticking unless the
- * entropy loop is running.
+ * Note that we don't re-arm the timer in the timer itself - we are happy to be
+ * scheduled away, since that just makes the load more complex, but we do not
+ * want the timer to keep ticking unless the entropy loop is running.
  *
  * So the re-arming always happens in the entropy loop itself.
  */
@@ -1259,8 +1257,8 @@ static void __cold entropy_timer(struct timer_list *timer)
 }
 
 /*
- * If we have an actual cycle counter, see if we can
- * generate enough entropy with timing noise
+ * If we have an actual cycle counter, see if we can generate enough entropy
+ * with timing noise.
  */
 static void __cold try_to_generate_entropy(void)
 {
