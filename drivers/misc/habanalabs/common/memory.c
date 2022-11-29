@@ -1797,6 +1797,47 @@ err_dma_buf_put:
 	return rc;
 }
 
+static int validate_export_params(struct hl_device *hdev, u64 device_addr, u64 size)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 bar_address;
+
+	if (!IS_ALIGNED(device_addr, PAGE_SIZE)) {
+		dev_dbg(hdev->dev,
+			"exported device memory address 0x%llx should be aligned to 0x%lx\n",
+			device_addr, PAGE_SIZE);
+		return -EINVAL;
+	}
+
+	if (size < PAGE_SIZE) {
+		dev_dbg(hdev->dev,
+			"exported device memory size %llu should be equal to or greater than %lu\n",
+			size, PAGE_SIZE);
+		return -EINVAL;
+	}
+
+	if (device_addr < prop->dram_user_base_address ||
+				(device_addr + size) > prop->dram_end_address ||
+				(device_addr + size) < device_addr) {
+		dev_dbg(hdev->dev,
+			"DRAM memory range 0x%llx (+0x%llx) is outside of DRAM boundaries\n",
+			device_addr, size);
+		return -EINVAL;
+	}
+
+	bar_address = hdev->dram_pci_bar_start + (device_addr - prop->dram_base_address);
+
+	if ((bar_address + size) > (hdev->dram_pci_bar_start + prop->dram_pci_bar_size) ||
+			(bar_address + size) < bar_address) {
+		dev_dbg(hdev->dev,
+			"DRAM memory range 0x%llx (+0x%llx) is outside of PCI BAR boundaries\n",
+			device_addr, size);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * export_dmabuf_from_addr() - export a dma-buf object for the given memory
  *                             address and size.
@@ -1818,7 +1859,6 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 device_addr,
 	struct hl_dmabuf_priv *hl_dmabuf;
 	struct hl_device *hdev = ctx->hdev;
 	struct asic_fixed_properties *prop;
-	u64 bar_address;
 	int rc;
 
 	prop = &hdev->asic_prop;
@@ -1828,40 +1868,9 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 device_addr,
 		return -EOPNOTSUPP;
 	}
 
-	if (!IS_ALIGNED(device_addr, PAGE_SIZE)) {
-		dev_dbg(hdev->dev,
-			"exported device memory address 0x%llx should be aligned to 0x%lx\n",
-			device_addr, PAGE_SIZE);
-		return -EINVAL;
-	}
-
-	if (size < PAGE_SIZE) {
-		dev_dbg(hdev->dev,
-			"exported device memory size %llu should be equal to or greater than %lu\n",
-			size, PAGE_SIZE);
-		return -EINVAL;
-	}
-
-	if (device_addr < prop->dram_user_base_address ||
-				device_addr + size > prop->dram_end_address ||
-				device_addr + size < device_addr) {
-		dev_dbg(hdev->dev,
-			"DRAM memory range 0x%llx (+0x%llx) is outside of DRAM boundaries\n",
-			device_addr, size);
-		return -EINVAL;
-	}
-
-	bar_address = hdev->dram_pci_bar_start +
-			(device_addr - prop->dram_base_address);
-
-	if (bar_address + size >
-			hdev->dram_pci_bar_start + prop->dram_pci_bar_size ||
-			bar_address + size < bar_address) {
-		dev_dbg(hdev->dev,
-			"DRAM memory range 0x%llx (+0x%llx) is outside of PCI BAR boundaries\n",
-			device_addr, size);
-		return -EINVAL;
-	}
+	rc = validate_export_params(hdev, device_addr, size);
+	if (rc)
+		return rc;
 
 	hl_dmabuf = kzalloc(sizeof(*hl_dmabuf), GFP_KERNEL);
 	if (!hl_dmabuf)
