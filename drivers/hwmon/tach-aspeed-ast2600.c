@@ -128,7 +128,6 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 	int ret;
 
 	ret = regmap_read(priv->regmap, TACH_ASPEED_STS(fan_tach_ch), &val);
-
 	if (ret)
 		return ret;
 
@@ -315,7 +314,6 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 	struct device_node *np, *child;
 	struct aspeed_tach_data *priv;
 	struct device *hwmon;
-	struct platform_device *parent_dev;
 	int ret;
 
 	np = dev->parent->of_node;
@@ -331,14 +329,13 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->regmap))
 		return dev_err_probe(dev, PTR_ERR(priv->regmap),
 				     "Couldn't get regmap\n");
-	parent_dev = of_find_device_by_node(np);
-	priv->clk = devm_clk_get_enabled(&parent_dev->dev, NULL);
+	priv->clk = devm_clk_get_enabled(dev->parent, NULL);
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(dev, PTR_ERR(priv->clk),
 				     "Couldn't get clock\n");
 
-	priv->reset = devm_reset_control_get_shared(&parent_dev->dev, NULL);
 	priv->clk_source = clk_get_rate(priv->clk);
+	priv->reset = devm_reset_control_get_shared(dev->parent, NULL);
 	if (IS_ERR(priv->reset))
 		return dev_err_probe(dev, PTR_ERR(priv->reset),
 				     "Couldn't get reset control\n");
