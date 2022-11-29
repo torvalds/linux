@@ -318,18 +318,19 @@ get_cache:
 
 	si->page_mem = 0;
 	if (sbi->node_inode) {
-		unsigned npages = NODE_MAPPING(sbi)->nrpages;
+		unsigned long npages = NODE_MAPPING(sbi)->nrpages;
 
 		si->page_mem += (unsigned long long)npages << PAGE_SHIFT;
 	}
 	if (sbi->meta_inode) {
-		unsigned npages = META_MAPPING(sbi)->nrpages;
+		unsigned long npages = META_MAPPING(sbi)->nrpages;
 
 		si->page_mem += (unsigned long long)npages << PAGE_SHIFT;
 	}
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	if (sbi->compress_inode) {
-		unsigned npages = COMPRESS_MAPPING(sbi)->nrpages;
+		unsigned long npages = COMPRESS_MAPPING(sbi)->nrpages;
+
 		si->page_mem += (unsigned long long)npages << PAGE_SHIFT;
 	}
 #endif
@@ -477,28 +478,28 @@ static int stat_show(struct seq_file *s, void *v)
 				si->meta_count[META_NAT]);
 		seq_printf(s, "  - ssa blocks : %u\n",
 				si->meta_count[META_SSA]);
-		seq_printf(s, "CP merge (Queued: %4d, Issued: %4d, Total: %4d, "
-				"Cur time: %4d(ms), Peak time: %4d(ms))\n",
-				si->nr_queued_ckpt, si->nr_issued_ckpt,
-				si->nr_total_ckpt, si->cur_ckpt_time,
-				si->peak_ckpt_time);
+		seq_puts(s, "CP merge:\n");
+		seq_printf(s, "  - Queued : %4d\n", si->nr_queued_ckpt);
+		seq_printf(s, "  - Issued : %4d\n", si->nr_issued_ckpt);
+		seq_printf(s, "  - Total : %4d\n", si->nr_total_ckpt);
+		seq_printf(s, "  - Cur time : %4d(ms)\n", si->cur_ckpt_time);
+		seq_printf(s, "  - Peak time : %4d(ms)\n", si->peak_ckpt_time);
 		seq_printf(s, "GC calls: %d (BG: %d)\n",
 			   si->call_count, si->bg_gc);
 		seq_printf(s, "  - data segments : %d (%d)\n",
 				si->data_segs, si->bg_data_segs);
 		seq_printf(s, "  - node segments : %d (%d)\n",
 				si->node_segs, si->bg_node_segs);
-		seq_printf(s, "  - Reclaimed segs : Normal (%d), Idle CB (%d), "
-				"Idle Greedy (%d), Idle AT (%d), "
-				"Urgent High (%d), Urgent Mid (%d), "
-				"Urgent Low (%d)\n",
-				si->sbi->gc_reclaimed_segs[GC_NORMAL],
-				si->sbi->gc_reclaimed_segs[GC_IDLE_CB],
-				si->sbi->gc_reclaimed_segs[GC_IDLE_GREEDY],
-				si->sbi->gc_reclaimed_segs[GC_IDLE_AT],
-				si->sbi->gc_reclaimed_segs[GC_URGENT_HIGH],
-				si->sbi->gc_reclaimed_segs[GC_URGENT_MID],
-				si->sbi->gc_reclaimed_segs[GC_URGENT_LOW]);
+		seq_puts(s, "  - Reclaimed segs :\n");
+		seq_printf(s, "    - Normal : %d\n", si->sbi->gc_reclaimed_segs[GC_NORMAL]);
+		seq_printf(s, "    - Idle CB : %d\n", si->sbi->gc_reclaimed_segs[GC_IDLE_CB]);
+		seq_printf(s, "    - Idle Greedy : %d\n",
+				si->sbi->gc_reclaimed_segs[GC_IDLE_GREEDY]);
+		seq_printf(s, "    - Idle AT : %d\n", si->sbi->gc_reclaimed_segs[GC_IDLE_AT]);
+		seq_printf(s, "    - Urgent High : %d\n",
+				si->sbi->gc_reclaimed_segs[GC_URGENT_HIGH]);
+		seq_printf(s, "    - Urgent Mid : %d\n", si->sbi->gc_reclaimed_segs[GC_URGENT_MID]);
+		seq_printf(s, "    - Urgent Low : %d\n", si->sbi->gc_reclaimed_segs[GC_URGENT_LOW]);
 		seq_printf(s, "Try to move %d blocks (BG: %d)\n", si->tot_blks,
 				si->bg_data_blks + si->bg_node_blks);
 		seq_printf(s, "  - data blocks : %d (%d)\n", si->data_blks,
@@ -540,11 +541,11 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->nr_dio_read, si->nr_dio_write);
 		seq_printf(s, "  - IO_R (Data: %4d, Node: %4d, Meta: %4d\n",
 			   si->nr_rd_data, si->nr_rd_node, si->nr_rd_meta);
-		seq_printf(s, "  - IO_W (CP: %4d, Data: %4d, Flush: (%4d %4d %4d), "
-			"Discard: (%4d %4d)) cmd: %4d undiscard:%4u\n",
+		seq_printf(s, "  - IO_W (CP: %4d, Data: %4d, Flush: (%4d %4d %4d), ",
 			   si->nr_wb_cp_data, si->nr_wb_data,
 			   si->nr_flushing, si->nr_flushed,
-			   si->flush_list_empty,
+			   si->flush_list_empty);
+		seq_printf(s, "Discard: (%4d %4d)) cmd: %4d undiscard:%4u\n",
 			   si->nr_discarding, si->nr_discarded,
 			   si->nr_discard_cmd, si->undiscard_blks);
 		seq_printf(s, "  - atomic IO: %4d (Max. %4d)\n",
