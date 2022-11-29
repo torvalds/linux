@@ -516,6 +516,8 @@ enum drm_colorspace {
 	DRM_MODE_COLORIMETRY_RGB_WIDE_FIXED	= 13,
 	DRM_MODE_COLORIMETRY_RGB_WIDE_FLOAT	= 14,
 	DRM_MODE_COLORIMETRY_BT601_YCC		= 15,
+	/* not a valid value; merely used for counting */
+	DRM_MODE_COLORIMETRY_COUNT
 };
 
 /**
