@@ -42,9 +42,13 @@ static int tty3270_max_index;
 static struct tty3270 *condev;
 static struct raw3270_fn tty3270_fn;
 
+#define TTY3270_HIGHLIGHT_BLINK		1
+#define TTY3270_HIGHLIGHT_REVERSE	2
+#define TTY3270_HIGHLIGHT_UNDERSCORE	4
+
 struct tty3270_attribute {
 	unsigned char alternate_charset:1;	/* Graphics charset */
-	unsigned char highlight;		/* Blink/reverse/underscore */
+	unsigned char highlight:3;		/* Blink/reverse/underscore */
 	unsigned char f_color:4;		/* Foreground color */
 	unsigned char b_color:4;		/* Background color */
 };
@@ -301,7 +305,7 @@ static int tty3270_required_length(struct tty3270 *tp, struct tty3270_line *line
 	int i, flen = 3;		/* Prefix (TO_SBA). */
 
 	flen += line->len;
-	highlight = TAX_RESET;
+	highlight = 0;
 	f_color = TAC_RESET;
 	b_color = TAC_RESET;
 
@@ -321,7 +325,7 @@ static int tty3270_required_length(struct tty3270 *tp, struct tty3270_line *line
 		if (cell->attributes.alternate_charset)
 			flen += 1;	/* TO_GE to switch to graphics extensions */
 	}
-	if (highlight != TAX_RESET)
+	if (highlight)
 		flen += 3;	/* TO_SA to reset hightlight. */
 	if (f_color != TAC_RESET)
 		flen += 3;	/* TO_SA to reset color. */
@@ -336,7 +340,7 @@ static int tty3270_required_length(struct tty3270 *tp, struct tty3270_line *line
 static char *tty3270_add_reset_attributes(struct tty3270 *tp, struct tty3270_line *line,
 					  char *cp, struct tty3270_attribute *attr)
 {
-	if (attr->highlight != TAX_RESET)
+	if (attr->highlight)
 		cp = tty3270_add_sa(tp, cp, TAT_EXTHI, TAX_RESET);
 	if (attr->f_color != TAC_RESET)
 		cp = tty3270_add_sa(tp, cp, TAT_FGCOLOR, TAX_RESET);
@@ -392,6 +396,12 @@ static char *tty3270_add_attributes(struct tty3270 *tp, struct tty3270_line *lin
 		[9] = TAC_DEFAULT
 	};
 
+	const unsigned char highlights[8] = {
+		[TTY3270_HIGHLIGHT_BLINK] = TAX_BLINK,
+		[TTY3270_HIGHLIGHT_REVERSE] = TAX_REVER,
+		[TTY3270_HIGHLIGHT_UNDERSCORE] = TAX_UNDER,
+	};
+
 	struct tty3270_cell *cell;
 	int c, i;
 
@@ -400,7 +410,7 @@ static char *tty3270_add_attributes(struct tty3270 *tp, struct tty3270_line *lin
 	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
 		if (cell->attributes.highlight != attr->highlight) {
 			attr->highlight = cell->attributes.highlight;
-			cp = tty3270_add_sa(tp, cp, TAT_EXTHI, attr->highlight);
+			cp = tty3270_add_sa(tp, cp, TAT_EXTHI, highlights[attr->highlight]);
 		}
 		if (cell->attributes.f_color != attr->f_color) {
 			attr->f_color = cell->attributes.f_color;
@@ -1413,25 +1423,22 @@ static void tty3270_set_attributes(struct tty3270 *tp)
 			break;
 		/* Highlight. */
 		case 4:		/* Start underlining. */
-			tp->attributes.highlight = TAX_UNDER;
+			tp->attributes.highlight = TTY3270_HIGHLIGHT_UNDERSCORE;
 			break;
 		case 5:		/* Start blink. */
-			tp->attributes.highlight = TAX_BLINK;
+			tp->attributes.highlight = TTY3270_HIGHLIGHT_BLINK;
 			break;
 		case 7:		/* Start reverse. */
-			tp->attributes.highlight = TAX_REVER;
+			tp->attributes.highlight = TTY3270_HIGHLIGHT_REVERSE;
 			break;
 		case 24:	/* End underlining */
-			if (tp->attributes.highlight == TAX_UNDER)
-				tp->attributes.highlight = TAX_RESET;
+			tp->attributes.highlight &= ~TTY3270_HIGHLIGHT_UNDERSCORE;
 			break;
 		case 25:	/* End blink. */
-			if (tp->attributes.highlight == TAX_BLINK)
-				tp->attributes.highlight = TAX_RESET;
+			tp->attributes.highlight &= ~TTY3270_HIGHLIGHT_BLINK;
 			break;
 		case 27:	/* End reverse. */
-			if (tp->attributes.highlight == TAX_REVER)
-				tp->attributes.highlight = TAX_RESET;
+			tp->attributes.highlight &= ~TTY3270_HIGHLIGHT_REVERSE;
 			break;
 		/* Foreground color. */
 		case 30:	/* Black */
