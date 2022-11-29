@@ -356,8 +356,8 @@ void esw_acl_ingress_ofld_cleanup(struct mlx5_eswitch *esw,
 }
 
 /* Caller must hold rtnl_lock */
-int mlx5_esw_acl_ingress_vport_bond_update(struct mlx5_eswitch *esw, u16 vport_num,
-					   u32 metadata)
+int mlx5_esw_acl_ingress_vport_metadata_update(struct mlx5_eswitch *esw, u16 vport_num,
+					       u32 metadata)
 {
 	struct mlx5_vport *vport = mlx5_eswitch_get_vport(esw, vport_num);
 	int err;
