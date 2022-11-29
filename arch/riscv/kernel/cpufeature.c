@@ -9,6 +9,7 @@
 #include <linux/bitmap.h>
 #include <linux/ctype.h>
 #include <linux/libfdt.h>
+#include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <asm/alternative.h>
@@ -70,6 +71,18 @@ EXPORT_SYMBOL_GPL(__riscv_isa_extension_available);
 
 static bool riscv_isa_extension_check(int id)
 {
+	switch (id) {
+	case RISCV_ISA_EXT_ZICBOM:
+		if (!riscv_cbom_block_size) {
+			pr_err("Zicbom detected in ISA string, but no cbom-block-size found\n");
+			return false;
+		} else if (!is_power_of_2(riscv_cbom_block_size)) {
+			pr_err("cbom-block-size present, but is not a power-of-2\n");
+			return false;
+		}
+		return true;
+	}
+
 	return true;
 }
 
