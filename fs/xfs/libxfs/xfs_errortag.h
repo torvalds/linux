@@ -61,7 +61,8 @@
 #define XFS_ERRTAG_LARP					39
 #define XFS_ERRTAG_DA_LEAF_SPLIT			40
 #define XFS_ERRTAG_ATTR_LEAF_TO_NODE			41
-#define XFS_ERRTAG_MAX					42
+#define XFS_ERRTAG_WB_DELAY_MS				42
+#define XFS_ERRTAG_MAX					43
 
 /*
  * Random factors for above tags, 1 means always, 2 means 1/2 time, etc.
@@ -107,5 +108,6 @@
 #define XFS_RANDOM_LARP					1
 #define XFS_RANDOM_DA_LEAF_SPLIT			1
 #define XFS_RANDOM_ATTR_LEAF_TO_NODE			1
+#define XFS_RANDOM_WB_DELAY_MS				3000
 
 #endif /* __XFS_ERRORTAG_H_ */

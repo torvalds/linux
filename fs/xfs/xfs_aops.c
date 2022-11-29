@@ -17,6 +17,8 @@
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
 #include "xfs_reflink.h"
+#include "xfs_errortag.h"
+#include "xfs_error.h"
 
 struct xfs_writepage_ctx {
 	struct iomap_writepage_ctx ctx;
@@ -217,11 +219,17 @@ xfs_imap_valid(
 	 * checked (and found nothing at this offset) could have added
 	 * overlapping blocks.
 	 */
-	if (XFS_WPC(wpc)->data_seq != READ_ONCE(ip->i_df.if_seq))
+	if (XFS_WPC(wpc)->data_seq != READ_ONCE(ip->i_df.if_seq)) {
+		trace_xfs_wb_data_iomap_invalid(ip, &wpc->iomap,
+				XFS_WPC(wpc)->data_seq, XFS_DATA_FORK);
 		return false;
+	}
 	if (xfs_inode_has_cow_data(ip) &&
-	    XFS_WPC(wpc)->cow_seq != READ_ONCE(ip->i_cowfp->if_seq))
+	    XFS_WPC(wpc)->cow_seq != READ_ONCE(ip->i_cowfp->if_seq)) {
+		trace_xfs_wb_cow_iomap_invalid(ip, &wpc->iomap,
+				XFS_WPC(wpc)->cow_seq, XFS_COW_FORK);
 		return false;
+	}
 	return true;
 }
 
@@ -284,6 +292,8 @@ xfs_map_blocks(
 
 	if (xfs_is_shutdown(mp))
 		return -EIO;
+
+	XFS_ERRORTAG_DELAY(mp, XFS_ERRTAG_WB_DELAY_MS);
 
 	/*
 	 * COW fork blocks can overlap data fork blocks even if the blocks
