@@ -639,17 +639,24 @@ static int vcap_show_admin(struct vcap_control *vctrl,
 	mutex_lock(&admin->lock);
 	list_for_each_entry(elem, &admin->rules, list) {
 		ri = vcap_dup_rule(elem);
-		if (IS_ERR(ri))
-			goto free_rule;
+		if (IS_ERR(ri)) {
+			ret = PTR_ERR(ri);
+			goto err_unlock;
+		}
 		/* Read data from VCAP */
 		ret = vcap_read_rule(ri);
 		if (ret)
-			goto free_rule;
+			goto err_free_rule;
 		out->prf(out->dst, "\n");
 		vcap_show_admin_rule(vctrl, admin, out, ri);
-free_rule:
 		vcap_free_rule((struct vcap_rule *)ri);
 	}
+	mutex_unlock(&admin->lock);
+	return 0;
+
+err_free_rule:
+	vcap_free_rule((struct vcap_rule *)ri);
+err_unlock:
 	mutex_unlock(&admin->lock);
 	return ret;
 }
