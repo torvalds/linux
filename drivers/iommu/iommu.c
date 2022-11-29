@@ -1914,10 +1914,8 @@ bool iommu_group_has_isolated_msi(struct iommu_group *group)
 	bool ret = true;
 
 	mutex_lock(&group->mutex);
-	list_for_each_entry(group_dev, &group->devices, list) {
-		ret &= msi_device_has_isolated_msi(group_dev->dev) ||
-		       device_iommu_capable(group_dev->dev, IOMMU_CAP_INTR_REMAP);
-	}
+	list_for_each_entry(group_dev, &group->devices, list)
+		ret &= msi_device_has_isolated_msi(group_dev->dev);
 	mutex_unlock(&group->mutex);
 	return ret;
 }
