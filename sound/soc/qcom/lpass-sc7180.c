@@ -165,15 +165,9 @@ static int sc7180_lpass_exit(struct platform_device *pdev)
 
 static int sc7180_lpass_dev_resume(struct device *dev)
 {
-	int ret = 0;
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
 
-	ret = clk_bulk_prepare_enable(drvdata->num_clks, drvdata->clks);
-	if (ret) {
-		dev_err(dev, "sc7180 clk prepare and enable failed\n");
-		return ret;
-	}
-	return ret;
+	return clk_bulk_prepare_enable(drvdata->num_clks, drvdata->clks);
 }
 
 static int sc7180_lpass_dev_suspend(struct device *dev)
