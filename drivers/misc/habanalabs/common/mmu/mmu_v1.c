@@ -345,7 +345,6 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
 	}
 
 	hop2_pte_addr = hop2_addr;
-	hop2_pte_addr = hop2_addr;
 	for (i = 0 ; i < num_of_hop3 ; i++) {
 		clear_pte(ctx, hop2_pte_addr);
 		put_pte(ctx, hop2_addr);
