@@ -2508,12 +2508,11 @@ static void export_rdev(struct md_rdev *rdev)
 	kobject_put(&rdev->kobj);
 }
 
-void md_kick_rdev_from_array(struct md_rdev *rdev)
+static void md_kick_rdev_from_array(struct md_rdev *rdev)
 {
 	unbind_rdev_from_array(rdev);
 	export_rdev(rdev);
 }
-EXPORT_SYMBOL_GPL(md_kick_rdev_from_array);
 
 static void export_array(struct mddev *mddev)
 {
