@@ -16,7 +16,6 @@
 #include <linux/printk.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 #include <soc/amlogic/meson_ddr_pmu.h>
 

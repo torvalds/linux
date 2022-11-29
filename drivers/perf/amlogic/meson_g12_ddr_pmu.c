@@ -12,7 +12,6 @@
 #include <linux/platform_device.h>
 #include <linux/printk.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 #include <soc/amlogic/meson_ddr_pmu.h>
 
