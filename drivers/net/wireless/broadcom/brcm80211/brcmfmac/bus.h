@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/firmware.h>
+#include <linux/device.h>
 #include "debug.h"
 
 /* IDs of the 6 default common rings of msgbuf protocol */
@@ -74,6 +75,7 @@ struct brcmf_bus_dcmd {
  * @get_ramsize: obtain size of device memory.
  * @get_memdump: obtain device memory dump in provided buffer.
  * @get_blob: obtain a firmware blob.
+ * @remove: initiate unbind of the device.
  *
  * This structure provides an abstract interface towards the
  * bus specific driver. For control messages to common driver
@@ -94,6 +96,7 @@ struct brcmf_bus_ops {
 			enum brcmf_blob_type type);
 	void (*debugfs_create)(struct device *dev);
 	int (*reset)(struct device *dev);
+	void (*remove)(struct device *dev);
 };
 
 
@@ -255,6 +258,16 @@ int brcmf_bus_reset(struct brcmf_bus *bus)
 		return -EOPNOTSUPP;
 
 	return bus->ops->reset(bus->dev);
+}
+
+static inline void brcmf_bus_remove(struct brcmf_bus *bus)
+{
+	if (!bus->ops->remove) {
+		device_release_driver(bus->dev);
+		return;
+	}
+
+	bus->ops->remove(bus->dev);
 }
 
 /*
