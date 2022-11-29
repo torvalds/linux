@@ -997,6 +997,13 @@ static inline void set_compound_page_dtor(struct page *page,
 	page[1].compound_dtor = compound_dtor;
 }
 
+static inline void folio_set_compound_dtor(struct folio *folio,
+		enum compound_dtor_id compound_dtor)
+{
+	VM_BUG_ON_FOLIO(compound_dtor >= NR_COMPOUND_DTORS, folio);
+	folio->_folio_dtor = compound_dtor;
+}
+
 void destroy_large_folio(struct folio *folio);
 
 static inline int head_compound_pincount(struct page *head)
@@ -1009,6 +1016,22 @@ static inline void set_compound_order(struct page *page, unsigned int order)
 	page[1].compound_order = order;
 #ifdef CONFIG_64BIT
 	page[1].compound_nr = 1U << order;
+#endif
+}
+
+/*
+ * folio_set_compound_order is generally passed a non-zero order to
+ * initialize a large folio.  However, hugetlb code abuses this by
+ * passing in zero when 'dissolving' a large folio.
+ */
+static inline void folio_set_compound_order(struct folio *folio,
+		unsigned int order)
+{
+	VM_BUG_ON_FOLIO(!folio_test_large(folio), folio);
+
+	folio->_folio_order = order;
+#ifdef CONFIG_64BIT
+	folio->_folio_nr_pages = order ? 1U << order : 0;
 #endif
 }
 
