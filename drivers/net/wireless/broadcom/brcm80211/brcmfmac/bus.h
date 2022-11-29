@@ -33,6 +33,7 @@
 
 enum brcmf_fwvendor {
 	BRCMF_FWVENDOR_WCC,
+	BRCMF_FWVENDOR_CYW,
 	/* keep last */
 	BRCMF_FWVENDOR_NUM,
 	BRCMF_FWVENDOR_INVALID
