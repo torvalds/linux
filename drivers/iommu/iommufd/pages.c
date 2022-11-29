@@ -80,6 +80,10 @@ static void *temp_kmalloc(size_t *size, void *backup, size_t backup_len)
 
 	if (*size < backup_len)
 		return backup;
+
+	if (!backup && iommufd_should_fail())
+		return NULL;
+
 	*size = min_t(size_t, *size, TEMP_MEMORY_LIMIT);
 	res = kmalloc(*size, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
 	if (res)
@@ -544,6 +548,7 @@ static int pages_to_xarray(struct xarray *xa, unsigned long start_index,
 			   unsigned long last_index, struct page **pages)
 {
 	struct page **end_pages = pages + (last_index - start_index) + 1;
+	struct page **half_pages = pages + (end_pages - pages) / 2;
 	XA_STATE(xas, xa, start_index);
 
 	do {
@@ -551,6 +556,15 @@ static int pages_to_xarray(struct xarray *xa, unsigned long start_index,
 
 		xas_lock(&xas);
 		while (pages != end_pages) {
+			/* xarray does not participate in fault injection */
+			if (pages == half_pages && iommufd_should_fail()) {
+				xas_set_err(&xas, -EINVAL);
+				xas_unlock(&xas);
+				/* aka xas_destroy() */
+				xas_nomem(&xas, GFP_KERNEL);
+				goto err_clear;
+			}
+
 			old = xas_store(&xas, xa_mk_value(page_to_pfn(*pages)));
 			if (xas_error(&xas))
 				break;
@@ -561,6 +575,7 @@ static int pages_to_xarray(struct xarray *xa, unsigned long start_index,
 		xas_unlock(&xas);
 	} while (xas_nomem(&xas, GFP_KERNEL));
 
+err_clear:
 	if (xas_error(&xas)) {
 		if (xas.xa_index != start_index)
 			clear_xarray(xa, start_index, xas.xa_index - 1);
@@ -728,6 +743,10 @@ static int pfn_reader_user_pin(struct pfn_reader_user *user,
 	npages = min_t(unsigned long, last_index - start_index + 1,
 		       user->upages_len / sizeof(*user->upages));
 
+
+	if (iommufd_should_fail())
+		return -EFAULT;
+
 	uptr = (uintptr_t)(pages->uptr + start_index * PAGE_SIZE);
 	if (!remote_mm)
 		rc = pin_user_pages_fast(uptr, npages, user->gup_flags,
@@ -872,6 +891,8 @@ static int pfn_reader_user_update_pinned(struct pfn_reader_user *user,
 		npages = pages->last_npinned - pages->npinned;
 		inc = false;
 	} else {
+		if (iommufd_should_fail())
+			return -ENOMEM;
 		npages = pages->npinned - pages->last_npinned;
 		inc = true;
 	}
@@ -1720,6 +1741,11 @@ static int iopt_pages_rw_page(struct iopt_pages *pages, unsigned long index,
 	if (!mmget_not_zero(pages->source_mm))
 		return iopt_pages_rw_slow(pages, index, index, offset, data,
 					  length, flags);
+
+	if (iommufd_should_fail()) {
+		rc = -EINVAL;
+		goto out_mmput;
+	}
 
 	mmap_read_lock(pages->source_mm);
 	rc = pin_user_pages_remote(

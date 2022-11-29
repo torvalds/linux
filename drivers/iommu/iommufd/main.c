@@ -102,6 +102,9 @@ struct iommufd_object *iommufd_get_object(struct iommufd_ctx *ictx, u32 id,
 {
 	struct iommufd_object *obj;
 
+	if (iommufd_should_fail())
+		return ERR_PTR(-ENOENT);
+
 	xa_lock(&ictx->objects);
 	obj = xa_load(&ictx->objects, id);
 	if (!obj || (type != IOMMUFD_OBJ_ANY && obj->type != type) ||
