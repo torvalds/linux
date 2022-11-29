@@ -531,11 +531,11 @@ int vfio_device_assign_container(struct vfio_device *device)
 
 void vfio_device_unassign_container(struct vfio_device *device)
 {
-	mutex_lock(&device->group->group_lock);
+	lockdep_assert_held_write(&device->group->group_lock);
+
 	WARN_ON(device->group->container_users <= 1);
 	device->group->container_users--;
 	fput(device->group->opened_file);
-	mutex_unlock(&device->group->group_lock);
 }
 
 /*
