@@ -109,7 +109,7 @@ int brcmf_fwvid_register_vendor(enum brcmf_fwvendor fwvid, struct module *vmod,
 
 	return 0;
 }
-EXPORT_SYMBOL(brcmf_fwvid_register_vendor);
+BRCMF_EXPORT_SYMBOL_GPL(brcmf_fwvid_register_vendor);
 
 int brcmf_fwvid_unregister_vendor(enum brcmf_fwvendor fwvid, struct module *mod)
 {
@@ -142,7 +142,7 @@ int brcmf_fwvid_unregister_vendor(enum brcmf_fwvendor fwvid, struct module *mod)
 
 	return 0;
 }
-EXPORT_SYMBOL(brcmf_fwvid_unregister_vendor);
+BRCMF_EXPORT_SYMBOL_GPL(brcmf_fwvid_unregister_vendor);
 #else
 static inline int brcmf_fwvid_request_module(enum brcmf_fwvendor fwvid)
 {

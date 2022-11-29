@@ -13,6 +13,12 @@
 #include <net/cfg80211.h>
 #include "fweh.h"
 
+#if IS_MODULE(CONFIG_BRCMFMAC)
+#define BRCMF_EXPORT_SYMBOL_GPL(__sym)	EXPORT_SYMBOL_NS_GPL(__sym, BRCMFMAC)
+#else
+#define BRCMF_EXPORT_SYMBOL_GPL(__sym)
+#endif
+
 #define TOE_TX_CSUM_OL		0x00000001
 #define TOE_RX_CSUM_OL		0x00000002
 

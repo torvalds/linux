@@ -21,6 +21,7 @@ static void __exit brcmf_bca_exit(void)
 }
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_IMPORT_NS(BRCMFMAC);
 
 module_init(brcmf_bca_init);
 module_exit(brcmf_bca_exit);
