@@ -9,6 +9,10 @@
  * V0.0X01.0X00 first version.
  * V0.0X01.0X01 support DPHY 4K60.
  * V0.0X01.0X02 support BGR888 format.
+ * V0.0X01.0X03 add more timing support.
+ * V0.0X01.0X04
+ *  1.fix some errors.
+ *  2.add dphy timing reg.
  *
  */
 // #define DEBUG
@@ -36,7 +40,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 static int debug;
 module_param(debug, int, 0644);
@@ -45,9 +49,15 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define I2C_MAX_XFER_SIZE	128
 #define POLL_INTERVAL_MS	1000
 
-#define LT6911UXE_LINK_FREQ_HIGH	1250000000
-#define LT6911UXE_LINK_FREQ_MID		400000000
-#define LT6911UXE_LINK_FREQ_LOW		200000000
+#define LT6911UXE_LINK_FREQ_1250M	1250000000
+#define LT6911UXE_LINK_FREQ_900M	900000000
+#define LT6911UXE_LINK_FREQ_600M	600000000
+#define LT6911UXE_LINK_FREQ_450M	450000000
+#define LT6911UXE_LINK_FREQ_400M	400000000
+#define LT6911UXE_LINK_FREQ_300M	300000000
+#define LT6911UXE_LINK_FREQ_200M	200000000
+#define LT6911UXE_LINK_FREQ_150M	150000000
+#define LT6911UXE_LINK_FREQ_100M	100000000
 #define LT6911UXE_PIXEL_RATE		800000000
 
 #define LT6911UXE_CHIPID	0x0221
@@ -67,6 +77,14 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define VACT_H			0xe08e
 #define VACT_L			0xe08f
 
+#define HS_HALF			0xe080
+#define HFP_HALF_H		0xe081
+#define HFP_HALF_L		0xe082
+
+#define VS			0xe083
+#define VFP_H			0xe097
+#define VFP_L			0xe098
+
 #define PCLK_H			0xe085
 #define PCLK_M			0xe086
 #define PCLK_L			0xe087
@@ -85,6 +103,33 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define ENABLE_STREAM		0x01
 #define DISABLE_STREAM		0x00
 
+//mipi phy timing
+#define CLK_ZERO_REG		0xeaa7
+#define CLK_PRE_REG		0xeaa8
+#define CLK_POST_REG		0xeaa9
+#define HS_LPX_REG		0xeaa4
+#define HS_PREPARE_REG		0xeaa5
+#define HS_TRAIL		0xeaa6
+#define HS_RQST_PRE_REG		0xea8a
+
+//bit[2:0] mipi hs delay
+#define MIPI_TX_PT0_TX0_DLY	0xe23a
+#define MIPI_TX_PT0_TX1_DLY	0xe23b
+#define MIPI_TX_PT0_TXC_DLY	0xe23c
+#define MIPI_TX_PT0_TX2_DLY	0xe23d
+#define MIPI_TX_PT0_TX3_DLY	0xe23e
+
+#define MIPI_TX_PT1_TX0_DLY	0xe24a
+#define MIPI_TX_PT1_TX1_DLY	0xe24b
+#define MIPI_TX_PT1_TXC_DLY	0xe24c
+#define MIPI_TX_PT1_TX2_DLY	0xe24d
+#define MIPI_TX_PT1_TX3_DLY	0xe24e
+
+#define MIPI_TIMING_MASK	0x7
+//LP driver level
+#define MIPI_TX_PT0_LPTX	0xe234
+#define MIPI_TX_PT1_LPTX	0xe244
+
 // #define LT6911UXE_OUT_RGB
 #ifdef LT6911UXE_OUT_RGB
 #define LT6911UXE_MEDIA_BUS_FMT		MEDIA_BUS_FMT_BGR888_1X24
@@ -94,11 +139,25 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 
 #define LT6911UXE_NAME			"LT6911UXE"
 
+#ifdef LT6911UXE_OUT_RGB
 static const s64 link_freq_menu_items[] = {
-	LT6911UXE_LINK_FREQ_HIGH,
-	LT6911UXE_LINK_FREQ_MID,
-	LT6911UXE_LINK_FREQ_LOW,
+	LT6911UXE_LINK_FREQ_1250M,
+	LT6911UXE_LINK_FREQ_900M,
+	LT6911UXE_LINK_FREQ_600M,
+	LT6911UXE_LINK_FREQ_450M,
+	LT6911UXE_LINK_FREQ_300M,
+	LT6911UXE_LINK_FREQ_150M,
 };
+#else
+static const s64 link_freq_menu_items[] = {
+	LT6911UXE_LINK_FREQ_1250M,
+	LT6911UXE_LINK_FREQ_600M,
+	LT6911UXE_LINK_FREQ_400M,
+	LT6911UXE_LINK_FREQ_300M,
+	LT6911UXE_LINK_FREQ_200M,
+	LT6911UXE_LINK_FREQ_100M,
+};
+#endif
 
 struct lt6911uxe {
 	struct v4l2_fwnode_bus_mipi_csi2 bus;
@@ -163,9 +222,9 @@ struct lt6911uxe_mode {
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 	.vendor = PHY_VENDOR_SAMSUNG,
 	.lp_vol_ref = 3,
-	.lp_hys_sw = {0, 0, 0, 0},
+	.lp_hys_sw = {3, 0, 0, 0},
 	.lp_escclk_pol_sel = {1, 0, 0, 0},
-	.skew_data_cal_clk = {0, 0, 0, 0},
+	.skew_data_cal_clk = {0, 3, 3, 3},
 	.clk_hs_term_sel = 2,
 	.data_hs_term_sel = {2, 2, 2, 2},
 	.reserved = {0},
@@ -173,6 +232,36 @@ static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 
 static const struct lt6911uxe_mode supported_modes_dphy[] = {
 	{
+		.width = 5120,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 480000,
+		},
+		.hts_def = 5500,
+		.vts_def = 2250,
+		.mipi_freq_idx = 0,
+	}, {
+		.width = 4096,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 4400,
+		.vts_def = 2250,
+		.mipi_freq_idx = 0,
+	}, {
+		.width = 4096,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.hts_def = 4400,
+		.vts_def = 2250,
+		.mipi_freq_idx = 1,
+	}, {
 		.width = 3840,
 		.height = 2160,
 		.max_fps = {
@@ -183,6 +272,16 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.vts_def = 2250,
 		.mipi_freq_idx = 0,
 	}, {
+		.width = 3840,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.hts_def = 4400,
+		.vts_def = 2250,
+		.mipi_freq_idx = 1,
+	}, {
 		.width = 1920,
 		.height = 1080,
 		.max_fps = {
@@ -191,7 +290,127 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		},
 		.hts_def = 2200,
 		.vts_def = 1125,
-		.mipi_freq_idx = 1,
+		.mipi_freq_idx = 3,
+	}, {
+		.width = 1920,
+		.height = 1200,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 2592,
+		.vts_def = 1245,
+		.mipi_freq_idx = 3,
+	}, {
+		.width = 1920,
+		.height = 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.hts_def = 2200,
+		.vts_def = 1125,
+		.mipi_freq_idx = 4,
+	}, {
+		.width = 1680,
+		.height = 1050,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 2240,
+		.vts_def = 1089,
+		.mipi_freq_idx = 3,
+	}, {
+		.width = 1600,
+		.height = 1200,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 2160,
+		.vts_def = 1250,
+		.mipi_freq_idx = 3,
+	}, {
+		.width = 1600,
+		.height = 900,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 1800,
+		.vts_def = 1000,
+		.mipi_freq_idx = 3,
+	}, {
+		.width = 1440,
+		.height = 900,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 1904,
+		.vts_def = 934,
+		.mipi_freq_idx = 3,
+	}, {
+		.width = 1440,
+		.height = 240,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 1716,
+		.vts_def = 262,
+		.mipi_freq_idx = 5,
+	}, {
+		.width = 1360,
+		.height = 768,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 1792,
+		.vts_def = 795,
+		.mipi_freq_idx = 4,
+	}, {
+		.width = 1280,
+		.height = 1024,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 1688,
+		.vts_def = 1066,
+		.mipi_freq_idx = 3,
+	}, {
+		.width = 1280,
+		.height = 960,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 1712,
+		.vts_def = 994,
+		.mipi_freq_idx = 3,
+	}, {
+		.width = 1280,
+		.height = 800,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 1680,
+		.vts_def = 828,
+		.mipi_freq_idx = 4,
+	}, {
+		.width = 1280,
+		.height = 768,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 1664,
+		.vts_def = 798,
+		.mipi_freq_idx = 4,
 	}, {
 		.width = 1280,
 		.height = 720,
@@ -201,7 +420,37 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		},
 		.hts_def = 1650,
 		.vts_def = 750,
-		.mipi_freq_idx = 1,
+		.mipi_freq_idx = 4,
+	}, {
+		.width = 1152,
+		.height = 864,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 750000,
+		},
+		.hts_def = 1600,
+		.vts_def = 900,
+		.mipi_freq_idx = 4,
+	}, {
+		.width = 1024,
+		.height = 768,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 1344,
+		.vts_def = 806,
+		.mipi_freq_idx = 4,
+	}, {
+		.width = 800,
+		.height = 600,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 1056,
+		.vts_def = 628,
+		.mipi_freq_idx = 5,
 	}, {
 		.width = 720,
 		.height = 576,
@@ -211,7 +460,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		},
 		.hts_def = 864,
 		.vts_def = 625,
-		.mipi_freq_idx = 2,
+		.mipi_freq_idx = 5,
 	}, {
 		.width = 720,
 		.height = 480,
@@ -221,7 +470,35 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		},
 		.hts_def = 858,
 		.vts_def = 525,
-		.mipi_freq_idx = 2,
+		.mipi_freq_idx = 5,
+	}, {
+		.width = 720,
+		.height = 400,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 850000,
+		},
+		.hts_def = 936,
+		.vts_def = 446,
+		.mipi_freq_idx = 5,
+	}, {
+		.width = 720,
+		.height = 240,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.mipi_freq_idx = 5,
+	}, {
+		.width = 640,
+		.height = 480,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 800,
+		.vts_def = 525,
+		.mipi_freq_idx = 5,
 	},
 };
 
@@ -358,6 +635,15 @@ static void i2c_wr8(struct v4l2_subdev *sd, u16 reg, u8 val)
 	i2c_wr(sd, reg, &val, 1);
 }
 
+static __maybe_unused void i2c_wr8_and_or(struct v4l2_subdev *sd, u16 reg, u32 mask,
+			   u8 val)
+{
+	u8 val_p;
+
+	val_p = i2c_rd8(sd, reg);
+	i2c_wr8(sd, reg, (val_p & mask) | val);
+}
+
 static void lt6911uxe_i2c_enable(struct v4l2_subdev *sd)
 {
 	i2c_wr8(sd, I2C_EN_REG, I2C_ENABLE);
@@ -458,13 +744,14 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	struct v4l2_bt_timings *bt = &timings->bt;
-	u32 hact, vact, htotal, vtotal;
+	u32 hact, vact, htotal, vtotal, hs, vs, hbp, vbp, hfp, vfp;
 	u32 pixel_clock, fps, halt_pix_clk;
 	u8 clk_h, clk_m, clk_l;
 	u8 val_h, val_l;
 	u32 byte_clk, mipi_clk, mipi_data_rate;
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
+	lt6911uxe_i2c_enable(sd);
 
 	clk_h = i2c_rd8(sd, PCLK_H);
 	clk_m = i2c_rd8(sd, PCLK_M);
@@ -495,6 +782,22 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 	val_l = i2c_rd8(sd, VACT_L);
 	vact = (val_h << 8) | val_l;
 
+	hs = i2c_rd8(sd, HS_HALF) * 2;
+
+	val_h = i2c_rd8(sd, HFP_HALF_H);
+	val_l = i2c_rd8(sd, HFP_HALF_L);
+	hfp = ((val_h << 8) | val_l) * 2;
+
+	hbp = htotal - hact - hs - hfp;
+
+	vs = i2c_rd8(sd, VS);
+	val_h = i2c_rd8(sd, VFP_H);
+	val_l = i2c_rd8(sd, VFP_L);
+	vfp = (val_h << 8) | val_l;
+
+	vbp = vtotal - vact - vs - vfp;
+	lt6911uxe_i2c_disable(sd);
+
 	if (!lt6911uxe_rcv_supported_res(sd, hact, vact)) {
 		lt6911uxe->nosignal = true;
 		v4l2_err(sd, "%s: rcv err res, return no signal!\n", __func__);
@@ -507,14 +810,22 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 	bt->interlaced = V4L2_DV_PROGRESSIVE;
 	bt->width = hact;
 	bt->height = vact;
+	bt->vsync = vs;
+	bt->hsync = hs;
+	bt->hfrontporch = hfp;
+	bt->vfrontporch = vfp;
+	bt->hbackporch = hbp;
+	bt->vbackporch = vbp;
 	bt->pixelclock = pixel_clock;
 	fps = pixel_clock / (htotal * vtotal);
 
 	v4l2_info(sd, "act:%dx%d, total:%dx%d, pixclk:%d, fps:%d\n",
 			hact, vact, htotal, vtotal, pixel_clock, fps);
-	v4l2_info(sd, "byte_clk:%d, mipi_clk:%d, mipi_data_rate:%d\n",
+	v4l2_info(sd, "byte_clk:%u, mipi_clk:%u, mipi_data_rate:%u\n",
 			byte_clk, mipi_clk, mipi_data_rate);
-	v4l2_info(sd, "inerlaced:%d\n", bt->interlaced);
+	v4l2_info(sd, "hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d, inerlaced:%d\n",
+			bt->hfrontporch, bt->hsync, bt->hbackporch, bt->vfrontporch,
+			bt->vsync, bt->vbackporch, bt->interlaced);
 
 	return 0;
 }
@@ -574,28 +885,45 @@ static int lt6911uxe_update_controls(struct v4l2_subdev *sd)
 	return ret;
 }
 
-static bool lt6911uxe_match_timings(const struct v4l2_dv_timings *t1,
-					const struct v4l2_dv_timings *t2)
+static void lt6911uxe_config_dphy_timing(struct v4l2_subdev *sd)
 {
-	if (t1->type != t2->type || t1->type != V4L2_DV_BT_656_1120)
-		return false;
-	if (t1->bt.width == t2->bt.width &&
-		t1->bt.height == t2->bt.height &&
-		t1->bt.interlaced == t2->bt.interlaced)
-		return true;
+	u8 val;
 
-	return false;
+	val = i2c_rd8(sd, CLK_ZERO_REG);
+	i2c_wr8(sd, CLK_ZERO_REG, val);
+
+	val = i2c_rd8(sd, HS_PREPARE_REG);
+	i2c_wr8(sd, HS_PREPARE_REG, val);
+
+	val = i2c_rd8(sd, HS_TRAIL);
+	i2c_wr8(sd, HS_TRAIL, val);
+	v4l2_info(sd, "%s: dphy timing: hs trail = %x\n", __func__, val);
+
+	val = i2c_rd8(sd, MIPI_TX_PT0_TX0_DLY);
+	i2c_wr8_and_or(sd, MIPI_TX_PT0_TX0_DLY, ~MIPI_TIMING_MASK, val);
+	v4l2_info(sd, "%s: dphy timing: port0 tx0 delay = %x\n", __func__, val);
+
+	val = i2c_rd8(sd, MIPI_TX_PT0_LPTX);
+	i2c_wr8(sd, MIPI_TX_PT0_LPTX, val);
+	v4l2_info(sd, "%s: dphy timing: port0 lptx = %x\n", __func__, val);
+
+	v4l2_info(sd, "%s: dphy timing config done.\n", __func__);
 }
 
 static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 
-	if (enable)
+	lt6911uxe_i2c_enable(sd);
+	if (enable) {
+		lt6911uxe_config_dphy_timing(sd);
+		usleep_range(5000, 6000);
 		i2c_wr8(&lt6911uxe->sd, STREAM_CTL, ENABLE_STREAM);
-	else
+	} else {
 		i2c_wr8(&lt6911uxe->sd, STREAM_CTL, DISABLE_STREAM);
-	msleep(50);
+	}
+	lt6911uxe_i2c_disable(sd);
+	msleep(20);
 
 	v4l2_dbg(2, debug, sd, "%s: %sable\n",
 			__func__, enable ? "en" : "dis");
@@ -615,15 +943,17 @@ static void lt6911uxe_format_change(struct v4l2_subdev *sd)
 		v4l2_dbg(1, debug, sd, "%s: No signal\n", __func__);
 	}
 
-	if (!lt6911uxe_match_timings(&lt6911uxe->timings, &timings)) {
+	if (!v4l2_match_dv_timings(&lt6911uxe->timings, &timings, 0, false)) {
 		enable_stream(sd, false);
 		/* automatically set timing rather than set by user */
 		lt6911uxe_s_dv_timings(sd, &timings);
 		v4l2_print_dv_timings(sd->name,
 				"Format_change: New format: ",
 				&timings, false);
+		if (sd->devnode && !lt6911uxe->i2c_client->irq)
+			v4l2_subdev_notify_event(sd, &lt6911uxe_ev_fmt);
 	}
-	if (sd->devnode)
+	if (sd->devnode && lt6911uxe->i2c_client->irq)
 		v4l2_subdev_notify_event(sd, &lt6911uxe_ev_fmt);
 }
 
@@ -710,7 +1040,7 @@ static int lt6911uxe_s_dv_timings(struct v4l2_subdev *sd,
 		v4l2_print_dv_timings(sd->name, "s_dv_timings: ",
 				timings, false);
 
-	if (lt6911uxe_match_timings(&lt6911uxe->timings, timings)) {
+	if (v4l2_match_dv_timings(&lt6911uxe->timings, timings, 0, false)) {
 		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
 		return 0;
 	}
@@ -799,6 +1129,14 @@ static int lt6911uxe_g_mbus_config(struct v4l2_subdev *sd,
 
 static int lt6911uxe_s_stream(struct v4l2_subdev *sd, int on)
 {
+	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
+	struct i2c_client *client = lt6911uxe->i2c_client;
+
+	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
+				lt6911uxe->cur_mode->width,
+				lt6911uxe->cur_mode->height,
+		DIV_ROUND_CLOSEST(lt6911uxe->cur_mode->max_fps.denominator,
+				  lt6911uxe->cur_mode->max_fps.numerator));
 	enable_stream(sd, on);
 
 	return 0;
@@ -860,28 +1198,39 @@ static int lt6911uxe_enum_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int lt6911uxe_get_reso_dist(const struct lt6911uxe_mode *mode,
-				struct v4l2_mbus_framefmt *framefmt)
+				struct v4l2_dv_timings *timings)
 {
-	return abs(mode->width - framefmt->width) +
-		abs(mode->height - framefmt->height);
+	struct v4l2_bt_timings *bt = &timings->bt;
+	u32 cur_fps, dist_fps;
+
+	cur_fps = fps_calc(bt);
+	dist_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+
+	return abs(mode->width - bt->width) +
+		abs(mode->height - bt->height) + abs(dist_fps - cur_fps);
 }
 
 static const struct lt6911uxe_mode *
-lt6911uxe_find_best_fit(struct lt6911uxe *lt6911uxe, struct v4l2_subdev_format *fmt)
+lt6911uxe_find_best_fit(struct lt6911uxe *lt6911uxe)
 {
-	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
 	int dist;
 	int cur_best_fit = 0;
 	int cur_best_fit_dist = -1;
 	unsigned int i;
 
 	for (i = 0; i < lt6911uxe->cfg_num; i++) {
-		dist = lt6911uxe_get_reso_dist(&lt6911uxe->support_modes[i], framefmt);
+		dist = lt6911uxe_get_reso_dist(&lt6911uxe->support_modes[i], &lt6911uxe->timings);
 		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
 			cur_best_fit_dist = dist;
 			cur_best_fit = i;
 		}
 	}
+	dev_info(&lt6911uxe->i2c_client->dev,
+		"find current mode: support_mode[%d], %dx%d@%dfps\n",
+		cur_best_fit, lt6911uxe->support_modes[cur_best_fit].width,
+		lt6911uxe->support_modes[cur_best_fit].height,
+		DIV_ROUND_CLOSEST(lt6911uxe->support_modes[cur_best_fit].max_fps.denominator,
+		lt6911uxe->support_modes[cur_best_fit].max_fps.numerator));
 
 	return &lt6911uxe->support_modes[cur_best_fit];
 }
@@ -901,13 +1250,17 @@ static int lt6911uxe_get_fmt(struct v4l2_subdev *sd,
 		lt6911uxe->timings.bt.interlaced ?
 		V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE;
 	format->format.colorspace = V4L2_COLORSPACE_SRGB;
+	mutex_unlock(&lt6911uxe->confctl_mutex);
 
-	mode = lt6911uxe_find_best_fit(lt6911uxe, format);
+	mode = lt6911uxe_find_best_fit(lt6911uxe);
+	lt6911uxe->cur_mode = mode;
+
 	__v4l2_ctrl_s_ctrl_int64(lt6911uxe->pixel_rate,
 				LT6911UXE_PIXEL_RATE);
 	__v4l2_ctrl_s_ctrl(lt6911uxe->link_freq,
 				mode->mipi_freq_idx);
-	mutex_unlock(&lt6911uxe->confctl_mutex);
+
+	v4l2_dbg(1, debug, sd, "%s: mode->mipi_freq_idx(%d)", __func__, mode->mipi_freq_idx);
 
 	v4l2_dbg(1, debug, sd, "%s: fmt code:%d, w:%d, h:%d, field code:%d\n",
 			__func__, format->format.code, format->format.width,
@@ -944,13 +1297,10 @@ static int lt6911uxe_set_fmt(struct v4l2_subdev *sd,
 		return 0;
 
 	lt6911uxe->mbus_fmt_code = format->format.code;
-	mode = lt6911uxe_find_best_fit(lt6911uxe, format);
+	mode = lt6911uxe_find_best_fit(lt6911uxe);
 	lt6911uxe->cur_mode = mode;
 
 	enable_stream(sd, false);
-
-	dev_info(&lt6911uxe->i2c_client->dev, "%s: mode->mipi_freq_idx(%d)",
-		 __func__, mode->mipi_freq_idx);
 
 	return 0;
 }
@@ -1481,7 +1831,7 @@ static int lt6911uxe_probe(struct i2c_client *client,
 		v4l2_err(sd, "v4l2 ctrl handler setup failed! err:%d\n", err);
 		goto err_work_queues;
 	}
-
+	enable_stream(sd, false);
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 			client->addr << 1, client->adapter->name);
 
