@@ -54,12 +54,14 @@ void rxrpc_poke_call(struct rxrpc_call *call, enum rxrpc_call_poke_trace what)
 		spin_lock_bh(&local->lock);
 		busy = !list_empty(&call->attend_link);
 		trace_rxrpc_poke_call(call, busy, what);
+		if (!busy && !rxrpc_try_get_call(call, rxrpc_call_get_poke))
+			busy = true;
 		if (!busy) {
-			rxrpc_get_call(call, rxrpc_call_get_poke);
 			list_add_tail(&call->attend_link, &local->call_attend_q);
 		}
 		spin_unlock_bh(&local->lock);
-		rxrpc_wake_up_io_thread(local);
+		if (!busy)
+			rxrpc_wake_up_io_thread(local);
 	}
 }
 
