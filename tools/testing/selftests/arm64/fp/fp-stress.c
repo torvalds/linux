@@ -39,6 +39,8 @@ struct child_data {
 
 static int epoll_fd;
 static struct child_data *children;
+static struct epoll_event *evs;
+static int tests;
 static int num_children;
 static bool terminate;
 
@@ -393,11 +395,11 @@ static void probe_vls(int vls[], int *vl_count, int set_vl)
 /* Handle any pending output without blocking */
 static void drain_output(bool flush)
 {
-	struct epoll_event ev;
 	int ret = 1;
+	int i;
 
 	while (ret > 0) {
-		ret = epoll_wait(epoll_fd, &ev, 1, 0);
+		ret = epoll_wait(epoll_fd, evs, tests, 0);
 		if (ret < 0) {
 			if (errno == EINTR)
 				continue;
@@ -405,8 +407,8 @@ static void drain_output(bool flush)
 				       strerror(errno), errno);
 		}
 
-		if (ret == 1)
-			child_output(ev.data.ptr, ev.events, flush);
+		for (i = 0; i < ret; i++)
+			child_output(evs[i].data.ptr, evs[i].events, flush);
 	}
 }
 
@@ -419,12 +421,11 @@ int main(int argc, char **argv)
 {
 	int ret;
 	int timeout = 10;
-	int cpus, tests, i, j, c;
+	int cpus, i, j, c;
 	int sve_vl_count, sme_vl_count, fpsimd_per_cpu;
 	bool all_children_started = false;
 	int seen_children;
 	int sve_vls[MAX_VLS], sme_vls[MAX_VLS];
-	struct epoll_event ev;
 	struct sigaction sa;
 
 	while ((c = getopt_long(argc, argv, "t:", options, NULL)) != -1) {
@@ -510,6 +511,11 @@ int main(int argc, char **argv)
 		ksft_print_msg("Failed to install SIGCHLD handler: %s (%d)\n",
 			       strerror(errno), errno);
 
+	evs = calloc(tests, sizeof(*evs));
+	if (!evs)
+		ksft_exit_fail_msg("Failed to allocated %d epoll events\n",
+				   tests);
+
 	for (i = 0; i < cpus; i++) {
 		for (j = 0; j < fpsimd_per_cpu; j++)
 			start_fpsimd(&children[num_children++], i, j);
@@ -543,7 +549,7 @@ int main(int argc, char **argv)
 		 * useful in emulation where we will both be slow and
 		 * likely to have a large set of VLs.
 		 */
-		ret = epoll_wait(epoll_fd, &ev, 1, 1000);
+		ret = epoll_wait(epoll_fd, evs, tests, 1000);
 		if (ret < 0) {
 			if (errno == EINTR)
 				continue;
@@ -552,8 +558,11 @@ int main(int argc, char **argv)
 		}
 
 		/* Output? */
-		if (ret == 1) {
-			child_output(ev.data.ptr, ev.events, false);
+		if (ret > 0) {
+			for (i = 0; i < ret; i++) {
+				child_output(evs[i].data.ptr, evs[i].events,
+					     false);
+			}
 			continue;
 		}
 
