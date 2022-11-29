@@ -45,8 +45,8 @@ static struct raw3270_fn tty3270_fn;
 struct tty3270_attribute {
 	unsigned char alternate_charset:1;	/* Graphics charset */
 	unsigned char highlight;		/* Blink/reverse/underscore */
-	unsigned char f_color;			/* Foreground color */
-	unsigned char b_color;			/* Background color */
+	unsigned char f_color:4;		/* Foreground color */
+	unsigned char b_color:4;		/* Background color */
 };
 
 struct tty3270_cell {
@@ -380,6 +380,18 @@ static char tty3270_graphics_translate(struct tty3270 *tp, char ch)
 static char *tty3270_add_attributes(struct tty3270 *tp, struct tty3270_line *line,
 				    struct tty3270_attribute *attr, char *cp)
 {
+	const unsigned char colors[16] = {
+		[0] = TAC_DEFAULT,
+		[1] = TAC_RED,
+		[2] = TAC_GREEN,
+		[3] = TAC_YELLOW,
+		[4] = TAC_BLUE,
+		[5] = TAC_PINK,
+		[6] = TAC_TURQ,
+		[7] = TAC_WHITE,
+		[9] = TAC_DEFAULT
+	};
+
 	struct tty3270_cell *cell;
 	int c, i;
 
@@ -392,11 +404,11 @@ static char *tty3270_add_attributes(struct tty3270 *tp, struct tty3270_line *lin
 		}
 		if (cell->attributes.f_color != attr->f_color) {
 			attr->f_color = cell->attributes.f_color;
-			cp = tty3270_add_sa(tp, cp, TAT_FGCOLOR, attr->f_color);
+			cp = tty3270_add_sa(tp, cp, TAT_FGCOLOR, colors[attr->f_color]);
 		}
 		if (cell->attributes.b_color != attr->b_color) {
 			attr->b_color = cell->attributes.b_color;
-			cp = tty3270_add_sa(tp, cp, TAT_BGCOLOR, attr->b_color);
+			cp = tty3270_add_sa(tp, cp, TAT_BGCOLOR, colors[attr->b_color]);
 		}
 		c = cell->character;
 		if (cell->attributes.alternate_charset)
@@ -1391,10 +1403,6 @@ static void tty3270_erase_display(struct tty3270 *tp, int mode)
  */
 static void tty3270_set_attributes(struct tty3270 *tp)
 {
-	static unsigned char colors[] = {
-		TAC_DEFAULT, TAC_RED, TAC_GREEN, TAC_YELLOW, TAC_BLUE,
-		TAC_PINK, TAC_TURQ, TAC_WHITE, 0, TAC_DEFAULT
-	};
 	int i, attr;
 
 	for (i = 0; i <= tp->esc_npar; i++) {
@@ -1435,7 +1443,7 @@ static void tty3270_set_attributes(struct tty3270 *tp)
 		case 36:	/* Cyan */
 		case 37:	/* White */
 		case 39:	/* Black */
-			tp->attributes.f_color = colors[attr - 30];
+			tp->attributes.f_color = attr - 30;
 			break;
 		/* Background color. */
 		case 40:	/* Black */
@@ -1447,7 +1455,7 @@ static void tty3270_set_attributes(struct tty3270 *tp)
 		case 46:	/* Cyan */
 		case 47:	/* White */
 		case 49:	/* Black */
-			tp->attributes.b_color = colors[attr - 40];
+			tp->attributes.b_color = attr - 40;
 			break;
 		}
 	}
