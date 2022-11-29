@@ -10,6 +10,8 @@
 
 #include <alsa/asoundlib.h>
 
+snd_config_t *get_alsalib_config(void);
+
 void conf_load(void);
 void conf_free(void);
 snd_config_t *conf_by_card(int card);

@@ -31,26 +31,6 @@ struct pcm_data {
 	struct pcm_data *next;
 };
 
-static const char *alsa_config =
-"ctl.hw {\n"
-"	@args [ CARD ]\n"
-"	@args.CARD.type string\n"
-"	type hw\n"
-"	card $CARD\n"
-"}\n"
-"pcm.hw {\n"
-"	@args [ CARD DEV SUBDEV ]\n"
-"	@args.CARD.type string\n"
-"	@args.DEV.type integer\n"
-"	@args.SUBDEV.type integer\n"
-"	type hw\n"
-"	card $CARD\n"
-"	device $DEV\n"
-"	subdevice $SUBDEV\n"
-"}\n"
-
-;
-
 int num_pcms = 0;
 struct pcm_data *pcm_list = NULL;
 
@@ -75,56 +55,6 @@ long long timestamp_diff_ms(timestamp_t *tstamp)
 		diff.tv_nsec = now.tv_nsec - tstamp->tv_nsec;
 	}
 	return (diff.tv_sec * 1000) + ((diff.tv_nsec + 500000L) / 1000000L);
-}
-
-#ifdef SND_LIB_VER
-#if SND_LIB_VERSION >= SND_LIB_VER(1, 2, 6)
-#define LIB_HAS_LOAD_STRING
-#endif
-#endif
-
-#ifndef LIB_HAS_LOAD_STRING
-static int snd_config_load_string(snd_config_t **config, const char *s,
-				  size_t size)
-{
-	snd_input_t *input;
-	snd_config_t *dst;
-	int err;
-
-	assert(config && s);
-	if (size == 0)
-		size = strlen(s);
-	err = snd_input_buffer_open(&input, s, size);
-	if (err < 0)
-		return err;
-	err = snd_config_top(&dst);
-	if (err < 0) {
-		snd_input_close(input);
-		return err;
-	}
-	err = snd_config_load(dst, input);
-	snd_input_close(input);
-	if (err < 0) {
-		snd_config_delete(dst);
-		return err;
-	}
-	*config = dst;
-	return 0;
-}
-#endif
-
-static snd_config_t *get_alsalib_config(void)
-{
-	snd_config_t *config;
-	int err;
-
-	err = snd_config_load_string(&config, alsa_config, strlen(alsa_config));
-	if (err < 0) {
-		ksft_print_msg("Unable to parse custom alsa-lib configuration: %s\n",
-			       snd_strerror(err));
-		ksft_exit_fail();
-	}
-	return config;
 }
 
 static long device_from_id(snd_config_t *node)
