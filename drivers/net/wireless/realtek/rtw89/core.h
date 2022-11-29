@@ -2812,6 +2812,28 @@ struct rtw89_mac_info {
 	u8 cpwm_seq_num;
 };
 
+#define RTW89_COMPLETION_BUF_SIZE 24
+#define RTW89_WAIT_COND_IDLE UINT_MAX
+
+struct rtw89_completion_data {
+	bool err;
+	u8 buf[RTW89_COMPLETION_BUF_SIZE];
+};
+
+struct rtw89_wait_info {
+	atomic_t cond;
+	struct completion completion;
+	struct rtw89_completion_data data;
+};
+
+#define RTW89_WAIT_FOR_COND_TIMEOUT msecs_to_jiffies(100)
+
+static inline void rtw89_init_wait(struct rtw89_wait_info *wait)
+{
+	init_completion(&wait->completion);
+	atomic_set(&wait->cond, RTW89_WAIT_COND_IDLE);
+}
+
 enum rtw89_fw_type {
 	RTW89_FW_NORMAL = 1,
 	RTW89_FW_WOWLAN = 3,
@@ -4469,6 +4491,9 @@ int rtw89_regd_init(struct rtw89_dev *rtwdev,
 void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request);
 void rtw89_traffic_stats_init(struct rtw89_dev *rtwdev,
 			      struct rtw89_traffic_stats *stats);
+int rtw89_wait_for_cond(struct rtw89_wait_info *wait, unsigned int cond);
+void rtw89_complete_cond(struct rtw89_wait_info *wait, unsigned int cond,
+			 const struct rtw89_completion_data *data);
 int rtw89_core_start(struct rtw89_dev *rtwdev);
 void rtw89_core_stop(struct rtw89_dev *rtwdev);
 void rtw89_core_update_beacon_work(struct work_struct *work);

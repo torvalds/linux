@@ -2974,6 +2974,41 @@ void rtw89_core_update_beacon_work(struct work_struct *work)
 	mutex_unlock(&rtwdev->mutex);
 }
 
+int rtw89_wait_for_cond(struct rtw89_wait_info *wait, unsigned int cond)
+{
+	struct completion *cmpl = &wait->completion;
+	unsigned long timeout;
+	unsigned int cur;
+
+	cur = atomic_cmpxchg(&wait->cond, RTW89_WAIT_COND_IDLE, cond);
+	if (cur != RTW89_WAIT_COND_IDLE)
+		return -EBUSY;
+
+	timeout = wait_for_completion_timeout(cmpl, RTW89_WAIT_FOR_COND_TIMEOUT);
+	if (timeout == 0) {
+		atomic_set(&wait->cond, RTW89_WAIT_COND_IDLE);
+		return -ETIMEDOUT;
+	}
+
+	if (wait->data.err)
+		return -EFAULT;
+
+	return 0;
+}
+
+void rtw89_complete_cond(struct rtw89_wait_info *wait, unsigned int cond,
+			 const struct rtw89_completion_data *data)
+{
+	unsigned int cur;
+
+	cur = atomic_cmpxchg(&wait->cond, cond, RTW89_WAIT_COND_IDLE);
+	if (cur != cond)
+		return;
+
+	wait->data = *data;
+	complete(&wait->completion);
+}
+
 int rtw89_core_start(struct rtw89_dev *rtwdev)
 {
 	int ret;
