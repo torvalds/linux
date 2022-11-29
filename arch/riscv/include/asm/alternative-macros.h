@@ -33,7 +33,7 @@
 	.endif
 .endm
 
-.macro __ALTERNATIVE_CFG old_c, new_c, vendor_id, errata_id, enable
+.macro ALTERNATIVE_CFG old_c, new_c, vendor_id, errata_id, enable
 886 :
 	.option push
 	.option norvc
@@ -45,11 +45,11 @@
 .endm
 
 #define _ALTERNATIVE_CFG(old_c, new_c, vendor_id, errata_id, CONFIG_k) \
-	__ALTERNATIVE_CFG old_c, new_c, vendor_id, errata_id, IS_ENABLED(CONFIG_k)
+	ALTERNATIVE_CFG old_c, new_c, vendor_id, errata_id, IS_ENABLED(CONFIG_k)
 
-.macro __ALTERNATIVE_CFG_2 old_c, new_c_1, vendor_id_1, errata_id_1, enable_1, \
-				  new_c_2, vendor_id_2, errata_id_2, enable_2
-	__ALTERNATIVE_CFG \old_c, \new_c_1, \vendor_id_1, \errata_id_1, \enable_1
+.macro ALTERNATIVE_CFG_2 old_c, new_c_1, vendor_id_1, errata_id_1, enable_1,	\
+				new_c_2, vendor_id_2, errata_id_2, enable_2
+	ALTERNATIVE_CFG \old_c, \new_c_1, \vendor_id_1, \errata_id_1, \enable_1
 	ALT_NEW_CONTENT \vendor_id_2, \errata_id_2, \enable_2, \new_c_2
 .endm
 
@@ -57,9 +57,9 @@
 					CONFIG_k_1,			\
 				  new_c_2, vendor_id_2, errata_id_2,	\
 					CONFIG_k_2)			\
-	__ALTERNATIVE_CFG_2 old_c, new_c_1, vendor_id_1, errata_id_1,	\
+	ALTERNATIVE_CFG_2 old_c, new_c_1, vendor_id_1, errata_id_1,	\
 					IS_ENABLED(CONFIG_k_1),		\
-				   new_c_2, vendor_id_2, errata_id_2,	\
+				 new_c_2, vendor_id_2, errata_id_2,	\
 					IS_ENABLED(CONFIG_k_2)
 
 #else /* !__ASSEMBLY__ */
@@ -126,15 +126,15 @@
 #else /* CONFIG_RISCV_ALTERNATIVE */
 #ifdef __ASSEMBLY__
 
-.macro __ALTERNATIVE_CFG old_c
+.macro ALTERNATIVE_CFG old_c
 	\old_c
 .endm
 
 #define _ALTERNATIVE_CFG(old_c, ...)	\
-	__ALTERNATIVE_CFG old_c
+	ALTERNATIVE_CFG old_c
 
 #define _ALTERNATIVE_CFG_2(old_c, ...)	\
-	__ALTERNATIVE_CFG old_c
+	ALTERNATIVE_CFG old_c
 
 #else /* !__ASSEMBLY__ */
 
