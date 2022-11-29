@@ -129,6 +129,7 @@ enum mlx5dr_action_type {
 	DR_ACTION_TYP_REMOVE_HDR,
 	DR_ACTION_TYP_SAMPLER,
 	DR_ACTION_TYP_ASO_FLOW_METER,
+	DR_ACTION_TYP_RANGE,
 	DR_ACTION_TYP_MAX,
 };
 
@@ -283,6 +284,13 @@ struct mlx5dr_ste_actions_attr {
 		u8 dest_reg_id;
 		u8 init_color;
 	} aso_flow_meter;
+
+	struct {
+		u64	miss_icm_addr;
+		u32	definer_id;
+		u32	min;
+		u32	max;
+	} range;
 };
 
 void mlx5dr_ste_set_actions_rx(struct mlx5dr_ste_ctx *ste_ctx,
@@ -1029,6 +1037,15 @@ struct mlx5dr_action_dest_tbl {
 	};
 };
 
+struct mlx5dr_action_range {
+	struct mlx5dr_domain *dmn;
+	struct mlx5dr_action *hit_tbl_action;
+	struct mlx5dr_action *miss_tbl_action;
+	u32 definer_id;
+	u32 min;
+	u32 max;
+};
+
 struct mlx5dr_action_ctr {
 	u32 ctr_id;
 	u32 offset;
@@ -1075,6 +1092,7 @@ struct mlx5dr_action {
 		struct mlx5dr_action_push_vlan *push_vlan;
 		struct mlx5dr_action_flow_tag *flow_tag;
 		struct mlx5dr_action_aso_flow_meter *aso;
+		struct mlx5dr_action_range *range;
 	};
 };
 
@@ -1498,6 +1516,14 @@ void mlx5dr_fw_destroy_md_tbl(struct mlx5dr_domain *dmn, u32 tbl_id,
 static inline bool mlx5dr_is_fw_table(struct mlx5_flow_table *ft)
 {
 	return !ft->fs_dr_table.dr_table;
+}
+
+static inline bool mlx5dr_supp_match_ranges(struct mlx5_core_dev *dev)
+{
+	return (MLX5_CAP_GEN(dev, steering_format_version) >=
+		MLX5_STEERING_FORMAT_CONNECTX_6DX) &&
+	       (MLX5_CAP_GEN_64(dev, match_definer_format_supported) &
+			(1ULL << MLX5_IFC_DEFINER_FORMAT_ID_SELECT));
 }
 
 #endif  /* _DR_TYPES_H_ */

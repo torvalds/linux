@@ -215,6 +215,17 @@ static struct mlx5dr_action *create_ft_action(struct mlx5dr_domain *domain,
 	return mlx5dr_action_create_dest_table(dest_ft->fs_dr_table.dr_table);
 }
 
+static struct mlx5dr_action *create_range_action(struct mlx5dr_domain *domain,
+						 struct mlx5_flow_rule *dst)
+{
+	return mlx5dr_action_create_dest_match_range(domain,
+						     dst->dest_attr.range.field,
+						     dst->dest_attr.range.hit_ft,
+						     dst->dest_attr.range.miss_ft,
+						     dst->dest_attr.range.min,
+						     dst->dest_attr.range.max);
+}
+
 static struct mlx5dr_action *create_action_push_vlan(struct mlx5dr_domain *domain,
 						     struct mlx5_fs_vlan *vlan)
 {
@@ -461,6 +472,15 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 				id = dst->dest_attr.sampler_id;
 				tmp_action = mlx5dr_action_create_flow_sampler(domain,
 									       id);
+				if (!tmp_action) {
+					err = -ENOMEM;
+					goto free_actions;
+				}
+				fs_dr_actions[fs_dr_num_actions++] = tmp_action;
+				term_actions[num_term_actions++].dest = tmp_action;
+				break;
+			case MLX5_FLOW_DESTINATION_TYPE_RANGE:
+				tmp_action = create_range_action(domain, dst);
 				if (!tmp_action) {
 					err = -ENOMEM;
 					goto free_actions;
@@ -781,11 +801,19 @@ static int mlx5_cmd_dr_destroy_ns(struct mlx5_flow_root_namespace *ns)
 static u32 mlx5_cmd_dr_get_capabilities(struct mlx5_flow_root_namespace *ns,
 					enum fs_flow_table_type ft_type)
 {
+	u32 steering_caps = 0;
+
 	if (ft_type != FS_FT_FDB ||
 	    MLX5_CAP_GEN(ns->dev, steering_format_version) == MLX5_STEERING_FORMAT_CONNECTX_5)
 		return 0;
 
-	return MLX5_FLOW_STEERING_CAP_VLAN_PUSH_ON_RX | MLX5_FLOW_STEERING_CAP_VLAN_POP_ON_TX;
+	steering_caps |= MLX5_FLOW_STEERING_CAP_VLAN_PUSH_ON_RX;
+	steering_caps |= MLX5_FLOW_STEERING_CAP_VLAN_POP_ON_TX;
+
+	if (mlx5dr_supp_match_ranges(ns->dev))
+		steering_caps |= MLX5_FLOW_STEERING_CAP_MATCH_RANGES;
+
+	return steering_caps;
 }
 
 bool mlx5_fs_dr_is_supported(struct mlx5_core_dev *dev)
