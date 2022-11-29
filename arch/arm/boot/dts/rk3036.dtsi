@@ -605,6 +605,7 @@
 	pwm3: pwm@20050030 {
 		compatible = "rockchip,rk3036-pwm", "rockchip,rk3288-pwm";
 		reg = <0x20050030 0x10>;
+		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		clocks = <&cru PCLK_PWM>;
 		clock-names = "pwm";
