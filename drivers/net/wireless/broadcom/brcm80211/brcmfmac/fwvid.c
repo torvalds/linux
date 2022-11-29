@@ -20,6 +20,7 @@
 
 #include "wcc/vops.h"
 #include "cyw/vops.h"
+#include "bca/vops.h"
 
 struct brcmf_fwvid_entry {
 	const char *name;
@@ -52,6 +53,7 @@ static DEFINE_MUTEX(fwvid_list_lock);
 static struct brcmf_fwvid_entry fwvid_list[BRCMF_FWVENDOR_NUM] = {
 	FWVID_ENTRY_INIT(WCC, wcc),
 	FWVID_ENTRY_INIT(CYW, cyw),
+	FWVID_ENTRY_INIT(BCA, bca),
 };
 
 #if IS_MODULE(CONFIG_BRCMFMAC)

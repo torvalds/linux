@@ -52,7 +52,9 @@ brcmfmac-$(CONFIG_DMI) += \
 ifeq ($(CONFIG_BRCMFMAC),m)
 obj-m += wcc/
 obj-m += cyw/
+obj-m += bca/
 else
 brcmfmac-$(CONFIG_BRCMFMAC) += wcc/core.o
 brcmfmac-$(CONFIG_BRCMFMAC) += cyw/core.o
+brcmfmac-$(CONFIG_BRCMFMAC) += bca/core.o
 endif
