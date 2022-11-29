@@ -418,10 +418,10 @@ static ssize_t dmi_sel_raw_read_helper(struct dmi_sysfs_entry *entry,
 		return dmi_sel_raw_read_phys32(entry, &sel, state->buf,
 					       state->pos, state->count);
 	case DMI_SEL_ACCESS_METHOD_GPNV:
-		pr_info("dmi-sysfs: GPNV support missing.\n");
+		pr_info_ratelimited("dmi-sysfs: GPNV support missing.\n");
 		return -EIO;
 	default:
-		pr_info("dmi-sysfs: Unknown access method %02x\n",
+		pr_info_ratelimited("dmi-sysfs: Unknown access method %02x\n",
 			sel.access_method);
 		return -EIO;
 	}
