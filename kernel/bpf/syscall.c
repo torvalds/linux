@@ -175,8 +175,8 @@ static void maybe_wait_bpf_programs(struct bpf_map *map)
 		synchronize_rcu();
 }
 
-static int bpf_map_update_value(struct bpf_map *map, struct fd f, void *key,
-				void *value, __u64 flags)
+static int bpf_map_update_value(struct bpf_map *map, struct file *map_file,
+				void *key, void *value, __u64 flags)
 {
 	int err;
 
@@ -190,7 +190,7 @@ static int bpf_map_update_value(struct bpf_map *map, struct fd f, void *key,
 		   map->map_type == BPF_MAP_TYPE_SOCKMAP) {
 		return sock_map_update_elem_sys(map, key, value, flags);
 	} else if (IS_FD_PROG_ARRAY(map)) {
-		return bpf_fd_array_map_update_elem(map, f.file, key, value,
+		return bpf_fd_array_map_update_elem(map, map_file, key, value,
 						    flags);
 	}
 
@@ -205,12 +205,12 @@ static int bpf_map_update_value(struct bpf_map *map, struct fd f, void *key,
 						       flags);
 	} else if (IS_FD_ARRAY(map)) {
 		rcu_read_lock();
-		err = bpf_fd_array_map_update_elem(map, f.file, key, value,
+		err = bpf_fd_array_map_update_elem(map, map_file, key, value,
 						   flags);
 		rcu_read_unlock();
 	} else if (map->map_type == BPF_MAP_TYPE_HASH_OF_MAPS) {
 		rcu_read_lock();
-		err = bpf_fd_htab_map_update_elem(map, f.file, key, value,
+		err = bpf_fd_htab_map_update_elem(map, map_file, key, value,
 						  flags);
 		rcu_read_unlock();
 	} else if (map->map_type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY) {
@@ -536,6 +536,10 @@ void btf_record_free(struct btf_record *rec)
 				module_put(rec->fields[i].kptr.module);
 			btf_put(rec->fields[i].kptr.btf);
 			break;
+		case BPF_LIST_HEAD:
+		case BPF_LIST_NODE:
+			/* Nothing to release for bpf_list_head */
+			break;
 		default:
 			WARN_ON_ONCE(1);
 			continue;
@@ -578,6 +582,10 @@ struct btf_record *btf_record_dup(const struct btf_record *rec)
 				goto free;
 			}
 			break;
+		case BPF_LIST_HEAD:
+		case BPF_LIST_NODE:
+			/* Nothing to acquire for bpf_list_head */
+			break;
 		default:
 			ret = -EFAULT;
 			WARN_ON_ONCE(1);
@@ -603,6 +611,20 @@ bool btf_record_equal(const struct btf_record *rec_a, const struct btf_record *r
 	if (rec_a->cnt != rec_b->cnt)
 		return false;
 	size = offsetof(struct btf_record, fields[rec_a->cnt]);
+	/* btf_parse_fields uses kzalloc to allocate a btf_record, so unused
+	 * members are zeroed out. So memcmp is safe to do without worrying
+	 * about padding/unused fields.
+	 *
+	 * While spin_lock, timer, and kptr have no relation to map BTF,
+	 * list_head metadata is specific to map BTF, the btf and value_rec
+	 * members in particular. btf is the map BTF, while value_rec points to
+	 * btf_record in that map BTF.
+	 *
+	 * So while by default, we don't rely on the map BTF (which the records
+	 * were parsed from) matching for both records, which is not backwards
+	 * compatible, in case list_head is part of it, we implicitly rely on
+	 * that by way of depending on memcmp succeeding for it.
+	 */
 	return !memcmp(rec_a, rec_b, size);
 }
 
@@ -637,6 +659,13 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 		case BPF_KPTR_REF:
 			field->kptr.dtor((void *)xchg((unsigned long *)field_ptr, 0));
 			break;
+		case BPF_LIST_HEAD:
+			if (WARN_ON_ONCE(rec->spin_lock_off < 0))
+				continue;
+			bpf_list_head_free(field, field_ptr, obj + rec->spin_lock_off);
+			break;
+		case BPF_LIST_NODE:
+			break;
 		default:
 			WARN_ON_ONCE(1);
 			continue;
@@ -648,14 +677,24 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 static void bpf_map_free_deferred(struct work_struct *work)
 {
 	struct bpf_map *map = container_of(work, struct bpf_map, work);
+	struct btf_field_offs *foffs = map->field_offs;
+	struct btf_record *rec = map->record;
 
 	security_bpf_map_free(map);
-	kfree(map->field_offs);
 	bpf_map_release_memcg(map);
-	/* implementation dependent freeing, map_free callback also does
-	 * bpf_map_free_record, if needed.
-	 */
+	/* implementation dependent freeing */
 	map->ops->map_free(map);
+	/* Delay freeing of field_offs and btf_record for maps, as map_free
+	 * callback usually needs access to them. It is better to do it here
+	 * than require each callback to do the free itself manually.
+	 *
+	 * Note that the btf_record stashed in map->inner_map_meta->record was
+	 * already freed using the map_free callback for map in map case which
+	 * eventually calls bpf_map_free_meta, since inner_map_meta is only a
+	 * template bpf_map struct used during verification.
+	 */
+	kfree(foffs);
+	btf_record_free(rec);
 }
 
 static void bpf_map_put_uref(struct bpf_map *map)
@@ -965,7 +1004,8 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 	if (!value_type || value_size != map->value_size)
 		return -EINVAL;
 
-	map->record = btf_parse_fields(btf, value_type, BPF_SPIN_LOCK | BPF_TIMER | BPF_KPTR,
+	map->record = btf_parse_fields(btf, value_type,
+				       BPF_SPIN_LOCK | BPF_TIMER | BPF_KPTR | BPF_LIST_HEAD,
 				       map->value_size);
 	if (!IS_ERR_OR_NULL(map->record)) {
 		int i;
@@ -998,7 +1038,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 				if (map->map_type != BPF_MAP_TYPE_HASH &&
 				    map->map_type != BPF_MAP_TYPE_LRU_HASH &&
 				    map->map_type != BPF_MAP_TYPE_ARRAY) {
-					return -EOPNOTSUPP;
+					ret = -EOPNOTSUPP;
 					goto free_map_tab;
 				}
 				break;
@@ -1012,6 +1052,14 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 					goto free_map_tab;
 				}
 				break;
+			case BPF_LIST_HEAD:
+				if (map->map_type != BPF_MAP_TYPE_HASH &&
+				    map->map_type != BPF_MAP_TYPE_LRU_HASH &&
+				    map->map_type != BPF_MAP_TYPE_ARRAY) {
+					ret = -EOPNOTSUPP;
+					goto free_map_tab;
+				}
+				break;
 			default:
 				/* Fail if map_type checks are missing for a field type */
 				ret = -EOPNOTSUPP;
@@ -1019,6 +1067,10 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 			}
 		}
 	}
+
+	ret = btf_check_and_fixup_fields(btf, map->record);
+	if (ret < 0)
+		goto free_map_tab;
 
 	if (map->ops->map_check_btf) {
 		ret = map->ops->map_check_btf(map, btf, key_type, value_type);
@@ -1390,7 +1442,7 @@ static int map_update_elem(union bpf_attr *attr, bpfptr_t uattr)
 		goto free_key;
 	}
 
-	err = bpf_map_update_value(map, f, key, value, attr->flags);
+	err = bpf_map_update_value(map, f.file, key, value, attr->flags);
 
 	kvfree(value);
 free_key:
@@ -1576,16 +1628,14 @@ int generic_map_delete_batch(struct bpf_map *map,
 	return err;
 }
 
-int generic_map_update_batch(struct bpf_map *map,
+int generic_map_update_batch(struct bpf_map *map, struct file *map_file,
 			     const union bpf_attr *attr,
 			     union bpf_attr __user *uattr)
 {
 	void __user *values = u64_to_user_ptr(attr->batch.values);
 	void __user *keys = u64_to_user_ptr(attr->batch.keys);
 	u32 value_size, cp, max_count;
-	int ufd = attr->batch.map_fd;
 	void *key, *value;
-	struct fd f;
 	int err = 0;
 
 	if (attr->batch.elem_flags & ~BPF_F_LOCK)
@@ -1612,7 +1662,6 @@ int generic_map_update_batch(struct bpf_map *map,
 		return -ENOMEM;
 	}
 
-	f = fdget(ufd); /* bpf_map_do_batch() guarantees ufd is valid */
 	for (cp = 0; cp < max_count; cp++) {
 		err = -EFAULT;
 		if (copy_from_user(key, keys + cp * map->key_size,
@@ -1620,7 +1669,7 @@ int generic_map_update_batch(struct bpf_map *map,
 		    copy_from_user(value, values + cp * value_size, value_size))
 			break;
 
-		err = bpf_map_update_value(map, f, key, value,
+		err = bpf_map_update_value(map, map_file, key, value,
 					   attr->batch.elem_flags);
 
 		if (err)
@@ -1633,7 +1682,6 @@ int generic_map_update_batch(struct bpf_map *map,
 
 	kvfree(value);
 	kvfree(key);
-	fdput(f);
 	return err;
 }
 
@@ -4426,13 +4474,13 @@ put_file:
 
 #define BPF_MAP_BATCH_LAST_FIELD batch.flags
 
-#define BPF_DO_BATCH(fn)			\
+#define BPF_DO_BATCH(fn, ...)			\
 	do {					\
 		if (!fn) {			\
 			err = -ENOTSUPP;	\
 			goto err_put;		\
 		}				\
-		err = fn(map, attr, uattr);	\
+		err = fn(__VA_ARGS__);		\
 	} while (0)
 
 static int bpf_map_do_batch(const union bpf_attr *attr,
@@ -4466,13 +4514,13 @@ static int bpf_map_do_batch(const union bpf_attr *attr,
 	}
 
 	if (cmd == BPF_MAP_LOOKUP_BATCH)
-		BPF_DO_BATCH(map->ops->map_lookup_batch);
+		BPF_DO_BATCH(map->ops->map_lookup_batch, map, attr, uattr);
 	else if (cmd == BPF_MAP_LOOKUP_AND_DELETE_BATCH)
-		BPF_DO_BATCH(map->ops->map_lookup_and_delete_batch);
+		BPF_DO_BATCH(map->ops->map_lookup_and_delete_batch, map, attr, uattr);
 	else if (cmd == BPF_MAP_UPDATE_BATCH)
-		BPF_DO_BATCH(map->ops->map_update_batch);
+		BPF_DO_BATCH(map->ops->map_update_batch, map, f.file, attr, uattr);
 	else
-		BPF_DO_BATCH(map->ops->map_delete_batch);
+		BPF_DO_BATCH(map->ops->map_delete_batch, map, attr, uattr);
 err_put:
 	if (has_write)
 		bpf_map_write_active_dec(map);

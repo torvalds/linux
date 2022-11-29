@@ -332,13 +332,14 @@ avoid defining types with 'bpf\_' prefix to not be broken in future releases.
 In other words, no backwards compatibility is guaranteed if one using a type
 in BTF with 'bpf\_' prefix.
 
-Q: What is the compatibility story for special BPF types in local kptrs?
-------------------------------------------------------------------------
-Q: Same as above, but for local kptrs (i.e. pointers to objects allocated using
-bpf_obj_new for user defined structures). Will the kernel preserve backwards
+Q: What is the compatibility story for special BPF types in allocated objects?
+------------------------------------------------------------------------------
+Q: Same as above, but for allocated objects (i.e. objects allocated using
+bpf_obj_new for user defined types). Will the kernel preserve backwards
 compatibility for these features?
 
 A: NO.
 
 Unlike map value types, there are no stability guarantees for this case. The
-whole local kptr API itself is unstable (since it is exposed through kfuncs).
+whole API to work with allocated objects and any support for special fields
+inside them is unstable (since it is exposed through kfuncs).

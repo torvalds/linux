@@ -128,7 +128,7 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	/* Map read-only producer page and data pages. We map twice as big
 	 * data size to allow simple reading of samples that wrap around the
 	 * end of a ring buffer. See kernel implementation for details.
-	 * */
+	 */
 	tmp = mmap(NULL, rb->page_size + 2 * info.max_entries, PROT_READ,
 		   MAP_SHARED, map_fd, rb->page_size);
 	if (tmp == MAP_FAILED) {
@@ -220,7 +220,7 @@ static inline int roundup_len(__u32 len)
 	return (len + 7) / 8 * 8;
 }
 
-static int64_t ringbuf_process_ring(struct ring* r)
+static int64_t ringbuf_process_ring(struct ring *r)
 {
 	int *len_ptr, len, err;
 	/* 64-bit to avoid overflow in case of extreme application behavior */

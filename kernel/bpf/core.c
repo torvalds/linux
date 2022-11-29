@@ -34,6 +34,7 @@
 #include <linux/log2.h>
 #include <linux/bpf_verifier.h>
 #include <linux/nodemask.h>
+#include <linux/bpf_mem_alloc.h>
 
 #include <asm/barrier.h>
 #include <asm/unaligned.h>
@@ -59,6 +60,9 @@
 #define ARG1	regs[BPF_REG_ARG1]
 #define CTX	regs[BPF_REG_CTX]
 #define IMM	insn->imm
+
+struct bpf_mem_alloc bpf_global_ma;
+bool bpf_global_ma_set;
 
 /* No hurry in this branch
  *
@@ -2745,6 +2749,18 @@ int __weak bpf_arch_text_invalidate(void *dst, size_t len)
 {
 	return -ENOTSUPP;
 }
+
+#ifdef CONFIG_BPF_SYSCALL
+static int __init bpf_global_ma_init(void)
+{
+	int ret;
+
+	ret = bpf_mem_alloc_init(&bpf_global_ma, 0, false);
+	bpf_global_ma_set = !ret;
+	return ret;
+}
+late_initcall(bpf_global_ma_init);
+#endif
 
 DEFINE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
 EXPORT_SYMBOL(bpf_stats_enabled_key);

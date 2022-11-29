@@ -19,7 +19,7 @@
  */
 #define BPF_MAX_VAR_SIZ	(1 << 29)
 /* size of type_str_buf in bpf_verifier. */
-#define TYPE_STR_BUF_LEN 64
+#define TYPE_STR_BUF_LEN 128
 
 /* Liveness marks, used for registers and spilled-regs (in stack slots).
  * Read marks propagate upwards until they find a write mark; they record that
@@ -223,6 +223,11 @@ struct bpf_reference_state {
 	 * exiting a callback function.
 	 */
 	int callback_ref;
+	/* Mark the reference state to release the registers sharing the same id
+	 * on bpf_spin_unlock (for nodes that we will lose ownership to but are
+	 * safe to access inside the critical section).
+	 */
+	bool release_on_unlock;
 };
 
 /* state of the program:
@@ -323,8 +328,23 @@ struct bpf_verifier_state {
 	u32 branches;
 	u32 insn_idx;
 	u32 curframe;
-	u32 active_spin_lock;
+	/* For every reg representing a map value or allocated object pointer,
+	 * we consider the tuple of (ptr, id) for them to be unique in verifier
+	 * context and conside them to not alias each other for the purposes of
+	 * tracking lock state.
+	 */
+	struct {
+		/* This can either be reg->map_ptr or reg->btf. If ptr is NULL,
+		 * there's no active lock held, and other fields have no
+		 * meaning. If non-NULL, it indicates that a lock is held and
+		 * id member has the reg->id of the register which can be >= 0.
+		 */
+		void *ptr;
+		/* This will be reg->id */
+		u32 id;
+	} active_lock;
 	bool speculative;
+	bool active_rcu_lock;
 
 	/* first and last insn idx of this verifier state */
 	u32 first_insn_idx;
@@ -419,11 +439,14 @@ struct bpf_insn_aux_data {
 		 */
 		struct bpf_loop_inline_state loop_inline_state;
 	};
+	u64 obj_new_size; /* remember the size of type passed to bpf_obj_new to rewrite R1 */
+	struct btf_struct_meta *kptr_struct_meta;
 	u64 map_key_state; /* constant (32 bit) key tracking for maps */
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
 	u32 seen; /* this insn was processed by the verifier at env->pass_cnt */
 	bool sanitize_stack_spill; /* subject to Spectre v4 sanitation */
 	bool zext_dst; /* this insn zero extends dst reg */
+	bool storage_get_func_atomic; /* bpf_*_storage_get() with atomic memory alloc */
 	u8 alu_state; /* used in combination with alu_limit */
 
 	/* below fields are initialized once */
@@ -513,6 +536,7 @@ struct bpf_verifier_env {
 	bool bypass_spec_v1;
 	bool bypass_spec_v4;
 	bool seen_direct_write;
+	bool rcu_tag_supported;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
 	const struct bpf_line_info *prev_linfo;
 	struct bpf_verifier_log log;
@@ -589,8 +613,6 @@ int check_ptr_off_reg(struct bpf_verifier_env *env,
 int check_func_arg_reg_off(struct bpf_verifier_env *env,
 			   const struct bpf_reg_state *reg, int regno,
 			   enum bpf_arg_type arg_type);
-int check_kfunc_mem_size_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
-			     u32 regno);
 int check_mem_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
 		   u32 regno, u32 mem_size);
 bool is_dynptr_reg_valid_init(struct bpf_verifier_env *env,
@@ -659,6 +681,13 @@ static inline bool bpf_prog_check_recur(const struct bpf_prog *prog)
 	default:
 		return true;
 	}
+}
+
+#define BPF_REG_TRUSTED_MODIFIERS (MEM_ALLOC | MEM_RCU | PTR_TRUSTED)
+
+static inline bool bpf_type_has_unsafe_modifiers(u32 type)
+{
+	return type_flag(type) & ~BPF_REG_TRUSTED_MODIFIERS;
 }
 
 #endif /* _LINUX_BPF_VERIFIER_H */

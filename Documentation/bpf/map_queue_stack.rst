@@ -28,7 +28,11 @@ Usage
 Kernel BPF
 ----------
 
-.. c:function::
+bpf_map_push_elem()
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    long bpf_map_push_elem(struct bpf_map *map, const void *value, u64 flags)
 
 An element ``value`` can be added to a queue or stack using the
@@ -38,14 +42,22 @@ when the queue or stack is full, the oldest element will be removed to
 make room for ``value`` to be added. Returns ``0`` on success, or
 negative error in case of failure.
 
-.. c:function::
+bpf_map_peek_elem()
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    long bpf_map_peek_elem(struct bpf_map *map, void *value)
 
 This helper fetches an element ``value`` from a queue or stack without
 removing it. Returns ``0`` on success, or negative error in case of
 failure.
 
-.. c:function::
+bpf_map_pop_elem()
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    long bpf_map_pop_elem(struct bpf_map *map, void *value)
 
 This helper removes an element into ``value`` from a queue or
@@ -55,7 +67,11 @@ stack. Returns ``0`` on success, or negative error in case of failure.
 Userspace
 ---------
 
-.. c:function::
+bpf_map_update_elem()
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    int bpf_map_update_elem (int fd, const void *key, const void *value, __u64 flags)
 
 A userspace program can push ``value`` onto a queue or stack using libbpf's
@@ -64,7 +80,11 @@ A userspace program can push ``value`` onto a queue or stack using libbpf's
 same semantics as the ``bpf_map_push_elem`` kernel helper. Returns ``0`` on
 success, or negative error in case of failure.
 
-.. c:function::
+bpf_map_lookup_elem()
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    int bpf_map_lookup_elem (int fd, const void *key, void *value)
 
 A userspace program can peek at the ``value`` at the head of a queue or stack
@@ -72,7 +92,11 @@ using the libbpf ``bpf_map_lookup_elem`` function. The ``key`` parameter must be
 set to ``NULL``.  Returns ``0`` on success, or negative error in case of
 failure.
 
-.. c:function::
+bpf_map_lookup_and_delete_elem()
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    int bpf_map_lookup_and_delete_elem (int fd, const void *key, void *value)
 
 A userspace program can pop a ``value`` from the head of a queue or stack using

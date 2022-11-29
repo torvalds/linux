@@ -38,12 +38,14 @@ kprobe_multi_test/skel_api                       # kprobe_multi__attach unexpect
 ksyms_module/libbpf                              # 'bpf_testmod_ksym_percpu': not found in kernel BTF
 ksyms_module/lskel                               # test_ksyms_module_lskel__open_and_load unexpected error: -2
 libbpf_get_fd_by_id_opts                         # test_libbpf_get_fd_by_id_opts__attach unexpected error: -524 (errno 524)
+linked_list
 lookup_key                                       # test_lookup_key__attach unexpected error: -524 (errno 524)
 lru_bug                                          # lru_bug__attach unexpected error: -524 (errno 524)
 modify_return                                    # modify_return__attach failed unexpected error: -524 (errno 524)
 module_attach                                    # skel_attach skeleton attach failed: -524
 mptcp/base                                       # run_test mptcp unexpected error: -524 (errno 524)
 netcnt                                           # packets unexpected packets: actual 10001 != expected 10000
+rcu_read_lock                                    # failed to attach: ERROR: strerror_r(-524)=22
 recursion                                        # skel_attach unexpected error: -524 (errno 524)
 ringbuf                                          # skel_attach skeleton attachment failed: -1
 setget_sockopt                                   # attach_cgroup unexpected error: -524

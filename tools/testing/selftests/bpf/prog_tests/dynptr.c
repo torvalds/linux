@@ -17,7 +17,7 @@ static struct {
 	{"ringbuf_missing_release2", "Unreleased reference id=2"},
 	{"ringbuf_missing_release_callback", "Unreleased reference id"},
 	{"use_after_invalid", "Expected an initialized dynptr as arg #3"},
-	{"ringbuf_invalid_api", "type=mem expected=alloc_mem"},
+	{"ringbuf_invalid_api", "type=mem expected=ringbuf_mem"},
 	{"add_dynptr_to_map1", "invalid indirect read from stack"},
 	{"add_dynptr_to_map2", "invalid indirect read from stack"},
 	{"data_slice_out_of_bounds_ringbuf", "value is outside of the allowed memory range"},

@@ -252,9 +252,8 @@ static int codegen_datasecs(struct bpf_object *obj, const char *obj_name)
 	int err = 0;
 
 	d = btf_dump__new(btf, codegen_btf_dump_printf, NULL, NULL);
-	err = libbpf_get_error(d);
-	if (err)
-		return err;
+	if (!d)
+		return -errno;
 
 	bpf_object__for_each_map(map, obj) {
 		/* only generate definitions for memory-mapped internal maps */
@@ -976,13 +975,12 @@ static int do_skeleton(int argc, char **argv)
 		/* log_level1 + log_level2 + stats, but not stable UAPI */
 		opts.kernel_log_level = 1 + 2 + 4;
 	obj = bpf_object__open_mem(obj_data, file_sz, &opts);
-	err = libbpf_get_error(obj);
-	if (err) {
+	if (!obj) {
 		char err_buf[256];
 
+		err = -errno;
 		libbpf_strerror(err, err_buf, sizeof(err_buf));
 		p_err("failed to open BPF object file: %s", err_buf);
-		obj = NULL;
 		goto out;
 	}
 

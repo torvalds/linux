@@ -1543,7 +1543,7 @@ static size_t btf_dump_name_dups(struct btf_dump *d, struct hashmap *name_map,
 	if (!new_name)
 		return 1;
 
-	hashmap__find(name_map, orig_name, &dup_cnt);
+	(void)hashmap__find(name_map, orig_name, &dup_cnt);
 	dup_cnt++;
 
 	err = hashmap__set(name_map, new_name, dup_cnt, &old_name, NULL);
@@ -1989,7 +1989,7 @@ static int btf_dump_struct_data(struct btf_dump *d,
 {
 	const struct btf_member *m = btf_members(t);
 	__u16 n = btf_vlen(t);
-	int i, err;
+	int i, err = 0;
 
 	/* note that we increment depth before calling btf_dump_print() below;
 	 * this is intentional.  btf_dump_data_newline() will not print a

@@ -28,7 +28,7 @@
 	},
 	.fixup_map_ringbuf = { 1 },
 	.result = REJECT,
-	.errstr = "dereference of modified alloc_mem ptr R1",
+	.errstr = "dereference of modified ringbuf_mem ptr R1",
 },
 {
 	"ringbuf: invalid reservation offset 2",

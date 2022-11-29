@@ -774,7 +774,7 @@ BPF_CALL_0(bpf_get_current_task_btf)
 const struct bpf_func_proto bpf_get_current_task_btf_proto = {
 	.func		= bpf_get_current_task_btf,
 	.gpl_only	= true,
-	.ret_type	= RET_PTR_TO_BTF_ID,
+	.ret_type	= RET_PTR_TO_BTF_ID_TRUSTED,
 	.ret_btf_id	= &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
 };
 
@@ -1485,9 +1485,9 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_get_task_stack:
 		return &bpf_get_task_stack_proto;
 	case BPF_FUNC_copy_from_user:
-		return prog->aux->sleepable ? &bpf_copy_from_user_proto : NULL;
+		return &bpf_copy_from_user_proto;
 	case BPF_FUNC_copy_from_user_task:
-		return prog->aux->sleepable ? &bpf_copy_from_user_task_proto : NULL;
+		return &bpf_copy_from_user_task_proto;
 	case BPF_FUNC_snprintf_btf:
 		return &bpf_snprintf_btf_proto;
 	case BPF_FUNC_per_cpu_ptr:

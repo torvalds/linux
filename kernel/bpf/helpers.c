@@ -4,6 +4,7 @@
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/bpf-cgroup.h>
+#include <linux/cgroup.h>
 #include <linux/rcupdate.h>
 #include <linux/random.h>
 #include <linux/smp.h>
@@ -19,6 +20,7 @@
 #include <linux/proc_ns.h>
 #include <linux/security.h>
 #include <linux/btf_ids.h>
+#include <linux/bpf_mem_alloc.h>
 
 #include "../../lib/kstrtox.h"
 
@@ -336,6 +338,7 @@ const struct bpf_func_proto bpf_spin_lock_proto = {
 	.gpl_only	= false,
 	.ret_type	= RET_VOID,
 	.arg1_type	= ARG_PTR_TO_SPIN_LOCK,
+	.arg1_btf_id    = BPF_PTR_POISON,
 };
 
 static inline void __bpf_spin_unlock_irqrestore(struct bpf_spin_lock *lock)
@@ -358,6 +361,7 @@ const struct bpf_func_proto bpf_spin_unlock_proto = {
 	.gpl_only	= false,
 	.ret_type	= RET_VOID,
 	.arg1_type	= ARG_PTR_TO_SPIN_LOCK,
+	.arg1_btf_id    = BPF_PTR_POISON,
 };
 
 void copy_map_value_locked(struct bpf_map *map, void *dst, void *src,
@@ -657,6 +661,7 @@ BPF_CALL_3(bpf_copy_from_user, void *, dst, u32, size,
 const struct bpf_func_proto bpf_copy_from_user_proto = {
 	.func		= bpf_copy_from_user,
 	.gpl_only	= false,
+	.might_sleep	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
@@ -687,6 +692,7 @@ BPF_CALL_5(bpf_copy_from_user_task, void *, dst, u32, size,
 const struct bpf_func_proto bpf_copy_from_user_task_proto = {
 	.func		= bpf_copy_from_user_task,
 	.gpl_only	= true,
+	.might_sleep	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
@@ -1706,20 +1712,367 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 	}
 }
 
-BTF_SET8_START(tracing_btf_ids)
+void bpf_list_head_free(const struct btf_field *field, void *list_head,
+			struct bpf_spin_lock *spin_lock)
+{
+	struct list_head *head = list_head, *orig_head = list_head;
+
+	BUILD_BUG_ON(sizeof(struct list_head) > sizeof(struct bpf_list_head));
+	BUILD_BUG_ON(__alignof__(struct list_head) > __alignof__(struct bpf_list_head));
+
+	/* Do the actual list draining outside the lock to not hold the lock for
+	 * too long, and also prevent deadlocks if tracing programs end up
+	 * executing on entry/exit of functions called inside the critical
+	 * section, and end up doing map ops that call bpf_list_head_free for
+	 * the same map value again.
+	 */
+	__bpf_spin_lock_irqsave(spin_lock);
+	if (!head->next || list_empty(head))
+		goto unlock;
+	head = head->next;
+unlock:
+	INIT_LIST_HEAD(orig_head);
+	__bpf_spin_unlock_irqrestore(spin_lock);
+
+	while (head != orig_head) {
+		void *obj = head;
+
+		obj -= field->list_head.node_offset;
+		head = head->next;
+		/* The contained type can also have resources, including a
+		 * bpf_list_head which needs to be freed.
+		 */
+		bpf_obj_free_fields(field->list_head.value_rec, obj);
+		/* bpf_mem_free requires migrate_disable(), since we can be
+		 * called from map free path as well apart from BPF program (as
+		 * part of map ops doing bpf_obj_free_fields).
+		 */
+		migrate_disable();
+		bpf_mem_free(&bpf_global_ma, obj);
+		migrate_enable();
+	}
+}
+
+__diag_push();
+__diag_ignore_all("-Wmissing-prototypes",
+		  "Global functions as their definitions will be in vmlinux BTF");
+
+void *bpf_obj_new_impl(u64 local_type_id__k, void *meta__ign)
+{
+	struct btf_struct_meta *meta = meta__ign;
+	u64 size = local_type_id__k;
+	void *p;
+
+	p = bpf_mem_alloc(&bpf_global_ma, size);
+	if (!p)
+		return NULL;
+	if (meta)
+		bpf_obj_init(meta->field_offs, p);
+	return p;
+}
+
+void bpf_obj_drop_impl(void *p__alloc, void *meta__ign)
+{
+	struct btf_struct_meta *meta = meta__ign;
+	void *p = p__alloc;
+
+	if (meta)
+		bpf_obj_free_fields(meta->record, p);
+	bpf_mem_free(&bpf_global_ma, p);
+}
+
+static void __bpf_list_add(struct bpf_list_node *node, struct bpf_list_head *head, bool tail)
+{
+	struct list_head *n = (void *)node, *h = (void *)head;
+
+	if (unlikely(!h->next))
+		INIT_LIST_HEAD(h);
+	if (unlikely(!n->next))
+		INIT_LIST_HEAD(n);
+	tail ? list_add_tail(n, h) : list_add(n, h);
+}
+
+void bpf_list_push_front(struct bpf_list_head *head, struct bpf_list_node *node)
+{
+	return __bpf_list_add(node, head, false);
+}
+
+void bpf_list_push_back(struct bpf_list_head *head, struct bpf_list_node *node)
+{
+	return __bpf_list_add(node, head, true);
+}
+
+static struct bpf_list_node *__bpf_list_del(struct bpf_list_head *head, bool tail)
+{
+	struct list_head *n, *h = (void *)head;
+
+	if (unlikely(!h->next))
+		INIT_LIST_HEAD(h);
+	if (list_empty(h))
+		return NULL;
+	n = tail ? h->prev : h->next;
+	list_del_init(n);
+	return (struct bpf_list_node *)n;
+}
+
+struct bpf_list_node *bpf_list_pop_front(struct bpf_list_head *head)
+{
+	return __bpf_list_del(head, false);
+}
+
+struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head)
+{
+	return __bpf_list_del(head, true);
+}
+
+/**
+ * bpf_task_acquire - Acquire a reference to a task. A task acquired by this
+ * kfunc which is not stored in a map as a kptr, must be released by calling
+ * bpf_task_release().
+ * @p: The task on which a reference is being acquired.
+ */
+struct task_struct *bpf_task_acquire(struct task_struct *p)
+{
+	refcount_inc(&p->rcu_users);
+	return p;
+}
+
+/**
+ * bpf_task_kptr_get - Acquire a reference on a struct task_struct kptr. A task
+ * kptr acquired by this kfunc which is not subsequently stored in a map, must
+ * be released by calling bpf_task_release().
+ * @pp: A pointer to a task kptr on which a reference is being acquired.
+ */
+struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
+{
+	struct task_struct *p;
+
+	rcu_read_lock();
+	p = READ_ONCE(*pp);
+
+	/* Another context could remove the task from the map and release it at
+	 * any time, including after we've done the lookup above. This is safe
+	 * because we're in an RCU read region, so the task is guaranteed to
+	 * remain valid until at least the rcu_read_unlock() below.
+	 */
+	if (p && !refcount_inc_not_zero(&p->rcu_users))
+		/* If the task had been removed from the map and freed as
+		 * described above, refcount_inc_not_zero() will return false.
+		 * The task will be freed at some point after the current RCU
+		 * gp has ended, so just return NULL to the user.
+		 */
+		p = NULL;
+	rcu_read_unlock();
+
+	return p;
+}
+
+/**
+ * bpf_task_release - Release the reference acquired on a struct task_struct *.
+ * If this kfunc is invoked in an RCU read region, the task_struct is
+ * guaranteed to not be freed until the current grace period has ended, even if
+ * its refcount drops to 0.
+ * @p: The task on which a reference is being released.
+ */
+void bpf_task_release(struct task_struct *p)
+{
+	if (!p)
+		return;
+
+	put_task_struct_rcu_user(p);
+}
+
+#ifdef CONFIG_CGROUPS
+/**
+ * bpf_cgroup_acquire - Acquire a reference to a cgroup. A cgroup acquired by
+ * this kfunc which is not stored in a map as a kptr, must be released by
+ * calling bpf_cgroup_release().
+ * @cgrp: The cgroup on which a reference is being acquired.
+ */
+struct cgroup *bpf_cgroup_acquire(struct cgroup *cgrp)
+{
+	cgroup_get(cgrp);
+	return cgrp;
+}
+
+/**
+ * bpf_cgroup_kptr_get - Acquire a reference on a struct cgroup kptr. A cgroup
+ * kptr acquired by this kfunc which is not subsequently stored in a map, must
+ * be released by calling bpf_cgroup_release().
+ * @cgrpp: A pointer to a cgroup kptr on which a reference is being acquired.
+ */
+struct cgroup *bpf_cgroup_kptr_get(struct cgroup **cgrpp)
+{
+	struct cgroup *cgrp;
+
+	rcu_read_lock();
+	/* Another context could remove the cgroup from the map and release it
+	 * at any time, including after we've done the lookup above. This is
+	 * safe because we're in an RCU read region, so the cgroup is
+	 * guaranteed to remain valid until at least the rcu_read_unlock()
+	 * below.
+	 */
+	cgrp = READ_ONCE(*cgrpp);
+
+	if (cgrp && !cgroup_tryget(cgrp))
+		/* If the cgroup had been removed from the map and freed as
+		 * described above, cgroup_tryget() will return false. The
+		 * cgroup will be freed at some point after the current RCU gp
+		 * has ended, so just return NULL to the user.
+		 */
+		cgrp = NULL;
+	rcu_read_unlock();
+
+	return cgrp;
+}
+
+/**
+ * bpf_cgroup_release - Release the reference acquired on a struct cgroup *.
+ * If this kfunc is invoked in an RCU read region, the cgroup is guaranteed to
+ * not be freed until the current grace period has ended, even if its refcount
+ * drops to 0.
+ * @cgrp: The cgroup on which a reference is being released.
+ */
+void bpf_cgroup_release(struct cgroup *cgrp)
+{
+	if (!cgrp)
+		return;
+
+	cgroup_put(cgrp);
+}
+
+/**
+ * bpf_cgroup_ancestor - Perform a lookup on an entry in a cgroup's ancestor
+ * array. A cgroup returned by this kfunc which is not subsequently stored in a
+ * map, must be released by calling bpf_cgroup_release().
+ * @cgrp: The cgroup for which we're performing a lookup.
+ * @level: The level of ancestor to look up.
+ */
+struct cgroup *bpf_cgroup_ancestor(struct cgroup *cgrp, int level)
+{
+	struct cgroup *ancestor;
+
+	if (level > cgrp->level || level < 0)
+		return NULL;
+
+	ancestor = cgrp->ancestors[level];
+	cgroup_get(ancestor);
+	return ancestor;
+}
+#endif /* CONFIG_CGROUPS */
+
+/**
+ * bpf_task_from_pid - Find a struct task_struct from its pid by looking it up
+ * in the root pid namespace idr. If a task is returned, it must either be
+ * stored in a map, or released with bpf_task_release().
+ * @pid: The pid of the task being looked up.
+ */
+struct task_struct *bpf_task_from_pid(s32 pid)
+{
+	struct task_struct *p;
+
+	rcu_read_lock();
+	p = find_task_by_pid_ns(pid, &init_pid_ns);
+	if (p)
+		bpf_task_acquire(p);
+	rcu_read_unlock();
+
+	return p;
+}
+
+void *bpf_cast_to_kern_ctx(void *obj)
+{
+	return obj;
+}
+
+void *bpf_rdonly_cast(void *obj__ign, u32 btf_id__k)
+{
+	return obj__ign;
+}
+
+void bpf_rcu_read_lock(void)
+{
+	rcu_read_lock();
+}
+
+void bpf_rcu_read_unlock(void)
+{
+	rcu_read_unlock();
+}
+
+__diag_pop();
+
+BTF_SET8_START(generic_btf_ids)
 #ifdef CONFIG_KEXEC_CORE
 BTF_ID_FLAGS(func, crash_kexec, KF_DESTRUCTIVE)
 #endif
-BTF_SET8_END(tracing_btf_ids)
+BTF_ID_FLAGS(func, bpf_obj_new_impl, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_obj_drop_impl, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_list_push_front)
+BTF_ID_FLAGS(func, bpf_list_push_back)
+BTF_ID_FLAGS(func, bpf_list_pop_front, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_list_pop_back, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_task_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
+#ifdef CONFIG_CGROUPS
+BTF_ID_FLAGS(func, bpf_cgroup_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_cgroup_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_cgroup_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_cgroup_ancestor, KF_ACQUIRE | KF_TRUSTED_ARGS | KF_RET_NULL)
+#endif
+BTF_ID_FLAGS(func, bpf_task_from_pid, KF_ACQUIRE | KF_RET_NULL)
+BTF_SET8_END(generic_btf_ids)
 
-static const struct btf_kfunc_id_set tracing_kfunc_set = {
+static const struct btf_kfunc_id_set generic_kfunc_set = {
 	.owner = THIS_MODULE,
-	.set   = &tracing_btf_ids,
+	.set   = &generic_btf_ids,
+};
+
+
+BTF_ID_LIST(generic_dtor_ids)
+BTF_ID(struct, task_struct)
+BTF_ID(func, bpf_task_release)
+#ifdef CONFIG_CGROUPS
+BTF_ID(struct, cgroup)
+BTF_ID(func, bpf_cgroup_release)
+#endif
+
+BTF_SET8_START(common_btf_ids)
+BTF_ID_FLAGS(func, bpf_cast_to_kern_ctx)
+BTF_ID_FLAGS(func, bpf_rdonly_cast)
+BTF_ID_FLAGS(func, bpf_rcu_read_lock)
+BTF_ID_FLAGS(func, bpf_rcu_read_unlock)
+BTF_SET8_END(common_btf_ids)
+
+static const struct btf_kfunc_id_set common_kfunc_set = {
+	.owner = THIS_MODULE,
+	.set   = &common_btf_ids,
 };
 
 static int __init kfunc_init(void)
 {
-	return register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &tracing_kfunc_set);
+	int ret;
+	const struct btf_id_dtor_kfunc generic_dtors[] = {
+		{
+			.btf_id       = generic_dtor_ids[0],
+			.kfunc_btf_id = generic_dtor_ids[1]
+		},
+#ifdef CONFIG_CGROUPS
+		{
+			.btf_id       = generic_dtor_ids[2],
+			.kfunc_btf_id = generic_dtor_ids[3]
+		},
+#endif
+	};
+
+	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &generic_kfunc_set);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &generic_kfunc_set);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &generic_kfunc_set);
+	ret = ret ?: register_btf_id_dtor_kfuncs(generic_dtors,
+						  ARRAY_SIZE(generic_dtors),
+						  THIS_MODULE);
+	return ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_UNSPEC, &common_kfunc_set);
 }
 
 late_initcall(kfunc_init);
