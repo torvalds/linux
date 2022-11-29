@@ -229,6 +229,22 @@ static int macsec_set_replay_protection(struct mlx5_macsec_obj_attrs *attrs, voi
 	if (!attrs->replay_protect)
 		return 0;
 
+	switch (attrs->replay_window) {
+	case 256:
+		window_sz = MLX5_MACSEC_ASO_REPLAY_WIN_256BIT;
+		break;
+	case 128:
+		window_sz = MLX5_MACSEC_ASO_REPLAY_WIN_128BIT;
+		break;
+	case 64:
+		window_sz = MLX5_MACSEC_ASO_REPLAY_WIN_64BIT;
+		break;
+	case 32:
+		window_sz = MLX5_MACSEC_ASO_REPLAY_WIN_32BIT;
+		break;
+	default:
+		return -EINVAL;
+	}
 	MLX5_SET(macsec_aso, aso_ctx, window_size, window_sz);
 	MLX5_SET(macsec_aso, aso_ctx, mode, MLX5_MACSEC_ASO_REPLAY_PROTECTION);
 
