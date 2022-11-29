@@ -48,6 +48,10 @@ typedef struct arch_msi_msg_data {
 } __attribute__ ((packed)) arch_msi_msg_data_t;
 #endif
 
+#ifndef arch_is_isolated_msi
+#define arch_is_isolated_msi() false
+#endif
+
 /**
  * msi_msg - Representation of a MSI message
  * @address_lo:		Low 32 bits of msi message address
@@ -657,10 +661,10 @@ static inline bool msi_device_has_isolated_msi(struct device *dev)
 	/*
 	 * Arguably if the platform does not enable MSI support then it has
 	 * "isolated MSI", as an interrupt controller that cannot receive MSIs
-	 * is inherently isolated by our definition. As nobody seems to needs
-	 * this be conservative and return false anyhow.
+	 * is inherently isolated by our definition. The default definition for
+	 * arch_is_isolated_msi() is conservative and returns false anyhow.
 	 */
-	return false;
+	return arch_is_isolated_msi();
 }
 #endif /* CONFIG_GENERIC_MSI_IRQ */
 

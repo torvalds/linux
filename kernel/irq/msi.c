@@ -1647,6 +1647,6 @@ bool msi_device_has_isolated_msi(struct device *dev)
 	for (; domain; domain = domain->parent)
 		if (domain->flags & IRQ_DOMAIN_FLAG_ISOLATED_MSI)
 			return true;
-	return false;
+	return arch_is_isolated_msi();
 }
 EXPORT_SYMBOL_GPL(msi_device_has_isolated_msi);
