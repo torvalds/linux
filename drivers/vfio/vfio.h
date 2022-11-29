@@ -112,8 +112,8 @@ void vfio_unregister_iommu_driver(const struct vfio_iommu_driver_ops *ops);
 bool vfio_assert_device_open(struct vfio_device *device);
 
 struct vfio_container *vfio_container_from_file(struct file *filep);
-int vfio_device_assign_container(struct vfio_device *device);
-void vfio_device_unassign_container(struct vfio_device *device);
+int vfio_group_use_container(struct vfio_group *group);
+void vfio_group_unuse_container(struct vfio_group *group);
 int vfio_container_attach_group(struct vfio_container *container,
 				struct vfio_group *group);
 void vfio_group_detach_container(struct vfio_group *group);

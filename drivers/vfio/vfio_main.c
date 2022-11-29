@@ -749,7 +749,7 @@ static int vfio_device_first_open(struct vfio_device *device)
 	 * during close_device.
 	 */
 	mutex_lock(&device->group->group_lock);
-	ret = vfio_device_assign_container(device);
+	ret = vfio_group_use_container(device->group);
 	if (ret)
 		goto err_module_put;
 
@@ -765,7 +765,7 @@ static int vfio_device_first_open(struct vfio_device *device)
 
 err_container:
 	device->kvm = NULL;
-	vfio_device_unassign_container(device);
+	vfio_group_unuse_container(device->group);
 err_module_put:
 	mutex_unlock(&device->group->group_lock);
 	module_put(device->dev->driver->owner);
@@ -781,7 +781,7 @@ static void vfio_device_last_close(struct vfio_device *device)
 	if (device->ops->close_device)
 		device->ops->close_device(device);
 	device->kvm = NULL;
-	vfio_device_unassign_container(device);
+	vfio_group_unuse_container(device->group);
 	mutex_unlock(&device->group->group_lock);
 	module_put(device->dev->driver->owner);
 }
