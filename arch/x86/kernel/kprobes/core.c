@@ -655,17 +655,19 @@ static int prepare_emulation(struct kprobe *p, struct insn *insn)
 		 * is determined by the MOD/RM byte.
 		 */
 		opcode = insn->modrm.bytes[0];
-		if ((opcode & 0x30) == 0x10) {
-			if ((opcode & 0x8) == 0x8)
-				return -EOPNOTSUPP;	/* far call */
-			/* call absolute, indirect */
+		switch (X86_MODRM_REG(opcode)) {
+		case 0b010:	/* FF /2, call near, absolute indirect */
 			p->ainsn.emulate_op = kprobe_emulate_call_indirect;
-		} else if ((opcode & 0x30) == 0x20) {
-			if ((opcode & 0x8) == 0x8)
-				return -EOPNOTSUPP;	/* far jmp */
-			/* jmp near absolute indirect */
+			break;
+		case 0b100:	/* FF /4, jmp near, absolute indirect */
 			p->ainsn.emulate_op = kprobe_emulate_jmp_indirect;
-		} else
+			break;
+		case 0b011:	/* FF /3, call far, absolute indirect */
+		case 0b101:	/* FF /5, jmp far, absolute indirect */
+			return -EOPNOTSUPP;
+		}
+
+		if (!p->ainsn.emulate_op)
 			break;
 
 		if (insn->addr_bytes != sizeof(unsigned long))
