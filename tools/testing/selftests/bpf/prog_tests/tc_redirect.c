@@ -250,6 +250,56 @@ fail:
 	return -1;
 }
 
+static int qdisc_clsact_create(struct bpf_tc_hook *qdisc_hook, int ifindex)
+{
+	char err_str[128], ifname[16];
+	int err;
+
+	qdisc_hook->ifindex = ifindex;
+	qdisc_hook->attach_point = BPF_TC_INGRESS | BPF_TC_EGRESS;
+	err = bpf_tc_hook_create(qdisc_hook);
+	snprintf(err_str, sizeof(err_str),
+		 "qdisc add dev %s clsact",
+		 if_indextoname(qdisc_hook->ifindex, ifname) ? : "<unknown_iface>");
+	err_str[sizeof(err_str) - 1] = 0;
+	ASSERT_OK(err, err_str);
+
+	return err;
+}
+
+static int xgress_filter_add(struct bpf_tc_hook *qdisc_hook,
+			     enum bpf_tc_attach_point xgress,
+			     const struct bpf_program *prog, int priority)
+{
+	LIBBPF_OPTS(bpf_tc_opts, tc_attach);
+	char err_str[128], ifname[16];
+	int err;
+
+	qdisc_hook->attach_point = xgress;
+	tc_attach.prog_fd = bpf_program__fd(prog);
+	tc_attach.priority = priority;
+	err = bpf_tc_attach(qdisc_hook, &tc_attach);
+	snprintf(err_str, sizeof(err_str),
+		 "filter add dev %s %s prio %d bpf da %s",
+		 if_indextoname(qdisc_hook->ifindex, ifname) ? : "<unknown_iface>",
+		 xgress == BPF_TC_INGRESS ? "ingress" : "egress",
+		 priority, bpf_program__name(prog));
+	err_str[sizeof(err_str) - 1] = 0;
+	ASSERT_OK(err, err_str);
+
+	return err;
+}
+
+#define QDISC_CLSACT_CREATE(qdisc_hook, ifindex) ({		\
+	if ((err = qdisc_clsact_create(qdisc_hook, ifindex)))	\
+		goto fail;					\
+})
+
+#define XGRESS_FILTER_ADD(qdisc_hook, xgress, prog, priority) ({		\
+	if ((err = xgress_filter_add(qdisc_hook, xgress, prog, priority)))	\
+		goto fail;							\
+})
+
 static int netns_load_bpf(void)
 {
 	SYS("tc qdisc add dev veth_src_fwd clsact");
@@ -489,78 +539,79 @@ done:
 		close(client_fd);
 }
 
-static int netns_load_dtime_bpf(struct test_tc_dtime *skel)
+static int netns_load_dtime_bpf(struct test_tc_dtime *skel,
+				const struct netns_setup_result *setup_result)
 {
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_src_fwd);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_dst_fwd);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_src);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_dst);
 	struct nstoken *nstoken;
-
-#define PIN_FNAME(__file) "/sys/fs/bpf/" #__file
-#define PIN(__prog) ({							\
-		int err = bpf_program__pin(skel->progs.__prog, PIN_FNAME(__prog)); \
-		if (!ASSERT_OK(err, "pin " #__prog))		\
-			goto fail;					\
-		})
+	int err;
 
 	/* setup ns_src tc progs */
 	nstoken = open_netns(NS_SRC);
 	if (!ASSERT_OK_PTR(nstoken, "setns " NS_SRC))
 		return -1;
-	PIN(egress_host);
-	PIN(ingress_host);
-	SYS("tc qdisc add dev veth_src clsact");
-	SYS("tc filter add dev veth_src ingress bpf da object-pinned "
-	    PIN_FNAME(ingress_host));
-	SYS("tc filter add dev veth_src egress bpf da object-pinned "
-	    PIN_FNAME(egress_host));
+	/* tc qdisc add dev veth_src clsact */
+	QDISC_CLSACT_CREATE(&qdisc_veth_src, setup_result->ifindex_veth_src);
+	/* tc filter add dev veth_src ingress bpf da ingress_host */
+	XGRESS_FILTER_ADD(&qdisc_veth_src, BPF_TC_INGRESS, skel->progs.ingress_host, 0);
+	/* tc filter add dev veth_src egress bpf da egress_host */
+	XGRESS_FILTER_ADD(&qdisc_veth_src, BPF_TC_EGRESS, skel->progs.egress_host, 0);
 	close_netns(nstoken);
 
 	/* setup ns_dst tc progs */
 	nstoken = open_netns(NS_DST);
 	if (!ASSERT_OK_PTR(nstoken, "setns " NS_DST))
 		return -1;
-	PIN(egress_host);
-	PIN(ingress_host);
-	SYS("tc qdisc add dev veth_dst clsact");
-	SYS("tc filter add dev veth_dst ingress bpf da object-pinned "
-	    PIN_FNAME(ingress_host));
-	SYS("tc filter add dev veth_dst egress bpf da object-pinned "
-	    PIN_FNAME(egress_host));
+	/* tc qdisc add dev veth_dst clsact */
+	QDISC_CLSACT_CREATE(&qdisc_veth_dst, setup_result->ifindex_veth_dst);
+	/* tc filter add dev veth_dst ingress bpf da ingress_host */
+	XGRESS_FILTER_ADD(&qdisc_veth_dst, BPF_TC_INGRESS, skel->progs.ingress_host, 0);
+	/* tc filter add dev veth_dst egress bpf da egress_host */
+	XGRESS_FILTER_ADD(&qdisc_veth_dst, BPF_TC_EGRESS, skel->progs.egress_host, 0);
 	close_netns(nstoken);
 
 	/* setup ns_fwd tc progs */
 	nstoken = open_netns(NS_FWD);
 	if (!ASSERT_OK_PTR(nstoken, "setns " NS_FWD))
 		return -1;
-	PIN(ingress_fwdns_prio100);
-	PIN(egress_fwdns_prio100);
-	PIN(ingress_fwdns_prio101);
-	PIN(egress_fwdns_prio101);
-	SYS("tc qdisc add dev veth_dst_fwd clsact");
-	SYS("tc filter add dev veth_dst_fwd ingress prio 100 bpf da object-pinned "
-	    PIN_FNAME(ingress_fwdns_prio100));
-	SYS("tc filter add dev veth_dst_fwd ingress prio 101 bpf da object-pinned "
-	    PIN_FNAME(ingress_fwdns_prio101));
-	SYS("tc filter add dev veth_dst_fwd egress prio 100 bpf da object-pinned "
-	    PIN_FNAME(egress_fwdns_prio100));
-	SYS("tc filter add dev veth_dst_fwd egress prio 101 bpf da object-pinned "
-	    PIN_FNAME(egress_fwdns_prio101));
-	SYS("tc qdisc add dev veth_src_fwd clsact");
-	SYS("tc filter add dev veth_src_fwd ingress prio 100 bpf da object-pinned "
-	    PIN_FNAME(ingress_fwdns_prio100));
-	SYS("tc filter add dev veth_src_fwd ingress prio 101 bpf da object-pinned "
-	    PIN_FNAME(ingress_fwdns_prio101));
-	SYS("tc filter add dev veth_src_fwd egress prio 100 bpf da object-pinned "
-	    PIN_FNAME(egress_fwdns_prio100));
-	SYS("tc filter add dev veth_src_fwd egress prio 101 bpf da object-pinned "
-	    PIN_FNAME(egress_fwdns_prio101));
+	/* tc qdisc add dev veth_dst_fwd clsact */
+	QDISC_CLSACT_CREATE(&qdisc_veth_dst_fwd, setup_result->ifindex_veth_dst_fwd);
+	/* tc filter add dev veth_dst_fwd ingress prio 100 bpf da ingress_fwdns_prio100 */
+	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_INGRESS,
+			  skel->progs.ingress_fwdns_prio100, 100);
+	/* tc filter add dev veth_dst_fwd ingress prio 101 bpf da ingress_fwdns_prio101 */
+	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_INGRESS,
+			  skel->progs.ingress_fwdns_prio101, 101);
+	/* tc filter add dev veth_dst_fwd egress prio 100 bpf da egress_fwdns_prio100 */
+	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_EGRESS,
+			  skel->progs.egress_fwdns_prio100, 100);
+	/* tc filter add dev veth_dst_fwd egress prio 101 bpf da egress_fwdns_prio101 */
+	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_EGRESS,
+			  skel->progs.egress_fwdns_prio101, 101);
+
+	/* tc qdisc add dev veth_src_fwd clsact */
+	QDISC_CLSACT_CREATE(&qdisc_veth_src_fwd, setup_result->ifindex_veth_src_fwd);
+	/* tc filter add dev veth_src_fwd ingress prio 100 bpf da ingress_fwdns_prio100 */
+	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_INGRESS,
+			  skel->progs.ingress_fwdns_prio100, 100);
+	/* tc filter add dev veth_src_fwd ingress prio 101 bpf da ingress_fwdns_prio101 */
+	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_INGRESS,
+			  skel->progs.ingress_fwdns_prio101, 101);
+	/* tc filter add dev veth_src_fwd egress prio 100 bpf da egress_fwdns_prio100 */
+	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_EGRESS,
+			  skel->progs.egress_fwdns_prio100, 100);
+	/* tc filter add dev veth_src_fwd egress prio 101 bpf da egress_fwdns_prio101 */
+	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_EGRESS,
+			  skel->progs.egress_fwdns_prio101, 101);
 	close_netns(nstoken);
-
-#undef PIN
-
 	return 0;
 
 fail:
 	close_netns(nstoken);
-	return -1;
+	return err;
 }
 
 enum {
@@ -736,7 +787,7 @@ static void test_tc_redirect_dtime(struct netns_setup_result *setup_result)
 	if (!ASSERT_OK(err, "test_tc_dtime__load"))
 		goto done;
 
-	if (netns_load_dtime_bpf(skel))
+	if (netns_load_dtime_bpf(skel, setup_result))
 		goto done;
 
 	nstoken = open_netns(NS_FWD);
