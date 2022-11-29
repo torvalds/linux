@@ -38,6 +38,7 @@
 #define R8A779G0_PD_A3VIP2		58
 #define R8A779G0_PD_A3ISP0		60
 #define R8A779G0_PD_A3ISP1		61
+#define R8A779G0_PD_A3DUL		62
 
 /* Always-on power area */
 #define R8A779G0_PD_ALWAYS_ON		64
