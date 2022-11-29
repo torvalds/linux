@@ -4899,6 +4899,10 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	}
 #endif
 
+	err = dpaa2_eth_connect_mac(priv);
+	if (err)
+		goto err_connect_mac;
+
 	err = dpaa2_eth_setup_irqs(dpni_dev);
 	if (err) {
 		netdev_warn(net_dev, "Failed to set link interrupt, fall back to polling\n");
@@ -4910,10 +4914,6 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 		}
 		priv->do_link_poll = true;
 	}
-
-	err = dpaa2_eth_connect_mac(priv);
-	if (err)
-		goto err_connect_mac;
 
 	err = dpaa2_eth_dl_alloc(priv);
 	if (err)
@@ -4948,13 +4948,13 @@ err_dl_port_add:
 err_dl_trap_register:
 	dpaa2_eth_dl_free(priv);
 err_dl_register:
-	dpaa2_eth_disconnect_mac(priv);
-err_connect_mac:
 	if (priv->do_link_poll)
 		kthread_stop(priv->poll_thread);
 	else
 		fsl_mc_free_irqs(dpni_dev);
 err_poll_thread:
+	dpaa2_eth_disconnect_mac(priv);
+err_connect_mac:
 	dpaa2_eth_free_rings(priv);
 err_alloc_rings:
 err_csum:
@@ -5002,9 +5002,6 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 #endif
 
 	unregister_netdev(net_dev);
-	rtnl_lock();
-	dpaa2_eth_disconnect_mac(priv);
-	rtnl_unlock();
 
 	dpaa2_eth_dl_port_del(priv);
 	dpaa2_eth_dl_traps_unregister(priv);
@@ -5015,6 +5012,9 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 	else
 		fsl_mc_free_irqs(ls_dev);
 
+	rtnl_lock();
+	dpaa2_eth_disconnect_mac(priv);
+	rtnl_unlock();
 	dpaa2_eth_free_rings(priv);
 	free_percpu(priv->fd);
 	free_percpu(priv->sgt_cache);
