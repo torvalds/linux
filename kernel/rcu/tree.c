@@ -2876,13 +2876,13 @@ EXPORT_SYMBOL_GPL(call_rcu);
 
 /**
  * struct kvfree_rcu_bulk_data - single block to store kvfree_rcu() pointers
+ * @list: List node. All blocks are linked between each other
  * @nr_records: Number of active pointers in the array
- * @next: Next bulk object in the block chain
  * @records: Array of the kvfree_rcu() pointers
  */
 struct kvfree_rcu_bulk_data {
+	struct list_head list;
 	unsigned long nr_records;
-	struct kvfree_rcu_bulk_data *next;
 	void *records[];
 };
 
@@ -2898,21 +2898,21 @@ struct kvfree_rcu_bulk_data {
  * struct kfree_rcu_cpu_work - single batch of kfree_rcu() requests
  * @rcu_work: Let queue_rcu_work() invoke workqueue handler after grace period
  * @head_free: List of kfree_rcu() objects waiting for a grace period
- * @bkvhead_free: Bulk-List of kvfree_rcu() objects waiting for a grace period
+ * @bulk_head_free: Bulk-List of kvfree_rcu() objects waiting for a grace period
  * @krcp: Pointer to @kfree_rcu_cpu structure
  */
 
 struct kfree_rcu_cpu_work {
 	struct rcu_work rcu_work;
 	struct rcu_head *head_free;
-	struct kvfree_rcu_bulk_data *bkvhead_free[FREE_N_CHANNELS];
+	struct list_head bulk_head_free[FREE_N_CHANNELS];
 	struct kfree_rcu_cpu *krcp;
 };
 
 /**
  * struct kfree_rcu_cpu - batch up kfree_rcu() requests for RCU grace period
  * @head: List of kfree_rcu() objects not yet waiting for a grace period
- * @bkvhead: Bulk-List of kvfree_rcu() objects not yet waiting for a grace period
+ * @bulk_head: Bulk-List of kvfree_rcu() objects not yet waiting for a grace period
  * @krw_arr: Array of batches of kfree_rcu() objects waiting for a grace period
  * @lock: Synchronize access to this structure
  * @monitor_work: Promote @head to @head_free after KFREE_DRAIN_JIFFIES
@@ -2936,7 +2936,7 @@ struct kfree_rcu_cpu_work {
  */
 struct kfree_rcu_cpu {
 	struct rcu_head *head;
-	struct kvfree_rcu_bulk_data *bkvhead[FREE_N_CHANNELS];
+	struct list_head bulk_head[FREE_N_CHANNELS];
 	struct kfree_rcu_cpu_work krw_arr[KFREE_N_BATCHES];
 	raw_spinlock_t lock;
 	struct delayed_work monitor_work;
@@ -3031,12 +3031,13 @@ drain_page_cache(struct kfree_rcu_cpu *krcp)
 
 /*
  * This function is invoked in workqueue context after a grace period.
- * It frees all the objects queued on ->bkvhead_free or ->head_free.
+ * It frees all the objects queued on ->bulk_head_free or ->head_free.
  */
 static void kfree_rcu_work(struct work_struct *work)
 {
 	unsigned long flags;
-	struct kvfree_rcu_bulk_data *bkvhead[FREE_N_CHANNELS], *bnext;
+	struct kvfree_rcu_bulk_data *bnode, *n;
+	struct list_head bulk_head[FREE_N_CHANNELS];
 	struct rcu_head *head, *next;
 	struct kfree_rcu_cpu *krcp;
 	struct kfree_rcu_cpu_work *krwp;
@@ -3048,10 +3049,8 @@ static void kfree_rcu_work(struct work_struct *work)
 
 	raw_spin_lock_irqsave(&krcp->lock, flags);
 	// Channels 1 and 2.
-	for (i = 0; i < FREE_N_CHANNELS; i++) {
-		bkvhead[i] = krwp->bkvhead_free[i];
-		krwp->bkvhead_free[i] = NULL;
-	}
+	for (i = 0; i < FREE_N_CHANNELS; i++)
+		list_replace_init(&krwp->bulk_head_free[i], &bulk_head[i]);
 
 	// Channel 3.
 	head = krwp->head_free;
@@ -3060,36 +3059,33 @@ static void kfree_rcu_work(struct work_struct *work)
 
 	// Handle the first two channels.
 	for (i = 0; i < FREE_N_CHANNELS; i++) {
-		for (; bkvhead[i]; bkvhead[i] = bnext) {
-			bnext = bkvhead[i]->next;
-			debug_rcu_bhead_unqueue(bkvhead[i]);
+		list_for_each_entry_safe(bnode, n, &bulk_head[i], list) {
+			debug_rcu_bhead_unqueue(bnode);
 
 			rcu_lock_acquire(&rcu_callback_map);
 			if (i == 0) { // kmalloc() / kfree().
 				trace_rcu_invoke_kfree_bulk_callback(
-					rcu_state.name, bkvhead[i]->nr_records,
-					bkvhead[i]->records);
+					rcu_state.name, bnode->nr_records,
+					bnode->records);
 
-				kfree_bulk(bkvhead[i]->nr_records,
-					bkvhead[i]->records);
+				kfree_bulk(bnode->nr_records, bnode->records);
 			} else { // vmalloc() / vfree().
-				for (j = 0; j < bkvhead[i]->nr_records; j++) {
+				for (j = 0; j < bnode->nr_records; j++) {
 					trace_rcu_invoke_kvfree_callback(
-						rcu_state.name,
-						bkvhead[i]->records[j], 0);
+						rcu_state.name, bnode->records[j], 0);
 
-					vfree(bkvhead[i]->records[j]);
+					vfree(bnode->records[j]);
 				}
 			}
 			rcu_lock_release(&rcu_callback_map);
 
 			raw_spin_lock_irqsave(&krcp->lock, flags);
-			if (put_cached_bnode(krcp, bkvhead[i]))
-				bkvhead[i] = NULL;
+			if (put_cached_bnode(krcp, bnode))
+				bnode = NULL;
 			raw_spin_unlock_irqrestore(&krcp->lock, flags);
 
-			if (bkvhead[i])
-				free_page((unsigned long) bkvhead[i]);
+			if (bnode)
+				free_page((unsigned long) bnode);
 
 			cond_resched_tasks_rcu_qs();
 		}
@@ -3125,7 +3121,7 @@ need_offload_krc(struct kfree_rcu_cpu *krcp)
 	int i;
 
 	for (i = 0; i < FREE_N_CHANNELS; i++)
-		if (krcp->bkvhead[i])
+		if (!list_empty(&krcp->bulk_head[i]))
 			return true;
 
 	return !!krcp->head;
@@ -3162,21 +3158,20 @@ static void kfree_rcu_monitor(struct work_struct *work)
 	for (i = 0; i < KFREE_N_BATCHES; i++) {
 		struct kfree_rcu_cpu_work *krwp = &(krcp->krw_arr[i]);
 
-		// Try to detach bkvhead or head and attach it over any
+		// Try to detach bulk_head or head and attach it over any
 		// available corresponding free channel. It can be that
 		// a previous RCU batch is in progress, it means that
 		// immediately to queue another one is not possible so
 		// in that case the monitor work is rearmed.
-		if ((krcp->bkvhead[0] && !krwp->bkvhead_free[0]) ||
-			(krcp->bkvhead[1] && !krwp->bkvhead_free[1]) ||
+		if ((!list_empty(&krcp->bulk_head[0]) && list_empty(&krwp->bulk_head_free[0])) ||
+			(!list_empty(&krcp->bulk_head[1]) && list_empty(&krwp->bulk_head_free[1])) ||
 				(krcp->head && !krwp->head_free)) {
+
 			// Channel 1 corresponds to the SLAB-pointer bulk path.
 			// Channel 2 corresponds to vmalloc-pointer bulk path.
 			for (j = 0; j < FREE_N_CHANNELS; j++) {
-				if (!krwp->bkvhead_free[j]) {
-					krwp->bkvhead_free[j] = krcp->bkvhead[j];
-					krcp->bkvhead[j] = NULL;
-				}
+				if (list_empty(&krwp->bulk_head_free[j]))
+					list_replace_init(&krcp->bulk_head[j], &krwp->bulk_head_free[j]);
 			}
 
 			// Channel 3 corresponds to both SLAB and vmalloc
@@ -3288,10 +3283,11 @@ add_ptr_to_bulk_krc_lock(struct kfree_rcu_cpu **krcp,
 		return false;
 
 	idx = !!is_vmalloc_addr(ptr);
+	bnode = list_first_entry_or_null(&(*krcp)->bulk_head[idx],
+		struct kvfree_rcu_bulk_data, list);
 
 	/* Check if a new block is required. */
-	if (!(*krcp)->bkvhead[idx] ||
-			(*krcp)->bkvhead[idx]->nr_records == KVFREE_BULK_MAX_ENTR) {
+	if (!bnode || bnode->nr_records == KVFREE_BULK_MAX_ENTR) {
 		bnode = get_cached_bnode(*krcp);
 		if (!bnode && can_alloc) {
 			krc_this_cpu_unlock(*krcp, *flags);
@@ -3315,18 +3311,13 @@ add_ptr_to_bulk_krc_lock(struct kfree_rcu_cpu **krcp,
 		if (!bnode)
 			return false;
 
-		/* Initialize the new block. */
+		// Initialize the new block and attach it.
 		bnode->nr_records = 0;
-		bnode->next = (*krcp)->bkvhead[idx];
-
-		/* Attach it to the head. */
-		(*krcp)->bkvhead[idx] = bnode;
+		list_add(&bnode->list, &(*krcp)->bulk_head[idx]);
 	}
 
 	/* Finally insert. */
-	(*krcp)->bkvhead[idx]->records
-		[(*krcp)->bkvhead[idx]->nr_records++] = ptr;
-
+	bnode->records[bnode->nr_records++] = ptr;
 	return true;
 }
 
@@ -4761,7 +4752,7 @@ struct workqueue_struct *rcu_gp_wq;
 static void __init kfree_rcu_batch_init(void)
 {
 	int cpu;
-	int i;
+	int i, j;
 
 	/* Clamp it to [0:100] seconds interval. */
 	if (rcu_delay_page_cache_fill_msec < 0 ||
@@ -4781,7 +4772,13 @@ static void __init kfree_rcu_batch_init(void)
 		for (i = 0; i < KFREE_N_BATCHES; i++) {
 			INIT_RCU_WORK(&krcp->krw_arr[i].rcu_work, kfree_rcu_work);
 			krcp->krw_arr[i].krcp = krcp;
+
+			for (j = 0; j < FREE_N_CHANNELS; j++)
+				INIT_LIST_HEAD(&krcp->krw_arr[i].bulk_head_free[j]);
 		}
+
+		for (i = 0; i < FREE_N_CHANNELS; i++)
+			INIT_LIST_HEAD(&krcp->bulk_head[i]);
 
 		INIT_DELAYED_WORK(&krcp->monitor_work, kfree_rcu_monitor);
 		INIT_DELAYED_WORK(&krcp->page_cache_work, fill_page_cache_func);
