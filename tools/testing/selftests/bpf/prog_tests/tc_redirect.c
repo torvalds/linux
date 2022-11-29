@@ -1032,6 +1032,8 @@ static int tun_relay_loop(int src_fd, int target_fd)
 
 static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 {
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_tun_fwd);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_dst_fwd);
 	struct test_tc_peer *skel = NULL;
 	struct nstoken *nstoken = NULL;
 	int err;
@@ -1086,31 +1088,21 @@ static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 	if (!ASSERT_OK(err, "test_tc_peer__load"))
 		goto fail;
 
-	err = bpf_program__pin(skel->progs.tc_src_l3, SRC_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " SRC_PROG_PIN_FILE))
-		goto fail;
-
-	err = bpf_program__pin(skel->progs.tc_dst_l3, DST_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " DST_PROG_PIN_FILE))
-		goto fail;
-
-	err = bpf_program__pin(skel->progs.tc_chk, CHK_PROG_PIN_FILE);
-	if (!ASSERT_OK(err, "pin " CHK_PROG_PIN_FILE))
-		goto fail;
-
 	/* Load "tc_src_l3" to the tun_fwd interface to redirect packets
 	 * towards dst, and "tc_dst" to redirect packets
 	 * and "tc_chk" on veth_dst_fwd to drop non-redirected packets.
 	 */
-	SYS("tc qdisc add dev tun_fwd clsact");
-	SYS("tc filter add dev tun_fwd ingress bpf da object-pinned "
-	    SRC_PROG_PIN_FILE);
+	/* tc qdisc add dev tun_fwd clsact */
+	QDISC_CLSACT_CREATE(&qdisc_tun_fwd, ifindex);
+	/* tc filter add dev tun_fwd ingress bpf da tc_src_l3 */
+	XGRESS_FILTER_ADD(&qdisc_tun_fwd, BPF_TC_INGRESS, skel->progs.tc_src_l3, 0);
 
-	SYS("tc qdisc add dev veth_dst_fwd clsact");
-	SYS("tc filter add dev veth_dst_fwd ingress bpf da object-pinned "
-	    DST_PROG_PIN_FILE);
-	SYS("tc filter add dev veth_dst_fwd egress bpf da object-pinned "
-	    CHK_PROG_PIN_FILE);
+	/* tc qdisc add dev veth_dst_fwd clsact */
+	QDISC_CLSACT_CREATE(&qdisc_veth_dst_fwd, setup_result->ifindex_veth_dst_fwd);
+	/* tc filter add dev veth_dst_fwd ingress bpf da tc_dst_l3 */
+	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_INGRESS, skel->progs.tc_dst_l3, 0);
+	/* tc filter add dev veth_dst_fwd egress bpf da tc_chk */
+	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_EGRESS, skel->progs.tc_chk, 0);
 
 	/* Setup route and neigh tables */
 	SYS("ip -netns " NS_SRC " addr add dev tun_src " IP4_TUN_SRC "/24");
