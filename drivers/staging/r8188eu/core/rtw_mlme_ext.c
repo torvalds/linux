@@ -1433,6 +1433,8 @@ static void OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
+	struct sta_info *psta;
+	struct sta_priv *pstapriv = &padapter->stapriv;
 
 	if (memcmp(mgmt->bssid, get_my_bssid(&pmlmeinfo->network), ETH_ALEN))
 		return;
@@ -1444,29 +1446,25 @@ static void OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame)
 
 	reason = le16_to_cpu(mgmt->u.disassoc.reason_code);
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-		struct sta_info *psta;
-		struct sta_priv *pstapriv = &padapter->stapriv;
-
-		psta = rtw_get_stainfo(pstapriv, mgmt->sa);
-		if (psta) {
-			u8 updated = 0;
-
-			spin_lock_bh(&pstapriv->asoc_list_lock);
-			if (!list_empty(&psta->asoc_list)) {
-				list_del_init(&psta->asoc_list);
-				pstapriv->asoc_list_cnt--;
-				updated = ap_free_sta(padapter, psta, false, reason);
-			}
-			spin_unlock_bh(&pstapriv->asoc_list_lock);
-
-			associated_clients_update(padapter, updated);
-		}
-
-		return;
-	} else {
+	if (!check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		receive_disconnect(padapter, mgmt->bssid, reason);
 		pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
+		return;
+	}
+
+	psta = rtw_get_stainfo(pstapriv, mgmt->sa);
+	if (psta) {
+		u8 updated = 0;
+
+		spin_lock_bh(&pstapriv->asoc_list_lock);
+		if (!list_empty(&psta->asoc_list)) {
+			list_del_init(&psta->asoc_list);
+			pstapriv->asoc_list_cnt--;
+			updated = ap_free_sta(padapter, psta, false, reason);
+		}
+		spin_unlock_bh(&pstapriv->asoc_list_lock);
+
+		associated_clients_update(padapter, updated);
 	}
 }
 
