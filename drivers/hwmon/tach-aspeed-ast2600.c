@@ -176,12 +176,12 @@ static int aspeed_tach_hwmon_write(struct device *dev,
 
 	switch (attr) {
 	case hwmon_fan_div:
-		if (!(is_power_of_2(val) && !(ilog2(val) % 2))) {
-			dev_err(dev,
-				"fan_div value %ld not supported. Only support power of 4\n",
-				val);
+		if (!is_power_of_2(val) || (ilog2(val) % 2)) {
+			dev_err(dev, "fan_div value %ld not supported.\n", val);
 			return -EINVAL;
 		}
+		if (DIV_TO_REG(val) > 0xb)
+			return -ERANGE;
 		priv->tach_channel[channel].divisor = val;
 		regmap_write_bits(priv->regmap, TACH_ASPEED_CTRL(channel),
 				  TACH_ASPEED_CLK_DIV_T_MASK,
