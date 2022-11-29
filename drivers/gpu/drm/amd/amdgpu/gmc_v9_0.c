@@ -1688,12 +1688,18 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 	adev->gart.gart_pte_flags = AMDGPU_PTE_MTYPE_VG10(MTYPE_UC) |
 				 AMDGPU_PTE_EXECUTABLE;
 
-	r = amdgpu_gart_table_vram_alloc(adev);
-	if (r)
-		return r;
+	if (!adev->gmc.real_vram_size) {
+		dev_info(adev->dev, "Put GART in system memory for APU\n");
+		r = amdgpu_gart_table_ram_alloc(adev);
+		if (r)
+			dev_err(adev->dev, "Failed to allocate GART in system memory\n");
+	} else {
+		r = amdgpu_gart_table_vram_alloc(adev);
+		if (r)
+			return r;
 
-	if (adev->gmc.xgmi.connected_to_cpu) {
-		r = amdgpu_gmc_pdb0_alloc(adev);
+		if (adev->gmc.xgmi.connected_to_cpu)
+			r = amdgpu_gmc_pdb0_alloc(adev);
 	}
 
 	return r;
@@ -1902,7 +1908,12 @@ static int gmc_v9_0_sw_fini(void *handle)
 	amdgpu_gmc_ras_fini(adev);
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
-	amdgpu_gart_table_vram_free(adev);
+	if (!adev->gmc.real_vram_size) {
+		dev_info(adev->dev, "Put GART in system memory for APU free\n");
+		amdgpu_gart_table_ram_free(adev);
+	} else {
+		amdgpu_gart_table_vram_free(adev);
+	}
 	amdgpu_bo_free_kernel(&adev->gmc.pdb0_bo, NULL, &adev->gmc.ptr_pdb0);
 	amdgpu_bo_fini(adev);
 
