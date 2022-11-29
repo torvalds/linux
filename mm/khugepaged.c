@@ -97,8 +97,8 @@ struct collapse_control {
 	/* Num pages scanned per node */
 	u32 node_load[MAX_NUMNODES];
 
-	/* Last target selected in hpage_collapse_find_target_node() */
-	int last_target_node;
+	/* nodemask for allocation fallback */
+	nodemask_t alloc_nmask;
 };
 
 /**
@@ -734,7 +734,6 @@ static void khugepaged_alloc_sleep(void)
 
 struct collapse_control khugepaged_collapse_control = {
 	.is_khugepaged = true,
-	.last_target_node = NUMA_NO_NODE,
 };
 
 static bool hpage_collapse_scan_abort(int nid, struct collapse_control *cc)
@@ -783,16 +782,11 @@ static int hpage_collapse_find_target_node(struct collapse_control *cc)
 			target_node = nid;
 		}
 
-	/* do some balance if several nodes have the same hit record */
-	if (target_node <= cc->last_target_node)
-		for (nid = cc->last_target_node + 1; nid < MAX_NUMNODES;
-		     nid++)
-			if (max_value == cc->node_load[nid]) {
-				target_node = nid;
-				break;
-			}
+	for_each_online_node(nid) {
+		if (max_value == cc->node_load[nid])
+			node_set(nid, cc->alloc_nmask);
+	}
 
-	cc->last_target_node = target_node;
 	return target_node;
 }
 #else
@@ -802,9 +796,10 @@ static int hpage_collapse_find_target_node(struct collapse_control *cc)
 }
 #endif
 
-static bool hpage_collapse_alloc_page(struct page **hpage, gfp_t gfp, int node)
+static bool hpage_collapse_alloc_page(struct page **hpage, gfp_t gfp, int node,
+				      nodemask_t *nmask)
 {
-	*hpage = __alloc_pages_node(node, gfp, HPAGE_PMD_ORDER);
+	*hpage = __alloc_pages(gfp, HPAGE_PMD_ORDER, node, nmask);
 	if (unlikely(!*hpage)) {
 		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
 		return false;
@@ -955,12 +950,11 @@ static int __collapse_huge_page_swapin(struct mm_struct *mm,
 static int alloc_charge_hpage(struct page **hpage, struct mm_struct *mm,
 			      struct collapse_control *cc)
 {
-	/* Only allocate from the target node */
 	gfp_t gfp = (cc->is_khugepaged ? alloc_hugepage_khugepaged_gfpmask() :
-		     GFP_TRANSHUGE) | __GFP_THISNODE;
+		     GFP_TRANSHUGE);
 	int node = hpage_collapse_find_target_node(cc);
 
-	if (!hpage_collapse_alloc_page(hpage, gfp, node))
+	if (!hpage_collapse_alloc_page(hpage, gfp, node, &cc->alloc_nmask))
 		return SCAN_ALLOC_HUGE_PAGE_FAIL;
 	if (unlikely(mem_cgroup_charge(page_folio(*hpage), mm, gfp)))
 		return SCAN_CGROUP_CHARGE_FAIL;
@@ -1144,6 +1138,7 @@ static int hpage_collapse_scan_pmd(struct mm_struct *mm,
 		goto out;
 
 	memset(cc->node_load, 0, sizeof(cc->node_load));
+	nodes_clear(cc->alloc_nmask);
 	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
 	for (_address = address, _pte = pte; _pte < pte + HPAGE_PMD_NR;
 	     _pte++, _address += PAGE_SIZE) {
@@ -2077,6 +2072,7 @@ static int hpage_collapse_scan_file(struct mm_struct *mm, unsigned long addr,
 	present = 0;
 	swap = 0;
 	memset(cc->node_load, 0, sizeof(cc->node_load));
+	nodes_clear(cc->alloc_nmask);
 	rcu_read_lock();
 	xas_for_each(&xas, page, start + HPAGE_PMD_NR - 1) {
 		if (xas_retry(&xas, page))
@@ -2157,8 +2153,7 @@ static int hpage_collapse_scan_file(struct mm_struct *mm, unsigned long addr,
 		}
 	}
 
-	trace_mm_khugepaged_scan_file(mm, page, file->f_path.dentry->d_iname,
-				      present, swap, result);
+	trace_mm_khugepaged_scan_file(mm, page, file, present, swap, result);
 	return result;
 }
 #else
@@ -2576,7 +2571,6 @@ int madvise_collapse(struct vm_area_struct *vma, struct vm_area_struct **prev,
 	if (!cc)
 		return -ENOMEM;
 	cc->is_khugepaged = false;
-	cc->last_target_node = NUMA_NO_NODE;
 
 	mmgrab(mm);
 	lru_add_drain_all();
@@ -2602,6 +2596,7 @@ int madvise_collapse(struct vm_area_struct *vma, struct vm_area_struct **prev,
 		}
 		mmap_assert_locked(mm);
 		memset(cc->node_load, 0, sizeof(cc->node_load));
+		nodes_clear(cc->alloc_nmask);
 		if (IS_ENABLED(CONFIG_SHMEM) && vma->vm_file) {
 			struct file *file = get_file(vma->vm_file);
 			pgoff_t pgoff = linear_page_index(vma, addr);

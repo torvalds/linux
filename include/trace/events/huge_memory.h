@@ -171,15 +171,15 @@ TRACE_EVENT(mm_collapse_huge_page_swapin,
 
 TRACE_EVENT(mm_khugepaged_scan_file,
 
-	TP_PROTO(struct mm_struct *mm, struct page *page, const char *filename,
+	TP_PROTO(struct mm_struct *mm, struct page *page, struct file *file,
 		 int present, int swap, int result),
 
-	TP_ARGS(mm, page, filename, present, swap, result),
+	TP_ARGS(mm, page, file, present, swap, result),
 
 	TP_STRUCT__entry(
 		__field(struct mm_struct *, mm)
 		__field(unsigned long, pfn)
-		__string(filename, filename)
+		__string(filename, file->f_path.dentry->d_iname)
 		__field(int, present)
 		__field(int, swap)
 		__field(int, result)
@@ -188,7 +188,7 @@ TRACE_EVENT(mm_khugepaged_scan_file,
 	TP_fast_assign(
 		__entry->mm = mm;
 		__entry->pfn = page ? page_to_pfn(page) : -1;
-		__assign_str(filename, filename);
+		__assign_str(filename, file->f_path.dentry->d_iname);
 		__entry->present = present;
 		__entry->swap = swap;
 		__entry->result = result;
