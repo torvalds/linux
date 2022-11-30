@@ -3,6 +3,7 @@
 # Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 
 import argparse
+import errno
 import logging
 import os
 import re
@@ -13,6 +14,10 @@ CPU = "aarch64"
 HOST_CROSSTOOL = "@bazel_tools//tools/cpp:toolchain"
 HOST_TARGETS = ["dtc"]
 DEFAULT_SKIP_LIST = ["abi", "test_mapping"]
+MSM_EXTENSIONS = "build/msm_kernel_extensions.bzl"
+ABL_EXTENSIONS = "build/abl_extensions.bzl"
+DEFAULT_MSM_EXTENSIONS_SRC = "../msm-kernel/msm_kernel_extensions.bzl"
+DEFAULT_ABL_EXTENSIONS_SRC = "../bootable/bootloader/edk2/abl_extensions.bzl"
 
 
 class BazelBuilder:
@@ -33,6 +38,7 @@ class BazelBuilder:
         self.skip_list = skip_list
         self.user_opts = user_opts
         self.process_list = []
+        self.setup_extensions()
 
     def __del__(self):
         for proc in self.process_list:
@@ -47,6 +53,29 @@ class BazelBuilder:
             "--crosstool_top={}".format(toolchain),
             "--host_crosstool_top={}".format(HOST_CROSSTOOL),
         ]
+
+    def setup_extensions(self):
+        """Set up the extension files if needed"""
+        for (ext, def_src) in [
+            (MSM_EXTENSIONS, DEFAULT_MSM_EXTENSIONS_SRC),
+            (ABL_EXTENSIONS, DEFAULT_ABL_EXTENSIONS_SRC),
+        ]:
+            ext_path = os.path.join(self.workspace, ext)
+            # If the file doesn't exist or is a dead link, link to the default
+            try:
+                os.stat(ext_path)
+            except OSError as e:
+                if e.errno == errno.ENOENT:
+                    logging.info(
+                        "%s does not exist or is a broken symlink... linking to default at %s",
+                        ext,
+                        def_src,
+                    )
+                    if os.path.islink(ext_path):
+                        os.unlink(ext_path)
+                    os.symlink(def_src, ext_path)
+                else:
+                    raise e
 
     def get_build_targets(self):
         """Query for build targets"""
