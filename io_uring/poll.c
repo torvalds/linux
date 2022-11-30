@@ -321,50 +321,38 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 	ret = io_poll_check_events(req, locked);
 	if (ret == IOU_POLL_NO_ACTION)
 		return;
-
-	if (ret == IOU_POLL_DONE) {
-		struct io_poll *poll = io_kiocb_to_cmd(req, struct io_poll);
-		req->cqe.res = mangle_poll(req->cqe.res & poll->events);
-	} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
-		req->cqe.res = ret;
-		req_set_fail(req);
-	}
-
 	io_poll_remove_entries(req);
 	io_poll_tw_hash_eject(req, locked);
 
-	io_req_set_res(req, req->cqe.res, 0);
-	io_req_task_complete(req, locked);
-}
+	if (req->opcode == IORING_OP_POLL_ADD) {
+		if (ret == IOU_POLL_DONE) {
+			struct io_poll *poll;
 
-static void io_apoll_task_func(struct io_kiocb *req, bool *locked)
-{
-	int ret;
+			poll = io_kiocb_to_cmd(req, struct io_poll);
+			req->cqe.res = mangle_poll(req->cqe.res & poll->events);
+		} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
+			req->cqe.res = ret;
+			req_set_fail(req);
+		}
 
-	ret = io_poll_check_events(req, locked);
-	if (ret == IOU_POLL_NO_ACTION)
-		return;
-
-	io_tw_lock(req->ctx, locked);
-	io_poll_remove_entries(req);
-	io_poll_tw_hash_eject(req, locked);
-
-	if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
+		io_req_set_res(req, req->cqe.res, 0);
 		io_req_task_complete(req, locked);
-	else if (ret == IOU_POLL_DONE)
-		io_req_task_submit(req, locked);
-	else
-		io_req_defer_failed(req, ret);
+	} else {
+		io_tw_lock(req->ctx, locked);
+
+		if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
+			io_req_task_complete(req, locked);
+		else if (ret == IOU_POLL_DONE)
+			io_req_task_submit(req, locked);
+		else
+			io_req_defer_failed(req, ret);
+	}
 }
 
 static void __io_poll_execute(struct io_kiocb *req, int mask)
 {
 	io_req_set_res(req, mask, 0);
-
-	if (req->opcode == IORING_OP_POLL_ADD)
-		req->io_task_work.func = io_poll_task_func;
-	else
-		req->io_task_work.func = io_apoll_task_func;
+	req->io_task_work.func = io_poll_task_func;
 
 	trace_io_uring_task_add(req, mask);
 	io_req_task_work_add(req);
