@@ -813,8 +813,8 @@
 #define ID_AA64MMFR0_EL1_TGRAN_2_SHIFT		ID_AA64MMFR0_EL1_TGRAN64_2_SHIFT
 #endif
 
-#define MVFR2_FPMISC_SHIFT		4
-#define MVFR2_SIMDMISC_SHIFT		0
+#define MVFR2_EL1_FPMisc_SHIFT		4
+#define MVFR2_EL1_SIMDMisc_SHIFT		0
 
 #define CPACR_EL1_FPEN_EL1EN	(BIT(20)) /* enable EL1 access */
 #define CPACR_EL1_FPEN_EL0EN	(BIT(21)) /* enable EL0 access, if EL1EN set */
