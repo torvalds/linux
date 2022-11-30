@@ -197,13 +197,13 @@ do {								\
 			      &((trans)->fs_info->fs_state))) {	\
 		first = true;					\
 		if (WARN(abort_should_print_stack(errno),       \
-			KERN_DEBUG				\
+			KERN_ERR				\
 			"BTRFS: Transaction aborted (error %d)\n",	\
 			(errno))) {					\
 			/* Stack trace printed. */			\
 		} else {						\
-			btrfs_debug((trans)->fs_info,			\
-				    "Transaction aborted (error %d)", \
+			btrfs_err((trans)->fs_info,			\
+				  "Transaction aborted (error %d)",     \
 				  (errno));			\
 		}						\
 	}							\
