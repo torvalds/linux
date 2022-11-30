@@ -529,6 +529,8 @@ struct macsec_ops;
  *
  * @mdio: MDIO bus this PHY is on
  * @drv: Pointer to the driver for this PHY instance
+ * @devlink: Create a link between phy dev and mac dev, if the external phy
+ *           used by current mac interface is managed by another mac interface.
  * @phy_id: UID for this device found during discovery
  * @c45_ids: 802.3-c45 Device Identifiers if is_c45.
  * @is_c45:  Set to true if this PHY uses clause 45 addressing.
@@ -617,6 +619,8 @@ struct phy_device {
 	/* Information about the PHY type */
 	/* And management functions */
 	struct phy_driver *drv;
+
+	struct device_link *devlink;
 
 	u32 phy_id;
 
