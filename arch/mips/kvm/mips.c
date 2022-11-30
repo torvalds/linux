@@ -1012,7 +1012,7 @@ long kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 
 int kvm_arch_init(void *opaque)
 {
-	return kvm_mips_emulation_init();
+	return 0;
 }
 
 void kvm_arch_exit(void)
@@ -1633,6 +1633,10 @@ static int __init kvm_mips_init(void)
 	}
 
 	ret = kvm_mips_entry_setup();
+	if (ret)
+		return ret;
+
+	ret = kvm_mips_emulation_init();
 	if (ret)
 		return ret;
 
