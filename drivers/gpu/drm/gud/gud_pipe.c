@@ -358,10 +358,10 @@ static void gud_flush_damage(struct gud_device *gdrm, struct drm_framebuffer *fb
 void gud_flush_work(struct work_struct *work)
 {
 	struct gud_device *gdrm = container_of(work, struct gud_device, work);
-	struct iosys_map gem_map = { }, fb_map = { };
+	struct iosys_map shadow_map;
 	struct drm_framebuffer *fb;
 	struct drm_rect damage;
-	int idx, ret;
+	int idx;
 
 	if (!drm_dev_enter(&gdrm->drm, &idx))
 		return;
@@ -369,6 +369,7 @@ void gud_flush_work(struct work_struct *work)
 	mutex_lock(&gdrm->damage_lock);
 	fb = gdrm->fb;
 	gdrm->fb = NULL;
+	iosys_map_set_vaddr(&shadow_map, gdrm->shadow_buf);
 	damage = gdrm->damage;
 	gud_clear_damage(gdrm);
 	mutex_unlock(&gdrm->damage_lock);
@@ -376,32 +377,32 @@ void gud_flush_work(struct work_struct *work)
 	if (!fb)
 		goto out;
 
-	ret = drm_gem_fb_vmap(fb, &gem_map, &fb_map);
-	if (ret)
-		goto fb_put;
+	gud_flush_damage(gdrm, fb, &shadow_map, true, &damage);
 
-	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
-	if (ret)
-		goto vunmap;
-
-	/* Imported buffers are assumed to be WriteCombined with uncached reads */
-	gud_flush_damage(gdrm, fb, &fb_map, !fb->obj[0]->import_attach, &damage);
-
-	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
-vunmap:
-	drm_gem_fb_vunmap(fb, &gem_map);
-fb_put:
 	drm_framebuffer_put(fb);
 out:
 	drm_dev_exit(idx);
 }
 
-static void gud_fb_queue_damage(struct gud_device *gdrm, struct drm_framebuffer *fb,
-				struct drm_rect *damage)
+static int gud_fb_queue_damage(struct gud_device *gdrm, struct drm_framebuffer *fb,
+			       const struct iosys_map *src, struct drm_rect *damage)
 {
 	struct drm_framebuffer *old_fb = NULL;
+	struct iosys_map shadow_map;
 
 	mutex_lock(&gdrm->damage_lock);
+
+	if (!gdrm->shadow_buf) {
+		gdrm->shadow_buf = vzalloc(fb->pitches[0] * fb->height);
+		if (!gdrm->shadow_buf) {
+			mutex_unlock(&gdrm->damage_lock);
+			return -ENOMEM;
+		}
+	}
+
+	iosys_map_set_vaddr(&shadow_map, gdrm->shadow_buf);
+	iosys_map_incr(&shadow_map, drm_fb_clip_offset(fb->pitches[0], fb->format, damage));
+	drm_fb_memcpy(&shadow_map, fb->pitches, src, fb, damage);
 
 	if (fb != gdrm->fb) {
 		old_fb = gdrm->fb;
@@ -420,6 +421,26 @@ static void gud_fb_queue_damage(struct gud_device *gdrm, struct drm_framebuffer 
 
 	if (old_fb)
 		drm_framebuffer_put(old_fb);
+
+	return 0;
+}
+
+static void gud_fb_handle_damage(struct gud_device *gdrm, struct drm_framebuffer *fb,
+				 const struct iosys_map *src, struct drm_rect *damage)
+{
+	int ret;
+
+	if (gdrm->flags & GUD_DISPLAY_FLAG_FULL_UPDATE)
+		drm_rect_init(damage, 0, 0, fb->width, fb->height);
+
+	if (gud_async_flush) {
+		ret = gud_fb_queue_damage(gdrm, fb, src, damage);
+		if (ret != -ENOMEM)
+			return;
+	}
+
+	/* Imported buffers are assumed to be WriteCombined with uncached reads */
+	gud_flush_damage(gdrm, fb, src, !fb->obj[0]->import_attach, damage);
 }
 
 int gud_pipe_check(struct drm_simple_display_pipe *pipe,
@@ -544,10 +565,11 @@ void gud_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_device *drm = pipe->crtc.dev;
 	struct gud_device *gdrm = to_gud_device(drm);
 	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_rect damage;
-	int idx;
+	int ret, idx;
 
 	if (crtc->state->mode_changed || !crtc->state->enable) {
 		cancel_work_sync(&gdrm->work);
@@ -557,6 +579,8 @@ void gud_pipe_update(struct drm_simple_display_pipe *pipe,
 			gdrm->fb = NULL;
 		}
 		gud_clear_damage(gdrm);
+		vfree(gdrm->shadow_buf);
+		gdrm->shadow_buf = NULL;
 		mutex_unlock(&gdrm->damage_lock);
 	}
 
@@ -572,14 +596,19 @@ void gud_pipe_update(struct drm_simple_display_pipe *pipe,
 	if (crtc->state->active_changed)
 		gud_usb_set_u8(gdrm, GUD_REQ_SET_DISPLAY_ENABLE, crtc->state->active);
 
-	if (drm_atomic_helper_damage_merged(old_state, state, &damage)) {
-		if (gdrm->flags & GUD_DISPLAY_FLAG_FULL_UPDATE)
-			drm_rect_init(&damage, 0, 0, fb->width, fb->height);
-		gud_fb_queue_damage(gdrm, fb, &damage);
-		if (!gud_async_flush)
-			flush_work(&gdrm->work);
-	}
+	if (!fb)
+		goto ctrl_disable;
 
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		goto ctrl_disable;
+
+	if (drm_atomic_helper_damage_merged(old_state, state, &damage))
+		gud_fb_handle_damage(gdrm, fb, &shadow_plane_state->data[0], &damage);
+
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
+
+ctrl_disable:
 	if (!crtc->state->enable)
 		gud_usb_set_u8(gdrm, GUD_REQ_SET_CONTROLLER_ENABLE, 0);
 
