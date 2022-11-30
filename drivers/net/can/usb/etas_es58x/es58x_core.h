@@ -17,6 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/usb.h>
+#include <net/devlink.h>
 
 #include "es581_4.h"
 #include "es58x_fd.h"
@@ -230,6 +231,7 @@ union es58x_urb_cmd {
  * @can: struct can_priv must be the first member (Socket CAN relies
  *	on the fact that function netdev_priv() returns a pointer to
  *	a struct can_priv).
+ * @devlink_port: devlink instance for the network interface.
  * @es58x_dev: pointer to the corresponding ES58X device.
  * @tx_urb: Used as a buffer to concatenate the TX messages and to do
  *	a bulk send. Please refer to es58x_start_xmit() for more
@@ -255,6 +257,7 @@ union es58x_urb_cmd {
  */
 struct es58x_priv {
 	struct can_priv can;
+	struct devlink_port devlink_port;
 	struct es58x_device *es58x_dev;
 	struct urb *tx_urb;
 

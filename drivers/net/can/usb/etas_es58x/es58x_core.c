@@ -2039,10 +2039,16 @@ static int es58x_set_mode(struct net_device *netdev, enum can_mode mode)
  * @es58x_dev: ES58X device.
  * @priv: ES58X private parameters related to the network device.
  * @channel_idx: Index of the network device.
+ *
+ * Return: zero on success, errno if devlink port could not be
+ *	properly registered.
  */
-static void es58x_init_priv(struct es58x_device *es58x_dev,
-			    struct es58x_priv *priv, int channel_idx)
+static int es58x_init_priv(struct es58x_device *es58x_dev,
+			   struct es58x_priv *priv, int channel_idx)
 {
+	struct devlink_port_attrs attrs = {
+		.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL,
+	};
 	const struct es58x_parameters *param = es58x_dev->param;
 	struct can_priv *can = &priv->can;
 
@@ -2061,6 +2067,10 @@ static void es58x_init_priv(struct es58x_device *es58x_dev,
 	can->state = CAN_STATE_STOPPED;
 	can->ctrlmode_supported = param->ctrlmode_supported;
 	can->do_set_mode = es58x_set_mode;
+
+	devlink_port_attrs_set(&priv->devlink_port, &attrs);
+	return devlink_port_register(priv_to_devlink(es58x_dev),
+				     &priv->devlink_port, channel_idx);
 }
 
 /**
@@ -2084,7 +2094,10 @@ static int es58x_init_netdev(struct es58x_device *es58x_dev, int channel_idx)
 	}
 	SET_NETDEV_DEV(netdev, dev);
 	es58x_dev->netdev[channel_idx] = netdev;
-	es58x_init_priv(es58x_dev, es58x_priv(netdev), channel_idx);
+	ret = es58x_init_priv(es58x_dev, es58x_priv(netdev), channel_idx);
+	if (ret)
+		goto free_candev;
+	SET_NETDEV_DEVLINK_PORT(netdev, &es58x_priv(netdev)->devlink_port);
 
 	netdev->netdev_ops = &es58x_netdev_ops;
 	netdev->ethtool_ops = &es58x_ethtool_ops;
@@ -2092,15 +2105,19 @@ static int es58x_init_netdev(struct es58x_device *es58x_dev, int channel_idx)
 	netdev->dev_port = channel_idx;
 
 	ret = register_candev(netdev);
-	if (ret) {
-		es58x_dev->netdev[channel_idx] = NULL;
-		free_candev(netdev);
-		return ret;
-	}
+	if (ret)
+		goto devlink_port_unregister;
 
 	netdev_queue_set_dql_min_limit(netdev_get_tx_queue(netdev, 0),
 				       es58x_dev->param->dql_min_limit);
 
+	return ret;
+
+ devlink_port_unregister:
+	devlink_port_unregister(&es58x_priv(netdev)->devlink_port);
+ free_candev:
+	es58x_dev->netdev[channel_idx] = NULL;
+	free_candev(netdev);
 	return ret;
 }
 
@@ -2118,6 +2135,7 @@ static void es58x_free_netdevs(struct es58x_device *es58x_dev)
 		if (!netdev)
 			continue;
 		unregister_candev(netdev);
+		devlink_port_unregister(&es58x_priv(netdev)->devlink_port);
 		es58x_dev->netdev[i] = NULL;
 		free_candev(netdev);
 	}
