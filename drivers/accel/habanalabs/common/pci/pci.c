@@ -10,6 +10,8 @@
 
 #include <linux/pci.h>
 
+#include <trace/events/habanalabs.h>
+
 #define HL_PLDM_PCI_ELBI_TIMEOUT_MSEC	(HL_PCI_ELBI_TIMEOUT_MSEC * 100)
 
 #define IATU_REGION_CTRL_REGION_EN_MASK		BIT(31)
@@ -120,6 +122,9 @@ int hl_pci_elbi_read(struct hl_device *hdev, u64 addr, u32 *data)
 	if ((val & PCI_CONFIG_ELBI_STS_MASK) == PCI_CONFIG_ELBI_STS_DONE) {
 		pci_read_config_dword(pdev, mmPCI_CONFIG_ELBI_DATA, data);
 
+		if (unlikely(trace_habanalabs_elbi_read_enabled()))
+			trace_habanalabs_elbi_read(hdev->dev, (u32) addr, val);
+
 		return 0;
 	}
 
@@ -179,8 +184,11 @@ static int hl_pci_elbi_write(struct hl_device *hdev, u64 addr, u32 data)
 		usleep_range(300, 500);
 	}
 
-	if ((val & PCI_CONFIG_ELBI_STS_MASK) == PCI_CONFIG_ELBI_STS_DONE)
+	if ((val & PCI_CONFIG_ELBI_STS_MASK) == PCI_CONFIG_ELBI_STS_DONE) {
+		if (unlikely(trace_habanalabs_elbi_write_enabled()))
+			trace_habanalabs_elbi_write(hdev->dev, (u32) addr, val);
 		return 0;
+	}
 
 	if (val & PCI_CONFIG_ELBI_STS_ERR)
 		return -EIO;
