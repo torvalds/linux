@@ -139,6 +139,7 @@ static inline int pmd_dirty(pmd_t pmd)
 	return pmd_flags(pmd) & _PAGE_DIRTY;
 }
 
+#define pmd_young pmd_young
 static inline int pmd_young(pmd_t pmd)
 {
 	return pmd_flags(pmd) & _PAGE_ACCESSED;
