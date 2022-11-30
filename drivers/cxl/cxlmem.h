@@ -275,6 +275,7 @@ enum cxl_opcode {
 	CXL_MBOX_OP_GET_SCAN_MEDIA	= 0x4305,
 	CXL_MBOX_OP_GET_SECURITY_STATE	= 0x4500,
 	CXL_MBOX_OP_SET_PASSPHRASE	= 0x4501,
+	CXL_MBOX_OP_DISABLE_PASSPHRASE	= 0x4502,
 	CXL_MBOX_OP_MAX			= 0x10000
 };
 
@@ -388,6 +389,13 @@ struct cxl_set_pass {
 	/* CXL field using NVDIMM define, same length */
 	u8 old_pass[NVDIMM_PASSPHRASE_LEN];
 	u8 new_pass[NVDIMM_PASSPHRASE_LEN];
+} __packed;
+
+/* disable passphrase input payload */
+struct cxl_disable_pass {
+	u8 type;
+	u8 reserved[31];
+	u8 pass[NVDIMM_PASSPHRASE_LEN];
 } __packed;
 
 enum {
