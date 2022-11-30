@@ -87,6 +87,46 @@ Enum	3:0	State0
 EndEnum
 EndSysreg
 
+Sysreg ID_PFR1_EL1	3	0	0	1	1
+Res0	63:32
+Enum	31:28	GIC
+	0b0000	NI
+	0b0001	GICv3
+	0b0010	GICv4p1
+EndEnum
+Enum	27:24	Virt_frac
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	Sec_frac
+	0b0000	NI
+	0b0001	WALK_DISABLE
+	0b0010	SECURE_MEMORY
+EndEnum
+Enum	19:16	GenTimer
+	0b0000	NI
+	0b0001	IMP
+	0b0010	ECV
+EndEnum
+Enum	15:12	Virtualization
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	11:8	MProgMod
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	Security
+	0b0000	NI
+	0b0001	EL3
+	0b0001	NSACR_RFR
+EndEnum
+Enum	3:0	ProgMod
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
 Sysreg ID_MMFR0_EL1	3	0	0	1	4
 Res0	63:32
 Enum	31:28	InnerShr
