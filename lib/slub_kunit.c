@@ -135,6 +135,27 @@ static void test_clobber_redzone_free(struct kunit *test)
 	kmem_cache_destroy(s);
 }
 
+static void test_kmalloc_redzone_access(struct kunit *test)
+{
+	struct kmem_cache *s = test_kmem_cache_create("TestSlub_RZ_kmalloc", 32,
+				SLAB_KMALLOC|SLAB_STORE_USER|SLAB_RED_ZONE);
+	u8 *p = kmalloc_trace(s, GFP_KERNEL, 18);
+
+	kasan_disable_current();
+
+	/* Suppress the -Warray-bounds warning */
+	OPTIMIZER_HIDE_VAR(p);
+	p[18] = 0xab;
+	p[19] = 0xab;
+
+	validate_slab_cache(s);
+	KUNIT_EXPECT_EQ(test, 2, slab_errors);
+
+	kasan_enable_current();
+	kmem_cache_free(s, p);
+	kmem_cache_destroy(s);
+}
+
 static int test_init(struct kunit *test)
 {
 	slab_errors = 0;
@@ -154,6 +175,7 @@ static struct kunit_case test_cases[] = {
 #endif
 
 	KUNIT_CASE(test_clobber_redzone_free),
+	KUNIT_CASE(test_kmalloc_redzone_access),
 	{}
 };
 
