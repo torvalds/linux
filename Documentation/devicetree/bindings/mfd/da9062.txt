@@ -86,7 +86,7 @@ Sub-nodes:
 
 - onkey : See ../input/da9062-onkey.txt
 
-- watchdog: See ../watchdog/da9062-watchdog.txt
+- watchdog: See ../watchdog/da9062-wdt.txt
 
 - thermal : See ../thermal/da9062-thermal.txt
 
