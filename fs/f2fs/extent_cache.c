@@ -383,7 +383,7 @@ static void __f2fs_init_extent_tree(struct inode *inode, struct page *ipage)
 	if (!i_ext || !i_ext->len)
 		return;
 
-	get_extent_info(&ei, i_ext);
+	get_read_extent_info(&ei, i_ext);
 
 	write_lock(&et->lock);
 	if (atomic_read(&et->node_cnt))
@@ -710,7 +710,7 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 	unsigned int node_cnt = 0, tree_cnt = 0;
 	int remained;
 
-	if (!test_opt(sbi, EXTENT_CACHE))
+	if (!test_opt(sbi, READ_EXTENT_CACHE))
 		return 0;
 
 	if (!atomic_read(&sbi->total_zombie_tree))
