@@ -65,6 +65,11 @@ static struct {
 	},
 };
 
+struct cxl_mockmem_data {
+	void *lsa;
+	u32 security_state;
+};
+
 static int mock_gsl(struct cxl_mbox_cmd *cmd)
 {
 	if (cmd->size_out < sizeof(mock_gsl_payload))
@@ -137,10 +142,27 @@ static int mock_partition_info(struct cxl_dev_state *cxlds,
 	return 0;
 }
 
+static int mock_get_security_state(struct cxl_dev_state *cxlds,
+				   struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
+
+	if (cmd->size_in)
+		return -EINVAL;
+
+	if (cmd->size_out != sizeof(u32))
+		return -EINVAL;
+
+	memcpy(cmd->payload_out, &mdata->security_state, sizeof(u32));
+
+	return 0;
+}
+
 static int mock_get_lsa(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_get_lsa *get_lsa = cmd->payload_in;
-	void *lsa = dev_get_drvdata(cxlds->dev);
+	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
+	void *lsa = mdata->lsa;
 	u32 offset, length;
 
 	if (sizeof(*get_lsa) > cmd->size_in)
@@ -159,7 +181,8 @@ static int mock_get_lsa(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 static int mock_set_lsa(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_set_lsa *set_lsa = cmd->payload_in;
-	void *lsa = dev_get_drvdata(cxlds->dev);
+	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
+	void *lsa = mdata->lsa;
 	u32 offset, length;
 
 	if (sizeof(*set_lsa) > cmd->size_in)
@@ -230,6 +253,9 @@ static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *
 	case CXL_MBOX_OP_GET_HEALTH_INFO:
 		rc = mock_health_info(cxlds, cmd);
 		break;
+	case CXL_MBOX_OP_GET_SECURITY_STATE:
+		rc = mock_get_security_state(cxlds, cmd);
+		break;
 	default:
 		break;
 	}
@@ -250,16 +276,20 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct cxl_memdev *cxlmd;
 	struct cxl_dev_state *cxlds;
-	void *lsa;
+	struct cxl_mockmem_data *mdata;
 	int rc;
 
-	lsa = vmalloc(LSA_SIZE);
-	if (!lsa)
+	mdata = devm_kzalloc(dev, sizeof(*mdata), GFP_KERNEL);
+	if (!mdata)
 		return -ENOMEM;
-	rc = devm_add_action_or_reset(dev, label_area_release, lsa);
+	dev_set_drvdata(dev, mdata);
+
+	mdata->lsa = vmalloc(LSA_SIZE);
+	if (!mdata->lsa)
+		return -ENOMEM;
+	rc = devm_add_action_or_reset(dev, label_area_release, mdata->lsa);
 	if (rc)
 		return rc;
-	dev_set_drvdata(dev, lsa);
 
 	cxlds = cxl_dev_state_create(dev);
 	if (IS_ERR(cxlds))
