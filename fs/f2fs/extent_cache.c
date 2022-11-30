@@ -15,6 +15,77 @@
 #include "node.h"
 #include <trace/events/f2fs.h>
 
+static void __set_extent_info(struct extent_info *ei,
+				unsigned int fofs, unsigned int len,
+				block_t blk, bool keep_clen)
+{
+	ei->fofs = fofs;
+	ei->blk = blk;
+	ei->len = len;
+
+	if (keep_clen)
+		return;
+
+#ifdef CONFIG_F2FS_FS_COMPRESSION
+	ei->c_len = 0;
+#endif
+}
+
+static bool f2fs_may_extent_tree(struct inode *inode)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+
+	/*
+	 * for recovered files during mount do not create extents
+	 * if shrinker is not registered.
+	 */
+	if (list_empty(&sbi->s_list))
+		return false;
+
+	if (!test_opt(sbi, READ_EXTENT_CACHE) ||
+			is_inode_flag_set(inode, FI_NO_EXTENT) ||
+			(is_inode_flag_set(inode, FI_COMPRESSED_FILE) &&
+			 !f2fs_sb_has_readonly(sbi)))
+		return false;
+
+	return S_ISREG(inode->i_mode);
+}
+
+static void __try_update_largest_extent(struct extent_tree *et,
+						struct extent_node *en)
+{
+	if (en->ei.len <= et->largest.len)
+		return;
+
+	et->largest = en->ei;
+	et->largest_updated = true;
+}
+
+static bool __is_extent_mergeable(struct extent_info *back,
+				struct extent_info *front)
+{
+#ifdef CONFIG_F2FS_FS_COMPRESSION
+	if (back->c_len && back->len != back->c_len)
+		return false;
+	if (front->c_len && front->len != front->c_len)
+		return false;
+#endif
+	return (back->fofs + back->len == front->fofs &&
+			back->blk + back->len == front->blk);
+}
+
+static bool __is_back_mergeable(struct extent_info *cur,
+				struct extent_info *back)
+{
+	return __is_extent_mergeable(back, cur);
+}
+
+static bool __is_front_mergeable(struct extent_info *cur,
+				struct extent_info *front)
+{
+	return __is_extent_mergeable(cur, front);
+}
+
 static struct rb_entry *__lookup_rb_tree_fast(struct rb_entry *cached_re,
 							unsigned int ofs)
 {
@@ -591,16 +662,16 @@ static void f2fs_update_extent_tree_range(struct inode *inode,
 
 		if (end < org_end && org_end - end >= F2FS_MIN_EXTENT_LEN) {
 			if (parts) {
-				set_extent_info(&ei, end,
-						end - dei.fofs + dei.blk,
-						org_end - end);
+				__set_extent_info(&ei,
+					end, org_end - end,
+					end - dei.fofs + dei.blk, false);
 				en1 = __insert_extent_tree(sbi, et, &ei,
 							NULL, NULL, true);
 				next_en = en1;
 			} else {
-				en->ei.fofs = end;
-				en->ei.blk += end - dei.fofs;
-				en->ei.len -= end - dei.fofs;
+				__set_extent_info(&en->ei,
+					end, en->ei.len - (end - dei.fofs),
+					en->ei.blk + (end - dei.fofs), true);
 				next_en = en;
 			}
 			parts++;
@@ -632,8 +703,7 @@ static void f2fs_update_extent_tree_range(struct inode *inode,
 
 	/* 3. update extent in extent cache */
 	if (blkaddr) {
-
-		set_extent_info(&ei, fofs, blkaddr, len);
+		__set_extent_info(&ei, fofs, len, blkaddr, false);
 		if (!__try_merge_extent_node(sbi, et, &ei, prev_en, next_en))
 			__insert_extent_tree(sbi, et, &ei,
 					insert_p, insert_parent, leftmost);
@@ -692,7 +762,7 @@ void f2fs_update_extent_tree_range_compressed(struct inode *inode,
 	if (en)
 		goto unlock_out;
 
-	set_extent_info(&ei, fofs, blkaddr, llen);
+	__set_extent_info(&ei, fofs, llen, blkaddr, true);
 	ei.c_len = c_len;
 
 	if (!__try_merge_extent_node(sbi, et, &ei, prev_en, next_en))
