@@ -695,11 +695,10 @@
 };
 
 &pcie3x4 {
-	reset-gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie30>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie20x1_0_clkreqn_m1>;
-	supports-clkreq;
 	status = "okay";
 };
 
@@ -809,7 +808,7 @@
 
 	pcie {
 		pcie20x1_0_clkreqn_m1: pcie20x1-0-clkreqn-m1 {
-			rockchip,pins = <4 RK_PB4 4 &pcfg_pull_up>;
+			rockchip,pins = <4 RK_PB4 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 	};
 };
