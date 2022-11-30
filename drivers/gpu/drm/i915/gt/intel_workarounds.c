@@ -2906,6 +2906,7 @@ add_render_compute_tuning_settings(struct drm_i915_private *i915,
 	if (IS_PONTEVECCHIO(i915)) {
 		wa_write(wal, XEHPC_L3SCRUB,
 			 SCRUB_CL_DWNGRADE_SHARED | SCRUB_RATE_4B_PER_CLK);
+		wa_masked_en(wal, XEHPC_LNCFMISCCFGREG0, XEHPC_HOSTCACHEEN);
 	}
 
 	if (IS_DG2(i915)) {

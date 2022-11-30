@@ -972,6 +972,7 @@
 #define   GEN7_L3AGDIS				(1 << 19)
 
 #define XEHPC_LNCFMISCCFGREG0			_MMIO(0xb01c)
+#define   XEHPC_HOSTCACHEEN			REG_BIT(1)
 #define   XEHPC_OVRLSCCC			REG_BIT(0)
 
 #define GEN7_L3CNTLREG2				_MMIO(0xb020)
