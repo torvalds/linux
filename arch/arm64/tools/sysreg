@@ -606,6 +606,45 @@ Enum	3:0	SpecSEI
 EndEnum
 EndSysreg
 
+Sysreg MVFR0_EL1	3	0	0	3	0
+Res0	63:32
+Enum	31:28	FPRound
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	FPShVec
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	FPSqrt
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	FPDivide
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	FPTrap
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	11:8	FPDP
+	0b0000	NI
+	0b0001	VFPv2
+	0b0001	VFPv3
+EndEnum
+Enum	7:4	FPSP
+	0b0000	NI
+	0b0001	VFPv2
+	0b0001	VFPv3
+EndEnum
+Enum	3:0	SIMDReg
+	0b0000	NI
+	0b0001	IMP_16x64
+	0b0001	IMP_32x64
+EndEnum
+EndSysreg
+
 Sysreg ID_PFR2_EL1	3	0	0	3	4
 Res0	63:12
 Enum	11:8	RAS_frac
