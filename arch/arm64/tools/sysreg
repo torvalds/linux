@@ -127,6 +127,56 @@ Enum	3:0	ProgMod
 EndEnum
 EndSysreg
 
+Sysreg ID_DFR0_EL1	3	0	0	1	2
+Res0	63:32
+Enum	31:28	TraceFilt
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	PerfMon
+	0b0000	NI
+	0b0001	PMUv1
+	0b0010	PMUv2
+	0b0011	PMUv3
+	0b0100	PMUv3p1
+	0b0101	PMUv3p4
+	0b0110	PMUv3p5
+	0b0111	PMUv3p7
+	0b1000	PMUv3p8
+	0b1111	IMPDEF
+EndEnum
+Enum	23:20	MProfDbg
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	MMapTrc
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	CopTrc
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	11:8	MMapDbg
+	0b0000	NI
+	0b0100	Armv7
+	0b0101	Armv7p1
+EndEnum
+Field	7:4	CopSDbg
+Enum	3:0	CopDbg
+	0b0000	NI
+	0b0010	Armv6
+	0b0011	Armv6p1
+	0b0100	Armv7
+	0b0101	Armv7p1
+	0b0110	Armv8
+	0b0111	VHE
+	0b1000	Debugv8p2
+	0b1001	Debugv8p4
+	0b1010	Debugv8p8
+EndEnum
+EndSysreg
+
 Sysreg ID_AFR0_EL1	3	0	0	1	3
 Res0	63:16
 Field	15:12	IMPDEF3

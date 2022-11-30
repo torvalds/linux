@@ -165,7 +165,6 @@
 #define SYS_MPIDR_EL1			sys_reg(3, 0, 0, 0, 5)
 #define SYS_REVIDR_EL1			sys_reg(3, 0, 0, 0, 6)
 
-#define SYS_ID_DFR0_EL1			sys_reg(3, 0, 0, 1, 2)
 #define SYS_ID_DFR1_EL1			sys_reg(3, 0, 0, 3, 5)
 
 #define SYS_ACTLR_EL1			sys_reg(3, 0, 1, 0, 1)
@@ -670,20 +669,7 @@
 #define ID_AA64MMFR0_EL1_PARANGE_MAX	ID_AA64MMFR0_EL1_PARANGE_48
 #endif
 
-#define ID_DFR0_EL1_PerfMon_PMUv3		0x3
-#define ID_DFR0_EL1_PerfMon_PMUv3p1		0x4
-#define ID_DFR0_EL1_PerfMon_PMUv3p4		0x5
-#define ID_DFR0_EL1_PerfMon_PMUv3p5		0x6
-
 #define ID_DFR1_EL1_MTPMU_SHIFT		0
-
-#define ID_DFR0_EL1_PerfMon_SHIFT	24
-#define ID_DFR0_EL1_MProfDbg_SHIFT	20
-#define ID_DFR0_EL1_MMapTrc_SHIFT	16
-#define ID_DFR0_EL1_CopTrc_SHIFT	12
-#define ID_DFR0_EL1_MMapDbg_SHIFT	8
-#define ID_DFR0_EL1_CopSDbg_SHIFT	4
-#define ID_DFR0_EL1_CopDbg_SHIFT	0
 
 #if defined(CONFIG_ARM64_4K_PAGES)
 #define ID_AA64MMFR0_EL1_TGRAN_SHIFT		ID_AA64MMFR0_EL1_TGRAN4_SHIFT
