@@ -39,6 +39,10 @@
 #endif
 #define DMA_ADDR_LOW(dma_addr) ((u32)((dma_addr) & 0xFFFFFFFF))
 
+#define TSNEP_COALESCE_USECS_DEFAULT 64
+#define TSNEP_COALESCE_USECS_MAX     ((ECM_INT_DELAY_MASK >> ECM_INT_DELAY_SHIFT) * \
+				      ECM_INT_DELAY_BASE_US + ECM_INT_DELAY_BASE_US - 1)
+
 static void tsnep_enable_irq(struct tsnep_adapter *adapter, u32 mask)
 {
 	iowrite32(mask, adapter->addr + ECM_INT_ENABLE);
@@ -81,6 +85,33 @@ static irqreturn_t tsnep_irq_txrx(int irq, void *arg)
 	napi_schedule(&queue->napi);
 
 	return IRQ_HANDLED;
+}
+
+int tsnep_set_irq_coalesce(struct tsnep_queue *queue, u32 usecs)
+{
+	if (usecs > TSNEP_COALESCE_USECS_MAX)
+		return -ERANGE;
+
+	usecs /= ECM_INT_DELAY_BASE_US;
+	usecs <<= ECM_INT_DELAY_SHIFT;
+	usecs &= ECM_INT_DELAY_MASK;
+
+	queue->irq_delay &= ~ECM_INT_DELAY_MASK;
+	queue->irq_delay |= usecs;
+	iowrite8(queue->irq_delay, queue->irq_delay_addr);
+
+	return 0;
+}
+
+u32 tsnep_get_irq_coalesce(struct tsnep_queue *queue)
+{
+	u32 usecs;
+
+	usecs = (queue->irq_delay & ECM_INT_DELAY_MASK);
+	usecs >>= ECM_INT_DELAY_SHIFT;
+	usecs *= ECM_INT_DELAY_BASE_US;
+
+	return usecs;
 }
 
 static int tsnep_mdiobus_read(struct mii_bus *bus, int addr, int regnum)
@@ -1371,6 +1402,11 @@ static int tsnep_queue_init(struct tsnep_adapter *adapter, int queue_count)
 	adapter->queue[0].tx = &adapter->tx[0];
 	adapter->queue[0].rx = &adapter->rx[0];
 	adapter->queue[0].irq_mask = irq_mask;
+	adapter->queue[0].irq_delay_addr = adapter->addr + ECM_INT_DELAY;
+	retval = tsnep_set_irq_coalesce(&adapter->queue[0],
+					TSNEP_COALESCE_USECS_DEFAULT);
+	if (retval < 0)
+		return retval;
 
 	adapter->netdev->irq = adapter->queue[0].irq;
 
@@ -1391,6 +1427,12 @@ static int tsnep_queue_init(struct tsnep_adapter *adapter, int queue_count)
 		adapter->queue[i].rx = &adapter->rx[i];
 		adapter->queue[i].irq_mask =
 			irq_mask << (ECM_INT_TXRX_SHIFT * i);
+		adapter->queue[i].irq_delay_addr =
+			adapter->addr + ECM_INT_DELAY + ECM_INT_DELAY_OFFSET * i;
+		retval = tsnep_set_irq_coalesce(&adapter->queue[i],
+						TSNEP_COALESCE_USECS_DEFAULT);
+		if (retval < 0)
+			return retval;
 	}
 
 	return 0;

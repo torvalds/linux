@@ -324,7 +324,137 @@ static int tsnep_ethtool_get_ts_info(struct net_device *netdev,
 	return 0;
 }
 
+static struct tsnep_queue *tsnep_get_queue_with_tx(struct tsnep_adapter *adapter,
+						   int index)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_queues; i++) {
+		if (adapter->queue[i].tx) {
+			if (index == 0)
+				return &adapter->queue[i];
+
+			index--;
+		}
+	}
+
+	return NULL;
+}
+
+static struct tsnep_queue *tsnep_get_queue_with_rx(struct tsnep_adapter *adapter,
+						   int index)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_queues; i++) {
+		if (adapter->queue[i].rx) {
+			if (index == 0)
+				return &adapter->queue[i];
+
+			index--;
+		}
+	}
+
+	return NULL;
+}
+
+static int tsnep_ethtool_get_coalesce(struct net_device *netdev,
+				      struct ethtool_coalesce *ec,
+				      struct kernel_ethtool_coalesce *kernel_coal,
+				      struct netlink_ext_ack *extack)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+	struct tsnep_queue *queue;
+
+	queue = tsnep_get_queue_with_rx(adapter, 0);
+	if (queue)
+		ec->rx_coalesce_usecs = tsnep_get_irq_coalesce(queue);
+
+	queue = tsnep_get_queue_with_tx(adapter, 0);
+	if (queue)
+		ec->tx_coalesce_usecs = tsnep_get_irq_coalesce(queue);
+
+	return 0;
+}
+
+static int tsnep_ethtool_set_coalesce(struct net_device *netdev,
+				      struct ethtool_coalesce *ec,
+				      struct kernel_ethtool_coalesce *kernel_coal,
+				      struct netlink_ext_ack *extack)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+	int i;
+	int retval;
+
+	for (i = 0; i < adapter->num_queues; i++) {
+		/* RX coalesce has priority for queues with TX and RX */
+		if (adapter->queue[i].rx)
+			retval = tsnep_set_irq_coalesce(&adapter->queue[i],
+							ec->rx_coalesce_usecs);
+		else
+			retval = tsnep_set_irq_coalesce(&adapter->queue[i],
+							ec->tx_coalesce_usecs);
+		if (retval != 0)
+			return retval;
+	}
+
+	return 0;
+}
+
+static int tsnep_ethtool_get_per_queue_coalesce(struct net_device *netdev,
+						u32 queue,
+						struct ethtool_coalesce *ec)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+	struct tsnep_queue *queue_with_rx;
+	struct tsnep_queue *queue_with_tx;
+
+	if (queue >= max(adapter->num_tx_queues, adapter->num_rx_queues))
+		return -EINVAL;
+
+	queue_with_rx = tsnep_get_queue_with_rx(adapter, queue);
+	if (queue_with_rx)
+		ec->rx_coalesce_usecs = tsnep_get_irq_coalesce(queue_with_rx);
+
+	queue_with_tx = tsnep_get_queue_with_tx(adapter, queue);
+	if (queue_with_tx)
+		ec->tx_coalesce_usecs = tsnep_get_irq_coalesce(queue_with_tx);
+
+	return 0;
+}
+
+static int tsnep_ethtool_set_per_queue_coalesce(struct net_device *netdev,
+						u32 queue,
+						struct ethtool_coalesce *ec)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+	struct tsnep_queue *queue_with_rx;
+	struct tsnep_queue *queue_with_tx;
+	int retval;
+
+	if (queue >= max(adapter->num_tx_queues, adapter->num_rx_queues))
+		return -EINVAL;
+
+	queue_with_rx = tsnep_get_queue_with_rx(adapter, queue);
+	if (queue_with_rx) {
+		retval = tsnep_set_irq_coalesce(queue_with_rx, ec->rx_coalesce_usecs);
+		if (retval != 0)
+			return retval;
+	}
+
+	/* RX coalesce has priority for queues with TX and RX */
+	queue_with_tx = tsnep_get_queue_with_tx(adapter, queue);
+	if (queue_with_tx && !queue_with_tx->rx) {
+		retval = tsnep_set_irq_coalesce(queue_with_tx, ec->tx_coalesce_usecs);
+		if (retval != 0)
+			return retval;
+	}
+
+	return 0;
+}
+
 const struct ethtool_ops tsnep_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_drvinfo = tsnep_ethtool_get_drvinfo,
 	.get_regs_len = tsnep_ethtool_get_regs_len,
 	.get_regs = tsnep_ethtool_get_regs,
@@ -340,6 +470,10 @@ const struct ethtool_ops tsnep_ethtool_ops = {
 	.set_rxnfc = tsnep_ethtool_set_rxnfc,
 	.get_channels = tsnep_ethtool_get_channels,
 	.get_ts_info = tsnep_ethtool_get_ts_info,
+	.get_coalesce = tsnep_ethtool_get_coalesce,
+	.set_coalesce = tsnep_ethtool_set_coalesce,
+	.get_per_queue_coalesce = tsnep_ethtool_get_per_queue_coalesce,
+	.set_per_queue_coalesce = tsnep_ethtool_set_per_queue_coalesce,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };

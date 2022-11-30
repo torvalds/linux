@@ -132,6 +132,8 @@ struct tsnep_queue {
 
 	int irq;
 	u32 irq_mask;
+	void __iomem *irq_delay_addr;
+	u8 irq_delay;
 };
 
 struct tsnep_adapter {
@@ -223,5 +225,7 @@ static inline void tsnep_ethtool_self_test(struct net_device *dev,
 #endif /* CONFIG_TSNEP_SELFTESTS */
 
 void tsnep_get_system_time(struct tsnep_adapter *adapter, u64 *time);
+int tsnep_set_irq_coalesce(struct tsnep_queue *queue, u32 usecs);
+u32 tsnep_get_irq_coalesce(struct tsnep_queue *queue);
 
 #endif /* _TSNEP_H */
