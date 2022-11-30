@@ -156,6 +156,8 @@ static DEFINE_IDA(mctp_ida);
 #define TX_RING_COUNT		64
 
 /* PCIe Host Controller registers */
+#define ASPEED_PCIE_LINK	0x0c0
+#define PCIE_LINK_STS		BIT(5)
 #define ASPEED_PCIE_MISC_STS_1	0x0c4
 
 /* PCI address definitions */
@@ -374,6 +376,9 @@ static u16 _get_bdf(struct aspeed_mctp *priv)
 	u32 reg;
 	u16 bdf;
 
+	regmap_read(priv->pcie.map, ASPEED_PCIE_LINK, &reg);
+	if (!(reg & PCIE_LINK_STS))
+		return 0;
 	regmap_read(priv->pcie.map, ASPEED_PCIE_MISC_STS_1, &reg);
 
 	reg = reg & (PCI_BUS_NUM_MASK | PCI_DEV_NUM_MASK);
