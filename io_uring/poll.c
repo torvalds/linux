@@ -249,7 +249,7 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 		if (unlikely(v != 1)) {
 			/* tw should be the owner and so have some refs */
 			if (WARN_ON_ONCE(!(v & IO_POLL_REF_MASK)))
-				return IOU_POLL_DONE;
+				return IOU_POLL_NO_ACTION;
 			if (v & IO_POLL_CANCEL_FLAG)
 				return -ECANCELED;
 			/*
