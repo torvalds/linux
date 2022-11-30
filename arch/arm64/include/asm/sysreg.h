@@ -706,7 +706,7 @@
 #define ID_ISAR4_EL1_WithShifts_SHIFT		4
 #define ID_ISAR4_EL1_Unpriv_SHIFT		0
 
-#define ID_DFR1_MTPMU_SHIFT		0
+#define ID_DFR1_EL1_MTPMU_SHIFT		0
 
 #define ID_ISAR0_EL1_Divide_SHIFT	24
 #define ID_ISAR0_EL1_Debug_SHIFT	20

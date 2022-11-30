@@ -578,7 +578,7 @@ static const struct arm64_ftr_bits ftr_id_dfr0[] = {
 };
 
 static const struct arm64_ftr_bits ftr_id_dfr1[] = {
-	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_DFR1_MTPMU_SHIFT, 4, 0),
+	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_DFR1_EL1_MTPMU_SHIFT, 4, 0),
 	ARM64_FTR_END,
 };
 
