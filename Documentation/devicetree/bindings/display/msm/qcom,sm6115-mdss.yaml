@@ -62,7 +62,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/power/qcom-rpmpd.h>
 
-    mdss@5e00000 {
+    display-subsystem@5e00000 {
         #address-cells = <1>;
         #size-cells = <1>;
         compatible = "qcom,sm6115-mdss";
