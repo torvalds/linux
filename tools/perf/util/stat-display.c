@@ -731,7 +731,7 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 		perf_stat__print_shadow_stats(config, counter, uval, map_idx,
 					      &out, &config->metric_events, &rt_stat);
 	} else {
-		pm(config, &os, /*color=*/NULL, /*format=*/NULL, /*unit=*/"", /*val=*/0);
+		pm(config, os, /*color=*/NULL, /*format=*/NULL, /*unit=*/"", /*val=*/0);
 	}
 
 	if (!config->metric_only) {
