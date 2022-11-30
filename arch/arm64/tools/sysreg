@@ -127,6 +127,14 @@ Enum	3:0	ProgMod
 EndEnum
 EndSysreg
 
+Sysreg ID_AFR0_EL1	3	0	0	1	3
+Res0	63:16
+Field	15:12	IMPDEF3
+Field	11:8	IMPDEF2
+Field	7:4	IMPDEF1
+Field	3:0	IMPDEF0
+EndSysreg
+
 Sysreg ID_MMFR0_EL1	3	0	0	1	4
 Res0	63:32
 Enum	31:28	InnerShr
