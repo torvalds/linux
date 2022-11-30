@@ -53,6 +53,7 @@ properties:
               - qcom,sc8280xp-tsens
               - qcom,sdm630-tsens
               - qcom,sdm845-tsens
+              - qcom,sm6115-tsens
               - qcom,sm6350-tsens
               - qcom,sm8150-tsens
               - qcom,sm8250-tsens
