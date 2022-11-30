@@ -522,7 +522,7 @@ static const struct arm64_ftr_bits ftr_id_isar4[] = {
 };
 
 static const struct arm64_ftr_bits ftr_id_mmfr5[] = {
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_MMFR5_ETS_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_MMFR5_EL1_ETS_SHIFT, 4, 0),
 	ARM64_FTR_END,
 };
 
