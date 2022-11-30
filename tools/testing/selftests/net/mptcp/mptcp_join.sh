@@ -26,6 +26,10 @@ ip_mptcp=0
 check_invert=0
 validate_checksum=0
 init=0
+evts_ns1=""
+evts_ns2=""
+evts_ns1_pid=0
+evts_ns2_pid=0
 
 declare -A all_tests
 declare -a only_tests_ids
@@ -154,6 +158,8 @@ init() {
 	cin=$(mktemp)
 	cinsent=$(mktemp)
 	cout=$(mktemp)
+	evts_ns1=$(mktemp)
+	evts_ns2=$(mktemp)
 
 	trap cleanup EXIT
 
@@ -165,6 +171,7 @@ cleanup()
 {
 	rm -f "$cin" "$cout" "$sinfail"
 	rm -f "$sin" "$sout" "$cinsent" "$cinfail"
+	rm -rf $evts_ns1 $evts_ns2
 	cleanup_partial
 }
 
@@ -320,6 +327,18 @@ reset_with_fail()
 		index 100 || exit 1
 }
 
+reset_with_events()
+{
+	reset "${1}" || return 1
+
+	:> "$evts_ns1"
+	:> "$evts_ns2"
+	ip netns exec $ns1 ./pm_nl_ctl events >> "$evts_ns1" 2>&1 &
+	evts_ns1_pid=$!
+	ip netns exec $ns2 ./pm_nl_ctl events >> "$evts_ns2" 2>&1 &
+	evts_ns2_pid=$!
+}
+
 fail_test()
 {
 	ret=1
@@ -471,6 +490,12 @@ kill_wait()
 {
 	kill $1 > /dev/null 2>&1
 	wait $1 2>/dev/null
+}
+
+kill_events_pids()
+{
+	kill_wait $evts_ns1_pid
+	kill_wait $evts_ns2_pid
 }
 
 pm_nl_set_limits()
@@ -673,10 +698,6 @@ do_transfer()
 	local port=$((10000 + TEST_COUNT - 1))
 	local cappid
 	local userspace_pm=0
-	local evts_ns1
-	local evts_ns1_pid
-	local evts_ns2
-	local evts_ns2_pid
 
 	:> "$cout"
 	:> "$sout"
@@ -751,17 +772,6 @@ do_transfer()
 	elif [[ "${addr_nr_ns2}" = "fullmesh_"* ]]; then
 		flags="${flags},fullmesh"
 		addr_nr_ns2=${addr_nr_ns2:9}
-	fi
-
-	if [ $userspace_pm -eq 1 ]; then
-		evts_ns1=$(mktemp)
-		evts_ns2=$(mktemp)
-		:> "$evts_ns1"
-		:> "$evts_ns2"
-		ip netns exec ${listener_ns} ./pm_nl_ctl events >> "$evts_ns1" 2>&1 &
-		evts_ns1_pid=$!
-		ip netns exec ${connector_ns} ./pm_nl_ctl events >> "$evts_ns2" 2>&1 &
-		evts_ns2_pid=$!
 	fi
 
 	local local_addr
@@ -980,12 +990,6 @@ do_transfer()
 	if [ $capture -eq 1 ]; then
 	    sleep 1
 	    kill $cappid
-	fi
-
-	if [ $userspace_pm -eq 1 ]; then
-		kill_wait $evts_ns1_pid
-		kill_wait $evts_ns2_pid
-		rm -rf $evts_ns1 $evts_ns2
 	fi
 
 	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
@@ -2961,22 +2965,24 @@ userspace_tests()
 	fi
 
 	# userspace pm add & remove address
-	if reset "userspace pm add & remove address"; then
+	if reset_with_events "userspace pm add & remove address"; then
 		set_userspace_pm $ns1
 		pm_nl_set_limits $ns2 1 1
 		run_tests $ns1 $ns2 10.0.1.1 0 userspace_1 0 slow
 		chk_join_nr 1 1 1
 		chk_add_nr 1 1
 		chk_rm_nr 1 1 invert
+		kill_events_pids
 	fi
 
 	# userspace pm create destroy subflow
-	if reset "userspace pm create destroy subflow"; then
+	if reset_with_events "userspace pm create destroy subflow"; then
 		set_userspace_pm $ns2
 		pm_nl_set_limits $ns1 0 1
 		run_tests $ns1 $ns2 10.0.1.1 0 0 userspace_1 slow
 		chk_join_nr 1 1 1
 		chk_rm_nr 0 1
+		kill_events_pids
 	fi
 }
 
