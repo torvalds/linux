@@ -3,7 +3,6 @@ tools/arch
 tools/scripts
 tools/build
 tools/include
-tools/lib/traceevent
 tools/lib/api
 tools/lib/bpf
 tools/lib/subcmd
