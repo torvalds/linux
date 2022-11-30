@@ -3745,6 +3745,7 @@ int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power);
 void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev);
 void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev);
 int hl_fw_init_cpu(struct hl_device *hdev);
+int hl_fw_wait_preboot_ready(struct hl_device *hdev);
 int hl_fw_read_preboot_status(struct hl_device *hdev);
 int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
 				struct fw_load_mgr *fw_loader,

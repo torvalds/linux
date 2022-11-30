@@ -5484,7 +5484,31 @@ static void gaudi2_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_rese
 
 skip_reset:
 	if (driver_performs_reset || hard_reset)
-		gaudi2_poll_btm_indication(hdev, reset_sleep_ms, poll_timeout_us);
+		/*
+		 * Instead of waiting for BTM indication we should wait for preboot ready:
+		 * Consider the below scenario:
+		 * 1. FW update is being triggered
+		 *        - setting the dirty bit
+		 * 2. hard reset will be triggered due to the dirty bit
+		 * 3. FW initiates the reset:
+		 *        - dirty bit cleared
+		 *        - BTM indication cleared
+		 *        - preboot ready indication cleared
+		 * 4. during hard reset:
+		 *        - BTM indication will be set
+		 *        - BIST test performed and another reset triggered
+		 * 5. only after this reset the preboot will set the preboot ready
+		 *
+		 * when polling on BTM indication alone we can lose sync with FW while trying to
+		 * communicate with FW that is during reset.
+		 * to overcome this we will always wait to preboot ready indication
+		 */
+		if ((hdev->fw_components & FW_TYPE_PREBOOT_CPU)) {
+			msleep(reset_sleep_ms);
+			hl_fw_wait_preboot_ready(hdev);
+		} else {
+			gaudi2_poll_btm_indication(hdev, reset_sleep_ms, poll_timeout_us);
+		}
 	else
 		gaudi2_get_soft_rst_done_indication(hdev, poll_timeout_us);
 

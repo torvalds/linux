@@ -1352,7 +1352,7 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 	}
 }
 
-static int hl_fw_wait_preboot_ready(struct hl_device *hdev)
+int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 {
 	struct pre_fw_load_props *pre_fw_load = &hdev->fw_loader.pre_fw_load;
 	u32 status;
