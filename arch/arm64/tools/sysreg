@@ -344,6 +344,44 @@ Enum	3:0	LoadStore
 EndEnum
 EndSysreg
 
+Sysreg ID_ISAR3_EL1	3	0	0	2	3
+Res0	63:32
+Enum	31:28	T32EE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	TrueNOP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	T32Copy
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	TabBranch
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	SynchPrim
+	0b0000	NI
+	0b0001	EXCLUSIVE
+	0b0010	DOUBLE
+EndEnum
+Enum	11:8	SVC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	SIMD
+	0b0000	NI
+	0b0001	SSAT
+	0b0011	PKHBT
+EndEnum
+Enum	3:0	Saturate
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
 Sysreg ID_MMFR4_EL1	3	0	0	2	6
 Res0	63:32
 Enum	31:28	EVT
