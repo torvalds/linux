@@ -412,13 +412,15 @@ static int msg2638_ts_probe(struct i2c_client *client)
 		msg2638->num_keycodes = ARRAY_SIZE(msg2638->keycodes);
 	}
 
-	error = device_property_read_u32_array(dev, "linux,keycodes",
-					       msg2638->keycodes,
-					       msg2638->num_keycodes);
-	if (error) {
-		dev_err(dev, "Unable to read linux,keycodes values: %d\n",
-			error);
-		return error;
+	if (msg2638->num_keycodes > 0) {
+		error = device_property_read_u32_array(dev, "linux,keycodes",
+						       msg2638->keycodes,
+						       msg2638->num_keycodes);
+		if (error) {
+			dev_err(dev, "Unable to read linux,keycodes values: %d\n",
+				error);
+			return error;
+		}
 	}
 
 	error = devm_request_threaded_irq(dev, client->irq,
