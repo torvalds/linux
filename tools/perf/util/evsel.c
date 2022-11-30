@@ -2320,11 +2320,8 @@ u64 evsel__bitfield_swap_branch_flags(u64 value)
 	 * as it has variable bit-field sizes. Instead the
 	 * macro takes the bit-field position/size,
 	 * swaps it based on the host endianness.
-	 *
-	 * tep_is_bigendian() is used here instead of
-	 * bigendian() to avoid python test fails.
 	 */
-	if (tep_is_bigendian()) {
+	if (host_is_bigendian()) {
 		new_val = bitfield_swap(value, 0, 1);
 		new_val |= bitfield_swap(value, 1, 1);
 		new_val |= bitfield_swap(value, 2, 1);

@@ -27,8 +27,6 @@ trace_event__tp_format(const char *sys, const char *name);
 
 struct tep_event *trace_event__tp_format_id(int id);
 
-int bigendian(void);
-
 void event_format__fprintf(struct tep_event *event,
 			   int cpu, void *data, int size, FILE *fp);
 
