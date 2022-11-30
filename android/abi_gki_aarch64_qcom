@@ -2128,8 +2128,10 @@
   sg_init_one
   sg_init_table
   sg_miter_next
+  sg_miter_skip
   sg_miter_start
   sg_miter_stop
+  sg_nents
   sg_next
   shmem_read_mapping_page_gfp
   show_rcu_gp_kthreads
@@ -2171,6 +2173,7 @@
   skb_recv_datagram
   skb_set_owner_w
   skb_store_bits
+  skb_to_sgvec
   skb_trim
   skip_spaces
   smp_call_function
