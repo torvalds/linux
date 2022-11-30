@@ -1007,8 +1007,23 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 	priv->rx_res = NULL;
 }
 
+static void mlx5e_rep_mpesw_work(struct work_struct *work)
+{
+	struct mlx5_rep_uplink_priv *uplink_priv =
+		container_of(work, struct mlx5_rep_uplink_priv,
+			     mpesw_work);
+	struct mlx5e_rep_priv *rpriv =
+		container_of(uplink_priv, struct mlx5e_rep_priv,
+			     uplink_priv);
+	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
+
+	rep_vport_rx_rule_destroy(priv);
+	mlx5e_create_rep_vport_rx_rule(priv);
+}
+
 static int mlx5e_init_ul_rep_rx(struct mlx5e_priv *priv)
 {
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	int err;
 
 	mlx5e_create_q_counters(priv);
@@ -1018,12 +1033,17 @@ static int mlx5e_init_ul_rep_rx(struct mlx5e_priv *priv)
 
 	mlx5e_tc_int_port_init_rep_rx(priv);
 
+	INIT_WORK(&rpriv->uplink_priv.mpesw_work, mlx5e_rep_mpesw_work);
+
 out:
 	return err;
 }
 
 static void mlx5e_cleanup_ul_rep_rx(struct mlx5e_priv *priv)
 {
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+
+	cancel_work_sync(&rpriv->uplink_priv.mpesw_work);
 	mlx5e_tc_int_port_cleanup_rep_rx(priv);
 	mlx5e_cleanup_rep_rx(priv);
 	mlx5e_destroy_q_counters(priv);
@@ -1132,6 +1152,19 @@ static int mlx5e_update_rep_rx(struct mlx5e_priv *priv)
 	return 0;
 }
 
+static int mlx5e_rep_event_mpesw(struct mlx5e_priv *priv)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5_eswitch_rep *rep = rpriv->rep;
+
+	if (rep->vport != MLX5_VPORT_UPLINK)
+		return NOTIFY_DONE;
+
+	queue_work(priv->wq, &rpriv->uplink_priv.mpesw_work);
+
+	return NOTIFY_OK;
+}
+
 static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event, void *data)
 {
 	struct mlx5e_priv *priv = container_of(nb, struct mlx5e_priv, events_nb);
@@ -1153,6 +1186,8 @@ static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event
 
 	if (event == MLX5_DEV_EVENT_PORT_AFFINITY)
 		return mlx5e_rep_tc_event_port_affinity(priv);
+	else if (event == MLX5_DEV_EVENT_MULTIPORT_ESW)
+		return mlx5e_rep_event_mpesw(priv);
 
 	return NOTIFY_DONE;
 }
