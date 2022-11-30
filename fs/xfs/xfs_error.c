@@ -60,6 +60,8 @@ static unsigned int xfs_errortag_random_default[] = {
 	XFS_RANDOM_LARP,
 	XFS_RANDOM_DA_LEAF_SPLIT,
 	XFS_RANDOM_ATTR_LEAF_TO_NODE,
+	XFS_RANDOM_WB_DELAY_MS,
+	XFS_RANDOM_WRITE_DELAY_MS,
 };
 
 struct xfs_errortag_attr {
@@ -175,6 +177,8 @@ XFS_ERRORTAG_ATTR_RW(ag_resv_fail, XFS_ERRTAG_AG_RESV_FAIL);
 XFS_ERRORTAG_ATTR_RW(larp,		XFS_ERRTAG_LARP);
 XFS_ERRORTAG_ATTR_RW(da_leaf_split,	XFS_ERRTAG_DA_LEAF_SPLIT);
 XFS_ERRORTAG_ATTR_RW(attr_leaf_to_node,	XFS_ERRTAG_ATTR_LEAF_TO_NODE);
+XFS_ERRORTAG_ATTR_RW(wb_delay_ms,	XFS_ERRTAG_WB_DELAY_MS);
+XFS_ERRORTAG_ATTR_RW(write_delay_ms,	XFS_ERRTAG_WRITE_DELAY_MS);
 
 static struct attribute *xfs_errortag_attrs[] = {
 	XFS_ERRORTAG_ATTR_LIST(noerror),
@@ -218,6 +222,8 @@ static struct attribute *xfs_errortag_attrs[] = {
 	XFS_ERRORTAG_ATTR_LIST(larp),
 	XFS_ERRORTAG_ATTR_LIST(da_leaf_split),
 	XFS_ERRORTAG_ATTR_LIST(attr_leaf_to_node),
+	XFS_ERRORTAG_ATTR_LIST(wb_delay_ms),
+	XFS_ERRORTAG_ATTR_LIST(write_delay_ms),
 	NULL,
 };
 ATTRIBUTE_GROUPS(xfs_errortag);
@@ -265,6 +271,19 @@ xfs_errortag_valid(
 	if (error_tag == XFS_ERRTAG_DROP_WRITES)
 		return false;
 	return true;
+}
+
+bool
+xfs_errortag_enabled(
+	struct xfs_mount	*mp,
+	unsigned int		tag)
+{
+	if (!mp->m_errortag)
+		return false;
+	if (!xfs_errortag_valid(tag))
+		return false;
+
+	return mp->m_errortag[tag] != 0;
 }
 
 bool
