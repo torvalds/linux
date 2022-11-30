@@ -171,7 +171,6 @@
 #define SYS_ID_DFR0_EL1			sys_reg(3, 0, 0, 1, 2)
 #define SYS_ID_DFR1_EL1			sys_reg(3, 0, 0, 3, 5)
 #define SYS_ID_AFR0_EL1			sys_reg(3, 0, 0, 1, 3)
-#define SYS_ID_MMFR3_EL1		sys_reg(3, 0, 0, 1, 7)
 #define SYS_ID_MMFR4_EL1		sys_reg(3, 0, 0, 2, 6)
 #define SYS_ID_MMFR5_EL1		sys_reg(3, 0, 0, 3, 6)
 

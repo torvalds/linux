@@ -183,6 +183,46 @@ Enum	3:0	L1HvdFG
 EndEnum
 EndSysreg
 
+Sysreg ID_MMFR3_EL1	3	0	0	1	7
+Res0	63:32
+Enum	31:28	Supersec
+	0b0000	IMP
+	0b1111	NI
+EndEnum
+Enum	27:24	CMemSz
+	0b0000	4GB
+	0b0001	64GB
+	0b0010	1TB
+EndEnum
+Enum	23:20	CohWalk
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	PAN
+	0b0000	NI
+	0b0001	PAN
+	0b0010	PAN2
+EndEnum
+Enum	15:12	MaintBcst
+	0b0000	NI
+	0b0001	NO_TLB
+	0b0010	ALL
+EndEnum
+Enum	11:8	BPMaint
+	0b0000	NI
+	0b0001	ALL
+	0b0010	BY_VA
+EndEnum
+Enum	7:4	CMaintSW
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	3:0	CMaintVA
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
 Sysreg	ID_AA64PFR0_EL1	3	0	0	4	0
 Enum	63:60	CSV3
 	0b0000	NI
