@@ -173,7 +173,6 @@
 #define SYS_ID_AFR0_EL1			sys_reg(3, 0, 0, 1, 3)
 #define SYS_ID_MMFR5_EL1		sys_reg(3, 0, 0, 3, 6)
 
-#define SYS_ID_ISAR5_EL1		sys_reg(3, 0, 0, 2, 5)
 #define SYS_ID_ISAR6_EL1		sys_reg(3, 0, 0, 2, 7)
 
 #define SYS_MVFR0_EL1			sys_reg(3, 0, 0, 3, 0)
@@ -688,13 +687,6 @@
 #define ID_DFR0_EL1_PerfMon_PMUv3p5		0x6
 
 #define ID_DFR1_EL1_MTPMU_SHIFT		0
-
-#define ID_ISAR5_EL1_RDM_SHIFT		24
-#define ID_ISAR5_EL1_CRC32_SHIFT	16
-#define ID_ISAR5_EL1_SHA2_SHIFT		12
-#define ID_ISAR5_EL1_SHA1_SHIFT		8
-#define ID_ISAR5_EL1_AES_SHIFT		4
-#define ID_ISAR5_EL1_SEVL_SHIFT		0
 
 #define ID_ISAR6_EL1_I8MM_SHIFT		24
 #define ID_ISAR6_EL1_BF16_SHIFT		20
