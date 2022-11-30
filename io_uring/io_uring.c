@@ -860,7 +860,7 @@ bool io_aux_cqe(struct io_ring_ctx *ctx, bool defer, u64 user_data, s32 res, u32
 		io_cq_lock(ctx);
 		__io_flush_post_cqes(ctx);
 		/* no need to flush - flush is deferred */
-		spin_unlock(&ctx->completion_lock);
+		io_cq_unlock(ctx);
 	}
 
 	/* For defered completions this is not as strict as it is otherwise,

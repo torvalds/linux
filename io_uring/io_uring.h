@@ -93,6 +93,11 @@ static inline void io_cq_lock(struct io_ring_ctx *ctx)
 	spin_lock(&ctx->completion_lock);
 }
 
+static inline void io_cq_unlock(struct io_ring_ctx *ctx)
+{
+	spin_unlock(&ctx->completion_lock);
+}
+
 void io_cq_unlock_post(struct io_ring_ctx *ctx);
 
 static inline struct io_uring_cqe *io_get_cqe_overflow(struct io_ring_ctx *ctx,
