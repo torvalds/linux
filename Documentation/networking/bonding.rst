@@ -566,7 +566,8 @@ miimon
 	link monitoring.  A value of 100 is a good starting point.
 	The use_carrier option, below, affects how the link state is
 	determined.  See the High Availability section for additional
-	information.  The default value is 0.
+	information.  The default value is 100 if arp_interval is not
+	set.
 
 min_links
 
