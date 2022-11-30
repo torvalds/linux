@@ -428,8 +428,10 @@ static void hpriv_release(struct kref *ref)
 	 */
 	reset_device = hdev->reset_upon_device_release || hdev->reset_info.watchdog_active;
 
-	/* Unless device is reset in any case, check idle status and reset if device is not idle */
-	if (!reset_device && hdev->pdev && !hdev->pldm)
+	/* Check the device idle status and reset if not idle.
+	 * Skip it if already in reset, or if device is going to be reset in any case.
+	 */
+	if (!hdev->reset_info.in_reset && !reset_device && hdev->pdev && !hdev->pldm)
 		device_is_idle = hdev->asic_funcs->is_device_idle(hdev, idle_mask,
 							HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL);
 	if (!device_is_idle) {
