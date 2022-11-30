@@ -606,6 +606,22 @@ Enum	3:0	SpecSEI
 EndEnum
 EndSysreg
 
+Sysreg ID_PFR2_EL1	3	0	0	3	4
+Res0	63:12
+Enum	11:8	RAS_frac
+	0b0000	NI
+	0b0001	RASv1p1
+EndEnum
+Enum	7:4	SSBS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	3:0	CSV3
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
 Sysreg	ID_AA64PFR0_EL1	3	0	0	4	0
 Enum	63:60	CSV3
 	0b0000	NI

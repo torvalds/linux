@@ -165,7 +165,6 @@
 #define SYS_MPIDR_EL1			sys_reg(3, 0, 0, 0, 5)
 #define SYS_REVIDR_EL1			sys_reg(3, 0, 0, 0, 6)
 
-#define SYS_ID_PFR2_EL1			sys_reg(3, 0, 0, 3, 4)
 #define SYS_ID_DFR0_EL1			sys_reg(3, 0, 0, 1, 2)
 #define SYS_ID_DFR1_EL1			sys_reg(3, 0, 0, 3, 5)
 #define SYS_ID_AFR0_EL1			sys_reg(3, 0, 0, 1, 3)
@@ -693,9 +692,6 @@
 #define ID_DFR0_EL1_MMapDbg_SHIFT	8
 #define ID_DFR0_EL1_CopSDbg_SHIFT	4
 #define ID_DFR0_EL1_CopDbg_SHIFT	0
-
-#define ID_PFR2_EL1_SSBS_SHIFT		4
-#define ID_PFR2_EL1_CSV3_SHIFT		0
 
 #define MVFR0_EL1_FPRound_SHIFT		28
 #define MVFR0_EL1_FPShVec_SHIFT		24
