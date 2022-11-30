@@ -202,7 +202,7 @@ def parse_tests(request: KunitParseRequest, metadata: kunit_json.Metadata, input
 		if request.raw_output == 'all':
 			pass
 		elif request.raw_output == 'kunit':
-			output = kunit_parser.extract_tap_lines(output, lstrip=False)
+			output = kunit_parser.extract_tap_lines(output)
 		for line in output:
 			print(line.rstrip())
 		parse_time = time.time() - parse_start

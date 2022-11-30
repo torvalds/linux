@@ -336,12 +336,14 @@ class KUnitParserTest(unittest.TestCase):
 		KTAP version 1
 		1..1
 		  Test output.
+		    Indented more.
 		not ok 1 test1
 		"""
 		result = kunit_parser.parse_run_tests(output.splitlines())
 		self.assertEqual(kunit_parser.TestStatus.FAILURE, result.status)
 
 		self.print_mock.assert_any_call(StrContains('Test output.'))
+		self.print_mock.assert_any_call(StrContains('  Indented more.'))
 		self.noPrintCallContains('not ok 1 test1')
 
 def line_stream_from_strs(strs: Iterable[str]) -> kunit_parser.LineStream:
