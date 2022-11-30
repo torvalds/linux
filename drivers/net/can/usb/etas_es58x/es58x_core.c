@@ -2271,6 +2271,7 @@ static int es58x_probe(struct usb_interface *intf,
 	if (ret)
 		return ret;
 
+	es58x_parse_product_info(es58x_dev);
 	devlink_register(priv_to_devlink(es58x_dev));
 
 	for (ch_idx = 0; ch_idx < es58x_dev->num_can_ch; ch_idx++) {

@@ -360,6 +360,39 @@ struct es58x_operators {
 };
 
 /**
+ * struct es58x_sw_version - Version number of the firmware or the
+ *	bootloader.
+ * @major: Version major number, represented on two digits.
+ * @minor: Version minor number, represented on two digits.
+ * @revision: Version revision number, represented on two digits.
+ *
+ * The firmware and the bootloader share the same format: "xx.xx.xx"
+ * where 'x' is a digit. Both can be retrieved from the product
+ * information string.
+ */
+struct es58x_sw_version {
+	u8 major;
+	u8 minor;
+	u8 revision;
+};
+
+/**
+ * struct es58x_hw_revision - Hardware revision number.
+ * @letter: Revision letter.
+ * @major: Version major number, represented on three digits.
+ * @minor: Version minor number, represented on three digits.
+ *
+ * The hardware revision uses its own format: "axxx/xxx" where 'a' is
+ * a letter and 'x' a digit. It can be retrieved from the product
+ * information string.
+ */
+struct es58x_hw_revision {
+	char letter;
+	u16 major;
+	u16 minor;
+};
+
+/**
  * struct es58x_device - All information specific to an ES58X device.
  * @dev: Device information.
  * @udev: USB device information.
@@ -376,6 +409,9 @@ struct es58x_operators {
  *	queue wake/stop logic should prevent this URB from getting
  *	empty. Please refer to es58x_get_tx_urb() for more details.
  * @tx_urbs_idle_cnt: number of urbs in @tx_urbs_idle.
+ * @firmware_version: The firmware version number.
+ * @bootloader_version: The bootloader version number.
+ * @hardware_revision: The hardware revision number.
  * @ktime_req_ns: kernel timestamp when es58x_set_realtime_diff_ns()
  *	was called.
  * @realtime_diff_ns: difference in nanoseconds between the clocks of
@@ -410,6 +446,10 @@ struct es58x_device {
 	struct usb_anchor tx_urbs_busy;
 	struct usb_anchor tx_urbs_idle;
 	atomic_t tx_urbs_idle_cnt;
+
+	struct es58x_sw_version firmware_version;
+	struct es58x_sw_version bootloader_version;
+	struct es58x_hw_revision hardware_revision;
 
 	u64 ktime_req_ns;
 	s64 realtime_diff_ns;
@@ -696,6 +736,7 @@ int es58x_send_msg(struct es58x_device *es58x_dev, u8 cmd_type, u8 cmd_id,
 		   const void *msg, u16 cmd_len, int channel_idx);
 
 /* es58x_devlink.c. */
+void es58x_parse_product_info(struct es58x_device *es58x_dev);
 extern const struct devlink_ops es58x_dl_ops;
 
 /* es581_4.c. */
