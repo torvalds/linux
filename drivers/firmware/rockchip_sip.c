@@ -332,8 +332,7 @@ static int fiq_sip_enabled;
 static int fiq_target_cpu;
 static phys_addr_t ft_fiq_mem_phy;
 static void __iomem *ft_fiq_mem_base;
-static void (*sip_fiq_debugger_uart_irq_tf)(struct pt_regs *_pt_regs,
-					    unsigned long cpu);
+static sip_fiq_debugger_uart_irq_tf_cb_t sip_fiq_debugger_uart_irq_tf;
 static struct pt_regs fiq_pt_regs;
 
 int sip_fiq_debugger_is_enabled(void)
@@ -435,7 +434,7 @@ static void sip_fiq_debugger_uart_irq_tf_cb(unsigned long sp_el1,
 	__invoke_sip_fn_smc(SIP_UARTDBG_FN, 0, 0, UARTDBG_CFG_OSHDL_TO_OS);
 }
 
-int sip_fiq_debugger_uart_irq_tf_init(u32 irq_id, void *callback_fn)
+int sip_fiq_debugger_uart_irq_tf_init(u32 irq_id, sip_fiq_debugger_uart_irq_tf_cb_t callback_fn)
 {
 	struct arm_smccc_res res;
 

@@ -648,7 +648,7 @@ static void rk_fiq_debugger_enable_debug(struct platform_device *pdev, bool val)
 	sip_fiq_debugger_enable_debug(val);
 }
 
-static void fiq_debugger_uart_irq_tf(struct pt_regs *_pt_regs, u64 cpu)
+static void fiq_debugger_uart_irq_tf(struct pt_regs *_pt_regs, unsigned long cpu)
 {
 	fiq_debugger_fiq(_pt_regs, cpu);
 }
