@@ -14,7 +14,7 @@ FIELD="filename"
 SYNTH="synth_open"
 EPROBE="eprobe_open"
 
-echo "$SYNTH u64 filename; s64 ret;" > synthetic_events
+echo "$SYNTH unsigned long filename; long ret;" > synthetic_events
 echo "hist:keys=common_pid:__arg__1=$FIELD" > events/$SYSTEM/$START/trigger
 echo "hist:keys=common_pid:filename=\$__arg__1,ret=ret:onmatch($SYSTEM.$START).trace($SYNTH,\$filename,\$ret)" > events/$SYSTEM/$END/trigger
 
