@@ -250,10 +250,10 @@ static int tsnep_ethtool_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
-static int tsnep_ethtool_get_rxnfc(struct net_device *dev,
+static int tsnep_ethtool_get_rxnfc(struct net_device *netdev,
 				   struct ethtool_rxnfc *cmd, u32 *rule_locs)
 {
-	struct tsnep_adapter *adapter = netdev_priv(dev);
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
@@ -273,10 +273,10 @@ static int tsnep_ethtool_get_rxnfc(struct net_device *dev,
 	}
 }
 
-static int tsnep_ethtool_set_rxnfc(struct net_device *dev,
+static int tsnep_ethtool_set_rxnfc(struct net_device *netdev,
 				   struct ethtool_rxnfc *cmd)
 {
-	struct tsnep_adapter *adapter = netdev_priv(dev);
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
@@ -288,10 +288,10 @@ static int tsnep_ethtool_set_rxnfc(struct net_device *dev,
 	}
 }
 
-static int tsnep_ethtool_get_ts_info(struct net_device *dev,
+static int tsnep_ethtool_get_ts_info(struct net_device *netdev,
 				     struct ethtool_ts_info *info)
 {
-	struct tsnep_adapter *adapter = netdev_priv(dev);
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
 
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 				SOF_TIMESTAMPING_RX_SOFTWARE |
