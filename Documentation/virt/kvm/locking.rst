@@ -291,3 +291,9 @@ time it will be set using the Dirty tracking mechanism described above.
 		wakeup notification event since external interrupts from the
 		assigned devices happens, we will find the vCPU on the list to
 		wakeup.
+
+``vendor_module_lock``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+:Type:		mutex
+:Arch:		x86
+:Protects:	loading a vendor module (kvm_amd or kvm_intel)
