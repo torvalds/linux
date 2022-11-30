@@ -455,6 +455,38 @@ Enum	3:0	SEVL
 EndEnum
 EndSysreg
 
+Sysreg ID_ISAR6_EL1	3	0	0	2	7
+Res0	63:28
+Enum	27:24	I8MM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	BF16
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	SPECRES
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	SB
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	11:8	FHM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	DP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	3:0	JSCVT
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
 Sysreg ID_MMFR4_EL1	3	0	0	2	6
 Res0	63:32
 Enum	31:28	EVT
