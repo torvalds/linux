@@ -1251,7 +1251,9 @@ struct entropy_timer_state {
 static void __cold entropy_timer(struct timer_list *timer)
 {
 	struct entropy_timer_state *state = container_of(timer, struct entropy_timer_state, timer);
+	unsigned long entropy = random_get_entropy();
 
+	mix_pool_bytes(&entropy, sizeof(entropy));
 	if (atomic_inc_return(&state->samples) % state->samples_per_bit == 0)
 		credit_init_bits(1);
 }
