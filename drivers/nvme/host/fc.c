@@ -1754,9 +1754,18 @@ nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
 	}
 
 	lsop = kzalloc(sizeof(*lsop), GFP_KERNEL);
+	if (!lsop) {
+		dev_info(lport->dev,
+			"RCV %s LS failed: No memory\n",
+			(w0->ls_cmd <= NVME_FC_LAST_LS_CMD_VALUE) ?
+				nvmefc_ls_names[w0->ls_cmd] : "");
+		ret = -ENOMEM;
+		goto out_put;
+	}
+
 	lsop->rqstbuf = kzalloc(sizeof(*lsop->rqstbuf), GFP_KERNEL);
 	lsop->rspbuf = kzalloc(sizeof(*lsop->rspbuf), GFP_KERNEL);
-	if (!lsop || !lsop->rqstbuf || !lsop->rspbuf) {
+	if (!lsop->rqstbuf || !lsop->rspbuf) {
 		dev_info(lport->dev,
 			"RCV %s LS failed: No memory\n",
 			(w0->ls_cmd <= NVME_FC_LAST_LS_CMD_VALUE) ?
