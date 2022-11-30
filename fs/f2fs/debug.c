@@ -72,15 +72,23 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->main_area_zones = si->main_area_sections /
 				le32_to_cpu(raw_super->secs_per_zone);
 
-	/* validation check of the segment numbers */
+	/* general extent cache stats */
+	for (i = 0; i < NR_EXTENT_CACHES; i++) {
+		struct extent_tree_info *eti = &sbi->extent_tree[i];
+
+		si->hit_cached[i] = atomic64_read(&sbi->read_hit_cached[i]);
+		si->hit_rbtree[i] = atomic64_read(&sbi->read_hit_rbtree[i]);
+		si->total_ext[i] = atomic64_read(&sbi->total_hit_ext[i]);
+		si->hit_total[i] = si->hit_cached[i] + si->hit_rbtree[i];
+		si->ext_tree[i] = atomic_read(&eti->total_ext_tree);
+		si->zombie_tree[i] = atomic_read(&eti->total_zombie_tree);
+		si->ext_node[i] = atomic_read(&eti->total_ext_node);
+	}
+	/* read extent_cache only */
 	si->hit_largest = atomic64_read(&sbi->read_hit_largest);
-	si->hit_cached = atomic64_read(&sbi->read_hit_cached);
-	si->hit_rbtree = atomic64_read(&sbi->read_hit_rbtree);
-	si->hit_total = si->hit_largest + si->hit_cached + si->hit_rbtree;
-	si->total_ext = atomic64_read(&sbi->total_hit_ext);
-	si->ext_tree = atomic_read(&sbi->total_ext_tree);
-	si->zombie_tree = atomic_read(&sbi->total_zombie_tree);
-	si->ext_node = atomic_read(&sbi->total_ext_node);
+	si->hit_total[EX_READ] += si->hit_largest;
+
+	/* validation check of the segment numbers */
 	si->ndirty_node = get_pages(sbi, F2FS_DIRTY_NODES);
 	si->ndirty_dent = get_pages(sbi, F2FS_DIRTY_DENTS);
 	si->ndirty_meta = get_pages(sbi, F2FS_DIRTY_META);
@@ -294,10 +302,16 @@ get_cache:
 				sizeof(struct nat_entry_set);
 	for (i = 0; i < MAX_INO_ENTRY; i++)
 		si->cache_mem += sbi->im[i].ino_num * sizeof(struct ino_entry);
-	si->cache_mem += atomic_read(&sbi->total_ext_tree) *
+
+	for (i = 0; i < NR_EXTENT_CACHES; i++) {
+		struct extent_tree_info *eti = &sbi->extent_tree[i];
+
+		si->ext_mem[i] = atomic_read(&eti->total_ext_tree) *
 						sizeof(struct extent_tree);
-	si->cache_mem += atomic_read(&sbi->total_ext_node) *
+		si->ext_mem[i] += atomic_read(&eti->total_ext_node) *
 						sizeof(struct extent_node);
+		si->cache_mem += si->ext_mem[i];
+	}
 
 	si->page_mem = 0;
 	if (sbi->node_inode) {
@@ -490,16 +504,18 @@ static int stat_show(struct seq_file *s, void *v)
 				si->bg_node_blks);
 		seq_printf(s, "BG skip : IO: %u, Other: %u\n",
 				si->io_skip_bggc, si->other_skip_bggc);
-		seq_puts(s, "\nExtent Cache:\n");
+		seq_puts(s, "\nExtent Cache (Read):\n");
 		seq_printf(s, "  - Hit Count: L1-1:%llu L1-2:%llu L2:%llu\n",
-				si->hit_largest, si->hit_cached,
-				si->hit_rbtree);
+				si->hit_largest, si->hit_cached[EX_READ],
+				si->hit_rbtree[EX_READ]);
 		seq_printf(s, "  - Hit Ratio: %llu%% (%llu / %llu)\n",
-				!si->total_ext ? 0 :
-				div64_u64(si->hit_total * 100, si->total_ext),
-				si->hit_total, si->total_ext);
+				!si->total_ext[EX_READ] ? 0 :
+				div64_u64(si->hit_total[EX_READ] * 100,
+				si->total_ext[EX_READ]),
+				si->hit_total[EX_READ], si->total_ext[EX_READ]);
 		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
-				si->ext_tree, si->zombie_tree, si->ext_node);
+				si->ext_tree[EX_READ], si->zombie_tree[EX_READ],
+				si->ext_node[EX_READ]);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
 		seq_printf(s, "  - DIO (R: %4d, W: %4d)\n",
 			   si->nr_dio_read, si->nr_dio_write);
@@ -566,8 +582,10 @@ static int stat_show(struct seq_file *s, void *v)
 			(si->base_mem + si->cache_mem + si->page_mem) >> 10);
 		seq_printf(s, "  - static: %llu KB\n",
 				si->base_mem >> 10);
-		seq_printf(s, "  - cached: %llu KB\n",
+		seq_printf(s, "  - cached all: %llu KB\n",
 				si->cache_mem >> 10);
+		seq_printf(s, "  - read extent cache: %llu KB\n",
+				si->ext_mem[EX_READ] >> 10);
 		seq_printf(s, "  - paged : %llu KB\n",
 				si->page_mem >> 10);
 	}
@@ -600,10 +618,15 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 	si->sbi = sbi;
 	sbi->stat_info = si;
 
-	atomic64_set(&sbi->total_hit_ext, 0);
-	atomic64_set(&sbi->read_hit_rbtree, 0);
+	/* general extent cache stats */
+	for (i = 0; i < NR_EXTENT_CACHES; i++) {
+		atomic64_set(&sbi->total_hit_ext[i], 0);
+		atomic64_set(&sbi->read_hit_rbtree[i], 0);
+		atomic64_set(&sbi->read_hit_cached[i], 0);
+	}
+
+	/* read extent_cache only */
 	atomic64_set(&sbi->read_hit_largest, 0);
-	atomic64_set(&sbi->read_hit_cached, 0);
 
 	atomic_set(&sbi->inline_xattr, 0);
 	atomic_set(&sbi->inline_inode, 0);

@@ -48,6 +48,7 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 TRACE_DEFINE_ENUM(CP_TRIMMED);
 TRACE_DEFINE_ENUM(CP_PAUSE);
 TRACE_DEFINE_ENUM(CP_RESIZE);
+TRACE_DEFINE_ENUM(EX_READ);
 
 #define show_block_type(type)						\
 	__print_symbolic(type,						\
@@ -1559,28 +1560,31 @@ TRACE_EVENT(f2fs_issue_flush,
 
 TRACE_EVENT(f2fs_lookup_extent_tree_start,
 
-	TP_PROTO(struct inode *inode, unsigned int pgofs),
+	TP_PROTO(struct inode *inode, unsigned int pgofs, enum extent_type type),
 
-	TP_ARGS(inode, pgofs),
+	TP_ARGS(inode, pgofs, type),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(ino_t,	ino)
 		__field(unsigned int, pgofs)
+		__field(enum extent_type, type)
 	),
 
 	TP_fast_assign(
 		__entry->dev = inode->i_sb->s_dev;
 		__entry->ino = inode->i_ino;
 		__entry->pgofs = pgofs;
+		__entry->type = type;
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, pgofs = %u",
+	TP_printk("dev = (%d,%d), ino = %lu, pgofs = %u, type = %s",
 		show_dev_ino(__entry),
-		__entry->pgofs)
+		__entry->pgofs,
+		__entry->type == EX_READ ? "Read" : "N/A")
 );
 
-TRACE_EVENT_CONDITION(f2fs_lookup_extent_tree_end,
+TRACE_EVENT_CONDITION(f2fs_lookup_read_extent_tree_end,
 
 	TP_PROTO(struct inode *inode, unsigned int pgofs,
 						struct extent_info *ei),
@@ -1594,8 +1598,8 @@ TRACE_EVENT_CONDITION(f2fs_lookup_extent_tree_end,
 		__field(ino_t,	ino)
 		__field(unsigned int, pgofs)
 		__field(unsigned int, fofs)
-		__field(u32, blk)
 		__field(unsigned int, len)
+		__field(u32, blk)
 	),
 
 	TP_fast_assign(
@@ -1603,26 +1607,26 @@ TRACE_EVENT_CONDITION(f2fs_lookup_extent_tree_end,
 		__entry->ino = inode->i_ino;
 		__entry->pgofs = pgofs;
 		__entry->fofs = ei->fofs;
-		__entry->blk = ei->blk;
 		__entry->len = ei->len;
+		__entry->blk = ei->blk;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, pgofs = %u, "
-		"ext_info(fofs: %u, blk: %u, len: %u)",
+		"read_ext_info(fofs: %u, len: %u, blk: %u)",
 		show_dev_ino(__entry),
 		__entry->pgofs,
 		__entry->fofs,
-		__entry->blk,
-		__entry->len)
+		__entry->len,
+		__entry->blk)
 );
 
-TRACE_EVENT(f2fs_update_extent_tree_range,
+TRACE_EVENT(f2fs_update_read_extent_tree_range,
 
-	TP_PROTO(struct inode *inode, unsigned int pgofs, block_t blkaddr,
-						unsigned int len,
+	TP_PROTO(struct inode *inode, unsigned int pgofs, unsigned int len,
+						block_t blkaddr,
 						unsigned int c_len),
 
-	TP_ARGS(inode, pgofs, blkaddr, len, c_len),
+	TP_ARGS(inode, pgofs, len, blkaddr, c_len),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
@@ -1637,67 +1641,73 @@ TRACE_EVENT(f2fs_update_extent_tree_range,
 		__entry->dev = inode->i_sb->s_dev;
 		__entry->ino = inode->i_ino;
 		__entry->pgofs = pgofs;
-		__entry->blk = blkaddr;
 		__entry->len = len;
+		__entry->blk = blkaddr;
 		__entry->c_len = c_len;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, pgofs = %u, "
-					"blkaddr = %u, len = %u, "
-					"c_len = %u",
+				"len = %u, blkaddr = %u, c_len = %u",
 		show_dev_ino(__entry),
 		__entry->pgofs,
-		__entry->blk,
 		__entry->len,
+		__entry->blk,
 		__entry->c_len)
 );
 
 TRACE_EVENT(f2fs_shrink_extent_tree,
 
 	TP_PROTO(struct f2fs_sb_info *sbi, unsigned int node_cnt,
-						unsigned int tree_cnt),
+			unsigned int tree_cnt, enum extent_type type),
 
-	TP_ARGS(sbi, node_cnt, tree_cnt),
+	TP_ARGS(sbi, node_cnt, tree_cnt, type),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(unsigned int, node_cnt)
 		__field(unsigned int, tree_cnt)
+		__field(enum extent_type, type)
 	),
 
 	TP_fast_assign(
 		__entry->dev = sbi->sb->s_dev;
 		__entry->node_cnt = node_cnt;
 		__entry->tree_cnt = tree_cnt;
+		__entry->type = type;
 	),
 
-	TP_printk("dev = (%d,%d), shrunk: node_cnt = %u, tree_cnt = %u",
+	TP_printk("dev = (%d,%d), shrunk: node_cnt = %u, tree_cnt = %u, type = %s",
 		show_dev(__entry->dev),
 		__entry->node_cnt,
-		__entry->tree_cnt)
+		__entry->tree_cnt,
+		__entry->type == EX_READ ? "Read" : "N/A")
 );
 
 TRACE_EVENT(f2fs_destroy_extent_tree,
 
-	TP_PROTO(struct inode *inode, unsigned int node_cnt),
+	TP_PROTO(struct inode *inode, unsigned int node_cnt,
+				enum extent_type type),
 
-	TP_ARGS(inode, node_cnt),
+	TP_ARGS(inode, node_cnt, type),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(ino_t,	ino)
 		__field(unsigned int, node_cnt)
+		__field(enum extent_type, type)
 	),
 
 	TP_fast_assign(
 		__entry->dev = inode->i_sb->s_dev;
 		__entry->ino = inode->i_ino;
 		__entry->node_cnt = node_cnt;
+		__entry->type = type;
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, destroyed: node_cnt = %u",
+	TP_printk("dev = (%d,%d), ino = %lu, destroyed: node_cnt = %u, type = %s",
 		show_dev_ino(__entry),
-		__entry->node_cnt)
+		__entry->node_cnt,
+		__entry->type == EX_READ ? "Read" : "N/A")
 );
 
 DECLARE_EVENT_CLASS(f2fs_sync_dirty_inodes,

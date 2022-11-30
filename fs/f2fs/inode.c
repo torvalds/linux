@@ -262,8 +262,8 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 		return false;
 	}
 
-	if (fi->extent_tree) {
-		struct extent_info *ei = &fi->extent_tree->largest;
+	if (fi->extent_tree[EX_READ]) {
+		struct extent_info *ei = &fi->extent_tree[EX_READ]->largest;
 
 		if (ei->len &&
 			(!f2fs_is_valid_blkaddr(sbi, ei->blk,
@@ -607,7 +607,7 @@ retry:
 void f2fs_update_inode(struct inode *inode, struct page *node_page)
 {
 	struct f2fs_inode *ri;
-	struct extent_tree *et = F2FS_I(inode)->extent_tree;
+	struct extent_tree *et = F2FS_I(inode)->extent_tree[EX_READ];
 
 	f2fs_wait_on_page_writeback(node_page, NODE, true, true);
 	set_page_dirty(node_page);
