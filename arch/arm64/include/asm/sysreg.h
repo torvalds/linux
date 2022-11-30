@@ -173,7 +173,6 @@
 #define SYS_ID_AFR0_EL1			sys_reg(3, 0, 0, 1, 3)
 #define SYS_ID_MMFR5_EL1		sys_reg(3, 0, 0, 3, 6)
 
-#define SYS_ID_ISAR1_EL1		sys_reg(3, 0, 0, 2, 1)
 #define SYS_ID_ISAR2_EL1		sys_reg(3, 0, 0, 2, 2)
 #define SYS_ID_ISAR3_EL1		sys_reg(3, 0, 0, 2, 3)
 #define SYS_ID_ISAR4_EL1		sys_reg(3, 0, 0, 2, 4)

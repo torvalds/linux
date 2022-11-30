@@ -259,6 +259,45 @@ Enum	3:0	Swap
 EndEnum
 EndSysreg
 
+Sysreg ID_ISAR1_EL1	3	0	0	2	1
+Res0	63:32
+Enum	31:28	Jazelle
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	Interwork
+	0b0000	NI
+	0b0001	BX
+	0b0010	BLX
+	0b0011	A32_BX
+EndEnum
+Enum	23:20	Immediate
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	IfThen
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	Extend
+	0b0000	NI
+	0b0001	SXTB
+	0b0010	SXTB16
+EndEnum
+Enum	11:8	Except_AR
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	Except
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	3:0	Endian
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
 Sysreg ID_MMFR4_EL1	3	0	0	2	6
 Res0	63:32
 Enum	31:28	EVT
