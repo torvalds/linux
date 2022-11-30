@@ -243,6 +243,7 @@ static void zonefs_inode_update_mode(struct inode *inode)
 	}
 
 	z->z_flags &= ~ZONEFS_ZONE_INIT_MODE;
+	z->z_mode = inode->i_mode;
 }
 
 struct zonefs_ioerr_data {
@@ -578,89 +579,275 @@ static int zonefs_inode_setattr(struct user_namespace *mnt_userns,
 
 	setattr_copy(&init_user_ns, inode, iattr);
 
+	if (S_ISREG(inode->i_mode)) {
+		struct zonefs_zone *z = zonefs_inode_zone(inode);
+
+		z->z_mode = inode->i_mode;
+		z->z_uid = inode->i_uid;
+		z->z_gid = inode->i_gid;
+	}
+
 	return 0;
-}
-
-static const struct inode_operations zonefs_dir_inode_operations = {
-	.lookup		= simple_lookup,
-	.setattr	= zonefs_inode_setattr,
-};
-
-static void zonefs_init_dir_inode(struct inode *parent, struct inode *inode,
-				  enum zonefs_ztype ztype)
-{
-	struct super_block *sb = parent->i_sb;
-
-	inode->i_ino = bdev_nr_zones(sb->s_bdev) + ztype + 1;
-	inode_init_owner(&init_user_ns, inode, parent, S_IFDIR | 0555);
-	inode->i_op = &zonefs_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
-	set_nlink(inode, 2);
-	inc_nlink(parent);
 }
 
 static const struct inode_operations zonefs_file_inode_operations = {
 	.setattr	= zonefs_inode_setattr,
 };
 
-static void zonefs_init_file_inode(struct inode *inode,
-				   struct zonefs_zone *z)
+static long zonefs_fname_to_fno(const struct qstr *fname)
 {
-	struct super_block *sb = inode->i_sb;
+	const char *name = fname->name;
+	unsigned int len = fname->len;
+	long fno = 0, shift = 1;
+	const char *rname;
+	char c = *name;
+	unsigned int i;
+
+	/*
+	 * File names are always a base-10 number string without any
+	 * leading 0s.
+	 */
+	if (!isdigit(c))
+		return -ENOENT;
+
+	if (len > 1 && c == '0')
+		return -ENOENT;
+
+	if (len == 1)
+		return c - '0';
+
+	for (i = 0, rname = name + len - 1; i < len; i++, rname--) {
+		c = *rname;
+		if (!isdigit(c))
+			return -ENOENT;
+		fno += (c - '0') * shift;
+		shift *= 10;
+	}
+
+	return fno;
+}
+
+static struct inode *zonefs_get_file_inode(struct inode *dir,
+					   struct dentry *dentry)
+{
+	struct zonefs_zone_group *zgroup = dir->i_private;
+	struct super_block *sb = dir->i_sb;
 	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
+	struct zonefs_zone *z;
+	struct inode *inode;
+	ino_t ino;
+	long fno;
 
-	inode->i_private = z;
+	/* Get the file number from the file name */
+	fno = zonefs_fname_to_fno(&dentry->d_name);
+	if (fno < 0)
+		return ERR_PTR(fno);
 
-	inode->i_ino = z->z_sector >> sbi->s_zone_sectors_shift;
-	inode->i_mode = S_IFREG | sbi->s_perm;
-	inode->i_uid = sbi->s_uid;
-	inode->i_gid = sbi->s_gid;
+	if (!zgroup->g_nr_zones || fno >= zgroup->g_nr_zones)
+		return ERR_PTR(-ENOENT);
+
+	z = &zgroup->g_zones[fno];
+	ino = z->z_sector >> sbi->s_zone_sectors_shift;
+	inode = iget_locked(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW)) {
+		WARN_ON_ONCE(inode->i_private != z);
+		return inode;
+	}
+
+	inode->i_ino = ino;
+	inode->i_mode = z->z_mode;
+	inode->i_ctime = inode->i_mtime = inode->i_atime = dir->i_ctime;
+	inode->i_uid = z->z_uid;
+	inode->i_gid = z->z_gid;
 	inode->i_size = z->z_wpoffset;
 	inode->i_blocks = z->z_capacity >> SECTOR_SHIFT;
+	inode->i_private = z;
 
 	inode->i_op = &zonefs_file_inode_operations;
 	inode->i_fop = &zonefs_file_operations;
 	inode->i_mapping->a_ops = &zonefs_file_aops;
 
 	/* Update the inode access rights depending on the zone condition */
-	z->z_flags |= ZONEFS_ZONE_INIT_MODE;
 	zonefs_inode_update_mode(inode);
+
+	unlock_new_inode(inode);
+
+	return inode;
 }
 
-static struct dentry *zonefs_create_inode(struct dentry *parent,
-					  const char *name,
-					  struct zonefs_zone *z,
-					  enum zonefs_ztype ztype)
+static struct inode *zonefs_get_zgroup_inode(struct super_block *sb,
+					     enum zonefs_ztype ztype)
 {
-	struct inode *dir = d_inode(parent);
-	struct dentry *dentry;
+	struct inode *root = d_inode(sb->s_root);
+	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
 	struct inode *inode;
-	int ret = -ENOMEM;
+	ino_t ino = bdev_nr_zones(sb->s_bdev) + ztype + 1;
 
-	dentry = d_alloc_name(parent, name);
-	if (!dentry)
-		return ERR_PTR(ret);
-
-	inode = new_inode(parent->d_sb);
+	inode = iget_locked(sb, ino);
 	if (!inode)
-		goto dput;
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
 
-	inode->i_ctime = inode->i_mtime = inode->i_atime = dir->i_ctime;
-	if (z)
-		zonefs_init_file_inode(inode, z);
-	else
-		zonefs_init_dir_inode(dir, inode, ztype);
+	inode->i_ino = ino;
+	inode_init_owner(&init_user_ns, inode, root, S_IFDIR | 0555);
+	inode->i_size = sbi->s_zgroup[ztype].g_nr_zones;
+	inode->i_ctime = inode->i_mtime = inode->i_atime = root->i_ctime;
+	inode->i_private = &sbi->s_zgroup[ztype];
+	set_nlink(inode, 2);
 
-	d_add(dentry, inode);
-	dir->i_size++;
+	inode->i_op = &zonefs_dir_inode_operations;
+	inode->i_fop = &zonefs_dir_operations;
 
-	return dentry;
+	unlock_new_inode(inode);
 
-dput:
-	dput(dentry);
-
-	return ERR_PTR(ret);
+	return inode;
 }
+
+
+static struct inode *zonefs_get_dir_inode(struct inode *dir,
+					  struct dentry *dentry)
+{
+	struct super_block *sb = dir->i_sb;
+	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
+	const char *name = dentry->d_name.name;
+	enum zonefs_ztype ztype;
+
+	/*
+	 * We only need to check for the "seq" directory and
+	 * the "cnv" directory if we have conventional zones.
+	 */
+	if (dentry->d_name.len != 3)
+		return ERR_PTR(-ENOENT);
+
+	for (ztype = 0; ztype < ZONEFS_ZTYPE_MAX; ztype++) {
+		if (sbi->s_zgroup[ztype].g_nr_zones &&
+		    memcmp(name, zonefs_zgroup_name(ztype), 3) == 0)
+			break;
+	}
+	if (ztype == ZONEFS_ZTYPE_MAX)
+		return ERR_PTR(-ENOENT);
+
+	return zonefs_get_zgroup_inode(sb, ztype);
+}
+
+static struct dentry *zonefs_lookup(struct inode *dir, struct dentry *dentry,
+				    unsigned int flags)
+{
+	struct inode *inode;
+
+	if (dentry->d_name.len > ZONEFS_NAME_MAX)
+		return ERR_PTR(-ENAMETOOLONG);
+
+	if (dir == d_inode(dir->i_sb->s_root))
+		inode = zonefs_get_dir_inode(dir, dentry);
+	else
+		inode = zonefs_get_file_inode(dir, dentry);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
+	return d_splice_alias(inode, dentry);
+}
+
+static int zonefs_readdir_root(struct file *file, struct dir_context *ctx)
+{
+	struct inode *inode = file_inode(file);
+	struct super_block *sb = inode->i_sb;
+	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
+	enum zonefs_ztype ztype = ZONEFS_ZTYPE_CNV;
+	ino_t base_ino = bdev_nr_zones(sb->s_bdev) + 1;
+
+	if (ctx->pos >= inode->i_size)
+		return 0;
+
+	if (!dir_emit_dots(file, ctx))
+		return 0;
+
+	if (ctx->pos == 2) {
+		if (!sbi->s_zgroup[ZONEFS_ZTYPE_CNV].g_nr_zones)
+			ztype = ZONEFS_ZTYPE_SEQ;
+
+		if (!dir_emit(ctx, zonefs_zgroup_name(ztype), 3,
+			      base_ino + ztype, DT_DIR))
+			return 0;
+		ctx->pos++;
+	}
+
+	if (ctx->pos == 3 && ztype != ZONEFS_ZTYPE_SEQ) {
+		ztype = ZONEFS_ZTYPE_SEQ;
+		if (!dir_emit(ctx, zonefs_zgroup_name(ztype), 3,
+			      base_ino + ztype, DT_DIR))
+			return 0;
+		ctx->pos++;
+	}
+
+	return 0;
+}
+
+static int zonefs_readdir_zgroup(struct file *file,
+				 struct dir_context *ctx)
+{
+	struct inode *inode = file_inode(file);
+	struct zonefs_zone_group *zgroup = inode->i_private;
+	struct super_block *sb = inode->i_sb;
+	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
+	struct zonefs_zone *z;
+	int fname_len;
+	char *fname;
+	ino_t ino;
+	int f;
+
+	/*
+	 * The size of zone group directories is equal to the number
+	 * of zone files in the group and does note include the "." and
+	 * ".." entries. Hence the "+ 2" here.
+	 */
+	if (ctx->pos >= inode->i_size + 2)
+		return 0;
+
+	if (!dir_emit_dots(file, ctx))
+		return 0;
+
+	fname = kmalloc(ZONEFS_NAME_MAX, GFP_KERNEL);
+	if (!fname)
+		return -ENOMEM;
+
+	for (f = ctx->pos - 2; f < zgroup->g_nr_zones; f++) {
+		z = &zgroup->g_zones[f];
+		ino = z->z_sector >> sbi->s_zone_sectors_shift;
+		fname_len = snprintf(fname, ZONEFS_NAME_MAX - 1, "%u", f);
+		if (!dir_emit(ctx, fname, fname_len, ino, DT_REG))
+			break;
+		ctx->pos++;
+	}
+
+	kfree(fname);
+
+	return 0;
+}
+
+static int zonefs_readdir(struct file *file, struct dir_context *ctx)
+{
+	struct inode *inode = file_inode(file);
+
+	if (inode == d_inode(inode->i_sb->s_root))
+		return zonefs_readdir_root(file, ctx);
+
+	return zonefs_readdir_zgroup(file, ctx);
+}
+
+const struct inode_operations zonefs_dir_inode_operations = {
+	.lookup		= zonefs_lookup,
+	.setattr	= zonefs_inode_setattr,
+};
+
+const struct file_operations zonefs_dir_operations = {
+	.llseek		= generic_file_llseek,
+	.read		= generic_read_dir,
+	.iterate_shared	= zonefs_readdir,
+};
 
 struct zonefs_zone_data {
 	struct super_block	*sb;
@@ -668,53 +855,6 @@ struct zonefs_zone_data {
 	sector_t		cnv_zone_start;
 	struct blk_zone		*zones;
 };
-
-/*
- * Create the inodes for a zone group.
- */
-static int zonefs_create_zgroup_inodes(struct super_block *sb,
-				       enum zonefs_ztype ztype)
-{
-	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
-	struct zonefs_zone_group *zgroup = &sbi->s_zgroup[ztype];
-	struct dentry *dir, *dent;
-	char *file_name;
-	int i, ret = 0;
-
-	if (!zgroup)
-		return -ENOMEM;
-
-	/* If the group is empty, there is nothing to do */
-	if (!zgroup->g_nr_zones)
-		return 0;
-
-	file_name = kmalloc(ZONEFS_NAME_MAX, GFP_KERNEL);
-	if (!file_name)
-		return -ENOMEM;
-
-	dir = zonefs_create_inode(sb->s_root, zonefs_zgroup_name(ztype),
-				  NULL, ztype);
-	if (IS_ERR(dir)) {
-		ret = PTR_ERR(dir);
-		goto free;
-	}
-
-	for (i = 0; i < zgroup->g_nr_zones; i++) {
-		/* Use the zone number within its group as the file name */
-		snprintf(file_name, ZONEFS_NAME_MAX - 1, "%u", i);
-		dent = zonefs_create_inode(dir, file_name,
-					   &zgroup->g_zones[i], ztype);
-		if (IS_ERR(dent)) {
-			ret = PTR_ERR(dent);
-			break;
-		}
-	}
-
-free:
-	kfree(file_name);
-
-	return ret;
-}
 
 static int zonefs_get_zone_info_cb(struct blk_zone *zone, unsigned int idx,
 				   void *data)
@@ -874,6 +1014,17 @@ static int zonefs_init_zgroup(struct super_block *sb,
 		z->z_capacity = min_t(loff_t, MAX_LFS_FILESIZE,
 				      zone->capacity << SECTOR_SHIFT);
 		z->z_wpoffset = zonefs_check_zone_condition(sb, z, zone);
+
+		z->z_mode = S_IFREG | sbi->s_perm;
+		z->z_uid = sbi->s_uid;
+		z->z_gid = sbi->s_gid;
+
+		/*
+		 * Let zonefs_inode_update_mode() know that we will need
+		 * special initialization of the inode mode the first time
+		 * it is accessed.
+		 */
+		z->z_flags |= ZONEFS_ZONE_INIT_MODE;
 
 		sb->s_maxbytes = max(z->z_capacity, sb->s_maxbytes);
 		sbi->s_blocks += z->z_capacity >> sb->s_blocksize_bits;
@@ -1057,7 +1208,7 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct zonefs_sb_info *sbi;
 	struct inode *inode;
-	enum zonefs_ztype t;
+	enum zonefs_ztype ztype;
 	int ret;
 
 	if (!bdev_is_zoned(sb->s_bdev)) {
@@ -1122,7 +1273,7 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 	if (ret)
 		goto cleanup;
 
-	/* Create root directory inode */
+	/* Create the root directory inode */
 	ret = -ENOMEM;
 	inode = new_inode(sb);
 	if (!inode)
@@ -1132,19 +1283,19 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 	inode->i_mode = S_IFDIR | 0555;
 	inode->i_ctime = inode->i_mtime = inode->i_atime = current_time(inode);
 	inode->i_op = &zonefs_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
+	inode->i_fop = &zonefs_dir_operations;
+	inode->i_size = 2;
 	set_nlink(inode, 2);
+	for (ztype = 0; ztype < ZONEFS_ZTYPE_MAX; ztype++) {
+		if (sbi->s_zgroup[ztype].g_nr_zones) {
+			inc_nlink(inode);
+			inode->i_size++;
+		}
+	}
 
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root)
 		goto cleanup;
-
-	/* Create and populate files in zone groups directories */
-	for (t = 0; t < ZONEFS_ZTYPE_MAX; t++) {
-		ret = zonefs_create_zgroup_inodes(sb, t);
-		if (ret)
-			goto cleanup;
-	}
 
 	ret = zonefs_sysfs_register(sb);
 	if (ret)
@@ -1168,12 +1319,10 @@ static void zonefs_kill_super(struct super_block *sb)
 {
 	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
 
-	if (sb->s_root)
-		d_genocide(sb->s_root);
+	kill_block_super(sb);
 
 	zonefs_sysfs_unregister(sb);
 	zonefs_free_zgroups(sb);
-	kill_block_super(sb);
 	kfree(sbi);
 }
 
