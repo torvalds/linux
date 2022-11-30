@@ -775,6 +775,19 @@ Enum	3:0	CSV3
 EndEnum
 EndSysreg
 
+Sysreg ID_DFR1_EL1	3	0	0	3	5
+Res0	63:8
+Enum	7:4	HPMN0
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	3:0	MTPMU
+	0b0000	IMPDEF
+	0b0001	IMP
+	0b1111	NI
+EndEnum
+EndSysreg
+
 Sysreg ID_MMFR5_EL1	3	0	0	3	6
 Res0	63:8
 Enum	7:4	nTLBPA
