@@ -605,7 +605,7 @@ static void xfrm_bydst_resize(struct net *net, int dir)
 	xfrm_hash_free(odst, (hmask + 1) * sizeof(struct hlist_head));
 }
 
-static void xfrm_byidx_resize(struct net *net, int total)
+static void xfrm_byidx_resize(struct net *net)
 {
 	unsigned int hmask = net->xfrm.policy_idx_hmask;
 	unsigned int nhashmask = xfrm_new_hash_mask(hmask);
@@ -683,7 +683,7 @@ static void xfrm_hash_resize(struct work_struct *work)
 			xfrm_bydst_resize(net, dir);
 	}
 	if (xfrm_byidx_should_resize(net, total))
-		xfrm_byidx_resize(net, total);
+		xfrm_byidx_resize(net);
 
 	mutex_unlock(&hash_resize_mutex);
 }
@@ -4333,7 +4333,8 @@ static int migrate_tmpl_match(const struct xfrm_migrate *m, const struct xfrm_tm
 
 /* update endpoint address(es) of template(s) */
 static int xfrm_policy_migrate(struct xfrm_policy *pol,
-			       struct xfrm_migrate *m, int num_migrate)
+			       struct xfrm_migrate *m, int num_migrate,
+			       struct netlink_ext_ack *extack)
 {
 	struct xfrm_migrate *mp;
 	int i, j, n = 0;
@@ -4341,6 +4342,7 @@ static int xfrm_policy_migrate(struct xfrm_policy *pol,
 	write_lock_bh(&pol->lock);
 	if (unlikely(pol->walk.dead)) {
 		/* target policy has been deleted */
+		NL_SET_ERR_MSG(extack, "Target policy not found");
 		write_unlock_bh(&pol->lock);
 		return -ENOENT;
 	}
@@ -4372,17 +4374,22 @@ static int xfrm_policy_migrate(struct xfrm_policy *pol,
 	return 0;
 }
 
-static int xfrm_migrate_check(const struct xfrm_migrate *m, int num_migrate)
+static int xfrm_migrate_check(const struct xfrm_migrate *m, int num_migrate,
+			      struct netlink_ext_ack *extack)
 {
 	int i, j;
 
-	if (num_migrate < 1 || num_migrate > XFRM_MAX_DEPTH)
+	if (num_migrate < 1 || num_migrate > XFRM_MAX_DEPTH) {
+		NL_SET_ERR_MSG(extack, "Invalid number of SAs to migrate, must be 0 < num <= XFRM_MAX_DEPTH (6)");
 		return -EINVAL;
+	}
 
 	for (i = 0; i < num_migrate; i++) {
 		if (xfrm_addr_any(&m[i].new_daddr, m[i].new_family) ||
-		    xfrm_addr_any(&m[i].new_saddr, m[i].new_family))
+		    xfrm_addr_any(&m[i].new_saddr, m[i].new_family)) {
+			NL_SET_ERR_MSG(extack, "Addresses in the MIGRATE attribute's list cannot be null");
 			return -EINVAL;
+		}
 
 		/* check if there is any duplicated entry */
 		for (j = i + 1; j < num_migrate; j++) {
@@ -4393,8 +4400,10 @@ static int xfrm_migrate_check(const struct xfrm_migrate *m, int num_migrate)
 			    m[i].proto == m[j].proto &&
 			    m[i].mode == m[j].mode &&
 			    m[i].reqid == m[j].reqid &&
-			    m[i].old_family == m[j].old_family)
+			    m[i].old_family == m[j].old_family) {
+				NL_SET_ERR_MSG(extack, "Entries in the MIGRATE attribute's list must be unique");
 				return -EINVAL;
+			}
 		}
 	}
 
@@ -4404,7 +4413,8 @@ static int xfrm_migrate_check(const struct xfrm_migrate *m, int num_migrate)
 int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 		 struct xfrm_migrate *m, int num_migrate,
 		 struct xfrm_kmaddress *k, struct net *net,
-		 struct xfrm_encap_tmpl *encap, u32 if_id)
+		 struct xfrm_encap_tmpl *encap, u32 if_id,
+		 struct netlink_ext_ack *extack)
 {
 	int i, err, nx_cur = 0, nx_new = 0;
 	struct xfrm_policy *pol = NULL;
@@ -4414,16 +4424,20 @@ int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 	struct xfrm_migrate *mp;
 
 	/* Stage 0 - sanity checks */
-	if ((err = xfrm_migrate_check(m, num_migrate)) < 0)
+	err = xfrm_migrate_check(m, num_migrate, extack);
+	if (err < 0)
 		goto out;
 
 	if (dir >= XFRM_POLICY_MAX) {
+		NL_SET_ERR_MSG(extack, "Invalid policy direction");
 		err = -EINVAL;
 		goto out;
 	}
 
 	/* Stage 1 - find policy */
-	if ((pol = xfrm_migrate_policy_find(sel, dir, type, net, if_id)) == NULL) {
+	pol = xfrm_migrate_policy_find(sel, dir, type, net, if_id);
+	if (!pol) {
+		NL_SET_ERR_MSG(extack, "Target policy not found");
 		err = -ENOENT;
 		goto out;
 	}
@@ -4445,7 +4459,8 @@ int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 	}
 
 	/* Stage 3 - update policy */
-	if ((err = xfrm_policy_migrate(pol, m, num_migrate)) < 0)
+	err = xfrm_policy_migrate(pol, m, num_migrate, extack);
+	if (err < 0)
 		goto restore_state;
 
 	/* Stage 4 - delete old state(s) */

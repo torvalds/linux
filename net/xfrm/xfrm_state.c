@@ -2017,7 +2017,7 @@ u32 xfrm_get_acqseq(void)
 }
 EXPORT_SYMBOL(xfrm_get_acqseq);
 
-int verify_spi_info(u8 proto, u32 min, u32 max)
+int verify_spi_info(u8 proto, u32 min, u32 max, struct netlink_ext_ack *extack)
 {
 	switch (proto) {
 	case IPPROTO_AH:
@@ -2026,22 +2026,28 @@ int verify_spi_info(u8 proto, u32 min, u32 max)
 
 	case IPPROTO_COMP:
 		/* IPCOMP spi is 16-bits. */
-		if (max >= 0x10000)
+		if (max >= 0x10000) {
+			NL_SET_ERR_MSG(extack, "IPCOMP SPI must be <= 65535");
 			return -EINVAL;
+		}
 		break;
 
 	default:
+		NL_SET_ERR_MSG(extack, "Invalid protocol, must be one of AH, ESP, IPCOMP");
 		return -EINVAL;
 	}
 
-	if (min > max)
+	if (min > max) {
+		NL_SET_ERR_MSG(extack, "Invalid SPI range: min > max");
 		return -EINVAL;
+	}
 
 	return 0;
 }
 EXPORT_SYMBOL(verify_spi_info);
 
-int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high)
+int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high,
+		   struct netlink_ext_ack *extack)
 {
 	struct net *net = xs_net(x);
 	unsigned int h;
@@ -2053,8 +2059,10 @@ int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high)
 	u32 mark = x->mark.v & x->mark.m;
 
 	spin_lock_bh(&x->lock);
-	if (x->km.state == XFRM_STATE_DEAD)
+	if (x->km.state == XFRM_STATE_DEAD) {
+		NL_SET_ERR_MSG(extack, "Target ACQUIRE is in DEAD state");
 		goto unlock;
+	}
 
 	err = 0;
 	if (x->id.spi)
@@ -2065,6 +2073,7 @@ int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high)
 	if (minspi == maxspi) {
 		x0 = xfrm_state_lookup(net, mark, &x->id.daddr, minspi, x->id.proto, x->props.family);
 		if (x0) {
+			NL_SET_ERR_MSG(extack, "Requested SPI is already in use");
 			xfrm_state_put(x0);
 			goto unlock;
 		}
@@ -2089,6 +2098,8 @@ int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high)
 		spin_unlock_bh(&net->xfrm.xfrm_state_lock);
 
 		err = 0;
+	} else {
+		NL_SET_ERR_MSG(extack, "No SPI available in the requested range");
 	}
 
 unlock:

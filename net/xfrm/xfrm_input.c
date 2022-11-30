@@ -671,6 +671,7 @@ resume:
 
 		x->curlft.bytes += skb->len;
 		x->curlft.packets++;
+		x->lastused = ktime_get_real_seconds();
 
 		spin_unlock(&x->lock);
 
