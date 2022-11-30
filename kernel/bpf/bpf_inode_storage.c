@@ -213,8 +213,6 @@ static void inode_storage_map_free(struct bpf_map *map)
 	bpf_local_storage_map_free(map, &inode_cache, NULL);
 }
 
-BTF_ID_LIST_SINGLE(inode_storage_map_btf_ids, struct,
-		   bpf_local_storage_map)
 const struct bpf_map_ops inode_storage_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = bpf_local_storage_map_alloc_check,
@@ -225,7 +223,7 @@ const struct bpf_map_ops inode_storage_map_ops = {
 	.map_update_elem = bpf_fd_inode_storage_update_elem,
 	.map_delete_elem = bpf_fd_inode_storage_delete_elem,
 	.map_check_btf = bpf_local_storage_map_check_btf,
-	.map_btf_id = &inode_storage_map_btf_ids[0],
+	.map_btf_id = &bpf_local_storage_map_btf_id[0],
 	.map_owner_storage_ptr = inode_storage_ptr,
 };
 

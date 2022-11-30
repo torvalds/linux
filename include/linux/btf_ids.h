@@ -266,5 +266,6 @@ MAX_BTF_TRACING_TYPE,
 
 extern u32 btf_tracing_ids[];
 extern u32 bpf_cgroup_btf_id[];
+extern u32 bpf_local_storage_map_btf_id[];
 
 #endif

@@ -310,7 +310,6 @@ bpf_sk_storage_ptr(void *owner)
 	return &sk->sk_bpf_storage;
 }
 
-BTF_ID_LIST_SINGLE(sk_storage_map_btf_ids, struct, bpf_local_storage_map)
 const struct bpf_map_ops sk_storage_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = bpf_local_storage_map_alloc_check,
@@ -321,7 +320,7 @@ const struct bpf_map_ops sk_storage_map_ops = {
 	.map_update_elem = bpf_fd_sk_storage_update_elem,
 	.map_delete_elem = bpf_fd_sk_storage_delete_elem,
 	.map_check_btf = bpf_local_storage_map_check_btf,
-	.map_btf_id = &sk_storage_map_btf_ids[0],
+	.map_btf_id = &bpf_local_storage_map_btf_id[0],
 	.map_local_storage_charge = bpf_sk_storage_charge,
 	.map_local_storage_uncharge = bpf_sk_storage_uncharge,
 	.map_owner_storage_ptr = bpf_sk_storage_ptr,
