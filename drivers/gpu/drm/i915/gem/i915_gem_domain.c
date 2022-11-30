@@ -17,6 +17,8 @@
 #include "i915_gem_object.h"
 #include "i915_vma.h"
 
+#define VTD_GUARD (168u * I915_GTT_PAGE_SIZE) /* 168 or tile-row PTE padding */
+
 static bool gpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
@@ -423,6 +425,17 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 					      I915_CACHE_WT : I915_CACHE_NONE);
 	if (ret)
 		return ERR_PTR(ret);
+
+	/* VT-d may overfetch before/after the vma, so pad with scratch */
+	if (intel_scanout_needs_vtd_wa(i915)) {
+		unsigned int guard = VTD_GUARD;
+
+		if (i915_gem_object_is_tiled(obj))
+			guard = max(guard,
+				    i915_gem_object_get_tile_row_size(obj));
+
+		flags |= PIN_OFFSET_GUARD | guard;
+	}
 
 	/*
 	 * As the user may map the buffer once pinned in the display plane
