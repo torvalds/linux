@@ -43,6 +43,7 @@
 #include "soc15.h"
 #include "soc15_common.h"
 #include "soc21.h"
+#include "mxgpu_nv.h"
 
 static const struct amd_ip_funcs soc21_common_ip_funcs;
 
@@ -659,19 +660,31 @@ static int soc21_common_early_init(void *handle)
 		return -EINVAL;
 	}
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev)) {
 		amdgpu_virt_init_setting(adev);
+		xgpu_nv_mailbox_set_irq_funcs(adev);
+	}
 
 	return 0;
 }
 
 static int soc21_common_late_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev))
+		xgpu_nv_mailbox_get_irq(adev);
+
 	return 0;
 }
 
 static int soc21_common_sw_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev))
+		xgpu_nv_mailbox_add_irq_id(adev);
+
 	return 0;
 }
 
@@ -708,6 +721,9 @@ static int soc21_common_hw_fini(void *handle)
 
 	/* disable the doorbell aperture */
 	soc21_enable_doorbell_aperture(adev, false);
+
+	if (amdgpu_sriov_vf(adev))
+		xgpu_nv_mailbox_put_irq(adev);
 
 	return 0;
 }
