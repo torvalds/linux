@@ -288,6 +288,17 @@ static int tsnep_ethtool_set_rxnfc(struct net_device *netdev,
 	}
 }
 
+static void tsnep_ethtool_get_channels(struct net_device *netdev,
+				       struct ethtool_channels *ch)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+
+	ch->max_rx = adapter->num_rx_queues;
+	ch->max_tx = adapter->num_tx_queues;
+	ch->rx_count = adapter->num_rx_queues;
+	ch->tx_count = adapter->num_tx_queues;
+}
+
 static int tsnep_ethtool_get_ts_info(struct net_device *netdev,
 				     struct ethtool_ts_info *info)
 {
@@ -327,6 +338,7 @@ const struct ethtool_ops tsnep_ethtool_ops = {
 	.get_sset_count = tsnep_ethtool_get_sset_count,
 	.get_rxnfc = tsnep_ethtool_get_rxnfc,
 	.set_rxnfc = tsnep_ethtool_set_rxnfc,
+	.get_channels = tsnep_ethtool_get_channels,
 	.get_ts_info = tsnep_ethtool_get_ts_info,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
