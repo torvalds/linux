@@ -30,6 +30,7 @@ config CAN_ESD_USB
 config CAN_ETAS_ES58X
 	tristate "ETAS ES58X CAN/USB interfaces"
 	select CRC16
+	select NET_DEVLINK
 	help
 	  This driver supports the ES581.4, ES582.1 and ES584.1 interfaces
 	  from ETAS GmbH (https://www.etas.com/en/products/es58x.php).

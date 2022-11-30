@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <net/devlink.h>
 
 #include "es58x_core.h"
 
@@ -2177,6 +2178,7 @@ static struct es58x_device *es58x_init_es58x_dev(struct usb_interface *intf,
 {
 	struct device *dev = &intf->dev;
 	struct es58x_device *es58x_dev;
+	struct devlink *devlink;
 	const struct es58x_parameters *param;
 	const struct es58x_operators *ops;
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -2199,11 +2201,12 @@ static struct es58x_device *es58x_init_es58x_dev(struct usb_interface *intf,
 		ops = &es581_4_ops;
 	}
 
-	es58x_dev = devm_kzalloc(dev, es58x_sizeof_es58x_device(param),
-				 GFP_KERNEL);
-	if (!es58x_dev)
+	devlink = devlink_alloc(&es58x_dl_ops, es58x_sizeof_es58x_device(param),
+				dev);
+	if (!devlink)
 		return ERR_PTR(-ENOMEM);
 
+	es58x_dev = devlink_priv(devlink);
 	es58x_dev->param = param;
 	es58x_dev->ops = ops;
 	es58x_dev->dev = dev;
@@ -2250,6 +2253,8 @@ static int es58x_probe(struct usb_interface *intf,
 	if (ret)
 		return ret;
 
+	devlink_register(priv_to_devlink(es58x_dev));
+
 	for (ch_idx = 0; ch_idx < es58x_dev->num_can_ch; ch_idx++) {
 		ret = es58x_init_netdev(es58x_dev, ch_idx);
 		if (ret) {
@@ -2275,8 +2280,10 @@ static void es58x_disconnect(struct usb_interface *intf)
 	dev_info(&intf->dev, "Disconnecting %s %s\n",
 		 es58x_dev->udev->manufacturer, es58x_dev->udev->product);
 
+	devlink_unregister(priv_to_devlink(es58x_dev));
 	es58x_free_netdevs(es58x_dev);
 	es58x_free_urbs(es58x_dev);
+	devlink_free(priv_to_devlink(es58x_dev));
 	usb_set_intfdata(intf, NULL);
 }
 
