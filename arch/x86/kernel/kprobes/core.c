@@ -986,20 +986,6 @@ int kprobe_int3_handler(struct pt_regs *regs)
 			kprobe_post_process(p, regs, kcb);
 			return 1;
 		}
-	}
-
-	if (*addr != INT3_INSN_OPCODE) {
-		/*
-		 * The breakpoint instruction was removed right
-		 * after we hit it.  Another cpu has removed
-		 * either a probepoint or a debugger breakpoint
-		 * at this address.  In either case, no further
-		 * handling of this interrupt is appropriate.
-		 * Back up over the (now missing) int3 and run
-		 * the original instruction.
-		 */
-		regs->ip = (unsigned long)addr;
-		return 1;
 	} /* else: not a kprobe fault; let the kernel handle it */
 
 	return 0;
