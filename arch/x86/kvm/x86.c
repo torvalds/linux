@@ -10574,8 +10574,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 				vcpu->run->exit_reason = KVM_EXIT_SHUTDOWN;
 				vcpu->mmio_needed = 0;
 				r = 0;
+				goto out;
 			}
-			goto out;
 		}
 		if (kvm_check_request(KVM_REQ_APF_HALT, vcpu)) {
 			/* Page is swapped out. Do synthetic halt */
