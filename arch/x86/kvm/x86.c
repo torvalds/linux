@@ -9294,12 +9294,7 @@ static inline void kvm_ops_update(struct kvm_x86_init_ops *ops)
 	kvm_pmu_ops_update(ops->pmu_ops);
 }
 
-struct kvm_cpu_compat_check {
-	struct kvm_x86_init_ops *ops;
-	int *ret;
-};
-
-static int kvm_x86_check_processor_compatibility(struct kvm_x86_init_ops *ops)
+static int kvm_x86_check_processor_compatibility(void)
 {
 	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
 
@@ -9309,19 +9304,16 @@ static int kvm_x86_check_processor_compatibility(struct kvm_x86_init_ops *ops)
 	    __cr4_reserved_bits(cpu_has, &boot_cpu_data))
 		return -EIO;
 
-	return ops->check_processor_compatibility();
+	return static_call(kvm_x86_check_processor_compatibility)();
 }
 
-static void kvm_x86_check_cpu_compat(void *data)
+static void kvm_x86_check_cpu_compat(void *ret)
 {
-	struct kvm_cpu_compat_check *c = data;
-
-	*c->ret = kvm_x86_check_processor_compatibility(c->ops);
+	*(int *)ret = kvm_x86_check_processor_compatibility();
 }
 
 static int __kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 {
-	struct kvm_cpu_compat_check c;
 	u64 host_pat;
 	int r, cpu;
 
@@ -9392,12 +9384,12 @@ static int __kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 	if (r != 0)
 		goto out_mmu_exit;
 
-	c.ret = &r;
-	c.ops = ops;
+	kvm_ops_update(ops);
+
 	for_each_online_cpu(cpu) {
-		smp_call_function_single(cpu, kvm_x86_check_cpu_compat, &c, 1);
+		smp_call_function_single(cpu, kvm_x86_check_cpu_compat, &r, 1);
 		if (r < 0)
-			goto out_hardware_unsetup;
+			goto out_unwind_ops;
 	}
 
 	/*
@@ -9405,8 +9397,6 @@ static int __kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 	 * absolutely necessary, as most operations from this point forward
 	 * require unwinding.
 	 */
-	kvm_ops_update(ops);
-
 	kvm_timer_init();
 
 	if (pi_inject_timer == -1)
@@ -9442,8 +9432,9 @@ static int __kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 	kvm_init_msr_list();
 	return 0;
 
-out_hardware_unsetup:
-	ops->runtime_ops->hardware_unsetup();
+out_unwind_ops:
+	kvm_x86_ops.hardware_enable = NULL;
+	static_call(kvm_x86_hardware_unsetup)();
 out_mmu_exit:
 	kvm_mmu_vendor_module_exit();
 out_free_percpu:

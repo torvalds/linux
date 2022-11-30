@@ -526,7 +526,7 @@ int nested_evmcs_check_controls(struct vmcs12 *vmcs12)
 	}									\
 	while (0)
 
-__init void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
+void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
 {
 	evmcs_check_vmcs_conf(cpu_based_exec_ctrl, EXEC_CTRL);
 	evmcs_check_vmcs_conf(pin_based_exec_ctrl, PINCTRL);

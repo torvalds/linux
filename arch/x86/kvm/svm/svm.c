@@ -543,7 +543,7 @@ static bool kvm_is_svm_supported(void)
 	return true;
 }
 
-static int __init svm_check_processor_compat(void)
+static int svm_check_processor_compat(void)
 {
 	if (!kvm_is_svm_supported())
 		return -EIO;
@@ -4701,6 +4701,8 @@ static int svm_vm_init(struct kvm *kvm)
 static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.name = KBUILD_MODNAME,
 
+	.check_processor_compatibility = svm_check_processor_compat,
+
 	.hardware_unsetup = svm_hardware_unsetup,
 	.hardware_enable = svm_hardware_enable,
 	.hardware_disable = svm_hardware_disable,
@@ -5085,7 +5087,6 @@ err:
 
 static struct kvm_x86_init_ops svm_init_ops __initdata = {
 	.hardware_setup = svm_hardware_setup,
-	.check_processor_compatibility = svm_check_processor_compat,
 
 	.runtime_ops = &svm_x86_ops,
 	.pmu_ops = &amd_pmu_ops,
