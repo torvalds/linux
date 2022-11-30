@@ -30,6 +30,8 @@ add_mark_rules()
 
 init()
 {
+	local sec rndh
+	sec=$(date +%s)
 	rndh=$(printf %x $sec)-$(mktemp -u XXXXXX)
 
 	ns1="ns1-$rndh"
