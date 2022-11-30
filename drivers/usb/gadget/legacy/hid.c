@@ -133,14 +133,11 @@ static struct usb_configuration config_driver = {
 static int hid_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
-	struct list_head *tmp;
 	struct hidg_func_node *n = NULL, *m, *iter_n;
 	struct f_hid_opts *hid_opts;
-	int status, funcs = 0;
+	int status, funcs;
 
-	list_for_each(tmp, &hidg_func_list)
-		funcs++;
-
+	funcs = list_count_nodes(&hidg_func_list);
 	if (!funcs)
 		return -ENODEV;
 
