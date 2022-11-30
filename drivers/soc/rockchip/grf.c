@@ -319,7 +319,7 @@ static int __init rockchip_grf_init(void)
 	np = of_find_matching_node_and_match(NULL, rockchip_grf_dt_match,
 					     &match);
 	if (!np)
-		return -ENODEV;
+		return 0;
 	if (!match || !match->data) {
 		pr_err("%s: missing grf data\n", __func__);
 		return -EINVAL;
