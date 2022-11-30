@@ -1702,11 +1702,13 @@ static int amdgpu_discovery_set_smu_ip_blocks(struct amdgpu_device *adev)
 	return 0;
 }
 
+#if defined(CONFIG_DRM_AMD_DC)
 static void amdgpu_discovery_set_sriov_display(struct amdgpu_device *adev)
 {
 	amdgpu_device_set_sriov_virtual_display(adev);
 	amdgpu_device_ip_block_add(adev, &amdgpu_vkms_ip_block);
 }
+#endif
 
 static int amdgpu_discovery_set_display_ip_blocks(struct amdgpu_device *adev)
 {

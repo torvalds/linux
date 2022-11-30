@@ -9292,7 +9292,7 @@ typedef struct {
 
 typedef struct {
   VFCT_IMAGE_HEADER   VbiosHeader;
-  UCHAR   VbiosContent[1];
+  UCHAR   VbiosContent[];
 }GOP_VBIOS_CONTENT;
 
 typedef struct {

@@ -174,7 +174,12 @@ static void amdgpu_job_free_cb(struct drm_sched_job *s_job)
 	drm_sched_job_cleanup(s_job);
 
 	amdgpu_sync_free(&job->explicit_sync);
-	dma_fence_put(&job->hw_fence);
+
+	/* only put the hw fence if has embedded fence */
+	if (!job->hw_fence.ops)
+		kfree(job);
+	else
+		dma_fence_put(&job->hw_fence);
 }
 
 void amdgpu_job_set_gang_leader(struct amdgpu_job *job,

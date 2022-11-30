@@ -1805,20 +1805,74 @@ static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct
 	pr_debug("Added [%d] GPU cache entries\n", num_of_entries);
 }
 
+static int kfd_topology_add_device_locked(struct kfd_dev *gpu, uint32_t gpu_id,
+					  struct kfd_topology_device **dev)
+{
+	int proximity_domain = ++topology_crat_proximity_domain;
+	struct list_head temp_topology_device_list;
+	void *crat_image = NULL;
+	size_t image_size = 0;
+	int res;
+
+	res = kfd_create_crat_image_virtual(&crat_image, &image_size,
+					    COMPUTE_UNIT_GPU, gpu,
+					    proximity_domain);
+	if (res) {
+		pr_err("Error creating VCRAT for GPU (ID: 0x%x)\n",
+		       gpu_id);
+		topology_crat_proximity_domain--;
+		goto err;
+	}
+
+	INIT_LIST_HEAD(&temp_topology_device_list);
+
+	res = kfd_parse_crat_table(crat_image,
+				   &temp_topology_device_list,
+				   proximity_domain);
+	if (res) {
+		pr_err("Error parsing VCRAT for GPU (ID: 0x%x)\n",
+		       gpu_id);
+		topology_crat_proximity_domain--;
+		goto err;
+	}
+
+	kfd_topology_update_device_list(&temp_topology_device_list,
+					&topology_device_list);
+
+	*dev = kfd_assign_gpu(gpu);
+	if (WARN_ON(!*dev)) {
+		res = -ENODEV;
+		goto err;
+	}
+
+	/* Fill the cache affinity information here for the GPUs
+	 * using VCRAT
+	 */
+	kfd_fill_cache_non_crat_info(*dev, gpu);
+
+	/* Update the SYSFS tree, since we added another topology
+	 * device
+	 */
+	res = kfd_topology_update_sysfs();
+	if (!res)
+		sys_props.generation_count++;
+	else
+		pr_err("Failed to update GPU (ID: 0x%x) to sysfs topology. res=%d\n",
+		       gpu_id, res);
+
+err:
+	kfd_destroy_crat_image(crat_image);
+	return res;
+}
+
 int kfd_topology_add_device(struct kfd_dev *gpu)
 {
 	uint32_t gpu_id;
 	struct kfd_topology_device *dev;
 	struct kfd_cu_info cu_info;
 	int res = 0;
-	struct list_head temp_topology_device_list;
-	void *crat_image = NULL;
-	size_t image_size = 0;
-	int proximity_domain;
 	int i;
 	const char *asic_name = amdgpu_asic_name[gpu->adev->asic_type];
-
-	INIT_LIST_HEAD(&temp_topology_device_list);
 
 	gpu_id = kfd_generate_gpu_id(gpu);
 	pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
@@ -1831,54 +1885,11 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	 */
 	down_write(&topology_lock);
 	dev = kfd_assign_gpu(gpu);
-	if (!dev) {
-		proximity_domain = ++topology_crat_proximity_domain;
-
-		res = kfd_create_crat_image_virtual(&crat_image, &image_size,
-						    COMPUTE_UNIT_GPU, gpu,
-						    proximity_domain);
-		if (res) {
-			pr_err("Error creating VCRAT for GPU (ID: 0x%x)\n",
-			       gpu_id);
-			topology_crat_proximity_domain--;
-			return res;
-		}
-
-		res = kfd_parse_crat_table(crat_image,
-					   &temp_topology_device_list,
-					   proximity_domain);
-		if (res) {
-			pr_err("Error parsing VCRAT for GPU (ID: 0x%x)\n",
-			       gpu_id);
-			topology_crat_proximity_domain--;
-			goto err;
-		}
-
-		kfd_topology_update_device_list(&temp_topology_device_list,
-			&topology_device_list);
-
-		dev = kfd_assign_gpu(gpu);
-		if (WARN_ON(!dev)) {
-			res = -ENODEV;
-			goto err;
-		}
-
-		/* Fill the cache affinity information here for the GPUs
-		 * using VCRAT
-		 */
-		kfd_fill_cache_non_crat_info(dev, gpu);
-
-		/* Update the SYSFS tree, since we added another topology
-		 * device
-		 */
-		res = kfd_topology_update_sysfs();
-		if (!res)
-			sys_props.generation_count++;
-		else
-			pr_err("Failed to update GPU (ID: 0x%x) to sysfs topology. res=%d\n",
-						gpu_id, res);
-	}
+	if (!dev)
+		res = kfd_topology_add_device_locked(gpu, gpu_id, &dev);
 	up_write(&topology_lock);
+	if (res)
+		return res;
 
 	dev->gpu_id = gpu_id;
 	gpu->id = gpu_id;
@@ -2003,8 +2014,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	if (!res)
 		kfd_notify_gpu_change(gpu_id, 1);
-err:
-	kfd_destroy_crat_image(crat_image);
+
 	return res;
 }
 
