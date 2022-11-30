@@ -52,8 +52,10 @@ struct i915_page_sizes {
  * @mr: The memory region of the object pointed to by the vma.
  * @ops: Pointer to the backend i915_vma_ops.
  * @private: Bind backend private info.
- * @start: Offset into the address space of bind range start.
- * @node_size: Size of the allocated range manager node.
+ * @start: Offset into the address space of bind range start. Note that
+ * this is after any padding that might have been allocated.
+ * @node_size: Size of the allocated range manager node with padding
+ * subtracted.
  * @vma_size: Bind size.
  * @page_sizes_gtt: Resulting page sizes from the bind operation.
  * @bound_flags: Flags indicating binding status.
@@ -174,8 +176,8 @@ static inline void i915_vma_resource_put(struct i915_vma_resource *vma_res)
  * @mr: The memory region of the object the vma points to.
  * @ops: The backend ops.
  * @private: Bind backend private info.
- * @start: Offset into the address space of bind range start.
- * @node_size: Size of the allocated range manager node.
+ * @start: Offset into the address space of bind range start after padding.
+ * @node_size: Size of the allocated range manager node minus padding.
  * @size: Bind size.
  *
  * Initializes a vma resource allocated using i915_vma_resource_alloc().
