@@ -14,7 +14,31 @@
 #include <linux/ctype.h>
 #include <linux/vmalloc.h>
 
+#include <trace/events/habanalabs.h>
+
 #define FW_FILE_MAX_SIZE		0x1400000 /* maximum size of 20MB */
+
+static char *comms_cmd_str_arr[COMMS_INVLD_LAST] = {
+	[COMMS_NOOP] = __stringify(COMMS_NOOP),
+	[COMMS_CLR_STS] = __stringify(COMMS_CLR_STS),
+	[COMMS_RST_STATE] = __stringify(COMMS_RST_STATE),
+	[COMMS_PREP_DESC] = __stringify(COMMS_PREP_DESC),
+	[COMMS_DATA_RDY] = __stringify(COMMS_DATA_RDY),
+	[COMMS_EXEC] = __stringify(COMMS_EXEC),
+	[COMMS_RST_DEV] = __stringify(COMMS_RST_DEV),
+	[COMMS_GOTO_WFE] = __stringify(COMMS_GOTO_WFE),
+	[COMMS_SKIP_BMC] = __stringify(COMMS_SKIP_BMC),
+	[COMMS_PREP_DESC_ELBI] = __stringify(COMMS_PREP_DESC_ELBI),
+};
+
+static char *comms_sts_str_arr[COMMS_STS_INVLD_LAST] = {
+	[COMMS_STS_NOOP] = __stringify(COMMS_STS_NOOP),
+	[COMMS_STS_ACK] = __stringify(COMMS_STS_ACK),
+	[COMMS_STS_OK] = __stringify(COMMS_STS_OK),
+	[COMMS_STS_ERR] = __stringify(COMMS_STS_ERR),
+	[COMMS_STS_VALID_ERR] = __stringify(COMMS_STS_VALID_ERR),
+	[COMMS_STS_TIMEOUT_ERR] = __stringify(COMMS_STS_TIMEOUT_ERR),
+};
 
 static char *extract_fw_ver_from_str(const char *fw_str)
 {
@@ -1634,6 +1658,7 @@ static void hl_fw_dynamic_send_cmd(struct hl_device *hdev,
 	val = FIELD_PREP(COMMS_COMMAND_CMD_MASK, cmd);
 	val |= FIELD_PREP(COMMS_COMMAND_SIZE_MASK, size);
 
+	trace_habanalabs_comms_send_cmd(hdev->dev, comms_cmd_str_arr[cmd]);
 	WREG32(le32_to_cpu(dyn_regs->kmd_msg_to_cpu), val);
 }
 
@@ -1691,6 +1716,8 @@ static int hl_fw_dynamic_wait_for_status(struct hl_device *hdev,
 
 	dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
 
+	trace_habanalabs_comms_wait_status(hdev->dev, comms_sts_str_arr[expected_status]);
+
 	/* Wait for expected status */
 	rc = hl_poll_timeout(
 		hdev,
@@ -1705,6 +1732,8 @@ static int hl_fw_dynamic_wait_for_status(struct hl_device *hdev,
 							expected_status);
 		return -EIO;
 	}
+
+	trace_habanalabs_comms_wait_status_done(hdev->dev, comms_sts_str_arr[expected_status]);
 
 	/*
 	 * skip storing FW response for NOOP to preserve the actual desired
@@ -1777,6 +1806,8 @@ int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
 				bool wait_ok, u32 timeout)
 {
 	int rc;
+
+	trace_habanalabs_comms_protocol_cmd(hdev->dev, comms_cmd_str_arr[cmd]);
 
 	/* first send clear command to clean former commands */
 	rc = hl_fw_dynamic_send_clear_cmd(hdev, fw_loader);
