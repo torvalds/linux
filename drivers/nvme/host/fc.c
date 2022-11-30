@@ -1701,6 +1701,15 @@ restart:
 	spin_unlock_irqrestore(&rport->lock, flags);
 }
 
+static
+void nvme_fc_rcv_ls_req_err_msg(struct nvme_fc_lport *lport,
+				struct fcnvme_ls_rqst_w0 *w0)
+{
+	dev_info(lport->dev, "RCV %s LS failed: No memory\n",
+		(w0->ls_cmd <= NVME_FC_LAST_LS_CMD_VALUE) ?
+			nvmefc_ls_names[w0->ls_cmd] : "");
+}
+
 /**
  * nvme_fc_rcv_ls_req - transport entry point called by an LLDD
  *                       upon the reception of a NVME LS request.
@@ -1755,10 +1764,7 @@ nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
 
 	lsop = kzalloc(sizeof(*lsop), GFP_KERNEL);
 	if (!lsop) {
-		dev_info(lport->dev,
-			"RCV %s LS failed: No memory\n",
-			(w0->ls_cmd <= NVME_FC_LAST_LS_CMD_VALUE) ?
-				nvmefc_ls_names[w0->ls_cmd] : "");
+		nvme_fc_rcv_ls_req_err_msg(lport, w0);
 		ret = -ENOMEM;
 		goto out_put;
 	}
@@ -1766,10 +1772,7 @@ nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
 	lsop->rqstbuf = kzalloc(sizeof(*lsop->rqstbuf), GFP_KERNEL);
 	lsop->rspbuf = kzalloc(sizeof(*lsop->rspbuf), GFP_KERNEL);
 	if (!lsop->rqstbuf || !lsop->rspbuf) {
-		dev_info(lport->dev,
-			"RCV %s LS failed: No memory\n",
-			(w0->ls_cmd <= NVME_FC_LAST_LS_CMD_VALUE) ?
-				nvmefc_ls_names[w0->ls_cmd] : "");
+		nvme_fc_rcv_ls_req_err_msg(lport, w0);
 		ret = -ENOMEM;
 		goto out_free;
 	}
