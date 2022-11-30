@@ -46,6 +46,53 @@
 # feature that introduces them (eg, FEAT_LS64_ACCDATA introduces enumeration
 # item ACCDATA) though it may be more taseful to do something else.
 
+Sysreg ID_MMFR0_EL1	3	0	0	1	4
+Res0	63:32
+Enum	31:28	InnerShr
+	0b0000	NC
+	0b0001	HW
+	0b1111	IGNORED
+EndEnum
+Enum	27:24	FCSE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	AuxReg
+	0b0000	NI
+	0b0001	ACTLR
+	0b0010	AIFSR
+EndEnum
+Enum	19:16	TCM
+	0b0000	NI
+	0b0001	IMPDEF
+	0b0010	TCM
+	0b0011	TCM_DMA
+EndEnum
+Enum	15:12	ShareLvl
+	0b0000	ONE
+	0b0001	TWO
+EndEnum
+Enum	11:8	OuterShr
+	0b0000	NC
+	0b0001	HW
+	0b1111	IGNORED
+EndEnum
+Enum	7:4	PMSA
+	0b0000	NI
+	0b0001	IMPDEF
+	0b0010	PMSAv6
+	0b0011	PMSAv7
+EndEnum
+Enum	3:0	VMSA
+	0b0000	NI
+	0b0001	IMPDEF
+	0b0010	VMSAv6
+	0b0011	VMSAv7
+	0b0100	VMSAv7_PXN
+	0b0101	VMSAv7_LONG
+EndEnum
+EndSysreg
+
 Sysreg	ID_AA64PFR0_EL1	3	0	0	4	0
 Enum	63:60	CSV3
 	0b0000	NI
