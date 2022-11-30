@@ -25,17 +25,13 @@
 #include "gud_internal.h"
 
 /*
- * Some userspace rendering loops runs all displays in the same loop.
+ * Some userspace rendering loops run all displays in the same loop.
  * This means that a fast display will have to wait for a slow one.
- * For this reason gud does flushing asynchronous by default.
- * The down side is that in e.g. a single display setup userspace thinks
- * the display is insanely fast since the driver reports back immediately
- * that the flush/pageflip is done. This wastes CPU and power.
- * Such users might want to set this module parameter to false.
+ * Such users might want to enable this module parameter.
  */
-static bool gud_async_flush = true;
+static bool gud_async_flush;
 module_param_named(async_flush, gud_async_flush, bool, 0644);
-MODULE_PARM_DESC(async_flush, "Enable asynchronous flushing [default=true]");
+MODULE_PARM_DESC(async_flush, "Enable asynchronous flushing [default=0]");
 
 /*
  * FIXME: The driver is probably broken on Big Endian machines.
