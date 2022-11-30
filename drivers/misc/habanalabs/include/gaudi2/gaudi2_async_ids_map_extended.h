@@ -2665,6 +2665,8 @@ static struct gaudi2_async_events_ids_map gaudi2_irq_map_table[] = {
 		.msg = 1, .reset = 0, .name = "ARC_DCCM_FULL" },
 	{ .fc_id = 1320, .cpu_id = 626, .valid = 1,
 		.msg = 1, .reset = 1, .name = "FP32_NOT_SUPPORTED" },
+	{ .fc_id = 1321, .cpu_id = 627, .valid = 1,
+		.msg = 1, .reset = 1, .name = "DEV_RESET_REQ" },
 };
 
 #endif /* __GAUDI2_ASYNC_IDS_MAP_EVENTS_EXT_H_ */

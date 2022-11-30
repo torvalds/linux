@@ -9226,6 +9226,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		break;
 
 	case GAUDI2_EVENT_CPU_FP32_NOT_SUPPORTED:
+	case GAUDI2_EVENT_DEV_RESET_REQ:
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		error_count = GAUDI2_NA_EVENT_CAUSE;
 		is_critical = true;
