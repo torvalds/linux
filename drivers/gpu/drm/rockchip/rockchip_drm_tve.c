@@ -483,7 +483,6 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 	}
 
 	tve->enable = 0;
-	platform_set_drvdata(pdev, tve);
 	tve->drm_dev = drm_dev;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	tve->reg_phy_base = res->start;
@@ -544,6 +543,7 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 	rockchip_drm_register_sub_dev(&tve->sub_dev);
 
 	pm_runtime_enable(dev);
+	dev_set_drvdata(dev, tve);
 	dev_dbg(tve->dev, "%s tv encoder probe ok\n", match->compatible);
 
 	return 0;
@@ -567,6 +567,7 @@ static void rockchip_tve_unbind(struct device *dev, struct device *master,
 	drm_encoder_cleanup(&tve->encoder);
 
 	pm_runtime_disable(dev);
+	dev_set_drvdata(dev, NULL);
 }
 
 static const struct component_ops rockchip_tve_component_ops = {
@@ -584,6 +585,9 @@ static int rockchip_tve_probe(struct platform_device *pdev)
 static void rockchip_tve_shutdown(struct platform_device *pdev)
 {
 	struct rockchip_tve *tve = dev_get_drvdata(&pdev->dev);
+
+	if (!tve)
+		return;
 
 	mutex_lock(&tve->suspend_lock);
 
