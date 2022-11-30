@@ -42,19 +42,10 @@ struct mcck_struct {
 };
 
 static DEFINE_PER_CPU(struct mcck_struct, cpu_mcck);
-static struct kmem_cache *mcesa_cache;
-static unsigned long mcesa_origin_lc;
 
 static inline int nmi_needs_mcesa(void)
 {
 	return MACHINE_HAS_VX || MACHINE_HAS_GS;
-}
-
-static inline unsigned long nmi_get_mcesa_size(void)
-{
-	if (MACHINE_HAS_GS)
-		return MCESA_MAX_SIZE;
-	return MCESA_MIN_SIZE;
 }
 
 /*
@@ -74,36 +65,23 @@ void __init nmi_alloc_mcesa_early(u64 *mcesad)
 		*mcesad |= ilog2(MCESA_MAX_SIZE);
 }
 
-static void __init nmi_alloc_cache(void)
+int nmi_alloc_mcesa(u64 *mcesad)
 {
 	unsigned long size;
-
-	if (!nmi_needs_mcesa())
-		return;
-	size = nmi_get_mcesa_size();
-	if (size > MCESA_MIN_SIZE)
-		mcesa_origin_lc = ilog2(size);
-	/* create slab cache for the machine-check-extended-save-areas */
-	mcesa_cache = kmem_cache_create("nmi_save_areas", size, size, 0, NULL);
-	if (!mcesa_cache)
-		panic("Couldn't create nmi save area cache");
-}
-
-int __ref nmi_alloc_mcesa(u64 *mcesad)
-{
-	unsigned long origin;
+	void *origin;
 
 	*mcesad = 0;
 	if (!nmi_needs_mcesa())
 		return 0;
-	if (!mcesa_cache)
-		nmi_alloc_cache();
-	origin = (unsigned long) kmem_cache_alloc(mcesa_cache, GFP_KERNEL);
+	size = MACHINE_HAS_GS ? MCESA_MAX_SIZE : MCESA_MIN_SIZE;
+	origin = kmalloc(size, GFP_KERNEL);
 	if (!origin)
 		return -ENOMEM;
 	/* The pointer is stored with mcesa_bits ORed in */
-	kmemleak_not_leak((void *) origin);
-	*mcesad = __pa(origin) | mcesa_origin_lc;
+	kmemleak_not_leak(origin);
+	*mcesad = __pa(origin);
+	if (MACHINE_HAS_GS)
+		*mcesad |= ilog2(MCESA_MAX_SIZE);
 	return 0;
 }
 
@@ -111,7 +89,7 @@ void nmi_free_mcesa(u64 *mcesad)
 {
 	if (!nmi_needs_mcesa())
 		return;
-	kmem_cache_free(mcesa_cache, __va(*mcesad & MCESA_ORIGIN_MASK));
+	kfree(__va(*mcesad & MCESA_ORIGIN_MASK));
 }
 
 static __always_inline char *nmi_puts(char *dest, const char *src)
