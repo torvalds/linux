@@ -41,6 +41,7 @@
 			dynamic-power-coefficient = <100>;
 			enable-method = "psci";
 			next-level-cache = <&L2_0>;
+			qcom,freq-domain = <&cpufreq_hw 0>;
 			L2_0: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
@@ -55,6 +56,7 @@
 			dynamic-power-coefficient = <100>;
 			enable-method = "psci";
 			next-level-cache = <&L2_0>;
+			qcom,freq-domain = <&cpufreq_hw 0>;
 		};
 
 		CPU2: cpu@2 {
@@ -65,6 +67,7 @@
 			dynamic-power-coefficient = <100>;
 			enable-method = "psci";
 			next-level-cache = <&L2_0>;
+			qcom,freq-domain = <&cpufreq_hw 0>;
 		};
 
 		CPU3: cpu@3 {
@@ -75,6 +78,7 @@
 			dynamic-power-coefficient = <100>;
 			enable-method = "psci";
 			next-level-cache = <&L2_0>;
+			qcom,freq-domain = <&cpufreq_hw 0>;
 		};
 
 		CPU4: cpu@100 {
@@ -85,6 +89,7 @@
 			capacity-dmips-mhz = <1638>;
 			dynamic-power-coefficient = <282>;
 			next-level-cache = <&L2_1>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
 			L2_1: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
@@ -99,6 +104,7 @@
 			dynamic-power-coefficient = <282>;
 			enable-method = "psci";
 			next-level-cache = <&L2_1>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
 		};
 
 		CPU6: cpu@102 {
@@ -109,6 +115,7 @@
 			dynamic-power-coefficient = <282>;
 			enable-method = "psci";
 			next-level-cache = <&L2_1>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
 		};
 
 		CPU7: cpu@103 {
@@ -119,6 +126,7 @@
 			dynamic-power-coefficient = <282>;
 			enable-method = "psci";
 			next-level-cache = <&L2_1>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
 		};
 
 		cpu-map {
@@ -841,6 +849,17 @@
 			#redistributor-regions = <1>;
 			redistributor-stride = <0x0 0x20000>;
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		cpufreq_hw: cpufreq@f521000 {
+			compatible = "qcom,cpufreq-hw";
+			reg = <0x0f521000 0x1000>, <0x0f523000 0x1000>;
+
+			reg-names = "freq-domain0", "freq-domain1";
+			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>, <&gcc GPLL0>;
+			clock-names = "xo", "alternate";
+
+			#freq-domain-cells = <1>;
 		};
 	};
 
