@@ -47,3 +47,11 @@ Date:		November 2022
 KernelVersion:	6.2
 Contact:	Dave Jiang <dave.jiang@intel.com>
 Description:	(RO) Show the id (serial) of the device. This is CXL specific.
+
+What:		/sys/bus/nd/devices/nmemX/cxl/provider
+Date:		November 2022
+KernelVersion:	6.2
+Contact:	Dave Jiang <dave.jiang@intel.com>
+Description:	(RO) Shows the CXL bridge device that ties to a CXL memory device
+		to this NVDIMM device. I.e. the parent of the device returned is
+		a /sys/bus/cxl/devices/memX instance.
