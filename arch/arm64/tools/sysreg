@@ -298,6 +298,52 @@ Enum	3:0	Endian
 EndEnum
 EndSysreg
 
+Sysreg ID_ISAR2_EL1	3	0	0	2	2
+Res0	63:32
+Enum	31:28	Reversal
+	0b0000	NI
+	0b0001	REV
+	0b0010	RBIT
+EndEnum
+Enum	27:24	PSR_AR
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	MultU
+	0b0000	NI
+	0b0001	UMULL
+	0b0010	UMAAL
+EndEnum
+Enum	19:16	MultS
+	0b0000	NI
+	0b0001	SMULL
+	0b0010	SMLABB
+	0b0011	SMLAD
+EndEnum
+Enum	15:12	Mult
+	0b0000	NI
+	0b0001	MLA
+	0b0010	MLS
+EndEnum
+Enum	11:8	MultiAccessInt
+	0b0000	NI
+	0b0001	RESTARTABLE
+	0b0010	CONTINUABLE
+EndEnum
+Enum	7:4	MemHint
+	0b0000	NI
+	0b0001	PLD
+	0b0010	PLD2
+	0b0011	PLI
+	0b0100	PLDW
+EndEnum
+Enum	3:0	LoadStore
+	0b0000	NI
+	0b0001	DOUBLE
+	0b0010	ACQUIRE
+EndEnum
+EndSysreg
+
 Sysreg ID_MMFR4_EL1	3	0	0	2	6
 Res0	63:32
 Enum	31:28	EVT
