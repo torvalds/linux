@@ -1233,7 +1233,7 @@
 		};
 
 		apps_smmu: iommu@c600000 {
-			compatible = "qcom,sm6115-smmu-500", "arm,mmu-500";
+			compatible = "qcom,sm6115-smmu-500", "qcom,smmu-500", "arm,mmu-500";
 			reg = <0x0c600000 0x80000>;
 			#iommu-cells = <2>;
 			#global-interrupts = <1>;
