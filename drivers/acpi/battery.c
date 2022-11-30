@@ -696,7 +696,8 @@ static void __battery_hook_unregister(struct acpi_battery_hook *hook, int lock)
 	if (lock)
 		mutex_lock(&hook_mutex);
 	list_for_each_entry(battery, &acpi_battery_list, list) {
-		hook->remove_battery(battery->bat);
+		if (!hook->remove_battery(battery->bat))
+			power_supply_changed(battery->bat);
 	}
 	list_del(&hook->list);
 	if (lock)
@@ -735,6 +736,8 @@ void battery_hook_register(struct acpi_battery_hook *hook)
 			__battery_hook_unregister(hook, 0);
 			goto end;
 		}
+
+		power_supply_changed(battery->bat);
 	}
 	pr_info("new extension: %s\n", hook->name);
 end:
