@@ -1320,6 +1320,15 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				}
 			}
 
+			if (le16_to_cpu(ip->hw_id) == VPE_HWID) {
+				if (adev->vpe.num_instances < AMDGPU_MAX_VPE_INSTANCES)
+					adev->vpe.num_instances++;
+				else
+					dev_err(adev->dev, "Too many VPE instances: %d vs %d\n",
+						adev->vpe.num_instances + 1,
+						AMDGPU_MAX_VPE_INSTANCES);
+			}
+
 			if (le16_to_cpu(ip->hw_id) == UMC_HWID) {
 				adev->gmc.num_umc++;
 				adev->umc.node_inst_num++;
