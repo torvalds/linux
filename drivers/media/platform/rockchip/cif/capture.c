@@ -524,6 +524,8 @@ static const struct cif_input_fmt in_fmts[] = {
 	}
 };
 
+static int rkcif_stop_dma_capture(struct rkcif_stream *stream);
+
 struct rkcif_rx_buffer *to_cif_rx_buf(struct rkisp_rx_buf *dbufs)
 {
 	return container_of(dbufs, struct rkcif_rx_buffer, dbufs);
@@ -4084,9 +4086,9 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 	int i;
 	unsigned long flags;
 	u32 vblank = 0;
-	u32 vblank_ns = 0;
+	u32 frame_time_ns = 0;
 	u64 cur_time = 0;
-	u64 fe_time = 0;
+	u64 fs_time = 0;
 
 	mutex_lock(&dev->stream_lock);
 
@@ -4095,25 +4097,34 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 
 	if (mode == stream->cur_stream_mode) {
 		stream->stopping = true;
-		if (!dev->sensor_linetime)
-			dev->sensor_linetime = rkcif_get_linetime(stream);
-		vblank = rkcif_get_sensor_vblank(dev);
-		vblank_ns = vblank * dev->sensor_linetime;
-		spin_lock_irqsave(&stream->fps_lock, flags);
-		fe_time = stream->readout.fe_timestamp;
-		spin_unlock_irqrestore(&stream->fps_lock, flags);
-		cur_time = ktime_get_ns();
-		if (cur_time > fe_time && cur_time - fe_time < (vblank_ns - 200000)) {
+		if (stream->dma_en) {
+			if (!dev->sensor_linetime)
+				dev->sensor_linetime = rkcif_get_linetime(stream);
+			vblank = rkcif_get_sensor_vblank(dev);
+			frame_time_ns = (vblank + dev->terminal_sensor.raw_rect.height) *
+					dev->sensor_linetime;
+			spin_lock_irqsave(&stream->fps_lock, flags);
+			fs_time = stream->readout.fs_timestamp;
+			spin_unlock_irqrestore(&stream->fps_lock, flags);
+			cur_time = ktime_get_ns();
+			if (cur_time > fs_time &&
+			    cur_time - fs_time < (frame_time_ns - 10000000)) {
+				spin_lock_irqsave(&stream->vbq_lock, flags);
+				if (stream->dma_en & RKCIF_DMAEN_BY_VICAP)
+					stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
+				else if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
+					stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+				stream->is_stop_capture = true;
+				rkcif_stop_dma_capture(stream);
+				spin_unlock_irqrestore(&stream->vbq_lock, flags);
+			}
+		}
+		ret = wait_event_timeout(stream->wq_stopped,
+					 stream->state != RKCIF_STATE_STREAMING,
+					 msecs_to_jiffies(500));
+		if (!ret) {
 			rkcif_stream_stop(stream);
 			stream->stopping = false;
-		} else {
-			ret = wait_event_timeout(stream->wq_stopped,
-						 stream->state != RKCIF_STATE_STREAMING,
-						 msecs_to_jiffies(1000));
-			if (!ret) {
-				rkcif_stream_stop(stream);
-				stream->stopping = false;
-			}
 		}
 
 		media_pipeline_stop(&node->vdev.entity);
@@ -5580,6 +5591,7 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	stream->to_en_scale = false;
 	stream->buf_owner = 0;
 	stream->buf_replace_cnt = 0;
+	stream->is_stop_capture = false;
 }
 
 static int rkcif_fh_open(struct file *filp)
@@ -7641,7 +7653,6 @@ static void rkcif_release_unnecessary_buf_for_online(struct rkcif_stream *stream
 	schedule_work(&priv->buffree_work.work);
 }
 
-static int rkcif_stop_dma_capture(struct rkcif_stream *stream);
 static void rkcif_line_wake_up_rdbk(struct rkcif_stream *stream, int mipi_id)
 {
 	u32 mode;
@@ -8679,10 +8690,18 @@ static int rkcif_stop_dma_capture(struct rkcif_stream *stream)
 	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY) {
 		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id));
 		val &= ~CSI_DMA_ENABLE;
+		if (stream->is_stop_capture) {
+			val &= ~CSI_ENABLE_CAPTURE;
+			stream->is_stop_capture = false;
+		}
 		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id), val);
 	} else if (mbus_cfg->type == V4L2_MBUS_CCP2) {
 		val = rkcif_read_register(cif_dev, get_reg_index_of_lvds_id_ctrl0(stream->id));
 		val &= ~LVDS_DMAEN_RV1106;
+		if (stream->is_stop_capture) {
+			val &= ~ENABLE_CAPTURE;
+			stream->is_stop_capture = false;
+		}
 		rkcif_write_register(cif_dev, get_reg_index_of_lvds_id_ctrl0(stream->id), val);
 	}  else {
 		val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
@@ -8690,6 +8709,10 @@ static int rkcif_stop_dma_capture(struct rkcif_stream *stream)
 			val &= ~DVP_DMA_EN;
 		else if (cif_dev->chip_id == CHIP_RV1106_CIF)
 			val &= ~(DVP_SW_DMA_EN(stream->id));
+		if (stream->is_stop_capture) {
+			val &= ~ENABLE_CAPTURE;
+			stream->is_stop_capture = false;
+		}
 		rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL, val);
 	}
 	stream->to_stop_dma = 0;
@@ -9205,6 +9228,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					spin_unlock_irqrestore(&stream->fps_lock, flags);
 				}
 				stream->is_in_vblank = false;
+				spin_lock_irqsave(&stream->vbq_lock, flags);
 				if (stream->stopping && stream->dma_en) {
 					if (stream->dma_en & RKCIF_DMAEN_BY_VICAP)
 						stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
@@ -9218,6 +9242,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				}
 				if (stream->to_en_dma)
 					rkcif_enable_dma_capture(stream, false);
+				spin_unlock_irqrestore(&stream->vbq_lock, flags);
 			}
 			if (intstat & CSI_LINE_INTSTAT_V1(i)) {
 				stream = &cif_dev->stream[i];
