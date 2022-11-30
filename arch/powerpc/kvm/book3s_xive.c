@@ -539,7 +539,7 @@ static int xive_vm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	if (irq == XICS_IPI || irq == 0) {
 		/*
 		 * This barrier orders the setting of xc->cppr vs.
-		 * subsquent test of xc->mfrr done inside
+		 * subsequent test of xc->mfrr done inside
 		 * scan_interrupts and push_pending_to_hw
 		 */
 		smp_mb();
@@ -563,7 +563,7 @@ static int xive_vm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	/*
 	 * This barrier orders both setting of in_eoi above vs,
 	 * subsequent test of guest_priority, and the setting
-	 * of xc->cppr vs. subsquent test of xc->mfrr done inside
+	 * of xc->cppr vs. subsequent test of xc->mfrr done inside
 	 * scan_interrupts and push_pending_to_hw
 	 */
 	smp_mb();
@@ -2390,7 +2390,7 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	/*
 	 * Now, we select a target if we have one. If we don't we
 	 * leave the interrupt untargetted. It means that an interrupt
-	 * can become "untargetted" accross migration if it was masked
+	 * can become "untargetted" across migration if it was masked
 	 * by set_xive() but there is little we can do about it.
 	 */
 
