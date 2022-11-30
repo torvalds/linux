@@ -382,6 +382,45 @@ Enum	3:0	Saturate
 EndEnum
 EndSysreg
 
+Sysreg ID_ISAR4_EL1	3	0	0	2	4
+Res0	63:32
+Enum	31:28	SWP_frac
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	PSR_M
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	SynchPrim_frac
+	0b0000	NI
+	0b0011	IMP
+EndEnum
+Enum	19:16	Barrier
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	SMC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	11:8	Writeback
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	WithShifts
+	0b0000	NI
+	0b0001	LSL3
+	0b0011	LS
+	0b0100	REG
+EndEnum
+Enum	3:0	Unpriv
+	0b0000	NI
+	0b0001	REG_BYTE
+	0b0010	SIGNED_HALFWORD
+EndEnum
+EndSysreg
+
 Sysreg ID_MMFR4_EL1	3	0	0	2	6
 Res0	63:32
 Enum	31:28	EVT
