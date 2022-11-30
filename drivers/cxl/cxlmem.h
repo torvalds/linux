@@ -278,6 +278,7 @@ enum cxl_opcode {
 	CXL_MBOX_OP_DISABLE_PASSPHRASE	= 0x4502,
 	CXL_MBOX_OP_UNLOCK		= 0x4503,
 	CXL_MBOX_OP_FREEZE_SECURITY	= 0x4504,
+	CXL_MBOX_OP_PASSPHRASE_SECURE_ERASE	= 0x4505,
 	CXL_MBOX_OP_MAX			= 0x10000
 };
 
@@ -395,6 +396,13 @@ struct cxl_set_pass {
 
 /* disable passphrase input payload */
 struct cxl_disable_pass {
+	u8 type;
+	u8 reserved[31];
+	u8 pass[NVDIMM_PASSPHRASE_LEN];
+} __packed;
+
+/* passphrase secure erase payload */
+struct cxl_pass_erase {
 	u8 type;
 	u8 reserved[31];
 	u8 pass[NVDIMM_PASSPHRASE_LEN];
