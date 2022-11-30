@@ -274,9 +274,9 @@ bool md_register_memory_dump(int size, char *name)
 	if (!strcmp(name, "SLABOWNER"))
 		WRITE_ONCE(md_slabowner_dump_addr, buffer_start);
 #endif
-	if (!strcmp(name, "DMABUF_INFO"))
+	if (!strcmp(name, "DMA_INFO"))
 		WRITE_ONCE(md_dma_buf_info_addr, buffer_start);
-	if (!strcmp(name, "DMABUF_PROCS"))
+	if (!strcmp(name, "DMA_PROC"))
 		WRITE_ONCE(md_dma_buf_procs_addr, buffer_start);
 	return true;
 }
@@ -1180,7 +1180,7 @@ static ssize_t dma_buf_info_size_write(struct file *file,
 		pr_err_ratelimited("Invalid format for size\n");
 		return -EINVAL;
 	}
-	update_dump_size("DMABUF_INFO", size,
+	update_dump_size("DMA_INFO", size,
 			&md_dma_buf_info_addr, &md_dma_buf_info_size);
 	return count;
 }
@@ -1318,7 +1318,7 @@ static ssize_t dma_buf_procs_size_write(struct file *file,
 		pr_err_ratelimited("Invalid format for size\n");
 		return -EINVAL;
 	}
-	update_dump_size("DMABUF_PROCS", size,
+	update_dump_size("DMA_PROC", size,
 			&md_dma_buf_procs_addr, &md_dma_buf_procs_size);
 	return count;
 }
