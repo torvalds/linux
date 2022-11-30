@@ -8,6 +8,7 @@ static const char tsnep_stats_strings[][ETH_GSTRING_LEN] = {
 	"rx_bytes",
 	"rx_dropped",
 	"rx_multicast",
+	"rx_alloc_failed",
 	"rx_phy_errors",
 	"rx_forwarded_phy_errors",
 	"rx_invalid_frame_errors",
@@ -21,6 +22,7 @@ struct tsnep_stats {
 	u64 rx_bytes;
 	u64 rx_dropped;
 	u64 rx_multicast;
+	u64 rx_alloc_failed;
 	u64 rx_phy_errors;
 	u64 rx_forwarded_phy_errors;
 	u64 rx_invalid_frame_errors;
@@ -36,6 +38,7 @@ static const char tsnep_rx_queue_stats_strings[][ETH_GSTRING_LEN] = {
 	"rx_%d_bytes",
 	"rx_%d_dropped",
 	"rx_%d_multicast",
+	"rx_%d_alloc_failed",
 	"rx_%d_no_descriptor_errors",
 	"rx_%d_buffer_too_small_errors",
 	"rx_%d_fifo_overflow_errors",
@@ -47,6 +50,7 @@ struct tsnep_rx_queue_stats {
 	u64 rx_bytes;
 	u64 rx_dropped;
 	u64 rx_multicast;
+	u64 rx_alloc_failed;
 	u64 rx_no_descriptor_errors;
 	u64 rx_buffer_too_small_errors;
 	u64 rx_fifo_overflow_errors;
@@ -178,6 +182,7 @@ static void tsnep_ethtool_get_ethtool_stats(struct net_device *netdev,
 		tsnep_stats.rx_bytes += adapter->rx[i].bytes;
 		tsnep_stats.rx_dropped += adapter->rx[i].dropped;
 		tsnep_stats.rx_multicast += adapter->rx[i].multicast;
+		tsnep_stats.rx_alloc_failed += adapter->rx[i].alloc_failed;
 	}
 	reg = ioread32(adapter->addr + ECM_STAT);
 	tsnep_stats.rx_phy_errors =
@@ -200,6 +205,8 @@ static void tsnep_ethtool_get_ethtool_stats(struct net_device *netdev,
 		tsnep_rx_queue_stats.rx_bytes = adapter->rx[i].bytes;
 		tsnep_rx_queue_stats.rx_dropped = adapter->rx[i].dropped;
 		tsnep_rx_queue_stats.rx_multicast = adapter->rx[i].multicast;
+		tsnep_rx_queue_stats.rx_alloc_failed =
+			adapter->rx[i].alloc_failed;
 		reg = ioread32(adapter->addr + TSNEP_QUEUE(i) +
 			       TSNEP_RX_STATISTIC);
 		tsnep_rx_queue_stats.rx_no_descriptor_errors =

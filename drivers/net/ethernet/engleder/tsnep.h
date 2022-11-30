@@ -18,6 +18,8 @@
 #define TSNEP "tsnep"
 
 #define TSNEP_RING_SIZE 256
+#define TSNEP_RING_RX_REFILL 16
+#define TSNEP_RING_RX_REUSE (TSNEP_RING_SIZE - TSNEP_RING_SIZE / 4)
 #define TSNEP_RING_ENTRIES_PER_PAGE (PAGE_SIZE / TSNEP_DESC_SIZE)
 #define TSNEP_RING_PAGE_COUNT (TSNEP_RING_SIZE / TSNEP_RING_ENTRIES_PER_PAGE)
 
@@ -110,6 +112,7 @@ struct tsnep_rx {
 	dma_addr_t page_dma[TSNEP_RING_PAGE_COUNT];
 
 	struct tsnep_rx_entry entry[TSNEP_RING_SIZE];
+	int write;
 	int read;
 	u32 owner_counter;
 	int increment_owner_counter;
@@ -119,6 +122,7 @@ struct tsnep_rx {
 	u32 bytes;
 	u32 dropped;
 	u32 multicast;
+	u32 alloc_failed;
 };
 
 struct tsnep_queue {

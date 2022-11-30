@@ -660,23 +660,6 @@ static void tsnep_rx_ring_cleanup(struct tsnep_rx *rx)
 	}
 }
 
-static int tsnep_rx_alloc_buffer(struct tsnep_rx *rx,
-				 struct tsnep_rx_entry *entry)
-{
-	struct page *page;
-
-	page = page_pool_dev_alloc_pages(rx->page_pool);
-	if (unlikely(!page))
-		return -ENOMEM;
-
-	entry->page = page;
-	entry->len = TSNEP_MAX_RX_BUF_SIZE;
-	entry->dma = page_pool_get_dma_addr(entry->page);
-	entry->desc->rx = __cpu_to_le64(entry->dma + TSNEP_SKB_PAD);
-
-	return 0;
-}
-
 static int tsnep_rx_ring_init(struct tsnep_rx *rx)
 {
 	struct device *dmadev = rx->adapter->dmadev;
@@ -723,10 +706,6 @@ static int tsnep_rx_ring_init(struct tsnep_rx *rx)
 		entry = &rx->entry[i];
 		next_entry = &rx->entry[(i + 1) % TSNEP_RING_SIZE];
 		entry->desc->next = __cpu_to_le64(next_entry->desc_dma);
-
-		retval = tsnep_rx_alloc_buffer(rx, entry);
-		if (retval)
-			goto failed;
 	}
 
 	return 0;
@@ -734,6 +713,45 @@ static int tsnep_rx_ring_init(struct tsnep_rx *rx)
 failed:
 	tsnep_rx_ring_cleanup(rx);
 	return retval;
+}
+
+static int tsnep_rx_desc_available(struct tsnep_rx *rx)
+{
+	if (rx->read <= rx->write)
+		return TSNEP_RING_SIZE - rx->write + rx->read - 1;
+	else
+		return rx->read - rx->write - 1;
+}
+
+static void tsnep_rx_set_page(struct tsnep_rx *rx, struct tsnep_rx_entry *entry,
+			      struct page *page)
+{
+	entry->page = page;
+	entry->len = TSNEP_MAX_RX_BUF_SIZE;
+	entry->dma = page_pool_get_dma_addr(entry->page);
+	entry->desc->rx = __cpu_to_le64(entry->dma + TSNEP_SKB_PAD);
+}
+
+static int tsnep_rx_alloc_buffer(struct tsnep_rx *rx, int index)
+{
+	struct tsnep_rx_entry *entry = &rx->entry[index];
+	struct page *page;
+
+	page = page_pool_dev_alloc_pages(rx->page_pool);
+	if (unlikely(!page))
+		return -ENOMEM;
+	tsnep_rx_set_page(rx, entry, page);
+
+	return 0;
+}
+
+static void tsnep_rx_reuse_buffer(struct tsnep_rx *rx, int index)
+{
+	struct tsnep_rx_entry *entry = &rx->entry[index];
+	struct tsnep_rx_entry *read = &rx->entry[rx->read];
+
+	tsnep_rx_set_page(rx, entry, read->page);
+	read->page = NULL;
 }
 
 static void tsnep_rx_activate(struct tsnep_rx *rx, int index)
@@ -761,6 +779,48 @@ static void tsnep_rx_activate(struct tsnep_rx *rx, int index)
 	dma_wmb();
 
 	entry->desc->properties = __cpu_to_le32(entry->properties);
+}
+
+static int tsnep_rx_refill(struct tsnep_rx *rx, int count, bool reuse)
+{
+	int index;
+	bool alloc_failed = false;
+	bool enable = false;
+	int i;
+	int retval;
+
+	for (i = 0; i < count && !alloc_failed; i++) {
+		index = (rx->write + i) % TSNEP_RING_SIZE;
+
+		retval = tsnep_rx_alloc_buffer(rx, index);
+		if (unlikely(retval)) {
+			rx->alloc_failed++;
+			alloc_failed = true;
+
+			/* reuse only if no other allocation was successful */
+			if (i == 0 && reuse)
+				tsnep_rx_reuse_buffer(rx, index);
+			else
+				break;
+		}
+
+		tsnep_rx_activate(rx, index);
+
+		enable = true;
+	}
+
+	if (enable) {
+		rx->write = (rx->write + i) % TSNEP_RING_SIZE;
+
+		/* descriptor properties shall be valid before hardware is
+		 * notified
+		 */
+		dma_wmb();
+
+		iowrite32(TSNEP_CONTROL_RX_ENABLE, rx->addr + TSNEP_CONTROL);
+	}
+
+	return i;
 }
 
 static struct sk_buff *tsnep_build_skb(struct tsnep_rx *rx, struct page *page,
@@ -798,23 +858,42 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 			 int budget)
 {
 	struct device *dmadev = rx->adapter->dmadev;
+	int desc_available;
 	int done = 0;
 	enum dma_data_direction dma_dir;
 	struct tsnep_rx_entry *entry;
-	struct page *page;
 	struct sk_buff *skb;
 	int length;
-	bool enable = false;
-	int retval;
 
+	desc_available = tsnep_rx_desc_available(rx);
 	dma_dir = page_pool_get_dma_dir(rx->page_pool);
 
-	while (likely(done < budget)) {
+	while (likely(done < budget) && (rx->read != rx->write)) {
 		entry = &rx->entry[rx->read];
 		if ((__le32_to_cpu(entry->desc_wb->properties) &
 		     TSNEP_DESC_OWNER_COUNTER_MASK) !=
 		    (entry->properties & TSNEP_DESC_OWNER_COUNTER_MASK))
 			break;
+		done++;
+
+		if (desc_available >= TSNEP_RING_RX_REFILL) {
+			bool reuse = desc_available >= TSNEP_RING_RX_REUSE;
+
+			desc_available -= tsnep_rx_refill(rx, desc_available,
+							  reuse);
+			if (!entry->page) {
+				/* buffer has been reused for refill to prevent
+				 * empty RX ring, thus buffer cannot be used for
+				 * RX processing
+				 */
+				rx->read = (rx->read + 1) % TSNEP_RING_SIZE;
+				desc_available++;
+
+				rx->dropped++;
+
+				continue;
+			}
+		}
 
 		/* descriptor properties shall be read first, because valid data
 		 * is signaled there
@@ -826,49 +905,30 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 			 TSNEP_DESC_LENGTH_MASK;
 		dma_sync_single_range_for_cpu(dmadev, entry->dma, TSNEP_SKB_PAD,
 					      length, dma_dir);
-		page = entry->page;
-
-		/* forward skb only if allocation is successful, otherwise
-		 * page is reused and frame dropped
-		 */
-		retval = tsnep_rx_alloc_buffer(rx, entry);
-		if (!retval) {
-			skb = tsnep_build_skb(rx, page, length);
-			if (skb) {
-				page_pool_release_page(rx->page_pool, page);
-
-				rx->packets++;
-				rx->bytes += length -
-					     TSNEP_RX_INLINE_METADATA_SIZE;
-				if (skb->pkt_type == PACKET_MULTICAST)
-					rx->multicast++;
-
-				napi_gro_receive(napi, skb);
-			} else {
-				page_pool_recycle_direct(rx->page_pool, page);
-
-				rx->dropped++;
-			}
-			done++;
-		} else {
-			rx->dropped++;
-		}
-
-		tsnep_rx_activate(rx, rx->read);
-
-		enable = true;
 
 		rx->read = (rx->read + 1) % TSNEP_RING_SIZE;
+		desc_available++;
+
+		skb = tsnep_build_skb(rx, entry->page, length);
+		if (skb) {
+			page_pool_release_page(rx->page_pool, entry->page);
+
+			rx->packets++;
+			rx->bytes += length - TSNEP_RX_INLINE_METADATA_SIZE;
+			if (skb->pkt_type == PACKET_MULTICAST)
+				rx->multicast++;
+
+			napi_gro_receive(napi, skb);
+		} else {
+			page_pool_recycle_direct(rx->page_pool, entry->page);
+
+			rx->dropped++;
+		}
+		entry->page = NULL;
 	}
 
-	if (enable) {
-		/* descriptor properties shall be valid before hardware is
-		 * notified
-		 */
-		dma_wmb();
-
-		iowrite32(TSNEP_CONTROL_RX_ENABLE, rx->addr + TSNEP_CONTROL);
-	}
+	if (desc_available)
+		tsnep_rx_refill(rx, desc_available, false);
 
 	return done;
 }
@@ -877,11 +937,13 @@ static bool tsnep_rx_pending(struct tsnep_rx *rx)
 {
 	struct tsnep_rx_entry *entry;
 
-	entry = &rx->entry[rx->read];
-	if ((__le32_to_cpu(entry->desc_wb->properties) &
-	     TSNEP_DESC_OWNER_COUNTER_MASK) ==
-	    (entry->properties & TSNEP_DESC_OWNER_COUNTER_MASK))
-		return true;
+	if (rx->read != rx->write) {
+		entry = &rx->entry[rx->read];
+		if ((__le32_to_cpu(entry->desc_wb->properties) &
+		     TSNEP_DESC_OWNER_COUNTER_MASK) ==
+		    (entry->properties & TSNEP_DESC_OWNER_COUNTER_MASK))
+			return true;
+	}
 
 	return false;
 }
@@ -890,7 +952,6 @@ static int tsnep_rx_open(struct tsnep_adapter *adapter, void __iomem *addr,
 			 int queue_index, struct tsnep_rx *rx)
 {
 	dma_addr_t dma;
-	int i;
 	int retval;
 
 	memset(rx, 0, sizeof(*rx));
@@ -908,13 +969,7 @@ static int tsnep_rx_open(struct tsnep_adapter *adapter, void __iomem *addr,
 	rx->owner_counter = 1;
 	rx->increment_owner_counter = TSNEP_RING_SIZE - 1;
 
-	for (i = 0; i < TSNEP_RING_SIZE; i++)
-		tsnep_rx_activate(rx, i);
-
-	/* descriptor properties shall be valid before hardware is notified */
-	dma_wmb();
-
-	iowrite32(TSNEP_CONTROL_RX_ENABLE, rx->addr + TSNEP_CONTROL);
+	tsnep_rx_refill(rx, tsnep_rx_desc_available(rx), false);
 
 	return 0;
 }
