@@ -15,6 +15,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_rect.h>
@@ -152,32 +153,21 @@ static size_t gud_xrgb8888_to_color(u8 *dst, const struct drm_format_info *forma
 }
 
 static int gud_prep_flush(struct gud_device *gdrm, struct drm_framebuffer *fb,
+			  const struct iosys_map *src, bool cached_reads,
 			  const struct drm_format_info *format, struct drm_rect *rect,
 			  struct gud_set_buffer_req *req)
 {
-	struct dma_buf_attachment *import_attach = fb->obj[0]->import_attach;
 	u8 compression = gdrm->compression;
-	struct iosys_map map[DRM_FORMAT_MAX_PLANES] = { };
-	struct iosys_map map_data[DRM_FORMAT_MAX_PLANES] = { };
 	struct iosys_map dst;
 	void *vaddr, *buf;
 	size_t pitch, len;
-	int ret = 0;
 
 	pitch = drm_format_info_min_pitch(format, 0, drm_rect_width(rect));
 	len = pitch * drm_rect_height(rect);
 	if (len > gdrm->bulk_len)
 		return -E2BIG;
 
-	ret = drm_gem_fb_vmap(fb, map, map_data);
-	if (ret)
-		return ret;
-
-	vaddr = map_data[0].vaddr;
-
-	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
-	if (ret)
-		goto vunmap;
+	vaddr = src[0].vaddr;
 retry:
 	if (compression)
 		buf = gdrm->compress_buf;
@@ -192,29 +182,27 @@ retry:
 	if (format != fb->format) {
 		if (format->format == GUD_DRM_FORMAT_R1) {
 			len = gud_xrgb8888_to_r124(buf, format, vaddr, fb, rect);
-			if (!len) {
-				ret = -ENOMEM;
-				goto end_cpu_access;
-			}
+			if (!len)
+				return -ENOMEM;
 		} else if (format->format == DRM_FORMAT_R8) {
-			drm_fb_xrgb8888_to_gray8(&dst, NULL, map_data, fb, rect);
+			drm_fb_xrgb8888_to_gray8(&dst, NULL, src, fb, rect);
 		} else if (format->format == DRM_FORMAT_RGB332) {
-			drm_fb_xrgb8888_to_rgb332(&dst, NULL, map_data, fb, rect);
+			drm_fb_xrgb8888_to_rgb332(&dst, NULL, src, fb, rect);
 		} else if (format->format == DRM_FORMAT_RGB565) {
-			drm_fb_xrgb8888_to_rgb565(&dst, NULL, map_data, fb, rect,
+			drm_fb_xrgb8888_to_rgb565(&dst, NULL, src, fb, rect,
 						  gud_is_big_endian());
 		} else if (format->format == DRM_FORMAT_RGB888) {
-			drm_fb_xrgb8888_to_rgb888(&dst, NULL, map_data, fb, rect);
+			drm_fb_xrgb8888_to_rgb888(&dst, NULL, src, fb, rect);
 		} else {
 			len = gud_xrgb8888_to_color(buf, format, vaddr, fb, rect);
 		}
 	} else if (gud_is_big_endian() && format->cpp[0] > 1) {
-		drm_fb_swab(&dst, NULL, map_data, fb, rect, !import_attach);
-	} else if (compression && !import_attach && pitch == fb->pitches[0]) {
+		drm_fb_swab(&dst, NULL, src, fb, rect, cached_reads);
+	} else if (compression && cached_reads && pitch == fb->pitches[0]) {
 		/* can compress directly from the framebuffer */
 		buf = vaddr + rect->y1 * pitch;
 	} else {
-		drm_fb_memcpy(&dst, NULL, map_data, fb, rect);
+		drm_fb_memcpy(&dst, NULL, src, fb, rect);
 	}
 
 	memset(req, 0, sizeof(*req));
@@ -237,12 +225,7 @@ retry:
 		req->compressed_length = cpu_to_le32(complen);
 	}
 
-end_cpu_access:
-	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
-vunmap:
-	drm_gem_fb_vunmap(fb, map);
-
-	return ret;
+	return 0;
 }
 
 struct gud_usb_bulk_context {
@@ -285,6 +268,7 @@ static int gud_usb_bulk(struct gud_device *gdrm, size_t len)
 }
 
 static int gud_flush_rect(struct gud_device *gdrm, struct drm_framebuffer *fb,
+			  const struct iosys_map *src, bool cached_reads,
 			  const struct drm_format_info *format, struct drm_rect *rect)
 {
 	struct gud_set_buffer_req req;
@@ -293,7 +277,7 @@ static int gud_flush_rect(struct gud_device *gdrm, struct drm_framebuffer *fb,
 
 	drm_dbg(&gdrm->drm, "Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
-	ret = gud_prep_flush(gdrm, fb, format, rect, &req);
+	ret = gud_prep_flush(gdrm, fb, src, cached_reads, format, rect, &req);
 	if (ret)
 		return ret;
 
@@ -334,6 +318,7 @@ void gud_clear_damage(struct gud_device *gdrm)
 }
 
 static void gud_flush_damage(struct gud_device *gdrm, struct drm_framebuffer *fb,
+			     const struct iosys_map *src, bool cached_reads,
 			     struct drm_rect *damage)
 {
 	const struct drm_format_info *format;
@@ -358,7 +343,7 @@ static void gud_flush_damage(struct gud_device *gdrm, struct drm_framebuffer *fb
 		rect.y1 += i * lines;
 		rect.y2 = min_t(u32, rect.y1 + lines, damage->y2);
 
-		ret = gud_flush_rect(gdrm, fb, format, &rect);
+		ret = gud_flush_rect(gdrm, fb, src, cached_reads, format, &rect);
 		if (ret) {
 			if (ret != -ENODEV && ret != -ECONNRESET &&
 			    ret != -ESHUTDOWN && ret != -EPROTO)
@@ -373,9 +358,10 @@ static void gud_flush_damage(struct gud_device *gdrm, struct drm_framebuffer *fb
 void gud_flush_work(struct work_struct *work)
 {
 	struct gud_device *gdrm = container_of(work, struct gud_device, work);
+	struct iosys_map gem_map = { }, fb_map = { };
 	struct drm_framebuffer *fb;
 	struct drm_rect damage;
-	int idx;
+	int idx, ret;
 
 	if (!drm_dev_enter(&gdrm->drm, &idx))
 		return;
@@ -390,8 +376,21 @@ void gud_flush_work(struct work_struct *work)
 	if (!fb)
 		goto out;
 
-	gud_flush_damage(gdrm, fb, &damage);
+	ret = drm_gem_fb_vmap(fb, &gem_map, &fb_map);
+	if (ret)
+		goto fb_put;
 
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		goto vunmap;
+
+	/* Imported buffers are assumed to be WriteCombined with uncached reads */
+	gud_flush_damage(gdrm, fb, &fb_map, !fb->obj[0]->import_attach, &damage);
+
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
+vunmap:
+	drm_gem_fb_vunmap(fb, &gem_map);
+fb_put:
 	drm_framebuffer_put(fb);
 out:
 	drm_dev_exit(idx);
