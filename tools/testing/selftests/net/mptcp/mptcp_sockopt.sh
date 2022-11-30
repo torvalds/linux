@@ -282,7 +282,7 @@ run_tests()
 
 do_tcpinq_test()
 {
-	ip netns exec "$ns1" ./mptcp_inq "$@"
+	ip netns exec "$ns_sbox" ./mptcp_inq "$@"
 	lret=$?
 	if [ $lret -ne 0 ];then
 		ret=$lret
@@ -297,9 +297,6 @@ do_tcpinq_test()
 do_tcpinq_tests()
 {
 	local lret=0
-
-	ip netns exec "$ns1" iptables -F
-	ip netns exec "$ns1" ip6tables -F
 
 	for args in "-t tcp" "-r tcp"; do
 		do_tcpinq_test $args
