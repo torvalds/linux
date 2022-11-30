@@ -2142,48 +2142,6 @@ static void es58x_free_netdevs(struct es58x_device *es58x_dev)
 }
 
 /**
- * es58x_get_product_info() - Get the product information and print them.
- * @es58x_dev: ES58X device.
- *
- * Do a synchronous call to get the product information.
- *
- * Return: zero on success, errno when any error occurs.
- */
-static int es58x_get_product_info(struct es58x_device *es58x_dev)
-{
-	struct usb_device *udev = es58x_dev->udev;
-	const int es58x_prod_info_idx = 6;
-	/* Empirical tests show a prod_info length of maximum 83,
-	 * below should be more than enough.
-	 */
-	const size_t prod_info_len = 127;
-	char *prod_info;
-	int ret;
-
-	prod_info = kmalloc(prod_info_len, GFP_KERNEL);
-	if (!prod_info)
-		return -ENOMEM;
-
-	ret = usb_string(udev, es58x_prod_info_idx, prod_info, prod_info_len);
-	if (ret < 0) {
-		dev_err(es58x_dev->dev,
-			"%s: Could not read the product info: %pe\n",
-			__func__, ERR_PTR(ret));
-		goto out_free;
-	}
-	if (ret >= prod_info_len - 1) {
-		dev_warn(es58x_dev->dev,
-			 "%s: Buffer is too small, result might be truncated\n",
-			 __func__);
-	}
-	dev_info(es58x_dev->dev, "Product info: %s\n", prod_info);
-
- out_free:
-	kfree(prod_info);
-	return ret < 0 ? ret : 0;
-}
-
-/**
  * es58x_init_es58x_dev() - Initialize the ES58X device.
  * @intf: USB interface.
  * @driver_info: Quirks of the device.
@@ -2261,28 +2219,24 @@ static int es58x_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
 	struct es58x_device *es58x_dev;
-	int ch_idx, ret;
+	int ch_idx;
 
 	es58x_dev = es58x_init_es58x_dev(intf, id->driver_info);
 	if (IS_ERR(es58x_dev))
 		return PTR_ERR(es58x_dev);
 
-	ret = es58x_get_product_info(es58x_dev);
-	if (ret)
-		return ret;
-
 	es58x_parse_product_info(es58x_dev);
 	devlink_register(priv_to_devlink(es58x_dev));
 
 	for (ch_idx = 0; ch_idx < es58x_dev->num_can_ch; ch_idx++) {
-		ret = es58x_init_netdev(es58x_dev, ch_idx);
+		int ret = es58x_init_netdev(es58x_dev, ch_idx);
 		if (ret) {
 			es58x_free_netdevs(es58x_dev);
 			return ret;
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 /**
