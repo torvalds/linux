@@ -435,11 +435,11 @@ static inline void check_spte_writable_invariants(u64 spte)
 {
 	if (spte & shadow_mmu_writable_mask)
 		WARN_ONCE(!(spte & shadow_host_writable_mask),
-			  "kvm: MMU-writable SPTE is not Host-writable: %llx",
+			  KBUILD_MODNAME ": MMU-writable SPTE is not Host-writable: %llx",
 			  spte);
 	else
 		WARN_ONCE(is_writable_pte(spte),
-			  "kvm: Writable SPTE is not MMU-writable: %llx", spte);
+			  KBUILD_MODNAME ": Writable SPTE is not MMU-writable: %llx", spte);
 }
 
 static inline bool is_mmu_writable_spte(u64 spte)

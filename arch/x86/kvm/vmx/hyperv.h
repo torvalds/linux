@@ -179,9 +179,7 @@ static __always_inline int get_evmcs_offset(unsigned long field,
 {
 	int offset = evmcs_field_offset(field, clean_field);
 
-	WARN_ONCE(offset < 0, "KVM: accessing unsupported EVMCS field %lx\n",
-		  field);
-
+	WARN_ONCE(offset < 0, "accessing unsupported EVMCS field %lx\n", field);
 	return offset;
 }
 

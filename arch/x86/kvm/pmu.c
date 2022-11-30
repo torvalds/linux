@@ -9,6 +9,7 @@
  *   Gleb Natapov <gleb@redhat.com>
  *   Wei Huang    <wei@redhat.com>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/types.h>
 #include <linux/kvm_host.h>

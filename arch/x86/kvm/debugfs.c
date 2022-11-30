@@ -4,6 +4,8 @@
  *
  * Copyright 2016 Red Hat, Inc. and/or its affiliates.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kvm_host.h>
 #include <linux/debugfs.h>
 #include "lapic.h"

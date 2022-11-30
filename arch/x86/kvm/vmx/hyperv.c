@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-
-#define pr_fmt(fmt) "kvm/hyper-v: " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/errno.h>
 #include <linux/smp.h>

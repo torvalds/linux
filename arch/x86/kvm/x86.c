@@ -15,6 +15,7 @@
  *   Amit Shah    <amit.shah@qumranet.com>
  *   Ben-Ami Yassour <benami@il.ibm.com>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kvm_host.h>
 #include "irq.h"
@@ -2087,7 +2088,7 @@ static int kvm_emulate_monitor_mwait(struct kvm_vcpu *vcpu, const char *insn)
 	    !guest_cpuid_has(vcpu, X86_FEATURE_MWAIT))
 		return kvm_handle_invalid_op(vcpu);
 
-	pr_warn_once("kvm: %s instruction emulated as NOP!\n", insn);
+	pr_warn_once("%s instruction emulated as NOP!\n", insn);
 	return kvm_emulate_as_nop(vcpu);
 }
 int kvm_emulate_mwait(struct kvm_vcpu *vcpu)
@@ -2434,7 +2435,8 @@ static int kvm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz)
 	thresh_lo = adjust_tsc_khz(tsc_khz, -tsc_tolerance_ppm);
 	thresh_hi = adjust_tsc_khz(tsc_khz, tsc_tolerance_ppm);
 	if (user_tsc_khz < thresh_lo || user_tsc_khz > thresh_hi) {
-		pr_debug("kvm: requested TSC rate %u falls outside tolerance [%u,%u]\n", user_tsc_khz, thresh_lo, thresh_hi);
+		pr_debug("requested TSC rate %u falls outside tolerance [%u,%u]\n",
+			 user_tsc_khz, thresh_lo, thresh_hi);
 		use_scaling = 1;
 	}
 	return set_tsc_khz(vcpu, user_tsc_khz, use_scaling);
@@ -7702,7 +7704,7 @@ static int emulator_cmpxchg_emulated(struct x86_emulate_ctxt *ctxt,
 	return X86EMUL_CONTINUE;
 
 emul_write:
-	printk_once(KERN_WARNING "kvm: emulating exchange as write\n");
+	pr_warn_once("emulating exchange as write\n");
 
 	return emulator_write_emulated(ctxt, addr, new, bytes, exception);
 }
@@ -8263,7 +8265,7 @@ static struct x86_emulate_ctxt *alloc_emulate_ctxt(struct kvm_vcpu *vcpu)
 
 	ctxt = kmem_cache_zalloc(x86_emulator_cache, GFP_KERNEL_ACCOUNT);
 	if (!ctxt) {
-		pr_err("kvm: failed to allocate vcpu's emulator\n");
+		pr_err("failed to allocate vcpu's emulator\n");
 		return NULL;
 	}
 
@@ -9324,17 +9326,17 @@ static int __kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 	int r, cpu;
 
 	if (kvm_x86_ops.hardware_enable) {
-		pr_err("kvm: already loaded vendor module '%s'\n", kvm_x86_ops.name);
+		pr_err("already loaded vendor module '%s'\n", kvm_x86_ops.name);
 		return -EEXIST;
 	}
 
 	if (!ops->cpu_has_kvm_support()) {
-		pr_err_ratelimited("kvm: no hardware support for '%s'\n",
+		pr_err_ratelimited("no hardware support for '%s'\n",
 				   ops->runtime_ops->name);
 		return -EOPNOTSUPP;
 	}
 	if (ops->disabled_by_bios()) {
-		pr_err_ratelimited("kvm: support for '%s' disabled by bios\n",
+		pr_err_ratelimited("support for '%s' disabled by bios\n",
 				   ops->runtime_ops->name);
 		return -EOPNOTSUPP;
 	}
@@ -9345,7 +9347,7 @@ static int __kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 	 * vCPU's FPU state as a fxregs_state struct.
 	 */
 	if (!boot_cpu_has(X86_FEATURE_FPU) || !boot_cpu_has(X86_FEATURE_FXSR)) {
-		printk(KERN_ERR "kvm: inadequate fpu\n");
+		pr_err("inadequate fpu\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -9363,19 +9365,19 @@ static int __kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 	 */
 	if (rdmsrl_safe(MSR_IA32_CR_PAT, &host_pat) ||
 	    (host_pat & GENMASK(2, 0)) != 6) {
-		pr_err("kvm: host PAT[0] is not WB\n");
+		pr_err("host PAT[0] is not WB\n");
 		return -EIO;
 	}
 
 	x86_emulator_cache = kvm_alloc_emulator_cache();
 	if (!x86_emulator_cache) {
-		pr_err("kvm: failed to allocate cache for x86 emulator\n");
+		pr_err("failed to allocate cache for x86 emulator\n");
 		return -ENOMEM;
 	}
 
 	user_return_msrs = alloc_percpu(struct kvm_user_return_msrs);
 	if (!user_return_msrs) {
-		printk(KERN_ERR "kvm: failed to allocate percpu kvm_user_return_msrs\n");
+		pr_err("failed to allocate percpu kvm_user_return_msrs\n");
 		r = -ENOMEM;
 		goto out_free_x86_emulator_cache;
 	}
@@ -11647,7 +11649,7 @@ static int sync_regs(struct kvm_vcpu *vcpu)
 int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
 {
 	if (kvm_check_tsc_unstable() && kvm->created_vcpus)
-		pr_warn_once("kvm: SMP vm created on host with unstable TSC; "
+		pr_warn_once("SMP vm created on host with unstable TSC; "
 			     "guest TSC will not be reliable\n");
 
 	if (!kvm->arch.max_vcpu_ids)
@@ -11724,7 +11726,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 		goto free_wbinvd_dirty_mask;
 
 	if (!fpu_alloc_guest_fpstate(&vcpu->arch.guest_fpu)) {
-		pr_err("kvm: failed to allocate vcpu's fpu\n");
+		pr_err("failed to allocate vcpu's fpu\n");
 		goto free_emulate_ctxt;
 	}
 
