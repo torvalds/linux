@@ -50,7 +50,8 @@ struct aspeed_bmc_device {
 	struct kernfs_node	*kn1;
 
 	int pcie2lpc;
-	unsigned int irq;
+	int irq;
+	int pcie_irq;
 };
 
 #define BMC_MEM_BAR_SIZE		0x100000
@@ -269,6 +270,19 @@ static ssize_t aspeed_bmc2host_queue2_tx(struct file *filp, struct kobject *kobj
 	return sizeof(u32);
 }
 
+static irqreturn_t aspeed_bmc_dev_pcie_isr(int irq, void *dev_id)
+{
+	struct aspeed_bmc_device *bmc_device = dev_id;
+
+	while (!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q1_EMPTY))
+		readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q1);
+
+	while (!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q2_EMPTY))
+		readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q2);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t aspeed_bmc_dev_isr(int irq, void *dev_id)
 {
 	struct aspeed_bmc_device *bmc_device = dev_id;
@@ -440,6 +454,17 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 		goto out_unmap;
 	}
 
+	bmc_device->pcie_irq =  platform_get_irq(pdev, 1);
+	if (bmc_device->pcie_irq < 0) {
+		dev_warn(&pdev->dev, "platform get of pcie irq[=%d] failed!\n", bmc_device->pcie_irq);
+	} else {
+		ret = devm_request_irq(&pdev->dev, bmc_device->pcie_irq, aspeed_bmc_dev_pcie_isr,
+								IRQF_SHARED, dev_name(&pdev->dev), bmc_device);
+		if (ret < 0) {
+			dev_warn(dev, "Failed to request PCI-E IRQ %d.\n", ret);
+			bmc_device->pcie_irq = -1;
+		}
+	}
 	bmc_device->miscdev.minor = MISC_DYNAMIC_MINOR;
 	bmc_device->miscdev.name = DEVICE_NAME;
 	bmc_device->miscdev.fops = &aspeed_bmc_device_fops;
