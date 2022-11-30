@@ -590,6 +590,7 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 
 	/* remove task from taskqueue running list */
 	mpp_taskqueue_pop_running(mpp->queue, task);
+	mpp_taskqueue_trigger_work(mpp);
 }
 
 static int mpp_process_task_default(struct mpp_session *session,
