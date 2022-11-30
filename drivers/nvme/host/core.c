@@ -4891,7 +4891,7 @@ EXPORT_SYMBOL_GPL(nvme_remove_admin_tag_set);
 
 int nvme_alloc_io_tag_set(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set,
 		const struct blk_mq_ops *ops, unsigned int flags,
-		unsigned int cmd_size)
+		unsigned int nr_maps, unsigned int cmd_size)
 {
 	int ret;
 
@@ -4905,8 +4905,7 @@ int nvme_alloc_io_tag_set(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set,
 	set->driver_data = ctrl;
 	set->nr_hw_queues = ctrl->queue_count - 1;
 	set->timeout = NVME_IO_TIMEOUT;
-	if (ops->map_queues)
-		set->nr_maps = ctrl->opts->nr_poll_queues ? HCTX_MAX_TYPES : 2;
+	set->nr_maps = nr_maps;
 	ret = blk_mq_alloc_tag_set(set);
 	if (ret)
 		return ret;
