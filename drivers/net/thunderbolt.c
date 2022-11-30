@@ -58,10 +58,10 @@
  * supported then @frame_id is filled, otherwise it stays %0.
  */
 struct thunderbolt_ip_frame_header {
-	u32 frame_size;
-	u16 frame_index;
-	u16 frame_id;
-	u32 frame_count;
+	__le32 frame_size;
+	__le16 frame_index;
+	__le16 frame_id;
+	__le32 frame_count;
 };
 
 enum thunderbolt_ip_frame_pdf {
