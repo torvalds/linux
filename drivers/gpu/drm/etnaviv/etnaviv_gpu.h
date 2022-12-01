@@ -121,8 +121,8 @@ struct etnaviv_gpu {
 	u32 idle_mask;
 
 	/* Fencing support */
-	struct mutex idr_lock;
-	struct idr fence_idr;
+	struct xarray user_fences;
+	u32 next_user_fence;
 	u32 next_fence;
 	u32 completed_fence;
 	wait_queue_head_t fence_event;

@@ -98,7 +98,7 @@ static const struct drm_sched_backend_ops etnaviv_sched_ops = {
 int etnaviv_sched_push_job(struct etnaviv_gem_submit *submit)
 {
 	struct etnaviv_gpu *gpu = submit->gpu;
-	int ret = 0;
+	int ret;
 
 	/*
 	 * Hold the sched lock across the whole operation to avoid jobs being
@@ -110,14 +110,11 @@ int etnaviv_sched_push_job(struct etnaviv_gem_submit *submit)
 	drm_sched_job_arm(&submit->sched_job);
 
 	submit->out_fence = dma_fence_get(&submit->sched_job.s_fence->finished);
-	mutex_lock(&gpu->idr_lock);
-	submit->out_fence_id = idr_alloc_cyclic(&gpu->fence_idr,
-						submit->out_fence, 0,
-						INT_MAX, GFP_KERNEL);
-	mutex_unlock(&gpu->idr_lock);
-	if (submit->out_fence_id < 0) {
+	ret = xa_alloc_cyclic(&gpu->user_fences, &submit->out_fence_id,
+			      submit->out_fence, xa_limit_32b,
+			      &gpu->next_user_fence, GFP_KERNEL);
+	if (ret < 0) {
 		drm_sched_job_cleanup(&submit->sched_job);
-		ret = -ENOMEM;
 		goto out_unlock;
 	}
 
