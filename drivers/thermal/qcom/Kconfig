@@ -103,6 +103,15 @@ config QTI_QMI_SENSOR_V2
 	   the remote sensor. These sensors can take thresholds and notify the
 	   thermal framework when the threshold is reached.
 
+config QTI_DEVFREQ_CDEV
+	tristate "QTI Devfreq cooling device"
+	depends on PM_DEVFREQ && THERMAL && PM_OPP
+	help
+	   This enables the QTI devfreq cooling device, which
+	   will help register the devfreq cooling devices with
+	   thermal framework and allow limiting the devfreq
+	   frequency.
+
 config QTI_CPU_VOLTAGE_COOLING_DEVICE
 	tristate "QTI CPU VOLTAGE cooling devices"
 	depends on CPU_FREQ && THERMAL
