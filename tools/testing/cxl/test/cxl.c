@@ -320,10 +320,12 @@ static int populate_cedt(void)
 	return 0;
 }
 
+static bool is_mock_port(struct device *dev);
+
 /*
- * WARNING, this hack assumes the format of 'struct
- * cxl_cfmws_context' and 'struct cxl_chbs_context' share the property that
- * the first struct member is the device being probed by the cxl_acpi
+ * WARNING, this hack assumes the format of 'struct cxl_cfmws_context'
+ * and 'struct cxl_chbs_context' share the property that the first
+ * struct member is a cxl_test device being probed by the cxl_acpi
  * driver.
  */
 struct cxl_cedt_context {
@@ -340,7 +342,7 @@ static int mock_acpi_table_parse_cedt(enum acpi_cedt_type id,
 	unsigned long end;
 	int i;
 
-	if (dev != &cxl_acpi->dev)
+	if (!is_mock_port(dev) && !is_mock_dev(dev))
 		return acpi_table_parse_cedt(id, handler_arg, arg);
 
 	if (id == ACPI_CEDT_TYPE_CHBS)

@@ -70,6 +70,10 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 	return 0;
 }
 
+/*
+ * Note, @dev must be the first member, see 'struct cxl_chbs_context'
+ * and mock_acpi_table_parse_cedt()
+ */
 struct cxl_cfmws_context {
 	struct device *dev;
 	struct cxl_port *root_port;
