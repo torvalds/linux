@@ -537,7 +537,7 @@ config HOTPLUG_CPU
 config INTERRUPT_SANITIZE_REGISTERS
 	bool "Clear gprs on interrupt arrival"
 	depends on PPC64 && ARCH_HAS_SYSCALL_WRAPPER
-	default PPC_BOOK3E_64
+	default PPC_BOOK3E_64 || PPC_PSERIES || PPC_POWERNV
 	help
 	  Reduce the influence of user register state on interrupt handlers and
 	  syscalls through clearing user state from registers before handling
