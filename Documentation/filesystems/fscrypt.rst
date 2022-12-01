@@ -370,6 +370,12 @@ CONFIG_CRYPTO_HCTR2 must be enabled.  Also, fast implementations of XCTR and
 POLYVAL should be enabled, e.g. CRYPTO_POLYVAL_ARM64_CE and
 CRYPTO_AES_ARM64_CE_BLK for ARM64.
 
+SM4 is a Chinese block cipher that is an alternative to AES.  It has
+not seen as much security review as AES, and it only has a 128-bit key
+size.  It may be useful in cases where its use is mandated.
+Otherwise, it should not be used.  For SM4 support to be available, it
+also needs to be enabled in the kernel crypto API.
+
 New encryption modes can be added relatively easily, without changes
 to individual filesystems.  However, authenticated encryption (AE)
 modes are not currently supported because of the difficulty of dealing
