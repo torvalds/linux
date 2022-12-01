@@ -1521,7 +1521,8 @@ static void psr_force_hw_tracking_exit(struct intel_dp *intel_dp)
 			       PSR2_MAN_TRK_CTL(intel_dp->psr.transcoder),
 			       man_trk_ctl_enable_bit_get(dev_priv) |
 			       man_trk_ctl_partial_frame_bit_get(dev_priv) |
-			       man_trk_ctl_single_full_frame_bit_get(dev_priv));
+			       man_trk_ctl_single_full_frame_bit_get(dev_priv) |
+			       man_trk_ctl_continuos_full_frame(dev_priv));
 
 	/*
 	 * Display WA #0884: skl+
@@ -1635,11 +1636,8 @@ static void psr2_man_trk_ctl_calc(struct intel_crtc_state *crtc_state,
 	val |= man_trk_ctl_partial_frame_bit_get(dev_priv);
 
 	if (full_update) {
-		/*
-		 * Not applying Wa_14014971508:adlp,mtl as we do not support the
-		 * feature that requires this workaround.
-		 */
 		val |= man_trk_ctl_single_full_frame_bit_get(dev_priv);
+		val |= man_trk_ctl_continuos_full_frame(dev_priv);
 		goto exit;
 	}
 
@@ -2318,12 +2316,15 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
 			/* can we turn CFF off? */
 			if (intel_dp->psr.busy_frontbuffer_bits == 0) {
 				u32 val = man_trk_ctl_enable_bit_get(dev_priv) |
-					  man_trk_ctl_partial_frame_bit_get(dev_priv) |
-					  man_trk_ctl_single_full_frame_bit_get(dev_priv);
+					man_trk_ctl_partial_frame_bit_get(dev_priv) |
+					man_trk_ctl_single_full_frame_bit_get(dev_priv) |
+					man_trk_ctl_continuos_full_frame(dev_priv);
 
 				/*
-				 * turn continuous full frame off and do a single
-				 * full frame
+				 * Set psr2_sel_fetch_cff_enabled as false to allow selective
+				 * updates. Still keep cff bit enabled as we don't have proper
+				 * SU configuration in case update is sent for any reason after
+				 * sff bit gets cleared by the HW on next vblank.
 				 */
 				intel_de_write(dev_priv, PSR2_MAN_TRK_CTL(intel_dp->psr.transcoder),
 					       val);
