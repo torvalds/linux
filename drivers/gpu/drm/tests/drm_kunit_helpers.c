@@ -36,7 +36,7 @@ static void dev_free(struct kunit_resource *res)
 }
 
 /**
- * drm_kunit_device_init - Allocates a mock DRM device for KUnit tests
+ * drm_kunit_helper_alloc_drm_device - Allocates a mock DRM device for KUnit tests
  * @test: The test context object
  * @features: Mocked DRM device driver features
  * @name: Name of the struct &device to allocate
@@ -52,7 +52,9 @@ static void dev_free(struct kunit_resource *res)
  * Returns:
  * A pointer to the new drm_device, or an ERR_PTR() otherwise.
  */
-struct drm_device *drm_kunit_device_init(struct kunit *test, u32 features, char *name)
+struct drm_device *
+drm_kunit_helper_alloc_drm_device(struct kunit *test,
+				  u32 features, char *name)
 {
 	struct kunit_dev *kdev;
 	struct drm_device *drm;
@@ -82,7 +84,7 @@ struct drm_device *drm_kunit_device_init(struct kunit *test, u32 features, char 
 
 	return drm;
 }
-EXPORT_SYMBOL_GPL(drm_kunit_device_init);
+EXPORT_SYMBOL_GPL(drm_kunit_helper_alloc_drm_device);
 
 MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
 MODULE_LICENSE("GPL");

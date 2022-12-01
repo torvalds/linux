@@ -39,8 +39,9 @@ static int drm_probe_helper_test_init(struct kunit *test)
 	KUNIT_ASSERT_NOT_NULL(test, priv);
 	test->priv = priv;
 
-	priv->drm = drm_kunit_device_init(test, DRIVER_MODESET | DRIVER_ATOMIC,
-					  "drm-probe-helper-test");
+	priv->drm = drm_kunit_helper_alloc_drm_device(test,
+						      DRIVER_MODESET | DRIVER_ATOMIC,
+						      "drm-probe-helper-test");
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->drm);
 
 	connector = &priv->connector;

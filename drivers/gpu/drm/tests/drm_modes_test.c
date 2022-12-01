@@ -22,7 +22,8 @@ static int drm_test_modes_init(struct kunit *test)
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, priv);
 
-	priv->drm = drm_kunit_device_init(test, DRIVER_MODESET, "drm-modes-test");
+	priv->drm = drm_kunit_helper_alloc_drm_device(test, DRIVER_MODESET,
+						      "drm-modes-test");
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->drm);
 
 	test->priv = priv;
