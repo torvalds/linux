@@ -103,6 +103,7 @@ struct etnaviv_gpu {
 	struct etnaviv_chip_identity identity;
 	enum etnaviv_sec_mode sec_mode;
 	struct workqueue_struct *wq;
+	struct mutex sched_lock;
 	struct drm_gpu_scheduler sched;
 	bool initialized;
 	bool fe_running;
@@ -120,7 +121,7 @@ struct etnaviv_gpu {
 	u32 idle_mask;
 
 	/* Fencing support */
-	struct mutex fence_lock;
+	struct mutex idr_lock;
 	struct idr fence_idr;
 	u32 next_fence;
 	u32 completed_fence;
