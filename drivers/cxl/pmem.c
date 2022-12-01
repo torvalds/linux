@@ -99,6 +99,9 @@ static struct cxl_driver cxl_nvdimm_driver = {
 	.name = "cxl_nvdimm",
 	.probe = cxl_nvdimm_probe,
 	.id = CXL_DEVICE_NVDIMM,
+	.drv = {
+		.suppress_bind_attrs = true,
+	},
 };
 
 static int cxl_pmem_get_config_size(struct cxl_dev_state *cxlds,
@@ -360,6 +363,9 @@ static struct cxl_driver cxl_nvdimm_bridge_driver = {
 	.probe = cxl_nvdimm_bridge_probe,
 	.remove = cxl_nvdimm_bridge_remove,
 	.id = CXL_DEVICE_NVDIMM_BRIDGE,
+	.drv = {
+		.suppress_bind_attrs = true,
+	},
 };
 
 static int match_cxl_nvdimm(struct device *dev, void *data)
@@ -583,6 +589,9 @@ static struct cxl_driver cxl_pmem_region_driver = {
 	.name = "cxl_pmem_region",
 	.probe = cxl_pmem_region_probe,
 	.id = CXL_DEVICE_PMEM_REGION,
+	.drv = {
+		.suppress_bind_attrs = true,
+	},
 };
 
 /*
