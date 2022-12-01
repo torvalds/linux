@@ -32,6 +32,7 @@
 #include <soc/qcom/pmu_lib.h>
 #include <linux/scmi_protocol.h>
 #include <linux/scmi_memlat.h>
+#include <linux/sched/clock.h>
 #include "trace-dcvs.h"
 
 #define MAX_MEMLAT_GRPS	NUM_DCVS_HW_TYPES
@@ -494,7 +495,7 @@ static ssize_t show_hlos_cpucp_offset(struct kobject *kobj,
 		return ret;
 	}
 
-	hlos_ts = ktime_get()/1000;
+	hlos_ts = sched_clock()/1000;
 
 	return scnprintf(buf, PAGE_SIZE, "%ld\n", le64_to_cpu(cpucp_ts) - hlos_ts);
 }
