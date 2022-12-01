@@ -77,7 +77,7 @@ static ssize_t show_name(struct device *class_dev,
 	pvr2_sysfs_trace("pvr2_sysfs(%p) show_name(cid=%d) is %s",
 			 cip->chptr, cip->ctl_id, name);
 	if (!name) return -EINVAL;
-	return scnprintf(buf, PAGE_SIZE, "%s\n", name);
+	return sysfs_emit(buf, "%s\n", name);
 }
 
 static ssize_t show_type(struct device *class_dev,
@@ -98,7 +98,7 @@ static ssize_t show_type(struct device *class_dev,
 	}
 	pvr2_sysfs_trace("pvr2_sysfs(%p) show_type(cid=%d) is %s",
 			 cip->chptr, cip->ctl_id, name);
-	return scnprintf(buf, PAGE_SIZE, "%s\n", name);
+	return sysfs_emit(buf, "%s\n", name);
 }
 
 static ssize_t show_min(struct device *class_dev,
@@ -111,7 +111,7 @@ static ssize_t show_min(struct device *class_dev,
 	val = pvr2_ctrl_get_min(cip->cptr);
 	pvr2_sysfs_trace("pvr2_sysfs(%p) show_min(cid=%d) is %ld",
 			 cip->chptr, cip->ctl_id, val);
-	return scnprintf(buf, PAGE_SIZE, "%ld\n", val);
+	return sysfs_emit(buf, "%ld\n", val);
 }
 
 static ssize_t show_max(struct device *class_dev,
@@ -124,7 +124,7 @@ static ssize_t show_max(struct device *class_dev,
 	val = pvr2_ctrl_get_max(cip->cptr);
 	pvr2_sysfs_trace("pvr2_sysfs(%p) show_max(cid=%d) is %ld",
 			 cip->chptr, cip->ctl_id, val);
-	return scnprintf(buf, PAGE_SIZE, "%ld\n", val);
+	return sysfs_emit(buf, "%ld\n", val);
 }
 
 static ssize_t show_def(struct device *class_dev,
@@ -544,7 +544,7 @@ static ssize_t v4l_minor_number_show(struct device *class_dev,
 	struct pvr2_sysfs *sfp;
 	sfp = dev_get_drvdata(class_dev);
 	if (!sfp) return -EINVAL;
-	return scnprintf(buf,PAGE_SIZE,"%d\n",
+	return sysfs_emit(buf, "%d\n",
 			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,
 						       pvr2_v4l_type_video));
 }
@@ -556,7 +556,7 @@ static ssize_t bus_info_show(struct device *class_dev,
 	struct pvr2_sysfs *sfp;
 	sfp = dev_get_drvdata(class_dev);
 	if (!sfp) return -EINVAL;
-	return scnprintf(buf,PAGE_SIZE,"%s\n",
+	return sysfs_emit(buf, "%s\n",
 			 pvr2_hdw_get_bus_info(sfp->channel.hdw));
 }
 
@@ -567,7 +567,7 @@ static ssize_t hdw_name_show(struct device *class_dev,
 	struct pvr2_sysfs *sfp;
 	sfp = dev_get_drvdata(class_dev);
 	if (!sfp) return -EINVAL;
-	return scnprintf(buf,PAGE_SIZE,"%s\n",
+	return sysfs_emit(buf, "%s\n",
 			 pvr2_hdw_get_type(sfp->channel.hdw));
 }
 
@@ -578,7 +578,7 @@ static ssize_t hdw_desc_show(struct device *class_dev,
 	struct pvr2_sysfs *sfp;
 	sfp = dev_get_drvdata(class_dev);
 	if (!sfp) return -EINVAL;
-	return scnprintf(buf,PAGE_SIZE,"%s\n",
+	return sysfs_emit(buf, "%s\n",
 			 pvr2_hdw_get_desc(sfp->channel.hdw));
 }
 
@@ -590,7 +590,7 @@ static ssize_t v4l_radio_minor_number_show(struct device *class_dev,
 	struct pvr2_sysfs *sfp;
 	sfp = dev_get_drvdata(class_dev);
 	if (!sfp) return -EINVAL;
-	return scnprintf(buf,PAGE_SIZE,"%d\n",
+	return sysfs_emit(buf, "%d\n",
 			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,
 						       pvr2_v4l_type_radio));
 }
@@ -602,7 +602,7 @@ static ssize_t unit_number_show(struct device *class_dev,
 	struct pvr2_sysfs *sfp;
 	sfp = dev_get_drvdata(class_dev);
 	if (!sfp) return -EINVAL;
-	return scnprintf(buf,PAGE_SIZE,"%d\n",
+	return sysfs_emit(buf, "%d\n",
 			 pvr2_hdw_get_unit_number(sfp->channel.hdw));
 }
 
