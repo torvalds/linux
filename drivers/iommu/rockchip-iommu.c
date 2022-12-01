@@ -1960,12 +1960,16 @@ static void rk_iommu_shutdown(struct platform_device *pdev)
 	struct rk_iommu *iommu = platform_get_drvdata(pdev);
 	int i;
 
+	if (iommu->skip_read)
+		goto skip_free_irq;
+
 	for (i = 0; i < iommu->num_irq; i++) {
 		int irq = platform_get_irq(pdev, i);
 
 		devm_free_irq(iommu->dev, irq, iommu);
 	}
 
+skip_free_irq:
 	pm_runtime_force_suspend(&pdev->dev);
 }
 
