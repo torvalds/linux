@@ -85,6 +85,8 @@ struct mt7996_twt_flow {
 	u8 sched:1;
 };
 
+DECLARE_EWMA(avg_signal, 10, 8)
+
 struct mt7996_sta {
 	struct mt76_wcid wcid; /* must be first */
 
@@ -93,6 +95,9 @@ struct mt7996_sta {
 	struct list_head poll_list;
 	struct list_head rc_list;
 	u32 airtime_ac[8];
+
+	int ack_signal;
+	struct ewma_avg_signal avg_ack_signal;
 
 	unsigned long changed;
 	unsigned long jiffies;

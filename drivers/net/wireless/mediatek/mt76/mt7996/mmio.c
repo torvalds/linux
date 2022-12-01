@@ -12,14 +12,15 @@
 #include "../trace.h"
 
 static const struct __base mt7996_reg_base[] = {
-	[WF_AGG_BASE]	= { { 0x820e2000, 0x820f2000, 0x830e2000 } },
-	[WF_MIB_BASE]	= { { 0x820ed000, 0x820fd000, 0x830ed000 } },
-	[WF_TMAC_BASE]	= { { 0x820e4000, 0x820f4000, 0x830e4000 } },
-	[WF_RMAC_BASE]	= { { 0x820e5000, 0x820f5000, 0x830e5000 } },
-	[WF_ARB_BASE]	= { { 0x820e3000, 0x820f3000, 0x830e3000 } },
-	[WF_LPON_BASE]	= { { 0x820eb000, 0x820fb000, 0x830eb000 } },
-	[WF_ETBF_BASE]	= { { 0x820ea000, 0x820fa000, 0x830ea000 } },
-	[WF_DMA_BASE]	= { { 0x820e7000, 0x820f7000, 0x830e7000 } },
+	[WF_AGG_BASE]		= { { 0x820e2000, 0x820f2000, 0x830e2000 } },
+	[WF_ARB_BASE]		= { { 0x820e3000, 0x820f3000, 0x830e3000 } },
+	[WF_TMAC_BASE]		= { { 0x820e4000, 0x820f4000, 0x830e4000 } },
+	[WF_RMAC_BASE]		= { { 0x820e5000, 0x820f5000, 0x830e5000 } },
+	[WF_DMA_BASE]		= { { 0x820e7000, 0x820f7000, 0x830e7000 } },
+	[WF_WTBLOFF_BASE]	= { { 0x820e9000, 0x820f9000, 0x830e9000 } },
+	[WF_ETBF_BASE]		= { { 0x820ea000, 0x820fa000, 0x830ea000 } },
+	[WF_LPON_BASE]		= { { 0x820eb000, 0x820fb000, 0x830eb000 } },
+	[WF_MIB_BASE]		= { { 0x820ed000, 0x820fd000, 0x830ed000 } },
 };
 
 static const struct __map mt7996_reg_map[] = {

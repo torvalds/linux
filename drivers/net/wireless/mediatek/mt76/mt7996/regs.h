@@ -25,13 +25,14 @@ struct mt7996_reg_desc {
 
 enum base_rev {
 	WF_AGG_BASE,
-	WF_MIB_BASE,
+	WF_ARB_BASE,
 	WF_TMAC_BASE,
 	WF_RMAC_BASE,
-	WF_ARB_BASE,
-	WF_LPON_BASE,
-	WF_ETBF_BASE,
 	WF_DMA_BASE,
+	WF_WTBLOFF_BASE,
+	WF_ETBF_BASE,
+	WF_LPON_BASE,
+	WF_MIB_BASE,
 	__MT_REG_BASE_MAX,
 };
 
@@ -96,6 +97,14 @@ enum base_rev {
 
 #define MT_DMA_TCRF1(_band)			MT_WF_DMA(_band, 0x054)
 #define MT_DMA_TCRF1_QIDX			GENMASK(15, 13)
+
+/* WTBLOFF TOP: band 0(0x820e9000), band 1(0x820f9000), band 2(0x830e9000) */
+#define MT_WTBLOFF_BASE(_band)			__BASE(WF_WTBLOFF_BASE, (_band))
+#define MT_WTBLOFF(_band, ofs)			(MT_WTBLOFF_BASE(_band) + (ofs))
+
+#define MT_WTBLOFF_RSCR(_band)			MT_WTBLOFF(_band, 0x008)
+#define MT_WTBLOFF_RSCR_RCPI_MODE		GENMASK(31, 30)
+#define MT_WTBLOFF_RSCR_RCPI_PARAM		GENMASK(25, 24)
 
 /* ETBF: band 0(0x820ea000), band 1(0x820fa000), band 2(0x830ea000) */
 #define MT_WF_ETBF_BASE(_band)			__BASE(WF_ETBF_BASE, (_band))
