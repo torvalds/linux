@@ -19,7 +19,7 @@
 #include <linux/time.h>
 #include <linux/module.h>
 #include <linux/sched/signal.h>
-
+#include <linux/kvm_host.h>
 #include <linux/export.h>
 #include <asm/lowcore.h>
 #include <asm/smp.h>
@@ -31,8 +31,7 @@
 #include <asm/ctl_reg.h>
 #include <asm/asm-offsets.h>
 #include <asm/pai.h>
-
-#include <linux/kvm_host.h>
+#include <asm/vx-insn.h>
 
 struct mcck_struct {
 	unsigned int kill_task : 1;
@@ -293,8 +292,8 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 		__ctl_load(cr0.val, 0, 0);
 		asm volatile(
 			"	la	1,%0\n"
-			"	.word	0xe70f,0x1000,0x0036\n" /* vlm 0,15,0(1) */
-			"	.word	0xe70f,0x1100,0x0c36\n" /* vlm 16,31,256(1) */
+			"	VLM	0,15,0,1\n"
+			"	VLM	16,31,256,1\n"
 			:
 			: "Q" (*(struct vx_array *)mcesa->vector_save_area)
 			: "1");
