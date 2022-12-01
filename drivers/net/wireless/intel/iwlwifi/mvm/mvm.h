@@ -1105,6 +1105,8 @@ struct iwl_mvm {
 	unsigned long last_reset_or_resume_time_jiffies;
 
 	bool sta_remove_requires_queue_remove;
+
+	bool pldr_sync;
 };
 
 /* Extract MVM priv from op_mode and _hw */
