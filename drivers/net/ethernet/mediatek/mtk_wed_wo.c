@@ -133,17 +133,18 @@ mtk_wed_wo_dequeue(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q, u32 *len,
 
 static int
 mtk_wed_wo_queue_refill(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q,
-			gfp_t gfp, bool rx)
+			bool rx)
 {
 	enum dma_data_direction dir = rx ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 	int n_buf = 0;
 
 	spin_lock_bh(&q->lock);
 	while (q->queued < q->n_desc) {
-		void *buf = page_frag_alloc(&q->cache, q->buf_size, gfp);
 		struct mtk_wed_wo_queue_entry *entry;
 		dma_addr_t addr;
+		void *buf;
 
+		buf = page_frag_alloc(&q->cache, q->buf_size, GFP_ATOMIC);
 		if (!buf)
 			break;
 
@@ -215,7 +216,7 @@ mtk_wed_wo_rx_run_queue(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q)
 			mtk_wed_mcu_rx_unsolicited_event(wo, skb);
 	}
 
-	if (mtk_wed_wo_queue_refill(wo, q, GFP_ATOMIC, true)) {
+	if (mtk_wed_wo_queue_refill(wo, q, true)) {
 		u32 index = (q->head - 1) % q->n_desc;
 
 		mtk_wed_wo_queue_kick(wo, q, index);
@@ -432,7 +433,7 @@ mtk_wed_wo_hardware_init(struct mtk_wed_wo *wo)
 	if (ret)
 		goto error;
 
-	mtk_wed_wo_queue_refill(wo, &wo->q_tx, GFP_KERNEL, false);
+	mtk_wed_wo_queue_refill(wo, &wo->q_tx, false);
 	mtk_wed_wo_queue_reset(wo, &wo->q_tx);
 
 	regs.desc_base = MTK_WED_WO_CCIF_DUMMY5;
@@ -446,7 +447,7 @@ mtk_wed_wo_hardware_init(struct mtk_wed_wo *wo)
 	if (ret)
 		goto error;
 
-	mtk_wed_wo_queue_refill(wo, &wo->q_rx, GFP_KERNEL, true);
+	mtk_wed_wo_queue_refill(wo, &wo->q_rx, true);
 	mtk_wed_wo_queue_reset(wo, &wo->q_rx);
 
 	/* rx queue irqmask */
