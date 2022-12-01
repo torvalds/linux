@@ -130,10 +130,10 @@ void drbd_dyn_dbg_with_wrong_object_type(void);
  *
  * Unlike the assert macro, this macro returns a boolean result.
  */
-#define expect(exp) ({								\
+#define expect(x, exp) ({							\
 		bool _bool = (exp);						\
 		if (!_bool && drbd_ratelimit())					\
-			drbd_err(device, "ASSERTION %s FAILED in %s\n",		\
+			drbd_err(x, "ASSERTION %s FAILED in %s\n",		\
 				#exp, __func__);				\
 		_bool;								\
 		})
