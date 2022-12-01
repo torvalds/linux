@@ -113,15 +113,6 @@ enum {
 	MASK_CLK_NS_REG                     = 0xFFFC00,
 };
 
-/* QCOM UFS debug print bit mask */
-#define UFS_QCOM_DBG_PRINT_REGS_EN	BIT(0)
-#define UFS_QCOM_DBG_PRINT_ICE_REGS_EN	BIT(1)
-#define UFS_QCOM_DBG_PRINT_TEST_BUS_EN	BIT(2)
-
-#define UFS_QCOM_DBG_PRINT_ALL	\
-	(UFS_QCOM_DBG_PRINT_REGS_EN | UFS_QCOM_DBG_PRINT_ICE_REGS_EN | \
-	 UFS_QCOM_DBG_PRINT_TEST_BUS_EN)
-
 /* QUniPro Vendor specific attributes */
 #define PA_VS_CONFIG_REG1	0x9000
 #define DME_VS_CORE_CLK_CTRL	0xD002
@@ -212,8 +203,6 @@ struct ufs_qcom_host {
 
 	u32 dev_ref_clk_en_mask;
 
-	/* Bitmask for enabling debug prints */
-	u32 dbg_print_en;
 	struct ufs_qcom_testbus testbus;
 
 	/* Reset control of HCI */
