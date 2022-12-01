@@ -2399,38 +2399,30 @@ int ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
 }
 
 /**
- * ufshcd_map_sg - Map scatter-gather list to prdt
- * @hba: per adapter instance
- * @lrbp: pointer to local reference block
- *
- * Returns 0 in case of success, non-zero value in case of failure
+ * ufshcd_sgl_to_prdt - SG list to PRTD (Physical Region Description Table, 4DW format)
+ * @hba:	per-adapter instance
+ * @lrbp:	pointer to local reference block
+ * @sg_entries:	The number of sg lists actually used
+ * @sg_list:	Pointer to SG list
  */
-static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+static void ufshcd_sgl_to_prdt(struct ufs_hba *hba, struct ufshcd_lrb *lrbp, int sg_entries,
+			       struct scatterlist *sg_list)
 {
 	struct ufshcd_sg_entry *prd_table;
 	struct scatterlist *sg;
-	struct scsi_cmnd *cmd;
-	int sg_segments;
 	int i;
 
-	cmd = lrbp->cmd;
-	sg_segments = scsi_dma_map(cmd);
-	if (sg_segments < 0)
-		return sg_segments;
-
-	if (sg_segments) {
+	if (sg_entries) {
 
 		if (hba->quirks & UFSHCD_QUIRK_PRDT_BYTE_GRAN)
 			lrbp->utr_descriptor_ptr->prd_table_length =
-				cpu_to_le16((sg_segments *
-					sizeof(struct ufshcd_sg_entry)));
+				cpu_to_le16((sg_entries * sizeof(struct ufshcd_sg_entry)));
 		else
-			lrbp->utr_descriptor_ptr->prd_table_length =
-				cpu_to_le16(sg_segments);
+			lrbp->utr_descriptor_ptr->prd_table_length = cpu_to_le16(sg_entries);
 
 		prd_table = lrbp->ucd_prdt_ptr;
 
-		scsi_for_each_sg(cmd, sg, sg_segments, i) {
+		for_each_sg(sg_list, sg, sg_entries, i) {
 			const unsigned int len = sg_dma_len(sg);
 
 			/*
@@ -2449,6 +2441,24 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	} else {
 		lrbp->utr_descriptor_ptr->prd_table_length = 0;
 	}
+}
+
+/**
+ * ufshcd_map_sg - Map scatter-gather list to prdt
+ * @hba: per adapter instance
+ * @lrbp: pointer to local reference block
+ *
+ * Returns 0 in case of success, non-zero value in case of failure
+ */
+static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+{
+	struct scsi_cmnd *cmd = lrbp->cmd;
+	int sg_segments = scsi_dma_map(cmd);
+
+	if (sg_segments < 0)
+		return sg_segments;
+
+	ufshcd_sgl_to_prdt(hba, lrbp, sg_segments, scsi_sglist(cmd));
 
 	return 0;
 }
