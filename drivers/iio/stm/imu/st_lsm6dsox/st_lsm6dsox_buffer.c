@@ -61,6 +61,9 @@ static inline int st_lsm6dsox_reset_hwts(struct st_lsm6dsox_hw *hw)
 {
 	u8 data = 0xaa;
 
+	hw->hw_timestamp_global = (hw->hw_timestamp_global + (1LL << 32)) &
+				   GENMASK_ULL(63, 32);
+
 	hw->ts = iio_get_time_ns(hw->iio_devs[0]);
 	hw->ts_offset = hw->ts;
 	hw->tsample = 0ull;
@@ -190,10 +193,12 @@ iio_dev *st_lsm6dsox_get_iiodev_from_tag(struct st_lsm6dsox_hw *hw, u8 tag)
 
 static int st_lsm6dsox_read_fifo(struct st_lsm6dsox_hw *hw)
 {
-	u8 iio_buf[ALIGN(ST_LSM6DSOX_SAMPLE_SIZE, sizeof(s64)) + sizeof(s64)];
+	u8 iio_buf[ALIGN(ST_LSM6DSOX_FIFO_SAMPLE_SIZE, sizeof(s64)) +
+		   sizeof(s64) + sizeof(s64)];
 	u8 buf[6 * ST_LSM6DSOX_FIFO_SAMPLE_SIZE], tag, *ptr;
 	int i, err, word_len, fifo_len, read_len;
 	struct st_lsm6dsox_sensor *sensor;
+	__le64 hw_timestamp_push;
 	struct iio_dev *iio_dev;
 	s64 ts_irq, hw_ts_old;
 	__le16 fifo_status;
@@ -234,6 +239,11 @@ static int st_lsm6dsox_read_fifo(struct st_lsm6dsox_hw *hw)
 
 			if (tag == ST_LSM6DSOX_TS_TAG) {
 				val = get_unaligned_le32(ptr);
+				hw->hw_timestamp_global =
+					(hw->hw_timestamp_global &
+					 GENMASK_ULL(63, 32)) |
+					(u32)le32_to_cpu(val);
+
 				hw_ts_old = hw->hw_ts;
 				hw->hw_ts = val * hw->ts_delta_ns;
 				hw->ts_offset = st_lsm6dsox_ewma(hw->ts_offset,
@@ -269,8 +279,11 @@ static int st_lsm6dsox_read_fifo(struct st_lsm6dsox_hw *hw)
 					val = get_unaligned_le32(ptr + 2);
 					hw->tsample = val * hw->ts_delta_ns;
 				} else {
+					hw_timestamp_push = cpu_to_le64(hw->hw_timestamp_global);
+					memcpy(&iio_buf[ALIGN(ST_LSM6DSOX_SAMPLE_SIZE, sizeof(s64))],
+					       &hw_timestamp_push, sizeof(hw_timestamp_push));
 					hw->tsample = min_t(s64,
-						iio_get_time_ns(iio_dev),
+						iio_get_time_ns(hw->iio_devs[0]),
 						hw->tsample);
 					sensor->last_fifo_timestamp = hw->tsample;
 				}

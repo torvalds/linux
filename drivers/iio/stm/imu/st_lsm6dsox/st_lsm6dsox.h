@@ -613,6 +613,8 @@ struct st_lsm6dsox_sensor {
  * @fifo_mode: FIFO operating mode supported by the device.
  * @state: hw operational state.
  * @enable_mask: Enabled sensor bitmask.
+ * @hw_timestamp_global: hw timestamp value always monotonic where the most
+ *                       significant 8byte are incremented at every disable/enable.
  * @ext_data_len: Number of i2c slave devices connected to I2C master.
  * @ts_delta_ns: Calibrated delta timestamp.
  * @ts_offset: Hw timestamp offset.
@@ -643,6 +645,8 @@ struct st_lsm6dsox_hw {
 	enum st_lsm6dsox_fifo_mode fifo_mode;
 	unsigned long state;
 	u64 enable_mask;
+	s64 hw_timestamp_global;
+
 	u8 ext_data_len;
 	u64 ts_delta_ns;
 	s64 ts_offset;
