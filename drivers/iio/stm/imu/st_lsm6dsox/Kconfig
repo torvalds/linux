@@ -40,3 +40,10 @@ config IIO_ST_LSM6DSOX_MAY_WAKEUP
 
 	  By default during suspend mode all enabled sensors are set in power down
 	  mode to reduce the power consumption.
+
+config IIO_ST_LSM6DSOX_ASYNC_HW_TIMESTAMP
+	bool "Enable async hw timestamp read"
+	depends on IIO_ST_LSM6DSOX
+	help
+	  Enable async task that sends over hw timestamp events.
+

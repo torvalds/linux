@@ -10,11 +10,14 @@
 #ifndef ST_LSM6DSOX_H
 #define ST_LSM6DSOX_H
 
-#include <linux/device.h>
-#include <linux/iio/iio.h>
-#include <linux/delay.h>
-#include <linux/regmap.h>
 #include <linux/bitfield.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/hrtimer.h>
+#include <linux/iio/iio.h>
+#include <linux/regmap.h>
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
 
 #define ST_LSM6DSOX_ODR_EXPAND(odr, uodr)	(((odr) * 1000000) + (uodr))
 
@@ -216,6 +219,9 @@ enum st_lsm6dsox_hw_id {
 	ST_LSM6DSOX_MAX_ID,
 };
 
+#define ST_LSM6DSOX_DEFAULT_KTIME		(200000000)
+#define ST_LSM6DSOX_FAST_KTIME			(5000000)
+
 #define ST_LSM6DSOX_DATA_CHANNEL(chan_type, addr, mod, ch2, scan_idx,	\
 				rb, sb, sg, ext_inf)			\
 {									\
@@ -307,7 +313,7 @@ struct st_lsm6dsox_reg {
 	u8 mask;
 };
 
-enum st_asm330lhh_suspend_resume_register {
+enum st_lsm6dsox_suspend_resume_register {
 	ST_LSM6DSOX_CTRL1_XL_REG = 0,
 	ST_LSM6DSOX_CTRL2_G_REG,
 	ST_LSM6DSOX_REG_CTRL3_C_REG,
@@ -340,7 +346,7 @@ enum st_asm330lhh_suspend_resume_register {
  * FUNC_CFG_ACCESS_FUNC_CFG Enable access to the embedded functions
  *                          configuration registers.
  */
-enum st_asm330lhh_page_sel_register {
+enum st_lsm6dsox_page_sel_register {
 	FUNC_CFG_ACCESS_0 = 0,
 	FUNC_CFG_ACCESS_SHUB_REG,
 	FUNC_CFG_ACCESS_FUNC_CFG,
@@ -615,6 +621,12 @@ struct st_lsm6dsox_sensor {
  * @enable_mask: Enabled sensor bitmask.
  * @hw_timestamp_global: hw timestamp value always monotonic where the most
  *                       significant 8byte are incremented at every disable/enable.
+ * @timesync_workqueue: runs the async task in private workqueue.
+ * @timesync_work: actual work to be done in the async task workqueue.
+ * @timesync_timer: hrtimer used to schedule period read for the async task.
+ * @hwtimestamp_lock: spinlock for the 64bit timestamp value.
+ * @timesync_ktime: interval value used by the hrtimer.
+ * @timestamp_c: counter used for counting number of timesync updates.
  * @ext_data_len: Number of i2c slave devices connected to I2C master.
  * @ts_delta_ns: Calibrated delta timestamp.
  * @ts_offset: Hw timestamp offset.
@@ -646,6 +658,15 @@ struct st_lsm6dsox_hw {
 	unsigned long state;
 	u64 enable_mask;
 	s64 hw_timestamp_global;
+
+#if defined(CONFIG_IIO_ST_LSM6DSOX_ASYNC_HW_TIMESTAMP)
+	struct workqueue_struct *timesync_workqueue;
+	struct work_struct timesync_work;
+	struct hrtimer timesync_timer;
+	spinlock_t hwtimestamp_lock;
+	ktime_t timesync_ktime;
+	int timesync_c;
+#endif /* CONFIG_IIO_ST_LSM6DSOX_ASYNC_HW_TIMESTAMP */
 
 	u8 ext_data_len;
 	u64 ts_delta_ns;
@@ -818,6 +839,16 @@ int st_lsm6dsox_of_get_pin(struct st_lsm6dsox_hw *hw, int *pin);
 int st_lsm6dsox_shub_probe(struct st_lsm6dsox_hw *hw);
 int st_lsm6dsox_shub_set_enable(struct st_lsm6dsox_sensor *sensor,
 				bool enable);
+
+#if defined(CONFIG_IIO_ST_LSM6DSOX_ASYNC_HW_TIMESTAMP)
+int st_lsm6dsox_hwtimesync_init(struct st_lsm6dsox_hw *hw);
+#else /* CONFIG_IIO_ST_LSM6DSOX_ASYNC_HW_TIMESTAMP */
+static inline int
+st_lsm6dsox_hwtimesync_init(struct st_lsm6dsox_hw *hw)
+{
+	return 0;
+}
+#endif /* CONFIG_IIO_ST_LSM6DSOX_ASYNC_HW_TIMESTAMP */
 
 int st_lsm6dsox_mlc_probe(struct st_lsm6dsox_hw *hw);
 int st_lsm6dsox_mlc_remove(struct device *dev);

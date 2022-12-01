@@ -1903,6 +1903,7 @@ static struct iio_dev *st_lsm6dsox_alloc_iiodev(struct st_lsm6dsox_hw *hw,
 	sensor->watermark = 1;
 	sensor->decimator = 0;
 	sensor->dec_counter = 0;
+	sensor->last_fifo_timestamp = 0;
 
 	switch (id) {
 	case ST_LSM6DSOX_ID_ACC:
