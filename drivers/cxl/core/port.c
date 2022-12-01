@@ -1369,6 +1369,13 @@ int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd)
 	struct device *iter;
 	int rc;
 
+	/*
+	 * Skip intermediate port enumeration in the RCH case, there
+	 * are no ports in between a host bridge and an endpoint.
+	 */
+	if (cxlmd->cxlds->rcd)
+		return 0;
+
 	rc = devm_add_action_or_reset(&cxlmd->dev, cxl_detach_ep, cxlmd);
 	if (rc)
 		return rc;
