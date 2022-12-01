@@ -40,8 +40,7 @@ static int drm_probe_helper_test_init(struct kunit *test)
 	test->priv = priv;
 
 	priv->drm = drm_kunit_helper_alloc_drm_device(test,
-						      DRIVER_MODESET | DRIVER_ATOMIC,
-						      "drm-probe-helper-test");
+						      DRIVER_MODESET | DRIVER_ATOMIC);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->drm);
 
 	connector = &priv->connector;

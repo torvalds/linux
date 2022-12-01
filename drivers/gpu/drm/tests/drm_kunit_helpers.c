@@ -8,6 +8,8 @@
 
 #include <linux/device.h>
 
+#define KUNIT_DEVICE_NAME	"drm-kunit-mock-device"
+
 struct kunit_dev {
 	struct drm_device base;
 };
@@ -39,7 +41,6 @@ static void dev_free(struct kunit_resource *res)
  * drm_kunit_helper_alloc_drm_device - Allocates a mock DRM device for KUnit tests
  * @test: The test context object
  * @features: Mocked DRM device driver features
- * @name: Name of the struct &device to allocate
  *
  * This function allocates a new struct &device, creates a struct
  * &drm_driver and will create a struct &drm_device using both.
@@ -54,7 +55,7 @@ static void dev_free(struct kunit_resource *res)
  */
 struct drm_device *
 drm_kunit_helper_alloc_drm_device(struct kunit *test,
-				  u32 features, char *name)
+				  u32 features)
 {
 	struct kunit_dev *kdev;
 	struct drm_device *drm;
@@ -62,7 +63,7 @@ drm_kunit_helper_alloc_drm_device(struct kunit *test,
 	struct device *dev;
 	int ret;
 
-	dev = kunit_alloc_resource(test, dev_init, dev_free, GFP_KERNEL, name);
+	dev = kunit_alloc_resource(test, dev_init, dev_free, GFP_KERNEL, KUNIT_DEVICE_NAME);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

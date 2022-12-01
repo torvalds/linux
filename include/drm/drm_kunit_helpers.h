@@ -8,7 +8,6 @@ struct kunit;
 
 struct drm_device *
 drm_kunit_helper_alloc_drm_device(struct kunit *test,
-				  u32 features,
-				  char *name);
+				  u32 features);
 
 #endif // DRM_KUNIT_HELPERS_H_
