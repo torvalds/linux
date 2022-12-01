@@ -100,6 +100,24 @@ static int mock_get_log(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
+static int mock_rcd_id(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_mbox_identify id = {
+		.fw_revision = { "mock fw v1 " },
+		.total_capacity =
+			cpu_to_le64(DEV_SIZE / CXL_CAPACITY_MULTIPLIER),
+		.volatile_capacity =
+			cpu_to_le64(DEV_SIZE / CXL_CAPACITY_MULTIPLIER),
+	};
+
+	if (cmd->size_out < sizeof(id))
+		return -EINVAL;
+
+	memcpy(cmd->payload_out, &id, sizeof(id));
+
+	return 0;
+}
+
 static int mock_id(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_identify id = {
@@ -216,7 +234,10 @@ static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *
 		rc = mock_get_log(cxlds, cmd);
 		break;
 	case CXL_MBOX_OP_IDENTIFY:
-		rc = mock_id(cxlds, cmd);
+		if (cxlds->rcd)
+			rc = mock_rcd_id(cxlds, cmd);
+		else
+			rc = mock_id(cxlds, cmd);
 		break;
 	case CXL_MBOX_OP_GET_LSA:
 		rc = mock_get_lsa(cxlds, cmd);
@@ -245,6 +266,13 @@ static void label_area_release(void *lsa)
 	vfree(lsa);
 }
 
+static bool is_rcd(struct platform_device *pdev)
+{
+	const struct platform_device_id *id = platform_get_device_id(pdev);
+
+	return !!id->driver_data;
+}
+
 static int cxl_mock_mem_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -268,6 +296,10 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	cxlds->serial = pdev->id;
 	cxlds->mbox_send = cxl_mock_mbox_send;
 	cxlds->payload_size = SZ_4K;
+	if (is_rcd(pdev)) {
+		cxlds->rcd = true;
+		cxlds->component_reg_phys = CXL_RESOURCE_NONE;
+	}
 
 	rc = cxl_enumerate_cmds(cxlds);
 	if (rc)
@@ -289,7 +321,8 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id cxl_mock_mem_ids[] = {
-	{ .name = "cxl_mem", },
+	{ .name = "cxl_mem", 0 },
+	{ .name = "cxl_rcd", 1 },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, cxl_mock_mem_ids);
