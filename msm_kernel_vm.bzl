@@ -29,6 +29,7 @@ def _define_build_config(
         msm_target,
         variant,
         target,
+        defconfig = None,
         vm_image_opts = vm_image_opts(),
         build_config_fragments = []):
     """Creates a kernel_build_config for an MSM target
@@ -42,6 +43,11 @@ def _define_build_config(
       vm_image_opts: vm_image_opts structure containing boot image options
       build_config_fragments: build.config fragments to embed
     """
+
+    if defconfig:
+        msm_arch = defconfig
+    else:
+        msm_arch = msm_target.replace("-", "_")
 
     gen_config_command = """
       cat << 'EOF' > "$@"
@@ -63,7 +69,7 @@ DUMMY_IMG_SIZE=%d
 EOF
     """ % (
         " ".join([v.replace("-", "_") for v in vm_variants]), # VARIANTS
-        msm_target.replace("-", "_"), # MSM_ARCH
+        msm_arch, # MSM_ARCH
         variant.replace("-", "_"), # VARIANT
         vm_image_opts.preferred_usespace, # PREFERED_USERSPACE
         int(vm_image_opts.vm_dtb_img_create), # VM_DTB_IMG_CREATE
@@ -213,6 +219,7 @@ def _define_kernel_dist(target):
 def define_msm_vm(
         msm_target,
         variant,
+        defconfig = None,
         define_compile_commands = False,
         vm_image_opts = vm_image_opts()):
     """Top-level kernel build definition macro for a VM MSM platform
@@ -240,6 +247,7 @@ def define_msm_vm(
         msm_target,
         variant,
         target,
+        defconfig,
         vm_image_opts = vm_image_opts,
         build_config_fragments = build_config_fragments,
     )

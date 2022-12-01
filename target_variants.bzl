@@ -12,7 +12,7 @@ la_variants = [
 
 vm_types = [
     "tuivm",
-    #    "oemvm",
+    "oemvm",
 ]
 
 vm_targets = ["{}-{}".format(t, vt) for t in targets for vt in vm_types]
