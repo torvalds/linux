@@ -301,28 +301,27 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	if (!adev->mman.discovery_bin)
 		return -ENOMEM;
 
-	amdgpu_discovery_read_binary_from_vram(adev, adev->mman.discovery_bin);
-
-	if (!amdgpu_discovery_verify_binary_signature(adev->mman.discovery_bin) || amdgpu_discovery == 2) {
-		/* ignore the discovery binary from vram if discovery=2 in kernel module parameter */
-		if (amdgpu_discovery == 2)
-			dev_info(adev->dev, "force read ip discovery binary from file");
-		else
-			dev_warn(adev->dev, "get invalid ip discovery binary signature from vram\n");
-
-		/* retry read ip discovery binary from file */
+	/* Read from file if it is the preferred option */
+	if (amdgpu_discovery == 2) {
+		dev_info(adev->dev, "use ip discovery information from file");
 		r = amdgpu_discovery_read_binary_from_file(adev, adev->mman.discovery_bin);
+
 		if (r) {
 			dev_err(adev->dev, "failed to read ip discovery binary from file\n");
 			r = -EINVAL;
 			goto out;
 		}
-		/* check the ip discovery binary signature */
-		if (!amdgpu_discovery_verify_binary_signature(adev->mman.discovery_bin)) {
-			dev_warn(adev->dev, "get invalid ip discovery binary signature from file\n");
-			r = -EINVAL;
-			goto out;
-		}
+
+	} else {
+		amdgpu_discovery_read_binary_from_vram(adev, adev->mman.discovery_bin);
+	}
+
+	/* check the ip discovery binary signature */
+	if (!amdgpu_discovery_verify_binary_signature(adev->mman.discovery_bin)) {
+		dev_err(adev->dev,
+			"get invalid ip discovery binary signature\n");
+		r = -EINVAL;
+		goto out;
 	}
 
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
