@@ -486,21 +486,6 @@ static int vc4_crtc_disable(struct drm_crtc *crtc,
 	return 0;
 }
 
-static struct drm_encoder *vc4_crtc_get_encoder_by_type(struct drm_crtc *crtc,
-							enum vc4_encoder_type type)
-{
-	struct drm_encoder *encoder;
-
-	drm_for_each_encoder(encoder, crtc->dev) {
-		struct vc4_encoder *vc4_encoder = to_vc4_encoder(encoder);
-
-		if (vc4_encoder->type == type)
-			return encoder;
-	}
-
-	return NULL;
-}
-
 int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 {
 	struct drm_device *drm = crtc->dev;
@@ -536,7 +521,7 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 
 	pv_data = vc4_crtc_to_vc4_pv_data(vc4_crtc);
 	encoder_type = pv_data->encoder_types[encoder_sel];
-	encoder = vc4_crtc_get_encoder_by_type(crtc, encoder_type);
+	encoder = vc4_find_encoder_by_type(drm, encoder_type);
 	if (WARN_ON(!encoder))
 		return 0;
 

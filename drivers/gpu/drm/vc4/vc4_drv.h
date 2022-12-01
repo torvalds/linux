@@ -495,6 +495,22 @@ to_vc4_encoder(const struct drm_encoder *encoder)
 	return container_of(encoder, struct vc4_encoder, base);
 }
 
+static inline
+struct drm_encoder *vc4_find_encoder_by_type(struct drm_device *drm,
+					     enum vc4_encoder_type type)
+{
+	struct drm_encoder *encoder;
+
+	drm_for_each_encoder(encoder, drm) {
+		struct vc4_encoder *vc4_encoder = to_vc4_encoder(encoder);
+
+		if (vc4_encoder->type == type)
+			return encoder;
+	}
+
+	return NULL;
+}
+
 struct vc4_crtc_data {
 	const char *name;
 
