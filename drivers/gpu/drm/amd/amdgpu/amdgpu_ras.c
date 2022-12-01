@@ -1267,7 +1267,7 @@ static ssize_t amdgpu_ras_sysfs_features_read(struct device *dev,
 	struct amdgpu_ras *con =
 		container_of(attr, struct amdgpu_ras, features_attr);
 
-	return scnprintf(buf, PAGE_SIZE, "feature mask: 0x%x\n", con->features);
+	return sysfs_emit(buf, "feature mask: 0x%x\n", con->features);
 }
 
 static void amdgpu_ras_sysfs_remove_bad_page_node(struct amdgpu_device *adev)
