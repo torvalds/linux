@@ -591,7 +591,7 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
 			   MT_AGG_ACR_PPDU_TXS2H);
 }
 
-static void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed)
+static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
 {
 	struct mt7915_dev *dev;
 	struct page *page;
@@ -621,7 +621,7 @@ static void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed)
 	memset(&wed->rx_buf_ring.rx_page, 0, sizeof(wed->rx_buf_ring.rx_page));
 }
 
-static u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 {
 	struct mtk_rxbm_desc *desc = wed->rx_buf_ring.desc;
 	struct mt7915_dev *dev;
@@ -661,7 +661,7 @@ static u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 	return 0;
 
 unmap:
-	mt7915_wed_release_rx_buf(wed);
+	mt7915_mmio_wed_release_rx_buf(wed);
 	return -ENOMEM;
 }
 
@@ -768,8 +768,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
 	wed->wlan.init_buf = mt7915_wed_init_buf;
 	wed->wlan.offload_enable = mt7915_mmio_wed_offload_enable;
 	wed->wlan.offload_disable = mt7915_mmio_wed_offload_disable;
-	wed->wlan.init_rx_buf = mt7915_wed_init_rx_buf;
-	wed->wlan.release_rx_buf = mt7915_wed_release_rx_buf;
+	wed->wlan.init_rx_buf = mt7915_mmio_wed_init_rx_buf;
+	wed->wlan.release_rx_buf = mt7915_mmio_wed_release_rx_buf;
 	wed->wlan.update_wo_rx_stats = mt7915_mmio_wed_update_rx_stats;
 
 	dev->mt76.rx_token_size = wed->wlan.rx_npkt;
