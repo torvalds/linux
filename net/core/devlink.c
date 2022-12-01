@@ -6431,7 +6431,6 @@ unlock:
 }
 
 static int devlink_nl_cmd_region_read_chunk_fill(struct sk_buff *msg,
-						 struct devlink *devlink,
 						 u8 *chunk, u32 chunk_size,
 						 u64 addr)
 {
@@ -6461,39 +6460,37 @@ nla_put_failure:
 
 #define DEVLINK_REGION_READ_CHUNK_SIZE 256
 
-static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
-						struct devlink *devlink,
-						struct devlink_region *region,
-						struct nlattr **attrs,
-						u64 start_offset,
-						u64 end_offset,
-						u64 *new_offset)
+typedef int devlink_chunk_fill_t(void *cb_priv, u8 *chunk, u32 chunk_size,
+				 u64 curr_offset,
+				 struct netlink_ext_ack *extack);
+
+static int
+devlink_nl_region_read_fill(struct sk_buff *skb, devlink_chunk_fill_t *cb,
+			    void *cb_priv, u64 start_offset, u64 end_offset,
+			    u64 *new_offset, struct netlink_ext_ack *extack)
 {
-	struct devlink_snapshot *snapshot;
 	u64 curr_offset = start_offset;
-	u32 snapshot_id;
 	int err = 0;
+	u8 *data;
+
+	/* Allocate and re-use a single buffer */
+	data = kmalloc(DEVLINK_REGION_READ_CHUNK_SIZE, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	*new_offset = start_offset;
 
-	snapshot_id = nla_get_u32(attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]);
-	snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
-	if (!snapshot)
-		return -EINVAL;
-
 	while (curr_offset < end_offset) {
 		u32 data_size;
-		u8 *data;
 
-		if (end_offset - curr_offset < DEVLINK_REGION_READ_CHUNK_SIZE)
-			data_size = end_offset - curr_offset;
-		else
-			data_size = DEVLINK_REGION_READ_CHUNK_SIZE;
+		data_size = min_t(u32, end_offset - curr_offset,
+				  DEVLINK_REGION_READ_CHUNK_SIZE);
 
-		data = &snapshot->data[curr_offset];
-		err = devlink_nl_cmd_region_read_chunk_fill(skb, devlink,
-							    data, data_size,
-							    curr_offset);
+		err = cb(cb_priv, data, data_size, curr_offset, extack);
+		if (err)
+			break;
+
+		err = devlink_nl_cmd_region_read_chunk_fill(skb, data, data_size, curr_offset);
 		if (err)
 			break;
 
@@ -6501,21 +6498,57 @@ static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
 	}
 	*new_offset = curr_offset;
 
+	kfree(data);
+
 	return err;
+}
+
+static int
+devlink_region_snapshot_fill(void *cb_priv, u8 *chunk, u32 chunk_size,
+			     u64 curr_offset,
+			     struct netlink_ext_ack __always_unused *extack)
+{
+	struct devlink_snapshot *snapshot = cb_priv;
+
+	memcpy(chunk, &snapshot->data[curr_offset], chunk_size);
+
+	return 0;
+}
+
+static int
+devlink_region_port_direct_fill(void *cb_priv, u8 *chunk, u32 chunk_size,
+				u64 curr_offset, struct netlink_ext_ack *extack)
+{
+	struct devlink_region *region = cb_priv;
+
+	return region->port_ops->read(region->port, region->port_ops, extack,
+				      curr_offset, chunk_size, chunk);
+}
+
+static int
+devlink_region_direct_fill(void *cb_priv, u8 *chunk, u32 chunk_size,
+			   u64 curr_offset, struct netlink_ext_ack *extack)
+{
+	struct devlink_region *region = cb_priv;
+
+	return region->ops->read(region->devlink, region->ops, extack,
+				 curr_offset, chunk_size, chunk);
 }
 
 static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 					     struct netlink_callback *cb)
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	struct nlattr *chunks_attr, *region_attr, *snapshot_attr;
 	u64 ret_offset, start_offset, end_offset = U64_MAX;
 	struct nlattr **attrs = info->attrs;
 	struct devlink_port *port = NULL;
+	devlink_chunk_fill_t *region_cb;
 	struct devlink_region *region;
-	struct nlattr *chunks_attr;
 	const char *region_name;
 	struct devlink *devlink;
 	unsigned int index;
+	void *region_cb_priv;
 	void *hdr;
 	int err;
 
@@ -6527,8 +6560,8 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 
 	devl_lock(devlink);
 
-	if (!attrs[DEVLINK_ATTR_REGION_NAME] ||
-	    !attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]) {
+	if (!attrs[DEVLINK_ATTR_REGION_NAME]) {
+		NL_SET_ERR_MSG(cb->extack, "No region name provided");
 		err = -EINVAL;
 		goto out_unlock;
 	}
@@ -6543,7 +6576,8 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		}
 	}
 
-	region_name = nla_data(attrs[DEVLINK_ATTR_REGION_NAME]);
+	region_attr = attrs[DEVLINK_ATTR_REGION_NAME];
+	region_name = nla_data(region_attr);
 
 	if (port)
 		region = devlink_port_region_get_by_name(port, region_name);
@@ -6551,8 +6585,49 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		region = devlink_region_get_by_name(devlink, region_name);
 
 	if (!region) {
+		NL_SET_ERR_MSG_ATTR(cb->extack, region_attr, "Requested region does not exist");
 		err = -EINVAL;
 		goto out_unlock;
+	}
+
+	snapshot_attr = attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID];
+	if (!snapshot_attr) {
+		if (!nla_get_flag(attrs[DEVLINK_ATTR_REGION_DIRECT])) {
+			NL_SET_ERR_MSG(cb->extack, "No snapshot id provided");
+			err = -EINVAL;
+			goto out_unlock;
+		}
+
+		if (!region->ops->read) {
+			NL_SET_ERR_MSG(cb->extack, "Requested region does not support direct read");
+			err = -EOPNOTSUPP;
+			goto out_unlock;
+		}
+
+		if (port)
+			region_cb = &devlink_region_port_direct_fill;
+		else
+			region_cb = &devlink_region_direct_fill;
+		region_cb_priv = region;
+	} else {
+		struct devlink_snapshot *snapshot;
+		u32 snapshot_id;
+
+		if (nla_get_flag(attrs[DEVLINK_ATTR_REGION_DIRECT])) {
+			NL_SET_ERR_MSG_ATTR(cb->extack, snapshot_attr, "Direct region read does not use snapshot");
+			err = -EINVAL;
+			goto out_unlock;
+		}
+
+		snapshot_id = nla_get_u32(snapshot_attr);
+		snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
+		if (!snapshot) {
+			NL_SET_ERR_MSG_ATTR(cb->extack, snapshot_attr, "Requested snapshot does not exist");
+			err = -EINVAL;
+			goto out_unlock;
+		}
+		region_cb = &devlink_region_snapshot_fill;
+		region_cb_priv = snapshot;
 	}
 
 	if (attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR] &&
@@ -6603,10 +6678,9 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		goto nla_put_failure;
 	}
 
-	err = devlink_nl_region_read_snapshot_fill(skb, devlink,
-						   region, attrs,
-						   start_offset,
-						   end_offset, &ret_offset);
+	err = devlink_nl_region_read_fill(skb, region_cb, region_cb_priv,
+					  start_offset, end_offset, &ret_offset,
+					  cb->extack);
 
 	if (err && err != -EMSGSIZE)
 		goto nla_put_failure;
@@ -9251,6 +9325,7 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_SELFTESTS] = { .type = NLA_NESTED },
 	[DEVLINK_ATTR_RATE_TX_PRIORITY] = { .type = NLA_U32 },
 	[DEVLINK_ATTR_RATE_TX_WEIGHT] = { .type = NLA_U32 },
+	[DEVLINK_ATTR_REGION_DIRECT] = { .type = NLA_FLAG },
 };
 
 static const struct genl_small_ops devlink_nl_ops[] = {

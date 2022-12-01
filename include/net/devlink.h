@@ -650,6 +650,10 @@ struct devlink_info_req;
  *            the data variable must be updated to point to the snapshot data.
  *            The function will be called while the devlink instance lock is
  *            held.
+ * @read: callback to directly read a portion of the region. On success,
+ *        the data pointer will be updated with the contents of the
+ *        requested portion of the region. The function will be called
+ *        while the devlink instance lock is held.
  * @priv: Pointer to driver private data for the region operation
  */
 struct devlink_region_ops {
@@ -659,6 +663,10 @@ struct devlink_region_ops {
 			const struct devlink_region_ops *ops,
 			struct netlink_ext_ack *extack,
 			u8 **data);
+	int (*read)(struct devlink *devlink,
+		    const struct devlink_region_ops *ops,
+		    struct netlink_ext_ack *extack,
+		    u64 offset, u32 size, u8 *data);
 	void *priv;
 };
 
@@ -670,6 +678,10 @@ struct devlink_region_ops {
  *            the data variable must be updated to point to the snapshot data.
  *            The function will be called while the devlink instance lock is
  *            held.
+ * @read: callback to directly read a portion of the region. On success,
+ *        the data pointer will be updated with the contents of the
+ *        requested portion of the region. The function will be called
+ *        while the devlink instance lock is held.
  * @priv: Pointer to driver private data for the region operation
  */
 struct devlink_port_region_ops {
@@ -679,6 +691,10 @@ struct devlink_port_region_ops {
 			const struct devlink_port_region_ops *ops,
 			struct netlink_ext_ack *extack,
 			u8 **data);
+	int (*read)(struct devlink_port *port,
+		    const struct devlink_port_region_ops *ops,
+		    struct netlink_ext_ack *extack,
+		    u64 offset, u32 size, u8 *data);
 	void *priv;
 };
 

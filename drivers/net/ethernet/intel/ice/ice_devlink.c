@@ -1596,21 +1596,22 @@ void ice_devlink_destroy_vf_port(struct ice_vf *vf)
 
 #define ICE_DEVLINK_READ_BLK_SIZE (1024 * 1024)
 
+static const struct devlink_region_ops ice_nvm_region_ops;
+static const struct devlink_region_ops ice_sram_region_ops;
+
 /**
  * ice_devlink_nvm_snapshot - Capture a snapshot of the NVM flash contents
  * @devlink: the devlink instance
- * @ops: the devlink region being snapshotted
+ * @ops: the devlink region to snapshot
  * @extack: extended ACK response structure
  * @data: on exit points to snapshot data buffer
  *
- * This function is called in response to the DEVLINK_CMD_REGION_TRIGGER for
- * the nvm-flash devlink region. It captures a snapshot of the full NVM flash
- * contents, including both banks of flash. This snapshot can later be viewed
- * via the devlink-region interface.
+ * This function is called in response to a DEVLINK_CMD_REGION_NEW for either
+ * the nvm-flash or shadow-ram region.
  *
- * It captures the flash using the FLASH_ONLY bit set when reading via
- * firmware, so it does not read the current Shadow RAM contents. For that,
- * use the shadow-ram region.
+ * It captures a snapshot of the NVM or Shadow RAM flash contents. This
+ * snapshot can then later be viewed via the DEVLINK_CMD_REGION_READ netlink
+ * interface.
  *
  * @returns zero on success, and updates the data pointer. Returns a non-zero
  * error code on failure.
@@ -1622,16 +1623,26 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 	struct ice_pf *pf = devlink_priv(devlink);
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
+	bool read_shadow_ram;
 	u8 *nvm_data, *tmp, i;
 	u32 nvm_size, left;
 	s8 num_blks;
 	int status;
 
-	nvm_size = hw->flash.flash_size;
+	if (ops == &ice_nvm_region_ops) {
+		read_shadow_ram = false;
+		nvm_size = hw->flash.flash_size;
+	} else if (ops == &ice_sram_region_ops) {
+		read_shadow_ram = true;
+		nvm_size = hw->flash.sr_words * 2u;
+	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Unexpected region in snapshot function");
+		return -EOPNOTSUPP;
+	}
+
 	nvm_data = vzalloc(nvm_size);
 	if (!nvm_data)
 		return -ENOMEM;
-
 
 	num_blks = DIV_ROUND_UP(nvm_size, ICE_DEVLINK_READ_BLK_SIZE);
 	tmp = nvm_data;
@@ -1656,7 +1667,7 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 		}
 
 		status = ice_read_flat_nvm(hw, i * ICE_DEVLINK_READ_BLK_SIZE,
-					   &read_sz, tmp, false);
+					   &read_sz, tmp, read_shadow_ram);
 		if (status) {
 			dev_dbg(dev, "ice_read_flat_nvm failed after reading %u bytes, err %d aq_err %d\n",
 				read_sz, status, hw->adminq.sq_last_status);
@@ -1677,61 +1688,68 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 }
 
 /**
- * ice_devlink_sram_snapshot - Capture a snapshot of the Shadow RAM contents
+ * ice_devlink_nvm_read - Read a portion of NVM flash contents
  * @devlink: the devlink instance
- * @ops: the devlink region being snapshotted
+ * @ops: the devlink region to snapshot
  * @extack: extended ACK response structure
- * @data: on exit points to snapshot data buffer
+ * @offset: the offset to start at
+ * @size: the amount to read
+ * @data: the data buffer to read into
  *
- * This function is called in response to the DEVLINK_CMD_REGION_TRIGGER for
- * the shadow-ram devlink region. It captures a snapshot of the shadow ram
- * contents. This snapshot can later be viewed via the devlink-region
- * interface.
+ * This function is called in response to DEVLINK_CMD_REGION_READ to directly
+ * read a section of the NVM contents.
+ *
+ * It reads from either the nvm-flash or shadow-ram region contents.
  *
  * @returns zero on success, and updates the data pointer. Returns a non-zero
  * error code on failure.
  */
-static int
-ice_devlink_sram_snapshot(struct devlink *devlink,
-			  const struct devlink_region_ops __always_unused *ops,
-			  struct netlink_ext_ack *extack, u8 **data)
+static int ice_devlink_nvm_read(struct devlink *devlink,
+				const struct devlink_region_ops *ops,
+				struct netlink_ext_ack *extack,
+				u64 offset, u32 size, u8 *data)
 {
 	struct ice_pf *pf = devlink_priv(devlink);
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	u8 *sram_data;
-	u32 sram_size;
-	int err;
+	bool read_shadow_ram;
+	u64 nvm_size;
+	int status;
 
-	sram_size = hw->flash.sr_words * 2u;
-	sram_data = vzalloc(sram_size);
-	if (!sram_data)
-		return -ENOMEM;
+	if (ops == &ice_nvm_region_ops) {
+		read_shadow_ram = false;
+		nvm_size = hw->flash.flash_size;
+	} else if (ops == &ice_sram_region_ops) {
+		read_shadow_ram = true;
+		nvm_size = hw->flash.sr_words * 2u;
+	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Unexpected region in snapshot function");
+		return -EOPNOTSUPP;
+	}
 
-	err = ice_acquire_nvm(hw, ICE_RES_READ);
-	if (err) {
+	if (offset + size >= nvm_size) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot read beyond the region size");
+		return -ERANGE;
+	}
+
+	status = ice_acquire_nvm(hw, ICE_RES_READ);
+	if (status) {
 		dev_dbg(dev, "ice_acquire_nvm failed, err %d aq_err %d\n",
-			err, hw->adminq.sq_last_status);
+			status, hw->adminq.sq_last_status);
 		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire NVM semaphore");
-		vfree(sram_data);
-		return err;
+		return -EIO;
 	}
 
-	/* Read from the Shadow RAM, rather than directly from NVM */
-	err = ice_read_flat_nvm(hw, 0, &sram_size, sram_data, true);
-	if (err) {
+	status = ice_read_flat_nvm(hw, (u32)offset, &size, data,
+				   read_shadow_ram);
+	if (status) {
 		dev_dbg(dev, "ice_read_flat_nvm failed after reading %u bytes, err %d aq_err %d\n",
-			sram_size, err, hw->adminq.sq_last_status);
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Failed to read Shadow RAM contents");
+			size, status, hw->adminq.sq_last_status);
+		NL_SET_ERR_MSG_MOD(extack, "Failed to read NVM contents");
 		ice_release_nvm(hw);
-		vfree(sram_data);
-		return err;
+		return -EIO;
 	}
-
 	ice_release_nvm(hw);
-
-	*data = sram_data;
 
 	return 0;
 }
@@ -1784,12 +1802,14 @@ static const struct devlink_region_ops ice_nvm_region_ops = {
 	.name = "nvm-flash",
 	.destructor = vfree,
 	.snapshot = ice_devlink_nvm_snapshot,
+	.read = ice_devlink_nvm_read,
 };
 
 static const struct devlink_region_ops ice_sram_region_ops = {
 	.name = "shadow-ram",
 	.destructor = vfree,
-	.snapshot = ice_devlink_sram_snapshot,
+	.snapshot = ice_devlink_nvm_snapshot,
+	.read = ice_devlink_nvm_read,
 };
 
 static const struct devlink_region_ops ice_devcaps_region_ops = {
