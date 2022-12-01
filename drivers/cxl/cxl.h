@@ -424,7 +424,6 @@ struct cxl_nvdimm {
 	struct device dev;
 	struct cxl_memdev *cxlmd;
 	struct cxl_nvdimm_bridge *bridge;
-	struct xarray pmem_regions;
 };
 
 struct cxl_pmem_region_mapping {

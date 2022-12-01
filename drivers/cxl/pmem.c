@@ -27,26 +27,7 @@ static void clear_exclusive(void *cxlds)
 
 static void unregister_nvdimm(void *nvdimm)
 {
-	struct cxl_nvdimm *cxl_nvd = nvdimm_provider_data(nvdimm);
-	struct cxl_nvdimm_bridge *cxl_nvb = cxl_nvd->bridge;
-	struct cxl_pmem_region *cxlr_pmem;
-	unsigned long index;
-
-	device_lock(&cxl_nvb->dev);
-	dev_set_drvdata(&cxl_nvd->dev, NULL);
-	xa_for_each(&cxl_nvd->pmem_regions, index, cxlr_pmem) {
-		get_device(&cxlr_pmem->dev);
-		device_unlock(&cxl_nvb->dev);
-
-		device_release_driver(&cxlr_pmem->dev);
-		put_device(&cxlr_pmem->dev);
-
-		device_lock(&cxl_nvb->dev);
-	}
-	device_unlock(&cxl_nvb->dev);
-
 	nvdimm_delete(nvdimm);
-	cxl_nvd->bridge = NULL;
 }
 
 static int cxl_nvdimm_probe(struct device *dev)
@@ -243,21 +224,6 @@ static int cxl_nvdimm_release_driver(struct device *dev, void *cxl_nvb)
 	return 0;
 }
 
-static int cxl_pmem_region_release_driver(struct device *dev, void *cxl_nvb)
-{
-	struct cxl_pmem_region *cxlr_pmem;
-
-	if (!is_cxl_pmem_region(dev))
-		return 0;
-
-	cxlr_pmem = to_cxl_pmem_region(dev);
-	if (cxlr_pmem->bridge != cxl_nvb)
-		return 0;
-
-	device_release_driver(dev);
-	return 0;
-}
-
 static void offline_nvdimm_bus(struct cxl_nvdimm_bridge *cxl_nvb,
 			       struct nvdimm_bus *nvdimm_bus)
 {
@@ -269,8 +235,6 @@ static void offline_nvdimm_bus(struct cxl_nvdimm_bridge *cxl_nvb,
 	 * nvdimm_bus_unregister() rips the nvdimm objects out from
 	 * underneath them.
 	 */
-	bus_for_each_dev(&cxl_bus_type, NULL, cxl_nvb,
-			 cxl_pmem_region_release_driver);
 	bus_for_each_dev(&cxl_bus_type, NULL, cxl_nvb,
 			 cxl_nvdimm_release_driver);
 	nvdimm_bus_unregister(nvdimm_bus);
@@ -378,48 +342,6 @@ static void unregister_nvdimm_region(void *nd_region)
 	nvdimm_region_delete(nd_region);
 }
 
-static int cxl_nvdimm_add_region(struct cxl_nvdimm *cxl_nvd,
-				 struct cxl_pmem_region *cxlr_pmem)
-{
-	int rc;
-
-	rc = xa_insert(&cxl_nvd->pmem_regions, (unsigned long)cxlr_pmem,
-		       cxlr_pmem, GFP_KERNEL);
-	if (rc)
-		return rc;
-
-	get_device(&cxlr_pmem->dev);
-	return 0;
-}
-
-static void cxl_nvdimm_del_region(struct cxl_nvdimm *cxl_nvd,
-				  struct cxl_pmem_region *cxlr_pmem)
-{
-	/*
-	 * It is possible this is called without a corresponding
-	 * cxl_nvdimm_add_region for @cxlr_pmem
-	 */
-	cxlr_pmem = xa_erase(&cxl_nvd->pmem_regions, (unsigned long)cxlr_pmem);
-	if (cxlr_pmem)
-		put_device(&cxlr_pmem->dev);
-}
-
-static void release_mappings(void *data)
-{
-	int i;
-	struct cxl_pmem_region *cxlr_pmem = data;
-	struct cxl_nvdimm_bridge *cxl_nvb = cxlr_pmem->bridge;
-
-	device_lock(&cxl_nvb->dev);
-	for (i = 0; i < cxlr_pmem->nr_mappings; i++) {
-		struct cxl_pmem_region_mapping *m = &cxlr_pmem->mapping[i];
-		struct cxl_nvdimm *cxl_nvd = m->cxl_nvd;
-
-		cxl_nvdimm_del_region(cxl_nvd, cxlr_pmem);
-	}
-	device_unlock(&cxl_nvb->dev);
-}
-
 static void cxlr_pmem_remove_resource(void *res)
 {
 	remove_resource(res);
@@ -508,10 +430,6 @@ static int cxl_pmem_region_probe(struct device *dev)
 		goto out_nvb;
 	}
 
-	rc = devm_add_action_or_reset(dev, release_mappings, cxlr_pmem);
-	if (rc)
-		goto out_nvd;
-
 	for (i = 0; i < cxlr_pmem->nr_mappings; i++) {
 		struct cxl_pmem_region_mapping *m = &cxlr_pmem->mapping[i];
 		struct cxl_memdev *cxlmd = m->cxlmd;
@@ -538,14 +456,6 @@ static int cxl_pmem_region_probe(struct device *dev)
 			goto out_nvd;
 		}
 
-		/*
-		 * Pin the region per nvdimm device as those may be released
-		 * out-of-order with respect to the region, and a single nvdimm
-		 * maybe associated with multiple regions
-		 */
-		rc = cxl_nvdimm_add_region(cxl_nvd, cxlr_pmem);
-		if (rc)
-			goto out_nvd;
 		m->cxl_nvd = cxl_nvd;
 		mappings[i] = (struct nd_mapping_desc) {
 			.nvdimm = nvdimm,
