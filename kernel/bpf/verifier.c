@@ -5738,7 +5738,7 @@ static int process_spin_lock(struct bpf_verifier_env *env, int regno,
 		cur->active_lock.ptr = NULL;
 		cur->active_lock.id = 0;
 
-		for (i = 0; i < fstate->acquired_refs; i++) {
+		for (i = fstate->acquired_refs - 1; i >= 0; i--) {
 			int err;
 
 			/* Complain on error because this reference state cannot
