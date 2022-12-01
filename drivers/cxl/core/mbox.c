@@ -704,6 +704,16 @@ int cxl_enumerate_cmds(struct cxl_dev_state *cxlds)
 		rc = 0;
 	}
 
+	/*
+	 * Setup permanently kernel exclusive commands, i.e. the
+	 * mechanism is driven through sysfs, keyctl, etc...
+	 */
+	set_bit(CXL_MEM_COMMAND_ID_SET_PASSPHRASE, cxlds->exclusive_cmds);
+	set_bit(CXL_MEM_COMMAND_ID_DISABLE_PASSPHRASE, cxlds->exclusive_cmds);
+	set_bit(CXL_MEM_COMMAND_ID_UNLOCK, cxlds->exclusive_cmds);
+	set_bit(CXL_MEM_COMMAND_ID_PASSPHRASE_SECURE_ERASE,
+		cxlds->exclusive_cmds);
+
 out:
 	kvfree(gsl);
 	return rc;
