@@ -1023,8 +1023,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	up->port.type = PORT_16550A;
 	up->capabilities |= UART_CAP_FIFO;
 
-	if (!IS_ENABLED(CONFIG_SERIAL_8250_16550A_VARIANTS) &&
-	    !(up->port.flags & UPF_FULL_PROBE))
+	if (!IS_ENABLED(CONFIG_SERIAL_8250_16550A_VARIANTS))
 		return;
 
 	/*
