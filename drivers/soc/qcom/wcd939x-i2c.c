@@ -324,6 +324,8 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 		case WCD_USBSS_GND_MIC_SWAP_AATC:
 			dev_info(wcd_usbss_ctxt_->dev,
 					"%s: GND MIC Swap register updates..\n", __func__);
+			/* for GND MIC Swap, change mode to FSM */
+			audio_fsm_mode = WCD_USBSS_AUDIO_FSM;
 			/* Disable all switches */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x7F, 0x00);
