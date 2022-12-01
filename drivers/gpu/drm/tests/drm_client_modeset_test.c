@@ -8,11 +8,10 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_kunit_helpers.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_probe_helper.h>
-
-#include "drm_kunit_helpers.h"
 
 struct drm_client_modeset_test_priv {
 	struct drm_device *drm;

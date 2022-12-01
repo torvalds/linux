@@ -4,13 +4,12 @@
  */
 
 #include <drm/drm_drv.h>
+#include <drm/drm_kunit_helpers.h>
 #include <drm/drm_modes.h>
 
 #include <kunit/test.h>
 
 #include <linux/units.h>
-
-#include "drm_kunit_helpers.h"
 
 struct drm_test_modes_priv {
 	struct drm_device *drm;

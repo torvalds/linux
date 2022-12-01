@@ -7,14 +7,13 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_kunit_helpers.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_probe_helper.h>
 
 #include <kunit/test.h>
-
-#include "drm_kunit_helpers.h"
 
 struct drm_probe_helper_test_priv {
 	struct drm_device *drm;

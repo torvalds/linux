@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <drm/drm_drv.h>
+#include <drm/drm_kunit_helpers.h>
 #include <drm/drm_managed.h>
 
 #include <kunit/resource.h>
 
 #include <linux/device.h>
-
-#include "drm_kunit_helpers.h"
 
 struct kunit_dev {
 	struct drm_device base;
