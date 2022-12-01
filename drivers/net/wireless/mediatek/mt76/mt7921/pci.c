@@ -507,6 +507,21 @@ failed:
 	return err;
 }
 
+static void mt7921_pci_shutdown(struct pci_dev *pdev)
+{
+	struct mt76_dev *mdev = pci_get_drvdata(pdev);
+	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt76_connac_pm *pm = &dev->pm;
+
+	cancel_delayed_work_sync(&pm->ps_work);
+	cancel_work_sync(&pm->wake_work);
+
+	/* chip cleanup before reboot */
+	mt7921_mcu_drv_pmctrl(dev);
+	mt7921_dma_cleanup(dev);
+	mt7921_wfsys_reset(dev);
+}
+
 static DEFINE_SIMPLE_DEV_PM_OPS(mt7921_pm_ops, mt7921_pci_suspend, mt7921_pci_resume);
 
 static struct pci_driver mt7921_pci_driver = {
@@ -514,6 +529,7 @@ static struct pci_driver mt7921_pci_driver = {
 	.id_table	= mt7921_pci_device_table,
 	.probe		= mt7921_pci_probe,
 	.remove		= mt7921_pci_remove,
+	.shutdown	= mt7921_pci_shutdown,
 	.driver.pm	= pm_sleep_ptr(&mt7921_pm_ops),
 };
 
