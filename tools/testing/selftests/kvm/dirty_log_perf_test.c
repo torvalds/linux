@@ -398,7 +398,7 @@ static void help(char *name)
 	printf(" -x: Split the memory region into this number of memslots.\n"
 	       "     (default: 1)\n");
 	printf(" -w: specify the percentage of pages which should be written to\n"
-	       "     as an integer from 0-100 inclusive. This is probabalistic,\n"
+	       "     as an integer from 0-100 inclusive. This is probabilistic,\n"
 	       "     so -w X means each page has an X%% chance of writing\n"
 	       "     and a (100-X)%% chance of reading.\n"
 	       "     (default: 100 i.e. all pages are written to.)\n");
