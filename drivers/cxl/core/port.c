@@ -1844,11 +1844,26 @@ static void cxl_bus_remove(struct device *dev)
 
 static struct workqueue_struct *cxl_bus_wq;
 
-int cxl_bus_rescan(void)
+static void cxl_bus_rescan_queue(struct work_struct *w)
 {
-	return bus_rescan_devices(&cxl_bus_type);
+	int rc = bus_rescan_devices(&cxl_bus_type);
+
+	pr_debug("CXL bus rescan result: %d\n", rc);
+}
+
+void cxl_bus_rescan(void)
+{
+	static DECLARE_WORK(rescan_work, cxl_bus_rescan_queue);
+
+	queue_work(cxl_bus_wq, &rescan_work);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_bus_rescan, CXL);
+
+void cxl_bus_drain(void)
+{
+	drain_workqueue(cxl_bus_wq);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_bus_drain, CXL);
 
 bool schedule_cxl_memdev_detach(struct cxl_memdev *cxlmd)
 {
