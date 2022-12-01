@@ -8,6 +8,7 @@
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include "rk3326.dtsi"
 
@@ -113,15 +114,29 @@
 		};
 	};
 
-	leds: gpio-leds {
+	/* led-1 is wired directly to output of always-on regulator */
+
+	gpio_led: gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&blue_led_pin>;
+		pinctrl-0 = <&red_led_pin>;
 
-		blue_led: led-0 {
-			label = "blue:heartbeat";
-			gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		red_led: led-3 {
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
+			function = LED_FUNCTION_CHARGING;
+		};
+	};
+
+	pwm_led: led-controller {
+		compatible = "pwm-leds";
+
+		blue_led: led-2 {
+			color = <LED_COLOR_ID_BLUE>;
+			function = LED_FUNCTION_STATUS;
 			linux,default-trigger = "heartbeat";
+			max-brightness = <255>;
+			pwms = <&pwm3 0 25000 0>;
 		};
 	};
 
@@ -465,6 +480,10 @@
 	status = "okay";
 };
 
+&pwm3 {
+	status = "okay";
+};
+
 &saradc {
 	vref-supply = <&vcc_1v8>;
 	status = "okay";
@@ -569,8 +588,8 @@
 	};
 
 	leds {
-		blue_led_pin: blue-led-pin {
-			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		red_led_pin: red-led-pin {
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
