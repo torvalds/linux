@@ -95,7 +95,7 @@ struct ufs_bsg_reply {
 	 * msg and status fields. The per-msgcode reply structure
 	 * will contain valid data.
 	 */
-	__u32 result;
+	int result;
 
 	/* If there was reply_payload, how much was received? */
 	__u32 reply_payload_rcv_len;
