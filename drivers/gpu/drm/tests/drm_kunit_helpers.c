@@ -7,6 +7,7 @@
 #include <kunit/resource.h>
 
 #include <linux/device.h>
+#include <linux/platform_device.h>
 
 #define KUNIT_DEVICE_NAME	"drm-kunit-mock-device"
 
@@ -32,7 +33,16 @@ static const struct drm_mode_config_funcs drm_mode_config_funcs = {
  */
 struct device *drm_kunit_helper_alloc_device(struct kunit *test)
 {
-	return root_device_register(KUNIT_DEVICE_NAME);
+	struct platform_device *pdev;
+	int ret;
+
+	pdev = platform_device_alloc(KUNIT_DEVICE_NAME, PLATFORM_DEVID_NONE);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pdev);
+
+	ret = platform_device_add(pdev);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	return &pdev->dev;
 }
 EXPORT_SYMBOL_GPL(drm_kunit_helper_alloc_device);
 
@@ -45,7 +55,9 @@ EXPORT_SYMBOL_GPL(drm_kunit_helper_alloc_device);
  */
 void drm_kunit_helper_free_device(struct kunit *test, struct device *dev)
 {
-	root_device_unregister(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+
+	platform_device_unregister(pdev);
 }
 EXPORT_SYMBOL_GPL(drm_kunit_helper_free_device);
 
