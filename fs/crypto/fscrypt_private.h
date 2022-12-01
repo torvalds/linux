@@ -222,7 +222,16 @@ struct fscrypt_info {
 	 * will be NULL if the master key was found in a process-subscribed
 	 * keyring rather than in the filesystem-level keyring.
 	 */
+#ifdef __GENKSYMS__
+	/*
+	 * Android ABI CRC preservation due to commit 391cceee6d43 ("fscrypt:
+	 * stop using keyrings subsystem for fscrypt_master_key") changing this
+	 * type.  Size is the same, this is a private field.
+	 */
+	struct key *ci_master_key;
+#else
 	struct fscrypt_master_key *ci_master_key;
+#endif
 
 	/*
 	 * Link in list of inodes that were unlocked with the master key.
