@@ -6343,9 +6343,10 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		msm_dwc3_perf_vote_update(mdwc, false);
 		cpu_latency_qos_remove_request(&mdwc->pm_qos_req_dma);
 
-		ret = pm_runtime_resume_and_get(mdwc->dev);
+		ret = pm_runtime_resume_and_get(&mdwc->dwc3->dev);
 		if (ret < 0) {
 			dev_err(mdwc->dev, "%s: pm_runtime_resume_and_get failed\n", __func__);
+			pm_runtime_set_suspended(&mdwc->dwc3->dev);
 			pm_runtime_set_suspended(mdwc->dev);
 			return ret;
 		}
