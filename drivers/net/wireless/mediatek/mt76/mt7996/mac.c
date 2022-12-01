@@ -218,6 +218,19 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 	rcu_read_unlock();
 }
 
+void mt7996_mac_enable_rtscts(struct mt7996_dev *dev,
+			      struct ieee80211_vif *vif, bool enable)
+{
+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	u32 addr;
+
+	addr = mt7996_mac_wtbl_lmac_addr(dev, mvif->sta.wcid.idx, 5);
+	if (enable)
+		mt76_set(dev, addr, BIT(5));
+	else
+		mt76_clear(dev, addr, BIT(5));
+}
+
 static void
 mt7996_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
 				 struct ieee80211_radiotap_he *he,
