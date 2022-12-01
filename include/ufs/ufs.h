@@ -49,6 +49,11 @@
  */
 #define UFS_WB_EXCEED_LIFETIME		0x0B
 
+/*
+ * In UFS Spec, the Extra Header Segment (EHS) starts from byte 32 in UPIU request/response packet
+ */
+#define EHS_OFFSET_IN_RESPONSE 32
+
 /* Well known logical unit id in LUN field of UPIU */
 enum {
 	UFS_UPIU_REPORT_LUNS_WLUN	= 0x81,
