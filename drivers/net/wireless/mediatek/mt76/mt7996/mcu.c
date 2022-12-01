@@ -71,6 +71,10 @@ struct mt7996_fw_region {
 #define HE_PHY(p, c)			u8_get_bits(c, IEEE80211_HE_PHY_##p)
 #define HE_MAC(m, c)			u8_get_bits(c, IEEE80211_HE_MAC_##m)
 
+static bool sr_scene_detect = true;
+module_param(sr_scene_detect, bool, 0644);
+MODULE_PARM_DESC(sr_scene_detect, "Enable firmware scene detection algorithm");
+
 static u8
 mt7996_mcu_get_sta_nss(u16 mcs_map)
 {
@@ -3123,27 +3127,201 @@ int mt7996_mcu_set_txbf(struct mt7996_dev *dev, u8 action)
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb, MCU_WM_UNI_CMD(BF), true);
 }
 
-int mt7996_mcu_add_obss_spr(struct mt7996_dev *dev, struct ieee80211_vif *vif,
-			    bool enable)
+static int
+mt7996_mcu_enable_obss_spr(struct mt7996_phy *phy, u16 action, u8 val)
 {
-#define MT_SPR_ENABLE		1
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt7996_dev *dev = phy->dev;
 	struct {
 		u8 band_idx;
 		u8 __rsv[3];
 
 		__le16 tag;
 		__le16 len;
+
 		__le32 val;
 	} __packed req = {
-		.band_idx = mvif->mt76.band_idx,
-		.tag = cpu_to_le16(UNI_CMD_SR_ENABLE),
+		.band_idx = phy->mt76->band_idx,
+		.tag = cpu_to_le16(action),
 		.len = cpu_to_le16(sizeof(req) - 4),
-		.val = cpu_to_le32(enable),
+		.val = cpu_to_le32(val),
 	};
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(SR),
 				 &req, sizeof(req), true);
+}
+
+static int
+mt7996_mcu_set_obss_spr_pd(struct mt7996_phy *phy,
+			   struct ieee80211_he_obss_pd *he_obss_pd)
+{
+	struct mt7996_dev *dev = phy->dev;
+	u8 max_th = 82, non_srg_max_th = 62;
+	struct {
+		u8 band_idx;
+		u8 __rsv[3];
+
+		__le16 tag;
+		__le16 len;
+
+		u8 pd_th_non_srg;
+		u8 pd_th_srg;
+		u8 period_offs;
+		u8 rcpi_src;
+		__le16 obss_pd_min;
+		__le16 obss_pd_min_srg;
+		u8 resp_txpwr_mode;
+		u8 txpwr_restrict_mode;
+		u8 txpwr_ref;
+		u8 __rsv2[3];
+	} __packed req = {
+		.band_idx = phy->mt76->band_idx,
+		.tag = cpu_to_le16(UNI_CMD_SR_SET_PARAM),
+		.len = cpu_to_le16(sizeof(req) - 4),
+		.obss_pd_min = cpu_to_le16(max_th),
+		.obss_pd_min_srg = cpu_to_le16(max_th),
+		.txpwr_restrict_mode = 2,
+		.txpwr_ref = 21
+	};
+	int ret;
+
+	/* disable firmware dynamical PD asjustment */
+	ret = mt7996_mcu_enable_obss_spr(phy, UNI_CMD_SR_ENABLE_DPD, false);
+	if (ret)
+		return ret;
+
+	if (he_obss_pd->sr_ctrl &
+	    IEEE80211_HE_SPR_NON_SRG_OBSS_PD_SR_DISALLOWED)
+		req.pd_th_non_srg = max_th;
+	else if (he_obss_pd->sr_ctrl & IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT)
+		req.pd_th_non_srg  = max_th - he_obss_pd->non_srg_max_offset;
+	else
+		req.pd_th_non_srg  = non_srg_max_th;
+
+	if (he_obss_pd->sr_ctrl & IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT)
+		req.pd_th_srg = max_th - he_obss_pd->max_offset;
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(SR),
+				 &req, sizeof(req), true);
+}
+
+static int
+mt7996_mcu_set_obss_spr_siga(struct mt7996_phy *phy, struct ieee80211_vif *vif,
+			     struct ieee80211_he_obss_pd *he_obss_pd)
+{
+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt7996_dev *dev = phy->dev;
+	u8 omac = mvif->mt76.omac_idx;
+	struct {
+		u8 band_idx;
+		u8 __rsv[3];
+
+		__le16 tag;
+		__le16 len;
+
+		u8 omac;
+		u8 __rsv2[3];
+		u8 flag[20];
+	} __packed req = {
+		.band_idx = phy->mt76->band_idx,
+		.tag = cpu_to_le16(UNI_CMD_SR_SET_SIGA),
+		.len = cpu_to_le16(sizeof(req) - 4),
+		.omac = omac > HW_BSSID_MAX ? omac - 12 : omac,
+	};
+	int ret;
+
+	if (he_obss_pd->sr_ctrl & IEEE80211_HE_SPR_HESIGA_SR_VAL15_ALLOWED)
+		req.flag[req.omac] = 0xf;
+	else
+		return 0;
+
+	/* switch to normal AP mode */
+	ret = mt7996_mcu_enable_obss_spr(phy, UNI_CMD_SR_ENABLE_MODE, 0);
+	if (ret)
+		return ret;
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(SR),
+				 &req, sizeof(req), true);
+}
+
+static int
+mt7996_mcu_set_obss_spr_bitmap(struct mt7996_phy *phy,
+			       struct ieee80211_he_obss_pd *he_obss_pd)
+{
+	struct mt7996_dev *dev = phy->dev;
+	struct {
+		u8 band_idx;
+		u8 __rsv[3];
+
+		__le16 tag;
+		__le16 len;
+
+		__le32 color_l[2];
+		__le32 color_h[2];
+		__le32 bssid_l[2];
+		__le32 bssid_h[2];
+	} __packed req = {
+		.band_idx = phy->mt76->band_idx,
+		.tag = cpu_to_le16(UNI_CMD_SR_SET_SRG_BITMAP),
+		.len = cpu_to_le16(sizeof(req) - 4),
+	};
+	u32 bitmap;
+
+	memcpy(&bitmap, he_obss_pd->bss_color_bitmap, sizeof(bitmap));
+	req.color_l[req.band_idx] = cpu_to_le32(bitmap);
+
+	memcpy(&bitmap, he_obss_pd->bss_color_bitmap + 4, sizeof(bitmap));
+	req.color_h[req.band_idx] = cpu_to_le32(bitmap);
+
+	memcpy(&bitmap, he_obss_pd->partial_bssid_bitmap, sizeof(bitmap));
+	req.bssid_l[req.band_idx] = cpu_to_le32(bitmap);
+
+	memcpy(&bitmap, he_obss_pd->partial_bssid_bitmap + 4, sizeof(bitmap));
+	req.bssid_h[req.band_idx] = cpu_to_le32(bitmap);
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(SR), &req,
+				 sizeof(req), true);
+}
+
+int mt7996_mcu_add_obss_spr(struct mt7996_phy *phy, struct ieee80211_vif *vif,
+			    struct ieee80211_he_obss_pd *he_obss_pd)
+{
+	int ret;
+
+	/* enable firmware scene detection algorithms */
+	ret = mt7996_mcu_enable_obss_spr(phy, UNI_CMD_SR_ENABLE_SD,
+					 sr_scene_detect);
+	if (ret)
+		return ret;
+
+	/* firmware dynamically adjusts PD threshold so skip manual control */
+	if (sr_scene_detect && !he_obss_pd->enable)
+		return 0;
+
+	/* enable spatial reuse */
+	ret = mt7996_mcu_enable_obss_spr(phy, UNI_CMD_SR_ENABLE,
+					 he_obss_pd->enable);
+	if (ret)
+		return ret;
+
+	if (sr_scene_detect || !he_obss_pd->enable)
+		return 0;
+
+	ret = mt7996_mcu_enable_obss_spr(phy, UNI_CMD_SR_ENABLE_TX, true);
+	if (ret)
+		return ret;
+
+	/* set SRG/non-SRG OBSS PD threshold */
+	ret = mt7996_mcu_set_obss_spr_pd(phy, he_obss_pd);
+	if (ret)
+		return ret;
+
+	/* Set SR prohibit */
+	ret = mt7996_mcu_set_obss_spr_siga(phy, vif, he_obss_pd);
+	if (ret)
+		return ret;
+
+	/* set SRG BSS color/BSSID bitmap */
+	return mt7996_mcu_set_obss_spr_bitmap(phy, he_obss_pd);
 }
 
 int mt7996_mcu_update_bss_color(struct mt7996_dev *dev, struct ieee80211_vif *vif,
