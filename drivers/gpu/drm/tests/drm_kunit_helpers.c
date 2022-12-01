@@ -11,10 +11,6 @@
 
 #define KUNIT_DEVICE_NAME	"drm-kunit-mock-device"
 
-struct kunit_dev {
-	struct drm_device base;
-};
-
 static const struct drm_mode_config_funcs drm_mode_config_funcs = {
 };
 
@@ -85,32 +81,14 @@ void drm_kunit_helper_free_device(struct kunit *test, struct device *dev)
 }
 EXPORT_SYMBOL_GPL(drm_kunit_helper_free_device);
 
-/**
- * drm_kunit_helper_alloc_drm_device - Allocates a mock DRM device for KUnit tests
- * @test: The test context object
- * @dev: The parent device object
- * @features: Mocked DRM device driver features
- *
- * This function creates a struct &drm_driver and will create a struct
- * &drm_device from @dev and that driver.
- *
- * @dev should be allocated using drm_kunit_helper_alloc_device().
- *
- * The driver is tied to the @test context and will get cleaned at the
- * end of the test. The drm_device is allocated through
- * devm_drm_dev_alloc() and will thus be freed through a device-managed
- * resource.
- *
- * Returns:
- * A pointer to the new drm_device, or an ERR_PTR() otherwise.
- */
 struct drm_device *
-drm_kunit_helper_alloc_drm_device(struct kunit *test, struct device *dev,
-				  u32 features)
+__drm_kunit_helper_alloc_drm_device(struct kunit *test, struct device *dev,
+				    size_t size, size_t offset,
+				    u32 features)
 {
-	struct kunit_dev *kdev;
 	struct drm_device *drm;
 	struct drm_driver *driver;
+	void *container;
 	int ret;
 
 	driver = kunit_kzalloc(test, sizeof(*driver), GFP_KERNEL);
@@ -118,11 +96,11 @@ drm_kunit_helper_alloc_drm_device(struct kunit *test, struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	driver->driver_features = features;
-	kdev = devm_drm_dev_alloc(dev, driver, struct kunit_dev, base);
-	if (IS_ERR(kdev))
-		return ERR_CAST(kdev);
+	container = __devm_drm_dev_alloc(dev, driver, size, offset);
+	if (IS_ERR(container))
+		return ERR_CAST(container);
 
-	drm = &kdev->base;
+	drm = container + offset;
 	drm->mode_config.funcs = &drm_mode_config_funcs;
 
 	ret = drmm_mode_config_init(drm);
@@ -131,7 +109,7 @@ drm_kunit_helper_alloc_drm_device(struct kunit *test, struct device *dev,
 
 	return drm;
 }
-EXPORT_SYMBOL_GPL(drm_kunit_helper_alloc_drm_device);
+EXPORT_SYMBOL_GPL(__drm_kunit_helper_alloc_drm_device);
 
 MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
 MODULE_LICENSE("GPL");
