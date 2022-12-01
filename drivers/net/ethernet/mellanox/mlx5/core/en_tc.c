@@ -4311,7 +4311,7 @@ static bool is_lag_dev(struct mlx5e_priv *priv,
 
 static bool is_multiport_eligible(struct mlx5e_priv *priv, struct net_device *out_dev)
 {
-	return same_hw_reps(priv, out_dev) && mlx5_lag_mpesw_is_activated(priv->mdev);
+	return same_hw_reps(priv, out_dev) && mlx5_lag_is_mpesw(priv->mdev);
 }
 
 bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
@@ -4480,6 +4480,9 @@ static bool is_peer_flow_needed(struct mlx5e_tc_flow *flow)
 	if ((mlx5_lag_is_sriov(esw_attr->in_mdev) ||
 	     mlx5_lag_is_multipath(esw_attr->in_mdev)) &&
 	    (is_rep_ingress || act_is_encap))
+		return true;
+
+	if (mlx5_lag_is_mpesw(esw_attr->in_mdev))
 		return true;
 
 	return false;
@@ -4687,8 +4690,10 @@ static int mlx5e_tc_add_fdb_peer_flow(struct flow_cls_offload *f,
 	 * So packets redirected to uplink use the same mdev of the
 	 * original flow and packets redirected from uplink use the
 	 * peer mdev.
+	 * In multiport eswitch it's a special case that we need to
+	 * keep the original mdev.
 	 */
-	if (attr->in_rep->vport == MLX5_VPORT_UPLINK)
+	if (attr->in_rep->vport == MLX5_VPORT_UPLINK && !mlx5_lag_is_mpesw(priv->mdev))
 		in_mdev = peer_priv->mdev;
 	else
 		in_mdev = priv->mdev;

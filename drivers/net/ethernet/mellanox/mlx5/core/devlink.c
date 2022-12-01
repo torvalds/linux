@@ -461,7 +461,7 @@ static int mlx5_devlink_esw_multiport_get(struct devlink *devlink, u32 id,
 	if (!MLX5_ESWITCH_MANAGER(dev))
 		return -EOPNOTSUPP;
 
-	ctx->val.vbool = mlx5_lag_mpesw_is_activated(dev);
+	ctx->val.vbool = mlx5_lag_is_mpesw(dev);
 	return 0;
 }
 
