@@ -250,10 +250,9 @@ static int starfive_pwm_ptc_remove(struct platform_device *dev)
 	struct starfive_pwm_ptc_device *pwm = platform_get_drvdata(dev);
 	struct pwm_chip *chip = &pwm->chip;
 
-	clk_disable_unprepare(pwm->clk);
 	pwmchip_remove(chip);
 
-	pm_runtime_disable(&dev->dev);
+	pm_runtime_force_suspend(&dev->dev);
 
 	return 0;
 }
