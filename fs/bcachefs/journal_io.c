@@ -1187,8 +1187,7 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 
 	if (!last_seq) {
 		fsck_err(c, "journal read done, but no entries found after dropping non-flushes");
-		ret = -1;
-		goto err;
+		return 0;
 	}
 
 	bch_info(c, "journal read done, replaying entries %llu-%llu",

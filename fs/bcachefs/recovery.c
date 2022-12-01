@@ -1113,6 +1113,13 @@ int bch2_fs_recovery(struct bch_fs *c)
 		if (ret)
 			goto err;
 
+		/*
+		 * note: cmd_list_journal needs the blacklist table fully up to date so
+		 * it can asterisk ignored journal entries:
+		 */
+		if (c->opts.read_journal_only)
+			goto out;
+
 		genradix_for_each_reverse(&c->journal_entries, iter, i)
 			if (*i && !(*i)->ignore) {
 				last_journal_entry = &(*i)->j;
@@ -1183,13 +1190,6 @@ use_clean:
 			goto err;
 		}
 	}
-
-	/*
-	 * note: cmd_list_journal needs the blacklist table fully up to date so
-	 * it can asterisk ignored journal entries:
-	 */
-	if (c->opts.read_journal_only)
-		goto out;
 
 	ret = bch2_fs_journal_start(&c->journal, journal_seq);
 	if (ret)
