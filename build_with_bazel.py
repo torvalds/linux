@@ -23,7 +23,7 @@ DEFAULT_ABL_EXTENSIONS_SRC = "../bootable/bootloader/edk2/abl_extensions.bzl"
 class BazelBuilder:
     """Helper class for building with Bazel"""
 
-    def __init__(self, target_list, skip_list, user_opts):
+    def __init__(self, target_list, skip_list, out_dir, user_opts):
         self.workspace = os.path.realpath(
             os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
         )
@@ -36,6 +36,7 @@ class BazelBuilder:
         )
         self.target_list = target_list
         self.skip_list = skip_list
+        self.out_dir = out_dir
         self.user_opts = user_opts
         self.process_list = []
         self.setup_extensions()
@@ -186,7 +187,12 @@ class BazelBuilder:
         return toolchain
 
     def bazel(
-        self, bazel_subcommand, targets, extra_options=None, us_cross_toolchain=None
+        self,
+        bazel_subcommand,
+        targets,
+        out_subdir="dist",
+        extra_options=None,
+        us_cross_toolchain=None,
     ):
         """Execute a bazel command"""
         cmdline = [self.bazel_bin, bazel_subcommand]
@@ -195,6 +201,9 @@ class BazelBuilder:
         if us_cross_toolchain:
             cmdline.extend(self.get_cross_cli_opts(us_cross_toolchain))
         cmdline.extend(targets)
+        if self.out_dir and bazel_subcommand == "run":
+            cmdline.extend(["--", "--dist_dir", os.path.join(self.out_dir, out_subdir)])
+
         cmdline_str = " ".join(cmdline)
         try:
             logging.info('Running "%s"', cmdline_str)
@@ -209,16 +218,20 @@ class BazelBuilder:
 
         self.process_list.remove(build_proc)
 
-    def build_targets(self, targets, user_opts=None, us_cross_toolchain=None):
+    def build_targets(
+        self, targets, out_subdir="dist", user_opts=None, us_cross_toolchain=None
+    ):
         """Run "bazel build" on all targets in parallel"""
         if not targets:
             logging.warning("no targets to build")
-        self.bazel("build", targets, user_opts, us_cross_toolchain)
+        self.bazel("build", targets, out_subdir, user_opts, us_cross_toolchain)
 
-    def run_targets(self, targets, user_opts=None, us_cross_toolchain=None):
+    def run_targets(
+        self, targets, out_subdir="dist", user_opts=None, us_cross_toolchain=None
+    ):
         """Run "bazel run" on all targets in serial (since bazel run cannot have multiple targets)"""
         for target in targets:
-            self.bazel("run", [target], user_opts, us_cross_toolchain)
+            self.bazel("run", [target], out_subdir, user_opts, us_cross_toolchain)
 
     def build(self):
         """Determine which targets to build, then build them"""
@@ -240,12 +253,24 @@ class BazelBuilder:
             sys.exit(1)
 
         logging.info("Building %s targets...", CPU)
-        self.build_targets(cross_targets_to_build, self.user_opts, us_cross_toolchain)
-        self.run_targets(cross_targets_to_build, self.user_opts, us_cross_toolchain)
+        self.build_targets(
+            cross_targets_to_build,
+            user_opts=self.user_opts,
+            us_cross_toolchain=us_cross_toolchain,
+        )
+        self.run_targets(
+            cross_targets_to_build,
+            user_opts=self.user_opts,
+            us_cross_toolchain=us_cross_toolchain,
+        )
 
         logging.info("Building host targets...")
-        self.build_targets(host_targets_to_build, self.user_opts)
-        self.run_targets(host_targets_to_build, self.user_opts)
+        self.build_targets(
+            host_targets_to_build, out_subdir="host", user_opts=self.user_opts
+        )
+        self.run_targets(
+            host_targets_to_build, out_subdir="host", user_opts=self.user_opts
+        )
 
 
 def main():
@@ -270,6 +295,12 @@ def main():
         help="Skip specific build rules (e.g. --skip abl will skip the //msm-kernel:<target>_<variant>_abl build)",
     )
     parser.add_argument(
+        "-o",
+        "--out_dir",
+        metavar="OUT_DIR",
+        help='Specify the output distribution directory (by default, "$PWD/out/msm-kernel-<target>-variant")',
+    )
+    parser.add_argument(
         "--log",
         metavar="LEVEL",
         default="info",
@@ -286,7 +317,7 @@ def main():
 
     args.skip.extend(DEFAULT_SKIP_LIST)
 
-    builder = BazelBuilder(args.target, args.skip, user_opts)
+    builder = BazelBuilder(args.target, args.skip, args.out_dir, user_opts)
     try:
         builder.build()
     except KeyboardInterrupt:
