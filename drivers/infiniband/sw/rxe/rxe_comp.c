@@ -104,6 +104,7 @@ static enum ib_wc_opcode wr_to_wc_opcode(enum ib_wr_opcode opcode)
 	case IB_WR_LOCAL_INV:			return IB_WC_LOCAL_INV;
 	case IB_WR_REG_MR:			return IB_WC_REG_MR;
 	case IB_WR_BIND_MW:			return IB_WC_BIND_MW;
+	case IB_WR_ATOMIC_WRITE:		return IB_WC_ATOMIC_WRITE;
 
 	default:
 		return 0xff;
@@ -268,6 +269,9 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 
 		if ((syn & AETH_TYPE_MASK) != AETH_ACK)
 			return COMPST_ERROR;
+
+		if (wqe->wr.opcode == IB_WR_ATOMIC_WRITE)
+			return COMPST_WRITE_SEND;
 
 		fallthrough;
 		/* (IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE doesn't have an AETH)
