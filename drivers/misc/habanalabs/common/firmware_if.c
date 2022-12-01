@@ -1915,7 +1915,7 @@ static int hl_fw_dynamic_validate_memory_bound(struct hl_device *hdev,
  *
  * @hdev: pointer to the habanalabs device structure
  * @fw_loader: managing structure for loading device's FW
- * @fw_desc: the descriptor form FW
+ * @fw_desc: the descriptor from FW
  *
  * @return 0 on success, otherwise non-zero error code
  */
@@ -2007,6 +2007,43 @@ static int hl_fw_dynamic_validate_response(struct hl_device *hdev,
 	return rc;
 }
 
+/*
+ * hl_fw_dynamic_read_descriptor_msg - read and show the ascii msg that sent by fw
+ *
+ * @hdev: pointer to the habanalabs device structure
+ * @fw_desc: the descriptor from FW
+ */
+static void hl_fw_dynamic_read_descriptor_msg(struct hl_device *hdev,
+					struct lkd_fw_comms_desc *fw_desc)
+{
+	int i;
+	char *msg;
+
+	for (i = 0 ; i < LKD_FW_ASCII_MSG_MAX ; i++) {
+		if (!fw_desc->ascii_msg[i].valid)
+			return;
+
+		/* force NULL termination */
+		msg = fw_desc->ascii_msg[i].msg;
+		msg[LKD_FW_ASCII_MSG_MAX_LEN - 1] = '\0';
+
+		switch (fw_desc->ascii_msg[i].msg_lvl) {
+		case LKD_FW_ASCII_MSG_ERR:
+			dev_err(hdev->dev, "fw: %s", fw_desc->ascii_msg[i].msg);
+			break;
+		case LKD_FW_ASCII_MSG_WRN:
+			dev_warn(hdev->dev, "fw: %s", fw_desc->ascii_msg[i].msg);
+			break;
+		case LKD_FW_ASCII_MSG_INF:
+			dev_info(hdev->dev, "fw: %s", fw_desc->ascii_msg[i].msg);
+			break;
+		default:
+			dev_dbg(hdev->dev, "fw: %s", fw_desc->ascii_msg[i].msg);
+			break;
+		}
+	}
+}
+
 /**
  * hl_fw_dynamic_read_and_validate_descriptor - read and validate FW descriptor
  *
@@ -2071,6 +2108,10 @@ static int hl_fw_dynamic_read_and_validate_descriptor(struct hl_device *hdev,
 
 	rc = hl_fw_dynamic_validate_descriptor(hdev, fw_loader,
 					(struct lkd_fw_comms_desc *) temp_fw_desc);
+
+	if (!rc)
+		hl_fw_dynamic_read_descriptor_msg(hdev, temp_fw_desc);
+
 	vfree(temp_fw_desc);
 
 	return rc;
@@ -2491,51 +2532,54 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 static int hl_fw_dynamic_send_msg(struct hl_device *hdev,
 		struct fw_load_mgr *fw_loader, u8 msg_type, void *data)
 {
-	struct lkd_msg_comms msg;
+	struct lkd_msg_comms *msg;
 	int rc;
 
-	memset(&msg, 0, sizeof(msg));
+	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
 
 	/* create message to be sent */
-	msg.header.type = msg_type;
-	msg.header.size = cpu_to_le16(sizeof(struct comms_msg_header));
-	msg.header.magic = cpu_to_le32(HL_COMMS_MSG_MAGIC);
+	msg->header.type = msg_type;
+	msg->header.size = cpu_to_le16(sizeof(struct comms_msg_header));
+	msg->header.magic = cpu_to_le32(HL_COMMS_MSG_MAGIC);
 
 	switch (msg_type) {
 	case HL_COMMS_RESET_CAUSE_TYPE:
-		msg.reset_cause = *(__u8 *) data;
+		msg->reset_cause = *(__u8 *) data;
 		break;
 
 	default:
 		dev_err(hdev->dev,
 			"Send COMMS message - invalid message type %u\n",
 			msg_type);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	rc = hl_fw_dynamic_request_descriptor(hdev, fw_loader,
 			sizeof(struct lkd_msg_comms));
 	if (rc)
-		return rc;
+		goto out;
 
 	/* copy message to space allocated by FW */
-	rc = hl_fw_dynamic_copy_msg(hdev, &msg, fw_loader);
+	rc = hl_fw_dynamic_copy_msg(hdev, msg, fw_loader);
 	if (rc)
-		return rc;
+		goto out;
 
 	rc = hl_fw_dynamic_send_protocol_cmd(hdev, fw_loader, COMMS_DATA_RDY,
 						0, true,
 						fw_loader->cpu_timeout);
 	if (rc)
-		return rc;
+		goto out;
 
 	rc = hl_fw_dynamic_send_protocol_cmd(hdev, fw_loader, COMMS_EXEC,
 						0, true,
 						fw_loader->cpu_timeout);
-	if (rc)
-		return rc;
 
-	return 0;
+out:
+	kfree(msg);
+	return rc;
 }
 
 /**

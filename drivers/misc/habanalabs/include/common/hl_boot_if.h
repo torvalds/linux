@@ -523,6 +523,23 @@ struct comms_msg_header {
 	__u8 reserved[4];	/* pad to 64 bit */
 };
 
+enum lkd_fw_ascii_msg_lvls {
+	LKD_FW_ASCII_MSG_ERR = 0,
+	LKD_FW_ASCII_MSG_WRN = 1,
+	LKD_FW_ASCII_MSG_INF = 2,
+	LKD_FW_ASCII_MSG_DBG = 3,
+};
+
+#define LKD_FW_ASCII_MSG_MAX_LEN	128
+#define LKD_FW_ASCII_MSG_MAX		4	/* consider ABI when changing */
+
+struct lkd_fw_ascii_msg {
+	__u8 valid;
+	__u8 msg_lvl;
+	__u8 reserved[6];
+	char msg[LKD_FW_ASCII_MSG_MAX_LEN];
+};
+
 /* this is the main FW descriptor - consider ABI when changing */
 struct lkd_fw_comms_desc {
 	struct comms_desc_header header;
@@ -533,6 +550,7 @@ struct lkd_fw_comms_desc {
 	char reserved0[VERSION_MAX_LEN];
 	__le64 img_addr;	/* address for next FW component load */
 	struct lkd_fw_binning_info binning_info;
+	struct lkd_fw_ascii_msg ascii_msg[LKD_FW_ASCII_MSG_MAX];
 };
 
 enum comms_reset_cause {
@@ -558,6 +576,7 @@ struct lkd_fw_comms_msg {
 			/* address for next FW component load */
 			__le64 img_addr;
 			struct lkd_fw_binning_info binning_info;
+			struct lkd_fw_ascii_msg ascii_msg[LKD_FW_ASCII_MSG_MAX];
 		};
 		struct {
 			__u8 reset_cause;
