@@ -247,6 +247,7 @@ static void test_pcm_time1(struct pcm_data *data,
 	bool pass = false, automatic = true;
 	snd_pcm_hw_params_t *hw_params;
 	snd_pcm_sw_params_t *sw_params;
+	bool skip = false;
 
 	snd_pcm_hw_params_alloca(&hw_params);
 	snd_pcm_sw_params_alloca(&sw_params);
@@ -321,7 +322,8 @@ __format:
 		goto __close;
 	}
 	if (rrate != rate) {
-		snprintf(msg, sizeof(msg), "rate mismatch %ld != %ld", rate, rrate);
+		snprintf(msg, sizeof(msg), "rate unsupported %ld != %ld", rate, rrate);
+		skip = true;
 		goto __close;
 	}
 	rperiod_size = period_size;
@@ -417,11 +419,20 @@ __format:
 	msg[0] = '\0';
 	pass = true;
 __close:
-	ksft_test_result(pass, "%s.%d.%d.%d.%s%s%s\n",
-			 test->cfg_prefix,
-			 data->card, data->device, data->subdevice,
-			 snd_pcm_stream_name(data->stream),
-			 msg[0] ? " " : "", msg);
+	if (!skip) {
+		ksft_test_result(pass, "%s.%d.%d.%d.%s%s%s\n",
+				 test->cfg_prefix,
+				 data->card, data->device, data->subdevice,
+				 snd_pcm_stream_name(data->stream),
+				 msg[0] ? " " : "", msg);
+	} else {
+		ksft_test_result_skip("%s.%d.%d.%d.%s%s%s\n",
+				      test->cfg_prefix,
+				      data->card, data->device,
+				      data->subdevice,
+				      snd_pcm_stream_name(data->stream),
+				      msg[0] ? " " : "", msg);
+	}
 	free(samples);
 	if (handle)
 		snd_pcm_close(handle);
