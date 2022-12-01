@@ -129,12 +129,5 @@ static int __init msm_rq_stats_init(void)
 }
 late_initcall(msm_rq_stats_init);
 
-static __exit void msm_rq_stats_exit(void)
-{
-	destroy_workqueue(rq_wq);
-	kobject_del(rq_info.kobj);
-}
-module_exit(msm_rq_stats_exit);
-
 MODULE_DESCRIPTION("QCOM Run Queue Stats");
 MODULE_LICENSE("GPL v2");
