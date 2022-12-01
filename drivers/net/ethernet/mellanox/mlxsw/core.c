@@ -1459,11 +1459,6 @@ mlxsw_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	char buf[32];
 	int err;
 
-	err = devlink_info_driver_name_put(req,
-					   mlxsw_core->bus_info->device_kind);
-	if (err)
-		return err;
-
 	mlxsw_reg_mgir_pack(mgir_pl);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mgir), mgir_pl);
 	if (err)
