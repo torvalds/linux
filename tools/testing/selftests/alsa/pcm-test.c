@@ -37,6 +37,15 @@ struct pcm_data *pcm_list = NULL;
 int num_missing = 0;
 struct pcm_data *pcm_missing = NULL;
 
+struct time_test_def {
+	const char *cfg_prefix;
+	const char *format;
+	long rate;
+	long channels;
+	long period_size;
+	long buffer_size;
+};
+
 void timestamp_now(timestamp_t *tstamp)
 {
 	if (clock_gettime(CLOCK_MONOTONIC_RAW, tstamp))
@@ -220,9 +229,7 @@ static void find_pcms(void)
 }
 
 static void test_pcm_time1(struct pcm_data *data,
-			   const char *cfg_prefix, const char *sformat,
-			   long srate, long schannels,
-			   long speriod_size, long sbuffer_size)
+			   const struct time_test_def *test)
 {
 	char name[64], key[128], msg[256];
 	const char *cs;
@@ -234,30 +241,32 @@ static void test_pcm_time1(struct pcm_data *data,
 	snd_pcm_sframes_t frames;
 	long long ms;
 	long rate, channels, period_size, buffer_size;
+	unsigned int rchannels;
 	unsigned int rrate;
 	snd_pcm_uframes_t rperiod_size, rbuffer_size, start_threshold;
 	timestamp_t tstamp;
 	bool pass = false, automatic = true;
 	snd_pcm_hw_params_t *hw_params;
 	snd_pcm_sw_params_t *sw_params;
+	bool skip = false;
 
 	snd_pcm_hw_params_alloca(&hw_params);
 	snd_pcm_sw_params_alloca(&sw_params);
 
-	cs = conf_get_string(data->pcm_config, cfg_prefix, "format", sformat);
+	cs = conf_get_string(data->pcm_config, test->cfg_prefix, "format", test->format);
 	format = snd_pcm_format_value(cs);
 	if (format == SND_PCM_FORMAT_UNKNOWN)
 		ksft_exit_fail_msg("Wrong format '%s'\n", cs);
-	rate = conf_get_long(data->pcm_config, cfg_prefix, "rate", srate);
-	channels = conf_get_long(data->pcm_config, cfg_prefix, "channels", schannels);
-	period_size = conf_get_long(data->pcm_config, cfg_prefix, "period_size", speriod_size);
-	buffer_size = conf_get_long(data->pcm_config, cfg_prefix, "buffer_size", sbuffer_size);
+	rate = conf_get_long(data->pcm_config, test->cfg_prefix, "rate", test->rate);
+	channels = conf_get_long(data->pcm_config, test->cfg_prefix, "channels", test->channels);
+	period_size = conf_get_long(data->pcm_config, test->cfg_prefix, "period_size", test->period_size);
+	buffer_size = conf_get_long(data->pcm_config, test->cfg_prefix, "buffer_size", test->buffer_size);
 
-	automatic = strcmp(sformat, snd_pcm_format_name(format)) == 0 &&
-			srate == rate &&
-			schannels == channels &&
-			speriod_size == period_size &&
-			sbuffer_size == buffer_size;
+	automatic = strcmp(test->format, snd_pcm_format_name(format)) == 0 &&
+			test->rate == rate &&
+			test->channels == channels &&
+			test->period_size == period_size &&
+			test->buffer_size == buffer_size;
 
 	samples = malloc((rate * channels * snd_pcm_format_physical_width(format)) / 8);
 	if (!samples)
@@ -293,7 +302,7 @@ __format:
 		if (automatic && format == SND_PCM_FORMAT_S16_LE) {
 			format = SND_PCM_FORMAT_S32_LE;
 			ksft_print_msg("%s.%d.%d.%d.%s.%s format S16_LE -> S32_LE\n",
-					 cfg_prefix,
+					 test->cfg_prefix,
 					 data->card, data->device, data->subdevice,
 					 snd_pcm_stream_name(data->stream),
 					 snd_pcm_access_name(access));
@@ -302,9 +311,15 @@ __format:
 					   snd_pcm_format_name(format), snd_strerror(err));
 		goto __close;
 	}
-	err = snd_pcm_hw_params_set_channels(handle, hw_params, channels);
+	rchannels = channels;
+	err = snd_pcm_hw_params_set_channels_near(handle, hw_params, &rchannels);
 	if (err < 0) {
 		snprintf(msg, sizeof(msg), "snd_pcm_hw_params_set_channels %ld: %s", channels, snd_strerror(err));
+		goto __close;
+	}
+	if (rchannels != channels) {
+		snprintf(msg, sizeof(msg), "channels unsupported %ld != %ld", channels, rchannels);
+		skip = true;
 		goto __close;
 	}
 	rrate = rate;
@@ -314,7 +329,8 @@ __format:
 		goto __close;
 	}
 	if (rrate != rate) {
-		snprintf(msg, sizeof(msg), "rate mismatch %ld != %ld", rate, rrate);
+		snprintf(msg, sizeof(msg), "rate unsupported %ld != %ld", rate, rrate);
+		skip = true;
 		goto __close;
 	}
 	rperiod_size = period_size;
@@ -362,7 +378,7 @@ __format:
 	}
 
 	ksft_print_msg("%s.%d.%d.%d.%s hw_params.%s.%s.%ld.%ld.%ld.%ld sw_params.%ld\n",
-			 cfg_prefix,
+			 test->cfg_prefix,
 			 data->card, data->device, data->subdevice,
 			 snd_pcm_stream_name(data->stream),
 			 snd_pcm_access_name(access),
@@ -410,21 +426,40 @@ __format:
 	msg[0] = '\0';
 	pass = true;
 __close:
-	ksft_test_result(pass, "%s.%d.%d.%d.%s%s%s\n",
-			 cfg_prefix,
-			 data->card, data->device, data->subdevice,
-			 snd_pcm_stream_name(data->stream),
-			 msg[0] ? " " : "", msg);
+	if (!skip) {
+		ksft_test_result(pass, "%s.%d.%d.%d.%s%s%s\n",
+				 test->cfg_prefix,
+				 data->card, data->device, data->subdevice,
+				 snd_pcm_stream_name(data->stream),
+				 msg[0] ? " " : "", msg);
+	} else {
+		ksft_test_result_skip("%s.%d.%d.%d.%s%s%s\n",
+				      test->cfg_prefix,
+				      data->card, data->device,
+				      data->subdevice,
+				      snd_pcm_stream_name(data->stream),
+				      msg[0] ? " " : "", msg);
+	}
 	free(samples);
 	if (handle)
 		snd_pcm_close(handle);
 }
 
-#define TESTS_PER_PCM 2
+static const struct time_test_def time_tests[] = {
+	/* name          format     rate   chan  period  buffer */
+	{ "8k.1.big",    "S16_LE",   8000, 2,     8000,   32000 },
+	{ "8k.2.big",    "S16_LE",   8000, 2,     8000,   32000 },
+	{ "44k1.2.big",  "S16_LE",  44100, 2,    22050,  192000 },
+	{ "48k.2.small", "S16_LE",  48000, 2,      512,    4096 },
+	{ "48k.2.big",   "S16_LE",  48000, 2,    24000,  192000 },
+	{ "48k.6.big",   "S16_LE",  48000, 6,    48000,  576000 },
+	{ "96k.2.big",   "S16_LE",  96000, 2,    48000,  192000 },
+};
 
 int main(void)
 {
 	struct pcm_data *pcm;
+	int i;
 
 	ksft_print_header();
 
@@ -432,7 +467,7 @@ int main(void)
 
 	find_pcms();
 
-	ksft_set_plan(num_missing + num_pcms * TESTS_PER_PCM);
+	ksft_set_plan(num_missing + num_pcms * ARRAY_SIZE(time_tests));
 
 	for (pcm = pcm_missing; pcm != NULL; pcm = pcm->next) {
 		ksft_test_result(false, "test.missing.%d.%d.%d.%s\n",
@@ -441,8 +476,9 @@ int main(void)
 	}
 
 	for (pcm = pcm_list; pcm != NULL; pcm = pcm->next) {
-		test_pcm_time1(pcm, "test.time1", "S16_LE", 48000, 2, 512, 4096);
-		test_pcm_time1(pcm, "test.time2", "S16_LE", 48000, 2, 24000, 192000);
+		for (i = 0; i < ARRAY_SIZE(time_tests); i++) {
+			test_pcm_time1(pcm, &time_tests[i]);
+		}
 	}
 
 	conf_free();
