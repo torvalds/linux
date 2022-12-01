@@ -42,8 +42,11 @@ class BazelBuilder:
 
     def __del__(self):
         for proc in self.process_list:
-            proc.kill()
-            proc.wait()
+            try:
+                proc.kill()
+                proc.wait()
+            except OSError:
+                pass
 
     @staticmethod
     def get_cross_cli_opts(toolchain):
