@@ -380,12 +380,19 @@ struct cxl_region_params {
 	int nr_targets;
 };
 
+/*
+ * Flag whether this region needs to have its HPA span synchronized with
+ * CPU cache state at region activation time.
+ */
+#define CXL_REGION_F_INCOHERENT 0
+
 /**
  * struct cxl_region - CXL region
  * @dev: This region's device
  * @id: This region's id. Id is globally unique across all regions
  * @mode: Endpoint decoder allocation / access mode
  * @type: Endpoint decoder target type
+ * @flags: Region state flags
  * @params: active + config params for the region
  */
 struct cxl_region {
@@ -393,6 +400,7 @@ struct cxl_region {
 	int id;
 	enum cxl_decoder_mode mode;
 	enum cxl_decoder_type type;
+	unsigned long flags;
 	struct cxl_region_params params;
 };
 

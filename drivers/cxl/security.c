@@ -120,17 +120,12 @@ static int cxl_pmem_security_unlock(struct nvdimm *nvdimm,
 	u8 pass[NVDIMM_PASSPHRASE_LEN];
 	int rc;
 
-	if (!cpu_cache_has_invalidate_memregion())
-		return -EINVAL;
-
 	memcpy(pass, key_data->data, NVDIMM_PASSPHRASE_LEN);
 	rc = cxl_mbox_send_cmd(cxlds, CXL_MBOX_OP_UNLOCK,
 			       pass, NVDIMM_PASSPHRASE_LEN, NULL, 0);
 	if (rc < 0)
 		return rc;
 
-	/* DIMM unlocked, invalidate all CPU caches before we read it */
-	cpu_cache_invalidate_memregion(IORES_DESC_PERSISTENT_MEMORY);
 	return 0;
 }
 
@@ -144,21 +139,14 @@ static int cxl_pmem_security_passphrase_erase(struct nvdimm *nvdimm,
 	struct cxl_pass_erase erase;
 	int rc;
 
-	if (!cpu_cache_has_invalidate_memregion())
-		return -EINVAL;
-
 	erase.type = ptype == NVDIMM_MASTER ?
 		CXL_PMEM_SEC_PASS_MASTER : CXL_PMEM_SEC_PASS_USER;
 	memcpy(erase.pass, key->data, NVDIMM_PASSPHRASE_LEN);
-	/* Flush all cache before we erase mem device */
-	cpu_cache_invalidate_memregion(IORES_DESC_PERSISTENT_MEMORY);
 	rc = cxl_mbox_send_cmd(cxlds, CXL_MBOX_OP_PASSPHRASE_SECURE_ERASE,
 			       &erase, sizeof(erase), NULL, 0);
 	if (rc < 0)
 		return rc;
 
-	/* mem device erased, invalidate all CPU caches before data is read */
-	cpu_cache_invalidate_memregion(IORES_DESC_PERSISTENT_MEMORY);
 	return 0;
 }
 
@@ -173,5 +161,3 @@ static const struct nvdimm_security_ops __cxl_security_ops = {
 };
 
 const struct nvdimm_security_ops *cxl_security_ops = &__cxl_security_ops;
-
-MODULE_IMPORT_NS(DEVMEM);

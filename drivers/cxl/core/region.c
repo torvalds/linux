@@ -1403,6 +1403,8 @@ static int attach_target(struct cxl_region *cxlr, const char *decoder, int pos)
 		goto out;
 	down_read(&cxl_dpa_rwsem);
 	rc = cxl_region_attach(cxlr, to_cxl_endpoint_decoder(dev), pos);
+	if (rc == 0)
+		set_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
 	up_read(&cxl_dpa_rwsem);
 	up_write(&cxl_region_rwsem);
 out:
@@ -1900,6 +1902,30 @@ err:
 	return rc;
 }
 
+static int cxl_region_invalidate_memregion(struct cxl_region *cxlr)
+{
+	if (!test_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags))
+		return 0;
+
+	if (!cpu_cache_has_invalidate_memregion()) {
+		if (IS_ENABLED(CONFIG_CXL_REGION_INVALIDATION_TEST)) {
+			dev_warn(
+				&cxlr->dev,
+				"Bypassing cpu_cache_invalidate_memergion() for testing!\n");
+			clear_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
+			return 0;
+		} else {
+			dev_err(&cxlr->dev,
+				"Failed to synchronize CPU cache state\n");
+			return -ENXIO;
+		}
+	}
+
+	cpu_cache_invalidate_memregion(IORES_DESC_CXL);
+	clear_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
+	return 0;
+}
+
 static int cxl_region_probe(struct device *dev)
 {
 	struct cxl_region *cxlr = to_cxl_region(dev);
@@ -1915,12 +1941,16 @@ static int cxl_region_probe(struct device *dev)
 	if (p->state < CXL_CONFIG_COMMIT) {
 		dev_dbg(&cxlr->dev, "config state: %d\n", p->state);
 		rc = -ENXIO;
+		goto out;
 	}
+
+	rc = cxl_region_invalidate_memregion(cxlr);
 
 	/*
 	 * From this point on any path that changes the region's state away from
 	 * CXL_CONFIG_COMMIT is also responsible for releasing the driver.
 	 */
+out:
 	up_read(&cxl_region_rwsem);
 
 	if (rc)
@@ -1953,4 +1983,5 @@ void cxl_region_exit(void)
 }
 
 MODULE_IMPORT_NS(CXL);
+MODULE_IMPORT_NS(DEVMEM);
 MODULE_ALIAS_CXL(CXL_DEVICE_REGION);
