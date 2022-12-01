@@ -355,7 +355,7 @@ EXPORT_SYMBOL(qcom_create_ramdump_device);
 
 void qcom_destroy_ramdump_device(void *dev)
 {
-	struct ramdump_device *rd_dev = container_of(dev, struct ramdump_device, dev);
+	struct ramdump_device *rd_dev = dev_get_drvdata(dev);
 	int minor = MINOR(rd_dev->cdev.dev);
 
 	if (IS_ERR_OR_NULL(rd_dev))
