@@ -85,11 +85,16 @@ static void dpaa2_eth_get_drvinfo(struct net_device *net_dev,
 static int dpaa2_eth_nway_reset(struct net_device *net_dev)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	int err = -EOPNOTSUPP;
+
+	mutex_lock(&priv->mac_lock);
 
 	if (dpaa2_eth_is_type_phy(priv))
-		return phylink_ethtool_nway_reset(priv->mac->phylink);
+		err = phylink_ethtool_nway_reset(priv->mac->phylink);
 
-	return -EOPNOTSUPP;
+	mutex_unlock(&priv->mac_lock);
+
+	return err;
 }
 
 static int
@@ -97,10 +102,18 @@ dpaa2_eth_get_link_ksettings(struct net_device *net_dev,
 			     struct ethtool_link_ksettings *link_settings)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	int err;
 
-	if (dpaa2_eth_is_type_phy(priv))
-		return phylink_ethtool_ksettings_get(priv->mac->phylink,
-						     link_settings);
+	mutex_lock(&priv->mac_lock);
+
+	if (dpaa2_eth_is_type_phy(priv)) {
+		err = phylink_ethtool_ksettings_get(priv->mac->phylink,
+						    link_settings);
+		mutex_unlock(&priv->mac_lock);
+		return err;
+	}
+
+	mutex_unlock(&priv->mac_lock);
 
 	link_settings->base.autoneg = AUTONEG_DISABLE;
 	if (!(priv->link_state.options & DPNI_LINK_OPT_HALF_DUPLEX))
@@ -115,11 +128,17 @@ dpaa2_eth_set_link_ksettings(struct net_device *net_dev,
 			     const struct ethtool_link_ksettings *link_settings)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	int err = -EOPNOTSUPP;
 
-	if (!dpaa2_eth_is_type_phy(priv))
-		return -ENOTSUPP;
+	mutex_lock(&priv->mac_lock);
 
-	return phylink_ethtool_ksettings_set(priv->mac->phylink, link_settings);
+	if (dpaa2_eth_is_type_phy(priv))
+		err = phylink_ethtool_ksettings_set(priv->mac->phylink,
+						    link_settings);
+
+	mutex_unlock(&priv->mac_lock);
+
+	return err;
 }
 
 static void dpaa2_eth_get_pauseparam(struct net_device *net_dev,
@@ -128,10 +147,15 @@ static void dpaa2_eth_get_pauseparam(struct net_device *net_dev,
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	u64 link_options = priv->link_state.options;
 
+	mutex_lock(&priv->mac_lock);
+
 	if (dpaa2_eth_is_type_phy(priv)) {
 		phylink_ethtool_get_pauseparam(priv->mac->phylink, pause);
+		mutex_unlock(&priv->mac_lock);
 		return;
 	}
+
+	mutex_unlock(&priv->mac_lock);
 
 	pause->rx_pause = dpaa2_eth_rx_pause_enabled(link_options);
 	pause->tx_pause = dpaa2_eth_tx_pause_enabled(link_options);
@@ -151,9 +175,17 @@ static int dpaa2_eth_set_pauseparam(struct net_device *net_dev,
 		return -EOPNOTSUPP;
 	}
 
-	if (dpaa2_eth_is_type_phy(priv))
-		return phylink_ethtool_set_pauseparam(priv->mac->phylink,
-						      pause);
+	mutex_lock(&priv->mac_lock);
+
+	if (dpaa2_eth_is_type_phy(priv)) {
+		err = phylink_ethtool_set_pauseparam(priv->mac->phylink,
+						     pause);
+		mutex_unlock(&priv->mac_lock);
+		return err;
+	}
+
+	mutex_unlock(&priv->mac_lock);
+
 	if (pause->autoneg)
 		return -EOPNOTSUPP;
 
@@ -185,7 +217,6 @@ static int dpaa2_eth_set_pauseparam(struct net_device *net_dev,
 static void dpaa2_eth_get_strings(struct net_device *netdev, u32 stringset,
 				  u8 *data)
 {
-	struct dpaa2_eth_priv *priv = netdev_priv(netdev);
 	u8 *p = data;
 	int i;
 
@@ -199,22 +230,17 @@ static void dpaa2_eth_get_strings(struct net_device *netdev, u32 stringset,
 			strscpy(p, dpaa2_ethtool_extras[i], ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
-		if (dpaa2_eth_has_mac(priv))
-			dpaa2_mac_get_strings(p);
+		dpaa2_mac_get_strings(p);
 		break;
 	}
 }
 
 static int dpaa2_eth_get_sset_count(struct net_device *net_dev, int sset)
 {
-	int num_ss_stats = DPAA2_ETH_NUM_STATS + DPAA2_ETH_NUM_EXTRA_STATS;
-	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-
 	switch (sset) {
 	case ETH_SS_STATS: /* ethtool_get_stats(), ethtool_get_drvinfo() */
-		if (dpaa2_eth_has_mac(priv))
-			num_ss_stats += dpaa2_mac_get_sset_count();
-		return num_ss_stats;
+		return DPAA2_ETH_NUM_STATS + DPAA2_ETH_NUM_EXTRA_STATS +
+		       dpaa2_mac_get_sset_count();
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -315,8 +341,12 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	}
 	*(data + i++) = buf_cnt_total;
 
+	mutex_lock(&priv->mac_lock);
+
 	if (dpaa2_eth_has_mac(priv))
 		dpaa2_mac_get_ethtool_stats(priv->mac, data + i);
+
+	mutex_unlock(&priv->mac_lock);
 }
 
 static int dpaa2_eth_prep_eth_rule(struct ethhdr *eth_value, struct ethhdr *eth_mask,

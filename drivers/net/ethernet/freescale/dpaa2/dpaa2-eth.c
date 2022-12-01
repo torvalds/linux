@@ -2147,8 +2147,11 @@ static int dpaa2_eth_link_state_update(struct dpaa2_eth_priv *priv)
 
 	/* When we manage the MAC/PHY using phylink there is no need
 	 * to manually update the netif_carrier.
+	 * We can avoid locking because we are called from the "link changed"
+	 * IRQ handler, which is the same as the "endpoint changed" IRQ handler
+	 * (the writer to priv->mac), so we cannot race with it.
 	 */
-	if (dpaa2_eth_is_type_phy(priv))
+	if (dpaa2_mac_is_type_phy(priv->mac))
 		goto out;
 
 	/* Chech link state; speed / duplex changes are not treated yet */
@@ -2179,6 +2182,8 @@ static int dpaa2_eth_open(struct net_device *net_dev)
 
 	dpaa2_eth_seed_pools(priv);
 
+	mutex_lock(&priv->mac_lock);
+
 	if (!dpaa2_eth_is_type_phy(priv)) {
 		/* We'll only start the txqs when the link is actually ready;
 		 * make sure we don't race against the link up notification,
@@ -2197,14 +2202,15 @@ static int dpaa2_eth_open(struct net_device *net_dev)
 
 	err = dpni_enable(priv->mc_io, 0, priv->mc_token);
 	if (err < 0) {
+		mutex_unlock(&priv->mac_lock);
 		netdev_err(net_dev, "dpni_enable() failed\n");
 		goto enable_err;
 	}
 
-	if (dpaa2_eth_is_type_phy(priv)) {
+	if (dpaa2_eth_is_type_phy(priv))
 		dpaa2_mac_start(priv->mac);
-		phylink_start(priv->mac->phylink);
-	}
+
+	mutex_unlock(&priv->mac_lock);
 
 	return 0;
 
@@ -2277,13 +2283,16 @@ static int dpaa2_eth_stop(struct net_device *net_dev)
 	int dpni_enabled = 0;
 	int retries = 10;
 
+	mutex_lock(&priv->mac_lock);
+
 	if (dpaa2_eth_is_type_phy(priv)) {
-		phylink_stop(priv->mac->phylink);
 		dpaa2_mac_stop(priv->mac);
 	} else {
 		netif_tx_stop_all_queues(net_dev);
 		netif_carrier_off(net_dev);
 	}
+
+	mutex_unlock(&priv->mac_lock);
 
 	/* On dpni_disable(), the MC firmware will:
 	 * - stop MAC Rx and wait for all Rx frames to be enqueued to software
@@ -2610,12 +2619,20 @@ static int dpaa2_eth_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 static int dpaa2_eth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+	int err;
 
 	if (cmd == SIOCSHWTSTAMP)
 		return dpaa2_eth_ts_ioctl(dev, rq, cmd);
 
-	if (dpaa2_eth_is_type_phy(priv))
-		return phylink_mii_ioctl(priv->mac->phylink, rq, cmd);
+	mutex_lock(&priv->mac_lock);
+
+	if (dpaa2_eth_is_type_phy(priv)) {
+		err = phylink_mii_ioctl(priv->mac->phylink, rq, cmd);
+		mutex_unlock(&priv->mac_lock);
+		return err;
+	}
+
+	mutex_unlock(&priv->mac_lock);
 
 	return -EOPNOTSUPP;
 }
@@ -3791,7 +3808,7 @@ static int dpaa2_eth_setup_dpni(struct fsl_mc_device *ls_dev)
 		dev_err(dev, "DPNI version %u.%u not supported, need >= %u.%u\n",
 			priv->dpni_ver_major, priv->dpni_ver_minor,
 			DPNI_VER_MAJOR, DPNI_VER_MINOR);
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		goto close;
 	}
 
@@ -4627,9 +4644,8 @@ static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
 	err = dpaa2_mac_open(mac);
 	if (err)
 		goto err_free_mac;
-	priv->mac = mac;
 
-	if (dpaa2_eth_is_type_phy(priv)) {
+	if (dpaa2_mac_is_type_phy(mac)) {
 		err = dpaa2_mac_connect(mac);
 		if (err) {
 			if (err == -EPROBE_DEFER)
@@ -4643,11 +4659,14 @@ static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
 		}
 	}
 
+	mutex_lock(&priv->mac_lock);
+	priv->mac = mac;
+	mutex_unlock(&priv->mac_lock);
+
 	return 0;
 
 err_close_mac:
 	dpaa2_mac_close(mac);
-	priv->mac = NULL;
 err_free_mac:
 	kfree(mac);
 	return err;
@@ -4655,15 +4674,21 @@ err_free_mac:
 
 static void dpaa2_eth_disconnect_mac(struct dpaa2_eth_priv *priv)
 {
-	if (dpaa2_eth_is_type_phy(priv))
-		dpaa2_mac_disconnect(priv->mac);
+	struct dpaa2_mac *mac;
 
-	if (!dpaa2_eth_has_mac(priv))
+	mutex_lock(&priv->mac_lock);
+	mac = priv->mac;
+	priv->mac = NULL;
+	mutex_unlock(&priv->mac_lock);
+
+	if (!mac)
 		return;
 
-	dpaa2_mac_close(priv->mac);
-	kfree(priv->mac);
-	priv->mac = NULL;
+	if (dpaa2_mac_is_type_phy(mac))
+		dpaa2_mac_disconnect(mac);
+
+	dpaa2_mac_close(mac);
+	kfree(mac);
 }
 
 static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
@@ -4673,6 +4698,7 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 	struct fsl_mc_device *dpni_dev = to_fsl_mc_device(dev);
 	struct net_device *net_dev = dev_get_drvdata(dev);
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	bool had_mac;
 	int err;
 
 	err = dpni_get_irq_status(dpni_dev->mc_io, 0, dpni_dev->mc_handle,
@@ -4689,12 +4715,15 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 		dpaa2_eth_set_mac_addr(netdev_priv(net_dev));
 		dpaa2_eth_update_tx_fqids(priv);
 
-		rtnl_lock();
-		if (dpaa2_eth_has_mac(priv))
+		/* We can avoid locking because the "endpoint changed" IRQ
+		 * handler is the only one who changes priv->mac at runtime,
+		 * so we are not racing with anyone.
+		 */
+		had_mac = !!priv->mac;
+		if (had_mac)
 			dpaa2_eth_disconnect_mac(priv);
 		else
 			dpaa2_eth_connect_mac(priv);
-		rtnl_unlock();
 	}
 
 	return IRQ_HANDLED;
@@ -4791,6 +4820,8 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	priv = netdev_priv(net_dev);
 	priv->net_dev = net_dev;
 	SET_NETDEV_DEVLINK_PORT(net_dev, &priv->devlink_port);
+
+	mutex_init(&priv->mac_lock);
 
 	priv->iommu_domain = iommu_get_domain_for_dev(dev);
 
@@ -4899,6 +4930,10 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	}
 #endif
 
+	err = dpaa2_eth_connect_mac(priv);
+	if (err)
+		goto err_connect_mac;
+
 	err = dpaa2_eth_setup_irqs(dpni_dev);
 	if (err) {
 		netdev_warn(net_dev, "Failed to set link interrupt, fall back to polling\n");
@@ -4910,10 +4945,6 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 		}
 		priv->do_link_poll = true;
 	}
-
-	err = dpaa2_eth_connect_mac(priv);
-	if (err)
-		goto err_connect_mac;
 
 	err = dpaa2_eth_dl_alloc(priv);
 	if (err)
@@ -4948,13 +4979,13 @@ err_dl_port_add:
 err_dl_trap_register:
 	dpaa2_eth_dl_free(priv);
 err_dl_register:
-	dpaa2_eth_disconnect_mac(priv);
-err_connect_mac:
 	if (priv->do_link_poll)
 		kthread_stop(priv->poll_thread);
 	else
 		fsl_mc_free_irqs(dpni_dev);
 err_poll_thread:
+	dpaa2_eth_disconnect_mac(priv);
+err_connect_mac:
 	dpaa2_eth_free_rings(priv);
 err_alloc_rings:
 err_csum:
@@ -5002,9 +5033,6 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 #endif
 
 	unregister_netdev(net_dev);
-	rtnl_lock();
-	dpaa2_eth_disconnect_mac(priv);
-	rtnl_unlock();
 
 	dpaa2_eth_dl_port_del(priv);
 	dpaa2_eth_dl_traps_unregister(priv);
@@ -5015,6 +5043,7 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 	else
 		fsl_mc_free_irqs(ls_dev);
 
+	dpaa2_eth_disconnect_mac(priv);
 	dpaa2_eth_free_rings(priv);
 	free_percpu(priv->fd);
 	free_percpu(priv->sgt_cache);
