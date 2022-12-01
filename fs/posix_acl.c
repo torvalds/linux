@@ -115,7 +115,7 @@ static struct posix_acl *__get_acl(struct user_namespace *mnt_userns,
 				   struct dentry *dentry, struct inode *inode,
 				   int type)
 {
-	void *sentinel;
+	struct posix_acl *sentinel;
 	struct posix_acl **p;
 	struct posix_acl *acl;
 
