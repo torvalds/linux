@@ -1202,15 +1202,6 @@ static void ufs_qcom_print_hw_debug_reg_all(struct ufs_hba *hba,
 	u32 reg;
 	struct ufs_qcom_host *host;
 
-	if (unlikely(!hba)) {
-		pr_err("%s: hba is NULL\n", __func__);
-		return;
-	}
-	if (unlikely(!print_fn)) {
-		dev_err(hba->dev, "%s: print_fn is NULL\n", __func__);
-		return;
-	}
-
 	host = ufshcd_get_variant(hba);
 	if (!(host->dbg_print_en & UFS_QCOM_DBG_PRINT_REGS_EN))
 		return;
