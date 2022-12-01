@@ -82,7 +82,7 @@ struct drm_device *drm_kunit_device_init(struct kunit *test, u32 features, char 
 
 	return drm;
 }
-EXPORT_SYMBOL(drm_kunit_device_init);
+EXPORT_SYMBOL_GPL(drm_kunit_device_init);
 
 MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
 MODULE_LICENSE("GPL");
