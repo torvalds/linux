@@ -11,13 +11,6 @@
 #include "cxlmem.h"
 #include "cxl.h"
 
-/*
- * Ordered workqueue for cxl nvdimm device arrival and departure
- * to coordinate bus rescans when a bridge arrives and trigger remove
- * operations when the bridge is removed.
- */
-static struct workqueue_struct *cxl_pmem_wq;
-
 static __read_mostly DECLARE_BITMAP(exclusive_cmds, CXL_MEM_COMMAND_ID_MAX);
 
 static void clear_exclusive(void *cxlds)
@@ -191,105 +184,6 @@ static void unregister_nvdimm_bus(void *_cxl_nvb)
 	nvdimm_bus_unregister(nvdimm_bus);
 }
 
-static bool online_nvdimm_bus(struct cxl_nvdimm_bridge *cxl_nvb)
-{
-	if (cxl_nvb->nvdimm_bus)
-		return true;
-	cxl_nvb->nvdimm_bus =
-		nvdimm_bus_register(&cxl_nvb->dev, &cxl_nvb->nd_desc);
-	return cxl_nvb->nvdimm_bus != NULL;
-}
-
-static int cxl_nvdimm_release_driver(struct device *dev, void *cxl_nvb)
-{
-	struct cxl_nvdimm *cxl_nvd;
-
-	if (!is_cxl_nvdimm(dev))
-		return 0;
-
-	cxl_nvd = to_cxl_nvdimm(dev);
-	if (cxl_nvd->bridge != cxl_nvb)
-		return 0;
-
-	device_release_driver(dev);
-	return 0;
-}
-
-static void offline_nvdimm_bus(struct cxl_nvdimm_bridge *cxl_nvb,
-			       struct nvdimm_bus *nvdimm_bus)
-{
-	if (!nvdimm_bus)
-		return;
-
-	/*
-	 * Set the state of cxl_nvdimm devices to unbound / idle before
-	 * nvdimm_bus_unregister() rips the nvdimm objects out from
-	 * underneath them.
-	 */
-	bus_for_each_dev(&cxl_bus_type, NULL, cxl_nvb,
-			 cxl_nvdimm_release_driver);
-	nvdimm_bus_unregister(nvdimm_bus);
-}
-
-static void cxl_nvb_update_state(struct work_struct *work)
-{
-	struct cxl_nvdimm_bridge *cxl_nvb =
-		container_of(work, typeof(*cxl_nvb), state_work);
-	struct nvdimm_bus *victim_bus = NULL;
-	bool release = false, rescan = false;
-
-	device_lock(&cxl_nvb->dev);
-	switch (cxl_nvb->state) {
-	case CXL_NVB_ONLINE:
-		if (!online_nvdimm_bus(cxl_nvb)) {
-			dev_err(&cxl_nvb->dev,
-				"failed to establish nvdimm bus\n");
-			release = true;
-		} else
-			rescan = true;
-		break;
-	case CXL_NVB_OFFLINE:
-	case CXL_NVB_DEAD:
-		victim_bus = cxl_nvb->nvdimm_bus;
-		cxl_nvb->nvdimm_bus = NULL;
-		break;
-	default:
-		break;
-	}
-	device_unlock(&cxl_nvb->dev);
-
-	if (release)
-		device_release_driver(&cxl_nvb->dev);
-	if (rescan) {
-		int rc = bus_rescan_devices(&cxl_bus_type);
-
-		dev_dbg(&cxl_nvb->dev, "rescan: %d\n", rc);
-	}
-	offline_nvdimm_bus(cxl_nvb, victim_bus);
-
-	put_device(&cxl_nvb->dev);
-}
-
-static void cxl_nvdimm_bridge_state_work(struct cxl_nvdimm_bridge *cxl_nvb)
-{
-	/*
-	 * Take a reference that the workqueue will drop if new work
-	 * gets queued.
-	 */
-	get_device(&cxl_nvb->dev);
-	if (!queue_work(cxl_pmem_wq, &cxl_nvb->state_work))
-		put_device(&cxl_nvb->dev);
-}
-
-static void cxl_nvdimm_bridge_remove(struct device *dev)
-{
-	struct cxl_nvdimm_bridge *cxl_nvb = to_cxl_nvdimm_bridge(dev);
-
-	if (cxl_nvb->state == CXL_NVB_ONLINE)
-		cxl_nvb->state = CXL_NVB_OFFLINE;
-	cxl_nvdimm_bridge_state_work(cxl_nvb);
-}
-
 static int cxl_nvdimm_bridge_probe(struct device *dev)
 {
 	struct cxl_nvdimm_bridge *cxl_nvb = to_cxl_nvdimm_bridge(dev);
@@ -306,15 +200,12 @@ static int cxl_nvdimm_bridge_probe(struct device *dev)
 	if (!cxl_nvb->nvdimm_bus)
 		return -ENOMEM;
 
-	INIT_WORK(&cxl_nvb->state_work, cxl_nvb_update_state);
-
 	return devm_add_action_or_reset(dev, unregister_nvdimm_bus, cxl_nvb);
 }
 
 static struct cxl_driver cxl_nvdimm_bridge_driver = {
 	.name = "cxl_nvdimm_bridge",
 	.probe = cxl_nvdimm_bridge_probe,
-	.remove = cxl_nvdimm_bridge_remove,
 	.id = CXL_DEVICE_NVDIMM_BRIDGE,
 	.drv = {
 		.suppress_bind_attrs = true,
@@ -453,31 +344,6 @@ static struct cxl_driver cxl_pmem_region_driver = {
 	},
 };
 
-/*
- * Return all bridges to the CXL_NVB_NEW state to invalidate any
- * ->state_work referring to the now destroyed cxl_pmem_wq.
- */
-static int cxl_nvdimm_bridge_reset(struct device *dev, void *data)
-{
-	struct cxl_nvdimm_bridge *cxl_nvb;
-
-	if (!is_cxl_nvdimm_bridge(dev))
-		return 0;
-
-	cxl_nvb = to_cxl_nvdimm_bridge(dev);
-	device_lock(dev);
-	cxl_nvb->state = CXL_NVB_NEW;
-	device_unlock(dev);
-
-	return 0;
-}
-
-static void destroy_cxl_pmem_wq(void)
-{
-	destroy_workqueue(cxl_pmem_wq);
-	bus_for_each_dev(&cxl_bus_type, NULL, NULL, cxl_nvdimm_bridge_reset);
-}
-
 static __init int cxl_pmem_init(void)
 {
 	int rc;
@@ -485,13 +351,9 @@ static __init int cxl_pmem_init(void)
 	set_bit(CXL_MEM_COMMAND_ID_SET_SHUTDOWN_STATE, exclusive_cmds);
 	set_bit(CXL_MEM_COMMAND_ID_SET_LSA, exclusive_cmds);
 
-	cxl_pmem_wq = alloc_ordered_workqueue("cxl_pmem", 0);
-	if (!cxl_pmem_wq)
-		return -ENXIO;
-
 	rc = cxl_driver_register(&cxl_nvdimm_bridge_driver);
 	if (rc)
-		goto err_bridge;
+		return rc;
 
 	rc = cxl_driver_register(&cxl_nvdimm_driver);
 	if (rc)
@@ -507,8 +369,6 @@ err_region:
 	cxl_driver_unregister(&cxl_nvdimm_driver);
 err_nvdimm:
 	cxl_driver_unregister(&cxl_nvdimm_bridge_driver);
-err_bridge:
-	destroy_cxl_pmem_wq();
 	return rc;
 }
 
@@ -517,7 +377,6 @@ static __exit void cxl_pmem_exit(void)
 	cxl_driver_unregister(&cxl_pmem_region_driver);
 	cxl_driver_unregister(&cxl_nvdimm_driver);
 	cxl_driver_unregister(&cxl_nvdimm_bridge_driver);
-	destroy_cxl_pmem_wq();
 }
 
 MODULE_LICENSE("GPL v2");
