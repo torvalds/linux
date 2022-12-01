@@ -12,6 +12,7 @@ static LIST_HEAD(erofs_domain_list);
 static struct vfsmount *erofs_pseudo_mnt;
 
 struct erofs_fscache_request {
+	struct erofs_fscache_request *primary;
 	struct netfs_cache_resources cache_resources;
 	struct address_space	*mapping;	/* The mapping being accessed */
 	loff_t			start;		/* Start position */
@@ -38,6 +39,26 @@ static struct erofs_fscache_request *erofs_fscache_req_alloc(struct address_spac
 	return req;
 }
 
+static struct erofs_fscache_request *erofs_fscache_req_chain(struct erofs_fscache_request *primary,
+					     size_t len)
+{
+	struct erofs_fscache_request *req;
+
+	/* use primary request for the first submission */
+	if (!primary->submitted) {
+		refcount_inc(&primary->ref);
+		return primary;
+	}
+
+	req = erofs_fscache_req_alloc(primary->mapping,
+			primary->start + primary->submitted, len);
+	if (!IS_ERR(req)) {
+		req->primary = primary;
+		refcount_inc(&primary->ref);
+	}
+	return req;
+}
+
 static void erofs_fscache_req_complete(struct erofs_fscache_request *req)
 {
 	struct folio *folio;
@@ -56,17 +77,19 @@ static void erofs_fscache_req_complete(struct erofs_fscache_request *req)
 		folio_unlock(folio);
 	}
 	rcu_read_unlock();
-
-	if (req->cache_resources.ops)
-		req->cache_resources.ops->end_operation(&req->cache_resources);
-
-	kfree(req);
 }
 
 static void erofs_fscache_req_put(struct erofs_fscache_request *req)
 {
-	if (refcount_dec_and_test(&req->ref))
-		erofs_fscache_req_complete(req);
+	if (refcount_dec_and_test(&req->ref)) {
+		if (req->cache_resources.ops)
+			req->cache_resources.ops->end_operation(&req->cache_resources);
+		if (!req->primary)
+			erofs_fscache_req_complete(req);
+		else
+			erofs_fscache_req_put(req->primary);
+		kfree(req);
+	}
 }
 
 static void erofs_fscache_subreq_complete(void *priv,
@@ -74,8 +97,12 @@ static void erofs_fscache_subreq_complete(void *priv,
 {
 	struct erofs_fscache_request *req = priv;
 
-	if (IS_ERR_VALUE(transferred_or_error))
-		req->error = transferred_or_error;
+	if (IS_ERR_VALUE(transferred_or_error)) {
+		if (req->primary)
+			req->primary->error = transferred_or_error;
+		else
+			req->error = transferred_or_error;
+	}
 	erofs_fscache_req_put(req);
 }
 
@@ -131,7 +158,6 @@ static int erofs_fscache_read_folios_async(struct fscache_cookie *cookie,
 		done += slen;
 	}
 	DBG_BUGON(done != len);
-	req->submitted += len;
 	return 0;
 }
 
@@ -167,31 +193,18 @@ static int erofs_fscache_meta_read_folio(struct file *data, struct folio *folio)
 	return ret;
 }
 
-/*
- * Read into page cache in the range described by (@pos, @len).
- *
- * On return, if the output @unlock is true, the caller is responsible for page
- * unlocking; otherwise the callee will take this responsibility through request
- * completion.
- *
- * The return value is the number of bytes successfully handled, or negative
- * error code on failure. The only exception is that, the length of the range
- * instead of the error code is returned on failure after request is allocated,
- * so that .readahead() could advance rac accordingly.
- */
-static int erofs_fscache_data_read(struct address_space *mapping,
-				   loff_t pos, size_t len, bool *unlock)
+static int erofs_fscache_data_read_slice(struct erofs_fscache_request *primary)
 {
+	struct address_space *mapping = primary->mapping;
 	struct inode *inode = mapping->host;
 	struct super_block *sb = inode->i_sb;
 	struct erofs_fscache_request *req;
 	struct erofs_map_blocks map;
 	struct erofs_map_dev mdev;
 	struct iov_iter iter;
+	loff_t pos = primary->start + primary->submitted;
 	size_t count;
 	int ret;
-
-	*unlock = true;
 
 	map.m_la = pos;
 	ret = erofs_map_blocks(inode, &map, EROFS_GET_BLOCKS_RAW);
@@ -220,17 +233,19 @@ static int erofs_fscache_data_read(struct address_space *mapping,
 		}
 		iov_iter_zero(PAGE_SIZE - size, &iter);
 		erofs_put_metabuf(&buf);
-		return PAGE_SIZE;
+		primary->submitted += PAGE_SIZE;
+		return 0;
 	}
 
+	count = primary->len - primary->submitted;
 	if (!(map.m_flags & EROFS_MAP_MAPPED)) {
-		count = len;
 		iov_iter_xarray(&iter, READ, &mapping->i_pages, pos, count);
 		iov_iter_zero(count, &iter);
-		return count;
+		primary->submitted += count;
+		return 0;
 	}
 
-	count = min_t(size_t, map.m_llen - (pos - map.m_la), len);
+	count = min_t(size_t, map.m_llen - (pos - map.m_la), count);
 	DBG_BUGON(!count || count % PAGE_SIZE);
 
 	mdev = (struct erofs_map_dev) {
@@ -241,68 +256,65 @@ static int erofs_fscache_data_read(struct address_space *mapping,
 	if (ret)
 		return ret;
 
-	req = erofs_fscache_req_alloc(mapping, pos, count);
+	req = erofs_fscache_req_chain(primary, count);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	*unlock = false;
 	ret = erofs_fscache_read_folios_async(mdev.m_fscache->cookie,
 			req, mdev.m_pa + (pos - map.m_la), count);
-	if (ret)
-		req->error = ret;
-
 	erofs_fscache_req_put(req);
-	return count;
+	primary->submitted += count;
+	return ret;
+}
+
+static int erofs_fscache_data_read(struct erofs_fscache_request *req)
+{
+	int ret;
+
+	do {
+		ret = erofs_fscache_data_read_slice(req);
+		if (ret)
+			req->error = ret;
+	} while (!ret && req->submitted < req->len);
+
+	return ret;
 }
 
 static int erofs_fscache_read_folio(struct file *file, struct folio *folio)
 {
-	bool unlock;
+	struct erofs_fscache_request *req;
 	int ret;
 
-	DBG_BUGON(folio_size(folio) != EROFS_BLKSIZ);
-
-	ret = erofs_fscache_data_read(folio_mapping(folio), folio_pos(folio),
-				      folio_size(folio), &unlock);
-	if (unlock) {
-		if (ret > 0)
-			folio_mark_uptodate(folio);
+	req = erofs_fscache_req_alloc(folio_mapping(folio),
+			folio_pos(folio), folio_size(folio));
+	if (IS_ERR(req)) {
 		folio_unlock(folio);
+		return PTR_ERR(req);
 	}
-	return ret < 0 ? ret : 0;
+
+	ret = erofs_fscache_data_read(req);
+	erofs_fscache_req_put(req);
+	return ret;
 }
 
 static void erofs_fscache_readahead(struct readahead_control *rac)
 {
-	struct folio *folio;
-	size_t len, done = 0;
-	loff_t start, pos;
-	bool unlock;
-	int ret, size;
+	struct erofs_fscache_request *req;
 
 	if (!readahead_count(rac))
 		return;
 
-	start = readahead_pos(rac);
-	len = readahead_length(rac);
+	req = erofs_fscache_req_alloc(rac->mapping,
+			readahead_pos(rac), readahead_length(rac));
+	if (IS_ERR(req))
+		return;
 
-	do {
-		pos = start + done;
-		ret = erofs_fscache_data_read(rac->mapping, pos,
-					      len - done, &unlock);
-		if (ret <= 0)
-			return;
+	/* The request completion will drop refs on the folios. */
+	while (readahead_folio(rac))
+		;
 
-		size = ret;
-		while (size) {
-			folio = readahead_folio(rac);
-			size -= folio_size(folio);
-			if (unlock) {
-				folio_mark_uptodate(folio);
-				folio_unlock(folio);
-			}
-		}
-	} while ((done += ret) < len);
+	erofs_fscache_data_read(req);
+	erofs_fscache_req_put(req);
 }
 
 static const struct address_space_operations erofs_fscache_meta_aops = {
