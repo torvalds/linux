@@ -44,6 +44,21 @@ struct fscrypt_mode fscrypt_modes[] = {
 		.security_strength = 16,
 		.ivsize = 16,
 	},
+	[FSCRYPT_MODE_SM4_XTS] = {
+		.friendly_name = "SM4-XTS",
+		.cipher_str = "xts(sm4)",
+		.keysize = 32,
+		.security_strength = 16,
+		.ivsize = 16,
+		.blk_crypto_mode = BLK_ENCRYPTION_MODE_SM4_XTS,
+	},
+	[FSCRYPT_MODE_SM4_CTS] = {
+		.friendly_name = "SM4-CTS-CBC",
+		.cipher_str = "cts(cbc(sm4))",
+		.keysize = 16,
+		.security_strength = 16,
+		.ivsize = 16,
+	},
 	[FSCRYPT_MODE_ADIANTUM] = {
 		.friendly_name = "Adiantum",
 		.cipher_str = "adiantum(xchacha12,aes)",

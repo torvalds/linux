@@ -338,6 +338,7 @@ Currently, the following pairs of encryption modes are supported:
 - AES-128-CBC for contents and AES-128-CTS-CBC for filenames
 - Adiantum for both contents and filenames
 - AES-256-XTS for contents and AES-256-HCTR2 for filenames (v2 policies only)
+- SM4-XTS for contents and SM4-CTS-CBC for filenames (v2 policies only)
 
 If unsure, you should use the (AES-256-XTS, AES-256-CTS-CBC) pair.
 
