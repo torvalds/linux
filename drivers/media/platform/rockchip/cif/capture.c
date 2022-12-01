@@ -8610,13 +8610,12 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream, bool is_only_enable)
 							       RKCIF_YUV_ADDR_STATE_INIT,
 							       stream->id);
 		}
-	} else if (stream->cur_stream_mode == RKCIF_STREAM_MODE_CAPTURE) {
-		if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
-		    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY)
-			rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_CTRL, 0x000A0000);
-		else
-			rkcif_write_register_or(cif_dev, CIF_REG_DVP_CTRL, 0x000A0000);
 	}
+	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
+	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY)
+		rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_CTRL, 0x00010000);
+	else
+		rkcif_write_register_or(cif_dev, CIF_REG_DVP_CTRL, 0x00010000);
 	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY) {
 		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id));
