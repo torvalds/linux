@@ -197,35 +197,34 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 {
 	struct cxl_port *root_port = arg;
 	struct device *host = root_port->dev.parent;
-	struct acpi_device *bridge = to_cxl_host_bridge(host, match);
+	struct acpi_device *hb = to_cxl_host_bridge(host, match);
 	struct acpi_pci_root *pci_root;
 	struct cxl_dport *dport;
 	struct cxl_port *port;
+	struct device *bridge;
 	int rc;
 
-	if (!bridge)
+	if (!hb)
 		return 0;
 
-	dport = cxl_find_dport_by_dev(root_port, match);
+	pci_root = acpi_pci_find_root(hb->handle);
+	bridge = pci_root->bus->bridge;
+	dport = cxl_find_dport_by_dev(root_port, bridge);
 	if (!dport) {
 		dev_dbg(host, "host bridge expected and not found\n");
 		return 0;
 	}
 
-	/*
-	 * Note that this lookup already succeeded in
-	 * to_cxl_host_bridge(), so no need to check for failure here
-	 */
-	pci_root = acpi_pci_find_root(bridge->handle);
-	rc = devm_cxl_register_pci_bus(host, match, pci_root->bus);
+	rc = devm_cxl_register_pci_bus(host, bridge, pci_root->bus);
 	if (rc)
 		return rc;
 
-	port = devm_cxl_add_port(host, match, dport->component_reg_phys, dport);
+	port = devm_cxl_add_port(host, bridge, dport->component_reg_phys,
+				 dport);
 	if (IS_ERR(port))
 		return PTR_ERR(port);
 
-	dev_info(pci_root->bus->bridge, "host supports CXL\n");
+	dev_info(bridge, "host supports CXL\n");
 
 	return 0;
 }
@@ -256,20 +255,21 @@ static int cxl_get_chbcr(union acpi_subtable_headers *header, void *arg,
 
 static int add_host_bridge_dport(struct device *match, void *arg)
 {
-	acpi_status status;
+	acpi_status rc;
+	struct device *bridge;
 	unsigned long long uid;
 	struct cxl_dport *dport;
 	struct cxl_chbs_context ctx;
+	struct acpi_pci_root *pci_root;
 	struct cxl_port *root_port = arg;
 	struct device *host = root_port->dev.parent;
-	struct acpi_device *bridge = to_cxl_host_bridge(host, match);
+	struct acpi_device *hb = to_cxl_host_bridge(host, match);
 
-	if (!bridge)
+	if (!hb)
 		return 0;
 
-	status = acpi_evaluate_integer(bridge->handle, METHOD_NAME__UID, NULL,
-				       &uid);
-	if (status != AE_OK) {
+	rc = acpi_evaluate_integer(hb->handle, METHOD_NAME__UID, NULL, &uid);
+	if (rc != AE_OK) {
 		dev_err(match, "unable to retrieve _UID\n");
 		return -ENODEV;
 	}
@@ -289,7 +289,9 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 
 	dev_dbg(match, "CHBCR found: 0x%08llx\n", (u64)ctx.chbcr);
 
-	dport = devm_cxl_add_dport(root_port, match, uid, ctx.chbcr);
+	pci_root = acpi_pci_find_root(hb->handle);
+	bridge = pci_root->bus->bridge;
+	dport = devm_cxl_add_dport(root_port, bridge, uid, ctx.chbcr);
 	if (IS_ERR(dport))
 		return PTR_ERR(dport);
 
