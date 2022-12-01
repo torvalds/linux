@@ -57,8 +57,12 @@ enum clock_rate {
 #define LDO_1P8V_OFF	0x58 /* ... bottom bit is "enabled" */
 
 /* CRYSTAL COVE PMIC register set */
-#define CRYSTAL_1P8V_REG	0x57
-#define CRYSTAL_2P8V_REG	0x5d
+#define CRYSTAL_BYT_1P8V_REG	0x5d
+#define CRYSTAL_BYT_2P8V_REG	0x66
+
+#define CRYSTAL_CHT_1P8V_REG	0x57
+#define CRYSTAL_CHT_2P8V_REG	0x5d
+
 #define CRYSTAL_ON		0x63
 #define CRYSTAL_OFF		0x62
 
@@ -843,6 +847,7 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 	int ret;
 	int value;
+	int reg;
 
 	if (!gs || gs->v1p8_on == on)
 		return 0;
@@ -898,10 +903,15 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 				     LDO10_REG, value, 0xff);
 		break;
 	case PMIC_CRYSTALCOVE:
+		if (IS_ISP2401)
+			reg = CRYSTAL_CHT_1P8V_REG;
+		else
+			reg = CRYSTAL_BYT_1P8V_REG;
+
 		value = on ? CRYSTAL_ON : CRYSTAL_OFF;
 
 		ret = gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
-				     CRYSTAL_1P8V_REG, value, 0xff);
+				     reg, value, 0xff);
 		break;
 	default:
 		dev_err(subdev->dev, "Couldn't set power mode for v1p8\n");
@@ -918,6 +928,7 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 	int ret;
 	int value;
+	int reg;
 
 	if (WARN_ON(!gs))
 		return -ENODEV;
@@ -974,10 +985,15 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 				     LDO9_REG, value, 0xff);
 		break;
 	case PMIC_CRYSTALCOVE:
+		if (IS_ISP2401)
+			reg = CRYSTAL_CHT_2P8V_REG;
+		else
+			reg = CRYSTAL_BYT_2P8V_REG;
+
 		value = on ? CRYSTAL_ON : CRYSTAL_OFF;
 
 		ret = gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
-				     CRYSTAL_2P8V_REG, value, 0xff);
+				     reg, value, 0xff);
 		break;
 	default:
 		dev_err(subdev->dev, "Couldn't set power mode for v2p8\n");
