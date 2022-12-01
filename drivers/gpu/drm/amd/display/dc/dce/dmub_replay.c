@@ -33,6 +33,9 @@
 
 #define MAX_PIPES 6
 
+static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3};
+static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5};
+
 /*
  * Get Replay state from firmware.
  */
@@ -194,11 +197,11 @@ static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
 		(link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
 		!link->panel_config.dsc.disable_dsc_edp &&
 		link->dc->caps.edp_dsc_support)) &&
-		link->dpcd_caps.sink_dev_id == DP_DEVICE_ID_38EC11 /*&&
+		link->dpcd_caps.sink_dev_id == DP_DEVICE_ID_38EC11 &&
 		(!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_1,
 			sizeof(DP_SINK_DEVICE_STR_ID_1)) ||
 		!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_2,
-			sizeof(DP_SINK_DEVICE_STR_ID_2)))*/)
+			sizeof(DP_SINK_DEVICE_STR_ID_2))))
 		copy_settings_data->flags.bitfields.force_wakeup_by_tps3 = 1;
 	else
 		copy_settings_data->flags.bitfields.force_wakeup_by_tps3 = 0;
