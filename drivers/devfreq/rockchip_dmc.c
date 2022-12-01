@@ -136,6 +136,7 @@ struct rockchip_dmcfreq {
 	unsigned long video_1080p_rate;
 	unsigned long video_4k_rate;
 	unsigned long video_4k_10b_rate;
+	unsigned long video_4k_60p_rate;
 	unsigned long video_svep_rate;
 	unsigned long performance_rate;
 	unsigned long hdmi_rate;
@@ -2461,6 +2462,11 @@ static int rockchip_get_system_status_level(struct device_node *np,
 			dev_info(dmcfreq->dev, "video_4k_10b_rate = %ld\n",
 				 dmcfreq->video_4k_10b_rate);
 			break;
+		case SYS_STATUS_VIDEO_4K_60P:
+			dmcfreq->video_4k_60p_rate = rockchip_freq_level_2_rate(dmcfreq, level);
+			dev_info(dmcfreq->dev, "video_4k_60p_rate = %ld\n",
+				 dmcfreq->video_4k_60p_rate);
+			break;
 		case SYS_STATUS_VIDEO_SVEP:
 			dmcfreq->video_svep_rate = rockchip_freq_level_2_rate(dmcfreq, level);
 			dev_info(dmcfreq->dev, "video_svep_rate = %ld\n",
@@ -2582,6 +2588,11 @@ static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
 	if (dmcfreq->video_4k_10b_rate && (status & SYS_STATUS_VIDEO_4K_10B)) {
 		if (dmcfreq->video_4k_10b_rate > target_rate)
 			target_rate = dmcfreq->video_4k_10b_rate;
+	}
+
+	if (dmcfreq->video_4k_60p_rate && (status & SYS_STATUS_VIDEO_4K_60P)) {
+		if (dmcfreq->video_4k_60p_rate > target_rate)
+			target_rate = dmcfreq->video_4k_60p_rate;
 	}
 
 	if (dmcfreq->video_1080p_rate && (status & SYS_STATUS_VIDEO_1080P)) {
