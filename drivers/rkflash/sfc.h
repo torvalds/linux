@@ -68,8 +68,8 @@
 
 /* SFC_DLL_CTRL Register */
 #define SCLK_SMP_SEL_EN		BIT(15)	/* SCLK Sampling Selection */
-#define SCLK_SMP_SEL_MAX_V4	0x1FF
-#define SCLK_SMP_SEL_MAX_V5	0xFF
+#define SCLK_SMP_SEL_MAX_V4	0xFF
+#define SCLK_SMP_SEL_MAX_V5	0x1FF
 
 #define SFC_DLL_TRANING_STEP		10	/* Training step */
 #define SFC_DLL_TRANING_VALID_WINDOW	80	/* Valid DLL winbow */
