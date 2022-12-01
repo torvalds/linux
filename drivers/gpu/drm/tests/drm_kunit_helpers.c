@@ -17,36 +17,51 @@ struct kunit_dev {
 static const struct drm_mode_config_funcs drm_mode_config_funcs = {
 };
 
-static int dev_init(struct kunit_resource *res, void *ptr)
+/**
+ * drm_kunit_helper_alloc_device - Allocate a mock device for a KUnit test
+ * @test: The test context object
+ *
+ * This allocates a fake struct &device to create a mock for a KUnit
+ * test.
+ *
+ * Callers need to make sure drm_kunit_helper_free_device() on the
+ * device when done.
+ *
+ * Returns:
+ * A pointer to the new device, or an ERR_PTR() otherwise.
+ */
+struct device *drm_kunit_helper_alloc_device(struct kunit *test)
 {
-	char *name = ptr;
-	struct device *dev;
-
-	dev = root_device_register(name);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
-
-	res->data = dev;
-	return 0;
+	return root_device_register(KUNIT_DEVICE_NAME);
 }
+EXPORT_SYMBOL_GPL(drm_kunit_helper_alloc_device);
 
-static void dev_free(struct kunit_resource *res)
+/**
+ * drm_kunit_helper_free_device - Frees a mock device
+ * @test: The test context object
+ * @dev: The device to free
+ *
+ * Frees a device allocated with drm_kunit_helper_alloc_device().
+ */
+void drm_kunit_helper_free_device(struct kunit *test, struct device *dev)
 {
-	struct device *dev = res->data;
-
 	root_device_unregister(dev);
 }
+EXPORT_SYMBOL_GPL(drm_kunit_helper_free_device);
 
 /**
  * drm_kunit_helper_alloc_drm_device - Allocates a mock DRM device for KUnit tests
  * @test: The test context object
+ * @dev: The parent device object
  * @features: Mocked DRM device driver features
  *
- * This function allocates a new struct &device, creates a struct
- * &drm_driver and will create a struct &drm_device using both.
+ * This function creates a struct &drm_driver and will create a struct
+ * &drm_device from @dev and that driver.
  *
- * The device and driver are tied to the @test context and will get
- * cleaned at the end of the test. The drm_device is allocated through
+ * @dev should be allocated using drm_kunit_helper_alloc_device().
+ *
+ * The driver is tied to the @test context and will get cleaned at the
+ * end of the test. The drm_device is allocated through
  * devm_drm_dev_alloc() and will thus be freed through a device-managed
  * resource.
  *
@@ -54,18 +69,13 @@ static void dev_free(struct kunit_resource *res)
  * A pointer to the new drm_device, or an ERR_PTR() otherwise.
  */
 struct drm_device *
-drm_kunit_helper_alloc_drm_device(struct kunit *test,
+drm_kunit_helper_alloc_drm_device(struct kunit *test, struct device *dev,
 				  u32 features)
 {
 	struct kunit_dev *kdev;
 	struct drm_device *drm;
 	struct drm_driver *driver;
-	struct device *dev;
 	int ret;
-
-	dev = kunit_alloc_resource(test, dev_init, dev_free, GFP_KERNEL, KUNIT_DEVICE_NAME);
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
 
 	driver = kunit_kzalloc(test, sizeof(*driver), GFP_KERNEL);
 	if (!driver)

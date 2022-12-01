@@ -13,6 +13,7 @@
 
 struct drm_test_modes_priv {
 	struct drm_device *drm;
+	struct device *dev;
 };
 
 static int drm_test_modes_init(struct kunit *test)
@@ -22,12 +23,23 @@ static int drm_test_modes_init(struct kunit *test)
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, priv);
 
-	priv->drm = drm_kunit_helper_alloc_drm_device(test, DRIVER_MODESET);
+	priv->dev = drm_kunit_helper_alloc_device(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->dev);
+
+	priv->drm = drm_kunit_helper_alloc_drm_device(test, priv->dev,
+						      DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->drm);
 
 	test->priv = priv;
 
 	return 0;
+}
+
+static void drm_test_modes_exit(struct kunit *test)
+{
+	struct drm_test_modes_priv *priv = test->priv;
+
+	drm_kunit_helper_free_device(test, priv->dev);
 }
 
 static void drm_test_modes_analog_tv_ntsc_480i(struct kunit *test)
@@ -135,6 +147,7 @@ static struct kunit_case drm_modes_analog_tv_tests[] = {
 static struct kunit_suite drm_modes_analog_tv_test_suite = {
 	.name = "drm_modes_analog_tv",
 	.init = drm_test_modes_init,
+	.exit = drm_test_modes_exit,
 	.test_cases = drm_modes_analog_tv_tests,
 };
 

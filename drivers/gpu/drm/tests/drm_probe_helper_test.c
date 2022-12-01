@@ -17,6 +17,7 @@
 
 struct drm_probe_helper_test_priv {
 	struct drm_device *drm;
+	struct device *dev;
 	struct drm_connector connector;
 };
 
@@ -39,7 +40,10 @@ static int drm_probe_helper_test_init(struct kunit *test)
 	KUNIT_ASSERT_NOT_NULL(test, priv);
 	test->priv = priv;
 
-	priv->drm = drm_kunit_helper_alloc_drm_device(test,
+	priv->dev = drm_kunit_helper_alloc_device(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->dev);
+
+	priv->drm = drm_kunit_helper_alloc_drm_device(test, priv->dev,
 						      DRIVER_MODESET | DRIVER_ATOMIC);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->drm);
 
@@ -53,6 +57,13 @@ static int drm_probe_helper_test_init(struct kunit *test)
 	drm_connector_helper_add(connector, &drm_probe_helper_connector_helper_funcs);
 
 	return 0;
+}
+
+static void drm_probe_helper_test_exit(struct kunit *test)
+{
+	struct drm_probe_helper_test_priv *priv = test->priv;
+
+	drm_kunit_helper_free_device(test, priv->dev);
 }
 
 typedef struct drm_display_mode *(*expected_mode_func_t)(struct drm_device *);
@@ -196,6 +207,7 @@ static struct kunit_case drm_test_connector_helper_tv_get_modes_tests[] = {
 static struct kunit_suite drm_test_connector_helper_tv_get_modes_suite = {
 	.name = "drm_connector_helper_tv_get_modes",
 	.init = drm_probe_helper_test_init,
+	.exit = drm_probe_helper_test_exit,
 	.test_cases = drm_test_connector_helper_tv_get_modes_tests,
 };
 
