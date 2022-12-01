@@ -540,7 +540,7 @@ mt7915_alloc_ext_phy(struct mt7915_dev *dev)
 	phy->mt76 = mphy;
 
 	/* Bind main phy to band0 and ext_phy to band1 for dbdc case */
-	phy->band_idx = 1;
+	phy->mt76->band_idx = 1;
 
 	return phy;
 }
@@ -660,7 +660,7 @@ static bool mt7915_band_config(struct mt7915_dev *dev)
 {
 	bool ret = true;
 
-	dev->phy.band_idx = 0;
+	dev->phy.mt76->band_idx = 0;
 
 	if (is_mt7986(&dev->mt76)) {
 		u32 sku = mt7915_check_adie(dev, true);
@@ -671,7 +671,7 @@ static bool mt7915_band_config(struct mt7915_dev *dev)
 		 * dbdc is disabled.
 		 */
 		if (sku == MT7975_ONE_ADIE || sku == MT7976_ONE_ADIE) {
-			dev->phy.band_idx = 1;
+			dev->phy.mt76->band_idx = 1;
 			ret = false;
 		}
 	} else {

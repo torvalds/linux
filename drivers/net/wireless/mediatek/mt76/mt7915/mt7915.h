@@ -258,7 +258,6 @@ struct mt7915_phy {
 
 	u32 rxfilter;
 	u64 omac_mask;
-	u8 band_idx;
 
 	u16 noise;
 

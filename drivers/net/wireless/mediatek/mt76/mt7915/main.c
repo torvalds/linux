@@ -30,31 +30,35 @@ int mt7915_run(struct ieee80211_hw *hw)
 	running = mt7915_dev_running(dev);
 
 	if (!running) {
-		ret = mt76_connac_mcu_set_pm(&dev->mt76, dev->phy.band_idx, 0);
+		ret = mt76_connac_mcu_set_pm(&dev->mt76,
+					     dev->phy.mt76->band_idx, 0);
 		if (ret)
 			goto out;
 
-		ret = mt7915_mcu_set_mac(dev, dev->phy.band_idx, true, true);
+		ret = mt7915_mcu_set_mac(dev, dev->phy.mt76->band_idx,
+					 true, true);
 		if (ret)
 			goto out;
 
-		mt7915_mac_enable_nf(dev, dev->phy.band_idx);
+		mt7915_mac_enable_nf(dev, dev->phy.mt76->band_idx);
 	}
 
 	if (phy != &dev->phy) {
-		ret = mt76_connac_mcu_set_pm(&dev->mt76, phy->band_idx, 0);
+		ret = mt76_connac_mcu_set_pm(&dev->mt76,
+					     phy->mt76->band_idx, 0);
 		if (ret)
 			goto out;
 
-		ret = mt7915_mcu_set_mac(dev, phy->band_idx, true, true);
+		ret = mt7915_mcu_set_mac(dev, phy->mt76->band_idx,
+					 true, true);
 		if (ret)
 			goto out;
 
-		mt7915_mac_enable_nf(dev, phy->band_idx);
+		mt7915_mac_enable_nf(dev, phy->mt76->band_idx);
 	}
 
 	ret = mt76_connac_mcu_set_rts_thresh(&dev->mt76, 0x92b,
-					     phy->band_idx);
+					     phy->mt76->band_idx);
 	if (ret)
 		goto out;
 
@@ -107,13 +111,13 @@ static void mt7915_stop(struct ieee80211_hw *hw)
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
 	if (phy != &dev->phy) {
-		mt76_connac_mcu_set_pm(&dev->mt76, phy->band_idx, 1);
-		mt7915_mcu_set_mac(dev, phy->band_idx, false, false);
+		mt76_connac_mcu_set_pm(&dev->mt76, phy->mt76->band_idx, 1);
+		mt7915_mcu_set_mac(dev, phy->mt76->band_idx, false, false);
 	}
 
 	if (!mt7915_dev_running(dev)) {
-		mt76_connac_mcu_set_pm(&dev->mt76, dev->phy.band_idx, 1);
-		mt7915_mcu_set_mac(dev, dev->phy.band_idx, false, false);
+		mt76_connac_mcu_set_pm(&dev->mt76, dev->phy.mt76->band_idx, 1);
+		mt7915_mcu_set_mac(dev, dev->phy.mt76->band_idx, false, false);
 	}
 
 	mutex_unlock(&dev->mt76.mutex);
@@ -217,7 +221,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	}
 	mvif->mt76.omac_idx = idx;
 	mvif->phy = phy;
-	mvif->mt76.band_idx = phy->band_idx;
+	mvif->mt76.band_idx = phy->mt76->band_idx;
 
 	mvif->mt76.wmm_idx = vif->type != NL80211_IFTYPE_AP;
 	if (ext_phy)
@@ -467,7 +471,7 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		bool enabled = !!(hw->conf.flags & IEEE80211_CONF_MONITOR);
-		bool band = phy->band_idx;
+		bool band = phy->mt76->band_idx;
 
 		if (!enabled)
 			phy->rxfilter |= MT_WF_RFCR_DROP_OTHER_UC;
@@ -506,7 +510,7 @@ static void mt7915_configure_filter(struct ieee80211_hw *hw,
 {
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
-	bool band = phy->band_idx;
+	bool band = phy->mt76->band_idx;
 	u32 ctl_flags = MT_WF_RFCR1_DROP_ACK |
 			MT_WF_RFCR1_DROP_BF_POLL |
 			MT_WF_RFCR1_DROP_BA |
@@ -743,7 +747,8 @@ static int mt7915_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
 	int ret;
 
 	mutex_lock(&dev->mt76.mutex);
-	ret = mt76_connac_mcu_set_rts_thresh(&dev->mt76, val, phy->band_idx);
+	ret = mt76_connac_mcu_set_rts_thresh(&dev->mt76, val,
+					     phy->mt76->band_idx);
 	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
@@ -846,7 +851,7 @@ u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif)
 {
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
-	bool band = phy->band_idx;
+	bool band = phy->mt76->band_idx;
 	union {
 		u64 t64;
 		u32 t32[2];
@@ -891,7 +896,7 @@ mt7915_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
-	bool band = phy->band_idx;
+	bool band = phy->mt76->band_idx;
 	union {
 		u64 t64;
 		u32 t32[2];
@@ -922,7 +927,7 @@ mt7915_offset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
-	bool band = phy->band_idx;
+	bool band = phy->mt76->band_idx;
 	union {
 		u64 t64;
 		u32 t32[2];
@@ -965,6 +970,7 @@ mt7915_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
 	int max_nss = hweight8(hw->wiphy->available_antennas_tx);
 	u8 chainshift = dev->chainshift;
+	u8 band = phy->mt76->band_idx;
 
 	if (!tx_ant || tx_ant != rx_ant || ffs(tx_ant) > max_nss)
 		return -EINVAL;
@@ -974,10 +980,10 @@ mt7915_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	phy->mt76->antenna_mask = tx_ant;
 
 	/* handle a variant of mt7916 which has 3T3R but nss2 on 5 GHz band */
-	if (is_mt7916(&dev->mt76) && phy->band_idx && hweight8(tx_ant) == max_nss)
+	if (is_mt7916(&dev->mt76) && band && hweight8(tx_ant) == max_nss)
 		phy->mt76->chainmask = (dev->chainmask >> chainshift) << chainshift;
 	else
-		phy->mt76->chainmask = tx_ant << (chainshift * phy->band_idx);
+		phy->mt76->chainmask = tx_ant << (chainshift * band);
 
 	mt76_set_stream_caps(phy->mt76, true);
 	mt7915_set_stream_vht_txbf_caps(phy);

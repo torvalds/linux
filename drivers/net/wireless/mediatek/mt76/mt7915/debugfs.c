@@ -51,7 +51,7 @@ mt7915_sys_recovery_set(struct file *file, const char __user *user_buf,
 {
 	struct mt7915_phy *phy = file->private_data;
 	struct mt7915_dev *dev = phy->dev;
-	bool band = phy->band_idx;
+	bool band = phy->mt76->band_idx;
 	char buf[16];
 	int ret = 0;
 	u16 val;
@@ -692,15 +692,16 @@ mt7915_ampdu_stat_read_phy(struct mt7915_phy *phy,
 	struct mt7915_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
 	int bound[15], range[4], i;
+	u8 band = phy->mt76->band_idx;
 
 	/* Tx ampdu stat */
 	for (i = 0; i < ARRAY_SIZE(range); i++)
-		range[i] = mt76_rr(dev, MT_MIB_ARNG(phy->band_idx, i));
+		range[i] = mt76_rr(dev, MT_MIB_ARNG(band, i));
 
 	for (i = 0; i < ARRAY_SIZE(bound); i++)
 		bound[i] = MT_MIB_ARNCR_RANGE(range[i / 4], i % 4) + 1;
 
-	seq_printf(file, "\nPhy %d, Phy band %d\n", ext_phy, phy->band_idx);
+	seq_printf(file, "\nPhy %d, Phy band %d\n", ext_phy, band);
 
 	seq_printf(file, "Length: %8d | ", bound[0]);
 	for (i = 0; i < ARRAY_SIZE(bound) - 1; i++)
@@ -983,6 +984,7 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
 	struct mt7915_dev *dev = phy->dev;
 	s8 txpwr[MT7915_SKU_RATE_NUM];
 	static const size_t sz = 2048;
+	u8 band = phy->mt76->band_idx;
 	int i, offs = 0, len = 0;
 	ssize_t ret;
 	char *buf;
@@ -1038,8 +1040,8 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
 	mt7915_txpower_puts(HE996, SKU_HE_RU996);
 	mt7915_txpower_puts(HE996x2, SKU_HE_RU2x996);
 
-	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_TPC_CTRL_STAT(phy->band_idx) :
-	      MT_WF_PHY_TPC_CTRL_STAT_MT7916(phy->band_idx);
+	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_TPC_CTRL_STAT(band) :
+	      MT_WF_PHY_TPC_CTRL_STAT_MT7916(band);
 
 	len += scnprintf(buf + len, sz - len, "\nTx power (bbp)  : %6ld\n",
 			 mt76_get_field(dev, reg, MT_WF_PHY_TPC_POWER));
@@ -1058,7 +1060,7 @@ mt7915_rate_txpower_set(struct file *file, const char __user *user_buf,
 	struct mt76_phy *mphy = phy->mt76;
 	struct mt7915_mcu_txpower_sku req = {
 		.format_id = TX_POWER_LIMIT_TABLE,
-		.band_idx = phy->band_idx,
+		.band_idx = phy->mt76->band_idx,
 	};
 	char buf[100];
 	int i, ret, pwr160 = 0, pwr80 = 0, pwr40 = 0, pwr20 = 0;
@@ -1241,7 +1243,7 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
 				    mt7915_twt_stats);
 	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
 
-	if (!dev->dbdc_support || phy->band_idx) {
+	if (!dev->dbdc_support || phy->mt76->band_idx) {
 		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 				   &dev->hw_pattern);
 		debugfs_create_file("radar_trigger", 0200, dir, dev,

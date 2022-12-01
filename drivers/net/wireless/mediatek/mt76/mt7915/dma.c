@@ -353,10 +353,10 @@ static int mt7915_dma_enable(struct mt7915_dev *dev)
 		   MT_INT_TX_DONE_MCU |
 		   MT_INT_MCU_CMD;
 
-	if (!dev->phy.band_idx)
+	if (!dev->phy.mt76->band_idx)
 		irq_mask |= MT_INT_BAND0_RX_DONE;
 
-	if (dev->dbdc_support || dev->phy.band_idx)
+	if (dev->dbdc_support || dev->phy.mt76->band_idx)
 		irq_mask |= MT_INT_BAND1_RX_DONE;
 
 	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
@@ -418,7 +418,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 
 	/* init tx queue */
 	ret = mt7915_init_tx_queues(&dev->phy,
-				    MT_TXQ_ID(dev->phy.band_idx),
+				    MT_TXQ_ID(dev->phy.mt76->band_idx),
 				    MT7915_TX_RING_SIZE,
 				    MT_TXQ_RING_BASE(0));
 	if (ret)
@@ -426,7 +426,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 
 	if (phy2) {
 		ret = mt7915_init_tx_queues(phy2,
-					    MT_TXQ_ID(phy2->band_idx),
+					    MT_TXQ_ID(phy2->mt76->band_idx),
 					    MT7915_TX_RING_SIZE,
 					    MT_TXQ_RING_BASE(1));
 		if (ret)
@@ -482,7 +482,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 		return ret;
 
 	/* rx data queue for band0 */
-	if (!dev->phy.band_idx) {
+	if (!dev->phy.mt76->band_idx) {
 		if (mtk_wed_device_active(&mdev->mmio.wed) &&
 		    mtk_wed_get_rx_capa(&mdev->mmio.wed)) {
 			dev->mt76.q_rx[MT_RXQ_MAIN].flags =
@@ -519,7 +519,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 			return ret;
 	}
 
-	if (dev->dbdc_support || dev->phy.band_idx) {
+	if (dev->dbdc_support || dev->phy.mt76->band_idx) {
 		if (mtk_wed_device_active(&mdev->mmio.wed) &&
 		    mtk_wed_get_rx_capa(&mdev->mmio.wed)) {
 			dev->mt76.q_rx[MT_RXQ_BAND1].flags =

@@ -558,11 +558,11 @@ static int mt7915_mmio_wed_offload_enable(struct mtk_wed_device *wed)
 		return -EAGAIN;
 
 	phy = &dev->phy;
-	mt76_set(dev, MT_AGG_ACR4(phy->band_idx), MT_AGG_ACR_PPDU_TXS2H);
+	mt76_set(dev, MT_AGG_ACR4(phy->mt76->band_idx), MT_AGG_ACR_PPDU_TXS2H);
 
 	phy = dev->mt76.phys[MT_BAND1] ? dev->mt76.phys[MT_BAND1]->priv : NULL;
 	if (phy)
-		mt76_set(dev, MT_AGG_ACR4(phy->band_idx),
+		mt76_set(dev, MT_AGG_ACR4(phy->mt76->band_idx),
 			 MT_AGG_ACR_PPDU_TXS2H);
 
 	return 0;
@@ -583,11 +583,11 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
 	 * MT_AGG_ACR_PPDU_TXS2H (PPDU format) even though ACR bit is set.
 	 */
 	phy = &dev->phy;
-	mt76_clear(dev, MT_AGG_ACR4(phy->band_idx), MT_AGG_ACR_PPDU_TXS2H);
+	mt76_clear(dev, MT_AGG_ACR4(phy->mt76->band_idx), MT_AGG_ACR_PPDU_TXS2H);
 
 	phy = dev->mt76.phys[MT_BAND1] ? dev->mt76.phys[MT_BAND1]->priv : NULL;
 	if (phy)
-		mt76_clear(dev, MT_AGG_ACR4(phy->band_idx),
+		mt76_clear(dev, MT_AGG_ACR4(phy->mt76->band_idx),
 			   MT_AGG_ACR_PPDU_TXS2H);
 }
 
