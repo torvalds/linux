@@ -201,14 +201,13 @@ static int hw_id_map[MAX_HWIP] = {
 	[PCIE_HWIP]	= PCIE_HWID,
 };
 
-static int amdgpu_discovery_read_binary_from_vram(struct amdgpu_device *adev, uint8_t *binary)
+static void amdgpu_discovery_read_binary_from_vram(struct amdgpu_device *adev, uint8_t *binary)
 {
 	uint64_t vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
 	uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
 
 	amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
 				  adev->mman.discovery_tmr_size, false);
-	return 0;
 }
 
 static int amdgpu_discovery_read_binary_from_file(struct amdgpu_device *adev, uint8_t *binary)
@@ -302,12 +301,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	if (!adev->mman.discovery_bin)
 		return -ENOMEM;
 
-	r = amdgpu_discovery_read_binary_from_vram(adev, adev->mman.discovery_bin);
-	if (r) {
-		dev_err(adev->dev, "failed to read ip discovery binary from vram\n");
-		r = -EINVAL;
-		goto out;
-	}
+	amdgpu_discovery_read_binary_from_vram(adev, adev->mman.discovery_bin);
 
 	if (!amdgpu_discovery_verify_binary_signature(adev->mman.discovery_bin) || amdgpu_discovery == 2) {
 		/* ignore the discovery binary from vram if discovery=2 in kernel module parameter */
