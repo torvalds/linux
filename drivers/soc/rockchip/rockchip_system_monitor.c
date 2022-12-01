@@ -297,6 +297,7 @@ static void rockchip_update_video_info(void)
 {
 	struct video_info *video_info;
 	unsigned int max_res = 0, max_stream_bitrate = 0, res = 0;
+	unsigned int max_video_framerate = 0;
 
 	mutex_lock(&video_info_mutex);
 	if (list_empty(&video_info_list)) {
@@ -311,6 +312,8 @@ static void rockchip_update_video_info(void)
 			max_res = res;
 		if (video_info->streamBitrate > max_stream_bitrate)
 			max_stream_bitrate = video_info->streamBitrate;
+		if (video_info->videoFramerate > max_video_framerate)
+			max_video_framerate = video_info->videoFramerate;
 	}
 	mutex_unlock(&video_info_mutex);
 
@@ -319,8 +322,9 @@ static void rockchip_update_video_info(void)
 	} else {
 		if (max_stream_bitrate == 10)
 			rockchip_set_system_status(SYS_STATUS_VIDEO_4K_10B);
-		else
-			rockchip_set_system_status(SYS_STATUS_VIDEO_4K);
+		if (max_video_framerate == 60)
+			rockchip_set_system_status(SYS_STATUS_VIDEO_4K_60P);
+		rockchip_set_system_status(SYS_STATUS_VIDEO_4K);
 	}
 }
 
