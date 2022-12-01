@@ -104,6 +104,7 @@
 #define QCOM_ID_SDA658			326
 #define QCOM_ID_SDA630			327
 #define QCOM_ID_SDM450			338
+#define QCOM_ID_SM8150			339
 #define QCOM_ID_SDA845			341
 #define QCOM_ID_IPQ8072			342
 #define QCOM_ID_IPQ8076			343
@@ -114,6 +115,7 @@
 #define QCOM_ID_SDA632			350
 #define QCOM_ID_SDA450			351
 #define QCOM_ID_SM8250			356
+#define QCOM_ID_SA8155			362
 #define QCOM_ID_IPQ8070			375
 #define QCOM_ID_IPQ8071			376
 #define QCOM_ID_IPQ8072A		389
