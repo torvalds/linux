@@ -115,10 +115,8 @@ int mlx5_lag_mpesw_do_mirred(struct mlx5_core_dev *mdev,
 bool mlx5_lag_mpesw_is_activated(struct mlx5_core_dev *dev)
 {
 	struct mlx5_lag *ldev = mlx5_lag_dev(dev);
-	bool ret;
 
-	ret = ldev && ldev->mode == MLX5_LAG_MODE_MPESW;
-	return ret;
+	return ldev && ldev->mode == MLX5_LAG_MODE_MPESW;
 }
 
 void mlx5_lag_mpesw_init(struct mlx5_lag *ldev)
