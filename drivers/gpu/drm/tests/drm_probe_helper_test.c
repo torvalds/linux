@@ -115,6 +115,7 @@ drm_test_connector_helper_tv_get_modes_check(struct kunit *test)
 	ret = drm_connector_helper_tv_get_modes(connector);
 	KUNIT_EXPECT_EQ(test, ret, params->num_expected_modes);
 
+	len = 0;
 	list_for_each_entry(mode, &connector->probed_modes, head)
 		len++;
 	KUNIT_EXPECT_EQ(test, len, params->num_expected_modes);
