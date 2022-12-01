@@ -31,6 +31,18 @@ config DRM_MSM
 	help
 	  DRM/KMS driver for MSM/snapdragon.
 
+config DRM_MSM_HELPER
+       tristate "DRM MSM HELPER"
+       select DRM_DP_AUX_BUS
+       select DRM_DISPLAY_HELPER
+       select DRM_DISPLAY_DP_HELPER
+       help
+        Wrapper symbol to allow for compilation of drm display
+        helper code.
+
+        Allows the display loadable module to link against
+        helper functions.
+
 config DRM_MSM_GPU_STATE
 	bool
 	depends on DRM_MSM && (DEBUG_FS || DEV_COREDUMP)

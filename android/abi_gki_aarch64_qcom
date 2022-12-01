@@ -56,11 +56,13 @@
   __drm_atomic_helper_crtc_destroy_state
   __drm_atomic_helper_crtc_duplicate_state
   __drm_atomic_helper_plane_duplicate_state
+  __drm_atomic_helper_private_obj_duplicate_state
   __drm_atomic_state_free
   __drm_dbg
   __drm_debug
   __drm_err
   __drm_printfn_coredump
+  __drm_printfn_debug
   __drm_puts_coredump
   __dynamic_dev_dbg
   __dynamic_pr_debug
@@ -268,6 +270,7 @@
   _dev_err
   _dev_info
   _dev_notice
+  _dev_printk
   _dev_warn
   _find_first_bit
   _find_first_zero_bit
@@ -640,6 +643,7 @@
   device_destroy
   device_find_child
   device_for_each_child
+  device_for_each_child_reverse
   device_get_match_data
   device_get_phy_mode
   device_initialize
@@ -661,6 +665,7 @@
   device_wakeup_enable
   devm_add_action
   devm_alloc_etherdev_mqs
+  devm_backlight_device_register
   devm_bitmap_zalloc
   devm_blk_crypto_profile_init
   devm_clk_bulk_get
@@ -826,6 +831,7 @@
   drm_atomic_get_connector_state
   drm_atomic_get_crtc_state
   drm_atomic_get_plane_state
+  drm_atomic_get_private_obj_state
   drm_atomic_helper_check
   drm_atomic_helper_cleanup_planes
   drm_atomic_helper_commit_duplicated_state
@@ -845,6 +851,8 @@
   drm_atomic_helper_update_plane
   drm_atomic_helper_wait_for_fences
   drm_atomic_helper_wait_for_vblanks
+  drm_atomic_private_obj_fini
+  drm_atomic_private_obj_init
   drm_atomic_set_crtc_for_connector
   drm_atomic_set_crtc_for_plane
   drm_atomic_set_fb_for_plane
@@ -870,8 +878,10 @@
   drm_connector_list_iter_begin
   drm_connector_list_iter_end
   drm_connector_list_iter_next
+  drm_connector_register
   drm_connector_unregister
   drm_connector_update_edid_property
+  drm_crtc_add_crc_entry
   drm_crtc_cleanup
   drm_crtc_handle_vblank
   drm_crtc_init_with_planes
@@ -882,12 +892,16 @@
   drm_crtc_vblank_reset
   drm_crtc_wait_one_vblank
   drm_detect_hdmi_monitor
+  drm_detect_monitor_audio
   drm_dev_alloc
   drm_dev_dbg
   drm_dev_printk
   drm_dev_put
   drm_dev_register
   drm_dev_unregister
+  drm_display_mode_from_cea_vic
+  drm_edid_duplicate
+  drm_edid_get_monitor_name
   drm_encoder_cleanup
   drm_encoder_init
   drm_event_reserve_init_locked
@@ -921,6 +935,7 @@
   drm_helper_probe_single_connector_modes
   drm_ioctl
   drm_is_current_master
+  drm_kms_helper_hotplug_event
   drm_kms_helper_poll_disable
   drm_kms_helper_poll_enable
   drm_kms_helper_poll_fini
@@ -950,6 +965,7 @@
   drm_modeset_drop_locks
   drm_modeset_lock
   drm_modeset_lock_all_ctx
+  drm_modeset_unlock
   drm_object_attach_property
   drm_object_property_set_value
   drm_of_component_match_add
@@ -1587,6 +1603,8 @@
   of_device_get_match_data
   of_device_is_available
   of_device_is_compatible
+  of_device_modalias
+  of_device_uevent_modalias
   of_dma_configure_id
   of_dma_controller_free
   of_dma_controller_register
@@ -2278,6 +2296,7 @@
   system_32bit_el0_cpumask
   system_freezable_wq
   system_highpri_wq
+  system_long_wq
   system_state
   system_unbound_wq
   system_wq
