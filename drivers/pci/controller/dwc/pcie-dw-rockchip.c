@@ -847,6 +847,8 @@ static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 	if (IS_ERR(rk_pcie->dma_obj)) {
 		dev_err(rk_pcie->pci->dev, "failed to prepare dma object\n");
 		return -EINVAL;
+	} else if (rk_pcie->dma_obj) {
+		goto out;
 	}
 
 	rk_pcie->dma_obj = pcie_dw_dmatest_register(rk_pcie->pci, true);
@@ -854,7 +856,7 @@ static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 		dev_err(rk_pcie->pci->dev, "failed to prepare dmatest\n");
 		return -EINVAL;
 	}
-
+out:
 	/* Enable client write and read interrupt */
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xc000000);
 
@@ -1191,12 +1193,6 @@ static int rk_pcie_add_ep(struct rk_pcie *rk_pcie)
 
 	if (!rk_pcie_udma_enabled(rk_pcie))
 		return 0;
-
-	rk_pcie->dma_obj = rk_pcie_dma_obj_probe(dev);
-	if (IS_ERR(rk_pcie->dma_obj)) {
-		dev_err(dev, "failed to prepare dma object\n");
-		return -EINVAL;
-	}
 
 	return 0;
 }
