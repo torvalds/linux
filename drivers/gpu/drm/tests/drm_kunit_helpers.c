@@ -35,6 +35,23 @@ static void dev_free(struct kunit_resource *res)
 	root_device_unregister(dev);
 }
 
+/**
+ * drm_kunit_device_init - Allocates a mock DRM device for KUnit tests
+ * @test: The test context object
+ * @features: Mocked DRM device driver features
+ * @name: Name of the struct &device to allocate
+ *
+ * This function allocates a new struct &device, creates a struct
+ * &drm_driver and will create a struct &drm_device using both.
+ *
+ * The device and driver are tied to the @test context and will get
+ * cleaned at the end of the test. The drm_device is allocated through
+ * devm_drm_dev_alloc() and will thus be freed through a device-managed
+ * resource.
+ *
+ * Returns:
+ * A pointer to the new drm_device, or an ERR_PTR() otherwise.
+ */
 struct drm_device *drm_kunit_device_init(struct kunit *test, u32 features, char *name)
 {
 	struct kunit_dev *kdev;
