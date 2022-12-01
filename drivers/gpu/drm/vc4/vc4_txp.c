@@ -479,7 +479,7 @@ static irqreturn_t vc4_txp_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static const struct vc4_crtc_data vc4_txp_crtc_data = {
+const struct vc4_crtc_data vc4_txp_crtc_data = {
 	.name = "txp",
 	.debugfs_name = "txp_regs",
 	.hvs_available_channels = BIT(2),

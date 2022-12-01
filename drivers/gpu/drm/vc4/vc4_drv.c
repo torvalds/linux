@@ -196,7 +196,7 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_PERFMON_GET_VALUES, vc4_perfmon_get_values_ioctl, DRM_RENDER_ALLOW),
 };
 
-static const struct drm_driver vc4_drm_driver = {
+const struct drm_driver vc4_drm_driver = {
 	.driver_features = (DRIVER_MODESET |
 			    DRIVER_ATOMIC |
 			    DRIVER_GEM |
@@ -225,7 +225,7 @@ static const struct drm_driver vc4_drm_driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
-static const struct drm_driver vc5_drm_driver = {
+const struct drm_driver vc5_drm_driver = {
 	.driver_features = (DRIVER_MODESET |
 			    DRIVER_ATOMIC |
 			    DRIVER_GEM),
