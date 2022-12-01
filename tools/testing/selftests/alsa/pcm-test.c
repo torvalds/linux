@@ -446,9 +446,14 @@ __close:
 }
 
 static const struct time_test_def time_tests[] = {
-	/* name              format     rate   chan  period  buffer */
-	{ "S16.48k.2.small", "S16_LE",  48000, 2,      512,    4096 },
-	{ "S16.48k.2.big",   "S16_LE",  48000, 2,    24000,  192000 },
+	/* name          format     rate   chan  period  buffer */
+	{ "8k.1.big",    "S16_LE",   8000, 2,     8000,   32000 },
+	{ "8k.2.big",    "S16_LE",   8000, 2,     8000,   32000 },
+	{ "44k1.2.big",  "S16_LE",  44100, 2,    22050,  192000 },
+	{ "48k.2.small", "S16_LE",  48000, 2,      512,    4096 },
+	{ "48k.2.big",   "S16_LE",  48000, 2,    24000,  192000 },
+	{ "48k.6.big",   "S16_LE",  48000, 6,    48000,  576000 },
+	{ "96k.2.big",   "S16_LE",  96000, 2,    48000,  192000 },
 };
 
 int main(void)
