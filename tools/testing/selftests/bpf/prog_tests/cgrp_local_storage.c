@@ -10,7 +10,9 @@
 #include "cgrp_ls_recursion.skel.h"
 #include "cgrp_ls_attach_cgroup.skel.h"
 #include "cgrp_ls_negative.skel.h"
+#include "cgrp_ls_sleepable.skel.h"
 #include "network_helpers.h"
+#include "cgroup_helpers.h"
 
 struct socket_cookie {
 	__u64 cookie_key;
@@ -150,14 +152,100 @@ static void test_negative(void)
 	}
 }
 
+static void test_cgroup_iter_sleepable(int cgroup_fd, __u64 cgroup_id)
+{
+	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
+	union bpf_iter_link_info linfo;
+	struct cgrp_ls_sleepable *skel;
+	struct bpf_link *link;
+	int err, iter_fd;
+	char buf[16];
+
+	skel = cgrp_ls_sleepable__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	bpf_program__set_autoload(skel->progs.cgroup_iter, true);
+	err = cgrp_ls_sleepable__load(skel);
+	if (!ASSERT_OK(err, "skel_load"))
+		goto out;
+
+	memset(&linfo, 0, sizeof(linfo));
+	linfo.cgroup.cgroup_fd = cgroup_fd;
+	linfo.cgroup.order = BPF_CGROUP_ITER_SELF_ONLY;
+	opts.link_info = &linfo;
+	opts.link_info_len = sizeof(linfo);
+	link = bpf_program__attach_iter(skel->progs.cgroup_iter, &opts);
+	if (!ASSERT_OK_PTR(link, "attach_iter"))
+		goto out;
+
+	iter_fd = bpf_iter_create(bpf_link__fd(link));
+	if (!ASSERT_GE(iter_fd, 0, "iter_create"))
+		goto out;
+
+	/* trigger the program run */
+	(void)read(iter_fd, buf, sizeof(buf));
+
+	ASSERT_EQ(skel->bss->cgroup_id, cgroup_id, "cgroup_id");
+
+	close(iter_fd);
+out:
+	cgrp_ls_sleepable__destroy(skel);
+}
+
+static void test_no_rcu_lock(__u64 cgroup_id)
+{
+	struct cgrp_ls_sleepable *skel;
+	int err;
+
+	skel = cgrp_ls_sleepable__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	skel->bss->target_pid = syscall(SYS_gettid);
+
+	bpf_program__set_autoload(skel->progs.no_rcu_lock, true);
+	err = cgrp_ls_sleepable__load(skel);
+	if (!ASSERT_OK(err, "skel_load"))
+		goto out;
+
+	err = cgrp_ls_sleepable__attach(skel);
+	if (!ASSERT_OK(err, "skel_attach"))
+		goto out;
+
+	syscall(SYS_getpgid);
+
+	ASSERT_EQ(skel->bss->cgroup_id, cgroup_id, "cgroup_id");
+out:
+	cgrp_ls_sleepable__destroy(skel);
+}
+
+static void test_rcu_lock(void)
+{
+	struct cgrp_ls_sleepable *skel;
+	int err;
+
+	skel = cgrp_ls_sleepable__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	bpf_program__set_autoload(skel->progs.yes_rcu_lock, true);
+	err = cgrp_ls_sleepable__load(skel);
+	ASSERT_ERR(err, "skel_load");
+
+	cgrp_ls_sleepable__destroy(skel);
+}
+
 void test_cgrp_local_storage(void)
 {
+	__u64 cgroup_id;
 	int cgroup_fd;
 
 	cgroup_fd = test__join_cgroup("/cgrp_local_storage");
 	if (!ASSERT_GE(cgroup_fd, 0, "join_cgroup /cgrp_local_storage"))
 		return;
 
+	cgroup_id = get_cgroup_id("/cgrp_local_storage");
 	if (test__start_subtest("tp_btf"))
 		test_tp_btf(cgroup_fd);
 	if (test__start_subtest("attach_cgroup"))
@@ -166,6 +254,12 @@ void test_cgrp_local_storage(void)
 		test_recursion(cgroup_fd);
 	if (test__start_subtest("negative"))
 		test_negative();
+	if (test__start_subtest("cgroup_iter_sleepable"))
+		test_cgroup_iter_sleepable(cgroup_fd, cgroup_id);
+	if (test__start_subtest("no_rcu_lock"))
+		test_no_rcu_lock(cgroup_id);
+	if (test__start_subtest("rcu_lock"))
+		test_rcu_lock();
 
 	close(cgroup_fd);
 }
