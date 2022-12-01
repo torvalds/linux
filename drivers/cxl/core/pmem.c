@@ -219,7 +219,8 @@ EXPORT_SYMBOL_NS_GPL(to_cxl_nvdimm, CXL);
 
 static struct lock_class_key cxl_nvdimm_key;
 
-static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_memdev *cxlmd)
+static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_nvdimm_bridge *cxl_nvb,
+					   struct cxl_memdev *cxlmd)
 {
 	struct cxl_nvdimm *cxl_nvd;
 	struct device *dev;
@@ -230,6 +231,7 @@ static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_memdev *cxlmd)
 
 	dev = &cxl_nvd->dev;
 	cxl_nvd->cxlmd = cxlmd;
+	cxlmd->cxl_nvd = cxl_nvd;
 	device_initialize(dev);
 	lockdep_set_class(&dev->mutex, &cxl_nvdimm_key);
 	device_set_pm_not_required(dev);
@@ -240,27 +242,60 @@ static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_memdev *cxlmd)
 	return cxl_nvd;
 }
 
-static void cxl_nvd_unregister(void *dev)
+static void cxl_nvd_unregister(void *_cxl_nvd)
 {
-	device_unregister(dev);
+	struct cxl_nvdimm *cxl_nvd = _cxl_nvd;
+	struct cxl_memdev *cxlmd = cxl_nvd->cxlmd;
+	struct cxl_nvdimm_bridge *cxl_nvb = cxlmd->cxl_nvb;
+
+	/*
+	 * Either the bridge is in ->remove() context under the device_lock(),
+	 * or cxlmd_release_nvdimm() is cancelling the bridge's release action
+	 * for @cxl_nvd and doing it itself (while manually holding the bridge
+	 * lock).
+	 */
+	device_lock_assert(&cxl_nvb->dev);
+	cxl_nvd->cxlmd = NULL;
+	cxlmd->cxl_nvd = NULL;
+	device_unregister(&cxl_nvd->dev);
+}
+
+static void cxlmd_release_nvdimm(void *_cxlmd)
+{
+	struct cxl_memdev *cxlmd = _cxlmd;
+	struct cxl_nvdimm_bridge *cxl_nvb = cxlmd->cxl_nvb;
+
+	device_lock(&cxl_nvb->dev);
+	if (cxlmd->cxl_nvd)
+		devm_release_action(&cxl_nvb->dev, cxl_nvd_unregister,
+				    cxlmd->cxl_nvd);
+	device_unlock(&cxl_nvb->dev);
+	put_device(&cxl_nvb->dev);
 }
 
 /**
  * devm_cxl_add_nvdimm() - add a bridge between a cxl_memdev and an nvdimm
- * @host: same host as @cxlmd
  * @cxlmd: cxl_memdev instance that will perform LIBNVDIMM operations
  *
  * Return: 0 on success negative error code on failure.
  */
-int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd)
+int devm_cxl_add_nvdimm(struct cxl_memdev *cxlmd)
 {
+	struct cxl_nvdimm_bridge *cxl_nvb;
 	struct cxl_nvdimm *cxl_nvd;
 	struct device *dev;
 	int rc;
 
-	cxl_nvd = cxl_nvdimm_alloc(cxlmd);
-	if (IS_ERR(cxl_nvd))
-		return PTR_ERR(cxl_nvd);
+	cxl_nvb = cxl_find_nvdimm_bridge(&cxlmd->dev);
+	if (!cxl_nvb)
+		return -ENODEV;
+
+	cxl_nvd = cxl_nvdimm_alloc(cxl_nvb, cxlmd);
+	if (IS_ERR(cxl_nvd)) {
+		rc = PTR_ERR(cxl_nvd);
+		goto err_alloc;
+	}
+	cxlmd->cxl_nvb = cxl_nvb;
 
 	dev = &cxl_nvd->dev;
 	rc = dev_set_name(dev, "pmem%d", cxlmd->id);
@@ -271,13 +306,34 @@ int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd)
 	if (rc)
 		goto err;
 
-	dev_dbg(host, "%s: register %s\n", dev_name(dev->parent),
-		dev_name(dev));
+	dev_dbg(&cxlmd->dev, "register %s\n", dev_name(dev));
 
-	return devm_add_action_or_reset(host, cxl_nvd_unregister, dev);
+	/*
+	 * The two actions below arrange for @cxl_nvd to be deleted when either
+	 * the top-level PMEM bridge goes down, or the endpoint device goes
+	 * through ->remove().
+	 */
+	device_lock(&cxl_nvb->dev);
+	if (cxl_nvb->dev.driver)
+		rc = devm_add_action_or_reset(&cxl_nvb->dev, cxl_nvd_unregister,
+					      cxl_nvd);
+	else
+		rc = -ENXIO;
+	device_unlock(&cxl_nvb->dev);
+
+	if (rc)
+		goto err_alloc;
+
+	/* @cxlmd carries a reference on @cxl_nvb until cxlmd_release_nvdimm */
+	return devm_add_action_or_reset(&cxlmd->dev, cxlmd_release_nvdimm, cxlmd);
 
 err:
 	put_device(dev);
+err_alloc:
+	cxlmd->cxl_nvb = NULL;
+	cxlmd->cxl_nvd = NULL;
+	put_device(&cxl_nvb->dev);
+
 	return rc;
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_nvdimm, CXL);

@@ -35,6 +35,8 @@
  * @cdev: char dev core object for ioctl operations
  * @cxlds: The device state backing this device
  * @detach_work: active memdev lost a port in its ancestry
+ * @cxl_nvb: coordinate removal of @cxl_nvd if present
+ * @cxl_nvd: optional bridge to an nvdimm if the device supports pmem
  * @id: id number of this memdev instance.
  */
 struct cxl_memdev {
@@ -42,6 +44,8 @@ struct cxl_memdev {
 	struct cdev cdev;
 	struct cxl_dev_state *cxlds;
 	struct work_struct detach_work;
+	struct cxl_nvdimm_bridge *cxl_nvb;
+	struct cxl_nvdimm *cxl_nvd;
 	int id;
 };
 

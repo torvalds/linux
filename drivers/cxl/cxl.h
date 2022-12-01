@@ -386,6 +386,8 @@ struct cxl_region_params {
  * @id: This region's id. Id is globally unique across all regions
  * @mode: Endpoint decoder allocation / access mode
  * @type: Endpoint decoder target type
+ * @cxl_nvb: nvdimm bridge for coordinating @cxlr_pmem setup / shutdown
+ * @cxlr_pmem: (for pmem regions) cached copy of the nvdimm bridge
  * @params: active + config params for the region
  */
 struct cxl_region {
@@ -393,6 +395,8 @@ struct cxl_region {
 	int id;
 	enum cxl_decoder_mode mode;
 	enum cxl_decoder_type type;
+	struct cxl_nvdimm_bridge *cxl_nvb;
+	struct cxl_pmem_region *cxlr_pmem;
 	struct cxl_region_params params;
 };
 
@@ -438,7 +442,6 @@ struct cxl_pmem_region {
 	struct device dev;
 	struct cxl_region *cxlr;
 	struct nd_region *nd_region;
-	struct cxl_nvdimm_bridge *bridge;
 	struct range hpa_range;
 	int nr_mappings;
 	struct cxl_pmem_region_mapping mapping[];
@@ -637,7 +640,7 @@ struct cxl_nvdimm_bridge *devm_cxl_add_nvdimm_bridge(struct device *host,
 struct cxl_nvdimm *to_cxl_nvdimm(struct device *dev);
 bool is_cxl_nvdimm(struct device *dev);
 bool is_cxl_nvdimm_bridge(struct device *dev);
-int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd);
+int devm_cxl_add_nvdimm(struct cxl_memdev *cxlmd);
 struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct device *dev);
 
 #ifdef CONFIG_CXL_REGION

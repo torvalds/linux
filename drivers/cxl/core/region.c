@@ -1812,6 +1812,7 @@ static struct lock_class_key cxl_pmem_region_key;
 static struct cxl_pmem_region *cxl_pmem_region_alloc(struct cxl_region *cxlr)
 {
 	struct cxl_region_params *p = &cxlr->params;
+	struct cxl_nvdimm_bridge *cxl_nvb;
 	struct cxl_pmem_region *cxlr_pmem;
 	struct device *dev;
 	int i;
@@ -1839,6 +1840,18 @@ static struct cxl_pmem_region *cxl_pmem_region_alloc(struct cxl_region *cxlr)
 		struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 		struct cxl_pmem_region_mapping *m = &cxlr_pmem->mapping[i];
 
+		/*
+		 * Regions never span CXL root devices, so by definition the
+		 * bridge for one device is the same for all.
+		 */
+		if (i == 0) {
+			cxl_nvb = cxl_find_nvdimm_bridge(&cxlmd->dev);
+			if (!cxl_nvb) {
+				cxlr_pmem = ERR_PTR(-ENODEV);
+				goto out;
+			}
+			cxlr->cxl_nvb = cxl_nvb;
+		}
 		m->cxlmd = cxlmd;
 		get_device(&cxlmd->dev);
 		m->start = cxled->dpa_res->start;
@@ -1848,6 +1861,7 @@ static struct cxl_pmem_region *cxl_pmem_region_alloc(struct cxl_region *cxlr)
 
 	dev = &cxlr_pmem->dev;
 	cxlr_pmem->cxlr = cxlr;
+	cxlr->cxlr_pmem = cxlr_pmem;
 	device_initialize(dev);
 	lockdep_set_class(&dev->mutex, &cxl_pmem_region_key);
 	device_set_pm_not_required(dev);
@@ -1860,9 +1874,36 @@ out:
 	return cxlr_pmem;
 }
 
-static void cxlr_pmem_unregister(void *dev)
+static void cxlr_pmem_unregister(void *_cxlr_pmem)
 {
-	device_unregister(dev);
+	struct cxl_pmem_region *cxlr_pmem = _cxlr_pmem;
+	struct cxl_region *cxlr = cxlr_pmem->cxlr;
+	struct cxl_nvdimm_bridge *cxl_nvb = cxlr->cxl_nvb;
+
+	/*
+	 * Either the bridge is in ->remove() context under the device_lock(),
+	 * or cxlr_release_nvdimm() is cancelling the bridge's release action
+	 * for @cxlr_pmem and doing it itself (while manually holding the bridge
+	 * lock).
+	 */
+	device_lock_assert(&cxl_nvb->dev);
+	cxlr->cxlr_pmem = NULL;
+	cxlr_pmem->cxlr = NULL;
+	device_unregister(&cxlr_pmem->dev);
+}
+
+static void cxlr_release_nvdimm(void *_cxlr)
+{
+	struct cxl_region *cxlr = _cxlr;
+	struct cxl_nvdimm_bridge *cxl_nvb = cxlr->cxl_nvb;
+
+	device_lock(&cxl_nvb->dev);
+	if (cxlr->cxlr_pmem)
+		devm_release_action(&cxl_nvb->dev, cxlr_pmem_unregister,
+				    cxlr->cxlr_pmem);
+	device_unlock(&cxl_nvb->dev);
+	cxlr->cxl_nvb = NULL;
+	put_device(&cxl_nvb->dev);
 }
 
 /**
@@ -1874,12 +1915,14 @@ static void cxlr_pmem_unregister(void *dev)
 static int devm_cxl_add_pmem_region(struct cxl_region *cxlr)
 {
 	struct cxl_pmem_region *cxlr_pmem;
+	struct cxl_nvdimm_bridge *cxl_nvb;
 	struct device *dev;
 	int rc;
 
 	cxlr_pmem = cxl_pmem_region_alloc(cxlr);
 	if (IS_ERR(cxlr_pmem))
 		return PTR_ERR(cxlr_pmem);
+	cxl_nvb = cxlr->cxl_nvb;
 
 	dev = &cxlr_pmem->dev;
 	rc = dev_set_name(dev, "pmem_region%d", cxlr->id);
@@ -1893,10 +1936,25 @@ static int devm_cxl_add_pmem_region(struct cxl_region *cxlr)
 	dev_dbg(&cxlr->dev, "%s: register %s\n", dev_name(dev->parent),
 		dev_name(dev));
 
-	return devm_add_action_or_reset(&cxlr->dev, cxlr_pmem_unregister, dev);
+	device_lock(&cxl_nvb->dev);
+	if (cxl_nvb->dev.driver)
+		rc = devm_add_action_or_reset(&cxl_nvb->dev,
+					      cxlr_pmem_unregister, cxlr_pmem);
+	else
+		rc = -ENXIO;
+	device_unlock(&cxl_nvb->dev);
+
+	if (rc)
+		goto err_bridge;
+
+	/* @cxlr carries a reference on @cxl_nvb until cxlr_release_nvdimm */
+	return devm_add_action_or_reset(&cxlr->dev, cxlr_release_nvdimm, cxlr);
 
 err:
 	put_device(dev);
+err_bridge:
+	put_device(&cxl_nvb->dev);
+	cxlr->cxl_nvb = NULL;
 	return rc;
 }
 

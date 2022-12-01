@@ -48,6 +48,7 @@ static int cxl_mem_dpa_show(struct seq_file *file, void *data)
 static int cxl_mem_probe(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_port *parent_port;
 	struct cxl_dport *dport;
 	struct dentry *dentry;
@@ -94,6 +95,14 @@ unlock:
 	put_device(&parent_port->dev);
 	if (rc)
 		return rc;
+
+	if (resource_size(&cxlds->pmem_res) && IS_ENABLED(CONFIG_CXL_PMEM)) {
+		rc = devm_cxl_add_nvdimm(cxlmd);
+		if (rc == -ENODEV)
+			dev_info(dev, "PMEM disabled by platform\n");
+		else
+			return rc;
+	}
 
 	/*
 	 * The kernel may be operating out of CXL memory on this device,
