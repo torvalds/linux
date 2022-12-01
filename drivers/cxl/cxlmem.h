@@ -76,6 +76,15 @@ static inline bool is_cxl_endpoint(struct cxl_port *port)
 
 struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds);
 
+static inline struct cxl_ep *cxl_ep_load(struct cxl_port *port,
+					 struct cxl_memdev *cxlmd)
+{
+	if (!port)
+		return NULL;
+
+	return xa_load(&port->endpoints, (unsigned long)&cxlmd->dev);
+}
+
 /**
  * struct cxl_mbox_cmd - A command to be submitted to hardware.
  * @opcode: (input) The command set and command submitted to hardware.
