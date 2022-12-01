@@ -3767,7 +3767,7 @@ _drbd_insert_fault(struct drbd_device *device, unsigned int type)
 	if (ret) {
 		drbd_fault_count++;
 
-		if (__ratelimit(&drbd_ratelimit_state))
+		if (drbd_ratelimit())
 			drbd_warn(device, "***Simulating %s failure\n",
 				_drbd_fault_str(type));
 	}

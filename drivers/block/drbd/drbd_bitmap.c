@@ -113,7 +113,7 @@ struct drbd_bitmap {
 static void __bm_print_lock_info(struct drbd_device *device, const char *func)
 {
 	struct drbd_bitmap *b = device->bitmap;
-	if (!__ratelimit(&drbd_ratelimit_state))
+	if (!drbd_ratelimit())
 		return;
 	drbd_err(device, "FIXME %s[%d] in %s, bitmap locked for '%s' by %s[%d]\n",
 		 current->comm, task_pid_nr(current),
@@ -952,7 +952,7 @@ static void drbd_bm_endio(struct bio *bio)
 		bm_set_page_io_err(b->bm_pages[idx]);
 		/* Not identical to on disk version of it.
 		 * Is BM_PAGE_IO_ERROR enough? */
-		if (__ratelimit(&drbd_ratelimit_state))
+		if (drbd_ratelimit())
 			drbd_err(device, "IO ERROR %d on bitmap page idx %u\n",
 					bio->bi_status, idx);
 	} else {
@@ -1013,7 +1013,7 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
 		else
 			len = PAGE_SIZE;
 	} else {
-		if (__ratelimit(&drbd_ratelimit_state)) {
+		if (drbd_ratelimit()) {
 			drbd_err(device, "Invalid offset during on-disk bitmap access: "
 				 "page idx %u, sector %llu\n", page_nr, on_disk_sector);
 		}

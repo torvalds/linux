@@ -110,6 +110,14 @@ void drbd_dyn_dbg_with_wrong_object_type(void);
 	drbd_printk(KERN_INFO, device, fmt, ## args)
 
 
+#define drbd_ratelimit() \
+({						\
+	static DEFINE_RATELIMIT_STATE(_rs,	\
+		DEFAULT_RATELIMIT_INTERVAL,	\
+		DEFAULT_RATELIMIT_BURST);	\
+	__ratelimit(&_rs);			\
+})
+
 #define D_ASSERT(x, exp)							\
 	do {									\
 		if (!(exp))							\
@@ -124,7 +132,7 @@ void drbd_dyn_dbg_with_wrong_object_type(void);
  */
 #define expect(exp) ({								\
 		bool _bool = (exp);						\
-		if (!_bool)							\
+		if (!_bool && drbd_ratelimit())					\
 			drbd_err(device, "ASSERTION %s FAILED in %s\n",		\
 				#exp, __func__);				\
 		_bool;								\

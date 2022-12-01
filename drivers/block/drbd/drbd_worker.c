@@ -176,7 +176,7 @@ void drbd_peer_request_endio(struct bio *bio)
 	bool is_discard = bio_op(bio) == REQ_OP_WRITE_ZEROES ||
 			  bio_op(bio) == REQ_OP_DISCARD;
 
-	if (bio->bi_status && __ratelimit(&drbd_ratelimit_state))
+	if (bio->bi_status && drbd_ratelimit())
 		drbd_warn(device, "%s: error=%d s=%llus\n",
 				is_write ? (is_discard ? "discard" : "write")
 					: "read", bio->bi_status,
@@ -240,7 +240,7 @@ void drbd_request_endio(struct bio *bio)
 	 * though we still will complain noisily about it.
 	 */
 	if (unlikely(req->rq_state & RQ_LOCAL_ABORTED)) {
-		if (__ratelimit(&drbd_ratelimit_state))
+		if (drbd_ratelimit())
 			drbd_emerg(device, "delayed completion of aborted local request; disk-timeout may be too aggressive\n");
 
 		if (!bio->bi_status)
@@ -1062,7 +1062,7 @@ int w_e_end_data_req(struct drbd_work *w, int cancel)
 	if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
 		err = drbd_send_block(peer_device, P_DATA_REPLY, peer_req);
 	} else {
-		if (__ratelimit(&drbd_ratelimit_state))
+		if (drbd_ratelimit())
 			drbd_err(device, "Sending NegDReply. sector=%llus.\n",
 			    (unsigned long long)peer_req->i.sector);
 
@@ -1135,13 +1135,13 @@ int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 			else
 				err = drbd_send_block(peer_device, P_RS_DATA_REPLY, peer_req);
 		} else {
-			if (__ratelimit(&drbd_ratelimit_state))
+			if (drbd_ratelimit())
 				drbd_err(device, "Not sending RSDataReply, "
 				    "partner DISKLESS!\n");
 			err = 0;
 		}
 	} else {
-		if (__ratelimit(&drbd_ratelimit_state))
+		if (drbd_ratelimit())
 			drbd_err(device, "Sending NegRSDReply. sector %llus.\n",
 			    (unsigned long long)peer_req->i.sector);
 
@@ -1212,7 +1212,7 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 		}
 	} else {
 		err = drbd_send_ack(peer_device, P_NEG_RS_DREPLY, peer_req);
-		if (__ratelimit(&drbd_ratelimit_state))
+		if (drbd_ratelimit())
 			drbd_err(device, "Sending NegDReply. I guess it gets messy.\n");
 	}
 
