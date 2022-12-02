@@ -28,7 +28,7 @@
 #include <linux/suspend.h>
 #include <linux/vmalloc.h>
 #include <linux/panic_notifier.h>
-#include <linux/android_debug_symbols.h>
+#include "debug_symbol.h"
 #ifdef CONFIG_QCOM_MINIDUMP_PSTORE
 #include <linux/math64.h>
 #include <linux/of.h>
@@ -195,10 +195,10 @@ static void register_kernel_sections(void)
 	void *_sdata, *__bss_stop;
 	void *start_ro, *end_ro;
 
-	_sdata = android_debug_symbol(ADS_SDATA);
-	__bss_stop = android_debug_symbol(ADS_BSS_END);
-	base = android_debug_symbol(ADS_PER_CPU_START);
-	static_size = (size_t)(android_debug_symbol(ADS_PER_CPU_END) - base);
+	_sdata = (void *)debug_symbol_lookup_name("_sdata");
+	__bss_stop = (void *)debug_symbol_lookup_name("__bss_stop");
+	base = (void *)debug_symbol_lookup_name("__per_cpu_start");
+	static_size = (size_t)((void *)debug_symbol_lookup_name("__per_cpu_end") - base);
 
 	strscpy(ksec_entry.name, data_name, sizeof(ksec_entry.name));
 	ksec_entry.virt_addr = (u64)_sdata;
@@ -207,8 +207,8 @@ static void register_kernel_sections(void)
 	if (msm_minidump_add_region(&ksec_entry) < 0)
 		pr_err("Failed to add data section in Minidump\n");
 
-	start_ro = android_debug_symbol(ADS_START_RO_AFTER_INIT);
-	end_ro = android_debug_symbol(ADS_END_RO_AFTER_INIT);
+	start_ro = (void *)debug_symbol_lookup_name("__start_ro_after_init");
+	end_ro = (void *)debug_symbol_lookup_name("__end_ro_after_init");
 	strscpy(ksec_entry.name, rodata_name, sizeof(ksec_entry.name));
 	ksec_entry.virt_addr = (uintptr_t)start_ro;
 	ksec_entry.phys_addr = virt_to_phys(start_ro);
@@ -567,7 +567,7 @@ static void register_irq_stack(void)
 	u64 irq_stack_base;
 	struct md_region irq_sp_entry;
 	u64 sp;
-	u64 *irq_stack_ptr = android_debug_per_cpu_symbol(ADS_IRQ_STACK_PTR);
+	u64 *irq_stack_ptr = (void *)debug_symbol_lookup_name("irq_stack_ptr");
 
 	for_each_possible_cpu(cpu) {
 		irq_stack_base = *(u64 *)(per_cpu_ptr((void *)irq_stack_ptr, cpu));

@@ -825,6 +825,14 @@ config QCOM_ICC_BWMON
 	  the fixed bandwidth votes from cpufreq (CPU nodes) thus achieve high
 	  memory throughput even with lower CPU frequencies.
 
+config QCOM_DEBUG_SYMBOL
+	tristate "Enable Debug Symbol Support"
+	help
+	  This enables Debug Symbol Support. This driver is based on
+	  Google Debug Kinfo driver, according to the provided info, this
+	  driver allows other modules to get symbol addresses by traversing
+	  kallsyms table for debug usage.
+
 source "drivers/soc/qcom/mem_buf/Kconfig"
 source "drivers/soc/qcom/tmecom/Kconfig"
 
