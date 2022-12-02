@@ -247,7 +247,7 @@ static bool ssam_kip_cover_state_is_tablet_mode(struct ssam_tablet_sw *sw, u32 s
 
 SSAM_DEFINE_SYNC_REQUEST_R(__ssam_kip_get_cover_state, u8, {
 	.target_category = SSAM_SSH_TC_KIP,
-	.target_id       = 0x01,
+	.target_id       = SSAM_SSH_TID_SAM,
 	.command_id      = 0x1d,
 	.instance_id     = 0x00,
 });
@@ -371,7 +371,7 @@ static int ssam_pos_get_sources_list(struct ssam_tablet_sw *sw, struct ssam_sour
 	int status;
 
 	rqst.target_category = SSAM_SSH_TC_POS;
-	rqst.target_id = 0x01;
+	rqst.target_id = SSAM_SSH_TID_SAM;
 	rqst.command_id = 0x01;
 	rqst.instance_id = 0x00;
 	rqst.flags = SSAM_REQUEST_HAS_RESPONSE;
@@ -430,7 +430,7 @@ static int ssam_pos_get_source(struct ssam_tablet_sw *sw, u32 *source_id)
 
 SSAM_DEFINE_SYNC_REQUEST_WR(__ssam_pos_get_posture_for_source, __le32, __le32, {
 	.target_category = SSAM_SSH_TC_POS,
-	.target_id       = 0x01,
+	.target_id       = SSAM_SSH_TID_SAM,
 	.command_id      = 0x02,
 	.instance_id     = 0x00,
 });
