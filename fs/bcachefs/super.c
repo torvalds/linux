@@ -379,6 +379,14 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	clear_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags);
 
+	/*
+	 * First journal write must be a flush write: after a clean shutdown we
+	 * don't read the journal, so the first journal write may end up
+	 * overwriting whatever was there previously, and there must always be
+	 * at least one non-flush write in the journal or recovery will fail:
+	 */
+	set_bit(JOURNAL_NEED_FLUSH_WRITE, &c->journal.flags);
+
 	for_each_rw_member(ca, c, i)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);

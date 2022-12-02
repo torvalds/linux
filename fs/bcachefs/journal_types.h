@@ -141,10 +141,11 @@ enum journal_space_from {
 	journal_space_nr,
 };
 
-enum {
+enum journal_flags {
 	JOURNAL_REPLAY_DONE,
 	JOURNAL_STARTED,
 	JOURNAL_MAY_SKIP_FLUSH,
+	JOURNAL_NEED_FLUSH_WRITE,
 };
 
 #define JOURNAL_WATERMARKS()		\

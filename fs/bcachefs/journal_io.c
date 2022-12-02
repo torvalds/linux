@@ -1661,20 +1661,42 @@ void bch2_journal_write(struct closure *cl)
 	j->write_start_time = local_clock();
 
 	spin_lock(&j->lock);
-	if (bch2_journal_error(j) ||
-	    w->noflush ||
-	    (!w->must_flush &&
-	     (jiffies - j->last_flush_write) < msecs_to_jiffies(c->opts.journal_flush_delay) &&
-	     test_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags))) {
+
+	/*
+	 * If the journal is in an error state - we did an emergency shutdown -
+	 * we prefer to continue doing journal writes. We just mark them as
+	 * noflush so they'll never be used, but they'll still be visible by the
+	 * list_journal tool - this helps in debugging.
+	 *
+	 * There's a caveat: the first journal write after marking the
+	 * superblock dirty must always be a flush write, because on startup
+	 * from a clean shutdown we didn't necessarily read the journal and the
+	 * new journal write might overwrite whatever was in the journal
+	 * previously - we can't leave the journal without any flush writes in
+	 * it.
+	 *
+	 * So if we're in an error state, and we're still starting up, we don't
+	 * write anything at all.
+	 */
+	if (!test_bit(JOURNAL_NEED_FLUSH_WRITE, &j->flags) &&
+	    (bch2_journal_error(j) ||
+	     w->noflush ||
+	     (!w->must_flush &&
+	      (jiffies - j->last_flush_write) < msecs_to_jiffies(c->opts.journal_flush_delay) &&
+	      test_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags)))) {
 		w->noflush = true;
 		SET_JSET_NO_FLUSH(jset, true);
 		jset->last_seq	= 0;
 		w->last_seq	= 0;
 
 		j->nr_noflush_writes++;
-	} else {
+	} else if (!bch2_journal_error(j)) {
 		j->last_flush_write = jiffies;
 		j->nr_flush_writes++;
+		clear_bit(JOURNAL_NEED_FLUSH_WRITE, &j->flags);
+	} else {
+		spin_unlock(&j->lock);
+		goto err;
 	}
 	spin_unlock(&j->lock);
 
