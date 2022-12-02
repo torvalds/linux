@@ -140,9 +140,8 @@ static int stm32_pwm_lp_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (reenable) {
 		/* Start LP timer in continuous mode */
-		ret = regmap_update_bits(priv->regmap, STM32_LPTIM_CR,
-					 STM32_LPTIM_CNTSTRT,
-					 STM32_LPTIM_CNTSTRT);
+		ret = regmap_set_bits(priv->regmap, STM32_LPTIM_CR,
+				      STM32_LPTIM_CNTSTRT);
 		if (ret) {
 			regmap_write(priv->regmap, STM32_LPTIM_CR, 0);
 			goto err;
