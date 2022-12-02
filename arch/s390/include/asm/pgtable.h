@@ -477,6 +477,12 @@ static inline int is_module_addr(void *addr)
 				   _REGION3_ENTRY_YOUNG |  \
 				   _REGION_ENTRY_PROTECT | \
 				   _REGION_ENTRY_NOEXEC)
+#define REGION3_KERNEL_EXEC __pgprot(_REGION_ENTRY_TYPE_R3 | \
+				 _REGION3_ENTRY_LARGE |	 \
+				 _REGION3_ENTRY_READ |	 \
+				 _REGION3_ENTRY_WRITE |	 \
+				 _REGION3_ENTRY_YOUNG |	 \
+				 _REGION3_ENTRY_DIRTY)
 
 static inline bool mm_p4d_folded(struct mm_struct *mm)
 {
