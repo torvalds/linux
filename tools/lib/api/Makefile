@@ -88,10 +88,10 @@ define do_install_mkdir
 endef
 
 define do_install
-	if [ ! -d '$(DESTDIR_SQ)$2' ]; then             \
-		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$2'; \
-	fi;                                             \
-	$(INSTALL) $1 $(if $3,-m $3,) '$(DESTDIR_SQ)$2'
+	if [ ! -d '$2' ]; then             \
+		$(INSTALL) -d -m 755 '$2'; \
+	fi;                                \
+	$(INSTALL) $1 $(if $3,-m $3,) '$2'
 endef
 
 install_lib: $(LIBFILE)
@@ -99,14 +99,28 @@ install_lib: $(LIBFILE)
 		$(call do_install_mkdir,$(libdir_SQ)); \
 		cp -fpR $(LIBFILE) $(DESTDIR)$(libdir_SQ)
 
-install_headers:
-	$(call QUIET_INSTALL, libapi_headers) \
-		$(call do_install,cpu.h,$(prefix)/include/api,644); \
-		$(call do_install,debug.h,$(prefix)/include/api,644); \
-		$(call do_install,io.h,$(prefix)/include/api,644); \
-		$(call do_install,fd/array.h,$(prefix)/include/api/fd,644); \
-		$(call do_install,fs/fs.h,$(prefix)/include/api/fs,644); \
-		$(call do_install,fs/tracing_path.h,$(prefix)/include/api/fs,644);
+HDRS := cpu.h debug.h io.h
+FD_HDRS := fd/array.h
+FS_HDRS := fs/fs.h fs/tracing_path.h
+INSTALL_HDRS_PFX := $(DESTDIR)$(prefix)/include/api
+INSTALL_HDRS := $(addprefix $(INSTALL_HDRS_PFX)/, $(HDRS))
+INSTALL_FD_HDRS := $(addprefix $(INSTALL_HDRS_PFX)/, $(FD_HDRS))
+INSTALL_FS_HDRS := $(addprefix $(INSTALL_HDRS_PFX)/, $(FS_HDRS))
+
+$(INSTALL_HDRS): $(INSTALL_HDRS_PFX)/%.h: %.h
+	$(call QUIET_INSTALL, $@) \
+		$(call do_install,$<,$(INSTALL_HDRS_PFX)/,644)
+
+$(INSTALL_FD_HDRS): $(INSTALL_HDRS_PFX)/fd/%.h: fd/%.h
+	$(call QUIET_INSTALL, $@) \
+		$(call do_install,$<,$(INSTALL_HDRS_PFX)/fd/,644)
+
+$(INSTALL_FS_HDRS): $(INSTALL_HDRS_PFX)/fs/%.h: fs/%.h
+	$(call QUIET_INSTALL, $@) \
+		$(call do_install,$<,$(INSTALL_HDRS_PFX)/fs/,644)
+
+install_headers: $(INSTALL_HDRS) $(INSTALL_FD_HDRS) $(INSTALL_FS_HDRS)
+	$(call QUIET_INSTALL, libapi_headers)
 
 install: install_lib install_headers
 
