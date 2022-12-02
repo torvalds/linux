@@ -105,8 +105,6 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	}
 	F2FS_I(inode)->i_inline_xattr_size = xattr_size;
 
-	f2fs_init_extent_tree(inode, NULL);
-
 	F2FS_I(inode)->i_flags =
 		f2fs_mask_flags(mode, F2FS_I(dir)->i_flags & F2FS_FL_INHERITED);
 
@@ -132,6 +130,8 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	stat_inc_inline_dir(inode);
 
 	f2fs_set_inode_flags(inode);
+
+	f2fs_init_extent_tree(inode);
 
 	trace_f2fs_new_inode(inode, 0);
 	return inode;
