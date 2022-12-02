@@ -51,6 +51,8 @@ static int alloc_pwms(unsigned int count)
 	if (start + count > MAX_PWMS)
 		return -ENOSPC;
 
+	bitmap_set(allocated_pwms, start, count);
+
 	return start;
 }
 
@@ -296,8 +298,6 @@ int pwmchip_add(struct pwm_chip *chip)
 
 		radix_tree_insert(&pwm_tree, pwm->pwm, pwm);
 	}
-
-	bitmap_set(allocated_pwms, chip->base, chip->npwm);
 
 	INIT_LIST_HEAD(&chip->list);
 	list_add(&chip->list, &pwm_chips);
