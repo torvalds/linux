@@ -117,6 +117,24 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 	}
 }
 
+#ifdef CONFIG_PPC_BARRIER_NOSPEC
+static int do_patch_fixups(long *start, long *end, unsigned int *instrs, int num)
+{
+	int i;
+
+	for (i = 0; start < end; start++, i++) {
+		int j;
+		unsigned int *dest = (void *)start + *start;
+
+		pr_devel("patching dest %lx\n", (unsigned long)dest);
+
+		for (j = 0; j < num; j++)
+			patch_instruction(dest + j, ppc_inst(instrs[j]));
+	}
+	return i;
+}
+#endif
+
 #ifdef CONFIG_PPC_BOOK3S_64
 static int do_patch_entry_fixups(long *start, long *end, unsigned int *instrs,
 				 bool do_fallback, void *fallback)
@@ -181,7 +199,7 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 
 static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 {
-	unsigned int instrs[6], *dest;
+	unsigned int instrs[6];
 	long *start, *end;
 	int i;
 
@@ -215,18 +233,8 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 		instrs[i++] = PPC_RAW_EIEIO() | 0x02000000; /* eieio + bit 6 hint */
 	}
 
-	for (i = 0; start < end; start++, i++) {
-		dest = (void *)start + *start;
+	i = do_patch_fixups(start, end, instrs, ARRAY_SIZE(instrs));
 
-		pr_devel("patching dest %lx\n", (unsigned long)dest);
-
-		patch_instruction(dest, ppc_inst(instrs[0]));
-		patch_instruction(dest + 1, ppc_inst(instrs[1]));
-		patch_instruction(dest + 2, ppc_inst(instrs[2]));
-		patch_instruction(dest + 3, ppc_inst(instrs[3]));
-		patch_instruction(dest + 4, ppc_inst(instrs[4]));
-		patch_instruction(dest + 5, ppc_inst(instrs[5]));
-	}
 	printk(KERN_DEBUG "stf-barrier: patched %d exit locations (%s barrier)\n", i,
 		(types == STF_BARRIER_NONE)                  ? "no" :
 		(types == STF_BARRIER_FALLBACK)              ? "fallback" :
@@ -283,7 +291,7 @@ void do_stf_barrier_fixups(enum stf_barrier_type types)
 
 void do_uaccess_flush_fixups(enum l1d_flush_type types)
 {
-	unsigned int instrs[4], *dest;
+	unsigned int instrs[4];
 	long *start, *end;
 	int i;
 
@@ -309,17 +317,7 @@ void do_uaccess_flush_fixups(enum l1d_flush_type types)
 	if (types & L1D_FLUSH_MTTRIG)
 		instrs[i++] = PPC_RAW_MTSPR(SPRN_TRIG2, _R0);
 
-	for (i = 0; start < end; start++, i++) {
-		dest = (void *)start + *start;
-
-		pr_devel("patching dest %lx\n", (unsigned long)dest);
-
-		patch_instruction(dest, ppc_inst(instrs[0]));
-
-		patch_instruction(dest + 1, ppc_inst(instrs[1]));
-		patch_instruction(dest + 2, ppc_inst(instrs[2]));
-		patch_instruction(dest + 3, ppc_inst(instrs[3]));
-	}
+	i = do_patch_fixups(start, end, instrs, ARRAY_SIZE(instrs));
 
 	printk(KERN_DEBUG "uaccess-flush: patched %d locations (%s flush)\n", i,
 		(types == L1D_FLUSH_NONE)       ? "no" :
@@ -418,7 +416,7 @@ void do_entry_flush_fixups(enum l1d_flush_type types)
 static int __do_rfi_flush_fixups(void *data)
 {
 	enum l1d_flush_type types = *(enum l1d_flush_type *)data;
-	unsigned int instrs[3], *dest;
+	unsigned int instrs[3];
 	long *start, *end;
 	int i;
 
@@ -442,15 +440,7 @@ static int __do_rfi_flush_fixups(void *data)
 	if (types & L1D_FLUSH_MTTRIG)
 		instrs[i++] = PPC_RAW_MTSPR(SPRN_TRIG2, _R0);
 
-	for (i = 0; start < end; start++, i++) {
-		dest = (void *)start + *start;
-
-		pr_devel("patching dest %lx\n", (unsigned long)dest);
-
-		patch_instruction(dest, ppc_inst(instrs[0]));
-		patch_instruction(dest + 1, ppc_inst(instrs[1]));
-		patch_instruction(dest + 2, ppc_inst(instrs[2]));
-	}
+	i = do_patch_fixups(start, end, instrs, ARRAY_SIZE(instrs));
 
 	printk(KERN_DEBUG "rfi-flush: patched %d locations (%s flush)\n", i,
 		(types == L1D_FLUSH_NONE)       ? "no" :
@@ -492,7 +482,7 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 
 void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
 {
-	unsigned int instr, *dest;
+	unsigned int instr;
 	long *start, *end;
 	int i;
 
@@ -506,12 +496,7 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 		instr = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
 	}
 
-	for (i = 0; start < end; start++, i++) {
-		dest = (void *)start + *start;
-
-		pr_devel("patching dest %lx\n", (unsigned long)dest);
-		patch_instruction(dest, ppc_inst(instr));
-	}
+	i = do_patch_fixups(start, end, &instr, 1);
 
 	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
 }
@@ -533,7 +518,7 @@ void do_barrier_nospec_fixups(bool enable)
 #ifdef CONFIG_PPC_E500
 void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
 {
-	unsigned int instr[2], *dest;
+	unsigned int instr[2];
 	long *start, *end;
 	int i;
 
@@ -549,13 +534,7 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 		instr[1] = PPC_RAW_SYNC();
 	}
 
-	for (i = 0; start < end; start++, i++) {
-		dest = (void *)start + *start;
-
-		pr_devel("patching dest %lx\n", (unsigned long)dest);
-		patch_instruction(dest, ppc_inst(instr[0]));
-		patch_instruction(dest + 1, ppc_inst(instr[1]));
-	}
+	i = do_patch_fixups(start, end, instr, ARRAY_SIZE(instr));
 
 	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
 }
