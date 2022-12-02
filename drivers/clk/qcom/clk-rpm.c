@@ -31,27 +31,27 @@ static const struct clk_parent_data gcc_cxo[] = {
 	{ .fw_name = "cxo", .name = "cxo_board" },
 };
 
-#define DEFINE_CLK_RPM(_platform, _name, _active, r_id)			      \
-	static struct clk_rpm _platform##_##_active;			      \
-	static struct clk_rpm _platform##_##_name = {			      \
+#define DEFINE_CLK_RPM(_platform, _name, r_id)				      \
+	static struct clk_rpm _platform##_##_name##_a_clk;		      \
+	static struct clk_rpm _platform##_##_name##_clk = {		      \
 		.rpm_clk_id = (r_id),					      \
-		.peer = &_platform##_##_active,				      \
+		.peer = &_platform##_##_name##_a_clk,			      \
 		.rate = INT_MAX,					      \
 		.hw.init = &(struct clk_init_data){			      \
 			.ops = &clk_rpm_ops,				      \
-			.name = #_name,					      \
+			.name = #_name "_clk",				      \
 			.parent_data = gcc_pxo,				      \
 			.num_parents = ARRAY_SIZE(gcc_pxo),		      \
 		},							      \
 	};								      \
-	static struct clk_rpm _platform##_##_active = {			      \
+	static struct clk_rpm _platform##_##_name##_a_clk = {		      \
 		.rpm_clk_id = (r_id),					      \
-		.peer = &_platform##_##_name,				      \
+		.peer = &_platform##_##_name##_clk,			      \
 		.active_only = true,					      \
 		.rate = INT_MAX,					      \
 		.hw.init = &(struct clk_init_data){			      \
 			.ops = &clk_rpm_ops,				      \
-			.name = #_active,				      \
+			.name = #_name "_a_clk",			      \
 			.parent_data = gcc_pxo,				      \
 			.num_parents = ARRAY_SIZE(gcc_pxo),		      \
 		},							      \
@@ -403,15 +403,15 @@ static const struct clk_ops clk_rpm_ops = {
 };
 
 /* MSM8660/APQ8060 */
-DEFINE_CLK_RPM(msm8660, afab_clk, afab_a_clk, QCOM_RPM_APPS_FABRIC_CLK);
-DEFINE_CLK_RPM(msm8660, sfab_clk, sfab_a_clk, QCOM_RPM_SYS_FABRIC_CLK);
-DEFINE_CLK_RPM(msm8660, mmfab_clk, mmfab_a_clk, QCOM_RPM_MM_FABRIC_CLK);
-DEFINE_CLK_RPM(msm8660, daytona_clk, daytona_a_clk, QCOM_RPM_DAYTONA_FABRIC_CLK);
-DEFINE_CLK_RPM(msm8660, sfpb_clk, sfpb_a_clk, QCOM_RPM_SFPB_CLK);
-DEFINE_CLK_RPM(msm8660, cfpb_clk, cfpb_a_clk, QCOM_RPM_CFPB_CLK);
-DEFINE_CLK_RPM(msm8660, mmfpb_clk, mmfpb_a_clk, QCOM_RPM_MMFPB_CLK);
-DEFINE_CLK_RPM(msm8660, smi_clk, smi_a_clk, QCOM_RPM_SMI_CLK);
-DEFINE_CLK_RPM(msm8660, ebi1_clk, ebi1_a_clk, QCOM_RPM_EBI1_CLK);
+DEFINE_CLK_RPM(msm8660, afab, QCOM_RPM_APPS_FABRIC_CLK);
+DEFINE_CLK_RPM(msm8660, sfab, QCOM_RPM_SYS_FABRIC_CLK);
+DEFINE_CLK_RPM(msm8660, mmfab, QCOM_RPM_MM_FABRIC_CLK);
+DEFINE_CLK_RPM(msm8660, daytona, QCOM_RPM_DAYTONA_FABRIC_CLK);
+DEFINE_CLK_RPM(msm8660, sfpb, QCOM_RPM_SFPB_CLK);
+DEFINE_CLK_RPM(msm8660, cfpb, QCOM_RPM_CFPB_CLK);
+DEFINE_CLK_RPM(msm8660, mmfpb, QCOM_RPM_MMFPB_CLK);
+DEFINE_CLK_RPM(msm8660, smi, QCOM_RPM_SMI_CLK);
+DEFINE_CLK_RPM(msm8660, ebi1, QCOM_RPM_EBI1_CLK);
 DEFINE_CLK_RPM_FIXED(msm8660, pll4_clk, QCOM_RPM_PLL_4, 540672000);
 
 static struct clk_rpm *msm8660_clks[] = {
@@ -442,15 +442,15 @@ static const struct rpm_clk_desc rpm_clk_msm8660 = {
 };
 
 /* apq8064 */
-DEFINE_CLK_RPM(apq8064, afab_clk, afab_a_clk, QCOM_RPM_APPS_FABRIC_CLK);
-DEFINE_CLK_RPM(apq8064, cfpb_clk, cfpb_a_clk, QCOM_RPM_CFPB_CLK);
-DEFINE_CLK_RPM(apq8064, daytona_clk, daytona_a_clk, QCOM_RPM_DAYTONA_FABRIC_CLK);
-DEFINE_CLK_RPM(apq8064, ebi1_clk, ebi1_a_clk, QCOM_RPM_EBI1_CLK);
-DEFINE_CLK_RPM(apq8064, mmfab_clk, mmfab_a_clk, QCOM_RPM_MM_FABRIC_CLK);
-DEFINE_CLK_RPM(apq8064, mmfpb_clk, mmfpb_a_clk, QCOM_RPM_MMFPB_CLK);
-DEFINE_CLK_RPM(apq8064, sfab_clk, sfab_a_clk, QCOM_RPM_SYS_FABRIC_CLK);
-DEFINE_CLK_RPM(apq8064, sfpb_clk, sfpb_a_clk, QCOM_RPM_SFPB_CLK);
-DEFINE_CLK_RPM(apq8064, qdss_clk, qdss_a_clk, QCOM_RPM_QDSS_CLK);
+DEFINE_CLK_RPM(apq8064, afab, QCOM_RPM_APPS_FABRIC_CLK);
+DEFINE_CLK_RPM(apq8064, cfpb, QCOM_RPM_CFPB_CLK);
+DEFINE_CLK_RPM(apq8064, daytona, QCOM_RPM_DAYTONA_FABRIC_CLK);
+DEFINE_CLK_RPM(apq8064, ebi1, QCOM_RPM_EBI1_CLK);
+DEFINE_CLK_RPM(apq8064, mmfab, QCOM_RPM_MM_FABRIC_CLK);
+DEFINE_CLK_RPM(apq8064, mmfpb, QCOM_RPM_MMFPB_CLK);
+DEFINE_CLK_RPM(apq8064, sfab, QCOM_RPM_SYS_FABRIC_CLK);
+DEFINE_CLK_RPM(apq8064, sfpb, QCOM_RPM_SFPB_CLK);
+DEFINE_CLK_RPM(apq8064, qdss, QCOM_RPM_QDSS_CLK);
 DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_d0_clk, 0);
 DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_d1_clk, 8);
 DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a0_clk, 16);
@@ -489,14 +489,14 @@ static const struct rpm_clk_desc rpm_clk_apq8064 = {
 };
 
 /* ipq806x */
-DEFINE_CLK_RPM(ipq806x, afab_clk, afab_a_clk, QCOM_RPM_APPS_FABRIC_CLK);
-DEFINE_CLK_RPM(ipq806x, cfpb_clk, cfpb_a_clk, QCOM_RPM_CFPB_CLK);
-DEFINE_CLK_RPM(ipq806x, daytona_clk, daytona_a_clk, QCOM_RPM_DAYTONA_FABRIC_CLK);
-DEFINE_CLK_RPM(ipq806x, ebi1_clk, ebi1_a_clk, QCOM_RPM_EBI1_CLK);
-DEFINE_CLK_RPM(ipq806x, sfab_clk, sfab_a_clk, QCOM_RPM_SYS_FABRIC_CLK);
-DEFINE_CLK_RPM(ipq806x, sfpb_clk, sfpb_a_clk, QCOM_RPM_SFPB_CLK);
-DEFINE_CLK_RPM(ipq806x, nss_fabric_0_clk, nss_fabric_0_a_clk, QCOM_RPM_NSS_FABRIC_0_CLK);
-DEFINE_CLK_RPM(ipq806x, nss_fabric_1_clk, nss_fabric_1_a_clk, QCOM_RPM_NSS_FABRIC_1_CLK);
+DEFINE_CLK_RPM(ipq806x, afab, QCOM_RPM_APPS_FABRIC_CLK);
+DEFINE_CLK_RPM(ipq806x, cfpb, QCOM_RPM_CFPB_CLK);
+DEFINE_CLK_RPM(ipq806x, daytona, QCOM_RPM_DAYTONA_FABRIC_CLK);
+DEFINE_CLK_RPM(ipq806x, ebi1, QCOM_RPM_EBI1_CLK);
+DEFINE_CLK_RPM(ipq806x, sfab, QCOM_RPM_SYS_FABRIC_CLK);
+DEFINE_CLK_RPM(ipq806x, sfpb, QCOM_RPM_SFPB_CLK);
+DEFINE_CLK_RPM(ipq806x, nss_fabric_0, QCOM_RPM_NSS_FABRIC_0_CLK);
+DEFINE_CLK_RPM(ipq806x, nss_fabric_1, QCOM_RPM_NSS_FABRIC_1_CLK);
 
 static struct clk_rpm *ipq806x_clks[] = {
 	[RPM_APPS_FABRIC_CLK] = &ipq806x_afab_clk,
