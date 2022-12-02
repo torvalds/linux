@@ -1245,16 +1245,12 @@ PAGE_SIZE multiple when read back.
 	This is a simple interface to trigger memory reclaim in the
 	target cgroup.
 
-	This file accepts a single key, the number of bytes to reclaim.
-	No nested keys are currently supported.
+	This file accepts a string which contains the number of bytes to
+	reclaim.
 
 	Example::
 
 	  echo "1G" > memory.reclaim
-
-	The interface can be later extended with nested keys to
-	configure the reclaim behavior. For example, specify the
-	type of memory to reclaim from (anon, file, ..).
 
 	Please note that the kernel can over or under reclaim from
 	the target cgroup. If less bytes are reclaimed than the
@@ -1266,6 +1262,13 @@ PAGE_SIZE multiple when read back.
 	the memory reclaim normally is not exercised in this case.
 	This means that the networking layer will not adapt based on
 	reclaim induced by memory.reclaim.
+
+	This file also allows the user to specify the nodes to reclaim from,
+	via the 'nodes=' key, for example::
+
+	  echo "1G nodes=0,1" > memory.reclaim
+
+	The above instructs the kernel to reclaim memory from nodes 0,1.
 
   memory.peak
 	A read-only single value file which exists on non-root
