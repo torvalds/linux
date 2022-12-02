@@ -1202,7 +1202,7 @@ __bch2_btree_path_set_pos(struct btree_trans *trans,
 			  struct btree_path *path, struct bpos new_pos,
 			  bool intent, int cmp)
 {
-	unsigned l = path->level;
+	unsigned level = path->level;
 
 	EBUG_ON(trans->restarted);
 	EBUG_ON(!path->ref);
@@ -1219,10 +1219,12 @@ __bch2_btree_path_set_pos(struct btree_trans *trans,
 		goto out;
 	}
 
-	l = btree_path_up_until_good_node(trans, path, cmp);
+	level = btree_path_up_until_good_node(trans, path, cmp);
 
-	if (btree_path_node(path, l)) {
-		BUG_ON(!btree_node_locked(path, l));
+	if (btree_path_node(path, level)) {
+		struct btree_path_level *l = &path->l[level];
+
+		BUG_ON(!btree_node_locked(path, level));
 		/*
 		 * We might have to skip over many keys, or just a few: try
 		 * advancing the node iterator, and if we have to skip over too
@@ -1230,11 +1232,18 @@ __bch2_btree_path_set_pos(struct btree_trans *trans,
 		 * is expensive).
 		 */
 		if (cmp < 0 ||
-		    !btree_path_advance_to_pos(path, &path->l[l], 8))
-			__btree_path_level_init(path, l);
+		    !btree_path_advance_to_pos(path, l, 8))
+			bch2_btree_node_iter_init(&l->iter, l->b, &path->pos);
+
+		/*
+		 * Iterators to interior nodes should always be pointed at the first non
+		 * whiteout:
+		 */
+		if (unlikely(level))
+			bch2_btree_node_iter_peek(&l->iter, l->b);
 	}
 
-	if (l != path->level) {
+	if (unlikely(level != path->level)) {
 		btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
 		__bch2_btree_path_unlock(trans, path);
 	}
