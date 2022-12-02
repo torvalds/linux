@@ -15,6 +15,7 @@
 #define MLX5_WQE_CTRL_WQE_OPC_MOD_SHIFT 24
 #define MLX5_MACSEC_ASO_DS_CNT (DIV_ROUND_UP(sizeof(struct mlx5_aso_wqe), MLX5_SEND_WQE_DS))
 
+#define ASO_CTRL_READ_EN BIT(0)
 struct mlx5_wqe_aso_ctrl_seg {
 	__be32  va_h;
 	__be32  va_l; /* include read_enable */

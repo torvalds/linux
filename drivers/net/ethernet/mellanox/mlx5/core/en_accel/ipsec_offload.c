@@ -83,6 +83,20 @@ static void mlx5e_ipsec_packet_setup(void *obj, u32 pdn,
 	MLX5_SET(ipsec_obj, obj, aso_return_reg, MLX5_IPSEC_ASO_REG_C_4_5);
 	if (attrs->dir == XFRM_DEV_OFFLOAD_OUT)
 		MLX5_SET(ipsec_aso, aso_ctx, mode, MLX5_IPSEC_ASO_INC_SN);
+
+	if (attrs->hard_packet_limit != XFRM_INF) {
+		MLX5_SET(ipsec_aso, aso_ctx, remove_flow_pkt_cnt,
+			 lower_32_bits(attrs->hard_packet_limit));
+		MLX5_SET(ipsec_aso, aso_ctx, hard_lft_arm, 1);
+		MLX5_SET(ipsec_aso, aso_ctx, remove_flow_enable, 1);
+	}
+
+	if (attrs->soft_packet_limit != XFRM_INF) {
+		MLX5_SET(ipsec_aso, aso_ctx, remove_flow_soft_lft,
+			 lower_32_bits(attrs->soft_packet_limit));
+
+		MLX5_SET(ipsec_aso, aso_ctx, soft_lft_arm, 1);
+	}
 }
 
 static int mlx5_create_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry)
@@ -297,4 +311,47 @@ void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec)
 	dma_unmap_single(pdev, aso->dma_addr, sizeof(aso->ctx),
 			 DMA_BIDIRECTIONAL);
 	kfree(aso);
+}
+
+int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry)
+{
+	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
+	struct mlx5e_ipsec_aso *aso = ipsec->aso;
+	struct mlx5_core_dev *mdev = ipsec->mdev;
+	struct mlx5_wqe_aso_ctrl_seg *ctrl;
+	struct mlx5e_hw_objs *res;
+	struct mlx5_aso_wqe *wqe;
+	u8 ds_cnt;
+
+	res = &mdev->mlx5e_res.hw_objs;
+
+	memset(aso->ctx, 0, sizeof(aso->ctx));
+	wqe = mlx5_aso_get_wqe(aso->aso);
+	ds_cnt = DIV_ROUND_UP(sizeof(*wqe), MLX5_SEND_WQE_DS);
+	mlx5_aso_build_wqe(aso->aso, ds_cnt, wqe, sa_entry->ipsec_obj_id,
+			   MLX5_ACCESS_ASO_OPC_MOD_IPSEC);
+
+	ctrl = &wqe->aso_ctrl;
+	ctrl->va_l =
+		cpu_to_be32(lower_32_bits(aso->dma_addr) | ASO_CTRL_READ_EN);
+	ctrl->va_h = cpu_to_be32(upper_32_bits(aso->dma_addr));
+	ctrl->l_key = cpu_to_be32(res->mkey);
+
+	mlx5_aso_post_wqe(aso->aso, false, &wqe->ctrl);
+	return mlx5_aso_poll_cq(aso->aso, false);
+}
+
+void mlx5e_ipsec_aso_update_curlft(struct mlx5e_ipsec_sa_entry *sa_entry,
+				   u64 *packets)
+{
+	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
+	struct mlx5e_ipsec_aso *aso = ipsec->aso;
+	u64 hard_cnt;
+
+	hard_cnt = MLX5_GET(ipsec_aso, aso->ctx, remove_flow_pkt_cnt);
+	/* HW decresases the limit till it reaches zero to fire an avent.
+	 * We need to fix the calculations, so the returned count is a total
+	 * number of passed packets and not how much left.
+	 */
+	*packets = sa_entry->attrs.hard_packet_limit - hard_cnt;
 }

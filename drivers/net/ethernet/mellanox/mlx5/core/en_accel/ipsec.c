@@ -83,6 +83,31 @@ static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 	return false;
 }
 
+static void mlx5e_ipsec_init_limits(struct mlx5e_ipsec_sa_entry *sa_entry,
+				    struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	struct xfrm_state *x = sa_entry->x;
+
+	attrs->hard_packet_limit = x->lft.hard_packet_limit;
+	if (x->lft.soft_packet_limit == XFRM_INF)
+		return;
+
+	/* Hardware decrements hard_packet_limit counter through
+	 * the operation. While fires an event when soft_packet_limit
+	 * is reached. It emans that we need substitute the numbers
+	 * in order to properly count soft limit.
+	 *
+	 * As an example:
+	 * XFRM user sets soft limit is 2 and hard limit is 9 and
+	 * expects to see soft event after 2 packets and hard event
+	 * after 9 packets. In our case, the hard limit will be set
+	 * to 9 and soft limit is comparator to 7 so user gets the
+	 * soft event after 2 packeta
+	 */
+	attrs->soft_packet_limit =
+		x->lft.hard_packet_limit - x->lft.soft_packet_limit;
+}
+
 static void
 mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 				   struct mlx5_accel_esp_xfrm_attrs *attrs)
@@ -134,6 +159,8 @@ mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	attrs->family = x->props.family;
 	attrs->type = x->xso.type;
 	attrs->reqid = x->props.reqid;
+
+	mlx5e_ipsec_init_limits(sa_entry, attrs);
 }
 
 static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
@@ -220,6 +247,21 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 
 		if (!x->props.reqid) {
 			netdev_info(netdev, "Cannot offload without reqid\n");
+			return -EINVAL;
+		}
+
+		if (x->lft.hard_byte_limit != XFRM_INF ||
+		    x->lft.soft_byte_limit != XFRM_INF) {
+			netdev_info(netdev,
+				    "Device doesn't support limits in bytes\n");
+			return -EINVAL;
+		}
+
+		if (x->lft.soft_packet_limit >= x->lft.hard_packet_limit &&
+		    x->lft.hard_packet_limit != XFRM_INF) {
+			/* XFRM stack doesn't prevent such configuration :(. */
+			netdev_info(netdev,
+				    "Hard packet limit must be greater than soft one\n");
 			return -EINVAL;
 		}
 	}
@@ -415,6 +457,26 @@ static void mlx5e_xfrm_advance_esn_state(struct xfrm_state *x)
 	queue_work(sa_entry->ipsec->wq, &modify_work->work);
 }
 
+static void mlx5e_xfrm_update_curlft(struct xfrm_state *x)
+{
+	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
+	int err;
+
+	lockdep_assert_held(&x->lock);
+
+	if (sa_entry->attrs.soft_packet_limit == XFRM_INF)
+		/* Limits are not configured, as soft limit
+		 * must be lowever than hard limit.
+		 */
+		return;
+
+	err = mlx5e_ipsec_aso_query(sa_entry);
+	if (err)
+		return;
+
+	mlx5e_ipsec_aso_update_curlft(sa_entry, &x->curlft.packets);
+}
+
 static int mlx5e_xfrm_validate_policy(struct xfrm_policy *x)
 {
 	struct net_device *netdev = x->xdo.real_dev;
@@ -526,6 +588,7 @@ static const struct xfrmdev_ops mlx5e_ipsec_packet_xfrmdev_ops = {
 	.xdo_dev_offload_ok	= mlx5e_ipsec_offload_ok,
 	.xdo_dev_state_advance_esn = mlx5e_xfrm_advance_esn_state,
 
+	.xdo_dev_state_update_curlft = mlx5e_xfrm_update_curlft,
 	.xdo_dev_policy_add = mlx5e_xfrm_add_policy,
 	.xdo_dev_policy_free = mlx5e_xfrm_free_policy,
 };

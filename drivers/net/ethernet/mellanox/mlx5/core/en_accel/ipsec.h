@@ -78,6 +78,8 @@ struct mlx5_accel_esp_xfrm_attrs {
 	u32 replay_window;
 	u32 authsize;
 	u32 reqid;
+	u64 hard_packet_limit;
+	u64 soft_packet_limit;
 };
 
 enum mlx5_ipsec_cap {
@@ -207,6 +209,10 @@ void mlx5_accel_esp_modify_xfrm(struct mlx5e_ipsec_sa_entry *sa_entry,
 
 int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec);
 void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec);
+
+int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry);
+void mlx5e_ipsec_aso_update_curlft(struct mlx5e_ipsec_sa_entry *sa_entry,
+				   u64 *packets);
 
 void mlx5e_accel_ipsec_fs_read_stats(struct mlx5e_priv *priv,
 				     void *ipsec_stats);
