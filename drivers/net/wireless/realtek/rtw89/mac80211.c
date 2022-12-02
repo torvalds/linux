@@ -125,6 +125,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 						  RTW89_PORT_NUM);
 	if (rtwvif->port == RTW89_PORT_NUM) {
 		ret = -ENOSPC;
+		list_del_init(&rtwvif->list);
 		goto out;
 	}
 
@@ -138,6 +139,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	ret = rtw89_mac_add_vif(rtwdev, rtwvif);
 	if (ret) {
 		rtw89_core_release_bit_map(rtwdev->hw_port, rtwvif->port);
+		list_del_init(&rtwvif->list);
 		goto out;
 	}
 
