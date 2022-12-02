@@ -64,7 +64,6 @@ static int pxa_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long long c;
 	unsigned long period_cycles, prescale, pv, dc;
 	unsigned long offset;
-	int rc;
 
 	offset = pwm->hwpwm ? 0x10 : 0;
 
@@ -86,18 +85,10 @@ static int pxa_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	else
 		dc = mul_u64_u64_div_u64(pv + 1, duty_ns, period_ns);
 
-	/* NOTE: the clock to PWM has to be enabled first
-	 * before writing to the registers
-	 */
-	rc = clk_prepare_enable(pc->clk);
-	if (rc < 0)
-		return rc;
-
 	writel(prescale, pc->mmio_base + offset + PWMCR);
 	writel(dc, pc->mmio_base + offset + PWMDCR);
 	writel(pv, pc->mmio_base + offset + PWMPCR);
 
-	clk_disable_unprepare(pc->clk);
 	return 0;
 }
 
