@@ -201,11 +201,25 @@ static int strace_open(struct inode *inode, struct file *file)
 
 static int strace_release(struct inode *inode, struct file *file)
 {
+	union avs_notify_msg msg = AVS_NOTIFICATION(LOG_BUFFER_STATUS);
 	struct avs_dev *adev = file->private_data;
-	unsigned long flags;
+	unsigned long resource_mask;
+	unsigned long flags, i;
+	u32 num_cores;
+
+	resource_mask = adev->logged_resources;
+	num_cores = adev->hw_cfg.dsp_cores;
 
 	spin_lock_irqsave(&adev->trace_lock, flags);
+
+	/* Gather any remaining logs. */
+	for_each_set_bit(i, &resource_mask, num_cores) {
+		msg.log.core = i;
+		avs_dsp_op(adev, log_buffer_status, &msg);
+	}
+
 	kfifo_free(&adev->trace_fifo);
+
 	spin_unlock_irqrestore(&adev->trace_lock, flags);
 
 	return 0;
