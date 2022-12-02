@@ -70,8 +70,8 @@ static int rx_err_add_rule(struct mlx5e_priv *priv, struct mlx5e_ipsec_rx *rx,
 
 	if (IS_ERR(modify_hdr)) {
 		err = PTR_ERR(modify_hdr);
-		netdev_err(priv->netdev,
-			   "fail to alloc ipsec copy modify_header_id err=%d\n", err);
+		mlx5_core_err(mdev,
+			      "fail to alloc ipsec copy modify_header_id err=%d\n", err);
 		goto out_spec;
 	}
 
@@ -83,7 +83,7 @@ static int rx_err_add_rule(struct mlx5e_priv *priv, struct mlx5e_ipsec_rx *rx,
 				  &rx->default_dest, 1);
 	if (IS_ERR(fte)) {
 		err = PTR_ERR(fte);
-		netdev_err(priv->netdev, "fail to add ipsec rx err copy rule err=%d\n", err);
+		mlx5_core_err(mdev, "fail to add ipsec rx err copy rule err=%d\n", err);
 		goto out;
 	}
 
@@ -103,6 +103,7 @@ static int rx_fs_create(struct mlx5e_priv *priv, struct mlx5e_ipsec_rx *rx)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_table *ft = rx->ft.sa;
+	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_flow_group *miss_group;
 	struct mlx5_flow_handle *miss_rule;
 	MLX5_DECLARE_FLOW_ACT(flow_act);
@@ -123,7 +124,7 @@ static int rx_fs_create(struct mlx5e_priv *priv, struct mlx5e_ipsec_rx *rx)
 	miss_group = mlx5_create_flow_group(ft, flow_group_in);
 	if (IS_ERR(miss_group)) {
 		err = PTR_ERR(miss_group);
-		netdev_err(priv->netdev, "fail to create ipsec rx miss_group err=%d\n", err);
+		mlx5_core_err(mdev, "fail to create ipsec rx miss_group err=%d\n", err);
 		goto out;
 	}
 	rx->miss_group = miss_group;
@@ -134,7 +135,7 @@ static int rx_fs_create(struct mlx5e_priv *priv, struct mlx5e_ipsec_rx *rx)
 	if (IS_ERR(miss_rule)) {
 		mlx5_destroy_flow_group(rx->miss_group);
 		err = PTR_ERR(miss_rule);
-		netdev_err(priv->netdev, "fail to create ipsec rx miss_rule err=%d\n", err);
+		mlx5_core_err(mdev, "fail to create ipsec rx miss_rule err=%d\n", err);
 		goto out;
 	}
 	rx->miss_rule = miss_rule;
@@ -273,6 +274,7 @@ static int tx_create(struct mlx5e_priv *priv)
 {
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5e_ipsec *ipsec = priv->ipsec;
+	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_flow_table *ft;
 	int err;
 
@@ -281,7 +283,7 @@ static int tx_create(struct mlx5e_priv *priv)
 	ft = mlx5_create_auto_grouped_flow_table(ipsec->tx->ns, &ft_attr);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
-		netdev_err(priv->netdev, "fail to create ipsec tx ft err=%d\n", err);
+		mlx5_core_err(mdev, "fail to create ipsec tx ft err=%d\n", err);
 		return err;
 	}
 	ipsec->tx->ft.sa = ft;
@@ -386,6 +388,7 @@ static int rx_add_rule(struct mlx5e_priv *priv,
 	u8 action[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
 	struct mlx5e_ipsec_rule *ipsec_rule = &sa_entry->ipsec_rule;
 	struct mlx5_accel_esp_xfrm_attrs *attrs = &sa_entry->attrs;
+	struct mlx5_core_dev *mdev = mlx5e_ipsec_sa2dev(sa_entry);
 	u32 ipsec_obj_id = sa_entry->ipsec_obj_id;
 	struct mlx5_modify_hdr *modify_hdr = NULL;
 	struct mlx5_flow_destination dest = {};
@@ -419,8 +422,8 @@ static int rx_add_rule(struct mlx5e_priv *priv,
 					      1, action);
 	if (IS_ERR(modify_hdr)) {
 		err = PTR_ERR(modify_hdr);
-		netdev_err(priv->netdev,
-			   "fail to alloc ipsec set modify_header_id err=%d\n", err);
+		mlx5_core_err(mdev,
+			      "fail to alloc ipsec set modify_header_id err=%d\n", err);
 		modify_hdr = NULL;
 		goto out_err;
 	}
@@ -434,8 +437,7 @@ static int rx_add_rule(struct mlx5e_priv *priv,
 	rule = mlx5_add_flow_rules(rx->ft.sa, spec, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
-		netdev_err(priv->netdev, "fail to add RX ipsec rule err=%d\n",
-			   err);
+		mlx5_core_err(mdev, "fail to add RX ipsec rule err=%d\n", err);
 		goto out_err;
 	}
 
@@ -456,6 +458,7 @@ out:
 static int tx_add_rule(struct mlx5e_priv *priv,
 		       struct mlx5e_ipsec_sa_entry *sa_entry)
 {
+	struct mlx5_core_dev *mdev = mlx5e_ipsec_sa2dev(sa_entry);
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
@@ -487,8 +490,7 @@ static int tx_add_rule(struct mlx5e_priv *priv,
 	rule = mlx5_add_flow_rules(tx->ft.sa, spec, &flow_act, NULL, 0);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
-		netdev_err(priv->netdev, "fail to add TX ipsec rule err=%d\n",
-			   err);
+		mlx5_core_err(mdev, "fail to add TX ipsec rule err=%d\n", err);
 		goto out;
 	}
 
