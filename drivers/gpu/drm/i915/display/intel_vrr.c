@@ -153,18 +153,9 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 		crtc_state->vrr.guardband =
 			crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay;
 	} else {
-		/*
-		 * FIXME: s/4/framestart_delay/ to get consistent
-		 * earliest/latest points for register latching regardless
-		 * of the framestart_delay used?
-		 *
-		 * FIXME: this really needs the extra scanline to provide consistent
-		 * behaviour for all framestart_delay values. Otherwise with
-		 * framestart_delay==4 we will end up extending the min vblank by
-		 * one extra line.
-		 */
 		crtc_state->vrr.pipeline_full =
-			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay - 4 - 1);
+			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay -
+			    crtc_state->framestart_delay - 1);
 	}
 
 	crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
