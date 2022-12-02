@@ -400,20 +400,52 @@ static void setup_fte_reg_a(struct mlx5_flow_spec *spec)
 		 misc_parameters_2.metadata_reg_a, MLX5_ETH_WQE_FT_META_IPSEC);
 }
 
-static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
+static int setup_modify_header(struct mlx5_core_dev *mdev, u32 val, u8 dir,
+			       struct mlx5_flow_act *flow_act)
 {
 	u8 action[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
+	enum mlx5_flow_namespace_type ns_type;
+	struct mlx5_modify_hdr *modify_hdr;
+
+	MLX5_SET(set_action_in, action, action_type, MLX5_ACTION_TYPE_SET);
+	switch (dir) {
+	case XFRM_DEV_OFFLOAD_IN:
+		MLX5_SET(set_action_in, action, field,
+			 MLX5_ACTION_IN_FIELD_METADATA_REG_B);
+		ns_type = MLX5_FLOW_NAMESPACE_KERNEL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	MLX5_SET(set_action_in, action, data, val);
+	MLX5_SET(set_action_in, action, offset, 0);
+	MLX5_SET(set_action_in, action, length, 32);
+
+	modify_hdr = mlx5_modify_header_alloc(mdev, ns_type, 1, action);
+	if (IS_ERR(modify_hdr)) {
+		mlx5_core_err(mdev, "Failed to allocate modify_header %ld\n",
+			      PTR_ERR(modify_hdr));
+		return PTR_ERR(modify_hdr);
+	}
+
+	flow_act->modify_hdr = modify_hdr;
+	flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+	return 0;
+}
+
+static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
+{
 	struct mlx5e_ipsec_rule *ipsec_rule = &sa_entry->ipsec_rule;
 	struct mlx5_accel_esp_xfrm_attrs *attrs = &sa_entry->attrs;
 	struct mlx5_core_dev *mdev = mlx5e_ipsec_sa2dev(sa_entry);
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
-	struct mlx5_modify_hdr *modify_hdr = NULL;
 	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	struct mlx5e_ipsec_rx *rx;
-	int err = 0;
+	int err;
 
 	rx = rx_ft_get(mdev, ipsec, attrs->family);
 	if (IS_ERR(rx))
@@ -422,7 +454,7 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
 		err = -ENOMEM;
-		goto out_err;
+		goto err_alloc;
 	}
 
 	if (attrs->family == AF_INET)
@@ -434,52 +466,36 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	setup_fte_esp(spec);
 	setup_fte_no_frags(spec);
 
-	/* Set bit[31] ipsec marker */
-	/* Set bit[23-0] ipsec_obj_id */
-	MLX5_SET(set_action_in, action, action_type, MLX5_ACTION_TYPE_SET);
-	MLX5_SET(set_action_in, action, field, MLX5_ACTION_IN_FIELD_METADATA_REG_B);
-	MLX5_SET(set_action_in, action, data,
-		 (sa_entry->ipsec_obj_id | BIT(31)));
-	MLX5_SET(set_action_in, action, offset, 0);
-	MLX5_SET(set_action_in, action, length, 32);
-
-	modify_hdr = mlx5_modify_header_alloc(mdev, MLX5_FLOW_NAMESPACE_KERNEL,
-					      1, action);
-	if (IS_ERR(modify_hdr)) {
-		err = PTR_ERR(modify_hdr);
-		mlx5_core_err(mdev,
-			      "fail to alloc ipsec set modify_header_id err=%d\n", err);
-		modify_hdr = NULL;
-		goto out_err;
-	}
+	err = setup_modify_header(mdev, sa_entry->ipsec_obj_id | BIT(31),
+				  XFRM_DEV_OFFLOAD_IN, &flow_act);
+	if (err)
+		goto err_mod_header;
 
 	flow_act.crypto.type = MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_IPSEC;
 	flow_act.crypto.obj_id = sa_entry->ipsec_obj_id;
 	flow_act.flags |= FLOW_ACT_NO_APPEND;
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-			  MLX5_FLOW_CONTEXT_ACTION_CRYPTO_DECRYPT |
-			  MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+			   MLX5_FLOW_CONTEXT_ACTION_CRYPTO_DECRYPT;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	flow_act.modify_hdr = modify_hdr;
 	dest.ft = rx->rx_err.ft;
 	rule = mlx5_add_flow_rules(rx->ft.sa, spec, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		mlx5_core_err(mdev, "fail to add RX ipsec rule err=%d\n", err);
-		goto out_err;
+		goto err_add_flow;
 	}
+	kvfree(spec);
 
 	ipsec_rule->rule = rule;
-	ipsec_rule->set_modify_hdr = modify_hdr;
-	goto out;
+	ipsec_rule->modify_hdr = flow_act.modify_hdr;
+	return 0;
 
-out_err:
-	if (modify_hdr)
-		mlx5_modify_header_dealloc(mdev, modify_hdr);
-	rx_ft_put(mdev, ipsec, attrs->family);
-
-out:
+err_add_flow:
+	mlx5_modify_header_dealloc(mdev, flow_act.modify_hdr);
+err_mod_header:
 	kvfree(spec);
+err_alloc:
+	rx_ft_put(mdev, ipsec, attrs->family);
 	return err;
 }
 
@@ -555,7 +571,7 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 		return;
 	}
 
-	mlx5_modify_header_dealloc(mdev, ipsec_rule->set_modify_hdr);
+	mlx5_modify_header_dealloc(mdev, ipsec_rule->modify_hdr);
 	rx_ft_put(mdev, sa_entry->ipsec, sa_entry->attrs.family);
 }
 
