@@ -132,13 +132,13 @@ static int crc_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	error = regmap_read(crc_pwm->regmap, PWM0_CLK_DIV, &clk_div_reg);
 	if (error) {
 		dev_err(dev, "Error reading PWM0_CLK_DIV %d\n", error);
-		return 0;
+		return error;
 	}
 
 	error = regmap_read(crc_pwm->regmap, PWM0_DUTY_CYCLE, &duty_cycle_reg);
 	if (error) {
 		dev_err(dev, "Error reading PWM0_DUTY_CYCLE %d\n", error);
-		return 0;
+		return error;
 	}
 
 	clk_div = (clk_div_reg & ~PWM_OUTPUT_ENABLE) + 1;
