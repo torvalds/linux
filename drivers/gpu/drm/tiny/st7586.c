@@ -113,10 +113,7 @@ static void st7586_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
 	struct mipi_dbi *dbi = &dbidev->dbi;
-	int start, end, idx, ret = 0;
-
-	if (!drm_dev_enter(fb->dev, &idx))
-		return;
+	int start, end, ret = 0;
 
 	/* 3 pixels per byte, so grow clip to nearest multiple of 3 */
 	rect->x1 = rounddown(rect->x1, 3);
@@ -145,8 +142,6 @@ static void st7586_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
 err_msg:
 	if (ret)
 		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
-
-	drm_dev_exit(idx);
 }
 
 static void st7586_pipe_update(struct drm_simple_display_pipe *pipe,
@@ -156,12 +151,18 @@ static void st7586_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_rect rect;
+	int idx;
 
 	if (!pipe->crtc.state->active)
 		return;
 
+	if (!drm_dev_enter(fb->dev, &idx))
+		return;
+
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		st7586_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
+
+	drm_dev_exit(idx);
 }
 
 static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
