@@ -153,7 +153,7 @@ static void tlb_remove_table_smp_sync(void *arg)
 	/* Simply deliver the interrupt */
 }
 
-static void tlb_remove_table_sync_one(void)
+void tlb_remove_table_sync_one(void)
 {
 	/*
 	 * This isn't an RCU grace period and hence the page-tables cannot be
@@ -176,8 +176,6 @@ static void tlb_remove_table_free(struct mmu_table_batch *batch)
 }
 
 #else /* !CONFIG_MMU_GATHER_RCU_TABLE_FREE */
-
-static void tlb_remove_table_sync_one(void) { }
 
 static void tlb_remove_table_free(struct mmu_table_batch *batch)
 {
