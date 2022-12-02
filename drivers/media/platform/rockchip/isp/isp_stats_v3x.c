@@ -53,15 +53,6 @@ static u32 isp3_stats_read(struct rkisp_isp_stats_vdev *stats_vdev,
 	return val;
 }
 
-static void isp3_stats_write(struct rkisp_isp_stats_vdev *stats_vdev,
-			     u32 addr, u32 value, u32 id)
-{
-	if (id == ISP3_LEFT)
-		rkisp_write(stats_vdev->dev, addr, value, false);
-	else
-		rkisp_next_write(stats_vdev->dev, addr, value, false);
-}
-
 static int
 rkisp_stats_get_rawawb_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 				struct rkisp3x_isp_stat_buffer *pbuf, u32 id)
@@ -971,75 +962,6 @@ static struct rkisp_stats_ops_v3x __maybe_unused stats_ddr_ops_v3x = {
 };
 
 static void
-rkisp_merge_dual_dhaz_params(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp3x_isp_stat_buffer *left_stat,
-			     struct rkisp3x_isp_stat_buffer *right_stat)
-{
-	struct rkisp_device *dev = stats_vdev->dev;
-	struct isp3x_dhaz_cfg *dhaz_cfg;
-	struct isp3x_dhaz_stat *l_dhaz;
-	struct isp3x_dhaz_stat *r_dhaz;
-	u32 i, val, hist_out0, hist_out1, hist_out2, pic_sumh;
-	u32 num = isp3_stats_read(stats_vdev, ISP3X_DHAZ_IIR0, 0) & 0x1f;
-
-	if (!left_stat || !right_stat ||
-	    !(left_stat->meas_type & ISP3X_STAT_DHAZ) ||
-	    !(right_stat->meas_type & ISP3X_STAT_DHAZ) ||
-	    !(isp3_stats_read(stats_vdev, ISP3X_DHAZ_CTRL, 0) & BIT(25)))
-		return;
-
-	dhaz_cfg = &dev->params_vdev.isp3x_params->others.dhaz_cfg;
-	l_dhaz = &left_stat->params.dhaz;
-	r_dhaz = &right_stat->params.dhaz;
-
-	if (!num || (!l_dhaz->dhaz_pic_sumh && !r_dhaz->dhaz_pic_sumh)) {
-		v4l2_err(stats_vdev->vnode.vdev.v4l2_dev,
-			 "%s 0 params, num:%d sumh:%d %d\n", __func__,
-			 num, l_dhaz->dhaz_pic_sumh, r_dhaz->dhaz_pic_sumh);
-		return;
-	}
-
-	val = ISP_PACK_2SHORT((l_dhaz->dhaz_adp_wt + r_dhaz->dhaz_adp_wt) / 2,
-			      (l_dhaz->dhaz_adp_air_base + r_dhaz->dhaz_adp_air_base) / 2);
-	isp3_stats_write(stats_vdev, ISP3X_DHAZ_ADT_WR0, val, 0);
-	isp3_stats_write(stats_vdev, ISP3X_DHAZ_ADT_WR0, val, 1);
-
-	val = ISP_PACK_2SHORT((l_dhaz->dhaz_adp_tmax + r_dhaz->dhaz_adp_tmax) / 2,
-			      (l_dhaz->dhaz_adp_gratio + r_dhaz->dhaz_adp_gratio) / 2);
-	isp3_stats_write(stats_vdev, ISP3X_DHAZ_ADT_WR1, val, 0);
-	isp3_stats_write(stats_vdev, ISP3X_DHAZ_ADT_WR1, val, 1);
-
-	num =  min_t(u32, num, left_stat->frame_id + 1);
-	pic_sumh = l_dhaz->dhaz_pic_sumh + r_dhaz->dhaz_pic_sumh;
-	for (i = 0; i < ISP3X_DHAZ_HIST_WR_NUM / 3; i++) {
-		hist_out0 = (l_dhaz->h_rgb_iir[i * 3] * l_dhaz->dhaz_pic_sumh +
-			     r_dhaz->h_rgb_iir[i * 3] * r_dhaz->dhaz_pic_sumh) / pic_sumh;
-		hist_out0 = (dhaz_cfg->hist_wr[i * 3] * (num - 1) + hist_out0) / num;
-		dhaz_cfg->hist_wr[i * 3] = hist_out0;
-
-		hist_out1 = (l_dhaz->h_rgb_iir[i * 3 + 1] * l_dhaz->dhaz_pic_sumh +
-			     r_dhaz->h_rgb_iir[i * 3 + 1] * r_dhaz->dhaz_pic_sumh) / pic_sumh;
-		hist_out1 = (dhaz_cfg->hist_wr[i * 3 + 1] * (num - 1) + hist_out1) / num;
-		dhaz_cfg->hist_wr[i * 3 + 1] = hist_out1;
-
-		hist_out2 = (l_dhaz->h_rgb_iir[i * 3 + 2] * l_dhaz->dhaz_pic_sumh +
-			     r_dhaz->h_rgb_iir[i * 3 + 2] * r_dhaz->dhaz_pic_sumh) / pic_sumh;
-		hist_out2 = (dhaz_cfg->hist_wr[i * 3 + 2] * (num - 1) + hist_out2) / num;
-		dhaz_cfg->hist_wr[i * 3 + 2] = hist_out2;
-
-		val = hist_out0 | hist_out1 << 10 | hist_out2 << 20;
-		isp3_stats_write(stats_vdev, ISP3X_DHAZ_HIST_WR0 + i * 4, val, 0);
-		isp3_stats_write(stats_vdev, ISP3X_DHAZ_HIST_WR0 + i * 4, val, 1);
-	}
-	val = (l_dhaz->h_rgb_iir[i * 3] * l_dhaz->dhaz_pic_sumh +
-	       r_dhaz->h_rgb_iir[i * 3] * r_dhaz->dhaz_pic_sumh) / pic_sumh;
-	val = (dhaz_cfg->hist_wr[i * 3] * (num - 1) + val) / num;
-	dhaz_cfg->hist_wr[i * 3] = val;
-	isp3_stats_write(stats_vdev, ISP3X_DHAZ_HIST_WR0 + i * 4, val, 0);
-	isp3_stats_write(stats_vdev, ISP3X_DHAZ_HIST_WR0 + i * 4, val, 1);
-}
-
-static void
 rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 			  struct rkisp_isp_readout_work *meas_work)
 {
@@ -1117,8 +1039,6 @@ rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 	if (stats_vdev->dev->hw_dev->is_unite) {
-		struct rkisp3x_isp_stat_buffer *left_stat = cur_stat_buf;
-
 		size *= 2;
 		if (cur_buf) {
 			cur_stat_buf++;
@@ -1148,7 +1068,6 @@ rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 			ret |= ops->get_bls_stats(stats_vdev, cur_stat_buf, 1);
 			ret |= ops->get_dhaz_stats(stats_vdev, cur_stat_buf, 1);
 		}
-		rkisp_merge_dual_dhaz_params(stats_vdev, left_stat, cur_stat_buf);
 	}
 
 	if (cur_buf && !ret) {

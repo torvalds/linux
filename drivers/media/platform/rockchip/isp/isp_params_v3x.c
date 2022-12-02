@@ -2802,8 +2802,7 @@ isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 	if (arg->soft_wr_en)
 		ctrl |= (arg->soft_wr_en & 0x1) << 25;
 	/* merge dual unite isp params at frame end */
-	if (arg->soft_wr_en &&
-	    (!dev->hw_dev->is_unite || !(ctrl & ISP3X_DHAZ_ENMUX))) {
+	if (arg->soft_wr_en) {
 		value = ISP_PACK_2SHORT(arg->adp_wt_wr, arg->adp_air_wr);
 		isp3_param_write(params_vdev, value, ISP3X_DHAZ_ADT_WR0, id);
 		value = ISP_PACK_2SHORT(arg->adp_tmax_wr, arg->adp_gratio_wr);
@@ -2817,7 +2816,6 @@ isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 		value = arg->hist_wr[i * 3] & 0x3ff;
 		isp3_param_write(params_vdev, value, ISP3X_DHAZ_HIST_WR0 + i * 4, id);
 	}
-	isp3_param_write(params_vdev, ctrl, ISP3X_DHAZ_CTRL, id);
 
 	value = ISP_PACK_4BYTE(arg->dc_min_th, arg->dc_max_th,
 			       arg->yhist_th, arg->yblk_th);
@@ -2896,6 +2894,12 @@ isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 	}
 	value = ISP_PACK_2SHORT(arg->sigma_lut[i * 2], 0);
 	isp3_param_write(params_vdev, value, ISP3X_DHAZ_GAIN_LUT0 + i * 4, id);
+
+	if (dev->hw_dev->is_unite &&
+	    dev->hw_dev->is_single &&
+	    ctrl & ISP3X_DHAZ_ENMUX)
+		ctrl |= ISP3X_SELF_FORCE_UPD;
+	isp3_param_write(params_vdev, ctrl, ISP3X_DHAZ_CTRL, id);
 }
 
 static void
