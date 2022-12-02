@@ -1993,8 +1993,8 @@ static const struct vop2_scl_regs rk3528_cluster0_win_scl = {
 	.yrgb_ver_scl_mode = VOP_REG(RK3528_CLUSTER0_WIN0_CTRL1, 0x3, 14),
 	.yrgb_hor_scl_mode = VOP_REG(RK3528_CLUSTER0_WIN0_CTRL1, 0x3, 22),
 
-	.yrgb_hscl_filter_mode = VOP_REG(RK3528_CLUSTER0_WIN0_CTRL1, 0x3, 12),/* supported from vop3 */
-	.yrgb_vscl_filter_mode = VOP_REG(RK3528_CLUSTER0_WIN0_CTRL1, 0x3, 20),/* supported from vop3 */
+	.yrgb_vscl_filter_mode = VOP_REG(RK3528_CLUSTER0_WIN0_CTRL1, 0x3, 12),/* supported from vop3 */
+	.yrgb_hscl_filter_mode = VOP_REG(RK3528_CLUSTER0_WIN0_CTRL1, 0x3, 20),/* supported from vop3 */
 
 	.vsd_yrgb_gt2 = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL1, 0x1, 28),
 	.vsd_yrgb_gt4 = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL1, 0x1, 29),
@@ -3755,7 +3755,6 @@ static const struct vop2_data rk3528_vop = {
 	.nr_axi_intr = ARRAY_SIZE(rk3528_vop_axi_intr),
 	.vp = rk3528_vop_video_ports,
 	.wb = &rk3568_vop_wb_data,
-	.layer = rk3568_vop_layers,
 	.win = rk3528_vop_win_data,
 	.win_size = ARRAY_SIZE(rk3528_vop_win_data),
 	.dump_regs = rk3528_dump_regs,
