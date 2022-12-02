@@ -34,8 +34,6 @@
 #ifndef __MLX5E_IPSEC_H__
 #define __MLX5E_IPSEC_H__
 
-#ifdef CONFIG_MLX5_EN_IPSEC
-
 #include <linux/mlx5/device.h>
 #include <net/xfrm.h>
 #include <linux/idr.h>
@@ -114,10 +112,21 @@ struct mlx5e_ipsec_sw_stats {
 struct mlx5e_ipsec_rx;
 struct mlx5e_ipsec_tx;
 
+struct mlx5e_ipsec_work {
+	struct work_struct work;
+	struct mlx5e_ipsec *ipsec;
+	u32 id;
+};
+
 struct mlx5e_ipsec_aso {
 	u8 ctx[MLX5_ST_SZ_BYTES(ipsec_aso)];
 	dma_addr_t dma_addr;
 	struct mlx5_aso *aso;
+	/* IPsec ASO caches data on every query call,
+	 * so in nested calls, we can use this boolean to save
+	 * recursive calls to mlx5e_ipsec_aso_query()
+	 */
+	u8 use_cache : 1;
 };
 
 struct mlx5e_ipsec {
@@ -131,6 +140,7 @@ struct mlx5e_ipsec {
 	struct mlx5e_ipsec_rx *rx_ipv6;
 	struct mlx5e_ipsec_tx *tx;
 	struct mlx5e_ipsec_aso *aso;
+	struct notifier_block nb;
 };
 
 struct mlx5e_ipsec_esn_state {
@@ -188,6 +198,8 @@ struct mlx5e_ipsec_pol_entry {
 	struct mlx5_accel_pol_xfrm_attrs attrs;
 };
 
+#ifdef CONFIG_MLX5_EN_IPSEC
+
 void mlx5e_ipsec_init(struct mlx5e_priv *priv);
 void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv);
 void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv);
@@ -210,7 +222,8 @@ void mlx5_accel_esp_modify_xfrm(struct mlx5e_ipsec_sa_entry *sa_entry,
 int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec);
 void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec);
 
-int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry);
+int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
+			  struct mlx5_wqe_aso_ctrl_seg *data);
 void mlx5e_ipsec_aso_update_curlft(struct mlx5e_ipsec_sa_entry *sa_entry,
 				   u64 *packets);
 

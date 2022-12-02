@@ -260,6 +260,73 @@ void mlx5_accel_esp_modify_xfrm(struct mlx5e_ipsec_sa_entry *sa_entry,
 	memcpy(&sa_entry->attrs, attrs, sizeof(sa_entry->attrs));
 }
 
+static void mlx5e_ipsec_handle_event(struct work_struct *_work)
+{
+	struct mlx5e_ipsec_work *work =
+		container_of(_work, struct mlx5e_ipsec_work, work);
+	struct mlx5_accel_esp_xfrm_attrs *attrs;
+	struct mlx5e_ipsec_sa_entry *sa_entry;
+	struct mlx5e_ipsec_aso *aso;
+	struct mlx5e_ipsec *ipsec;
+	int ret;
+
+	sa_entry = xa_load(&work->ipsec->sadb, work->id);
+	if (!sa_entry)
+		goto out;
+
+	ipsec = sa_entry->ipsec;
+	aso = ipsec->aso;
+	attrs = &sa_entry->attrs;
+
+	spin_lock(&sa_entry->x->lock);
+	ret = mlx5e_ipsec_aso_query(sa_entry, NULL);
+	if (ret)
+		goto unlock;
+
+	aso->use_cache = true;
+	if (attrs->soft_packet_limit != XFRM_INF)
+		if (!MLX5_GET(ipsec_aso, aso->ctx, soft_lft_arm) ||
+		    !MLX5_GET(ipsec_aso, aso->ctx, hard_lft_arm) ||
+		    !MLX5_GET(ipsec_aso, aso->ctx, remove_flow_enable))
+			xfrm_state_check_expire(sa_entry->x);
+	aso->use_cache = false;
+
+unlock:
+	spin_unlock(&sa_entry->x->lock);
+out:
+	kfree(work);
+}
+
+static int mlx5e_ipsec_event(struct notifier_block *nb, unsigned long event,
+			     void *data)
+{
+	struct mlx5e_ipsec *ipsec = container_of(nb, struct mlx5e_ipsec, nb);
+	struct mlx5_eqe_obj_change *object;
+	struct mlx5e_ipsec_work *work;
+	struct mlx5_eqe *eqe = data;
+	u16 type;
+
+	if (event != MLX5_EVENT_TYPE_OBJECT_CHANGE)
+		return NOTIFY_DONE;
+
+	object = &eqe->data.obj_change;
+	type = be16_to_cpu(object->obj_type);
+
+	if (type != MLX5_GENERAL_OBJECT_TYPES_IPSEC)
+		return NOTIFY_DONE;
+
+	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	if (!work)
+		return NOTIFY_DONE;
+
+	INIT_WORK(&work->work, mlx5e_ipsec_handle_event);
+	work->ipsec = ipsec;
+	work->id = be32_to_cpu(object->obj_id);
+
+	queue_work(ipsec->wq, &work->work);
+	return NOTIFY_OK;
+}
+
 int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec)
 {
 	struct mlx5_core_dev *mdev = ipsec->mdev;
@@ -287,6 +354,9 @@ int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec)
 		goto err_aso_create;
 	}
 
+	ipsec->nb.notifier_call = mlx5e_ipsec_event;
+	mlx5_notifier_register(mdev, &ipsec->nb);
+
 	ipsec->aso = aso;
 	return 0;
 
@@ -307,13 +377,33 @@ void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec)
 	aso = ipsec->aso;
 	pdev = mlx5_core_dma_dev(mdev);
 
+	mlx5_notifier_unregister(mdev, &ipsec->nb);
 	mlx5_aso_destroy(aso->aso);
 	dma_unmap_single(pdev, aso->dma_addr, sizeof(aso->ctx),
 			 DMA_BIDIRECTIONAL);
 	kfree(aso);
 }
 
-int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry)
+static void mlx5e_ipsec_aso_copy(struct mlx5_wqe_aso_ctrl_seg *ctrl,
+				 struct mlx5_wqe_aso_ctrl_seg *data)
+{
+	if (!data)
+		return;
+
+	ctrl->data_mask_mode = data->data_mask_mode;
+	ctrl->condition_1_0_operand = data->condition_1_0_operand;
+	ctrl->condition_1_0_offset = data->condition_1_0_offset;
+	ctrl->data_offset_condition_operand = data->data_offset_condition_operand;
+	ctrl->condition_0_data = data->condition_0_data;
+	ctrl->condition_0_mask = data->condition_0_mask;
+	ctrl->condition_1_data = data->condition_1_data;
+	ctrl->condition_1_mask = data->condition_1_mask;
+	ctrl->bitwise_data = data->bitwise_data;
+	ctrl->data_mask = data->data_mask;
+}
+
+int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
+			  struct mlx5_wqe_aso_ctrl_seg *data)
 {
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
 	struct mlx5e_ipsec_aso *aso = ipsec->aso;
@@ -322,6 +412,10 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry)
 	struct mlx5e_hw_objs *res;
 	struct mlx5_aso_wqe *wqe;
 	u8 ds_cnt;
+
+	lockdep_assert_held(&sa_entry->x->lock);
+	if (aso->use_cache)
+		return 0;
 
 	res = &mdev->mlx5e_res.hw_objs;
 
@@ -336,6 +430,7 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry)
 		cpu_to_be32(lower_32_bits(aso->dma_addr) | ASO_CTRL_READ_EN);
 	ctrl->va_h = cpu_to_be32(upper_32_bits(aso->dma_addr));
 	ctrl->l_key = cpu_to_be32(res->mkey);
+	mlx5e_ipsec_aso_copy(ctrl, data);
 
 	mlx5_aso_post_wqe(aso->aso, false, &wqe->ctrl);
 	return mlx5_aso_poll_cq(aso->aso, false);

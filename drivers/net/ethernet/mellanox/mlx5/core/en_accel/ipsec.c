@@ -470,7 +470,7 @@ static void mlx5e_xfrm_update_curlft(struct xfrm_state *x)
 		 */
 		return;
 
-	err = mlx5e_ipsec_aso_query(sa_entry);
+	err = mlx5e_ipsec_aso_query(sa_entry, NULL);
 	if (err)
 		return;
 
