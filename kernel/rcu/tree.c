@@ -3165,7 +3165,7 @@ need_offload_krc(struct kfree_rcu_cpu *krcp)
 		if (!list_empty(&krcp->bulk_head[i]))
 			return true;
 
-	return !!krcp->head;
+	return !!READ_ONCE(krcp->head);
 }
 
 static void
@@ -3206,7 +3206,7 @@ static void kfree_rcu_monitor(struct work_struct *work)
 		// in that case the monitor work is rearmed.
 		if ((!list_empty(&krcp->bulk_head[0]) && list_empty(&krwp->bulk_head_free[0])) ||
 			(!list_empty(&krcp->bulk_head[1]) && list_empty(&krwp->bulk_head_free[1])) ||
-				(krcp->head && !krwp->head_free)) {
+				(READ_ONCE(krcp->head) && !krwp->head_free)) {
 
 			// Channel 1 corresponds to the SLAB-pointer bulk path.
 			// Channel 2 corresponds to vmalloc-pointer bulk path.
