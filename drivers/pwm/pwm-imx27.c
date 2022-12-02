@@ -128,7 +128,7 @@ static int pwm_imx27_get_state(struct pwm_chip *chip,
 
 	ret = pwm_imx27_clk_prepare_enable(imx);
 	if (ret < 0)
-		return 0;
+		return ret;
 
 	val = readl(imx->mmio_base + MX3_PWMCR);
 
