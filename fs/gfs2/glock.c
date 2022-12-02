@@ -186,10 +186,11 @@ void gfs2_glock_free(struct gfs2_glock *gl)
  *
  */
 
-void gfs2_glock_hold(struct gfs2_glock *gl)
+struct gfs2_glock *gfs2_glock_hold(struct gfs2_glock *gl)
 {
 	GLOCK_BUG_ON(gl, __lockref_is_dead(&gl->gl_lockref));
 	lockref_get(&gl->gl_lockref);
+	return gl;
 }
 
 /**
@@ -1256,13 +1257,12 @@ void __gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, u16 flags,
 			struct gfs2_holder *gh, unsigned long ip)
 {
 	INIT_LIST_HEAD(&gh->gh_list);
-	gh->gh_gl = gl;
+	gh->gh_gl = gfs2_glock_hold(gl);
 	gh->gh_ip = ip;
 	gh->gh_owner_pid = get_pid(task_pid(current));
 	gh->gh_state = state;
 	gh->gh_flags = flags;
 	gh->gh_iflags = 0;
-	gfs2_glock_hold(gl);
 }
 
 /**
