@@ -214,7 +214,7 @@ static void ssam_hub_remove(struct ssam_device *sdev)
 
 SSAM_DEFINE_SYNC_REQUEST_R(ssam_bas_query_opmode, u8, {
 	.target_category = SSAM_SSH_TC_BAS,
-	.target_id       = 0x01,
+	.target_id       = SSAM_SSH_TID_SAM,
 	.command_id      = 0x0d,
 	.instance_id     = 0x00,
 });
@@ -292,7 +292,7 @@ static const struct ssam_hub_desc base_hub = {
 
 SSAM_DEFINE_SYNC_REQUEST_R(__ssam_kip_query_state, u8, {
 	.target_category = SSAM_SSH_TC_KIP,
-	.target_id       = 0x01,
+	.target_id       = SSAM_SSH_TID_SAM,
 	.command_id      = 0x2c,
 	.instance_id     = 0x00,
 });
