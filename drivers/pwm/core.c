@@ -299,7 +299,6 @@ int pwmchip_add(struct pwm_chip *chip)
 		radix_tree_insert(&pwm_tree, pwm->pwm, pwm);
 	}
 
-	INIT_LIST_HEAD(&chip->list);
 	list_add(&chip->list, &pwm_chips);
 
 	mutex_unlock(&pwm_lock);
