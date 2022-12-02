@@ -441,7 +441,7 @@ static void new_line_json(struct perf_stat_config *config, void *ctx)
 {
 	struct outstate *os = ctx;
 
-	fputc('\n', os->fh);
+	fputs("\n{", os->fh);
 	if (os->prefix)
 		fprintf(os->fh, "%s", os->prefix);
 	aggr_printout(config, os->evsel, os->id, os->nr);
