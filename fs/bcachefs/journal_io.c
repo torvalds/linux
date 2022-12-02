@@ -986,7 +986,6 @@ static void bch2_journal_read_device(struct closure *cl)
 	struct journal_replay *r, **_r;
 	struct genradix_iter iter;
 	struct journal_read_buf buf = { NULL, 0 };
-	u64 min_seq = U64_MAX;
 	unsigned i;
 	int ret = 0;
 
@@ -1005,45 +1004,27 @@ static void bch2_journal_read_device(struct closure *cl)
 			goto err;
 	}
 
-	/* Find the journal bucket with the highest sequence number: */
-	for (i = 0; i < ja->nr; i++) {
-		if (ja->bucket_seq[i] > ja->bucket_seq[ja->cur_idx])
-			ja->cur_idx = i;
-
-		min_seq = min(ja->bucket_seq[i], min_seq);
-	}
-
-	/*
-	 * If there's duplicate journal entries in multiple buckets (which
-	 * definitely isn't supposed to happen, but...) - make sure to start
-	 * cur_idx at the last of those buckets, so we don't deadlock trying to
-	 * allocate
-	 */
-	while (ja->bucket_seq[ja->cur_idx] > min_seq &&
-	       ja->bucket_seq[ja->cur_idx] ==
-	       ja->bucket_seq[(ja->cur_idx + 1) % ja->nr])
-		ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
-
 	ja->sectors_free = ca->mi.bucket_size;
 
 	mutex_lock(&jlist->lock);
-	genradix_for_each(&c->journal_entries, iter, _r) {
+	genradix_for_each_reverse(&c->journal_entries, iter, _r) {
 		r = *_r;
 
 		if (!r)
 			continue;
 
 		for (i = 0; i < r->nr_ptrs; i++) {
-			if (r->ptrs[i].dev == ca->dev_idx &&
-			    sector_to_bucket(ca, r->ptrs[i].sector) == ja->buckets[ja->cur_idx]) {
+			if (r->ptrs[i].dev == ca->dev_idx) {
 				unsigned wrote = bucket_remainder(ca, r->ptrs[i].sector) +
 					vstruct_sectors(&r->j, c->block_bits);
 
-				ja->sectors_free = min(ja->sectors_free,
-						       ca->mi.bucket_size - wrote);
+				ja->cur_idx = r->ptrs[i].bucket;
+				ja->sectors_free = ca->mi.bucket_size - wrote;
+				goto found;
 			}
 		}
 	}
+found:
 	mutex_unlock(&jlist->lock);
 
 	if (ja->bucket_seq[ja->cur_idx] &&
