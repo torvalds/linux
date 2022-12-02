@@ -196,7 +196,7 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 
 	/* Create FT */
 	ft = ipsec_ft_create(ns, MLX5E_ACCEL_FS_ESP_FT_LEVEL, MLX5E_NIC_PRIO,
-			     1);
+			     2);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_fs_ft;
@@ -208,7 +208,7 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		goto err_fs;
 
 	ft = ipsec_ft_create(ns, MLX5E_ACCEL_FS_POL_FT_LEVEL, MLX5E_NIC_PRIO,
-			     1);
+			     2);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_pol_ft;
@@ -307,13 +307,13 @@ static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx)
 	struct mlx5_flow_table *ft;
 	int err;
 
-	ft = ipsec_ft_create(tx->ns, 1, 0, 1);
+	ft = ipsec_ft_create(tx->ns, 1, 0, 4);
 	if (IS_ERR(ft))
 		return PTR_ERR(ft);
 
 	tx->ft.sa = ft;
 
-	ft = ipsec_ft_create(tx->ns, 0, 0, 1);
+	ft = ipsec_ft_create(tx->ns, 0, 0, 2);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_pol_ft;
