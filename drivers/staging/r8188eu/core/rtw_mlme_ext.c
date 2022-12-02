@@ -5963,10 +5963,11 @@ void site_survey(struct adapter *padapter)
 /* collect bss info from Beacon and Probe request/response frames. */
 u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, struct wlan_bssid_ex *bssid)
 {
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 	int	i;
 	u32	len;
 	u8 *p;
-	u16 val16, subtype;
+	u16 val16;
 	u8 *pframe = precv_frame->rx_data;
 	u32	packet_len = precv_frame->len;
 	u8 ie_offset;
@@ -5982,23 +5983,18 @@ u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, st
 
 	memset(bssid, 0, sizeof(struct wlan_bssid_ex));
 
-	subtype = GetFrameSubType(pframe);
-
-	if (subtype == WIFI_BEACON) {
+	if (ieee80211_is_beacon(mgmt->frame_control)) {
 		bssid->Reserved[0] = 1;
 		ie_offset = _BEACON_IE_OFFSET_;
+	} else if (ieee80211_is_probe_req(mgmt->frame_control)) {
+		ie_offset = _PROBEREQ_IE_OFFSET_;
+		bssid->Reserved[0] = 2;
+	} else if (ieee80211_is_probe_resp(mgmt->frame_control)) {
+		ie_offset = _PROBERSP_IE_OFFSET_;
+		bssid->Reserved[0] = 3;
 	} else {
-		/*  FIXME : more type */
-		if (subtype == WIFI_PROBEREQ) {
-			ie_offset = _PROBEREQ_IE_OFFSET_;
-			bssid->Reserved[0] = 2;
-		} else if (subtype == WIFI_PROBERSP) {
-			ie_offset = _PROBERSP_IE_OFFSET_;
-			bssid->Reserved[0] = 3;
-		} else {
-			bssid->Reserved[0] = 0;
-			ie_offset = _FIXED_IE_LENGTH_;
-		}
+		bssid->Reserved[0] = 0;
+		ie_offset = _FIXED_IE_LENGTH_;
 	}
 
 	bssid->Length = sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + len;
