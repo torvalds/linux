@@ -596,8 +596,16 @@
 		rockchip,pvtm-thermal-zone = "soc-thermal";
 
 		rockchip,grf = <&litcore_grf>;
-
-		rockchip,reboot-freq = <1416000>;
+		rockchip,dsu-grf = <&dsu_grf>;
+		volt-mem-read-margin = <
+			855000	1
+			765000	2
+			675000	3
+			495000	4
+		>;
+		low-volt-mem-read-margin = <4>;
+		intermediate-threshold-freq = <1008000>;	/* KHz */
+		rockchip,reboot-freq = <1416000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
