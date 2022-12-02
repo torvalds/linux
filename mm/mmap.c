@@ -226,8 +226,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 		/* Search one past newbrk */
 		mas_set(&mas, newbrk);
 		brkvma = mas_find(&mas, oldbrk);
-		BUG_ON(brkvma == NULL);
-		if (brkvma->vm_start >= oldbrk)
+		if (!brkvma || brkvma->vm_start >= oldbrk)
 			goto out; /* mapping intersects with an existing non-brk vma. */
 		/*
 		 * mm->brk must be protected by write mmap_lock.
