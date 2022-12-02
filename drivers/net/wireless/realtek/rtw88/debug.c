@@ -841,7 +841,9 @@ static int rtw_debugfs_get_coex_info(struct seq_file *m, void *v)
 	struct rtw_debugfs_priv *debugfs_priv = m->private;
 	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
 
+	mutex_lock(&rtwdev->mutex);
 	rtw_coex_display_coex_info(rtwdev, m);
+	mutex_unlock(&rtwdev->mutex);
 
 	return 0;
 }
