@@ -33,6 +33,7 @@ static const struct dev_pm_ops gt1x_ts_pm_ops;
 bool gt1x_gt5688;
 int gt1x_rst_gpio;
 int gt1x_int_gpio;
+static bool power_invert;
 #endif
 
 static int gt1x_register_powermanger(void);
@@ -323,9 +324,15 @@ static int gt1x_parse_dt(struct device *dev)
 	gt1x_int_gpio = of_get_named_gpio(np, "goodix,irq-gpio", 0);
 	gt1x_rst_gpio = of_get_named_gpio(np, "goodix,rst-gpio", 0);
 
-	if (!gpio_is_valid(gt1x_int_gpio) || !gpio_is_valid(gt1x_rst_gpio)) {
+	if (!gpio_is_valid(gt1x_int_gpio) && !gpio_is_valid(gt1x_rst_gpio)) {
 		GTP_ERROR("Invalid GPIO, irq-gpio:%d, rst-gpio:%d",
 				gt1x_int_gpio, gt1x_rst_gpio);
+		return -EINVAL;
+	}
+
+	if (!gpio_is_valid(gt1x_int_gpio)) {
+		GTP_ERROR("Invalid GPIO, irq-gpio:%d",
+				gt1x_int_gpio);
 		return -EINVAL;
 	}
 
@@ -336,6 +343,9 @@ static int gt1x_parse_dt(struct device *dev)
 		if (PTR_ERR(vdd_ana) == -ENODEV) {
 			GTP_ERROR("power not specified, ignore power ctrl");
 			vdd_ana = NULL;
+		} else {
+			power_invert = of_property_read_bool(np, "power-invert");
+			GTP_INFO("Power Invert,%s ", power_invert ? "yes" : "no");
 		}
 	}
 	if (IS_ERR(vdd_ana)) {
@@ -364,7 +374,7 @@ static int gt1x_parse_dt(struct device *dev)
  */
 int gt1x_power_switch(int on)
 {
-	int ret;
+	int ret = 0;
 	struct i2c_client *client = gt1x_i2c_client;
 
 	if (!client || !vdd_ana)
@@ -372,10 +382,20 @@ int gt1x_power_switch(int on)
 
 	if (on) {
 		GTP_DEBUG("GTP power on.");
-		ret = regulator_enable(vdd_ana);
+		if (power_invert) {
+			if (regulator_is_enabled(vdd_ana) > 0)
+				ret = regulator_disable(vdd_ana);
+		} else {
+			ret = regulator_enable(vdd_ana);
+		}
 	} else {
 		GTP_DEBUG("GTP power off.");
-		ret = regulator_disable(vdd_ana);
+		if (power_invert) {
+			if (!regulator_is_enabled(vdd_ana))
+				ret = regulator_enable(vdd_ana);
+		} else {
+			ret = regulator_disable(vdd_ana);
+		}
 	}
 	return ret;
 }
@@ -411,14 +431,17 @@ static s32 gt1x_request_io_port(void)
 	GTP_GPIO_AS_INT(GTP_INT_PORT);
 	gt1x_i2c_client->irq = GTP_INT_IRQ;
 
-	ret = gpio_request(GTP_RST_PORT, "GTP_RST_PORT");
-	if (ret < 0) {
-		GTP_ERROR("Failed to request GPIO:%d, ERRNO:%d", (s32) GTP_RST_PORT, ret);
-		gpio_free(GTP_INT_PORT);
-		return ret;
-	}
+	if (gpio_is_valid(gt1x_rst_gpio)) {
+		ret = gpio_request(GTP_RST_PORT, "GTP_RST_PORT");
+		if (ret < 0) {
+			GTP_ERROR("Failed to request GPIO:%d, ERRNO:%d", (s32) GTP_RST_PORT, ret);
+			gpio_free(GTP_INT_PORT);
+			return ret;
+		}
 
 	GTP_GPIO_AS_INPUT(GTP_RST_PORT);
+	}
+
 	return 0;
 }
 
