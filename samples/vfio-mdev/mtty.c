@@ -1330,7 +1330,7 @@ static int __init mtty_dev_init(void)
 
 	ret = device_register(&mtty_dev.dev);
 	if (ret)
-		goto err_class;
+		goto err_put;
 
 	ret = mdev_register_parent(&mtty_dev.parent, &mtty_dev.dev,
 				   &mtty_driver, mtty_mdev_types,
@@ -1340,8 +1340,9 @@ static int __init mtty_dev_init(void)
 	return 0;
 
 err_device:
-	device_unregister(&mtty_dev.dev);
-err_class:
+	device_del(&mtty_dev.dev);
+err_put:
+	put_device(&mtty_dev.dev);
 	class_destroy(mtty_dev.vd_class);
 err_driver:
 	mdev_unregister_driver(&mtty_driver);

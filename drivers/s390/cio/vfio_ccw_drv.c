@@ -199,8 +199,9 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 	return 0;
 
 out_unreg:
-	device_unregister(&parent->dev);
+	device_del(&parent->dev);
 out_free:
+	put_device(&parent->dev);
 	dev_set_drvdata(&sch->dev, NULL);
 	return ret;
 }
