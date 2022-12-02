@@ -272,19 +272,20 @@ int pwmchip_add(struct pwm_chip *chip)
 	if (!pwm_ops_check(chip))
 		return -EINVAL;
 
+	chip->pwms = kcalloc(chip->npwm, sizeof(*pwm), GFP_KERNEL);
+	if (!chip->pwms)
+		return -ENOMEM;
+
 	mutex_lock(&pwm_lock);
 
 	ret = alloc_pwms(chip->npwm);
-	if (ret < 0)
-		goto out;
+	if (ret < 0) {
+		mutex_unlock(&pwm_lock);
+		kfree(chip->pwms);
+		return ret;
+	}
 
 	chip->base = ret;
-
-	chip->pwms = kcalloc(chip->npwm, sizeof(*pwm), GFP_KERNEL);
-	if (!chip->pwms) {
-		ret = -ENOMEM;
-		goto out;
-	}
 
 	for (i = 0; i < chip->npwm; i++) {
 		pwm = &chip->pwms[i];
@@ -301,18 +302,14 @@ int pwmchip_add(struct pwm_chip *chip)
 	INIT_LIST_HEAD(&chip->list);
 	list_add(&chip->list, &pwm_chips);
 
-	ret = 0;
+	mutex_unlock(&pwm_lock);
 
 	if (IS_ENABLED(CONFIG_OF))
 		of_pwmchip_add(chip);
 
-out:
-	mutex_unlock(&pwm_lock);
+	pwmchip_sysfs_export(chip);
 
-	if (!ret)
-		pwmchip_sysfs_export(chip);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(pwmchip_add);
 
