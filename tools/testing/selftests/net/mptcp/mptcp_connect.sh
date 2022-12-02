@@ -274,8 +274,7 @@ check_transfer()
 
 check_mptcp_disabled()
 {
-	local disabled_ns
-	disabled_ns="ns_disabled-$sech-$(mktemp -u XXXXXX)"
+	local disabled_ns="ns_disabled-$rndh"
 	ip netns add ${disabled_ns} || exit $ksft_skip
 
 	# net.mptcp.enabled should be enabled by default
@@ -781,7 +780,6 @@ run_tests_mptfo()
 
 run_tests_disconnect()
 {
-	local peekmode="$1"
 	local old_cin=$cin
 	local old_sin=$sin
 
@@ -789,7 +787,6 @@ run_tests_disconnect()
 
 	# force do_transfer to cope with the multiple tranmissions
 	sin="$cin.disconnect"
-	sin_disconnect=$old_sin
 	cin="$cin.disconnect"
 	cin_disconnect="$old_cin"
 	connect_per_transfer=3
@@ -800,7 +797,6 @@ run_tests_disconnect()
 
 	# restore previous status
 	sin=$old_sin
-	sin_disconnect="$cout".disconnect
 	cin=$old_cin
 	cin_disconnect="$cin".disconnect
 	connect_per_transfer=1

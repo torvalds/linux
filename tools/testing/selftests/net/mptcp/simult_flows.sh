@@ -1,6 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+sec=$(date +%s)
 rndh=$(printf %x $sec)-$(mktemp -u XXXXXX)
 ns1="ns1-$rndh"
 ns2="ns2-$rndh"
@@ -147,9 +148,6 @@ do_transfer()
 	:> "$cout"
 	:> "$sout"
 	:> "$capout"
-
-	local addr_port
-	addr_port=$(printf "%s:%d" ${connect_addr} ${port})
 
 	if $capture; then
 		local capuser

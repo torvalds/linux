@@ -2355,6 +2355,7 @@ static void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
 			tcp_set_state(ssk, TCP_CLOSE);
 			mptcp_subflow_queue_clean(ssk);
 			inet_csk_listen_stop(ssk);
+			mptcp_event_pm_listener(ssk, MPTCP_EVENT_LISTENER_CLOSED);
 		}
 		__tcp_close(ssk, 0);
 
@@ -3646,6 +3647,8 @@ static int mptcp_listen(struct socket *sock, int backlog)
 	inet_sk_state_store(sock->sk, inet_sk_state_load(ssock->sk));
 	if (!err)
 		mptcp_copy_inaddrs(sock->sk, ssock->sk);
+
+	mptcp_event_pm_listener(ssock->sk, MPTCP_EVENT_LISTENER_CREATED);
 
 unlock:
 	release_sock(sock->sk);
