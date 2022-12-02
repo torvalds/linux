@@ -227,7 +227,7 @@ static ssize_t flashinfo_show(struct device *dev,
 
 	resp = (struct ec_response_flash_info *)msg->data;
 
-	ret = scnprintf(buf, PAGE_SIZE,
+	ret = sysfs_emit(buf,
 			"FlashSize %d\nWriteSize %d\n"
 			"EraseSize %d\nProtectSize %d\n",
 			resp->flash_size, resp->write_block_size,
@@ -264,7 +264,7 @@ static ssize_t kb_wake_angle_show(struct device *dev,
 		goto exit;
 
 	resp = (struct ec_response_motion_sense *)msg->data;
-	ret = scnprintf(buf, PAGE_SIZE, "%d\n", resp->kb_wake_angle.ret);
+	ret = sysfs_emit(buf, "%d\n", resp->kb_wake_angle.ret);
 exit:
 	kfree(msg);
 	return ret;
