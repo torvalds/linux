@@ -34,7 +34,6 @@
 #ifndef __MLX5E_IPSEC_H__
 #define __MLX5E_IPSEC_H__
 
-#ifdef CONFIG_MLX5_EN_IPSEC
 
 #include <linux/mlx5/device.h>
 #include <net/xfrm.h>
@@ -146,6 +145,7 @@ struct mlx5e_ipsec_sa_entry {
 	struct mlx5e_ipsec_modify_state_work modify_work;
 };
 
+#ifdef CONFIG_MLX5_EN_IPSEC
 int mlx5e_ipsec_init(struct mlx5e_priv *priv);
 void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv);
 void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv);
