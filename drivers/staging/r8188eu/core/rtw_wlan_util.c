@@ -874,9 +874,10 @@ void VCS_update(struct adapter *padapter, struct sta_info *psta)
 
 int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 {
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)pframe;
 	unsigned int		len;
 	unsigned char		*p;
-	unsigned short	val16, subtype;
+	unsigned short	val16;
 	struct wlan_network *cur_network = &Adapter->mlmepriv.cur_network;
 	/* u8 wpa_ie[255], rsn_ie[255]; */
 	u16 wpa_len = 0, rsn_len = 0;
@@ -908,9 +909,7 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 	if (!bssid)
 		return _FAIL;
 
-	subtype = GetFrameSubType(pframe) >> 4;
-
-	if (subtype == WIFI_BEACON)
+	if (ieee80211_is_beacon(mgmt->frame_control))
 		bssid->Reserved[0] = 1;
 
 	bssid->Length = sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + len;
