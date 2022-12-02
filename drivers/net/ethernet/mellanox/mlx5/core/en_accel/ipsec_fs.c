@@ -482,7 +482,6 @@ static int setup_modify_header(struct mlx5_core_dev *mdev, u32 val, u8 dir,
 
 static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
-	struct mlx5e_ipsec_rule *ipsec_rule = &sa_entry->ipsec_rule;
 	struct mlx5_accel_esp_xfrm_attrs *attrs = &sa_entry->attrs;
 	struct mlx5_core_dev *mdev = mlx5e_ipsec_sa2dev(sa_entry);
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
@@ -532,8 +531,8 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	}
 	kvfree(spec);
 
-	ipsec_rule->rule = rule;
-	ipsec_rule->modify_hdr = flow_act.modify_hdr;
+	sa_entry->ipsec_rule.rule = rule;
+	sa_entry->ipsec_rule.modify_hdr = flow_act.modify_hdr;
 	return 0;
 
 err_add_flow:
