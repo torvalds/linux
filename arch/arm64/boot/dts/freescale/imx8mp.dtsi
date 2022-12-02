@@ -425,19 +425,32 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 
-				imx8mp_uid: unique-id@8 {
+				/*
+				 * The register address below maps to the MX8M
+				 * Fusemap Description Table entries this way.
+				 * Assuming
+				 *   reg = <ADDR SIZE>;
+				 * then
+				 *   Fuse Address = (ADDR * 4) + 0x400
+				 * Note that if SIZE is greater than 4, then
+				 * each subsequent fuse is located at offset
+				 * +0x10 in Fusemap Description Table (e.g.
+				 * reg = <0x8 0x8> describes fuses 0x420 and
+				 * 0x430).
+				 */
+				imx8mp_uid: unique-id@8 { /* 0x420-0x430 */
 					reg = <0x8 0x8>;
 				};
 
-				cpu_speed_grade: speed-grade@10 {
+				cpu_speed_grade: speed-grade@10 { /* 0x440 */
 					reg = <0x10 4>;
 				};
 
-				eth_mac1: mac-address@90 {
+				eth_mac1: mac-address@90 { /* 0x640 */
 					reg = <0x90 6>;
 				};
 
-				eth_mac2: mac-address@96 {
+				eth_mac2: mac-address@96 { /* 0x658 */
 					reg = <0x96 6>;
 				};
 			};
