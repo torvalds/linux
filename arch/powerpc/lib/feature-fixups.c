@@ -118,9 +118,33 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
+static int do_patch_entry_fixups(long *start, long *end, unsigned int *instrs,
+				 bool do_fallback, void *fallback)
+{
+	int i;
+
+	for (i = 0; start < end; start++, i++) {
+		unsigned int *dest = (void *)start + *start;
+
+		pr_devel("patching dest %lx\n", (unsigned long)dest);
+
+		// See comment in do_entry_flush_fixups() RE order of patching
+		if (do_fallback) {
+			patch_instruction(dest, ppc_inst(instrs[0]));
+			patch_instruction(dest + 2, ppc_inst(instrs[2]));
+			patch_branch(dest + 1, (unsigned long)fallback, BRANCH_SET_LINK);
+		} else {
+			patch_instruction(dest + 1, ppc_inst(instrs[1]));
+			patch_instruction(dest + 2, ppc_inst(instrs[2]));
+			patch_instruction(dest, ppc_inst(instrs[0]));
+		}
+	}
+	return i;
+}
+
 static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 {
-	unsigned int instrs[3], *dest;
+	unsigned int instrs[3];
 	long *start, *end;
 	int i;
 
@@ -144,23 +168,8 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
 	}
 
-	for (i = 0; start < end; start++, i++) {
-		dest = (void *)start + *start;
-
-		pr_devel("patching dest %lx\n", (unsigned long)dest);
-
-		// See comment in do_entry_flush_fixups() RE order of patching
-		if (types & STF_BARRIER_FALLBACK) {
-			patch_instruction(dest, ppc_inst(instrs[0]));
-			patch_instruction(dest + 2, ppc_inst(instrs[2]));
-			patch_branch(dest + 1,
-				     (unsigned long)&stf_barrier_fallback, BRANCH_SET_LINK);
-		} else {
-			patch_instruction(dest + 1, ppc_inst(instrs[1]));
-			patch_instruction(dest + 2, ppc_inst(instrs[2]));
-			patch_instruction(dest, ppc_inst(instrs[0]));
-		}
-	}
+	i = do_patch_entry_fixups(start, end, instrs, types & STF_BARRIER_FALLBACK,
+				  &stf_barrier_fallback);
 
 	printk(KERN_DEBUG "stf-barrier: patched %d entry locations (%s barrier)\n", i,
 		(types == STF_BARRIER_NONE)                  ? "no" :
@@ -325,7 +334,7 @@ void do_uaccess_flush_fixups(enum l1d_flush_type types)
 static int __do_entry_flush_fixups(void *data)
 {
 	enum l1d_flush_type types = *(enum l1d_flush_type *)data;
-	unsigned int instrs[3], *dest;
+	unsigned int instrs[3];
 	long *start, *end;
 	int i;
 
@@ -375,42 +384,13 @@ static int __do_entry_flush_fixups(void *data)
 
 	start = PTRRELOC(&__start___entry_flush_fixup);
 	end = PTRRELOC(&__stop___entry_flush_fixup);
-	for (i = 0; start < end; start++, i++) {
-		dest = (void *)start + *start;
-
-		pr_devel("patching dest %lx\n", (unsigned long)dest);
-
-		if (types == L1D_FLUSH_FALLBACK) {
-			patch_instruction(dest, ppc_inst(instrs[0]));
-			patch_instruction(dest + 2, ppc_inst(instrs[2]));
-			patch_branch(dest + 1,
-				     (unsigned long)&entry_flush_fallback, BRANCH_SET_LINK);
-		} else {
-			patch_instruction(dest + 1, ppc_inst(instrs[1]));
-			patch_instruction(dest + 2, ppc_inst(instrs[2]));
-			patch_instruction(dest, ppc_inst(instrs[0]));
-		}
-	}
+	i = do_patch_entry_fixups(start, end, instrs, types == L1D_FLUSH_FALLBACK,
+				  &entry_flush_fallback);
 
 	start = PTRRELOC(&__start___scv_entry_flush_fixup);
 	end = PTRRELOC(&__stop___scv_entry_flush_fixup);
-	for (; start < end; start++, i++) {
-		dest = (void *)start + *start;
-
-		pr_devel("patching dest %lx\n", (unsigned long)dest);
-
-		if (types == L1D_FLUSH_FALLBACK) {
-			patch_instruction(dest, ppc_inst(instrs[0]));
-			patch_instruction(dest + 2, ppc_inst(instrs[2]));
-			patch_branch(dest + 1,
-				     (unsigned long)&scv_entry_flush_fallback, BRANCH_SET_LINK);
-		} else {
-			patch_instruction(dest + 1, ppc_inst(instrs[1]));
-			patch_instruction(dest + 2, ppc_inst(instrs[2]));
-			patch_instruction(dest, ppc_inst(instrs[0]));
-		}
-	}
-
+	i += do_patch_entry_fixups(start, end, instrs, types == L1D_FLUSH_FALLBACK,
+				   &scv_entry_flush_fallback);
 
 	printk(KERN_DEBUG "entry-flush: patched %d locations (%s flush)\n", i,
 		(types == L1D_FLUSH_NONE)       ? "no" :
