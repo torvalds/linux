@@ -204,12 +204,12 @@ static int rt715_set_main_switch_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_component_get_dapm(component);
 	struct rt715_priv *rt715 = snd_soc_component_get_drvdata(component);
-	unsigned int capture_reg_H[] = {RT715_SET_GAIN_MIC_ADC_H,
-		RT715_SET_GAIN_LINE_ADC_H, RT715_SET_GAIN_MIX_ADC_H,
-		RT715_SET_GAIN_MIX_ADC2_H};
-	unsigned int capture_reg_L[] = {RT715_SET_GAIN_MIC_ADC_L,
-		RT715_SET_GAIN_LINE_ADC_L, RT715_SET_GAIN_MIX_ADC_L,
-		RT715_SET_GAIN_MIX_ADC2_L};
+	static const unsigned int capture_reg_H[] = {
+		RT715_SET_GAIN_MIC_ADC_H, RT715_SET_GAIN_LINE_ADC_H,
+		RT715_SET_GAIN_MIX_ADC_H, RT715_SET_GAIN_MIX_ADC2_H };
+	static const unsigned int capture_reg_L[] = {
+		RT715_SET_GAIN_MIC_ADC_L, RT715_SET_GAIN_LINE_ADC_L,
+		RT715_SET_GAIN_MIX_ADC_L, RT715_SET_GAIN_MIX_ADC2_L };
 	unsigned int addr_h, addr_l, val_h = 0x0, val_ll, val_lr;
 	unsigned int k_shift = RT715_DIR_IN_SFT, k_changed = 0;
 	unsigned int read_ll, read_rl, i, j, loop_cnt = 4;
@@ -284,12 +284,12 @@ static int rt715_set_main_switch_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt715_priv *rt715 = snd_soc_component_get_drvdata(component);
-	unsigned int capture_reg_H[] = {RT715_SET_GAIN_MIC_ADC_H,
-		RT715_SET_GAIN_LINE_ADC_H, RT715_SET_GAIN_MIX_ADC_H,
-		RT715_SET_GAIN_MIX_ADC2_H};
-	unsigned int capture_reg_L[] = {RT715_SET_GAIN_MIC_ADC_L,
-		RT715_SET_GAIN_LINE_ADC_L, RT715_SET_GAIN_MIX_ADC_L,
-		RT715_SET_GAIN_MIX_ADC2_L};
+	static const unsigned int capture_reg_H[] = {
+		RT715_SET_GAIN_MIC_ADC_H, RT715_SET_GAIN_LINE_ADC_H,
+		RT715_SET_GAIN_MIX_ADC_H, RT715_SET_GAIN_MIX_ADC2_H };
+	static const unsigned int capture_reg_L[] = {
+		RT715_SET_GAIN_MIC_ADC_L, RT715_SET_GAIN_LINE_ADC_L,
+		RT715_SET_GAIN_MIX_ADC_L, RT715_SET_GAIN_MIX_ADC2_L };
 	unsigned int addr_h, addr_l, val_h = 0x0, i, loop_cnt = 4;
 	unsigned int read_ll, read_rl;
 
@@ -312,12 +312,12 @@ static int rt715_set_main_vol_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_component_get_dapm(component);
 	struct rt715_priv *rt715 = snd_soc_component_get_drvdata(component);
-	unsigned int capture_reg_H[] = {RT715_SET_GAIN_MIC_ADC_H,
-		RT715_SET_GAIN_LINE_ADC_H, RT715_SET_GAIN_MIX_ADC_H,
-		RT715_SET_GAIN_MIX_ADC2_H};
-	unsigned int capture_reg_L[] = {RT715_SET_GAIN_MIC_ADC_L,
-		RT715_SET_GAIN_LINE_ADC_L, RT715_SET_GAIN_MIX_ADC_L,
-		RT715_SET_GAIN_MIX_ADC2_L};
+	static const unsigned int capture_reg_H[] = {
+		RT715_SET_GAIN_MIC_ADC_H, RT715_SET_GAIN_LINE_ADC_H,
+		RT715_SET_GAIN_MIX_ADC_H, RT715_SET_GAIN_MIX_ADC2_H };
+	static const unsigned int capture_reg_L[] = {
+		RT715_SET_GAIN_MIC_ADC_L, RT715_SET_GAIN_LINE_ADC_L,
+		RT715_SET_GAIN_MIX_ADC_L, RT715_SET_GAIN_MIX_ADC2_L};
 	unsigned int addr_h, addr_l, val_h = 0x0, val_ll, val_lr;
 	unsigned int read_ll, read_rl, i, j, loop_cnt = 4, k_changed = 0;
 	unsigned int k_shift = RT715_DIR_IN_SFT, k_max = 0x3f;
@@ -393,12 +393,12 @@ static int rt715_set_main_vol_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt715_priv *rt715 = snd_soc_component_get_drvdata(component);
-	unsigned int capture_reg_H[] = {RT715_SET_GAIN_MIC_ADC_H,
-		RT715_SET_GAIN_LINE_ADC_H, RT715_SET_GAIN_MIX_ADC_H,
-		RT715_SET_GAIN_MIX_ADC2_H};
-	unsigned int capture_reg_L[] = {RT715_SET_GAIN_MIC_ADC_L,
-		RT715_SET_GAIN_LINE_ADC_L, RT715_SET_GAIN_MIX_ADC_L,
-		RT715_SET_GAIN_MIX_ADC2_L};
+	static const unsigned int capture_reg_H[] = {
+		RT715_SET_GAIN_MIC_ADC_H, RT715_SET_GAIN_LINE_ADC_H,
+		RT715_SET_GAIN_MIX_ADC_H, RT715_SET_GAIN_MIX_ADC2_H };
+	static const unsigned int capture_reg_L[] = {
+		RT715_SET_GAIN_MIC_ADC_L, RT715_SET_GAIN_LINE_ADC_L,
+		RT715_SET_GAIN_MIX_ADC_L, RT715_SET_GAIN_MIX_ADC2_L };
 	unsigned int addr_h, addr_l, val_h = 0x0, i, loop_cnt = 4;
 	unsigned int read_ll, read_rl;
 
