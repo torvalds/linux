@@ -624,7 +624,11 @@ __cold bool io_kill_timeouts(struct io_ring_ctx *ctx, struct task_struct *tsk,
 	struct io_timeout *timeout, *tmp;
 	int canceled = 0;
 
-	io_cq_lock(ctx);
+	/*
+	 * completion_lock is needed for io_match_task(). Take it before
+	 * timeout_lockfirst to keep locking ordering.
+	 */
+	spin_lock(&ctx->completion_lock);
 	spin_lock_irq(&ctx->timeout_lock);
 	list_for_each_entry_safe(timeout, tmp, &ctx->timeout_list, list) {
 		struct io_kiocb *req = cmd_to_io_kiocb(timeout);
@@ -634,6 +638,6 @@ __cold bool io_kill_timeouts(struct io_ring_ctx *ctx, struct task_struct *tsk,
 			canceled++;
 	}
 	spin_unlock_irq(&ctx->timeout_lock);
-	io_cq_unlock_post(ctx);
+	spin_unlock(&ctx->completion_lock);
 	return canceled != 0;
 }

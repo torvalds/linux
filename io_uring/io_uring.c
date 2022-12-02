@@ -597,6 +597,18 @@ static inline void __io_cq_unlock(struct io_ring_ctx *ctx)
 		spin_unlock(&ctx->completion_lock);
 }
 
+static inline void io_cq_lock(struct io_ring_ctx *ctx)
+	__acquires(ctx->completion_lock)
+{
+	spin_lock(&ctx->completion_lock);
+}
+
+static inline void io_cq_unlock(struct io_ring_ctx *ctx)
+	__releases(ctx->completion_lock)
+{
+	spin_unlock(&ctx->completion_lock);
+}
+
 /* keep it inlined for io_submit_flush_completions() */
 static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
 	__releases(ctx->completion_lock)
@@ -1074,9 +1086,9 @@ static void __io_req_find_next_prep(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	io_cq_lock(ctx);
+	spin_lock(&ctx->completion_lock);
 	io_disarm_next(req);
-	io_cq_unlock_post(ctx);
+	spin_unlock(&ctx->completion_lock);
 }
 
 static inline struct io_kiocb *io_req_find_next(struct io_kiocb *req)
