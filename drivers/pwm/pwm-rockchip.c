@@ -70,11 +70,11 @@ static int rockchip_pwm_get_state(struct pwm_chip *chip,
 
 	ret = clk_enable(pc->pclk);
 	if (ret)
-		return 0;
+		return ret;
 
 	ret = clk_enable(pc->clk);
 	if (ret)
-		return 0;
+		return ret;
 
 	clk_rate = clk_get_rate(pc->clk);
 
