@@ -191,11 +191,6 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 		netdev_info(netdev, "Only IPv4/6 xfrm states may be offloaded\n");
 		return -EINVAL;
 	}
-	if (x->props.mode != XFRM_MODE_TRANSPORT &&
-	    x->props.mode != XFRM_MODE_TUNNEL) {
-		dev_info(&netdev->dev, "Only transport and tunnel xfrm states may be offloaded\n");
-		return -EINVAL;
-	}
 	if (x->id.proto != IPPROTO_ESP) {
 		netdev_info(netdev, "Only ESP xfrm state may be offloaded\n");
 		return -EINVAL;
@@ -229,11 +224,32 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 		netdev_info(netdev, "Cannot offload xfrm states with geniv other than seqiv\n");
 		return -EINVAL;
 	}
-	if (x->xso.type != XFRM_DEV_OFFLOAD_CRYPTO) {
-		netdev_info(netdev, "Unsupported xfrm offload type\n");
-		return -EINVAL;
-	}
-	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
+	switch (x->xso.type) {
+	case XFRM_DEV_OFFLOAD_CRYPTO:
+		if (!(mlx5_ipsec_device_caps(priv->mdev) &
+		      MLX5_IPSEC_CAP_CRYPTO)) {
+			netdev_info(netdev, "Crypto offload is not supported\n");
+			return -EINVAL;
+		}
+
+		if (x->props.mode != XFRM_MODE_TRANSPORT &&
+		    x->props.mode != XFRM_MODE_TUNNEL) {
+			netdev_info(netdev, "Only transport and tunnel xfrm states may be offloaded\n");
+			return -EINVAL;
+		}
+		break;
+	case XFRM_DEV_OFFLOAD_PACKET:
+		if (!(mlx5_ipsec_device_caps(priv->mdev) &
+		      MLX5_IPSEC_CAP_PACKET_OFFLOAD)) {
+			netdev_info(netdev, "Packet offload is not supported\n");
+			return -EINVAL;
+		}
+
+		if (x->props.mode != XFRM_MODE_TRANSPORT) {
+			netdev_info(netdev, "Only transport xfrm states may be offloaded in packet mode\n");
+			return -EINVAL;
+		}
+
 		if (x->replay_esn && x->replay_esn->replay_window != 32 &&
 		    x->replay_esn->replay_window != 64 &&
 		    x->replay_esn->replay_window != 128 &&
@@ -263,6 +279,11 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 				    "Hard packet limit must be greater than soft one\n");
 			return -EINVAL;
 		}
+		break;
+	default:
+		netdev_info(netdev, "Unsupported xfrm offload type %d\n",
+			    x->xso.type);
+		return -EINVAL;
 	}
 	return 0;
 }
