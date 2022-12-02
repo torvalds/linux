@@ -60,7 +60,7 @@ bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type)
 	avail_ram = val.totalram - val.totalhigh;
 
 	/*
-	 * give 25%, 25%, 50%, 50%, 50% memory for each components respectively
+	 * give 25%, 25%, 50%, 50%, 25%, 25% memory for each components respectively
 	 */
 	if (type == FREE_NIDS) {
 		mem_size = (nm_i->nid_cnt[FREE_NID] *
@@ -85,14 +85,16 @@ bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type)
 						sizeof(struct ino_entry);
 		mem_size >>= PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
-	} else if (type == READ_EXTENT_CACHE) {
-		struct extent_tree_info *eti = &sbi->extent_tree[EX_READ];
+	} else if (type == READ_EXTENT_CACHE || type == AGE_EXTENT_CACHE) {
+		enum extent_type etype = type == READ_EXTENT_CACHE ?
+						EX_READ : EX_BLOCK_AGE;
+		struct extent_tree_info *eti = &sbi->extent_tree[etype];
 
 		mem_size = (atomic_read(&eti->total_ext_tree) *
 				sizeof(struct extent_tree) +
 				atomic_read(&eti->total_ext_node) *
 				sizeof(struct extent_node)) >> PAGE_SHIFT;
-		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
+		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 2);
 	} else if (type == DISCARD_CACHE) {
 		mem_size = (atomic_read(&dcc->discard_cmd_cnt) *
 				sizeof(struct discard_cmd)) >> PAGE_SHIFT;

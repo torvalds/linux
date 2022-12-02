@@ -347,6 +347,10 @@ memory=%s		 Control memory mode. This supports "normal" and "low" modes.
 			 Because of the nature of low memory devices, in this mode, f2fs
 			 will try to save memory sometimes by sacrificing performance.
 			 "normal" mode is the default mode and same as before.
+age_extent_cache	 Enable an age extent cache based on rb-tree. It records
+			 data block update frequency of the extent per inode, in
+			 order to provide better temperature hints for data block
+			 allocation.
 ======================== ============================================================
 
 Debugfs Entries
