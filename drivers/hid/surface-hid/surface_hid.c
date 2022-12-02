@@ -230,7 +230,7 @@ static void surface_hid_remove(struct ssam_device *sdev)
 }
 
 static const struct ssam_device_id surface_hid_match[] = {
-	{ SSAM_SDEV(HID, SSAM_ANY_TID, SSAM_ANY_IID, 0x00) },
+	{ SSAM_SDEV(HID, ANY, SSAM_SSH_IID_ANY, 0x00) },
 	{ },
 };
 MODULE_DEVICE_TABLE(ssam, surface_hid_match);

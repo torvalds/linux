@@ -1214,7 +1214,7 @@ static void surface_dtx_ssam_remove(struct ssam_device *sdev)
 }
 
 static const struct ssam_device_id surface_dtx_ssam_match[] = {
-	{ SSAM_SDEV(BAS, 0x01, 0x00, 0x00) },
+	{ SSAM_SDEV(BAS, SAM, 0x00, 0x00) },
 	{ },
 };
 MODULE_DEVICE_TABLE(ssam, surface_dtx_ssam_match);

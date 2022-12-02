@@ -68,9 +68,9 @@ struct ssam_device_uid {
  * match_flags member of the device ID structure. Do not use them directly
  * with struct ssam_device_id or struct ssam_device_uid.
  */
-#define SSAM_ANY_TID		0xffff
-#define SSAM_ANY_IID		0xffff
-#define SSAM_ANY_FUN		0xffff
+#define SSAM_SSH_TID_ANY	0xffff
+#define SSAM_SSH_IID_ANY	0xffff
+#define SSAM_SSH_FUN_ANY	0xffff
 
 /**
  * SSAM_DEVICE() - Initialize a &struct ssam_device_id with the given
@@ -83,25 +83,25 @@ struct ssam_device_uid {
  *
  * Initializes a &struct ssam_device_id with the given parameters. See &struct
  * ssam_device_uid for details regarding the parameters. The special values
- * %SSAM_ANY_TID, %SSAM_ANY_IID, and %SSAM_ANY_FUN can be used to specify that
+ * %SSAM_SSH_TID_ANY, %SSAM_SSH_IID_ANY, and %SSAM_SSH_FUN_ANY can be used to specify that
  * matching should ignore target ID, instance ID, and/or sub-function,
  * respectively. This macro initializes the ``match_flags`` field based on the
  * given parameters.
  *
  * Note: The parameters @d and @cat must be valid &u8 values, the parameters
- * @tid, @iid, and @fun must be either valid &u8 values or %SSAM_ANY_TID,
- * %SSAM_ANY_IID, or %SSAM_ANY_FUN, respectively. Other non-&u8 values are not
+ * @tid, @iid, and @fun must be either valid &u8 values or %SSAM_SSH_TID_ANY,
+ * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other non-&u8 values are not
  * allowed.
  */
 #define SSAM_DEVICE(d, cat, tid, iid, fun)					\
-	.match_flags = (((tid) != SSAM_ANY_TID) ? SSAM_MATCH_TARGET : 0)	\
-		     | (((iid) != SSAM_ANY_IID) ? SSAM_MATCH_INSTANCE : 0)	\
-		     | (((fun) != SSAM_ANY_FUN) ? SSAM_MATCH_FUNCTION : 0),	\
+	.match_flags = (((tid) != SSAM_SSH_TID_ANY) ? SSAM_MATCH_TARGET : 0)	\
+		     | (((iid) != SSAM_SSH_IID_ANY) ? SSAM_MATCH_INSTANCE : 0)	\
+		     | (((fun) != SSAM_SSH_FUN_ANY) ? SSAM_MATCH_FUNCTION : 0),	\
 	.domain   = d,								\
 	.category = cat,							\
-	.target   = __builtin_choose_expr((tid) != SSAM_ANY_TID, (tid), 0),	\
-	.instance = __builtin_choose_expr((iid) != SSAM_ANY_IID, (iid), 0),	\
-	.function = __builtin_choose_expr((fun) != SSAM_ANY_FUN, (fun), 0)
+	.target   = __builtin_choose_expr((tid) != SSAM_SSH_TID_ANY, (tid), 0),	\
+	.instance = __builtin_choose_expr((iid) != SSAM_SSH_IID_ANY, (iid), 0),	\
+	.function = __builtin_choose_expr((fun) != SSAM_SSH_FUN_ANY, (fun), 0)
 
 /**
  * SSAM_VDEV() - Initialize a &struct ssam_device_id as virtual device with
@@ -113,18 +113,18 @@ struct ssam_device_uid {
  *
  * Initializes a &struct ssam_device_id with the given parameters in the
  * virtual domain. See &struct ssam_device_uid for details regarding the
- * parameters. The special values %SSAM_ANY_TID, %SSAM_ANY_IID, and
- * %SSAM_ANY_FUN can be used to specify that matching should ignore target ID,
+ * parameters. The special values %SSAM_SSH_TID_ANY, %SSAM_SSH_IID_ANY, and
+ * %SSAM_SSH_FUN_ANY can be used to specify that matching should ignore target ID,
  * instance ID, and/or sub-function, respectively. This macro initializes the
  * ``match_flags`` field based on the given parameters.
  *
  * Note: The parameter @cat must be a valid &u8 value, the parameters @tid,
- * @iid, and @fun must be either valid &u8 values or %SSAM_ANY_TID,
- * %SSAM_ANY_IID, or %SSAM_ANY_FUN, respectively. Other non-&u8 values are not
+ * @iid, and @fun must be either valid &u8 values or %SSAM_SSH_TID_ANY,
+ * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other non-&u8 values are not
  * allowed.
  */
 #define SSAM_VDEV(cat, tid, iid, fun) \
-	SSAM_DEVICE(SSAM_DOMAIN_VIRTUAL, SSAM_VIRTUAL_TC_##cat, tid, iid, fun)
+	SSAM_DEVICE(SSAM_DOMAIN_VIRTUAL, SSAM_VIRTUAL_TC_##cat, SSAM_SSH_TID_##tid, iid, fun)
 
 /**
  * SSAM_SDEV() - Initialize a &struct ssam_device_id as physical SSH device
@@ -136,18 +136,18 @@ struct ssam_device_uid {
  *
  * Initializes a &struct ssam_device_id with the given parameters in the SSH
  * domain. See &struct ssam_device_uid for details regarding the parameters.
- * The special values %SSAM_ANY_TID, %SSAM_ANY_IID, and %SSAM_ANY_FUN can be
- * used to specify that matching should ignore target ID, instance ID, and/or
- * sub-function, respectively. This macro initializes the ``match_flags``
- * field based on the given parameters.
+ * The special values %SSAM_SSH_TID_ANY, %SSAM_SSH_IID_ANY, and
+ * %SSAM_SSH_FUN_ANY can be used to specify that matching should ignore target
+ * ID, instance ID, and/or sub-function, respectively. This macro initializes
+ * the ``match_flags`` field based on the given parameters.
  *
  * Note: The parameter @cat must be a valid &u8 value, the parameters @tid,
- * @iid, and @fun must be either valid &u8 values or %SSAM_ANY_TID,
- * %SSAM_ANY_IID, or %SSAM_ANY_FUN, respectively. Other non-&u8 values are not
- * allowed.
+ * @iid, and @fun must be either valid &u8 values or %SSAM_SSH_TID_ANY,
+ * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other non-&u8 values
+ * are not allowed.
  */
 #define SSAM_SDEV(cat, tid, iid, fun) \
-	SSAM_DEVICE(SSAM_DOMAIN_SERIALHUB, SSAM_SSH_TC_##cat, tid, iid, fun)
+	SSAM_DEVICE(SSAM_DOMAIN_SERIALHUB, SSAM_SSH_TC_##cat, SSAM_SSH_TID_##tid, iid, fun)
 
 /*
  * enum ssam_device_flags - Flags for SSAM client devices.

@@ -510,8 +510,8 @@ static const struct ssam_tablet_sw_desc ssam_pos_sw_desc = {
 /* -- Driver registration. -------------------------------------------------- */
 
 static const struct ssam_device_id ssam_tablet_sw_match[] = {
-	{ SSAM_SDEV(KIP, 0x01, 0x00, 0x01), (unsigned long)&ssam_kip_sw_desc },
-	{ SSAM_SDEV(POS, 0x01, 0x00, 0x01), (unsigned long)&ssam_pos_sw_desc },
+	{ SSAM_SDEV(KIP, SAM, 0x00, 0x01), (unsigned long)&ssam_kip_sw_desc },
+	{ SSAM_SDEV(POS, SAM, 0x00, 0x01), (unsigned long)&ssam_pos_sw_desc },
 	{ },
 };
 MODULE_DEVICE_TABLE(ssam, ssam_tablet_sw_match);
