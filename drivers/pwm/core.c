@@ -115,8 +115,13 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 	}
 
 	if (pwm->chip->ops->get_state) {
-		err = pwm->chip->ops->get_state(pwm->chip, pwm, &pwm->state);
-		trace_pwm_get(pwm, &pwm->state, err);
+		struct pwm_state state;
+
+		err = pwm->chip->ops->get_state(pwm->chip, pwm, &state);
+		trace_pwm_get(pwm, &state, err);
+
+		if (!err)
+			pwm->state = state;
 
 		if (IS_ENABLED(CONFIG_PWM_DEBUG))
 			pwm->last = pwm->state;
@@ -460,6 +465,9 @@ static void pwm_apply_state_debug(struct pwm_device *pwm,
 
 	err = chip->ops->get_state(chip, pwm, &s1);
 	trace_pwm_get(pwm, &s1, err);
+	if (err)
+		/* If that failed there isn't much to debug */
+		return;
 
 	/*
 	 * The lowlevel driver either ignored .polarity (which is a bug) or as
@@ -524,6 +532,8 @@ static void pwm_apply_state_debug(struct pwm_device *pwm,
 
 	err = chip->ops->get_state(chip, pwm, last);
 	trace_pwm_get(pwm, last, err);
+	if (err)
+		return;
 
 	/* reapplication of the current state should give an exact match */
 	if (s1.enabled != last->enabled ||
