@@ -2,6 +2,7 @@
 /* Copyright (c) 2017, Mellanox Technologies inc. All rights reserved. */
 
 #include "mlx5_core.h"
+#include "en.h"
 #include "ipsec.h"
 #include "lib/mlx5.h"
 
@@ -206,4 +207,57 @@ void mlx5_accel_esp_modify_xfrm(struct mlx5e_ipsec_sa_entry *sa_entry,
 		return;
 
 	memcpy(&sa_entry->attrs, attrs, sizeof(sa_entry->attrs));
+}
+
+int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec)
+{
+	struct mlx5_core_dev *mdev = ipsec->mdev;
+	struct mlx5e_ipsec_aso *aso;
+	struct mlx5e_hw_objs *res;
+	struct device *pdev;
+	int err;
+
+	aso = kzalloc(sizeof(*ipsec->aso), GFP_KERNEL);
+	if (!aso)
+		return -ENOMEM;
+
+	res = &mdev->mlx5e_res.hw_objs;
+
+	pdev = mlx5_core_dma_dev(mdev);
+	aso->dma_addr = dma_map_single(pdev, aso->ctx, sizeof(aso->ctx),
+				       DMA_BIDIRECTIONAL);
+	err = dma_mapping_error(pdev, aso->dma_addr);
+	if (err)
+		goto err_dma;
+
+	aso->aso = mlx5_aso_create(mdev, res->pdn);
+	if (IS_ERR(aso->aso)) {
+		err = PTR_ERR(aso->aso);
+		goto err_aso_create;
+	}
+
+	ipsec->aso = aso;
+	return 0;
+
+err_aso_create:
+	dma_unmap_single(pdev, aso->dma_addr, sizeof(aso->ctx),
+			 DMA_BIDIRECTIONAL);
+err_dma:
+	kfree(aso);
+	return err;
+}
+
+void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec)
+{
+	struct mlx5_core_dev *mdev = ipsec->mdev;
+	struct mlx5e_ipsec_aso *aso;
+	struct device *pdev;
+
+	aso = ipsec->aso;
+	pdev = mlx5_core_dma_dev(mdev);
+
+	mlx5_aso_destroy(aso->aso);
+	dma_unmap_single(pdev, aso->dma_addr, sizeof(aso->ctx),
+			 DMA_BIDIRECTIONAL);
+	kfree(aso);
 }

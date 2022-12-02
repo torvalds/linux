@@ -373,6 +373,13 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	if (!ipsec->wq)
 		goto err_wq;
 
+	if (mlx5_ipsec_device_caps(priv->mdev) &
+	    MLX5_IPSEC_CAP_PACKET_OFFLOAD) {
+		ret = mlx5e_ipsec_aso_init(ipsec);
+		if (ret)
+			goto err_aso;
+	}
+
 	ret = mlx5e_accel_ipsec_fs_init(ipsec);
 	if (ret)
 		goto err_fs_init;
@@ -383,6 +390,9 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	return;
 
 err_fs_init:
+	if (mlx5_ipsec_device_caps(priv->mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)
+		mlx5e_ipsec_aso_cleanup(ipsec);
+err_aso:
 	destroy_workqueue(ipsec->wq);
 err_wq:
 	kfree(ipsec);
@@ -398,6 +408,8 @@ void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
 		return;
 
 	mlx5e_accel_ipsec_fs_cleanup(ipsec);
+	if (mlx5_ipsec_device_caps(priv->mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)
+		mlx5e_ipsec_aso_cleanup(ipsec);
 	destroy_workqueue(ipsec->wq);
 	kfree(ipsec);
 	priv->ipsec = NULL;

@@ -39,6 +39,7 @@
 #include <linux/mlx5/device.h>
 #include <net/xfrm.h>
 #include <linux/idr.h>
+#include "lib/aso.h"
 
 #define MLX5E_IPSEC_SADB_RX_BITS 10
 #define MLX5E_IPSEC_ESN_SCOPE_MID 0x80000000L
@@ -97,6 +98,14 @@ struct mlx5e_ipsec_sw_stats {
 struct mlx5e_ipsec_rx;
 struct mlx5e_ipsec_tx;
 
+struct mlx5e_ipsec_aso {
+	u8 ctx[MLX5_ST_SZ_BYTES(ipsec_aso)];
+	dma_addr_t dma_addr;
+	struct mlx5_aso *aso;
+	u32 pdn;
+	u32 mkey;
+};
+
 struct mlx5e_ipsec {
 	struct mlx5_core_dev *mdev;
 	DECLARE_HASHTABLE(sadb_rx, MLX5E_IPSEC_SADB_RX_BITS);
@@ -107,6 +116,7 @@ struct mlx5e_ipsec {
 	struct mlx5e_ipsec_rx *rx_ipv4;
 	struct mlx5e_ipsec_rx *rx_ipv6;
 	struct mlx5e_ipsec_tx *tx;
+	struct mlx5e_ipsec_aso *aso;
 };
 
 struct mlx5e_ipsec_esn_state {
@@ -159,6 +169,9 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev);
 
 void mlx5_accel_esp_modify_xfrm(struct mlx5e_ipsec_sa_entry *sa_entry,
 				const struct mlx5_accel_esp_xfrm_attrs *attrs);
+
+int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec);
+void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec);
 
 static inline struct mlx5_core_dev *
 mlx5e_ipsec_sa2dev(struct mlx5e_ipsec_sa_entry *sa_entry)
