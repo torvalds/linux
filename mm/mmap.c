@@ -2953,7 +2953,7 @@ static int do_brk_flags(struct ma_state *mas, struct vm_area_struct *vma,
 				addr >> PAGE_SHIFT, NULL_VM_UFFD_CTX, NULL)) {
 		mas_set_range(mas, vma->vm_start, addr + len - 1);
 		if (mas_preallocate(mas, vma, GFP_KERNEL))
-			return -ENOMEM;
+			goto unacct_fail;
 
 		vma_adjust_trans_huge(vma, vma->vm_start, addr + len, 0);
 		if (vma->anon_vma) {
@@ -2975,7 +2975,7 @@ static int do_brk_flags(struct ma_state *mas, struct vm_area_struct *vma,
 	/* create a vma struct for an anonymous mapping */
 	vma = vm_area_alloc(mm);
 	if (!vma)
-		goto vma_alloc_fail;
+		goto unacct_fail;
 
 	vma_set_anonymous(vma);
 	vma->vm_start = addr;
@@ -3000,7 +3000,7 @@ out:
 
 mas_store_fail:
 	vm_area_free(vma);
-vma_alloc_fail:
+unacct_fail:
 	vm_unacct_memory(len >> PAGE_SHIFT);
 	return -ENOMEM;
 }
