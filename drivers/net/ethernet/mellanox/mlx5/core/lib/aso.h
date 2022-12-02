@@ -77,7 +77,7 @@ enum {
 
 struct mlx5_aso;
 
-void *mlx5_aso_get_wqe(struct mlx5_aso *aso);
+struct mlx5_aso_wqe *mlx5_aso_get_wqe(struct mlx5_aso *aso);
 void mlx5_aso_build_wqe(struct mlx5_aso *aso, u8 ds_cnt,
 			struct mlx5_aso_wqe *aso_wqe,
 			u32 obj_id, u32 opc_mode);

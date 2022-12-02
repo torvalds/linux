@@ -162,7 +162,6 @@ mlx5e_tc_meter_modify(struct mlx5_core_dev *mdev,
 			   MLX5_ACCESS_ASO_OPC_MOD_FLOW_METER);
 
 	aso_ctrl = &aso_wqe->aso_ctrl;
-	memset(aso_ctrl, 0, sizeof(*aso_ctrl));
 	aso_ctrl->data_mask_mode = MLX5_ASO_DATA_MASK_MODE_BYTEWISE_64BYTE << 6;
 	aso_ctrl->condition_1_0_operand = MLX5_ASO_ALWAYS_TRUE |
 					  MLX5_ASO_ALWAYS_TRUE << 4;
