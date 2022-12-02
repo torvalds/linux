@@ -149,6 +149,30 @@ struct mlx5e_ipsec_sa_entry {
 	struct mlx5e_ipsec_modify_state_work modify_work;
 };
 
+struct mlx5_accel_pol_xfrm_attrs {
+	union {
+		__be32 a4;
+		__be32 a6[4];
+	} saddr;
+
+	union {
+		__be32 a4;
+		__be32 a6[4];
+	} daddr;
+
+	u8 family;
+	u8 action;
+	u8 type : 2;
+	u8 dir : 2;
+};
+
+struct mlx5e_ipsec_pol_entry {
+	struct xfrm_policy *x;
+	struct mlx5e_ipsec *ipsec;
+	struct mlx5_flow_handle *rule;
+	struct mlx5_accel_pol_xfrm_attrs attrs;
+};
+
 void mlx5e_ipsec_init(struct mlx5e_priv *priv);
 void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv);
 void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv);
@@ -160,6 +184,8 @@ void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec);
 int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec);
 int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry);
 void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry);
+int mlx5e_accel_ipsec_fs_add_pol(struct mlx5e_ipsec_pol_entry *pol_entry);
+void mlx5e_accel_ipsec_fs_del_pol(struct mlx5e_ipsec_pol_entry *pol_entry);
 
 int mlx5_ipsec_create_sa_ctx(struct mlx5e_ipsec_sa_entry *sa_entry);
 void mlx5_ipsec_free_sa_ctx(struct mlx5e_ipsec_sa_entry *sa_entry);
@@ -176,6 +202,12 @@ static inline struct mlx5_core_dev *
 mlx5e_ipsec_sa2dev(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
 	return sa_entry->ipsec->mdev;
+}
+
+static inline struct mlx5_core_dev *
+mlx5e_ipsec_pol2dev(struct mlx5e_ipsec_pol_entry *pol_entry)
+{
+	return pol_entry->ipsec->mdev;
 }
 #else
 static inline void mlx5e_ipsec_init(struct mlx5e_priv *priv)

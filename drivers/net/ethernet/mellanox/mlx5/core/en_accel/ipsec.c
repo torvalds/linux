@@ -45,6 +45,11 @@ static struct mlx5e_ipsec_sa_entry *to_ipsec_sa_entry(struct xfrm_state *x)
 	return (struct mlx5e_ipsec_sa_entry *)x->xso.offload_handle;
 }
 
+static struct mlx5e_ipsec_pol_entry *to_ipsec_pol_entry(struct xfrm_policy *x)
+{
+	return (struct mlx5e_ipsec_pol_entry *)x->xdo.offload_handle;
+}
+
 struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *ipsec,
 					      unsigned int handle)
 {
@@ -446,12 +451,118 @@ static void mlx5e_xfrm_advance_esn_state(struct xfrm_state *x)
 	queue_work(sa_entry->ipsec->wq, &modify_work->work);
 }
 
+static int mlx5e_xfrm_validate_policy(struct xfrm_policy *x)
+{
+	struct net_device *netdev = x->xdo.real_dev;
+
+	if (x->type != XFRM_POLICY_TYPE_MAIN) {
+		netdev_info(netdev, "Cannot offload non-main policy types\n");
+		return -EINVAL;
+	}
+
+	/* Please pay attention that we support only one template */
+	if (x->xfrm_nr > 1) {
+		netdev_info(netdev, "Cannot offload more than one template\n");
+		return -EINVAL;
+	}
+
+	if (x->xdo.dir != XFRM_DEV_OFFLOAD_IN &&
+	    x->xdo.dir != XFRM_DEV_OFFLOAD_OUT) {
+		netdev_info(netdev, "Cannot offload forward policy\n");
+		return -EINVAL;
+	}
+
+	if (!x->xfrm_vec[0].reqid) {
+		netdev_info(netdev, "Cannot offload policy without reqid\n");
+		return -EINVAL;
+	}
+
+	if (x->xdo.type != XFRM_DEV_OFFLOAD_PACKET) {
+		netdev_info(netdev, "Unsupported xfrm offload type\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void
+mlx5e_ipsec_build_accel_pol_attrs(struct mlx5e_ipsec_pol_entry *pol_entry,
+				  struct mlx5_accel_pol_xfrm_attrs *attrs)
+{
+	struct xfrm_policy *x = pol_entry->x;
+	struct xfrm_selector *sel;
+
+	sel = &x->selector;
+	memset(attrs, 0, sizeof(*attrs));
+
+	memcpy(&attrs->saddr, sel->saddr.a6, sizeof(attrs->saddr));
+	memcpy(&attrs->daddr, sel->daddr.a6, sizeof(attrs->daddr));
+	attrs->family = sel->family;
+	attrs->dir = x->xdo.dir;
+	attrs->action = x->action;
+	attrs->type = XFRM_DEV_OFFLOAD_PACKET;
+}
+
+static int mlx5e_xfrm_add_policy(struct xfrm_policy *x)
+{
+	struct net_device *netdev = x->xdo.real_dev;
+	struct mlx5e_ipsec_pol_entry *pol_entry;
+	struct mlx5e_priv *priv;
+	int err;
+
+	priv = netdev_priv(netdev);
+	if (!priv->ipsec)
+		return -EOPNOTSUPP;
+
+	err = mlx5e_xfrm_validate_policy(x);
+	if (err)
+		return err;
+
+	pol_entry = kzalloc(sizeof(*pol_entry), GFP_KERNEL);
+	if (!pol_entry)
+		return -ENOMEM;
+
+	pol_entry->x = x;
+	pol_entry->ipsec = priv->ipsec;
+
+	mlx5e_ipsec_build_accel_pol_attrs(pol_entry, &pol_entry->attrs);
+	err = mlx5e_accel_ipsec_fs_add_pol(pol_entry);
+	if (err)
+		goto err_fs;
+
+	x->xdo.offload_handle = (unsigned long)pol_entry;
+	return 0;
+
+err_fs:
+	kfree(pol_entry);
+	return err;
+}
+
+static void mlx5e_xfrm_free_policy(struct xfrm_policy *x)
+{
+	struct mlx5e_ipsec_pol_entry *pol_entry = to_ipsec_pol_entry(x);
+
+	mlx5e_accel_ipsec_fs_del_pol(pol_entry);
+	kfree(pol_entry);
+}
+
 static const struct xfrmdev_ops mlx5e_ipsec_xfrmdev_ops = {
 	.xdo_dev_state_add	= mlx5e_xfrm_add_state,
 	.xdo_dev_state_delete	= mlx5e_xfrm_del_state,
 	.xdo_dev_state_free	= mlx5e_xfrm_free_state,
 	.xdo_dev_offload_ok	= mlx5e_ipsec_offload_ok,
 	.xdo_dev_state_advance_esn = mlx5e_xfrm_advance_esn_state,
+};
+
+static const struct xfrmdev_ops mlx5e_ipsec_packet_xfrmdev_ops = {
+	.xdo_dev_state_add	= mlx5e_xfrm_add_state,
+	.xdo_dev_state_delete	= mlx5e_xfrm_del_state,
+	.xdo_dev_state_free	= mlx5e_xfrm_free_state,
+	.xdo_dev_offload_ok	= mlx5e_ipsec_offload_ok,
+	.xdo_dev_state_advance_esn = mlx5e_xfrm_advance_esn_state,
+
+	.xdo_dev_policy_add = mlx5e_xfrm_add_policy,
+	.xdo_dev_policy_free = mlx5e_xfrm_free_policy,
 };
 
 void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
@@ -463,7 +574,12 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 		return;
 
 	mlx5_core_info(mdev, "mlx5e: IPSec ESP acceleration enabled\n");
-	netdev->xfrmdev_ops = &mlx5e_ipsec_xfrmdev_ops;
+
+	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)
+		netdev->xfrmdev_ops = &mlx5e_ipsec_packet_xfrmdev_ops;
+	else
+		netdev->xfrmdev_ops = &mlx5e_ipsec_xfrmdev_ops;
+
 	netdev->features |= NETIF_F_HW_ESP;
 	netdev->hw_enc_features |= NETIF_F_HW_ESP;
 

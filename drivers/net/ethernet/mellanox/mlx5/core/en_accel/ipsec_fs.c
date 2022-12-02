@@ -597,6 +597,130 @@ out:
 	return err;
 }
 
+static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
+{
+	struct mlx5_accel_pol_xfrm_attrs *attrs = &pol_entry->attrs;
+	struct mlx5_core_dev *mdev = mlx5e_ipsec_pol2dev(pol_entry);
+	struct mlx5_flow_destination dest = {};
+	struct mlx5_flow_act flow_act = {};
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_spec *spec;
+	struct mlx5e_ipsec_tx *tx;
+	int err;
+
+	tx = tx_ft_get(mdev, pol_entry->ipsec);
+	if (IS_ERR(tx))
+		return PTR_ERR(tx);
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec) {
+		err = -ENOMEM;
+		goto err_alloc;
+	}
+
+	if (attrs->family == AF_INET)
+		setup_fte_addr4(spec, &attrs->saddr.a4, &attrs->daddr.a4);
+	else
+		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
+
+	setup_fte_no_frags(spec);
+
+	switch (attrs->action) {
+	case XFRM_POLICY_ALLOW:
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+		break;
+	case XFRM_POLICY_BLOCK:
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
+		break;
+	default:
+		WARN_ON(true);
+		err = -EINVAL;
+		goto err_action;
+	}
+
+	flow_act.flags |= FLOW_ACT_NO_APPEND;
+	dest.ft = tx->ft.sa;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	rule = mlx5_add_flow_rules(tx->ft.pol, spec, &flow_act, &dest, 1);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		mlx5_core_err(mdev, "fail to add TX ipsec rule err=%d\n", err);
+		goto err_action;
+	}
+
+	kvfree(spec);
+	pol_entry->rule = rule;
+	return 0;
+
+err_action:
+	kvfree(spec);
+err_alloc:
+	tx_ft_put(pol_entry->ipsec);
+	return err;
+}
+
+static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
+{
+	struct mlx5_accel_pol_xfrm_attrs *attrs = &pol_entry->attrs;
+	struct mlx5_core_dev *mdev = mlx5e_ipsec_pol2dev(pol_entry);
+	struct mlx5_flow_destination dest = {};
+	struct mlx5_flow_act flow_act = {};
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_spec *spec;
+	struct mlx5e_ipsec_rx *rx;
+	int err;
+
+	rx = rx_ft_get(mdev, pol_entry->ipsec, attrs->family);
+	if (IS_ERR(rx))
+		return PTR_ERR(rx);
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec) {
+		err = -ENOMEM;
+		goto err_alloc;
+	}
+
+	if (attrs->family == AF_INET)
+		setup_fte_addr4(spec, &attrs->saddr.a4, &attrs->daddr.a4);
+	else
+		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
+
+	setup_fte_no_frags(spec);
+
+	switch (attrs->action) {
+	case XFRM_POLICY_ALLOW:
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+		break;
+	case XFRM_POLICY_BLOCK:
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
+		break;
+	default:
+		WARN_ON(true);
+		err = -EINVAL;
+		goto err_action;
+	}
+
+	flow_act.flags |= FLOW_ACT_NO_APPEND;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest.ft = rx->ft.sa;
+	rule = mlx5_add_flow_rules(rx->ft.pol, spec, &flow_act, &dest, 1);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		mlx5_core_err(mdev, "Fail to add RX IPsec policy rule err=%d\n", err);
+		goto err_action;
+	}
+
+	kvfree(spec);
+	pol_entry->rule = rule;
+	return 0;
+
+err_action:
+	kvfree(spec);
+err_alloc:
+	rx_ft_put(mdev, pol_entry->ipsec, attrs->family);
+	return err;
+}
+
 int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
 	if (sa_entry->attrs.dir == XFRM_DEV_OFFLOAD_OUT)
@@ -619,6 +743,28 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	mlx5_modify_header_dealloc(mdev, ipsec_rule->modify_hdr);
 	rx_ft_put(mdev, sa_entry->ipsec, sa_entry->attrs.family);
+}
+
+int mlx5e_accel_ipsec_fs_add_pol(struct mlx5e_ipsec_pol_entry *pol_entry)
+{
+	if (pol_entry->attrs.dir == XFRM_DEV_OFFLOAD_OUT)
+		return tx_add_policy(pol_entry);
+
+	return rx_add_policy(pol_entry);
+}
+
+void mlx5e_accel_ipsec_fs_del_pol(struct mlx5e_ipsec_pol_entry *pol_entry)
+{
+	struct mlx5_core_dev *mdev = mlx5e_ipsec_pol2dev(pol_entry);
+
+	mlx5_del_flow_rules(pol_entry->rule);
+
+	if (pol_entry->attrs.dir == XFRM_DEV_OFFLOAD_OUT) {
+		tx_ft_put(pol_entry->ipsec);
+		return;
+	}
+
+	rx_ft_put(mdev, pol_entry->ipsec, pol_entry->attrs.family);
 }
 
 void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec)
