@@ -207,4 +207,20 @@ void mipi_dbi_debugfs_init(struct drm_minor *minor);
 static inline void mipi_dbi_debugfs_init(struct drm_minor *minor) {}
 #endif
 
+/**
+ * DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS - Initializes struct drm_simple_display_pipe_funcs
+ *                                          for MIPI-DBI devices
+ * @enable_: Enable-callback implementation
+ *
+ * This macro initializes struct drm_simple_display_pipe_funcs with default
+ * values for MIPI-DBI-based devices. The only callback that depends on the
+ * hardware is @enable, for which the driver has to provide an implementation.
+ * MIPI-based drivers are encouraged to use this macro for initialization.
+ */
+#define DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS(enable_) \
+	.mode_valid = mipi_dbi_pipe_mode_valid, \
+	.enable = (enable_), \
+	.disable = mipi_dbi_pipe_disable, \
+	.update = mipi_dbi_pipe_update
+
 #endif /* __LINUX_MIPI_DBI_H */
