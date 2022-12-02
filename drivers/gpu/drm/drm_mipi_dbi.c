@@ -21,6 +21,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modes.h>
@@ -432,6 +433,90 @@ void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 		regulator_disable(dbidev->regulator);
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_disable);
+
+/**
+ * mipi_dbi_pipe_begin_fb_access - MIPI DBI pipe begin-access helper
+ * @pipe: Display pipe
+ * @plane_state: Plane state
+ *
+ * This function implements struct &drm_simple_display_funcs.begin_fb_access.
+ *
+ * See drm_gem_begin_shadow_fb_access() for details and mipi_dbi_pipe_cleanup_fb()
+ * for cleanup.
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ */
+int mipi_dbi_pipe_begin_fb_access(struct drm_simple_display_pipe *pipe,
+				  struct drm_plane_state *plane_state)
+{
+	return drm_gem_begin_shadow_fb_access(&pipe->plane, plane_state);
+}
+EXPORT_SYMBOL(mipi_dbi_pipe_begin_fb_access);
+
+/**
+ * mipi_dbi_pipe_end_fb_access - MIPI DBI pipe end-access helper
+ * @pipe: Display pipe
+ * @plane_state: Plane state
+ *
+ * This function implements struct &drm_simple_display_funcs.end_fb_access.
+ *
+ * See mipi_dbi_pipe_begin_fb_access().
+ */
+void mipi_dbi_pipe_end_fb_access(struct drm_simple_display_pipe *pipe,
+				 struct drm_plane_state *plane_state)
+{
+	drm_gem_end_shadow_fb_access(&pipe->plane, plane_state);
+}
+EXPORT_SYMBOL(mipi_dbi_pipe_end_fb_access);
+
+/**
+ * mipi_dbi_pipe_reset_plane - MIPI DBI plane-reset helper
+ * @pipe: Display pipe
+ *
+ * This function implements struct &drm_simple_display_funcs.reset_plane
+ * for MIPI DBI planes.
+ */
+void mipi_dbi_pipe_reset_plane(struct drm_simple_display_pipe *pipe)
+{
+	drm_gem_reset_shadow_plane(&pipe->plane);
+}
+EXPORT_SYMBOL(mipi_dbi_pipe_reset_plane);
+
+/**
+ * mipi_dbi_pipe_duplicate_plane_state - duplicates MIPI DBI plane state
+ * @pipe: Display pipe
+ *
+ * This function implements struct &drm_simple_display_funcs.duplicate_plane_state
+ * for MIPI DBI planes.
+ *
+ * See drm_gem_duplicate_shadow_plane_state() for additional details.
+ *
+ * Returns:
+ * A pointer to a new plane state on success, or NULL otherwise.
+ */
+struct drm_plane_state *mipi_dbi_pipe_duplicate_plane_state(struct drm_simple_display_pipe *pipe)
+{
+	return drm_gem_duplicate_shadow_plane_state(&pipe->plane);
+}
+EXPORT_SYMBOL(mipi_dbi_pipe_duplicate_plane_state);
+
+/**
+ * mipi_dbi_pipe_destroy_plane_state - cleans up MIPI DBI plane state
+ * @pipe: Display pipe
+ * @plane_state: Plane state
+ *
+ * This function implements struct drm_simple_display_funcs.destroy_plane_state
+ * for MIPI DBI planes.
+ *
+ * See drm_gem_destroy_shadow_plane_state() for additional details.
+ */
+void mipi_dbi_pipe_destroy_plane_state(struct drm_simple_display_pipe *pipe,
+				       struct drm_plane_state *plane_state)
+{
+	drm_gem_destroy_shadow_plane_state(&pipe->plane, plane_state);
+}
+EXPORT_SYMBOL(mipi_dbi_pipe_destroy_plane_state);
 
 static int mipi_dbi_connector_get_modes(struct drm_connector *connector)
 {

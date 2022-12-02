@@ -164,6 +164,15 @@ void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
 			   struct drm_crtc_state *crtc_state,
 			   struct drm_plane_state *plan_state);
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe);
+int mipi_dbi_pipe_begin_fb_access(struct drm_simple_display_pipe *pipe,
+				  struct drm_plane_state *plane_state);
+void mipi_dbi_pipe_end_fb_access(struct drm_simple_display_pipe *pipe,
+				 struct drm_plane_state *plane_state);
+void mipi_dbi_pipe_reset_plane(struct drm_simple_display_pipe *pipe);
+struct drm_plane_state *mipi_dbi_pipe_duplicate_plane_state(struct drm_simple_display_pipe *pipe);
+void mipi_dbi_pipe_destroy_plane_state(struct drm_simple_display_pipe *pipe,
+				       struct drm_plane_state *plane_state);
+
 void mipi_dbi_hw_reset(struct mipi_dbi *dbi);
 bool mipi_dbi_display_is_on(struct mipi_dbi *dbi);
 int mipi_dbi_poweron_reset(struct mipi_dbi_dev *dbidev);
@@ -223,6 +232,11 @@ static inline void mipi_dbi_debugfs_init(struct drm_minor *minor) {}
 	.mode_valid = mipi_dbi_pipe_mode_valid, \
 	.enable = (enable_), \
 	.disable = mipi_dbi_pipe_disable, \
-	.update = mipi_dbi_pipe_update
+	.update = mipi_dbi_pipe_update, \
+	.begin_fb_access = mipi_dbi_pipe_begin_fb_access, \
+	.end_fb_access = mipi_dbi_pipe_end_fb_access, \
+	.reset_plane = mipi_dbi_pipe_reset_plane, \
+	.duplicate_plane_state = mipi_dbi_pipe_duplicate_plane_state, \
+	.destroy_plane_state = mipi_dbi_pipe_destroy_plane_state
 
 #endif /* __LINUX_MIPI_DBI_H */
