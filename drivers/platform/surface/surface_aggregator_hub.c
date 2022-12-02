@@ -349,7 +349,7 @@ static const struct ssam_hub_desc kip_hub = {
 
 static const struct ssam_device_id ssam_hub_match[] = {
 	{ SSAM_VDEV(HUB, SAM, SSAM_SSH_TC_KIP, 0x00), (unsigned long)&kip_hub  },
-	{ SSAM_VDEV(HUB, KIP, SSAM_SSH_TC_BAS, 0x00), (unsigned long)&base_hub },
+	{ SSAM_VDEV(HUB, SAM, SSAM_SSH_TC_BAS, 0x00), (unsigned long)&base_hub },
 	{ }
 };
 MODULE_DEVICE_TABLE(ssam, ssam_hub_match);
