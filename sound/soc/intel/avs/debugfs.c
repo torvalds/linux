@@ -71,6 +71,31 @@ static const struct file_operations fw_regs_fops = {
 	.llseek = no_llseek,
 };
 
+static ssize_t debug_window_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
+{
+	struct avs_dev *adev = file->private_data;
+	size_t size;
+	char *buf;
+	int ret;
+
+	size = adev->hw_cfg.dsp_cores * AVS_WINDOW_CHUNK_SIZE;
+	buf = kzalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	memcpy_fromio(buf, avs_sram_addr(adev, AVS_DEBUG_WINDOW), size);
+
+	ret = simple_read_from_buffer(to, count, ppos, buf, size);
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations debug_window_fops = {
+	.open = simple_open,
+	.read = debug_window_read,
+	.llseek = no_llseek,
+};
+
 static ssize_t probe_points_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
 {
 	struct avs_dev *adev = file->private_data;
@@ -393,6 +418,7 @@ void avs_debugfs_init(struct avs_dev *adev)
 	debugfs_create_file("strace", 0444, adev->debugfs_root, adev, &strace_fops);
 	debugfs_create_file("trace_control", 0644, adev->debugfs_root, adev, &trace_control_fops);
 	debugfs_create_file("fw_regs", 0444, adev->debugfs_root, adev, &fw_regs_fops);
+	debugfs_create_file("debug_window", 0444, adev->debugfs_root, adev, &debug_window_fops);
 
 	debugfs_create_u32("trace_aging_period", 0644, adev->debugfs_root,
 			   &adev->aging_timer_period);
