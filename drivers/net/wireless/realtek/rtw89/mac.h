@@ -168,6 +168,8 @@ enum rtw89_mac_ax_l0_to_l1_event {
 	MAC_AX_L0_TO_L1_EVENT_MAX = 15,
 };
 
+#define RTW89_PORT_OFFSET_MS_TO_32US(n, shift_ms) ((n) * (shift_ms) * 1000 / 32)
+
 enum rtw89_mac_dbg_port_sel {
 	/* CMAC 0 related */
 	RTW89_DBG_PORT_SEL_PTCL_C0 = 0,
