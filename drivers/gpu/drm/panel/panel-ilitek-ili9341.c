@@ -581,7 +581,6 @@ static const struct drm_simple_display_pipe_funcs ili9341_dbi_funcs = {
 	.enable = ili9341_dbi_enable,
 	.disable = mipi_dbi_pipe_disable,
 	.update = mipi_dbi_pipe_update,
-	.prepare_fb = drm_gem_simple_display_pipe_prepare_fb,
 };
 
 static const struct drm_display_mode ili9341_dbi_mode = {
