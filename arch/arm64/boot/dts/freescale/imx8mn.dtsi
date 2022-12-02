@@ -498,6 +498,8 @@
 				compatible = "fsl,imx8mn-tmu", "fsl,imx8mm-tmu";
 				reg = <0x30260000 0x10000>;
 				clocks = <&clk IMX8MN_CLK_TMU_ROOT>;
+				nvmem-cells = <&tmu_calib>;
+				nvmem-cell-names = "calib";
 				#thermal-sensor-cells = <0>;
 			};
 
@@ -583,6 +585,10 @@
 
 				cpu_speed_grade: speed-grade@10 { /* 0x440 */
 					reg = <0x10 4>;
+				};
+
+				tmu_calib: calib@3c { /* 0x4f0 */
+					reg = <0x3c 4>;
 				};
 
 				fec_mac_address: mac-address@90 { /* 0x640 */

@@ -380,6 +380,8 @@
 				compatible = "fsl,imx8mp-tmu";
 				reg = <0x30260000 0x10000>;
 				clocks = <&clk IMX8MP_CLK_TSENSOR_ROOT>;
+				nvmem-cells = <&tmu_calib>;
+				nvmem-cell-names = "calib";
 				#thermal-sensor-cells = <1>;
 			};
 
@@ -452,6 +454,10 @@
 
 				eth_mac2: mac-address@96 { /* 0x658 */
 					reg = <0x96 6>;
+				};
+
+				tmu_calib: calib@264 { /* 0xd90-0xdc0 */
+					reg = <0x264 0x10>;
 				};
 			};
 
