@@ -635,6 +635,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		},
 		.internal_sleep_clock = false,
 		.regs = &ipq5018_regs,
+		.hw_ops = &ipq5018_ops,
 		.host_ce_config = ath11k_host_ce_config_qcn9074,
 		.ce_count = CE_CNT_5018,
 		.target_ce_config = ath11k_target_ce_config_wlan_ipq5018,
