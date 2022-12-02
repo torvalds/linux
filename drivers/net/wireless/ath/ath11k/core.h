@@ -851,6 +851,7 @@ struct ath11k_base {
 	struct ath11k_dp dp;
 
 	void __iomem *mem;
+	void __iomem *mem_ce;
 	unsigned long mem_len;
 
 	struct {

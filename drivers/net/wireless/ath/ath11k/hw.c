@@ -2163,6 +2163,23 @@ const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq5018[] = {
 	{ /* terminator entry */ }
 };
 
+const struct ce_ie_addr ath11k_ce_ie_addr_ipq8074 = {
+	.ie1_reg_addr = CE_HOST_IE_ADDRESS,
+	.ie2_reg_addr = CE_HOST_IE_2_ADDRESS,
+	.ie3_reg_addr = CE_HOST_IE_3_ADDRESS,
+};
+
+const struct ce_ie_addr ath11k_ce_ie_addr_ipq5018 = {
+	.ie1_reg_addr = CE_HOST_IPQ5018_IE_ADDRESS - HAL_IPQ5018_CE_WFSS_REG_BASE,
+	.ie2_reg_addr = CE_HOST_IPQ5018_IE_2_ADDRESS - HAL_IPQ5018_CE_WFSS_REG_BASE,
+	.ie3_reg_addr = CE_HOST_IPQ5018_IE_3_ADDRESS - HAL_IPQ5018_CE_WFSS_REG_BASE,
+};
+
+const struct ce_remap ath11k_ce_remap_ipq5018 = {
+	.base = HAL_IPQ5018_CE_WFSS_REG_BASE,
+	.size = HAL_IPQ5018_CE_SIZE,
+};
+
 const struct ath11k_hw_regs ipq8074_regs = {
 	/* SW2TCL(x) R0 ring configuration address */
 	.hal_tcl1_ring_base_lsb = 0x00000510,
