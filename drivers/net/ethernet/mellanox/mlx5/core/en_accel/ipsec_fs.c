@@ -456,6 +456,17 @@ static void setup_fte_reg_a(struct mlx5_flow_spec *spec)
 		 misc_parameters_2.metadata_reg_a, MLX5_ETH_WQE_FT_META_IPSEC);
 }
 
+static void setup_fte_reg_c0(struct mlx5_flow_spec *spec, u32 reqid)
+{
+	/* Pass policy check before choosing this SA */
+	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_2;
+
+	MLX5_SET(fte_match_param, spec->match_criteria,
+		 misc_parameters_2.metadata_reg_c_0, reqid);
+	MLX5_SET(fte_match_param, spec->match_value,
+		 misc_parameters_2.metadata_reg_c_0, reqid);
+}
+
 static int setup_modify_header(struct mlx5_core_dev *mdev, u32 val, u8 dir,
 			       struct mlx5_flow_act *flow_act)
 {
@@ -469,6 +480,11 @@ static int setup_modify_header(struct mlx5_core_dev *mdev, u32 val, u8 dir,
 		MLX5_SET(set_action_in, action, field,
 			 MLX5_ACTION_IN_FIELD_METADATA_REG_B);
 		ns_type = MLX5_FLOW_NAMESPACE_KERNEL;
+		break;
+	case XFRM_DEV_OFFLOAD_OUT:
+		MLX5_SET(set_action_in, action, field,
+			 MLX5_ACTION_IN_FIELD_METADATA_REG_C_0);
+		ns_type = MLX5_FLOW_NAMESPACE_EGRESS;
 		break;
 	default:
 		return -EINVAL;
@@ -646,6 +662,7 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 		setup_fte_reg_a(spec);
 		break;
 	case XFRM_DEV_OFFLOAD_PACKET:
+		setup_fte_reg_c0(spec, attrs->reqid);
 		err = setup_pkt_reformat(mdev, attrs, &flow_act);
 		if (err)
 			goto err_pkt_reformat;
@@ -712,6 +729,11 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 
 	setup_fte_no_frags(spec);
 
+	err = setup_modify_header(mdev, attrs->reqid, XFRM_DEV_OFFLOAD_OUT,
+				  &flow_act);
+	if (err)
+		goto err_mod_header;
+
 	switch (attrs->action) {
 	case XFRM_POLICY_ALLOW:
 		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
@@ -741,10 +763,13 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 	}
 
 	kvfree(spec);
-	pol_entry->rule = rule;
+	pol_entry->ipsec_rule.rule = rule;
+	pol_entry->ipsec_rule.modify_hdr = flow_act.modify_hdr;
 	return 0;
 
 err_action:
+	mlx5_modify_header_dealloc(mdev, flow_act.modify_hdr);
+err_mod_header:
 	kvfree(spec);
 err_alloc:
 	tx_ft_put(pol_entry->ipsec);
@@ -807,7 +832,7 @@ static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 	}
 
 	kvfree(spec);
-	pol_entry->rule = rule;
+	pol_entry->ipsec_rule.rule = rule;
 	return 0;
 
 err_action:
@@ -964,16 +989,18 @@ int mlx5e_accel_ipsec_fs_add_pol(struct mlx5e_ipsec_pol_entry *pol_entry)
 
 void mlx5e_accel_ipsec_fs_del_pol(struct mlx5e_ipsec_pol_entry *pol_entry)
 {
+	struct mlx5e_ipsec_rule *ipsec_rule = &pol_entry->ipsec_rule;
 	struct mlx5_core_dev *mdev = mlx5e_ipsec_pol2dev(pol_entry);
 
-	mlx5_del_flow_rules(pol_entry->rule);
+	mlx5_del_flow_rules(ipsec_rule->rule);
 
-	if (pol_entry->attrs.dir == XFRM_DEV_OFFLOAD_OUT) {
-		tx_ft_put(pol_entry->ipsec);
+	if (pol_entry->attrs.dir == XFRM_DEV_OFFLOAD_IN) {
+		rx_ft_put(mdev, pol_entry->ipsec, pol_entry->attrs.family);
 		return;
 	}
 
-	rx_ft_put(mdev, pol_entry->ipsec, pol_entry->attrs.family);
+	mlx5_modify_header_dealloc(mdev, ipsec_rule->modify_hdr);
+	tx_ft_put(pol_entry->ipsec);
 }
 
 void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec)

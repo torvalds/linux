@@ -184,6 +184,7 @@ mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	memcpy(&attrs->daddr, x->id.daddr.a6, sizeof(attrs->daddr));
 	attrs->family = x->props.family;
 	attrs->type = x->xso.type;
+	attrs->reqid = x->props.reqid;
 }
 
 static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
@@ -265,6 +266,11 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 			netdev_info(netdev,
 				    "Unsupported replay window size %u\n",
 				    x->replay_esn->replay_window);
+			return -EINVAL;
+		}
+
+		if (!x->props.reqid) {
+			netdev_info(netdev, "Cannot offload without reqid\n");
 			return -EINVAL;
 		}
 	}
@@ -503,6 +509,7 @@ mlx5e_ipsec_build_accel_pol_attrs(struct mlx5e_ipsec_pol_entry *pol_entry,
 	attrs->dir = x->xdo.dir;
 	attrs->action = x->action;
 	attrs->type = XFRM_DEV_OFFLOAD_PACKET;
+	attrs->reqid = x->xfrm_vec[0].reqid;
 }
 
 static int mlx5e_xfrm_add_policy(struct xfrm_policy *x)
