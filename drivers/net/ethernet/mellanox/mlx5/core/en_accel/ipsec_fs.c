@@ -9,15 +9,10 @@
 
 #define NUM_IPSEC_FTE BIT(15)
 
-struct mlx5e_ipsec_rx_err {
-	struct mlx5_flow_table *ft;
-	struct mlx5_flow_handle *rule;
-	struct mlx5_modify_hdr *copy_modify_hdr;
-};
-
 struct mlx5e_ipsec_ft {
 	struct mutex mutex; /* Protect changes to this struct */
 	struct mlx5_flow_table *sa;
+	struct mlx5_flow_table *status;
 	u32 refcnt;
 };
 
@@ -26,7 +21,7 @@ struct mlx5e_ipsec_rx {
 	struct mlx5_flow_group *miss_group;
 	struct mlx5_flow_handle *miss_rule;
 	struct mlx5_flow_destination default_dest;
-	struct mlx5e_ipsec_rx_err rx_err;
+	struct mlx5e_ipsec_rule status;
 };
 
 struct mlx5e_ipsec_tx {
@@ -57,9 +52,8 @@ static struct mlx5_flow_table *ipsec_ft_create(struct mlx5_flow_namespace *ns,
 	return mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 }
 
-static int rx_err_add_rule(struct mlx5_core_dev *mdev,
-			   struct mlx5e_ipsec_rx *rx,
-			   struct mlx5e_ipsec_rx_err *rx_err)
+static int ipsec_status_rule(struct mlx5_core_dev *mdev,
+			     struct mlx5e_ipsec_rx *rx)
 {
 	u8 action[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
 	struct mlx5_flow_act flow_act = {};
@@ -94,7 +88,7 @@ static int rx_err_add_rule(struct mlx5_core_dev *mdev,
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_MOD_HDR |
 			  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	flow_act.modify_hdr = modify_hdr;
-	fte = mlx5_add_flow_rules(rx_err->ft, spec, &flow_act,
+	fte = mlx5_add_flow_rules(rx->ft.status, spec, &flow_act,
 				  &rx->default_dest, 1);
 	if (IS_ERR(fte)) {
 		err = PTR_ERR(fte);
@@ -103,8 +97,8 @@ static int rx_err_add_rule(struct mlx5_core_dev *mdev,
 	}
 
 	kvfree(spec);
-	rx_err->rule = fte;
-	rx_err->copy_modify_hdr = modify_hdr;
+	rx->status.rule = fte;
+	rx->status.modify_hdr = modify_hdr;
 	return 0;
 
 out:
@@ -165,9 +159,9 @@ static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_rx *rx)
 	mlx5_destroy_flow_group(rx->miss_group);
 	mlx5_destroy_flow_table(rx->ft.sa);
 
-	mlx5_del_flow_rules(rx->rx_err.rule);
-	mlx5_modify_header_dealloc(mdev, rx->rx_err.copy_modify_hdr);
-	mlx5_destroy_flow_table(rx->rx_err.ft);
+	mlx5_del_flow_rules(rx->status.rule);
+	mlx5_modify_header_dealloc(mdev, rx->status.modify_hdr);
+	mlx5_destroy_flow_table(rx->ft.status);
 }
 
 static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
@@ -185,8 +179,8 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	if (IS_ERR(ft))
 		return PTR_ERR(ft);
 
-	rx->rx_err.ft = ft;
-	err = rx_err_add_rule(mdev, rx, &rx->rx_err);
+	rx->ft.status = ft;
+	err = ipsec_status_rule(mdev, rx);
 	if (err)
 		goto err_add;
 
@@ -208,10 +202,10 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 err_fs:
 	mlx5_destroy_flow_table(rx->ft.sa);
 err_fs_ft:
-	mlx5_del_flow_rules(rx->rx_err.rule);
-	mlx5_modify_header_dealloc(mdev, rx->rx_err.copy_modify_hdr);
+	mlx5_del_flow_rules(rx->status.rule);
+	mlx5_modify_header_dealloc(mdev, rx->status.modify_hdr);
 err_add:
-	mlx5_destroy_flow_table(rx->rx_err.ft);
+	mlx5_destroy_flow_table(rx->ft.status);
 	return err;
 }
 
@@ -477,7 +471,7 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 			   MLX5_FLOW_CONTEXT_ACTION_CRYPTO_DECRYPT;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest.ft = rx->rx_err.ft;
+	dest.ft = rx->ft.status;
 	rule = mlx5_add_flow_rules(rx->ft.sa, spec, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
