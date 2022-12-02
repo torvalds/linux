@@ -267,6 +267,7 @@
 #define NFP_NET_CFG_CTRL_WORD1		0x0098
 #define   NFP_NET_CFG_CTRL_PKT_TYPE	  (0x1 << 0) /* Pkttype offload */
 #define   NFP_NET_CFG_CTRL_IPSEC	  (0x1 << 1) /* IPsec offload */
+#define   NFP_NET_CFG_CTRL_MCAST_FILTER	  (0x1 << 2) /* Multicast Filter */
 
 #define NFP_NET_CFG_CAP_WORD1		0x00a4
 
@@ -413,6 +414,9 @@
 #define NFP_NET_CFG_MBOX_CMD_PCI_DSCP_PRIOMAP_SET	5
 #define NFP_NET_CFG_MBOX_CMD_TLV_CMSG			6
 
+#define NFP_NET_CFG_MBOX_CMD_MULTICAST_ADD		8
+#define NFP_NET_CFG_MBOX_CMD_MULTICAST_DEL		9
+
 /* VLAN filtering using general use mailbox
  * %NFP_NET_CFG_VLAN_FILTER:		Base address of VLAN filter mailbox
  * %NFP_NET_CFG_VLAN_FILTER_VID:	VLAN ID to filter
@@ -423,6 +427,17 @@
 #define  NFP_NET_CFG_VLAN_FILTER_VID	NFP_NET_CFG_VLAN_FILTER
 #define  NFP_NET_CFG_VLAN_FILTER_PROTO	 (NFP_NET_CFG_VLAN_FILTER + 2)
 #define NFP_NET_CFG_VLAN_FILTER_SZ	 0x0004
+
+/* Multicast filtering using general use mailbox
+ * %NFP_NET_CFG_MULTICAST:		Base address of Multicast filter mailbox
+ * %NFP_NET_CFG_MULTICAST_MAC_HI:	High 32-bits of Multicast MAC address
+ * %NFP_NET_CFG_MULTICAST_MAC_LO:	Low 16-bits of Multicast MAC address
+ * %NFP_NET_CFG_MULTICAST_SZ:		Size of the Multicast filter mailbox in bytes
+ */
+#define NFP_NET_CFG_MULTICAST		NFP_NET_CFG_MBOX_SIMPLE_VAL
+#define NFP_NET_CFG_MULTICAST_MAC_HI	NFP_NET_CFG_MULTICAST
+#define NFP_NET_CFG_MULTICAST_MAC_LO	(NFP_NET_CFG_MULTICAST + 6)
+#define NFP_NET_CFG_MULTICAST_SZ	0x0006
 
 /* TLV capabilities
  * %NFP_NET_CFG_TLV_TYPE:	Offset of type within the TLV
