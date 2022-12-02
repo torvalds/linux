@@ -112,7 +112,7 @@ static DEFINE_MUTEX(rpmh_clk_lock);
 	}
 
 #define DEFINE_CLK_RPMH_ARC(_platform, _name, _res_name, _res_on, _div)	\
-	__DEFINE_CLK_RPMH(_platform, _name, _name, _res_name,		\
+	__DEFINE_CLK_RPMH(_platform, _name, _name##_##div##_div, _res_name, \
 			  CLK_RPMH_ARC_EN_OFFSET, _res_on, _div)
 
 #define DEFINE_CLK_RPMH_VRM(_platform, _name, _res_name, _div)		\
@@ -375,8 +375,8 @@ DEFINE_CLK_RPMH_BCM(pka, "PKA0");
 DEFINE_CLK_RPMH_BCM(qpic_clk, "QP0");
 
 static struct clk_hw *sdm845_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo_div2.hw,
+	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_div2_ao.hw,
 	[RPMH_LN_BB_CLK2]	= &sdm845_ln_bb_clk2.hw,
 	[RPMH_LN_BB_CLK2_A]	= &sdm845_ln_bb_clk2_ao.hw,
 	[RPMH_LN_BB_CLK3]	= &sdm845_ln_bb_clk3.hw,
@@ -397,8 +397,8 @@ static const struct clk_rpmh_desc clk_rpmh_sdm845 = {
 };
 
 static struct clk_hw *sdm670_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo_div2.hw,
+	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_div2_ao.hw,
 	[RPMH_LN_BB_CLK2]	= &sdm845_ln_bb_clk2.hw,
 	[RPMH_LN_BB_CLK2_A]	= &sdm845_ln_bb_clk2_ao.hw,
 	[RPMH_LN_BB_CLK3]	= &sdm845_ln_bb_clk3.hw,
@@ -417,8 +417,8 @@ static const struct clk_rpmh_desc clk_rpmh_sdm670 = {
 };
 
 static struct clk_hw *sdx55_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo_div2.hw,
+	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_div2_ao.hw,
 	[RPMH_RF_CLK1]		= &sc8180x_rf_clk1.hw,
 	[RPMH_RF_CLK1_A]	= &sc8180x_rf_clk1_ao.hw,
 	[RPMH_RF_CLK2]		= &sc8180x_rf_clk2.hw,
@@ -433,8 +433,8 @@ static const struct clk_rpmh_desc clk_rpmh_sdx55 = {
 };
 
 static struct clk_hw *sm8150_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo_div2.hw,
+	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_div2_ao.hw,
 	[RPMH_LN_BB_CLK2]	= &sdm845_ln_bb_clk2.hw,
 	[RPMH_LN_BB_CLK2_A]	= &sdm845_ln_bb_clk2_ao.hw,
 	[RPMH_LN_BB_CLK3]	= &sdm845_ln_bb_clk3.hw,
@@ -453,8 +453,8 @@ static const struct clk_rpmh_desc clk_rpmh_sm8150 = {
 };
 
 static struct clk_hw *sc7180_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo_div2.hw,
+	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_div2_ao.hw,
 	[RPMH_LN_BB_CLK2]	= &sdm845_ln_bb_clk2.hw,
 	[RPMH_LN_BB_CLK2_A]	= &sdm845_ln_bb_clk2_ao.hw,
 	[RPMH_LN_BB_CLK3]	= &sdm845_ln_bb_clk3.hw,
@@ -472,8 +472,8 @@ static const struct clk_rpmh_desc clk_rpmh_sc7180 = {
 };
 
 static struct clk_hw *sc8180x_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo_div2.hw,
+	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_div2_ao.hw,
 	[RPMH_LN_BB_CLK2]	= &sdm845_ln_bb_clk2.hw,
 	[RPMH_LN_BB_CLK2_A]	= &sdm845_ln_bb_clk2_ao.hw,
 	[RPMH_LN_BB_CLK3]	= &sdm845_ln_bb_clk3.hw,
@@ -492,8 +492,8 @@ static const struct clk_rpmh_desc clk_rpmh_sc8180x = {
 };
 
 static struct clk_hw *sm8250_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo_div2.hw,
+	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_div2_ao.hw,
 	[RPMH_LN_BB_CLK1]	= &sm8250_ln_bb_clk1.hw,
 	[RPMH_LN_BB_CLK1_A]	= &sm8250_ln_bb_clk1_ao.hw,
 	[RPMH_LN_BB_CLK2]	= &sdm845_ln_bb_clk2.hw,
@@ -512,8 +512,8 @@ static const struct clk_rpmh_desc clk_rpmh_sm8250 = {
 };
 
 static struct clk_hw *sm8350_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo_div2.hw,
+	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_div2_ao.hw,
 	[RPMH_DIV_CLK1]		= &sm8350_div_clk1.hw,
 	[RPMH_DIV_CLK1_A]	= &sm8350_div_clk1_ao.hw,
 	[RPMH_LN_BB_CLK1]	= &sm8250_ln_bb_clk1.hw,
@@ -539,8 +539,8 @@ static const struct clk_rpmh_desc clk_rpmh_sm8350 = {
 };
 
 static struct clk_hw *sc8280xp_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]		= &sdm845_bi_tcxo_div2.hw,
+	[RPMH_CXO_CLK_A]	= &sdm845_bi_tcxo_div2_ao.hw,
 	[RPMH_LN_BB_CLK3]       = &sdm845_ln_bb_clk3.hw,
 	[RPMH_LN_BB_CLK3_A]     = &sdm845_ln_bb_clk3_ao.hw,
 	[RPMH_IPA_CLK]          = &clk_rpmh_ipa.hw,
@@ -554,8 +554,8 @@ static const struct clk_rpmh_desc clk_rpmh_sc8280xp = {
 };
 
 static struct clk_hw *sm8450_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]		= &sc7280_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]	= &sc7280_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]		= &sc7280_bi_tcxo_div4.hw,
+	[RPMH_CXO_CLK_A]	= &sc7280_bi_tcxo_div4_ao.hw,
 	[RPMH_LN_BB_CLK1]	= &sm8450_ln_bb_clk1.hw,
 	[RPMH_LN_BB_CLK1_A]	= &sm8450_ln_bb_clk1_ao.hw,
 	[RPMH_LN_BB_CLK2]	= &sm8450_ln_bb_clk2.hw,
@@ -577,8 +577,8 @@ static const struct clk_rpmh_desc clk_rpmh_sm8450 = {
 };
 
 static struct clk_hw *sc7280_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]      = &sc7280_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]    = &sc7280_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]      = &sc7280_bi_tcxo_div4.hw,
+	[RPMH_CXO_CLK_A]    = &sc7280_bi_tcxo_div4_ao.hw,
 	[RPMH_LN_BB_CLK2]   = &sdm845_ln_bb_clk2.hw,
 	[RPMH_LN_BB_CLK2_A] = &sdm845_ln_bb_clk2_ao.hw,
 	[RPMH_RF_CLK1]      = &sdm845_rf_clk1.hw,
@@ -598,14 +598,14 @@ static const struct clk_rpmh_desc clk_rpmh_sc7280 = {
 };
 
 static struct clk_hw *sm6350_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]		= &sc7280_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]	= &sc7280_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]		= &sc7280_bi_tcxo_div4.hw,
+	[RPMH_CXO_CLK_A]	= &sc7280_bi_tcxo_div4_ao.hw,
 	[RPMH_LN_BB_CLK2]	= &sm6350_ln_bb_clk2.hw,
 	[RPMH_LN_BB_CLK2_A]	= &sm6350_ln_bb_clk2_ao.hw,
 	[RPMH_LN_BB_CLK3]	= &sm6350_ln_bb_clk3.hw,
 	[RPMH_LN_BB_CLK3_A]	= &sm6350_ln_bb_clk3_ao.hw,
-	[RPMH_QLINK_CLK]	= &sm6350_qlink.hw,
-	[RPMH_QLINK_CLK_A]	= &sm6350_qlink_ao.hw,
+	[RPMH_QLINK_CLK]	= &sm6350_qlink_div4.hw,
+	[RPMH_QLINK_CLK_A]	= &sm6350_qlink_div4_ao.hw,
 };
 
 static const struct clk_rpmh_desc clk_rpmh_sm6350 = {
@@ -614,8 +614,8 @@ static const struct clk_rpmh_desc clk_rpmh_sm6350 = {
 };
 
 static struct clk_hw *sdx65_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]          = &sc7280_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]        = &sc7280_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]          = &sc7280_bi_tcxo_div4.hw,
+	[RPMH_CXO_CLK_A]        = &sc7280_bi_tcxo_div4_ao.hw,
 	[RPMH_LN_BB_CLK1]       = &sm8450_ln_bb_clk1.hw,
 	[RPMH_LN_BB_CLK1_A]     = &sm8450_ln_bb_clk1_ao.hw,
 	[RPMH_RF_CLK1]          = &sdm845_rf_clk1.hw,
@@ -636,8 +636,8 @@ static const struct clk_rpmh_desc clk_rpmh_sdx65 = {
 };
 
 static struct clk_hw *qdu1000_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]      = &qdu1000_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]    = &qdu1000_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]      = &qdu1000_bi_tcxo_div1.hw,
+	[RPMH_CXO_CLK_A]    = &qdu1000_bi_tcxo_div1_ao.hw,
 };
 
 static const struct clk_rpmh_desc clk_rpmh_qdu1000 = {
