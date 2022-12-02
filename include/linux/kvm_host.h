@@ -50,8 +50,8 @@
 #endif
 
 /*
- * The bit 16 ~ bit 31 of kvm_memory_region::flags are internally used
- * in kvm, other bits are visible for userspace which are defined in
+ * The bit 16 ~ bit 31 of kvm_userspace_memory_region::flags are internally
+ * used in kvm, other bits are visible for userspace which are defined in
  * include/linux/kvm_h.
  */
 #define KVM_MEMSLOT_INVALID	(1UL << 16)
