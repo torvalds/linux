@@ -94,7 +94,7 @@ struct mlx5e_ipsec_sw_stats {
 	atomic64_t ipsec_tx_drop_trailer;
 };
 
-struct mlx5e_accel_fs_esp;
+struct mlx5e_ipsec_rx;
 struct mlx5e_ipsec_tx;
 
 struct mlx5e_ipsec {
@@ -103,8 +103,9 @@ struct mlx5e_ipsec {
 	spinlock_t sadb_rx_lock; /* Protects sadb_rx */
 	struct mlx5e_ipsec_sw_stats sw_stats;
 	struct workqueue_struct *wq;
-	struct mlx5e_accel_fs_esp *rx_fs;
-	struct mlx5e_ipsec_tx *tx_fs;
+	struct mlx5e_ipsec_rx *rx_ipv4;
+	struct mlx5e_ipsec_rx *rx_ipv6;
+	struct mlx5e_ipsec_tx *tx;
 };
 
 struct mlx5e_ipsec_esn_state {
