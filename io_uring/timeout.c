@@ -50,7 +50,6 @@ static inline void io_put_req(struct io_kiocb *req)
 }
 
 static bool io_kill_timeout(struct io_kiocb *req, int status)
-	__must_hold(&req->ctx->completion_lock)
 	__must_hold(&req->ctx->timeout_lock)
 {
 	struct io_timeout_data *io = req->async_data;
@@ -70,7 +69,6 @@ static bool io_kill_timeout(struct io_kiocb *req, int status)
 }
 
 __cold void io_flush_timeouts(struct io_ring_ctx *ctx)
-	__must_hold(&ctx->completion_lock)
 {
 	u32 seq;
 	struct io_timeout *timeout, *tmp;
