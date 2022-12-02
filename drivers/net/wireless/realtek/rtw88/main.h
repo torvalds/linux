@@ -1851,6 +1851,7 @@ struct rtw_fw_state {
 	u16 h2c_version;
 	u32 feature;
 	u32 feature_ext;
+	enum rtw_fw_type type;
 };
 
 enum rtw_sar_sources {
