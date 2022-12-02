@@ -55,15 +55,11 @@ int skl_log_buffer_offset(struct avs_dev *adev, u32 core)
 static int
 skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
 {
-	unsigned long flags;
 	void __iomem *buf;
 	u16 size, write, offset;
 
-	spin_lock_irqsave(&adev->dbg.trace_lock, flags);
-	if (!kfifo_initialized(&adev->dbg.trace_fifo)) {
-		spin_unlock_irqrestore(&adev->dbg.trace_lock, flags);
+	if (!kfifo_initialized(&adev->dbg.trace_fifo))
 		return 0;
-	}
 
 	size = avs_log_buffer_size(adev) / 2;
 	write = readl(avs_sram_addr(adev, AVS_FW_REGS_WINDOW) + FW_REGS_DBG_LOG_WP(msg->log.core));
@@ -74,7 +70,6 @@ skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
 	buf = avs_log_buffer_addr(adev, msg->log.core) + offset;
 	__kfifo_fromio_locked(&adev->dbg.trace_fifo, buf, size, &adev->dbg.fifo_lock);
 	wake_up(&adev->dbg.trace_waitq);
-	spin_unlock_irqrestore(&adev->dbg.trace_lock, flags);
 
 	return 0;
 }

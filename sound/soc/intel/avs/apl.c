@@ -50,7 +50,6 @@ static int apl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32
 static int apl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
 {
 	struct apl_log_buffer_layout layout;
-	unsigned long flags;
 	void __iomem *addr, *buf;
 
 	addr = avs_log_buffer_addr(adev, msg->log.core);
@@ -59,7 +58,6 @@ static int apl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg
 
 	memcpy_fromio(&layout, addr, sizeof(layout));
 
-	spin_lock_irqsave(&adev->dbg.trace_lock, flags);
 	if (!kfifo_initialized(&adev->dbg.trace_fifo))
 		/* consume the logs regardless of consumer presence */
 		goto update_read_ptr;
@@ -78,7 +76,6 @@ static int apl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg
 	wake_up(&adev->dbg.trace_waitq);
 
 update_read_ptr:
-	spin_unlock_irqrestore(&adev->dbg.trace_lock, flags);
 	writel(layout.write_ptr, addr);
 	return 0;
 }
@@ -140,7 +137,7 @@ static int apl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
 		 * gathered before dumping stack
 		 */
 		lbs_msg.log.core = msg->ext.coredump.core_id;
-		avs_dsp_op(adev, log_buffer_status, &lbs_msg);
+		avs_log_buffer_status_locked(adev, &lbs_msg);
 	}
 
 	pos = dump + AVS_FW_REGS_SIZE;

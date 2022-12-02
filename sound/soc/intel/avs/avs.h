@@ -344,6 +344,18 @@ unsigned int __kfifo_fromio_locked(struct kfifo *fifo, const void __iomem *src, 
 			 (avs_sram_addr(adev, AVS_DEBUG_WINDOW) + __offset); \
 })
 
+static inline int avs_log_buffer_status_locked(struct avs_dev *adev, union avs_notify_msg *msg)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&adev->dbg.trace_lock, flags);
+	ret = avs_dsp_op(adev, log_buffer_status, msg);
+	spin_unlock_irqrestore(&adev->dbg.trace_lock, flags);
+
+	return ret;
+}
+
 struct apl_log_buffer_layout {
 	u32 read_ptr;
 	u32 write_ptr;
