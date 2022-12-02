@@ -43,6 +43,8 @@ enum {
 #define ST_LSM6DSVX_EWMA_LEVEL			120
 #define ST_LSM6DSVX_EWMA_DIV			128
 
+#define ST_LSM6DSVX_TIMESTAMP_RESET_VALUE	0xaa
+
 static inline s64 st_lsm6dsvx_ewma(s64 old, s64 new, int weight)
 {
 	s64 diff, incr;
@@ -56,19 +58,31 @@ static inline s64 st_lsm6dsvx_ewma(s64 old, s64 new, int weight)
 
 static inline int st_lsm6dsvx_reset_hwts(struct st_lsm6dsvx_hw *hw)
 {
-	u8 data = 0xaa;
+	u8 data = ST_LSM6DSVX_TIMESTAMP_RESET_VALUE;
+	int ret;
 
+	ret = st_lsm6dsvx_write_locked(hw, ST_LSM6DSVX_REG_TIMESTAMP2_ADDR,
+				       data);
+	if (ret < 0)
+		return ret;
+
+#if defined(CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP)
+	spin_lock_irq(&hw->hwtimestamp_lock);
 	hw->hw_timestamp_global = (hw->hw_timestamp_global + (1LL << 32)) &
 				   GENMASK_ULL(63, 32);
+	spin_unlock_irq(&hw->hwtimestamp_lock);
+	hw->timesync_c = 0;
+	hw->timesync_ktime = ktime_set(0, ST_LSM6DSVX_FAST_KTIME);
+#else /* CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP */
+	hw->hw_timestamp_global = (hw->hw_timestamp_global + (1LL << 32)) &
+				   GENMASK_ULL(63, 32);
+#endif /* CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP */
 
 	hw->ts = iio_get_time_ns(hw->iio_devs[0]);
 	hw->ts_offset = hw->ts;
-	hw->val_ts_old = 0;
-	hw->hw_ts_high = 0;
 	hw->tsample = 0ull;
 
-	return st_lsm6dsvx_write_locked(hw, ST_LSM6DSVX_REG_TIMESTAMP2_ADDR,
-					data);
+	return 0;
 }
 
 int st_lsm6dsvx_set_fifo_mode(struct st_lsm6dsvx_hw *hw,
@@ -281,10 +295,18 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 				if (hw->val_ts_old > val)
 					hw->hw_ts_high++;
 
+#if defined(CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP)
+				spin_lock_irq(&hw->hwtimestamp_lock);
+#endif /* CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP */
+
 				hw->hw_timestamp_global =
 						(hw->hw_timestamp_global &
 						 GENMASK_ULL(63, 32)) |
 						(u32)le32_to_cpu(val);
+
+#if defined(CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP)
+				spin_unlock_irq(&hw->hwtimestamp_lock);
+#endif /* CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP */
 
 				hw_ts_old = hw->hw_ts;
 
@@ -347,10 +369,20 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 					memcpy(iio_buf, ptr,
 					       ST_LSM6DSVX_SAMPLE_SIZE);
 
-					/* avoid samples in the future */
+#if defined(CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP)
+					spin_lock_irq(&hw->hwtimestamp_lock);
+#endif /* CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP */
+
 					hw_timestamp_push = cpu_to_le64(hw->hw_timestamp_global);
+
+#if defined(CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP)
+					spin_unlock_irq(&hw->hwtimestamp_lock);
+#endif /* CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP */
+
 					memcpy(&iio_buf[ALIGN(ST_LSM6DSVX_SAMPLE_SIZE, sizeof(s64))],
 					       &hw_timestamp_push, sizeof(hw_timestamp_push));
+
+					/* avoid samples in the future */
 					hw->tsample = min_t(s64,
 							    iio_get_time_ns(hw->iio_devs[0]),
 							    hw->tsample);
@@ -364,7 +396,7 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 						iio_push_to_buffers_with_timestamp(iio_dev,
 								   iio_buf,
 								   hw->tsample);
-						hw->last_fifo_timestamp = hw->tsample;
+						sensor->last_fifo_timestamp = hw_timestamp_push;
 						sensor->dec_counter = sensor->decimator;
 					}
 #ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
@@ -446,7 +478,7 @@ ssize_t st_lsm6dsvx_flush_fifo(struct device *dev,
 	set_bit(ST_LSM6DSVX_HW_FLUSH, &hw->state);
 	count = st_lsm6dsvx_read_fifo(hw);
 	sensor->dec_counter = 0;
-	fifo_ts = hw->last_fifo_timestamp;
+	fifo_ts = sensor->last_fifo_timestamp;
 	mutex_unlock(&hw->fifo_lock);
 
 	type = count > 0 ? IIO_EV_DIR_FIFO_DATA : IIO_EV_DIR_FIFO_EMPTY;
@@ -491,6 +523,11 @@ int st_lsm6dsvx_update_fifo(struct iio_dev *iio_dev, bool enable)
 	int err;
 
 	disable_irq(hw->irq);
+
+#if defined(CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP)
+	hrtimer_cancel(&hw->timesync_timer);
+	cancel_work_sync(&hw->timesync_work);
+#endif /* CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP */
 
 	switch (sensor->id) {
 
@@ -589,6 +626,14 @@ int st_lsm6dsvx_update_fifo(struct iio_dev *iio_dev, bool enable)
 	} else if (!hw->enable_mask) {
 		err = st_lsm6dsvx_set_fifo_mode(hw, ST_LSM6DSVX_FIFO_BYPASS);
 	}
+
+#if defined(CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP)
+	if (hw->fifo_mode != ST_LSM6DSVX_FIFO_BYPASS) {
+		hrtimer_start(&hw->timesync_timer,
+			      ktime_set(0, 0),
+			      HRTIMER_MODE_REL);
+	}
+#endif /* CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP */
 
 out:
 	enable_irq(hw->irq);
@@ -732,6 +777,10 @@ int st_lsm6dsvx_buffers_setup(struct st_lsm6dsvx_hw *hw)
 		}
 #endif /* LINUX_VERSION_CODE */
 	}
+
+	err = st_lsm6dsvx_hwtimesync_init(hw);
+	if (err)
+		return err;
 
 	return st_lsm6dsvx_fifo_init(hw);
 }

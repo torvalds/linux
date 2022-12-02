@@ -237,7 +237,7 @@ static const struct iio_chan_spec_ext_info st_lsm6dsvx_chan_spec_ext_info[] = {
 	.scan_index = si,						\
 	.scan_type = {							\
 		.sign = 's',						\
-		.realbits = 64,					\
+		.realbits = 64,						\
 		.storagebits = 64,					\
 		.endianness = IIO_LE,					\
 	},								\
@@ -1436,6 +1436,7 @@ st_lsm6dsvx_alloc_iiodev(struct st_lsm6dsvx_hw *hw,
 
 	sensor->decimator = 0;
 	sensor->dec_counter = 0;
+	sensor->last_fifo_timestamp = 0;
 
 	switch (id) {
 	case ST_LSM6DSVX_ID_ACC:

@@ -13,8 +13,11 @@
 #include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/hrtimer.h>
 #include <linux/iio/iio.h>
 #include <linux/regmap.h>
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
 
 #define ST_LSM6DSVX_ODR_LIST_SIZE		9
 #define ST_LSM6DSVX_ODR_EXPAND(odr, uodr)	((odr * 1000000) + uodr)
@@ -282,6 +285,9 @@
 #define ST_LSM6DSVX_SELF_TEST_NORMAL_MODE_VAL	0
 #define ST_LSM6DSVX_SELF_TEST_POS_SIGN_VAL	1
 #define ST_LSM6DSVX_SELF_TEST_NEG_SIGN_VAL	2
+
+#define ST_LSM6DSVX_DEFAULT_KTIME		(200000000)
+#define ST_LSM6DSVX_FAST_KTIME			(5000000)
 
 #define ST_LSM6DSVX_DATA_CHANNEL(chan_type, addr, mod, ch2, scan_idx, \
 				 rb, sb, sg, ext_inf)		      \
@@ -657,6 +663,7 @@ enum {
  * @std_level: Samples to discard threshold.
  * @decimator: Samples decimate counter.
  * @dec_counter: Samples decimate value.
+ * @last_fifo_timestamp: Timestamp related to last sample in FIFO.
  * @max_watermark: Max supported watermark level.
  * @watermark: Sensor watermark level.
  * @selftest_status: Report last self test status.
@@ -700,6 +707,7 @@ struct st_lsm6dsvx_sensor {
 			u8 decimator;
 			u8 dec_counter;
 
+			s64 last_fifo_timestamp;
 			u16 max_watermark;
 			u16 watermark;
 
@@ -744,6 +752,12 @@ struct st_lsm6dsvx_sensor {
  * @enable_mask: Enabled sensor bitmask.
  * @hw_timestamp_global: hw timestamp value always monotonic where the most
  *                       significant 8byte are incremented at every disable/enable.
+ * @timesync_workqueue: runs the async task in private workqueue.
+ * @timesync_work: actual work to be done in the async task workqueue.
+ * @timesync_timer: hrtimer used to schedule period read for the async task.
+ * @hwtimestamp_lock: spinlock for the 64bit timestamp value.
+ * @timesync_ktime: interval value used by the hrtimer.
+ * @timestamp_c: counter used for counting number of timesync updates.
  * @int_pin: selected interrupt pin from configuration.
  * @ext_data_len: Number of i2c slave devices connected to I2C master.
  * @ts_offset: Hw timestamp offset.
@@ -754,7 +768,6 @@ struct st_lsm6dsvx_sensor {
  * @tsample: Sample timestamp.
  * @delta_ts: Estimated delta time between two consecutive interrupts.
  * @ts: Latest timestamp from irq handler.
- * @last_fifo_timestamp: Last timestamp in FIFO, used by flush event.
  * @module_id: identify iio devices of the same sensor module.
  * @orientation: Sensor orientation matrix.
  * @vdd_supply: Voltage regulator for VDD.
@@ -779,6 +792,16 @@ struct st_lsm6dsvx_hw {
 	unsigned long state;
 	u32 enable_mask;
 	s64 hw_timestamp_global;
+
+#if defined(CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP)
+	struct workqueue_struct *timesync_workqueue;
+	struct work_struct timesync_work;
+	struct hrtimer timesync_timer;
+	spinlock_t hwtimestamp_lock;
+	ktime_t timesync_ktime;
+	int timesync_c;
+#endif /* CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP */
+
 	u8 int_pin;
 
 	u8 ext_data_len;
@@ -791,7 +814,6 @@ struct st_lsm6dsvx_hw {
 	s64 tsample;
 	s64 delta_ts;
 	s64 ts;
-	s64 last_fifo_timestamp;
 
 	u32 module_id;
 	struct iio_mount_matrix orientation;
@@ -971,6 +993,16 @@ int
 st_lsm6dsvx_qvar_sensor_set_enable(struct st_lsm6dsvx_sensor *sensor,
 				   bool enable);
 int st_lsm6dsvx_qvar_remove(struct device *dev);
+
+#if defined(CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP)
+int st_lsm6dsvx_hwtimesync_init(struct st_lsm6dsvx_hw *hw);
+#else /* CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP */
+static inline int
+st_lsm6dsvx_hwtimesync_init(struct st_lsm6dsvx_hw *hw)
+{
+	return 0;
+}
+#endif /* CONFIG_IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP */
 
 int st_lsm6dsvx_mlc_probe(struct st_lsm6dsvx_hw *hw);
 int st_lsm6dsvx_mlc_remove(struct device *dev);

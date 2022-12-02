@@ -49,3 +49,9 @@ config IIO_ST_LSM6DSVX_MLC_PRELOAD
 
 	  The examples code is a motion intensity recognition and is hardcoded in the
 	  driver in the mlcdata structure.
+
+config IIO_ST_LSM6DSVX_ASYNC_HW_TIMESTAMP
+	bool "Enable async hw timestamp read"
+	depends on IIO_ST_LSM6DSVX
+	help
+	  Enable async task that sends over hw timestamp events.
