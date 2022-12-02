@@ -144,6 +144,7 @@ struct avs_dev {
 	u32 aging_timer_period;
 	u32 fifo_full_timer_period;
 	u32 logged_resources;	/* context dependent: core or library */
+	struct dentry *debugfs_root;
 	/* probes */
 	struct hdac_ext_stream *extractor;
 	unsigned int num_probe_streams;
@@ -378,6 +379,9 @@ void avs_dump_fw_log(struct avs_dev *adev, const void __iomem *src, unsigned int
 void avs_dump_fw_log_wakeup(struct avs_dev *adev, const void __iomem *src, unsigned int len);
 
 int avs_probe_platform_register(struct avs_dev *adev, const char *name);
+
+void avs_debugfs_init(struct avs_dev *adev);
+void avs_debugfs_exit(struct avs_dev *adev);
 #else
 #define AVS_SET_ENABLE_LOGS_OP(name)
 
@@ -399,6 +403,9 @@ static inline int avs_probe_platform_register(struct avs_dev *adev, const char *
 {
 	return 0;
 }
+
+static inline void avs_debugfs_init(struct avs_dev *adev) { }
+static inline void avs_debugfs_exit(struct avs_dev *adev) { }
 #endif
 
 #endif /* __SOUND_SOC_INTEL_AVS_H */
