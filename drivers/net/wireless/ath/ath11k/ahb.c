@@ -32,6 +32,9 @@ static const struct of_device_id ath11k_ahb_of_match[] = {
 	{ .compatible = "qcom,wcn6750-wifi",
 	  .data = (void *)ATH11K_HW_WCN6750_HW10,
 	},
+	{ .compatible = "qcom,ipq5018-wifi",
+	  .data = (void *)ATH11K_HW_IPQ5018_HW10,
+	},
 	{ }
 };
 
