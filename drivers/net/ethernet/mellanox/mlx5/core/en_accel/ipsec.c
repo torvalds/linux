@@ -108,9 +108,8 @@ static void mlx5e_ipsec_init_limits(struct mlx5e_ipsec_sa_entry *sa_entry,
 		x->lft.hard_packet_limit - x->lft.soft_packet_limit;
 }
 
-static void
-mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
-				   struct mlx5_accel_esp_xfrm_attrs *attrs)
+void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
+					struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	struct xfrm_state *x = sa_entry->x;
 	struct aes_gcm_keymat *aes_gcm = &attrs->aes_gcm;

@@ -230,6 +230,8 @@ void mlx5e_ipsec_aso_update_curlft(struct mlx5e_ipsec_sa_entry *sa_entry,
 void mlx5e_accel_ipsec_fs_read_stats(struct mlx5e_priv *priv,
 				     void *ipsec_stats);
 
+void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
+					struct mlx5_accel_esp_xfrm_attrs *attrs);
 static inline struct mlx5_core_dev *
 mlx5e_ipsec_sa2dev(struct mlx5e_ipsec_sa_entry *sa_entry)
 {

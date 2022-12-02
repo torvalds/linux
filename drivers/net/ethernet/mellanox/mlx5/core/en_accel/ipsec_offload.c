@@ -6,6 +6,10 @@
 #include "ipsec.h"
 #include "lib/mlx5.h"
 
+enum {
+	MLX5_IPSEC_ASO_REMOVE_FLOW_PKT_CNT_OFFSET,
+};
+
 u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 {
 	u32 caps = 0;
@@ -260,6 +264,39 @@ void mlx5_accel_esp_modify_xfrm(struct mlx5e_ipsec_sa_entry *sa_entry,
 	memcpy(&sa_entry->attrs, attrs, sizeof(sa_entry->attrs));
 }
 
+static void
+mlx5e_ipsec_aso_update_esn(struct mlx5e_ipsec_sa_entry *sa_entry,
+			   const struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	struct mlx5_wqe_aso_ctrl_seg data = {};
+
+	data.data_mask_mode = MLX5_ASO_DATA_MASK_MODE_BITWISE_64BIT << 6;
+	data.condition_1_0_operand = MLX5_ASO_ALWAYS_TRUE | MLX5_ASO_ALWAYS_TRUE
+								    << 4;
+	data.data_offset_condition_operand = MLX5_IPSEC_ASO_REMOVE_FLOW_PKT_CNT_OFFSET;
+	data.bitwise_data = cpu_to_be64(BIT_ULL(54));
+	data.data_mask = data.bitwise_data;
+
+	mlx5e_ipsec_aso_query(sa_entry, &data);
+}
+
+static void mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry,
+					 u32 mode_param)
+{
+	struct mlx5_accel_esp_xfrm_attrs attrs = {};
+
+	if (mode_param < MLX5E_IPSEC_ESN_SCOPE_MID) {
+		sa_entry->esn_state.esn++;
+		sa_entry->esn_state.overlap = 0;
+	} else {
+		sa_entry->esn_state.overlap = 1;
+	}
+
+	mlx5e_ipsec_build_accel_xfrm_attrs(sa_entry, &attrs);
+	mlx5_accel_esp_modify_xfrm(sa_entry, &attrs);
+	mlx5e_ipsec_aso_update_esn(sa_entry, &attrs);
+}
+
 static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 {
 	struct mlx5e_ipsec_work *work =
@@ -284,6 +321,13 @@ static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 		goto unlock;
 
 	aso->use_cache = true;
+	if (attrs->esn_trigger &&
+	    !MLX5_GET(ipsec_aso, aso->ctx, esn_event_arm)) {
+		u32 mode_param = MLX5_GET(ipsec_aso, aso->ctx, mode_parameter);
+
+		mlx5e_ipsec_update_esn_state(sa_entry, mode_param);
+	}
+
 	if (attrs->soft_packet_limit != XFRM_INF)
 		if (!MLX5_GET(ipsec_aso, aso->ctx, soft_lft_arm) ||
 		    !MLX5_GET(ipsec_aso, aso->ctx, hard_lft_arm) ||
