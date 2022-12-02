@@ -118,6 +118,8 @@ static int sun4i_pwm_get_state(struct pwm_chip *chip,
 	unsigned int prescaler;
 
 	clk_rate = clk_get_rate(sun4i_pwm->clk);
+	if (!clk_rate)
+		return -EINVAL;
 
 	val = sun4i_pwm_readl(sun4i_pwm, PWM_CTRL_REG);
 
@@ -142,7 +144,7 @@ static int sun4i_pwm_get_state(struct pwm_chip *chip,
 		prescaler = prescaler_table[PWM_REG_PRESCAL(val, pwm->hwpwm)];
 
 	if (prescaler == 0)
-		return 0;
+		return -EINVAL;
 
 	if (val & BIT_CH(PWM_ACT_STATE, pwm->hwpwm))
 		state->polarity = PWM_POLARITY_NORMAL;
