@@ -356,17 +356,6 @@ see the description of the capability.
 Note that the Xen shared info page, if configured, shall always be assumed
 to be dirty. KVM will not explicitly mark it such.
 
-4.9 KVM_SET_MEMORY_ALIAS
-------------------------
-
-:Capability: basic
-:Architectures: x86
-:Type: vm ioctl
-:Parameters: struct kvm_memory_alias (in)
-:Returns: 0 (success), -1 (error)
-
-This ioctl is obsolete and has been removed.
-
 
 4.10 KVM_RUN
 ------------
