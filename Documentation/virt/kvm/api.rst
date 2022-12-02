@@ -272,18 +272,6 @@ the VCPU file descriptor can be mmap-ed, including:
   KVM_CAP_DIRTY_LOG_RING, see section 8.3.
 
 
-4.6 KVM_SET_MEMORY_REGION
--------------------------
-
-:Capability: basic
-:Architectures: all
-:Type: vm ioctl
-:Parameters: struct kvm_memory_region (in)
-:Returns: 0 on success, -1 on error
-
-This ioctl is obsolete and has been removed.
-
-
 4.7 KVM_CREATE_VCPU
 -------------------
 
@@ -1376,10 +1364,6 @@ When the KVM_CAP_SYNC_MMU capability is available, changes in the backing of
 the memory region are automatically reflected into the guest.  For example, an
 mmap() that affects the region will be made visible immediately.  Another
 example is madvise(MADV_DROP).
-
-It is recommended to use this API instead of the KVM_SET_MEMORY_REGION ioctl.
-The KVM_SET_MEMORY_REGION does not allow fine grained control over memory
-allocation and is deprecated.
 
 
 4.36 KVM_SET_TSS_ADDR
