@@ -606,6 +606,7 @@ static struct clk_hw *sm6350_rpmh_clocks[] = {
 	[RPMH_LN_BB_CLK3_A]	= &clk_rpmh_ln_bb_clk3_g4_ao.hw,
 	[RPMH_QLINK_CLK]	= &clk_rpmh_qlink_div4.hw,
 	[RPMH_QLINK_CLK_A]	= &clk_rpmh_qlink_div4_ao.hw,
+	[RPMH_IPA_CLK]		= &clk_rpmh_ipa.hw,
 };
 
 static const struct clk_rpmh_desc clk_rpmh_sm6350 = {
