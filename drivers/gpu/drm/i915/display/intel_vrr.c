@@ -78,10 +78,10 @@ static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_stat
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	/* The hw imposes the extra scanline before frame start */
 	if (DISPLAY_VER(i915) >= 13)
-		return crtc_state->vrr.guardband + crtc_state->framestart_delay + 1;
+		return crtc_state->vrr.guardband;
 	else
+		/* The hw imposes the extra scanline before frame start */
 		return crtc_state->vrr.pipeline_full + crtc_state->framestart_delay + 1;
 }
 
@@ -151,7 +151,7 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 		 * number of scan lines. Assuming 0 for no DSB.
 		 */
 		crtc_state->vrr.guardband =
-			crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay;
+			crtc_state->vrr.vmin + 1 - adjusted_mode->crtc_vdisplay;
 	} else {
 		crtc_state->vrr.pipeline_full =
 			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay -
