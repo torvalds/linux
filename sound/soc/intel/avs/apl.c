@@ -13,8 +13,9 @@
 #include "path.h"
 #include "topology.h"
 
-static int apl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
-			   u32 fifo_full_period, unsigned long resource_mask, u32 *priorities)
+static int __maybe_unused
+apl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
+		u32 fifo_full_period, unsigned long resource_mask, u32 *priorities)
 {
 	struct apl_log_state_info *info;
 	u32 size, num_cores = adev->hw_cfg.dsp_cores;
@@ -239,10 +240,10 @@ const struct avs_dsp_ops apl_dsp_ops = {
 	.load_basefw = avs_hda_load_basefw,
 	.load_lib = avs_hda_load_library,
 	.transfer_mods = avs_hda_transfer_modules,
-	.enable_logs = apl_enable_logs,
 	.log_buffer_offset = skl_log_buffer_offset,
 	.log_buffer_status = apl_log_buffer_status,
 	.coredump = apl_coredump,
 	.d0ix_toggle = apl_d0ix_toggle,
 	.set_d0ix = apl_set_d0ix,
+	AVS_SET_ENABLE_LOGS_OP(apl)
 };

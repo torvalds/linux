@@ -376,10 +376,15 @@ struct apl_log_buffer_layout {
 	(addr + sizeof(struct apl_log_buffer_layout))
 
 #ifdef CONFIG_DEBUG_FS
+#define AVS_SET_ENABLE_LOGS_OP(name) \
+	.enable_logs = name##_enable_logs
+
 bool avs_logging_fw(struct avs_dev *adev);
 void avs_dump_fw_log(struct avs_dev *adev, const void __iomem *src, unsigned int len);
 void avs_dump_fw_log_wakeup(struct avs_dev *adev, const void __iomem *src, unsigned int len);
 #else
+#define AVS_SET_ENABLE_LOGS_OP(name)
+
 static inline bool avs_logging_fw(struct avs_dev *adev)
 {
 	return false;
