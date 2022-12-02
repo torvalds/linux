@@ -175,7 +175,7 @@ static void lpc18xx_pwm_config_duty(struct pwm_chip *chip,
 	u32 val;
 
 	/*
-	 * With clk_rate < NSEC_PER_SEC this cannot overflow.
+	 * With clk_rate <= NSEC_PER_SEC this cannot overflow.
 	 * With duty_ns <= period_ns < max_period_ns this also fits into an u32.
 	 */
 	val = mul_u64_u64_div_u64(duty_ns, lpc18xx_pwm->clk_rate, NSEC_PER_SEC);
