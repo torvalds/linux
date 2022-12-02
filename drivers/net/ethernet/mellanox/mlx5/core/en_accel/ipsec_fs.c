@@ -480,6 +480,48 @@ static int setup_modify_header(struct mlx5_core_dev *mdev, u32 val, u8 dir,
 	return 0;
 }
 
+static int setup_pkt_reformat(struct mlx5_core_dev *mdev,
+			      struct mlx5_accel_esp_xfrm_attrs *attrs,
+			      struct mlx5_flow_act *flow_act)
+{
+	enum mlx5_flow_namespace_type ns_type = MLX5_FLOW_NAMESPACE_EGRESS;
+	struct mlx5_pkt_reformat_params reformat_params = {};
+	struct mlx5_pkt_reformat *pkt_reformat;
+	u8 reformatbf[16] = {};
+	__be32 spi;
+
+	if (attrs->dir == XFRM_DEV_OFFLOAD_IN) {
+		reformat_params.type = MLX5_REFORMAT_TYPE_DEL_ESP_TRANSPORT;
+		ns_type = MLX5_FLOW_NAMESPACE_KERNEL;
+		goto cmd;
+	}
+
+	if (attrs->family == AF_INET)
+		reformat_params.type =
+			MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV4;
+	else
+		reformat_params.type =
+			MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV6;
+
+	/* convert to network format */
+	spi = htonl(attrs->spi);
+	memcpy(reformatbf, &spi, 4);
+
+	reformat_params.param_0 = attrs->authsize;
+	reformat_params.size = sizeof(reformatbf);
+	reformat_params.data = &reformatbf;
+
+cmd:
+	pkt_reformat =
+		mlx5_packet_reformat_alloc(mdev, &reformat_params, ns_type);
+	if (IS_ERR(pkt_reformat))
+		return PTR_ERR(pkt_reformat);
+
+	flow_act->pkt_reformat = pkt_reformat;
+	flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+	return 0;
+}
+
 static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
 	struct mlx5_accel_esp_xfrm_attrs *attrs = &sa_entry->attrs;
@@ -516,6 +558,16 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	if (err)
 		goto err_mod_header;
 
+	switch (attrs->type) {
+	case XFRM_DEV_OFFLOAD_PACKET:
+		err = setup_pkt_reformat(mdev, attrs, &flow_act);
+		if (err)
+			goto err_pkt_reformat;
+		break;
+	default:
+		break;
+	}
+
 	flow_act.crypto.type = MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_IPSEC;
 	flow_act.crypto.obj_id = sa_entry->ipsec_obj_id;
 	flow_act.flags |= FLOW_ACT_NO_APPEND;
@@ -533,9 +585,13 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	sa_entry->ipsec_rule.rule = rule;
 	sa_entry->ipsec_rule.modify_hdr = flow_act.modify_hdr;
+	sa_entry->ipsec_rule.pkt_reformat = flow_act.pkt_reformat;
 	return 0;
 
 err_add_flow:
+	if (flow_act.pkt_reformat)
+		mlx5_packet_reformat_dealloc(mdev, flow_act.pkt_reformat);
+err_pkt_reformat:
 	mlx5_modify_header_dealloc(mdev, flow_act.modify_hdr);
 err_mod_header:
 	kvfree(spec);
@@ -562,7 +618,7 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
 		err = -ENOMEM;
-		goto out;
+		goto err_alloc;
 	}
 
 	if (attrs->family == AF_INET)
@@ -570,29 +626,47 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	else
 		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
 
-	setup_fte_spi(spec, attrs->spi);
-	setup_fte_esp(spec);
 	setup_fte_no_frags(spec);
-	setup_fte_reg_a(spec);
+
+	switch (attrs->type) {
+	case XFRM_DEV_OFFLOAD_CRYPTO:
+		setup_fte_spi(spec, attrs->spi);
+		setup_fte_esp(spec);
+		setup_fte_reg_a(spec);
+		break;
+	case XFRM_DEV_OFFLOAD_PACKET:
+		err = setup_pkt_reformat(mdev, attrs, &flow_act);
+		if (err)
+			goto err_pkt_reformat;
+		break;
+	default:
+		break;
+	}
 
 	flow_act.crypto.type = MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_IPSEC;
 	flow_act.crypto.obj_id = sa_entry->ipsec_obj_id;
 	flow_act.flags |= FLOW_ACT_NO_APPEND;
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_ALLOW |
-			  MLX5_FLOW_CONTEXT_ACTION_CRYPTO_ENCRYPT;
+	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_ALLOW |
+			   MLX5_FLOW_CONTEXT_ACTION_CRYPTO_ENCRYPT;
 	rule = mlx5_add_flow_rules(tx->ft.sa, spec, &flow_act, NULL, 0);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		mlx5_core_err(mdev, "fail to add TX ipsec rule err=%d\n", err);
-		goto out;
+		goto err_add_flow;
 	}
 
-	sa_entry->ipsec_rule.rule = rule;
-
-out:
 	kvfree(spec);
-	if (err)
-		tx_ft_put(ipsec);
+	sa_entry->ipsec_rule.rule = rule;
+	sa_entry->ipsec_rule.pkt_reformat = flow_act.pkt_reformat;
+	return 0;
+
+err_add_flow:
+	if (flow_act.pkt_reformat)
+		mlx5_packet_reformat_dealloc(mdev, flow_act.pkt_reformat);
+err_pkt_reformat:
+	kvfree(spec);
+err_alloc:
+	tx_ft_put(ipsec);
 	return err;
 }
 
@@ -734,6 +808,9 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	struct mlx5_core_dev *mdev = mlx5e_ipsec_sa2dev(sa_entry);
 
 	mlx5_del_flow_rules(ipsec_rule->rule);
+
+	if (ipsec_rule->pkt_reformat)
+		mlx5_packet_reformat_dealloc(mdev, ipsec_rule->pkt_reformat);
 
 	if (sa_entry->attrs.dir == XFRM_DEV_OFFLOAD_OUT) {
 		tx_ft_put(sa_entry->ipsec);

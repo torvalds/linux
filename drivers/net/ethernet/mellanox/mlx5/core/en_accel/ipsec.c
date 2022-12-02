@@ -162,6 +162,8 @@ mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	memcpy(&aes_gcm->salt, x->aead->alg_key + key_len,
 	       sizeof(aes_gcm->salt));
 
+	attrs->authsize = crypto_aead_authsize(aead) / 4; /* in dwords */
+
 	/* iv len */
 	aes_gcm->icv_len = x->aead->alg_icv_len;
 

@@ -76,6 +76,7 @@ struct mlx5_accel_esp_xfrm_attrs {
 	u8 type : 2;
 	u8 family;
 	u32 replay_window;
+	u32 authsize;
 };
 
 enum mlx5_ipsec_cap {
@@ -127,6 +128,7 @@ struct mlx5e_ipsec_esn_state {
 struct mlx5e_ipsec_rule {
 	struct mlx5_flow_handle *rule;
 	struct mlx5_modify_hdr *modify_hdr;
+	struct mlx5_pkt_reformat *pkt_reformat;
 };
 
 struct mlx5e_ipsec_modify_state_work {
