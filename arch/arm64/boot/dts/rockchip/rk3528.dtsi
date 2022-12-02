@@ -344,6 +344,11 @@
 		method = "smc";
 	};
 
+	rkvtunnel: rkvtunnel {
+		compatible = "rockchip,video-tunnel";
+		status = "disabled";
+	};
+
 	rockchip_suspend: rockchip-suspend {
 		compatible = "rockchip,pm-rk3528";
 		status = "disabled";
