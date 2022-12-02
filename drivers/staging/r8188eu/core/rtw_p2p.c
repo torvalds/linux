@@ -1453,7 +1453,7 @@ static void pre_tx_invitereq_handler(struct adapter *padapter)
 
 	set_channel_bwmode(padapter, pwdinfo->invitereq_info.peer_ch, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
 	rtw_mlme_under_site_survey(padapter);
-	issue_probereq_p2p(padapter, NULL);
+	issue_probereq_p2p(padapter);
 	_set_timer(&pwdinfo->pre_tx_scan_timer, P2P_TX_PRESCAN_TIMEOUT);
 
 }
@@ -1464,7 +1464,7 @@ static void pre_tx_provdisc_handler(struct adapter *padapter)
 
 	set_channel_bwmode(padapter, pwdinfo->tx_prov_disc_info.peer_channel_num[0], HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
 	rtw_mlme_under_site_survey(padapter);
-	issue_probereq_p2p(padapter, NULL);
+	issue_probereq_p2p(padapter);
 	_set_timer(&pwdinfo->pre_tx_scan_timer, P2P_TX_PRESCAN_TIMEOUT);
 
 }
@@ -1475,7 +1475,7 @@ static void pre_tx_negoreq_handler(struct adapter *padapter)
 
 	set_channel_bwmode(padapter, pwdinfo->nego_req_info.peer_channel_num[0], HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
 	rtw_mlme_under_site_survey(padapter);
-	issue_probereq_p2p(padapter, NULL);
+	issue_probereq_p2p(padapter);
 	_set_timer(&pwdinfo->pre_tx_scan_timer, P2P_TX_PRESCAN_TIMEOUT);
 
 }
@@ -1725,7 +1725,7 @@ static void pre_tx_scan_timer_process(struct timer_list *t)
 	if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_TX_PROVISION_DIS_REQ)) {
 		if (pwdinfo->tx_prov_disc_info.benable) {	/*	the provision discovery request frame is trigger to send or not */
 			p2p_protocol_wk_cmd(adapter, P2P_PRE_TX_PROVDISC_PROCESS_WK);
-			/* issue_probereq_p2p(adapter, NULL); */
+			/* issue_probereq_p2p(adapter); */
 			/* _set_timer(&pwdinfo->pre_tx_scan_timer, P2P_TX_PRESCAN_TIMEOUT); */
 		}
 	} else if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_GONEGO_ING)) {
