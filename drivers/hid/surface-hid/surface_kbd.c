@@ -250,7 +250,7 @@ static int surface_kbd_probe(struct platform_device *pdev)
 
 	shid->uid.domain = SSAM_DOMAIN_SERIALHUB;
 	shid->uid.category = SSAM_SSH_TC_KBD;
-	shid->uid.target = 2;
+	shid->uid.target = SSAM_SSH_TID_KIP;
 	shid->uid.instance = 0;
 	shid->uid.function = 0;
 
