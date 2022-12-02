@@ -168,6 +168,25 @@ static int kvm_pgtable_visitor_cb(struct kvm_pgtable_walk_data *data,
 	return walker->cb(ctx, visit);
 }
 
+static bool kvm_pgtable_walk_continue(const struct kvm_pgtable_walker *walker,
+				      int r)
+{
+	/*
+	 * Visitor callbacks return EAGAIN when the conditions that led to a
+	 * fault are no longer reflected in the page tables due to a race to
+	 * update a PTE. In the context of a fault handler this is interpreted
+	 * as a signal to retry guest execution.
+	 *
+	 * Ignore the return code altogether for walkers outside a fault handler
+	 * (e.g. write protecting a range of memory) and chug along with the
+	 * page table walk.
+	 */
+	if (r == -EAGAIN)
+		return !(walker->flags & KVM_PGTABLE_WALK_HANDLE_FAULT);
+
+	return !r;
+}
+
 static int __kvm_pgtable_walk(struct kvm_pgtable_walk_data *data,
 			      struct kvm_pgtable_mm_ops *mm_ops, kvm_pteref_t pgtable, u32 level);
 
@@ -200,7 +219,7 @@ static inline int __kvm_pgtable_visit(struct kvm_pgtable_walk_data *data,
 		table = kvm_pte_table(ctx.old, level);
 	}
 
-	if (ret)
+	if (!kvm_pgtable_walk_continue(data->walker, ret))
 		goto out;
 
 	if (!table) {
@@ -211,13 +230,16 @@ static inline int __kvm_pgtable_visit(struct kvm_pgtable_walk_data *data,
 
 	childp = (kvm_pteref_t)kvm_pte_follow(ctx.old, mm_ops);
 	ret = __kvm_pgtable_walk(data, mm_ops, childp, level + 1);
-	if (ret)
+	if (!kvm_pgtable_walk_continue(data->walker, ret))
 		goto out;
 
 	if (ctx.flags & KVM_PGTABLE_WALK_TABLE_POST)
 		ret = kvm_pgtable_visitor_cb(data, &ctx, KVM_PGTABLE_WALK_TABLE_POST);
 
 out:
+	if (kvm_pgtable_walk_continue(data->walker, ret))
+		return 0;
+
 	return ret;
 }
 
@@ -1095,7 +1117,8 @@ kvm_pte_t kvm_pgtable_stage2_mkyoung(struct kvm_pgtable *pgt, u64 addr)
 {
 	kvm_pte_t pte = 0;
 	stage2_update_leaf_attrs(pgt, addr, 1, KVM_PTE_LEAF_ATTR_LO_S2_AF, 0,
-				 &pte, NULL, 0);
+				 &pte, NULL,
+				 KVM_PGTABLE_WALK_HANDLE_FAULT);
 	dsb(ishst);
 	return pte;
 }
@@ -1141,6 +1164,7 @@ int kvm_pgtable_stage2_relax_perms(struct kvm_pgtable *pgt, u64 addr,
 		clr |= KVM_PTE_LEAF_ATTR_HI_S2_XN;
 
 	ret = stage2_update_leaf_attrs(pgt, addr, 1, set, clr, NULL, &level,
+				       KVM_PGTABLE_WALK_HANDLE_FAULT |
 				       KVM_PGTABLE_WALK_SHARED);
 	if (!ret)
 		kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, pgt->mmu, addr, level);
