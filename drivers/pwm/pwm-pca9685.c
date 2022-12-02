@@ -515,8 +515,7 @@ static const struct regmap_config pca9685_regmap_i2c_config = {
 	.cache_type = REGCACHE_NONE,
 };
 
-static int pca9685_pwm_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int pca9685_pwm_probe(struct i2c_client *client)
 {
 	struct pca9685 *pca;
 	unsigned int reg;
@@ -666,7 +665,7 @@ static struct i2c_driver pca9685_i2c_driver = {
 		.of_match_table = of_match_ptr(pca9685_dt_ids),
 		.pm = &pca9685_pwm_pm,
 	},
-	.probe = pca9685_pwm_probe,
+	.probe_new = pca9685_pwm_probe,
 	.remove = pca9685_pwm_remove,
 	.id_table = pca9685_id,
 };
