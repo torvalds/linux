@@ -47,20 +47,23 @@ static bool __may_read_extent_tree(struct inode *inode)
 	return S_ISREG(inode->i_mode);
 }
 
+static bool __init_may_extent_tree(struct inode *inode, enum extent_type type)
+{
+	if (type == EX_READ)
+		return __may_read_extent_tree(inode);
+	return false;
+}
+
 static bool __may_extent_tree(struct inode *inode, enum extent_type type)
 {
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-
 	/*
 	 * for recovered files during mount do not create extents
 	 * if shrinker is not registered.
 	 */
-	if (list_empty(&sbi->s_list))
+	if (list_empty(&F2FS_I_SB(inode)->s_list))
 		return false;
 
-	if (type == EX_READ)
-		return __may_read_extent_tree(inode);
-	return false;
+	return __init_may_extent_tree(inode, type);
 }
 
 static void __try_update_largest_extent(struct extent_tree *et,
@@ -439,20 +442,18 @@ static void __drop_largest_extent(struct extent_tree *et,
 	}
 }
 
-/* return true, if inode page is changed */
-static void __f2fs_init_extent_tree(struct inode *inode, struct page *ipage,
-							enum extent_type type)
+void f2fs_init_read_extent_tree(struct inode *inode, struct page *ipage)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct extent_tree_info *eti = &sbi->extent_tree[type];
-	struct f2fs_extent *i_ext = ipage ? &F2FS_INODE(ipage)->i_ext : NULL;
+	struct extent_tree_info *eti = &sbi->extent_tree[EX_READ];
+	struct f2fs_extent *i_ext = &F2FS_INODE(ipage)->i_ext;
 	struct extent_tree *et;
 	struct extent_node *en;
 	struct extent_info ei;
 
-	if (!__may_extent_tree(inode, type)) {
+	if (!__may_extent_tree(inode, EX_READ)) {
 		/* drop largest read extent */
-		if (type == EX_READ && i_ext && i_ext->len) {
+		if (i_ext && i_ext->len) {
 			f2fs_wait_on_page_writeback(ipage, NODE, true, true);
 			i_ext->len = 0;
 			set_page_dirty(ipage);
@@ -460,12 +461,10 @@ static void __f2fs_init_extent_tree(struct inode *inode, struct page *ipage,
 		goto out;
 	}
 
-	et = __grab_extent_tree(inode, type);
+	et = __grab_extent_tree(inode, EX_READ);
 
 	if (!i_ext || !i_ext->len)
 		goto out;
-
-	BUG_ON(type != EX_READ);
 
 	get_read_extent_info(&ei, i_ext);
 
@@ -486,14 +485,15 @@ static void __f2fs_init_extent_tree(struct inode *inode, struct page *ipage,
 unlock_out:
 	write_unlock(&et->lock);
 out:
-	if (type == EX_READ && !F2FS_I(inode)->extent_tree[EX_READ])
+	if (!F2FS_I(inode)->extent_tree[EX_READ])
 		set_inode_flag(inode, FI_NO_EXTENT);
 }
 
-void f2fs_init_extent_tree(struct inode *inode, struct page *ipage)
+void f2fs_init_extent_tree(struct inode *inode)
 {
 	/* initialize read cache */
-	__f2fs_init_extent_tree(inode, ipage, EX_READ);
+	if (__init_may_extent_tree(inode, EX_READ))
+		__grab_extent_tree(inode, EX_READ);
 }
 
 static bool __lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
