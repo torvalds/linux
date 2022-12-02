@@ -1661,6 +1661,9 @@ bool f2fs_issue_discard_timeout(struct f2fs_sb_info *sbi)
 	struct discard_policy dpolicy;
 	bool dropped;
 
+	if (!atomic_read(&dcc->discard_cmd_cnt))
+		return false;
+
 	__init_discard_policy(sbi, &dpolicy, DPOLICY_UMOUNT,
 					dcc->discard_granularity);
 	__issue_discard_cmd(sbi, &dpolicy);
@@ -2116,8 +2119,7 @@ static void destroy_discard_cmd_control(struct f2fs_sb_info *sbi)
 	 * Recovery can cache discard commands, so in error path of
 	 * fill_super(), it needs to give a chance to handle them.
 	 */
-	if (unlikely(atomic_read(&dcc->discard_cmd_cnt)))
-		f2fs_issue_discard_timeout(sbi);
+	f2fs_issue_discard_timeout(sbi);
 
 	kfree(dcc);
 	SM_I(sbi)->dcc_info = NULL;
