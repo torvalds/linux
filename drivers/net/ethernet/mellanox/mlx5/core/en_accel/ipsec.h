@@ -87,6 +87,17 @@ enum mlx5_ipsec_cap {
 
 struct mlx5e_priv;
 
+struct mlx5e_ipsec_hw_stats {
+	u64 ipsec_rx_pkts;
+	u64 ipsec_rx_bytes;
+	u64 ipsec_rx_drop_pkts;
+	u64 ipsec_rx_drop_bytes;
+	u64 ipsec_tx_pkts;
+	u64 ipsec_tx_bytes;
+	u64 ipsec_tx_drop_pkts;
+	u64 ipsec_tx_drop_bytes;
+};
+
 struct mlx5e_ipsec_sw_stats {
 	atomic64_t ipsec_rx_drop_sp_alloc;
 	atomic64_t ipsec_rx_drop_sadb_miss;
@@ -111,6 +122,7 @@ struct mlx5e_ipsec {
 	DECLARE_HASHTABLE(sadb_rx, MLX5E_IPSEC_SADB_RX_BITS);
 	spinlock_t sadb_rx_lock; /* Protects sadb_rx */
 	struct mlx5e_ipsec_sw_stats sw_stats;
+	struct mlx5e_ipsec_hw_stats hw_stats;
 	struct workqueue_struct *wq;
 	struct mlx5e_flow_steering *fs;
 	struct mlx5e_ipsec_rx *rx_ipv4;
@@ -199,6 +211,9 @@ void mlx5_accel_esp_modify_xfrm(struct mlx5e_ipsec_sa_entry *sa_entry,
 
 int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec);
 void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec);
+
+void mlx5e_accel_ipsec_fs_read_stats(struct mlx5e_priv *priv,
+				     void *ipsec_stats);
 
 static inline struct mlx5_core_dev *
 mlx5e_ipsec_sa2dev(struct mlx5e_ipsec_sa_entry *sa_entry)
