@@ -153,19 +153,15 @@ static void st7586_pipe_update(struct drm_simple_display_pipe *pipe,
 			       struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_dma_object *dma_obj;
-	struct iosys_map src;
 	struct drm_rect rect;
 
 	if (!pipe->crtc.state->active)
 		return;
 
-	dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
-	iosys_map_set_vaddr(&src, dma_obj->vaddr);
-
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		st7586_fb_dirty(&src, fb, &rect);
+		st7586_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
 }
 
 static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
@@ -173,6 +169,7 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 			       struct drm_plane_state *plane_state)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct mipi_dbi *dbi = &dbidev->dbi;
 	struct drm_rect rect = {
@@ -181,8 +178,6 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 		.y1 = 0,
 		.y2 = fb->height,
 	};
-	struct drm_gem_dma_object *dma_obj;
-	struct iosys_map src;
 	int idx, ret;
 	u8 addr_mode;
 
@@ -242,10 +237,7 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(100);
 
-	dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
-	iosys_map_set_vaddr(&src, dma_obj->vaddr);
-
-	st7586_fb_dirty(&src, fb, &rect);
+	st7586_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
 
 	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
 out_exit:

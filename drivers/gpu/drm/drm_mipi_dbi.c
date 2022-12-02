@@ -321,12 +321,10 @@ EXPORT_SYMBOL(mipi_dbi_pipe_mode_valid);
 void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *old_state)
 {
-	struct iosys_map map[DRM_FORMAT_MAX_PLANES] = { };
-	struct iosys_map data[DRM_FORMAT_MAX_PLANES] = { };
 	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_rect rect;
-	int ret;
 
 	if (!pipe->crtc.state->active)
 		return;
@@ -334,14 +332,8 @@ void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 	if (WARN_ON(!fb))
 		return;
 
-	ret = drm_gem_fb_vmap(fb, map, data);
-	if (ret)
-		return;
-
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		mipi_dbi_fb_dirty(&data[0], fb, &rect);
-
-	drm_gem_fb_vunmap(fb, map);
+		mipi_dbi_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_update);
 
@@ -362,6 +354,7 @@ void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
 			   struct drm_crtc_state *crtc_state,
 			   struct drm_plane_state *plane_state)
 {
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_rect rect = {
 		.x1 = 0,
@@ -369,22 +362,14 @@ void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
 		.y1 = 0,
 		.y2 = fb->height,
 	};
-	struct iosys_map map[DRM_FORMAT_MAX_PLANES] = { };
-	struct iosys_map data[DRM_FORMAT_MAX_PLANES] = { };
-	int idx, ret;
+	int idx;
 
 	if (!drm_dev_enter(&dbidev->drm, &idx))
 		return;
 
-	ret = drm_gem_fb_vmap(fb, map, data);
-	if (ret)
-		goto err_drm_dev_exit;
-
-	mipi_dbi_fb_dirty(&data[0], fb, &rect);
+	mipi_dbi_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
 	backlight_enable(dbidev->backlight);
 
-	drm_gem_fb_vunmap(fb, map);
-err_drm_dev_exit:
 	drm_dev_exit(idx);
 }
 EXPORT_SYMBOL(mipi_dbi_enable_flush);

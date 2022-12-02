@@ -164,19 +164,15 @@ static void ili9225_pipe_update(struct drm_simple_display_pipe *pipe,
 				struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_dma_object *dma_obj;
-	struct iosys_map src;
 	struct drm_rect rect;
 
 	if (!pipe->crtc.state->active)
 		return;
 
-	dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
-	iosys_map_set_vaddr(&src, dma_obj->vaddr);
-
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		ili9225_fb_dirty(&src, fb, &rect);
+		ili9225_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
 }
 
 static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
@@ -184,6 +180,7 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 				struct drm_plane_state *plane_state)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct device *dev = pipe->crtc.dev->dev;
 	struct mipi_dbi *dbi = &dbidev->dbi;
@@ -193,8 +190,6 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 		.y1 = 0,
 		.y2 = fb->height,
 	};
-	struct drm_gem_dma_object *dma_obj;
-	struct iosys_map src;
 	int ret, idx;
 	u8 am_id;
 
@@ -285,10 +280,7 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
 
-	dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
-	iosys_map_set_vaddr(&src, dma_obj->vaddr);
-
-	ili9225_fb_dirty(&src, fb, &rect);
+	ili9225_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
 
 out_exit:
 	drm_dev_exit(idx);
