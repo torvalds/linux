@@ -83,7 +83,7 @@ static int sprd_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (ret) {
 		dev_err(spc->dev, "failed to enable pwm%u clocks\n",
 			pwm->hwpwm);
-		return 0;
+		return ret;
 	}
 
 	val = sprd_pwm_read(spc, pwm->hwpwm, SPRD_PWM_ENABLE);
