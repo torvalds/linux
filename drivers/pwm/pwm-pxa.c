@@ -101,23 +101,10 @@ static int pxa_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
-static int pxa_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct pxa_pwm_chip *pc = to_pxa_pwm_chip(chip);
-
-	return clk_prepare_enable(pc->clk);
-}
-
-static void pxa_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct pxa_pwm_chip *pc = to_pxa_pwm_chip(chip);
-
-	clk_disable_unprepare(pc->clk);
-}
-
 static int pxa_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			 const struct pwm_state *state)
 {
+	struct pxa_pwm_chip *pc = to_pxa_pwm_chip(chip);
 	int err;
 
 	if (state->polarity != PWM_POLARITY_NORMAL)
@@ -125,7 +112,7 @@ static int pxa_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (!state->enabled) {
 		if (pwm->state.enabled)
-			pxa_pwm_disable(chip, pwm);
+			clk_disable_unprepare(pc->clk);
 
 		return 0;
 	}
@@ -135,7 +122,7 @@ static int pxa_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return err;
 
 	if (!pwm->state.enabled)
-		return pxa_pwm_enable(chip, pwm);
+		return clk_prepare_enable(pc->clk);
 
 	return 0;
 }
