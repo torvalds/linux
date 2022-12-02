@@ -9,6 +9,7 @@
 #define _LINUX_PRANDOM_H
 
 #include <linux/types.h>
+#include <linux/once.h>
 #include <linux/percpu.h>
 #include <linux/random.h>
 
