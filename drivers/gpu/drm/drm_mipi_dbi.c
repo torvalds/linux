@@ -192,6 +192,7 @@ EXPORT_SYMBOL(mipi_dbi_command_stackbuf);
 /**
  * mipi_dbi_buf_copy - Copy a framebuffer, transforming it if necessary
  * @dst: The destination buffer
+ * @src: The source buffer
  * @fb: The source framebuffer
  * @clip: Clipping rectangle of the area to be copied
  * @swap: When true, swap MSB/LSB of 16-bit values
@@ -199,12 +200,10 @@ EXPORT_SYMBOL(mipi_dbi_command_stackbuf);
  * Returns:
  * Zero on success, negative error code on failure.
  */
-int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
+int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
 		      struct drm_rect *clip, bool swap)
 {
 	struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
-	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
-	struct iosys_map data[DRM_FORMAT_MAX_PLANES];
 	struct iosys_map dst_map = IOSYS_MAP_INIT_VADDR(dst);
 	int ret;
 
@@ -212,19 +211,15 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 	if (ret)
 		return ret;
 
-	ret = drm_gem_fb_vmap(fb, map, data);
-	if (ret)
-		goto out_drm_gem_fb_end_cpu_access;
-
 	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 		if (swap)
-			drm_fb_swab(&dst_map, NULL, data, fb, clip, !gem->import_attach);
+			drm_fb_swab(&dst_map, NULL, src, fb, clip, !gem->import_attach);
 		else
-			drm_fb_memcpy(&dst_map, NULL, data, fb, clip);
+			drm_fb_memcpy(&dst_map, NULL, src, fb, clip);
 		break;
 	case DRM_FORMAT_XRGB8888:
-		drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, data, fb, clip, swap);
+		drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, swap);
 		break;
 	default:
 		drm_err_once(fb->dev, "Format is not supported: %p4cc\n",
@@ -232,8 +227,6 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 		ret = -EINVAL;
 	}
 
-	drm_gem_fb_vunmap(fb, map);
-out_drm_gem_fb_end_cpu_access:
 	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 
 	return ret;
@@ -257,10 +250,9 @@ static void mipi_dbi_set_window_address(struct mipi_dbi_dev *dbidev,
 			 ys & 0xff, (ye >> 8) & 0xff, ye & 0xff);
 }
 
-static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
+static void mipi_dbi_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
+			      struct drm_rect *rect)
 {
-	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
-	struct iosys_map data[DRM_FORMAT_MAX_PLANES];
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
 	unsigned int height = rect->y2 - rect->y1;
 	unsigned int width = rect->x2 - rect->x1;
@@ -270,15 +262,8 @@ static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	bool full;
 	void *tr;
 
-	if (WARN_ON(!fb))
-		return;
-
 	if (!drm_dev_enter(fb->dev, &idx))
 		return;
-
-	ret = drm_gem_fb_vmap(fb, map, data);
-	if (ret)
-		goto err_drm_dev_exit;
 
 	full = width == fb->width && height == fb->height;
 
@@ -287,11 +272,11 @@ static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	if (!dbi->dc || !full || swap ||
 	    fb->format->format == DRM_FORMAT_XRGB8888) {
 		tr = dbidev->tx_buf;
-		ret = mipi_dbi_buf_copy(dbidev->tx_buf, fb, rect, swap);
+		ret = mipi_dbi_buf_copy(tr, src, fb, rect, swap);
 		if (ret)
 			goto err_msg;
 	} else {
-		tr = data[0].vaddr; /* TODO: Use mapping abstraction properly */
+		tr = src->vaddr; /* TODO: Use mapping abstraction properly */
 	}
 
 	mipi_dbi_set_window_address(dbidev, rect->x1, rect->x2 - 1, rect->y1,
@@ -303,9 +288,6 @@ err_msg:
 	if (ret)
 		drm_err_once(fb->dev, "Failed to update display %d\n", ret);
 
-	drm_gem_fb_vunmap(fb, map);
-
-err_drm_dev_exit:
 	drm_dev_exit(idx);
 }
 
@@ -338,14 +320,27 @@ EXPORT_SYMBOL(mipi_dbi_pipe_mode_valid);
 void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *old_state)
 {
+	struct iosys_map map[DRM_FORMAT_MAX_PLANES] = { };
+	struct iosys_map data[DRM_FORMAT_MAX_PLANES] = { };
 	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_framebuffer *fb = state->fb;
 	struct drm_rect rect;
+	int ret;
 
 	if (!pipe->crtc.state->active)
 		return;
 
+	if (WARN_ON(!fb))
+		return;
+
+	ret = drm_gem_fb_vmap(fb, map, data);
+	if (ret)
+		return;
+
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		mipi_dbi_fb_dirty(state->fb, &rect);
+		mipi_dbi_fb_dirty(&data[0], fb, &rect);
+
+	drm_gem_fb_vunmap(fb, map);
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_update);
 
@@ -373,14 +368,22 @@ void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
 		.y1 = 0,
 		.y2 = fb->height,
 	};
-	int idx;
+	struct iosys_map map[DRM_FORMAT_MAX_PLANES] = { };
+	struct iosys_map data[DRM_FORMAT_MAX_PLANES] = { };
+	int idx, ret;
 
 	if (!drm_dev_enter(&dbidev->drm, &idx))
 		return;
 
-	mipi_dbi_fb_dirty(fb, &rect);
+	ret = drm_gem_fb_vmap(fb, map, data);
+	if (ret)
+		goto err_drm_dev_exit;
+
+	mipi_dbi_fb_dirty(&data[0], fb, &rect);
 	backlight_enable(dbidev->backlight);
 
+	drm_gem_fb_vunmap(fb, map);
+err_drm_dev_exit:
 	drm_dev_exit(idx);
 }
 EXPORT_SYMBOL(mipi_dbi_enable_flush);

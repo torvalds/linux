@@ -25,6 +25,7 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_rect.h>
@@ -76,9 +77,9 @@ static inline int ili9225_command(struct mipi_dbi *dbi, u8 cmd, u16 data)
 	return mipi_dbi_command_buf(dbi, cmd, par, 2);
 }
 
-static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
+static void ili9225_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
+			     struct drm_rect *rect)
 {
-	struct drm_gem_dma_object *dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
 	unsigned int height = rect->y2 - rect->y1;
 	unsigned int width = rect->x2 - rect->x1;
@@ -100,11 +101,11 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	if (!dbi->dc || !full || swap ||
 	    fb->format->format == DRM_FORMAT_XRGB8888) {
 		tr = dbidev->tx_buf;
-		ret = mipi_dbi_buf_copy(dbidev->tx_buf, fb, rect, swap);
+		ret = mipi_dbi_buf_copy(tr, src, fb, rect, swap);
 		if (ret)
 			goto err_msg;
 	} else {
-		tr = dma_obj->vaddr;
+		tr = src->vaddr; /* TODO: Use mapping abstraction properly */
 	}
 
 	switch (dbidev->rotation) {
@@ -163,13 +164,19 @@ static void ili9225_pipe_update(struct drm_simple_display_pipe *pipe,
 				struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_framebuffer *fb = state->fb;
+	struct drm_gem_dma_object *dma_obj;
+	struct iosys_map src;
 	struct drm_rect rect;
 
 	if (!pipe->crtc.state->active)
 		return;
 
+	dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
+	iosys_map_set_vaddr(&src, dma_obj->vaddr);
+
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		ili9225_fb_dirty(state->fb, &rect);
+		ili9225_fb_dirty(&src, fb, &rect);
 }
 
 static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
@@ -186,6 +193,8 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 		.y1 = 0,
 		.y2 = fb->height,
 	};
+	struct drm_gem_dma_object *dma_obj;
+	struct iosys_map src;
 	int ret, idx;
 	u8 am_id;
 
@@ -276,7 +285,11 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
 
-	ili9225_fb_dirty(fb, &rect);
+	dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
+	iosys_map_set_vaddr(&src, dma_obj->vaddr);
+
+	ili9225_fb_dirty(&src, fb, &rect);
+
 out_exit:
 	drm_dev_exit(idx);
 }
