@@ -117,6 +117,12 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 	}
 
 	psp = &drm_to_adev(crtc->dev)->psp;
+
+	if (!psp->securedisplay_context.context.initialized) {
+		DRM_DEBUG_DRIVER("Secure Display fails to notify PSP TA\n");
+		return;
+	}
+
 	stream = to_amdgpu_crtc(crtc)->dm_irq_params.stream;
 	phy_inst = stream->link->link_enc_hw_inst;
 
