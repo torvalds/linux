@@ -24,7 +24,6 @@ struct mlx5e_ipsec_miss {
 struct mlx5e_ipsec_rx {
 	struct mlx5e_ipsec_ft ft;
 	struct mlx5e_ipsec_miss sa;
-	struct mlx5_flow_destination default_dest;
 	struct mlx5e_ipsec_rule status;
 };
 
@@ -57,7 +56,8 @@ static struct mlx5_flow_table *ipsec_ft_create(struct mlx5_flow_namespace *ns,
 }
 
 static int ipsec_status_rule(struct mlx5_core_dev *mdev,
-			     struct mlx5e_ipsec_rx *rx)
+			     struct mlx5e_ipsec_rx *rx,
+			     struct mlx5_flow_destination *dest)
 {
 	u8 action[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
 	struct mlx5_flow_act flow_act = {};
@@ -92,8 +92,7 @@ static int ipsec_status_rule(struct mlx5_core_dev *mdev,
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_MOD_HDR |
 			  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	flow_act.modify_hdr = modify_hdr;
-	fte = mlx5_add_flow_rules(rx->ft.status, spec, &flow_act,
-				  &rx->default_dest, 1);
+	fte = mlx5_add_flow_rules(rx->ft.status, spec, &flow_act, dest, 1);
 	if (IS_ERR(fte)) {
 		err = PTR_ERR(fte);
 		mlx5_core_err(mdev, "fail to add ipsec rx err copy rule err=%d\n", err);
@@ -112,12 +111,12 @@ out_spec:
 	return err;
 }
 
-static int rx_fs_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_rx *rx)
+static int ipsec_miss_create(struct mlx5_core_dev *mdev,
+			     struct mlx5_flow_table *ft,
+			     struct mlx5e_ipsec_miss *miss,
+			     struct mlx5_flow_destination *dest)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
-	struct mlx5_flow_table *ft = rx->ft.sa;
-	struct mlx5_flow_group *miss_group;
-	struct mlx5_flow_handle *miss_rule;
 	MLX5_DECLARE_FLOW_ACT(flow_act);
 	struct mlx5_flow_spec *spec;
 	u32 *flow_group_in;
@@ -133,24 +132,23 @@ static int rx_fs_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_rx *rx)
 	/* Create miss_group */
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, ft->max_fte - 1);
 	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, ft->max_fte - 1);
-	miss_group = mlx5_create_flow_group(ft, flow_group_in);
-	if (IS_ERR(miss_group)) {
-		err = PTR_ERR(miss_group);
-		mlx5_core_err(mdev, "fail to create ipsec rx miss_group err=%d\n", err);
+	miss->group = mlx5_create_flow_group(ft, flow_group_in);
+	if (IS_ERR(miss->group)) {
+		err = PTR_ERR(miss->group);
+		mlx5_core_err(mdev, "fail to create IPsec miss_group err=%d\n",
+			      err);
 		goto out;
 	}
-	rx->sa.group = miss_group;
 
 	/* Create miss rule */
-	miss_rule =
-		mlx5_add_flow_rules(ft, spec, &flow_act, &rx->default_dest, 1);
-	if (IS_ERR(miss_rule)) {
-		mlx5_destroy_flow_group(rx->sa.group);
-		err = PTR_ERR(miss_rule);
-		mlx5_core_err(mdev, "fail to create ipsec rx miss_rule err=%d\n", err);
+	miss->rule = mlx5_add_flow_rules(ft, spec, &flow_act, dest, 1);
+	if (IS_ERR(miss->rule)) {
+		mlx5_destroy_flow_group(miss->group);
+		err = PTR_ERR(miss->rule);
+		mlx5_core_err(mdev, "fail to create IPsec miss_rule err=%d\n",
+			      err);
 		goto out;
 	}
-	rx->sa.rule = miss_rule;
 out:
 	kvfree(flow_group_in);
 	kvfree(spec);
@@ -173,10 +171,9 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 {
 	struct mlx5_flow_namespace *ns = mlx5e_fs_get_ns(ipsec->fs, false);
 	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
+	struct mlx5_flow_destination dest;
 	struct mlx5_flow_table *ft;
 	int err;
-
-	rx->default_dest = mlx5_ttc_get_default_dest(ttc, family2tt(family));
 
 	ft = ipsec_ft_create(ns, MLX5E_ACCEL_FS_ESP_FT_ERR_LEVEL,
 			     MLX5E_NIC_PRIO, 1);
@@ -184,7 +181,9 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		return PTR_ERR(ft);
 
 	rx->ft.status = ft;
-	err = ipsec_status_rule(mdev, rx);
+
+	dest = mlx5_ttc_get_default_dest(ttc, family2tt(family));
+	err = ipsec_status_rule(mdev, rx, &dest);
 	if (err)
 		goto err_add;
 
@@ -197,7 +196,7 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	}
 	rx->ft.sa = ft;
 
-	err = rx_fs_create(mdev, rx);
+	err = ipsec_miss_create(mdev, rx->ft.sa, &rx->sa, &dest);
 	if (err)
 		goto err_fs;
 
