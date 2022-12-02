@@ -273,9 +273,10 @@ static void rtw89_fw_recognize_features(struct rtw89_dev *rtwdev)
 	}
 }
 
-void rtw89_early_fw_feature_recognize(struct device *device,
-				      const struct rtw89_chip_info *chip,
-				      u32 *early_feat_map)
+const struct firmware *
+rtw89_early_fw_feature_recognize(struct device *device,
+				 const struct rtw89_chip_info *chip,
+				 u32 *early_feat_map)
 {
 	union rtw89_compat_fw_hdr buf = {};
 	const struct firmware *firmware;
@@ -300,7 +301,7 @@ void rtw89_early_fw_feature_recognize(struct device *device,
 
 	if (ret) {
 		dev_err(device, "failed to early request firmware: %d\n", ret);
-		return;
+		return NULL;
 	}
 
 	if (full_req)
@@ -322,7 +323,11 @@ void rtw89_early_fw_feature_recognize(struct device *device,
 	}
 
 out:
+	if (full_req)
+		return firmware;
+
 	release_firmware(firmware);
+	return NULL;
 }
 
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev)
@@ -629,6 +634,13 @@ int rtw89_load_firmware(struct rtw89_dev *rtwdev)
 	fw->rtwdev = rtwdev;
 	init_completion(&fw->completion);
 
+	if (fw->firmware) {
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "full firmware has been early requested\n");
+		complete_all(&fw->completion);
+		return 0;
+	}
+
 	ret = request_firmware_nowait(THIS_MODULE, true, fw_name, rtwdev->dev,
 				      GFP_KERNEL, fw, rtw89_load_firmware_cb);
 	if (ret) {
@@ -645,8 +657,14 @@ void rtw89_unload_firmware(struct rtw89_dev *rtwdev)
 
 	rtw89_wait_firmware_completion(rtwdev);
 
-	if (fw->firmware)
+	if (fw->firmware) {
 		release_firmware(fw->firmware);
+
+		/* assign NULL back in case rtw89_free_ieee80211_hw()
+		 * try to release the same one again.
+		 */
+		fw->firmware = NULL;
+	}
 }
 
 #define H2C_CAM_LEN 60
