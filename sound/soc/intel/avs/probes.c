@@ -249,7 +249,6 @@ static int avs_probe_compr_copy(struct snd_soc_component *comp, struct snd_compr
 	return count;
 }
 
-__maybe_unused
 static const struct snd_soc_cdai_ops avs_probe_dai_ops = {
 	.startup = avs_probe_compr_open,
 	.shutdown = avs_probe_compr_free,
@@ -258,7 +257,57 @@ static const struct snd_soc_cdai_ops avs_probe_dai_ops = {
 	.pointer = avs_probe_compr_pointer,
 };
 
-__maybe_unused
 static const struct snd_compress_ops avs_probe_compress_ops = {
 	.copy = avs_probe_compr_copy,
 };
+
+static struct snd_soc_dai_driver probe_cpu_dais[] = {
+{
+	.name = "Probe Extraction CPU DAI",
+	.compress_new = snd_soc_new_compress,
+	.cops = &avs_probe_dai_ops,
+	.capture = {
+		.stream_name = "Probe Extraction",
+		.channels_min = 1,
+		.channels_max = 8,
+		.rates = SNDRV_PCM_RATE_48000,
+		.rate_min = 48000,
+		.rate_max = 48000,
+	},
+},
+};
+
+static int avs_probe_component_probe(struct snd_soc_component *component)
+{
+	struct avs_soc_component *acomp = to_avs_soc_component(component);
+	struct avs_dev *adev = to_avs_dev(component->dev);
+
+	mutex_lock(&adev->comp_list_mutex);
+	list_add_tail(&acomp->node, &adev->comp_list);
+	mutex_unlock(&adev->comp_list_mutex);
+	return 0;
+}
+
+static void avs_probe_component_remove(struct snd_soc_component *component)
+{
+	struct avs_soc_component *acomp = to_avs_soc_component(component);
+	struct avs_dev *adev = to_avs_dev(component->dev);
+
+	mutex_lock(&adev->comp_list_mutex);
+	list_del(&acomp->node);
+	mutex_unlock(&adev->comp_list_mutex);
+}
+
+static const struct snd_soc_component_driver avs_probe_component_driver = {
+	.name			= "avs-probe-compr",
+	.probe			= avs_probe_component_probe,
+	.remove			= avs_probe_component_remove,
+	.compress_ops		= &avs_probe_compress_ops,
+	.module_get_upon_open	= 1, /* increment refcount when a stream is opened */
+};
+
+int avs_probe_platform_register(struct avs_dev *adev, const char *name)
+{
+	return avs_soc_component_register(adev->dev, name, &avs_probe_component_driver,
+					  probe_cpu_dais, ARRAY_SIZE(probe_cpu_dais));
+}

@@ -1126,9 +1126,9 @@ static const struct snd_soc_component_driver avs_component_driver = {
 	.topology_name_prefix	= "intel/avs",
 };
 
-static int avs_soc_component_register(struct device *dev, const char *name,
-				      const struct snd_soc_component_driver *drv,
-				      struct snd_soc_dai_driver *cpu_dais, int num_cpu_dais)
+int avs_soc_component_register(struct device *dev, const char *name,
+			       const struct snd_soc_component_driver *drv,
+			       struct snd_soc_dai_driver *cpu_dais, int num_cpu_dais)
 {
 	struct avs_soc_component *acomp;
 	int ret;
