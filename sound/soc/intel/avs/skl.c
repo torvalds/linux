@@ -59,7 +59,7 @@ skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
 	void __iomem *buf;
 	u16 size, write, offset;
 
-	if (!kfifo_initialized(&adev->dbg.trace_fifo))
+	if (!avs_logging_fw(adev))
 		return 0;
 
 	size = avs_log_buffer_size(adev) / 2;
@@ -69,8 +69,7 @@ skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
 
 	/* Address is guaranteed to exist in SRAM2. */
 	buf = avs_log_buffer_addr(adev, msg->log.core) + offset;
-	__kfifo_fromio(&adev->dbg.trace_fifo, buf, size);
-	wake_up(&adev->dbg.trace_waitq);
+	avs_dump_fw_log_wakeup(adev, buf, size);
 
 	return 0;
 }

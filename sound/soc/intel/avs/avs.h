@@ -94,15 +94,6 @@ struct avs_fw_entry {
 	struct list_head node;
 };
 
-struct avs_debug {
-	struct kfifo trace_fifo;
-	spinlock_t trace_lock;	/* serialize debug window I/O between each LOG_BUFFER_STATUS */
-	wait_queue_head_t trace_waitq;
-	u32 aging_timer_period;
-	u32 fifo_full_timer_period;
-	u32 logged_resources;	/* context dependent: core or library */
-};
-
 /*
  * struct avs_dev - Intel HD-Audio driver data
  *
@@ -146,7 +137,6 @@ struct avs_dev {
 	spinlock_t path_list_lock;
 	struct mutex path_mutex;
 
-	struct avs_debug dbg;
 	spinlock_t trace_lock;	/* serialize debug window I/O between each LOG_BUFFER_STATUS */
 #ifdef CONFIG_DEBUG_FS
 	struct kfifo trace_fifo;
@@ -339,8 +329,6 @@ void avs_unregister_all_boards(struct avs_dev *adev);
 
 /* Firmware tracing helpers */
 
-unsigned int __kfifo_fromio(struct kfifo *fifo, const void __iomem *src, unsigned int len);
-
 #define avs_log_buffer_size(adev) \
 	((adev)->fw_cfg.trace_log_bytes / (adev)->hw_cfg.dsp_cores)
 
@@ -356,9 +344,9 @@ static inline int avs_log_buffer_status_locked(struct avs_dev *adev, union avs_n
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&adev->dbg.trace_lock, flags);
+	spin_lock_irqsave(&adev->trace_lock, flags);
 	ret = avs_dsp_op(adev, log_buffer_status, msg);
-	spin_unlock_irqrestore(&adev->dbg.trace_lock, flags);
+	spin_unlock_irqrestore(&adev->trace_lock, flags);
 
 	return ret;
 }

@@ -300,21 +300,3 @@ void avs_release_firmwares(struct avs_dev *adev)
 		kfree(entry);
 	}
 }
-
-unsigned int __kfifo_fromio(struct kfifo *fifo, const void __iomem *src, unsigned int len)
-{
-	struct __kfifo *__fifo = &fifo->kfifo;
-	unsigned int l, off;
-
-	len = min(len, kfifo_avail(fifo));
-	off = __fifo->in & __fifo->mask;
-	l = min(len, kfifo_size(fifo) - off);
-
-	memcpy_fromio(__fifo->data + off, src, l);
-	memcpy_fromio(__fifo->data, src + l, len - l);
-	/* Make sure data copied from SRAM is visible to all CPUs. */
-	smp_mb();
-	__fifo->in += len;
-
-	return len;
-}

@@ -59,21 +59,18 @@ static int apl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg
 
 	memcpy_fromio(&layout, addr, sizeof(layout));
 
-	if (!kfifo_initialized(&adev->dbg.trace_fifo))
+	if (!avs_logging_fw(adev))
 		/* consume the logs regardless of consumer presence */
 		goto update_read_ptr;
 
 	buf = apl_log_payload_addr(addr);
 
 	if (layout.read_ptr > layout.write_ptr) {
-		__kfifo_fromio(&adev->dbg.trace_fifo, buf + layout.read_ptr,
-			       apl_log_payload_size(adev) - layout.read_ptr);
+		avs_dump_fw_log(adev, buf + layout.read_ptr,
+				apl_log_payload_size(adev) - layout.read_ptr);
 		layout.read_ptr = 0;
 	}
-	__kfifo_fromio(&adev->dbg.trace_fifo, buf + layout.read_ptr,
-		       layout.write_ptr - layout.read_ptr);
-
-	wake_up(&adev->dbg.trace_waitq);
+	avs_dump_fw_log_wakeup(adev, buf + layout.read_ptr, layout.write_ptr - layout.read_ptr);
 
 update_read_ptr:
 	writel(layout.write_ptr, addr);
