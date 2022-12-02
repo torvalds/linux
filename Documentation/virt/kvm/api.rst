@@ -4079,79 +4079,70 @@ flags values for ``struct kvm_msr_filter_range``:
 ``KVM_MSR_FILTER_READ``
 
   Filter read accesses to MSRs using the given bitmap. A 0 in the bitmap
-  indicates that a read should immediately fail, while a 1 indicates that
-  a read for a particular MSR should be handled regardless of the default
+  indicates that read accesses should be denied, while a 1 indicates that
+  a read for a particular MSR should be allowed regardless of the default
   filter action.
 
 ``KVM_MSR_FILTER_WRITE``
 
   Filter write accesses to MSRs using the given bitmap. A 0 in the bitmap
-  indicates that a write should immediately fail, while a 1 indicates that
-  a write for a particular MSR should be handled regardless of the default
+  indicates that write accesses should be denied, while a 1 indicates that
+  a write for a particular MSR should be allowed regardless of the default
   filter action.
-
-``KVM_MSR_FILTER_READ | KVM_MSR_FILTER_WRITE``
-
-  Filter both read and write accesses to MSRs using the given bitmap. A 0
-  in the bitmap indicates that both reads and writes should immediately fail,
-  while a 1 indicates that reads and writes for a particular MSR are not
-  filtered by this range.
 
 flags values for ``struct kvm_msr_filter``:
 
 ``KVM_MSR_FILTER_DEFAULT_ALLOW``
 
   If no filter range matches an MSR index that is getting accessed, KVM will
-  fall back to allowing access to the MSR.
+  allow accesses to all MSRs by default.
 
 ``KVM_MSR_FILTER_DEFAULT_DENY``
 
   If no filter range matches an MSR index that is getting accessed, KVM will
-  fall back to rejecting access to the MSR. In this mode, all MSRs that should
-  be processed by KVM need to explicitly be marked as allowed in the bitmaps.
+  deny accesses to all MSRs by default.
 
-This ioctl allows user space to define up to 16 bitmaps of MSR ranges to
-specify whether a certain MSR access should be explicitly filtered for or not.
+This ioctl allows userspace to define up to 16 bitmaps of MSR ranges to deny
+guest MSR accesses that would normally be allowed by KVM.  If an MSR is not
+covered by a specific range, the "default" filtering behavior applies.  Each
+bitmap range covers MSRs from [base .. base+nmsrs).
 
-If this ioctl has never been invoked, MSR accesses are not guarded and the
-default KVM in-kernel emulation behavior is fully preserved.
+If an MSR access is denied by userspace, the resulting KVM behavior depends on
+whether or not KVM_CAP_X86_USER_SPACE_MSR's KVM_MSR_EXIT_REASON_FILTER is
+enabled.  If KVM_MSR_EXIT_REASON_FILTER is enabled, KVM will exit to userspace
+on denied accesses, i.e. userspace effectively intercepts the MSR access.  If
+KVM_MSR_EXIT_REASON_FILTER is not enabled, KVM will inject a #GP into the guest
+on denied accesses.
+
+If an MSR access is allowed by userspace, KVM will emulate and/or virtualize
+the access in accordance with the vCPU model.  Note, KVM may still ultimately
+inject a #GP if an access is allowed by userspace, e.g. if KVM doesn't support
+the MSR, or to follow architectural behavior for the MSR.
+
+By default, KVM operates in KVM_MSR_FILTER_DEFAULT_ALLOW mode with no MSR range
+filters.
 
 Calling this ioctl with an empty set of ranges (all nmsrs == 0) disables MSR
 filtering. In that mode, ``KVM_MSR_FILTER_DEFAULT_DENY`` is invalid and causes
 an error.
 
-As soon as the filtering is in place, every MSR access is processed through
-the filtering except for accesses to the x2APIC MSRs (from 0x800 to 0x8ff);
-x2APIC MSRs are always allowed, independent of the ``default_allow`` setting,
-and their behavior depends on the ``X2APIC_ENABLE`` bit of the APIC base
-register.
-
 .. warning::
-   MSR accesses coming from nested vmentry/vmexit are not filtered.
+   MSR accesses as part of nested VM-Enter/VM-Exit are not filtered.
    This includes both writes to individual VMCS fields and reads/writes
    through the MSR lists pointed to by the VMCS.
 
-If a bit is within one of the defined ranges, read and write accesses are
-guarded by the bitmap's value for the MSR index if the kind of access
-is included in the ``struct kvm_msr_filter_range`` flags.  If no range
-cover this particular access, the behavior is determined by the flags
-field in the kvm_msr_filter struct: ``KVM_MSR_FILTER_DEFAULT_ALLOW``
-and ``KVM_MSR_FILTER_DEFAULT_DENY``.
-
-Each bitmap range specifies a range of MSRs to potentially allow access on.
-The range goes from MSR index [base .. base+nmsrs]. The flags field
-indicates whether reads, writes or both reads and writes are filtered
-by setting a 1 bit in the bitmap for the corresponding MSR index.
-
-If an MSR access is not permitted through the filtering, it generates a
-#GP inside the guest. When combined with KVM_CAP_X86_USER_SPACE_MSR, that
-allows user space to deflect and potentially handle various MSR accesses
-into user space.
+   x2APIC MSR accesses cannot be filtered (KVM silently ignores filters that
+   cover any x2APIC MSRs).
 
 Note, invoking this ioctl while a vCPU is running is inherently racy.  However,
 KVM does guarantee that vCPUs will see either the previous filter or the new
 filter, e.g. MSRs with identical settings in both the old and new filter will
 have deterministic behavior.
+
+Similarly, if userspace wishes to intercept on denied accesses,
+KVM_MSR_EXIT_REASON_FILTER must be enabled before activating any filters, and
+left enabled until after all filters are deactivated.  Failure to do so may
+result in KVM injecting a #GP instead of exiting to userspace.
 
 4.98 KVM_CREATE_SPAPR_TCE_64
 ----------------------------
@@ -6457,30 +6448,32 @@ if it decides to decode and emulate the instruction.
 
 Used on x86 systems. When the VM capability KVM_CAP_X86_USER_SPACE_MSR is
 enabled, MSR accesses to registers that would invoke a #GP by KVM kernel code
-will instead trigger a KVM_EXIT_X86_RDMSR exit for reads and KVM_EXIT_X86_WRMSR
+may instead trigger a KVM_EXIT_X86_RDMSR exit for reads and KVM_EXIT_X86_WRMSR
 exit for writes.
 
-The "reason" field specifies why the MSR trap occurred. User space will only
-receive MSR exit traps when a particular reason was requested during through
+The "reason" field specifies why the MSR interception occurred. Userspace will
+only receive MSR exits when a particular reason was requested during through
 ENABLE_CAP. Currently valid exit reasons are:
 
 	KVM_MSR_EXIT_REASON_UNKNOWN - access to MSR that is unknown to KVM
 	KVM_MSR_EXIT_REASON_INVAL - access to invalid MSRs or reserved bits
 	KVM_MSR_EXIT_REASON_FILTER - access blocked by KVM_X86_SET_MSR_FILTER
 
-For KVM_EXIT_X86_RDMSR, the "index" field tells user space which MSR the guest
-wants to read. To respond to this request with a successful read, user space
+For KVM_EXIT_X86_RDMSR, the "index" field tells userspace which MSR the guest
+wants to read. To respond to this request with a successful read, userspace
 writes the respective data into the "data" field and must continue guest
 execution to ensure the read data is transferred into guest register state.
 
-If the RDMSR request was unsuccessful, user space indicates that with a "1" in
+If the RDMSR request was unsuccessful, userspace indicates that with a "1" in
 the "error" field. This will inject a #GP into the guest when the VCPU is
 executed again.
 
-For KVM_EXIT_X86_WRMSR, the "index" field tells user space which MSR the guest
-wants to write. Once finished processing the event, user space must continue
-vCPU execution. If the MSR write was unsuccessful, user space also sets the
+For KVM_EXIT_X86_WRMSR, the "index" field tells userspace which MSR the guest
+wants to write. Once finished processing the event, userspace must continue
+vCPU execution. If the MSR write was unsuccessful, userspace also sets the
 "error" field to "1".
+
+See KVM_X86_SET_MSR_FILTER for details on the interaction with MSR filtering.
 
 ::
 
@@ -7247,19 +7240,27 @@ the module parameter for the target VM.
 :Parameters: args[0] contains the mask of KVM_MSR_EXIT_REASON_* events to report
 :Returns: 0 on success; -1 on error
 
-This capability enables trapping of #GP invoking RDMSR and WRMSR instructions
-into user space.
+This capability allows userspace to intercept RDMSR and WRMSR instructions if
+access to an MSR is denied.  By default, KVM injects #GP on denied accesses.
 
 When a guest requests to read or write an MSR, KVM may not implement all MSRs
 that are relevant to a respective system. It also does not differentiate by
 CPU type.
 
-To allow more fine grained control over MSR handling, user space may enable
+To allow more fine grained control over MSR handling, userspace may enable
 this capability. With it enabled, MSR accesses that match the mask specified in
-args[0] and trigger a #GP event inside the guest by KVM will instead trigger
-KVM_EXIT_X86_RDMSR and KVM_EXIT_X86_WRMSR exit notifications which user space
-can then handle to implement model specific MSR handling and/or user notifications
-to inform a user that an MSR was not handled.
+args[0] and would trigger a #GP inside the guest will instead trigger
+KVM_EXIT_X86_RDMSR and KVM_EXIT_X86_WRMSR exit notifications.  Userspace
+can then implement model specific MSR handling and/or user notifications
+to inform a user that an MSR was not emulated/virtualized by KVM.
+
+The valid mask flags are:
+
+	KVM_MSR_EXIT_REASON_UNKNOWN - intercept accesses to unknown (to KVM) MSRs
+	KVM_MSR_EXIT_REASON_INVAL   - intercept accesses that are architecturally
+                                invalid according to the vCPU model and/or mode
+	KVM_MSR_EXIT_REASON_FILTER  - intercept accesses that are denied by userspace
+                                via KVM_X86_SET_MSR_FILTER
 
 7.22 KVM_CAP_X86_BUS_LOCK_EXIT
 -------------------------------
@@ -7919,7 +7920,7 @@ KVM_EXIT_X86_WRMSR exit notifications.
 This capability indicates that KVM supports that accesses to user defined MSRs
 may be rejected. With this capability exposed, KVM exports new VM ioctl
 KVM_X86_SET_MSR_FILTER which user space can call to specify bitmaps of MSR
-ranges that KVM should reject access to.
+ranges that KVM should deny access to.
 
 In combination with KVM_CAP_X86_USER_SPACE_MSR, this allows user space to
 trap and emulate MSRs that are outside of the scope of KVM as well as

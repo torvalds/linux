@@ -1165,8 +1165,8 @@ static bool wait_pending_event(struct kvm_vcpu *vcpu, int nr_ports,
 	bool ret = true;
 	int idx, i;
 
-	read_lock_irqsave(&gpc->lock, flags);
 	idx = srcu_read_lock(&kvm->srcu);
+	read_lock_irqsave(&gpc->lock, flags);
 	if (!kvm_gpc_check(kvm, gpc, gpc->gpa, PAGE_SIZE))
 		goto out_rcu;
 
@@ -1187,8 +1187,8 @@ static bool wait_pending_event(struct kvm_vcpu *vcpu, int nr_ports,
 	}
 
  out_rcu:
-	srcu_read_unlock(&kvm->srcu, idx);
 	read_unlock_irqrestore(&gpc->lock, flags);
+	srcu_read_unlock(&kvm->srcu, idx);
 
 	return ret;
 }
