@@ -2741,6 +2741,16 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 
 	if (!on) {
 		rkisp_stop_3a_run(isp_dev);
+		if (IS_HDR_RDBK(isp_dev->rd_mode)) {
+			struct rkisp_stream *s;
+			int i;
+
+			for (i = RKISP_STREAM_RAWRD0; i <= RKISP_STREAM_RAWRD2; i++) {
+				s = &isp_dev->dmarx_dev.stream[i];
+				if (s->stopping)
+					wake_up(&s->done);
+			}
+		}
 		rkisp_isp_stop(isp_dev);
 		atomic_dec(&hw_dev->refcnt);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
