@@ -42,6 +42,21 @@ static enum mlx5_traffic_types family2tt(u32 family)
 	return MLX5_TT_IPV6_IPSEC_ESP;
 }
 
+static struct mlx5_flow_table *ipsec_ft_create(struct mlx5_flow_namespace *ns,
+					       int level, int prio,
+					       int max_num_groups)
+{
+	struct mlx5_flow_table_attr ft_attr = {};
+
+	ft_attr.autogroup.num_reserved_entries = 1;
+	ft_attr.autogroup.max_num_groups = max_num_groups;
+	ft_attr.max_fte = NUM_IPSEC_FTE;
+	ft_attr.level = level;
+	ft_attr.prio = prio;
+
+	return mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
+}
+
 static int rx_err_add_rule(struct mlx5_core_dev *mdev,
 			   struct mlx5e_ipsec_rx *rx,
 			   struct mlx5e_ipsec_rx_err *rx_err)
@@ -160,17 +175,13 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 {
 	struct mlx5_flow_namespace *ns = mlx5e_fs_get_ns(ipsec->fs, false);
 	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
-	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_table *ft;
 	int err;
 
 	rx->default_dest = mlx5_ttc_get_default_dest(ttc, family2tt(family));
 
-	ft_attr.max_fte = 1;
-	ft_attr.autogroup.max_num_groups = 1;
-	ft_attr.level = MLX5E_ACCEL_FS_ESP_FT_ERR_LEVEL;
-	ft_attr.prio = MLX5E_NIC_PRIO;
-	ft = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
+	ft = ipsec_ft_create(ns, MLX5E_ACCEL_FS_ESP_FT_ERR_LEVEL,
+			     MLX5E_NIC_PRIO, 1);
 	if (IS_ERR(ft))
 		return PTR_ERR(ft);
 
@@ -180,12 +191,8 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		goto err_add;
 
 	/* Create FT */
-	ft_attr.max_fte = NUM_IPSEC_FTE;
-	ft_attr.level = MLX5E_ACCEL_FS_ESP_FT_LEVEL;
-	ft_attr.prio = MLX5E_NIC_PRIO;
-	ft_attr.autogroup.num_reserved_entries = 1;
-	ft_attr.autogroup.max_num_groups = 1;
-	ft = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
+	ft = ipsec_ft_create(ns, MLX5E_ACCEL_FS_ESP_FT_LEVEL, MLX5E_NIC_PRIO,
+			     1);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_fs_ft;
@@ -273,18 +280,12 @@ out:
 /* IPsec TX flow steering */
 static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx)
 {
-	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_table *ft;
-	int err;
 
-	ft_attr.max_fte = NUM_IPSEC_FTE;
-	ft_attr.autogroup.max_num_groups = 1;
-	ft = mlx5_create_auto_grouped_flow_table(tx->ns, &ft_attr);
-	if (IS_ERR(ft)) {
-		err = PTR_ERR(ft);
-		mlx5_core_err(mdev, "fail to create ipsec tx ft err=%d\n", err);
-		return err;
-	}
+	ft = ipsec_ft_create(tx->ns, 0, 0, 1);
+	if (IS_ERR(ft))
+		return PTR_ERR(ft);
+
 	tx->ft.sa = ft;
 	return 0;
 }
