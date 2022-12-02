@@ -11,6 +11,7 @@
 
 struct mlx5e_ipsec_ft {
 	struct mutex mutex; /* Protect changes to this struct */
+	struct mlx5_flow_table *pol;
 	struct mlx5_flow_table *sa;
 	struct mlx5_flow_table *status;
 	u32 refcnt;
@@ -23,12 +24,14 @@ struct mlx5e_ipsec_miss {
 
 struct mlx5e_ipsec_rx {
 	struct mlx5e_ipsec_ft ft;
+	struct mlx5e_ipsec_miss pol;
 	struct mlx5e_ipsec_miss sa;
 	struct mlx5e_ipsec_rule status;
 };
 
 struct mlx5e_ipsec_tx {
 	struct mlx5e_ipsec_ft ft;
+	struct mlx5e_ipsec_miss pol;
 	struct mlx5_flow_namespace *ns;
 };
 
@@ -157,6 +160,10 @@ out:
 
 static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_rx *rx)
 {
+	mlx5_del_flow_rules(rx->pol.rule);
+	mlx5_destroy_flow_group(rx->pol.group);
+	mlx5_destroy_flow_table(rx->ft.pol);
+
 	mlx5_del_flow_rules(rx->sa.rule);
 	mlx5_destroy_flow_group(rx->sa.group);
 	mlx5_destroy_flow_table(rx->ft.sa);
@@ -200,8 +207,27 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	if (err)
 		goto err_fs;
 
+	ft = ipsec_ft_create(ns, MLX5E_ACCEL_FS_POL_FT_LEVEL, MLX5E_NIC_PRIO,
+			     1);
+	if (IS_ERR(ft)) {
+		err = PTR_ERR(ft);
+		goto err_pol_ft;
+	}
+	rx->ft.pol = ft;
+	memset(&dest, 0x00, sizeof(dest));
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest.ft = rx->ft.sa;
+	err = ipsec_miss_create(mdev, rx->ft.pol, &rx->pol, &dest);
+	if (err)
+		goto err_pol_miss;
+
 	return 0;
 
+err_pol_miss:
+	mlx5_destroy_flow_table(rx->ft.pol);
+err_pol_ft:
+	mlx5_del_flow_rules(rx->sa.rule);
+	mlx5_destroy_flow_group(rx->sa.group);
 err_fs:
 	mlx5_destroy_flow_table(rx->ft.sa);
 err_fs_ft:
@@ -236,7 +262,7 @@ static struct mlx5e_ipsec_rx *rx_ft_get(struct mlx5_core_dev *mdev,
 
 	/* connect */
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest.ft = rx->ft.sa;
+	dest.ft = rx->ft.pol;
 	mlx5_ttc_fwd_dest(ttc, family2tt(family), &dest);
 
 skip:
@@ -277,14 +303,34 @@ out:
 /* IPsec TX flow steering */
 static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx)
 {
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_table *ft;
+	int err;
 
-	ft = ipsec_ft_create(tx->ns, 0, 0, 1);
+	ft = ipsec_ft_create(tx->ns, 1, 0, 1);
 	if (IS_ERR(ft))
 		return PTR_ERR(ft);
 
 	tx->ft.sa = ft;
+
+	ft = ipsec_ft_create(tx->ns, 0, 0, 1);
+	if (IS_ERR(ft)) {
+		err = PTR_ERR(ft);
+		goto err_pol_ft;
+	}
+	tx->ft.pol = ft;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest.ft = tx->ft.sa;
+	err = ipsec_miss_create(mdev, tx->ft.pol, &tx->pol, &dest);
+	if (err)
+		goto err_pol_miss;
 	return 0;
+
+err_pol_miss:
+	mlx5_destroy_flow_table(tx->ft.pol);
+err_pol_ft:
+	mlx5_destroy_flow_table(tx->ft.sa);
+	return err;
 }
 
 static struct mlx5e_ipsec_tx *tx_ft_get(struct mlx5_core_dev *mdev,
@@ -318,6 +364,9 @@ static void tx_ft_put(struct mlx5e_ipsec *ipsec)
 	if (tx->ft.refcnt)
 		goto out;
 
+	mlx5_del_flow_rules(tx->pol.rule);
+	mlx5_destroy_flow_group(tx->pol.group);
+	mlx5_destroy_flow_table(tx->ft.pol);
 	mlx5_destroy_flow_table(tx->ft.sa);
 out:
 	mutex_unlock(&tx->ft.mutex);
