@@ -1,0 +1,31 @@
+C dep+plain
+
+(*
+ * Result: Never
+ *
+ * This litmus test demonstrates that in LKMM, plain accesses
+ * carry dependencies much like accesses to registers:
+ * The data stored to *z1 and *z2 by P0() originates from P0()'s
+ * READ_ONCE(), and therefore using that data to compute the
+ * conditional of P0()'s if-statement creates a control dependency
+ * from that READ_ONCE() to P0()'s WRITE_ONCE().
+ *)
+
+{}
+
+P0(int *x, int *y, int *z1, int *z2)
+{
+	int a = READ_ONCE(*x);
+	*z1 = a;
+	*z2 = *z1;
+	if (*z2 == 1)
+		WRITE_ONCE(*y, 1);
+}
+
+P1(int *x, int *y)
+{
+	int r = smp_load_acquire(y);
+	smp_store_release(x, r);
+}
+
+exists (x=1 /\ y=1)
