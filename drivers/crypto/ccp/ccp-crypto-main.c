@@ -139,7 +139,7 @@ static void ccp_crypto_complete(void *data, int err)
 	struct ccp_crypto_cmd *crypto_cmd = data;
 	struct ccp_crypto_cmd *held, *next, *backlog;
 	struct crypto_async_request *req = crypto_cmd->req;
-	struct ccp_ctx *ctx = crypto_tfm_ctx(req->tfm);
+	struct ccp_ctx *ctx = crypto_tfm_ctx_dma(req->tfm);
 	int ret;
 
 	if (err == -EINPROGRESS) {
@@ -183,7 +183,7 @@ static void ccp_crypto_complete(void *data, int err)
 			break;
 
 		/* Error occurred, report it and get the next entry */
-		ctx = crypto_tfm_ctx(held->req->tfm);
+		ctx = crypto_tfm_ctx_dma(held->req->tfm);
 		if (ctx->complete)
 			ret = ctx->complete(held->req, ret);
 		held->req->complete(held->req, ret);
