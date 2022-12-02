@@ -53,6 +53,38 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 }
 EXPORT_SYMBOL_GPL(mlx5_ipsec_device_caps);
 
+static void mlx5e_ipsec_packet_setup(void *obj, u32 pdn,
+				     struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	void *aso_ctx;
+
+	aso_ctx = MLX5_ADDR_OF(ipsec_obj, obj, ipsec_aso);
+	if (attrs->esn_trigger) {
+		MLX5_SET(ipsec_aso, aso_ctx, esn_event_arm, 1);
+
+		if (attrs->dir == XFRM_DEV_OFFLOAD_IN) {
+			MLX5_SET(ipsec_aso, aso_ctx, window_sz,
+				 attrs->replay_window / 64);
+			MLX5_SET(ipsec_aso, aso_ctx, mode,
+				 MLX5_IPSEC_ASO_REPLAY_PROTECTION);
+			}
+	}
+
+	/* ASO context */
+	MLX5_SET(ipsec_obj, obj, ipsec_aso_access_pd, pdn);
+	MLX5_SET(ipsec_obj, obj, full_offload, 1);
+	MLX5_SET(ipsec_aso, aso_ctx, valid, 1);
+	/* MLX5_IPSEC_ASO_REG_C_4_5 is type C register that is used
+	 * in flow steering to perform matching against. Please be
+	 * aware that this register was chosen arbitrary and can't
+	 * be used in other places as long as IPsec packet offload
+	 * active.
+	 */
+	MLX5_SET(ipsec_obj, obj, aso_return_reg, MLX5_IPSEC_ASO_REG_C_4_5);
+	if (attrs->dir == XFRM_DEV_OFFLOAD_OUT)
+		MLX5_SET(ipsec_aso, aso_ctx, mode, MLX5_IPSEC_ASO_INC_SN);
+}
+
 static int mlx5_create_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
 	struct mlx5_accel_esp_xfrm_attrs *attrs = &sa_entry->attrs;
@@ -61,6 +93,7 @@ static int mlx5_create_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry)
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
 	u32 in[MLX5_ST_SZ_DW(create_ipsec_obj_in)] = {};
 	void *obj, *salt_p, *salt_iv_p;
+	struct mlx5e_hw_objs *res;
 	int err;
 
 	obj = MLX5_ADDR_OF(create_ipsec_obj_in, in, ipsec_object);
@@ -86,6 +119,10 @@ static int mlx5_create_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry)
 		 MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
 	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type,
 		 MLX5_GENERAL_OBJECT_TYPES_IPSEC);
+
+	res = &mdev->mlx5e_res.hw_objs;
+	if (attrs->type == XFRM_DEV_OFFLOAD_PACKET)
+		mlx5e_ipsec_packet_setup(obj, res->pdn, attrs);
 
 	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 	if (!err)

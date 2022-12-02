@@ -73,6 +73,7 @@ struct mlx5_accel_esp_xfrm_attrs {
 	u8 dir : 2;
 	u8 esn_overlap : 1;
 	u8 esn_trigger : 1;
+	u8 type : 2;
 	u8 family;
 	u32 replay_window;
 };
@@ -102,8 +103,6 @@ struct mlx5e_ipsec_aso {
 	u8 ctx[MLX5_ST_SZ_BYTES(ipsec_aso)];
 	dma_addr_t dma_addr;
 	struct mlx5_aso *aso;
-	u32 pdn;
-	u32 mkey;
 };
 
 struct mlx5e_ipsec {
