@@ -3980,6 +3980,10 @@ int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	if (ret)
 		return ret;
 
+	ret = rtw89_fw_h2c_join_info(rtwdev, rtwvif, NULL, true);
+	if (ret)
+		return ret;
+
 	ret = rtw89_cam_init(rtwdev, rtwvif);
 	if (ret)
 		return ret;
