@@ -2148,6 +2148,21 @@ int smu_v13_0_run_btc(struct smu_context *smu)
 	return res;
 }
 
+int smu_v13_0_gpo_control(struct smu_context *smu,
+			  bool enablement)
+{
+	int res;
+
+	res = smu_cmn_send_smc_msg_with_param(smu,
+					      SMU_MSG_AllowGpo,
+					      enablement ? 1 : 0,
+					      NULL);
+	if (res)
+		dev_err(smu->adev->dev, "SetGpoAllow %d failed!\n", enablement);
+
+	return res;
+}
+
 int smu_v13_0_deep_sleep_control(struct smu_context *smu,
 				 bool enablement)
 {
