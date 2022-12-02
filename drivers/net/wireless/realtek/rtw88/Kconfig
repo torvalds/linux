@@ -16,6 +16,9 @@ config RTW88_CORE
 config RTW88_PCI
 	tristate
 
+config RTW88_USB
+	tristate
+
 config RTW88_8822B
 	tristate
 
