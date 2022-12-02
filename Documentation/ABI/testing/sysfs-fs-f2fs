@@ -514,3 +514,17 @@ Date:		July 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	You can control for which gc mode the "gc_reclaimed_segments" node shows.
 		Refer to the description of the modes in "gc_reclaimed_segments".
+
+What:		/sys/fs/f2fs/<disk>/hot_data_age_threshold
+Date:		November 2022
+Contact:	"Ping Xiong" <xiongping1@xiaomi.com>
+Description:	When DATA SEPARATION is on, it controls the age threshold to indicate
+		the data blocks as hot. By default it was initialized as 262144 blocks
+		(equals to 1GB).
+
+What:		/sys/fs/f2fs/<disk>/warm_data_age_threshold
+Date:		November 2022
+Contact:	"Ping Xiong" <xiongping1@xiaomi.com>
+Description:	When DATA SEPARATION is on, it controls the age threshold to indicate
+		the data blocks as warm. By default it was initialized as 2621440 blocks
+		(equals to 10GB).

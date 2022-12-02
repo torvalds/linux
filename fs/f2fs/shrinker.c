@@ -59,6 +59,9 @@ unsigned long f2fs_shrink_count(struct shrinker *shrink,
 		/* count read extent cache entries */
 		count += __count_extent_cache(sbi, EX_READ);
 
+		/* count block age extent cache entries */
+		count += __count_extent_cache(sbi, EX_BLOCK_AGE);
+
 		/* count clean nat cache entries */
 		count += __count_nat_entries(sbi);
 
@@ -102,8 +105,11 @@ unsigned long f2fs_shrink_scan(struct shrinker *shrink,
 
 		sbi->shrinker_run_no = run_no;
 
+		/* shrink extent cache entries */
+		freed += f2fs_shrink_age_extent_tree(sbi, nr >> 2);
+
 		/* shrink read extent cache entries */
-		freed += f2fs_shrink_read_extent_tree(sbi, nr >> 1);
+		freed += f2fs_shrink_read_extent_tree(sbi, nr >> 2);
 
 		/* shrink clean nat cache entries */
 		if (freed < nr)
@@ -134,6 +140,8 @@ void f2fs_join_shrinker(struct f2fs_sb_info *sbi)
 void f2fs_leave_shrinker(struct f2fs_sb_info *sbi)
 {
 	f2fs_shrink_read_extent_tree(sbi, __count_extent_cache(sbi, EX_READ));
+	f2fs_shrink_age_extent_tree(sbi,
+				__count_extent_cache(sbi, EX_BLOCK_AGE));
 
 	spin_lock(&f2fs_list_lock);
 	list_del_init(&sbi->s_list);
