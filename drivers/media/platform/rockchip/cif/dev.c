@@ -2135,7 +2135,6 @@ static int __maybe_unused rkcif_runtime_suspend(struct device *dev)
 	if (atomic_dec_return(&cif_dev->power_cnt))
 		return 0;
 
-	v4l2_pipeline_pm_put(&cif_dev->stream[0].vnode.vdev.entity);
 	mutex_lock(&cif_dev->hw_dev->dev_lock);
 	ret = pm_runtime_put_sync(cif_dev->hw_dev->dev);
 	mutex_unlock(&cif_dev->hw_dev->dev_lock);
@@ -2149,8 +2148,6 @@ static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 
 	if (atomic_inc_return(&cif_dev->power_cnt) > 1)
 		return 0;
-
-	v4l2_pipeline_pm_get(&cif_dev->stream[0].vnode.vdev.entity);
 
 	mutex_lock(&cif_dev->hw_dev->dev_lock);
 	ret = pm_runtime_resume_and_get(cif_dev->hw_dev->dev);

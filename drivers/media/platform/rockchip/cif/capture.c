@@ -5626,7 +5626,11 @@ static int rkcif_fh_open(struct file *filp)
 
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
+		mutex_lock(&cifdev->stream_lock);
 		ret = v4l2_pipeline_pm_get(&vnode->vdev.entity);
+		v4l2_info(vdev, "open video, entity use_countt %d\n",
+			  vnode->vdev.entity.use_count);
+		mutex_unlock(&cifdev->stream_lock);
 		if (ret < 0)
 			vb2_fop_release(filp);
 	}
@@ -5655,8 +5659,13 @@ static int rkcif_fh_release(struct file *filp)
 	int i = 0;
 
 	ret = vb2_fop_release(filp);
-	if (!ret)
+	if (!ret) {
+		mutex_lock(&cifdev->stream_lock);
 		v4l2_pipeline_pm_put(&vnode->vdev.entity);
+		v4l2_info(vdev, "close video, entity use_count %d\n",
+			  vnode->vdev.entity.use_count);
+		mutex_unlock(&cifdev->stream_lock);
+	}
 
 	pm_runtime_put_sync(cifdev->dev);
 	if (cifdev->sditf_cnt > 1) {

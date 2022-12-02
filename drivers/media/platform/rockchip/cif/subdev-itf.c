@@ -703,6 +703,7 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
 			"%s, toisp mode %d, hdr %d, set power %d\n",
 			__func__, priv->toisp_inf.link_mode, priv->hdr_cfg.hdr_mode, on);
+		mutex_lock(&cif_dev->stream_lock);
 		if (on) {
 			ret = pm_runtime_resume_and_get(cif_dev->dev);
 			ret |= v4l2_pipeline_pm_get(&node->vdev.entity);
@@ -710,6 +711,9 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 			v4l2_pipeline_pm_put(&node->vdev.entity);
 			pm_runtime_put_sync(cif_dev->dev);
 		}
+		v4l2_info(&node->vdev, "s_power %d, entity use_count %d\n",
+			  on, node->vdev.entity.use_count);
+		mutex_unlock(&cif_dev->stream_lock);
 	}
 	return ret;
 }
