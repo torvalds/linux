@@ -58,24 +58,24 @@ static const struct clk_parent_data gcc_cxo[] = {
 	}
 
 #define DEFINE_CLK_RPM_XO_BUFFER(_platform, _name, offset)		      \
-	static struct clk_rpm _platform##_##_name = {			      \
+	static struct clk_rpm _platform##_##_name##_clk = {		      \
 		.rpm_clk_id = QCOM_RPM_CXO_BUFFERS,			      \
 		.xo_offset = (offset),					      \
 		.hw.init = &(struct clk_init_data){			      \
 			.ops = &clk_rpm_xo_ops,				      \
-			.name = #_name,					      \
+			.name = #_name "_clk",				      \
 			.parent_data = gcc_cxo,				      \
 			.num_parents = ARRAY_SIZE(gcc_cxo),		      \
 		},							      \
 	}
 
 #define DEFINE_CLK_RPM_FIXED(_platform, _name, r_id, r)			      \
-	static struct clk_rpm _platform##_##_name = {			      \
+	static struct clk_rpm _platform##_##_name##_clk = {		      \
 		.rpm_clk_id = (r_id),					      \
 		.rate = (r),						      \
 		.hw.init = &(struct clk_init_data){			      \
 			.ops = &clk_rpm_fixed_ops,			      \
-			.name = #_name,					      \
+			.name = #_name "_clk",				      \
 			.parent_data = gcc_pxo,				      \
 			.num_parents = ARRAY_SIZE(gcc_pxo),		      \
 		},							      \
@@ -412,7 +412,7 @@ DEFINE_CLK_RPM(msm8660, cfpb, QCOM_RPM_CFPB_CLK);
 DEFINE_CLK_RPM(msm8660, mmfpb, QCOM_RPM_MMFPB_CLK);
 DEFINE_CLK_RPM(msm8660, smi, QCOM_RPM_SMI_CLK);
 DEFINE_CLK_RPM(msm8660, ebi1, QCOM_RPM_EBI1_CLK);
-DEFINE_CLK_RPM_FIXED(msm8660, pll4_clk, QCOM_RPM_PLL_4, 540672000);
+DEFINE_CLK_RPM_FIXED(msm8660, pll4, QCOM_RPM_PLL_4, 540672000);
 
 static struct clk_rpm *msm8660_clks[] = {
 	[RPM_APPS_FABRIC_CLK] = &msm8660_afab_clk,
@@ -451,11 +451,11 @@ DEFINE_CLK_RPM(apq8064, mmfpb, QCOM_RPM_MMFPB_CLK);
 DEFINE_CLK_RPM(apq8064, sfab, QCOM_RPM_SYS_FABRIC_CLK);
 DEFINE_CLK_RPM(apq8064, sfpb, QCOM_RPM_SFPB_CLK);
 DEFINE_CLK_RPM(apq8064, qdss, QCOM_RPM_QDSS_CLK);
-DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_d0_clk, 0);
-DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_d1_clk, 8);
-DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a0_clk, 16);
-DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a1_clk, 24);
-DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a2_clk, 28);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_d0, 0);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_d1, 8);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a0, 16);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a1, 24);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a2, 28);
 
 static struct clk_rpm *apq8064_clks[] = {
 	[RPM_APPS_FABRIC_CLK] = &apq8064_afab_clk,
