@@ -78,8 +78,8 @@
 				 VSPEC1_SGMII_CTRL_ANRS)
 
 /* Temperature sensor */
-#define VPSPEC1_TEMP_STA	0x0E
-#define VPSPEC1_TEMP_STA_DATA	GENMASK(9, 0)
+#define VSPEC1_TEMP_STA	0x0E
+#define VSPEC1_TEMP_STA_DATA	GENMASK(9, 0)
 
 /* WoL */
 #define VPSPEC2_WOL_CTL		0x0E06
@@ -140,14 +140,14 @@ static int gpy_hwmon_read(struct device *dev,
 	struct phy_device *phydev = dev_get_drvdata(dev);
 	int ret;
 
-	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, VPSPEC1_TEMP_STA);
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_TEMP_STA);
 	if (ret < 0)
 		return ret;
 	if (!ret)
 		return -ENODATA;
 
 	*value = polynomial_calc(&poly_N_to_temp,
-				 FIELD_GET(VPSPEC1_TEMP_STA_DATA, ret));
+				 FIELD_GET(VSPEC1_TEMP_STA_DATA, ret));
 
 	return 0;
 }
