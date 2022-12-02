@@ -110,6 +110,7 @@
 
 #define ST_LSM6DSVX_REG_OUT_QVAR_ADDR		0x3a
 
+#define ST_LSM6DSVX_REG_TIMESTAMP0_ADDR		0x40
 #define ST_LSM6DSVX_REG_TIMESTAMP2_ADDR		0x42
 
 #define ST_LSM6DSVX_REG_WAKE_UP_SRC_ADDR       0x45
@@ -741,6 +742,8 @@ struct st_lsm6dsvx_sensor {
  * @fifo_mode: FIFO operating mode supported by the device.
  * @state: hw operational state.
  * @enable_mask: Enabled sensor bitmask.
+ * @hw_timestamp_global: hw timestamp value always monotonic where the most
+ *                       significant 8byte are incremented at every disable/enable.
  * @int_pin: selected interrupt pin from configuration.
  * @ext_data_len: Number of i2c slave devices connected to I2C master.
  * @ts_offset: Hw timestamp offset.
@@ -775,6 +778,7 @@ struct st_lsm6dsvx_hw {
 	enum st_lsm6dsvx_fifo_mode fifo_mode;
 	unsigned long state;
 	u32 enable_mask;
+	s64 hw_timestamp_global;
 	u8 int_pin;
 
 	u8 ext_data_len;

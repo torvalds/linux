@@ -58,6 +58,9 @@ static inline int st_lsm6dsvx_reset_hwts(struct st_lsm6dsvx_hw *hw)
 {
 	u8 data = 0xaa;
 
+	hw->hw_timestamp_global = (hw->hw_timestamp_global + (1LL << 32)) &
+				   GENMASK_ULL(63, 32);
+
 	hw->ts = iio_get_time_ns(hw->iio_devs[0]);
 	hw->ts_offset = hw->ts;
 	hw->val_ts_old = 0;
@@ -233,10 +236,12 @@ st_lsm6dsvx_get_iiodev_from_tag(struct st_lsm6dsvx_hw *hw, u8 tag)
 
 static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 {
-	u8 iio_buf[ALIGN(ST_LSM6DSVX_SAMPLE_SIZE, sizeof(s64)) + sizeof(s64)];
+	u8 iio_buf[ALIGN(ST_LSM6DSVX_FIFO_SAMPLE_SIZE, sizeof(s64)) +
+		   sizeof(s64) + sizeof(s64)];
 	u8 buf[6 * ST_LSM6DSVX_FIFO_SAMPLE_SIZE], tag, *ptr;
 	int i, err, word_len, fifo_len, read_len;
 	struct st_lsm6dsvx_sensor *sensor;
+	__le64 hw_timestamp_push;
 	struct iio_dev *iio_dev;
 	s64 ts_irq, hw_ts_old;
 	__le16 fifo_status;
@@ -275,6 +280,11 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 				val = get_unaligned_le32(ptr);
 				if (hw->val_ts_old > val)
 					hw->hw_ts_high++;
+
+				hw->hw_timestamp_global =
+						(hw->hw_timestamp_global &
+						 GENMASK_ULL(63, 32)) |
+						(u32)le32_to_cpu(val);
 
 				hw_ts_old = hw->hw_ts;
 
@@ -319,7 +329,7 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 					       ST_LSM6DSVX_QVAR_SAMPLE_SIZE);
 					iio_push_to_buffers_with_timestamp(iio_dev,
 						iio_buf,
-						iio_get_time_ns(iio_dev));
+						iio_get_time_ns(hw->iio_devs[0]));
 				} else {
 #endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO */
 					drdymask = (s16)le16_to_cpu(get_unaligned_le16(ptr));
@@ -338,9 +348,12 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 					       ST_LSM6DSVX_SAMPLE_SIZE);
 
 					/* avoid samples in the future */
+					hw_timestamp_push = cpu_to_le64(hw->hw_timestamp_global);
+					memcpy(&iio_buf[ALIGN(ST_LSM6DSVX_SAMPLE_SIZE, sizeof(s64))],
+					       &hw_timestamp_push, sizeof(hw_timestamp_push));
 					hw->tsample = min_t(s64,
-						       iio_get_time_ns(iio_dev),
-						       hw->tsample);
+							    iio_get_time_ns(hw->iio_devs[0]),
+							    hw->tsample);
 
 					sensor = iio_priv(iio_dev);
 
