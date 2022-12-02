@@ -65,13 +65,12 @@ static int apl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg
 	buf = apl_log_payload_addr(addr);
 
 	if (layout.read_ptr > layout.write_ptr) {
-		__kfifo_fromio_locked(&adev->dbg.trace_fifo, buf + layout.read_ptr,
-				      apl_log_payload_size(adev) - layout.read_ptr,
-				      &adev->dbg.fifo_lock);
+		__kfifo_fromio(&adev->dbg.trace_fifo, buf + layout.read_ptr,
+			       apl_log_payload_size(adev) - layout.read_ptr);
 		layout.read_ptr = 0;
 	}
-	__kfifo_fromio_locked(&adev->dbg.trace_fifo, buf + layout.read_ptr,
-			      layout.write_ptr - layout.read_ptr, &adev->dbg.fifo_lock);
+	__kfifo_fromio(&adev->dbg.trace_fifo, buf + layout.read_ptr,
+		       layout.write_ptr - layout.read_ptr);
 
 	wake_up(&adev->dbg.trace_waitq);
 

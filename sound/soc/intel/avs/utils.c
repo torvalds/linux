@@ -301,14 +301,11 @@ void avs_release_firmwares(struct avs_dev *adev)
 	}
 }
 
-unsigned int __kfifo_fromio_locked(struct kfifo *fifo, const void __iomem *src, unsigned int len,
-				   spinlock_t *lock)
+unsigned int __kfifo_fromio(struct kfifo *fifo, const void __iomem *src, unsigned int len)
 {
 	struct __kfifo *__fifo = &fifo->kfifo;
-	unsigned long flags;
 	unsigned int l, off;
 
-	spin_lock_irqsave(lock, flags);
 	len = min(len, kfifo_avail(fifo));
 	off = __fifo->in & __fifo->mask;
 	l = min(len, kfifo_size(fifo) - off);
@@ -318,7 +315,6 @@ unsigned int __kfifo_fromio_locked(struct kfifo *fifo, const void __iomem *src, 
 	/* Make sure data copied from SRAM is visible to all CPUs. */
 	smp_mb();
 	__fifo->in += len;
-	spin_unlock_irqrestore(lock, flags);
 
 	return len;
 }

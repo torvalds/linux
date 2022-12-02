@@ -68,7 +68,7 @@ skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
 
 	/* Address is guaranteed to exist in SRAM2. */
 	buf = avs_log_buffer_addr(adev, msg->log.core) + offset;
-	__kfifo_fromio_locked(&adev->dbg.trace_fifo, buf, size, &adev->dbg.fifo_lock);
+	__kfifo_fromio(&adev->dbg.trace_fifo, buf, size);
 	wake_up(&adev->dbg.trace_waitq);
 
 	return 0;

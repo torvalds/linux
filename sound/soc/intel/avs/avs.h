@@ -95,7 +95,6 @@ struct avs_fw_entry {
 
 struct avs_debug {
 	struct kfifo trace_fifo;
-	spinlock_t fifo_lock;	/* serialize I/O for trace_fifo */
 	spinlock_t trace_lock;	/* serialize debug window I/O between each LOG_BUFFER_STATUS */
 	wait_queue_head_t trace_waitq;
 	u32 aging_timer_period;
@@ -331,8 +330,7 @@ void avs_unregister_all_boards(struct avs_dev *adev);
 
 /* Firmware tracing helpers */
 
-unsigned int __kfifo_fromio_locked(struct kfifo *fifo, const void __iomem *src, unsigned int len,
-				   spinlock_t *lock);
+unsigned int __kfifo_fromio(struct kfifo *fifo, const void __iomem *src, unsigned int len);
 
 #define avs_log_buffer_size(adev) \
 	((adev)->fw_cfg.trace_log_bytes / (adev)->hw_cfg.dsp_cores)
