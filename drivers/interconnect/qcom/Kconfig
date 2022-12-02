@@ -200,5 +200,14 @@ config INTERCONNECT_QCOM_SM8450
 	  This is a driver for the Qualcomm Network-on-Chip on SM8450-based
 	  platforms.
 
+config INTERCONNECT_QCOM_SM8550
+	tristate "Qualcomm SM8550 interconnect driver"
+	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
+	select INTERCONNECT_QCOM_RPMH
+	select INTERCONNECT_QCOM_BCM_VOTER
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on SM8550-based
+	  platforms.
+
 config INTERCONNECT_QCOM_SMD_RPM
 	tristate
