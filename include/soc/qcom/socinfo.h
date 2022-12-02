@@ -155,7 +155,7 @@ uint32_t socinfo_get_cluster_info(enum subset_cluster_type cluster)
 }
 bool socinfo_get_part_info(enum subset_part_type part)
 {
-	return FALSE;
+	return false;
 }
 #endif /* CONFIG_QCOM_SOCINFO */
 
