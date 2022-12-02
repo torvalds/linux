@@ -1,5 +1,6 @@
 qcom_wdt_core.ko
 gh_virt_wdt.ko
+qcom_cpu_vendor_hooks.ko
 cmd-db.ko
 qcom_rpmh.ko
 qcom-pdc.ko
