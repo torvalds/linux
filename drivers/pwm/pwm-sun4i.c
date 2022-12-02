@@ -108,9 +108,9 @@ static inline void sun4i_pwm_writel(struct sun4i_pwm_chip *chip,
 	writel(val, chip->base + offset);
 }
 
-static void sun4i_pwm_get_state(struct pwm_chip *chip,
-				struct pwm_device *pwm,
-				struct pwm_state *state)
+static int sun4i_pwm_get_state(struct pwm_chip *chip,
+			       struct pwm_device *pwm,
+			       struct pwm_state *state)
 {
 	struct sun4i_pwm_chip *sun4i_pwm = to_sun4i_pwm_chip(chip);
 	u64 clk_rate, tmp;
@@ -132,7 +132,7 @@ static void sun4i_pwm_get_state(struct pwm_chip *chip,
 		state->duty_cycle = DIV_ROUND_UP_ULL(state->period, 2);
 		state->polarity = PWM_POLARITY_NORMAL;
 		state->enabled = true;
-		return;
+		return 0;
 	}
 
 	if ((PWM_REG_PRESCAL(val, pwm->hwpwm) == PWM_PRESCAL_MASK) &&
@@ -142,7 +142,7 @@ static void sun4i_pwm_get_state(struct pwm_chip *chip,
 		prescaler = prescaler_table[PWM_REG_PRESCAL(val, pwm->hwpwm)];
 
 	if (prescaler == 0)
-		return;
+		return 0;
 
 	if (val & BIT_CH(PWM_ACT_STATE, pwm->hwpwm))
 		state->polarity = PWM_POLARITY_NORMAL;
@@ -162,6 +162,8 @@ static void sun4i_pwm_get_state(struct pwm_chip *chip,
 
 	tmp = (u64)prescaler * NSEC_PER_SEC * PWM_REG_PRD(val);
 	state->period = DIV_ROUND_CLOSEST_ULL(tmp, clk_rate);
+
+	return 0;
 }
 
 static int sun4i_pwm_calculate(struct sun4i_pwm_chip *sun4i_pwm,

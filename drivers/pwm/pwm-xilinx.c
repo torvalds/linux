@@ -169,9 +169,9 @@ static int xilinx_pwm_apply(struct pwm_chip *chip, struct pwm_device *unused,
 	return 0;
 }
 
-static void xilinx_pwm_get_state(struct pwm_chip *chip,
-				 struct pwm_device *unused,
-				 struct pwm_state *state)
+static int xilinx_pwm_get_state(struct pwm_chip *chip,
+				struct pwm_device *unused,
+				struct pwm_state *state)
 {
 	struct xilinx_timer_priv *priv = xilinx_pwm_chip_to_priv(chip);
 	u32 tlr0, tlr1, tcsr0, tcsr1;
@@ -191,6 +191,8 @@ static void xilinx_pwm_get_state(struct pwm_chip *chip,
 	 */
 	if (state->period == state->duty_cycle)
 		state->duty_cycle = 0;
+
+	return 0;
 }
 
 static const struct pwm_ops xilinx_pwm_ops = {
