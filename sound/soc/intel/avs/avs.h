@@ -9,6 +9,7 @@
 #ifndef __SOUND_SOC_INTEL_AVS_H
 #define __SOUND_SOC_INTEL_AVS_H
 
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/kfifo.h>
@@ -146,6 +147,14 @@ struct avs_dev {
 	struct mutex path_mutex;
 
 	struct avs_debug dbg;
+	spinlock_t trace_lock;	/* serialize debug window I/O between each LOG_BUFFER_STATUS */
+#ifdef CONFIG_DEBUG_FS
+	struct kfifo trace_fifo;
+	wait_queue_head_t trace_waitq;
+	u32 aging_timer_period;
+	u32 fifo_full_timer_period;
+	u32 logged_resources;	/* context dependent: core or library */
+#endif
 };
 
 /* from hda_bus to avs_dev */
@@ -365,5 +374,25 @@ struct apl_log_buffer_layout {
 
 #define apl_log_payload_addr(addr) \
 	(addr + sizeof(struct apl_log_buffer_layout))
+
+#ifdef CONFIG_DEBUG_FS
+bool avs_logging_fw(struct avs_dev *adev);
+void avs_dump_fw_log(struct avs_dev *adev, const void __iomem *src, unsigned int len);
+void avs_dump_fw_log_wakeup(struct avs_dev *adev, const void __iomem *src, unsigned int len);
+#else
+static inline bool avs_logging_fw(struct avs_dev *adev)
+{
+	return false;
+}
+
+static inline void avs_dump_fw_log(struct avs_dev *adev, const void __iomem *src, unsigned int len)
+{
+}
+
+static inline void
+avs_dump_fw_log_wakeup(struct avs_dev *adev, const void __iomem *src, unsigned int len)
+{
+}
+#endif
 
 #endif /* __SOUND_SOC_INTEL_AVS_H */
