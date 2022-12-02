@@ -50,57 +50,6 @@ static struct mlx5e_ipsec_pol_entry *to_ipsec_pol_entry(struct xfrm_policy *x)
 	return (struct mlx5e_ipsec_pol_entry *)x->xdo.offload_handle;
 }
 
-struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *ipsec,
-					      unsigned int handle)
-{
-	struct mlx5e_ipsec_sa_entry *sa_entry;
-	struct xfrm_state *ret = NULL;
-
-	rcu_read_lock();
-	hash_for_each_possible_rcu(ipsec->sadb_rx, sa_entry, hlist, handle)
-		if (sa_entry->handle == handle) {
-			ret = sa_entry->x;
-			xfrm_state_hold(ret);
-			break;
-		}
-	rcu_read_unlock();
-
-	return ret;
-}
-
-static int mlx5e_ipsec_sadb_rx_add(struct mlx5e_ipsec_sa_entry *sa_entry)
-{
-	unsigned int handle = sa_entry->ipsec_obj_id;
-	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
-	struct mlx5e_ipsec_sa_entry *_sa_entry;
-	unsigned long flags;
-
-	rcu_read_lock();
-	hash_for_each_possible_rcu(ipsec->sadb_rx, _sa_entry, hlist, handle)
-		if (_sa_entry->handle == handle) {
-			rcu_read_unlock();
-			return  -EEXIST;
-		}
-	rcu_read_unlock();
-
-	spin_lock_irqsave(&ipsec->sadb_rx_lock, flags);
-	sa_entry->handle = handle;
-	hash_add_rcu(ipsec->sadb_rx, &sa_entry->hlist, sa_entry->handle);
-	spin_unlock_irqrestore(&ipsec->sadb_rx_lock, flags);
-
-	return 0;
-}
-
-static void mlx5e_ipsec_sadb_rx_del(struct mlx5e_ipsec_sa_entry *sa_entry)
-{
-	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ipsec->sadb_rx_lock, flags);
-	hash_del_rcu(&sa_entry->hlist);
-	spin_unlock_irqrestore(&ipsec->sadb_rx_lock, flags);
-}
-
 static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
 	struct xfrm_replay_state_esn *replay_esn;
@@ -291,6 +240,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = NULL;
 	struct net_device *netdev = x->xso.real_dev;
+	struct mlx5e_ipsec *ipsec;
 	struct mlx5e_priv *priv;
 	int err;
 
@@ -298,6 +248,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 	if (!priv->ipsec)
 		return -EOPNOTSUPP;
 
+	ipsec = priv->ipsec;
 	err = mlx5e_xfrm_validate_state(x);
 	if (err)
 		return err;
@@ -309,7 +260,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 	}
 
 	sa_entry->x = x;
-	sa_entry->ipsec = priv->ipsec;
+	sa_entry->ipsec = ipsec;
 
 	/* check esn */
 	mlx5e_ipsec_update_esn_state(sa_entry);
@@ -324,18 +275,22 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 	if (err)
 		goto err_hw_ctx;
 
-	if (x->xso.dir == XFRM_DEV_OFFLOAD_IN) {
-		err = mlx5e_ipsec_sadb_rx_add(sa_entry);
-		if (err)
-			goto err_add_rule;
-	} else {
+	/* We use *_bh() variant because xfrm_timer_handler(), which runs
+	 * in softirq context, can reach our state delete logic and we need
+	 * xa_erase_bh() there.
+	 */
+	err = xa_insert_bh(&ipsec->sadb, sa_entry->ipsec_obj_id, sa_entry,
+			   GFP_KERNEL);
+	if (err)
+		goto err_add_rule;
+
+	if (x->xso.dir == XFRM_DEV_OFFLOAD_OUT)
 		sa_entry->set_iv_op = (x->props.flags & XFRM_STATE_ESN) ?
 				mlx5e_ipsec_set_iv_esn : mlx5e_ipsec_set_iv;
-	}
 
 	INIT_WORK(&sa_entry->modify_work.work, _update_xfrm_state);
 	x->xso.offload_handle = (unsigned long)sa_entry;
-	goto out;
+	return 0;
 
 err_add_rule:
 	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
@@ -350,9 +305,11 @@ out:
 static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
+	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
+	struct mlx5e_ipsec_sa_entry *old;
 
-	if (x->xso.dir == XFRM_DEV_OFFLOAD_IN)
-		mlx5e_ipsec_sadb_rx_del(sa_entry);
+	old = xa_erase_bh(&ipsec->sadb, sa_entry->ipsec_obj_id);
+	WARN_ON(old != sa_entry);
 }
 
 static void mlx5e_xfrm_free_state(struct xfrm_state *x)
@@ -379,8 +336,7 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	if (!ipsec)
 		return;
 
-	hash_init(ipsec->sadb_rx);
-	spin_lock_init(&ipsec->sadb_rx_lock);
+	xa_init_flags(&ipsec->sadb, XA_FLAGS_ALLOC);
 	ipsec->mdev = priv->mdev;
 	ipsec->wq = alloc_ordered_workqueue("mlx5e_ipsec: %s", 0,
 					    priv->netdev->name);

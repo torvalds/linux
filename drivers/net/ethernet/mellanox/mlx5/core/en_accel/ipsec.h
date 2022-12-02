@@ -120,8 +120,7 @@ struct mlx5e_ipsec_aso {
 
 struct mlx5e_ipsec {
 	struct mlx5_core_dev *mdev;
-	DECLARE_HASHTABLE(sadb_rx, MLX5E_IPSEC_SADB_RX_BITS);
-	spinlock_t sadb_rx_lock; /* Protects sadb_rx */
+	struct xarray sadb;
 	struct mlx5e_ipsec_sw_stats sw_stats;
 	struct mlx5e_ipsec_hw_stats hw_stats;
 	struct workqueue_struct *wq;
@@ -150,9 +149,7 @@ struct mlx5e_ipsec_modify_state_work {
 };
 
 struct mlx5e_ipsec_sa_entry {
-	struct hlist_node hlist; /* Item in SADB_RX hashtable */
 	struct mlx5e_ipsec_esn_state esn_state;
-	unsigned int handle; /* Handle in SADB_RX */
 	struct xfrm_state *x;
 	struct mlx5e_ipsec *ipsec;
 	struct mlx5_accel_esp_xfrm_attrs attrs;
@@ -192,9 +189,6 @@ struct mlx5e_ipsec_pol_entry {
 void mlx5e_ipsec_init(struct mlx5e_priv *priv);
 void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv);
 void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv);
-
-struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *dev,
-					      unsigned int handle);
 
 void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec);
 int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec);
