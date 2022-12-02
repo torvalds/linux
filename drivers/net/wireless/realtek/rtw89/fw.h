@@ -3291,6 +3291,21 @@ struct fwcmd_hdr {
 	__le32 hdr1;
 };
 
+union rtw89_compat_fw_hdr {
+	struct rtw89_mfw_hdr mfw_hdr;
+	u8 fw_hdr[RTW89_FW_HDR_SIZE];
+};
+
+static inline u32 rtw89_compat_fw_hdr_ver_code(const void *fw_buf)
+{
+	const union rtw89_compat_fw_hdr *compat = (typeof(compat))fw_buf;
+
+	if (compat->mfw_hdr.sig == RTW89_MFW_SIG)
+		return RTW89_MFW_HDR_VER_CODE(&compat->mfw_hdr);
+	else
+		return RTW89_FW_HDR_VER_CODE(&compat->fw_hdr);
+}
+
 #define RTW89_H2C_RF_PAGE_SIZE 500
 #define RTW89_H2C_RF_PAGE_NUM 3
 struct rtw89_fw_h2c_rf_reg_info {
