@@ -48,6 +48,29 @@ void avs_dump_fw_log_wakeup(struct avs_dev *adev, const void __iomem *src, unsig
 	wake_up(&adev->trace_waitq);
 }
 
+static ssize_t fw_regs_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
+{
+	struct avs_dev *adev = file->private_data;
+	char *buf;
+	int ret;
+
+	buf = kzalloc(AVS_FW_REGS_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	memcpy_fromio(buf, avs_sram_addr(adev, AVS_FW_REGS_WINDOW), AVS_FW_REGS_SIZE);
+
+	ret = simple_read_from_buffer(to, count, ppos, buf, AVS_FW_REGS_SIZE);
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations fw_regs_fops = {
+	.open = simple_open,
+	.read = fw_regs_read,
+	.llseek = no_llseek,
+};
+
 static ssize_t probe_points_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
 {
 	struct avs_dev *adev = file->private_data;
@@ -369,6 +392,7 @@ void avs_debugfs_init(struct avs_dev *adev)
 
 	debugfs_create_file("strace", 0444, adev->debugfs_root, adev, &strace_fops);
 	debugfs_create_file("trace_control", 0644, adev->debugfs_root, adev, &trace_control_fops);
+	debugfs_create_file("fw_regs", 0444, adev->debugfs_root, adev, &fw_regs_fops);
 
 	debugfs_create_u32("trace_aging_period", 0644, adev->debugfs_root,
 			   &adev->aging_timer_period);
