@@ -392,7 +392,9 @@ static ssize_t rtw_debugfs_set_h2c(struct file *filp,
 		return -EINVAL;
 	}
 
+	mutex_lock(&rtwdev->mutex);
 	rtw_fw_h2c_cmd_dbg(rtwdev, param);
+	mutex_unlock(&rtwdev->mutex);
 
 	return count;
 }
