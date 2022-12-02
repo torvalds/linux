@@ -1245,7 +1245,7 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 
 			md5sig = rcu_dereference_protected(tp->md5sig_info, lockdep_sock_is_held(sk));
 			rcu_assign_pointer(tp->md5sig_info, NULL);
-			kfree_rcu(md5sig);
+			kfree_rcu(md5sig, rcu);
 			return -EUSERS;
 		}
 	}
@@ -1271,7 +1271,7 @@ int tcp_md5_key_copy(struct sock *sk, const union tcp_md5_addr *addr,
 			md5sig = rcu_dereference_protected(tp->md5sig_info, lockdep_sock_is_held(sk));
 			net_warn_ratelimited("Too many TCP-MD5 keys in the system\n");
 			rcu_assign_pointer(tp->md5sig_info, NULL);
-			kfree_rcu(md5sig);
+			kfree_rcu(md5sig, rcu);
 			return -EUSERS;
 		}
 	}
