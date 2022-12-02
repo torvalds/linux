@@ -166,6 +166,7 @@ mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 		attrs->esn = sa_entry->esn_state.esn;
 		if (sa_entry->esn_state.overlap)
 			attrs->flags |= MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP;
+		attrs->replay_window = x->replay_esn->replay_window;
 	}
 
 	/* action */
@@ -256,6 +257,17 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 	if (x->xso.type != XFRM_DEV_OFFLOAD_CRYPTO) {
 		netdev_info(netdev, "Unsupported xfrm offload type\n");
 		return -EINVAL;
+	}
+	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
+		if (x->replay_esn && x->replay_esn->replay_window != 32 &&
+		    x->replay_esn->replay_window != 64 &&
+		    x->replay_esn->replay_window != 128 &&
+		    x->replay_esn->replay_window != 256) {
+			netdev_info(netdev,
+				    "Unsupported replay window size %u\n",
+				    x->replay_esn->replay_window);
+			return -EINVAL;
+		}
 	}
 	return 0;
 }

@@ -83,6 +83,7 @@ struct mlx5_accel_esp_xfrm_attrs {
 	} daddr;
 
 	u8 is_ipv6;
+	u32 replay_window;
 };
 
 enum mlx5_ipsec_cap {
