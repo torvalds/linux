@@ -88,6 +88,7 @@ struct mlx5_accel_esp_xfrm_attrs {
 enum mlx5_ipsec_cap {
 	MLX5_IPSEC_CAP_CRYPTO		= 1 << 0,
 	MLX5_IPSEC_CAP_ESN		= 1 << 1,
+	MLX5_IPSEC_CAP_PACKET_OFFLOAD	= 1 << 2,
 };
 
 struct mlx5e_priv;
