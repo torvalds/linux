@@ -514,9 +514,6 @@ static int armpmu_event_init(struct perf_event *event)
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
 
-	if (armpmu->map_event(event) == -ENOENT)
-		return -ENOENT;
-
 	return __hw_perf_event_init(event);
 }
 
