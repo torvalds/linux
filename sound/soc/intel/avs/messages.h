@@ -802,4 +802,57 @@ int avs_ipc_copier_set_sink_format(struct avs_dev *adev, u16 module_id,
 				   const struct avs_audio_format *src_fmt,
 				   const struct avs_audio_format *sink_fmt);
 
+#define AVS_PROBE_INST_ID	0
+
+enum avs_probe_runtime_param {
+	AVS_PROBE_INJECTION_DMA = 1,
+	AVS_PROBE_INJECTION_DMA_DETACH,
+	AVS_PROBE_POINTS,
+	AVS_PROBE_POINTS_DISCONNECT,
+};
+
+struct avs_probe_dma {
+	union avs_connector_node_id node_id;
+	u32 dma_buffer_size;
+} __packed;
+
+enum avs_probe_type {
+	AVS_PROBE_TYPE_INPUT = 0,
+	AVS_PROBE_TYPE_OUTPUT,
+	AVS_PROBE_TYPE_INTERNAL
+};
+
+union avs_probe_point_id {
+	u32 value;
+	struct {
+		u32 module_id:16;
+		u32 instance_id:8;
+		u32 type:2;
+		u32 index:6;
+	} id;
+} __packed;
+
+enum avs_connection_purpose {
+	AVS_CONNECTION_PURPOSE_EXTRACT = 0,
+	AVS_CONNECTION_PURPOSE_INJECT,
+	AVS_CONNECTION_PURPOSE_INJECT_REEXTRACT,
+};
+
+struct avs_probe_point_desc {
+	union avs_probe_point_id id;
+	u32 purpose;
+	union avs_connector_node_id node_id;
+} __packed;
+
+int avs_ipc_probe_get_dma(struct avs_dev *adev, struct avs_probe_dma **dmas, size_t *num_dmas);
+int avs_ipc_probe_attach_dma(struct avs_dev *adev, struct avs_probe_dma *dmas, size_t num_dmas);
+int avs_ipc_probe_detach_dma(struct avs_dev *adev, union avs_connector_node_id *node_ids,
+			     size_t num_node_ids);
+int avs_ipc_probe_get_points(struct avs_dev *adev, struct avs_probe_point_desc **descs,
+			     size_t *num_descs);
+int avs_ipc_probe_connect_points(struct avs_dev *adev, struct avs_probe_point_desc *descs,
+				 size_t num_descs);
+int avs_ipc_probe_disconnect_points(struct avs_dev *adev, union avs_probe_point_id *ids,
+				    size_t num_ids);
+
 #endif /* __SOUND_SOC_INTEL_AVS_MSGS_H */

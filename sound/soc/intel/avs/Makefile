@@ -10,7 +10,7 @@ snd-soc-avs-objs += trace.o
 CFLAGS_trace.o := -I$(src)
 
 ifneq ($(CONFIG_DEBUG_FS),)
-snd-soc-avs-objs += debugfs.o
+snd-soc-avs-objs += probes.o debugfs.o
 endif
 
 obj-$(CONFIG_SND_SOC_INTEL_AVS) += snd-soc-avs.o
