@@ -263,6 +263,7 @@ static const u32 st7586_formats[] = {
 };
 
 static const struct drm_simple_display_pipe_funcs st7586_pipe_funcs = {
+	.mode_valid	= mipi_dbi_pipe_mode_valid,
 	.enable		= st7586_pipe_enable,
 	.disable	= st7586_pipe_disable,
 	.update		= st7586_pipe_update,
