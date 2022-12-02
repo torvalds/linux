@@ -341,7 +341,7 @@ static void setup_fte_common(struct mlx5_accel_esp_xfrm_attrs *attrs,
 			     struct mlx5_flow_spec *spec,
 			     struct mlx5_flow_act *flow_act)
 {
-	u8 ip_version = attrs->is_ipv6 ? 6 : 4;
+	u8 ip_version = (attrs->family == AF_INET) ? 4 : 6;
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS | MLX5_MATCH_MISC_PARAMETERS;
 
@@ -411,7 +411,7 @@ static int rx_add_rule(struct mlx5e_priv *priv,
 	int err = 0;
 
 	accel_esp = priv->ipsec->rx_fs;
-	type = attrs->is_ipv6 ? ACCEL_FS_ESP6 : ACCEL_FS_ESP4;
+	type = (attrs->family == AF_INET) ? ACCEL_FS_ESP4 : ACCEL_FS_ESP6;
 	fs_prot = &accel_esp->fs_prot[type];
 
 	err = rx_ft_get(priv, type);
@@ -453,8 +453,8 @@ static int rx_add_rule(struct mlx5e_priv *priv,
 	rule = mlx5_add_flow_rules(fs_prot->ft, spec, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
-		netdev_err(priv->netdev, "fail to add ipsec rule attrs->action=0x%x, err=%d\n",
-			   attrs->action, err);
+		netdev_err(priv->netdev, "fail to add RX ipsec rule err=%d\n",
+			   err);
 		goto out_err;
 	}
 
@@ -505,8 +505,8 @@ static int tx_add_rule(struct mlx5e_priv *priv,
 	rule = mlx5_add_flow_rules(priv->ipsec->tx_fs->ft, spec, &flow_act, NULL, 0);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
-		netdev_err(priv->netdev, "fail to add ipsec rule attrs->action=0x%x, err=%d\n",
-				sa_entry->attrs.action, err);
+		netdev_err(priv->netdev, "fail to add TX ipsec rule err=%d\n",
+			   err);
 		goto out;
 	}
 
@@ -522,7 +522,7 @@ out:
 int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_priv *priv,
 				  struct mlx5e_ipsec_sa_entry *sa_entry)
 {
-	if (sa_entry->attrs.action == MLX5_ACCEL_ESP_ACTION_ENCRYPT)
+	if (sa_entry->attrs.dir == XFRM_DEV_OFFLOAD_OUT)
 		return tx_add_rule(priv, sa_entry);
 
 	return rx_add_rule(priv, sa_entry);
@@ -533,17 +533,18 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_priv *priv,
 {
 	struct mlx5e_ipsec_rule *ipsec_rule = &sa_entry->ipsec_rule;
 	struct mlx5_core_dev *mdev = mlx5e_ipsec_sa2dev(sa_entry);
+	enum accel_fs_esp_type type;
 
 	mlx5_del_flow_rules(ipsec_rule->rule);
 
-	if (sa_entry->attrs.action == MLX5_ACCEL_ESP_ACTION_ENCRYPT) {
+	if (sa_entry->attrs.dir == XFRM_DEV_OFFLOAD_OUT) {
 		tx_ft_put(priv);
 		return;
 	}
 
 	mlx5_modify_header_dealloc(mdev, ipsec_rule->set_modify_hdr);
-	rx_ft_put(priv,
-		  sa_entry->attrs.is_ipv6 ? ACCEL_FS_ESP6 : ACCEL_FS_ESP4);
+	type = (sa_entry->attrs.family == AF_INET) ? ACCEL_FS_ESP4 : ACCEL_FS_ESP6;
+	rx_ft_put(priv, type);
 }
 
 void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec)

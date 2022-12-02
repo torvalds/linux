@@ -43,18 +43,6 @@
 #define MLX5E_IPSEC_SADB_RX_BITS 10
 #define MLX5E_IPSEC_ESN_SCOPE_MID 0x80000000L
 
-enum mlx5_accel_esp_flags {
-	MLX5_ACCEL_ESP_FLAGS_TUNNEL            = 0,    /* Default */
-	MLX5_ACCEL_ESP_FLAGS_TRANSPORT         = 1UL << 0,
-	MLX5_ACCEL_ESP_FLAGS_ESN_TRIGGERED     = 1UL << 1,
-	MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP = 1UL << 2,
-};
-
-enum mlx5_accel_esp_action {
-	MLX5_ACCEL_ESP_ACTION_DECRYPT,
-	MLX5_ACCEL_ESP_ACTION_ENCRYPT,
-};
-
 struct aes_gcm_keymat {
 	u64   seq_iv;
 
@@ -66,7 +54,6 @@ struct aes_gcm_keymat {
 };
 
 struct mlx5_accel_esp_xfrm_attrs {
-	enum mlx5_accel_esp_action action;
 	u32   esn;
 	u32   spi;
 	u32   flags;
@@ -82,7 +69,10 @@ struct mlx5_accel_esp_xfrm_attrs {
 		__be32 a6[4];
 	} daddr;
 
-	u8 is_ipv6;
+	u8 dir : 2;
+	u8 esn_overlap : 1;
+	u8 esn_trigger : 1;
+	u8 family;
 	u32 replay_window;
 };
 

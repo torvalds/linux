@@ -162,29 +162,20 @@ mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 
 	/* esn */
 	if (sa_entry->esn_state.trigger) {
-		attrs->flags |= MLX5_ACCEL_ESP_FLAGS_ESN_TRIGGERED;
+		attrs->esn_trigger = true;
 		attrs->esn = sa_entry->esn_state.esn;
-		if (sa_entry->esn_state.overlap)
-			attrs->flags |= MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP;
+		attrs->esn_overlap = sa_entry->esn_state.overlap;
 		attrs->replay_window = x->replay_esn->replay_window;
 	}
 
-	/* action */
-	attrs->action = (x->xso.dir == XFRM_DEV_OFFLOAD_OUT) ?
-				MLX5_ACCEL_ESP_ACTION_ENCRYPT :
-				      MLX5_ACCEL_ESP_ACTION_DECRYPT;
-	/* flags */
-	attrs->flags |= (x->props.mode == XFRM_MODE_TRANSPORT) ?
-			MLX5_ACCEL_ESP_FLAGS_TRANSPORT :
-			MLX5_ACCEL_ESP_FLAGS_TUNNEL;
-
+	attrs->dir = x->xso.dir;
 	/* spi */
 	attrs->spi = be32_to_cpu(x->id.spi);
 
 	/* source , destination ips */
 	memcpy(&attrs->saddr, x->props.saddr.a6, sizeof(attrs->saddr));
 	memcpy(&attrs->daddr, x->id.daddr.a6, sizeof(attrs->daddr));
-	attrs->is_ipv6 = (x->props.family != AF_INET);
+	attrs->family = x->props.family;
 }
 
 static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)

@@ -72,11 +72,10 @@ static int mlx5_create_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry)
 	salt_iv_p = MLX5_ADDR_OF(ipsec_obj, obj, implicit_iv);
 	memcpy(salt_iv_p, &aes_gcm->seq_iv, sizeof(aes_gcm->seq_iv));
 	/* esn */
-	if (attrs->flags & MLX5_ACCEL_ESP_FLAGS_ESN_TRIGGERED) {
+	if (attrs->esn_trigger) {
 		MLX5_SET(ipsec_obj, obj, esn_en, 1);
 		MLX5_SET(ipsec_obj, obj, esn_msb, attrs->esn);
-		if (attrs->flags & MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP)
-			MLX5_SET(ipsec_obj, obj, esn_overlap, 1);
+		MLX5_SET(ipsec_obj, obj, esn_overlap, attrs->esn_overlap);
 	}
 
 	MLX5_SET(ipsec_obj, obj, dekn, sa_entry->enc_key_id);
@@ -158,7 +157,7 @@ static int mlx5_modify_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry,
 	void *obj;
 	int err;
 
-	if (!(attrs->flags & MLX5_ACCEL_ESP_FLAGS_ESN_TRIGGERED))
+	if (!attrs->esn_trigger)
 		return 0;
 
 	general_obj_types = MLX5_CAP_GEN_64(mdev, general_obj_types);
@@ -189,8 +188,7 @@ static int mlx5_modify_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry,
 		   MLX5_MODIFY_IPSEC_BITMASK_ESN_OVERLAP |
 			   MLX5_MODIFY_IPSEC_BITMASK_ESN_MSB);
 	MLX5_SET(ipsec_obj, obj, esn_msb, attrs->esn);
-	if (attrs->flags & MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP)
-		MLX5_SET(ipsec_obj, obj, esn_overlap, 1);
+	MLX5_SET(ipsec_obj, obj, esn_overlap, attrs->esn_overlap);
 
 	/* general object fields set */
 	MLX5_SET(general_obj_in_cmd_hdr, in, opcode, MLX5_CMD_OP_MODIFY_GENERAL_OBJECT);
