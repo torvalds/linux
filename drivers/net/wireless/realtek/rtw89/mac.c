@@ -3877,11 +3877,16 @@ static void rtw89_mac_port_cfg_hiq_drop(struct rtw89_dev *rtwdev,
 }
 
 static void rtw89_mac_port_cfg_func_en(struct rtw89_dev *rtwdev,
-				       struct rtw89_vif *rtwvif)
+				       struct rtw89_vif *rtwvif, bool enable)
 {
 	const struct rtw89_port_reg *p = &rtw_port_base;
 
-	rtw89_write32_port_set(rtwdev, rtwvif, p->port_cfg, B_AX_PORT_FUNC_EN);
+	if (enable)
+		rtw89_write32_port_set(rtwdev, rtwvif, p->port_cfg,
+				       B_AX_PORT_FUNC_EN);
+	else
+		rtw89_write32_port_clr(rtwdev, rtwvif, p->port_cfg,
+				       B_AX_PORT_FUNC_EN);
 }
 
 static void rtw89_mac_port_cfg_bcn_early(struct rtw89_dev *rtwdev,
@@ -4033,7 +4038,7 @@ int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_mac_port_cfg_tbtt_shift(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_bss_color(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_mbssid(rtwdev, rtwvif);
-	rtw89_mac_port_cfg_func_en(rtwdev, rtwvif);
+	rtw89_mac_port_cfg_func_en(rtwdev, rtwvif, true);
 	rtw89_mac_port_tsf_resync_all(rtwdev);
 	fsleep(BCN_ERLY_SET_DLY);
 	rtw89_mac_port_cfg_bcn_early(rtwdev, rtwvif);
@@ -4083,6 +4088,11 @@ void rtw89_mac_set_he_obss_narrow_bw_ru(struct rtw89_dev *rtwdev,
 		rtw89_write32_clr(rtwdev, reg, B_AX_RXTRIG_RU26_DIS);
 	else
 		rtw89_write32_set(rtwdev, reg, B_AX_RXTRIG_RU26_DIS);
+}
+
+void rtw89_mac_stop_ap(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+{
+	rtw89_mac_port_cfg_func_en(rtwdev, rtwvif, false);
 }
 
 int rtw89_mac_add_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
