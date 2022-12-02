@@ -3410,6 +3410,7 @@ int uart_get_rs485_mode(struct uart_port *port)
 	struct device *dev = port->dev;
 	u32 rs485_delay[2];
 	int ret;
+	int rx_during_tx_gpio_flag;
 
 	ret = device_property_read_u32_array(dev, "rs485-rts-delay",
 					     rs485_delay, 2);
@@ -3457,6 +3458,17 @@ int uart_get_rs485_mode(struct uart_port *port)
 	}
 	if (port->rs485_term_gpio)
 		port->rs485_supported.flags |= SER_RS485_TERMINATE_BUS;
+
+	rx_during_tx_gpio_flag = (rs485conf->flags & SER_RS485_RX_DURING_TX) ?
+				 GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
+	port->rs485_rx_during_tx_gpio = devm_gpiod_get_optional(dev,
+								"rs485-rx-during-tx",
+								rx_during_tx_gpio_flag);
+	if (IS_ERR(port->rs485_rx_during_tx_gpio)) {
+		ret = PTR_ERR(port->rs485_rx_during_tx_gpio);
+		port->rs485_rx_during_tx_gpio = NULL;
+		return dev_err_probe(dev, ret, "Cannot get rs485-rx-during-tx-gpios\n");
+	}
 
 	return 0;
 }
