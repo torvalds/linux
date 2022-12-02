@@ -118,6 +118,12 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 }
 
 #ifdef CONFIG_PPC_BARRIER_NOSPEC
+static bool is_fixup_addr_valid(void *dest, size_t size)
+{
+	return system_state < SYSTEM_FREEING_INITMEM ||
+	       !init_section_contains(dest, size);
+}
+
 static int do_patch_fixups(long *start, long *end, unsigned int *instrs, int num)
 {
 	int i;
@@ -125,6 +131,9 @@ static int do_patch_fixups(long *start, long *end, unsigned int *instrs, int num
 	for (i = 0; start < end; start++, i++) {
 		int j;
 		unsigned int *dest = (void *)start + *start;
+
+		if (!is_fixup_addr_valid(dest, sizeof(*instrs) * num))
+			continue;
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
 
@@ -143,6 +152,9 @@ static int do_patch_entry_fixups(long *start, long *end, unsigned int *instrs,
 
 	for (i = 0; start < end; start++, i++) {
 		unsigned int *dest = (void *)start + *start;
+
+		if (!is_fixup_addr_valid(dest, sizeof(*instrs) * 3))
+			continue;
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
 
