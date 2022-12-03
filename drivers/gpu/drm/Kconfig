@@ -397,7 +397,7 @@ menuconfig DRM_LEGACY
 	  Unless you have strong reasons to go rogue, say "N".
 
 if DRM_LEGACY
-
+# leave here to list legacy drivers
 endif # DRM_LEGACY
 
 config DRM_EXPORT_FOR_TESTS
