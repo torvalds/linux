@@ -1838,6 +1838,19 @@ struct task_struct *bpf_task_acquire(struct task_struct *p)
 }
 
 /**
+ * bpf_task_acquire_not_zero - Acquire a reference to a rcu task object. A task
+ * acquired by this kfunc which is not stored in a map as a kptr, must be
+ * released by calling bpf_task_release().
+ * @p: The task on which a reference is being acquired.
+ */
+struct task_struct *bpf_task_acquire_not_zero(struct task_struct *p)
+{
+	if (!refcount_inc_not_zero(&p->rcu_users))
+		return NULL;
+	return p;
+}
+
+/**
  * bpf_task_kptr_get - Acquire a reference on a struct task_struct kptr. A task
  * kptr acquired by this kfunc which is not subsequently stored in a map, must
  * be released by calling bpf_task_release().
@@ -2013,6 +2026,7 @@ BTF_ID_FLAGS(func, bpf_list_push_back)
 BTF_ID_FLAGS(func, bpf_list_pop_front, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_list_pop_back, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_task_acquire_not_zero, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
 #ifdef CONFIG_CGROUPS

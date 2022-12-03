@@ -4275,7 +4275,7 @@ static bool is_trusted_reg(const struct bpf_reg_state *reg)
 		return true;
 
 	/* If a register is not referenced, it is trusted if it has the
-	 * MEM_ALLOC, MEM_RCU or PTR_TRUSTED type modifiers, and no others. Some of the
+	 * MEM_ALLOC or PTR_TRUSTED type modifiers, and no others. Some of the
 	 * other type modifiers may be safe, but we elect to take an opt-in
 	 * approach here as some (e.g. PTR_UNTRUSTED and PTR_MAYBE_NULL) are
 	 * not.
@@ -4285,6 +4285,11 @@ static bool is_trusted_reg(const struct bpf_reg_state *reg)
 	 */
 	return type_flag(reg->type) & BPF_REG_TRUSTED_MODIFIERS &&
 	       !bpf_type_has_unsafe_modifiers(reg->type);
+}
+
+static bool is_rcu_reg(const struct bpf_reg_state *reg)
+{
+	return reg->type & MEM_RCU;
 }
 
 static int check_pkt_ptr_alignment(struct bpf_verifier_env *env,
@@ -4785,14 +4790,16 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 
 	if (flag & MEM_RCU) {
 		/* Mark value register as MEM_RCU only if it is protected by
-		 * bpf_rcu_read_lock() and the ptr reg is trusted. MEM_RCU
+		 * bpf_rcu_read_lock() and the ptr reg is rcu or trusted. MEM_RCU
 		 * itself can already indicate trustedness inside the rcu
-		 * read lock region. Also mark it as PTR_TRUSTED.
+		 * read lock region. Also mark rcu pointer as PTR_MAYBE_NULL since
+		 * it could be null in some cases.
 		 */
-		if (!env->cur_state->active_rcu_lock || !is_trusted_reg(reg))
+		if (!env->cur_state->active_rcu_lock ||
+		    !(is_trusted_reg(reg) || is_rcu_reg(reg)))
 			flag &= ~MEM_RCU;
 		else
-			flag |= PTR_TRUSTED;
+			flag |= PTR_MAYBE_NULL;
 	} else if (reg->type & MEM_RCU) {
 		/* ptr (reg) is marked as MEM_RCU, but the struct field is not tagged
 		 * with __rcu. Mark the flag as PTR_UNTRUSTED conservatively.
@@ -5957,7 +5964,7 @@ static const struct bpf_reg_types btf_ptr_types = {
 	.types = {
 		PTR_TO_BTF_ID,
 		PTR_TO_BTF_ID | PTR_TRUSTED,
-		PTR_TO_BTF_ID | MEM_RCU | PTR_TRUSTED,
+		PTR_TO_BTF_ID | MEM_RCU,
 	},
 };
 static const struct bpf_reg_types percpu_btf_ptr_types = {
@@ -6136,7 +6143,7 @@ int check_func_arg_reg_off(struct bpf_verifier_env *env,
 	case PTR_TO_BTF_ID:
 	case PTR_TO_BTF_ID | MEM_ALLOC:
 	case PTR_TO_BTF_ID | PTR_TRUSTED:
-	case PTR_TO_BTF_ID | MEM_RCU | PTR_TRUSTED:
+	case PTR_TO_BTF_ID | MEM_RCU:
 	case PTR_TO_BTF_ID | MEM_ALLOC | PTR_TRUSTED:
 		/* When referenced PTR_TO_BTF_ID is passed to release function,
 		 * it's fixed offset must be 0.	In the other cases, fixed offset
@@ -8038,6 +8045,11 @@ static bool is_kfunc_destructive(struct bpf_kfunc_call_arg_meta *meta)
 	return meta->kfunc_flags & KF_DESTRUCTIVE;
 }
 
+static bool is_kfunc_rcu(struct bpf_kfunc_call_arg_meta *meta)
+{
+	return meta->kfunc_flags & KF_RCU;
+}
+
 static bool is_kfunc_arg_kptr_get(struct bpf_kfunc_call_arg_meta *meta, int arg)
 {
 	return arg == 0 && (meta->kfunc_flags & KF_KPTR_GET);
@@ -8722,13 +8734,20 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 		switch (kf_arg_type) {
 		case KF_ARG_PTR_TO_ALLOC_BTF_ID:
 		case KF_ARG_PTR_TO_BTF_ID:
-			if (!is_kfunc_trusted_args(meta))
+			if (!is_kfunc_trusted_args(meta) && !is_kfunc_rcu(meta))
 				break;
 
 			if (!is_trusted_reg(reg)) {
-				verbose(env, "R%d must be referenced or trusted\n", regno);
-				return -EINVAL;
+				if (!is_kfunc_rcu(meta)) {
+					verbose(env, "R%d must be referenced or trusted\n", regno);
+					return -EINVAL;
+				}
+				if (!is_rcu_reg(reg)) {
+					verbose(env, "R%d must be a rcu pointer\n", regno);
+					return -EINVAL;
+				}
 			}
+
 			fallthrough;
 		case KF_ARG_PTR_TO_CTX:
 			/* Trusted arguments have the same offset checks as release arguments */
@@ -8839,7 +8858,7 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 		case KF_ARG_PTR_TO_BTF_ID:
 			/* Only base_type is checked, further checks are done here */
 			if ((base_type(reg->type) != PTR_TO_BTF_ID ||
-			     bpf_type_has_unsafe_modifiers(reg->type)) &&
+			     (bpf_type_has_unsafe_modifiers(reg->type) && !is_rcu_reg(reg))) &&
 			    !reg2btf_ids[base_type(reg->type)]) {
 				verbose(env, "arg#%d is %s ", i, reg_type_str(env, reg->type));
 				verbose(env, "expected %s or socket\n",
@@ -8954,7 +8973,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		} else if (rcu_unlock) {
 			bpf_for_each_reg_in_vstate(env->cur_state, state, reg, ({
 				if (reg->type & MEM_RCU) {
-					reg->type &= ~(MEM_RCU | PTR_TRUSTED);
+					reg->type &= ~(MEM_RCU | PTR_MAYBE_NULL);
 					reg->type |= PTR_UNTRUSTED;
 				}
 			}));
@@ -11294,7 +11313,7 @@ static void mark_ptr_or_null_reg(struct bpf_func_state *state,
 				 bool is_null)
 {
 	if (type_may_be_null(reg->type) && reg->id == id &&
-	    !WARN_ON_ONCE(!reg->id)) {
+	    (is_rcu_reg(reg) || !WARN_ON_ONCE(!reg->id))) {
 		/* Old offset (both fixed and variable parts) should have been
 		 * known-zero, because we don't allow pointer arithmetic on
 		 * pointers that might be NULL. If we see this happening, don't
