@@ -337,8 +337,8 @@ resource_size_t cxl_rcrb_to_component(struct device *dev,
 				      enum cxl_rcrb which)
 {
 	resource_size_t component_reg_phys;
+	void __iomem *addr;
 	u32 bar0, bar1;
-	void *addr;
 	u16 cmd;
 	u32 id;
 
