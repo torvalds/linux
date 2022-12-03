@@ -172,6 +172,8 @@ int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id);
 struct vcap_rule *vcap_copy_rule(struct vcap_rule *rule);
 /* Get rule from a VCAP instance */
 struct vcap_rule *vcap_get_rule(struct vcap_control *vctrl, u32 id);
+/* Update existing rule */
+int vcap_mod_rule(struct vcap_rule *rule);
 
 /* Update the keyset for the rule */
 int vcap_set_rule_set_keyset(struct vcap_rule *rule,

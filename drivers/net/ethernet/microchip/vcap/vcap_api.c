@@ -1955,6 +1955,42 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(vcap_get_rule);
 
+/* Update existing rule */
+int vcap_mod_rule(struct vcap_rule *rule)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	struct vcap_counter ctr;
+	int err;
+
+	err = vcap_api_check(ri->vctrl);
+	if (err)
+		return err;
+
+	if (!vcap_lookup_rule(ri->vctrl, ri->data.id))
+		return -ENOENT;
+
+	mutex_lock(&ri->admin->lock);
+	/* Encode the bitstreams to the VCAP cache */
+	vcap_erase_cache(ri);
+	err = vcap_encode_rule(ri);
+	if (err)
+		goto out;
+
+	err = vcap_write_rule(ri);
+	if (err)
+		goto out;
+
+	memset(&ctr, 0, sizeof(ctr));
+	err =  vcap_write_counter(ri, &ctr);
+	if (err)
+		goto out;
+
+out:
+	mutex_unlock(&ri->admin->lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(vcap_mod_rule);
+
 /* Return the alignment offset for a new rule address */
 static int vcap_valid_rule_move(struct vcap_rule_internal *el, int offset)
 {
