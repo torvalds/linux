@@ -11,8 +11,8 @@
 struct mlx5e_post_meter_priv {
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
-	struct mlx5_flow_handle *fwd_green_rule;
-	struct mlx5_flow_handle *drop_red_rule;
+	struct mlx5_flow_handle *green_rule;
+	struct mlx5_flow_handle *red_rule;
 };
 
 struct mlx5_flow_table *
@@ -85,8 +85,8 @@ static int
 mlx5e_post_meter_rules_create(struct mlx5e_priv *priv,
 			      struct mlx5e_post_meter_priv *post_meter,
 			      struct mlx5e_post_act *post_act,
-			      struct mlx5_fc *green_counter,
-			      struct mlx5_fc *red_counter)
+			      struct mlx5_fc *act_counter,
+			      struct mlx5_fc *drop_counter)
 {
 	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {};
@@ -104,7 +104,7 @@ mlx5e_post_meter_rules_create(struct mlx5e_priv *priv,
 			  MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	dest[0].counter_id = mlx5_fc_id(red_counter);
+	dest[0].counter_id = mlx5_fc_id(drop_counter);
 
 	rule = mlx5_add_flow_rules(post_meter->ft, spec, &flow_act, dest, 1);
 	if (IS_ERR(rule)) {
@@ -112,7 +112,7 @@ mlx5e_post_meter_rules_create(struct mlx5e_priv *priv,
 		err = PTR_ERR(rule);
 		goto err_red;
 	}
-	post_meter->drop_red_rule = rule;
+	post_meter->red_rule = rule;
 
 	mlx5e_tc_match_to_reg_match(spec, PACKET_COLOR_TO_REG,
 				    MLX5_FLOW_METER_COLOR_GREEN, MLX5_PACKET_COLOR_MASK);
@@ -121,7 +121,7 @@ mlx5e_post_meter_rules_create(struct mlx5e_priv *priv,
 	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest[0].ft = mlx5e_tc_post_act_get_ft(post_act);
 	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	dest[1].counter_id = mlx5_fc_id(green_counter);
+	dest[1].counter_id = mlx5_fc_id(act_counter);
 
 	rule = mlx5_add_flow_rules(post_meter->ft, spec, &flow_act, dest, 2);
 	if (IS_ERR(rule)) {
@@ -129,13 +129,13 @@ mlx5e_post_meter_rules_create(struct mlx5e_priv *priv,
 		err = PTR_ERR(rule);
 		goto err_green;
 	}
-	post_meter->fwd_green_rule = rule;
+	post_meter->green_rule = rule;
 
 	kvfree(spec);
 	return 0;
 
 err_green:
-	mlx5_del_flow_rules(post_meter->drop_red_rule);
+	mlx5_del_flow_rules(post_meter->red_rule);
 err_red:
 	kvfree(spec);
 	return err;
@@ -144,8 +144,8 @@ err_red:
 static void
 mlx5e_post_meter_rules_destroy(struct mlx5e_post_meter_priv *post_meter)
 {
-	mlx5_del_flow_rules(post_meter->drop_red_rule);
-	mlx5_del_flow_rules(post_meter->fwd_green_rule);
+	mlx5_del_flow_rules(post_meter->red_rule);
+	mlx5_del_flow_rules(post_meter->green_rule);
 }
 
 static void
@@ -164,8 +164,8 @@ struct mlx5e_post_meter_priv *
 mlx5e_post_meter_init(struct mlx5e_priv *priv,
 		      enum mlx5_flow_namespace_type ns_type,
 		      struct mlx5e_post_act *post_act,
-		      struct mlx5_fc *green_counter,
-		      struct mlx5_fc *red_counter)
+		      struct mlx5_fc *act_counter,
+		      struct mlx5_fc *drop_counter)
 {
 	struct mlx5e_post_meter_priv *post_meter;
 	int err;
@@ -182,8 +182,8 @@ mlx5e_post_meter_init(struct mlx5e_priv *priv,
 	if (err)
 		goto err_fg;
 
-	err = mlx5e_post_meter_rules_create(priv, post_meter, post_act, green_counter,
-					    red_counter);
+	err = mlx5e_post_meter_rules_create(priv, post_meter, post_act,
+					    act_counter, drop_counter);
 	if (err)
 		goto err_rules;
 
