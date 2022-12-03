@@ -208,6 +208,7 @@ union ifs_status {
  * @status: it holds simple status pass/fail/untested
  * @scan_details: opaque scan status code from h/w
  * @cur_batch: number indicating the currently loaded test file
+ * @test_num: number indicating the test type
  */
 struct ifs_data {
 	int	integrity_cap_bit;
