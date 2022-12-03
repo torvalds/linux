@@ -160,6 +160,7 @@ static struct lock_class_key tc_ht_lock_key;
 
 static void mlx5e_put_flow_tunnel_id(struct mlx5e_tc_flow *flow);
 static void free_flow_post_acts(struct mlx5e_tc_flow *flow);
+static void mlx5_free_flow_attr(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *attr);
 
 void
 mlx5e_tc_match_to_reg_match(struct mlx5_flow_spec *spec,
@@ -1784,6 +1785,20 @@ post_process_attr(struct mlx5e_tc_flow *flow,
 		}
 	}
 
+	if (attr->branch_true &&
+	    attr->branch_true->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+		err = mlx5e_tc_add_flow_mod_hdr(flow->priv, flow, attr->branch_true);
+		if (err)
+			goto err_out;
+	}
+
+	if (attr->branch_false &&
+	    attr->branch_false->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+		err = mlx5e_tc_add_flow_mod_hdr(flow->priv, flow, attr->branch_false);
+		if (err)
+			goto err_out;
+	}
+
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		err = alloc_flow_attr_counter(get_flow_counter_dev(flow), attr);
 		if (err)
@@ -1932,6 +1947,16 @@ static bool mlx5_flow_has_geneve_opt(struct mlx5e_tc_flow *flow)
 	return !!geneve_tlv_opt_0_data;
 }
 
+static void free_branch_attr(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *attr)
+{
+	if (!attr)
+		return;
+
+	mlx5_free_flow_attr(flow, attr);
+	kvfree(attr->parse_attr);
+	kfree(attr);
+}
+
 static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 				  struct mlx5e_tc_flow *flow)
 {
@@ -1987,6 +2012,8 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 		mlx5e_detach_decap(priv, flow);
 
 	free_flow_post_acts(flow);
+	free_branch_attr(flow, attr->branch_true);
+	free_branch_attr(flow, attr->branch_false);
 
 	if (flow->attr->lag.count)
 		mlx5_lag_del_mpesw_rule(esw->dev);
@@ -3659,6 +3686,8 @@ mlx5e_clone_flow_attr_for_post_act(struct mlx5_flow_attr *attr,
 		attr2->esw_attr->split_count = 0;
 	}
 
+	attr2->branch_true = NULL;
+	attr2->branch_false = NULL;
 	return attr2;
 }
 
@@ -3697,28 +3726,15 @@ mlx5e_tc_unoffload_flow_post_acts(struct mlx5e_tc_flow *flow)
 static void
 free_flow_post_acts(struct mlx5e_tc_flow *flow)
 {
-	struct mlx5_core_dev *counter_dev = get_flow_counter_dev(flow);
-	struct mlx5e_post_act *post_act = get_post_action(flow->priv);
 	struct mlx5_flow_attr *attr, *tmp;
-	bool vf_tun;
 
 	list_for_each_entry_safe(attr, tmp, &flow->attrs, list) {
 		if (list_is_last(&attr->list, &flow->attrs))
 			break;
 
-		if (attr->post_act_handle)
-			mlx5e_tc_post_act_del(post_act, attr->post_act_handle);
-
-		clean_encap_dests(flow->priv, flow, attr, &vf_tun);
-
-		if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
-			mlx5_fc_destroy(counter_dev, attr->counter);
-
-		if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
-			mlx5e_mod_hdr_dealloc(&attr->parse_attr->mod_hdr_acts);
-			if (attr->modify_hdr)
-				mlx5_modify_header_dealloc(flow->priv->mdev, attr->modify_hdr);
-		}
+		mlx5_free_flow_attr(flow, attr);
+		free_branch_attr(flow, attr->branch_true);
+		free_branch_attr(flow, attr->branch_false);
 
 		list_del(&attr->list);
 		kvfree(attr->parse_attr);
@@ -3826,6 +3842,86 @@ out_free:
 }
 
 static int
+alloc_branch_attr(struct mlx5e_tc_flow *flow,
+		  struct mlx5e_tc_act_branch_ctrl *cond,
+		  struct mlx5_flow_attr **cond_attr,
+		  u32 *jump_count,
+		  struct netlink_ext_ack *extack)
+{
+	struct mlx5_flow_attr *attr;
+	int err = 0;
+
+	*cond_attr = mlx5e_clone_flow_attr_for_post_act(flow->attr,
+							mlx5e_get_flow_namespace(flow));
+	if (!(*cond_attr))
+		return -ENOMEM;
+
+	attr = *cond_attr;
+
+	switch (cond->act_id) {
+	case FLOW_ACTION_DROP:
+		attr->action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
+		break;
+	case FLOW_ACTION_ACCEPT:
+	case FLOW_ACTION_PIPE:
+		attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+		attr->dest_ft = mlx5e_tc_post_act_get_ft(get_post_action(flow->priv));
+		break;
+	case FLOW_ACTION_JUMP:
+		if (*jump_count) {
+			NL_SET_ERR_MSG_MOD(extack, "Cannot offload flows with nested jumps");
+			err = -EOPNOTSUPP;
+			goto out_err;
+		}
+		*jump_count = cond->extval;
+		attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+		attr->dest_ft = mlx5e_tc_post_act_get_ft(get_post_action(flow->priv));
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		goto out_err;
+	}
+
+	return err;
+out_err:
+	kfree(*cond_attr);
+	*cond_attr = NULL;
+	return err;
+}
+
+static int
+parse_branch_ctrl(struct flow_action_entry *act, struct mlx5e_tc_act *tc_act,
+		  struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *attr,
+		  struct netlink_ext_ack *extack)
+{
+	struct mlx5e_tc_act_branch_ctrl cond_true, cond_false;
+	u32 jump_count;
+	int err;
+
+	if (!tc_act->get_branch_ctrl)
+		return 0;
+
+	tc_act->get_branch_ctrl(act, &cond_true, &cond_false);
+
+	err = alloc_branch_attr(flow, &cond_true,
+				&attr->branch_true, &jump_count, extack);
+	if (err)
+		goto out_err;
+
+	err = alloc_branch_attr(flow, &cond_false,
+				&attr->branch_false, &jump_count, extack);
+	if (err)
+		goto err_branch_false;
+
+	return 0;
+
+err_branch_false:
+	free_branch_attr(flow, attr->branch_true);
+out_err:
+	return err;
+}
+
+static int
 parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
 		 struct flow_action *flow_action)
 {
@@ -3865,6 +3961,10 @@ parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
 		}
 
 		err = tc_act->parse_action(parse_state, act, priv, attr);
+		if (err)
+			goto out_free;
+
+		err = parse_branch_ctrl(act, tc_act, flow, attr, extack);
 		if (err)
 			goto out_free;
 
@@ -4194,6 +4294,30 @@ mlx5_alloc_flow_attr(enum mlx5_flow_namespace_type type)
 
 	INIT_LIST_HEAD(&attr->list);
 	return attr;
+}
+
+static void
+mlx5_free_flow_attr(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *attr)
+{
+	struct mlx5_core_dev *counter_dev = get_flow_counter_dev(flow);
+	bool vf_tun;
+
+	if (!attr)
+		return;
+
+	if (attr->post_act_handle)
+		mlx5e_tc_post_act_del(get_post_action(flow->priv), attr->post_act_handle);
+
+	clean_encap_dests(flow->priv, flow, attr, &vf_tun);
+
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
+		mlx5_fc_destroy(counter_dev, attr->counter);
+
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+		mlx5e_mod_hdr_dealloc(&attr->parse_attr->mod_hdr_acts);
+		if (attr->modify_hdr)
+			mlx5_modify_header_dealloc(flow->priv->mdev, attr->modify_hdr);
+	}
 }
 
 static int

@@ -95,6 +95,8 @@ struct mlx5_flow_attr {
 		 */
 		bool count;
 	} lag;
+	struct mlx5_flow_attr *branch_true;
+	struct mlx5_flow_attr *branch_false;
 	/* keep this union last */
 	union {
 		DECLARE_FLEX_ARRAY(struct mlx5_esw_flow_attr, esw_attr);
