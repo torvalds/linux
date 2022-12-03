@@ -4939,10 +4939,17 @@ static int apply_police_params(struct mlx5e_priv *priv, u64 rate,
 	return err;
 }
 
-int mlx5e_policer_validate(const struct flow_action *action,
-			   const struct flow_action_entry *act,
-			   struct netlink_ext_ack *extack)
+static int
+tc_matchall_police_validate(const struct flow_action *action,
+			    const struct flow_action_entry *act,
+			    struct netlink_ext_ack *extack)
 {
+	if (act->police.notexceed.act_id != FLOW_ACTION_CONTINUE) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not continue");
+		return -EOPNOTSUPP;
+	}
+
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Offload not supported when exceed action is not drop");
@@ -4993,13 +5000,7 @@ static int scan_tc_matchall_fdb_actions(struct mlx5e_priv *priv,
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
 		case FLOW_ACTION_POLICE:
-			if (act->police.notexceed.act_id != FLOW_ACTION_CONTINUE) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "Offload not supported when conform action is not continue");
-				return -EOPNOTSUPP;
-			}
-
-			err = mlx5e_policer_validate(flow_action, act, extack);
+			err = tc_matchall_police_validate(flow_action, act, extack);
 			if (err)
 				return err;
 
