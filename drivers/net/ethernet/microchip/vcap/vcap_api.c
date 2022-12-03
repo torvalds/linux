@@ -2338,6 +2338,22 @@ int vcap_rule_add_key_u128(struct vcap_rule *rule, enum vcap_key_field key,
 }
 EXPORT_SYMBOL_GPL(vcap_rule_add_key_u128);
 
+int vcap_rule_get_key_u32(struct vcap_rule *rule, enum vcap_key_field key,
+			  u32 *value, u32 *mask)
+{
+	struct vcap_client_keyfield *ckf;
+
+	ckf = vcap_find_keyfield(rule, key);
+	if (!ckf)
+		return -ENOENT;
+
+	*value = ckf->data.u32.value;
+	*mask = ckf->data.u32.mask;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vcap_rule_get_key_u32);
+
 /* Find a client action field in a rule */
 static struct vcap_client_actionfield *
 vcap_find_actionfield(struct vcap_rule *rule, enum vcap_action_field act)
