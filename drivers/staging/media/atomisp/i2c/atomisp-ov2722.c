@@ -994,6 +994,7 @@ out_ctrl_handler_free:
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 
 out_free:
+	atomisp_gmin_remove_subdev(&dev->sd);
 	v4l2_device_unregister_subdev(&dev->sd);
 	kfree(dev);
 	return ret;
