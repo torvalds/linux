@@ -651,7 +651,6 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 	if (!ov2722_info)
 		return -EINVAL;
 
-	mutex_lock(&dev->input_lock);
 	res = v4l2_find_nearest_size(ov2722_res_preview,
 				     ARRAY_SIZE(ov2722_res_preview), width,
 				     height, fmt->width, fmt->height);
@@ -665,10 +664,10 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		sd_state->pads->try_fmt = *fmt;
-		mutex_unlock(&dev->input_lock);
 		return 0;
 	}
 
+	mutex_lock(&dev->input_lock);
 
 	dev->pixels_per_line = dev->res->pixels_per_line;
 	dev->lines_per_frame = dev->res->lines_per_frame;
