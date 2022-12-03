@@ -443,11 +443,22 @@ static int lan966x_port_ioctl(struct net_device *dev, struct ifreq *ifr,
 			      int cmd)
 {
 	struct lan966x_port *port = netdev_priv(dev);
+	int err;
+
+	if (cmd == SIOCSHWTSTAMP) {
+		err = lan966x_ptp_setup_traps(port, ifr);
+		if (err)
+			return err;
+	}
 
 	if (!phy_has_hwtstamp(dev->phydev) && port->lan966x->ptp) {
 		switch (cmd) {
 		case SIOCSHWTSTAMP:
-			return lan966x_ptp_hwtstamp_set(port, ifr);
+			err = lan966x_ptp_hwtstamp_set(port, ifr);
+			if (err)
+				lan966x_ptp_del_traps(port);
+
+			return err;
 		case SIOCGHWTSTAMP:
 			return lan966x_ptp_hwtstamp_get(port, ifr);
 		}
@@ -456,7 +467,11 @@ static int lan966x_port_ioctl(struct net_device *dev, struct ifreq *ifr,
 	if (!dev->phydev)
 		return -ENODEV;
 
-	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+	err = phy_mii_ioctl(dev->phydev, ifr, cmd);
+	if (err && cmd == SIOCSHWTSTAMP)
+		lan966x_ptp_del_traps(port);
+
+	return err;
 }
 
 static const struct net_device_ops lan966x_port_netdev_ops = {

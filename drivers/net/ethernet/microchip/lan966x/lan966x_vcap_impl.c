@@ -5,10 +5,6 @@
 #include "vcap_api.h"
 #include "vcap_api_client.h"
 
-#define LAN966X_VCAP_CID_IS2_L0 VCAP_CID_INGRESS_STAGE2_L0 /* IS2 lookup 0 */
-#define LAN966X_VCAP_CID_IS2_L1 VCAP_CID_INGRESS_STAGE2_L1 /* IS2 lookup 1 */
-#define LAN966X_VCAP_CID_IS2_MAX (VCAP_CID_INGRESS_STAGE2_L2 - 1) /* IS2 Max */
-
 #define STREAMSIZE (64 * 4)
 
 #define LAN966X_IS2_LOOKUPS 2
@@ -219,9 +215,12 @@ static void lan966x_vcap_add_default_fields(struct net_device *dev,
 					    struct vcap_rule *rule)
 {
 	struct lan966x_port *port = netdev_priv(dev);
+	u32 value, mask;
 
-	vcap_rule_add_key_u32(rule, VCAP_KF_IF_IGR_PORT_MASK, 0,
-			      ~BIT(port->chip_port));
+	if (vcap_rule_get_key_u32(rule, VCAP_KF_IF_IGR_PORT_MASK,
+				  &value, &mask))
+		vcap_rule_add_key_u32(rule, VCAP_KF_IF_IGR_PORT_MASK, 0,
+				      ~BIT(port->chip_port));
 
 	if (lan966x_vcap_is_first_chain(rule))
 		vcap_rule_add_key_bit(rule, VCAP_KF_LOOKUP_FIRST_IS,
