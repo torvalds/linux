@@ -225,7 +225,7 @@ struct btree_path {
 	/* btree_iter_copy starts here: */
 	struct bpos		pos;
 
-	enum btree_id		btree_id:4;
+	enum btree_id		btree_id:5;
 	bool			cached:1;
 	bool			preserve:1;
 	enum btree_path_uptodate uptodate:2;
@@ -235,7 +235,7 @@ struct btree_path {
 	 */
 	bool			should_be_locked:1;
 	unsigned		level:3,
-				locks_want:4;
+				locks_want:3;
 	u8			nodes_locked;
 
 	struct btree_path_level {
@@ -269,7 +269,7 @@ struct btree_iter {
 	struct btree_path	*update_path;
 	struct btree_path	*key_cache_path;
 
-	enum btree_id		btree_id:4;
+	enum btree_id		btree_id:8;
 	unsigned		min_depth:3;
 	unsigned		advanced:1;
 
