@@ -60,6 +60,8 @@ struct mlx5e_tc_act {
 
 	int (*stats_action)(struct mlx5e_priv *priv,
 			    struct flow_offload_action *fl_act);
+
+	bool is_terminating_action;
 };
 
 struct mlx5e_tc_flow_action {
@@ -81,6 +83,7 @@ extern struct mlx5e_tc_act mlx5e_tc_act_vlan_mangle;
 extern struct mlx5e_tc_act mlx5e_tc_act_mpls_push;
 extern struct mlx5e_tc_act mlx5e_tc_act_mpls_pop;
 extern struct mlx5e_tc_act mlx5e_tc_act_mirred;
+extern struct mlx5e_tc_act mlx5e_tc_act_redirect;
 extern struct mlx5e_tc_act mlx5e_tc_act_mirred_nic;
 extern struct mlx5e_tc_act mlx5e_tc_act_ct;
 extern struct mlx5e_tc_act mlx5e_tc_act_sample;
