@@ -103,6 +103,7 @@ static struct {
 	{"task_kfunc_release_null", "arg#0 is ptr_or_null_ expected ptr_ or socket"},
 	{"task_kfunc_release_unacquired", "release kernel function bpf_task_release expects"},
 	{"task_kfunc_from_pid_no_null_check", "arg#0 is ptr_or_null_ expected ptr_ or socket"},
+	{"task_kfunc_from_lsm_task_free", "reg type unsupported for arg#0 function"},
 };
 
 static void verify_fail(const char *prog_name, const char *expected_err_msg)

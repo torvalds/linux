@@ -19,6 +19,7 @@
 #include <linux/bpf_verifier.h>
 #include <linux/btf.h>
 #include <linux/btf_ids.h>
+#include <linux/bpf_lsm.h>
 #include <linux/skmsg.h>
 #include <linux/perf_event.h>
 #include <linux/bsearch.h>
@@ -5829,6 +5830,7 @@ static bool prog_args_trusted(const struct bpf_prog *prog)
 	case BPF_PROG_TYPE_TRACING:
 		return atype == BPF_TRACE_RAW_TP || atype == BPF_TRACE_ITER;
 	case BPF_PROG_TYPE_LSM:
+		return bpf_lsm_is_trusted(prog);
 	case BPF_PROG_TYPE_STRUCT_OPS:
 		return true;
 	default:
