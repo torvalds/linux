@@ -1962,6 +1962,9 @@ _mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 	if (flow_act->fg && ft->autogroup.active)
 		return ERR_PTR(-EINVAL);
 
+	if (dest && dest_num <= 0)
+		return ERR_PTR(-EINVAL);
+
 	for (i = 0; i < dest_num; i++) {
 		if (!dest_is_valid(&dest[i], flow_act, ft))
 			return ERR_PTR(-EINVAL);
