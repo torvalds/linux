@@ -147,6 +147,19 @@ tc_act_police_stats(struct mlx5e_priv *priv,
 	return 0;
 }
 
+static bool
+tc_act_police_get_branch_ctrl(const struct flow_action_entry *act,
+			      struct mlx5e_tc_act_branch_ctrl *cond_true,
+			      struct mlx5e_tc_act_branch_ctrl *cond_false)
+{
+	cond_true->act_id = act->police.notexceed.act_id;
+	cond_true->extval = act->police.notexceed.extval;
+
+	cond_false->act_id = act->police.exceed.act_id;
+	cond_false->extval = act->police.exceed.extval;
+	return true;
+}
+
 struct mlx5e_tc_act mlx5e_tc_act_police = {
 	.can_offload = tc_act_can_offload_police,
 	.parse_action = tc_act_parse_police,
@@ -154,4 +167,5 @@ struct mlx5e_tc_act mlx5e_tc_act_police = {
 	.offload_action = tc_act_police_offload,
 	.destroy_action = tc_act_police_destroy,
 	.stats_action = tc_act_police_stats,
+	.get_branch_ctrl = tc_act_police_get_branch_ctrl,
 };
