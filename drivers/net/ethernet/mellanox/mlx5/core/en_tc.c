@@ -132,6 +132,15 @@ struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[] = {
 	[PACKET_COLOR_TO_REG] = packet_color_to_reg,
 };
 
+struct mlx5e_tc_jump_state {
+	u32 jump_count;
+	bool jump_target;
+	struct mlx5_flow_attr *jumping_attr;
+
+	enum flow_action_id last_id;
+	u32 last_index;
+};
+
 struct mlx5e_tc_table *mlx5e_tc_table_alloc(void)
 {
 	struct mlx5e_tc_table *tc;
@@ -3688,6 +3697,7 @@ mlx5e_clone_flow_attr_for_post_act(struct mlx5_flow_attr *attr,
 
 	attr2->branch_true = NULL;
 	attr2->branch_false = NULL;
+	attr2->jumping_attr = NULL;
 	return attr2;
 }
 
@@ -3796,7 +3806,9 @@ alloc_flow_post_acts(struct mlx5e_tc_flow *flow, struct netlink_ext_ack *extack)
 		if (!next_attr) {
 			/* Set counter action on last post act rule. */
 			attr->action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
-		} else {
+		}
+
+		if (next_attr && !(attr->flags & MLX5_ATTR_FLAG_TERMINATING)) {
 			err = mlx5e_tc_act_set_next_post_act(flow, attr, next_attr);
 			if (err)
 				goto out_free;
@@ -3823,6 +3835,13 @@ alloc_flow_post_acts(struct mlx5e_tc_flow *flow, struct netlink_ext_ack *extack)
 		}
 
 		attr->post_act_handle = handle;
+
+		if (attr->jumping_attr) {
+			err = mlx5e_tc_act_set_next_post_act(flow, attr->jumping_attr, attr);
+			if (err)
+				goto out_free;
+		}
+
 		next_attr = attr;
 	}
 
@@ -3889,13 +3908,58 @@ out_err:
 	return err;
 }
 
+static void
+dec_jump_count(struct flow_action_entry *act, struct mlx5e_tc_act *tc_act,
+	       struct mlx5_flow_attr *attr, struct mlx5e_priv *priv,
+	       struct mlx5e_tc_jump_state *jump_state)
+{
+	if (!jump_state->jump_count)
+		return;
+
+	/* Single tc action can instantiate multiple offload actions (e.g. pedit)
+	 * Jump only over a tc action
+	 */
+	if (act->id == jump_state->last_id && act->hw_index == jump_state->last_index)
+		return;
+
+	jump_state->last_id = act->id;
+	jump_state->last_index = act->hw_index;
+
+	/* nothing to do for intermediate actions */
+	if (--jump_state->jump_count > 1)
+		return;
+
+	if (jump_state->jump_count == 1) { /* last action in the jump action list */
+
+		/* create a new attribute after this action */
+		jump_state->jump_target = true;
+
+		if (tc_act->is_terminating_action) { /* the branch ends here */
+			attr->flags |= MLX5_ATTR_FLAG_TERMINATING;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
+		} else { /* the branch continues executing the rest of the actions */
+			struct mlx5e_post_act *post_act;
+
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+			post_act = get_post_action(priv);
+			attr->dest_ft = mlx5e_tc_post_act_get_ft(post_act);
+		}
+	} else if (jump_state->jump_count == 0) { /* first attr after the jump action list */
+		/* This is the post action for the jumping attribute (either red or green)
+		 * Use the stored jumping_attr to set the post act id on the jumping attribute
+		 */
+		attr->jumping_attr = jump_state->jumping_attr;
+	}
+}
+
 static int
 parse_branch_ctrl(struct flow_action_entry *act, struct mlx5e_tc_act *tc_act,
 		  struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *attr,
+		  struct mlx5e_tc_jump_state *jump_state,
 		  struct netlink_ext_ack *extack)
 {
 	struct mlx5e_tc_act_branch_ctrl cond_true, cond_false;
-	u32 jump_count;
+	u32 jump_count = jump_state->jump_count;
 	int err;
 
 	if (!tc_act->get_branch_ctrl)
@@ -3908,11 +3972,18 @@ parse_branch_ctrl(struct flow_action_entry *act, struct mlx5e_tc_act *tc_act,
 	if (err)
 		goto out_err;
 
+	if (jump_count)
+		jump_state->jumping_attr = attr->branch_true;
+
 	err = alloc_branch_attr(flow, &cond_false,
 				&attr->branch_false, &jump_count, extack);
 	if (err)
 		goto err_branch_false;
 
+	if (jump_count && !jump_state->jumping_attr)
+		jump_state->jumping_attr = attr->branch_false;
+
+	jump_state->jump_count = jump_count;
 	return 0;
 
 err_branch_false:
@@ -3928,6 +3999,7 @@ parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
 	struct netlink_ext_ack *extack = parse_state->extack;
 	struct mlx5e_tc_flow_action flow_action_reorder;
 	struct mlx5e_tc_flow *flow = parse_state->flow;
+	struct mlx5e_tc_jump_state jump_state = {};
 	struct mlx5_flow_attr *attr = flow->attr;
 	enum mlx5_flow_namespace_type ns_type;
 	struct mlx5e_priv *priv = flow->priv;
@@ -3947,6 +4019,7 @@ parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
 	list_add(&attr->list, &flow->attrs);
 
 	flow_action_for_each(i, _act, &flow_action_reorder) {
+		jump_state.jump_target = false;
 		act = *_act;
 		tc_act = mlx5e_tc_act_get(act->id, ns_type);
 		if (!tc_act) {
@@ -3964,16 +4037,19 @@ parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
 		if (err)
 			goto out_free;
 
-		err = parse_branch_ctrl(act, tc_act, flow, attr, extack);
+		dec_jump_count(act, tc_act, attr, priv, &jump_state);
+
+		err = parse_branch_ctrl(act, tc_act, flow, attr, &jump_state, extack);
 		if (err)
 			goto out_free;
 
 		parse_state->actions |= attr->action;
 
 		/* Split attr for multi table act if not the last act. */
-		if (tc_act->is_multi_table_act &&
+		if (jump_state.jump_target ||
+		    (tc_act->is_multi_table_act &&
 		    tc_act->is_multi_table_act(priv, act, attr) &&
-		    i < flow_action_reorder.num_entries - 1) {
+		    i < flow_action_reorder.num_entries - 1)) {
 			err = mlx5e_tc_act_post_parse(parse_state, flow_action, attr, ns_type);
 			if (err)
 				goto out_free;
