@@ -1725,6 +1725,30 @@ clean_encap_dests(struct mlx5e_priv *priv,
 }
 
 static int
+verify_attr_actions(u32 actions, struct netlink_ext_ack *extack)
+{
+	if (!(actions &
+	      (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_DROP))) {
+		NL_SET_ERR_MSG_MOD(extack, "Rule must have at least one forward/drop action");
+		return -EOPNOTSUPP;
+	}
+
+	if (!(~actions &
+	      (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_DROP))) {
+		NL_SET_ERR_MSG_MOD(extack, "Rule cannot support forward+drop action");
+		return -EOPNOTSUPP;
+	}
+
+	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
+	    actions & MLX5_FLOW_CONTEXT_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack, "Drop with modify header action is not supported");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
 post_process_attr(struct mlx5e_tc_flow *flow,
 		  struct mlx5_flow_attr *attr,
 		  bool is_post_act_attr,
@@ -1733,6 +1757,10 @@ post_process_attr(struct mlx5e_tc_flow *flow,
 	struct mlx5_eswitch *esw = flow->priv->mdev->priv.eswitch;
 	bool vf_tun;
 	int err = 0;
+
+	err = verify_attr_actions(attr->action, extack);
+	if (err)
+		goto err_out;
 
 	err = set_encap_dests(flow->priv, flow, attr, extack, &vf_tun);
 	if (err)
@@ -3532,36 +3560,6 @@ actions_match_supported(struct mlx5e_priv *priv,
 	ct_clear = flow->attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR;
 	ct_flow = flow_flag_test(flow, CT) && !ct_clear;
 
-	if (!(actions &
-	      (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_DROP))) {
-		NL_SET_ERR_MSG_MOD(extack, "Rule must have at least one forward/drop action");
-		return false;
-	}
-
-	if (!(~actions &
-	      (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_DROP))) {
-		NL_SET_ERR_MSG_MOD(extack, "Rule cannot support forward+drop action");
-		return false;
-	}
-
-	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
-	    actions & MLX5_FLOW_CONTEXT_ACTION_DROP) {
-		NL_SET_ERR_MSG_MOD(extack, "Drop with modify header action is not supported");
-		return false;
-	}
-
-	if (!(~actions &
-	      (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_DROP))) {
-		NL_SET_ERR_MSG_MOD(extack, "Rule cannot support forward+drop action");
-		return false;
-	}
-
-	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
-	    actions & MLX5_FLOW_CONTEXT_ACTION_DROP) {
-		NL_SET_ERR_MSG_MOD(extack, "Drop with modify header action is not supported");
-		return false;
-	}
-
 	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
 	    !modify_header_match_supported(priv, &parse_attr->spec, flow_action,
 					   actions, ct_flow, ct_clear, extack))
@@ -3954,6 +3952,10 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 		return err;
 
 	err = actions_prepare_mod_hdr_actions(priv, flow, attr, extack);
+	if (err)
+		return err;
+
+	err = verify_attr_actions(attr->action, extack);
 	if (err)
 		return err;
 
