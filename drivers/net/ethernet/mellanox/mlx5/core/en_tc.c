@@ -606,6 +606,12 @@ int mlx5e_get_flow_namespace(struct mlx5e_tc_flow *flow)
 		MLX5_FLOW_NAMESPACE_FDB : MLX5_FLOW_NAMESPACE_KERNEL;
 }
 
+static struct mlx5_core_dev *
+get_flow_counter_dev(struct mlx5e_tc_flow *flow)
+{
+	return mlx5e_is_eswitch_flow(flow) ? flow->attr->esw_attr->counter_dev : flow->priv->mdev;
+}
+
 static struct mod_hdr_tbl *
 get_mod_hdr_table(struct mlx5e_priv *priv, struct mlx5e_tc_flow *flow)
 {
@@ -1719,6 +1725,48 @@ clean_encap_dests(struct mlx5e_priv *priv,
 }
 
 static int
+post_process_attr(struct mlx5e_tc_flow *flow,
+		  struct mlx5_flow_attr *attr,
+		  bool is_post_act_attr,
+		  struct netlink_ext_ack *extack)
+{
+	struct mlx5_eswitch *esw = flow->priv->mdev->priv.eswitch;
+	bool vf_tun;
+	int err = 0;
+
+	err = set_encap_dests(flow->priv, flow, attr, extack, &vf_tun);
+	if (err)
+		goto err_out;
+
+	if (mlx5e_is_eswitch_flow(flow)) {
+		err = mlx5_eswitch_add_vlan_action(esw, attr);
+		if (err)
+			goto err_out;
+	}
+
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+		if (vf_tun || is_post_act_attr) {
+			err = mlx5e_tc_add_flow_mod_hdr(flow->priv, flow, attr);
+			if (err)
+				goto err_out;
+		} else {
+			err = mlx5e_attach_mod_hdr(flow->priv, flow, attr->parse_attr);
+			if (err)
+				goto err_out;
+		}
+	}
+
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		err = alloc_flow_attr_counter(get_flow_counter_dev(flow), attr);
+		if (err)
+			goto err_out;
+	}
+
+err_out:
+	return err;
+}
+
+static int
 mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow *flow,
 		      struct netlink_ext_ack *extack)
@@ -1728,7 +1776,6 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_flow_attr *attr = flow->attr;
 	struct mlx5_esw_flow_attr *esw_attr;
 	u32 max_prio, max_chain;
-	bool vf_tun;
 	int err = 0;
 
 	parse_attr = attr->parse_attr;
@@ -1818,31 +1865,9 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		esw_attr->int_port = int_port;
 	}
 
-	err = set_encap_dests(priv, flow, attr, extack, &vf_tun);
+	err = post_process_attr(flow, attr, false, extack);
 	if (err)
 		goto err_out;
-
-	err = mlx5_eswitch_add_vlan_action(esw, attr);
-	if (err)
-		goto err_out;
-
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
-		if (vf_tun) {
-			err = mlx5e_tc_add_flow_mod_hdr(priv, flow, attr);
-			if (err)
-				goto err_out;
-		} else {
-			err = mlx5e_attach_mod_hdr(priv, flow, parse_attr);
-			if (err)
-				goto err_out;
-		}
-	}
-
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
-		err = alloc_flow_attr_counter(esw_attr->counter_dev, attr);
-		if (err)
-			goto err_out;
-	}
 
 	/* we get here if one of the following takes place:
 	 * (1) there's no error
@@ -3639,12 +3664,6 @@ mlx5e_clone_flow_attr_for_post_act(struct mlx5_flow_attr *attr,
 	return attr2;
 }
 
-static struct mlx5_core_dev *
-get_flow_counter_dev(struct mlx5e_tc_flow *flow)
-{
-	return mlx5e_is_eswitch_flow(flow) ? flow->attr->esw_attr->counter_dev : flow->priv->mdev;
-}
-
 struct mlx5_flow_attr *
 mlx5e_tc_get_encap_attr(struct mlx5e_tc_flow *flow)
 {
@@ -3754,7 +3773,6 @@ alloc_flow_post_acts(struct mlx5e_tc_flow *flow, struct netlink_ext_ack *extack)
 	struct mlx5e_post_act *post_act = get_post_action(flow->priv);
 	struct mlx5_flow_attr *attr, *next_attr = NULL;
 	struct mlx5e_post_act_handle *handle;
-	bool vf_tun;
 	int err;
 
 	/* This is going in reverse order as needed.
@@ -3776,25 +3794,13 @@ alloc_flow_post_acts(struct mlx5e_tc_flow *flow, struct netlink_ext_ack *extack)
 		if (list_is_last(&attr->list, &flow->attrs))
 			break;
 
-		err = set_encap_dests(flow->priv, flow, attr, extack, &vf_tun);
-		if (err)
-			goto out_free;
-
 		err = actions_prepare_mod_hdr_actions(flow->priv, flow, attr, extack);
 		if (err)
 			goto out_free;
 
-		if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
-			err = mlx5e_tc_add_flow_mod_hdr(flow->priv, flow, attr);
-			if (err)
-				goto out_free;
-		}
-
-		if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
-			err = alloc_flow_attr_counter(get_flow_counter_dev(flow), attr);
-			if (err)
-				goto out_free;
-		}
+		err = post_process_attr(flow, attr, true, extack);
+		if (err)
+			goto out_free;
 
 		handle = mlx5e_tc_post_act_add(post_act, attr);
 		if (IS_ERR(handle)) {
