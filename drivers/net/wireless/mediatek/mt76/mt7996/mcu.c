@@ -335,6 +335,9 @@ mt7996_mcu_rx_radar_detected(struct mt7996_dev *dev, struct sk_buff *skb)
 
 	r = (struct mt7996_mcu_rdd_report *)skb->data;
 
+	if (r->band_idx >= ARRAY_SIZE(dev->mt76.phys))
+		return;
+
 	mphy = dev->mt76.phys[r->band_idx];
 	if (!mphy)
 		return;
