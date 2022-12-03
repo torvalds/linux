@@ -293,6 +293,10 @@ static const struct hwmon_channel_info *hwm_gt_info[] = {
 /* I1 is exposed as power_crit or as curr_crit depending on bit 31 */
 static int hwm_pcode_read_i1(struct drm_i915_private *i915, u32 *uval)
 {
+	/* Avoid ILLEGAL_SUBCOMMAND "mailbox access failed" warning in snb_pcode_read */
+	if (IS_DG1(i915) || IS_DG2(i915))
+		return -ENXIO;
+
 	return snb_pcode_read_p(&i915->uncore, PCODE_POWER_SETUP,
 				POWER_SETUP_SUBCOMMAND_READ_I1, 0, uval);
 }
