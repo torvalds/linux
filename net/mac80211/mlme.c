@@ -3932,7 +3932,6 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 	struct ieee80211_elems_parse_params parse_params = {
 		.start = elem_start,
 		.len = elem_len,
-		.bss = cbss,
 		.link_id = link_id == assoc_data->assoc_link_id ? -1 : link_id,
 		.from_ap = true,
 	};
@@ -4017,6 +4016,7 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 
 		parse_params.start = bss_ies->data;
 		parse_params.len = bss_ies->len;
+		parse_params.bss = cbss;
 		bss_elems = ieee802_11_parse_elems_full(&parse_params);
 		if (!bss_elems) {
 			ret = false;

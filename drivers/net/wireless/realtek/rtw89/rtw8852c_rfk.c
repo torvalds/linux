@@ -1030,9 +1030,9 @@ static bool _iqk_nbtxk(struct rtw89_dev *rtwdev,
 
 static bool _lok_finetune_check(struct rtw89_dev *rtwdev, u8 path)
 {
-	struct rtw89_mcc_info *mcc_info = &rtwdev->mcc;
+	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
 	struct rtw89_iqk_info *iqk_info = &rtwdev->iqk;
-	u8 idx = mcc_info->table_idx;
+	u8 idx = rfk_mcc->table_idx;
 	bool is_fail1,  is_fail2;
 	u32 val;
 	u32 core_i;
@@ -1375,10 +1375,10 @@ static void _iqk_afebb_restore(struct rtw89_dev *rtwdev,
 
 static void _iqk_preset(struct rtw89_dev *rtwdev, u8 path)
 {
-	struct rtw89_mcc_info *mcc_info = &rtwdev->mcc;
+	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
 	u8 idx = 0;
 
-	idx = mcc_info->table_idx;
+	idx = rfk_mcc->table_idx;
 	rtw89_phy_write32_mask(rtwdev, R_COEF_SEL + (path << 8), B_COEF_SEL_IQC, idx);
 	rtw89_phy_write32_mask(rtwdev, R_CFIR_LUT + (path << 8), B_CFIR_LUT_G3, idx);
 	rtw89_write_rf(rtwdev, path, RR_RSV1, RR_RSV1_RST, 0x0);
@@ -3824,20 +3824,20 @@ void rtw8852c_set_channel_rf(struct rtw89_dev *rtwdev,
 void rtw8852c_mcc_get_ch_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
-	struct rtw89_mcc_info *mcc_info = &rtwdev->mcc;
-	u8 idx = mcc_info->table_idx;
+	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
+	u8 idx = rfk_mcc->table_idx;
 	int i;
 
 	for (i = 0; i < RTW89_IQK_CHS_NR; i++) {
-		if (mcc_info->ch[idx] == 0)
+		if (rfk_mcc->ch[idx] == 0)
 			break;
 		if (++idx >= RTW89_IQK_CHS_NR)
 			idx = 0;
 	}
 
-	mcc_info->table_idx = idx;
-	mcc_info->ch[idx] = chan->channel;
-	mcc_info->band[idx] = chan->band_type;
+	rfk_mcc->table_idx = idx;
+	rfk_mcc->ch[idx] = chan->channel;
+	rfk_mcc->band[idx] = chan->band_type;
 }
 
 void rtw8852c_rck(struct rtw89_dev *rtwdev)

@@ -2,6 +2,7 @@
 config MT7915E
 	tristate "MediaTek MT7915E (PCIe) support"
 	select MT76_CONNAC_LIB
+	select WANT_DEV_COREDUMP
 	depends on MAC80211
 	depends on PCI
 	select RELAY

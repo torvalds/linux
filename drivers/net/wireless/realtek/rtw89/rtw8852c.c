@@ -1832,11 +1832,11 @@ static void rtw8852c_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 
 static void rtw8852c_rfk_init(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_mcc_info *mcc_info = &rtwdev->mcc;
+	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
 
 	rtwdev->is_tssi_mode[RF_PATH_A] = false;
 	rtwdev->is_tssi_mode[RF_PATH_B] = false;
-	memset(mcc_info, 0, sizeof(*mcc_info));
+	memset(rfk_mcc, 0, sizeof(*rfk_mcc));
 	rtw8852c_lck_init(rtwdev);
 
 	rtw8852c_rck(rtwdev);
@@ -2891,6 +2891,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 				  BIT(NL80211_BAND_5GHZ) |
 				  BIT(NL80211_BAND_6GHZ),
 	.support_bw160		= true,
+	.support_ul_tb_ctrl     = false,
 	.hw_sec_hdr		= true,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
@@ -2953,6 +2954,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.c2h_ctrl_reg		= R_AX_C2HREG_CTRL_V1,
 	.c2h_regs		= rtw8852c_c2h_regs,
 	.page_regs		= &rtw8852c_page_regs,
+	.cfo_src_fd		= false,
 	.dcfo_comp		= &rtw8852c_dcfo_comp,
 	.dcfo_comp_sft		= 5,
 	.imr_info		= &rtw8852c_imr_info,

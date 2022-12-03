@@ -4742,7 +4742,7 @@ struct ieee80211_iface_limit {
  *
  *	struct ieee80211_iface_limit limits1[] = {
  *		{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
- *		{ .max = 1, .types = BIT(NL80211_IFTYPE_AP}, },
+ *		{ .max = 1, .types = BIT(NL80211_IFTYPE_AP), },
  *	};
  *	struct ieee80211_iface_combination combination1 = {
  *		.limits = limits1,

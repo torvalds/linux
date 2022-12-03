@@ -1807,6 +1807,10 @@ struct ieee80211_vif_cfg {
  * @addr: address of this interface
  * @p2p: indicates whether this AP or STA interface is a p2p
  *	interface, i.e. a GO or p2p-sta respectively
+ * @netdev_features: tx netdev features supported by the hardware for this
+ *	vif. mac80211 initializes this to hw->netdev_features, and the driver
+ *	can mask out specific tx features. mac80211 will handle software fixup
+ *	for masked offloads (GSO, CSUM)
  * @driver_flags: flags/capabilities the driver has for this interface,
  *	these need to be set (or cleared) when the interface is added
  *	or, if supported by the driver, the interface type is changed
@@ -1848,6 +1852,7 @@ struct ieee80211_vif {
 
 	struct ieee80211_txq *txq;
 
+	netdev_features_t netdev_features;
 	u32 driver_flags;
 	u32 offload_flags;
 

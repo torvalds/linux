@@ -311,10 +311,10 @@ EXPORT_SYMBOL(rtw_fw_c2h_cmd_isr);
 static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 				    u8 *h2c)
 {
+	struct rtw_h2c_cmd *h2c_cmd = (struct rtw_h2c_cmd *)h2c;
 	u8 box;
 	u8 box_state;
 	u32 box_reg, box_ex_reg;
-	int idx;
 	int ret;
 
 	rtw_dbg(rtwdev, RTW_DBG_FW,
@@ -356,10 +356,8 @@ static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 		goto out;
 	}
 
-	for (idx = 0; idx < 4; idx++)
-		rtw_write8(rtwdev, box_reg + idx, h2c[idx]);
-	for (idx = 0; idx < 4; idx++)
-		rtw_write8(rtwdev, box_ex_reg + idx, h2c[idx + 4]);
+	rtw_write32(rtwdev, box_ex_reg, le32_to_cpu(h2c_cmd->msg_ext));
+	rtw_write32(rtwdev, box_reg, le32_to_cpu(h2c_cmd->msg));
 
 	if (++rtwdev->h2c.last_box_num >= 4)
 		rtwdev->h2c.last_box_num = 0;
@@ -820,6 +818,16 @@ void rtw_fw_set_nlo_info(struct rtw_dev *rtwdev, bool enable)
 		SET_NLO_IGNORE_SECURITY(h2c_pkt, enable);
 		SET_NLO_LOC_NLO_INFO(h2c_pkt, loc_nlo);
 	}
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_set_recover_bt_device(struct rtw_dev *rtwdev)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_RECOVER_BT_DEV);
+	SET_RECOVER_BT_DEV_EN(h2c_pkt, 1);
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }

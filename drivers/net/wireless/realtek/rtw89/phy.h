@@ -64,6 +64,9 @@
 #define MAX_CFO_TOLERANCE 30
 #define CFO_TF_CNT_TH 300
 
+#define UL_TB_TF_CNT_L2H_TH 100
+#define UL_TB_TF_CNT_H2L_TH 70
+
 #define CCX_MAX_PERIOD 2097
 #define CCX_MAX_PERIOD_UNIT 32
 #define MS_TO_4US_RATIO 250
@@ -550,5 +553,7 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif
 void rtw89_phy_tssi_ctrl_set_bandedge_cfg(struct rtw89_dev *rtwdev,
 					  enum rtw89_mac_idx mac_idx,
 					  enum rtw89_tssi_bandedge_cfg bandedge_cfg);
+void rtw89_phy_ul_tb_assoc(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
+void rtw89_phy_ul_tb_ctrl_track(struct rtw89_dev *rtwdev);
 
 #endif

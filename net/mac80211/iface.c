@@ -1849,8 +1849,7 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_stop_vif_queues(local, sdata,
 				  IEEE80211_QUEUE_STOP_REASON_IFTYPE_CHANGE);
-	synchronize_net();
-
+	/* do_stop will synchronize_rcu() first thing */
 	ieee80211_do_stop(sdata, false);
 
 	ieee80211_teardown_sdata(sdata);
@@ -2179,6 +2178,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		ndev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 		ndev->hw_features |= ndev->features &
 					MAC80211_SUPPORTED_FEATURES_TX;
+		sdata->vif.netdev_features = local->hw.netdev_features;
 
 		netdev_set_default_ethtool_ops(ndev, &ieee80211_ethtool_ops);
 
@@ -2195,6 +2195,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 		ret = cfg80211_register_netdevice(ndev);
 		if (ret) {
+			ieee80211_if_free(ndev);
 			free_netdev(ndev);
 			return ret;
 		}

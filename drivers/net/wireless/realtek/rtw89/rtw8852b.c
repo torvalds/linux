@@ -318,27 +318,27 @@ static const struct rtw89_dig_regs rtw8852b_dig_regs = {
 };
 
 static const struct rtw89_btc_rf_trx_para rtw89_btc_8852b_rf_ul[] = {
-	{15, 0, 0, 7}, /* 0 -> original */
-	{15, 2, 0, 7}, /* 1 -> for BT-connected ACI issue && BTG co-rx */
-	{15, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
-	{15, 0, 0, 7}, /* 3- >reserved for shared-antenna */
-	{15, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
-	{15, 0, 0, 7}, /* the below id is for non-shared-antenna free-run */
+	{255, 0, 0, 7}, /* 0 -> original */
+	{255, 2, 0, 7}, /* 1 -> for BT-connected ACI issue && BTG co-rx */
+	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
+	{255, 0, 0, 7}, /* 3- >reserved for shared-antenna */
+	{255, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
+	{255, 0, 0, 7}, /* the below id is for non-shared-antenna free-run */
 	{6, 1, 0, 7},
 	{13, 1, 0, 7},
 	{13, 1, 0, 7}
 };
 
 static const struct rtw89_btc_rf_trx_para rtw89_btc_8852b_rf_dl[] = {
-	{15, 0, 0, 7}, /* 0 -> original */
-	{15, 2, 0, 7}, /* 1 -> reserved for shared-antenna */
-	{15, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
-	{15, 0, 0, 7}, /* 3- >reserved for shared-antenna */
-	{15, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
-	{15, 0, 0, 7}, /* the below id is for non-shared-antenna free-run */
-	{15, 1, 0, 7},
-	{15, 1, 0, 7},
-	{15, 1, 0, 7}
+	{255, 0, 0, 7}, /* 0 -> original */
+	{255, 2, 0, 7}, /* 1 -> reserved for shared-antenna */
+	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
+	{255, 0, 0, 7}, /* 3- >reserved for shared-antenna */
+	{255, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
+	{255, 0, 0, 7}, /* the below id is for non-shared-antenna free-run */
+	{255, 1, 0, 7},
+	{255, 1, 0, 7},
+	{255, 1, 0, 7}
 };
 
 static const struct rtw89_btc_fbtc_mreg rtw89_btc_8852b_mon_reg[] = {
@@ -1411,6 +1411,12 @@ static void rtw8852b_bb_sethw(struct rtw89_dev *rtwdev)
 		rtw89_phy_read32_mask(rtwdev, R_P1_RPL1, B_P0_RPL1_BIAS_MASK);
 }
 
+static void rtw8852b_bb_set_pop(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->hw->conf.flags & IEEE80211_CONF_MONITOR)
+		rtw89_phy_write32_clr(rtwdev, R_PKT_CTRL, B_PKT_POP_EN);
+}
+
 static void rtw8852b_set_channel_bb(struct rtw89_dev *rtwdev, const struct rtw89_chan *chan,
 				    enum rtw89_phy_idx phy_idx)
 {
@@ -1441,6 +1447,7 @@ static void rtw8852b_set_channel_bb(struct rtw89_dev *rtwdev, const struct rtw89
 	rtw89_phy_write32_mask(rtwdev, R_MAC_PIN_SEL, B_CH_IDX_SEG0,
 			       chan->primary_channel);
 	rtw8852b_5m_mask(rtwdev, chan, phy_idx);
+	rtw8852b_bb_set_pop(rtwdev);
 	rtw8852b_bb_reset_all(rtwdev, phy_idx);
 }
 
@@ -2452,6 +2459,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |
 				  BIT(NL80211_BAND_5GHZ),
 	.support_bw160		= false,
+	.support_ul_tb_ctrl	= true,
 	.hw_sec_hdr		= false,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
@@ -2512,6 +2520,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.c2h_ctrl_reg		= R_AX_C2HREG_CTRL,
 	.c2h_regs		= rtw8852b_c2h_regs,
 	.page_regs		= &rtw8852b_page_regs,
+	.cfo_src_fd		= true,
 	.dcfo_comp		= &rtw8852b_dcfo_comp,
 	.dcfo_comp_sft		= 3,
 	.imr_info		= &rtw8852b_imr_info,
