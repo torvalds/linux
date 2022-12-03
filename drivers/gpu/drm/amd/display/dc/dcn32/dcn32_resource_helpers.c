@@ -255,6 +255,19 @@ bool dcn32_any_surfaces_rotated(struct dc *dc, struct dc_state *context)
 	return false;
 }
 
+bool dcn32_is_center_timing(struct pipe_ctx *pipe)
+{
+	bool is_center_timing = false;
+
+	if (pipe->stream) {
+		if (pipe->stream->timing.v_addressable != pipe->stream->dst.height ||
+				pipe->stream->timing.v_addressable != pipe->stream->src.height) {
+			is_center_timing = true;
+		}
+	}
+	return is_center_timing;
+}
+
 /**
  * *******************************************************************************************
  * dcn32_determine_det_override: Determine DET allocation for each pipe
