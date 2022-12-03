@@ -13,7 +13,7 @@
 /delete-node/ &usb_c1;
 
 / {
-	avdd_lcd: avdd-lcd {
+	avdd_lcd: avdd-lcd-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd_lcd";
 
@@ -25,7 +25,7 @@
 		vin-supply = <&pp5000_a>;
 	};
 
-	avee_lcd: avee-lcd {
+	avee_lcd: avee-lcd-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "avee_lcd";
 
@@ -37,7 +37,7 @@
 		vin-supply = <&pp5000_a>;
 	};
 
-	v1p8_mipi: v1p8-mipi {
+	v1p8_mipi: v1p8-mipi-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "v1p8_mipi";
 
