@@ -398,13 +398,6 @@ menuconfig DRM_LEGACY
 
 if DRM_LEGACY
 
-config DRM_TDFX
-	tristate "3dfx Banshee/Voodoo3+"
-	depends on DRM && PCI
-	help
-	  Choose this option if you have a 3dfx Banshee or Voodoo3 (or later),
-	  graphics card.  If M is selected, the module will be called tdfx.
-
 config DRM_VIA
 	tristate "Via unichrome video cards"
 	depends on DRM && PCI
