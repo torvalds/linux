@@ -22,8 +22,10 @@ mlx5e_post_meter_init(struct mlx5e_priv *priv,
 		      enum mlx5_flow_namespace_type ns_type,
 		      struct mlx5e_post_act *post_act,
 		      struct mlx5_fc *act_counter,
-		      struct mlx5_fc *drop_counter);
+		      struct mlx5_fc *drop_counter,
+		      struct mlx5_flow_attr *branch_true,
+		      struct mlx5_flow_attr *branch_false);
 void
-mlx5e_post_meter_cleanup(struct mlx5e_post_meter_priv *post_meter);
+mlx5e_post_meter_cleanup(struct mlx5_eswitch *esw, struct mlx5e_post_meter_priv *post_meter);
 
 #endif /* __MLX5_EN_POST_METER_H__ */

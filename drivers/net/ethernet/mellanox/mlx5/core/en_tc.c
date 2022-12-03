@@ -422,8 +422,9 @@ mlx5e_tc_add_flow_meter(struct mlx5e_priv *priv,
 	}
 
 	ns_type = mlx5e_tc_meter_get_namespace(meter->flow_meters);
-	post_meter = mlx5e_post_meter_init(priv, ns_type, post_act, meter->act_counter,
-					   meter->drop_counter);
+	post_meter = mlx5e_post_meter_init(priv, ns_type, post_act,
+					   meter->act_counter, meter->drop_counter,
+					   attr->branch_true, attr->branch_false);
 	if (IS_ERR(post_meter)) {
 		mlx5_core_err(priv->mdev, "Failed to init post meter\n");
 		goto err_meter_init;
@@ -442,9 +443,9 @@ err_meter_init:
 }
 
 static void
-mlx5e_tc_del_flow_meter(struct mlx5_flow_attr *attr)
+mlx5e_tc_del_flow_meter(struct mlx5_eswitch *esw, struct mlx5_flow_attr *attr)
 {
-	mlx5e_post_meter_cleanup(attr->meter_attr.post_meter);
+	mlx5e_post_meter_cleanup(esw, attr->meter_attr.post_meter);
 	mlx5e_tc_meter_put(attr->meter_attr.meter);
 }
 
@@ -505,7 +506,7 @@ mlx5e_tc_rule_unoffload(struct mlx5e_priv *priv,
 	mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
 
 	if (attr->meter_attr.meter)
-		mlx5e_tc_del_flow_meter(attr);
+		mlx5e_tc_del_flow_meter(esw, attr);
 }
 
 int

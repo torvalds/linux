@@ -12,7 +12,9 @@ struct mlx5e_post_meter_priv {
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
 	struct mlx5_flow_handle *green_rule;
+	struct mlx5_flow_attr *green_attr;
 	struct mlx5_flow_handle *red_rule;
+	struct mlx5_flow_attr *red_attr;
 };
 
 struct mlx5_flow_table *
@@ -81,15 +83,48 @@ mlx5e_post_meter_fg_create(struct mlx5e_priv *priv,
 	return err;
 }
 
+static struct mlx5_flow_handle *
+mlx5e_post_meter_add_rule(struct mlx5e_priv *priv,
+			  struct mlx5e_post_meter_priv *post_meter,
+			  struct mlx5_flow_spec *spec,
+			  struct mlx5_flow_attr *attr,
+			  struct mlx5_fc *act_counter,
+			  struct mlx5_fc *drop_counter)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5_flow_handle *ret;
+
+	attr->action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_DROP)
+		attr->counter = drop_counter;
+	else
+		attr->counter = act_counter;
+
+	attr->ft = post_meter->ft;
+	attr->flags |= MLX5_ATTR_FLAG_NO_IN_PORT;
+	attr->outer_match_level = MLX5_MATCH_NONE;
+	attr->chain = 0;
+	attr->prio = 0;
+
+	ret = mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
+
+	/* We did not create the counter, so we can't delete it.
+	 * Avoid freeing the counter when the attr is deleted in free_branching_attr
+	 */
+	attr->action &= ~MLX5_FLOW_CONTEXT_ACTION_COUNT;
+
+	return ret;
+}
+
 static int
 mlx5e_post_meter_rules_create(struct mlx5e_priv *priv,
 			      struct mlx5e_post_meter_priv *post_meter,
 			      struct mlx5e_post_act *post_act,
 			      struct mlx5_fc *act_counter,
-			      struct mlx5_fc *drop_counter)
+			      struct mlx5_fc *drop_counter,
+			      struct mlx5_flow_attr *green_attr,
+			      struct mlx5_flow_attr *red_attr)
 {
-	struct mlx5_flow_destination dest[2] = {};
-	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	int err;
@@ -100,36 +135,28 @@ mlx5e_post_meter_rules_create(struct mlx5e_priv *priv,
 
 	mlx5e_tc_match_to_reg_match(spec, PACKET_COLOR_TO_REG,
 				    MLX5_FLOW_METER_COLOR_RED, MLX5_PACKET_COLOR_MASK);
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP |
-			  MLX5_FLOW_CONTEXT_ACTION_COUNT;
-	flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
-	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	dest[0].counter_id = mlx5_fc_id(drop_counter);
 
-	rule = mlx5_add_flow_rules(post_meter->ft, spec, &flow_act, dest, 1);
+	rule = mlx5e_post_meter_add_rule(priv, post_meter, spec, red_attr,
+					 act_counter, drop_counter);
 	if (IS_ERR(rule)) {
-		mlx5_core_warn(priv->mdev, "Failed to create post_meter flow drop rule\n");
+		mlx5_core_warn(priv->mdev, "Failed to create post_meter exceed rule\n");
 		err = PTR_ERR(rule);
 		goto err_red;
 	}
 	post_meter->red_rule = rule;
+	post_meter->red_attr = red_attr;
 
 	mlx5e_tc_match_to_reg_match(spec, PACKET_COLOR_TO_REG,
 				    MLX5_FLOW_METER_COLOR_GREEN, MLX5_PACKET_COLOR_MASK);
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-			  MLX5_FLOW_CONTEXT_ACTION_COUNT;
-	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest[0].ft = mlx5e_tc_post_act_get_ft(post_act);
-	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	dest[1].counter_id = mlx5_fc_id(act_counter);
-
-	rule = mlx5_add_flow_rules(post_meter->ft, spec, &flow_act, dest, 2);
+	rule = mlx5e_post_meter_add_rule(priv, post_meter, spec, green_attr,
+					 act_counter, drop_counter);
 	if (IS_ERR(rule)) {
-		mlx5_core_warn(priv->mdev, "Failed to create post_meter flow fwd rule\n");
+		mlx5_core_warn(priv->mdev, "Failed to create post_meter notexceed rule\n");
 		err = PTR_ERR(rule);
 		goto err_green;
 	}
 	post_meter->green_rule = rule;
+	post_meter->green_attr = green_attr;
 
 	kvfree(spec);
 	return 0;
@@ -142,10 +169,11 @@ err_red:
 }
 
 static void
-mlx5e_post_meter_rules_destroy(struct mlx5e_post_meter_priv *post_meter)
+mlx5e_post_meter_rules_destroy(struct mlx5_eswitch *esw,
+			       struct mlx5e_post_meter_priv *post_meter)
 {
-	mlx5_del_flow_rules(post_meter->red_rule);
-	mlx5_del_flow_rules(post_meter->green_rule);
+	mlx5_eswitch_del_offloaded_rule(esw, post_meter->red_rule, post_meter->red_attr);
+	mlx5_eswitch_del_offloaded_rule(esw, post_meter->green_rule, post_meter->green_attr);
 }
 
 static void
@@ -165,7 +193,9 @@ mlx5e_post_meter_init(struct mlx5e_priv *priv,
 		      enum mlx5_flow_namespace_type ns_type,
 		      struct mlx5e_post_act *post_act,
 		      struct mlx5_fc *act_counter,
-		      struct mlx5_fc *drop_counter)
+		      struct mlx5_fc *drop_counter,
+		      struct mlx5_flow_attr *branch_true,
+		      struct mlx5_flow_attr *branch_false)
 {
 	struct mlx5e_post_meter_priv *post_meter;
 	int err;
@@ -182,8 +212,8 @@ mlx5e_post_meter_init(struct mlx5e_priv *priv,
 	if (err)
 		goto err_fg;
 
-	err = mlx5e_post_meter_rules_create(priv, post_meter, post_act,
-					    act_counter, drop_counter);
+	err = mlx5e_post_meter_rules_create(priv, post_meter, post_act, act_counter,
+					    drop_counter, branch_true, branch_false);
 	if (err)
 		goto err_rules;
 
@@ -199,9 +229,9 @@ err_ft:
 }
 
 void
-mlx5e_post_meter_cleanup(struct mlx5e_post_meter_priv *post_meter)
+mlx5e_post_meter_cleanup(struct mlx5_eswitch *esw, struct mlx5e_post_meter_priv *post_meter)
 {
-	mlx5e_post_meter_rules_destroy(post_meter);
+	mlx5e_post_meter_rules_destroy(esw, post_meter);
 	mlx5e_post_meter_fg_destroy(post_meter);
 	mlx5e_post_meter_table_destroy(post_meter);
 	kfree(post_meter);
