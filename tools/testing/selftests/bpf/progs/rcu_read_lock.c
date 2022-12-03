@@ -23,13 +23,14 @@ struct bpf_key *bpf_lookup_user_key(__u32 serial, __u64 flags) __ksym;
 void bpf_key_put(struct bpf_key *key) __ksym;
 void bpf_rcu_read_lock(void) __ksym;
 void bpf_rcu_read_unlock(void) __ksym;
-struct task_struct *bpf_task_acquire(struct task_struct *p) __ksym;
+struct task_struct *bpf_task_acquire_not_zero(struct task_struct *p) __ksym;
 void bpf_task_release(struct task_struct *p) __ksym;
 
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 int get_cgroup_id(void *ctx)
 {
 	struct task_struct *task;
+	struct css_set *cgroups;
 
 	task = bpf_get_current_task_btf();
 	if (task->pid != target_pid)
@@ -37,7 +38,11 @@ int get_cgroup_id(void *ctx)
 
 	/* simulate bpf_get_current_cgroup_id() helper */
 	bpf_rcu_read_lock();
-	cgroup_id = task->cgroups->dfl_cgrp->kn->id;
+	cgroups = task->cgroups;
+	if (!cgroups)
+		goto unlock;
+	cgroup_id = cgroups->dfl_cgrp->kn->id;
+unlock:
 	bpf_rcu_read_unlock();
 	return 0;
 }
@@ -56,6 +61,8 @@ int task_succ(void *ctx)
 	bpf_rcu_read_lock();
 	/* region including helper using rcu ptr real_parent */
 	real_parent = task->real_parent;
+	if (!real_parent)
+		goto out;
 	ptr = bpf_task_storage_get(&map_a, real_parent, &init_val,
 				   BPF_LOCAL_STORAGE_GET_F_CREATE);
 	if (!ptr)
@@ -92,7 +99,10 @@ int two_regions(void *ctx)
 	bpf_rcu_read_unlock();
 	bpf_rcu_read_lock();
 	real_parent = task->real_parent;
+	if (!real_parent)
+		goto out;
 	(void)bpf_task_storage_get(&map_a, real_parent, 0, 0);
+out:
 	bpf_rcu_read_unlock();
 	return 0;
 }
@@ -105,7 +115,10 @@ int non_sleepable_1(void *ctx)
 	task = bpf_get_current_task_btf();
 	bpf_rcu_read_lock();
 	real_parent = task->real_parent;
+	if (!real_parent)
+		goto out;
 	(void)bpf_task_storage_get(&map_a, real_parent, 0, 0);
+out:
 	bpf_rcu_read_unlock();
 	return 0;
 }
@@ -121,7 +134,10 @@ int non_sleepable_2(void *ctx)
 
 	bpf_rcu_read_lock();
 	real_parent = task->real_parent;
+	if (!real_parent)
+		goto out;
 	(void)bpf_task_storage_get(&map_a, real_parent, 0, 0);
+out:
 	bpf_rcu_read_unlock();
 	return 0;
 }
@@ -129,16 +145,28 @@ int non_sleepable_2(void *ctx)
 SEC("?fentry.s/" SYS_PREFIX "sys_nanosleep")
 int task_acquire(void *ctx)
 {
-	struct task_struct *task, *real_parent;
+	struct task_struct *task, *real_parent, *gparent;
 
 	task = bpf_get_current_task_btf();
 	bpf_rcu_read_lock();
 	real_parent = task->real_parent;
+	if (!real_parent)
+		goto out;
+
+	/* rcu_ptr->rcu_field */
+	gparent = real_parent->real_parent;
+	if (!gparent)
+		goto out;
+
 	/* acquire a reference which can be used outside rcu read lock region */
-	real_parent = bpf_task_acquire(real_parent);
+	gparent = bpf_task_acquire_not_zero(gparent);
+	if (!gparent)
+		goto out;
+
+	(void)bpf_task_storage_get(&map_a, gparent, 0, 0);
+	bpf_task_release(gparent);
+out:
 	bpf_rcu_read_unlock();
-	(void)bpf_task_storage_get(&map_a, real_parent, 0, 0);
-	bpf_task_release(real_parent);
 	return 0;
 }
 
@@ -181,9 +209,12 @@ int non_sleepable_rcu_mismatch(void *ctx)
 	/* non-sleepable: missing bpf_rcu_read_unlock() in one path */
 	bpf_rcu_read_lock();
 	real_parent = task->real_parent;
+	if (!real_parent)
+		goto out;
 	(void)bpf_task_storage_get(&map_a, real_parent, 0, 0);
 	if (real_parent)
 		bpf_rcu_read_unlock();
+out:
 	return 0;
 }
 
@@ -199,16 +230,17 @@ int inproper_sleepable_helper(void *ctx)
 	/* sleepable helper in rcu read lock region */
 	bpf_rcu_read_lock();
 	real_parent = task->real_parent;
+	if (!real_parent)
+		goto out;
 	regs = (struct pt_regs *)bpf_task_pt_regs(real_parent);
-	if (!regs) {
-		bpf_rcu_read_unlock();
-		return 0;
-	}
+	if (!regs)
+		goto out;
 
 	ptr = (void *)PT_REGS_IP(regs);
 	(void)bpf_copy_from_user_task(&value, sizeof(uint32_t), ptr, task, 0);
 	user_data = value;
 	(void)bpf_task_storage_get(&map_a, real_parent, 0, 0);
+out:
 	bpf_rcu_read_unlock();
 	return 0;
 }
@@ -239,7 +271,10 @@ int nested_rcu_region(void *ctx)
 	bpf_rcu_read_lock();
 	bpf_rcu_read_lock();
 	real_parent = task->real_parent;
+	if (!real_parent)
+		goto out;
 	(void)bpf_task_storage_get(&map_a, real_parent, 0, 0);
+out:
 	bpf_rcu_read_unlock();
 	bpf_rcu_read_unlock();
 	return 0;
