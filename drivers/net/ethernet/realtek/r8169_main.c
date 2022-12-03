@@ -5283,6 +5283,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->hw_features |= NETIF_F_RXALL;
 	dev->hw_features |= NETIF_F_RXFCS;
 
+	netdev_sw_irq_coalesce_default_on(dev);
+
 	/* configure chip for default features */
 	rtl8169_set_features(dev, dev->features);
 
