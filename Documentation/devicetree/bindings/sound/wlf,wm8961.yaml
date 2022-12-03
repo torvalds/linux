@@ -9,6 +9,9 @@ title: Wolfson WM8961 Ultra-Low Power Stereo CODEC
 maintainers:
   - patches@opensource.cirrus.com
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     const: wlf,wm8961
@@ -24,7 +27,7 @@ required:
   - reg
   - '#sound-dai-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

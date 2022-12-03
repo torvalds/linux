@@ -14,6 +14,9 @@ description: |
   Analog Devices ADAU1372 four inputs and two outputs codec.
   https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1372.pdf
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     enum:
@@ -42,7 +45,7 @@ required:
   - clocks
   - clock-names
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

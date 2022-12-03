@@ -9,6 +9,9 @@ title: Ingenic SoCs AC97 / I2S Controller (AIC) DT bindings
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   $nodename:
     pattern: '^audio-controller@'
@@ -53,7 +56,7 @@ properties:
       - const: rx
       - const: tx
 
-additionalProperties: false
+unevaluatedProperties: false
 
 required:
   - compatible

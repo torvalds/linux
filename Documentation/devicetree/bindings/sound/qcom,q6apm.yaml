@@ -11,6 +11,7 @@ maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
 allOf:
+  - $ref: dai-common.yaml#
   - $ref: /schemas/soc/qcom/qcom,apr-services.yaml#
 
 properties:

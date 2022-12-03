@@ -140,6 +140,7 @@ properties:
     description: optional, some dts node didn't add it.
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:
@@ -181,7 +182,7 @@ required:
   - dma-names
   - interrupts
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

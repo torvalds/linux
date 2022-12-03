@@ -9,6 +9,9 @@ title: Allwinner H6 DMIC
 maintainers:
   - Ban Tao <fengzheng923@gmail.com>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     oneOf:
@@ -59,7 +62,7 @@ required:
   - dma-names
   - resets
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

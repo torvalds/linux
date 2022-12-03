@@ -10,6 +10,9 @@ maintainers:
   - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     enum:
@@ -22,7 +25,7 @@ required:
   - compatible
   - '#sound-dai-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -9,6 +9,9 @@ title: AK4375 DAC and headphones amplifier
 maintainers:
   - Vincent Knecht <vincent.knecht@mailoo.org>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     const: asahi-kasei,ak4375
@@ -35,7 +38,7 @@ required:
   - avdd-supply
   - tvdd-supply
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
