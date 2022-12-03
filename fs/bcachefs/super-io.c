@@ -809,6 +809,11 @@ int bch2_write_super(struct bch_fs *c)
 	closure_init_stack(cl);
 	memset(&sb_written, 0, sizeof(sb_written));
 
+	if (c->opts.version_upgrade) {
+		c->disk_sb.sb->magic = BCHFS_MAGIC;
+		c->disk_sb.sb->layout.magic = BCHFS_MAGIC;
+	}
+
 	le64_add_cpu(&c->disk_sb.sb->seq, 1);
 
 	if (test_bit(BCH_FS_ERROR, &c->flags))
