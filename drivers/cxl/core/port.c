@@ -628,6 +628,8 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 			iter = to_cxl_port(iter->dev.parent);
 		if (iter->host_bridge)
 			port->host_bridge = iter->host_bridge;
+		else if (parent_dport->rch)
+			port->host_bridge = parent_dport->dport;
 		else
 			port->host_bridge = iter->uport;
 		dev_dbg(uport, "host-bridge: %s\n", dev_name(port->host_bridge));
@@ -899,10 +901,10 @@ static void cxl_dport_unlink(void *data)
 	sysfs_remove_link(&port->dev.kobj, link_name);
 }
 
-static struct cxl_dport *__devm_cxl_add_dport(struct cxl_port *port,
-					      struct device *dport_dev,
-					      int port_id,
-					      resource_size_t component_reg_phys)
+static struct cxl_dport *
+__devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
+		     int port_id, resource_size_t component_reg_phys,
+		     resource_size_t rcrb)
 {
 	char link_name[CXL_TARGET_STRLEN];
 	struct cxl_dport *dport;
@@ -932,6 +934,9 @@ static struct cxl_dport *__devm_cxl_add_dport(struct cxl_port *port,
 	dport->port_id = port_id;
 	dport->component_reg_phys = component_reg_phys;
 	dport->port = port;
+	if (rcrb != CXL_RESOURCE_NONE)
+		dport->rch = true;
+	dport->rcrb = rcrb;
 
 	cond_cxl_root_lock(port);
 	rc = add_dport(port, dport);
@@ -956,7 +961,7 @@ static struct cxl_dport *__devm_cxl_add_dport(struct cxl_port *port,
 }
 
 /**
- * devm_cxl_add_dport - append downstream port data to a cxl_port
+ * devm_cxl_add_dport - append VH downstream port data to a cxl_port
  * @port: the cxl_port that references this dport
  * @dport_dev: firmware or PCI device representing the dport
  * @port_id: identifier for this dport in a decoder's target list
@@ -973,7 +978,7 @@ struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 	struct cxl_dport *dport;
 
 	dport = __devm_cxl_add_dport(port, dport_dev, port_id,
-				     component_reg_phys);
+				     component_reg_phys, CXL_RESOURCE_NONE);
 	if (IS_ERR(dport)) {
 		dev_dbg(dport_dev, "failed to add dport to %s: %ld\n",
 			dev_name(&port->dev), PTR_ERR(dport));
@@ -985,6 +990,42 @@ struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 	return dport;
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_dport, CXL);
+
+/**
+ * devm_cxl_add_rch_dport - append RCH downstream port data to a cxl_port
+ * @port: the cxl_port that references this dport
+ * @dport_dev: firmware or PCI device representing the dport
+ * @port_id: identifier for this dport in a decoder's target list
+ * @component_reg_phys: optional location of CXL component registers
+ * @rcrb: mandatory location of a Root Complex Register Block
+ *
+ * See CXL 3.0 9.11.8 CXL Devices Attached to an RCH
+ */
+struct cxl_dport *devm_cxl_add_rch_dport(struct cxl_port *port,
+					 struct device *dport_dev, int port_id,
+					 resource_size_t component_reg_phys,
+					 resource_size_t rcrb)
+{
+	struct cxl_dport *dport;
+
+	if (rcrb == CXL_RESOURCE_NONE) {
+		dev_dbg(&port->dev, "failed to add RCH dport, missing RCRB\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	dport = __devm_cxl_add_dport(port, dport_dev, port_id,
+				     component_reg_phys, rcrb);
+	if (IS_ERR(dport)) {
+		dev_dbg(dport_dev, "failed to add RCH dport to %s: %ld\n",
+			dev_name(&port->dev), PTR_ERR(dport));
+	} else {
+		dev_dbg(dport_dev, "RCH dport added to %s\n",
+			dev_name(&port->dev));
+	}
+
+	return dport;
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_add_rch_dport, CXL);
 
 static int add_ep(struct cxl_ep *new)
 {

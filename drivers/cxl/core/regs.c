@@ -307,3 +307,68 @@ int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
 	return -ENODEV;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_find_regblock, CXL);
+
+resource_size_t cxl_rcrb_to_component(struct device *dev,
+				      resource_size_t rcrb,
+				      enum cxl_rcrb which)
+{
+	resource_size_t component_reg_phys;
+	u32 bar0, bar1;
+	void *addr;
+	u16 cmd;
+	u32 id;
+
+	if (which == CXL_RCRB_UPSTREAM)
+		rcrb += SZ_4K;
+
+	/*
+	 * RCRB's BAR[0..1] point to component block containing CXL
+	 * subsystem component registers. MEMBAR extraction follows
+	 * the PCI Base spec here, esp. 64 bit extraction and memory
+	 * ranges alignment (6.0, 7.5.1.2.1).
+	 */
+	if (!request_mem_region(rcrb, SZ_4K, "CXL RCRB"))
+		return CXL_RESOURCE_NONE;
+	addr = ioremap(rcrb, SZ_4K);
+	if (!addr) {
+		dev_err(dev, "Failed to map region %pr\n", addr);
+		release_mem_region(rcrb, SZ_4K);
+		return CXL_RESOURCE_NONE;
+	}
+
+	id = readl(addr + PCI_VENDOR_ID);
+	cmd = readw(addr + PCI_COMMAND);
+	bar0 = readl(addr + PCI_BASE_ADDRESS_0);
+	bar1 = readl(addr + PCI_BASE_ADDRESS_1);
+	iounmap(addr);
+	release_mem_region(rcrb, SZ_4K);
+
+	/*
+	 * Sanity check, see CXL 3.0 Figure 9-8 CXL Device that Does Not
+	 * Remap Upstream Port and Component Registers
+	 */
+	if (id == U32_MAX) {
+		if (which == CXL_RCRB_DOWNSTREAM)
+			dev_err(dev, "Failed to access Downstream Port RCRB\n");
+		return CXL_RESOURCE_NONE;
+	}
+	if (!(cmd & PCI_COMMAND_MEMORY))
+		return CXL_RESOURCE_NONE;
+	/* The RCRB is a Memory Window, and the MEM_TYPE_1M bit is obsolete */
+	if (bar0 & (PCI_BASE_ADDRESS_MEM_TYPE_1M | PCI_BASE_ADDRESS_SPACE_IO))
+		return CXL_RESOURCE_NONE;
+
+	component_reg_phys = bar0 & PCI_BASE_ADDRESS_MEM_MASK;
+	if (bar0 & PCI_BASE_ADDRESS_MEM_TYPE_64)
+		component_reg_phys |= ((u64)bar1) << 32;
+
+	if (!component_reg_phys)
+		return CXL_RESOURCE_NONE;
+
+	/* MEMBAR is block size (64k) aligned. */
+	if (!IS_ALIGNED(component_reg_phys, CXL_COMPONENT_REG_BLOCK_SIZE))
+		return CXL_RESOURCE_NONE;
+
+	return component_reg_phys;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_rcrb_to_component, CXL);
