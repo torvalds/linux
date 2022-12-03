@@ -18,355 +18,15 @@ struct vcap_port_debugfs_info {
 	struct net_device *ndev;
 };
 
-static bool vcap_bitarray_zero(int width, u8 *value)
-{
-	int bytes = DIV_ROUND_UP(width, BITS_PER_BYTE);
-	u8 total = 0, bmask = 0xff;
-	int rwidth = width;
-	int idx;
-
-	for (idx = 0; idx < bytes; ++idx, rwidth -= BITS_PER_BYTE) {
-		if (rwidth && rwidth < BITS_PER_BYTE)
-			bmask = (1 << rwidth) - 1;
-		total += value[idx] & bmask;
-	}
-	return total == 0;
-}
-
-static bool vcap_get_bit(u32 *stream, struct vcap_stream_iter *itr)
-{
-	u32 mask = BIT(itr->reg_bitpos);
-	u32 *p = &stream[itr->reg_idx];
-
-	return !!(*p & mask);
-}
-
-static void vcap_decode_field(u32 *stream, struct vcap_stream_iter *itr,
-			      int width, u8 *value)
-{
-	int idx;
-
-	/* Loop over the field value bits and get the field bits and
-	 * set them in the output value byte array
-	 */
-	for (idx = 0; idx < width; idx++) {
-		u8 bidx = idx & 0x7;
-
-		/* Decode one field value bit */
-		if (vcap_get_bit(stream, itr))
-			*value |= 1 << bidx;
-		vcap_iter_next(itr);
-		if (bidx == 7)
-			value++;
-	}
-}
-
-/* Verify that the typegroup bits have the correct values */
-static int vcap_verify_typegroups(u32 *stream, int sw_width,
-				  const struct vcap_typegroup *tgt, bool mask,
-				  int sw_max)
-{
-	struct vcap_stream_iter iter;
-	int sw_cnt, idx;
-
-	vcap_iter_set(&iter, sw_width, tgt, 0);
-	sw_cnt = 0;
-	while (iter.tg->width) {
-		u32 value = 0;
-		u32 tg_value = iter.tg->value;
-
-		if (mask)
-			tg_value = (1 << iter.tg->width) - 1;
-		/* Set position to current typegroup bit */
-		iter.offset = iter.tg->offset;
-		vcap_iter_update(&iter);
-		for (idx = 0; idx < iter.tg->width; idx++) {
-			/* Decode one typegroup bit */
-			if (vcap_get_bit(stream, &iter))
-				value |= 1 << idx;
-			iter.offset++;
-			vcap_iter_update(&iter);
-		}
-		if (value != tg_value)
-			return -EINVAL;
-		iter.tg++; /* next typegroup */
-		sw_cnt++;
-		/* Stop checking more typegroups */
-		if (sw_max && sw_cnt >= sw_max)
-			break;
-	}
-	return 0;
-}
-
-/* Find the subword width of the key typegroup that matches the stream data */
-static int vcap_find_keystream_typegroup_sw(struct vcap_control *vctrl,
-					    enum vcap_type vt, u32 *stream,
-					    bool mask, int sw_max)
-{
-	const struct vcap_typegroup **tgt;
-	int sw_idx, res;
-
-	tgt = vctrl->vcaps[vt].keyfield_set_typegroups;
-	/* Try the longest subword match first */
-	for (sw_idx = vctrl->vcaps[vt].sw_count; sw_idx >= 0; sw_idx--) {
-		if (!tgt[sw_idx])
-			continue;
-
-		res = vcap_verify_typegroups(stream, vctrl->vcaps[vt].sw_width,
-					     tgt[sw_idx], mask, sw_max);
-		if (res == 0)
-			return sw_idx;
-	}
-	return -EINVAL;
-}
-
-/* Find the subword width of the action typegroup that matches the stream data
- */
-static int vcap_find_actionstream_typegroup_sw(struct vcap_control *vctrl,
-					       enum vcap_type vt, u32 *stream,
-					       int sw_max)
-{
-	const struct vcap_typegroup **tgt;
-	int sw_idx, res;
-
-	tgt = vctrl->vcaps[vt].actionfield_set_typegroups;
-	/* Try the longest subword match first */
-	for (sw_idx = vctrl->vcaps[vt].sw_count; sw_idx >= 0; sw_idx--) {
-		if (!tgt[sw_idx])
-			continue;
-		res = vcap_verify_typegroups(stream, vctrl->vcaps[vt].act_width,
-					     tgt[sw_idx], false, sw_max);
-		if (res == 0)
-			return sw_idx;
-	}
-	return -EINVAL;
-}
-
-/* Verify that the type id in the stream matches the type id of the keyset */
-static bool vcap_verify_keystream_keyset(struct vcap_control *vctrl,
-					 enum vcap_type vt,
-					 u32 *keystream,
-					 u32 *mskstream,
-					 enum vcap_keyfield_set keyset)
-{
-	const struct vcap_info *vcap = &vctrl->vcaps[vt];
-	const struct vcap_field *typefld;
-	const struct vcap_typegroup *tgt;
-	const struct vcap_field *fields;
-	struct vcap_stream_iter iter;
-	const struct vcap_set *info;
-	u32 value = 0;
-	u32 mask = 0;
-
-	if (vcap_keyfield_count(vctrl, vt, keyset) == 0)
-		return false;
-
-	info = vcap_keyfieldset(vctrl, vt, keyset);
-	/* Check that the keyset is valid */
-	if (!info)
-		return false;
-
-	/* a type_id of value -1 means that there is no type field */
-	if (info->type_id == (u8)-1)
-		return true;
-
-	/* Get a valid typegroup for the specific keyset */
-	tgt = vcap_keyfield_typegroup(vctrl, vt, keyset);
-	if (!tgt)
-		return false;
-
-	fields = vcap_keyfields(vctrl, vt, keyset);
-	if (!fields)
-		return false;
-
-	typefld = &fields[VCAP_KF_TYPE];
-	vcap_iter_init(&iter, vcap->sw_width, tgt, typefld->offset);
-	vcap_decode_field(mskstream, &iter, typefld->width, (u8 *)&mask);
-	/* no type info if there are no mask bits */
-	if (vcap_bitarray_zero(typefld->width, (u8 *)&mask))
-		return false;
-
-	/* Get the value of the type field in the stream and compare to the
-	 * one define in the vcap keyset
-	 */
-	vcap_iter_init(&iter, vcap->sw_width, tgt, typefld->offset);
-	vcap_decode_field(keystream, &iter, typefld->width, (u8 *)&value);
-
-	return (value & mask) == (info->type_id & mask);
-}
-
-/* Verify that the typegroup information, subword count, keyset and type id
- * are in sync and correct, return the list of matching keysets
- */
-static int
-vcap_find_keystream_keysets(struct vcap_control *vctrl,
-			    enum vcap_type vt,
-			    u32 *keystream,
-			    u32 *mskstream,
-			    bool mask, int sw_max,
-			    struct vcap_keyset_list *kslist)
-{
-	const struct vcap_set *keyfield_set;
-	int sw_count, idx;
-
-	sw_count = vcap_find_keystream_typegroup_sw(vctrl, vt, keystream, mask,
-						    sw_max);
-	if (sw_count < 0)
-		return sw_count;
-
-	keyfield_set = vctrl->vcaps[vt].keyfield_set;
-	for (idx = 0; idx < vctrl->vcaps[vt].keyfield_set_size; ++idx) {
-		if (keyfield_set[idx].sw_per_item != sw_count)
-			continue;
-
-		if (vcap_verify_keystream_keyset(vctrl, vt, keystream,
-						 mskstream, idx))
-			vcap_keyset_list_add(kslist, idx);
-	}
-	if (kslist->cnt > 0)
-		return 0;
-	return -EINVAL;
-}
-
-/* Read key data from a VCAP address and discover if there is a rule keyset
- * here
- */
-static bool
-vcap_verify_actionstream_actionset(struct vcap_control *vctrl,
-				   enum vcap_type vt,
-				   u32 *actionstream,
-				   enum vcap_actionfield_set actionset)
-{
-	const struct vcap_typegroup *tgt;
-	const struct vcap_field *fields;
-	const struct vcap_set *info;
-
-	if (vcap_actionfield_count(vctrl, vt, actionset) == 0)
-		return false;
-
-	info = vcap_actionfieldset(vctrl, vt, actionset);
-	/* Check that the actionset is valid */
-	if (!info)
-		return false;
-
-	/* a type_id of value -1 means that there is no type field */
-	if (info->type_id == (u8)-1)
-		return true;
-
-	/* Get a valid typegroup for the specific actionset */
-	tgt = vcap_actionfield_typegroup(vctrl, vt, actionset);
-	if (!tgt)
-		return false;
-
-	fields = vcap_actionfields(vctrl, vt, actionset);
-	if (!fields)
-		return false;
-
-	/* Later this will be expanded with a check of the type id */
-	return true;
-}
-
-/* Verify that the typegroup information, subword count, actionset and type id
- * are in sync and correct, return the actionset
- */
-static enum vcap_actionfield_set
-vcap_find_actionstream_actionset(struct vcap_control *vctrl,
-				 enum vcap_type vt,
-				 u32 *stream,
-				 int sw_max)
-{
-	const struct vcap_set *actionfield_set;
-	int sw_count, idx;
-	bool res;
-
-	sw_count = vcap_find_actionstream_typegroup_sw(vctrl, vt, stream,
-						       sw_max);
-	if (sw_count < 0)
-		return sw_count;
-
-	actionfield_set = vctrl->vcaps[vt].actionfield_set;
-	for (idx = 0; idx < vctrl->vcaps[vt].actionfield_set_size; ++idx) {
-		if (actionfield_set[idx].sw_per_item != sw_count)
-			continue;
-
-		res = vcap_verify_actionstream_actionset(vctrl, vt,
-							 stream, idx);
-		if (res)
-			return idx;
-	}
-	return -EINVAL;
-}
-
-/* Read key data from a VCAP address and discover if there are any rule keysets
- * here
- */
-static int vcap_addr_keysets(struct vcap_control *vctrl,
-			     struct net_device *ndev,
-			     struct vcap_admin *admin,
-			     int addr,
-			     struct vcap_keyset_list *kslist)
-{
-	enum vcap_type vt = admin->vtype;
-	int keyset_sw_regs, idx;
-	u32 key = 0, mask = 0;
-
-	/* Read the cache at the specified address */
-	keyset_sw_regs = DIV_ROUND_UP(vctrl->vcaps[vt].sw_width, 32);
-	vctrl->ops->update(ndev, admin, VCAP_CMD_READ, VCAP_SEL_ALL, addr);
-	vctrl->ops->cache_read(ndev, admin, VCAP_SEL_ENTRY, 0,
-			       keyset_sw_regs);
-	/* Skip uninitialized key/mask entries */
-	for (idx = 0; idx < keyset_sw_regs; ++idx) {
-		key |= ~admin->cache.keystream[idx];
-		mask |= admin->cache.maskstream[idx];
-	}
-	if (key == 0 && mask == 0)
-		return -EINVAL;
-	/* Decode and locate the keysets */
-	return vcap_find_keystream_keysets(vctrl, vt, admin->cache.keystream,
-					   admin->cache.maskstream, false, 0,
-					   kslist);
-}
-
-static int vcap_read_rule(struct vcap_rule_internal *ri)
-{
-	struct vcap_admin *admin = ri->admin;
-	int sw_idx, ent_idx = 0, act_idx = 0;
-	u32 addr = ri->addr;
-
-	if (!ri->size || !ri->keyset_sw_regs || !ri->actionset_sw_regs) {
-		pr_err("%s:%d: rule is empty\n", __func__, __LINE__);
-		return -EINVAL;
-	}
-	vcap_erase_cache(ri);
-	/* Use the values in the streams to read the VCAP cache */
-	for (sw_idx = 0; sw_idx < ri->size; sw_idx++, addr++) {
-		ri->vctrl->ops->update(ri->ndev, admin, VCAP_CMD_READ,
-				       VCAP_SEL_ALL, addr);
-		ri->vctrl->ops->cache_read(ri->ndev, admin,
-					   VCAP_SEL_ENTRY, ent_idx,
-					   ri->keyset_sw_regs);
-		ri->vctrl->ops->cache_read(ri->ndev, admin,
-					   VCAP_SEL_ACTION, act_idx,
-					   ri->actionset_sw_regs);
-		if (sw_idx == 0)
-			ri->vctrl->ops->cache_read(ri->ndev, admin,
-						   VCAP_SEL_COUNTER,
-						   ri->counter_id, 0);
-		ent_idx += ri->keyset_sw_regs;
-		act_idx += ri->actionset_sw_regs;
-	}
-	return 0;
-}
-
 /* Dump the keyfields value and mask values */
 static void vcap_debugfs_show_rule_keyfield(struct vcap_control *vctrl,
 					    struct vcap_output_print *out,
 					    enum vcap_key_field key,
 					    const struct vcap_field *keyfield,
-					    u8 *value, u8 *mask)
+					    struct vcap_client_keyfield_data *data)
 {
 	bool hex = false;
+	u8 *value, *mask;
 	int idx, bytes;
 
 	out->prf(out->dst, "    %s: W%d: ", vcap_keyfield_name(vctrl, key),
@@ -374,40 +34,62 @@ static void vcap_debugfs_show_rule_keyfield(struct vcap_control *vctrl,
 
 	switch (keyfield[key].type) {
 	case VCAP_FIELD_BIT:
-		out->prf(out->dst, "%d/%d", value[0], mask[0]);
+		out->prf(out->dst, "%d/%d", data->u1.value, data->u1.mask);
 		break;
 	case VCAP_FIELD_U32:
+		value = (u8 *)(&data->u32.value);
+		mask = (u8 *)(&data->u32.mask);
+
 		if (key == VCAP_KF_L3_IP4_SIP || key == VCAP_KF_L3_IP4_DIP) {
-			out->prf(out->dst, "%pI4h/%pI4h", value, mask);
+			out->prf(out->dst, "%pI4h/%pI4h", &data->u32.value,
+				 &data->u32.mask);
 		} else if (key == VCAP_KF_ETYPE ||
 			   key == VCAP_KF_IF_IGR_PORT_MASK) {
 			hex = true;
 		} else {
 			u32 fmsk = (1 << keyfield[key].width) - 1;
-			u32 val = *(u32 *)value;
-			u32 msk = *(u32 *)mask;
 
-			out->prf(out->dst, "%u/%u", val & fmsk, msk & fmsk);
+			out->prf(out->dst, "%u/%u", data->u32.value & fmsk,
+				 data->u32.mask & fmsk);
 		}
 		break;
 	case VCAP_FIELD_U48:
+		value = data->u48.value;
+		mask = data->u48.mask;
 		if (key == VCAP_KF_L2_SMAC || key == VCAP_KF_L2_DMAC)
-			out->prf(out->dst, "%pMR/%pMR", value, mask);
+			out->prf(out->dst, "%pMR/%pMR", data->u48.value,
+				 data->u48.mask);
 		else
 			hex = true;
 		break;
 	case VCAP_FIELD_U56:
+		value = data->u56.value;
+		mask = data->u56.mask;
+		hex = true;
+		break;
 	case VCAP_FIELD_U64:
+		value = data->u64.value;
+		mask = data->u64.mask;
+		hex = true;
+		break;
 	case VCAP_FIELD_U72:
+		value = data->u72.value;
+		mask = data->u72.mask;
+		hex = true;
+		break;
 	case VCAP_FIELD_U112:
+		value = data->u112.value;
+		mask = data->u112.mask;
 		hex = true;
 		break;
 	case VCAP_FIELD_U128:
 		if (key == VCAP_KF_L3_IP6_SIP || key == VCAP_KF_L3_IP6_DIP) {
 			u8 nvalue[16], nmask[16];
 
-			vcap_netbytes_copy(nvalue, value, sizeof(nvalue));
-			vcap_netbytes_copy(nmask, mask, sizeof(nmask));
+			vcap_netbytes_copy(nvalue, data->u128.value,
+					   sizeof(nvalue));
+			vcap_netbytes_copy(nmask, data->u128.mask,
+					   sizeof(nmask));
 			out->prf(out->dst, "%pI6/%pI6", nvalue, nmask);
 		} else {
 			hex = true;
@@ -472,19 +154,15 @@ static int vcap_debugfs_show_rule_keyset(struct vcap_rule_internal *ri,
 					 struct vcap_output_print *out)
 {
 	struct vcap_control *vctrl = ri->vctrl;
-	struct vcap_stream_iter kiter, miter;
 	struct vcap_admin *admin = ri->admin;
 	enum vcap_keyfield_set keysets[10];
 	const struct vcap_field *keyfield;
 	enum vcap_type vt = admin->vtype;
-	const struct vcap_typegroup *tgt;
+	struct vcap_client_keyfield *ckf;
 	struct vcap_keyset_list matches;
-	enum vcap_keyfield_set keyset;
-	int idx, res, keyfield_count;
 	u32 *maskstream;
 	u32 *keystream;
-	u8 value[16];
-	u8 mask[16];
+	int res;
 
 	keystream = admin->cache.keystream;
 	maskstream = admin->cache.maskstream;
@@ -498,39 +176,20 @@ static int vcap_debugfs_show_rule_keyset(struct vcap_rule_internal *ri,
 		       __func__, __LINE__, res);
 		return -EINVAL;
 	}
-	keyset = matches.keysets[0];
 	out->prf(out->dst, "  keysets:");
-	for (idx = 0; idx < matches.cnt; ++idx)
+	for (int idx = 0; idx < matches.cnt; ++idx)
 		out->prf(out->dst, " %s",
 			 vcap_keyset_name(vctrl, matches.keysets[idx]));
 	out->prf(out->dst, "\n");
 	out->prf(out->dst, "  keyset_sw: %d\n", ri->keyset_sw);
 	out->prf(out->dst, "  keyset_sw_regs: %d\n", ri->keyset_sw_regs);
-	keyfield_count = vcap_keyfield_count(vctrl, vt, keyset);
-	keyfield = vcap_keyfields(vctrl, vt, keyset);
-	tgt = vcap_keyfield_typegroup(vctrl, vt, keyset);
-	/* Start decoding the streams */
-	for (idx = 0; idx < keyfield_count; ++idx) {
-		if (keyfield[idx].width <= 0)
-			continue;
-		/* First get the mask */
-		memset(mask, 0, DIV_ROUND_UP(keyfield[idx].width, 8));
-		vcap_iter_init(&miter, vctrl->vcaps[vt].sw_width, tgt,
-			       keyfield[idx].offset);
-		vcap_decode_field(maskstream, &miter, keyfield[idx].width,
-				  mask);
-		/* Skip if no mask bits are set */
-		if (vcap_bitarray_zero(keyfield[idx].width, mask))
-			continue;
-		/* Get the key */
-		memset(value, 0, DIV_ROUND_UP(keyfield[idx].width, 8));
-		vcap_iter_init(&kiter, vctrl->vcaps[vt].sw_width, tgt,
-			       keyfield[idx].offset);
-		vcap_decode_field(keystream, &kiter, keyfield[idx].width,
-				  value);
-		vcap_debugfs_show_rule_keyfield(vctrl, out, idx, keyfield,
-						value, mask);
+
+	list_for_each_entry(ckf, &ri->data.keyfields, ctrl.list) {
+		keyfield = vcap_keyfields(vctrl, admin->vtype, ri->data.keyset);
+		vcap_debugfs_show_rule_keyfield(vctrl, out, ckf->ctrl.key,
+						keyfield, &ckf->data);
 	}
+
 	return 0;
 }
 
@@ -540,48 +199,21 @@ static int vcap_debugfs_show_rule_actionset(struct vcap_rule_internal *ri,
 	struct vcap_control *vctrl = ri->vctrl;
 	struct vcap_admin *admin = ri->admin;
 	const struct vcap_field *actionfield;
-	enum vcap_actionfield_set actionset;
-	enum vcap_type vt = admin->vtype;
-	const struct vcap_typegroup *tgt;
-	struct vcap_stream_iter iter;
-	int idx, res, actfield_count;
-	u32 *actstream;
-	u8 value[16];
-	bool no_bits;
+	struct vcap_client_actionfield *caf;
 
-	actstream = admin->cache.actionstream;
-	res = vcap_find_actionstream_actionset(vctrl, vt, actstream, 0);
-	if (res < 0) {
-		pr_err("%s:%d: could not find valid actionset: %d\n",
-		       __func__, __LINE__, res);
-		return -EINVAL;
-	}
-	actionset = res;
 	out->prf(out->dst, "  actionset: %s\n",
 		 vcap_actionset_name(vctrl, ri->data.actionset));
 	out->prf(out->dst, "  actionset_sw: %d\n", ri->actionset_sw);
 	out->prf(out->dst, "  actionset_sw_regs: %d\n", ri->actionset_sw_regs);
-	actfield_count = vcap_actionfield_count(vctrl, vt, actionset);
-	actionfield = vcap_actionfields(vctrl, vt, actionset);
-	tgt = vcap_actionfield_typegroup(vctrl, vt, actionset);
-	/* Start decoding the stream */
-	for (idx = 0; idx < actfield_count; ++idx) {
-		if (actionfield[idx].width <= 0)
-			continue;
-		/* Get the action */
-		memset(value, 0, DIV_ROUND_UP(actionfield[idx].width, 8));
-		vcap_iter_init(&iter, vctrl->vcaps[vt].act_width, tgt,
-			       actionfield[idx].offset);
-		vcap_decode_field(actstream, &iter, actionfield[idx].width,
-				  value);
-		/* Skip if no bits are set */
-		no_bits = vcap_bitarray_zero(actionfield[idx].width, value);
-		if (no_bits)
-			continue;
-		/* Later the action id will also be checked */
-		vcap_debugfs_show_rule_actionfield(vctrl, out, idx, actionfield,
-						   value);
+
+	list_for_each_entry(caf, &ri->data.actionfields, ctrl.list) {
+		actionfield = vcap_actionfields(vctrl, admin->vtype,
+						ri->data.actionset);
+		vcap_debugfs_show_rule_actionfield(vctrl, out, caf->ctrl.action,
+						   actionfield,
+						   &caf->data.u1.value);
 	}
+
 	return 0;
 }
 
@@ -632,32 +264,22 @@ static int vcap_show_admin(struct vcap_control *vctrl,
 			   struct vcap_admin *admin,
 			   struct vcap_output_print *out)
 {
-	struct vcap_rule_internal *elem, *ri;
+	struct vcap_rule_internal *elem;
+	struct vcap_rule *vrule;
 	int ret = 0;
 
 	vcap_show_admin_info(vctrl, admin, out);
-	mutex_lock(&admin->lock);
 	list_for_each_entry(elem, &admin->rules, list) {
-		ri = vcap_dup_rule(elem);
-		if (IS_ERR(ri)) {
-			ret = PTR_ERR(ri);
-			goto err_unlock;
+		vrule = vcap_get_rule(vctrl, elem->data.id);
+		if (IS_ERR_OR_NULL(vrule)) {
+			ret = PTR_ERR(vrule);
+			break;
 		}
-		/* Read data from VCAP */
-		ret = vcap_read_rule(ri);
-		if (ret)
-			goto err_free_rule;
-		out->prf(out->dst, "\n");
-		vcap_show_admin_rule(vctrl, admin, out, ri);
-		vcap_free_rule((struct vcap_rule *)ri);
-	}
-	mutex_unlock(&admin->lock);
-	return 0;
 
-err_free_rule:
-	vcap_free_rule((struct vcap_rule *)ri);
-err_unlock:
-	mutex_unlock(&admin->lock);
+		out->prf(out->dst, "\n");
+		vcap_show_admin_rule(vctrl, admin, out, to_intrule(vrule));
+		vcap_free_rule(vrule);
+	}
 	return ret;
 }
 

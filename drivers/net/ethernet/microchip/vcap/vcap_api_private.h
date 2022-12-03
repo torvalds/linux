@@ -96,4 +96,18 @@ const char *vcap_actionset_name(struct vcap_control *vctrl,
 const char *vcap_actionfield_name(struct vcap_control *vctrl,
 				  enum vcap_action_field action);
 
+/* Read key data from a VCAP address and discover if there are any rule keysets
+ * here
+ */
+int vcap_addr_keysets(struct vcap_control *vctrl, struct net_device *ndev,
+		      struct vcap_admin *admin, int addr,
+		      struct vcap_keyset_list *kslist);
+
+/* Verify that the typegroup information, subword count, keyset and type id
+ * are in sync and correct, return the list of matchin keysets
+ */
+int vcap_find_keystream_keysets(struct vcap_control *vctrl, enum vcap_type vt,
+				u32 *keystream, u32 *mskstream, bool mask,
+				int sw_max, struct vcap_keyset_list *kslist);
+
 #endif /* __VCAP_API_PRIVATE__ */
