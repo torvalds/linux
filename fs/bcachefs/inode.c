@@ -213,6 +213,8 @@ static int bch2_inode_unpack_v2(struct bch_inode_unpacked *unpacked,
 int bch2_inode_unpack(struct bkey_s_c k,
 		      struct bch_inode_unpacked *unpacked)
 {
+	memset(unpacked, 0, sizeof(*unpacked));
+
 	switch (k.k->type) {
 	case KEY_TYPE_inode: {
 		struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
