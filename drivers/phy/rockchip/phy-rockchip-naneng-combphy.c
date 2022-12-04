@@ -154,7 +154,18 @@ static int rockchip_combphy_pcie_init(struct rockchip_combphy_priv *priv)
 
 static int rockchip_combphy_usb3_init(struct rockchip_combphy_priv *priv)
 {
+	const struct rockchip_combphy_cfg *phy_cfg = priv->cfg;
 	int ret = 0;
+
+	if (device_property_present(priv->dev, "rockchip,dis-u3otg0-port")) {
+		ret = param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg0_port_en,
+				  false);
+		return ret;
+	} else if (device_property_present(priv->dev, "rockchip,dis-u3otg1-port")) {
+		ret = param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg1_port_en,
+				  false);
+		return ret;
+	}
 
 	if (priv->cfg->combphy_cfg) {
 		ret = priv->cfg->combphy_cfg(priv);
