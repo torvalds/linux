@@ -438,7 +438,7 @@
 
 	cd-gpios = <&tlmm 54 GPIO_ACTIVE_LOW>;
 	no-sdio;
-	no-emmc;
+	no-mmc;
 };
 
 &tlmm {
