@@ -452,7 +452,7 @@
 		 */
 		partition@0 {
 			label = "QSPI.U_BOOT";
-			reg = <0x00000000 0x000080000>;
+			reg = <0x00000000 0x00080000>;
 		};
 		partition@1 {
 			label = "QSPI.U_BOOT.backup";

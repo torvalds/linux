@@ -49,7 +49,7 @@
 
 	leds {
 		compatible = "gpio-leds";
-		heartbeat {
+		led-heartbeat {
 			label = "debug::sleep";
 			gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;  /* 162 */
 			linux,default-trigger = "default-on";
