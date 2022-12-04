@@ -1579,8 +1579,10 @@ static void tty3270_escape_sequence(struct tty3270 *tp, char ch)
 			tp->attributes = tp->saved_attributes;
 			break;
 		case 'c':		/* Reset terminal. */
-			tp->cx = tp->saved_cx = 0;
-			tp->cy = tp->saved_cy = 0;
+			tp->cx = 0;
+			tp->cy = 0;
+			tp->saved_cx = 0;
+			tp->saved_cy = 0;
 			tty3270_reset_attributes(&tp->attributes);
 			tty3270_reset_attributes(&tp->saved_attributes);
 			tty3270_erase_display(tp, 2);
@@ -1740,7 +1742,8 @@ static void tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
 			break;
 		case 0x0c:		/* '\f' -- Form Feed */
 			tty3270_erase_display(tp, 2);
-			tp->cx = tp->cy = 0;
+			tp->cx = 0;
+			tp->cy = 0;
 			break;
 		case 0x0d:		/* '\r' -- Carriage Return */
 			tp->cx = 0;
@@ -1883,8 +1886,10 @@ static void tty3270_hangup(struct tty_struct *tty)
 	if (!tp)
 		return;
 	spin_lock_irq(&tp->view.lock);
-	tp->cx = tp->saved_cx = 0;
-	tp->cy = tp->saved_cy = 0;
+	tp->cx = 0;
+	tp->cy = 0;
+	tp->saved_cx = 0;
+	tp->saved_cy = 0;
 	tty3270_reset_attributes(&tp->attributes);
 	tty3270_reset_attributes(&tp->saved_attributes);
 	tty3270_blank_screen(tp);
