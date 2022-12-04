@@ -1304,14 +1304,21 @@ static int evict_unlinked_inode(struct inode *inode)
 			goto out;
 	}
 
-	/* We're about to clear the bitmap for the dinode, but as soon as we
-	   do, gfs2_create_inode can create another inode at the same block
-	   location and try to set gl_object again. We clear gl_object here so
-	   that subsequent inode creates don't see an old gl_object. */
-	if (ip->i_gl) {
-		glock_clear_object(ip->i_gl, ip);
+	if (ip->i_gl)
 		gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
-	}
+
+	/*
+	 * As soon as we clear the bitmap for the dinode, gfs2_create_inode()
+	 * can get called to recreate it, or even gfs2_inode_lookup() if the
+	 * inode was recreated on another node in the meantime.
+	 *
+	 * However, inserting the new inode into the inode hash table will not
+	 * succeed until the old inode is removed, and that only happens after
+	 * ->evict_inode() returns.  The new inode is attached to its inode and
+	 *  iopen glocks after inserting it into the inode hash table, so at
+	 *  that point we can be sure that both glocks are unused.
+	 */
+
 	ret = gfs2_dinode_dealloc(ip);
 out:
 	return ret;
