@@ -83,6 +83,8 @@ properties:
       - const: cal
       - const: sleep
 
+  dma-coherent: true
+
   interrupts:
     maxItems: 2
 
