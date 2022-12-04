@@ -2722,7 +2722,8 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data, struct multi_cs_com
 			break;
 		default:
 			dev_err(hdev->dev, "Invalid fence status\n");
-			return -EINVAL;
+			rc = -EINVAL;
+			break;
 		}
 
 	}
