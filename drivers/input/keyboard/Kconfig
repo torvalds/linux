@@ -542,7 +542,7 @@ config KEYBOARD_PINEPHONE
 
 config KEYBOARD_PXA27x
 	tristate "PXA27x/PXA3xx keypad support"
-	depends on PXA27x || PXA3xx || ARCH_MMP
+	depends on PXA27x || PXA3xx || ARCH_MMP || COMPILE_TEST
 	select INPUT_MATRIXKMAP
 	help
 	  Enable support for PXA27x/PXA3xx keypad controller.
