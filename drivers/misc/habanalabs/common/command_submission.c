@@ -2590,7 +2590,9 @@ report_results:
 		*status = CS_WAIT_STATUS_BUSY;
 	}
 
-	if (error == -ETIMEDOUT || error == -EIO)
+	if (completion_rc == -ERESTARTSYS)
+		rc = completion_rc;
+	else if (error == -ETIMEDOUT || error == -EIO)
 		rc = error;
 
 	return rc;
@@ -2849,6 +2851,9 @@ static int hl_wait_multi_cs_completion(struct multi_cs_data *mcs_data,
 	if (completion_rc > 0)
 		mcs_data->timestamp = mcs_compl->timestamp;
 
+	if (completion_rc == -ERESTARTSYS)
+		return completion_rc;
+
 	mcs_data->wait_status = completion_rc;
 
 	return 0;
@@ -2994,14 +2999,14 @@ put_ctx:
 free_seq_arr:
 	kfree(cs_seq_arr);
 
-	if (rc)
-		return rc;
-
-	if (mcs_data.wait_status == -ERESTARTSYS) {
+	if (rc == -ERESTARTSYS) {
 		dev_err_ratelimited(hdev->dev,
 				"user process got signal while waiting for Multi-CS\n");
-		return -EINTR;
+		rc = -EINTR;
 	}
+
+	if (rc)
+		return rc;
 
 	/* update output args */
 	memset(args, 0, sizeof(*args));
