@@ -32,10 +32,6 @@
 
 #include "../include/linux/atomisp_platform.h"
 
-/* Defines for register writes and register array processing */
-#define I2C_MSG_LENGTH		0x2
-#define I2C_RETRY_COUNT		5
-
 #define OV2680_FOCAL_LENGTH_NUM	334	/*3.34mm*/
 
 #define OV2680_BIN_FACTOR_MAX 4
