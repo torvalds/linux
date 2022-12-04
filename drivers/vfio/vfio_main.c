@@ -125,6 +125,19 @@ static void vfio_release_device_set(struct vfio_device *device)
 	xa_unlock(&vfio_device_set_xa);
 }
 
+unsigned int vfio_device_set_open_count(struct vfio_device_set *dev_set)
+{
+	struct vfio_device *cur;
+	unsigned int open_count = 0;
+
+	lockdep_assert_held(&dev_set->lock);
+
+	list_for_each_entry(cur, &dev_set->device_list, dev_set_list)
+		open_count += cur->open_count;
+	return open_count;
+}
+EXPORT_SYMBOL_GPL(vfio_device_set_open_count);
+
 /*
  * Group objects - create, release, get, put, search
  */
@@ -801,8 +814,9 @@ static struct file *vfio_device_open(struct vfio_device *device)
 err_close_device:
 	mutex_lock(&device->dev_set->lock);
 	mutex_lock(&device->group->group_lock);
-	if (device->open_count == 1 && device->ops->close_device) {
-		device->ops->close_device(device);
+	if (device->open_count == 1) {
+		if (device->ops->close_device)
+			device->ops->close_device(device);
 
 		vfio_device_container_unregister(device);
 	}
@@ -1017,10 +1031,12 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 	mutex_lock(&device->dev_set->lock);
 	vfio_assert_device_open(device);
 	mutex_lock(&device->group->group_lock);
-	if (device->open_count == 1 && device->ops->close_device)
-		device->ops->close_device(device);
+	if (device->open_count == 1) {
+		if (device->ops->close_device)
+			device->ops->close_device(device);
 
-	vfio_device_container_unregister(device);
+		vfio_device_container_unregister(device);
+	}
 	mutex_unlock(&device->group->group_lock);
 	device->open_count--;
 	if (device->open_count == 0)
