@@ -1139,11 +1139,10 @@ static void force_complete_cs(struct hl_device *hdev)
 	spin_unlock(&hdev->cs_mirror_lock);
 }
 
-void hl_abort_waitings_for_completion(struct hl_device *hdev)
+void hl_abort_waiting_for_cs_completions(struct hl_device *hdev)
 {
 	force_complete_cs(hdev);
 	force_complete_multi_cs(hdev);
-	hl_release_pending_user_interrupts(hdev);
 }
 
 static void job_wq_completion(struct work_struct *work)
