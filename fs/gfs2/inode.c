@@ -142,6 +142,11 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 		if (unlikely(error))
 			goto fail;
 
+		/*
+		 * The only caller that sets @blktype to GFS2_BLKST_UNLINKED is
+		 * delete_work_func().  Make sure not to cancel the delete work
+		 * from within itself here.
+		 */
 		if (blktype == GFS2_BLKST_UNLINKED)
 			extra_flags |= LM_FLAG_TRY;
 		else
