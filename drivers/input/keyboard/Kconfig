@@ -508,7 +508,7 @@ config KEYBOARD_NSPIRE
 
 config KEYBOARD_TEGRA
 	tristate "NVIDIA Tegra internal matrix keyboard controller support"
-	depends on ARCH_TEGRA && OF
+	depends on (ARCH_TEGRA && OF) || COMPILE_TEST
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use a matrix keyboard connected directly
