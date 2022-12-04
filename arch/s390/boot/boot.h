@@ -8,6 +8,12 @@
 
 #ifndef __ASSEMBLY__
 
+struct machine_info {
+	unsigned char has_edat1 : 1;
+	unsigned char has_edat2 : 1;
+	unsigned char has_nx : 1;
+};
+
 struct vmlinux_info {
 	unsigned long default_lma;
 	void (*entry)(void);
@@ -37,6 +43,8 @@ void print_pgm_check_info(void);
 unsigned long get_random_base(unsigned long safe_addr);
 void __printf(1, 2) decompressor_printk(const char *fmt, ...);
 void error(char *m);
+
+extern struct machine_info machine;
 
 /* Symbols defined by linker scripts */
 extern const char kernel_version[];

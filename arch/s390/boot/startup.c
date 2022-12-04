@@ -33,6 +33,8 @@ u64 __bootdata_preserved(stfle_fac_list[16]);
 u64 __bootdata_preserved(alt_stfle_fac_list[16]);
 struct oldmem_data __bootdata_preserved(oldmem_data);
 
+struct machine_info machine;
+
 void error(char *x)
 {
 	sclp_early_printk("\n\n");
@@ -40,6 +42,20 @@ void error(char *x)
 	sclp_early_printk("\n\n -- System halted");
 
 	disabled_wait();
+}
+
+static void detect_facilities(void)
+{
+	if (test_facility(8)) {
+		machine.has_edat1 = 1;
+		__ctl_set_bit(0, 23);
+	}
+	if (test_facility(78))
+		machine.has_edat2 = 1;
+	if (!noexec_disabled && test_facility(130)) {
+		machine.has_nx = 1;
+		__ctl_set_bit(0, 20);
+	}
 }
 
 static void setup_lpp(void)
@@ -253,6 +269,8 @@ void startup_kernel(void)
 	unsigned long random_lma;
 	unsigned long safe_addr;
 	void *img;
+
+	detect_facilities();
 
 	initrd_data.start = parmarea.initrd_start;
 	initrd_data.size = parmarea.initrd_size;
