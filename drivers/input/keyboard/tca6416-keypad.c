@@ -320,7 +320,6 @@ static void tca6416_keypad_remove(struct i2c_client *client)
 	kfree(chip);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int tca6416_keypad_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -342,15 +341,14 @@ static int tca6416_keypad_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(tca6416_keypad_dev_pm_ops,
-			 tca6416_keypad_suspend, tca6416_keypad_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tca6416_keypad_dev_pm_ops,
+				tca6416_keypad_suspend, tca6416_keypad_resume);
 
 static struct i2c_driver tca6416_keypad_driver = {
 	.driver = {
 		.name	= "tca6416-keypad",
-		.pm	= &tca6416_keypad_dev_pm_ops,
+		.pm	= pm_sleep_ptr(&tca6416_keypad_dev_pm_ops),
 	},
 	.probe_new	= tca6416_keypad_probe,
 	.remove		= tca6416_keypad_remove,
