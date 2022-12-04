@@ -1769,7 +1769,7 @@ static void tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
 	}
 	/* Setup timer to update display after 1/10 second */
 	if (!timer_pending(&tp->timer))
-		tty3270_set_timer(tp, HZ/10);
+		tty3270_set_timer(tp, msecs_to_jiffies(100));
 
 	spin_unlock_irq(&tp->view.lock);
 }
