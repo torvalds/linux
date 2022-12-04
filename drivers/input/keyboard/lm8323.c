@@ -770,7 +770,6 @@ static void lm8323_remove(struct i2c_client *client)
 	kfree(lm);
 }
 
-#ifdef CONFIG_PM_SLEEP
 /*
  * We don't need to explicitly suspend the chip, as it already switches off
  * when there's no activity.
@@ -814,9 +813,8 @@ static int lm8323_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(lm8323_pm_ops, lm8323_suspend, lm8323_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(lm8323_pm_ops, lm8323_suspend, lm8323_resume);
 
 static const struct i2c_device_id lm8323_id[] = {
 	{ "lm8323", 0 },
@@ -826,7 +824,7 @@ static const struct i2c_device_id lm8323_id[] = {
 static struct i2c_driver lm8323_i2c_driver = {
 	.driver = {
 		.name	= "lm8323",
-		.pm	= &lm8323_pm_ops,
+		.pm	= pm_sleep_ptr(&lm8323_pm_ops),
 	},
 	.probe_new	= lm8323_probe,
 	.remove		= lm8323_remove,
