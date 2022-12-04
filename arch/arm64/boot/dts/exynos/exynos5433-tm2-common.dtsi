@@ -96,10 +96,10 @@
 		max98504: amplifier@31 {
 			compatible = "maxim,max98504";
 			reg = <0x31>;
-			maxim,rx-path = <1>;
-			maxim,tx-path = <1>;
-			maxim,tx-channel-mask = <3>;
-			maxim,tx-channel-source = <2>;
+
+			DIOVDD-supply = <&ldo3_reg>;
+			DVDD-supply = <&ldo3_reg>;
+			/* PVDD-supply to VPH_PWR */
 		};
 	};
 
