@@ -169,7 +169,7 @@ required:
   - interrupts
 
 allOf:
-  - $ref: mmc-controller.yaml#
+  - $ref: sdhci-common.yaml#
 
   - if:
       properties:

@@ -11,7 +11,7 @@ maintainers:
   - Ulf Hansson <ulf.hansson@linaro.org>
 
 allOf:
-  - $ref: mmc-controller.yaml#
+  - $ref: sdhci-common.yaml#
 
 properties:
   compatible:
@@ -48,8 +48,6 @@ properties:
     items:
       - const: clk_ahb
       - const: clk_xin
-
-  sdhci-caps-mask: true
 
   dma-coherent:
     type: boolean
