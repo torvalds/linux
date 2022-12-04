@@ -1707,6 +1707,13 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 
 	spin_lock(&gl->gl_lockref.lock);
+	if (!gfs2_holder_queued(gh)) {
+		/*
+		 * May have already been dequeued because the locking request
+		 * was GL_ASYNC and it has failed in the meantime.
+		 */
+		goto out;
+	}
 	if (list_is_first(&gh->gh_list, &gl->gl_holders) &&
 	    !test_bit(HIF_HOLDER, &gh->gh_iflags)) {
 		spin_unlock(&gl->gl_lockref.lock);
@@ -1716,6 +1723,7 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	}
 
 	__gfs2_glock_dq(gh);
+out:
 	spin_unlock(&gl->gl_lockref.lock);
 }
 
