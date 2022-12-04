@@ -136,16 +136,6 @@ properties:
     description: A phandle to sdhci power domain node
     maxItems: 1
 
-  mmc-ddr-1_8v: true
-
-  mmc-hs200-1_8v: true
-
-  mmc-hs400-1_8v: true
-
-  bus-width: true
-
-  max-frequency: true
-
   operating-points-v2: true
 
 patternProperties:
