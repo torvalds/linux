@@ -1016,7 +1016,7 @@ static int adp5589_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused adp5589_suspend(struct device *dev)
+static int adp5589_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adp5589_kpad *kpad = i2c_get_clientdata(client);
@@ -1027,7 +1027,7 @@ static int __maybe_unused adp5589_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused adp5589_resume(struct device *dev)
+static int adp5589_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adp5589_kpad *kpad = i2c_get_clientdata(client);
@@ -1038,7 +1038,7 @@ static int __maybe_unused adp5589_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(adp5589_dev_pm_ops, adp5589_suspend, adp5589_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(adp5589_dev_pm_ops, adp5589_suspend, adp5589_resume);
 
 static const struct i2c_device_id adp5589_id[] = {
 	{"adp5589-keys", ADP5589},
@@ -1052,7 +1052,7 @@ MODULE_DEVICE_TABLE(i2c, adp5589_id);
 static struct i2c_driver adp5589_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.pm = &adp5589_dev_pm_ops,
+		.pm = pm_sleep_ptr(&adp5589_dev_pm_ops),
 	},
 	.probe_new = adp5589_probe,
 	.id_table = adp5589_id,
