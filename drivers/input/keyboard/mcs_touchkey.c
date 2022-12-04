@@ -213,7 +213,6 @@ static void mcs_touchkey_shutdown(struct i2c_client *client)
 		data->poweron(false);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mcs_touchkey_suspend(struct device *dev)
 {
 	struct mcs_touchkey_data *data = dev_get_drvdata(dev);
@@ -243,10 +242,9 @@ static int mcs_touchkey_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(mcs_touchkey_pm_ops,
-			 mcs_touchkey_suspend, mcs_touchkey_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mcs_touchkey_pm_ops,
+				mcs_touchkey_suspend, mcs_touchkey_resume);
 
 static const struct i2c_device_id mcs_touchkey_id[] = {
 	{ "mcs5000_touchkey", MCS5000_TOUCHKEY },
@@ -258,7 +256,7 @@ MODULE_DEVICE_TABLE(i2c, mcs_touchkey_id);
 static struct i2c_driver mcs_touchkey_driver = {
 	.driver = {
 		.name	= "mcs_touchkey",
-		.pm	= &mcs_touchkey_pm_ops,
+		.pm	= pm_sleep_ptr(&mcs_touchkey_pm_ops),
 	},
 	.probe_new	= mcs_touchkey_probe,
 	.remove		= mcs_touchkey_remove,
