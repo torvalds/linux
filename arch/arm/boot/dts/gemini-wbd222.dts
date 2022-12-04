@@ -90,6 +90,8 @@
 			status = "okay";
 			/* 8MB of flash */
 			reg = <0x30000000 0x00800000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 
 			partition@0 {
 				label = "RedBoot";

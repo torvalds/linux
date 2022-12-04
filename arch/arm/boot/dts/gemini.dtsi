@@ -22,8 +22,6 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pflash_default_pins>;
 			bank-width = <2>;
-			#address-cells = <1>;
-			#size-cells = <1>;
 			status = "disabled";
 		};
 

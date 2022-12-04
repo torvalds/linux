@@ -164,6 +164,8 @@
 			compatible = "cortina,gemini-flash", "jedec-flash";
 			status = "okay";
 			reg = <0x30000000 0x00080000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 
 			/*
 			 * This "RedBoot" is the Storlink derivative.
