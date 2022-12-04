@@ -1457,6 +1457,7 @@ int add_memory(int nid, u64 start, u64 size, mhp_t mhp_flags)
 }
 EXPORT_SYMBOL_GPL(add_memory);
 
+#ifdef CONFIG_MEMORY_HOTPLUG_SUBSECTIONS
 int add_memory_subsection(int nid, u64 start, u64 size)
 {
 	struct mhp_params params = { .pgprot = PAGE_KERNEL };
@@ -1501,6 +1502,7 @@ err_add_memory:
 	return ret;
 }
 EXPORT_SYMBOL(add_memory_subsection);
+#endif /* CONFIG_MEMORY_HOTPLUG_SUBSECTIONS */
 
 /*
  * Add special, driver-managed memory to the system as system RAM. Such
@@ -2219,6 +2221,7 @@ int remove_memory(u64 start, u64 size)
 }
 EXPORT_SYMBOL_GPL(remove_memory);
 
+#ifdef CONFIG_MEMORY_HOTPLUG_SUBSECTIONS
 int remove_memory_subsection(u64 start, u64 size)
 {
 	if (!IS_ALIGNED(start, SUBSECTION_SIZE) ||
@@ -2241,6 +2244,7 @@ int remove_memory_subsection(u64 start, u64 size)
 	return 0;
 }
 EXPORT_SYMBOL(remove_memory_subsection);
+#endif /*CONFIG_MEMORY_HOTPLUG_SUBSECTIONS */
 
 static int try_offline_memory_block(struct memory_block *mem, void *arg)
 {
