@@ -163,9 +163,6 @@ struct ov2680_device {
 	struct camera_sensor_platform_data *platform_data;
 	bool power_on;
 	bool is_streaming;
-	u16 exposure;
-	u16 gain;
-	u16 digitgain;
 
 	struct ov2680_mode {
 		struct v4l2_mbus_framefmt fmt;
