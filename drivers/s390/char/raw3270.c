@@ -1232,7 +1232,7 @@ static void raw3270_remove(struct ccw_device *cdev)
 	 * devices even if they haven't been varied online.
 	 * Thus, rp may validly be NULL here.
 	 */
-	if (rp == NULL)
+	if (!rp)
 		return;
 
 	sysfs_remove_group(&cdev->dev.kobj, &raw3270_attr_group);
