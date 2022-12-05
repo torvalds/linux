@@ -47,7 +47,7 @@ static DEFINE_MUTEX(fs3270_mutex);
 static void
 fs3270_wake_up(struct raw3270_request *rq, void *data)
 {
-	wake_up((wait_queue_head_t *) data);
+	wake_up((wait_queue_head_t *)data);
 }
 
 static inline int
@@ -66,7 +66,7 @@ fs3270_do_io(struct raw3270_view *view, struct raw3270_request *rq)
 	struct fs3270 *fp;
 	int rc;
 
-	fp = (struct fs3270 *) view;
+	fp = (struct fs3270 *)view;
 	rq->callback = fs3270_wake_up;
 	rq->callback_data = &fp->wait;
 
@@ -95,7 +95,7 @@ fs3270_reset_callback(struct raw3270_request *rq, void *data)
 {
 	struct fs3270 *fp;
 
-	fp = (struct fs3270 *) rq->view;
+	fp = (struct fs3270 *)rq->view;
 	raw3270_request_reset(rq);
 	wake_up(&fp->wait);
 }
@@ -105,7 +105,7 @@ fs3270_restore_callback(struct raw3270_request *rq, void *data)
 {
 	struct fs3270 *fp;
 
-	fp = (struct fs3270 *) rq->view;
+	fp = (struct fs3270 *)rq->view;
 	if (rq->rc != 0 || rq->rescnt != 0) {
 		if (fp->fs_pid)
 			kill_pid(fp->fs_pid, SIGHUP, 1);
@@ -122,7 +122,7 @@ fs3270_activate(struct raw3270_view *view)
 	char *cp;
 	int rc;
 
-	fp = (struct fs3270 *) view;
+	fp = (struct fs3270 *)view;
 
 	/* If an old init command is still running just return. */
 	if (!raw3270_request_final(fp->init))
@@ -165,7 +165,7 @@ fs3270_save_callback(struct raw3270_request *rq, void *data)
 {
 	struct fs3270 *fp;
 
-	fp = (struct fs3270 *) rq->view;
+	fp = (struct fs3270 *)rq->view;
 
 	/* Correct idal buffer element 0 address. */
 	fp->rdbuf->data[0] -= 5;
@@ -192,7 +192,7 @@ fs3270_deactivate(struct raw3270_view *view)
 {
 	struct fs3270 *fp;
 
-	fp = (struct fs3270 *) view;
+	fp = (struct fs3270 *)view;
 	fp->active = 0;
 
 	/* If an old init command is still running just return. */
@@ -246,7 +246,7 @@ fs3270_read(struct file *filp, char __user *data, size_t count, loff_t *off)
 	struct raw3270_request *rq;
 	struct idal_buffer *ib;
 	ssize_t rc;
-	
+
 	if (count == 0 || count > 65535)
 		return -EINVAL;
 	fp = filp->private_data;
@@ -271,7 +271,6 @@ fs3270_read(struct file *filp, char __user *data, size_t count, loff_t *off)
 					rc = -EFAULT;
 				else
 					rc = count;
-
 			}
 		}
 		raw3270_request_free(rq);
@@ -375,7 +374,7 @@ fs3270_alloc_view(void)
 {
 	struct fs3270 *fp;
 
-	fp = kzalloc(sizeof(struct fs3270),GFP_KERNEL);
+	fp = kzalloc(sizeof(struct fs3270), GFP_KERNEL);
 	if (!fp)
 		return ERR_PTR(-ENOMEM);
 	fp->init = raw3270_request_alloc(0);
@@ -394,10 +393,10 @@ fs3270_free_view(struct raw3270_view *view)
 {
 	struct fs3270 *fp;
 
-	fp = (struct fs3270 *) view;
+	fp = (struct fs3270 *)view;
 	if (fp->rdbuf)
 		idal_buffer_free(fp->rdbuf);
-	raw3270_request_free(((struct fs3270 *) view)->init);
+	raw3270_request_free(((struct fs3270 *)view)->init);
 	kfree(view);
 }
 
@@ -409,7 +408,7 @@ fs3270_release(struct raw3270_view *view)
 {
 	struct fs3270 *fp;
 
-	fp = (struct fs3270 *) view;
+	fp = (struct fs3270 *)view;
 	if (fp->fs_pid)
 		kill_pid(fp->fs_pid, SIGHUP, 1);
 }
@@ -418,7 +417,7 @@ fs3270_release(struct raw3270_view *view)
 static struct raw3270_fn fs3270_fn = {
 	.activate = fs3270_activate,
 	.deactivate = fs3270_deactivate,
-	.intv = (void *) fs3270_irq,
+	.intv = (void *)fs3270_irq,
 	.release = fs3270_release,
 	.free = fs3270_free_view
 };
@@ -439,6 +438,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 	/* Check for minor 0 multiplexer. */
 	if (minor == 0) {
 		struct tty_struct *tty = get_current_tty();
+
 		if (!tty || tty->driver->major != IBM_TTY3270_MAJOR) {
 			tty_kref_put(tty);
 			return -ENODEV;
@@ -448,7 +448,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 	}
 	mutex_lock(&fs3270_mutex);
 	/* Check if some other program is already using fullscreen mode. */
-	fp = (struct fs3270 *) raw3270_find_view(&fs3270_fn, minor);
+	fp = (struct fs3270 *)raw3270_find_view(&fs3270_fn, minor);
 	if (!IS_ERR(fp)) {
 		raw3270_put_view(&fp->view);
 		rc = -EBUSY;
@@ -471,7 +471,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 	}
 
 	/* Allocate idal-buffer. */
-	ib = idal_buffer_alloc(2*fp->view.rows*fp->view.cols + 5, 0);
+	ib = idal_buffer_alloc(2 * fp->view.rows * fp->view.cols + 5, 0);
 	if (IS_ERR(ib)) {
 		raw3270_put_view(&fp->view);
 		raw3270_del_view(&fp->view);
