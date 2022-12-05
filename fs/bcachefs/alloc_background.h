@@ -64,9 +64,22 @@ static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
 				 a.stripe, a, data_type);
 }
 
-static inline u64 alloc_lru_idx(struct bch_alloc_v4 a)
+static inline u64 alloc_lru_idx_read(struct bch_alloc_v4 a)
 {
 	return a.data_type == BCH_DATA_cached ? a.io_time[READ] : 0;
+}
+
+static inline u64 alloc_lru_idx_fragmentation(struct bch_alloc_v4 a,
+					      struct bch_dev *ca)
+{
+	if (a.data_type != BCH_DATA_btree &&
+	    a.data_type != BCH_DATA_user)
+		return 0;
+
+	if (a.dirty_sectors >= ca->mi.bucket_size)
+		return 0;
+
+	return div_u64((u64) a.dirty_sectors * (1ULL << 31), ca->mi.bucket_size);
 }
 
 static inline u64 alloc_freespace_genbits(struct bch_alloc_v4 a)

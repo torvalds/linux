@@ -89,15 +89,4 @@ struct disk_reservation {
 	unsigned		nr_replicas;
 };
 
-struct copygc_heap_entry {
-	u8			dev;
-	u8			gen;
-	u8			replicas;
-	u32			fragmentation;
-	u32			sectors;
-	u64			bucket;
-};
-
-typedef HEAP(struct copygc_heap_entry) copygc_heap;
-
 #endif /* _BUCKETS_TYPES_H */

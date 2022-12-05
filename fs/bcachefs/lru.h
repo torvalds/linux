@@ -22,6 +22,27 @@ static inline u64 lru_pos_time(struct bpos pos)
 	return pos.inode & ~(~0ULL << LRU_TIME_BITS);
 }
 
+#define BCH_LRU_TYPES()		\
+	x(read)			\
+	x(fragmentation)
+
+enum bch_lru_type {
+#define x(n) BCH_LRU_##n,
+	BCH_LRU_TYPES()
+#undef x
+};
+
+#define BCH_LRU_FRAGMENTATION_START	((1U << 16) - 1)
+
+static inline enum bch_lru_type lru_type(struct bkey_s_c l)
+{
+	u16 lru_id = l.k->p.inode >> 48;
+
+	if (lru_id == BCH_LRU_FRAGMENTATION_START)
+		return BCH_LRU_fragmentation;
+	return BCH_LRU_read;
+}
+
 int bch2_lru_invalid(const struct bch_fs *, struct bkey_s_c, unsigned, struct printbuf *);
 void bch2_lru_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 

@@ -66,7 +66,8 @@ int bch2_move_data(struct bch_fs *,
 		   bool,
 		   move_pred_fn, void *);
 
-int __bch2_evacuate_bucket(struct moving_context *,
+int __bch2_evacuate_bucket(struct btree_trans *,
+			   struct moving_context *,
 			   struct bpos, int,
 			   struct data_update_opts);
 int bch2_evacuate_bucket(struct bch_fs *, struct bpos, int,

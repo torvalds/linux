@@ -487,7 +487,6 @@ static void __bch2_fs_free(struct bch_fs *c)
 	kfree(rcu_dereference_protected(c->disk_groups, 1));
 	kfree(c->journal_seq_blacklist_table);
 	kfree(c->unused_inode_hints);
-	free_heap(&c->copygc_heap);
 
 	if (c->io_complete_wq)
 		destroy_workqueue(c->io_complete_wq);

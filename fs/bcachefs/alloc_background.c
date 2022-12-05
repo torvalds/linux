@@ -415,6 +415,8 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	prt_newline(out);
 	prt_printf(out, "io_time[WRITE]    %llu",	a->io_time[WRITE]);
 	prt_newline(out);
+	prt_printf(out, "fragmentation     %llu",	a->fragmentation_lru);
+	prt_newline(out);
 	prt_printf(out, "bp_start          %llu", BCH_ALLOC_V4_BACKPOINTERS_START(a));
 	prt_newline(out);
 
@@ -910,13 +912,25 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 	    !new_a->io_time[READ])
 		new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
 
-	old_lru = alloc_lru_idx(*old_a);
-	new_lru = alloc_lru_idx(*new_a);
+	old_lru = alloc_lru_idx_read(*old_a);
+	new_lru = alloc_lru_idx_read(*new_a);
 
 	if (old_lru != new_lru) {
 		ret = bch2_lru_change(trans, new->k.p.inode,
 				      bucket_to_u64(new->k.p),
 				      old_lru, new_lru);
+		if (ret)
+			return ret;
+	}
+
+	new_a->fragmentation_lru = alloc_lru_idx_fragmentation(*new_a,
+					bch_dev_bkey_exists(c, new->k.p.inode));
+
+	if (old_a->fragmentation_lru != new_a->fragmentation_lru) {
+		ret = bch2_lru_change(trans,
+				BCH_LRU_FRAGMENTATION_START,
+				bucket_to_u64(new->k.p),
+				old_a->fragmentation_lru, new_a->fragmentation_lru);
 		if (ret)
 			return ret;
 	}
@@ -1777,7 +1791,7 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 		goto out;
 
 	/* We expect harmless races here due to the btree write buffer: */
-	if (lru_pos_time(lru_iter->pos) != alloc_lru_idx(a->v))
+	if (lru_pos_time(lru_iter->pos) != alloc_lru_idx_read(a->v))
 		goto out;
 
 	BUG_ON(a->v.data_type != BCH_DATA_cached);

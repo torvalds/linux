@@ -10,6 +10,7 @@
 #include "alloc_foreground.h"
 #include "btree_iter.h"
 #include "btree_update.h"
+#include "btree_write_buffer.h"
 #include "buckets.h"
 #include "clock.h"
 #include "disk_groups.h"
@@ -19,6 +20,7 @@
 #include "eytzinger.h"
 #include "io.h"
 #include "keylist.h"
+#include "lru.h"
 #include "move.h"
 #include "movinggc.h"
 #include "super-io.h"
@@ -31,137 +33,104 @@
 #include <linux/sort.h>
 #include <linux/wait.h>
 
-static inline int fragmentation_cmp(copygc_heap *heap,
-				   struct copygc_heap_entry l,
-				   struct copygc_heap_entry r)
+static int bch2_bucket_is_movable(struct btree_trans *trans,
+				  struct bpos bucket, u64 time, u8 *gen)
 {
-	return cmp_int(l.fragmentation, r.fragmentation);
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bch_alloc_v4 _a;
+	const struct bch_alloc_v4 *a;
+	int ret;
+
+	if (bch2_bucket_is_open(trans->c, bucket.inode, bucket.offset))
+		return 0;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, bucket, 0);
+	k = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(k);
+	bch2_trans_iter_exit(trans, &iter);
+
+	if (ret)
+		return ret;
+
+	a = bch2_alloc_to_v4(k, &_a);
+	*gen = a->gen;
+	ret = (a->data_type == BCH_DATA_btree ||
+	       a->data_type == BCH_DATA_user) &&
+		a->fragmentation_lru &&
+		a->fragmentation_lru <= time;
+
+	if (ret) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_bkey_val_to_text(&buf, trans->c, k);
+		pr_debug("%s", buf.buf);
+		printbuf_exit(&buf);
+	}
+
+	return ret;
 }
 
-static int find_buckets_to_copygc(struct bch_fs *c)
+static int bch2_copygc_next_bucket(struct btree_trans *trans,
+				   struct bpos *bucket, u8 *gen, struct bpos *pos)
 {
-	copygc_heap *h = &c->copygc_heap;
-	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
+	ret = for_each_btree_key2_upto(trans, iter, BTREE_ID_lru,
+				  bpos_max(*pos, lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0)),
+				  lru_pos(BCH_LRU_FRAGMENTATION_START, U64_MAX, LRU_TIME_MAX),
+				  0, k, ({
+		*bucket = u64_to_bucket(k.k->p.offset);
 
-	/*
-	 * Find buckets with lowest sector counts, skipping completely
-	 * empty buckets, by building a maxheap sorted by sector count,
-	 * and repeatedly replacing the maximum element until all
-	 * buckets have been visited.
-	 */
-	h->used = 0;
+		bch2_bucket_is_movable(trans, *bucket, lru_pos_time(k.k->p), gen);
+	}));
 
-	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, iter.pos.inode);
-		struct copygc_heap_entry e;
-		struct bch_alloc_v4 a_convert;
-		const struct bch_alloc_v4 *a;
-
-		a = bch2_alloc_to_v4(k, &a_convert);
-
-		if ((a->data_type != BCH_DATA_btree &&
-		     a->data_type != BCH_DATA_user) ||
-		    a->dirty_sectors >= ca->mi.bucket_size ||
-		    bch2_bucket_is_open(c, iter.pos.inode, iter.pos.offset))
-			continue;
-
-		e = (struct copygc_heap_entry) {
-			.dev		= iter.pos.inode,
-			.gen		= a->gen,
-			.replicas	= 1 + a->stripe_redundancy,
-			.fragmentation	= div_u64((u64) a->dirty_sectors * (1ULL << 31),
-						  ca->mi.bucket_size),
-			.sectors	= a->dirty_sectors,
-			.bucket		= iter.pos.offset,
-		};
-		heap_add_or_replace(h, e, -fragmentation_cmp, NULL);
-
-	}
-	bch2_trans_iter_exit(&trans, &iter);
-
-	bch2_trans_exit(&trans);
-	return ret;
+	*pos = iter.pos;
+	if (ret < 0)
+		return ret;
+	return ret ? 0 : -ENOENT;
 }
 
 static int bch2_copygc(struct bch_fs *c)
 {
-	copygc_heap *h = &c->copygc_heap;
-	struct copygc_heap_entry e;
 	struct bch_move_stats move_stats;
-	struct bch_dev *ca;
-	unsigned dev_idx;
-	size_t heap_size = 0;
+	struct btree_trans trans;
 	struct moving_context ctxt;
 	struct data_update_opts data_opts = {
 		.btree_insert_flags = BTREE_INSERT_USE_RESERVE|JOURNAL_WATERMARK_copygc,
 	};
+	struct bpos bucket;
+	struct bpos pos;
+	u8 gen = 0;
+	unsigned nr_evacuated;
 	int ret = 0;
 
 	bch2_move_stats_init(&move_stats, "copygc");
-
-	for_each_rw_member(ca, c, dev_idx)
-		heap_size += ca->mi.nbuckets >> 7;
-
-	if (h->size < heap_size) {
-		free_heap(&c->copygc_heap);
-		if (!init_heap(&c->copygc_heap, heap_size, GFP_KERNEL)) {
-			bch_err(c, "error allocating copygc heap");
-			return 0;
-		}
-	}
-
-	ret = find_buckets_to_copygc(c);
-	if (ret) {
-		bch2_fs_fatal_error(c, "error walking buckets to copygc!");
-		return ret;
-	}
-
-	if (!h->used) {
-		s64 wait = S64_MAX, dev_wait;
-		u64 dev_min_wait_fragmented = 0;
-		u64 dev_min_wait_allowed = 0;
-		int dev_min_wait = -1;
-
-		for_each_rw_member(ca, c, dev_idx) {
-			struct bch_dev_usage usage = bch2_dev_usage_read(ca);
-			s64 allowed = ((__dev_buckets_available(ca, usage, RESERVE_none) *
-					       ca->mi.bucket_size) >> 1);
-			s64 fragmented = usage.d[BCH_DATA_user].fragmented;
-
-			dev_wait = max(0LL, allowed - fragmented);
-
-			if (dev_min_wait < 0 || dev_wait < wait) {
-				dev_min_wait = dev_idx;
-				dev_min_wait_fragmented = fragmented;
-				dev_min_wait_allowed	= allowed;
-			}
-		}
-
-		bch_err_ratelimited(c, "copygc requested to run but found no buckets to move! dev %u fragmented %llu allowed %llu",
-				    dev_min_wait, dev_min_wait_fragmented, dev_min_wait_allowed);
-		return 0;
-	}
-
-	heap_resort(h, fragmentation_cmp, NULL);
-
 	bch2_moving_ctxt_init(&ctxt, c, NULL, &move_stats,
 			      writepoint_ptr(&c->copygc_write_point),
 			      false);
+	bch2_trans_init(&trans, c, 0, 0);
 
-	/* not correct w.r.t. device removal */
-	while (h->used && !ret) {
-		BUG_ON(!heap_pop(h, e, -fragmentation_cmp, NULL));
-		ret = __bch2_evacuate_bucket(&ctxt, POS(e.dev, e.bucket), e.gen,
-					     data_opts);
+	ret = bch2_btree_write_buffer_flush(&trans);
+	BUG_ON(ret);
+
+	for (nr_evacuated = 0, pos = POS_MIN;
+	     nr_evacuated < 32 && !ret;
+	     nr_evacuated++, pos = bpos_nosnap_successor(pos)) {
+		ret = bch2_copygc_next_bucket(&trans, &bucket, &gen, &pos) ?:
+			__bch2_evacuate_bucket(&trans, &ctxt, bucket, gen, data_opts);
+		if (bkey_eq(pos, POS_MAX))
+			break;
 	}
 
+	bch2_trans_exit(&trans);
 	bch2_moving_ctxt_exit(&ctxt);
+
+	/* no entries in LRU btree found, or got to end: */
+	if (ret == -ENOENT)
+		ret = 0;
 
 	if (ret < 0 && !bch2_err_matches(ret, EROFS))
 		bch_err(c, "error from bch2_move_data() in copygc: %s", bch2_err_str(ret));

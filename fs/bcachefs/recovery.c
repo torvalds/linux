@@ -1105,6 +1105,9 @@ int bch2_fs_recovery(struct bch_fs *c)
 			c->opts.version_upgrade	= true;
 			c->opts.fsck		= true;
 			c->opts.fix_errors	= FSCK_OPT_YES;
+		} else if (c->sb.version < bcachefs_metadata_version_fragmentation_lru) {
+			bch_info(c, "version prior to backpointers, upgrade required");
+			c->opts.version_upgrade	= true;
 		}
 	}
 

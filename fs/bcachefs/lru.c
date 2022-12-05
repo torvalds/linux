@@ -93,6 +93,13 @@ int bch2_lru_change(struct btree_trans *trans,
 		bch2_lru_set(trans, lru_id, dev_bucket, new_time);
 }
 
+static const char * const bch2_lru_types[] = {
+#define x(n) #n,
+	BCH_LRU_TYPES()
+#undef x
+	NULL
+};
+
 static int bch2_check_lru_key(struct btree_trans *trans,
 			      struct btree_iter *lru_iter,
 			      struct bkey_s_c lru_k,
@@ -105,7 +112,9 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 	const struct bch_alloc_v4 *a;
 	struct printbuf buf1 = PRINTBUF;
 	struct printbuf buf2 = PRINTBUF;
+	enum bch_lru_type type = lru_type(lru_k);
 	struct bpos alloc_pos = u64_to_bucket(lru_k.k->p.offset);
+	u64 idx;
 	int ret;
 
 	if (fsck_err_on(!bch2_dev_bucket_exists(c, alloc_pos), c,
@@ -121,9 +130,17 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 
 	a = bch2_alloc_to_v4(k, &a_convert);
 
+	switch (type) {
+	case BCH_LRU_read:
+		idx = alloc_lru_idx_read(*a);
+		break;
+	case BCH_LRU_fragmentation:
+		idx = a->fragmentation_lru;
+		break;
+	}
+
 	if (lru_k.k->type != KEY_TYPE_set ||
-	    a->data_type != BCH_DATA_cached ||
-	    a->io_time[READ] != lru_pos_time(lru_k.k->p)) {}
+	    lru_pos_time(lru_k.k->p) != idx) {
 		if (!bpos_eq(*last_flushed_pos, lru_k.k->p)) {
 			*last_flushed_pos = lru_k.k->p;
 			ret = bch2_btree_write_buffer_flush_sync(trans) ?:
@@ -131,17 +148,14 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 			goto out;
 		}
 
-		if (fsck_err_on(lru_k.k->type != KEY_TYPE_set ||
-				a->data_type != BCH_DATA_cached ||
-				a->io_time[READ] != lru_pos_time(lru_k.k->p), c,
-				"incorrect lru entry (time %llu) %s\n"
-				"  for %s",
-				lru_pos_time(lru_k.k->p),
-				(bch2_bkey_val_to_text(&buf1, c, lru_k), buf1.buf),
-				(bch2_bkey_val_to_text(&buf2, c, k), buf2.buf))) {
+		if (fsck_err(c, "incorrect lru entry: lru %s time %llu\n"
+			     "  %s\n"
+			     "  for %s",
+			     bch2_lru_types[type],
+			     lru_pos_time(lru_k.k->p),
+			     (bch2_bkey_val_to_text(&buf1, c, lru_k), buf1.buf),
+			     (bch2_bkey_val_to_text(&buf2, c, k), buf2.buf)))
 			ret = bch2_btree_delete_at(trans, lru_iter, 0);
-			if (ret)
-				goto err;
 	}
 out:
 err:

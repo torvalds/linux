@@ -992,6 +992,7 @@ struct bch_alloc_v4 {
 	__u64			io_time[2];
 	__u32			stripe;
 	__u32			nr_external_backpointers;
+	__u64			fragmentation_lru;
 } __packed __aligned(8);
 
 #define BCH_ALLOC_V4_U64s_V0	6
@@ -1563,7 +1564,8 @@ struct bch_sb_field_journal_seq_blacklist {
 	x(inode_v3,			23)		\
 	x(unwritten_extents,		24)		\
 	x(bucket_gens,			25)		\
-	x(lru_v2,			26)
+	x(lru_v2,			26)		\
+	x(fragmentation_lru,		27)
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
