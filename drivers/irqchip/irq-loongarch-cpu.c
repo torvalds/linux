@@ -93,7 +93,7 @@ static const struct irq_domain_ops loongarch_cpu_intc_irq_domain_ops = {
 };
 
 #ifdef CONFIG_OF
-int __init loongarch_cpu_irq_of_init(struct device_node *of_node,
+static int __init cpuintc_of_init(struct device_node *of_node,
 				struct device_node *parent)
 {
 	cpuintc_handle = of_node_to_fwnode(of_node);
@@ -107,8 +107,7 @@ int __init loongarch_cpu_irq_of_init(struct device_node *of_node,
 
 	return 0;
 }
-IRQCHIP_DECLARE(cpu_intc, "loongson,cpu-interrupt-controller",
-					loongarch_cpu_irq_of_init);
+IRQCHIP_DECLARE(cpu_intc, "loongson,cpu-interrupt-controller", cpuintc_of_init);
 #endif
 
 static int __init
