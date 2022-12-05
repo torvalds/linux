@@ -223,6 +223,7 @@ static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
 			put_page(page);
 	}
 	swap_read_unplug(splug);
+	cond_resched();
 
 	return 0;
 }
