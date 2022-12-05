@@ -1023,8 +1023,6 @@ static bool gfs2_try_evict(struct gfs2_glock *gl)
 		ip = NULL;
 	spin_unlock(&gl->gl_lockref.lock);
 	if (ip) {
-		struct gfs2_glock *inode_gl = NULL;
-
 		gl->gl_no_formal_ino = ip->i_no_formal_ino;
 		set_bit(GIF_DEFERRED_DELETE, &ip->i_flags);
 		d_prune_aliases(&ip->i_inode);
@@ -1034,14 +1032,14 @@ static bool gfs2_try_evict(struct gfs2_glock *gl)
 		spin_lock(&gl->gl_lockref.lock);
 		ip = gl->gl_object;
 		if (ip) {
-			inode_gl = ip->i_gl;
-			lockref_get(&inode_gl->gl_lockref);
 			clear_bit(GIF_DEFERRED_DELETE, &ip->i_flags);
+			if (!igrab(&ip->i_inode))
+				ip = NULL;
 		}
 		spin_unlock(&gl->gl_lockref.lock);
-		if (inode_gl) {
-			gfs2_glock_poke(inode_gl);
-			gfs2_glock_put(inode_gl);
+		if (ip) {
+			gfs2_glock_poke(ip->i_gl);
+			iput(&ip->i_inode);
 		}
 		evicted = !ip;
 	}
