@@ -1039,6 +1039,7 @@ static void delete_work_func(struct work_struct *work)
 			if (gfs2_queue_delete_work(gl, 5 * HZ))
 				return;
 		}
+		goto out;
 	}
 
 	inode = gfs2_lookup_by_inum(sdp, no_addr, gl->gl_no_formal_ino,
@@ -1051,6 +1052,7 @@ static void delete_work_func(struct work_struct *work)
 		d_prune_aliases(inode);
 		iput(inode);
 	}
+out:
 	gfs2_glock_put(gl);
 }
 
