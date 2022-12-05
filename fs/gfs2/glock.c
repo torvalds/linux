@@ -928,6 +928,48 @@ out_unlock:
 	return;
 }
 
+/**
+ * glock_set_object - set the gl_object field of a glock
+ * @gl: the glock
+ * @object: the object
+ */
+void glock_set_object(struct gfs2_glock *gl, void *object)
+{
+	void *prev_object;
+
+	spin_lock(&gl->gl_lockref.lock);
+	prev_object = gl->gl_object;
+	gl->gl_object = object;
+	spin_unlock(&gl->gl_lockref.lock);
+	if (gfs2_assert_warn(gl->gl_name.ln_sbd, prev_object == NULL)) {
+		pr_warn("glock=%u/%llx\n",
+			gl->gl_name.ln_type,
+			(unsigned long long)gl->gl_name.ln_number);
+		gfs2_dump_glock(NULL, gl, true);
+	}
+}
+
+/**
+ * glock_clear_object - clear the gl_object field of a glock
+ * @gl: the glock
+ */
+void glock_clear_object(struct gfs2_glock *gl, void *object)
+{
+	void *prev_object;
+
+	spin_lock(&gl->gl_lockref.lock);
+	prev_object = gl->gl_object;
+	gl->gl_object = NULL;
+	spin_unlock(&gl->gl_lockref.lock);
+	if (gfs2_assert_warn(gl->gl_name.ln_sbd,
+			     prev_object == object || prev_object == NULL)) {
+		pr_warn("glock=%u/%llx\n",
+			gl->gl_name.ln_type,
+			(unsigned long long)gl->gl_name.ln_number);
+		gfs2_dump_glock(NULL, gl, true);
+	}
+}
+
 void gfs2_inode_remember_delete(struct gfs2_glock *gl, u64 generation)
 {
 	struct gfs2_inode_lvb *ri = (void *)gl->gl_lksb.sb_lvbptr;

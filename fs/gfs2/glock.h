@@ -288,6 +288,9 @@ extern void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp);
 extern void gfs2_register_debugfs(void);
 extern void gfs2_unregister_debugfs(void);
 
+extern void glock_set_object(struct gfs2_glock *gl, void *object);
+extern void glock_clear_object(struct gfs2_glock *gl, void *object);
+
 extern const struct lm_lockops gfs2_dlm_ops;
 
 static inline void gfs2_holder_mark_uninitialized(struct gfs2_holder *gh)
@@ -303,32 +306,6 @@ static inline bool gfs2_holder_initialized(struct gfs2_holder *gh)
 static inline bool gfs2_holder_queued(struct gfs2_holder *gh)
 {
 	return !list_empty(&gh->gh_list);
-}
-
-/**
- * glock_set_object - set the gl_object field of a glock
- * @gl: the glock
- * @object: the object
- */
-static inline void glock_set_object(struct gfs2_glock *gl, void *object)
-{
-	spin_lock(&gl->gl_lockref.lock);
-	if (gfs2_assert_warn(gl->gl_name.ln_sbd, gl->gl_object == NULL))
-		gfs2_dump_glock(NULL, gl, true);
-	gl->gl_object = object;
-	spin_unlock(&gl->gl_lockref.lock);
-}
-
-/**
- * glock_clear_object - clear the gl_object field of a glock
- * @gl: the glock
- */
-static inline void glock_clear_object(struct gfs2_glock *gl, void *object)
-{
-	spin_lock(&gl->gl_lockref.lock);
-	if (gl->gl_object == object)
-		gl->gl_object = NULL;
-	spin_unlock(&gl->gl_lockref.lock);
 }
 
 static inline void gfs2_holder_allow_demote(struct gfs2_holder *gh)
