@@ -752,9 +752,8 @@ TRACE_EVENT(rxrpc_rx_packet,
 		      __entry->hdr.epoch, __entry->hdr.cid,
 		      __entry->hdr.callNumber, __entry->hdr.serviceId,
 		      __entry->hdr.serial, __entry->hdr.seq,
-		      __entry->hdr.type, __entry->hdr.flags,
-		      __entry->hdr.type <= 15 ?
-		      __print_symbolic(__entry->hdr.type, rxrpc_pkts) : "?UNK")
+		      __entry->hdr.securityIndex, __entry->hdr.flags,
+		      __print_symbolic(__entry->hdr.type, rxrpc_pkts))
 	    );
 
 TRACE_EVENT(rxrpc_rx_done,
