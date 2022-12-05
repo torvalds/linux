@@ -6,10 +6,119 @@
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
+#include <asm/div64.h>
 #include "cxlpci.h"
 #include "cxl.h"
 
 #define CXL_RCRB_SIZE	SZ_8K
+
+struct cxl_cxims_data {
+	int nr_maps;
+	u64 xormaps[];
+};
+
+/*
+ * Find a targets entry (n) in the host bridge interleave list.
+ * CXL Specfication 3.0 Table 9-22
+ */
+static int cxl_xor_calc_n(u64 hpa, struct cxl_cxims_data *cximsd, int iw,
+			  int ig)
+{
+	int i = 0, n = 0;
+	u8 eiw;
+
+	/* IW: 2,4,6,8,12,16 begin building 'n' using xormaps */
+	if (iw != 3) {
+		for (i = 0; i < cximsd->nr_maps; i++)
+			n |= (hweight64(hpa & cximsd->xormaps[i]) & 1) << i;
+	}
+	/* IW: 3,6,12 add a modulo calculation to 'n' */
+	if (!is_power_of_2(iw)) {
+		if (ways_to_cxl(iw, &eiw))
+			return -1;
+		hpa &= GENMASK_ULL(51, eiw + ig);
+		n |= do_div(hpa, 3) << i;
+	}
+	return n;
+}
+
+static struct cxl_dport *cxl_hb_xor(struct cxl_root_decoder *cxlrd, int pos)
+{
+	struct cxl_cxims_data *cximsd = cxlrd->platform_data;
+	struct cxl_switch_decoder *cxlsd = &cxlrd->cxlsd;
+	struct cxl_decoder *cxld = &cxlsd->cxld;
+	int ig = cxld->interleave_granularity;
+	int iw = cxld->interleave_ways;
+	int n = 0;
+	u64 hpa;
+
+	if (dev_WARN_ONCE(&cxld->dev,
+			  cxld->interleave_ways != cxlsd->nr_targets,
+			  "misconfigured root decoder\n"))
+		return NULL;
+
+	hpa = cxlrd->res->start + pos * ig;
+
+	/* Entry (n) is 0 for no interleave (iw == 1) */
+	if (iw != 1)
+		n = cxl_xor_calc_n(hpa, cximsd, iw, ig);
+
+	if (n < 0)
+		return NULL;
+
+	return cxlrd->cxlsd.target[n];
+}
+
+struct cxl_cxims_context {
+	struct device *dev;
+	struct cxl_root_decoder *cxlrd;
+};
+
+static int cxl_parse_cxims(union acpi_subtable_headers *header, void *arg,
+			   const unsigned long end)
+{
+	struct acpi_cedt_cxims *cxims = (struct acpi_cedt_cxims *)header;
+	struct cxl_cxims_context *ctx = arg;
+	struct cxl_root_decoder *cxlrd = ctx->cxlrd;
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
+	struct device *dev = ctx->dev;
+	struct cxl_cxims_data *cximsd;
+	unsigned int hbig, nr_maps;
+	int rc;
+
+	rc = cxl_to_granularity(cxims->hbig, &hbig);
+	if (rc)
+		return rc;
+
+	/* Does this CXIMS entry apply to the given CXL Window? */
+	if (hbig != cxld->interleave_granularity)
+		return 0;
+
+	/* IW 1,3 do not use xormaps and skip this parsing entirely */
+	if (is_power_of_2(cxld->interleave_ways))
+		/* 2, 4, 8, 16 way */
+		nr_maps = ilog2(cxld->interleave_ways);
+	else
+		/* 6, 12 way */
+		nr_maps = ilog2(cxld->interleave_ways / 3);
+
+	if (cxims->nr_xormaps < nr_maps) {
+		dev_dbg(dev, "CXIMS nr_xormaps[%d] expected[%d]\n",
+			cxims->nr_xormaps, nr_maps);
+		return -ENXIO;
+	}
+
+	cximsd = devm_kzalloc(dev, struct_size(cximsd, xormaps, nr_maps),
+			      GFP_KERNEL);
+	if (!cximsd)
+		return -ENOMEM;
+	memcpy(cximsd->xormaps, cxims->xormap_list,
+	       nr_maps * sizeof(*cximsd->xormaps));
+	cximsd->nr_maps = nr_maps;
+	cxlrd->platform_data = cximsd;
+
+	return 0;
+}
 
 static unsigned long cfmws_to_decoder_flags(int restrictions)
 {
@@ -35,8 +144,10 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 	int rc, expected_len;
 	unsigned int ways;
 
-	if (cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_MODULO) {
-		dev_err(dev, "CFMWS Unsupported Interleave Arithmetic\n");
+	if (cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_MODULO &&
+	    cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_XOR) {
+		dev_err(dev, "CFMWS Unknown Interleave Arithmetic: %d\n",
+			cfmws->interleave_arithmetic);
 		return -EINVAL;
 	}
 
@@ -90,9 +201,11 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 	struct cxl_cfmws_context *ctx = arg;
 	struct cxl_port *root_port = ctx->root_port;
 	struct resource *cxl_res = ctx->cxl_res;
+	struct cxl_cxims_context cxims_ctx;
 	struct cxl_root_decoder *cxlrd;
 	struct device *dev = ctx->dev;
 	struct acpi_cedt_cfmws *cfmws;
+	cxl_calc_hb_fn cxl_calc_hb;
 	struct cxl_decoder *cxld;
 	unsigned int ways, i, ig;
 	struct resource *res;
@@ -134,7 +247,12 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 	if (rc)
 		goto err_insert;
 
-	cxlrd = cxl_root_decoder_alloc(root_port, ways);
+	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_MODULO)
+		cxl_calc_hb = cxl_hb_modulo;
+	else
+		cxl_calc_hb = cxl_hb_xor;
+
+	cxlrd = cxl_root_decoder_alloc(root_port, ways, cxl_calc_hb);
 	if (IS_ERR(cxlrd))
 		return 0;
 
@@ -154,7 +272,20 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 		ig = CXL_DECODER_MIN_GRANULARITY;
 	cxld->interleave_granularity = ig;
 
+	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_XOR) {
+		if (ways != 1 && ways != 3) {
+			cxims_ctx = (struct cxl_cxims_context) {
+				.dev = dev,
+				.cxlrd = cxlrd,
+			};
+			rc = acpi_table_parse_cedt(ACPI_CEDT_TYPE_CXIMS,
+						   cxl_parse_cxims, &cxims_ctx);
+			if (rc < 0)
+				goto err_xormap;
+		}
+	}
 	rc = cxl_decoder_add(cxld, target_map);
+err_xormap:
 	if (rc)
 		put_device(&cxld->dev);
 	else
