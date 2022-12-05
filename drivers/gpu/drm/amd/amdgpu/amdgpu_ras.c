@@ -2348,22 +2348,24 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 
 		if (amdgpu_atomfirmware_sram_ecc_supported(adev)) {
 			dev_info(adev->dev, "SRAM ECC is active.\n");
-			if (!amdgpu_sriov_vf(adev)) {
+			if (!amdgpu_sriov_vf(adev))
 				adev->ras_hw_enabled |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
 							    1 << AMDGPU_RAS_BLOCK__DF);
-
-				if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(2, 6, 0) ||
-				    adev->ip_versions[VCN_HWIP][0] == IP_VERSION(4, 0, 0))
-					adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__VCN |
-							1 << AMDGPU_RAS_BLOCK__JPEG);
-				else
-					adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__VCN |
-							1 << AMDGPU_RAS_BLOCK__JPEG);
-			} else {
+			else
 				adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__PCIE_BIF |
 								1 << AMDGPU_RAS_BLOCK__SDMA |
 								1 << AMDGPU_RAS_BLOCK__GFX);
-			}
+
+			/* VCN/JPEG RAS can be supported on both bare metal and
+			 * SRIOV environment
+			 */
+			if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(2, 6, 0) ||
+			    adev->ip_versions[VCN_HWIP][0] == IP_VERSION(4, 0, 0))
+				adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__VCN |
+							1 << AMDGPU_RAS_BLOCK__JPEG);
+			else
+				adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__VCN |
+							1 << AMDGPU_RAS_BLOCK__JPEG);
 		} else {
 			dev_info(adev->dev, "SRAM ECC is not presented.\n");
 		}
