@@ -186,7 +186,7 @@ static unsigned bch2_key_types_allowed[] = {
 		(1U << KEY_TYPE_snapshot),
 	[BKEY_TYPE_lru] =
 		(1U << KEY_TYPE_deleted)|
-		(1U << KEY_TYPE_lru),
+		(1U << KEY_TYPE_set),
 	[BKEY_TYPE_freespace] =
 		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_set),

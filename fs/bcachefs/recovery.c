@@ -1094,14 +1094,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 	}
 
 	if (!c->opts.nochanges) {
-		if (c->sb.version < bcachefs_metadata_version_backpointers) {
+		if (c->sb.version < bcachefs_metadata_version_lru_v2) {
 			bch_info(c, "version prior to backpointers, upgrade and fsck required");
 			c->opts.version_upgrade	= true;
 			c->opts.fsck		= true;
 			c->opts.fix_errors	= FSCK_OPT_YES;
-		} else if (c->sb.version < bcachefs_metadata_version_inode_v3) {
-			bch_info(c, "version prior to inode_v3, upgrade required");
-			c->opts.version_upgrade	= true;
 		}
 	}
 

@@ -914,13 +914,11 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 	new_lru = alloc_lru_idx(*new_a);
 
 	if (old_lru != new_lru) {
-		ret = bch2_lru_change(trans, new->k.p.inode, new->k.p.offset,
-				      old_lru, &new_lru, old);
+		ret = bch2_lru_change(trans, new->k.p.inode,
+				      bucket_to_u64(new->k.p),
+				      old_lru, new_lru);
 		if (ret)
 			return ret;
-
-		if (new_a->data_type == BCH_DATA_cached)
-			new_a->io_time[READ] = new_lru;
 	}
 
 	if (old_a->gen != new_a->gen) {
@@ -1510,7 +1508,6 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 	const struct bch_alloc_v4 *a;
 	struct bkey_s_c alloc_k, k;
 	struct printbuf buf = PRINTBUF;
-	struct printbuf buf2 = PRINTBUF;
 	int ret;
 
 	alloc_k = bch2_btree_iter_peek(alloc_iter);
@@ -1527,8 +1524,9 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 		return 0;
 
 	bch2_trans_iter_init(trans, &lru_iter, BTREE_ID_lru,
-			     POS(alloc_k.k->p.inode, a->io_time[READ]), 0);
-
+			     lru_pos(alloc_k.k->p.inode,
+				     bucket_to_u64(alloc_k.k->p),
+				     a->io_time[READ]), 0);
 	k = bch2_btree_iter_peek_slot(&lru_iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -1539,21 +1537,18 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 			"  %s",
 		(printbuf_reset(&buf),
 		 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf)) ||
-	    fsck_err_on(k.k->type != KEY_TYPE_lru ||
-			le64_to_cpu(bkey_s_c_to_lru(k).v->idx) != alloc_k.k->p.offset, c,
-			"incorrect/missing lru entry\n"
-			"  %s\n"
+	    fsck_err_on(k.k->type != KEY_TYPE_set, c,
+			"missing lru entry\n"
 			"  %s",
 			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf),
-			(bch2_bkey_val_to_text(&buf2, c, k), buf2.buf))) {
+			 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
 		u64 read_time = a->io_time[READ] ?:
 			atomic64_read(&c->io_clock[READ].now);
 
 		ret = bch2_lru_set(trans,
 				   alloc_k.k->p.inode,
-				   alloc_k.k->p.offset,
-				   &read_time);
+				   bucket_to_u64(alloc_k.k->p),
+				   read_time);
 		if (ret)
 			goto err;
 
@@ -1574,7 +1569,6 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 err:
 fsck_err:
 	bch2_trans_iter_exit(trans, &lru_iter);
-	printbuf_exit(&buf2);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -1757,51 +1751,34 @@ void bch2_do_discards(struct bch_fs *c)
 }
 
 static int invalidate_one_bucket(struct btree_trans *trans,
-				 struct btree_iter *lru_iter, struct bkey_s_c k,
-				 unsigned dev_idx, s64 *nr_to_invalidate)
+				 struct btree_iter *lru_iter,
+				 struct bpos bucket,
+				 s64 *nr_to_invalidate)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter alloc_iter = { NULL };
 	struct bkey_i_alloc_v4 *a;
-	struct bpos bucket;
 	struct printbuf buf = PRINTBUF;
 	unsigned cached_sectors;
 	int ret = 0;
 
-	if (*nr_to_invalidate <= 0 || k.k->p.inode != dev_idx)
+	if (*nr_to_invalidate <= 0)
 		return 1;
-
-	if (k.k->type != KEY_TYPE_lru) {
-		prt_printf(&buf, "non lru key in lru btree:\n  ");
-		bch2_bkey_val_to_text(&buf, c, k);
-
-		if (!test_bit(BCH_FS_CHECK_LRUS_DONE, &c->flags)) {
-			bch_err(c, "%s", buf.buf);
-		} else {
-			bch2_trans_inconsistent(trans, "%s", buf.buf);
-			ret = -EINVAL;
-		}
-
-		goto out;
-	}
-
-	bucket = POS(dev_idx, le64_to_cpu(bkey_s_c_to_lru(k).v->idx));
 
 	a = bch2_trans_start_alloc_update(trans, &alloc_iter, bucket);
 	ret = PTR_ERR_OR_ZERO(a);
 	if (ret)
 		goto out;
 
-	if (k.k->p.offset != alloc_lru_idx(a->v)) {
+	if (lru_pos_time(lru_iter->pos) != alloc_lru_idx(a->v)) {
 		prt_printf(&buf, "alloc key does not point back to lru entry when invalidating bucket:\n  ");
-		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&a->k_i));
+		bch2_bpos_to_text(&buf, lru_iter->pos);
 		prt_printf(&buf, "\n  ");
-		bch2_bkey_val_to_text(&buf, c, k);
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&a->k_i));
 
-		if (!test_bit(BCH_FS_CHECK_LRUS_DONE, &c->flags)) {
-			bch_err(c, "%s", buf.buf);
-		} else {
-			bch2_trans_inconsistent(trans, "%s", buf.buf);
+		bch_err(c, "%s", buf.buf);
+		if (test_bit(BCH_FS_CHECK_LRUS_DONE, &c->flags)) {
+			bch2_inconsistent_error(c);
 			ret = -EINVAL;
 		}
 
@@ -1852,9 +1829,13 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 		s64 nr_to_invalidate =
 			should_invalidate_buckets(ca, bch2_dev_usage_read(ca));
 
-		ret = for_each_btree_key2(&trans, iter, BTREE_ID_lru,
-				POS(ca->dev_idx, 0), BTREE_ITER_INTENT, k,
-			invalidate_one_bucket(&trans, &iter, k, ca->dev_idx, &nr_to_invalidate));
+		ret = for_each_btree_key2_upto(&trans, iter, BTREE_ID_lru,
+				lru_pos(ca->dev_idx, 0, 0),
+				lru_pos(ca->dev_idx, U64_MAX, LRU_TIME_MAX),
+				BTREE_ITER_INTENT, k,
+			invalidate_one_bucket(&trans, &iter,
+					      u64_to_bucket(k.k->p.offset),
+					      &nr_to_invalidate));
 
 		if (ret < 0) {
 			percpu_ref_put(&ca->ref);

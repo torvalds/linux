@@ -1562,7 +1562,8 @@ struct bch_sb_field_journal_seq_blacklist {
 	x(backpointers,			22)		\
 	x(inode_v3,			23)		\
 	x(unwritten_extents,		24)		\
-	x(bucket_gens,			25)
+	x(bucket_gens,			25)		\
+	x(lru_v2,			26)
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
