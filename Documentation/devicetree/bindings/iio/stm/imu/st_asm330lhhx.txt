@@ -37,6 +37,11 @@ Optional properties for all bus drivers:
                   Refer to interrupt-controller/interrupts.txt for
                   generic interrupt client node bindings.
 
+- st,module_id:   module identifier.
+                  This is used by user-space to identify which devices
+                  are part of the same module (particularly important for
+                  supporting multiple sensors of the same type).
+
 Example for an spi asm330lhh device node:
 
 asm330lhh-imu@0 {
@@ -49,6 +54,7 @@ asm330lhh-imu@0 {
 	vdd-supply = <&sensors_vdd>;
 	st,int-pin = <1>;
 	st,mlc-int-pin = <2>;
+	st,module_id = <1>;
 	mount-matrix = "1", "0", "0",
 		       "0", "1", "0",
 		       "0", "0", "1";

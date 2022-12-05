@@ -696,6 +696,7 @@ struct st_asm330lhhx_sensor {
  * @delta_ts: Delta time between two consecutive interrupts.
  * @ts: Latest timestamp from irq handler.
  * @i2c_master_pu: I2C master line Pull Up configuration.
+ * @module_id: identify iio devices of the same sensor module.
  * @odr_table_entry: Sensors ODR table.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @vdd_supply: Voltage regulator for VDD.
@@ -740,6 +741,7 @@ struct st_asm330lhhx_hw {
 	s64 delta_ts;
 	s64 ts;
 	u8 i2c_master_pu;
+	u32 module_id;
 
 	const struct st_asm330lhhx_odr_table_entry *odr_table_entry;
 	struct iio_dev *iio_devs[ST_ASM330LHHX_ID_MAX];
@@ -961,6 +963,10 @@ ssize_t st_asm330lhhx_get_watermark(struct device *dev,
 ssize_t st_asm330lhhx_set_watermark(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t size);
+ssize_t st_asm330lhhx_get_module_id(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf);
+
 int st_asm330lhhx_suspend_fifo(struct st_asm330lhhx_hw *hw);
 int st_asm330lhhx_set_fifo_mode(struct st_asm330lhhx_hw *hw,
 			     enum st_asm330lhhx_fifo_mode fifo_mode);

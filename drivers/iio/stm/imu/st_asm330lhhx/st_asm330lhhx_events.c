@@ -333,10 +333,12 @@ static IIO_DEVICE_ATTR(freefall_threshold, 0644,
 static IIO_DEVICE_ATTR(sixd_threshold, 0644,
 		       st_asm330lhhx_6D_threshold_get,
 		       st_asm330lhhx_6D_threshold_set, 0);
+static IIO_DEVICE_ATTR(module_id, 0444, st_asm330lhhx_get_module_id, NULL, 0);
 
 static struct attribute *st_asm330lhhx_wk_attributes[] = {
 	&iio_dev_attr_wakeup_threshold.dev_attr.attr,
 	&iio_dev_attr_wakeup_duration.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -350,6 +352,7 @@ static const struct iio_info st_asm330lhhx_wk_info = {
 
 static struct attribute *st_asm330lhhx_ff_attributes[] = {
 	&iio_dev_attr_freefall_threshold.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -364,6 +367,7 @@ static const struct iio_info st_asm330lhhx_ff_info = {
 };
 
 static struct attribute *st_asm330lhhx_sc_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -379,6 +383,7 @@ static const struct iio_info st_asm330lhhx_sc_info = {
 
 static struct attribute *st_asm330lhhx_6D_attributes[] = {
 	&iio_dev_attr_sixd_threshold.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 

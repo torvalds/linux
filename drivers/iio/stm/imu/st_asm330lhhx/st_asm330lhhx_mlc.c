@@ -670,12 +670,14 @@ static IIO_DEVICE_ATTR(mlc_version, 0444,
 		       st_asm330lhhx_mlc_get_version, NULL, 0);
 static IIO_DEVICE_ATTR(load_mlc, 0200,
 		       NULL, st_asm330lhhx_mlc_upload_firmware, 0);
+static IIO_DEVICE_ATTR(module_id, 0444, st_asm330lhhx_get_module_id, NULL, 0);
 
 static struct attribute *st_asm330lhhx_mlc_event_attributes[] = {
 	&iio_dev_attr_mlc_info.dev_attr.attr,
 	&iio_dev_attr_mlc_version.dev_attr.attr,
 	&iio_dev_attr_load_mlc.dev_attr.attr,
 	&iio_dev_attr_mlc_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -689,7 +691,17 @@ static const struct iio_info st_asm330lhhx_mlc_event_info = {
 	.write_event_config = st_asm330lhhx_mlc_write_event_config,
 };
 
+static struct attribute *st_lsm6dsvx_mlc_x_event_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group st_asm330lhhx_mlc_x_attribute_group = {
+	.attrs = st_lsm6dsvx_mlc_x_event_attributes,
+};
+
 static const struct iio_info st_asm330lhhx_mlc_x_event_info = {
+	.attrs = &st_asm330lhhx_mlc_x_attribute_group,
 	.read_event_config = st_asm330lhhx_mlc_read_event_config,
 	.write_event_config = st_asm330lhhx_mlc_write_event_config,
 };
