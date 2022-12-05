@@ -7,8 +7,8 @@
 #ifndef _CRYPTO_ALGAPI_H
 #define _CRYPTO_ALGAPI_H
 
-#include <asm/cache.h>
 #include <linux/align.h>
+#include <linux/cache.h>
 #include <linux/crypto.h>
 #include <linux/kconfig.h>
 #include <linux/list.h>
