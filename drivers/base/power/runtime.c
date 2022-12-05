@@ -243,8 +243,7 @@ void pm_runtime_set_memalloc_noio(struct device *dev, bool enable)
 		 * flag was set by any one of the descendants.
 		 */
 		if (!dev || (!enable &&
-			     device_for_each_child(dev, NULL,
-						   dev_memalloc_noio)))
+		    device_for_each_child(dev, NULL, dev_memalloc_noio)))
 			break;
 	}
 	mutex_unlock(&dev_hotplug_mutex);
@@ -265,15 +264,13 @@ static int rpm_check_suspend_allowed(struct device *dev)
 		retval = -EACCES;
 	else if (atomic_read(&dev->power.usage_count))
 		retval = -EAGAIN;
-	else if (!dev->power.ignore_children &&
-			atomic_read(&dev->power.child_count))
+	else if (!dev->power.ignore_children && atomic_read(&dev->power.child_count))
 		retval = -EBUSY;
 
 	/* Pending resume requests take precedence over suspends. */
-	else if ((dev->power.deferred_resume
-			&& dev->power.runtime_status == RPM_SUSPENDING)
-	    || (dev->power.request_pending
-			&& dev->power.request == RPM_REQ_RESUME))
+	else if ((dev->power.deferred_resume &&
+	    dev->power.runtime_status == RPM_SUSPENDING) ||
+	    (dev->power.request_pending && dev->power.request == RPM_REQ_RESUME))
 		retval = -EAGAIN;
 	else if (__dev_pm_qos_resume_latency(dev) == 0)
 		retval = -EPERM;
@@ -404,9 +401,9 @@ static int __rpm_callback(int (*cb)(struct device *), struct device *dev)
 		 *
 		 * Do that if resume fails too.
 		 */
-		if (use_links
-		    && ((dev->power.runtime_status == RPM_SUSPENDING && !retval)
-		    || (dev->power.runtime_status == RPM_RESUMING && retval))) {
+		if (use_links &&
+		    ((dev->power.runtime_status == RPM_SUSPENDING && !retval) ||
+		    (dev->power.runtime_status == RPM_RESUMING && retval))) {
 			idx = device_links_read_lock();
 
 			__rpm_put_suppliers(dev, false);
@@ -491,6 +488,7 @@ static int rpm_idle(struct device *dev, int rpmflags)
 	/* Act as though RPM_NOWAIT is always set. */
 	else if (dev->power.idle_notification)
 		retval = -EINPROGRESS;
+
 	if (retval)
 		goto out;
 
@@ -574,12 +572,12 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	/* Synchronous suspends are not allowed in the RPM_RESUMING state. */
 	if (dev->power.runtime_status == RPM_RESUMING && !(rpmflags & RPM_ASYNC))
 		retval = -EAGAIN;
+
 	if (retval)
 		goto out;
 
 	/* If the autosuspend_delay time hasn't expired yet, reschedule. */
-	if ((rpmflags & RPM_AUTO)
-	    && dev->power.runtime_status != RPM_SUSPENDING) {
+	if ((rpmflags & RPM_AUTO) && dev->power.runtime_status != RPM_SUSPENDING) {
 		u64 expires = pm_runtime_autosuspend_expiration(dev);
 
 		if (expires != 0) {
@@ -594,7 +592,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 			 * rest.
 			 */
 			if (!(dev->power.timer_expires &&
-					dev->power.timer_expires <= expires)) {
+			    dev->power.timer_expires <= expires)) {
 				/*
 				 * We add a slack of 25% to gather wakeups
 				 * without sacrificing the granularity.
@@ -604,9 +602,9 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 
 				dev->power.timer_expires = expires;
 				hrtimer_start_range_ns(&dev->power.suspend_timer,
-						ns_to_ktime(expires),
-						slack,
-						HRTIMER_MODE_ABS);
+						       ns_to_ktime(expires),
+						       slack,
+						       HRTIMER_MODE_ABS);
 			}
 			dev->power.timer_autosuspends = 1;
 			goto out;
@@ -797,8 +795,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		goto out;
 	}
 
-	if (dev->power.runtime_status == RPM_RESUMING
-	    || dev->power.runtime_status == RPM_SUSPENDING) {
+	if (dev->power.runtime_status == RPM_RESUMING ||
+	    dev->power.runtime_status == RPM_SUSPENDING) {
 		DEFINE_WAIT(wait);
 
 		if (rpmflags & (RPM_ASYNC | RPM_NOWAIT)) {
@@ -825,8 +823,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		for (;;) {
 			prepare_to_wait(&dev->power.wait_queue, &wait,
 					TASK_UNINTERRUPTIBLE);
-			if (dev->power.runtime_status != RPM_RESUMING
-			    && dev->power.runtime_status != RPM_SUSPENDING)
+			if (dev->power.runtime_status != RPM_RESUMING &&
+			    dev->power.runtime_status != RPM_SUSPENDING)
 				break;
 
 			spin_unlock_irq(&dev->power.lock);
@@ -846,9 +844,9 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	 */
 	if (dev->power.no_callbacks && !parent && dev->parent) {
 		spin_lock_nested(&dev->parent->power.lock, SINGLE_DEPTH_NESTING);
-		if (dev->parent->power.disable_depth > 0
-		    || dev->parent->power.ignore_children
-		    || dev->parent->power.runtime_status == RPM_ACTIVE) {
+		if (dev->parent->power.disable_depth > 0 ||
+		    dev->parent->power.ignore_children ||
+		    dev->parent->power.runtime_status == RPM_ACTIVE) {
 			atomic_inc(&dev->parent->power.child_count);
 			spin_unlock(&dev->parent->power.lock);
 			retval = 1;
@@ -877,6 +875,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		parent = dev->parent;
 		if (dev->power.irq_safe)
 			goto skip_parent;
+
 		spin_unlock(&dev->power.lock);
 
 		pm_runtime_get_noresume(parent);
@@ -886,8 +885,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		 * Resume the parent if it has runtime PM enabled and not been
 		 * set to ignore its children.
 		 */
-		if (!parent->power.disable_depth
-		    && !parent->power.ignore_children) {
+		if (!parent->power.disable_depth &&
+		    !parent->power.ignore_children) {
 			rpm_resume(parent, 0);
 			if (parent->power.runtime_status != RPM_ACTIVE)
 				retval = -EBUSY;
@@ -897,6 +896,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		spin_lock(&dev->power.lock);
 		if (retval)
 			goto out;
+
 		goto repeat;
 	}
  skip_parent:
@@ -1301,9 +1301,9 @@ int __pm_runtime_set_status(struct device *dev, unsigned int status)
 		 * not active, has runtime PM enabled and the
 		 * 'power.ignore_children' flag unset.
 		 */
-		if (!parent->power.disable_depth
-		    && !parent->power.ignore_children
-		    && parent->power.runtime_status != RPM_ACTIVE) {
+		if (!parent->power.disable_depth &&
+		    !parent->power.ignore_children &&
+		    parent->power.runtime_status != RPM_ACTIVE) {
 			dev_err(dev, "runtime PM trying to activate child device %s but parent (%s) is not active\n",
 				dev_name(dev),
 				dev_name(parent));
@@ -1368,9 +1368,9 @@ static void __pm_runtime_barrier(struct device *dev)
 		dev->power.request_pending = false;
 	}
 
-	if (dev->power.runtime_status == RPM_SUSPENDING
-	    || dev->power.runtime_status == RPM_RESUMING
-	    || dev->power.idle_notification) {
+	if (dev->power.runtime_status == RPM_SUSPENDING ||
+	    dev->power.runtime_status == RPM_RESUMING ||
+	    dev->power.idle_notification) {
 		DEFINE_WAIT(wait);
 
 		/* Suspend, wake-up or idle notification in progress. */
@@ -1455,8 +1455,8 @@ void __pm_runtime_disable(struct device *dev, bool check_resume)
 	 * means there probably is some I/O to process and disabling runtime PM
 	 * shouldn't prevent the device from processing the I/O.
 	 */
-	if (check_resume && dev->power.request_pending
-	    && dev->power.request == RPM_REQ_RESUME) {
+	if (check_resume && dev->power.request_pending &&
+	    dev->power.request == RPM_REQ_RESUME) {
 		/*
 		 * Prevent suspends and idle notifications from being carried
 		 * out after we have woken up the device.
@@ -1616,6 +1616,7 @@ void pm_runtime_irq_safe(struct device *dev)
 {
 	if (dev->parent)
 		pm_runtime_get_sync(dev->parent);
+
 	spin_lock_irq(&dev->power.lock);
 	dev->power.irq_safe = 1;
 	spin_unlock_irq(&dev->power.lock);
