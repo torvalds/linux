@@ -526,6 +526,7 @@ static IIO_DEVICE_ATTR(loader_version, 0444,
 static IIO_DEVICE_ATTR(load_mlc, 0200,
 		       NULL, st_lsm6dsvx_mlc_upload_firmware, 0);
 static IIO_DEVICE_ATTR(odr, 0444, st_lsm6dsvx_mlc_odr, NULL, 0);
+static IIO_DEVICE_ATTR(module_id, 0444, st_lsm6dsvx_get_module_id, NULL, 0);
 
 static struct attribute *st_lsm6dsvx_mlc_event_attributes[] = {
 	&iio_dev_attr_config_info.dev_attr.attr,
@@ -533,6 +534,7 @@ static struct attribute *st_lsm6dsvx_mlc_event_attributes[] = {
 	&iio_dev_attr_load_mlc.dev_attr.attr,
 	&iio_dev_attr_flush_config.dev_attr.attr,
 	&iio_dev_attr_odr.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -560,6 +562,7 @@ static IIO_DEVICE_ATTR(odr_x, 0444, st_lsm6dsvx_mlc_x_odr, NULL, 0);
 
 static struct attribute *st_lsm6dsvx_mlc_x_event_attributes[] = {
 	&iio_dev_attr_odr_x.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 

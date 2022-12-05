@@ -118,9 +118,11 @@ st_lsm6dsvx_sysfs_qvar_sampling_freq_avail(struct device *dev,
 }
 
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_lsm6dsvx_sysfs_qvar_sampling_freq_avail);
+static IIO_DEVICE_ATTR(module_id, 0444, st_lsm6dsvx_get_module_id, NULL, 0);
 
 static struct attribute *st_lsm6dsvx_qvar_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 

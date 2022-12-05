@@ -752,6 +752,7 @@ struct st_lsm6dsvx_sensor {
  * @delta_ts: Estimated delta time between two consecutive interrupts.
  * @ts: Latest timestamp from irq handler.
  * @last_fifo_timestamp: Last timestamp in FIFO, used by flush event.
+ * @module_id: identify iio devices of the same sensor module.
  * @orientation: Sensor orientation matrix.
  * @vdd_supply: Voltage regulator for VDD.
  * @vddio_supply: Voltage regulator for VDDIIO.
@@ -788,6 +789,7 @@ struct st_lsm6dsvx_hw {
 	s64 ts;
 	s64 last_fifo_timestamp;
 
+	u32 module_id;
 	struct iio_mount_matrix orientation;
 	struct regulator *vdd_supply;
 	struct regulator *vddio_supply;
@@ -941,6 +943,9 @@ ssize_t st_lsm6dsvx_get_watermark(struct device *dev,
 ssize_t st_lsm6dsvx_set_watermark(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t size);
+ssize_t st_lsm6dsvx_get_module_id(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf);
 int st_lsm6dsvx_suspend_fifo(struct st_lsm6dsvx_hw *hw);
 int st_lsm6dsvx_set_fifo_mode(struct st_lsm6dsvx_hw *hw,
 			      enum st_lsm6dsvx_fifo_mode fifo_mode);

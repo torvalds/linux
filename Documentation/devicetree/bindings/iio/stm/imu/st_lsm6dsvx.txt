@@ -44,6 +44,11 @@ Optional properties for all bus drivers:
 
 - enable-qvar:       enable QVAR sensor feature. Default is disabled.
 
+- st,module_id:      module identifier.
+                     This is used by user-space to identify which devices
+                     are part of the same module (particularly important for
+                     supporting multiple sensors of the same type).
+
 Example for an spi device node:
 
 lsm6dsvx-imu@0 {
@@ -58,6 +63,7 @@ lsm6dsvx-imu@0 {
 	mount-matrix = "1", "0", "0",
 		       "0", "1", "0",
 		       "0", "0", "1";
+	st,module_id = <2>;
 };
 
 Example for an i2c device node (SA0 connected to ground):
@@ -73,4 +79,5 @@ lsm6dsvx-imu@6a {
 	mount-matrix = "1", "0", "0",
 		       "0", "1", "0",
 		       "0", "0", "1";
+	st,module_id = <1>;
 };

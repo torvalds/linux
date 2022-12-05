@@ -602,9 +602,12 @@ static IIO_DEVICE_ATTR(sixd_threshold, 0644,
 		       st_lsm6dsvx_6D_threshold_get,
 		       st_lsm6dsvx_6D_threshold_set, 0);
 
+static IIO_DEVICE_ATTR(module_id, 0444, st_lsm6dsvx_get_module_id, NULL, 0);
+
 static struct attribute *st_lsm6dsvx_wk_attributes[] = {
 	&iio_dev_attr_wakeup_threshold.dev_attr.attr,
 	&iio_dev_attr_wakeup_duration.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -618,6 +621,7 @@ static const struct iio_info st_lsm6dsvx_wk_info = {
 
 static struct attribute *st_lsm6dsvx_ff_attributes[] = {
 	&iio_dev_attr_freefall_threshold.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -632,6 +636,7 @@ static const struct iio_info st_lsm6dsvx_ff_info = {
 };
 
 static struct attribute *st_lsm6dsvx_sc_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -647,6 +652,7 @@ static const struct iio_info st_lsm6dsvx_sc_info = {
 
 static struct attribute *st_lsm6dsvx_6D_attributes[] = {
 	&iio_dev_attr_sixd_threshold.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -659,6 +665,7 @@ static const struct iio_info st_lsm6dsvx_6D_info = {
 };
 
 static struct attribute *st_lsm6dsvx_tap_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -673,6 +680,7 @@ static const struct iio_info st_lsm6dsvx_tap_info = {
 };
 
 static struct attribute *st_lsm6dsvx_dtap_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 

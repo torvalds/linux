@@ -283,11 +283,14 @@ static IIO_DEVICE_ATTR(hwfifo_stepc_flush, 0200, NULL,
 static IIO_DEVICE_ATTR(hwfifo_stepc_watermark, 0644,
 		       st_lsm6dsvx_get_watermark,
 		       st_lsm6dsvx_set_watermark, 0);
+static IIO_DEVICE_ATTR(module_id, 0444, st_lsm6dsvx_get_module_id, NULL, 0);
+
 static struct attribute *st_lsm6dsvx_step_counter_attributes[] = {
 	&iio_dev_attr_hwfifo_stepc_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_stepc_watermark.dev_attr.attr,
 	&iio_dev_attr_reset_stepc.dev_attr.attr,
 	&iio_dev_attr_hwfifo_stepc_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -300,6 +303,7 @@ static const struct iio_info st_lsm6dsvx_step_counter_info = {
 };
 
 static struct attribute *st_lsm6dsvx_step_detector_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -314,6 +318,7 @@ static const struct iio_info st_lsm6dsvx_step_detector_info = {
 };
 
 static struct attribute *st_lsm6dsvx_sign_motion_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -328,6 +333,7 @@ static const struct iio_info st_lsm6dsvx_sign_motion_info = {
 };
 
 static struct attribute *st_lsm6dsvx_tilt_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
