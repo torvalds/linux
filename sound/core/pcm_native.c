@@ -1424,16 +1424,24 @@ static int snd_pcm_pre_start(struct snd_pcm_substream *substream,
 static int snd_pcm_do_start(struct snd_pcm_substream *substream,
 			    snd_pcm_state_t state)
 {
+	int err;
+
 	if (substream->runtime->trigger_master != substream)
 		return 0;
-	return substream->ops->trigger(substream, SNDRV_PCM_TRIGGER_START);
+	err = substream->ops->trigger(substream, SNDRV_PCM_TRIGGER_START);
+	/* XRUN happened during the start */
+	if (err == -EPIPE)
+		__snd_pcm_set_state(substream->runtime, SNDRV_PCM_STATE_XRUN);
+	return err;
 }
 
 static void snd_pcm_undo_start(struct snd_pcm_substream *substream,
 			       snd_pcm_state_t state)
 {
-	if (substream->runtime->trigger_master == substream)
+	if (substream->runtime->trigger_master == substream) {
 		substream->ops->trigger(substream, SNDRV_PCM_TRIGGER_STOP);
+		substream->runtime->stop_operating = true;
+	}
 }
 
 static void snd_pcm_post_start(struct snd_pcm_substream *substream,
