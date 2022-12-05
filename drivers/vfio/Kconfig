@@ -21,7 +21,7 @@ config VFIO_IOMMU_SPAPR_TCE
 	default VFIO
 
 config VFIO_VIRQFD
-	tristate
+	bool
 	select EVENTFD
 	default n
 
