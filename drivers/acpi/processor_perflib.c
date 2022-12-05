@@ -475,10 +475,12 @@ int acpi_processor_notify_smm(struct module *calling_module)
 
 	result = acpi_processor_pstate_control();
 	if (result <= 0) {
-		if (!result)
+		if (result) {
+			is_done = result;
+		} else {
 			pr_debug("No SMI port or pstate_control\n");
-
-		is_done = -EIO;
+			is_done = 1;
+		}
 		goto out_put;
 	}
 
