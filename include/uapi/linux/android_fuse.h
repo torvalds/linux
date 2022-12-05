@@ -92,4 +92,6 @@ struct fuse_bpf_args {
 #define FUSE_PREFILTER		0x10000
 #define FUSE_POSTFILTER		0x20000
 
-#endif  // _LINUX_ANDROID_FUSE_H
+struct bpf_prog *fuse_get_bpf_prog(struct file *file);
+
+#endif  /* _LINUX_ANDROID_FUSE_H */

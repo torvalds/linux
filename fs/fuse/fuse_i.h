@@ -1426,8 +1426,6 @@ ssize_t fuse_passthrough_mmap(struct file *file, struct vm_area_struct *vma);
 
 /* backing.c */
 
-struct bpf_prog *fuse_get_bpf_prog(struct file *file);
-
 /*
  * Dummy io passed to fuse_bpf_backing when io operation needs no scratch space
  */
@@ -2057,7 +2055,6 @@ ssize_t fuse_bpf_simple_request(struct fuse_mount *fm, struct fuse_bpf_args *arg
 	fer;								\
 })
 
-struct bpf_prog *fuse_get_bpf_prog(struct file *file);
 #endif /* CONFIG_FUSE_BPF */
 
 #endif /* _FS_FUSE_I_H */
