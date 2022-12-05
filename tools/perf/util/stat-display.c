@@ -353,7 +353,8 @@ static void do_new_line_std(struct perf_stat_config *config,
 			    struct outstate *os)
 {
 	fputc('\n', os->fh);
-	fputs(os->prefix, os->fh);
+	if (os->prefix)
+		fputs(os->prefix, os->fh);
 	aggr_printout(config, os->evsel, os->id, os->nr);
 	if (config->aggr_mode == AGGR_NONE)
 		fprintf(os->fh, "        ");
