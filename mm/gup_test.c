@@ -4,6 +4,7 @@
 #include <linux/uaccess.h>
 #include <linux/ktime.h>
 #include <linux/debugfs.h>
+#include <linux/highmem.h>
 #include "gup_test.h"
 
 static void put_back_pages(unsigned int cmd, struct page **pages,
@@ -297,10 +298,13 @@ static inline int pin_longterm_test_read(unsigned long arg)
 		return -EFAULT;
 
 	for (i = 0; i < pin_longterm_test_nr_pages; i++) {
-		void *addr = page_to_virt(pin_longterm_test_pages[i]);
+		void *addr = kmap_local_page(pin_longterm_test_pages[i]);
+		unsigned long ret;
 
-		if (copy_to_user((void __user *)(unsigned long)user_addr, addr,
-				 PAGE_SIZE))
+		ret = copy_to_user((void __user *)(unsigned long)user_addr, addr,
+				   PAGE_SIZE);
+		kunmap_local(addr);
+		if (ret)
 			return -EFAULT;
 		user_addr += PAGE_SIZE;
 	}
