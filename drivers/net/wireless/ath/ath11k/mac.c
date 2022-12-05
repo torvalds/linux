@@ -3612,7 +3612,7 @@ static int ath11k_mac_op_hw_scan(struct ieee80211_hw *hw,
 	struct ath11k *ar = hw->priv;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct cfg80211_scan_request *req = &hw_req->req;
-	struct scan_req_params arg;
+	struct scan_req_params *arg = NULL;
 	int ret = 0;
 	int i;
 	u32 scan_timeout;
@@ -3640,72 +3640,78 @@ static int ath11k_mac_op_hw_scan(struct ieee80211_hw *hw,
 	if (ret)
 		goto exit;
 
-	memset(&arg, 0, sizeof(arg));
-	ath11k_wmi_start_scan_init(ar, &arg);
-	arg.vdev_id = arvif->vdev_id;
-	arg.scan_id = ATH11K_SCAN_ID;
+	arg = kzalloc(sizeof(*arg), GFP_KERNEL);
+
+	if (!arg) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	ath11k_wmi_start_scan_init(ar, arg);
+	arg->vdev_id = arvif->vdev_id;
+	arg->scan_id = ATH11K_SCAN_ID;
 
 	if (req->ie_len) {
-		arg.extraie.ptr = kmemdup(req->ie, req->ie_len, GFP_KERNEL);
-		if (!arg.extraie.ptr) {
+		arg->extraie.ptr = kmemdup(req->ie, req->ie_len, GFP_KERNEL);
+		if (!arg->extraie.ptr) {
 			ret = -ENOMEM;
 			goto exit;
 		}
-		arg.extraie.len = req->ie_len;
+		arg->extraie.len = req->ie_len;
 	}
 
 	if (req->n_ssids) {
-		arg.num_ssids = req->n_ssids;
-		for (i = 0; i < arg.num_ssids; i++) {
-			arg.ssid[i].length  = req->ssids[i].ssid_len;
-			memcpy(&arg.ssid[i].ssid, req->ssids[i].ssid,
+		arg->num_ssids = req->n_ssids;
+		for (i = 0; i < arg->num_ssids; i++) {
+			arg->ssid[i].length  = req->ssids[i].ssid_len;
+			memcpy(&arg->ssid[i].ssid, req->ssids[i].ssid,
 			       req->ssids[i].ssid_len);
 		}
 	} else {
-		arg.scan_flags |= WMI_SCAN_FLAG_PASSIVE;
+		arg->scan_flags |= WMI_SCAN_FLAG_PASSIVE;
 	}
 
 	if (req->n_channels) {
-		arg.num_chan = req->n_channels;
-		arg.chan_list = kcalloc(arg.num_chan, sizeof(*arg.chan_list),
-					GFP_KERNEL);
+		arg->num_chan = req->n_channels;
+		arg->chan_list = kcalloc(arg->num_chan, sizeof(*arg->chan_list),
+					 GFP_KERNEL);
 
-		if (!arg.chan_list) {
+		if (!arg->chan_list) {
 			ret = -ENOMEM;
 			goto exit;
 		}
 
-		for (i = 0; i < arg.num_chan; i++)
-			arg.chan_list[i] = req->channels[i]->center_freq;
+		for (i = 0; i < arg->num_chan; i++)
+			arg->chan_list[i] = req->channels[i]->center_freq;
 	}
 
 	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
-		arg.scan_f_add_spoofed_mac_in_probe = 1;
-		ether_addr_copy(arg.mac_addr.addr, req->mac_addr);
-		ether_addr_copy(arg.mac_mask.addr, req->mac_addr_mask);
+		arg->scan_f_add_spoofed_mac_in_probe = 1;
+		ether_addr_copy(arg->mac_addr.addr, req->mac_addr);
+		ether_addr_copy(arg->mac_mask.addr, req->mac_addr_mask);
 	}
 
 	/* if duration is set, default dwell times will be overwritten */
 	if (req->duration) {
-		arg.dwell_time_active = req->duration;
-		arg.dwell_time_active_2g = req->duration;
-		arg.dwell_time_active_6g = req->duration;
-		arg.dwell_time_passive = req->duration;
-		arg.dwell_time_passive_6g = req->duration;
-		arg.burst_duration = req->duration;
+		arg->dwell_time_active = req->duration;
+		arg->dwell_time_active_2g = req->duration;
+		arg->dwell_time_active_6g = req->duration;
+		arg->dwell_time_passive = req->duration;
+		arg->dwell_time_passive_6g = req->duration;
+		arg->burst_duration = req->duration;
 
-		scan_timeout = min_t(u32, arg.max_rest_time *
-				(arg.num_chan - 1) + (req->duration +
+		scan_timeout = min_t(u32, arg->max_rest_time *
+				(arg->num_chan - 1) + (req->duration +
 				ATH11K_SCAN_CHANNEL_SWITCH_WMI_EVT_OVERHEAD) *
-				arg.num_chan, arg.max_scan_time);
+				arg->num_chan, arg->max_scan_time);
 	} else {
-		scan_timeout = arg.max_scan_time;
+		scan_timeout = arg->max_scan_time;
 	}
 
 	/* Add a margin to account for event/command processing */
 	scan_timeout += ATH11K_MAC_SCAN_CMD_EVT_OVERHEAD;
 
-	ret = ath11k_start_scan(ar, &arg);
+	ret = ath11k_start_scan(ar, arg);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to start hw scan: %d\n", ret);
 		spin_lock_bh(&ar->data_lock);
@@ -3717,10 +3723,11 @@ static int ath11k_mac_op_hw_scan(struct ieee80211_hw *hw,
 				     msecs_to_jiffies(scan_timeout));
 
 exit:
-	kfree(arg.chan_list);
-
-	if (req->ie_len)
-		kfree(arg.extraie.ptr);
+	if (arg) {
+		kfree(arg->chan_list);
+		kfree(arg->extraie.ptr);
+		kfree(arg);
+	}
 
 	mutex_unlock(&ar->conf_mutex);
 
