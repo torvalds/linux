@@ -513,6 +513,7 @@ extern struct platform_driver vop_platform_driver;
 extern struct platform_driver vop2_platform_driver;
 extern struct platform_driver rk3066_hdmi_driver;
 extern struct platform_driver rockchip_rgb_driver;
+extern struct platform_driver rockchip_tve_driver;
 extern struct platform_driver dw_dp_driver;
 extern struct platform_driver vconn_platform_driver;
 extern struct platform_driver vvop_platform_driver;
