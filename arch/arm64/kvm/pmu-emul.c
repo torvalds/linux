@@ -461,14 +461,10 @@ static u64 compute_period(struct kvm_pmc *pmc, u64 counter)
 {
 	u64 val;
 
-	if (kvm_pmc_is_64bit(pmc)) {
-		if (!kvm_pmc_has_64bit_overflow(pmc))
-			val = -(counter & GENMASK(31, 0));
-		else
-			val = (-counter) & GENMASK(63, 0);
-	} else {
+	if (kvm_pmc_is_64bit(pmc) && kvm_pmc_has_64bit_overflow(pmc))
+		val = (-counter) & GENMASK(63, 0);
+	else
 		val = (-counter) & GENMASK(31, 0);
-	}
 
 	return val;
 }
