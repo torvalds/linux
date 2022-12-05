@@ -30,6 +30,7 @@
 #include <linux/mutex.h>
 
 struct class *class3270;
+EXPORT_SYMBOL(class3270);
 
 /* The main 3270 data structure. */
 struct raw3270 {
@@ -91,6 +92,7 @@ module_param(tubxcorrect, bool, 0);
  * Wait queue for device init/delete, view delete.
  */
 DECLARE_WAIT_QUEUE_HEAD(raw3270_wait_queue);
+EXPORT_SYMBOL(raw3270_wait_queue);
 
 static void __raw3270_disconnect(struct raw3270 *rp);
 
@@ -130,6 +132,7 @@ void raw3270_buffer_address(struct raw3270 *rp, char *cp, int x, int y)
 		cp[1] = raw3270_ebcgraf[addr & 0x3f];
 	}
 }
+EXPORT_SYMBOL(raw3270_buffer_address);
 
 /*
  * Allocate a new 3270 ccw request
@@ -162,6 +165,7 @@ struct raw3270_request *raw3270_request_alloc(size_t size)
 
 	return rq;
 }
+EXPORT_SYMBOL(raw3270_request_alloc);
 
 /*
  * Free 3270 ccw request
@@ -171,6 +175,7 @@ void raw3270_request_free(struct raw3270_request *rq)
 	kfree(rq->buffer);
 	kfree(rq);
 }
+EXPORT_SYMBOL(raw3270_request_free);
 
 /*
  * Reset request to initial state.
@@ -185,6 +190,7 @@ void raw3270_request_reset(struct raw3270_request *rq)
 	rq->rescnt = 0;
 	rq->rc = 0;
 }
+EXPORT_SYMBOL(raw3270_request_reset);
 
 /*
  * Set command code to ccw of a request.
@@ -193,6 +199,7 @@ void raw3270_request_set_cmd(struct raw3270_request *rq, u8 cmd)
 {
 	rq->ccw.cmd_code = cmd;
 }
+EXPORT_SYMBOL(raw3270_request_set_cmd);
 
 /*
  * Add data fragment to output buffer.
@@ -205,6 +212,7 @@ int raw3270_request_add_data(struct raw3270_request *rq, void *data, size_t size
 	rq->ccw.count += size;
 	return 0;
 }
+EXPORT_SYMBOL(raw3270_request_add_data);
 
 /*
  * Set address/length pair to ccw of a request.
@@ -214,6 +222,7 @@ void raw3270_request_set_data(struct raw3270_request *rq, void *data, size_t siz
 	rq->ccw.cda = __pa(data);
 	rq->ccw.count = size;
 }
+EXPORT_SYMBOL(raw3270_request_set_data);
 
 /*
  * Set idal buffer to ccw of a request.
@@ -224,6 +233,7 @@ void raw3270_request_set_idal(struct raw3270_request *rq, struct idal_buffer *ib
 	rq->ccw.count = ib->size;
 	rq->ccw.flags |= CCW_FLAG_IDA;
 }
+EXPORT_SYMBOL(raw3270_request_set_idal);
 
 /*
  * Add the request to the request queue, try to start it if the
@@ -272,6 +282,7 @@ int raw3270_start(struct raw3270_view *view, struct raw3270_request *rq)
 	spin_unlock_irqrestore(get_ccwdev_lock(view->dev->cdev), flags);
 	return rc;
 }
+EXPORT_SYMBOL(raw3270_start);
 
 int raw3270_start_request(struct raw3270_view *view, struct raw3270_request *rq,
 			  int cmd, void *data, size_t len)
@@ -285,6 +296,7 @@ int raw3270_start_request(struct raw3270_view *view, struct raw3270_request *rq,
 		return rc;
 	return raw3270_start(view, rq);
 }
+EXPORT_SYMBOL(raw3270_start_request);
 
 int raw3270_start_locked(struct raw3270_view *view, struct raw3270_request *rq)
 {
@@ -300,6 +312,7 @@ int raw3270_start_locked(struct raw3270_view *view, struct raw3270_request *rq)
 		rc =  __raw3270_start(rp, view, rq);
 	return rc;
 }
+EXPORT_SYMBOL(raw3270_start_locked);
 
 int raw3270_start_irq(struct raw3270_view *view, struct raw3270_request *rq)
 {
@@ -311,6 +324,7 @@ int raw3270_start_irq(struct raw3270_view *view, struct raw3270_request *rq)
 	list_add_tail(&rq->list, &rp->req_queue);
 	return 0;
 }
+EXPORT_SYMBOL(raw3270_start_irq);
 
 /*
  * 3270 interrupt routine, called from the ccw_device layer
@@ -546,6 +560,7 @@ void raw3270_read_modified_cb(struct raw3270_request *rq, void *data)
 	raw3270_size_device(rp, data);
 	raw3270_size_device_done(rp);
 }
+EXPORT_SYMBOL(raw3270_read_modified_cb);
 
 static void raw3270_read_modified(struct raw3270 *rp)
 {
@@ -646,6 +661,7 @@ int raw3270_reset(struct raw3270_view *view)
 		rc = raw3270_reset_device(view->dev);
 	return rc;
 }
+EXPORT_SYMBOL(raw3270_reset);
 
 static void __raw3270_disconnect(struct raw3270 *rp)
 {
@@ -907,6 +923,7 @@ int raw3270_activate_view(struct raw3270_view *view)
 	spin_unlock_irqrestore(get_ccwdev_lock(rp->cdev), flags);
 	return rc;
 }
+EXPORT_SYMBOL(raw3270_activate_view);
 
 /*
  * Deactivate current view.
@@ -938,6 +955,7 @@ void raw3270_deactivate_view(struct raw3270_view *view)
 	}
 	spin_unlock_irqrestore(get_ccwdev_lock(rp->cdev), flags);
 }
+EXPORT_SYMBOL(raw3270_deactivate_view);
 
 /*
  * Add view to device with minor "minor".
@@ -974,6 +992,7 @@ int raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn,
 	mutex_unlock(&raw3270_mutex);
 	return rc;
 }
+EXPORT_SYMBOL(raw3270_add_view);
 
 /*
  * Find specific view of device with minor "minor".
@@ -1003,6 +1022,7 @@ struct raw3270_view *raw3270_find_view(struct raw3270_fn *fn, int minor)
 	mutex_unlock(&raw3270_mutex);
 	return view;
 }
+EXPORT_SYMBOL(raw3270_find_view);
 
 /*
  * Remove view from device and free view structure via call to view->fn->free.
@@ -1036,6 +1056,7 @@ void raw3270_del_view(struct raw3270_view *view)
 	if (view->fn->free)
 		view->fn->free(view);
 }
+EXPORT_SYMBOL(raw3270_del_view);
 
 /*
  * Remove a 3270 device structure.
@@ -1128,6 +1149,7 @@ int raw3270_register_notifier(struct raw3270_notifier *notifier)
 	mutex_unlock(&raw3270_mutex);
 	return 0;
 }
+EXPORT_SYMBOL(raw3270_register_notifier);
 
 void raw3270_unregister_notifier(struct raw3270_notifier *notifier)
 {
@@ -1139,6 +1161,7 @@ void raw3270_unregister_notifier(struct raw3270_notifier *notifier)
 	list_del(&notifier->list);
 	mutex_unlock(&raw3270_mutex);
 }
+EXPORT_SYMBOL(raw3270_unregister_notifier);
 
 /*
  * Set 3270 device online.
@@ -1291,27 +1314,3 @@ MODULE_LICENSE("GPL");
 
 module_init(raw3270_init);
 module_exit(raw3270_exit);
-
-EXPORT_SYMBOL(class3270);
-EXPORT_SYMBOL(raw3270_read_modified_cb);
-EXPORT_SYMBOL(raw3270_request_alloc);
-EXPORT_SYMBOL(raw3270_request_free);
-EXPORT_SYMBOL(raw3270_request_reset);
-EXPORT_SYMBOL(raw3270_request_set_cmd);
-EXPORT_SYMBOL(raw3270_request_add_data);
-EXPORT_SYMBOL(raw3270_request_set_data);
-EXPORT_SYMBOL(raw3270_request_set_idal);
-EXPORT_SYMBOL(raw3270_buffer_address);
-EXPORT_SYMBOL(raw3270_add_view);
-EXPORT_SYMBOL(raw3270_del_view);
-EXPORT_SYMBOL(raw3270_find_view);
-EXPORT_SYMBOL(raw3270_activate_view);
-EXPORT_SYMBOL(raw3270_deactivate_view);
-EXPORT_SYMBOL(raw3270_start);
-EXPORT_SYMBOL(raw3270_start_request);
-EXPORT_SYMBOL(raw3270_start_locked);
-EXPORT_SYMBOL(raw3270_start_irq);
-EXPORT_SYMBOL(raw3270_reset);
-EXPORT_SYMBOL(raw3270_register_notifier);
-EXPORT_SYMBOL(raw3270_unregister_notifier);
-EXPORT_SYMBOL(raw3270_wait_queue);
