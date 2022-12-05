@@ -234,7 +234,8 @@ void tracing_record_taskinfo_sched_switch(struct task_struct *prev,
 void tracing_record_cmdline(struct task_struct *task);
 void tracing_record_tgid(struct task_struct *task);
 
-int trace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...);
+int trace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...)
+	 __printf(3, 4);
 
 struct event_filter;
 

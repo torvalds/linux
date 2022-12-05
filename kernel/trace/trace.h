@@ -614,7 +614,7 @@ void trace_buffer_unlock_commit_nostack(struct trace_buffer *buffer,
 bool trace_is_tracepoint_string(const char *str);
 const char *trace_event_format(struct trace_iterator *iter, const char *fmt);
 void trace_check_vprintf(struct trace_iterator *iter, const char *fmt,
-			 va_list ap);
+			 va_list ap) __printf(2, 0);
 
 int trace_empty(struct trace_iterator *iter);
 
