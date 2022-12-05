@@ -142,8 +142,8 @@ retry:
 		txb->ack.reason = RXRPC_ACK_IDLE;
 	}
 
-	mtu = conn->params.peer->if_mtu;
-	mtu -= conn->params.peer->hdrsize;
+	mtu = conn->peer->if_mtu;
+	mtu -= conn->peer->hdrsize;
 	jmax = rxrpc_rx_jumbo_max;
 	qsize = (window - 1) - call->rx_consumed;
 	rsize = max_t(int, call->rx_winsize - qsize, 0);
@@ -203,12 +203,11 @@ static void rxrpc_cancel_rtt_probe(struct rxrpc_call *call,
 }
 
 /*
- * Send an ACK call packet.
+ * Transmit an ACK packet.
  */
-static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *txb)
+int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 {
 	struct rxrpc_connection *conn;
-	struct rxrpc_call *call = txb->call;
 	struct msghdr msg;
 	struct kvec iov[1];
 	rxrpc_serial_t serial;
@@ -229,11 +228,6 @@ static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *
 	if (txb->ack.reason == RXRPC_ACK_PING)
 		txb->wire.flags |= RXRPC_REQUEST_ACK;
 
-	if (txb->ack.reason == RXRPC_ACK_DELAY)
-		clear_bit(RXRPC_CALL_DELAY_ACK_PENDING, &call->flags);
-	if (txb->ack.reason == RXRPC_ACK_IDLE)
-		clear_bit(RXRPC_CALL_IDLE_ACK_PENDING, &call->flags);
-
 	n = rxrpc_fill_out_ack(conn, call, txb);
 	if (n == 0)
 		return 0;
@@ -247,8 +241,6 @@ static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *
 	trace_rxrpc_tx_ack(call->debug_id, serial,
 			   ntohl(txb->ack.firstPacket),
 			   ntohl(txb->ack.serial), txb->ack.reason, txb->ack.nAcks);
-	if (txb->ack_why == rxrpc_propose_ack_ping_for_lost_ack)
-		call->acks_lost_ping = serial;
 
 	if (txb->ack.reason == RXRPC_ACK_PING)
 		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_ping);
@@ -259,7 +251,7 @@ static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *
 	txb->ack.previousPacket	= htonl(call->rx_highest_seq);
 
 	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, len);
-	ret = do_udp_sendmsg(conn->params.local->socket, &msg, len);
+	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 	call->peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
@@ -276,44 +268,6 @@ static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *
 	}
 
 	return ret;
-}
-
-/*
- * ACK transmitter for a local endpoint.  The UDP socket locks around each
- * transmission, so we can only transmit one packet at a time, ACK, DATA or
- * otherwise.
- */
-void rxrpc_transmit_ack_packets(struct rxrpc_local *local)
-{
-	LIST_HEAD(queue);
-	int ret;
-
-	trace_rxrpc_local(local->debug_id, rxrpc_local_tx_ack,
-			  refcount_read(&local->ref), NULL);
-
-	if (list_empty(&local->ack_tx_queue))
-		return;
-
-	spin_lock_bh(&local->ack_tx_lock);
-	list_splice_tail_init(&local->ack_tx_queue, &queue);
-	spin_unlock_bh(&local->ack_tx_lock);
-
-	while (!list_empty(&queue)) {
-		struct rxrpc_txbuf *txb =
-			list_entry(queue.next, struct rxrpc_txbuf, tx_link);
-
-		ret = rxrpc_send_ack_packet(local, txb);
-		if (ret < 0 && ret != -ECONNRESET) {
-			spin_lock_bh(&local->ack_tx_lock);
-			list_splice_init(&queue, &local->ack_tx_queue);
-			spin_unlock_bh(&local->ack_tx_lock);
-			break;
-		}
-
-		list_del_init(&txb->tx_link);
-		rxrpc_put_call(txb->call, rxrpc_call_put);
-		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_ack_tx);
-	}
 }
 
 /*
@@ -358,7 +312,7 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 	pkt.whdr.userStatus	= 0;
 	pkt.whdr.securityIndex	= call->security_ix;
 	pkt.whdr._rsvd		= 0;
-	pkt.whdr.serviceId	= htons(call->service_id);
+	pkt.whdr.serviceId	= htons(call->dest_srx.srx_service);
 	pkt.abort_code		= htonl(call->abort_code);
 
 	iov[0].iov_base	= &pkt;
@@ -368,8 +322,8 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 	pkt.whdr.serial = htonl(serial);
 
 	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, sizeof(pkt));
-	ret = do_udp_sendmsg(conn->params.local->socket, &msg, sizeof(pkt));
-	conn->params.peer->last_tx_at = ktime_get_seconds();
+	ret = do_udp_sendmsg(conn->local->socket, &msg, sizeof(pkt));
+	conn->peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
 				    rxrpc_tx_point_call_abort);
@@ -394,12 +348,6 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	int ret, rtt_slot = -1;
 
 	_enter("%x,{%d}", txb->seq, txb->len);
-
-	if (hlist_unhashed(&call->error_link)) {
-		spin_lock_bh(&call->peer->lock);
-		hlist_add_head_rcu(&call->error_link, &call->peer->error_targets);
-		spin_unlock_bh(&call->peer->lock);
-	}
 
 	/* Each transmission of a Tx packet needs a new serial number */
 	serial = atomic_inc_return(&conn->serial);
@@ -466,6 +414,14 @@ dont_set_request_ack:
 
 	trace_rxrpc_tx_data(call, txb->seq, serial, txb->wire.flags,
 			    test_bit(RXRPC_TXBUF_RESENT, &txb->flags), false);
+
+	/* Track what we've attempted to transmit at least once so that the
+	 * retransmission algorithm doesn't try to resend what we haven't sent
+	 * yet.  However, this can race as we can receive an ACK before we get
+	 * to this point.  But, OTOH, if we won't get an ACK mentioning this
+	 * packet unless the far side received it (though it could have
+	 * discarded it anyway and NAK'd it).
+	 */
 	cmpxchg(&call->tx_transmitted, txb->seq - 1, txb->seq);
 
 	/* send the packet with the don't fragment bit set if we currently
@@ -473,7 +429,7 @@ dont_set_request_ack:
 	if (txb->len >= call->peer->maxdata)
 		goto send_fragmentable;
 
-	down_read(&conn->params.local->defrag_sem);
+	down_read(&conn->local->defrag_sem);
 
 	txb->last_sent = ktime_get_real();
 	if (txb->wire.flags & RXRPC_REQUEST_ACK)
@@ -486,11 +442,12 @@ dont_set_request_ack:
 	 *     message and update the peer record
 	 */
 	rxrpc_inc_stat(call->rxnet, stat_tx_data_send);
-	ret = do_udp_sendmsg(conn->params.local->socket, &msg, len);
-	conn->params.peer->last_tx_at = ktime_get_seconds();
+	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
+	conn->peer->last_tx_at = ktime_get_seconds();
 
-	up_read(&conn->params.local->defrag_sem);
+	up_read(&conn->local->defrag_sem);
 	if (ret < 0) {
+		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_fail);
 		rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
 				    rxrpc_tx_point_call_data_nofrag);
@@ -549,22 +506,22 @@ send_fragmentable:
 	/* attempt to send this message with fragmentation enabled */
 	_debug("send fragment");
 
-	down_write(&conn->params.local->defrag_sem);
+	down_write(&conn->local->defrag_sem);
 
 	txb->last_sent = ktime_get_real();
 	if (txb->wire.flags & RXRPC_REQUEST_ACK)
 		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_data);
 
-	switch (conn->params.local->srx.transport.family) {
+	switch (conn->local->srx.transport.family) {
 	case AF_INET6:
 	case AF_INET:
-		ip_sock_set_mtu_discover(conn->params.local->socket->sk,
+		ip_sock_set_mtu_discover(conn->local->socket->sk,
 					 IP_PMTUDISC_DONT);
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_frag);
-		ret = do_udp_sendmsg(conn->params.local->socket, &msg, len);
-		conn->params.peer->last_tx_at = ktime_get_seconds();
+		ret = do_udp_sendmsg(conn->local->socket, &msg, len);
+		conn->peer->last_tx_at = ktime_get_seconds();
 
-		ip_sock_set_mtu_discover(conn->params.local->socket->sk,
+		ip_sock_set_mtu_discover(conn->local->socket->sk,
 					 IP_PMTUDISC_DO);
 		break;
 
@@ -573,6 +530,7 @@ send_fragmentable:
 	}
 
 	if (ret < 0) {
+		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_fail);
 		rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
 				    rxrpc_tx_point_call_data_frag);
@@ -582,26 +540,25 @@ send_fragmentable:
 	}
 	rxrpc_tx_backoff(call, ret);
 
-	up_write(&conn->params.local->defrag_sem);
+	up_write(&conn->local->defrag_sem);
 	goto done;
 }
 
 /*
- * reject packets through the local endpoint
+ * Reject a packet through the local endpoint.
  */
-void rxrpc_reject_packets(struct rxrpc_local *local)
+void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 {
-	struct sockaddr_rxrpc srx;
-	struct rxrpc_skb_priv *sp;
 	struct rxrpc_wire_header whdr;
-	struct sk_buff *skb;
+	struct sockaddr_rxrpc srx;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct msghdr msg;
 	struct kvec iov[2];
 	size_t size;
 	__be32 code;
 	int ret, ioc;
 
-	_enter("%d", local->debug_id);
+	rxrpc_see_skb(skb, rxrpc_skb_see_reject);
 
 	iov[0].iov_base = &whdr;
 	iov[0].iov_len = sizeof(whdr);
@@ -615,52 +572,42 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 
 	memset(&whdr, 0, sizeof(whdr));
 
-	while ((skb = skb_dequeue(&local->reject_queue))) {
-		rxrpc_see_skb(skb, rxrpc_skb_seen);
-		sp = rxrpc_skb(skb);
-
-		switch (skb->mark) {
-		case RXRPC_SKB_MARK_REJECT_BUSY:
-			whdr.type = RXRPC_PACKET_TYPE_BUSY;
-			size = sizeof(whdr);
-			ioc = 1;
-			break;
-		case RXRPC_SKB_MARK_REJECT_ABORT:
-			whdr.type = RXRPC_PACKET_TYPE_ABORT;
-			code = htonl(skb->priority);
-			size = sizeof(whdr) + sizeof(code);
-			ioc = 2;
-			break;
-		default:
-			rxrpc_free_skb(skb, rxrpc_skb_freed);
-			continue;
-		}
-
-		if (rxrpc_extract_addr_from_skb(&srx, skb) == 0) {
-			msg.msg_namelen = srx.transport_len;
-
-			whdr.epoch	= htonl(sp->hdr.epoch);
-			whdr.cid	= htonl(sp->hdr.cid);
-			whdr.callNumber	= htonl(sp->hdr.callNumber);
-			whdr.serviceId	= htons(sp->hdr.serviceId);
-			whdr.flags	= sp->hdr.flags;
-			whdr.flags	^= RXRPC_CLIENT_INITIATED;
-			whdr.flags	&= RXRPC_CLIENT_INITIATED;
-
-			iov_iter_kvec(&msg.msg_iter, WRITE, iov, ioc, size);
-			ret = do_udp_sendmsg(local->socket, &msg, size);
-			if (ret < 0)
-				trace_rxrpc_tx_fail(local->debug_id, 0, ret,
-						    rxrpc_tx_point_reject);
-			else
-				trace_rxrpc_tx_packet(local->debug_id, &whdr,
-						      rxrpc_tx_point_reject);
-		}
-
-		rxrpc_free_skb(skb, rxrpc_skb_freed);
+	switch (skb->mark) {
+	case RXRPC_SKB_MARK_REJECT_BUSY:
+		whdr.type = RXRPC_PACKET_TYPE_BUSY;
+		size = sizeof(whdr);
+		ioc = 1;
+		break;
+	case RXRPC_SKB_MARK_REJECT_ABORT:
+		whdr.type = RXRPC_PACKET_TYPE_ABORT;
+		code = htonl(skb->priority);
+		size = sizeof(whdr) + sizeof(code);
+		ioc = 2;
+		break;
+	default:
+		return;
 	}
 
-	_leave("");
+	if (rxrpc_extract_addr_from_skb(&srx, skb) == 0) {
+		msg.msg_namelen = srx.transport_len;
+
+		whdr.epoch	= htonl(sp->hdr.epoch);
+		whdr.cid	= htonl(sp->hdr.cid);
+		whdr.callNumber	= htonl(sp->hdr.callNumber);
+		whdr.serviceId	= htons(sp->hdr.serviceId);
+		whdr.flags	= sp->hdr.flags;
+		whdr.flags	^= RXRPC_CLIENT_INITIATED;
+		whdr.flags	&= RXRPC_CLIENT_INITIATED;
+
+		iov_iter_kvec(&msg.msg_iter, WRITE, iov, ioc, size);
+		ret = do_udp_sendmsg(local->socket, &msg, size);
+		if (ret < 0)
+			trace_rxrpc_tx_fail(local->debug_id, 0, ret,
+					    rxrpc_tx_point_reject);
+		else
+			trace_rxrpc_tx_packet(local->debug_id, &whdr,
+					      rxrpc_tx_point_reject);
+	}
 }
 
 /*
@@ -701,8 +648,6 @@ void rxrpc_send_keepalive(struct rxrpc_peer *peer)
 
 	len = iov[0].iov_len + iov[1].iov_len;
 
-	_proto("Tx VERSION (keepalive)");
-
 	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 2, len);
 	ret = do_udp_sendmsg(peer->local->socket, &msg, len);
 	if (ret < 0)
@@ -714,4 +659,44 @@ void rxrpc_send_keepalive(struct rxrpc_peer *peer)
 
 	peer->last_tx_at = ktime_get_seconds();
 	_leave("");
+}
+
+/*
+ * Schedule an instant Tx resend.
+ */
+static inline void rxrpc_instant_resend(struct rxrpc_call *call,
+					struct rxrpc_txbuf *txb)
+{
+	if (call->state < RXRPC_CALL_COMPLETE)
+		kdebug("resend");
+}
+
+/*
+ * Transmit one packet.
+ */
+void rxrpc_transmit_one(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
+{
+	int ret;
+
+	ret = rxrpc_send_data_packet(call, txb);
+	if (ret < 0) {
+		switch (ret) {
+		case -ENETUNREACH:
+		case -EHOSTUNREACH:
+		case -ECONNREFUSED:
+			rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR,
+						  0, ret);
+			break;
+		default:
+			_debug("need instant resend %d", ret);
+			rxrpc_instant_resend(call, txb);
+		}
+	} else {
+		unsigned long now = jiffies;
+		unsigned long resend_at = now + call->peer->rto_j;
+
+		WRITE_ONCE(call->resend_at, resend_at);
+		rxrpc_reduce_call_timer(call, resend_at, now,
+					rxrpc_timer_set_for_send);
+	}
 }

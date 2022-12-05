@@ -26,7 +26,6 @@ struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
 		INIT_LIST_HEAD(&txb->call_link);
 		INIT_LIST_HEAD(&txb->tx_link);
 		refcount_set(&txb->ref, 1);
-		txb->call		= call;
 		txb->call_debug_id	= call->debug_id;
 		txb->debug_id		= atomic_inc_return(&rxrpc_txbuf_debug_ids);
 		txb->space		= sizeof(txb->data);
@@ -34,7 +33,7 @@ struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
 		txb->offset		= 0;
 		txb->flags		= 0;
 		txb->ack_why		= 0;
-		txb->seq		= call->tx_top + 1;
+		txb->seq		= call->tx_prepared + 1;
 		txb->wire.epoch		= htonl(call->conn->proto.epoch);
 		txb->wire.cid		= htonl(call->cid);
 		txb->wire.callNumber	= htonl(call->call_id);
@@ -44,7 +43,7 @@ struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
 		txb->wire.userStatus	= 0;
 		txb->wire.securityIndex	= call->security_ix;
 		txb->wire._rsvd		= 0;
-		txb->wire.serviceId	= htons(call->service_id);
+		txb->wire.serviceId	= htons(call->dest_srx.srx_service);
 
 		trace_rxrpc_txbuf(txb->debug_id,
 				  txb->call_debug_id, txb->seq, 1,
@@ -107,6 +106,7 @@ void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *call)
 {
 	struct rxrpc_txbuf *txb;
 	rxrpc_seq_t hard_ack = smp_load_acquire(&call->acks_hard_ack);
+	bool wake = false;
 
 	_enter("%x/%x/%x", call->tx_bottom, call->acks_hard_ack, call->tx_top);
 
@@ -120,8 +120,10 @@ void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *call)
 		if (before(hard_ack, txb->seq))
 			break;
 
+		if (txb->seq != call->tx_bottom + 1)
+			rxrpc_see_txbuf(txb, rxrpc_txbuf_see_out_of_step);
 		ASSERTCMP(txb->seq, ==, call->tx_bottom + 1);
-		call->tx_bottom++;
+		smp_store_release(&call->tx_bottom, call->tx_bottom + 1);
 		list_del_rcu(&txb->call_link);
 
 		trace_rxrpc_txqueue(call, rxrpc_txqueue_dequeue);
@@ -129,7 +131,12 @@ void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *call)
 		spin_unlock(&call->tx_lock);
 
 		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_rotated);
+		if (after(call->acks_hard_ack, call->tx_bottom + 128))
+			wake = true;
 	}
 
 	spin_unlock(&call->tx_lock);
+
+	if (wake)
+		wake_up(&call->waitq);
 }

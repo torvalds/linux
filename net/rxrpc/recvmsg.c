@@ -36,16 +36,16 @@ void rxrpc_notify_socket(struct rxrpc_call *call)
 	sk = &rx->sk;
 	if (rx && sk->sk_state < RXRPC_CLOSE) {
 		if (call->notify_rx) {
-			spin_lock_bh(&call->notify_lock);
+			spin_lock(&call->notify_lock);
 			call->notify_rx(sk, call, call->user_call_ID);
-			spin_unlock_bh(&call->notify_lock);
+			spin_unlock(&call->notify_lock);
 		} else {
-			write_lock_bh(&rx->recvmsg_lock);
+			write_lock(&rx->recvmsg_lock);
 			if (list_empty(&call->recvmsg_link)) {
-				rxrpc_get_call(call, rxrpc_call_got);
+				rxrpc_get_call(call, rxrpc_call_get_notify_socket);
 				list_add_tail(&call->recvmsg_link, &rx->recvmsg_q);
 			}
-			write_unlock_bh(&rx->recvmsg_lock);
+			write_unlock(&rx->recvmsg_lock);
 
 			if (!sock_flag(sk, SOCK_DEAD)) {
 				_debug("call %ps", sk->sk_data_ready);
@@ -87,9 +87,9 @@ bool rxrpc_set_call_completion(struct rxrpc_call *call,
 	bool ret = false;
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		write_lock_bh(&call->state_lock);
+		write_lock(&call->state_lock);
 		ret = __rxrpc_set_call_completion(call, compl, abort_code, error);
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 	}
 	return ret;
 }
@@ -107,9 +107,9 @@ bool rxrpc_call_completed(struct rxrpc_call *call)
 	bool ret = false;
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		write_lock_bh(&call->state_lock);
+		write_lock(&call->state_lock);
 		ret = __rxrpc_call_completed(call);
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 	}
 	return ret;
 }
@@ -131,9 +131,9 @@ bool rxrpc_abort_call(const char *why, struct rxrpc_call *call,
 {
 	bool ret;
 
-	write_lock_bh(&call->state_lock);
+	write_lock(&call->state_lock);
 	ret = __rxrpc_abort_call(why, call, seq, abort_code, error);
-	write_unlock_bh(&call->state_lock);
+	write_unlock(&call->state_lock);
 	return ret;
 }
 
@@ -193,23 +193,23 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY)
 		rxrpc_propose_delay_ACK(call, serial, rxrpc_propose_ack_terminal_ack);
 
-	write_lock_bh(&call->state_lock);
+	write_lock(&call->state_lock);
 
 	switch (call->state) {
 	case RXRPC_CALL_CLIENT_RECV_REPLY:
 		__rxrpc_call_completed(call);
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 		break;
 
 	case RXRPC_CALL_SERVER_RECV_REQUEST:
 		call->state = RXRPC_CALL_SERVER_ACK_REQUEST;
 		call->expect_req_by = jiffies + MAX_JIFFY_OFFSET;
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 		rxrpc_propose_delay_ACK(call, serial,
 					rxrpc_propose_ack_processing_op);
 		break;
 	default:
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 		break;
 	}
 }
@@ -228,9 +228,8 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 
 	_enter("%d", call->debug_id);
 
-further_rotation:
 	skb = skb_dequeue(&call->recvmsg_queue);
-	rxrpc_see_skb(skb, rxrpc_skb_rotated);
+	rxrpc_see_skb(skb, rxrpc_skb_see_rotate);
 
 	sp = rxrpc_skb(skb);
 	tseq   = sp->hdr.seq;
@@ -241,7 +240,7 @@ further_rotation:
 	if (after(tseq, call->rx_consumed))
 		smp_store_release(&call->rx_consumed, tseq);
 
-	rxrpc_free_skb(skb, rxrpc_skb_freed);
+	rxrpc_free_skb(skb, rxrpc_skb_put_rotate);
 
 	trace_rxrpc_receive(call, last ? rxrpc_receive_rotate_last : rxrpc_receive_rotate,
 			    serial, call->rx_consumed);
@@ -250,26 +249,12 @@ further_rotation:
 		return;
 	}
 
-	/* The next packet on the queue might entirely overlap with the one we
-	 * just consumed; if so, rotate that away also.
-	 */
-	skb = skb_peek(&call->recvmsg_queue);
-	if (skb) {
-		sp = rxrpc_skb(skb);
-		if (sp->hdr.seq != call->rx_consumed &&
-		    after_eq(call->rx_consumed, sp->hdr.seq))
-			goto further_rotation;
-	}
-
 	/* Check to see if there's an ACK that needs sending. */
 	acked = atomic_add_return(call->rx_consumed - old_consumed,
 				  &call->ackr_nr_consumed);
 	if (acked > 2 &&
-	    !test_and_set_bit(RXRPC_CALL_IDLE_ACK_PENDING, &call->flags)) {
-		rxrpc_send_ACK(call, RXRPC_ACK_IDLE, serial,
-			       rxrpc_propose_ack_rotate_rx);
-		rxrpc_transmit_ack_packets(call->peer->local);
-	}
+	    !test_and_set_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags))
+		rxrpc_poke_call(call, rxrpc_call_poke_idle);
 }
 
 /*
@@ -314,14 +299,9 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	 */
 	skb = skb_peek(&call->recvmsg_queue);
 	while (skb) {
-		rxrpc_see_skb(skb, rxrpc_skb_seen);
+		rxrpc_see_skb(skb, rxrpc_skb_see_recvmsg);
 		sp = rxrpc_skb(skb);
 		seq = sp->hdr.seq;
-
-		if (after_eq(call->rx_consumed, seq)) {
-			kdebug("obsolete %x %x", call->rx_consumed, seq);
-			goto skip_obsolete;
-		}
 
 		if (!(flags & MSG_PEEK))
 			trace_rxrpc_receive(call, rxrpc_receive_front,
@@ -340,7 +320,6 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 				ret = ret2;
 				goto out;
 			}
-			rxrpc_transmit_ack_packets(call->peer->local);
 		} else {
 			trace_rxrpc_recvdata(call, rxrpc_recvmsg_cont, seq,
 					     rx_pkt_offset, rx_pkt_len, 0);
@@ -373,7 +352,6 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 			break;
 		}
 
-	skip_obsolete:
 		/* The whole packet has been transferred. */
 		if (sp->hdr.flags & RXRPC_LAST_PACKET)
 			ret = 1;
@@ -395,7 +373,7 @@ done:
 	trace_rxrpc_recvdata(call, rxrpc_recvmsg_data_return, seq,
 			     rx_pkt_offset, rx_pkt_len, ret);
 	if (ret == -EAGAIN)
-		set_bit(RXRPC_CALL_RX_UNDERRUN, &call->flags);
+		set_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags);
 	return ret;
 }
 
@@ -463,14 +441,14 @@ try_again:
 	/* Find the next call and dequeue it if we're not just peeking.  If we
 	 * do dequeue it, that comes with a ref that we will need to release.
 	 */
-	write_lock_bh(&rx->recvmsg_lock);
+	write_lock(&rx->recvmsg_lock);
 	l = rx->recvmsg_q.next;
 	call = list_entry(l, struct rxrpc_call, recvmsg_link);
 	if (!(flags & MSG_PEEK))
 		list_del_init(&call->recvmsg_link);
 	else
-		rxrpc_get_call(call, rxrpc_call_got);
-	write_unlock_bh(&rx->recvmsg_lock);
+		rxrpc_get_call(call, rxrpc_call_get_recvmsg);
+	write_unlock(&rx->recvmsg_lock);
 
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_dequeue, 0);
 
@@ -508,11 +486,9 @@ try_again:
 	}
 
 	if (msg->msg_name && call->peer) {
-		struct sockaddr_rxrpc *srx = msg->msg_name;
-		size_t len = sizeof(call->peer->srx);
+		size_t len = sizeof(call->dest_srx);
 
-		memcpy(msg->msg_name, &call->peer->srx, len);
-		srx->srx_service = call->service_id;
+		memcpy(msg->msg_name, &call->dest_srx, len);
 		msg->msg_namelen = len;
 	}
 
@@ -525,7 +501,6 @@ try_again:
 		if (ret == -EAGAIN)
 			ret = 0;
 
-		rxrpc_transmit_ack_packets(call->peer->local);
 		if (!skb_queue_empty(&call->recvmsg_queue))
 			rxrpc_notify_socket(call);
 		break;
@@ -555,18 +530,18 @@ try_again:
 
 error_unlock_call:
 	mutex_unlock(&call->user_mutex);
-	rxrpc_put_call(call, rxrpc_call_put);
+	rxrpc_put_call(call, rxrpc_call_put_recvmsg);
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, ret);
 	return ret;
 
 error_requeue_call:
 	if (!(flags & MSG_PEEK)) {
-		write_lock_bh(&rx->recvmsg_lock);
+		write_lock(&rx->recvmsg_lock);
 		list_add(&call->recvmsg_link, &rx->recvmsg_q);
-		write_unlock_bh(&rx->recvmsg_lock);
+		write_unlock(&rx->recvmsg_lock);
 		trace_rxrpc_recvmsg(call, rxrpc_recvmsg_requeue, 0);
 	} else {
-		rxrpc_put_call(call, rxrpc_call_put);
+		rxrpc_put_call(call, rxrpc_call_put_recvmsg);
 	}
 error_no_call:
 	release_sock(&rx->sk);
@@ -655,9 +630,8 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 read_phase_complete:
 	ret = 1;
 out:
-	rxrpc_transmit_ack_packets(call->peer->local);
 	if (_service)
-		*_service = call->service_id;
+		*_service = call->dest_srx.srx_service;
 	mutex_unlock(&call->user_mutex);
 	_leave(" = %d [%zu,%d]", ret, iov_iter_count(iter), *_abort);
 	return ret;

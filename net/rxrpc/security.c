@@ -63,13 +63,43 @@ const struct rxrpc_security *rxrpc_security_lookup(u8 security_index)
 }
 
 /*
+ * Initialise the security on a client call.
+ */
+int rxrpc_init_client_call_security(struct rxrpc_call *call)
+{
+	const struct rxrpc_security *sec;
+	struct rxrpc_key_token *token;
+	struct key *key = call->key;
+	int ret;
+
+	if (!key)
+		return 0;
+
+	ret = key_validate(key);
+	if (ret < 0)
+		return ret;
+
+	for (token = key->payload.data[0]; token; token = token->next) {
+		sec = rxrpc_security_lookup(token->security_index);
+		if (sec)
+			goto found;
+	}
+	return -EKEYREJECTED;
+
+found:
+	call->security = sec;
+	_leave(" = 0");
+	return 0;
+}
+
+/*
  * initialise the security on a client connection
  */
 int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 {
 	const struct rxrpc_security *sec;
 	struct rxrpc_key_token *token;
-	struct key *key = conn->params.key;
+	struct key *key = conn->key;
 	int ret;
 
 	_enter("{%d},{%x}", conn->debug_id, key_serial(key));
@@ -163,7 +193,7 @@ struct key *rxrpc_look_up_server_security(struct rxrpc_connection *conn,
 
 	rcu_read_lock();
 
-	rx = rcu_dereference(conn->params.local->service);
+	rx = rcu_dereference(conn->local->service);
 	if (!rx)
 		goto out;
 

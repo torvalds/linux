@@ -22,30 +22,9 @@
  */
 static bool rxrpc_check_tx_space(struct rxrpc_call *call, rxrpc_seq_t *_tx_win)
 {
-	unsigned int win_size;
-	rxrpc_seq_t tx_win = smp_load_acquire(&call->acks_hard_ack);
-
-	/* If we haven't transmitted anything for >1RTT, we should reset the
-	 * congestion management state.
-	 */
-	if (ktime_before(ktime_add_us(call->tx_last_sent,
-				      call->peer->srtt_us >> 3),
-			 ktime_get_real())) {
-		if (RXRPC_TX_SMSS > 2190)
-			win_size = 2;
-		else if (RXRPC_TX_SMSS > 1095)
-			win_size = 3;
-		else
-			win_size = 4;
-		win_size += call->cong_extra;
-	} else {
-		win_size = min_t(unsigned int, call->tx_winsize,
-				 call->cong_cwnd + call->cong_extra);
-	}
-
 	if (_tx_win)
-		*_tx_win = tx_win;
-	return call->tx_top - tx_win < win_size;
+		*_tx_win = call->tx_bottom;
+	return call->tx_prepared - call->tx_bottom < 256;
 }
 
 /*
@@ -65,11 +44,6 @@ static int rxrpc_wait_for_tx_window_intr(struct rxrpc_sock *rx,
 
 		if (signal_pending(current))
 			return sock_intr_errno(*timeo);
-
-		if (READ_ONCE(call->acks_hard_ack) != call->tx_bottom) {
-			rxrpc_shrink_call_tx_buffer(call);
-			continue;
-		}
 
 		trace_rxrpc_txqueue(call, rxrpc_txqueue_wait);
 		*timeo = schedule_timeout(*timeo);
@@ -107,11 +81,6 @@ static int rxrpc_wait_for_tx_window_waitall(struct rxrpc_sock *rx,
 		    tx_win == tx_start && signal_pending(current))
 			return -EINTR;
 
-		if (READ_ONCE(call->acks_hard_ack) != call->tx_bottom) {
-			rxrpc_shrink_call_tx_buffer(call);
-			continue;
-		}
-
 		if (tx_win != tx_start) {
 			timeout = rtt;
 			tx_start = tx_win;
@@ -136,11 +105,6 @@ static int rxrpc_wait_for_tx_window_nonintr(struct rxrpc_sock *rx,
 
 		if (call->state >= RXRPC_CALL_COMPLETE)
 			return call->error;
-
-		if (READ_ONCE(call->acks_hard_ack) != call->tx_bottom) {
-			rxrpc_shrink_call_tx_buffer(call);
-			continue;
-		}
 
 		trace_rxrpc_txqueue(call, rxrpc_txqueue_wait);
 		*timeo = schedule_timeout(*timeo);
@@ -206,33 +170,32 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 {
 	unsigned long now;
 	rxrpc_seq_t seq = txb->seq;
-	bool last = test_bit(RXRPC_TXBUF_LAST, &txb->flags);
-	int ret;
+	bool last = test_bit(RXRPC_TXBUF_LAST, &txb->flags), poke;
 
 	rxrpc_inc_stat(call->rxnet, stat_tx_data);
 
-	ASSERTCMP(seq, ==, call->tx_top + 1);
+	ASSERTCMP(txb->seq, ==, call->tx_prepared + 1);
 
 	/* We have to set the timestamp before queueing as the retransmit
 	 * algorithm can see the packet as soon as we queue it.
 	 */
 	txb->last_sent = ktime_get_real();
 
-	/* Add the packet to the call's output buffer */
-	rxrpc_get_txbuf(txb, rxrpc_txbuf_get_buffer);
-	spin_lock(&call->tx_lock);
-	list_add_tail(&txb->call_link, &call->tx_buffer);
-	call->tx_top = seq;
-	spin_unlock(&call->tx_lock);
-
 	if (last)
 		trace_rxrpc_txqueue(call, rxrpc_txqueue_queue_last);
 	else
 		trace_rxrpc_txqueue(call, rxrpc_txqueue_queue);
 
+	/* Add the packet to the call's output buffer */
+	spin_lock(&call->tx_lock);
+	poke = list_empty(&call->tx_sendmsg);
+	list_add_tail(&txb->call_link, &call->tx_sendmsg);
+	call->tx_prepared = seq;
+	spin_unlock(&call->tx_lock);
+
 	if (last || call->state == RXRPC_CALL_SERVER_ACK_REQUEST) {
 		_debug("________awaiting reply/ACK__________");
-		write_lock_bh(&call->state_lock);
+		write_lock(&call->state_lock);
 		switch (call->state) {
 		case RXRPC_CALL_CLIENT_SEND_REQUEST:
 			call->state = RXRPC_CALL_CLIENT_AWAIT_REPLY;
@@ -255,33 +218,11 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 		default:
 			break;
 		}
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 	}
 
-	if (seq == 1 && rxrpc_is_client_call(call))
-		rxrpc_expose_client_call(call);
-
-	ret = rxrpc_send_data_packet(call, txb);
-	if (ret < 0) {
-		switch (ret) {
-		case -ENETUNREACH:
-		case -EHOSTUNREACH:
-		case -ECONNREFUSED:
-			rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR,
-						  0, ret);
-			goto out;
-		}
-	} else {
-		unsigned long now = jiffies;
-		unsigned long resend_at = now + call->peer->rto_j;
-
-		WRITE_ONCE(call->resend_at, resend_at);
-		rxrpc_reduce_call_timer(call, resend_at, now,
-					rxrpc_timer_set_for_send);
-	}
-
-out:
-	rxrpc_put_txbuf(txb, rxrpc_txbuf_put_trans);
+	if (poke)
+		rxrpc_poke_call(call, rxrpc_call_poke_start);
 }
 
 /*
@@ -335,8 +276,6 @@ reload:
 		rxrpc_see_txbuf(txb, rxrpc_txbuf_see_send_more);
 
 	do {
-		rxrpc_transmit_ack_packets(call->peer->local);
-
 		if (!txb) {
 			size_t remain, bufsize, chunk, offset;
 
@@ -416,10 +355,10 @@ reload:
 success:
 	ret = copied;
 	if (READ_ONCE(call->state) == RXRPC_CALL_COMPLETE) {
-		read_lock_bh(&call->state_lock);
+		read_lock(&call->state_lock);
 		if (call->error < 0)
 			ret = call->error;
-		read_unlock_bh(&call->state_lock);
+		read_unlock(&call->state_lock);
 	}
 out:
 	call->tx_pending = txb;
@@ -604,7 +543,7 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 				     atomic_inc_return(&rxrpc_debug_id));
 	/* The socket is now unlocked */
 
-	rxrpc_put_peer(cp.peer);
+	rxrpc_put_peer(cp.peer, rxrpc_peer_put_discard_tmp);
 	_leave(" = %p\n", call);
 	return call;
 }
@@ -667,7 +606,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		case RXRPC_CALL_CLIENT_AWAIT_CONN:
 		case RXRPC_CALL_SERVER_PREALLOC:
 		case RXRPC_CALL_SERVER_SECURING:
-			rxrpc_put_call(call, rxrpc_call_put);
+			rxrpc_put_call(call, rxrpc_call_put_sendmsg);
 			ret = -EBUSY;
 			goto error_release_sock;
 		default:
@@ -737,7 +676,7 @@ out_put_unlock:
 	if (!dropped_lock)
 		mutex_unlock(&call->user_mutex);
 error_put:
-	rxrpc_put_call(call, rxrpc_call_put);
+	rxrpc_put_call(call, rxrpc_call_put_sendmsg);
 	_leave(" = %d", ret);
 	return ret;
 
@@ -784,9 +723,9 @@ int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 				      notify_end_tx, &dropped_lock);
 		break;
 	case RXRPC_CALL_COMPLETE:
-		read_lock_bh(&call->state_lock);
+		read_lock(&call->state_lock);
 		ret = call->error;
-		read_unlock_bh(&call->state_lock);
+		read_unlock(&call->state_lock);
 		break;
 	default:
 		/* Request phase complete for this client call */
