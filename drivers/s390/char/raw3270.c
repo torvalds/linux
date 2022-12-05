@@ -886,13 +886,57 @@ int raw3270_view_lock_unavailable(struct raw3270_view *view)
 	return 0;
 }
 
+static int raw3270_assign_activate_view(struct raw3270 *rp, struct raw3270_view *view)
+{
+	rp->view = view;
+	return view->fn->activate(view);
+}
+
+static int __raw3270_activate_view(struct raw3270 *rp, struct raw3270_view *view)
+{
+	struct raw3270_view *oldview = NULL, *nv;
+	int rc;
+
+	if (rp->view == view)
+		return 0;
+
+	if (!raw3270_state_ready(rp))
+		return -EBUSY;
+
+	if (rp->view && rp->view->fn->deactivate) {
+		oldview = rp->view;
+		oldview->fn->deactivate(oldview);
+	}
+
+	rc = raw3270_assign_activate_view(rp, view);
+	if (!rc)
+		return 0;
+
+	/* Didn't work. Try to reactivate the old view. */
+	if (oldview) {
+		rc = raw3270_assign_activate_view(rp, oldview);
+		if (!rc)
+			return 0;
+	}
+
+	/* Didn't work as well. Try any other view. */
+	list_for_each_entry(nv, &rp->view_list, list) {
+		if (nv == view || nv == oldview)
+			continue;
+		rc = raw3270_assign_activate_view(rp, nv);
+		if (!rc)
+			break;
+		rp->view = NULL;
+	}
+	return rc;
+}
+
 /*
  * Activate a view.
  */
 int raw3270_activate_view(struct raw3270_view *view)
 {
 	struct raw3270 *rp;
-	struct raw3270_view *oldview, *nv;
 	unsigned long flags;
 	int rc;
 
@@ -900,33 +944,7 @@ int raw3270_activate_view(struct raw3270_view *view)
 	if (!rp)
 		return -ENODEV;
 	spin_lock_irqsave(get_ccwdev_lock(rp->cdev), flags);
-	if (rp->view == view) {
-		rc = 0;
-	} else if (!raw3270_state_ready(rp)) {
-		rc = -EBUSY;
-	} else {
-		oldview = NULL;
-		if (rp->view && rp->view->fn->deactivate) {
-			oldview = rp->view;
-			oldview->fn->deactivate(oldview);
-		}
-		rp->view = view;
-		rc = view->fn->activate(view);
-		if (rc) {
-			/* Didn't work. Try to reactivate the old view. */
-			rp->view = oldview;
-			if (!oldview || oldview->fn->activate(oldview) != 0) {
-				/* Didn't work as well. Try any other view. */
-				list_for_each_entry(nv, &rp->view_list, list)
-					if (nv != view && nv != oldview) {
-						rp->view = nv;
-						if (nv->fn->activate(nv) == 0)
-							break;
-						rp->view = NULL;
-					}
-			}
-		}
-	}
+	rc = __raw3270_activate_view(rp, view);
 	spin_unlock_irqrestore(get_ccwdev_lock(rp->cdev), flags);
 	return rc;
 }
