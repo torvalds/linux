@@ -591,6 +591,10 @@ static inline int is_lan937x(struct ksz_device *dev)
 
 #define PORT_SRC_PHY_INT		1
 
+#define KSZ8795_HUGE_PACKET_SIZE	2000
+#define KSZ8863_HUGE_PACKET_SIZE	1916
+#define KSZ8863_NORMAL_PACKET_SIZE	1536
+#define KSZ8_LEGAL_PACKET_SIZE		1518
 #define KSZ9477_MAX_FRAME_SIZE		9000
 
 /* Regmap tables generation */
