@@ -1142,6 +1142,10 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_link *link = stream->link;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
+	struct dccg *dccg = dc->res_pool->dccg;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	struct dtbclk_dto_params dto_params = {0};
+	int dp_hpo_inst;
 
 	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal)) {
 		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
@@ -1160,6 +1164,15 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 	dc->hwss.disable_audio_stream(pipe_ctx);
 
 	link_hwss->reset_stream_encoder(pipe_ctx);
+
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		dto_params.otg_inst = tg->inst;
+		dto_params.timing = &pipe_ctx->stream->timing;
+		dp_hpo_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
+		dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
+		dccg->funcs->disable_symclk32_se(dccg, dp_hpo_inst);
+		dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, dp_hpo_inst);
+	}
 
 	if (is_dp_128b_132b_signal(pipe_ctx)) {
 		/* TODO: This looks like a bug to me as we are disabling HPO IO when

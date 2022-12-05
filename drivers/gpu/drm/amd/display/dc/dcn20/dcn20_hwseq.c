@@ -2639,6 +2639,37 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	hubp->mpcc_id = mpcc_id;
 }
 
+static enum phyd32clk_clock_source get_phyd32clk_src(struct dc_link *link)
+{
+	switch (link->link_enc->transmitter) {
+	case TRANSMITTER_UNIPHY_A:
+		return PHYD32CLKA;
+	case TRANSMITTER_UNIPHY_B:
+		return PHYD32CLKB;
+	case TRANSMITTER_UNIPHY_C:
+		return PHYD32CLKC;
+	case TRANSMITTER_UNIPHY_D:
+		return PHYD32CLKD;
+	case TRANSMITTER_UNIPHY_E:
+		return PHYD32CLKE;
+	default:
+		return PHYD32CLKA;
+	}
+}
+
+static int get_odm_segment_count(struct pipe_ctx *pipe_ctx)
+{
+	struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
+	int count = 1;
+
+	while (odm_pipe != NULL) {
+		count++;
+		odm_pipe = odm_pipe->next_odm_pipe;
+	}
+
+	return count;
+}
+
 void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 {
 	enum dc_lane_count lane_count =
@@ -2652,10 +2683,29 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct dtbclk_dto_params dto_params = {0};
+	struct dccg *dccg = dc->res_pool->dccg;
+	enum phyd32clk_clock_source phyd32clk;
+	int dp_hpo_inst;
 
 	if (is_dp_128b_132b_signal(pipe_ctx)) {
 		if (dc->hwseq->funcs.setup_hpo_hw_control)
 			dc->hwseq->funcs.setup_hpo_hw_control(dc->hwseq, true);
+	}
+
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		dp_hpo_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
+		dccg->funcs->set_dpstreamclk(dccg, DTBCLK0, tg->inst, dp_hpo_inst);
+
+		phyd32clk = get_phyd32clk_src(link);
+		dccg->funcs->enable_symclk32_se(dccg, dp_hpo_inst, phyd32clk);
+
+		dto_params.otg_inst = tg->inst;
+		dto_params.pixclk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10;
+		dto_params.num_odm_segments = get_odm_segment_count(pipe_ctx);
+		dto_params.timing = &pipe_ctx->stream->timing;
+		dto_params.ref_dtbclk_khz = dc->clk_mgr->funcs->get_dtb_ref_clk_frequency(dc->clk_mgr);
+		dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
 	}
 
 	link_hwss->setup_stream_encoder(pipe_ctx);
