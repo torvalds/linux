@@ -83,14 +83,14 @@ static inline int eig_to_granularity(u16 eig, unsigned int *granularity)
 }
 
 /* Encode defined in CXL ECN "3, 6, 12 and 16-way memory Interleaving" */
-static inline int cxl_to_ways(u8 eniw, unsigned int *val)
+static inline int eiw_to_ways(u8 eiw, unsigned int *ways)
 {
-	switch (eniw) {
+	switch (eiw) {
 	case 0 ... 4:
-		*val = 1 << eniw;
+		*ways = 1 << eiw;
 		break;
 	case 8 ... 10:
-		*val = 3 << (eniw - 8);
+		*ways = 3 << (eiw - 8);
 		break;
 	default:
 		return -EINVAL;
@@ -108,12 +108,12 @@ static inline int granularity_to_eig(int granularity, u16 *eig)
 	return 0;
 }
 
-static inline int ways_to_cxl(unsigned int ways, u8 *iw)
+static inline int ways_to_eiw(unsigned int ways, u8 *eiw)
 {
 	if (ways > 16)
 		return -EINVAL;
 	if (is_power_of_2(ways)) {
-		*iw = ilog2(ways);
+		*eiw = ilog2(ways);
 		return 0;
 	}
 	if (ways % 3)
@@ -121,7 +121,7 @@ static inline int ways_to_cxl(unsigned int ways, u8 *iw)
 	ways /= 3;
 	if (!is_power_of_2(ways))
 		return -EINVAL;
-	*iw = ilog2(ways) + 8;
+	*eiw = ilog2(ways) + 8;
 	return 0;
 }
 

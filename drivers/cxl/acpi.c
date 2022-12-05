@@ -34,7 +34,7 @@ static int cxl_xor_calc_n(u64 hpa, struct cxl_cxims_data *cximsd, int iw,
 	}
 	/* IW: 3,6,12 add a modulo calculation to 'n' */
 	if (!is_power_of_2(iw)) {
-		if (ways_to_cxl(iw, &eiw))
+		if (ways_to_eiw(iw, &eiw))
 			return -1;
 		hpa &= GENMASK_ULL(51, eiw + ig);
 		n |= do_div(hpa, 3) << i;
@@ -161,7 +161,7 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 		return -EINVAL;
 	}
 
-	rc = cxl_to_ways(cfmws->interleave_ways, &ways);
+	rc = eiw_to_ways(cfmws->interleave_ways, &ways);
 	if (rc) {
 		dev_err(dev, "CFMWS Interleave Ways (%d) invalid\n",
 			cfmws->interleave_ways);
@@ -221,7 +221,7 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 		return 0;
 	}
 
-	rc = cxl_to_ways(cfmws->interleave_ways, &ways);
+	rc = eiw_to_ways(cfmws->interleave_ways, &ways);
 	if (rc)
 		return rc;
 	rc = eig_to_granularity(cfmws->granularity, &ig);
