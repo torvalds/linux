@@ -319,16 +319,30 @@ fail:
 
 static void *vepu_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
-	unsigned long flags;
-	s32 core_id;
+	struct mpp_taskqueue *queue = mpp->queue;
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 	struct vepu_ccu *ccu = enc->ccu;
+	unsigned long core_idle;
+	unsigned long flags;
+	u32 core_id_max;
+	s32 core_id;
+	u32 i;
 
 	spin_lock_irqsave(&ccu->lock, flags);
 
+	core_idle = queue->core_idle;
+	core_id_max = queue->core_id_max;
+
+	for (i = 0; i <= core_id_max; i++) {
+		struct mpp_dev *mpp = queue->cores[i];
+
+		if (mpp && mpp->disable)
+			clear_bit(i, &core_idle);
+	}
+
 	core_id = find_first_bit(&ccu->core_idle, ccu->core_num);
 
-	if (core_id >= ccu->core_num) {
+	if (core_id >= core_id_max + 1 || !queue->cores[core_id]) {
 		mpp_task = NULL;
 		mpp_dbg_core("core %d all busy %lx\n", core_id, ccu->core_idle);
 	} else {
