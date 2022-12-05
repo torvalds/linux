@@ -44,14 +44,12 @@ struct fs3270 {
 
 static DEFINE_MUTEX(fs3270_mutex);
 
-static void
-fs3270_wake_up(struct raw3270_request *rq, void *data)
+static void fs3270_wake_up(struct raw3270_request *rq, void *data)
 {
 	wake_up((wait_queue_head_t *)data);
 }
 
-static inline int
-fs3270_working(struct fs3270 *fp)
+static inline int fs3270_working(struct fs3270 *fp)
 {
 	/*
 	 * The fullscreen view is in working order if the view
@@ -60,8 +58,7 @@ fs3270_working(struct fs3270 *fp)
 	return fp->active && raw3270_request_final(fp->init);
 }
 
-static int
-fs3270_do_io(struct raw3270_view *view, struct raw3270_request *rq)
+static int fs3270_do_io(struct raw3270_view *view, struct raw3270_request *rq)
 {
 	struct fs3270 *fp;
 	int rc;
@@ -90,8 +87,7 @@ fs3270_do_io(struct raw3270_view *view, struct raw3270_request *rq)
 /*
  * Switch to the fullscreen view.
  */
-static void
-fs3270_reset_callback(struct raw3270_request *rq, void *data)
+static void fs3270_reset_callback(struct raw3270_request *rq, void *data)
 {
 	struct fs3270 *fp;
 
@@ -100,8 +96,7 @@ fs3270_reset_callback(struct raw3270_request *rq, void *data)
 	wake_up(&fp->wait);
 }
 
-static void
-fs3270_restore_callback(struct raw3270_request *rq, void *data)
+static void fs3270_restore_callback(struct raw3270_request *rq, void *data)
 {
 	struct fs3270 *fp;
 
@@ -115,8 +110,7 @@ fs3270_restore_callback(struct raw3270_request *rq, void *data)
 	wake_up(&fp->wait);
 }
 
-static int
-fs3270_activate(struct raw3270_view *view)
+static int fs3270_activate(struct raw3270_view *view)
 {
 	struct fs3270 *fp;
 	char *cp;
@@ -161,8 +155,7 @@ fs3270_activate(struct raw3270_view *view)
 /*
  * Shutdown fullscreen view.
  */
-static void
-fs3270_save_callback(struct raw3270_request *rq, void *data)
+static void fs3270_save_callback(struct raw3270_request *rq, void *data)
 {
 	struct fs3270 *fp;
 
@@ -189,8 +182,7 @@ fs3270_save_callback(struct raw3270_request *rq, void *data)
 	wake_up(&fp->wait);
 }
 
-static void
-fs3270_deactivate(struct raw3270_view *view)
+static void fs3270_deactivate(struct raw3270_view *view)
 {
 	struct fs3270 *fp;
 
@@ -220,8 +212,8 @@ fs3270_deactivate(struct raw3270_view *view)
 		fp->init->callback(fp->init, NULL);
 }
 
-static void
-fs3270_irq(struct fs3270 *fp, struct raw3270_request *rq, struct irb *irb)
+static void fs3270_irq(struct fs3270 *fp, struct raw3270_request *rq,
+		       struct irb *irb)
 {
 	/* Handle ATTN. Set indication and wake waiters for attention. */
 	if (irb->scsw.cmd.dstat & DEV_STAT_ATTENTION) {
@@ -241,8 +233,8 @@ fs3270_irq(struct fs3270 *fp, struct raw3270_request *rq, struct irb *irb)
 /*
  * Process reads from fullscreen 3270.
  */
-static ssize_t
-fs3270_read(struct file *filp, char __user *data, size_t count, loff_t *off)
+static ssize_t fs3270_read(struct file *filp, char __user *data,
+			   size_t count, loff_t *off)
 {
 	struct fs3270 *fp;
 	struct raw3270_request *rq;
@@ -286,8 +278,8 @@ fs3270_read(struct file *filp, char __user *data, size_t count, loff_t *off)
 /*
  * Process writes to fullscreen 3270.
  */
-static ssize_t
-fs3270_write(struct file *filp, const char __user *data, size_t count, loff_t *off)
+static ssize_t fs3270_write(struct file *filp, const char __user *data,
+			    size_t count, loff_t *off)
 {
 	struct fs3270 *fp;
 	struct raw3270_request *rq;
@@ -326,8 +318,7 @@ fs3270_write(struct file *filp, const char __user *data, size_t count, loff_t *o
 /*
  * process ioctl commands for the tube driver
  */
-static long
-fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	char __user *argp;
 	struct fs3270 *fp;
@@ -374,8 +365,7 @@ fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 /*
  * Allocate fs3270 structure.
  */
-static struct fs3270 *
-fs3270_alloc_view(void)
+static struct fs3270 *fs3270_alloc_view(void)
 {
 	struct fs3270 *fp;
 
@@ -393,8 +383,7 @@ fs3270_alloc_view(void)
 /*
  * Free fs3270 structure.
  */
-static void
-fs3270_free_view(struct raw3270_view *view)
+static void fs3270_free_view(struct raw3270_view *view)
 {
 	struct fs3270 *fp;
 
@@ -408,8 +397,7 @@ fs3270_free_view(struct raw3270_view *view)
 /*
  * Unlink fs3270 data structure from filp.
  */
-static void
-fs3270_release(struct raw3270_view *view)
+static void fs3270_release(struct raw3270_view *view)
 {
 	struct fs3270 *fp;
 
@@ -430,8 +418,7 @@ static struct raw3270_fn fs3270_fn = {
 /*
  * This routine is called whenever a 3270 fullscreen device is opened.
  */
-static int
-fs3270_open(struct inode *inode, struct file *filp)
+static int fs3270_open(struct inode *inode, struct file *filp)
 {
 	struct fs3270 *fp;
 	struct idal_buffer *ib;
@@ -502,8 +489,7 @@ out:
  * This routine is called when the 3270 tty is closed. We wait
  * for the remaining request to be completed. Then we clean up.
  */
-static int
-fs3270_close(struct inode *inode, struct file *filp)
+static int fs3270_close(struct inode *inode, struct file *filp)
 {
 	struct fs3270 *fp;
 
@@ -551,8 +537,7 @@ static struct raw3270_notifier fs3270_notifier = {
 /*
  * 3270 fullscreen driver initialization.
  */
-static int __init
-fs3270_init(void)
+static int __init fs3270_init(void)
 {
 	int rc;
 
@@ -565,8 +550,7 @@ fs3270_init(void)
 	return 0;
 }
 
-static void __exit
-fs3270_exit(void)
+static void __exit fs3270_exit(void)
 {
 	raw3270_unregister_notifier(&fs3270_notifier);
 	device_destroy(class3270, MKDEV(IBM_FS3270_MAJOR, 0));
