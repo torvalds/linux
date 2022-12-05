@@ -42,85 +42,23 @@ static inline void hdmi_mod(struct dw_hdmi_qp_i2s_audio_data *audio,
 	return audio->mod(hdmi, data, mask, reg);
 }
 
-static inline bool is_dw_hdmi_qp_clk_off(struct dw_hdmi_qp_i2s_audio_data *audio)
-{
-	u32 sta = hdmi_read(audio, CMU_STATUS);
-
-	return (sta & (AUDCLK_OFF | LINKQPCLK_OFF | VIDQPCLK_OFF));
-}
-
 static int dw_hdmi_qp_i2s_hw_params(struct device *dev, void *data,
 				    struct hdmi_codec_daifmt *fmt,
 				    struct hdmi_codec_params *hparms)
 {
 	struct dw_hdmi_qp_i2s_audio_data *audio = data;
 	struct dw_hdmi_qp *hdmi = audio->hdmi;
-	u32 conf0 = 0;
 	bool ref2stream = false;
-
-	if (is_dw_hdmi_qp_clk_off(audio))
-		return 0;
 
 	if (fmt->bit_clk_master | fmt->frame_clk_master) {
 		dev_err(dev, "unsupported clock settings\n");
 		return -EINVAL;
 	}
 
-	/* Reset the audio data path of the AVP */
-	hdmi_write(audio, AVP_DATAPATH_PACKET_AUDIO_SWINIT_P, GLOBAL_SWRESET_REQUEST);
-
-	/* Disable AUDS, ACR, AUDI */
-	hdmi_mod(audio, 0,
-		 PKTSCHED_ACR_TX_EN | PKTSCHED_AUDS_TX_EN | PKTSCHED_AUDI_TX_EN,
-		 PKTSCHED_PKT_EN);
-
-	/* Clear the audio FIFO */
-	hdmi_write(audio, AUDIO_FIFO_CLR_P, AUDIO_INTERFACE_CONTROL0);
-
-	/* Select I2S interface as the audio source */
-	hdmi_mod(audio, AUD_IF_I2S, AUD_IF_SEL_MSK, AUDIO_INTERFACE_CONFIG0);
-
-	/* Enable the active i2s lanes */
-	switch (hparms->channels) {
-	case 7 ... 8:
-		conf0 |= I2S_LINES_EN(3);
-		fallthrough;
-	case 5 ... 6:
-		conf0 |= I2S_LINES_EN(2);
-		fallthrough;
-	case 3 ... 4:
-		conf0 |= I2S_LINES_EN(1);
-		fallthrough;
-	default:
-		conf0 |= I2S_LINES_EN(0);
-		break;
-	}
-
-	hdmi_mod(audio, conf0, I2S_LINES_EN_MSK, AUDIO_INTERFACE_CONFIG0);
-
-	/*
-	 * Enable bpcuv generated internally for L-PCM, or received
-	 * from stream for NLPCM/HBR.
-	 */
-	switch (fmt->bit_fmt) {
-	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE:
-		conf0 = (hparms->channels == 8) ? AUD_HBR : AUD_ASP;
-		conf0 |= I2S_BPCUV_RCV_EN;
+	if (fmt->bit_fmt == SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE)
 		ref2stream = true;
-		break;
-	default:
-		conf0 = AUD_ASP | I2S_BPCUV_RCV_DIS;
-		ref2stream = false;
-		break;
-	}
 
-	hdmi_mod(audio, conf0, I2S_BPCUV_RCV_MSK | AUD_FORMAT_MSK,
-		 AUDIO_INTERFACE_CONFIG0);
-
-	/* Enable audio FIFO auto clear when overflow */
-	hdmi_mod(audio, AUD_FIFO_INIT_ON_OVF_EN, AUD_FIFO_INIT_ON_OVF_MSK,
-		 AUDIO_INTERFACE_CONFIG0);
-
+	dw_hdmi_qp_set_audio_interface(hdmi, fmt, hparms);
 	dw_hdmi_qp_set_sample_rate(hdmi, hparms->sample_rate);
 	dw_hdmi_qp_set_channel_status(hdmi, hparms->iec.status, ref2stream);
 	dw_hdmi_qp_set_channel_count(hdmi, hparms->channels);
@@ -135,9 +73,6 @@ static int dw_hdmi_qp_i2s_audio_startup(struct device *dev, void *data)
 	struct dw_hdmi_qp_i2s_audio_data *audio = data;
 	struct dw_hdmi_qp *hdmi = audio->hdmi;
 
-	if (is_dw_hdmi_qp_clk_off(audio))
-		return 0;
-
 	dw_hdmi_qp_audio_enable(hdmi);
 
 	return 0;
@@ -146,22 +81,9 @@ static int dw_hdmi_qp_i2s_audio_startup(struct device *dev, void *data)
 static void dw_hdmi_qp_i2s_audio_shutdown(struct device *dev, void *data)
 {
 	struct dw_hdmi_qp_i2s_audio_data *audio = data;
+	struct dw_hdmi_qp *hdmi = audio->hdmi;
 
-	if (is_dw_hdmi_qp_clk_off(audio))
-		return;
-
-	/*
-	 * Keep ACR, AUDI, AUDS packet always on to make SINK device
-	 * active for better compatibility and user experience.
-	 *
-	 * This also fix POP sound on some SINK devices which wakeup
-	 * from suspend to active.
-	 */
-	hdmi_mod(audio, I2S_BPCUV_RCV_DIS, I2S_BPCUV_RCV_MSK,
-		 AUDIO_INTERFACE_CONFIG0);
-	hdmi_mod(audio, AUDPKT_PBIT_FORCE_EN | AUDPKT_CHSTATUS_OVR_EN,
-		 AUDPKT_PBIT_FORCE_EN_MASK | AUDPKT_CHSTATUS_OVR_EN_MASK,
-		 AUDPKT_CONTROL0);
+	dw_hdmi_qp_audio_disable(hdmi);
 }
 
 static int dw_hdmi_qp_i2s_get_eld(struct device *dev, void *data, uint8_t *buf,
