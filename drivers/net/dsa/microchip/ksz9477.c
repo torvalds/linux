@@ -45,19 +45,15 @@ static void ksz9477_port_cfg32(struct ksz_device *dev, int port, int offset,
 
 int ksz9477_change_mtu(struct ksz_device *dev, int port, int mtu)
 {
-	u16 frame_size, max_frame = 0;
-	int i;
+	u16 frame_size;
+
+	if (!dsa_is_cpu_port(dev->ds, port))
+		return 0;
 
 	frame_size = mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
 
-	/* Cache the per-port MTU setting */
-	dev->ports[port].max_frame = frame_size;
-
-	for (i = 0; i < dev->info->port_cnt; i++)
-		max_frame = max(max_frame, dev->ports[i].max_frame);
-
 	return regmap_update_bits(dev->regmap[1], REG_SW_MTU__2,
-				  REG_SW_MTU_MASK, max_frame);
+				  REG_SW_MTU_MASK, frame_size);
 }
 
 static int ksz9477_wait_vlan_ctrl_ready(struct ksz_device *dev)
