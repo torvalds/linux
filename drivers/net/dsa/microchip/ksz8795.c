@@ -1359,6 +1359,16 @@ int ksz8_setup(struct dsa_switch *ds)
 
 	ds->mtu_enforcement_ingress = true;
 
+	/* We rely on software untagging on the CPU port, so that we
+	 * can support both tagged and untagged VLANs
+	 */
+	ds->untag_bridge_pvid = true;
+
+	/* VLAN filtering is partly controlled by the global VLAN
+	 * Enable flag
+	 */
+	ds->vlan_filtering_is_global = true;
+
 	ksz_cfg(dev, S_REPLACE_VID_CTRL, SW_FLOW_CTRL, true);
 
 	/* Enable automatic fast aging when link changed detected. */
@@ -1417,16 +1427,6 @@ int ksz8_switch_init(struct ksz_device *dev)
 	dev->cpu_port = fls(dev->info->cpu_ports) - 1;
 	dev->phy_port_cnt = dev->info->port_cnt - 1;
 	dev->port_mask = (BIT(dev->phy_port_cnt) - 1) | dev->info->cpu_ports;
-
-	/* We rely on software untagging on the CPU port, so that we
-	 * can support both tagged and untagged VLANs
-	 */
-	dev->ds->untag_bridge_pvid = true;
-
-	/* VLAN filtering is partly controlled by the global VLAN
-	 * Enable flag
-	 */
-	dev->ds->vlan_filtering_is_global = true;
 
 	return 0;
 }
