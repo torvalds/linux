@@ -1969,7 +1969,7 @@ static int cxl_region_invalidate_memregion(struct cxl_region *cxlr)
 		if (IS_ENABLED(CONFIG_CXL_REGION_INVALIDATION_TEST)) {
 			dev_warn(
 				&cxlr->dev,
-				"Bypassing cpu_cache_invalidate_memergion() for testing!\n");
+				"Bypassing cpu_cache_invalidate_memregion() for testing!\n");
 			clear_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
 			return 0;
 		} else {
