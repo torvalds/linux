@@ -81,7 +81,7 @@ struct diag210 {
 	u8 vrdccrty;	/* real device type (output) */
 	u8 vrdccrmd;	/* real device model (output) */
 	u8 vrdccrft;	/* real device feature (output) */
-} __attribute__((packed, aligned(4)));
+} __packed __aligned(4);
 
 extern int diag210(struct diag210 *addr);
 
