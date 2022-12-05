@@ -188,6 +188,7 @@ sector_t alloc_swapdev_block(int swap)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(alloc_swapdev_block);
 
 /*
  *	free_all_swap_pages - free swap pages allocated for saving image data.
