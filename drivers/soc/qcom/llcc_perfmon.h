@@ -10,7 +10,7 @@
 #define LLCC_VER4			(41)
 #define LLCC_VER2			(21)
 #define VER_CHK(v)			(v >= LLCC_VER2) //check LLCC version 2
-#define VER_CHK4(v)			(v == LLCC_VER4) //check LLCC version 4
+#define VER_CHK4(v)			(v >= LLCC_VER4) //check LLCC version 4
 
 /* COMMON */
 #define LLCC_COMMON_HW_INFO(v)		(VER_CHK(v) ? 0x34000 : 0x30000)
@@ -74,7 +74,7 @@
 #define LLCC_COUNTER_n_VALUE(v, n)	((VER_CHK4(v) ? 0x37008 : VER_CHK(v) ?\
 					0x36060 : 0x31060) + 4 * (n))
 
-#define EVENT_NUM_MAX			(128)
+#define EVENT_NUM_MAX			(256)
 #define SCID_MAX			(32)
 
 /* Perfmon */
@@ -147,6 +147,8 @@
 #define EVENT_SEL_MASK			GENMASK(EVENT_SEL_SHIFT + 5,\
 						EVENT_SEL_SHIFT)
 #define EVENT_SEL_MASK7			GENMASK(EVENT_SEL_SHIFT + 6,\
+						EVENT_SEL_SHIFT)
+#define EVENT_SEL_MASK8			GENMASK(EVENT_SEL_SHIFT + 7,\
 						EVENT_SEL_SHIFT)
 
 #define MEMTAGOPS_MASK_SHIFT		(12)
@@ -312,12 +314,14 @@
 #define LLCC_VERSION_2			(0x02000000)
 #define LLCC_VERSION_3			(0x03000000)
 #define LLCC_VERSION_4			(0x04000000)
+#define LLCC_VERSION_5			(0x05000000)
 #define	MAJOR_REV_NO(v)			((v & MAJOR_VER_MASK) >> 24)
 #define	BRANCH_NO(v)			((v & BRANCH_MASK) >> 16)
 #define	MINOR_NO(v)			((v & MINOR_MASK) >> 8)
 #define REV_0				(0x0)
 #define REV_1				(0x1)
 #define REV_2				(0x2)
+#define REV_5				(0x5)
 #define BANK_OFFSET			(0x80000)
 
 #endif /* _SOC_QCOM_LLCC_PERFMON_H_ */

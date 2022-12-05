@@ -690,18 +690,26 @@ static void feac_event_config(struct llcc_perfmon_private *llcc_priv,
 	uint32_t val = 0, mask_val, offset;
 
 	mask_val = EVENT_SEL_MASK;
-	if (llcc_priv->version == REV_2)
+	if (llcc_priv->version >= REV_2) {
 		mask_val = EVENT_SEL_MASK7;
+
+		if (llcc_priv->version == REV_5)
+			mask_val = EVENT_SEL_MASK8;
+	}
 
 	if (llcc_priv->filtered_ports & (1 << EVENT_PORT_FEAC))
 		mask_val |= FILTER_SEL_MASK | FILTER_EN_MASK;
 
 	if (enable) {
 		val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK;
-		if (llcc_priv->version == REV_2)
+		if (llcc_priv->version >= REV_2) {
 			val = (event_type << EVENT_SEL_SHIFT) &
 					EVENT_SEL_MASK7;
 
+			if (llcc_priv->version == REV_5)
+				val = (event_type << EVENT_SEL_SHIFT) &
+						EVENT_SEL_MASK8;
+		}
 		if (llcc_priv->filtered_ports & (1 << EVENT_PORT_FEAC))
 			val |= (FILTER_0 << FILTER_SEL_SHIFT) | FILTER_EN;
 	}
@@ -977,7 +985,7 @@ static void beac_event_config(struct llcc_perfmon_private *llcc_priv,
 	mask_val = EVENT_SEL_MASK;
 	if (llcc_priv->filtered_ports & (1 << EVENT_PORT_BEAC)) {
 		mask_val |= FILTER_SEL_MASK | FILTER_EN_MASK;
-		if (llcc_priv->version == REV_2)
+		if (llcc_priv->version >= REV_2)
 			mask_valcfg = BEAC_WR_BEAT_FILTER_SEL_MASK |
 				BEAC_WR_BEAT_FILTER_EN_MASK |
 				BEAC_RD_BEAT_FILTER_SEL_MASK |
@@ -988,7 +996,7 @@ static void beac_event_config(struct llcc_perfmon_private *llcc_priv,
 		val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK;
 		if (llcc_priv->filtered_ports & (1 << EVENT_PORT_BEAC)) {
 			val |= (FILTER_0 << FILTER_SEL_SHIFT) | FILTER_EN;
-			if (llcc_priv->version == REV_2)
+			if (llcc_priv->version >= REV_2)
 				valcfg = (FILTER_0 <<
 					BEAC_WR_BEAT_FILTER_SEL_SHIFT) |
 					BEAC_WR_BEAT_FILTER_EN |
@@ -1168,7 +1176,7 @@ static void trp_event_config(struct llcc_perfmon_private *llcc_priv,
 	uint32_t val = 0, mask_val;
 
 	mask_val = EVENT_SEL_MASK;
-	if (llcc_priv->version == REV_2)
+	if (llcc_priv->version >= REV_2)
 		mask_val = EVENT_SEL_MASK7;
 
 	if (llcc_priv->filtered_ports & (1 << EVENT_PORT_TRP))
@@ -1176,7 +1184,7 @@ static void trp_event_config(struct llcc_perfmon_private *llcc_priv,
 
 	if (enable) {
 		val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK;
-		if (llcc_priv->version == REV_2)
+		if (llcc_priv->version >= REV_2)
 			val = (event_type << EVENT_SEL_SHIFT) &
 					EVENT_SEL_MASK7;
 
@@ -1196,7 +1204,7 @@ static void trp_event_filter_config(struct llcc_perfmon_private *llcc_priv,
 	uint32_t val = 0, mask_val;
 
 	if (filter == SCID) {
-		if (llcc_priv->version == REV_2) {
+		if (llcc_priv->version >= REV_2) {
 			if (enable)
 				val = (1 << match);
 			else
@@ -1211,7 +1219,7 @@ static void trp_event_filter_config(struct llcc_perfmon_private *llcc_priv,
 			mask_val = TRP_SCID_MATCH_MASK | TRP_SCID_MASK_MASK;
 		}
 	} else if (filter == MULTISCID) {
-		if (llcc_priv->version == REV_2) {
+		if (llcc_priv->version >= REV_2) {
 			if (enable)
 				val = match;
 			else
@@ -1239,7 +1247,7 @@ static void trp_event_filter_config(struct llcc_perfmon_private *llcc_priv,
 		return;
 	}
 
-	if ((llcc_priv->version == REV_2) && ((filter == SCID) || (filter == MULTISCID)))
+	if ((llcc_priv->version >= REV_2) && ((filter == SCID) || (filter == MULTISCID)))
 		llcc_bcast_modify(llcc_priv, TRP_PROF_FILTER_0_CFG2, val,
 				mask_val);
 	else
@@ -1259,7 +1267,7 @@ static void drp_event_config(struct llcc_perfmon_private *llcc_priv,
 	uint32_t val = 0, mask_val, offset;
 
 	mask_val = EVENT_SEL_MASK;
-	if (llcc_priv->version == REV_2)
+	if (llcc_priv->version >= REV_2)
 		mask_val = EVENT_SEL_MASK7;
 
 	if (llcc_priv->filtered_ports & (1 << EVENT_PORT_DRP))
@@ -1267,7 +1275,7 @@ static void drp_event_config(struct llcc_perfmon_private *llcc_priv,
 
 	if (enable) {
 		val = (event_type << EVENT_SEL_SHIFT) & EVENT_SEL_MASK;
-		if (llcc_priv->version == REV_2)
+		if (llcc_priv->version >= REV_2)
 			val = (event_type << EVENT_SEL_SHIFT) &
 					EVENT_SEL_MASK7;
 
@@ -1409,12 +1417,11 @@ static int llcc_perfmon_probe(struct platform_device *pdev)
 	llcc_priv->version = REV_0;
 	if (val == LLCC_VERSION_1)
 		llcc_priv->version = REV_1;
-	else if ((val & MAJOR_VER_MASK) == LLCC_VERSION_2)
+	else if ((val & MAJOR_VER_MASK) >= LLCC_VERSION_2)
 		llcc_priv->version = REV_2;
-	else if ((val & MAJOR_VER_MASK) == LLCC_VERSION_3)
-		llcc_priv->version = REV_2;
-	else if ((val & MAJOR_VER_MASK) == LLCC_VERSION_4)
-		llcc_priv->version = REV_2;
+
+	if ((val & MAJOR_VER_MASK) == LLCC_VERSION_5)
+		llcc_priv->version = REV_5;
 	pr_info("Revision <%x.%x.%x>, %d MEMORY CNTRLRS connected with LLCC\n",
 			MAJOR_REV_NO(val), BRANCH_NO(val), MINOR_NO(val),
 			llcc_priv->num_mc);
