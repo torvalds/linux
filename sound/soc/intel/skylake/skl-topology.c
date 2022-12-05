@@ -582,38 +582,6 @@ static int skl_tplg_unload_pipe_modules(struct skl_dev *skl,
 	return ret;
 }
 
-static bool skl_tplg_is_multi_fmt(struct skl_dev *skl, struct skl_pipe *pipe)
-{
-	struct skl_pipe_fmt *cur_fmt;
-	struct skl_pipe_fmt *next_fmt;
-	int i;
-
-	if (pipe->nr_cfgs <= 1)
-		return false;
-
-	if (pipe->conn_type != SKL_PIPE_CONN_TYPE_FE)
-		return true;
-
-	for (i = 0; i < pipe->nr_cfgs - 1; i++) {
-		if (pipe->direction == SNDRV_PCM_STREAM_PLAYBACK) {
-			cur_fmt = &pipe->configs[i].out_fmt;
-			next_fmt = &pipe->configs[i + 1].out_fmt;
-		} else {
-			cur_fmt = &pipe->configs[i].in_fmt;
-			next_fmt = &pipe->configs[i + 1].in_fmt;
-		}
-
-		if (!CHECK_HW_PARAMS(cur_fmt->channels, cur_fmt->freq,
-				     cur_fmt->bps,
-				     next_fmt->channels,
-				     next_fmt->freq,
-				     next_fmt->bps))
-			return true;
-	}
-
-	return false;
-}
-
 /*
  * Here, we select pipe format based on the pipe type and pipe
  * direction to determine the current config index for the pipeline.
@@ -633,14 +601,6 @@ skl_tplg_get_pipe_config(struct skl_dev *skl, struct skl_module_cfg *mconfig)
 
 	if (pipe->nr_cfgs == 0) {
 		pipe->cur_config_idx = 0;
-		return 0;
-	}
-
-	if (skl_tplg_is_multi_fmt(skl, pipe)) {
-		pipe->cur_config_idx = pipe->pipe_config_idx;
-		pipe->memory_pages = pconfig->mem_pages;
-		dev_dbg(skl->dev, "found pipe config idx:%d\n",
-			pipe->cur_config_idx);
 		return 0;
 	}
 
