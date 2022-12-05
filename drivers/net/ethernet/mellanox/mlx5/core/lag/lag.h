@@ -120,5 +120,8 @@ void mlx5_infer_tx_enabled(struct lag_tracker *tracker, u8 num_ports,
 void mlx5_ldev_add_debugfs(struct mlx5_core_dev *dev);
 void mlx5_ldev_remove_debugfs(struct dentry *dbg);
 void mlx5_disable_lag(struct mlx5_lag *ldev);
+void mlx5_lag_remove_devices(struct mlx5_lag *ldev);
+int mlx5_deactivate_lag(struct mlx5_lag *ldev);
+void mlx5_lag_add_devices(struct mlx5_lag *ldev);
 
 #endif /* __MLX5_LAG_H__ */
