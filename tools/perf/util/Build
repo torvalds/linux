@@ -69,7 +69,6 @@ perf-y += namespaces.o
 perf-y += comm.o
 perf-y += thread.o
 perf-y += thread_map.o
-perf-y += trace-event-parse.o
 perf-y += parse-events-flex.o
 perf-y += parse-events-bison.o
 perf-y += pmu.o
@@ -77,11 +76,12 @@ perf-y += pmus.o
 perf-y += pmu-flex.o
 perf-y += pmu-bison.o
 perf-y += pmu-hybrid.o
-perf-y += trace-event-read.o
-perf-y += trace-event-info.o
-perf-y += trace-event-scripting.o
-perf-y += trace-event.o
 perf-y += svghelper.o
+perf-$(CONFIG_LIBTRACEEVENT) += trace-event-info.o
+perf-$(CONFIG_LIBTRACEEVENT) += trace-event-scripting.o
+perf-$(CONFIG_LIBTRACEEVENT) += trace-event.o
+perf-$(CONFIG_LIBTRACEEVENT) += trace-event-parse.o
+perf-$(CONFIG_LIBTRACEEVENT) += trace-event-read.o
 perf-y += sort.o
 perf-y += hist.o
 perf-y += util.o
@@ -153,8 +153,12 @@ perf-$(CONFIG_PERF_BPF_SKEL) += bpf_counter.o
 perf-$(CONFIG_PERF_BPF_SKEL) += bpf_counter_cgroup.o
 perf-$(CONFIG_PERF_BPF_SKEL) += bpf_ftrace.o
 perf-$(CONFIG_PERF_BPF_SKEL) += bpf_off_cpu.o
-perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork.o
 perf-$(CONFIG_PERF_BPF_SKEL) += bpf_lock_contention.o
+
+ifeq ($(CONFIG_LIBTRACEEVENT),y)
+  perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork.o
+endif
+
 perf-$(CONFIG_BPF_PROLOGUE) += bpf-prologue.o
 perf-$(CONFIG_LIBELF) += symbol-elf.o
 perf-$(CONFIG_LIBELF) += probe-file.o
@@ -189,7 +193,10 @@ perf-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
 perf-$(CONFIG_LIBUNWIND_X86)      += libunwind/x86_32.o
 perf-$(CONFIG_LIBUNWIND_AARCH64)  += libunwind/arm64.o
 
-perf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
+ifeq ($(CONFIG_LIBTRACEEVENT),y)
+  perf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
+endif
+
 perf-y += data-convert-json.o
 
 perf-y += scripting-engines/

@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <linux/bitmap.h>
 #include <linux/time64.h>
+#include <traceevent/event-parse.h>
 
 #include <stdbool.h>
 /* perl needs the following define, right after including stdbool.h */

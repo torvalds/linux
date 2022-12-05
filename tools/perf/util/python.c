@@ -5,7 +5,9 @@
 #include <poll.h>
 #include <linux/err.h>
 #include <perf/cpumap.h>
+#ifdef HAVE_LIBTRACEEVENT
 #include <traceevent/event-parse.h>
+#endif
 #include <perf/mmap.h>
 #include "evlist.h"
 #include "callchain.h"
@@ -417,6 +419,7 @@ static PyObject *pyrf_sample_event__repr(struct pyrf_event *pevent)
 	return ret;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static bool is_tracepoint(struct pyrf_event *pevent)
 {
 	return pevent->evsel->core.attr.type == PERF_TYPE_TRACEPOINT;
@@ -486,14 +489,17 @@ get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 
 	return tracepoint_field(pevent, field);
 }
+#endif /* HAVE_LIBTRACEEVENT */
 
 static PyObject*
 pyrf_sample_event__getattro(struct pyrf_event *pevent, PyObject *attr_name)
 {
 	PyObject *obj = NULL;
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (is_tracepoint(pevent))
 		obj = get_tracepoint_field(pevent, attr_name);
+#endif
 
 	return obj ?: PyObject_GenericGetAttr((PyObject *) pevent, attr_name);
 }
@@ -1326,6 +1332,9 @@ static struct {
 static PyObject *pyrf__tracepoint(struct pyrf_evsel *pevsel,
 				  PyObject *args, PyObject *kwargs)
 {
+#ifndef HAVE_LIBTRACEEVENT
+	return NULL;
+#else
 	struct tep_event *tp_format;
 	static char *kwlist[] = { "sys", "name", NULL };
 	char *sys  = NULL;
@@ -1340,6 +1349,7 @@ static PyObject *pyrf__tracepoint(struct pyrf_evsel *pevsel,
 		return _PyLong_FromLong(-1);
 
 	return _PyLong_FromLong(tp_format->id);
+#endif // HAVE_LIBTRACEEVENT
 }
 
 static PyMethodDef perf__methods[] = {

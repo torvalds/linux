@@ -127,7 +127,9 @@ static inline struct evsel *evlist__add_dummy_on_all_cpus(struct evlist *evlist)
 {
 	return evlist__add_aux_dummy(evlist, true);
 }
+#ifdef HAVE_LIBTRACEEVENT
 struct evsel *evlist__add_sched_switch(struct evlist *evlist, bool system_wide);
+#endif
 
 int evlist__add_sb_event(struct evlist *evlist, struct perf_event_attr *attr,
 			 evsel__sb_cb_t cb, void *data);
@@ -135,7 +137,9 @@ void evlist__set_cb(struct evlist *evlist, evsel__sb_cb_t cb, void *data);
 int evlist__start_sb_thread(struct evlist *evlist, struct target *target);
 void evlist__stop_sb_thread(struct evlist *evlist);
 
+#ifdef HAVE_LIBTRACEEVENT
 int evlist__add_newtp(struct evlist *evlist, const char *sys, const char *name, void *handler);
+#endif
 
 int __evlist__set_tracepoints_handlers(struct evlist *evlist,
 				       const struct evsel_str_handler *assocs,

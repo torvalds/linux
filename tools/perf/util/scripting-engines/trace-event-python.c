@@ -30,6 +30,7 @@
 #include <linux/bitmap.h>
 #include <linux/compiler.h>
 #include <linux/time64.h>
+#include <traceevent/event-parse.h>
 
 #include "../build-id.h"
 #include "../counts.h"

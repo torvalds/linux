@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
+#include <traceevent/event-parse.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>

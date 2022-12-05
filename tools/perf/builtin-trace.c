@@ -15,7 +15,6 @@
  */
 
 #include "util/record.h"
-#include <traceevent/event-parse.h>
 #include <api/fs/tracing_path.h>
 #include <bpf/bpf.h>
 #include "util/bpf_map.h"
@@ -79,6 +78,10 @@
 
 #include <linux/ctype.h>
 #include <perf/mmap.h>
+
+#ifdef HAVE_LIBTRACEEVENT
+#include <traceevent/event-parse.h>
+#endif
 
 #ifndef O_CLOEXEC
 # define O_CLOEXEC		02000000

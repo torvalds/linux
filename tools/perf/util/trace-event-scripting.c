@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <traceevent/event-parse.h>
 
 #include "debug.h"
 #include "trace-event.h"

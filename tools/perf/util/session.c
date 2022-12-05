@@ -314,7 +314,9 @@ void perf_session__delete(struct perf_session *session)
 			evlist__delete(session->evlist);
 		perf_data__close(session->data);
 	}
+#ifdef HAVE_LIBTRACEEVENT
 	trace_event__cleanup(&session->tevent);
+#endif
 	free(session);
 }
 

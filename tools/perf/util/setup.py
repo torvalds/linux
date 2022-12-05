@@ -63,12 +63,18 @@ libperf = getenv('LIBPERF')
 ext_sources = [f.strip() for f in open('util/python-ext-sources')
 				if len(f.strip()) > 0 and f[0] != '#']
 
+extra_libraries = []
+
+if '-DHAVE_LIBTRACEEVENT' in cflags:
+    extra_libraries += [ 'traceevent' ]
+else:
+    ext_sources.remove('util/trace-event.c')
+
 # use full paths with source files
 ext_sources = list(map(lambda x: '%s/%s' % (src_perf, x) , ext_sources))
 
-extra_libraries = []
 if '-DHAVE_LIBNUMA_SUPPORT' in cflags:
-    extra_libraries = [ 'numa' ]
+    extra_libraries += [ 'numa' ]
 if '-DHAVE_LIBCAP_SUPPORT' in cflags:
     extra_libraries += [ 'cap' ]
 

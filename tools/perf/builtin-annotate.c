@@ -499,7 +499,9 @@ int cmd_annotate(int argc, const char **argv)
 			.namespaces = perf_event__process_namespaces,
 			.attr	= perf_event__process_attr,
 			.build_id = perf_event__process_build_id,
+#ifdef HAVE_LIBTRACEEVENT
 			.tracing_data   = perf_event__process_tracing_data,
+#endif
 			.id_index	= perf_event__process_id_index,
 			.auxtrace_info	= perf_event__process_auxtrace_info,
 			.auxtrace	= perf_event__process_auxtrace,

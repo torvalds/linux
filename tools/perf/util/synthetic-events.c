@@ -2157,6 +2157,7 @@ int perf_event__synthesize_attr(struct perf_tool *tool, struct perf_event_attr *
 	return err;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd, struct evlist *evlist,
 					perf_event__handler_t process)
 {
@@ -2203,6 +2204,7 @@ int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd, struct e
 
 	return aligned_size;
 }
+#endif
 
 int perf_event__synthesize_build_id(struct perf_tool *tool, struct dso *pos, u16 misc,
 				    perf_event__handler_t process, struct machine *machine)
@@ -2355,6 +2357,7 @@ int perf_event__synthesize_for_pipe(struct perf_tool *tool,
 	}
 	ret += err;
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (have_tracepoints(&evlist->core.entries)) {
 		int fd = perf_data__fd(data);
 
@@ -2374,6 +2377,9 @@ int perf_event__synthesize_for_pipe(struct perf_tool *tool,
 		}
 		ret += err;
 	}
+#else
+	(void)data;
+#endif
 
 	return ret;
 }

@@ -62,6 +62,9 @@
 #include "perf.h"
 
 #include <linux/ctype.h>
+#ifdef HAVE_LIBTRACEEVENT
+#include <traceevent/event-parse.h>
+#endif
 
 static char const		*script_name;
 static char const		*generate_script_lang;
@@ -2154,12 +2157,12 @@ static void process_event(struct perf_script *script,
 		perf_sample__fprintf_bts(sample, evsel, thread, al, addr_al, machine, fp);
 		return;
 	}
-
+#ifdef HAVE_LIBTRACEEVENT
 	if (PRINT_FIELD(TRACE) && sample->raw_data) {
 		event_format__fprintf(evsel->tp_format, sample->cpu,
 				      sample->raw_data, sample->raw_size, fp);
 	}
-
+#endif
 	if (attr->type == PERF_TYPE_SYNTH && PRINT_FIELD(SYNTH))
 		perf_sample__fprintf_synth(sample, evsel, fp);
 
@@ -2283,8 +2286,10 @@ static void process_stat_interval(u64 tstamp)
 
 static void setup_scripting(void)
 {
+#ifdef HAVE_LIBTRACEEVENT
 	setup_perl_scripting();
 	setup_python_scripting();
+#endif
 }
 
 static int flush_scripting(void)
@@ -3784,7 +3789,9 @@ int cmd_script(int argc, const char **argv)
 			.fork		 = perf_event__process_fork,
 			.attr		 = process_attr,
 			.event_update   = perf_event__process_event_update,
+#ifdef HAVE_LIBTRACEEVENT
 			.tracing_data	 = perf_event__process_tracing_data,
+#endif
 			.feature	 = process_feature_event,
 			.build_id	 = perf_event__process_build_id,
 			.id_index	 = perf_event__process_id_index,
@@ -4215,6 +4222,7 @@ script_found:
 	else
 		symbol_conf.use_callchain = false;
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (session->tevent.pevent &&
 	    tep_set_function_resolver(session->tevent.pevent,
 				      machine__resolve_kernel_addr,
@@ -4223,7 +4231,7 @@ script_found:
 		err = -1;
 		goto out_delete;
 	}
-
+#endif
 	if (generate_script_lang) {
 		struct stat perf_stat;
 		int input;
@@ -4259,9 +4267,12 @@ script_found:
 			err = -ENOENT;
 			goto out_delete;
 		}
-
+#ifdef HAVE_LIBTRACEEVENT
 		err = scripting_ops->generate_script(session->tevent.pevent,
 						     "perf-script");
+#else
+		err = scripting_ops->generate_script(NULL, "perf-script");
+#endif
 		goto out_delete;
 	}
 

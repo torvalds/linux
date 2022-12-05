@@ -2,9 +2,11 @@
 #ifndef _PERF_UTIL_TRACE_EVENT_H
 #define _PERF_UTIL_TRACE_EVENT_H
 
-#include <traceevent/event-parse.h>
-#include "parse-events.h"
+#include <stdbool.h>
+#include <stdio.h>
+#include <linux/types.h>
 
+struct evlist;
 struct machine;
 struct perf_sample;
 union perf_event;
@@ -17,6 +19,11 @@ struct trace_event {
 	struct tep_handle	*pevent;
 	struct tep_plugin_list	*plugin_list;
 };
+
+typedef char *(tep_func_resolver_t)(void *priv,
+				    unsigned long long *addrp, char **modp);
+
+bool have_tracepoints(struct list_head *evlist);
 
 int trace_event__init(struct trace_event *t);
 void trace_event__cleanup(struct trace_event *t);

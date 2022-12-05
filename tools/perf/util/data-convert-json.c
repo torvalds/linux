@@ -27,6 +27,10 @@
 #include "util/thread.h"
 #include "util/tool.h"
 
+#ifdef HAVE_LIBTRACEEVENT
+#include <traceevent/event-parse.h>
+#endif
+
 struct convert_json {
 	struct perf_tool tool;
 	FILE *out;
@@ -217,6 +221,7 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 	output_json_format(out, false, 3, "]");
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (sample->raw_data) {
 		int i;
 		struct tep_format_field **fields;
@@ -236,7 +241,7 @@ static int process_sample_event(struct perf_tool *tool,
 			free(fields);
 		}
 	}
-
+#endif
 	output_json_format(out, false, 2, "}");
 	return 0;
 }
@@ -313,7 +318,9 @@ int bt_convert__perf2json(const char *input_name, const char *output_name,
 			.exit           = perf_event__process_exit,
 			.fork           = perf_event__process_fork,
 			.lost           = perf_event__process_lost,
+#ifdef HAVE_LIBTRACEEVENT
 			.tracing_data   = perf_event__process_tracing_data,
+#endif
 			.build_id       = perf_event__process_build_id,
 			.id_index       = perf_event__process_id_index,
 			.auxtrace_info  = perf_event__process_auxtrace_info,

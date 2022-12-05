@@ -67,6 +67,10 @@
 #include <unistd.h>
 #include <linux/mman.h>
 
+#ifdef HAVE_LIBTRACEEVENT
+#include <traceevent/event-parse.h>
+#endif
+
 struct report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
@@ -1199,7 +1203,9 @@ int cmd_report(int argc, const char **argv)
 			.lost		 = perf_event__process_lost,
 			.read		 = process_read_event,
 			.attr		 = process_attr,
+#ifdef HAVE_LIBTRACEEVENT
 			.tracing_data	 = perf_event__process_tracing_data,
+#endif
 			.build_id	 = perf_event__process_build_id,
 			.id_index	 = perf_event__process_id_index,
 			.auxtrace_info	 = perf_event__process_auxtrace_info,
@@ -1660,6 +1666,7 @@ repeat:
 						  report.range_num);
 	}
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (session->tevent.pevent &&
 	    tep_set_function_resolver(session->tevent.pevent,
 				      machine__resolve_kernel_addr,
@@ -1668,7 +1675,7 @@ repeat:
 		       __func__);
 		return -1;
 	}
-
+#endif
 	sort__setup_elide(stdout);
 
 	ret = __cmd_report(&report);
