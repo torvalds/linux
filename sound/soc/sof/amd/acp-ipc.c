@@ -154,8 +154,15 @@ irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 				     offsetof(struct scratch_ipc_conf, sof_dsp_ack_write);
 	bool ipc_irq = false;
 	int dsp_msg, dsp_ack;
+	unsigned int status;
 
 	if (sdev->first_boot && sdev->fw_state != SOF_FW_BOOT_COMPLETE) {
+		acp_mailbox_read(sdev, sdev->dsp_box.offset, &status, sizeof(status));
+		if ((status & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
+			snd_sof_dsp_panic(sdev, sdev->dsp_box.offset + sizeof(status),
+					  true);
+			return IRQ_HANDLED;
+		}
 		snd_sof_ipc_msgs_rx(sdev);
 		acp_dsp_ipc_host_done(sdev);
 		return IRQ_HANDLED;
@@ -178,6 +185,12 @@ irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 		acp_dsp_ipc_dsp_done(sdev);
 		spin_unlock_irq(&sdev->ipc_lock);
 		ipc_irq = true;
+	}
+
+	acp_mailbox_read(sdev, sdev->debug_box.offset, &status, sizeof(u32));
+	if ((status & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
+		snd_sof_dsp_panic(sdev, sdev->dsp_oops_offset, true);
+		return IRQ_HANDLED;
 	}
 
 	if (!ipc_irq)
