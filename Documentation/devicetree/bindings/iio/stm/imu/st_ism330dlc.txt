@@ -22,6 +22,11 @@ Optional properties for all bus drivers:
                    Refer to interrupt-controller/interrupts.txt for generic interrupt
                    client node bindings.
 
+- st,module_id:    module identifier.
+                   This is used by user-space to identify which devices
+                   are part of the same module (particularly important for
+                   supporting multiple sensors of the same type).
+
 Example for an spi device node:
 
 ism330dlc-imu@0 {
@@ -30,5 +35,6 @@ ism330dlc-imu@0 {
 	spi-max-frequency = <1000000>;
 	interrupt-parent = <&gpio0>;
 	interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+	st,module_id = <5>;
 	st,drdy-int-pin = <1>;
 };
