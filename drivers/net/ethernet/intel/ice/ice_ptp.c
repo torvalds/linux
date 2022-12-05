@@ -1252,10 +1252,10 @@ static void ice_ptp_wait_for_offset_valid(struct kthread_work *work)
 		return;
 	}
 
-	/* Offsets are valid, so it is safe to exit bypass mode */
-	err = ice_phy_exit_bypass_e822(hw, port->port_num);
+	/* Offsets are valid, so Vernier mode calculations are started */
+	err = ice_phy_calc_vernier_e822(hw, port->port_num);
 	if (err) {
-		dev_warn(dev, "Failed to exit bypass mode for PHY port %u, err %d\n",
+		dev_warn(dev, "Failed to prepare Vernier mode for PHY port %u, err %d\n",
 			 port->port_num, err);
 		return;
 	}
@@ -1320,8 +1320,8 @@ ice_ptp_port_phy_restart(struct ice_ptp_port *ptp_port)
 	ptp_port->tx.calibrating = true;
 	ptp_port->tx_fifo_busy_cnt = 0;
 
-	/* Start the PHY timer in bypass mode */
-	err = ice_start_phy_timer_e822(hw, port, true);
+	/* Start the PHY timer in Vernier mode */
+	err = ice_start_phy_timer_e822(hw, port);
 	if (err)
 		goto out_unlock;
 
