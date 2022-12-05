@@ -1865,6 +1865,7 @@ static void arm_cmn_init_dtm(struct arm_cmn_dtm *dtm, struct arm_cmn_node *xp, i
 
 	dtm->base = xp->pmu_base + CMN_DTM_OFFSET(idx);
 	dtm->pmu_config_low = CMN_DTM_PMU_CONFIG_PMU_EN;
+	writeq_relaxed(dtm->pmu_config_low, dtm->base + CMN_DTM_PMU_CONFIG);
 	for (i = 0; i < 4; i++) {
 		dtm->wp_event[i] = -1;
 		writeq_relaxed(0, dtm->base + CMN_DTM_WPn_MASK(i));
