@@ -181,8 +181,9 @@ fs3270_save_callback(struct raw3270_request *rq, void *data)
 		if (fp->fs_pid)
 			kill_pid(fp->fs_pid, SIGHUP, 1);
 		fp->rdbuf_size = 0;
-	} else
+	} else {
 		fp->rdbuf_size = fp->rdbuf->size - rq->rescnt;
+	}
 	raw3270_request_reset(rq);
 	wake_up(&fp->wait);
 }
@@ -274,8 +275,9 @@ fs3270_read(struct file *filp, char __user *data, size_t count, loff_t *off)
 			}
 		}
 		raw3270_request_free(rq);
-	} else
+	} else {
 		rc = PTR_ERR(rq);
+	}
 	idal_buffer_free(ib);
 	return rc;
 }
@@ -309,11 +311,13 @@ fs3270_write(struct file *filp, const char __user *data, size_t count, loff_t *o
 			rc = fs3270_do_io(&fp->view, rq);
 			if (rc == 0)
 				rc = count - rq->rescnt;
-		} else
+		} else {
 			rc = -EFAULT;
+		}
 		raw3270_request_free(rq);
-	} else
+	} else {
 		rc = PTR_ERR(rq);
+	}
 	idal_buffer_free(ib);
 	return rc;
 }
@@ -538,8 +542,7 @@ static void fs3270_destroy_cb(int minor)
 	__unregister_chrdev(IBM_FS3270_MAJOR, minor, 1, "tub");
 }
 
-static struct raw3270_notifier fs3270_notifier =
-{
+static struct raw3270_notifier fs3270_notifier = {
 	.create = fs3270_create_cb,
 	.destroy = fs3270_destroy_cb,
 };
