@@ -282,6 +282,11 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 						   cxl_parse_cxims, &cxims_ctx);
 			if (rc < 0)
 				goto err_xormap;
+			if (!cxlrd->platform_data) {
+				dev_err(dev, "No CXIMS for HBIG %u\n", ig);
+				rc = -EINVAL;
+				goto err_xormap;
+			}
 		}
 	}
 	rc = cxl_decoder_add(cxld, target_map);
