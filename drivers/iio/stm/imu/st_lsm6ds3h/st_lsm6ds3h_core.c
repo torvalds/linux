@@ -2624,6 +2624,17 @@ static ssize_t st_lsm6ds3h_sysfs_get_injection_sensors(struct device *dev,
 }
 #endif /* CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION */
 
+ssize_t st_lsm6ds3h_get_module_id(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct lsm6ds3h_sensor_data *sdata = iio_priv(indio_dev);
+	struct lsm6ds3h_data *cdata = sdata->cdata;
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", cdata->module_id);
+}
+
 static ST_LSM6DS3H_DEV_ATTR_SAMP_FREQ();
 static ST_LSM6DS3H_DEV_ATTR_SAMP_FREQ_AVAIL();
 static ST_LSM6DS3H_DEV_ATTR_SCALE_AVAIL(in_accel_scale_available);
@@ -2649,6 +2660,8 @@ static IIO_DEVICE_ATTR(selftest_available, S_IRUGO,
 static IIO_DEVICE_ATTR(selftest, S_IWUSR | S_IRUGO,
 				st_lsm6ds3h_sysfs_get_selftest_status,
 				st_lsm6ds3h_sysfs_start_selftest_status, 0);
+
+static IIO_DEVICE_ATTR(module_id, 0444, st_lsm6ds3h_get_module_id, NULL, 0);
 
 #ifdef CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION
 static IIO_DEVICE_ATTR(injection_mode, S_IWUSR | S_IRUGO,
@@ -2687,10 +2700,13 @@ static struct attribute *st_lsm6ds3h_accel_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark_min.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
+
 #ifdef CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION
 	&iio_dev_attr_injection_mode.dev_attr.attr,
 	&iio_dev_attr_in_accel_injection_raw.dev_attr.attr,
 #endif /* CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION */
+
 	NULL,
 };
 
@@ -2716,6 +2732,7 @@ static struct attribute *st_lsm6ds3h_gyro_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark_min.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -2731,9 +2748,12 @@ static const struct iio_info st_lsm6ds3h_gyro_info = {
 };
 
 static struct attribute *st_lsm6ds3h_sign_motion_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
+
 #ifdef CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION
 	&iio_dev_attr_injection_sensors.dev_attr.attr,
 #endif /* CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION */
+
 	NULL,
 };
 
@@ -2748,9 +2768,12 @@ static const struct iio_info st_lsm6ds3h_sign_motion_info = {
 static struct attribute *st_lsm6ds3h_step_c_attributes[] = {
 	&iio_dev_attr_reset_counter.dev_attr.attr,
 	&iio_dev_attr_max_delivery_rate.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
+
 #ifdef CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION
 	&iio_dev_attr_injection_sensors.dev_attr.attr,
 #endif /* CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION */
+
 	NULL,
 };
 
@@ -2764,9 +2787,12 @@ static const struct iio_info st_lsm6ds3h_step_c_info = {
 };
 
 static struct attribute *st_lsm6ds3h_step_d_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
+
 #ifdef CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION
 	&iio_dev_attr_injection_sensors.dev_attr.attr,
 #endif /* CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION */
+
 	NULL,
 };
 
@@ -2779,9 +2805,12 @@ static const struct iio_info st_lsm6ds3h_step_d_info = {
 };
 
 static struct attribute *st_lsm6ds3h_tilt_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
+
 #ifdef CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION
 	&iio_dev_attr_injection_sensors.dev_attr.attr,
 #endif /* CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION */
+
 	NULL,
 };
 
@@ -2801,6 +2830,14 @@ static const struct iio_trigger_ops st_lsm6ds3h_trigger_ops = {
 #else
 #define ST_LSM6DS3H_TRIGGER_OPS NULL
 #endif
+
+static void st_lsm6ds3h_get_properties(struct lsm6ds3h_data *cdata)
+{
+	if (device_property_read_u32(cdata->dev, "st,module_id",
+				     &cdata->module_id)) {
+		cdata->module_id = 1;
+	}
+}
 
 int st_lsm6ds3h_common_probe(struct lsm6ds3h_data *cdata, int irq)
 {
@@ -2884,6 +2921,8 @@ int st_lsm6ds3h_common_probe(struct lsm6ds3h_data *cdata, int irq)
 		err = -ENODEV;
 		goto free_fifo_data;
 	}
+
+	st_lsm6ds3h_get_properties(cdata);
 
 	if (irq > 0) {
 		cdata->irq = irq;
