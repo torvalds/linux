@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2021 - 2022 Intel Corporation
  */
@@ -25,7 +25,7 @@
  *
  * Since this messaging system cannot support high amounts of
  * traffic, iwlwifi and the CSME firmware's WLAN driver have an
- * addtional communication pipe to exchange information. The body
+ * additional communication pipe to exchange information. The body
  * of the message is copied to a shared area and the message that
  * goes over the ME interface just signals the other side
  * that a new message is waiting in the shared area. The ME
@@ -55,7 +55,7 @@
 /**
  * DOC: Host and driver state messages
  *
- * In order to let CSME konw about the host state and the host driver state,
+ * In order to let CSME know about the host state and the host driver state,
  * the host sends messages that let CSME know about the host's state.
  * When the host driver is loaded, the host sends %SAP_MSG_NOTIF_WIFIDR_UP.
  * When the host driver is unloaded, the host sends %SAP_MSG_NOTIF_WIFIDR_DOWN.
@@ -76,7 +76,7 @@
  * DOC: Ownership
  *
  * The device can be controlled either by the CSME firmware or
- * by the host driver: iwlwifi. There is a negotiaion between
+ * by the host driver: iwlwifi. There is a negotiation between
  * those two entities to determine who controls (or owns) the
  * device. Since the CSME can control the device even when the
  * OS is not working or even missing, the CSME can request the
@@ -136,7 +136,7 @@ enum iwl_sap_me_msg_id {
  * struct iwl_sap_me_msg_hdr - the header of the ME message
  * @type: the type of the message, see &enum iwl_sap_me_msg_id.
  * @seq_num: a sequence number used for debug only.
- * @len: the length of the mssage.
+ * @len: the length of the message.
  */
 struct iwl_sap_me_msg_hdr {
 	__le32 type;
