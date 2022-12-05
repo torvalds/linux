@@ -59,8 +59,8 @@ enum osnoise_options_index {
 
 static const char * const osnoise_options_str[OSN_MAX] = { "DEFAULTS", "OSNOISE_WORKLOAD" };
 
-#define OSN_DEFAULT_OPTIONS	0x2
-unsigned long osnoise_options	= OSN_DEFAULT_OPTIONS;
+#define OSN_DEFAULT_OPTIONS		0x2
+static unsigned long osnoise_options	= OSN_DEFAULT_OPTIONS;
 
 /*
  * trace_array of the enabled osnoise/timerlat instances.
