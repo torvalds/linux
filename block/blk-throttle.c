@@ -395,8 +395,9 @@ static void throtl_pd_init(struct blkg_policy_data *pd)
 	 * If on the default hierarchy, we switch to properly hierarchical
 	 * behavior where limits on a given throtl_grp are applied to the
 	 * whole subtree rather than just the group itself.  e.g. If 16M
-	 * read_bps limit is set on the root group, the whole system can't
-	 * exceed 16M for the device.
+	 * read_bps limit is set on a parent group, summary bps of
+	 * parent group and its subtree groups can't exceed 16M for the
+	 * device.
 	 *
 	 * If not on the default hierarchy, the broken flat hierarchy
 	 * behavior is retained where all throtl_grps are treated as if
