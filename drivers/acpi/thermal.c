@@ -291,7 +291,7 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 					  "Found critical threshold [%lu]\n",
 					  tz->trips.critical.temperature);
 		}
-		if (tz->trips.critical.flags.valid == 1) {
+		if (tz->trips.critical.flags.valid) {
 			if (crt == -1) {
 				tz->trips.critical.flags.valid = 0;
 			} else if (crt > 0) {
