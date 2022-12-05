@@ -24,12 +24,6 @@ long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
 	long ret = -EINVAL;
 
 	switch (cmd) {
-	case VFIO_CHECK_EXTENSION:
-		if (arg == VFIO_EEH)
-			ret = eeh_enabled() ? 1 : 0;
-		else
-			ret = 0;
-		break;
 	case VFIO_EEH_PE_OP:
 		pe = eeh_iommu_group_to_pe(group);
 		if (!pe)
