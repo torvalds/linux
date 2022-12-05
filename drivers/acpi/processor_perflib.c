@@ -754,18 +754,15 @@ void acpi_processor_unregister_performance(unsigned int cpu)
 	mutex_lock(&performance_mutex);
 
 	pr = per_cpu(processors, cpu);
-	if (!pr) {
-		mutex_unlock(&performance_mutex);
-		return;
-	}
+	if (!pr)
+		goto unlock;
 
 	if (pr->performance)
 		kfree(pr->performance->states);
 
 	pr->performance = NULL;
 
+unlock:
 	mutex_unlock(&performance_mutex);
-
-	return;
 }
 EXPORT_SYMBOL(acpi_processor_unregister_performance);
