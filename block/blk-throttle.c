@@ -1816,24 +1816,29 @@ static bool throtl_tg_is_idle(struct throtl_grp *tg)
 	return ret;
 }
 
-static bool throtl_tg_can_upgrade(struct throtl_grp *tg)
+static bool throtl_low_limit_reached(struct throtl_grp *tg, int rw)
 {
 	struct throtl_service_queue *sq = &tg->service_queue;
-	bool read_limit, write_limit;
+	bool limit = tg->bps[rw][LIMIT_LOW] || tg->iops[rw][LIMIT_LOW];
 
 	/*
-	 * if cgroup reaches low limit (if low limit is 0, the cgroup always
-	 * reaches), it's ok to upgrade to next limit
+	 * if low limit is zero, low limit is always reached.
+	 * if low limit is non-zero, we can check if there is any request
+	 * is queued to determine if low limit is reached as we throttle
+	 * request according to limit.
 	 */
-	read_limit = tg->bps[READ][LIMIT_LOW] || tg->iops[READ][LIMIT_LOW];
-	write_limit = tg->bps[WRITE][LIMIT_LOW] || tg->iops[WRITE][LIMIT_LOW];
-	if (!read_limit && !write_limit)
-		return true;
-	if (read_limit && sq->nr_queued[READ] &&
-	    (!write_limit || sq->nr_queued[WRITE]))
-		return true;
-	if (write_limit && sq->nr_queued[WRITE] &&
-	    (!read_limit || sq->nr_queued[READ]))
+	return !limit || sq->nr_queued[rw];
+}
+
+static bool throtl_tg_can_upgrade(struct throtl_grp *tg)
+{
+	/*
+	 * cgroup reaches low limit when low limit of READ and WRITE are
+	 * both reached, it's ok to upgrade to next limit if cgroup reaches
+	 * low limit
+	 */
+	if (throtl_low_limit_reached(tg, READ) &&
+	    throtl_low_limit_reached(tg, WRITE))
 		return true;
 
 	if (time_after_eq(jiffies,
