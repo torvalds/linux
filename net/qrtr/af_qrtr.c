@@ -743,14 +743,22 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	size_t len = skb->len;
 	int rc, confirm_rx;
 
+	mutex_lock(&node->ep_lock);
 	if (!atomic_read(&node->hello_sent) && type != QRTR_TYPE_HELLO) {
 		kfree_skb(skb);
+		mutex_unlock(&node->ep_lock);
 		return 0;
 	}
 	if (atomic_read(&node->hello_sent) && type == QRTR_TYPE_HELLO) {
 		kfree_skb(skb);
+		mutex_unlock(&node->ep_lock);
 		return 0;
 	}
+
+	if (!atomic_read(&node->hello_sent) && type == QRTR_TYPE_HELLO)
+		atomic_inc(&node->hello_sent);
+
+	mutex_unlock(&node->ep_lock);
 
 	/* If sk is null, this is a forwarded packet and should not wait */
 	if (!skb->sk) {
@@ -788,9 +796,10 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	else
 		rc = skb_put_padto(skb, ALIGN(len, 4) + sizeof(*hdr));
 
-	if (rc)
+	if (rc) {
 		pr_err("%s: failed to pad size %lu to %lu rc:%d\n", __func__,
 		       skb->len, ALIGN(skb->len, 4), rc);
+	}
 
 	if (!rc) {
 		mutex_lock(&node->ep_lock);
@@ -805,11 +814,9 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	 * confirm_rx flag if we dropped this one */
 	if (rc && confirm_rx)
 		qrtr_tx_flow_failed(node, to->sq_node, to->sq_port);
-	if (type == QRTR_TYPE_HELLO) {
-		if (!rc)
-			atomic_inc(&node->hello_sent);
-		else
-			kthread_queue_work(&node->kworker, &node->say_hello);
+	if (rc && type == QRTR_TYPE_HELLO) {
+		atomic_dec(&node->hello_sent);
+		kthread_queue_work(&node->kworker, &node->say_hello);
 	}
 
 	return rc;
@@ -1391,6 +1398,7 @@ static void qrtr_fwd_del_proc(struct qrtr_node *src, unsigned int nid)
 	struct qrtr_node *dst;
 	struct sk_buff *skb;
 
+	down_read(&qrtr_epts_lock);
 	list_for_each_entry(dst, &qrtr_all_epts, item) {
 		if (!qrtr_must_forward(src, dst, QRTR_TYPE_DEL_PROC))
 			continue;
@@ -1408,6 +1416,7 @@ static void qrtr_fwd_del_proc(struct qrtr_node *src, unsigned int nid)
 		to.sq_node = dst->nid;
 		qrtr_node_enqueue(dst, skb, QRTR_TYPE_DEL_PROC, &from, &to, 0);
 	}
+	up_read(&qrtr_epts_lock);
 }
 
 /**
@@ -1636,17 +1645,6 @@ static int __qrtr_bind(struct socket *sock,
 	if (port == QRTR_PORT_CTRL)
 		qrtr_reset_ports();
 	spin_unlock_irqrestore(&qrtr_port_lock, flags);
-
-	if (port == QRTR_PORT_CTRL) {
-		struct qrtr_node *node;
-
-		down_write(&qrtr_epts_lock);
-		list_for_each_entry(node, &qrtr_all_epts, item) {
-			atomic_set(&node->hello_sent, 0);
-			atomic_set(&node->hello_rcvd, 0);
-		}
-		up_write(&qrtr_epts_lock);
-	}
 
 	/* unbind previous, if any */
 	if (!zapped)
@@ -2123,6 +2121,18 @@ static int qrtr_release(struct socket *sock)
 	lock_sock(sk);
 
 	ipc = qrtr_sk(sk);
+
+	if (ipc->us.sq_port == QRTR_PORT_CTRL) {
+		struct qrtr_node *node;
+
+		down_write(&qrtr_epts_lock);
+		list_for_each_entry(node, &qrtr_all_epts, item) {
+			atomic_set(&node->hello_sent, 0);
+			atomic_set(&node->hello_rcvd, 0);
+		}
+		up_write(&qrtr_epts_lock);
+	}
+
 	sk->sk_shutdown = SHUTDOWN_MASK;
 	if (!sock_flag(sk, SOCK_DEAD))
 		sk->sk_state_change(sk);

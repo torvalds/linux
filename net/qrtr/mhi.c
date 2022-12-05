@@ -50,7 +50,7 @@ static void qcom_mhi_qrtr_ul_callback(struct mhi_device *mhi_dev,
 }
 
 /* Send data over MHI */
-static int qcom_mhi_qrtr_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
+static int __qcom_mhi_qrtr_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 {
 	struct qrtr_mhi_dev *qdev = container_of(ep, struct qrtr_mhi_dev, ep);
 	int rc;
@@ -77,6 +77,18 @@ free_skb:
 	if (skb->sk)
 		sock_put(skb->sk);
 	kfree_skb(skb);
+
+	return rc;
+}
+
+static int qcom_mhi_qrtr_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
+{
+	int rc;
+
+	do {
+		rc = __qcom_mhi_qrtr_send(ep, skb);
+		usleep_range(1000, 2000);
+	} while (rc == -EAGAIN);
 
 	return rc;
 }
