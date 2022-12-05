@@ -455,7 +455,8 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 		dev_dbg(match, "RCRB found for UID %lld: %pa\n", uid, &ctx.rcrb);
 
 	if (ctx.chbcr == CXL_RESOURCE_NONE) {
-		dev_warn(match, "No CHBS found for Host Bridge (UID %lld)\n", uid);
+		dev_warn(match, "CHBCR invalid for Host Bridge (UID %lld)\n",
+			 uid);
 		return 0;
 	}
 
