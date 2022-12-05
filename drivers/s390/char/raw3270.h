@@ -114,17 +114,17 @@ struct raw3270_request {
 	int rc;				/* return code for this request. */
 
 	/* Callback for delivering final status. */
-	void (*callback)(struct raw3270_request *, void *);
+	void (*callback)(struct raw3270_request *rq, void *data);
 	void *callback_data;
 };
 
 struct raw3270_request *raw3270_request_alloc(size_t size);
-void raw3270_request_free(struct raw3270_request *);
-void raw3270_request_reset(struct raw3270_request *);
-void raw3270_request_set_cmd(struct raw3270_request *, u8 cmd);
-int  raw3270_request_add_data(struct raw3270_request *, void *, size_t);
-void raw3270_request_set_data(struct raw3270_request *, void *, size_t);
-void raw3270_request_set_idal(struct raw3270_request *, struct idal_buffer *);
+void raw3270_request_free(struct raw3270_request *rq);
+void raw3270_request_reset(struct raw3270_request *rq);
+void raw3270_request_set_cmd(struct raw3270_request *rq, u8 cmd);
+int  raw3270_request_add_data(struct raw3270_request *rq, void *data, size_t size);
+void raw3270_request_set_data(struct raw3270_request *rq, void *data, size_t size);
+void raw3270_request_set_idal(struct raw3270_request *rq, struct idal_buffer *ib);
 
 static inline int
 raw3270_request_final(struct raw3270_request *rq)
@@ -138,13 +138,15 @@ void raw3270_buffer_address(struct raw3270 *, char *, int, int);
  * Functions of a 3270 view.
  */
 struct raw3270_fn {
-	int  (*activate)(struct raw3270_view *);
-	void (*deactivate)(struct raw3270_view *);
-	void (*intv)(struct raw3270_view *,
-		     struct raw3270_request *, struct irb *);
-	void (*release)(struct raw3270_view *);
-	void (*free)(struct raw3270_view *);
-	void (*resize)(struct raw3270_view *, int, int, int, int, int, int);
+	int  (*activate)(struct raw3270_view *rq);
+	void (*deactivate)(struct raw3270_view *rq);
+	void (*intv)(struct raw3270_view *view,
+		     struct raw3270_request *rq, struct irb *ib);
+	void (*release)(struct raw3270_view *view);
+	void (*free)(struct raw3270_view *view);
+	void (*resize)(struct raw3270_view *view,
+		       int new_model, int new_cols, int new_rows,
+		       int old_model, int old_cols, int old_rows);
 };
 
 /*
@@ -168,18 +170,18 @@ struct raw3270_view {
 	unsigned char *ascebc;		/* ascii -> ebcdic table */
 };
 
-int raw3270_add_view(struct raw3270_view *, struct raw3270_fn *, int, int);
+int raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor, int subclass);
 int raw3270_view_lock_unavailable(struct raw3270_view *view);
-int raw3270_activate_view(struct raw3270_view *);
-void raw3270_del_view(struct raw3270_view *);
-void raw3270_deactivate_view(struct raw3270_view *);
-struct raw3270_view *raw3270_find_view(struct raw3270_fn *, int);
-int raw3270_start(struct raw3270_view *, struct raw3270_request *);
-int raw3270_start_locked(struct raw3270_view *, struct raw3270_request *);
-int raw3270_start_irq(struct raw3270_view *, struct raw3270_request *);
-int raw3270_reset(struct raw3270_view *);
-struct raw3270_view *raw3270_view(struct raw3270_view *);
-int raw3270_view_active(struct raw3270_view *);
+int raw3270_activate_view(struct raw3270_view *view);
+void raw3270_del_view(struct raw3270_view *view);
+void raw3270_deactivate_view(struct raw3270_view *view);
+struct raw3270_view *raw3270_find_view(struct raw3270_fn *fn, int minor);
+int raw3270_start(struct raw3270_view *view, struct raw3270_request *rq);
+int raw3270_start_locked(struct raw3270_view *view, struct raw3270_request *rq);
+int raw3270_start_irq(struct raw3270_view *view, struct raw3270_request *rq);
+int raw3270_reset(struct raw3270_view *view);
+struct raw3270_view *raw3270_view(struct raw3270_view *view);
+int raw3270_view_active(struct raw3270_view *view);
 int raw3270_start_request(struct raw3270_view *view, struct raw3270_request *rq,
 			  int cmd, void *data, size_t len);
 void raw3270_read_modified_cb(struct raw3270_request *rq, void *data);
@@ -201,7 +203,7 @@ raw3270_put_view(struct raw3270_view *view)
 }
 
 struct raw3270 *raw3270_setup_console(void);
-void raw3270_wait_cons_dev(struct raw3270 *);
+void raw3270_wait_cons_dev(struct raw3270 *rp);
 
 /* Notifier for device addition/removal */
 struct raw3270_notifier {
@@ -210,6 +212,5 @@ struct raw3270_notifier {
 	void (*destroy)(int minor);
 };
 
-int raw3270_register_notifier(struct raw3270_notifier *);
-void raw3270_unregister_notifier(struct raw3270_notifier *);
-
+int raw3270_register_notifier(struct raw3270_notifier *notifier);
+void raw3270_unregister_notifier(struct raw3270_notifier *notifier);
