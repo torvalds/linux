@@ -62,6 +62,8 @@ properties:
     minItems: 3
     maxItems: 13
 
+  dma-coherent: true
+
   interconnects:
     maxItems: 2
 
