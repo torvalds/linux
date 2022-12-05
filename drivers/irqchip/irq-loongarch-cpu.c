@@ -92,6 +92,24 @@ static const struct irq_domain_ops loongarch_cpu_intc_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
+#ifdef CONFIG_OF
+static int __init cpuintc_of_init(struct device_node *of_node,
+				struct device_node *parent)
+{
+	cpuintc_handle = of_node_to_fwnode(of_node);
+
+	irq_domain = irq_domain_create_linear(cpuintc_handle, EXCCODE_INT_NUM,
+				&loongarch_cpu_intc_irq_domain_ops, NULL);
+	if (!irq_domain)
+		panic("Failed to add irqdomain for loongarch CPU");
+
+	set_handle_irq(&handle_cpu_irq);
+
+	return 0;
+}
+IRQCHIP_DECLARE(cpu_intc, "loongson,cpu-interrupt-controller", cpuintc_of_init);
+#endif
+
 static int __init liointc_parse_madt(union acpi_subtable_headers *header,
 					const unsigned long end)
 {
