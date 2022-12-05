@@ -377,7 +377,7 @@ static void iwl_fwrt_dump_iml_error_log(struct iwl_fw_runtime *fwrt)
 		return;
 	}
 
-	error = iwl_read_umac_prph(trans, UMAG_SB_CPU_2_STATUS);
+	error = iwl_read_umac_prph(trans, error);
 
 	IWL_ERR(trans, "IML/ROM dump:\n");
 
