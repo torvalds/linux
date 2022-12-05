@@ -1232,7 +1232,7 @@ void page_add_anon_rmap(struct page *page,
 		if (first && PageCompound(page)) {
 			mapped = subpages_mapcount_ptr(compound_head(page));
 			nr = atomic_inc_return_relaxed(mapped);
-			nr = !(nr & COMPOUND_MAPPED);
+			nr = (nr < COMPOUND_MAPPED);
 		}
 	} else if (PageTransHuge(page)) {
 		/* That test is redundant: it's for safety or to optimize out */
@@ -1241,8 +1241,16 @@ void page_add_anon_rmap(struct page *page,
 		if (first) {
 			mapped = subpages_mapcount_ptr(page);
 			nr = atomic_add_return_relaxed(COMPOUND_MAPPED, mapped);
-			nr_pmdmapped = thp_nr_pages(page);
-			nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+			if (likely(nr < COMPOUND_MAPPED + COMPOUND_MAPPED)) {
+				nr_pmdmapped = thp_nr_pages(page);
+				nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+				/* Raced ahead of a remove and another add? */
+				if (unlikely(nr < 0))
+					nr = 0;
+			} else {
+				/* Raced ahead of a remove of COMPOUND_MAPPED */
+				nr = 0;
+			}
 		}
 	}
 
@@ -1330,7 +1338,7 @@ void page_add_file_rmap(struct page *page,
 		if (first && PageCompound(page)) {
 			mapped = subpages_mapcount_ptr(compound_head(page));
 			nr = atomic_inc_return_relaxed(mapped);
-			nr = !(nr & COMPOUND_MAPPED);
+			nr = (nr < COMPOUND_MAPPED);
 		}
 	} else if (PageTransHuge(page)) {
 		/* That test is redundant: it's for safety or to optimize out */
@@ -1339,8 +1347,16 @@ void page_add_file_rmap(struct page *page,
 		if (first) {
 			mapped = subpages_mapcount_ptr(page);
 			nr = atomic_add_return_relaxed(COMPOUND_MAPPED, mapped);
-			nr_pmdmapped = thp_nr_pages(page);
-			nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+			if (likely(nr < COMPOUND_MAPPED + COMPOUND_MAPPED)) {
+				nr_pmdmapped = thp_nr_pages(page);
+				nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+				/* Raced ahead of a remove and another add? */
+				if (unlikely(nr < 0))
+					nr = 0;
+			} else {
+				/* Raced ahead of a remove of COMPOUND_MAPPED */
+				nr = 0;
+			}
 		}
 	}
 
@@ -1387,7 +1403,7 @@ void page_remove_rmap(struct page *page,
 		if (last && PageCompound(page)) {
 			mapped = subpages_mapcount_ptr(compound_head(page));
 			nr = atomic_dec_return_relaxed(mapped);
-			nr = !(nr & COMPOUND_MAPPED);
+			nr = (nr < COMPOUND_MAPPED);
 		}
 	} else if (PageTransHuge(page)) {
 		/* That test is redundant: it's for safety or to optimize out */
@@ -1396,8 +1412,16 @@ void page_remove_rmap(struct page *page,
 		if (last) {
 			mapped = subpages_mapcount_ptr(page);
 			nr = atomic_sub_return_relaxed(COMPOUND_MAPPED, mapped);
-			nr_pmdmapped = thp_nr_pages(page);
-			nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+			if (likely(nr < COMPOUND_MAPPED)) {
+				nr_pmdmapped = thp_nr_pages(page);
+				nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+				/* Raced ahead of another remove and an add? */
+				if (unlikely(nr < 0))
+					nr = 0;
+			} else {
+				/* An add of COMPOUND_MAPPED raced ahead */
+				nr = 0;
+			}
 		}
 	}
 
