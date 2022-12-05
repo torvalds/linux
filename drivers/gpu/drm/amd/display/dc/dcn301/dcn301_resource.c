@@ -1414,7 +1414,8 @@ static struct resource_funcs dcn301_res_pool_funcs = {
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
 	.acquire_post_bldn_3dlut = dcn30_acquire_post_bldn_3dlut,
 	.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,
-	.update_bw_bounding_box = dcn301_update_bw_bounding_box
+	.update_bw_bounding_box = dcn301_update_bw_bounding_box,
+	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state
 };
 
 static bool dcn301_resource_construct(
