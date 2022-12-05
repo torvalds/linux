@@ -186,18 +186,15 @@ static void hpool_put_page(void *addr)
 	hyp_put_page(&hpool, addr);
 }
 
-static int finalize_host_mappings_walker(u64 addr, u64 end, u32 level,
-					 kvm_pte_t *ptep,
-					 enum kvm_pgtable_walk_flags flag,
-					 void * const arg)
+static int finalize_host_mappings_walker(const struct kvm_pgtable_visit_ctx *ctx,
+					 enum kvm_pgtable_walk_flags visit)
 {
-	struct kvm_pgtable_mm_ops *mm_ops = arg;
+	struct kvm_pgtable_mm_ops *mm_ops = ctx->mm_ops;
 	enum kvm_pgtable_prot prot;
 	enum pkvm_page_state state;
-	kvm_pte_t pte = *ptep;
 	phys_addr_t phys;
 
-	if (!kvm_pte_valid(pte))
+	if (!kvm_pte_valid(ctx->old))
 		return 0;
 
 	/*
@@ -205,14 +202,14 @@ static int finalize_host_mappings_walker(u64 addr, u64 end, u32 level,
 	 * was unable to access the hyp_vmemmap and so the buddy allocator has
 	 * initialised the refcount to '1'.
 	 */
-	mm_ops->get_page(ptep);
-	if (flag != KVM_PGTABLE_WALK_LEAF)
+	mm_ops->get_page(ctx->ptep);
+	if (visit != KVM_PGTABLE_WALK_LEAF)
 		return 0;
 
-	if (level != (KVM_PGTABLE_MAX_LEVELS - 1))
+	if (ctx->level != (KVM_PGTABLE_MAX_LEVELS - 1))
 		return -EINVAL;
 
-	phys = kvm_pte_to_phys(pte);
+	phys = kvm_pte_to_phys(ctx->old);
 	if (!addr_is_memory(phys))
 		return -EINVAL;
 
@@ -220,7 +217,7 @@ static int finalize_host_mappings_walker(u64 addr, u64 end, u32 level,
 	 * Adjust the host stage-2 mappings to match the ownership attributes
 	 * configured in the hypervisor stage-1.
 	 */
-	state = pkvm_getstate(kvm_pgtable_hyp_pte_prot(pte));
+	state = pkvm_getstate(kvm_pgtable_hyp_pte_prot(ctx->old));
 	switch (state) {
 	case PKVM_PAGE_OWNED:
 		return host_stage2_set_owner_locked(phys, PAGE_SIZE, pkvm_hyp_id);
@@ -242,7 +239,6 @@ static int finalize_host_mappings(void)
 	struct kvm_pgtable_walker walker = {
 		.cb	= finalize_host_mappings_walker,
 		.flags	= KVM_PGTABLE_WALK_LEAF | KVM_PGTABLE_WALK_TABLE_POST,
-		.arg	= pkvm_pgtable.mm_ops,
 	};
 	int i, ret;
 

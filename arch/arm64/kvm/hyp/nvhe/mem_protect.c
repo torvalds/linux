@@ -79,6 +79,11 @@ static void host_s2_put_page(void *addr)
 	hyp_put_page(&host_s2_pool, addr);
 }
 
+static void host_s2_free_removed_table(void *addr, u32 level)
+{
+	kvm_pgtable_stage2_free_removed(&host_kvm.mm_ops, addr, level);
+}
+
 static int prepare_s2_pool(void *pgt_pool_base)
 {
 	unsigned long nr_pages, pfn;
@@ -93,6 +98,7 @@ static int prepare_s2_pool(void *pgt_pool_base)
 	host_kvm.mm_ops = (struct kvm_pgtable_mm_ops) {
 		.zalloc_pages_exact = host_s2_zalloc_pages_exact,
 		.zalloc_page = host_s2_zalloc_page,
+		.free_removed_table = host_s2_free_removed_table,
 		.phys_to_virt = hyp_phys_to_virt,
 		.virt_to_phys = hyp_virt_to_phys,
 		.page_count = hyp_page_count,
@@ -251,7 +257,7 @@ static inline int __host_stage2_idmap(u64 start, u64 end,
 				      enum kvm_pgtable_prot prot)
 {
 	return kvm_pgtable_stage2_map(&host_kvm.pgt, start, end - start, start,
-				      prot, &host_s2_pool);
+				      prot, &host_s2_pool, 0);
 }
 
 /*
@@ -417,18 +423,15 @@ struct check_walk_data {
 	enum pkvm_page_state	(*get_page_state)(kvm_pte_t pte);
 };
 
-static int __check_page_state_visitor(u64 addr, u64 end, u32 level,
-				      kvm_pte_t *ptep,
-				      enum kvm_pgtable_walk_flags flag,
-				      void * const arg)
+static int __check_page_state_visitor(const struct kvm_pgtable_visit_ctx *ctx,
+				      enum kvm_pgtable_walk_flags visit)
 {
-	struct check_walk_data *d = arg;
-	kvm_pte_t pte = *ptep;
+	struct check_walk_data *d = ctx->arg;
 
-	if (kvm_pte_valid(pte) && !addr_is_memory(kvm_pte_to_phys(pte)))
+	if (kvm_pte_valid(ctx->old) && !addr_is_memory(kvm_pte_to_phys(ctx->old)))
 		return -EINVAL;
 
-	return d->get_page_state(pte) == d->desired ? 0 : -EPERM;
+	return d->get_page_state(ctx->old) == d->desired ? 0 : -EPERM;
 }
 
 static int check_page_state_range(struct kvm_pgtable *pgt, u64 addr, u64 size,
