@@ -69,6 +69,9 @@
 #define BOX_SIZE_512				0x200
 #define BOX_SIZE_1024				0x400
 
+#define EXCEPT_MAX_HDR_SIZE			0x400
+#define AMD_STACK_DUMP_SIZE			32
+
 enum clock_source {
 	ACP_CLOCK_96M = 0,
 	ACP_CLOCK_48M,
@@ -253,6 +256,9 @@ int acp_sof_trace_release(struct snd_sof_dev *sdev);
 /* PM Callbacks */
 int amd_sof_acp_suspend(struct snd_sof_dev *sdev, u32 target_state);
 int amd_sof_acp_resume(struct snd_sof_dev *sdev);
+
+void amd_sof_ipc_dump(struct snd_sof_dev *sdev);
+void amd_sof_dump(struct snd_sof_dev *sdev, u32 flags);
 
 static inline const struct sof_amd_acp_desc *get_chip_info(struct snd_sof_pdata *pdata)
 {
