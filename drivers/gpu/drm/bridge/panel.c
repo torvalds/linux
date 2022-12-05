@@ -364,6 +364,8 @@ struct drm_bridge *devm_drm_panel_bridge_add_typed(struct device *dev,
 		devres_free(ptr);
 	}
 
+	bridge->pre_enable_prev_first = panel->prepare_prev_first;
+
 	return bridge;
 }
 EXPORT_SYMBOL(devm_drm_panel_bridge_add_typed);
