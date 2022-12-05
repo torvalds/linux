@@ -2197,7 +2197,7 @@ static void vcap_copy_from_client_keyfield(struct vcap_rule *rule,
 		vcap_copy_to_w32be(field->data.u128.value, data->u128.value, size);
 		vcap_copy_to_w32be(field->data.u128.mask,  data->u128.mask, size);
 		break;
-	};
+	}
 }
 
 /* Check if the keyfield is already in the rule */
@@ -2403,7 +2403,7 @@ static void vcap_copy_from_client_actionfield(struct vcap_rule *rule,
 	case VCAP_FIELD_U128:
 		vcap_copy_to_w32be(field->data.u128.value, data->u128.value, size);
 		break;
-	};
+	}
 }
 
 /* Check if the actionfield is already in the rule */
