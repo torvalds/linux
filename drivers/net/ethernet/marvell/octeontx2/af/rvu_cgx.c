@@ -472,6 +472,7 @@ void rvu_cgx_disable_dmac_entries(struct rvu *rvu, u16 pcifunc)
 {
 	int pf = rvu_get_pf(pcifunc);
 	int i = 0, lmac_count = 0;
+	struct mac_ops *mac_ops;
 	u8 max_dmac_filters;
 	u8 cgx_id, lmac_id;
 	void *cgx_dev;
@@ -487,7 +488,12 @@ void rvu_cgx_disable_dmac_entries(struct rvu *rvu, u16 pcifunc)
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	cgx_dev = cgx_get_pdata(cgx_id);
 	lmac_count = cgx_get_lmac_cnt(cgx_dev);
-	max_dmac_filters = MAX_DMAC_ENTRIES_PER_CGX / lmac_count;
+
+	mac_ops = get_mac_ops(cgx_dev);
+	if (!mac_ops)
+		return;
+
+	max_dmac_filters = mac_ops->dmac_filter_count / lmac_count;
 
 	for (i = 0; i < max_dmac_filters; i++)
 		cgx_lmac_addr_del(cgx_id, lmac_id, i);
@@ -1114,8 +1120,15 @@ int rvu_mbox_handler_cgx_get_aux_link_info(struct rvu *rvu, struct msg_req *req,
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 
-	memcpy(&rsp->fwdata, &rvu->fwdata->cgx_fw_data[cgx_id][lmac_id],
-	       sizeof(struct cgx_lmac_fwdata_s));
+	if (rvu->hw->lmac_per_cgx == CGX_LMACS_USX)
+		memcpy(&rsp->fwdata,
+		       &rvu->fwdata->cgx_fw_data_usx[cgx_id][lmac_id],
+		       sizeof(struct cgx_lmac_fwdata_s));
+	else
+		memcpy(&rsp->fwdata,
+		       &rvu->fwdata->cgx_fw_data[cgx_id][lmac_id],
+		       sizeof(struct cgx_lmac_fwdata_s));
+
 	return 0;
 }
 

@@ -3197,8 +3197,12 @@ static void rvu_get_lbk_link_max_frs(struct rvu *rvu,  u16 *max_mtu)
 
 static void rvu_get_lmac_link_max_frs(struct rvu *rvu, u16 *max_mtu)
 {
-	/* RPM supports FIFO len 128 KB */
-	if (rvu_cgx_get_fifolen(rvu) == 0x20000)
+	int fifo_size = rvu_cgx_get_fifolen(rvu);
+
+	/* RPM supports FIFO len 128 KB and RPM2 supports double the
+	 * FIFO len to accommodate 8 LMACS
+	 */
+	if (fifo_size == 0x20000 || fifo_size == 0x40000)
 		*max_mtu = CN10K_LMAC_LINK_MAX_FRS;
 	else
 		*max_mtu = NIC_HW_MAX_FRS;

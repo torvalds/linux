@@ -410,9 +410,15 @@ struct rvu_fwdata {
 	u32 ptp_ext_tstamp;
 #define FWDATA_RESERVED_MEM 1022
 	u64 reserved[FWDATA_RESERVED_MEM];
-#define CGX_MAX         5
+#define CGX_MAX         9
 #define CGX_LMACS_MAX   4
-	struct cgx_lmac_fwdata_s cgx_fw_data[CGX_MAX][CGX_LMACS_MAX];
+#define CGX_LMACS_USX   8
+	union {
+		struct cgx_lmac_fwdata_s
+			cgx_fw_data[CGX_MAX][CGX_LMACS_MAX];
+		struct cgx_lmac_fwdata_s
+			cgx_fw_data_usx[CGX_MAX][CGX_LMACS_USX];
+	};
 	/* Do not add new fields below this line */
 };
 
