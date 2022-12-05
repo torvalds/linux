@@ -159,7 +159,7 @@ struct raw3270_fn {
  */
 struct raw3270_view {
 	struct list_head list;
-	spinlock_t lock;
+	spinlock_t lock; /* protects members of view */
 #define RAW3270_VIEW_LOCK_IRQ	0
 #define RAW3270_VIEW_LOCK_BH	1
 	atomic_t ref_count;
