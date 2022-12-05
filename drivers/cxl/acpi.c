@@ -86,7 +86,7 @@ static int cxl_parse_cxims(union acpi_subtable_headers *header, void *arg,
 	unsigned int hbig, nr_maps;
 	int rc;
 
-	rc = cxl_to_granularity(cxims->hbig, &hbig);
+	rc = eig_to_granularity(cxims->hbig, &hbig);
 	if (rc)
 		return rc;
 
@@ -224,7 +224,7 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 	rc = cxl_to_ways(cfmws->interleave_ways, &ways);
 	if (rc)
 		return rc;
-	rc = cxl_to_granularity(cfmws->granularity, &ig);
+	rc = eig_to_granularity(cfmws->granularity, &ig);
 	if (rc)
 		return rc;
 	for (i = 0; i < ways; i++)
