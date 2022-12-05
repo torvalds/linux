@@ -1357,6 +1357,8 @@ int ksz8_setup(struct dsa_switch *ds)
 	struct ksz_device *dev = ds->priv;
 	int i;
 
+	ds->mtu_enforcement_ingress = true;
+
 	ksz_cfg(dev, S_REPLACE_VID_CTRL, SW_FLOW_CTRL, true);
 
 	/* Enable automatic fast aging when link changed detected. */

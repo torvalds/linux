@@ -1134,6 +1134,8 @@ int ksz9477_setup(struct dsa_switch *ds)
 	struct ksz_device *dev = ds->priv;
 	int ret = 0;
 
+	ds->mtu_enforcement_ingress = true;
+
 	/* Required for port partitioning. */
 	ksz9477_cfg32(dev, REG_SW_QM_CTRL__4, UNICAST_VLAN_BOUNDARY,
 		      true);
