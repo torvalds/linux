@@ -206,6 +206,9 @@ static int rk3588_get_soc_info(struct device *dev, struct device_node *np,
 		/* RK3588M */
 		if (value == 0xd)
 			*bin = 1;
+		/* RK3588J */
+		else if (value == 0xa)
+			*bin = 2;
 	}
 	if (*bin < 0)
 		*bin = 0;
@@ -213,6 +216,7 @@ static int rk3588_get_soc_info(struct device *dev, struct device_node *np,
 
 	return ret;
 }
+
 static int rk3588_change_length(struct device *dev, struct device_node *np,
 				int bin, int process, int volt_sel)
 {
