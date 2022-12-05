@@ -18,12 +18,6 @@
 #define VMWARE_BACKDOOR_PMC_REAL_TIME		0x10001
 #define VMWARE_BACKDOOR_PMC_APPARENT_TIME	0x10002
 
-struct kvm_event_hw_type_mapping {
-	u8 eventsel;
-	u8 unit_mask;
-	unsigned event_type;
-};
-
 struct kvm_pmu_ops {
 	bool (*hw_event_available)(struct kvm_pmc *pmc);
 	bool (*pmc_is_enabled)(struct kvm_pmc *pmc);
