@@ -648,7 +648,7 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
 			q->wed_regs = wed->txfree_ring.reg_base;
 		break;
 	case MT76_WED_Q_RX:
-		ret = mtk_wed_device_rx_ring_setup(wed, ring, q->regs);
+		ret = mtk_wed_device_rx_ring_setup(wed, ring, q->regs, false);
 		if (!ret)
 			q->wed_regs = wed->rx_ring[ring].reg_base;
 		break;
