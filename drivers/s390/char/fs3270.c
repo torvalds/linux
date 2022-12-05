@@ -122,16 +122,19 @@ static int fs3270_activate(struct raw3270_view *view)
 	if (!raw3270_request_final(fp->init))
 		return 0;
 
+	raw3270_request_set_cmd(fp->init, TC_EWRITEA);
+	raw3270_request_set_idal(fp->init, fp->rdbuf);
+	fp->init->rescnt = 0;
+	cp = fp->rdbuf->data[0];
 	if (fp->rdbuf_size == 0) {
 		/* No saved buffer. Just clear the screen. */
-		raw3270_request_set_cmd(fp->init, TC_EWRITEA);
+		fp->init->ccw.count = 1;
 		fp->init->callback = fs3270_reset_callback;
+		cp[0] = 0;
 	} else {
 		/* Restore fullscreen buffer saved by fs3270_deactivate. */
-		raw3270_request_set_cmd(fp->init, TC_EWRITEA);
-		raw3270_request_set_idal(fp->init, fp->rdbuf);
 		fp->init->ccw.count = fp->rdbuf_size;
-		cp = fp->rdbuf->data[0];
+		fp->init->callback = fs3270_restore_callback;
 		cp[0] = TW_KR;
 		cp[1] = TO_SBA;
 		cp[2] = cp[6];
@@ -140,8 +143,6 @@ static int fs3270_activate(struct raw3270_view *view)
 		cp[5] = TO_SBA;
 		cp[6] = 0x40;
 		cp[7] = 0x40;
-		fp->init->rescnt = 0;
-		fp->init->callback = fs3270_restore_callback;
 	}
 	rc = raw3270_start_locked(view, fp->init);
 	fp->init->rc = rc;
