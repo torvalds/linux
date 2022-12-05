@@ -986,6 +986,8 @@ struct msm_pcie_dev_t {
 	bool lpi_enable;
 	bool linkdown_recovery_enable;
 
+	uint32_t pcie_cesta_clkreq;
+
 	uint32_t rc_idx;
 	uint32_t phy_ver;
 	bool drv_ready;
@@ -4750,6 +4752,9 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 	if (ret)
 		goto link_fail;
 
+	if (dev->pcie_cesta_clkreq)
+		msm_pcie_write_reg(dev->parf, dev->pcie_cesta_clkreq, 0x0);
+
 	/* switch phy aux clock source from xo to phy aux clk */
 	if (dev->phy_aux_clk_mux && dev->phy_aux_clk_ext_src)
 		clk_set_parent(dev->phy_aux_clk_mux, dev->phy_aux_clk_ext_src);
@@ -6830,6 +6835,11 @@ static int msm_pcie_probe(struct platform_device *pdev)
 			 pcie_dev->rc_idx);
 		pcie_dev->lpi_enable = true;
 	}
+
+	ret = of_property_read_u32(of_node, "qcom,pcie-clkreq-offset",
+				&pcie_dev->pcie_cesta_clkreq);
+	if (ret)
+		pcie_dev->pcie_cesta_clkreq = 0;
 
 	memcpy(pcie_dev->vreg, msm_pcie_vreg_info, sizeof(msm_pcie_vreg_info));
 	memcpy(pcie_dev->gpio, msm_pcie_gpio_info, sizeof(msm_pcie_gpio_info));
