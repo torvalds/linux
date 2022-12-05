@@ -16,8 +16,8 @@
 #define TUBOCMD		_IO('3', 4)	/* set ccw command for fs writes. */
 #define TUBGETI		_IO('3', 7)	/* get ccw command for fs reads. */
 #define TUBGETO		_IO('3', 8)	/* get ccw command for fs writes. */
-#define TUBSETMOD	_IO('3',12)	/* FIXME: what does it do ?*/
-#define TUBGETMOD	_IO('3',13)	/* FIXME: what does it do ?*/
+#define TUBSETMOD	_IO('3', 12)	/* FIXME: what does it do ?*/
+#define TUBGETMOD	_IO('3', 13)	/* FIXME: what does it do ?*/
 
 /* Local Channel Commands */
 #define TC_WRITE	0x01		/* Write */
