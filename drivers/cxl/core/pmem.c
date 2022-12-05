@@ -216,6 +216,13 @@ static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_nvdimm_bridge *cxl_nvb,
 	dev->parent = &cxlmd->dev;
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_nvdimm_type;
+	/*
+	 * A "%llx" string is 17-bytes vs dimm_id that is max
+	 * NVDIMM_KEY_DESC_LEN
+	 */
+	BUILD_BUG_ON(sizeof(cxl_nvd->dev_id) < 17 ||
+		     sizeof(cxl_nvd->dev_id) > NVDIMM_KEY_DESC_LEN);
+	sprintf(cxl_nvd->dev_id, "%llx", cxlmd->cxlds->serial);
 
 	return cxl_nvd;
 }

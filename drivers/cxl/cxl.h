@@ -388,6 +388,12 @@ struct cxl_region_params {
 	int nr_targets;
 };
 
+/*
+ * Flag whether this region needs to have its HPA span synchronized with
+ * CPU cache state at region activation time.
+ */
+#define CXL_REGION_F_INCOHERENT 0
+
 /**
  * struct cxl_region - CXL region
  * @dev: This region's device
@@ -396,6 +402,7 @@ struct cxl_region_params {
  * @type: Endpoint decoder target type
  * @cxl_nvb: nvdimm bridge for coordinating @cxlr_pmem setup / shutdown
  * @cxlr_pmem: (for pmem regions) cached copy of the nvdimm bridge
+ * @flags: Region state flags
  * @params: active + config params for the region
  */
 struct cxl_region {
@@ -405,6 +412,7 @@ struct cxl_region {
 	enum cxl_decoder_type type;
 	struct cxl_nvdimm_bridge *cxl_nvb;
 	struct cxl_pmem_region *cxlr_pmem;
+	unsigned long flags;
 	struct cxl_region_params params;
 };
 
@@ -416,9 +424,12 @@ struct cxl_nvdimm_bridge {
 	struct nvdimm_bus_descriptor nd_desc;
 };
 
+#define CXL_DEV_ID_LEN 19
+
 struct cxl_nvdimm {
 	struct device dev;
 	struct cxl_memdev *cxlmd;
+	u8 dev_id[CXL_DEV_ID_LEN]; /* for nvdimm, string of 'serial' */
 };
 
 struct cxl_pmem_region_mapping {
