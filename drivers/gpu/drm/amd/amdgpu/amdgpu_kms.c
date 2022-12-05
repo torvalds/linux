@@ -785,9 +785,15 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		if (adev->pm.dpm_enabled) {
 			dev_info->max_engine_clock = amdgpu_dpm_get_sclk(adev, false) * 10;
 			dev_info->max_memory_clock = amdgpu_dpm_get_mclk(adev, false) * 10;
+			dev_info->min_engine_clock = amdgpu_dpm_get_sclk(adev, true) * 10;
+			dev_info->min_memory_clock = amdgpu_dpm_get_mclk(adev, true) * 10;
 		} else {
-			dev_info->max_engine_clock = adev->clock.default_sclk * 10;
-			dev_info->max_memory_clock = adev->clock.default_mclk * 10;
+			dev_info->max_engine_clock =
+				dev_info->min_engine_clock =
+					adev->clock.default_sclk * 10;
+			dev_info->max_memory_clock =
+				dev_info->min_memory_clock =
+					adev->clock.default_mclk * 10;
 		}
 		dev_info->enabled_rb_pipes_mask = adev->gfx.config.backend_enable_mask;
 		dev_info->num_rb_pipes = adev->gfx.config.max_backends_per_se *
