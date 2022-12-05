@@ -29,6 +29,8 @@ efi_status_t efi_allocate_pages_aligned(unsigned long size, unsigned long *addr,
 	efi_status_t status;
 	int slack;
 
+	max = min(max, EFI_ALLOC_LIMIT);
+
 	if (align < EFI_ALLOC_ALIGN)
 		align = EFI_ALLOC_ALIGN;
 
