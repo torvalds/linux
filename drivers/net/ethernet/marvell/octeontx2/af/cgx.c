@@ -742,6 +742,10 @@ int cgx_get_fec_stats(void *cgxd, int lmac_id, struct cgx_fec_stats_rsp *rsp)
 
 	if (!cgx || lmac_id >= cgx->lmac_count)
 		return -ENODEV;
+
+	if (cgx->lmac_idmap[lmac_id]->link_info.fec == OTX2_FEC_NONE)
+		return 0;
+
 	fec_stats_count =
 		cgx_set_fec_stats_count(&cgx->lmac_idmap[lmac_id]->link_info);
 	if (cgx->lmac_idmap[lmac_id]->link_info.fec == OTX2_FEC_BASER) {
@@ -1749,6 +1753,7 @@ static struct mac_ops	cgx_mac_ops    = {
 	.mac_lmac_intl_lbk =    cgx_lmac_internal_loopback,
 	.mac_get_rx_stats  =	cgx_get_rx_stats,
 	.mac_get_tx_stats  =	cgx_get_tx_stats,
+	.get_fec_stats	   =	cgx_get_fec_stats,
 	.mac_enadis_rx_pause_fwding =	cgx_lmac_enadis_rx_pause_fwding,
 	.mac_get_pause_frm_status =	cgx_lmac_get_pause_frm_status,
 	.mac_enadis_pause_frm =		cgx_lmac_enadis_pause_frm,

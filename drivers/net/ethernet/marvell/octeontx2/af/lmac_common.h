@@ -126,6 +126,9 @@ struct mac_ops {
 	int                     (*mac_get_pfc_frm_cfg)(void *cgxd, int lmac_id,
 						       u8 *tx_pause, u8 *rx_pause);
 
+	/* FEC stats */
+	int			(*get_fec_stats)(void *cgxd, int lmac_id,
+						 struct cgx_fec_stats_rsp *rsp);
 };
 
 struct cgx {

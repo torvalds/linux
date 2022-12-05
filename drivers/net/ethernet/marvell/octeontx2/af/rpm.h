@@ -25,7 +25,6 @@
 #define RPMX_CMRX_SW_INT_ENA_W1S        0x198
 #define RPMX_CMRX_LINK_CFG		0x1070
 #define RPMX_MTI_PCS100X_CONTROL1       0x20000
-#define RPMX_MTI_LPCSX_CONTROL1         0x30000
 #define RPMX_MTI_PCS_LBK                BIT_ULL(14)
 #define RPMX_MTI_LPCSX_CONTROL(id)     (0x30000 | ((id) * 0x100))
 
@@ -81,6 +80,18 @@
 #define RPMX_TS_BINARY_MODE				BIT_ULL(11)
 #define RPMX_CONST1					0x2008
 
+/* FEC stats */
+#define RPMX_MTI_STAT_STATN_CONTROL			0x10018
+#define RPMX_MTI_STAT_DATA_HI_CDC			0x10038
+#define RPMX_RSFEC_RX_CAPTURE				BIT_ULL(27)
+#define RPMX_MTI_RSFEC_STAT_COUNTER_CAPTURE_2		0x40050
+#define RPMX_MTI_RSFEC_STAT_COUNTER_CAPTURE_3		0x40058
+#define RPMX_MTI_FCFECX_VL0_CCW_LO			0x38618
+#define RPMX_MTI_FCFECX_VL0_NCCW_LO			0x38620
+#define RPMX_MTI_FCFECX_VL1_CCW_LO			0x38628
+#define RPMX_MTI_FCFECX_VL1_NCCW_LO			0x38630
+#define RPMX_MTI_FCFECX_CW_HI				0x38638
+
 /* CN10KB CSR Declaration */
 #define  RPM2_CMRX_SW_INT				0x1b0
 #define  RPM2_CMRX_SW_INT_ENA_W1S			0x1b8
@@ -119,4 +130,5 @@ int rpm_lmac_get_pfc_frm_cfg(void *rpmd, int lmac_id, u8 *tx_pause,
 			     u8 *rx_pause);
 int rpm2_get_nr_lmacs(void *rpmd);
 bool is_dev_rpm2(void *rpmd);
+int rpm_get_fec_stats(void *cgxd, int lmac_id, struct cgx_fec_stats_rsp *rsp);
 #endif /* RPM_H */

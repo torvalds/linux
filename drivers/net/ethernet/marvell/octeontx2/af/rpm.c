@@ -27,6 +27,7 @@ static struct mac_ops		rpm_mac_ops   = {
 	.mac_lmac_intl_lbk =    rpm_lmac_internal_loopback,
 	.mac_get_rx_stats  =	rpm_get_rx_stats,
 	.mac_get_tx_stats  =	rpm_get_tx_stats,
+	.get_fec_stats	   =	rpm_get_fec_stats,
 	.mac_enadis_rx_pause_fwding =	rpm_lmac_enadis_rx_pause_fwding,
 	.mac_get_pause_frm_status =	rpm_lmac_get_pause_frm_status,
 	.mac_enadis_pause_frm =		rpm_lmac_enadis_pause_frm,
@@ -57,6 +58,7 @@ static struct mac_ops		rpm2_mac_ops   = {
 	.mac_lmac_intl_lbk =    rpm_lmac_internal_loopback,
 	.mac_get_rx_stats  =	rpm_get_rx_stats,
 	.mac_get_tx_stats  =	rpm_get_tx_stats,
+	.get_fec_stats	   =	rpm_get_fec_stats,
 	.mac_enadis_rx_pause_fwding =	rpm_lmac_enadis_rx_pause_fwding,
 	.mac_get_pause_frm_status =	rpm_lmac_get_pause_frm_status,
 	.mac_enadis_pause_frm =		rpm_lmac_enadis_pause_frm,
@@ -651,6 +653,62 @@ int  rpm_lmac_get_pfc_frm_cfg(void *rpmd, int lmac_id, u8 *tx_pause, u8 *rx_paus
 	if (cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_PFC_MODE) {
 		*rx_pause = !(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE);
 		*tx_pause = !(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE);
+	}
+
+	return 0;
+}
+
+int rpm_get_fec_stats(void *rpmd, int lmac_id, struct cgx_fec_stats_rsp *rsp)
+{
+	u64 val_lo, val_hi;
+	rpm_t *rpm = rpmd;
+	u64 cfg;
+
+	if (!is_lmac_valid(rpm, lmac_id))
+		return -ENODEV;
+
+	if (rpm->lmac_idmap[lmac_id]->link_info.fec == OTX2_FEC_NONE)
+		return 0;
+
+	if (rpm->lmac_idmap[lmac_id]->link_info.fec == OTX2_FEC_BASER) {
+		val_lo = rpm_read(rpm, lmac_id, RPMX_MTI_FCFECX_VL0_CCW_LO);
+		val_hi = rpm_read(rpm, lmac_id, RPMX_MTI_FCFECX_CW_HI);
+		rsp->fec_corr_blks = (val_hi << 16 | val_lo);
+
+		val_lo = rpm_read(rpm, lmac_id, RPMX_MTI_FCFECX_VL0_NCCW_LO);
+		val_hi = rpm_read(rpm, lmac_id, RPMX_MTI_FCFECX_CW_HI);
+		rsp->fec_uncorr_blks = (val_hi << 16 | val_lo);
+
+		/* 50G uses 2 Physical serdes lines */
+		if (rpm->lmac_idmap[lmac_id]->link_info.lmac_type_id ==
+		    LMAC_MODE_50G_R) {
+			val_lo = rpm_read(rpm, lmac_id,
+					  RPMX_MTI_FCFECX_VL1_CCW_LO);
+			val_hi = rpm_read(rpm, lmac_id,
+					  RPMX_MTI_FCFECX_CW_HI);
+			rsp->fec_corr_blks += (val_hi << 16 | val_lo);
+
+			val_lo = rpm_read(rpm, lmac_id,
+					  RPMX_MTI_FCFECX_VL1_NCCW_LO);
+			val_hi = rpm_read(rpm, lmac_id,
+					  RPMX_MTI_FCFECX_CW_HI);
+			rsp->fec_uncorr_blks += (val_hi << 16 | val_lo);
+		}
+	} else {
+		/* enable RS-FEC capture */
+		cfg = rpm_read(rpm, 0, RPMX_MTI_STAT_STATN_CONTROL);
+		cfg |= RPMX_RSFEC_RX_CAPTURE | BIT(lmac_id);
+		rpm_write(rpm, 0, RPMX_MTI_STAT_STATN_CONTROL, cfg);
+
+		val_lo = rpm_read(rpm, 0,
+				  RPMX_MTI_RSFEC_STAT_COUNTER_CAPTURE_2);
+		val_hi = rpm_read(rpm, 0, RPMX_MTI_STAT_DATA_HI_CDC);
+		rsp->fec_corr_blks = (val_hi << 32 | val_lo);
+
+		val_lo = rpm_read(rpm, 0,
+				  RPMX_MTI_RSFEC_STAT_COUNTER_CAPTURE_3);
+		val_hi = rpm_read(rpm, 0, RPMX_MTI_STAT_DATA_HI_CDC);
+		rsp->fec_uncorr_blks = (val_hi << 32 | val_lo);
 	}
 
 	return 0;
