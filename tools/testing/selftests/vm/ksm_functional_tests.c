@@ -42,13 +42,13 @@ static bool range_maps_duplicates(char *addr, unsigned long size)
 	for (offs_a = 0; offs_a < size; offs_a += pagesize) {
 		pfn_a = pagemap_get_pfn(pagemap_fd, addr + offs_a);
 		/* Page not present or PFN not exposed by the kernel. */
-		if (pfn_a == -1ull || !pfn_a)
+		if (pfn_a == -1ul || !pfn_a)
 			continue;
 
 		for (offs_b = offs_a + pagesize; offs_b < size;
 		     offs_b += pagesize) {
 			pfn_b = pagemap_get_pfn(pagemap_fd, addr + offs_b);
-			if (pfn_b == -1ull || !pfn_b)
+			if (pfn_b == -1ul || !pfn_b)
 				continue;
 			if (pfn_a == pfn_b)
 				return true;

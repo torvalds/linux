@@ -50,7 +50,7 @@ unsigned long pagemap_get_pfn(int fd, char *start)
 	/* If present (63th bit), PFN is at bit 0 -- 54. */
 	if (entry & 0x8000000000000000ull)
 		return entry & 0x007fffffffffffffull;
-	return -1ull;
+	return -1ul;
 }
 
 void clear_softdirty(void)
