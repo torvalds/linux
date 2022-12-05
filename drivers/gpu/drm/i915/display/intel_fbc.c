@@ -323,10 +323,8 @@ static void i8xx_fbc_nuke(struct intel_fbc *fbc)
 	enum i9xx_plane_id i9xx_plane = fbc_state->plane->i9xx_plane;
 	struct drm_i915_private *dev_priv = fbc->i915;
 
-	spin_lock_irq(&dev_priv->uncore.lock);
 	intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane),
 			  intel_de_read_fw(dev_priv, DSPADDR(i9xx_plane)));
-	spin_unlock_irq(&dev_priv->uncore.lock);
 }
 
 static void i8xx_fbc_program_cfb(struct intel_fbc *fbc)
@@ -359,10 +357,8 @@ static void i965_fbc_nuke(struct intel_fbc *fbc)
 	enum i9xx_plane_id i9xx_plane = fbc_state->plane->i9xx_plane;
 	struct drm_i915_private *dev_priv = fbc->i915;
 
-	spin_lock_irq(&dev_priv->uncore.lock);
 	intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
 			  intel_de_read_fw(dev_priv, DSPSURF(i9xx_plane)));
-	spin_unlock_irq(&dev_priv->uncore.lock);
 }
 
 static const struct intel_fbc_funcs i965_fbc_funcs = {
