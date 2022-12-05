@@ -911,7 +911,7 @@
 };
 
 &usbdp_phy1 {
-	rockchip,dp-lane-mux = <2 3>;
+	rockchip,dp-lane-mux = <0 1 2 3>;
 };
 
 &usbdrd_dwc3_0 {
