@@ -266,7 +266,7 @@ static void avs_dsp_process_notification(struct avs_dev *adev, u64 header)
 		break;
 
 	case AVS_NOTIFY_LOG_BUFFER_STATUS:
-		avs_dsp_op(adev, log_buffer_status, &msg);
+		avs_log_buffer_status_locked(adev, &msg);
 		break;
 
 	case AVS_NOTIFY_EXCEPTION_CAUGHT:
