@@ -149,7 +149,8 @@ fs3270_activate(struct raw3270_view *view)
 		fp->init->rescnt = 0;
 		fp->init->callback = fs3270_restore_callback;
 	}
-	rc = fp->init->rc = raw3270_start_locked(view, fp->init);
+	rc = raw3270_start_locked(view, fp->init);
+	fp->init->rc = rc;
 	if (rc)
 		fp->init->callback(fp->init, NULL);
 	else
