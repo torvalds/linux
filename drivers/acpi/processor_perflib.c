@@ -202,7 +202,7 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 	}
 
 	pct = (union acpi_object *)buffer.pointer;
-	if (!pct || (pct->type != ACPI_TYPE_PACKAGE) || (pct->package.count != 2)) {
+	if (!pct || pct->type != ACPI_TYPE_PACKAGE || pct->package.count != 2) {
 		pr_err("Invalid _PCT data\n");
 		result = -EFAULT;
 		goto end;
@@ -214,9 +214,8 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 
 	obj = pct->package.elements[0];
 
-	if ((obj.type != ACPI_TYPE_BUFFER) ||
-	    (obj.buffer.length < sizeof(struct acpi_pct_register)) ||
-	    (obj.buffer.pointer == NULL)) {
+	if (!obj.buffer.pointer || obj.type != ACPI_TYPE_BUFFER ||
+	    obj.buffer.length < sizeof(struct acpi_pct_register)) {
 		pr_err("Invalid _PCT data (control_register)\n");
 		result = -EFAULT;
 		goto end;
@@ -230,9 +229,8 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 
 	obj = pct->package.elements[1];
 
-	if ((obj.type != ACPI_TYPE_BUFFER) ||
-	    (obj.buffer.length < sizeof(struct acpi_pct_register)) ||
-	    (obj.buffer.pointer == NULL)) {
+	if (!obj.buffer.pointer || obj.type != ACPI_TYPE_BUFFER ||
+	    obj.buffer.length < sizeof(struct acpi_pct_register)) {
 		pr_err("Invalid _PCT data (status_register)\n");
 		result = -EFAULT;
 		goto end;
@@ -300,7 +298,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 	}
 
 	pss = buffer.pointer;
-	if (!pss || (pss->type != ACPI_TYPE_PACKAGE)) {
+	if (!pss || pss->type != ACPI_TYPE_PACKAGE) {
 		pr_err("Invalid _PSS data\n");
 		result = -EFAULT;
 		goto end;
@@ -353,7 +351,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 		 * Check that ACPI's u64 MHz will be valid as u32 KHz in cpufreq
 		 */
 		if (!px->core_frequency ||
-		    ((u32)(px->core_frequency * 1000) != (px->core_frequency * 1000))) {
+		    (u32)(px->core_frequency * 1000) != px->core_frequency * 1000) {
 			pr_err(FW_BUG
 			       "Invalid BIOS _PSS frequency found for processor %d: 0x%llx MHz\n",
 			       pr->id, px->core_frequency);
@@ -515,7 +513,7 @@ int acpi_processor_get_psd(acpi_handle handle, struct acpi_psd_package *pdomain)
 	}
 
 	psd = buffer.pointer;
-	if (!psd || (psd->type != ACPI_TYPE_PACKAGE)) {
+	if (!psd || psd->type != ACPI_TYPE_PACKAGE) {
 		pr_err("Invalid _PSD data\n");
 		result = -EFAULT;
 		goto end;
