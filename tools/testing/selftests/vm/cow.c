@@ -650,7 +650,7 @@ static void do_test_ro_pin(char *mem, size_t size, enum ro_pin_test test,
 	}
 
 	/* Take a R/O pin. This should trigger unsharing. */
-	args.addr = (__u64)mem;
+	args.addr = (__u64)(uintptr_t)mem;
 	args.size = size;
 	args.flags = fast ? PIN_LONGTERM_TEST_FLAG_USE_FAST : 0;
 	ret = ioctl(gup_fd, PIN_LONGTERM_TEST_START, &args);
@@ -669,7 +669,7 @@ static void do_test_ro_pin(char *mem, size_t size, enum ro_pin_test test,
 	 * Read back the content via the pin to the temporary buffer and
 	 * test if we observed the modification.
 	 */
-	tmp_val = (__u64)tmp;
+	tmp_val = (__u64)(uintptr_t)tmp;
 	ret = ioctl(gup_fd, PIN_LONGTERM_TEST_READ, &tmp_val);
 	if (ret)
 		ksft_test_result_fail("PIN_LONGTERM_TEST_READ failed\n");
