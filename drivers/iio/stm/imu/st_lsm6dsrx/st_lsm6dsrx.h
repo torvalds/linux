@@ -753,6 +753,7 @@ struct st_lsm6dsrx_sensor {
  * @delta_ts: Estimated delta time between two consecutive interrupts.
  * @ts: Latest timestamp from irq handler.
  * @i2c_master_pu: I2C master line Pull Up configuration.
+ * @module_id: identify iio devices of the same sensor module.
  * @orientation: Sensor orientation matrix.
  * @vdd_supply: Voltage regulator for VDD.
  * @vddio_supply: Voltage regulator for VDDIIO.
@@ -784,6 +785,7 @@ struct st_lsm6dsrx_hw {
 	s64 delta_ts;
 	s64 ts;
 	u8 i2c_master_pu;
+	u32 module_id;
 	struct iio_mount_matrix orientation;
 	struct regulator *vdd_supply;
 	struct regulator *vddio_supply;
@@ -973,6 +975,10 @@ ssize_t st_lsm6dsrx_get_watermark(struct device *dev,
 ssize_t st_lsm6dsrx_set_watermark(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t size);
+ssize_t st_lsm6dsrx_get_module_id(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf);
+
 int st_lsm6dsrx_suspend_fifo(struct st_lsm6dsrx_hw *hw);
 int st_lsm6dsrx_set_fifo_mode(struct st_lsm6dsrx_hw *hw,
 			      enum st_lsm6dsrx_fifo_mode fifo_mode);
