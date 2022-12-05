@@ -629,6 +629,7 @@ int __initdata changed_by_mtrr_cleanup;
  */
 void __init mtrr_bp_init(void)
 {
+	const char *why = "(not available)";
 	u32 phys_addr;
 
 	phys_addr = 32;
@@ -705,12 +706,13 @@ void __init mtrr_bp_init(void)
 				changed_by_mtrr_cleanup = mtrr_cleanup(phys_addr);
 			} else {
 				mtrr_if = NULL;
+				why = "by BIOS";
 			}
 		}
 	}
 
 	if (!mtrr_enabled())
-		pr_info("Disabled\n");
+		pr_info("MTRRs disabled %s\n", why);
 }
 
 /**
