@@ -1350,6 +1350,20 @@ static const struct driver_info ax88772b_info = {
 	.data = FLAG_EEPROM_MAC,
 };
 
+static const struct driver_info lxausb_t1l_info = {
+	.description = "Linux Automation GmbH USB 10Base-T1L",
+	.bind = ax88772_bind,
+	.unbind = ax88772_unbind,
+	.status = asix_status,
+	.reset = ax88772_reset,
+	.stop = ax88772_stop,
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR |
+		 FLAG_MULTI_PACKET,
+	.rx_fixup = asix_rx_fixup_common,
+	.tx_fixup = asix_tx_fixup,
+	.data = FLAG_EEPROM_MAC,
+};
+
 static const struct driver_info ax88178_info = {
 	.description = "ASIX AX88178 USB 2.0 Ethernet",
 	.bind = ax88178_bind,
@@ -1538,6 +1552,10 @@ static const struct usb_device_id	products [] = {
 	 */
 	USB_DEVICE(0x066b, 0x20f9),
 	.driver_info = (unsigned long) &hg20f9_info,
+}, {
+	// Linux Automation GmbH USB 10Base-T1L
+	USB_DEVICE(0x33f7, 0x0004),
+	.driver_info = (unsigned long) &lxausb_t1l_info,
 },
 	{ },		// END
 };
