@@ -430,6 +430,7 @@ static ST_LSM6DSM_HWFIFO_WATERMARK();
 static ST_LSM6DSM_HWFIFO_WATERMARK_MIN();
 static ST_LSM6DSM_HWFIFO_WATERMARK_MAX();
 static ST_LSM6DSM_HWFIFO_FLUSH();
+static IIO_DEVICE_ATTR(module_id, 0444, st_lsm6dsm_get_module_id, NULL, 0);
 
 #ifdef ST_LSM6DSM_EXT0_HAS_SELFTEST
 static IIO_DEVICE_ATTR(selftest_available, S_IRUGO,
@@ -449,10 +450,13 @@ static struct attribute *st_lsm6dsm_ext0_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark_min.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
+
 #ifdef ST_LSM6DSM_EXT0_HAS_SELFTEST
 	&iio_dev_attr_selftest_available.dev_attr.attr,
 	&iio_dev_attr_selftest.dev_attr.attr,
 #endif /* ST_LSM6DSM_EXT0_HAS_SELFTEST	*/
+
 	NULL,
 };
 

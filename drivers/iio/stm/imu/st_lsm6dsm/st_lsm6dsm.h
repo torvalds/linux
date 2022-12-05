@@ -171,6 +171,7 @@ struct lsm6dsm_fifo_output {
  * @accel_selftest_status: accelerometer selftest result.
  * @irq: irq number.
  * @timestamp: timestamp value from boot process.
+ * @module_id: identify iio devices of the same sensor module.
  */
 struct lsm6dsm_data {
 	const char *name;
@@ -240,6 +241,7 @@ struct lsm6dsm_data {
 	struct iio_trigger *trig[ST_INDIO_DEV_NUM + 1];
 	struct mutex bank_registers_lock;
 	struct mutex fifo_lock;
+	u32 module_id;
 
 #ifdef CONFIG_ST_LSM6DSM_IIO_MASTER_SUPPORT
 	bool ext0_available;
@@ -298,6 +300,9 @@ ssize_t st_lsm6dsm_sysfs_get_hwfifo_watermark_min(struct device *dev,
 				struct device_attribute *attr, char *buf);
 ssize_t st_lsm6dsm_sysfs_flush_fifo(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size);
+ssize_t st_lsm6dsm_get_module_id(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf);
 
 #ifdef CONFIG_IIO_BUFFER
 int st_lsm6dsm_allocate_rings(struct lsm6dsm_data *cdata);
