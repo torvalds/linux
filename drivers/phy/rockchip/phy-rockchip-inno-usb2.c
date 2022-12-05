@@ -161,6 +161,7 @@ struct rockchip_chg_det_reg {
  * @utmi_ls: utmi linestate state register.
  * @utmi_hstdet: utmi host disconnect register.
  * @vbus_det_en: vbus detect function power down register.
+ * @port_ls_filter_con: set linestate filter time for otg port or host port.
  */
 struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	phy_sus;
@@ -200,6 +201,7 @@ struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	utmi_ls;
 	struct usb2phy_reg	utmi_hstdet;
 	struct usb2phy_reg	vbus_det_en;
+	struct usb2phy_reg	port_ls_filter_con;
 };
 
 /**
@@ -2949,6 +2951,14 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 		if (!rport->phy)
 			continue;
 
+		if (rport->port_cfg->port_ls_filter_con.enable) {
+			ret = regmap_write(rphy->grf,
+					   rport->port_cfg->port_ls_filter_con.offset,
+					   rport->port_cfg->port_ls_filter_con.enable);
+			if (ret)
+				dev_err(rphy->dev, "failed to set port ls filter %d\n", ret);
+		}
+
 		if (rport->port_id == USB2PHY_PORT_OTG &&
 		    (rport->id_irq > 0 || rphy->irq > 0)) {
 			mutex_lock(&rport->mutex);
@@ -3024,6 +3034,14 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 		rport = &rphy->ports[index];
 		if (!rport->phy)
 			continue;
+
+		if (rport->port_cfg->port_ls_filter_con.disable) {
+			ret = regmap_write(rphy->grf,
+					   rport->port_cfg->port_ls_filter_con.offset,
+					   rport->port_cfg->port_ls_filter_con.disable);
+			if (ret)
+				dev_err(rphy->dev, "failed to set port ls filter %d\n", ret);
+		}
 
 		if (rport->port_id == USB2PHY_PORT_OTG &&
 		    (rport->id_irq > 0 || rphy->irq > 0)) {
@@ -3575,6 +3593,7 @@ static const struct rockchip_usb2phy_cfg rk3528_phy_cfgs[] = {
 				.utmi_iddig	= { 0x6006c, 6, 6, 0, 1 },
 				.utmi_ls	= { 0x6006c, 5, 4, 0, 1 },
 				.vbus_det_en	= { 0x003c, 7, 7, 0, 1 },
+				.port_ls_filter_con = { 0x60080, 19, 0, 0x30100, 0x20 },
 			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0x6005c, 8, 0, 0x1d2, 0x1d1 },
@@ -3582,7 +3601,8 @@ static const struct rockchip_usb2phy_cfg rk3528_phy_cfgs[] = {
 				.ls_det_st	= { 0x60094, 0, 0, 0, 1 },
 				.ls_det_clr	= { 0x60098, 0, 0, 0, 1 },
 				.utmi_ls	= { 0x6006c, 13, 12, 0, 1 },
-				.utmi_hstdet	= { 0x6006c, 15, 15, 0, 1 }
+				.utmi_hstdet	= { 0x6006c, 15, 15, 0, 1 },
+				.port_ls_filter_con = { 0x6009c, 19, 0, 0x30100, 0x20 },
 			}
 		},
 		.chg_det = {
