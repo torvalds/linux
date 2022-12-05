@@ -453,7 +453,7 @@ int acpi_processor_pstate_control(void)
 int acpi_processor_notify_smm(struct module *calling_module)
 {
 	static int is_done;
-	int result;
+	int result = 0;
 
 	if (!acpi_processor_cpufreq_init)
 		return -EBUSY;
@@ -461,40 +461,38 @@ int acpi_processor_notify_smm(struct module *calling_module)
 	if (!try_module_get(calling_module))
 		return -EINVAL;
 
-	/* is_done is set to negative if an error occurred,
-	 * and to postitive if _no_ error occurred, but SMM
-	 * was already notified. This avoids double notification
-	 * which might lead to unexpected results...
+	/*
+	 * is_done is set to negative if an error occurs and to 1 if no error
+	 * occurrs, but SMM has been notified already. This avoids repeated
+	 * notification which might lead to unexpected results.
 	 */
-	if (is_done > 0) {
-		module_put(calling_module);
-		return 0;
-	} else if (is_done < 0) {
-		module_put(calling_module);
-		return is_done;
-	}
+	if (is_done != 0) {
+		if (is_done < 0)
+			result = is_done;
 
-	is_done = -EIO;
+		goto out_put;
+	}
 
 	result = acpi_processor_pstate_control();
-	if (!result) {
-		pr_debug("No SMI port or pstate_control\n");
-		module_put(calling_module);
-		return 0;
-	}
-	if (result < 0) {
-		module_put(calling_module);
-		return result;
+	if (result <= 0) {
+		if (!result)
+			pr_debug("No SMI port or pstate_control\n");
+
+		is_done = -EIO;
+		goto out_put;
 	}
 
-	/* Success. If there's no _PPC, we need to fear nothing, so
-	 * we can allow the cpufreq driver to be rmmod'ed. */
 	is_done = 1;
+	/*
+	 * Success. If there _PPC, unloading the cpufreq driver would be risky,
+	 * so disallow it in that case.
+	 */
+	if (acpi_processor_ppc_in_use)
+		return 0;
 
-	if (!acpi_processor_ppc_in_use)
-		module_put(calling_module);
-
-	return 0;
+out_put:
+	module_put(calling_module);
+	return result;
 }
 EXPORT_SYMBOL(acpi_processor_notify_smm);
 
