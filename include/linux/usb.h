@@ -259,26 +259,7 @@ struct usb_interface {
 	struct work_struct reset_ws;	/* for resets in atomic context */
 };
 
-static inline struct usb_interface *__to_usb_interface(struct device *d)
-{
-	return container_of(d, struct usb_interface, dev);
-}
-
-static inline const struct usb_interface *__to_usb_interface_const(const struct device *d)
-{
-	return container_of(d, struct usb_interface, dev);
-}
-
-/*
- * container_of() will happily take a const * and spit back a non-const * as it
- * is just doing pointer math.  But we want to be a bit more careful in the USB
- * driver code, so manually force any const * of a device to also be a const *
- * to a usb_device.
- */
-#define to_usb_interface(dev)						\
-	_Generic((dev),							\
-		 const struct device *: __to_usb_interface_const,	\
-		 struct device *: __to_usb_interface)(dev)
+#define to_usb_interface(__dev)	container_of_const(__dev, struct usb_interface, dev)
 
 static inline void *usb_get_intfdata(struct usb_interface *intf)
 {
@@ -730,26 +711,7 @@ struct usb_device {
 	unsigned use_generic_driver:1;
 };
 
-static inline struct usb_device *__to_usb_device(struct device *d)
-{
-	return container_of(d, struct usb_device, dev);
-}
-
-static inline const struct usb_device *__to_usb_device_const(const struct device *d)
-{
-	return container_of(d, struct usb_device, dev);
-}
-
-/*
- * container_of() will happily take a const * and spit back a non-const * as it
- * is just doing pointer math.  But we want to be a bit more careful in the USB
- * driver code, so manually force any const * of a device to also be a const *
- * to a usb_device.
- */
-#define to_usb_device(dev)					\
-	_Generic((dev),						\
-		 const struct device *: __to_usb_device_const,	\
-		 struct device *: __to_usb_device)(dev)
+#define to_usb_device(__dev)	container_of_const(__dev, struct usb_device, dev)
 
 static inline struct usb_device *__intf_to_usbdev(struct usb_interface *intf)
 {
