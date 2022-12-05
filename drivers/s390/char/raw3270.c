@@ -180,15 +180,17 @@ EXPORT_SYMBOL(raw3270_request_free);
 /*
  * Reset request to initial state.
  */
-void raw3270_request_reset(struct raw3270_request *rq)
+int raw3270_request_reset(struct raw3270_request *rq)
 {
-	BUG_ON(!list_empty(&rq->list));
+	if (WARN_ON_ONCE(!list_empty(&rq->list)))
+		return -EBUSY;
 	rq->ccw.cmd_code = 0;
 	rq->ccw.count = 0;
 	rq->ccw.cda = __pa(rq->buffer);
 	rq->ccw.flags = CCW_FLAG_SLI;
 	rq->rescnt = 0;
 	rq->rc = 0;
+	return 0;
 }
 EXPORT_SYMBOL(raw3270_request_reset);
 
@@ -289,7 +291,9 @@ int raw3270_start_request(struct raw3270_view *view, struct raw3270_request *rq,
 {
 	int rc;
 
-	raw3270_request_reset(rq);
+	rc = raw3270_request_reset(rq);
+	if (rc)
+		return rc;
 	raw3270_request_set_cmd(rq, cmd);
 	rc = raw3270_request_add_data(rq, data, len);
 	if (rc)

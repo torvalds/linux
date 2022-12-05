@@ -120,7 +120,7 @@ struct raw3270_request {
 
 struct raw3270_request *raw3270_request_alloc(size_t size);
 void raw3270_request_free(struct raw3270_request *rq);
-void raw3270_request_reset(struct raw3270_request *rq);
+int raw3270_request_reset(struct raw3270_request *rq);
 void raw3270_request_set_cmd(struct raw3270_request *rq, u8 cmd);
 int  raw3270_request_add_data(struct raw3270_request *rq, void *data, size_t size);
 void raw3270_request_set_data(struct raw3270_request *rq, void *data, size_t size);
