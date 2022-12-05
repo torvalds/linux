@@ -1837,16 +1837,24 @@ static int skl_tplg_be_fill_pipe_params(struct snd_soc_dai *dai,
 {
 	struct nhlt_specific_cfg *cfg;
 	struct skl_pipe *pipe = mconfig->pipe;
+	struct skl_pipe_params save = *pipe->p_params;
 	struct skl_pipe_fmt *pipe_fmt;
 	struct skl_dev *skl = get_skl_ctx(dai->dev);
 	int link_type = skl_tplg_be_link_type(mconfig->dev_type);
 	u8 dev_type = skl_tplg_be_dev_type(mconfig->dev_type);
+	int ret;
 
 	skl_tplg_fill_dma_id(mconfig, params);
 
 	if (link_type == NHLT_LINK_HDA)
 		return 0;
 
+	*pipe->p_params = *params;
+	ret = skl_tplg_get_pipe_config(skl, mconfig);
+	if (ret)
+		goto err;
+
+	dev_dbg(skl->dev, "%s using pipe config: %d\n", __func__, pipe->pipe_config_idx);
 	if (pipe->direction == SNDRV_PCM_STREAM_PLAYBACK)
 		pipe_fmt = &pipe->configs[pipe->pipe_config_idx].out_fmt;
 	else
@@ -1865,10 +1873,15 @@ static int skl_tplg_be_fill_pipe_params(struct snd_soc_dai *dai,
 		dev_err(dai->dev, "Blob NULL for id:%d type:%d dirn:%d ch:%d, freq:%d, fmt:%d\n",
 			mconfig->vbus_id, link_type, params->stream,
 			params->ch, params->s_freq, params->s_fmt);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	return 0;
+
+err:
+	*pipe->p_params = save;
+	return ret;
 }
 
 static int skl_tplg_be_set_src_pipe_params(struct snd_soc_dai *dai,
