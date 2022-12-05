@@ -8,6 +8,7 @@
 
 &cluster0_opp_table {
 	/delete-node/ opp-1608000000;
+	/delete-node/ opp-1704000000;
 	/delete-node/ opp-1800000000;
 };
 
