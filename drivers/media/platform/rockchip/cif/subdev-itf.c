@@ -450,7 +450,7 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 	if (user == 0) {
 		if (priv->toisp_inf.link_mode == TOISP_UNITE)
 			width = priv->cap_info.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
-		rkcif_write_register_or(cif_dev, CIF_REG_TOISP0_CTRL, ctrl_val);
+		rkcif_write_register(cif_dev, CIF_REG_TOISP0_CTRL, ctrl_val);
 		if (width && height) {
 			rkcif_write_register(cif_dev, CIF_REG_TOISP0_CROP,
 				offset_x | (offset_y << 16));
@@ -464,7 +464,7 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 			offset_x = priv->cap_info.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL;
 			width = priv->cap_info.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
 		}
-		rkcif_write_register_or(cif_dev, CIF_REG_TOISP1_CTRL, ctrl_val);
+		rkcif_write_register(cif_dev, CIF_REG_TOISP1_CTRL, ctrl_val);
 		if (width && height) {
 			rkcif_write_register(cif_dev, CIF_REG_TOISP1_CROP,
 				offset_x | (offset_y << 16));
