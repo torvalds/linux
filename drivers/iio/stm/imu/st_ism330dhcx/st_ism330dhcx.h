@@ -428,6 +428,7 @@ struct st_ism330dhcx_sensor {
  * delta_ts: Delta time between two consecutive interrupts.
  * delta_hw_ts:
  * ts: Latest timestamp from irq handler.
+ * @module_id: identify iio devices of the same sensor module.
  * iio_devs: Pointers to acc/gyro iio_dev instances.
  * tf: Transfer function structure used by I/O operations.
  * tb: Transfer buffers used by SPI I/O operations.
@@ -462,6 +463,7 @@ struct st_ism330dhcx_hw {
 	s64 tsample;
 	s64 delta_ts;
 	s64 ts;
+	u32 module_id;
 
 	struct iio_dev *iio_devs[ST_ISM330DHCX_ID_MAX];
 
@@ -558,6 +560,10 @@ ssize_t st_ism330dhcx_get_watermark(struct device *dev,
 ssize_t st_ism330dhcx_set_watermark(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t size);
+ssize_t st_ism330dhcx_get_module_id(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf);
+
 int st_ism330dhcx_set_page_access(struct st_ism330dhcx_hw *hw, u8 mask, u8 data);
 int st_ism330dhcx_suspend_fifo(struct st_ism330dhcx_hw *hw);
 int st_ism330dhcx_set_fifo_mode(struct st_ism330dhcx_hw *hw,

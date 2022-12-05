@@ -1039,6 +1039,17 @@ static int st_ism330dhcx_write_raw_get_fmt(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+ssize_t st_ism330dhcx_get_module_id(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct st_ism330dhcx_sensor *sensor = iio_priv(iio_dev);
+	struct st_ism330dhcx_hw *hw = sensor->hw;
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", hw->module_id);
+}
+
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_ism330dhcx_sysfs_sampling_frequency_avail);
 static IIO_DEVICE_ATTR(in_accel_scale_available, 0444,
 		       st_ism330dhcx_sysfs_scale_avail, NULL, 0);
@@ -1053,6 +1064,7 @@ static IIO_DEVICE_ATTR(hwfifo_watermark, 0644, st_ism330dhcx_get_watermark,
 		       st_ism330dhcx_set_watermark, 0);
 static IIO_DEVICE_ATTR(reset_counter, 0200, NULL,
 		       st_ism330dhcx_sysfs_reset_step_counter, 0);
+static IIO_DEVICE_ATTR(module_id, 0444, st_ism330dhcx_get_module_id, NULL, 0);
 
 static struct attribute *st_ism330dhcx_acc_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
@@ -1060,6 +1072,7 @@ static struct attribute *st_ism330dhcx_acc_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1084,6 +1097,7 @@ static struct attribute *st_ism330dhcx_gyro_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1104,6 +1118,7 @@ static struct attribute *st_ism330dhcx_temp_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1123,6 +1138,7 @@ static struct attribute *st_ism330dhcx_step_counter_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_reset_counter.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1135,6 +1151,7 @@ static const struct iio_info st_ism330dhcx_step_counter_info = {
 };
 
 static struct attribute *st_ism330dhcx_step_detector_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1149,6 +1166,7 @@ static const struct iio_info st_ism330dhcx_step_detector_info = {
 };
 
 static struct attribute *st_ism330dhcx_sign_motion_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1163,6 +1181,7 @@ static const struct iio_info st_ism330dhcx_sign_motion_info = {
 };
 
 static struct attribute *st_ism330dhcx_tilt_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1177,6 +1196,7 @@ static const struct iio_info st_ism330dhcx_tilt_info = {
 };
 
 static struct attribute *st_ism330dhcx_glance_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1191,6 +1211,7 @@ static const struct iio_info st_ism330dhcx_glance_info = {
 };
 
 static struct attribute *st_ism330dhcx_motion_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1205,6 +1226,7 @@ static const struct iio_info st_ism330dhcx_motion_info = {
 };
 
 static struct attribute *st_ism330dhcx_no_motion_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1219,6 +1241,7 @@ static const struct iio_info st_ism330dhcx_no_motion_info = {
 };
 
 static struct attribute *st_ism330dhcx_wakeup_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1233,6 +1256,7 @@ static const struct iio_info st_ism330dhcx_wakeup_info = {
 };
 
 static struct attribute *st_ism330dhcx_pickup_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1247,6 +1271,7 @@ static const struct iio_info st_ism330dhcx_pickup_info = {
 };
 
 static struct attribute *st_ism330dhcx_orientation_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1259,6 +1284,7 @@ static const struct iio_info st_ism330dhcx_orientation_info = {
 };
 
 static struct attribute *st_ism330dhcx_wrist_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1638,6 +1664,14 @@ static struct iio_dev *st_ism330dhcx_alloc_iiodev(struct st_ism330dhcx_hw *hw,
 	return iio_dev;
 }
 
+static void st_ism330dhcx_get_properties(struct st_ism330dhcx_hw *hw)
+{
+	if (device_property_read_u32(hw->dev, "st,module_id",
+				     &hw->module_id)) {
+		hw->module_id = 1;
+	}
+}
+
 /**
  * Probe device function
  * Implements [MODULE] feature for Power Management
@@ -1670,6 +1704,8 @@ int st_ism330dhcx_probe(struct device *dev, int irq,
 	err = st_ism330dhcx_check_whoami(hw);
 	if (err < 0)
 		return err;
+
+	st_ism330dhcx_get_properties(hw);
 
 	err = st_ism330dhcx_get_odr_calibration(hw);
 	if (err < 0)
