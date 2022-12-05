@@ -3423,7 +3423,7 @@ static int btusb_setup_qca_load_rampatch(struct hci_dev *hdev,
 
 	if (ver_rom & ~0xffffU) {
 		rver_rom_high = le16_to_cpu(rver->rom_version_high);
-		rver_rom = le32_to_cpu(rver_rom_high << 16 | rver_rom_low);
+		rver_rom = rver_rom_high << 16 | rver_rom_low;
 	} else {
 		rver_rom = rver_rom_low;
 	}
