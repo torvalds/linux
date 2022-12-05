@@ -235,14 +235,14 @@ static int sc7280_lpass_exit(struct platform_device *pdev)
 	return 0;
 }
 
-static int sc7280_lpass_dev_resume(struct device *dev)
+static int __maybe_unused sc7280_lpass_dev_resume(struct device *dev)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
 
 	return clk_bulk_prepare_enable(drvdata->num_clks, drvdata->clks);
 }
 
-static int sc7280_lpass_dev_suspend(struct device *dev)
+static int __maybe_unused sc7280_lpass_dev_suspend(struct device *dev)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
 
@@ -253,6 +253,7 @@ static int sc7280_lpass_dev_suspend(struct device *dev)
 static const struct dev_pm_ops sc7280_lpass_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sc7280_lpass_dev_suspend, sc7280_lpass_dev_resume)
 };
+
 static struct lpass_variant sc7280_data = {
 	.i2sctrl_reg_base		= 0x1000,
 	.i2sctrl_reg_stride		= 0x1000,
