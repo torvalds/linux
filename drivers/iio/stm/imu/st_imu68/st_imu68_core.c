@@ -459,6 +459,17 @@ static ssize_t st_imu68_set_sampling_frequency(struct device *dev,
 	return err < 0 ? err : count;
 }
 
+ssize_t st_imu68_get_module_id(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct st_imu68_sensor *sensor = iio_priv(iio_dev);
+	struct st_imu68_hw *hw = sensor->hw;
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", hw->module_id);
+}
+
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_imu68_sysfs_sampling_frequency_avail);
 static IIO_DEVICE_ATTR(in_accel_scale_available, 0444,
 		       st_imu68_sysfs_scale_avail, NULL, 0);
@@ -467,11 +478,13 @@ static IIO_DEVICE_ATTR(in_anglvel_scale_available, 0444,
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 			      st_imu68_get_sampling_frequency,
 			      st_imu68_set_sampling_frequency);
+static IIO_DEVICE_ATTR(module_id, 0444, st_imu68_get_module_id, NULL, 0);
 
 static struct attribute *st_imu68_acc_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_in_accel_scale_available.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -490,6 +503,7 @@ static struct attribute *st_imu68_gyro_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_in_anglvel_scale_available.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -552,6 +566,14 @@ static struct iio_dev *st_imu68_alloc_iiodev(struct st_imu68_hw *hw,
 	return iio_dev;
 }
 
+static void st_imu68_get_properties(struct st_imu68_hw *hw)
+{
+	if (device_property_read_u32(hw->dev, "st,module_id",
+				     &hw->module_id)) {
+		hw->module_id = 1;
+	}
+}
+
 int st_imu68_probe(struct device *dev, int irq, const char *name,
 		   const struct st_imu68_transfer_function *tf_ops)
 {
@@ -574,6 +596,8 @@ int st_imu68_probe(struct device *dev, int irq, const char *name,
 	err = st_imu68_check_whoami(hw);
 	if (err < 0)
 		return err;
+
+	st_imu68_get_properties(hw);
 
 	err = st_imu68_write_with_mask(hw, ST_IMU68_REG_CTRL4_ADDR,
 				       ST_IMU68_GYRO_EN_MASK, 0x7);

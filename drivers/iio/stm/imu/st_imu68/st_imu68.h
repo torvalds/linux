@@ -64,6 +64,7 @@ struct st_imu68_hw {
 
 	s64 timestamp;
 	u8 enabled_mask;
+	u32 module_id;
 
 	struct iio_dev *iio_devs[ST_IMU68_ID_MAX];
 
