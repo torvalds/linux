@@ -318,7 +318,7 @@
 			#performance-domain-cells = <0>;
 		};
 
-		dart_sio: iommu@235004000 {
+		sio_dart: iommu@235004000 {
 			compatible = "apple,t8103-dart";
 			reg = <0x2 0x35004000 0x0 0x4000>;
 			interrupt-parent = <&aic>;
@@ -431,7 +431,7 @@
 					      <0>,
 					      <0>;
 			#dma-cells = <1>;
-			iommus = <&dart_sio 2>;
+			iommus = <&sio_dart 2>;
 			power-domains = <&ps_sio_adma>;
 			resets = <&ps_audio_p>;
 		};

@@ -53,7 +53,7 @@
 		interrupts = <AIC_IRQ 0 631 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	dart_sio_0: iommu@39b004000 {
+	sio_dart_0: iommu@39b004000 {
 		compatible = "apple,t6000-dart";
 		reg = <0x3 0x9b004000 0x0 0x4000>;
 		interrupt-parent = <&aic>;
@@ -62,7 +62,7 @@
 		power-domains = <&ps_sio_cpu>;
 	};
 
-	dart_sio_1: iommu@39b008000 {
+	sio_dart_1: iommu@39b008000 {
 		compatible = "apple,t6000-dart";
 		reg = <0x3 0x9b008000 0x0 0x8000>;
 		interrupt-parent = <&aic>;
@@ -179,7 +179,7 @@
 				      <&aic AIC_IRQ 0 1118 IRQ_TYPE_LEVEL_HIGH>,
 				      <0>,
 				      <0>;
-		iommus = <&dart_sio_0 2>, <&dart_sio_1 2>;
+		iommus = <&sio_dart_0 2>, <&sio_dart_1 2>;
 		power-domains = <&ps_sio_adma>;
 		resets = <&ps_audio_p>;
 	};
