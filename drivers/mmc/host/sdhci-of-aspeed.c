@@ -13,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/spinlock.h>
 
 #include "sdhci-pltfm.h"
@@ -39,6 +40,7 @@
 struct aspeed_sdc {
 	struct clk *clk;
 	struct resource *res;
+	struct reset_control *rst;
 
 	spinlock_t lock;
 	void __iomem *regs;
@@ -335,13 +337,50 @@ static u32 aspeed_sdhci_readl(struct sdhci_host *host, int reg)
 	return val;
 }
 
+static void aspeed_sdhci_reset(struct sdhci_host *host, u8 mask)
+{
+	struct sdhci_pltfm_host *pltfm_priv;
+	struct aspeed_sdhci *aspeed_sdhci;
+	struct aspeed_sdc *aspeed_sdc;
+	u32 save_array[7];
+	u32 reg_array[] = {SDHCI_DMA_ADDRESS,
+			SDHCI_BLOCK_SIZE,
+			SDHCI_ARGUMENT,
+			SDHCI_HOST_CONTROL,
+			SDHCI_CLOCK_CONTROL,
+			SDHCI_INT_ENABLE,
+			SDHCI_SIGNAL_ENABLE};
+	int i;
+
+	pltfm_priv = sdhci_priv(host);
+	aspeed_sdhci = sdhci_pltfm_priv(pltfm_priv);
+	aspeed_sdc = aspeed_sdhci->parent;
+
+	if (!IS_ERR(aspeed_sdc->rst)) {
+		for (i = 0; i < ARRAY_SIZE(reg_array); i++)
+			save_array[i] = sdhci_readl(host, reg_array[i]);
+
+		reset_control_assert(aspeed_sdc->rst);
+		mdelay(1);
+		reset_control_deassert(aspeed_sdc->rst);
+		mdelay(1);
+
+		for (i = 0; i < ARRAY_SIZE(reg_array); i++)
+			sdhci_writel(host, save_array[i], reg_array[i]);
+
+		aspeed_sdhci_set_clock(host, host->clock);
+	}
+
+	sdhci_reset(host, mask);
+}
+
 static const struct sdhci_ops aspeed_sdhci_ops = {
 	.read_l = aspeed_sdhci_readl,
 	.set_clock = aspeed_sdhci_set_clock,
 	.get_max_clock = aspeed_sdhci_get_max_clock,
 	.set_bus_width = aspeed_sdhci_set_bus_width,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
-	.reset = sdhci_reset,
+	.reset = aspeed_sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
