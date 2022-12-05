@@ -1738,7 +1738,18 @@ void blk_throtl_cancel_bios(struct gendisk *disk)
 		 * Set the flag to make sure throtl_pending_timer_fn() won't
 		 * stop until all throttled bios are dispatched.
 		 */
-		blkg_to_tg(blkg)->flags |= THROTL_TG_CANCELING;
+		tg->flags |= THROTL_TG_CANCELING;
+
+		/*
+		 * Do not dispatch cgroup without THROTL_TG_PENDING or cgroup
+		 * will be inserted to service queue without THROTL_TG_PENDING
+		 * set in tg_update_disptime below. Then IO dispatched from
+		 * child in tg_dispatch_one_bio will trigger double insertion
+		 * and corrupt the tree.
+		 */
+		if (!(tg->flags & THROTL_TG_PENDING))
+			continue;
+
 		/*
 		 * Update disptime after setting the above flag to make sure
 		 * throtl_select_dispatch() won't exit without dispatching.
