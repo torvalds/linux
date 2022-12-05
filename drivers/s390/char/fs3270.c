@@ -379,7 +379,7 @@ fs3270_alloc_view(void)
 {
 	struct fs3270 *fp;
 
-	fp = kzalloc(sizeof(struct fs3270), GFP_KERNEL);
+	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
 	if (!fp)
 		return ERR_PTR(-ENOMEM);
 	fp->init = raw3270_request_alloc(0);
