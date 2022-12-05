@@ -408,8 +408,10 @@ mtk_wed_wo_hardware_init(struct mtk_wed_wo *wo)
 		return -ENODEV;
 
 	wo->mmio.regs = syscon_regmap_lookup_by_phandle(np, NULL);
-	if (IS_ERR_OR_NULL(wo->mmio.regs))
-		return PTR_ERR(wo->mmio.regs);
+	if (IS_ERR(wo->mmio.regs)) {
+		ret = PTR_ERR(wo->mmio.regs);
+		goto error_put;
+	}
 
 	wo->mmio.irq = irq_of_parse_and_map(np, 0);
 	wo->mmio.irq_mask = MTK_WED_WO_ALL_INT_MASK;
@@ -457,7 +459,8 @@ mtk_wed_wo_hardware_init(struct mtk_wed_wo *wo)
 
 error:
 	devm_free_irq(wo->hw->dev, wo->mmio.irq, wo);
-
+error_put:
+	of_node_put(np);
 	return ret;
 }
 
