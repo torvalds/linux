@@ -90,6 +90,11 @@ int __kprobes aarch64_insn_write(void *addr, u32 insn)
 	return __aarch64_text_write(addr, &__insn, AARCH64_INSN_SIZE);
 }
 
+int __kprobes aarch64_addr_write(void *addr, u64 dst)
+{
+	return __aarch64_text_write(addr, &dst, sizeof(dst));
+}
+
 int __kprobes aarch64_insn_patch_text_nosync(void *addr, u32 insn)
 {
 	u32 *tp = addr;
