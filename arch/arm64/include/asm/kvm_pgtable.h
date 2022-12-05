@@ -42,6 +42,8 @@ typedef u64 kvm_pte_t;
 #define KVM_PTE_ADDR_MASK		GENMASK(47, PAGE_SHIFT)
 #define KVM_PTE_ADDR_51_48		GENMASK(15, 12)
 
+#define KVM_PHYS_INVALID		(-1ULL)
+
 static inline bool kvm_pte_valid(kvm_pte_t pte)
 {
 	return pte & KVM_PTE_VALID;
@@ -55,6 +57,18 @@ static inline u64 kvm_pte_to_phys(kvm_pte_t pte)
 		pa |= FIELD_GET(KVM_PTE_ADDR_51_48, pte) << 48;
 
 	return pa;
+}
+
+static inline kvm_pte_t kvm_phys_to_pte(u64 pa)
+{
+	kvm_pte_t pte = pa & KVM_PTE_ADDR_MASK;
+
+	if (PAGE_SHIFT == 16) {
+		pa &= GENMASK(51, 48);
+		pte |= FIELD_PREP(KVM_PTE_ADDR_51_48, pa >> 48);
+	}
+
+	return pte;
 }
 
 static inline u64 kvm_granule_shift(u32 level)
@@ -380,6 +394,14 @@ u64 kvm_pgtable_hyp_unmap(struct kvm_pgtable *pgt, u64 addr, u64 size);
  * Return: VTCR_EL2 value
  */
 u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift);
+
+/**
+ * kvm_pgtable_stage2_pgd_size() - Helper to compute size of a stage-2 PGD
+ * @vtcr:	Content of the VTCR register.
+ *
+ * Return: the size (in bytes) of the stage-2 PGD
+ */
+size_t kvm_pgtable_stage2_pgd_size(u64 vtcr);
 
 /**
  * __kvm_pgtable_stage2_init() - Initialise a guest stage-2 page-table.
