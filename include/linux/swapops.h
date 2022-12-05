@@ -33,11 +33,13 @@
  * can use the extra bits to store other information besides PFN.
  */
 #ifdef MAX_PHYSMEM_BITS
-#define SWP_PFN_BITS			(MAX_PHYSMEM_BITS - PAGE_SHIFT)
+#define SWP_PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
 #else  /* MAX_PHYSMEM_BITS */
-#define SWP_PFN_BITS			(BITS_PER_LONG - PAGE_SHIFT)
+#define SWP_PFN_BITS		min_t(int, \
+				      sizeof(phys_addr_t) * 8 - PAGE_SHIFT, \
+				      SWP_TYPE_SHIFT)
 #endif	/* MAX_PHYSMEM_BITS */
-#define SWP_PFN_MASK			(BIT(SWP_PFN_BITS) - 1)
+#define SWP_PFN_MASK		(BIT(SWP_PFN_BITS) - 1)
 
 /**
  * Migration swap entry specific bitfield definitions.  Layout:
