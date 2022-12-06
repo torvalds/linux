@@ -45,8 +45,13 @@ KBUILD_CFLAGS	+= $(call cc-option,-mabi=lp64)
 KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)
 
 # Avoid generating .eh_frame* sections.
+ifneq ($(CONFIG_UNWIND_TABLES),y)
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables -fno-unwind-tables
 KBUILD_AFLAGS	+= -fno-asynchronous-unwind-tables -fno-unwind-tables
+else
+KBUILD_CFLAGS	+= -fasynchronous-unwind-tables
+KBUILD_AFLAGS	+= -fasynchronous-unwind-tables
+endif
 
 ifeq ($(CONFIG_STACKPROTECTOR_PER_TASK),y)
 prepare: stack_protector_prepare
@@ -72,10 +77,16 @@ branch-prot-flags-$(CONFIG_CC_HAS_SIGN_RETURN_ADDRESS) := -msign-return-address=
 # We enable additional protection for leaf functions as there is some
 # narrow potential for ROP protection benefits and no substantial
 # performance impact has been observed.
+PACRET-y := pac-ret+leaf
+
+# Using a shadow call stack in leaf functions is too costly, so avoid PAC there
+# as well when we may be patching PAC into SCS
+PACRET-$(CONFIG_UNWIND_PATCH_PAC_INTO_SCS) := pac-ret
+
 ifeq ($(CONFIG_ARM64_BTI_KERNEL),y)
-branch-prot-flags-$(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET_BTI) := -mbranch-protection=pac-ret+leaf+bti
+branch-prot-flags-$(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET_BTI) := -mbranch-protection=$(PACRET-y)+bti
 else
-branch-prot-flags-$(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET) := -mbranch-protection=pac-ret+leaf
+branch-prot-flags-$(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET) := -mbranch-protection=$(PACRET-y)
 endif
 # -march=armv8.3-a enables the non-nops instructions for PAC, to avoid the
 # compiler to generate them and consequently to break the single image contract
