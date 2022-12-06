@@ -70,4 +70,18 @@ void gh_vm_function_unregister(struct gh_vm_function *f);
 	DECLARE_GH_VM_FUNCTION(_name, _type, _bind, _unbind);	\
 	module_gh_vm_function(_name)
 
+struct gh_vm_resource_ticket {
+	struct list_head list; /* for gh_vm's resources list */
+	struct list_head resources; /* for gh_resources's list */
+	enum gh_resource_type resource_type;
+	u32 label;
+
+	struct module *owner;
+	int (*populate)(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc);
+	void (*unpopulate)(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc);
+};
+
+int gh_vm_add_resource_ticket(struct gh_vm *ghvm, struct gh_vm_resource_ticket *ticket);
+void gh_vm_remove_resource_ticket(struct gh_vm *ghvm, struct gh_vm_resource_ticket *ticket);
+
 #endif
