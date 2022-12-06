@@ -905,14 +905,13 @@ static int m_can_handle_bus_errors(struct net_device *dev, u32 irqstatus,
 	return work_done;
 }
 
-static int m_can_rx_handler(struct net_device *dev, int quota)
+static int m_can_rx_handler(struct net_device *dev, int quota, u32 irqstatus)
 {
 	struct m_can_classdev *cdev = netdev_priv(dev);
 	int rx_work_or_err;
 	int work_done = 0;
-	u32 irqstatus, psr;
+	u32 psr;
 
-	irqstatus = cdev->irqstatus | m_can_read(cdev, M_CAN_IR);
 	if (!irqstatus)
 		goto end;
 
@@ -956,12 +955,12 @@ end:
 	return work_done;
 }
 
-static int m_can_rx_peripheral(struct net_device *dev)
+static int m_can_rx_peripheral(struct net_device *dev, u32 irqstatus)
 {
 	struct m_can_classdev *cdev = netdev_priv(dev);
 	int work_done;
 
-	work_done = m_can_rx_handler(dev, NAPI_POLL_WEIGHT);
+	work_done = m_can_rx_handler(dev, NAPI_POLL_WEIGHT, irqstatus);
 
 	/* Don't re-enable interrupts if the driver had a fatal error
 	 * (e.g., FIFO read failure).
@@ -977,8 +976,11 @@ static int m_can_poll(struct napi_struct *napi, int quota)
 	struct net_device *dev = napi->dev;
 	struct m_can_classdev *cdev = netdev_priv(dev);
 	int work_done;
+	u32 irqstatus;
 
-	work_done = m_can_rx_handler(dev, quota);
+	irqstatus = cdev->irqstatus | m_can_read(cdev, M_CAN_IR);
+
+	work_done = m_can_rx_handler(dev, quota, irqstatus);
 
 	/* Don't re-enable interrupts if the driver had a fatal error
 	 * (e.g., FIFO read failure).
@@ -1088,7 +1090,7 @@ static irqreturn_t m_can_isr(int irq, void *dev_id)
 		m_can_disable_all_interrupts(cdev);
 		if (!cdev->is_peripheral)
 			napi_schedule(&cdev->napi);
-		else if (m_can_rx_peripheral(dev) < 0)
+		else if (m_can_rx_peripheral(dev, ir) < 0)
 			goto out_fail;
 	}
 
