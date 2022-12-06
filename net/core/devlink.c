@@ -1632,11 +1632,6 @@ static int devlink_port_function_hw_addr_set(struct devlink_port *port,
 		}
 	}
 
-	if (!ops->port_function_hw_addr_set) {
-		NL_SET_ERR_MSG_MOD(extack, "Port doesn't support function attributes");
-		return -EOPNOTSUPP;
-	}
-
 	return ops->port_function_hw_addr_set(port, hw_addr, hw_addr_len,
 					      extack);
 }
@@ -1650,12 +1645,27 @@ static int devlink_port_fn_state_set(struct devlink_port *port,
 
 	state = nla_get_u8(attr);
 	ops = port->devlink->ops;
-	if (!ops->port_fn_state_set) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Function does not support state setting");
+	return ops->port_fn_state_set(port, state, extack);
+}
+
+static int devlink_port_function_validate(struct devlink_port *devlink_port,
+					  struct nlattr **tb,
+					  struct netlink_ext_ack *extack)
+{
+	const struct devlink_ops *ops = devlink_port->devlink->ops;
+
+	if (tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR] &&
+	    !ops->port_function_hw_addr_set) {
+		NL_SET_ERR_MSG_ATTR(extack, tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR],
+				    "Port doesn't support function attributes");
 		return -EOPNOTSUPP;
 	}
-	return ops->port_fn_state_set(port, state, extack);
+	if (tb[DEVLINK_PORT_FN_ATTR_STATE] && !ops->port_fn_state_set) {
+		NL_SET_ERR_MSG_ATTR(extack, tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR],
+				    "Function does not support state setting");
+		return -EOPNOTSUPP;
+	}
+	return 0;
 }
 
 static int devlink_port_function_set(struct devlink_port *port,
@@ -1671,6 +1681,10 @@ static int devlink_port_function_set(struct devlink_port *port,
 		NL_SET_ERR_MSG_MOD(extack, "Fail to parse port function attributes");
 		return err;
 	}
+
+	err = devlink_port_function_validate(port, tb, extack);
+	if (err)
+		return err;
 
 	attr = tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR];
 	if (attr) {
