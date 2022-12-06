@@ -45,9 +45,10 @@
  * - 1.7.0 - Add MSM_PARAM_SUSPENDS to access suspend count
  * - 1.8.0 - Add MSM_BO_CACHED_COHERENT for supported GPUs (a6xx)
  * - 1.9.0 - Add MSM_SUBMIT_FENCE_SN_IN
+ * - 1.10.0 - Add MSM_SUBMIT_BO_NO_IMPLICIT
  */
 #define MSM_VERSION_MAJOR	1
-#define MSM_VERSION_MINOR	9
+#define MSM_VERSION_MINOR	10
 #define MSM_VERSION_PATCHLEVEL	0
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
