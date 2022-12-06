@@ -562,7 +562,7 @@ static bool cxl_report_and_clear(struct cxl_dev_state *cxlds)
 	}
 
 	header_log_copy(cxlds, hl);
-	trace_cxl_aer_uncorrectable_error(dev_name(dev), status, fe, hl);
+	trace_cxl_aer_uncorrectable_error(dev, status, fe, hl);
 	writel(status & CXL_RAS_UNCORRECTABLE_STATUS_MASK, addr);
 
 	return true;
@@ -644,7 +644,7 @@ static void cxl_cor_error_detected(struct pci_dev *pdev)
 	status = le32_to_cpu(readl(addr));
 	if (status & CXL_RAS_CORRECTABLE_STATUS_MASK) {
 		writel(status & CXL_RAS_CORRECTABLE_STATUS_MASK, addr);
-		trace_cxl_aer_correctable_error(dev_name(dev), status);
+		trace_cxl_aer_correctable_error(dev, status);
 	}
 }
 

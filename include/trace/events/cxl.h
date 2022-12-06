@@ -45,16 +45,16 @@
 )
 
 TRACE_EVENT(cxl_aer_uncorrectable_error,
-	TP_PROTO(const char *dev_name, u32 status, u32 fe, u32 *hl),
-	TP_ARGS(dev_name, status, fe, hl),
+	TP_PROTO(const struct device *dev, u32 status, u32 fe, u32 *hl),
+	TP_ARGS(dev, status, fe, hl),
 	TP_STRUCT__entry(
-		__string(dev_name, dev_name)
+		__string(dev_name, dev_name(dev))
 		__field(u32, status)
 		__field(u32, first_error)
 		__array(u32, header_log, CXL_HEADERLOG_SIZE_U32)
 	),
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name);
+		__assign_str(dev_name, dev_name(dev));
 		__entry->status = status;
 		__entry->first_error = fe;
 		/*
@@ -89,14 +89,14 @@ TRACE_EVENT(cxl_aer_uncorrectable_error,
 )
 
 TRACE_EVENT(cxl_aer_correctable_error,
-	TP_PROTO(const char *dev_name, u32 status),
-	TP_ARGS(dev_name, status),
+	TP_PROTO(const struct device *dev, u32 status),
+	TP_ARGS(dev, status),
 	TP_STRUCT__entry(
-		__string(dev_name, dev_name)
+		__string(dev_name, dev_name(dev))
 		__field(u32, status)
 	),
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name);
+		__assign_str(dev_name, dev_name(dev));
 		__entry->status = status;
 	),
 	TP_printk("%s: status: '%s'",
