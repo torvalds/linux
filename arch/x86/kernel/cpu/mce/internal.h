@@ -189,8 +189,23 @@ extern bool filter_mce(struct mce *m);
 
 #ifdef CONFIG_X86_MCE_AMD
 extern bool amd_filter_mce(struct mce *m);
+
+/* Extract [55:<lsb>] where lsb is the LS-*valid* bit of the address bits. */
+static __always_inline void smca_extract_err_addr(struct mce *m)
+{
+	u8 lsb;
+
+	if (!mce_flags.smca)
+		return;
+
+	lsb = (m->addr >> 56) & 0x3f;
+
+	m->addr &= GENMASK_ULL(55, lsb);
+}
+
 #else
 static inline bool amd_filter_mce(struct mce *m) { return false; }
+static inline void smca_extract_err_addr(struct mce *m) { }
 #endif
 
 #ifdef CONFIG_X86_ANCIENT_MCE
