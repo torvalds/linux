@@ -47,6 +47,9 @@ struct memstress_args {
 	/* The vCPU=>pCPU pinning map. Only valid if pin_vcpus is true. */
 	uint32_t vcpu_to_pcpu[KVM_MAX_VCPUS];
 
+ 	/* Test is done, stop running vCPUs. */
+ 	bool stop_vcpus;
+
 	struct memstress_vcpu_args vcpu_args[KVM_MAX_VCPUS];
 };
 

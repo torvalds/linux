@@ -58,9 +58,6 @@ static enum {
 	ITERATION_MARK_IDLE,
 } iteration_work;
 
-/* Set to true when vCPU threads should exit. */
-static bool done;
-
 /* The iteration that was last completed by each vCPU. */
 static int vcpu_last_completed_iteration[KVM_MAX_VCPUS];
 
@@ -211,7 +208,7 @@ static bool spin_wait_for_next_iteration(int *current_iteration)
 	int last_iteration = *current_iteration;
 
 	do {
-		if (READ_ONCE(done))
+		if (READ_ONCE(memstress_args.stop_vcpus))
 			return false;
 
 		*current_iteration = READ_ONCE(iteration);
@@ -320,9 +317,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	access_memory(vm, nr_vcpus, ACCESS_WRITE, "Writing to idle memory");
 	mark_memory_idle(vm, nr_vcpus);
 	access_memory(vm, nr_vcpus, ACCESS_READ, "Reading from idle memory");
-
-	/* Set done to signal the vCPU threads to exit */
-	done = true;
 
 	memstress_join_vcpu_threads(nr_vcpus);
 	memstress_destroy_vm(vm);

@@ -4,6 +4,7 @@
 /aarch64/debug-exceptions
 /aarch64/get-reg-list
 /aarch64/hypercalls
+/aarch64/page_fault_test
 /aarch64/psci_test
 /aarch64/vcpu_width_config
 /aarch64/vgic_init
