@@ -4299,9 +4299,8 @@ static ssize_t devices_show(struct device_driver *dev, char *buf)
 	for (i = 0; i < PPC440SPE_ADMA_ENGINES_NUM; i++) {
 		if (ppc440spe_adma_devices[i] == -1)
 			continue;
-		size += scnprintf(buf + size, PAGE_SIZE - size,
-				 "PPC440SP(E)-ADMA.%d: %s\n", i,
-				 ppc_adma_errors[ppc440spe_adma_devices[i]]);
+		size += sysfs_emit_at(buf, size, "PPC440SP(E)-ADMA.%d: %s\n",
+				     i, ppc_adma_errors[ppc440spe_adma_devices[i]]);
 	}
 	return size;
 }
@@ -4309,9 +4308,8 @@ static DRIVER_ATTR_RO(devices);
 
 static ssize_t enable_show(struct device_driver *dev, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE,
-			"PPC440SP(e) RAID-6 capabilities are %sABLED.\n",
-			ppc440spe_r6_enabled ? "EN" : "DIS");
+	return sysfs_emit(buf, "PPC440SP(e) RAID-6 capabilities are %sABLED.\n",
+			  ppc440spe_r6_enabled ? "EN" : "DIS");
 }
 
 static ssize_t enable_store(struct device_driver *dev, const char *buf,
@@ -4362,7 +4360,7 @@ static ssize_t poly_show(struct device_driver *dev, char *buf)
 	reg &= 0xFF;
 #endif
 
-	size = snprintf(buf, PAGE_SIZE, "PPC440SP(e) RAID-6 driver "
+	size = sysfs_emit(buf, "PPC440SP(e) RAID-6 driver "
 			"uses 0x1%02x polynomial.\n", reg);
 	return size;
 }
