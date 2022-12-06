@@ -5869,6 +5869,7 @@ enum plink_actions {
 #define NL80211_KEK_LEN			16
 #define NL80211_KCK_EXT_LEN		24
 #define NL80211_KEK_EXT_LEN		32
+#define NL80211_KCK_EXT_LEN_32		32
 #define NL80211_REPLAY_CTR_LEN		8
 
 /**
