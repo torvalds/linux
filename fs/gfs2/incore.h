@@ -606,6 +606,7 @@ enum {
 	SDF_REMOTE_WITHDRAW	= 13, /* Performing remote recovery */
 	SDF_WITHDRAW_RECOVERY	= 14, /* Wait for journal recovery when we are
 					 withdrawing */
+	SDF_DEACTIVATING	= 15,
 };
 
 enum gfs2_freeze_state {
