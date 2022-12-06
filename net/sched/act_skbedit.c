@@ -16,6 +16,7 @@
 #include <net/ipv6.h>
 #include <net/dsfield.h>
 #include <net/pkt_cls.h>
+#include <net/tc_wrapper.h>
 
 #include <linux/tc_act/tc_skbedit.h>
 #include <net/tc_act/tc_skbedit.h>
@@ -36,8 +37,9 @@ static u16 tcf_skbedit_hash(struct tcf_skbedit_params *params,
 	return netdev_cap_txqueue(skb->dev, queue_mapping);
 }
 
-static int tcf_skbedit_act(struct sk_buff *skb, const struct tc_action *a,
-			   struct tcf_result *res)
+TC_INDIRECT_SCOPE int tcf_skbedit_act(struct sk_buff *skb,
+				      const struct tc_action *a,
+				      struct tcf_result *res)
 {
 	struct tcf_skbedit *d = to_skbedit(a);
 	struct tcf_skbedit_params *params;
