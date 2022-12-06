@@ -6499,6 +6499,7 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 		dwc3_override_vbus_status(mdwc, false);
 		mdwc->in_device_mode = false;
 		usb_phy_notify_disconnect(mdwc->hs_phy, USB_SPEED_HIGH);
+		usb_phy_set_power(mdwc->hs_phy, 0);
 		usb_phy_notify_disconnect(mdwc->ss_phy, USB_SPEED_SUPER);
 		usb_redriver_notify_disconnect(mdwc->redriver);
 
@@ -6645,9 +6646,6 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 			dwc3_otg_start_peripheral(mdwc, 1);
 			mdwc->drd_state = DRD_STATE_PERIPHERAL;
 			work = true;
-		} else {
-			usb_phy_set_power(mdwc->hs_phy, 0);
-			dev_dbg(mdwc->dev, "Cable disconnected\n");
 		}
 		break;
 
