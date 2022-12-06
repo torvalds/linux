@@ -125,6 +125,9 @@ this means a MAC address.
 Users may also set the RoCE capability of the function using
 `devlink port function set roce` command.
 
+Users may also set the function as migratable using
+'devlink port function set migratable' command.
+
 Function attributes
 ===================
 
@@ -193,6 +196,49 @@ VF/SF driver cannot override it.
     pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
         function:
             hw_addr 00:00:00:00:00:00 roce disable
+
+migratable capability setup
+---------------------------
+Live migration is the process of transferring a live virtual machine
+from one physical host to another without disrupting its normal
+operation.
+
+User who want PCI VFs to be able to perform live migration need to
+explicitly enable the VF migratable capability.
+
+When user enables migratable capability for a VF, and the HV binds the VF to VFIO driver
+with migration support, the user can migrate the VM with this VF from one HV to a
+different one.
+
+However, when migratable capability is enable, device will disable features which cannot
+be migrated. Thus migratable cap can impose limitations on a VF so let the user decide.
+
+Example of LM with migratable function configuration:
+- Get migratable capability of the VF device::
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+        function:
+            hw_addr 00:00:00:00:00:00 migratable disable
+
+- Set migratable capability of the VF device::
+
+    $ devlink port function set pci/0000:06:00.0/2 migratable enable
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+        function:
+            hw_addr 00:00:00:00:00:00 migratable enable
+
+- Bind VF to VFIO driver with migration support::
+
+    $ echo <pci_id> > /sys/bus/pci/devices/0000:08:00.0/driver/unbind
+    $ echo mlx5_vfio_pci > /sys/bus/pci/devices/0000:08:00.0/driver_override
+    $ echo <pci_id> > /sys/bus/pci/devices/0000:08:00.0/driver/bind
+
+Attach VF to the VM.
+Start the VM.
+Perform live migration.
 
 Subfunction
 ============

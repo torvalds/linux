@@ -1470,6 +1470,27 @@ struct devlink_ops {
 	int (*port_fn_roce_set)(struct devlink_port *devlink_port,
 				bool enable, struct netlink_ext_ack *extack);
 	/**
+	 * @port_fn_migratable_get: Port function's migratable get function.
+	 *
+	 * Query migratable state of a function managed by the devlink port.
+	 * Return -EOPNOTSUPP if port function migratable handling is not
+	 * supported.
+	 */
+	int (*port_fn_migratable_get)(struct devlink_port *devlink_port,
+				      bool *is_enable,
+				      struct netlink_ext_ack *extack);
+	/**
+	 * @port_fn_migratable_set: Port function's migratable set function.
+	 *
+	 * Enable/Disable migratable state of a function managed by the devlink
+	 * port.
+	 * Return -EOPNOTSUPP if port function migratable handling is not
+	 * supported.
+	 */
+	int (*port_fn_migratable_set)(struct devlink_port *devlink_port,
+				      bool enable,
+				      struct netlink_ext_ack *extack);
+	/**
 	 * port_new() - Add a new port function of a specified flavor
 	 * @devlink: Devlink instance
 	 * @attrs: attributes of the new port
