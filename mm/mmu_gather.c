@@ -19,8 +19,8 @@ static bool tlb_next_batch(struct mmu_gather *tlb)
 {
 	struct mmu_gather_batch *batch;
 
-	/* No more batching if we have delayed rmaps pending */
-	if (tlb->delayed_rmap)
+	/* Limit batching if we have delayed rmaps pending */
+	if (tlb->delayed_rmap && tlb->active != &tlb->local)
 		return false;
 
 	batch = tlb->active;
@@ -48,22 +48,8 @@ static bool tlb_next_batch(struct mmu_gather *tlb)
 }
 
 #ifdef CONFIG_SMP
-/**
- * tlb_flush_rmaps - do pending rmap removals after we have flushed the TLB
- * @tlb: the current mmu_gather
- *
- * Note that because of how tlb_next_batch() above works, we will
- * never start new batches with pending delayed rmaps, so we only
- * need to walk through the current active batch.
- */
-void tlb_flush_rmaps(struct mmu_gather *tlb, struct vm_area_struct *vma)
+static void tlb_flush_rmap_batch(struct mmu_gather_batch *batch, struct vm_area_struct *vma)
 {
-	struct mmu_gather_batch *batch;
-
-	if (!tlb->delayed_rmap)
-		return;
-
-	batch = tlb->active;
 	for (int i = 0; i < batch->nr; i++) {
 		struct encoded_page *enc = batch->encoded_pages[i];
 
@@ -72,7 +58,25 @@ void tlb_flush_rmaps(struct mmu_gather *tlb, struct vm_area_struct *vma)
 			page_remove_rmap(page, vma, false);
 		}
 	}
+}
 
+/**
+ * tlb_flush_rmaps - do pending rmap removals after we have flushed the TLB
+ * @tlb: the current mmu_gather
+ *
+ * Note that because of how tlb_next_batch() above works, we will
+ * never start multiple new batches with pending delayed rmaps, so
+ * we only need to walk through the current active batch and the
+ * original local one.
+ */
+void tlb_flush_rmaps(struct mmu_gather *tlb, struct vm_area_struct *vma)
+{
+	if (!tlb->delayed_rmap)
+		return;
+
+	tlb_flush_rmap_batch(&tlb->local, vma);
+	if (tlb->active != &tlb->local)
+		tlb_flush_rmap_batch(tlb->active, vma);
 	tlb->delayed_rmap = 0;
 }
 #endif
