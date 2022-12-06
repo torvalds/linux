@@ -743,6 +743,8 @@ struct st_lsm6dsrx_sensor {
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
  * @fifo_mode: FIFO operating mode supported by the device.
  * @state: HW device operational state.
+ * @hw_timestamp_global: hw timestamp value always monotonic where the most
+ *                       significant 8byte are incremented at every disable/enable.
  * @enable_mask: Enabled sensor bitmask.
  * @requested_mask: Sensor requesting bitmask.
  * @ext_data_len: Number of i2c slave devices connected to I2C master.
@@ -775,6 +777,7 @@ struct st_lsm6dsrx_hw {
 	struct mutex fifo_lock;
 	enum st_lsm6dsrx_fifo_mode fifo_mode;
 	unsigned long state;
+	s64 hw_timestamp_global;
 	u64 enable_mask;
 	u64 requested_mask;
 	u8 ext_data_len;

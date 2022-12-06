@@ -359,6 +359,18 @@ static const struct iio_chan_spec_ext_info st_lsm6dsrx_chan_spec_ext_info[] = {
 	{ }
 };
 
+#define IIO_CHAN_HW_TIMESTAMP(si) {					\
+	.type = IIO_COUNT,						\
+	.address = ST_LSM6DSRX_REG_TIMESTAMP0_ADDR,			\
+	.scan_index = si,						\
+	.scan_type = {							\
+		.sign = 's',						\
+		.realbits = 64,					\
+		.storagebits = 64,					\
+		.endianness = IIO_LE,					\
+	},								\
+}
+
 static const struct iio_chan_spec st_lsm6dsrx_acc_channels[] = {
 	ST_LSM6DSRX_DATA_CHANNEL(IIO_ACCEL, ST_LSM6DSRX_REG_OUTX_L_A_ADDR,
 				1, IIO_MOD_X, 0, 16, 16, 's',
@@ -370,7 +382,8 @@ static const struct iio_chan_spec st_lsm6dsrx_acc_channels[] = {
 				1, IIO_MOD_Z, 2, 16, 16, 's',
 				st_lsm6dsrx_chan_spec_ext_info),
 	ST_LSM6DSRX_EVENT_CHANNEL(IIO_ACCEL, flush),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	IIO_CHAN_HW_TIMESTAMP(3),
+	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
 static const struct iio_chan_spec st_lsm6dsrx_gyro_channels[] = {
@@ -384,7 +397,8 @@ static const struct iio_chan_spec st_lsm6dsrx_gyro_channels[] = {
 				1, IIO_MOD_Z, 2, 16, 16, 's',
 				st_lsm6dsrx_chan_spec_ext_info),
 	ST_LSM6DSRX_EVENT_CHANNEL(IIO_ANGL_VEL, flush),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	IIO_CHAN_HW_TIMESTAMP(3),
+	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
 static const struct iio_chan_spec st_lsm6dsrx_temp_channels[] = {
@@ -404,7 +418,8 @@ static const struct iio_chan_spec st_lsm6dsrx_temp_channels[] = {
 		}
 	},
 	ST_LSM6DSRX_EVENT_CHANNEL(IIO_TEMP, flush),
-	IIO_CHAN_SOFT_TIMESTAMP(1),
+	IIO_CHAN_HW_TIMESTAMP(1),
+	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
 
 static __maybe_unused int st_lsm6dsrx_reg_access(struct iio_dev *iio_dev,
@@ -1526,7 +1541,10 @@ static const struct iio_info st_lsm6dsrx_temp_info = {
 	.write_raw_get_fmt = st_lsm6dsrx_write_raw_get_fmt,
 };
 
-static const unsigned long st_lsm6dsrx_available_scan_masks[] = { 0x7, 0x0 };
+static const unsigned long st_lsm6dsrx_available_scan_masks[] = {
+	GENMASK(3, 0), 0x0
+};
+
 static const unsigned long st_lsm6dsrx_temp_available_scan_masks[] = {
 	0x1, 0x0
 };
