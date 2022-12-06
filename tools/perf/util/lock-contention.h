@@ -145,6 +145,4 @@ static inline int lock_contention_read(struct lock_contention *con __maybe_unuse
 
 #endif  /* HAVE_BPF_SKEL */
 
-bool is_lock_function(struct machine *machine, u64 addr);
-
 #endif  /* PERF_LOCK_CONTENTION_H */

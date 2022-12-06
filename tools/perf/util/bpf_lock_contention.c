@@ -153,7 +153,7 @@ int lock_contention_read(struct lock_contention *con)
 		bpf_map_lookup_elem(stack, &key, stack_trace);
 
 		/* skip lock internal functions */
-		while (is_lock_function(machine, stack_trace[idx]) &&
+		while (machine__is_lock_function(machine, stack_trace[idx]) &&
 		       idx < con->max_stack - 1)
 			idx++;
 

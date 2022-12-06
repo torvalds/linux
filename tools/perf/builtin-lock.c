@@ -67,11 +67,6 @@ static enum {
 	LOCK_AGGR_CALLER,
 } aggr_mode = LOCK_AGGR_ADDR;
 
-static u64 sched_text_start;
-static u64 sched_text_end;
-static u64 lock_text_start;
-static u64 lock_text_end;
-
 static struct thread_stat *thread_stat_find(u32 tid)
 {
 	struct rb_node *node;
@@ -854,55 +849,6 @@ end:
 	return 0;
 }
 
-bool is_lock_function(struct machine *machine, u64 addr)
-{
-	if (!sched_text_start) {
-		struct map *kmap;
-		struct symbol *sym;
-
-		sym = machine__find_kernel_symbol_by_name(machine,
-							  "__sched_text_start",
-							  &kmap);
-		if (!sym) {
-			/* to avoid retry */
-			sched_text_start = 1;
-			return false;
-		}
-
-		sched_text_start = kmap->unmap_ip(kmap, sym->start);
-
-		/* should not fail from here */
-		sym = machine__find_kernel_symbol_by_name(machine,
-							  "__sched_text_end",
-							  &kmap);
-		sched_text_end = kmap->unmap_ip(kmap, sym->start);
-
-		sym = machine__find_kernel_symbol_by_name(machine,
-							  "__lock_text_start",
-							  &kmap);
-		lock_text_start = kmap->unmap_ip(kmap, sym->start);
-
-		sym = machine__find_kernel_symbol_by_name(machine,
-							  "__lock_text_end",
-							  &kmap);
-		lock_text_end = kmap->unmap_ip(kmap, sym->start);
-	}
-
-	/* failed to get kernel symbols */
-	if (sched_text_start == 1)
-		return false;
-
-	/* mutex and rwsem functions are in sched text section */
-	if (sched_text_start <= addr && addr < sched_text_end)
-		return true;
-
-	/* spinlock functions are in lock text section */
-	if (lock_text_start <= addr && addr < lock_text_end)
-		return true;
-
-	return false;
-}
-
 static int get_symbol_name_offset(struct map *map, struct symbol *sym, u64 ip,
 				  char *buf, int size)
 {
@@ -961,7 +907,7 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 			goto next;
 
 		sym = node->ms.sym;
-		if (sym && !is_lock_function(machine, node->ip)) {
+		if (sym && !machine__is_lock_function(machine, node->ip)) {
 			get_symbol_name_offset(node->ms.map, sym, node->ip,
 					       buf, size);
 			return 0;
@@ -1007,7 +953,7 @@ static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
 		if (++skip <= stack_skip)
 			goto next;
 
-		if (node->ms.sym && is_lock_function(machine, node->ip))
+		if (node->ms.sym && machine__is_lock_function(machine, node->ip))
 			goto next;
 
 		hash ^= hash_long((unsigned long)node->ip, 64);
