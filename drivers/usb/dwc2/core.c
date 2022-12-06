@@ -656,14 +656,24 @@ static void dwc2_clear_force_mode(struct dwc2_hsotg *hsotg)
  */
 void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg)
 {
+	u32 count = 0;
+
 	switch (hsotg->dr_mode) {
 	case USB_DR_MODE_HOST:
 		/*
 		 * NOTE: This is required for some rockchip soc based
 		 * platforms on their host-only dwc2.
 		 */
-		if (!dwc2_hw_is_otg(hsotg))
-			msleep(50);
+		if (!dwc2_hw_is_otg(hsotg)) {
+			while (dwc2_readl(hsotg, GOTGCTL) & GOTGCTL_CONID_B) {
+				msleep(20);
+				if (++count > 10)
+					break;
+			}
+			if (count > 10)
+				dev_err(hsotg->dev,
+					"Waiting for Host Mode timed out");
+		}
 
 		break;
 	case USB_DR_MODE_PERIPHERAL:
