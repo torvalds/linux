@@ -55,16 +55,12 @@ struct am65_cpsw_port {
 	bool				rx_ts_enabled;
 	struct am65_cpsw_qos		qos;
 	struct devlink_port		devlink_port;
-	/* Only for suspend resume context */
-	u32				vid_context;
 };
 
 struct am65_cpsw_host {
 	struct am65_cpsw_common		*common;
 	void __iomem			*port_base;
 	void __iomem			*stat_base;
-	/* Only for suspend resume context */
-	u32				vid_context;
 };
 
 struct am65_cpsw_tx_chn {
