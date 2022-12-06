@@ -847,6 +847,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 		goto unlock;
 	}
 
+	/* if symmetrical system, default to upstream behavior */
 	pd = rcu_dereference(rd->pd);
 	if (!pd)
 		goto fail;
@@ -970,7 +971,7 @@ unlock:
 
 fail:
 	rcu_read_unlock();
-	return prev_cpu;
+	return -1;
 }
 
 static void

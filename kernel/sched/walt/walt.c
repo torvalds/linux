@@ -4643,12 +4643,19 @@ static void walt_init(struct work_struct *work)
 		wait_for_completion_interruptible(&rebuild_domains_completion);
 	}
 
-	if (!rcu_dereference(rd->pd))
+	stop_machine(walt_init_stop_handler, NULL, NULL);
+
+	/*
+	 * validate root-domain perf-domain is configured properly
+	 * to work with an asymmetrical soc. This is necessary
+	 * for load balance and task placement to work properly.
+	 * see walt_find_energy_efficient_cpu(), and
+	 * create_util_to_cost().
+	 */
+	if (!rcu_dereference(rd->pd) && num_sched_clusters > 1)
 		WALT_BUG(WALT_BUG_WALT, NULL,
 			 "root domain's perf-domain values not initialized rd->pd=%d.",
 			 rd->pd);
-
-	stop_machine(walt_init_stop_handler, NULL, NULL);
 
 	hdr = register_sysctl_table(walt_base_table);
 	kmemleak_not_leak(hdr);
