@@ -308,16 +308,14 @@ put_mem:
  *
  * @dev: owner device pointer
  * @mmg: structure to initialize
- * @is_kernel_mem_mgr: indicate whether the memory manager is the per-device kernel memory manager
  *
  * Initialize an instance of unified memory manager
  */
-void hl_mem_mgr_init(struct device *dev, struct hl_mem_mgr *mmg, u8 is_kernel_mem_mgr)
+void hl_mem_mgr_init(struct device *dev, struct hl_mem_mgr *mmg)
 {
 	mmg->dev = dev;
 	spin_lock_init(&mmg->lock);
 	idr_init(&mmg->handles);
-	mmg->is_kernel_mem_mgr = is_kernel_mem_mgr;
 }
 
 /**
