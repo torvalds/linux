@@ -44,7 +44,6 @@ __weak noinline int hid_bpf_device_event(struct hid_bpf_ctx *ctx)
 {
 	return 0;
 }
-ALLOW_ERROR_INJECTION(hid_bpf_device_event, ERRNO);
 
 u8 *
 dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type, u8 *data,
@@ -105,7 +104,6 @@ __weak noinline int hid_bpf_rdesc_fixup(struct hid_bpf_ctx *ctx)
 {
 	return 0;
 }
-ALLOW_ERROR_INJECTION(hid_bpf_rdesc_fixup, ERRNO);
 
 u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *size)
 {
@@ -429,6 +427,18 @@ hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 	return ret;
 }
 
+/* our HID-BPF entrypoints */
+BTF_SET8_START(hid_bpf_fmodret_ids)
+BTF_ID_FLAGS(func, hid_bpf_device_event)
+BTF_ID_FLAGS(func, hid_bpf_rdesc_fixup)
+BTF_ID_FLAGS(func, __hid_bpf_tail_call)
+BTF_SET8_END(hid_bpf_fmodret_ids)
+
+static const struct btf_kfunc_id_set hid_bpf_fmodret_set = {
+	.owner = THIS_MODULE,
+	.set   = &hid_bpf_fmodret_ids,
+};
+
 /* for syscall HID-BPF */
 BTF_SET8_START(hid_bpf_syscall_kfunc_ids)
 BTF_ID_FLAGS(func, hid_bpf_attach_prog)
@@ -494,6 +504,12 @@ static int __init hid_bpf_init(void)
 	 * This is not a big deal: the syscall allowing to attach a BPF program to a HID device
 	 * will not be available, so nobody will be able to use the functionality.
 	 */
+
+	err = register_btf_fmodret_id_set(&hid_bpf_fmodret_set);
+	if (err) {
+		pr_warn("error while registering fmodret entrypoints: %d", err);
+		return 0;
+	}
 
 	err = register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &hid_bpf_kfunc_set);
 	if (err) {

@@ -103,7 +103,6 @@ __weak noinline int __hid_bpf_tail_call(struct hid_bpf_ctx *ctx)
 {
 	return 0;
 }
-ALLOW_ERROR_INJECTION(__hid_bpf_tail_call, ERRNO);
 
 int hid_bpf_prog_run(struct hid_device *hdev, enum hid_bpf_prog_type type,
 		     struct hid_bpf_ctx_kern *ctx_kern)
