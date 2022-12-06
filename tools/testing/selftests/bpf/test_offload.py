@@ -769,12 +769,14 @@ skip(ret != 0, "bpftool not installed")
 base_progs = progs
 _, base_maps = bpftool("map")
 base_map_names = [
-    'pid_iter.rodata' # created on each bpftool invocation
+    'pid_iter.rodata', # created on each bpftool invocation
+    'libbpf_det_bind', # created on each bpftool invocation
 ]
 
 # Check netdevsim
-ret, out = cmd("modprobe netdevsim", fail=False)
-skip(ret != 0, "netdevsim module could not be loaded")
+if not os.path.isdir("/sys/bus/netdevsim/"):
+    ret, out = cmd("modprobe netdevsim", fail=False)
+    skip(ret != 0, "netdevsim module could not be loaded")
 
 # Check debugfs
 _, out = cmd("mount")
