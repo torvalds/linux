@@ -358,6 +358,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 	 */
 	if ((param_extension || acpi5) && (type & MEM_ERROR_MASK) && param2) {
 		struct apei_resources addr_resources;
+
 		apei_resources_init(&addr_resources);
 		trigger_param_region = einj_get_trigger_parameter_region(
 			trigger_tab, param1, param2);
@@ -432,11 +433,11 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 			}
 			v5param->flags = vendor_flags;
 		} else if (flags) {
-				v5param->flags = flags;
-				v5param->memory_address = param1;
-				v5param->memory_address_range = param2;
-				v5param->apicid = param3;
-				v5param->pcie_sbdf = param4;
+			v5param->flags = flags;
+			v5param->memory_address = param1;
+			v5param->memory_address_range = param2;
+			v5param->apicid = param3;
+			v5param->pcie_sbdf = param4;
 		} else {
 			switch (type) {
 			case ACPI_EINJ_PROCESSOR_CORRECTABLE:
@@ -466,6 +467,7 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 			return rc;
 		if (einj_param) {
 			struct einj_parameter *v4param = einj_param;
+
 			v4param->param1 = param1;
 			v4param->param2 = param2;
 		}
@@ -689,8 +691,7 @@ static int __init einj_init(void)
 	if (status == AE_NOT_FOUND) {
 		pr_warn("EINJ table not found.\n");
 		return -ENODEV;
-	}
-	else if (ACPI_FAILURE(status)) {
+	} else if (ACPI_FAILURE(status)) {
 		pr_err("Failed to get EINJ table: %s\n",
 				acpi_format_exception(status));
 		return -EINVAL;
