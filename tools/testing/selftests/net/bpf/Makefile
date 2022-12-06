@@ -12,7 +12,7 @@ CCINCLUDE += -I$(SCRATCH_DIR)/include
 
 BPFOBJ := $(BUILD_DIR)/libbpf/libbpf.a
 
-MAKE_DIRS := $(BUILD_DIR)/libbpf
+MAKE_DIRS := $(BUILD_DIR)/libbpf $(OUTPUT)/bpf
 $(MAKE_DIRS):
 	mkdir -p $@
 
@@ -37,8 +37,8 @@ endif
 
 CLANG_SYS_INCLUDES = $(call get_sys_includes,$(CLANG),$(CLANG_TARGET_ARCH))
 
-$(TEST_CUSTOM_PROGS): $(BPFOBJ)
-	$(CLANG) -O2 -target bpf -c $(@:.o=.c) $(CCINCLUDE) $(CLANG_SYS_INCLUDES) -o $@
+$(TEST_CUSTOM_PROGS): $(OUTPUT)/%.o: %.c $(BPFOBJ) | $(MAKE_DIRS)
+	$(CLANG) -O2 -target bpf -c $< $(CCINCLUDE) $(CLANG_SYS_INCLUDES) -o $@
 
 $(BPFOBJ): $(wildcard $(BPFDIR)/*.[ch] $(BPFDIR)/Makefile)		       \
 	   $(APIDIR)/linux/bpf.h					       \
