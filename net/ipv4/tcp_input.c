@@ -80,7 +80,6 @@
 #include <linux/jump_label_ratelimit.h>
 #include <net/busy_poll.h>
 #include <net/mptcp.h>
-#include <trace/hooks/net.h>
 
 int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 
