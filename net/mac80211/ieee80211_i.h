@@ -1186,13 +1186,17 @@ ieee80211_vif_get_shift(struct ieee80211_vif *vif)
 }
 
 static inline int
-ieee80211_get_mbssid_beacon_len(struct cfg80211_mbssid_elems *elems)
+ieee80211_get_mbssid_beacon_len(struct cfg80211_mbssid_elems *elems, u8 i)
 {
-	int i, len = 0;
+	int len = 0;
 
-	if (!elems)
+	if (!elems || !elems->cnt || i > elems->cnt)
 		return 0;
 
+	if (i < elems->cnt)
+		return elems->elem[i].len;
+
+	/* i == elems->cnt, calculate total length of all MBSSID elements */
 	for (i = 0; i < elems->cnt; i++)
 		len += elems->elem[i].len;
 
