@@ -630,6 +630,8 @@ restart:
 	/*  Unmount the locking protocol  */
 	gfs2_lm_unmount(sdp);
 
+	destroy_workqueue(sdp->sd_delete_wq);
+
 	/*  At this point, we're through participating in the lockspace  */
 	gfs2_sys_fs_del(sdp);
 	free_sbd(sdp);

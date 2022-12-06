@@ -144,7 +144,6 @@ struct gfs2_glock_aspace {
 	struct address_space mapping;
 };
 
-extern struct workqueue_struct *gfs2_delete_workqueue;
 static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
 {
 	struct gfs2_holder *gh;
