@@ -1069,7 +1069,7 @@ static int __init fake_init(void)
 	struct vme_lm_resource *lm;
 
 	/* We need a fake parent device */
-	vme_root = __root_device_register("vme", THIS_MODULE);
+	vme_root = root_device_register("vme");
 	if (IS_ERR(vme_root))
 		return PTR_ERR(vme_root);
 
