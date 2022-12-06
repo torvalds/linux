@@ -2122,6 +2122,9 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	    vif->type != NL80211_IFTYPE_OCB)
 		return;
 
+	if (vif->mbssid_tx_vif && vif->mbssid_tx_vif != vif)
+		return;
+
 	skb = ieee80211_beacon_get(hw, vif, link_id);
 	if (!skb)
 		return;
@@ -4404,6 +4407,8 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		hw->wiphy->cipher_suites = data->ciphers;
 		hw->wiphy->n_cipher_suites = param->n_ciphers;
 	}
+
+	hw->wiphy->mbssid_max_interfaces = 8;
 
 	data->rx_rssi = DEFAULT_RX_RSSI;
 
