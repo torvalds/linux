@@ -238,6 +238,12 @@ enum ufs_qcom_phy_init_type {
  */
 #define UFS_DEVICE_QUIRK_PA_HIBER8TIME          (1 << 15)
 
+/*
+ * Some ufs device vendors need a different TSync length.
+ * Enable this quirk to give an additional TX_HS_SYNC_LENGTH.
+ */
+#define UFS_DEVICE_QUIRK_PA_TX_HSG1_SYNC_LENGTH (1 << 16)
+
 static inline void
 ufs_qcom_get_controller_revision(struct ufs_hba *hba,
 				 u8 *major, u16 *minor, u16 *step)
@@ -535,6 +541,12 @@ struct ufs_qcom_host {
 	struct device_node *np;
 	int chosen_algo;
 	struct ufs_clk_info *ref_clki;
+	struct ufs_clk_info *core_unipro_clki;
+	atomic_t hi_pri_en;
+	atomic_t therm_mitigation;
+	cpumask_t perf_mask;
+	cpumask_t def_mask;
+	bool disable_wb_support;
 };
 
 static inline u32
