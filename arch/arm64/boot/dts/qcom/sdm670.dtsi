@@ -401,6 +401,13 @@
 			#power-domain-cells = <1>;
 		};
 
+		qfprom: qfprom@784000 {
+			compatible = "qcom,sdm670-qfprom", "qcom,qfprom";
+			reg = <0 0x00784000 0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		sdhc_1: mmc@7c4000 {
 			compatible = "qcom,sdm670-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0 0x007c4000 0 0x1000>,
