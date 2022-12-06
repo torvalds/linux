@@ -16,14 +16,18 @@ static unsigned long cxl_pmem_get_security_flags(struct nvdimm *nvdimm,
 	struct cxl_memdev *cxlmd = cxl_nvd->cxlmd;
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	unsigned long security_flags = 0;
+	struct cxl_get_security_output {
+		__le32 flags;
+	} out;
 	u32 sec_out;
 	int rc;
 
 	rc = cxl_mbox_send_cmd(cxlds, CXL_MBOX_OP_GET_SECURITY_STATE, NULL, 0,
-			       &sec_out, sizeof(sec_out));
+			       &out, sizeof(out));
 	if (rc < 0)
 		return 0;
 
+	sec_out = le32_to_cpu(out.flags);
 	if (ptype == NVDIMM_MASTER) {
 		if (sec_out & CXL_PMEM_SEC_STATE_MASTER_PASS_SET)
 			set_bit(NVDIMM_SECURITY_UNLOCKED, &security_flags);
