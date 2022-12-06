@@ -259,16 +259,6 @@ int bnxt_send_msg(struct bnxt_en_dev *edev,
 }
 EXPORT_SYMBOL(bnxt_send_msg);
 
-static void bnxt_ulp_get(struct bnxt_ulp *ulp)
-{
-	atomic_inc(&ulp->ref_count);
-}
-
-static void bnxt_ulp_put(struct bnxt_ulp *ulp)
-{
-	atomic_dec(&ulp->ref_count);
-}
-
 void bnxt_ulp_stop(struct bnxt *bp)
 {
 	struct bnxt_aux_priv *aux_priv = bp->aux_priv;
@@ -319,25 +309,6 @@ void bnxt_ulp_start(struct bnxt *bp, int err)
 		}
 	}
 
-}
-
-void bnxt_ulp_sriov_cfg(struct bnxt *bp, int num_vfs)
-{
-	struct bnxt_en_dev *edev = bp->edev;
-	struct bnxt_ulp_ops *ops;
-	struct bnxt_ulp *ulp;
-
-	if (!edev)
-		return;
-	ulp = edev->ulp_tbl;
-
-	ops = rcu_dereference(ulp->ulp_ops);
-	if (!ops || !ops->ulp_sriov_config)
-		return;
-
-	bnxt_ulp_get(ulp);
-	ops->ulp_sriov_config(ulp->handle, num_vfs);
-	bnxt_ulp_put(ulp);
 }
 
 void bnxt_ulp_irq_stop(struct bnxt *bp)
