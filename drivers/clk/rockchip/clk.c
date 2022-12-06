@@ -168,6 +168,9 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 		if (frac->rate_change_remuxed) {
 			frac->mux_ops->set_parent(&frac_mux->hw,
 						  frac->rate_change_idx);
+			clk_hw_set_parent(&frac_mux->hw,
+					  clk_hw_get_parent_by_index(&frac_mux->hw,
+								     frac->rate_change_idx));
 			frac->rate_change_remuxed = 0;
 		}
 	}
