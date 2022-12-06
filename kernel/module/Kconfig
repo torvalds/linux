@@ -221,9 +221,10 @@ endchoice
 
 config MODULE_DECOMPRESS
 	bool "Support in-kernel module decompression"
-	depends on MODULE_COMPRESS_GZIP || MODULE_COMPRESS_XZ
+	depends on MODULE_COMPRESS_GZIP || MODULE_COMPRESS_XZ || MODULE_COMPRESS_ZSTD
 	select ZLIB_INFLATE if MODULE_COMPRESS_GZIP
 	select XZ_DEC if MODULE_COMPRESS_XZ
+	select ZSTD_DECOMPRESS if MODULE_COMPRESS_ZSTD
 	help
 
 	  Support for decompressing kernel modules by the kernel itself
