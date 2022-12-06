@@ -156,6 +156,18 @@ def _parse_args():
         help="always, never or auto, allowing configuring color output"
             " via the command line",
     )
+    parser.add_argument(
+        "--csv",
+        default="",
+        help="Write trace to file selected by user. Options, like --ns or --extended"
+            "-times are used.",
+    )
+    parser.add_argument(
+        "--csv-summary",
+        default="",
+        help="Write summary to file selected by user. Options, like --ns or"
+            " --summary-extended are used.",
+    )
     args = parser.parse_args()
     args.tid_renames = dict()
 
@@ -275,7 +287,6 @@ class Timespans(object):
 
 
 
-
 class Summary(object):
     """
     Primary instance for calculating the summary output. Processes the whole trace to
@@ -327,7 +338,7 @@ class Summary(object):
                 sum(db["inter_times"].values()) - 4 * decimal_precision
                 )
             _header += ("Max Inter Task Times",)
-        print(fmt.format(*_header))
+        fd_sum.write(fmt.format(*_header) +  "\n")
 
     def _column_titles(self):
         """
@@ -336,34 +347,58 @@ class Summary(object):
         values are being displayed in grey. Thus in their format two additional {},
         are placed for color set and reset.
         """
+        separator, fix_csv_align = _prepare_fmt_sep()
         decimal_precision, time_precision = _prepare_fmt_precision()
-        fmt = " {{:>{}}}".format(db["task_info"]["pid"])
-        fmt += " {{:>{}}}".format(db["task_info"]["tid"])
-        fmt += " {{:>{}}}".format(db["task_info"]["comm"])
-        fmt += " {{:>{}}}".format(db["runtime_info"]["runs"])
-        fmt += " {{:>{}}}".format(db["runtime_info"]["acc"])
-        fmt += " {{:>{}}}".format(db["runtime_info"]["mean"])
-        fmt += " {{:>{}}}".format(db["runtime_info"]["median"])
-        fmt += " {{:>{}}}".format(db["runtime_info"]["min"] - decimal_precision)
-        fmt += " {{:>{}}}".format(db["runtime_info"]["max"] - decimal_precision)
-        fmt += " {{}}{{:>{}}}{{}}".format(db["runtime_info"]["max_at"] - time_precision)
+        fmt = "{{:>{}}}".format(db["task_info"]["pid"] * fix_csv_align)
+        fmt += "{}{{:>{}}}".format(separator, db["task_info"]["tid"] * fix_csv_align)
+        fmt += "{}{{:>{}}}".format(separator, db["task_info"]["comm"] * fix_csv_align)
+        fmt += "{}{{:>{}}}".format(separator, db["runtime_info"]["runs"] * fix_csv_align)
+        fmt += "{}{{:>{}}}".format(separator, db["runtime_info"]["acc"] * fix_csv_align)
+        fmt += "{}{{:>{}}}".format(separator, db["runtime_info"]["mean"] * fix_csv_align)
+        fmt += "{}{{:>{}}}".format(
+            separator, db["runtime_info"]["median"] * fix_csv_align
+        )
+        fmt += "{}{{:>{}}}".format(
+            separator, (db["runtime_info"]["min"] - decimal_precision) * fix_csv_align
+        )
+        fmt += "{}{{:>{}}}".format(
+            separator, (db["runtime_info"]["max"] - decimal_precision) * fix_csv_align
+        )
+        fmt += "{}{{}}{{:>{}}}{{}}".format(
+            separator, (db["runtime_info"]["max_at"] - time_precision) * fix_csv_align
+        )
 
         column_titles = ("PID", "TID", "Comm")
         column_titles += ("Runs", "Accumulated", "Mean", "Median", "Min", "Max")
-        column_titles += (_COLORS["grey"], "At", _COLORS["reset"])
+        column_titles += (_COLORS["grey"], "Max At", _COLORS["reset"])
 
         if args.summary_extended:
-            fmt += " {{:>{}}}".format(db["inter_times"]["out_in"] - decimal_precision)
-            fmt += " {{}}{{:>{}}}{{}}".format(
-                db["inter_times"]["inter_at"] - time_precision
+            fmt += "{}{{:>{}}}".format(
+                separator,
+                (db["inter_times"]["out_in"] - decimal_precision) * fix_csv_align
             )
-            fmt += " {{:>{}}}".format(db["inter_times"]["out_out"] - decimal_precision)
-            fmt += " {{:>{}}}".format(db["inter_times"]["in_in"] - decimal_precision)
-            fmt += " {{:>{}}}".format(db["inter_times"]["in_out"] - decimal_precision)
+            fmt += "{}{{}}{{:>{}}}{{}}".format(
+                separator,
+                (db["inter_times"]["inter_at"] - time_precision) * fix_csv_align
+            )
+            fmt += "{}{{:>{}}}".format(
+                separator,
+                (db["inter_times"]["out_out"] - decimal_precision) * fix_csv_align
+            )
+            fmt += "{}{{:>{}}}".format(
+                separator,
+                (db["inter_times"]["in_in"] - decimal_precision) * fix_csv_align
+            )
+            fmt += "{}{{:>{}}}".format(
+                separator,
+                (db["inter_times"]["in_out"] - decimal_precision) * fix_csv_align
+            )
 
             column_titles += ("Out-In", _COLORS["grey"], "Max At", _COLORS["reset"],
                         "Out-Out", "In-In", "In-Out")
-        print(fmt.format(*column_titles))
+
+        fd_sum.write(fmt.format(*column_titles) + "\n")
+
 
     def _task_stats(self):
         """calculates the stats of every task and constructs the printable summary"""
@@ -414,39 +449,53 @@ class Summary(object):
             self._calc_alignments_summary(align_helper)
 
     def _format_stats(self):
+        separator, fix_csv_align = _prepare_fmt_sep()
         decimal_precision, time_precision = _prepare_fmt_precision()
-        fmt = " {{:>{}d}}".format(db["task_info"]["pid"])
-        fmt += " {{:>{}d}}".format(db["task_info"]["tid"])
-        fmt += " {{:>{}}}".format(db["task_info"]["comm"])
-        fmt += " {{:>{}d}}".format(db["runtime_info"]["runs"])
-        fmt += " {{:>{}.{}f}}".format(db["runtime_info"]["acc"], time_precision)
-        fmt += " {{}}{{:>{}.{}f}}".format(db["runtime_info"]["mean"], time_precision)
-        fmt += " {{:>{}.{}f}}".format(db["runtime_info"]["median"], time_precision)
-        fmt += " {{:>{}.{}f}}".format(
-            db["runtime_info"]["min"] - decimal_precision, time_precision
-            )
-        fmt += " {{:>{}.{}f}}".format(
-            db["runtime_info"]["max"] - decimal_precision, time_precision
-            )
-        fmt += " {{}}{{:>{}.{}f}}{{}}{{}}".format(
-            db["runtime_info"]["max_at"] - time_precision, decimal_precision
+        len_pid = db["task_info"]["pid"] * fix_csv_align
+        len_tid = db["task_info"]["tid"] * fix_csv_align
+        len_comm = db["task_info"]["comm"] * fix_csv_align
+        len_runs = db["runtime_info"]["runs"] * fix_csv_align
+        len_acc = db["runtime_info"]["acc"] * fix_csv_align
+        len_mean = db["runtime_info"]["mean"] * fix_csv_align
+        len_median = db["runtime_info"]["median"] * fix_csv_align
+        len_min = (db["runtime_info"]["min"] - decimal_precision) * fix_csv_align
+        len_max = (db["runtime_info"]["max"] - decimal_precision) * fix_csv_align
+        len_max_at = (db["runtime_info"]["max_at"] - time_precision) * fix_csv_align
+        if args.summary_extended:
+            len_out_in = (
+                db["inter_times"]["out_in"] - decimal_precision
+            ) * fix_csv_align
+            len_inter_at = (
+                db["inter_times"]["inter_at"] - time_precision
+            ) * fix_csv_align
+            len_out_out = (
+                db["inter_times"]["out_out"] - decimal_precision
+            ) * fix_csv_align
+            len_in_in = (db["inter_times"]["in_in"] - decimal_precision) * fix_csv_align
+            len_in_out = (
+                db["inter_times"]["in_out"] - decimal_precision
+            ) * fix_csv_align
+
+        fmt = "{{:{}d}}".format(len_pid)
+        fmt += "{}{{:{}d}}".format(separator, len_tid)
+        fmt += "{}{{:>{}}}".format(separator, len_comm)
+        fmt += "{}{{:{}d}}".format(separator, len_runs)
+        fmt += "{}{{:{}.{}f}}".format(separator, len_acc, time_precision)
+        fmt += "{}{{}}{{:{}.{}f}}".format(separator, len_mean, time_precision)
+        fmt += "{}{{:{}.{}f}}".format(separator, len_median, time_precision)
+        fmt += "{}{{:{}.{}f}}".format(separator, len_min, time_precision)
+        fmt += "{}{{:{}.{}f}}".format(separator, len_max, time_precision)
+        fmt += "{}{{}}{{:{}.{}f}}{{}}{{}}".format(
+            separator, len_max_at, decimal_precision
         )
         if args.summary_extended:
-            fmt += " {{:>{}.{}f}}".format(
-                db["inter_times"]["out_in"] - decimal_precision, time_precision
+            fmt += "{}{{:{}.{}f}}".format(separator, len_out_in, time_precision)
+            fmt += "{}{{}}{{:{}.{}f}}{{}}".format(
+                separator, len_inter_at, decimal_precision
             )
-            fmt += " {{}}{{:>{}.{}f}}{{}}".format(
-                db["inter_times"]["inter_at"] - time_precision, decimal_precision
-            )
-            fmt += " {{:>{}.{}f}}".format(
-                db["inter_times"]["out_out"] - decimal_precision, time_precision
-            )
-            fmt += " {{:>{}.{}f}}".format(
-                db["inter_times"]["in_in"] - decimal_precision, time_precision
-            )
-            fmt += " {{:>{}.{}f}}".format(
-                db["inter_times"]["in_out"] - decimal_precision, time_precision
-            )
+            fmt += "{}{{:{}.{}f}}".format(separator, len_out_out, time_precision)
+            fmt += "{}{{:{}.{}f}}".format(separator, len_in_in, time_precision)
+            fmt += "{}{{:{}.{}f}}".format(separator, len_in_out, time_precision)
         return fmt
 
 
@@ -467,13 +516,15 @@ class Summary(object):
 
 
     def print(self):
-        print("\nSummary")
         self._task_stats()
-        self._print_header()
-        self._column_titles()
         fmt = self._format_stats()
+
+        if not args.csv_summary:
+            print("\nSummary")
+            self._print_header()
+        self._column_titles()
         for i in range(len(self._body)):
-            print(fmt.format(*tuple(self._body[i])))
+            fd_sum.write(fmt.format(*tuple(self._body[i])) + "\n")
 
 
 
@@ -531,37 +582,45 @@ def _filter_non_printable(unfiltered):
 
 
 def _fmt_header():
-    fmt = "{{:>{}}}".format(LEN_SWITCHED_IN)
-    fmt += " {{:>{}}}".format(LEN_SWITCHED_OUT)
-    fmt += " {{:>{}}}".format(LEN_CPU)
-    fmt += " {{:>{}}}".format(LEN_PID)
-    fmt += "  {{:>{}}}".format(LEN_TID)
-    fmt += "  {{:>{}}}".format(LEN_COMM)
-    fmt += " {{:>{}}}".format(LEN_RUNTIME)
-    fmt += " {{:>{}}}".format(LEN_OUT_IN)
+    separator, fix_csv_align = _prepare_fmt_sep()
+    fmt = "{{:>{}}}".format(LEN_SWITCHED_IN*fix_csv_align)
+    fmt += "{}{{:>{}}}".format(separator, LEN_SWITCHED_OUT*fix_csv_align)
+    fmt += "{}{{:>{}}}".format(separator, LEN_CPU*fix_csv_align)
+    fmt += "{}{{:>{}}}".format(separator, LEN_PID*fix_csv_align)
+    fmt += "{}{{:>{}}}".format(separator, LEN_TID*fix_csv_align)
+    fmt += "{}{{:>{}}}".format(separator, LEN_COMM*fix_csv_align)
+    fmt += "{}{{:>{}}}".format(separator, LEN_RUNTIME*fix_csv_align)
+    fmt += "{}{{:>{}}}".format(separator, LEN_OUT_IN*fix_csv_align)
     if args.extended_times:
-        fmt += " {{:>{}}}".format(LEN_OUT_OUT)
-        fmt += " {{:>{}}}".format(LEN_IN_IN)
-        fmt += " {{:>{}}}".format(LEN_IN_OUT)
+        fmt += "{}{{:>{}}}".format(separator, LEN_OUT_OUT*fix_csv_align)
+        fmt += "{}{{:>{}}}".format(separator, LEN_IN_IN*fix_csv_align)
+        fmt += "{}{{:>{}}}".format(separator, LEN_IN_OUT*fix_csv_align)
     return fmt
 
 
 def _fmt_body():
+    separator, fix_csv_align = _prepare_fmt_sep()
     decimal_precision, time_precision = _prepare_fmt_precision()
-    fmt = "{{}}{{:{}.{}f}}".format(LEN_SWITCHED_IN, decimal_precision)
-    fmt += " {{:{}.{}f}}".format(LEN_SWITCHED_OUT, decimal_precision)
-    fmt += " {{:{}d}}".format(LEN_CPU)
-    fmt += " {{:{}d}}".format(LEN_PID)
-    fmt += "  {{}}{{:{}d}}{{}}".format(LEN_TID)
-    fmt += "  {{}}{{:>{}}}".format(LEN_COMM)
-    fmt += " {{:{}.{}f}}".format(LEN_RUNTIME, time_precision)
+    fmt = "{{}}{{:{}.{}f}}".format(LEN_SWITCHED_IN*fix_csv_align, decimal_precision)
+    fmt += "{}{{:{}.{}f}}".format(
+        separator, LEN_SWITCHED_OUT*fix_csv_align, decimal_precision
+    )
+    fmt += "{}{{:{}d}}".format(separator, LEN_CPU*fix_csv_align)
+    fmt += "{}{{:{}d}}".format(separator, LEN_PID*fix_csv_align)
+    fmt += "{}{{}}{{:{}d}}{{}}".format(separator, LEN_TID*fix_csv_align)
+    fmt += "{}{{}}{{:>{}}}".format(separator, LEN_COMM*fix_csv_align)
+    fmt += "{}{{:{}.{}f}}".format(separator, LEN_RUNTIME*fix_csv_align, time_precision)
     if args.extended_times:
-        fmt += " {{:{}.{}f}}".format(LEN_OUT_IN, time_precision)
-        fmt += " {{:{}.{}f}}".format(LEN_OUT_OUT, time_precision)
-        fmt += " {{:{}.{}f}}".format(LEN_IN_IN, time_precision)
-        fmt += " {{:{}.{}f}}{{}}".format(LEN_IN_OUT, time_precision)
+        fmt += "{}{{:{}.{}f}}".format(separator, LEN_OUT_IN*fix_csv_align, time_precision)
+        fmt += "{}{{:{}.{}f}}".format(separator, LEN_OUT_OUT*fix_csv_align, time_precision)
+        fmt += "{}{{:{}.{}f}}".format(separator, LEN_IN_IN*fix_csv_align, time_precision)
+        fmt += "{}{{:{}.{}f}}{{}}".format(
+            separator, LEN_IN_OUT*fix_csv_align, time_precision
+        )
     else:
-        fmt += " {{:{}.{}f}}{{}}".format(LEN_OUT_IN, time_precision)
+        fmt += "{}{{:{}.{}f}}{{}}".format(
+            separator, LEN_OUT_IN*fix_csv_align, time_precision
+        )
     return fmt
 
 
@@ -571,7 +630,8 @@ def _print_header():
             "Time Out-In")
     if args.extended_times:
         header += ("Time Out-Out", "Time In-In", "Time In-Out")
-    print(fmt.format(*header))
+    fd_task.write(fmt.format(*header) + "\n")
+
 
 
 def _print_task_finish(task):
@@ -583,7 +643,6 @@ def _print_task_finish(task):
     in_in = -1
     in_out = -1
     fmt = _fmt_body()
-
     # depending on user provided highlight option we change the color
     # for particular tasks
     if str(task.tid) in args.highlight_tasks_map:
@@ -612,16 +671,22 @@ def _print_task_finish(task):
         out_out = timespan_gap_tid.out_out
         in_in = timespan_gap_tid.in_in
         in_out = timespan_gap_tid.in_out
-    if args.extended_times:
-        print(fmt.format(c_row_set, task.time_in(), task.time_out(), task.cpu, task.pid,
-                        c_tid_set, task.tid, c_tid_reset, c_row_set, task.comm,
-                        task.runtime(time_unit), out_in, out_out, in_in, in_out,
-                        c_row_reset))
-    else:
-        print(fmt.format(c_row_set, task.time_in(), task.time_out(), task.cpu, task.pid,
-                        c_tid_set, task.tid, c_tid_reset, c_row_set, task.comm,
-                        task.runtime(time_unit), out_in, c_row_reset))
 
+
+    if args.extended_times:
+        line_out = fmt.format(c_row_set, task.time_in(), task.time_out(), task.cpu,
+                        task.pid, c_tid_set, task.tid, c_tid_reset, c_row_set, task.comm,
+                        task.runtime(time_unit), out_in, out_out, in_in, in_out,
+                        c_row_reset) + "\n"
+    else:
+        line_out = fmt.format(c_row_set, task.time_in(), task.time_out(), task.cpu,
+                        task.pid, c_tid_set, task.tid, c_tid_reset, c_row_set, task.comm,
+                        task.runtime(time_unit), out_in, c_row_reset) + "\n"
+    try:
+        fd_task.write(line_out)
+    except(IOError):
+        # don't mangle the output if user SIGINT this script
+        sys.exit()
 
 def _record_cleanup(_list):
     """
@@ -733,10 +798,19 @@ def _argument_filter_sanity_check():
         )
     if args.time_limit and (args.summary or args.summary_only or args.summary_extended):
         sys.exit("Error: Cannot set time limit and print summary")
-
+    if args.csv_summary:
+        args.summary = True
+        if args.csv == args.csv_summary:
+            sys.exit("Error: Chosen files for csv and csv summary are the same")
+    if args.csv and (args.summary_extended or args.summary) and not args.csv_summary:
+        sys.exit("Error: No file chosen to write summary to. Choose with --csv-summary "
+        "<file>")
+    if args.csv and args.summary_only:
+        sys.exit("Error: --csv chosen and --summary-only. Standard task would not be"
+            "written to csv file.")
 
 def _argument_prepare_check():
-    global time_unit
+    global time_unit, fd_task, fd_sum
     if args.filter_tasks:
         args.filter_tasks = args.filter_tasks.split(",")
     if args.limit_to_tasks:
@@ -767,6 +841,21 @@ def _argument_prepare_check():
         time_unit = "ns"
     elif args.ms:
         time_unit = "ms"
+
+
+    fd_task = sys.stdout
+    if args.csv:
+        args.stdio_color = "never"
+        fd_task = open(args.csv, "w")
+        print("generating csv at",args.csv,)
+
+    fd_sum = sys.stdout
+    if args.csv_summary:
+        args.stdio_color = "never"
+        fd_sum = open(args.csv_summary, "w")
+        print("generating csv summary at",args.csv_summary)
+        if not args.csv:
+            args.summary_only = True
 
 
 def _is_within_timelimit(time):
@@ -801,10 +890,17 @@ def _prepare_fmt_precision():
     decimal_precision = 6
     time_precision = 3
     if args.ns:
-       decimal_precision = 9
-       time_precision = 0
+     decimal_precision = 9
+     time_precision = 0
     return decimal_precision, time_precision
 
+def _prepare_fmt_sep():
+    separator = " "
+    fix_csv_align = 1
+    if args.csv or args.csv_summary:
+        separator = ";"
+        fix_csv_align = 0
+    return separator, fix_csv_align
 
 def trace_unhandled(event_name, context, event_fields_dict, perf_sample_dict):
     pass
