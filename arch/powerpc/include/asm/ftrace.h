@@ -37,11 +37,31 @@ static __always_inline struct pt_regs *arch_ftrace_get_regs(struct ftrace_regs *
 	return fregs->regs.msr ? &fregs->regs : NULL;
 }
 
-static __always_inline void ftrace_instruction_pointer_set(struct ftrace_regs *fregs,
-							   unsigned long ip)
+static __always_inline void
+ftrace_regs_set_instruction_pointer(struct ftrace_regs *fregs,
+				    unsigned long ip)
 {
 	regs_set_return_ip(&fregs->regs, ip);
 }
+
+static __always_inline unsigned long
+ftrace_regs_get_instruction_pointer(struct ftrace_regs *fregs)
+{
+	return instruction_pointer(&fregs->regs);
+}
+
+#define ftrace_regs_get_argument(fregs, n) \
+	regs_get_kernel_argument(&(fregs)->regs, n)
+#define ftrace_regs_get_stack_pointer(fregs) \
+	kernel_stack_pointer(&(fregs)->regs)
+#define ftrace_regs_return_value(fregs) \
+	regs_return_value(&(fregs)->regs)
+#define ftrace_regs_set_return_value(fregs, ret) \
+	regs_set_return_value(&(fregs)->regs, ret)
+#define ftrace_override_function_with_return(fregs) \
+	override_function_with_return(&(fregs)->regs)
+#define ftrace_regs_query_register_offset(name) \
+	regs_query_register_offset(name)
 
 struct ftrace_ops;
 
