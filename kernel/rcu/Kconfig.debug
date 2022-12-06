@@ -82,7 +82,7 @@ config RCU_CPU_STALL_TIMEOUT
 config RCU_EXP_CPU_STALL_TIMEOUT
 	int "Expedited RCU CPU stall timeout in milliseconds"
 	depends on RCU_STALL_COMMON
-	range 0 21000
+	range 0 300000
 	default 0
 	help
 	  If a given expedited RCU grace period extends more than the

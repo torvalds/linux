@@ -39,7 +39,7 @@ int rcu_exp_jiffies_till_stall_check(void)
 	// CONFIG_RCU_EXP_CPU_STALL_TIMEOUT, so check the allowed range.
 	// The minimum clamped value is "2UL", because at least one full
 	// tick has to be guaranteed.
-	till_stall_check = clamp(msecs_to_jiffies(cpu_stall_timeout), 2UL, 21UL * HZ);
+	till_stall_check = clamp(msecs_to_jiffies(cpu_stall_timeout), 2UL, 300UL * HZ);
 
 	if (cpu_stall_timeout && jiffies_to_msecs(till_stall_check) != cpu_stall_timeout)
 		WRITE_ONCE(rcu_exp_cpu_stall_timeout, jiffies_to_msecs(till_stall_check));
