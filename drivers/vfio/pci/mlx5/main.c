@@ -294,10 +294,121 @@ static void mlx5vf_mark_err(struct mlx5_vf_migration_file *migf)
 	wake_up_interruptible(&migf->poll_wait);
 }
 
+static long mlx5vf_precopy_ioctl(struct file *filp, unsigned int cmd,
+				 unsigned long arg)
+{
+	struct mlx5_vf_migration_file *migf = filp->private_data;
+	struct mlx5vf_pci_core_device *mvdev = migf->mvdev;
+	struct mlx5_vhca_data_buffer *buf;
+	struct vfio_precopy_info info = {};
+	loff_t *pos = &filp->f_pos;
+	unsigned long minsz;
+	size_t inc_length = 0;
+	bool end_of_data;
+	int ret;
+
+	if (cmd != VFIO_MIG_GET_PRECOPY_INFO)
+		return -ENOTTY;
+
+	minsz = offsetofend(struct vfio_precopy_info, dirty_bytes);
+
+	if (copy_from_user(&info, (void __user *)arg, minsz))
+		return -EFAULT;
+
+	if (info.argsz < minsz)
+		return -EINVAL;
+
+	mutex_lock(&mvdev->state_mutex);
+	if (mvdev->mig_state != VFIO_DEVICE_STATE_PRE_COPY &&
+	    mvdev->mig_state != VFIO_DEVICE_STATE_PRE_COPY_P2P) {
+		ret = -EINVAL;
+		goto err_state_unlock;
+	}
+
+	/*
+	 * We can't issue a SAVE command when the device is suspended, so as
+	 * part of VFIO_DEVICE_STATE_PRE_COPY_P2P no reason to query for extra
+	 * bytes that can't be read.
+	 */
+	if (mvdev->mig_state == VFIO_DEVICE_STATE_PRE_COPY) {
+		/*
+		 * Once the query returns it's guaranteed that there is no
+		 * active SAVE command.
+		 * As so, the other code below is safe with the proper locks.
+		 */
+		ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &inc_length,
+							    MLX5VF_QUERY_INC);
+		if (ret)
+			goto err_state_unlock;
+	}
+
+	mutex_lock(&migf->lock);
+	if (migf->state == MLX5_MIGF_STATE_ERROR) {
+		ret = -ENODEV;
+		goto err_migf_unlock;
+	}
+
+	buf = mlx5vf_get_data_buff_from_pos(migf, *pos, &end_of_data);
+	if (buf) {
+		if (buf->start_pos == 0) {
+			info.initial_bytes = buf->header_image_size - *pos;
+		} else if (buf->start_pos ==
+				sizeof(struct mlx5_vf_migration_header)) {
+			/* First data buffer following the header */
+			info.initial_bytes = buf->start_pos +
+						buf->length - *pos;
+		} else {
+			info.dirty_bytes = buf->start_pos + buf->length - *pos;
+		}
+	} else {
+		if (!end_of_data) {
+			ret = -EINVAL;
+			goto err_migf_unlock;
+		}
+
+		info.dirty_bytes = inc_length;
+	}
+
+	if (!end_of_data || !inc_length) {
+		mutex_unlock(&migf->lock);
+		goto done;
+	}
+
+	mutex_unlock(&migf->lock);
+	/*
+	 * We finished transferring the current state and the device has a
+	 * dirty state, save a new state to be ready for.
+	 */
+	buf = mlx5vf_get_data_buffer(migf, inc_length, DMA_FROM_DEVICE);
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
+		mlx5vf_mark_err(migf);
+		goto err_state_unlock;
+	}
+
+	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf, buf, true, true);
+	if (ret) {
+		mlx5vf_mark_err(migf);
+		mlx5vf_put_data_buffer(buf);
+		goto err_state_unlock;
+	}
+
+done:
+	mlx5vf_state_mutex_unlock(mvdev);
+	return copy_to_user((void __user *)arg, &info, minsz);
+err_migf_unlock:
+	mutex_unlock(&migf->lock);
+err_state_unlock:
+	mlx5vf_state_mutex_unlock(mvdev);
+	return ret;
+}
+
 static const struct file_operations mlx5vf_save_fops = {
 	.owner = THIS_MODULE,
 	.read = mlx5vf_save_read,
 	.poll = mlx5vf_save_poll,
+	.unlocked_ioctl = mlx5vf_precopy_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.release = mlx5vf_release_file,
 	.llseek = no_llseek,
 };
