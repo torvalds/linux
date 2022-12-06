@@ -529,7 +529,9 @@ void gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 {
 	int log_write_allowed = test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 
-	gfs2_flush_delete_work(sdp);
+	if (!test_bit(SDF_DEACTIVATING, &sdp->sd_flags))
+		gfs2_flush_delete_work(sdp);
+
 	if (!log_write_allowed && current == sdp->sd_quotad_process)
 		fs_warn(sdp, "The quotad daemon is withdrawing.\n");
 	else if (sdp->sd_quotad_process)
@@ -629,8 +631,6 @@ restart:
 	gfs2_delete_debugfs_file(sdp);
 	/*  Unmount the locking protocol  */
 	gfs2_lm_unmount(sdp);
-
-	destroy_workqueue(sdp->sd_delete_wq);
 
 	/*  At this point, we're through participating in the lockspace  */
 	gfs2_sys_fs_del(sdp);

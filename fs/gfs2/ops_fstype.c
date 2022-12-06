@@ -1743,7 +1743,16 @@ static void gfs2_kill_sb(struct super_block *sb)
 	sdp->sd_root_dir = NULL;
 	sdp->sd_master_dir = NULL;
 	shrink_dcache_sb(sb);
+
+	/*
+	 * Flush and then drain the delete workqueue here (via
+	 * destroy_workqueue()) to ensure that any delete work that
+	 * may be running will also see the SDF_DEACTIVATING flag.
+	 */
 	set_bit(SDF_DEACTIVATING, &sdp->sd_flags);
+	gfs2_flush_delete_work(sdp);
+	destroy_workqueue(sdp->sd_delete_wq);
+
 	kill_block_super(sb);
 }
 
