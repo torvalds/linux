@@ -833,6 +833,34 @@ config QCOM_DEBUG_SYMBOL
 	  driver allows other modules to get symbol addresses by traversing
 	  kallsyms table for debug usage.
 
+config QCOM_VM_DMESG_DUMPER
+	tristate "Dump a VM's kmsg to a shared reserved memory upon panic"
+	depends on GH_RM_DRV
+	depends on QCOM_SECURE_BUFFER || ARCH_QTI_VM
+	help
+	  Upon encountering a kernel panic in a Virtual machine, enable the
+	  dumping the kmsg log buffer to a reserved memory section through the
+	  use of a Gunyah shared-memory doorbell object. This driver is to be
+	  enabled on both Primary VM and the other VM whose kmsg is desired.
+
+config QCOM_VM_ALIVE_LOG_DUMPER
+	bool "Dump a VM's alive kmsg to a shared reserved memory Support"
+	depends on QCOM_VM_DMESG_DUMPER
+	default y
+	help
+	  This enables to dump a VM's alive kmsg log buffer to the reserved
+	  memory section, triggered by Primary VM. This needs to be enabled on
+	  both Primary VM and the other VM whose kmsg is desired.
+
+config QCOM_VM_ALIVE_LOG_ENCRYPT
+	bool "Encrypt alive log Support"
+	depends on ARCH_QTI_VM && QCOM_VM_ALIVE_LOG_DUMPER && CRYPTO_GCM
+	default y
+	help
+	  This enables to encrypt alive log and use AES GCM mode for symmetric key
+	  wrapping. This needs to be enabled on both Primary VM and the other VM
+	  whose kmsg is desired.
+
 source "drivers/soc/qcom/mem_buf/Kconfig"
 source "drivers/soc/qcom/tmecom/Kconfig"
 
