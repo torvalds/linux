@@ -451,6 +451,11 @@ static bool reg_type_not_null(enum bpf_reg_type type)
 		type == PTR_TO_SOCK_COMMON;
 }
 
+static bool type_is_ptr_alloc_obj(u32 type)
+{
+	return base_type(type) == PTR_TO_BTF_ID && type_flag(type) & MEM_ALLOC;
+}
+
 static struct btf_record *reg_btf_record(const struct bpf_reg_state *reg)
 {
 	struct btf_record *rec = NULL;
@@ -458,7 +463,7 @@ static struct btf_record *reg_btf_record(const struct bpf_reg_state *reg)
 
 	if (reg->type == PTR_TO_MAP_VALUE) {
 		rec = reg->map_ptr->record;
-	} else if (reg->type == (PTR_TO_BTF_ID | MEM_ALLOC)) {
+	} else if (type_is_ptr_alloc_obj(reg->type)) {
 		meta = btf_find_struct_meta(reg->btf, reg->btf_id);
 		if (meta)
 			rec = meta->record;
