@@ -430,8 +430,8 @@ enum {
 	CXL_PMEM_SEC_PASS_USER,
 };
 
-int cxl_mbox_send_cmd(struct cxl_dev_state *cxlds, u16 opcode, void *in,
-		      size_t in_size, void *out, size_t out_size);
+int cxl_internal_send_cmd(struct cxl_dev_state *cxlds,
+			  struct cxl_mbox_cmd *cmd);
 int cxl_dev_state_identify(struct cxl_dev_state *cxlds);
 int cxl_await_media_ready(struct cxl_dev_state *cxlds);
 int cxl_enumerate_cmds(struct cxl_dev_state *cxlds);
