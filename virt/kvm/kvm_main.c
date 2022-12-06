@@ -3519,10 +3519,6 @@ void kvm_vcpu_halt(struct kvm_vcpu *vcpu)
 		ktime_t stop = ktime_add_ns(start, vcpu->halt_poll_ns);
 
 		do {
-			/*
-			 * This sets KVM_REQ_UNHALT if an interrupt
-			 * arrives.
-			 */
 			if (kvm_vcpu_check_block(vcpu) < 0)
 				goto out;
 			cpu_relax();

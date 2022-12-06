@@ -686,6 +686,7 @@ struct kvm_vcpu_xen {
 	struct gfn_to_pfn_cache vcpu_info_cache;
 	struct gfn_to_pfn_cache vcpu_time_info_cache;
 	struct gfn_to_pfn_cache runstate_cache;
+	struct gfn_to_pfn_cache runstate2_cache;
 	u64 last_steal;
 	u64 runstate_entry_time;
 	u64 runstate_times[4];
@@ -1112,6 +1113,7 @@ struct msr_bitmap_range {
 struct kvm_xen {
 	u32 xen_version;
 	bool long_mode;
+	bool runstate_update_flag;
 	u8 upcall_vector;
 	struct gfn_to_pfn_cache shinfo_cache;
 	struct idr evtchn_ports;

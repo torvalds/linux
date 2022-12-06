@@ -375,10 +375,6 @@ static void guest_svc_handler(struct ex_regs *regs)
 	svc_addr = regs->pc;
 }
 
-enum single_step_op {
-	SINGLE_STEP_ENABLE = 0,
-};
-
 static void guest_code_ss(int test_cnt)
 {
 	uint64_t i;
@@ -389,8 +385,16 @@ static void guest_code_ss(int test_cnt)
 		w_bvr = i << 2;
 		w_wvr = i << 2;
 
-		/* Enable Single Step execution */
-		GUEST_SYNC(SINGLE_STEP_ENABLE);
+		/*
+		 * Enable Single Step execution.  Note!  This _must_ be a bare
+		 * ucall as the ucall() path uses atomic operations to manage
+		 * the ucall structures, and the built-in "atomics" are usually
+		 * implemented via exclusive access instructions.  The exlusive
+		 * monitor is cleared on ERET, and so taking debug exceptions
+		 * during a LDREX=>STREX sequence will prevent forward progress
+		 * and hang the guest/test.
+		 */
+		GUEST_UCALL_NONE();
 
 		/*
 		 * The userspace will verify that the pc is as expected during
@@ -484,11 +488,8 @@ void test_single_step_from_userspace(int test_cnt)
 				break;
 			}
 
-			TEST_ASSERT(cmd == UCALL_SYNC,
+			TEST_ASSERT(cmd == UCALL_NONE,
 				    "Unexpected ucall cmd 0x%lx", cmd);
-
-			TEST_ASSERT(uc.args[1] == SINGLE_STEP_ENABLE,
-				    "Unexpected ucall action 0x%lx", uc.args[1]);
 
 			debug.control = KVM_GUESTDBG_ENABLE |
 					KVM_GUESTDBG_SINGLESTEP;

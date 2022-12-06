@@ -46,6 +46,7 @@
 #include "test_util.h"
 #include "memstress.h"
 #include "guest_modes.h"
+#include "processor.h"
 
 /* Global variable used to synchronize all of the vCPU threads. */
 static int iteration;
@@ -177,16 +178,21 @@ static void mark_vcpu_memory_idle(struct kvm_vm *vm,
 	 * access tracking but low enough as to not make the test too brittle
 	 * over time and across architectures.
 	 *
-	 * Note that when run in nested virtualization, this check will trigger
-	 * much more frequently because TLB size is unlimited and since no flush
-	 * happens, much more pages are cached there and guest won't see the
-	 * "idle" bit cleared.
+	 * When running the guest as a nested VM, "warn" instead of asserting
+	 * as the TLB size is effectively unlimited and the KVM doesn't
+	 * explicitly flush the TLB when aging SPTEs.  As a result, more pages
+	 * are cached and the guest won't see the "idle" bit cleared.
 	 */
-	if (still_idle < pages / 10)
-		printf("WARNING: vCPU%d: Too many pages still idle (%" PRIu64
-		       "out of %" PRIu64 "), this will affect performance results"
-		       ".\n",
+	if (still_idle >= pages / 10) {
+#ifdef __x86_64__
+		TEST_ASSERT(this_cpu_has(X86_FEATURE_HYPERVISOR),
+			    "vCPU%d: Too many pages still idle (%lu out of %lu)",
+			    vcpu_idx, still_idle, pages);
+#endif
+		printf("WARNING: vCPU%d: Too many pages still idle (%lu out of %lu), "
+		       "this will affect performance results.\n",
 		       vcpu_idx, still_idle, pages);
+	}
 
 	close(page_idle_fd);
 	close(pagemap_fd);

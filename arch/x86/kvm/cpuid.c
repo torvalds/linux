@@ -1233,8 +1233,12 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		 * Other defined bits are for MSRs that KVM does not expose:
 		 *   EAX      3      SPCL, SMM page configuration lock
 		 *   EAX      13     PCMSR, Prefetch control MSR
+		 *
+		 * KVM doesn't support SMM_CTL.
+		 *   EAX       9     SMM_CTL MSR is not supported
 		 */
 		entry->eax &= BIT(0) | BIT(2) | BIT(6);
+		entry->eax |= BIT(9);
 		if (static_cpu_has(X86_FEATURE_LFENCE_RDTSC))
 			entry->eax |= BIT(2);
 		if (!static_cpu_has_bug(X86_BUG_NULL_SEG))

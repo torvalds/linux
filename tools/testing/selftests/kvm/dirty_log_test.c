@@ -47,20 +47,20 @@
 # define BITOP_LE_SWIZZLE	((BITS_PER_LONG-1) & ~0x7)
 # define test_bit_le(nr, addr) \
 	test_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
-# define set_bit_le(nr, addr) \
-	set_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
-# define clear_bit_le(nr, addr) \
-	clear_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
-# define test_and_set_bit_le(nr, addr) \
-	test_and_set_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
-# define test_and_clear_bit_le(nr, addr) \
-	test_and_clear_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
+# define __set_bit_le(nr, addr) \
+	__set_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
+# define __clear_bit_le(nr, addr) \
+	__clear_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
+# define __test_and_set_bit_le(nr, addr) \
+	__test_and_set_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
+# define __test_and_clear_bit_le(nr, addr) \
+	__test_and_clear_bit((nr) ^ BITOP_LE_SWIZZLE, addr)
 #else
-# define test_bit_le		test_bit
-# define set_bit_le		set_bit
-# define clear_bit_le		clear_bit
-# define test_and_set_bit_le	test_and_set_bit
-# define test_and_clear_bit_le	test_and_clear_bit
+# define test_bit_le			test_bit
+# define __set_bit_le			__set_bit
+# define __clear_bit_le			__clear_bit
+# define __test_and_set_bit_le		__test_and_set_bit
+# define __test_and_clear_bit_le	__test_and_clear_bit
 #endif
 
 #define TEST_DIRTY_RING_COUNT		65536
@@ -328,7 +328,7 @@ static uint32_t dirty_ring_collect_one(struct kvm_dirty_gfn *dirty_gfns,
 		TEST_ASSERT(cur->offset < num_pages, "Offset overflow: "
 			    "0x%llx >= 0x%x", cur->offset, num_pages);
 		//pr_info("fetch 0x%x page %llu\n", *fetch_index, cur->offset);
-		set_bit_le(cur->offset, bitmap);
+		__set_bit_le(cur->offset, bitmap);
 		dirty_ring_last_page = cur->offset;
 		dirty_gfn_set_collected(cur);
 		(*fetch_index)++;
@@ -585,7 +585,7 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 		value_ptr = host_test_mem + page * host_page_size;
 
 		/* If this is a special page that we were tracking... */
-		if (test_and_clear_bit_le(page, host_bmap_track)) {
+		if (__test_and_clear_bit_le(page, host_bmap_track)) {
 			host_track_next_count++;
 			TEST_ASSERT(test_bit_le(page, bmap),
 				    "Page %"PRIu64" should have its dirty bit "
@@ -593,7 +593,7 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 				    page);
 		}
 
-		if (test_and_clear_bit_le(page, bmap)) {
+		if (__test_and_clear_bit_le(page, bmap)) {
 			bool matched;
 
 			host_dirty_count++;
@@ -686,7 +686,7 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 				 * should report its dirtyness in the
 				 * next run
 				 */
-				set_bit_le(page, host_bmap_track);
+				__set_bit_le(page, host_bmap_track);
 			}
 		}
 	}

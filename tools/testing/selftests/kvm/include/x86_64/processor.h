@@ -72,11 +72,11 @@ struct kvm_x86_cpu_feature {
 		.bit = __bit,							\
 	};									\
 										\
-	static_assert((fn & 0xc0000000) == 0 ||					\
-		      (fn & 0xc0000000) == 0x40000000 ||			\
-		      (fn & 0xc0000000) == 0x80000000 ||			\
-		      (fn & 0xc0000000) == 0xc0000000);				\
-	static_assert(idx < BIT(sizeof(feature.index) * BITS_PER_BYTE));	\
+	kvm_static_assert((fn & 0xc0000000) == 0 ||				\
+			  (fn & 0xc0000000) == 0x40000000 ||			\
+			  (fn & 0xc0000000) == 0x80000000 ||			\
+			  (fn & 0xc0000000) == 0xc0000000);			\
+	kvm_static_assert(idx < BIT(sizeof(feature.index) * BITS_PER_BYTE));	\
 	feature;								\
 })
 
@@ -94,6 +94,7 @@ struct kvm_x86_cpu_feature {
 #define	X86_FEATURE_XSAVE		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 26)
 #define	X86_FEATURE_OSXSAVE		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 27)
 #define	X86_FEATURE_RDRAND		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 30)
+#define	X86_FEATURE_HYPERVISOR		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 31)
 #define X86_FEATURE_PAE			KVM_X86_CPU_FEATURE(0x1, 0, EDX, 6)
 #define	X86_FEATURE_MCE			KVM_X86_CPU_FEATURE(0x1, 0, EDX, 7)
 #define	X86_FEATURE_APIC		KVM_X86_CPU_FEATURE(0x1, 0, EDX, 9)
@@ -102,6 +103,7 @@ struct kvm_x86_cpu_feature {
 #define	X86_FEATURE_XMM2		KVM_X86_CPU_FEATURE(0x1, 0, EDX, 26)
 #define	X86_FEATURE_FSGSBASE		KVM_X86_CPU_FEATURE(0x7, 0, EBX, 0)
 #define	X86_FEATURE_TSC_ADJUST		KVM_X86_CPU_FEATURE(0x7, 0, EBX, 1)
+#define	X86_FEATURE_SGX			KVM_X86_CPU_FEATURE(0x7, 0, EBX, 2)
 #define	X86_FEATURE_HLE			KVM_X86_CPU_FEATURE(0x7, 0, EBX, 4)
 #define	X86_FEATURE_SMEP	        KVM_X86_CPU_FEATURE(0x7, 0, EBX, 7)
 #define	X86_FEATURE_INVPCID		KVM_X86_CPU_FEATURE(0x7, 0, EBX, 10)
@@ -115,6 +117,7 @@ struct kvm_x86_cpu_feature {
 #define	X86_FEATURE_PKU			KVM_X86_CPU_FEATURE(0x7, 0, ECX, 3)
 #define	X86_FEATURE_LA57		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 16)
 #define	X86_FEATURE_RDPID		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 22)
+#define	X86_FEATURE_SGX_LC		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 30)
 #define	X86_FEATURE_SHSTK		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 7)
 #define	X86_FEATURE_IBT			KVM_X86_CPU_FEATURE(0x7, 0, EDX, 20)
 #define	X86_FEATURE_AMX_TILE		KVM_X86_CPU_FEATURE(0x7, 0, EDX, 24)
@@ -190,12 +193,12 @@ struct kvm_x86_cpu_property {
 		.hi_bit = high_bit,						\
 	};									\
 										\
-	static_assert(low_bit < high_bit);					\
-	static_assert((fn & 0xc0000000) == 0 ||					\
-		      (fn & 0xc0000000) == 0x40000000 ||			\
-		      (fn & 0xc0000000) == 0x80000000 ||			\
-		      (fn & 0xc0000000) == 0xc0000000);				\
-	static_assert(idx < BIT(sizeof(property.index) * BITS_PER_BYTE));	\
+	kvm_static_assert(low_bit < high_bit);					\
+	kvm_static_assert((fn & 0xc0000000) == 0 ||				\
+			  (fn & 0xc0000000) == 0x40000000 ||			\
+			  (fn & 0xc0000000) == 0x80000000 ||			\
+			  (fn & 0xc0000000) == 0xc0000000);			\
+	kvm_static_assert(idx < BIT(sizeof(property.index) * BITS_PER_BYTE));	\
 	property;								\
 })
 

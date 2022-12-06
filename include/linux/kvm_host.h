@@ -50,8 +50,8 @@
 #endif
 
 /*
- * The bit 16 ~ bit 31 of kvm_memory_region::flags are internally used
- * in kvm, other bits are visible for userspace which are defined in
+ * The bit 16 ~ bit 31 of kvm_userspace_memory_region::flags are internally
+ * used in kvm, other bits are visible for userspace which are defined in
  * include/linux/kvm_h.
  */
 #define KVM_MEMSLOT_INVALID	(1UL << 16)
@@ -1262,18 +1262,7 @@ void kvm_vcpu_mark_page_dirty(struct kvm_vcpu *vcpu, gfn_t gfn);
  * kvm_gpc_init - initialize gfn_to_pfn_cache.
  *
  * @gpc:	   struct gfn_to_pfn_cache object.
- *
- * This sets up a gfn_to_pfn_cache by initializing locks.  Note, the cache must
- * be zero-allocated (or zeroed by the caller before init).
- */
-void kvm_gpc_init(struct gfn_to_pfn_cache *gpc);
-
-/**
- * kvm_gpc_activate - prepare a cached kernel mapping and HPA for a given guest
- *                    physical address.
- *
  * @kvm:	   pointer to kvm instance.
- * @gpc:	   struct gfn_to_pfn_cache object.
  * @vcpu:	   vCPU to be used for marking pages dirty and to be woken on
  *		   invalidation.
  * @usage:	   indicates if the resulting host physical PFN is used while
@@ -1282,28 +1271,36 @@ void kvm_gpc_init(struct gfn_to_pfn_cache *gpc);
  *		   changes!---will also force @vcpu to exit the guest and
  *		   refresh the cache); and/or if the PFN used directly
  *		   by KVM (and thus needs a kernel virtual mapping).
+ *
+ * This sets up a gfn_to_pfn_cache by initializing locks and assigning the
+ * immutable attributes.  Note, the cache must be zero-allocated (or zeroed by
+ * the caller before init).
+ */
+void kvm_gpc_init(struct gfn_to_pfn_cache *gpc, struct kvm *kvm,
+		  struct kvm_vcpu *vcpu, enum pfn_cache_usage usage);
+
+/**
+ * kvm_gpc_activate - prepare a cached kernel mapping and HPA for a given guest
+ *                    physical address.
+ *
+ * @gpc:	   struct gfn_to_pfn_cache object.
  * @gpa:	   guest physical address to map.
  * @len:	   sanity check; the range being access must fit a single page.
  *
  * @return:	   0 for success.
  *		   -EINVAL for a mapping which would cross a page boundary.
- *                 -EFAULT for an untranslatable guest physical address.
+ *		   -EFAULT for an untranslatable guest physical address.
  *
- * This primes a gfn_to_pfn_cache and links it into the @kvm's list for
- * invalidations to be processed.  Callers are required to use
- * kvm_gfn_to_pfn_cache_check() to ensure that the cache is valid before
- * accessing the target page.
+ * This primes a gfn_to_pfn_cache and links it into the @gpc->kvm's list for
+ * invalidations to be processed.  Callers are required to use kvm_gpc_check()
+ * to ensure that the cache is valid before accessing the target page.
  */
-int kvm_gpc_activate(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
-		     struct kvm_vcpu *vcpu, enum pfn_cache_usage usage,
-		     gpa_t gpa, unsigned long len);
+int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len);
 
 /**
- * kvm_gfn_to_pfn_cache_check - check validity of a gfn_to_pfn_cache.
+ * kvm_gpc_check - check validity of a gfn_to_pfn_cache.
  *
- * @kvm:	   pointer to kvm instance.
  * @gpc:	   struct gfn_to_pfn_cache object.
- * @gpa:	   current guest physical address to map.
  * @len:	   sanity check; the range being access must fit a single page.
  *
  * @return:	   %true if the cache is still valid and the address matches.
@@ -1316,52 +1313,35 @@ int kvm_gpc_activate(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
  * Callers in IN_GUEST_MODE may do so without locking, although they should
  * still hold a read lock on kvm->scru for the memslot checks.
  */
-bool kvm_gfn_to_pfn_cache_check(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
-				gpa_t gpa, unsigned long len);
+bool kvm_gpc_check(struct gfn_to_pfn_cache *gpc, unsigned long len);
 
 /**
- * kvm_gfn_to_pfn_cache_refresh - update a previously initialized cache.
+ * kvm_gpc_refresh - update a previously initialized cache.
  *
- * @kvm:	   pointer to kvm instance.
  * @gpc:	   struct gfn_to_pfn_cache object.
- * @gpa:	   updated guest physical address to map.
  * @len:	   sanity check; the range being access must fit a single page.
  *
  * @return:	   0 for success.
  *		   -EINVAL for a mapping which would cross a page boundary.
- *                 -EFAULT for an untranslatable guest physical address.
+ *		   -EFAULT for an untranslatable guest physical address.
  *
  * This will attempt to refresh a gfn_to_pfn_cache. Note that a successful
- * returm from this function does not mean the page can be immediately
+ * return from this function does not mean the page can be immediately
  * accessed because it may have raced with an invalidation. Callers must
  * still lock and check the cache status, as this function does not return
  * with the lock still held to permit access.
  */
-int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
-				 gpa_t gpa, unsigned long len);
-
-/**
- * kvm_gfn_to_pfn_cache_unmap - temporarily unmap a gfn_to_pfn_cache.
- *
- * @kvm:	   pointer to kvm instance.
- * @gpc:	   struct gfn_to_pfn_cache object.
- *
- * This unmaps the referenced page. The cache is left in the invalid state
- * but at least the mapping from GPA to userspace HVA will remain cached
- * and can be reused on a subsequent refresh.
- */
-void kvm_gfn_to_pfn_cache_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc);
+int kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, unsigned long len);
 
 /**
  * kvm_gpc_deactivate - deactivate and unlink a gfn_to_pfn_cache.
  *
- * @kvm:	   pointer to kvm instance.
  * @gpc:	   struct gfn_to_pfn_cache object.
  *
- * This removes a cache from the @kvm's list to be processed on MMU notifier
+ * This removes a cache from the VM's list to be processed on MMU notifier
  * invocation.
  */
-void kvm_gpc_deactivate(struct kvm *kvm, struct gfn_to_pfn_cache *gpc);
+void kvm_gpc_deactivate(struct gfn_to_pfn_cache *gpc);
 
 void kvm_sigset_activate(struct kvm_vcpu *vcpu);
 void kvm_sigset_deactivate(struct kvm_vcpu *vcpu);

@@ -249,15 +249,20 @@ int main(int argc, char *argv[])
 	u32 amx_offset;
 	int stage, ret;
 
+	/*
+	 * Note, all off-by-default features must be enabled before anything
+	 * caches KVM_GET_SUPPORTED_CPUID, e.g. before using kvm_cpu_has().
+	 */
 	vm_xsave_require_permission(XSTATE_XTILE_DATA_BIT);
 
-	/* Create VM */
-	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
-
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_XFD));
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_XSAVE));
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_AMX_TILE));
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_XTILECFG));
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_XTILEDATA));
+
+	/* Create VM */
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
 	TEST_ASSERT(kvm_cpu_has_p(X86_PROPERTY_XSTATE_MAX_SIZE),
 		    "KVM should enumerate max XSAVE size when XSAVE is supported");

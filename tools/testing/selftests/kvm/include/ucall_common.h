@@ -35,6 +35,14 @@ void ucall(uint64_t cmd, int nargs, ...);
 uint64_t get_ucall(struct kvm_vcpu *vcpu, struct ucall *uc);
 void ucall_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa);
 
+/*
+ * Perform userspace call without any associated data.  This bare call avoids
+ * allocating a ucall struct, which can be useful if the atomic operations in
+ * the full ucall() are problematic and/or unwanted.  Note, this will come out
+ * as UCALL_NONE on the backend.
+ */
+#define GUEST_UCALL_NONE()	ucall_arch_do_ucall((vm_vaddr_t)NULL)
+
 #define GUEST_SYNC_ARGS(stage, arg1, arg2, arg3, arg4)	\
 				ucall(UCALL_SYNC, 6, "hello", stage, arg1, arg2, arg3, arg4)
 #define GUEST_SYNC(stage)	ucall(UCALL_SYNC, 2, "hello", stage)
