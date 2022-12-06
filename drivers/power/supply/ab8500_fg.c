@@ -2453,7 +2453,7 @@ struct ab8500_fg_sysfs_entry {
 
 static ssize_t charge_full_show(struct ab8500_fg *di, char *buf)
 {
-	return sprintf(buf, "%d\n", di->bat_cap.max_mah);
+	return sysfs_emit(buf, "%d\n", di->bat_cap.max_mah);
 }
 
 static ssize_t charge_full_store(struct ab8500_fg *di, const char *buf,
@@ -2472,7 +2472,7 @@ static ssize_t charge_full_store(struct ab8500_fg *di, const char *buf,
 
 static ssize_t charge_now_show(struct ab8500_fg *di, char *buf)
 {
-	return sprintf(buf, "%d\n", di->bat_cap.prev_mah);
+	return sysfs_emit(buf, "%d\n", di->bat_cap.prev_mah);
 }
 
 static ssize_t charge_now_store(struct ab8500_fg *di, const char *buf,

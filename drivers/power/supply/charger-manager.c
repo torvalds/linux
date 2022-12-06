@@ -1075,7 +1075,7 @@ static ssize_t charger_name_show(struct device *dev,
 	struct charger_regulator *charger
 		= container_of(attr, struct charger_regulator, attr_name);
 
-	return sprintf(buf, "%s\n", charger->regulator_name);
+	return sysfs_emit(buf, "%s\n", charger->regulator_name);
 }
 
 static ssize_t charger_state_show(struct device *dev,
@@ -1088,7 +1088,7 @@ static ssize_t charger_state_show(struct device *dev,
 	if (!charger->externally_control)
 		state = regulator_is_enabled(charger->consumer);
 
-	return sprintf(buf, "%s\n", state ? "enabled" : "disabled");
+	return sysfs_emit(buf, "%s\n", state ? "enabled" : "disabled");
 }
 
 static ssize_t charger_externally_control_show(struct device *dev,
@@ -1097,7 +1097,7 @@ static ssize_t charger_externally_control_show(struct device *dev,
 	struct charger_regulator *charger = container_of(attr,
 			struct charger_regulator, attr_externally_control);
 
-	return sprintf(buf, "%d\n", charger->externally_control);
+	return sysfs_emit(buf, "%d\n", charger->externally_control);
 }
 
 static ssize_t charger_externally_control_store(struct device *dev,
