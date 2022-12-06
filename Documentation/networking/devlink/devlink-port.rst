@@ -110,7 +110,7 @@ devlink ports for both the controllers.
 Function configuration
 ======================
 
-A user can configure the function attribute before enumerating the PCI
+Users can configure one or more function attributes before enumerating the PCI
 function. Usually it means, user should configure function attribute
 before a bus specific device for the function is created. However, when
 SRIOV is enabled, virtual function devices are created on the PCI bus.
@@ -121,6 +121,9 @@ configure port function attribute before activating the port function.
 A user may set the hardware address of the function using
 `devlink port function set hw_addr` command. For Ethernet port function
 this means a MAC address.
+
+Users may also set the RoCE capability of the function using
+`devlink port function set roce` command.
 
 Function attributes
 ===================
@@ -161,6 +164,35 @@ device created for the PCI VF/SF.
     pci/0000:06:00.0/32768: type eth netdev enp6s0pf0sf88 flavour pcisf pfnum 0 sfnum 88
       function:
         hw_addr 00:00:00:00:88:88
+
+RoCE capability setup
+---------------------
+Not all PCI VFs/SFs require RoCE capability.
+
+When RoCE capability is disabled, it saves system memory per PCI VF/SF.
+
+When user disables RoCE capability for a VF/SF, user application cannot send or
+receive any RoCE packets through this VF/SF and RoCE GID table for this PCI
+will be empty.
+
+When RoCE capability is disabled in the device using port function attribute,
+VF/SF driver cannot override it.
+
+- Get RoCE capability of the VF device::
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+        function:
+            hw_addr 00:00:00:00:00:00 roce enable
+
+- Set RoCE capability of the VF device::
+
+    $ devlink port function set pci/0000:06:00.0/2 roce disable
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+        function:
+            hw_addr 00:00:00:00:00:00 roce disable
 
 Subfunction
 ============

@@ -195,11 +195,16 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwmsg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwerr);
 EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_trap_report);
 
+#define DEVLINK_PORT_FN_CAPS_VALID_MASK \
+	(_BITUL(__DEVLINK_PORT_FN_ATTR_CAPS_MAX) - 1)
+
 static const struct nla_policy devlink_function_nl_policy[DEVLINK_PORT_FUNCTION_ATTR_MAX + 1] = {
 	[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR] = { .type = NLA_BINARY },
 	[DEVLINK_PORT_FN_ATTR_STATE] =
 		NLA_POLICY_RANGE(NLA_U8, DEVLINK_PORT_FN_STATE_INACTIVE,
 				 DEVLINK_PORT_FN_STATE_ACTIVE),
+	[DEVLINK_PORT_FN_ATTR_CAPS] =
+		NLA_POLICY_BITFIELD32(DEVLINK_PORT_FN_CAPS_VALID_MASK),
 };
 
 static const struct nla_policy devlink_selftest_nl_policy[DEVLINK_ATTR_SELFTEST_ID_MAX + 1] = {
@@ -677,6 +682,60 @@ devlink_sb_tc_index_get_from_attrs(struct devlink_sb *devlink_sb,
 	    val >= devlink_sb->egress_tc_count)
 		return -EINVAL;
 	*p_tc_index = val;
+	return 0;
+}
+
+static void devlink_port_fn_cap_fill(struct nla_bitfield32 *caps,
+				     u32 cap, bool is_enable)
+{
+	caps->selector |= cap;
+	if (is_enable)
+		caps->value |= cap;
+}
+
+static int devlink_port_fn_roce_fill(const struct devlink_ops *ops,
+				     struct devlink_port *devlink_port,
+				     struct nla_bitfield32 *caps,
+				     struct netlink_ext_ack *extack)
+{
+	bool is_enable;
+	int err;
+
+	if (!ops->port_fn_roce_get)
+		return 0;
+
+	err = ops->port_fn_roce_get(devlink_port, &is_enable, extack);
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			return 0;
+		return err;
+	}
+
+	devlink_port_fn_cap_fill(caps, DEVLINK_PORT_FN_CAP_ROCE, is_enable);
+	return 0;
+}
+
+static int devlink_port_fn_caps_fill(const struct devlink_ops *ops,
+				     struct devlink_port *devlink_port,
+				     struct sk_buff *msg,
+				     struct netlink_ext_ack *extack,
+				     bool *msg_updated)
+{
+	struct nla_bitfield32 caps = {};
+	int err;
+
+	err = devlink_port_fn_roce_fill(ops, devlink_port, &caps, extack);
+	if (err)
+		return err;
+
+	if (!caps.selector)
+		return 0;
+	err = nla_put_bitfield32(msg, DEVLINK_PORT_FN_ATTR_CAPS, caps.value,
+				 caps.selector);
+	if (err)
+		return err;
+
+	*msg_updated = true;
 	return 0;
 }
 
@@ -1264,6 +1323,35 @@ static int devlink_port_fn_state_fill(const struct devlink_ops *ops,
 }
 
 static int
+devlink_port_fn_roce_set(struct devlink_port *devlink_port, bool enable,
+			 struct netlink_ext_ack *extack)
+{
+	const struct devlink_ops *ops = devlink_port->devlink->ops;
+
+	return ops->port_fn_roce_set(devlink_port, enable, extack);
+}
+
+static int devlink_port_fn_caps_set(struct devlink_port *devlink_port,
+				    const struct nlattr *attr,
+				    struct netlink_ext_ack *extack)
+{
+	struct nla_bitfield32 caps;
+	u32 caps_value;
+	int err;
+
+	caps = nla_get_bitfield32(attr);
+	caps_value = caps.value & caps.selector;
+	if (caps.selector & DEVLINK_PORT_FN_CAP_ROCE) {
+		err = devlink_port_fn_roce_set(devlink_port,
+					       caps_value & DEVLINK_PORT_FN_CAP_ROCE,
+					       extack);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static int
 devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *port,
 				   struct netlink_ext_ack *extack)
 {
@@ -1279,6 +1367,10 @@ devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *por
 	ops = port->devlink->ops;
 	err = devlink_port_fn_hw_addr_fill(ops, port, msg, extack,
 					   &msg_updated);
+	if (err)
+		goto out;
+	err = devlink_port_fn_caps_fill(ops, port, msg, extack,
+					&msg_updated);
 	if (err)
 		goto out;
 	err = devlink_port_fn_state_fill(ops, port, msg, extack, &msg_updated);
@@ -1653,6 +1745,7 @@ static int devlink_port_function_validate(struct devlink_port *devlink_port,
 					  struct netlink_ext_ack *extack)
 {
 	const struct devlink_ops *ops = devlink_port->devlink->ops;
+	struct nlattr *attr;
 
 	if (tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR] &&
 	    !ops->port_function_hw_addr_set) {
@@ -1664,6 +1757,18 @@ static int devlink_port_function_validate(struct devlink_port *devlink_port,
 		NL_SET_ERR_MSG_ATTR(extack, tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR],
 				    "Function does not support state setting");
 		return -EOPNOTSUPP;
+	}
+	attr = tb[DEVLINK_PORT_FN_ATTR_CAPS];
+	if (attr) {
+		struct nla_bitfield32 caps;
+
+		caps = nla_get_bitfield32(attr);
+		if (caps.selector & DEVLINK_PORT_FN_CAP_ROCE &&
+		    !ops->port_fn_roce_set) {
+			NL_SET_ERR_MSG_ATTR(extack, attr,
+					    "Port doesn't support RoCE function attribute");
+			return -EOPNOTSUPP;
+		}
 	}
 	return 0;
 }
@@ -1692,6 +1797,14 @@ static int devlink_port_function_set(struct devlink_port *port,
 		if (err)
 			return err;
 	}
+
+	attr = tb[DEVLINK_PORT_FN_ATTR_CAPS];
+	if (attr) {
+		err = devlink_port_fn_caps_set(port, attr, extack);
+		if (err)
+			return err;
+	}
+
 	/* Keep this as the last function attribute set, so that when
 	 * multiple port function attributes are set along with state,
 	 * Those can be applied first before activating the state.
