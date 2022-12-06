@@ -548,15 +548,14 @@ static bool cxl_report_and_clear(struct cxl_dev_state *cxlds)
 		return false;
 
 	addr = cxlds->regs.ras + CXL_RAS_UNCORRECTABLE_STATUS_OFFSET;
-	status = le32_to_cpu((__force __le32)readl(addr));
+	status = readl(addr);
 	if (!(status & CXL_RAS_UNCORRECTABLE_STATUS_MASK))
 		return false;
 
 	/* If multiple errors, log header points to first error from ctrl reg */
 	if (hweight32(status) > 1) {
 		addr = cxlds->regs.ras + CXL_RAS_CAP_CONTROL_OFFSET;
-		fe = BIT(le32_to_cpu((__force __le32)readl(addr)) &
-				     CXL_RAS_CAP_CONTROL_FE_MASK);
+		fe = BIT(FIELD_GET(CXL_RAS_CAP_CONTROL_FE_MASK, readl(addr)));
 	} else {
 		fe = status;
 	}
@@ -641,7 +640,7 @@ static void cxl_cor_error_detected(struct pci_dev *pdev)
 		return;
 
 	addr = cxlds->regs.ras + CXL_RAS_CORRECTABLE_STATUS_OFFSET;
-	status = le32_to_cpu(readl(addr));
+	status = readl(addr);
 	if (status & CXL_RAS_CORRECTABLE_STATUS_MASK) {
 		writel(status & CXL_RAS_CORRECTABLE_STATUS_MASK, addr);
 		trace_cxl_aer_correctable_error(dev, status);
