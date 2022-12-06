@@ -1726,7 +1726,8 @@ unsigned int dml32_DSCDelayRequirement(bool DSCEnabled,
 		enum output_format_class  OutputFormat,
 		enum output_encoder_class Output,
 		double PixelClock,
-		double PixelClockBackEnd)
+		double PixelClockBackEnd,
+		double dsc_delay_factor_wa)
 {
 	unsigned int DSCDelayRequirement_val;
 
@@ -1746,7 +1747,7 @@ unsigned int dml32_DSCDelayRequirement(bool DSCEnabled,
 		}
 
 		DSCDelayRequirement_val = DSCDelayRequirement_val + (HTotal - HActive) *
-				dml_ceil(DSCDelayRequirement_val / HActive, 1);
+				dml_ceil((double)DSCDelayRequirement_val / HActive, 1);
 
 		DSCDelayRequirement_val = DSCDelayRequirement_val * PixelClock / PixelClockBackEnd;
 
@@ -1764,7 +1765,7 @@ unsigned int dml32_DSCDelayRequirement(bool DSCEnabled,
 	dml_print("DML::%s: DSCDelayRequirement_val = %d\n", __func__, DSCDelayRequirement_val);
 #endif
 
-	return DSCDelayRequirement_val;
+	return dml_ceil(DSCDelayRequirement_val * dsc_delay_factor_wa, 1);
 }
 
 void dml32_CalculateSurfaceSizeInMall(
@@ -3416,6 +3417,7 @@ bool dml32_CalculatePrefetchSchedule(
 		unsigned int SwathHeightY,
 		unsigned int SwathHeightC,
 		double TWait,
+		double TPreReq,
 		/* Output */
 		double   *DSTXAfterScaler,
 		double   *DSTYAfterScaler,
@@ -3666,6 +3668,7 @@ bool dml32_CalculatePrefetchSchedule(
 	dst_y_prefetch_equ = VStartup - (*TSetup + dml_max(TWait + TCalc, *Tdmdl)) / LineTime -
 			(*DSTYAfterScaler + (double) *DSTXAfterScaler / (double) myPipe->HTotal);
 
+	dst_y_prefetch_equ = dml_min(dst_y_prefetch_equ, __DML_VBA_MAX_DST_Y_PRE__);
 #ifdef __DML_VBA_DEBUG__
 	dml_print("DML::%s: HTotal = %d\n", __func__, myPipe->HTotal);
 	dml_print("DML::%s: min_Lsw = %f\n", __func__, min_Lsw);
@@ -3725,7 +3728,8 @@ bool dml32_CalculatePrefetchSchedule(
 	*VRatioPrefetchY = 0;
 	*VRatioPrefetchC = 0;
 	*RequiredPrefetchPixDataBWLuma = 0;
-	if (dst_y_prefetch_equ > 1) {
+	if (dst_y_prefetch_equ > 1 &&
+			(Tpre_rounded >= TPreReq || dst_y_prefetch_equ == __DML_VBA_MAX_DST_Y_PRE__)) {
 		double PrefetchBandwidth1;
 		double PrefetchBandwidth2;
 		double PrefetchBandwidth3;
@@ -3871,7 +3875,11 @@ bool dml32_CalculatePrefetchSchedule(
 		}
 
 		if (dst_y_prefetch_oto < dst_y_prefetch_equ) {
-			*DestinationLinesForPrefetch = dst_y_prefetch_oto;
+			if (dst_y_prefetch_oto * LineTime < TPreReq) {
+				*DestinationLinesForPrefetch = dst_y_prefetch_equ;
+			} else {
+				*DestinationLinesForPrefetch = dst_y_prefetch_oto;
+			}
 			TimeForFetchingMetaPTE = Tvm_oto;
 			TimeForFetchingRowInVBlank = Tr0_oto;
 			*PrefetchBandwidth = prefetch_bw_oto;
@@ -4396,7 +4404,7 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 
 		if (v->NumberOfActiveSurfaces > 1) {
 			ActiveClockChangeLatencyHidingY = ActiveClockChangeLatencyHidingY
-					- (1 - 1 / v->NumberOfActiveSurfaces) * SwathHeightY[k] * v->HTotal[k]
+					- (1.0 - 1.0 / v->NumberOfActiveSurfaces) * SwathHeightY[k] * v->HTotal[k]
 							/ v->PixelClock[k] / v->VRatio[k];
 		}
 

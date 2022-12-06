@@ -150,6 +150,8 @@ union avs_module_msg {
 	};
 } __packed;
 
+#define AVS_IPC_NOT_SUPPORTED 15
+
 union avs_reply_msg {
 	u64 val;
 	struct {

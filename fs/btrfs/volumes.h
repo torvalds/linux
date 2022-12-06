@@ -395,6 +395,7 @@ typedef void (*btrfs_bio_end_io_t)(struct btrfs_bio *bbio);
  */
 struct btrfs_bio {
 	unsigned int mirror_num;
+	struct bvec_iter iter;
 
 	/* for direct I/O */
 	u64 file_offset;
@@ -403,7 +404,6 @@ struct btrfs_bio {
 	struct btrfs_device *device;
 	u8 *csum;
 	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
-	struct bvec_iter iter;
 
 	/* End I/O information supplied to btrfs_bio_alloc */
 	btrfs_bio_end_io_t end_io;
@@ -671,7 +671,7 @@ int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
 void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index);
 int btrfs_get_dev_stats(struct btrfs_fs_info *fs_info,
 			struct btrfs_ioctl_get_dev_stats *stats);
-void btrfs_init_devices_late(struct btrfs_fs_info *fs_info);
+int btrfs_init_devices_late(struct btrfs_fs_info *fs_info);
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
 int btrfs_run_dev_stats(struct btrfs_trans_handle *trans);
 void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_device *srcdev);

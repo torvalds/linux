@@ -1371,6 +1371,7 @@ static const struct mtk_eint_hw mt8192_eint_hw = {
 	.ports     = 7,
 	.ap_num    = 224,
 	.db_cnt    = 32,
+	.db_time   = debounce_time_mt6765,
 };
 
 static const struct mtk_pin_reg_calc mt8192_reg_cals[PINCTRL_PIN_REG_MAX] = {

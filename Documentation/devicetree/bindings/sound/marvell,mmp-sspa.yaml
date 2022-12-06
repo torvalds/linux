@@ -9,6 +9,9 @@ title: Marvel SSPA Digital Audio Interface Bindings
 maintainers:
   - Lubomir Rintel <lkundrak@v3.sk>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   $nodename:
     pattern: "^audio-controller(@.*)?$"
@@ -73,7 +76,7 @@ required:
   - dma-names
   - port
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -130,10 +130,8 @@ static void hda_codec_unregister_dais(struct hda_codec *codec,
 			if (strcmp(dai->driver->name, pcm->name))
 				continue;
 
-			if (dai->playback_widget)
-				snd_soc_dapm_free_widget(dai->playback_widget);
-			if (dai->capture_widget)
-				snd_soc_dapm_free_widget(dai->capture_widget);
+			snd_soc_dapm_free_widget(dai->playback_widget);
+			snd_soc_dapm_free_widget(dai->capture_widget);
 			snd_soc_unregister_dai(dai);
 			break;
 		}
@@ -213,7 +211,7 @@ static int hda_codec_probe(struct snd_soc_component *component)
 
 	patch = (hda_codec_patch_t)codec->preset->driver_data;
 	if (!patch) {
-		dev_err(&hdev->dev, "no patch specified?\n");
+		dev_err(&hdev->dev, "no patch specified\n");
 		ret = -EINVAL;
 		goto err;
 	}

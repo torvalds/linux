@@ -3663,8 +3663,9 @@ static inline bool netif_attr_test_online(unsigned long j,
 static inline unsigned int netif_attrmask_next(int n, const unsigned long *srcp,
 					       unsigned int nr_bits)
 {
-	/* n is a prior cpu */
-	cpu_max_bits_warn(n + 1, nr_bits);
+	/* -1 is a legal arg here. */
+	if (n != -1)
+		cpu_max_bits_warn(n, nr_bits);
 
 	if (srcp)
 		return find_next_bit(srcp, nr_bits, n + 1);
@@ -3685,8 +3686,9 @@ static inline int netif_attrmask_next_and(int n, const unsigned long *src1p,
 					  const unsigned long *src2p,
 					  unsigned int nr_bits)
 {
-	/* n is a prior cpu */
-	cpu_max_bits_warn(n + 1, nr_bits);
+	/* -1 is a legal arg here. */
+	if (n != -1)
+		cpu_max_bits_warn(n, nr_bits);
 
 	if (src1p && src2p)
 		return find_next_and_bit(src1p, src2p, nr_bits, n + 1);

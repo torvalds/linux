@@ -9,6 +9,9 @@ title: Ingenic JZ47xx internal codec DT bindings
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   $nodename:
     pattern: '^audio-codec@.*'
@@ -37,7 +40,7 @@ properties:
   '#sound-dai-cells':
     const: 0
 
-additionalProperties: false
+unevaluatedProperties: false
 
 required:
   - compatible

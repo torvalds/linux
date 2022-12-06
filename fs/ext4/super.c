@@ -1741,10 +1741,6 @@ static const struct fs_parameter_spec ext4_param_specs[] = {
 
 #define DEFAULT_JOURNAL_IOPRIO (IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 3))
 
-static const char deprecated_msg[] =
-	"Mount option \"%s\" will be removed by %s\n"
-	"Contact linux-ext4@vger.kernel.org if you think we should keep it.\n";
-
 #define MOPT_SET	0x0001
 #define MOPT_CLEAR	0x0002
 #define MOPT_NOSUPPORT	0x0004
@@ -4885,7 +4881,7 @@ out:
 	flush_work(&sbi->s_error_work);
 	jbd2_journal_destroy(sbi->s_journal);
 	sbi->s_journal = NULL;
-	return err;
+	return -EINVAL;
 }
 
 static int ext4_journal_data_mode_check(struct super_block *sb)

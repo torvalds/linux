@@ -51,6 +51,11 @@ struct hdac_ext_stream {
 	void __iomem *pphc_addr;
 	void __iomem *pplc_addr;
 
+	u32 pphcllpl;
+	u32 pphcllpu;
+	u32 pphcldpl;
+	u32 pphcldpu;
+
 	bool decoupled:1;
 	bool link_locked:1;
 	bool link_prepared;

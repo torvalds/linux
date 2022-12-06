@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * AMD ACP 6.2 Register Documentation
+ * AMD ACP 6.3 Register Documentation
  *
  * Copyright 2022 Advanced Micro Devices, Inc.
  */
@@ -131,6 +131,23 @@
 #define ACP_I2S_WAKE_EN                               0x000145C
 #define ACP_SW1_WAKE_EN                               0x0001460
 
+#define ACP_SW_I2S_ERROR_REASON                       0x00018B4
+#define ACP_SW_POS_TRACK_I2S_TX_CTRL                  0x00018B8
+#define ACP_SW_I2S_TX_DMA_POS                         0x00018BC
+#define ACP_SW_POS_TRACK_BT_TX_CTRL                   0x00018C0
+#define ACP_SW_BT_TX_DMA_POS                          0x00018C4
+#define ACP_SW_POS_TRACK_HS_TX_CTRL                   0x00018C8
+#define ACP_SW_HS_TX_DMA_POS                          0x00018CC
+#define ACP_SW_POS_TRACK_I2S_RX_CTRL                  0x00018D0
+#define ACP_SW_I2S_RX_DMA_POS                         0x00018D4
+#define ACP_SW_POS_TRACK_BT_RX_CTRL                   0x00018D8
+#define ACP_SW_BT_RX_DMA_POS                          0x00018DC
+#define ACP_SW_POS_TRACK_HS_RX_CTRL                   0x00018E0
+#define ACP_SW_HS_RX_DMA_POS                          0x00018E4
+#define ACP_ERROR_INTR_MASK1                          0X0001974
+#define ACP_ERROR_INTR_MASK2                          0X0001978
+#define ACP_ERROR_INTR_MASK3                          0X000197C
+
 /* Registers from ACP_P1_MISC block */
 #define ACP_EXTERNAL_INTR_ENB                         0x0001A00
 #define ACP_EXTERNAL_INTR_CNTL                        0x0001A04
@@ -154,6 +171,8 @@
 #define ACP_P1_SW_BT_RX_DMA_POS                       0x0001A9C
 #define ACP_P1_SW_POS_TRACK_HS_RX_CTRL                0x0001AA0
 #define ACP_P1_SW_HS_RX_DMA_POS                       0x0001AA4
+#define ACP_ERROR_INTR_MASK4                          0X0001AEC
+#define ACP_ERROR_INTR_MASK5                          0X0001AF0
 
 /* Registers from ACP_AUDIO_BUFFERS block */
 #define ACP_I2S_RX_RINGBUFADDR                        0x0002000
@@ -210,6 +229,24 @@
 #define ACP_HS_TX_LINEARPOSITIONCNTR_HIGH             0x00020CC
 #define ACP_HS_TX_LINEARPOSITIONCNTR_LOW              0x00020D0
 #define ACP_HS_TX_INTR_WATERMARK_SIZE                 0x00020D4
+#define ACP_AUDIO_RX_RINGBUFADDR                   ACP_I2S_RX_RINGBUFADDR
+#define ACP_AUDIO_RX_RINGBUFSIZE                   ACP_I2S_RX_RINGBUFSIZE
+#define ACP_AUDIO_RX_LINKPOSITIONCNTR              ACP_I2S_RX_LINKPOSITIONCNTR
+#define ACP_AUDIO_RX_FIFOADDR                      ACP_I2S_RX_FIFOADDR
+#define ACP_AUDIO_RX_FIFOSIZE                      ACP_I2S_RX_FIFOSIZE
+#define ACP_AUDIO_RX_DMA_SIZE                      ACP_I2S_RX_DMA_SIZE
+#define ACP_AUDIO_RX_LINEARPOSITIONCNTR_HIGH       ACP_I2S_RX_LINEARPOSITIONCNTR_HIGH
+#define ACP_AUDIO_RX_LINEARPOSITIONCNTR_LOW        ACP_I2S_RX_LINEARPOSITIONCNTR_LOW
+#define ACP_AUDIO_RX_INTR_WATERMARK_SIZE           ACP_I2S_RX_INTR_WATERMARK_SIZE
+#define ACP_AUDIO_TX_RINGBUFADDR                   ACP_I2S_TX_RINGBUFADDR
+#define ACP_AUDIO_TX_RINGBUFSIZE                   ACP_I2S_TX_RINGBUFSIZE
+#define ACP_AUDIO_TX_LINKPOSITIONCNTR              ACP_I2S_TX_LINKPOSITIONCNTR
+#define ACP_AUDIO_TX_FIFOADDR                      ACP_I2S_TX_FIFOADDR
+#define ACP_AUDIO_TX_FIFOSIZE                      ACP_I2S_TX_FIFOSIZE
+#define ACP_AUDIO_TX_DMA_SIZE                      ACP_I2S_TX_DMA_SIZE
+#define ACP_AUDIO_TX_LINEARPOSITIONCNTR_HIGH       ACP_I2S_TX_LINEARPOSITIONCNTR_HIGH
+#define ACP_AUDIO_TX_LINEARPOSITIONCNTR_LOW        ACP_I2S_TX_LINEARPOSITIONCNTR_LOW
+#define ACP_AUDIO_TX_INTR_WATERMARK_SIZE           ACP_I2S_TX_INTR_WATERMARK_SIZE
 
 /* Registers from ACP_I2S_TDM block */
 #define ACP_I2STDM_IER                                0x0002400
@@ -254,6 +291,102 @@
 #define ACP_PDM_VAD_DYNAMIC_CLK_GATING_EN             0x0002C64
 #define ACP_WOV_ERROR_STATUS_REGISTER                 0x0002C68
 #define ACP_PDM_CLKDIV                                0x0002C6C
+
+/* Registers from ACP_SW_SWCLK block */
+#define ACP_SW_EN                                     0x0003000
+#define ACP_SW_EN_STATUS                              0x0003004
+#define ACP_SW_FRAMESIZE                              0x0003008
+#define ACP_SW_SSP_COUNTER                            0x000300C
+#define ACP_SW_AUDIO_TX_EN                            0x0003010
+#define ACP_SW_AUDIO_TX_EN_STATUS                     0x0003014
+#define ACP_SW_AUDIO_TX_FRAME_FORMAT                  0x0003018
+#define ACP_SW_AUDIO_TX_SAMPLEINTERVAL                0x000301C
+#define ACP_SW_AUDIO_TX_HCTRL_DP0                     0x0003020
+#define ACP_SW_AUDIO_TX_HCTRL_DP1                     0x0003024
+#define ACP_SW_AUDIO_TX_HCTRL_DP2                     0x0003028
+#define ACP_SW_AUDIO_TX_HCTRL_DP3                     0x000302C
+#define ACP_SW_AUDIO_TX_OFFSET_DP0                    0x0003030
+#define ACP_SW_AUDIO_TX_OFFSET_DP1                    0x0003034
+#define ACP_SW_AUDIO_TX_OFFSET_DP2                    0x0003038
+#define ACP_SW_AUDIO_TX_OFFSET_DP3                    0x000303C
+#define ACP_SW_AUDIO_TX_CHANNEL_ENABLE_DP0            0x0003040
+#define ACP_SW_AUDIO_TX_CHANNEL_ENABLE_DP1            0x0003044
+#define ACP_SW_AUDIO_TX_CHANNEL_ENABLE_DP2            0x0003048
+#define ACP_SW_AUDIO_TX_CHANNEL_ENABLE_DP3            0x000304C
+#define ACP_SW_BT_TX_EN                               0x0003050
+#define ACP_SW_BT_TX_EN_STATUS                        0x0003054
+#define ACP_SW_BT_TX_FRAME_FORMAT                     0x0003058
+#define ACP_SW_BT_TX_SAMPLEINTERVAL                   0x000305C
+#define ACP_SW_BT_TX_HCTRL                            0x0003060
+#define ACP_SW_BT_TX_OFFSET                           0x0003064
+#define ACP_SW_BT_TX_CHANNEL_ENABLE_DP0               0x0003068
+#define ACP_SW_HEADSET_TX_EN                          0x000306C
+#define ACP_SW_HEADSET_TX_EN_STATUS                   0x0003070
+#define ACP_SW_HEADSET_TX_FRAME_FORMAT                0x0003074
+#define ACP_SW_HEADSET_TX_SAMPLEINTERVAL              0x0003078
+#define ACP_SW_HEADSET_TX_HCTRL                       0x000307C
+#define ACP_SW_HEADSET_TX_OFFSET                      0x0003080
+#define ACP_SW_HEADSET_TX_CHANNEL_ENABLE_DP0          0x0003084
+#define ACP_SW_AUDIO_RX_EN                            0x0003088
+#define ACP_SW_AUDIO_RX_EN_STATUS                     0x000308C
+#define ACP_SW_AUDIO_RX_FRAME_FORMAT                  0x0003090
+#define ACP_SW_AUDIO_RX_SAMPLEINTERVAL                0x0003094
+#define ACP_SW_AUDIO_RX_HCTRL_DP0                     0x0003098
+#define ACP_SW_AUDIO_RX_HCTRL_DP1                     0x000309C
+#define ACP_SW_AUDIO_RX_HCTRL_DP2                     0x0003100
+#define ACP_SW_AUDIO_RX_HCTRL_DP3                     0x0003104
+#define ACP_SW_AUDIO_RX_OFFSET_DP0                    0x0003108
+#define ACP_SW_AUDIO_RX_OFFSET_DP1                    0x000310C
+#define ACP_SW_AUDIO_RX_OFFSET_DP2                    0x0003110
+#define ACP_SW_AUDIO_RX_OFFSET_DP3                    0x0003114
+#define ACP_SW_AUDIO_RX_CHANNEL_ENABLE_DP0            0x0003118
+#define ACP_SW_AUDIO_RX_CHANNEL_ENABLE_DP1            0x000311C
+#define ACP_SW_AUDIO_RX_CHANNEL_ENABLE_DP2            0x0003120
+#define ACP_SW_AUDIO_RX_CHANNEL_ENABLE_DP3            0x0003124
+#define ACP_SW_BT_RX_EN                               0x0003128
+#define ACP_SW_BT_RX_EN_STATUS                        0x000312C
+#define ACP_SW_BT_RX_FRAME_FORMAT                     0x0003130
+#define ACP_SW_BT_RX_SAMPLEINTERVAL                   0x0003134
+#define ACP_SW_BT_RX_HCTRL                            0x0003138
+#define ACP_SW_BT_RX_OFFSET                           0x000313C
+#define ACP_SW_BT_RX_CHANNEL_ENABLE_DP0               0x0003140
+#define ACP_SW_HEADSET_RX_EN                          0x0003144
+#define ACP_SW_HEADSET_RX_EN_STATUS                   0x0003148
+#define ACP_SW_HEADSET_RX_FRAME_FORMAT                0x000314C
+#define ACP_SW_HEADSET_RX_SAMPLEINTERVAL              0x0003150
+#define ACP_SW_HEADSET_RX_HCTRL                       0x0003154
+#define ACP_SW_HEADSET_RX_OFFSET                      0x0003158
+#define ACP_SW_HEADSET_RX_CHANNEL_ENABLE_DP0          0x000315C
+#define ACP_SW_BPT_PORT_EN                            0x0003160
+#define ACP_SW_BPT_PORT_EN_STATUS                     0x0003164
+#define ACP_SW_BPT_PORT_FRAME_FORMAT                  0x0003168
+#define ACP_SW_BPT_PORT_SAMPLEINTERVAL                0x000316C
+#define ACP_SW_BPT_PORT_HCTRL                         0x0003170
+#define ACP_SW_BPT_PORT_OFFSET                        0x0003174
+#define ACP_SW_BPT_PORT_CHANNEL_ENABLE                0x0003178
+#define ACP_SW_BPT_PORT_FIRST_BYTE_ADDR               0x000317C
+#define ACP_SW_CLK_RESUME_CTRL                        0x0003180
+#define ACP_SW_CLK_RESUME_DELAY_CNTR                  0x0003184
+#define ACP_SW_BUS_RESET_CTRL                         0x0003188
+#define ACP_SW_PRBS_ERR_STATUS                        0x000318C
+#define SW_IMM_CMD_UPPER_WORD                         0x0003230
+#define SW_IMM_CMD_LOWER_QWORD                        0x0003234
+#define SW_IMM_RESP_UPPER_WORD                        0x0003238
+#define SW_IMM_RESP_LOWER_QWORD                       0x000323C
+#define SW_IMM_CMD_STS                                0x0003240
+#define SW_BRA_BASE_ADDRESS                           0x0003244
+#define SW_BRA_TRANSFER_SIZE                          0x0003248
+#define SW_BRA_DMA_BUSY                               0x000324C
+#define SW_BRA_RESP                                   0x0003250
+#define SW_BRA_RESP_FRAME_ADDR                        0x0003254
+#define SW_BRA_CURRENT_TRANSFER_SIZE                  0x0003258
+#define SW_STATE_CHANGE_STATUS_0TO7                   0x000325C
+#define SW_STATE_CHANGE_STATUS_8TO11                  0x0003260
+#define SW_STATE_CHANGE_STATUS_MASK_0TO7              0x0003264
+#define SW_STATE_CHANGE_STATUS_MASK_8TO11             0x0003268
+#define SW_CLK_FREQUENCY_CTRL                         0x000326C
+#define SW_ERROR_INTR_MASK                            0x0003270
+#define SW_PHY_TEST_MODE_DATA_OFF                     0x0003274
 
 /* Registers from ACP_P1_AUDIO_BUFFERS block */
 #define ACP_P1_I2S_RX_RINGBUFADDR                     0x0003A00
@@ -310,6 +443,87 @@
 #define ACP_P1_HS_TX_LINEARPOSITIONCNTR_HIGH          0x0003ACC
 #define ACP_P1_HS_TX_LINEARPOSITIONCNTR_LOW           0x0003AD0
 #define ACP_P1_HS_TX_INTR_WATERMARK_SIZE              0x0003AD4
+#define ACP_P1_AUDIO_RX_RINGBUFADDR                   ACP_P1_I2S_RX_RINGBUFADDR
+#define ACP_P1_AUDIO_RX_RINGBUFSIZE                   ACP_P1_I2S_RX_RINGBUFSIZE
+#define ACP_P1_AUDIO_RX_LINKPOSITIONCNTR              ACP_P1_I2S_RX_LINKPOSITIONCNTR
+#define ACP_P1_AUDIO_RX_FIFOADDR                      ACP_P1_I2S_RX_FIFOADDR
+#define ACP_P1_AUDIO_RX_FIFOSIZE                      ACP_P1_I2S_RX_FIFOSIZE
+#define ACP_P1_AUDIO_RX_DMA_SIZE                      ACP_P1_I2S_RX_DMA_SIZE
+#define ACP_P1_AUDIO_RX_LINEARPOSITIONCNTR_HIGH       ACP_P1_I2S_RX_LINEARPOSITIONCNTR_HIGH
+#define ACP_P1_AUDIO_RX_LINEARPOSITIONCNTR_LOW        ACP_P1_I2S_RX_LINEARPOSITIONCNTR_LOW
+#define ACP_P1_AUDIO_RX_INTR_WATERMARK_SIZE           ACP_P1_I2S_RX_INTR_WATERMARK_SIZE
+#define ACP_P1_AUDIO_TX_RINGBUFADDR                   ACP_P1_I2S_TX_RINGBUFADDR
+#define ACP_P1_AUDIO_TX_RINGBUFSIZE                   ACP_P1_I2S_TX_RINGBUFSIZE
+#define ACP_P1_AUDIO_TX_LINKPOSITIONCNTR              ACP_P1_I2S_TX_LINKPOSITIONCNTR
+#define ACP_P1_AUDIO_TX_FIFOADDR                      ACP_P1_I2S_TX_FIFOADDR
+#define ACP_P1_AUDIO_TX_FIFOSIZE                      ACP_P1_I2S_TX_FIFOSIZE
+#define ACP_P1_AUDIO_TX_DMA_SIZE                      ACP_P1_I2S_TX_DMA_SIZE
+#define ACP_P1_AUDIO_TX_LINEARPOSITIONCNTR_HIGH       ACP_P1_I2S_TX_LINEARPOSITIONCNTR_HIGH
+#define ACP_P1_AUDIO_TX_LINEARPOSITIONCNTR_LOW        ACP_P1_I2S_TX_LINEARPOSITIONCNTR_LOW
+#define ACP_P1_AUDIO_TX_INTR_WATERMARK_SIZE           ACP_P1_I2S_TX_INTR_WATERMARK_SIZE
+
+/* Registers from ACP_P1_SW_SWCLK block */
+#define ACP_P1_SW_EN                                  0x0003C00
+#define ACP_P1_SW_EN_STATUS                           0x0003C04
+#define ACP_P1_SW_FRAMESIZE                           0x0003C08
+#define ACP_P1_SW_SSP_COUNTER                         0x0003C0C
+#define ACP_P1_SW_BT_TX_EN                            0x0003C50
+#define ACP_P1_SW_BT_TX_EN_STATUS                     0x0003C54
+#define ACP_P1_SW_BT_TX_FRAME_FORMAT                  0x0003C58
+#define ACP_P1_SW_BT_TX_SAMPLEINTERVAL                0x0003C5C
+#define ACP_P1_SW_BT_TX_HCTRL                         0x0003C60
+#define ACP_P1_SW_BT_TX_OFFSET                        0x0003C64
+#define ACP_P1_SW_BT_TX_CHANNEL_ENABLE_DP0            0x0003C68
+#define ACP_P1_SW_BT_RX_EN                            0x0003D28
+#define ACP_P1_SW_BT_RX_EN_STATUS                     0x0003D2C
+#define ACP_P1_SW_BT_RX_FRAME_FORMAT                  0x0003D30
+#define ACP_P1_SW_BT_RX_SAMPLEINTERVAL                0x0003D34
+#define ACP_P1_SW_BT_RX_HCTRL                         0x0003D38
+#define ACP_P1_SW_BT_RX_OFFSET                        0x0003D3C
+#define ACP_P1_SW_BT_RX_CHANNEL_ENABLE_DP0            0x0003D40
+#define ACP_P1_SW_BPT_PORT_EN                         0x0003D60
+#define ACP_P1_SW_BPT_PORT_EN_STATUS                  0x0003D64
+#define ACP_P1_SW_BPT_PORT_FRAME_FORMAT               0x0003D68
+#define ACP_P1_SW_BPT_PORT_SAMPLEINTERVAL             0x0003D6C
+#define ACP_P1_SW_BPT_PORT_HCTRL                      0x0003D70
+#define ACP_P1_SW_BPT_PORT_OFFSET                     0x0003D74
+#define ACP_P1_SW_BPT_PORT_CHANNEL_ENABLE             0x0003D78
+#define ACP_P1_SW_BPT_PORT_FIRST_BYTE_ADDR            0x0003D7C
+#define ACP_P1_SW_CLK_RESUME_CTRL                     0x0003D80
+#define ACP_P1_SW_CLK_RESUME_DELAY_CNTR               0x0003D84
+#define ACP_P1_SW_BUS_RESET_CTRL                      0x0003D88
+#define ACP_P1_SW_PRBS_ERR_STATUS                     0x0003D8C
+
+/* Registers from ACP_P1_SW_ACLK block */
+#define P1_SW_CORB_BASE_ADDRESS                       0x0003E00
+#define P1_SW_CORB_WRITE_POINTER                      0x0003E04
+#define P1_SW_CORB_READ_POINTER                       0x0003E08
+#define P1_SW_CORB_CONTROL                            0x0003E0C
+#define P1_SW_CORB_SIZE                               0x0003E14
+#define P1_SW_RIRB_BASE_ADDRESS                       0x0003E18
+#define P1_SW_RIRB_WRITE_POINTER                      0x0003E1C
+#define P1_SW_RIRB_RESPONSE_INTERRUPT_COUNT           0x0003E20
+#define P1_SW_RIRB_CONTROL                            0x0003E24
+#define P1_SW_RIRB_SIZE                               0x0003E28
+#define P1_SW_RIRB_FIFO_MIN_THDL                      0x0003E2C
+#define P1_SW_IMM_CMD_UPPER_WORD                      0x0003E30
+#define P1_SW_IMM_CMD_LOWER_QWORD                     0x0003E34
+#define P1_SW_IMM_RESP_UPPER_WORD                     0x0003E38
+#define P1_SW_IMM_RESP_LOWER_QWORD                    0x0003E3C
+#define P1_SW_IMM_CMD_STS                             0x0003E40
+#define P1_SW_BRA_BASE_ADDRESS                        0x0003E44
+#define P1_SW_BRA_TRANSFER_SIZE                       0x0003E48
+#define P1_SW_BRA_DMA_BUSY                            0x0003E4C
+#define P1_SW_BRA_RESP                                0x0003E50
+#define P1_SW_BRA_RESP_FRAME_ADDR                     0x0003E54
+#define P1_SW_BRA_CURRENT_TRANSFER_SIZE               0x0003E58
+#define P1_SW_STATE_CHANGE_STATUS_0TO7                0x0003E5C
+#define P1_SW_STATE_CHANGE_STATUS_8TO11               0x0003E60
+#define P1_SW_STATE_CHANGE_STATUS_MASK_0TO7           0x0003E64
+#define P1_SW_STATE_CHANGE_STATUS_MASK_8TO11          0x0003E68
+#define P1_SW_CLK_FREQUENCY_CTRL                      0x0003E6C
+#define P1_SW_ERROR_INTR_MASK                         0x0003E70
+#define P1_SW_PHY_TEST_MODE_DATA_OFF                  0x0003E74
 
 /* Registers from ACP_SCRATCH block */
 #define ACP_SCRATCH_REG_0                             0x0010000

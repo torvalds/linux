@@ -410,9 +410,10 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 	 * Otherwise just allocate the device numbers for both the whole device
 	 * and all partitions from the extended dev_t space.
 	 */
+	ret = -EINVAL;
 	if (disk->major) {
 		if (WARN_ON(!disk->minors))
-			return -EINVAL;
+			goto out_exit_elevator;
 
 		if (disk->minors > DISK_MAX_PARTS) {
 			pr_err("block: can't allocate more than %d partitions\n",
@@ -420,14 +421,14 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 			disk->minors = DISK_MAX_PARTS;
 		}
 		if (disk->first_minor + disk->minors > MINORMASK + 1)
-			return -EINVAL;
+			goto out_exit_elevator;
 	} else {
 		if (WARN_ON(disk->minors))
-			return -EINVAL;
+			goto out_exit_elevator;
 
 		ret = blk_alloc_ext_minor();
 		if (ret < 0)
-			return ret;
+			goto out_exit_elevator;
 		disk->major = BLOCK_EXT_MAJOR;
 		disk->first_minor = ret;
 	}
@@ -526,6 +527,7 @@ out_unregister_bdi:
 		bdi_unregister(disk->bdi);
 out_unregister_queue:
 	blk_unregister_queue(disk);
+	rq_qos_exit(disk->queue);
 out_put_slave_dir:
 	kobject_put(disk->slave_dir);
 out_put_holder_dir:
@@ -540,6 +542,9 @@ out_device_del:
 out_free_ext_minor:
 	if (disk->major == BLOCK_EXT_MAJOR)
 		blk_free_ext_minor(disk->first_minor);
+out_exit_elevator:
+	if (disk->queue->elevator)
+		elevator_exit(disk->queue);
 	return ret;
 }
 EXPORT_SYMBOL(device_add_disk);

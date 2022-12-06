@@ -323,7 +323,7 @@ static int max9867_startup(struct snd_pcm_substream *substream,
 static int max9867_dai_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	int value;
+	int value, freq = 0;
 	unsigned long int rate, ratio;
 	struct snd_soc_component *component = dai->component;
 	struct max9867_priv *max9867 = snd_soc_component_get_drvdata(component);
@@ -373,6 +373,35 @@ static int max9867_dai_hw_params(struct snd_pcm_substream *substream,
 		}
 		regmap_update_bits(max9867->regmap, MAX9867_IFC1B,
 			MAX9867_IFC1B_BCLK_MASK, value);
+
+		/* Exact integer mode available for 8kHz and 16kHz sample rates
+		 * and certain PCLK (prescaled MCLK) values.
+		 */
+		if (params_rate(params) == 8000 ||
+		    params_rate(params) == 16000) {
+			switch (max9867->pclk) {
+			case 12000000:
+				freq = 0x08;
+				break;
+			case 13000000:
+				freq = 0x0A;
+				break;
+			case 16000000:
+				freq = 0x0C;
+				break;
+			case 19200000:
+				freq = 0x0E;
+				break;
+			}
+		}
+		if (freq && params_rate(params) == 16000)
+			freq++;
+
+		/* If exact integer mode not available, the freq value
+		 * remains zero, i.e. normal mode is used.
+		 */
+		regmap_update_bits(max9867->regmap, MAX9867_SYSCLK,
+				   MAX9867_FREQ_MASK, freq);
 	} else {
 		/*
 		 * digital pll locks on to any externally supplied LRCLK signal
@@ -428,8 +457,6 @@ static int max9867_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 			 freq);
 	max9867->sysclk = freq;
 	value = value << MAX9867_PSCLK_SHIFT;
-	/* exact integer mode is not supported */
-	value &= ~MAX9867_FREQ_MASK;
 	regmap_update_bits(max9867->regmap, MAX9867_SYSCLK,
 			MAX9867_PSCLK_MASK, value);
 	return 0;

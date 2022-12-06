@@ -56,7 +56,7 @@ static const struct x86_cpu_id vmx_icl_pebs_cpu[] = {
  *        code. Each pmc, stored in kvm_pmc.idx field, is unique across
  *        all perf counters (both gp and fixed). The mapping relationship
  *        between pmc and perf counters is as the following:
- *        * Intel: [0 .. INTEL_PMC_MAX_GENERIC-1] <=> gp counters
+ *        * Intel: [0 .. KVM_INTEL_PMC_MAX_GENERIC-1] <=> gp counters
  *                 [INTEL_PMC_IDX_FIXED .. INTEL_PMC_IDX_FIXED + 2] <=> fixed
  *        * AMD:   [0 .. AMD64_NUM_COUNTERS-1] and, for families 15H
  *          and later, [0 .. AMD64_NUM_COUNTERS_CORE-1] <=> gp counters

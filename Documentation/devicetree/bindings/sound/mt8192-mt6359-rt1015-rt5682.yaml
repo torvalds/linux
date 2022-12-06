@@ -34,7 +34,7 @@ properties:
 
     properties:
       sound-dai:
-        $ref: /schemas/types.yaml#/definitions/phandle
+        maxItems: 1
     required:
       - sound-dai
 
@@ -48,7 +48,6 @@ properties:
         maxItems: 2
         items:
           maxItems: 1
-        $ref: /schemas/types.yaml#/definitions/phandle-array
     required:
       - sound-dai
 

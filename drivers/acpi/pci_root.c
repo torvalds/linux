@@ -323,6 +323,7 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 
 	list_for_each_entry(pn, &adev->physical_node_list, node) {
 		if (dev_is_pci(pn->dev)) {
+			get_device(pn->dev);
 			pci_dev = to_pci_dev(pn->dev);
 			break;
 		}

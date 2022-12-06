@@ -90,11 +90,9 @@ void cti_write_all_hw_regs(struct cti_drvdata *drvdata)
 static int cti_enable_hw(struct cti_drvdata *drvdata)
 {
 	struct cti_config *config = &drvdata->config;
-	struct device *dev = &drvdata->csdev->dev;
 	unsigned long flags;
 	int rc = 0;
 
-	pm_runtime_get_sync(dev->parent);
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* no need to do anything if enabled or unpowered*/
@@ -119,7 +117,6 @@ cti_state_unchanged:
 	/* cannot enable due to error */
 cti_err_not_enabled:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	pm_runtime_put(dev->parent);
 	return rc;
 }
 
@@ -153,7 +150,6 @@ cti_hp_not_enabled:
 static int cti_disable_hw(struct cti_drvdata *drvdata)
 {
 	struct cti_config *config = &drvdata->config;
-	struct device *dev = &drvdata->csdev->dev;
 	struct coresight_device *csdev = drvdata->csdev;
 
 	spin_lock(&drvdata->spinlock);
@@ -175,7 +171,6 @@ static int cti_disable_hw(struct cti_drvdata *drvdata)
 	coresight_disclaim_device_unlocked(csdev);
 	CS_LOCK(drvdata->base);
 	spin_unlock(&drvdata->spinlock);
-	pm_runtime_put(dev->parent);
 	return 0;
 
 	/* not disabled this call */
@@ -541,7 +536,7 @@ cti_match_fixup_csdev(struct cti_device *ctidev, const char *node_name,
 /*
  * Search the cti list to add an associated CTI into the supplied CS device
  * This will set the association if CTI declared before the CS device.
- * (called from coresight_register() with coresight_mutex locked).
+ * (called from coresight_register() without coresight_mutex locked).
  */
 static void cti_add_assoc_to_csdev(struct coresight_device *csdev)
 {
@@ -569,7 +564,8 @@ static void cti_add_assoc_to_csdev(struct coresight_device *csdev)
 			 * if we found a matching csdev then update the ECT
 			 * association pointer for the device with this CTI.
 			 */
-			csdev->ect_dev = ect_item->csdev;
+			coresight_set_assoc_ectdev_mutex(csdev->ect_dev,
+							 ect_item->csdev);
 			break;
 		}
 	}

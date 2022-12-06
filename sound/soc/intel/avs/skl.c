@@ -28,12 +28,12 @@ static int skl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32
 
 	info->core_mask = resource_mask;
 	if (enable)
-		for_each_set_bit(i, &resource_mask, GENMASK(num_cores, 0)) {
+		for_each_set_bit(i, &resource_mask, num_cores) {
 			info->logs_core[i].enable = enable;
 			info->logs_core[i].min_priority = *priorities++;
 		}
 	else
-		for_each_set_bit(i, &resource_mask, GENMASK(num_cores, 0))
+		for_each_set_bit(i, &resource_mask, num_cores)
 			info->logs_core[i].enable = enable;
 
 	ret = avs_ipc_set_enable_logs(adev, (u8 *)info, size);
