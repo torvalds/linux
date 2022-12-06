@@ -16,7 +16,6 @@ static const unsigned short
 emc2305_normal_i2c[] = { 0x27, 0x2c, 0x2d, 0x2e, 0x2f, 0x4c, 0x4d, I2C_CLIENT_END };
 
 #define EMC2305_REG_DRIVE_FAIL_STATUS	0x27
-#define EMC2305_REG_DEVICE		0xfd
 #define EMC2305_REG_VENDOR		0xfe
 #define EMC2305_FAN_MAX			0xff
 #define EMC2305_FAN_MIN			0x00
@@ -524,7 +523,7 @@ static int emc2305_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct emc2305_data *data;
 	struct emc2305_platform_data *pdata;
-	int vendor, device;
+	int vendor;
 	int ret;
 	int i;
 
@@ -533,10 +532,6 @@ static int emc2305_probe(struct i2c_client *client)
 
 	vendor = i2c_smbus_read_byte_data(client, EMC2305_REG_VENDOR);
 	if (vendor != EMC2305_VENDOR)
-		return -ENODEV;
-
-	device = i2c_smbus_read_byte_data(client, EMC2305_REG_DEVICE);
-	if (device != EMC2305_DEVICE)
 		return -ENODEV;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
