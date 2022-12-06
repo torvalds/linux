@@ -237,10 +237,6 @@ source "drivers/counter/Kconfig"
 
 source "drivers/most/Kconfig"
 
-source "drivers/e24/Kconfig"
-
-source "drivers/xrp/Kconfig"
-
 source "drivers/cpufreq/Kconfig"
 
 endmenu
