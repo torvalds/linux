@@ -227,6 +227,7 @@
 
 &pwm11 {
 	status = "okay";
+	pinctrl-0 = <&pwm11m1_pins>;
 };
 
 &rkcif {
