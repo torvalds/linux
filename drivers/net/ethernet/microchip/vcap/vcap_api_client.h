@@ -170,6 +170,10 @@ int vcap_add_rule(struct vcap_rule *rule);
 int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id);
 /* Make a full copy of an existing rule with a new rule id */
 struct vcap_rule *vcap_copy_rule(struct vcap_rule *rule);
+/* Get rule from a VCAP instance */
+struct vcap_rule *vcap_get_rule(struct vcap_control *vctrl, u32 id);
+/* Update existing rule */
+int vcap_mod_rule(struct vcap_rule *rule);
 
 /* Update the keyset for the rule */
 int vcap_set_rule_set_keyset(struct vcap_rule *rule,
@@ -253,5 +257,9 @@ int vcap_rule_mod_key_u32(struct vcap_rule *rule, enum vcap_key_field key,
 int vcap_rule_mod_action_u32(struct vcap_rule *rule,
 			     enum vcap_action_field action,
 			     u32 value);
+
+/* Get a 32 bit key field value and mask from the rule */
+int vcap_rule_get_key_u32(struct vcap_rule *rule, enum vcap_key_field key,
+			  u32 *value, u32 *mask);
 
 #endif /* __VCAP_API_CLIENT__ */

@@ -4,14 +4,6 @@
 #include "vcap_api.h"
 #include "vcap_api_client.h"
 
-/* Controls how PORT_MASK is applied */
-enum LAN966X_PORT_MASK_MODE {
-	LAN966X_PMM_NO_ACTION,
-	LAN966X_PMM_REPLACE,
-	LAN966X_PMM_FORWARDING,
-	LAN966X_PMM_REDIRECT,
-};
-
 struct lan966x_tc_flower_parse_usage {
 	struct flow_cls_offload *f;
 	struct flow_rule *frule;
