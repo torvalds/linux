@@ -41,12 +41,6 @@
 	___C(GET_SCAN_MEDIA_CAPS, "Get Scan Media Capabilities"),         \
 	___C(SCAN_MEDIA, "Scan Media"),                                   \
 	___C(GET_SCAN_MEDIA, "Get Scan Media Results"),                   \
-	___C(GET_SECURITY_STATE, "Get Security State"),			  \
-	___C(SET_PASSPHRASE, "Set Passphrase"),				  \
-	___C(DISABLE_PASSPHRASE, "Disable Passphrase"),			  \
-	___C(FREEZE_SECURITY, "Freeze Security"),			  \
-	___C(UNLOCK, "Unlock"),						  \
-	___C(PASSPHRASE_SECURE_ERASE, "Passphrase Secure Erase"),	  \
 	___C(MAX, "invalid / last command")
 
 #define ___C(a, b) CXL_MEM_COMMAND_ID_##a

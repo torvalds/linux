@@ -65,12 +65,6 @@ static struct cxl_mem_command cxl_mem_commands[CXL_MEM_COMMAND_ID_MAX] = {
 	CXL_CMD(GET_SCAN_MEDIA_CAPS, 0x10, 0x4, 0),
 	CXL_CMD(SCAN_MEDIA, 0x11, 0, 0),
 	CXL_CMD(GET_SCAN_MEDIA, 0, CXL_VARIABLE_PAYLOAD, 0),
-	CXL_CMD(GET_SECURITY_STATE, 0, 0x4, 0),
-	CXL_CMD(SET_PASSPHRASE, 0x60, 0, 0),
-	CXL_CMD(DISABLE_PASSPHRASE, 0x40, 0, 0),
-	CXL_CMD(FREEZE_SECURITY, 0, 0, 0),
-	CXL_CMD(UNLOCK, 0x20, 0, 0),
-	CXL_CMD(PASSPHRASE_SECURE_ERASE, 0x40, 0, 0),
 };
 
 /*
@@ -717,17 +711,6 @@ int cxl_enumerate_cmds(struct cxl_dev_state *cxlds)
 		/* Found the required CEL */
 		rc = 0;
 	}
-
-	/*
-	 * Setup permanently kernel exclusive commands, i.e. the
-	 * mechanism is driven through sysfs, keyctl, etc...
-	 */
-	set_bit(CXL_MEM_COMMAND_ID_SET_PASSPHRASE, cxlds->exclusive_cmds);
-	set_bit(CXL_MEM_COMMAND_ID_DISABLE_PASSPHRASE, cxlds->exclusive_cmds);
-	set_bit(CXL_MEM_COMMAND_ID_UNLOCK, cxlds->exclusive_cmds);
-	set_bit(CXL_MEM_COMMAND_ID_PASSPHRASE_SECURE_ERASE,
-		cxlds->exclusive_cmds);
-
 out:
 	kvfree(gsl);
 	return rc;
