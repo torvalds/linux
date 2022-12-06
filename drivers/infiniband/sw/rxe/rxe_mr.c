@@ -111,6 +111,15 @@ void rxe_mr_init_dma(int access, struct rxe_mr *mr)
 	mr->ibmr.type = IB_MR_TYPE_DMA;
 }
 
+static bool is_pmem_page(struct page *pg)
+{
+	unsigned long paddr = page_to_phys(pg);
+
+	return REGION_INTERSECTS ==
+	       region_intersects(paddr, PAGE_SIZE, IORESOURCE_MEM,
+				 IORES_DESC_PERSISTENT_MEMORY);
+}
+
 int rxe_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length, u64 iova,
 		     int access, struct rxe_mr *mr)
 {
@@ -146,16 +155,25 @@ int rxe_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length, u64 iova,
 	num_buf			= 0;
 	map = mr->map;
 	if (length > 0) {
-		buf = map[0]->buf;
+		bool persistent_access = access & IB_ACCESS_FLUSH_PERSISTENT;
 
+		buf = map[0]->buf;
 		for_each_sgtable_page (&umem->sgt_append.sgt, &sg_iter, 0) {
+			struct page *pg = sg_page_iter_page(&sg_iter);
+
+			if (persistent_access && !is_pmem_page(pg)) {
+				rxe_dbg_mr(mr, "Unable to register persistent access to non-pmem device\n");
+				err = -EINVAL;
+				goto err_release_umem;
+			}
+
 			if (num_buf >= RXE_BUF_PER_MAP) {
 				map++;
 				buf = map[0]->buf;
 				num_buf = 0;
 			}
 
-			vaddr = page_address(sg_page_iter_page(&sg_iter));
+			vaddr = page_address(pg);
 			if (!vaddr) {
 				rxe_dbg_mr(mr, "Unable to get virtual address\n");
 				err = -ENOMEM;
