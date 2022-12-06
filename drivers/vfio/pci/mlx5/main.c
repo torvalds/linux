@@ -245,6 +245,13 @@ mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev)
 	stream_open(migf->filp->f_inode, migf->filp);
 	mutex_init(&migf->lock);
 	init_waitqueue_head(&migf->poll_wait);
+	init_completion(&migf->save_comp);
+	/*
+	 * save_comp is being used as a binary semaphore built from
+	 * a completion. A normal mutex cannot be used because the lock is
+	 * passed between kernel threads and lockdep can't model this.
+	 */
+	complete(&migf->save_comp);
 	mlx5_cmd_init_async_ctx(mvdev->mdev, &migf->async_ctx);
 	INIT_WORK(&migf->async_data.work, mlx5vf_mig_file_cleanup_cb);
 	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev,
