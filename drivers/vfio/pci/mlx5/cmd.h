@@ -14,6 +14,7 @@
 
 enum mlx5_vf_migf_state {
 	MLX5_MIGF_STATE_ERROR = 1,
+	MLX5_MIGF_STATE_COMPLETE,
 };
 
 struct mlx5_vhca_data_buffer {
@@ -24,6 +25,7 @@ struct mlx5_vhca_data_buffer {
 	u32 mkey;
 	enum dma_data_direction dma_dir;
 	u8 dmaed:1;
+	struct list_head buf_elm;
 	struct mlx5_vf_migration_file *migf;
 	/* Optimize mlx5vf_get_migration_page() for sequential access */
 	struct scatterlist *last_offset_sg;
@@ -34,6 +36,7 @@ struct mlx5_vhca_data_buffer {
 struct mlx5vf_async_data {
 	struct mlx5_async_work cb_work;
 	struct work_struct work;
+	struct mlx5_vhca_data_buffer *buf;
 	int status;
 	void *out;
 };
@@ -45,6 +48,8 @@ struct mlx5_vf_migration_file {
 
 	u32 pdn;
 	struct mlx5_vhca_data_buffer *buf;
+	spinlock_t list_lock;
+	struct list_head buf_list;
 	struct mlx5vf_pci_core_device *mvdev;
 	wait_queue_head_t poll_wait;
 	struct completion save_comp;

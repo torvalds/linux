@@ -351,6 +351,7 @@ void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
 
 	mutex_lock(&migf->lock);
 	if (async_data->status) {
+		migf->buf = async_data->buf;
 		migf->state = MLX5_MIGF_STATE_ERROR;
 		wake_up_interruptible(&migf->poll_wait);
 	}
@@ -368,9 +369,15 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 			struct mlx5_vf_migration_file, async_data);
 
 	if (!status) {
-		WRITE_ONCE(migf->buf->length,
-			   MLX5_GET(save_vhca_state_out, async_data->out,
-				    actual_image_size));
+		unsigned long flags;
+
+		async_data->buf->length =
+			MLX5_GET(save_vhca_state_out, async_data->out,
+				 actual_image_size);
+		spin_lock_irqsave(&migf->list_lock, flags);
+		list_add_tail(&async_data->buf->buf_elm, &migf->buf_list);
+		spin_unlock_irqrestore(&migf->list_lock, flags);
+		migf->state = MLX5_MIGF_STATE_COMPLETE;
 		wake_up_interruptible(&migf->poll_wait);
 	}
 
@@ -407,6 +414,7 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	MLX5_SET(save_vhca_state_in, in, size, buf->allocated_length);
 
 	async_data = &migf->async_data;
+	async_data->buf = buf;
 	async_data->out = kvzalloc(out_size, GFP_KERNEL);
 	if (!async_data->out) {
 		err = -ENOMEM;
@@ -479,14 +487,22 @@ void mlx5vf_cmd_dealloc_pd(struct mlx5_vf_migration_file *migf)
 
 void mlx5fv_cmd_clean_migf_resources(struct mlx5_vf_migration_file *migf)
 {
-	lockdep_assert_held(&migf->mvdev->state_mutex);
+	struct mlx5_vhca_data_buffer *entry;
 
+	lockdep_assert_held(&migf->mvdev->state_mutex);
 	WARN_ON(migf->mvdev->mdev_detach);
 
 	if (migf->buf) {
 		mlx5vf_free_data_buffer(migf->buf);
 		migf->buf = NULL;
 	}
+
+	while ((entry = list_first_entry_or_null(&migf->buf_list,
+				struct mlx5_vhca_data_buffer, buf_elm))) {
+		list_del(&entry->buf_elm);
+		mlx5vf_free_data_buffer(entry);
+	}
+
 	mlx5vf_cmd_dealloc_pd(migf);
 }
 

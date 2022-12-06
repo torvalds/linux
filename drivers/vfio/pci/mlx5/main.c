@@ -124,11 +124,90 @@ static int mlx5vf_release_file(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static struct mlx5_vhca_data_buffer *
+mlx5vf_get_data_buff_from_pos(struct mlx5_vf_migration_file *migf, loff_t pos,
+			      bool *end_of_data)
+{
+	struct mlx5_vhca_data_buffer *buf;
+	bool found = false;
+
+	*end_of_data = false;
+	spin_lock_irq(&migf->list_lock);
+	if (list_empty(&migf->buf_list)) {
+		*end_of_data = true;
+		goto end;
+	}
+
+	buf = list_first_entry(&migf->buf_list, struct mlx5_vhca_data_buffer,
+			       buf_elm);
+	if (pos >= buf->start_pos &&
+	    pos < buf->start_pos + buf->length) {
+		found = true;
+		goto end;
+	}
+
+	/*
+	 * As we use a stream based FD we may expect having the data always
+	 * on first chunk
+	 */
+	migf->state = MLX5_MIGF_STATE_ERROR;
+
+end:
+	spin_unlock_irq(&migf->list_lock);
+	return found ? buf : NULL;
+}
+
+static ssize_t mlx5vf_buf_read(struct mlx5_vhca_data_buffer *vhca_buf,
+			       char __user **buf, size_t *len, loff_t *pos)
+{
+	unsigned long offset;
+	ssize_t done = 0;
+	size_t copy_len;
+
+	copy_len = min_t(size_t,
+			 vhca_buf->start_pos + vhca_buf->length - *pos, *len);
+	while (copy_len) {
+		size_t page_offset;
+		struct page *page;
+		size_t page_len;
+		u8 *from_buff;
+		int ret;
+
+		offset = *pos - vhca_buf->start_pos;
+		page_offset = offset % PAGE_SIZE;
+		offset -= page_offset;
+		page = mlx5vf_get_migration_page(vhca_buf, offset);
+		if (!page)
+			return -EINVAL;
+		page_len = min_t(size_t, copy_len, PAGE_SIZE - page_offset);
+		from_buff = kmap_local_page(page);
+		ret = copy_to_user(*buf, from_buff + page_offset, page_len);
+		kunmap_local(from_buff);
+		if (ret)
+			return -EFAULT;
+		*pos += page_len;
+		*len -= page_len;
+		*buf += page_len;
+		done += page_len;
+		copy_len -= page_len;
+	}
+
+	if (*pos >= vhca_buf->start_pos + vhca_buf->length) {
+		spin_lock_irq(&vhca_buf->migf->list_lock);
+		list_del_init(&vhca_buf->buf_elm);
+		spin_unlock_irq(&vhca_buf->migf->list_lock);
+	}
+
+	return done;
+}
+
 static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 			       loff_t *pos)
 {
 	struct mlx5_vf_migration_file *migf = filp->private_data;
-	struct mlx5_vhca_data_buffer *vhca_buf = migf->buf;
+	struct mlx5_vhca_data_buffer *vhca_buf;
+	bool first_loop_call = true;
+	bool end_of_data;
 	ssize_t done = 0;
 
 	if (pos)
@@ -137,53 +216,47 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 
 	if (!(filp->f_flags & O_NONBLOCK)) {
 		if (wait_event_interruptible(migf->poll_wait,
-			     READ_ONCE(vhca_buf->length) ||
-			     migf->state == MLX5_MIGF_STATE_ERROR))
+				!list_empty(&migf->buf_list) ||
+				migf->state == MLX5_MIGF_STATE_ERROR ||
+				migf->state == MLX5_MIGF_STATE_COMPLETE))
 			return -ERESTARTSYS;
 	}
 
 	mutex_lock(&migf->lock);
-	if ((filp->f_flags & O_NONBLOCK) && !READ_ONCE(vhca_buf->length)) {
-		done = -EAGAIN;
-		goto out_unlock;
-	}
-	if (*pos > vhca_buf->length) {
-		done = -EINVAL;
-		goto out_unlock;
-	}
 	if (migf->state == MLX5_MIGF_STATE_ERROR) {
 		done = -ENODEV;
 		goto out_unlock;
 	}
 
-	len = min_t(size_t, vhca_buf->length - *pos, len);
 	while (len) {
-		size_t page_offset;
-		struct page *page;
-		size_t page_len;
-		u8 *from_buff;
-		int ret;
+		ssize_t count;
 
-		page_offset = (*pos) % PAGE_SIZE;
-		page = mlx5vf_get_migration_page(vhca_buf, *pos - page_offset);
-		if (!page) {
-			if (done == 0)
-				done = -EINVAL;
+		vhca_buf = mlx5vf_get_data_buff_from_pos(migf, *pos,
+							 &end_of_data);
+		if (first_loop_call) {
+			first_loop_call = false;
+			if (end_of_data && migf->state != MLX5_MIGF_STATE_COMPLETE) {
+				if (filp->f_flags & O_NONBLOCK) {
+					done = -EAGAIN;
+					goto out_unlock;
+				}
+			}
+		}
+
+		if (end_of_data)
+			goto out_unlock;
+
+		if (!vhca_buf) {
+			done = -EINVAL;
 			goto out_unlock;
 		}
 
-		page_len = min_t(size_t, len, PAGE_SIZE - page_offset);
-		from_buff = kmap_local_page(page);
-		ret = copy_to_user(buf, from_buff + page_offset, page_len);
-		kunmap_local(from_buff);
-		if (ret) {
-			done = -EFAULT;
+		count = mlx5vf_buf_read(vhca_buf, &buf, &len, pos);
+		if (count < 0) {
+			done = count;
 			goto out_unlock;
 		}
-		*pos += page_len;
-		len -= page_len;
-		done += page_len;
-		buf += page_len;
+		done += count;
 	}
 
 out_unlock:
@@ -202,7 +275,8 @@ static __poll_t mlx5vf_save_poll(struct file *filp,
 	mutex_lock(&migf->lock);
 	if (migf->state == MLX5_MIGF_STATE_ERROR)
 		pollflags = EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
-	else if (READ_ONCE(migf->buf->length))
+	else if (!list_empty(&migf->buf_list) ||
+		 migf->state == MLX5_MIGF_STATE_COMPLETE)
 		pollflags = EPOLLIN | EPOLLRDNORM;
 	mutex_unlock(&migf->lock);
 
@@ -253,6 +327,8 @@ mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev)
 	complete(&migf->save_comp);
 	mlx5_cmd_init_async_ctx(mvdev->mdev, &migf->async_ctx);
 	INIT_WORK(&migf->async_data.work, mlx5vf_mig_file_cleanup_cb);
+	INIT_LIST_HEAD(&migf->buf_list);
+	spin_lock_init(&migf->list_lock);
 	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length);
 	if (ret)
 		goto out_pd;
@@ -266,7 +342,6 @@ mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev)
 	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf, buf);
 	if (ret)
 		goto out_save;
-	migf->buf = buf;
 	return migf;
 out_save:
 	mlx5vf_free_data_buffer(buf);
@@ -386,6 +461,8 @@ mlx5vf_pci_resume_device_data(struct mlx5vf_pci_core_device *mvdev)
 	migf->buf = buf;
 	stream_open(migf->filp->f_inode, migf->filp);
 	mutex_init(&migf->lock);
+	INIT_LIST_HEAD(&migf->buf_list);
+	spin_lock_init(&migf->list_lock);
 	return migf;
 out_pd:
 	mlx5vf_cmd_dealloc_pd(migf);
