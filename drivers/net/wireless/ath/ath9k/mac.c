@@ -707,7 +707,7 @@ bool ath9k_hw_stopdmarecv(struct ath_hw *ah, bool *reset)
 
 	/* Wait for rx enable bit to go low */
 	for (i = AH_RX_STOP_DMA_TIMEOUT / AH_TIME_QUANTUM; i != 0; i--) {
-		if ((REG_READ(ah, AR_CR) & AR_CR_RXE) == 0)
+		if ((REG_READ(ah, AR_CR) & AR_CR_RXE(ah)) == 0)
 			break;
 
 		if (!AR_SREV_9300_20_OR_LATER(ah)) {
@@ -762,14 +762,14 @@ bool ath9k_hw_intrpend(struct ath_hw *ah)
 	if (AR_SREV_9100(ah))
 		return true;
 
-	host_isr = REG_READ(ah, AR_INTR_ASYNC_CAUSE);
+	host_isr = REG_READ(ah, AR_INTR_ASYNC_CAUSE(ah));
 
 	if (((host_isr & AR_INTR_MAC_IRQ) ||
 	     (host_isr & AR_INTR_ASYNC_MASK_MCI)) &&
 	    (host_isr != AR_INTR_SPURIOUS))
 		return true;
 
-	host_isr = REG_READ(ah, AR_INTR_SYNC_CAUSE);
+	host_isr = REG_READ(ah, AR_INTR_SYNC_CAUSE(ah));
 	if ((host_isr & AR_INTR_SYNC_DEFAULT)
 	    && (host_isr != AR_INTR_SPURIOUS))
 		return true;
@@ -786,11 +786,11 @@ void ath9k_hw_kill_interrupts(struct ath_hw *ah)
 	REG_WRITE(ah, AR_IER, AR_IER_DISABLE);
 	(void) REG_READ(ah, AR_IER);
 	if (!AR_SREV_9100(ah)) {
-		REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, 0);
-		(void) REG_READ(ah, AR_INTR_ASYNC_ENABLE);
+		REG_WRITE(ah, AR_INTR_ASYNC_ENABLE(ah), 0);
+		(void) REG_READ(ah, AR_INTR_ASYNC_ENABLE(ah));
 
-		REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
-		(void) REG_READ(ah, AR_INTR_SYNC_ENABLE);
+		REG_WRITE(ah, AR_INTR_SYNC_ENABLE(ah), 0);
+		(void) REG_READ(ah, AR_INTR_SYNC_ENABLE(ah));
 	}
 }
 EXPORT_SYMBOL(ath9k_hw_kill_interrupts);
@@ -824,11 +824,11 @@ static void __ath9k_hw_enable_interrupts(struct ath_hw *ah)
 	ath_dbg(common, INTERRUPT, "enable IER\n");
 	REG_WRITE(ah, AR_IER, AR_IER_ENABLE);
 	if (!AR_SREV_9100(ah)) {
-		REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, async_mask);
-		REG_WRITE(ah, AR_INTR_ASYNC_MASK, async_mask);
+		REG_WRITE(ah, AR_INTR_ASYNC_ENABLE(ah), async_mask);
+		REG_WRITE(ah, AR_INTR_ASYNC_MASK(ah), async_mask);
 
-		REG_WRITE(ah, AR_INTR_SYNC_ENABLE, sync_default);
-		REG_WRITE(ah, AR_INTR_SYNC_MASK, sync_default);
+		REG_WRITE(ah, AR_INTR_SYNC_ENABLE(ah), sync_default);
+		REG_WRITE(ah, AR_INTR_SYNC_MASK(ah), sync_default);
 	}
 	ath_dbg(common, INTERRUPT, "AR_IMR 0x%x IER 0x%x\n",
 		REG_READ(ah, AR_IMR), REG_READ(ah, AR_IER));
@@ -841,26 +841,26 @@ static void __ath9k_hw_enable_interrupts(struct ath_hw *ah)
 		ath_dbg(ath9k_hw_common(ah), INTERRUPT,
 			"Enabling MSI, msi_mask=0x%X\n", ah->msi_mask);
 
-		REG_WRITE(ah, AR_INTR_PRIO_ASYNC_ENABLE, ah->msi_mask);
-		REG_WRITE(ah, AR_INTR_PRIO_ASYNC_MASK, ah->msi_mask);
+		REG_WRITE(ah, AR_INTR_PRIO_ASYNC_ENABLE(ah), ah->msi_mask);
+		REG_WRITE(ah, AR_INTR_PRIO_ASYNC_MASK(ah), ah->msi_mask);
 		ath_dbg(ath9k_hw_common(ah), INTERRUPT,
 			"AR_INTR_PRIO_ASYNC_ENABLE=0x%X, AR_INTR_PRIO_ASYNC_MASK=0x%X\n",
-			REG_READ(ah, AR_INTR_PRIO_ASYNC_ENABLE),
-			REG_READ(ah, AR_INTR_PRIO_ASYNC_MASK));
+			REG_READ(ah, AR_INTR_PRIO_ASYNC_ENABLE(ah)),
+			REG_READ(ah, AR_INTR_PRIO_ASYNC_MASK(ah)));
 
 		if (ah->msi_reg == 0)
-			ah->msi_reg = REG_READ(ah, AR_PCIE_MSI);
+			ah->msi_reg = REG_READ(ah, AR_PCIE_MSI(ah));
 
 		ath_dbg(ath9k_hw_common(ah), INTERRUPT,
 			"AR_PCIE_MSI=0x%X, ah->msi_reg = 0x%X\n",
-			AR_PCIE_MSI, ah->msi_reg);
+			AR_PCIE_MSI(ah), ah->msi_reg);
 
 		i = 0;
 		do {
-			REG_WRITE(ah, AR_PCIE_MSI,
+			REG_WRITE(ah, AR_PCIE_MSI(ah),
 				  (ah->msi_reg | AR_PCIE_MSI_ENABLE)
 				  & msi_pend_addr_mask);
-			_msi_reg = REG_READ(ah, AR_PCIE_MSI);
+			_msi_reg = REG_READ(ah, AR_PCIE_MSI(ah));
 			i++;
 		} while ((_msi_reg & AR_PCIE_MSI_ENABLE) == 0 && i < 200);
 
@@ -918,8 +918,8 @@ void ath9k_hw_set_interrupts(struct ath_hw *ah)
 	if (ah->msi_enabled) {
 		ath_dbg(common, INTERRUPT, "Clearing AR_INTR_PRIO_ASYNC_ENABLE\n");
 
-		REG_WRITE(ah, AR_INTR_PRIO_ASYNC_ENABLE, 0);
-		REG_READ(ah, AR_INTR_PRIO_ASYNC_ENABLE);
+		REG_WRITE(ah, AR_INTR_PRIO_ASYNC_ENABLE(ah), 0);
+		REG_READ(ah, AR_INTR_PRIO_ASYNC_ENABLE(ah));
 	}
 
 	ath_dbg(common, INTERRUPT, "New interrupt mask 0x%x\n", ints);
