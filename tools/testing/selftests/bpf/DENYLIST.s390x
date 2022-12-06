@@ -85,3 +85,4 @@ xdp_bonding                              # failed to auto-attach program 'trace_
 xdp_bpf2bpf                              # failed to auto-attach program 'trace_on_entry': -524                        (trampoline)
 xdp_do_redirect                          # prog_run_max_size unexpected error: -22 (errno 22)
 xdp_synproxy                             # JIT does not support calling kernel function                                (kfunc)
+xfrm_info                                # JIT does not support calling kernel function                                (kfunc)
