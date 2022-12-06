@@ -33,7 +33,7 @@ static struct mlx5vf_pci_core_device *mlx5vf_drvdata(struct pci_dev *pdev)
 }
 
 static struct page *
-mlx5vf_get_migration_page(struct mlx5_vf_migration_file *migf,
+mlx5vf_get_migration_page(struct mlx5_vhca_data_buffer *buf,
 			  unsigned long offset)
 {
 	unsigned long cur_offset = 0;
@@ -41,20 +41,20 @@ mlx5vf_get_migration_page(struct mlx5_vf_migration_file *migf,
 	unsigned int i;
 
 	/* All accesses are sequential */
-	if (offset < migf->last_offset || !migf->last_offset_sg) {
-		migf->last_offset = 0;
-		migf->last_offset_sg = migf->table.sgt.sgl;
-		migf->sg_last_entry = 0;
+	if (offset < buf->last_offset || !buf->last_offset_sg) {
+		buf->last_offset = 0;
+		buf->last_offset_sg = buf->table.sgt.sgl;
+		buf->sg_last_entry = 0;
 	}
 
-	cur_offset = migf->last_offset;
+	cur_offset = buf->last_offset;
 
-	for_each_sg(migf->last_offset_sg, sg,
-			migf->table.sgt.orig_nents - migf->sg_last_entry, i) {
+	for_each_sg(buf->last_offset_sg, sg,
+			buf->table.sgt.orig_nents - buf->sg_last_entry, i) {
 		if (offset < sg->length + cur_offset) {
-			migf->last_offset_sg = sg;
-			migf->sg_last_entry += i;
-			migf->last_offset = cur_offset;
+			buf->last_offset_sg = sg;
+			buf->sg_last_entry += i;
+			buf->last_offset = cur_offset;
 			return nth_page(sg_page(sg),
 					(offset - cur_offset) / PAGE_SIZE);
 		}
@@ -63,8 +63,8 @@ mlx5vf_get_migration_page(struct mlx5_vf_migration_file *migf,
 	return NULL;
 }
 
-static int mlx5vf_add_migration_pages(struct mlx5_vf_migration_file *migf,
-				      unsigned int npages)
+int mlx5vf_add_migration_pages(struct mlx5_vhca_data_buffer *buf,
+			       unsigned int npages)
 {
 	unsigned int to_alloc = npages;
 	struct page **page_list;
@@ -85,13 +85,13 @@ static int mlx5vf_add_migration_pages(struct mlx5_vf_migration_file *migf,
 		}
 		to_alloc -= filled;
 		ret = sg_alloc_append_table_from_pages(
-			&migf->table, page_list, filled, 0,
+			&buf->table, page_list, filled, 0,
 			filled << PAGE_SHIFT, UINT_MAX, SG_MAX_SINGLE_ALLOC,
 			GFP_KERNEL);
 
 		if (ret)
 			goto err;
-		migf->allocated_length += filled * PAGE_SIZE;
+		buf->allocated_length += filled * PAGE_SIZE;
 		/* clean input for another bulk allocation */
 		memset(page_list, 0, filled * sizeof(*page_list));
 		to_fill = min_t(unsigned int, to_alloc,
@@ -108,16 +108,8 @@ err:
 
 static void mlx5vf_disable_fd(struct mlx5_vf_migration_file *migf)
 {
-	struct sg_page_iter sg_iter;
-
 	mutex_lock(&migf->lock);
-	/* Undo alloc_pages_bulk_array() */
-	for_each_sgtable_page(&migf->table.sgt, &sg_iter, 0)
-		__free_page(sg_page_iter_page(&sg_iter));
-	sg_free_append_table(&migf->table);
 	migf->disabled = true;
-	migf->total_length = 0;
-	migf->allocated_length = 0;
 	migf->filp->f_pos = 0;
 	mutex_unlock(&migf->lock);
 }
@@ -136,6 +128,7 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 			       loff_t *pos)
 {
 	struct mlx5_vf_migration_file *migf = filp->private_data;
+	struct mlx5_vhca_data_buffer *vhca_buf = migf->buf;
 	ssize_t done = 0;
 
 	if (pos)
@@ -144,16 +137,16 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 
 	if (!(filp->f_flags & O_NONBLOCK)) {
 		if (wait_event_interruptible(migf->poll_wait,
-			     READ_ONCE(migf->total_length) || migf->is_err))
+			     READ_ONCE(vhca_buf->length) || migf->is_err))
 			return -ERESTARTSYS;
 	}
 
 	mutex_lock(&migf->lock);
-	if ((filp->f_flags & O_NONBLOCK) && !READ_ONCE(migf->total_length)) {
+	if ((filp->f_flags & O_NONBLOCK) && !READ_ONCE(vhca_buf->length)) {
 		done = -EAGAIN;
 		goto out_unlock;
 	}
-	if (*pos > migf->total_length) {
+	if (*pos > vhca_buf->length) {
 		done = -EINVAL;
 		goto out_unlock;
 	}
@@ -162,7 +155,7 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 		goto out_unlock;
 	}
 
-	len = min_t(size_t, migf->total_length - *pos, len);
+	len = min_t(size_t, vhca_buf->length - *pos, len);
 	while (len) {
 		size_t page_offset;
 		struct page *page;
@@ -171,7 +164,7 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 		int ret;
 
 		page_offset = (*pos) % PAGE_SIZE;
-		page = mlx5vf_get_migration_page(migf, *pos - page_offset);
+		page = mlx5vf_get_migration_page(vhca_buf, *pos - page_offset);
 		if (!page) {
 			if (done == 0)
 				done = -EINVAL;
@@ -208,7 +201,7 @@ static __poll_t mlx5vf_save_poll(struct file *filp,
 	mutex_lock(&migf->lock);
 	if (migf->disabled || migf->is_err)
 		pollflags = EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
-	else if (READ_ONCE(migf->total_length))
+	else if (READ_ONCE(migf->buf->length))
 		pollflags = EPOLLIN | EPOLLRDNORM;
 	mutex_unlock(&migf->lock);
 
@@ -227,6 +220,8 @@ static struct mlx5_vf_migration_file *
 mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev)
 {
 	struct mlx5_vf_migration_file *migf;
+	struct mlx5_vhca_data_buffer *buf;
+	size_t length;
 	int ret;
 
 	migf = kzalloc(sizeof(*migf), GFP_KERNEL);
@@ -257,22 +252,23 @@ mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev)
 	complete(&migf->save_comp);
 	mlx5_cmd_init_async_ctx(mvdev->mdev, &migf->async_ctx);
 	INIT_WORK(&migf->async_data.work, mlx5vf_mig_file_cleanup_cb);
-	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev,
-						    &migf->total_length);
+	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length);
 	if (ret)
 		goto out_pd;
 
-	ret = mlx5vf_add_migration_pages(
-		migf, DIV_ROUND_UP_ULL(migf->total_length, PAGE_SIZE));
-	if (ret)
+	buf = mlx5vf_alloc_data_buffer(migf, length, DMA_FROM_DEVICE);
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
 		goto out_pd;
+	}
 
-	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf);
+	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf, buf);
 	if (ret)
 		goto out_save;
+	migf->buf = buf;
 	return migf;
 out_save:
-	mlx5vf_disable_fd(migf);
+	mlx5vf_free_data_buffer(buf);
 out_pd:
 	mlx5vf_cmd_dealloc_pd(migf);
 out_free:
@@ -286,6 +282,7 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 				   size_t len, loff_t *pos)
 {
 	struct mlx5_vf_migration_file *migf = filp->private_data;
+	struct mlx5_vhca_data_buffer *vhca_buf = migf->buf;
 	loff_t requested_length;
 	ssize_t done = 0;
 
@@ -306,10 +303,10 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 		goto out_unlock;
 	}
 
-	if (migf->allocated_length < requested_length) {
+	if (vhca_buf->allocated_length < requested_length) {
 		done = mlx5vf_add_migration_pages(
-			migf,
-			DIV_ROUND_UP(requested_length - migf->allocated_length,
+			vhca_buf,
+			DIV_ROUND_UP(requested_length - vhca_buf->allocated_length,
 				     PAGE_SIZE));
 		if (done)
 			goto out_unlock;
@@ -323,7 +320,7 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 		int ret;
 
 		page_offset = (*pos) % PAGE_SIZE;
-		page = mlx5vf_get_migration_page(migf, *pos - page_offset);
+		page = mlx5vf_get_migration_page(vhca_buf, *pos - page_offset);
 		if (!page) {
 			if (done == 0)
 				done = -EINVAL;
@@ -342,7 +339,7 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 		len -= page_len;
 		done += page_len;
 		buf += page_len;
-		migf->total_length += page_len;
+		vhca_buf->length += page_len;
 	}
 out_unlock:
 	mutex_unlock(&migf->lock);
@@ -360,6 +357,7 @@ static struct mlx5_vf_migration_file *
 mlx5vf_pci_resume_device_data(struct mlx5vf_pci_core_device *mvdev)
 {
 	struct mlx5_vf_migration_file *migf;
+	struct mlx5_vhca_data_buffer *buf;
 	int ret;
 
 	migf = kzalloc(sizeof(*migf), GFP_KERNEL);
@@ -378,9 +376,18 @@ mlx5vf_pci_resume_device_data(struct mlx5vf_pci_core_device *mvdev)
 	if (ret)
 		goto out_free;
 
+	buf = mlx5vf_alloc_data_buffer(migf, 0, DMA_TO_DEVICE);
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
+		goto out_pd;
+	}
+
+	migf->buf = buf;
 	stream_open(migf->filp->f_inode, migf->filp);
 	mutex_init(&migf->lock);
 	return migf;
+out_pd:
+	mlx5vf_cmd_dealloc_pd(migf);
 out_free:
 	fput(migf->filp);
 end:
@@ -474,7 +481,8 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 
 	if (cur == VFIO_DEVICE_STATE_RESUMING && new == VFIO_DEVICE_STATE_STOP) {
 		ret = mlx5vf_cmd_load_vhca_state(mvdev,
-						 mvdev->resuming_migf);
+						 mvdev->resuming_migf,
+						 mvdev->resuming_migf->buf);
 		if (ret)
 			return ERR_PTR(ret);
 		mlx5vf_disable_fds(mvdev);

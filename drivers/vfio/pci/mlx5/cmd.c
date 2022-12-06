@@ -210,11 +210,11 @@ err_exec:
 }
 
 static int _create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
-			struct mlx5_vf_migration_file *migf,
+			struct mlx5_vhca_data_buffer *buf,
 			struct mlx5_vhca_recv_buf *recv_buf,
 			u32 *mkey)
 {
-	size_t npages = migf ? DIV_ROUND_UP(migf->total_length, PAGE_SIZE) :
+	size_t npages = buf ? DIV_ROUND_UP(buf->allocated_length, PAGE_SIZE) :
 				recv_buf->npages;
 	int err = 0, inlen;
 	__be64 *mtt;
@@ -232,10 +232,10 @@ static int _create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 		 DIV_ROUND_UP(npages, 2));
 	mtt = (__be64 *)MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt);
 
-	if (migf) {
+	if (buf) {
 		struct sg_dma_page_iter dma_iter;
 
-		for_each_sgtable_dma_page(&migf->table.sgt, &dma_iter, 0)
+		for_each_sgtable_dma_page(&buf->table.sgt, &dma_iter, 0)
 			*mtt++ = cpu_to_be64(sg_page_iter_dma_address(&dma_iter));
 	} else {
 		int i;
@@ -255,11 +255,91 @@ static int _create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);
 	MLX5_SET(mkc, mkc, log_page_size, PAGE_SHIFT);
 	MLX5_SET(mkc, mkc, translations_octword_size, DIV_ROUND_UP(npages, 2));
-	MLX5_SET64(mkc, mkc, len,
-		   migf ? migf->total_length : (npages * PAGE_SIZE));
+	MLX5_SET64(mkc, mkc, len, npages * PAGE_SIZE);
 	err = mlx5_core_create_mkey(mdev, mkey, in, inlen);
 	kvfree(in);
 	return err;
+}
+
+static int mlx5vf_dma_data_buffer(struct mlx5_vhca_data_buffer *buf)
+{
+	struct mlx5vf_pci_core_device *mvdev = buf->migf->mvdev;
+	struct mlx5_core_dev *mdev = mvdev->mdev;
+	int ret;
+
+	lockdep_assert_held(&mvdev->state_mutex);
+	if (mvdev->mdev_detach)
+		return -ENOTCONN;
+
+	if (buf->dmaed || !buf->allocated_length)
+		return -EINVAL;
+
+	ret = dma_map_sgtable(mdev->device, &buf->table.sgt, buf->dma_dir, 0);
+	if (ret)
+		return ret;
+
+	ret = _create_mkey(mdev, buf->migf->pdn, buf, NULL, &buf->mkey);
+	if (ret)
+		goto err;
+
+	buf->dmaed = true;
+
+	return 0;
+err:
+	dma_unmap_sgtable(mdev->device, &buf->table.sgt, buf->dma_dir, 0);
+	return ret;
+}
+
+void mlx5vf_free_data_buffer(struct mlx5_vhca_data_buffer *buf)
+{
+	struct mlx5_vf_migration_file *migf = buf->migf;
+	struct sg_page_iter sg_iter;
+
+	lockdep_assert_held(&migf->mvdev->state_mutex);
+	WARN_ON(migf->mvdev->mdev_detach);
+
+	if (buf->dmaed) {
+		mlx5_core_destroy_mkey(migf->mvdev->mdev, buf->mkey);
+		dma_unmap_sgtable(migf->mvdev->mdev->device, &buf->table.sgt,
+				  buf->dma_dir, 0);
+	}
+
+	/* Undo alloc_pages_bulk_array() */
+	for_each_sgtable_page(&buf->table.sgt, &sg_iter, 0)
+		__free_page(sg_page_iter_page(&sg_iter));
+	sg_free_append_table(&buf->table);
+	kfree(buf);
+}
+
+struct mlx5_vhca_data_buffer *
+mlx5vf_alloc_data_buffer(struct mlx5_vf_migration_file *migf,
+			 size_t length,
+			 enum dma_data_direction dma_dir)
+{
+	struct mlx5_vhca_data_buffer *buf;
+	int ret;
+
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	buf->dma_dir = dma_dir;
+	buf->migf = migf;
+	if (length) {
+		ret = mlx5vf_add_migration_pages(buf,
+				DIV_ROUND_UP_ULL(length, PAGE_SIZE));
+		if (ret)
+			goto end;
+
+		ret = mlx5vf_dma_data_buffer(buf);
+		if (ret)
+			goto end;
+	}
+
+	return buf;
+end:
+	mlx5vf_free_data_buffer(buf);
+	return ERR_PTR(ret);
 }
 
 void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
@@ -268,7 +348,6 @@ void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
 		struct mlx5vf_async_data, work);
 	struct mlx5_vf_migration_file *migf = container_of(async_data,
 		struct mlx5_vf_migration_file, async_data);
-	struct mlx5_core_dev *mdev = migf->mvdev->mdev;
 
 	mutex_lock(&migf->lock);
 	if (async_data->status) {
@@ -276,9 +355,6 @@ void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
 		wake_up_interruptible(&migf->poll_wait);
 	}
 	mutex_unlock(&migf->lock);
-
-	mlx5_core_destroy_mkey(mdev, async_data->mkey);
-	dma_unmap_sgtable(mdev->device, &migf->table.sgt, DMA_FROM_DEVICE, 0);
 	kvfree(async_data->out);
 	complete(&migf->save_comp);
 	fput(migf->filp);
@@ -292,7 +368,7 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 			struct mlx5_vf_migration_file, async_data);
 
 	if (!status) {
-		WRITE_ONCE(migf->total_length,
+		WRITE_ONCE(migf->buf->length,
 			   MLX5_GET(save_vhca_state_out, async_data->out,
 				    actual_image_size));
 		wake_up_interruptible(&migf->poll_wait);
@@ -307,39 +383,28 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 }
 
 int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
-			       struct mlx5_vf_migration_file *migf)
+			       struct mlx5_vf_migration_file *migf,
+			       struct mlx5_vhca_data_buffer *buf)
 {
 	u32 out_size = MLX5_ST_SZ_BYTES(save_vhca_state_out);
 	u32 in[MLX5_ST_SZ_DW(save_vhca_state_in)] = {};
 	struct mlx5vf_async_data *async_data;
-	struct mlx5_core_dev *mdev;
-	u32 mkey;
 	int err;
 
 	lockdep_assert_held(&mvdev->state_mutex);
 	if (mvdev->mdev_detach)
 		return -ENOTCONN;
 
-	mdev = mvdev->mdev;
 	err = wait_for_completion_interruptible(&migf->save_comp);
 	if (err)
 		return err;
-
-	err = dma_map_sgtable(mdev->device, &migf->table.sgt, DMA_FROM_DEVICE,
-			      0);
-	if (err)
-		goto err_dma_map;
-
-	err = _create_mkey(mdev, migf->pdn, migf, NULL, &mkey);
-	if (err)
-		goto err_create_mkey;
 
 	MLX5_SET(save_vhca_state_in, in, opcode,
 		 MLX5_CMD_OP_SAVE_VHCA_STATE);
 	MLX5_SET(save_vhca_state_in, in, op_mod, 0);
 	MLX5_SET(save_vhca_state_in, in, vhca_id, mvdev->vhca_id);
-	MLX5_SET(save_vhca_state_in, in, mkey, mkey);
-	MLX5_SET(save_vhca_state_in, in, size, migf->total_length);
+	MLX5_SET(save_vhca_state_in, in, mkey, buf->mkey);
+	MLX5_SET(save_vhca_state_in, in, size, buf->allocated_length);
 
 	async_data = &migf->async_data;
 	async_data->out = kvzalloc(out_size, GFP_KERNEL);
@@ -348,10 +413,7 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 		goto err_out;
 	}
 
-	/* no data exists till the callback comes back */
-	migf->total_length = 0;
 	get_file(migf->filp);
-	async_data->mkey = mkey;
 	err = mlx5_cmd_exec_cb(&migf->async_ctx, in, sizeof(in),
 			       async_data->out,
 			       out_size, mlx5vf_save_callback,
@@ -365,57 +427,33 @@ err_exec:
 	fput(migf->filp);
 	kvfree(async_data->out);
 err_out:
-	mlx5_core_destroy_mkey(mdev, mkey);
-err_create_mkey:
-	dma_unmap_sgtable(mdev->device, &migf->table.sgt, DMA_FROM_DEVICE, 0);
-err_dma_map:
 	complete(&migf->save_comp);
 	return err;
 }
 
 int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
-			       struct mlx5_vf_migration_file *migf)
+			       struct mlx5_vf_migration_file *migf,
+			       struct mlx5_vhca_data_buffer *buf)
 {
-	struct mlx5_core_dev *mdev;
 	u32 out[MLX5_ST_SZ_DW(load_vhca_state_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(load_vhca_state_in)] = {};
-	u32 mkey;
 	int err;
 
 	lockdep_assert_held(&mvdev->state_mutex);
 	if (mvdev->mdev_detach)
 		return -ENOTCONN;
 
-	mutex_lock(&migf->lock);
-	if (!migf->total_length) {
-		err = -EINVAL;
-		goto end;
-	}
-
-	mdev = mvdev->mdev;
-	err = dma_map_sgtable(mdev->device, &migf->table.sgt, DMA_TO_DEVICE, 0);
+	err = mlx5vf_dma_data_buffer(buf);
 	if (err)
-		goto end;
-
-	err = _create_mkey(mdev, migf->pdn, migf, NULL, &mkey);
-	if (err)
-		goto err_mkey;
+		return err;
 
 	MLX5_SET(load_vhca_state_in, in, opcode,
 		 MLX5_CMD_OP_LOAD_VHCA_STATE);
 	MLX5_SET(load_vhca_state_in, in, op_mod, 0);
 	MLX5_SET(load_vhca_state_in, in, vhca_id, mvdev->vhca_id);
-	MLX5_SET(load_vhca_state_in, in, mkey, mkey);
-	MLX5_SET(load_vhca_state_in, in, size, migf->total_length);
-
-	err = mlx5_cmd_exec_inout(mdev, load_vhca_state, in, out);
-
-	mlx5_core_destroy_mkey(mdev, mkey);
-err_mkey:
-	dma_unmap_sgtable(mdev->device, &migf->table.sgt, DMA_TO_DEVICE, 0);
-end:
-	mutex_unlock(&migf->lock);
-	return err;
+	MLX5_SET(load_vhca_state_in, in, mkey, buf->mkey);
+	MLX5_SET(load_vhca_state_in, in, size, buf->length);
+	return mlx5_cmd_exec_inout(mvdev->mdev, load_vhca_state, in, out);
 }
 
 int mlx5vf_cmd_alloc_pd(struct mlx5_vf_migration_file *migf)
@@ -445,6 +483,10 @@ void mlx5fv_cmd_clean_migf_resources(struct mlx5_vf_migration_file *migf)
 
 	WARN_ON(migf->mvdev->mdev_detach);
 
+	if (migf->buf) {
+		mlx5vf_free_data_buffer(migf->buf);
+		migf->buf = NULL;
+	}
 	mlx5vf_cmd_dealloc_pd(migf);
 }
 

@@ -12,11 +12,25 @@
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/qp.h>
 
+struct mlx5_vhca_data_buffer {
+	struct sg_append_table table;
+	loff_t start_pos;
+	u64 length;
+	u64 allocated_length;
+	u32 mkey;
+	enum dma_data_direction dma_dir;
+	u8 dmaed:1;
+	struct mlx5_vf_migration_file *migf;
+	/* Optimize mlx5vf_get_migration_page() for sequential access */
+	struct scatterlist *last_offset_sg;
+	unsigned int sg_last_entry;
+	unsigned long last_offset;
+};
+
 struct mlx5vf_async_data {
 	struct mlx5_async_work cb_work;
 	struct work_struct work;
 	int status;
-	u32 mkey;
 	void *out;
 };
 
@@ -27,14 +41,7 @@ struct mlx5_vf_migration_file {
 	u8 is_err:1;
 
 	u32 pdn;
-	struct sg_append_table table;
-	size_t total_length;
-	size_t allocated_length;
-
-	/* Optimize mlx5vf_get_migration_page() for sequential access */
-	struct scatterlist *last_offset_sg;
-	unsigned int sg_last_entry;
-	unsigned long last_offset;
+	struct mlx5_vhca_data_buffer *buf;
 	struct mlx5vf_pci_core_device *mvdev;
 	wait_queue_head_t poll_wait;
 	struct completion save_comp;
@@ -124,12 +131,20 @@ void mlx5vf_cmd_set_migratable(struct mlx5vf_pci_core_device *mvdev,
 void mlx5vf_cmd_remove_migratable(struct mlx5vf_pci_core_device *mvdev);
 void mlx5vf_cmd_close_migratable(struct mlx5vf_pci_core_device *mvdev);
 int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
-			       struct mlx5_vf_migration_file *migf);
+			       struct mlx5_vf_migration_file *migf,
+			       struct mlx5_vhca_data_buffer *buf);
 int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
-			       struct mlx5_vf_migration_file *migf);
+			       struct mlx5_vf_migration_file *migf,
+			       struct mlx5_vhca_data_buffer *buf);
 int mlx5vf_cmd_alloc_pd(struct mlx5_vf_migration_file *migf);
 void mlx5vf_cmd_dealloc_pd(struct mlx5_vf_migration_file *migf);
 void mlx5fv_cmd_clean_migf_resources(struct mlx5_vf_migration_file *migf);
+struct mlx5_vhca_data_buffer *
+mlx5vf_alloc_data_buffer(struct mlx5_vf_migration_file *migf,
+			 size_t length, enum dma_data_direction dma_dir);
+void mlx5vf_free_data_buffer(struct mlx5_vhca_data_buffer *buf);
+int mlx5vf_add_migration_pages(struct mlx5_vhca_data_buffer *buf,
+			       unsigned int npages);
 void mlx5vf_state_mutex_unlock(struct mlx5vf_pci_core_device *mvdev);
 void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev);
 void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work);
