@@ -2125,11 +2125,27 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	if (vif->mbssid_tx_vif && vif->mbssid_tx_vif != vif)
 		return;
 
-	skb = ieee80211_beacon_get(hw, vif, link_id);
-	if (!skb)
-		return;
+	if (vif->bss_conf.ema_ap) {
+		struct ieee80211_ema_beacons *ema;
+		u8 i = 0;
 
-	__mac80211_hwsim_beacon_tx(link_conf, data, hw, vif, skb);
+		ema = ieee80211_beacon_get_template_ema_list(hw, vif, link_id);
+		if (!ema || !ema->cnt)
+			return;
+
+		for (i = 0; i < ema->cnt; i++) {
+			__mac80211_hwsim_beacon_tx(link_conf, data, hw, vif,
+						   ema->bcn[i].skb);
+			ema->bcn[i].skb = NULL; /* Already freed */
+		}
+		ieee80211_beacon_free_ema_list(ema);
+	} else {
+		skb = ieee80211_beacon_get(hw, vif, link_id);
+		if (!skb)
+			return;
+
+		__mac80211_hwsim_beacon_tx(link_conf, data, hw, vif, skb);
+	}
 
 	while ((skb = ieee80211_get_buffered_bc(hw, vif)) != NULL) {
 		mac80211_hwsim_tx_frame(hw, skb,
@@ -4409,6 +4425,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	}
 
 	hw->wiphy->mbssid_max_interfaces = 8;
+	hw->wiphy->ema_max_profile_periodicity = 3;
 
 	data->rx_rssi = DEFAULT_RX_RSSI;
 
