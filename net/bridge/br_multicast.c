@@ -1273,7 +1273,7 @@ br_multicast_new_group_src(struct net_bridge_port_group *pg, struct br_ip *src_i
 
 struct net_bridge_port_group *br_multicast_new_port_group(
 			struct net_bridge_port *port,
-			struct br_ip *group,
+			const struct br_ip *group,
 			struct net_bridge_port_group __rcu *next,
 			unsigned char flags,
 			const unsigned char *src,
