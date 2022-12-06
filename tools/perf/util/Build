@@ -73,6 +73,7 @@ perf-y += trace-event-parse.o
 perf-y += parse-events-flex.o
 perf-y += parse-events-bison.o
 perf-y += pmu.o
+perf-y += pmus.o
 perf-y += pmu-flex.o
 perf-y += pmu-bison.o
 perf-y += pmu-hybrid.o

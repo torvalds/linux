@@ -22,6 +22,7 @@
 #include "debug.h"
 #include "evsel.h"
 #include "pmu.h"
+#include "pmus.h"
 #include "parse-events.h"
 #include "print-events.h"
 #include "header.h"
@@ -58,7 +59,6 @@ struct perf_pmu_format {
 int perf_pmu_parse(struct list_head *list, char *name);
 extern FILE *perf_pmu_in;
 
-static LIST_HEAD(pmus);
 static bool hybrid_scanned;
 
 /*
