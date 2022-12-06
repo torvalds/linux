@@ -7775,7 +7775,7 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 /**
  * cfg80211_del_sta_sinfo - notify userspace about deletion of a station
  * @dev: the netdev
- * @mac_addr: the station's address
+ * @mac_addr: the station's address. For MLD station, MLD address is used.
  * @sinfo: the station information/statistics
  * @gfp: allocation flags
  */
@@ -7786,7 +7786,7 @@ void cfg80211_del_sta_sinfo(struct net_device *dev, const u8 *mac_addr,
  * cfg80211_del_sta - notify userspace about deletion of a station
  *
  * @dev: the netdev
- * @mac_addr: the station's address
+ * @mac_addr: the station's address. For MLD station, MLD address is used.
  * @gfp: allocation flags
  */
 static inline void cfg80211_del_sta(struct net_device *dev,
