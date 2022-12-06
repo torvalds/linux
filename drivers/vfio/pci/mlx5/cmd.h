@@ -12,9 +12,18 @@
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/qp.h>
 
+#define MLX5VF_PRE_COPY_SUPP(mvdev) \
+	((mvdev)->core_device.vdev.migration_flags & VFIO_MIGRATION_PRE_COPY)
+
 enum mlx5_vf_migf_state {
 	MLX5_MIGF_STATE_ERROR = 1,
 	MLX5_MIGF_STATE_COMPLETE,
+};
+
+struct mlx5_vf_migration_header {
+	__le64 image_size;
+	/* For future use in case we may need to change the kernel protocol */
+	__le64 flags;
 };
 
 struct mlx5_vhca_data_buffer {
@@ -22,6 +31,7 @@ struct mlx5_vhca_data_buffer {
 	loff_t start_pos;
 	u64 length;
 	u64 allocated_length;
+	u64 header_image_size;
 	u32 mkey;
 	enum dma_data_direction dma_dir;
 	u8 dmaed:1;
@@ -37,6 +47,7 @@ struct mlx5vf_async_data {
 	struct mlx5_async_work cb_work;
 	struct work_struct work;
 	struct mlx5_vhca_data_buffer *buf;
+	struct mlx5_vhca_data_buffer *header_buf;
 	int status;
 	u8 last_chunk:1;
 	void *out;
@@ -165,6 +176,8 @@ mlx5vf_get_data_buffer(struct mlx5_vf_migration_file *migf,
 void mlx5vf_put_data_buffer(struct mlx5_vhca_data_buffer *buf);
 int mlx5vf_add_migration_pages(struct mlx5_vhca_data_buffer *buf,
 			       unsigned int npages);
+struct page *mlx5vf_get_migration_page(struct mlx5_vhca_data_buffer *buf,
+				       unsigned long offset);
 void mlx5vf_state_mutex_unlock(struct mlx5vf_pci_core_device *mvdev);
 void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev);
 void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work);
