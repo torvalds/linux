@@ -210,6 +210,7 @@ EndEnum
 Enum	3:0	SVEver
 	0b0000	IMP
 	0b0001	SVE2
+	0b0010	SVE2p1
 EndEnum
 EndSysreg
 
@@ -484,7 +485,16 @@ EndEnum
 EndSysreg
 
 Sysreg	ID_AA64ISAR2_EL1	3	0	0	6	2
-Res0	63:28
+Res0	63:56
+Enum	55:52	CSSC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	51:48	RPRFM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Res0	47:28
 Enum	27:24	PAC_frac
 	0b0000	NI
 	0b0001	IMP
