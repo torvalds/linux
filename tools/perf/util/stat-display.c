@@ -804,7 +804,8 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	os->nr = aggr->nr;
 	os->evsel = counter;
 
-	if (counter->supported && aggr->nr == 0)
+	/* Skip already merged uncore/hybrid events */
+	if (counter->merged_stat)
 		return;
 
 	uniquify_counter(config, counter);
@@ -812,6 +813,13 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	val = aggr->counts.val;
 	ena = aggr->counts.ena;
 	run = aggr->counts.run;
+
+	/*
+	 * Skip value 0 when enabling --per-thread globally, otherwise it will
+	 * have too many 0 output.
+	 */
+	if (val == 0 && config->aggr_mode == AGGR_THREAD && config->system_wide)
+		return;
 
 	if (!metric_only) {
 		if (config->json_output)
@@ -889,9 +897,6 @@ static void print_aggr(struct perf_stat_config *config,
 		print_metric_begin(config, evlist, os, s);
 
 		evlist__for_each_entry(evlist, counter) {
-			if (counter->merged_stat)
-				continue;
-
 			print_counter_aggrdata(config, counter, s, os);
 		}
 		print_metric_end(config, os);
@@ -918,9 +923,6 @@ static void print_aggr_cgroup(struct perf_stat_config *config,
 			print_metric_begin(config, evlist, os, s);
 
 			evlist__for_each_entry(evlist, counter) {
-				if (counter->merged_stat)
-					continue;
-
 				if (counter->cgrp != os->cgrp)
 					continue;
 
@@ -938,9 +940,6 @@ static void print_counter(struct perf_stat_config *config,
 
 	/* AGGR_THREAD doesn't have config->aggr_get_id */
 	if (!config->aggr_map)
-		return;
-
-	if (counter->merged_stat)
 		return;
 
 	for (s = 0; s < config->aggr_map->nr; s++) {
