@@ -219,6 +219,7 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 		if (wait_event_interruptible(migf->poll_wait,
 				!list_empty(&migf->buf_list) ||
 				migf->state == MLX5_MIGF_STATE_ERROR ||
+				migf->state == MLX5_MIGF_STATE_PRE_COPY ||
 				migf->state == MLX5_MIGF_STATE_COMPLETE))
 			return -ERESTARTSYS;
 	}
@@ -236,6 +237,12 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 							 &end_of_data);
 		if (first_loop_call) {
 			first_loop_call = false;
+			/* Temporary end of file as part of PRE_COPY */
+			if (end_of_data && migf->state == MLX5_MIGF_STATE_PRE_COPY) {
+				done = -ENOMSG;
+				goto out_unlock;
+			}
+
 			if (end_of_data && migf->state != MLX5_MIGF_STATE_COMPLETE) {
 				if (filp->f_flags & O_NONBLOCK) {
 					done = -EAGAIN;

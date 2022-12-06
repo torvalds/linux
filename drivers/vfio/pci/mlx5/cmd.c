@@ -501,8 +501,8 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 		spin_lock_irqsave(&migf->list_lock, flags);
 		list_add_tail(&async_data->buf->buf_elm, &migf->buf_list);
 		spin_unlock_irqrestore(&migf->list_lock, flags);
-		if (async_data->last_chunk)
-			migf->state = MLX5_MIGF_STATE_COMPLETE;
+		migf->state = async_data->last_chunk ?
+			MLX5_MIGF_STATE_COMPLETE : MLX5_MIGF_STATE_PRE_COPY;
 		wake_up_interruptible(&migf->poll_wait);
 	}
 
@@ -560,6 +560,9 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 			goto err_free;
 		}
 	}
+
+	if (async_data->last_chunk)
+		migf->state = MLX5_MIGF_STATE_SAVE_LAST;
 
 	async_data->header_buf = header_buf;
 	get_file(migf->filp);
