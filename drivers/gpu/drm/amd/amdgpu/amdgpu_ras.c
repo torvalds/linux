@@ -2411,11 +2411,42 @@ Out:
 	pm_runtime_put_autosuspend(dev->dev);
 }
 
+static void amdgpu_ras_query_poison_mode(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	bool df_poison, umc_poison;
+
+	/* poison setting is useless on SRIOV guest */
+	if (amdgpu_sriov_vf(adev) || !con)
+		return;
+
+	/* Init poison supported flag, the default value is false */
+	if (adev->gmc.xgmi.connected_to_cpu) {
+		/* enabled by default when GPU is connected to CPU */
+		con->poison_supported = true;
+	} else if (adev->df.funcs &&
+	    adev->df.funcs->query_ras_poison_mode &&
+	    adev->umc.ras &&
+	    adev->umc.ras->query_ras_poison_mode) {
+		df_poison =
+			adev->df.funcs->query_ras_poison_mode(adev);
+		umc_poison =
+			adev->umc.ras->query_ras_poison_mode(adev);
+
+		/* Only poison is set in both DF and UMC, we can support it */
+		if (df_poison && umc_poison)
+			con->poison_supported = true;
+		else if (df_poison != umc_poison)
+			dev_warn(adev->dev,
+				"Poison setting is inconsistent in DF/UMC(%d:%d)!\n",
+				df_poison, umc_poison);
+	}
+}
+
 int amdgpu_ras_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	int r;
-	bool df_poison, umc_poison;
 
 	if (con)
 		return 0;
@@ -2490,26 +2521,7 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 			goto release_con;
 	}
 
-	/* Init poison supported flag, the default value is false */
-	if (adev->gmc.xgmi.connected_to_cpu) {
-		/* enabled by default when GPU is connected to CPU */
-		con->poison_supported = true;
-	}
-	else if (adev->df.funcs &&
-	    adev->df.funcs->query_ras_poison_mode &&
-	    adev->umc.ras &&
-	    adev->umc.ras->query_ras_poison_mode) {
-		df_poison =
-			adev->df.funcs->query_ras_poison_mode(adev);
-		umc_poison =
-			adev->umc.ras->query_ras_poison_mode(adev);
-		/* Only poison is set in both DF and UMC, we can support it */
-		if (df_poison && umc_poison)
-			con->poison_supported = true;
-		else if (df_poison != umc_poison)
-			dev_warn(adev->dev, "Poison setting is inconsistent in DF/UMC(%d:%d)!\n",
-					df_poison, umc_poison);
-	}
+	amdgpu_ras_query_poison_mode(adev);
 
 	if (amdgpu_ras_fs_init(adev)) {
 		r = -EINVAL;
