@@ -145,9 +145,10 @@ properties:
 
   pclk-sample:
     $ref: /schemas/types.yaml#/definitions/uint32
-    enum: [ 0, 1 ]
+    enum: [ 0, 1, 2 ]
     description:
-      Sample data on rising (1) or falling (0) edge of the pixel clock signal.
+      Sample data on falling (0), rising (1) or both (2) edges of the pixel
+      clock signal.
 
   sync-on-green-active:
     $ref: /schemas/types.yaml#/definitions/uint32

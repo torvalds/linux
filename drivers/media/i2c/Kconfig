@@ -751,16 +751,6 @@ config VIDEO_S5C73M3
 	  This is a V4L2 sensor driver for Samsung S5C73M3
 	  8 Mpixel camera.
 
-config VIDEO_S5K4ECGX
-	tristate "Samsung S5K4ECGX sensor support"
-	depends on I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select CRC32
-	help
-	  This is a V4L2 sensor driver for Samsung S5K4ECGX 5M
-	  camera sensor with an embedded SoC image signal processor.
-
 config VIDEO_S5K5BAF
 	tristate "Samsung S5K5BAF sensor support"
 	depends on I2C && VIDEO_DEV
