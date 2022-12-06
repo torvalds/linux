@@ -1357,7 +1357,8 @@ static int rkisp_start(struct rkisp_stream *stream)
 		if (ret)
 			return ret;
 	}
-	stream_self_update(stream);
+	if (dev->hw_dev->is_single)
+		stream_self_update(stream);
 	if (stream->ops->enable_mi)
 		stream->ops->enable_mi(stream);
 

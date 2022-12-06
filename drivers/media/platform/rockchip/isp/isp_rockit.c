@@ -369,6 +369,10 @@ int rkisp_rockit_resume_stream(struct rockit_cfg *input_rockit_cfg)
 		pr_err("stream id %d start failed\n", stream->id);
 		return -EINVAL;
 	}
+	if (stream->ispdev->isp_state == ISP_STOP) {
+		stream->ispdev->isp_state = ISP_START;
+		rkisp_rdbk_trigger_event(stream->ispdev, T_CMD_QUEUE, NULL);
+	}
 
 	return 0;
 }
