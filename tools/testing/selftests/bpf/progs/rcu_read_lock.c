@@ -161,6 +161,11 @@ int task_acquire(void *ctx)
 	/* acquire a reference which can be used outside rcu read lock region */
 	gparent = bpf_task_acquire_not_zero(gparent);
 	if (!gparent)
+		/* Until we resolve the issues with using task->rcu_users, we
+		 * expect bpf_task_acquire_not_zero() to return a NULL task.
+		 * See the comment at the definition of
+		 * bpf_task_acquire_not_zero() for more details.
+		 */
 		goto out;
 
 	(void)bpf_task_storage_get(&map_a, gparent, 0, 0);

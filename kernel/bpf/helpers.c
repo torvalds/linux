@@ -1833,8 +1833,7 @@ struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head)
  */
 struct task_struct *bpf_task_acquire(struct task_struct *p)
 {
-	refcount_inc(&p->rcu_users);
-	return p;
+	return get_task_struct(p);
 }
 
 /**
@@ -1845,9 +1844,48 @@ struct task_struct *bpf_task_acquire(struct task_struct *p)
  */
 struct task_struct *bpf_task_acquire_not_zero(struct task_struct *p)
 {
-	if (!refcount_inc_not_zero(&p->rcu_users))
-		return NULL;
-	return p;
+	/* For the time being this function returns NULL, as it's not currently
+	 * possible to safely acquire a reference to a task with RCU protection
+	 * using get_task_struct() and put_task_struct(). This is due to the
+	 * slightly odd mechanics of p->rcu_users, and how task RCU protection
+	 * works.
+	 *
+	 * A struct task_struct is refcounted by two different refcount_t
+	 * fields:
+	 *
+	 * 1. p->usage:     The "true" refcount field which tracks a task's
+	 *		    lifetime. The task is freed as soon as this
+	 *		    refcount drops to 0.
+	 *
+	 * 2. p->rcu_users: An "RCU users" refcount field which is statically
+	 *		    initialized to 2, and is co-located in a union with
+	 *		    a struct rcu_head field (p->rcu). p->rcu_users
+	 *		    essentially encapsulates a single p->usage
+	 *		    refcount, and when p->rcu_users goes to 0, an RCU
+	 *		    callback is scheduled on the struct rcu_head which
+	 *		    decrements the p->usage refcount.
+	 *
+	 * There are two important implications to this task refcounting logic
+	 * described above. The first is that
+	 * refcount_inc_not_zero(&p->rcu_users) cannot be used anywhere, as
+	 * after the refcount goes to 0, the RCU callback being scheduled will
+	 * cause the memory backing the refcount to again be nonzero due to the
+	 * fields sharing a union. The other is that we can't rely on RCU to
+	 * guarantee that a task is valid in a BPF program. This is because a
+	 * task could have already transitioned to being in the TASK_DEAD
+	 * state, had its rcu_users refcount go to 0, and its rcu callback
+	 * invoked in which it drops its single p->usage reference. At this
+	 * point the task will be freed as soon as the last p->usage reference
+	 * goes to 0, without waiting for another RCU gp to elapse. The only
+	 * way that a BPF program can guarantee that a task is valid is in this
+	 * scenario is to hold a p->usage refcount itself.
+	 *
+	 * Until we're able to resolve this issue, either by pulling
+	 * p->rcu_users and p->rcu out of the union, or by getting rid of
+	 * p->usage and just using p->rcu_users for refcounting, we'll just
+	 * return NULL here.
+	 */
+	return NULL;
 }
 
 /**
@@ -1858,33 +1896,15 @@ struct task_struct *bpf_task_acquire_not_zero(struct task_struct *p)
  */
 struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
 {
-	struct task_struct *p;
-
-	rcu_read_lock();
-	p = READ_ONCE(*pp);
-
-	/* Another context could remove the task from the map and release it at
-	 * any time, including after we've done the lookup above. This is safe
-	 * because we're in an RCU read region, so the task is guaranteed to
-	 * remain valid until at least the rcu_read_unlock() below.
+	/* We must return NULL here until we have clarity on how to properly
+	 * leverage RCU for ensuring a task's lifetime. See the comment above
+	 * in bpf_task_acquire_not_zero() for more details.
 	 */
-	if (p && !refcount_inc_not_zero(&p->rcu_users))
-		/* If the task had been removed from the map and freed as
-		 * described above, refcount_inc_not_zero() will return false.
-		 * The task will be freed at some point after the current RCU
-		 * gp has ended, so just return NULL to the user.
-		 */
-		p = NULL;
-	rcu_read_unlock();
-
-	return p;
+	return NULL;
 }
 
 /**
  * bpf_task_release - Release the reference acquired on a struct task_struct *.
- * If this kfunc is invoked in an RCU read region, the task_struct is
- * guaranteed to not be freed until the current grace period has ended, even if
- * its refcount drops to 0.
  * @p: The task on which a reference is being released.
  */
 void bpf_task_release(struct task_struct *p)
@@ -1892,7 +1912,7 @@ void bpf_task_release(struct task_struct *p)
 	if (!p)
 		return;
 
-	put_task_struct_rcu_user(p);
+	put_task_struct(p);
 }
 
 #ifdef CONFIG_CGROUPS
