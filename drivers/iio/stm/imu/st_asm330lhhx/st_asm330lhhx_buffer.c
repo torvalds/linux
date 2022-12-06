@@ -59,10 +59,6 @@ static inline s64 st_asm330lhhx_ewma(s64 old, s64 new, int weight)
 
 inline int st_asm330lhhx_reset_hwts(struct st_asm330lhhx_hw *hw)
 {
-#if defined(CONFIG_IIO_ST_ASM330LHHX_ASYNC_HW_TIMESTAMP)
-	struct st_asm330lhhx_sensor *sensor;
-	int i;
-#endif /* CONFIG_IIO_ST_ASM330LHHX_ASYNC_HW_TIMESTAMP */
 	u8 data = ST_ASM330LHHX_TIMESTAMP_RESET_VALUE;
 	int ret;
 
@@ -76,12 +72,6 @@ inline int st_asm330lhhx_reset_hwts(struct st_asm330lhhx_hw *hw)
 	hw->hw_timestamp_global = (hw->hw_timestamp_global + (1LL << 32)) &
 				  GENMASK_ULL(63, 32);
 	spin_unlock_irq(&hw->hwtimestamp_lock);
-	for (i = 0; i < ST_ASM330LHHX_ID_MAX; ++i) {
-		if (!hw->iio_devs[i])
-			continue;
-
-		sensor = iio_priv(hw->iio_devs[i]);
-	}
 	hw->timesync_c = 0;
 	hw->timesync_ktime = ktime_set(0, ST_ASM330LHHX_FAST_KTIME);
 #else /* CONFIG_IIO_ST_ASM330LHHX_ASYNC_HW_TIMESTAMP */
