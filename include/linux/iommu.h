@@ -1103,4 +1103,25 @@ static inline void iommu_dma_compose_msi_msg(struct msi_desc *desc, struct msi_m
 
 #endif	/* CONFIG_IOMMU_DMA */
 
+/*
+ * Newer generations of Tegra SoCs require devices' stream IDs to be directly programmed into
+ * some registers. These are always paired with a Tegra SMMU or ARM SMMU, for which the contents
+ * of the struct iommu_fwspec are known. Use this helper to formalize access to these internals.
+ */
+#define TEGRA_STREAM_ID_BYPASS 0x7f
+
+static inline bool tegra_dev_iommu_get_stream_id(struct device *dev, u32 *stream_id)
+{
+#ifdef CONFIG_IOMMU_API
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+
+	if (fwspec && fwspec->num_ids == 1) {
+		*stream_id = fwspec->ids[0] & 0xffff;
+		return true;
+	}
+#endif
+
+	return false;
+}
+
 #endif /* __LINUX_IOMMU_H */
