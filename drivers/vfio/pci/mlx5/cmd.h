@@ -12,6 +12,10 @@
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/qp.h>
 
+enum mlx5_vf_migf_state {
+	MLX5_MIGF_STATE_ERROR = 1,
+};
+
 struct mlx5_vhca_data_buffer {
 	struct sg_append_table table;
 	loff_t start_pos;
@@ -37,8 +41,7 @@ struct mlx5vf_async_data {
 struct mlx5_vf_migration_file {
 	struct file *filp;
 	struct mutex lock;
-	u8 disabled:1;
-	u8 is_err:1;
+	enum mlx5_vf_migf_state state;
 
 	u32 pdn;
 	struct mlx5_vhca_data_buffer *buf;

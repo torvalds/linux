@@ -109,7 +109,7 @@ err:
 static void mlx5vf_disable_fd(struct mlx5_vf_migration_file *migf)
 {
 	mutex_lock(&migf->lock);
-	migf->disabled = true;
+	migf->state = MLX5_MIGF_STATE_ERROR;
 	migf->filp->f_pos = 0;
 	mutex_unlock(&migf->lock);
 }
@@ -137,7 +137,8 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 
 	if (!(filp->f_flags & O_NONBLOCK)) {
 		if (wait_event_interruptible(migf->poll_wait,
-			     READ_ONCE(vhca_buf->length) || migf->is_err))
+			     READ_ONCE(vhca_buf->length) ||
+			     migf->state == MLX5_MIGF_STATE_ERROR))
 			return -ERESTARTSYS;
 	}
 
@@ -150,7 +151,7 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 		done = -EINVAL;
 		goto out_unlock;
 	}
-	if (migf->disabled || migf->is_err) {
+	if (migf->state == MLX5_MIGF_STATE_ERROR) {
 		done = -ENODEV;
 		goto out_unlock;
 	}
@@ -199,7 +200,7 @@ static __poll_t mlx5vf_save_poll(struct file *filp,
 	poll_wait(filp, &migf->poll_wait, wait);
 
 	mutex_lock(&migf->lock);
-	if (migf->disabled || migf->is_err)
+	if (migf->state == MLX5_MIGF_STATE_ERROR)
 		pollflags = EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
 	else if (READ_ONCE(migf->buf->length))
 		pollflags = EPOLLIN | EPOLLRDNORM;
@@ -298,7 +299,7 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 		return -ENOMEM;
 
 	mutex_lock(&migf->lock);
-	if (migf->disabled) {
+	if (migf->state == MLX5_MIGF_STATE_ERROR) {
 		done = -ENODEV;
 		goto out_unlock;
 	}
