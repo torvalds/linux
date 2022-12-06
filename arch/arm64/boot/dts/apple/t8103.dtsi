@@ -63,6 +63,9 @@
 			operating-points-v2 = <&ecluster_opp>;
 			capacity-dmips-mhz = <714>;
 			performance-domains = <&cpufreq_e>;
+			next-level-cache = <&l2_cache_0>;
+			i-cache-size = <0x20000>;
+			d-cache-size = <0x10000>;
 		};
 
 		cpu_e1: cpu@1 {
@@ -74,6 +77,9 @@
 			operating-points-v2 = <&ecluster_opp>;
 			capacity-dmips-mhz = <714>;
 			performance-domains = <&cpufreq_e>;
+			next-level-cache = <&l2_cache_0>;
+			i-cache-size = <0x20000>;
+			d-cache-size = <0x10000>;
 		};
 
 		cpu_e2: cpu@2 {
@@ -85,6 +91,9 @@
 			operating-points-v2 = <&ecluster_opp>;
 			capacity-dmips-mhz = <714>;
 			performance-domains = <&cpufreq_e>;
+			next-level-cache = <&l2_cache_0>;
+			i-cache-size = <0x20000>;
+			d-cache-size = <0x10000>;
 		};
 
 		cpu_e3: cpu@3 {
@@ -96,6 +105,9 @@
 			operating-points-v2 = <&ecluster_opp>;
 			capacity-dmips-mhz = <714>;
 			performance-domains = <&cpufreq_e>;
+			next-level-cache = <&l2_cache_0>;
+			i-cache-size = <0x20000>;
+			d-cache-size = <0x10000>;
 		};
 
 		cpu_p0: cpu@10100 {
@@ -107,6 +119,9 @@
 			operating-points-v2 = <&pcluster_opp>;
 			capacity-dmips-mhz = <1024>;
 			performance-domains = <&cpufreq_p>;
+			next-level-cache = <&l2_cache_1>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		cpu_p1: cpu@10101 {
@@ -118,6 +133,9 @@
 			operating-points-v2 = <&pcluster_opp>;
 			capacity-dmips-mhz = <1024>;
 			performance-domains = <&cpufreq_p>;
+			next-level-cache = <&l2_cache_1>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		cpu_p2: cpu@10102 {
@@ -129,6 +147,9 @@
 			operating-points-v2 = <&pcluster_opp>;
 			capacity-dmips-mhz = <1024>;
 			performance-domains = <&cpufreq_p>;
+			next-level-cache = <&l2_cache_1>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		cpu_p3: cpu@10103 {
@@ -140,6 +161,23 @@
 			operating-points-v2 = <&pcluster_opp>;
 			capacity-dmips-mhz = <1024>;
 			performance-domains = <&cpufreq_p>;
+			next-level-cache = <&l2_cache_1>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
+		};
+
+		l2_cache_0: l2-cache-0 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x400000>;
+		};
+
+		l2_cache_1: l2-cache-1 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0xc00000>;
 		};
 	};
 
