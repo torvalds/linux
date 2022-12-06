@@ -2512,6 +2512,16 @@ static int check_reg_arg(struct bpf_verifier_env *env, u32 regno,
 	return 0;
 }
 
+static void mark_jmp_point(struct bpf_verifier_env *env, int idx)
+{
+	env->insn_aux_data[idx].jmp_point = true;
+}
+
+static bool is_jmp_point(struct bpf_verifier_env *env, int insn_idx)
+{
+	return env->insn_aux_data[insn_idx].jmp_point;
+}
+
 /* for any branch, call, exit record the history of jmps in the given state */
 static int push_jmp_history(struct bpf_verifier_env *env,
 			    struct bpf_verifier_state *cur)
@@ -2519,6 +2529,9 @@ static int push_jmp_history(struct bpf_verifier_env *env,
 	u32 cnt = cur->jmp_history_cnt;
 	struct bpf_idx_pair *p;
 	size_t alloc_size;
+
+	if (!is_jmp_point(env, env->insn_idx))
+		return 0;
 
 	cnt++;
 	alloc_size = kmalloc_size_roundup(size_mul(cnt, sizeof(*p)));
@@ -11000,9 +11013,14 @@ static struct bpf_verifier_state_list **explored_state(
 	return &env->explored_states[(idx ^ state->callsite) % state_htab_size(env)];
 }
 
-static void init_explored_state(struct bpf_verifier_env *env, int idx)
+static void mark_prune_point(struct bpf_verifier_env *env, int idx)
 {
 	env->insn_aux_data[idx].prune_point = true;
+}
+
+static bool is_prune_point(struct bpf_verifier_env *env, int insn_idx)
+{
+	return env->insn_aux_data[insn_idx].prune_point;
 }
 
 enum {
@@ -11033,9 +11051,11 @@ static int push_insn(int t, int w, int e, struct bpf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	if (e == BRANCH)
+	if (e == BRANCH) {
 		/* mark branch target for state pruning */
-		init_explored_state(env, w);
+		mark_prune_point(env, w);
+		mark_jmp_point(env, w);
+	}
 
 	if (insn_state[w] == 0) {
 		/* tree-edge */
@@ -11073,10 +11093,13 @@ static int visit_func_call_insn(int t, int insn_cnt,
 	if (ret)
 		return ret;
 
-	if (t + 1 < insn_cnt)
-		init_explored_state(env, t + 1);
+	if (t + 1 < insn_cnt) {
+		mark_prune_point(env, t + 1);
+		mark_jmp_point(env, t + 1);
+	}
 	if (visit_callee) {
-		init_explored_state(env, t);
+		mark_prune_point(env, t);
+		mark_jmp_point(env, t);
 		ret = push_insn(t, t + insns[t].imm + 1, BRANCH, env,
 				/* It's ok to allow recursion from CFG point of
 				 * view. __check_func_call() will do the actual
@@ -11110,13 +11133,15 @@ static int visit_insn(int t, int insn_cnt, struct bpf_verifier_env *env)
 		return DONE_EXPLORING;
 
 	case BPF_CALL:
-		if (insns[t].imm == BPF_FUNC_timer_set_callback)
+		if (insns[t].imm == BPF_FUNC_timer_set_callback) {
 			/* Mark this call insn to trigger is_state_visited() check
 			 * before call itself is processed by __check_func_call().
 			 * Otherwise new async state will be pushed for further
 			 * exploration.
 			 */
-			init_explored_state(env, t);
+			mark_prune_point(env, t);
+			mark_jmp_point(env, t);
+		}
 		return visit_func_call_insn(t, insn_cnt, insns, env,
 					    insns[t].src_reg == BPF_PSEUDO_CALL);
 
@@ -11134,18 +11159,22 @@ static int visit_insn(int t, int insn_cnt, struct bpf_verifier_env *env)
 		 * but it's marked, since backtracking needs
 		 * to record jmp history in is_state_visited().
 		 */
-		init_explored_state(env, t + insns[t].off + 1);
+		mark_prune_point(env, t + insns[t].off + 1);
+		mark_jmp_point(env, t + insns[t].off + 1);
 		/* tell verifier to check for equivalent states
 		 * after every call and jump
 		 */
-		if (t + 1 < insn_cnt)
-			init_explored_state(env, t + 1);
+		if (t + 1 < insn_cnt) {
+			mark_prune_point(env, t + 1);
+			mark_jmp_point(env, t + 1);
+		}
 
 		return ret;
 
 	default:
 		/* conditional jump with two edges */
-		init_explored_state(env, t);
+		mark_prune_point(env, t);
+		mark_jmp_point(env, t);
 		ret = push_insn(t, t + 1, FALLTHROUGH, env, true);
 		if (ret)
 			return ret;
@@ -12178,11 +12207,11 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	bool add_new_state = env->test_state_freq ? true : false;
 
 	cur->last_insn_idx = env->prev_insn_idx;
-	if (!env->insn_aux_data[insn_idx].prune_point)
+	if (!is_prune_point(env, insn_idx))
 		/* this 'insn_idx' instruction wasn't marked, so we will not
 		 * be doing state search here
 		 */
-		return 0;
+		return push_jmp_history(env, cur);
 
 	/* bpf progs typically have pruning point every 4 instructions
 	 * http://vger.kernel.org/bpfconf2019.html#session-1
