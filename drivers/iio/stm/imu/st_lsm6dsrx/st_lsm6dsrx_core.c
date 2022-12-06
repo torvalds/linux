@@ -1658,6 +1658,7 @@ static struct iio_dev *st_lsm6dsrx_alloc_iiodev(struct st_lsm6dsrx_hw *hw,
 	sensor->watermark = 1;
 	sensor->decimator = 0;
 	sensor->dec_counter = 0;
+	sensor->last_fifo_timestamp = 0;
 
 	/* set default FS to each sensor */
 	sensor->gain = st_lsm6dsrx_fs_table[id].fs_avl[0].gain;

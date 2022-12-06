@@ -29,6 +29,8 @@
 #define ST_LSM6DSRX_EWMA_LEVEL				120
 #define ST_LSM6DSRX_EWMA_DIV				128
 
+#define ST_LSM6DSRX_TIMESTAMP_RESET_VALUE	0xaa
+
 /* FIFO tags */
 enum {
 	ST_LSM6DSRX_GYRO_TAG = 0x01,
@@ -59,17 +61,31 @@ static inline s64 st_lsm6dsrx_ewma(s64 old, s64 new, int weight)
 
 static inline int st_lsm6dsrx_reset_hwts(struct st_lsm6dsrx_hw *hw)
 {
-	u8 data = 0xaa;
+	u8 data = ST_LSM6DSRX_TIMESTAMP_RESET_VALUE;
+	int ret;
 
+	ret = st_lsm6dsrx_write_locked(hw, ST_LSM6DSRX_REG_TIMESTAMP2_ADDR,
+				       data);
+	if (ret < 0)
+		return ret;
+
+#if defined(CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP)
+	spin_lock_irq(&hw->hwtimestamp_lock);
 	hw->hw_timestamp_global = (hw->hw_timestamp_global + (1LL << 32)) &
 				   GENMASK_ULL(63, 32);
+	spin_unlock_irq(&hw->hwtimestamp_lock);
+	hw->timesync_c = 0;
+	hw->timesync_ktime = ktime_set(0, ST_LSM6DSRX_FAST_KTIME);
+#else /* CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP */
+	hw->hw_timestamp_global = (hw->hw_timestamp_global + (1LL << 32)) &
+				   GENMASK_ULL(63, 32);
+#endif /* CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP */
 
 	hw->ts = iio_get_time_ns(hw->iio_devs[0]);
 	hw->ts_offset = hw->ts;
 	hw->tsample = 0ull;
 
-	return st_lsm6dsrx_write_locked(hw, ST_LSM6DSRX_REG_TIMESTAMP2_ADDR,
-					data);
+	return 0;
 }
 
 int st_lsm6dsrx_set_fifo_mode(struct st_lsm6dsrx_hw *hw,
@@ -244,10 +260,18 @@ static int st_lsm6dsrx_read_fifo(struct st_lsm6dsrx_hw *hw)
 			if (tag == ST_LSM6DSRX_TS_TAG) {
 				val = get_unaligned_le32(ptr);
 
+#if defined(CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP)
+				spin_lock_irq(&hw->hwtimestamp_lock);
+#endif /* CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP */
+
 				hw->hw_timestamp_global =
 						(hw->hw_timestamp_global &
 						 GENMASK_ULL(63, 32)) |
 						(u32)le32_to_cpu(val);
+
+#if defined(CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP)
+				spin_unlock_irq(&hw->hwtimestamp_lock);
+#endif /* CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP */
 
 				hw_ts_old = hw->hw_ts;
 				hw->hw_ts = val * hw->ts_delta_ns;
@@ -286,14 +310,23 @@ static int st_lsm6dsrx_read_fifo(struct st_lsm6dsrx_hw *hw)
 				}
 				memcpy(iio_buf, ptr, ST_LSM6DSRX_SAMPLE_SIZE);
 
+#if defined(CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP)
+					spin_lock_irq(&hw->hwtimestamp_lock);
+#endif /* CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP */
+
 				hw_timestamp_push = cpu_to_le64(hw->hw_timestamp_global);
+
+#if defined(CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP)
+					spin_unlock_irq(&hw->hwtimestamp_lock);
+#endif /* CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP */
+
 				memcpy(&iio_buf[ALIGN(ST_LSM6DSRX_SAMPLE_SIZE, sizeof(s64))],
 				       &hw_timestamp_push, sizeof(hw_timestamp_push));
 				hw->tsample = min_t(s64,
 					iio_get_time_ns(hw->iio_devs[0]),
 					hw->tsample);
 
-				sensor->last_fifo_timestamp = hw->tsample;
+				sensor->last_fifo_timestamp = hw_timestamp_push;
 
 				/* support decimation for ODR < 12.5 Hz */
 				if (sensor->dec_counter > 0) {
@@ -377,10 +410,7 @@ ssize_t st_lsm6dsrx_flush_fifo(struct device *dev,
 	set_bit(ST_LSM6DSRX_HW_FLUSH, &hw->state);
 	count = st_lsm6dsrx_read_fifo(hw);
 	sensor->dec_counter = 0;
-	if (count > 0)
-		fts = sensor->last_fifo_timestamp;
-	else
-		fts = ts;
+	fts = sensor->last_fifo_timestamp;
 	mutex_unlock(&hw->fifo_lock);
 
 	type = count > 0 ? IIO_EV_DIR_FIFO_DATA : IIO_EV_DIR_FIFO_EMPTY;
@@ -432,6 +462,11 @@ static int st_lsm6dsrx_update_fifo(struct iio_dev *iio_dev, bool enable)
 	}
 
 	disable_irq(hw->irq);
+
+#if defined(CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP)
+	hrtimer_cancel(&hw->timesync_timer);
+	cancel_work_sync(&hw->timesync_work);
+#endif /* CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP */
 
 	if (sensor->id == ST_LSM6DSRX_ID_EXT0 ||
 	    sensor->id == ST_LSM6DSRX_ID_EXT1) {
@@ -496,6 +531,14 @@ static int st_lsm6dsrx_update_fifo(struct iio_dev *iio_dev, bool enable)
 	} else if (!hw->enable_mask) {
 		err = st_lsm6dsrx_set_fifo_mode(hw, ST_LSM6DSRX_FIFO_BYPASS);
 	}
+
+#if defined(CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP)
+	if (hw->fifo_mode != ST_LSM6DSRX_FIFO_BYPASS) {
+		hrtimer_start(&hw->timesync_timer,
+			      ktime_set(0, 0),
+			      HRTIMER_MODE_REL);
+	}
+#endif /* CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP */
 
 out:
 	enable_irq(hw->irq);
@@ -629,6 +672,10 @@ int st_lsm6dsrx_buffers_setup(struct st_lsm6dsrx_hw *hw)
 #endif /* LINUX_VERSION_CODE */
 
 	}
+
+	err = st_lsm6dsrx_hwtimesync_init(hw);
+	if (err)
+		return err;
 
 	return regmap_update_bits(hw->regmap,
 				  ST_LSM6DSRX_REG_FIFO_CTRL4_ADDR,

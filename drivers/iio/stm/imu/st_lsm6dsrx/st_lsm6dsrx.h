@@ -10,11 +10,14 @@
 #ifndef ST_LSM6DSRX_H
 #define ST_LSM6DSRX_H
 
-#include <linux/device.h>
-#include <linux/iio/iio.h>
-#include <linux/delay.h>
-#include <linux/regmap.h>
 #include <linux/bitfield.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/hrtimer.h>
+#include <linux/iio/iio.h>
+#include <linux/regmap.h>
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
 
 #define ST_LSM6DSRX_ODR_EXPAND(odr, uodr)	(((odr) * 1000000) + (uodr))
 
@@ -261,6 +264,9 @@
 #define ST_LSM6DSRX_FIFO_SAMPLE_SIZE		(ST_LSM6DSRX_SAMPLE_SIZE + \
 						 ST_LSM6DSRX_TAG_SIZE)
 #define ST_LSM6DSRX_MAX_FIFO_DEPTH		416
+
+#define ST_LSM6DSRX_DEFAULT_KTIME		(200000000)
+#define ST_LSM6DSRX_FAST_KTIME			(5000000)
 
 #define ST_LSM6DSRX_DATA_CHANNEL(chan_type, addr, mod, ch2, scan_idx,	\
 				rb, sb, sg, ext_inf)			\
@@ -745,6 +751,12 @@ struct st_lsm6dsrx_sensor {
  * @state: HW device operational state.
  * @hw_timestamp_global: hw timestamp value always monotonic where the most
  *                       significant 8byte are incremented at every disable/enable.
+ * @timesync_workqueue: runs the async task in private workqueue.
+ * @timesync_work: actual work to be done in the async task workqueue.
+ * @timesync_timer: hrtimer used to schedule period read for the async task.
+ * @hwtimestamp_lock: spinlock for the 64bit timestamp value.
+ * @timesync_ktime: interval value used by the hrtimer.
+ * @timestamp_c: counter used for counting number of timesync updates.
  * @enable_mask: Enabled sensor bitmask.
  * @requested_mask: Sensor requesting bitmask.
  * @ext_data_len: Number of i2c slave devices connected to I2C master.
@@ -778,6 +790,16 @@ struct st_lsm6dsrx_hw {
 	enum st_lsm6dsrx_fifo_mode fifo_mode;
 	unsigned long state;
 	s64 hw_timestamp_global;
+
+#if defined(CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP)
+	struct workqueue_struct *timesync_workqueue;
+	struct work_struct timesync_work;
+	struct hrtimer timesync_timer;
+	spinlock_t hwtimestamp_lock;
+	ktime_t timesync_ktime;
+	int timesync_c;
+#endif /* CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP */
+
 	u64 enable_mask;
 	u64 requested_mask;
 	u8 ext_data_len;
@@ -990,6 +1012,16 @@ int st_lsm6dsrx_of_get_pin(struct st_lsm6dsrx_hw *hw, int *pin);
 int st_lsm6dsrx_shub_probe(struct st_lsm6dsrx_hw *hw);
 int st_lsm6dsrx_shub_set_enable(struct st_lsm6dsrx_sensor *sensor,
 				bool enable);
+
+#if defined(CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP)
+int st_lsm6dsrx_hwtimesync_init(struct st_lsm6dsrx_hw *hw);
+#else /* CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP */
+static inline int
+st_lsm6dsrx_hwtimesync_init(struct st_lsm6dsrx_hw *hw)
+{
+	return 0;
+}
+#endif /* CONFIG_IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP */
 
 int st_lsm6dsrx_mlc_probe(struct st_lsm6dsrx_hw *hw);
 int st_lsm6dsrx_mlc_remove(struct device *dev);
