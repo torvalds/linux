@@ -1,4 +1,4 @@
-&sound{
+&sound5 {
 	simple-audio-card,dai-link@0 {
 		reg = <0>;
 		status = "okay";
