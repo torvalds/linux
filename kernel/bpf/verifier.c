@@ -13348,13 +13348,6 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	int i, j, err, states_cnt = 0;
 	bool add_new_state = env->test_state_freq ? true : false;
 
-	cur->last_insn_idx = env->prev_insn_idx;
-	if (!is_prune_point(env, insn_idx))
-		/* this 'insn_idx' instruction wasn't marked, so we will not
-		 * be doing state search here
-		 */
-		return push_jmp_history(env, cur);
-
 	/* bpf progs typically have pruning point every 4 instructions
 	 * http://vger.kernel.org/bpfconf2019.html#session-1
 	 * Do not add new state for future pruning if the verifier hasn't seen
@@ -13489,10 +13482,10 @@ next:
 		env->max_states_per_insn = states_cnt;
 
 	if (!env->bpf_capable && states_cnt > BPF_COMPLEXITY_LIMIT_STATES)
-		return push_jmp_history(env, cur);
+		return 0;
 
 	if (!add_new_state)
-		return push_jmp_history(env, cur);
+		return 0;
 
 	/* There were no equivalent states, remember the current one.
 	 * Technically the current state is not proven to be safe yet,
@@ -13632,21 +13625,31 @@ static int do_check(struct bpf_verifier_env *env)
 			return -E2BIG;
 		}
 
-		err = is_state_visited(env, env->insn_idx);
-		if (err < 0)
-			return err;
-		if (err == 1) {
-			/* found equivalent state, can prune the search */
-			if (env->log.level & BPF_LOG_LEVEL) {
-				if (do_print_state)
-					verbose(env, "\nfrom %d to %d%s: safe\n",
-						env->prev_insn_idx, env->insn_idx,
-						env->cur_state->speculative ?
-						" (speculative execution)" : "");
-				else
-					verbose(env, "%d: safe\n", env->insn_idx);
+		state->last_insn_idx = env->prev_insn_idx;
+
+		if (is_prune_point(env, env->insn_idx)) {
+			err = is_state_visited(env, env->insn_idx);
+			if (err < 0)
+				return err;
+			if (err == 1) {
+				/* found equivalent state, can prune the search */
+				if (env->log.level & BPF_LOG_LEVEL) {
+					if (do_print_state)
+						verbose(env, "\nfrom %d to %d%s: safe\n",
+							env->prev_insn_idx, env->insn_idx,
+							env->cur_state->speculative ?
+							" (speculative execution)" : "");
+					else
+						verbose(env, "%d: safe\n", env->insn_idx);
+				}
+				goto process_bpf_exit;
 			}
-			goto process_bpf_exit;
+		}
+
+		if (is_jmp_point(env, env->insn_idx)) {
+			err = push_jmp_history(env, state);
+			if (err)
+				return err;
 		}
 
 		if (signal_pending(current))
