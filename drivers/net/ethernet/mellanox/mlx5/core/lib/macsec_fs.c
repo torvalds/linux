@@ -106,6 +106,9 @@ struct mlx5_macsec_fs {
 	struct net_device *netdev;
 	struct mlx5_macsec_tx *tx_fs;
 	struct mlx5_macsec_rx *rx_fs;
+
+	/* Stats manage */
+	struct mlx5_macsec_stats stats;
 };
 
 static void macsec_fs_destroy_groups(struct mlx5_macsec_flow_table *ft)
@@ -1353,6 +1356,14 @@ void mlx5_macsec_fs_get_stats_fill(struct mlx5_macsec_fs *macsec_fs, void *macse
 	if (rx_tables->check_miss_rule_counter)
 		mlx5_fc_query(mdev, rx_tables->check_miss_rule_counter,
 			      &stats->macsec_rx_pkts_drop, &stats->macsec_rx_bytes_drop);
+}
+
+struct mlx5_macsec_stats *mlx5_macsec_fs_get_stats(struct mlx5_macsec_fs *macsec_fs)
+{
+	if (!macsec_fs)
+		return NULL;
+
+	return &macsec_fs->stats;
 }
 
 union mlx5_macsec_rule *
