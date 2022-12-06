@@ -101,6 +101,7 @@ static inline struct cxl_ep *cxl_ep_load(struct cxl_port *port,
  *            outputs commands this is always expected to be deterministic. For
  *            variable sized output commands, it tells the exact number of bytes
  *            written.
+ * @min_out: (input) internal command output payload size validation
  * @return_code: (output) Error code returned from hardware.
  *
  * This is the primary mechanism used to send commands to the hardware.
@@ -115,6 +116,7 @@ struct cxl_mbox_cmd {
 	void *payload_out;
 	size_t size_in;
 	size_t size_out;
+	size_t min_out;
 	u16 return_code;
 };
 

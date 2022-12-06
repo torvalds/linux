@@ -166,9 +166,7 @@ static const char *cxl_mem_opcode_to_name(u16 opcode)
 int cxl_internal_send_cmd(struct cxl_dev_state *cxlds,
 			  struct cxl_mbox_cmd *mbox_cmd)
 {
-	const struct cxl_mem_command *cmd =
-		cxl_mem_find_command(mbox_cmd->opcode);
-	size_t out_size;
+	size_t out_size, min_out;
 	int rc;
 
 	if (mbox_cmd->size_in > cxlds->payload_size ||
@@ -176,6 +174,7 @@ int cxl_internal_send_cmd(struct cxl_dev_state *cxlds,
 		return -E2BIG;
 
 	out_size = mbox_cmd->size_out;
+	min_out = mbox_cmd->min_out;
 	rc = cxlds->mbox_send(cxlds, mbox_cmd);
 	if (rc)
 		return rc;
@@ -183,14 +182,18 @@ int cxl_internal_send_cmd(struct cxl_dev_state *cxlds,
 	if (mbox_cmd->return_code != CXL_MBOX_CMD_RC_SUCCESS)
 		return cxl_mbox_cmd_rc2errno(mbox_cmd);
 
+	if (!out_size)
+		return 0;
+
 	/*
-	 * Variable sized commands can't be validated and so it's up to the
-	 * caller to do that if they wish.
+	 * Variable sized output needs to at least satisfy the caller's
+	 * minimum if not the fully requested size.
 	 */
-	if (cmd->info.size_out != CXL_VARIABLE_PAYLOAD) {
-		if (mbox_cmd->size_out != out_size)
-			return -EIO;
-	}
+	if (min_out == 0)
+		min_out = out_size;
+
+	if (mbox_cmd->size_out < min_out)
+		return -EIO;
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_internal_send_cmd, CXL);
@@ -635,6 +638,8 @@ static struct cxl_mbox_get_supported_logs *cxl_get_gsl(struct cxl_dev_state *cxl
 		.opcode = CXL_MBOX_OP_GET_SUPPORTED_LOGS,
 		.size_out = cxlds->payload_size,
 		.payload_out = ret,
+		/* At least the record number field must be valid */
+		.min_out = 2,
 	};
 	rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
 	if (rc < 0) {
