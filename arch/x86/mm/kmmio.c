@@ -62,7 +62,13 @@ struct kmmio_context {
 	int active;
 };
 
-static DEFINE_SPINLOCK(kmmio_lock);
+/*
+ * The kmmio_lock is taken in int3 context, which is treated as NMI context.
+ * This causes lockdep to complain about it bein in both NMI and normal
+ * context. Hide it from lockdep, as it should not have any other locks
+ * taken under it, and this is only enabled for debugging mmio anyway.
+ */
+static arch_spinlock_t kmmio_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
 /* Protected by kmmio_lock */
 unsigned int kmmio_count;
@@ -346,10 +352,10 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 		ctx->probe->post_handler(ctx->probe, condition, regs);
 
 	/* Prevent racing against release_kmmio_fault_page(). */
-	spin_lock(&kmmio_lock);
+	arch_spin_lock(&kmmio_lock);
 	if (ctx->fpage->count)
 		arm_kmmio_fault_page(ctx->fpage);
-	spin_unlock(&kmmio_lock);
+	arch_spin_unlock(&kmmio_lock);
 
 	regs->flags &= ~X86_EFLAGS_TF;
 	regs->flags |= ctx->saved_flags;
@@ -440,7 +446,8 @@ int register_kmmio_probe(struct kmmio_probe *p)
 	unsigned int l;
 	pte_t *pte;
 
-	spin_lock_irqsave(&kmmio_lock, flags);
+	local_irq_save(flags);
+	arch_spin_lock(&kmmio_lock);
 	if (get_kmmio_probe(addr)) {
 		ret = -EEXIST;
 		goto out;
@@ -460,7 +467,9 @@ int register_kmmio_probe(struct kmmio_probe *p)
 		size += page_level_size(l);
 	}
 out:
-	spin_unlock_irqrestore(&kmmio_lock, flags);
+	arch_spin_unlock(&kmmio_lock);
+	local_irq_restore(flags);
+
 	/*
 	 * XXX: What should I do here?
 	 * Here was a call to global_flush_tlb(), but it does not exist
@@ -494,7 +503,8 @@ static void remove_kmmio_fault_pages(struct rcu_head *head)
 	struct kmmio_fault_page **prevp = &dr->release_list;
 	unsigned long flags;
 
-	spin_lock_irqsave(&kmmio_lock, flags);
+	local_irq_save(flags);
+	arch_spin_lock(&kmmio_lock);
 	while (f) {
 		if (!f->count) {
 			list_del_rcu(&f->list);
@@ -506,7 +516,8 @@ static void remove_kmmio_fault_pages(struct rcu_head *head)
 		}
 		f = *prevp;
 	}
-	spin_unlock_irqrestore(&kmmio_lock, flags);
+	arch_spin_unlock(&kmmio_lock);
+	local_irq_restore(flags);
 
 	/* This is the real RCU destroy call. */
 	call_rcu(&dr->rcu, rcu_free_kmmio_fault_pages);
@@ -540,14 +551,16 @@ void unregister_kmmio_probe(struct kmmio_probe *p)
 	if (!pte)
 		return;
 
-	spin_lock_irqsave(&kmmio_lock, flags);
+	local_irq_save(flags);
+	arch_spin_lock(&kmmio_lock);
 	while (size < size_lim) {
 		release_kmmio_fault_page(addr + size, &release_list);
 		size += page_level_size(l);
 	}
 	list_del_rcu(&p->list);
 	kmmio_count--;
-	spin_unlock_irqrestore(&kmmio_lock, flags);
+	arch_spin_unlock(&kmmio_lock);
+	local_irq_restore(flags);
 
 	if (!release_list)
 		return;
