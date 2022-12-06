@@ -236,11 +236,14 @@ mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev)
 	migf->filp = anon_inode_getfile("mlx5vf_mig", &mlx5vf_save_fops, migf,
 					O_RDONLY);
 	if (IS_ERR(migf->filp)) {
-		int err = PTR_ERR(migf->filp);
-
-		kfree(migf);
-		return ERR_PTR(err);
+		ret = PTR_ERR(migf->filp);
+		goto end;
 	}
+
+	migf->mvdev = mvdev;
+	ret = mlx5vf_cmd_alloc_pd(migf);
+	if (ret)
+		goto out_free;
 
 	stream_open(migf->filp->f_inode, migf->filp);
 	mutex_init(&migf->lock);
@@ -257,20 +260,25 @@ mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev)
 	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev,
 						    &migf->total_length);
 	if (ret)
-		goto out_free;
+		goto out_pd;
 
 	ret = mlx5vf_add_migration_pages(
 		migf, DIV_ROUND_UP_ULL(migf->total_length, PAGE_SIZE));
 	if (ret)
-		goto out_free;
+		goto out_pd;
 
-	migf->mvdev = mvdev;
 	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf);
 	if (ret)
-		goto out_free;
+		goto out_save;
 	return migf;
+out_save:
+	mlx5vf_disable_fd(migf);
+out_pd:
+	mlx5vf_cmd_dealloc_pd(migf);
 out_free:
 	fput(migf->filp);
+end:
+	kfree(migf);
 	return ERR_PTR(ret);
 }
 
@@ -352,6 +360,7 @@ static struct mlx5_vf_migration_file *
 mlx5vf_pci_resume_device_data(struct mlx5vf_pci_core_device *mvdev)
 {
 	struct mlx5_vf_migration_file *migf;
+	int ret;
 
 	migf = kzalloc(sizeof(*migf), GFP_KERNEL);
 	if (!migf)
@@ -360,20 +369,30 @@ mlx5vf_pci_resume_device_data(struct mlx5vf_pci_core_device *mvdev)
 	migf->filp = anon_inode_getfile("mlx5vf_mig", &mlx5vf_resume_fops, migf,
 					O_WRONLY);
 	if (IS_ERR(migf->filp)) {
-		int err = PTR_ERR(migf->filp);
-
-		kfree(migf);
-		return ERR_PTR(err);
+		ret = PTR_ERR(migf->filp);
+		goto end;
 	}
+
+	migf->mvdev = mvdev;
+	ret = mlx5vf_cmd_alloc_pd(migf);
+	if (ret)
+		goto out_free;
+
 	stream_open(migf->filp->f_inode, migf->filp);
 	mutex_init(&migf->lock);
 	return migf;
+out_free:
+	fput(migf->filp);
+end:
+	kfree(migf);
+	return ERR_PTR(ret);
 }
 
 void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev)
 {
 	if (mvdev->resuming_migf) {
 		mlx5vf_disable_fd(mvdev->resuming_migf);
+		mlx5fv_cmd_clean_migf_resources(mvdev->resuming_migf);
 		fput(mvdev->resuming_migf->filp);
 		mvdev->resuming_migf = NULL;
 	}
@@ -381,6 +400,7 @@ void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev)
 		mlx5_cmd_cleanup_async_ctx(&mvdev->saving_migf->async_ctx);
 		cancel_work_sync(&mvdev->saving_migf->async_data.work);
 		mlx5vf_disable_fd(mvdev->saving_migf);
+		mlx5fv_cmd_clean_migf_resources(mvdev->saving_migf);
 		fput(mvdev->saving_migf->filp);
 		mvdev->saving_migf = NULL;
 	}

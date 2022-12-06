@@ -279,7 +279,6 @@ void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
 
 	mlx5_core_destroy_mkey(mdev, async_data->mkey);
 	dma_unmap_sgtable(mdev->device, &migf->table.sgt, DMA_FROM_DEVICE, 0);
-	mlx5_core_dealloc_pd(mdev, async_data->pdn);
 	kvfree(async_data->out);
 	complete(&migf->save_comp);
 	fput(migf->filp);
@@ -314,7 +313,7 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	u32 in[MLX5_ST_SZ_DW(save_vhca_state_in)] = {};
 	struct mlx5vf_async_data *async_data;
 	struct mlx5_core_dev *mdev;
-	u32 pdn, mkey;
+	u32 mkey;
 	int err;
 
 	lockdep_assert_held(&mvdev->state_mutex);
@@ -326,16 +325,12 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	if (err)
 		return err;
 
-	err = mlx5_core_alloc_pd(mdev, &pdn);
-	if (err)
-		return err;
-
 	err = dma_map_sgtable(mdev->device, &migf->table.sgt, DMA_FROM_DEVICE,
 			      0);
 	if (err)
 		goto err_dma_map;
 
-	err = _create_mkey(mdev, pdn, migf, NULL, &mkey);
+	err = _create_mkey(mdev, migf->pdn, migf, NULL, &mkey);
 	if (err)
 		goto err_create_mkey;
 
@@ -357,7 +352,6 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	migf->total_length = 0;
 	get_file(migf->filp);
 	async_data->mkey = mkey;
-	async_data->pdn = pdn;
 	err = mlx5_cmd_exec_cb(&migf->async_ctx, in, sizeof(in),
 			       async_data->out,
 			       out_size, mlx5vf_save_callback,
@@ -375,7 +369,6 @@ err_out:
 err_create_mkey:
 	dma_unmap_sgtable(mdev->device, &migf->table.sgt, DMA_FROM_DEVICE, 0);
 err_dma_map:
-	mlx5_core_dealloc_pd(mdev, pdn);
 	complete(&migf->save_comp);
 	return err;
 }
@@ -386,7 +379,7 @@ int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	struct mlx5_core_dev *mdev;
 	u32 out[MLX5_ST_SZ_DW(load_vhca_state_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(load_vhca_state_in)] = {};
-	u32 pdn, mkey;
+	u32 mkey;
 	int err;
 
 	lockdep_assert_held(&mvdev->state_mutex);
@@ -400,15 +393,11 @@ int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	}
 
 	mdev = mvdev->mdev;
-	err = mlx5_core_alloc_pd(mdev, &pdn);
+	err = dma_map_sgtable(mdev->device, &migf->table.sgt, DMA_TO_DEVICE, 0);
 	if (err)
 		goto end;
 
-	err = dma_map_sgtable(mdev->device, &migf->table.sgt, DMA_TO_DEVICE, 0);
-	if (err)
-		goto err_reg;
-
-	err = _create_mkey(mdev, pdn, migf, NULL, &mkey);
+	err = _create_mkey(mdev, migf->pdn, migf, NULL, &mkey);
 	if (err)
 		goto err_mkey;
 
@@ -424,11 +413,39 @@ int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	mlx5_core_destroy_mkey(mdev, mkey);
 err_mkey:
 	dma_unmap_sgtable(mdev->device, &migf->table.sgt, DMA_TO_DEVICE, 0);
-err_reg:
-	mlx5_core_dealloc_pd(mdev, pdn);
 end:
 	mutex_unlock(&migf->lock);
 	return err;
+}
+
+int mlx5vf_cmd_alloc_pd(struct mlx5_vf_migration_file *migf)
+{
+	int err;
+
+	lockdep_assert_held(&migf->mvdev->state_mutex);
+	if (migf->mvdev->mdev_detach)
+		return -ENOTCONN;
+
+	err = mlx5_core_alloc_pd(migf->mvdev->mdev, &migf->pdn);
+	return err;
+}
+
+void mlx5vf_cmd_dealloc_pd(struct mlx5_vf_migration_file *migf)
+{
+	lockdep_assert_held(&migf->mvdev->state_mutex);
+	if (migf->mvdev->mdev_detach)
+		return;
+
+	mlx5_core_dealloc_pd(migf->mvdev->mdev, migf->pdn);
+}
+
+void mlx5fv_cmd_clean_migf_resources(struct mlx5_vf_migration_file *migf)
+{
+	lockdep_assert_held(&migf->mvdev->state_mutex);
+
+	WARN_ON(migf->mvdev->mdev_detach);
+
+	mlx5vf_cmd_dealloc_pd(migf);
 }
 
 static void combine_ranges(struct rb_root_cached *root, u32 cur_nodes,

@@ -16,7 +16,6 @@ struct mlx5vf_async_data {
 	struct mlx5_async_work cb_work;
 	struct work_struct work;
 	int status;
-	u32 pdn;
 	u32 mkey;
 	void *out;
 };
@@ -27,6 +26,7 @@ struct mlx5_vf_migration_file {
 	u8 disabled:1;
 	u8 is_err:1;
 
+	u32 pdn;
 	struct sg_append_table table;
 	size_t total_length;
 	size_t allocated_length;
@@ -127,6 +127,9 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 			       struct mlx5_vf_migration_file *migf);
 int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 			       struct mlx5_vf_migration_file *migf);
+int mlx5vf_cmd_alloc_pd(struct mlx5_vf_migration_file *migf);
+void mlx5vf_cmd_dealloc_pd(struct mlx5_vf_migration_file *migf);
+void mlx5fv_cmd_clean_migf_resources(struct mlx5_vf_migration_file *migf);
 void mlx5vf_state_mutex_unlock(struct mlx5vf_pci_core_device *mvdev);
 void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev);
 void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work);
