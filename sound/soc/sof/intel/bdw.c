@@ -575,11 +575,7 @@ static struct snd_sof_dsp_ops sof_bdw_ops = {
 	.run            = bdw_run,
 	.reset          = bdw_reset,
 
-	/* Register IO */
-	.write		= sof_io_write,
-	.read		= sof_io_read,
-	.write64	= sof_io_write64,
-	.read64		= sof_io_read64,
+	/* Register IO uses direct mmio */
 
 	/* Block IO */
 	.block_read	= sof_block_read,

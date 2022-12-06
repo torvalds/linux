@@ -22,6 +22,9 @@ description: |
 
   The properties are all contained in the parent MFD node.
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   '#sound-dai-cells':
     description:

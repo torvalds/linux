@@ -75,8 +75,6 @@ struct erofs_mount_opts {
 	unsigned int max_sync_decompress_pages;
 #endif
 	unsigned int mount_opt;
-	char *fsid;
-	char *domain_id;
 };
 
 struct erofs_dev_context {
@@ -89,6 +87,8 @@ struct erofs_dev_context {
 struct erofs_fs_context {
 	struct erofs_mount_opts opt;
 	struct erofs_dev_context *devs;
+	char *fsid;
+	char *domain_id;
 };
 
 /* all filesystem-wide lz4 configurations */
@@ -170,6 +170,8 @@ struct erofs_sb_info {
 	struct fscache_volume *volume;
 	struct erofs_fscache *s_fscache;
 	struct erofs_domain *domain;
+	char *fsid;
+	char *domain_id;
 };
 
 #define EROFS_SB(sb) ((struct erofs_sb_info *)(sb)->s_fs_info)

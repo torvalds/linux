@@ -1213,7 +1213,7 @@ static int blkcg_css_online(struct cgroup_subsys_state *css)
 	 * parent so that offline always happens towards the root.
 	 */
 	if (parent)
-		blkcg_pin_online(css);
+		blkcg_pin_online(&parent->css);
 	return 0;
 }
 

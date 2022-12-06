@@ -13,6 +13,9 @@ description: |
   Qualcomm WCD9380/WCD9385 Codec is a standalone Hi-Fi audio codec IC.
   It has RX and TX Soundwire slave devices.
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     enum:
@@ -106,7 +109,7 @@ required:
   - qcom,micbias4-microvolt
   - "#sound-dai-cells"
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

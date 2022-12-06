@@ -1143,8 +1143,32 @@ const struct inode_operations cifs_file_inode_ops = {
 	.fiemap = cifs_fiemap,
 };
 
+const char *cifs_get_link(struct dentry *dentry, struct inode *inode,
+			    struct delayed_call *done)
+{
+	char *target_path;
+
+	target_path = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!target_path)
+		return ERR_PTR(-ENOMEM);
+
+	spin_lock(&inode->i_lock);
+	if (likely(CIFS_I(inode)->symlink_target)) {
+		strscpy(target_path, CIFS_I(inode)->symlink_target, PATH_MAX);
+	} else {
+		kfree(target_path);
+		target_path = ERR_PTR(-EOPNOTSUPP);
+	}
+	spin_unlock(&inode->i_lock);
+
+	if (!IS_ERR(target_path))
+		set_delayed_call(done, kfree_link, target_path);
+
+	return target_path;
+}
+
 const struct inode_operations cifs_symlink_inode_ops = {
-	.get_link = simple_get_link,
+	.get_link = cifs_get_link,
 	.permission = cifs_permission,
 	.listxattr = cifs_listxattr,
 };
@@ -1302,8 +1326,11 @@ static ssize_t cifs_copy_file_range(struct file *src_file, loff_t off,
 	ssize_t rc;
 	struct cifsFileInfo *cfile = dst_file->private_data;
 
-	if (cfile->swapfile)
-		return -EOPNOTSUPP;
+	if (cfile->swapfile) {
+		rc = -EOPNOTSUPP;
+		free_xid(xid);
+		return rc;
+	}
 
 	rc = cifs_file_copychunk_range(xid, src_file, off, dst_file, destoff,
 					len, flags);

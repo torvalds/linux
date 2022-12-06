@@ -902,7 +902,7 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
 		goto out_put_mm;
 
 	hold_task_mempolicy(priv);
-	vma = mas_find(&mas, 0);
+	vma = mas_find(&mas, ULONG_MAX);
 
 	if (unlikely(!vma))
 		goto empty_set;

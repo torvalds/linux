@@ -169,7 +169,7 @@ static int axg_pdm_set_sysclk(struct axg_pdm *priv, unsigned int os,
 
 	/*
 	 * Set the default system clock rate unless it is too fast for
-	 * for the requested sample rate. In this case, the sample pointer
+	 * the requested sample rate. In this case, the sample pointer
 	 * counter could overflow so set a lower system clock rate
 	 */
 	if (sys_rate < priv->cfg->sys_rate)

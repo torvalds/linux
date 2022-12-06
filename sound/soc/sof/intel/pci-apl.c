@@ -33,6 +33,9 @@ static const struct sof_dev_desc bxt_desc = {
 		[SOF_IPC] = "intel/sof",
 		[SOF_INTEL_IPC4] = "intel/avs/apl",
 	},
+	.default_lib_path = {
+		[SOF_INTEL_IPC4] = "intel/avs-lib/apl",
+	},
 	.default_tplg_path = {
 		[SOF_IPC] = "intel/sof-tplg",
 		[SOF_INTEL_IPC4] = "intel/avs-tplg",
@@ -60,6 +63,9 @@ static const struct sof_dev_desc glk_desc = {
 	.default_fw_path = {
 		[SOF_IPC] = "intel/sof",
 		[SOF_INTEL_IPC4] = "intel/avs/glk",
+	},
+	.default_lib_path = {
+		[SOF_INTEL_IPC4] = "intel/avs-lib/glk",
 	},
 	.default_tplg_path = {
 		[SOF_IPC] = "intel/sof-tplg",

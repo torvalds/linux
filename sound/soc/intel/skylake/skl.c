@@ -387,15 +387,6 @@ static int skl_resume(struct device *dev)
 			snd_hdac_bus_init_cmd_io(bus);
 	} else {
 		ret = _skl_resume(bus);
-
-		/* turn off the links which are off before suspend */
-		list_for_each_entry(hlink, &bus->hlink_list, list) {
-			if (!hlink->ref_count)
-				snd_hdac_ext_bus_link_power_down(hlink);
-		}
-
-		if (!bus->cmd_dma_state)
-			snd_hdac_bus_stop_cmd_io(bus);
 	}
 
 	return ret;

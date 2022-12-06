@@ -52,6 +52,7 @@ static void trace_event_probe_cleanup(struct trace_eprobe *ep)
 	kfree(ep->event_system);
 	if (ep->event)
 		trace_event_put_ref(ep->event);
+	kfree(ep->filter_str);
 	kfree(ep);
 }
 
@@ -563,6 +564,9 @@ static void eprobe_trigger_func(struct event_trigger_data *data,
 {
 	struct eprobe_data *edata = data->private_data;
 
+	if (unlikely(!rec))
+		return;
+
 	__eprobe_trace_func(edata, rec);
 }
 
@@ -642,7 +646,7 @@ new_eprobe_trigger(struct trace_eprobe *ep, struct trace_event_file *file)
 	INIT_LIST_HEAD(&trigger->list);
 
 	if (ep->filter_str) {
-		ret = create_event_filter(file->tr, file->event_call,
+		ret = create_event_filter(file->tr, ep->event,
 					ep->filter_str, false, &filter);
 		if (ret)
 			goto error;
@@ -900,7 +904,7 @@ static int trace_eprobe_tp_update_arg(struct trace_eprobe *ep, const char *argv[
 
 static int trace_eprobe_parse_filter(struct trace_eprobe *ep, int argc, const char *argv[])
 {
-	struct event_filter *dummy;
+	struct event_filter *dummy = NULL;
 	int i, ret, len = 0;
 	char *p;
 
