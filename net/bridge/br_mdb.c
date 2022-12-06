@@ -1094,7 +1094,6 @@ static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net_bridge_vlan *v;
 	struct br_mdb_config cfg;
 	struct net_device *dev;
-	struct net_bridge *br;
 	int err;
 
 	err = br_mdb_config_init(net, nlh, &cfg, extack);
@@ -1105,30 +1104,30 @@ static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		return err;
 
-	br = netdev_priv(dev);
-
-	if (entry->ifindex != br->dev->ifindex) {
-		if (cfg.p->state == BR_STATE_DISABLED && entry->state != MDB_PERMANENT) {
+	if (cfg.p) {
+		if (cfg.p->state == BR_STATE_DISABLED && cfg.entry->state != MDB_PERMANENT) {
 			NL_SET_ERR_MSG_MOD(extack, "Port is in disabled state and entry is not permanent");
 			return -EINVAL;
 		}
 		vg = nbp_vlan_group(cfg.p);
 	} else {
-		vg = br_vlan_group(br);
+		vg = br_vlan_group(cfg.br);
 	}
 
 	/* If vlan filtering is enabled and VLAN is not specified
 	 * install mdb entry on all vlans configured on the port.
 	 */
-	if (br_vlan_enabled(br->dev) && vg && entry->vid == 0) {
+	if (br_vlan_enabled(cfg.br->dev) && vg && cfg.entry->vid == 0) {
 		list_for_each_entry(v, &vg->vlan_list, vlist) {
-			entry->vid = v->vid;
-			err = __br_mdb_add(net, br, cfg.p, entry, mdb_attrs, extack);
+			cfg.entry->vid = v->vid;
+			err = __br_mdb_add(net, cfg.br, cfg.p, cfg.entry,
+					   mdb_attrs, extack);
 			if (err)
 				break;
 		}
 	} else {
-		err = __br_mdb_add(net, br, cfg.p, entry, mdb_attrs, extack);
+		err = __br_mdb_add(net, cfg.br, cfg.p, cfg.entry, mdb_attrs,
+				   extack);
 	}
 
 	return err;
@@ -1186,7 +1185,6 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net_bridge_vlan *v;
 	struct br_mdb_config cfg;
 	struct net_device *dev;
-	struct net_bridge *br;
 	int err;
 
 	err = br_mdb_config_init(net, nlh, &cfg, extack);
@@ -1197,23 +1195,21 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		return err;
 
-	br = netdev_priv(dev);
-
-	if (entry->ifindex != br->dev->ifindex)
+	if (cfg.p)
 		vg = nbp_vlan_group(cfg.p);
 	else
-		vg = br_vlan_group(br);
+		vg = br_vlan_group(cfg.br);
 
 	/* If vlan filtering is enabled and VLAN is not specified
 	 * delete mdb entry on all vlans configured on the port.
 	 */
-	if (br_vlan_enabled(br->dev) && vg && entry->vid == 0) {
+	if (br_vlan_enabled(cfg.br->dev) && vg && cfg.entry->vid == 0) {
 		list_for_each_entry(v, &vg->vlan_list, vlist) {
-			entry->vid = v->vid;
-			err = __br_mdb_del(br, entry, mdb_attrs);
+			cfg.entry->vid = v->vid;
+			err = __br_mdb_del(cfg.br, cfg.entry, mdb_attrs);
 		}
 	} else {
-		err = __br_mdb_del(br, entry, mdb_attrs);
+		err = __br_mdb_del(cfg.br, cfg.entry, mdb_attrs);
 	}
 
 	return err;
