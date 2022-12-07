@@ -433,7 +433,7 @@ static int rockchip_show_interrupts(char *p, int irq)
 			j *= 10;
 
 		buf += sprintf(buf, "%*s", prec + 8, "");
-		for_each_online_cpu(j)
+		for_each_possible_cpu(j)
 			buf += sprintf(buf, "CPU%-8d", j);
 		buf += sprintf(buf, "\n");
 	}
@@ -443,14 +443,14 @@ static int rockchip_show_interrupts(char *p, int irq)
 		goto outsparse;
 
 	if (desc->kstat_irqs)
-		for_each_online_cpu(j)
+		for_each_possible_cpu(j)
 			any_count |= *per_cpu_ptr(desc->kstat_irqs, j);
 
 	if ((!desc->action) && !any_count)
 		goto outsparse;
 
 	buf += sprintf(buf, "%*d: ", prec, i);
-	for_each_online_cpu(j)
+	for_each_possible_cpu(j)
 		buf += sprintf(buf, "%10u ", desc->kstat_irqs ?
 					*per_cpu_ptr(desc->kstat_irqs, j) : 0);
 
