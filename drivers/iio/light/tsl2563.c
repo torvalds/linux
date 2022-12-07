@@ -695,12 +695,13 @@ static const struct iio_info tsl2563_info = {
 
 static int tsl2563_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct tsl2563_chip *chip;
 	struct tsl2563_platform_data *pdata = client->dev.platform_data;
 	unsigned long irq_flags;
-	int err = 0;
 	u8 id = 0;
+	int err;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
@@ -712,16 +713,12 @@ static int tsl2563_probe(struct i2c_client *client)
 	chip->client = client;
 
 	err = tsl2563_detect(chip);
-	if (err) {
-		dev_err(&client->dev, "detect error %d\n", -err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "detect error\n");
 
 	err = tsl2563_read_id(chip, &id);
-	if (err) {
-		dev_err(&client->dev, "read id error %d\n", -err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "read id error\n");
 
 	mutex_init(&chip->lock);
 
@@ -765,17 +762,13 @@ static int tsl2563_probe(struct i2c_client *client)
 					   irq_flags,
 					   "tsl2563_event",
 					   indio_dev);
-		if (err) {
-			dev_err(&client->dev, "irq request error %d\n", -err);
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err, "irq request error\n");
 	}
 
 	err = tsl2563_configure(chip);
-	if (err) {
-		dev_err(&client->dev, "configure error %d\n", -err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "configure error\n");
 
 	INIT_DELAYED_WORK(&chip->poweroff_work, tsl2563_poweroff_work);
 
@@ -784,7 +777,7 @@ static int tsl2563_probe(struct i2c_client *client)
 
 	err = iio_device_register(indio_dev);
 	if (err) {
-		dev_err(&client->dev, "iio registration error %d\n", -err);
+		dev_err_probe(dev, err, "iio registration error\n");
 		goto fail;
 	}
 
