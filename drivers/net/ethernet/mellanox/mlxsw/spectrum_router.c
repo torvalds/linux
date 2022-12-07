@@ -18,6 +18,7 @@
 #include <linux/jhash.h>
 #include <linux/net_namespace.h>
 #include <linux/mutex.h>
+#include <linux/genalloc.h>
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
@@ -7828,16 +7829,18 @@ mlxsw_sp_dev_rif_type(const struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_rif_index_alloc(struct mlxsw_sp *mlxsw_sp, u16 *p_rif_index)
 {
-	int i;
+	*p_rif_index = gen_pool_alloc(mlxsw_sp->router->rifs_table, 1);
+	if (*p_rif_index == 0)
+		return -ENOBUFS;
+	*p_rif_index -= MLXSW_SP_ROUTER_GENALLOC_OFFSET;
 
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++) {
-		if (!mlxsw_sp->router->rifs[i]) {
-			*p_rif_index = i;
-			return 0;
-		}
-	}
+	return 0;
+}
 
-	return -ENOBUFS;
+static void mlxsw_sp_rif_index_free(struct mlxsw_sp *mlxsw_sp, u16 rif_index)
+{
+	gen_pool_free(mlxsw_sp->router->rifs_table,
+		      MLXSW_SP_ROUTER_GENALLOC_OFFSET + rif_index, 1);
 }
 
 static struct mlxsw_sp_rif *mlxsw_sp_rif_alloc(size_t rif_size, u16 rif_index,
@@ -8162,6 +8165,7 @@ err_fid_get:
 	dev_put(rif->dev);
 	kfree(rif);
 err_rif_alloc:
+	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index);
 err_rif_index_alloc:
 	vr->rif_count--;
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
@@ -8173,6 +8177,7 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	const struct mlxsw_sp_rif_ops *ops = rif->ops;
 	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
 	struct mlxsw_sp_fid *fid = rif->fid;
+	u16 rif_index = rif->rif_index;
 	struct mlxsw_sp_vr *vr;
 	int i;
 
@@ -8198,6 +8203,7 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	mlxsw_sp->router->rifs[rif->rif_index] = NULL;
 	dev_put(rif->dev);
 	kfree(rif);
+	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index);
 	vr->rif_count--;
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
 }
@@ -9781,8 +9787,10 @@ mlxsw_sp_ul_rif_create(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr,
 	}
 
 	ul_rif = mlxsw_sp_rif_alloc(sizeof(*ul_rif), rif_index, vr->id, NULL);
-	if (!ul_rif)
-		return ERR_PTR(-ENOMEM);
+	if (!ul_rif) {
+		err = -ENOMEM;
+		goto err_rif_alloc;
+	}
 
 	mlxsw_sp->router->rifs[rif_index] = ul_rif;
 	ul_rif->mlxsw_sp = mlxsw_sp;
@@ -9796,17 +9804,21 @@ mlxsw_sp_ul_rif_create(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr,
 ul_rif_op_err:
 	mlxsw_sp->router->rifs[rif_index] = NULL;
 	kfree(ul_rif);
+err_rif_alloc:
+	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index);
 	return ERR_PTR(err);
 }
 
 static void mlxsw_sp_ul_rif_destroy(struct mlxsw_sp_rif *ul_rif)
 {
 	struct mlxsw_sp *mlxsw_sp = ul_rif->mlxsw_sp;
+	u16 rif_index = ul_rif->rif_index;
 
 	atomic_dec(&mlxsw_sp->router->rifs_count);
 	mlxsw_sp_rif_ipip_lb_ul_rif_op(ul_rif, false);
 	mlxsw_sp->router->rifs[ul_rif->rif_index] = NULL;
 	kfree(ul_rif);
+	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index);
 }
 
 static struct mlxsw_sp_rif *
@@ -9940,11 +9952,43 @@ static const struct mlxsw_sp_rif_ops *mlxsw_sp2_rif_ops_arr[] = {
 	[MLXSW_SP_RIF_TYPE_IPIP_LB]	= &mlxsw_sp2_rif_ipip_lb_ops,
 };
 
+static int mlxsw_sp_rifs_table_init(struct mlxsw_sp *mlxsw_sp)
+{
+	struct gen_pool *rifs_table;
+	int err;
+
+	rifs_table = gen_pool_create(0, -1);
+	if (!rifs_table)
+		return -ENOMEM;
+
+	gen_pool_set_algo(rifs_table, gen_pool_first_fit_order_align,
+			  NULL);
+
+	err = gen_pool_add(rifs_table, MLXSW_SP_ROUTER_GENALLOC_OFFSET,
+			   MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS), -1);
+	if (err)
+		goto err_gen_pool_add;
+
+	mlxsw_sp->router->rifs_table = rifs_table;
+
+	return 0;
+
+err_gen_pool_add:
+	gen_pool_destroy(rifs_table);
+	return err;
+}
+
+static void mlxsw_sp_rifs_table_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	gen_pool_destroy(mlxsw_sp->router->rifs_table);
+}
+
 static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)
 {
 	u64 max_rifs = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS);
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	struct mlxsw_core *core = mlxsw_sp->core;
+	int err;
 
 	if (!MLXSW_CORE_RES_VALID(core, MAX_RIF_MAC_PROFILES))
 		return -EIO;
@@ -9956,6 +10000,10 @@ static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)
 					 GFP_KERNEL);
 	if (!mlxsw_sp->router->rifs)
 		return -ENOMEM;
+
+	err = mlxsw_sp_rifs_table_init(mlxsw_sp);
+	if (err)
+		goto err_rifs_table_init;
 
 	idr_init(&mlxsw_sp->router->rif_mac_profiles_idr);
 	atomic_set(&mlxsw_sp->router->rif_mac_profiles_count, 0);
@@ -9970,6 +10018,10 @@ static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)
 				       mlxsw_sp);
 
 	return 0;
+
+err_rifs_table_init:
+	kfree(mlxsw_sp->router->rifs);
+	return err;
 }
 
 static void mlxsw_sp_rifs_fini(struct mlxsw_sp *mlxsw_sp)
@@ -9986,6 +10038,7 @@ static void mlxsw_sp_rifs_fini(struct mlxsw_sp *mlxsw_sp)
 					 MLXSW_SP_RESOURCE_RIF_MAC_PROFILES);
 	WARN_ON(!idr_is_empty(&mlxsw_sp->router->rif_mac_profiles_idr));
 	idr_destroy(&mlxsw_sp->router->rif_mac_profiles_idr);
+	mlxsw_sp_rifs_table_fini(mlxsw_sp);
 	kfree(mlxsw_sp->router->rifs);
 }
 
