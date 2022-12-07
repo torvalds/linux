@@ -4649,9 +4649,6 @@ void dc_link_set_preferred_training_settings(struct dc *dc,
 
 	if (link_setting != NULL) {
 		link->preferred_link_setting = *link_setting;
-		if (dp_get_link_encoding_format(link_setting) == DP_128b_132b_ENCODING)
-			/* TODO: add dc update for acquiring link res  */
-			skip_immediate_retrain = true;
 	} else {
 		link->preferred_link_setting.lane_count = LANE_COUNT_UNKNOWN;
 		link->preferred_link_setting.link_rate = LINK_RATE_UNKNOWN;

@@ -7276,51 +7276,35 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			struct dc_link_settings *link_setting,
 			bool skip_video_pattern)
 {
-	struct pipe_ctx *pipes =
-			&link->dc->current_state->res_ctx.pipe_ctx[0];
+	struct pipe_ctx *pipe;
 	unsigned int i;
-	bool do_fallback = false;
 
+	udelay(100);
 
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (pipes[i].stream != NULL &&
-			!pipes[i].top_pipe && !pipes[i].prev_odm_pipe &&
-			pipes[i].stream->link != NULL &&
-			pipes[i].stream_res.stream_enc != NULL &&
-			pipes[i].stream->link == link) {
-			udelay(100);
+		pipe = &link->dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream != NULL &&
+				pipe->stream->link == link &&
+				!pipe->stream->dpms_off &&
+				!pipe->top_pipe && !pipe->prev_odm_pipe) {
+			core_link_disable_stream(pipe);
+			pipe->link_config.dp_link_settings = *link_setting;
+			update_dp_encoder_resources_for_test_harness(
+					link->dc,
+					pipe->stream->ctx->dc->current_state,
+					pipe);
+		}
+	}
 
-			link->dc->hwss.blank_stream(&pipes[i]);
-
-			/* disable any test pattern that might be active */
-			dp_set_hw_test_pattern(link, &pipes[i].link_res,
-					DP_TEST_PATTERN_VIDEO_MODE, NULL, 0);
-
-			dp_receiver_power_ctrl(link, false);
-
-			link->dc->hwss.disable_stream(&pipes[i]);
-			if (pipes[i].stream_res.audio && !link->dc->debug.az_endpoint_mute_only)
-				pipes[i].stream_res.audio->funcs->az_disable(pipes[i].stream_res.audio);
-
-			link->dc->hwss.disable_link_output(link, &pipes[i].link_res, SIGNAL_TYPE_DISPLAY_PORT);
-
-			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
-				do_fallback = true;
-
-			perform_link_training_with_retries(
-					link_setting,
-					skip_video_pattern,
-					LINK_TRAINING_ATTEMPTS,
-					&pipes[i],
-					SIGNAL_TYPE_DISPLAY_PORT,
-					do_fallback);
-
-			link->dc->hwss.enable_stream(&pipes[i]);
-
-			link->dc->hwss.unblank_stream(&pipes[i],
-					link_setting);
-
-			link->dc->hwss.enable_audio_stream(&pipes[i]);
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &link->dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream != NULL &&
+				pipe->stream->link == link &&
+				!pipe->stream->dpms_off &&
+				!pipe->top_pipe && !pipe->prev_odm_pipe) {
+			core_link_enable_stream(
+					pipe->stream->ctx->dc->current_state,
+					pipe);
 		}
 	}
 }
