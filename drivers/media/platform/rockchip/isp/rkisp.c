@@ -632,21 +632,7 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 			rkisp_set_bits(dev, MI_WR_CTRL2, 0, val, true);
 			rkisp_write(dev, MI_WR_INIT, ISP21_SP_FORCE_UPD | ISP21_MP_FORCE_UPD, true);
 		} else if (dev->isp_ver == ISP_V30) {
-			val = rkisp_read(dev, MI_WR_CTRL2, false);
-			val |= ISP3X_MPSELF_UPD | ISP3X_SPSELF_UPD | ISP3X_BPSELF_UPD |
-				ISP3X_BAY3D_RDSELF_UPD | ISP3X_DBR_RDSELF_UPD |
-				ISP3X_DBR_WRSELF_UPD | ISP3X_GAINSELF_UPD |
-				ISP3X_BAY3D_IIRSELF_UPD | ISP3X_BAY3D_CURSELF_UPD |
-				ISP3X_BAY3D_DSSELF_UPD;
-			writel(val, hw->base_addr + MI_WR_CTRL2);
-			if (hw->is_unite)
-				writel(val, hw->base_next_addr + MI_WR_CTRL2);
-
-			val = rkisp_read(dev, ISP3X_MPFBC_CTRL, false);
-			val |= ISP3X_MPFBC_FORCE_UPD;
-			writel(val, hw->base_addr + ISP3X_MPFBC_CTRL);
-			if (hw->is_unite)
-				writel(val, hw->base_next_addr + ISP3X_MPFBC_CTRL);
+			rkisp_unite_write(dev, ISP3X_MI_WR_INIT, CIF_MI_INIT_SOFT_UPD, true, hw->is_unite);
 		} else if (dev->isp_ver == ISP_V32) {
 			writel(CIF_MI_INIT_SOFT_UPD, hw->base_addr + ISP3X_MI_WR_INIT);
 		}

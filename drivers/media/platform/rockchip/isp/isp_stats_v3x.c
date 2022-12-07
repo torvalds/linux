@@ -1268,32 +1268,30 @@ void rkisp_stats_first_ddr_config_v3x(struct rkisp_isp_stats_vdev *stats_vdev)
 	stats_vdev->rd_stats_from_ddr = false;
 	stats_vdev->priv_ops = &stats_reg_ops_v3x;
 
-	if (!IS_HDR_RDBK(stats_vdev->dev->hdr.op_mode)) {
-		for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++) {
-			stats_vdev->stats_buf[i].is_need_vaddr = true;
-			stats_vdev->stats_buf[i].size = ISP3X_RD_STATS_BUF_SIZE * mult;
-			if (rkisp_alloc_buffer(dev, &stats_vdev->stats_buf[i]))
-				goto err;
-		}
-
-		stats_vdev->priv_ops = &stats_ddr_ops_v3x;
-		stats_vdev->rd_stats_from_ddr = true;
-		stats_vdev->rd_buf_idx = 0;
-		stats_vdev->wr_buf_idx = 0;
-
-		rkisp_unite_write(dev, ISP3X_MI_DBR_WR_SIZE,
-				  ISP3X_RD_STATS_BUF_SIZE,
-				  false, dev->hw_dev->is_unite);
-		rkisp_unite_set_bits(dev, ISP3X_SWS_CFG, 0,
-				     ISP3X_3A_DDR_WRITE_EN, false,
-				     dev->hw_dev->is_unite);
-		rkisp_write(dev, ISP3X_MI_3A_WR_BASE,
-			    stats_vdev->stats_buf[0].dma_addr, false);
-		if (dev->hw_dev->is_unite)
-			rkisp_next_write(dev, ISP3X_MI_3A_WR_BASE,
-					 stats_vdev->stats_buf[0].dma_addr +
-					 ISP3X_RD_STATS_BUF_SIZE, false);
+	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++) {
+		stats_vdev->stats_buf[i].is_need_vaddr = true;
+		stats_vdev->stats_buf[i].size = ISP3X_RD_STATS_BUF_SIZE * mult;
+		if (rkisp_alloc_buffer(dev, &stats_vdev->stats_buf[i]))
+			goto err;
 	}
+
+	stats_vdev->priv_ops = &stats_ddr_ops_v3x;
+	stats_vdev->rd_stats_from_ddr = true;
+	stats_vdev->rd_buf_idx = 0;
+	stats_vdev->wr_buf_idx = 0;
+
+	rkisp_unite_write(dev, ISP3X_MI_DBR_WR_SIZE,
+			  ISP3X_RD_STATS_BUF_SIZE,
+			  false, dev->hw_dev->is_unite);
+	rkisp_unite_set_bits(dev, ISP3X_SWS_CFG, 0,
+			     ISP3X_3A_DDR_WRITE_EN, false,
+			     dev->hw_dev->is_unite);
+	rkisp_write(dev, ISP3X_MI_3A_WR_BASE,
+		    stats_vdev->stats_buf[0].dma_addr, false);
+	if (dev->hw_dev->is_unite)
+		rkisp_next_write(dev, ISP3X_MI_3A_WR_BASE,
+				 stats_vdev->stats_buf[0].dma_addr +
+				 ISP3X_RD_STATS_BUF_SIZE, false);
 
 	return;
 err:
