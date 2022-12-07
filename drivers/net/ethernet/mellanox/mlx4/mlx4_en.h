@@ -90,8 +90,8 @@
 #define MLX4_EN_FILTER_EXPIRY_QUOTA 60
 
 /* Typical TSO descriptor with 16 gather entries is 352 bytes... */
-#define MAX_DESC_SIZE		512
-#define MAX_DESC_TXBBS		(MAX_DESC_SIZE / TXBB_SIZE)
+#define MLX4_TX_BOUNCE_BUFFER_SIZE 512
+#define MLX4_MAX_DESC_TXBBS	   (MLX4_TX_BOUNCE_BUFFER_SIZE / TXBB_SIZE)
 
 /*
  * OS related constants and tunables
