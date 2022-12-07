@@ -26,7 +26,7 @@ specifications from the RISC-V foundation this means "Frozen" or
 ECR.  (Developers may, of course, maintain their own Linux kernel trees
 that contain code for any draft extensions that they wish.)
 
-Additionally, the RISC-V specification allows implementors to create
+Additionally, the RISC-V specification allows implementers to create
 their own custom extensions.  These custom extensions aren't required
 to go through any review or ratification process by the RISC-V
 Foundation.  To avoid the maintenance complexity and potential
@@ -37,5 +37,5 @@ RISC-V extensions, we'll only consider patches for extensions that either:
 - Have been implemented in hardware that is widely available, per standard
   Linux practice.
 
-(Implementors, may, of course, maintain their own Linux kernel trees containing
+(Implementers, may, of course, maintain their own Linux kernel trees containing
 code for any custom extensions that they wish.)
