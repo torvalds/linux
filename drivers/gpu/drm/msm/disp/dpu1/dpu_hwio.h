@@ -63,4 +63,7 @@
 #define MDP_WD_TIMER_4_LOAD_VALUE       0x448
 #define DCE_SEL                         0x450
 
+#define MDP_PERIPH_TOP0			MDP_WD_TIMER_0_CTL
+#define MDP_PERIPH_TOP0_END		CLK_CTRL3
+
 #endif /*_DPU_HWIO_H */
