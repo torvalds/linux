@@ -13,7 +13,6 @@
 #include <linux/kvm.h>
 #include <linux/kvm_types.h>
 #include <linux/spinlock.h>
-#include <asm/csr.h>
 #include <asm/hwcap.h>
 #include <asm/kvm_vcpu_fp.h>
 #include <asm/kvm_vcpu_insn.h>
