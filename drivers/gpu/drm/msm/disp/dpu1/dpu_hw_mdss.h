@@ -195,6 +195,8 @@ enum dpu_pingpong {
 	PINGPONG_3,
 	PINGPONG_4,
 	PINGPONG_5,
+	PINGPONG_6,
+	PINGPONG_7,
 	PINGPONG_S0,
 	PINGPONG_MAX
 };
@@ -203,6 +205,7 @@ enum dpu_merge_3d {
 	MERGE_3D_0 = 1,
 	MERGE_3D_1,
 	MERGE_3D_2,
+	MERGE_3D_3,
 	MERGE_3D_MAX
 };
 
