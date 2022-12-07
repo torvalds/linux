@@ -701,7 +701,7 @@ static int tsl2563_probe(struct i2c_client *client)
 	u8 id = 0;
 	int err;
 
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -731,7 +731,7 @@ static int tsl2563_probe(struct i2c_client *client)
 	chip->cover_comp_gain = 1;
 	device_property_read_u32(dev, "amstaos,cover-comp-gain", &chip->cover_comp_gain);
 
-	dev_info(&client->dev, "model %d, rev. %d\n", id >> 4, id & 0x0f);
+	dev_info(dev, "model %d, rev. %d\n", id >> 4, id & 0x0f);
 	indio_dev->name = client->name;
 	indio_dev->channels = tsl2563_channels;
 	indio_dev->num_channels = ARRAY_SIZE(tsl2563_channels);
@@ -748,7 +748,7 @@ static int tsl2563_probe(struct i2c_client *client)
 			irq_flags = IRQF_TRIGGER_RISING;
 		irq_flags |= IRQF_ONESHOT;
 
-		err = devm_request_threaded_irq(&client->dev, client->irq,
+		err = devm_request_threaded_irq(dev, client->irq,
 					   NULL,
 					   &tsl2563_event_handler,
 					   irq_flags,
