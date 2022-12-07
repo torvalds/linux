@@ -92,23 +92,12 @@ static struct file *io_msg_grab_file(struct io_kiocb *req, unsigned int issue_fl
 	return file;
 }
 
-static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
+static int io_msg_install_complete(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *target_ctx = req->file->private_data;
 	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
-	struct io_ring_ctx *ctx = req->ctx;
 	struct file *src_file = msg->src_file;
 	int ret;
-
-	if (target_ctx == ctx)
-		return -EINVAL;
-	if (!src_file) {
-		src_file = io_msg_grab_file(req, issue_flags);
-		if (!src_file)
-			return -EBADF;
-		msg->src_file = src_file;
-		req->flags |= REQ_F_NEED_CLEANUP;
-	}
 
 	if (unlikely(io_double_lock_ctx(target_ctx, issue_flags)))
 		return -EAGAIN;
@@ -116,12 +105,12 @@ static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 	ret = __io_fixed_fd_install(target_ctx, src_file, msg->dst_fd);
 	if (ret < 0)
 		goto out_unlock;
+
 	msg->src_file = NULL;
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 
 	if (msg->flags & IORING_MSG_RING_CQE_SKIP)
 		goto out_unlock;
-
 	/*
 	 * If this fails, the target still received the file descriptor but
 	 * wasn't notified of the fact. This means that if this request
@@ -133,6 +122,25 @@ static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 out_unlock:
 	io_double_unlock_ctx(target_ctx, issue_flags);
 	return ret;
+}
+
+static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_ring_ctx *target_ctx = req->file->private_data;
+	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
+	struct io_ring_ctx *ctx = req->ctx;
+	struct file *src_file = msg->src_file;
+
+	if (target_ctx == ctx)
+		return -EINVAL;
+	if (!src_file) {
+		src_file = io_msg_grab_file(req, issue_flags);
+		if (!src_file)
+			return -EBADF;
+		msg->src_file = src_file;
+		req->flags |= REQ_F_NEED_CLEANUP;
+	}
+	return io_msg_install_complete(req, issue_flags);
 }
 
 int io_msg_ring_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
