@@ -60,6 +60,7 @@ struct mlxsw_sp_rif {
 	int mtu;
 	u16 rif_index;
 	u8 mac_profile_id;
+	u8 rif_entries;
 	u16 vr_id;
 	const struct mlxsw_sp_rif_ops *ops;
 	struct mlxsw_sp *mlxsw_sp;
@@ -7827,20 +7828,26 @@ mlxsw_sp_dev_rif_type(const struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_sp_fid_type_rif_type(mlxsw_sp, type);
 }
 
-static int mlxsw_sp_rif_index_alloc(struct mlxsw_sp *mlxsw_sp, u16 *p_rif_index)
+static int mlxsw_sp_rif_index_alloc(struct mlxsw_sp *mlxsw_sp, u16 *p_rif_index,
+				    u8 rif_entries)
 {
-	*p_rif_index = gen_pool_alloc(mlxsw_sp->router->rifs_table, 1);
+	*p_rif_index = gen_pool_alloc(mlxsw_sp->router->rifs_table,
+				      rif_entries);
 	if (*p_rif_index == 0)
 		return -ENOBUFS;
 	*p_rif_index -= MLXSW_SP_ROUTER_GENALLOC_OFFSET;
 
+	/* RIF indexes must be aligned to the allocation size. */
+	WARN_ON_ONCE(*p_rif_index % rif_entries);
+
 	return 0;
 }
 
-static void mlxsw_sp_rif_index_free(struct mlxsw_sp *mlxsw_sp, u16 rif_index)
+static void mlxsw_sp_rif_index_free(struct mlxsw_sp *mlxsw_sp, u16 rif_index,
+				    u8 rif_entries)
 {
 	gen_pool_free(mlxsw_sp->router->rifs_table,
-		      MLXSW_SP_ROUTER_GENALLOC_OFFSET + rif_index, 1);
+		      MLXSW_SP_ROUTER_GENALLOC_OFFSET + rif_index, rif_entries);
 }
 
 static struct mlxsw_sp_rif *mlxsw_sp_rif_alloc(size_t rif_size, u16 rif_index,
@@ -8090,6 +8097,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	enum mlxsw_sp_rif_type type;
 	struct mlxsw_sp_rif *rif;
 	struct mlxsw_sp_vr *vr;
+	u8 rif_entries = 1;
 	u16 rif_index;
 	int i, err;
 
@@ -8101,7 +8109,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		return ERR_CAST(vr);
 	vr->rif_count++;
 
-	err = mlxsw_sp_rif_index_alloc(mlxsw_sp, &rif_index);
+	err = mlxsw_sp_rif_index_alloc(mlxsw_sp, &rif_index, rif_entries);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported router interfaces");
 		goto err_rif_index_alloc;
@@ -8116,6 +8124,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp->router->rifs[rif_index] = rif;
 	rif->mlxsw_sp = mlxsw_sp;
 	rif->ops = ops;
+	rif->rif_entries = rif_entries;
 
 	if (ops->fid_get) {
 		fid = ops->fid_get(rif, extack);
@@ -8149,7 +8158,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_rif_counters_alloc(rif);
 	}
 
-	atomic_inc(&mlxsw_sp->router->rifs_count);
+	atomic_add(rif_entries, &mlxsw_sp->router->rifs_count);
 	return rif;
 
 err_stats_enable:
@@ -8165,7 +8174,7 @@ err_fid_get:
 	dev_put(rif->dev);
 	kfree(rif);
 err_rif_alloc:
-	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index);
+	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 err_rif_index_alloc:
 	vr->rif_count--;
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
@@ -8177,11 +8186,12 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	const struct mlxsw_sp_rif_ops *ops = rif->ops;
 	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
 	struct mlxsw_sp_fid *fid = rif->fid;
+	u8 rif_entries = rif->rif_entries;
 	u16 rif_index = rif->rif_index;
 	struct mlxsw_sp_vr *vr;
 	int i;
 
-	atomic_dec(&mlxsw_sp->router->rifs_count);
+	atomic_sub(rif_entries, &mlxsw_sp->router->rifs_count);
 	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, rif);
 	vr = &mlxsw_sp->router->vrs[rif->vr_id];
 
@@ -8203,7 +8213,7 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	mlxsw_sp->router->rifs[rif->rif_index] = NULL;
 	dev_put(rif->dev);
 	kfree(rif);
-	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index);
+	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 	vr->rif_count--;
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
 }
@@ -9777,10 +9787,11 @@ mlxsw_sp_ul_rif_create(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr,
 		       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_rif *ul_rif;
+	u8 rif_entries = 1;
 	u16 rif_index;
 	int err;
 
-	err = mlxsw_sp_rif_index_alloc(mlxsw_sp, &rif_index);
+	err = mlxsw_sp_rif_index_alloc(mlxsw_sp, &rif_index, rif_entries);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported router interfaces");
 		return ERR_PTR(err);
@@ -9794,31 +9805,33 @@ mlxsw_sp_ul_rif_create(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr,
 
 	mlxsw_sp->router->rifs[rif_index] = ul_rif;
 	ul_rif->mlxsw_sp = mlxsw_sp;
+	ul_rif->rif_entries = rif_entries;
 	err = mlxsw_sp_rif_ipip_lb_ul_rif_op(ul_rif, true);
 	if (err)
 		goto ul_rif_op_err;
 
-	atomic_inc(&mlxsw_sp->router->rifs_count);
+	atomic_add(rif_entries, &mlxsw_sp->router->rifs_count);
 	return ul_rif;
 
 ul_rif_op_err:
 	mlxsw_sp->router->rifs[rif_index] = NULL;
 	kfree(ul_rif);
 err_rif_alloc:
-	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index);
+	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 	return ERR_PTR(err);
 }
 
 static void mlxsw_sp_ul_rif_destroy(struct mlxsw_sp_rif *ul_rif)
 {
 	struct mlxsw_sp *mlxsw_sp = ul_rif->mlxsw_sp;
+	u8 rif_entries = ul_rif->rif_entries;
 	u16 rif_index = ul_rif->rif_index;
 
-	atomic_dec(&mlxsw_sp->router->rifs_count);
+	atomic_sub(rif_entries, &mlxsw_sp->router->rifs_count);
 	mlxsw_sp_rif_ipip_lb_ul_rif_op(ul_rif, false);
 	mlxsw_sp->router->rifs[ul_rif->rif_index] = NULL;
 	kfree(ul_rif);
-	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index);
+	mlxsw_sp_rif_index_free(mlxsw_sp, rif_index, rif_entries);
 }
 
 static struct mlxsw_sp_rif *
