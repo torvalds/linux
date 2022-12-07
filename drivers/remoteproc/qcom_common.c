@@ -126,6 +126,12 @@ static ssize_t qcom_rproc_shutdown_request_store(struct kobject *kobj, struct ko
 static struct kobj_attribute shutdown_requested_attr = __ATTR(shutdown_in_progress, 0220, NULL,
 							  qcom_rproc_shutdown_request_store);
 
+static ssize_t qcom_collect_both_coredumps_show(struct kobject *kobj, struct kobj_attribute *attr,
+						char *buf)
+{
+	return scnprintf(buf, 3, "%u\n", qcom_collect_both_coredumps);
+}
+
 static ssize_t qcom_collect_both_coredumps_store(struct kobject *kobj, struct kobj_attribute *attr,
 						 const char *buf, size_t count)
 {
@@ -140,8 +146,10 @@ static ssize_t qcom_collect_both_coredumps_store(struct kobject *kobj, struct ko
 	pr_info("qcom rproc: Collect both coredumps: %s\n", val ? "true" : "false");
 	return count;
 }
-static struct kobj_attribute both_coredumps_attr = __ATTR(collect_both_coredumps, 0644, NULL,
-							  qcom_collect_both_coredumps_store);
+
+static struct kobj_attribute both_coredumps_attr =
+	__ATTR(collect_both_coredumps, 0644, qcom_collect_both_coredumps_show,
+	       qcom_collect_both_coredumps_store);
 
 static void qcom_minidump_cleanup(struct rproc *rproc)
 {
