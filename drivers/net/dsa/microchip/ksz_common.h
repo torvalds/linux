@@ -95,7 +95,6 @@ struct ksz_port {
 
 	struct ksz_port_mib mib;
 	phy_interface_t interface;
-	u16 max_frame;
 	u32 rgmii_tx_val;
 	u32 rgmii_rx_val;
 	struct ksz_device *ksz_dev;
@@ -322,7 +321,6 @@ struct ksz_dev_ops {
 	void (*get_caps)(struct ksz_device *dev, int port,
 			 struct phylink_config *config);
 	int (*change_mtu)(struct ksz_device *dev, int port, int mtu);
-	int (*max_mtu)(struct ksz_device *dev, int port);
 	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);
 	void (*port_init_cnt)(struct ksz_device *dev, int port);
 	void (*phylink_mac_config)(struct ksz_device *dev, int port,
@@ -456,6 +454,11 @@ static inline int ksz_write64(struct ksz_device *dev, u32 reg, u64 value)
 	return regmap_bulk_write(dev->regmap[2], reg, val, 2);
 }
 
+static inline int ksz_rmw8(struct ksz_device *dev, int offset, u8 mask, u8 val)
+{
+	return regmap_update_bits(dev->regmap[0], offset, mask, val);
+}
+
 static inline int ksz_pread8(struct ksz_device *dev, int port, int offset,
 			     u8 *data)
 {
@@ -587,6 +590,12 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define REG_PORT_INT_MASK		0x001F
 
 #define PORT_SRC_PHY_INT		1
+
+#define KSZ8795_HUGE_PACKET_SIZE	2000
+#define KSZ8863_HUGE_PACKET_SIZE	1916
+#define KSZ8863_NORMAL_PACKET_SIZE	1536
+#define KSZ8_LEGAL_PACKET_SIZE		1518
+#define KSZ9477_MAX_FRAME_SIZE		9000
 
 /* Regmap tables generation */
 #define KSZ_SPI_OP_RD		3

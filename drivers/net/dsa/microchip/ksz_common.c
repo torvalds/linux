@@ -14,6 +14,7 @@
 #include <linux/phy.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/if_vlan.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of_mdio.h>
@@ -171,6 +172,7 @@ static const struct ksz_dev_ops ksz8_dev_ops = {
 	.reset = ksz8_reset_switch,
 	.init = ksz8_switch_init,
 	.exit = ksz8_switch_exit,
+	.change_mtu = ksz8_change_mtu,
 };
 
 static void ksz9477_phylink_mac_link_up(struct ksz_device *dev, int port,
@@ -206,7 +208,6 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.mdb_add = ksz9477_mdb_add,
 	.mdb_del = ksz9477_mdb_del,
 	.change_mtu = ksz9477_change_mtu,
-	.max_mtu = ksz9477_max_mtu,
 	.phylink_mac_link_up = ksz9477_phylink_mac_link_up,
 	.config_cpu_port = ksz9477_config_cpu_port,
 	.enable_stp_addr = ksz9477_enable_stp_addr,
@@ -243,7 +244,6 @@ static const struct ksz_dev_ops lan937x_dev_ops = {
 	.mdb_add = ksz9477_mdb_add,
 	.mdb_del = ksz9477_mdb_del,
 	.change_mtu = lan937x_change_mtu,
-	.max_mtu = ksz9477_max_mtu,
 	.phylink_mac_link_up = ksz9477_phylink_mac_link_up,
 	.config_cpu_port = lan937x_config_cpu_port,
 	.enable_stp_addr = ksz9477_enable_stp_addr,
@@ -2500,10 +2500,29 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 {
 	struct ksz_device *dev = ds->priv;
 
-	if (!dev->dev_ops->max_mtu)
-		return -EOPNOTSUPP;
+	switch (dev->chip_id) {
+	case KSZ8795_CHIP_ID:
+	case KSZ8794_CHIP_ID:
+	case KSZ8765_CHIP_ID:
+		return KSZ8795_HUGE_PACKET_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
+	case KSZ8830_CHIP_ID:
+		return KSZ8863_HUGE_PACKET_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
+	case KSZ8563_CHIP_ID:
+	case KSZ9477_CHIP_ID:
+	case KSZ9563_CHIP_ID:
+	case KSZ9567_CHIP_ID:
+	case KSZ9893_CHIP_ID:
+	case KSZ9896_CHIP_ID:
+	case KSZ9897_CHIP_ID:
+	case LAN9370_CHIP_ID:
+	case LAN9371_CHIP_ID:
+	case LAN9372_CHIP_ID:
+	case LAN9373_CHIP_ID:
+	case LAN9374_CHIP_ID:
+		return KSZ9477_MAX_FRAME_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
+	}
 
-	return dev->dev_ops->max_mtu(dev, port);
+	return -EOPNOTSUPP;
 }
 
 static void ksz_set_xmii(struct ksz_device *dev, int port,
