@@ -904,4 +904,7 @@ struct rkcif_rx_buffer *to_cif_rx_buf(struct rkisp_rx_buf *dbufs);
 
 int rkcif_clr_unready_dev(void);
 
+const struct
+cif_output_fmt *rkcif_find_output_fmt(struct rkcif_stream *stream, u32 pixelfmt);
+
 #endif

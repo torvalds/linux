@@ -765,8 +765,8 @@ set_default:
 	return NULL;
 }
 
-static const struct
-cif_output_fmt *find_output_fmt(struct rkcif_stream *stream, u32 pixelfmt)
+const struct
+cif_output_fmt *rkcif_find_output_fmt(struct rkcif_stream *stream, u32 pixelfmt)
 {
 	const struct cif_output_fmt *fmt;
 	u32 i;
@@ -2770,7 +2770,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	if (dev->sditf_cnt > 1 && dev->sditf_cnt <= RKCIF_MAX_SDITF)
 		channel->height *= dev->sditf_cnt;
 
-	fmt = find_output_fmt(stream, stream->pixm.pixelformat);
+	fmt = rkcif_find_output_fmt(stream, stream->pixm.pixelformat);
 	if (!fmt) {
 		v4l2_err(&dev->v4l2_dev, "can not find output format: 0x%x",
 			 stream->pixm.pixelformat);
@@ -3838,6 +3838,10 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 		buf->dbufs.type = frm_type;
 		list_add_tail(&buf->list, &stream->rx_buf_head);
 		dummy->is_free = false;
+		if (stream->is_compact)
+			buf->dbufs.is_uncompact = false;
+		else
+			buf->dbufs.is_uncompact = true;
 		if (priv && priv->mode.rdbk_mode == RKISP_VICAP_ONLINE && i == 0) {
 			buf->dbufs.is_first = true;
 			rkcif_s_rx_buffer(dev, &buf->dbufs);
@@ -4908,7 +4912,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	if (dev->chip_id >= CHIP_RK3588_CIF) {
 		val = stream->pixm.plane_fmt[0].bytesperline;
 	} else {
-		fmt = find_output_fmt(stream, stream->pixm.pixelformat);
+		fmt = rkcif_find_output_fmt(stream, stream->pixm.pixelformat);
 		if (fmt->fmt_type == CIF_FMT_TYPE_RAW &&
 		    fmt->csi_fmt_val == CSI_WRDDR_TYPE_RAW8)
 			val = ALIGN(stream->pixm.width * fmt->raw_bpp / 8, 256);
@@ -5350,7 +5354,7 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 	for (i = 0; i < RKCIF_MAX_PLANE; i++)
 		memset(&pixm->plane_fmt[i], 0, sizeof(struct v4l2_plane_pix_format));
 
-	fmt = find_output_fmt(stream, pixm->pixelformat);
+	fmt = rkcif_find_output_fmt(stream, pixm->pixelformat);
 	if (!fmt)
 		fmt = &out_fmts[0];
 
@@ -5703,7 +5707,7 @@ static int rkcif_enum_framesizes(struct file *file, void *prov,
 	if (fsize->index != 0)
 		return -EINVAL;
 
-	if (!find_output_fmt(stream, fsize->pixel_format))
+	if (!rkcif_find_output_fmt(stream, fsize->pixel_format))
 		return -EINVAL;
 
 	input_rect.width = RKCIF_DEFAULT_WIDTH;
@@ -7051,7 +7055,7 @@ static void rkcif_cal_csi_crop_width_vwidth(struct rkcif_stream *stream,
 	const struct cif_output_fmt *fmt;
 	u32 fourcc;
 
-	fmt = find_output_fmt(stream, stream->pixm.pixelformat);
+	fmt = rkcif_find_output_fmt(stream, stream->pixm.pixelformat);
 	if (!fmt) {
 		v4l2_err(&dev->v4l2_dev, "can not find output format: 0x%x",
 			 stream->pixm.pixelformat);
@@ -7152,7 +7156,7 @@ static void rkcif_dynamic_crop(struct rkcif_stream *stream)
 				     crop_y << CIF_CROP_Y_SHIFT | crop_x);
 
 		if (stream->cif_fmt_in->fmt_type == CIF_FMT_TYPE_RAW) {
-			fmt = find_output_fmt(stream, stream->pixm.pixelformat);
+			fmt = rkcif_find_output_fmt(stream, stream->pixm.pixelformat);
 			crop_vwidth = raw_width * rkcif_cal_raw_vir_line_ratio(stream, fmt);
 		}
 		rkcif_write_register(cif_dev, CIF_REG_DVP_VIR_LINE_WIDTH, crop_vwidth);

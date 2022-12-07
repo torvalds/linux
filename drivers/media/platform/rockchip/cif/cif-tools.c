@@ -150,7 +150,7 @@ static int rkcif_tools_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 }
 
 static const struct
-cif_output_fmt *find_output_fmt(u32 pixelfmt)
+cif_output_fmt *rkcif_tools_find_output_fmt(u32 pixelfmt)
 {
 	const struct cif_output_fmt *fmt;
 	u32 i;
@@ -293,7 +293,7 @@ static int rkcif_tools_enum_framesizes(struct file *file, void *prov,
 	if (fsize->index >= ARRAY_SIZE(tools_out_fmts))
 		return -EINVAL;
 
-	if (!find_output_fmt(fsize->pixel_format))
+	if (!rkcif_tools_find_output_fmt(fsize->pixel_format))
 		return -EINVAL;
 
 	input_rect.width = RKCIF_DEFAULT_WIDTH;

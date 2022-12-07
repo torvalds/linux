@@ -112,7 +112,7 @@ static u32 rkcif_scale_align_bits_per_pixel(struct rkcif_device *cif_dev,
 
 
 static const struct
-cif_output_fmt *find_output_fmt(u32 pixelfmt)
+cif_output_fmt *rkcif_scale_find_output_fmt(u32 pixelfmt)
 {
 	const struct cif_output_fmt *fmt;
 	u32 i;
@@ -169,7 +169,7 @@ static int rkcif_scale_set_fmt(struct rkcif_scale_vdev *scale_vdev,
 		scale_vdev->src_res.width = fmt_src.format.width;
 		scale_vdev->src_res.height = fmt_src.format.height;
 	}
-	fmt = find_output_fmt(pixm->pixelformat);
+	fmt = rkcif_scale_find_output_fmt(pixm->pixelformat);
 	if (fmt == NULL) {
 		v4l2_err(&scale_vdev->cifdev->v4l2_dev,
 			"format of source channel are not bayer raw, not support scale\n");
@@ -355,7 +355,7 @@ static int rkcif_scale_enum_framesizes(struct file *file, void *prov,
 	if (fsize->index >= RKCIF_SCALE_ENUM_SIZE_MAX)
 		return -EINVAL;
 
-	if (!find_output_fmt(fsize->pixel_format))
+	if (!rkcif_scale_find_output_fmt(fsize->pixel_format))
 		return -EINVAL;
 
 	input_rect.width = RKCIF_DEFAULT_WIDTH;

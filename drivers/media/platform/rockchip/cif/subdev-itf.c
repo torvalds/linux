@@ -126,7 +126,9 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev_selection input_sel;
 	struct v4l2_pix_format_mplane pixm;
+	const struct cif_output_fmt *out_fmt;
 	int ret = -EINVAL;
+	bool is_uncompact = false;
 
 	if (!cif_dev->terminal_sensor.sd)
 		rkcif_update_sensor_info(&cif_dev->stream[0]);
@@ -157,6 +159,10 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 		pixm.pixelformat = rkcif_mbus_pixelcode_to_v4l2(fmt->format.code);
 		pixm.width = priv->cap_info.width;
 		pixm.height = priv->cap_info.height;
+		out_fmt = rkcif_find_output_fmt(NULL, pixm.pixelformat);
+		if (priv->toisp_inf.link_mode == TOISP_UNITE &&
+		    ((pixm.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL) * out_fmt->raw_bpp / 8) & 0xf)
+			is_uncompact = true;
 		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
 			"%s, width %d, height %d, hdr mode %d\n",
 			__func__, fmt->format.width, fmt->format.height, priv->hdr_cfg.hdr_mode);
@@ -164,9 +170,24 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 		    priv->hdr_cfg.hdr_mode == HDR_COMPR) {
 			rkcif_set_fmt(&cif_dev->stream[0], &pixm, false);
 		} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
+			if (is_uncompact) {
+				cif_dev->stream[0].is_compact = false;
+				cif_dev->stream[0].is_high_align = true;
+			} else {
+				cif_dev->stream[0].is_compact = true;
+			}
 			rkcif_set_fmt(&cif_dev->stream[0], &pixm, false);
 			rkcif_set_fmt(&cif_dev->stream[1], &pixm, false);
 		} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
+			if (is_uncompact) {
+				cif_dev->stream[0].is_compact = false;
+				cif_dev->stream[0].is_high_align = true;
+				cif_dev->stream[1].is_compact = false;
+				cif_dev->stream[1].is_high_align = true;
+			} else {
+				cif_dev->stream[0].is_compact = true;
+				cif_dev->stream[1].is_compact = true;
+			}
 			rkcif_set_fmt(&cif_dev->stream[0], &pixm, false);
 			rkcif_set_fmt(&cif_dev->stream[1], &pixm, false);
 			rkcif_set_fmt(&cif_dev->stream[2], &pixm, false);
