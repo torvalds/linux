@@ -336,7 +336,8 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
-	boot_cpu_node_count++;
+	if (IS_ENABLED(CONFIG_PPC64))
+		boot_cpu_node_count++;
 
 	/* Get physical cpuid */
 	intserv = of_get_flat_dt_prop(node, "ibm,ppc-interrupt-server#s", &len);
