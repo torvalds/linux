@@ -289,6 +289,10 @@ static void batch_clear_carry(struct pfn_batch *batch, unsigned int keep_pfns)
 	if (!keep_pfns)
 		return batch_clear(batch);
 
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+		WARN_ON(!batch->end ||
+			batch->npfns[batch->end - 1] < keep_pfns);
+
 	batch->total_pfns = keep_pfns;
 	batch->npfns[0] = keep_pfns;
 	batch->pfns[0] = batch->pfns[batch->end - 1] +
@@ -723,7 +727,7 @@ static void pfn_reader_user_destroy(struct pfn_reader_user *user,
 			mmap_read_unlock(pages->source_mm);
 		if (pages->source_mm != current->mm)
 			mmput(pages->source_mm);
-		user->locked = 0;
+		user->locked = -1;
 	}
 
 	kfree(user->upages);
@@ -810,7 +814,6 @@ static int incr_user_locked_vm(struct iopt_pages *pages, unsigned long npages)
 
 	lock_limit = task_rlimit(pages->source_task, RLIMIT_MEMLOCK) >>
 		     PAGE_SHIFT;
-	npages = pages->npinned - pages->last_npinned;
 	do {
 		cur_pages = atomic_long_read(&pages->source_user->locked_vm);
 		new_pages = cur_pages + npages;
