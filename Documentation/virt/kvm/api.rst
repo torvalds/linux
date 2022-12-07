@@ -6577,11 +6577,6 @@ Please note that the kernel is allowed to use the kvm_run structure as the
 primary storage for certain register types. Therefore, the kernel may use the
 values in kvm_run even if the corresponding bit in kvm_dirty_regs is not set.
 
-::
-
-  };
-
-
 
 6. Capabilities that can be enabled on vCPUs
 ============================================
