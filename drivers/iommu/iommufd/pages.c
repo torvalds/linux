@@ -342,7 +342,7 @@ static void batch_destroy(struct pfn_batch *batch, void *backup)
 		kfree(batch->pfns);
 }
 
-/* true if the pfn could be added, false otherwise */
+/* true if the pfn was added, false otherwise */
 static bool batch_add_pfn(struct pfn_batch *batch, unsigned long pfn)
 {
 	const unsigned int MAX_NPFNS = type_max(typeof(*batch->npfns));
@@ -418,7 +418,7 @@ static struct page **raw_pages_from_domain(struct iommu_domain *domain,
 	return out_pages;
 }
 
-/* Continues reading a domain until we reach a discontiguity in the pfns. */
+/* Continues reading a domain until we reach a discontinuity in the pfns. */
 static void batch_from_domain_continue(struct pfn_batch *batch,
 				       struct iommu_domain *domain,
 				       struct iopt_area *area,

@@ -33,7 +33,7 @@ struct iommu_domain;
  *
  * The io_pagetable::iova_rwsem protects node
  * The iopt_pages::mutex protects pages_node
- * iopt and immu_prot are immutable
+ * iopt and iommu_prot are immutable
  * The pages::mutex protects num_accesses
  */
 struct iopt_area {
