@@ -2240,6 +2240,14 @@ static struct qcom_icc_bcm bcm_sh1 = {
 		   &qns_pcie },
 };
 
+static struct qcom_icc_bcm bcm_sn0 = {
+	.name = "SN0",
+	.voter_idx = 0,
+	.keepalive = true,
+	.num_nodes = 1,
+	.nodes = { &qns_gemnoc_sf },
+};
+
 static struct qcom_icc_bcm bcm_sn2 = {
 	.name = "SN2",
 	.voter_idx = 0,
@@ -2917,6 +2925,7 @@ static struct qcom_icc_desc pineapple_pcie_anoc = {
 };
 
 static struct qcom_icc_bcm *system_noc_bcms[] = {
+	&bcm_sn0,
 	&bcm_sn2,
 	&bcm_sn3,
 };
