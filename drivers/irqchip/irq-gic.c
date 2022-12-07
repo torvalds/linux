@@ -19,6 +19,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -1332,7 +1333,7 @@ static bool gicv2_force_probe;
 
 static int __init gicv2_force_probe_cfg(char *buf)
 {
-	return strtobool(buf, &gicv2_force_probe);
+	return kstrtobool(buf, &gicv2_force_probe);
 }
 early_param("irqchip.gicv2_force_probe", gicv2_force_probe_cfg);
 
