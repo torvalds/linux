@@ -430,8 +430,7 @@ submit_and_retry:
 
 int ext4_bio_write_page(struct ext4_io_submit *io,
 			struct page *page,
-			int len,
-			bool keep_towrite)
+			int len)
 {
 	struct page *bounce_page = NULL;
 	struct inode *inode = page->mapping->host;
@@ -441,14 +440,11 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	int nr_submitted = 0;
 	int nr_to_submit = 0;
 	struct writeback_control *wbc = io->io_wbc;
+	bool keep_towrite = false;
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(PageWriteback(page));
 
-	if (keep_towrite)
-		set_page_writeback_keepwrite(page);
-	else
-		set_page_writeback(page);
 	ClearPageError(page);
 
 	/*
@@ -483,12 +479,17 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 			if (!buffer_mapped(bh))
 				clear_buffer_dirty(bh);
 			/*
-			 * Keeping dirty some buffer we cannot write? Make
-			 * sure to redirty the page. This happens e.g. when
-			 * doing writeout for transaction commit.
+			 * Keeping dirty some buffer we cannot write? Make sure
+			 * to redirty the page and keep TOWRITE tag so that
+			 * racing WB_SYNC_ALL writeback does not skip the page.
+			 * This happens e.g. when doing writeout for
+			 * transaction commit.
 			 */
-			if (buffer_dirty(bh) && !PageDirty(page))
-				redirty_page_for_writepage(wbc, page);
+			if (buffer_dirty(bh)) {
+				if (!PageDirty(page))
+					redirty_page_for_writepage(wbc, page);
+				keep_towrite = true;
+			}
 			if (io->io_bio)
 				ext4_io_submit(io);
 			continue;
@@ -499,6 +500,10 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 		clear_buffer_dirty(bh);
 		nr_to_submit++;
 	} while ((bh = bh->b_this_page) != head);
+
+	/* Nothing to submit? Just unlock the page... */
+	if (!nr_to_submit)
+		goto unlock;
 
 	bh = head = page_buffers(page);
 
@@ -550,6 +555,11 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 		}
 	}
 
+	if (keep_towrite)
+		set_page_writeback_keepwrite(page);
+	else
+		set_page_writeback(page);
+
 	/* Now submit buffers to write */
 	do {
 		if (!buffer_async_write(bh))
@@ -558,11 +568,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 				 bounce_page ? bounce_page : page, bh);
 		nr_submitted++;
 	} while ((bh = bh->b_this_page) != head);
-
 unlock:
 	unlock_page(page);
-	/* Nothing submitted - we have to end page writeback */
-	if (!nr_submitted)
-		end_page_writeback(page);
 	return ret;
 }
