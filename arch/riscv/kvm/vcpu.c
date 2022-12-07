@@ -276,6 +276,15 @@ static int kvm_riscv_vcpu_get_reg_config(struct kvm_vcpu *vcpu,
 			return -EINVAL;
 		reg_val = riscv_cbom_block_size;
 		break;
+	case KVM_REG_RISCV_CONFIG_REG(mvendorid):
+		reg_val = vcpu->arch.mvendorid;
+		break;
+	case KVM_REG_RISCV_CONFIG_REG(marchid):
+		reg_val = vcpu->arch.marchid;
+		break;
+	case KVM_REG_RISCV_CONFIG_REG(mimpid):
+		reg_val = vcpu->arch.mimpid;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -338,6 +347,24 @@ static int kvm_riscv_vcpu_set_reg_config(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_RISCV_CONFIG_REG(zicbom_block_size):
 		return -EOPNOTSUPP;
+	case KVM_REG_RISCV_CONFIG_REG(mvendorid):
+		if (!vcpu->arch.ran_atleast_once)
+			vcpu->arch.mvendorid = reg_val;
+		else
+			return -EBUSY;
+		break;
+	case KVM_REG_RISCV_CONFIG_REG(marchid):
+		if (!vcpu->arch.ran_atleast_once)
+			vcpu->arch.marchid = reg_val;
+		else
+			return -EBUSY;
+		break;
+	case KVM_REG_RISCV_CONFIG_REG(mimpid):
+		if (!vcpu->arch.ran_atleast_once)
+			vcpu->arch.mimpid = reg_val;
+		else
+			return -EBUSY;
+		break;
 	default:
 		return -EINVAL;
 	}
