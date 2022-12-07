@@ -165,6 +165,11 @@ struct kvm_vcpu_arch {
 	/* ISA feature bits (similar to MISA) */
 	DECLARE_BITMAP(isa, RISCV_ISA_EXT_MAX);
 
+	/* Vendor, Arch, and Implementation details */
+	unsigned long mvendorid;
+	unsigned long marchid;
+	unsigned long mimpid;
+
 	/* SSCRATCH, STVEC, and SCOUNTEREN of Host */
 	unsigned long host_sscratch;
 	unsigned long host_stvec;

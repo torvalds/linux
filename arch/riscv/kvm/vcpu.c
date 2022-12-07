@@ -21,6 +21,7 @@
 #include <asm/csr.h>
 #include <asm/cacheflush.h>
 #include <asm/hwcap.h>
+#include <asm/sbi.h>
 
 const struct _kvm_stats_desc kvm_vcpu_stats_desc[] = {
 	KVM_GENERIC_VCPU_STATS(),
@@ -170,6 +171,11 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 		    kvm_riscv_vcpu_isa_enable_allowed(i))
 			set_bit(host_isa, vcpu->arch.isa);
 	}
+
+	/* Setup vendor, arch, and implementation details */
+	vcpu->arch.mvendorid = sbi_get_mvendorid();
+	vcpu->arch.marchid = sbi_get_marchid();
+	vcpu->arch.mimpid = sbi_get_mimpid();
 
 	/* Setup VCPU hfence queue */
 	spin_lock_init(&vcpu->arch.hfence_lock);
