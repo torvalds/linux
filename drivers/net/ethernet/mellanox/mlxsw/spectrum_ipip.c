@@ -433,6 +433,7 @@ static const struct mlxsw_sp_ipip_ops mlxsw_sp1_ipip_gre6_ops = {
 	.dev_type = ARPHRD_IP6GRE,
 	.ul_proto = MLXSW_SP_L3_PROTO_IPV6,
 	.inc_parsing_depth = true,
+	.double_rif_entry = true,
 	.parms_init = mlxsw_sp1_ipip_netdev_parms_init_gre6,
 	.nexthop_update = mlxsw_sp1_ipip_nexthop_update_gre6,
 	.decap_config = mlxsw_sp1_ipip_decap_config_gre6,
