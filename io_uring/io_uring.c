@@ -149,6 +149,7 @@ static void io_clean_op(struct io_kiocb *req);
 static void io_queue_sqe(struct io_kiocb *req);
 static void io_move_task_work_from_local(struct io_ring_ctx *ctx);
 static void __io_submit_flush_completions(struct io_ring_ctx *ctx);
+static __cold void io_fallback_tw(struct io_uring_task *tctx);
 
 static struct kmem_cache *req_cachep;
 
@@ -1149,10 +1150,17 @@ void tctx_task_work(struct callback_head *cb)
 	struct io_uring_task *tctx = container_of(cb, struct io_uring_task,
 						  task_work);
 	struct llist_node fake = {};
-	struct llist_node *node = io_llist_xchg(&tctx->task_list, &fake);
+	struct llist_node *node;
 	unsigned int loops = 1;
-	unsigned int count = handle_tw_list(node, &ctx, &uring_locked, NULL);
+	unsigned int count;
 
+	if (unlikely(current->flags & PF_EXITING)) {
+		io_fallback_tw(tctx);
+		return;
+	}
+
+	node = io_llist_xchg(&tctx->task_list, &fake);
+	count = handle_tw_list(node, &ctx, &uring_locked, NULL);
 	node = io_llist_cmpxchg(&tctx->task_list, &fake, NULL);
 	while (node != &fake) {
 		loops++;
