@@ -6455,9 +6455,11 @@ The "reason" field specifies why the MSR interception occurred. Userspace will
 only receive MSR exits when a particular reason was requested during through
 ENABLE_CAP. Currently valid exit reasons are:
 
-	KVM_MSR_EXIT_REASON_UNKNOWN - access to MSR that is unknown to KVM
-	KVM_MSR_EXIT_REASON_INVAL - access to invalid MSRs or reserved bits
-	KVM_MSR_EXIT_REASON_FILTER - access blocked by KVM_X86_SET_MSR_FILTER
+============================ ========================================
+ KVM_MSR_EXIT_REASON_UNKNOWN access to MSR that is unknown to KVM
+ KVM_MSR_EXIT_REASON_INVAL   access to invalid MSRs or reserved bits
+ KVM_MSR_EXIT_REASON_FILTER  access blocked by KVM_X86_SET_MSR_FILTER
+============================ ========================================
 
 For KVM_EXIT_X86_RDMSR, the "index" field tells userspace which MSR the guest
 wants to read. To respond to this request with a successful read, userspace
@@ -7256,11 +7258,13 @@ to inform a user that an MSR was not emulated/virtualized by KVM.
 
 The valid mask flags are:
 
-	KVM_MSR_EXIT_REASON_UNKNOWN - intercept accesses to unknown (to KVM) MSRs
-	KVM_MSR_EXIT_REASON_INVAL   - intercept accesses that are architecturally
-                                invalid according to the vCPU model and/or mode
-	KVM_MSR_EXIT_REASON_FILTER  - intercept accesses that are denied by userspace
-                                via KVM_X86_SET_MSR_FILTER
+============================ ===============================================
+ KVM_MSR_EXIT_REASON_UNKNOWN intercept accesses to unknown (to KVM) MSRs
+ KVM_MSR_EXIT_REASON_INVAL   intercept accesses that are architecturally
+                             invalid according to the vCPU model and/or mode
+ KVM_MSR_EXIT_REASON_FILTER  intercept accesses that are denied by userspace
+                             via KVM_X86_SET_MSR_FILTER
+============================ ===============================================
 
 7.22 KVM_CAP_X86_BUS_LOCK_EXIT
 -------------------------------
