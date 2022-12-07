@@ -363,7 +363,7 @@ static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
  * A shadow-present leaf SPTE may be non-writable for 4 possible reasons:
  *
  *  1. To intercept writes for dirty logging. KVM write-protects huge pages
- *     so that they can be split be split down into the dirty logging
+ *     so that they can be split down into the dirty logging
  *     granularity (4KiB) whenever the guest writes to them. KVM also
  *     write-protects 4KiB pages so that writes can be recorded in the dirty log
  *     (e.g. if not using PML). SPTEs are write-protected for dirty logging
