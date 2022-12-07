@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/sched.h>
+#include <linux/math.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
@@ -38,10 +39,6 @@
 
 /* Bits used for fraction in calibration coefficients.*/
 #define CALIB_FRAC_BITS		10
-/* 0.5 in CALIB_FRAC_BITS precision */
-#define CALIB_FRAC_HALF		BIT(CALIB_FRAC_BITS - 1)
-/* Make a fraction from a number n that was multiplied with b. */
-#define CALIB_FRAC(n, b)	(((n) << CALIB_FRAC_BITS) / (b))
 /* Decimal 10^(digits in sysfs presentation) */
 #define CALIB_BASE_SYSFS	1000
 
@@ -360,12 +357,12 @@ out:
 
 static inline int tsl2563_calib_to_sysfs(u32 calib)
 {
-	return (int) (((calib * CALIB_BASE_SYSFS) +
-		       CALIB_FRAC_HALF) >> CALIB_FRAC_BITS);
+	return (int)DIV_ROUND_CLOSEST(calib * CALIB_BASE_SYSFS, BIT(CALIB_FRAC_BITS));
 }
 
 static inline u32 tsl2563_calib_from_sysfs(int value)
 {
+	/* Make a fraction from a number n that was multiplied with b. */
 	return (((u32) value) << CALIB_FRAC_BITS) / CALIB_BASE_SYSFS;
 }
 
