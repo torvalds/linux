@@ -234,15 +234,21 @@
  * always enabled.
  */
 # define SCALER_DISPCTRL_DSPEISLUR(x)		BIT(13 + (x))
+# define SCALER5_DISPCTRL_DSPEISLUR(x)		BIT(9 + ((x) * 4))
 /* Enables Display 0 end-of-line-N contribution to
  * SCALER_DISPSTAT_IRQDISP0
  */
 # define SCALER_DISPCTRL_DSPEIEOLN(x)		BIT(8 + ((x) * 2))
+# define SCALER5_DISPCTRL_DSPEIEOLN(x)		BIT(8 + ((x) * 4))
 /* Enables Display 0 EOF contribution to SCALER_DISPSTAT_IRQDISP0 */
 # define SCALER_DISPCTRL_DSPEIEOF(x)		BIT(7 + ((x) * 2))
+# define SCALER5_DISPCTRL_DSPEIEOF(x)		BIT(7 + ((x) * 4))
 
-# define SCALER_DISPCTRL_SLVRDEIRQ		BIT(6)
-# define SCALER_DISPCTRL_SLVWREIRQ		BIT(5)
+# define SCALER5_DISPCTRL_DSPEIVST(x)		BIT(6 + ((x) * 4))
+
+# define SCALER_DISPCTRL_SLVRDEIRQ		BIT(6)	/* HVS4 only */
+# define SCALER_DISPCTRL_SLVWREIRQ		BIT(5)	/* HVS4 only */
+# define SCALER5_DISPCTRL_SLVEIRQ		BIT(5)
 # define SCALER_DISPCTRL_DMAEIRQ		BIT(4)
 /* Enables interrupt generation on the enabled EOF/EOLN/EISLUR
  * bits and short frames..
