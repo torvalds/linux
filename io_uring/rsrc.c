@@ -204,6 +204,14 @@ void io_rsrc_put_work(struct work_struct *work)
 	}
 }
 
+void io_rsrc_put_tw(struct callback_head *cb)
+{
+	struct io_ring_ctx *ctx = container_of(cb, struct io_ring_ctx,
+					       rsrc_put_tw);
+
+	io_rsrc_put_work(&ctx->rsrc_put_work.work);
+}
+
 void io_wait_rsrc_data(struct io_rsrc_data *data)
 {
 	if (data && !atomic_dec_and_test(&data->refs))
@@ -242,8 +250,15 @@ static __cold void io_rsrc_node_ref_zero(struct percpu_ref *ref)
 	}
 	spin_unlock_irqrestore(&ctx->rsrc_ref_lock, flags);
 
-	if (first_add)
-		mod_delayed_work(system_wq, &ctx->rsrc_put_work, delay);
+	if (!first_add)
+		return;
+
+	if (ctx->submitter_task) {
+		if (!task_work_add(ctx->submitter_task, &ctx->rsrc_put_tw,
+				   ctx->notify_method))
+			return;
+	}
+	mod_delayed_work(system_wq, &ctx->rsrc_put_work, delay);
 }
 
 static struct io_rsrc_node *io_rsrc_node_alloc(void)
