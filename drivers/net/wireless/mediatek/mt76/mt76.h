@@ -731,6 +731,13 @@ struct mt76_phy {
 	} rx_amsdu[__MT_RXQ_MAX];
 
 	struct mt76_freq_range_power *frp;
+
+	struct {
+		struct led_classdev cdev;
+		char name[32];
+		bool al;
+		u8 pin;
+	} leds;
 };
 
 struct mt76_dev {
@@ -830,13 +837,6 @@ struct mt76_dev {
 		struct mt76_usb usb;
 		struct mt76_sdio sdio;
 	};
-
-	struct {
-		struct led_classdev cdev;
-		char name[32];
-		bool al;
-		u8 pin;
-	} leds;
 };
 
 struct mt76_power_limits {

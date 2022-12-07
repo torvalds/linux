@@ -192,42 +192,48 @@ static const struct cfg80211_sar_capa mt76_sar_capa = {
 	.freq_ranges = &mt76_sar_freq_ranges[0],
 };
 
-static int mt76_led_init(struct mt76_dev *dev)
+static int mt76_led_init(struct mt76_phy *phy)
 {
-	struct device_node *np = dev->dev->of_node;
-	struct ieee80211_hw *hw = dev->hw;
-	int led_pin;
+	struct mt76_dev *dev = phy->dev;
+	struct ieee80211_hw *hw = phy->hw;
 
-	if (!dev->leds.cdev.brightness_set && !dev->leds.cdev.blink_set)
+	if (!phy->leds.cdev.brightness_set && !phy->leds.cdev.blink_set)
 		return 0;
 
-	snprintf(dev->leds.name, sizeof(dev->leds.name),
-		 "mt76-%s", wiphy_name(hw->wiphy));
+	snprintf(phy->leds.name, sizeof(phy->leds.name), "mt76-%s",
+		 wiphy_name(hw->wiphy));
 
-	dev->leds.cdev.name = dev->leds.name;
-	dev->leds.cdev.default_trigger =
+	phy->leds.cdev.name = phy->leds.name;
+	phy->leds.cdev.default_trigger =
 		ieee80211_create_tpt_led_trigger(hw,
 					IEEE80211_TPT_LEDTRIG_FL_RADIO,
 					mt76_tpt_blink,
 					ARRAY_SIZE(mt76_tpt_blink));
 
-	np = of_get_child_by_name(np, "led");
-	if (np) {
-		if (!of_property_read_u32(np, "led-sources", &led_pin))
-			dev->leds.pin = led_pin;
-		dev->leds.al = of_property_read_bool(np, "led-active-low");
-		of_node_put(np);
+	if (phy == &dev->phy) {
+		struct device_node *np = dev->dev->of_node;
+
+		np = of_get_child_by_name(np, "led");
+		if (np) {
+			int led_pin;
+
+			if (!of_property_read_u32(np, "led-sources", &led_pin))
+				phy->leds.pin = led_pin;
+			phy->leds.al = of_property_read_bool(np,
+							     "led-active-low");
+			of_node_put(np);
+		}
 	}
 
-	return led_classdev_register(dev->dev, &dev->leds.cdev);
+	return led_classdev_register(dev->dev, &phy->leds.cdev);
 }
 
-static void mt76_led_cleanup(struct mt76_dev *dev)
+static void mt76_led_cleanup(struct mt76_phy *phy)
 {
-	if (!dev->leds.cdev.brightness_set && !dev->leds.cdev.blink_set)
+	if (!phy->leds.cdev.brightness_set && !phy->leds.cdev.blink_set)
 		return;
 
-	led_classdev_unregister(&dev->leds.cdev);
+	led_classdev_unregister(&phy->leds.cdev);
 }
 
 static void mt76_init_stream_cap(struct mt76_phy *phy,
@@ -653,7 +659,7 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 	mt76_check_sband(&dev->phy, &phy->sband_6g, NL80211_BAND_6GHZ);
 
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
-		ret = mt76_led_init(dev);
+		ret = mt76_led_init(phy);
 		if (ret)
 			return ret;
 	}
@@ -674,7 +680,7 @@ void mt76_unregister_device(struct mt76_dev *dev)
 	struct ieee80211_hw *hw = dev->hw;
 
 	if (IS_ENABLED(CONFIG_MT76_LEDS))
-		mt76_led_cleanup(dev);
+		mt76_led_cleanup(&dev->phy);
 	mt76_tx_status_check(dev, true);
 	ieee80211_unregister_hw(hw);
 }
