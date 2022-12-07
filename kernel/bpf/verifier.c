@@ -14836,6 +14836,10 @@ static int opt_subreg_zext_lo32_rnd_hi32(struct bpf_verifier_env *env,
 		if (!bpf_jit_needs_zext() && !is_cmpxchg_insn(&insn))
 			continue;
 
+		/* Zero-extension is done by the caller. */
+		if (bpf_pseudo_kfunc_call(&insn))
+			continue;
+
 		if (WARN_ON(load_reg == -1)) {
 			verbose(env, "verifier bug. zext_dst is set, but no reg is defined\n");
 			return -EFAULT;
