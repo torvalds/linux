@@ -861,10 +861,11 @@ static void intel_panel_set_backlight(const struct drm_connector_state *conn_sta
 static int intel_backlight_device_update_status(struct backlight_device *bd)
 {
 	struct intel_connector *connector = bl_get_data(bd);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
-	struct drm_device *dev = connector->base.dev;
 
-	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	drm_modeset_lock(&i915->drm.mode_config.connection_mutex, NULL);
+
 	DRM_DEBUG_KMS("updating intel_backlight, brightness=%d/%d\n",
 		      bd->props.brightness, bd->props.max_brightness);
 	intel_panel_set_backlight(connector->base.state, bd->props.brightness,
@@ -886,28 +887,28 @@ static int intel_backlight_device_update_status(struct backlight_device *bd)
 		bd->props.power = FB_BLANK_POWERDOWN;
 	}
 
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
 	return 0;
 }
 
 static int intel_backlight_device_get_brightness(struct backlight_device *bd)
 {
 	struct intel_connector *connector = bl_get_data(bd);
-	struct drm_device *dev = connector->base.dev;
-	struct drm_i915_private *i915 = to_i915(dev);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	intel_wakeref_t wakeref;
 	int ret = 0;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		u32 hw_level;
 
-		drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+		drm_modeset_lock(&i915->drm.mode_config.connection_mutex, NULL);
 
 		hw_level = intel_panel_get_backlight(connector);
 		ret = scale_hw_to_user(connector,
 				       hw_level, bd->props.max_brightness);
 
-		drm_modeset_unlock(&dev->mode_config.connection_mutex);
+		drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
 	}
 
 	return ret;
@@ -1467,18 +1468,17 @@ cnp_setup_backlight(struct intel_connector *connector, enum pipe unused)
 static int ext_pwm_setup_backlight(struct intel_connector *connector,
 				   enum pipe pipe)
 {
-	struct drm_device *dev = connector->base.dev;
-	struct drm_i915_private *i915 = to_i915(dev);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
 	const char *desc;
 	u32 level;
 
 	/* Get the right PWM chip for DSI backlight according to VBT */
 	if (connector->panel.vbt.dsi.config->pwm_blc == PPS_BLC_PMIC) {
-		panel->backlight.pwm = pwm_get(dev->dev, "pwm_pmic_backlight");
+		panel->backlight.pwm = pwm_get(i915->drm.dev, "pwm_pmic_backlight");
 		desc = "PMIC";
 	} else {
-		panel->backlight.pwm = pwm_get(dev->dev, "pwm_soc_backlight");
+		panel->backlight.pwm = pwm_get(i915->drm.dev, "pwm_soc_backlight");
 		desc = "SoC";
 	}
 
