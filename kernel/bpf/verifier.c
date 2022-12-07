@@ -592,7 +592,7 @@ static const char *reg_type_str(struct bpf_verifier_env *env,
 		[PTR_TO_BUF]		= "buf",
 		[PTR_TO_FUNC]		= "func",
 		[PTR_TO_MAP_KEY]	= "map_key",
-		[PTR_TO_DYNPTR]		= "dynptr_ptr",
+		[CONST_PTR_TO_DYNPTR]	= "dynptr_ptr",
 	};
 
 	if (type & PTR_MAYBE_NULL) {
@@ -725,6 +725,28 @@ static bool dynptr_type_refcounted(enum bpf_dynptr_type type)
 	return type == BPF_DYNPTR_TYPE_RINGBUF;
 }
 
+static void __mark_dynptr_reg(struct bpf_reg_state *reg,
+			      enum bpf_dynptr_type type,
+			      bool first_slot);
+
+static void __mark_reg_not_init(const struct bpf_verifier_env *env,
+				struct bpf_reg_state *reg);
+
+static void mark_dynptr_stack_regs(struct bpf_reg_state *sreg1,
+				   struct bpf_reg_state *sreg2,
+				   enum bpf_dynptr_type type)
+{
+	__mark_dynptr_reg(sreg1, type, true);
+	__mark_dynptr_reg(sreg2, type, false);
+}
+
+static void mark_dynptr_cb_reg(struct bpf_reg_state *reg,
+			       enum bpf_dynptr_type type)
+{
+	__mark_dynptr_reg(reg, type, true);
+}
+
+
 static int mark_stack_slots_dynptr(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
 				   enum bpf_arg_type arg_type, int insn_idx)
 {
@@ -746,9 +768,8 @@ static int mark_stack_slots_dynptr(struct bpf_verifier_env *env, struct bpf_reg_
 	if (type == BPF_DYNPTR_TYPE_INVALID)
 		return -EINVAL;
 
-	state->stack[spi].spilled_ptr.dynptr.first_slot = true;
-	state->stack[spi].spilled_ptr.dynptr.type = type;
-	state->stack[spi - 1].spilled_ptr.dynptr.type = type;
+	mark_dynptr_stack_regs(&state->stack[spi].spilled_ptr,
+			       &state->stack[spi - 1].spilled_ptr, type);
 
 	if (dynptr_type_refcounted(type)) {
 		/* The id is used to track proper releasing */
@@ -756,8 +777,8 @@ static int mark_stack_slots_dynptr(struct bpf_verifier_env *env, struct bpf_reg_
 		if (id < 0)
 			return id;
 
-		state->stack[spi].spilled_ptr.id = id;
-		state->stack[spi - 1].spilled_ptr.id = id;
+		state->stack[spi].spilled_ptr.ref_obj_id = id;
+		state->stack[spi - 1].spilled_ptr.ref_obj_id = id;
 	}
 
 	return 0;
@@ -779,25 +800,23 @@ static int unmark_stack_slots_dynptr(struct bpf_verifier_env *env, struct bpf_re
 	}
 
 	/* Invalidate any slices associated with this dynptr */
-	if (dynptr_type_refcounted(state->stack[spi].spilled_ptr.dynptr.type)) {
-		release_reference(env, state->stack[spi].spilled_ptr.id);
-		state->stack[spi].spilled_ptr.id = 0;
-		state->stack[spi - 1].spilled_ptr.id = 0;
-	}
+	if (dynptr_type_refcounted(state->stack[spi].spilled_ptr.dynptr.type))
+		WARN_ON_ONCE(release_reference(env, state->stack[spi].spilled_ptr.ref_obj_id));
 
-	state->stack[spi].spilled_ptr.dynptr.first_slot = false;
-	state->stack[spi].spilled_ptr.dynptr.type = 0;
-	state->stack[spi - 1].spilled_ptr.dynptr.type = 0;
-
+	__mark_reg_not_init(env, &state->stack[spi].spilled_ptr);
+	__mark_reg_not_init(env, &state->stack[spi - 1].spilled_ptr);
 	return 0;
 }
 
 static bool is_dynptr_reg_valid_uninit(struct bpf_verifier_env *env, struct bpf_reg_state *reg)
 {
 	struct bpf_func_state *state = func(env, reg);
-	int spi = get_spi(reg->off);
-	int i;
+	int spi, i;
 
+	if (reg->type == CONST_PTR_TO_DYNPTR)
+		return false;
+
+	spi = get_spi(reg->off);
 	if (!is_spi_bounds_valid(state, spi, BPF_DYNPTR_NR_SLOTS))
 		return true;
 
@@ -813,9 +832,14 @@ static bool is_dynptr_reg_valid_uninit(struct bpf_verifier_env *env, struct bpf_
 static bool is_dynptr_reg_valid_init(struct bpf_verifier_env *env, struct bpf_reg_state *reg)
 {
 	struct bpf_func_state *state = func(env, reg);
-	int spi = get_spi(reg->off);
+	int spi;
 	int i;
 
+	/* This already represents first slot of initialized bpf_dynptr */
+	if (reg->type == CONST_PTR_TO_DYNPTR)
+		return true;
+
+	spi = get_spi(reg->off);
 	if (!is_spi_bounds_valid(state, spi, BPF_DYNPTR_NR_SLOTS) ||
 	    !state->stack[spi].spilled_ptr.dynptr.first_slot)
 		return false;
@@ -834,15 +858,19 @@ static bool is_dynptr_type_expected(struct bpf_verifier_env *env, struct bpf_reg
 {
 	struct bpf_func_state *state = func(env, reg);
 	enum bpf_dynptr_type dynptr_type;
-	int spi = get_spi(reg->off);
+	int spi;
 
 	/* ARG_PTR_TO_DYNPTR takes any type of dynptr */
 	if (arg_type == ARG_PTR_TO_DYNPTR)
 		return true;
 
 	dynptr_type = arg_to_dynptr_type(arg_type);
-
-	return state->stack[spi].spilled_ptr.dynptr.type == dynptr_type;
+	if (reg->type == CONST_PTR_TO_DYNPTR) {
+		return reg->dynptr.type == dynptr_type;
+	} else {
+		spi = get_spi(reg->off);
+		return state->stack[spi].spilled_ptr.dynptr.type == dynptr_type;
+	}
 }
 
 /* The reg state of a pointer or a bounded scalar was saved when
@@ -1354,9 +1382,6 @@ static const int caller_saved[CALLER_SAVED_REGS] = {
 	BPF_REG_0, BPF_REG_1, BPF_REG_2, BPF_REG_3, BPF_REG_4, BPF_REG_5
 };
 
-static void __mark_reg_not_init(const struct bpf_verifier_env *env,
-				struct bpf_reg_state *reg);
-
 /* This helper doesn't clear reg->id */
 static void ___mark_reg_known(struct bpf_reg_state *reg, u64 imm)
 {
@@ -1417,6 +1442,19 @@ static void mark_reg_known_zero(struct bpf_verifier_env *env,
 		return;
 	}
 	__mark_reg_known_zero(regs + regno);
+}
+
+static void __mark_dynptr_reg(struct bpf_reg_state *reg, enum bpf_dynptr_type type,
+			      bool first_slot)
+{
+	/* reg->type has no meaning for STACK_DYNPTR, but when we set reg for
+	 * callback arguments, it does need to be CONST_PTR_TO_DYNPTR, so simply
+	 * set it unconditionally as it is ignored for STACK_DYNPTR anyway.
+	 */
+	__mark_reg_known_zero(reg);
+	reg->type = CONST_PTR_TO_DYNPTR;
+	reg->dynptr.type = type;
+	reg->dynptr.first_slot = first_slot;
 }
 
 static void mark_ptr_not_null_reg(struct bpf_reg_state *reg)
@@ -5857,19 +5895,58 @@ static int process_kptr_func(struct bpf_verifier_env *env, int regno,
 	return 0;
 }
 
+/* There are two register types representing a bpf_dynptr, one is PTR_TO_STACK
+ * which points to a stack slot, and the other is CONST_PTR_TO_DYNPTR.
+ *
+ * In both cases we deal with the first 8 bytes, but need to mark the next 8
+ * bytes as STACK_DYNPTR in case of PTR_TO_STACK. In case of
+ * CONST_PTR_TO_DYNPTR, we are guaranteed to get the beginning of the object.
+ *
+ * Mutability of bpf_dynptr is at two levels, one is at the level of struct
+ * bpf_dynptr itself, i.e. whether the helper is receiving a pointer to struct
+ * bpf_dynptr or pointer to const struct bpf_dynptr. In the former case, it can
+ * mutate the view of the dynptr and also possibly destroy it. In the latter
+ * case, it cannot mutate the bpf_dynptr itself but it can still mutate the
+ * memory that dynptr points to.
+ *
+ * The verifier will keep track both levels of mutation (bpf_dynptr's in
+ * reg->type and the memory's in reg->dynptr.type), but there is no support for
+ * readonly dynptr view yet, hence only the first case is tracked and checked.
+ *
+ * This is consistent with how C applies the const modifier to a struct object,
+ * where the pointer itself inside bpf_dynptr becomes const but not what it
+ * points to.
+ *
+ * Helpers which do not mutate the bpf_dynptr set MEM_RDONLY in their argument
+ * type, and declare it as 'const struct bpf_dynptr *' in their prototype.
+ */
 int process_dynptr_func(struct bpf_verifier_env *env, int regno,
-			enum bpf_arg_type arg_type,
-			struct bpf_call_arg_meta *meta)
+			enum bpf_arg_type arg_type, struct bpf_call_arg_meta *meta)
 {
 	struct bpf_reg_state *regs = cur_regs(env), *reg = &regs[regno];
 
-	/* We only need to check for initialized / uninitialized helper
-	 * dynptr args if the dynptr is not PTR_TO_DYNPTR, as the
-	 * assumption is that if it is, that a helper function
-	 * initialized the dynptr on behalf of the BPF program.
+	/* MEM_UNINIT and MEM_RDONLY are exclusive, when applied to an
+	 * ARG_PTR_TO_DYNPTR (or ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_*):
 	 */
-	if (base_type(reg->type) == PTR_TO_DYNPTR)
-		return 0;
+	if ((arg_type & (MEM_UNINIT | MEM_RDONLY)) == (MEM_UNINIT | MEM_RDONLY)) {
+		verbose(env, "verifier internal error: misconfigured dynptr helper type flags\n");
+		return -EFAULT;
+	}
+	/*  MEM_UNINIT - Points to memory that is an appropriate candidate for
+	 *		 constructing a mutable bpf_dynptr object.
+	 *
+	 *		 Currently, this is only possible with PTR_TO_STACK
+	 *		 pointing to a region of at least 16 bytes which doesn't
+	 *		 contain an existing bpf_dynptr.
+	 *
+	 *  MEM_RDONLY - Points to a initialized bpf_dynptr that will not be
+	 *		 mutated or destroyed. However, the memory it points to
+	 *		 may be mutated.
+	 *
+	 *  None       - Points to a initialized dynptr that can be mutated and
+	 *		 destroyed, including mutation of the memory it points
+	 *		 to.
+	 */
 	if (arg_type & MEM_UNINIT) {
 		if (!is_dynptr_reg_valid_uninit(env, reg)) {
 			verbose(env, "Dynptr has to be an uninitialized dynptr\n");
@@ -5885,7 +5962,13 @@ int process_dynptr_func(struct bpf_verifier_env *env, int regno,
 		}
 
 		meta->uninit_dynptr_regno = regno;
-	} else {
+	} else /* MEM_RDONLY and None case from above */ {
+		/* For the reg->type == PTR_TO_STACK case, bpf_dynptr is never const */
+		if (reg->type == CONST_PTR_TO_DYNPTR && !(arg_type & MEM_RDONLY)) {
+			verbose(env, "cannot pass pointer to const bpf_dynptr, the helper mutates it\n");
+			return -EINVAL;
+		}
+
 		if (!is_dynptr_reg_valid_init(env, reg)) {
 			verbose(env,
 				"Expected an initialized dynptr as arg #%d\n",
@@ -5893,7 +5976,8 @@ int process_dynptr_func(struct bpf_verifier_env *env, int regno,
 			return -EINVAL;
 		}
 
-		if (!is_dynptr_type_expected(env, reg, arg_type)) {
+		/* Fold modifiers (in this case, MEM_RDONLY) when checking expected type */
+		if (!is_dynptr_type_expected(env, reg, arg_type & ~MEM_RDONLY)) {
 			const char *err_extra = "";
 
 			switch (arg_type & DYNPTR_TYPE_FLAG_MASK) {
@@ -6056,7 +6140,7 @@ static const struct bpf_reg_types kptr_types = { .types = { PTR_TO_MAP_VALUE } }
 static const struct bpf_reg_types dynptr_types = {
 	.types = {
 		PTR_TO_STACK,
-		PTR_TO_DYNPTR | DYNPTR_TYPE_LOCAL,
+		CONST_PTR_TO_DYNPTR,
 	}
 };
 
@@ -6241,12 +6325,16 @@ int check_func_arg_reg_off(struct bpf_verifier_env *env,
 	return __check_ptr_off_reg(env, reg, regno, fixed_off_ok);
 }
 
-static u32 stack_slot_get_id(struct bpf_verifier_env *env, struct bpf_reg_state *reg)
+static u32 dynptr_ref_obj_id(struct bpf_verifier_env *env, struct bpf_reg_state *reg)
 {
 	struct bpf_func_state *state = func(env, reg);
-	int spi = get_spi(reg->off);
+	int spi;
 
-	return state->stack[spi].spilled_ptr.id;
+	if (reg->type == CONST_PTR_TO_DYNPTR)
+		return reg->ref_obj_id;
+
+	spi = get_spi(reg->off);
+	return state->stack[spi].spilled_ptr.ref_obj_id;
 }
 
 static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
@@ -6311,11 +6399,22 @@ skip_type_check:
 	if (arg_type_is_release(arg_type)) {
 		if (arg_type_is_dynptr(arg_type)) {
 			struct bpf_func_state *state = func(env, reg);
-			int spi = get_spi(reg->off);
+			int spi;
 
-			if (!is_spi_bounds_valid(state, spi, BPF_DYNPTR_NR_SLOTS) ||
-			    !state->stack[spi].spilled_ptr.id) {
-				verbose(env, "arg %d is an unacquired reference\n", regno);
+			/* Only dynptr created on stack can be released, thus
+			 * the get_spi and stack state checks for spilled_ptr
+			 * should only be done before process_dynptr_func for
+			 * PTR_TO_STACK.
+			 */
+			if (reg->type == PTR_TO_STACK) {
+				spi = get_spi(reg->off);
+				if (!is_spi_bounds_valid(state, spi, BPF_DYNPTR_NR_SLOTS) ||
+				    !state->stack[spi].spilled_ptr.ref_obj_id) {
+					verbose(env, "arg %d is an unacquired reference\n", regno);
+					return -EINVAL;
+				}
+			} else {
+				verbose(env, "cannot release unowned const bpf_dynptr\n");
 				return -EINVAL;
 			}
 		} else if (!reg->ref_obj_id && !register_is_null(reg)) {
@@ -7289,11 +7388,10 @@ static int set_user_ringbuf_callback_state(struct bpf_verifier_env *env,
 {
 	/* bpf_user_ringbuf_drain(struct bpf_map *map, void *callback_fn, void
 	 *			  callback_ctx, u64 flags);
-	 * callback_fn(struct bpf_dynptr_t* dynptr, void *callback_ctx);
+	 * callback_fn(const struct bpf_dynptr_t* dynptr, void *callback_ctx);
 	 */
 	__mark_reg_not_init(env, &callee->regs[BPF_REG_0]);
-	callee->regs[BPF_REG_1].type = PTR_TO_DYNPTR | DYNPTR_TYPE_LOCAL;
-	__mark_reg_known_zero(&callee->regs[BPF_REG_1]);
+	mark_dynptr_cb_reg(&callee->regs[BPF_REG_1], BPF_DYNPTR_TYPE_LOCAL);
 	callee->regs[BPF_REG_2] = caller->regs[BPF_REG_3];
 
 	/* unused */
@@ -7687,7 +7785,15 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 
 	regs = cur_regs(env);
 
+	/* This can only be set for PTR_TO_STACK, as CONST_PTR_TO_DYNPTR cannot
+	 * be reinitialized by any dynptr helper. Hence, mark_stack_slots_dynptr
+	 * is safe to do directly.
+	 */
 	if (meta.uninit_dynptr_regno) {
+		if (regs[meta.uninit_dynptr_regno].type == CONST_PTR_TO_DYNPTR) {
+			verbose(env, "verifier internal error: CONST_PTR_TO_DYNPTR cannot be initialized\n");
+			return -EFAULT;
+		}
 		/* we write BPF_DW bits (8 bytes) at a time */
 		for (i = 0; i < BPF_DYNPTR_SIZE; i += 8) {
 			err = check_mem_access(env, insn_idx, meta.uninit_dynptr_regno,
@@ -7705,15 +7811,24 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 
 	if (meta.release_regno) {
 		err = -EINVAL;
-		if (arg_type_is_dynptr(fn->arg_type[meta.release_regno - BPF_REG_1]))
-			err = unmark_stack_slots_dynptr(env, &regs[meta.release_regno]);
-		else if (meta.ref_obj_id)
-			err = release_reference(env, meta.ref_obj_id);
-		/* meta.ref_obj_id can only be 0 if register that is meant to be
-		 * released is NULL, which must be > R0.
+		/* This can only be set for PTR_TO_STACK, as CONST_PTR_TO_DYNPTR cannot
+		 * be released by any dynptr helper. Hence, unmark_stack_slots_dynptr
+		 * is safe to do directly.
 		 */
-		else if (register_is_null(&regs[meta.release_regno]))
+		if (arg_type_is_dynptr(fn->arg_type[meta.release_regno - BPF_REG_1])) {
+			if (regs[meta.release_regno].type == CONST_PTR_TO_DYNPTR) {
+				verbose(env, "verifier internal error: CONST_PTR_TO_DYNPTR cannot be released\n");
+				return -EFAULT;
+			}
+			err = unmark_stack_slots_dynptr(env, &regs[meta.release_regno]);
+		} else if (meta.ref_obj_id) {
+			err = release_reference(env, meta.ref_obj_id);
+		} else if (register_is_null(&regs[meta.release_regno])) {
+			/* meta.ref_obj_id can only be 0 if register that is meant to be
+			 * released is NULL, which must be > R0.
+			 */
 			err = 0;
+		}
 		if (err) {
 			verbose(env, "func %s#%d reference has not been acquired before\n",
 				func_id_name(func_id), func_id);
@@ -7787,11 +7902,7 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 					return -EFAULT;
 				}
 
-				if (base_type(reg->type) != PTR_TO_DYNPTR)
-					/* Find the id of the dynptr we're
-					 * tracking the reference of
-					 */
-					meta.ref_obj_id = stack_slot_get_id(env, reg);
+				meta.ref_obj_id = dynptr_ref_obj_id(env, reg);
 				break;
 			}
 		}
@@ -8848,12 +8959,12 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 			break;
 		case KF_ARG_PTR_TO_DYNPTR:
 			if (reg->type != PTR_TO_STACK &&
-			    reg->type != PTR_TO_DYNPTR) {
+			    reg->type != CONST_PTR_TO_DYNPTR) {
 				verbose(env, "arg#%d expected pointer to stack or dynptr_ptr\n", i);
 				return -EINVAL;
 			}
 
-			ret = process_dynptr_func(env, regno, ARG_PTR_TO_DYNPTR, NULL);
+			ret = process_dynptr_func(env, regno, ARG_PTR_TO_DYNPTR | MEM_RDONLY, NULL);
 			if (ret < 0)
 				return ret;
 			break;
