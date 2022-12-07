@@ -34,6 +34,22 @@
 	clock-frequency = <24000000>;
 };
 
+&m_can0 {
+	status = "okay";
+};
+
+&m_can1 {
+	status = "okay";
+};
+
+&m_can2 {
+	status = "okay";
+};
+
+&m_can3 {
+	status = "okay";
+};
+
 &serial_0 {
 	status = "okay";
 };
