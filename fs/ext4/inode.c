@@ -1550,9 +1550,12 @@ void ext4_da_release_space(struct inode *inode, int to_free)
  */
 
 struct mpage_da_data {
+	/* These are input fields for ext4_do_writepages() */
 	struct inode *inode;
 	struct writeback_control *wbc;
+	unsigned int can_map:1;	/* Can writepages call map blocks? */
 
+	/* These are internal state of ext4_do_writepages() */
 	pgoff_t first_page;	/* The first page to write */
 	pgoff_t next_page;	/* Current page to examine */
 	pgoff_t last_page;	/* Last page to examine */
@@ -1564,7 +1567,6 @@ struct mpage_da_data {
 	struct ext4_map_blocks map;
 	struct ext4_io_submit io_submit;	/* IO submission data */
 	unsigned int do_map:1;
-	unsigned int can_map:1;	/* Can writepages call map blocks? */
 	unsigned int scanned_until_end:1;
 };
 
@@ -2710,16 +2712,16 @@ out:
 	return err;
 }
 
-static int ext4_writepages(struct address_space *mapping,
-			   struct writeback_control *wbc)
+static int ext4_do_writepages(struct mpage_da_data *mpd)
 {
+	struct writeback_control *wbc = mpd->wbc;
 	pgoff_t	writeback_index = 0;
 	long nr_to_write = wbc->nr_to_write;
 	int range_whole = 0;
 	int cycled = 1;
 	handle_t *handle = NULL;
-	struct mpage_da_data mpd;
-	struct inode *inode = mapping->host;
+	struct inode *inode = mpd->inode;
+	struct address_space *mapping = inode->i_mapping;
 	int needed_blocks, rsv_blocks = 0, ret = 0;
 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
 	struct blk_plug plug;
@@ -2794,19 +2796,18 @@ static int ext4_writepages(struct address_space *mapping,
 		writeback_index = mapping->writeback_index;
 		if (writeback_index)
 			cycled = 0;
-		mpd.first_page = writeback_index;
-		mpd.last_page = -1;
+		mpd->first_page = writeback_index;
+		mpd->last_page = -1;
 	} else {
-		mpd.first_page = wbc->range_start >> PAGE_SHIFT;
-		mpd.last_page = wbc->range_end >> PAGE_SHIFT;
+		mpd->first_page = wbc->range_start >> PAGE_SHIFT;
+		mpd->last_page = wbc->range_end >> PAGE_SHIFT;
 	}
 
-	mpd.inode = inode;
-	mpd.wbc = wbc;
-	ext4_io_submit_init(&mpd.io_submit, wbc);
+	ext4_io_submit_init(&mpd->io_submit, wbc);
 retry:
 	if (wbc->sync_mode == WB_SYNC_ALL || wbc->tagged_writepages)
-		tag_pages_for_writeback(mapping, mpd.first_page, mpd.last_page);
+		tag_pages_for_writeback(mapping, mpd->first_page,
+					mpd->last_page);
 	blk_start_plug(&plug);
 
 	/*
@@ -2815,28 +2816,27 @@ retry:
 	 * in the block layer on device congestion while having transaction
 	 * started.
 	 */
-	mpd.do_map = 0;
-	mpd.scanned_until_end = 0;
-	mpd.can_map = 1;
-	mpd.io_submit.io_end = ext4_init_io_end(inode, GFP_KERNEL);
-	if (!mpd.io_submit.io_end) {
+	mpd->do_map = 0;
+	mpd->scanned_until_end = 0;
+	mpd->io_submit.io_end = ext4_init_io_end(inode, GFP_KERNEL);
+	if (!mpd->io_submit.io_end) {
 		ret = -ENOMEM;
 		goto unplug;
 	}
-	ret = mpage_prepare_extent_to_map(&mpd);
+	ret = mpage_prepare_extent_to_map(mpd);
 	/* Unlock pages we didn't use */
-	mpage_release_unused_pages(&mpd, false);
+	mpage_release_unused_pages(mpd, false);
 	/* Submit prepared bio */
-	ext4_io_submit(&mpd.io_submit);
-	ext4_put_io_end_defer(mpd.io_submit.io_end);
-	mpd.io_submit.io_end = NULL;
+	ext4_io_submit(&mpd->io_submit);
+	ext4_put_io_end_defer(mpd->io_submit.io_end);
+	mpd->io_submit.io_end = NULL;
 	if (ret < 0)
 		goto unplug;
 
-	while (!mpd.scanned_until_end && wbc->nr_to_write > 0) {
+	while (!mpd->scanned_until_end && wbc->nr_to_write > 0) {
 		/* For each extent of pages we use new io_end */
-		mpd.io_submit.io_end = ext4_init_io_end(inode, GFP_KERNEL);
-		if (!mpd.io_submit.io_end) {
+		mpd->io_submit.io_end = ext4_init_io_end(inode, GFP_KERNEL);
+		if (!mpd->io_submit.io_end) {
 			ret = -ENOMEM;
 			break;
 		}
@@ -2861,16 +2861,16 @@ retry:
 			       "%ld pages, ino %lu; err %d", __func__,
 				wbc->nr_to_write, inode->i_ino, ret);
 			/* Release allocated io_end */
-			ext4_put_io_end(mpd.io_submit.io_end);
-			mpd.io_submit.io_end = NULL;
+			ext4_put_io_end(mpd->io_submit.io_end);
+			mpd->io_submit.io_end = NULL;
 			break;
 		}
-		mpd.do_map = 1;
+		mpd->do_map = 1;
 
-		trace_ext4_da_write_pages(inode, mpd.first_page, mpd.wbc);
-		ret = mpage_prepare_extent_to_map(&mpd);
-		if (!ret && mpd.map.m_len)
-			ret = mpage_map_and_submit_extent(handle, &mpd,
+		trace_ext4_da_write_pages(inode, mpd->first_page, wbc);
+		ret = mpage_prepare_extent_to_map(mpd);
+		if (!ret && mpd->map.m_len)
+			ret = mpage_map_and_submit_extent(handle, mpd,
 					&give_up_on_write);
 		/*
 		 * Caution: If the handle is synchronous,
@@ -2885,12 +2885,12 @@ retry:
 		if (!ext4_handle_valid(handle) || handle->h_sync == 0) {
 			ext4_journal_stop(handle);
 			handle = NULL;
-			mpd.do_map = 0;
+			mpd->do_map = 0;
 		}
 		/* Unlock pages we didn't use */
-		mpage_release_unused_pages(&mpd, give_up_on_write);
+		mpage_release_unused_pages(mpd, give_up_on_write);
 		/* Submit prepared bio */
-		ext4_io_submit(&mpd.io_submit);
+		ext4_io_submit(&mpd->io_submit);
 
 		/*
 		 * Drop our io_end reference we got from init. We have
@@ -2900,11 +2900,11 @@ retry:
 		 * up doing unwritten extent conversion.
 		 */
 		if (handle) {
-			ext4_put_io_end_defer(mpd.io_submit.io_end);
+			ext4_put_io_end_defer(mpd->io_submit.io_end);
 			ext4_journal_stop(handle);
 		} else
-			ext4_put_io_end(mpd.io_submit.io_end);
-		mpd.io_submit.io_end = NULL;
+			ext4_put_io_end(mpd->io_submit.io_end);
+		mpd->io_submit.io_end = NULL;
 
 		if (ret == -ENOSPC && sbi->s_journal) {
 			/*
@@ -2924,8 +2924,8 @@ unplug:
 	blk_finish_plug(&plug);
 	if (!ret && !cycled && wbc->nr_to_write > 0) {
 		cycled = 1;
-		mpd.last_page = writeback_index - 1;
-		mpd.first_page = 0;
+		mpd->last_page = writeback_index - 1;
+		mpd->first_page = 0;
 		goto retry;
 	}
 
@@ -2935,13 +2935,25 @@ unplug:
 		 * Set the writeback_index so that range_cyclic
 		 * mode will write it back later
 		 */
-		mapping->writeback_index = mpd.first_page;
+		mapping->writeback_index = mpd->first_page;
 
 out_writepages:
 	trace_ext4_writepages_result(inode, wbc, ret,
 				     nr_to_write - wbc->nr_to_write);
 	percpu_up_read(&sbi->s_writepages_rwsem);
 	return ret;
+}
+
+static int ext4_writepages(struct address_space *mapping,
+			   struct writeback_control *wbc)
+{
+	struct mpage_da_data mpd = {
+		.inode = mapping->host,
+		.wbc = wbc,
+		.can_map = 1,
+	};
+
+	return ext4_do_writepages(&mpd);
 }
 
 static int ext4_dax_writepages(struct address_space *mapping,
