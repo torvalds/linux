@@ -96,6 +96,11 @@ static int finished_booting;
 static u64 suspend_start;
 
 /*
+ * Interval: 0.5sec.
+ */
+#define WATCHDOG_INTERVAL (HZ >> 1)
+
+/*
  * Threshold: 0.0312s, when doubled: 0.0625s.
  * Also a default for cs->uncertainty_margin when registering clocks.
  */
@@ -106,11 +111,14 @@ static u64 suspend_start;
  * clocksource surrounding a read of the clocksource being validated.
  * This delay could be due to SMIs, NMIs, or to VCPU preemptions.  Used as
  * a lower bound for cs->uncertainty_margin values when registering clocks.
+ *
+ * The default of 500 parts per million is based on NTP's limits.
+ * If a clocksource is good enough for NTP, it is good enough for us!
  */
 #ifdef CONFIG_CLOCKSOURCE_WATCHDOG_MAX_SKEW_US
 #define MAX_SKEW_USEC	CONFIG_CLOCKSOURCE_WATCHDOG_MAX_SKEW_US
 #else
-#define MAX_SKEW_USEC	100
+#define MAX_SKEW_USEC	(125 * WATCHDOG_INTERVAL / HZ)
 #endif
 
 #define WATCHDOG_MAX_SKEW (MAX_SKEW_USEC * NSEC_PER_USEC)
@@ -139,11 +147,6 @@ static inline void clocksource_watchdog_unlock(unsigned long *flags)
 
 static int clocksource_watchdog_kthread(void *data);
 static void __clocksource_change_rating(struct clocksource *cs, int rating);
-
-/*
- * Interval: 0.5sec.
- */
-#define WATCHDOG_INTERVAL (HZ >> 1)
 
 static void clocksource_watchdog_work(struct work_struct *work)
 {
