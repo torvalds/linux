@@ -561,7 +561,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	}
 
 	if (req->ns->readonly)
-		id->nsattr |= (1 << 0);
+		id->nsattr |= NVME_NS_ATTR_RO;
 done:
 	if (!status)
 		status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
