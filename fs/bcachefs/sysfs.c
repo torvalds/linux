@@ -194,6 +194,7 @@ read_attribute(btree_key_cache);
 read_attribute(stripes_heap);
 read_attribute(open_buckets);
 read_attribute(write_points);
+read_attribute(nocow_lock_table);
 
 #ifdef BCH_WRITE_REF_DEBUG
 read_attribute(write_refs);
@@ -476,6 +477,23 @@ SHOW(bch2_fs)
 		bch2_write_refs_to_text(out, c);
 #endif
 
+	if (attr == &sysfs_nocow_lock_table) {
+		int i, count = 1;
+		long last, curr = 0;
+
+		last = atomic_long_read(&c->nocow_locks.l[0].v);
+		for (i = 1; i < BUCKET_NOCOW_LOCKS; i++) {
+			curr = atomic_long_read(&c->nocow_locks.l[i].v);
+			if (last != curr) {
+				prt_printf(out, "%li: %d\n", last, count);
+				count = 1;
+				last = curr;
+			} else
+				count++;
+		}
+		prt_printf(out, "%li: %d\n", last, count);
+	}
+
 	return 0;
 }
 
@@ -662,6 +680,7 @@ struct attribute *bch2_fs_internal_files[] = {
 #ifdef BCH_WRITE_REF_DEBUG
 	&sysfs_write_refs,
 #endif
+	&sysfs_nocow_lock_table,
 	&sysfs_io_timers_read,
 	&sysfs_io_timers_write,
 
