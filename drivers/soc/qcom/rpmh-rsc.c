@@ -36,16 +36,38 @@
 #define CREATE_TRACE_POINTS
 #include "trace-rpmh.h"
 
-#define RSC_DRV_TCS_OFFSET		672
-#define RSC_DRV_CMD_OFFSET		20
+
+#define RSC_DRV_ID			0
+
+#define MAJOR_VER_MASK			0xFF
+#define MAJOR_VER_SHIFT			16
+#define MINOR_VER_MASK			0xFF
+#define MINOR_VER_SHIFT			8
+
+enum {
+	RSC_DRV_TCS_OFFSET,
+	RSC_DRV_CMD_OFFSET,
+	DRV_SOLVER_CONFIG,
+	DRV_PRNT_CHLD_CONFIG,
+	RSC_DRV_IRQ_ENABLE,
+	RSC_DRV_IRQ_STATUS,
+	RSC_DRV_IRQ_CLEAR,
+	RSC_DRV_CMD_WAIT_FOR_CMPL,
+	RSC_DRV_CONTROL,
+	RSC_DRV_STATUS,
+	RSC_DRV_CMD_ENABLE,
+	RSC_DRV_CMD_MSGID,
+	RSC_DRV_CMD_ADDR,
+	RSC_DRV_CMD_DATA,
+	RSC_DRV_CMD_STATUS,
+	RSC_DRV_CMD_RESP_DATA,
+};
 
 /* DRV HW Solver Configuration Information Register */
-#define DRV_SOLVER_CONFIG		0x04
 #define DRV_HW_SOLVER_MASK		1
 #define DRV_HW_SOLVER_SHIFT		24
 
 /* DRV TCS Configuration Information Register */
-#define DRV_PRNT_CHLD_CONFIG		0x0C
 #define DRV_NUM_TCS_MASK		0x3F
 #define DRV_NUM_TCS_SHIFT		6
 #define DRV_NCPT_MASK			0x1F
@@ -58,35 +80,6 @@
 #define RSC_DRV_CTL_TCS_DATA_LO		0x40
 #define RSC_DRV_CTL_TCS_DATA_LO_MASK	0xFFFFFFFF
 #define RSC_DRV_CTL_TCS_DATA_SIZE	32
-
-/* Offsets for common TCS Registers, one bit per TCS */
-#define RSC_DRV_IRQ_ENABLE		0x00
-#define RSC_DRV_IRQ_STATUS		0x04
-#define RSC_DRV_IRQ_CLEAR		0x08	/* w/o; write 1 to clear */
-
-/*
- * Offsets for per TCS Registers.
- *
- * TCSes start at 0x10 from tcs_base and are stored one after another.
- * Multiply tcs_id by RSC_DRV_TCS_OFFSET to find a given TCS and add one
- * of the below to find a register.
- */
-#define RSC_DRV_CMD_WAIT_FOR_CMPL	0x10	/* 1 bit per command */
-#define RSC_DRV_CONTROL			0x14
-#define RSC_DRV_STATUS			0x18	/* zero if tcs is busy */
-#define RSC_DRV_CMD_ENABLE		0x1C	/* 1 bit per command */
-
-/*
- * Offsets for per command in a TCS.
- *
- * Commands (up to 16) start at 0x30 in a TCS; multiply command index
- * by RSC_DRV_CMD_OFFSET and add one of the below to find a register.
- */
-#define RSC_DRV_CMD_MSGID		0x30
-#define RSC_DRV_CMD_ADDR		0x34
-#define RSC_DRV_CMD_DATA		0x38
-#define RSC_DRV_CMD_STATUS		0x3C
-#define RSC_DRV_CMD_RESP_DATA		0x40
 
 #define TCS_AMC_MODE_ENABLE		BIT(16)
 #define TCS_AMC_MODE_TRIGGER		BIT(24)
@@ -160,16 +153,54 @@ static inline unsigned long xloops_to_cycles(u64 xloops)
 	return (xloops * loops_per_jiffy * HZ) >> 32;
 }
 
+static u32 rpmh_rsc_reg_offset_ver_2_7[] = {
+	[RSC_DRV_TCS_OFFSET]		= 672,
+	[RSC_DRV_CMD_OFFSET]		= 20,
+	[DRV_SOLVER_CONFIG]		= 0x04,
+	[DRV_PRNT_CHLD_CONFIG]		= 0x0C,
+	[RSC_DRV_IRQ_ENABLE]		= 0x00,
+	[RSC_DRV_IRQ_STATUS]		= 0x04,
+	[RSC_DRV_IRQ_CLEAR]		= 0x08,
+	[RSC_DRV_CMD_WAIT_FOR_CMPL]	= 0x10,
+	[RSC_DRV_CONTROL]		= 0x14,
+	[RSC_DRV_STATUS]		= 0x18,
+	[RSC_DRV_CMD_ENABLE]		= 0x1C,
+	[RSC_DRV_CMD_MSGID]		= 0x30,
+	[RSC_DRV_CMD_ADDR]		= 0x34,
+	[RSC_DRV_CMD_DATA]		= 0x38,
+	[RSC_DRV_CMD_STATUS]		= 0x3C,
+	[RSC_DRV_CMD_RESP_DATA]		= 0x40,
+};
+
+static u32 rpmh_rsc_reg_offset_ver_3_0[] = {
+	[RSC_DRV_TCS_OFFSET]		= 672,
+	[RSC_DRV_CMD_OFFSET]		= 24,
+	[DRV_SOLVER_CONFIG]		= 0x04,
+	[DRV_PRNT_CHLD_CONFIG]		= 0x0C,
+	[RSC_DRV_IRQ_ENABLE]		= 0x00,
+	[RSC_DRV_IRQ_STATUS]		= 0x04,
+	[RSC_DRV_IRQ_CLEAR]		= 0x08,
+	[RSC_DRV_CMD_WAIT_FOR_CMPL]	= 0x20,
+	[RSC_DRV_CONTROL]		= 0x24,
+	[RSC_DRV_STATUS]		= 0x28,
+	[RSC_DRV_CMD_ENABLE]		= 0x2C,
+	[RSC_DRV_CMD_MSGID]		= 0x34,
+	[RSC_DRV_CMD_ADDR]		= 0x38,
+	[RSC_DRV_CMD_DATA]		= 0x3C,
+	[RSC_DRV_CMD_STATUS]		= 0x40,
+	[RSC_DRV_CMD_RESP_DATA]		= 0x44,
+};
+
 static inline void __iomem *
 tcs_reg_addr(const struct rsc_drv *drv, int reg, int tcs_id)
 {
-	return drv->tcs_base + RSC_DRV_TCS_OFFSET * tcs_id + reg;
+	return drv->tcs_base + drv->regs[RSC_DRV_TCS_OFFSET] * tcs_id + reg;
 }
 
 static inline void __iomem *
 tcs_cmd_addr(const struct rsc_drv *drv, int reg, int tcs_id, int cmd_id)
 {
-	return tcs_reg_addr(drv, reg, tcs_id) + RSC_DRV_CMD_OFFSET * cmd_id;
+	return tcs_reg_addr(drv, reg, tcs_id) + drv->regs[RSC_DRV_CMD_OFFSET] * cmd_id;
 }
 
 static u32 read_tcs_cmd(const struct rsc_drv *drv, int reg, int tcs_id,
@@ -237,7 +268,7 @@ static void tcs_invalidate(struct rsc_drv *drv, int type)
 		return;
 
 	for (m = tcs->offset; m < tcs->offset + tcs->num_tcs; m++)
-		write_tcs_reg_sync(drv, RSC_DRV_CMD_ENABLE, m, 0);
+		write_tcs_reg_sync(drv, drv->regs[RSC_DRV_CMD_ENABLE], m, 0);
 
 	bitmap_zero(tcs->slots, MAX_TCS_SLOTS);
 }
@@ -351,24 +382,25 @@ static const struct tcs_request *get_req_from_tcs(struct rsc_drv *drv,
 static void __tcs_set_trigger(struct rsc_drv *drv, int tcs_id, bool trigger)
 {
 	u32 enable;
+	u32 reg = drv->regs[RSC_DRV_CONTROL];
 
 	/*
 	 * HW req: Clear the DRV_CONTROL and enable TCS again
 	 * While clearing ensure that the AMC mode trigger is cleared
 	 * and then the mode enable is cleared.
 	 */
-	enable = read_tcs_reg(drv, RSC_DRV_CONTROL, tcs_id);
+	enable = read_tcs_reg(drv, reg, tcs_id);
 	enable &= ~TCS_AMC_MODE_TRIGGER;
-	write_tcs_reg_sync(drv, RSC_DRV_CONTROL, tcs_id, enable);
+	write_tcs_reg_sync(drv, reg, tcs_id, enable);
 	enable &= ~TCS_AMC_MODE_ENABLE;
-	write_tcs_reg_sync(drv, RSC_DRV_CONTROL, tcs_id, enable);
+	write_tcs_reg_sync(drv, reg, tcs_id, enable);
 
 	if (trigger) {
 		/* Enable the AMC mode on the TCS and then trigger the TCS */
 		enable = TCS_AMC_MODE_ENABLE;
-		write_tcs_reg_sync(drv, RSC_DRV_CONTROL, tcs_id, enable);
+		write_tcs_reg_sync(drv, reg, tcs_id, enable);
 		enable |= TCS_AMC_MODE_TRIGGER;
-		write_tcs_reg(drv, RSC_DRV_CONTROL, tcs_id, enable);
+		write_tcs_reg(drv, reg, tcs_id, enable);
 	}
 }
 
@@ -384,13 +416,14 @@ static void __tcs_set_trigger(struct rsc_drv *drv, int tcs_id, bool trigger)
 static void enable_tcs_irq(struct rsc_drv *drv, int tcs_id, bool enable)
 {
 	u32 data;
+	u32 reg = drv->regs[RSC_DRV_IRQ_ENABLE];
 
-	data = readl_relaxed(drv->tcs_base + RSC_DRV_IRQ_ENABLE);
+	data = readl_relaxed(drv->tcs_base + reg);
 	if (enable)
 		data |= BIT(tcs_id);
 	else
 		data &= ~BIT(tcs_id);
-	writel_relaxed(data, drv->tcs_base + RSC_DRV_IRQ_ENABLE);
+	writel_relaxed(data, drv->tcs_base + reg);
 }
 
 /**
@@ -406,34 +439,18 @@ static void enable_tcs_irq(struct rsc_drv *drv, int tcs_id, bool enable)
 static irqreturn_t tcs_tx_done(int irq, void *p)
 {
 	struct rsc_drv *drv = p;
-	int i, j, err = 0;
+	int i;
 	unsigned long irq_status;
 	const struct tcs_request *req;
-	struct tcs_cmd *cmd;
 
-	irq_status = readl_relaxed(drv->tcs_base + RSC_DRV_IRQ_STATUS);
+	irq_status = readl_relaxed(drv->tcs_base + drv->regs[RSC_DRV_IRQ_STATUS]);
 
 	for_each_set_bit(i, &irq_status, BITS_PER_TYPE(u32)) {
 		req = get_req_from_tcs(drv, i);
 		if (WARN_ON(!req))
 			goto skip;
 
-		err = 0;
-		for (j = 0; j < req->num_cmds; j++) {
-			u32 sts;
-
-			cmd = &req->cmds[j];
-			sts = read_tcs_cmd(drv, RSC_DRV_CMD_STATUS, i, j);
-			if (!(sts & CMD_STATUS_ISSUED) ||
-			   ((req->wait_for_compl || cmd->wait) &&
-			   !(sts & CMD_STATUS_COMPL))) {
-				pr_err("Incomplete request: %s: addr=%#x data=%#x",
-				       drv->name, cmd->addr, cmd->data);
-				err = -EIO;
-			}
-		}
-
-		trace_rpmh_tx_done(drv, i, req, err);
+		trace_rpmh_tx_done(drv, i, req);
 
 		/*
 		 * If wake tcs was re-purposed for sending active
@@ -444,8 +461,8 @@ static irqreturn_t tcs_tx_done(int irq, void *p)
 			__tcs_set_trigger(drv, i, false);
 skip:
 		/* Reclaim the TCS */
-		write_tcs_reg(drv, RSC_DRV_CMD_ENABLE, i, 0);
-		writel_relaxed(BIT(i), drv->tcs_base + RSC_DRV_IRQ_CLEAR);
+		write_tcs_reg(drv, drv->regs[RSC_DRV_CMD_ENABLE], i, 0);
+		writel_relaxed(BIT(i), drv->tcs_base + drv->regs[RSC_DRV_IRQ_CLEAR]);
 		spin_lock(&drv->lock);
 		clear_bit(i, drv->tcs_in_use);
 		/*
@@ -458,7 +475,7 @@ skip:
 		spin_unlock(&drv->lock);
 		wake_up(&drv->tcs_wait);
 		if (req)
-			rpmh_tx_done(req, err);
+			rpmh_tx_done(req);
 	}
 
 	return IRQ_HANDLED;
@@ -496,14 +513,14 @@ static void __tcs_buffer_write(struct rsc_drv *drv, int tcs_id, int cmd_id,
 		 */
 		msgid |= cmd->wait ? CMD_MSGID_RESP_REQ : 0;
 
-		write_tcs_cmd(drv, RSC_DRV_CMD_MSGID, tcs_id, j, msgid);
-		write_tcs_cmd(drv, RSC_DRV_CMD_ADDR, tcs_id, j, cmd->addr);
-		write_tcs_cmd(drv, RSC_DRV_CMD_DATA, tcs_id, j, cmd->data);
+		write_tcs_cmd(drv, drv->regs[RSC_DRV_CMD_MSGID], tcs_id, j, msgid);
+		write_tcs_cmd(drv, drv->regs[RSC_DRV_CMD_ADDR], tcs_id, j, cmd->addr);
+		write_tcs_cmd(drv, drv->regs[RSC_DRV_CMD_DATA], tcs_id, j, cmd->data);
 		trace_rpmh_send_msg(drv, tcs_id, j, msgid, cmd);
 	}
 
-	cmd_enable |= read_tcs_reg(drv, RSC_DRV_CMD_ENABLE, tcs_id);
-	write_tcs_reg(drv, RSC_DRV_CMD_ENABLE, tcs_id, cmd_enable);
+	cmd_enable |= read_tcs_reg(drv, drv->regs[RSC_DRV_CMD_ENABLE], tcs_id);
+	write_tcs_reg(drv, drv->regs[RSC_DRV_CMD_ENABLE], tcs_id, cmd_enable);
 }
 
 /**
@@ -535,10 +552,10 @@ static int check_for_req_inflight(struct rsc_drv *drv, struct tcs_group *tcs,
 	int i = tcs->offset;
 
 	for_each_set_bit_from(i, drv->tcs_in_use, tcs->offset + tcs->num_tcs) {
-		curr_enabled = read_tcs_reg(drv, RSC_DRV_CMD_ENABLE, i);
+		curr_enabled = read_tcs_reg(drv, drv->regs[RSC_DRV_CMD_ENABLE], i);
 
 		for_each_set_bit(j, &curr_enabled, MAX_CMDS_PER_TCS) {
-			addr = read_tcs_cmd(drv, RSC_DRV_CMD_ADDR, i, j);
+			addr = read_tcs_cmd(drv, drv->regs[RSC_DRV_CMD_ADDR], i, j);
 			for (k = 0; k < msg->num_cmds; k++) {
 				if (addr == msg->cmds[k].addr)
 					return -EBUSY;
@@ -649,7 +666,7 @@ int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 		 * repurposed TCS to avoid triggering them. tcs->slots will be
 		 * cleaned from rpmh_flush() by invoking rpmh_rsc_invalidate()
 		 */
-		write_tcs_reg_sync(drv, RSC_DRV_CMD_ENABLE, tcs_id, 0);
+		write_tcs_reg_sync(drv, drv->regs[RSC_DRV_CMD_ENABLE], tcs_id, 0);
 		enable_tcs_irq(drv, tcs_id, true);
 	}
 	spin_unlock_irqrestore(&drv->lock, flags);
@@ -957,7 +974,7 @@ static int rpmh_probe_tcs_config(struct platform_device *pdev, struct rsc_drv *d
 		return ret;
 	drv->tcs_base = drv->base + offset;
 
-	config = readl_relaxed(drv->base + DRV_PRNT_CHLD_CONFIG);
+	config = readl_relaxed(drv->base + drv->regs[DRV_PRNT_CHLD_CONFIG]);
 
 	max_tcs = config;
 	max_tcs &= DRV_NUM_TCS_MASK << (DRV_NUM_TCS_SHIFT * drv->id);
@@ -1019,6 +1036,7 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	char drv_id[10] = {0};
 	int ret, irq;
 	u32 solver_config;
+	u32 rsc_id;
 
 	/*
 	 * Even though RPMh doesn't directly use cmd-db, all of its children
@@ -1049,6 +1067,17 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	if (IS_ERR(drv->base))
 		return PTR_ERR(drv->base);
 
+	rsc_id = readl_relaxed(drv->base + RSC_DRV_ID);
+	drv->ver.major = rsc_id & (MAJOR_VER_MASK << MAJOR_VER_SHIFT);
+	drv->ver.major >>= MAJOR_VER_SHIFT;
+	drv->ver.minor = rsc_id & (MINOR_VER_MASK << MINOR_VER_SHIFT);
+	drv->ver.minor >>= MINOR_VER_SHIFT;
+
+	if (drv->ver.major == 3 && drv->ver.minor == 0)
+		drv->regs = rpmh_rsc_reg_offset_ver_3_0;
+	else
+		drv->regs = rpmh_rsc_reg_offset_ver_2_7;
+
 	ret = rpmh_probe_tcs_config(pdev, drv);
 	if (ret)
 		return ret;
@@ -1072,7 +1101,7 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	 * 'HW solver' mode where they can be in autonomous mode executing low
 	 * power mode to power down.
 	 */
-	solver_config = readl_relaxed(drv->base + DRV_SOLVER_CONFIG);
+	solver_config = readl_relaxed(drv->base + drv->regs[DRV_SOLVER_CONFIG]);
 	solver_config &= DRV_HW_SOLVER_MASK << DRV_HW_SOLVER_SHIFT;
 	solver_config = solver_config >> DRV_HW_SOLVER_SHIFT;
 	if (!solver_config) {
@@ -1088,7 +1117,7 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 
 	/* Enable the active TCS to send requests immediately */
 	writel_relaxed(drv->tcs[ACTIVE_TCS].mask,
-		       drv->tcs_base + RSC_DRV_IRQ_ENABLE);
+		       drv->tcs_base + drv->regs[RSC_DRV_IRQ_ENABLE]);
 
 	spin_lock_init(&drv->client.cache_lock);
 	INIT_LIST_HEAD(&drv->client.cache);

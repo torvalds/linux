@@ -372,6 +372,29 @@ static const struct rpmhpd_desc sm8450_desc = {
 	.num_pds = ARRAY_SIZE(sm8450_rpmhpds),
 };
 
+/* SM8550 RPMH powerdomains */
+static struct rpmhpd *sm8550_rpmhpds[] = {
+	[SM8550_CX] = &cx,
+	[SM8550_CX_AO] = &cx_ao,
+	[SM8550_EBI] = &ebi,
+	[SM8550_GFX] = &gfx,
+	[SM8550_LCX] = &lcx,
+	[SM8550_LMX] = &lmx,
+	[SM8550_MMCX] = &mmcx_w_cx_parent,
+	[SM8550_MMCX_AO] = &mmcx_ao_w_cx_parent,
+	[SM8550_MSS] = &mss,
+	[SM8550_MX] = &mx,
+	[SM8550_MX_AO] = &mx_ao,
+	[SM8550_MXC] = &mxc,
+	[SM8550_MXC_AO] = &mxc_ao,
+	[SM8550_NSP] = &nsp,
+};
+
+static const struct rpmhpd_desc sm8550_desc = {
+	.rpmhpds = sm8550_rpmhpds,
+	.num_pds = ARRAY_SIZE(sm8550_rpmhpds),
+};
+
 /* QDU1000/QRU1000 RPMH powerdomains */
 static struct rpmhpd *qdu1000_rpmhpds[] = {
 	[QDU1000_CX] = &cx,
@@ -477,6 +500,7 @@ static const struct of_device_id rpmhpd_match_table[] = {
 	{ .compatible = "qcom,sm8250-rpmhpd", .data = &sm8250_desc },
 	{ .compatible = "qcom,sm8350-rpmhpd", .data = &sm8350_desc },
 	{ .compatible = "qcom,sm8450-rpmhpd", .data = &sm8450_desc },
+	{ .compatible = "qcom,sm8550-rpmhpd", .data = &sm8550_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rpmhpd_match_table);
