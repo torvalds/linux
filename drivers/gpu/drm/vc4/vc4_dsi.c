@@ -556,7 +556,7 @@ struct vc4_dsi {
 
 	struct platform_device *pdev;
 
-	struct drm_bridge *bridge;
+	struct drm_bridge *out_bridge;
 	struct list_head bridge_chain;
 
 	void __iomem *regs;
@@ -807,7 +807,7 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 		if (iter->funcs->disable)
 			iter->funcs->disable(iter);
 
-		if (iter == dsi->bridge)
+		if (iter == dsi->out_bridge)
 			break;
 	}
 
@@ -1730,9 +1730,9 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	dsi->bridge = drmm_of_get_bridge(drm, dev->of_node, 0, 0);
-	if (IS_ERR(dsi->bridge))
-		return PTR_ERR(dsi->bridge);
+	dsi->out_bridge = drmm_of_get_bridge(drm, dev->of_node, 0, 0);
+	if (IS_ERR(dsi->out_bridge))
+		return PTR_ERR(dsi->out_bridge);
 
 	/* The esc clock rate is supposed to always be 100Mhz. */
 	ret = clk_set_rate(dsi->escape_clock, 100 * 1000000);
@@ -1758,7 +1758,7 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
-	ret = drm_bridge_attach(encoder, dsi->bridge, NULL, 0);
+	ret = drm_bridge_attach(encoder, dsi->out_bridge, NULL, 0);
 	if (ret)
 		return ret;
 	/* Disable the atomic helper calls into the bridge.  We
