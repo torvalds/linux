@@ -1457,6 +1457,53 @@ int add_memory(int nid, u64 start, u64 size, mhp_t mhp_flags)
 }
 EXPORT_SYMBOL_GPL(add_memory);
 
+#ifdef CONFIG_MEMORY_HOTPLUG_SUBSECTIONS
+int add_memory_subsection(int nid, u64 start, u64 size)
+{
+	struct mhp_params params = { .pgprot = PAGE_KERNEL };
+	struct resource *res;
+	int ret;
+
+	if (!IS_ALIGNED(start, SUBSECTION_SIZE) ||
+	    !IS_ALIGNED(size, SUBSECTION_SIZE)) {
+		pr_err("%s: start 0x%llx size 0x%llx not aligned to subsection size\n",
+			   __func__, start, size);
+		return -EINVAL;
+	}
+
+	res = register_memory_resource(start, size, "System RAM");
+	if (IS_ERR(res))
+		return PTR_ERR(res);
+
+	mem_hotplug_begin();
+
+	nid = memory_add_physaddr_to_nid(start);
+
+	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
+		memblock_add_node(start, size, nid, MEMBLOCK_NONE);
+
+	ret = arch_add_memory(nid, start, size, &params);
+	if (ret) {
+		pr_err("%s failed to add subsection start 0x%llx size 0x%llx\n",
+			   __func__, start, size);
+		goto err_add_memory;
+	}
+	mem_hotplug_done();
+
+	return ret;
+
+err_add_memory:
+	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
+		memblock_remove(start, size);
+
+	mem_hotplug_done();
+
+	release_memory_resource(res);
+	return ret;
+}
+EXPORT_SYMBOL(add_memory_subsection);
+#endif /* CONFIG_MEMORY_HOTPLUG_SUBSECTIONS */
+
 /*
  * Add special, driver-managed memory to the system as system RAM. Such
  * memory is not exposed via the raw firmware-provided memmap as system
@@ -2173,6 +2220,31 @@ int remove_memory(u64 start, u64 size)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(remove_memory);
+
+#ifdef CONFIG_MEMORY_HOTPLUG_SUBSECTIONS
+int remove_memory_subsection(u64 start, u64 size)
+{
+	if (!IS_ALIGNED(start, SUBSECTION_SIZE) ||
+	    !IS_ALIGNED(size, SUBSECTION_SIZE)) {
+		pr_err("%s: start 0x%llx size 0x%llx not aligned to subsection size\n",
+			   __func__, start, size);
+		return -EINVAL;
+	}
+
+	mem_hotplug_begin();
+	arch_remove_memory(start, size, NULL);
+
+	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
+		memblock_remove(start, size);
+
+	release_mem_region_adjustable(start, size);
+
+	mem_hotplug_done();
+
+	return 0;
+}
+EXPORT_SYMBOL(remove_memory_subsection);
+#endif /*CONFIG_MEMORY_HOTPLUG_SUBSECTIONS */
 
 static int try_offline_memory_block(struct memory_block *mem, void *arg)
 {

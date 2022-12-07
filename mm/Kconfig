@@ -518,6 +518,18 @@ config MHP_MEMMAP_ON_MEMORY
 	depends on MEMORY_HOTPLUG && SPARSEMEM_VMEMMAP
 	depends on ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 
+config MEMORY_HOTPLUG_SUBSECTIONS
+	bool "Allow memory to be mapped at a subsection granularity"
+	depends on MEMORY_HOTPLUG
+	help
+	  The default functions used for adding memory, add_memory(), only maps
+	  memory at 128 MB chunks and has a 256 KB overhead in the page table
+	  space it consumes (assuming the logical mapping is not using block
+	  mappings). For low memory environments where we don't want to map
+	  large amounts of memory, we add downstream functions that add and
+	  remove memory on a subsection-size granularity.
+	  If unsure, say N.
+
 endif # MEMORY_HOTPLUG
 
 # Heavily threaded applications may benefit from splitting the mm-wide

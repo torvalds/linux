@@ -32,20 +32,8 @@ int mem_buf_hyp_assign_table(struct sg_table *sgt, u32 *src_vmid, int source_nel
 
 #ifdef CONFIG_QCOM_MEM_BUF_DEV_GH
 
-#ifdef CONFIG_QCOM_MEM_BUF_UPDATE_S1
 int mem_buf_map_mem_s1(struct gh_sgl_desc *sgl_desc);
 int mem_buf_unmap_mem_s1(struct gh_sgl_desc *sgl_desc);
-#else
-static inline int mem_buf_map_mem_s1(struct gh_sgl_desc *sgl_desc)
-{
-	return -EINVAL;
-}
-
-static inline int mem_buf_unmap_mem_s1(struct gh_sgl_desc *sgl_desc)
-{
-	return -EINVAL;
-}
-#endif /* CONFIG_QCOM_MEM_BUF_UPDATE_S1 */
 
 struct gh_acl_desc *mem_buf_vmid_perm_list_to_gh_acl(int *vmids, int *perms,
 						     unsigned int nr_acl_entries);
