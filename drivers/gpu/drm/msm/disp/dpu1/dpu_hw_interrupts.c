@@ -35,6 +35,9 @@
 #define MDP_INTF_3_OFF_REV_7xxx             0x37000
 #define MDP_INTF_4_OFF_REV_7xxx             0x38000
 #define MDP_INTF_5_OFF_REV_7xxx             0x39000
+#define MDP_INTF_6_OFF_REV_7xxx             0x3a000
+#define MDP_INTF_7_OFF_REV_7xxx             0x3b000
+#define MDP_INTF_8_OFF_REV_7xxx             0x3c000
 
 /**
  * struct dpu_intr_reg - array of DPU register sets
@@ -138,6 +141,21 @@ static const struct dpu_intr_reg dpu_intr_set[] = {
 		MDP_INTF_5_OFF_REV_7xxx+INTF_INTR_CLEAR,
 		MDP_INTF_5_OFF_REV_7xxx+INTF_INTR_EN,
 		MDP_INTF_5_OFF_REV_7xxx+INTF_INTR_STATUS
+	},
+	[MDP_INTF6_7xxx_INTR] = {
+		MDP_INTF_6_OFF_REV_7xxx+INTF_INTR_CLEAR,
+		MDP_INTF_6_OFF_REV_7xxx+INTF_INTR_EN,
+		MDP_INTF_6_OFF_REV_7xxx+INTF_INTR_STATUS
+	},
+	[MDP_INTF7_7xxx_INTR] = {
+		MDP_INTF_7_OFF_REV_7xxx+INTF_INTR_CLEAR,
+		MDP_INTF_7_OFF_REV_7xxx+INTF_INTR_EN,
+		MDP_INTF_7_OFF_REV_7xxx+INTF_INTR_STATUS
+	},
+	[MDP_INTF8_7xxx_INTR] = {
+		MDP_INTF_8_OFF_REV_7xxx+INTF_INTR_CLEAR,
+		MDP_INTF_8_OFF_REV_7xxx+INTF_INTR_EN,
+		MDP_INTF_8_OFF_REV_7xxx+INTF_INTR_STATUS
 	},
 };
 

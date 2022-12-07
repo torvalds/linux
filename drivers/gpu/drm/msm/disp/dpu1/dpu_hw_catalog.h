@@ -48,6 +48,7 @@
 #define DPU_HW_VER_650	DPU_HW_VER(6, 5, 0) /* qcm2290|sm4125 */
 #define DPU_HW_VER_700	DPU_HW_VER(7, 0, 0) /* sm8350 */
 #define DPU_HW_VER_720	DPU_HW_VER(7, 2, 0) /* sc7280 */
+#define DPU_HW_VER_800	DPU_HW_VER(8, 0, 0) /* sc8280xp */
 #define DPU_HW_VER_810	DPU_HW_VER(8, 1, 0) /* sm8450 */
 
 #define IS_MSM8996_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_170)
