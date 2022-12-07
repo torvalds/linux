@@ -5,8 +5,7 @@ Virtual Machine Manager
 =======================
 
 The Gunyah Virtual Machine Manager is a Linux driver to support launching
-virtual machines using Gunyah. It presently supports launching non-proxy
-scheduled Linux-like virtual machines.
+virtual machines using Gunyah.
 
 Except for some basic information about the location of initial binaries,
 most of the configuration about a Gunyah virtual machine is described in the
@@ -107,3 +106,46 @@ GH_VM_START
 ~~~~~~~~~~~
 
 This ioctl starts the VM.
+
+GH_VM_ADD_FUNCTION
+~~~~~~~~~~~~~~~~~~
+
+This ioctl registers a Gunyah VM function with the VM manager. The VM function
+is described with a `type` string and some arguments for that type. Typically,
+the function is added before the VM starts, but the function doesn't "operate"
+until the VM starts with GH_VM_START: e.g. vCPU ioclts will all return an error
+until the VM starts because the vCPUs don't exist until the VM is started. This
+allows the VMM to set up all the kernel functionality needed for the VM *before*
+the VM starts.
+
+.. kernel-doc:: include/uapi/linux/gunyah.h
+   :identifiers: gh_fn_desc
+
+The possible types are documented below:
+
+.. kernel-doc:: include/uapi/linux/gunyah.h
+   :identifiers: GH_FN_VCPU gh_fn_vcpu_arg
+
+Gunyah VCPU API Descriptions
+----------------------------
+
+A vCPU file descriptor is created after calling `GH_VM_ADD_FUNCTION` with the type `GH_FN_VCPU`.
+
+GH_VCPU_RUN
+~~~~~~~~~~~
+
+This ioctl is used to run a guest virtual cpu.  While there are no
+explicit parameters, there is an implicit parameter block that can be
+obtained by mmap()ing the vcpu fd at offset 0, with the size given by
+GH_VCPU_MMAP_SIZE. The parameter block is formatted as a 'struct
+gh_vcpu_run' (see below).
+
+GH_VCPU_MMAP_SIZE
+~~~~~~~~~~~~~~~~~
+
+The GH_VCPU_RUN ioctl communicates with userspace via a shared
+memory region. This ioctl returns the size of that region. See the
+GH_VCPU_RUN documentation for details.
+
+.. kernel-doc:: include/uapi/linux/gunyah.h
+   :identifiers: gh_vcpu_run gh_vm_exit_info

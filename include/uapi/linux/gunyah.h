@@ -62,7 +62,31 @@ struct gh_vm_dtb_config {
 
 #define GH_VM_START		_IO(GH_IOCTL_TYPE, 0x3)
 
+/**
+ * GH_FN_VCPU - create a vCPU instance to control a vCPU
+ *
+ * gh_fn_desc is filled with &struct gh_fn_vcpu_arg
+ *
+ * The vcpu type will register with the VM Manager to expect to control
+ * vCPU number `vcpu_id`. It returns a file descriptor allowing interaction with
+ * the vCPU. See the Gunyah vCPU API description sections for interacting with
+ * the Gunyah vCPU file descriptors.
+ *
+ * Return: file descriptor to manipulate the vcpu. See GH_VCPU_* ioctls
+ */
+#define GH_FN_VCPU 		1
+
 #define GH_FN_MAX_ARG_SIZE		256
+
+/**
+ * struct gh_fn_vcpu_arg - Arguments to create a vCPU
+ * @id: vcpu id
+ */
+struct gh_fn_vcpu_arg {
+	__u32 id;
+};
+
+#define GH_IRQFD_LEVEL			(1UL << 0)
 
 /**
  * struct gh_fn_desc - Arguments to create a VM function
@@ -78,5 +102,89 @@ struct gh_fn_desc {
 
 #define GH_VM_ADD_FUNCTION	_IOW(GH_IOCTL_TYPE, 0x4, struct gh_fn_desc)
 #define GH_VM_REMOVE_FUNCTION	_IOW(GH_IOCTL_TYPE, 0x7, struct gh_fn_desc)
+
+enum gh_vm_status {
+	GH_VM_STATUS_LOAD_FAILED	= 1,
+#define GH_VM_STATUS_LOAD_FAILED	GH_VM_STATUS_LOAD_FAILED
+	GH_VM_STATUS_EXITED		= 2,
+#define GH_VM_STATUS_EXITED		GH_VM_STATUS_EXITED
+	GH_VM_STATUS_CRASHED		= 3,
+#define GH_VM_STATUS_CRASHED		GH_VM_STATUS_CRASHED
+};
+
+/*
+ * Gunyah presently sends max 4 bytes of exit_reason.
+ * If that changes, this macro can be safely increased without breaking
+ * userspace so long as struct gh_vcpu_run < PAGE_SIZE.
+ */
+#define GH_VM_MAX_EXIT_REASON_SIZE	8u
+
+/**
+ * struct gh_vm_exit_info - Reason for VM exit as reported by Gunyah
+ * See Gunyah documentation for values.
+ * @type: Describes how VM exited
+ * @padding: padding bytes
+ * @reason_size: Number of bytes valid for `reason`
+ * @reason: See Gunyah documentation for interpretation. Note: these values are
+ *          not interpreted by Linux and need to be converted from little-endian
+ *          as applicable.
+ */
+struct gh_vm_exit_info {
+	__u16 type;
+	__u16 padding;
+	__u32 reason_size;
+	__u8 reason[GH_VM_MAX_EXIT_REASON_SIZE];
+};
+
+#define GH_VCPU_EXIT_UNKNOWN            0
+#define GH_VCPU_EXIT_MMIO               1
+#define GH_VCPU_EXIT_STATUS             2
+
+/**
+ * struct gh_vcpu_run - Application code obtains a pointer to the gh_vcpu_run
+ *                      structure by mmap()ing a vcpu fd.
+ * @immediate_exit: polled when scheduling the vcpu. If set, immediately returns -EINTR.
+ * @padding: padding bytes
+ * @exit_reason: Set when GH_VCPU_RUN returns successfully and gives reason why
+ *               GH_VCPU_RUN has stopped running the vCPU.
+ * @mmio: Used when exit_reason == GH_VCPU_EXIT_MMIO
+ *        The guest has faulted on an memory-mapped I/O instruction that
+ *        couldn't be satisfied by gunyah.
+ * @mmio.phys_addr: Address guest tried to access
+ * @mmio.data: the value that was written if `is_write == 1`. Filled by
+ *        user for reads (`is_wite == 0`).
+ * @mmio.len: Length of write. Only the first `len` bytes of `data`
+ *       are considered by Gunyah.
+ * @mmio.is_write: 1 if VM tried to perform a write, 0 for a read
+ * @status: Used when exit_reason == GH_VCPU_EXIT_STATUS.
+ *          The guest VM is no longer runnable. This struct informs why.
+ * @status.status: See `enum gh_vm_status` for possible values
+ * @status.exit_info: Used when status == GH_VM_STATUS_EXITED
+ */
+struct gh_vcpu_run {
+	/* in */
+	__u8 immediate_exit;
+	__u8 padding[7];
+
+	/* out */
+	__u32 exit_reason;
+
+	union {
+		struct {
+			__u64 phys_addr;
+			__u8  data[8];
+			__u32 len;
+			__u8  is_write;
+		} mmio;
+
+		struct {
+			enum gh_vm_status status;
+			struct gh_vm_exit_info exit_info;
+		} status;
+	};
+};
+
+#define GH_VCPU_RUN		_IO(GH_IOCTL_TYPE, 0x5)
+#define GH_VCPU_MMAP_SIZE	_IO(GH_IOCTL_TYPE, 0x6)
 
 #endif

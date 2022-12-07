@@ -45,6 +45,7 @@ struct gh_vm {
 	enum gh_rm_vm_status vm_status;
 	wait_queue_head_t vm_status_wait;
 	struct rw_semaphore status_lock;
+	struct gh_vm_exit_info exit_info;
 
 	struct work_struct free_work;
 	struct kref kref;

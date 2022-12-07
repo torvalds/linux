@@ -175,4 +175,12 @@ enum gh_error gh_hypercall_msgq_send(u64 capid, size_t size, void *buff, int tx_
 enum gh_error gh_hypercall_msgq_recv(u64 capid, void *buff, size_t size, size_t *recv_size,
 					bool *ready);
 
+struct gh_hypercall_vcpu_run_resp {
+	u64 state;
+	u64 state_data[3];
+};
+
+enum gh_error gh_hypercall_vcpu_run(u64 capid, u64 *resume_data,
+					struct gh_hypercall_vcpu_run_resp *resp);
+
 #endif
