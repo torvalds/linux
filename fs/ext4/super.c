@@ -540,8 +540,7 @@ static int ext4_journal_submit_inode_data_buffers(struct jbd2_inode *jinode)
 	if (ext4_should_journal_data(jinode->i_vfs_inode))
 		ret = ext4_journalled_submit_inode_data_buffers(jinode);
 	else
-		ret = jbd2_journal_submit_inode_data_buffers(jinode);
-
+		ret = ext4_normal_submit_inode_data_buffers(jinode);
 	return ret;
 }
 

@@ -2960,6 +2960,22 @@ static int ext4_writepages(struct address_space *mapping,
 	return ret;
 }
 
+int ext4_normal_submit_inode_data_buffers(struct jbd2_inode *jinode)
+{
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = LONG_MAX,
+		.range_start = jinode->i_dirty_start,
+		.range_end = jinode->i_dirty_end,
+	};
+	struct mpage_da_data mpd = {
+		.inode = jinode->i_vfs_inode,
+		.wbc = &wbc,
+		.can_map = 0,
+	};
+	return ext4_do_writepages(&mpd);
+}
+
 static int ext4_dax_writepages(struct address_space *mapping,
 			       struct writeback_control *wbc)
 {
