@@ -31,7 +31,7 @@
 # |    2001:db8:10::2/64    |
 # +-------------------------+
 
-lib_dir=$(dirname $0)/../../../../net/forwarding
+lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="
 	decap_error_test
