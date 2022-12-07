@@ -676,6 +676,8 @@ static struct {
 	{"user_ringbuf_callback_discard_dynptr", "cannot release unowned const bpf_dynptr"},
 	{"user_ringbuf_callback_submit_dynptr", "cannot release unowned const bpf_dynptr"},
 	{"user_ringbuf_callback_invalid_return", "At callback return the register R0 has value"},
+	{"user_ringbuf_callback_reinit_dynptr_mem", "Dynptr has to be an uninitialized dynptr"},
+	{"user_ringbuf_callback_reinit_dynptr_ringbuf", "Dynptr has to be an uninitialized dynptr"},
 };
 
 #define SUCCESS_TEST(_func) { _func, #_func }
