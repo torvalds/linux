@@ -1564,6 +1564,7 @@ struct mpage_da_data {
 	struct ext4_map_blocks map;
 	struct ext4_io_submit io_submit;	/* IO submission data */
 	unsigned int do_map:1;
+	unsigned int can_map:1;	/* Can writepages call map blocks? */
 	unsigned int scanned_until_end:1;
 };
 
@@ -2556,18 +2557,33 @@ static int ext4_da_writepages_trans_blocks(struct inode *inode)
 				MAX_WRITEPAGES_EXTENT_LEN + bpp - 1, bpp);
 }
 
+/* Return true if the page needs to be written as part of transaction commit */
+static bool ext4_page_nomap_can_writeout(struct page *page)
+{
+	struct buffer_head *bh, *head;
+
+	bh = head = page_buffers(page);
+	do {
+		if (buffer_dirty(bh) && buffer_mapped(bh) && !buffer_delay(bh))
+			return true;
+	} while ((bh = bh->b_this_page) != head);
+	return false;
+}
+
 /*
  * mpage_prepare_extent_to_map - find & lock contiguous range of dirty pages
- * 				 and underlying extent to map
+ * 				 needing mapping, submit mapped pages
  *
  * @mpd - where to look for pages
  *
  * Walk dirty pages in the mapping. If they are fully mapped, submit them for
- * IO immediately. When we find a page which isn't mapped we start accumulating
- * extent of buffers underlying these pages that needs mapping (formed by
- * either delayed or unwritten buffers). We also lock the pages containing
- * these buffers. The extent found is returned in @mpd structure (starting at
- * mpd->lblk with length mpd->len blocks).
+ * IO immediately. If we cannot map blocks, we submit just already mapped
+ * buffers in the page for IO and keep page dirty. When we can map blocks and
+ * we find a page which isn't mapped we start accumulating extent of buffers
+ * underlying these pages that needs mapping (formed by either delayed or
+ * unwritten buffers). We also lock the pages containing these buffers. The
+ * extent found is returned in @mpd structure (starting at mpd->lblk with
+ * length mpd->len blocks).
  *
  * Note that this function can attach bios to one io_end structure which are
  * neither logically nor physically contiguous. Although it may seem as an
@@ -2658,14 +2674,30 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			if (mpd->map.m_len == 0)
 				mpd->first_page = page->index;
 			mpd->next_page = page->index + 1;
-			/* Add all dirty buffers to mpd */
-			lblk = ((ext4_lblk_t)page->index) <<
-				(PAGE_SHIFT - blkbits);
-			head = page_buffers(page);
-			err = mpage_process_page_bufs(mpd, head, head, lblk);
-			if (err <= 0)
-				goto out;
-			err = 0;
+			/*
+			 * Writeout for transaction commit where we cannot
+			 * modify metadata is simple. Just submit the page.
+			 */
+			if (!mpd->can_map) {
+				if (ext4_page_nomap_can_writeout(page)) {
+					err = mpage_submit_page(mpd, page);
+					if (err < 0)
+						goto out;
+				} else {
+					unlock_page(page);
+					mpd->first_page++;
+				}
+			} else {
+				/* Add all dirty buffers to mpd */
+				lblk = ((ext4_lblk_t)page->index) <<
+					(PAGE_SHIFT - blkbits);
+				head = page_buffers(page);
+				err = mpage_process_page_bufs(mpd, head, head,
+							      lblk);
+				if (err <= 0)
+					goto out;
+				err = 0;
+			}
 			left--;
 		}
 		pagevec_release(&pvec);
@@ -2785,6 +2817,7 @@ retry:
 	 */
 	mpd.do_map = 0;
 	mpd.scanned_until_end = 0;
+	mpd.can_map = 1;
 	mpd.io_submit.io_end = ext4_init_io_end(inode, GFP_KERNEL);
 	if (!mpd.io_submit.io_end) {
 		ret = -ENOMEM;
@@ -2808,6 +2841,7 @@ retry:
 			break;
 		}
 
+		WARN_ON_ONCE(!mpd->can_map);
 		/*
 		 * We have two constraints: We find one extent to map and we
 		 * must always write out whole page (makes a difference when
