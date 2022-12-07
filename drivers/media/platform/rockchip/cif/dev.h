@@ -461,6 +461,11 @@ struct rkcif_skip_info {
 	bool skip_to_dis;
 };
 
+struct rkcif_sync_cfg {
+	u32 type;
+	u32 group;
+};
+
 /*
  * struct rkcif_stream - Stream states TODO
  *
@@ -851,7 +856,7 @@ struct rkcif_device {
 	bool				is_rdbk_to_online;
 	bool				is_support_tools;
 	int				rdbk_debug;
-	int				sync_type;
+	struct rkcif_sync_cfg		sync_cfg;
 	int				sditf_cnt;
 	u32				early_line;
 	int				isp_runtime_max;

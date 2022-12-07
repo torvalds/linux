@@ -4304,39 +4304,40 @@ static void rkcif_detach_sync_mode(struct rkcif_device *cif_dev)
 	int i = 0;
 	struct rkcif_hw *hw = cif_dev->hw_dev;
 	struct rkcif_device *tmp_dev;
+	struct rkcif_multi_sync_config *sync_config;
 
-	if ((!cif_dev->sync_type) ||
+	if ((!cif_dev->sync_cfg.type) ||
 	    (atomic_read(&cif_dev->pipe.stream_cnt) != 0))
 		return;
 	mutex_lock(&hw->dev_lock);
-	hw->sync_config.streaming_cnt--;
-	if (cif_dev->sync_type == EXTERNAL_MASTER_MODE) {
-		for (i = 0; i < hw->sync_config.ext_master.count; i++) {
-			tmp_dev = hw->sync_config.ext_master.cif_dev[i];
+	memset(&cif_dev->sync_cfg, 0, sizeof(cif_dev->sync_cfg));
+	sync_config = &hw->sync_config[cif_dev->sync_cfg.group];
+	sync_config->streaming_cnt--;
+	if (cif_dev->sync_cfg.type == EXTERNAL_MASTER_MODE) {
+		for (i = 0; i < sync_config->ext_master.count; i++) {
+			tmp_dev = sync_config->ext_master.cif_dev[i];
 			if (tmp_dev == cif_dev) {
-				hw->sync_config.ext_master.is_streaming[i] = false;
+				sync_config->ext_master.is_streaming[i] = false;
 				break;
 			}
 		}
 	}
-	if (cif_dev->sync_type == INTERNAL_MASTER_MODE)
-		hw->sync_config.int_master.is_streaming[0] = false;
-	if (cif_dev->sync_type == SLAVE_MODE) {
-		for (i = 0; i < hw->sync_config.slave.count; i++) {
-			tmp_dev = hw->sync_config.slave.cif_dev[i];
+	if (cif_dev->sync_cfg.type == INTERNAL_MASTER_MODE)
+		sync_config->int_master.is_streaming[0] = false;
+	if (cif_dev->sync_cfg.type == SLAVE_MODE) {
+		for (i = 0; i < sync_config->slave.count; i++) {
+			tmp_dev = sync_config->slave.cif_dev[i];
 			if (tmp_dev == cif_dev) {
-				hw->sync_config.slave.is_streaming[i] = false;
+				sync_config->slave.is_streaming[i] = false;
 				break;
 			}
 		}
 	}
 
-	if (!hw->sync_config.streaming_cnt && hw->sync_config.is_attach) {
-		hw->sync_config.is_attach = false;
-		hw->sync_config.mode = RKCIF_NOSYNC_MODE;
-		hw->sync_config.dev_cnt = 0;
-		for (i = 0; i < hw->dev_num; i++)
-			hw->cif_dev[i]->sync_type = NO_SYNC_MODE;
+	if (!sync_config->streaming_cnt && sync_config->is_attach) {
+		sync_config->is_attach = false;
+		sync_config->mode = RKCIF_NOSYNC_MODE;
+		sync_config->dev_cnt = 0;
 	}
 	mutex_unlock(&hw->dev_lock);
 }
@@ -5338,79 +5339,149 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	return 0;
 }
 
-static void rkcif_attach_sync_mode(struct rkcif_hw *hw)
+static void rkcif_attach_sync_mode(struct rkcif_device *cifdev)
 {
+	struct rkcif_hw *hw = cifdev->hw_dev;
 	struct rkcif_device *dev;
 	int i = 0, j = 0;
 	int ret = 0;
-	int sync_type = 0;
 	int count = 0;
+	int sync_type = NO_SYNC_MODE;
+	int sync_group = 0;
+	struct rkcif_sync_cfg sync_cfg;
+	struct rkcif_multi_sync_config *sync_config;
 
 	mutex_lock(&hw->dev_lock);
-	if (hw->sync_config.is_attach) {
-		mutex_unlock(&hw->dev_lock);
-		return;
-	}
-
-	memset(&hw->sync_config, 0, sizeof(struct rkcif_multi_sync_config));
-	for (i = 0; i < hw->dev_num; i++) {
-		dev = hw->cif_dev[i];
-		if (dev->sditf_cnt == 1) {
-			ret = v4l2_subdev_call(dev->terminal_sensor.sd,
+	if (cifdev->sditf_cnt <= 1) {
+		ret = v4l2_subdev_call(cifdev->terminal_sensor.sd,
+				       core, ioctl,
+				       RKMODULE_GET_SYNC_MODE,
+				       &sync_type);
+		if (!ret)
+			sync_cfg.type = sync_type;
+		else
+			sync_cfg.type = NO_SYNC_MODE;
+		ret = v4l2_subdev_call(cifdev->terminal_sensor.sd,
+				       core, ioctl,
+				       RKMODULE_GET_GROUP_ID,
+				       &sync_group);
+		if (!ret && sync_group < RKCIF_MAX_GROUP)
+			sync_cfg.group = sync_group;
+		else
+			sync_cfg.group = 0;
+	} else {
+		for (j = 0; j < cifdev->sditf_cnt; j++) {
+			ret |= v4l2_subdev_call(cifdev->sditf[j]->sensor_sd,
 					core, ioctl,
 					RKMODULE_GET_SYNC_MODE,
 					&sync_type);
+			if (!ret && sync_type)
+				break;
+		}
+		if (!ret)
+			sync_cfg.type = sync_type;
+		else
+			sync_cfg.type = NO_SYNC_MODE;
+		ret = v4l2_subdev_call(cifdev->sditf[j]->sensor_sd,
+				       core, ioctl,
+				       RKMODULE_GET_GROUP_ID,
+				       &sync_group);
+		if (!ret && sync_group < RKCIF_MAX_GROUP)
+			sync_cfg.group = sync_group;
+		else
+			sync_cfg.group = 0;
+	}
+	if (sync_cfg.type == NO_SYNC_MODE ||
+	    hw->sync_config[sync_cfg.group].is_attach) {
+		mutex_unlock(&hw->dev_lock);
+		return;
+	}
+	cifdev->sync_cfg = sync_cfg;
+
+	sync_config = &hw->sync_config[sync_cfg.group];
+	memset(sync_config, 0, sizeof(struct rkcif_multi_sync_config));
+	for (i = 0; i < hw->dev_num; i++) {
+		dev = hw->cif_dev[i];
+		if (dev->sditf_cnt <= 1) {
+			ret = v4l2_subdev_call(dev->terminal_sensor.sd,
+					       core, ioctl,
+					       RKMODULE_GET_SYNC_MODE,
+					       &sync_type);
+			if (!ret)
+				sync_cfg.type = sync_type;
+			else
+				sync_cfg.type = NO_SYNC_MODE;
+			ret = v4l2_subdev_call(dev->terminal_sensor.sd,
+					       core, ioctl,
+					       RKMODULE_GET_GROUP_ID,
+					       &sync_group);
+			if (!ret && sync_group < RKCIF_MAX_GROUP)
+				sync_cfg.group = sync_group;
+			else
+				sync_cfg.group = 0;
 		} else {
 			for (j = 0; j < dev->sditf_cnt; j++) {
 				ret |= v4l2_subdev_call(dev->sditf[j]->sensor_sd,
 						core, ioctl,
 						RKMODULE_GET_SYNC_MODE,
 						&sync_type);
-				if (sync_type)
+				if (!ret && sync_type)
 					break;
 			}
+			if (!ret)
+				sync_cfg.type = sync_type;
+			else
+				sync_cfg.type = NO_SYNC_MODE;
+			ret = v4l2_subdev_call(dev->sditf[j]->sensor_sd,
+					       core, ioctl,
+					       RKMODULE_GET_GROUP_ID,
+					       &sync_group);
+			if (!ret && sync_group < RKCIF_MAX_GROUP)
+				sync_cfg.group = sync_group;
+			else
+				sync_cfg.group = 0;
 		}
-		if (!ret) {
-			if (sync_type == EXTERNAL_MASTER_MODE) {
-				count = hw->sync_config.ext_master.count;
-				hw->sync_config.ext_master.cif_dev[count] = dev;
-				hw->sync_config.ext_master.count++;
-				hw->sync_config.dev_cnt++;
-				dev->sync_type = EXTERNAL_MASTER_MODE;
-				hw->sync_config.sync_mask |= BIT(dev->csi_host_idx);
-			} else if (sync_type == INTERNAL_MASTER_MODE) {
-				count = hw->sync_config.int_master.count;
-				hw->sync_config.int_master.cif_dev[count] = dev;
-				hw->sync_config.int_master.count++;
-				hw->sync_config.dev_cnt++;
-				dev->sync_type = INTERNAL_MASTER_MODE;
-				hw->sync_config.sync_mask |= BIT(dev->csi_host_idx);
-			} else if (sync_type == SLAVE_MODE) {
-				count = hw->sync_config.slave.count;
-				hw->sync_config.slave.cif_dev[count] = dev;
-				hw->sync_config.slave.count++;
-				hw->sync_config.dev_cnt++;
-				dev->sync_type = SLAVE_MODE;
-				hw->sync_config.sync_mask |= BIT(dev->csi_host_idx);
+		if (sync_cfg.group == cifdev->sync_cfg.group) {
+			if (sync_cfg.type == EXTERNAL_MASTER_MODE) {
+				count = sync_config->ext_master.count;
+				sync_config->ext_master.cif_dev[count] = dev;
+				sync_config->ext_master.count++;
+				sync_config->dev_cnt++;
+				sync_config->sync_mask |= BIT(dev->csi_host_idx);
+			} else if (sync_cfg.type == INTERNAL_MASTER_MODE) {
+				count = sync_config->int_master.count;
+				sync_config->int_master.cif_dev[count] = dev;
+				sync_config->int_master.count++;
+				sync_config->dev_cnt++;
+				sync_config->sync_mask |= BIT(dev->csi_host_idx);
+			} else if (sync_cfg.type == SLAVE_MODE) {
+				count = sync_config->slave.count;
+				sync_config->slave.cif_dev[count] = dev;
+				sync_config->slave.count++;
+				sync_config->dev_cnt++;
+				sync_config->sync_mask |= BIT(dev->csi_host_idx);
 			}
+			dev->sync_cfg = sync_cfg;
 		}
 	}
-	if (hw->sync_config.int_master.count == 1) {
-		if (hw->sync_config.ext_master.count) {
-			hw->sync_config.mode = RKCIF_MASTER_MASTER;
-			hw->sync_config.is_attach = true;
-		} else if (hw->sync_config.slave.count) {
-			hw->sync_config.mode = RKCIF_MASTER_SLAVE;
-			hw->sync_config.is_attach = true;
+	if (sync_config->int_master.count == 1) {
+		if (sync_config->ext_master.count) {
+			sync_config->mode = RKCIF_MASTER_MASTER;
+			sync_config->is_attach = true;
+		} else if (sync_config->slave.count) {
+			sync_config->mode = RKCIF_MASTER_SLAVE;
+			sync_config->is_attach = true;
 		} else {
 			dev_info(hw->dev,
 				 "Missing slave device, do not use sync mode\n");
 		}
-		dev_info(hw->dev,
-			 "group mode, int_master %d, ext_master %d, slave %d\n",
-			 hw->sync_config.int_master.count,
-			 hw->sync_config.ext_master.count,
-			 hw->sync_config.slave.count);
+		if (sync_config->is_attach)
+			dev_info(hw->dev,
+				 "group %d, int_master %d, ext_master %d, slave %d\n",
+				 i,
+				 sync_config->int_master.count,
+				 sync_config->ext_master.count,
+				 sync_config->slave.count);
 	}
 	mutex_unlock(&hw->dev_lock);
 }
@@ -5431,7 +5502,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start streaming\n", stream->id);
 
-	rkcif_attach_sync_mode(dev->hw_dev);
+	rkcif_attach_sync_mode(dev);
 	mutex_lock(&dev->stream_lock);
 	if ((stream->cur_stream_mode & RKCIF_STREAM_MODE_CAPTURE) == mode) {
 		ret = -EBUSY;
@@ -9214,32 +9285,34 @@ static int rkcif_check_group_sync_state(struct rkcif_device *cif_dev)
 	u64 fs_interval = 0;
 	int i = 0;
 	int ret = 0;
+	struct rkcif_multi_sync_config *sync_config;
 
-	hw->sync_config.sync_code |= BIT(cif_dev->csi_host_idx);
-	if (hw->sync_config.sync_code != hw->sync_config.sync_mask)
+	sync_config = &hw->sync_config[cif_dev->sync_cfg.group];
+	sync_config->sync_code |= BIT(cif_dev->csi_host_idx);
+	if (sync_config->sync_code != sync_config->sync_mask)
 		return -EINVAL;
 
 	v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
 		 "sync code 0x%x, mask 0x%x, update 0x%x, cache 0x%x\n",
-		 hw->sync_config.sync_code,
-		 hw->sync_config.sync_mask,
-		 hw->sync_config.update_code,
-		 hw->sync_config.update_cache);
+		 sync_config->sync_code,
+		 sync_config->sync_mask,
+		 sync_config->update_code,
+		 sync_config->update_cache);
 
-	for (i = 0; i < hw->sync_config.dev_cnt; i++) {
-		if (hw->sync_config.mode == RKCIF_MASTER_MASTER) {
-			if (i < hw->sync_config.ext_master.count)
-				next_stream = &hw->sync_config.ext_master.cif_dev[i]->stream
+	for (i = 0; i < sync_config->dev_cnt; i++) {
+		if (sync_config->mode == RKCIF_MASTER_MASTER) {
+			if (i < sync_config->ext_master.count)
+				next_stream = &sync_config->ext_master.cif_dev[i]->stream
 					[0];
 			else
-				next_stream = &hw->sync_config.int_master.cif_dev[0]->stream
+				next_stream = &sync_config->int_master.cif_dev[0]->stream
 					[0];
-		} else if (hw->sync_config.mode == RKCIF_MASTER_SLAVE) {
-			if (i < hw->sync_config.slave.count)
-				next_stream = &hw->sync_config.slave.cif_dev[i]->stream
+		} else if (sync_config->mode == RKCIF_MASTER_SLAVE) {
+			if (i < sync_config->slave.count)
+				next_stream = &sync_config->slave.cif_dev[i]->stream
 					[0];
 			else
-				next_stream = &hw->sync_config.int_master.cif_dev[0]->stream
+				next_stream = &sync_config->int_master.cif_dev[0]->stream
 					[0];
 		} else {
 			v4l2_err(&cif_dev->v4l2_dev,
@@ -9289,36 +9362,39 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 	detect_stream->readout.fs_timestamp = ktime_get_ns();
 	spin_unlock_irqrestore(&detect_stream->fps_lock, flags);
 
-	if (cif_dev->sync_type != RKCIF_NOSYNC_MODE) {
+	if (cif_dev->sync_cfg.type != RKCIF_NOSYNC_MODE) {
+		struct rkcif_multi_sync_config *sync_config;
+
+		sync_config = &hw->sync_config[cif_dev->sync_cfg.group];
 		ret = rkcif_check_group_sync_state(cif_dev);
 		if (!ret) {
-			hw->sync_config.sync_code = 0;
-			hw->sync_config.frame_idx++;
+			sync_config->sync_code = 0;
+			sync_config->frame_idx++;
 			spin_lock_irqsave(&hw->group_lock, flags);
-			hw->sync_config.update_cache = hw->sync_config.sync_mask;
-			if (!hw->sync_config.update_code) {
-				hw->sync_config.update_code = hw->sync_config.update_cache;
-				hw->sync_config.update_cache = 0;
+			sync_config->update_cache = sync_config->sync_mask;
+			if (!sync_config->update_code) {
+				sync_config->update_code = sync_config->update_cache;
+				sync_config->update_cache = 0;
 			}
 			spin_unlock_irqrestore(&hw->group_lock, flags);
-			for (i = 0; i < hw->sync_config.dev_cnt; i++) {
-				if (hw->sync_config.mode == RKCIF_MASTER_MASTER) {
-					if (i < hw->sync_config.ext_master.count)
-						tmp_dev = hw->sync_config.ext_master.cif_dev[i];
+			for (i = 0; i < sync_config->dev_cnt; i++) {
+				if (sync_config->mode == RKCIF_MASTER_MASTER) {
+					if (i < sync_config->ext_master.count)
+						tmp_dev = sync_config->ext_master.cif_dev[i];
 					else
-						tmp_dev = hw->sync_config.int_master.cif_dev[0];
-				} else if (hw->sync_config.mode == RKCIF_MASTER_SLAVE) {
-					if (i < hw->sync_config.slave.count)
-						tmp_dev = hw->sync_config.slave.cif_dev[i];
+						tmp_dev = sync_config->int_master.cif_dev[0];
+				} else if (sync_config->mode == RKCIF_MASTER_SLAVE) {
+					if (i < sync_config->slave.count)
+						tmp_dev = sync_config->slave.cif_dev[i];
 					else
-						tmp_dev = hw->sync_config.int_master.cif_dev[0];
+						tmp_dev = sync_config->int_master.cif_dev[0];
 				} else {
 					v4l2_err(&cif_dev->v4l2_dev,
 						 "ERROR: invalid group sync mode\n");
 				}
 				if (tmp_dev) {
 					rkcif_send_sof(tmp_dev);
-					tmp_dev->stream[0].frame_idx = hw->sync_config.frame_idx;
+					tmp_dev->stream[0].frame_idx = sync_config->frame_idx;
 				}
 			}
 		}
@@ -9370,16 +9446,18 @@ static bool rkcif_check_buffer_prepare(struct rkcif_stream *stream)
 	struct rkcif_device *cif_dev = stream->cifdev;
 	unsigned long flags;
 	bool is_update = false;
+	struct rkcif_multi_sync_config *sync_config;
 
 	spin_lock_irqsave(&cif_dev->hw_dev->group_lock, flags);
+	sync_config = &cif_dev->hw_dev->sync_config[cif_dev->sync_cfg.group];
 	if (stream->id == 0 &&
-	    cif_dev->hw_dev->sync_config.update_code & BIT(cif_dev->csi_host_idx)) {
+	    sync_config->update_code & BIT(cif_dev->csi_host_idx)) {
 		is_update = true;
-		cif_dev->hw_dev->sync_config.update_code &= ~(BIT(cif_dev->csi_host_idx));
-		if (!cif_dev->hw_dev->sync_config.update_code &&
-		    cif_dev->hw_dev->sync_config.update_cache) {
-			cif_dev->hw_dev->sync_config.update_code = cif_dev->hw_dev->sync_config.update_cache;
-			cif_dev->hw_dev->sync_config.update_cache = 0;
+		sync_config->update_code &= ~(BIT(cif_dev->csi_host_idx));
+		if (!sync_config->update_code &&
+		    sync_config->update_cache) {
+			sync_config->update_code = sync_config->update_cache;
+			sync_config->update_cache = 0;
 		}
 	} else {
 		if (cif_dev->rdbk_buf[RDBK_L])
@@ -9588,7 +9666,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				rkcif_dynamic_crop(stream);
 
 			if (stream->dma_en & RKCIF_DMAEN_BY_VICAP) {
-				if (cif_dev->sync_type == RKCIF_NOSYNC_MODE)
+				if (cif_dev->sync_cfg.type == RKCIF_NOSYNC_MODE)
 					is_update = true;
 				else
 					is_update = rkcif_check_buffer_prepare(stream);
