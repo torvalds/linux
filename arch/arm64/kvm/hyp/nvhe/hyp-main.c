@@ -41,10 +41,16 @@ DEFINE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 void __kvm_hyp_host_forward_smc(struct kvm_cpu_context *host_ctxt);
 
 static bool (*default_host_smc_handler)(struct kvm_cpu_context *host_ctxt);
+static bool (*default_trap_handler)(struct kvm_cpu_context *host_ctxt);
 
 int __pkvm_register_host_smc_handler(bool (*cb)(struct kvm_cpu_context *))
 {
 	return cmpxchg(&default_host_smc_handler, NULL, cb) ? -EBUSY : 0;
+}
+
+int __pkvm_register_default_trap_handler(bool (*cb)(struct kvm_cpu_context *))
+{
+	return cmpxchg(&default_trap_handler, NULL, cb) ? -EBUSY : 0;
 }
 
 static int pkvm_refill_memcache(struct pkvm_hyp_vcpu *hyp_vcpu)
@@ -1326,6 +1332,6 @@ void handle_trap(struct kvm_cpu_context *host_ctxt)
 		handle_host_mem_abort(host_ctxt);
 		break;
 	default:
-		BUG();
+		BUG_ON(!READ_ONCE(default_trap_handler) || !default_trap_handler(host_ctxt));
 	}
 }

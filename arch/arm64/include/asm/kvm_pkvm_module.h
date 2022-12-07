@@ -27,6 +27,7 @@ struct pkvm_module_ops {
 	int (*register_host_perm_fault_handler)(int (*cb)(struct kvm_cpu_context *ctxt, u64 esr, u64 addr));
 	int (*protect_host_page)(u64 pfn, enum kvm_pgtable_prot prot);
 	int (*register_host_smc_handler)(bool (*cb)(struct kvm_cpu_context *));
+	int (*register_default_trap_handler)(bool (*cb)(struct kvm_cpu_context *));
 	int (*register_illegal_abt_notifier)(void (*cb)(struct kvm_cpu_context *));
 	int (*register_psci_notifier)(void (*cb)(enum pkvm_psci_notification, struct kvm_cpu_context *));
 };
