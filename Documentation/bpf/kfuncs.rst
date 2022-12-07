@@ -305,3 +305,118 @@ Here is an example of it being used:
 		bpf_task_release(lookup);
 		return 0;
 	}
+
+3.2 struct cgroup * kfuncs
+--------------------------
+
+``struct cgroup *`` objects also have acquire and release functions:
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_cgroup_acquire bpf_cgroup_release
+
+These kfuncs are used in exactly the same manner as bpf_task_acquire() and
+bpf_task_release() respectively, so we won't provide examples for them.
+
+----
+
+You may also acquire a reference to a ``struct cgroup`` kptr that's already
+stored in a map using bpf_cgroup_kptr_get():
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_cgroup_kptr_get
+
+Here's an example of how it can be used:
+
+.. code-block:: c
+
+	/* struct containing the struct task_struct kptr which is actually stored in the map. */
+	struct __cgroups_kfunc_map_value {
+		struct cgroup __kptr_ref * cgroup;
+	};
+
+	/* The map containing struct __cgroups_kfunc_map_value entries. */
+	struct {
+		__uint(type, BPF_MAP_TYPE_HASH);
+		__type(key, int);
+		__type(value, struct __cgroups_kfunc_map_value);
+		__uint(max_entries, 1);
+	} __cgroups_kfunc_map SEC(".maps");
+
+	/* ... */
+
+	/**
+	 * A simple example tracepoint program showing how a
+	 * struct cgroup kptr that is stored in a map can
+	 * be acquired using the bpf_cgroup_kptr_get() kfunc.
+	 */
+	 SEC("tp_btf/cgroup_mkdir")
+	 int BPF_PROG(cgroup_kptr_get_example, struct cgroup *cgrp, const char *path)
+	 {
+		struct cgroup *kptr;
+		struct __cgroups_kfunc_map_value *v;
+		s32 id = cgrp->self.id;
+
+		/* Assume a cgroup kptr was previously stored in the map. */
+		v = bpf_map_lookup_elem(&__cgroups_kfunc_map, &id);
+		if (!v)
+			return -ENOENT;
+
+		/* Acquire a reference to the cgroup kptr that's already stored in the map. */
+		kptr = bpf_cgroup_kptr_get(&v->cgroup);
+		if (!kptr)
+			/* If no cgroup was present in the map, it's because
+			 * we're racing with another CPU that removed it with
+			 * bpf_kptr_xchg() between the bpf_map_lookup_elem()
+			 * above, and our call to bpf_cgroup_kptr_get().
+			 * bpf_cgroup_kptr_get() internally safely handles this
+			 * race, and will return NULL if the task is no longer
+			 * present in the map by the time we invoke the kfunc.
+			 */
+			return -EBUSY;
+
+		/* Free the reference we just took above. Note that the
+		 * original struct cgroup kptr is still in the map. It will
+		 * be freed either at a later time if another context deletes
+		 * it from the map, or automatically by the BPF subsystem if
+		 * it's still present when the map is destroyed.
+		 */
+		bpf_cgroup_release(kptr);
+
+		return 0;
+        }
+
+----
+
+Another kfunc available for interacting with ``struct cgroup *`` objects is
+bpf_cgroup_ancestor(). This allows callers to access the ancestor of a cgroup,
+and return it as a cgroup kptr.
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_cgroup_ancestor
+
+Eventually, BPF should be updated to allow this to happen with a normal memory
+load in the program itself. This is currently not possible without more work in
+the verifier. bpf_cgroup_ancestor() can be used as follows:
+
+.. code-block:: c
+
+	/**
+	 * Simple tracepoint example that illustrates how a cgroup's
+	 * ancestor can be accessed using bpf_cgroup_ancestor().
+	 */
+	SEC("tp_btf/cgroup_mkdir")
+	int BPF_PROG(cgrp_ancestor_example, struct cgroup *cgrp, const char *path)
+	{
+		struct cgroup *parent;
+
+		/* The parent cgroup resides at the level before the current cgroup's level. */
+		parent = bpf_cgroup_ancestor(cgrp, cgrp->level - 1);
+		if (!parent)
+			return -ENOENT;
+
+		bpf_printk("Parent id is %d", parent->self.id);
+
+		/* Return the parent cgroup that was acquired above. */
+		bpf_cgroup_release(parent);
+		return 0;
+	}
