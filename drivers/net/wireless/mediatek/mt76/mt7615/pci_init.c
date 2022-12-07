@@ -66,64 +66,6 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 	return 0;
 }
 
-static void
-mt7615_led_set_config(struct led_classdev *led_cdev,
-		      u8 delay_on, u8 delay_off)
-{
-	struct mt7615_dev *dev;
-	struct mt76_phy *mphy;
-	u32 val, addr;
-
-	mphy = container_of(led_cdev, struct mt76_phy, leds.cdev);
-	dev = container_of(mphy->dev, struct mt7615_dev, mt76);
-
-	if (!mt76_connac_pm_ref(mphy, &dev->pm))
-		return;
-
-	val = FIELD_PREP(MT_LED_STATUS_DURATION, 0xffff) |
-	      FIELD_PREP(MT_LED_STATUS_OFF, delay_off) |
-	      FIELD_PREP(MT_LED_STATUS_ON, delay_on);
-
-	addr = mt7615_reg_map(dev, MT_LED_STATUS_0(mphy->leds.pin));
-	mt76_wr(dev, addr, val);
-	addr = mt7615_reg_map(dev, MT_LED_STATUS_1(mphy->leds.pin));
-	mt76_wr(dev, addr, val);
-
-	val = MT_LED_CTRL_REPLAY(mphy->leds.pin) |
-	      MT_LED_CTRL_KICK(mphy->leds.pin);
-	if (mphy->leds.al)
-		val |= MT_LED_CTRL_POLARITY(mphy->leds.pin);
-	addr = mt7615_reg_map(dev, MT_LED_CTRL);
-	mt76_wr(dev, addr, val);
-
-	mt76_connac_pm_unref(mphy, &dev->pm);
-}
-
-static int
-mt7615_led_set_blink(struct led_classdev *led_cdev,
-		     unsigned long *delay_on,
-		     unsigned long *delay_off)
-{
-	u8 delta_on, delta_off;
-
-	delta_off = max_t(u8, *delay_off / 10, 1);
-	delta_on = max_t(u8, *delay_on / 10, 1);
-
-	mt7615_led_set_config(led_cdev, delta_on, delta_off);
-
-	return 0;
-}
-
-static void
-mt7615_led_set_brightness(struct led_classdev *led_cdev,
-			  enum led_brightness brightness)
-{
-	if (!brightness)
-		mt7615_led_set_config(led_cdev, 0, 0xff);
-	else
-		mt7615_led_set_config(led_cdev, 0xff, 0);
-}
-
 int mt7615_register_device(struct mt7615_dev *dev)
 {
 	int ret;
