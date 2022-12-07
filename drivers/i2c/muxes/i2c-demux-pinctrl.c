@@ -167,9 +167,9 @@ static ssize_t available_masters_show(struct device *dev,
 	int count = 0, i;
 
 	for (i = 0; i < priv->num_chan && count < PAGE_SIZE; i++)
-		count += scnprintf(buf + count, PAGE_SIZE - count, "%d:%pOF%c",
-				   i, priv->chan[i].parent_np,
-				   i == priv->num_chan - 1 ? '\n' : ' ');
+		count += sysfs_emit_at(buf, count, "%d:%pOF%c",
+				       i, priv->chan[i].parent_np,
+				       i == priv->num_chan - 1 ? '\n' : ' ');
 
 	return count;
 }
