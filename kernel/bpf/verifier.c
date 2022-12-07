@@ -16519,12 +16519,22 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 			ret = -EINVAL;
 			switch (prog->type) {
 			case BPF_PROG_TYPE_TRACING:
-				/* fentry/fexit/fmod_ret progs can be sleepable only if they are
+
+				/* fentry/fexit/fmod_ret progs can be sleepable if they are
 				 * attached to ALLOW_ERROR_INJECTION and are not in denylist.
 				 */
 				if (!check_non_sleepable_error_inject(btf_id) &&
 				    within_error_injection_list(addr))
 					ret = 0;
+				/* fentry/fexit/fmod_ret progs can also be sleepable if they are
+				 * in the fmodret id set with the KF_SLEEPABLE flag.
+				 */
+				else {
+					u32 *flags = btf_kfunc_is_modify_return(btf, btf_id);
+
+					if (flags && (*flags & KF_SLEEPABLE))
+						ret = 0;
+				}
 				break;
 			case BPF_PROG_TYPE_LSM:
 				/* LSM progs check that they are attached to bpf_lsm_*() funcs.
@@ -16545,7 +16555,10 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 				bpf_log(log, "can't modify return codes of BPF programs\n");
 				return -EINVAL;
 			}
-			ret = check_attach_modify_return(addr, tname);
+			ret = -EINVAL;
+			if (btf_kfunc_is_modify_return(btf, btf_id) ||
+			    !check_attach_modify_return(addr, tname))
+				ret = 0;
 			if (ret) {
 				bpf_log(log, "%s() is not modifiable\n", tname);
 				return ret;

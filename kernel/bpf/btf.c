@@ -206,6 +206,7 @@ enum btf_kfunc_hook {
 	BTF_KFUNC_HOOK_STRUCT_OPS,
 	BTF_KFUNC_HOOK_TRACING,
 	BTF_KFUNC_HOOK_SYSCALL,
+	BTF_KFUNC_HOOK_FMODRET,
 	BTF_KFUNC_HOOK_MAX,
 };
 
@@ -7608,11 +7609,14 @@ u32 *btf_kfunc_id_set_contains(const struct btf *btf,
 	return __btf_kfunc_id_set_contains(btf, hook, kfunc_btf_id);
 }
 
-/* This function must be invoked only from initcalls/module init functions */
-int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
-			      const struct btf_kfunc_id_set *kset)
+u32 *btf_kfunc_is_modify_return(const struct btf *btf, u32 kfunc_btf_id)
 {
-	enum btf_kfunc_hook hook;
+	return __btf_kfunc_id_set_contains(btf, BTF_KFUNC_HOOK_FMODRET, kfunc_btf_id);
+}
+
+static int __register_btf_kfunc_id_set(enum btf_kfunc_hook hook,
+				       const struct btf_kfunc_id_set *kset)
+{
 	struct btf *btf;
 	int ret;
 
@@ -7631,12 +7635,28 @@ int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
 	if (IS_ERR(btf))
 		return PTR_ERR(btf);
 
-	hook = bpf_prog_type_to_kfunc_hook(prog_type);
 	ret = btf_populate_kfunc_set(btf, hook, kset->set);
 	btf_put(btf);
 	return ret;
 }
+
+/* This function must be invoked only from initcalls/module init functions */
+int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
+			      const struct btf_kfunc_id_set *kset)
+{
+	enum btf_kfunc_hook hook;
+
+	hook = bpf_prog_type_to_kfunc_hook(prog_type);
+	return __register_btf_kfunc_id_set(hook, kset);
+}
 EXPORT_SYMBOL_GPL(register_btf_kfunc_id_set);
+
+/* This function must be invoked only from initcalls/module init functions */
+int register_btf_fmodret_id_set(const struct btf_kfunc_id_set *kset)
+{
+	return __register_btf_kfunc_id_set(BTF_KFUNC_HOOK_FMODRET, kset);
+}
+EXPORT_SYMBOL_GPL(register_btf_fmodret_id_set);
 
 s32 btf_find_dtor_kfunc(struct btf *btf, u32 btf_id)
 {
