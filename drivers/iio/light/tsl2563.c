@@ -29,7 +29,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
-#include <linux/platform_data/tsl2563.h>
 
 /* Use this many bits for fraction part. */
 #define ADC_FRAC_BITS		14
@@ -698,7 +697,6 @@ static int tsl2563_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct tsl2563_chip *chip;
-	struct tsl2563_platform_data *pdata = client->dev.platform_data;
 	unsigned long irq_flags;
 	u8 id = 0;
 	int err;
@@ -730,14 +728,8 @@ static int tsl2563_probe(struct i2c_client *client)
 	chip->calib0 = tsl2563_calib_from_sysfs(CALIB_BASE_SYSFS);
 	chip->calib1 = tsl2563_calib_from_sysfs(CALIB_BASE_SYSFS);
 
-	if (pdata) {
-		chip->cover_comp_gain = pdata->cover_comp_gain;
-	} else {
-		err = device_property_read_u32(&client->dev, "amstaos,cover-comp-gain",
-					       &chip->cover_comp_gain);
-		if (err)
-			chip->cover_comp_gain = 1;
-	}
+	chip->cover_comp_gain = 1;
+	device_property_read_u32(dev, "amstaos,cover-comp-gain", &chip->cover_comp_gain);
 
 	dev_info(&client->dev, "model %d, rev. %d\n", id >> 4, id & 0x0f);
 	indio_dev->name = client->name;
