@@ -4140,7 +4140,7 @@ static void mvneta_percpu_elect(struct mvneta_port *pp)
 	/* Use the cpu associated to the rxq when it is online, in all
 	 * the other cases, use the cpu 0 which can't be offline.
 	 */
-	if (cpu_online(pp->rxq_def))
+	if (pp->rxq_def < nr_cpu_ids && cpu_online(pp->rxq_def))
 		elected_cpu = pp->rxq_def;
 
 	max_cpu = num_present_cpus();
@@ -4766,9 +4766,6 @@ static int  mvneta_config_rss(struct mvneta_port *pp)
 		napi_synchronize(&pp->napi);
 		napi_disable(&pp->napi);
 	}
-
-	if (pp->indir[0] >= nr_cpu_ids)
-		return -EINVAL;
 
 	pp->rxq_def = pp->indir[0];
 
