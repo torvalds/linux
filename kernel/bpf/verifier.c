@@ -6412,19 +6412,22 @@ skip_type_check:
 		break;
 	case ARG_PTR_TO_SPIN_LOCK:
 		if (meta->func_id == BPF_FUNC_spin_lock) {
-			if (process_spin_lock(env, regno, true))
-				return -EACCES;
+			err = process_spin_lock(env, regno, true);
+			if (err)
+				return err;
 		} else if (meta->func_id == BPF_FUNC_spin_unlock) {
-			if (process_spin_lock(env, regno, false))
-				return -EACCES;
+			err = process_spin_lock(env, regno, false);
+			if (err)
+				return err;
 		} else {
 			verbose(env, "verifier internal error\n");
 			return -EFAULT;
 		}
 		break;
 	case ARG_PTR_TO_TIMER:
-		if (process_timer_func(env, regno, meta))
-			return -EACCES;
+		err = process_timer_func(env, regno, meta);
+		if (err)
+			return err;
 		break;
 	case ARG_PTR_TO_FUNC:
 		meta->subprogno = reg->subprogno;
@@ -6447,8 +6450,9 @@ skip_type_check:
 		err = check_mem_size_reg(env, reg, regno, true, meta);
 		break;
 	case ARG_PTR_TO_DYNPTR:
-		if (process_dynptr_func(env, regno, arg_type, meta))
-			return -EACCES;
+		err = process_dynptr_func(env, regno, arg_type, meta);
+		if (err)
+			return err;
 		break;
 	case ARG_CONST_ALLOC_SIZE_OR_ZERO:
 		if (!tnum_is_const(reg->var_off)) {
@@ -6515,8 +6519,9 @@ skip_type_check:
 		break;
 	}
 	case ARG_PTR_TO_KPTR:
-		if (process_kptr_func(env, regno, meta))
-			return -EACCES;
+		err = process_kptr_func(env, regno, meta);
+		if (err)
+			return err;
 		break;
 	}
 
