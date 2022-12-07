@@ -710,11 +710,21 @@ static int host_stage2_idmap(u64 addr)
 	return host_stage2_idmap_locked(range.start, range.end - range.start, prot, false);
 }
 
+static void (*illegal_abt_notifier)(struct kvm_cpu_context *host_ctxt);
+
+int __pkvm_register_illegal_abt_notifier(void (*cb)(struct kvm_cpu_context *))
+{
+	return cmpxchg(&illegal_abt_notifier, NULL, cb) ? -EBUSY : 0;
+}
+
 static void host_inject_abort(struct kvm_cpu_context *host_ctxt)
 {
 	u64 spsr = read_sysreg_el2(SYS_SPSR);
 	u64 esr = read_sysreg_el2(SYS_ESR);
 	u64 ventry, ec;
+
+	if (READ_ONCE(illegal_abt_notifier))
+		illegal_abt_notifier(host_ctxt);
 
 	/* Repaint the ESR to report a same-level fault if taken from EL1 */
 	if ((spsr & PSR_MODE_MASK) != PSR_MODE_EL0t) {

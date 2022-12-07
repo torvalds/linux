@@ -4,6 +4,7 @@
 #define HCALL_UNHANDLED -1
 
 int __pkvm_register_host_smc_handler(bool (*cb)(struct kvm_cpu_context *));
+int __pkvm_register_illegal_abt_notifier(void (*cb)(struct kvm_cpu_context *));
 
 #ifdef CONFIG_MODULES
 int __pkvm_init_module(void *module_init);
