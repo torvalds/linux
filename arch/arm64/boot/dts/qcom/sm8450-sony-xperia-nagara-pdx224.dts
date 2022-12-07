@@ -9,15 +9,22 @@
 #include "sm8450-sony-xperia-nagara.dtsi"
 
 / {
-	model = "Sony Xperia 1 IV";
-	compatible = "sony,pdx223", "qcom,sm8450";
+	model = "Sony Xperia 5 IV";
+	compatible = "sony,pdx224", "qcom,sm8450";
+
+	imx563_vdig_vreg: imx563-vdig-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "imx563_vdig_vreg";
+		gpio = <&tlmm 22 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 };
 
 &tlmm {
-	gpio-line-names = "NC", /* GPIO_0 */
-			  "NC",
-			  "NC",
-			  "NC",
+	gpio-line-names = "TELE_SPI_MISO", /* GPIO_0 */
+			  "TELE_SPI_MOSI", /* SONY says NC, but it only makes sense this way.. */
+			  "TELE_SPI_CLK",
+			  "TELE_SPI_CS_N",
 			  "WLC_I2C_SDA",
 			  "WLC_I2C_SCL",
 			  "NC",
@@ -25,7 +32,7 @@
 			  "WLC_INT_N",
 			  "NC",
 			  "NC", /* GPIO_10 */
-			  "PM8010_2_RESET_N",
+			  "NC",
 			  "DISP_ERR_FG",
 			  "HALL_INT_N",
 			  "ALS_PROX_INT_N",
@@ -36,7 +43,7 @@
 			  "DISP_VDDR_EN",
 			  "TS_RESET_N", /* GPIO_20 */
 			  "TS_INT_N",
-			  "NC",
+			  "UWIDEC_PWR_EN",
 			  "TELEC_PWR_EN",
 			  "CAM1_RESET_N",
 			  "LEO_CAM0_RESET_N",
@@ -120,7 +127,7 @@
 			  "CAM_MCLK3",
 			  "NC",
 			  "NC",
-			  "TOF_RST_N",
+			  "NC", /* SONY didn't rename this, but there's no ToF so it's likely NC */
 			  "CAM_SOF",
 			  "NC",
 			  "AFEXPTMG_TELE",
@@ -173,9 +180,9 @@
 			  "SDR1_QLINK0_REQ",
 			  "SDR1_QLINK0_EN",
 			  "SDR1_QLINK0_WMSS_RESET_N",
-			  "QLINK1_REQ",
-			  "QLINK1_EN", /* GPIO_160 */
-			  "QLINK1_WMSS_RESET_N",
+			  "NC",
+			  "NC", /* GPIO_160 */
+			  "NC",
 			  "SDR2_QLINK2_REQ",
 			  "SDR2_QLINK2_EN",
 			  "SDR2_QLINK2_WMSS_RESET_N",

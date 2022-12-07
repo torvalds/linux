@@ -10,22 +10,22 @@
 / {
 	/* BOARD-SPECIFIC TOP LEVEL NODES */
 
-	max98360a_1: max98360a_1 {
+	max98360a_1: amplifier-1 {
 		compatible = "maxim,max98360a";
 		#sound-dai-cells = <0>;
 	};
 
-	max98360a_2: max98360a_2 {
+	max98360a_2: amplifier-2 {
 		compatible = "maxim,max98360a";
 		#sound-dai-cells = <0>;
 	};
 
-	max98360a_3: max98360a_3 {
+	max98360a_3: amplifier-3 {
 		compatible = "maxim,max98360a";
 		#sound-dai-cells = <0>;
 	};
 
-	pp3300_touch: pp3300-touch {
+	pp3300_touch: pp3300-touch-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "pp3300_touch";
 

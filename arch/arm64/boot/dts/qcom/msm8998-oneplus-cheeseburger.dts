@@ -22,7 +22,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&button_backlight_default>;
 
-		button-backlight {
+		led-keypad-backlight {
 			gpios = <&pmi8998_gpio 5 GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_WHITE>;
 			function = LED_FUNCTION_KBD_BACKLIGHT;

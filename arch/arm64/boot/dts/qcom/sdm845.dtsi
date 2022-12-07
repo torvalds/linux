@@ -4368,6 +4368,22 @@
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+				};
+
+				port@1 {
+					reg = <1>;
+				};
+
+				port@2 {
+					reg = <2>;
+				};
+
+				port@3 {
+					reg = <3>;
+				};
 			};
 		};
 
@@ -5302,7 +5318,7 @@
 		};
 
 		osm_l3: interconnect@17d41000 {
-			compatible = "qcom,sdm845-osm-l3";
+			compatible = "qcom,sdm845-osm-l3", "qcom,osm-l3";
 			reg = <0 0x17d41000 0 0x1400>;
 
 			clocks = <&rpmhcc RPMH_CXO_CLK>, <&gcc GPLL0>;

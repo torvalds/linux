@@ -554,7 +554,6 @@
 			clocks = <&gcc GCC_BLSP1_QUP1_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
-			spi-max-frequency = <19200000>;
 			dmas = <&blsp1_dma 12>, <&blsp1_dma 13>;
 			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";
@@ -692,7 +691,6 @@
 			clocks = <&gcc GCC_BLSP2_QUP4_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
-			spi-max-frequency = <19200000>;
 			dmas = <&blsp2_dma 18>, <&blsp2_dma 19>;
 			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";

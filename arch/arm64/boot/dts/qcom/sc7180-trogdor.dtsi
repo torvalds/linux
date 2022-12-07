@@ -354,7 +354,7 @@
 
 	pwmleds {
 		compatible = "pwm-leds";
-		keyboard_backlight: keyboard-backlight {
+		keyboard_backlight: led-0 {
 			status = "disabled";
 			label = "cros_ec::kbd_backlight";
 			function = LED_FUNCTION_KBD_BACKLIGHT;
@@ -768,6 +768,8 @@ hp_i2c: &i2c9 {
 		interrupts = <28 IRQ_TYPE_EDGE_BOTH>;
 
 		AVDD-supply = <&pp1800_alc5682>;
+		DBVDD-supply = <&pp1800_alc5682>;
+		LDO1-IN-supply = <&pp1800_alc5682>;
 		MICVDD-supply = <&pp3300_codec>;
 		VBAT-supply = <&pp3300_audio>;
 

@@ -8,7 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	pp3300_brij_ps8640: pp3300-brij-ps8640 {
+	pp3300_brij_ps8640: pp3300-brij-ps8640-regulator {
 		compatible = "regulator-fixed";
 		status = "okay";
 		regulator-name = "pp3300_brij_ps8640";
