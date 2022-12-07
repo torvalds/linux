@@ -3,6 +3,8 @@
 #define HCALL_HANDLED 0
 #define HCALL_UNHANDLED -1
 
+int __pkvm_register_host_smc_handler(bool (*cb)(struct kvm_cpu_context *));
+
 #ifdef CONFIG_MODULES
 int __pkvm_init_module(void *module_init);
 int __pkvm_register_hcall(unsigned long hfn_hyp_va);
