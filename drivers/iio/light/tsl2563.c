@@ -49,16 +49,12 @@
 
 #define TSL2563_REG_CTRL	0x00
 #define TSL2563_REG_TIMING	0x01
-#define TSL2563_REG_LOWLOW	0x02 /* data0 low threshold, 2 bytes */
-#define TSL2563_REG_LOWHIGH	0x03
-#define TSL2563_REG_HIGHLOW	0x04 /* data0 high threshold, 2 bytes */
-#define TSL2563_REG_HIGHHIGH	0x05
+#define TSL2563_REG_LOW		0x02 /* data0 low threshold, 2 bytes */
+#define TSL2563_REG_HIGH	0x04 /* data0 high threshold, 2 bytes */
 #define TSL2563_REG_INT		0x06
 #define TSL2563_REG_ID		0x0a
-#define TSL2563_REG_DATA0LOW	0x0c /* broadband sensor value, 2 bytes */
-#define TSL2563_REG_DATA0HIGH	0x0d
-#define TSL2563_REG_DATA1LOW	0x0e /* infrared sensor value, 2 bytes */
-#define TSL2563_REG_DATA1HIGH	0x0f
+#define TSL2563_REG_DATA0	0x0c /* broadband sensor value, 2 bytes */
+#define TSL2563_REG_DATA1	0x0e /* infrared sensor value, 2 bytes */
 
 #define TSL2563_CMD_POWER_ON	0x03
 #define TSL2563_CMD_POWER_OFF	0x00
@@ -161,24 +157,16 @@ static int tsl2563_configure(struct tsl2563_chip *chip)
 			chip->gainlevel->gaintime);
 	if (ret)
 		goto error_ret;
-	ret = i2c_smbus_write_byte_data(chip->client,
-			TSL2563_CMD | TSL2563_REG_HIGHLOW,
-			chip->high_thres & 0xFF);
+	ret = i2c_smbus_write_word_data(chip->client,
+			TSL2563_CMD | TSL2563_REG_HIGH,
+			chip->high_thres);
 	if (ret)
 		goto error_ret;
-	ret = i2c_smbus_write_byte_data(chip->client,
-			TSL2563_CMD | TSL2563_REG_HIGHHIGH,
-			(chip->high_thres >> 8) & 0xFF);
+	ret = i2c_smbus_write_word_data(chip->client,
+			TSL2563_CMD | TSL2563_REG_LOW,
+			chip->low_thres);
 	if (ret)
 		goto error_ret;
-	ret = i2c_smbus_write_byte_data(chip->client,
-			TSL2563_CMD | TSL2563_REG_LOWLOW,
-			chip->low_thres & 0xFF);
-	if (ret)
-		goto error_ret;
-	ret = i2c_smbus_write_byte_data(chip->client,
-			TSL2563_CMD | TSL2563_REG_LOWHIGH,
-			(chip->low_thres >> 8) & 0xFF);
 /*
  * Interrupt register is automatically written anyway if it is relevant
  * so is not here.
@@ -325,13 +313,13 @@ static int tsl2563_get_adc(struct tsl2563_chip *chip)
 
 	while (retry) {
 		ret = i2c_smbus_read_word_data(client,
-				TSL2563_CMD | TSL2563_REG_DATA0LOW);
+				TSL2563_CMD | TSL2563_REG_DATA0);
 		if (ret < 0)
 			goto out;
 		adc0 = ret;
 
 		ret = i2c_smbus_read_word_data(client,
-				TSL2563_CMD | TSL2563_REG_DATA1LOW);
+				TSL2563_CMD | TSL2563_REG_DATA1);
 		if (ret < 0)
 			goto out;
 		adc1 = ret;
@@ -584,20 +572,18 @@ static int tsl2563_write_thresh(struct iio_dev *indio_dev,
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret;
-	u8 address;
+
+	mutex_lock(&chip->lock);
 
 	if (dir == IIO_EV_DIR_RISING)
-		address = TSL2563_REG_HIGHLOW;
+		ret = i2c_smbus_write_word_data(chip->client,
+						TSL2563_CMD | TSL2563_REG_HIGH, val);
 	else
-		address = TSL2563_REG_LOWLOW;
-	mutex_lock(&chip->lock);
-	ret = i2c_smbus_write_byte_data(chip->client, TSL2563_CMD | address,
-					val & 0xFF);
+		ret = i2c_smbus_write_word_data(chip->client,
+						TSL2563_CMD | TSL2563_REG_LOW, val);
 	if (ret)
 		goto error_ret;
-	ret = i2c_smbus_write_byte_data(chip->client,
-					TSL2563_CMD | (address + 1),
-					(val >> 8) & 0xFF);
+
 	if (dir == IIO_EV_DIR_RISING)
 		chip->high_thres = val;
 	else
