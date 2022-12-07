@@ -20,9 +20,11 @@ Submit Checklist Addendum
 -------------------------
 We'll only accept patches for new modules or extensions if the
 specifications for those modules or extensions are listed as being
-"Frozen" or "Ratified" by the RISC-V Foundation.  (Developers may, of
-course, maintain their own Linux kernel trees that contain code for
-any draft extensions that they wish.)
+unlikely to be incompatibly changed in the future.  For
+specifications from the RISC-V foundation this means "Frozen" or
+"Ratified", for the UEFI forum specifications this means a published
+ECR.  (Developers may, of course, maintain their own Linux kernel trees
+that contain code for any draft extensions that they wish.)
 
 Additionally, the RISC-V specification allows implementors to create
 their own custom extensions.  These custom extensions aren't required
