@@ -866,8 +866,8 @@ static int intel_backlight_device_update_status(struct backlight_device *bd)
 
 	drm_modeset_lock(&i915->drm.mode_config.connection_mutex, NULL);
 
-	DRM_DEBUG_KMS("updating intel_backlight, brightness=%d/%d\n",
-		      bd->props.brightness, bd->props.max_brightness);
+	drm_dbg_kms(&i915->drm, "updating intel_backlight, brightness=%d/%d\n",
+		    bd->props.brightness, bd->props.max_brightness);
 	intel_panel_set_backlight(connector->base.state, bd->props.brightness,
 				  bd->props.max_brightness);
 
