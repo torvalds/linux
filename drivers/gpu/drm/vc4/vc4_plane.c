@@ -175,6 +175,66 @@ static const struct hvs_format {
 		.pixel_order_hvs5 = HVS_PIXEL_ORDER_ABGR,
 		.hvs5_only = true,
 	},
+	{
+		.drm = DRM_FORMAT_RGB332,
+		.hvs = HVS_PIXEL_FORMAT_RGB332,
+		.pixel_order = HVS_PIXEL_ORDER_ARGB,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_ARGB,
+	},
+	{
+		.drm = DRM_FORMAT_BGR233,
+		.hvs = HVS_PIXEL_FORMAT_RGB332,
+		.pixel_order = HVS_PIXEL_ORDER_ABGR,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_ABGR,
+	},
+	{
+		.drm = DRM_FORMAT_XRGB4444,
+		.hvs = HVS_PIXEL_FORMAT_RGBA4444,
+		.pixel_order = HVS_PIXEL_ORDER_ABGR,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_ARGB,
+	},
+	{
+		.drm = DRM_FORMAT_ARGB4444,
+		.hvs = HVS_PIXEL_FORMAT_RGBA4444,
+		.pixel_order = HVS_PIXEL_ORDER_ABGR,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_ARGB,
+	},
+	{
+		.drm = DRM_FORMAT_XBGR4444,
+		.hvs = HVS_PIXEL_FORMAT_RGBA4444,
+		.pixel_order = HVS_PIXEL_ORDER_ARGB,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_ABGR,
+	},
+	{
+		.drm = DRM_FORMAT_ABGR4444,
+		.hvs = HVS_PIXEL_FORMAT_RGBA4444,
+		.pixel_order = HVS_PIXEL_ORDER_ARGB,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_ABGR,
+	},
+	{
+		.drm = DRM_FORMAT_BGRX4444,
+		.hvs = HVS_PIXEL_FORMAT_RGBA4444,
+		.pixel_order = HVS_PIXEL_ORDER_RGBA,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_BGRA,
+	},
+	{
+		.drm = DRM_FORMAT_BGRA4444,
+		.hvs = HVS_PIXEL_FORMAT_RGBA4444,
+		.pixel_order = HVS_PIXEL_ORDER_RGBA,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_BGRA,
+	},
+	{
+		.drm = DRM_FORMAT_RGBX4444,
+		.hvs = HVS_PIXEL_FORMAT_RGBA4444,
+		.pixel_order = HVS_PIXEL_ORDER_BGRA,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_RGBA,
+	},
+	{
+		.drm = DRM_FORMAT_RGBA4444,
+		.hvs = HVS_PIXEL_FORMAT_RGBA4444,
+		.pixel_order = HVS_PIXEL_ORDER_BGRA,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_RGBA,
+	},
 };
 
 static const struct hvs_format *vc4_get_hvs_format(u32 drm_format)
@@ -1521,6 +1581,16 @@ static bool vc4_format_mod_supported(struct drm_plane *plane,
 	case DRM_FORMAT_BGRX1010102:
 	case DRM_FORMAT_RGBA1010102:
 	case DRM_FORMAT_BGRA1010102:
+	case DRM_FORMAT_XRGB4444:
+	case DRM_FORMAT_ARGB4444:
+	case DRM_FORMAT_XBGR4444:
+	case DRM_FORMAT_ABGR4444:
+	case DRM_FORMAT_RGBX4444:
+	case DRM_FORMAT_RGBA4444:
+	case DRM_FORMAT_BGRX4444:
+	case DRM_FORMAT_BGRA4444:
+	case DRM_FORMAT_RGB332:
+	case DRM_FORMAT_BGR233:
 	case DRM_FORMAT_YUV422:
 	case DRM_FORMAT_YVU422:
 	case DRM_FORMAT_YUV420:
