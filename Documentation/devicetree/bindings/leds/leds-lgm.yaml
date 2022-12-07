@@ -64,6 +64,9 @@ properties:
             minimum: 0
             maximum: 2
 
+          led-gpios:
+            maxItems: 1
+
           intel,sso-hw-trigger:
             type: boolean
             description: This property indicates Hardware driven/control LED.
@@ -118,14 +121,14 @@ examples:
           reg = <0>;
           function = "gphy";
           color = <LED_COLOR_ID_GREEN>;
-          led-gpio = <&ssogpio 0 0>;
+          led-gpios = <&ssogpio 0 0>;
         };
 
         led@2 {
           reg = <2>;
           function = LED_FUNCTION_POWER;
           color = <LED_COLOR_ID_GREEN>;
-          led-gpio = <&ssogpio 23 0>;
+          led-gpios = <&ssogpio 23 0>;
         };
       };
     };
