@@ -267,7 +267,8 @@ static int rt1015_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *codec_dai;
-	int i, clk_freq, ret;
+	int i, clk_freq;
+	int ret = 0;
 
 	clk_freq = sof_dai_get_bclk(rtd);
 
