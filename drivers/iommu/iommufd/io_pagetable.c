@@ -1170,6 +1170,8 @@ int iopt_table_enforce_group_resv_regions(struct io_pagetable *iopt,
 	struct iommu_resv_region *resv;
 	struct iommu_resv_region *tmp;
 	LIST_HEAD(group_resv_regions);
+	unsigned int num_hw_msi = 0;
+	unsigned int num_sw_msi = 0;
 	int rc;
 
 	down_write(&iopt->iova_rwsem);
@@ -1181,23 +1183,25 @@ int iopt_table_enforce_group_resv_regions(struct io_pagetable *iopt,
 		if (resv->type == IOMMU_RESV_DIRECT_RELAXABLE)
 			continue;
 
-		/*
-		 * The presence of any 'real' MSI regions should take precedence
-		 * over the software-managed one if the IOMMU driver happens to
-		 * advertise both types.
-		 */
-		if (sw_msi_start && resv->type == IOMMU_RESV_MSI) {
-			*sw_msi_start = 0;
-			sw_msi_start = NULL;
-		}
-		if (sw_msi_start && resv->type == IOMMU_RESV_SW_MSI)
+		if (sw_msi_start && resv->type == IOMMU_RESV_MSI)
+			num_hw_msi++;
+		if (sw_msi_start && resv->type == IOMMU_RESV_SW_MSI) {
 			*sw_msi_start = resv->start;
+			num_sw_msi++;
+		}
 
 		rc = iopt_reserve_iova(iopt, resv->start,
 				       resv->length - 1 + resv->start, device);
 		if (rc)
 			goto out_reserved;
 	}
+
+	/* Drivers must offer sane combinations of regions */
+	if (WARN_ON(num_sw_msi && num_hw_msi) || WARN_ON(num_sw_msi > 1)) {
+		rc = -EINVAL;
+		goto out_reserved;
+	}
+
 	rc = 0;
 	goto out_free_resv;
 

@@ -139,19 +139,11 @@ static int iommufd_device_setup_msi(struct iommufd_device *idev,
 	int rc;
 
 	/*
-	 * IOMMU_CAP_INTR_REMAP means that the platform is isolating MSI, and it
-	 * creates the MSI window by default in the iommu domain. Nothing
-	 * further to do.
-	 */
-	if (device_iommu_capable(idev->dev, IOMMU_CAP_INTR_REMAP))
-		return 0;
-
-	/*
-	 * On ARM systems that set the global IRQ_DOMAIN_FLAG_MSI_REMAP every
-	 * allocated iommu_domain will block interrupts by default and this
-	 * special flow is needed to turn them back on. iommu_dma_prepare_msi()
-	 * will install pages into our domain after request_irq() to make this
-	 * work.
+	 * If the IOMMU driver gives a IOMMU_RESV_SW_MSI then it is asking us to
+	 * call iommu_get_msi_cookie() on its behalf. This is necessary to setup
+	 * the MSI window so iommu_dma_prepare_msi() can install pages into our
+	 * domain after request_irq(). If it is not done interrupts will not
+	 * work on this domain.
 	 *
 	 * FIXME: This is conceptually broken for iommufd since we want to allow
 	 * userspace to change the domains, eg switch from an identity IOAS to a
@@ -159,33 +151,35 @@ static int iommufd_device_setup_msi(struct iommufd_device *idev,
 	 * matches what the IRQ layer actually expects in a newly created
 	 * domain.
 	 */
-	if (irq_domain_check_msi_remap()) {
-		if (WARN_ON(!sw_msi_start))
-			return -EPERM;
+	if (sw_msi_start != PHYS_ADDR_MAX && !hwpt->msi_cookie) {
+		rc = iommu_get_msi_cookie(hwpt->domain, sw_msi_start);
+		if (rc)
+			return rc;
+
 		/*
 		 * iommu_get_msi_cookie() can only be called once per domain,
 		 * it returns -EBUSY on later calls.
 		 */
-		if (hwpt->msi_cookie)
-			return 0;
-		rc = iommu_get_msi_cookie(hwpt->domain, sw_msi_start);
-		if (rc)
-			return rc;
 		hwpt->msi_cookie = true;
-		return 0;
 	}
 
 	/*
-	 * Otherwise the platform has a MSI window that is not isolated. For
-	 * historical compat with VFIO allow a module parameter to ignore the
-	 * insecurity.
+	 * For historical compat with VFIO the insecure interrupt path is
+	 * allowed if the module parameter is set. Insecure means that a MemWr
+	 * operation from the device (eg a simple DMA) cannot trigger an
+	 * interrupt outside this iommufd context.
 	 */
-	if (!allow_unsafe_interrupts)
-		return -EPERM;
+	if (!device_iommu_capable(idev->dev, IOMMU_CAP_INTR_REMAP) &&
+	    !irq_domain_check_msi_remap()) {
+		if (!allow_unsafe_interrupts)
+			return -EPERM;
 
-	dev_warn(
-		idev->dev,
-		"MSI interrupt window cannot be isolated by the IOMMU, this platform is insecure. Use the \"allow_unsafe_interrupts\" module parameter to override\n");
+		dev_warn(
+			idev->dev,
+			"MSI interrupts are not secure, they cannot be isolated by the platform. "
+			"Check that platform features like interrupt remapping are enabled. "
+			"Use the \"allow_unsafe_interrupts\" module parameter to override\n");
+	}
 	return 0;
 }
 
@@ -203,7 +197,7 @@ static bool iommufd_hw_pagetable_has_group(struct iommufd_hw_pagetable *hwpt,
 static int iommufd_device_do_attach(struct iommufd_device *idev,
 				    struct iommufd_hw_pagetable *hwpt)
 {
-	phys_addr_t sw_msi_start = 0;
+	phys_addr_t sw_msi_start = PHYS_ADDR_MAX;
 	int rc;
 
 	mutex_lock(&hwpt->devices_lock);
