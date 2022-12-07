@@ -106,12 +106,6 @@ static int st33zp24_i2c_probe(struct i2c_client *client,
 {
 	struct st33zp24_i2c_phy *phy;
 
-	if (!client) {
-		pr_info("%s: i2c client is NULL. Device not accessible.\n",
-			__func__);
-		return -ENODEV;
-	}
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_info(&client->dev, "client not i2c capable\n");
 		return -ENODEV;
