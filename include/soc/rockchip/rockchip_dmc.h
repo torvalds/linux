@@ -62,6 +62,7 @@ struct dmcfreq_vop_info {
 	unsigned int line_bw_mbyte;
 	unsigned int frame_bw_mbyte;
 	unsigned int plane_num;
+	unsigned int plane_num_4k;
 };
 
 #if IS_REACHABLE(CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ)

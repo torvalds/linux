@@ -163,6 +163,7 @@ static int rockchip_drm_bandwidth_atomic_check(struct drm_device *dev,
 	vop_bw_info->line_bw_mbyte = 0;
 	vop_bw_info->frame_bw_mbyte = 0;
 	vop_bw_info->plane_num = 0;
+	vop_bw_info->plane_num_4k = 0;
 
 	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
 		funcs = priv->crtc_funcs[drm_crtc_index(crtc)];

@@ -6409,9 +6409,9 @@ static size_t vop2_plane_line_bandwidth(struct drm_plane_state *pstate)
 
 	bandwidth = bandwidth * src_width / dst_width;
 	bandwidth = bandwidth * src_height / dst_height;
-	if (vskiplines == 2)
+	if (vskiplines == 2 && vpstate->afbc_en == 0)
 		bandwidth /= 2;
-	else if (vskiplines == 4)
+	else if (vskiplines == 4 && vpstate->afbc_en == 0)
 		bandwidth /= 4;
 
 	return bandwidth;
@@ -6505,9 +6505,12 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 
 		act_w = drm_rect_width(&pstate->src) >> 16;
 		act_h = drm_rect_height(&pstate->src) >> 16;
+		if (pstate->fb->format->is_yuv && (act_w >= 3840 || act_h >= 3840))
+			vop_bw_info->plane_num_4k++;
+
 		bpp = rockchip_drm_get_bpp(pstate->fb->format);
 
-		vop_bw_info->frame_bw_mbyte += act_w * act_h / 1000 * bpp / 8 * fps / 1000;
+		vop_bw_info->frame_bw_mbyte += act_w * act_h / 1000 * bpp / 8 * fps / 1000 / afbc_fac;
 	}
 
 	sort(pbandwidth, cnt, sizeof(pbandwidth[0]), vop2_bandwidth_cmp, NULL);
