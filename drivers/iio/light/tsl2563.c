@@ -795,7 +795,7 @@ static void tsl2563_remove(struct i2c_client *client)
 
 static int tsl2563_suspend(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret;
 
@@ -814,7 +814,7 @@ out:
 
 static int tsl2563_resume(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret;
 
