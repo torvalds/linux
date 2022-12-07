@@ -541,3 +541,13 @@ void kvm_selftest_arch_init(void)
 	 */
 	guest_modes_append_default();
 }
+
+void vm_vaddr_populate_bitmap(struct kvm_vm *vm)
+{
+	/*
+	 * arm64 selftests use only TTBR0_EL1, meaning that the valid VA space
+	 * is [0, 2^(64 - TCR_EL1.T0SZ)).
+	 */
+	sparsebit_set_num(vm->vpages_valid, 0,
+			  (1ULL << vm->va_bits) >> vm->page_shift);
+}
