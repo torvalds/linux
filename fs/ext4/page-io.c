@@ -489,8 +489,6 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 					redirty_page_for_writepage(wbc, page);
 				keep_towrite = true;
 			}
-			if (io->io_bio)
-				ext4_io_submit(io);
 			continue;
 		}
 		if (buffer_new(bh))
