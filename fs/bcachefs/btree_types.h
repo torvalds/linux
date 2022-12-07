@@ -692,15 +692,6 @@ struct btree_root {
 	s8			error;
 };
 
-enum btree_insert_ret {
-	BTREE_INSERT_OK,
-	/* leaf node needs to be split */
-	BTREE_INSERT_BTREE_NODE_FULL,
-	BTREE_INSERT_NEED_MARK_REPLICAS,
-	BTREE_INSERT_NEED_JOURNAL_RES,
-	BTREE_INSERT_NEED_JOURNAL_RECLAIM,
-};
-
 enum btree_gc_coalesce_fail_reason {
 	BTREE_GC_COALESCE_FAIL_RESERVE_GET,
 	BTREE_GC_COALESCE_FAIL_KEYLIST_REALLOC,

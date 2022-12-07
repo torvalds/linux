@@ -318,7 +318,7 @@ static __always_inline int bch2_trans_journal_res_get(struct btree_trans *trans,
 				   flags|
 				   (trans->flags & JOURNAL_WATERMARK_MASK));
 
-	return ret == -EAGAIN ? BTREE_INSERT_NEED_JOURNAL_RES : ret;
+	return ret == -EAGAIN ? -BCH_ERR_btree_insert_need_journal_res : ret;
 }
 
 #define JSET_ENTRY_LOG_U64s		4
@@ -337,23 +337,20 @@ static noinline void journal_transaction_name(struct btree_trans *trans)
 	strncpy(l->d, trans->fn, JSET_ENTRY_LOG_U64s * sizeof(u64));
 }
 
-static inline enum btree_insert_ret
-btree_key_can_insert(struct btree_trans *trans,
-		     struct btree *b,
-		     unsigned u64s)
+static inline int btree_key_can_insert(struct btree_trans *trans,
+				       struct btree *b, unsigned u64s)
 {
 	struct bch_fs *c = trans->c;
 
 	if (!bch2_btree_node_insert_fits(c, b, u64s))
-		return BTREE_INSERT_BTREE_NODE_FULL;
+		return -BCH_ERR_btree_insert_btree_node_full;
 
-	return BTREE_INSERT_OK;
+	return 0;
 }
 
-static enum btree_insert_ret
-btree_key_can_insert_cached(struct btree_trans *trans,
-			    struct btree_path *path,
-			    unsigned u64s)
+static int btree_key_can_insert_cached(struct btree_trans *trans,
+				       struct btree_path *path,
+				       unsigned u64s)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_cached *ck = (void *) path->l[0].b;
@@ -365,7 +362,7 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 	if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
 	    bch2_btree_key_cache_must_wait(c) &&
 	    !(trans->flags & BTREE_INSERT_JOURNAL_RECLAIM))
-		return BTREE_INSERT_NEED_JOURNAL_RECLAIM;
+		return -BCH_ERR_btree_insert_need_journal_reclaim;
 
 	/*
 	 * bch2_varint_decode can read past the end of the buffer by at most 7
@@ -374,7 +371,7 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 	u64s += 1;
 
 	if (u64s <= ck->u64s)
-		return BTREE_INSERT_OK;
+		return 0;
 
 	new_u64s	= roundup_pow_of_two(u64s);
 	new_k		= krealloc(ck->k, new_u64s * sizeof(u64), GFP_NOFS);
@@ -684,7 +681,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 
 	if (trans->fs_usage_deltas &&
 	    bch2_trans_fs_usage_apply(trans, trans->fs_usage_deltas))
-		return BTREE_INSERT_NEED_MARK_REPLICAS;
+		return -BCH_ERR_btree_insert_need_mark_replicas;
 
 	trans_for_each_update(trans, i)
 		if (BTREE_NODE_TYPE_HAS_MEM_TRIGGERS & (1U << i->bkey_type)) {
@@ -916,12 +913,12 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 
 	switch (ret) {
-	case BTREE_INSERT_BTREE_NODE_FULL:
+	case -BCH_ERR_btree_insert_btree_node_full:
 		ret = bch2_btree_split_leaf(trans, i->path, trans->flags);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			trace_and_count(c, trans_restart_btree_node_split, trans, trace_ip, i->path);
 		break;
-	case BTREE_INSERT_NEED_MARK_REPLICAS:
+	case -BCH_ERR_btree_insert_need_mark_replicas:
 		bch2_trans_unlock(trans);
 
 		ret = bch2_replicas_delta_list_mark(c, trans->fs_usage_deltas);
@@ -932,7 +929,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (ret)
 			trace_and_count(c, trans_restart_mark_replicas, trans, trace_ip);
 		break;
-	case BTREE_INSERT_NEED_JOURNAL_RES:
+	case -BCH_ERR_btree_insert_need_journal_res:
 		bch2_trans_unlock(trans);
 
 		if ((trans->flags & BTREE_INSERT_JOURNAL_RECLAIM) &&
@@ -949,7 +946,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (ret)
 			trace_and_count(c, trans_restart_journal_res_get, trans, trace_ip);
 		break;
-	case BTREE_INSERT_NEED_JOURNAL_RECLAIM:
+	case -BCH_ERR_btree_insert_need_journal_reclaim:
 		bch2_trans_unlock(trans);
 
 		trace_and_count(c, trans_blocked_journal_reclaim, trans, trace_ip);

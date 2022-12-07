@@ -53,6 +53,11 @@
 	x(BCH_ERR_no_btree_node,	no_btree_node_down)			\
 	x(BCH_ERR_no_btree_node,	no_btree_node_init)			\
 	x(BCH_ERR_no_btree_node,	no_btree_node_cached)			\
+	x(0,				btree_insert_fail)			\
+	x(BCH_ERR_btree_insert_fail,	btree_insert_btree_node_full)		\
+	x(BCH_ERR_btree_insert_fail,	btree_insert_need_mark_replicas)	\
+	x(BCH_ERR_btree_insert_fail,	btree_insert_need_journal_res)		\
+	x(BCH_ERR_btree_insert_fail,	btree_insert_need_journal_reclaim)	\
 	x(0,				lock_fail_root_changed)			\
 	x(0,				journal_reclaim_would_deadlock)		\
 	x(0,				fsck)					\
