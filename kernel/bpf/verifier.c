@@ -12222,8 +12222,7 @@ static int push_insn(int t, int w, int e, struct bpf_verifier_env *env,
 	return DONE_EXPLORING;
 }
 
-static int visit_func_call_insn(int t, int insn_cnt,
-				struct bpf_insn *insns,
+static int visit_func_call_insn(int t, struct bpf_insn *insns,
 				struct bpf_verifier_env *env,
 				bool visit_callee)
 {
@@ -12254,13 +12253,13 @@ static int visit_func_call_insn(int t, int insn_cnt,
  *  DONE_EXPLORING - the instruction was fully explored
  *  KEEP_EXPLORING - there is still work to be done before it is fully explored
  */
-static int visit_insn(int t, int insn_cnt, struct bpf_verifier_env *env)
+static int visit_insn(int t, struct bpf_verifier_env *env)
 {
 	struct bpf_insn *insns = env->prog->insnsi;
 	int ret;
 
 	if (bpf_pseudo_func(insns + t))
-		return visit_func_call_insn(t, insn_cnt, insns, env, true);
+		return visit_func_call_insn(t, insns, env, true);
 
 	/* All non-branch instructions have a single fall-through edge. */
 	if (BPF_CLASS(insns[t].code) != BPF_JMP &&
@@ -12279,7 +12278,7 @@ static int visit_insn(int t, int insn_cnt, struct bpf_verifier_env *env)
 			 * async state will be pushed for further exploration.
 			 */
 			mark_prune_point(env, t);
-		return visit_func_call_insn(t, insn_cnt, insns, env,
+		return visit_func_call_insn(t, insns, env,
 					    insns[t].src_reg == BPF_PSEUDO_CALL);
 
 	case BPF_JA:
@@ -12336,7 +12335,7 @@ static int check_cfg(struct bpf_verifier_env *env)
 	while (env->cfg.cur_stack > 0) {
 		int t = insn_stack[env->cfg.cur_stack - 1];
 
-		ret = visit_insn(t, insn_cnt, env);
+		ret = visit_insn(t, env);
 		switch (ret) {
 		case DONE_EXPLORING:
 			insn_state[t] = EXPLORED;
