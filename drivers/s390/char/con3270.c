@@ -2079,12 +2079,16 @@ static int con3270_notify(struct notifier_block *self,
 {
 	struct tty3270 *tp;
 	unsigned long flags;
+	int rc;
 
 	tp = condev;
 	if (!tp->view.dev)
 		return NOTIFY_DONE;
-	if (!raw3270_view_lock_unavailable(&tp->view))
-		raw3270_activate_view(&tp->view);
+	if (!raw3270_view_lock_unavailable(&tp->view)) {
+		rc = raw3270_activate_view(&tp->view);
+		if (rc)
+			return NOTIFY_DONE;
+	}
 	if (!spin_trylock_irqsave(&tp->view.lock, flags))
 		return NOTIFY_DONE;
 	con3270_wait_write(tp);
