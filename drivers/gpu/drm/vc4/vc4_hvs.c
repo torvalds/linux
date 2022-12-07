@@ -570,6 +570,8 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 	bool enable_bg_fill = false;
 	u32 __iomem *dlist_start = vc4->hvs->dlist + vc4_state->mm.start;
 	u32 __iomem *dlist_next = dlist_start;
+	unsigned int zpos = 0;
+	bool found = false;
 	int idx;
 
 	if (!drm_dev_enter(dev, &idx)) {
@@ -583,23 +585,34 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 	}
 
 	/* Copy all the active planes' dlist contents to the hardware dlist. */
-	drm_atomic_crtc_for_each_plane(plane, crtc) {
-		/* Is this the first active plane? */
-		if (dlist_next == dlist_start) {
-			/* We need to enable background fill when a plane
-			 * could be alpha blending from the background, i.e.
-			 * where no other plane is underneath. It suffices to
-			 * consider the first active plane here since we set
-			 * needs_bg_fill such that either the first plane
-			 * already needs it or all planes on top blend from
-			 * the first or a lower plane.
-			 */
-			vc4_plane_state = to_vc4_plane_state(plane->state);
-			enable_bg_fill = vc4_plane_state->needs_bg_fill;
+	do {
+		found = false;
+
+		drm_atomic_crtc_for_each_plane(plane, crtc) {
+			if (plane->state->normalized_zpos != zpos)
+				continue;
+
+			/* Is this the first active plane? */
+			if (dlist_next == dlist_start) {
+				/* We need to enable background fill when a plane
+				 * could be alpha blending from the background, i.e.
+				 * where no other plane is underneath. It suffices to
+				 * consider the first active plane here since we set
+				 * needs_bg_fill such that either the first plane
+				 * already needs it or all planes on top blend from
+				 * the first or a lower plane.
+				 */
+				vc4_plane_state = to_vc4_plane_state(plane->state);
+				enable_bg_fill = vc4_plane_state->needs_bg_fill;
+			}
+
+			dlist_next += vc4_plane_write_dlist(plane, dlist_next);
+
+			found = true;
 		}
 
-		dlist_next += vc4_plane_write_dlist(plane, dlist_next);
-	}
+		zpos++;
+	} while (found);
 
 	writel(SCALER_CTL0_END, dlist_next);
 	dlist_next++;
