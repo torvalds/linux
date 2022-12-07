@@ -11,6 +11,7 @@
  * Amit Kucheria <amit.kucheria@verdurent.com>
  */
 
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
@@ -33,19 +34,19 @@
 #define ADC_FRAC_BITS		14
 
 /* Given number of 1/10000's in ADC_FRAC_BITS precision. */
-#define FRAC10K(f)		(((f) * (1L << (ADC_FRAC_BITS))) / (10000))
+#define FRAC10K(f)		(((f) * BIT(ADC_FRAC_BITS)) / (10000))
 
 /* Bits used for fraction in calibration coefficients.*/
 #define CALIB_FRAC_BITS		10
 /* 0.5 in CALIB_FRAC_BITS precision */
-#define CALIB_FRAC_HALF		(1 << (CALIB_FRAC_BITS - 1))
+#define CALIB_FRAC_HALF		BIT(CALIB_FRAC_BITS - 1)
 /* Make a fraction from a number n that was multiplied with b. */
 #define CALIB_FRAC(n, b)	(((n) << CALIB_FRAC_BITS) / (b))
 /* Decimal 10^(digits in sysfs presentation) */
 #define CALIB_BASE_SYSFS	1000
 
-#define TSL2563_CMD		0x80
-#define TSL2563_CLEARINT	0x40
+#define TSL2563_CMD		BIT(7)
+#define TSL2563_CLEARINT	BIT(6)
 
 #define TSL2563_REG_CTRL	0x00
 #define TSL2563_REG_TIMING	0x01
@@ -58,19 +59,19 @@
 
 #define TSL2563_CMD_POWER_ON	0x03
 #define TSL2563_CMD_POWER_OFF	0x00
-#define TSL2563_CTRL_POWER_MASK	0x03
+#define TSL2563_CTRL_POWER_MASK	GENMASK(1, 0)
 
 #define TSL2563_TIMING_13MS	0x00
 #define TSL2563_TIMING_100MS	0x01
 #define TSL2563_TIMING_400MS	0x02
-#define TSL2563_TIMING_MASK	0x03
+#define TSL2563_TIMING_MASK	GENMASK(1, 0)
 #define TSL2563_TIMING_GAIN16	0x10
 #define TSL2563_TIMING_GAIN1	0x00
 
 #define TSL2563_INT_DISABLED	0x00
 #define TSL2563_INT_LEVEL	0x10
-#define TSL2563_INT_MASK	0x30
-#define TSL2563_INT_PERSIST(n)	((n) & 0x0F)
+#define TSL2563_INT_MASK	GENMASK(5, 4)
+#define TSL2563_INT_PERSIST(n)	((n) & GENMASK(3, 0))
 
 struct tsl2563_gainlevel_coeff {
 	u8 gaintime;
