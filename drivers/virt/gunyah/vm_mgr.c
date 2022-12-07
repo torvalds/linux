@@ -6,15 +6,164 @@
 #define pr_fmt(fmt) "gh_vm_mgr: " fmt
 
 #include <linux/anon_inodes.h>
+#include <linux/compat.h>
 #include <linux/file.h>
 #include <linux/gunyah_rsc_mgr.h>
+#include <linux/gunyah_vm_mgr.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/xarray.h>
 
 #include <uapi/linux/gunyah.h>
 
 #include "vm_mgr.h"
+
+static DEFINE_XARRAY(functions);
+
+int gh_vm_function_register(struct gh_vm_function *fn)
+{
+	if (!fn->bind || !fn->unbind)
+		return -EINVAL;
+
+	return xa_err(xa_store(&functions, fn->type, fn, GFP_KERNEL));
+}
+EXPORT_SYMBOL_GPL(gh_vm_function_register);
+
+static void gh_vm_remove_function_instance(struct gh_vm_function_instance *inst)
+	__must_hold(&inst->ghvm->fn_lock)
+{
+	inst->fn->unbind(inst);
+	list_del(&inst->vm_list);
+	module_put(inst->fn->mod);
+	kfree(inst->argp);
+	kfree(inst);
+}
+
+void gh_vm_function_unregister(struct gh_vm_function *fn)
+{
+	/* Expecting unregister to only come when unloading a module */
+	WARN_ON(fn->mod && module_refcount(fn->mod));
+	xa_erase(&functions, fn->type);
+}
+EXPORT_SYMBOL_GPL(gh_vm_function_unregister);
+
+static struct gh_vm_function *gh_vm_get_function(u32 type)
+{
+	struct gh_vm_function *fn;
+	int r;
+
+	fn = xa_load(&functions, type);
+	if (!fn) {
+		r = request_module("ghfunc:%d", type);
+		if (r)
+			return ERR_PTR(r);
+
+		fn = xa_load(&functions, type);
+	}
+
+	if (!fn || !try_module_get(fn->mod))
+		fn = ERR_PTR(-ENOENT);
+
+	return fn;
+}
+
+static long gh_vm_add_function(struct gh_vm *ghvm, struct gh_fn_desc *f)
+{
+	struct gh_vm_function_instance *inst;
+	void __user *argp;
+	long r = 0;
+
+	if (f->arg_size > GH_FN_MAX_ARG_SIZE) {
+		dev_err(ghvm->parent, "%s: arg_size > %d\n", __func__, GH_FN_MAX_ARG_SIZE);
+		return -EINVAL;
+	}
+
+	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
+
+	inst->arg_size = f->arg_size;
+	if (inst->arg_size) {
+		inst->argp = kzalloc(inst->arg_size, GFP_KERNEL);
+		if (!inst->argp) {
+			r = -ENOMEM;
+			goto free;
+		}
+
+		argp = u64_to_user_ptr(f->arg);
+		if (copy_from_user(inst->argp, argp, f->arg_size)) {
+			r = -EFAULT;
+			goto free_arg;
+		}
+	}
+
+	inst->fn = gh_vm_get_function(f->type);
+	if (IS_ERR(inst->fn)) {
+		r = PTR_ERR(inst->fn);
+		goto free_arg;
+	}
+
+	inst->ghvm = ghvm;
+	inst->rm = ghvm->rm;
+
+	mutex_lock(&ghvm->fn_lock);
+	r = inst->fn->bind(inst);
+	if (r < 0) {
+		module_put(inst->fn->mod);
+		goto free_arg;
+	}
+
+	list_add(&inst->vm_list, &ghvm->functions);
+	mutex_unlock(&ghvm->fn_lock);
+
+	return r;
+free_arg:
+	kfree(inst->argp);
+free:
+	kfree(inst);
+	return r;
+}
+
+static long gh_vm_rm_function(struct gh_vm *ghvm, struct gh_fn_desc *f)
+{
+	struct gh_vm_function_instance *inst, *iter;
+	void __user *user_argp;
+	void *argp;
+	long r = 0;
+
+	r = mutex_lock_interruptible(&ghvm->fn_lock);
+	if (r)
+		return r;
+
+	if (f->arg_size) {
+		argp = kzalloc(f->arg_size, GFP_KERNEL);
+		if (!argp) {
+			r = -ENOMEM;
+			goto out;
+		}
+
+		user_argp = u64_to_user_ptr(f->arg);
+		if (copy_from_user(argp, user_argp, f->arg_size)) {
+			r = -EFAULT;
+			kfree(argp);
+			goto out;
+		}
+
+		list_for_each_entry_safe(inst, iter, &ghvm->functions, vm_list) {
+			if (inst->fn->type == f->type &&
+			    f->arg_size == inst->arg_size &&
+			    !memcmp(argp, inst->argp, f->arg_size))
+				gh_vm_remove_function_instance(inst);
+		}
+
+		kfree(argp);
+	}
+
+out:
+	mutex_unlock(&ghvm->fn_lock);
+	return r;
+}
 
 static int gh_vm_rm_notification_status(struct gh_vm *ghvm, void *data)
 {
@@ -80,6 +229,7 @@ static void gh_vm_stop(struct gh_vm *ghvm)
 static void gh_vm_free(struct work_struct *work)
 {
 	struct gh_vm *ghvm = container_of(work, struct gh_vm, free_work);
+	struct gh_vm_function_instance *inst, *iiter;
 	struct gh_vm_mem *mapping, *tmp;
 	int ret;
 
@@ -89,13 +239,24 @@ static void gh_vm_free(struct work_struct *work)
 		fallthrough;
 	case GH_RM_VM_STATUS_INIT_FAILED:
 	case GH_RM_VM_STATUS_EXITED:
-		ret = gh_rm_vm_reset(ghvm->rm, ghvm->vmid);
-		if (ret)
-			dev_err(ghvm->parent, "Failed to reset the vm: %d\n", ret);
-		wait_event(ghvm->vm_status_wait, ghvm->vm_status == GH_RM_VM_STATUS_RESET);
+		mutex_lock(&ghvm->fn_lock);
+		list_for_each_entry_safe(inst, iiter, &ghvm->functions, vm_list) {
+			gh_vm_remove_function_instance(inst);
+		}
+		mutex_unlock(&ghvm->fn_lock);
 
-		fallthrough;
-	case GH_RM_VM_STATUS_LOAD:
+		/* vm_status == LOAD if user creates VM, but then destroys it
+		 * without ever trying to start it. In that case, we have only
+		 * allocated VMID. Clean up functions (above), memory (below),
+		 * and dealloc vmid (below), but no call gh_rm_vm_reset().
+		 */
+		if (ghvm->vm_status != GH_RM_VM_STATUS_LOAD) {
+			ret = gh_rm_vm_reset(ghvm->rm, ghvm->vmid);
+			if (ret)
+				dev_err(ghvm->parent, "Failed to reset the vm: %d\n", ret);
+			wait_event(ghvm->vm_status_wait, ghvm->vm_status == GH_RM_VM_STATUS_RESET);
+		}
+
 		mutex_lock(&ghvm->mm_lock);
 		list_for_each_entry_safe(mapping, tmp, &ghvm->memory_mappings, list) {
 			gh_vm_mem_reclaim(ghvm, mapping);
@@ -122,6 +283,28 @@ static void gh_vm_free(struct work_struct *work)
 		break;
 	}
 }
+
+static void _gh_vm_put(struct kref *kref)
+{
+	struct gh_vm *ghvm = container_of(kref, struct gh_vm, kref);
+
+	/* VM will be reset and make RM calls which can interruptible sleep.
+	 * Defer to a work so this thread can receive signal.
+	 */
+	schedule_work(&ghvm->free_work);
+}
+
+int __must_check gh_vm_get(struct gh_vm *ghvm)
+{
+	return kref_get_unless_zero(&ghvm->kref);
+}
+EXPORT_SYMBOL_GPL(gh_vm_get);
+
+void gh_vm_put(struct gh_vm *ghvm)
+{
+	kref_put(&ghvm->kref, _gh_vm_put);
+}
+EXPORT_SYMBOL_GPL(gh_vm_put);
 
 static __must_check struct gh_vm *gh_vm_alloc(struct gh_rm *rm)
 {
@@ -156,6 +339,8 @@ static __must_check struct gh_vm *gh_vm_alloc(struct gh_rm *rm)
 	INIT_LIST_HEAD(&ghvm->memory_mappings);
 	init_rwsem(&ghvm->status_lock);
 	INIT_WORK(&ghvm->free_work, gh_vm_free);
+	kref_init(&ghvm->kref);
+	INIT_LIST_HEAD(&ghvm->functions);
 	ghvm->vm_status = GH_RM_VM_STATUS_LOAD;
 
 	return ghvm;
@@ -307,6 +492,29 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		r = gh_vm_ensure_started(ghvm);
 		break;
 	}
+	case GH_VM_ADD_FUNCTION: {
+		struct gh_fn_desc f;
+
+		if (copy_from_user(&f, argp, sizeof(f)))
+			return -EFAULT;
+
+		r = gh_vm_add_function(ghvm, &f);
+		break;
+	}
+	case GH_VM_REMOVE_FUNCTION: {
+		struct gh_fn_desc *f;
+
+		f = kzalloc(sizeof(*f), GFP_KERNEL);
+		if (!f)
+			return -ENOMEM;
+
+		if (copy_from_user(f, argp, sizeof(*f)))
+			return -EFAULT;
+
+		r = gh_vm_rm_function(ghvm, f);
+		kfree(f);
+		break;
+	}
 	default:
 		r = -ENOTTY;
 		break;
@@ -319,10 +527,7 @@ static int gh_vm_release(struct inode *inode, struct file *filp)
 {
 	struct gh_vm *ghvm = filp->private_data;
 
-	/* VM will be reset and make RM calls which can interruptible sleep.
-	 * Defer to a work so this thread can receive signal.
-	 */
-	schedule_work(&ghvm->free_work);
+	gh_vm_put(ghvm);
 	return 0;
 }
 
