@@ -51,7 +51,7 @@ static int event_open(int type, unsigned long config, int group_fd)
 static int setup_uncore_event(void)
 {
 	struct perf_pmu *pmu;
-	int i;
+	int i, fd;
 
 	if (list_empty(&pmus))
 		perf_pmu__scan(NULL);
@@ -62,6 +62,18 @@ static int setup_uncore_event(void)
 				pr_debug("Using %s for uncore pmu event\n", pmu->name);
 				types[2] = pmu->type;
 				configs[2] = uncore_pmus[i].config;
+				/*
+				 * Check if the chosen uncore pmu event can be
+				 * used in the test. For example, incase of accessing
+				 * hv_24x7 pmu counters, partition should have
+				 * additional permissions. If not, event open will
+				 * fail. So check if the event open succeeds
+				 * before proceeding.
+				 */
+				fd = event_open(types[2], configs[2], -1);
+				if (fd < 0)
+					return -1;
+				close(fd);
 				return 0;
 			}
 		}
