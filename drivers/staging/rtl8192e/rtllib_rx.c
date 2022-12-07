@@ -1776,7 +1776,7 @@ static inline void rtllib_extract_country_ie(
 				if (rtllib_act_scanning(ieee, false) &&
 				    ieee->FirstIe_InScan)
 					netdev_info(ieee->dev,
-						    "Received beacon ContryIE, SSID: <%s>\n",
+						    "Received beacon CountryIE, SSID: <%s>\n",
 						    network->ssid);
 				dot11d_update_country(ieee, addr2,
 						       info_element->len,
