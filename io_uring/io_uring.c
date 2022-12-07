@@ -584,13 +584,25 @@ void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 		io_eventfd_flush_signal(ctx);
 }
 
+static inline void __io_cq_lock(struct io_ring_ctx *ctx)
+	__acquires(ctx->completion_lock)
+{
+	if (!ctx->task_complete)
+		spin_lock(&ctx->completion_lock);
+}
+
+static inline void __io_cq_unlock(struct io_ring_ctx *ctx)
+{
+	if (!ctx->task_complete)
+		spin_unlock(&ctx->completion_lock);
+}
+
 /* keep it inlined for io_submit_flush_completions() */
-static inline void io_cq_unlock_post_inline(struct io_ring_ctx *ctx)
+static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
 	__releases(ctx->completion_lock)
 {
 	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-
+	__io_cq_unlock(ctx);
 	io_commit_cqring_flush(ctx);
 	io_cqring_wake(ctx);
 }
@@ -598,7 +610,10 @@ static inline void io_cq_unlock_post_inline(struct io_ring_ctx *ctx)
 void io_cq_unlock_post(struct io_ring_ctx *ctx)
 	__releases(ctx->completion_lock)
 {
-	io_cq_unlock_post_inline(ctx);
+	io_commit_cqring(ctx);
+	spin_unlock(&ctx->completion_lock);
+	io_commit_cqring_flush(ctx);
+	io_cqring_wake(ctx);
 }
 
 /* Returns true if there are no backlogged entries after the flush */
@@ -785,12 +800,13 @@ struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx, bool overflow)
 	return &rings->cqes[off];
 }
 
-static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags,
-			    bool allow_overflow)
+static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
+			      u32 cflags)
 {
 	struct io_uring_cqe *cqe;
 
-	lockdep_assert_held(&ctx->completion_lock);
+	if (!ctx->task_complete)
+		lockdep_assert_held(&ctx->completion_lock);
 
 	ctx->cq_extra++;
 
@@ -813,10 +829,6 @@ static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32
 		}
 		return true;
 	}
-
-	if (allow_overflow)
-		return io_cqring_event_overflow(ctx, user_data, res, cflags, 0, 0);
-
 	return false;
 }
 
@@ -830,7 +842,17 @@ static void __io_flush_post_cqes(struct io_ring_ctx *ctx)
 	for (i = 0; i < state->cqes_count; i++) {
 		struct io_uring_cqe *cqe = &state->cqes[i];
 
-		io_fill_cqe_aux(ctx, cqe->user_data, cqe->res, cqe->flags, true);
+		if (!io_fill_cqe_aux(ctx, cqe->user_data, cqe->res, cqe->flags)) {
+			if (ctx->task_complete) {
+				spin_lock(&ctx->completion_lock);
+				io_cqring_event_overflow(ctx, cqe->user_data,
+							cqe->res, cqe->flags, 0, 0);
+				spin_unlock(&ctx->completion_lock);
+			} else {
+				io_cqring_event_overflow(ctx, cqe->user_data,
+							cqe->res, cqe->flags, 0, 0);
+			}
+		}
 	}
 	state->cqes_count = 0;
 }
@@ -841,7 +863,10 @@ static bool __io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u
 	bool filled;
 
 	io_cq_lock(ctx);
-	filled = io_fill_cqe_aux(ctx, user_data, res, cflags, allow_overflow);
+	filled = io_fill_cqe_aux(ctx, user_data, res, cflags);
+	if (!filled && allow_overflow)
+		filled = io_cqring_event_overflow(ctx, user_data, res, cflags, 0, 0);
+
 	io_cq_unlock_post(ctx);
 	return filled;
 }
@@ -865,10 +890,10 @@ bool io_aux_cqe(struct io_ring_ctx *ctx, bool defer, u64 user_data, s32 res, u32
 	lockdep_assert_held(&ctx->uring_lock);
 
 	if (ctx->submit_state.cqes_count == length) {
-		io_cq_lock(ctx);
+		__io_cq_lock(ctx);
 		__io_flush_post_cqes(ctx);
 		/* no need to flush - flush is deferred */
-		io_cq_unlock(ctx);
+		__io_cq_unlock_post(ctx);
 	}
 
 	/* For defered completions this is not as strict as it is otherwise,
@@ -1403,7 +1428,7 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	struct io_wq_work_node *node, *prev;
 	struct io_submit_state *state = &ctx->submit_state;
 
-	io_cq_lock(ctx);
+	__io_cq_lock(ctx);
 	/* must come first to preserve CQE ordering in failure cases */
 	if (state->cqes_count)
 		__io_flush_post_cqes(ctx);
@@ -1411,10 +1436,18 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 					    comp_list);
 
-		if (!(req->flags & REQ_F_CQE_SKIP))
-			__io_fill_cqe_req(ctx, req);
+		if (!(req->flags & REQ_F_CQE_SKIP) &&
+		    unlikely(!__io_fill_cqe_req(ctx, req))) {
+			if (ctx->task_complete) {
+				spin_lock(&ctx->completion_lock);
+				io_req_cqe_overflow(req);
+				spin_unlock(&ctx->completion_lock);
+			} else {
+				io_req_cqe_overflow(req);
+			}
+		}
 	}
-	io_cq_unlock_post_inline(ctx);
+	__io_cq_unlock_post(ctx);
 
 	if (!wq_list_empty(&ctx->submit_state.compl_reqs)) {
 		io_free_batch_list(ctx, state->compl_reqs.first);
