@@ -16,6 +16,7 @@
 struct io_msg {
 	struct file			*file;
 	struct file			*src_file;
+	struct callback_head		tw;
 	u64 user_data;
 	u32 len;
 	u32 cmd;
@@ -35,6 +36,23 @@ void io_msg_ring_cleanup(struct io_kiocb *req)
 	msg->src_file = NULL;
 }
 
+static void io_msg_tw_complete(struct callback_head *head)
+{
+	struct io_msg *msg = container_of(head, struct io_msg, tw);
+	struct io_kiocb *req = cmd_to_io_kiocb(msg);
+	struct io_ring_ctx *target_ctx = req->file->private_data;
+	int ret = 0;
+
+	if (current->flags & PF_EXITING)
+		ret = -EOWNERDEAD;
+	else if (!io_post_aux_cqe(target_ctx, msg->user_data, msg->len, 0))
+		ret = -EOVERFLOW;
+
+	if (ret < 0)
+		req_set_fail(req);
+	io_req_queue_tw_complete(req, ret);
+}
+
 static int io_msg_ring_data(struct io_kiocb *req)
 {
 	struct io_ring_ctx *target_ctx = req->file->private_data;
@@ -42,6 +60,15 @@ static int io_msg_ring_data(struct io_kiocb *req)
 
 	if (msg->src_fd || msg->dst_fd || msg->flags)
 		return -EINVAL;
+
+	if (target_ctx->task_complete && current != target_ctx->submitter_task) {
+		init_task_work(&msg->tw, io_msg_tw_complete);
+		if (task_work_add(target_ctx->submitter_task, &msg->tw,
+				  TWA_SIGNAL_NO_IPI))
+			return -EOWNERDEAD;
+
+		return IOU_ISSUE_SKIP_COMPLETE;
+	}
 
 	if (io_post_aux_cqe(target_ctx, msg->user_data, msg->len, 0))
 		return 0;
@@ -124,6 +151,19 @@ out_unlock:
 	return ret;
 }
 
+static void io_msg_tw_fd_complete(struct callback_head *head)
+{
+	struct io_msg *msg = container_of(head, struct io_msg, tw);
+	struct io_kiocb *req = cmd_to_io_kiocb(msg);
+	int ret = -EOWNERDEAD;
+
+	if (!(current->flags & PF_EXITING))
+		ret = io_msg_install_complete(req, IO_URING_F_UNLOCKED);
+	if (ret < 0)
+		req_set_fail(req);
+	io_req_queue_tw_complete(req, ret);
+}
+
 static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *target_ctx = req->file->private_data;
@@ -139,6 +179,15 @@ static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 			return -EBADF;
 		msg->src_file = src_file;
 		req->flags |= REQ_F_NEED_CLEANUP;
+	}
+
+	if (target_ctx->task_complete && current != target_ctx->submitter_task) {
+		init_task_work(&msg->tw, io_msg_tw_fd_complete);
+		if (task_work_add(target_ctx->submitter_task, &msg->tw,
+				  TWA_SIGNAL))
+			return -EOWNERDEAD;
+
+		return IOU_ISSUE_SKIP_COMPLETE;
 	}
 	return io_msg_install_complete(req, issue_flags);
 }
@@ -185,10 +234,11 @@ int io_msg_ring(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 done:
-	if (ret == -EAGAIN)
-		return -EAGAIN;
-	if (ret < 0)
+	if (ret < 0) {
+		if (ret == -EAGAIN || ret == IOU_ISSUE_SKIP_COMPLETE)
+			return ret;
 		req_set_fail(req);
+	}
 	io_req_set_res(req, ret, 0);
 	return IOU_OK;
 }
