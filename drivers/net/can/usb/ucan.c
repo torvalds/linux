@@ -1534,9 +1534,8 @@ static int ucan_probe(struct usb_interface *intf,
 				     sizeof(union ucan_ctl_payload));
 	if (ret > 0) {
 		/* copy string while ensuring zero termination */
-		strncpy(firmware_str, up->ctl_msg_buffer->raw,
-			sizeof(union ucan_ctl_payload));
-		firmware_str[sizeof(union ucan_ctl_payload)] = '\0';
+		strscpy(firmware_str, up->ctl_msg_buffer->raw,
+			sizeof(union ucan_ctl_payload) + 1);
 	} else {
 		strcpy(firmware_str, "unknown");
 	}
