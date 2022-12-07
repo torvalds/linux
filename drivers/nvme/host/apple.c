@@ -763,7 +763,7 @@ static blk_status_t apple_nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 			goto out_free_cmd;
 	}
 
-	blk_mq_start_request(req);
+	nvme_start_request(req);
 	apple_nvme_submit_cmd(q, cmnd);
 	return BLK_STS_OK;
 
@@ -829,9 +829,7 @@ static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 			apple_nvme_remove_cq(anv);
 		}
 
-		if (shutdown)
-			nvme_shutdown_ctrl(&anv->ctrl);
-		nvme_disable_ctrl(&anv->ctrl);
+		nvme_disable_ctrl(&anv->ctrl, shutdown);
 	}
 
 	WRITE_ONCE(anv->ioq.enabled, false);

@@ -162,6 +162,9 @@ struct nvme_request {
 	u8			retries;
 	u8			flags;
 	u16			status;
+#ifdef CONFIG_NVME_MULTIPATH
+	unsigned long		start_time;
+#endif
 	struct nvme_ctrl	*ctrl;
 };
 
@@ -173,6 +176,7 @@ struct nvme_request {
 enum {
 	NVME_REQ_CANCELLED		= (1 << 0),
 	NVME_REQ_USERCMD		= (1 << 1),
+	NVME_MPATH_IO_STATS		= (1 << 2),
 };
 
 static inline struct nvme_request *nvme_req(struct request *req)
@@ -508,6 +512,8 @@ struct nvme_ctrl_ops {
 	unsigned int flags;
 #define NVME_F_FABRICS			(1 << 0)
 #define NVME_F_METADATA_SUPPORTED	(1 << 1)
+#define NVME_F_BLOCKING			(1 << 2)
+
 	const struct attribute_group **dev_attr_groups;
 	int (*reg_read32)(struct nvme_ctrl *ctrl, u32 off, u32 *val);
 	int (*reg_write32)(struct nvme_ctrl *ctrl, u32 off, u32 val);
@@ -729,9 +735,8 @@ void nvme_cancel_tagset(struct nvme_ctrl *ctrl);
 void nvme_cancel_admin_tagset(struct nvme_ctrl *ctrl);
 bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 		enum nvme_ctrl_state new_state);
-int nvme_disable_ctrl(struct nvme_ctrl *ctrl);
+int nvme_disable_ctrl(struct nvme_ctrl *ctrl, bool shutdown);
 int nvme_enable_ctrl(struct nvme_ctrl *ctrl);
-int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl);
 int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		const struct nvme_ctrl_ops *ops, unsigned long quirks);
 void nvme_uninit_ctrl(struct nvme_ctrl *ctrl);
@@ -739,11 +744,10 @@ void nvme_start_ctrl(struct nvme_ctrl *ctrl);
 void nvme_stop_ctrl(struct nvme_ctrl *ctrl);
 int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl, bool was_suspended);
 int nvme_alloc_admin_tag_set(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set,
-		const struct blk_mq_ops *ops, unsigned int flags,
-		unsigned int cmd_size);
+		const struct blk_mq_ops *ops, unsigned int cmd_size);
 void nvme_remove_admin_tag_set(struct nvme_ctrl *ctrl);
 int nvme_alloc_io_tag_set(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set,
-		const struct blk_mq_ops *ops, unsigned int flags,
+		const struct blk_mq_ops *ops, unsigned int nr_maps,
 		unsigned int cmd_size);
 void nvme_remove_io_tag_set(struct nvme_ctrl *ctrl);
 
@@ -882,6 +886,8 @@ bool nvme_mpath_clear_current_path(struct nvme_ns *ns);
 void nvme_mpath_revalidate_paths(struct nvme_ns *ns);
 void nvme_mpath_clear_ctrl_paths(struct nvme_ctrl *ctrl);
 void nvme_mpath_shutdown_disk(struct nvme_ns_head *head);
+void nvme_mpath_start_request(struct request *rq);
+void nvme_mpath_end_request(struct request *rq);
 
 static inline void nvme_trace_bio_complete(struct request *req)
 {
@@ -967,6 +973,12 @@ static inline void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
 static inline void nvme_mpath_default_iopolicy(struct nvme_subsystem *subsys)
 {
 }
+static inline void nvme_mpath_start_request(struct request *rq)
+{
+}
+static inline void nvme_mpath_end_request(struct request *rq)
+{
+}
 #endif /* CONFIG_NVME_MULTIPATH */
 
 int nvme_revalidate_zones(struct nvme_ns *ns);
@@ -1011,6 +1023,13 @@ static inline void nvme_hwmon_exit(struct nvme_ctrl *ctrl)
 {
 }
 #endif
+
+static inline void nvme_start_request(struct request *rq)
+{
+	if (rq->cmd_flags & REQ_NVME_MPATH)
+		nvme_mpath_start_request(rq);
+	blk_mq_start_request(rq);
+}
 
 static inline bool nvme_ctrl_sgl_supported(struct nvme_ctrl *ctrl)
 {

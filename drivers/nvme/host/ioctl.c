@@ -34,6 +34,8 @@ static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 			case NVME_ID_CNS_NS:
 			case NVME_ID_CNS_CS_NS:
 			case NVME_ID_CNS_NS_CS_INDEP:
+			case NVME_ID_CNS_CS_CTRL:
+			case NVME_ID_CNS_CTRL:
 				return true;
 			}
 		}

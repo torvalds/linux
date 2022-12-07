@@ -1701,6 +1701,15 @@ restart:
 	spin_unlock_irqrestore(&rport->lock, flags);
 }
 
+static
+void nvme_fc_rcv_ls_req_err_msg(struct nvme_fc_lport *lport,
+				struct fcnvme_ls_rqst_w0 *w0)
+{
+	dev_info(lport->dev, "RCV %s LS failed: No memory\n",
+		(w0->ls_cmd <= NVME_FC_LAST_LS_CMD_VALUE) ?
+			nvmefc_ls_names[w0->ls_cmd] : "");
+}
+
 /**
  * nvme_fc_rcv_ls_req - transport entry point called by an LLDD
  *                       upon the reception of a NVME LS request.
@@ -1754,13 +1763,16 @@ nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
 	}
 
 	lsop = kzalloc(sizeof(*lsop), GFP_KERNEL);
+	if (!lsop) {
+		nvme_fc_rcv_ls_req_err_msg(lport, w0);
+		ret = -ENOMEM;
+		goto out_put;
+	}
+
 	lsop->rqstbuf = kzalloc(sizeof(*lsop->rqstbuf), GFP_KERNEL);
 	lsop->rspbuf = kzalloc(sizeof(*lsop->rspbuf), GFP_KERNEL);
-	if (!lsop || !lsop->rqstbuf || !lsop->rspbuf) {
-		dev_info(lport->dev,
-			"RCV %s LS failed: No memory\n",
-			(w0->ls_cmd <= NVME_FC_LAST_LS_CMD_VALUE) ?
-				nvmefc_ls_names[w0->ls_cmd] : "");
+	if (!lsop->rqstbuf || !lsop->rspbuf) {
+		nvme_fc_rcv_ls_req_err_msg(lport, w0);
 		ret = -ENOMEM;
 		goto out_free;
 	}
@@ -2506,7 +2518,7 @@ __nvme_fc_abort_outstanding_ios(struct nvme_fc_ctrl *ctrl, bool start_queues)
 	 * Other transports, which don't have link-level contexts bound
 	 * to sqe's, would try to gracefully shutdown the controller by
 	 * writing the registers for shutdown and polling (call
-	 * nvme_shutdown_ctrl()). Given a bunch of i/o was potentially
+	 * nvme_disable_ctrl()). Given a bunch of i/o was potentially
 	 * just aborted and we will wait on those contexts, and given
 	 * there was no indication of how live the controlelr is on the
 	 * link, don't send more io to create more contexts for the
@@ -2733,7 +2745,7 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	atomic_set(&op->state, FCPOP_STATE_ACTIVE);
 
 	if (!(op->flags & FCOP_FLAGS_AEN))
-		blk_mq_start_request(op->rq);
+		nvme_start_request(op->rq);
 
 	cmdiu->csn = cpu_to_be32(atomic_inc_return(&queue->csn));
 	ret = ctrl->lport->ops->fcp_io(&ctrl->lport->localport,
@@ -2904,7 +2916,7 @@ nvme_fc_create_io_queues(struct nvme_fc_ctrl *ctrl)
 	nvme_fc_init_io_queues(ctrl);
 
 	ret = nvme_alloc_io_tag_set(&ctrl->ctrl, &ctrl->tag_set,
-			&nvme_fc_mq_ops, BLK_MQ_F_SHOULD_MERGE,
+			&nvme_fc_mq_ops, 1,
 			struct_size((struct nvme_fcp_op_w_sgl *)NULL, priv,
 				    ctrl->lport->ops->fcprqst_priv_sz));
 	if (ret)
@@ -3510,7 +3522,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	nvme_fc_init_queue(ctrl, 0);
 
 	ret = nvme_alloc_admin_tag_set(&ctrl->ctrl, &ctrl->admin_tag_set,
-			&nvme_fc_admin_mq_ops, BLK_MQ_F_NO_SCHED,
+			&nvme_fc_admin_mq_ops,
 			struct_size((struct nvme_fcp_op_w_sgl *)NULL, priv,
 				    ctrl->lport->ops->fcprqst_priv_sz));
 	if (ret)
