@@ -618,13 +618,12 @@ static void io_cqring_overflow_kill(struct io_ring_ctx *ctx)
 }
 
 /* Returns true if there are no backlogged entries after the flush */
-static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx)
+static void __io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 {
-	bool all_flushed;
 	size_t cqe_size = sizeof(struct io_uring_cqe);
 
 	if (__io_cqring_events(ctx) == ctx->cq_entries)
-		return false;
+		return;
 
 	if (ctx->flags & IORING_SETUP_CQE32)
 		cqe_size <<= 1;
@@ -643,30 +642,23 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 		kfree(ocqe);
 	}
 
-	all_flushed = list_empty(&ctx->cq_overflow_list);
-	if (all_flushed) {
+	if (list_empty(&ctx->cq_overflow_list)) {
 		clear_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq);
 		atomic_andnot(IORING_SQ_CQ_OVERFLOW, &ctx->rings->sq_flags);
 	}
-
 	io_cq_unlock_post(ctx);
-	return all_flushed;
 }
 
-static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx)
+static void io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 {
-	bool ret = true;
-
 	if (test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq)) {
 		/* iopoll syncs against uring_lock, not completion_lock */
 		if (ctx->flags & IORING_SETUP_IOPOLL)
 			mutex_lock(&ctx->uring_lock);
-		ret = __io_cqring_overflow_flush(ctx);
+		__io_cqring_overflow_flush(ctx);
 		if (ctx->flags & IORING_SETUP_IOPOLL)
 			mutex_unlock(&ctx->uring_lock);
 	}
-
-	return ret;
 }
 
 void __io_put_task(struct task_struct *task, int nr)
@@ -2494,11 +2486,7 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 	trace_io_uring_cqring_wait(ctx, min_events);
 	do {
-		/* if we can't even flush overflow, don't wait for more */
-		if (!io_cqring_overflow_flush(ctx)) {
-			ret = -EBUSY;
-			break;
-		}
+		io_cqring_overflow_flush(ctx);
 		prepare_to_wait_exclusive(&ctx->cq_wait, &iowq.wq,
 						TASK_INTERRUPTIBLE);
 		ret = io_cqring_wait_schedule(ctx, &iowq, timeout);
