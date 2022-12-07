@@ -2727,10 +2727,6 @@ static int ext4_do_writepages(struct mpage_da_data *mpd)
 	struct blk_plug plug;
 	bool give_up_on_write = false;
 
-	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
-		return -EIO;
-
-	percpu_down_read(&sbi->s_writepages_rwsem);
 	trace_ext4_writepages(inode, wbc);
 
 	/*
@@ -2940,20 +2936,28 @@ unplug:
 out_writepages:
 	trace_ext4_writepages_result(inode, wbc, ret,
 				     nr_to_write - wbc->nr_to_write);
-	percpu_up_read(&sbi->s_writepages_rwsem);
 	return ret;
 }
 
 static int ext4_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
+	struct super_block *sb = mapping->host->i_sb;
 	struct mpage_da_data mpd = {
 		.inode = mapping->host,
 		.wbc = wbc,
 		.can_map = 1,
 	};
+	int ret;
 
-	return ext4_do_writepages(&mpd);
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return -EIO;
+
+	percpu_down_read(&EXT4_SB(sb)->s_writepages_rwsem);
+	ret = ext4_do_writepages(&mpd);
+	percpu_up_read(&EXT4_SB(sb)->s_writepages_rwsem);
+
+	return ret;
 }
 
 static int ext4_dax_writepages(struct address_space *mapping,
