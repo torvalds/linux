@@ -12,23 +12,23 @@
  */
 
 #include <linux/bits.h>
-#include <linux/module.h>
-#include <linux/mod_devicetable.h>
-#include <linux/property.h>
+#include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/sched.h>
 #include <linux/math.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/err.h>
+#include <linux/property.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 
+#include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include <linux/iio/events.h>
 
 /* Use this many bits for fraction part. */
 #define ADC_FRAC_BITS		14
