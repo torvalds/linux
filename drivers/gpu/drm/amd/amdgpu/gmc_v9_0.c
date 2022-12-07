@@ -1173,7 +1173,6 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
-	case IP_VERSION(9, 4, 3):
 		if (is_vram) {
 			if (bo_adev == adev) {
 				if (uncached)
@@ -1207,6 +1206,45 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 			 */
 			snoop = true;
 		}
+		break;
+	case IP_VERSION(9, 4, 3):
+		/* FIXME: Needs more work for handling multiple memory
+		 * partitions (> NPS1 mode) e.g. NPS4 for both APU and dGPU
+		 * modes.
+		 */
+		snoop = true;
+		if (uncached) {
+			mtype = MTYPE_UC;
+		} else if (adev->gmc.is_app_apu) {
+			/* FIXME: APU in native mode, NPS1 single socket only
+			 *
+			 * For suporting NUMA partitioned APU e.g. in NPS4 mode,
+			 * this need to look at the NUMA node on which the
+			 * system memory allocation was done.
+			 *
+			 * Memory access by a different partition within same
+			 * socket should be treated as remote access so MTYPE_RW
+			 * cannot be used always.
+			 */
+			mtype = MTYPE_RW;
+		} else if (adev->flags & AMD_IS_APU) {
+			/* APU on carve out mode */
+			mtype = MTYPE_RW;
+		} else {
+			/* dGPU */
+			/*
+			if ((mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) &&
+			    bo_adev == adev)
+				mapping_flags |= AMDGPU_VM_MTYPE_RW;
+			else
+			*/
+			/* Temporarily comment out above lines and use MTYPE_NC
+			 * on both VRAM and system memory access until
+			 * MTYPE_RW can properly work on VRAM access
+			 */
+			mtype = MTYPE_NC;
+		}
+
 		break;
 	default:
 		if (uncached || coherent)
