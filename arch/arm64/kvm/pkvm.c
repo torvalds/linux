@@ -416,6 +416,7 @@ int pkvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 	return 0;
 }
 
+#ifdef CONFIG_MODULES
 static int __init early_pkvm_enable_modules(char *arg)
 {
 	kvm_nvhe_sym(__pkvm_modules_enabled) = true;
@@ -423,6 +424,7 @@ static int __init early_pkvm_enable_modules(char *arg)
 	return 0;
 }
 early_param("kvm-arm.protected_modules", early_pkvm_enable_modules);
+#endif
 
 struct pkvm_mod_sec_mapping {
 	struct pkvm_module_section *sec;
