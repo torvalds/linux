@@ -2812,8 +2812,13 @@ static void rkisp_rx_qbuf_online(struct rkisp_stream *stream,
 
 	rkisp_write(dev, stream->config->mi.y_base_ad_init, val, false);
 	if (dev->hw_dev->is_unite) {
-		val += (stream->out_fmt.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL) *
-			stream->out_isp_fmt.bpp[0] / 8;
+		u32 offs = stream->out_fmt.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL;
+
+		if (stream->memory)
+			offs *= DIV_ROUND_UP(stream->out_isp_fmt.bpp[0], 8);
+		else
+			offs = offs * stream->out_isp_fmt.bpp[0] / 8;
+		val += offs;
 		rkisp_next_write(dev, stream->config->mi.y_base_ad_init, val, false);
 	}
 }
@@ -2967,6 +2972,10 @@ end:
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD1];
 	}
 	if (dbufs->is_first) {
+		stream->memory = 0;
+		if (dbufs->is_uncompact)
+			stream->memory = SW_CSI_RAW_WR_SIMG_MODE;
+		rkisp_dmarx_set_fmt(stream, stream->out_fmt);
 		stream->ops->config_mi(stream);
 		dbufs->is_first = false;
 	}

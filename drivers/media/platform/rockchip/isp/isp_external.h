@@ -55,6 +55,8 @@ struct rkisp_rx_buf {
 
 	bool is_resmem;
 	bool is_switch;
+
+	bool is_uncompact;
 };
 
 #endif
