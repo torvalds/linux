@@ -921,8 +921,11 @@ static void __io_req_complete_post(struct io_kiocb *req)
 
 void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 {
-	if (!(issue_flags & IO_URING_F_UNLOCKED) ||
-	    !(req->ctx->flags & IORING_SETUP_IOPOLL)) {
+	if (req->ctx->task_complete && (issue_flags & IO_URING_F_IOWQ)) {
+		req->io_task_work.func = io_req_task_complete;
+		io_req_task_work_add(req);
+	} else if (!(issue_flags & IO_URING_F_UNLOCKED) ||
+		   !(req->ctx->flags & IORING_SETUP_IOPOLL)) {
 		__io_req_complete_post(req);
 	} else {
 		struct io_ring_ctx *ctx = req->ctx;
@@ -1830,7 +1833,7 @@ void io_wq_submit_work(struct io_wq_work *work)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
 	const struct io_op_def *def = &io_op_defs[req->opcode];
-	unsigned int issue_flags = IO_URING_F_UNLOCKED;
+	unsigned int issue_flags = IO_URING_F_UNLOCKED | IO_URING_F_IOWQ;
 	bool needs_poll = false;
 	int ret = 0, err = -ECANCELED;
 
@@ -3489,6 +3492,11 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 	ctx = io_ring_ctx_alloc(p);
 	if (!ctx)
 		return -ENOMEM;
+
+	if ((ctx->flags & IORING_SETUP_DEFER_TASKRUN) &&
+	    !(ctx->flags & IORING_SETUP_IOPOLL) &&
+	    !(ctx->flags & IORING_SETUP_SQPOLL))
+		ctx->task_complete = true;
 
 	/*
 	 * When SETUP_IOPOLL and SETUP_SQPOLL are both enabled, user
