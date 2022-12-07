@@ -77,7 +77,7 @@ struct dentry *lookup_one_positive_unlocked(struct user_namespace *mnt_userns,
 					    struct dentry *base, int len);
 
 extern int follow_down_one(struct path *);
-extern int follow_down(struct path *);
+extern int follow_down(struct path *path, unsigned int flags);
 extern int follow_up(struct path *);
 
 extern struct dentry *lock_rename(struct dentry *, struct dentry *);
