@@ -23,6 +23,22 @@ DECLARE_HOOK(android_vh_save_hib_resume_bdev,
 	TP_PROTO(struct block_device *hib_resume_bdev),
 	TP_ARGS(hib_resume_bdev));
 
+DECLARE_HOOK(android_vh_encrypt_page,
+	TP_PROTO(void *buf),
+	TP_ARGS(buf));
+
+DECLARE_HOOK(android_vh_init_aes_encrypt,
+	TP_PROTO(void *unused),
+	TP_ARGS(unused));
+
+DECLARE_HOOK(android_vh_skip_swap_map_write,
+	TP_PROTO(bool *skip),
+	TP_ARGS(skip));
+
+DECLARE_HOOK(android_vh_post_image_save,
+	TP_PROTO(unsigned short root_swap),
+	TP_ARGS(root_swap));
+
 #endif /* _TRACE_HOOK_BL_HIB_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
