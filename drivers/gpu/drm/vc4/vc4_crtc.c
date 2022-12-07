@@ -335,8 +335,14 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 	bool is_dsi = (vc4_encoder->type == VC4_ENCODER_TYPE_DSI0 ||
 		       vc4_encoder->type == VC4_ENCODER_TYPE_DSI1);
 	bool is_dsi1 = vc4_encoder->type == VC4_ENCODER_TYPE_DSI1;
+	bool is_vec = vc4_encoder->type == VC4_ENCODER_TYPE_VEC;
 	u32 format = is_dsi1 ? PV_CONTROL_FORMAT_DSIV_24 : PV_CONTROL_FORMAT_24;
 	u8 ppc = pv_data->pixels_per_clock;
+
+	u16 vert_bp = mode->crtc_vtotal - mode->crtc_vsync_end;
+	u16 vert_sync = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	u16 vert_fp = mode->crtc_vsync_start - mode->crtc_vdisplay;
+
 	bool debug_dump_regs = false;
 	int idx;
 
@@ -364,48 +370,59 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 		   VC4_SET_FIELD(mode->hdisplay * pixel_rep / ppc,
 				 PV_HORZB_HACTIVE));
 
-	CRTC_WRITE(PV_VERTA,
-		   VC4_SET_FIELD(mode->crtc_vtotal - mode->crtc_vsync_end +
-				 interlace,
-				 PV_VERTA_VBP) |
-		   VC4_SET_FIELD(mode->crtc_vsync_end - mode->crtc_vsync_start,
-				 PV_VERTA_VSYNC));
-	CRTC_WRITE(PV_VERTB,
-		   VC4_SET_FIELD(mode->crtc_vsync_start - mode->crtc_vdisplay,
-				 PV_VERTB_VFP) |
-		   VC4_SET_FIELD(mode->crtc_vdisplay, PV_VERTB_VACTIVE));
-
 	if (interlace) {
+		bool odd_field_first = false;
+		u32 field_delay = mode->htotal * pixel_rep / (2 * ppc);
+		u16 vert_bp_even = vert_bp;
+		u16 vert_fp_even = vert_fp;
+
+		if (is_vec) {
+			/* VEC (composite output) */
+			++field_delay;
+			if (mode->htotal == 858) {
+				/* 525-line mode (NTSC or PAL-M) */
+				odd_field_first = true;
+			}
+		}
+
+		if (odd_field_first)
+			++vert_fp_even;
+		else
+			++vert_bp;
+
 		CRTC_WRITE(PV_VERTA_EVEN,
-			   VC4_SET_FIELD(mode->crtc_vtotal -
-					 mode->crtc_vsync_end,
-					 PV_VERTA_VBP) |
-			   VC4_SET_FIELD(mode->crtc_vsync_end -
-					 mode->crtc_vsync_start,
-					 PV_VERTA_VSYNC));
+			   VC4_SET_FIELD(vert_bp_even, PV_VERTA_VBP) |
+			   VC4_SET_FIELD(vert_sync, PV_VERTA_VSYNC));
 		CRTC_WRITE(PV_VERTB_EVEN,
-			   VC4_SET_FIELD(mode->crtc_vsync_start -
-					 mode->crtc_vdisplay,
-					 PV_VERTB_VFP) |
+			   VC4_SET_FIELD(vert_fp_even, PV_VERTB_VFP) |
 			   VC4_SET_FIELD(mode->crtc_vdisplay, PV_VERTB_VACTIVE));
 
-		/* We set up first field even mode for HDMI.  VEC's
-		 * NTSC mode would want first field odd instead, once
-		 * we support it (to do so, set ODD_FIRST and put the
-		 * delay in VSYNCD_EVEN instead).
+		/* We set up first field even mode for HDMI and VEC's PAL.
+		 * For NTSC, we need first field odd.
 		 */
 		CRTC_WRITE(PV_V_CONTROL,
 			   PV_VCONTROL_CONTINUOUS |
 			   (is_dsi ? PV_VCONTROL_DSI : 0) |
 			   PV_VCONTROL_INTERLACE |
-			   VC4_SET_FIELD(mode->htotal * pixel_rep / (2 * ppc),
-					 PV_VCONTROL_ODD_DELAY));
-		CRTC_WRITE(PV_VSYNCD_EVEN, 0);
+			   (odd_field_first
+				   ? PV_VCONTROL_ODD_FIRST
+				   : VC4_SET_FIELD(field_delay,
+						   PV_VCONTROL_ODD_DELAY)));
+		CRTC_WRITE(PV_VSYNCD_EVEN,
+			   (odd_field_first ? field_delay : 0));
 	} else {
 		CRTC_WRITE(PV_V_CONTROL,
 			   PV_VCONTROL_CONTINUOUS |
 			   (is_dsi ? PV_VCONTROL_DSI : 0));
+		CRTC_WRITE(PV_VSYNCD_EVEN, 0);
 	}
+
+	CRTC_WRITE(PV_VERTA,
+		   VC4_SET_FIELD(vert_bp, PV_VERTA_VBP) |
+		   VC4_SET_FIELD(vert_sync, PV_VERTA_VSYNC));
+	CRTC_WRITE(PV_VERTB,
+		   VC4_SET_FIELD(vert_fp, PV_VERTB_VFP) |
+		   VC4_SET_FIELD(mode->crtc_vdisplay, PV_VERTB_VACTIVE));
 
 	if (is_dsi)
 		CRTC_WRITE(PV_HACT_ACT, mode->hdisplay * pixel_rep);
