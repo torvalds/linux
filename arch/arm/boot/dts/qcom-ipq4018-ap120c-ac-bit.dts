@@ -9,7 +9,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power {
+		led-power {
 			label = "ap120c-ac:green:power";
 			function = LED_FUNCTION_POWER;
 			color = <LED_COLOR_ID_GREEN>;
@@ -17,14 +17,14 @@
 			default-state = "on";
 		};
 
-		wlan {
+		led-wlan {
 			label = "ap120c-ac:green:wlan";
 			function = LED_FUNCTION_WLAN;
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&tlmm 3 GPIO_ACTIVE_HIGH>;
 		};
 
-		support {
+		led-support {
 			label = "ap120c-ac:green:support";
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&tlmm 2 GPIO_ACTIVE_HIGH>;

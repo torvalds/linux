@@ -441,8 +441,8 @@
 			interrupt-controller;
 		};
 
-		imem@1468f000 {
-			compatible = "simple-mfd";
+		sram@1468f000 {
+			compatible = "qcom,sdx65-imem", "syscon", "simple-mfd";
 			reg = <0x1468f000 0x1000>;
 			ranges = <0x0 0x1468f000 0x1000>;
 			#address-cells = <1>;

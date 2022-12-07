@@ -4,4 +4,5 @@
 / {
 	model = "Sony Xperia Z1";
 	compatible = "sony,xperia-honami", "qcom,msm8974";
+	chassis-type = "handset";
 };

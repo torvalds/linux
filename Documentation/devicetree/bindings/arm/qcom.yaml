@@ -29,17 +29,22 @@ description: |
         apq8074
         apq8084
         apq8096
+        ipq4018
         ipq6018
         ipq8074
         mdm9615
         msm8226
         msm8916
+        msm8956
         msm8974
+        msm8976
         msm8992
         msm8994
         msm8996
         msm8998
         qcs404
+        qdu1000
+        qru1000
         sa8155p
         sa8540p
         sc7180
@@ -51,6 +56,7 @@ description: |
         sdm632
         sdm636
         sdm660
+        sdm670
         sdm845
         sdx55
         sdx65
@@ -58,6 +64,7 @@ description: |
         sm6115
         sm6125
         sm6350
+        sm6375
         sm7225
         sm8150
         sm8250
@@ -78,6 +85,7 @@ description: |
         mtp
         qrd
         sbc
+        x100
 
   The 'soc_version' and 'board_version' elements take the form of v<Major>.<Minor>
   where the minor number may be omitted when it's zero, i.e.  v1.0 is the same
@@ -116,7 +124,9 @@ properties:
       - items:
           - enum:
               - asus,sparrow
+              - huawei,sturgeon
               - lg,lenok
+              - samsung,matisse-wifi
           - const: qcom,apq8026
 
       - items:
@@ -152,17 +162,29 @@ properties:
 
       - items:
           - enum:
+              - sony,kugo-row
+              - sony,suzu-row
+          - const: qcom,msm8956
+
+      - items:
+          - enum:
               - qcom,msm8960-cdp
           - const: qcom,msm8960
 
       - items:
           - enum:
-              - fairphone,fp2
               - lge,hammerhead
-              - samsung,klte
               - sony,xperia-amami
-              - sony,xperia-castor
               - sony,xperia-honami
+          - const: qcom,msm8974
+
+      - items:
+          - enum:
+              - fairphone,fp2
+              - oneplus,bacon
+              - samsung,klte
+              - sony,xperia-castor
+          - const: qcom,msm8974pro
           - const: qcom,msm8974
 
       - items:
@@ -251,7 +273,14 @@ properties:
               - sony,xperia-lilac
               - sony,xperia-maple
               - sony,xperia-poplar
+              - xiaomi,sagit
           - const: qcom,msm8998
+
+      - items:
+          - enum:
+              - 8dev,jalapeno
+              - alfa-network,ap120c-ac
+          - const: qcom,ipq4018
 
       - items:
           - enum:
@@ -264,6 +293,7 @@ properties:
 
       - items:
           - enum:
+              - mikrotik,rb3011
               - qcom,ipq8064-ap148
           - const: qcom,ipq8064
 
@@ -273,6 +303,25 @@ properties:
               - qcom,ipq8074-hk10-c1
               - qcom,ipq8074-hk10-c2
           - const: qcom,ipq8074
+
+      - description: Sierra Wireless MangOH Green with WP8548 Module
+        items:
+          - const: swir,mangoh-green-wp8548
+          - const: swir,wp8548
+          - const: qcom,mdm9615
+
+      - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
+        items:
+          - enum:
+              - qcom,qdu1000-idp
+              - qcom,qdu1000-x100
+          - const: qcom,qdu1000
+
+      - description: Qualcomm Technologies, Inc. Radio Unit 1000 platform
+        items:
+          - enum:
+              - qcom,qru1000-idp
+          - const: qcom,qru1000
 
       - description: Qualcomm Technologies, Inc. SC7180 IDP
         items:
@@ -595,6 +644,11 @@ properties:
           - const: google,evoker
           - const: qcom,sc7280
 
+      - description: Google Evoker with LTE (newest rev)
+        items:
+          - const: google,evoker-sku512
+          - const: qcom,sc7280
+
       - description: Google Herobrine (newest rev)
         items:
           - const: google,herobrine
@@ -613,6 +667,16 @@ properties:
       - description: Google Villager with LTE (newest rev)
         items:
           - const: google,villager-sku512
+          - const: qcom,sc7280
+
+      - description: Google Zombie (newest rev)
+        items:
+          - const: google,zombie
+          - const: qcom,sc7280
+
+      - description: Google Zombie with LTE (newest rev)
+        items:
+          - const: google,zombie-sku512
           - const: qcom,sc7280
 
       - items:
@@ -659,6 +723,11 @@ properties:
 
       - items:
           - enum:
+              - google,sargo
+          - const: qcom,sdm670
+
+      - items:
+          - enum:
               - qcom,sdx55-mtp
               - qcom,sdx55-telit-fn980-tlb
               - qcom,sdx55-t55
@@ -690,6 +759,7 @@ properties:
       - items:
           - enum:
               - qcom,sa8295p-adp
+              - qcom,sa8540p-ride
           - const: qcom,sa8540p
 
       - items:
@@ -732,6 +802,11 @@ properties:
 
       - items:
           - enum:
+              - sony,pdx225
+          - const: qcom,sm6375
+
+      - items:
+          - enum:
               - fairphone,fp4
           - const: qcom,sm7225
 
@@ -767,6 +842,7 @@ properties:
               - qcom,sm8450-hdk
               - qcom,sm8450-qrd
               - sony,pdx223
+              - sony,pdx224
           - const: qcom,sm8450
 
 additionalProperties: true
