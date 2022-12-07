@@ -785,6 +785,15 @@ config QCOM_MINIDUMP_PSTORE
 	  (non-volatile memory) and during warm reboot these
 	  dump will be copied outside the system on panic.
 
+config QCOM_SYSMON_SUBSYSTEM_STATS
+	tristate "Qualcomm Technologies SysMon DSP subsystem stats"
+	depends on QCOM_SMEM
+	help
+	  sysMon subsystem stats driver exposes API to query DSP
+	  subsystem's load, power, DDR and Sleep statistics stored in
+	  SMEM region for each DSP subsystem which is updated periodically
+	  by the respective subsystems.
+
 config MINIDUMP_MAX_ENTRIES
 	int "Minidump Maximum num of entries"
 	default 200
