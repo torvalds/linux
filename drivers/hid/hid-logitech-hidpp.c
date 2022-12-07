@@ -4269,21 +4269,6 @@ static void hidpp_remove(struct hid_device *hdev)
 	mutex_destroy(&hidpp->send_mutex);
 }
 
-static const struct hid_device_id unhandled_hidpp_devices[] = {
-	/* Logitech Harmony Adapter for PS3, handled in hid-sony */
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_HARMONY_PS3) },
-	/* Handled in hid-generic */
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_DINOVO_EDGE_KBD) },
-	{}
-};
-
-static bool hidpp_match(struct hid_device *hdev,
-			bool ignore_special_driver)
-{
-	/* Refuse to handle devices handled by other HID drivers */
-	return !hid_match_id(hdev, unhandled_hidpp_devices);
-}
-
 #define LDJ_DEVICE(product) \
 	HID_DEVICE(BUS_USB, HID_GROUP_LOGITECH_DJ_DEVICE, \
 		   USB_VENDOR_ID_LOGITECH, (product))
@@ -4376,9 +4361,6 @@ static const struct hid_device_id hidpp_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb01e) },
 	{ /* MX Master 3 mouse over Bluetooth */
 	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb023) },
-
-	{ /* And try to enable HID++ for all the Logitech Bluetooth devices */
-	  HID_DEVICE(BUS_BLUETOOTH, HID_GROUP_ANY, USB_VENDOR_ID_LOGITECH, HID_ANY_ID) },
 	{}
 };
 
@@ -4392,7 +4374,6 @@ static const struct hid_usage_id hidpp_usages[] = {
 static struct hid_driver hidpp_driver = {
 	.name = "logitech-hidpp-device",
 	.id_table = hidpp_devices,
-	.match = hidpp_match,
 	.report_fixup = hidpp_report_fixup,
 	.probe = hidpp_probe,
 	.remove = hidpp_remove,
