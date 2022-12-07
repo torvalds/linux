@@ -5,6 +5,7 @@
 
 #include <linux/lz4.h>
 #include <linux/usb.h>
+#include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 
 #include <drm/drm_atomic.h>
