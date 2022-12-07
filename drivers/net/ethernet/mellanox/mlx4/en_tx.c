@@ -911,11 +911,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Align descriptor to TXBB size */
 	desc_size = ALIGN(real_size, TXBB_SIZE);
 	nr_txbb = desc_size >> LOG_TXBB_SIZE;
-	if (unlikely(nr_txbb > MLX4_MAX_DESC_TXBBS)) {
-		if (netif_msg_tx_err(priv))
-			en_warn(priv, "Oversized header or SG list\n");
-		goto tx_drop_count;
-	}
 
 	bf_ok = ring->bf_enabled;
 	if (skb_vlan_tag_present(skb)) {
@@ -943,6 +938,11 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (likely(index + nr_txbb <= ring->size))
 		tx_desc = ring->buf + (index << LOG_TXBB_SIZE);
 	else {
+		if (unlikely(nr_txbb > MLX4_MAX_DESC_TXBBS)) {
+			if (netif_msg_tx_err(priv))
+				en_warn(priv, "Oversized header or SG list\n");
+			goto tx_drop_count;
+		}
 		tx_desc = (struct mlx4_en_tx_desc *) ring->bounce_buf;
 		bounce = true;
 		bf_ok = false;
