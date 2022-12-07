@@ -2712,6 +2712,12 @@ out:
 	return err;
 }
 
+static int ext4_writepage_cb(struct page *page, struct writeback_control *wbc,
+			     void *data)
+{
+	return ext4_writepage(page, wbc);
+}
+
 static int ext4_do_writepages(struct mpage_da_data *mpd)
 {
 	struct writeback_control *wbc = mpd->wbc;
@@ -2738,7 +2744,9 @@ static int ext4_do_writepages(struct mpage_da_data *mpd)
 		goto out_writepages;
 
 	if (ext4_should_journal_data(inode)) {
-		ret = generic_writepages(mapping, wbc);
+		blk_start_plug(&plug);
+		ret = write_cache_pages(mapping, wbc, ext4_writepage_cb, NULL);
+		blk_finish_plug(&plug);
 		goto out_writepages;
 	}
 
