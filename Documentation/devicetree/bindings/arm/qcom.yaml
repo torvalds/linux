@@ -35,6 +35,7 @@ description: |
         mdm9615
         msm8226
         msm8916
+        msm8953
         msm8956
         msm8974
         msm8976
@@ -52,6 +53,7 @@ description: |
         sc8180x
         sc8280xp
         sda660
+        sdm450
         sdm630
         sdm632
         sdm636
@@ -213,6 +215,15 @@ properties:
           - const: longcheer,l8150
           - const: qcom,msm8916-v1-qrd/9-v1
           - const: qcom,msm8916
+
+      - items:
+          - enum:
+              - motorola,potter
+              - xiaomi,daisy
+              - xiaomi,mido
+              - xiaomi,tissot
+              - xiaomi,vince
+          - const: qcom,msm8953
 
       - items:
           - enum:
@@ -696,6 +707,11 @@ properties:
 
       - items:
           - enum:
+              - motorola,ali
+          - const: qcom,sdm450
+
+      - items:
+          - enum:
               - sony,discovery-row
               - sony,kirin-row
               - sony,pioneer-row
@@ -710,6 +726,7 @@ properties:
       - items:
           - enum:
               - fairphone,fp3
+              - motorola,ocean
           - const: qcom,sdm632
 
       - items:
@@ -923,10 +940,12 @@ allOf:
               - qcom,apq8026
               - qcom,apq8094
               - qcom,apq8096
+              - qcom,msm8953
               - qcom,msm8992
               - qcom,msm8994
               - qcom,msm8996
               - qcom,msm8998
+              - qcom,sdm450
               - qcom,sdm630
               - qcom,sdm632
               - qcom,sdm845
