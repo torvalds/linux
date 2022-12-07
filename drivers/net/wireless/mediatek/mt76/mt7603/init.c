@@ -341,15 +341,15 @@ static void mt7603_led_set_config(struct mt76_dev *mt76, u8 delay_on,
 	      FIELD_PREP(MT_LED_STATUS_OFF, delay_off) |
 	      FIELD_PREP(MT_LED_STATUS_ON, delay_on);
 
-	addr = mt7603_reg_map(dev, MT_LED_STATUS_0(mt76->led_pin));
+	addr = mt7603_reg_map(dev, MT_LED_STATUS_0(mt76->leds.pin));
 	mt76_wr(dev, addr, val);
-	addr = mt7603_reg_map(dev, MT_LED_STATUS_1(mt76->led_pin));
+	addr = mt7603_reg_map(dev, MT_LED_STATUS_1(mt76->leds.pin));
 	mt76_wr(dev, addr, val);
 
-	val = MT_LED_CTRL_REPLAY(mt76->led_pin) |
-	      MT_LED_CTRL_KICK(mt76->led_pin);
-	if (mt76->led_al)
-		val |= MT_LED_CTRL_POLARITY(mt76->led_pin);
+	val = MT_LED_CTRL_REPLAY(mt76->leds.pin) |
+	      MT_LED_CTRL_KICK(mt76->leds.pin);
+	if (mt76->leds.al)
+		val |= MT_LED_CTRL_POLARITY(mt76->leds.pin);
 	addr = mt7603_reg_map(dev, MT_LED_CTRL);
 	mt76_wr(dev, addr, val);
 }
@@ -359,7 +359,7 @@ static int mt7603_led_set_blink(struct led_classdev *led_cdev,
 				unsigned long *delay_off)
 {
 	struct mt76_dev *mt76 = container_of(led_cdev, struct mt76_dev,
-					     led_cdev);
+					     leds.cdev);
 	u8 delta_on, delta_off;
 
 	delta_off = max_t(u8, *delay_off / 10, 1);
@@ -373,7 +373,7 @@ static void mt7603_led_set_brightness(struct led_classdev *led_cdev,
 				      enum led_brightness brightness)
 {
 	struct mt76_dev *mt76 = container_of(led_cdev, struct mt76_dev,
-					     led_cdev);
+					     leds.cdev);
 
 	if (!brightness)
 		mt7603_led_set_config(mt76, 0, 0xff);
@@ -535,8 +535,8 @@ int mt7603_register_device(struct mt7603_dev *dev)
 
 	/* init led callbacks */
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
-		dev->mt76.led_cdev.brightness_set = mt7603_led_set_brightness;
-		dev->mt76.led_cdev.blink_set = mt7603_led_set_blink;
+		dev->mt76.leds.cdev.brightness_set = mt7603_led_set_brightness;
+		dev->mt76.leds.cdev.blink_set = mt7603_led_set_blink;
 	}
 
 	wiphy->reg_notifier = mt7603_regd_notifier;

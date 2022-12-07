@@ -74,7 +74,7 @@ mt7615_led_set_config(struct led_classdev *led_cdev,
 	struct mt76_dev *mt76;
 	u32 val, addr;
 
-	mt76 = container_of(led_cdev, struct mt76_dev, led_cdev);
+	mt76 = container_of(led_cdev, struct mt76_dev, leds.cdev);
 	dev = container_of(mt76, struct mt7615_dev, mt76);
 
 	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm))
@@ -84,15 +84,15 @@ mt7615_led_set_config(struct led_classdev *led_cdev,
 	      FIELD_PREP(MT_LED_STATUS_OFF, delay_off) |
 	      FIELD_PREP(MT_LED_STATUS_ON, delay_on);
 
-	addr = mt7615_reg_map(dev, MT_LED_STATUS_0(mt76->led_pin));
+	addr = mt7615_reg_map(dev, MT_LED_STATUS_0(mt76->leds.pin));
 	mt76_wr(dev, addr, val);
-	addr = mt7615_reg_map(dev, MT_LED_STATUS_1(mt76->led_pin));
+	addr = mt7615_reg_map(dev, MT_LED_STATUS_1(mt76->leds.pin));
 	mt76_wr(dev, addr, val);
 
-	val = MT_LED_CTRL_REPLAY(mt76->led_pin) |
-	      MT_LED_CTRL_KICK(mt76->led_pin);
-	if (mt76->led_al)
-		val |= MT_LED_CTRL_POLARITY(mt76->led_pin);
+	val = MT_LED_CTRL_REPLAY(mt76->leds.pin) |
+	      MT_LED_CTRL_KICK(mt76->leds.pin);
+	if (mt76->leds.al)
+		val |= MT_LED_CTRL_POLARITY(mt76->leds.pin);
 	addr = mt7615_reg_map(dev, MT_LED_CTRL);
 	mt76_wr(dev, addr, val);
 
@@ -133,8 +133,8 @@ int mt7615_register_device(struct mt7615_dev *dev)
 
 	/* init led callbacks */
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
-		dev->mt76.led_cdev.brightness_set = mt7615_led_set_brightness;
-		dev->mt76.led_cdev.blink_set = mt7615_led_set_blink;
+		dev->mt76.leds.cdev.brightness_set = mt7615_led_set_brightness;
+		dev->mt76.leds.cdev.blink_set = mt7615_led_set_blink;
 	}
 
 	ret = mt7622_wmac_init(dev);

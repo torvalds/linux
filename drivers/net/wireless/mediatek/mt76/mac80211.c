@@ -198,14 +198,14 @@ static int mt76_led_init(struct mt76_dev *dev)
 	struct ieee80211_hw *hw = dev->hw;
 	int led_pin;
 
-	if (!dev->led_cdev.brightness_set && !dev->led_cdev.blink_set)
+	if (!dev->leds.cdev.brightness_set && !dev->leds.cdev.blink_set)
 		return 0;
 
-	snprintf(dev->led_name, sizeof(dev->led_name),
+	snprintf(dev->leds.name, sizeof(dev->leds.name),
 		 "mt76-%s", wiphy_name(hw->wiphy));
 
-	dev->led_cdev.name = dev->led_name;
-	dev->led_cdev.default_trigger =
+	dev->leds.cdev.name = dev->leds.name;
+	dev->leds.cdev.default_trigger =
 		ieee80211_create_tpt_led_trigger(hw,
 					IEEE80211_TPT_LEDTRIG_FL_RADIO,
 					mt76_tpt_blink,
@@ -214,20 +214,20 @@ static int mt76_led_init(struct mt76_dev *dev)
 	np = of_get_child_by_name(np, "led");
 	if (np) {
 		if (!of_property_read_u32(np, "led-sources", &led_pin))
-			dev->led_pin = led_pin;
-		dev->led_al = of_property_read_bool(np, "led-active-low");
+			dev->leds.pin = led_pin;
+		dev->leds.al = of_property_read_bool(np, "led-active-low");
 		of_node_put(np);
 	}
 
-	return led_classdev_register(dev->dev, &dev->led_cdev);
+	return led_classdev_register(dev->dev, &dev->leds.cdev);
 }
 
 static void mt76_led_cleanup(struct mt76_dev *dev)
 {
-	if (!dev->led_cdev.brightness_set && !dev->led_cdev.blink_set)
+	if (!dev->leds.cdev.brightness_set && !dev->leds.cdev.blink_set)
 		return;
 
-	led_classdev_unregister(&dev->led_cdev);
+	led_classdev_unregister(&dev->leds.cdev);
 }
 
 static void mt76_init_stream_cap(struct mt76_phy *phy,

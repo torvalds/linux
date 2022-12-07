@@ -49,7 +49,7 @@ static void mt7996_led_set_config(struct led_classdev *led_cdev,
 	struct mt76_dev *mt76;
 	u32 val;
 
-	mt76 = container_of(led_cdev, struct mt76_dev, led_cdev);
+	mt76 = container_of(led_cdev, struct mt76_dev, leds.cdev);
 	dev = container_of(mt76, struct mt7996_dev, mt76);
 
 	/* select TX blink mode, 2: only data frames */
@@ -65,7 +65,7 @@ static void mt7996_led_set_config(struct led_classdev *led_cdev,
 
 	/* control LED */
 	val = MT_LED_CTRL_BLINK_MODE | MT_LED_CTRL_KICK;
-	if (dev->mt76.led_al)
+	if (dev->mt76.leds.al)
 		val |= MT_LED_CTRL_POLARITY;
 
 	mt76_wr(dev, MT_LED_CTRL(0), val);
@@ -261,7 +261,7 @@ static void mt7996_mac_init(struct mt7996_dev *dev)
 				       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
-		i = dev->mt76.led_pin ? MT_LED_GPIO_MUX3 : MT_LED_GPIO_MUX2;
+		i = dev->mt76.leds.pin ? MT_LED_GPIO_MUX3 : MT_LED_GPIO_MUX2;
 		mt76_rmw_field(dev, i, MT_LED_GPIO_SEL_MASK, 4);
 	}
 
@@ -787,8 +787,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
 
 	/* init led callbacks */
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
-		dev->mt76.led_cdev.brightness_set = mt7996_led_set_brightness;
-		dev->mt76.led_cdev.blink_set = mt7996_led_set_blink;
+		dev->mt76.leds.cdev.brightness_set = mt7996_led_set_brightness;
+		dev->mt76.leds.cdev.blink_set = mt7996_led_set_blink;
 	}
 
 	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
