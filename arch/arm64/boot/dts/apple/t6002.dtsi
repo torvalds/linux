@@ -294,3 +294,8 @@
 		};
 	};
 };
+
+&ps_gfx {
+	// On t6002, the die0 GPU power domain needs both AFR power domains
+	power-domains = <&ps_afr>, <&ps_afr_die1>;
+};
