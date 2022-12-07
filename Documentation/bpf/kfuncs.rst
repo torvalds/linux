@@ -222,3 +222,86 @@ type. An example is shown below::
                 return register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &bpf_task_kfunc_set);
         }
         late_initcall(init_subsystem);
+
+3. Core kfuncs
+==============
+
+The BPF subsystem provides a number of "core" kfuncs that are potentially
+applicable to a wide variety of different possible use cases and programs.
+Those kfuncs are documented here.
+
+3.1 struct task_struct * kfuncs
+-------------------------------
+
+There are a number of kfuncs that allow ``struct task_struct *`` objects to be
+used as kptrs:
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_task_acquire bpf_task_release
+
+These kfuncs are useful when you want to acquire or release a reference to a
+``struct task_struct *`` that was passed as e.g. a tracepoint arg, or a
+struct_ops callback arg. For example:
+
+.. code-block:: c
+
+	/**
+	 * A trivial example tracepoint program that shows how to
+	 * acquire and release a struct task_struct * pointer.
+	 */
+	SEC("tp_btf/task_newtask")
+	int BPF_PROG(task_acquire_release_example, struct task_struct *task, u64 clone_flags)
+	{
+		struct task_struct *acquired;
+
+		acquired = bpf_task_acquire(task);
+
+		/*
+		 * In a typical program you'd do something like store
+		 * the task in a map, and the map will automatically
+		 * release it later. Here, we release it manually.
+		 */
+		bpf_task_release(acquired);
+		return 0;
+	}
+
+----
+
+A BPF program can also look up a task from a pid. This can be useful if the
+caller doesn't have a trusted pointer to a ``struct task_struct *`` object that
+it can acquire a reference on with bpf_task_acquire().
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_task_from_pid
+
+Here is an example of it being used:
+
+.. code-block:: c
+
+	SEC("tp_btf/task_newtask")
+	int BPF_PROG(task_get_pid_example, struct task_struct *task, u64 clone_flags)
+	{
+		struct task_struct *lookup;
+
+		lookup = bpf_task_from_pid(task->pid);
+		if (!lookup)
+			/* A task should always be found, as %task is a tracepoint arg. */
+			return -ENOENT;
+
+		if (lookup->pid != task->pid) {
+			/* bpf_task_from_pid() looks up the task via its
+			 * globally-unique pid from the init_pid_ns. Thus,
+			 * the pid of the lookup task should always be the
+			 * same as the input task.
+			 */
+			bpf_task_release(lookup);
+			return -EINVAL;
+		}
+
+		/* bpf_task_from_pid() returns an acquired reference,
+		 * so it must be dropped before returning from the
+		 * tracepoint handler.
+		 */
+		bpf_task_release(lookup);
+		return 0;
+	}

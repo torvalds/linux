@@ -1904,7 +1904,7 @@ struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
 }
 
 /**
- * bpf_task_release - Release the reference acquired on a struct task_struct *.
+ * bpf_task_release - Release the reference acquired on a task.
  * @p: The task on which a reference is being released.
  */
 void bpf_task_release(struct task_struct *p)
