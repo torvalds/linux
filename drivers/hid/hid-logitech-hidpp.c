@@ -221,6 +221,16 @@ struct hidpp_device {
 #define HIDPP_ERROR_INVALID_PARAM_VALUE		0x0b
 #define HIDPP_ERROR_WRONG_PIN_CODE		0x0c
 /* HID++ 2.0 error codes */
+#define HIDPP20_ERROR_NO_ERROR			0x00
+#define HIDPP20_ERROR_UNKNOWN			0x01
+#define HIDPP20_ERROR_INVALID_ARGS		0x02
+#define HIDPP20_ERROR_OUT_OF_RANGE		0x03
+#define HIDPP20_ERROR_HW_ERROR			0x04
+#define HIDPP20_ERROR_LOGITECH_INTERNAL		0x05
+#define HIDPP20_ERROR_INVALID_FEATURE_INDEX	0x06
+#define HIDPP20_ERROR_INVALID_FUNCTION_ID	0x07
+#define HIDPP20_ERROR_BUSY			0x08
+#define HIDPP20_ERROR_UNSUPPORTED		0x09
 #define HIDPP20_ERROR				0xff
 
 static void hidpp_connect_event(struct hidpp_device *hidpp_dev);
