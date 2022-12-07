@@ -34,10 +34,10 @@ intel_de_write(struct drm_i915_private *i915, i915_reg_t reg, u32 val)
 	intel_uncore_write(&i915->uncore, reg, val);
 }
 
-static inline void
+static inline u32
 intel_de_rmw(struct drm_i915_private *i915, i915_reg_t reg, u32 clear, u32 set)
 {
-	intel_uncore_rmw(&i915->uncore, reg, clear, set);
+	return intel_uncore_rmw(&i915->uncore, reg, clear, set);
 }
 
 static inline int
