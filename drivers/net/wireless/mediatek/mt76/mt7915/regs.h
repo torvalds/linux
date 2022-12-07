@@ -1054,6 +1054,7 @@ enum offs_rev {
 
 #define MT_LED_CTRL(_n)			MT_LED_PHYS(0x00 + ((_n) * 4))
 #define MT_LED_CTRL_KICK		BIT(7)
+#define MT_LED_CTRL_BAND		BIT(4)
 #define MT_LED_CTRL_BLINK_MODE		BIT(2)
 #define MT_LED_CTRL_POLARITY		BIT(1)
 
@@ -1061,11 +1062,18 @@ enum offs_rev {
 #define MT_LED_TX_BLINK_ON_MASK		GENMASK(7, 0)
 #define MT_LED_TX_BLINK_OFF_MASK        GENMASK(15, 8)
 
+#define MT_LED_STATUS_0(_n)		MT_LED_PHYS(0x20 + ((_n) * 8))
+#define MT_LED_STATUS_1(_n)		MT_LED_PHYS(0x24 + ((_n) * 8))
+#define MT_LED_STATUS_OFF		GENMASK(31, 24)
+#define MT_LED_STATUS_ON		GENMASK(23, 16)
+#define MT_LED_STATUS_DURATION		GENMASK(15, 0)
+
 #define MT_LED_EN(_n)			MT_LED_PHYS(0x40 + ((_n) * 4))
 
+#define MT_LED_GPIO_MUX0		0x70005050 /* GPIO 1 and GPIO 2 */
+#define MT_LED_GPIO_MUX1		0x70005054 /* GPIO 14 and 15 */
 #define MT_LED_GPIO_MUX2                0x70005058 /* GPIO 18 */
-#define MT_LED_GPIO_MUX3                0x7000505C /* GPIO 26 */
-#define MT_LED_GPIO_SEL_MASK            GENMASK(11, 8)
+#define MT_LED_GPIO_MUX3		0x7000505c /* GPIO 26 */
 
 /* MT TOP */
 #define MT_TOP_BASE			0x18060000
