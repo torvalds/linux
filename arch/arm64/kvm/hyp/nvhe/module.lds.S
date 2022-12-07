@@ -22,7 +22,7 @@ SECTIONS {
 	.hyp.rodata : {
 		HYP_SECTION_SYMBOL_NAME(.rodata) = .;
 		__hypmod_rodata_start = .;
-		*(.rodata .rodata.*)
+		*(.rodata .rodata.* .note.gnu.property)
 		BYTE(0)
 		__hypmod_rodata_end = .;
 	}
