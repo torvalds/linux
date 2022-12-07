@@ -8,6 +8,12 @@
 
 typedef void (*dyn_hcall_t)(struct kvm_cpu_context *);
 
+enum pkvm_psci_notification {
+	PKVM_PSCI_CPU_SUSPEND,
+	PKVM_PSCI_SYSTEM_SUSPEND,
+	PKVM_PSCI_CPU_ENTRY,
+};
+
 struct pkvm_module_ops {
 	int (*create_private_mapping)(phys_addr_t phys, size_t size,
 				      enum kvm_pgtable_prot prot,
@@ -22,6 +28,7 @@ struct pkvm_module_ops {
 	int (*protect_host_page)(u64 pfn, enum kvm_pgtable_prot prot);
 	int (*register_host_smc_handler)(bool (*cb)(struct kvm_cpu_context *));
 	int (*register_illegal_abt_notifier)(void (*cb)(struct kvm_cpu_context *));
+	int (*register_psci_notifier)(void (*cb)(enum pkvm_psci_notification, struct kvm_cpu_context *));
 };
 
 struct pkvm_module_section {

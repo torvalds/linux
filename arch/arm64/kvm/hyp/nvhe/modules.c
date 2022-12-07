@@ -65,6 +65,7 @@ const struct pkvm_module_ops module_ops = {
 	.protect_host_page = hyp_protect_host_page,
 	.register_host_smc_handler = __pkvm_register_host_smc_handler,
 	.register_illegal_abt_notifier = __pkvm_register_illegal_abt_notifier,
+	.register_psci_notifier = __pkvm_register_psci_notifier,
 };
 
 int __pkvm_init_module(void *module_init)
