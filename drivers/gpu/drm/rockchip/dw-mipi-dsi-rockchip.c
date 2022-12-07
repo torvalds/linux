@@ -296,6 +296,7 @@ struct dw_mipi_dsi_rockchip {
 	int devcnt;
 	struct rockchip_drm_sub_dev sub_dev;
 	struct drm_panel *panel;
+	struct drm_bridge *bridge;
 };
 
 struct dphy_pll_parameter_map {
@@ -974,6 +975,13 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 	struct device *second;
 	int ret;
 
+	ret = drm_of_find_panel_or_bridge(dsi->dev->of_node, 1, 0,
+					  &dsi->panel, &dsi->bridge);
+	if (ret) {
+		dev_err(dsi->dev, "failed to find panel or bridge: %d\n", ret);
+		return ret;
+	}
+
 	second = dw_mipi_dsi_rockchip_find_second(dsi);
 	if (IS_ERR(second))
 		return PTR_ERR(second);
@@ -1012,12 +1020,8 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 		return ret;
 	}
 
-	ret = drm_of_find_panel_or_bridge(dsi->dev->of_node, 1, 0,
-					  &dsi->panel, NULL);
-	if (ret)
-		dev_err(dsi->dev, "failed to find panel\n");
-
-	dw_mipi_dsi_get_dsc_info_from_sink(dsi, dsi->panel, NULL);
+	if (dsi->panel)
+		dw_mipi_dsi_get_dsc_info_from_sink(dsi, dsi->panel, NULL);
 
 	dsi->sub_dev.connector = dw_mipi_dsi_get_connector(dsi->dmd);
 	if (dsi->sub_dev.connector) {
