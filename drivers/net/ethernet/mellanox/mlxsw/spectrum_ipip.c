@@ -363,73 +363,6 @@ static const struct mlxsw_sp_ipip_ops mlxsw_sp_ipip_gre4_ops = {
 };
 
 static struct mlxsw_sp_ipip_parms
-mlxsw_sp1_ipip_netdev_parms_init_gre6(const struct net_device *ol_dev)
-{
-	struct mlxsw_sp_ipip_parms parms = {0};
-
-	WARN_ON_ONCE(1);
-	return parms;
-}
-
-static int
-mlxsw_sp1_ipip_nexthop_update_gre6(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
-				   struct mlxsw_sp_ipip_entry *ipip_entry,
-				   bool force, char *ratr_pl)
-{
-	WARN_ON_ONCE(1);
-	return -EINVAL;
-}
-
-static int
-mlxsw_sp1_ipip_decap_config_gre6(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_ipip_entry *ipip_entry,
-				 u32 tunnel_index)
-{
-	WARN_ON_ONCE(1);
-	return -EINVAL;
-}
-
-static bool mlxsw_sp1_ipip_can_offload_gre6(const struct mlxsw_sp *mlxsw_sp,
-					    const struct net_device *ol_dev)
-{
-	return false;
-}
-
-static struct mlxsw_sp_rif_ipip_lb_config
-mlxsw_sp1_ipip_ol_loopback_config_gre6(struct mlxsw_sp *mlxsw_sp,
-				       const struct net_device *ol_dev)
-{
-	struct mlxsw_sp_rif_ipip_lb_config config = {0};
-
-	WARN_ON_ONCE(1);
-	return config;
-}
-
-static int
-mlxsw_sp1_ipip_ol_netdev_change_gre6(struct mlxsw_sp *mlxsw_sp,
-				     struct mlxsw_sp_ipip_entry *ipip_entry,
-				     struct netlink_ext_ack *extack)
-{
-	WARN_ON_ONCE(1);
-	return -EINVAL;
-}
-
-static int
-mlxsw_sp1_ipip_rem_addr_set_gre6(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_ipip_entry *ipip_entry)
-{
-	WARN_ON_ONCE(1);
-	return -EINVAL;
-}
-
-static void
-mlxsw_sp1_ipip_rem_addr_unset_gre6(struct mlxsw_sp *mlxsw_sp,
-				   const struct mlxsw_sp_ipip_entry *ipip_entry)
-{
-	WARN_ON_ONCE(1);
-}
-
-static struct mlxsw_sp_ipip_parms
 mlxsw_sp_ipip_netdev_parms_init_gre6(const struct net_device *ol_dev)
 {
 	struct __ip6_tnl_parm parms = mlxsw_sp_ipip_netdev_parms6(ol_dev);
@@ -566,14 +499,14 @@ static const struct mlxsw_sp_ipip_ops mlxsw_sp1_ipip_gre6_ops = {
 	.ul_proto = MLXSW_SP_L3_PROTO_IPV6,
 	.inc_parsing_depth = true,
 	.double_rif_entry = true,
-	.parms_init = mlxsw_sp1_ipip_netdev_parms_init_gre6,
-	.nexthop_update = mlxsw_sp1_ipip_nexthop_update_gre6,
-	.decap_config = mlxsw_sp1_ipip_decap_config_gre6,
-	.can_offload = mlxsw_sp1_ipip_can_offload_gre6,
-	.ol_loopback_config = mlxsw_sp1_ipip_ol_loopback_config_gre6,
-	.ol_netdev_change = mlxsw_sp1_ipip_ol_netdev_change_gre6,
-	.rem_ip_addr_set = mlxsw_sp1_ipip_rem_addr_set_gre6,
-	.rem_ip_addr_unset = mlxsw_sp1_ipip_rem_addr_unset_gre6,
+	.parms_init = mlxsw_sp_ipip_netdev_parms_init_gre6,
+	.nexthop_update = mlxsw_sp_ipip_nexthop_update_gre6,
+	.decap_config = mlxsw_sp_ipip_decap_config_gre6,
+	.can_offload = mlxsw_sp_ipip_can_offload_gre6,
+	.ol_loopback_config = mlxsw_sp_ipip_ol_loopback_config_gre6,
+	.ol_netdev_change = mlxsw_sp_ipip_ol_netdev_change_gre6,
+	.rem_ip_addr_set = mlxsw_sp_ipip_rem_addr_set_gre6,
+	.rem_ip_addr_unset = mlxsw_sp_ipip_rem_addr_unset_gre6,
 };
 
 const struct mlxsw_sp_ipip_ops *mlxsw_sp1_ipip_ops_arr[] = {
