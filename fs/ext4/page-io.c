@@ -437,7 +437,6 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	unsigned block_start;
 	struct buffer_head *bh, *head;
 	int ret = 0;
-	int nr_submitted = 0;
 	int nr_to_submit = 0;
 	struct writeback_control *wbc = io->io_wbc;
 	bool keep_towrite = false;
@@ -566,7 +565,6 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 			continue;
 		io_submit_add_bh(io, inode,
 				 bounce_page ? bounce_page : page, bh);
-		nr_submitted++;
 	} while ((bh = bh->b_this_page) != head);
 unlock:
 	unlock_page(page);
