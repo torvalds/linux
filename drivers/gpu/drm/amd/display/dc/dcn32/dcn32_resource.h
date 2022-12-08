@@ -96,8 +96,17 @@ void dcn32_calculate_wm_and_dlg(
 		int pipe_cnt,
 		int vlevel);
 
-uint32_t dcn32_helper_calculate_num_ways_for_subvp
-		(struct dc *dc,
+uint32_t dcn32_helper_mall_bytes_to_ways(
+		struct dc *dc,
+		uint32_t total_size_in_mall_bytes);
+
+uint32_t dcn32_helper_calculate_mall_bytes_for_cursor(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		bool ignore_cursor_buf);
+
+uint32_t dcn32_helper_calculate_num_ways_for_subvp(
+		struct dc *dc,
 		struct dc_state *context);
 
 void dcn32_merge_pipes_for_subvp(struct dc *dc,

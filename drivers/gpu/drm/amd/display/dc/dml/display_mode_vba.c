@@ -202,6 +202,7 @@ dml_get_pipe_attr_func(vm_group_size_in_bytes, mode_lib->vba.vm_group_bytes);
 dml_get_pipe_attr_func(dpte_row_height_linear_l, mode_lib->vba.dpte_row_height_linear);
 dml_get_pipe_attr_func(pte_buffer_mode, mode_lib->vba.PTE_BUFFER_MODE);
 dml_get_pipe_attr_func(subviewport_lines_needed_in_mall, mode_lib->vba.SubViewportLinesNeededInMALL);
+dml_get_pipe_attr_func(surface_size_in_mall, mode_lib->vba.SurfaceSizeInMALL)
 
 double get_total_immediate_flip_bytes(
 		struct display_mode_lib *mode_lib,
