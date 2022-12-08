@@ -62,6 +62,7 @@ description: |
         sdx65
         sm4250
         sm6115
+        sm6115p
         sm6125
         sm6350
         sm6375
@@ -792,6 +793,12 @@ properties:
 
       - items:
           - enum:
+              - lenovo,j606f
+          - const: qcom,sm6115p
+          - const: qcom,sm6115
+
+      - items:
+          - enum:
               - sony,pdx201
           - const: qcom,sm6125
 
@@ -931,6 +938,7 @@ allOf:
               - qcom,sdm845
               - qcom,sdx55
               - qcom,sdx65
+              - qcom,sm6115
               - qcom,sm6125
               - qcom,sm6350
               - qcom,sm7225
