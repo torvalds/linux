@@ -411,6 +411,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				v->BlockWidthC,
 				v->BlockHeightY,
 				v->BlockHeightC,
+				mode_lib->vba.DCCMetaPitchY,
+				mode_lib->vba.DCCMetaPitchC,
 
 				/* Output */
 				v->SurfaceSizeInMALL,
@@ -2650,6 +2652,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			mode_lib->vba.MacroTileWidthC,
 			mode_lib->vba.MacroTileHeightY,
 			mode_lib->vba.MacroTileHeightC,
+			mode_lib->vba.DCCMetaPitchY,
+			mode_lib->vba.DCCMetaPitchC,
 
 			/* Output */
 			mode_lib->vba.SurfaceSizeInMALL,

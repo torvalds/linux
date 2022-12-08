@@ -1796,6 +1796,8 @@ void dml32_CalculateSurfaceSizeInMall(
 		unsigned int ReadBlockWidthC[],
 		unsigned int ReadBlockHeightY[],
 		unsigned int ReadBlockHeightC[],
+		unsigned int DCCMetaPitchY[],
+		unsigned int DCCMetaPitchC[],
 
 		/* Output */
 		unsigned int    SurfaceSizeInMALL[],
@@ -1828,7 +1830,7 @@ void dml32_CalculateSurfaceSizeInMall(
 			}
 			if (DCCEnable[k] == true) {
 				SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
-						dml_min(dml_ceil(SurfaceWidthY[k], 8 * Read256BytesBlockWidthY[k]),
+						dml_min(dml_ceil(DCCMetaPitchY[k], 8 * Read256BytesBlockWidthY[k]),
 							dml_floor(ViewportXStartY[k] + ViewportWidthY[k] + 8 *
 							Read256BytesBlockWidthY[k] - 1, 8 * Read256BytesBlockWidthY[k])
 							- dml_floor(ViewportXStartY[k], 8 * Read256BytesBlockWidthY[k]))
@@ -1839,7 +1841,7 @@ void dml32_CalculateSurfaceSizeInMall(
 							* Read256BytesBlockHeightY[k])) * BytesPerPixelY[k] / 256;
 				if (Read256BytesBlockWidthC[k] > 0) {
 					SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
-							dml_min(dml_ceil(SurfaceWidthC[k], 8 *
+							dml_min(dml_ceil(DCCMetaPitchC[k], 8 *
 								Read256BytesBlockWidthC[k]),
 								dml_floor(ViewportXStartC[k] + ViewportWidthC[k] + 8
 								* Read256BytesBlockWidthC[k] - 1, 8 *
@@ -1872,7 +1874,7 @@ void dml32_CalculateSurfaceSizeInMall(
 			}
 			if (DCCEnable[k] == true) {
 				SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
-						dml_ceil(dml_min(SurfaceWidthY[k], ViewportWidthY[k] + 8 *
+						dml_ceil(dml_min(DCCMetaPitchY[k], ViewportWidthY[k] + 8 *
 								Read256BytesBlockWidthY[k] - 1), 8 *
 								Read256BytesBlockWidthY[k]) *
 						dml_ceil(dml_min(SurfaceHeightY[k], ViewportHeightY[k] + 8 *
@@ -1881,7 +1883,7 @@ void dml32_CalculateSurfaceSizeInMall(
 
 				if (Read256BytesBlockWidthC[k] > 0) {
 					SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
-							dml_ceil(dml_min(SurfaceWidthC[k], ViewportWidthC[k] + 8 *
+							dml_ceil(dml_min(DCCMetaPitchC[k], ViewportWidthC[k] + 8 *
 									Read256BytesBlockWidthC[k] - 1), 8 *
 									Read256BytesBlockWidthC[k]) *
 							dml_ceil(dml_min(SurfaceHeightC[k], ViewportHeightC[k] + 8 *
