@@ -11,13 +11,7 @@
 
 #include <trace/hooks/vendor_hooks.h>
 
-#ifdef __GENKSYMS__
 struct dma_buf_sysfs_entry;
-#else
-/* struct dma_buf_sysfs_entry */
-#include <linux/dma-buf.h>
-#endif
-
 DECLARE_RESTRICTED_HOOK(android_rvh_dma_buf_stats_teardown,
 	TP_PROTO(struct dma_buf_sysfs_entry *sysfs_entry, bool *skip_sysfs_release),
 	TP_ARGS(sysfs_entry, skip_sysfs_release), 1);
