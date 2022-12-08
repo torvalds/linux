@@ -410,7 +410,14 @@ int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
 
 	result = le32_to_cpu(res.u32);
 	ctrl->cntlid = result & 0xFFFF;
-	if ((result >> 16) & 0x3) {
+	if (result & (NVME_CONNECT_AUTHREQ_ATR | NVME_CONNECT_AUTHREQ_ASCR)) {
+		/* Secure concatenation is not implemented */
+		if (result & NVME_CONNECT_AUTHREQ_ASCR) {
+			dev_warn(ctrl->device,
+				 "qid 0: secure concatenation is not supported\n");
+			ret = NVME_SC_AUTH_REQUIRED;
+			goto out_free_data;
+		}
 		/* Authentication required */
 		ret = nvme_auth_negotiate(ctrl, 0);
 		if (ret) {
@@ -486,7 +493,14 @@ int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid)
 				       &cmd, data);
 	}
 	result = le32_to_cpu(res.u32);
-	if ((result >> 16) & 2) {
+	if (result & (NVME_CONNECT_AUTHREQ_ATR | NVME_CONNECT_AUTHREQ_ASCR)) {
+		/* Secure concatenation is not implemented */
+		if (result & NVME_CONNECT_AUTHREQ_ASCR) {
+			dev_warn(ctrl->device,
+				 "qid 0: secure concatenation is not supported\n");
+			ret = NVME_SC_AUTH_REQUIRED;
+			goto out_free_data;
+		}
 		/* Authentication required */
 		ret = nvme_auth_negotiate(ctrl, qid);
 		if (ret) {
@@ -500,6 +514,7 @@ int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid)
 					 "qid %u: authentication failed\n", qid);
 		}
 	}
+out_free_data:
 	kfree(data);
 	return ret;
 }
