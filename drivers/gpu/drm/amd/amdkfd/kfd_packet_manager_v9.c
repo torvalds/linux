@@ -225,9 +225,19 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 			packet->bitfields2.engine_sel = q->properties.sdma_engine_id +
 				engine_sel__mes_map_queues__sdma0_vi;
 		else {
-			packet->bitfields2.extended_engine_sel =
-				extended_engine_sel__mes_map_queues__sdma0_to_7_sel;
-			packet->bitfields2.engine_sel = q->properties.sdma_engine_id;
+			/*
+			 * For GFX9.4.3, SDMA engine id can be greater than 8.
+			 * For such cases, set extended_engine_sel to 2 and
+			 * ensure engine_sel lies between 0-7.
+			 */
+			if (q->properties.sdma_engine_id >= 8)
+				packet->bitfields2.extended_engine_sel =
+					extended_engine_sel__mes_map_queues__sdma8_to_15_sel;
+			else
+				packet->bitfields2.extended_engine_sel =
+					extended_engine_sel__mes_map_queues__sdma0_to_7_sel;
+
+			packet->bitfields2.engine_sel = q->properties.sdma_engine_id % 8;
 		}
 		break;
 	default:

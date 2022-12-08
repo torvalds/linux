@@ -263,7 +263,8 @@ enum mes_map_queues_engine_sel_enum {
 
 enum mes_map_queues_extended_engine_sel_enum {
 	extended_engine_sel__mes_map_queues__legacy_engine_sel = 0,
-	extended_engine_sel__mes_map_queues__sdma0_to_7_sel = 1
+	extended_engine_sel__mes_map_queues__sdma0_to_7_sel  = 1,
+	extended_engine_sel__mes_map_queues__sdma8_to_15_sel = 2
 };
 
 struct pm4_mes_map_queues {
