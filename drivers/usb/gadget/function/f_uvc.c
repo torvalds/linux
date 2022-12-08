@@ -906,18 +906,6 @@ static void uvc_function_unbind(struct usb_configuration *c,
 		uvcg_dbg(f, "done waiting with ret: %ld\n", wait_ret);
 	}
 
-	/* If we know we're connected via v4l2, then there should be a cleanup
-	 * of the device from userspace either via UVC_EVENT_DISCONNECT or
-	 * though the video device removal uevent. Allow some time for the
-	 * application to close out before things get deleted.
-	 */
-	if (uvc->func_connected) {
-		uvcg_dbg(f, "waiting for clean disconnect\n");
-		wait_ret = wait_event_interruptible_timeout(uvc->func_connected_queue,
-				uvc->func_connected == false, msecs_to_jiffies(500));
-		uvcg_dbg(f, "done waiting with ret: %ld\n", wait_ret);
-	}
-
 	device_remove_file(&uvc->vdev.dev, &dev_attr_function_name);
 	video_unregister_device(&uvc->vdev);
 	v4l2_device_unregister(&uvc->v4l2_dev);
