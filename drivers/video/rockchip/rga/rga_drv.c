@@ -63,7 +63,8 @@
 #define RGA_TEST_FLUSH_TIME 0
 #define RGA_INFO_BUS_ERROR 1
 
-#define PRE_SCALE_BUF_SIZE  2048*1024*4
+#define RGA_PRE_SCALE_BUF_SIZE (2048 * 2048 * 4)
+#define RGA_PRE_SCALE_PAGE_SIZE (RGA_PRE_SCALE_BUF_SIZE >> PAGE_SHIFT)
 
 #define RGA_POWER_OFF_DELAY	4*HZ /* 4s */
 #define RGA_TIMEOUT_DELAY	2*HZ /* 2s */
@@ -2276,78 +2277,83 @@ void rga_test_1(void);
 
 static int __init rga_init(void)
 {
-	int ret;
-    uint32_t *mmu_buf;
-    unsigned long *mmu_buf_virtual;
-    uint32_t i;
-    uint32_t *buf_p;
-    uint32_t *buf;
+	int i, ret;
+	void * pre_scale_page_buf;
+	uint32_t *pre_scale_page_table;
+	uint32_t *mmu_base;
+	struct page **pages;
 
-    /* malloc pre scale mid buf mmu table */
-    mmu_buf = kzalloc(1024*8, GFP_KERNEL);
-    mmu_buf_virtual = kzalloc(1024*2*sizeof(unsigned long), GFP_KERNEL);
-    if(mmu_buf == NULL) {
-        printk(KERN_ERR "RGA get Pre Scale buff failed. \n");
-        return -1;
-    }
-	if (mmu_buf_virtual == NULL) {
-		return -1;
+	/* malloc pre scale mid buf mmu table */
+	pre_scale_page_table = kzalloc(RGA_PRE_SCALE_PAGE_SIZE * sizeof(*pre_scale_page_table),
+				       GFP_KERNEL);
+	if(pre_scale_page_table == NULL) {
+		pr_err("RGA alloc pre-scale page table failed.\n");
+		return -ENOMEM;
 	}
 
-    /* malloc 4 M buf */
-    for(i=0; i<1024; i++) {
-        buf_p = (uint32_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
-        if(buf_p == NULL) {
-            printk(KERN_ERR "RGA init pre scale buf falied\n");
-            return -ENOMEM;
-        }
-        mmu_buf[i] = virt_to_phys((void *)((unsigned long)buf_p));
-        mmu_buf_virtual[i] = (unsigned long)buf_p;
-    }
+	/* alloc reserved pre-scale buf */
+	for(i = 0; i < RGA_PRE_SCALE_PAGE_SIZE; i++) {
+		pre_scale_page_buf = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+		if(pre_scale_page_buf == NULL) {
+			printk(KERN_ERR "RGA init pre scale page_table[%d] falied\n", i);
+			ret = -ENOMEM;
+			goto free_pre_scale_page_table;
+		}
+		pre_scale_page_table[i] = (uint32_t)virt_to_phys(pre_scale_page_buf);
+	}
 
-    rga_service.pre_scale_buf = (uint32_t *)mmu_buf;
-    rga_service.pre_scale_buf_virtual = (unsigned long *)mmu_buf_virtual;
+	mmu_base = kmalloc(1024 * 256, GFP_KERNEL);
+	if (mmu_base == NULL) {
+		pr_err("RGA alloc mmu buffer failed.\n");
+		ret = -ENOMEM;
+		goto free_pre_scale_page_table;
+	}
 
-    buf_p = kmalloc(1024*256, GFP_KERNEL);
-    rga_mmu_buf.buf_virtual = buf_p;
+	pages = kmalloc((32768)* sizeof(struct page *), GFP_KERNEL);
+	if (pages == NULL) {
+		pr_err("RGA alloc pages buffer failed.\n");
+		ret = -ENOMEM;
+		goto free_mmu_base;
+	}
+
+	ret = platform_driver_register(&rga_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Platform device register failed (%d).\n", ret);
+		goto free_pages_buf;
+	}
+
+	rga_service.pre_scale_buf = pre_scale_page_table;
+
+	rga_mmu_buf.buf_virtual = mmu_base;
 #if (defined(CONFIG_ARM) && defined(CONFIG_ARM_LPAE))
-    buf = (uint32_t *)(uint32_t)virt_to_phys((void *)((unsigned long)buf_p));
+	rga_mmu_buf.buf = (uint32_t *)(uint32_t)virt_to_phys((void *)((unsigned long)mmu_base));
 #else
-    buf = (uint32_t *)virt_to_phys((void *)((unsigned long)buf_p));
+	rga_mmu_buf.buf = (uint32_t *)virt_to_phys((void *)((unsigned long)mmu_base));
 #endif
-    rga_mmu_buf.buf = buf;
-    rga_mmu_buf.front = 0;
-    rga_mmu_buf.back = 64*1024;
-    rga_mmu_buf.size = 64*1024;
+	rga_mmu_buf.front = 0;
+	rga_mmu_buf.back = 64*1024;
+	rga_mmu_buf.size = 64*1024;
 
-    rga_mmu_buf.pages = kmalloc((32768)* sizeof(struct page *), GFP_KERNEL);
+	rga_mmu_buf.pages = pages;
 
-	if ((ret = platform_driver_register(&rga_driver)) != 0)
-	{
-        printk(KERN_ERR "Platform device register failed (%d).\n", ret);
-			return ret;
-	}
+	rga_session_global.pid = 0x0000ffff;
+	INIT_LIST_HEAD(&rga_session_global.waiting);
+	INIT_LIST_HEAD(&rga_session_global.running);
+	INIT_LIST_HEAD(&rga_session_global.list_session);
 
-    {
-        rga_session_global.pid = 0x0000ffff;
-        INIT_LIST_HEAD(&rga_session_global.waiting);
-        INIT_LIST_HEAD(&rga_session_global.running);
-        INIT_LIST_HEAD(&rga_session_global.list_session);
+	INIT_LIST_HEAD(&rga_service.waiting);
+	INIT_LIST_HEAD(&rga_service.running);
+	INIT_LIST_HEAD(&rga_service.done);
+	INIT_LIST_HEAD(&rga_service.session);
 
-        INIT_LIST_HEAD(&rga_service.waiting);
-	    INIT_LIST_HEAD(&rga_service.running);
-	    INIT_LIST_HEAD(&rga_service.done);
-	    INIT_LIST_HEAD(&rga_service.session);
+	init_waitqueue_head(&rga_session_global.wait);
+	//mutex_lock(&rga_service.lock);
+	list_add_tail(&rga_session_global.list_session, &rga_service.session);
+	//mutex_unlock(&rga_service.lock);
+	atomic_set(&rga_session_global.task_running, 0);
+	atomic_set(&rga_session_global.num_done, 0);
 
-        init_waitqueue_head(&rga_session_global.wait);
-        //mutex_lock(&rga_service.lock);
-        list_add_tail(&rga_session_global.list_session, &rga_service.session);
-        //mutex_unlock(&rga_service.lock);
-        atomic_set(&rga_session_global.task_running, 0);
-        atomic_set(&rga_session_global.num_done, 0);
-    }
-
-    #if RGA_TEST_CASE
+#if RGA_TEST_CASE
 	rga_test_0();
 #endif
 #if RGA_DEBUGFS
@@ -2357,28 +2363,36 @@ static int __init rga_init(void)
 	INFO("RGA Module initialized.\n");
 
 	return 0;
+
+free_pages_buf:
+	kfree(pages);
+
+free_mmu_base:
+	kfree(mmu_base);
+
+free_pre_scale_page_table:
+	for (i = 0; i < RGA_PRE_SCALE_PAGE_SIZE; i++)
+		if (pre_scale_page_table[i] != 0)
+			kfree(phys_to_virt((phys_addr_t)pre_scale_page_table[i]));
+
+	kfree(pre_scale_page_table);
+
+	return ret;
 }
 
 static void __exit rga_exit(void)
 {
-    uint32_t i;
+	phys_addr_t pre_scale_buf;
 
-    rga_power_off();
+	rga_power_off();
 
-    for(i=0; i<1024; i++)
-    {
-        if((unsigned long)rga_service.pre_scale_buf_virtual[i])
-        {
-            __free_page((void *)rga_service.pre_scale_buf_virtual[i]);
-        }
-    }
-
-    if(rga_service.pre_scale_buf != NULL) {
-        kfree((uint8_t *)rga_service.pre_scale_buf);
-    }
-
+	if (rga_service.pre_scale_buf != NULL) {
+		pre_scale_buf = (phys_addr_t)rga_service.pre_scale_buf[0];
+		if (pre_scale_buf)
+			kfree(phys_to_virt(pre_scale_buf));
+		kfree(rga_service.pre_scale_buf);
+	}
 	kfree(rga_mmu_buf.buf_virtual);
-
 	kfree(rga_mmu_buf.pages);
 
 	platform_driver_unregister(&rga_driver);

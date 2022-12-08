@@ -404,7 +404,6 @@ typedef struct rga_service_info {
 
     uint32_t            cmd_buff[28*8];/* cmd_buff for rga */
     uint32_t            *pre_scale_buf;
-    unsigned long       *pre_scale_buf_virtual;
 	atomic_t            int_disable;     /* 0 int enable 1 int disable  */
     atomic_t            cmd_num;
 	atomic_t src_format_swt;
