@@ -690,25 +690,26 @@ static int stage2_map_walker_try_leaf(u64 addr, u64 end, u32 level,
 	else
 		new = data->annotation;
 
-	if (pte_ops->pte_is_counted_cb(old, level)) {
-		/*
-		 * Skip updating the PTE if we are trying to recreate the exact
-		 * same mapping or only change the access permissions. Instead,
-		 * the vCPU will exit one more time from guest if still needed
-		 * and then go through the path of relaxing permissions.
-		 */
-		if (!stage2_pte_needs_update(old, new))
-			return -EAGAIN;
+	/*
+	 * Skip updating the PTE if we are trying to recreate the exact
+	 * same mapping or only change the access permissions. Instead,
+	 * the vCPU will exit one more time from guest if still needed
+	 * and then go through the path of relaxing permissions.
+	 */
+	if (!stage2_pte_needs_update(old, new))
+		return -EAGAIN;
 
-		/*
-		 * If we're only changing software bits, then we don't need to
-		 * do anything else/
-		 */
-		if (!((old ^ new) & ~KVM_PTE_LEAF_ATTR_HI_SW))
-			goto out_set_pte;
+	if (pte_ops->pte_is_counted_cb(old, level))
+		mm_ops->put_page(ptep);
 
-		stage2_put_pte(ptep, data->mmu, addr, level, mm_ops);
-	}
+	/*
+	 * If we're only changing software bits, then we don't need to
+	 * do anything else.
+	 */
+	if (!((old ^ new) & ~KVM_PTE_LEAF_ATTR_HI_SW))
+		goto out_set_pte;
+
+	stage2_clear_pte(ptep, data->mmu, addr, level);
 
 	/* Perform CMOs before installation of the guest stage-2 PTE */
 	if (mm_ops->dcache_clean_inval_poc && stage2_pte_cacheable(pgt, new))
@@ -717,10 +718,10 @@ static int stage2_map_walker_try_leaf(u64 addr, u64 end, u32 level,
 	if (mm_ops->icache_inval_pou && stage2_pte_executable(new))
 		mm_ops->icache_inval_pou(kvm_pte_follow(new, mm_ops), granule);
 
+out_set_pte:
 	if (pte_ops->pte_is_counted_cb(new, level))
 		mm_ops->get_page(ptep);
 
-out_set_pte:
 	smp_store_release(ptep, new);
 	if (kvm_phys_is_valid(phys))
 		data->phys += granule;
@@ -785,13 +786,49 @@ static int stage2_map_walk_leaf(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 	 * a table. Accesses beyond 'end' that fall within the new table
 	 * will be mapped lazily.
 	 */
-	if (pte_ops->pte_is_counted_cb(pte, level))
+	if (pte_ops->pte_is_counted_cb(pte, level)) {
 		stage2_put_pte(ptep, data->mmu, addr, level, mm_ops);
+	} else {
+		/*
+		 * On non-refcounted PTEs we just clear them out without
+		 * dropping the refcount.
+		 */
+		stage2_clear_pte(ptep, data->mmu, addr, level);
+	}
 
 	kvm_set_table_pte(ptep, childp, mm_ops);
 	mm_ops->get_page(ptep);
 
 	return 0;
+}
+
+static void stage2_coalesce_walk_table_post(u64 addr, u64 end, u32 level,
+					    kvm_pte_t *ptep,
+					    struct stage2_map_data *data)
+{
+	struct kvm_pgtable_mm_ops *mm_ops = data->mm_ops;
+	kvm_pte_t *childp = kvm_pte_follow(*ptep, mm_ops);
+
+	/*
+	 * Decrement the refcount only on the set ownership path to avoid a
+	 * loop situation when the following happens:
+	 *  1. We take a host stage2 fault and we create a small mapping which
+	 *  has default attributes (is not refcounted).
+	 *  2. On the way back we execute the post handler and we zap the
+	 *  table that holds our mapping.
+	 */
+	if (kvm_phys_is_valid(data->phys) ||
+	    !kvm_level_supports_block_mapping(level))
+		return;
+
+	/*
+	 * Free a page that is not referenced anymore and drop the reference
+	 * of the page table page.
+	 */
+	if (mm_ops->page_count(childp) == 1) {
+		stage2_put_pte(ptep, data->mmu, addr, level, mm_ops);
+		mm_ops->put_page(childp);
+	}
 }
 
 static int stage2_map_walk_table_post(u64 addr, u64 end, u32 level,
@@ -802,8 +839,11 @@ static int stage2_map_walk_table_post(u64 addr, u64 end, u32 level,
 	kvm_pte_t *childp;
 	int ret = 0;
 
-	if (!data->anchor)
+	if (!data->anchor) {
+		stage2_coalesce_walk_table_post(addr, end, level, ptep,
+						data);
 		return 0;
+	}
 
 	if (data->anchor == ptep) {
 		childp = data->childp;
@@ -951,7 +991,8 @@ static int stage2_unmap_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 	 * block entry and rely on the remaining portions being faulted
 	 * back lazily.
 	 */
-	stage2_put_pte(ptep, mmu, addr, level, mm_ops);
+	if (pte_ops->pte_is_counted_cb(pte, level))
+		stage2_put_pte(ptep, mmu, addr, level, mm_ops);
 
 	if (need_flush && mm_ops->dcache_clean_inval_poc)
 		mm_ops->dcache_clean_inval_poc(kvm_pte_follow(pte, mm_ops),
