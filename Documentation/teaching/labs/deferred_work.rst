@@ -180,8 +180,8 @@ Tasklets can be masked and the following functions can be used:
 
 .. code-block:: c
 
-   void tasklet_enable(struct tasklet_struct * tasklet );
-   void tasklet_disable(struct tasklet_struct * tasklet );
+   void tasklet_enable(struct tasklet_struct * tasklet);
+   void tasklet_disable(struct tasklet_struct * tasklet);
 
 Remember that since tasklets are running from softirqs, blocking calls
 can not be used in the handler function.
