@@ -260,6 +260,24 @@ struct ieee802154_addr {
 	};
 };
 
+/**
+ * struct ieee802154_coord_desc - Coordinator descriptor
+ * @addr: PAN ID and coordinator address
+ * @page: page this coordinator is using
+ * @channel: channel this coordinator is using
+ * @superframe_spec: SuperFrame specification as received
+ * @link_quality: link quality indicator at which the beacon was received
+ * @gts_permit: the coordinator accepts GTS requests
+ */
+struct ieee802154_coord_desc {
+	struct ieee802154_addr addr;
+	u8 page;
+	u8 channel;
+	u16 superframe_spec;
+	u8 link_quality;
+	bool gts_permit;
+};
+
 struct ieee802154_llsec_key_id {
 	u8 mode;
 	u8 id;
