@@ -987,6 +987,88 @@ static void lenovo_yoga_tab2_830_1050_exit(void)
 	}
 }
 
+/* Medion Lifetab S10346 tablets have an Android factory img with everything hardcoded */
+static const char * const medion_lifetab_s10346_accel_mount_matrix[] = {
+	"0", "1", "0",
+	"1", "0", "0",
+	"0", "0", "1"
+};
+
+static const struct property_entry medion_lifetab_s10346_accel_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", medion_lifetab_s10346_accel_mount_matrix),
+	{ }
+};
+
+static const struct software_node medion_lifetab_s10346_accel_node = {
+	.properties = medion_lifetab_s10346_accel_props,
+};
+
+/* Note the LCD panel is mounted upside down, this is correctly indicated in the VBT */
+static const struct property_entry medion_lifetab_s10346_touchscreen_props[] = {
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	{ }
+};
+
+static const struct software_node medion_lifetab_s10346_touchscreen_node = {
+	.properties = medion_lifetab_s10346_touchscreen_props,
+};
+
+static const struct x86_i2c_client_info medion_lifetab_s10346_i2c_clients[] __initconst = {
+	{
+		/* kxtj21009 accel */
+		.board_info = {
+			.type = "kxtj21009",
+			.addr = 0x0f,
+			.dev_name = "kxtj21009",
+			.swnode = &medion_lifetab_s10346_accel_node,
+		},
+		.adapter_path = "\\_SB_.I2C3",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_GPIOINT,
+			.chip = "INT33FC:02",
+			.index = 23,
+			.trigger = ACPI_EDGE_SENSITIVE,
+			.polarity = ACPI_ACTIVE_HIGH,
+		},
+	}, {
+		/* goodix touchscreen */
+		.board_info = {
+			.type = "GDIX1001:00",
+			.addr = 0x14,
+			.dev_name = "goodix_ts",
+			.swnode = &medion_lifetab_s10346_touchscreen_node,
+		},
+		.adapter_path = "\\_SB_.I2C4",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_APIC,
+			.index = 0x44,
+			.trigger = ACPI_EDGE_SENSITIVE,
+			.polarity = ACPI_ACTIVE_LOW,
+		},
+	},
+};
+
+static struct gpiod_lookup_table medion_lifetab_s10346_goodix_gpios = {
+	.dev_id = "i2c-goodix_ts",
+	.table = {
+		GPIO_LOOKUP("INT33FC:01", 26, "reset", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("INT33FC:02", 3, "irq", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
+static struct gpiod_lookup_table * const medion_lifetab_s10346_gpios[] = {
+	&medion_lifetab_s10346_goodix_gpios,
+	NULL
+};
+
+static const struct x86_dev_info medion_lifetab_s10346_info __initconst = {
+	.i2c_client_info = medion_lifetab_s10346_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(medion_lifetab_s10346_i2c_clients),
+	.gpiod_lookup_tables = medion_lifetab_s10346_gpios,
+};
+
 /* Nextbook Ares 8 tablets have an Android factory img with everything hardcoded */
 static const char * const nextbook_ares8_accel_mount_matrix[] = {
 	"0", "-1", "0",
@@ -1244,6 +1326,16 @@ static const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VERSION, "BLADE_21"),
 		},
 		.driver_data = (void *)&lenovo_yoga_tab2_830_1050_info,
+	},
+	{
+		/* Medion Lifetab S10346 */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
+			/* Above strings are much too generic, also match on BIOS date */
+			DMI_MATCH(DMI_BIOS_DATE, "10/22/2015"),
+		},
+		.driver_data = (void *)&medion_lifetab_s10346_info,
 	},
 	{
 		/* Nextbook Ares 8 */
