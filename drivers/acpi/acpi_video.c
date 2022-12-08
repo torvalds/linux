@@ -70,11 +70,7 @@ module_param(device_id_scheme, bool, 0444);
 static int only_lcd = -1;
 module_param(only_lcd, int, 0444);
 
-/*
- * Display probing is known to take up to 5 seconds, so delay the fallback
- * backlight registration by 5 seconds + 3 seconds for some extra margin.
- */
-static int register_backlight_delay = 8;
+static int register_backlight_delay;
 module_param(register_backlight_delay, int, 0444);
 MODULE_PARM_DESC(register_backlight_delay,
 	"Delay in seconds before doing fallback (non GPU driver triggered) "
