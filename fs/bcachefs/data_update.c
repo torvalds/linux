@@ -469,7 +469,7 @@ int bch2_data_update_init(struct bch_fs *c, struct data_update *m,
 				? 0
 				: BCH_DISK_RESERVATION_NOFAIL);
 		if (ret)
-			return ret;
+			goto err;
 	}
 
 	m->op.nr_replicas = m->op.nr_replicas_required =
@@ -481,6 +481,14 @@ int bch2_data_update_init(struct bch_fs *c, struct data_update *m,
 	if (bkey_extent_is_unwritten(k))
 		return -BCH_ERR_unwritten_extent_update;
 	return 0;
+err:
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
+		bch2_bucket_nocow_unlock(&c->nocow_locks,
+				       PTR_BUCKET_POS(c, &p.ptr), 0);
+
+	bch2_bkey_buf_exit(&m->k, c);
+	bch2_bio_free_pages_pool(c, &m->op.wbio.bio);
+	return ret;
 }
 
 void bch2_data_update_opts_normalize(struct bkey_s_c k, struct data_update_opts *opts)
