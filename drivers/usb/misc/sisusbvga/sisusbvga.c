@@ -2947,18 +2947,7 @@ static struct usb_driver sisusb_driver = {
 	.id_table =	sisusb_table,
 };
 
-static int __init usb_sisusb_init(void)
-{
-	return usb_register(&sisusb_driver);
-}
-
-static void __exit usb_sisusb_exit(void)
-{
-	usb_deregister(&sisusb_driver);
-}
-
-module_init(usb_sisusb_init);
-module_exit(usb_sisusb_exit);
+module_usb_driver(sisusb_driver);
 
 MODULE_AUTHOR("Thomas Winischhofer <thomas@winischhofer.net>");
 MODULE_DESCRIPTION("sisusbvga - Driver for Net2280/SiS315-based USB2VGA dongles");
