@@ -850,7 +850,7 @@ static void rga_try_set_reg(void)
             rga_write((0x1<<2)|(0x1<<3), RGA_SYS_CTRL);
 
             /* All CMD finish int */
-            rga_write(rga_read(RGA_INT)|(0x1<<10)|(0x1<<8), RGA_INT);
+            rga_write(rga_read(RGA_INT)|(0x1<<10)|(0x1<<9)|(0x1<<8), RGA_INT);
 
 #if RGA_DEBUGFS
 	if (RGA_TEST_TIME)
@@ -1776,12 +1776,12 @@ static irqreturn_t rga_irq(int irq,  void *dev_id)
 		DBG("irq INT[%x], STATS[%x]\n", rga_read(RGA_INT), rga_read(RGA_STATUS));
 #endif
 	/*if error interrupt then soft reset hardware*/
-	if (rga_read(RGA_INT) & 0x01) {
+	if (rga_read(RGA_INT) & 0x03) {
 		pr_err("Err irq INT[%x], STATS[%x]\n", rga_read(RGA_INT), rga_read(RGA_STATUS));
 		rga_soft_reset();
 	}
 	/*clear INT */
-	rga_write(rga_read(RGA_INT) | (0x1<<6) | (0x1<<7) | (0x1<<4), RGA_INT);
+	rga_write(rga_read(RGA_INT) | (0x1<<6) | (0x1<<7) | (0x1<<5) | (0x1<<4), RGA_INT);
 
 	return IRQ_WAKE_THREAD;
 }
