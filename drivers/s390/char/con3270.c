@@ -91,6 +91,7 @@ struct tty3270 {
 	char *converted_line;		/* RAW 3270 data stream */
 	unsigned int line_view_start;	/* Start of visible area */
 	unsigned int line_write_start;	/* current write position */
+	unsigned int oops_line;		/* line counter used when print oops */
 
 	/* Current tty screen. */
 	unsigned int cx, cy;		/* Current output position. */
@@ -129,7 +130,8 @@ struct tty3270 {
 /* tty3270->update_flags. See tty3270_update for details. */
 #define TTY_UPDATE_INPUT	0x1	/* Update input line. */
 #define TTY_UPDATE_STATUS	0x2	/* Update status line. */
-#define TTY_UPDATE_ALL		0x3	/* Recreate screen. */
+#define TTY_UPDATE_LINES	0x4	/* Update visible screen lines */
+#define TTY_UPDATE_ALL		0x7	/* Recreate screen. */
 
 #define TTY3270_INPUT_AREA_ROWS 2
 
@@ -274,7 +276,7 @@ static int tty3270_add_status(struct tty3270 *tp)
 		codepage_convert(tp->view.ascebc, cp, len);
 		cp += len;
 	} else {
-		cp = tty3270_ebcdic_convert(tp, cp, "Running");
+		cp = tty3270_ebcdic_convert(tp, cp, oops_in_progress ? "Crashed" : "Running");
 	}
 	cp = tty3270_add_sf(tp, cp, TF_LOG);
 	cp = tty3270_add_sa(tp, cp, TAT_FGCOLOR, TAC_RESET);
@@ -468,6 +470,55 @@ static unsigned int tty3270_convert_line(struct tty3270 *tp, struct tty3270_line
 	return cp - (char *)tp->converted_line;
 }
 
+static void tty3270_update_lines_visible(struct tty3270 *tp, struct raw3270_request *rq)
+{
+	struct tty3270_line *line;
+	int len, i;
+
+	for (i = 0; i < tty3270_tty_rows(tp); i++) {
+		line = tty3270_get_view_line(tp, i);
+		if (!line->dirty)
+			continue;
+		len = tty3270_convert_line(tp, line, i);
+		if (raw3270_request_add_data(rq, tp->converted_line, len))
+			break;
+		line->dirty = 0;
+	}
+	if (i == tty3270_tty_rows(tp)) {
+		for (i = 0; i < tp->allocated_lines; i++)
+			tp->screen[i].dirty = 0;
+		tp->update_flags &= ~TTY_UPDATE_LINES;
+	}
+}
+
+static void tty3270_update_lines_all(struct tty3270 *tp, struct raw3270_request *rq)
+{
+	struct tty3270_line *line;
+	char buf[4];
+	int len, i;
+
+	for (i = 0; i < tp->allocated_lines; i++) {
+		line = tty3270_get_write_line(tp, i + tp->cy + 1);
+		if (!line->dirty)
+			continue;
+		len = tty3270_convert_line(tp, line, tp->oops_line);
+		if (raw3270_request_add_data(rq, tp->converted_line, len))
+			break;
+		line->dirty = 0;
+		if (++tp->oops_line >= tty3270_tty_rows(tp))
+			tp->oops_line = 0;
+	}
+
+	if (i == tp->allocated_lines) {
+		if (tp->oops_line < tty3270_tty_rows(tp)) {
+			tty3270_add_ra(tp, buf, 0, tty3270_tty_rows(tp), 0);
+			if (raw3270_request_add_data(rq, buf, sizeof(buf)))
+				return;
+		}
+		tp->update_flags &= ~TTY_UPDATE_LINES;
+	}
+}
+
 /*
  * Update 3270 display.
  */
@@ -475,9 +526,8 @@ static void tty3270_update(struct timer_list *t)
 {
 	struct tty3270 *tp = from_timer(tp, t, timer);
 	struct raw3270_request *wrq;
-	struct tty3270_line *line;
 	u8 cmd = TC_WRITE;
-	int i, rc, len;
+	int rc, len;
 
 	wrq = xchg(&tp->write, 0);
 	if (!wrq) {
@@ -511,18 +561,12 @@ static void tty3270_update(struct timer_list *t)
 			tp->update_flags &= ~TTY_UPDATE_INPUT;
 	}
 
-	for (i = 0; i < tty3270_tty_rows(tp); i++) {
-		line = tty3270_get_view_line(tp, i);
-		if (!line->dirty)
-			continue;
-		len = tty3270_convert_line(tp, line, i);
-		if (raw3270_request_add_data(wrq, tp->converted_line, len))
-			break;
-		line->dirty = 0;
+	if (tp->update_flags & TTY_UPDATE_LINES) {
+		if (oops_in_progress)
+			tty3270_update_lines_all(tp, wrq);
+		else
+			tty3270_update_lines_visible(tp, wrq);
 	}
-
-	if (i < tty3270_tty_rows(tp) - 1)
-		tty3270_set_timer(tp, 1);
 
 	wrq->callback = tty3270_write_callback;
 	rc = raw3270_start(&tp->view, wrq);
@@ -1750,6 +1794,7 @@ static void tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
 		}
 	}
 	/* Setup timer to update display after 1/10 second */
+	tp->update_flags |= TTY_UPDATE_LINES;
 	if (!timer_pending(&tp->timer))
 		tty3270_set_timer(tp, msecs_to_jiffies(100));
 
@@ -2068,6 +2113,7 @@ static int con3270_notify(struct notifier_block *self,
 		return NOTIFY_DONE;
 	con3270_wait_write(tp);
 	tp->nr_up = 0;
+	tp->update_flags = TTY_UPDATE_ALL;
 	while (tp->update_flags != 0) {
 		spin_unlock_irqrestore(&tp->view.lock, flags);
 		tty3270_update(&tp->timer);
