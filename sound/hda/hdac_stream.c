@@ -500,6 +500,9 @@ int snd_hdac_stream_setup_periods(struct hdac_stream *azx_dev)
 		dmab = snd_pcm_get_dma_buf(substream);
 	} else if (cstream) {
 		dmab = snd_pcm_get_dma_buf(cstream);
+	} else {
+		WARN(1, "No substream or cstream assigned\n");
+		return -EINVAL;
 	}
 
 	/* reset BDL address */
