@@ -67,6 +67,7 @@ static int io_msg_ring_data(struct io_kiocb *req)
 				  TWA_SIGNAL_NO_IPI))
 			return -EOWNERDEAD;
 
+		atomic_or(IORING_SQ_TASKRUN, &target_ctx->rings->sq_flags);
 		return IOU_ISSUE_SKIP_COMPLETE;
 	}
 
