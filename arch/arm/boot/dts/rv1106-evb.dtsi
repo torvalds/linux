@@ -25,6 +25,10 @@
 			press-threshold-microvolt = <400781>;
 		};
 	};
+
+	restart-poweroff {
+		compatible = "restart-poweroff";
+	};
 };
 
 &fiq_debugger {
