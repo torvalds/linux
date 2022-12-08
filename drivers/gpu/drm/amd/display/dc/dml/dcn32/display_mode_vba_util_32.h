@@ -1160,6 +1160,6 @@ bool dml32_CalculateDETSwathFillLatencyHiding(unsigned int NumberOfActiveSurface
 		double	PixelClock[],
 		double	VRatioY[],
 		double	VRatioC[],
-		enum dm_use_mall_for_pstate_change_mode UsesMALLForPStateChange[DC__NUM_DPP__MAX]);
+		enum dm_use_mall_for_pstate_change_mode UsesMALLForPStateChange[]);
 
 #endif
