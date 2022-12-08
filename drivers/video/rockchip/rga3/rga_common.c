@@ -665,3 +665,17 @@ int rga_image_size_cal(int w, int h, int format,
 
 	return (yrgb + uv + v);
 }
+
+void rga_dump_memory_parm(struct rga_memory_parm *parm)
+{
+	pr_info("memory param: w = %d, h = %d, f = %s(0x%x), size = %d\n",
+		parm->width, parm->height, rga_get_format_name(parm->format),
+		parm->format, parm->size);
+}
+
+void rga_dump_external_buffer(struct rga_external_buffer *buffer)
+{
+	pr_info("external: memory = 0x%lx, type = %s\n",
+		(unsigned long)buffer->memory, rga_get_memory_type_str(buffer->type));
+	rga_dump_memory_parm(&buffer->memory_parm);
+}

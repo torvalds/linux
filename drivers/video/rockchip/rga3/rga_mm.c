@@ -53,14 +53,14 @@ static int rga_get_user_pages_from_vma(struct page **pages, unsigned long Memory
 	for (i = 0; i < pageCount; i++) {
 		vma = find_vma(current_mm, (Memory + i) << PAGE_SHIFT);
 		if (!vma) {
-			pr_err("failed to get vma\n");
+			pr_err("page[%d] failed to get vma\n", i);
 			ret = RGA_OUT_OF_RESOURCES;
 			break;
 		}
 
 		pgd = pgd_offset(current_mm, (Memory + i) << PAGE_SHIFT);
 		if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd))) {
-			pr_err("failed to get pgd\n");
+			pr_err("page[%d] failed to get pgd\n", i);
 			ret = RGA_OUT_OF_RESOURCES;
 			break;
 		}
@@ -71,7 +71,7 @@ static int rga_get_user_pages_from_vma(struct page **pages, unsigned long Memory
 		 */
 		p4d = p4d_offset(pgd, (Memory + i) << PAGE_SHIFT);
 		if (p4d_none(*p4d) || unlikely(p4d_bad(*p4d))) {
-			pr_err("failed to get p4d\n");
+			pr_err("page[%d] failed to get p4d\n", i);
 			ret = RGA_OUT_OF_RESOURCES;
 			break;
 		}
@@ -82,20 +82,20 @@ static int rga_get_user_pages_from_vma(struct page **pages, unsigned long Memory
 #endif
 
 		if (pud_none(*pud) || unlikely(pud_bad(*pud))) {
-			pr_err("failed to get pud\n");
+			pr_err("page[%d] failed to get pud\n", i);
 			ret = RGA_OUT_OF_RESOURCES;
 			break;
 		}
 		pmd = pmd_offset(pud, (Memory + i) << PAGE_SHIFT);
 		if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd))) {
-			pr_err("failed to get pmd\n");
+			pr_err("page[%d] failed to get pmd\n", i);
 			ret = RGA_OUT_OF_RESOURCES;
 			break;
 		}
 		pte = pte_offset_map_lock(current_mm, pmd,
 					  (Memory + i) << PAGE_SHIFT, &ptl);
 		if (pte_none(*pte)) {
-			pr_err("failed to get pte\n");
+			pr_err("page[%d] failed to get pte\n", i);
 			pte_unmap_unlock(pte, ptl);
 			ret = RGA_OUT_OF_RESOURCES;
 			break;
@@ -105,6 +105,10 @@ static int rga_get_user_pages_from_vma(struct page **pages, unsigned long Memory
 		pages[i] = pfn_to_page(pfn);
 		pte_unmap_unlock(pte, ptl);
 	}
+
+	if (ret == RGA_OUT_OF_RESOURCES && i > 0)
+		pr_err("Only get buffer %d byte from vma, but current image required %d byte",
+		       (int)(i * PAGE_SIZE), (int)(pageCount * PAGE_SIZE));
 
 	return ret;
 }
@@ -144,9 +148,9 @@ static int rga_get_user_pages(struct page **pages, unsigned long Memory,
 				put_page(pages[i]);
 
 		ret = rga_get_user_pages_from_vma(pages, Memory, pageCount, current_mm);
-		if (ret < 0) {
-			pr_err("Can not get user pages from vma, result = %d, pagecount = %d\n",
-			       result, pageCount);
+		if (ret < 0 && result > 0) {
+			pr_err("Only get buffer %d byte from user pages, but current image required %d byte\n",
+			       (int)(result * PAGE_SIZE), (int)(pageCount * PAGE_SIZE));
 		}
 	}
 
@@ -245,6 +249,7 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	if (!size) {
 		pr_err("failed to calculating buffer size! size = %ld, count = %d, offset = %ld\n",
 		       size, count, (unsigned long)offset);
+		rga_dump_memory_parm(memory_parm);
 		return -EFAULT;
 	}
 
@@ -259,7 +264,8 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	/* get pages from virtual address. */
 	ret = rga_get_user_pages(pages, viraddr >> PAGE_SHIFT, count, writeFlag, mm);
 	if (ret < 0) {
-		pr_err("failed to get pages");
+		pr_err("failed to get pages from virtual adrees: 0x%lx\n",
+		       (unsigned long)viraddr);
 		ret = -EINVAL;
 		goto out_free_pages;
 	} else if (ret > 0) {
@@ -301,7 +307,7 @@ static inline bool rga_mm_check_memory_limit(struct rga_scheduler_t *scheduler, 
 
 	if (scheduler->data->mmu == RGA_MMU &&
 	    !(mm_flag & RGA_MEM_UNDER_4G)) {
-		pr_err("%s unsupported Memory larger than 4G!\n",
+		pr_err("%s unsupported memory larger than 4G!\n",
 		       rga_get_mmu_type_str(scheduler->data->mmu));
 		return false;
 	}
@@ -576,8 +582,8 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 		if (mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS)
 			break;
 
-		pr_err("Current RGA mmu[%d] cannot support virtual address!\n",
-		       scheduler->data->mmu);
+		pr_err("Current %s[%d] cannot support virtual address!\n",
+		       rga_get_mmu_type_str(scheduler->data->mmu), scheduler->data->mmu);
 		goto free_dma_buffer;
 	}
 
@@ -649,7 +655,8 @@ static int rga_mm_map_phys_addr(struct rga_external_buffer *external_buffer,
 						 internal_buffer->memory_parm.format,
 						 NULL, NULL, NULL);
 	if (buffer_size <= 0) {
-		pr_err("Fault to get phys addr size!\n");
+		pr_err("Failed to get phys addr size!\n");
+		rga_dump_memory_parm(&internal_buffer->memory_parm);
 		return buffer_size == 0 ? -EINVAL : buffer_size;
 	}
 
@@ -738,7 +745,7 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 
 		ret = rga_mm_map_virt_addr(external_buffer, internal_buffer, job, write_flag);
 		if (ret < 0) {
-			pr_err("%s iommu_map virtual address error!\n", __func__);
+			pr_err("%s map virtual address error!\n", __func__);
 			return ret;
 		}
 
@@ -751,7 +758,7 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 
 		ret = rga_mm_map_phys_addr(external_buffer, internal_buffer, job);
 		if (ret < 0) {
-			pr_err("%s iommu_map physical address error!\n", __func__);
+			pr_err("%s map physical address error!\n", __func__);
 			return ret;
 		}
 
@@ -1415,7 +1422,7 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 			ret = rga_mm_get_buffer(mm, job, handle, &img->yrgb_addr,
 						&job_buf->y_addr, dir);
 			if (ret < 0) {
-				pr_err("handle[%d] Can't get src y/rgb address info!\n", handle);
+				pr_err("handle[%d] Can't get y/rgb address info!\n", handle);
 				return ret;
 			}
 		}
@@ -1425,7 +1432,7 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 			ret = rga_mm_get_buffer(mm, job, handle, &img->uv_addr,
 						&job_buf->uv_addr, dir);
 			if (ret < 0) {
-				pr_err("handle[%d] Can't get src uv address info!\n", handle);
+				pr_err("handle[%d] Can't get uv address info!\n", handle);
 				return ret;
 			}
 		}
@@ -1435,7 +1442,7 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 			ret = rga_mm_get_buffer(mm, job, handle, &img->v_addr,
 						&job_buf->v_addr, dir);
 			if (ret < 0) {
-				pr_err("handle[%d] Can't get src uv address info!\n", handle);
+				pr_err("handle[%d] Can't get uv address info!\n", handle);
 				return ret;
 			}
 		}
@@ -1445,7 +1452,7 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 			ret = rga_mm_get_buffer(mm, job, handle, &img->yrgb_addr,
 						&job_buf->addr, dir);
 			if (ret < 0) {
-				pr_err("handle[%d] Can't get src y/rgb address info!\n", handle);
+				pr_err("handle[%d] Can't get y/rgb address info!\n", handle);
 				return ret;
 			}
 		}
@@ -1496,7 +1503,7 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 						     &job->src_buffer,
 						     DMA_TO_DEVICE);
 		if (ret < 0) {
-			pr_err("Can't get src buffer third info!\n");
+			pr_err("Can't get src buffer info from handle!\n");
 			return ret;
 		}
 	}
@@ -1506,7 +1513,7 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 						     &job->dst_buffer,
 						     DMA_TO_DEVICE);
 		if (ret < 0) {
-			pr_err("Can't get dst buffer third info!\n");
+			pr_err("Can't get dst buffer info from handle!\n");
 			return ret;
 		}
 	}
@@ -1528,7 +1535,7 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 							     DMA_BIDIRECTIONAL);
 		}
 		if (ret < 0) {
-			pr_err("Can't get pat buffer third info!\n");
+			pr_err("Can't get pat buffer info from handle!\n");
 			return ret;
 		}
 	}

@@ -424,7 +424,7 @@ int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buff
 	if (dma_buf != NULL) {
 		get_dma_buf(dma_buf);
 	} else {
-		pr_err("dma_buf is Invalid[%p]\n", dma_buf);
+		pr_err("dma_buf is invalid[%p]\n", dma_buf);
 		return -EINVAL;
 	}
 
@@ -437,7 +437,7 @@ int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buff
 
 	sgt = dma_buf_map_attachment(attach, dir);
 	if (IS_ERR(sgt)) {
-		pr_err("Failed to map src attachment\n");
+		pr_err("Failed to map attachment\n");
 		ret = -EINVAL;
 		goto err_get_sgt;
 	}
@@ -474,7 +474,7 @@ int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
 
 	dma_buf = dma_buf_get(fd);
 	if (IS_ERR(dma_buf)) {
-		pr_err("dma_buf_get fail fd[%d]\n", fd);
+		pr_err("Fail to get dma_buf from fd[%d]\n", fd);
 		ret = -EINVAL;
 		return ret;
 	}
@@ -488,7 +488,7 @@ int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
 
 	sgt = dma_buf_map_attachment(attach, dir);
 	if (IS_ERR(sgt)) {
-		pr_err("Failed to map src attachment\n");
+		pr_err("Failed to map attachment\n");
 		ret = -EINVAL;
 		goto err_get_sgt;
 	}

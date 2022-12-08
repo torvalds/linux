@@ -826,16 +826,6 @@ void rga_cmd_print_debug_info(struct rga_req *req)
 		req->core, req->priority, req->in_fence_fd);
 }
 
-void rga_dump_external_buffer(struct rga_external_buffer *buffer)
-{
-	pr_info("external: memory = 0x%lx, type = %s\n",
-		(unsigned long)buffer->memory, rga_get_memory_type_str(buffer->type));
-	pr_info("param: w = %d, h = %d, f = %s, size = %d\n",
-		buffer->memory_parm.width, buffer->memory_parm.height,
-		rga_get_format_name(buffer->memory_parm.format),
-		buffer->memory_parm.size);
-}
-
 #ifdef CONFIG_NO_GKI
 static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
 				  const char *channel_name,

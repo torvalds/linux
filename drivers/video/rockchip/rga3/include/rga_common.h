@@ -40,5 +40,7 @@ void rga_convert_addr(struct rga_img_info_t *img, bool before_vir_get_channel);
 void rga_swap_pd_mode(struct rga_req *req_rga);
 int rga_image_size_cal(int w, int h, int format,
 		       int *yrgb_size, int *uv_size, int *v_size);
+void rga_dump_memory_parm(struct rga_memory_parm *parm);
+void rga_dump_external_buffer(struct rga_external_buffer *buffer);
 
 #endif
