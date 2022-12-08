@@ -166,6 +166,29 @@ int intel_gsc_uc_fw_upload(struct intel_gsc_uc *gsc)
 	if (err)
 		goto fail;
 
+	/*
+	 * GSC is only killed by an FLR, so we need to trigger one on unload to
+	 * make sure we stop it. This is because we assign a chunk of memory to
+	 * the GSC as part of the FW load , so we need to make sure it stops
+	 * using it when we release it to the system on driver unload. Note that
+	 * this is not a problem of the unload per-se, because the GSC will not
+	 * touch that memory unless there are requests for it coming from the
+	 * driver; therefore, no accesses will happen while i915 is not loaded,
+	 * but if we re-load the driver then the GSC might wake up and try to
+	 * access that old memory location again.
+	 * Given that an FLR is a very disruptive action (see the FLR function
+	 * for details), we want to do it as the last action before releasing
+	 * the access to the MMIO bar, which means we need to do it as part of
+	 * the primary uncore cleanup.
+	 * An alternative approach to the FLR would be to use a memory location
+	 * that survives driver unload, like e.g. stolen memory, and keep the
+	 * GSC loaded across reloads. However, this requires us to make sure we
+	 * preserve that memory location on unload and then determine and
+	 * reserve its offset on each subsequent load, which is not trivial, so
+	 * it is easier to just kill everything and start fresh.
+	 */
+	intel_uncore_set_flr_on_fini(&gt->i915->uncore);
+
 	err = gsc_fw_load(gsc);
 	if (err)
 		goto fail;
