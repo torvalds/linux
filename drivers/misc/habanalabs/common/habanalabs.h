@@ -1544,8 +1544,9 @@ struct engines_data {
  * @check_if_razwi_happened: check if there was a razwi due to RR violation.
  * @access_dev_mem: access device memory
  * @set_dram_bar_base: set the base of the DRAM BAR
- * @set_engine_cores: set a config command to enigne cores
+ * @set_engine_cores: set a config command to engine cores
  * @send_device_activity: indication to FW about device availability
+ * @set_dram_properties: set DRAM related properties.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
