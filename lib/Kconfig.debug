@@ -2079,6 +2079,41 @@ menuconfig RUNTIME_TESTING_MENU
 
 if RUNTIME_TESTING_MENU
 
+config TEST_DHRY
+	tristate "Dhrystone benchmark test"
+	help
+	  Enable this to include the Dhrystone 2.1 benchmark.  This test
+	  calculates the number of Dhrystones per second, and the number of
+	  DMIPS (Dhrystone MIPS) obtained when the Dhrystone score is divided
+	  by 1757 (the number of Dhrystones per second obtained on the VAX
+	  11/780, nominally a 1 MIPS machine).
+
+	  To run the benchmark, it needs to be enabled explicitly, either from
+	  the kernel command line (when built-in), or from userspace (when
+	  built-in or modular.
+
+	  Run once during kernel boot:
+
+	      test_dhry.run
+
+	  Set number of iterations from kernel command line:
+
+	      test_dhry.iterations=<n>
+
+	  Set number of iterations from userspace:
+
+	      echo <n> > /sys/module/test_dhry/parameters/iterations
+
+	  Trigger manual run from userspace:
+
+	      echo y > /sys/module/test_dhry/parameters/run
+
+	  If the number of iterations is <= 0, the test will devise a suitable
+	  number of iterations (test runs for at least 2s) automatically.
+	  This process takes ca. 4s.
+
+	  If unsure, say N.
+
 config LKDTM
 	tristate "Linux Kernel Dump Test Tool Module"
 	depends on DEBUG_FS
