@@ -4441,9 +4441,10 @@ static int devlink_resource_put(struct devlink *devlink, struct sk_buff *skb,
 	    nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_ID, resource->id,
 			      DEVLINK_ATTR_PAD))
 		goto nla_put_failure;
-	if (resource->size != resource->size_new)
-		nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_NEW,
-				  resource->size_new, DEVLINK_ATTR_PAD);
+	if (resource->size != resource->size_new &&
+	    nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_NEW,
+			      resource->size_new, DEVLINK_ATTR_PAD))
+		goto nla_put_failure;
 	if (devlink_resource_occ_put(resource, skb))
 		goto nla_put_failure;
 	if (devlink_resource_size_params_put(resource, skb))
