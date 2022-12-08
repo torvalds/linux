@@ -34,6 +34,11 @@ struct gh_resource {
 };
 
 /**
+ * Gunyah Doorbells
+ */
+#define GH_BELL_NONBLOCK		BIT(32)
+
+/**
  * Gunyah Message Queues
  */
 

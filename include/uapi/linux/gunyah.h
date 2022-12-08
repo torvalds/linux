@@ -76,6 +76,19 @@ struct gh_vm_dtb_config {
  */
 #define GH_FN_VCPU 		1
 
+/**
+ * GH_FN_IRQFD - register eventfd to assert a Gunyah doorbell
+ *
+ * gh_fn_desc is filled with gh_fn_irqfd_arg
+ *
+ * Allows setting an eventfd to directly trigger a guest interrupt.
+ * irqfd.fd specifies the file descriptor to use as the eventfd.
+ * irqfd.label corresponds to the doorbell label used in the guest VM's devicetree.
+ *
+ * Return: 0
+ */
+#define GH_FN_IRQFD 		2
+
 #define GH_FN_MAX_ARG_SIZE		256
 
 /**
@@ -87,6 +100,23 @@ struct gh_fn_vcpu_arg {
 };
 
 #define GH_IRQFD_LEVEL			(1UL << 0)
+
+/**
+ * struct gh_fn_irqfd_arg - Arguments to create an irqfd function
+ * @fd: an eventfd which when written to will raise a doorbell
+ * @label: Label of the doorbell created on the guest VM
+ * @flags: GH_IRQFD_LEVEL configures the corresponding doorbell to behave
+ *         like a level triggered interrupt.
+ * @padding: padding bytes
+ */
+struct gh_fn_irqfd_arg {
+	__u32 fd;
+	__u32 label;
+	__u32 flags;
+	__u32 padding;
+};
+
+#define GH_IOEVENTFD_DATAMATCH		(1UL << 0)
 
 /**
  * struct gh_fn_desc - Arguments to create a VM function

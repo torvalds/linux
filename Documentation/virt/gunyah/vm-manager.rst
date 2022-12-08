@@ -124,7 +124,7 @@ the VM starts.
 The possible types are documented below:
 
 .. kernel-doc:: include/uapi/linux/gunyah.h
-   :identifiers: GH_FN_VCPU gh_fn_vcpu_arg
+   :identifiers: GH_FN_VCPU gh_fn_vcpu_arg GH_FN_IRQFD gh_fn_irqfd_arg
 
 Gunyah VCPU API Descriptions
 ----------------------------
