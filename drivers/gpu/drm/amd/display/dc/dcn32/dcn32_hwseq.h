@@ -102,4 +102,6 @@ void dcn32_update_dsc_pg(struct dc *dc,
 		struct dc_state *context,
 		bool safe_to_disable);
 
+void dcn32_enable_phantom_streams(struct dc *dc, struct dc_state *context);
+
 #endif /* __DC_HWSS_DCN32_H__ */
