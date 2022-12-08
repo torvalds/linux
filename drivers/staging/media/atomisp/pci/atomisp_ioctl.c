@@ -636,10 +636,10 @@ static int atomisp_enum_input(struct file *file, void *fh,
 static unsigned int
 atomisp_subdev_streaming_count(struct atomisp_sub_device *asd)
 {
-	return asd->video_out_preview.vb_queue.start_streaming_called
-	       + asd->video_out_capture.vb_queue.start_streaming_called
-	       + asd->video_out_video_capture.vb_queue.start_streaming_called
-	       + asd->video_out_vf.vb_queue.start_streaming_called;
+	return vb2_start_streaming_called(&asd->video_out_preview.vb_queue) +
+	       vb2_start_streaming_called(&asd->video_out_capture.vb_queue) +
+	       vb2_start_streaming_called(&asd->video_out_video_capture.vb_queue) +
+	       vb2_start_streaming_called(&asd->video_out_vf.vb_queue);
 }
 
 unsigned int atomisp_streaming_count(struct atomisp_device *isp)
