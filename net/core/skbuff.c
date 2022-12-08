@@ -270,12 +270,10 @@ static struct sk_buff *napi_skb_cache_get(void)
 	return skb;
 }
 
-/* Caller must provide SKB that is memset cleared */
-static void __build_skb_around(struct sk_buff *skb, void *data,
-			       unsigned int frag_size)
+static inline void __finalize_skb_around(struct sk_buff *skb, void *data,
+					 unsigned int size)
 {
 	struct skb_shared_info *shinfo;
-	unsigned int size = frag_size ? : ksize(data);
 
 	size -= SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
@@ -297,15 +295,71 @@ static void __build_skb_around(struct sk_buff *skb, void *data,
 	skb_set_kcov_handle(skb, kcov_common_handle());
 }
 
+static inline void *__slab_build_skb(struct sk_buff *skb, void *data,
+				     unsigned int *size)
+{
+	void *resized;
+
+	/* Must find the allocation size (and grow it to match). */
+	*size = ksize(data);
+	/* krealloc() will immediately return "data" when
+	 * "ksize(data)" is requested: it is the existing upper
+	 * bounds. As a result, GFP_ATOMIC will be ignored. Note
+	 * that this "new" pointer needs to be passed back to the
+	 * caller for use so the __alloc_size hinting will be
+	 * tracked correctly.
+	 */
+	resized = krealloc(data, *size, GFP_ATOMIC);
+	WARN_ON_ONCE(resized != data);
+	return resized;
+}
+
+/* build_skb() variant which can operate on slab buffers.
+ * Note that this should be used sparingly as slab buffers
+ * cannot be combined efficiently by GRO!
+ */
+struct sk_buff *slab_build_skb(void *data)
+{
+	struct sk_buff *skb;
+	unsigned int size;
+
+	skb = kmem_cache_alloc(skbuff_head_cache, GFP_ATOMIC);
+	if (unlikely(!skb))
+		return NULL;
+
+	memset(skb, 0, offsetof(struct sk_buff, tail));
+	data = __slab_build_skb(skb, data, &size);
+	__finalize_skb_around(skb, data, size);
+
+	return skb;
+}
+EXPORT_SYMBOL(slab_build_skb);
+
+/* Caller must provide SKB that is memset cleared */
+static void __build_skb_around(struct sk_buff *skb, void *data,
+			       unsigned int frag_size)
+{
+	unsigned int size = frag_size;
+
+	/* frag_size == 0 is considered deprecated now. Callers
+	 * using slab buffer should use slab_build_skb() instead.
+	 */
+	if (WARN_ONCE(size == 0, "Use slab_build_skb() instead"))
+		data = __slab_build_skb(skb, data, &size);
+
+	__finalize_skb_around(skb, data, size);
+}
+
 /**
  * __build_skb - build a network buffer
  * @data: data buffer provided by caller
- * @frag_size: size of data, or 0 if head was kmalloced
+ * @frag_size: size of data (must not be 0)
  *
  * Allocate a new &sk_buff. Caller provides space holding head and
- * skb_shared_info. @data must have been allocated by kmalloc() only if
- * @frag_size is 0, otherwise data should come from the page allocator
- *  or vmalloc()
+ * skb_shared_info. @data must have been allocated from the page
+ * allocator or vmalloc(). (A @frag_size of 0 to indicate a kmalloc()
+ * allocation is deprecated, and callers should use slab_build_skb()
+ * instead.)
  * The return is the new skb buffer.
  * On a failure the return is %NULL, and @data is not freed.
  * Notes :
