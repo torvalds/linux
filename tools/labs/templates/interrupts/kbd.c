@@ -223,7 +223,7 @@ static int kbd_init(void)
 	}
 	if (request_region(I8042_STATUS_REG+1, 1, MODULE_NAME) == NULL) {
 		err = -EBUSY;
-		goto out_unregister;
+		goto out_release_region;
 	}
 
 	/* TODO 3: initialize spinlock */
@@ -244,9 +244,10 @@ static int kbd_init(void)
 	pr_notice("Driver %s loaded\n", MODULE_NAME);
 	return 0;
 
-	/*TODO 2/3: release regions in case of error */
+	/*TODO 2/4: release regions in case of error */
 out_release_regions:
 	release_region(I8042_STATUS_REG+1, 1);
+out_release_region:
 	release_region(I8042_DATA_REG+1, 1);
 
 out_unregister:
