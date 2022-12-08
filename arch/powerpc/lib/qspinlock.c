@@ -3,6 +3,7 @@
 #include <linux/compiler.h>
 #include <linux/export.h>
 #include <linux/percpu.h>
+#include <linux/processor.h>
 #include <linux/smp.h>
 #include <linux/topology.h>
 #include <linux/sched/clock.h>
