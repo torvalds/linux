@@ -1,59 +1,34 @@
+# SPDX-License-Identifier: GPL-2.0
 # Copyright (C) 2021 The Android Open Source Project
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#       http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+
+load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
+load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "kernel_build", "kernel_images", "kernel_modules_install")
+load(":modules.bzl", "COMMON_GKI_MODULES_LIST")
+
 package(
     default_visibility = [
         "//visibility:public",
     ],
 )
 
-load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
-load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
-
-_common_gki_modules_list = [
-    # keep sorted
-    "drivers/block/zram/zram.ko",
-    "drivers/net/can/dev/can-dev.ko",
-    "drivers/net/can/slcan/slcan.ko",
-    "drivers/net/can/vcan.ko",
-    "drivers/usb/class/cdc-acm.ko",
-    "drivers/usb/serial/ftdi_sio.ko",
-    "drivers/usb/serial/usbserial.ko",
-    "mm/zsmalloc.ko",
-    "net/can/can-bcm.ko",
-    "net/can/can-gw.ko",
-    "net/can/can-raw.ko",
-    "net/mac80211/mac80211.ko",
-    "net/wireless/cfg80211.ko",
-]
-
 define_common_kernels(target_configs = {
     "kernel_aarch64": {
-        "module_implicit_outs": _common_gki_modules_list,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
     "kernel_aarch64_16k": {
-        "module_implicit_outs": _common_gki_modules_list,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
     "kernel_aarch64_debug": {
-        "module_implicit_outs": _common_gki_modules_list,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
     "kernel_x86_64": {
         "kmi_symbol_list_strict_mode": False,
-        "module_implicit_outs": _common_gki_modules_list,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
     "kernel_x86_64_debug": {
         "kmi_symbol_list_strict_mode": False,
-        "module_implicit_outs": _common_gki_modules_list,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
 })
 
@@ -254,6 +229,131 @@ load(":consolidate.bzl", "define_consolidate")
 
 define_consolidate()
 
+# TODO(b/258259749): Convert rockpi4 to mixed build
+kernel_build(
+    name = "rockpi4",
+    outs = [
+        "Image",
+        "System.map",
+        "modules.builtin",
+        "modules.builtin.modinfo",
+        "rk3399-rock-pi-4b.dtb",
+        "vmlinux",
+        "vmlinux.symvers",
+    ],
+    build_config = "build.config.rockpi4",
+    dtstree = "//common-modules/virtual-device:rockpi4_dts",
+    module_outs = COMMON_GKI_MODULES_LIST + [
+        # keep sorted
+        "drivers/block/virtio_blk.ko",
+        "drivers/char/hw_random/virtio-rng.ko",
+        "drivers/clk/clk-rk808.ko",
+        "drivers/cpufreq/cpufreq-dt.ko",
+        "drivers/dma/pl330.ko",
+        "drivers/gpu/drm/bridge/analogix/analogix_dp.ko",
+        "drivers/gpu/drm/bridge/synopsys/dw-hdmi.ko",
+        "drivers/gpu/drm/bridge/synopsys/dw-mipi-dsi.ko",
+        "drivers/gpu/drm/display/drm_display_helper.ko",
+        "drivers/gpu/drm/drm_dma_helper.ko",
+        "drivers/gpu/drm/rockchip/rockchipdrm.ko",
+        "drivers/i2c/busses/i2c-rk3x.ko",
+        "drivers/iio/adc/rockchip_saradc.ko",
+        "drivers/iio/buffer/industrialio-triggered-buffer.ko",
+        "drivers/iio/buffer/kfifo_buf.ko",
+        "drivers/mfd/rk808.ko",
+        "drivers/mmc/core/pwrseq_simple.ko",
+        "drivers/mmc/host/cqhci.ko",
+        "drivers/mmc/host/dw_mmc.ko",
+        "drivers/mmc/host/dw_mmc-pltfm.ko",
+        "drivers/mmc/host/dw_mmc-rockchip.ko",
+        "drivers/mmc/host/sdhci-of-arasan.ko",
+        "drivers/net/ethernet/stmicro/stmmac/dwmac-rk.ko",
+        "drivers/net/ethernet/stmicro/stmmac/stmmac.ko",
+        "drivers/net/ethernet/stmicro/stmmac/stmmac-platform.ko",
+        "drivers/net/net_failover.ko",
+        "drivers/net/pcs/pcs_xpcs.ko",
+        "drivers/net/virtio_net.ko",
+        "drivers/pci/controller/pcie-rockchip-host.ko",
+        "drivers/phy/rockchip/phy-rockchip-emmc.ko",
+        "drivers/phy/rockchip/phy-rockchip-inno-usb2.ko",
+        "drivers/phy/rockchip/phy-rockchip-pcie.ko",
+        "drivers/phy/rockchip/phy-rockchip-typec.ko",
+        "drivers/pwm/pwm-rockchip.ko",
+        "drivers/regulator/fan53555.ko",
+        "drivers/regulator/pwm-regulator.ko",
+        "drivers/regulator/rk808-regulator.ko",
+        "drivers/rtc/rtc-rk808.ko",
+        "drivers/soc/rockchip/io-domain.ko",
+        "drivers/thermal/rockchip_thermal.ko",
+        "drivers/usb/host/ohci-hcd.ko",
+        "drivers/usb/host/ohci-platform.ko",
+        "drivers/virtio/virtio_pci.ko",
+        "drivers/virtio/virtio_pci_legacy_dev.ko",
+        "drivers/virtio/virtio_pci_modern_dev.ko",
+        "drivers/watchdog/dw_wdt.ko",
+        "net/core/failover.ko",
+    ],
+)
+
+kernel_modules_install(
+    name = "rockpi4_modules_install",
+    kernel_build = "//common:rockpi4",
+)
+
+kernel_images(
+    name = "rockpi4_images",
+    build_initramfs = True,
+    kernel_build = "//common:rockpi4",
+    kernel_modules_install = "//common:rockpi4_modules_install",
+)
+
+copy_to_dist_dir(
+    name = "rockpi4_dist",
+    data = [
+        ":rockpi4",
+        ":rockpi4_images",
+        ":rockpi4_modules_install",
+    ],
+    dist_dir = "out/rockpi4/dist",
+    flat = True,
+)
+
+# allmodconfig build tests.
+# These are build tests only, so:
+# - outs are intentionally set to empty to not copy anything to DIST_DIR
+# - --allow-undeclared-modules must be used so modules are not declared or copied.
+# - No dist target because these are build tests. We don't care about the artifacts.
+
+# tools/bazel build --allow_undeclared_modules //common:kernel_aarch64_allmodconfig
+kernel_build(
+    name = "kernel_aarch64_allmodconfig",
+    # Hack to actually check the build.
+    # Otherwise, Bazel thinks that there are no output files, and skip building.
+    outs = [".config"],
+    build_config = "build.config.allmodconfig.aarch64",
+    visibility = ["//visibility:private"],
+)
+
+# tools/bazel build --allow_undeclared_modules //common:kernel_x86_64_allmodconfig
+kernel_build(
+    name = "kernel_x86_64_allmodconfig",
+    # Hack to actually check the build.
+    # Otherwise, Bazel thinks that there are no output files, and skip building.
+    outs = [".config"],
+    build_config = "build.config.allmodconfig.x86_64",
+    visibility = ["//visibility:private"],
+)
+
+# tools/bazel build --allow_undeclared_modules //common:kernel_arm_allmodconfig
+kernel_build(
+    name = "kernel_arm_allmodconfig",
+    # Hack to actually check the build.
+    # Otherwise, Bazel thinks that there are no output files, and skip building.
+    outs = [".config"],
+    build_config = "build.config.allmodconfig.arm",
+    visibility = ["//visibility:private"],
+)
+
 # DDK Headers
 # All headers. These are the public targets for DDK modules to use.
 alias(
@@ -265,6 +365,15 @@ alias(
 ddk_headers(
     name = "all_headers_aarch64",
     hdrs = [":all_headers_allowlist_aarch64"] + select({
+        "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+ddk_headers(
+    name = "all_headers_arm",
+    hdrs = [":all_headers_allowlist_arm"] + select({
         "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
         "//conditions:default": [],
     }),
@@ -304,6 +413,24 @@ ddk_headers(
 )
 
 ddk_headers(
+    name = "all_headers_allowlist_arm",
+    hdrs = [
+        ":all_headers_allowlist_arm_globs",
+        ":all_headers_allowlist_common_globs",
+    ],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    # These are prepended to LINUXINCLUDE.
+    linux_includes = [
+        "arch/arm/include",
+        "arch/arm/include/uapi",
+        "include",
+        "include/uapi",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+ddk_headers(
     name = "all_headers_allowlist_x86_64",
     hdrs = [
         ":all_headers_allowlist_common_globs",
@@ -326,6 +453,13 @@ ddk_headers(
 # are safe to use.
 # These are separate filegroup targets so the all_headers_allowlist_* are
 # more friendly to batch BUILD file update tools like buildozer.
+
+# globs() for arm only
+filegroup(
+    name = "all_headers_allowlist_arm_globs",
+    srcs = glob(["arch/arm/include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
 
 # globs() for arm64 only
 filegroup(

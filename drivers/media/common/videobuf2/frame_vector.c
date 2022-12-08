@@ -35,11 +35,7 @@
 int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
 		     struct frame_vector *vec)
 {
-	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma;
-	int ret_pin_user_pages_fast = 0;
-	int ret = 0;
-	int err;
+	int ret;
 
 	if (nr_frames == 0)
 		return 0;
@@ -52,57 +48,17 @@ int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
 	ret = pin_user_pages_fast(start, nr_frames,
 				  FOLL_FORCE | FOLL_WRITE | FOLL_LONGTERM,
 				  (struct page **)(vec->ptrs));
-	if (ret > 0) {
-		vec->got_ref = true;
-		vec->is_pfns = false;
-		goto out_unlocked;
-	}
-	ret_pin_user_pages_fast = ret;
+	vec->got_ref = true;
+	vec->is_pfns = false;
+	vec->nr_frames = ret;
 
-	mmap_read_lock(mm);
-	vec->got_ref = false;
-	vec->is_pfns = true;
-	ret = 0;
-	do {
-		unsigned long *nums = frame_vector_pfns(vec);
+	if (likely(ret > 0))
+		return ret;
 
-		vma = vma_lookup(mm, start);
-		if (!vma)
-			break;
-
-		while (ret < nr_frames && start + PAGE_SIZE <= vma->vm_end) {
-			err = follow_pfn(vma, start, &nums[ret]);
-			if (err) {
-				if (ret)
-					goto out;
-				// If follow_pfn() returns -EINVAL, then this
-				// is not an IO mapping or a raw PFN mapping.
-				// In that case, return the original error from
-				// pin_user_pages_fast(). Otherwise this
-				// function would return -EINVAL when
-				// pin_user_pages_fast() returned -ENOMEM,
-				// which makes debugging hard.
-				if (err == -EINVAL && ret_pin_user_pages_fast)
-					ret = ret_pin_user_pages_fast;
-				else
-					ret = err;
-				goto out;
-			}
-			start += PAGE_SIZE;
-			ret++;
-		}
-		/* Bail out if VMA doesn't completely cover the tail page. */
-		if (start < vma->vm_end)
-			break;
-	} while (ret < nr_frames);
-out:
-	mmap_read_unlock(mm);
-out_unlocked:
-	if (!ret)
-		ret = -EFAULT;
-	if (ret > 0)
-		vec->nr_frames = ret;
-	return ret;
+	/* This used to (racily) return non-refcounted pfns. Let people know */
+	WARN_ONCE(1, "get_vaddr_frames() cannot follow VM_IO mapping");
+	vec->nr_frames = 0;
+	return ret ? ret : -EFAULT;
 }
 EXPORT_SYMBOL(get_vaddr_frames);
 
