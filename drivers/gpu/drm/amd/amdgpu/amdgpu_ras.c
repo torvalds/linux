@@ -1087,6 +1087,10 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 							info->head.block,
 							info->head.sub_block_index);
 
+	/* inject on guest isn't allowed, return success directly */
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	if (!obj)
 		return -EINVAL;
 
