@@ -30,7 +30,6 @@
 #include "intel_rps_types.h"
 #include "intel_migrate_types.h"
 #include "intel_wakeref.h"
-#include "pxp/intel_pxp_types.h"
 #include "intel_wopcm.h"
 
 struct drm_i915_private;
@@ -274,8 +273,6 @@ struct intel_gt {
 		u8 uc_index;
 		u8 wb_index; /* Only used on HAS_L3_CCS_READ() platforms */
 	} mocs;
-
-	struct intel_pxp pxp;
 
 	/* gt/gtN sysfs */
 	struct kobject sysfs_gt;
