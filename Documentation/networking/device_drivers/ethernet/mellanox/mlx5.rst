@@ -351,42 +351,26 @@ driver.
 
 MAC address setup
 -----------------
-mlx5 driver provides mechanism to setup the MAC address of the PCI VF/SF.
+mlx5 driver support devlink port function attr mechanism to setup MAC
+address. (refer to Documentation/networking/devlink/devlink-port.rst)
 
-The configured MAC address of the PCI VF/SF will be used by netdevice and rdma
-device created for the PCI VF/SF.
+RoCE capability setup
+---------------------
+Not all mlx5 PCI devices/SFs require RoCE capability.
 
-- Get the MAC address of the VF identified by its unique devlink port index::
+When RoCE capability is disabled, it saves 1 Mbytes worth of system memory per
+PCI devices/SF.
 
-    $ devlink port show pci/0000:06:00.0/2
-    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
-      function:
-        hw_addr 00:00:00:00:00:00
+mlx5 driver support devlink port function attr mechanism to setup RoCE
+capability. (refer to Documentation/networking/devlink/devlink-port.rst)
 
-- Set the MAC address of the VF identified by its unique devlink port index::
+migratable capability setup
+---------------------------
+User who wants mlx5 PCI VFs to be able to perform live migration need to
+explicitly enable the VF migratable capability.
 
-    $ devlink port function set pci/0000:06:00.0/2 hw_addr 00:11:22:33:44:55
-
-    $ devlink port show pci/0000:06:00.0/2
-    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
-      function:
-        hw_addr 00:11:22:33:44:55
-
-- Get the MAC address of the SF identified by its unique devlink port index::
-
-    $ devlink port show pci/0000:06:00.0/32768
-    pci/0000:06:00.0/32768: type eth netdev enp6s0pf0sf88 flavour pcisf pfnum 0 sfnum 88
-      function:
-        hw_addr 00:00:00:00:00:00
-
-- Set the MAC address of the SF identified by its unique devlink port index::
-
-    $ devlink port function set pci/0000:06:00.0/32768 hw_addr 00:00:00:00:88:88
-
-    $ devlink port show pci/0000:06:00.0/32768
-    pci/0000:06:00.0/32768: type eth netdev enp6s0pf0sf88 flavour pcisf pfnum 0 sfnum 88
-      function:
-        hw_addr 00:00:00:00:88:88
+mlx5 driver support devlink port function attr mechanism to setup migratable
+capability. (refer to Documentation/networking/devlink/devlink-port.rst)
 
 SF state setup
 --------------
