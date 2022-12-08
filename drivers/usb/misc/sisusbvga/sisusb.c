@@ -51,24 +51,10 @@
 #include <linux/vmalloc.h>
 
 #include "sisusb.h"
-#include "sisusb_init.h"
-
-#ifdef CONFIG_USB_SISUSBVGA_CON
-#include <linux/font.h>
-#endif
 
 #define SISUSB_DONTSYNC
 
 /* Forward declarations / clean-up routines */
-
-#ifdef CONFIG_USB_SISUSBVGA_CON
-static int sisusb_first_vc;
-static int sisusb_last_vc;
-module_param_named(first, sisusb_first_vc, int, 0);
-module_param_named(last, sisusb_last_vc, int, 0);
-MODULE_PARM_DESC(first, "Number of first console to take over (1 - MAX_NR_CONSOLES)");
-MODULE_PARM_DESC(last, "Number of last console to take over (1 - MAX_NR_CONSOLES)");
-#endif
 
 static struct usb_driver sisusb_driver;
 
@@ -1198,19 +1184,7 @@ static int sisusb_read_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 
 /* High level: Gfx (indexed) register access */
 
-#ifdef CONFIG_USB_SISUSBVGA_CON
-int sisusb_setreg(struct sisusb_usb_data *sisusb, u32 port, u8 data)
-{
-	return sisusb_write_memio_byte(sisusb, SISUSB_TYPE_IO, port, data);
-}
-
-int sisusb_getreg(struct sisusb_usb_data *sisusb, u32 port, u8 *data)
-{
-	return sisusb_read_memio_byte(sisusb, SISUSB_TYPE_IO, port, data);
-}
-#endif
-
-int sisusb_setidxreg(struct sisusb_usb_data *sisusb, u32 port,
+static int sisusb_setidxreg(struct sisusb_usb_data *sisusb, u32 port,
 		u8 index, u8 data)
 {
 	int ret;
@@ -1220,7 +1194,7 @@ int sisusb_setidxreg(struct sisusb_usb_data *sisusb, u32 port,
 	return ret;
 }
 
-int sisusb_getidxreg(struct sisusb_usb_data *sisusb, u32 port,
+static int sisusb_getidxreg(struct sisusb_usb_data *sisusb, u32 port,
 		u8 index, u8 *data)
 {
 	int ret;
@@ -1230,7 +1204,7 @@ int sisusb_getidxreg(struct sisusb_usb_data *sisusb, u32 port,
 	return ret;
 }
 
-int sisusb_setidxregandor(struct sisusb_usb_data *sisusb, u32 port, u8 idx,
+static int sisusb_setidxregandor(struct sisusb_usb_data *sisusb, u32 port, u8 idx,
 		u8 myand, u8 myor)
 {
 	int ret;
@@ -1258,51 +1232,19 @@ static int sisusb_setidxregmask(struct sisusb_usb_data *sisusb,
 	return ret;
 }
 
-int sisusb_setidxregor(struct sisusb_usb_data *sisusb, u32 port,
+static int sisusb_setidxregor(struct sisusb_usb_data *sisusb, u32 port,
 		u8 index, u8 myor)
 {
 	return sisusb_setidxregandor(sisusb, port, index, 0xff, myor);
 }
 
-int sisusb_setidxregand(struct sisusb_usb_data *sisusb, u32 port,
+static int sisusb_setidxregand(struct sisusb_usb_data *sisusb, u32 port,
 		u8 idx, u8 myand)
 {
 	return sisusb_setidxregandor(sisusb, port, idx, myand, 0x00);
 }
 
 /* Write/read video ram */
-
-#ifdef CONFIG_USB_SISUSBVGA_CON
-int sisusb_writeb(struct sisusb_usb_data *sisusb, u32 adr, u8 data)
-{
-	return sisusb_write_memio_byte(sisusb, SISUSB_TYPE_MEM, adr, data);
-}
-
-int sisusb_readb(struct sisusb_usb_data *sisusb, u32 adr, u8 *data)
-{
-	return sisusb_read_memio_byte(sisusb, SISUSB_TYPE_MEM, adr, data);
-}
-
-int sisusb_copy_memory(struct sisusb_usb_data *sisusb, u8 *src,
-		u32 dest, int length)
-{
-	size_t dummy;
-
-	return sisusb_write_mem_bulk(sisusb, dest, src, length,
-			NULL, 0, &dummy);
-}
-
-#ifdef SISUSBENDIANTEST
-static int sisusb_read_memory(struct sisusb_usb_data *sisusb, char *dest,
-		u32 src, int length)
-{
-	size_t dummy;
-
-	return sisusb_read_mem_bulk(sisusb, src, dest, length,
-			NULL, &dummy);
-}
-#endif
-#endif
 
 #ifdef SISUSBENDIANTEST
 static void sisusb_testreadwrite(struct sisusb_usb_data *sisusb)
@@ -2252,131 +2194,6 @@ static int sisusb_init_gfxdevice(struct sisusb_usb_data *sisusb, int initscreen)
 	return ret;
 }
 
-
-#ifdef CONFIG_USB_SISUSBVGA_CON
-
-/* Set up default text mode:
- * - Set text mode (0x03)
- * - Upload default font
- * - Upload user font (if available)
- */
-
-int sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
-{
-	int ret = 0, slot = sisusb->font_slot, i;
-	const struct font_desc *myfont;
-	u8 *tempbuf;
-	u16 *tempbufb;
-	static const char bootstring[] =
-		"SiSUSB VGA text console, (C) 2005 Thomas Winischhofer.";
-	static const char bootlogo[] = "(o_ //\\ V_/_";
-
-	/* sisusb->lock is down */
-
-	if (!sisusb->SiS_Pr)
-		return 1;
-
-	sisusb->SiS_Pr->IOAddress = SISUSB_PCI_IOPORTBASE + 0x30;
-	sisusb->SiS_Pr->sisusb = (void *)sisusb;
-
-	/* Set mode 0x03 */
-	SiSUSBSetMode(sisusb->SiS_Pr, 0x03);
-
-	myfont = find_font("VGA8x16");
-	if (!myfont)
-		return 1;
-
-	tempbuf = vmalloc(8192);
-	if (!tempbuf)
-		return 1;
-
-	for (i = 0; i < 256; i++)
-		memcpy(tempbuf + (i * 32), myfont->data + (i * 16), 16);
-
-	/* Upload default font */
-	ret = sisusbcon_do_font_op(sisusb, 1, 0, tempbuf, 8192,
-			0, 1, NULL, 16, 0);
-
-	vfree(tempbuf);
-
-	/* Upload user font (and reset current slot) */
-	if (sisusb->font_backup) {
-		ret |= sisusbcon_do_font_op(sisusb, 1, 2, sisusb->font_backup,
-				8192, sisusb->font_backup_512, 1, NULL,
-				sisusb->font_backup_height, 0);
-		if (slot != 2)
-			sisusbcon_do_font_op(sisusb, 1, 0, NULL, 0, 0, 1,
-					NULL, 16, 0);
-	}
-
-	if (init && !sisusb->scrbuf) {
-
-		tempbuf = vmalloc(8192);
-		if (tempbuf) {
-
-			i = 4096;
-			tempbufb = (u16 *)tempbuf;
-			while (i--)
-				*(tempbufb++) = 0x0720;
-
-			i = 0;
-			tempbufb = (u16 *)tempbuf;
-			while (bootlogo[i]) {
-				*(tempbufb++) = 0x0700 | bootlogo[i++];
-				if (!(i % 4))
-					tempbufb += 76;
-			}
-
-			i = 0;
-			tempbufb = (u16 *)tempbuf + 6;
-			while (bootstring[i])
-				*(tempbufb++) = 0x0700 | bootstring[i++];
-
-			ret |= sisusb_copy_memory(sisusb, tempbuf,
-					sisusb->vrambase, 8192);
-
-			vfree(tempbuf);
-
-		}
-
-	} else if (sisusb->scrbuf) {
-		ret |= sisusb_copy_memory(sisusb, (u8 *)sisusb->scrbuf,
-				sisusb->vrambase, sisusb->scrbuf_size);
-	}
-
-	if (sisusb->sisusb_cursor_size_from >= 0 &&
-			sisusb->sisusb_cursor_size_to >= 0) {
-		sisusb_setidxreg(sisusb, SISCR, 0x0a,
-				sisusb->sisusb_cursor_size_from);
-		sisusb_setidxregandor(sisusb, SISCR, 0x0b, 0xe0,
-				sisusb->sisusb_cursor_size_to);
-	} else {
-		sisusb_setidxreg(sisusb, SISCR, 0x0a, 0x2d);
-		sisusb_setidxreg(sisusb, SISCR, 0x0b, 0x0e);
-		sisusb->sisusb_cursor_size_to = -1;
-	}
-
-	slot = sisusb->sisusb_cursor_loc;
-	if (slot < 0)
-		slot = 0;
-
-	sisusb->sisusb_cursor_loc = -1;
-	sisusb->bad_cursor_pos = 1;
-
-	sisusb_set_cursor(sisusb, slot);
-
-	sisusb_setidxreg(sisusb, SISCR, 0x0c, (sisusb->cur_start_addr >> 8));
-	sisusb_setidxreg(sisusb, SISCR, 0x0d, (sisusb->cur_start_addr & 0xff));
-
-	sisusb->textmodedestroyed = 0;
-
-	/* sisusb->lock is down */
-
-	return ret;
-}
-
-#endif
-
 /* fops */
 
 static int sisusb_open(struct inode *inode, struct file *file)
@@ -2434,7 +2251,7 @@ static int sisusb_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-void sisusb_delete(struct kref *kref)
+static void sisusb_delete(struct kref *kref)
 {
 	struct sisusb_usb_data *sisusb = to_sisusb_dev(kref);
 
@@ -2446,9 +2263,6 @@ void sisusb_delete(struct kref *kref)
 	sisusb->sisusb_dev = NULL;
 	sisusb_free_buffers(sisusb);
 	sisusb_free_urbs(sisusb);
-#ifdef CONFIG_USB_SISUSBVGA_CON
-	kfree(sisusb->SiS_Pr);
-#endif
 	kfree(sisusb);
 }
 
@@ -2842,53 +2656,7 @@ static int sisusb_handle_command(struct sisusb_usb_data *sisusb,
 
 	case SUCMD_HANDLETEXTMODE:
 		retval = 0;
-#ifdef CONFIG_USB_SISUSBVGA_CON
-		/* Gfx core must be initialized, SiS_Pr must exist */
-		if (!sisusb->gfxinit || !sisusb->SiS_Pr)
-			return -ENODEV;
-
-		switch (y->data0) {
-		case 0:
-			retval = sisusb_reset_text_mode(sisusb, 0);
-			break;
-		case 1:
-			sisusb->textmodedestroyed = 1;
-			break;
-		}
-#endif
 		break;
-
-#ifdef CONFIG_USB_SISUSBVGA_CON
-	case SUCMD_SETMODE:
-		/* Gfx core must be initialized, SiS_Pr must exist */
-		if (!sisusb->gfxinit || !sisusb->SiS_Pr)
-			return -ENODEV;
-
-		retval = 0;
-
-		sisusb->SiS_Pr->IOAddress = SISUSB_PCI_IOPORTBASE + 0x30;
-		sisusb->SiS_Pr->sisusb = (void *)sisusb;
-
-		if (SiSUSBSetMode(sisusb->SiS_Pr, y->data3))
-			retval = -EINVAL;
-
-		break;
-
-	case SUCMD_SETVESAMODE:
-		/* Gfx core must be initialized, SiS_Pr must exist */
-		if (!sisusb->gfxinit || !sisusb->SiS_Pr)
-			return -ENODEV;
-
-		retval = 0;
-
-		sisusb->SiS_Pr->IOAddress = SISUSB_PCI_IOPORTBASE + 0x30;
-		sisusb->SiS_Pr->sisusb = (void *)sisusb;
-
-		if (SiSUSBSetVESAMode(sisusb->SiS_Pr, y->data3))
-			retval = -EINVAL;
-
-		break;
-#endif
 
 	default:
 		retval = -EINVAL;
@@ -2942,11 +2710,7 @@ static long sisusb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		x.sisusb_vramsize = sisusb->vramsize;
 		x.sisusb_minor = sisusb->minor;
 		x.sisusb_fbdevactive = 0;
-#ifdef CONFIG_USB_SISUSBVGA_CON
-		x.sisusb_conactive  = sisusb->haveconsole ? 1 : 0;
-#else
 		x.sisusb_conactive  = 0;
-#endif
 		memset(x.sisusb_reserved, 0, sizeof(x.sisusb_reserved));
 
 		if (copy_to_user((void __user *)arg, &x, sizeof(x)))
@@ -3090,15 +2854,6 @@ static int sisusb_probe(struct usb_interface *intf,
 	dev_info(&sisusb->sisusb_dev->dev, "Allocated %d output buffers\n",
 			sisusb->numobufs);
 
-#ifdef CONFIG_USB_SISUSBVGA_CON
-	/* Allocate our SiS_Pr */
-	sisusb->SiS_Pr = kmalloc(sizeof(struct SiS_Private), GFP_KERNEL);
-	if (!sisusb->SiS_Pr) {
-		retval = -ENOMEM;
-		goto error_4;
-	}
-#endif
-
 	/* Do remaining init stuff */
 
 	init_waitqueue_head(&sisusb->wait_q);
@@ -3111,12 +2866,6 @@ static int sisusb_probe(struct usb_interface *intf,
 
 	if (dev->speed == USB_SPEED_HIGH || dev->speed >= USB_SPEED_SUPER) {
 		int initscreen = 1;
-#ifdef CONFIG_USB_SISUSBVGA_CON
-		if (sisusb_first_vc > 0 && sisusb_last_vc > 0 &&
-				sisusb_first_vc <= sisusb_last_vc &&
-				sisusb_last_vc <= MAX_NR_CONSOLES)
-			initscreen = 0;
-#endif
 		if (sisusb_init_gfxdevice(sisusb, initscreen))
 			dev_err(&sisusb->sisusb_dev->dev,
 					"Failed to early initialize device\n");
@@ -3131,10 +2880,6 @@ static int sisusb_probe(struct usb_interface *intf,
 	dev_dbg(&sisusb->sisusb_dev->dev, "*** RWTEST ***\n");
 	sisusb_testreadwrite(sisusb);
 	dev_dbg(&sisusb->sisusb_dev->dev, "*** RWTEST END ***\n");
-#endif
-
-#ifdef CONFIG_USB_SISUSBVGA_CON
-	sisusb_console_init(sisusb, sisusb_first_vc, sisusb_last_vc);
 #endif
 
 	return 0;
@@ -3158,10 +2903,6 @@ static void sisusb_disconnect(struct usb_interface *intf)
 	sisusb = usb_get_intfdata(intf);
 	if (!sisusb)
 		return;
-
-#ifdef CONFIG_USB_SISUSBVGA_CON
-	sisusb_console_exit(sisusb);
-#endif
 
 	usb_deregister_dev(intf, &usb_sisusb_class);
 
@@ -3208,11 +2949,6 @@ static struct usb_driver sisusb_driver = {
 
 static int __init usb_sisusb_init(void)
 {
-
-#ifdef CONFIG_USB_SISUSBVGA_CON
-	sisusb_init_concode();
-#endif
-
 	return usb_register(&sisusb_driver);
 }
 
