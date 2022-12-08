@@ -124,3 +124,7 @@ config SCSI_UFS_EXYNOS
 
 	  Select this if you have UFS host controller on Samsung Exynos SoC.
 	  If unsure, say N.
+
+config SCSI_UFS_VARIABLE_SG_ENTRY_SIZE
+	bool
+	default y if SCSI_UFS_EXYNOS && SCSI_UFS_CRYPTO
