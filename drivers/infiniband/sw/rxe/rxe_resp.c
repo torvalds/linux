@@ -392,36 +392,46 @@ static enum resp_states check_resource(struct rxe_qp *qp,
 	return RESPST_CHK_LENGTH;
 }
 
-static enum resp_states check_length(struct rxe_qp *qp,
-				     struct rxe_pkt_info *pkt)
+static enum resp_states rxe_resp_check_length(struct rxe_qp *qp,
+					      struct rxe_pkt_info *pkt)
 {
-	int mtu = qp->mtu;
-	u32 payload = payload_size(pkt);
-	u32 dmalen = reth_len(pkt);
-
-	/* RoCEv2 packets do not have LRH.
-	 * Let's skip checking it.
+	/*
+	 * See IBA C9-92
+	 * For UD QPs we only check if the packet will fit in the
+	 * receive buffer later. For rmda operations additional
+	 * length checks are performed in check_rkey.
 	 */
+	if (pkt->mask & RXE_PAYLOAD_MASK && ((qp_type(qp) == IB_QPT_RC) ||
+					     (qp_type(qp) == IB_QPT_UC))) {
+		unsigned int mtu = qp->mtu;
+		unsigned int payload = payload_size(pkt);
 
-	if ((pkt->opcode & RXE_START_MASK) &&
-	    (pkt->opcode & RXE_END_MASK)) {
-		/* "only" packets */
-		if (payload > mtu)
-			return RESPST_ERR_LENGTH;
-	} else if ((pkt->opcode & RXE_START_MASK) ||
-		   (pkt->opcode & RXE_MIDDLE_MASK)) {
-		/* "first" or "middle" packets */
-		if (payload != mtu)
-			return RESPST_ERR_LENGTH;
-	} else if (pkt->opcode & RXE_END_MASK) {
-		/* "last" packets */
-		if ((payload == 0) || (payload > mtu))
-			return RESPST_ERR_LENGTH;
+		if ((pkt->mask & RXE_START_MASK) &&
+		    (pkt->mask & RXE_END_MASK)) {
+			if (unlikely(payload > mtu)) {
+				rxe_dbg_qp(qp, "only packet too long");
+				return RESPST_ERR_LENGTH;
+			}
+		} else if ((pkt->mask & RXE_START_MASK) ||
+			   (pkt->mask & RXE_MIDDLE_MASK)) {
+			if (unlikely(payload != mtu)) {
+				rxe_dbg_qp(qp, "first or middle packet not mtu");
+				return RESPST_ERR_LENGTH;
+			}
+		} else if (pkt->mask & RXE_END_MASK) {
+			if (unlikely((payload == 0) || (payload > mtu))) {
+				rxe_dbg_qp(qp, "last packet zero or too long");
+				return RESPST_ERR_LENGTH;
+			}
+		}
 	}
 
-	if (pkt->opcode & (RXE_WRITE_MASK | RXE_READ_MASK)) {
-		if (dmalen > (1 << 31))
+	/* See IBA C9-94 */
+	if (pkt->mask & RXE_RETH_MASK) {
+		if (reth_len(pkt) > (1U << 31)) {
+			rxe_dbg_qp(qp, "dma length too long");
 			return RESPST_ERR_LENGTH;
+		}
 	}
 
 	return RESPST_CHK_RKEY;
@@ -1401,7 +1411,7 @@ int rxe_responder(void *arg)
 			state = check_resource(qp, pkt);
 			break;
 		case RESPST_CHK_LENGTH:
-			state = check_length(qp, pkt);
+			state = rxe_resp_check_length(qp, pkt);
 			break;
 		case RESPST_CHK_RKEY:
 			state = check_rkey(qp, pkt);
