@@ -61,8 +61,11 @@ The VC4 Driver uses KUnit to perform driver-specific unit and
 integration tests.
 
 These tests are using a mock driver and can be ran using the
-command::
-	./tools/testing/kunit/kunit.py run \
+command below, on either arm or arm64 architectures,
+
+.. code-block:: bash
+
+	$ ./tools/testing/kunit/kunit.py run \
 		--kunitconfig=drivers/gpu/drm/vc4/tests/.kunitconfig \
 		--cross_compile aarch64-linux-gnu- --arch arm64
 
