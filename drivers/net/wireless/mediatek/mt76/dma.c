@@ -554,23 +554,9 @@ free_skb:
 	return ret;
 }
 
-static struct page_frag_cache *
-mt76_dma_rx_get_frag_cache(struct mt76_dev *dev, struct mt76_queue *q)
-{
-	struct page_frag_cache *rx_page = &q->rx_page;
-
-#ifdef CONFIG_NET_MEDIATEK_SOC_WED
-	if ((q->flags & MT_QFLAG_WED) &&
-	    FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX)
-		rx_page = &dev->mmio.wed.rx_buf_ring.rx_page;
-#endif
-	return rx_page;
-}
-
 static int
 mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	struct page_frag_cache *rx_page = mt76_dma_rx_get_frag_cache(dev, q);
 	int len = SKB_WITH_OVERHEAD(q->buf_size);
 	int frames = 0, offset = q->buf_offset;
 	dma_addr_t addr;
@@ -592,7 +578,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
 				break;
 		}
 
-		buf = page_frag_alloc(rx_page, q->buf_size, GFP_ATOMIC);
+		buf = page_frag_alloc(&q->rx_page, q->buf_size, GFP_ATOMIC);
 		if (!buf)
 			break;
 
