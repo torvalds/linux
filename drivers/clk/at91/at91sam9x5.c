@@ -41,9 +41,14 @@ static const struct clk_pll_characteristics plla_characteristics = {
 static const struct {
 	char *n;
 	char *p;
+	unsigned long flags;
 	u8 id;
 } at91sam9x5_systemck[] = {
-	{ .n = "ddrck", .p = "masterck_div", .id = 2 },
+	/*
+	 * ddrck feeds DDR controller and is enabled by bootloader thus we need
+	 * to keep it enabled in case there is no Linux consumer for it.
+	 */
+	{ .n = "ddrck", .p = "masterck_div", .id = 2, .flags = CLK_IS_CRITICAL },
 	{ .n = "smdck", .p = "smdclk",   .id = 4 },
 	{ .n = "uhpck", .p = "usbck",    .id = 6 },
 	{ .n = "udpck", .p = "usbck",    .id = 7 },
@@ -248,7 +253,8 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 	for (i = 0; i < ARRAY_SIZE(at91sam9x5_systemck); i++) {
 		hw = at91_clk_register_system(regmap, at91sam9x5_systemck[i].n,
 					      at91sam9x5_systemck[i].p,
-					      at91sam9x5_systemck[i].id);
+					      at91sam9x5_systemck[i].id,
+					      at91sam9x5_systemck[i].flags);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -256,7 +262,8 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 	}
 
 	if (has_lcdck) {
-		hw = at91_clk_register_system(regmap, "lcdck", "masterck_div", 3);
+		hw = at91_clk_register_system(regmap, "lcdck", "masterck_div",
+					      3, 0);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -269,7 +276,7 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 							 at91sam9x5_periphck[i].n,
 							 "masterck_div",
 							 at91sam9x5_periphck[i].id,
-							 &range, INT_MIN);
+							 &range, INT_MIN, 0);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -282,7 +289,7 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 							 extra_pcks[i].n,
 							 "masterck_div",
 							 extra_pcks[i].id,
-							 &range, INT_MIN);
+							 &range, INT_MIN, 0);
 		if (IS_ERR(hw))
 			goto err_free;
 
