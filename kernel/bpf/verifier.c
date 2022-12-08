@@ -15350,7 +15350,7 @@ static int fixup_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	}
 
 	/* insn->imm has the btf func_id. Replace it with
-	 * an address (relative to __bpf_base_call).
+	 * an address (relative to __bpf_call_base).
 	 */
 	desc = find_kfunc_desc(env->prog, insn->imm, insn->off);
 	if (!desc) {
