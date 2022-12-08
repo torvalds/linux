@@ -182,6 +182,16 @@ static void wcd_usbss_update_reg_init(struct regmap *regmap)
 	else
 		regmap_update_bits(regmap, WCD_USBSS_FUNCTION_ENABLE, 0x03,
 				0x01); /* AUDIO_MANUAL mode */
+
+	/* Enable dynamic boosting for DP and DN */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap,
+						WCD_USBSS_DP_DN_MISC1, 0x09, 0x09);
+	/* Enable dynamic boosting for MG1 OVP */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap,
+						WCD_USBSS_MG1_MISC, 0x20, 0x20);
+	/* Enable dynamic boosting for MG2 OVP */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap,
+						WCD_USBSS_MG2_MISC, 0x20, 0x20);
 }
 
 static int wcd_usbss_display_port_switch_update(struct wcd_usbss_ctxt *priv,
