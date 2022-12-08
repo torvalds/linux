@@ -71,13 +71,14 @@ enum {
 };
 
 enum {
+	MLX5_ACCESS_ASO_OPC_MOD_IPSEC = 0x0,
 	MLX5_ACCESS_ASO_OPC_MOD_FLOW_METER = 0x2,
 	MLX5_ACCESS_ASO_OPC_MOD_MACSEC = 0x5,
 };
 
 struct mlx5_aso;
 
-void *mlx5_aso_get_wqe(struct mlx5_aso *aso);
+struct mlx5_aso_wqe *mlx5_aso_get_wqe(struct mlx5_aso *aso);
 void mlx5_aso_build_wqe(struct mlx5_aso *aso, u8 ds_cnt,
 			struct mlx5_aso_wqe *aso_wqe,
 			u32 obj_id, u32 opc_mode);

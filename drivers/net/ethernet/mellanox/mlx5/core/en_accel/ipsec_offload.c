@@ -2,6 +2,7 @@
 /* Copyright (c) 2017, Mellanox Technologies inc. All rights reserved. */
 
 #include "mlx5_core.h"
+#include "en.h"
 #include "ipsec.h"
 #include "lib/mlx5.h"
 
@@ -31,6 +32,12 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 	    MLX5_CAP_ETH(mdev, insert_trailer) && MLX5_CAP_ETH(mdev, swp))
 		caps |= MLX5_IPSEC_CAP_CRYPTO;
 
+	if (MLX5_CAP_IPSEC(mdev, ipsec_full_offload) &&
+	    MLX5_CAP_FLOWTABLE_NIC_TX(mdev, reformat_add_esp_trasport) &&
+	    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, reformat_del_esp_trasport) &&
+	    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, decap))
+		caps |= MLX5_IPSEC_CAP_PACKET_OFFLOAD;
+
 	if (!caps)
 		return 0;
 
@@ -46,6 +53,38 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 }
 EXPORT_SYMBOL_GPL(mlx5_ipsec_device_caps);
 
+static void mlx5e_ipsec_packet_setup(void *obj, u32 pdn,
+				     struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	void *aso_ctx;
+
+	aso_ctx = MLX5_ADDR_OF(ipsec_obj, obj, ipsec_aso);
+	if (attrs->esn_trigger) {
+		MLX5_SET(ipsec_aso, aso_ctx, esn_event_arm, 1);
+
+		if (attrs->dir == XFRM_DEV_OFFLOAD_IN) {
+			MLX5_SET(ipsec_aso, aso_ctx, window_sz,
+				 attrs->replay_window / 64);
+			MLX5_SET(ipsec_aso, aso_ctx, mode,
+				 MLX5_IPSEC_ASO_REPLAY_PROTECTION);
+			}
+	}
+
+	/* ASO context */
+	MLX5_SET(ipsec_obj, obj, ipsec_aso_access_pd, pdn);
+	MLX5_SET(ipsec_obj, obj, full_offload, 1);
+	MLX5_SET(ipsec_aso, aso_ctx, valid, 1);
+	/* MLX5_IPSEC_ASO_REG_C_4_5 is type C register that is used
+	 * in flow steering to perform matching against. Please be
+	 * aware that this register was chosen arbitrary and can't
+	 * be used in other places as long as IPsec packet offload
+	 * active.
+	 */
+	MLX5_SET(ipsec_obj, obj, aso_return_reg, MLX5_IPSEC_ASO_REG_C_4_5);
+	if (attrs->dir == XFRM_DEV_OFFLOAD_OUT)
+		MLX5_SET(ipsec_aso, aso_ctx, mode, MLX5_IPSEC_ASO_INC_SN);
+}
+
 static int mlx5_create_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
 	struct mlx5_accel_esp_xfrm_attrs *attrs = &sa_entry->attrs;
@@ -54,6 +93,7 @@ static int mlx5_create_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry)
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
 	u32 in[MLX5_ST_SZ_DW(create_ipsec_obj_in)] = {};
 	void *obj, *salt_p, *salt_iv_p;
+	struct mlx5e_hw_objs *res;
 	int err;
 
 	obj = MLX5_ADDR_OF(create_ipsec_obj_in, in, ipsec_object);
@@ -66,11 +106,10 @@ static int mlx5_create_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry)
 	salt_iv_p = MLX5_ADDR_OF(ipsec_obj, obj, implicit_iv);
 	memcpy(salt_iv_p, &aes_gcm->seq_iv, sizeof(aes_gcm->seq_iv));
 	/* esn */
-	if (attrs->flags & MLX5_ACCEL_ESP_FLAGS_ESN_TRIGGERED) {
+	if (attrs->esn_trigger) {
 		MLX5_SET(ipsec_obj, obj, esn_en, 1);
 		MLX5_SET(ipsec_obj, obj, esn_msb, attrs->esn);
-		if (attrs->flags & MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP)
-			MLX5_SET(ipsec_obj, obj, esn_overlap, 1);
+		MLX5_SET(ipsec_obj, obj, esn_overlap, attrs->esn_overlap);
 	}
 
 	MLX5_SET(ipsec_obj, obj, dekn, sa_entry->enc_key_id);
@@ -80,6 +119,10 @@ static int mlx5_create_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry)
 		 MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
 	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type,
 		 MLX5_GENERAL_OBJECT_TYPES_IPSEC);
+
+	res = &mdev->mlx5e_res.hw_objs;
+	if (attrs->type == XFRM_DEV_OFFLOAD_PACKET)
+		mlx5e_ipsec_packet_setup(obj, res->pdn, attrs);
 
 	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 	if (!err)
@@ -152,7 +195,7 @@ static int mlx5_modify_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry,
 	void *obj;
 	int err;
 
-	if (!(attrs->flags & MLX5_ACCEL_ESP_FLAGS_ESN_TRIGGERED))
+	if (!attrs->esn_trigger)
 		return 0;
 
 	general_obj_types = MLX5_CAP_GEN_64(mdev, general_obj_types);
@@ -183,8 +226,7 @@ static int mlx5_modify_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry,
 		   MLX5_MODIFY_IPSEC_BITMASK_ESN_OVERLAP |
 			   MLX5_MODIFY_IPSEC_BITMASK_ESN_MSB);
 	MLX5_SET(ipsec_obj, obj, esn_msb, attrs->esn);
-	if (attrs->flags & MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP)
-		MLX5_SET(ipsec_obj, obj, esn_overlap, 1);
+	MLX5_SET(ipsec_obj, obj, esn_overlap, attrs->esn_overlap);
 
 	/* general object fields set */
 	MLX5_SET(general_obj_in_cmd_hdr, in, opcode, MLX5_CMD_OP_MODIFY_GENERAL_OBJECT);
@@ -202,4 +244,57 @@ void mlx5_accel_esp_modify_xfrm(struct mlx5e_ipsec_sa_entry *sa_entry,
 		return;
 
 	memcpy(&sa_entry->attrs, attrs, sizeof(sa_entry->attrs));
+}
+
+int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec)
+{
+	struct mlx5_core_dev *mdev = ipsec->mdev;
+	struct mlx5e_ipsec_aso *aso;
+	struct mlx5e_hw_objs *res;
+	struct device *pdev;
+	int err;
+
+	aso = kzalloc(sizeof(*ipsec->aso), GFP_KERNEL);
+	if (!aso)
+		return -ENOMEM;
+
+	res = &mdev->mlx5e_res.hw_objs;
+
+	pdev = mlx5_core_dma_dev(mdev);
+	aso->dma_addr = dma_map_single(pdev, aso->ctx, sizeof(aso->ctx),
+				       DMA_BIDIRECTIONAL);
+	err = dma_mapping_error(pdev, aso->dma_addr);
+	if (err)
+		goto err_dma;
+
+	aso->aso = mlx5_aso_create(mdev, res->pdn);
+	if (IS_ERR(aso->aso)) {
+		err = PTR_ERR(aso->aso);
+		goto err_aso_create;
+	}
+
+	ipsec->aso = aso;
+	return 0;
+
+err_aso_create:
+	dma_unmap_single(pdev, aso->dma_addr, sizeof(aso->ctx),
+			 DMA_BIDIRECTIONAL);
+err_dma:
+	kfree(aso);
+	return err;
+}
+
+void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec)
+{
+	struct mlx5_core_dev *mdev = ipsec->mdev;
+	struct mlx5e_ipsec_aso *aso;
+	struct device *pdev;
+
+	aso = ipsec->aso;
+	pdev = mlx5_core_dma_dev(mdev);
+
+	mlx5_aso_destroy(aso->aso);
+	dma_unmap_single(pdev, aso->dma_addr, sizeof(aso->ctx),
+			 DMA_BIDIRECTIONAL);
+	kfree(aso);
 }
