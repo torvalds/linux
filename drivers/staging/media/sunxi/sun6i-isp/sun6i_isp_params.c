@@ -208,6 +208,8 @@ static void sun6i_isp_params_state_cleanup(struct sun6i_isp_device *isp_dev,
 		vb2_buffer = &state->pending->v4l2_buffer.vb2_buf;
 		vb2_buffer_done(vb2_buffer, error ? VB2_BUF_STATE_ERROR :
 				VB2_BUF_STATE_QUEUED);
+
+		state->pending = NULL;
 	}
 
 	list_for_each_entry(isp_buffer, &state->queue, list) {
