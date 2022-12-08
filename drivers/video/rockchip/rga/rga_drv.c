@@ -1594,7 +1594,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	memset(&req, 0x0, sizeof(req));
 #if RGA_DEBUGFS
 	if (RGA_TEST_MSG)
-		DBG("cmd is %s\n", rga_get_cmd_mode_str(cmd));
+		DBG("cmd is %s(0x%x)\n", rga_get_cmd_mode_str(cmd), cmd);
 	if (RGA_NONUSE) {
 		mutex_unlock(&rga_service.mutex);
 		return 0;
@@ -1651,7 +1651,6 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			ret = copy_to_user((void *)arg, rga_drvdata->version, 16);
             break;
 		default:
-			ERR("unknown ioctl cmd!\n");
 			ret = -EINVAL;
 			break;
 	}
