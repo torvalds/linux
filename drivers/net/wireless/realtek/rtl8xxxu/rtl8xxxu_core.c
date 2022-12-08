@@ -4208,10 +4208,12 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		 * should be equal or CCK RSSI report may be incorrect
 		 */
 		val32 = rtl8xxxu_read32(priv, REG_FPGA0_XA_HSSI_PARM2);
-		priv->cck_agc_report_type = val32 & FPGA0_HSSI_PARM2_CCK_HIGH_PWR;
+		priv->cck_agc_report_type =
+			u32_get_bits(val32, FPGA0_HSSI_PARM2_CCK_HIGH_PWR);
 
 		val32 = rtl8xxxu_read32(priv, REG_FPGA0_XB_HSSI_PARM2);
-		if (priv->cck_agc_report_type != (bool)(val32 & FPGA0_HSSI_PARM2_CCK_HIGH_PWR)) {
+		if (priv->cck_agc_report_type !=
+		    u32_get_bits(val32, FPGA0_HSSI_PARM2_CCK_HIGH_PWR)) {
 			if (priv->cck_agc_report_type)
 				val32 |= FPGA0_HSSI_PARM2_CCK_HIGH_PWR;
 			else
