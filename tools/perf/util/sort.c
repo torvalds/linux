@@ -2568,9 +2568,10 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 		tep_read_number_field(field, a->raw_data, &dyn);
 		offset = dyn & 0xffff;
 		size = (dyn >> 16) & 0xffff;
+#ifdef HAVE_LIBTRACEEVENT_TEP_FIELD_IS_RELATIVE
 		if (field->flags & TEP_FIELD_IS_RELATIVE)
 			offset += field->offset + field->size;
-
+#endif
 		/* record max width for output */
 		if (size > hde->dynamic_len)
 			hde->dynamic_len = size;
