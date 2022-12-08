@@ -4,7 +4,6 @@
 #include <linux/iommufd.h>
 #include <linux/slab.h>
 #include <linux/iommu.h>
-#include <linux/irqdomain.h>
 
 #include "io_pagetable.h"
 #include "iommufd_private.h"
@@ -169,8 +168,7 @@ static int iommufd_device_setup_msi(struct iommufd_device *idev,
 	 * operation from the device (eg a simple DMA) cannot trigger an
 	 * interrupt outside this iommufd context.
 	 */
-	if (!device_iommu_capable(idev->dev, IOMMU_CAP_INTR_REMAP) &&
-	    !irq_domain_check_msi_remap()) {
+	if (!iommu_group_has_isolated_msi(idev->group)) {
 		if (!allow_unsafe_interrupts)
 			return -EPERM;
 
