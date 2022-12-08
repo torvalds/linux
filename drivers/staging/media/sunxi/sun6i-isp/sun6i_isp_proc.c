@@ -342,7 +342,7 @@ static const struct v4l2_subdev_pad_ops sun6i_isp_proc_pad_ops = {
 	.set_fmt	= sun6i_isp_proc_set_fmt,
 };
 
-const struct v4l2_subdev_ops sun6i_isp_proc_subdev_ops = {
+static const struct v4l2_subdev_ops sun6i_isp_proc_subdev_ops = {
 	.video	= &sun6i_isp_proc_video_ops,
 	.pad	= &sun6i_isp_proc_pad_ops,
 };
