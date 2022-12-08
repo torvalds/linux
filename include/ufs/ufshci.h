@@ -425,7 +425,7 @@ struct ufshcd_sg_entry {
 	__le32    size;
 	/*
 	 * followed by variant-specific fields if
-	 * hba->sg_entry_size != sizeof(struct ufshcd_sg_entry)
+	 * CONFIG_SCSI_UFS_VARIABLE_SG_ENTRY_SIZE has been defined.
 	 */
 };
 
@@ -441,9 +441,6 @@ struct utp_transfer_cmd_desc {
 	u8 response_upiu[ALIGNED_UPIU_SIZE];
 	u8 prd_table[];
 };
-
-#define sizeof_utp_transfer_cmd_desc(hba)	\
-	(sizeof(struct utp_transfer_cmd_desc) + SG_ALL * (hba)->sg_entry_size)
 
 /**
  * struct request_desc_header - Descriptor Header common to both UTRD and UTMRD
