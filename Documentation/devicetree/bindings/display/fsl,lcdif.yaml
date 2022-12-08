@@ -52,6 +52,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  power-domains:
+    maxItems: 1
+
   port:
     $ref: /schemas/graph.yaml#/properties/port
     description: The LCDIF output port
@@ -81,7 +84,31 @@ allOf:
           maxItems: 3
       required:
         - clock-names
-    else:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8mp-lcdif
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 3
+        clock-names:
+          minItems: 3
+          maxItems: 3
+      required:
+        - clock-names
+        - power-domains
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - fsl,imx6sx-lcdif
+                - fsl,imx8mp-lcdif
+    then:
       properties:
         clocks:
           maxItems: 1
