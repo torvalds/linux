@@ -459,6 +459,9 @@ config NF_NAT_REDIRECT
 config NF_NAT_MASQUERADE
 	bool
 
+config NF_NAT_OVS
+	bool
+
 config NETFILTER_SYNPROXY
 	tristate
 
