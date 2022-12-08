@@ -142,15 +142,21 @@ void dma_buf_uninit_sysfs_statistics(void)
 	kset_unregister(dma_buf_stats_kset);
 }
 
+struct dma_buf_create_sysfs_entry {
+	struct dma_buf *dmabuf;
+	struct work_struct work;
+};
+
+union dma_buf_create_sysfs_work_entry {
+	struct dma_buf_create_sysfs_entry create_entry;
+	struct dma_buf_sysfs_entry sysfs_entry;
+};
+
 static void sysfs_add_workfn(struct work_struct *work)
 {
-	/* The ABI would have to change for this to be false, but let's be paranoid. */
-	_Static_assert(sizeof(struct kobject) >= sizeof(struct work_struct),
-		"kobject is smaller than work_struct");
-
-	struct dma_buf_sysfs_entry *sysfs_entry =
-		container_of((struct kobject *)work, struct dma_buf_sysfs_entry, kobj);
-	struct dma_buf *dmabuf = sysfs_entry->dmabuf;
+	struct dma_buf_create_sysfs_entry *create_entry =
+		container_of(work, struct dma_buf_create_sysfs_entry, work);
+	struct dma_buf *dmabuf = create_entry->dmabuf;
 
 	/*
 	 * A dmabuf is ref-counted via its file member. If this handler holds the only
@@ -161,6 +167,7 @@ static void sysfs_add_workfn(struct work_struct *work)
 	 * is released, and that can't happen until the end of this function.
 	 */
 	if (file_count(dmabuf->file) > 1) {
+		dmabuf->sysfs_entry->dmabuf = dmabuf;
 		/*
 		 * kobject_init_and_add expects kobject to be zero-filled, but we have populated it
 		 * to trigger this work function.
@@ -185,8 +192,8 @@ static void sysfs_add_workfn(struct work_struct *work)
 
 int dma_buf_stats_setup(struct dma_buf *dmabuf)
 {
-	struct dma_buf_sysfs_entry *sysfs_entry;
-	struct work_struct *work;
+	struct dma_buf_create_sysfs_entry *create_entry;
+	union dma_buf_create_sysfs_work_entry *work_entry;
 
 	if (!dmabuf || !dmabuf->file)
 		return -EINVAL;
@@ -196,21 +203,18 @@ int dma_buf_stats_setup(struct dma_buf *dmabuf)
 		return -EINVAL;
 	}
 
-	sysfs_entry = kmalloc(sizeof(struct dma_buf_sysfs_entry), GFP_KERNEL);
-	if (!sysfs_entry)
+	work_entry = kmalloc(sizeof(union dma_buf_create_sysfs_work_entry), GFP_KERNEL);
+	if (!work_entry)
 		return -ENOMEM;
 
-	sysfs_entry->dmabuf = dmabuf;
-	dmabuf->sysfs_entry = sysfs_entry;
+	dmabuf->sysfs_entry = &work_entry->sysfs_entry;
 
-	/*
-	 * The use of kobj as a work_struct is an ugly hack
-	 * to avoid an ABI break in this frozen kernel.
-	 */
-	work = (struct work_struct *)&dmabuf->sysfs_entry->kobj;
-	INIT_WORK(work, sysfs_add_workfn);
+	create_entry = &work_entry->create_entry;
+	create_entry->dmabuf = dmabuf;
+
+	INIT_WORK(&create_entry->work, sysfs_add_workfn);
 	get_dma_buf(dmabuf); /* This reference will be dropped in sysfs_add_workfn. */
-	schedule_work(work);
+	schedule_work(&create_entry->work);
 
 	return 0;
 }
