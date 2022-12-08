@@ -127,10 +127,9 @@ struct tty3270 {
 };
 
 /* tty3270->update_flags. See tty3270_update for details. */
-#define TTY_UPDATE_ERASE	1	/* Use EWRITEA instead of WRITE. */
-#define TTY_UPDATE_INPUT	4	/* Update input line. */
-#define TTY_UPDATE_STATUS	8	/* Update status line. */
-#define TTY_UPDATE_ALL		16	/* Recreate screen. */
+#define TTY_UPDATE_INPUT	0x1	/* Update input line. */
+#define TTY_UPDATE_STATUS	0x2	/* Update status line. */
+#define TTY_UPDATE_ALL		0x3	/* Recreate screen. */
 
 #define TTY3270_INPUT_AREA_ROWS 2
 
@@ -491,7 +490,7 @@ static void tty3270_update(struct timer_list *t)
 	struct tty3270 *tp = from_timer(tp, t, timer);
 	struct raw3270_request *wrq;
 	struct tty3270_line *line;
-	unsigned long updated;
+	u8 cmd = TC_WRITE;
 	int i, rc, len;
 
 	wrq = xchg(&tp->write, 0);
@@ -501,18 +500,10 @@ static void tty3270_update(struct timer_list *t)
 	}
 
 	spin_lock_irq(&tp->view.lock);
-	updated = 0;
-	if (tp->update_flags & TTY_UPDATE_ALL) {
-		tp->update_flags = TTY_UPDATE_ERASE |
-			TTY_UPDATE_INPUT | TTY_UPDATE_STATUS;
-	}
-	if (tp->update_flags & TTY_UPDATE_ERASE) {
-		/* Use erase write alternate to erase display. */
-		raw3270_request_set_cmd(wrq, TC_EWRITEA);
-		updated |= TTY_UPDATE_ERASE;
-	} else {
-		raw3270_request_set_cmd(wrq, TC_WRITE);
-	}
+	if (tp->update_flags == TTY_UPDATE_ALL)
+		cmd = TC_EWRITEA;
+
+	raw3270_request_set_cmd(wrq, cmd);
 	raw3270_request_add_data(wrq, &tp->wcc, 1);
 	tp->wcc = TW_NONE;
 
@@ -522,7 +513,7 @@ static void tty3270_update(struct timer_list *t)
 	if (tp->update_flags & TTY_UPDATE_STATUS) {
 		len = tty3270_add_status(tp);
 		if (raw3270_request_add_data(wrq, tp->converted_line, len) == 0)
-			updated |= TTY_UPDATE_STATUS;
+			tp->update_flags &= ~TTY_UPDATE_STATUS;
 	}
 
 	/*
@@ -531,7 +522,7 @@ static void tty3270_update(struct timer_list *t)
 	if (tp->update_flags & TTY_UPDATE_INPUT) {
 		len = tty3270_add_prompt(tp);
 		if (raw3270_request_add_data(wrq, tp->converted_line, len) == 0)
-			updated |= TTY_UPDATE_INPUT;
+			tp->update_flags &= ~TTY_UPDATE_INPUT;
 	}
 
 	for (i = 0; i < tty3270_tty_rows(tp); i++) {
@@ -551,7 +542,6 @@ static void tty3270_update(struct timer_list *t)
 	wrq->callback = tty3270_write_callback;
 	rc = raw3270_start(&tp->view, wrq);
 	if (rc == 0) {
-		tp->update_flags &= ~updated;
 		if (tp->update_flags)
 			tty3270_set_timer(tp, 1);
 	} else {
