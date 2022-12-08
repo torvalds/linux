@@ -18,6 +18,8 @@
 #include <linux/err.h>
 #include <linux/sys.h>
 #include <linux/threads.h>
+#include <linux/linkage.h>
+
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -74,17 +76,18 @@ _ASM_NOKPROBE_SYMBOL(prepare_transfer_to_handler)
 #endif /* CONFIG_PPC_BOOK3S_32 || CONFIG_PPC_E500 */
 
 #if defined(CONFIG_PPC_KUEP) && defined(CONFIG_PPC_BOOK3S_32)
-	.globl	__kuep_lock
-__kuep_lock:
+SYM_FUNC_START(__kuep_lock)
 	lwz	r9, THREAD+THSR0(r2)
 	update_user_segments_by_4 r9, r10, r11, r12
 	blr
+SYM_FUNC_END(__kuep_lock)
 
-__kuep_unlock:
+SYM_FUNC_START_LOCAL(__kuep_unlock)
 	lwz	r9, THREAD+THSR0(r2)
 	rlwinm  r9,r9,0,~SR_NX
 	update_user_segments_by_4 r9, r10, r11, r12
 	blr
+SYM_FUNC_END(__kuep_unlock)
 
 .macro	kuep_lock
 	bl	__kuep_lock

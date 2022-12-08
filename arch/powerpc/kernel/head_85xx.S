@@ -29,6 +29,8 @@
 #include <linux/init.h>
 #include <linux/threads.h>
 #include <linux/pgtable.h>
+#include <linux/linkage.h>
+
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -885,7 +887,7 @@ KernelSPE:
  * Translate the effec addr in r3 to phys addr. The phys addr will be put
  * into r3(higher 32bit) and r4(lower 32bit)
  */
-get_phys_addr:
+SYM_FUNC_START_LOCAL(get_phys_addr)
 	mfmsr	r8
 	mfspr	r9,SPRN_PID
 	rlwinm	r9,r9,16,0x3fff0000	/* turn PID into MAS6[SPID] */
@@ -907,6 +909,7 @@ get_phys_addr:
 	mfspr	r3,SPRN_MAS7
 #endif
 	blr
+SYM_FUNC_END(get_phys_addr)
 
 /*
  * Global functions
