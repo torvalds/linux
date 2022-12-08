@@ -1904,7 +1904,7 @@ struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
 }
 
 /**
- * bpf_task_release - Release the reference acquired on a struct task_struct *.
+ * bpf_task_release - Release the reference acquired on a task.
  * @p: The task on which a reference is being released.
  */
 void bpf_task_release(struct task_struct *p)
@@ -1960,7 +1960,7 @@ struct cgroup *bpf_cgroup_kptr_get(struct cgroup **cgrpp)
 }
 
 /**
- * bpf_cgroup_release - Release the reference acquired on a struct cgroup *.
+ * bpf_cgroup_release - Release the reference acquired on a cgroup.
  * If this kfunc is invoked in an RCU read region, the cgroup is guaranteed to
  * not be freed until the current grace period has ended, even if its refcount
  * drops to 0.
