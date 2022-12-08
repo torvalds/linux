@@ -1,14 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2022 Intel Corporation. All rights reserved. */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM cxl
 
 #if !defined(_CXL_EVENTS_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _CXL_EVENTS_H
 
+#include <cxl.h>
 #include <linux/tracepoint.h>
-
-#define CXL_HEADERLOG_SIZE		SZ_512
-#define CXL_HEADERLOG_SIZE_U32		SZ_512 / sizeof(u32)
 
 #define CXL_RAS_UC_CACHE_DATA_PARITY	BIT(0)
 #define CXL_RAS_UC_CACHE_ADDR_PARITY	BIT(1)
@@ -106,7 +105,5 @@ TRACE_EVENT(cxl_aer_correctable_error,
 
 #endif /* _CXL_EVENTS_H */
 
-/* This part must be outside protection */
-#undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE cxl
+#define TRACE_INCLUDE_FILE trace
 #include <trace/define_trace.h>
