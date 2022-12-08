@@ -175,7 +175,7 @@ u8 mt7921_check_offload_capability(struct device *dev, const char *fw_wm)
 
 	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
 		dev_err(dev, "Invalid firmware\n");
-		return -EINVAL;
+		goto out;
 	}
 
 	data = fw->data;
@@ -206,6 +206,7 @@ u8 mt7921_check_offload_capability(struct device *dev, const char *fw_wm)
 		data += le16_to_cpu(rel_info->len) + rel_info->pad_len;
 	}
 
+out:
 	release_firmware(fw);
 
 	return features ? features->data : 0;
