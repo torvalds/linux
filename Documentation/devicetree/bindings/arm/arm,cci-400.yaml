@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/arm,cci-400.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ARM CCI Cache Coherent Interconnect Device Tree Binding
+title: ARM CCI Cache Coherent Interconnect
 
 maintainers:
   - Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>

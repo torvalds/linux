@@ -6,9 +6,6 @@
  *  Copyright (c) 2006 Dmitry Torokhov <dtor@mail.ru>
  */
 
-/*
- */
-
 /* #define DEBUG */
 
 #include <linux/input.h>

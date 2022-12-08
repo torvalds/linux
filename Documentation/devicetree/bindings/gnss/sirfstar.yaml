@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/gnss/sirfstar.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: SiRFstar GNSS Receiver Device Tree Bindings
+title: SiRFstar GNSS Receiver
 
 maintainers:
   - Johan Hovold <johan@kernel.org>

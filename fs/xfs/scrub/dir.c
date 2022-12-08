@@ -676,7 +676,7 @@ xchk_directory_blocks(
 	xfs_dablk_t		dabno;
 	xfs_dir2_db_t		last_data_db = 0;
 	bool			found;
-	int			is_block = 0;
+	bool			is_block = false;
 	int			error;
 
 	/* Ignore local format directories. */

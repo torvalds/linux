@@ -222,6 +222,7 @@ ForEachMacros:
   - 'for_each_component_dais'
   - 'for_each_component_dais_safe'
   - 'for_each_console'
+  - 'for_each_console_srcu'
   - 'for_each_cpu'
   - 'for_each_cpu_and'
   - 'for_each_cpu_not'

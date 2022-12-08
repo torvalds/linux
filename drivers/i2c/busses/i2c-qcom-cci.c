@@ -807,6 +807,7 @@ static const struct cci_data cci_v2_data = {
 };
 
 static const struct of_device_id cci_dt_match[] = {
+	{ .compatible = "qcom,msm8226-cci", .data = &cci_v1_data},
 	{ .compatible = "qcom,msm8916-cci", .data = &cci_v1_data},
 	{ .compatible = "qcom,msm8974-cci", .data = &cci_v1_5_data},
 	{ .compatible = "qcom,msm8996-cci", .data = &cci_v2_data},

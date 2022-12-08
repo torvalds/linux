@@ -732,7 +732,7 @@ EndSysreg
 
 Sysreg	SCTLR_EL1	3	0	1	0	0
 Field	63	TIDCP
-Field	62	SPINMASK
+Field	62	SPINTMASK
 Field	61	NMI
 Field	60	EnTP2
 Res0	59:58

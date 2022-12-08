@@ -244,11 +244,6 @@ archheaders:
 ###
 # Kernel objects
 
-head-y := arch/x86/kernel/head_$(BITS).o
-head-y += arch/x86/kernel/head$(BITS).o
-head-y += arch/x86/kernel/ebda.o
-head-y += arch/x86/kernel/platform-quirks.o
-
 libs-y  += arch/x86/lib/
 
 # drivers-y are linked after core-y

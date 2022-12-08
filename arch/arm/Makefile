@@ -137,9 +137,6 @@ KBUILD_AFLAGS	+=$(CFLAGS_ABI) $(AFLAGS_ISA) $(arch-y) $(tune-y) -include asm/uni
 
 CHECKFLAGS	+= -D__arm__
 
-#Default value
-head-y		:= arch/arm/kernel/head$(MMUEXT).o
-
 # Text offset. This list is sorted numerically by address in order to
 # provide a means to avoid/resolve conflicts in multi-arch kernels.
 # Note: the 32kB below this value is reserved for use by the kernel

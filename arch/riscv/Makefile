@@ -37,11 +37,13 @@ else
 endif
 
 ifeq ($(CONFIG_LD_IS_LLD),y)
+ifeq ($(shell test $(CONFIG_LLD_VERSION) -lt 150000; echo $$?),0)
 	KBUILD_CFLAGS += -mno-relax
 	KBUILD_AFLAGS += -mno-relax
 ifndef CONFIG_AS_IS_LLVM
 	KBUILD_CFLAGS += -Wa,-mno-relax
 	KBUILD_AFLAGS += -Wa,-mno-relax
+endif
 endif
 endif
 
@@ -109,8 +111,6 @@ KBUILD_IMAGE := $(boot)/xipImage
 else
 KBUILD_IMAGE	:= $(boot)/Image.gz
 endif
-
-head-y := arch/riscv/kernel/head.o
 
 libs-y += arch/riscv/lib/
 libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a

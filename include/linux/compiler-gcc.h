@@ -115,6 +115,12 @@
 #endif
 
 /*
+ * GCC does not support KMSAN.
+ */
+#define __no_sanitize_memory
+#define __no_kmsan_checks
+
+/*
  * Turn individual warnings and errors on and off locally, depending
  * on version.
  */

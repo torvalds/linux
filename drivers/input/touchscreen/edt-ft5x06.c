@@ -912,8 +912,8 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		p = strchr(rdbuf, '*');
 		if (p)
 			*p++ = '\0';
-		strlcpy(model_name, rdbuf + 1, EDT_NAME_LEN);
-		strlcpy(fw_version, p ? p : "", EDT_NAME_LEN);
+		strscpy(model_name, rdbuf + 1, EDT_NAME_LEN);
+		strscpy(fw_version, p ? p : "", EDT_NAME_LEN);
 	} else if (!strncasecmp(rdbuf, "EP0", 3)) {
 		tsdata->version = EDT_M12;
 
@@ -926,8 +926,8 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		p = strchr(rdbuf, '*');
 		if (p)
 			*p++ = '\0';
-		strlcpy(model_name, rdbuf, EDT_NAME_LEN);
-		strlcpy(fw_version, p ? p : "", EDT_NAME_LEN);
+		strscpy(model_name, rdbuf, EDT_NAME_LEN);
+		strscpy(fw_version, p ? p : "", EDT_NAME_LEN);
 	} else {
 		/* If it is not an EDT M06/M12 touchscreen, then the model
 		 * detection is a bit hairy. The different ft5x06
@@ -945,7 +945,7 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		if (error)
 			return error;
 
-		strlcpy(fw_version, rdbuf, 2);
+		strscpy(fw_version, rdbuf, 2);
 
 		error = edt_ft5x06_ts_readwrite(client, 1, "\xA8",
 						1, rdbuf);
@@ -981,7 +981,7 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 							1, rdbuf);
 			if (error)
 				return error;
-			strlcpy(fw_version, rdbuf, 1);
+			strscpy(fw_version, rdbuf, 1);
 			snprintf(model_name, EDT_NAME_LEN,
 				 "EVERVISION-FT5726NEi");
 			break;

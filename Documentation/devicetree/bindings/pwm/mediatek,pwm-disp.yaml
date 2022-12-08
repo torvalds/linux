@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pwm/mediatek,pwm-disp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek DISP_PWM Controller Device Tree Bindings
+title: MediaTek DISP_PWM Controller
 
 maintainers:
   - Jitao Shi <jitao.shi@mediatek.com>

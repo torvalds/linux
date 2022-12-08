@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/fsl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale i.MX Platforms Device Tree Bindings
+title: Freescale i.MX Platforms
 
 maintainers:
   - Shawn Guo <shawnguo@kernel.org>

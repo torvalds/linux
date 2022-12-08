@@ -228,8 +228,10 @@
 176	64	rt_sigtimedwait			sys_rt_sigtimedwait
 177	nospu 	rt_sigqueueinfo			sys_rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
 178	nospu 	rt_sigsuspend			sys_rt_sigsuspend		compat_sys_rt_sigsuspend
-179	common	pread64				sys_pread64			compat_sys_ppc_pread64
-180	common	pwrite64			sys_pwrite64			compat_sys_ppc_pwrite64
+179	32	pread64				sys_ppc_pread64			compat_sys_ppc_pread64
+179	64	pread64				sys_pread64
+180	32	pwrite64			sys_ppc_pwrite64		compat_sys_ppc_pwrite64
+180	64	pwrite64			sys_pwrite64
 181	common	chown				sys_chown
 182	common	getcwd				sys_getcwd
 183	common	capget				sys_capget
@@ -242,10 +244,11 @@
 188	common 	putpmsg				sys_ni_syscall
 189	nospu	vfork				sys_vfork
 190	common	ugetrlimit			sys_getrlimit			compat_sys_getrlimit
-191	common	readahead			sys_readahead			compat_sys_ppc_readahead
+191	32	readahead			sys_ppc_readahead		compat_sys_ppc_readahead
+191	64	readahead			sys_readahead
 192	32	mmap2				sys_mmap2			compat_sys_mmap2
-193	32	truncate64			sys_truncate64			compat_sys_ppc_truncate64
-194	32	ftruncate64			sys_ftruncate64			compat_sys_ppc_ftruncate64
+193	32	truncate64			sys_ppc_truncate64		compat_sys_ppc_truncate64
+194	32	ftruncate64			sys_ppc_ftruncate64		compat_sys_ppc_ftruncate64
 195	32	stat64				sys_stat64
 196	32	lstat64				sys_lstat64
 197	32	fstat64				sys_fstat64
@@ -288,7 +291,8 @@
 230	common	io_submit			sys_io_submit			compat_sys_io_submit
 231	common	io_cancel			sys_io_cancel
 232	nospu	set_tid_address			sys_set_tid_address
-233	common	fadvise64			sys_fadvise64			compat_sys_ppc32_fadvise64
+233	32	fadvise64			sys_ppc32_fadvise64		compat_sys_ppc32_fadvise64
+233	64	fadvise64			sys_fadvise64
 234	nospu	exit_group			sys_exit_group
 235	nospu	lookup_dcookie			sys_lookup_dcookie		compat_sys_lookup_dcookie
 236	common	epoll_create			sys_epoll_create

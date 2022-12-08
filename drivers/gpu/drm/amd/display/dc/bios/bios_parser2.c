@@ -51,13 +51,6 @@
 #define LAST_RECORD_TYPE 0xff
 #define SMU9_SYSPLL0_ID  0
 
-struct i2c_id_config_access {
-	uint8_t bfI2C_LineMux:4;
-	uint8_t bfHW_EngineID:3;
-	uint8_t bfHW_Capable:1;
-	uint8_t ucAccess;
-};
-
 static enum bp_result get_gpio_i2c_info(struct bios_parser *bp,
 	struct atom_i2c_record *record,
 	struct graphics_object_i2c_info *info);

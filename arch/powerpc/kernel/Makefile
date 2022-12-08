@@ -73,6 +73,7 @@ obj-y				:= cputable.o syscalls.o \
 obj-y				+= ptrace/
 obj-$(CONFIG_PPC64)		+= setup_64.o irq_64.o\
 				   paca.o nvram_64.o note.o
+obj-$(CONFIG_PPC32)		+= sys_ppc32.o
 obj-$(CONFIG_COMPAT)		+= sys_ppc32.o signal_32.o
 obj-$(CONFIG_VDSO32)		+= vdso32_wrapper.o
 obj-$(CONFIG_PPC_WATCHDOG)	+= watchdog.o
@@ -116,12 +117,12 @@ obj-$(CONFIG_PPC_E500)		+= cpu_setup_e500.o
 obj-$(CONFIG_PPC_DOORBELL)	+= dbell.o
 obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
 
-extra-$(CONFIG_PPC64)		:= head_64.o
-extra-$(CONFIG_PPC_BOOK3S_32)	:= head_book3s_32.o
-extra-$(CONFIG_40x)		:= head_40x.o
-extra-$(CONFIG_44x)		:= head_44x.o
-extra-$(CONFIG_PPC_85xx)	:= head_85xx.o
-extra-$(CONFIG_PPC_8xx)		:= head_8xx.o
+obj-$(CONFIG_PPC64)		+= head_64.o
+obj-$(CONFIG_PPC_BOOK3S_32)	+= head_book3s_32.o
+obj-$(CONFIG_40x)		+= head_40x.o
+obj-$(CONFIG_44x)		+= head_44x.o
+obj-$(CONFIG_PPC_8xx)		+= head_8xx.o
+obj-$(CONFIG_PPC_85xx)		+= head_85xx.o
 extra-y				+= vmlinux.lds
 
 obj-$(CONFIG_RELOCATABLE)	+= reloc_$(BITS).o
@@ -196,10 +197,10 @@ KCOV_INSTRUMENT_paca.o := n
 CFLAGS_setup_64.o		+= -fno-stack-protector
 CFLAGS_paca.o			+= -fno-stack-protector
 
-extra-$(CONFIG_PPC_FPU)		+= fpu.o
-extra-$(CONFIG_ALTIVEC)		+= vector.o
-extra-$(CONFIG_PPC64)		+= entry_64.o
-extra-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init.o
+obj-$(CONFIG_PPC_FPU)		+= fpu.o
+obj-$(CONFIG_ALTIVEC)		+= vector.o
+obj-$(CONFIG_PPC64)		+= entry_64.o
+obj-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init.o
 
 extra-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init_check
 

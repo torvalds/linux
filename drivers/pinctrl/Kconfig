@@ -135,6 +135,20 @@ config PINCTRL_BM1880
 	help
 	  Pinctrl driver for Bitmain BM1880 SoC.
 
+config PINCTRL_CY8C95X0
+	tristate "Cypress CY8C95X0 I2C pinctrl and GPIO driver"
+	depends on I2C
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select REGMAP_I2C
+	help
+	  Support for 20/40/60 pin Cypress Cy8C95x0 pinctrl/gpio I2C expander.
+	  This driver can also be built as a module. If so, the module will be
+	  called pinctrl-cy8c95x0.
+
 config PINCTRL_DA850_PUPD
 	tristate "TI DA850/OMAP-L138/AM18XX pull-up and pull-down groups"
 	depends on OF && (ARCH_DAVINCI_DA850 || COMPILE_TEST)
@@ -324,6 +338,11 @@ config PINCTRL_OCELOT
 	select GENERIC_PINMUX_FUNCTIONS
 	select OF_GPIO
 	select REGMAP_MMIO
+	help
+	  Support for the internal GPIO interfaces on Microsemi Ocelot and
+	  Jaguar2 SoCs.
+
+	  If conpiled as a module, the module name will be pinctrl-ocelot.
 
 config PINCTRL_OXNAS
 	bool
@@ -414,23 +433,6 @@ config PINCTRL_ST
 	select PINMUX
 	select PINCONF
 	select GPIOLIB_IRQCHIP
-
-config PINCTRL_STARFIVE
-	tristate "Pinctrl and GPIO driver for the StarFive JH7100 SoC"
-	depends on SOC_STARFIVE || COMPILE_TEST
-	depends on OF
-	default SOC_STARFIVE
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GENERIC_PINCONF
-	select GPIOLIB
-	select GPIOLIB_IRQCHIP
-	select OF_GPIO
-	help
-	  Say yes here to support pin control on the StarFive JH7100 SoC.
-	  This also provides an interface to the GPIO pins not used by other
-	  peripherals supporting inputs, outputs, configuring pull-up/pull-down
-	  and interrupts on input changes.
 
 config PINCTRL_STMFX
 	tristate "STMicroelectronics STMFX GPIO expander pinctrl driver"
@@ -529,6 +531,7 @@ source "drivers/pinctrl/renesas/Kconfig"
 source "drivers/pinctrl/samsung/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/sprd/Kconfig"
+source "drivers/pinctrl/starfive/Kconfig"
 source "drivers/pinctrl/stm32/Kconfig"
 source "drivers/pinctrl/sunplus/Kconfig"
 source "drivers/pinctrl/sunxi/Kconfig"

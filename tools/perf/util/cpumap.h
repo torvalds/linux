@@ -10,7 +10,7 @@
 /** Identify where counts are aggregated, -1 implies not to aggregate. */
 struct aggr_cpu_id {
 	/** A value in the range 0 to number of threads. */
-	int thread;
+	int thread_idx;
 	/** The numa node X as read from /sys/devices/system/node/nodeX. */
 	int node;
 	/**

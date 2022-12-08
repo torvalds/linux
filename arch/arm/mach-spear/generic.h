@@ -25,11 +25,8 @@ extern struct pl022_ssp_controller pl022_plat_data;
 extern struct pl08x_platform_data pl080_plat_data;
 
 void __init spear_setup_of_timer(void);
-void __init spear3xx_clk_init(void __iomem *misc_base,
-			      void __iomem *soc_config_base);
 void __init spear3xx_map_io(void);
 void __init spear3xx_dt_init_irq(void);
-void __init spear6xx_clk_init(void __iomem *misc_base);
 void __init spear13xx_map_io(void);
 void __init spear13xx_l2x0_init(void);
 

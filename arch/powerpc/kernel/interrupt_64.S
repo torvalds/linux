@@ -538,7 +538,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
 	beq	.Lfast_kernel_interrupt_return_\srr\() // EE already disabled
 	lbz	r11,PACAIRQHAPPENED(r13)
 	andi.	r10,r11,PACA_IRQ_MUST_HARD_MASK
-	beq	1f // No HARD_MASK pending
+	beq	.Lfast_kernel_interrupt_return_\srr\() // No HARD_MASK pending
 
 	/* Must clear MSR_EE from _MSR */
 #ifdef CONFIG_PPC_BOOK3S
@@ -555,12 +555,23 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
 	b	.Lfast_kernel_interrupt_return_\srr\()
 
 .Linterrupt_return_\srr\()_soft_enabled:
+	/*
+	 * In the soft-enabled case, need to double-check that we have no
+	 * pending interrupts that might have come in before we reached the
+	 * restart section of code, and restart the exit so those can be
+	 * handled.
+	 *
+	 * If there are none, it is be possible that the interrupt still
+	 * has PACA_IRQ_HARD_DIS set, which needs to be cleared for the
+	 * interrupted context. This clear will not clobber a new pending
+	 * interrupt coming in, because we're in the restart section, so
+	 * such would return to the restart location.
+	 */
 #ifdef CONFIG_PPC_BOOK3S
 	lbz	r11,PACAIRQHAPPENED(r13)
 	andi.	r11,r11,(~PACA_IRQ_HARD_DIS)@l
 	bne-	interrupt_return_\srr\()_kernel_restart
 #endif
-1:
 	li	r11,0
 	stb	r11,PACAIRQHAPPENED(r13) // clear the possible HARD_DIS
 

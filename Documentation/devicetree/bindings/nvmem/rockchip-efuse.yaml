@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/rockchip-efuse.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Rockchip eFuse device tree bindings
+title: Rockchip eFuse
 
 maintainers:
   - Heiko Stuebner <heiko@sntech.de>

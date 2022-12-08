@@ -969,11 +969,6 @@ config MEMCG
 	help
 	  Provides control over the memory footprint of tasks in a cgroup.
 
-config MEMCG_SWAP
-	bool
-	depends on MEMCG && SWAP
-	default y
-
 config MEMCG_KMEM
 	bool
 	depends on MEMCG && !SLOB
@@ -1272,6 +1267,7 @@ endif # NAMESPACES
 
 config CHECKPOINT_RESTORE
 	bool "Checkpoint/restore support"
+	depends on PROC_FS
 	select PROC_CHILDREN
 	select KCMP
 	default n
