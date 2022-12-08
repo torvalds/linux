@@ -195,6 +195,8 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x16DC, 0x0015) }, /* W-IE-NE-R Plein & Baus GmbH CML Control, Monitoring and Data Logger */
 	{ USB_DEVICE(0x17A8, 0x0001) }, /* Kamstrup Optical Eye/3-wire */
 	{ USB_DEVICE(0x17A8, 0x0005) }, /* Kamstrup M-Bus Master MultiPort 250D */
+	{ USB_DEVICE(0x17A8, 0x0011) }, /* Kamstrup 444 MHz RF sniffer */
+	{ USB_DEVICE(0x17A8, 0x0013) }, /* Kamstrup 870 MHz RF sniffer */
 	{ USB_DEVICE(0x17A8, 0x0101) }, /* Kamstrup 868 MHz wM-Bus C-Mode Meter Reader (Int Ant) */
 	{ USB_DEVICE(0x17A8, 0x0102) }, /* Kamstrup 868 MHz wM-Bus C-Mode Meter Reader (Ext Ant) */
 	{ USB_DEVICE(0x17F4, 0xAAAA) }, /* Wavesense Jazz blood glucose meter */
@@ -1047,11 +1049,12 @@ static void cp210x_change_speed(struct tty_struct *tty,
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	u32 baud;
 
+	if (tty->termios.c_ospeed == 0)
+		return;
+
 	/*
 	 * This maps the requested rate to the actual rate, a valid rate on
 	 * cp2102 or cp2103, or to an arbitrary rate in [1M, max_speed].
-	 *
-	 * NOTE: B0 is not implemented.
 	 */
 	baud = clamp(tty->termios.c_ospeed, priv->min_speed, priv->max_speed);
 
@@ -1144,7 +1147,8 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 		tty->termios.c_iflag &= ~(IXON | IXOFF);
 	}
 
-	if (old_termios &&
+	if (tty->termios.c_ospeed != 0 &&
+			old_termios && old_termios->c_ospeed != 0 &&
 			C_CRTSCTS(tty) == (old_termios->c_cflag & CRTSCTS) &&
 			I_IXON(tty) == (old_termios->c_iflag & IXON) &&
 			I_IXOFF(tty) == (old_termios->c_iflag & IXOFF) &&
@@ -1168,6 +1172,14 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 	}
 
 	mutex_lock(&port_priv->mutex);
+
+	if (tty->termios.c_ospeed == 0) {
+		port_priv->dtr = false;
+		port_priv->rts = false;
+	} else if (old_termios && old_termios->c_ospeed == 0) {
+		port_priv->dtr = true;
+		port_priv->rts = true;
+	}
 
 	ret = cp210x_read_reg_block(port, CP210X_GET_FLOW, &flow_ctl,
 			sizeof(flow_ctl));
@@ -1241,7 +1253,8 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	u16 bits;
 	int ret;
 
-	if (old_termios && !cp210x_termios_change(&tty->termios, old_termios))
+	if (old_termios && !cp210x_termios_change(&tty->termios, old_termios) &&
+			tty->termios.c_ospeed != 0)
 		return;
 
 	if (!old_termios || tty->termios.c_ospeed != old_termios->c_ospeed)
