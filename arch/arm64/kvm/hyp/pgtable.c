@@ -767,11 +767,47 @@ static int stage2_map_walk_leaf(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 	 */
 	if (pte_ops->pte_is_counted_cb(pte, level))
 		stage2_put_pte(ptep, data->mmu, addr, level, mm_ops);
+	else {
+		/*
+		 * On non-refcounted PTEs we just clear them out without
+		 * dropping the refcount.
+		 */
+		stage2_clear_pte(ptep, data->mmu, addr, level);
+	}
 
 	kvm_set_table_pte(ptep, childp, mm_ops);
 	mm_ops->get_page(ptep);
 
 	return 0;
+}
+
+static void stage2_coalesce_walk_table_post(u64 addr, u64 end, u32 level,
+			kvm_pte_t *ptep,
+			struct stage2_map_data *data)
+{
+	struct kvm_pgtable_mm_ops *mm_ops = data->mm_ops;
+	kvm_pte_t *childp = kvm_pte_follow(*ptep, mm_ops);
+
+	/*
+	 * Decrement the refcount only on the set ownership path to avoid a
+	 * loop situation when the following happens:
+	 *  1. We take a host stage2 fault and we create a small mapping which
+	 *  has default attributes (is not refcounted).
+	 *  2. On the way back we execute the post handler and we zap the
+	 *  table that holds our mapping.
+	 */
+	if (kvm_phys_is_valid(data->phys) ||
+	    !kvm_level_supports_block_mapping(level))
+		return;
+
+	/*
+	 * Free a page that is not referenced anymore and drop the reference
+	 * of the page table page.
+	 */
+	if (mm_ops->page_count(childp) == 1) {
+		stage2_put_pte(ptep, data->mmu, addr, level, mm_ops);
+		mm_ops->put_page(childp);
+	}
 }
 
 static int stage2_map_walk_table_post(u64 addr, u64 end, u32 level,
@@ -782,8 +818,11 @@ static int stage2_map_walk_table_post(u64 addr, u64 end, u32 level,
 	kvm_pte_t *childp;
 	int ret = 0;
 
-	if (!data->anchor)
+	if (!data->anchor) {
+		stage2_coalesce_walk_table_post(addr, end, level, ptep,
+						data);
 		return 0;
+	}
 
 	if (data->anchor == ptep) {
 		childp = data->childp;

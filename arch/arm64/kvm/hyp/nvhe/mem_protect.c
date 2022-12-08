@@ -178,7 +178,7 @@ static bool guest_stage2_force_pte_cb(u64 addr, u64 end,
 
 static bool guest_stage2_pte_is_counted(kvm_pte_t pte, u32 level)
 {
-	return host_stage2_pte_is_counted(pte, level);
+	return !!pte;
 }
 
 static void *guest_s2_zalloc_pages_exact(size_t size)
@@ -660,12 +660,26 @@ static bool host_stage2_force_pte(u64 addr, u64 end, enum kvm_pgtable_prot prot)
 
 static bool host_stage2_pte_is_counted(kvm_pte_t pte, u32 level)
 {
+	u64 phys;
+
 	/*
 	 * The refcount tracks valid entries as well as invalid entries if they
 	 * encode ownership of a page to another entity than the page-table
 	 * owner, whose id is 0.
 	 */
-	return !!pte;
+	if (!kvm_pte_valid(pte))
+		return !!pte;
+
+	if (kvm_pte_table(pte, level))
+		return true;
+
+	phys = kvm_pte_to_phys(pte);
+	if (!addr_is_memory(phys))
+		return (pte & KVM_HOST_S2_DEFAULT_ATTR) !=
+			KVM_HOST_S2_DEFAULT_MMIO_PTE;
+	else
+		return (pte & KVM_HOST_S2_DEFAULT_ATTR) !=
+			KVM_HOST_S2_DEFAULT_MEM_PTE;
 }
 
 static int host_stage2_idmap(u64 addr)
