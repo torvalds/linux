@@ -7,6 +7,7 @@
 
 #include "gt/intel_gt.h"
 #include "gt/intel_reset.h"
+#include "intel_gsc_fw.h"
 #include "intel_gsc_uc.h"
 #include "intel_guc.h"
 #include "intel_guc_ads.h"
@@ -548,6 +549,8 @@ static int __uc_init_hw(struct intel_uc *uc)
 		intel_rps_lower_unslice(&uc_to_gt(uc)->rps);
 	}
 
+	intel_gsc_uc_load_start(&uc->gsc);
+
 	drm_info(&i915->drm, "GuC submission %s\n",
 		 str_enabled_disabled(intel_uc_uses_guc_submission(uc)));
 	drm_info(&i915->drm, "GuC SLPC %s\n",
@@ -675,6 +678,9 @@ void intel_uc_suspend(struct intel_uc *uc)
 	struct intel_guc *guc = &uc->guc;
 	intel_wakeref_t wakeref;
 	int err;
+
+	/* flush the GSC worker */
+	intel_gsc_uc_suspend(&uc->gsc);
 
 	if (!intel_guc_is_ready(guc)) {
 		guc->interrupts.enabled = false;

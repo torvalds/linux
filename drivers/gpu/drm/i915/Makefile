@@ -189,6 +189,7 @@ i915-y += \
 
 # general-purpose microcontroller (GuC) support
 i915-y += \
+	  gt/uc/intel_gsc_fw.o \
 	  gt/uc/intel_gsc_uc.o \
 	  gt/uc/intel_guc.o \
 	  gt/uc/intel_guc_ads.o \
