@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/serial_core.h>
 #include <linux/screen_info.h>
+#include <linux/string.h>
 
 #include <asm/early_ioremap.h>
 
@@ -143,16 +144,10 @@ efi_earlycon_write(struct console *con, const char *str, unsigned int num)
 	len = si->lfb_linelength;
 
 	while (num) {
-		unsigned int linemax;
-		unsigned int h, count = 0;
+		unsigned int linemax = (si->lfb_width - efi_x) / font->width;
+		unsigned int h, count;
 
-		for (s = str; *s && *s != '\n'; s++) {
-			if (count == num)
-				break;
-			count++;
-		}
-
-		linemax = (si->lfb_width - efi_x) / font->width;
+		count = strnchrnul(str, num, '\n') - str;
 		if (count > linemax)
 			count = linemax;
 
