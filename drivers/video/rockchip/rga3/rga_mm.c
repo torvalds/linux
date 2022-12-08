@@ -364,6 +364,7 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 				 struct rga_job *job)
 {
 	int ret;
+	int ex_buffer_size;
 	uint32_t mm_flag = 0;
 	phys_addr_t phys_addr = 0;
 	struct rga_dma_buffer *buffer;
@@ -375,6 +376,19 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 	if (scheduler == NULL) {
 		pr_err("Invalid scheduler device!\n");
 		return -EINVAL;
+	}
+
+	if (external_buffer->memory_parm.size)
+		ex_buffer_size = external_buffer->memory_parm.size;
+	else
+		ex_buffer_size = rga_image_size_cal(external_buffer->memory_parm.width,
+						    external_buffer->memory_parm.height,
+						    external_buffer->memory_parm.format,
+						    NULL, NULL, NULL);
+	if (ex_buffer_size <= 0) {
+		pr_err("failed to calculating buffer size!\n");
+		rga_dump_memory_parm(&external_buffer->memory_parm);
+		return ex_buffer_size == 0 ? -EINVAL : ex_buffer_size;
 	}
 
 	/*
@@ -408,6 +422,15 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 		pr_err("%s core[%d] map dma buffer error!\n",
 		       __func__, scheduler->core);
 		goto free_buffer;
+	}
+
+	if (buffer->size < ex_buffer_size) {
+		pr_err("Only get buffer %ld byte from %s = 0x%lx, but current image required %d byte\n",
+		       buffer->size, rga_get_memory_type_str(external_buffer->type),
+		       (unsigned long)external_buffer->memory, ex_buffer_size);
+		rga_dump_memory_parm(&external_buffer->memory_parm);
+		ret = -EINVAL;
+		goto unmap_buffer;
 	}
 
 	buffer->scheduler = scheduler;
