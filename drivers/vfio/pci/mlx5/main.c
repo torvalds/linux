@@ -404,7 +404,10 @@ static long mlx5vf_precopy_ioctl(struct file *filp, unsigned int cmd,
 
 done:
 	mlx5vf_state_mutex_unlock(mvdev);
-	return copy_to_user((void __user *)arg, &info, minsz);
+	if (copy_to_user((void __user *)arg, &info, minsz))
+		return -EFAULT;
+	return 0;
+
 err_migf_unlock:
 	mutex_unlock(&migf->lock);
 err_state_unlock:
