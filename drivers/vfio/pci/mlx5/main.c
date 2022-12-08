@@ -826,7 +826,7 @@ mlx5vf_pci_resume_device_data(struct mlx5vf_pci_core_device *mvdev)
 	spin_lock_init(&migf->list_lock);
 	return migf;
 out_buf:
-	mlx5vf_free_data_buffer(buf);
+	mlx5vf_free_data_buffer(migf->buf);
 out_pd:
 	mlx5vf_cmd_dealloc_pd(migf);
 out_free:
