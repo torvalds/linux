@@ -119,6 +119,19 @@ These module parameters can be set from the debugfs files in:
 Note: that these module parameters are system wide values and are not able to
       be tuned on a per vm basis.
 
+Any changes to these parameters will be picked up by new and existing vCPUs the
+next time they halt, with the notable exception of VMs using KVM_CAP_HALT_POLL
+(see next section).
+
+KVM_CAP_HALT_POLL
+=================
+
+KVM_CAP_HALT_POLL is a VM capability that allows userspace to override halt_poll_ns
+on a per-VM basis. VMs using KVM_CAP_HALT_POLL ignore halt_poll_ns completely (but
+still obey halt_poll_ns_grow, halt_poll_ns_grow_start, and halt_poll_ns_shrink).
+
+See Documentation/virt/kvm/api.rst for more information on this capability.
+
 Further Notes
 =============
 

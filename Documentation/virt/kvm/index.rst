@@ -17,4 +17,5 @@ KVM
 
    locking
    vcpu-requests
+   halt-polling
    review-checklist
