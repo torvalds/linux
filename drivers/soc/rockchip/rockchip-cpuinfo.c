@@ -212,6 +212,11 @@ static void rk3308_init(void)
 	}
 }
 
+static void rk3528_init(void)
+{
+	rockchip_soc_id = ROCKCHIP_SOC_RK3528;
+}
+
 #define RK356X_PMU_GRF_PHYS		0xfdc20000
 #define RK356X_PMU_GRF_SOC_CON0		0x00000100
 #define RK356X_CHIP_VERSION_MASK	0x00008000
@@ -261,7 +266,9 @@ int rockchip_soc_id_init(void)
 		rv1109_init();
 	} else if (cpu_is_rv1126()) {
 		rv1126_init();
-	} else if (cpu_is_rk3566()) {
+	} else if (cpu_is_rk3528()) {
+		rk3528_init();
+	}  else if (cpu_is_rk3566()) {
 		rk3566_init();
 	} else if (cpu_is_rk3568()) {
 		rk3568_init();
