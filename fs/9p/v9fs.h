@@ -50,6 +50,8 @@ enum p9_session_flags {
 
 enum p9_cache_modes {
 	CACHE_NONE,
+	CACHE_READAHEAD,
+	CACHE_WRITEBACK,
 	CACHE_MMAP,
 	CACHE_LOOSE,
 	CACHE_FSCACHE,
