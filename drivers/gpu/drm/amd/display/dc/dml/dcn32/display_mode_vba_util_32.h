@@ -334,6 +334,7 @@ void dml32_CalculateSurfaceSizeInMall(
 		unsigned int NumberOfActiveSurfaces,
 		unsigned int MALLAllocatedForDCN,
 		enum dm_use_mall_for_static_screen_mode UseMALLForStaticScreen[],
+		enum dm_use_mall_for_pstate_change_mode UsesMALLForPStateChange[],
 		bool DCCEnable[],
 		bool ViewportStationary[],
 		unsigned int ViewportXStartY[],

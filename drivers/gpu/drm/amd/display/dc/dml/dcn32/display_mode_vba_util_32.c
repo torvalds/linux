@@ -1772,6 +1772,7 @@ void dml32_CalculateSurfaceSizeInMall(
 		unsigned int NumberOfActiveSurfaces,
 		unsigned int MALLAllocatedForDCN,
 		enum dm_use_mall_for_static_screen_mode UseMALLForStaticScreen[],
+		enum dm_use_mall_for_pstate_change_mode UsesMALLForPStateChange[],
 		bool DCCEnable[],
 		bool ViewportStationary[],
 		unsigned int ViewportXStartY[],
@@ -1803,8 +1804,10 @@ void dml32_CalculateSurfaceSizeInMall(
 		unsigned int    SurfaceSizeInMALL[],
 		bool *ExceededMALLSize)
 {
-	unsigned int TotalSurfaceSizeInMALL  = 0;
 	unsigned int k;
+	unsigned int TotalSurfaceSizeInMALLForSS = 0;
+	unsigned int TotalSurfaceSizeInMALLForSubVP = 0;
+	unsigned int MALLAllocatedForDCNInBytes = MALLAllocatedForDCN * 1024 * 1024;
 
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 		if (ViewportStationary[k]) {
@@ -1896,10 +1899,14 @@ void dml32_CalculateSurfaceSizeInMall(
 	}
 
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
-		if (UseMALLForStaticScreen[k] == dm_use_mall_static_screen_enable)
-			TotalSurfaceSizeInMALL = TotalSurfaceSizeInMALL + SurfaceSizeInMALL[k];
+		/* SS and Subvp counted separate as they are never used at the same time */
+		if (UsesMALLForPStateChange[k] == dm_use_mall_pstate_change_phantom_pipe)
+			TotalSurfaceSizeInMALLForSubVP = TotalSurfaceSizeInMALLForSubVP + SurfaceSizeInMALL[k];
+		else if (UseMALLForStaticScreen[k] == dm_use_mall_static_screen_enable)
+			TotalSurfaceSizeInMALLForSS = TotalSurfaceSizeInMALLForSS + SurfaceSizeInMALL[k];
 	}
-	*ExceededMALLSize =  (TotalSurfaceSizeInMALL > MALLAllocatedForDCN * 1024 * 1024);
+	*ExceededMALLSize =  (TotalSurfaceSizeInMALLForSS > MALLAllocatedForDCNInBytes) ||
+							(TotalSurfaceSizeInMALLForSubVP > MALLAllocatedForDCNInBytes);
 } // CalculateSurfaceSizeInMall
 
 void dml32_CalculateVMRowAndSwath(
