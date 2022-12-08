@@ -2300,6 +2300,9 @@ struct folio *vma_alloc_folio_noprof(gfp_t gfp, int order, struct vm_area_struct
 	pgoff_t ilx;
 	struct page *page;
 
+	if (vma->vm_flags & VM_DROPPABLE)
+		gfp |= __GFP_NOWARN;
+
 	pol = get_vma_policy(vma, addr, order, &ilx);
 	page = alloc_pages_mpol_noprof(gfp | __GFP_COMP, order,
 				       pol, ilx, numa_node_id());
