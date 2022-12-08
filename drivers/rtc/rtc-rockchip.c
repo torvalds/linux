@@ -61,6 +61,7 @@
 
 /* RTC_CTRL_REG bitfields */
 #define RTC_CTRL_REG_START_RTC		BIT(0)
+#define RTC_TIMEOUT			(3000 * 1000)
 
 /* RK630 has a shadowed register for saving a "frozen" RTC time.
  * When user setting "GET_TIME" to 1, the time will save in this shadowed
@@ -220,15 +221,14 @@ static int rockchip_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		dev_err(dev, "Failed to update RTC control: %d\n", ret);
 		return ret;
 	}
-	ret = regmap_read(rtc->regmap, RTC_STATUS1, &status);
-	while (status & RTC_CTRL_REG_START_RTC) {
-		udelay(1);
-		ret = regmap_read(rtc->regmap, RTC_STATUS1, &status);
-		if (ret) {
-			dev_err(dev, "Failed to read RTC_STATUS1: %d\n", ret);
-			return ret;
-		}
-	}
+
+	ret = regmap_read_poll_timeout(rtc->regmap, RTC_STATUS1, status,
+				       !(status & RTC_CTRL_REG_START_RTC),
+				       0, RTC_TIMEOUT);
+	if (ret)
+		dev_err(dev,
+			"%s:timeout Update RTC_STATUS1 : %d\n",
+			__func__, ret);
 
 	ret = regmap_bulk_write(rtc->regmap, RTC_SET_SECONDS,
 				rtc_data, NUM_TIME_REGS);
@@ -247,15 +247,15 @@ static int rockchip_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		dev_err(dev, "Failed to update RTC control: %d\n", ret);
 		return ret;
 	}
-	ret = regmap_read(rtc->regmap, RTC_STATUS1, &status);
-	while (!(status & RTC_CTRL_REG_START_RTC)) {
-		udelay(1);
-		ret = regmap_read(rtc->regmap, RTC_STATUS1, &status);
-		if (ret) {
-			dev_err(dev, "Failed to read RTC_STATUS1: %d\n", ret);
-			return ret;
-		}
-	}
+
+	ret = regmap_read_poll_timeout(rtc->regmap, RTC_STATUS1, status,
+				       (status & RTC_CTRL_REG_START_RTC),
+				       0, RTC_TIMEOUT);
+	if (ret)
+		dev_err(dev,
+			"%s:timeout Update RTC_STATUS1 : %d\n",
+			__func__, ret);
+
 	return 0;
 }
 
