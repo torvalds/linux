@@ -956,13 +956,6 @@ static struct attribute *ltc2947_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ltc2947);
 
-static void ltc2947_clk_disable(void *data)
-{
-	struct clk *extclk = data;
-
-	clk_disable_unprepare(extclk);
-}
-
 static int ltc2947_setup(struct ltc2947_data *st)
 {
 	int ret;
@@ -989,7 +982,7 @@ static int ltc2947_setup(struct ltc2947_data *st)
 		return ret;
 
 	/* check external clock presence */
-	extclk = devm_clk_get_optional(st->dev, NULL);
+	extclk = devm_clk_get_optional_enabled(st->dev, NULL);
 	if (IS_ERR(extclk))
 		return dev_err_probe(st->dev, PTR_ERR(extclk),
 				     "Failed to get external clock\n");
@@ -1007,14 +1000,6 @@ static int ltc2947_setup(struct ltc2947_data *st)
 			return -EINVAL;
 		}
 
-		ret = clk_prepare_enable(extclk);
-		if (ret)
-			return ret;
-
-		ret = devm_add_action_or_reset(st->dev, ltc2947_clk_disable,
-					       extclk);
-		if (ret)
-			return ret;
 		/* as in table 1 of the datasheet */
 		if (rate_hz >= LTC2947_CLK_MIN && rate_hz <= 1000000)
 			pre = 0;
@@ -1135,7 +1120,7 @@ int ltc2947_core_probe(struct regmap *map, const char *name)
 }
 EXPORT_SYMBOL_GPL(ltc2947_core_probe);
 
-static int __maybe_unused ltc2947_resume(struct device *dev)
+static int ltc2947_resume(struct device *dev)
 {
 	struct ltc2947_data *st = dev_get_drvdata(dev);
 	u32 ctrl = 0;
@@ -1164,7 +1149,7 @@ static int __maybe_unused ltc2947_resume(struct device *dev)
 				  LTC2947_CONT_MODE_MASK, LTC2947_CONT_MODE(1));
 }
 
-static int __maybe_unused ltc2947_suspend(struct device *dev)
+static int ltc2947_suspend(struct device *dev)
 {
 	struct ltc2947_data *st = dev_get_drvdata(dev);
 
@@ -1172,8 +1157,7 @@ static int __maybe_unused ltc2947_suspend(struct device *dev)
 				  LTC2947_SHUTDOWN_MASK, 1);
 }
 
-SIMPLE_DEV_PM_OPS(ltc2947_pm_ops, ltc2947_suspend, ltc2947_resume);
-EXPORT_SYMBOL_GPL(ltc2947_pm_ops);
+EXPORT_SIMPLE_DEV_PM_OPS(ltc2947_pm_ops, ltc2947_suspend, ltc2947_resume);
 
 const struct of_device_id ltc2947_of_match[] = {
 	{ .compatible = "adi,ltc2947" },

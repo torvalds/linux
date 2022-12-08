@@ -46,6 +46,7 @@ struct am65_cpsw_port {
 	const char			*name;
 	u32				port_id;
 	void __iomem			*port_base;
+	void __iomem			*sgmii_base;
 	void __iomem			*stat_base;
 	void __iomem			*fetch_ram_base;
 	bool				disabled;
@@ -88,6 +89,7 @@ struct am65_cpsw_rx_chn {
 
 struct am65_cpsw_pdata {
 	u32	quirks;
+	u64	extra_modes;
 	enum k3_ring_mode fdqring_mode;
 	const char	*ale_dev_id;
 };

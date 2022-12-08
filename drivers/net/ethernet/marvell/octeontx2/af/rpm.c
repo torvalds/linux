@@ -415,11 +415,26 @@ void rpm_lmac_ptp_config(void *rpmd, int lmac_id, bool enable)
 		return;
 
 	cfg = rpm_read(rpm, lmac_id, RPMX_CMRX_CFG);
-	if (enable)
+	if (enable) {
 		cfg |= RPMX_RX_TS_PREPEND;
-	else
+		cfg |= RPMX_TX_PTP_1S_SUPPORT;
+	} else {
 		cfg &= ~RPMX_RX_TS_PREPEND;
+		cfg &= ~RPMX_TX_PTP_1S_SUPPORT;
+	}
+
 	rpm_write(rpm, lmac_id, RPMX_CMRX_CFG, cfg);
+
+	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_XIF_MODE);
+
+	if (enable) {
+		cfg |= RPMX_ONESTEP_ENABLE;
+		cfg &= ~RPMX_TS_BINARY_MODE;
+	} else {
+		cfg &= ~RPMX_ONESTEP_ENABLE;
+	}
+
+	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_XIF_MODE, cfg);
 }
 
 int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 pfc_en)

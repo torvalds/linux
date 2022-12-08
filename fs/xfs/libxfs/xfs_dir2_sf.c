@@ -865,7 +865,6 @@ xfs_dir2_sf_lookup(
 	struct xfs_inode	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
 	int			i;		/* entry index */
-	int			error;
 	xfs_dir2_sf_entry_t	*sfep;		/* shortform directory entry */
 	xfs_dir2_sf_hdr_t	*sfp;		/* shortform structure */
 	enum xfs_dacmp		cmp;		/* comparison result */
@@ -929,8 +928,7 @@ xfs_dir2_sf_lookup(
 	if (!ci_sfep)
 		return -ENOENT;
 	/* otherwise process the CI match as required by the caller */
-	error = xfs_dir_cilookup_result(args, ci_sfep->name, ci_sfep->namelen);
-	return error;
+	return xfs_dir_cilookup_result(args, ci_sfep->name, ci_sfep->namelen);
 }
 
 /*

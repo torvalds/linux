@@ -28,7 +28,6 @@ config DRM_AMD_DC_SI
 	bool "AMD DC support for Southern Islands ASICs"
 	depends on DRM_AMDGPU_SI
 	depends on DRM_AMD_DC
-	default n
 	help
 	  Choose this option to enable new AMD DC support for SI asics
 	  by default. This includes Tahiti, Pitcairn, Cape Verde, Oland.
@@ -43,7 +42,6 @@ config DEBUG_KERNEL_DC
 
 config DRM_AMD_SECURE_DISPLAY
         bool "Enable secure display support"
-        default n
         depends on DEBUG_FS
         depends on DRM_AMD_DC_DCN
         help

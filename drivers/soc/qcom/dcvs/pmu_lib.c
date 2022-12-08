@@ -124,7 +124,7 @@ static inline u64 cached_count_value(struct event_data *ev, u64 event_cached_cou
 	if (amu)
 		return event_cached_count;
 
-	if (cpu_pmu->pmuver >= ID_AA64DFR0_PMUVER_8_5)
+	if (cpu_pmu->pmuver >= ID_AA64DFR0_EL1_PMUVer_V3P5)
 		event_cached_count |= (pmu_long_counter ? BIT(63) : GENMASK(63, 31));
 	else {
 		if (ev->event_id == CYCLE_COUNTER_ID)

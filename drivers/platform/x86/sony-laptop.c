@@ -584,7 +584,7 @@ static int sony_pf_add(void)
 	if (ret)
 		goto out;
 
-	sony_pf_device = platform_device_alloc("sony-laptop", -1);
+	sony_pf_device = platform_device_alloc("sony-laptop", PLATFORM_DEVID_NONE);
 	if (!sony_pf_device) {
 		ret = -ENOMEM;
 		goto out_platform_registered;

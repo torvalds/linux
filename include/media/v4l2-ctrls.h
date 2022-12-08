@@ -121,21 +121,19 @@ struct v4l2_ctrl_ops {
  * struct v4l2_ctrl_type_ops - The control type operations that the driver
  *			       has to provide.
  *
- * @equal: return true if both values are equal.
- * @init: initialize the value.
+ * @equal: return true if all ctrl->elems array elements are equal.
+ * @init: initialize the value for array elements from from_idx to ctrl->elems.
  * @log: log the value.
- * @validate: validate the value. Return 0 on success and a negative value
- *	otherwise.
+ * @validate: validate the value for ctrl->new_elems array elements.
+ *	Return 0 on success and a negative value otherwise.
  */
 struct v4l2_ctrl_type_ops {
-	bool (*equal)(const struct v4l2_ctrl *ctrl, u32 idx,
-		      union v4l2_ctrl_ptr ptr1,
-		      union v4l2_ctrl_ptr ptr2);
-	void (*init)(const struct v4l2_ctrl *ctrl, u32 idx,
+	bool (*equal)(const struct v4l2_ctrl *ctrl,
+		      union v4l2_ctrl_ptr ptr1, union v4l2_ctrl_ptr ptr2);
+	void (*init)(const struct v4l2_ctrl *ctrl, u32 from_idx,
 		     union v4l2_ctrl_ptr ptr);
 	void (*log)(const struct v4l2_ctrl *ctrl);
-	int (*validate)(const struct v4l2_ctrl *ctrl, u32 idx,
-			union v4l2_ctrl_ptr ptr);
+	int (*validate)(const struct v4l2_ctrl *ctrl, union v4l2_ctrl_ptr ptr);
 };
 
 /**
@@ -203,7 +201,7 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  * @elem_size:	The size in bytes of the control.
  * @new_elems:	The number of elements in p_new. This is the same as @elems,
  *		except for dynamic arrays. In that case it is in the range of
- *		1 to @p_dyn_alloc_elems.
+ *		1 to @p_array_alloc_elems.
  * @dims:	The size of each dimension.
  * @nr_of_dims:The number of dimensions in @dims.
  * @menu_skip_mask: The control's skip mask for menu controls. This makes it
@@ -227,12 +225,11 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  *		not freed when the control is deleted. Should this be needed
  *		then a new internal bitfield can be added to tell the framework
  *		to free this pointer.
- * @p_dyn:	Pointer to the dynamically allocated array. Only valid if
- *		@is_dyn_array is true.
- * @p_dyn_alloc_elems: The number of elements in the dynamically allocated
- *		array for both the cur and new values. So @p_dyn is actually
- *		sized for 2 * @p_dyn_alloc_elems * @elem_size. Only valid if
- *		@is_dyn_array is true.
+ * @p_array:	Pointer to the allocated array. Only valid if @is_array is true.
+ * @p_array_alloc_elems: The number of elements in the allocated
+ *		array for both the cur and new values. So @p_array is actually
+ *		sized for 2 * @p_array_alloc_elems * @elem_size. Only valid if
+ *		@is_array is true.
  * @cur:	Structure to store the current value.
  * @cur.val:	The control's current value, if the @type is represented via
  *		a u32 integer (see &enum v4l2_ctrl_type).
@@ -291,8 +288,8 @@ struct v4l2_ctrl {
 	};
 	unsigned long flags;
 	void *priv;
-	void *p_dyn;
-	u32 p_dyn_alloc_elems;
+	void *p_array;
+	u32 p_array_alloc_elems;
 	s32 val;
 	struct {
 		s32 val;
@@ -319,15 +316,15 @@ struct v4l2_ctrl {
  *		from a cluster with multiple controls twice (when the first
  *		control of a cluster is applied, they all are).
  * @p_req_valid: If set, then p_req contains the control value for the request.
- * @p_req_dyn_enomem: If set, then p_req is invalid since allocating space for
- *		a dynamic array failed. Attempting to read this value shall
- *		result in ENOMEM. Only valid if ctrl->is_dyn_array is true.
- * @p_req_dyn_alloc_elems: The number of elements allocated for the dynamic
- *		array. Only valid if @p_req_valid and ctrl->is_dyn_array are
+ * @p_req_array_enomem: If set, then p_req is invalid since allocating space for
+ *		an array failed. Attempting to read this value shall
+ *		result in ENOMEM. Only valid if ctrl->is_array is true.
+ * @p_req_array_alloc_elems: The number of elements allocated for the
+ *		array. Only valid if @p_req_valid and ctrl->is_array are
  *		true.
  * @p_req_elems: The number of elements in @p_req. This is the same as
  *		ctrl->elems, except for dynamic arrays. In that case it is in
- *		the range of 1 to @p_req_dyn_alloc_elems. Only valid if
+ *		the range of 1 to @p_req_array_alloc_elems. Only valid if
  *		@p_req_valid is true.
  * @p_req:	If the control handler containing this control reference
  *		is bound to a media request, then this points to the
@@ -349,8 +346,8 @@ struct v4l2_ctrl_ref {
 	bool from_other_dev;
 	bool req_done;
 	bool p_req_valid;
-	bool p_req_dyn_enomem;
-	u32 p_req_dyn_alloc_elems;
+	bool p_req_array_enomem;
+	u32 p_req_array_alloc_elems;
 	u32 p_req_elems;
 	union v4l2_ctrl_ptr p_req;
 };
@@ -959,6 +956,59 @@ static inline int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 }
 
 /**
+ *__v4l2_ctrl_modify_dimensions() - Unlocked variant of v4l2_ctrl_modify_dimensions()
+ *
+ * @ctrl:	The control to update.
+ * @dims:	The control's new dimensions.
+ *
+ * Update the dimensions of an array control on the fly. The elements of the
+ * array are reset to their default value, even if the dimensions are
+ * unchanged.
+ *
+ * An error is returned if @dims is invalid for this control.
+ *
+ * The caller is responsible for acquiring the control handler mutex on behalf
+ * of __v4l2_ctrl_modify_dimensions().
+ *
+ * Note: calling this function when the same control is used in pending requests
+ * is untested. It should work (a request with the wrong size of the control
+ * will drop that control silently), but it will be very confusing.
+ */
+int __v4l2_ctrl_modify_dimensions(struct v4l2_ctrl *ctrl,
+				  u32 dims[V4L2_CTRL_MAX_DIMS]);
+
+/**
+ * v4l2_ctrl_modify_dimensions() - Update the dimensions of an array control.
+ *
+ * @ctrl:	The control to update.
+ * @dims:	The control's new dimensions.
+ *
+ * Update the dimensions of an array control on the fly. The elements of the
+ * array are reset to their default value, even if the dimensions are
+ * unchanged.
+ *
+ * An error is returned if @dims is invalid for this control type.
+ *
+ * This function assumes that the control handler is not locked and will
+ * take the lock itself.
+ *
+ * Note: calling this function when the same control is used in pending requests
+ * is untested. It should work (a request with the wrong size of the control
+ * will drop that control silently), but it will be very confusing.
+ */
+static inline int v4l2_ctrl_modify_dimensions(struct v4l2_ctrl *ctrl,
+					      u32 dims[V4L2_CTRL_MAX_DIMS])
+{
+	int rval;
+
+	v4l2_ctrl_lock(ctrl);
+	rval = __v4l2_ctrl_modify_dimensions(ctrl, dims);
+	v4l2_ctrl_unlock(ctrl);
+
+	return rval;
+}
+
+/**
  * v4l2_ctrl_notify() - Function to set a notify callback for a control.
  *
  * @ctrl:	The control.
@@ -1486,4 +1536,48 @@ int v4l2_ctrl_subdev_log_status(struct v4l2_subdev *sd);
 int v4l2_ctrl_new_fwnode_properties(struct v4l2_ctrl_handler *hdl,
 				    const struct v4l2_ctrl_ops *ctrl_ops,
 				    const struct v4l2_fwnode_device_properties *p);
+
+/**
+ * v4l2_ctrl_type_op_equal - Default v4l2_ctrl_type_ops equal callback.
+ *
+ * @ctrl: The v4l2_ctrl pointer.
+ * @ptr1: A v4l2 control value.
+ * @ptr2: A v4l2 control value.
+ *
+ * Return: true if values are equal, otherwise false.
+ */
+bool v4l2_ctrl_type_op_equal(const struct v4l2_ctrl *ctrl,
+			     union v4l2_ctrl_ptr ptr1, union v4l2_ctrl_ptr ptr2);
+
+/**
+ * v4l2_ctrl_type_op_init - Default v4l2_ctrl_type_ops init callback.
+ *
+ * @ctrl: The v4l2_ctrl pointer.
+ * @from_idx: Starting element index.
+ * @ptr: The v4l2 control value.
+ *
+ * Return: void
+ */
+void v4l2_ctrl_type_op_init(const struct v4l2_ctrl *ctrl, u32 from_idx,
+			    union v4l2_ctrl_ptr ptr);
+
+/**
+ * v4l2_ctrl_type_op_log - Default v4l2_ctrl_type_ops log callback.
+ *
+ * @ctrl: The v4l2_ctrl pointer.
+ *
+ * Return: void
+ */
+void v4l2_ctrl_type_op_log(const struct v4l2_ctrl *ctrl);
+
+/**
+ * v4l2_ctrl_type_op_validate - Default v4l2_ctrl_type_ops validate callback.
+ *
+ * @ctrl: The v4l2_ctrl pointer.
+ * @ptr: The v4l2 control value.
+ *
+ * Return: 0 on success, a negative error code on failure.
+ */
+int v4l2_ctrl_type_op_validate(const struct v4l2_ctrl *ctrl, union v4l2_ctrl_ptr ptr);
+
 #endif

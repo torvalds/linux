@@ -851,7 +851,7 @@ int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx,
 		napi = &droq->napi;
 		dev_dbg(&octeon_dev->pci_dev->dev, "netif_napi_add netdev:%llx oct:%llx\n",
 			(u64)netdev, (u64)octeon_dev);
-		netif_napi_add(netdev, napi, liquidio_napi_poll, 64);
+		netif_napi_add(netdev, napi, liquidio_napi_poll);
 
 		/* designate a CPU for this droq */
 		droq->cpu_id = cpu_id;

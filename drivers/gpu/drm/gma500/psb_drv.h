@@ -172,6 +172,8 @@
 #define PSB_WATCHDOG_DELAY (HZ * 2)
 #define PSB_LID_DELAY (HZ / 10)
 
+#define PSB_MAX_BRIGHTNESS		100
+
 #define PSB_PWR_STATE_ON		1
 #define PSB_PWR_STATE_OFF		2
 
@@ -426,9 +428,7 @@ struct drm_psb_private {
 	spinlock_t irqmask_lock;
 
 	/* Power */
-	bool suspended;
-	bool display_power;
-	int display_count;
+	bool pm_initialized;
 
 	/* Modesetting */
 	struct psb_intel_mode_device mode_dev;
@@ -486,9 +486,6 @@ struct drm_psb_private {
 	unsigned int core_freq;
 	uint32_t iLVDS_enable;
 
-	/* Runtime PM state */
-	int rpm_enabled;
-
 	/* MID specific */
 	bool use_msi;
 	bool has_gct;
@@ -526,10 +523,6 @@ struct drm_psb_private {
 	uint32_t blc_adj2;
 
 	struct drm_fb_helper *fb_helper;
-
-	/* Panel brightness */
-	int brightness;
-	int brightness_adjusted;
 
 	bool dsr_enable;
 	u32 dsr_fb_update;
@@ -599,10 +592,13 @@ struct psb_ops {
 	void (*disable_sr)(struct drm_device *dev);
 
 	void (*lvds_bl_power)(struct drm_device *dev, bool on);
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+
 	/* Backlight */
 	int (*backlight_init)(struct drm_device *dev);
-#endif
+	void (*backlight_set)(struct drm_device *dev, int level);
+	int (*backlight_get)(struct drm_device *dev);
+	const char *backlight_name;
+
 	int i2c_bus;		/* I2C bus identifier for Moorestown */
 };
 

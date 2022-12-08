@@ -1576,7 +1576,7 @@ static int owl_emac_probe(struct platform_device *pdev)
 	netdev->watchdog_timeo = OWL_EMAC_TX_TIMEOUT;
 	netdev->netdev_ops = &owl_emac_netdev_ops;
 	netdev->ethtool_ops = &owl_emac_ethtool_ops;
-	netif_napi_add(netdev, &priv->napi, owl_emac_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add(netdev, &priv->napi, owl_emac_poll);
 
 	ret = devm_register_netdev(dev, netdev);
 	if (ret) {

@@ -25,7 +25,7 @@ KCONFIG_PATH = '.config'
 KUNITCONFIG_PATH = '.kunitconfig'
 OLD_KUNITCONFIG_PATH = 'last_used_kunitconfig'
 DEFAULT_KUNITCONFIG_PATH = 'tools/testing/kunit/configs/default.config'
-BROKEN_ALLCONFIG_PATH = 'tools/testing/kunit/configs/broken_on_uml.config'
+ALL_TESTS_CONFIG_PATH = 'tools/testing/kunit/configs/all_tests.config'
 UML_KCONFIG_PATH = 'tools/testing/kunit/configs/arch_uml.config'
 OUTFILE_PATH = 'test.log'
 ABS_TOOL_PATH = os.path.abspath(os.path.dirname(__file__))
@@ -56,9 +56,6 @@ class LinuxSourceTreeOperations:
 
 	def make_arch_config(self, base_kunitconfig: kunit_config.Kconfig) -> kunit_config.Kconfig:
 		return base_kunitconfig
-
-	def make_allyesconfig(self, build_dir: str, make_options) -> None:
-		raise ConfigError('Only the "um" arch is supported for alltests')
 
 	def make_olddefconfig(self, build_dir: str, make_options) -> None:
 		command = ['make', 'ARCH=' + self._linux_arch, 'O=' + build_dir, 'olddefconfig']
@@ -143,26 +140,6 @@ class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 		kconfig = kunit_config.parse_file(UML_KCONFIG_PATH)
 		kconfig.merge_in_entries(base_kunitconfig)
 		return kconfig
-
-	def make_allyesconfig(self, build_dir: str, make_options) -> None:
-		stdout.print_with_timestamp(
-			'Enabling all CONFIGs for UML...')
-		command = ['make', 'ARCH=um', 'O=' + build_dir, 'allyesconfig']
-		if make_options:
-			command.extend(make_options)
-		process = subprocess.Popen(
-			command,
-			stdout=subprocess.DEVNULL,
-			stderr=subprocess.STDOUT)
-		process.wait()
-		stdout.print_with_timestamp(
-			'Disabling broken configs to run KUnit tests...')
-
-		with open(get_kconfig_path(build_dir), 'a') as config:
-			with open(BROKEN_ALLCONFIG_PATH, 'r') as disable:
-				config.write(disable.read())
-		stdout.print_with_timestamp(
-			'Starting Kernel with all configs takes a few minutes...')
 
 	def start(self, params: List[str], build_dir: str) -> subprocess.Popen:
 		"""Runs the Linux UML binary. Must be named 'linux'."""
@@ -343,10 +320,8 @@ class LinuxSourceTree:
 		os.remove(kconfig_path)
 		return self.build_config(build_dir, make_options)
 
-	def build_kernel(self, alltests, jobs, build_dir: str, make_options) -> bool:
+	def build_kernel(self, jobs, build_dir: str, make_options) -> bool:
 		try:
-			if alltests:
-				self._ops.make_allyesconfig(build_dir, make_options)
 			self._ops.make_olddefconfig(build_dir, make_options)
 			self._ops.make(jobs, build_dir, make_options)
 		except (ConfigError, BuildError) as e:
@@ -359,6 +334,7 @@ class LinuxSourceTree:
 			args = []
 		if filter_glob:
 			args.append('kunit.filter_glob='+filter_glob)
+		args.append('kunit.enable=1')
 
 		process = self._ops.start(args, build_dir)
 		assert process.stdout is not None  # tell mypy it's set

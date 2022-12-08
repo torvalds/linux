@@ -268,15 +268,13 @@ err_irq:
 	return r;
 }
 
-static int microread_i2c_remove(struct i2c_client *client)
+static void microread_i2c_remove(struct i2c_client *client)
 {
 	struct microread_i2c_phy *phy = i2c_get_clientdata(client);
 
 	microread_remove(phy->hdev);
 
 	free_irq(client->irq, phy);
-
-	return 0;
 }
 
 static const struct i2c_device_id microread_i2c_id[] = {

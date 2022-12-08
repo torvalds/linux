@@ -126,7 +126,7 @@ struct bcl_peripheral_data {
 	struct mutex            state_trans_lock;
 	bool			irq_enabled;
 	enum bcl_dev_type	type;
-	struct thermal_zone_of_device_ops ops;
+	struct thermal_zone_device_ops ops;
 	struct thermal_zone_device *tz_dev;
 	struct bcl_device	*dev;
 };
@@ -256,13 +256,13 @@ static int8_t convert_ibat_to_ccm_val(int ibat)
 	return val;
 }
 
-static int bcl_set_ibat(void *data, int low, int high)
+static int bcl_set_ibat(struct thermal_zone_device *tz, int low, int high)
 {
 	int ret = 0, ibat_ua, thresh_value;
 	int8_t val = 0;
 	int16_t addr;
 	struct bcl_peripheral_data *bat_data =
-		(struct bcl_peripheral_data *)data;
+		(struct bcl_peripheral_data *)tz->devdata;
 
 	mutex_lock(&bat_data->state_trans_lock);
 	thresh_value = high;
@@ -327,12 +327,12 @@ set_trip_exit:
 	return ret;
 }
 
-static int bcl_read_ibat(void *data, int *adc_value)
+static int bcl_read_ibat(struct thermal_zone_device *tz, int *adc_value)
 {
 	int ret = 0;
 	unsigned int val = 0;
 	struct bcl_peripheral_data *bat_data =
-		(struct bcl_peripheral_data *)data;
+		(struct bcl_peripheral_data *)tz->devdata;
 
 	*adc_value = val;
 	ret = bcl_read_register(bat_data->dev, BCL_IBAT_READ, &val);
@@ -466,10 +466,10 @@ static struct thermal_zone_params vbat_tzp = {
 	.offset = 0
 };
 
-static int bcl_get_trend(void *data, int trip, enum thermal_trend *trend)
+static int bcl_get_trend(struct thermal_zone_device *tz, int trip, enum thermal_trend *trend)
 {
 	struct bcl_peripheral_data *bat_data =
-		(struct bcl_peripheral_data *)data;
+		(struct bcl_peripheral_data *)tz->devdata;
 
 	mutex_lock(&bat_data->state_trans_lock);
 	if (!bat_data->last_val)
@@ -481,10 +481,10 @@ static int bcl_get_trend(void *data, int trip, enum thermal_trend *trend)
 	return 0;
 }
 
-static int bcl_set_lbat(void *data, int low, int high)
+static int bcl_set_lbat(struct thermal_zone_device *tz, int low, int high)
 {
 	struct bcl_peripheral_data *bat_data =
-		(struct bcl_peripheral_data *)data;
+		(struct bcl_peripheral_data *)tz->devdata;
 
 	mutex_lock(&bat_data->state_trans_lock);
 
@@ -511,13 +511,13 @@ static int bcl_set_lbat(void *data, int low, int high)
 	return 0;
 }
 
-static int bcl_read_lbat(void *data, int *adc_value)
+static int bcl_read_lbat(struct thermal_zone_device *tz, int *adc_value)
 {
 	int ret = 0;
 	int ibat = 0, vbat = 0;
 	unsigned int val = 0;
 	struct bcl_peripheral_data *bat_data =
-		(struct bcl_peripheral_data *)data;
+		(struct bcl_peripheral_data *)tz->devdata;
 	struct bcl_device *bcl_perph = bat_data->dev;
 
 	*adc_value = val;
@@ -543,7 +543,7 @@ static int bcl_read_lbat(void *data, int *adc_value)
 	pr_debug("lbat:%d val:%d\n", bat_data->type,
 			bat_data->last_val);
 	if (bcl_perph->param[BCL_IBAT_LVL0].tz_dev)
-		bcl_read_ibat(&bcl_perph->param[BCL_IBAT_LVL0], &ibat);
+		bcl_read_ibat(bcl_perph->param[BCL_IBAT_LVL0].tz_dev, &ibat);
 	if (bcl_perph->param[BCL_VBAT_LVL0].tz_dev)
 		bcl_read_vbat_tz(bcl_perph->param[BCL_VBAT_LVL0].tz_dev, &vbat);
 	BCL_IPC(bcl_perph, "LVLbat:%d val:%d\n", bat_data->type,
@@ -566,7 +566,7 @@ static irqreturn_t bcl_handle_irq(int irq, void *data)
 	bcl_perph = perph_data->dev;
 	bcl_read_register(bcl_perph, BCL_IRQ_STATUS, &irq_status);
 	if (bcl_perph->param[BCL_IBAT_LVL0].tz_dev)
-		bcl_read_ibat(&bcl_perph->param[BCL_IBAT_LVL0], &ibat);
+		bcl_read_ibat(bcl_perph->param[BCL_IBAT_LVL0].tz_dev, &ibat);
 	if (bcl_perph->param[BCL_VBAT_LVL0].tz_dev)
 		bcl_read_vbat_tz(bcl_perph->param[BCL_VBAT_LVL0].tz_dev, &vbat);
 
@@ -754,7 +754,7 @@ static void bcl_ibat_init(struct platform_device *pdev,
 	ibat->irq_enabled = false;
 	ibat->ops.get_temp = bcl_read_ibat;
 	ibat->ops.set_trips = bcl_set_ibat;
-	ibat->tz_dev = thermal_zone_of_sensor_register(&pdev->dev,
+	ibat->tz_dev = devm_thermal_of_zone_register(&pdev->dev,
 				type, ibat, &ibat->ops);
 	if (IS_ERR(ibat->tz_dev)) {
 		pr_debug("ibat:[%s] register failed. err:%ld\n",
@@ -790,7 +790,7 @@ static void bcl_lvl_init(struct platform_device *pdev,
 	lbat->ops.set_trips = bcl_set_lbat;
 	lbat->ops.get_trend = bcl_get_trend;
 
-	lbat->tz_dev = thermal_zone_of_sensor_register(&pdev->dev,
+	lbat->tz_dev = devm_thermal_of_zone_register(&pdev->dev,
 				type, lbat, &lbat->ops);
 	if (IS_ERR(lbat->tz_dev)) {
 		pr_debug("lbat:[%s] register failed. err:%ld\n",
@@ -856,8 +856,6 @@ static int bcl_remove(struct platform_device *pdev)
 	for (; i < BCL_TYPE_MAX; i++) {
 		if (!bcl_perph->param[i].tz_dev)
 			continue;
-		thermal_zone_of_sensor_unregister(&pdev->dev,
-				bcl_perph->param[i].tz_dev);
 		qti_update_tz_ops(bcl_perph->param[i].tz_dev, false);
 	}
 

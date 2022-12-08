@@ -108,8 +108,8 @@ do {									\
 #define cifs_tcon_dbg_func(ratefunc, type, fmt, ...)			\
 do {									\
 	const char *tn = "";						\
-	if (tcon && tcon->treeName)					\
-		tn = tcon->treeName;					\
+	if (tcon && tcon->tree_name)					\
+		tn = tcon->tree_name;					\
 	if ((type) & FYI && cifsFYI & CIFS_INFO) {			\
 		pr_debug_ ## ratefunc("%s: %s "	fmt,			\
 				      __FILE__, tn, ##__VA_ARGS__);	\
@@ -150,7 +150,7 @@ do {									\
 #define cifs_tcon_dbg(type, fmt, ...)					\
 do {									\
 	if (0)								\
-		pr_debug("%s " fmt, tcon->treeName, ##__VA_ARGS__);	\
+		pr_debug("%s " fmt, tcon->tree_name, ##__VA_ARGS__);	\
 } while (0)
 
 #define cifs_info(fmt, ...)						\

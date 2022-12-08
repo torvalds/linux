@@ -206,7 +206,7 @@ int io_fsetxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 }
 
 static int __io_setxattr(struct io_kiocb *req, unsigned int issue_flags,
-			struct path *path)
+			const struct path *path)
 {
 	struct io_xattr *ix = io_kiocb_to_cmd(req, struct io_xattr);
 	int ret;

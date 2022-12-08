@@ -1195,7 +1195,7 @@ void walt_cfs_enqueue_task(struct rq *rq, struct task_struct *p)
 		return;
 
 	wts->mvp_prio = mvp_prio;
-	walt_cfs_insert_mvp_task(wrq, wts, task_running(rq, p));
+	walt_cfs_insert_mvp_task(wrq, wts, task_on_cpu(rq, p));
 
 	/*
 	 * We inserted the task at the appropriate position. Take the

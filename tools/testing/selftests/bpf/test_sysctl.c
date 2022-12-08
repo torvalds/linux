@@ -1372,7 +1372,7 @@ static struct sysctl_test tests[] = {
 	},
 	{
 		"C prog: deny all writes",
-		.prog_file = "./test_sysctl_prog.o",
+		.prog_file = "./test_sysctl_prog.bpf.o",
 		.attach_type = BPF_CGROUP_SYSCTL,
 		.sysctl = "net/ipv4/tcp_mem",
 		.open_flags = O_WRONLY,
@@ -1381,7 +1381,7 @@ static struct sysctl_test tests[] = {
 	},
 	{
 		"C prog: deny access by name",
-		.prog_file = "./test_sysctl_prog.o",
+		.prog_file = "./test_sysctl_prog.bpf.o",
 		.attach_type = BPF_CGROUP_SYSCTL,
 		.sysctl = "net/ipv4/route/mtu_expires",
 		.open_flags = O_RDONLY,
@@ -1389,7 +1389,7 @@ static struct sysctl_test tests[] = {
 	},
 	{
 		"C prog: read tcp_mem",
-		.prog_file = "./test_sysctl_prog.o",
+		.prog_file = "./test_sysctl_prog.bpf.o",
 		.attach_type = BPF_CGROUP_SYSCTL,
 		.sysctl = "net/ipv4/tcp_mem",
 		.open_flags = O_RDONLY,

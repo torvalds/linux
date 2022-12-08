@@ -1063,14 +1063,13 @@ static void chtls_pass_accept_rpl(struct sk_buff *skb,
 	opt2 |= WND_SCALE_EN_V(WSCALE_OK(tp));
 	rpl5->opt0 = cpu_to_be64(opt0);
 	rpl5->opt2 = cpu_to_be32(opt2);
-	rpl5->iss = cpu_to_be32((prandom_u32() & ~7UL) - 1);
+	rpl5->iss = cpu_to_be32((get_random_u32() & ~7UL) - 1);
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, csk->port_id);
 	t4_set_arp_err_handler(skb, sk, chtls_accept_rpl_arp_failure);
 	cxgb4_l2t_send(csk->egress_dev, skb, csk->l2t_entry);
 }
 
-static void inet_inherit_port(struct inet_hashinfo *hash_info,
-			      struct sock *lsk, struct sock *newsk)
+static void inet_inherit_port(struct sock *lsk, struct sock *newsk)
 {
 	local_bh_disable();
 	__inet_inherit_port(lsk, newsk);
@@ -1240,7 +1239,7 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 						     ipv4.sysctl_tcp_window_scaling),
 					   tp->window_clamp);
 	neigh_release(n);
-	inet_inherit_port(&tcp_hashinfo, lsk, newsk);
+	inet_inherit_port(lsk, newsk);
 	csk_set_flag(csk, CSK_CONN_INLINE);
 	bh_unlock_sock(newsk); /* tcp_create_openreq_child ->sk_clone_lock */
 
@@ -1467,7 +1466,7 @@ static void make_established(struct sock *sk, u32 snd_isn, unsigned int opt)
 	tp->write_seq = snd_isn;
 	tp->snd_nxt = snd_isn;
 	tp->snd_una = snd_isn;
-	inet_sk(sk)->inet_id = prandom_u32();
+	inet_sk(sk)->inet_id = get_random_u16();
 	assign_rxopt(sk, opt);
 
 	if (tp->rcv_wnd > (RCV_BUFSIZ_M << 10))

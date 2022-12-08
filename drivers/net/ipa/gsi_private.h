@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2020 Linaro Ltd.
+ * Copyright (C) 2018-2022 Linaro Ltd.
  */
 #ifndef _GSI_PRIVATE_H_
 #define _GSI_PRIVATE_H_
@@ -18,13 +18,13 @@ struct gsi_channel;
 
 /**
  * gsi_trans_move_complete() - Mark a GSI transaction completed
- * @trans:	Transaction to commit
+ * @trans:	Transaction whose state is to be updated
  */
 void gsi_trans_move_complete(struct gsi_trans *trans);
 
 /**
  * gsi_trans_move_polled() - Mark a transaction polled
- * @trans:	Transaction to update
+ * @trans:	Transaction whose state is to be updated
  */
 void gsi_trans_move_polled(struct gsi_trans *trans);
 
@@ -93,6 +93,14 @@ void gsi_channel_trans_exit(struct gsi_channel *channel);
  * transactions (TREs, really) are available for it to process.
  */
 void gsi_channel_doorbell(struct gsi_channel *channel);
+
+/* gsi_channel_update() - Update knowledge of channel hardware state
+ * @channel:	Channel to be updated
+ *
+ * Consult hardware, change the state of any newly-completed transactions
+ * on a channel.
+ */
+void gsi_channel_update(struct gsi_channel *channel);
 
 /**
  * gsi_ring_virt() - Return virtual address for a ring entry

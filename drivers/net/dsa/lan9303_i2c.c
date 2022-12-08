@@ -65,18 +65,14 @@ static int lan9303_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int lan9303_i2c_remove(struct i2c_client *client)
+static void lan9303_i2c_remove(struct i2c_client *client)
 {
 	struct lan9303_i2c *sw_dev = i2c_get_clientdata(client);
 
 	if (!sw_dev)
-		return 0;
+		return;
 
 	lan9303_remove(&sw_dev->chip);
-
-	i2c_set_clientdata(client, NULL);
-
-	return 0;
 }
 
 static void lan9303_i2c_shutdown(struct i2c_client *client)

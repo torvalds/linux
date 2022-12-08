@@ -250,7 +250,7 @@ const struct ce_attr ath11k_host_ce_config_qcn9074[] = {
 
 static bool ath11k_ce_need_shadow_fix(int ce_id)
 {
-	/* only ce4 needs shadow workaroud*/
+	/* only ce4 needs shadow workaround */
 	if (ce_id == 4)
 		return true;
 	return false;
@@ -1042,7 +1042,7 @@ int ath11k_ce_alloc_pipes(struct ath11k_base *ab)
 
 		ret = ath11k_ce_alloc_pipe(ab, i);
 		if (ret) {
-			/* Free any parial successful allocation */
+			/* Free any partial successful allocation */
 			ath11k_ce_free_pipes(ab);
 			return ret;
 		}

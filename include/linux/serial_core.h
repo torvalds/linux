@@ -387,7 +387,7 @@ struct uart_ops {
 	void		(*shutdown)(struct uart_port *);
 	void		(*flush_buffer)(struct uart_port *);
 	void		(*set_termios)(struct uart_port *, struct ktermios *new,
-				       struct ktermios *old);
+				       const struct ktermios *old);
 	void		(*set_ldisc)(struct uart_port *, struct ktermios *);
 	void		(*pm)(struct uart_port *, unsigned int state,
 			      unsigned int oldstate);
@@ -422,7 +422,7 @@ struct uart_icount {
 	__u32	buf_overrun;
 };
 
-typedef unsigned int __bitwise upf_t;
+typedef u64 __bitwise upf_t;
 typedef unsigned int __bitwise upstat_t;
 
 struct uart_port {
@@ -433,7 +433,7 @@ struct uart_port {
 	void			(*serial_out)(struct uart_port *, int, int);
 	void			(*set_termios)(struct uart_port *,
 				               struct ktermios *new,
-				               struct ktermios *old);
+				               const struct ktermios *old);
 	void			(*set_ldisc)(struct uart_port *,
 					     struct ktermios *);
 	unsigned int		(*get_mctrl)(struct uart_port *);
@@ -513,23 +513,24 @@ struct uart_port {
 #define UPF_BUGGY_UART		((__force upf_t) ASYNC_BUGGY_UART     /* 14 */ )
 #define UPF_MAGIC_MULTIPLIER	((__force upf_t) ASYNC_MAGIC_MULTIPLIER /* 16 */ )
 
-#define UPF_NO_THRE_TEST	((__force upf_t) (1 << 19))
+#define UPF_NO_THRE_TEST	((__force upf_t) BIT_ULL(19))
 /* Port has hardware-assisted h/w flow control */
-#define UPF_AUTO_CTS		((__force upf_t) (1 << 20))
-#define UPF_AUTO_RTS		((__force upf_t) (1 << 21))
+#define UPF_AUTO_CTS		((__force upf_t) BIT_ULL(20))
+#define UPF_AUTO_RTS		((__force upf_t) BIT_ULL(21))
 #define UPF_HARD_FLOW		((__force upf_t) (UPF_AUTO_CTS | UPF_AUTO_RTS))
 /* Port has hardware-assisted s/w flow control */
-#define UPF_SOFT_FLOW		((__force upf_t) (1 << 22))
-#define UPF_CONS_FLOW		((__force upf_t) (1 << 23))
-#define UPF_SHARE_IRQ		((__force upf_t) (1 << 24))
-#define UPF_EXAR_EFR		((__force upf_t) (1 << 25))
-#define UPF_BUG_THRE		((__force upf_t) (1 << 26))
+#define UPF_SOFT_FLOW		((__force upf_t) BIT_ULL(22))
+#define UPF_CONS_FLOW		((__force upf_t) BIT_ULL(23))
+#define UPF_SHARE_IRQ		((__force upf_t) BIT_ULL(24))
+#define UPF_EXAR_EFR		((__force upf_t) BIT_ULL(25))
+#define UPF_BUG_THRE		((__force upf_t) BIT_ULL(26))
 /* The exact UART type is known and should not be probed.  */
-#define UPF_FIXED_TYPE		((__force upf_t) (1 << 27))
-#define UPF_BOOT_AUTOCONF	((__force upf_t) (1 << 28))
-#define UPF_FIXED_PORT		((__force upf_t) (1 << 29))
-#define UPF_DEAD		((__force upf_t) (1 << 30))
-#define UPF_IOREMAP		((__force upf_t) (1 << 31))
+#define UPF_FIXED_TYPE		((__force upf_t) BIT_ULL(27))
+#define UPF_BOOT_AUTOCONF	((__force upf_t) BIT_ULL(28))
+#define UPF_FIXED_PORT		((__force upf_t) BIT_ULL(29))
+#define UPF_DEAD		((__force upf_t) BIT_ULL(30))
+#define UPF_IOREMAP		((__force upf_t) BIT_ULL(31))
+#define UPF_FULL_PROBE		((__force upf_t) BIT_ULL(32))
 
 #define __UPF_CHANGE_MASK	0x17fff
 #define UPF_CHANGE_MASK		((__force upf_t) __UPF_CHANGE_MASK)
@@ -669,7 +670,7 @@ void uart_write_wakeup(struct uart_port *port);
 void uart_update_timeout(struct uart_port *port, unsigned int cflag,
 			 unsigned int baud);
 unsigned int uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
-				struct ktermios *old, unsigned int min,
+				const struct ktermios *old, unsigned int min,
 				unsigned int max);
 unsigned int uart_get_divisor(struct uart_port *port, unsigned int baud);
 
@@ -950,5 +951,4 @@ static inline int uart_handle_break(struct uart_port *port)
 					 !((cflag) & CLOCAL))
 
 int uart_get_rs485_mode(struct uart_port *port);
-int uart_rs485_config(struct uart_port *port);
 #endif /* LINUX_SERIAL_CORE_H */

@@ -706,7 +706,7 @@ err:
 	return ret;
 }
 
-static int e4000_remove(struct i2c_client *client)
+static void e4000_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct e4000_dev *dev = container_of(sd, struct e4000_dev, sd);
@@ -717,8 +717,6 @@ static int e4000_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&dev->hdl);
 #endif
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id e4000_id_table[] = {

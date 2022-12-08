@@ -421,13 +421,4 @@ void drm_send_event_timestamp_locked(struct drm_device *dev,
 
 struct file *mock_drm_getfile(struct drm_minor *minor, unsigned int flags);
 
-#ifdef CONFIG_MMU
-struct drm_vma_offset_manager;
-unsigned long drm_get_unmapped_area(struct file *file,
-				    unsigned long uaddr, unsigned long len,
-				    unsigned long pgoff, unsigned long flags,
-				    struct drm_vma_offset_manager *mgr);
-#endif /* CONFIG_MMU */
-
-
 #endif /* _DRM_FILE_H_ */

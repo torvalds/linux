@@ -157,6 +157,85 @@ int intel_nhlt_ssp_endpoint_mask(struct nhlt_acpi_table *nhlt, u8 device_type)
 }
 EXPORT_SYMBOL(intel_nhlt_ssp_endpoint_mask);
 
+#define SSP_BLOB_V1_0_SIZE		84
+#define SSP_BLOB_V1_0_MDIVC_OFFSET	19 /* offset in u32 */
+
+#define SSP_BLOB_V1_5_SIZE		96
+#define SSP_BLOB_V1_5_MDIVC_OFFSET	21 /* offset in u32 */
+#define SSP_BLOB_VER_1_5		0xEE000105
+
+#define SSP_BLOB_V2_0_SIZE		88
+#define SSP_BLOB_V2_0_MDIVC_OFFSET	20 /* offset in u32 */
+#define SSP_BLOB_VER_2_0		0xEE000200
+
+int intel_nhlt_ssp_mclk_mask(struct nhlt_acpi_table *nhlt, int ssp_num)
+{
+	struct nhlt_endpoint *epnt;
+	struct nhlt_fmt *fmt;
+	struct nhlt_fmt_cfg *cfg;
+	int mclk_mask = 0;
+	int i, j;
+
+	if (!nhlt)
+		return 0;
+
+	epnt = (struct nhlt_endpoint *)nhlt->desc;
+	for (i = 0; i < nhlt->endpoint_count; i++) {
+
+		/* we only care about endpoints connected to an audio codec over SSP */
+		if (epnt->linktype == NHLT_LINK_SSP &&
+		    epnt->device_type == NHLT_DEVICE_I2S &&
+		    epnt->virtual_bus_id == ssp_num) {
+
+			fmt = (struct nhlt_fmt *)(epnt->config.caps + epnt->config.size);
+			cfg = fmt->fmt_config;
+
+			/*
+			 * In theory all formats should use the same MCLK but it doesn't hurt to
+			 * double-check that the configuration is consistent
+			 */
+			for (j = 0; j < fmt->fmt_count; j++) {
+				u32 *blob;
+				int mdivc_offset;
+				int size;
+
+				/* first check we have enough data to read the blob type */
+				if (cfg->config.size < 8)
+					return -EINVAL;
+
+				blob = (u32 *)cfg->config.caps;
+
+				if (blob[1] == SSP_BLOB_VER_2_0) {
+					mdivc_offset = SSP_BLOB_V2_0_MDIVC_OFFSET;
+					size = SSP_BLOB_V2_0_SIZE;
+				} else if (blob[1] == SSP_BLOB_VER_1_5) {
+					mdivc_offset = SSP_BLOB_V1_5_MDIVC_OFFSET;
+					size = SSP_BLOB_V1_5_SIZE;
+				} else {
+					mdivc_offset = SSP_BLOB_V1_0_MDIVC_OFFSET;
+					size = SSP_BLOB_V1_0_SIZE;
+				}
+
+				/* make sure we have enough data for the fixed part of the blob */
+				if (cfg->config.size < size)
+					return -EINVAL;
+
+				mclk_mask |=  blob[mdivc_offset] & GENMASK(1, 0);
+
+				cfg = (struct nhlt_fmt_cfg *)(cfg->config.caps + cfg->config.size);
+			}
+		}
+		epnt = (struct nhlt_endpoint *)((u8 *)epnt + epnt->length);
+	}
+
+	/* make sure only one MCLK is used */
+	if (hweight_long(mclk_mask) != 1)
+		return -EINVAL;
+
+	return mclk_mask;
+}
+EXPORT_SYMBOL(intel_nhlt_ssp_mclk_mask);
+
 static struct nhlt_specific_cfg *
 nhlt_get_specific_cfg(struct device *dev, struct nhlt_fmt *fmt, u8 num_ch,
 		      u32 rate, u8 vbps, u8 bps)

@@ -553,13 +553,13 @@ err_data:
 	return rc;
 }
 
-static int wcd_usbss_remove(struct i2c_client *i2c)
+static void wcd_usbss_remove(struct i2c_client *i2c)
 {
 	struct wcd_usbss_ctxt *priv =
 			(struct wcd_usbss_ctxt *)i2c_get_clientdata(i2c);
 
 	if (!priv)
-		return -EINVAL;
+		return;
 
 	unregister_ucsi_glink_notifier(&priv->ucsi_nb);
 	cancel_work_sync(&priv->usbc_analog_work);
@@ -568,8 +568,6 @@ static int wcd_usbss_remove(struct i2c_client *i2c)
 	mutex_destroy(&priv->io_lock);
 	dev_set_drvdata(&i2c->dev, NULL);
 	wcd_usbss_ctxt_ = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id wcd_usbss_i2c_dt_match[] = {

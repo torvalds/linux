@@ -722,8 +722,8 @@ work_unlock:
 	mutex_unlock(&adc->lock);
 }
 
-static int adc5_gen3_of_xlate(struct iio_dev *indio_dev,
-				const struct of_phandle_args *iiospec)
+static int adc5_gen3_fwnode_xlate(struct iio_dev *indio_dev,
+				const struct fwnode_reference_args *iiospec)
 {
 	struct adc5_chip *adc = iio_priv(indio_dev);
 	int i, v_channel;
@@ -781,14 +781,14 @@ static int adc5_gen3_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info adc5_gen3_info = {
 	.read_raw = adc5_gen3_read_raw,
-	.of_xlate = adc5_gen3_of_xlate,
+	.fwnode_xlate = adc5_gen3_fwnode_xlate,
 };
 
 /* Used by thermal clients to read ADC channel temperature */
-int adc_tm_gen3_get_temp(void *data, int *temp)
+int adc_tm_gen3_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	int ret;
-	struct adc5_channel_prop *prop = data;
+	struct adc5_channel_prop *prop = tz->devdata;
 	struct adc5_chip *adc;
 	u16 adc_code_volt;
 
@@ -871,10 +871,10 @@ static int adc_tm5_gen3_configure(struct adc5_channel_prop *prop)
 	return adc5_write(adc, prop->sdam_index, ADC5_GEN3_CONV_REQ, &conv_req, 1);
 }
 
-static int adc_tm5_gen3_set_trip_temp(void *data,
+static int adc_tm5_gen3_set_trip_temp(struct thermal_zone_device *tz,
 					int low_temp, int high_temp)
 {
-	struct adc5_channel_prop *prop = data;
+	struct adc5_channel_prop *prop = tz->devdata;
 	struct adc5_chip *adc = prop->chip;
 	struct adc_tm_config tm_config;
 	int ret;
@@ -1273,12 +1273,12 @@ fail:
 }
 EXPORT_SYMBOL(adc_tm_disable_chan_meas_gen3);
 
-static struct thermal_zone_of_device_ops adc_tm_ops = {
+static struct thermal_zone_device_ops adc_tm_ops = {
 	.get_temp = adc_tm_gen3_get_temp,
 	.set_trips = adc_tm5_gen3_set_trip_temp,
 };
 
-static struct thermal_zone_of_device_ops adc_tm_ops_iio = {
+static struct thermal_zone_device_ops adc_tm_ops_iio = {
 	.get_temp = adc_tm_gen3_get_temp,
 };
 
@@ -1294,12 +1294,12 @@ static int adc_tm_register_tzd(struct adc5_chip *adc)
 		case ADC_TM_NONE:
 			continue;
 		case ADC_TM:
-			tzd = devm_thermal_zone_of_sensor_register(
+			tzd = devm_thermal_of_zone_register(
 				adc->dev, channel,
 				&adc->chan_props[i], &adc_tm_ops);
 			break;
 		case ADC_TM_IIO:
-			tzd = devm_thermal_zone_of_sensor_register(
+			tzd = devm_thermal_of_zone_register(
 				adc->dev, channel,
 				&adc->chan_props[i], &adc_tm_ops_iio);
 			break;

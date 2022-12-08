@@ -3,6 +3,8 @@ if MIPS
 source "drivers/platform/mips/Kconfig"
 endif
 
+source "drivers/platform/loongarch/Kconfig"
+
 source "drivers/platform/goldfish/Kconfig"
 
 source "drivers/platform/chrome/Kconfig"

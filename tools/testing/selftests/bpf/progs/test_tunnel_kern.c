@@ -12,6 +12,7 @@
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
+#include <linux/if_tunnel.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/icmp.h>
@@ -386,7 +387,8 @@ int vxlan_get_tunnel_src(struct __sk_buff *skb)
 	__u32 orig_daddr;
 	__u32 index = 0;
 
-	ret = bpf_skb_get_tunnel_key(skb, &key, sizeof(key), 0);
+	ret = bpf_skb_get_tunnel_key(skb, &key, sizeof(key),
+				     BPF_F_TUNINFO_FLAGS);
 	if (ret < 0) {
 		log_err(ret);
 		return TC_ACT_SHOT;
@@ -398,10 +400,13 @@ int vxlan_get_tunnel_src(struct __sk_buff *skb)
 		return TC_ACT_SHOT;
 	}
 
-	if (key.local_ipv4 != ASSIGNED_ADDR_VETH1 || md.gbp != 0x800FF) {
-		bpf_printk("vxlan key %d local ip 0x%x remote ip 0x%x gbp 0x%x\n",
+	if (key.local_ipv4 != ASSIGNED_ADDR_VETH1 || md.gbp != 0x800FF ||
+	    !(key.tunnel_flags & TUNNEL_KEY) ||
+	    (key.tunnel_flags & TUNNEL_CSUM)) {
+		bpf_printk("vxlan key %d local ip 0x%x remote ip 0x%x gbp 0x%x flags 0x%x\n",
 			   key.tunnel_id, key.local_ipv4,
-			   key.remote_ipv4, md.gbp);
+			   key.remote_ipv4, md.gbp,
+			   bpf_ntohs(key.tunnel_flags));
 		log_err(ret);
 		return TC_ACT_SHOT;
 	}
@@ -541,16 +546,19 @@ int ip6vxlan_get_tunnel_src(struct __sk_buff *skb)
 	}
 
 	ret = bpf_skb_get_tunnel_key(skb, &key, sizeof(key),
-				     BPF_F_TUNINFO_IPV6);
+				     BPF_F_TUNINFO_IPV6 | BPF_F_TUNINFO_FLAGS);
 	if (ret < 0) {
 		log_err(ret);
 		return TC_ACT_SHOT;
 	}
 
-	if (bpf_ntohl(key.local_ipv6[3]) != *local_ip) {
-		bpf_printk("ip6vxlan key %d local ip6 ::%x remote ip6 ::%x label 0x%x\n",
+	if (bpf_ntohl(key.local_ipv6[3]) != *local_ip ||
+	    !(key.tunnel_flags & TUNNEL_KEY) ||
+	    !(key.tunnel_flags & TUNNEL_CSUM)) {
+		bpf_printk("ip6vxlan key %d local ip6 ::%x remote ip6 ::%x label 0x%x flags 0x%x\n",
 			   key.tunnel_id, bpf_ntohl(key.local_ipv6[3]),
-			   bpf_ntohl(key.remote_ipv6[3]), key.tunnel_label);
+			   bpf_ntohl(key.remote_ipv6[3]), key.tunnel_label,
+			   bpf_ntohs(key.tunnel_flags));
 		bpf_printk("local_ip 0x%x\n", *local_ip);
 		log_err(ret);
 		return TC_ACT_SHOT;

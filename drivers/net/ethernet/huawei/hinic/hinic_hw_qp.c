@@ -472,8 +472,7 @@ int hinic_get_rq_free_wqebbs(struct hinic_rq *rq)
 	return atomic_read(&wq->delta) - 1;
 }
 
-static void sq_prepare_ctrl(struct hinic_sq_ctrl *ctrl, u16 prod_idx,
-			    int nr_descs)
+static void sq_prepare_ctrl(struct hinic_sq_ctrl *ctrl, int nr_descs)
 {
 	u32 ctrl_size, task_size, bufdesc_size;
 
@@ -588,18 +587,16 @@ void hinic_set_tso_inner_l4(struct hinic_sq_task *task, u32 *queue_info,
 /**
  * hinic_sq_prepare_wqe - prepare wqe before insert to the queue
  * @sq: send queue
- * @prod_idx: pi value
  * @sq_wqe: wqe to prepare
  * @sges: sges for use by the wqe for send for buf addresses
  * @nr_sges: number of sges
  **/
-void hinic_sq_prepare_wqe(struct hinic_sq *sq, u16 prod_idx,
-			  struct hinic_sq_wqe *sq_wqe, struct hinic_sge *sges,
-			  int nr_sges)
+void hinic_sq_prepare_wqe(struct hinic_sq *sq, struct hinic_sq_wqe *sq_wqe,
+			  struct hinic_sge *sges, int nr_sges)
 {
 	int i;
 
-	sq_prepare_ctrl(&sq_wqe->ctrl, prod_idx, nr_sges);
+	sq_prepare_ctrl(&sq_wqe->ctrl, nr_sges);
 
 	sq_prepare_task(&sq_wqe->task);
 

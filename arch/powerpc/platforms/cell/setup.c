@@ -167,6 +167,8 @@ static int __init cell_publish_devices(void)
 		of_platform_device_create(np, NULL, NULL);
 	}
 
+	of_node_put(root);
+
 	/* There is no device for the MIC memory controller, thus we create
 	 * a platform device for it to attach the EDAC driver to.
 	 */

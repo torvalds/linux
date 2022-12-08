@@ -37,6 +37,7 @@ config MTK_INFRACFG
 config MTK_PMIC_WRAP
 	tristate "MediaTek PMIC Wrapper Support"
 	depends on RESET_CONTROLLER
+	depends on OF
 	select REGMAP
 	help
 	  Say yes here to add support for MediaTek PMIC Wrapper found
@@ -46,6 +47,7 @@ config MTK_PMIC_WRAP
 config MTK_SCPSYS
 	bool "MediaTek SCPSYS Support"
 	default ARCH_MEDIATEK
+	depends on OF
 	select REGMAP
 	select MTK_INFRACFG
 	select PM_GENERIC_DOMAINS if PM
@@ -75,7 +77,7 @@ config MTK_MMSYS
 
 config MTK_SVS
 	tristate "MediaTek Smart Voltage Scaling(SVS)"
-	depends on MTK_EFUSE && NVMEM
+	depends on NVMEM_MTK_EFUSE && NVMEM
 	help
 	  The Smart Voltage Scaling(SVS) engine is a piece of hardware
 	  which has several controllers(banks) for calculating suitable

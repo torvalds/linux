@@ -23,6 +23,7 @@
 
 #include <net/inet_connection_sock.h>
 #include <net/inet_sock.h>
+#include <net/ip.h>
 #include <net/sock.h>
 #include <net/route.h>
 #include <net/tcp_states.h>
@@ -90,7 +91,31 @@ struct inet_bind_bucket {
 	struct hlist_head	owners;
 };
 
-static inline struct net *ib_net(struct inet_bind_bucket *ib)
+struct inet_bind2_bucket {
+	possible_net_t		ib_net;
+	int			l3mdev;
+	unsigned short		port;
+#if IS_ENABLED(CONFIG_IPV6)
+	unsigned short		family;
+#endif
+	union {
+#if IS_ENABLED(CONFIG_IPV6)
+		struct in6_addr		v6_rcv_saddr;
+#endif
+		__be32			rcv_saddr;
+	};
+	/* Node in the bhash2 inet_bind_hashbucket chain */
+	struct hlist_node	node;
+	/* List of sockets hashed to this bucket */
+	struct hlist_head	owners;
+};
+
+static inline struct net *ib_net(const struct inet_bind_bucket *ib)
+{
+	return read_pnet(&ib->ib_net);
+}
+
+static inline struct net *ib2_net(const struct inet_bind2_bucket *ib)
 {
 	return read_pnet(&ib->ib_net);
 }
@@ -133,13 +158,32 @@ struct inet_hashinfo {
 	 * TCP hash as well as the others for fast bind/connect.
 	 */
 	struct kmem_cache		*bind_bucket_cachep;
+	/* This bind table is hashed by local port */
 	struct inet_bind_hashbucket	*bhash;
+	struct kmem_cache		*bind2_bucket_cachep;
+	/* This bind table is hashed by local port and sk->sk_rcv_saddr (ipv4)
+	 * or sk->sk_v6_rcv_saddr (ipv6). This 2nd bind table is used
+	 * primarily for expediting bind conflict resolution.
+	 */
+	struct inet_bind_hashbucket	*bhash2;
 	unsigned int			bhash_size;
 
 	/* The 2nd listener table hashed by local port and address */
 	unsigned int			lhash2_mask;
 	struct inet_listen_hashbucket	*lhash2;
+
+	bool				pernet;
 };
+
+static inline struct inet_hashinfo *tcp_or_dccp_get_hashinfo(const struct sock *sk)
+{
+#if IS_ENABLED(CONFIG_IP_DCCP)
+	return sk->sk_prot->h.hashinfo ? :
+		sock_net(sk)->ipv4.tcp_death_row.hashinfo;
+#else
+	return sock_net(sk)->ipv4.tcp_death_row.hashinfo;
+#endif
+}
 
 static inline struct inet_listen_hashbucket *
 inet_lhash2_bucket(struct inet_hashinfo *h, u32 hash)
@@ -175,6 +219,10 @@ static inline void inet_ehash_locks_free(struct inet_hashinfo *hashinfo)
 	hashinfo->ehash_locks = NULL;
 }
 
+struct inet_hashinfo *inet_pernet_hashinfo_alloc(struct inet_hashinfo *hashinfo,
+						 unsigned int ehash_entries);
+void inet_pernet_hashinfo_free(struct inet_hashinfo *hashinfo);
+
 struct inet_bind_bucket *
 inet_bind_bucket_create(struct kmem_cache *cachep, struct net *net,
 			struct inet_bind_hashbucket *head,
@@ -182,14 +230,61 @@ inet_bind_bucket_create(struct kmem_cache *cachep, struct net *net,
 void inet_bind_bucket_destroy(struct kmem_cache *cachep,
 			      struct inet_bind_bucket *tb);
 
+bool inet_bind_bucket_match(const struct inet_bind_bucket *tb,
+			    const struct net *net, unsigned short port,
+			    int l3mdev);
+
+struct inet_bind2_bucket *
+inet_bind2_bucket_create(struct kmem_cache *cachep, struct net *net,
+			 struct inet_bind_hashbucket *head,
+			 unsigned short port, int l3mdev,
+			 const struct sock *sk);
+
+void inet_bind2_bucket_destroy(struct kmem_cache *cachep,
+			       struct inet_bind2_bucket *tb);
+
+struct inet_bind2_bucket *
+inet_bind2_bucket_find(const struct inet_bind_hashbucket *head,
+		       const struct net *net,
+		       unsigned short port, int l3mdev,
+		       const struct sock *sk);
+
+bool inet_bind2_bucket_match_addr_any(const struct inet_bind2_bucket *tb,
+				      const struct net *net, unsigned short port,
+				      int l3mdev, const struct sock *sk);
+
 static inline u32 inet_bhashfn(const struct net *net, const __u16 lport,
 			       const u32 bhash_size)
 {
 	return (lport + net_hash_mix(net)) & (bhash_size - 1);
 }
 
+static inline struct inet_bind_hashbucket *
+inet_bhashfn_portaddr(const struct inet_hashinfo *hinfo, const struct sock *sk,
+		      const struct net *net, unsigned short port)
+{
+	u32 hash;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6)
+		hash = ipv6_portaddr_hash(net, &sk->sk_v6_rcv_saddr, port);
+	else
+#endif
+		hash = ipv4_portaddr_hash(net, sk->sk_rcv_saddr, port);
+	return &hinfo->bhash2[hash & (hinfo->bhash_size - 1)];
+}
+
+struct inet_bind_hashbucket *
+inet_bhash2_addr_any_hashbucket(const struct sock *sk, const struct net *net, int port);
+
+/* This should be called whenever a socket's sk_rcv_saddr (ipv4) or
+ * sk_v6_rcv_saddr (ipv6) changes after it has been binded. The socket's
+ * rcv_saddr field should already have been updated when this is called.
+ */
+int inet_bhash2_update_saddr(struct inet_bind_hashbucket *prev_saddr, struct sock *sk);
+
 void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
-		    const unsigned short snum);
+		    struct inet_bind2_bucket *tb2, unsigned short port);
 
 /* Caller must disable local BH processing. */
 int __inet_inherit_port(const struct sock *sk, struct sock *child);

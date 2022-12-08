@@ -1509,10 +1509,8 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	}
 
 	status = platform_get_irq(pdev, 0);
-	if (status == -EPROBE_DEFER)
-		goto free_master;
 	if (status < 0) {
-		dev_err(&pdev->dev, "no irq resource found\n");
+		dev_err_probe(&pdev->dev, status, "no irq resource found\n");
 		goto free_master;
 	}
 	init_completion(&mcspi->txdone);

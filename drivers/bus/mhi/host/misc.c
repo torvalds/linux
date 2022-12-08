@@ -90,7 +90,7 @@ static ssize_t time_async_show(struct device *dev,
 {
 	struct mhi_device *mhi_dev = to_mhi_device(dev);
 	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
-	u32 seq = prandom_u32();
+	u32 seq = get_random_u32();
 	int ret;
 
 	if (!seq)

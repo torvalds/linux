@@ -55,9 +55,6 @@ struct link_hwss_ext {
 			enum signal_type signal,
 			enum clock_source_id clock_source,
 			const struct dc_link_settings *link_settings);
-	void (*disable_dp_link_output)(struct dc_link *link,
-			const struct link_resource *link_res,
-			enum signal_type signal);
 	void (*set_dp_link_test_pattern)(struct dc_link *link,
 			const struct link_resource *link_res,
 			struct encoder_set_dp_phy_pattern_param *tp_params);
@@ -79,6 +76,9 @@ struct link_hwss {
 	void (*setup_stream_encoder)(struct pipe_ctx *pipe_ctx);
 	void (*reset_stream_encoder)(struct pipe_ctx *pipe_ctx);
 	void (*setup_stream_attribute)(struct pipe_ctx *pipe_ctx);
+	void (*disable_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum signal_type signal);
 };
 #endif /* __DC_LINK_HWSS_H__ */
 

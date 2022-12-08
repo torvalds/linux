@@ -233,10 +233,8 @@ static int ns_pinctrl_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "cru_gpio_control");
 	ns_pinctrl->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ns_pinctrl->base)) {
-		dev_err(dev, "Failed to map pinctrl regs\n");
+	if (IS_ERR(ns_pinctrl->base))
 		return PTR_ERR(ns_pinctrl->base);
-	}
 
 	memcpy(pctldesc, &ns_pinctrl_desc, sizeof(*pctldesc));
 

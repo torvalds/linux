@@ -111,7 +111,7 @@ the SVE instruction set architecture.
 
 * On syscall, V0..V31 are preserved (as without SVE).  Thus, bits [127:0] of
   Z0..Z31 are preserved.  All other bits of Z0..Z31, and all of P0..P15 and FFR
-  become unspecified on return from a syscall.
+  become zero on return from a syscall.
 
 * The SVE registers are not used to pass arguments to or receive results from
   any syscall.
@@ -452,6 +452,24 @@ The regset data starts with struct user_sve_header, containing:
 * Modifying the system default vector length does not affect the vector length
   of any existing process or thread that does not make an execve() call.
 
+10.  Perf extensions
+--------------------------------
+
+* The arm64 specific DWARF standard [5] added the VG (Vector Granule) register
+  at index 46. This register is used for DWARF unwinding when variable length
+  SVE registers are pushed onto the stack.
+
+* Its value is equivalent to the current SVE vector length (VL) in bits divided
+  by 64.
+
+* The value is included in Perf samples in the regs[46] field if
+  PERF_SAMPLE_REGS_USER is set and the sample_regs_user mask has bit 46 set.
+
+* The value is the current value at the time the sample was taken, and it can
+  change over time.
+
+* If the system doesn't support SVE when perf_event_open is called with these
+  settings, the event will fail to open.
 
 Appendix A.  SVE programmer's model (informative)
 =================================================
@@ -593,3 +611,5 @@ References
     http://infocenter.arm.com/help/topic/com.arm.doc.ihi0055c/IHI0055C_beta_aapcs64.pdf
     http://infocenter.arm.com/help/topic/com.arm.doc.subset.swdev.abi/index.html
     Procedure Call Standard for the ARM 64-bit Architecture (AArch64)
+
+[5] https://github.com/ARM-software/abi-aa/blob/main/aadwarf64/aadwarf64.rst

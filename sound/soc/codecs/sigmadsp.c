@@ -227,13 +227,11 @@ static int sigma_fw_load_control(struct sigmadsp *sigmadsp,
 	if (!ctrl)
 		return -ENOMEM;
 
-	name = kzalloc(name_len + 1, GFP_KERNEL);
+	name = kmemdup_nul(ctrl_chunk->name, name_len, GFP_KERNEL);
 	if (!name) {
 		ret = -ENOMEM;
 		goto err_free_ctrl;
 	}
-	memcpy(name, ctrl_chunk->name, name_len);
-	name[name_len] = '\0';
 	ctrl->name = name;
 
 	/*

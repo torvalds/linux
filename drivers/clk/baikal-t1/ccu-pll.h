@@ -14,6 +14,12 @@
 #include <linux/of.h>
 
 /*
+ * CCU PLL private flags
+ * @CCU_PLL_BASIC: Basic PLL required by the kernel as early as possible.
+ */
+#define CCU_PLL_BASIC		BIT(0)
+
+/*
  * struct ccu_pll_init_data - CCU PLL initialization data
  * @id: Clock private identifier.
  * @name: Clocks name.
@@ -22,6 +28,7 @@
  * @sys_regs: Baikal-T1 System Controller registers map.
  * @np: Pointer to the node describing the CCU PLLs.
  * @flags: PLL clock flags.
+ * @features: PLL private features.
  */
 struct ccu_pll_init_data {
 	unsigned int id;
@@ -31,6 +38,7 @@ struct ccu_pll_init_data {
 	struct regmap *sys_regs;
 	struct device_node *np;
 	unsigned long flags;
+	unsigned long features;
 };
 
 /*

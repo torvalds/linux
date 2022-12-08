@@ -66,7 +66,7 @@ struct get_name_filldir {
 	char *name;
 };
 
-static int get_name_filldir(struct dir_context *ctx, const char *name,
+static bool get_name_filldir(struct dir_context *ctx, const char *name,
 			    int length, loff_t offset, u64 inum,
 			    unsigned int type)
 {
@@ -74,12 +74,12 @@ static int get_name_filldir(struct dir_context *ctx, const char *name,
 		container_of(ctx, struct get_name_filldir, ctx);
 
 	if (inum != gnfd->inum.no_addr)
-		return 0;
+		return true;
 
 	memcpy(gnfd->name, name, length);
 	gnfd->name[length] = 0;
 
-	return 1;
+	return false;
 }
 
 static int gfs2_get_name(struct dentry *parent, char *name,

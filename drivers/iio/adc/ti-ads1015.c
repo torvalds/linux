@@ -1094,7 +1094,7 @@ static int ads1015_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int ads1015_remove(struct i2c_client *client)
+static void ads1015_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ads1015_data *data = iio_priv(indio_dev);
@@ -1110,8 +1110,6 @@ static int ads1015_remove(struct i2c_client *client)
 	if (ret)
 		dev_warn(&client->dev, "Failed to power down (%pe)\n",
 			 ERR_PTR(ret));
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

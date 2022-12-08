@@ -616,7 +616,7 @@ err_panel_add:
 	return ret;
 }
 
-static int truly_nt35597_remove(struct mipi_dsi_device *dsi)
+static void truly_nt35597_remove(struct mipi_dsi_device *dsi)
 {
 	struct truly_nt35597 *ctx = mipi_dsi_get_drvdata(dsi);
 
@@ -628,7 +628,6 @@ static int truly_nt35597_remove(struct mipi_dsi_device *dsi)
 	}
 
 	drm_panel_remove(&ctx->panel);
-	return 0;
 }
 
 static const struct of_device_id truly_nt35597_of_match[] = {

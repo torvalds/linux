@@ -654,7 +654,7 @@
 			status = "disabled";
 		};
 
-		usbphy: usb-phy@e6590100 {
+		usbphy: usb-phy-controller@e6590100 {
 			compatible = "renesas,usb-phy-r8a7790",
 				     "renesas,rcar-gen2-usb-phy";
 			reg = <0 0xe6590100 0 0x100>;
@@ -666,11 +666,11 @@
 			resets = <&cpg 704>;
 			status = "disabled";
 
-			usb0: usb-channel@0 {
+			usb0: usb-phy@0 {
 				reg = <0>;
 				#phy-cells = <1>;
 			};
-			usb2: usb-channel@2 {
+			usb2: usb-phy@2 {
 				reg = <2>;
 				#phy-cells = <1>;
 			};

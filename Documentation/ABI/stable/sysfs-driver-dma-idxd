@@ -227,6 +227,17 @@ Contact:	dmaengine@vger.kernel.org
 Description:	Indicate the number of retires for an enqcmds submission on a sharedwq.
 		A max value to set attribute is capped at 64.
 
+What:		/sys/bus/dsa/devices/wq<m>.<n>/op_config
+Date:		Sept 14, 2022
+KernelVersion:	6.0.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Shows the operation capability bits displayed in bitmap format
+		presented by %*pb printk() output format specifier.
+		The attribute can be configured when the WQ is disabled in
+		order to configure the WQ to accept specific bits that
+		correlates to the operations allowed. It's visible only
+		on platforms that support the capability.
+
 What:           /sys/bus/dsa/devices/engine<m>.<n>/group_id
 Date:           Oct 25, 2019
 KernelVersion:  5.6.0
@@ -255,3 +266,27 @@ Contact:	dmaengine@vger.kernel.org
 Description:	Indicates the number of Read Buffers reserved for the use of
 		engines in the group. See DSA spec v1.2 9.2.18 GRPCFG Read Buffers
 		Reserved.
+
+What:		/sys/bus/dsa/devices/group<m>.<n>/desc_progress_limit
+Date:		Sept 14, 2022
+KernelVersion:	6.0.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Allows control of the number of work descriptors that can be
+		concurrently processed by an engine in the group as a fraction
+		of the Maximum Work Descriptors in Progress value specified in
+		the ENGCAP register. The acceptable values are 0 (default),
+		1 (1/2 of max value), 2 (1/4 of the max value), and 3 (1/8 of
+		the max value). It's visible only on platforms that support
+		the capability.
+
+What:		/sys/bus/dsa/devices/group<m>.<n>/batch_progress_limit
+Date:		Sept 14, 2022
+KernelVersion:	6.0.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Allows control of the number of batch descriptors that can be
+		concurrently processed by an engine in the group as a fraction
+		of the Maximum Batch Descriptors in Progress value specified in
+		the ENGCAP register. The acceptable values are 0 (default),
+		1 (1/2 of max value), 2 (1/4 of the max value), and 3 (1/8 of
+		the max value). It's visible only on platforms that support
+		the capability.

@@ -123,7 +123,7 @@
 					 */
 
 /********************************************************************
- * Phy/Core Configuration.  Defines macros to to check core phy/rev *
+ * Phy/Core Configuration.  Defines macros to check core phy/rev *
  * compile-time configuration.  Defines default core support.       *
  * ******************************************************************
  */

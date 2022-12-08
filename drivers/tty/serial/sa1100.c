@@ -409,7 +409,7 @@ static void sa1100_shutdown(struct uart_port *port)
 
 static void
 sa1100_set_termios(struct uart_port *port, struct ktermios *termios,
-		   struct ktermios *old)
+		   const struct ktermios *old)
 {
 	struct sa1100_port *sport =
 		container_of(port, struct sa1100_port, port);

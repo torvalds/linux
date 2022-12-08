@@ -305,7 +305,7 @@ Possible BPF extensions are shown in the following table:
   vlan_tci                              skb_vlan_tag_get(skb)
   vlan_avail                            skb_vlan_tag_present(skb)
   vlan_tpid                             skb->vlan_proto
-  rand                                  prandom_u32()
+  rand                                  get_random_u32()
   ===================================   =================================================
 
 These extensions can also be prefixed with '#'.

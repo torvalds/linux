@@ -279,6 +279,7 @@ GPIO
   devm_gpio_request_one()
 
 I2C
+  devm_i2c_add_adapter()
   devm_i2c_new_dummy_device()
 
 IIO
@@ -311,7 +312,6 @@ IOMAP
   devm_ioremap()
   devm_ioremap_uc()
   devm_ioremap_wc()
-  devm_ioremap_np()
   devm_ioremap_resource() : checks resource, requests memory region, ioremaps
   devm_ioremap_resource_wc()
   devm_platform_ioremap_resource() : calls devm_ioremap_resource() for platform device
@@ -404,14 +404,24 @@ POWER
 
 PWM
   devm_pwm_get()
-  devm_of_pwm_get()
   devm_fwnode_pwm_get()
 
 REGULATOR
+  devm_regulator_bulk_register_supply_alias()
   devm_regulator_bulk_get()
+  devm_regulator_bulk_get_enable()
+  devm_regulator_bulk_put()
   devm_regulator_get()
+  devm_regulator_get_enable()
+  devm_regulator_get_enable_optional()
+  devm_regulator_get_exclusive()
+  devm_regulator_get_optional()
+  devm_regulator_irq_helper()
   devm_regulator_put()
   devm_regulator_register()
+  devm_regulator_register_notifier()
+  devm_regulator_register_supply_alias()
+  devm_regulator_unregister_notifier()
 
 RESET
   devm_reset_control_get()

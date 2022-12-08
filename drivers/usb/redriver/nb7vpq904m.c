@@ -718,12 +718,12 @@ static int nb7vpq904m_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int nb7vpq904m_remove(struct i2c_client *client)
+static void nb7vpq904m_remove(struct i2c_client *client)
 {
 	struct nb7vpq904m_redriver *redriver = i2c_get_clientdata(client);
 
 	if (usb_remove_redriver(&redriver->r))
-		return -EINVAL;
+		return;
 
 	debugfs_remove_recursive(redriver->debug_root);
 	redriver->work_ongoing = false;
@@ -731,8 +731,6 @@ static int nb7vpq904m_remove(struct i2c_client *client)
 
 	if (redriver->vdd)
 		regulator_disable(redriver->vdd);
-
-	return 0;
 }
 
 static ssize_t channel_config_write(struct file *file,

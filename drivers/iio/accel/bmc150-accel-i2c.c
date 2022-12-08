@@ -209,13 +209,11 @@ static int bmc150_accel_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int bmc150_accel_remove(struct i2c_client *client)
+static void bmc150_accel_remove(struct i2c_client *client)
 {
 	bmc150_acpi_dual_accel_remove(client);
 
 	bmc150_accel_core_remove(&client->dev);
-
-	return 0;
 }
 
 static const struct acpi_device_id bmc150_accel_acpi_match[] = {

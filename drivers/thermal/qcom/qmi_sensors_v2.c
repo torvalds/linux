@@ -227,9 +227,9 @@ static int qmi_ts_request(struct qmi_sensor *qmi_sens,
 	return ret;
 }
 
-static int qmi_sensor_read(void *data, int *temp)
+static int qmi_sensor_read(struct thermal_zone_device *tz, int *temp)
 {
-	struct qmi_sensor *qmi_sens = (struct qmi_sensor *)data;
+	struct qmi_sensor *qmi_sens = (struct qmi_sensor *)tz->devdata;
 
 	if (qmi_sens->connection_active && !atomic_read(&in_suspend))
 		qmi_ts_request(qmi_sens, true);
@@ -238,9 +238,9 @@ static int qmi_sensor_read(void *data, int *temp)
 	return 0;
 }
 
-static int qmi_sensor_set_trips(void *data, int low, int high)
+static int qmi_sensor_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	struct qmi_sensor *qmi_sens = (struct qmi_sensor *)data;
+	struct qmi_sensor *qmi_sens = (struct qmi_sensor *)tz->devdata;
 	int ret = 0;
 
 	if (qmi_sens->high_thresh == high &&
@@ -261,7 +261,7 @@ static int qmi_sensor_set_trips(void *data, int low, int high)
 	return ret;
 }
 
-static struct thermal_zone_of_device_ops qmi_sensor_ops = {
+static struct thermal_zone_device_ops qmi_sensor_ops = {
 	.get_temp = qmi_sensor_read,
 	.set_trips = qmi_sensor_set_trips,
 };
@@ -281,7 +281,7 @@ static int qmi_register_sensor_device(struct qmi_sensor *qmi_sens)
 {
 	int ret = 0;
 
-	qmi_sens->tz_dev = thermal_zone_of_sensor_register(
+	qmi_sens->tz_dev = devm_thermal_of_zone_register(
 				qmi_sens->dev,
 				qmi_sens->sens_type + qmi_sens->ts->inst_id,
 				qmi_sens, &qmi_sensor_ops);
@@ -472,8 +472,6 @@ static void qmi_ts_cleanup(void)
 			&ts->ts_sensor_list, ts_node) {
 			qmi_sens->connection_active = false;
 			if (qmi_sens->tz_dev) {
-				thermal_zone_of_sensor_unregister(
-				qmi_sens->dev, qmi_sens->tz_dev);
 				qti_update_tz_ops(qmi_sens->tz_dev, false);
 				qmi_sens->tz_dev = NULL;
 			}

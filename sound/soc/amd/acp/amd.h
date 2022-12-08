@@ -21,9 +21,9 @@
 #define ACP3X_DEV			3
 #define ACP6X_DEV			6
 
-#define I2S_SP_INSTANCE			0x00
-#define I2S_BT_INSTANCE			0x01
-#define DMIC_INSTANCE			0x02
+#define DMIC_INSTANCE			0x00
+#define I2S_SP_INSTANCE			0x01
+#define I2S_BT_INSTANCE			0x02
 #define I2S_HS_INSTANCE			0x03
 
 #define MEM_WINDOW_START		0x4080000
@@ -84,6 +84,14 @@
 
 #define ACP_MAX_STREAM			8
 
+#define TDM_ENABLE	1
+#define TDM_DISABLE	0
+
+#define SLOT_WIDTH_8	0x8
+#define SLOT_WIDTH_16	0x10
+#define SLOT_WIDTH_24	0x18
+#define SLOT_WIDTH_32	0x20
+
 struct acp_chip_info {
 	char *name;		/* Platform name */
 	unsigned int acp_rev;	/* ACP Revision id */
@@ -91,10 +99,12 @@ struct acp_chip_info {
 };
 
 struct acp_stream {
+	struct list_head list;
 	struct snd_pcm_substream *substream;
 	int irq_bit;
 	int dai_id;
 	int id;
+	int dir;
 	u64 bytescount;
 	u32 reg_offset;
 	u32 pte_offset;
@@ -119,11 +129,13 @@ struct acp_dev_data {
 	void __iomem *acp_base;
 	unsigned int i2s_irq;
 
+	bool tdm_mode;
 	/* SOC specific dais */
 	struct snd_soc_dai_driver *dai_driver;
 	int num_dai;
 
-	struct acp_stream *stream[ACP_MAX_STREAM];
+	struct list_head stream_list;
+	spinlock_t acp_lock;
 
 	struct snd_soc_acpi_mach *machines;
 	struct platform_device *mach_dev;
@@ -132,6 +144,8 @@ struct acp_dev_data {
 	u32 lrclk_div;
 
 	struct acp_resource *rsrc;
+	u32 tdm_tx_fmt[3];
+	u32 tdm_rx_fmt[3];
 };
 
 union acp_i2stdm_mstrclkgen {

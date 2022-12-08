@@ -14,16 +14,6 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	aliases {
-		i2c0 = &i2c0;
-		i2c1 = &i2c1;
-		i2c2 = &i2c2;
-		i2c3 = &i2c3;
-		i2c4 = &i2c4;
-		i2c5 = &i2c5;
-		i2c6 = &i2c6;
-	};
-
 	/* External CAN clock - to be overridden by boards that provide it */
 	can_clk: can {
 		compatible = "fixed-clock";
@@ -257,7 +247,7 @@
 
 		cmt0: timer@e60f0000 {
 			compatible = "renesas,r8a779a0-cmt0",
-				     "renesas,rcar-gen3-cmt0";
+				     "renesas,rcar-gen4-cmt0";
 			reg = <0 0xe60f0000 0 0x1004>;
 			interrupts = <GIC_SPI 500 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 501 IRQ_TYPE_LEVEL_HIGH>;
@@ -270,7 +260,7 @@
 
 		cmt1: timer@e6130000 {
 			compatible = "renesas,r8a779a0-cmt1",
-				     "renesas,rcar-gen3-cmt1";
+				     "renesas,rcar-gen4-cmt1";
 			reg = <0 0xe6130000 0 0x1004>;
 			interrupts = <GIC_SPI 448 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 449 IRQ_TYPE_LEVEL_HIGH>,
@@ -289,7 +279,7 @@
 
 		cmt2: timer@e6140000 {
 			compatible = "renesas,r8a779a0-cmt1",
-				     "renesas,rcar-gen3-cmt1";
+				     "renesas,rcar-gen4-cmt1";
 			reg = <0 0xe6140000 0 0x1004>;
 			interrupts = <GIC_SPI 456 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 457 IRQ_TYPE_LEVEL_HIGH>,
@@ -308,7 +298,7 @@
 
 		cmt3: timer@e6148000 {
 			compatible = "renesas,r8a779a0-cmt1",
-				     "renesas,rcar-gen3-cmt1";
+				     "renesas,rcar-gen4-cmt1";
 			reg = <0 0xe6148000 0 0x1004>;
 			interrupts = <GIC_SPI 464 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 465 IRQ_TYPE_LEVEL_HIGH>,
@@ -2075,7 +2065,7 @@
 
 		mmc0: mmc@ee140000 {
 			compatible = "renesas,sdhi-r8a779a0",
-				     "renesas,rcar-gen3-sdhi";
+				     "renesas,rcar-gen4-sdhi";
 			reg = <0 0xee140000 0 0x2000>;
 			interrupts = <GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 706>, <&cpg CPG_CORE R8A779A0_CLK_SD0H>;
@@ -2096,7 +2086,6 @@
 			reg-names = "regs", "dirmap", "wbuf";
 			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 629>;
-			clock-names = "rpc";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 629>;
 			#address-cells = <1>;

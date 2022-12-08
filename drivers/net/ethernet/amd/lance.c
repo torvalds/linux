@@ -880,7 +880,7 @@ lance_init_ring(struct net_device *dev, gfp_t gfp)
 			rx_buff = skb->data;
 		else
 			rx_buff = kmalloc(PKT_BUF_SZ, GFP_DMA | gfp);
-		if (rx_buff == NULL)
+		if (!rx_buff)
 			lp->rx_ring[i].base = 0;
 		else
 			lp->rx_ring[i].base = (u32)isa_virt_to_bus(rx_buff) | 0x80000000;
@@ -1186,7 +1186,7 @@ lance_rx(struct net_device *dev)
 			else
 			{
 				skb = dev_alloc_skb(pkt_len+2);
-				if (skb == NULL)
+				if (!skb)
 				{
 					printk("%s: Memory squeeze, deferring packet.\n", dev->name);
 					for (i=0; i < RX_RING_SIZE; i++)

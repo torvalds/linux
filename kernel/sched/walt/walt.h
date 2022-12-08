@@ -7,6 +7,7 @@
 #ifndef _WALT_H
 #define _WALT_H
 
+#include <linux/sched/cputime.h>
 #include "../../../kernel/sched/sched.h"
 #include "../../../fs/proc/internal.h"
 #include <linux/sched/walt.h>

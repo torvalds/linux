@@ -490,7 +490,7 @@ err_power_off:
 	return ret;
 }
 
-static int stk8ba50_remove(struct i2c_client *client)
+static void stk8ba50_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct stk8ba50_data *data = iio_priv(indio_dev);
@@ -502,8 +502,6 @@ static int stk8ba50_remove(struct i2c_client *client)
 		iio_trigger_unregister(data->dready_trig);
 
 	stk8ba50_set_power(data, STK8BA50_MODE_SUSPEND);
-
-	return 0;
 }
 
 static int stk8ba50_suspend(struct device *dev)

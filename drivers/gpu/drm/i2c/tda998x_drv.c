@@ -2076,11 +2076,10 @@ tda998x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return ret;
 }
 
-static int tda998x_remove(struct i2c_client *client)
+static void tda998x_remove(struct i2c_client *client)
 {
 	component_del(&client->dev, &tda998x_ops);
 	tda998x_destroy(&client->dev);
-	return 0;
 }
 
 #ifdef CONFIG_OF

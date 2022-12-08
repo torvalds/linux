@@ -414,6 +414,7 @@ static const unsigned int r9a07g044_crit_mod_clks[] __initconst = {
 	MOD_CLK_BASE + R9A07G044_DMAC_ACLK,
 };
 
+#ifdef CONFIG_CLK_R9A07G044
 const struct rzg2l_cpg_info r9a07g044_cpg_info = {
 	/* Core Clocks */
 	.core_clks = core_clks.common,
@@ -436,6 +437,7 @@ const struct rzg2l_cpg_info r9a07g044_cpg_info = {
 
 	.has_clk_mon_regs = true,
 };
+#endif
 
 #ifdef CONFIG_CLK_R9A07G054
 const struct rzg2l_cpg_info r9a07g054_cpg_info = {

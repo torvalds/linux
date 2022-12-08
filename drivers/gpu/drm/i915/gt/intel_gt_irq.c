@@ -29,7 +29,7 @@ gen11_gt_engine_identity(struct intel_gt *gt,
 	u32 timeout_ts;
 	u32 ident;
 
-	lockdep_assert_held(&gt->irq_lock);
+	lockdep_assert_held(gt->irq_lock);
 
 	raw_reg_write(regs, GEN11_IIR_REG_SELECTOR(bank), BIT(bit));
 
@@ -59,11 +59,17 @@ static void
 gen11_other_irq_handler(struct intel_gt *gt, const u8 instance,
 			const u16 iir)
 {
+	struct intel_gt *media_gt = gt->i915->media_gt;
+
 	if (instance == OTHER_GUC_INSTANCE)
 		return guc_irq_handler(&gt->uc.guc, iir);
+	if (instance == OTHER_MEDIA_GUC_INSTANCE && media_gt)
+		return guc_irq_handler(&media_gt->uc.guc, iir);
 
 	if (instance == OTHER_GTPM_INSTANCE)
 		return gen11_rps_irq_handler(&gt->rps, iir);
+	if (instance == OTHER_MEDIA_GTPM_INSTANCE && media_gt)
+		return gen11_rps_irq_handler(&media_gt->rps, iir);
 
 	if (instance == OTHER_KCR_INSTANCE)
 		return intel_pxp_irq_handler(&gt->pxp, iir);
@@ -81,6 +87,18 @@ gen11_engine_irq_handler(struct intel_gt *gt, const u8 class,
 {
 	struct intel_engine_cs *engine;
 
+	/*
+	 * Platforms with standalone media have their media engines in another
+	 * GT.
+	 */
+	if (MEDIA_VER(gt->i915) >= 13 &&
+	    (class == VIDEO_DECODE_CLASS || class == VIDEO_ENHANCEMENT_CLASS)) {
+		if (!gt->i915->media_gt)
+			goto err;
+
+		gt = gt->i915->media_gt;
+	}
+
 	if (instance <= MAX_ENGINE_INSTANCE)
 		engine = gt->engine_class[class][instance];
 	else
@@ -89,6 +107,7 @@ gen11_engine_irq_handler(struct intel_gt *gt, const u8 class,
 	if (likely(engine))
 		return intel_engine_cs_irq(engine, iir);
 
+err:
 	WARN_ONCE(1, "unhandled engine interrupt class=0x%x, instance=0x%x\n",
 		  class, instance);
 }
@@ -120,7 +139,7 @@ gen11_gt_bank_handler(struct intel_gt *gt, const unsigned int bank)
 	unsigned long intr_dw;
 	unsigned int bit;
 
-	lockdep_assert_held(&gt->irq_lock);
+	lockdep_assert_held(gt->irq_lock);
 
 	intr_dw = raw_reg_read(regs, GEN11_GT_INTR_DW(bank));
 
@@ -138,14 +157,14 @@ void gen11_gt_irq_handler(struct intel_gt *gt, const u32 master_ctl)
 {
 	unsigned int bank;
 
-	spin_lock(&gt->irq_lock);
+	spin_lock(gt->irq_lock);
 
 	for (bank = 0; bank < 2; bank++) {
 		if (master_ctl & GEN11_GT_DW_IRQ(bank))
 			gen11_gt_bank_handler(gt, bank);
 	}
 
-	spin_unlock(&gt->irq_lock);
+	spin_unlock(gt->irq_lock);
 }
 
 bool gen11_gt_reset_one_iir(struct intel_gt *gt,
@@ -154,7 +173,7 @@ bool gen11_gt_reset_one_iir(struct intel_gt *gt,
 	void __iomem * const regs = gt->uncore->regs;
 	u32 dw;
 
-	lockdep_assert_held(&gt->irq_lock);
+	lockdep_assert_held(gt->irq_lock);
 
 	dw = raw_reg_read(regs, GEN11_GT_INTR_DW(bank));
 	if (dw & BIT(bit)) {
@@ -310,9 +329,9 @@ static void gen7_parity_error_irq_handler(struct intel_gt *gt, u32 iir)
 	if (!HAS_L3_DPF(gt->i915))
 		return;
 
-	spin_lock(&gt->irq_lock);
+	spin_lock(gt->irq_lock);
 	gen5_gt_disable_irq(gt, GT_PARITY_ERROR(gt->i915));
-	spin_unlock(&gt->irq_lock);
+	spin_unlock(gt->irq_lock);
 
 	if (iir & GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1)
 		gt->i915->l3_parity.which_slice |= 1 << 1;
@@ -434,7 +453,7 @@ static void gen5_gt_update_irq(struct intel_gt *gt,
 			       u32 interrupt_mask,
 			       u32 enabled_irq_mask)
 {
-	lockdep_assert_held(&gt->irq_lock);
+	lockdep_assert_held(gt->irq_lock);
 
 	GEM_BUG_ON(enabled_irq_mask & ~interrupt_mask);
 

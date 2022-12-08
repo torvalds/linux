@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/linkage.h>
 #include <asm/asm.h>
-#include <asm/asm-offsets.h>
 #include <asm/bitsperlong.h>
 #include <asm/kvm_vcpu_regs.h>
 #include <asm/nospec-branch.h>
 #include <asm/percpu.h>
 #include <asm/segment.h>
+#include "kvm-asm-offsets.h"
 #include "run_flags.h"
 
 #define WORD_SIZE (BITS_PER_LONG / 8)
@@ -189,13 +189,16 @@ SYM_INNER_LABEL(vmx_vmexit, SYM_L_GLOBAL)
 	xor %ebx, %ebx
 
 .Lclear_regs:
+	/* Discard @regs.  The register is irrelevant, it just can't be RBX. */
+	pop %_ASM_AX
+
 	/*
 	 * Clear all general purpose registers except RSP and RBX to prevent
 	 * speculative use of the guest's values, even those that are reloaded
 	 * via the stack.  In theory, an L1 cache miss when restoring registers
 	 * could lead to speculative execution with the guest's values.
 	 * Zeroing XORs are dirt cheap, i.e. the extra paranoia is essentially
-	 * free.  RSP and RAX are exempt as RSP is restored by hardware during
+	 * free.  RSP and RBX are exempt as RSP is restored by hardware during
 	 * VM-Exit and RBX is explicitly loaded with 0 or 1 to hold the return
 	 * value.
 	 */
@@ -216,9 +219,6 @@ SYM_INNER_LABEL(vmx_vmexit, SYM_L_GLOBAL)
 	xor %r15d, %r15d
 #endif
 
-	/* "POP" @regs. */
-	add $WORD_SIZE, %_ASM_SP
-
 	/*
 	 * IMPORTANT: RSB filling and SPEC_CTRL handling must be done before
 	 * the first unbalanced RET after vmexit!
@@ -233,7 +233,6 @@ SYM_INNER_LABEL(vmx_vmexit, SYM_L_GLOBAL)
 
 	FILL_RETURN_BUFFER %_ASM_CX, RSB_CLEAR_LOOPS, X86_FEATURE_RSB_VMEXIT,\
 			   X86_FEATURE_RSB_VMEXIT_LITE
-
 
 	pop %_ASM_ARG2	/* @flags */
 	pop %_ASM_ARG1	/* @vmx */
@@ -293,21 +292,12 @@ SYM_FUNC_START(vmread_error_trampoline)
 	push %r10
 	push %r11
 #endif
-#ifdef CONFIG_X86_64
+
 	/* Load @field and @fault to arg1 and arg2 respectively. */
-	mov 3*WORD_SIZE(%rbp), %_ASM_ARG2
-	mov 2*WORD_SIZE(%rbp), %_ASM_ARG1
-#else
-	/* Parameters are passed on the stack for 32-bit (see asmlinkage). */
-	push 3*WORD_SIZE(%ebp)
-	push 2*WORD_SIZE(%ebp)
-#endif
+	mov 3*WORD_SIZE(%_ASM_BP), %_ASM_ARG2
+	mov 2*WORD_SIZE(%_ASM_BP), %_ASM_ARG1
 
 	call vmread_error
-
-#ifndef CONFIG_X86_64
-	add $8, %esp
-#endif
 
 	/* Zero out @fault, which will be popped into the result register. */
 	_ASM_MOV $0, 3*WORD_SIZE(%_ASM_BP)

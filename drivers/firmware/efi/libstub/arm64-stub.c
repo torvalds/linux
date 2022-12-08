@@ -15,16 +15,39 @@
 
 #include "efistub.h"
 
+static bool system_needs_vamap(void)
+{
+	const u8 *type1_family = efi_get_smbios_string(1, family);
+
+	/*
+	 * Ampere Altra machines crash in SetTime() if SetVirtualAddressMap()
+	 * has not been called prior.
+	 */
+	if (!type1_family || strcmp(type1_family, "Altra"))
+		return false;
+
+	efi_warn("Working around broken SetVirtualAddressMap()\n");
+	return true;
+}
+
 efi_status_t check_platform_features(void)
 {
 	u64 tg;
+
+	/*
+	 * If we have 48 bits of VA space for TTBR0 mappings, we can map the
+	 * UEFI runtime regions 1:1 and so calling SetVirtualAddressMap() is
+	 * unnecessary.
+	 */
+	if (VA_BITS_MIN >= 48 && !system_needs_vamap())
+		efi_novamap = true;
 
 	/* UEFI mandates support for 4 KB granularity, no need to check */
 	if (IS_ENABLED(CONFIG_ARM64_4K_PAGES))
 		return EFI_SUCCESS;
 
-	tg = (read_cpuid(ID_AA64MMFR0_EL1) >> ID_AA64MMFR0_TGRAN_SHIFT) & 0xf;
-	if (tg < ID_AA64MMFR0_TGRAN_SUPPORTED_MIN || tg > ID_AA64MMFR0_TGRAN_SUPPORTED_MAX) {
+	tg = (read_cpuid(ID_AA64MMFR0_EL1) >> ID_AA64MMFR0_EL1_TGRAN_SHIFT) & 0xf;
+	if (tg < ID_AA64MMFR0_EL1_TGRAN_SUPPORTED_MIN || tg > ID_AA64MMFR0_EL1_TGRAN_SUPPORTED_MAX) {
 		if (IS_ENABLED(CONFIG_ARM64_64K_PAGES))
 			efi_err("This 64 KB granular kernel is not supported by your CPU\n");
 		else
@@ -42,26 +65,17 @@ efi_status_t check_platform_features(void)
  */
 static bool check_image_region(u64 base, u64 size)
 {
-	unsigned long map_size, desc_size, buff_size;
-	efi_memory_desc_t *memory_map;
-	struct efi_boot_memmap map;
+	struct efi_boot_memmap *map;
 	efi_status_t status;
 	bool ret = false;
 	int map_offset;
 
-	map.map =	&memory_map;
-	map.map_size =	&map_size;
-	map.desc_size =	&desc_size;
-	map.desc_ver =	NULL;
-	map.key_ptr =	NULL;
-	map.buff_size =	&buff_size;
-
-	status = efi_get_memory_map(&map);
+	status = efi_get_memory_map(&map, false);
 	if (status != EFI_SUCCESS)
 		return false;
 
-	for (map_offset = 0; map_offset < map_size; map_offset += desc_size) {
-		efi_memory_desc_t *md = (void *)memory_map + map_offset;
+	for (map_offset = 0; map_offset < map->map_size; map_offset += map->desc_size) {
+		efi_memory_desc_t *md = (void *)map->map + map_offset;
 		u64 end = md->phys_addr + md->num_pages * EFI_PAGE_SIZE;
 
 		/*
@@ -74,7 +88,7 @@ static bool check_image_region(u64 base, u64 size)
 		}
 	}
 
-	efi_bs_call(free_pool, memory_map);
+	efi_bs_call(free_pool, map);
 
 	return ret;
 }

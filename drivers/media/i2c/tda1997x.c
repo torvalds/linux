@@ -2805,7 +2805,7 @@ err_free_state:
 	return ret;
 }
 
-static int tda1997x_remove(struct i2c_client *client)
+static void tda1997x_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct tda1997x_state *state = to_state(sd);
@@ -2827,8 +2827,6 @@ static int tda1997x_remove(struct i2c_client *client)
 	mutex_destroy(&state->lock);
 
 	kfree(state);
-
-	return 0;
 }
 
 static struct i2c_driver tda1997x_i2c_driver = {

@@ -19,8 +19,20 @@
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX "module."
 
+/*
+ * ANDROID: GKI:
+ * Only enforce signature if SIG_PROTECT is not set
+ */
+#ifndef CONFIG_MODULE_SIG_PROTECT
 static bool sig_enforce = IS_ENABLED(CONFIG_MODULE_SIG_FORCE);
 module_param(sig_enforce, bool_enable_only, 0644);
+void set_module_sig_enforced(void)
+{
+	sig_enforce = true;
+}
+#else
+#define sig_enforce false
+#endif
 
 /*
  * Export sig_enforce kernel cmdline parameter to allow other subsystems rely
@@ -31,11 +43,6 @@ bool is_module_sig_enforced(void)
 	return sig_enforce;
 }
 EXPORT_SYMBOL(is_module_sig_enforced);
-
-void set_module_sig_enforced(void)
-{
-	sig_enforce = true;
-}
 
 /*
  * Verify the signature on a module.
@@ -121,5 +128,13 @@ int module_sig_check(struct load_info *info, int flags)
 		return -EKEYREJECTED;
 	}
 
+/*
+ * ANDROID: GKI: Do not prevent loading of unsigned modules;
+ * as all modules except GKI modules are not signed.
+ */
+#ifndef CONFIG_MODULE_SIG_PROTECT
 	return security_locked_down(LOCKDOWN_MODULE_SIGNATURE);
+#else
+	return 0;
+#endif
 }

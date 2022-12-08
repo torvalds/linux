@@ -1360,6 +1360,7 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 		error = wpc->ops->map_blocks(wpc, inode, pos);
 		if (error)
 			break;
+		trace_iomap_writepage_map(inode, &wpc->iomap);
 		if (WARN_ON_ONCE(wpc->iomap.type == IOMAP_INLINE))
 			continue;
 		if (wpc->iomap.type == IOMAP_HOLE)
@@ -1421,7 +1422,7 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	if (!count)
 		folio_end_writeback(folio);
 done:
-	mapping_set_error(folio->mapping, error);
+	mapping_set_error(inode->i_mapping, error);
 	return error;
 }
 

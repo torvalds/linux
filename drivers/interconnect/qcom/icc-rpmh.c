@@ -499,7 +499,9 @@ int qcom_icc_rpmh_remove(struct platform_device *pdev)
 	clk_bulk_put_all(qp->num_clks, qp->clks);
 
 	icc_nodes_remove(&qp->provider);
-	return icc_provider_del(&qp->provider);
+	icc_provider_del(&qp->provider);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_icc_rpmh_remove);
 

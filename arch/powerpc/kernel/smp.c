@@ -708,7 +708,7 @@ static struct task_struct *current_set[NR_CPUS];
 static void smp_store_cpu_info(int id)
 {
 	per_cpu(cpu_pvr, id) = mfspr(SPRN_PVR);
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 	per_cpu(next_tlbcam_idx, id)
 		= (mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) - 1;
 #endif
@@ -1257,7 +1257,12 @@ static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	int rc, c;
+	const unsigned long boot_spin_ms = 5 * MSEC_PER_SEC;
+	const bool booting = system_state < SYSTEM_RUNNING;
+	const unsigned long hp_spin_ms = 1;
+	unsigned long deadline;
+	int rc;
+	const unsigned long spin_wait_ms = booting ? boot_spin_ms : hp_spin_ms;
 
 	/*
 	 * Don't allow secondary threads to come online if inhibited
@@ -1302,22 +1307,23 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	}
 
 	/*
-	 * wait to see if the cpu made a callin (is actually up).
-	 * use this value that I found through experimentation.
-	 * -- Cort
+	 * At boot time, simply spin on the callin word until the
+	 * deadline passes.
+	 *
+	 * At run time, spin for an optimistic amount of time to avoid
+	 * sleeping in the common case.
 	 */
-	if (system_state < SYSTEM_RUNNING)
-		for (c = 50000; c && !cpu_callin_map[cpu]; c--)
-			udelay(100);
-#ifdef CONFIG_HOTPLUG_CPU
-	else
-		/*
-		 * CPUs can take much longer to come up in the
-		 * hotplug case.  Wait five seconds.
-		 */
-		for (c = 5000; c && !cpu_callin_map[cpu]; c--)
-			msleep(1);
-#endif
+	deadline = jiffies + msecs_to_jiffies(spin_wait_ms);
+	spin_until_cond(cpu_callin_map[cpu] || time_is_before_jiffies(deadline));
+
+	if (!cpu_callin_map[cpu] && system_state >= SYSTEM_RUNNING) {
+		const unsigned long sleep_interval_us = 10 * USEC_PER_MSEC;
+		const unsigned long sleep_wait_ms = 100 * MSEC_PER_SEC;
+
+		deadline = jiffies + msecs_to_jiffies(sleep_wait_ms);
+		while (!cpu_callin_map[cpu] && time_is_after_jiffies(deadline))
+			fsleep(sleep_interval_us);
+	}
 
 	if (!cpu_callin_map[cpu]) {
 		printk(KERN_ERR "Processor %u is stuck.\n", cpu);

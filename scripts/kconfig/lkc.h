@@ -123,11 +123,6 @@ static inline struct symbol *sym_get_choice_value(struct symbol *sym)
 	return (struct symbol *)sym->curr.val;
 }
 
-static inline bool sym_set_choice_value(struct symbol *ch, struct symbol *chval)
-{
-	return sym_set_tristate_value(chval, yes);
-}
-
 static inline bool sym_is_choice(struct symbol *sym)
 {
 	return sym->flags & SYMBOL_CHOICE ? true : false;

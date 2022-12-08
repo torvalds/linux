@@ -1201,7 +1201,7 @@ static int pm860x_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int pm860x_remove(struct i2c_client *client)
+static void pm860x_remove(struct i2c_client *client)
 {
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
@@ -1210,7 +1210,6 @@ static int pm860x_remove(struct i2c_client *client)
 		regmap_exit(chip->regmap_companion);
 		i2c_unregister_device(chip->companion);
 	}
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

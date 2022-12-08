@@ -13,7 +13,162 @@
 #include "intel_guc_capture.h"
 #include "intel_guc_log.h"
 
+#if defined(CONFIG_DRM_I915_DEBUG_GUC)
+#define GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE	SZ_2M
+#define GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE	SZ_16M
+#define GUC_LOG_DEFAULT_CAPTURE_BUFFER_SIZE	SZ_4M
+#elif defined(CONFIG_DRM_I915_DEBUG_GEM)
+#define GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE	SZ_1M
+#define GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE	SZ_2M
+#define GUC_LOG_DEFAULT_CAPTURE_BUFFER_SIZE	SZ_4M
+#else
+#define GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE	SZ_8K
+#define GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE	SZ_64K
+#define GUC_LOG_DEFAULT_CAPTURE_BUFFER_SIZE	SZ_2M
+#endif
+
 static void guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log);
+
+struct guc_log_section {
+	u32 max;
+	u32 flag;
+	u32 default_val;
+	const char *name;
+};
+
+static void _guc_log_init_sizes(struct intel_guc_log *log)
+{
+	struct intel_guc *guc = log_to_guc(log);
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	static const struct guc_log_section sections[GUC_LOG_SECTIONS_LIMIT] = {
+		{
+			GUC_LOG_CRASH_MASK >> GUC_LOG_CRASH_SHIFT,
+			GUC_LOG_LOG_ALLOC_UNITS,
+			GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE,
+			"crash dump"
+		},
+		{
+			GUC_LOG_DEBUG_MASK >> GUC_LOG_DEBUG_SHIFT,
+			GUC_LOG_LOG_ALLOC_UNITS,
+			GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE,
+			"debug",
+		},
+		{
+			GUC_LOG_CAPTURE_MASK >> GUC_LOG_CAPTURE_SHIFT,
+			GUC_LOG_CAPTURE_ALLOC_UNITS,
+			GUC_LOG_DEFAULT_CAPTURE_BUFFER_SIZE,
+			"capture",
+		}
+	};
+	int i;
+
+	for (i = 0; i < GUC_LOG_SECTIONS_LIMIT; i++)
+		log->sizes[i].bytes = sections[i].default_val;
+
+	/* If debug size > 1MB then bump default crash size to keep the same units */
+	if (log->sizes[GUC_LOG_SECTIONS_DEBUG].bytes >= SZ_1M &&
+	    GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE < SZ_1M)
+		log->sizes[GUC_LOG_SECTIONS_CRASH].bytes = SZ_1M;
+
+	/* Prepare the GuC API structure fields: */
+	for (i = 0; i < GUC_LOG_SECTIONS_LIMIT; i++) {
+		/* Convert to correct units */
+		if ((log->sizes[i].bytes % SZ_1M) == 0) {
+			log->sizes[i].units = SZ_1M;
+			log->sizes[i].flag = sections[i].flag;
+		} else {
+			log->sizes[i].units = SZ_4K;
+			log->sizes[i].flag = 0;
+		}
+
+		if (!IS_ALIGNED(log->sizes[i].bytes, log->sizes[i].units))
+			drm_err(&i915->drm, "Mis-aligned GuC log %s size: 0x%X vs 0x%X!",
+				sections[i].name, log->sizes[i].bytes, log->sizes[i].units);
+		log->sizes[i].count = log->sizes[i].bytes / log->sizes[i].units;
+
+		if (!log->sizes[i].count) {
+			drm_err(&i915->drm, "Zero GuC log %s size!", sections[i].name);
+		} else {
+			/* Size is +1 unit */
+			log->sizes[i].count--;
+		}
+
+		/* Clip to field size */
+		if (log->sizes[i].count > sections[i].max) {
+			drm_err(&i915->drm, "GuC log %s size too large: %d vs %d!",
+				sections[i].name, log->sizes[i].count + 1, sections[i].max + 1);
+			log->sizes[i].count = sections[i].max;
+		}
+	}
+
+	if (log->sizes[GUC_LOG_SECTIONS_CRASH].units != log->sizes[GUC_LOG_SECTIONS_DEBUG].units) {
+		drm_err(&i915->drm, "Unit mis-match for GuC log crash and debug sections: %d vs %d!",
+			log->sizes[GUC_LOG_SECTIONS_CRASH].units,
+			log->sizes[GUC_LOG_SECTIONS_DEBUG].units);
+		log->sizes[GUC_LOG_SECTIONS_CRASH].units = log->sizes[GUC_LOG_SECTIONS_DEBUG].units;
+		log->sizes[GUC_LOG_SECTIONS_CRASH].count = 0;
+	}
+
+	log->sizes_initialised = true;
+}
+
+static void guc_log_init_sizes(struct intel_guc_log *log)
+{
+	if (log->sizes_initialised)
+		return;
+
+	_guc_log_init_sizes(log);
+}
+
+static u32 intel_guc_log_section_size_crash(struct intel_guc_log *log)
+{
+	guc_log_init_sizes(log);
+
+	return log->sizes[GUC_LOG_SECTIONS_CRASH].bytes;
+}
+
+static u32 intel_guc_log_section_size_debug(struct intel_guc_log *log)
+{
+	guc_log_init_sizes(log);
+
+	return log->sizes[GUC_LOG_SECTIONS_DEBUG].bytes;
+}
+
+u32 intel_guc_log_section_size_capture(struct intel_guc_log *log)
+{
+	guc_log_init_sizes(log);
+
+	return log->sizes[GUC_LOG_SECTIONS_CAPTURE].bytes;
+}
+
+static u32 intel_guc_log_size(struct intel_guc_log *log)
+{
+	/*
+	 *  GuC Log buffer Layout:
+	 *
+	 *  NB: Ordering must follow "enum guc_log_buffer_type".
+	 *
+	 *  +===============================+ 00B
+	 *  |      Debug state header       |
+	 *  +-------------------------------+ 32B
+	 *  |    Crash dump state header    |
+	 *  +-------------------------------+ 64B
+	 *  |     Capture state header      |
+	 *  +-------------------------------+ 96B
+	 *  |                               |
+	 *  +===============================+ PAGE_SIZE (4KB)
+	 *  |          Debug logs           |
+	 *  +===============================+ + DEBUG_SIZE
+	 *  |        Crash Dump logs        |
+	 *  +===============================+ + CRASH_SIZE
+	 *  |         Capture logs          |
+	 *  +===============================+ + CAPTURE_SIZE
+	 */
+	return PAGE_SIZE +
+		intel_guc_log_section_size_crash(log) +
+		intel_guc_log_section_size_debug(log) +
+		intel_guc_log_section_size_capture(log);
+}
 
 /**
  * DOC: GuC firmware log
@@ -139,7 +294,8 @@ static void guc_move_to_next_buf(struct intel_guc_log *log)
 	smp_wmb();
 
 	/* All data has been written, so now move the offset of sub buffer. */
-	relay_reserve(log->relay.channel, log->vma->obj->base.size - CAPTURE_BUFFER_SIZE);
+	relay_reserve(log->relay.channel, log->vma->obj->base.size -
+					  intel_guc_log_section_size_capture(log));
 
 	/* Switch to the next sub buffer */
 	relay_flush(log->relay.channel);
@@ -184,15 +340,16 @@ bool intel_guc_check_log_buf_overflow(struct intel_guc_log *log,
 	return overflow;
 }
 
-unsigned int intel_guc_get_log_buffer_size(enum guc_log_buffer_type type)
+unsigned int intel_guc_get_log_buffer_size(struct intel_guc_log *log,
+					   enum guc_log_buffer_type type)
 {
 	switch (type) {
 	case GUC_DEBUG_LOG_BUFFER:
-		return DEBUG_BUFFER_SIZE;
+		return intel_guc_log_section_size_debug(log);
 	case GUC_CRASH_DUMP_LOG_BUFFER:
-		return CRASH_BUFFER_SIZE;
+		return intel_guc_log_section_size_crash(log);
 	case GUC_CAPTURE_LOG_BUFFER:
-		return CAPTURE_BUFFER_SIZE;
+		return intel_guc_log_section_size_capture(log);
 	default:
 		MISSING_CASE(type);
 	}
@@ -200,7 +357,8 @@ unsigned int intel_guc_get_log_buffer_size(enum guc_log_buffer_type type)
 	return 0;
 }
 
-size_t intel_guc_get_log_buffer_offset(enum guc_log_buffer_type type)
+size_t intel_guc_get_log_buffer_offset(struct intel_guc_log *log,
+				       enum guc_log_buffer_type type)
 {
 	enum guc_log_buffer_type i;
 	size_t offset = PAGE_SIZE;/* for the log_buffer_states */
@@ -208,7 +366,7 @@ size_t intel_guc_get_log_buffer_offset(enum guc_log_buffer_type type)
 	for (i = GUC_DEBUG_LOG_BUFFER; i < GUC_MAX_LOG_BUFFER; ++i) {
 		if (i == type)
 			break;
-		offset += intel_guc_get_log_buffer_size(i);
+		offset += intel_guc_get_log_buffer_size(log, i);
 	}
 
 	return offset;
@@ -259,7 +417,7 @@ static void _guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
 		 */
 		memcpy(&log_buf_state_local, log_buf_state,
 		       sizeof(struct guc_log_buffer_state));
-		buffer_size = intel_guc_get_log_buffer_size(type);
+		buffer_size = intel_guc_get_log_buffer_size(log, type);
 		read_offset = log_buf_state_local.read_ptr;
 		write_offset = log_buf_state_local.sampled_write_ptr;
 		full_cnt = log_buf_state_local.buffer_full_cnt;
@@ -374,7 +532,7 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 	  * Keep the size of sub buffers same as shared log buffer
 	  * but GuC log-events excludes the error-state-capture logs
 	  */
-	subbuf_size = log->vma->size - CAPTURE_BUFFER_SIZE;
+	subbuf_size = log->vma->size - intel_guc_log_section_size_capture(log);
 
 	/*
 	 * Store up to 8 snapshots, which is large enough to buffer sufficient
@@ -461,32 +619,7 @@ int intel_guc_log_create(struct intel_guc_log *log)
 
 	GEM_BUG_ON(log->vma);
 
-	/*
-	 *  GuC Log buffer Layout
-	 * (this ordering must follow "enum guc_log_buffer_type" definition)
-	 *
-	 *  +===============================+ 00B
-	 *  |      Debug state header       |
-	 *  +-------------------------------+ 32B
-	 *  |    Crash dump state header    |
-	 *  +-------------------------------+ 64B
-	 *  |     Capture state header      |
-	 *  +-------------------------------+ 96B
-	 *  |                               |
-	 *  +===============================+ PAGE_SIZE (4KB)
-	 *  |          Debug logs           |
-	 *  +===============================+ + DEBUG_SIZE
-	 *  |        Crash Dump logs        |
-	 *  +===============================+ + CRASH_SIZE
-	 *  |         Capture logs          |
-	 *  +===============================+ + CAPTURE_SIZE
-	 */
-	if (intel_guc_capture_output_min_size_est(guc) > CAPTURE_BUFFER_SIZE)
-		DRM_WARN("GuC log buffer for state_capture maybe too small. %d < %d\n",
-			 CAPTURE_BUFFER_SIZE, intel_guc_capture_output_min_size_est(guc));
-
-	guc_log_size = PAGE_SIZE + CRASH_BUFFER_SIZE + DEBUG_BUFFER_SIZE +
-		       CAPTURE_BUFFER_SIZE;
+	guc_log_size = intel_guc_log_size(log);
 
 	vma = intel_guc_allocate_vma(guc, guc_log_size);
 	if (IS_ERR(vma)) {
@@ -749,8 +882,9 @@ int intel_guc_log_dump(struct intel_guc_log *log, struct drm_printer *p,
 	struct intel_guc *guc = log_to_guc(log);
 	struct intel_uc *uc = container_of(guc, struct intel_uc, guc);
 	struct drm_i915_gem_object *obj = NULL;
-	u32 *map;
-	int i = 0;
+	void *map;
+	u32 *page;
+	int i, j;
 
 	if (!intel_guc_is_supported(guc))
 		return -ENODEV;
@@ -763,21 +897,34 @@ int intel_guc_log_dump(struct intel_guc_log *log, struct drm_printer *p,
 	if (!obj)
 		return 0;
 
+	page = (u32 *)__get_free_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+
+	intel_guc_dump_time_info(guc, p);
+
 	map = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(map)) {
 		DRM_DEBUG("Failed to pin object\n");
 		drm_puts(p, "(log data unaccessible)\n");
+		free_page((unsigned long)page);
 		return PTR_ERR(map);
 	}
 
-	for (i = 0; i < obj->base.size / sizeof(u32); i += 4)
-		drm_printf(p, "0x%08x 0x%08x 0x%08x 0x%08x\n",
-			   *(map + i), *(map + i + 1),
-			   *(map + i + 2), *(map + i + 3));
+	for (i = 0; i < obj->base.size; i += PAGE_SIZE) {
+		if (!i915_memcpy_from_wc(page, map + i, PAGE_SIZE))
+			memcpy(page, map + i, PAGE_SIZE);
+
+		for (j = 0; j < PAGE_SIZE / sizeof(u32); j += 4)
+			drm_printf(p, "0x%08x 0x%08x 0x%08x 0x%08x\n",
+				   *(page + j + 0), *(page + j + 1),
+				   *(page + j + 2), *(page + j + 3));
+	}
 
 	drm_puts(p, "\n");
 
 	i915_gem_object_unpin_map(obj);
+	free_page((unsigned long)page);
 
 	return 0;
 }

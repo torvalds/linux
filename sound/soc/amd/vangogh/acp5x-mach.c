@@ -172,7 +172,7 @@ static int acp5x_cs35l41_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dai *codec_dai;
 	int ret, i;
-	unsigned int num_codecs = rtd->num_codecs;
+	unsigned int num_codecs = rtd->dai_link->num_codecs;
 	unsigned int bclk_val;
 
 	ret = 0;

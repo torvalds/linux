@@ -149,10 +149,10 @@ static const struct file_operations ruleset_fops = {
  *
  * Possible returned errors are:
  *
- * - EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
- * - EINVAL: unknown @flags, or unknown access, or too small @size;
- * - E2BIG or EFAULT: @attr or @size inconsistencies;
- * - ENOMSG: empty &landlock_ruleset_attr.handled_access_fs.
+ * - %EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
+ * - %EINVAL: unknown @flags, or unknown access, or too small @size;
+ * - %E2BIG or %EFAULT: @attr or @size inconsistencies;
+ * - %ENOMSG: empty &landlock_ruleset_attr.handled_access_fs.
  */
 SYSCALL_DEFINE3(landlock_create_ruleset,
 		const struct landlock_ruleset_attr __user *const, attr,
@@ -280,7 +280,7 @@ out_fdput:
  * @ruleset_fd: File descriptor tied to the ruleset that should be extended
  *		with the new rule.
  * @rule_type: Identify the structure type pointed to by @rule_attr (only
- *             LANDLOCK_RULE_PATH_BENEATH for now).
+ *             %LANDLOCK_RULE_PATH_BENEATH for now).
  * @rule_attr: Pointer to a rule (only of type &struct
  *             landlock_path_beneath_attr for now).
  * @flags: Must be 0.
@@ -290,17 +290,17 @@ out_fdput:
  *
  * Possible returned errors are:
  *
- * - EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
- * - EINVAL: @flags is not 0, or inconsistent access in the rule (i.e.
+ * - %EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
+ * - %EINVAL: @flags is not 0, or inconsistent access in the rule (i.e.
  *   &landlock_path_beneath_attr.allowed_access is not a subset of the
  *   ruleset handled accesses);
- * - ENOMSG: Empty accesses (e.g. &landlock_path_beneath_attr.allowed_access);
- * - EBADF: @ruleset_fd is not a file descriptor for the current thread, or a
+ * - %ENOMSG: Empty accesses (e.g. &landlock_path_beneath_attr.allowed_access);
+ * - %EBADF: @ruleset_fd is not a file descriptor for the current thread, or a
  *   member of @rule_attr is not a file descriptor as expected;
- * - EBADFD: @ruleset_fd is not a ruleset file descriptor, or a member of
+ * - %EBADFD: @ruleset_fd is not a ruleset file descriptor, or a member of
  *   @rule_attr is not the expected file descriptor type;
- * - EPERM: @ruleset_fd has no write access to the underlying ruleset;
- * - EFAULT: @rule_attr inconsistency.
+ * - %EPERM: @ruleset_fd has no write access to the underlying ruleset;
+ * - %EFAULT: @rule_attr inconsistency.
  */
 SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 		const enum landlock_rule_type, rule_type,
@@ -378,20 +378,20 @@ out_put_ruleset:
  * @flags: Must be 0.
  *
  * This system call enables to enforce a Landlock ruleset on the current
- * thread.  Enforcing a ruleset requires that the task has CAP_SYS_ADMIN in its
+ * thread.  Enforcing a ruleset requires that the task has %CAP_SYS_ADMIN in its
  * namespace or is running with no_new_privs.  This avoids scenarios where
  * unprivileged tasks can affect the behavior of privileged children.
  *
  * Possible returned errors are:
  *
- * - EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
- * - EINVAL: @flags is not 0.
- * - EBADF: @ruleset_fd is not a file descriptor for the current thread;
- * - EBADFD: @ruleset_fd is not a ruleset file descriptor;
- * - EPERM: @ruleset_fd has no read access to the underlying ruleset, or the
+ * - %EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
+ * - %EINVAL: @flags is not 0.
+ * - %EBADF: @ruleset_fd is not a file descriptor for the current thread;
+ * - %EBADFD: @ruleset_fd is not a ruleset file descriptor;
+ * - %EPERM: @ruleset_fd has no read access to the underlying ruleset, or the
  *   current thread is not running with no_new_privs, or it doesn't have
- *   CAP_SYS_ADMIN in its namespace.
- * - E2BIG: The maximum number of stacked rulesets is reached for the current
+ *   %CAP_SYS_ADMIN in its namespace.
+ * - %E2BIG: The maximum number of stacked rulesets is reached for the current
  *   thread.
  */
 SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,

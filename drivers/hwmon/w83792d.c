@@ -286,7 +286,7 @@ struct w83792d_data {
 static int w83792d_probe(struct i2c_client *client);
 static int w83792d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
-static int w83792d_remove(struct i2c_client *client);
+static void w83792d_remove(struct i2c_client *client);
 static struct w83792d_data *w83792d_update_device(struct device *dev);
 
 #ifdef DEBUG
@@ -1346,7 +1346,7 @@ w83792d_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (val1 != 0x7a || val2 != 0x5c)
 		return -ENODEV;
 
-	strlcpy(info->type, "w83792d", I2C_NAME_SIZE);
+	strscpy(info->type, "w83792d", I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -1429,7 +1429,7 @@ exit_remove_files:
 	return err;
 }
 
-static int
+static void
 w83792d_remove(struct i2c_client *client)
 {
 	struct w83792d_data *data = i2c_get_clientdata(client);
@@ -1440,8 +1440,6 @@ w83792d_remove(struct i2c_client *client)
 	for (i = 0; i < ARRAY_SIZE(w83792d_group_fan); i++)
 		sysfs_remove_group(&client->dev.kobj,
 				   &w83792d_group_fan[i]);
-
-	return 0;
 }
 
 static void

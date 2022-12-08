@@ -413,44 +413,29 @@ static int intel_cbphy_fwnode_parse(struct intel_combo_phy *cbphy)
 	u32 val;
 
 	cbphy->core_clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(cbphy->core_clk)) {
-		ret = PTR_ERR(cbphy->core_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Get clk failed:%d!\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cbphy->core_clk))
+		return dev_err_probe(dev, PTR_ERR(cbphy->core_clk),
+				     "Get clk failed!\n");
 
 	cbphy->core_rst = devm_reset_control_get_optional(dev, "core");
-	if (IS_ERR(cbphy->core_rst)) {
-		ret = PTR_ERR(cbphy->core_rst);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Get core reset control err: %d!\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cbphy->core_rst))
+		return dev_err_probe(dev, PTR_ERR(cbphy->core_rst),
+				     "Get core reset control err!\n");
 
 	cbphy->phy_rst = devm_reset_control_get_optional(dev, "phy");
-	if (IS_ERR(cbphy->phy_rst)) {
-		ret = PTR_ERR(cbphy->phy_rst);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Get PHY reset control err: %d!\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cbphy->phy_rst))
+		return dev_err_probe(dev, PTR_ERR(cbphy->phy_rst),
+				     "Get PHY reset control err!\n");
 
 	cbphy->iphy[0].app_rst = devm_reset_control_get_optional(dev, "iphy0");
-	if (IS_ERR(cbphy->iphy[0].app_rst)) {
-		ret = PTR_ERR(cbphy->iphy[0].app_rst);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Get phy0 reset control err: %d!\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cbphy->iphy[0].app_rst))
+		return dev_err_probe(dev, PTR_ERR(cbphy->iphy[0].app_rst),
+				     "Get phy0 reset control err!\n");
 
 	cbphy->iphy[1].app_rst = devm_reset_control_get_optional(dev, "iphy1");
-	if (IS_ERR(cbphy->iphy[1].app_rst)) {
-		ret = PTR_ERR(cbphy->iphy[1].app_rst);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Get phy1 reset control err: %d!\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cbphy->iphy[1].app_rst))
+		return dev_err_probe(dev, PTR_ERR(cbphy->iphy[1].app_rst),
+				     "Get phy1 reset control err!\n");
 
 	cbphy->app_base = devm_platform_ioremap_resource_byname(pdev, "app");
 	if (IS_ERR(cbphy->app_base))

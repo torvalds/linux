@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
@@ -939,8 +940,8 @@ static int bd957x_probe(struct platform_device *pdev)
 	}
 
 	ic_data->regmap = regmap;
-	vout_mode = of_property_read_bool(pdev->dev.parent->of_node,
-					 "rohm,vout1-en-low");
+	vout_mode = device_property_read_bool(pdev->dev.parent,
+					      "rohm,vout1-en-low");
 	if (vout_mode) {
 		struct gpio_desc *en;
 
@@ -948,10 +949,10 @@ static int bd957x_probe(struct platform_device *pdev)
 
 		/* VOUT1 enable state judged by VOUT1_EN pin */
 		/* See if we have GPIO defined */
-		en = devm_gpiod_get_from_of_node(&pdev->dev,
-						 pdev->dev.parent->of_node,
-						 "rohm,vout1-en-gpios", 0,
-						 GPIOD_OUT_LOW, "vout1-en");
+		en = devm_fwnode_gpiod_get(&pdev->dev,
+					   dev_fwnode(pdev->dev.parent),
+					   "rohm,vout1-en", GPIOD_OUT_LOW,
+					   "vout1-en");
 		if (!IS_ERR(en)) {
 			/* VOUT1_OPS gpio ctrl */
 			/*
@@ -986,8 +987,8 @@ static int bd957x_probe(struct platform_device *pdev)
 	 * like DDR voltage selection.
 	 */
 	platform_set_drvdata(pdev, ic_data);
-	ddr_sel =  of_property_read_bool(pdev->dev.parent->of_node,
-					 "rohm,ddr-sel-low");
+	ddr_sel = device_property_read_bool(pdev->dev.parent,
+					    "rohm,ddr-sel-low");
 	if (ddr_sel)
 		ic_data->regulator_data[2].desc.fixed_uV = 1350000;
 	else

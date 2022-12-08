@@ -884,13 +884,11 @@ disable_regs:
 	return ret;
 }
 
-static int tas571x_i2c_remove(struct i2c_client *client)
+static void tas571x_i2c_remove(struct i2c_client *client)
 {
 	struct tas571x_private *priv = i2c_get_clientdata(client);
 
 	regulator_bulk_disable(priv->chip->num_supply_names, priv->supplies);
-
-	return 0;
 }
 
 static const struct of_device_id tas571x_of_match[] __maybe_unused = {

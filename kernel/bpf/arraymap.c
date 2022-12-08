@@ -279,7 +279,8 @@ int bpf_percpu_array_copy(struct bpf_map *map, void *key, void *value)
 	rcu_read_lock();
 	pptr = array->pptrs[index & array->index_mask];
 	for_each_possible_cpu(cpu) {
-		bpf_long_memcpy(value + off, per_cpu_ptr(pptr, cpu), size);
+		copy_map_value_long(map, value + off, per_cpu_ptr(pptr, cpu));
+		check_and_init_map_value(map, value + off);
 		off += size;
 	}
 	rcu_read_unlock();
@@ -338,8 +339,9 @@ static int array_map_update_elem(struct bpf_map *map, void *key, void *value,
 		return -EINVAL;
 
 	if (array->map.map_type == BPF_MAP_TYPE_PERCPU_ARRAY) {
-		memcpy(this_cpu_ptr(array->pptrs[index & array->index_mask]),
-		       value, map->value_size);
+		val = this_cpu_ptr(array->pptrs[index & array->index_mask]);
+		copy_map_value(map, val, value);
+		check_and_free_fields(array, val);
 	} else {
 		val = array->value +
 			(u64)array->elem_size * (index & array->index_mask);
@@ -383,7 +385,8 @@ int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
 	rcu_read_lock();
 	pptr = array->pptrs[index & array->index_mask];
 	for_each_possible_cpu(cpu) {
-		bpf_long_memcpy(per_cpu_ptr(pptr, cpu), value + off, size);
+		copy_map_value_long(map, per_cpu_ptr(pptr, cpu), value + off);
+		check_and_free_fields(array, per_cpu_ptr(pptr, cpu));
 		off += size;
 	}
 	rcu_read_unlock();
@@ -421,8 +424,20 @@ static void array_map_free(struct bpf_map *map)
 	int i;
 
 	if (map_value_has_kptrs(map)) {
-		for (i = 0; i < array->map.max_entries; i++)
-			bpf_map_free_kptrs(map, array_map_elem_ptr(array, i));
+		if (array->map.map_type == BPF_MAP_TYPE_PERCPU_ARRAY) {
+			for (i = 0; i < array->map.max_entries; i++) {
+				void __percpu *pptr = array->pptrs[i & array->index_mask];
+				int cpu;
+
+				for_each_possible_cpu(cpu) {
+					bpf_map_free_kptrs(map, per_cpu_ptr(pptr, cpu));
+					cond_resched();
+				}
+			}
+		} else {
+			for (i = 0; i < array->map.max_entries; i++)
+				bpf_map_free_kptrs(map, array_map_elem_ptr(array, i));
+		}
 		bpf_map_free_kptr_off_tab(map);
 	}
 
@@ -608,9 +623,9 @@ static int __bpf_array_map_seq_show(struct seq_file *seq, void *v)
 			pptr = v;
 			size = array->elem_size;
 			for_each_possible_cpu(cpu) {
-				bpf_long_memcpy(info->percpu_value_buf + off,
-						per_cpu_ptr(pptr, cpu),
-						size);
+				copy_map_value_long(map, info->percpu_value_buf + off,
+						    per_cpu_ptr(pptr, cpu));
+				check_and_init_map_value(map, info->percpu_value_buf + off);
 				off += size;
 			}
 			ctx.value = info->percpu_value_buf;

@@ -29,7 +29,6 @@
 #include <linux/mutex.h>
 #include <linux/anon_inodes.h>
 #include <linux/device.h>
-#include <linux/freezer.h>
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/mman.h>
@@ -1066,7 +1065,7 @@ static inline bool list_add_tail_lockless(struct list_head *new,
 	 * added to the list from another CPU: the winner observes
 	 * new->next == new.
 	 */
-	if (cmpxchg(&new->next, new, head) != new)
+	if (!try_cmpxchg(&new->next, &new, head))
 		return false;
 
 	/*
@@ -1876,8 +1875,8 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		write_unlock_irq(&ep->lock);
 
 		if (!eavail)
-			timed_out = !freezable_schedule_hrtimeout_range(to, slack,
-									HRTIMER_MODE_ABS);
+			timed_out = !schedule_hrtimeout_range(to, slack,
+							      HRTIMER_MODE_ABS);
 		__set_current_state(TASK_RUNNING);
 
 		/*

@@ -112,12 +112,39 @@ static struct perf_cpu_map *cpu_map__from_mask(const struct perf_record_cpu_map_
 
 }
 
+static struct perf_cpu_map *cpu_map__from_range(const struct perf_record_cpu_map_data *data)
+{
+	struct perf_cpu_map *map;
+	unsigned int i = 0;
+
+	map = perf_cpu_map__empty_new(data->range_cpu_data.end_cpu -
+				data->range_cpu_data.start_cpu + 1 + data->range_cpu_data.any_cpu);
+	if (!map)
+		return NULL;
+
+	if (data->range_cpu_data.any_cpu)
+		map->map[i++].cpu = -1;
+
+	for (int cpu = data->range_cpu_data.start_cpu; cpu <= data->range_cpu_data.end_cpu;
+	     i++, cpu++)
+		map->map[i].cpu = cpu;
+
+	return map;
+}
+
 struct perf_cpu_map *cpu_map__new_data(const struct perf_record_cpu_map_data *data)
 {
-	if (data->type == PERF_CPU_MAP__CPUS)
+	switch (data->type) {
+	case PERF_CPU_MAP__CPUS:
 		return cpu_map__from_entries(data);
-	else
+	case PERF_CPU_MAP__MASK:
 		return cpu_map__from_mask(data);
+	case PERF_CPU_MAP__RANGE_CPUS:
+		return cpu_map__from_range(data);
+	default:
+		pr_err("cpu_map__new_data unknown type %d\n", data->type);
+		return NULL;
+	}
 }
 
 size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp)
@@ -202,7 +229,7 @@ static int aggr_cpu_id__cmp(const void *a_pointer, const void *b_pointer)
 	else if (a->core != b->core)
 		return a->core - b->core;
 	else
-		return a->thread - b->thread;
+		return a->thread_idx - b->thread_idx;
 }
 
 struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
@@ -640,7 +667,7 @@ const struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 
 bool aggr_cpu_id__equal(const struct aggr_cpu_id *a, const struct aggr_cpu_id *b)
 {
-	return a->thread == b->thread &&
+	return a->thread_idx == b->thread_idx &&
 		a->node == b->node &&
 		a->socket == b->socket &&
 		a->die == b->die &&
@@ -650,7 +677,7 @@ bool aggr_cpu_id__equal(const struct aggr_cpu_id *a, const struct aggr_cpu_id *b
 
 bool aggr_cpu_id__is_empty(const struct aggr_cpu_id *a)
 {
-	return a->thread == -1 &&
+	return a->thread_idx == -1 &&
 		a->node == -1 &&
 		a->socket == -1 &&
 		a->die == -1 &&
@@ -661,7 +688,7 @@ bool aggr_cpu_id__is_empty(const struct aggr_cpu_id *a)
 struct aggr_cpu_id aggr_cpu_id__empty(void)
 {
 	struct aggr_cpu_id ret = {
-		.thread = -1,
+		.thread_idx = -1,
 		.node = -1,
 		.socket = -1,
 		.die = -1,

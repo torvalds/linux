@@ -5,9 +5,9 @@
  */
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/iio-opaque.h>
@@ -45,13 +45,13 @@ int iio_map_array_register(struct iio_dev *indio_dev, struct iio_map *maps)
 	int i = 0, ret = 0;
 	struct iio_map_internal *mapi;
 
-	if (maps == NULL)
+	if (!maps)
 		return 0;
 
 	mutex_lock(&iio_map_list_lock);
-	while (maps[i].consumer_dev_name != NULL) {
+	while (maps[i].consumer_dev_name) {
 		mapi = kzalloc(sizeof(*mapi), GFP_KERNEL);
-		if (mapi == NULL) {
+		if (!mapi) {
 			ret = -ENOMEM;
 			goto error_ret;
 		}
@@ -68,7 +68,6 @@ error_ret:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iio_map_array_register);
-
 
 /*
  * Remove all map entries associated with the given iio device
@@ -117,15 +116,8 @@ static const struct iio_chan_spec
 	return chan;
 }
 
-#ifdef CONFIG_OF
-
-static int iio_dev_node_match(struct device *dev, const void *data)
-{
-	return dev->of_node == data && dev->type == &iio_device_type;
-}
-
 /**
- * __of_iio_simple_xlate - translate iiospec to the IIO channel index
+ * __fwnode_iio_simple_xlate - translate iiospec to the IIO channel index
  * @indio_dev:	pointer to the iio_dev structure
  * @iiospec:	IIO specifier as found in the device tree
  *
@@ -134,14 +126,14 @@ static int iio_dev_node_match(struct device *dev, const void *data)
  * whether IIO index is less than num_channels (that is specified in the
  * iio_dev).
  */
-static int __of_iio_simple_xlate(struct iio_dev *indio_dev,
-				const struct of_phandle_args *iiospec)
+static int __fwnode_iio_simple_xlate(struct iio_dev *indio_dev,
+				     const struct fwnode_reference_args *iiospec)
 {
-	if (!iiospec->args_count)
+	if (!iiospec->nargs)
 		return 0;
 
 	if (iiospec->args[0] >= indio_dev->num_channels) {
-		dev_err(&indio_dev->dev, "invalid channel index %u\n",
+		dev_err(&indio_dev->dev, "invalid channel index %llu\n",
 			iiospec->args[0]);
 		return -EINVAL;
 	}
@@ -149,32 +141,33 @@ static int __of_iio_simple_xlate(struct iio_dev *indio_dev,
 	return iiospec->args[0];
 }
 
-static int __of_iio_channel_get(struct iio_channel *channel,
-				struct device_node *np, int index)
+static int __fwnode_iio_channel_get(struct iio_channel *channel,
+				    struct fwnode_handle *fwnode, int index)
 {
+	struct fwnode_reference_args iiospec;
 	struct device *idev;
 	struct iio_dev *indio_dev;
 	int err;
-	struct of_phandle_args iiospec;
 
-	err = of_parse_phandle_with_args(np, "io-channels",
-					 "#io-channel-cells",
-					 index, &iiospec);
+	err = fwnode_property_get_reference_args(fwnode, "io-channels",
+						 "#io-channel-cells", 0,
+						 index, &iiospec);
 	if (err)
 		return err;
 
-	idev = bus_find_device(&iio_bus_type, NULL, iiospec.np,
-			       iio_dev_node_match);
-	of_node_put(iiospec.np);
-	if (idev == NULL)
+	idev = bus_find_device_by_fwnode(&iio_bus_type, iiospec.fwnode);
+	if (!idev) {
+		fwnode_handle_put(iiospec.fwnode);
 		return -EPROBE_DEFER;
+	}
 
 	indio_dev = dev_to_iio_dev(idev);
 	channel->indio_dev = indio_dev;
-	if (indio_dev->info->of_xlate)
-		index = indio_dev->info->of_xlate(indio_dev, &iiospec);
+	if (indio_dev->info->fwnode_xlate)
+		index = indio_dev->info->fwnode_xlate(indio_dev, &iiospec);
 	else
-		index = __of_iio_simple_xlate(indio_dev, &iiospec);
+		index = __fwnode_iio_simple_xlate(indio_dev, &iiospec);
+	fwnode_handle_put(iiospec.fwnode);
 	if (index < 0)
 		goto err_put;
 	channel->channel = &indio_dev->channels[index];
@@ -186,7 +179,8 @@ err_put:
 	return index;
 }
 
-static struct iio_channel *of_iio_channel_get(struct device_node *np, int index)
+static struct iio_channel *fwnode_iio_channel_get(struct fwnode_handle *fwnode,
+						  int index)
 {
 	struct iio_channel *channel;
 	int err;
@@ -195,10 +189,10 @@ static struct iio_channel *of_iio_channel_get(struct device_node *np, int index)
 		return ERR_PTR(-EINVAL);
 
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
-	if (channel == NULL)
+	if (!channel)
 		return ERR_PTR(-ENOMEM);
 
-	err = __of_iio_channel_get(channel, np, index);
+	err = __fwnode_iio_channel_get(channel, fwnode, index);
 	if (err)
 		goto err_free_channel;
 
@@ -209,74 +203,116 @@ err_free_channel:
 	return ERR_PTR(err);
 }
 
-struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
-					       const char *name)
+static struct iio_channel *
+__fwnode_iio_channel_get_by_name(struct fwnode_handle *fwnode, const char *name)
 {
-	struct iio_channel *chan = NULL;
+	struct iio_channel *chan;
+	int index = 0;
 
-	/* Walk up the tree of devices looking for a matching iio channel */
-	while (np) {
-		int index = 0;
+	/*
+	 * For named iio channels, first look up the name in the
+	 * "io-channel-names" property.  If it cannot be found, the
+	 * index will be an error code, and fwnode_iio_channel_get()
+	 * will fail.
+	 */
+	if (name)
+		index = fwnode_property_match_string(fwnode, "io-channel-names",
+						     name);
 
-		/*
-		 * For named iio channels, first look up the name in the
-		 * "io-channel-names" property.  If it cannot be found, the
-		 * index will be an error code, and of_iio_channel_get()
-		 * will fail.
-		 */
-		if (name)
-			index = of_property_match_string(np, "io-channel-names",
-							 name);
-		chan = of_iio_channel_get(np, index);
-		if (!IS_ERR(chan) || PTR_ERR(chan) == -EPROBE_DEFER)
-			break;
-		else if (name && index >= 0) {
-			pr_err("ERROR: could not get IIO channel %pOF:%s(%i)\n",
-				np, name ? name : "", index);
-			return NULL;
+	chan = fwnode_iio_channel_get(fwnode, index);
+	if (!IS_ERR(chan) || PTR_ERR(chan) == -EPROBE_DEFER)
+		return chan;
+	if (name) {
+		if (index >= 0) {
+			pr_err("ERROR: could not get IIO channel %pfw:%s(%i)\n",
+			       fwnode, name, index);
+			/*
+			 * In this case, we found 'name' in 'io-channel-names'
+			 * but somehow we still fail so that we should not proceed
+			 * with any other lookup. Hence, explicitly return -EINVAL
+			 * (maybe not the better error code) so that the caller
+			 * won't do a system lookup.
+			 */
+			return ERR_PTR(-EINVAL);
 		}
-
 		/*
-		 * No matching IIO channel found on this node.
-		 * If the parent node has a "io-channel-ranges" property,
-		 * then we can try one of its channels.
+		 * If index < 0, then fwnode_property_get_reference_args() fails
+		 * with -EINVAL or -ENOENT (ACPI case) which is expected. We
+		 * should not proceed if we get any other error.
 		 */
-		np = np->parent;
-		if (np && !of_get_property(np, "io-channel-ranges", NULL))
-			return NULL;
+		if (PTR_ERR(chan) != -EINVAL && PTR_ERR(chan) != -ENOENT)
+			return chan;
+	} else if (PTR_ERR(chan) != -ENOENT) {
+		/*
+		 * if !name, then we should only proceed the lookup if
+		 * fwnode_property_get_reference_args() returns -ENOENT.
+		 */
+		return chan;
 	}
 
-	return chan;
+	/* so we continue the lookup */
+	return ERR_PTR(-ENODEV);
 }
-EXPORT_SYMBOL_GPL(of_iio_channel_get_by_name);
 
-static struct iio_channel *of_iio_channel_get_all(struct device *dev)
+struct iio_channel *fwnode_iio_channel_get_by_name(struct fwnode_handle *fwnode,
+						   const char *name)
 {
+	struct fwnode_handle *parent;
+	struct iio_channel *chan;
+
+	/* Walk up the tree of devices looking for a matching iio channel */
+	chan = __fwnode_iio_channel_get_by_name(fwnode, name);
+	if (!IS_ERR(chan) || PTR_ERR(chan) != -ENODEV)
+		return chan;
+
+	/*
+	 * No matching IIO channel found on this node.
+	 * If the parent node has a "io-channel-ranges" property,
+	 * then we can try one of its channels.
+	 */
+	fwnode_for_each_parent_node(fwnode, parent) {
+		if (!fwnode_property_present(parent, "io-channel-ranges")) {
+			fwnode_handle_put(parent);
+			return ERR_PTR(-ENODEV);
+		}
+
+		chan = __fwnode_iio_channel_get_by_name(fwnode, name);
+		if (!IS_ERR(chan) || PTR_ERR(chan) != -ENODEV) {
+			fwnode_handle_put(parent);
+ 			return chan;
+		}
+	}
+
+	return ERR_PTR(-ENODEV);
+}
+EXPORT_SYMBOL_GPL(fwnode_iio_channel_get_by_name);
+
+static struct iio_channel *fwnode_iio_channel_get_all(struct device *dev)
+{
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct iio_channel *chans;
 	int i, mapind, nummaps = 0;
 	int ret;
 
 	do {
-		ret = of_parse_phandle_with_args(dev->of_node,
-						 "io-channels",
-						 "#io-channel-cells",
-						 nummaps, NULL);
+		ret = fwnode_property_get_reference_args(fwnode, "io-channels",
+							 "#io-channel-cells", 0,
+							 nummaps, NULL);
 		if (ret < 0)
 			break;
 	} while (++nummaps);
 
-	if (nummaps == 0)	/* no error, return NULL to search map table */
-		return NULL;
+	if (nummaps == 0)
+		return ERR_PTR(-ENODEV);
 
 	/* NULL terminated array to save passing size */
 	chans = kcalloc(nummaps + 1, sizeof(*chans), GFP_KERNEL);
-	if (chans == NULL)
+	if (!chans)
 		return ERR_PTR(-ENOMEM);
 
-	/* Search for OF matches */
+	/* Search for FW matches */
 	for (mapind = 0; mapind < nummaps; mapind++) {
-		ret = __of_iio_channel_get(&chans[mapind], dev->of_node,
-					   mapind);
+		ret = __fwnode_iio_channel_get(&chans[mapind], fwnode, mapind);
 		if (ret)
 			goto error_free_chans;
 	}
@@ -289,15 +325,6 @@ error_free_chans:
 	return ERR_PTR(ret);
 }
 
-#else /* CONFIG_OF */
-
-static inline struct iio_channel *of_iio_channel_get_all(struct device *dev)
-{
-	return NULL;
-}
-
-#endif /* CONFIG_OF */
-
 static struct iio_channel *iio_channel_get_sys(const char *name,
 					       const char *channel_name)
 {
@@ -305,7 +332,7 @@ static struct iio_channel *iio_channel_get_sys(const char *name,
 	struct iio_channel *channel;
 	int err;
 
-	if (name == NULL && channel_name == NULL)
+	if (!(name || channel_name))
 		return ERR_PTR(-ENODEV);
 
 	/* first find matching entry the channel map */
@@ -320,11 +347,11 @@ static struct iio_channel *iio_channel_get_sys(const char *name,
 		break;
 	}
 	mutex_unlock(&iio_map_list_lock);
-	if (c == NULL)
+	if (!c)
 		return ERR_PTR(-ENODEV);
 
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
-	if (channel == NULL) {
+	if (!channel) {
 		err = -ENOMEM;
 		goto error_no_mem;
 	}
@@ -336,7 +363,7 @@ static struct iio_channel *iio_channel_get_sys(const char *name,
 			iio_chan_spec_from_name(channel->indio_dev,
 						c->map->adc_channel_label);
 
-		if (channel->channel == NULL) {
+		if (!channel->channel) {
 			err = -EINVAL;
 			goto error_no_chan;
 		}
@@ -358,9 +385,9 @@ struct iio_channel *iio_channel_get(struct device *dev,
 	struct iio_channel *channel;
 
 	if (dev) {
-		channel = of_iio_channel_get_by_name(dev->of_node,
-						     channel_name);
-		if (channel != NULL)
+		channel = fwnode_iio_channel_get_by_name(dev_fwnode(dev),
+							 channel_name);
+		if (!IS_ERR(channel) || PTR_ERR(channel) != -ENODEV)
 			return channel;
 	}
 
@@ -400,14 +427,14 @@ struct iio_channel *devm_iio_channel_get(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_iio_channel_get);
 
-struct iio_channel *devm_of_iio_channel_get_by_name(struct device *dev,
-						    struct device_node *np,
-						    const char *channel_name)
+struct iio_channel *devm_fwnode_iio_channel_get_by_name(struct device *dev,
+							struct fwnode_handle *fwnode,
+							const char *channel_name)
 {
 	struct iio_channel *channel;
 	int ret;
 
-	channel = of_iio_channel_get_by_name(np, channel_name);
+	channel = fwnode_iio_channel_get_by_name(fwnode, channel_name);
 	if (IS_ERR(channel))
 		return channel;
 
@@ -417,7 +444,7 @@ struct iio_channel *devm_of_iio_channel_get_by_name(struct device *dev,
 
 	return channel;
 }
-EXPORT_SYMBOL_GPL(devm_of_iio_channel_get_by_name);
+EXPORT_SYMBOL_GPL(devm_fwnode_iio_channel_get_by_name);
 
 struct iio_channel *iio_channel_get_all(struct device *dev)
 {
@@ -428,11 +455,15 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
 	int mapind = 0;
 	int i, ret;
 
-	if (dev == NULL)
+	if (!dev)
 		return ERR_PTR(-EINVAL);
 
-	chans = of_iio_channel_get_all(dev);
-	if (chans)
+	chans = fwnode_iio_channel_get_all(dev);
+	/*
+	 * We only want to carry on if the error is -ENODEV.  Anything else
+	 * should be reported up the stack.
+	 */
+	if (!IS_ERR(chans) || PTR_ERR(chans) != -ENODEV)
 		return chans;
 
 	name = dev_name(dev);
@@ -452,7 +483,7 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
 
 	/* NULL terminated array to save passing size */
 	chans = kcalloc(nummaps + 1, sizeof(*chans), GFP_KERNEL);
-	if (chans == NULL) {
+	if (!chans) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
@@ -466,7 +497,7 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
 		chans[mapind].channel =
 			iio_chan_spec_from_name(chans[mapind].indio_dev,
 						c->map->adc_channel_label);
-		if (chans[mapind].channel == NULL) {
+		if (!chans[mapind].channel) {
 			ret = -EINVAL;
 			goto error_free_chans;
 		}
@@ -528,14 +559,14 @@ struct iio_channel *devm_iio_channel_get_all(struct device *dev)
 EXPORT_SYMBOL_GPL(devm_iio_channel_get_all);
 
 static int iio_channel_read(struct iio_channel *chan, int *val, int *val2,
-	enum iio_chan_info_enum info)
+			    enum iio_chan_info_enum info)
 {
 	int unused;
 	int vals[INDIO_MAX_RAW_ELEMENTS];
 	int ret;
 	int val_len = 2;
 
-	if (val2 == NULL)
+	if (!val2)
 		val2 = &unused;
 
 	if (!iio_channel_has_info(chan->channel, info))
@@ -547,9 +578,10 @@ static int iio_channel_read(struct iio_channel *chan, int *val, int *val2,
 					vals, &val_len, info);
 		*val = vals[0];
 		*val2 = vals[1];
-	} else
+	} else {
 		ret = chan->indio_dev->info->read_raw(chan->indio_dev,
 					chan->channel, val, val2, info);
+	}
 
 	return ret;
 }
@@ -560,7 +592,7 @@ int iio_read_channel_raw(struct iio_channel *chan, int *val)
 	int ret;
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
-	if (chan->indio_dev->info == NULL) {
+	if (!chan->indio_dev->info) {
 		ret = -ENODEV;
 		goto err_unlock;
 	}
@@ -579,7 +611,7 @@ int iio_read_channel_average_raw(struct iio_channel *chan, int *val)
 	int ret;
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
-	if (chan->indio_dev->info == NULL) {
+	if (!chan->indio_dev->info) {
 		ret = -ENODEV;
 		goto err_unlock;
 	}
@@ -593,7 +625,8 @@ err_unlock:
 EXPORT_SYMBOL_GPL(iio_read_channel_average_raw);
 
 static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
-	int raw, int *processed, unsigned int scale)
+						 int raw, int *processed,
+						 unsigned int scale)
 {
 	int scale_type, scale_val, scale_val2;
 	int offset_type, offset_val, offset_val2;
@@ -626,7 +659,7 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 	}
 
 	scale_type = iio_channel_read(chan, &scale_val, &scale_val2,
-					IIO_CHAN_INFO_SCALE);
+				      IIO_CHAN_INFO_SCALE);
 	if (scale_type < 0) {
 		/*
 		 * If no channel scaling is available apply consumer scale to
@@ -671,19 +704,19 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 }
 
 int iio_convert_raw_to_processed(struct iio_channel *chan, int raw,
-	int *processed, unsigned int scale)
+				 int *processed, unsigned int scale)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(chan->indio_dev);
 	int ret;
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
-	if (chan->indio_dev->info == NULL) {
+	if (!chan->indio_dev->info) {
 		ret = -ENODEV;
 		goto err_unlock;
 	}
 
 	ret = iio_convert_raw_to_processed_unlocked(chan, raw, processed,
-							scale);
+						    scale);
 err_unlock:
 	mutex_unlock(&iio_dev_opaque->info_exist_lock);
 
@@ -698,7 +731,7 @@ int iio_read_channel_attribute(struct iio_channel *chan, int *val, int *val2,
 	int ret;
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
-	if (chan->indio_dev->info == NULL) {
+	if (!chan->indio_dev->info) {
 		ret = -ENODEV;
 		goto err_unlock;
 	}
@@ -724,7 +757,7 @@ int iio_read_channel_processed_scale(struct iio_channel *chan, int *val,
 	int ret;
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
-	if (chan->indio_dev->info == NULL) {
+	if (!chan->indio_dev->info) {
 		ret = -ENODEV;
 		goto err_unlock;
 	}
@@ -802,7 +835,7 @@ int iio_read_avail_channel_raw(struct iio_channel *chan,
 	int type;
 
 	ret = iio_read_avail_channel_attribute(chan, vals, &type, length,
-					 IIO_CHAN_INFO_RAW);
+					       IIO_CHAN_INFO_RAW);
 
 	if (ret >= 0 && type != IIO_VAL_INT)
 		/* raw values are assumed to be IIO_VAL_INT */
@@ -886,7 +919,7 @@ int iio_get_channel_type(struct iio_channel *chan, enum iio_chan_type *type)
 	/* Need to verify underlying driver has not gone away */
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
-	if (chan->indio_dev->info == NULL) {
+	if (!chan->indio_dev->info) {
 		ret = -ENODEV;
 		goto err_unlock;
 	}
@@ -913,7 +946,7 @@ int iio_write_channel_attribute(struct iio_channel *chan, int val, int val2,
 	int ret;
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
-	if (chan->indio_dev->info == NULL) {
+	if (!chan->indio_dev->info) {
 		ret = -ENODEV;
 		goto err_unlock;
 	}
@@ -947,9 +980,8 @@ unsigned int iio_get_channel_ext_info_count(struct iio_channel *chan)
 }
 EXPORT_SYMBOL_GPL(iio_get_channel_ext_info_count);
 
-static const struct iio_chan_spec_ext_info *iio_lookup_ext_info(
-						const struct iio_channel *chan,
-						const char *attr)
+static const struct iio_chan_spec_ext_info *
+iio_lookup_ext_info(const struct iio_channel *chan, const char *attr)
 {
 	const struct iio_chan_spec_ext_info *ext_info;
 

@@ -779,7 +779,7 @@ register_client:
  * @client:	i2c_client descriptor
  */
 
-static int tuner_remove(struct i2c_client *client)
+static void tuner_remove(struct i2c_client *client)
 {
 	struct tuner *t = to_tuner(i2c_get_clientdata(client));
 
@@ -789,7 +789,6 @@ static int tuner_remove(struct i2c_client *client)
 
 	list_del(&t->list);
 	kfree(t);
-	return 0;
 }
 
 /*

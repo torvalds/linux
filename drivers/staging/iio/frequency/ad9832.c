@@ -112,10 +112,10 @@ struct ad9832_state {
 	 * transfer buffers to live in their own cache lines.
 	 */
 	union {
-		__be16			freq_data[4]____cacheline_aligned;
+		__be16			freq_data[4];
 		__be16			phase_data[2];
 		__be16			data;
-	};
+	} __aligned(IIO_DMA_MINALIGN);
 };
 
 static unsigned long ad9832_calc_freqreg(unsigned long mclk, unsigned long fout)

@@ -509,21 +509,24 @@ static int mt6660_i2c_probe(struct i2c_client *client)
 	ret = devm_snd_soc_register_component(chip->dev,
 					       &mt6660_component_driver,
 					       &mt6660_codec_dai, 1);
+	if (ret)
+		pm_runtime_disable(chip->dev);
+
 	return ret;
+
 probe_fail:
 	_mt6660_chip_power_on(chip, 0);
 	mutex_destroy(&chip->io_lock);
 	return ret;
 }
 
-static int mt6660_i2c_remove(struct i2c_client *client)
+static void mt6660_i2c_remove(struct i2c_client *client)
 {
 	struct mt6660_chip *chip = i2c_get_clientdata(client);
 
 	pm_runtime_disable(chip->dev);
 	pm_runtime_set_suspended(chip->dev);
 	mutex_destroy(&chip->io_lock);
-	return 0;
 }
 
 static int __maybe_unused mt6660_i2c_runtime_suspend(struct device *dev)

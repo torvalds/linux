@@ -3179,7 +3179,7 @@ static int it87_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static void __maybe_unused it87_resume_sio(struct platform_device *pdev)
+static void it87_resume_sio(struct platform_device *pdev)
 {
 	struct it87_data *data = dev_get_drvdata(&pdev->dev);
 	int err;
@@ -3211,7 +3211,7 @@ static void __maybe_unused it87_resume_sio(struct platform_device *pdev)
 	superio_exit(data->sioaddr);
 }
 
-static int __maybe_unused it87_resume(struct device *dev)
+static int it87_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct it87_data *data = dev_get_drvdata(dev);
@@ -3238,12 +3238,12 @@ static int __maybe_unused it87_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(it87_dev_pm_ops, NULL, it87_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(it87_dev_pm_ops, NULL, it87_resume);
 
 static struct platform_driver it87_driver = {
 	.driver = {
 		.name	= DRVNAME,
-		.pm     = &it87_dev_pm_ops,
+		.pm     = pm_sleep_ptr(&it87_dev_pm_ops),
 	},
 	.probe	= it87_probe,
 };

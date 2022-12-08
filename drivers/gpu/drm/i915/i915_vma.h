@@ -43,7 +43,7 @@
 struct i915_vma *
 i915_vma_instance(struct drm_i915_gem_object *obj,
 		  struct i915_address_space *vm,
-		  const struct i915_ggtt_view *view);
+		  const struct i915_gtt_view *view);
 
 void i915_vma_unpin_and_release(struct i915_vma **p_vma, unsigned int flags);
 #define I915_VMA_RELEASE_MAP BIT(0)
@@ -160,7 +160,7 @@ static inline void i915_vma_put(struct i915_vma *vma)
 static inline long
 i915_vma_compare(struct i915_vma *vma,
 		 struct i915_address_space *vm,
-		 const struct i915_ggtt_view *view)
+		 const struct i915_gtt_view *view)
 {
 	ptrdiff_t cmp;
 
@@ -170,8 +170,8 @@ i915_vma_compare(struct i915_vma *vma,
 	if (cmp)
 		return cmp;
 
-	BUILD_BUG_ON(I915_GGTT_VIEW_NORMAL != 0);
-	cmp = vma->ggtt_view.type;
+	BUILD_BUG_ON(I915_GTT_VIEW_NORMAL != 0);
+	cmp = vma->gtt_view.type;
 	if (!view)
 		return cmp;
 
@@ -181,7 +181,7 @@ i915_vma_compare(struct i915_vma *vma,
 
 	assert_i915_gem_gtt_types();
 
-	/* ggtt_view.type also encodes its size so that we both distinguish
+	/* gtt_view.type also encodes its size so that we both distinguish
 	 * different views using it as a "type" and also use a compact (no
 	 * accessing of uninitialised padding bytes) memcmp without storing
 	 * an extra parameter or adding more code.
@@ -191,14 +191,14 @@ i915_vma_compare(struct i915_vma *vma,
 	 * we assert above that all branches have the same address, and that
 	 * each branch has a unique type/size.
 	 */
-	BUILD_BUG_ON(I915_GGTT_VIEW_NORMAL >= I915_GGTT_VIEW_PARTIAL);
-	BUILD_BUG_ON(I915_GGTT_VIEW_PARTIAL >= I915_GGTT_VIEW_ROTATED);
-	BUILD_BUG_ON(I915_GGTT_VIEW_ROTATED >= I915_GGTT_VIEW_REMAPPED);
+	BUILD_BUG_ON(I915_GTT_VIEW_NORMAL >= I915_GTT_VIEW_PARTIAL);
+	BUILD_BUG_ON(I915_GTT_VIEW_PARTIAL >= I915_GTT_VIEW_ROTATED);
+	BUILD_BUG_ON(I915_GTT_VIEW_ROTATED >= I915_GTT_VIEW_REMAPPED);
 	BUILD_BUG_ON(offsetof(typeof(*view), rotated) !=
 		     offsetof(typeof(*view), partial));
 	BUILD_BUG_ON(offsetof(typeof(*view), rotated) !=
 		     offsetof(typeof(*view), remapped));
-	return memcmp(&vma->ggtt_view.partial, &view->partial, view->type);
+	return memcmp(&vma->gtt_view.partial, &view->partial, view->type);
 }
 
 struct i915_vma_work *i915_vma_work(void);

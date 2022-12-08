@@ -48,7 +48,7 @@ Linux內核大部分是由C語言寫成的，一些體系結構相關的代碼�
  - "C:  A Reference Manual" by Harbison and Steele [Prentice Hall]
    《C語言參考手冊（原書第5版）》（邱仲潘 等譯）[機械工業出版社]
 
-Linux內核使用GNU C和GNU工具鏈開發。雖然它遵循ISO C89標準，但也用到了一些
+Linux內核使用GNU C和GNU工具鏈開發。雖然它遵循ISO C11標準，但也用到了一些
 標準中沒有定義的擴展。內核是自給自足的C環境，不依賴於標準C庫的支持，所以
 並不支持C標準中的部分定義。比如long long類型的大數除法和浮點運算就不允許
 使用。有時候確實很難弄清楚內核對工具鏈的要求和它所使用的擴展，不幸的是目
@@ -309,7 +309,7 @@ bugzilla.kernel.org是Linux內核開發者們用來跟蹤內核Bug的網站。�
 網上很多地方都有這個郵件列表的存檔(archive)。可以使用搜尋引擎來找到這些
 存檔。比如：
 
-	http://dir.gmane.org/gmane.linux.kernel
+	https://lore.kernel.org/lkml/
 
 在發信之前，我們強烈建議你先在存檔中搜索你想要討論的問題。很多已經被詳細
 討論過的問題只在郵件列表的存檔中可以找到。

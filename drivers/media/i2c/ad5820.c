@@ -342,7 +342,7 @@ cleanup:
 	return ret;
 }
 
-static int ad5820_remove(struct i2c_client *client)
+static void ad5820_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct ad5820_device *coil = to_ad5820_device(subdev);
@@ -351,7 +351,6 @@ static int ad5820_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&coil->ctrls);
 	media_entity_cleanup(&coil->subdev.entity);
 	mutex_destroy(&coil->power_lock);
-	return 0;
 }
 
 static const struct i2c_device_id ad5820_id_table[] = {

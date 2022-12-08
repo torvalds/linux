@@ -199,6 +199,7 @@ struct stm32_mdma_chan_config {
 	u32 transfer_config;
 	u32 mask_addr;
 	u32 mask_data;
+	bool m2m_hw; /* True when MDMA is triggered by STM32 DMA */
 };
 
 struct stm32_mdma_hwdesc {
@@ -225,6 +226,12 @@ struct stm32_mdma_desc {
 	bool cyclic;
 	u32 count;
 	struct stm32_mdma_desc_node node[];
+};
+
+struct stm32_mdma_dma_config {
+	u32 request;	/* STM32 DMA channel stream id, triggering MDMA */
+	u32 cmar;	/* STM32 DMA interrupt flag clear register address */
+	u32 cmdr;	/* STM32 DMA Transfer Complete flag */
 };
 
 struct stm32_mdma_chan {
@@ -539,13 +546,23 @@ static int stm32_mdma_set_xfer_param(struct stm32_mdma_chan *chan,
 		dst_addr = chan->dma_config.dst_addr;
 
 		/* Set device data size */
+		if (chan_config->m2m_hw)
+			dst_addr_width = stm32_mdma_get_max_width(dst_addr, buf_len,
+								  STM32_MDMA_MAX_BUF_LEN);
 		dst_bus_width = stm32_mdma_get_width(chan, dst_addr_width);
 		if (dst_bus_width < 0)
 			return dst_bus_width;
 		ctcr &= ~STM32_MDMA_CTCR_DSIZE_MASK;
 		ctcr |= STM32_MDMA_CTCR_DSIZE(dst_bus_width);
+		if (chan_config->m2m_hw) {
+			ctcr &= ~STM32_MDMA_CTCR_DINCOS_MASK;
+			ctcr |= STM32_MDMA_CTCR_DINCOS(dst_bus_width);
+		}
 
 		/* Set device burst value */
+		if (chan_config->m2m_hw)
+			dst_maxburst = STM32_MDMA_MAX_BUF_LEN / dst_addr_width;
+
 		dst_best_burst = stm32_mdma_get_best_burst(buf_len, tlen,
 							   dst_maxburst,
 							   dst_addr_width);
@@ -588,13 +605,24 @@ static int stm32_mdma_set_xfer_param(struct stm32_mdma_chan *chan,
 		src_addr = chan->dma_config.src_addr;
 
 		/* Set device data size */
+		if (chan_config->m2m_hw)
+			src_addr_width = stm32_mdma_get_max_width(src_addr, buf_len,
+								  STM32_MDMA_MAX_BUF_LEN);
+
 		src_bus_width = stm32_mdma_get_width(chan, src_addr_width);
 		if (src_bus_width < 0)
 			return src_bus_width;
 		ctcr &= ~STM32_MDMA_CTCR_SSIZE_MASK;
 		ctcr |= STM32_MDMA_CTCR_SSIZE(src_bus_width);
+		if (chan_config->m2m_hw) {
+			ctcr &= ~STM32_MDMA_CTCR_SINCOS_MASK;
+			ctcr |= STM32_MDMA_CTCR_SINCOS(src_bus_width);
+		}
 
 		/* Set device burst value */
+		if (chan_config->m2m_hw)
+			src_maxburst = STM32_MDMA_MAX_BUF_LEN / src_addr_width;
+
 		src_best_burst = stm32_mdma_get_best_burst(buf_len, tlen,
 							   src_maxburst,
 							   src_addr_width);
@@ -702,10 +730,14 @@ static int stm32_mdma_setup_xfer(struct stm32_mdma_chan *chan,
 {
 	struct stm32_mdma_device *dmadev = stm32_mdma_get_dev(chan);
 	struct dma_slave_config *dma_config = &chan->dma_config;
+	struct stm32_mdma_chan_config *chan_config = &chan->chan_config;
 	struct scatterlist *sg;
 	dma_addr_t src_addr, dst_addr;
-	u32 ccr, ctcr, ctbr;
+	u32 m2m_hw_period, ccr, ctcr, ctbr;
 	int i, ret = 0;
+
+	if (chan_config->m2m_hw)
+		m2m_hw_period = sg_dma_len(sgl);
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		if (sg_dma_len(sg) > STM32_MDMA_MAX_BLOCK_LEN) {
@@ -716,6 +748,8 @@ static int stm32_mdma_setup_xfer(struct stm32_mdma_chan *chan,
 		if (direction == DMA_MEM_TO_DEV) {
 			src_addr = sg_dma_address(sg);
 			dst_addr = dma_config->dst_addr;
+			if (chan_config->m2m_hw && (i & 1))
+				dst_addr += m2m_hw_period;
 			ret = stm32_mdma_set_xfer_param(chan, direction, &ccr,
 							&ctcr, &ctbr, src_addr,
 							sg_dma_len(sg));
@@ -723,6 +757,8 @@ static int stm32_mdma_setup_xfer(struct stm32_mdma_chan *chan,
 					   src_addr);
 		} else {
 			src_addr = dma_config->src_addr;
+			if (chan_config->m2m_hw && (i & 1))
+				src_addr += m2m_hw_period;
 			dst_addr = sg_dma_address(sg);
 			ret = stm32_mdma_set_xfer_param(chan, direction, &ccr,
 							&ctcr, &ctbr, dst_addr,
@@ -755,6 +791,7 @@ stm32_mdma_prep_slave_sg(struct dma_chan *c, struct scatterlist *sgl,
 			 unsigned long flags, void *context)
 {
 	struct stm32_mdma_chan *chan = to_stm32_mdma_chan(c);
+	struct stm32_mdma_chan_config *chan_config = &chan->chan_config;
 	struct stm32_mdma_desc *desc;
 	int i, ret;
 
@@ -777,6 +814,21 @@ stm32_mdma_prep_slave_sg(struct dma_chan *c, struct scatterlist *sgl,
 	if (ret < 0)
 		goto xfer_setup_err;
 
+	/*
+	 * In case of M2M HW transfer triggered by STM32 DMA, we do not have to clear the
+	 * transfer complete flag by hardware in order to let the CPU rearm the STM32 DMA
+	 * with the next sg element and update some data in dmaengine framework.
+	 */
+	if (chan_config->m2m_hw && direction == DMA_MEM_TO_DEV) {
+		struct stm32_mdma_hwdesc *hwdesc;
+
+		for (i = 0; i < sg_len; i++) {
+			hwdesc = desc->node[i].hwdesc;
+			hwdesc->cmar = 0;
+			hwdesc->cmdr = 0;
+		}
+	}
+
 	desc->cyclic = false;
 
 	return vchan_tx_prep(&chan->vchan, &desc->vdesc, flags);
@@ -798,6 +850,7 @@ stm32_mdma_prep_dma_cyclic(struct dma_chan *c, dma_addr_t buf_addr,
 	struct stm32_mdma_chan *chan = to_stm32_mdma_chan(c);
 	struct stm32_mdma_device *dmadev = stm32_mdma_get_dev(chan);
 	struct dma_slave_config *dma_config = &chan->dma_config;
+	struct stm32_mdma_chan_config *chan_config = &chan->chan_config;
 	struct stm32_mdma_desc *desc;
 	dma_addr_t src_addr, dst_addr;
 	u32 ccr, ctcr, ctbr, count;
@@ -858,8 +911,12 @@ stm32_mdma_prep_dma_cyclic(struct dma_chan *c, dma_addr_t buf_addr,
 		if (direction == DMA_MEM_TO_DEV) {
 			src_addr = buf_addr + i * period_len;
 			dst_addr = dma_config->dst_addr;
+			if (chan_config->m2m_hw && (i & 1))
+				dst_addr += period_len;
 		} else {
 			src_addr = dma_config->src_addr;
+			if (chan_config->m2m_hw && (i & 1))
+				src_addr += period_len;
 			dst_addr = buf_addr + i * period_len;
 		}
 
@@ -1244,6 +1301,17 @@ static int stm32_mdma_slave_config(struct dma_chan *c,
 
 	memcpy(&chan->dma_config, config, sizeof(*config));
 
+	/* Check if user is requesting STM32 DMA to trigger MDMA */
+	if (config->peripheral_size) {
+		struct stm32_mdma_dma_config *mdma_config;
+
+		mdma_config = (struct stm32_mdma_dma_config *)chan->dma_config.peripheral_config;
+		chan->chan_config.request = mdma_config->request;
+		chan->chan_config.mask_addr = mdma_config->cmar;
+		chan->chan_config.mask_data = mdma_config->cmdr;
+		chan->chan_config.m2m_hw = true;
+	}
+
 	return 0;
 }
 
@@ -1471,6 +1539,7 @@ static struct dma_chan *stm32_mdma_of_xlate(struct of_phandle_args *dma_spec,
 		return NULL;
 	}
 
+	memset(&config, 0, sizeof(config));
 	config.request = dma_spec->args[0];
 	config.priority_level = dma_spec->args[1];
 	config.transfer_config = dma_spec->args[2];

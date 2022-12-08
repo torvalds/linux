@@ -29,16 +29,14 @@ struct bcl_device {
 	struct mutex				state_trans_lock;
 	bool					irq_enabled;
 	struct thermal_zone_device		*tz_dev;
-	struct thermal_zone_of_device_ops	ops;
+	struct thermal_zone_device_ops	ops;
 };
 
 static struct bcl_device *bcl_perph;
 
-static int bcl_soc_get_trend(void *data, int trip,
+static int bcl_soc_get_trend(struct thermal_zone_device *tz, int trip,
 				    enum thermal_trend *trend)
 {
-	struct bcl_device *bcl_perph = data;
-	struct thermal_zone_device *tz = bcl_perph->tz_dev;
 	int trip_temp = 0, trip_hyst = 0, temp, ret;
 
 	if (!tz)
@@ -67,7 +65,7 @@ static int bcl_soc_get_trend(void *data, int trip,
 	return 0;
 }
 
-static int bcl_set_soc(void *data, int low, int high)
+static int bcl_set_soc(struct thermal_zone_device *tz, int low, int high)
 {
 	if (high == bcl_perph->trip_temp)
 		return 0;
@@ -87,7 +85,7 @@ unlock_and_exit:
 	return 0;
 }
 
-static int bcl_read_soc(void *data, int *val)
+static int bcl_read_soc(struct thermal_zone_device *tz, int *val)
 {
 	static struct power_supply *batt_psy;
 	union power_supply_propval ret = {0,};
@@ -154,8 +152,6 @@ static int bcl_soc_remove(struct platform_device *pdev)
 	power_supply_unreg_notifier(&bcl_perph->psy_nb);
 	flush_work(&bcl_perph->soc_eval_work);
 	if (bcl_perph->tz_dev) {
-		thermal_zone_of_sensor_unregister(&pdev->dev,
-				bcl_perph->tz_dev);
 		qti_update_tz_ops(bcl_perph->tz_dev, false);
 	}
 
@@ -184,7 +180,7 @@ static int bcl_soc_probe(struct platform_device *pdev)
 		ret = -EPROBE_DEFER;
 		goto bcl_soc_probe_exit;
 	}
-	bcl_perph->tz_dev = thermal_zone_of_sensor_register(&pdev->dev,
+	bcl_perph->tz_dev = devm_thermal_of_zone_register(&pdev->dev,
 				0, bcl_perph, &bcl_perph->ops);
 	if (IS_ERR(bcl_perph->tz_dev)) {
 		pr_err("soc TZ register failed. err:%ld\n",

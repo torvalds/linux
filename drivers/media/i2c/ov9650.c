@@ -1584,7 +1584,7 @@ err_mutex:
 	return ret;
 }
 
-static int ov965x_remove(struct i2c_client *client)
+static void ov965x_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov965x *ov965x = to_ov965x(sd);
@@ -1593,8 +1593,6 @@ static int ov965x_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	media_entity_cleanup(&sd->entity);
 	mutex_destroy(&ov965x->lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id ov965x_id[] = {

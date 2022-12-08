@@ -223,7 +223,7 @@ void test_sockopt_sk(void)
 	int cgroup_fd;
 
 	cgroup_fd = test__join_cgroup("/sockopt_sk");
-	if (CHECK_FAIL(cgroup_fd < 0))
+	if (!ASSERT_GE(cgroup_fd, 0, "join_cgroup /sockopt_sk"))
 		return;
 
 	run_test(cgroup_fd);

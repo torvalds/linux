@@ -21,6 +21,7 @@ config TSNEP
 	depends on HAS_IOMEM && HAS_DMA
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select PHYLIB
+	select PAGE_POOL
 	help
 	  Support for the Engleder TSN endpoint Ethernet MAC IP Core.
 

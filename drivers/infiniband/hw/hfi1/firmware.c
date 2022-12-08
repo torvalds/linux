@@ -1114,7 +1114,7 @@ static void turn_off_spicos(struct hfi1_devdata *dd, int flags)
  * Reset all of the fabric serdes for this HFI in preparation to take the
  * link to Polling.
  *
- * To do a reset, we need to write to to the serdes registers.  Unfortunately,
+ * To do a reset, we need to write to the serdes registers.  Unfortunately,
  * the fabric serdes download to the other HFI on the ASIC will have turned
  * off the firmware validation on this HFI.  This means we can't write to the
  * registers to reset the serdes.  Work around this by performing a complete

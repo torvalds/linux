@@ -860,6 +860,9 @@ int wiphy_register(struct wiphy *wiphy)
 
 		for (i = 0; i < sband->n_iftype_data; i++) {
 			const struct ieee80211_sband_iftype_data *iftd;
+			bool has_ap, has_non_ap;
+			u32 ap_bits = BIT(NL80211_IFTYPE_AP) |
+				      BIT(NL80211_IFTYPE_P2P_GO);
 
 			iftd = &sband->iftype_data[i];
 
@@ -879,6 +882,19 @@ int wiphy_register(struct wiphy *wiphy)
 			else
 				have_he = have_he &&
 					  iftd->he_cap.has_he;
+
+			has_ap = iftd->types_mask & ap_bits;
+			has_non_ap = iftd->types_mask & ~ap_bits;
+
+			/*
+			 * For EHT 20 MHz STA, the capabilities format differs
+			 * but to simplify, don't check 20 MHz but rather check
+			 * only if AP and non-AP were mentioned at the same time,
+			 * reject if so.
+			 */
+			if (WARN_ON(iftd->eht_cap.has_eht &&
+				    has_ap && has_non_ap))
+				return -EINVAL;
 		}
 
 		if (WARN_ON(!have_he && band == NL80211_BAND_6GHZ))

@@ -1187,6 +1187,11 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 		mlxsw_cmd_mbox_config_profile_max_vepa_channels_set(
 			mbox, profile->max_vepa_channels);
 	}
+	if (profile->used_max_lag) {
+		mlxsw_cmd_mbox_config_profile_set_max_lag_set(mbox, 1);
+		mlxsw_cmd_mbox_config_profile_max_lag_set(mbox,
+							  profile->max_lag);
+	}
 	if (profile->used_max_mid) {
 		mlxsw_cmd_mbox_config_profile_set_max_mid_set(
 			mbox, 1);

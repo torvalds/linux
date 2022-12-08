@@ -134,6 +134,12 @@ More detailed explanation for tainting
        scsi/snic on something else than x86_64, scsi/ips on non
        x86/x86_64/itanium, have broken firmware settings for the
        irqchip/irq-gic on arm64 ...).
+     - x86/x86_64: Microcode late loading is dangerous and will result in
+       tainting the kernel. It requires that all CPUs rendezvous to make sure
+       the update happens when the system is as quiescent as possible. However,
+       a higher priority MCE/SMI/NMI can move control flow away from that
+       rendezvous and interrupt the update, which can be detrimental to the
+       machine.
 
  3)  ``R`` if a module was force unloaded by ``rmmod -f``, ``' '`` if all
      modules were unloaded normally.

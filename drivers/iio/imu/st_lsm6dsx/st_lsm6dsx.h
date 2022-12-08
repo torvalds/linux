@@ -32,6 +32,7 @@
 #define ST_LSM6DST_DEV_NAME	"lsm6dst"
 #define ST_LSM6DSOP_DEV_NAME	"lsm6dsop"
 #define ST_ASM330LHHX_DEV_NAME	"asm330lhhx"
+#define ST_LSM6DSTX_DEV_NAME	"lsm6dstx"
 
 enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3_ID,
@@ -51,6 +52,7 @@ enum st_lsm6dsx_hw_id {
 	ST_LSM6DST_ID,
 	ST_LSM6DSOP_ID,
 	ST_ASM330LHHX_ID,
+	ST_LSM6DSTX_ID,
 	ST_LSM6DSX_MAX_ID,
 };
 

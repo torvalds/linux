@@ -305,14 +305,12 @@ static int cs4349_i2c_probe(struct i2c_client *client)
 		&cs4349_dai, 1);
 }
 
-static int cs4349_i2c_remove(struct i2c_client *client)
+static void cs4349_i2c_remove(struct i2c_client *client)
 {
 	struct cs4349_private *cs4349 = i2c_get_clientdata(client);
 
 	/* Hold down reset */
 	gpiod_set_value_cansleep(cs4349->reset_gpio, 0);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

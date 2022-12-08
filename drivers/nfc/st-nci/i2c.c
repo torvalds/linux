@@ -250,13 +250,11 @@ static int st_nci_i2c_probe(struct i2c_client *client,
 	return r;
 }
 
-static int st_nci_i2c_remove(struct i2c_client *client)
+static void st_nci_i2c_remove(struct i2c_client *client)
 {
 	struct st_nci_i2c_phy *phy = i2c_get_clientdata(client);
 
 	ndlc_remove(phy->ndlc);
-
-	return 0;
 }
 
 static const struct i2c_device_id st_nci_i2c_id_table[] = {

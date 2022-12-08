@@ -71,10 +71,9 @@ void serial_test_cgroup_link(void)
 
 	ping_and_check(cg_nr, 0);
 
-	/* query the number of effective progs and attach flags in root cg */
+	/* query the number of attached progs and attach flags in root cg */
 	err = bpf_prog_query(cgs[0].fd, BPF_CGROUP_INET_EGRESS,
-			     BPF_F_QUERY_EFFECTIVE, &attach_flags, NULL,
-			     &prog_cnt);
+			     0, &attach_flags, NULL, &prog_cnt);
 	CHECK_FAIL(err);
 	CHECK_FAIL(attach_flags != BPF_F_ALLOW_MULTI);
 	if (CHECK(prog_cnt != 1, "effect_cnt", "exp %d, got %d\n", 1, prog_cnt))
@@ -85,17 +84,15 @@ void serial_test_cgroup_link(void)
 			     BPF_F_QUERY_EFFECTIVE, NULL, NULL,
 			     &prog_cnt);
 	CHECK_FAIL(err);
-	CHECK_FAIL(attach_flags != BPF_F_ALLOW_MULTI);
 	if (CHECK(prog_cnt != cg_nr, "effect_cnt", "exp %d, got %d\n",
 		  cg_nr, prog_cnt))
 		goto cleanup;
 
 	/* query the effective prog IDs in last cg */
 	err = bpf_prog_query(cgs[last_cg].fd, BPF_CGROUP_INET_EGRESS,
-			     BPF_F_QUERY_EFFECTIVE, &attach_flags,
-			     prog_ids, &prog_cnt);
+			     BPF_F_QUERY_EFFECTIVE, NULL, prog_ids,
+			     &prog_cnt);
 	CHECK_FAIL(err);
-	CHECK_FAIL(attach_flags != BPF_F_ALLOW_MULTI);
 	if (CHECK(prog_cnt != cg_nr, "effect_cnt", "exp %d, got %d\n",
 		  cg_nr, prog_cnt))
 		goto cleanup;

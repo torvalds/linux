@@ -331,6 +331,9 @@ The regset data starts with struct user_za_header, containing:
   been read if a PTRACE_GETREGSET of NT_ARM_ZA were executed for each thread
   when the coredump was generated.
 
+* The NT_ARM_TLS note will be extended to two registers, the second register
+  will contain TPIDR2_EL0 on systems that support SME and will be read as
+  zero with writes ignored otherwise.
 
 9.  System runtime configuration
 --------------------------------

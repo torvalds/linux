@@ -12,6 +12,7 @@
  *  i740fb by Patrick LERDA, v0.9
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1012,6 +1013,10 @@ static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	int ret, tmp;
 	bool found = false;
 	u8 *edid;
+
+	ret = aperture_remove_conflicting_pci_devices(dev, "i740fb");
+	if (ret)
+		return ret;
 
 	info = framebuffer_alloc(sizeof(struct i740fb_par), &(dev->dev));
 	if (!info)

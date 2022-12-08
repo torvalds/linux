@@ -3573,7 +3573,7 @@ static void msm_geni_serial_termios_cfg(struct uart_port *uport,
 }
 
 static void msm_geni_serial_set_termios(struct uart_port *uport,
-				struct ktermios *termios, struct ktermios *old)
+				struct ktermios *termios, const struct ktermios *old)
 {
 	unsigned int baud;
 	int clk_div, ret;

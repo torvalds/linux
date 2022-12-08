@@ -44,7 +44,7 @@ static inline void ppc_after_tlbiel_barrier(void)
 
 #if defined(__powerpc64__)
 #    define LWSYNC	lwsync
-#elif defined(CONFIG_E500)
+#elif defined(CONFIG_PPC_E500)
 #    define LWSYNC					\
 	START_LWSYNC_SECTION(96);			\
 	sync;						\

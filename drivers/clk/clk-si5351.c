@@ -1651,11 +1651,9 @@ static int si5351_i2c_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int si5351_i2c_remove(struct i2c_client *client)
+static void si5351_i2c_remove(struct i2c_client *client)
 {
 	of_clk_del_provider(client->dev.of_node);
-
-	return 0;
 }
 
 static struct i2c_driver si5351_driver = {

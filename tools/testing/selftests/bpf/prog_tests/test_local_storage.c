@@ -11,15 +11,7 @@
 
 #include "local_storage.skel.h"
 #include "network_helpers.h"
-
-#ifndef __NR_pidfd_open
-#define __NR_pidfd_open 434
-#endif
-
-static inline int sys_pidfd_open(pid_t pid, unsigned int flags)
-{
-	return syscall(__NR_pidfd_open, pid, flags);
-}
+#include "task_local_storage_helpers.h"
 
 static unsigned int duration;
 

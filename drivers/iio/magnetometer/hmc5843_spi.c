@@ -86,13 +86,13 @@ static const struct spi_device_id hmc5843_id[] = {
 MODULE_DEVICE_TABLE(spi, hmc5843_id);
 
 static struct spi_driver hmc5843_driver = {
-		.driver = {
-				.name = "hmc5843",
-				.pm = HMC5843_PM_OPS,
-		},
-		.id_table = hmc5843_id,
-		.probe = hmc5843_spi_probe,
-		.remove = hmc5843_spi_remove,
+	.driver = {
+		.name = "hmc5843",
+		.pm = pm_sleep_ptr(&hmc5843_pm_ops),
+	},
+	.id_table = hmc5843_id,
+	.probe = hmc5843_spi_probe,
+	.remove = hmc5843_spi_remove,
 };
 
 module_spi_driver(hmc5843_driver);

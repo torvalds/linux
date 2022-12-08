@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Networking over Thunderbolt cable using Apple ThunderboltIP protocol
+ * Networking over Thunderbolt/USB4 cables using USB4NET protocol
+ * (formerly Apple ThunderboltIP).
  *
  * Copyright (C) 2017, Intel Corporation
  * Authors: Amir Levy <amir.jer.levy@intel.com>
@@ -30,6 +31,7 @@
 #define TBNET_RING_SIZE		256
 #define TBNET_LOGIN_RETRIES	60
 #define TBNET_LOGOUT_RETRIES	10
+#define TBNET_E2E		BIT(0)
 #define TBNET_MATCH_FRAGS_ID	BIT(1)
 #define TBNET_64K_FRAMES	BIT(2)
 #define TBNET_MAX_MTU		SZ_64K
@@ -208,6 +210,10 @@ static const uuid_t tbnet_svc_uuid =
 		  0x97, 0xc6, 0x56, 0x64, 0xa9, 0x20, 0xc8, 0xdd);
 
 static struct tb_property_dir *tbnet_dir;
+
+static bool tbnet_e2e = true;
+module_param_named(e2e, tbnet_e2e, bool, 0444);
+MODULE_PARM_DESC(e2e, "USB4NET full end-to-end flow control (default: true)");
 
 static void tbnet_fill_header(struct thunderbolt_ip_header *hdr, u64 route,
 	u8 sequence, const uuid_t *initiator_uuid, const uuid_t *target_uuid,
@@ -612,18 +618,13 @@ static void tbnet_connected_work(struct work_struct *work)
 		return;
 	}
 
-	/* Both logins successful so enable the high-speed DMA paths and
-	 * start the network device queue.
+	/* Both logins successful so enable the rings, high-speed DMA
+	 * paths and start the network device queue.
+	 *
+	 * Note we enable the DMA paths last to make sure we have primed
+	 * the Rx ring before any incoming packets are allowed to
+	 * arrive.
 	 */
-	ret = tb_xdomain_enable_paths(net->xd, net->local_transmit_path,
-				      net->rx_ring.ring->hop,
-				      net->remote_transmit_path,
-				      net->tx_ring.ring->hop);
-	if (ret) {
-		netdev_err(net->dev, "failed to enable DMA paths\n");
-		return;
-	}
-
 	tb_ring_start(net->tx_ring.ring);
 	tb_ring_start(net->rx_ring.ring);
 
@@ -635,10 +636,21 @@ static void tbnet_connected_work(struct work_struct *work)
 	if (ret)
 		goto err_free_rx_buffers;
 
+	ret = tb_xdomain_enable_paths(net->xd, net->local_transmit_path,
+				      net->rx_ring.ring->hop,
+				      net->remote_transmit_path,
+				      net->tx_ring.ring->hop);
+	if (ret) {
+		netdev_err(net->dev, "failed to enable DMA paths\n");
+		goto err_free_tx_buffers;
+	}
+
 	netif_carrier_on(net->dev);
 	netif_start_queue(net->dev);
 	return;
 
+err_free_tx_buffers:
+	tbnet_free_buffers(&net->tx_ring);
 err_free_rx_buffers:
 	tbnet_free_buffers(&net->rx_ring);
 err_stop_rings:
@@ -867,6 +879,7 @@ static int tbnet_open(struct net_device *dev)
 	struct tb_xdomain *xd = net->xd;
 	u16 sof_mask, eof_mask;
 	struct tb_ring *ring;
+	unsigned int flags;
 	int hopid;
 
 	netif_carrier_off(dev);
@@ -891,9 +904,14 @@ static int tbnet_open(struct net_device *dev)
 	sof_mask = BIT(TBIP_PDF_FRAME_START);
 	eof_mask = BIT(TBIP_PDF_FRAME_END);
 
-	ring = tb_ring_alloc_rx(xd->tb->nhi, -1, TBNET_RING_SIZE,
-				RING_FLAG_FRAME, 0, sof_mask, eof_mask,
-				tbnet_start_poll, net);
+	flags = RING_FLAG_FRAME;
+	/* Only enable full E2E if the other end supports it too */
+	if (tbnet_e2e && net->svc->prtcstns & TBNET_E2E)
+		flags |= RING_FLAG_E2E;
+
+	ring = tb_ring_alloc_rx(xd->tb->nhi, -1, TBNET_RING_SIZE, flags,
+				net->tx_ring.ring->hop, sof_mask,
+				eof_mask, tbnet_start_poll, net);
 	if (!ring) {
 		netdev_err(dev, "failed to allocate Rx ring\n");
 		tb_ring_free(net->tx_ring.ring);
@@ -1264,7 +1282,7 @@ static int tbnet_probe(struct tb_service *svc, const struct tb_service_id *id)
 	dev->features = dev->hw_features | NETIF_F_HIGHDMA;
 	dev->hard_header_len += sizeof(struct thunderbolt_ip_frame_header);
 
-	netif_napi_add(dev, &net->napi, tbnet_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add(dev, &net->napi, tbnet_poll);
 
 	/* MTU range: 68 - 65522 */
 	dev->min_mtu = ETH_MIN_MTU;
@@ -1356,6 +1374,7 @@ static struct tb_service_driver tbnet_driver = {
 
 static int __init tbnet_init(void)
 {
+	unsigned int flags;
 	int ret;
 
 	tbnet_dir = tb_property_create_dir(&tbnet_dir_uuid);
@@ -1365,12 +1384,11 @@ static int __init tbnet_init(void)
 	tb_property_add_immediate(tbnet_dir, "prtcid", 1);
 	tb_property_add_immediate(tbnet_dir, "prtcvers", 1);
 	tb_property_add_immediate(tbnet_dir, "prtcrevs", 1);
-	/* Currently only announce support for match frags ID (bit 1). Bit 0
-	 * is reserved for full E2E flow control which we do not support at
-	 * the moment.
-	 */
-	tb_property_add_immediate(tbnet_dir, "prtcstns",
-				  TBNET_MATCH_FRAGS_ID | TBNET_64K_FRAMES);
+
+	flags = TBNET_MATCH_FRAGS_ID | TBNET_64K_FRAMES;
+	if (tbnet_e2e)
+		flags |= TBNET_E2E;
+	tb_property_add_immediate(tbnet_dir, "prtcstns", flags);
 
 	ret = tb_register_property_dir("network", tbnet_dir);
 	if (ret) {
@@ -1393,5 +1411,5 @@ module_exit(tbnet_exit);
 MODULE_AUTHOR("Amir Levy <amir.jer.levy@intel.com>");
 MODULE_AUTHOR("Michael Jamet <michael.jamet@intel.com>");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
-MODULE_DESCRIPTION("Thunderbolt network driver");
+MODULE_DESCRIPTION("Thunderbolt/USB4 network driver");
 MODULE_LICENSE("GPL v2");

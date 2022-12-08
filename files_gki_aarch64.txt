@@ -826,6 +826,7 @@ drivers/firmware/efi/libstub/efi-stub-helper.c
 drivers/firmware/efi/libstub/fdt.c
 drivers/firmware/efi/libstub/file.c
 drivers/firmware/efi/libstub/gop.c
+drivers/firmware/efi/libstub/intrinsics.c
 drivers/firmware/efi/libstub/mem.c
 drivers/firmware/efi/libstub/pci.c
 drivers/firmware/efi/libstub/randomalloc.c
@@ -833,7 +834,9 @@ drivers/firmware/efi/libstub/random.c
 drivers/firmware/efi/libstub/relocate.c
 drivers/firmware/efi/libstub/secureboot.c
 drivers/firmware/efi/libstub/skip_spaces.c
+drivers/firmware/efi/libstub/smbios.c
 drivers/firmware/efi/libstub/string.c
+drivers/firmware/efi/libstub/systable.c
 drivers/firmware/efi/libstub/tpm.c
 drivers/firmware/efi/libstub/vsprintf.c
 drivers/firmware/efi/memattr.c
@@ -1055,6 +1058,7 @@ drivers/interconnect/qcom/icc-common.c
 drivers/interconnect/qcom/icc-common.h
 drivers/interconnect/trace.h
 drivers/iommu/dma-iommu.c
+drivers/iommu/dma-iommu.h
 drivers/iommu/iommu.c
 drivers/iommu/iommu-sysfs.c
 drivers/iommu/iommu-traces.c
@@ -1240,6 +1244,10 @@ drivers/net/can/dev/length.c
 drivers/net/can/dev/netlink.c
 drivers/net/can/dev/rx-offload.c
 drivers/net/can/dev/skb.c
+drivers/net/can/slcan/slcan-core.c
+drivers/net/can/slcan/slcan-ethtool.c
+drivers/net/can/slcan/slcan.h
+drivers/net/can/vcan.c
 drivers/net/dummy.c
 drivers/net/ifb.c
 drivers/net/loopback.c
@@ -1720,6 +1728,12 @@ drivers/usb/host/xhci-trace.h
 drivers/usb/phy/of.c
 drivers/usb/phy/phy.c
 drivers/usb/roles/class.c
+drivers/usb/serial/bus.c
+drivers/usb/serial/ftdi_sio.c
+drivers/usb/serial/ftdi_sio.h
+drivers/usb/serial/ftdi_sio_ids.h
+drivers/usb/serial/generic.c
+drivers/usb/serial/usb-serial.c
 drivers/usb/storage/debug.h
 drivers/usb/storage/initializers.c
 drivers/usb/storage/initializers.h
@@ -2291,7 +2305,6 @@ include/asm-generic/signal.h
 include/asm-generic/softirq_stack.h
 include/asm-generic/statfs.h
 include/asm-generic/switch_to.h
-include/asm-generic/termios.h
 include/asm-generic/timex.h
 include/asm-generic/tlb.h
 include/asm-generic/topology.h
@@ -2455,6 +2468,7 @@ include/dt-bindings/clock/hi6220-clock.h
 include/dt-bindings/clock/histb-clock.h
 include/dt-bindings/i2c/i2c.h
 include/dt-bindings/input/gpio-keys.h
+include/dt-bindings/interconnect/qcom,icc.h
 include/dt-bindings/interrupt-controller/arm-gic.h
 include/dt-bindings/interrupt-controller/irq.h
 include/dt-bindings/leds/common.h
@@ -2551,6 +2565,7 @@ include/linux/bpfilter.h
 include/linux/bpf_lirc.h
 include/linux/bpf_local_storage.h
 include/linux/bpf_lsm.h
+include/linux/bpf_mem_alloc.h
 include/linux/bpf-netns.h
 include/linux/bpfptr.h
 include/linux/bpf_trace.h
@@ -2584,6 +2599,7 @@ include/linux/cc_platform.h
 include/linux/cdev.h
 include/linux/cdrom.h
 include/linux/cfi.h
+include/linux/cfi_types.h
 include/linux/cgroup_api.h
 include/linux/cgroup-defs.h
 include/linux/cgroup.h
@@ -2686,7 +2702,6 @@ include/linux/dma-fence-chain.h
 include/linux/dma-fence.h
 include/linux/dma-fence-unwrap.h
 include/linux/dma-heap.h
-include/linux/dma-iommu.h
 include/linux/dma-map-ops.h
 include/linux/dma-mapping.h
 include/linux/dmapool.h
@@ -2803,6 +2818,7 @@ include/linux/hid-roccat.h
 include/linux/highmem.h
 include/linux/highmem-internal.h
 include/linux/highuid.h
+include/linux/host1x_context_bus.h
 include/linux/hrtimer_api.h
 include/linux/hrtimer_defs.h
 include/linux/hrtimer.h
@@ -2897,6 +2913,7 @@ include/linux/ioprio.h
 include/linux/iosys-map.h
 include/linux/io_uring.h
 include/linux/io_uring_types.h
+include/linux/iova_bitmap.h
 include/linux/iova.h
 include/linux/ipc.h
 include/linux/ipc_namespace.h
@@ -2961,6 +2978,9 @@ include/linux/khugepaged.h
 include/linux/klist.h
 include/linux/kmemleak.h
 include/linux/kmod.h
+include/linux/kmsan-checks.h
+include/linux/kmsan.h
+include/linux/kmsan_types.h
 include/linux/kmsg_dump.h
 include/linux/kobject_api.h
 include/linux/kobject.h
@@ -3018,6 +3038,7 @@ include/linux/lz4.h
 include/linux/lzo.h
 include/linux/mailbox_client.h
 include/linux/mailbox_controller.h
+include/linux/maple_tree.h
 include/linux/math64.h
 include/linux/math.h
 include/linux/mbcache.h
@@ -3028,6 +3049,7 @@ include/linux/mem_encrypt.h
 include/linux/memfd.h
 include/linux/memory.h
 include/linux/memory_hotplug.h
+include/linux/memory-tiers.h
 include/linux/mempolicy.h
 include/linux/mempool.h
 include/linux/memregion.h
@@ -3265,6 +3287,7 @@ include/linux/profile.h
 include/linux/projid.h
 include/linux/property.h
 include/linux/psci.h
+include/linux/pse-pd/pse.h
 include/linux/pseudo_fs.h
 include/linux/psi.h
 include/linux/psi_types.h
@@ -3511,6 +3534,7 @@ include/linux/task_io_accounting_ops.h
 include/linux/taskstats_kern.h
 include/linux/task_work.h
 include/linux/tcp.h
+include/linux/termios_internal.h
 include/linux/textsearch_fsm.h
 include/linux/textsearch.h
 include/linux/thermal.h
@@ -3597,6 +3621,7 @@ include/linux/usb/phy.h
 include/linux/usb/quirks.h
 include/linux/usb/r8152.h
 include/linux/usb/role.h
+include/linux/usb/serial.h
 include/linux/usb/storage.h
 include/linux/usb/tcpci.h
 include/linux/usb/tcpm.h
@@ -3631,7 +3656,6 @@ include/linux/virtio.h
 include/linux/virtio_net.h
 include/linux/virtio_ring.h
 include/linux/virtio_vsock.h
-include/linux/vmacache.h
 include/linux/vmalloc.h
 include/linux/vm_event_item.h
 include/linux/vmpressure.h
@@ -3690,6 +3714,7 @@ include/media/v4l2-mc.h
 include/media/v4l2-mediabus.h
 include/media/v4l2-mem2mem.h
 include/media/v4l2-subdev.h
+include/media/v4l2-uvc.h
 include/media/videobuf2-core.h
 include/media/videobuf2-dma-contig.h
 include/media/videobuf2-dma-sg.h
@@ -4034,6 +4059,7 @@ include/trace/events/kmem.h
 include/trace/events/kvm.h
 include/trace/events/kyber.h
 include/trace/events/lock.h
+include/trace/events/maple_tree.h
 include/trace/events/mdio.h
 include/trace/events/migrate.h
 include/trace/events/mmap.h
@@ -4059,6 +4085,7 @@ include/trace/events/rcu.h
 include/trace/events/regulator.h
 include/trace/events/rpm.h
 include/trace/events/rtc.h
+include/trace/events/rwmmio.h
 include/trace/events/sched.h
 include/trace/events/scmi.h
 include/trace/events/scsi.h
@@ -4084,9 +4111,11 @@ include/trace/events/v4l2.h
 include/trace/events/vb2.h
 include/trace/events/vmscan.h
 include/trace/events/vsock_virtio_transport_common.h
+include/trace/events/watchdog.h
 include/trace/events/workqueue.h
 include/trace/events/writeback.h
 include/trace/events/xdp.h
+include/trace/hooks/audio_usboffload.h
 include/trace/hooks/avc.h
 include/trace/hooks/binder.h
 include/trace/hooks/cgroup.h
@@ -4099,8 +4128,8 @@ include/trace/hooks/dma_buf.h
 include/trace/hooks/epoch.h
 include/trace/hooks/fpsimd.h
 include/trace/hooks/ftrace_dump.h
-include/trace/hooks/hung_task.h
 include/trace/hooks/iommu.h
+include/trace/hooks/module.h
 include/trace/hooks/mpam.h
 include/trace/hooks/net.h
 include/trace/hooks/pm_domain.h
@@ -4639,6 +4668,7 @@ init/initramfs.c
 init/init_task.c
 init/main.c
 init/version.c
+init/version-timestamp.c
 io_uring/advise.c
 io_uring/advise.h
 io_uring/alloc_cache.h
@@ -4714,6 +4744,7 @@ kernel/bpf/bpf_struct_ops_types.h
 kernel/bpf/bpf_task_storage.c
 kernel/bpf/btf.c
 kernel/bpf/cgroup.c
+kernel/bpf/cgroup_iter.c
 kernel/bpf/core.c
 kernel/bpf/cpumap.c
 kernel/bpf/devmap.c
@@ -4729,6 +4760,7 @@ kernel/bpf/lpm_trie.c
 kernel/bpf/map_in_map.c
 kernel/bpf/map_in_map.h
 kernel/bpf/map_iter.c
+kernel/bpf/memalloc.c
 kernel/bpf/mmap_unlock_work.h
 kernel/bpf/net_namespace.c
 kernel/bpf/offload.c
@@ -4789,7 +4821,6 @@ kernel/futex/pi.c
 kernel/futex/requeue.c
 kernel/futex/syscalls.c
 kernel/futex/waitwake.c
-kernel/gki_module.c
 kernel/groups.c
 kernel/hung_task.c
 kernel/iomem.c
@@ -4840,6 +4871,7 @@ kernel/locking/rwsem.c
 kernel/locking/semaphore.c
 kernel/locking/spinlock.c
 kernel/locking/ww_mutex.h
+kernel/module/gki_module.c
 kernel/module/internal.h
 kernel/module/kallsyms.c
 kernel/module/main.c
@@ -5006,6 +5038,7 @@ kernel/trace/trace_output.h
 kernel/trace/trace_printk.c
 kernel/trace/trace_probe.c
 kernel/trace/trace_probe.h
+kernel/trace/trace_probe_kernel.h
 kernel/trace/trace_probe_tmpl.h
 kernel/trace/trace_sched_switch.c
 kernel/trace/trace_seq.c
@@ -5063,10 +5096,12 @@ lib/crypto/curve25519-generic.c
 lib/crypto/curve25519-hacl64.c
 lib/crypto/des.c
 lib/crypto/libchacha.c
+lib/crypto/memneq.c
 lib/crypto/poly1305.c
 lib/crypto/poly1305-donna64.c
 lib/crypto/sha1.c
 lib/crypto/sha256.c
+lib/crypto/utils.c
 lib/ctype.c
 lib/debug_locks.c
 lib/dec_and_lock.c
@@ -5139,6 +5174,7 @@ lib/lz4/lz4hc_compress.c
 lib/lzo/lzo1x_compress.c
 lib/lzo/lzo1x_decompress_safe.c
 lib/lzo/lzodefs.h
+lib/maple_tree.c
 lib/math/div64.c
 lib/math/gcd.c
 lib/math/int_pow.c
@@ -5147,7 +5183,6 @@ lib/math/lcm.c
 lib/math/rational.c
 lib/math/reciprocal_div.c
 lib/memcat_p.c
-lib/memneq.c
 lib/memregion.c
 lib/memweight.c
 lib/mpi/ec.c
@@ -5209,6 +5244,7 @@ lib/strnlen_user.c
 lib/syscall.c
 lib/textsearch.c
 lib/timerqueue.c
+lib/trace_readwrite.c
 lib/ts_bm.c
 lib/ts_fsm.c
 lib/ts_kmp.c
@@ -5334,6 +5370,7 @@ mm/mlock.c
 mm/mmap.c
 mm/mmap_lock.c
 mm/mm_init.c
+mm/mm_slot.h
 mm/mmu_gather.c
 mm/mmu_notifier.c
 mm/mmzone.c
@@ -5378,7 +5415,6 @@ mm/truncate.c
 mm/usercopy.c
 mm/userfaultfd.c
 mm/util.c
-mm/vmacache.c
 mm/vmalloc.c
 mm/vmpressure.c
 mm/vmscan.c
@@ -5552,6 +5588,7 @@ net/ethtool/netlink.h
 net/ethtool/pause.c
 net/ethtool/phc_vclocks.c
 net/ethtool/privflags.c
+net/ethtool/pse-pd.c
 net/ethtool/rings.c
 net/ethtool/stats.c
 net/ethtool/strset.c
@@ -5783,6 +5820,7 @@ net/mac80211/iface.c
 net/mac80211/key.c
 net/mac80211/key.h
 net/mac80211/led.h
+net/mac80211/link.c
 net/mac80211/main.c
 net/mac80211/mesh.h
 net/mac80211/michael.c

@@ -631,10 +631,11 @@ static void cleanup_irq(struct spmi_pmic_arb *pmic_arb, u16 apid, int id)
 	writel_relaxed(irq_mask, pmic_arb->ver_ops->irq_clear(pmic_arb, apid));
 }
 
-static void periph_interrupt(struct spmi_pmic_arb *pmic_arb, u16 apid)
+static int periph_interrupt(struct spmi_pmic_arb *pmic_arb, u16 apid)
 {
 	unsigned int irq;
 	u32 status, id;
+	int handled = 0;
 	u8 sid = (pmic_arb->apid_data[apid].ppid >> 8) & 0xF;
 	u8 per = pmic_arb->apid_data[apid].ppid & 0xFF;
 
@@ -649,7 +650,10 @@ static void periph_interrupt(struct spmi_pmic_arb *pmic_arb, u16 apid)
 			continue;
 		}
 		generic_handle_irq(irq);
+		handled++;
 	}
+
+	return handled;
 }
 
 static void pmic_arb_chained_irq(struct irq_desc *desc)
@@ -657,15 +661,15 @@ static void pmic_arb_chained_irq(struct irq_desc *desc)
 	struct spmi_pmic_arb *pmic_arb = irq_desc_get_handler_data(desc);
 	const struct pmic_arb_ver_ops *ver_ops = pmic_arb->ver_ops;
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	int first = pmic_arb->min_apid >> 5;
-	int last = pmic_arb->max_apid >> 5;
+	int first = pmic_arb->min_apid;
+	int last = pmic_arb->max_apid;
 	/*
 	 * acc_offset will be non-zero for the secondary SPMI bus instance on
 	 * v7 controllers.
 	 */
 	int acc_offset = pmic_arb->base_apid >> 5;
 	u8 ee = pmic_arb->ee;
-	u32 status, enable;
+	u32 status, enable, handled = 0;
 	int i, id, apid;
 	/* status based dispatch */
 	bool acc_valid = false;
@@ -673,7 +677,7 @@ static void pmic_arb_chained_irq(struct irq_desc *desc)
 
 	chained_irq_enter(chip, desc);
 
-	for (i = first; i <= last; ++i) {
+	for (i = first >> 5; i <= last >> 5; ++i) {
 		status = readl_relaxed(ver_ops->owner_acc_status(pmic_arb, ee,
 							       i - acc_offset));
 		if (status)
@@ -683,8 +687,7 @@ static void pmic_arb_chained_irq(struct irq_desc *desc)
 			id = ffs(status) - 1;
 			status &= ~BIT(id);
 			apid = id + i * 32;
-			if (apid < pmic_arb->min_apid
-			    || apid > pmic_arb->max_apid) {
+			if (apid < first || apid > last) {
 				WARN_ONCE(true, "spurious spmi irq received for apid=%d\n",
 					apid);
 				continue;
@@ -692,13 +695,14 @@ static void pmic_arb_chained_irq(struct irq_desc *desc)
 			enable = readl_relaxed(
 					ver_ops->acc_enable(pmic_arb, apid));
 			if (enable & SPMI_PIC_ACC_ENABLE_BIT)
-				periph_interrupt(pmic_arb, apid);
+				if (periph_interrupt(pmic_arb, apid) != 0)
+					handled++;
 		}
 	}
 
 	/* ACC_STATUS is empty but IRQ fired check IRQ_STATUS */
 	if (!acc_valid) {
-		for (i = pmic_arb->min_apid; i <= pmic_arb->max_apid; i++) {
+		for (i = first; i <= last; i++) {
 			/* skip if APPS is not irq owner */
 			if (pmic_arb->apid_data[i].irq_ee != pmic_arb->ee)
 				continue;
@@ -712,11 +716,15 @@ static void pmic_arb_chained_irq(struct irq_desc *desc)
 					dev_dbg(&pmic_arb->spmic->dev,
 						"Dispatching IRQ for apid=%d status=%x\n",
 						i, irq_status);
-					periph_interrupt(pmic_arb, i);
+					if (periph_interrupt(pmic_arb, i) != 0)
+						handled++;
 				}
 			}
 		}
 	}
+
+	if (handled == 0)
+		handle_bad_irq(desc);
 
 	chained_irq_exit(chip, desc);
 }

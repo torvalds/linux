@@ -17,15 +17,25 @@
 #define WCID_START	33
 #define WCID_END	222
 #define STA_IDS_SIZE	(WCID_END - WCID_START + 2)
+#define CHAIN_0		0x0
+#define CHAIN_1		0x1
+#define RF_ALC_NUM	6
+#define CHAIN_NUM	2
+
+struct rf_reg_pair {
+	u8 bank;
+	u8 reg;
+	u8 value;
+};
 
 /* RT2800 driver data structure */
 struct rt2800_drv_data {
 	u8 calibration_bw20;
 	u8 calibration_bw40;
-	char rx_calibration_bw20;
-	char rx_calibration_bw40;
-	char tx_calibration_bw20;
-	char tx_calibration_bw40;
+	s8 rx_calibration_bw20;
+	s8 rx_calibration_bw40;
+	s8 tx_calibration_bw20;
+	s8 tx_calibration_bw40;
 	u8 bbp25;
 	u8 bbp26;
 	u8 txmixer_gain_24g;

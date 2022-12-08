@@ -9,7 +9,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 
@@ -299,7 +298,6 @@ static int
 mediatek_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct mtk *mtk;
 	int i;
 	int ret;
@@ -312,7 +310,10 @@ mediatek_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(mtk->base))
 		return PTR_ERR(mtk->base);
 
-	mtk->gpio_irq = irq_of_parse_and_map(np, 0);
+	mtk->gpio_irq = platform_get_irq(pdev, 0);
+	if (mtk->gpio_irq < 0)
+		return mtk->gpio_irq;
+
 	mtk->dev = dev;
 	platform_set_drvdata(pdev, mtk);
 

@@ -2615,11 +2615,9 @@ static void max98090_i2c_shutdown(struct i2c_client *i2c)
 	msleep(40);
 }
 
-static int max98090_i2c_remove(struct i2c_client *client)
+static void max98090_i2c_remove(struct i2c_client *client)
 {
 	max98090_i2c_shutdown(client);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

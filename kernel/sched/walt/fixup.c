@@ -40,34 +40,35 @@ static bool is_sched_lib_based_app(pid_t pid)
 	}
 
 	mm = get_task_mm(p);
-	if (!mm)
-		goto put_task_struct;
+	if (mm) {
+		MA_STATE(mas, &mm->mm_mt, 0, 0);
+		down_read(&mm->mmap_lock);
 
-	down_read(&mm->mmap_lock);
-	for (vma = mm->mmap; vma ; vma = vma->vm_next) {
-		if (vma->vm_file && vma->vm_flags & VM_EXEC) {
-			name = d_path(&vma->vm_file->f_path,
-					path_buf, LIB_PATH_LENGTH);
-			if (IS_ERR(name))
-				goto release_sem;
-
-			strlcpy(tmp_lib_name, sched_lib_name, LIB_PATH_LENGTH);
-			lib_list = tmp_lib_name;
-			while ((libname = strsep(&lib_list, ","))) {
-				libname = skip_spaces(libname);
-				if (strnstr(name, libname,
-					strnlen(name, LIB_PATH_LENGTH))) {
-					found = true;
+		mas_for_each(&mas, vma, ULONG_MAX) {
+			if (vma->vm_file && vma->vm_flags & VM_EXEC) {
+				name = d_path(&vma->vm_file->f_path,
+						path_buf, LIB_PATH_LENGTH);
+				if (IS_ERR(name))
 					goto release_sem;
+
+				strlcpy(tmp_lib_name, sched_lib_name, LIB_PATH_LENGTH);
+				lib_list = tmp_lib_name;
+				while ((libname = strsep(&lib_list, ","))) {
+					libname = skip_spaces(libname);
+					if (strnstr(name, libname,
+						strnlen(name, LIB_PATH_LENGTH))) {
+						found = true;
+						goto release_sem;
+					}
 				}
 			}
 		}
-	}
 
 release_sem:
-	up_read(&mm->mmap_lock);
-	mmput(mm);
-put_task_struct:
+		up_read(&mm->mmap_lock);
+		mmput(mm);
+
+	}
 	put_task_struct(p);
 	kfree(tmp_lib_name);
 	return found;

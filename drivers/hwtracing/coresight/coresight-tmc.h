@@ -316,12 +316,12 @@ int tmc_etr_switch_mode(struct tmc_drvdata *drvdata, const char *out_mode);
 static inline u64							\
 tmc_read_##name(struct tmc_drvdata *drvdata)				\
 {									\
-	return coresight_read_reg_pair(drvdata->base, lo_off, hi_off);	\
+	return csdev_access_relaxed_read_pair(&drvdata->csdev->access, lo_off, hi_off); \
 }									\
 static inline void							\
 tmc_write_##name(struct tmc_drvdata *drvdata, u64 val)			\
 {									\
-	coresight_write_reg_pair(drvdata->base, val, lo_off, hi_off);	\
+	csdev_access_relaxed_write_pair(&drvdata->csdev->access, val, lo_off, hi_off); \
 }
 
 TMC_REG_PAIR(rrp, TMC_RRP, TMC_RRPHI)

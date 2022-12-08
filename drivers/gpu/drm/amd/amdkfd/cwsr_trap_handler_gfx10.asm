@@ -43,12 +43,14 @@
 #define HAVE_XNACK (ASIC_FAMILY < CHIP_SIENNA_CICHLID)
 #define HAVE_SENDMSG_RTN (ASIC_FAMILY >= CHIP_PLUM_BONITO)
 #define HAVE_BUFFER_LDS_LOAD (ASIC_FAMILY < CHIP_PLUM_BONITO)
+#define SW_SA_TRAP (ASIC_FAMILY >= CHIP_PLUM_BONITO)
 
 var SINGLE_STEP_MISSED_WORKAROUND		= 1	//workaround for lost MODE.DEBUG_EN exception when SAVECTX raised
 
 var SQ_WAVE_STATUS_SPI_PRIO_MASK		= 0x00000006
 var SQ_WAVE_STATUS_HALT_MASK			= 0x2000
 var SQ_WAVE_STATUS_ECC_ERR_MASK			= 0x20000
+var SQ_WAVE_STATUS_TRAP_EN_SHIFT		= 6
 
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT		= 12
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE		= 9
@@ -182,6 +184,19 @@ L_SKIP_RESTORE:
 	s_andn2_b32	s_save_status, s_save_status, SQ_WAVE_STATUS_SPI_PRIO_MASK|SQ_WAVE_STATUS_ECC_ERR_MASK
 
 	s_getreg_b32	s_save_trapsts, hwreg(HW_REG_TRAPSTS)
+
+#if SW_SA_TRAP
+	// If ttmp1[30] is set then issue s_barrier to unblock dependent waves.
+	s_bitcmp1_b32	s_save_pc_hi, 30
+	s_cbranch_scc0	L_TRAP_NO_BARRIER
+	s_barrier
+
+L_TRAP_NO_BARRIER:
+	// If ttmp1[31] is set then trap may occur early.
+	// Spin wait until SAVECTX exception is raised.
+	s_bitcmp1_b32	s_save_pc_hi, 31
+	s_cbranch_scc1  L_CHECK_SAVE
+#endif
 
 	s_and_b32       ttmp2, s_save_status, SQ_WAVE_STATUS_HALT_MASK
 	s_cbranch_scc0	L_NOT_HALTED
@@ -1061,8 +1076,20 @@ L_RESTORE_HWREG:
 	s_and_b32	s_restore_pc_hi, s_restore_pc_hi, 0x0000ffff		//pc[47:32] //Do it here in order not to affect STATUS
 	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, not writable by s_setreg_b32
 	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, not writable by s_setreg_b32
-	s_setreg_b32	hwreg(HW_REG_STATUS), s_restore_status			// SCC is included, which is changed by previous salu
 
+#if SW_SA_TRAP
+	// If traps are enabled then return to the shader with PRIV=0.
+	// Otherwise retain PRIV=1 for subsequent context save requests.
+	s_getreg_b32	s_restore_tmp, hwreg(HW_REG_STATUS)
+	s_bitcmp1_b32	s_restore_tmp, SQ_WAVE_STATUS_TRAP_EN_SHIFT
+	s_cbranch_scc1	L_RETURN_WITHOUT_PRIV
+
+	s_setreg_b32	hwreg(HW_REG_STATUS), s_restore_status			// SCC is included, which is changed by previous salu
+	s_setpc_b64	[s_restore_pc_lo, s_restore_pc_hi]
+L_RETURN_WITHOUT_PRIV:
+#endif
+
+	s_setreg_b32	hwreg(HW_REG_STATUS), s_restore_status			// SCC is included, which is changed by previous salu
 	s_rfe_b64	s_restore_pc_lo						//Return to the main shader program and resume execution
 
 L_END_PGM:

@@ -142,15 +142,15 @@ static const struct pmu_event pme_test_soc_cpu[] = {
 		.metric_name	= "DCache_L2_All_Miss",
 	},
 	{
-		.metric_expr	= "dcache_l2_all_hits + dcache_l2_all_miss",
+		.metric_expr	= "DCache_L2_All_Hits + DCache_L2_All_Miss",
 		.metric_name	= "DCache_L2_All",
 	},
 	{
-		.metric_expr	= "d_ratio(dcache_l2_all_hits, dcache_l2_all)",
+		.metric_expr	= "d_ratio(DCache_L2_All_Hits, DCache_L2_All)",
 		.metric_name	= "DCache_L2_Hits",
 	},
 	{
-		.metric_expr	= "d_ratio(dcache_l2_all_miss, dcache_l2_all)",
+		.metric_expr	= "d_ratio(DCache_L2_All_Miss, DCache_L2_All)",
 		.metric_name	= "DCache_L2_Misses",
 	},
 	{

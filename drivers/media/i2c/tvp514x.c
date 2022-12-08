@@ -1121,7 +1121,7 @@ done:
  * Unregister decoder as an i2c client device and V4L2
  * device. Complement of tvp514x_probe().
  */
-static int tvp514x_remove(struct i2c_client *client)
+static void tvp514x_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct tvp514x_decoder *decoder = to_decoder(sd);
@@ -1129,7 +1129,6 @@ static int tvp514x_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(&decoder->sd);
 	media_entity_cleanup(&decoder->sd.entity);
 	v4l2_ctrl_handler_free(&decoder->hdl);
-	return 0;
 }
 /* TVP5146 Init/Power on Sequence */
 static const struct tvp514x_reg tvp5146_init_reg_seq[] = {

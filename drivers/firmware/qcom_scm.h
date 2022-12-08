@@ -226,8 +226,6 @@ extern int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 #define QCOM_SCM_FEAT_LOG_ID			0x0a
 #define QCOM_SCM_MP_CP_FEAT_ID			0x0c
 
-extern void __qcom_scm_init(void);
-
 /* common error codes */
 #define QCOM_SCM_V2_EBUSY	-12
 #define QCOM_SCM_ENOMEM		-5

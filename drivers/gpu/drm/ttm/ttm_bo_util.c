@@ -137,8 +137,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 		ttm_manager_type(bo->bdev, dst_mem->mem_type);
 	struct ttm_tt *ttm = bo->ttm;
 	struct ttm_resource *src_mem = bo->resource;
-	struct ttm_resource_manager *src_man =
-		ttm_manager_type(bdev, src_mem->mem_type);
+	struct ttm_resource_manager *src_man;
 	union {
 		struct ttm_kmap_iter_tt tt;
 		struct ttm_kmap_iter_linear_io io;
@@ -147,6 +146,10 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	bool clear;
 	int ret = 0;
 
+	if (!src_mem)
+		return 0;
+
+	src_man = ttm_manager_type(bdev, src_mem->mem_type);
 	if (ttm && ((ttm->page_flags & TTM_TT_FLAG_SWAPPED) ||
 		    dst_man->use_tt)) {
 		ret = ttm_tt_populate(bdev, ttm, ctx);
@@ -402,6 +405,8 @@ int ttm_bo_vmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 	struct ttm_resource *mem = bo->resource;
 	int ret;
 
+	dma_resv_assert_held(bo->base.resv);
+
 	ret = ttm_mem_io_reserve(bo->bdev, mem);
 	if (ret)
 		return ret;
@@ -459,6 +464,8 @@ EXPORT_SYMBOL(ttm_bo_vmap);
 void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 {
 	struct ttm_resource *mem = bo->resource;
+
+	dma_resv_assert_held(bo->base.resv);
 
 	if (iosys_map_is_null(map))
 		return;

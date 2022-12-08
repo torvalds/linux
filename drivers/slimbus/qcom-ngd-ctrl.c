@@ -1884,7 +1884,13 @@ static int of_qcom_slim_ngd_register(struct device *parent,
 		ngd->pdev->dev.of_node = node;
 		ctrl->ngd = ngd;
 
-		platform_device_add(ngd->pdev);
+		ret = platform_device_add(ngd->pdev);
+		if (ret) {
+			platform_device_put(ngd->pdev);
+			kfree(ngd);
+			of_node_put(node);
+			return ret;
+		}
 		ngd->base = ctrl->base + ngd->id * data->offset +
 					(ngd->id - 1) * data->size;
 
@@ -1995,10 +2001,9 @@ static int qcom_slim_ngd_ctrl_probe(struct platform_device *pdev)
 	ctrl->irq = ret;
 	ret = devm_request_irq(dev, ctrl->irq, qcom_slim_ngd_interrupt,
 			       IRQF_TRIGGER_HIGH, "slim-ngd", ctrl);
-	if (ret) {
-		dev_err(&pdev->dev, "request IRQ failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "request IRQ failed\n");
+
 	ctrl->irq_disabled = false;
 
 	ctrl->r_mem.is_r_mem = false;
@@ -2098,32 +2103,32 @@ static int qcom_slim_ngd_ctrl_probe(struct platform_device *pdev)
 
 	ctrl->pdr = pdr_handle_alloc(slim_pd_status, ctrl);
 	if (IS_ERR(ctrl->pdr)) {
-		ret = PTR_ERR(ctrl->pdr);
-		dev_err(dev, "Failed to init PDR handle: %d\n", ret);
-		goto err_out;
+		ret = dev_err_probe(dev, PTR_ERR(ctrl->pdr),
+				    "Failed to init PDR handle: %d\n", ret);
+		goto err_pdr_alloc;
 	}
 
 	pds = pdr_add_lookup(ctrl->pdr, "avs/audio", "msm/adsp/audio_pd");
 	if (IS_ERR(pds) && PTR_ERR(pds) != -EALREADY) {
-		ret = PTR_ERR(pds);
-		dev_err(dev, "pdr add lookup failed: %d\n", ret);
-		goto pdr_release;
+		ret = dev_err_probe(dev, PTR_ERR(pds), "pdr add lookup failed: %d\n", ret);
+		goto err_pdr_lookup;
 	}
 
 	ret = of_qcom_slim_ngd_register(dev, ctrl);
 	if (ret) {
 		SLIM_ERR(ctrl, "qcom_slim_ngd_register failed ret:%d\n", ret);
-		goto pdr_release;
+		goto err_pdr_lookup;
 	}
 
 	platform_driver_register(&qcom_slim_ngd_driver);
 	SLIM_INFO(ctrl, "NGD SB controller is up!\n");
 	return 0;
 
-pdr_release:
-	pdr_handle_release(ctrl->pdr);
-err_out:
-	qcom_unregister_ssr_notifier(ctrl->notifier, &ctrl->nb);
+err_pdr_lookup:
+		pdr_handle_release(ctrl->pdr);
+
+err_pdr_alloc:
+		qcom_unregister_ssr_notifier(ctrl->notifier, &ctrl->nb);
 
 remove_ipc_sysfs:
 	if (ctrl->ipc_slimbus_log)

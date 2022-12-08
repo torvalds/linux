@@ -101,6 +101,9 @@
 #define PMIC_GPIO_OUT_BUF_OPEN_DRAIN_NMOS	1
 #define PMIC_GPIO_OUT_BUF_OPEN_DRAIN_PMOS	2
 
+#define PMIC_GPIO_OUT_STRENGTH_LOW		1
+#define PMIC_GPIO_OUT_STRENGTH_HIGH		3
+
 /* PMIC_GPIO_REG_EN_CTL */
 #define PMIC_GPIO_REG_MASTER_EN_SHIFT		7
 
@@ -174,7 +177,6 @@ struct pmic_gpio_state {
 	struct regmap	*map;
 	struct pinctrl_dev *ctrl;
 	struct gpio_chip chip;
-	struct irq_chip irq;
 	u8 usid;
 	u8 pid_base;
 };
@@ -440,7 +442,17 @@ static int pmic_gpio_config_get(struct pinctrl_dev *pctldev,
 		arg = pad->pullup;
 		break;
 	case PMIC_GPIO_CONF_STRENGTH:
-		arg = pad->strength;
+		switch (pad->strength) {
+		case PMIC_GPIO_OUT_STRENGTH_HIGH:
+			arg = PMIC_GPIO_STRENGTH_HIGH;
+			break;
+		case PMIC_GPIO_OUT_STRENGTH_LOW:
+			arg = PMIC_GPIO_STRENGTH_LOW;
+			break;
+		default:
+			arg = pad->strength;
+			break;
+		}
 		break;
 	case PMIC_GPIO_CONF_ATEST:
 		arg = pad->atest;
@@ -527,7 +539,17 @@ static int pmic_gpio_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PMIC_GPIO_CONF_STRENGTH:
 			if (arg > PMIC_GPIO_STRENGTH_HIGH)
 				return -EINVAL;
-			pad->strength = arg;
+			switch (arg) {
+			case PMIC_GPIO_STRENGTH_HIGH:
+				pad->strength = PMIC_GPIO_OUT_STRENGTH_HIGH;
+				break;
+			case PMIC_GPIO_STRENGTH_LOW:
+				pad->strength = PMIC_GPIO_OUT_STRENGTH_LOW;
+				break;
+			default:
+				pad->strength = arg;
+				break;
+			}
 			break;
 		case PMIC_GPIO_CONF_ATEST:
 			if (!pad->lv_mv_type || arg > 4)
@@ -998,6 +1020,33 @@ static int pmic_gpio_populate_parent_fwspec(struct gpio_chip *chip,
 	return 0;
 }
 
+static void pmic_gpio_irq_mask(struct irq_data *data)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+
+	irq_chip_mask_parent(data);
+	gpiochip_disable_irq(gc, data->hwirq);
+}
+
+static void pmic_gpio_irq_unmask(struct irq_data *data)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+
+	gpiochip_enable_irq(gc, data->hwirq);
+	irq_chip_unmask_parent(data);
+}
+
+static const struct irq_chip spmi_gpio_irq_chip = {
+	.name		= "spmi-gpio",
+	.irq_ack	= irq_chip_ack_parent,
+	.irq_mask	= pmic_gpio_irq_mask,
+	.irq_unmask	= pmic_gpio_irq_unmask,
+	.irq_set_type	= irq_chip_set_type_parent,
+	.irq_set_wake	= irq_chip_set_wake_parent,
+	.flags		= IRQCHIP_IMMUTABLE | IRQCHIP_MASK_ON_SUSPEND,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
+
 static int pmic_gpio_probe(struct platform_device *pdev)
 {
 	struct irq_domain *parent_domain;
@@ -1091,16 +1140,8 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	if (!parent_domain)
 		return -ENXIO;
 
-	state->irq.name = "spmi-gpio",
-	state->irq.irq_ack = irq_chip_ack_parent,
-	state->irq.irq_mask = irq_chip_mask_parent,
-	state->irq.irq_unmask = irq_chip_unmask_parent,
-	state->irq.irq_set_type = irq_chip_set_type_parent,
-	state->irq.irq_set_wake = irq_chip_set_wake_parent,
-	state->irq.flags = IRQCHIP_MASK_ON_SUSPEND,
-
 	girq = &state->chip.irq;
-	girq->chip = &state->irq;
+	gpio_irq_chip_set_chip(girq, &spmi_gpio_irq_chip);
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_level_irq;
 	girq->fwnode = of_node_to_fwnode(state->dev->of_node);

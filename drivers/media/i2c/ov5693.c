@@ -1501,7 +1501,7 @@ err_ctrl_handler_free:
 	return ret;
 }
 
-static int ov5693_remove(struct i2c_client *client)
+static void ov5693_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov5693_device *ov5693 = to_ov5693_sensor(sd);
@@ -1519,8 +1519,6 @@ static int ov5693_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(&client->dev))
 		ov5693_sensor_powerdown(ov5693);
 	pm_runtime_set_suspended(&client->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ov5693_pm_ops = {

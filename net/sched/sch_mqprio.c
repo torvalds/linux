@@ -558,11 +558,8 @@ static void mqprio_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 	/* Walk hierarchy with a virtual class per tc */
 	arg->count = arg->skip;
 	for (ntx = arg->skip; ntx < netdev_get_num_tc(dev); ntx++) {
-		if (arg->fn(sch, ntx + TC_H_MIN_PRIORITY, arg) < 0) {
-			arg->stop = 1;
+		if (!tc_qdisc_stats_dump(sch, ntx + TC_H_MIN_PRIORITY, arg))
 			return;
-		}
-		arg->count++;
 	}
 
 	/* Pad the values and skip over unused traffic classes */

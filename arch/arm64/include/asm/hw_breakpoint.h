@@ -142,7 +142,7 @@ static inline int get_num_brps(void)
 	u64 dfr0 = read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1);
 	return 1 +
 		cpuid_feature_extract_unsigned_field(dfr0,
-						ID_AA64DFR0_BRPS_SHIFT);
+						ID_AA64DFR0_EL1_BRPs_SHIFT);
 }
 
 /* Determine number of WRP registers available. */
@@ -151,7 +151,7 @@ static inline int get_num_wrps(void)
 	u64 dfr0 = read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1);
 	return 1 +
 		cpuid_feature_extract_unsigned_field(dfr0,
-						ID_AA64DFR0_WRPS_SHIFT);
+						ID_AA64DFR0_EL1_WRPs_SHIFT);
 }
 
 #endif	/* __ASM_BREAKPOINT_H */

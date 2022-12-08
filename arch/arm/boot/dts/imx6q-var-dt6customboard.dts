@@ -28,7 +28,7 @@
 		compatible = "gpio-keys";
 		autorepeat;
 
-		back {
+		key-back {
 			gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_BACK>;
 			label = "Key Back";
@@ -37,7 +37,7 @@
 			wakeup-source;
 		};
 
-		home {
+		key-home {
 			gpios = <&gpio5 11 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
 			label = "Key Home";
@@ -46,7 +46,7 @@
 			wakeup-source;
 		};
 
-		menu {
+		key-menu {
 			gpios = <&gpio4 25 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_MENU>;
 			label = "Key Menu";

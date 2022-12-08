@@ -29,6 +29,7 @@ typedef int (*config_fn_t)(const char *, const char *, void *);
 
 int perf_default_config(const char *, const char *, void *);
 int perf_config(config_fn_t fn, void *);
+int perf_config_scan(const char *name, const char *fmt, ...) __scanf(2, 3);
 int perf_config_set(struct perf_config_set *set,
 		    config_fn_t fn, void *data);
 int perf_config_int(int *dest, const char *, const char *);

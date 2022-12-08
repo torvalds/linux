@@ -9,7 +9,7 @@ group_fd=-1
 config=0|1
 sample_period=1234000
 sample_type=87
-read_format=12
+read_format=12|28
 inherit=0
 freq=0
 
@@ -19,7 +19,7 @@ group_fd=1
 config=0|1
 sample_period=6789000
 sample_type=87
-read_format=12
+read_format=12|28
 disabled=0
 inherit=0
 mmap=0

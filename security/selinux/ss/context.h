@@ -38,7 +38,7 @@ static inline void mls_context_init(struct context *c)
 	memset(&c->range, 0, sizeof(c->range));
 }
 
-static inline int mls_context_cpy(struct context *dst, struct context *src)
+static inline int mls_context_cpy(struct context *dst, const struct context *src)
 {
 	int rc;
 
@@ -58,7 +58,7 @@ out:
 /*
  * Sets both levels in the MLS range of 'dst' to the low level of 'src'.
  */
-static inline int mls_context_cpy_low(struct context *dst, struct context *src)
+static inline int mls_context_cpy_low(struct context *dst, const struct context *src)
 {
 	int rc;
 
@@ -78,7 +78,7 @@ out:
 /*
  * Sets both levels in the MLS range of 'dst' to the high level of 'src'.
  */
-static inline int mls_context_cpy_high(struct context *dst, struct context *src)
+static inline int mls_context_cpy_high(struct context *dst, const struct context *src)
 {
 	int rc;
 
@@ -97,9 +97,10 @@ out:
 
 
 static inline int mls_context_glblub(struct context *dst,
-				     struct context *c1, struct context *c2)
+				     const struct context *c1, const struct context *c2)
 {
-	struct mls_range *dr = &dst->range, *r1 = &c1->range, *r2 = &c2->range;
+	struct mls_range *dr = &dst->range;
+	const struct mls_range *r1 = &c1->range, *r2 = &c2->range;
 	int rc = 0;
 
 	if (r1->level[1].sens < r2->level[0].sens ||
@@ -127,7 +128,7 @@ out:
 	return rc;
 }
 
-static inline int mls_context_cmp(struct context *c1, struct context *c2)
+static inline int mls_context_cmp(const struct context *c1, const struct context *c2)
 {
 	return ((c1->range.level[0].sens == c2->range.level[0].sens) &&
 		ebitmap_cmp(&c1->range.level[0].cat, &c2->range.level[0].cat) &&
@@ -147,7 +148,7 @@ static inline void context_init(struct context *c)
 	memset(c, 0, sizeof(*c));
 }
 
-static inline int context_cpy(struct context *dst, struct context *src)
+static inline int context_cpy(struct context *dst, const struct context *src)
 {
 	int rc;
 
@@ -180,7 +181,7 @@ static inline void context_destroy(struct context *c)
 	mls_context_destroy(c);
 }
 
-static inline int context_cmp(struct context *c1, struct context *c2)
+static inline int context_cmp(const struct context *c1, const struct context *c2)
 {
 	if (c1->len && c2->len)
 		return (c1->len == c2->len && !strcmp(c1->str, c2->str));

@@ -1015,7 +1015,7 @@ static void sc16is7xx_break_ctl(struct uart_port *port, int break_state)
 
 static void sc16is7xx_set_termios(struct uart_port *port,
 				  struct ktermios *termios,
-				  struct ktermios *old)
+				  const struct ktermios *old)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
@@ -1689,11 +1689,9 @@ static int sc16is7xx_i2c_probe(struct i2c_client *i2c,
 	return sc16is7xx_probe(&i2c->dev, devtype, regmap, i2c->irq);
 }
 
-static int sc16is7xx_i2c_remove(struct i2c_client *client)
+static void sc16is7xx_i2c_remove(struct i2c_client *client)
 {
 	sc16is7xx_remove(&client->dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id sc16is7xx_i2c_id_table[] = {

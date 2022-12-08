@@ -518,7 +518,7 @@ int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp);
 static inline void bnx2x_vf_fill_fw_str(struct bnx2x *bp, char *buf,
 					size_t buf_len)
 {
-	strlcpy(buf, bp->acquire_resp.pfdev_info.fw_ver, buf_len);
+	strscpy(buf, bp->acquire_resp.pfdev_info.fw_ver, buf_len);
 }
 
 static inline int bnx2x_vf_ustorm_prods_offset(struct bnx2x *bp,

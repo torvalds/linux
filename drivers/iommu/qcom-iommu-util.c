@@ -92,7 +92,7 @@ static int insert_range(const __be32 *p, int naddr, int nsize, void *arg)
 	}
 
 	new = iommu_alloc_resv_region(start, end - start + 1,
-					0, IOMMU_RESV_RESERVED);
+					0, IOMMU_RESV_RESERVED, GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 	list_add_tail(&new->list, &region->list);
@@ -149,7 +149,7 @@ static int invert_regions(struct list_head *head, struct list_head *inverted)
 			goto next;
 
 		new = iommu_alloc_resv_region(rsv_start, rsv_size,
-						0, IOMMU_RESV_RESERVED);
+						0, IOMMU_RESV_RESERVED, GFP_KERNEL);
 		if (!new) {
 			ret = -ENOMEM;
 			goto out_err;
@@ -165,7 +165,7 @@ next:
 	rsv_size = curr->start;
 	if (rsv_size) {
 		new = iommu_alloc_resv_region(rsv_start, rsv_size,
-						0, IOMMU_RESV_RESERVED);
+						0, IOMMU_RESV_RESERVED, GFP_KERNEL);
 		if (!new) {
 			ret = -ENOMEM;
 			goto out_err;
@@ -179,7 +179,7 @@ next:
 
 	if (rsv_size && (U64_MAX - prev->start > prev->length)) {
 		new = iommu_alloc_resv_region(rsv_start, rsv_size,
-						0, IOMMU_RESV_RESERVED);
+						0, IOMMU_RESV_RESERVED, GFP_KERNEL);
 		if (!new) {
 			ret = -ENOMEM;
 			goto out_err;

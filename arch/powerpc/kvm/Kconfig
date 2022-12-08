@@ -51,6 +51,7 @@ config KVM_BOOK3S_HV_POSSIBLE
 config KVM_BOOK3S_32
 	tristate "KVM support for PowerPC book3s_32 processors"
 	depends on PPC_BOOK3S_32 && !SMP && !PTE_64BIT
+	depends on !CONTEXT_TRACKING_USER
 	select KVM
 	select KVM_BOOK3S_32_HANDLER
 	select KVM_BOOK3S_PR_POSSIBLE
@@ -105,6 +106,7 @@ config KVM_BOOK3S_64_HV
 config KVM_BOOK3S_64_PR
 	tristate "KVM support without using hypervisor mode in host"
 	depends on KVM_BOOK3S_64
+	depends on !CONTEXT_TRACKING_USER
 	select KVM_BOOK3S_PR_POSSIBLE
 	help
 	  Support running guest kernels in virtual machines on processors
@@ -189,7 +191,8 @@ config KVM_EXIT_TIMING
 
 config KVM_E500V2
 	bool "KVM support for PowerPC E500v2 processors"
-	depends on E500 && !PPC_E500MC
+	depends on PPC_E500 && !PPC_E500MC
+	depends on !CONTEXT_TRACKING_USER
 	select KVM
 	select KVM_MMIO
 	select MMU_NOTIFIER
@@ -205,6 +208,7 @@ config KVM_E500V2
 config KVM_E500MC
 	bool "KVM support for PowerPC E500MC/E5500/E6500 processors"
 	depends on PPC_E500MC
+	depends on !CONTEXT_TRACKING_USER
 	select KVM
 	select KVM_MMIO
 	select KVM_BOOKE_HV
@@ -220,7 +224,7 @@ config KVM_E500MC
 
 config KVM_MPIC
 	bool "KVM in-kernel MPIC emulation"
-	depends on KVM && E500
+	depends on KVM && PPC_E500
 	select HAVE_KVM_IRQCHIP
 	select HAVE_KVM_IRQFD
 	select HAVE_KVM_IRQ_ROUTING
