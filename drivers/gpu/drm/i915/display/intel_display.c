@@ -70,8 +70,6 @@
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_object.h"
 
-#include "gt/gen8_ppgtt.h"
-
 #include "g4x_dp.h"
 #include "g4x_hdmi.h"
 #include "hsw_ips.h"
