@@ -7213,14 +7213,13 @@ veto the transition.
 :Parameters: args[0] is the maximum poll time in nanoseconds
 :Returns: 0 on success; -1 on error
 
-This capability overrides the kvm module parameter halt_poll_ns for the
-target VM.
+KVM_CAP_HALT_POLL overrides the kvm.halt_poll_ns module parameter to set the
+maximum halt-polling time for all vCPUs in the target VM. This capability can
+be invoked at any time and any number of times to dynamically change the
+maximum halt-polling time.
 
-VCPU polling allows a VCPU to poll for wakeup events instead of immediately
-scheduling during guest halts. The maximum time a VCPU can spend polling is
-controlled by the kvm module parameter halt_poll_ns. This capability allows
-the maximum halt time to specified on a per-VM basis, effectively overriding
-the module parameter for the target VM.
+See Documentation/virt/kvm/halt-polling.rst for more information on halt
+polling.
 
 7.21 KVM_CAP_X86_USER_SPACE_MSR
 -------------------------------
