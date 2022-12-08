@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -84,7 +85,9 @@ do {									\
 #define TPDM_DSB_XPMR(n)	(0x7E8 + (n * 4))
 #define TPDM_DSB_EDCR(n)	(0x808 + (n * 4))
 #define TPDM_DSB_EDCMR(n)	(0x848 + (n * 4))
+#define TPDM_DSB_TESTMODE_DATA(n)	(0x868 + (n * 4))
 #define TPDM_DSB_CA_SELECT(n)	(0x86c + (n * 4))
+#define TPDM_DSB_TESTMODE_DATA_VALID	(0x888)
 #define TPDM_DSB_MSR(n)		(0x980 + (n * 4))
 
 /* CMB/MCMB Subunit Registers */
@@ -2751,6 +2754,65 @@ static ssize_t dsb_mode_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(dsb_mode);
 
+static ssize_t dsb_testmode_data_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t size)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long index, val;
+
+	if (sscanf(buf, "%lx %lx", &index, &val) != 2)
+		return -EINVAL;
+
+	if (!test_bit(TPDM_DS_DSB, drvdata->datasets))
+		return -EPERM;
+
+	if (index > 3)
+		return -EINVAL;
+
+	mutex_lock(&drvdata->lock);
+	if (!drvdata->enable) {
+		mutex_unlock(&drvdata->lock);
+		return -EPERM;
+	}
+	mutex_unlock(&drvdata->lock);
+
+	TPDM_UNLOCK(drvdata);
+	tpdm_writel(drvdata, val, TPDM_DSB_TESTMODE_DATA(index));
+	TPDM_LOCK(drvdata);
+
+	return size;
+}
+static DEVICE_ATTR_WO(dsb_testmode_data);
+
+static ssize_t dsb_testmode_data_valid_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf,
+					   size_t size)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val;
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+	if (!test_bit(TPDM_DS_DSB, drvdata->datasets))
+		return -EPERM;
+
+	mutex_lock(&drvdata->lock);
+	if (!drvdata->enable) {
+		mutex_unlock(&drvdata->lock);
+		return -EPERM;
+	}
+	mutex_unlock(&drvdata->lock);
+
+	TPDM_UNLOCK(drvdata);
+	tpdm_writel(drvdata, val, TPDM_DSB_TESTMODE_DATA_VALID);
+	TPDM_LOCK(drvdata);
+	return size;
+}
+static DEVICE_ATTR_WO(dsb_testmode_data_valid);
+
 static ssize_t dsb_edge_ctrl_show(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
@@ -3950,6 +4012,8 @@ static struct attribute *tpdm_tc_attrs[] = {
 
 static struct attribute *tpdm_dsb_attrs[] = {
 	&dev_attr_dsb_mode.attr,
+	&dev_attr_dsb_testmode_data.attr,
+	&dev_attr_dsb_testmode_data_valid.attr,
 	&dev_attr_dsb_edge_ctrl.attr,
 	&dev_attr_dsb_edge_ctrl_mask.attr,
 	&dev_attr_dsb_patt_val.attr,
