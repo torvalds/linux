@@ -1125,10 +1125,35 @@
 			#size-cells = <1>;
 			ranges;
 
+			lcdif2: display-controller@32e90000 {
+				compatible = "fsl,imx8mp-lcdif";
+				reg = <0x32e90000 0x238>;
+				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_MEDIA_DISP2_PIX_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>;
+				clock-names = "pix", "axi", "disp_axi";
+				assigned-clocks = <&clk IMX8MP_CLK_MEDIA_DISP2_PIX>,
+						  <&clk IMX8MP_VIDEO_PLL1>;
+				assigned-clock-parents = <&clk IMX8MP_VIDEO_PLL1_OUT>,
+							 <&clk IMX8MP_VIDEO_PLL1_REF_SEL>;
+				assigned-clock-rates = <0>, <1039500000>;
+				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_LCDIF_2>;
+				status = "disabled";
+
+				port {
+					lcdif2_to_ldb: endpoint {
+						remote-endpoint = <&ldb_from_lcdif2>;
+					};
+				};
+			};
+
 			media_blk_ctrl: blk-ctrl@32ec0000 {
 				compatible = "fsl,imx8mp-media-blk-ctrl",
-					     "syscon";
+					     "simple-bus", "syscon";
 				reg = <0x32ec0000 0x10000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
 				power-domains = <&pgc_mediamix>,
 						<&pgc_mipi_phy1>,
 						<&pgc_mipi_phy1>,
@@ -1173,6 +1198,44 @@
 				assigned-clock-rates = <500000000>, <200000000>;
 
 				#power-domain-cells = <1>;
+
+				lvds_bridge: bridge@5c {
+					compatible = "fsl,imx8mp-ldb";
+					clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
+					clock-names = "ldb";
+					reg = <0x5c 0x4>, <0x128 0x4>;
+					reg-names = "ldb", "lvds";
+					assigned-clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
+					assigned-clock-parents = <&clk IMX8MP_VIDEO_PLL1_OUT>;
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							ldb_from_lcdif2: endpoint {
+								remote-endpoint = <&lcdif2_to_ldb>;
+							};
+						};
+
+						port@1 {
+							reg = <1>;
+
+							ldb_lvds_ch0: endpoint {
+							};
+						};
+
+						port@2 {
+							reg = <2>;
+
+							ldb_lvds_ch1: endpoint {
+							};
+						};
+					};
+				};
 			};
 
 			pcie_phy: pcie-phy@32f00000 {
