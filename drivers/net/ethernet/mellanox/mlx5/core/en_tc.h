@@ -95,6 +95,9 @@ struct mlx5_flow_attr {
 		 */
 		bool count;
 	} lag;
+	struct mlx5_flow_attr *branch_true;
+	struct mlx5_flow_attr *branch_false;
+	struct mlx5_flow_attr *jumping_attr;
 	/* keep this union last */
 	union {
 		DECLARE_FLEX_ARRAY(struct mlx5_esw_flow_attr, esw_attr);
@@ -110,6 +113,7 @@ enum {
 	MLX5_ATTR_FLAG_SAMPLE        = BIT(4),
 	MLX5_ATTR_FLAG_ACCEPT        = BIT(5),
 	MLX5_ATTR_FLAG_CT            = BIT(6),
+	MLX5_ATTR_FLAG_TERMINATING   = BIT(7),
 };
 
 /* Returns true if any of the flags that require skipping further TC/NF processing are set. */

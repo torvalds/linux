@@ -4,20 +4,54 @@
 #include "act.h"
 #include "en/tc_priv.h"
 
+static bool police_act_validate_control(enum flow_action_id act_id,
+					struct netlink_ext_ack *extack)
+{
+	if (act_id != FLOW_ACTION_PIPE &&
+	    act_id != FLOW_ACTION_ACCEPT &&
+	    act_id != FLOW_ACTION_JUMP &&
+	    act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform-exceed action is not pipe, ok, jump or drop");
+		return false;
+	}
+
+	return true;
+}
+
+static int police_act_validate(const struct flow_action_entry *act,
+			       struct netlink_ext_ack *extack)
+{
+	if (!police_act_validate_control(act->police.exceed.act_id, extack) ||
+	    !police_act_validate_control(act->police.notexceed.act_id, extack))
+		return -EOPNOTSUPP;
+
+	if (act->police.peakrate_bytes_ps ||
+	    act->police.avrate || act->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "QoS offload not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static bool
 tc_act_can_offload_police(struct mlx5e_tc_act_parse_state *parse_state,
 			  const struct flow_action_entry *act,
 			  int act_index,
 			  struct mlx5_flow_attr *attr)
 {
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
-		NL_SET_ERR_MSG_MOD(parse_state->extack,
-				   "Offload not supported when conform action is not pipe or ok");
-		return false;
-	}
-	if (mlx5e_policer_validate(parse_state->flow_action, act,
-				   parse_state->extack))
+	int err;
+
+	err = police_act_validate(act, parse_state->extack);
+	if (err)
 		return false;
 
 	return !!mlx5e_get_flow_meters(parse_state->flow->priv->mdev);
@@ -79,7 +113,7 @@ tc_act_police_offload(struct mlx5e_priv *priv,
 	struct mlx5e_flow_meter_handle *meter;
 	int err = 0;
 
-	err = mlx5e_policer_validate(&fl_act->action, act, fl_act->extack);
+	err = police_act_validate(act, fl_act->extack);
 	if (err)
 		return err;
 
@@ -147,6 +181,19 @@ tc_act_police_stats(struct mlx5e_priv *priv,
 	return 0;
 }
 
+static bool
+tc_act_police_get_branch_ctrl(const struct flow_action_entry *act,
+			      struct mlx5e_tc_act_branch_ctrl *cond_true,
+			      struct mlx5e_tc_act_branch_ctrl *cond_false)
+{
+	cond_true->act_id = act->police.notexceed.act_id;
+	cond_true->extval = act->police.notexceed.extval;
+
+	cond_false->act_id = act->police.exceed.act_id;
+	cond_false->extval = act->police.exceed.extval;
+	return true;
+}
+
 struct mlx5e_tc_act mlx5e_tc_act_police = {
 	.can_offload = tc_act_can_offload_police,
 	.parse_action = tc_act_parse_police,
@@ -154,4 +201,5 @@ struct mlx5e_tc_act mlx5e_tc_act_police = {
 	.offload_action = tc_act_police_offload,
 	.destroy_action = tc_act_police_destroy,
 	.stats_action = tc_act_police_stats,
+	.get_branch_ctrl = tc_act_police_get_branch_ctrl,
 };
