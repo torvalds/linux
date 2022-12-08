@@ -281,20 +281,6 @@ static int tty3270_add_status(struct tty3270 *tp)
 	return cp - (char *)tp->converted_line;
 }
 
-/*
- * Set output offsets to 3270 datastream fragment of a tty string.
- * (TO_SBA offset at the start and TO_RA offset at the end of the string)
- */
-static void tty3270_update_string(struct tty3270 *tp, char *line, int len, int nr)
-{
-	unsigned char *cp;
-
-	raw3270_buffer_address(tp->view.dev, line + 1, 0, nr);
-	cp = line + len - 4;
-	if (*cp == TO_RA)
-		raw3270_buffer_address(tp->view.dev, cp + 1, 0, nr + 1);
-}
-
 static void tty3270_blank_screen(struct tty3270 *tp)
 {
 	struct tty3270_line *line;
@@ -364,7 +350,7 @@ static int tty3270_required_length(struct tty3270 *tp, struct tty3270_line *line
 }
 
 static char *tty3270_add_reset_attributes(struct tty3270 *tp, struct tty3270_line *line,
-					  char *cp, struct tty3270_attribute *attr)
+					  char *cp, struct tty3270_attribute *attr, int lineno)
 {
 	if (attr->highlight)
 		cp = tty3270_add_sa(tp, cp, TAT_EXTHI, TAX_RESET);
@@ -373,7 +359,7 @@ static char *tty3270_add_reset_attributes(struct tty3270 *tp, struct tty3270_lin
 	if (attr->b_color != TAC_RESET)
 		cp = tty3270_add_sa(tp, cp, TAT_BGCOLOR, TAX_RESET);
 	if (line->len < tp->view.cols)
-		cp = tty3270_add_ra(tp, cp, 0, 0, 0);
+		cp = tty3270_add_ra(tp, cp, 0, lineno + 1, 0);
 	return cp;
 }
 
@@ -408,7 +394,7 @@ static char tty3270_graphics_translate(struct tty3270 *tp, char ch)
 }
 
 static char *tty3270_add_attributes(struct tty3270 *tp, struct tty3270_line *line,
-				    struct tty3270_attribute *attr, char *cp)
+				    struct tty3270_attribute *attr, char *cp, int lineno)
 {
 	const unsigned char colors[16] = {
 		[0] = TAC_DEFAULT,
@@ -431,7 +417,7 @@ static char *tty3270_add_attributes(struct tty3270 *tp, struct tty3270_line *lin
 	struct tty3270_cell *cell;
 	int c, i;
 
-	cp = tty3270_add_ba(tp, cp, TO_SBA, 0, 0);
+	cp = tty3270_add_ba(tp, cp, TO_SBA, 0, lineno);
 
 	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
 		if (cell->attributes.highlight != attr->highlight) {
@@ -465,7 +451,7 @@ static void tty3270_reset_attributes(struct tty3270_attribute *attr)
 /*
  * Convert a tty3270_line to a 3270 data fragment usable for output.
  */
-static unsigned int tty3270_convert_line(struct tty3270 *tp, struct tty3270_line *line)
+static unsigned int tty3270_convert_line(struct tty3270 *tp, struct tty3270_line *line, int lineno)
 {
 	struct tty3270_attribute attr;
 	int flen;
@@ -477,8 +463,8 @@ static unsigned int tty3270_convert_line(struct tty3270 *tp, struct tty3270_line
 		return 0;
 	/* Write 3270 data fragment. */
 	tty3270_reset_attributes(&attr);
-	cp = tty3270_add_attributes(tp, line, &attr, tp->converted_line);
-	cp = tty3270_add_reset_attributes(tp, line, cp, &attr);
+	cp = tty3270_add_attributes(tp, line, &attr, tp->converted_line, lineno);
+	cp = tty3270_add_reset_attributes(tp, line, cp, &attr, lineno);
 	return cp - (char *)tp->converted_line;
 }
 
@@ -529,8 +515,7 @@ static void tty3270_update(struct timer_list *t)
 		line = tty3270_get_view_line(tp, i);
 		if (!line->dirty)
 			continue;
-		len = tty3270_convert_line(tp, line);
-		tty3270_update_string(tp, tp->converted_line, len, i);
+		len = tty3270_convert_line(tp, line, i);
 		if (raw3270_request_add_data(wrq, tp->converted_line, len))
 			break;
 		line->dirty = 0;
