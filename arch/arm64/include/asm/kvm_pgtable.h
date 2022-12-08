@@ -44,6 +44,11 @@ typedef u64 kvm_pte_t;
 
 #define KVM_PHYS_INVALID		(-1ULL)
 
+#define KVM_PTE_TYPE			BIT(1)
+#define KVM_PTE_TYPE_BLOCK		0
+#define KVM_PTE_TYPE_PAGE		1
+#define KVM_PTE_TYPE_TABLE		1
+
 #define KVM_PTE_LEAF_ATTR_LO		GENMASK(11, 2)
 
 #define KVM_PTE_LEAF_ATTR_LO_S1_ATTRIDX	GENMASK(4, 2)
@@ -110,6 +115,17 @@ static inline u64 kvm_granule_size(u32 level)
 static inline bool kvm_level_supports_block_mapping(u32 level)
 {
 	return level >= KVM_PGTABLE_MIN_BLOCK_LEVEL;
+}
+
+static inline bool kvm_pte_table(kvm_pte_t pte, u32 level)
+{
+	if (level == KVM_PGTABLE_MAX_LEVELS - 1)
+		return false;
+
+	if (!kvm_pte_valid(pte))
+		return false;
+
+	return FIELD_GET(KVM_PTE_TYPE, pte) == KVM_PTE_TYPE_TABLE;
 }
 
 /**
