@@ -225,7 +225,7 @@
 		#power-domain-cells = <0>;
 		#reset-cells = <0>;
 		label = DIE_LABEL(afr);
-		/* Apple Fabric, media DIE_NODE(stuff): this can power down */
+		/* Apple Fabric, media stuff: this can power down */
 	};
 
 	DIE_NODE(ps_afnc1_ioa): power-controller@1f0 {

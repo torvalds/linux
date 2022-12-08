@@ -53,7 +53,7 @@
 		interrupts = <AIC_IRQ 0 631 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	dart_sio_0: iommu@39b004000 {
+	sio_dart_0: iommu@39b004000 {
 		compatible = "apple,t6000-dart";
 		reg = <0x3 0x9b004000 0x0 0x4000>;
 		interrupt-parent = <&aic>;
@@ -62,7 +62,7 @@
 		power-domains = <&ps_sio_cpu>;
 	};
 
-	dart_sio_1: iommu@39b008000 {
+	sio_dart_1: iommu@39b008000 {
 		compatible = "apple,t6000-dart";
 		reg = <0x3 0x9b008000 0x0 0x8000>;
 		interrupt-parent = <&aic>;
@@ -179,7 +179,7 @@
 				      <&aic AIC_IRQ 0 1118 IRQ_TYPE_LEVEL_HIGH>,
 				      <0>,
 				      <0>;
-		iommus = <&dart_sio_0 2>, <&dart_sio_1 2>;
+		iommus = <&sio_dart_0 2>, <&sio_dart_1 2>;
 		power-domains = <&ps_sio_adma>;
 		resets = <&ps_audio_p>;
 	};
@@ -208,7 +208,7 @@
 		#sound-dai-cells = <1>;
 	};
 
-	pcie0_dart_0: dart@581008000 {
+	pcie0_dart_0: iommu@581008000 {
 		compatible = "apple,t6000-dart";
 		reg = <0x5 0x81008000 0x0 0x4000>;
 		#iommu-cells = <1>;
@@ -217,7 +217,7 @@
 		power-domains = <&ps_apcie_gp_sys>;
 	};
 
-	pcie0_dart_1: dart@582008000 {
+	pcie0_dart_1: iommu@582008000 {
 		compatible = "apple,t6000-dart";
 		reg = <0x5 0x82008000 0x0 0x4000>;
 		#iommu-cells = <1>;
@@ -226,7 +226,7 @@
 		power-domains = <&ps_apcie_gp_sys>;
 	};
 
-	pcie0_dart_2: dart@583008000 {
+	pcie0_dart_2: iommu@583008000 {
 		compatible = "apple,t6000-dart";
 		reg = <0x5 0x83008000 0x0 0x4000>;
 		#iommu-cells = <1>;
@@ -235,7 +235,7 @@
 		power-domains = <&ps_apcie_gp_sys>;
 	};
 
-	pcie0_dart_3: dart@584008000 {
+	pcie0_dart_3: iommu@584008000 {
 		compatible = "apple,t6000-dart";
 		reg = <0x5 0x84008000 0x0 0x4000>;
 		#iommu-cells = <1>;
