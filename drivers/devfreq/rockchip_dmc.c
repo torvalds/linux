@@ -3052,6 +3052,10 @@ static void rockchip_dmcfreq_parse_dt(struct rockchip_dmcfreq *dmcfreq)
 	if (rockchip_get_rl_map_talbe(np, "vop-pn-msch-readlatency",
 				      &dmcfreq->info.vop_pn_rl_tbl))
 		dev_err(dev, "failed to get vop pn to msch rl\n");
+	if (dmcfreq->video_4k_rate)
+		dmcfreq->info.vop_4k_rate = dmcfreq->video_4k_rate;
+	else if (dmcfreq->video_4k_10b_rate)
+		dmcfreq->info.vop_4k_rate = dmcfreq->video_4k_10b_rate;
 
 	of_property_read_u32(np, "touchboost_duration",
 			     (u32 *)&dmcfreq->touchboostpulse_duration_val);

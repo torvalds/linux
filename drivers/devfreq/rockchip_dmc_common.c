@@ -85,9 +85,9 @@ void rockchip_dmcfreq_vop_bandwidth_update(struct dmcfreq_vop_info *vop_info)
 	if (!common_info)
 		return;
 
-	dev_dbg(common_info->dev, "line bw=%u, frame bw=%u, pn=%u\n",
+	dev_dbg(common_info->dev, "line bw=%u, frame bw=%u, pn=%u, pn_4k=%u\n",
 		vop_info->line_bw_mbyte, vop_info->frame_bw_mbyte,
-		vop_info->plane_num);
+		vop_info->plane_num, vop_info->plane_num_4k);
 
 	if (!common_info->vop_pn_rl_tbl || !common_info->set_msch_readlatency)
 		goto vop_bw_tbl;
@@ -129,6 +129,9 @@ vop_frame_bw_tbl:
 	}
 
 next:
+	if (vop_info->plane_num_4k && target < common_info->vop_4k_rate)
+		target = common_info->vop_4k_rate;
+
 	vop_last_rate = common_info->vop_req_rate;
 	common_info->vop_req_rate = target;
 
