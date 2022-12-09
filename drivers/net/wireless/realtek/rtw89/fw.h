@@ -171,6 +171,8 @@ struct rtw89_fw_hdr_section_info {
 	const u8 *addr;
 	u32 len;
 	u32 dladdr;
+	u32 mssc;
+	u8 type;
 };
 
 struct rtw89_fw_bin_info {
@@ -480,14 +482,21 @@ static inline void RTW89_SET_EDCA_PARAM(void *cmd, u32 val)
 #define FW_EDCA_PARAM_CWMIN_MSK GENMASK(11, 8)
 #define FW_EDCA_PARAM_AIFS_MSK GENMASK(7, 0)
 
+#define FWDL_SECURITY_SECTION_TYPE 9
+#define FWDL_SECURITY_SIGLEN 512
+
+#define GET_FWSECTION_HDR_DL_ADDR(fwhdr)	\
+	le32_get_bits(*((const __le32 *)(fwhdr)), GENMASK(31, 0))
+#define GET_FWSECTION_HDR_SECTIONTYPE(fwhdr)	\
+	le32_get_bits(*((const __le32 *)(fwhdr) + 1), GENMASK(27, 24))
 #define GET_FWSECTION_HDR_SEC_SIZE(fwhdr)	\
 	le32_get_bits(*((const __le32 *)(fwhdr) + 1), GENMASK(23, 0))
 #define GET_FWSECTION_HDR_CHECKSUM(fwhdr)	\
 	le32_get_bits(*((const __le32 *)(fwhdr) + 1), BIT(28))
 #define GET_FWSECTION_HDR_REDL(fwhdr)	\
 	le32_get_bits(*((const __le32 *)(fwhdr) + 1), BIT(29))
-#define GET_FWSECTION_HDR_DL_ADDR(fwhdr)	\
-	le32_get_bits(*((const __le32 *)(fwhdr)), GENMASK(31, 0))
+#define GET_FWSECTION_HDR_MSSC(fwhdr)	\
+	le32_get_bits(*((const __le32 *)(fwhdr) + 2), GENMASK(31, 0))
 
 #define GET_FW_HDR_MAJOR_VERSION(fwhdr)	\
 	le32_get_bits(*((const __le32 *)(fwhdr) + 1), GENMASK(7, 0))
