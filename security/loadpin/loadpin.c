@@ -119,11 +119,16 @@ static void loadpin_sb_free_security(struct super_block *mnt_sb)
 	/*
 	 * When unmounting the filesystem we were using for load
 	 * pinning, we acknowledge the superblock release, but make sure
-	 * no other modules or firmware can be loaded.
+	 * no other modules or firmware can be loaded when we are in
+	 * enforcing mode. Otherwise, allow the root to be reestablished.
 	 */
 	if (!IS_ERR_OR_NULL(pinned_root) && mnt_sb == pinned_root) {
-		pinned_root = ERR_PTR(-EIO);
-		pr_info("umount pinned fs: refusing further loads\n");
+		if (enforce) {
+			pinned_root = ERR_PTR(-EIO);
+			pr_info("umount pinned fs: refusing further loads\n");
+		} else {
+			pinned_root = NULL;
+		}
 	}
 }
 
@@ -158,8 +163,9 @@ static int loadpin_check(struct file *file, enum kernel_read_file_id id)
 	/* First loaded module/firmware defines the root for all others. */
 	spin_lock(&pinned_root_spinlock);
 	/*
-	 * pinned_root is only NULL at startup. Otherwise, it is either
-	 * a valid reference, or an ERR_PTR.
+	 * pinned_root is only NULL at startup or when the pinned root has
+	 * been unmounted while we are not in enforcing mode. Otherwise, it
+	 * is either a valid reference, or an ERR_PTR.
 	 */
 	if (!pinned_root) {
 		pinned_root = load_root;
