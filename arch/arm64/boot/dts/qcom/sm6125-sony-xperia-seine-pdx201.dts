@@ -217,7 +217,7 @@
 	};
 };
 
-&pm6125_gpio {
+&pm6125_gpios {
 	camera_flash_therm: camera-flash-therm-state {
 		pins = "gpio3";
 		function = PMIC_GPIO_FUNC_NORMAL;

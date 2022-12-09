@@ -304,7 +304,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&disp_pins>;
 
-		reset-gpios = <&pm6150l_gpio 3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pm6150l_gpios 3 GPIO_ACTIVE_HIGH>;
 
 		ports {
 			#address-cells = <1>;
@@ -485,7 +485,7 @@
 
 /* PINCTRL - additions to nodes defined in sc7180.dtsi */
 
-&pm6150l_gpio {
+&pm6150l_gpios {
 	disp_pins: disp-state {
 		pinconf {
 			pins = "gpio3";

@@ -46,7 +46,7 @@
 		key-volume-up {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
-			gpios = <&pm6125_gpio 5 GPIO_ACTIVE_LOW>;
+			gpios = <&pm6125_gpios 5 GPIO_ACTIVE_LOW>;
 			debounce-interval = <15>;
 			linux,can-disable;
 			gpio-key,wakeup;
@@ -59,7 +59,7 @@
 	status = "disabled";
 };
 
-&pm6125_gpio {
+&pm6125_gpios {
 	vol_up_n: vol-up-n-state {
 		pins = "gpio5";
 		function = "normal";

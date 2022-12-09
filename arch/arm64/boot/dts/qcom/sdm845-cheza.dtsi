@@ -1096,7 +1096,7 @@ ap_ts_i2c: &i2c14 {
 };
 
 /* PINCTRL - board-specific pinctrl */
-&pm8005_gpio {
+&pm8005_gpios {
 	gpio-line-names = "",
 			  "",
 			  "SLB",
@@ -1130,7 +1130,7 @@ ap_ts_i2c: &i2c14 {
 	};
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	gpio-line-names = "",
 			  "",
 			  "SW_CTRL",

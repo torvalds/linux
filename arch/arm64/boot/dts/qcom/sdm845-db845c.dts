@@ -54,7 +54,7 @@
 		key-vol-up {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
-			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 6 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -65,7 +65,7 @@
 			label = "green:user4";
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_GREEN>;
-			gpios = <&pm8998_gpio 13 GPIO_ACTIVE_HIGH>;
+			gpios = <&pm8998_gpios 13 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "panic-indicator";
 			default-state = "off";
 		};
@@ -74,7 +74,7 @@
 			label = "yellow:wlan";
 			function = LED_FUNCTION_WLAN;
 			color = <LED_COLOR_ID_YELLOW>;
-			gpios = <&pm8998_gpio 9 GPIO_ACTIVE_HIGH>;
+			gpios = <&pm8998_gpios 9 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "phy0tx";
 			default-state = "off";
 		};
@@ -83,7 +83,7 @@
 			label = "blue:bt";
 			function = LED_FUNCTION_BLUETOOTH;
 			color = <LED_COLOR_ID_BLUE>;
-			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_HIGH>;
+			gpios = <&pm8998_gpios 5 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "bluetooth-power";
 			default-state = "off";
 		};
@@ -148,7 +148,7 @@
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
 		enable-active-high;
-		gpio = <&pm8998_gpio 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&pm8998_gpios 12 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam0_dvdd_1v2_en_default>;
 		vin-supply = <&vbat>;
@@ -160,7 +160,7 @@
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 		enable-active-high;
-		gpio = <&pm8998_gpio 10 GPIO_ACTIVE_HIGH>;
+		gpio = <&pm8998_gpios 10 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam0_avdd_2v8_en_default>;
 		vin-supply = <&vbat>;
@@ -559,7 +559,7 @@
 	vdda-pll-supply = <&vreg_l26a_1p2>;
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	gpio-line-names =
 		"NC",
 		"NC",
@@ -1170,7 +1170,7 @@
 	};
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 
 };
 

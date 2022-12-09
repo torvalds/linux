@@ -1159,11 +1159,11 @@ ap_spi_fp: &spi10 {
 
 /* PINCTRL - board-specific pinctrl */
 
-&pm6150_gpio {
+&pm6150_gpios {
 	status = "disabled"; /* No GPIOs are connected */
 };
 
-&pm6150l_gpio {
+&pm6150l_gpios {
 	gpio-line-names = "AP_SUSPEND",
 			  "",
 			  "",
