@@ -55,6 +55,36 @@ DEFINE_EVENT(mv88e6xxx_atu_violation, mv88e6xxx_atu_full_violation,
 		      const unsigned char *addr, u16 fid),
 	     TP_ARGS(dev, spid, portvec, addr, fid));
 
+DECLARE_EVENT_CLASS(mv88e6xxx_vtu_violation,
+
+	TP_PROTO(const struct device *dev, int spid, u16 vid),
+
+	TP_ARGS(dev, spid, vid),
+
+	TP_STRUCT__entry(
+		__string(name, dev_name(dev))
+		__field(int, spid)
+		__field(u16, vid)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, dev_name(dev));
+		__entry->spid = spid;
+		__entry->vid = vid;
+	),
+
+	TP_printk("dev %s spid %d vid %u",
+		  __get_str(name), __entry->spid, __entry->vid)
+);
+
+DEFINE_EVENT(mv88e6xxx_vtu_violation, mv88e6xxx_vtu_member_violation,
+	     TP_PROTO(const struct device *dev, int spid, u16 vid),
+	     TP_ARGS(dev, spid, vid));
+
+DEFINE_EVENT(mv88e6xxx_vtu_violation, mv88e6xxx_vtu_miss_violation,
+	     TP_PROTO(const struct device *dev, int spid, u16 vid),
+	     TP_ARGS(dev, spid, vid));
+
 #endif /* _MV88E6XXX_TRACE_H */
 
 /* We don't want to use include/trace/events */
