@@ -47,7 +47,7 @@
 			adc-chan@a {
 				reg = <VADC_REF_1250MV>;
 				qcom,pre-scaling = <1 1>;
-				label = "ref_1250v";
+				label = "ref_1250mv";
 			};
 
 			adc-chan@d {
