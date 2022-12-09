@@ -649,7 +649,7 @@ static int kmx61_chip_update_thresholds(struct kmx61_data *data)
 					KMX61_REG_WUF_TIMER,
 					data->wake_duration);
 	if (ret < 0) {
-		dev_err(&data->client->dev, "Errow writing reg_wuf_timer\n");
+		dev_err(&data->client->dev, "Error writing reg_wuf_timer\n");
 		return ret;
 	}
 
