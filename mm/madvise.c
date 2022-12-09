@@ -728,7 +728,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 			set_pte_at(mm, addr, pte, ptent);
 			tlb_remove_tlb_entry(tlb, pte, addr);
 		}
-		mark_page_lazyfree(&folio->page);
+		folio_mark_lazyfree(folio);
 	}
 out:
 	if (nr_swap) {
