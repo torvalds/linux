@@ -4912,6 +4912,9 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 		return 0;
 	}
 
+	if (qopt->base_time < 0)
+		return -ERANGE;
+
 	if (adapter->base_time)
 		return -EALREADY;
 
