@@ -52,7 +52,6 @@ static bool deny_reading_verity_digests;
 #endif
 
 #ifdef CONFIG_SYSCTL
-
 static struct ctl_path loadpin_sysctl_path[] = {
 	{ .procname = "kernel", },
 	{ .procname = "loadpin", },
@@ -66,18 +65,29 @@ static struct ctl_table loadpin_sysctl_table[] = {
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec_minmax,
-		.extra1         = SYSCTL_ZERO,
+		.extra1         = SYSCTL_ONE,
 		.extra2         = SYSCTL_ONE,
 	},
 	{ }
 };
 
-static void report_writable(struct super_block *mnt_sb, bool writable)
+static void set_sysctl(bool is_writable)
 {
 	/*
 	 * If load pinning is not enforced via a read-only block
 	 * device, allow sysctl to change modes for testing.
 	 */
+	if (is_writable)
+		loadpin_sysctl_table[0].extra1 = SYSCTL_ZERO;
+	else
+		loadpin_sysctl_table[0].extra1 = SYSCTL_ONE;
+}
+#else
+static inline void set_sysctl(bool is_writable) { }
+#endif
+
+static void report_writable(struct super_block *mnt_sb, bool writable)
+{
 	if (mnt_sb->s_bdev) {
 		pr_info("%pg (%u:%u): %s\n", mnt_sb->s_bdev,
 			MAJOR(mnt_sb->s_bdev->bd_dev),
@@ -86,21 +96,9 @@ static void report_writable(struct super_block *mnt_sb, bool writable)
 	} else
 		pr_info("mnt_sb lacks block device, treating as: writable\n");
 
-	if (writable) {
-		if (!register_sysctl_paths(loadpin_sysctl_path,
-					   loadpin_sysctl_table))
-			pr_notice("sysctl registration failed!\n");
-		else
-			pr_info("enforcement can be disabled.\n");
-	} else
+	if (!writable)
 		pr_info("load pinning engaged.\n");
 }
-#else
-static void report_writable(struct super_block *mnt_sb, bool writable)
-{
-	pr_info("load pinning engaged.\n");
-}
-#endif
 
 /*
  * This must be called after early kernel init, since then the rootdev
@@ -172,6 +170,7 @@ static int loadpin_check(struct file *file, enum kernel_read_file_id id)
 		 */
 		spin_unlock(&pinned_root_spinlock);
 		report_writable(pinned_root, load_root_writable);
+		set_sysctl(load_root_writable);
 		report_load(origin, file, "pinned");
 	} else {
 		spin_unlock(&pinned_root_spinlock);
@@ -259,6 +258,10 @@ static int __init loadpin_init(void)
 	pr_info("ready to pin (currently %senforcing)\n",
 		enforce ? "" : "not ");
 	parse_exclude();
+#ifdef CONFIG_SYSCTL
+	if (!register_sysctl_paths(loadpin_sysctl_path, loadpin_sysctl_table))
+		pr_notice("sysctl registration failed!\n");
+#endif
 	security_add_hooks(loadpin_hooks, ARRAY_SIZE(loadpin_hooks), "loadpin");
 
 	return 0;
