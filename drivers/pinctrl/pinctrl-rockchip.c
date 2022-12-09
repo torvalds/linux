@@ -1119,7 +1119,7 @@ static int rockchip_get_mux(struct rockchip_pin_bank *bank, int pin)
 				if (ret)
 					return ret;
 
-				if (!(val & BIT(8)))
+				if (((val >> bit) & mask) != 8)
 					return ((val >> bit) & mask);
 
 				reg = reg + 0x8000; /* BUS_IOC_BASE */
