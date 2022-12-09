@@ -425,7 +425,10 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 
 	v4l2_subdev_call(sensor->sd, video, g_frame_interval, &sensor->fi);
 	dev->active_sensor = sensor;
-
+	i = dev->dev_id;
+	if (sensor->fi.interval.numerator)
+		dev->hw_dev->isp_size[i].fps =
+			sensor->fi.interval.denominator / sensor->fi.interval.numerator;
 	return ret;
 }
 
@@ -490,6 +493,45 @@ u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode)
 	}
 
 	return pixelformat;
+}
+
+static void rkisp_dvfs(struct rkisp_device *dev)
+{
+	struct rkisp_hw_dev *hw = dev->hw_dev;
+	u64 data_rate = 0;
+	int i, fps, num = 0;
+
+	if (!hw->is_dvfs)
+		return;
+	hw->is_dvfs = false;
+	for (i = 0; i < hw->dev_num; i++) {
+		if (!hw->isp_size[i].is_on)
+			continue;
+		fps = hw->isp_size[i].fps;
+		if (!fps)
+			fps = 30;
+		data_rate += (fps * hw->isp_size[i].size);
+		num++;
+	}
+	do_div(data_rate, 1000 * 1000);
+	/* increase margin: 25% * num */
+	data_rate += (data_rate >> 2) * num;
+
+	/* compare with isp clock adjustment table */
+	for (i = 0; i < hw->num_clk_rate_tbl; i++)
+		if (data_rate <= hw->clk_rate_tbl[i].clk_rate)
+			break;
+	if (i == hw->num_clk_rate_tbl)
+		i--;
+
+	/* set isp clock rate */
+	rkisp_set_clk_rate(hw->clks[0], hw->clk_rate_tbl[i].clk_rate * 1000000UL);
+	if (hw->is_unite)
+		rkisp_set_clk_rate(hw->clks[5], hw->clk_rate_tbl[i].clk_rate * 1000000UL);
+	/* aclk equal to core clk */
+	if (dev->isp_ver == ISP_V32)
+		rkisp_set_clk_rate(hw->clks[1], hw->clk_rate_tbl[i].clk_rate * 1000000UL);
+	dev_info(hw->dev, "set isp clk = %luHz\n", clk_get_rate(hw->clks[0]));
 }
 
 static void rkisp_multi_overflow_hdl(struct rkisp_device *dev, bool on)
@@ -779,7 +821,6 @@ static void rkisp_fast_switch_rx_buf(struct rkisp_device *dev, bool is_current)
 	}
 }
 
-
 static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 {
 	struct rkisp_hw_dev *hw = dev->hw_dev;
@@ -902,10 +943,11 @@ int rkisp_rdbk_trigger_event(struct rkisp_device *dev, u32 cmd, void *arg)
 	return ret;
 }
 
-static void rkisp_rdbk_task(unsigned long arg)
+static void rkisp_rdbk_work(struct work_struct *work)
 {
-	struct rkisp_device *dev = (struct rkisp_device *)arg;
+	struct rkisp_device *dev = container_of(work, struct rkisp_device, rdbk_work);
 
+	rkisp_dvfs(dev);
 	rkisp_rdbk_trigger_event(dev, T_CMD_END, NULL);
 }
 
@@ -971,7 +1013,10 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 
 end:
 	dev->irq_ends = 0;
-	tasklet_schedule(&dev->rdbk_tasklet);
+	if (dev->hw_dev->is_dvfs)
+		schedule_work(&dev->rdbk_work);
+	else
+		rkisp_rdbk_trigger_event(dev, T_CMD_END, NULL);
 }
 
 static void rkisp_set_state(u32 *state, u32 val)
@@ -2033,6 +2078,7 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 			rkisp_next_write(dev, CSI2RX_CSI2_RESETN, 0, true);
 	}
 
+	hw->is_dvfs = false;
 	hw->is_runing = false;
 	dev->hw_dev->is_idle = true;
 	dev->hw_dev->is_mi_update = false;
@@ -2789,12 +2835,10 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 		atomic_dec(&hw_dev->refcnt);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
 		atomic_set(&isp_dev->isp_sdev.frm_sync_seq, 0);
-		tasklet_disable(&isp_dev->rdbk_tasklet);
 		return 0;
 	}
 
 	hw_dev->is_runing = true;
-	tasklet_enable(&isp_dev->rdbk_tasklet);
 	rkisp_start_3a_run(isp_dev);
 	memset(&isp_dev->isp_sdev.dbg, 0, sizeof(isp_dev->isp_sdev.dbg));
 	if (atomic_inc_return(&hw_dev->refcnt) > hw_dev->dev_link_num) {
@@ -3670,8 +3714,7 @@ int rkisp_register_isp_subdev(struct rkisp_device *isp_dev,
 	isp_dev->isp_state = ISP_STOP;
 	atomic_set(&isp_sdev->frm_sync_seq, 0);
 	rkisp_monitor_init(isp_dev);
-	tasklet_init(&isp_dev->rdbk_tasklet, rkisp_rdbk_task, (unsigned long)isp_dev);
-	tasklet_disable(&isp_dev->rdbk_tasklet);
+	INIT_WORK(&isp_dev->rdbk_work, rkisp_rdbk_work);
 	return 0;
 err_cleanup_media_entity:
 	media_entity_cleanup(&sd->entity);
@@ -3684,7 +3727,6 @@ void rkisp_unregister_isp_subdev(struct rkisp_device *isp_dev)
 {
 	struct v4l2_subdev *sd = &isp_dev->isp_sdev.sd;
 
-	tasklet_kill(&isp_dev->rdbk_tasklet);
 	kfifo_free(&isp_dev->rdbk_kfifo);
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);

@@ -44,6 +44,8 @@ struct rkisp_size_info {
 	u32 w;
 	u32 h;
 	u32 size;
+	u32 fps;
+	bool is_on;
 };
 
 struct rkisp_hw_dev {
@@ -101,6 +103,7 @@ struct rkisp_hw_dev {
 	bool is_multi_overflow;
 	bool is_runing;
 	bool is_frm_buf;
+	bool is_dvfs;
 };
 
 int rkisp_register_irq(struct rkisp_hw_dev *dev);
