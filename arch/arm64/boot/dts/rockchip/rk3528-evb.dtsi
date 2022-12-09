@@ -493,6 +493,10 @@
 	status = "okay";
 };
 
+&rkvtunnel {
+	status = "okay";
+};
+
 &rockchip_suspend {
 	status = "okay";
 	rockchip,sleep-debug-en = <1>;
