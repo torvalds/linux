@@ -240,9 +240,11 @@ struct resource_funcs {
 			unsigned int pipe_cnt,
             unsigned int index);
 
-	bool (*remove_phantom_pipes)(struct dc *dc, struct dc_state *context);
+	bool (*remove_phantom_pipes)(struct dc *dc, struct dc_state *context, bool fast_update);
 	void (*retain_phantom_pipes)(struct dc *dc, struct dc_state *context);
 	void (*get_panel_config_defaults)(struct dc_panel_config *panel_config);
+	void (*save_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
+	void (*restore_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
 };
 
 struct audio_support{

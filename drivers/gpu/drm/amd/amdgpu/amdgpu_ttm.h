@@ -90,6 +90,7 @@ struct amdgpu_mman {
 	u64		drv_vram_usage_start_offset;
 	u64		drv_vram_usage_size;
 	struct amdgpu_bo	*drv_vram_usage_reserved_bo;
+	void		*drv_vram_usage_va;
 
 	/* PAGE_SIZE'd BO for process memory r/w over SDMA. */
 	struct amdgpu_bo	*sdma_access_bo;

@@ -45,22 +45,43 @@
 /**
  * DOC: GPUVM
  *
- * GPUVM is similar to the legacy gart on older asics, however
- * rather than there being a single global gart table
- * for the entire GPU, there are multiple VM page tables active
- * at any given time.  The VM page tables can contain a mix
- * vram pages and system memory pages and system memory pages
+ * GPUVM is the MMU functionality provided on the GPU.
+ * GPUVM is similar to the legacy GART on older asics, however
+ * rather than there being a single global GART table
+ * for the entire GPU, there can be multiple GPUVM page tables active
+ * at any given time.  The GPUVM page tables can contain a mix
+ * VRAM pages and system pages (both memory and MMIO) and system pages
  * can be mapped as snooped (cached system pages) or unsnooped
  * (uncached system pages).
- * Each VM has an ID associated with it and there is a page table
- * associated with each VMID.  When executing a command buffer,
- * the kernel tells the ring what VMID to use for that command
+ *
+ * Each active GPUVM has an ID associated with it and there is a page table
+ * linked with each VMID.  When executing a command buffer,
+ * the kernel tells the engine what VMID to use for that command
  * buffer.  VMIDs are allocated dynamically as commands are submitted.
  * The userspace drivers maintain their own address space and the kernel
  * sets up their pages tables accordingly when they submit their
  * command buffers and a VMID is assigned.
- * Cayman/Trinity support up to 8 active VMs at any given time;
- * SI supports 16.
+ * The hardware supports up to 16 active GPUVMs at any given time.
+ *
+ * Each GPUVM is represented by a 1-2 or 1-5 level page table, depending
+ * on the ASIC family.  GPUVM supports RWX attributes on each page as well
+ * as other features such as encryption and caching attributes.
+ *
+ * VMID 0 is special.  It is the GPUVM used for the kernel driver.  In
+ * addition to an aperture managed by a page table, VMID 0 also has
+ * several other apertures.  There is an aperture for direct access to VRAM
+ * and there is a legacy AGP aperture which just forwards accesses directly
+ * to the matching system physical addresses (or IOVAs when an IOMMU is
+ * present).  These apertures provide direct access to these memories without
+ * incurring the overhead of a page table.  VMID 0 is used by the kernel
+ * driver for tasks like memory management.
+ *
+ * GPU clients (i.e., engines on the GPU) use GPUVM VMIDs to access memory.
+ * For user applications, each application can have their own unique GPUVM
+ * address space.  The application manages the address space and the kernel
+ * driver manages the GPUVM page tables for each process.  If an GPU client
+ * accesses an invalid page, it will generate a GPU page fault, similar to
+ * accessing an invalid page on a CPU.
  */
 
 #define START(node) ((node)->start)
@@ -541,6 +562,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	if (!vm_flush_needed && !gds_switch_needed && !need_pipe_sync)
 		return 0;
 
+	amdgpu_ring_ib_begin(ring);
 	if (ring->funcs->init_cond_exec)
 		patch_offset = amdgpu_ring_init_cond_exec(ring);
 
@@ -601,6 +623,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 		amdgpu_ring_emit_switch_buffer(ring);
 		amdgpu_ring_emit_switch_buffer(ring);
 	}
+	amdgpu_ring_ib_end(ring);
 	return 0;
 }
 

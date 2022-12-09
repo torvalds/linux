@@ -1743,7 +1743,7 @@ void dcn32_retain_phantom_pipes(struct dc *dc, struct dc_state *context)
 }
 
 // return true if removed piped from ctx, false otherwise
-bool dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context)
+bool dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context, bool fast_update)
 {
 	int i;
 	bool removed_pipe = false;
@@ -1770,14 +1770,23 @@ bool dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context)
 			removed_pipe = true;
 		}
 
-		// Clear all phantom stream info
-		if (pipe->stream) {
-			pipe->stream->mall_stream_config.type = SUBVP_NONE;
-			pipe->stream->mall_stream_config.paired_stream = NULL;
-		}
+		/* For non-full updates, a shallow copy of the current state
+		 * is created. In this case we don't want to erase the current
+		 * state (there can be 2 HIRQL threads, one in flip, and one in
+		 * checkMPO) that can cause a race condition.
+		 *
+		 * This is just a workaround, needs a proper fix.
+		 */
+		if (!fast_update) {
+			// Clear all phantom stream info
+			if (pipe->stream) {
+				pipe->stream->mall_stream_config.type = SUBVP_NONE;
+				pipe->stream->mall_stream_config.paired_stream = NULL;
+			}
 
-		if (pipe->plane_state) {
-			pipe->plane_state->is_phantom = false;
+			if (pipe->plane_state) {
+				pipe->plane_state->is_phantom = false;
+			}
 		}
 	}
 	return removed_pipe;
@@ -1950,23 +1959,28 @@ int dcn32_populate_dml_pipes_from_context(
 		pipes[pipe_cnt].pipe.src.unbounded_req_mode = false;
 		pipes[pipe_cnt].pipe.scale_ratio_depth.lb_depth = dm_lb_19;
 
-		switch (pipe->stream->mall_stream_config.type) {
-		case SUBVP_MAIN:
-			pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_sub_viewport;
-			subvp_in_use = true;
-			break;
-		case SUBVP_PHANTOM:
-			pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_phantom_pipe;
-			pipes[pipe_cnt].pipe.src.use_mall_for_static_screen = dm_use_mall_static_screen_disable;
-			// Disallow unbounded req for SubVP according to DCHUB programming guide
-			pipes[pipe_cnt].pipe.src.unbounded_req_mode = false;
-			break;
-		case SUBVP_NONE:
-			pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_disable;
-			pipes[pipe_cnt].pipe.src.use_mall_for_static_screen = dm_use_mall_static_screen_disable;
-			break;
-		default:
-			break;
+		/* Only populate DML input with subvp info for full updates.
+		 * This is just a workaround -- needs a proper fix.
+		 */
+		if (!fast_validate) {
+			switch (pipe->stream->mall_stream_config.type) {
+			case SUBVP_MAIN:
+				pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_sub_viewport;
+				subvp_in_use = true;
+				break;
+			case SUBVP_PHANTOM:
+				pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_phantom_pipe;
+				pipes[pipe_cnt].pipe.src.use_mall_for_static_screen = dm_use_mall_static_screen_disable;
+				// Disallow unbounded req for SubVP according to DCHUB programming guide
+				pipes[pipe_cnt].pipe.src.unbounded_req_mode = false;
+				break;
+			case SUBVP_NONE:
+				pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_disable;
+				pipes[pipe_cnt].pipe.src.use_mall_for_static_screen = dm_use_mall_static_screen_disable;
+				break;
+			default:
+				break;
+			}
 		}
 
 		pipes[pipe_cnt].dout.dsc_input_bpc = 0;
@@ -2055,6 +2069,8 @@ static struct resource_funcs dcn32_res_pool_funcs = {
 	.add_phantom_pipes = dcn32_add_phantom_pipes,
 	.remove_phantom_pipes = dcn32_remove_phantom_pipes,
 	.retain_phantom_pipes = dcn32_retain_phantom_pipes,
+	.save_mall_state = dcn32_save_mall_state,
+	.restore_mall_state = dcn32_restore_mall_state,
 };
 
 

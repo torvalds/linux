@@ -104,7 +104,7 @@ void amdgpu_atomfirmware_scratch_regs_init(struct amdgpu_device *adev)
 static int amdgpu_atomfirmware_allocate_fb_v2_1(struct amdgpu_device *adev,
 	struct vram_usagebyfirmware_v2_1 *fw_usage, int *usage_bytes)
 {
-	uint32_t start_addr, fw_size, drv_size;
+	u32 start_addr, fw_size, drv_size;
 
 	start_addr = le32_to_cpu(fw_usage->start_address_in_kb);
 	fw_size = le16_to_cpu(fw_usage->used_by_firmware_in_kb);
@@ -116,7 +116,7 @@ static int amdgpu_atomfirmware_allocate_fb_v2_1(struct amdgpu_device *adev,
 			  drv_size);
 
 	if ((start_addr & ATOM_VRAM_OPERATION_FLAGS_MASK) ==
-		(uint32_t)(ATOM_VRAM_BLOCK_SRIOV_MSG_SHARE_RESERVATION <<
+		(u32)(ATOM_VRAM_BLOCK_SRIOV_MSG_SHARE_RESERVATION <<
 		ATOM_VRAM_OPERATION_FLAGS_SHIFT)) {
 		/* Firmware request VRAM reservation for SR-IOV */
 		adev->mman.fw_vram_usage_start_offset = (start_addr &
@@ -133,7 +133,7 @@ static int amdgpu_atomfirmware_allocate_fb_v2_1(struct amdgpu_device *adev,
 static int amdgpu_atomfirmware_allocate_fb_v2_2(struct amdgpu_device *adev,
 		struct vram_usagebyfirmware_v2_2 *fw_usage, int *usage_bytes)
 {
-	uint32_t fw_start_addr, fw_size, drv_start_addr, drv_size;
+	u32 fw_start_addr, fw_size, drv_start_addr, drv_size;
 
 	fw_start_addr = le32_to_cpu(fw_usage->fw_region_start_address_in_kb);
 	fw_size = le16_to_cpu(fw_usage->used_by_firmware_in_kb);
@@ -147,14 +147,18 @@ static int amdgpu_atomfirmware_allocate_fb_v2_2(struct amdgpu_device *adev,
 			  drv_start_addr,
 			  drv_size);
 
-	if ((fw_start_addr & (ATOM_VRAM_BLOCK_NEEDS_NO_RESERVATION << 30)) == 0) {
+	if (amdgpu_sriov_vf(adev) &&
+	    ((fw_start_addr & (ATOM_VRAM_BLOCK_NEEDS_NO_RESERVATION <<
+		ATOM_VRAM_OPERATION_FLAGS_SHIFT)) == 0)) {
 		/* Firmware request VRAM reservation for SR-IOV */
 		adev->mman.fw_vram_usage_start_offset = (fw_start_addr &
 			(~ATOM_VRAM_OPERATION_FLAGS_MASK)) << 10;
 		adev->mman.fw_vram_usage_size = fw_size << 10;
 	}
 
-	if ((drv_start_addr & (ATOM_VRAM_BLOCK_NEEDS_NO_RESERVATION << 30)) == 0) {
+	if (amdgpu_sriov_vf(adev) &&
+	    ((drv_start_addr & (ATOM_VRAM_BLOCK_NEEDS_NO_RESERVATION <<
+		ATOM_VRAM_OPERATION_FLAGS_SHIFT)) == 0)) {
 		/* driver request VRAM reservation for SR-IOV */
 		adev->mman.drv_vram_usage_start_offset = (drv_start_addr &
 			(~ATOM_VRAM_OPERATION_FLAGS_MASK)) << 10;
@@ -172,8 +176,8 @@ int amdgpu_atomfirmware_allocate_fb_scratch(struct amdgpu_device *adev)
 						vram_usagebyfirmware);
 	struct vram_usagebyfirmware_v2_1 *fw_usage_v2_1;
 	struct vram_usagebyfirmware_v2_2 *fw_usage_v2_2;
-	uint16_t data_offset;
-	uint8_t frev, crev;
+	u16 data_offset;
+	u8 frev, crev;
 	int usage_bytes = 0;
 
 	if (amdgpu_atom_parse_data_header(ctx, index, NULL, &frev, &crev, &data_offset)) {
