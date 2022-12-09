@@ -1417,7 +1417,7 @@ static int rga_mm_get_buffer(struct rga_mm *mm,
 		ret = rga_mm_sync_dma_sg_for_device(internal_buffer, job, dir);
 		if (ret < 0) {
 			pr_err("sync sgt for device error!\n");
-			return ret;
+			goto put_internal_buffer;
 		}
 	}
 
@@ -1444,6 +1444,22 @@ static void rga_mm_put_buffer(struct rga_mm *mm,
 	mutex_lock(&mm->lock);
 	kref_put(&internal_buffer->refcount, rga_mm_kref_release_buffer);
 	mutex_unlock(&mm->lock);
+}
+
+static void rga_mm_put_channel_handle_info(struct rga_mm *mm,
+					   struct rga_job *job,
+					   struct rga_job_buffer *job_buf,
+					   enum dma_data_direction dir)
+{
+	if (job_buf->y_addr)
+		rga_mm_put_buffer(mm, job, job_buf->y_addr, dir);
+	if (job_buf->uv_addr)
+		rga_mm_put_buffer(mm, job, job_buf->uv_addr, dir);
+	if (job_buf->v_addr)
+		rga_mm_put_buffer(mm, job, job_buf->v_addr, dir);
+
+	if (job_buf->page_table)
+		free_pages((unsigned long)job_buf->page_table, job_buf->order);
 }
 
 static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
@@ -1514,27 +1530,13 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 		ret = rga_mm_set_mmu_base(job, img, job_buf);
 		if (ret < 0) {
 			pr_err("Can't set RGA2 MMU_BASE from handle!\n");
+
+			rga_mm_put_channel_handle_info(mm, job, job_buf, dir);
 			return ret;
 		}
 	}
 
 	return 0;
-}
-
-static void rga_mm_put_channel_handle_info(struct rga_mm *mm,
-					   struct rga_job *job,
-					   struct rga_job_buffer *job_buf,
-					   enum dma_data_direction dir)
-{
-	if (job_buf->y_addr)
-		rga_mm_put_buffer(mm, job, job_buf->y_addr, dir);
-	if (job_buf->uv_addr)
-		rga_mm_put_buffer(mm, job, job_buf->uv_addr, dir);
-	if (job_buf->v_addr)
-		rga_mm_put_buffer(mm, job, job_buf->v_addr, dir);
-
-	if (job_buf->page_table)
-		free_pages((unsigned long)job_buf->page_table, job_buf->order);
 }
 
 static int rga_mm_get_handle_info(struct rga_job *job)
