@@ -223,6 +223,7 @@ struct arm_smccc_res sip_smc_get_amp_info(u32 sub_func_id, u32 arg1);
 
 void __iomem *sip_hdcp_request_share_memory(int id);
 struct arm_smccc_res sip_hdcp_config(u32 arg0, u32 arg1, u32 arg2);
+ulong sip_cpu_logical_map_mpidr(u32 cpu);
 /***************************fiq debugger **************************************/
 void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu);
 void sip_fiq_debugger_enable_debug(bool enable);
@@ -334,6 +335,7 @@ static inline struct arm_smccc_res sip_smc_get_amp_info(u32 sub_func_id,
 	return tmp;
 }
 
+static inline ulong sip_cpu_logical_map_mpidr(u32 cpu) { return 0; }
 /***************************fiq debugger **************************************/
 static inline void sip_fiq_debugger_enable_fiq
 			(bool enable, uint32_t tgt_cpu) { return; }
