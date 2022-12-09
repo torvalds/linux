@@ -460,7 +460,7 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 		return RESPST_EXECUTE;
 	}
 
-	/* A zero-byte op is not required to set an addr or rkey. */
+	/* A zero-byte op is not required to set an addr or rkey. See C9-88 */
 	if ((pkt->mask & RXE_READ_OR_WRITE_MASK) &&
 	    (pkt->mask & RXE_RETH_MASK) &&
 	    reth_len(pkt) == 0) {
@@ -880,13 +880,15 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	skb = prepare_ack_packet(qp, &ack_pkt, opcode, payload,
 				 res->cur_psn, AETH_ACK_UNLIMITED);
 	if (!skb) {
-		rxe_put(mr);
+		if (mr)
+			rxe_put(mr);
 		return RESPST_ERR_RNR;
 	}
 
 	err = rxe_mr_copy(mr, res->read.va, payload_addr(&ack_pkt),
 			  payload, RXE_FROM_MR_OBJ);
-	rxe_put(mr);
+	if (mr)
+		rxe_put(mr);
 	if (err) {
 		kfree_skb(skb);
 		return RESPST_ERR_RKEY_VIOLATION;
