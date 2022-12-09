@@ -128,12 +128,12 @@ search:
 	if (!*idx)
 		*idx = __bch2_journal_key_search(keys, btree_id, level, pos);
 
-	while (*idx < keys->nr &&
-	       (k = idx_to_key(keys, *idx),
-		k->btree_id == btree_id &&
-		k->level == level &&
-		bpos_le(k->k->k.p, end_pos))) {
-		if (bpos_ge(k->k->k.p, pos) && !k->overwritten)
+	while ((k = *idx < keys->nr ? idx_to_key(keys, *idx) : NULL)) {
+		if (__journal_key_cmp(btree_id, level, end_pos, k) < 0)
+			return NULL;
+
+		if (__journal_key_cmp(btree_id, level, pos, k) <= 0 &&
+		    !k->overwritten)
 			return k->k;
 
 		(*idx)++;
