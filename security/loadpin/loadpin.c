@@ -131,6 +131,7 @@ static int loadpin_check(struct file *file, enum kernel_read_file_id id)
 {
 	struct super_block *load_root;
 	const char *origin = kernel_read_file_id_str(id);
+	bool first_root_pin = false;
 	bool load_root_writable;
 
 	/* If the file id is excluded, ignore the pinning. */
@@ -162,18 +163,14 @@ static int loadpin_check(struct file *file, enum kernel_read_file_id id)
 	 */
 	if (!pinned_root) {
 		pinned_root = load_root;
-		/*
-		 * Unlock now since it's only pinned_root we care about.
-		 * In the worst case, we will (correctly) report pinning
-		 * failures before we have announced that pinning is
-		 * enforcing. This would be purely cosmetic.
-		 */
-		spin_unlock(&pinned_root_spinlock);
+		first_root_pin = true;
+	}
+	spin_unlock(&pinned_root_spinlock);
+
+	if (first_root_pin) {
 		report_writable(pinned_root, load_root_writable);
 		set_sysctl(load_root_writable);
 		report_load(origin, file, "pinned");
-	} else {
-		spin_unlock(&pinned_root_spinlock);
 	}
 
 	if (IS_ERR_OR_NULL(pinned_root) ||
