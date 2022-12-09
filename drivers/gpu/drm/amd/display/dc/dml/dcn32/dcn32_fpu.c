@@ -977,13 +977,12 @@ static bool subvp_vblank_schedulable(struct dc *dc, struct dc_state *context)
 		if (!subvp_pipe && pipe->stream->mall_stream_config.type == SUBVP_MAIN)
 			subvp_pipe = pipe;
 	}
-	// Use ignore_msa_timing_param flag to identify as DRR
-	if (found && context->res_ctx.pipe_ctx[vblank_index].stream->ignore_msa_timing_param) {
-		// SUBVP + DRR case -- don't enable SubVP + DRR for HDMI VRR cases
-		if (context->res_ctx.pipe_ctx[vblank_index].stream->allow_freesync)
-			schedulable = subvp_drr_schedulable(dc, context, &context->res_ctx.pipe_ctx[vblank_index]);
-		else
-			schedulable = false;
+	// Use ignore_msa_timing_param and VRR active, or Freesync flag to identify as DRR On
+	if (found && context->res_ctx.pipe_ctx[vblank_index].stream->ignore_msa_timing_param &&
+			(context->res_ctx.pipe_ctx[vblank_index].stream->allow_freesync ||
+			context->res_ctx.pipe_ctx[vblank_index].stream->vrr_active_variable)) {
+		// SUBVP + DRR case -- only allowed if run through DRR validation path
+		schedulable = false;
 	} else if (found) {
 		main_timing = &subvp_pipe->stream->timing;
 		phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
@@ -1087,12 +1086,12 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 {
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 	unsigned int dc_pipe_idx = 0;
+	int i = 0;
 	bool found_supported_config = false;
 	struct pipe_ctx *pipe = NULL;
 	uint32_t non_subvp_pipes = 0;
 	bool drr_pipe_found = false;
 	uint32_t drr_pipe_index = 0;
-	uint32_t i = 0;
 
 	dc_assert_fp_enabled();
 
@@ -1186,11 +1185,11 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 			    vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] != dm_dram_clock_change_unsupported
 			    && subvp_validate_static_schedulability(dc, context, *vlevel)) {
 				found_supported_config = true;
-			} else if (*vlevel < context->bw_ctx.dml.soc.num_states &&
-					vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported) {
-				/* Case where 1 SubVP is added, and DML reports MCLK unsupported. This handles
-				 * the case for SubVP + DRR, where the DRR display does not support MCLK switch
-				 * at it's native refresh rate / timing.
+			} else if (*vlevel < context->bw_ctx.dml.soc.num_states) {
+				/* Case where 1 SubVP is added, and DML reports MCLK unsupported or DRR is allowed.
+				 * This handles the case for SubVP + DRR, where the DRR display does not support MCLK
+				 * switch at it's native refresh rate / timing, or DRR is allowed for the non-subvp
+				 * display.
 				 */
 				for (i = 0; i < dc->res_pool->pipe_count; i++) {
 					pipe = &context->res_ctx.pipe_ctx[i];
@@ -1207,6 +1206,15 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 				// If there is only 1 remaining non SubVP pipe that is DRR, check static
 				// schedulability for SubVP + DRR.
 				if (non_subvp_pipes == 1 && drr_pipe_found) {
+					/* find lowest vlevel that supports the config */
+					for (i = *vlevel; i >= 0; i--) {
+						if (vba->ModeSupport[i][vba->maxMpcComb]) {
+							*vlevel = i;
+						} else {
+							break;
+						}
+					}
+
 					found_supported_config = subvp_drr_schedulable(dc, context,
 										       &context->res_ctx.pipe_ctx[drr_pipe_index]);
 				}
@@ -1849,7 +1857,7 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	bool subvp_in_use = dcn32_subvp_in_use(dc, context);
 	unsigned int min_dram_speed_mts_margin;
 	bool need_fclk_lat_as_dummy = false;
-	bool is_subvp_p_drr = true;
+	bool is_subvp_p_drr = false;
 
 	dc_assert_fp_enabled();
 
@@ -1857,7 +1865,8 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	if (subvp_in_use) {
 		/* Override DRAMClockChangeSupport for SubVP + DRR case where the DRR cannot switch without stretching it's VBLANK */
 		if (!pstate_en) {
-			context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] = dm_dram_clock_change_vblank_w_mall_sub_vp;
+			context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][maxMpcComb] = dm_dram_clock_change_vblank_w_mall_sub_vp;
+			context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final = dm_prefetch_support_fclk_and_stutter;
 			pstate_en = true;
 			is_subvp_p_drr = true;
 		}
@@ -1875,8 +1884,9 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
 							dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
 		dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
+		maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
 		if (is_subvp_p_drr) {
-			context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] = dm_dram_clock_change_vblank_w_mall_sub_vp;
+			context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][maxMpcComb] = dm_dram_clock_change_vblank_w_mall_sub_vp;
 		}
 	}
 
