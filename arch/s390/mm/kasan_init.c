@@ -251,19 +251,17 @@ static void __init kasan_early_detect_facilities(void)
 
 void __init kasan_early_init(void)
 {
-	unsigned long shadow_alloc_size;
-	unsigned long initrd_end;
-	unsigned long memsize;
-	unsigned long pgt_prot = pgprot_val(PAGE_KERNEL_RO);
-	pte_t pte_z;
+	pte_t pte_z = __pte(__pa(kasan_early_shadow_page) | pgprot_val(PAGE_KERNEL_RO));
 	pmd_t pmd_z = __pmd(__pa(kasan_early_shadow_pte) | _SEGMENT_ENTRY);
 	pud_t pud_z = __pud(__pa(kasan_early_shadow_pmd) | _REGION3_ENTRY);
 	p4d_t p4d_z = __p4d(__pa(kasan_early_shadow_pud) | _REGION2_ENTRY);
+	unsigned long shadow_alloc_size;
+	unsigned long initrd_end;
+	unsigned long memsize;
 
 	kasan_early_detect_facilities();
 	if (!has_nx)
-		pgt_prot &= ~_PAGE_NOEXEC;
-	pte_z = __pte(__pa(kasan_early_shadow_page) | pgt_prot);
+		pte_z = clear_pte_bit(pte_z, __pgprot(_PAGE_NOEXEC));
 
 	memsize = get_mem_detect_end();
 	if (!memsize)
