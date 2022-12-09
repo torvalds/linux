@@ -1590,27 +1590,8 @@ static inline bool needs_demote(struct gfs2_glock *gl)
 static void __gfs2_glock_dq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	unsigned delay = 0;
 	int fast_path = 0;
-
-	/*
-	 * If we're in the process of file system withdraw, we cannot just
-	 * dequeue any glocks until our journal is recovered, lest we introduce
-	 * file system corruption. We need two exceptions to this rule: We need
-	 * to allow unlocking of nondisk glocks and the glock for our own
-	 * journal that needs recovery.
-	 */
-	if (test_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags) &&
-	    glock_blocked_by_withdraw(gl) &&
-	    gh->gh_gl != sdp->sd_jinode_gl) {
-		sdp->sd_glock_dqs_held++;
-		spin_unlock(&gl->gl_lockref.lock);
-		might_sleep();
-		wait_on_bit(&sdp->sd_flags, SDF_WITHDRAW_RECOVERY,
-			    TASK_UNINTERRUPTIBLE);
-		spin_lock(&gl->gl_lockref.lock);
-	}
 
 	/*
 	 * This holder should not be cached, so mark it for demote.
@@ -1654,6 +1635,7 @@ static void __gfs2_glock_dq(struct gfs2_holder *gh)
 void gfs2_glock_dq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
 	spin_lock(&gl->gl_lockref.lock);
 	if (!gfs2_holder_queued(gh)) {
@@ -1663,11 +1645,30 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 		 */
 		goto out;
 	}
+
 	if (list_is_first(&gh->gh_list, &gl->gl_holders) &&
 	    !test_bit(HIF_HOLDER, &gh->gh_iflags)) {
 		spin_unlock(&gl->gl_lockref.lock);
 		gl->gl_name.ln_sbd->sd_lockstruct.ls_ops->lm_cancel(gl);
 		wait_on_bit(&gh->gh_iflags, HIF_WAIT, TASK_UNINTERRUPTIBLE);
+		spin_lock(&gl->gl_lockref.lock);
+	}
+
+	/*
+	 * If we're in the process of file system withdraw, we cannot just
+	 * dequeue any glocks until our journal is recovered, lest we introduce
+	 * file system corruption. We need two exceptions to this rule: We need
+	 * to allow unlocking of nondisk glocks and the glock for our own
+	 * journal that needs recovery.
+	 */
+	if (test_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags) &&
+	    glock_blocked_by_withdraw(gl) &&
+	    gh->gh_gl != sdp->sd_jinode_gl) {
+		sdp->sd_glock_dqs_held++;
+		spin_unlock(&gl->gl_lockref.lock);
+		might_sleep();
+		wait_on_bit(&sdp->sd_flags, SDF_WITHDRAW_RECOVERY,
+			    TASK_UNINTERRUPTIBLE);
 		spin_lock(&gl->gl_lockref.lock);
 	}
 
