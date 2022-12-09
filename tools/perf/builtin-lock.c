@@ -12,6 +12,7 @@
 #include "util/target.h"
 #include "util/callchain.h"
 #include "util/lock-contention.h"
+#include "util/bpf_skel/lock_data.h"
 
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
@@ -61,11 +62,7 @@ static int max_stack_depth = CONTENTION_STACK_DEPTH;
 static int stack_skip = CONTENTION_STACK_SKIP;
 static int print_nr_entries = INT_MAX / 2;
 
-static enum {
-	LOCK_AGGR_ADDR,
-	LOCK_AGGR_TASK,
-	LOCK_AGGR_CALLER,
-} aggr_mode = LOCK_AGGR_ADDR;
+static enum lock_aggr_mode aggr_mode = LOCK_AGGR_ADDR;
 
 static struct thread_stat *thread_stat_find(u32 tid)
 {
@@ -1619,6 +1616,7 @@ static int __cmd_contention(int argc, const char **argv)
 		.map_nr_entries = bpf_map_entries,
 		.max_stack = max_stack_depth,
 		.stack_skip = stack_skip,
+		.aggr_mode = show_thread_stats ? LOCK_AGGR_TASK : LOCK_AGGR_CALLER,
 	};
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
@@ -1690,11 +1688,6 @@ static int __cmd_contention(int argc, const char **argv)
 
 	if (select_key(true))
 		goto out_delete;
-
-	if (show_thread_stats)
-		aggr_mode = LOCK_AGGR_TASK;
-	else
-		aggr_mode = LOCK_AGGR_CALLER;
 
 	if (use_bpf) {
 		lock_contention_start();

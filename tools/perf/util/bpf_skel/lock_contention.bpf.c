@@ -44,6 +44,13 @@ struct {
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(struct contention_task_data));
+	__uint(max_entries, MAX_ENTRIES);
+} task_data SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(__u32));
 	__uint(value_size, sizeof(__u8));
 	__uint(max_entries, 1);
 } cpu_filter SEC(".maps");
@@ -60,6 +67,9 @@ int enabled;
 int has_cpu;
 int has_task;
 int stack_skip;
+
+/* determine the key of lock stat */
+int aggr_mode;
 
 /* error stat */
 int lost;
@@ -85,6 +95,19 @@ static inline int can_record(void)
 	}
 
 	return 1;
+}
+
+static inline void update_task_data(__u32 pid)
+{
+	struct contention_task_data *p;
+
+	p = bpf_map_lookup_elem(&task_data, &pid);
+	if (p == NULL) {
+		struct contention_task_data data;
+
+		bpf_get_current_comm(data.comm, sizeof(data.comm));
+		bpf_map_update_elem(&task_data, &pid, &data, BPF_NOEXIST);
+	}
 }
 
 SEC("tp_btf/contention_begin")
@@ -115,10 +138,14 @@ int contention_begin(u64 *ctx)
 	pelem->timestamp = bpf_ktime_get_ns();
 	pelem->lock = (__u64)ctx[0];
 	pelem->flags = (__u32)ctx[1];
-	pelem->stack_id = bpf_get_stackid(ctx, &stacks, BPF_F_FAST_STACK_CMP | stack_skip);
 
-	if (pelem->stack_id < 0)
-		lost++;
+	if (aggr_mode == LOCK_AGGR_CALLER) {
+		pelem->stack_id = bpf_get_stackid(ctx, &stacks,
+						  BPF_F_FAST_STACK_CMP | stack_skip);
+		if (pelem->stack_id < 0)
+			lost++;
+	}
+
 	return 0;
 }
 
@@ -141,7 +168,13 @@ int contention_end(u64 *ctx)
 
 	duration = bpf_ktime_get_ns() - pelem->timestamp;
 
-	key.stack_or_task_id = pelem->stack_id;
+	if (aggr_mode == LOCK_AGGR_CALLER) {
+		key.stack_or_task_id = pelem->stack_id;
+	} else {
+		key.stack_or_task_id = pid;
+		update_task_data(pid);
+	}
+
 	data = bpf_map_lookup_elem(&lock_stat, &key);
 	if (!data) {
 		struct contention_data first = {

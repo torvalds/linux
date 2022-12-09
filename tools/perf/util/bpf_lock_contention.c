@@ -5,6 +5,7 @@
 #include "util/map.h"
 #include "util/symbol.h"
 #include "util/target.h"
+#include "util/thread.h"
 #include "util/thread_map.h"
 #include "util/lock-contention.h"
 #include <linux/zalloc.h>
@@ -30,9 +31,16 @@ int lock_contention_prepare(struct lock_contention *con)
 	}
 
 	bpf_map__set_value_size(skel->maps.stacks, con->max_stack * sizeof(u64));
-	bpf_map__set_max_entries(skel->maps.stacks, con->map_nr_entries);
 	bpf_map__set_max_entries(skel->maps.lock_stat, con->map_nr_entries);
 	bpf_map__set_max_entries(skel->maps.tstamp, con->map_nr_entries);
+
+	if (con->aggr_mode == LOCK_AGGR_TASK) {
+		bpf_map__set_max_entries(skel->maps.task_data, con->map_nr_entries);
+		bpf_map__set_max_entries(skel->maps.stacks, 1);
+	} else {
+		bpf_map__set_max_entries(skel->maps.task_data, 1);
+		bpf_map__set_max_entries(skel->maps.stacks, con->map_nr_entries);
+	}
 
 	if (target__has_cpu(target))
 		ncpus = perf_cpu_map__nr(evlist->core.user_requested_cpus);
@@ -82,7 +90,9 @@ int lock_contention_prepare(struct lock_contention *con)
 		bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
 	}
 
+	/* these don't work well if in the rodata section */
 	skel->bss->stack_skip = con->stack_skip;
+	skel->bss->aggr_mode = con->aggr_mode;
 
 	lock_contention_bpf__attach(skel);
 	return 0;
@@ -102,7 +112,7 @@ int lock_contention_stop(void)
 
 int lock_contention_read(struct lock_contention *con)
 {
-	int fd, stack, err = 0;
+	int fd, stack, task_fd, err = 0;
 	struct contention_key *prev_key, key;
 	struct contention_data data = {};
 	struct lock_stat *st = NULL;
@@ -112,12 +122,20 @@ int lock_contention_read(struct lock_contention *con)
 
 	fd = bpf_map__fd(skel->maps.lock_stat);
 	stack = bpf_map__fd(skel->maps.stacks);
+	task_fd = bpf_map__fd(skel->maps.task_data);
 
 	con->lost = skel->bss->lost;
 
 	stack_trace = zalloc(stack_size);
 	if (stack_trace == NULL)
 		return -1;
+
+	if (con->aggr_mode == LOCK_AGGR_TASK) {
+		struct thread *idle = __machine__findnew_thread(machine,
+								/*pid=*/0,
+								/*tid=*/0);
+		thread__set_comm(idle, "swapper", /*timestamp=*/0);
+	}
 
 	prev_key = NULL;
 	while (!bpf_map_get_next_key(fd, prev_key, &key)) {
@@ -142,6 +160,22 @@ int lock_contention_read(struct lock_contention *con)
 			st->avg_wait_time = data.total_time / data.count;
 
 		st->flags = data.flags;
+
+		if (con->aggr_mode == LOCK_AGGR_TASK) {
+			struct contention_task_data task;
+			struct thread *t;
+
+			st->addr = key.stack_or_task_id;
+
+			/* do not update idle comm which contains CPU number */
+			if (st->addr) {
+				bpf_map_lookup_elem(task_fd, &key, &task);
+				t = __machine__findnew_thread(machine, /*pid=*/-1,
+							      key.stack_or_task_id);
+				thread__set_comm(t, task.comm, /*timestamp=*/0);
+			}
+			goto next;
+		}
 
 		bpf_map_lookup_elem(stack, &key, stack_trace);
 
@@ -175,7 +209,7 @@ int lock_contention_read(struct lock_contention *con)
 			if (st->callstack == NULL)
 				break;
 		}
-
+next:
 		hlist_add_head(&st->hash_entry, con->result);
 		prev_key = &key;
 

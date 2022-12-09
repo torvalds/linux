@@ -117,6 +117,7 @@ struct lock_contention {
 	int lost;
 	int max_stack;
 	int stack_skip;
+	int aggr_mode;
 };
 
 #ifdef HAVE_BPF_SKEL
