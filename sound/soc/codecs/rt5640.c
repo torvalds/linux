@@ -2717,6 +2717,10 @@ static int rt5640_probe(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component, RT5640_IN1_IN2,
 					      RT5640_IN_DF2, RT5640_IN_DF2);
 
+	if (device_property_read_bool(component->dev, "realtek,lout-differential"))
+		snd_soc_component_update_bits(component, RT5640_DUMMY1,
+					      RT5640_EN_LOUT_DF, RT5640_EN_LOUT_DF);
+
 	if (device_property_read_u32(component->dev, "realtek,dmic1-data-pin",
 				     &val) == 0 && val) {
 		dmic1_data_pin = val - 1;
