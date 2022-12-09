@@ -38,8 +38,7 @@ struct pkvm_module_ops {
 
 int __pkvm_load_el2_module(struct module *this, unsigned long *token);
 
-int __pkvm_register_el2_call(dyn_hcall_t hfn, unsigned long token,
-			     unsigned long hyp_text_kern_va);
+int __pkvm_register_el2_call(unsigned long hfn_hyp_va);
 #else
 static inline int __pkvm_load_el2_module(struct module *this,
 					 unsigned long *token)
@@ -47,14 +46,26 @@ static inline int __pkvm_load_el2_module(struct module *this,
 	return -ENOSYS;
 }
 
-static inline int __pkvm_register_el2_call(dyn_hcall_t hfn, unsigned long token,
-					   unsigned long hyp_text_kern_va)
+static inline int __pkvm_register_el2_call(unsigned long hfn_hyp_va)
 {
 	return -ENOSYS;
 }
 #endif /* CONFIG_MODULES */
 
 #ifdef MODULE
+/*
+ * Convert an EL2 module addr from the kernel VA to the hyp VA
+ */
+#define pkvm_el2_mod_va(kern_va, token)					\
+({									\
+	unsigned long hyp_text_kern_va =				\
+		(unsigned long)THIS_MODULE->arch.hyp.text.start;	\
+	unsigned long offset;						\
+									\
+	offset = (unsigned long)kern_va - hyp_text_kern_va;		\
+	token + offset;							\
+})
+
 #define pkvm_load_el2_module(init_fn, token)				\
 ({									\
 	THIS_MODULE->arch.hyp.init = init_fn;				\
@@ -63,9 +74,7 @@ static inline int __pkvm_register_el2_call(dyn_hcall_t hfn, unsigned long token,
 
 #define pkvm_register_el2_mod_call(hfn, token)				\
 ({									\
-	unsigned long hyp_text_kern_va;					\
-	hyp_text_kern_va = THIS_MODULE->arch.hyp.text.start;	 	\
-	__pkvm_register_el2_call(hfn, token, hyp_text_kern_va);		\
+	__pkvm_register_el2_call(pkvm_el2_mod_va(hfn, token));		\
 })
 
 #define pkvm_el2_mod_call(id, ...)					\
