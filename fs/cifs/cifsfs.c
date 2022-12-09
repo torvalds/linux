@@ -1143,8 +1143,32 @@ const struct inode_operations cifs_file_inode_ops = {
 	.fiemap = cifs_fiemap,
 };
 
+const char *cifs_get_link(struct dentry *dentry, struct inode *inode,
+			    struct delayed_call *done)
+{
+	char *target_path;
+
+	target_path = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!target_path)
+		return ERR_PTR(-ENOMEM);
+
+	spin_lock(&inode->i_lock);
+	if (likely(CIFS_I(inode)->symlink_target)) {
+		strscpy(target_path, CIFS_I(inode)->symlink_target, PATH_MAX);
+	} else {
+		kfree(target_path);
+		target_path = ERR_PTR(-EOPNOTSUPP);
+	}
+	spin_unlock(&inode->i_lock);
+
+	if (!IS_ERR(target_path))
+		set_delayed_call(done, kfree_link, target_path);
+
+	return target_path;
+}
+
 const struct inode_operations cifs_symlink_inode_ops = {
-	.get_link = simple_get_link,
+	.get_link = cifs_get_link,
 	.permission = cifs_permission,
 	.listxattr = cifs_listxattr,
 };
@@ -1257,7 +1281,7 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	rc = filemap_write_and_wait_range(src_inode->i_mapping, off,
 					  off + len - 1);
 	if (rc)
-		goto out;
+		goto unlock;
 
 	/* should we flush first and last page first */
 	truncate_inode_pages(&target_inode->i_data, 0);
@@ -1273,6 +1297,8 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	 * that target is updated on the server
 	 */
 	CIFS_I(target_inode)->time = 0;
+
+unlock:
 	/* although unlocking in the reverse order from locking is not
 	 * strictly necessary here it is a little cleaner to be consistent
 	 */

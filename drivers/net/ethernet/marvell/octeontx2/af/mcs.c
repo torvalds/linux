@@ -951,7 +951,7 @@ static void mcs_bbe_intr_handler(struct mcs *mcs, u64 intr, enum mcs_direction d
 		else
 			event.intr_mask = (dir == MCS_RX) ?
 					  MCS_BBE_RX_PLFIFO_OVERFLOW_INT :
-					  MCS_BBE_RX_PLFIFO_OVERFLOW_INT;
+					  MCS_BBE_TX_PLFIFO_OVERFLOW_INT;
 
 		/* Notify the lmac_id info which ran into BBE fatal error */
 		event.lmac_id = i & 0x3ULL;
