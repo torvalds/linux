@@ -100,9 +100,6 @@
  *	the filesystem.
  *	@fc indicates the filesystem context.
  *	@param The parameter.
- *	Return 0 to indicate that the parameter should be passed on to the
- *	filesystem, 1 to indicate that the parameter should be discarded or an
- *	error to indicate that the parameter should be rejected.
  *
  * Security hooks for filesystem operations.
  *
