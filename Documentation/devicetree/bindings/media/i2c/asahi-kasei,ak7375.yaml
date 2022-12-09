@@ -20,9 +20,17 @@ properties:
   reg:
     maxItems: 1
 
+  vdd-supply:
+    description: VDD supply
+
+  vio-supply:
+    description: I/O pull-up supply
+
 required:
   - compatible
   - reg
+  - vdd-supply
+  - vio-supply
 
 additionalProperties: false
 
@@ -35,6 +43,9 @@ examples:
         ak7375: camera-lens@c {
             compatible = "asahi-kasei,ak7375";
             reg = <0x0c>;
+
+            vdd-supply = <&vreg_l23a_2p8>;
+            vio-supply = <&vreg_lvs1a_1p8>;
         };
     };
 
