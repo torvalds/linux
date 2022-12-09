@@ -594,10 +594,13 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
 static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
 {
 	struct mt7915_dev *dev;
-	struct page *page;
+	u32 length;
 	int i;
 
 	dev = container_of(wed, struct mt7915_dev, mt76.mmio.wed);
+	length = SKB_DATA_ALIGN(NET_SKB_PAD + wed->wlan.rx_size +
+				sizeof(struct skb_shared_info));
+
 	for (i = 0; i < dev->mt76.rx_token_size; i++) {
 		struct mt76_txwi_cache *t;
 
@@ -607,18 +610,11 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
 
 		dma_unmap_single(dev->mt76.dma_dev, t->dma_addr,
 				 wed->wlan.rx_size, DMA_FROM_DEVICE);
-		skb_free_frag(t->ptr);
+		__free_pages(virt_to_page(t->ptr), get_order(length));
 		t->ptr = NULL;
 
 		mt76_put_rxwi(&dev->mt76, t);
 	}
-
-	if (!wed->rx_buf_ring.rx_page.va)
-		return;
-
-	page = virt_to_page(wed->rx_buf_ring.rx_page.va);
-	__page_frag_cache_drain(page, wed->rx_buf_ring.rx_page.pagecnt_bias);
-	memset(&wed->rx_buf_ring.rx_page, 0, sizeof(wed->rx_buf_ring.rx_page));
 }
 
 static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
@@ -635,19 +631,20 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 	for (i = 0; i < size; i++) {
 		struct mt76_txwi_cache *t = mt76_get_rxwi(&dev->mt76);
 		dma_addr_t phy_addr;
+		struct page *page;
 		int token;
 		void *ptr;
 
-		ptr = page_frag_alloc(&wed->rx_buf_ring.rx_page, length,
-				      GFP_KERNEL);
-		if (!ptr)
+		page = __dev_alloc_pages(GFP_KERNEL, get_order(length));
+		if (!page)
 			goto unmap;
 
+		ptr = page_address(page);
 		phy_addr = dma_map_single(dev->mt76.dma_dev, ptr,
 					  wed->wlan.rx_size,
 					  DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(dev->mt76.dev, phy_addr))) {
-			skb_free_frag(ptr);
+			__free_pages(page, get_order(length));
 			goto unmap;
 		}
 
@@ -656,7 +653,7 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 		if (token < 0) {
 			dma_unmap_single(dev->mt76.dma_dev, phy_addr,
 					 wed->wlan.rx_size, DMA_TO_DEVICE);
-			skb_free_frag(ptr);
+			__free_pages(page, get_order(length));
 			goto unmap;
 		}
 
