@@ -280,6 +280,7 @@ struct amdgpu_gfx_funcs {
 			(*query_mem_partition_mode)(struct amdgpu_device *adev);
 	int (*switch_partition_mode)(struct amdgpu_device *adev,
 				     int num_xccs_per_xcp);
+	int (*ih_node_to_logical_xcc)(struct amdgpu_device *adev, int ih_node);
 };
 
 struct sq_work {

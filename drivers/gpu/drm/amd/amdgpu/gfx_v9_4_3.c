@@ -637,6 +637,19 @@ static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int gfx_v9_4_3_ih_to_xcc_inst(struct amdgpu_device *adev, int ih_node)
+{
+	int xcc;
+
+	xcc = hweight8(adev->gfx.xcc_mask & GENMASK(ih_node / 2, 0));
+	if (!xcc) {
+		dev_err(adev->dev, "Couldn't find xcc mapping from IH node");
+		return -EINVAL;
+	}
+
+	return xcc - 1;
+}
+
 static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v9_4_3_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v9_4_3_xcc_select_se_sh,
@@ -646,6 +659,7 @@ static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
 	.select_me_pipe_q = &gfx_v9_4_3_select_me_pipe_q,
 	.switch_partition_mode = &gfx_v9_4_3_switch_compute_partition,
 	.query_mem_partition_mode = &gfx_v9_4_3_query_memory_partition,
+	.ih_node_to_logical_xcc = &gfx_v9_4_3_ih_to_xcc_inst,
 };
 
 static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
@@ -2752,19 +2766,6 @@ static int gfx_v9_4_3_set_eop_interrupt_state(struct amdgpu_device *adev,
 	}
 
 	return 0;
-}
-
-static int gfx_v9_4_3_ih_to_xcc_inst(struct amdgpu_device *adev, int ih_node)
-{
-	int xcc;
-
-	xcc = hweight8(adev->gfx.xcc_mask & GENMASK(ih_node / 2, 0));
-	if (!xcc) {
-		dev_err(adev->dev, "Couldn't find xcc mapping from IH node");
-		return -EINVAL;
-	}
-
-	return xcc - 1;
 }
 
 static int gfx_v9_4_3_eop_irq(struct amdgpu_device *adev,

@@ -557,22 +557,28 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	u64 addr;
 	uint32_t cam_index = 0;
 	int ret;
-	uint32_t node_id;
+	uint32_t node_id, xcc_id = 0;
 
-	node_id = (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) ? entry->node_id : 0;
+	node_id = entry->node_id;
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
 
 	if (entry->client_id == SOC15_IH_CLIENTID_VMC) {
 		hub_name = "mmhub0";
-		hub = &adev->vmhub[AMDGPU_MMHUB0(0)];
+		hub = &adev->vmhub[AMDGPU_MMHUB0(node_id / 4)];
 	} else if (entry->client_id == SOC15_IH_CLIENTID_VMC1) {
 		hub_name = "mmhub1";
 		hub = &adev->vmhub[AMDGPU_MMHUB1(0)];
 	} else {
 		hub_name = "gfxhub0";
-		hub = &adev->vmhub[node_id/2];
+		if (adev->gfx.funcs->ih_node_to_logical_xcc) {
+			xcc_id = adev->gfx.funcs->ih_node_to_logical_xcc(adev,
+				node_id);
+			if (xcc_id < 0)
+				xcc_id = 0;
+		}
+		hub = &adev->vmhub[xcc_id];
 	}
 
 	if (retry_fault) {
