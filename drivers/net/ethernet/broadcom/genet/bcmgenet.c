@@ -117,24 +117,6 @@ static inline void dmadesc_set(struct bcmgenet_priv *priv,
 	dmadesc_set_length_status(priv, d, val);
 }
 
-static inline dma_addr_t dmadesc_get_addr(struct bcmgenet_priv *priv,
-					  void __iomem *d)
-{
-	dma_addr_t addr;
-
-	addr = bcmgenet_readl(d + DMA_DESC_ADDRESS_LO);
-
-	/* Register writes to GISB bus can take couple hundred nanoseconds
-	 * and are done for each packet, save these expensive writes unless
-	 * the platform is explicitly configured for 64-bits/LPAE.
-	 */
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
-	if (priv->hw_params->flags & GENET_HAS_40BITS)
-		addr |= (u64)bcmgenet_readl(d + DMA_DESC_ADDRESS_HI) << 32;
-#endif
-	return addr;
-}
-
 #define GENET_VER_FMT	"%1d.%1d EPHY: 0x%04x"
 
 #define GENET_MSG_DEFAULT	(NETIF_MSG_DRV | NETIF_MSG_PROBE | \
