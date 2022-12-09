@@ -2305,3 +2305,85 @@
 	.errstr = "!read_ok",
 	.result = REJECT,
 },
+/* Make sure that verifier.c:states_equal() considers IDs from all
+ * frames when building 'idmap' for check_ids().
+ */
+{
+	"calls: check_ids() across call boundary",
+	.insns = {
+	/* Function main() */
+	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+	/* fp[-24] = map_lookup_elem(...) ; get a MAP_VALUE_PTR_OR_NULL with some ID */
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+	BPF_LD_MAP_FD(BPF_REG_1,
+		      0),
+	BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+	BPF_STX_MEM(BPF_DW, BPF_REG_FP, BPF_REG_0, -24),
+	/* fp[-32] = map_lookup_elem(...) ; get a MAP_VALUE_PTR_OR_NULL with some ID */
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+	BPF_LD_MAP_FD(BPF_REG_1,
+		      0),
+	BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+	BPF_STX_MEM(BPF_DW, BPF_REG_FP, BPF_REG_0, -32),
+	/* call foo(&fp[-24], &fp[-32])   ; both arguments have IDs in the current
+	 *                                ; stack frame
+	 */
+	BPF_MOV64_REG(BPF_REG_1, BPF_REG_FP),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -24),
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_FP),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -32),
+	BPF_CALL_REL(2),
+	/* exit 0 */
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	/* Function foo()
+	 *
+	 * r9 = &frame[0].fp[-24]  ; save arguments in the callee saved registers,
+	 * r8 = &frame[0].fp[-32]  ; arguments are pointers to pointers to map value
+	 */
+	BPF_MOV64_REG(BPF_REG_9, BPF_REG_1),
+	BPF_MOV64_REG(BPF_REG_8, BPF_REG_2),
+	/* r7 = ktime_get_ns() */
+	BPF_EMIT_CALL(BPF_FUNC_ktime_get_ns),
+	BPF_MOV64_REG(BPF_REG_7, BPF_REG_0),
+	/* r6 = ktime_get_ns() */
+	BPF_EMIT_CALL(BPF_FUNC_ktime_get_ns),
+	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
+	/* if r6 > r7 goto +1      ; no new information about the state is derived from
+	 *                         ; this check, thus produced verifier states differ
+	 *                         ; only in 'insn_idx'
+	 * r9 = r8
+	 */
+	BPF_JMP_REG(BPF_JGT, BPF_REG_6, BPF_REG_7, 1),
+	BPF_MOV64_REG(BPF_REG_9, BPF_REG_8),
+	/* r9 = *r9                ; verifier get's to this point via two paths:
+	 *                         ; (I) one including r9 = r8, verified first;
+	 *                         ; (II) one excluding r9 = r8, verified next.
+	 *                         ; After load of *r9 to r9 the frame[0].fp[-24].id == r9.id.
+	 *                         ; Suppose that checkpoint is created here via path (I).
+	 *                         ; When verifying via (II) the r9.id must be compared against
+	 *                         ; frame[0].fp[-24].id, otherwise (I) and (II) would be
+	 *                         ; incorrectly deemed equivalent.
+	 * if r9 == 0 goto <exit>
+	 */
+	BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_9, 0),
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_9, 0, 1),
+	/* r8 = *r8                ; read map value via r8, this is not safe
+	 * r0 = *r8                ; because r8 might be not equal to r9.
+	 */
+	BPF_LDX_MEM(BPF_DW, BPF_REG_8, BPF_REG_8, 0),
+	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_8, 0),
+	/* exit 0 */
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.flags = BPF_F_TEST_STATE_FREQ,
+	.fixup_map_hash_8b = { 3, 9 },
+	.result = REJECT,
+	.errstr = "R8 invalid mem access 'map_value_or_null'",
+	.result_unpriv = REJECT,
+	.errstr_unpriv = "",
+	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+},
