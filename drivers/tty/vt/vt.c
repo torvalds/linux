@@ -3156,8 +3156,14 @@ static struct tty_driver *vt_console_device(struct console *c, int *index)
 	return console_driver;
 }
 
+static int vt_console_setup(struct console *co, char *options)
+{
+	return co->index >= MAX_NR_CONSOLES ? -EINVAL : 0;
+}
+
 static struct console vt_console_driver = {
 	.name		= "tty",
+	.setup		= vt_console_setup,
 	.write		= vt_console_print,
 	.device		= vt_console_device,
 	.unblank	= unblank_screen,
