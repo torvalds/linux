@@ -254,7 +254,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	 * again.
 	 */
 	preempt_disable();
-	rcu_read_lock();
+	rcu_read_lock_sched_notrace();
 
 	faultpage = get_kmmio_fault_page(page_base);
 	if (!faultpage) {
@@ -323,7 +323,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	return 1; /* fault handled */
 
 no_kmmio:
-	rcu_read_unlock();
+	rcu_read_unlock_sched_notrace();
 	preempt_enable_no_resched();
 	return ret;
 }
@@ -363,7 +363,7 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	/* These were acquired in kmmio_handler(). */
 	ctx->active--;
 	BUG_ON(ctx->active);
-	rcu_read_unlock();
+	rcu_read_unlock_sched_notrace();
 	preempt_enable_no_resched();
 
 	/*
