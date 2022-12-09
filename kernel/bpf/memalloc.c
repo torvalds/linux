@@ -171,9 +171,24 @@ static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int node)
 	memcg = get_memcg(c);
 	old_memcg = set_active_memcg(memcg);
 	for (i = 0; i < cnt; i++) {
-		obj = __alloc(c, node);
-		if (!obj)
-			break;
+		/*
+		 * free_by_rcu is only manipulated by irq work refill_work().
+		 * IRQ works on the same CPU are called sequentially, so it is
+		 * safe to use __llist_del_first() here. If alloc_bulk() is
+		 * invoked by the initial prefill, there will be no running
+		 * refill_work(), so __llist_del_first() is fine as well.
+		 *
+		 * In most cases, objects on free_by_rcu are from the same CPU.
+		 * If some objects come from other CPUs, it doesn't incur any
+		 * harm because NUMA_NO_NODE means the preference for current
+		 * numa node and it is not a guarantee.
+		 */
+		obj = __llist_del_first(&c->free_by_rcu);
+		if (!obj) {
+			obj = __alloc(c, node);
+			if (!obj)
+				break;
+		}
 		if (IS_ENABLED(CONFIG_PREEMPT_RT))
 			/* In RT irq_work runs in per-cpu kthread, so disable
 			 * interrupts to avoid preemption and interrupts and
