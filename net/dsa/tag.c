@@ -33,6 +33,9 @@ static bool dsa_skb_defer_rx_timestamp(struct dsa_slave_priv *p,
 	struct dsa_switch *ds = p->dp->ds;
 	unsigned int type;
 
+	if (!ds->ops->port_rxtstamp)
+		return false;
+
 	if (skb_headroom(skb) < ETH_HLEN)
 		return false;
 
@@ -45,10 +48,7 @@ static bool dsa_skb_defer_rx_timestamp(struct dsa_slave_priv *p,
 	if (type == PTP_CLASS_NONE)
 		return false;
 
-	if (likely(ds->ops->port_rxtstamp))
-		return ds->ops->port_rxtstamp(ds, p->dp->index, skb, type);
-
-	return false;
+	return ds->ops->port_rxtstamp(ds, p->dp->index, skb, type);
 }
 
 static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
