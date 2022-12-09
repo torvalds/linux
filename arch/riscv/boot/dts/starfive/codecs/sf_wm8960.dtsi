@@ -1,6 +1,6 @@
-&sound{
+&sound6 {
 	/* i2s + wm8960 */
-	simple-audio-card,dai-link@1 {
+	simple-audio-card,dai-link@0 {
 		reg = <0>;
 		status = "okay";
 		format = "i2s";
