@@ -1364,6 +1364,7 @@ static int rga_mm_get_buffer(struct rga_mm *mm,
 			     uint64_t handle,
 			     uint64_t *channel_addr,
 			     struct rga_internal_buffer **buf,
+			     int require_size,
 			     enum dma_data_direction dir)
 {
 	int ret = 0;
@@ -1399,6 +1400,14 @@ static int rga_mm_get_buffer(struct rga_mm *mm,
 		return ret;
 	}
 
+	if (internal_buffer->size < require_size) {
+		ret = -EINVAL;
+		pr_err("Only get buffer %ld byte from handle[%ld], but current required %d byte\n",
+		       internal_buffer->size, (unsigned long)handle, require_size);
+
+		goto put_internal_buffer;
+	}
+
 	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS) {
 		/*
 		 * Some userspace virtual addresses do not have an
@@ -1413,6 +1422,14 @@ static int rga_mm_get_buffer(struct rga_mm *mm,
 	}
 
 	return 0;
+
+put_internal_buffer:
+	mutex_lock(&mm->lock);
+	kref_put(&internal_buffer->refcount, rga_mm_kref_release_buffer);
+	mutex_unlock(&mm->lock);
+
+	return ret;
+
 }
 
 static void rga_mm_put_buffer(struct rga_mm *mm,
@@ -1437,13 +1454,22 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 {
 	int ret = 0;
 	int handle = 0;
+	int img_size, yrgb_size, uv_size, v_size;
+
+	img_size = rga_image_size_cal(img->vir_w, img->vir_h, img->format,
+				      &yrgb_size, &uv_size, &v_size);
+	if (img_size <= 0) {
+		pr_err("Image size cal error! width = %d, height = %d, format = %s\n",
+		       img->vir_w, img->vir_h, rga_get_format_name(img->format));
+		return -EINVAL;
+	}
 
 	/* using third-address */
 	if (img->uv_addr > 0) {
 		handle = img->yrgb_addr;
 		if (handle > 0) {
 			ret = rga_mm_get_buffer(mm, job, handle, &img->yrgb_addr,
-						&job_buf->y_addr, dir);
+						&job_buf->y_addr, yrgb_size, dir);
 			if (ret < 0) {
 				pr_err("handle[%d] Can't get y/rgb address info!\n", handle);
 				return ret;
@@ -1453,7 +1479,7 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 		handle = img->uv_addr;
 		if (handle > 0) {
 			ret = rga_mm_get_buffer(mm, job, handle, &img->uv_addr,
-						&job_buf->uv_addr, dir);
+						&job_buf->uv_addr, uv_size, dir);
 			if (ret < 0) {
 				pr_err("handle[%d] Can't get uv address info!\n", handle);
 				return ret;
@@ -1463,7 +1489,7 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 		handle = img->v_addr;
 		if (handle > 0) {
 			ret = rga_mm_get_buffer(mm, job, handle, &img->v_addr,
-						&job_buf->v_addr, dir);
+						&job_buf->v_addr, v_size, dir);
 			if (ret < 0) {
 				pr_err("handle[%d] Can't get uv address info!\n", handle);
 				return ret;
@@ -1473,7 +1499,7 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 		handle = img->yrgb_addr;
 		if (handle > 0) {
 			ret = rga_mm_get_buffer(mm, job, handle, &img->yrgb_addr,
-						&job_buf->addr, dir);
+						&job_buf->addr, img_size, dir);
 			if (ret < 0) {
 				pr_err("handle[%d] Can't get y/rgb address info!\n", handle);
 				return ret;
