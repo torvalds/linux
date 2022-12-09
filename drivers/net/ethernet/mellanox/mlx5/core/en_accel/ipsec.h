@@ -34,8 +34,6 @@
 #ifndef __MLX5E_IPSEC_H__
 #define __MLX5E_IPSEC_H__
 
-#ifdef CONFIG_MLX5_EN_IPSEC
-
 #include <linux/mlx5/device.h>
 #include <net/xfrm.h>
 #include <linux/idr.h>
@@ -76,6 +74,10 @@ struct mlx5_accel_esp_xfrm_attrs {
 	u8 type : 2;
 	u8 family;
 	u32 replay_window;
+	u32 authsize;
+	u32 reqid;
+	u64 hard_packet_limit;
+	u64 soft_packet_limit;
 };
 
 enum mlx5_ipsec_cap {
@@ -85,6 +87,17 @@ enum mlx5_ipsec_cap {
 };
 
 struct mlx5e_priv;
+
+struct mlx5e_ipsec_hw_stats {
+	u64 ipsec_rx_pkts;
+	u64 ipsec_rx_bytes;
+	u64 ipsec_rx_drop_pkts;
+	u64 ipsec_rx_drop_bytes;
+	u64 ipsec_tx_pkts;
+	u64 ipsec_tx_bytes;
+	u64 ipsec_tx_drop_pkts;
+	u64 ipsec_tx_drop_bytes;
+};
 
 struct mlx5e_ipsec_sw_stats {
 	atomic64_t ipsec_rx_drop_sp_alloc;
@@ -99,23 +112,35 @@ struct mlx5e_ipsec_sw_stats {
 struct mlx5e_ipsec_rx;
 struct mlx5e_ipsec_tx;
 
+struct mlx5e_ipsec_work {
+	struct work_struct work;
+	struct mlx5e_ipsec *ipsec;
+	u32 id;
+};
+
 struct mlx5e_ipsec_aso {
 	u8 ctx[MLX5_ST_SZ_BYTES(ipsec_aso)];
 	dma_addr_t dma_addr;
 	struct mlx5_aso *aso;
+	/* IPsec ASO caches data on every query call,
+	 * so in nested calls, we can use this boolean to save
+	 * recursive calls to mlx5e_ipsec_aso_query()
+	 */
+	u8 use_cache : 1;
 };
 
 struct mlx5e_ipsec {
 	struct mlx5_core_dev *mdev;
-	DECLARE_HASHTABLE(sadb_rx, MLX5E_IPSEC_SADB_RX_BITS);
-	spinlock_t sadb_rx_lock; /* Protects sadb_rx */
+	struct xarray sadb;
 	struct mlx5e_ipsec_sw_stats sw_stats;
+	struct mlx5e_ipsec_hw_stats hw_stats;
 	struct workqueue_struct *wq;
 	struct mlx5e_flow_steering *fs;
 	struct mlx5e_ipsec_rx *rx_ipv4;
 	struct mlx5e_ipsec_rx *rx_ipv6;
 	struct mlx5e_ipsec_tx *tx;
 	struct mlx5e_ipsec_aso *aso;
+	struct notifier_block nb;
 };
 
 struct mlx5e_ipsec_esn_state {
@@ -127,6 +152,7 @@ struct mlx5e_ipsec_esn_state {
 struct mlx5e_ipsec_rule {
 	struct mlx5_flow_handle *rule;
 	struct mlx5_modify_hdr *modify_hdr;
+	struct mlx5_pkt_reformat *pkt_reformat;
 };
 
 struct mlx5e_ipsec_modify_state_work {
@@ -135,9 +161,7 @@ struct mlx5e_ipsec_modify_state_work {
 };
 
 struct mlx5e_ipsec_sa_entry {
-	struct hlist_node hlist; /* Item in SADB_RX hashtable */
 	struct mlx5e_ipsec_esn_state esn_state;
-	unsigned int handle; /* Handle in SADB_RX */
 	struct xfrm_state *x;
 	struct mlx5e_ipsec *ipsec;
 	struct mlx5_accel_esp_xfrm_attrs attrs;
@@ -149,17 +173,43 @@ struct mlx5e_ipsec_sa_entry {
 	struct mlx5e_ipsec_modify_state_work modify_work;
 };
 
+struct mlx5_accel_pol_xfrm_attrs {
+	union {
+		__be32 a4;
+		__be32 a6[4];
+	} saddr;
+
+	union {
+		__be32 a4;
+		__be32 a6[4];
+	} daddr;
+
+	u8 family;
+	u8 action;
+	u8 type : 2;
+	u8 dir : 2;
+	u32 reqid;
+};
+
+struct mlx5e_ipsec_pol_entry {
+	struct xfrm_policy *x;
+	struct mlx5e_ipsec *ipsec;
+	struct mlx5e_ipsec_rule ipsec_rule;
+	struct mlx5_accel_pol_xfrm_attrs attrs;
+};
+
+#ifdef CONFIG_MLX5_EN_IPSEC
+
 void mlx5e_ipsec_init(struct mlx5e_priv *priv);
 void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv);
 void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv);
-
-struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *dev,
-					      unsigned int handle);
 
 void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec);
 int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec);
 int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry);
 void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry);
+int mlx5e_accel_ipsec_fs_add_pol(struct mlx5e_ipsec_pol_entry *pol_entry);
+void mlx5e_accel_ipsec_fs_del_pol(struct mlx5e_ipsec_pol_entry *pol_entry);
 
 int mlx5_ipsec_create_sa_ctx(struct mlx5e_ipsec_sa_entry *sa_entry);
 void mlx5_ipsec_free_sa_ctx(struct mlx5e_ipsec_sa_entry *sa_entry);
@@ -172,10 +222,26 @@ void mlx5_accel_esp_modify_xfrm(struct mlx5e_ipsec_sa_entry *sa_entry,
 int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec);
 void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec);
 
+int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
+			  struct mlx5_wqe_aso_ctrl_seg *data);
+void mlx5e_ipsec_aso_update_curlft(struct mlx5e_ipsec_sa_entry *sa_entry,
+				   u64 *packets);
+
+void mlx5e_accel_ipsec_fs_read_stats(struct mlx5e_priv *priv,
+				     void *ipsec_stats);
+
+void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
+					struct mlx5_accel_esp_xfrm_attrs *attrs);
 static inline struct mlx5_core_dev *
 mlx5e_ipsec_sa2dev(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
 	return sa_entry->ipsec->mdev;
+}
+
+static inline struct mlx5_core_dev *
+mlx5e_ipsec_pol2dev(struct mlx5e_ipsec_pol_entry *pol_entry)
+{
+	return pol_entry->ipsec->mdev;
 }
 #else
 static inline void mlx5e_ipsec_init(struct mlx5e_priv *priv)
