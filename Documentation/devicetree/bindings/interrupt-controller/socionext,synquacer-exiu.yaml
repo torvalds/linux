@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/socionext,synquacer-exiu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Socionext SynQuacer External Interrupt Unit (EXIU)
+
+maintainers:
+  - Ard Biesheuvel <ardb@kernel.org>
+
+description: |+
+  The Socionext SynQuacer SoC has an external interrupt unit (EXIU)
+  that forwards a block of 32 configurable input lines to 32 adjacent
+  level-high type GICv3 SPIs.
+
+properties:
+  compatible:
+    const: socionext,synquacer-exiu
+
+  reg:
+    maxItems: 1
+
+  '#interrupt-cells':
+    const: 3
+
+  interrupt-controller: true
+
+  socionext,spi-base:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The SPI number of the first SPI of the 32 adjacent ones the
+      EXIU forwards its interrupts to.
+
+required:
+  - compatible
+  - reg
+  - '#interrupt-cells'
+  - interrupt-controller
+  - socionext,spi-base
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    interrupt-controller@510c0000 {
+        compatible = "socionext,synquacer-exiu";
+        reg = <0x510c0000 0x20>;
+        interrupt-controller;
+        interrupt-parent = <&gic>;
+        #interrupt-cells = <3>;
+        socionext,spi-base = <112>;
+    };
+...
