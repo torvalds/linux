@@ -938,6 +938,8 @@ static int asus_ec_probe(struct platform_device *pdev)
 	ec_data->nr_sensors = hweight_long(ec_data->board_info->sensors);
 	ec_data->sensors = devm_kcalloc(dev, ec_data->nr_sensors,
 					sizeof(struct ec_sensor), GFP_KERNEL);
+	if (!ec_data->sensors)
+		return -ENOMEM;
 
 	status = setup_lock_data(dev);
 	if (status) {

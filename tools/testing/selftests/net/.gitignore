@@ -2,6 +2,7 @@
 bind_bhash
 csum
 cmsg_sender
+diag_uid
 fin_ack_lat
 gro
 hwtstamp_config
