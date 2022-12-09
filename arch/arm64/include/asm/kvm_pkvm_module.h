@@ -34,6 +34,12 @@ struct pkvm_module_ops {
 	int (*register_illegal_abt_notifier)(void (*cb)(struct kvm_cpu_context *));
 	int (*register_psci_notifier)(void (*cb)(enum pkvm_psci_notification, struct kvm_cpu_context *));
 	int (*register_hyp_panic_notifier)(void (*cb)(struct kvm_cpu_context *host_ctxt));
+	int (*host_donate_hyp)(u64 pfn, u64 nr_pages);
+	int (*hyp_donate_host)(u64 pfn, u64 nr_pages);
+	void* (*memcpy)(void *to, const void *from, size_t count);
+	void* (*memset)(void *dst, int c, size_t count);
+	phys_addr_t (*hyp_pa)(void *x);
+	unsigned long (*kern_hyp_va)(unsigned long x);
 };
 
 int __pkvm_load_el2_module(struct module *this, unsigned long *token);
