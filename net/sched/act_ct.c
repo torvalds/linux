@@ -24,6 +24,7 @@
 #include <net/ipv6_frag.h>
 #include <uapi/linux/tc_act/tc_ct.h>
 #include <net/tc_act/tc_ct.h>
+#include <net/tc_wrapper.h>
 
 #include <net/netfilter/nf_flow_table.h>
 #include <net/netfilter/nf_conntrack.h>
@@ -1038,8 +1039,8 @@ static int tcf_ct_act_nat(struct sk_buff *skb,
 #endif
 }
 
-static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
-		      struct tcf_result *res)
+TC_INDIRECT_SCOPE int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
+				 struct tcf_result *res)
 {
 	struct net *net = dev_net(skb->dev);
 	enum ip_conntrack_info ctinfo;

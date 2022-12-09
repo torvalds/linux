@@ -31,6 +31,7 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
+#include <net/tc_wrapper.h>
 
 #include <trace/events/qdisc.h>
 
@@ -2273,6 +2274,8 @@ static struct pernet_operations psched_net_ops = {
 	.exit = psched_net_exit,
 };
 
+DEFINE_STATIC_KEY_FALSE(tc_skip_wrapper);
+
 static int __init pktsched_init(void)
 {
 	int err;
@@ -2299,6 +2302,8 @@ static int __init pktsched_init(void)
 	rtnl_register(PF_UNSPEC, RTM_DELTCLASS, tc_ctl_tclass, NULL, 0);
 	rtnl_register(PF_UNSPEC, RTM_GETTCLASS, tc_ctl_tclass, tc_dump_tclass,
 		      0);
+
+	tc_wrapper_init();
 
 	return 0;
 }

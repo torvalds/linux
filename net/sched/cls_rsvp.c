@@ -15,10 +15,12 @@
 #include <net/netlink.h>
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
+#include <net/tc_wrapper.h>
 
 #define RSVP_DST_LEN	1
 #define RSVP_ID		"rsvp"
 #define RSVP_OPS	cls_rsvp_ops
+#define RSVP_CLS	rsvp_classify
 
 #include "cls_rsvp.h"
 MODULE_LICENSE("GPL");

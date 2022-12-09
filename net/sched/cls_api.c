@@ -40,6 +40,7 @@
 #include <net/tc_act/tc_mpls.h>
 #include <net/tc_act/tc_gate.h>
 #include <net/flow_offload.h>
+#include <net/tc_wrapper.h>
 
 extern const struct nla_policy rtm_tca_policy[TCA_MAX + 1];
 
@@ -1564,7 +1565,7 @@ reclassify:
 		    tp->protocol != htons(ETH_P_ALL))
 			continue;
 
-		err = tp->classify(skb, tp, res);
+		err = tc_classify(skb, tp, res);
 #ifdef CONFIG_NET_CLS_ACT
 		if (unlikely(err == TC_ACT_RECLASSIFY && !compat_mode)) {
 			first_tp = orig_tp;
