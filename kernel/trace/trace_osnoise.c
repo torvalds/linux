@@ -55,10 +55,17 @@ enum osnoise_options_index {
 	OSN_DEFAULTS = 0,
 	OSN_WORKLOAD,
 	OSN_PANIC_ON_STOP,
+	OSN_PREEMPT_DISABLE,
+	OSN_IRQ_DISABLE,
 	OSN_MAX
 };
 
-static const char * const osnoise_options_str[OSN_MAX] = { "DEFAULTS", "OSNOISE_WORKLOAD", "PANIC_ON_STOP" };
+static const char * const osnoise_options_str[OSN_MAX] = {
+							"DEFAULTS",
+							"OSNOISE_WORKLOAD",
+							"PANIC_ON_STOP",
+							"OSNOISE_PREEMPT_DISABLE",
+							"OSNOISE_IRQ_DISABLE" };
 
 #define OSN_DEFAULT_OPTIONS		0x2
 static unsigned long osnoise_options	= OSN_DEFAULT_OPTIONS;
@@ -1308,17 +1315,25 @@ static void notify_new_max_latency(u64 latency)
  */
 static int run_osnoise(void)
 {
+	bool disable_irq = test_bit(OSN_IRQ_DISABLE, &osnoise_options);
 	struct osnoise_variables *osn_var = this_cpu_osn_var();
 	u64 start, sample, last_sample;
 	u64 last_int_count, int_count;
 	s64 noise = 0, max_noise = 0;
 	s64 total, last_total = 0;
 	struct osnoise_sample s;
+	bool disable_preemption;
 	unsigned int threshold;
 	u64 runtime, stop_in;
 	u64 sum_noise = 0;
 	int hw_count = 0;
 	int ret = -1;
+
+	/*
+	 * Disabling preemption is only required if IRQs are enabled,
+	 * and the options is set on.
+	 */
+	disable_preemption = !disable_irq && test_bit(OSN_PREEMPT_DISABLE, &osnoise_options);
 
 	/*
 	 * Considers the current thread as the workload.
@@ -1334,6 +1349,15 @@ static int run_osnoise(void)
 	 * if threshold is 0, use the default value of 5 us.
 	 */
 	threshold = tracing_thresh ? : 5000;
+
+	/*
+	 * Apply PREEMPT and IRQ disabled options.
+	 */
+	if (disable_irq)
+		local_irq_disable();
+
+	if (disable_preemption)
+		preempt_disable();
 
 	/*
 	 * Make sure NMIs see sampling first
@@ -1422,16 +1446,21 @@ static int run_osnoise(void)
 		 * cond_resched()
 		 */
 		if (IS_ENABLED(CONFIG_PREEMPT_RCU)) {
-			local_irq_disable();
+			if (!disable_irq)
+				local_irq_disable();
+
 			rcu_momentary_dyntick_idle();
-			local_irq_enable();
+
+			if (!disable_irq)
+				local_irq_enable();
 		}
 
 		/*
 		 * For the non-preemptive kernel config: let threads runs, if
-		 * they so wish.
+		 * they so wish, unless set not do to so.
 		 */
-		cond_resched();
+		if (!disable_irq && !disable_preemption)
+			cond_resched();
 
 		last_sample = sample;
 		last_int_count = int_count;
@@ -1449,6 +1478,15 @@ static int run_osnoise(void)
 	 * Make sure sampling data is no longer updated.
 	 */
 	barrier();
+
+	/*
+	 * Return to the preemptive state.
+	 */
+	if (disable_preemption)
+		preempt_enable();
+
+	if (disable_irq)
+		local_irq_enable();
 
 	/*
 	 * Save noise info.
