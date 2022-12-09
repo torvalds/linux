@@ -2201,7 +2201,7 @@ static void free_netdevs(struct ib_device *ib_dev)
 			 * comparisons after the put
 			 */
 			rcu_assign_pointer(pdata->netdev, NULL);
-			dev_put(ndev);
+			netdev_put(ndev, &pdata->netdev_tracker);
 		}
 		spin_unlock_irqrestore(&pdata->netdev_lock, flags);
 	}
