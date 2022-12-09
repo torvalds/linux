@@ -256,6 +256,9 @@ struct device_queue_manager {
 	struct work_struct	hw_exception_work;
 	struct kfd_mem_obj	hiq_sdma_mqd;
 	bool			sched_running;
+
+	/* used for GFX 9.4.3 only */
+	uint32_t		current_logical_xcc_start;
 };
 
 void device_queue_manager_init_cik(

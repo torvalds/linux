@@ -32,6 +32,7 @@
 #include "gc/gc_9_0_sh_mask.h"
 #include "sdma0/sdma0_4_0_sh_mask.h"
 #include "amdgpu_amdkfd.h"
+#include "kfd_device_queue_manager.h"
 
 static void update_mqd(struct mqd_manager *mm, void *mqd,
 		       struct queue_properties *q,
@@ -569,6 +570,7 @@ static void init_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 	uint64_t xcc_gart_addr = 0;
 	uint64_t xcc_ctx_save_restore_area_address;
 	uint64_t offset = mm->mqd_stride(mm, q);
+	uint32_t local_xcc_start = mm->dev->dqm->current_logical_xcc_start++;
 
 	memset(&xcc_mqd_mem_obj, 0x0, sizeof(struct kfd_mem_obj));
 	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
@@ -596,18 +598,17 @@ static void init_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 
 		if (q->format == KFD_QUEUE_FORMAT_AQL) {
 			m->compute_tg_chunk_size = 1;
+			m->compute_current_logic_xcc_id =
+					(local_xcc_start + xcc) %
+					mm->dev->num_xcc_per_node;
 
 			switch (xcc) {
 			case 0:
 				/* Master XCC */
 				m->cp_hqd_pq_control &=
 					~CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK;
-				m->compute_current_logic_xcc_id =
-					mm->dev->num_xcc_per_node - 1;
 				break;
 			default:
-				m->compute_current_logic_xcc_id =
-					xcc - 1;
 				break;
 			}
 		} else {
@@ -642,12 +643,8 @@ static void update_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 				/* Master XCC */
 				m->cp_hqd_pq_control &=
 					~CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK;
-				m->compute_current_logic_xcc_id =
-					mm->dev->num_xcc_per_node - 1;
 				break;
 			default:
-				m->compute_current_logic_xcc_id =
-					xcc - 1;
 				break;
 			}
 			m->compute_tg_chunk_size = 1;
