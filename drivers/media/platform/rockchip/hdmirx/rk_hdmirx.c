@@ -3988,11 +3988,11 @@ static int hdmirx_probe(struct platform_device *pdev)
 		return PTR_ERR(hdmirx_dev->regs);
 	}
 
-	if (cpu_logical_map(0) == 0)
-		cpu_aff = cpu_logical_map(4); // big cpu0
+	if (sip_cpu_logical_map_mpidr(0) == 0)
+		cpu_aff = sip_cpu_logical_map_mpidr(4); // big cpu0
 	else
+		cpu_aff = sip_cpu_logical_map_mpidr(1); // big cpu1
 
-		cpu_aff = cpu_logical_map(1); // big cpu1
 	sip_fiq_control(RK_SIP_FIQ_CTRL_SET_AFF, RK_IRQ_HDMIRX_HDMI, cpu_aff);
 	hdmirx_dev->bound_cpu = (cpu_aff >> 8) & 0xf;
 	hdmirx_dev->wdt_cfg_bound_cpu = hdmirx_dev->bound_cpu + 1;
