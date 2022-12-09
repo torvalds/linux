@@ -717,7 +717,7 @@ static inline void vcpu_msrs_set(struct kvm_vcpu *vcpu, struct kvm_msrs *msrs)
 	int r = __vcpu_ioctl(vcpu, KVM_SET_MSRS, msrs);
 
 	TEST_ASSERT(r == msrs->nmsrs,
-		    "KVM_GET_MSRS failed, r: %i (failed on MSR %x)",
+		    "KVM_SET_MSRS failed, r: %i (failed on MSR %x)",
 		    r, r < 0 || r >= msrs->nmsrs ? -1 : msrs->entries[r].index);
 }
 static inline void vcpu_debugregs_get(struct kvm_vcpu *vcpu,
