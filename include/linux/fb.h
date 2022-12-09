@@ -663,7 +663,6 @@ extern void fb_deferred_io_open(struct fb_info *info,
 				struct inode *inode,
 				struct file *file);
 extern void fb_deferred_io_cleanup(struct fb_info *info);
-extern void fb_deferred_io_schedule_flush(struct fb_info *info);
 extern int fb_deferred_io_fsync(struct file *file, loff_t start,
 				loff_t end, int datasync);
 
@@ -807,7 +806,7 @@ extern int fb_find_mode(struct fb_var_screeninfo *var,
 #if defined(CONFIG_VIDEO_NOMODESET)
 bool fb_modesetting_disabled(const char *drvname);
 #else
-bool fb_modesetting_disabled(const char *drvname)
+static inline bool fb_modesetting_disabled(const char *drvname)
 {
 	return false;
 }
