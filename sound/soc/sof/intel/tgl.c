@@ -60,7 +60,7 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 	memcpy(&sof_tgl_ops, &sof_hda_common_ops, sizeof(struct snd_sof_dsp_ops));
 
 	/* probe/remove/shutdown */
-	sof_tgl_ops.shutdown	= hda_dsp_shutdown;
+	sof_tgl_ops.shutdown	= hda_dsp_shutdown_dma_flush;
 
 	if (sdev->pdata->ipc_type == SOF_IPC) {
 		/* doorbell */
