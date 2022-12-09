@@ -5,23 +5,10 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 
-/* maximum stack trace depth */
-#define MAX_STACKS   8
+#include "lock_data.h"
 
 /* default buffer size */
 #define MAX_ENTRIES  10240
-
-struct contention_key {
-	__s32 stack_id;
-};
-
-struct contention_data {
-	__u64 total_time;
-	__u64 min_time;
-	__u64 max_time;
-	__u32 count;
-	__u32 flags;
-};
 
 struct tstamp_data {
 	__u64 timestamp;
@@ -34,7 +21,7 @@ struct tstamp_data {
 struct {
 	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
 	__uint(key_size, sizeof(__u32));
-	__uint(value_size, MAX_STACKS * sizeof(__u64));
+	__uint(value_size, sizeof(__u64));
 	__uint(max_entries, MAX_ENTRIES);
 } stacks SEC(".maps");
 
@@ -154,7 +141,7 @@ int contention_end(u64 *ctx)
 
 	duration = bpf_ktime_get_ns() - pelem->timestamp;
 
-	key.stack_id = pelem->stack_id;
+	key.stack_or_task_id = pelem->stack_id;
 	data = bpf_map_lookup_elem(&lock_stat, &key);
 	if (!data) {
 		struct contention_data first = {

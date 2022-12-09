@@ -12,16 +12,9 @@
 #include <bpf/bpf.h>
 
 #include "bpf_skel/lock_contention.skel.h"
+#include "bpf_skel/lock_data.h"
 
 static struct lock_contention_bpf *skel;
-
-struct lock_contention_data {
-	u64 total_time;
-	u64 min_time;
-	u64 max_time;
-	u32 count;
-	u32 flags;
-};
 
 int lock_contention_prepare(struct lock_contention *con)
 {
@@ -110,8 +103,8 @@ int lock_contention_stop(void)
 int lock_contention_read(struct lock_contention *con)
 {
 	int fd, stack, err = 0;
-	s32 prev_key, key;
-	struct lock_contention_data data = {};
+	struct contention_key *prev_key, key;
+	struct contention_data data = {};
 	struct lock_stat *st = NULL;
 	struct machine *machine = con->machine;
 	u64 *stack_trace;
@@ -126,8 +119,8 @@ int lock_contention_read(struct lock_contention *con)
 	if (stack_trace == NULL)
 		return -1;
 
-	prev_key = 0;
-	while (!bpf_map_get_next_key(fd, &prev_key, &key)) {
+	prev_key = NULL;
+	while (!bpf_map_get_next_key(fd, prev_key, &key)) {
 		struct map *kmap;
 		struct symbol *sym;
 		int idx = 0;
@@ -184,7 +177,7 @@ int lock_contention_read(struct lock_contention *con)
 		}
 
 		hlist_add_head(&st->hash_entry, con->result);
-		prev_key = key;
+		prev_key = &key;
 
 		/* we're fine now, reset the values */
 		st = NULL;
