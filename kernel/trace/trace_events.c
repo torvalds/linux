@@ -2796,7 +2796,6 @@ trace_create_new_event(struct trace_event_call *call,
 	return file;
 }
 
-#ifdef CONFIG_HIST_TRIGGERS
 #define MAX_BOOT_TRIGGERS 32
 
 static struct boot_triggers {
@@ -2832,7 +2831,6 @@ static __init int setup_trace_triggers(char *str)
 	return 1;
 }
 __setup("trace_trigger=", setup_trace_triggers);
-#endif
 
 /* Add an event to a trace directory */
 static int
@@ -2850,7 +2848,6 @@ __trace_add_new_event(struct trace_event_call *call, struct trace_array *tr)
 		return event_define_fields(call);
 }
 
-#ifdef CONFIG_HIST_TRIGGERS
 static void trace_early_triggers(struct trace_event_file *file, const char *name)
 {
 	int ret;
@@ -2868,9 +2865,6 @@ static void trace_early_triggers(struct trace_event_file *file, const char *name
 			       bootup_triggers[i].event);
 	}
 }
-#else
-static inline void trace_early_triggers(struct trace_event_file *file, const char *name) { }
-#endif
 
 /*
  * Just create a descriptor for early init. A descriptor is required
