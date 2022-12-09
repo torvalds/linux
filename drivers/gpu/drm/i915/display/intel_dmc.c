@@ -387,11 +387,11 @@ static void pipedmc_clock_gating_wa(struct drm_i915_private *i915, bool enable)
 {
 	enum pipe pipe;
 
-	if (DISPLAY_VER(i915) != 13)
+	if (DISPLAY_VER(i915) < 13)
 		return;
 
 	/*
-	 * Wa_16015201720:adl-p,dg2
+	 * Wa_16015201720:adl-p,dg2, mtl
 	 * The WA requires clock gating to be disabled all the time
 	 * for pipe A and B.
 	 * For pipe C and D clock gating needs to be disabled only
