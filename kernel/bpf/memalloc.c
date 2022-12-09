@@ -464,9 +464,17 @@ static void free_mem_alloc(struct bpf_mem_alloc *ma)
 {
 	/* waiting_for_gp lists was drained, but __free_rcu might
 	 * still execute. Wait for it now before we freeing percpu caches.
+	 *
+	 * rcu_barrier_tasks_trace() doesn't imply synchronize_rcu_tasks_trace(),
+	 * but rcu_barrier_tasks_trace() and rcu_barrier() below are only used
+	 * to wait for the pending __free_rcu_tasks_trace() and __free_rcu(),
+	 * so if call_rcu(head, __free_rcu) is skipped due to
+	 * rcu_trace_implies_rcu_gp(), it will be OK to skip rcu_barrier() by
+	 * using rcu_trace_implies_rcu_gp() as well.
 	 */
 	rcu_barrier_tasks_trace();
-	rcu_barrier();
+	if (!rcu_trace_implies_rcu_gp())
+		rcu_barrier();
 	free_mem_alloc_no_barrier(ma);
 }
 
