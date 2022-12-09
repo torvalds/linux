@@ -72,28 +72,21 @@ static struct ctl_table loadpin_sysctl_table[] = {
 	{ }
 };
 
-/*
- * This must be called after early kernel init, since then the rootdev
- * is available.
- */
-static void check_pinning_enforcement(struct super_block *mnt_sb)
+static void report_writable(struct super_block *mnt_sb, bool writable)
 {
-	bool ro = false;
-
 	/*
 	 * If load pinning is not enforced via a read-only block
 	 * device, allow sysctl to change modes for testing.
 	 */
 	if (mnt_sb->s_bdev) {
-		ro = bdev_read_only(mnt_sb->s_bdev);
 		pr_info("%pg (%u:%u): %s\n", mnt_sb->s_bdev,
 			MAJOR(mnt_sb->s_bdev->bd_dev),
 			MINOR(mnt_sb->s_bdev->bd_dev),
-			ro ? "read-only" : "writable");
+			writable ? "writable" : "read-only");
 	} else
 		pr_info("mnt_sb lacks block device, treating as: writable\n");
 
-	if (!ro) {
+	if (writable) {
 		if (!register_sysctl_paths(loadpin_sysctl_path,
 					   loadpin_sysctl_table))
 			pr_notice("sysctl registration failed!\n");
@@ -103,11 +96,25 @@ static void check_pinning_enforcement(struct super_block *mnt_sb)
 		pr_info("load pinning engaged.\n");
 }
 #else
-static void check_pinning_enforcement(struct super_block *mnt_sb)
+static void report_writable(struct super_block *mnt_sb, bool writable)
 {
 	pr_info("load pinning engaged.\n");
 }
 #endif
+
+/*
+ * This must be called after early kernel init, since then the rootdev
+ * is available.
+ */
+static bool sb_is_writable(struct super_block *mnt_sb)
+{
+	bool writable = true;
+
+	if (mnt_sb->s_bdev)
+		writable = !bdev_read_only(mnt_sb->s_bdev);
+
+	return writable;
+}
 
 static void loadpin_sb_free_security(struct super_block *mnt_sb)
 {
@@ -126,6 +133,7 @@ static int loadpin_check(struct file *file, enum kernel_read_file_id id)
 {
 	struct super_block *load_root;
 	const char *origin = kernel_read_file_id_str(id);
+	bool load_root_writable;
 
 	/* If the file id is excluded, ignore the pinning. */
 	if ((unsigned int)id < ARRAY_SIZE(ignore_read_file_id) &&
@@ -146,6 +154,7 @@ static int loadpin_check(struct file *file, enum kernel_read_file_id id)
 	}
 
 	load_root = file->f_path.mnt->mnt_sb;
+	load_root_writable = sb_is_writable(load_root);
 
 	/* First loaded module/firmware defines the root for all others. */
 	spin_lock(&pinned_root_spinlock);
@@ -162,7 +171,7 @@ static int loadpin_check(struct file *file, enum kernel_read_file_id id)
 		 * enforcing. This would be purely cosmetic.
 		 */
 		spin_unlock(&pinned_root_spinlock);
-		check_pinning_enforcement(pinned_root);
+		report_writable(pinned_root, load_root_writable);
 		report_load(origin, file, "pinned");
 	} else {
 		spin_unlock(&pinned_root_spinlock);
