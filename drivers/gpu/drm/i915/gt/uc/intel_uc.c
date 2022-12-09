@@ -722,6 +722,7 @@ int intel_uc_runtime_resume(struct intel_uc *uc)
 
 static const struct intel_uc_ops uc_ops_off = {
 	.init_hw = __uc_check_hw,
+	.fini = __uc_fini, /* to clean-up the init_early initialization */
 };
 
 static const struct intel_uc_ops uc_ops_on = {
