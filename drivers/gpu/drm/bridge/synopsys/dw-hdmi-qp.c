@@ -2341,6 +2341,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			hdmi->dclk_en = true;
 			mutex_unlock(&hdmi->audio_mutex);
 			hdmi->curr_conn = connector;
+			extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, true);
 		}
 	}
 
