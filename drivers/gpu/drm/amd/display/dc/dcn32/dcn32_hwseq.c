@@ -703,11 +703,7 @@ void dcn32_subvp_update_force_pstate(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		// For SubVP + DRR, also force disallow on the DRR pipe
-		// (We will force allow in the DMUB sequence -- some DRR timings by default won't allow P-State so we have
-		// to force once the vblank is stretched).
-		if (pipe->stream && pipe->plane_state && (pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
-				(pipe->stream->mall_stream_config.type == SUBVP_NONE && pipe->stream->ignore_msa_timing_param))) {
+		if (pipe->stream && pipe->plane_state && (pipe->stream->mall_stream_config.type == SUBVP_MAIN)) {
 			struct hubp *hubp = pipe->plane_res.hubp;
 
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
@@ -784,6 +780,10 @@ void dcn32_program_mall_pipe_config(struct dc *dc, struct dc_state *context)
 	// Update MALL_SEL register for each pipe
 	if (hws && hws->funcs.update_mall_sel)
 		hws->funcs.update_mall_sel(dc, context);
+
+	//update subvp force pstate
+	if (hws && hws->funcs.subvp_update_force_pstate)
+		dc->hwseq->funcs.subvp_update_force_pstate(dc, context);
 
 	// Program FORCE_ONE_ROW_FOR_FRAME and CURSOR_REQ_MODE for main subvp pipes
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {

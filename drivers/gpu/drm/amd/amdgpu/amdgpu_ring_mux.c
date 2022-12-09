@@ -350,7 +350,7 @@ unsigned int amdgpu_sw_ring_priority(int idx)
 }
 
 /*Scan on low prio rings to have unsignaled fence and high ring has no fence.*/
-int amdgpu_mcbp_scan(struct amdgpu_ring_mux *mux)
+static int amdgpu_mcbp_scan(struct amdgpu_ring_mux *mux)
 {
 	struct amdgpu_ring *ring;
 	int i, need_preempt;
@@ -370,7 +370,7 @@ int amdgpu_mcbp_scan(struct amdgpu_ring_mux *mux)
 }
 
 /* Trigger Mid-Command Buffer Preemption (MCBP) and find if we need to resubmit. */
-int amdgpu_mcbp_trigger_preempt(struct amdgpu_ring_mux *mux)
+static int amdgpu_mcbp_trigger_preempt(struct amdgpu_ring_mux *mux)
 {
 	int r;
 
@@ -434,7 +434,7 @@ void amdgpu_ring_mux_start_ib(struct amdgpu_ring_mux *mux, struct amdgpu_ring *r
 
 static void scan_and_remove_signaled_chunk(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring)
 {
-	uint32_t last_seq, size = 0;
+	uint32_t last_seq = 0;
 	struct amdgpu_mux_entry *e;
 	struct amdgpu_mux_chunk *chunk, *tmp;
 
@@ -450,8 +450,6 @@ static void scan_and_remove_signaled_chunk(struct amdgpu_ring_mux *mux, struct a
 		if (chunk->sync_seq <= last_seq) {
 			list_del(&chunk->entry);
 			kmem_cache_free(amdgpu_mux_chunk_slab, chunk);
-		} else {
-			size++;
 		}
 	}
 }

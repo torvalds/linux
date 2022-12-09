@@ -743,7 +743,7 @@ static const struct dc_debug_options debug_defaults_diags = {
 	.dmub_command_table = true,
 	.enable_tri_buf = true,
 	.use_max_lb = true,
-	.force_disable_subvp = true
+	.force_disable_subvp = true,
 };
 
 
