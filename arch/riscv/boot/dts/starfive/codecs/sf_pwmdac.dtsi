@@ -1,5 +1,5 @@
-&sound {                
-	simple-audio-card,dai-link@1 {
+&sound3 {
+	simple-audio-card,dai-link@0 {
 		reg = <0>;
 		format = "left_j";
 		bitclock-master = <&sndcpu0>;

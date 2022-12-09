@@ -354,6 +354,12 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
+					spl@0 {
+						reg = <0x0 0x20000>;
+					};
+					uboot@100000 {
+						reg = <0x100000 0x300000>;
+					};
 					data@f00000 {
 						reg = <0xf00000 0x100000>;
 					};
@@ -1673,9 +1679,51 @@
 			#sound-dai-cells = <0>;
 		};
 
-		sound: snd-card {
+		sound0: snd-card0 {
 			compatible = "simple-audio-card";
-			simple-audio-card,name = "Starfive-Multi-Sound-Card";
+			simple-audio-card,name = "Starfive-AC108-Sound-Card";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		sound1: snd-card1 {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "Starfive-HDMI-Sound-Card";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		sound2: snd-card2 {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "Starfive-PDM-Sound-Card";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		sound3: snd-card3 {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "Starfive-PWMDAC-Sound-Card";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		sound4: snd-card4 {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "Starfive-SPDIF-Sound-Card";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		sound5: snd-card5 {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "Starfive-TDM-Sound-Card";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		sound6: snd-card6 {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "Starfive-WM8960-Sound-Card";
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};

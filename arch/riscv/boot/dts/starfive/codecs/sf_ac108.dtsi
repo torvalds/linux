@@ -1,4 +1,4 @@
-&sound {
+&sound0 {
 	/* i2s + ac108 */
 	simple-audio-card,dai-link@0 {
 		reg = <0>;

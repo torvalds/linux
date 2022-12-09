@@ -1,6 +1,6 @@
-&sound {
+&sound1 {
 	/* i2s + hdmi */
-	simple-audio-card,dai-link@2 {
+	simple-audio-card,dai-link@0 {
 		reg = <0>;
 		format = "i2s";
 		bitclock-master = <&sndi2s0>;

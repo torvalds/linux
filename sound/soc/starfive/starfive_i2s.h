@@ -117,6 +117,8 @@ struct dw_i2s_dev {
 	struct clk *clk_mclk;
 	struct clk *clk_mclk_ext;
 	struct clk *clk_mclk_inner;
+	struct clk *clk_bclk_ext;
+	struct clk *clk_lrck_ext;
 	struct reset_control *rst_i2s_apb;
 	struct reset_control *rst_i2s_bclk;
 
@@ -138,6 +140,8 @@ struct dw_i2s_dev {
 			bool *period_elapsed);
 	unsigned int tx_ptr;
 	unsigned int rx_ptr;
+	bool is_master;
+	unsigned int susport_rate;
 };
 
 #if IS_ENABLED(CONFIG_SND_DESIGNWARE_PCM)
