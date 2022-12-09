@@ -483,7 +483,7 @@ void dcn31_calculate_wm_and_dlg_fp(
 		int pipe_cnt,
 		int vlevel)
 {
-	int i, pipe_idx, active_hubp_count = 0;
+	int i, pipe_idx, total_det = 0, active_hubp_count = 0;
 	double dcfclk = context->bw_ctx.dml.vba.DCFCLKState[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
 
 	dc_assert_fp_enabled();
@@ -560,6 +560,18 @@ void dcn31_calculate_wm_and_dlg_fp(
 		context->bw_ctx.bw.dcn.clk.fclk_khz = 0;
 		context->bw_ctx.bw.dcn.clk.p_state_change_support = true;
 	}
+	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+		if (!context->res_ctx.pipe_ctx[i].stream)
+			continue;
+
+		context->res_ctx.pipe_ctx[i].det_buffer_size_kb =
+				get_det_buffer_size_kbytes(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
+		if (context->res_ctx.pipe_ctx[i].det_buffer_size_kb > 384)
+			context->res_ctx.pipe_ctx[i].det_buffer_size_kb /= 2;
+		total_det += context->res_ctx.pipe_ctx[i].det_buffer_size_kb;
+		pipe_idx++;
+	}
+	context->bw_ctx.bw.dcn.compbuf_size_kb = context->bw_ctx.dml.ip.config_return_buffer_size_in_kbytes - total_det;
 }
 
 void dcn31_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
@@ -811,4 +823,15 @@ void dcn316_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 int dcn_get_max_non_odm_pix_rate_100hz(struct _vcs_dpi_soc_bounding_box_st *soc)
 {
 	return soc->clock_limits[0].dispclk_mhz * 10000.0 / (1.0 + soc->dcn_downspread_percent / 100.0);
+}
+
+int dcn_get_approx_det_segs_required_for_pstate(
+		struct _vcs_dpi_soc_bounding_box_st *soc,
+		int pix_clk_100hz, int bpp, int seg_size_kb)
+{
+	/* Roughly calculate required crb to hide latency. In practice there is slightly
+	 * more buffer available for latency hiding
+	 */
+	return (int)(soc->dram_clock_change_latency_us * pix_clk_100hz * bpp
+					/ 10240000 + seg_size_kb - 1) /	seg_size_kb;
 }

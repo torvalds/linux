@@ -533,7 +533,8 @@ static void CalculateStutterEfficiency(
 static void CalculateSwathAndDETConfiguration(
 		bool ForceSingleDPP,
 		int NumberOfActivePlanes,
-		unsigned int DETBufferSizeInKByte,
+		bool DETSharedByAllDPP,
+		unsigned int DETBufferSizeInKByte[],
 		double MaximumSwathWidthLuma[],
 		double MaximumSwathWidthChroma[],
 		enum scan_direction_class SourceScan[],
@@ -3116,7 +3117,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				v->SurfaceWidthC[k],
 				v->SurfaceHeightY[k],
 				v->SurfaceHeightC[k],
-				v->DETBufferSizeInKByte[0] * 1024,
+				v->DETBufferSizeInKByte[k] * 1024,
 				v->BlockHeight256BytesY[k],
 				v->BlockHeight256BytesC[k],
 				v->SurfaceTiling[k],
@@ -3311,7 +3312,8 @@ static void DisplayPipeConfiguration(struct display_mode_lib *mode_lib)
 	CalculateSwathAndDETConfiguration(
 			false,
 			v->NumberOfActivePlanes,
-			v->DETBufferSizeInKByte[0],
+			mode_lib->project == DML_PROJECT_DCN315 && v->DETSizeOverride[0],
+			v->DETBufferSizeInKByte,
 			dummy1,
 			dummy2,
 			v->SourceScan,
@@ -3777,14 +3779,16 @@ static noinline void CalculatePrefetchSchedulePerPlane(
 		&v->VReadyOffsetPix[k]);
 }
 
-static void PatchDETBufferSizeInKByte(unsigned int NumberOfActivePlanes, int NoOfDPPThisState[], unsigned int config_return_buffer_size_in_kbytes, unsigned int *DETBufferSizeInKByte)
+static void PatchDETBufferSizeInKByte(unsigned int NumberOfActivePlanes, int NoOfDPPThisState[], unsigned int config_return_buffer_size_in_kbytes, unsigned int DETBufferSizeInKByte[])
 {
 	int i, total_pipes = 0;
 	for (i = 0; i < NumberOfActivePlanes; i++)
 		total_pipes += NoOfDPPThisState[i];
-	*DETBufferSizeInKByte = ((config_return_buffer_size_in_kbytes - DCN3_15_MIN_COMPBUF_SIZE_KB) / 64 / total_pipes) * 64;
-	if (*DETBufferSizeInKByte > DCN3_15_MAX_DET_SIZE)
-		*DETBufferSizeInKByte = DCN3_15_MAX_DET_SIZE;
+	DETBufferSizeInKByte[0] = ((config_return_buffer_size_in_kbytes - DCN3_15_MIN_COMPBUF_SIZE_KB) / 64 / total_pipes) * 64;
+	if (DETBufferSizeInKByte[0] > DCN3_15_MAX_DET_SIZE)
+		DETBufferSizeInKByte[0] = DCN3_15_MAX_DET_SIZE;
+	for (i = 1; i < NumberOfActivePlanes; i++)
+		DETBufferSizeInKByte[i] = DETBufferSizeInKByte[0];
 }
 
 
@@ -4024,7 +4028,8 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	CalculateSwathAndDETConfiguration(
 			true,
 			v->NumberOfActivePlanes,
-			v->DETBufferSizeInKByte[0],
+			mode_lib->project == DML_PROJECT_DCN315 && v->DETSizeOverride[0],
+			v->DETBufferSizeInKByte,
 			v->MaximumSwathWidthLuma,
 			v->MaximumSwathWidthChroma,
 			v->SourceScan,
@@ -4163,6 +4168,10 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						> v->MaxDppclkRoundedDownToDFSGranularity)
 						|| (v->PlaneRequiredDISPCLK > v->MaxDispclkRoundedDownToDFSGranularity)) {
 					v->DISPCLK_DPPCLK_Support[i][j] = false;
+				}
+				if (mode_lib->project == DML_PROJECT_DCN315 && v->DETSizeOverride[k] > DCN3_15_MAX_DET_SIZE && v->NoOfDPP[i][j][k] < 2) {
+					v->MPCCombine[i][j][k] = true;
+					v->NoOfDPP[i][j][k] = 2;
 				}
 			}
 			v->TotalNumberOfActiveDPP[i][j] = 0;
@@ -4640,12 +4649,13 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				v->ODMCombineEnableThisState[k] = v->ODMCombineEnablePerState[i][k];
 			}
 
-			if (v->NumberOfActivePlanes > 1 && mode_lib->project == DML_PROJECT_DCN315)
-				PatchDETBufferSizeInKByte(v->NumberOfActivePlanes, v->NoOfDPPThisState, v->ip.config_return_buffer_size_in_kbytes, &v->DETBufferSizeInKByte[0]);
+			if (v->NumberOfActivePlanes > 1 && mode_lib->project == DML_PROJECT_DCN315 && !v->DETSizeOverride[0])
+				PatchDETBufferSizeInKByte(v->NumberOfActivePlanes, v->NoOfDPPThisState, v->ip.config_return_buffer_size_in_kbytes, v->DETBufferSizeInKByte);
 			CalculateSwathAndDETConfiguration(
 					false,
 					v->NumberOfActivePlanes,
-					v->DETBufferSizeInKByte[0],
+					mode_lib->project == DML_PROJECT_DCN315 && v->DETSizeOverride[0],
+					v->DETBufferSizeInKByte,
 					v->MaximumSwathWidthLuma,
 					v->MaximumSwathWidthChroma,
 					v->SourceScan,
@@ -6557,7 +6567,8 @@ static void CalculateStutterEfficiency(
 static void CalculateSwathAndDETConfiguration(
 		bool ForceSingleDPP,
 		int NumberOfActivePlanes,
-		unsigned int DETBufferSizeInKByte,
+		bool DETSharedByAllDPP,
+		unsigned int DETBufferSizeInKByteA[],
 		double MaximumSwathWidthLuma[],
 		double MaximumSwathWidthChroma[],
 		enum scan_direction_class SourceScan[],
@@ -6641,6 +6652,10 @@ static void CalculateSwathAndDETConfiguration(
 
 	*ViewportSizeSupport = true;
 	for (k = 0; k < NumberOfActivePlanes; ++k) {
+		unsigned int DETBufferSizeInKByte = DETBufferSizeInKByteA[k];
+
+		if (DETSharedByAllDPP && DPPPerPlane[k])
+			DETBufferSizeInKByte /= DPPPerPlane[k];
 		if ((SourcePixelFormat[k] == dm_444_64 || SourcePixelFormat[k] == dm_444_32 || SourcePixelFormat[k] == dm_444_16 || SourcePixelFormat[k] == dm_mono_16
 				|| SourcePixelFormat[k] == dm_mono_8 || SourcePixelFormat[k] == dm_rgbe)) {
 			if (SurfaceTiling[k] == dm_sw_linear
