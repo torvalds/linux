@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+menu "Rockchip video tunnel support"
+
+config ROCKCHIP_VIDEO_TUNNEL
+	tristate "Rockchip video tunnel device support"
+	depends on ARCH_ROCKCHIP
+	default n
+	help
+	  Rockchip videotunnel device support.
+
+endmenu
