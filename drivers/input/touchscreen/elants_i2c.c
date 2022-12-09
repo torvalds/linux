@@ -115,7 +115,7 @@
 /* calibration timeout definition */
 #define ELAN_CALI_TIMEOUT_MSEC	12000
 
-#define ELAN_POWERON_DELAY_USEC	500
+#define ELAN_POWERON_DELAY_USEC	5000
 #define ELAN_RESET_DELAY_MSEC	20
 
 /* FW boot code version */
@@ -1350,7 +1350,7 @@ static int elants_i2c_power_on(struct elants_data *ts)
 	 * We need to wait a bit after powering on controller before
 	 * we are allowed to release reset GPIO.
 	 */
-	udelay(ELAN_POWERON_DELAY_USEC);
+	usleep_range(ELAN_POWERON_DELAY_USEC, ELAN_POWERON_DELAY_USEC + 100);
 
 	gpiod_set_value_cansleep(ts->reset_gpio, 0);
 
