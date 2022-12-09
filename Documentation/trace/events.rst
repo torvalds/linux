@@ -258,7 +258,7 @@ file.
 To clear the filters for all events in a subsystem, write a '0' to the
 subsystem's filter file.
 
-5.3 Subsystem filters
+5.4 Subsystem filters
 ---------------------
 
 For convenience, filters for every event in a subsystem can be set or
@@ -305,7 +305,7 @@ their old filters)::
 	# cat sched_wakeup/filter
 	common_pid == 0
 
-5.4 PID filtering
+5.5 PID filtering
 -----------------
 
 The set_event_pid file in the same directory as the top events directory
