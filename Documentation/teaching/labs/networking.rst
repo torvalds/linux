@@ -797,7 +797,7 @@ where:
   * ``hook`` is the handler called when capturing a network packet (packet sent
     as a :c:type:`struct sk_buff` structure). The ``private`` field is private information
     handed to the handler. The capture handler prototype is defined by the
-    :c:type:`struct nf_hookfn` type:
+    :c:type:`nf_hookfn` type:
 
 .. code-block:: c
 
