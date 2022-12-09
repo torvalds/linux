@@ -367,6 +367,7 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	}
 
 	ra->bw_cap = bw_mode;
+	ra->er_cap = rtwsta->er_cap;
 	ra->mode_ctrl = mode;
 	ra->macid = rtwsta->mac_id;
 	ra->stbc_cap = stbc_en;

@@ -816,6 +816,7 @@ struct rtw89_tx_desc_info {
 #define RTW89_MGMT_HW_SEQ_MODE	1
 	bool hiq;
 	u8 port;
+	bool er_cap;
 };
 
 struct rtw89_core_tx_request {
@@ -2194,6 +2195,7 @@ struct rtw89_sec_cam_entry {
 struct rtw89_sta {
 	u8 mac_id;
 	bool disassoc;
+	bool er_cap;
 	struct rtw89_dev *rtwdev;
 	struct rtw89_vif *rtwvif;
 	struct rtw89_ra_info ra;
