@@ -168,11 +168,20 @@ int contention_end(u64 *ctx)
 
 	duration = bpf_ktime_get_ns() - pelem->timestamp;
 
-	if (aggr_mode == LOCK_AGGR_CALLER) {
-		key.stack_or_task_id = pelem->stack_id;
-	} else {
-		key.stack_or_task_id = pid;
+	switch (aggr_mode) {
+	case LOCK_AGGR_CALLER:
+		key.aggr_key = pelem->stack_id;
+		break;
+	case LOCK_AGGR_TASK:
+		key.aggr_key = pid;
 		update_task_data(pid);
+		break;
+	case LOCK_AGGR_ADDR:
+		key.aggr_key = pelem->lock;
+		break;
+	default:
+		/* should not happen */
+		return 0;
 	}
 
 	data = bpf_map_lookup_elem(&lock_stat, &key);

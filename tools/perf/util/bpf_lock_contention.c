@@ -137,11 +137,15 @@ int lock_contention_read(struct lock_contention *con)
 		thread__set_comm(idle, "swapper", /*timestamp=*/0);
 	}
 
+	/* make sure it loads the kernel map */
+	map__load(maps__first(machine->kmaps));
+
 	prev_key = NULL;
 	while (!bpf_map_get_next_key(fd, prev_key, &key)) {
 		struct map *kmap;
 		struct symbol *sym;
 		int idx = 0;
+		s32 stack_id;
 
 		/* to handle errors in the loop body */
 		err = -1;
@@ -160,24 +164,31 @@ int lock_contention_read(struct lock_contention *con)
 			st->avg_wait_time = data.total_time / data.count;
 
 		st->flags = data.flags;
+		st->addr = key.aggr_key;
 
 		if (con->aggr_mode == LOCK_AGGR_TASK) {
 			struct contention_task_data task;
 			struct thread *t;
-
-			st->addr = key.stack_or_task_id;
+			int pid = key.aggr_key;
 
 			/* do not update idle comm which contains CPU number */
 			if (st->addr) {
-				bpf_map_lookup_elem(task_fd, &key, &task);
-				t = __machine__findnew_thread(machine, /*pid=*/-1,
-							      key.stack_or_task_id);
+				bpf_map_lookup_elem(task_fd, &pid, &task);
+				t = __machine__findnew_thread(machine, /*pid=*/-1, pid);
 				thread__set_comm(t, task.comm, /*timestamp=*/0);
 			}
 			goto next;
 		}
 
-		bpf_map_lookup_elem(stack, &key, stack_trace);
+		if (con->aggr_mode == LOCK_AGGR_ADDR) {
+			sym = machine__find_kernel_symbol(machine, st->addr, &kmap);
+			if (sym)
+				st->name = strdup(sym->name);
+			goto next;
+		}
+
+		stack_id = key.aggr_key;
+		bpf_map_lookup_elem(stack, &stack_id, stack_trace);
 
 		/* skip lock internal functions */
 		while (machine__is_lock_function(machine, stack_trace[idx]) &&

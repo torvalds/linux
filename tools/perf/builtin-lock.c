@@ -56,6 +56,7 @@ static struct rb_root		thread_stats;
 
 static bool combine_locks;
 static bool show_thread_stats;
+static bool show_lock_addrs;
 static bool use_bpf;
 static unsigned long bpf_map_entries = 10240;
 static int max_stack_depth = CONTENTION_STACK_DEPTH;
@@ -999,13 +1000,32 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	ls = lock_stat_find(key);
 	if (!ls) {
 		char buf[128];
-		const char *caller = buf;
+		const char *name = "";
 		unsigned int flags = evsel__intval(evsel, sample, "flags");
+		struct machine *machine = &session->machines.host;
+		struct map *kmap;
+		struct symbol *sym;
 
-		if (lock_contention_caller(evsel, sample, buf, sizeof(buf)) < 0)
-			caller = "Unknown";
+		switch (aggr_mode) {
+		case LOCK_AGGR_ADDR:
+			/* make sure it loads the kernel map to find lock symbols */
+			map__load(machine__kernel_map(machine));
 
-		ls = lock_stat_findnew(key, caller, flags);
+			sym = machine__find_kernel_symbol(machine, key, &kmap);
+			if (sym)
+				name = sym->name;
+			break;
+		case LOCK_AGGR_CALLER:
+			name = buf;
+			if (lock_contention_caller(evsel, sample, buf, sizeof(buf)) < 0)
+				name = "Unknown";
+			break;
+		case LOCK_AGGR_TASK:
+		default:
+			break;
+		}
+
+		ls = lock_stat_findnew(key, name, flags);
 		if (!ls)
 			return -ENOMEM;
 
@@ -1460,10 +1480,19 @@ static void print_contention_result(struct lock_contention *con)
 		list_for_each_entry(key, &lock_keys, list)
 			pr_info("%*s ", key->len, key->header);
 
-		if (show_thread_stats)
+		switch (aggr_mode) {
+		case LOCK_AGGR_TASK:
 			pr_info("  %10s   %s\n\n", "pid", "comm");
-		else
+			break;
+		case LOCK_AGGR_CALLER:
 			pr_info("  %10s   %s\n\n", "type", "caller");
+			break;
+		case LOCK_AGGR_ADDR:
+			pr_info("  %16s   %s\n\n", "address", "symbol");
+			break;
+		default:
+			break;
+		}
 	}
 
 	bad = total = printed = 0;
@@ -1471,6 +1500,9 @@ static void print_contention_result(struct lock_contention *con)
 		bad = bad_hist[BROKEN_CONTENDED];
 
 	while ((st = pop_from_result())) {
+		struct thread *t;
+		int pid;
+
 		total += use_bpf ? st->nr_contended : 1;
 		if (st->broken)
 			bad++;
@@ -1480,18 +1512,24 @@ static void print_contention_result(struct lock_contention *con)
 			pr_info(" ");
 		}
 
-		if (show_thread_stats) {
-			struct thread *t;
-			int pid = st->addr;
-
-			/* st->addr contains tid of thread */
+		switch (aggr_mode) {
+		case LOCK_AGGR_CALLER:
+			pr_info("  %10s   %s\n", get_type_str(st), st->name);
+			break;
+		case LOCK_AGGR_TASK:
+			pid = st->addr;
 			t = perf_session__findnew(session, pid);
 			pr_info("  %10d   %s\n", pid, thread__comm_str(t));
-			goto next;
+			break;
+		case LOCK_AGGR_ADDR:
+			pr_info("  %016llx   %s\n", (unsigned long long)st->addr,
+				st->name ? : "");
+			break;
+		default:
+			break;
 		}
 
-		pr_info("  %10s   %s\n", get_type_str(st), st->name);
-		if (verbose) {
+		if (aggr_mode == LOCK_AGGR_CALLER && verbose) {
 			struct map *kmap;
 			struct symbol *sym;
 			char buf[128];
@@ -1508,7 +1546,6 @@ static void print_contention_result(struct lock_contention *con)
 			}
 		}
 
-next:
 		if (++printed >= print_nr_entries)
 			break;
 	}
@@ -1616,7 +1653,6 @@ static int __cmd_contention(int argc, const char **argv)
 		.map_nr_entries = bpf_map_entries,
 		.max_stack = max_stack_depth,
 		.stack_skip = stack_skip,
-		.aggr_mode = show_thread_stats ? LOCK_AGGR_TASK : LOCK_AGGR_CALLER,
 	};
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
@@ -1626,6 +1662,9 @@ static int __cmd_contention(int argc, const char **argv)
 	}
 
 	con.machine = &session->machines.host;
+
+	con.aggr_mode = aggr_mode = show_thread_stats ? LOCK_AGGR_TASK :
+		show_lock_addrs ? LOCK_AGGR_ADDR : LOCK_AGGR_CALLER;
 
 	/* for lock function check */
 	symbol_conf.sort_by_name = true;
@@ -1907,6 +1946,7 @@ int cmd_lock(int argc, const char **argv)
 		    "Set the number of stack depth to skip when finding a lock caller, "
 		    "Default: " __stringify(CONTENTION_STACK_SKIP)),
 	OPT_INTEGER('E', "entries", &print_nr_entries, "display this many functions"),
+	OPT_BOOLEAN('l', "lock-addr", &show_lock_addrs, "show lock stats by address"),
 	OPT_PARENT(lock_options)
 	};
 
@@ -1976,6 +2016,16 @@ int cmd_lock(int argc, const char **argv)
 			argc = parse_options(argc, argv, contention_options,
 					     contention_usage, 0);
 		}
+
+		if (show_thread_stats && show_lock_addrs) {
+			pr_err("Cannot use thread and addr mode together\n");
+			parse_options_usage(contention_usage, contention_options,
+					    "threads", 0);
+			parse_options_usage(NULL, contention_options,
+					    "lock-addr", 0);
+			return -1;
+		}
+
 		rc = __cmd_contention(argc, argv);
 	} else {
 		usage_with_options(lock_usage, lock_options);

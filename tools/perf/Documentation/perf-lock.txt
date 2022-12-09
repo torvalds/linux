@@ -168,6 +168,10 @@ CONTENTION OPTIONS
 --entries=<value>::
 	Display this many entries.
 
+-l::
+--lock-addr::
+	Show lock contention stat by address
+
 
 SEE ALSO
 --------
