@@ -2063,6 +2063,11 @@ struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos e
 			iter->update_path = bch2_btree_path_set_pos(trans,
 						iter->update_path, pos,
 						iter->flags & BTREE_ITER_INTENT);
+			ret = bch2_btree_path_traverse(trans, iter->update_path, iter->flags);
+			if (unlikely(ret)) {
+				k = bkey_s_c_err(ret);
+				goto out_no_locked;
+			}
 		}
 
 		/*
