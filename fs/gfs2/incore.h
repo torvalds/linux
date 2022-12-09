@@ -329,8 +329,7 @@ enum {
 	GLF_LRU				= 13,
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
-	GLF_PENDING_DELETE		= 17,
-	GLF_FREEING			= 18, /* Wait for glock to be freed */
+	GLF_FREEING			= 16, /* Wait for glock to be freed */
 };
 
 struct gfs2_glock {

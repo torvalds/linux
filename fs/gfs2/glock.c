@@ -984,10 +984,6 @@ static void delete_work_func(struct work_struct *work)
 	struct inode *inode;
 	u64 no_addr = gl->gl_name.ln_number;
 
-	spin_lock(&gl->gl_lockref.lock);
-	clear_bit(GLF_PENDING_DELETE, &gl->gl_flags);
-	spin_unlock(&gl->gl_lockref.lock);
-
 	if (test_bit(GLF_DEMOTE, &gl->gl_flags)) {
 		/*
 		 * If we can evict the inode, give the remote node trying to
@@ -2064,28 +2060,14 @@ static void glock_hash_walk(glock_examiner examiner, const struct gfs2_sbd *sdp)
 
 bool gfs2_queue_delete_work(struct gfs2_glock *gl, unsigned long delay)
 {
-	bool queued;
-
-	spin_lock(&gl->gl_lockref.lock);
-	queued = queue_delayed_work(gfs2_delete_workqueue,
-				    &gl->gl_delete, delay);
-	if (queued)
-		set_bit(GLF_PENDING_DELETE, &gl->gl_flags);
-	spin_unlock(&gl->gl_lockref.lock);
-	return queued;
+	return queue_delayed_work(gfs2_delete_workqueue,
+				  &gl->gl_delete, delay);
 }
 
 void gfs2_cancel_delete_work(struct gfs2_glock *gl)
 {
-	if (cancel_delayed_work(&gl->gl_delete)) {
-		clear_bit(GLF_PENDING_DELETE, &gl->gl_flags);
+	if (cancel_delayed_work(&gl->gl_delete))
 		gfs2_glock_put(gl);
-	}
-}
-
-bool gfs2_delete_work_queued(const struct gfs2_glock *gl)
-{
-	return test_bit(GLF_PENDING_DELETE, &gl->gl_flags);
 }
 
 static void flush_delete_work(struct gfs2_glock *gl)
@@ -2307,8 +2289,6 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'o';
 	if (test_bit(GLF_BLOCKING, gflags))
 		*p++ = 'b';
-	if (test_bit(GLF_PENDING_DELETE, gflags))
-		*p++ = 'P';
 	if (test_bit(GLF_FREEING, gflags))
 		*p++ = 'x';
 	if (test_bit(GLF_INSTANTIATE_NEEDED, gflags))

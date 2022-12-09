@@ -270,7 +270,6 @@ extern void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state);
 extern void gfs2_glock_complete(struct gfs2_glock *gl, int ret);
 extern bool gfs2_queue_delete_work(struct gfs2_glock *gl, unsigned long delay);
 extern void gfs2_cancel_delete_work(struct gfs2_glock *gl);
-extern bool gfs2_delete_work_queued(const struct gfs2_glock *gl);
 extern void gfs2_flush_delete_work(struct gfs2_sbd *sdp);
 extern void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
 extern void gfs2_gl_dq_holders(struct gfs2_sbd *sdp);
