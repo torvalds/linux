@@ -2008,8 +2008,9 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 		return result == DC_OK;
 	}
 
-	if (!streams_changed(dc, context->streams, context->stream_count))
+	if (!streams_changed(dc, context->streams, context->stream_count)) {
 		return DC_OK;
+	}
 
 	DC_LOG_DC("%s: %d streams\n",
 				__func__, context->stream_count);
