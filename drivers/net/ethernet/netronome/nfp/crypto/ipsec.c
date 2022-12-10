@@ -302,6 +302,11 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x)
 		return -EINVAL;
 	}
 
+	if (x->xso.type != XFRM_DEV_OFFLOAD_CRYPTO) {
+		nn_err(nn, "Unsupported xfrm offload tyoe\n");
+		return -EINVAL;
+	}
+
 	cfg->spi = ntohl(x->id.spi);
 
 	/* Hash/Authentication */
