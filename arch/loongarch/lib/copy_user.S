@@ -9,15 +9,11 @@
 #include <asm/export.h>
 #include <asm/regdef.h>
 
-.macro fixup_ex from, to, offset, fix
-.if \fix
-	.section .fixup, "ax"
-\to:	addi.d	a0, a2, \offset
+.irp to, 0
+.L_fixup_handle_\to\():
+	addi.d	a0, a2, (\to) * (-8)
 	jr	ra
-	.previous
-.endif
-	_asm_extable \from\()b, \to\()b
-.endm
+.endr
 
 /*
  * unsigned long __copy_user(void *to, const void *from, size_t n)
@@ -39,8 +35,8 @@ SYM_FUNC_START(__copy_user)
 3:	move	a0, a2
 	jr	ra
 
-	fixup_ex 1, 4, 0, 1
-	fixup_ex 2, 4, 0, 0
+	_asm_extable 1b, .L_fixup_handle_0
+	_asm_extable 2b, .L_fixup_handle_0
 SYM_FUNC_END(__copy_user)
 
 EXPORT_SYMBOL(__copy_user)
