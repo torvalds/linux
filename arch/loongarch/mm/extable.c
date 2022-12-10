@@ -30,5 +30,10 @@ bool fixup_exception(struct pt_regs *regs)
 	if (!ex)
 		return false;
 
-	return ex_handler_fixup(ex, regs);
+	switch (ex->type) {
+	case EX_TYPE_FIXUP:
+		return ex_handler_fixup(ex, regs);
+	}
+
+	BUG();
 }
