@@ -274,9 +274,8 @@ static void __gfs2_glock_put(struct gfs2_glock *gl)
 	struct address_space *mapping = gfs2_glock2aspace(gl);
 
 	lockref_mark_dead(&gl->gl_lockref);
-
-	gfs2_glock_remove_from_lru(gl);
 	spin_unlock(&gl->gl_lockref.lock);
+	gfs2_glock_remove_from_lru(gl);
 	GLOCK_BUG_ON(gl, !list_empty(&gl->gl_holders));
 	if (mapping) {
 		truncate_inode_pages_final(mapping);
@@ -1995,9 +1994,14 @@ static long gfs2_scan_glock_lru(int nr)
 			break;
 		/* Test for being demotable */
 		if (!test_bit(GLF_LOCK, &gl->gl_flags)) {
-			list_move(&gl->gl_lru, &dispose);
-			atomic_dec(&lru_count);
-			freed++;
+			if (!spin_trylock(&gl->gl_lockref.lock))
+				continue;
+			if (!gl->gl_lockref.count) {
+				list_move(&gl->gl_lru, &dispose);
+				atomic_dec(&lru_count);
+				freed++;
+			}
+			spin_unlock(&gl->gl_lockref.lock);
 		}
 	}
 	if (!list_empty(&dispose))
