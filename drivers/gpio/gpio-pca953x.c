@@ -309,17 +309,7 @@ static bool pcal6534_check_register(struct pca953x_chip *chip, unsigned int reg,
 	int bank;
 	int offset;
 
-	if (reg >= 0x30) {
-		/*
-		 * Reserved block between 14h and 2Fh does not align on
-		 * expected bank boundaries like other devices.
-		 */
-		int temp = reg - 0x30;
-
-		bank = temp / NBANK(chip);
-		offset = temp - (bank * NBANK(chip));
-		bank += 8;
-	} else if (reg >= 0x54) {
+	if (reg >= 0x54) {
 		/*
 		 * Handle lack of reserved registers after output port
 		 * configuration register to form a bank.
@@ -329,6 +319,16 @@ static bool pcal6534_check_register(struct pca953x_chip *chip, unsigned int reg,
 		bank = temp / NBANK(chip);
 		offset = temp - (bank * NBANK(chip));
 		bank += 16;
+	} else if (reg >= 0x30) {
+		/*
+		 * Reserved block between 14h and 2Fh does not align on
+		 * expected bank boundaries like other devices.
+		 */
+		int temp = reg - 0x30;
+
+		bank = temp / NBANK(chip);
+		offset = temp - (bank * NBANK(chip));
+		bank += 8;
 	} else {
 		bank = reg / NBANK(chip);
 		offset = reg - (bank * NBANK(chip));
