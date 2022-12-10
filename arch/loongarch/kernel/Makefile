@@ -16,11 +16,16 @@ obj-$(CONFIG_EFI) 		+= efi.o
 obj-$(CONFIG_CPU_HAS_FPU)	+= fpu.o
 
 ifdef CONFIG_FUNCTION_TRACER
-obj-y += mcount.o ftrace.o
-CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
-CFLAGS_REMOVE_inst.o = $(CC_FLAGS_FTRACE)
-CFLAGS_REMOVE_time.o = $(CC_FLAGS_FTRACE)
-CFLAGS_REMOVE_perf_event.o = $(CC_FLAGS_FTRACE)
+  ifndef CONFIG_DYNAMIC_FTRACE
+    obj-y += mcount.o ftrace.o
+    CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
+  else
+    obj-y += mcount_dyn.o ftrace_dyn.o
+    CFLAGS_REMOVE_ftrace_dyn.o = $(CC_FLAGS_FTRACE)
+  endif
+  CFLAGS_REMOVE_inst.o = $(CC_FLAGS_FTRACE)
+  CFLAGS_REMOVE_time.o = $(CC_FLAGS_FTRACE)
+  CFLAGS_REMOVE_perf_event.o = $(CC_FLAGS_FTRACE)
 endif
 
 obj-$(CONFIG_MODULES)		+= module.o module-sections.o

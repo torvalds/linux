@@ -25,6 +25,11 @@ endif
 32bit-emul		= elf32loongarch
 64bit-emul		= elf64loongarch
 
+ifdef CONFIG_DYNAMIC_FTRACE
+KBUILD_CPPFLAGS += -DCC_USING_PATCHABLE_FUNCTION_ENTRY
+CC_FLAGS_FTRACE := -fpatchable-function-entry=2
+endif
+
 ifdef CONFIG_64BIT
 tool-archpref		= $(64bit-tool-archpref)
 UTS_MACHINE		:= loongarch64

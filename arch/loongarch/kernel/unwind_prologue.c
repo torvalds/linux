@@ -8,6 +8,16 @@
 #include <asm/ptrace.h>
 #include <asm/unwind.h>
 
+static inline void unwind_state_fixup(struct unwind_state *state)
+{
+#ifdef CONFIG_DYNAMIC_FTRACE
+	static unsigned long ftrace = (unsigned long)ftrace_call + 4;
+
+	if (state->pc == ftrace)
+		state->is_ftrace = true;
+#endif
+}
+
 unsigned long unwind_get_return_address(struct unwind_state *state)
 {
 
@@ -41,14 +51,29 @@ static bool unwind_by_guess(struct unwind_state *state)
 
 static bool unwind_by_prologue(struct unwind_state *state)
 {
-	struct stack_info *info = &state->stack_info;
-	union loongarch_instruction *ip, *ip_end;
 	long frame_ra = -1;
 	unsigned long frame_size = 0;
 	unsigned long size, offset, pc = state->pc;
+	struct pt_regs *regs;
+	struct stack_info *info = &state->stack_info;
+	union loongarch_instruction *ip, *ip_end;
 
 	if (state->sp >= info->end || state->sp < info->begin)
 		return false;
+
+	if (state->is_ftrace) {
+		/*
+		 * As we meet ftrace_regs_entry, reset first flag like first doing
+		 * tracing. Prologue analysis will stop soon because PC is at entry.
+		 */
+		regs = (struct pt_regs *)state->sp;
+		state->first = true;
+		state->is_ftrace = false;
+		state->pc = regs->csr_era;
+		state->ra = regs->regs[1];
+		state->sp = regs->regs[3];
+		return true;
+	}
 
 	if (!kallsyms_lookup_size_offset(pc, &size, &offset))
 		return false;
@@ -95,7 +120,7 @@ static bool unwind_by_prologue(struct unwind_state *state)
 
 	state->pc = *(unsigned long *)(state->sp + frame_ra);
 	state->sp = state->sp + frame_size;
-	return !!__kernel_text_address(state->pc);
+	goto out;
 
 first:
 	state->first = false;
@@ -104,7 +129,9 @@ first:
 
 	state->pc = state->ra;
 
-	return !!__kernel_text_address(state->ra);
+out:
+	unwind_state_fixup(state);
+	return !!__kernel_text_address(state->pc);
 }
 
 void unwind_start(struct unwind_state *state, struct task_struct *task,
