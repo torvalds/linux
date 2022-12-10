@@ -1636,7 +1636,7 @@
 			};
 		};
 
-		gpi_dma1: dma-controller@0xa00000 {
+		gpi_dma1: dma-controller@a00000 {
 			#dma-cells = <3>;
 			compatible = "qcom,sdm845-gpi-dma";
 			reg = <0 0x00a00000 0 0x60000>;
