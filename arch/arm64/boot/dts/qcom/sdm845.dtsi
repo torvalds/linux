@@ -3972,9 +3972,6 @@
 			#interrupt-cells = <1>;
 		};
 
-		sound: sound {
-		};
-
 		usb_1_hsphy: phy@88e2000 {
 			compatible = "qcom,sdm845-qusb2-phy", "qcom,qusb2-v2-phy";
 			reg = <0 0x088e2000 0 0x400>;
@@ -5363,6 +5360,9 @@
 				<GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>;
 			iommus = <&apps_smmu 0x0040 0x1>;
 		};
+	};
+
+	sound: sound {
 	};
 
 	thermal-zones {
