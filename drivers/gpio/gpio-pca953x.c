@@ -306,6 +306,7 @@ static bool pca953x_check_register(struct pca953x_chip *chip, unsigned int reg,
 static bool pcal6534_check_register(struct pca953x_chip *chip, unsigned int reg,
 				    u32 checkbank)
 {
+	int bank_shift;
 	int bank;
 	int offset;
 
@@ -314,25 +315,21 @@ static bool pcal6534_check_register(struct pca953x_chip *chip, unsigned int reg,
 		 * Handle lack of reserved registers after output port
 		 * configuration register to form a bank.
 		 */
-		int temp = reg - 0x54;
-
-		bank = temp / NBANK(chip);
-		offset = temp - (bank * NBANK(chip));
-		bank += 16;
+		reg -= 0x54;
+		bank_shift = 16;
 	} else if (reg >= 0x30) {
 		/*
 		 * Reserved block between 14h and 2Fh does not align on
 		 * expected bank boundaries like other devices.
 		 */
-		int temp = reg - 0x30;
-
-		bank = temp / NBANK(chip);
-		offset = temp - (bank * NBANK(chip));
-		bank += 8;
+		reg -= 0x30;
+		bank_shift = 8;
 	} else {
-		bank = reg / NBANK(chip);
-		offset = reg - (bank * NBANK(chip));
+		bank_shift = 0;
 	}
+
+	bank = bank_shift + reg / NBANK(chip);
+	offset = reg % NBANK(chip);
 
 	/* Register is not in the matching bank. */
 	if (!(BIT(bank) & checkbank))
