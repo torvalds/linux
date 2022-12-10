@@ -1358,8 +1358,6 @@ static bool inode_dirtied_after(struct inode *inode, unsigned long t)
 	return ret;
 }
 
-#define EXPIRE_DIRTY_ATIME 0x0001
-
 /*
  * Move expired (dirtied before dirtied_before) dirty inodes from
  * @delaying_queue to @dispatch_queue.
