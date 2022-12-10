@@ -429,8 +429,18 @@
 
 	/* Qcom SMB1355 @ c */
 	/* Qcom SMB1390 @ 10 */
-	/* NXP PN553 NFC @ 28 */
 	/* Qcom FSA4480 USB-C audio switch @ 43 */
+
+	nfc@28 {
+		compatible = "nxp,nxp-nci-i2c";
+		reg = <0x28>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <47 IRQ_TYPE_EDGE_RISING>;
+
+		enable-gpios = <&tlmm 41 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&tlmm 48 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &i2c7 {
