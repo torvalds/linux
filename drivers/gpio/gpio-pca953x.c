@@ -461,7 +461,6 @@ static u8 pcal6534_recalc_addr(struct pca953x_chip *chip, int reg, int off)
 	case PCAL953X_PULL_SEL:
 	case PCAL953X_INT_MASK:
 	case PCAL953X_INT_STAT:
-	case PCAL953X_OUT_CONF:
 		pinctrl = ((reg & PCAL_PINCTRL_MASK) >> 1) + 0x20;
 		break;
 	case PCAL6524_INT_EDGE:
