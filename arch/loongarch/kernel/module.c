@@ -99,16 +99,17 @@ static int apply_r_larch_sop_push_dup(struct module *mod, u32 *location, Elf_Add
 	return 0;
 }
 
-static int apply_r_larch_sop_push_plt_pcrel(struct module *mod, u32 *location, Elf_Addr v,
+static int apply_r_larch_sop_push_plt_pcrel(struct module *mod,
+			Elf_Shdr *sechdrs, u32 *location, Elf_Addr v,
 			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	ptrdiff_t offset = (void *)v - (void *)location;
 
 	if (offset >= SZ_128M)
-		v = module_emit_plt_entry(mod, v);
+		v = module_emit_plt_entry(mod, sechdrs, v);
 
 	if (offset < -SZ_128M)
-		v = module_emit_plt_entry(mod, v);
+		v = module_emit_plt_entry(mod, sechdrs, v);
 
 	return apply_r_larch_sop_push_pcrel(mod, location, v, rela_stack, rela_stack_top, type);
 }
@@ -272,17 +273,18 @@ static int apply_r_larch_add_sub(struct module *mod, u32 *location, Elf_Addr v,
 	}
 }
 
-static int apply_r_larch_b26(struct module *mod, u32 *location, Elf_Addr v,
+static int apply_r_larch_b26(struct module *mod,
+			Elf_Shdr *sechdrs, u32 *location, Elf_Addr v,
 			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	ptrdiff_t offset = (void *)v - (void *)location;
 	union loongarch_instruction *insn = (union loongarch_instruction *)location;
 
 	if (offset >= SZ_128M)
-		v = module_emit_plt_entry(mod, v);
+		v = module_emit_plt_entry(mod, sechdrs, v);
 
 	if (offset < -SZ_128M)
-		v = module_emit_plt_entry(mod, v);
+		v = module_emit_plt_entry(mod, sechdrs, v);
 
 	offset = (void *)v - (void *)location;
 
@@ -339,10 +341,11 @@ static int apply_r_larch_pcala(struct module *mod, u32 *location, Elf_Addr v,
 	return 0;
 }
 
-static int apply_r_larch_got_pc(struct module *mod, u32 *location, Elf_Addr v,
+static int apply_r_larch_got_pc(struct module *mod,
+			Elf_Shdr *sechdrs, u32 *location, Elf_Addr v,
 			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
-	Elf_Addr got = module_emit_got_entry(mod, v);
+	Elf_Addr got = module_emit_got_entry(mod, sechdrs, v);
 
 	if (!got)
 		return -EINVAL;
@@ -387,13 +390,10 @@ static reloc_rela_handler reloc_rela_handlers[] = {
 	[R_LARCH_SOP_PUSH_PCREL]			     = apply_r_larch_sop_push_pcrel,
 	[R_LARCH_SOP_PUSH_ABSOLUTE]			     = apply_r_larch_sop_push_absolute,
 	[R_LARCH_SOP_PUSH_DUP]				     = apply_r_larch_sop_push_dup,
-	[R_LARCH_SOP_PUSH_PLT_PCREL]			     = apply_r_larch_sop_push_plt_pcrel,
 	[R_LARCH_SOP_SUB ... R_LARCH_SOP_IF_ELSE] 	     = apply_r_larch_sop,
 	[R_LARCH_SOP_POP_32_S_10_5 ... R_LARCH_SOP_POP_32_U] = apply_r_larch_sop_imm_field,
 	[R_LARCH_ADD32 ... R_LARCH_SUB64]		     = apply_r_larch_add_sub,
-	[R_LARCH_B26]					     = apply_r_larch_b26,
 	[R_LARCH_PCALA_HI20...R_LARCH_PCALA64_HI12]	     = apply_r_larch_pcala,
-	[R_LARCH_GOT_PC_HI20...R_LARCH_GOT_PC_LO12]	     = apply_r_larch_got_pc,
 };
 
 int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
@@ -444,7 +444,22 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		       sym->st_value, rel[i].r_addend, (u64)location);
 
 		v = sym->st_value + rel[i].r_addend;
-		err = handler(mod, location, v, rela_stack, &rela_stack_top, type);
+		switch (type) {
+		case R_LARCH_B26:
+			err = apply_r_larch_b26(mod, sechdrs, location,
+						     v, rela_stack, &rela_stack_top, type);
+			break;
+		case R_LARCH_GOT_PC_HI20...R_LARCH_GOT_PC_LO12:
+			err = apply_r_larch_got_pc(mod, sechdrs, location,
+						     v, rela_stack, &rela_stack_top, type);
+			break;
+		case R_LARCH_SOP_PUSH_PLT_PCREL:
+			err = apply_r_larch_sop_push_plt_pcrel(mod, sechdrs, location,
+						     v, rela_stack, &rela_stack_top, type);
+			break;
+		default:
+			err = handler(mod, location, v, rela_stack, &rela_stack_top, type);
+		}
 		if (err)
 			return err;
 	}
