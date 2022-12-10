@@ -28,6 +28,9 @@
 #include <linux/sizes.h>
 #include <linux/device.h>
 #include <linux/dma-map-ops.h>
+#include <linux/libfdt.h>
+#include <linux/of_fdt.h>
+#include <linux/of_address.h>
 #include <linux/swiotlb.h>
 
 #include <asm/addrspace.h>
@@ -69,6 +72,7 @@ static const char dmi_empty_string[] = "        ";
  *
  * These are initialized so they are in the .data section
  */
+char init_command_line[COMMAND_LINE_SIZE] __initdata;
 
 static int num_standard_resources;
 static struct resource *standard_resources;
@@ -253,6 +257,58 @@ static void __init arch_parse_crashkernel(void)
 #endif
 }
 
+static void __init fdt_setup(void)
+{
+#ifdef CONFIG_OF_EARLY_FLATTREE
+	void *fdt_pointer;
+
+	/* ACPI-based systems do not require parsing fdt */
+	if (acpi_os_get_root_pointer())
+		return;
+
+	/* Look for a device tree configuration table entry */
+	fdt_pointer = efi_fdt_pointer();
+	if (!fdt_pointer || fdt_check_header(fdt_pointer))
+		return;
+
+	early_init_dt_scan(fdt_pointer);
+	early_init_fdt_reserve_self();
+
+	max_low_pfn = PFN_PHYS(memblock_end_of_DRAM());
+#endif
+}
+
+static void __init bootcmdline_init(char **cmdline_p)
+{
+	/*
+	 * If CONFIG_CMDLINE_FORCE is enabled then initializing the command line
+	 * is trivial - we simply use the built-in command line unconditionally &
+	 * unmodified.
+	 */
+	if (IS_ENABLED(CONFIG_CMDLINE_FORCE)) {
+		strscpy(boot_command_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
+		goto out;
+	}
+
+#ifdef CONFIG_OF_FLATTREE
+	/*
+	 * If CONFIG_CMDLINE_BOOTLOADER is enabled and we are in FDT-based system,
+	 * the boot_command_line will be overwritten by early_init_dt_scan_chosen().
+	 * So we need to append init_command_line (the original copy of boot_command_line)
+	 * to boot_command_line.
+	 */
+	if (initial_boot_params) {
+		if (boot_command_line[0])
+			strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
+
+		strlcat(boot_command_line, init_command_line, COMMAND_LINE_SIZE);
+	}
+#endif
+
+out:
+	*cmdline_p = boot_command_line;
+}
+
 void __init platform_init(void)
 {
 	arch_reserve_vmcore();
@@ -265,6 +321,7 @@ void __init platform_init(void)
 	acpi_gbl_use_default_register_widths = false;
 	acpi_boot_table_init();
 #endif
+	unflatten_and_copy_device_tree();
 
 #ifdef CONFIG_NUMA
 	init_numa_memory();
@@ -296,6 +353,8 @@ static void __init arch_mem_init(char **cmdline_p)
 		pr_info("User-defined physical RAM map overwrite\n");
 
 	check_kernel_sections_mem();
+
+	early_init_fdt_scan_reserved_mem();
 
 	/*
 	 * In order to reduce the possibility of kernel panic when failed to
@@ -422,12 +481,13 @@ static void __init prefill_possible_map(void)
 void __init setup_arch(char **cmdline_p)
 {
 	cpu_probe();
-	*cmdline_p = boot_command_line;
 
 	init_environ();
 	efi_init();
+	fdt_setup();
 	memblock_init();
 	pagetable_init();
+	bootcmdline_init(cmdline_p);
 	parse_early_param();
 	reserve_initrd_mem();
 

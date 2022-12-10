@@ -9,6 +9,7 @@
 
 void __init efi_init(void);
 void __init efi_runtime_init(void);
+void __init *efi_fdt_pointer(void);
 void efifb_setup_from_dmi(struct screen_info *si, const char *opt);
 
 #define ARCH_EFI_IRQ_FLAGS_MASK  0x00000004  /* Bit 2: CSR.CRMD.IE */
