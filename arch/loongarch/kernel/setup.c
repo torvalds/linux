@@ -31,7 +31,9 @@
 #include <linux/swiotlb.h>
 
 #include <asm/addrspace.h>
+#include <asm/alternative.h>
 #include <asm/bootinfo.h>
+#include <asm/bugs.h>
 #include <asm/cache.h>
 #include <asm/cpu.h>
 #include <asm/dma.h>
@@ -78,6 +80,11 @@ static struct resource bss_resource  = { .name = "Kernel bss", };
 const char *get_system_type(void)
 {
 	return "generic-loongson-machine";
+}
+
+void __init check_bugs(void)
+{
+	alternative_instructions();
 }
 
 static const char *dmi_string_parse(const struct dmi_header *dm, u8 s)
