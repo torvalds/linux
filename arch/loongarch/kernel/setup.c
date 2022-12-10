@@ -429,6 +429,81 @@ static void __init resource_init(void)
 #endif
 }
 
+static int __init add_legacy_isa_io(struct fwnode_handle *fwnode,
+				resource_size_t hw_start, resource_size_t size)
+{
+	int ret = 0;
+	unsigned long vaddr;
+	struct logic_pio_hwaddr *range;
+
+	range = kzalloc(sizeof(*range), GFP_ATOMIC);
+	if (!range)
+		return -ENOMEM;
+
+	range->fwnode = fwnode;
+	range->size = size = round_up(size, PAGE_SIZE);
+	range->hw_start = hw_start;
+	range->flags = LOGIC_PIO_CPU_MMIO;
+
+	ret = logic_pio_register_range(range);
+	if (ret) {
+		kfree(range);
+		return ret;
+	}
+
+	/* Legacy ISA must placed at the start of PCI_IOBASE */
+	if (range->io_start != 0) {
+		logic_pio_unregister_range(range);
+		kfree(range);
+		return -EINVAL;
+	}
+
+	vaddr = (unsigned long)(PCI_IOBASE + range->io_start);
+	ioremap_page_range(vaddr, vaddr + size, hw_start, pgprot_device(PAGE_KERNEL));
+
+	return 0;
+}
+
+static __init int arch_reserve_pio_range(void)
+{
+	struct device_node *np;
+
+	for_each_node_by_name(np, "isa") {
+		struct of_range range;
+		struct of_range_parser parser;
+
+		pr_info("ISA Bridge: %pOF\n", np);
+
+		if (of_range_parser_init(&parser, np)) {
+			pr_info("Failed to parse resources.\n");
+			of_node_put(np);
+			break;
+		}
+
+		for_each_of_range(&parser, &range) {
+			switch (range.flags & IORESOURCE_TYPE_BITS) {
+			case IORESOURCE_IO:
+				pr_info(" IO 0x%016llx..0x%016llx  ->  0x%016llx\n",
+					range.cpu_addr,
+					range.cpu_addr + range.size - 1,
+					range.bus_addr);
+				if (add_legacy_isa_io(&np->fwnode, range.cpu_addr, range.size))
+					pr_warn("Failed to reserve legacy IO in Logic PIO\n");
+				break;
+			case IORESOURCE_MEM:
+				pr_info(" MEM 0x%016llx..0x%016llx  ->  0x%016llx\n",
+					range.cpu_addr,
+					range.cpu_addr + range.size - 1,
+					range.bus_addr);
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+arch_initcall(arch_reserve_pio_range);
+
 static int __init reserve_memblock_reserved_regions(void)
 {
 	u64 i, j;
