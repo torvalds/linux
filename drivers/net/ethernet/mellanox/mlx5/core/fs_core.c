@@ -448,7 +448,8 @@ static bool is_fwd_dest_type(enum mlx5_flow_destination_type type)
 		type == MLX5_FLOW_DESTINATION_TYPE_UPLINK ||
 		type == MLX5_FLOW_DESTINATION_TYPE_VPORT ||
 		type == MLX5_FLOW_DESTINATION_TYPE_FLOW_SAMPLER ||
-		type == MLX5_FLOW_DESTINATION_TYPE_TIR;
+		type == MLX5_FLOW_DESTINATION_TYPE_TIR ||
+		type == MLX5_FLOW_DESTINATION_TYPE_RANGE;
 }
 
 static bool check_valid_spec(const struct mlx5_flow_spec *spec)
@@ -1578,7 +1579,13 @@ static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM &&
 		     d1->ft_num == d2->ft_num) ||
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_SAMPLER &&
-		     d1->sampler_id == d2->sampler_id))
+		     d1->sampler_id == d2->sampler_id) ||
+		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_RANGE &&
+		     d1->range.field == d2->range.field &&
+		     d1->range.hit_ft == d2->range.hit_ft &&
+		     d1->range.miss_ft == d2->range.miss_ft &&
+		     d1->range.min == d2->range.min &&
+		     d1->range.max == d2->range.max))
 			return true;
 	}
 

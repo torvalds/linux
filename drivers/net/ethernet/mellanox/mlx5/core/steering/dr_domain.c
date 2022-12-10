@@ -425,10 +425,11 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 	refcount_set(&dmn->refcount, 1);
 	mutex_init(&dmn->info.rx.mutex);
 	mutex_init(&dmn->info.tx.mutex);
+	xa_init(&dmn->definers_xa);
 
 	if (dr_domain_caps_init(mdev, dmn)) {
 		mlx5dr_err(dmn, "Failed init domain, no caps\n");
-		goto free_domain;
+		goto def_xa_destroy;
 	}
 
 	dmn->info.max_log_action_icm_sz = DR_CHUNK_SIZE_4K;
@@ -453,7 +454,8 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 
 uninit_caps:
 	dr_domain_caps_uninit(dmn);
-free_domain:
+def_xa_destroy:
+	xa_destroy(&dmn->definers_xa);
 	kfree(dmn);
 	return NULL;
 }
@@ -493,6 +495,7 @@ int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 	dr_domain_uninit_csum_recalc_fts(dmn);
 	dr_domain_uninit_resources(dmn);
 	dr_domain_caps_uninit(dmn);
+	xa_destroy(&dmn->definers_xa);
 	mutex_destroy(&dmn->info.tx.mutex);
 	mutex_destroy(&dmn->info.rx.mutex);
 	kfree(dmn);

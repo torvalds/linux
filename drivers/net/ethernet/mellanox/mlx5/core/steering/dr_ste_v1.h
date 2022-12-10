@@ -7,6 +7,7 @@
 #include "dr_types.h"
 #include "dr_ste.h"
 
+bool dr_ste_v1_is_miss_addr_set(u8 *hw_ste_p);
 void dr_ste_v1_set_miss_addr(u8 *hw_ste_p, u64 miss_addr);
 u64 dr_ste_v1_get_miss_addr(u8 *hw_ste_p);
 void dr_ste_v1_set_byte_mask(u8 *hw_ste_p, u16 byte_mask);

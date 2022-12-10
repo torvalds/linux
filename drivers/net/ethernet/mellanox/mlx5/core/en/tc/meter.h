@@ -20,6 +20,7 @@ struct mlx5e_flow_meter_params {
 	u32 index;
 	u64 rate;
 	u64 burst;
+	u32 mtu;
 };
 
 struct mlx5e_flow_meter_handle {

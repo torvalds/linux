@@ -140,7 +140,20 @@ mlx5dr_action_create_aso(struct mlx5dr_domain *dmn,
 			 u8 init_color,
 			 u8 meter_id);
 
+struct mlx5dr_action *
+mlx5dr_action_create_dest_match_range(struct mlx5dr_domain *dmn,
+				      u32 field,
+				      struct mlx5_flow_table *hit_ft,
+				      struct mlx5_flow_table *miss_ft,
+				      u32 min,
+				      u32 max);
+
 int mlx5dr_action_destroy(struct mlx5dr_action *action);
+
+int mlx5dr_definer_get(struct mlx5dr_domain *dmn, u16 format_id,
+		       u8 *dw_selectors, u8 *byte_selectors,
+		       u8 *match_mask, u32 *definer_id);
+void mlx5dr_definer_put(struct mlx5dr_domain *dmn, u32 definer_id);
 
 static inline bool
 mlx5dr_is_supported(struct mlx5_core_dev *dev)
