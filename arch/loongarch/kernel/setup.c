@@ -31,6 +31,7 @@
 #include <linux/libfdt.h>
 #include <linux/of_fdt.h>
 #include <linux/of_address.h>
+#include <linux/suspend.h>
 #include <linux/swiotlb.h>
 
 #include <asm/addrspace.h>
@@ -369,6 +370,10 @@ static void __init arch_mem_init(char **cmdline_p)
 	swiotlb_init(true, SWIOTLB_VERBOSE);
 
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
+
+	/* Reserve for hibernation. */
+	register_nosave_region(PFN_DOWN(__pa_symbol(&__nosave_begin)),
+				   PFN_UP(__pa_symbol(&__nosave_end)));
 
 	memblock_dump_all();
 
