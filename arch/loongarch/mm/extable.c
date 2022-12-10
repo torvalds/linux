@@ -55,6 +55,8 @@ bool fixup_exception(struct pt_regs *regs)
 		return ex_handler_fixup(ex, regs);
 	case EX_TYPE_UACCESS_ERR_ZERO:
 		return ex_handler_uaccess_err_zero(ex, regs);
+	case EX_TYPE_BPF:
+		return ex_handler_bpf(ex, regs);
 	}
 
 	BUG();

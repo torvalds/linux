@@ -5,6 +5,7 @@
 #define EX_TYPE_NONE			0
 #define EX_TYPE_FIXUP			1
 #define EX_TYPE_UACCESS_ERR_ZERO	2
+#define EX_TYPE_BPF			3
 
 #ifdef __ASSEMBLY__
 

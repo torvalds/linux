@@ -32,6 +32,16 @@ do {							\
 	(b)->data = (tmp).data;				\
 } while (0)
 
+#ifdef CONFIG_BPF_JIT
+bool ex_handler_bpf(const struct exception_table_entry *ex, struct pt_regs *regs);
+#else
+static inline
+bool ex_handler_bpf(const struct exception_table_entry *ex, struct pt_regs *regs)
+{
+	return false;
+}
+#endif /* !CONFIG_BPF_JIT */
+
 bool fixup_exception(struct pt_regs *regs);
 
 #endif
