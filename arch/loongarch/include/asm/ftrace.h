@@ -6,6 +6,8 @@
 #ifndef _ASM_LOONGARCH_FTRACE_H
 #define _ASM_LOONGARCH_FTRACE_H
 
+#define GRAPH_FAKE_OFFSET (sizeof(struct pt_regs) - offsetof(struct pt_regs, regs[1]))
+
 #ifdef CONFIG_FUNCTION_TRACER
 
 #define MCOUNT_INSN_SIZE 4		/* sizeof mcount call */
@@ -24,6 +26,7 @@ struct dyn_ftrace;
 struct dyn_arch_ftrace { };
 
 #define ARCH_SUPPORTS_FTRACE_OPS 1
+#define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 
 #define ftrace_init_nop ftrace_init_nop
 int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);

@@ -21,6 +21,7 @@ struct unwind_state {
 	struct stack_info stack_info;
 	struct task_struct *task;
 	bool first, error, is_ftrace;
+	int graph_idx;
 	unsigned long sp, pc, ra;
 };
 
