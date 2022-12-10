@@ -56,6 +56,7 @@ config LOONGARCH
 	select ARCH_WANTS_NO_INSTR
 	select BUILDTIME_TABLE_SORT
 	select COMMON_CLK
+	select CPU_PM
 	select EFI
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
@@ -517,6 +518,10 @@ config ARCH_MMAP_RND_BITS_MAX
 
 menu "Power management options"
 
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y
+
+source "kernel/power/Kconfig"
 source "drivers/acpi/Kconfig"
 
 endmenu

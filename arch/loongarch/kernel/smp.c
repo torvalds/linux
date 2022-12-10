@@ -16,6 +16,7 @@
 #include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/export.h>
+#include <linux/syscore_ops.h>
 #include <linux/time.h>
 #include <linux/tracepoint.h>
 #include <linux/sched/hotplug.h>

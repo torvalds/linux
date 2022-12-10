@@ -104,6 +104,9 @@ endif
 libs-y += arch/loongarch/lib/
 libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
 
+# suspend and hibernation support
+drivers-$(CONFIG_PM)	+= arch/loongarch/power/
+
 ifeq ($(KBUILD_EXTMOD),)
 prepare: vdso_prepare
 vdso_prepare: prepare0
