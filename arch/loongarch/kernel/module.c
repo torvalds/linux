@@ -15,9 +15,11 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/ftrace.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <asm/alternative.h>
+#include <asm/inst.h>
 
 static int rela_stack_push(s64 stack_value, s64 *rela_stack, size_t *rela_stack_top)
 {
@@ -473,6 +475,23 @@ void *module_alloc(unsigned long size)
 			GFP_KERNEL, PAGE_KERNEL, 0, NUMA_NO_NODE, __builtin_return_address(0));
 }
 
+static void module_init_ftrace_plt(const Elf_Ehdr *hdr,
+				   const Elf_Shdr *sechdrs, struct module *mod)
+{
+#ifdef CONFIG_DYNAMIC_FTRACE
+	struct plt_entry *ftrace_plts;
+
+	ftrace_plts = (void *)sechdrs->sh_addr;
+
+	ftrace_plts[FTRACE_PLT_IDX] = emit_plt_entry(FTRACE_ADDR);
+
+	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS))
+		ftrace_plts[FTRACE_REGS_PLT_IDX] = emit_plt_entry(FTRACE_REGS_ADDR);
+
+	mod->arch.ftrace_trampolines = ftrace_plts;
+#endif
+}
+
 int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs, struct module *mod)
 {
@@ -482,6 +501,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 	for (s = sechdrs, se = sechdrs + hdr->e_shnum; s < se; s++) {
 		if (!strcmp(".altinstructions", secstrs + s->sh_name))
 			apply_alternatives((void *)s->sh_addr, (void *)s->sh_addr + s->sh_size);
+		if (!strcmp(".ftrace_trampoline", secstrs + s->sh_name))
+			module_init_ftrace_plt(hdr, s, mod);
 	}
 
 	return 0;

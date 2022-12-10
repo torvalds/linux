@@ -9,6 +9,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/inst.h>
+#include <asm/module.h>
 
 static int ftrace_modify_code(unsigned long pc, u32 old, u32 new, bool validate)
 {
@@ -29,18 +30,78 @@ static int ftrace_modify_code(unsigned long pc, u32 old, u32 new, bool validate)
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+
+#ifdef CONFIG_MODULES
+static inline int __get_mod(struct module **mod, unsigned long addr)
+{
+	preempt_disable();
+	*mod = __module_text_address(addr);
+	preempt_enable();
+
+	if (WARN_ON(!(*mod)))
+		return -EINVAL;
+
+	return 0;
+}
+
+static struct plt_entry *get_ftrace_plt(struct module *mod, unsigned long addr)
+{
+	struct plt_entry *plt = mod->arch.ftrace_trampolines;
+
+	if (addr == FTRACE_ADDR)
+		return &plt[FTRACE_PLT_IDX];
+	if (addr == FTRACE_REGS_ADDR &&
+			IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS))
+		return &plt[FTRACE_REGS_PLT_IDX];
+
+	return NULL;
+}
+
+static unsigned long get_plt_addr(struct module *mod, unsigned long addr)
+{
+	struct plt_entry *plt;
+
+	plt = get_ftrace_plt(mod, addr);
+	if (!plt) {
+		pr_err("ftrace: no module PLT for %ps\n", (void *)addr);
+		return -EINVAL;
+	}
+
+	return (unsigned long)plt;
+}
+#endif
+
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr, unsigned long addr)
 {
 	u32 old, new;
 	unsigned long pc;
+	long offset __maybe_unused;
 
 	pc = rec->ip + LOONGARCH_INSN_SIZE;
+
+#ifdef CONFIG_MODULES
+	offset = (long)pc - (long)addr;
+
+	if (offset < -SZ_128M || offset >= SZ_128M) {
+		int ret;
+		struct module *mod;
+
+		ret = __get_mod(&mod, pc);
+		if (ret)
+			return ret;
+
+		addr = get_plt_addr(mod, addr);
+
+		old_addr = get_plt_addr(mod, old_addr);
+	}
+#endif
 
 	new = larch_insn_gen_bl(pc, addr);
 	old = larch_insn_gen_bl(pc, old_addr);
 
 	return ftrace_modify_code(pc, old, new, true);
 }
+
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
@@ -91,8 +152,24 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	u32 old, new;
 	unsigned long pc;
+	long offset __maybe_unused;
 
 	pc = rec->ip + LOONGARCH_INSN_SIZE;
+
+#ifdef CONFIG_MODULES
+	offset = (long)pc - (long)addr;
+
+	if (offset < -SZ_128M || offset >= SZ_128M) {
+		int ret;
+		struct module *mod;
+
+		ret = __get_mod(&mod, pc);
+		if (ret)
+			return ret;
+
+		addr = get_plt_addr(mod, addr);
+	}
+#endif
 
 	old = larch_insn_gen_nop();
 	new = larch_insn_gen_bl(pc, addr);
@@ -104,8 +181,24 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long ad
 {
 	u32 old, new;
 	unsigned long pc;
+	long offset __maybe_unused;
 
 	pc = rec->ip + LOONGARCH_INSN_SIZE;
+
+#ifdef CONFIG_MODULES
+	offset = (long)pc - (long)addr;
+
+	if (offset < -SZ_128M || offset >= SZ_128M) {
+		int ret;
+		struct module *mod;
+
+		ret = __get_mod(&mod, pc);
+		if (ret)
+			return ret;
+
+		addr = get_plt_addr(mod, addr);
+	}
+#endif
 
 	new = larch_insn_gen_nop();
 	old = larch_insn_gen_bl(pc, addr);

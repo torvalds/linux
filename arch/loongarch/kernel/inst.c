@@ -120,6 +120,17 @@ u32 larch_insn_gen_move(enum loongarch_gpr rd, enum loongarch_gpr rj)
 	return larch_insn_gen_or(rd, rj, 0);
 }
 
+u32 larch_insn_gen_lu12iw(enum loongarch_gpr rd, int imm)
+{
+	union loongarch_instruction insn;
+
+	insn.reg1i20_format.opcode = lu12iw_op;
+	insn.reg1i20_format.rd = rd;
+	insn.reg1i20_format.immediate = imm;
+
+	return insn.word;
+}
+
 u32 larch_insn_gen_lu32id(enum loongarch_gpr rd, int imm)
 {
 	union loongarch_instruction insn;
