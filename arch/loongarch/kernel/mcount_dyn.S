@@ -57,6 +57,11 @@ SYM_CODE_START(ftrace_common)
 
 SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
 	bl		ftrace_stub
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+SYM_INNER_LABEL(ftrace_graph_call, SYM_L_GLOBAL)
+	nop				/* b ftrace_graph_caller */
+#endif
+
 /*
  * As we didn't use S series regs in this assmembly code and all calls
  * are C function which will save S series regs by themselves, there is
@@ -83,3 +88,31 @@ SYM_CODE_START(ftrace_caller)
 	ftrace_regs_entry
 	b		ftrace_common
 SYM_CODE_END(ftrace_caller)
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+SYM_CODE_START(ftrace_graph_caller)
+	PTR_L		a0, sp, PT_ERA
+	PTR_ADDI	a0, a0, -8	/* arg0: self_addr */
+	PTR_ADDI	a1, sp, PT_R1	/* arg1: parent */
+	bl		prepare_ftrace_return
+	b		ftrace_common_return
+SYM_CODE_END(ftrace_graph_caller)
+
+SYM_CODE_START(return_to_handler)
+	/* Save return value regs */
+	PTR_ADDI 	sp, sp, -2 * SZREG
+	PTR_S		a0, sp, 0
+	PTR_S		a1, sp, SZREG
+
+	move		a0, zero
+	bl		ftrace_return_to_handler
+	move		ra, a0
+
+	/* Restore return value regs */
+	PTR_L		a0, sp, 0
+	PTR_L		a1, sp, SZREG
+	PTR_ADDI 	sp, sp, 2 * SZREG
+
+	jr		ra
+SYM_CODE_END(return_to_handler)
+#endif
