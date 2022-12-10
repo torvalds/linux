@@ -24,11 +24,7 @@
 	qcom,board-id = <8 0>;
 
 	chosen {
-		/*
-		 * Due to an unknown-for-a-few-years regression,
-		 * SDHCI only works on MSM8996 in PIO (lame) mode.
-		 */
-		bootargs = "sdhci.debug_quirks=0x40 sdhci.debug_quirks2=0x4 maxcpus=2";
+		bootargs = "maxcpus=2";
 	};
 
 	reserved-memory {
@@ -825,8 +821,7 @@
 };
 
 &sdhc1 {
-	/* eMMC doesn't seem to cooperate even in PIO mode.. */
-	status = "disabled";
+	status = "okay";
 
 	vmmc-supply = <&pm8994_l20>;
 	vqmmc-supply = <&pm8994_s4>;
