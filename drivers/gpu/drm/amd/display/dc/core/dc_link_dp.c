@@ -5866,22 +5866,6 @@ void detect_edp_sink_caps(struct dc_link *link)
 			sizeof(link->dpcd_caps.alpm_caps.raw));
 }
 
-void dc_link_dp_enable_hpd(const struct dc_link *link)
-{
-	struct link_encoder *encoder = link->link_enc;
-
-	if (encoder != NULL && encoder->funcs->enable_hpd != NULL)
-		encoder->funcs->enable_hpd(encoder);
-}
-
-void dc_link_dp_disable_hpd(const struct dc_link *link)
-{
-	struct link_encoder *encoder = link->link_enc;
-
-	if (encoder != NULL && encoder->funcs->enable_hpd != NULL)
-		encoder->funcs->disable_hpd(encoder);
-}
-
 static bool is_dp_phy_pattern(enum dp_test_pattern test_pattern)
 {
 	if ((DP_TEST_PATTERN_PHY_PATTERN_BEGIN <= test_pattern &&

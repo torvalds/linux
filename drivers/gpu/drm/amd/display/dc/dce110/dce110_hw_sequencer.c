@@ -46,6 +46,7 @@
 #include "link_encoder.h"
 #include "link_enc_cfg.h"
 #include "link_hwss.h"
+#include "link.h"
 #include "dc_link_dp.h"
 #include "dccg.h"
 #include "clock_source.h"
@@ -737,7 +738,7 @@ void dce110_edp_wait_for_hpd_ready(
 
 	/* obtain HPD */
 	/* TODO what to do with this? */
-	hpd = get_hpd_gpio(ctx->dc_bios, connector, ctx->gpio_service);
+	hpd = link_get_hpd_gpio(ctx->dc_bios, connector, ctx->gpio_service);
 
 	if (!hpd) {
 		BREAK_TO_DEBUGGER();

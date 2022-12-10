@@ -36,6 +36,7 @@
 #include "dc_link_dpia.h"
 #include "dc_link_ddc.h"
 #include "link_hwss.h"
+#include "link.h"
 #include "opp.h"
 
 #include "link_encoder.h"
@@ -52,6 +53,7 @@
 #include "inc/link_enc_cfg.h"
 #include "inc/link_dpcd.h"
 #include "link/link_dp_trace.h"
+#include "link/link_hpd.h"
 
 #include "dc/dcn30/dcn30_vpg.h"
 
@@ -102,108 +104,6 @@ static void dc_link_destruct(struct dc_link *link)
 		dc_sink_release(link->remote_sinks[i]);
 }
 
-struct gpio *get_hpd_gpio(struct dc_bios *dcb,
-			  struct graphics_object_id link_id,
-			  struct gpio_service *gpio_service)
-{
-	enum bp_result bp_result;
-	struct graphics_object_hpd_info hpd_info;
-	struct gpio_pin_info pin_info;
-
-	if (dcb->funcs->get_hpd_info(dcb, link_id, &hpd_info) != BP_RESULT_OK)
-		return NULL;
-
-	bp_result = dcb->funcs->get_gpio_pin_info(dcb,
-		hpd_info.hpd_int_gpio_uid, &pin_info);
-
-	if (bp_result != BP_RESULT_OK) {
-		ASSERT(bp_result == BP_RESULT_NORECORD);
-		return NULL;
-	}
-
-	return dal_gpio_service_create_irq(gpio_service,
-					   pin_info.offset,
-					   pin_info.mask);
-}
-
-/*
- *  Function: program_hpd_filter
- *
- *  @brief
- *     Programs HPD filter on associated HPD line
- *
- *  @param [in] delay_on_connect_in_ms: Connect filter timeout
- *  @param [in] delay_on_disconnect_in_ms: Disconnect filter timeout
- *
- *  @return
- *     true on success, false otherwise
- */
-static bool program_hpd_filter(const struct dc_link *link)
-{
-	bool result = false;
-	struct gpio *hpd;
-	int delay_on_connect_in_ms = 0;
-	int delay_on_disconnect_in_ms = 0;
-
-	if (link->is_hpd_filter_disabled)
-		return false;
-	/* Verify feature is supported */
-	switch (link->connector_signal) {
-	case SIGNAL_TYPE_DVI_SINGLE_LINK:
-	case SIGNAL_TYPE_DVI_DUAL_LINK:
-	case SIGNAL_TYPE_HDMI_TYPE_A:
-		/* Program hpd filter */
-		delay_on_connect_in_ms = 500;
-		delay_on_disconnect_in_ms = 100;
-		break;
-	case SIGNAL_TYPE_DISPLAY_PORT:
-	case SIGNAL_TYPE_DISPLAY_PORT_MST:
-		/* Program hpd filter to allow DP signal to settle */
-		/* 500:	not able to detect MST <-> SST switch as HPD is low for
-		 * only 100ms on DELL U2413
-		 * 0: some passive dongle still show aux mode instead of i2c
-		 * 20-50: not enough to hide bouncing HPD with passive dongle.
-		 * also see intermittent i2c read issues.
-		 */
-		delay_on_connect_in_ms = 80;
-		delay_on_disconnect_in_ms = 0;
-		break;
-	case SIGNAL_TYPE_LVDS:
-	case SIGNAL_TYPE_EDP:
-	default:
-		/* Don't program hpd filter */
-		return false;
-	}
-
-	/* Obtain HPD handle */
-	hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id,
-			   link->ctx->gpio_service);
-
-	if (!hpd)
-		return result;
-
-	/* Setup HPD filtering */
-	if (dal_gpio_open(hpd, GPIO_MODE_INTERRUPT) == GPIO_RESULT_OK) {
-		struct gpio_hpd_config config;
-
-		config.delay_on_connect = delay_on_connect_in_ms;
-		config.delay_on_disconnect = delay_on_disconnect_in_ms;
-
-		dal_irq_setup_hpd_filter(hpd, &config);
-
-		dal_gpio_close(hpd);
-
-		result = true;
-	} else {
-		ASSERT_CRITICAL(false);
-	}
-
-	/* Release HPD handle */
-	dal_gpio_destroy_irq(&hpd);
-
-	return result;
-}
-
 bool dc_link_wait_for_t12(struct dc_link *link)
 {
 	if (link->connector_signal == SIGNAL_TYPE_EDP && link->dc->hwss.edp_wait_for_T12) {
@@ -226,7 +126,6 @@ bool dc_link_wait_for_t12(struct dc_link *link)
 bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 {
 	uint32_t is_hpd_high = 0;
-	struct gpio *hpd_pin;
 
 	if (link->connector_signal == SIGNAL_TYPE_LVDS) {
 		*type = dc_connection_single;
@@ -250,16 +149,8 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 		return true;
 	}
 
-	/* todo: may need to lock gpio access */
-	hpd_pin = get_hpd_gpio(link->ctx->dc_bios, link->link_id,
-			       link->ctx->gpio_service);
-	if (!hpd_pin)
+	if (!query_hpd_status(link, &is_hpd_high))
 		goto hpd_gpio_failure;
-
-	dal_gpio_open(hpd_pin, GPIO_MODE_INTERRUPT);
-	dal_gpio_get_value(hpd_pin, &is_hpd_high);
-	dal_gpio_close(hpd_pin);
-	dal_gpio_destroy_irq(&hpd_pin);
 
 	if (is_hpd_high) {
 		*type = dc_connection_single;
@@ -1367,58 +1258,6 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	return is_local_sink_detect_success && !is_delegated_to_mst_top_mgr;
 }
 
-bool dc_link_get_hpd_state(struct dc_link *dc_link)
-{
-	uint32_t state;
-
-	dal_gpio_lock_pin(dc_link->hpd_gpio);
-	dal_gpio_get_value(dc_link->hpd_gpio, &state);
-	dal_gpio_unlock_pin(dc_link->hpd_gpio);
-
-	return state;
-}
-
-static enum hpd_source_id get_hpd_line(struct dc_link *link)
-{
-	struct gpio *hpd;
-	enum hpd_source_id hpd_id;
-
-	hpd_id = HPD_SOURCEID_UNKNOWN;
-
-	hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id,
-			   link->ctx->gpio_service);
-
-	if (hpd) {
-		switch (dal_irq_get_source(hpd)) {
-		case DC_IRQ_SOURCE_HPD1:
-			hpd_id = HPD_SOURCEID1;
-		break;
-		case DC_IRQ_SOURCE_HPD2:
-			hpd_id = HPD_SOURCEID2;
-		break;
-		case DC_IRQ_SOURCE_HPD3:
-			hpd_id = HPD_SOURCEID3;
-		break;
-		case DC_IRQ_SOURCE_HPD4:
-			hpd_id = HPD_SOURCEID4;
-		break;
-		case DC_IRQ_SOURCE_HPD5:
-			hpd_id = HPD_SOURCEID5;
-		break;
-		case DC_IRQ_SOURCE_HPD6:
-			hpd_id = HPD_SOURCEID6;
-		break;
-		default:
-			BREAK_TO_DEBUGGER();
-		break;
-		}
-
-		dal_gpio_destroy_irq(&hpd);
-	}
-
-	return hpd_id;
-}
-
 static enum channel_id get_ddc_line(struct dc_link *link)
 {
 	struct ddc *ddc;
@@ -1583,7 +1422,7 @@ static bool dc_link_construct_legacy(struct dc_link *link,
 	if (link->dc->res_pool->funcs->link_init)
 		link->dc->res_pool->funcs->link_init(link);
 
-	link->hpd_gpio = get_hpd_gpio(link->ctx->dc_bios, link->link_id,
+	link->hpd_gpio = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
 				      link->ctx->gpio_service);
 
 	if (link->hpd_gpio) {
@@ -4531,51 +4370,6 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 	dc->hwss.set_avmute(pipe_ctx, enable);
 }
 
-/**
- *  dc_link_enable_hpd_filter:
- *     If enable is true, programs HPD filter on associated HPD line using
- *     delay_on_disconnect/delay_on_connect values dependent on
- *     link->connector_signal
- *
- *     If enable is false, programs HPD filter on associated HPD line with no
- *     delays on connect or disconnect
- *
- *  @link:   pointer to the dc link
- *  @enable: boolean specifying whether to enable hbd
- */
-void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
-{
-	struct gpio *hpd;
-
-	if (enable) {
-		link->is_hpd_filter_disabled = false;
-		program_hpd_filter(link);
-	} else {
-		link->is_hpd_filter_disabled = true;
-		/* Obtain HPD handle */
-		hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
-
-		if (!hpd)
-			return;
-
-		/* Setup HPD filtering */
-		if (dal_gpio_open(hpd, GPIO_MODE_INTERRUPT) == GPIO_RESULT_OK) {
-			struct gpio_hpd_config config;
-
-			config.delay_on_connect = 0;
-			config.delay_on_disconnect = 0;
-
-			dal_irq_setup_hpd_filter(hpd, &config);
-
-			dal_gpio_close(hpd);
-		} else {
-			ASSERT_CRITICAL(false);
-		}
-		/* Release HPD handle */
-		dal_gpio_destroy_irq(&hpd);
-	}
-}
-
 void dc_link_set_drive_settings(struct dc *dc,
 				struct link_training_settings *lt_settings,
 				const struct dc_link *link)
@@ -4661,16 +4455,6 @@ void dc_link_set_preferred_training_settings(struct dc *dc,
 	/* Retrain now, or wait until next stream update to apply */
 	if (skip_immediate_retrain == false)
 		dc_link_set_preferred_link_settings(dc, &link->preferred_link_setting, link);
-}
-
-void dc_link_enable_hpd(const struct dc_link *link)
-{
-	dc_link_dp_enable_hpd(link);
-}
-
-void dc_link_disable_hpd(const struct dc_link *link)
-{
-	dc_link_dp_disable_hpd(link);
 }
 
 void dc_link_set_test_pattern(struct dc_link *link,
