@@ -58,9 +58,6 @@ shpchp:
   pciehp with commit 82a9e79ef132 ("PCI: pciehp: remove hpc_ops").  Clarify
   if there was a specific reason not to apply the same change to shpchp.
 
-* The ->get_mode1_ECC_cap callback in shpchp_hpc_ops is never invoked.
-  Why was it introduced?  Can it be removed?
-
 * The hardirq handler shpc_isr() queues events on a workqueue.  It can be
   simplified by converting it to threaded IRQ handling.  Use pciehp as a
   template.
