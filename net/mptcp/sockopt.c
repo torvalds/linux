@@ -740,7 +740,7 @@ static int mptcp_setsockopt_v4_set_tos(struct mptcp_sock *msk, int optname,
 	}
 	release_sock(sk);
 
-	return err;
+	return 0;
 }
 
 static int mptcp_setsockopt_v4(struct mptcp_sock *msk, int optname,
