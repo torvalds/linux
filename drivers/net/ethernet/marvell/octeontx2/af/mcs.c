@@ -1184,10 +1184,13 @@ static int mcs_register_interrupts(struct mcs *mcs)
 	mcs->tx_sa_active = alloc_mem(mcs, mcs->hw->sc_entries);
 	if (!mcs->tx_sa_active) {
 		ret = -ENOMEM;
-		goto exit;
+		goto free_irq;
 	}
 
 	return ret;
+
+free_irq:
+	free_irq(pci_irq_vector(mcs->pdev, MCS_INT_VEC_IP), mcs);
 exit:
 	pci_free_irq_vectors(mcs->pdev);
 	mcs->num_vec = 0;
@@ -1589,6 +1592,7 @@ static void mcs_remove(struct pci_dev *pdev)
 
 	/* Set MCS to external bypass */
 	mcs_set_external_bypass(mcs, true);
+	free_irq(pci_irq_vector(pdev, MCS_INT_VEC_IP), mcs);
 	pci_free_irq_vectors(pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
