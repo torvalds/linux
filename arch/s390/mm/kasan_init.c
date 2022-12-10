@@ -255,6 +255,7 @@ void __init kasan_early_init(void)
 	pmd_t pmd_z = __pmd(__pa(kasan_early_shadow_pte) | _SEGMENT_ENTRY);
 	pud_t pud_z = __pud(__pa(kasan_early_shadow_pmd) | _REGION3_ENTRY);
 	p4d_t p4d_z = __p4d(__pa(kasan_early_shadow_pud) | _REGION2_ENTRY);
+	unsigned long untracked_end = MODULES_VADDR;
 	unsigned long shadow_alloc_size;
 	unsigned long initrd_end;
 	unsigned long memsize;
@@ -350,15 +351,13 @@ void __init kasan_early_init(void)
 	/* populate kasan shadow (for identity mapping and zero page mapping) */
 	kasan_early_pgtable_populate(__sha(0), __sha(memsize), POPULATE_MAP);
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
+		untracked_end = VMALLOC_START;
 		/* shallowly populate kasan shadow for vmalloc and modules */
 		kasan_early_pgtable_populate(__sha(VMALLOC_START), __sha(MODULES_END),
 					     POPULATE_SHALLOW);
 	}
 	/* populate kasan shadow for untracked memory */
-	kasan_early_pgtable_populate(__sha(ident_map_size),
-				     IS_ENABLED(CONFIG_KASAN_VMALLOC) ?
-						   __sha(VMALLOC_START) :
-						   __sha(MODULES_VADDR),
+	kasan_early_pgtable_populate(__sha(ident_map_size), __sha(untracked_end),
 				     POPULATE_ZERO_SHADOW);
 	kasan_early_pgtable_populate(__sha(MODULES_END), __sha(_REGION1_SIZE),
 				     POPULATE_ZERO_SHADOW);
