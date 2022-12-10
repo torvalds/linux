@@ -28,6 +28,21 @@ static int ftrace_modify_code(unsigned long pc, u32 old, u32 new, bool validate)
 	return 0;
 }
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr, unsigned long addr)
+{
+	u32 old, new;
+	unsigned long pc;
+
+	pc = rec->ip + LOONGARCH_INSN_SIZE;
+
+	new = larch_insn_gen_bl(pc, addr);
+	old = larch_insn_gen_bl(pc, old_addr);
+
+	return ftrace_modify_code(pc, old, new, true);
+}
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
+
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	u32 new;

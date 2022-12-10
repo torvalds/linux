@@ -27,7 +27,7 @@
  * follows the LoongArch's psABI as well.
  */
 
-	.macro  ftrace_regs_entry
+	.macro  ftrace_regs_entry allregs=0
 	PTR_ADDI	sp, sp, -PT_SIZE
 	PTR_S		t0, sp, PT_R1  /* Save parent ra at PT_R1(RA) */
 	PTR_S		a0, sp, PT_R4
@@ -39,6 +39,30 @@
 	PTR_S		a6, sp, PT_R10
 	PTR_S		a7, sp, PT_R11
 	PTR_S		fp, sp, PT_R22
+	.if \allregs
+	PTR_S		tp, sp, PT_R2
+	PTR_S		t0, sp, PT_R12
+	PTR_S		t1, sp, PT_R13
+	PTR_S		t2, sp, PT_R14
+	PTR_S		t3, sp, PT_R15
+	PTR_S		t4, sp, PT_R16
+	PTR_S		t5, sp, PT_R17
+	PTR_S		t6, sp, PT_R18
+	PTR_S		t7, sp, PT_R19
+	PTR_S		t8, sp, PT_R20
+	PTR_S		u0, sp, PT_R21
+	PTR_S		s0, sp, PT_R23
+	PTR_S		s1, sp, PT_R24
+	PTR_S		s2, sp, PT_R25
+	PTR_S		s3, sp, PT_R26
+	PTR_S		s4, sp, PT_R27
+	PTR_S		s5, sp, PT_R28
+	PTR_S		s6, sp, PT_R29
+	PTR_S		s7, sp, PT_R30
+	PTR_S		s8, sp, PT_R31
+	/* Clear it for later use as a flag sometimes. */
+	PTR_S		zero, sp, PT_R0
+	.endif
 	PTR_S		ra, sp, PT_ERA /* Save trace function ra at PT_ERA */
 	PTR_ADDI	t8, sp, PT_SIZE
 	PTR_S		t8, sp, PT_R3
@@ -85,9 +109,16 @@ ftrace_common_return:
 SYM_CODE_END(ftrace_common)
 
 SYM_CODE_START(ftrace_caller)
-	ftrace_regs_entry
+	ftrace_regs_entry allregs=0
 	b		ftrace_common
 SYM_CODE_END(ftrace_caller)
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+SYM_CODE_START(ftrace_regs_caller)
+	ftrace_regs_entry allregs=1
+	b		ftrace_common
+SYM_CODE_END(ftrace_regs_caller)
+#endif
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 SYM_CODE_START(ftrace_graph_caller)
