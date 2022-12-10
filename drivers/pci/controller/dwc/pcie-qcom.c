@@ -1236,7 +1236,7 @@ static int qcom_pcie_init_2_7_0(struct qcom_pcie *pcie)
 
 	ret = reset_control_assert(res->pci_reset);
 	if (ret < 0) {
-		dev_err(dev, "cannot deassert pci reset\n");
+		dev_err(dev, "cannot assert pci reset\n");
 		goto err_disable_clocks;
 	}
 
