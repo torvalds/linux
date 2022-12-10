@@ -76,6 +76,10 @@ enum reg2i12_op {
 	ldbu_op		= 0xa8,
 	ldhu_op		= 0xa9,
 	ldwu_op		= 0xaa,
+	flds_op		= 0xac,
+	fsts_op		= 0xad,
+	fldd_op		= 0xae,
+	fstd_op		= 0xaf,
 };
 
 enum reg2i14_op {
@@ -146,6 +150,10 @@ enum reg3_op {
 	ldxbu_op	= 0x7040,
 	ldxhu_op	= 0x7048,
 	ldxwu_op	= 0x7050,
+	fldxs_op	= 0x7060,
+	fldxd_op	= 0x7068,
+	fstxs_op	= 0x7070,
+	fstxd_op	= 0x7078,
 	amswapw_op	= 0x70c0,
 	amswapd_op	= 0x70c1,
 	amaddw_op	= 0x70c2,
@@ -565,5 +573,11 @@ static inline void emit_##NAME(union loongarch_instruction *insn,	\
 }
 
 DEF_EMIT_REG3SA2_FORMAT(alsld, alsld_op)
+
+struct pt_regs;
+
+void emulate_load_store_insn(struct pt_regs *regs, void __user *addr, unsigned int *pc);
+unsigned long unaligned_read(void __user *addr, void *value, unsigned long n, bool sign);
+unsigned long unaligned_write(void __user *addr, unsigned long value, unsigned long n);
 
 #endif /* _ASM_INST_H */
