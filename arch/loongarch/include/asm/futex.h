@@ -7,6 +7,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
+#include <asm/asm-extable.h>
 #include <asm/barrier.h>
 #include <asm/errno.h>
 
@@ -22,10 +23,8 @@
 	"4:	li.w	%0, %6				\n"	\
 	"	b	3b				\n"	\
 	"	.previous				\n"	\
-	"	.section __ex_table,\"a\"		\n"	\
-	"	"__UA_ADDR "\t1b, 4b			\n"	\
-	"	"__UA_ADDR "\t2b, 4b			\n"	\
-	"	.previous				\n"	\
+	_ASM_EXTABLE(1b, 4b)					\
+	_ASM_EXTABLE(2b, 4b)					\
 	: "=r" (ret), "=&r" (oldval),				\
 	  "=ZC" (*uaddr)					\
 	: "0" (0), "ZC" (*uaddr), "Jr" (oparg),			\
@@ -90,10 +89,8 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval, u32 newv
 	"4:	li.d	%0, %6					\n"
 	"	b	3b					\n"
 	"	.previous					\n"
-	"	.section __ex_table,\"a\"			\n"
-	"	"__UA_ADDR "\t1b, 4b				\n"
-	"	"__UA_ADDR "\t2b, 4b				\n"
-	"	.previous					\n"
+	_ASM_EXTABLE(1b, 4b)
+	_ASM_EXTABLE(2b, 4b)
 	: "+r" (ret), "=&r" (val), "=ZC" (*uaddr)
 	: "ZC" (*uaddr), "Jr" (oldval), "Jr" (newval),
 	  "i" (-EFAULT)

@@ -15,6 +15,7 @@
 #include <linux/string.h>
 #include <linux/extable.h>
 #include <asm/pgtable.h>
+#include <asm/asm-extable.h>
 #include <asm-generic/extable.h>
 #include <asm-generic/access_ok.h>
 
@@ -165,9 +166,7 @@ do {									\
 	"	move	%1, $zero				\n"	\
 	"	b	2b					\n"	\
 	"	.previous					\n"	\
-	"	.section __ex_table,\"a\"			\n"	\
-	"	"__UA_ADDR "\t1b, 3b				\n"	\
-	"	.previous					\n"	\
+	_ASM_EXTABLE(1b, 3b)						\
 	: "+r" (__gu_err), "=r" (__gu_tmp)				\
 	: "m" (__m(ptr)), "i" (-EFAULT));				\
 									\
@@ -196,9 +195,7 @@ do {									\
 	"3:	li.w	%0, %3					\n"	\
 	"	b	2b					\n"	\
 	"	.previous					\n"	\
-	"	.section	__ex_table,\"a\"		\n"	\
-	"	" __UA_ADDR "	1b, 3b				\n"	\
-	"	.previous					\n"	\
+	_ASM_EXTABLE(1b, 3b)						\
 	: "+r" (__pu_err), "=m" (__m(ptr))				\
 	: "Jr" (__pu_val), "i" (-EFAULT));				\
 }
