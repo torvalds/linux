@@ -3,20 +3,32 @@
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
 #include <linux/extable.h>
-#include <linux/spinlock.h>
-#include <asm/branch.h>
 #include <linux/uaccess.h>
+#include <asm/asm-extable.h>
+#include <asm/branch.h>
 
-int fixup_exception(struct pt_regs *regs)
+static inline unsigned long
+get_ex_fixup(const struct exception_table_entry *ex)
 {
-	const struct exception_table_entry *fixup;
+	return ((unsigned long)&ex->fixup + ex->fixup);
+}
 
-	fixup = search_exception_tables(exception_era(regs));
-	if (fixup) {
-		regs->csr_era = fixup->fixup;
+static bool ex_handler_fixup(const struct exception_table_entry *ex,
+			     struct pt_regs *regs)
+{
+	regs->csr_era = get_ex_fixup(ex);
 
-		return 1;
-	}
+	return true;
+}
 
-	return 0;
+
+bool fixup_exception(struct pt_regs *regs)
+{
+	const struct exception_table_entry *ex;
+
+	ex = search_exception_tables(exception_era(regs));
+	if (!ex)
+		return false;
+
+	return ex_handler_fixup(ex, regs);
 }

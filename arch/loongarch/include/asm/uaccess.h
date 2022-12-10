@@ -15,8 +15,8 @@
 #include <linux/string.h>
 #include <linux/extable.h>
 #include <asm/pgtable.h>
+#include <asm/extable.h>
 #include <asm/asm-extable.h>
-#include <asm-generic/extable.h>
 #include <asm-generic/access_ok.h>
 
 extern u64 __ua_limit;

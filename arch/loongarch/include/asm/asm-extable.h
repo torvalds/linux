@@ -6,9 +6,9 @@
 
 #define __ASM_EXTABLE_RAW(insn, fixup)			\
 	.pushsection	__ex_table, "a";		\
-	.balign		8;				\
-	.quad		(insn);				\
-	.quad		(fixup);			\
+	.balign		4;				\
+	.long		((insn) - .);			\
+	.long		((fixup) - .);			\
 	.popsection;
 
 	.macro		_asm_extable, insn, fixup
@@ -22,9 +22,9 @@
 
 #define __ASM_EXTABLE_RAW(insn, fixup)			\
 	".pushsection	__ex_table, \"a\"\n"		\
-	".balign	8\n"				\
-	".quad		((" insn "))\n"			\
-	".quad		((" fixup "))\n"		\
+	".balign	4\n"				\
+	".long		((" insn ") - .)\n"		\
+	".long		((" fixup ") - .)\n"		\
 	".popsection\n"
 
 #define _ASM_EXTABLE(insn, fixup)	\
