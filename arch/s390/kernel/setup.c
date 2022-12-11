@@ -1046,7 +1046,7 @@ void __init setup_arch(char **cmdline_p)
 	 * Create kernel page tables.
 	 */
         paging_init();
-	memcpy_real_init();
+
 	/*
 	 * After paging_init created the kernel page table, the new PSWs
 	 * in lowcore can now run with DAT enabled.

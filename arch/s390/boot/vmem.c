@@ -5,6 +5,7 @@
 #include <asm/facility.h>
 #include <asm/sections.h>
 #include <asm/mem_detect.h>
+#include <asm/maccess.h>
 #include "decompressor.h"
 #include "boot.h"
 
@@ -12,12 +13,21 @@
 #define swapper_pg_dir		vmlinux.swapper_pg_dir_off
 #define invalid_pg_dir		vmlinux.invalid_pg_dir_off
 
+/*
+ * Mimic virt_to_kpte() in lack of init_mm symbol. Skip pmd NULL check though.
+ */
+static inline pte_t *__virt_to_kpte(unsigned long va)
+{
+	return pte_offset_kernel(pmd_offset(pud_offset(p4d_offset(pgd_offset_k(va), va), va), va), va);
+}
+
 unsigned long __bootdata_preserved(s390_invalid_asce);
 unsigned long __bootdata(pgalloc_pos);
 unsigned long __bootdata(pgalloc_end);
 unsigned long __bootdata(pgalloc_low);
 
 enum populate_mode {
+	POPULATE_NONE,
 	POPULATE_ONE2ONE,
 };
 
@@ -88,6 +98,8 @@ static pte_t *boot_pte_alloc(void)
 static unsigned long _pa(unsigned long addr, enum populate_mode mode)
 {
 	switch (mode) {
+	case POPULATE_NONE:
+		return -1;
 	case POPULATE_ONE2ONE:
 		return addr;
 	default:
@@ -259,6 +271,9 @@ void setup_vmem(unsigned long online_end, unsigned long asce_limit)
 	pgtable_populate_begin(online_end);
 	pgtable_populate(0, sizeof(struct lowcore), POPULATE_ONE2ONE);
 	pgtable_populate(0, online_end, POPULATE_ONE2ONE);
+	pgtable_populate(__memcpy_real_area, __memcpy_real_area + PAGE_SIZE,
+			 POPULATE_NONE);
+	memcpy_real_ptep = __virt_to_kpte(__memcpy_real_area);
 	pgtable_populate_end();
 
 	S390_lowcore.kernel_asce = swapper_pg_dir | asce_bits;

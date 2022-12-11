@@ -3,6 +3,7 @@
 #include <linux/elf.h>
 #include <asm/boot_data.h>
 #include <asm/sections.h>
+#include <asm/maccess.h>
 #include <asm/cpu_mf.h>
 #include <asm/setup.h>
 #include <asm/kasan.h>
@@ -19,6 +20,7 @@
 unsigned long __bootdata_preserved(__kaslr_offset);
 unsigned long __bootdata_preserved(__abs_lowcore);
 unsigned long __bootdata_preserved(__memcpy_real_area);
+pte_t *__bootdata_preserved(memcpy_real_ptep);
 unsigned long __bootdata(__amode31_base);
 unsigned long __bootdata_preserved(VMALLOC_START);
 unsigned long __bootdata_preserved(VMALLOC_END);
