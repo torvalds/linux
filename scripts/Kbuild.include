@@ -185,9 +185,6 @@ endif
 make-cmd = $(call escsq,$(subst $(pound),$$(pound),$(subst $$,$$$$,$(cmd_$(1)))))
 
 # Find any prerequisites that are newer than target or that do not exist.
-# (This is not true for now; $? should contain any non-existent prerequisites,
-# but it does not work as expected when .SECONDARY is present. This seems a bug
-# of GNU Make.)
 # PHONY targets skipped in both cases.
 newer-prereqs = $(filter-out $(PHONY),$?)
 
@@ -263,4 +260,14 @@ endif
 .DELETE_ON_ERROR:
 
 # do not delete intermediate files automatically
+#
+# .NOTINTERMEDIATE is more correct, but only available on newer Make versions.
+# Make 4.4 introduced .NOTINTERMEDIATE, and it appears in .FEATURES, but the
+# global .NOTINTERMEDIATE does not work. We can use it on Make > 4.4.
+# Use .SECONDARY for older Make versions, but "newer-prereq" cannot detect
+# deleted files.
+ifneq ($(and $(filter notintermediate, $(.FEATURES)),$(filter-out 4.4,$(MAKE_VERSION))),)
+.NOTINTERMEDIATE:
+else
 .SECONDARY:
+endif
