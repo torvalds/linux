@@ -415,27 +415,6 @@ static int ov5693_write_reg_array(struct i2c_client *client,
 	return __ov5693_flush_reg_array(client, &ctrl);
 }
 
-static int ov5693_g_focal(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (OV5693_FOCAL_LENGTH_NUM << 16) | OV5693_FOCAL_LENGTH_DEM;
-	return 0;
-}
-
-static int ov5693_g_fnumber(struct v4l2_subdev *sd, s32 *val)
-{
-	/*const f number for imx*/
-	*val = (OV5693_F_NUMBER_DEFAULT_NUM << 16) | OV5693_F_NUMBER_DEM;
-	return 0;
-}
-
-static int ov5693_g_fnumber_range(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (OV5693_F_NUMBER_DEFAULT_NUM << 24) |
-	       (OV5693_F_NUMBER_DEM << 16) |
-	       (OV5693_F_NUMBER_DEFAULT_NUM << 8) | OV5693_F_NUMBER_DEM;
-	return 0;
-}
-
 static int ov5693_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
 {
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
@@ -1107,15 +1086,6 @@ static int ov5693_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = ov5693_q_exposure(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_FOCAL_ABSOLUTE:
-		ret = ov5693_g_focal(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_ABSOLUTE:
-		ret = ov5693_g_fnumber(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_RANGE:
-		ret = ov5693_g_fnumber_range(&dev->sd, &ctrl->val);
-		break;
 	case V4L2_CID_FOCUS_ABSOLUTE:
 		ret = ov5693_q_focus_abs(&dev->sd, &ctrl->val);
 		break;
@@ -1150,39 +1120,6 @@ static const struct v4l2_ctrl_config ov5693_controls[] = {
 		.max = 0xffff,
 		.step = 0x01,
 		.def = 0x00,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FOCAL_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "focal length",
-		.min = OV5693_FOCAL_LENGTH_DEFAULT,
-		.max = OV5693_FOCAL_LENGTH_DEFAULT,
-		.step = 0x01,
-		.def = OV5693_FOCAL_LENGTH_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number",
-		.min = OV5693_F_NUMBER_DEFAULT,
-		.max = OV5693_F_NUMBER_DEFAULT,
-		.step = 0x01,
-		.def = OV5693_F_NUMBER_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_RANGE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number range",
-		.min = OV5693_F_NUMBER_RANGE,
-		.max = OV5693_F_NUMBER_RANGE,
-		.step = 0x01,
-		.def = OV5693_F_NUMBER_RANGE,
 		.flags = 0,
 	},
 	{

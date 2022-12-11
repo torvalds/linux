@@ -586,20 +586,6 @@ struct atomisp_shading_table {
 	__u16 *data[ATOMISP_NUM_SC_COLORS];
 };
 
-struct atomisp_makernote_info {
-	/* bits 31-16: numerator, bits 15-0: denominator */
-	unsigned int focal_length;
-	/* bits 31-16: numerator, bits 15-0: denominator*/
-	unsigned int f_number_curr;
-	/*
-	* bits 31-24: max f-number numerator
-	* bits 23-16: max f-number denominator
-	* bits 15-8: min f-number numerator
-	* bits 7-0: min f-number denominator
-	*/
-	unsigned int f_number_range;
-};
-
 /* parameter for MACC */
 #define ATOMISP_NUM_MACC_AXES           16
 struct atomisp_macc_table {
@@ -914,8 +900,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 	_IOR('v', BASE_VIDIOC_PRIVATE + 10, struct atomisp_morph_table)
 #define ATOMISP_IOC_S_ISP_GDC_TAB \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 10, struct atomisp_morph_table)
-#define ATOMISP_IOC_ISP_MAKERNOTE \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 11, struct atomisp_makernote_info)
 
 /* macc parameter control*/
 #define ATOMISP_IOC_G_ISP_MACC \
@@ -1092,10 +1076,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 /* Camera class:
  * Exposure, Flash and privacy (indicator) light controls, to be upstreamed */
 #define V4L2_CID_CAMERA_LASTP1             (V4L2_CID_CAMERA_CLASS_BASE + 1024)
-
-#define V4L2_CID_FOCAL_ABSOLUTE            (V4L2_CID_CAMERA_LASTP1 + 0)
-#define V4L2_CID_FNUMBER_ABSOLUTE          (V4L2_CID_CAMERA_LASTP1 + 1)
-#define V4L2_CID_FNUMBER_RANGE             (V4L2_CID_CAMERA_LASTP1 + 2)
 
 /* Flash related CIDs, see also:
  * http://linuxtv.org/downloads/v4l-dvb-apis/extended-controls.html\

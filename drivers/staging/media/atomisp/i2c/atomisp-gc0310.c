@@ -241,27 +241,6 @@ static int gc0310_write_reg_array(struct i2c_client *client,
 	return __gc0310_flush_reg_array(client, &ctrl);
 }
 
-static int gc0310_g_focal(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (GC0310_FOCAL_LENGTH_NUM << 16) | GC0310_FOCAL_LENGTH_DEM;
-	return 0;
-}
-
-static int gc0310_g_fnumber(struct v4l2_subdev *sd, s32 *val)
-{
-	/*const f number for imx*/
-	*val = (GC0310_F_NUMBER_DEFAULT_NUM << 16) | GC0310_F_NUMBER_DEM;
-	return 0;
-}
-
-static int gc0310_g_fnumber_range(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (GC0310_F_NUMBER_DEFAULT_NUM << 24) |
-	       (GC0310_F_NUMBER_DEM << 16) |
-	       (GC0310_F_NUMBER_DEFAULT_NUM << 8) | GC0310_F_NUMBER_DEM;
-	return 0;
-}
-
 static int gc0310_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
 {
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
@@ -596,15 +575,6 @@ static int gc0310_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = gc0310_q_exposure(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_FOCAL_ABSOLUTE:
-		ret = gc0310_g_focal(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_ABSOLUTE:
-		ret = gc0310_g_fnumber(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_RANGE:
-		ret = gc0310_g_fnumber_range(&dev->sd, &ctrl->val);
-		break;
 	case V4L2_CID_BIN_FACTOR_HORZ:
 		ret = gc0310_g_bin_factor_x(&dev->sd, &ctrl->val);
 		break;
@@ -654,39 +624,6 @@ static const struct v4l2_ctrl_config gc0310_controls[] = {
 		.max = 1,
 		.step = 1,
 		.def = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FOCAL_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "focal length",
-		.min = GC0310_FOCAL_LENGTH_DEFAULT,
-		.max = GC0310_FOCAL_LENGTH_DEFAULT,
-		.step = 0x01,
-		.def = GC0310_FOCAL_LENGTH_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number",
-		.min = GC0310_F_NUMBER_DEFAULT,
-		.max = GC0310_F_NUMBER_DEFAULT,
-		.step = 0x01,
-		.def = GC0310_F_NUMBER_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_RANGE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number range",
-		.min = GC0310_F_NUMBER_RANGE,
-		.max = GC0310_F_NUMBER_RANGE,
-		.step = 0x01,
-		.def = GC0310_F_NUMBER_RANGE,
-		.flags = 0,
 	},
 	{
 		.ops = &ctrl_ops,

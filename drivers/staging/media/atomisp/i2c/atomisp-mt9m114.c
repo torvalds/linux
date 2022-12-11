@@ -841,28 +841,6 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/* TODO: Update to SOC functions, remove exposure and gain */
-static int mt9m114_g_focal(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (MT9M114_FOCAL_LENGTH_NUM << 16) | MT9M114_FOCAL_LENGTH_DEM;
-	return 0;
-}
-
-static int mt9m114_g_fnumber(struct v4l2_subdev *sd, s32 *val)
-{
-	/* const f number for mt9m114 */
-	*val = (MT9M114_F_NUMBER_DEFAULT_NUM << 16) | MT9M114_F_NUMBER_DEM;
-	return 0;
-}
-
-static int mt9m114_g_fnumber_range(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (MT9M114_F_NUMBER_DEFAULT_NUM << 24) |
-	       (MT9M114_F_NUMBER_DEM << 16) |
-	       (MT9M114_F_NUMBER_DEFAULT_NUM << 8) | MT9M114_F_NUMBER_DEM;
-	return 0;
-}
-
 /* Horizontal flip the image. */
 static int mt9m114_g_hflip(struct v4l2_subdev *sd, s32 *val)
 {
@@ -1271,15 +1249,6 @@ static int mt9m114_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_HFLIP:
 		ret = mt9m114_g_hflip(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_FOCAL_ABSOLUTE:
-		ret = mt9m114_g_focal(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_ABSOLUTE:
-		ret = mt9m114_g_fnumber(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_RANGE:
-		ret = mt9m114_g_fnumber_range(&dev->sd, &ctrl->val);
-		break;
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = mt9m114_g_exposure(&dev->sd, &ctrl->val);
 		break;
@@ -1330,39 +1299,6 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 		.max = 1,
 		.step = 1,
 		.def = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FOCAL_ABSOLUTE,
-		.name = "focal length",
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.min = MT9M114_FOCAL_LENGTH_DEFAULT,
-		.max = MT9M114_FOCAL_LENGTH_DEFAULT,
-		.step = 1,
-		.def = MT9M114_FOCAL_LENGTH_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_ABSOLUTE,
-		.name = "f-number",
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.min = MT9M114_F_NUMBER_DEFAULT,
-		.max = MT9M114_F_NUMBER_DEFAULT,
-		.step = 1,
-		.def = MT9M114_F_NUMBER_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_RANGE,
-		.name = "f-number range",
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.min = MT9M114_F_NUMBER_RANGE,
-		.max = MT9M114_F_NUMBER_RANGE,
-		.step = 1,
-		.def = MT9M114_F_NUMBER_RANGE,
-		.flags = 0,
 	},
 	{
 		.ops = &ctrl_ops,

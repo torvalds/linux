@@ -5493,42 +5493,6 @@ out:
 	return ret;
 }
 
-int atomisp_exif_makernote(struct atomisp_sub_device *asd,
-			   struct atomisp_makernote_info *config)
-{
-	struct v4l2_control ctrl;
-	struct atomisp_device *isp = asd->isp;
-
-	ctrl.id = V4L2_CID_FOCAL_ABSOLUTE;
-	if (v4l2_g_ctrl
-	    (isp->inputs[asd->input_curr].camera->ctrl_handler, &ctrl)) {
-		dev_warn(isp->dev, "failed to g_ctrl for focal length\n");
-		return -EINVAL;
-	} else {
-		config->focal_length = ctrl.value;
-	}
-
-	ctrl.id = V4L2_CID_FNUMBER_ABSOLUTE;
-	if (v4l2_g_ctrl
-	    (isp->inputs[asd->input_curr].camera->ctrl_handler, &ctrl)) {
-		dev_warn(isp->dev, "failed to g_ctrl for f-number\n");
-		return -EINVAL;
-	} else {
-		config->f_number_curr = ctrl.value;
-	}
-
-	ctrl.id = V4L2_CID_FNUMBER_RANGE;
-	if (v4l2_g_ctrl
-	    (isp->inputs[asd->input_curr].camera->ctrl_handler, &ctrl)) {
-		dev_warn(isp->dev, "failed to g_ctrl for f number range\n");
-		return -EINVAL;
-	} else {
-		config->f_number_range = ctrl.value;
-	}
-
-	return 0;
-}
-
 int atomisp_offline_capture_configure(struct atomisp_sub_device *asd,
 				      struct atomisp_cont_capture_conf *cvf_config)
 {

@@ -1640,7 +1640,6 @@ static int atomisp_g_ctrl(struct file *file, void *fh,
 	switch (control->id) {
 	case V4L2_CID_IRIS_ABSOLUTE:
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
-	case V4L2_CID_FNUMBER_ABSOLUTE:
 	case V4L2_CID_2A_STATUS:
 	case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
 	case V4L2_CID_EXPOSURE:
@@ -1837,7 +1836,6 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 		case V4L2_CID_EXPOSURE_ABSOLUTE:
 		case V4L2_CID_EXPOSURE_AUTO:
 		case V4L2_CID_IRIS_ABSOLUTE:
-		case V4L2_CID_FNUMBER_ABSOLUTE:
 		case V4L2_CID_BIN_FACTOR_HORZ:
 		case V4L2_CID_BIN_FACTOR_VERT:
 		case V4L2_CID_3A_LOCK:
@@ -1949,7 +1947,6 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 		case V4L2_CID_EXPOSURE_AUTO:
 		case V4L2_CID_EXPOSURE_METERING:
 		case V4L2_CID_IRIS_ABSOLUTE:
-		case V4L2_CID_FNUMBER_ABSOLUTE:
 		case V4L2_CID_VCM_TIMING:
 		case V4L2_CID_VCM_SLEW:
 		case V4L2_CID_3A_LOCK:
@@ -2283,10 +2280,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 
 	case ATOMISP_IOC_S_ISP_FPN_TABLE:
 		err = atomisp_fixed_pattern_table(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ISP_MAKERNOTE:
-		err = atomisp_exif_makernote(asd, arg);
 		break;
 
 	case ATOMISP_IOC_G_SENSOR_MODE_DATA:

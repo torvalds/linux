@@ -220,27 +220,6 @@ static int gc2235_write_reg_array(struct i2c_client *client,
 	return __gc2235_flush_reg_array(client, &ctrl);
 }
 
-static int gc2235_g_focal(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (GC2235_FOCAL_LENGTH_NUM << 16) | GC2235_FOCAL_LENGTH_DEM;
-	return 0;
-}
-
-static int gc2235_g_fnumber(struct v4l2_subdev *sd, s32 *val)
-{
-	/* const f number for imx */
-	*val = (GC2235_F_NUMBER_DEFAULT_NUM << 16) | GC2235_F_NUMBER_DEM;
-	return 0;
-}
-
-static int gc2235_g_fnumber_range(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (GC2235_F_NUMBER_DEFAULT_NUM << 24) |
-	       (GC2235_F_NUMBER_DEM << 16) |
-	       (GC2235_F_NUMBER_DEFAULT_NUM << 8) | GC2235_F_NUMBER_DEM;
-	return 0;
-}
-
 static int gc2235_get_intg_factor(struct i2c_client *client,
 				  struct camera_mipi_info *info,
 				  const struct gc2235_resolution *res)
@@ -467,15 +446,6 @@ static int gc2235_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = gc2235_q_exposure(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_FOCAL_ABSOLUTE:
-		ret = gc2235_g_focal(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_ABSOLUTE:
-		ret = gc2235_g_fnumber(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_RANGE:
-		ret = gc2235_g_fnumber_range(&dev->sd, &ctrl->val);
-		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -497,39 +467,6 @@ static struct v4l2_ctrl_config gc2235_controls[] = {
 		.max = 0xffff,
 		.step = 0x01,
 		.def = 0x00,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FOCAL_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "focal length",
-		.min = GC2235_FOCAL_LENGTH_DEFAULT,
-		.max = GC2235_FOCAL_LENGTH_DEFAULT,
-		.step = 0x01,
-		.def = GC2235_FOCAL_LENGTH_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number",
-		.min = GC2235_F_NUMBER_DEFAULT,
-		.max = GC2235_F_NUMBER_DEFAULT,
-		.step = 0x01,
-		.def = GC2235_F_NUMBER_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_RANGE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number range",
-		.min = GC2235_F_NUMBER_RANGE,
-		.max = GC2235_F_NUMBER_RANGE,
-		.step = 0x01,
-		.def = GC2235_F_NUMBER_RANGE,
 		.flags = 0,
 	},
 };

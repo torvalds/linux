@@ -119,28 +119,6 @@ static int ov2680_write_reg_array(struct i2c_client *client,
 	return 0;
 }
 
-static int ov2680_g_focal(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (OV2680_FOCAL_LENGTH_NUM << 16) | OV2680_FOCAL_LENGTH_DEM;
-	return 0;
-}
-
-static int ov2680_g_fnumber(struct v4l2_subdev *sd, s32 *val)
-{
-	/* const f number for ov2680 */
-
-	*val = (OV2680_F_NUMBER_DEFAULT_NUM << 16) | OV2680_F_NUMBER_DEM;
-	return 0;
-}
-
-static int ov2680_g_fnumber_range(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (OV2680_F_NUMBER_DEFAULT_NUM << 24) |
-	       (OV2680_F_NUMBER_DEM << 16) |
-	       (OV2680_F_NUMBER_DEFAULT_NUM << 8) | OV2680_F_NUMBER_DEM;
-	return 0;
-}
-
 static int ov2680_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
 {
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
@@ -517,15 +495,6 @@ static int ov2680_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = ov2680_q_exposure(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_FOCAL_ABSOLUTE:
-		ret = ov2680_g_focal(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_ABSOLUTE:
-		ret = ov2680_g_fnumber(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_RANGE:
-		ret = ov2680_g_fnumber_range(&dev->sd, &ctrl->val);
-		break;
 	case V4L2_CID_BIN_FACTOR_HORZ:
 		ret = ov2680_g_bin_factor_x(&dev->sd, &ctrl->val);
 		break;
@@ -554,39 +523,6 @@ static const struct v4l2_ctrl_config ov2680_controls[] = {
 		.max = 0xffff,
 		.step = 0x01,
 		.def = 0x00,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FOCAL_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "focal length",
-		.min = OV2680_FOCAL_LENGTH_DEFAULT,
-		.max = OV2680_FOCAL_LENGTH_DEFAULT,
-		.step = 0x01,
-		.def = OV2680_FOCAL_LENGTH_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number",
-		.min = OV2680_F_NUMBER_DEFAULT,
-		.max = OV2680_F_NUMBER_DEFAULT,
-		.step = 0x01,
-		.def = OV2680_F_NUMBER_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_RANGE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number range",
-		.min = OV2680_F_NUMBER_RANGE,
-		.max = OV2680_F_NUMBER_RANGE,
-		.step = 0x01,
-		.def = OV2680_F_NUMBER_RANGE,
 		.flags = 0,
 	},
 	{
