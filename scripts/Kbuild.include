@@ -12,6 +12,22 @@ space_escape := _-_SPACE_-_
 pound := \#
 
 ###
+# Comparison macros.
+# Usage: $(call test-lt, $(CONFIG_LLD_VERSION), 150000)
+#
+# Use $(intcmp ...) if supported. (Make >= 4.4)
+# Otherwise, fall back to the 'test' shell command.
+ifeq ($(intcmp 1,0,,,y),y)
+test-ge = $(intcmp $(strip $1)0, $(strip $2)0,,y,y)
+test-gt = $(intcmp $(strip $1)0, $(strip $2)0,,,y)
+else
+test-ge = $(shell test $(strip $1)0 -ge $(strip $2)0 && echo y)
+test-gt = $(shell test $(strip $1)0 -gt $(strip $2)0 && echo y)
+endif
+test-le = $(call test-ge, $2, $1)
+test-lt = $(call test-gt, $2, $1)
+
+###
 # Name of target with a '.' as filename prefix. foo/bar.o => foo/.bar.o
 dot-target = $(dir $@).$(notdir $@)
 
