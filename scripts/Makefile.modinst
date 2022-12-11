@@ -9,7 +9,7 @@ __modinst:
 include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
 
-modules := $(shell cat $(MODORDER))
+modules := $(call read-file, $(MODORDER))
 
 ifeq ($(KBUILD_EXTMOD),)
 dst := $(MODLIB)/kernel

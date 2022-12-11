@@ -13,7 +13,7 @@ include $(srctree)/scripts/Kbuild.include
 include $(srctree)/scripts/Makefile.lib
 
 # find all modules listed in modules.order
-modules := $(shell cat $(MODORDER))
+modules := $(call read-file, $(MODORDER))
 
 __modfinal: $(modules)
 	@:
