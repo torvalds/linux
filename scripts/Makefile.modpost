@@ -107,7 +107,10 @@ ifneq ($(KBUILD_MODPOST_WARN)$(missing-input),)
 modpost-args += -w
 endif
 
-modorder-if-needed := $(if $(KBUILD_MODULES), $(MODORDER))
+ifdef KBUILD_MODULES
+modorder-if-needed := $(MODORDER)
+modpost-args += -T $(MODORDER)
+endif
 
 MODPOST = scripts/mod/modpost
 
@@ -119,7 +122,7 @@ quiet_cmd_modpost = MODPOST $@
 		echo >&2 "WARNING: $(missing-input) is missing."; \
 		echo >&2 "         Modules may not have dependencies or modversions."; \
 		echo >&2 "         You may get many unresolved symbol warnings.";) \
-	sed 's/ko$$/o/' $(or $(modorder-if-needed), /dev/null) | $(MODPOST) $(modpost-args) -T - $(vmlinux.o-if-present)
+	$(MODPOST) $(modpost-args) $(vmlinux.o-if-present)
 
 targets += $(output-symdump)
 $(output-symdump): $(modorder-if-needed) $(vmlinux.o-if-present) $(module.symvers-if-present) $(MODPOST) FORCE
