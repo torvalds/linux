@@ -1299,17 +1299,7 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 	 * As a last resort, if another node keeps holding the iopen glock
 	 * without showing any activity on the inode glock, we will eventually
 	 * time out and fail the iopen glock upgrade.
-	 *
-	 * Note that we're passing the LM_FLAG_TRY_1CB flag to the first
-	 * locking request as an optimization to notify lock holders as soon as
-	 * possible.  Without that flag, they'd be notified implicitly by the
-	 * second locking request.
 	 */
-
-	gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, gh);
-	error = gfs2_glock_nq(gh);
-	if (error != GLR_TRYFAILED)
-		return !error;
 
 	gfs2_holder_reinit(LM_ST_EXCLUSIVE, GL_ASYNC | GL_NOCACHE, gh);
 	error = gfs2_glock_nq(gh);
