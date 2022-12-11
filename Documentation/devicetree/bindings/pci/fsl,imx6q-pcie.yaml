@@ -57,7 +57,7 @@ properties:
     items:
       - const: pcie
       - const: pcie_bus
-      - const: pcie_phy
+      - enum: [ pcie_phy, pcie_aux ]
       - enum: [ pcie_inbound_axi, pcie_aux ]
 
   num-lanes:
@@ -185,7 +185,7 @@ allOf:
           items:
             - {}
             - {}
-            - {}
+            - const: pcie_phy
             - const: pcie_inbound_axi
   - if:
       properties:
@@ -198,7 +198,7 @@ allOf:
           items:
             - {}
             - {}
-            - {}
+            - const: pcie_phy
             - const: pcie_aux
   - if:
       properties:
@@ -210,8 +210,39 @@ allOf:
                 - fsl,imx8mq-pcie
     then:
       properties:
+        clocks:
+          maxItems: 3
         clock-names:
           maxItems: 3
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx6q-pcie
+              - fsl,imx6qp-pcie
+              - fsl,imx7d-pcie
+    then:
+      properties:
+        clock-names:
+          maxItems: 3
+          contains:
+            const: pcie_phy
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8mm-pcie
+              - fsl,imx8mp-pcie
+    then:
+      properties:
+        clock-names:
+          maxItems: 3
+          contains:
+            const: pcie_aux
 
 unevaluatedProperties: false
 
