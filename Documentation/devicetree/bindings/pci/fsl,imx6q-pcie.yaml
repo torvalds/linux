@@ -69,6 +69,7 @@ properties:
       required properties for imx7d-pcie and imx8mq-pcie.
 
   power-domains:
+    minItems: 1
     items:
       - description: The phandle pointing to the DISPLAY domain for
           imx6sx-pcie, to PCIE_PHY power domain for imx7d-pcie and
@@ -77,6 +78,7 @@ properties:
           for imx6sx-pcie.
 
   power-domain-names:
+    minItems: 1
     items:
       - const: pcie
       - const: pcie_phy
@@ -187,6 +189,10 @@ allOf:
             - {}
             - const: pcie_phy
             - const: pcie_inbound_axi
+        power-domains:
+          minItems: 2
+        power-domain-names:
+          minItems: 2
   - if:
       properties:
         compatible:
@@ -243,6 +249,32 @@ allOf:
           maxItems: 3
           contains:
             const: pcie_aux
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx6q-pcie
+              - fsl,imx6qp-pcie
+    then:
+      properties:
+        power-domains: false
+        power-domain-names: false
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - fsl,imx6sx-pcie
+                - fsl,imx6q-pcie
+                - fsl,imx6qp-pcie
+    then:
+      properties:
+        power-domains:
+          maxItems: 1
+        power-domain-names: false
 
 unevaluatedProperties: false
 
