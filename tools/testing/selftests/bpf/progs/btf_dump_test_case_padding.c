@@ -19,7 +19,7 @@ struct padded_implicitly {
 /*
  *struct padded_explicitly {
  *	int a;
- *	int: 32;
+ *	long: 0;
  *	int b;
  *};
  *
@@ -28,41 +28,28 @@ struct padded_implicitly {
 
 struct padded_explicitly {
 	int a;
-	int: 1; /* algo will explicitly pad with full 32 bits here */
+	int: 1; /* algo will emit aligning `long: 0;` here */
 	int b;
 };
 
 /* ----- START-EXPECTED-OUTPUT ----- */
-/*
- *struct padded_a_lot {
- *	int a;
- *	long: 32;
- *	long: 64;
- *	long: 64;
- *	int b;
- *};
- *
- */
-/* ------ END-EXPECTED-OUTPUT ------ */
-
 struct padded_a_lot {
 	int a;
-	/* 32 bit of implicit padding here, which algo will make explicit */
 	long: 64;
 	long: 64;
 	int b;
 };
+
+/* ------ END-EXPECTED-OUTPUT ------ */
 
 /* ----- START-EXPECTED-OUTPUT ----- */
 /*
  *struct padded_cache_line {
  *	int a;
- *	long: 32;
  *	long: 64;
  *	long: 64;
  *	long: 64;
  *	int b;
- *	long: 32;
  *	long: 64;
  *	long: 64;
  *	long: 64;
@@ -85,7 +72,7 @@ struct padded_cache_line {
  *struct zone {
  *	int a;
  *	short b;
- *	short: 16;
+ *	long: 0;
  *	struct zone_padding __pad__;
  *};
  *
@@ -108,6 +95,39 @@ struct padding_wo_named_members {
 	long: 64;
 };
 
+struct padding_weird_1 {
+	int a;
+	long: 64;
+	short: 16;
+	short b;
+};
+
+/* ------ END-EXPECTED-OUTPUT ------ */
+
+/* ----- START-EXPECTED-OUTPUT ----- */
+/*
+ *struct padding_weird_2 {
+ *	long: 56;
+ *	char a;
+ *	long: 56;
+ *	char b;
+ *	char: 8;
+ *};
+ *
+ */
+/* ------ END-EXPECTED-OUTPUT ------ */
+struct padding_weird_2 {
+	int: 32;	/* these paddings will be collapsed into `long: 56;` */
+	short: 16;
+	char: 8;
+	char a;
+	int: 32;	/* these paddings will be collapsed into `long: 56;` */
+	short: 16;
+	char: 8;
+	char b;
+	char: 8;
+};
+
 /* ------ END-EXPECTED-OUTPUT ------ */
 
 int f(struct {
@@ -117,6 +137,8 @@ int f(struct {
 	struct padded_cache_line _4;
 	struct zone _5;
 	struct padding_wo_named_members _6;
+	struct padding_weird_1 _7;
+	struct padding_weird_2 _8;
 } *_)
 {
 	return 0;
