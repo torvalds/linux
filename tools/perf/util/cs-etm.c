@@ -2541,14 +2541,14 @@ static const char * const cs_etmv4_priv_fmts[] = {
 };
 
 static const char * const param_unk_fmt =
-	"	Unknown parameter [%d]	       %llx\n";
+	"	Unknown parameter [%d]	       %"PRIx64"\n";
 static const char * const magic_unk_fmt =
-	"	Magic number Unknown	       %llx\n";
+	"	Magic number Unknown	       %"PRIx64"\n";
 
-static int cs_etm__print_cpu_metadata_v0(__u64 *val, int *offset)
+static int cs_etm__print_cpu_metadata_v0(u64 *val, int *offset)
 {
 	int i = *offset, j, nr_params = 0, fmt_offset;
-	__u64 magic;
+	u64 magic;
 
 	/* check magic value */
 	magic = val[i + CS_ETM_MAGIC];
@@ -2580,10 +2580,10 @@ static int cs_etm__print_cpu_metadata_v0(__u64 *val, int *offset)
 	return 0;
 }
 
-static int cs_etm__print_cpu_metadata_v1(__u64 *val, int *offset)
+static int cs_etm__print_cpu_metadata_v1(u64 *val, int *offset)
 {
 	int i = *offset, j, total_params = 0;
-	__u64 magic;
+	u64 magic;
 
 	magic = val[i + CS_ETM_MAGIC];
 	/* total params to print is NR_PARAMS + common block size for v1 */
@@ -2619,7 +2619,7 @@ static int cs_etm__print_cpu_metadata_v1(__u64 *val, int *offset)
 	return 0;
 }
 
-static void cs_etm__print_auxtrace_info(__u64 *val, int num)
+static void cs_etm__print_auxtrace_info(u64 *val, int num)
 {
 	int i, cpu = 0, version, err;
 
@@ -2925,6 +2925,9 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	pmu_type = (unsigned int) ((hdr[CS_PMU_TYPE_CPUS] >> 32) &
 				    0xffffffff);
 
+	if (dump_trace)
+		cs_etm__print_auxtrace_info(ptr, num_cpu);
+
 	/*
 	 * Create an RB tree for traceID-metadata tuple.  Since the conversion
 	 * has to be made for each packet that gets decoded, optimizing access
@@ -3074,10 +3077,6 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 		goto err_delete_thread;
 	}
 
-	if (dump_trace) {
-		cs_etm__print_auxtrace_info(auxtrace_info->priv, num_cpu);
-	}
-
 	err = cs_etm__synth_events(etm, session);
 	if (err)
 		goto err_delete_thread;
@@ -3113,12 +3112,5 @@ err_free_traceid_list:
 	intlist__delete(traceid_list);
 err_free_hdr:
 	zfree(&hdr);
-	/*
-	 * At this point, as a minimum we have valid header. Dump the rest of
-	 * the info section - the print routines will error out on structural
-	 * issues.
-	 */
-	if (dump_trace)
-		cs_etm__print_auxtrace_info(auxtrace_info->priv, num_cpu);
 	return err;
 }
