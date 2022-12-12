@@ -32,7 +32,7 @@
 
 #include "inc/core_types.h"
 #include "link_hwss.h"
-#include "dc_link_ddc.h"
+#include "link/link_ddc.h"
 #include "core_status.h"
 #include "dpcd_defs.h"
 #include "dc_dmub_srv.h"
@@ -4866,7 +4866,7 @@ static void get_active_converter_info(
 	/* decode converter info*/
 	if (!ds_port.fields.PORT_PRESENT) {
 		link->dpcd_caps.dongle_type = DISPLAY_DONGLE_NONE;
-		ddc_service_set_dongle_type(link->ddc,
+		set_dongle_type(link->ddc,
 				link->dpcd_caps.dongle_type);
 		link->dpcd_caps.is_branch_dev = false;
 		return;
@@ -4974,7 +4974,7 @@ static void get_active_converter_info(
 		}
 	}
 
-	ddc_service_set_dongle_type(link->ddc, link->dpcd_caps.dongle_type);
+	set_dongle_type(link->ddc, link->dpcd_caps.dongle_type);
 
 	{
 		struct dp_sink_hw_fw_revision dp_hw_fw_revision;
@@ -5352,7 +5352,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	 * default to LTTPR timeout (3.2ms) first as a W/A for DP link layer
 	 * CTS 4.2.1.1 regression introduced by CTS specs requirement update.
 	 */
-	dc_link_aux_try_to_configure_timeout(link->ddc,
+	try_to_configure_aux_timeout(link->ddc,
 			LINK_AUX_DEFAULT_LTTPR_TIMEOUT_PERIOD);
 
 	status = dp_retrieve_lttpr_cap(link);
@@ -5393,7 +5393,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	}
 
 	if (!dp_is_lttpr_present(link))
-		dc_link_aux_try_to_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
+		try_to_configure_aux_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
 
 	{
 		union training_aux_rd_interval aux_rd_interval;

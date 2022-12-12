@@ -44,4 +44,41 @@ struct gpio *link_get_hpd_gpio(struct dc_bios *dcb,
 		struct graphics_object_id link_id,
 		struct gpio_service *gpio_service);
 
+struct ddc_service_init_data {
+	struct graphics_object_id id;
+	struct dc_context *ctx;
+	struct dc_link *link;
+	bool is_dpia_link;
+};
+
+struct ddc_service *link_create_ddc_service(
+		struct ddc_service_init_data *ddc_init_data);
+
+void link_destroy_ddc_service(struct ddc_service **ddc);
+
+bool link_is_in_aux_transaction_mode(struct ddc_service *ddc);
+
+bool link_query_ddc_data(
+		struct ddc_service *ddc,
+		uint32_t address,
+		uint8_t *write_buf,
+		uint32_t write_size,
+		uint8_t *read_buf,
+		uint32_t read_size);
+
+
+/* Attempt to submit an aux payload, retrying on timeouts, defers, and busy
+ * states as outlined in the DP spec.  Returns true if the request was
+ * successful.
+ *
+ * NOTE: The function requires explicit mutex on DM side in order to prevent
+ * potential race condition. DC components should call the dpcd read/write
+ * function in dm_helpers in order to access dpcd safely
+ */
+bool link_aux_transfer_with_retries_no_mutex(struct ddc_service *ddc,
+		struct aux_payload *payload);
+
+uint32_t link_get_aux_defer_delay(struct ddc_service *ddc);
+
+
 #endif /* __DC_LINK_HPD_H__ */

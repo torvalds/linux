@@ -32,7 +32,6 @@
 #include "dc_bios_types.h"
 #include "include/grph_object_ctrl_defs.h"
 #include "include/bios_parser_interface.h"
-#include "include/i2caux_interface.h"
 #include "include/logger_interface.h"
 
 #include "command_table2.h"

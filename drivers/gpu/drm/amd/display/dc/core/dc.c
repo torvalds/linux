@@ -33,6 +33,7 @@
 
 #include "resource.h"
 
+#include "gpio_service_interface.h"
 #include "clk_mgr.h"
 #include "clock_source.h"
 #include "dc_bios_types.h"
@@ -53,7 +54,7 @@
 #include "link_enc_cfg.h"
 
 #include "dc_link.h"
-#include "dc_link_ddc.h"
+#include "link.h"
 #include "dm_helpers.h"
 #include "mem_input.h"
 
@@ -67,8 +68,6 @@
 #include "dce/dce_i2c.h"
 
 #include "dmub/dmub_srv.h"
-
-#include "i2caux_interface.h"
 
 #include "dce/dmub_psr.h"
 

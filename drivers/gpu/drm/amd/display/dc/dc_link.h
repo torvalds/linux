@@ -31,6 +31,7 @@
 #include "grph_object_defs.h"
 
 struct link_resource;
+enum aux_return_code_type;
 
 enum dc_link_fec_state {
 	dc_link_fec_not_ready,
@@ -591,4 +592,13 @@ unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
 
 /* Destruct the mst topology of the link and reset the allocated payload table */
 bool reset_cur_dp_mst_topology(struct dc_link *link);
+
+/* Attempt to transfer the given aux payload. This function does not perform
+ * retries or handle error states. The reply is returned in the payload->reply
+ * and the result through operation_result. Returns the number of bytes
+ * transferred,or -1 on a failure.
+ */
+int dc_link_aux_transfer_raw(struct ddc_service *ddc,
+		struct aux_payload *payload,
+		enum aux_return_code_type *operation_result);
 #endif /* DC_LINK_H_ */

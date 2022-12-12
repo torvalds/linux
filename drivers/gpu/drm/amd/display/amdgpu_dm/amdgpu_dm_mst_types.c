@@ -39,12 +39,10 @@
 #include "dc.h"
 #include "dm_helpers.h"
 
-#include "dc_link_ddc.h"
 #include "dc_link_dp.h"
 #include "ddc_service_types.h"
 #include "dpcd_defs.h"
 
-#include "i2caux_interface.h"
 #include "dmub_cmd.h"
 #if defined(CONFIG_DEBUG_FS)
 #include "amdgpu_dm_debugfs.h"
