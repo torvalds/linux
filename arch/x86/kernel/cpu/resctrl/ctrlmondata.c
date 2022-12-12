@@ -105,8 +105,7 @@ static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
 		return false;
 	}
 
-	if ((!r->cache.arch_has_empty_bitmaps && val == 0) ||
-	    val > r->default_ctrl) {
+	if ((r->cache.min_cbm_bits > 0 && val == 0) || val > r->default_ctrl) {
 		rdt_last_cmd_puts("Mask out of range\n");
 		return false;
 	}
