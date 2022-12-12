@@ -357,36 +357,35 @@
 					port@0 {
 						status = "disabled";
 						reg = <0>;
-						label = "lan0";
+						label = "swp0";
 					};
 
 					port@1 {
 						status = "disabled";
 						reg = <1>;
-						label = "lan1";
+						label = "swp1";
 					};
 
 					port@2 {
 						status = "disabled";
 						reg = <2>;
-						label = "lan2";
+						label = "swp2";
 					};
 
 					port@3 {
 						status = "disabled";
 						reg = <3>;
-						label = "lan3";
+						label = "swp3";
 					};
 
 					port@4 {
 						status = "disabled";
 						reg = <4>;
-						label = "lan4";
+						label = "swp4";
 					};
 
 					port@6 {
 						reg = <6>;
-						label = "cpu";
 						ethernet = <&gmac0>;
 						phy-mode = "trgmii";
 
