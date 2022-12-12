@@ -879,6 +879,7 @@ static int iso_listen_bis(struct sock *sk)
 				 iso_pi(sk)->bc_sid);
 
 	hci_dev_unlock(hdev);
+	hci_dev_put(hdev);
 
 	return err;
 }
