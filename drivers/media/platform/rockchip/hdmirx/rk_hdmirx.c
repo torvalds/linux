@@ -444,6 +444,17 @@ static void hdmirx_update_bits(struct rk_hdmirx_dev *hdmirx_dev, int reg, u32 ma
 	spin_unlock_irqrestore(&hdmirx_dev->rst_lock, lock_flags);
 }
 
+/*
+ * Before clearing interrupt need to read the interrupt status.
+ */
+static inline void hdmirx_clear_interrupt(struct rk_hdmirx_dev *hdmirx_dev,
+					  u32 reg, u32 val)
+{
+	/* (interrupt status register) = (interrupt clear register) - 0x8 */
+	hdmirx_readl(hdmirx_dev, reg - 0x8);
+	hdmirx_writel(hdmirx_dev, reg, val);
+}
+
 static int hdmirx_subscribe_event(struct v4l2_fh *fh,
 			const struct v4l2_event_subscription *sub)
 {
@@ -1230,7 +1241,7 @@ static int hdmirx_phy_register_read(struct rk_hdmirx_dev *hdmirx_dev,
 
 	hdmirx_dev->cr_read_done = false;
 	/* clear irq status */
-	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
 	/* en irq */
 	hdmirx_update_bits(hdmirx_dev, MAINUNIT_2_INT_MASK_N,
 			PHYCREG_CR_READ_DONE, PHYCREG_CR_READ_DONE);
@@ -1264,7 +1275,7 @@ static int hdmirx_phy_register_write(struct rk_hdmirx_dev *hdmirx_dev,
 
 	hdmirx_dev->cr_write_done = false;
 	/* clear irq status */
-	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
 	/* en irq */
 	hdmirx_update_bits(hdmirx_dev, MAINUNIT_2_INT_MASK_N,
 			PHYCREG_CR_WRITE_DONE, PHYCREG_CR_WRITE_DONE);
@@ -1313,7 +1324,7 @@ static void hdmirx_phy_config(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	struct device *dev = hdmirx_dev->dev;
 
-	hdmirx_writel(hdmirx_dev, SCDC_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, SCDC_INT_CLEAR, 0xffffffff);
 	hdmirx_update_bits(hdmirx_dev, SCDC_INT_MASK_N, SCDCTMDSCCFG_CHG,
 				SCDCTMDSCCFG_CHG);
 	/* cr_para_clk 24M */
@@ -1379,7 +1390,7 @@ static void hdmirx_controller_init(struct rk_hdmirx_dev *hdmirx_dev)
 	struct device *dev = hdmirx_dev->dev;
 
 	hdmirx_dev->timer_base_lock = false;
-	hdmirx_writel(hdmirx_dev, MAINUNIT_0_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, MAINUNIT_0_INT_CLEAR, 0xffffffff);
 	/* en irq */
 	hdmirx_update_bits(hdmirx_dev, MAINUNIT_0_INT_MASK_N,
 			TIMER_BASE_LOCKED_IRQ, TIMER_BASE_LOCKED_IRQ);
@@ -1517,7 +1528,7 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 	hdmirx_writel(hdmirx_dev, GLOBAL_SWRESET_REQUEST, DATAPATH_SWRESETREQ);
 
 	hdmirx_dev->avi_pkt_rcv = false;
-	hdmirx_writel(hdmirx_dev, PKT_2_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, PKT_2_INT_CLEAR, 0xffffffff);
 	hdmirx_update_bits(hdmirx_dev, PKT_2_INT_MASK_N,
 			PKTDEC_AVIIF_RCV_IRQ, PKTDEC_AVIIF_RCV_IRQ);
 
@@ -2056,7 +2067,7 @@ static int hdmirx_get_hdcp_auth_status(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	u32 val;
 
-	hdmirx_writel(hdmirx_dev, HDCP_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, HDCP_INT_CLEAR, 0xffffffff);
 	msleep(200);
 	val = hdmirx_readl(hdmirx_dev, HDCP_INT_STATUS) & 0x40;
 
@@ -2284,7 +2295,7 @@ static void avpunit_0_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 		*handled = true;
 	}
 
-	hdmirx_writel(hdmirx_dev, AVPUNIT_0_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, AVPUNIT_0_INT_CLEAR, 0xffffffff);
 	hdmirx_writel(hdmirx_dev, AVPUNIT_0_INT_FORCE, 0x0);
 }
 
@@ -2328,7 +2339,7 @@ static void mainunit_0_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 		*handled = true;
 	}
 
-	hdmirx_writel(hdmirx_dev, MAINUNIT_0_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, MAINUNIT_0_INT_CLEAR, 0xffffffff);
 	hdmirx_writel(hdmirx_dev, MAINUNIT_0_INT_FORCE, 0x0);
 }
 
@@ -2358,7 +2369,7 @@ static void mainunit_2_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 		*handled = true;
 	}
 
-	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
 	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_FORCE, 0x0);
 }
 
@@ -2376,7 +2387,7 @@ static void pkt_2_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 		*handled = true;
 	}
 
-	hdmirx_writel(hdmirx_dev, PKT_2_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, PKT_2_INT_CLEAR, 0xffffffff);
 }
 
 static void scdc_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
@@ -2390,7 +2401,7 @@ static void scdc_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 		*handled = true;
 	}
 
-	hdmirx_writel(hdmirx_dev, SCDC_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, SCDC_INT_CLEAR, 0xffffffff);
 }
 
 static irqreturn_t hdmirx_hdmi_irq_handler(int irq, void *dev_id)
@@ -2625,11 +2636,9 @@ static void hdmirx_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 	v4l2_dbg(1, debug, &hdmirx_dev->v4l2_dev, "%s: %sable\n",
 			__func__, en ? "en" : "dis");
 
-	/* Note: In DVI mode, it needs to be written twice to take effect. */
-	hdmirx_writel(hdmirx_dev, MAINUNIT_0_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, MAINUNIT_0_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, MAINUNIT_0_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, AVPUNIT_0_INT_CLEAR, 0xffffffff);
 
 	if (en) {
 		hdmirx_update_bits(hdmirx_dev, MAINUNIT_0_INT_MASK_N,
@@ -2857,7 +2866,7 @@ static void hdmirx_audio_setup(struct rk_hdmirx_dev *hdmirx_dev)
 	hdmirx_update_bits(hdmirx_dev, DEFRAMER_CONFIG0, VS_CNT_THR_QST_MASK, VS_CNT_THR_QST(3));
 	hdmirx_audio_interrupts_setup(hdmirx_dev, true);
 	hdmirx_writel(hdmirx_dev, DEFRAMER_VSYNC_CNT_CLEAR, VSYNC_CNT_CLR_P);
-	hdmirx_writel(hdmirx_dev, AVPUNIT_1_INT_CLEAR, DEFRAMER_VSYNC_THR_REACHED_CLEAR);
+	hdmirx_clear_interrupt(hdmirx_dev, AVPUNIT_1_INT_CLEAR, DEFRAMER_VSYNC_THR_REACHED_CLEAR);
 	hdmirx_writel(hdmirx_dev, AUDIO_FIFO_THR_PASS, INIT_FIFO_STATE);
 	hdmirx_writel(hdmirx_dev, AUDIO_FIFO_THR,
 		      AFIFO_THR_LOW_QST(0x20) | AFIFO_THR_HIGH_QST(0x160));
@@ -3248,18 +3257,18 @@ static void hdmirx_disable_all_interrupts(struct rk_hdmirx_dev *hdmirx_dev)
 	hdmirx_writel(hdmirx_dev, HDCP_1_INT_MASK_N, 0);
 	hdmirx_writel(hdmirx_dev, CEC_INT_MASK_N, 0);
 
-	hdmirx_writel(hdmirx_dev, MAINUNIT_0_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, MAINUNIT_1_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, AVPUNIT_0_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, AVPUNIT_1_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, PKT_0_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, PKT_1_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, PKT_2_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, SCDC_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, HDCP_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, HDCP_1_INT_CLEAR, 0xffffffff);
-	hdmirx_writel(hdmirx_dev, CEC_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, MAINUNIT_0_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, MAINUNIT_1_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, AVPUNIT_0_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, AVPUNIT_1_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, PKT_0_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, PKT_1_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, PKT_2_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, SCDC_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, HDCP_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, HDCP_1_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, CEC_INT_CLEAR, 0xffffffff);
 }
 
 static int hdmirx_power_on(struct rk_hdmirx_dev *hdmirx_dev)
