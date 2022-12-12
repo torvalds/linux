@@ -55,14 +55,4 @@ config SPMI_MTK_PMIF
 	  This is required for communicating with Mediatek PMICs and
 	  other devices that have the SPMI interface.
 
-config SPMI_QTI_GLINK_DEBUG
-	tristate "QTI Glink Debug SPMI Controller"
-	depends on QTI_PMIC_GLINK
-	help
-	  The Qualcomm Technologies, Inc. Glink debug SPMI controller driver
-	  provides an interface to read and write PMIC registers over PMIC
-	  Glink using a remote subsytem (e.g. DSP).  This allows for debugging
-	  PMIC peripherals that would typically only be accessible to the
-	  charger and fuel gauging firmware running on the remote subsystem.
-
 endif
