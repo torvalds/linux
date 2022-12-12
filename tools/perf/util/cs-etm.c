@@ -2888,7 +2888,7 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	int num_cpu, trcidr_idx;
 	int err = 0;
 	int i, j;
-	u64 *ptr, *hdr = NULL;
+	u64 *ptr = NULL;
 	u64 **metadata = NULL;
 	u64 hdr_version;
 
@@ -2914,15 +2914,8 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 		return -EINVAL;
 	}
 
-	hdr = zalloc(sizeof(*hdr) * CS_HEADER_VERSION_MAX);
-	if (!hdr)
-		return -ENOMEM;
-
-	/* Extract header information - see cs-etm.h for format */
-	for (i = 0; i < CS_HEADER_VERSION_MAX; i++)
-		hdr[i] = ptr[i];
-	num_cpu = hdr[CS_PMU_TYPE_CPUS] & 0xffffffff;
-	pmu_type = (unsigned int) ((hdr[CS_PMU_TYPE_CPUS] >> 32) &
+	num_cpu = ptr[CS_PMU_TYPE_CPUS] & 0xffffffff;
+	pmu_type = (unsigned int) ((ptr[CS_PMU_TYPE_CPUS] >> 32) &
 				    0xffffffff);
 
 	if (dump_trace)
@@ -2934,16 +2927,17 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	 * in anything other than a sequential array is worth doing.
 	 */
 	traceid_list = intlist__new(NULL);
-	if (!traceid_list) {
-		err = -ENOMEM;
-		goto err_free_hdr;
-	}
+	if (!traceid_list)
+		return -ENOMEM;
 
 	metadata = zalloc(sizeof(*metadata) * num_cpu);
 	if (!metadata) {
 		err = -ENOMEM;
 		goto err_free_traceid_list;
 	}
+
+	/* Start parsing after the common part of the header */
+	i = CS_HEADER_VERSION_MAX;
 
 	/*
 	 * The metadata is stored in the auxtrace_info section and encodes
@@ -3043,7 +3037,7 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 
 	etm->num_cpu = num_cpu;
 	etm->pmu_type = pmu_type;
-	etm->snapshot_mode = (hdr[CS_ETM_SNAPSHOT] != 0);
+	etm->snapshot_mode = (ptr[CS_ETM_SNAPSHOT] != 0);
 	etm->metadata = metadata;
 	etm->auxtrace_type = auxtrace_info->type;
 	etm->timeless_decoding = cs_etm__is_timeless_decoding(etm);
@@ -3110,7 +3104,5 @@ err_free_metadata:
 	zfree(&metadata);
 err_free_traceid_list:
 	intlist__delete(traceid_list);
-err_free_hdr:
-	zfree(&hdr);
 	return err;
 }
