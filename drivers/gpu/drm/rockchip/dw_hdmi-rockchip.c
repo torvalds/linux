@@ -3737,8 +3737,10 @@ static int dw_hdmi_rockchip_resume(struct device *dev)
 			enable_irq(hdmi->hpd_irq);
 		drm_helper_hpd_irq_event(hdmi->drm_dev);
 	} else {
-		if (hdmi->hpd_gpiod)
+		if (hdmi->hpd_gpiod) {
+			dw_hdmi_rk3528_gpio_hpd_init(hdmi);
 			enable_irq(hdmi->hpd_irq);
+		}
 		dw_hdmi_resume(hdmi->hdmi);
 	}
 	pm_runtime_get_sync(dev);
