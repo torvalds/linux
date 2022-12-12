@@ -832,11 +832,6 @@ static int mtk_mutex_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtk_mutex_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct of_device_id mutex_driver_dt_match[] = {
 	{ .compatible = "mediatek,mt2701-disp-mutex",
 	  .data = &mt2701_mutex_driver_data},
@@ -866,7 +861,6 @@ MODULE_DEVICE_TABLE(of, mutex_driver_dt_match);
 
 static struct platform_driver mtk_mutex_driver = {
 	.probe		= mtk_mutex_probe,
-	.remove		= mtk_mutex_remove,
 	.driver		= {
 		.name	= "mediatek-mutex",
 		.owner	= THIS_MODULE,
