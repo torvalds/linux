@@ -254,7 +254,7 @@ static struct attribute *system76_battery_attrs[] = {
 
 ATTRIBUTE_GROUPS(system76_battery);
 
-static int system76_battery_add(struct power_supply *battery)
+static int system76_battery_add(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	// System76 EC only supports 1 battery
 	if (strcmp(battery->desc->name, "BAT0") != 0)
@@ -266,7 +266,7 @@ static int system76_battery_add(struct power_supply *battery)
 	return 0;
 }
 
-static int system76_battery_remove(struct power_supply *battery)
+static int system76_battery_remove(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	device_remove_groups(&battery->dev, system76_battery_groups);
 	return 0;
