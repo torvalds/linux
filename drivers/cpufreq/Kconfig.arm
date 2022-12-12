@@ -41,6 +41,15 @@ config ARM_ALLWINNER_SUN50I_CPUFREQ_NVMEM
 	  To compile this driver as a module, choose M here: the
 	  module will be called sun50i-cpufreq-nvmem.
 
+config ARM_APPLE_SOC_CPUFREQ
+	tristate "Apple Silicon SoC CPUFreq support"
+	depends on ARCH_APPLE || (COMPILE_TEST && 64BIT)
+	select PM_OPP
+	default ARCH_APPLE
+	help
+	  This adds the CPUFreq driver for Apple Silicon machines
+	  (e.g. Apple M1).
+
 config ARM_ARMADA_37XX_CPUFREQ
 	tristate "Armada 37xx CPUFreq support"
 	depends on ARCH_MVEBU && CPUFREQ_DT
@@ -340,8 +349,8 @@ config ARM_TEGRA194_CPUFREQ
 
 config ARM_TI_CPUFREQ
 	bool "Texas Instruments CPUFreq support"
-	depends on ARCH_OMAP2PLUS
-	default ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || ARCH_K3
+	default y
 	help
 	  This driver enables valid OPPs on the running platform based on
 	  values contained within the SoC in use. Enable this in order to
