@@ -2947,6 +2947,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	memset(metedata, 0, sizeof(*metedata));
 	edid = dw_hdmi_get_edid(hdmi, connector);
 	if (edid) {
+		int vic = 0;
+
 		dev_dbg(hdmi->dev, "got edid: width[%d] x height[%d]\n",
 			edid->width_cm, edid->height_cm);
 		drm_connector_update_edid_property(connector, edid);
@@ -2954,6 +2956,18 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		ret = drm_add_edid_modes(connector, edid);
 		if (hdmi->plat_data->get_color_changed)
 			hdmi->plat_data->get_yuv422_format(connector, edid);
+
+		list_for_each_entry(mode, &connector->probed_modes, head) {
+			vic = drm_match_cea_mode(mode);
+
+			if (mode->picture_aspect_ratio == HDMI_PICTURE_ASPECT_NONE) {
+				if (vic >= 93 && vic <= 95)
+					mode->picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9;
+				else if (vic == 98)
+					mode->picture_aspect_ratio = HDMI_PICTURE_ASPECT_256_135;
+			}
+		}
+
 		dw_hdmi_update_hdr_property(connector);
 		kfree(edid);
 	} else {
