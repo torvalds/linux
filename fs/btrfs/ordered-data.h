@@ -157,7 +157,6 @@ struct btrfs_ordered_extent {
 	 * command in a workqueue context
 	 */
 	u64 physical;
-	struct block_device *bdev;
 };
 
 static inline void

@@ -3162,8 +3162,8 @@ int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 
-	/* A valid bdev implies a write on a sequential zone */
-	if (ordered_extent->bdev) {
+	/* A valid ->physical implies a write on a sequential zone. */
+	if (ordered_extent->physical != (u64)-1) {
 		btrfs_rewrite_logical_zoned(ordered_extent);
 		btrfs_zone_finish_endio(fs_info, ordered_extent->disk_bytenr,
 					ordered_extent->disk_num_bytes);

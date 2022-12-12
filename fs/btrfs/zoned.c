@@ -1676,8 +1676,6 @@ void btrfs_record_physical_zoned(struct btrfs_bio *bbio)
 		return;
 
 	ordered->physical = physical;
-	ordered->bdev = bbio->bio.bi_bdev;
-
 	btrfs_put_ordered_extent(ordered);
 }
 
@@ -1689,43 +1687,46 @@ void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered)
 	struct extent_map *em;
 	struct btrfs_ordered_sum *sum;
 	u64 orig_logical = ordered->disk_bytenr;
-	u64 *logical = NULL;
-	int nr, stripe_len;
+	struct map_lookup *map;
+	u64 physical = ordered->physical;
+	u64 chunk_start_phys;
+	u64 logical;
 
-	/* Zoned devices should not have partitions. So, we can assume it is 0 */
-	ASSERT(!bdev_is_partition(ordered->bdev));
-	if (WARN_ON(!ordered->bdev))
+	em = btrfs_get_chunk_map(fs_info, orig_logical, 1);
+	if (IS_ERR(em))
+		return;
+	map = em->map_lookup;
+	chunk_start_phys = map->stripes[0].physical;
+
+	if (WARN_ON_ONCE(map->num_stripes > 1) ||
+	    WARN_ON_ONCE((map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK) != 0) ||
+	    WARN_ON_ONCE(physical < chunk_start_phys) ||
+	    WARN_ON_ONCE(physical > chunk_start_phys + em->orig_block_len)) {
+		free_extent_map(em);
+		return;
+	}
+	logical = em->start + (physical - map->stripes[0].physical);
+	free_extent_map(em);
+
+	if (orig_logical == logical)
 		return;
 
-	if (WARN_ON(btrfs_rmap_block(fs_info, orig_logical, ordered->bdev,
-				     ordered->physical, &logical, &nr,
-				     &stripe_len)))
-		goto out;
-
-	WARN_ON(nr != 1);
-
-	if (orig_logical == *logical)
-		goto out;
-
-	ordered->disk_bytenr = *logical;
+	ordered->disk_bytenr = logical;
 
 	em_tree = &inode->extent_tree;
 	write_lock(&em_tree->lock);
 	em = search_extent_mapping(em_tree, ordered->file_offset,
 				   ordered->num_bytes);
-	em->block_start = *logical;
+	em->block_start = logical;
 	free_extent_map(em);
 	write_unlock(&em_tree->lock);
 
 	list_for_each_entry(sum, &ordered->list, list) {
-		if (*logical < orig_logical)
-			sum->bytenr -= orig_logical - *logical;
+		if (logical < orig_logical)
+			sum->bytenr -= orig_logical - logical;
 		else
-			sum->bytenr += *logical - orig_logical;
+			sum->bytenr += logical - orig_logical;
 	}
-
-out:
-	kfree(logical);
 }
 
 bool btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
