@@ -415,24 +415,6 @@ static int ov5693_write_reg_array(struct i2c_client *client,
 	return __ov5693_flush_reg_array(client, &ctrl);
 }
 
-static int ov5693_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
-{
-	struct ov5693_device *dev = to_ov5693_sensor(sd);
-
-	*val = ov5693_res[dev->fmt_idx].bin_factor_x;
-
-	return 0;
-}
-
-static int ov5693_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
-{
-	struct ov5693_device *dev = to_ov5693_sensor(sd);
-
-	*val = ov5693_res[dev->fmt_idx].bin_factor_y;
-
-	return 0;
-}
-
 static long __ov5693_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 				  int gain, int digitgain)
 
@@ -1014,12 +996,6 @@ static int ov5693_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_FOCUS_STATUS:
 		ret = ov5693_q_focus_status(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_BIN_FACTOR_HORZ:
-		ret = ov5693_g_bin_factor_x(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_BIN_FACTOR_VERT:
-		ret = ov5693_g_bin_factor_y(&dev->sd, &ctrl->val);
-		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -1095,28 +1071,6 @@ static const struct v4l2_ctrl_config ov5693_controls[] = {
 		.name = "vcm step time",
 		.min = 0,
 		.max = OV5693_VCM_SLEW_TIME_MAX,
-		.step = 1,
-		.def = 0,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_BIN_FACTOR_HORZ,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "horizontal binning factor",
-		.min = 0,
-		.max = OV5693_BIN_FACTOR_MAX,
-		.step = 1,
-		.def = 0,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_BIN_FACTOR_VERT,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "vertical binning factor",
-		.min = 0,
-		.max = OV5693_BIN_FACTOR_MAX,
 		.step = 1,
 		.def = 0,
 		.flags = 0,

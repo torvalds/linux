@@ -173,24 +173,6 @@ static struct v4l2_queryctrl ci_v4l2_controls[] = {
 		.default_value = 1,
 	},
 	{
-		.id = V4L2_CID_BIN_FACTOR_HORZ,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Horizontal binning factor",
-		.minimum = 0,
-		.maximum = 10,
-		.step = 1,
-		.default_value = 0,
-	},
-	{
-		.id = V4L2_CID_BIN_FACTOR_VERT,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Vertical binning factor",
-		.minimum = 0,
-		.maximum = 10,
-		.step = 1,
-		.default_value = 0,
-	},
-	{
 		.id = V4L2_CID_2A_STATUS,
 		.type = V4L2_CTRL_TYPE_BITMASK,
 		.name = "AE and AWB status",
@@ -1836,8 +1818,6 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 		case V4L2_CID_EXPOSURE_ABSOLUTE:
 		case V4L2_CID_EXPOSURE_AUTO:
 		case V4L2_CID_IRIS_ABSOLUTE:
-		case V4L2_CID_BIN_FACTOR_HORZ:
-		case V4L2_CID_BIN_FACTOR_VERT:
 		case V4L2_CID_3A_LOCK:
 		case V4L2_CID_TEST_PATTERN:
 		case V4L2_CID_TEST_PATTERN_COLOR_R:

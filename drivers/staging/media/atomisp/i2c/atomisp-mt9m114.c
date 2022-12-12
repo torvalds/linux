@@ -1016,24 +1016,6 @@ static int mt9m114_s_exposure_selection(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9m114_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
-{
-	struct mt9m114_device *dev = to_mt9m114_sensor(sd);
-
-	*val = mt9m114_res[dev->res].bin_factor_x;
-
-	return 0;
-}
-
-static int mt9m114_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
-{
-	struct mt9m114_device *dev = to_mt9m114_sensor(sd);
-
-	*val = mt9m114_res[dev->res].bin_factor_y;
-
-	return 0;
-}
-
 static int mt9m114_s_ev(struct v4l2_subdev *sd, s32 val)
 {
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
@@ -1159,12 +1141,6 @@ static int mt9m114_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_ZONE_NUM:
 		ret = mt9m114_g_exposure_zone_num(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_BIN_FACTOR_HORZ:
-		ret = mt9m114_g_bin_factor_x(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_BIN_FACTOR_VERT:
-		ret = mt9m114_g_bin_factor_y(&dev->sd, &ctrl->val);
-		break;
 	case V4L2_CID_EXPOSURE:
 		ret = mt9m114_g_ev(&dev->sd, &ctrl->val);
 		break;
@@ -1235,28 +1211,6 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 		.max = 3,
 		.step = 0,
 		.def = 1,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_BIN_FACTOR_HORZ,
-		.name = "horizontal binning factor",
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.min = 0,
-		.max = MT9M114_BIN_FACTOR_MAX,
-		.step = 1,
-		.def = 0,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_BIN_FACTOR_VERT,
-		.name = "vertical binning factor",
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.min = 0,
-		.max = MT9M114_BIN_FACTOR_MAX,
-		.step = 1,
-		.def = 0,
 		.flags = 0,
 	},
 	{

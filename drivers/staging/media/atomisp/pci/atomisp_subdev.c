@@ -574,40 +574,6 @@ static int isp_subdev_set_selection(struct v4l2_subdev *sd,
 					    sel->target, sel->flags, &sel->r);
 }
 
-static int atomisp_get_sensor_bin_factor(struct atomisp_sub_device *asd)
-{
-	struct v4l2_control ctrl = {0};
-	struct atomisp_device *isp = asd->isp;
-	int hbin, vbin;
-	int ret;
-
-	if (isp->inputs[asd->input_curr].type == FILE_INPUT ||
-	    isp->inputs[asd->input_curr].type == TEST_PATTERN)
-		return 0;
-
-	ctrl.id = V4L2_CID_BIN_FACTOR_HORZ;
-	ret =
-	    v4l2_g_ctrl(isp->inputs[asd->input_curr].camera->ctrl_handler,
-			&ctrl);
-	hbin = ctrl.value;
-	ctrl.id = V4L2_CID_BIN_FACTOR_VERT;
-	ret |=
-	    v4l2_g_ctrl(isp->inputs[asd->input_curr].camera->ctrl_handler,
-			&ctrl);
-	vbin = ctrl.value;
-
-	/*
-	 * ISP needs to know binning factor from sensor.
-	 * In case horizontal and vertical sensor's binning factors
-	 * are different or sensor does not support binning factor CID,
-	 * ISP will apply default 0 value.
-	 */
-	if (ret || hbin != vbin)
-		hbin = 0;
-
-	return hbin;
-}
-
 void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state,
 			     uint32_t which,
@@ -645,7 +611,7 @@ void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 							 ATOMISP_INPUT_STREAM_GENERAL, ffmt);
 			atomisp_css_input_set_binning_factor(isp_sd,
 							     ATOMISP_INPUT_STREAM_GENERAL,
-							     atomisp_get_sensor_bin_factor(isp_sd));
+							     0);
 			atomisp_css_input_set_bayer_order(isp_sd, ATOMISP_INPUT_STREAM_GENERAL,
 							  fc->bayer_order);
 			atomisp_css_input_set_format(isp_sd, ATOMISP_INPUT_STREAM_GENERAL,

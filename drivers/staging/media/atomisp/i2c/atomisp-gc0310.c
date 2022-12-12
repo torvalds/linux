@@ -241,24 +241,6 @@ static int gc0310_write_reg_array(struct i2c_client *client,
 	return __gc0310_flush_reg_array(client, &ctrl);
 }
 
-static int gc0310_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
-{
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
-	*val = dev->res->bin_factor_x;
-
-	return 0;
-}
-
-static int gc0310_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
-{
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
-	*val = dev->res->bin_factor_y;
-
-	return 0;
-}
-
 static int gc0310_set_gain(struct v4l2_subdev *sd, int gain)
 
 {
@@ -441,12 +423,6 @@ static int gc0310_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = gc0310_q_exposure(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_BIN_FACTOR_HORZ:
-		ret = gc0310_g_bin_factor_x(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_BIN_FACTOR_VERT:
-		ret = gc0310_g_bin_factor_y(&dev->sd, &ctrl->val);
-		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -490,28 +466,6 @@ static const struct v4l2_ctrl_config gc0310_controls[] = {
 		.max = 1,
 		.step = 1,
 		.def = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_BIN_FACTOR_HORZ,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "horizontal binning factor",
-		.min = 0,
-		.max = GC0310_BIN_FACTOR_MAX,
-		.step = 1,
-		.def = 0,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_BIN_FACTOR_VERT,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "vertical binning factor",
-		.min = 0,
-		.max = GC0310_BIN_FACTOR_MAX,
-		.step = 1,
-		.def = 0,
-		.flags = 0,
 	},
 };
 

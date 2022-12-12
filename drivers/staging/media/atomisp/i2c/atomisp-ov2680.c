@@ -119,27 +119,6 @@ static int ov2680_write_reg_array(struct i2c_client *client,
 	return 0;
 }
 
-static int ov2680_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
-{
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	dev_dbg(&client->dev,  "++++ov2680_g_bin_factor_x\n");
-	*val = dev->res->bin_factor_x;
-
-	return 0;
-}
-
-static int ov2680_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
-{
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	*val = dev->res->bin_factor_y;
-	dev_dbg(&client->dev,  "++++ov2680_g_bin_factor_y\n");
-	return 0;
-}
-
 static long __ov2680_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 				  int gain, int digitgain)
 
@@ -419,12 +398,6 @@ static int ov2680_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = ov2680_q_exposure(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_BIN_FACTOR_HORZ:
-		ret = ov2680_g_bin_factor_x(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_BIN_FACTOR_VERT:
-		ret = ov2680_g_bin_factor_y(&dev->sd, &ctrl->val);
-		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -447,28 +420,6 @@ static const struct v4l2_ctrl_config ov2680_controls[] = {
 		.max = 0xffff,
 		.step = 0x01,
 		.def = 0x00,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_BIN_FACTOR_HORZ,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "horizontal binning factor",
-		.min = 0,
-		.max = OV2680_BIN_FACTOR_MAX,
-		.step = 1,
-		.def = 0,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_BIN_FACTOR_VERT,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "vertical binning factor",
-		.min = 0,
-		.max = OV2680_BIN_FACTOR_MAX,
-		.step = 1,
-		.def = 0,
 		.flags = 0,
 	},
 	{
