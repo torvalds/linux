@@ -1966,7 +1966,7 @@ static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
 		cond_resched();
 
 		spin_lock(&locked_ref->lock);
-		btrfs_merge_delayed_refs(trans, delayed_refs, locked_ref);
+		btrfs_merge_delayed_refs(fs_info, delayed_refs, locked_ref);
 	}
 
 	return 0;
@@ -2013,7 +2013,7 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		 * insert_inline_extent_backref()).
 		 */
 		spin_lock(&locked_ref->lock);
-		btrfs_merge_delayed_refs(trans, delayed_refs, locked_ref);
+		btrfs_merge_delayed_refs(fs_info, delayed_refs, locked_ref);
 
 		ret = btrfs_run_delayed_refs_for_head(trans, locked_ref,
 						      &actual_count);
