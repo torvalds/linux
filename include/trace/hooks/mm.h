@@ -90,6 +90,10 @@ DECLARE_HOOK(android_vh_show_smap,
 		unsigned long same, unsigned long huge),
 	TP_ARGS(m, writeback, same, huge));
 
+DECLARE_RESTRICTED_HOOK(android_rvh_ctl_dirty_rate,
+	TP_PROTO(void *unused),
+	TP_ARGS(unused), 1);
+
 #endif /* _TRACE_HOOK_MM_H */
 
 /* This part must be outside protection */

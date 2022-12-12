@@ -289,3 +289,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_madvise_swapin_walk_pmd_entry);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_process_madvise_end);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_smaps_pte_entry);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_show_smap);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_ctl_dirty_rate);
