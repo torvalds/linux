@@ -926,7 +926,7 @@
 			power-domains = <&gcc EMAC_GDSC>;
 			resets = <&gcc GCC_EMAC_BCR>;
 
-			iommus = <&apps_smmu 0x3C0 0x0>;
+			iommus = <&apps_smmu 0x3c0 0x0>;
 
 			snps,tso;
 			rx-fifo-depth = <4096>;
