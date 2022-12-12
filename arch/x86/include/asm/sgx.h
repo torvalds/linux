@@ -115,17 +115,36 @@ enum sgx_miscselect {
  * %SGX_ATTR_EINITTOKENKEY:	Allow to use token signing key that is used to
  *				sign cryptographic tokens that can be passed to
  *				EINIT as an authorization to run an enclave.
+ * %SGX_ATTR_ASYNC_EXIT_NOTIFY:	Allow enclaves to be notified after an
+ *				asynchronous exit has occurred.
  */
 enum sgx_attribute {
-	SGX_ATTR_INIT		= BIT(0),
-	SGX_ATTR_DEBUG		= BIT(1),
-	SGX_ATTR_MODE64BIT	= BIT(2),
-	SGX_ATTR_PROVISIONKEY	= BIT(4),
-	SGX_ATTR_EINITTOKENKEY	= BIT(5),
-	SGX_ATTR_KSS		= BIT(7),
+	SGX_ATTR_INIT		   = BIT(0),
+	SGX_ATTR_DEBUG		   = BIT(1),
+	SGX_ATTR_MODE64BIT	   = BIT(2),
+				  /* BIT(3) is reserved */
+	SGX_ATTR_PROVISIONKEY	   = BIT(4),
+	SGX_ATTR_EINITTOKENKEY	   = BIT(5),
+				  /* BIT(6) is for CET */
+	SGX_ATTR_KSS		   = BIT(7),
+				  /* BIT(8) is reserved */
+				  /* BIT(9) is reserved */
+	SGX_ATTR_ASYNC_EXIT_NOTIFY = BIT(10),
 };
 
-#define SGX_ATTR_RESERVED_MASK	(BIT_ULL(3) | BIT_ULL(6) | GENMASK_ULL(63, 8))
+#define SGX_ATTR_RESERVED_MASK	(BIT_ULL(3) | \
+				 BIT_ULL(6) | \
+				 BIT_ULL(8) | \
+				 BIT_ULL(9) | \
+				 GENMASK_ULL(63, 11))
+
+#define SGX_ATTR_UNPRIV_MASK	(SGX_ATTR_DEBUG	    | \
+				 SGX_ATTR_MODE64BIT | \
+				 SGX_ATTR_KSS	    | \
+				 SGX_ATTR_ASYNC_EXIT_NOTIFY)
+
+#define SGX_ATTR_PRIV_MASK	(SGX_ATTR_PROVISIONKEY	| \
+				 SGX_ATTR_EINITTOKENKEY)
 
 /**
  * struct sgx_secs - SGX Enclave Control Structure (SECS)
