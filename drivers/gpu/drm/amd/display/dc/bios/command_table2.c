@@ -987,7 +987,7 @@ static enum bp_result enable_lvtma_control(
 	struct bios_parser *bp,
 	uint8_t uc_pwr_on,
 	uint8_t panel_instance,
-	uint8_t bypass_powerdown_wait);
+	uint8_t bypass_panel_control_wait);
 
 static void init_enable_lvtma_control(struct bios_parser *bp)
 {
@@ -1000,7 +1000,7 @@ static void enable_lvtma_control_dmcub(
 	struct dc_dmub_srv *dmcub,
 	uint8_t uc_pwr_on,
 	uint8_t panel_instance,
-	uint8_t bypass_powerdown_wait)
+	uint8_t bypass_panel_control_wait)
 {
 
 	union dmub_rb_cmd cmd;
@@ -1014,8 +1014,8 @@ static void enable_lvtma_control_dmcub(
 			uc_pwr_on;
 	cmd.lvtma_control.data.panel_inst =
 			panel_instance;
-	cmd.lvtma_control.data.bypass_powerdown_wait =
-			bypass_powerdown_wait;
+	cmd.lvtma_control.data.bypass_panel_control_wait =
+			bypass_panel_control_wait;
 	dc_dmub_srv_cmd_queue(dmcub, &cmd);
 	dc_dmub_srv_cmd_execute(dmcub);
 	dc_dmub_srv_wait_idle(dmcub);
@@ -1026,7 +1026,7 @@ static enum bp_result enable_lvtma_control(
 	struct bios_parser *bp,
 	uint8_t uc_pwr_on,
 	uint8_t panel_instance,
-	uint8_t bypass_powerdown_wait)
+	uint8_t bypass_panel_control_wait)
 {
 	enum bp_result result = BP_RESULT_FAILURE;
 
@@ -1035,7 +1035,7 @@ static enum bp_result enable_lvtma_control(
 		enable_lvtma_control_dmcub(bp->base.ctx->dmub_srv,
 				uc_pwr_on,
 				panel_instance,
-				bypass_powerdown_wait);
+				bypass_panel_control_wait);
 		return BP_RESULT_OK;
 	}
 	return result;

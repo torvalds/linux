@@ -943,7 +943,6 @@ void dce110_edp_wait_for_T12(
 			msleep(t12_duration - time_since_edp_poweroff_ms);
 	}
 }
-
 /*todo: cloned in stream enc, fix*/
 /*
  * @brief
@@ -1022,16 +1021,20 @@ void dce110_edp_backlight_control(
 			DC_LOG_DC("edp_receiver_ready_T7 skipped\n");
 	}
 
+	/* Setting link_powered_externally will bypass delays in the backlight
+	 * as they are not required if the link is being powered by a different
+	 * source.
+	 */
 	if (ctx->dc->ctx->dmub_srv &&
 			ctx->dc->debug.dmub_command_table) {
 		if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 					LVTMA_CONTROL_LCD_BLON,
-					panel_instance, 0);
+					panel_instance, link->link_powered_externally);
 		else
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 					LVTMA_CONTROL_LCD_BLOFF,
-					panel_instance, 0);
+					panel_instance, link->link_powered_externally);
 	}
 
 	link_transmitter_control(ctx->dc_bios, &cntl);

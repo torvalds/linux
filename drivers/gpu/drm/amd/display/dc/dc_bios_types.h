@@ -141,7 +141,7 @@ struct dc_vbios_funcs {
 		struct dc_bios *bios,
 		uint8_t uc_pwr_on,
 		uint8_t panel_instance,
-		uint8_t bypass_powerdown_wait);
+		uint8_t bypass_panel_control_wait);
 
 	enum bp_result (*get_soc_bb_info)(
 		struct dc_bios *dcb,
