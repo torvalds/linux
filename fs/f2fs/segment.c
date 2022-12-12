@@ -1696,7 +1696,7 @@ static int issue_discard_thread(void *data)
 						dcc->discard_granularity);
 
 		if (dcc->discard_wake)
-			dcc->discard_wake = 0;
+			dcc->discard_wake = false;
 
 		/* clean up pending candidates before going to sleep */
 		if (atomic_read(&dcc->queued_discard))
