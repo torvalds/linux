@@ -299,7 +299,7 @@ Parameters:
 
 Return value:
 	The file mode for this attribute. Typically, this will be 0 (the
-	attribute will not be created), S_IRUGO, or 'S_IRUGO | S_IWUSR'.
+	attribute will not be created), 0444, or 0644.
 
 ::
 
