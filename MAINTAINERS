@@ -16661,10 +16661,10 @@ F:	net/psample
 
 PSTORE FILESYSTEM
 M:	Kees Cook <keescook@chromium.org>
-M:	Anton Vorontsov <anton@enomsg.org>
-M:	Colin Cross <ccross@android.com>
-M:	Tony Luck <tony.luck@intel.com>
-S:	Maintained
+R:	Tony Luck <tony.luck@intel.com>
+R:	Guilherme G. Piccoli <gpiccoli@igalia.com>
+L:	linux-hardening@vger.kernel.org
+S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/pstore
 F:	Documentation/admin-guide/ramoops.rst
 F:	Documentation/admin-guide/pstore-blk.rst
