@@ -53,6 +53,22 @@ static inline bool task_scs_end_corrupted(struct task_struct *tsk)
 	return sz >= SCS_SIZE - 1 || READ_ONCE_NOCHECK(*magic) != SCS_END_MAGIC;
 }
 
+DECLARE_STATIC_KEY_FALSE(dynamic_scs_enabled);
+
+static inline bool scs_is_dynamic(void)
+{
+	if (!IS_ENABLED(CONFIG_DYNAMIC_SCS))
+		return false;
+	return static_branch_likely(&dynamic_scs_enabled);
+}
+
+static inline bool scs_is_enabled(void)
+{
+	if (!IS_ENABLED(CONFIG_DYNAMIC_SCS))
+		return true;
+	return scs_is_dynamic();
+}
+
 #else /* CONFIG_SHADOW_CALL_STACK */
 
 static inline void *scs_alloc(int node) { return NULL; }
@@ -62,6 +78,8 @@ static inline void scs_task_reset(struct task_struct *tsk) {}
 static inline int scs_prepare(struct task_struct *tsk, int node) { return 0; }
 static inline void scs_release(struct task_struct *tsk) {}
 static inline bool task_scs_end_corrupted(struct task_struct *tsk) { return false; }
+static inline bool scs_is_enabled(void) { return false; }
+static inline bool scs_is_dynamic(void) { return false; }
 
 #endif /* CONFIG_SHADOW_CALL_STACK */
 

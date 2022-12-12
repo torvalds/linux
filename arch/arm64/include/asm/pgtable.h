@@ -77,11 +77,11 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 static inline phys_addr_t __pte_to_phys(pte_t pte)
 {
 	return (pte_val(pte) & PTE_ADDR_LOW) |
-		((pte_val(pte) & PTE_ADDR_HIGH) << 36);
+		((pte_val(pte) & PTE_ADDR_HIGH) << PTE_ADDR_HIGH_SHIFT);
 }
 static inline pteval_t __phys_to_pte_val(phys_addr_t phys)
 {
-	return (phys | (phys >> 36)) & PTE_ADDR_MASK;
+	return (phys | (phys >> PTE_ADDR_HIGH_SHIFT)) & PTE_ADDR_MASK;
 }
 #else
 #define __pte_to_phys(pte)	(pte_val(pte) & PTE_ADDR_MASK)
@@ -609,7 +609,6 @@ extern pgd_t init_pg_dir[PTRS_PER_PGD];
 extern pgd_t init_pg_end[];
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
-extern pgd_t idmap_pg_end[];
 extern pgd_t tramp_pg_dir[PTRS_PER_PGD];
 extern pgd_t reserved_pg_dir[PTRS_PER_PGD];
 
@@ -1096,6 +1095,15 @@ static inline bool pud_sect_supported(void)
 }
 
 
+#define __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
+#define ptep_modify_prot_start ptep_modify_prot_start
+extern pte_t ptep_modify_prot_start(struct vm_area_struct *vma,
+				    unsigned long addr, pte_t *ptep);
+
+#define ptep_modify_prot_commit ptep_modify_prot_commit
+extern void ptep_modify_prot_commit(struct vm_area_struct *vma,
+				    unsigned long addr, pte_t *ptep,
+				    pte_t old_pte, pte_t new_pte);
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_PGTABLE_H */
