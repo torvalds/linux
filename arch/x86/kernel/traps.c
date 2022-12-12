@@ -68,12 +68,12 @@
 
 #ifdef CONFIG_X86_64
 #include <asm/x86_init.h>
-#include <asm/proto.h>
 #else
 #include <asm/processor-flags.h>
 #include <asm/setup.h>
-#include <asm/proto.h>
 #endif
+
+#include <asm/proto.h>
 
 DECLARE_BITMAP(system_vectors, NR_VECTORS);
 
