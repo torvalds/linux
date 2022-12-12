@@ -103,8 +103,8 @@
 		};
 
 		timer@200a000 {
-			compatible = "qcom,kpss-timer",
-				     "qcom,kpss-wdt-msm8960", "qcom,msm-timer";
+			compatible = "qcom,kpss-wdt-msm8960", "qcom,kpss-timer",
+				     "qcom,msm-timer";
 			interrupts = <GIC_PPI 1 0x301>,
 				     <GIC_PPI 2 0x301>,
 				     <GIC_PPI 3 0x301>;

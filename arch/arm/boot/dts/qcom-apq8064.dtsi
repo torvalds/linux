@@ -375,8 +375,8 @@
 		};
 
 		timer@200a000 {
-			compatible = "qcom,kpss-timer",
-				     "qcom,kpss-wdt-apq8064", "qcom,msm-timer";
+			compatible = "qcom,kpss-wdt-apq8064", "qcom,kpss-timer",
+				     "qcom,msm-timer";
 			interrupts = <1 1 0x301>,
 				     <1 2 0x301>,
 				     <1 3 0x301>;
