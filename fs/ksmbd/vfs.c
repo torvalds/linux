@@ -321,7 +321,7 @@ static int check_lock_range(struct file *filp, loff_t start, loff_t end,
 			    unsigned char type)
 {
 	struct file_lock *flock;
-	struct file_lock_context *ctx = file_inode(filp)->i_flctx;
+	struct file_lock_context *ctx = locks_inode_context(file_inode(filp));
 	int error = 0;
 
 	if (!ctx || list_empty_careful(&ctx->flc_posix))
