@@ -1248,23 +1248,23 @@
 				};
 				opp-510000000 {
 					opp-hz = /bits/ 64 <510000000>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 				opp-401800000 {
 					opp-hz = /bits/ 64 <401800000>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 				opp-315000000 {
 					opp-hz = /bits/ 64 <315000000>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 				opp-214000000 {
 					opp-hz = /bits/ 64 <214000000>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 				opp-133000000 {
 					opp-hz = /bits/ 64 <133000000>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 			};
 
@@ -3358,7 +3358,7 @@
 
 		slim_msm: slim-ngd@91c0000 {
 			compatible = "qcom,slim-ngd-v1.5.0";
-			reg = <0x091c0000 0x2C000>;
+			reg = <0x091c0000 0x2c000>;
 			interrupts = <0 163 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&slimbam 3>, <&slimbam 4>;
 			dma-names = "rx", "tx";
