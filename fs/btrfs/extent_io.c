@@ -140,8 +140,6 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 	/* Caller should ensure the bio has at least some range added */
 	ASSERT(bio->bi_iter.bi_size);
 
-	btrfs_bio(bio)->file_offset = page_offset(bv->bv_page) + bv->bv_offset;
-
 	if (!is_data_inode(inode)) {
 		if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
 			/*
@@ -993,6 +991,7 @@ static void alloc_new_bio(struct btrfs_inode *inode,
 		bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 	else
 		bio->bi_iter.bi_sector = (disk_bytenr + offset) >> SECTOR_SHIFT;
+	btrfs_bio(bio)->file_offset = file_offset;
 	bio_ctrl->bio = bio;
 	bio_ctrl->compress_type = compress_type;
 	calc_bio_boundaries(bio_ctrl, inode, file_offset);
