@@ -631,8 +631,8 @@ static int bch2_journal_replay(struct bch_fs *c, u64 start_seq, u64 end_seq)
 				     : 0),
 			     bch2_journal_replay_key(&trans, k));
 		if (ret) {
-			bch_err(c, "journal replay: error %d while replaying key at btree %s level %u",
-				ret, bch2_btree_ids[k->btree_id], k->level);
+			bch_err(c, "journal replay: error while replaying key at btree %s level %u: %s",
+				bch2_btree_ids[k->btree_id], k->level, bch2_err_str(ret));
 			goto err;
 		}
 	}

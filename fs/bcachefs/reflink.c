@@ -283,7 +283,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 	int ret = 0, ret2 = 0;
 
 	if (!percpu_ref_tryget_live(&c->writes))
-		return -EROFS;
+		return -BCH_ERR_erofs_no_writes;
 
 	bch2_check_set_feature(c, BCH_FEATURE_reflink);
 

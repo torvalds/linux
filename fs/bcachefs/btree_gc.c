@@ -1988,7 +1988,7 @@ int bch2_gc_gens(struct bch_fs *c)
 					NULL, NULL,
 					BTREE_INSERT_NOFAIL,
 				gc_btree_gens_key(&trans, &iter, k));
-			if (ret && ret != -EROFS)
+			if (ret && !bch2_err_matches(ret, EROFS))
 				bch_err(c, "error recalculating oldest_gen: %s", bch2_err_str(ret));
 			if (ret)
 				goto err;
@@ -2001,7 +2001,7 @@ int bch2_gc_gens(struct bch_fs *c)
 			NULL, NULL,
 			BTREE_INSERT_NOFAIL,
 		bch2_alloc_write_oldest_gen(&trans, &iter, k));
-	if (ret && ret != -EROFS)
+	if (ret && !bch2_err_matches(ret, EROFS))
 		bch_err(c, "error writing oldest_gen: %s", bch2_err_str(ret));
 	if (ret)
 		goto err;

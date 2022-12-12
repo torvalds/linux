@@ -251,7 +251,7 @@ static int bch2_move_extent(struct btree_trans *trans,
 	}
 
 	if (!percpu_ref_tryget_live(&c->writes))
-		return -EROFS;
+		return -BCH_ERR_erofs_no_writes;
 
 	/* write path might have to decompress data: */
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)

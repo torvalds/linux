@@ -990,7 +990,7 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 
 	if (likely(!(trans->flags & BTREE_INSERT_LAZY_RW)) ||
 	    test_bit(BCH_FS_STARTED, &c->flags))
-		return -EROFS;
+		return -BCH_ERR_erofs_trans_commit;
 
 	bch2_trans_unlock(trans);
 

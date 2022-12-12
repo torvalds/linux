@@ -891,7 +891,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	closure_sync(&s->iodone);
 
 	if (s->err) {
-		if (s->err != -EROFS)
+		if (!bch2_err_matches(s->err, EROFS))
 			bch_err(c, "error creating stripe: error writing data buckets");
 		goto err;
 	}

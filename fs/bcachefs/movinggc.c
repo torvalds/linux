@@ -319,7 +319,7 @@ static int bch2_copygc(struct bch_fs *c)
 			     writepoint_ptr(&c->copygc_write_point),
 			     false,
 			     copygc_pred, NULL);
-	if (ret < 0 && ret != -EROFS)
+	if (ret < 0 && !bch2_err_matches(ret, EROFS))
 		bch_err(c, "error from bch2_move_data() in copygc: %s", bch2_err_str(ret));
 	if (ret)
 		return ret;

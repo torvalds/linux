@@ -363,7 +363,7 @@ retry:
 		return 0;
 
 	if (bch2_journal_error(j))
-		return -EROFS;
+		return -BCH_ERR_erofs_journal_err;
 
 	spin_lock(&j->lock);
 

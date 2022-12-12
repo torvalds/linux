@@ -20,7 +20,6 @@
 	x(0,				open_buckets_empty)			\
 	x(0,				freelist_empty)				\
 	x(BCH_ERR_freelist_empty,	no_buckets_found)			\
-	x(0,				insufficient_devices)			\
 	x(0,				transaction_restart)			\
 	x(BCH_ERR_transaction_restart,	transaction_restart_fault_inject)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_relock)		\
@@ -80,6 +79,11 @@
 	x(EINVAL,			device_already_online)			\
 	x(EINVAL,			insufficient_devices_to_start)		\
 	x(EINVAL,			invalid)				\
+	x(EROFS,			erofs_trans_commit)			\
+	x(EROFS,			erofs_no_writes)			\
+	x(EROFS,			erofs_journal_err)			\
+	x(EROFS,			erofs_sb_err)				\
+	x(EROFS,			insufficient_devices)			\
 	x(BCH_ERR_invalid,		invalid_sb)				\
 	x(BCH_ERR_invalid_sb,		invalid_sb_magic)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_version)			\
