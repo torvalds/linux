@@ -261,36 +261,42 @@ static int iso_connect_bis(struct sock *sk)
 
 	if (!bis_capable(hdev)) {
 		err = -EOPNOTSUPP;
-		goto done;
+		goto unlock;
 	}
 
 	/* Fail if out PHYs are marked as disabled */
 	if (!iso_pi(sk)->qos.out.phy) {
 		err = -EINVAL;
-		goto done;
+		goto unlock;
 	}
 
-	hcon = hci_connect_bis(hdev, &iso_pi(sk)->dst, iso_pi(sk)->dst_type,
+	hcon = hci_connect_bis(hdev, &iso_pi(sk)->dst,
+			       le_addr_type(iso_pi(sk)->dst_type),
 			       &iso_pi(sk)->qos, iso_pi(sk)->base_len,
 			       iso_pi(sk)->base);
 	if (IS_ERR(hcon)) {
 		err = PTR_ERR(hcon);
-		goto done;
+		goto unlock;
 	}
 
 	conn = iso_conn_add(hcon);
 	if (!conn) {
 		hci_conn_drop(hcon);
 		err = -ENOMEM;
-		goto done;
+		goto unlock;
 	}
+
+	hci_dev_unlock(hdev);
+	hci_dev_put(hdev);
+
+	lock_sock(sk);
 
 	/* Update source addr of the socket */
 	bacpy(&iso_pi(sk)->src, &hcon->src);
 
 	err = iso_chan_add(conn, sk, NULL);
 	if (err)
-		goto done;
+		goto release;
 
 	if (hcon->state == BT_CONNECTED) {
 		iso_sock_clear_timer(sk);
@@ -300,7 +306,11 @@ static int iso_connect_bis(struct sock *sk)
 		iso_sock_set_timer(sk, sk->sk_sndtimeo);
 	}
 
-done:
+release:
+	release_sock(sk);
+	return err;
+
+unlock:
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 	return err;
@@ -324,13 +334,13 @@ static int iso_connect_cis(struct sock *sk)
 
 	if (!cis_central_capable(hdev)) {
 		err = -EOPNOTSUPP;
-		goto done;
+		goto unlock;
 	}
 
 	/* Fail if either PHYs are marked as disabled */
 	if (!iso_pi(sk)->qos.in.phy && !iso_pi(sk)->qos.out.phy) {
 		err = -EINVAL;
-		goto done;
+		goto unlock;
 	}
 
 	/* Just bind if DEFER_SETUP has been set */
@@ -340,7 +350,7 @@ static int iso_connect_cis(struct sock *sk)
 				    &iso_pi(sk)->qos);
 		if (IS_ERR(hcon)) {
 			err = PTR_ERR(hcon);
-			goto done;
+			goto unlock;
 		}
 	} else {
 		hcon = hci_connect_cis(hdev, &iso_pi(sk)->dst,
@@ -348,7 +358,7 @@ static int iso_connect_cis(struct sock *sk)
 				       &iso_pi(sk)->qos);
 		if (IS_ERR(hcon)) {
 			err = PTR_ERR(hcon);
-			goto done;
+			goto unlock;
 		}
 	}
 
@@ -356,15 +366,20 @@ static int iso_connect_cis(struct sock *sk)
 	if (!conn) {
 		hci_conn_drop(hcon);
 		err = -ENOMEM;
-		goto done;
+		goto unlock;
 	}
+
+	hci_dev_unlock(hdev);
+	hci_dev_put(hdev);
+
+	lock_sock(sk);
 
 	/* Update source addr of the socket */
 	bacpy(&iso_pi(sk)->src, &hcon->src);
 
 	err = iso_chan_add(conn, sk, NULL);
 	if (err)
-		goto done;
+		goto release;
 
 	if (hcon->state == BT_CONNECTED) {
 		iso_sock_clear_timer(sk);
@@ -377,7 +392,11 @@ static int iso_connect_cis(struct sock *sk)
 		iso_sock_set_timer(sk, sk->sk_sndtimeo);
 	}
 
-done:
+release:
+	release_sock(sk);
+	return err;
+
+unlock:
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 	return err;
@@ -831,20 +850,23 @@ static int iso_sock_connect(struct socket *sock, struct sockaddr *addr,
 	bacpy(&iso_pi(sk)->dst, &sa->iso_bdaddr);
 	iso_pi(sk)->dst_type = sa->iso_bdaddr_type;
 
+	release_sock(sk);
+
 	if (bacmp(&iso_pi(sk)->dst, BDADDR_ANY))
 		err = iso_connect_cis(sk);
 	else
 		err = iso_connect_bis(sk);
 
 	if (err)
-		goto done;
+		return err;
+
+	lock_sock(sk);
 
 	if (!test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags)) {
 		err = bt_sock_wait_state(sk, BT_CONNECTED,
 					 sock_sndtimeo(sk, flags & O_NONBLOCK));
 	}
 
-done:
 	release_sock(sk);
 	return err;
 }
@@ -875,7 +897,8 @@ static int iso_listen_bis(struct sock *sk)
 
 	hci_dev_lock(hdev);
 
-	err = hci_pa_create_sync(hdev, &iso_pi(sk)->dst, iso_pi(sk)->dst_type,
+	err = hci_pa_create_sync(hdev, &iso_pi(sk)->dst,
+				 le_addr_type(iso_pi(sk)->dst_type),
 				 iso_pi(sk)->bc_sid);
 
 	hci_dev_unlock(hdev);
@@ -1099,27 +1122,21 @@ static int iso_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 {
 	struct sock *sk = sock->sk;
 	struct iso_pinfo *pi = iso_pi(sk);
-	int err;
 
 	BT_DBG("sk %p", sk);
-
-	lock_sock(sk);
 
 	if (test_and_clear_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags)) {
 		switch (sk->sk_state) {
 		case BT_CONNECT2:
+			lock_sock(sk);
 			iso_conn_defer_accept(pi->conn->hcon);
 			sk->sk_state = BT_CONFIG;
 			release_sock(sk);
 			return 0;
 		case BT_CONNECT:
-			err = iso_connect_cis(sk);
-			release_sock(sk);
-			return err;
+			return iso_connect_cis(sk);
 		}
 	}
-
-	release_sock(sk);
 
 	return bt_sock_recvmsg(sock, msg, len, flags);
 }
