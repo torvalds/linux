@@ -2623,14 +2623,7 @@ static void cs_etm__print_auxtrace_info(__u64 *val, int num)
 {
 	int i, cpu = 0, version, err;
 
-	/* bail out early on bad header version */
 	version = val[0];
-	if (version > CS_HEADER_CURRENT_VERSION) {
-		/* failure.. return */
-		fprintf(stdout, "	Unknown Header Version = %x, ", version);
-		fprintf(stdout, "Version supported <= %x\n", CS_HEADER_CURRENT_VERSION);
-		return;
-	}
 
 	for (i = 0; i < CS_HEADER_VERSION_MAX; i++)
 		fprintf(stdout, cs_etm_global_header_fmts[i], val[i]);
@@ -2916,9 +2909,8 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	/* Look for version of the header */
 	hdr_version = ptr[0];
 	if (hdr_version > CS_HEADER_CURRENT_VERSION) {
-		/* print routine will print an error on bad version */
-		if (dump_trace)
-			cs_etm__print_auxtrace_info(auxtrace_info->priv, 0);
+		pr_err("\nCS ETM Trace: Unknown Header Version = %#" PRIx64, hdr_version);
+		pr_err(", version supported <= %x\n", CS_HEADER_CURRENT_VERSION);
 		return -EINVAL;
 	}
 
