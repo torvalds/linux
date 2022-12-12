@@ -393,7 +393,6 @@
 		reg = <0x0 0x7000a000 0x0 0x100>;
 		#pwm-cells = <2>;
 		clocks = <&tegra_car TEGRA124_CLK_PWM>;
-		clock-names = "pwm";
 		resets = <&tegra_car 17>;
 		reset-names = "pwm";
 		status = "disabled";

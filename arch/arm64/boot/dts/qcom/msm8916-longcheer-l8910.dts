@@ -234,7 +234,7 @@
 };
 
 &msmgpio {
-	button_backlight_default: button-backlight-default {
+	button_backlight_default: button-backlight-default-state {
 		pins = "gpio17";
 		function = "gpio";
 
@@ -242,7 +242,7 @@
 		bias-disable;
 	};
 
-	gpio_keys_default: gpio-keys-default {
+	gpio_keys_default: gpio-keys-default-state {
 		pins = "gpio107";
 		function = "gpio";
 
@@ -250,7 +250,7 @@
 		bias-pull-up;
 	};
 
-	mag_reset_default: mag-reset-default {
+	mag_reset_default: mag-reset-default-state {
 		pins = "gpio111";
 		function = "gpio";
 
@@ -258,7 +258,7 @@
 		bias-disable;
 	};
 
-	usb_id_default: usb-id-default {
+	usb_id_default: usb-id-default-state {
 		pins = "gpio110";
 		function = "gpio";
 

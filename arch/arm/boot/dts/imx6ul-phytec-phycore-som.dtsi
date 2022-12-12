@@ -102,6 +102,10 @@
 	status = "disabled";
 };
 
+&wdog1 {
+	fsl,suspend-in-wait;
+};
+
 &iomuxc {
 	pinctrl_enet1: enet1grp {
 		fsl,pins = <

@@ -47,7 +47,7 @@
 };
 
 &pciec {
-        status = "okay";
+	status = "okay";
 };
 
 &pcie1 {

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015, LGE Inc. All rights reserved.
+/*
+ * Copyright (c) 2015, LGE Inc. All rights reserved.
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
  * Copyright (c) 2021, Petr Vorel <petr.vorel@gmail.com>
  */
@@ -58,7 +59,7 @@
 };
 
 &rpm_requests {
-	pm8994_regulators: pm8994-regulators {
+	pm8994_regulators: regulators-0 {
 		compatible = "qcom,rpm-pm8994-regulators";
 
 		vdd_l1-supply = <&pm8994_s1>;
@@ -236,9 +237,11 @@
 		};
 
 		pm8994_l26: l26 {
-			/* TODO: value from downstream
-			regulator-min-microvolt = <987500>;
-			fails to apply */
+			/*
+			 * TODO: value from downstream
+			 * regulator-min-microvolt = <987500>;
+			 * fails to apply
+			 */
 		};
 
 		pm8994_l27: l27 {
@@ -252,19 +255,19 @@
 		};
 
 		pm8994_l29: l29 {
-			/* TODO: Unsupported voltage range.
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
-			qcom,init-voltage = <2800000>;
-			*/
+			/*
+			 * TODO: Unsupported voltage range.
+			 * regulator-min-microvolt = <2800000>;
+			 * regulator-max-microvolt = <2800000>;
+			 */
 		};
 
 		pm8994_l30: l30 {
-			/* TODO: get this verified
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			qcom,init-voltage = <1800000>;
-			*/
+			/*
+			 * TODO: get this verified
+			 * regulator-min-microvolt = <1800000>;
+			 * regulator-max-microvolt = <1800000>;
+			 */
 		};
 
 		pm8994_l31: l31 {
@@ -273,15 +276,15 @@
 		};
 
 		pm8994_l32: l32 {
-			/* TODO: get this verified
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			qcom,init-voltage = <1800000>;
-			*/
+			/*
+			 * TODO: get this verified
+			 * regulator-min-microvolt = <1800000>;
+			 * regulator-max-microvolt = <1800000>;
+			 */
 		};
 	};
 
-	pmi8994_regulators: pmi8994-regulators {
+	pmi8994_regulators: regulators-1 {
 		compatible = "qcom,rpm-pmi8994-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
