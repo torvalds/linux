@@ -131,6 +131,17 @@ enum dmub_notification_type {
 };
 
 /**
+ * DPIA NOTIFICATION Response Type
+ */
+enum dpia_notify_bw_alloc_status {
+
+	DPIA_BW_REQ_FAILED = 0,
+	DPIA_BW_REQ_SUCCESS,
+	DPIA_EST_BW_CHANGED,
+	DPIA_BW_ALLOC_CAPS_CHANGED
+};
+
+/**
  * struct dmub_region - dmub hw memory region
  * @base: base address for region, must be 256 byte aligned
  * @top: top address for region
@@ -465,7 +476,10 @@ struct dmub_notification {
 		struct aux_reply_data aux_reply;
 		enum dp_hpd_status hpd_status;
 		enum set_config_status sc_status;
-		struct dpia_notification_reply_data bw_alloc_reply;
+		/**
+		 * DPIA notification command.
+		 */
+		struct dmub_rb_cmd_dpia_notification dpia_notification;
 	};
 };
 
