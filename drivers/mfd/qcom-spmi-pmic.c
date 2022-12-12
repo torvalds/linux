@@ -56,6 +56,7 @@ static const struct of_device_id pmic_spmi_id_table[] = {
 	{ .compatible = "qcom,pm8937", .data = N_USIDS(2) },
 	{ .compatible = "qcom,pm8941", .data = N_USIDS(2) },
 	{ .compatible = "qcom,pm8950", .data = N_USIDS(2) },
+	{ .compatible = "qcom,pm8953", .data = N_USIDS(2) },
 	{ .compatible = "qcom,pm8994", .data = N_USIDS(2) },
 	{ .compatible = "qcom,pm8998", .data = N_USIDS(2) },
 	{ .compatible = "qcom,pma8084", .data = N_USIDS(2) },
