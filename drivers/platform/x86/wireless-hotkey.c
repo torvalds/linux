@@ -103,10 +103,9 @@ static int wl_add(struct acpi_device *device)
 	return err;
 }
 
-static int wl_remove(struct acpi_device *device)
+static void wl_remove(struct acpi_device *device)
 {
 	wireless_input_destroy(device);
-	return 0;
 }
 
 static struct acpi_driver wl_driver = {
