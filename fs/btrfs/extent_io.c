@@ -950,7 +950,6 @@ static void calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 				struct btrfs_inode *inode, u64 file_offset)
 {
 	struct btrfs_ordered_extent *ordered;
-	u64 logical = (bio_ctrl->bio->bi_iter.bi_sector << SECTOR_SHIFT);
 
 	/*
 	 * Limit the extent to the ordered boundary for Zone Append.
@@ -958,7 +957,7 @@ static void calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 	 * them.
 	 */
 	if (bio_ctrl->compress_type == BTRFS_COMPRESS_NONE &&
-	    btrfs_use_zone_append(inode, logical)) {
+	    btrfs_use_zone_append(btrfs_bio(bio_ctrl->bio))) {
 		ordered = btrfs_lookup_ordered_extent(inode, file_offset);
 		if (ordered) {
 			bio_ctrl->len_to_oe_boundary = min_t(u32, U32_MAX,
