@@ -1713,7 +1713,22 @@ static void vop2_power_domain_esmat_off(struct drm_crtc *crtc)
 
 static void vop2_win_enable(struct vop2_win *win)
 {
-	if (!VOP_WIN_GET(win->vop2, win, enable)) {
+	/*
+	 * a win such as cursor update by async:
+	 * first frame enable win pd, enable win, return without wait vsync
+	 * second frame come, but the first frame may still not enabled
+	 * in this case, the win pd is turn on by fist frame, so we don't
+	 * need get pd again.
+	 *
+	 * another case:
+	 * first frame: disable win, disable pd, return without wait vsync
+	 * second frame come very soon, the previous win disable may still not
+	 * take effect, but the pd is disable in progress, we should do pd_get
+	 * at this situation.
+	 *
+	 * check the backup register for previous enable operation.
+	 */
+	if (!VOP_WIN_GET_REG_BAK(win->vop2, win, enable)) {
 		if (win->pd) {
 			vop2_power_domain_get(win->pd);
 			win->pd->vp_mask |= win->vp_mask;
