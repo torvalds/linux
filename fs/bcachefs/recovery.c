@@ -1260,13 +1260,6 @@ use_clean:
 
 		set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
 
-		bch_info(c, "checking need_discard and freespace btrees");
-		err = "error checking need_discard and freespace btrees";
-		ret = bch2_check_alloc_info(c);
-		if (ret)
-			goto err;
-		bch_verbose(c, "done checking need_discard and freespace btrees");
-
 		if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
 			err = "error creating root snapshot node";
 			ret = bch2_fs_initialize_subvolumes(c);
@@ -1291,6 +1284,15 @@ use_clean:
 		if (c->opts.verbose || !c->sb.clean)
 			bch_info(c, "journal replay done");
 
+		bch_info(c, "checking need_discard and freespace btrees");
+		err = "error checking need_discard and freespace btrees";
+		ret = bch2_check_alloc_info(c);
+		if (ret)
+			goto err;
+		bch_verbose(c, "done checking need_discard and freespace btrees");
+
+		set_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags);
+
 		bch_info(c, "checking lrus");
 		err = "error checking lrus";
 		ret = bch2_check_lrus(c);
@@ -1308,6 +1310,7 @@ use_clean:
 		set_bit(BCH_FS_CHECK_ALLOC_TO_LRU_REFS_DONE, &c->flags);
 	} else {
 		set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
+		set_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags);
 		set_bit(BCH_FS_CHECK_LRUS_DONE, &c->flags);
 		set_bit(BCH_FS_CHECK_ALLOC_TO_LRU_REFS_DONE, &c->flags);
 		set_bit(BCH_FS_FSCK_DONE, &c->flags);

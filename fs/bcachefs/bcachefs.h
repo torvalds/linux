@@ -549,6 +549,7 @@ enum {
 	/* fsck passes: */
 	BCH_FS_TOPOLOGY_REPAIR_DONE,
 	BCH_FS_INITIAL_GC_DONE,		/* kill when we enumerate fsck passes */
+	BCH_FS_CHECK_ALLOC_DONE,
 	BCH_FS_CHECK_LRUS_DONE,
 	BCH_FS_CHECK_ALLOC_TO_LRU_REFS_DONE,
 	BCH_FS_FSCK_DONE,

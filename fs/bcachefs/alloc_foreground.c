@@ -316,7 +316,24 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 
 	a = bch2_alloc_to_v4(k, &a_convert);
 
-	if (genbits != (alloc_freespace_genbits(*a) >> 56)) {
+	if (a->data_type != BCH_DATA_free) {
+		if (!test_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags)) {
+			ob = NULL;
+			goto err;
+		}
+
+		prt_printf(&buf, "non free bucket in freespace btree\n"
+		       "  freespace key ");
+		bch2_bkey_val_to_text(&buf, c, freespace_k);
+		prt_printf(&buf, "\n  ");
+		bch2_bkey_val_to_text(&buf, c, k);
+		bch2_trans_inconsistent(trans, "%s", buf.buf);
+		ob = ERR_PTR(-EIO);
+		goto err;
+	}
+
+	if (genbits != (alloc_freespace_genbits(*a) >> 56) &&
+	    test_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags)) {
 		prt_printf(&buf, "bucket in freespace btree with wrong genbits (got %u should be %llu)\n"
 		       "  freespace key ",
 		       genbits, alloc_freespace_genbits(*a) >> 56);
@@ -327,17 +344,6 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 		ob = ERR_PTR(-EIO);
 		goto err;
 
-	}
-
-	if (a->data_type != BCH_DATA_free) {
-		prt_printf(&buf, "non free bucket in freespace btree\n"
-		       "  freespace key ");
-		bch2_bkey_val_to_text(&buf, c, freespace_k);
-		prt_printf(&buf, "\n  ");
-		bch2_bkey_val_to_text(&buf, c, k);
-		bch2_trans_inconsistent(trans, "%s", buf.buf);
-		ob = ERR_PTR(-EIO);
-		goto err;
 	}
 
 	ob = __try_alloc_bucket(c, ca, b, reserve, a, s, cl);
@@ -505,6 +511,7 @@ static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct open_bucket *ob = NULL;
+	bool freespace = READ_ONCE(ca->mi.freespace_initialized);
 	u64 avail;
 	struct bucket_alloc_state s = { 0 };
 	bool waiting = false;
@@ -543,13 +550,18 @@ again:
 		if (ob)
 			return ob;
 	}
-
-	ob = likely(ca->mi.freespace_initialized)
+alloc:
+	ob = likely(freespace)
 		? bch2_bucket_alloc_freelist(trans, ca, reserve, &s, cl)
 		: bch2_bucket_alloc_early(trans, ca, reserve, &s, cl);
 
 	if (s.skipped_need_journal_commit * 2 > avail)
 		bch2_journal_flush_async(&c->journal, NULL);
+
+	if (!ob && freespace && !test_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags)) {
+		freespace = false;
+		goto alloc;
+	}
 err:
 	if (!ob)
 		ob = ERR_PTR(-BCH_ERR_no_buckets_found);

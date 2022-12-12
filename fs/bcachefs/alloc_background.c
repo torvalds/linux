@@ -583,6 +583,7 @@ static int bch2_bucket_do_index(struct btree_trans *trans,
 		goto err;
 
 	if (ca->mi.freespace_initialized &&
+	    test_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags) &&
 	    bch2_trans_inconsistent_on(old.k->type != old_type, trans,
 			"incorrect key when %s %s btree (got %s should be %s)\n"
 			"  for %s",
@@ -1028,21 +1029,28 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 		goto write;
 	}
 
-	if (bch2_trans_inconsistent_on(a->v.journal_seq > c->journal.flushed_seq_ondisk, trans,
-			"clearing need_discard but journal_seq %llu > flushed_seq %llu\n"
-			"%s",
-			a->v.journal_seq,
-			c->journal.flushed_seq_ondisk,
-			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-		ret = -EIO;
+	if (a->v.journal_seq > c->journal.flushed_seq_ondisk) {
+		if (test_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags)) {
+			bch2_trans_inconsistent(trans,
+				"clearing need_discard but journal_seq %llu > flushed_seq %llu\n"
+				"%s",
+				a->v.journal_seq,
+				c->journal.flushed_seq_ondisk,
+				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+			ret = -EIO;
+		}
 		goto out;
 	}
 
-	if (bch2_trans_inconsistent_on(a->v.data_type != BCH_DATA_need_discard, trans,
-			"bucket incorrectly set in need_discard btree\n"
-			"%s",
-			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-		ret = -EIO;
+	if (a->v.data_type != BCH_DATA_need_discard) {
+		if (test_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags)) {
+			bch2_trans_inconsistent(trans,
+				"bucket incorrectly set in need_discard btree\n"
+				"%s",
+				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+			ret = -EIO;
+		}
+
 		goto out;
 	}
 
