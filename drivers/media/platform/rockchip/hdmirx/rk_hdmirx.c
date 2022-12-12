@@ -1443,8 +1443,6 @@ static void hdmirx_format_change(struct rk_hdmirx_dev *hdmirx_dev)
 	}
 
 	hdmirx_dev->get_timing = true;
-	if (hdmirx_dev->hdcp && hdmirx_dev->hdcp->hdcp_start)
-		hdmirx_dev->hdcp->hdcp_start(hdmirx_dev->hdcp);
 	v4l2_dbg(1, debug, v4l2_dev, "%s: queue res_chg_event\n", __func__);
 	v4l2_event_queue(&stream->vdev, &ev_src_chg);
 }
@@ -2666,6 +2664,8 @@ static void hdmirx_plugin(struct rk_hdmirx_dev *hdmirx_dev)
 	hdmirx_submodule_init(hdmirx_dev);
 	hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, POWERPROVIDED,
 				POWERPROVIDED);
+	if (hdmirx_dev->hdcp && hdmirx_dev->hdcp->hdcp_start)
+		hdmirx_dev->hdcp->hdcp_start(hdmirx_dev->hdcp);
 	hdmirx_hpd_ctrl(hdmirx_dev, true);
 	hdmirx_phy_config(hdmirx_dev);
 	hdmirx_audio_setup(hdmirx_dev);
@@ -3089,6 +3089,8 @@ static void hdmirx_delayed_work_res_change(struct work_struct *work)
 		hdmirx_submodule_init(hdmirx_dev);
 		hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, POWERPROVIDED,
 					POWERPROVIDED);
+		if (hdmirx_dev->hdcp && hdmirx_dev->hdcp->hdcp_start)
+			hdmirx_dev->hdcp->hdcp_start(hdmirx_dev->hdcp);
 		hdmirx_hpd_ctrl(hdmirx_dev, true);
 		hdmirx_phy_config(hdmirx_dev);
 		hdmirx_audio_setup(hdmirx_dev);
