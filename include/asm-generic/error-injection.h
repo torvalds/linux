@@ -19,8 +19,10 @@ struct pt_regs;
 
 #ifdef CONFIG_FUNCTION_ERROR_INJECTION
 /*
- * Whitelist generating macro. Specify functions which can be
- * error-injectable using this macro.
+ * Whitelist generating macro. Specify functions which can be error-injectable
+ * using this macro. If you unsure what is required for the error-injectable
+ * functions, please read Documentation/fault-injection/fault-injection.rst
+ * 'Error Injectable Functions' section.
  */
 #define ALLOW_ERROR_INJECTION(fname, _etype)				\
 static struct error_injection_entry __used				\
