@@ -451,8 +451,7 @@ static inline void drop_delayed_ref(struct btrfs_delayed_ref_root *delayed_refs,
 	atomic_dec(&delayed_refs->num_entries);
 }
 
-static bool merge_ref(struct btrfs_trans_handle *trans,
-		      struct btrfs_delayed_ref_root *delayed_refs,
+static bool merge_ref(struct btrfs_delayed_ref_root *delayed_refs,
 		      struct btrfs_delayed_ref_head *head,
 		      struct btrfs_delayed_ref_node *ref,
 		      u64 seq)
@@ -523,7 +522,7 @@ again:
 		ref = rb_entry(node, struct btrfs_delayed_ref_node, ref_node);
 		if (seq && ref->seq >= seq)
 			continue;
-		if (merge_ref(trans, delayed_refs, head, ref, seq))
+		if (merge_ref(delayed_refs, head, ref, seq))
 			goto again;
 	}
 }
