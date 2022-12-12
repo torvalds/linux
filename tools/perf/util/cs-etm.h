@@ -7,6 +7,7 @@
 #ifndef INCLUDE__UTIL_PERF_CS_ETM_H__
 #define INCLUDE__UTIL_PERF_CS_ETM_H__
 
+#include "debug.h"
 #include "util/event.h"
 #include <linux/bits.h>
 
@@ -218,39 +219,8 @@ static inline int
 cs_etm__process_auxtrace_info(union perf_event *event __maybe_unused,
 			      struct perf_session *session __maybe_unused)
 {
+	pr_err("\nCS ETM Trace: OpenCSD is not linked in, please recompile with CORESIGHT=1\n");
 	return -1;
-}
-
-static inline int cs_etm__get_cpu(u8 trace_chan_id __maybe_unused,
-				  int *cpu __maybe_unused)
-{
-	return -1;
-}
-
-static inline int cs_etm__etmq_set_tid(
-				struct cs_etm_queue *etmq __maybe_unused,
-				pid_t tid __maybe_unused,
-				u8 trace_chan_id __maybe_unused)
-{
-	return -1;
-}
-
-static inline bool cs_etm__etmq_is_timeless(
-				struct cs_etm_queue *etmq __maybe_unused)
-{
-	/* What else to return? */
-	return true;
-}
-
-static inline void cs_etm__etmq_set_traceid_queue_timestamp(
-				struct cs_etm_queue *etmq __maybe_unused,
-				u8 trace_chan_id __maybe_unused) {}
-
-static inline struct cs_etm_packet_queue *cs_etm__etmq_get_packet_queue(
-				struct cs_etm_queue *etmq __maybe_unused,
-				u8 trace_chan_id __maybe_unused)
-{
-	return NULL;
 }
 #endif
 
