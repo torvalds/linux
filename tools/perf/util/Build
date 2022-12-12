@@ -126,6 +126,7 @@ ifdef CONFIG_LIBOPENCSD
 perf-$(CONFIG_AUXTRACE) += cs-etm.o
 perf-$(CONFIG_AUXTRACE) += cs-etm-decoder/
 endif
+perf-$(CONFIG_AUXTRACE) += cs-etm-base.o
 
 perf-y += parse-branch-options.o
 perf-y += dump-insn.o

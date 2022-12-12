@@ -2510,134 +2510,6 @@ static bool cs_etm__is_timeless_decoding(struct cs_etm_auxtrace *etm)
 	return timeless_decoding;
 }
 
-static const char * const cs_etm_global_header_fmts[] = {
-	[CS_HEADER_VERSION]	= "	Header version		       %llx\n",
-	[CS_PMU_TYPE_CPUS]	= "	PMU type/num cpus	       %llx\n",
-	[CS_ETM_SNAPSHOT]	= "	Snapshot		       %llx\n",
-};
-
-static const char * const cs_etm_priv_fmts[] = {
-	[CS_ETM_MAGIC]		= "	Magic number		       %llx\n",
-	[CS_ETM_CPU]		= "	CPU			       %lld\n",
-	[CS_ETM_NR_TRC_PARAMS]	= "	NR_TRC_PARAMS		       %llx\n",
-	[CS_ETM_ETMCR]		= "	ETMCR			       %llx\n",
-	[CS_ETM_ETMTRACEIDR]	= "	ETMTRACEIDR		       %llx\n",
-	[CS_ETM_ETMCCER]	= "	ETMCCER			       %llx\n",
-	[CS_ETM_ETMIDR]		= "	ETMIDR			       %llx\n",
-};
-
-static const char * const cs_etmv4_priv_fmts[] = {
-	[CS_ETM_MAGIC]		= "	Magic number		       %llx\n",
-	[CS_ETM_CPU]		= "	CPU			       %lld\n",
-	[CS_ETM_NR_TRC_PARAMS]	= "	NR_TRC_PARAMS		       %llx\n",
-	[CS_ETMV4_TRCCONFIGR]	= "	TRCCONFIGR		       %llx\n",
-	[CS_ETMV4_TRCTRACEIDR]	= "	TRCTRACEIDR		       %llx\n",
-	[CS_ETMV4_TRCIDR0]	= "	TRCIDR0			       %llx\n",
-	[CS_ETMV4_TRCIDR1]	= "	TRCIDR1			       %llx\n",
-	[CS_ETMV4_TRCIDR2]	= "	TRCIDR2			       %llx\n",
-	[CS_ETMV4_TRCIDR8]	= "	TRCIDR8			       %llx\n",
-	[CS_ETMV4_TRCAUTHSTATUS] = "	TRCAUTHSTATUS		       %llx\n",
-	[CS_ETE_TRCDEVARCH]	= "	TRCDEVARCH                     %llx\n"
-};
-
-static const char * const param_unk_fmt =
-	"	Unknown parameter [%d]	       %"PRIx64"\n";
-static const char * const magic_unk_fmt =
-	"	Magic number Unknown	       %"PRIx64"\n";
-
-static int cs_etm__print_cpu_metadata_v0(u64 *val, int *offset)
-{
-	int i = *offset, j, nr_params = 0, fmt_offset;
-	u64 magic;
-
-	/* check magic value */
-	magic = val[i + CS_ETM_MAGIC];
-	if ((magic != __perf_cs_etmv3_magic) &&
-	    (magic != __perf_cs_etmv4_magic)) {
-		/* failure - note bad magic value */
-		fprintf(stdout, magic_unk_fmt, magic);
-		return -EINVAL;
-	}
-
-	/* print common header block */
-	fprintf(stdout, cs_etm_priv_fmts[CS_ETM_MAGIC], val[i++]);
-	fprintf(stdout, cs_etm_priv_fmts[CS_ETM_CPU], val[i++]);
-
-	if (magic == __perf_cs_etmv3_magic) {
-		nr_params = CS_ETM_NR_TRC_PARAMS_V0;
-		fmt_offset = CS_ETM_ETMCR;
-		/* after common block, offset format index past NR_PARAMS */
-		for (j = fmt_offset; j < nr_params + fmt_offset; j++, i++)
-			fprintf(stdout, cs_etm_priv_fmts[j], val[i]);
-	} else if (magic == __perf_cs_etmv4_magic) {
-		nr_params = CS_ETMV4_NR_TRC_PARAMS_V0;
-		fmt_offset = CS_ETMV4_TRCCONFIGR;
-		/* after common block, offset format index past NR_PARAMS */
-		for (j = fmt_offset; j < nr_params + fmt_offset; j++, i++)
-			fprintf(stdout, cs_etmv4_priv_fmts[j], val[i]);
-	}
-	*offset = i;
-	return 0;
-}
-
-static int cs_etm__print_cpu_metadata_v1(u64 *val, int *offset)
-{
-	int i = *offset, j, total_params = 0;
-	u64 magic;
-
-	magic = val[i + CS_ETM_MAGIC];
-	/* total params to print is NR_PARAMS + common block size for v1 */
-	total_params = val[i + CS_ETM_NR_TRC_PARAMS] + CS_ETM_COMMON_BLK_MAX_V1;
-
-	if (magic == __perf_cs_etmv3_magic) {
-		for (j = 0; j < total_params; j++, i++) {
-			/* if newer record - could be excess params */
-			if (j >= CS_ETM_PRIV_MAX)
-				fprintf(stdout, param_unk_fmt, j, val[i]);
-			else
-				fprintf(stdout, cs_etm_priv_fmts[j], val[i]);
-		}
-	} else if (magic == __perf_cs_etmv4_magic || magic == __perf_cs_ete_magic) {
-		/*
-		 * ETE and ETMv4 can be printed in the same block because the number of parameters
-		 * is saved and they share the list of parameter names. ETE is also only supported
-		 * in V1 files.
-		 */
-		for (j = 0; j < total_params; j++, i++) {
-			/* if newer record - could be excess params */
-			if (j >= CS_ETE_PRIV_MAX)
-				fprintf(stdout, param_unk_fmt, j, val[i]);
-			else
-				fprintf(stdout, cs_etmv4_priv_fmts[j], val[i]);
-		}
-	} else {
-		/* failure - note bad magic value and error out */
-		fprintf(stdout, magic_unk_fmt, magic);
-		return -EINVAL;
-	}
-	*offset = i;
-	return 0;
-}
-
-static void cs_etm__print_auxtrace_info(u64 *val, int num)
-{
-	int i, cpu = 0, version, err;
-
-	version = val[0];
-
-	for (i = 0; i < CS_HEADER_VERSION_MAX; i++)
-		fprintf(stdout, cs_etm_global_header_fmts[i], val[i]);
-
-	for (i = CS_HEADER_VERSION_MAX; cpu < num; cpu++) {
-		if (version == 0)
-			err = cs_etm__print_cpu_metadata_v0(val, &i);
-		else if (version == 1)
-			err = cs_etm__print_cpu_metadata_v1(val, &i);
-		if (err)
-			return;
-	}
-}
-
 /*
  * Read a single cpu parameter block from the auxtrace_info priv block.
  *
@@ -2874,15 +2746,13 @@ static int cs_etm__queue_aux_records(struct perf_session *session)
 	return 0;
 }
 
-int cs_etm__process_auxtrace_info(union perf_event *event,
-				  struct perf_session *session)
+int cs_etm__process_auxtrace_info_full(union perf_event *event,
+				       struct perf_session *session)
 {
 	struct perf_record_auxtrace_info *auxtrace_info = &event->auxtrace_info;
 	struct cs_etm_auxtrace *etm = NULL;
 	struct int_node *inode;
-	unsigned int pmu_type;
 	int event_header_size = sizeof(struct perf_event_header);
-	int info_header_size;
 	int total_size = auxtrace_info->header.size;
 	int priv_size = 0;
 	int num_cpu, trcidr_idx;
@@ -2890,36 +2760,6 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	int i, j;
 	u64 *ptr = NULL;
 	u64 **metadata = NULL;
-	u64 hdr_version;
-
-	/*
-	 * sizeof(auxtrace_info_event::type) +
-	 * sizeof(auxtrace_info_event::reserved) == 8
-	 */
-	info_header_size = 8;
-
-	if (total_size < (event_header_size + info_header_size))
-		return -EINVAL;
-
-	priv_size = total_size - event_header_size - info_header_size;
-
-	/* First the global part */
-	ptr = (u64 *) auxtrace_info->priv;
-
-	/* Look for version of the header */
-	hdr_version = ptr[0];
-	if (hdr_version > CS_HEADER_CURRENT_VERSION) {
-		pr_err("\nCS ETM Trace: Unknown Header Version = %#" PRIx64, hdr_version);
-		pr_err(", version supported <= %x\n", CS_HEADER_CURRENT_VERSION);
-		return -EINVAL;
-	}
-
-	num_cpu = ptr[CS_PMU_TYPE_CPUS] & 0xffffffff;
-	pmu_type = (unsigned int) ((ptr[CS_PMU_TYPE_CPUS] >> 32) &
-				    0xffffffff);
-
-	if (dump_trace)
-		cs_etm__print_auxtrace_info(ptr, num_cpu);
 
 	/*
 	 * Create an RB tree for traceID-metadata tuple.  Since the conversion
@@ -2930,6 +2770,9 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	if (!traceid_list)
 		return -ENOMEM;
 
+	/* First the global part */
+	ptr = (u64 *) auxtrace_info->priv;
+	num_cpu = ptr[CS_PMU_TYPE_CPUS] & 0xffffffff;
 	metadata = zalloc(sizeof(*metadata) * num_cpu);
 	if (!metadata) {
 		err = -ENOMEM;
@@ -3008,6 +2851,7 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	 * The following tests if the correct number of double words was
 	 * present in the auxtrace info section.
 	 */
+	priv_size = total_size - event_header_size - INFO_HEADER_SIZE;
 	if (i * 8 != priv_size) {
 		err = -EINVAL;
 		goto err_free_metadata;
@@ -3036,7 +2880,7 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	etm->machine = &session->machines.host;
 
 	etm->num_cpu = num_cpu;
-	etm->pmu_type = pmu_type;
+	etm->pmu_type = (unsigned int) ((ptr[CS_PMU_TYPE_CPUS] >> 32) & 0xffffffff);
 	etm->snapshot_mode = (ptr[CS_ETM_SNAPSHOT] != 0);
 	etm->metadata = metadata;
 	etm->auxtrace_type = auxtrace_info->type;
