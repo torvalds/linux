@@ -2235,3 +2235,16 @@ bool __pkvm_check_ioguard_page(struct pkvm_hyp_vcpu *hyp_vcpu)
 
 	return ret;
 }
+
+int host_stage2_protect_pages_locked(phys_addr_t addr, u64 size)
+{
+	int ret;
+
+	hyp_assert_lock_held(&host_mmu.lock);
+
+	ret = __host_check_page_state_range(addr, size, PKVM_PAGE_OWNED);
+	if (!ret)
+		ret = host_stage2_set_owner_locked(addr, size, PKVM_ID_PROTECTED);
+
+	return ret;
+}
