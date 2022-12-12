@@ -1641,6 +1641,9 @@ bool btrfs_use_zone_append(struct btrfs_bio *bbio)
 	if (!is_data_inode(&inode->vfs_inode))
 		return false;
 
+	if (btrfs_op(&bbio->bio) != BTRFS_MAP_WRITE)
+		return false;
+
 	/*
 	 * Using REQ_OP_ZONE_APPNED for relocation can break assumptions on the
 	 * extent layout the relocation code has.
