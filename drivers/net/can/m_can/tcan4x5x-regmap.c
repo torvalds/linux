@@ -90,16 +90,47 @@ static int tcan4x5x_regmap_read(void *context,
 	return 0;
 }
 
-static const struct regmap_range tcan4x5x_reg_table_yes_range[] = {
-	regmap_reg_range(0x0000, 0x002c),	/* Device ID and SPI Registers */
-	regmap_reg_range(0x0800, 0x083c),	/* Device configuration registers and Interrupt Flags*/
+static const struct regmap_range tcan4x5x_reg_table_wr_range[] = {
+	/* Device ID and SPI Registers */
+	regmap_reg_range(0x000c, 0x0010),
+	/* Device configuration registers and Interrupt Flags*/
+	regmap_reg_range(0x0800, 0x080c),
+	regmap_reg_range(0x0814, 0x0814),
+	regmap_reg_range(0x0820, 0x0820),
+	regmap_reg_range(0x0830, 0x0830),
+	/* M_CAN */
+	regmap_reg_range(0x100c, 0x102c),
+	regmap_reg_range(0x1048, 0x1048),
+	regmap_reg_range(0x1050, 0x105c),
+	regmap_reg_range(0x1080, 0x1088),
+	regmap_reg_range(0x1090, 0x1090),
+	regmap_reg_range(0x1098, 0x10a0),
+	regmap_reg_range(0x10a8, 0x10b0),
+	regmap_reg_range(0x10b8, 0x10c0),
+	regmap_reg_range(0x10c8, 0x10c8),
+	regmap_reg_range(0x10d0, 0x10d4),
+	regmap_reg_range(0x10e0, 0x10e4),
+	regmap_reg_range(0x10f0, 0x10f0),
+	regmap_reg_range(0x10f8, 0x10f8),
+	/* MRAM */
+	regmap_reg_range(0x8000, 0x87fc),
+};
+
+static const struct regmap_range tcan4x5x_reg_table_rd_range[] = {
+	regmap_reg_range(0x0000, 0x0010),	/* Device ID and SPI Registers */
+	regmap_reg_range(0x0800, 0x0830),	/* Device configuration registers and Interrupt Flags*/
 	regmap_reg_range(0x1000, 0x10fc),	/* M_CAN */
 	regmap_reg_range(0x8000, 0x87fc),	/* MRAM */
 };
 
-static const struct regmap_access_table tcan4x5x_reg_table = {
-	.yes_ranges = tcan4x5x_reg_table_yes_range,
-	.n_yes_ranges = ARRAY_SIZE(tcan4x5x_reg_table_yes_range),
+static const struct regmap_access_table tcan4x5x_reg_table_wr = {
+	.yes_ranges = tcan4x5x_reg_table_wr_range,
+	.n_yes_ranges = ARRAY_SIZE(tcan4x5x_reg_table_wr_range),
+};
+
+static const struct regmap_access_table tcan4x5x_reg_table_rd = {
+	.yes_ranges = tcan4x5x_reg_table_rd_range,
+	.n_yes_ranges = ARRAY_SIZE(tcan4x5x_reg_table_rd_range),
 };
 
 static const struct regmap_config tcan4x5x_regmap = {
@@ -107,8 +138,8 @@ static const struct regmap_config tcan4x5x_regmap = {
 	.reg_stride = 4,
 	.pad_bits = 8,
 	.val_bits = 32,
-	.wr_table = &tcan4x5x_reg_table,
-	.rd_table = &tcan4x5x_reg_table,
+	.wr_table = &tcan4x5x_reg_table_wr,
+	.rd_table = &tcan4x5x_reg_table_rd,
 	.max_register = TCAN4X5X_MAX_REGISTER,
 	.cache_type = REGCACHE_NONE,
 	.read_flag_mask = (__force unsigned long)
