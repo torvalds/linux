@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <endian.h>
 #include <errno.h>
+#include <limits.h>
 #include <linux/err.h>
 #include <linux/btf.h>
 #include <linux/kernel.h>
@@ -1076,6 +1077,43 @@ static void btf_dump_emit_enum_def(struct btf_dump *d, __u32 id,
 	else
 		btf_dump_emit_enum64_val(d, t, lvl, vlen);
 	btf_dump_printf(d, "\n%s}", pfx(lvl));
+
+	/* special case enums with special sizes */
+	if (t->size == 1) {
+		/* one-byte enums can be forced with mode(byte) attribute */
+		btf_dump_printf(d, " __attribute__((mode(byte)))");
+	} else if (t->size == 8 && d->ptr_sz == 8) {
+		/* enum can be 8-byte sized if one of the enumerator values
+		 * doesn't fit in 32-bit integer, or by adding mode(word)
+		 * attribute (but probably only on 64-bit architectures); do
+		 * our best here to try to satisfy the contract without adding
+		 * unnecessary attributes
+		 */
+		bool needs_word_mode;
+
+		if (btf_is_enum(t)) {
+			/* enum can't represent 64-bit values, so we need word mode */
+			needs_word_mode = true;
+		} else {
+			/* enum64 needs mode(word) if none of its values has
+			 * non-zero upper 32-bits (which means that all values
+			 * fit in 32-bit integers and won't cause compiler to
+			 * bump enum to be 64-bit naturally
+			 */
+			int i;
+
+			needs_word_mode = true;
+			for (i = 0; i < vlen; i++) {
+				if (btf_enum64(t)[i].val_hi32 != 0) {
+					needs_word_mode = false;
+					break;
+				}
+			}
+		}
+		if (needs_word_mode)
+			btf_dump_printf(d, " __attribute__((mode(word)))");
+	}
+
 }
 
 static void btf_dump_emit_fwd_def(struct btf_dump *d, __u32 id,
