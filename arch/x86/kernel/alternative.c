@@ -624,7 +624,7 @@ void __init_or_module noinline apply_ibt_endbr(s32 *start, s32 *end)
 
 #else
 
-void __init_or_module noinline apply_ibt_endbr(s32 *start, s32 *end) { }
+void __init_or_module apply_ibt_endbr(s32 *start, s32 *end) { }
 
 #endif /* CONFIG_X86_KERNEL_IBT */
 
