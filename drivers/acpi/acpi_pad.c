@@ -287,7 +287,7 @@ static ssize_t rrtime_store(struct device *dev,
 static ssize_t rrtime_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d\n", round_robin_time);
+	return sysfs_emit(buf, "%d\n", round_robin_time);
 }
 static DEVICE_ATTR_RW(rrtime);
 
@@ -309,7 +309,7 @@ static ssize_t idlepct_store(struct device *dev,
 static ssize_t idlepct_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d\n", idle_pct);
+	return sysfs_emit(buf, "%d\n", idle_pct);
 }
 static DEVICE_ATTR_RW(idlepct);
 
