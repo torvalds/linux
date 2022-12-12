@@ -27,7 +27,7 @@ void rcu_cpu_stall_reset(void);
  * wrapper around rcu_note_context_switch(), which allows TINY_RCU
  * to save a few bytes. The caller must have disabled interrupts.
  */
-static inline void rcu_virt_note_context_switch(int cpu)
+static inline void rcu_virt_note_context_switch(void)
 {
 	rcu_note_context_switch(false);
 }
@@ -86,8 +86,6 @@ bool poll_state_synchronize_rcu(unsigned long oldstate);
 bool poll_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 void cond_synchronize_rcu(unsigned long oldstate);
 void cond_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
-
-bool rcu_is_idle_cpu(int cpu);
 
 #ifdef CONFIG_PROVE_RCU
 void rcu_irq_exit_check_preempt(void);
