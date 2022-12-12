@@ -655,11 +655,6 @@ static int msc313_gpio_probe(struct platform_device *pdev)
 	return devm_gpiochip_add_data(dev, gpiochip, gpio);
 }
 
-static int msc313_gpio_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct of_device_id msc313_gpio_of_match[] = {
 #ifdef CONFIG_MACH_INFINITY
 	{
@@ -710,6 +705,5 @@ static struct platform_driver msc313_gpio_driver = {
 		.pm = &msc313_gpio_ops,
 	},
 	.probe = msc313_gpio_probe,
-	.remove = msc313_gpio_remove,
 };
 builtin_platform_driver(msc313_gpio_driver);
