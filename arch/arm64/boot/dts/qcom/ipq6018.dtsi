@@ -685,7 +685,7 @@
 
 		ssphy_0: ssphy@78000 {
 			compatible = "qcom,ipq6018-qmp-usb3-phy";
-			reg = <0x0 0x78000 0x0 0x1C4>;
+			reg = <0x0 0x78000 0x0 0x1c4>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
@@ -702,7 +702,7 @@
 			usb0_ssphy: phy@78200 {
 				reg = <0x0 0x00078200 0x0 0x130>, /* Tx */
 				      <0x0 0x00078400 0x0 0x200>, /* Rx */
-				      <0x0 0x00078800 0x0 0x1F8>, /* PCS */
+				      <0x0 0x00078800 0x0 0x1f8>, /* PCS */
 				      <0x0 0x00078600 0x0 0x044>; /* PCS misc */
 				#phy-cells = <0>;
 				#clock-cells = <0>;
@@ -727,7 +727,7 @@
 
 		usb3: usb@8af8800 {
 			compatible = "qcom,ipq6018-dwc3", "qcom,dwc3";
-			reg = <0x0 0x8AF8800 0x0 0x400>;
+			reg = <0x0 0x8af8800 0x0 0x400>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
@@ -753,7 +753,7 @@
 
 			dwc_0: usb@8a00000 {
 				compatible = "snps,dwc3";
-				reg = <0x0 0x8A00000 0x0 0xcd00>;
+				reg = <0x0 0x8a00000 0x0 0xcd00>;
 				interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&qusb_phy_0>, <&usb0_ssphy>;
 				phy-names = "usb2-phy", "usb3-phy";
