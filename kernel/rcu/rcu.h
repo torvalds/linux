@@ -286,7 +286,7 @@ void rcu_test_sync_prims(void);
  */
 extern void resched_cpu(int cpu);
 
-#if defined(CONFIG_SRCU) || !defined(CONFIG_TINY_RCU)
+#if !defined(CONFIG_TINY_RCU)
 
 #include <linux/rcu_node_tree.h>
 
@@ -375,6 +375,10 @@ extern void rcu_init_geometry(void);
 	     (cpu) <= rnp->grphi; \
 	     (cpu) = rcu_find_next_bit((rnp), (cpu) + 1 - (rnp->grplo), (mask)))
 
+#endif /* !defined(CONFIG_TINY_RCU) */
+
+#if !defined(CONFIG_TINY_RCU) || defined(CONFIG_TASKS_RCU_GENERIC)
+
 /*
  * Wrappers for the rcu_node::lock acquire and release.
  *
@@ -437,7 +441,7 @@ do {									\
 #define raw_lockdep_assert_held_rcu_node(p)				\
 	lockdep_assert_held(&ACCESS_PRIVATE(p, lock))
 
-#endif /* #if defined(CONFIG_SRCU) || !defined(CONFIG_TINY_RCU) */
+#endif // #if !defined(CONFIG_TINY_RCU) || defined(CONFIG_TASKS_RCU_GENERIC)
 
 #ifdef CONFIG_TINY_RCU
 /* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
