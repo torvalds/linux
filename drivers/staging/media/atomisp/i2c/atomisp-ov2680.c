@@ -140,82 +140,6 @@ static int ov2680_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
 	return 0;
 }
 
-static int ov2680_get_intg_factor(struct i2c_client *client,
-				  struct camera_mipi_info *info,
-				  const struct ov2680_resolution *res)
-{
-	struct atomisp_sensor_mode_data *buf = &info->data;
-	unsigned int pix_clk_freq_hz;
-	u32 reg_val;
-	int ret;
-
-	dev_dbg(&client->dev,  "++++ov2680_get_intg_factor\n");
-	if (!info)
-		return -EINVAL;
-
-	/* pixel clock */
-	pix_clk_freq_hz = res->pix_clk_freq * 1000000;
-
-	buf->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
-
-	/* get integration time */
-	buf->coarse_integration_time_min = OV2680_COARSE_INTG_TIME_MIN;
-	buf->coarse_integration_time_max_margin =
-	    OV2680_COARSE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_min = OV2680_FINE_INTG_TIME_MIN;
-	buf->fine_integration_time_max_margin =
-	    OV2680_FINE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_def = OV2680_FINE_INTG_TIME_MIN;
-	buf->frame_length_lines = res->lines_per_frame;
-	buf->line_length_pck = res->pixels_per_line;
-	buf->read_mode = res->bin_mode;
-
-	/* get the cropping and output resolution to ISP for this mode. */
-	ret =  ov2680_read_reg(client, 2,
-			       OV2680_HORIZONTAL_START_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_start = reg_val;
-
-	ret =  ov2680_read_reg(client, 2,
-			       OV2680_VERTICAL_START_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_start = reg_val;
-
-	ret = ov2680_read_reg(client, 2,
-			      OV2680_HORIZONTAL_END_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_end = reg_val;
-
-	ret = ov2680_read_reg(client, 2,
-			      OV2680_VERTICAL_END_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_end = reg_val;
-
-	ret = ov2680_read_reg(client, 2,
-			      OV2680_HORIZONTAL_OUTPUT_SIZE_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_width = reg_val;
-
-	ret = ov2680_read_reg(client, 2,
-			      OV2680_VERTICAL_OUTPUT_SIZE_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_height = reg_val;
-
-	buf->binning_factor_x = res->bin_factor_x ?
-				(res->bin_factor_x * 2) : 1;
-	buf->binning_factor_y = res->bin_factor_y ?
-				(res->bin_factor_y * 2) : 1;
-	return 0;
-}
-
 static long __ov2680_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 				  int gain, int digitgain)
 
@@ -815,12 +739,6 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	ret = ov2680_write_reg(client, 2, OV2680_TIMING_VTS_H, vts);
 	if (ret) {
 		dev_err(&client->dev, "ov2680 write vts err: %d\n", ret);
-		goto err;
-	}
-
-	ret = ov2680_get_intg_factor(client, ov2680_info, res);
-	if (ret) {
-		dev_err(&client->dev, "failed to get integration factor\n");
 		goto err;
 	}
 

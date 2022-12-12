@@ -259,9 +259,6 @@ int atomisp_makeup_css_parameters(struct atomisp_sub_device *asd,
 int atomisp_compare_grid(struct atomisp_sub_device *asd,
 			 struct atomisp_grid_info *atomgrid);
 
-int atomisp_get_sensor_mode_data(struct atomisp_sub_device *asd,
-				 struct atomisp_sensor_mode_data *config);
-
 /* This function looks up the closest available resolution. */
 int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 		    bool *res_overflow);

@@ -158,7 +158,6 @@ struct gc2235_device {
 	struct gc2235_resolution *res;
 
 	struct camera_sensor_platform_data *platform_data;
-	int vt_pix_clk_freq_mhz;
 	u8 type;
 };
 

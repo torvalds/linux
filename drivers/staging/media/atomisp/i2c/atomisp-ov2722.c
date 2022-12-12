@@ -261,113 +261,6 @@ static int ov2722_write_reg_array(struct i2c_client *client,
 	return __ov2722_flush_reg_array(client, &ctrl);
 }
 
-static int ov2722_get_intg_factor(struct i2c_client *client,
-				  struct camera_mipi_info *info,
-				  const struct ov2722_resolution *res)
-{
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov2722_device *dev = NULL;
-	struct atomisp_sensor_mode_data *buf = &info->data;
-	const unsigned int ext_clk_freq_hz = 19200000;
-	const unsigned int pll_invariant_div = 10;
-	unsigned int pix_clk_freq_hz;
-	u16 pre_pll_clk_div;
-	u16 pll_multiplier;
-	u16 op_pix_clk_div;
-	u16 reg_val;
-	int ret;
-
-	if (!info)
-		return -EINVAL;
-
-	dev = to_ov2722_sensor(sd);
-
-	/* pixel clock calculattion */
-	ret =  ov2722_read_reg(client, OV2722_8BIT,
-			       OV2722_SC_CMMN_PLL_CTRL3, &pre_pll_clk_div);
-	if (ret)
-		return ret;
-
-	ret =  ov2722_read_reg(client, OV2722_8BIT,
-			       OV2722_SC_CMMN_PLL_MULTIPLIER, &pll_multiplier);
-	if (ret)
-		return ret;
-
-	ret =  ov2722_read_reg(client, OV2722_8BIT,
-			       OV2722_SC_CMMN_PLL_DEBUG_OPT, &op_pix_clk_div);
-	if (ret)
-		return ret;
-
-	pre_pll_clk_div = (pre_pll_clk_div & 0x70) >> 4;
-	if (!pre_pll_clk_div)
-		return -EINVAL;
-
-	pll_multiplier = pll_multiplier & 0x7f;
-	op_pix_clk_div = op_pix_clk_div & 0x03;
-	pix_clk_freq_hz = ext_clk_freq_hz / pre_pll_clk_div * pll_multiplier
-			  * op_pix_clk_div / pll_invariant_div;
-
-	dev->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
-	buf->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
-
-	/* get integration time */
-	buf->coarse_integration_time_min = OV2722_COARSE_INTG_TIME_MIN;
-	buf->coarse_integration_time_max_margin =
-	    OV2722_COARSE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_min = OV2722_FINE_INTG_TIME_MIN;
-	buf->fine_integration_time_max_margin =
-	    OV2722_FINE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_def = OV2722_FINE_INTG_TIME_MIN;
-	buf->frame_length_lines = res->lines_per_frame;
-	buf->line_length_pck = res->pixels_per_line;
-	buf->read_mode = res->bin_mode;
-
-	/* get the cropping and output resolution to ISP for this mode. */
-	ret =  ov2722_read_reg(client, OV2722_16BIT,
-			       OV2722_H_CROP_START_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_start = reg_val;
-
-	ret =  ov2722_read_reg(client, OV2722_16BIT,
-			       OV2722_V_CROP_START_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_start = reg_val;
-
-	ret = ov2722_read_reg(client, OV2722_16BIT,
-			      OV2722_H_CROP_END_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_end = reg_val;
-
-	ret = ov2722_read_reg(client, OV2722_16BIT,
-			      OV2722_V_CROP_END_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_end = reg_val;
-
-	ret = ov2722_read_reg(client, OV2722_16BIT,
-			      OV2722_H_OUTSIZE_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_width = reg_val;
-
-	ret = ov2722_read_reg(client, OV2722_16BIT,
-			      OV2722_V_OUTSIZE_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_height = reg_val;
-
-	buf->binning_factor_x = res->bin_factor_x ?
-				res->bin_factor_x : 1;
-	buf->binning_factor_y = res->bin_factor_y ?
-				res->bin_factor_y : 1;
-	return 0;
-}
-
 static long __ov2722_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 				  int gain, int digitgain)
 
@@ -811,10 +704,6 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 			goto err;
 		}
 	}
-
-	ret = ov2722_get_intg_factor(client, ov2722_info, dev->res);
-	if (ret)
-		dev_err(&client->dev, "failed to get integration_factor\n");
 
 err:
 	mutex_unlock(&dev->input_lock);

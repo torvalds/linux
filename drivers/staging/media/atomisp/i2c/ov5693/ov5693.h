@@ -228,7 +228,6 @@ struct ov5693_device {
 
 	struct camera_sensor_platform_data *platform_data;
 	ktime_t timestamp_t_focus_abs;
-	int vt_pix_clk_freq_mhz;
 	int fmt_idx;
 	int run_mode;
 	int otp_size;

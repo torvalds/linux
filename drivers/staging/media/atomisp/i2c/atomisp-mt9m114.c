@@ -612,96 +612,6 @@ static int mt9m114_res2size(struct v4l2_subdev *sd, int *h_size, int *v_size)
 	return 0;
 }
 
-static int mt9m114_get_intg_factor(struct i2c_client *client,
-				   struct camera_mipi_info *info,
-				   const struct mt9m114_res_struct *res)
-{
-	struct atomisp_sensor_mode_data *buf;
-	u32 reg_val;
-	int ret;
-
-	if (!info)
-		return -EINVAL;
-
-	buf = &info->data;
-
-	ret =  mt9m114_read_reg(client, MISENSOR_32BIT,
-				REG_PIXEL_CLK, &reg_val);
-	if (ret)
-		return ret;
-	buf->vt_pix_clk_freq_mhz = reg_val;
-
-	/* get integration time */
-	buf->coarse_integration_time_min = MT9M114_COARSE_INTG_TIME_MIN;
-	buf->coarse_integration_time_max_margin =
-	    MT9M114_COARSE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_min = MT9M114_FINE_INTG_TIME_MIN;
-	buf->fine_integration_time_max_margin =
-	    MT9M114_FINE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_def = MT9M114_FINE_INTG_TIME_MIN;
-
-	buf->frame_length_lines = res->lines_per_frame;
-	buf->line_length_pck = res->pixels_per_line;
-	buf->read_mode = res->bin_mode;
-
-	/* get the cropping and output resolution to ISP for this mode. */
-	ret =  mt9m114_read_reg(client, MISENSOR_16BIT,
-				REG_H_START, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_start = reg_val;
-
-	ret =  mt9m114_read_reg(client, MISENSOR_16BIT,
-				REG_V_START, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_start = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_H_END, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_end = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_V_END, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_end = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_WIDTH, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_width = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_HEIGHT, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_height = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_TIMING_HTS, &reg_val);
-	if (ret)
-		return ret;
-	buf->line_length_pck = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_TIMING_VTS, &reg_val);
-	if (ret)
-		return ret;
-	buf->frame_length_lines = reg_val;
-
-	buf->binning_factor_x = res->bin_factor_x ?
-				res->bin_factor_x : 1;
-	buf->binning_factor_y = res->bin_factor_y ?
-				res->bin_factor_y : 1;
-	return 0;
-}
-
 static int mt9m114_get_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
@@ -822,12 +732,6 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 			}
 			mt9m114_res[index].used = false;
 		}
-	}
-	ret = mt9m114_get_intg_factor(c, mt9m114_info,
-				      &mt9m114_res[res->res]);
-	if (ret) {
-		dev_err(&c->dev, "failed to get integration_factor\n");
-		return -EINVAL;
 	}
 	/*
 	 * mt9m114 - we don't poll for context switch

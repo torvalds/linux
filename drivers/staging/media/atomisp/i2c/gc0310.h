@@ -146,7 +146,6 @@ struct gc0310_device {
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	struct camera_sensor_platform_data *platform_data;
-	int vt_pix_clk_freq_mhz;
 	struct gc0310_resolution *res;
 	u8 type;
 	bool power_on;

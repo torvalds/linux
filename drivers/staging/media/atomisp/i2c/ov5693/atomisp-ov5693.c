@@ -433,84 +433,6 @@ static int ov5693_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
 	return 0;
 }
 
-static int ov5693_get_intg_factor(struct i2c_client *client,
-				  struct camera_mipi_info *info,
-				  const struct ov5693_resolution *res)
-{
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov5693_device *dev = to_ov5693_sensor(sd);
-	struct atomisp_sensor_mode_data *buf = &info->data;
-	unsigned int pix_clk_freq_hz;
-	u16 reg_val;
-	int ret;
-
-	if (!info)
-		return -EINVAL;
-
-	/* pixel clock */
-	pix_clk_freq_hz = res->pix_clk_freq * 1000000;
-
-	dev->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
-	buf->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
-
-	/* get integration time */
-	buf->coarse_integration_time_min = OV5693_COARSE_INTG_TIME_MIN;
-	buf->coarse_integration_time_max_margin =
-	    OV5693_COARSE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_min = OV5693_FINE_INTG_TIME_MIN;
-	buf->fine_integration_time_max_margin =
-	    OV5693_FINE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_def = OV5693_FINE_INTG_TIME_MIN;
-	buf->frame_length_lines = res->lines_per_frame;
-	buf->line_length_pck = res->pixels_per_line;
-	buf->read_mode = res->bin_mode;
-
-	/* get the cropping and output resolution to ISP for this mode. */
-	ret =  ov5693_read_reg(client, OV5693_16BIT,
-			       OV5693_HORIZONTAL_START_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_start = reg_val;
-
-	ret =  ov5693_read_reg(client, OV5693_16BIT,
-			       OV5693_VERTICAL_START_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_start = reg_val;
-
-	ret = ov5693_read_reg(client, OV5693_16BIT,
-			      OV5693_HORIZONTAL_END_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_end = reg_val;
-
-	ret = ov5693_read_reg(client, OV5693_16BIT,
-			      OV5693_VERTICAL_END_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_end = reg_val;
-
-	ret = ov5693_read_reg(client, OV5693_16BIT,
-			      OV5693_HORIZONTAL_OUTPUT_SIZE_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_width = reg_val;
-
-	ret = ov5693_read_reg(client, OV5693_16BIT,
-			      OV5693_VERTICAL_OUTPUT_SIZE_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_height = reg_val;
-
-	buf->binning_factor_x = res->bin_factor_x ?
-				res->bin_factor_x : 1;
-	buf->binning_factor_y = res->bin_factor_y ?
-				res->bin_factor_y : 1;
-	return 0;
-}
-
 static long __ov5693_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 				  int gain, int digitgain)
 
@@ -1596,18 +1518,10 @@ static int ov5693_set_fmt(struct v4l2_subdev *sd,
 	if (ret)
 		dev_warn(&client->dev, "ov5693 stream off err\n");
 
-	ret = ov5693_get_intg_factor(client, ov5693_info,
-				     &ov5693_res[dev->fmt_idx]);
-	if (ret) {
-		dev_err(&client->dev, "failed to get integration_factor\n");
-		goto err;
-	}
-
 	ov5693_info->metadata_width = fmt->width * 10 / 8;
 	ov5693_info->metadata_height = 1;
 	ov5693_info->metadata_effective_width = &ov5693_embedded_effective_size;
 
-err:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }

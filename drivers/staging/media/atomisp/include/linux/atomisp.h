@@ -636,28 +636,6 @@ struct atomisp_overlay {
 	unsigned int overlay_start_y;
 };
 
-/* Sensor resolution specific data for AE calculation.*/
-struct atomisp_sensor_mode_data {
-	unsigned int coarse_integration_time_min;
-	unsigned int coarse_integration_time_max_margin;
-	unsigned int fine_integration_time_min;
-	unsigned int fine_integration_time_max_margin;
-	unsigned int fine_integration_time_def;
-	unsigned int frame_length_lines;
-	unsigned int line_length_pck;
-	unsigned int read_mode;
-	unsigned int vt_pix_clk_freq_mhz;
-	unsigned int crop_horizontal_start; /* Sensor crop start cord. (x0,y0)*/
-	unsigned int crop_vertical_start;
-	unsigned int crop_horizontal_end; /* Sensor crop end cord. (x1,y1)*/
-	unsigned int crop_vertical_end;
-	unsigned int output_width; /* input size to ISP after binning/scaling */
-	unsigned int output_height;
-	u8 binning_factor_x; /* horizontal binning factor used */
-	u8 binning_factor_y; /* vertical binning factor used */
-	u16 hts;
-};
-
 struct atomisp_exposure {
 	unsigned int integration_time[8];
 	unsigned int shutter_speed[8];
@@ -944,10 +922,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 /* bcd driver bridge */
 #define ATOMISP_IOC_CAMERA_BRIDGE \
 	_IOWR('v', BASE_VIDIOC_PRIVATE + 19, struct atomisp_bc_video_package)
-
-/* Sensor resolution specific info for AE */
-#define ATOMISP_IOC_G_SENSOR_MODE_DATA \
-	_IOR('v', BASE_VIDIOC_PRIVATE + 20, struct atomisp_sensor_mode_data)
 
 #define ATOMISP_IOC_S_EXPOSURE \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 21, struct atomisp_exposure)

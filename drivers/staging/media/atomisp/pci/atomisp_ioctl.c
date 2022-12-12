@@ -2282,10 +2282,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		err = atomisp_fixed_pattern_table(asd, arg);
 		break;
 
-	case ATOMISP_IOC_G_SENSOR_MODE_DATA:
-		err = atomisp_get_sensor_mode_data(asd, arg);
-		break;
-
 	case ATOMISP_IOC_G_MOTOR_PRIV_INT_DATA:
 		if (motor)
 			err = v4l2_subdev_call(motor, core, ioctl, cmd, arg);

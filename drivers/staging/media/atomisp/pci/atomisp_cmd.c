@@ -4212,25 +4212,6 @@ int atomisp_digital_zoom(struct atomisp_sub_device *asd, int flag,
 	return 0;
 }
 
-/*
- * Function to get sensor specific info for current resolution,
- * which will be used for auto exposure conversion.
- */
-int atomisp_get_sensor_mode_data(struct atomisp_sub_device *asd,
-				 struct atomisp_sensor_mode_data *config)
-{
-	struct camera_mipi_info *mipi_info;
-	struct atomisp_device *isp = asd->isp;
-
-	mipi_info = atomisp_to_sensor_mipi_info(
-			isp->inputs[asd->input_curr].camera);
-	if (!mipi_info)
-		return -EINVAL;
-
-	memcpy(config, &mipi_info->data, sizeof(*config));
-	return 0;
-}
-
 static void __atomisp_update_stream_env(struct atomisp_sub_device *asd,
 					u16 stream_index, struct atomisp_input_stream_info *stream_info)
 {
