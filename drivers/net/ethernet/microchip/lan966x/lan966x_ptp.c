@@ -76,8 +76,6 @@ static int lan966x_ptp_add_trap(struct lan966x_port *port,
 	vrule = vcap_alloc_rule(lan966x->vcap_ctrl, port->dev,
 				LAN966X_VCAP_CID_IS2_L0,
 				VCAP_USER_PTP, 0, rule_id);
-	if (!vrule)
-		return -ENOMEM;
 	if (IS_ERR(vrule))
 		return PTR_ERR(vrule);
 
