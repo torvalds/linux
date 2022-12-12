@@ -424,7 +424,7 @@ int __pkvm_iommu_register(unsigned long dev_id, unsigned long drv_id,
 	 * is successful, future attempts to re-map will be blocked by
 	 * pkvm_iommu_host_stage2_adjust_range.
 	 */
-	ret = host_stage2_unmap_dev_locked(dev_pa, dev_size);
+	ret = host_stage2_unmap_reg_locked(dev_pa, dev_size);
 	if (ret)
 		goto out_free;
 

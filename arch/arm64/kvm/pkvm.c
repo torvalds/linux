@@ -24,6 +24,7 @@ static struct reserved_mem *pkvm_firmware_mem;
 static phys_addr_t *pvmfw_base = &kvm_nvhe_sym(pvmfw_base);
 static phys_addr_t *pvmfw_size = &kvm_nvhe_sym(pvmfw_size);
 
+static struct pkvm_moveable_reg *moveable_regs = kvm_nvhe_sym(pkvm_moveable_regs);
 static struct memblock_region *hyp_memory = kvm_nvhe_sym(hyp_memory);
 static unsigned int *hyp_memblock_nr_ptr = &kvm_nvhe_sym(hyp_memblock_nr);
 
@@ -63,6 +64,55 @@ static int __init register_memblock_regions(void)
 	return 0;
 }
 
+static int cmp_moveable_reg(const void *p1, const void *p2)
+{
+	const struct pkvm_moveable_reg *r1 = p1;
+	const struct pkvm_moveable_reg *r2 = p2;
+
+	/*
+	 * Moveable regions may overlap, so put the largest one first when start
+	 * addresses are equal to allow a simpler walk from e.g.
+	 * host_stage2_unmap_unmoveable_regs().
+	 */
+	if (r1->start < r2->start)
+		return -1;
+	else if (r1->start > r2->start)
+		return 1;
+	else if (r1->size > r2->size)
+		return -1;
+	else if (r1->size < r2->size)
+		return 1;
+	return 0;
+}
+
+static void __init sort_moveable_regs(void)
+{
+	sort(moveable_regs,
+	     kvm_nvhe_sym(pkvm_moveable_regs_nr),
+	     sizeof(struct pkvm_moveable_reg),
+	     cmp_moveable_reg,
+	     NULL);
+}
+
+static int __init register_moveable_regions(void)
+{
+	struct memblock_region *reg;
+	int i = 0;
+
+	for_each_mem_region(reg) {
+		if (i >= PKVM_NR_MOVEABLE_REGS)
+			return -ENOMEM;
+		moveable_regs[i].start = reg->base;
+		moveable_regs[i].size = reg->size;
+		moveable_regs[i].type = PKVM_MREG_MEMORY;
+		i++;
+	}
+	kvm_nvhe_sym(pkvm_moveable_regs_nr) = i;
+	sort_moveable_regs();
+
+	return 0;
+}
+
 void __init kvm_hyp_reserve(void)
 {
 	u64 hyp_mem_pages = 0;
@@ -78,6 +128,13 @@ void __init kvm_hyp_reserve(void)
 	if (ret) {
 		*hyp_memblock_nr_ptr = 0;
 		kvm_err("Failed to register hyp memblocks: %d\n", ret);
+		return;
+	}
+
+	ret = register_moveable_regions();
+	if (ret) {
+		*hyp_memblock_nr_ptr = 0;
+		kvm_err("Failed to register pkvm moveable regions: %d\n", ret);
 		return;
 	}
 
