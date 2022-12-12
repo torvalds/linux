@@ -316,9 +316,6 @@ struct mt9m114_res_struct {
 	struct regval_list *regs;
 	u16 pixels_per_line;
 	u16 lines_per_frame;
-	u8 bin_factor_x;
-	u8 bin_factor_y;
-	u8 bin_mode;
 };
 
 /* 2 bytes used for address: 256 bytes total */
@@ -350,9 +347,6 @@ static struct mt9m114_res_struct mt9m114_res[] = {
 
 		.pixels_per_line = 0x0640,
 		.lines_per_frame = 0x0307,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 	},
 	{
 		.desc	= "848P",
@@ -366,9 +360,6 @@ static struct mt9m114_res_struct mt9m114_res[] = {
 
 		.pixels_per_line = 0x0640,
 		.lines_per_frame = 0x03E8,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 	},
 	{
 		.desc	= "960P",
@@ -382,9 +373,6 @@ static struct mt9m114_res_struct mt9m114_res[] = {
 
 		.pixels_per_line = 0x0644, /* consistent with regs arrays */
 		.lines_per_frame = 0x03E5, /* consistent with regs arrays */
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 	},
 };
 

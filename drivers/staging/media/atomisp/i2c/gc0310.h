@@ -123,9 +123,6 @@ struct gc0310_resolution {
 	u32 skip_frames;
 	u16 pixels_per_line;
 	u16 lines_per_frame;
-	u8 bin_factor_x;
-	u8 bin_factor_y;
-	u8 bin_mode;
 	bool used;
 };
 
@@ -386,9 +383,6 @@ static struct gc0310_resolution gc0310_res_preview[] = {
 		.pixels_per_line = 0x0314,
 		.lines_per_frame = 0x0213,
 #endif
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.skip_frames = 2,
 		.regs = gc0310_VGA_30fps,
 	},

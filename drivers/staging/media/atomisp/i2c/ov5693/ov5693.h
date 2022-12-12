@@ -198,9 +198,6 @@ struct ov5693_resolution {
 	int pix_clk_freq;
 	u16 pixels_per_line;
 	u16 lines_per_frame;
-	u8 bin_factor_x;
-	u8 bin_factor_y;
-	u8 bin_mode;
 	bool used;
 };
 
@@ -1109,9 +1106,6 @@ static struct ov5693_resolution ov5693_res_preview[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_736x496_30fps,
 	},
 	{
@@ -1123,9 +1117,6 @@ static struct ov5693_resolution ov5693_res_preview[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_1616x1216_30fps,
 	},
 	{
@@ -1137,9 +1128,6 @@ static struct ov5693_resolution ov5693_res_preview[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_2576x1456_30fps,
 	},
 	{
@@ -1151,9 +1139,6 @@ static struct ov5693_resolution ov5693_res_preview[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_2576x1936_30fps,
 	},
 };
@@ -1175,9 +1160,6 @@ struct ov5693_resolution ov5693_res_still[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_736x496_30fps,
 	},
 	{
@@ -1189,9 +1171,6 @@ struct ov5693_resolution ov5693_res_still[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_1424x1168_30fps,
 	},
 	{
@@ -1203,9 +1182,6 @@ struct ov5693_resolution ov5693_res_still[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_1616x1216_30fps,
 	},
 	{
@@ -1217,9 +1193,6 @@ struct ov5693_resolution ov5693_res_still[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_2592x1456_30fps,
 	},
 	{
@@ -1231,9 +1204,6 @@ struct ov5693_resolution ov5693_res_still[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_2592x1944_30fps,
 	},
 };
@@ -1250,9 +1220,6 @@ struct ov5693_resolution ov5693_res_video[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 2,
-		.bin_factor_y = 2,
-		.bin_mode = 1,
 		.regs = ov5693_736x496,
 	},
 	{
@@ -1264,9 +1231,6 @@ struct ov5693_resolution ov5693_res_video[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 2,
-		.bin_factor_y = 2,
-		.bin_mode = 1,
 		.regs = ov5693_336x256,
 	},
 	{
@@ -1278,9 +1242,6 @@ struct ov5693_resolution ov5693_res_video[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 2,
-		.bin_factor_y = 2,
-		.bin_mode = 1,
 		.regs = ov5693_368x304,
 	},
 	{
@@ -1292,9 +1253,6 @@ struct ov5693_resolution ov5693_res_video[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 2,
-		.bin_factor_y = 2,
-		.bin_mode = 1,
 		.regs = ov5693_192x160,
 	},
 	{
@@ -1306,9 +1264,6 @@ struct ov5693_resolution ov5693_res_video[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 2,
-		.bin_factor_y = 2,
-		.bin_mode = 0,
 		.regs = ov5693_1296x736,
 	},
 	{
@@ -1320,9 +1275,6 @@ struct ov5693_resolution ov5693_res_video[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 2,
-		.bin_factor_y = 2,
-		.bin_mode = 0,
 		.regs = ov5693_1296x976,
 	},
 	{
@@ -1334,9 +1286,6 @@ struct ov5693_resolution ov5693_res_video[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_1636p_30fps,
 	},
 	{
@@ -1348,9 +1297,6 @@ struct ov5693_resolution ov5693_res_video[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_1940x1096,
 	},
 	{
@@ -1362,9 +1308,6 @@ struct ov5693_resolution ov5693_res_video[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_2592x1456_30fps,
 	},
 	{
@@ -1376,9 +1319,6 @@ struct ov5693_resolution ov5693_res_video[] = {
 		.used = 0,
 		.pixels_per_line = 2688,
 		.lines_per_frame = 1984,
-		.bin_factor_x = 1,
-		.bin_factor_y = 1,
-		.bin_mode = 0,
 		.regs = ov5693_2592x1944_30fps,
 	},
 };
