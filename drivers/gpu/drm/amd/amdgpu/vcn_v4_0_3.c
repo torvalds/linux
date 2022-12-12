@@ -118,6 +118,9 @@ static int vcn_v4_0_3_sw_init(void *handle)
 		fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
 		fw_shared->present_flag_0 = 0;
 		fw_shared->sq.is_enabled = cpu_to_le32(true);
+
+		if (amdgpu_vcnfw_log)
+			amdgpu_vcn_fwlog_init(&adev->vcn.inst[i]);
 	}
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
