@@ -239,15 +239,18 @@ static void put_persistent_gnt(struct xen_blkif_ring *ring,
 	atomic_dec(&ring->persistent_gnt_in_use);
 }
 
-static void free_persistent_gnts(struct xen_blkif_ring *ring, struct rb_root *root,
-                                 unsigned int num)
+static void free_persistent_gnts(struct xen_blkif_ring *ring)
 {
+	struct rb_root *root = &ring->persistent_gnts;
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct persistent_gnt *persistent_gnt;
 	struct rb_node *n;
 	int segs_to_unmap = 0;
 	struct gntab_unmap_queue_data unmap_data;
+
+	if (RB_EMPTY_ROOT(root))
+		return;
 
 	unmap_data.pages = pages;
 	unmap_data.unmap_ops = unmap;
@@ -277,9 +280,11 @@ static void free_persistent_gnts(struct xen_blkif_ring *ring, struct rb_root *ro
 
 		rb_erase(&persistent_gnt->node, root);
 		kfree(persistent_gnt);
-		num--;
+		ring->persistent_gnt_c--;
 	}
-	BUG_ON(num != 0);
+
+	BUG_ON(!RB_EMPTY_ROOT(&ring->persistent_gnts));
+	BUG_ON(ring->persistent_gnt_c != 0);
 }
 
 void xen_blkbk_unmap_purged_grants(struct work_struct *work)
@@ -631,12 +636,7 @@ purge_gnt_list:
 void xen_blkbk_free_caches(struct xen_blkif_ring *ring)
 {
 	/* Free all persistent grant pages */
-	if (!RB_EMPTY_ROOT(&ring->persistent_gnts))
-		free_persistent_gnts(ring, &ring->persistent_gnts,
-			ring->persistent_gnt_c);
-
-	BUG_ON(!RB_EMPTY_ROOT(&ring->persistent_gnts));
-	ring->persistent_gnt_c = 0;
+	free_persistent_gnts(ring);
 
 	/* Since we are shutting down remove all pages from the buffer */
 	gnttab_page_cache_shrink(&ring->free_pages, 0 /* All */);
