@@ -27,8 +27,6 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	chosen { };
-
 	aliases {
 		mmc1 = &sdhc_1;
 		mmc2 = &sdhc_2;
@@ -54,6 +52,8 @@
 		spi11 = &spi11;
 	};
 
+	chosen { };
+
 	clocks {
 		xo_board: xo-board {
 			compatible = "fixed-clock";
@@ -65,62 +65,6 @@
 			compatible = "fixed-clock";
 			clock-frequency = <32764>;
 			#clock-cells = <0>;
-		};
-	};
-
-	reserved_memory: reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		hyp_mem: memory@80000000 {
-			reg = <0x0 0x80000000 0x0 0x600000>;
-			no-map;
-		};
-
-		xbl_mem: memory@80600000 {
-			reg = <0x0 0x80600000 0x0 0x200000>;
-			no-map;
-		};
-
-		aop_mem: memory@80800000 {
-			reg = <0x0 0x80800000 0x0 0x20000>;
-			no-map;
-		};
-
-		aop_cmd_db_mem: memory@80820000 {
-			reg = <0x0 0x80820000 0x0 0x20000>;
-			compatible = "qcom,cmd-db";
-			no-map;
-		};
-
-		sec_apps_mem: memory@808ff000 {
-			reg = <0x0 0x808ff000 0x0 0x1000>;
-			no-map;
-		};
-
-		smem_mem: memory@80900000 {
-			reg = <0x0 0x80900000 0x0 0x200000>;
-			no-map;
-		};
-
-		tz_mem: memory@80b00000 {
-			reg = <0x0 0x80b00000 0x0 0x3900000>;
-			no-map;
-		};
-
-		ipa_fw_mem: memory@8b700000 {
-			reg = <0 0x8b700000 0 0x10000>;
-			no-map;
-		};
-
-		rmtfs_mem: memory@94600000 {
-			compatible = "qcom,rmtfs-mem";
-			reg = <0x0 0x94600000 0x0 0x200000>;
-			no-map;
-
-			qcom,client-id = <1>;
-			qcom,vmid = <15>;
 		};
 	};
 
@@ -407,6 +351,18 @@
 		};
 	};
 
+	firmware {
+		scm {
+			compatible = "qcom,scm-sc7180", "qcom,scm";
+		};
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		/* We expect the bootloader to fill in the size */
+		reg = <0 0x80000000 0 0>;
+	};
+
 	cpu0_opp_table: opp-table-cpu0 {
 		compatible = "operating-points-v2";
 		opp-shared;
@@ -585,20 +541,69 @@
 		};
 	};
 
-	memory@80000000 {
-		device_type = "memory";
-		/* We expect the bootloader to fill in the size */
-		reg = <0 0x80000000 0 0>;
-	};
-
 	pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupts = <GIC_PPI 5 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	firmware {
-		scm {
-			compatible = "qcom,scm-sc7180", "qcom,scm";
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	reserved_memory: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		hyp_mem: memory@80000000 {
+			reg = <0x0 0x80000000 0x0 0x600000>;
+			no-map;
+		};
+
+		xbl_mem: memory@80600000 {
+			reg = <0x0 0x80600000 0x0 0x200000>;
+			no-map;
+		};
+
+		aop_mem: memory@80800000 {
+			reg = <0x0 0x80800000 0x0 0x20000>;
+			no-map;
+		};
+
+		aop_cmd_db_mem: memory@80820000 {
+			reg = <0x0 0x80820000 0x0 0x20000>;
+			compatible = "qcom,cmd-db";
+			no-map;
+		};
+
+		sec_apps_mem: memory@808ff000 {
+			reg = <0x0 0x808ff000 0x0 0x1000>;
+			no-map;
+		};
+
+		smem_mem: memory@80900000 {
+			reg = <0x0 0x80900000 0x0 0x200000>;
+			no-map;
+		};
+
+		tz_mem: memory@80b00000 {
+			reg = <0x0 0x80b00000 0x0 0x3900000>;
+			no-map;
+		};
+
+		ipa_fw_mem: memory@8b700000 {
+			reg = <0 0x8b700000 0 0x10000>;
+			no-map;
+		};
+
+		rmtfs_mem: memory@94600000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0x0 0x94600000 0x0 0x200000>;
+			no-map;
+
+			qcom,client-id = <1>;
+			qcom,vmid = <15>;
 		};
 	};
 
@@ -685,11 +690,6 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
-	};
-
-	psci {
-		compatible = "arm,psci-1.0";
-		method = "smc";
 	};
 
 	soc: soc@0 {
