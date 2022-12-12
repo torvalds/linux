@@ -735,9 +735,9 @@ exit_unlock:
 	 * during hibernation does not matter (at this time all the devices
 	 * have been frozen). Note: the correct affinity info is still updated
 	 * into the irqdata data structure in migrate_one_irq() ->
-	 * irq_do_set_affinity() -> hv_set_affinity(), so later when the VM
-	 * resumes, hv_pci_restore_msi_state() is able to correctly restore
-	 * the interrupt with the correct affinity.
+	 * irq_do_set_affinity(), so later when the VM resumes,
+	 * hv_pci_restore_msi_state() is able to correctly restore the
+	 * interrupt with the correct affinity.
 	 */
 	if (!hv_result_success(res) && hbus->state != hv_pcibus_removing)
 		dev_err(&hbus->hdev->device,
