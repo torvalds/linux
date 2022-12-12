@@ -123,12 +123,17 @@ int BPF_PROG(test_task_get_release, struct task_struct *task, u64 clone_flags)
 	}
 
 	kptr = bpf_task_kptr_get(&v->task);
-	if (!kptr) {
+	if (kptr) {
+		/* Until we resolve the issues with using task->rcu_users, we
+		 * expect bpf_task_kptr_get() to return a NULL task. See the
+		 * comment at the definition of bpf_task_acquire_not_zero() for
+		 * more details.
+		 */
+		bpf_task_release(kptr);
 		err = 3;
 		return 0;
 	}
 
-	bpf_task_release(kptr);
 
 	return 0;
 }

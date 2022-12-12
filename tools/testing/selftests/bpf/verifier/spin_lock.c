@@ -331,3 +331,117 @@
 	.errstr = "inside bpf_spin_lock",
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
+{
+	"spin_lock: regsafe compare reg->id for map value",
+	.insns = {
+	BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+	BPF_LDX_MEM(BPF_W, BPF_REG_6, BPF_REG_6, offsetof(struct __sk_buff, mark)),
+	BPF_LD_MAP_FD(BPF_REG_1, 0),
+	BPF_MOV64_REG(BPF_REG_9, BPF_REG_1),
+	BPF_ST_MEM(BPF_W, BPF_REG_10, -4, 0),
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4),
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
+	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+	BPF_EXIT_INSN(),
+	BPF_MOV64_REG(BPF_REG_7, BPF_REG_0),
+	BPF_MOV64_REG(BPF_REG_1, BPF_REG_9),
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4),
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
+	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+	BPF_EXIT_INSN(),
+	BPF_MOV64_REG(BPF_REG_8, BPF_REG_0),
+	BPF_MOV64_REG(BPF_REG_1, BPF_REG_7),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 4),
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_spin_lock),
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_6, 0, 1),
+	BPF_JMP_IMM(BPF_JA, 0, 0, 1),
+	BPF_MOV64_REG(BPF_REG_7, BPF_REG_8),
+	BPF_MOV64_REG(BPF_REG_1, BPF_REG_7),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 4),
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_spin_unlock),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.fixup_map_spin_lock = { 2 },
+	.result = REJECT,
+	.errstr = "bpf_spin_unlock of different lock",
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	.flags = BPF_F_TEST_STATE_FREQ,
+},
+/* Make sure that regsafe() compares ids for spin lock records using
+ * check_ids():
+ *  1: r9 = map_lookup_elem(...)  ; r9.id == 1
+ *  2: r8 = map_lookup_elem(...)  ; r8.id == 2
+ *  3: r7 = ktime_get_ns()
+ *  4: r6 = ktime_get_ns()
+ *  5: if r6 > r7 goto <9>
+ *  6: spin_lock(r8)
+ *  7: r9 = r8
+ *  8: goto <10>
+ *  9: spin_lock(r9)
+ * 10: spin_unlock(r9)             ; r9.id == 1 || r9.id == 2 and lock is active,
+ *                                 ; second visit to (10) should be considered safe
+ *                                 ; if check_ids() is used.
+ * 11: exit(0)
+ */
+{
+	"spin_lock: regsafe() check_ids() similar id mappings",
+	.insns = {
+	BPF_ST_MEM(BPF_W, BPF_REG_10, -4, 0),
+	/* r9 = map_lookup_elem(...) */
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4),
+	BPF_LD_MAP_FD(BPF_REG_1,
+		      0),
+	BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 24),
+	BPF_MOV64_REG(BPF_REG_9, BPF_REG_0),
+	/* r8 = map_lookup_elem(...) */
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4),
+	BPF_LD_MAP_FD(BPF_REG_1,
+		      0),
+	BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 18),
+	BPF_MOV64_REG(BPF_REG_8, BPF_REG_0),
+	/* r7 = ktime_get_ns() */
+	BPF_EMIT_CALL(BPF_FUNC_ktime_get_ns),
+	BPF_MOV64_REG(BPF_REG_7, BPF_REG_0),
+	/* r6 = ktime_get_ns() */
+	BPF_EMIT_CALL(BPF_FUNC_ktime_get_ns),
+	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
+	/* if r6 > r7 goto +5      ; no new information about the state is derived from
+	 *                         ; this check, thus produced verifier states differ
+	 *                         ; only in 'insn_idx'
+	 * spin_lock(r8)
+	 * r9 = r8
+	 * goto unlock
+	 */
+	BPF_JMP_REG(BPF_JGT, BPF_REG_6, BPF_REG_7, 5),
+	BPF_MOV64_REG(BPF_REG_1, BPF_REG_8),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 4),
+	BPF_EMIT_CALL(BPF_FUNC_spin_lock),
+	BPF_MOV64_REG(BPF_REG_9, BPF_REG_8),
+	BPF_JMP_A(3),
+	/* spin_lock(r9) */
+	BPF_MOV64_REG(BPF_REG_1, BPF_REG_9),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 4),
+	BPF_EMIT_CALL(BPF_FUNC_spin_lock),
+	/* spin_unlock(r9) */
+	BPF_MOV64_REG(BPF_REG_1, BPF_REG_9),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 4),
+	BPF_EMIT_CALL(BPF_FUNC_spin_unlock),
+	/* exit(0) */
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.fixup_map_spin_lock = { 3, 10 },
+	.result = VERBOSE_ACCEPT,
+	.errstr = "28: safe",
+	.result_unpriv = REJECT,
+	.errstr_unpriv = "",
+	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+	.flags = BPF_F_TEST_STATE_FREQ,
+},

@@ -1404,7 +1404,7 @@ static const struct bpf_func_proto bpf_kptr_xchg_proto = {
 #define DYNPTR_SIZE_MASK	0xFFFFFF
 #define DYNPTR_RDONLY_BIT	BIT(31)
 
-static bool bpf_dynptr_is_rdonly(struct bpf_dynptr_kern *ptr)
+static bool bpf_dynptr_is_rdonly(const struct bpf_dynptr_kern *ptr)
 {
 	return ptr->size & DYNPTR_RDONLY_BIT;
 }
@@ -1414,7 +1414,7 @@ static void bpf_dynptr_set_type(struct bpf_dynptr_kern *ptr, enum bpf_dynptr_typ
 	ptr->size |= type << DYNPTR_TYPE_SHIFT;
 }
 
-u32 bpf_dynptr_get_size(struct bpf_dynptr_kern *ptr)
+u32 bpf_dynptr_get_size(const struct bpf_dynptr_kern *ptr)
 {
 	return ptr->size & DYNPTR_SIZE_MASK;
 }
@@ -1438,7 +1438,7 @@ void bpf_dynptr_set_null(struct bpf_dynptr_kern *ptr)
 	memset(ptr, 0, sizeof(*ptr));
 }
 
-static int bpf_dynptr_check_off_len(struct bpf_dynptr_kern *ptr, u32 offset, u32 len)
+static int bpf_dynptr_check_off_len(const struct bpf_dynptr_kern *ptr, u32 offset, u32 len)
 {
 	u32 size = bpf_dynptr_get_size(ptr);
 
@@ -1483,7 +1483,7 @@ static const struct bpf_func_proto bpf_dynptr_from_mem_proto = {
 	.arg4_type	= ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_LOCAL | MEM_UNINIT,
 };
 
-BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, struct bpf_dynptr_kern *, src,
+BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, const struct bpf_dynptr_kern *, src,
 	   u32, offset, u64, flags)
 {
 	int err;
@@ -1495,7 +1495,11 @@ BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, struct bpf_dynptr_kern *, src
 	if (err)
 		return err;
 
-	memcpy(dst, src->data + src->offset + offset, len);
+	/* Source and destination may possibly overlap, hence use memmove to
+	 * copy the data. E.g. bpf_dynptr_from_mem may create two dynptr
+	 * pointing to overlapping PTR_TO_MAP_VALUE regions.
+	 */
+	memmove(dst, src->data + src->offset + offset, len);
 
 	return 0;
 }
@@ -1506,12 +1510,12 @@ static const struct bpf_func_proto bpf_dynptr_read_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
-	.arg3_type	= ARG_PTR_TO_DYNPTR,
+	.arg3_type	= ARG_PTR_TO_DYNPTR | MEM_RDONLY,
 	.arg4_type	= ARG_ANYTHING,
 	.arg5_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_5(bpf_dynptr_write, struct bpf_dynptr_kern *, dst, u32, offset, void *, src,
+BPF_CALL_5(bpf_dynptr_write, const struct bpf_dynptr_kern *, dst, u32, offset, void *, src,
 	   u32, len, u64, flags)
 {
 	int err;
@@ -1523,7 +1527,11 @@ BPF_CALL_5(bpf_dynptr_write, struct bpf_dynptr_kern *, dst, u32, offset, void *,
 	if (err)
 		return err;
 
-	memcpy(dst->data + dst->offset + offset, src, len);
+	/* Source and destination may possibly overlap, hence use memmove to
+	 * copy the data. E.g. bpf_dynptr_from_mem may create two dynptr
+	 * pointing to overlapping PTR_TO_MAP_VALUE regions.
+	 */
+	memmove(dst->data + dst->offset + offset, src, len);
 
 	return 0;
 }
@@ -1532,14 +1540,14 @@ static const struct bpf_func_proto bpf_dynptr_write_proto = {
 	.func		= bpf_dynptr_write,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
-	.arg1_type	= ARG_PTR_TO_DYNPTR,
+	.arg1_type	= ARG_PTR_TO_DYNPTR | MEM_RDONLY,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
 	.arg4_type	= ARG_CONST_SIZE_OR_ZERO,
 	.arg5_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_3(bpf_dynptr_data, struct bpf_dynptr_kern *, ptr, u32, offset, u32, len)
+BPF_CALL_3(bpf_dynptr_data, const struct bpf_dynptr_kern *, ptr, u32, offset, u32, len)
 {
 	int err;
 
@@ -1560,7 +1568,7 @@ static const struct bpf_func_proto bpf_dynptr_data_proto = {
 	.func		= bpf_dynptr_data,
 	.gpl_only	= false,
 	.ret_type	= RET_PTR_TO_DYNPTR_MEM_OR_NULL,
-	.arg1_type	= ARG_PTR_TO_DYNPTR,
+	.arg1_type	= ARG_PTR_TO_DYNPTR | MEM_RDONLY,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_CONST_ALLOC_SIZE_OR_ZERO,
 };
@@ -1833,8 +1841,59 @@ struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head)
  */
 struct task_struct *bpf_task_acquire(struct task_struct *p)
 {
-	refcount_inc(&p->rcu_users);
-	return p;
+	return get_task_struct(p);
+}
+
+/**
+ * bpf_task_acquire_not_zero - Acquire a reference to a rcu task object. A task
+ * acquired by this kfunc which is not stored in a map as a kptr, must be
+ * released by calling bpf_task_release().
+ * @p: The task on which a reference is being acquired.
+ */
+struct task_struct *bpf_task_acquire_not_zero(struct task_struct *p)
+{
+	/* For the time being this function returns NULL, as it's not currently
+	 * possible to safely acquire a reference to a task with RCU protection
+	 * using get_task_struct() and put_task_struct(). This is due to the
+	 * slightly odd mechanics of p->rcu_users, and how task RCU protection
+	 * works.
+	 *
+	 * A struct task_struct is refcounted by two different refcount_t
+	 * fields:
+	 *
+	 * 1. p->usage:     The "true" refcount field which tracks a task's
+	 *		    lifetime. The task is freed as soon as this
+	 *		    refcount drops to 0.
+	 *
+	 * 2. p->rcu_users: An "RCU users" refcount field which is statically
+	 *		    initialized to 2, and is co-located in a union with
+	 *		    a struct rcu_head field (p->rcu). p->rcu_users
+	 *		    essentially encapsulates a single p->usage
+	 *		    refcount, and when p->rcu_users goes to 0, an RCU
+	 *		    callback is scheduled on the struct rcu_head which
+	 *		    decrements the p->usage refcount.
+	 *
+	 * There are two important implications to this task refcounting logic
+	 * described above. The first is that
+	 * refcount_inc_not_zero(&p->rcu_users) cannot be used anywhere, as
+	 * after the refcount goes to 0, the RCU callback being scheduled will
+	 * cause the memory backing the refcount to again be nonzero due to the
+	 * fields sharing a union. The other is that we can't rely on RCU to
+	 * guarantee that a task is valid in a BPF program. This is because a
+	 * task could have already transitioned to being in the TASK_DEAD
+	 * state, had its rcu_users refcount go to 0, and its rcu callback
+	 * invoked in which it drops its single p->usage reference. At this
+	 * point the task will be freed as soon as the last p->usage reference
+	 * goes to 0, without waiting for another RCU gp to elapse. The only
+	 * way that a BPF program can guarantee that a task is valid is in this
+	 * scenario is to hold a p->usage refcount itself.
+	 *
+	 * Until we're able to resolve this issue, either by pulling
+	 * p->rcu_users and p->rcu out of the union, or by getting rid of
+	 * p->usage and just using p->rcu_users for refcounting, we'll just
+	 * return NULL here.
+	 */
+	return NULL;
 }
 
 /**
@@ -1845,33 +1904,15 @@ struct task_struct *bpf_task_acquire(struct task_struct *p)
  */
 struct task_struct *bpf_task_kptr_get(struct task_struct **pp)
 {
-	struct task_struct *p;
-
-	rcu_read_lock();
-	p = READ_ONCE(*pp);
-
-	/* Another context could remove the task from the map and release it at
-	 * any time, including after we've done the lookup above. This is safe
-	 * because we're in an RCU read region, so the task is guaranteed to
-	 * remain valid until at least the rcu_read_unlock() below.
+	/* We must return NULL here until we have clarity on how to properly
+	 * leverage RCU for ensuring a task's lifetime. See the comment above
+	 * in bpf_task_acquire_not_zero() for more details.
 	 */
-	if (p && !refcount_inc_not_zero(&p->rcu_users))
-		/* If the task had been removed from the map and freed as
-		 * described above, refcount_inc_not_zero() will return false.
-		 * The task will be freed at some point after the current RCU
-		 * gp has ended, so just return NULL to the user.
-		 */
-		p = NULL;
-	rcu_read_unlock();
-
-	return p;
+	return NULL;
 }
 
 /**
- * bpf_task_release - Release the reference acquired on a struct task_struct *.
- * If this kfunc is invoked in an RCU read region, the task_struct is
- * guaranteed to not be freed until the current grace period has ended, even if
- * its refcount drops to 0.
+ * bpf_task_release - Release the reference acquired on a task.
  * @p: The task on which a reference is being released.
  */
 void bpf_task_release(struct task_struct *p)
@@ -1879,7 +1920,7 @@ void bpf_task_release(struct task_struct *p)
 	if (!p)
 		return;
 
-	put_task_struct_rcu_user(p);
+	put_task_struct(p);
 }
 
 #ifdef CONFIG_CGROUPS
@@ -1927,7 +1968,7 @@ struct cgroup *bpf_cgroup_kptr_get(struct cgroup **cgrpp)
 }
 
 /**
- * bpf_cgroup_release - Release the reference acquired on a struct cgroup *.
+ * bpf_cgroup_release - Release the reference acquired on a cgroup.
  * If this kfunc is invoked in an RCU read region, the cgroup is guaranteed to
  * not be freed until the current grace period has ended, even if its refcount
  * drops to 0.
@@ -2013,6 +2054,7 @@ BTF_ID_FLAGS(func, bpf_list_push_back)
 BTF_ID_FLAGS(func, bpf_list_pop_front, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_list_pop_back, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_task_acquire_not_zero, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
 #ifdef CONFIG_CGROUPS

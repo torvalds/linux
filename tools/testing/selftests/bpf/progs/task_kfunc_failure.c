@@ -271,3 +271,14 @@ int BPF_PROG(task_kfunc_from_pid_no_null_check, struct task_struct *task, u64 cl
 
 	return 0;
 }
+
+SEC("lsm/task_free")
+int BPF_PROG(task_kfunc_from_lsm_task_free, struct task_struct *task)
+{
+	struct task_struct *acquired;
+
+	/* the argument of lsm task_free hook is untrusted. */
+	acquired = bpf_task_acquire(task);
+	bpf_task_release(acquired);
+	return 0;
+}

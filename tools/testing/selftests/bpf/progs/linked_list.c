@@ -99,13 +99,28 @@ int list_push_pop_multiple(struct bpf_spin_lock *lock, struct bpf_list_head *hea
 	struct foo *f[8], *pf;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(f); i++) {
+	/* Loop following this check adds nodes 2-at-a-time in order to
+	 * validate multiple release_on_unlock release logic
+	 */
+	if (ARRAY_SIZE(f) % 2)
+		return 10;
+
+	for (i = 0; i < ARRAY_SIZE(f); i += 2) {
 		f[i] = bpf_obj_new(typeof(**f));
 		if (!f[i])
 			return 2;
 		f[i]->data = i;
+
+		f[i + 1] = bpf_obj_new(typeof(**f));
+		if (!f[i + 1]) {
+			bpf_obj_drop(f[i]);
+			return 9;
+		}
+		f[i + 1]->data = i + 1;
+
 		bpf_spin_lock(lock);
 		bpf_list_push_front(head, &f[i]->node);
+		bpf_list_push_front(head, &f[i + 1]->node);
 		bpf_spin_unlock(lock);
 	}
 

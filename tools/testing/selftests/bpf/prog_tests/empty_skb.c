@@ -9,7 +9,7 @@
 		goto out; \
 })
 
-void serial_test_empty_skb(void)
+void test_empty_skb(void)
 {
 	LIBBPF_OPTS(bpf_test_run_opts, tattr);
 	struct empty_skb *bpf_obj = NULL;
