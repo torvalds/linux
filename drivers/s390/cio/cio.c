@@ -134,7 +134,7 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 
 	memset(orb, 0, sizeof(union orb));
 	/* sch is always under 2G. */
-	orb->cmd.intparm = (u32)(addr_t)sch;
+	orb->cmd.intparm = (u32)virt_to_phys(sch);
 	orb->cmd.fmt = 1;
 
 	orb->cmd.pfch = priv->options.prefetch == 0;
@@ -148,7 +148,7 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 	orb->cmd.i2k = 0;
 	orb->cmd.key = key >> 4;
 	/* issue "Start Subchannel" */
-	orb->cmd.cpa = (__u32) __pa(cpa);
+	orb->cmd.cpa = (u32)virt_to_phys(cpa);
 	ccode = ssch(sch->schid, orb);
 
 	/* process condition code */
@@ -539,13 +539,13 @@ static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 	tpi_info = &get_irq_regs()->tpi_info;
 	trace_s390_cio_interrupt(tpi_info);
 	irb = this_cpu_ptr(&cio_irb);
-	sch = (struct subchannel *)(unsigned long) tpi_info->intparm;
-	if (!sch) {
+	if (!tpi_info->intparm) {
 		/* Clear pending interrupt condition. */
 		inc_irq_stat(IRQIO_CIO);
 		tsch(tpi_info->schid, irb);
 		return IRQ_HANDLED;
 	}
+	sch = phys_to_virt(tpi_info->intparm);
 	spin_lock(sch->lock);
 	/* Store interrupt response block to lowcore. */
 	if (tsch(tpi_info->schid, irb) == 0) {
@@ -666,7 +666,7 @@ struct subchannel *cio_probe_console(void)
 	lockdep_set_class(sch->lock, &console_sch_key);
 	isc_register(CONSOLE_ISC);
 	sch->config.isc = CONSOLE_ISC;
-	sch->config.intparm = (u32)(addr_t)sch;
+	sch->config.intparm = (u32)virt_to_phys(sch);
 	ret = cio_commit_config(sch);
 	if (ret) {
 		isc_unregister(CONSOLE_ISC);
@@ -713,11 +713,11 @@ int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key)
 	union orb *orb = &to_io_private(sch)->orb;
 
 	memset(orb, 0, sizeof(union orb));
-	orb->tm.intparm = (u32) (addr_t) sch;
+	orb->tm.intparm = (u32)virt_to_phys(sch);
 	orb->tm.key = key >> 4;
 	orb->tm.b = 1;
 	orb->tm.lpm = lpm ? lpm : sch->lpm;
-	orb->tm.tcw = (u32) (addr_t) tcw;
+	orb->tm.tcw = (u32)virt_to_phys(tcw);
 	cc = ssch(sch->schid, orb);
 	switch (cc) {
 	case 0:

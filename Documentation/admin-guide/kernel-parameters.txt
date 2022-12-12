@@ -703,6 +703,17 @@
 	condev=		[HW,S390] console device
 	conmode=
 
+	con3215_drop=	[S390] 3215 console drop mode.
+			Format: y|n|Y|N|1|0
+			When set to true, drop data on the 3215 console when
+			the console buffer is full. In this case the
+			operator using a 3270 terminal emulator (for example
+			x3270) does not have to enter the clear key for the
+			console output to advance and the kernel to continue.
+			This leads to a much faster boot time when a 3270
+			terminal emulator is active. If no 3270 terminal
+			emulator is used, this parameter has no effect.
+
 	console=	[KNL] Output console device and options.
 
 		tty<n>	Use the virtual console device <n>.

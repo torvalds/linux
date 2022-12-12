@@ -31,6 +31,7 @@
 #include <linux/cma.h>
 #include <linux/gfp.h>
 #include <linux/dma-direct.h>
+#include <linux/percpu.h>
 #include <asm/processor.h>
 #include <linux/uaccess.h>
 #include <asm/pgalloc.h>
@@ -207,9 +208,6 @@ void free_initmem(void)
 	__set_memory((unsigned long)_sinittext,
 		     (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT,
 		     SET_MEMORY_RW | SET_MEMORY_NX);
-	free_reserved_area(sclp_early_sccb,
-			   sclp_early_sccb + EXT_SCCB_READ_SCP,
-			   POISON_FREE_INITMEM, "unused early sccb");
 	free_initmem_default(POISON_FREE_INITMEM);
 }
 
@@ -220,6 +218,41 @@ unsigned long memory_block_size_bytes(void)
 	 * or equal than the memory increment size.
 	 */
 	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp.rzm);
+}
+
+unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
+EXPORT_SYMBOL(__per_cpu_offset);
+
+static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
+{
+	return LOCAL_DISTANCE;
+}
+
+static int __init pcpu_cpu_to_node(int cpu)
+{
+	return 0;
+}
+
+void __init setup_per_cpu_areas(void)
+{
+	unsigned long delta;
+	unsigned int cpu;
+	int rc;
+
+	/*
+	 * Always reserve area for module percpu variables.  That's
+	 * what the legacy allocator did.
+	 */
+	rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
+				    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE,
+				    pcpu_cpu_distance,
+				    pcpu_cpu_to_node);
+	if (rc < 0)
+		panic("Failed to initialize percpu areas.");
+
+	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
+	for_each_possible_cpu(cpu)
+		__per_cpu_offset[cpu] = delta + pcpu_unit_offsets[cpu];
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

@@ -122,24 +122,6 @@ _LPP_OFFSET	= __LC_LPP
 		    "jnz .+8; .insn rrf,0xb2e80000,0,0,13,0", 82
 	.endm
 
-	/*
-	 * The CHKSTG macro jumps to the provided label in case the
-	 * machine check interruption code reports one of unrecoverable
-	 * storage errors:
-	 * - Storage error uncorrected
-	 * - Storage key error uncorrected
-	 * - Storage degradation with Failing-storage-address validity
-	 */
-	.macro CHKSTG errlabel
-	TSTMSK	__LC_MCCK_CODE,(MCCK_CODE_STG_ERROR|MCCK_CODE_STG_KEY_ERROR)
-	jnz	\errlabel
-	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_STG_DEGRAD
-	jz	.Loklabel\@
-	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_STG_FAIL_ADDR
-	jnz	\errlabel
-.Loklabel\@:
-	.endm
-
 #if IS_ENABLED(CONFIG_KVM)
 	/*
 	 * The OUTSIDE macro jumps to the provided label in case the value
@@ -546,26 +528,18 @@ ENTRY(mcck_int_handler)
 3:	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_MWP_VALID
 	jno	.Lmcck_panic
 	tmhh	%r8,0x0001		# interrupting from user ?
-	jnz	6f
+	jnz	.Lmcck_user
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
 	jno	.Lmcck_panic
 #if IS_ENABLED(CONFIG_KVM)
-	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,6f
+	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,.Lmcck_stack
 	OUTSIDE	%r9,.Lsie_entry,.Lsie_leave,4f
 	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
-	j	5f
-4:	CHKSTG	.Lmcck_panic
-5:	larl	%r14,.Lstosm_tmp
-	stosm	0(%r14),0x04		# turn dat on, keep irqs off
-	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
+4:	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 	SIEEXIT
 	j	.Lmcck_stack
 #endif
-6:	CHKSTG	.Lmcck_panic
-	larl	%r14,.Lstosm_tmp
-	stosm	0(%r14),0x04		# turn dat on, keep irqs off
-	tmhh	%r8,0x0001		# interrupting from user ?
-	jz	.Lmcck_stack
+.Lmcck_user:
 	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
 .Lmcck_stack:
 	lg	%r15,__LC_MCCK_STACK
