@@ -724,8 +724,8 @@ __must_check int __media_pipeline_start(struct media_pad *pad,
 	lockdep_assert_held(&mdev->graph_mutex);
 
 	/*
-	 * If the entity is already part of a pipeline, that pipeline must
-	 * be the same as the pipe given to media_pipeline_start().
+	 * If the pad is already part of a pipeline, that pipeline must be the
+	 * same as the pipe given to media_pipeline_start().
 	 */
 	if (WARN_ON(pad->pipe && pad->pipe != pipe))
 		return -EINVAL;
@@ -919,7 +919,7 @@ __must_check int media_pipeline_alloc_start(struct media_pad *pad)
 	mutex_lock(&mdev->graph_mutex);
 
 	/*
-	 * Is the entity already part of a pipeline? If not, we need to allocate
+	 * Is the pad already part of a pipeline? If not, we need to allocate
 	 * a pipe.
 	 */
 	pipe = media_pad_pipeline(pad);
