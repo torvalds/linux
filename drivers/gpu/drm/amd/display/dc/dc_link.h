@@ -338,14 +338,13 @@ static inline bool dc_get_edp_link_panel_inst(const struct dc *dc,
 	int edp_num, i;
 
 	*inst_out = 0;
-	if (link->connector_signal != SIGNAL_TYPE_EDP || !link->local_sink)
+	if (link->connector_signal != SIGNAL_TYPE_EDP)
 		return false;
 	get_edp_links(dc, edp_links, &edp_num);
 	for (i = 0; i < edp_num; i++) {
 		if (link == edp_links[i])
 			break;
-		if (edp_links[i]->local_sink)
-			(*inst_out)++;
+		(*inst_out)++;
 	}
 	return true;
 }
