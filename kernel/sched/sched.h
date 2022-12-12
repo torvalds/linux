@@ -248,7 +248,7 @@ static inline void update_avg(u64 *avg, u64 sample)
 
 #define SCHED_DL_FLAGS (SCHED_FLAG_RECLAIM | SCHED_FLAG_DL_OVERRUN | SCHED_FLAG_SUGOV)
 
-static inline bool dl_entity_is_special(struct sched_dl_entity *dl_se)
+static inline bool dl_entity_is_special(const struct sched_dl_entity *dl_se)
 {
 #ifdef CONFIG_CPU_FREQ_GOV_SCHEDUTIL
 	return unlikely(dl_se->flags & SCHED_FLAG_SUGOV);
@@ -260,8 +260,8 @@ static inline bool dl_entity_is_special(struct sched_dl_entity *dl_se)
 /*
  * Tells if entity @a should preempt entity @b.
  */
-static inline bool
-dl_entity_preempt(struct sched_dl_entity *a, struct sched_dl_entity *b)
+static inline bool dl_entity_preempt(const struct sched_dl_entity *a,
+				     const struct sched_dl_entity *b)
 {
 	return dl_entity_is_special(a) ||
 	       dl_time_before(a->deadline, b->deadline);
@@ -1244,7 +1244,8 @@ static inline raw_spinlock_t *__rq_lockp(struct rq *rq)
 	return &rq->__lock;
 }
 
-bool cfs_prio_less(struct task_struct *a, struct task_struct *b, bool fi);
+bool cfs_prio_less(const struct task_struct *a, const struct task_struct *b,
+			bool fi);
 
 /*
  * Helpers to check if the CPU's core cookie matches with the task's cookie
@@ -1423,7 +1424,7 @@ static inline struct cfs_rq *task_cfs_rq(struct task_struct *p)
 }
 
 /* runqueue on which this entity is (to be) queued */
-static inline struct cfs_rq *cfs_rq_of(struct sched_entity *se)
+static inline struct cfs_rq *cfs_rq_of(const struct sched_entity *se)
 {
 	return se->cfs_rq;
 }
@@ -1436,19 +1437,16 @@ static inline struct cfs_rq *group_cfs_rq(struct sched_entity *grp)
 
 #else
 
-static inline struct task_struct *task_of(struct sched_entity *se)
-{
-	return container_of(se, struct task_struct, se);
-}
+#define task_of(_se)	container_of(_se, struct task_struct, se)
 
-static inline struct cfs_rq *task_cfs_rq(struct task_struct *p)
+static inline struct cfs_rq *task_cfs_rq(const struct task_struct *p)
 {
 	return &task_rq(p)->cfs;
 }
 
-static inline struct cfs_rq *cfs_rq_of(struct sched_entity *se)
+static inline struct cfs_rq *cfs_rq_of(const struct sched_entity *se)
 {
-	struct task_struct *p = task_of(se);
+	const struct task_struct *p = task_of(se);
 	struct rq *rq = task_rq(p);
 
 	return &rq->cfs;

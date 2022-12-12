@@ -152,7 +152,7 @@ __read_mostly int scheduler_running;
 DEFINE_STATIC_KEY_FALSE(__sched_core_enabled);
 
 /* kernel prio, less is more */
-static inline int __task_prio(struct task_struct *p)
+static inline int __task_prio(const struct task_struct *p)
 {
 	if (p->sched_class == &stop_sched_class) /* trumps deadline */
 		return -2;
@@ -174,7 +174,8 @@ static inline int __task_prio(struct task_struct *p)
  */
 
 /* real prio, less is less */
-static inline bool prio_less(struct task_struct *a, struct task_struct *b, bool in_fi)
+static inline bool prio_less(const struct task_struct *a,
+			     const struct task_struct *b, bool in_fi)
 {
 
 	int pa = __task_prio(a), pb = __task_prio(b);
@@ -194,7 +195,8 @@ static inline bool prio_less(struct task_struct *a, struct task_struct *b, bool 
 	return false;
 }
 
-static inline bool __sched_core_less(struct task_struct *a, struct task_struct *b)
+static inline bool __sched_core_less(const struct task_struct *a,
+				     const struct task_struct *b)
 {
 	if (a->core_cookie < b->core_cookie)
 		return true;

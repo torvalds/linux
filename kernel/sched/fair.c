@@ -468,7 +468,7 @@ is_same_group(struct sched_entity *se, struct sched_entity *pse)
 	return NULL;
 }
 
-static inline struct sched_entity *parent_entity(struct sched_entity *se)
+static inline struct sched_entity *parent_entity(const struct sched_entity *se)
 {
 	return se->parent;
 }
@@ -595,8 +595,8 @@ static inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
 	return min_vruntime;
 }
 
-static inline bool entity_before(struct sched_entity *a,
-				struct sched_entity *b)
+static inline bool entity_before(const struct sched_entity *a,
+				 const struct sched_entity *b)
 {
 	return (s64)(a->vruntime - b->vruntime) < 0;
 }
@@ -11852,7 +11852,8 @@ static inline void task_tick_core(struct rq *rq, struct task_struct *curr)
 /*
  * se_fi_update - Update the cfs_rq->min_vruntime_fi in a CFS hierarchy if needed.
  */
-static void se_fi_update(struct sched_entity *se, unsigned int fi_seq, bool forceidle)
+static void se_fi_update(const struct sched_entity *se, unsigned int fi_seq,
+			 bool forceidle)
 {
 	for_each_sched_entity(se) {
 		struct cfs_rq *cfs_rq = cfs_rq_of(se);
@@ -11877,11 +11878,12 @@ void task_vruntime_update(struct rq *rq, struct task_struct *p, bool in_fi)
 	se_fi_update(se, rq->core->core_forceidle_seq, in_fi);
 }
 
-bool cfs_prio_less(struct task_struct *a, struct task_struct *b, bool in_fi)
+bool cfs_prio_less(const struct task_struct *a, const struct task_struct *b,
+			bool in_fi)
 {
 	struct rq *rq = task_rq(a);
-	struct sched_entity *sea = &a->se;
-	struct sched_entity *seb = &b->se;
+	const struct sched_entity *sea = &a->se;
+	const struct sched_entity *seb = &b->se;
 	struct cfs_rq *cfs_rqa;
 	struct cfs_rq *cfs_rqb;
 	s64 delta;
