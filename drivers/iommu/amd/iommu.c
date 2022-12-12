@@ -767,7 +767,7 @@ EXPORT_SYMBOL(amd_iommu_register_ga_log_notifier);
 
 static void iommu_poll_ga_log(struct amd_iommu *iommu)
 {
-	u32 head, tail, cnt = 0;
+	u32 head, tail;
 
 	if (iommu->ga_log == NULL)
 		return;
@@ -780,7 +780,6 @@ static void iommu_poll_ga_log(struct amd_iommu *iommu)
 		u64 log_entry;
 
 		raw = (u64 *)(iommu->ga_log + head);
-		cnt++;
 
 		/* Avoid memcpy function-call overhead */
 		log_entry = *raw;
@@ -2155,20 +2154,12 @@ static void amd_iommu_detach_device(struct iommu_domain *dom,
 static int amd_iommu_attach_device(struct iommu_domain *dom,
 				   struct device *dev)
 {
+	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
 	struct protection_domain *domain = to_pdomain(dom);
-	struct iommu_dev_data *dev_data;
-	struct amd_iommu *iommu;
+	struct amd_iommu *iommu = rlookup_amd_iommu(dev);
 	int ret;
 
-	if (!check_device(dev))
-		return -EINVAL;
-
-	dev_data = dev_iommu_priv_get(dev);
 	dev_data->defer_attach = false;
-
-	iommu = rlookup_amd_iommu(dev);
-	if (!iommu)
-		return -EINVAL;
 
 	if (dev_data->domain)
 		detach_device(dev);
