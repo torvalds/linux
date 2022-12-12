@@ -41,7 +41,7 @@ struct f2fs_gc_kthread {
 	unsigned int no_gc_sleep_time;
 
 	/* for changing gc mode */
-	unsigned int gc_wake;
+	bool gc_wake;
 
 	/* for GC_MERGE mount option */
 	wait_queue_head_t fggc_wq;		/*
