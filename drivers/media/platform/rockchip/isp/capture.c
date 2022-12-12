@@ -966,10 +966,11 @@ static int rkisp_set_cmsk(struct rkisp_stream *stream, struct rkisp_cmsk_cfg *cf
 {
 	struct rkisp_device *dev = stream->ispdev;
 	unsigned long lock_flags = 0;
-	u8 i, win_en = 0, mode = 0;
+	u16 i, win_en = 0, mode = 0;
 	u16 h_offs, v_offs, h_size, v_size;
 	u32 width = dev->isp_sdev.out_crop.width;
 	u32 height = dev->isp_sdev.out_crop.height;
+	u32 align = (dev->isp_ver == ISP_V30) ? 8 : 2;
 	bool warn = false;
 
 	if ((dev->isp_ver != ISP_V30 && dev->isp_ver != ISP_V32) ||
@@ -994,27 +995,27 @@ static int rkisp_set_cmsk(struct rkisp_stream *stream, struct rkisp_cmsk_cfg *cf
 			}
 			h_offs = cfg->win[i].h_offs & ~0x1;
 			v_offs = cfg->win[i].v_offs & ~0x1;
-			h_size = cfg->win[i].h_size & ~0x7;
-			v_size = cfg->win[i].v_size & ~0x7;
+			h_size = ALIGN_DOWN(cfg->win[i].h_size, align);
+			v_size = ALIGN_DOWN(cfg->win[i].v_size, align);
 			if (h_offs != cfg->win[i].h_offs ||
 			    v_offs != cfg->win[i].v_offs ||
 			    h_size != cfg->win[i].h_size ||
 			    v_size != cfg->win[i].v_size)
 				warn = true;
 			if (h_offs + h_size > width) {
-				h_size = (width - h_offs) & ~0x7;
+				h_size = ALIGN_DOWN(width - h_offs, align);
 				warn = true;
 			}
 			if (v_offs + v_size > height) {
-				v_size = (height - v_offs) & ~0x7;
+				v_size = ALIGN_DOWN(height - v_offs, align);
 				warn = true;
 			}
 			if (warn) {
 				warn = false;
 				v4l2_warn(&dev->v4l2_dev,
-					  "%s cmsk offs 2 align, size 8 align and offs + size < resolution\n"
+					  "%s cmsk offs 2 align, size %d align and offs + size < resolution\n"
 					  "\t cmsk win%d result to offs:%d %d, size:%d %d\n",
-					  stream->vnode.vdev.name, i, h_offs, v_offs, h_size, v_size);
+					  stream->vnode.vdev.name, i, align, h_offs, v_offs, h_size, v_size);
 			}
 			dev->cmsk_cfg.win[i].h_offs = h_offs;
 			dev->cmsk_cfg.win[i].v_offs = v_offs;

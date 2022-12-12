@@ -309,28 +309,33 @@ struct isp2x_mesh_head {
 	u32 data_oft;
 } __attribute__ ((packed));
 
-#define RKISP_CMSK_WIN_MAX 8
+#define RKISP_CMSK_WIN_MAX 12
+#define RKISP_CMSK_WIN_MAX_V30 8
 #define RKISP_CMSK_MOSAIC_MODE 0
 #define RKISP_CMSK_COVER_MODE 1
 
 /* struct rkisp_cmsk_win
- * Priacy Mask Window configture, support 8 windows, and
+ * Priacy Mask Window configture, support windows
+ * RKISP_CMSK_WIN_MAX_V30 for rk3588 support 8 windows, and
  * support for mainpath and selfpath output stream channel.
  *
+ * RKISP_CMSK_WIN_MAX for rv1106 support 12 windows, and
+ * support for mainpath selfpath and bypasspath output stream channel.
+ *
  * mode: 0:mosaic mode, 1:cover mode
- * win_index: window index 0~7. windows overlap, priority win7 > win0.
+ * win_index: window index 0~11. windows overlap, priority win11 > win0.
  * cover_color_y: cover mode effective, share for stream channel when same win_index.
  * cover_color_u: cover mode effective, share for stream channel when same win_index.
  * cover_color_v: cover mode effective, share for stream channel when same win_index.
  *
  * h_offs: window horizontal offset, share for stream channel when same win_index. 2 align.
  * v_offs: window vertical offset, share for stream channel when same win_index. 2 align.
- * h_size: window horizontal size, share for stream channel when same win_index. 8 align.
- * v_size: window vertical size, share for stream channel when same win_index. 8 align.
+ * h_size: window horizontal size, share for stream channel when same win_index. 8 align for rk3588, 2 align for rv1106.
+ * v_size: window vertical size, share for stream channel when same win_index. 8 align for rk3588, 2 align for rv1106.
  */
 struct rkisp_cmsk_win {
-	unsigned char mode;
-	unsigned char win_en;
+	unsigned short mode;
+	unsigned short win_en;
 
 	unsigned char cover_color_y;
 	unsigned char cover_color_u;

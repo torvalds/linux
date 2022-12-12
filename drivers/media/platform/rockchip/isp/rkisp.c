@@ -1312,6 +1312,8 @@ static void rkisp_config_cmsk_single(struct rkisp_device *dev,
 	u32 mp_en = cfg->win[0].win_en;
 	u32 sp_en = cfg->win[1].win_en;
 	u32 bp_en = cfg->win[2].win_en;
+	u32 win_max = (dev->isp_ver == ISP_V30) ?
+		RKISP_CMSK_WIN_MAX_V30 : RKISP_CMSK_WIN_MAX;
 
 	if (mp_en) {
 		ctrl |= ISP3X_SW_CMSK_EN_MP;
@@ -1334,7 +1336,7 @@ static void rkisp_config_cmsk_single(struct rkisp_device *dev,
 		rkisp_write(dev, ISP3X_CMSK_CTRL6, val, false);
 	}
 
-	for (i = 0; i < RKISP_CMSK_WIN_MAX; i++) {
+	for (i = 0; i < win_max; i++) {
 		if (!(mp_en & BIT(i)) && !(sp_en & BIT(i)) && !(bp_en & BIT(i)))
 			continue;
 
@@ -1376,8 +1378,10 @@ static void rkisp_config_cmsk_dual(struct rkisp_device *dev,
 	u8 mp_en = cfg->win[0].win_en;
 	u8 sp_en = cfg->win[1].win_en;
 	u8 bp_en = cfg->win[2].win_en;
+	u32 win_max = (dev->isp_ver == ISP_V30) ?
+		RKISP_CMSK_WIN_MAX_V30 : RKISP_CMSK_WIN_MAX;
 
-	for (i = 0; i < RKISP_CMSK_WIN_MAX; i++) {
+	for (i = 0; i < win_max; i++) {
 		if (!(mp_en & BIT(i)) && !(sp_en & BIT(i)) && !(bp_en & BIT(i)))
 			continue;
 
