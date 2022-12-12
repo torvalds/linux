@@ -1,0 +1,146 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/ddr/jedec,lpddr-channel.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: LPDDR channel with chip/rank topology description
+
+description:
+  An LPDDR channel is a completely independent set of LPDDR pins (DQ, CA, CS,
+  CK, etc.) that connect one or more LPDDR chips to a host system. The main
+  purpose of this node is to overall LPDDR topology of the system, including the
+  amount of individual LPDDR chips and the ranks per chip.
+
+maintainers:
+  - Julius Werner <jwerner@chromium.org>
+
+properties:
+  compatible:
+    enum:
+      - jedec,lpddr2-channel
+      - jedec,lpddr3-channel
+      - jedec,lpddr4-channel
+      - jedec,lpddr5-channel
+
+  io-width:
+    description:
+      The number of DQ pins in the channel. If this number is different
+      from (a multiple of) the io-width of the LPDDR chip, that means that
+      multiple instances of that type of chip are wired in parallel on this
+      channel (with the channel's DQ pins split up between the different
+      chips, and the CA, CS, etc. pins of the different chips all shorted
+      together).  This means that the total physical memory controlled by a
+      channel is equal to the sum of the densities of each rank on the
+      connected LPDDR chip, times the io-width of the channel divided by
+      the io-width of the LPDDR chip.
+    enum:
+      - 8
+      - 16
+      - 32
+      - 64
+      - 128
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+patternProperties:
+  "^rank@[0-9]+$":
+    type: object
+    description:
+      Each physical LPDDR chip may have one or more ranks. Ranks are
+      internal but fully independent sub-units of the chip. Each LPDDR bus
+      transaction on the channel targets exactly one rank, based on the
+      state of the CS pins. Different ranks may have different densities and
+      timing requirements.
+    required:
+      - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: jedec,lpddr2-channel
+    then:
+      patternProperties:
+        "^rank@[0-9]+$":
+          $ref: /schemas/memory-controllers/ddr/jedec,lpddr2.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: jedec,lpddr3-channel
+    then:
+      patternProperties:
+        "^rank@[0-9]+$":
+          $ref: /schemas/memory-controllers/ddr/jedec,lpddr3.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: jedec,lpddr4-channel
+    then:
+      patternProperties:
+        "^rank@[0-9]+$":
+          $ref: /schemas/memory-controllers/ddr/jedec,lpddr4.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: jedec,lpddr5-channel
+    then:
+      patternProperties:
+        "^rank@[0-9]+$":
+          $ref: /schemas/memory-controllers/ddr/jedec,lpddr5.yaml#
+
+required:
+  - compatible
+  - io-width
+  - "#address-cells"
+  - "#size-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    lpddr-channel0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      compatible = "jedec,lpddr3-channel";
+      io-width = <32>;
+
+      rank@0 {
+        compatible = "lpddr3-ff,0100", "jedec,lpddr3";
+        reg = <0>;
+        density = <8192>;
+        io-width = <16>;
+        revision-id = <1 0>;
+      };
+    };
+
+    lpddr-channel1 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      compatible = "jedec,lpddr4-channel";
+      io-width = <32>;
+
+      rank@0 {
+        compatible = "lpddr4-05,0301", "jedec,lpddr4";
+        reg = <0>;
+        density = <4096>;
+        io-width = <32>;
+        revision-id = <3 1>;
+      };
+
+      rank@1 {
+        compatible = "lpddr4-05,0301", "jedec,lpddr4";
+        reg = <1>;
+        density = <2048>;
+        io-width = <32>;
+        revision-id = <3 1>;
+      };
+    };
