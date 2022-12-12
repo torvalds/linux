@@ -137,6 +137,7 @@
 	gt24c512: gt24c512@50 {
 		compatible = "atmel,24c512";
 		reg = <0x50>;
+		vcc-supply = <&cam_ir_vcc>;
 	};
 
 	vcsel_rk803: vcsel_rk803@63 {
