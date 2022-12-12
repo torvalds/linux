@@ -299,7 +299,6 @@ struct gs_can {
 
 	struct net_device *netdev;
 	struct usb_device *udev;
-	struct usb_interface *iface;
 
 	struct can_bittiming_const bt_const, data_bt_const;
 	unsigned int channel;	/* channel number */
@@ -383,8 +382,7 @@ static int gs_cmd_reset(struct gs_can *dev)
 		.mode = GS_CAN_MODE_RESET,
 	};
 
-	return usb_control_msg_send(interface_to_usbdev(dev->iface), 0,
-				    GS_USB_BREQ_MODE,
+	return usb_control_msg_send(dev->udev, 0, GS_USB_BREQ_MODE,
 				    USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				    dev->channel, 0, &dm, sizeof(dm), 1000,
 				    GFP_KERNEL);
@@ -396,8 +394,7 @@ static inline int gs_usb_get_timestamp(const struct gs_can *dev,
 	__le32 timestamp;
 	int rc;
 
-	rc = usb_control_msg_recv(interface_to_usbdev(dev->iface), 0,
-				  GS_USB_BREQ_TIMESTAMP,
+	rc = usb_control_msg_recv(dev->udev, 0, GS_USB_BREQ_TIMESTAMP,
 				  USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				  dev->channel, 0,
 				  &timestamp, sizeof(timestamp),
@@ -674,8 +671,7 @@ static int gs_usb_set_bittiming(struct net_device *netdev)
 	};
 
 	/* request bit timings */
-	return usb_control_msg_send(interface_to_usbdev(dev->iface), 0,
-				    GS_USB_BREQ_BITTIMING,
+	return usb_control_msg_send(dev->udev, 0, GS_USB_BREQ_BITTIMING,
 				    USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				    dev->channel, 0, &dbt, sizeof(dbt), 1000,
 				    GFP_KERNEL);
@@ -698,8 +694,7 @@ static int gs_usb_set_data_bittiming(struct net_device *netdev)
 		request = GS_USB_BREQ_QUIRK_CANTACT_PRO_DATA_BITTIMING;
 
 	/* request data bit timings */
-	return usb_control_msg_send(interface_to_usbdev(dev->iface), 0,
-				    request,
+	return usb_control_msg_send(dev->udev, 0, request,
 				    USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				    dev->channel, 0, &dbt, sizeof(dbt), 1000,
 				    GFP_KERNEL);
@@ -941,8 +936,7 @@ static int gs_can_open(struct net_device *netdev)
 	/* finally start device */
 	dev->can.state = CAN_STATE_ERROR_ACTIVE;
 	dm.flags = cpu_to_le32(flags);
-	rc = usb_control_msg_send(interface_to_usbdev(dev->iface), 0,
-				  GS_USB_BREQ_MODE,
+	rc = usb_control_msg_send(dev->udev, 0, GS_USB_BREQ_MODE,
 				  USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				  dev->channel, 0, &dm, sizeof(dm), 1000,
 				  GFP_KERNEL);
@@ -969,8 +963,7 @@ static int gs_usb_get_state(const struct net_device *netdev,
 	struct gs_device_state ds;
 	int rc;
 
-	rc = usb_control_msg_recv(interface_to_usbdev(dev->iface), 0,
-				  GS_USB_BREQ_GET_STATE,
+	rc = usb_control_msg_recv(dev->udev, 0, GS_USB_BREQ_GET_STATE,
 				  USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				  dev->channel, 0,
 				  &ds, sizeof(ds),
@@ -1064,8 +1057,7 @@ static int gs_usb_set_identify(struct net_device *netdev, bool do_identify)
 	else
 		imode.mode = cpu_to_le32(GS_CAN_IDENTIFY_OFF);
 
-	return usb_control_msg_send(interface_to_usbdev(dev->iface), 0,
-				    GS_USB_BREQ_IDENTIFY,
+	return usb_control_msg_send(dev->udev, 0, GS_USB_BREQ_IDENTIFY,
 				    USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				    dev->channel, 0, &imode, sizeof(imode), 100,
 				    GFP_KERNEL);
@@ -1118,8 +1110,7 @@ static int gs_usb_get_termination(struct net_device *netdev, u16 *term)
 	struct gs_device_termination_state term_state;
 	int rc;
 
-	rc = usb_control_msg_recv(interface_to_usbdev(dev->iface), 0,
-				  GS_USB_BREQ_GET_TERMINATION,
+	rc = usb_control_msg_recv(dev->udev, 0, GS_USB_BREQ_GET_TERMINATION,
 				  USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				  dev->channel, 0,
 				  &term_state, sizeof(term_state), 1000,
@@ -1145,8 +1136,7 @@ static int gs_usb_set_termination(struct net_device *netdev, u16 term)
 	else
 		term_state.state = cpu_to_le32(GS_CAN_TERMINATION_STATE_OFF);
 
-	return usb_control_msg_send(interface_to_usbdev(dev->iface), 0,
-				    GS_USB_BREQ_SET_TERMINATION,
+	return usb_control_msg_send(dev->udev, 0, GS_USB_BREQ_SET_TERMINATION,
 				    USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				    dev->channel, 0,
 				    &term_state, sizeof(term_state), 1000,
@@ -1210,7 +1200,6 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 	dev->bt_const.brp_inc = le32_to_cpu(bt_const.brp_inc);
 
 	dev->udev = interface_to_usbdev(intf);
-	dev->iface = intf;
 	dev->netdev = netdev;
 	dev->channel = channel;
 
