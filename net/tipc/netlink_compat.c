@@ -1357,6 +1357,7 @@ static struct genl_family tipc_genl_compat_family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.small_ops	= tipc_genl_compat_ops,
 	.n_small_ops	= ARRAY_SIZE(tipc_genl_compat_ops),
+	.resv_start_op	= TIPC_GENL_CMD + 1,
 };
 
 int __init tipc_netlink_compat_start(void)

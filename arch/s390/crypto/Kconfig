@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "Accelerated Cryptographic Algorithms for CPU (s390)"
+
+config CRYPTO_CRC32_S390
+	tristate "CRC32c and CRC32"
+	depends on S390
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  CRC32c and CRC32 CRC algorithms
+
+	  Architecture: s390
+
+	  It is available with IBM z13 or later.
+
+config CRYPTO_SHA512_S390
+	tristate "Hash functions: SHA-384 and SHA-512"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  SHA-384 and SHA-512 secure hash algorithms (FIPS 180)
+
+	  Architecture: s390
+
+	  It is available as of z10.
+
+config CRYPTO_SHA1_S390
+	tristate "Hash functions: SHA-1"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash algorithm (FIPS 180)
+
+	  Architecture: s390
+
+	  It is available as of z990.
+
+config CRYPTO_SHA256_S390
+	tristate "Hash functions: SHA-224 and SHA-256"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  SHA-224 and SHA-256 secure hash algorithms (FIPS 180)
+
+	  Architecture: s390
+
+	  It is available as of z9.
+
+config CRYPTO_SHA3_256_S390
+	tristate "Hash functions: SHA3-224 and SHA3-256"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  SHA3-224 and SHA3-256 secure hash algorithms (FIPS 202)
+
+	  Architecture: s390
+
+	  It is available as of z14.
+
+config CRYPTO_SHA3_512_S390
+	tristate "Hash functions: SHA3-384 and SHA3-512"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  SHA3-384 and SHA3-512 secure hash algorithms (FIPS 202)
+
+	  Architecture: s390
+
+	  It is available as of z14.
+
+config CRYPTO_GHASH_S390
+	tristate "Hash functions: GHASH"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  GCM GHASH hash function (NIST SP800-38D)
+
+	  Architecture: s390
+
+	  It is available as of z196.
+
+config CRYPTO_AES_S390
+	tristate "Ciphers: AES, modes: ECB, CBC, CTR, XTS, GCM"
+	depends on S390
+	select CRYPTO_ALGAPI
+	select CRYPTO_SKCIPHER
+	help
+	  Block cipher: AES cipher algorithms (FIPS 197)
+	  AEAD cipher: AES with GCM
+	  Length-preserving ciphers: AES with ECB, CBC, XTS, and CTR modes
+
+	  Architecture: s390
+
+	  As of z9 the ECB and CBC modes are hardware accelerated
+	  for 128 bit keys.
+
+	  As of z10 the ECB and CBC modes are hardware accelerated
+	  for all AES key sizes.
+
+	  As of z196 the CTR mode is hardware accelerated for all AES
+	  key sizes and XTS mode is hardware accelerated for 256 and
+	  512 bit keys.
+
+config CRYPTO_DES_S390
+	tristate "Ciphers: DES and Triple DES EDE, modes: ECB, CBC, CTR"
+	depends on S390
+	select CRYPTO_ALGAPI
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_DES
+	help
+	  Block ciphers: DES (FIPS 46-2) cipher algorithm
+	  Block ciphers: Triple DES EDE (FIPS 46-3) cipher algorithm
+	  Length-preserving ciphers: DES with ECB, CBC, and CTR modes
+	  Length-preserving ciphers: Triple DES EDED with ECB, CBC, and CTR modes
+
+	  Architecture: s390
+
+	  As of z990 the ECB and CBC mode are hardware accelerated.
+	  As of z196 the CTR mode is hardware accelerated.
+
+config CRYPTO_CHACHA_S390
+	tristate "Ciphers: ChaCha20"
+	depends on S390
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_CHACHA_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_CHACHA
+	help
+	  Length-preserving cipher: ChaCha20 stream cipher (RFC 7539)
+
+	  Architecture: s390
+
+	  It is available as of z13.
+
+endmenu

@@ -48,7 +48,7 @@ static int bpf_find_map(const char *test, struct bpf_object *obj,
 int main(int argc, char **argv)
 {
 	const char *probe_name = "syscalls/sys_enter_nanosleep";
-	const char *file = "get_cgroup_id_kern.o";
+	const char *file = "get_cgroup_id_kern.bpf.o";
 	int err, bytes, efd, prog_fd, pmu_fd;
 	int cgroup_fd, cgidmap_fd, pidmap_fd;
 	struct perf_event_attr attr = {};

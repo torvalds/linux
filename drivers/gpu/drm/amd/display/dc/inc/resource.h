@@ -219,9 +219,21 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 	struct dc_state *context,
 	uint8_t disabled_master_pipe_idx);
 
+void reset_sync_context_for_pipe(const struct dc *dc,
+	struct dc_state *context,
+	uint8_t pipe_idx);
+
 uint8_t resource_transmitter_to_phy_idx(const struct dc *dc, enum transmitter transmitter);
 
 const struct link_hwss *get_link_hwss(const struct dc_link *link,
 		const struct link_resource *link_res);
 
+bool is_h_timing_divisible_by_2(struct dc_stream_state *stream);
+
+bool dc_resource_acquire_secondary_pipe_for_mpc_odm(
+		const struct dc *dc,
+		struct dc_state *state,
+		struct pipe_ctx *pri_pipe,
+		struct pipe_ctx *sec_pipe,
+		bool odm);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

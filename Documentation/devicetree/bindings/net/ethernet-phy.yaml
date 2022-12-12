@@ -144,6 +144,12 @@ properties:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
+  pses:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    maxItems: 1
+    description:
+      Specifies a reference to a node representing a Power Sourcing Equipment.
+
   phy-is-integrated:
     $ref: /schemas/types.yaml#/definitions/flag
     description:

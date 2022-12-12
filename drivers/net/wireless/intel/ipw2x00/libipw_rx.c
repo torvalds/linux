@@ -1329,8 +1329,8 @@ static int libipw_handle_assoc_resp(struct libipw_device *ieee, struct libipw_as
 	network->wpa_ie_len = 0;
 	network->rsn_ie_len = 0;
 
-	if (libipw_parse_info_param
-	    (frame->info_element, stats->len - sizeof(*frame), network))
+	if (libipw_parse_info_param((void *)frame->variable,
+				    stats->len - sizeof(*frame), network))
 		return 1;
 
 	network->mode = 0;
@@ -1389,8 +1389,8 @@ static int libipw_network_init(struct libipw_device *ieee, struct libipw_probe_r
 	network->wpa_ie_len = 0;
 	network->rsn_ie_len = 0;
 
-	if (libipw_parse_info_param
-	    (beacon->info_element, stats->len - sizeof(*beacon), network))
+	if (libipw_parse_info_param((void *)beacon->variable,
+				    stats->len - sizeof(*beacon), network))
 		return 1;
 
 	network->mode = 0;
@@ -1510,7 +1510,7 @@ static void libipw_process_probe_response(struct libipw_device
 	struct libipw_network *target;
 	struct libipw_network *oldest = NULL;
 #ifdef CONFIG_LIBIPW_DEBUG
-	struct libipw_info_element *info_element = beacon->info_element;
+	struct libipw_info_element *info_element = (void *)beacon->variable;
 #endif
 	unsigned long flags;
 

@@ -383,6 +383,8 @@ static const struct hid_device_id hid_battery_quirks[] = {
 	  HID_BATTERY_QUIRK_IGNORE },
 	{ HID_I2C_DEVICE(USB_VENDOR_ID_ELAN, I2C_DEVICE_ID_SURFACE_GO2_TOUCHSCREEN),
 	  HID_BATTERY_QUIRK_IGNORE },
+	{ HID_I2C_DEVICE(USB_VENDOR_ID_ELAN, I2C_DEVICE_ID_LENOVO_YOGA_C630_TOUCHSCREEN),
+	  HID_BATTERY_QUIRK_IGNORE },
 	{}
 };
 
@@ -1084,6 +1086,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x0cd: map_key_clear(KEY_PLAYPAUSE);	break;
 		case 0x0cf: map_key_clear(KEY_VOICECOMMAND);	break;
 
+		case 0x0d5: map_key_clear(KEY_CAMERA_ACCESS_ENABLE);		break;
+		case 0x0d6: map_key_clear(KEY_CAMERA_ACCESS_DISABLE);		break;
+		case 0x0d7: map_key_clear(KEY_CAMERA_ACCESS_TOGGLE);		break;
 		case 0x0d8: map_key_clear(KEY_DICTATE);		break;
 		case 0x0d9: map_key_clear(KEY_EMOJI_PICKER);	break;
 
@@ -1532,7 +1537,10 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 			 * assume ours
 			 */
 			if (!report->tool)
-				hid_report_set_tool(report, input, usage->code);
+				report->tool = usage->code;
+
+			/* drivers may have changed the value behind our back, resend it */
+			hid_report_set_tool(report, input, report->tool);
 		} else {
 			hid_report_release_tool(report, input, usage->code);
 		}

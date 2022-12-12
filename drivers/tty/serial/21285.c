@@ -243,7 +243,7 @@ static void serial21285_shutdown(struct uart_port *port)
 
 static void
 serial21285_set_termios(struct uart_port *port, struct ktermios *termios,
-			struct ktermios *old)
+			const struct ktermios *old)
 {
 	unsigned long flags;
 	unsigned int baud, quot, h_lcr, b;
@@ -460,9 +460,6 @@ static int __init serial21285_console_setup(struct console *co, char *options)
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
-
-	if (machine_is_personal_server())
-		baud = 57600;
 
 	/*
 	 * Check whether an invalid uart number has been specified, and

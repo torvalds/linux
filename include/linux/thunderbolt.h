@@ -187,6 +187,7 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @device_name: Name of the device (or %NULL if not known)
  * @link_speed: Speed of the link in Gb/s
  * @link_width: Width of the link (1 or 2)
+ * @link_usb4: Downstream link is USB4
  * @is_unplugged: The XDomain is unplugged
  * @needs_uuid: If the XDomain does not have @remote_uuid it will be
  *		queried first
@@ -234,6 +235,7 @@ struct tb_xdomain {
 	const char *device_name;
 	unsigned int link_speed;
 	unsigned int link_width;
+	bool link_usb4;
 	bool is_unplugged;
 	bool needs_uuid;
 	struct ida service_ids;

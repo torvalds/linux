@@ -377,8 +377,8 @@ static int vrr_range_show(struct seq_file *m, void *data)
 	if (connector->status != connector_status_connected)
 		return -ENODEV;
 
-	seq_printf(m, "Min: %u\n", (u8)connector->display_info.monitor_range.min_vfreq);
-	seq_printf(m, "Max: %u\n", (u8)connector->display_info.monitor_range.max_vfreq);
+	seq_printf(m, "Min: %u\n", connector->display_info.monitor_range.min_vfreq);
+	seq_printf(m, "Max: %u\n", connector->display_info.monitor_range.max_vfreq);
 
 	return 0;
 }

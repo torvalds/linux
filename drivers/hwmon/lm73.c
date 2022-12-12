@@ -257,7 +257,7 @@ static int lm73_detect(struct i2c_client *new_client,
 	if (id < 0 || id != LM73_ID)
 		return -ENODEV;
 
-	strlcpy(info->type, "lm73", I2C_NAME_SIZE);
+	strscpy(info->type, "lm73", I2C_NAME_SIZE);
 
 	return 0;
 }

@@ -210,7 +210,7 @@ static inline void drm_gem_shmem_object_unpin(struct drm_gem_object *obj)
  * use it as their &drm_gem_object_funcs.get_sg_table handler.
  *
  * Returns:
- * A pointer to the scatter/gather table of pinned pages or NULL on failure.
+ * A pointer to the scatter/gather table of pinned pages or error pointer on failure.
  */
 static inline struct sg_table *drm_gem_shmem_object_get_sg_table(struct drm_gem_object *obj)
 {

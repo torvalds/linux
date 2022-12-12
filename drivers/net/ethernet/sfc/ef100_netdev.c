@@ -23,6 +23,7 @@
 #include "mcdi_filters.h"
 #include "rx_common.h"
 #include "ef100_sriov.h"
+#include "tc_bindings.h"
 
 static void ef100_update_name(struct efx_nic *efx)
 {
@@ -245,6 +246,9 @@ static const struct net_device_ops ef100_netdev_ops = {
 	.ndo_get_phys_port_name = efx_get_phys_port_name,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer      = efx_filter_rfs,
+#endif
+#ifdef CONFIG_SFC_SRIOV
+	.ndo_setup_tc		= efx_tc_setup,
 #endif
 };
 

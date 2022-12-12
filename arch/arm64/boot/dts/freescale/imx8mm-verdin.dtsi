@@ -32,10 +32,10 @@
 	};
 
 	/* Fixed clock dedicated to SPI CAN controller */
-	clk20m: oscillator {
+	clk40m: oscillator {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <20000000>;
+		clock-frequency = <40000000>;
 	};
 
 	gpio-keys {
@@ -51,6 +51,21 @@
 			linux,code = <KEY_WAKEUP>;
 			wakeup-source;
 		};
+	};
+
+	hdmi_connector: hdmi-connector {
+		compatible = "hdmi-connector";
+		ddc-i2c-bus = <&i2c2>;
+		label = "hdmi";
+		type = "a";
+		status = "disabled";
+	};
+
+	panel_lvds: panel-lvds {
+		compatible = "panel-lvds";
+		backlight = <&backlight>;
+		data-mapping = "vesa-24";
+		status = "disabled";
 	};
 
 	/* Carrier Board Supplies */
@@ -202,8 +217,8 @@
 
 	can1: can@0 {
 		compatible = "microchip,mcp251xfd";
-		clocks = <&clk20m>;
-		interrupts-extended = <&gpio1 6 IRQ_TYPE_EDGE_FALLING>;
+		clocks = <&clk40m>;
+		interrupts-extended = <&gpio1 6 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_can1_int>;
 		reg = <0>;
@@ -367,8 +382,8 @@
 				nxp,dvs-standby-voltage = <850000>;
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-max-microvolt = <950000>;
-				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1050000>;
+				regulator-min-microvolt = <805000>;
 				regulator-name = "On-module +VDD_ARM (BUCK2)";
 				regulator-ramp-delay = <3125>;
 			};
@@ -376,8 +391,8 @@
 			reg_vdd_dram: BUCK3 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-max-microvolt = <950000>;
-				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-min-microvolt = <805000>;
 				regulator-name = "On-module +VDD_GPU_VPU_DDR (BUCK3)";
 			};
 
@@ -416,7 +431,7 @@
 			reg_vdd_snvs: LDO2 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-max-microvolt = <900000>;
+				regulator-max-microvolt = <800000>;
 				regulator-min-microvolt = <800000>;
 				regulator-name = "On-module +V0.8_SNVS (LDO2)";
 			};
@@ -561,8 +576,8 @@
 		status = "disabled";
 	};
 
-	lvds_ti_sn65dsi83: bridge@2c {
-		compatible = "ti,sn65dsi83";
+	lvds_ti_sn65dsi84: bridge@2c {
+		compatible = "ti,sn65dsi84";
 		/* Verdin GPIO_9_DSI (SN65DSI84 IRQ, SODIMM 17, unused) */
 		/* Verdin GPIO_10_DSI (SODIMM 21) */
 		enable-gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
@@ -603,7 +618,7 @@
 		pinctrl-0 = <&pinctrl_gpio_9_dsi>, <&pinctrl_i2s_2_bclk_touch_reset>;
 		reg = <0x4a>;
 		/* Verdin I2S_2_BCLK (TOUCH_RESET#, SODIMM 42) */
-		reset-gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 23 GPIO_ACTIVE_LOW>;
 		status = "disabled";
 	};
 
@@ -745,6 +760,7 @@
 };
 
 &usbphynop2 {
+	power-domains = <&pgc_otg2>;
 	vcc-supply = <&reg_vdd_3v3>;
 };
 

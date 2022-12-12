@@ -68,8 +68,6 @@ struct lpfc_sli2_slim;
 #define LPFC_MIN_TGT_QDEPTH	10
 #define LPFC_MAX_TGT_QDEPTH	0xFFFF
 
-#define  LPFC_MAX_BUCKET_COUNT 20	/* Maximum no. of buckets for stat data
-					   collection. */
 /*
  * Following time intervals are used of adjusting SCSI device
  * queue depths when there are driver resource error or Firmware
@@ -405,6 +403,7 @@ struct lpfc_trunk_link  {
 				     link1,
 				     link2,
 				     link3;
+	u32 phy_lnk_speed;
 };
 
 /* Format of congestion module parameters */
@@ -732,8 +731,6 @@ struct lpfc_vport {
 	struct lpfc_debugfs_trc *disc_trc;
 	atomic_t disc_trc_cnt;
 #endif
-	uint8_t stat_data_enabled;
-	uint8_t stat_data_blocked;
 	struct list_head rcv_buffer_list;
 	unsigned long rcv_buffer_time_stamp;
 	uint32_t vport_flag;
@@ -1436,13 +1433,6 @@ struct lpfc_hba {
 	 */
 #define QUE_BUFTAG_BIT  (1<<31)
 	uint32_t buffer_tag_count;
-	/* data structure used for latency data collection */
-#define LPFC_NO_BUCKET	   0
-#define LPFC_LINEAR_BUCKET 1
-#define LPFC_POWER2_BUCKET 2
-	uint8_t  bucket_type;
-	uint32_t bucket_base;
-	uint32_t bucket_step;
 
 /* Maximum number of events that can be outstanding at any time*/
 #define LPFC_MAX_EVT_COUNT 512
@@ -1564,16 +1554,13 @@ struct lpfc_hba {
 		/* cgn_reg_signal and cgn_init_reg_signal use
 		 * enum fc_edc_cg_signal_cap_types
 		 */
-	u16 cgn_fpin_frequency;
+	u16 cgn_fpin_frequency;		/* In units of msecs */
 #define LPFC_FPIN_INIT_FREQ	0xffff
 	u32 cgn_sig_freq;
 	u32 cgn_acqe_cnt;
 
 	/* RX monitor handling for CMF */
-	struct rxtable_entry *rxtable;  /* RX_monitor information */
-	atomic_t rxtable_idx_head;
-#define LPFC_RXMONITOR_TABLE_IN_USE     (LPFC_MAX_RXMONITOR_ENTRY + 73)
-	atomic_t rxtable_idx_tail;
+	struct lpfc_rx_info_monitor *rx_monitor;
 	atomic_t rx_max_read_cnt;       /* Maximum read bytes */
 	uint64_t rx_block_cnt;
 
@@ -1610,10 +1597,11 @@ struct lpfc_hba {
 
 	char os_host_name[MAXHOSTNAMELEN];
 
-	/* SCSI host template information - for physical port */
-	struct scsi_host_template port_template;
-	/* SCSI host template information - for all vports */
-	struct scsi_host_template vport_template;
+	/* LD Signaling */
+	u32 degrade_activate_threshold;
+	u32 degrade_deactivate_threshold;
+	u32 fec_degrade_interval;
+
 	atomic_t dbg_log_idx;
 	atomic_t dbg_log_cnt;
 	atomic_t dbg_log_dmping;
@@ -1622,7 +1610,7 @@ struct lpfc_hba {
 
 #define LPFC_MAX_RXMONITOR_ENTRY	800
 #define LPFC_MAX_RXMONITOR_DUMP		32
-struct rxtable_entry {
+struct rx_info_entry {
 	uint64_t cmf_bytes;	/* Total no of read bytes for CMF_SYNC_WQE */
 	uint64_t total_bytes;   /* Total no of read bytes requested */
 	uint64_t rcv_bytes;     /* Total no of read bytes completed */
@@ -1635,6 +1623,13 @@ struct rxtable_entry {
 	uint32_t io_cnt;
 	uint32_t timer_utilization;
 	uint32_t timer_interval;
+};
+
+struct lpfc_rx_info_monitor {
+	struct rx_info_entry *ring; /* info organized in a circular buffer */
+	u32 head_idx, tail_idx; /* index to head/tail of ring */
+	spinlock_t lock; /* spinlock for ring */
+	u32 entries; /* storing number entries/size of ring */
 };
 
 static inline struct Scsi_Host *

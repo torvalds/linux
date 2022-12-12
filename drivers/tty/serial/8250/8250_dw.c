@@ -350,7 +350,7 @@ dw8250_do_pm(struct uart_port *port, unsigned int state, unsigned int old)
 }
 
 static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
-			       struct ktermios *old)
+			       const struct ktermios *old)
 {
 	unsigned long newrate = tty_termios_baud_rate(termios) * 16;
 	struct dw8250_data *d = to_dw8250_data(p->private_data);

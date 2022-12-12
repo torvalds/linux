@@ -30,6 +30,7 @@
 #include "resource.h"
 #include "ipp.h"
 #include "timing_generator.h"
+#include "dc_dmub_srv.h"
 
 #define DC_LOGGER dc->ctx->logger
 
@@ -275,6 +276,8 @@ static void program_cursor_attributes(
 		}
 
 		dc->hwss.set_cursor_attribute(pipe_ctx);
+
+		dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
 		if (dc->hwss.set_cursor_sdr_white_level)
 			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
 	}
@@ -329,7 +332,7 @@ bool dc_stream_set_cursor_attributes(
 
 	dc = stream->ctx->dc;
 
-	if (attributes->height * attributes->width * 4 > 16384)
+	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384)
 		if (stream->mall_stream_config.type == SUBVP_MAIN)
 			return false;
 
@@ -381,6 +384,8 @@ static void program_cursor_position(
 		}
 
 		dc->hwss.set_cursor_position(pipe_ctx);
+
+		dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
 	}
 
 	if (pipe_to_program)
@@ -521,7 +526,7 @@ bool dc_stream_remove_writeback(struct dc *dc,
 	/* remove writeback info for disabled writeback pipes from stream */
 	for (i = 0, j = 0; i < stream->num_wb_info; i++) {
 		if (stream->writeback_info[i].wb_enabled) {
-			if (i != j)
+			if (j < i)
 				/* trim the array */
 				stream->writeback_info[j] = stream->writeback_info[i];
 			j++;

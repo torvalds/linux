@@ -14,9 +14,10 @@
 struct intel_pt_pkt;
 
 void *intel_pt_log_fp(void);
-void intel_pt_log_enable(void);
+void intel_pt_log_enable(bool dump_log_on_error, unsigned int log_on_error_size);
 void intel_pt_log_disable(void);
 void intel_pt_log_set_name(const char *name);
+void intel_pt_log_dump_buf(void);
 
 void __intel_pt_log_packet(const struct intel_pt_pkt *packet, int pkt_len,
 			   uint64_t pos, const unsigned char *buf);

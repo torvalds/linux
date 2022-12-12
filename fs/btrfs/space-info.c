@@ -199,7 +199,7 @@ static u64 calc_chunk_size(const struct btrfs_fs_info *fs_info, u64 flags)
 	ASSERT(flags & BTRFS_BLOCK_GROUP_TYPE_MASK);
 
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
-		return SZ_1G;
+		return BTRFS_MAX_DATA_CHUNK_SIZE;
 	else if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
 		return SZ_32M;
 
@@ -293,32 +293,36 @@ out:
 	return ret;
 }
 
-void btrfs_update_space_info(struct btrfs_fs_info *info, u64 flags,
-			     u64 total_bytes, u64 bytes_used,
-			     u64 bytes_readonly, u64 bytes_zone_unusable,
-			     bool active, struct btrfs_space_info **space_info)
+void btrfs_add_bg_to_space_info(struct btrfs_fs_info *info,
+				struct btrfs_block_group *block_group)
 {
 	struct btrfs_space_info *found;
-	int factor;
+	int factor, index;
 
-	factor = btrfs_bg_type_to_factor(flags);
+	factor = btrfs_bg_type_to_factor(block_group->flags);
 
-	found = btrfs_find_space_info(info, flags);
+	found = btrfs_find_space_info(info, block_group->flags);
 	ASSERT(found);
 	spin_lock(&found->lock);
-	found->total_bytes += total_bytes;
-	if (active)
-		found->active_total_bytes += total_bytes;
-	found->disk_total += total_bytes * factor;
-	found->bytes_used += bytes_used;
-	found->disk_used += bytes_used * factor;
-	found->bytes_readonly += bytes_readonly;
-	found->bytes_zone_unusable += bytes_zone_unusable;
-	if (total_bytes > 0)
+	found->total_bytes += block_group->length;
+	if (test_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE, &block_group->runtime_flags))
+		found->active_total_bytes += block_group->length;
+	found->disk_total += block_group->length * factor;
+	found->bytes_used += block_group->used;
+	found->disk_used += block_group->used * factor;
+	found->bytes_readonly += block_group->bytes_super;
+	found->bytes_zone_unusable += block_group->zone_unusable;
+	if (block_group->length > 0)
 		found->full = 0;
 	btrfs_try_granting_tickets(info, found);
 	spin_unlock(&found->lock);
-	*space_info = found;
+
+	block_group->space_info = found;
+
+	index = btrfs_bg_flags_to_raid_index(block_group->flags);
+	down_write(&found->groups_sem);
+	list_add_tail(&block_group->list, &found->block_groups[index]);
+	up_write(&found->groups_sem);
 }
 
 struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
@@ -472,28 +476,47 @@ do {									\
 	spin_unlock(&__rsv->lock);					\
 } while (0)
 
-static void __btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
-				    struct btrfs_space_info *info)
+static const char *space_info_flag_to_str(const struct btrfs_space_info *space_info)
 {
-	lockdep_assert_held(&info->lock);
+	switch (space_info->flags) {
+	case BTRFS_BLOCK_GROUP_SYSTEM:
+		return "SYSTEM";
+	case BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_DATA:
+		return "DATA+METADATA";
+	case BTRFS_BLOCK_GROUP_DATA:
+		return "DATA";
+	case BTRFS_BLOCK_GROUP_METADATA:
+		return "METADATA";
+	default:
+		return "UNKNOWN";
+	}
+}
 
-	/* The free space could be negative in case of overcommit */
-	btrfs_info(fs_info, "space_info %llu has %lld free, is %sfull",
-		   info->flags,
-		   (s64)(info->total_bytes - btrfs_space_info_used(info, true)),
-		   info->full ? "" : "not ");
-	btrfs_info(fs_info,
-		"space_info total=%llu, used=%llu, pinned=%llu, reserved=%llu, may_use=%llu, readonly=%llu zone_unusable=%llu",
-		info->total_bytes, info->bytes_used, info->bytes_pinned,
-		info->bytes_reserved, info->bytes_may_use,
-		info->bytes_readonly, info->bytes_zone_unusable);
-
+static void dump_global_block_rsv(struct btrfs_fs_info *fs_info)
+{
 	DUMP_BLOCK_RSV(fs_info, global_block_rsv);
 	DUMP_BLOCK_RSV(fs_info, trans_block_rsv);
 	DUMP_BLOCK_RSV(fs_info, chunk_block_rsv);
 	DUMP_BLOCK_RSV(fs_info, delayed_block_rsv);
 	DUMP_BLOCK_RSV(fs_info, delayed_refs_rsv);
+}
 
+static void __btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
+				    struct btrfs_space_info *info)
+{
+	const char *flag_str = space_info_flag_to_str(info);
+	lockdep_assert_held(&info->lock);
+
+	/* The free space could be negative in case of overcommit */
+	btrfs_info(fs_info, "space_info %s has %lld free, is %sfull",
+		   flag_str,
+		   (s64)(info->total_bytes - btrfs_space_info_used(info, true)),
+		   info->full ? "" : "not ");
+	btrfs_info(fs_info,
+"space_info total=%llu, used=%llu, pinned=%llu, reserved=%llu, may_use=%llu, readonly=%llu zone_unusable=%llu",
+		info->total_bytes, info->bytes_used, info->bytes_pinned,
+		info->bytes_reserved, info->bytes_may_use,
+		info->bytes_readonly, info->bytes_zone_unusable);
 }
 
 void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
@@ -505,6 +528,7 @@ void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
 
 	spin_lock(&info->lock);
 	__btrfs_dump_space_info(fs_info, info);
+	dump_global_block_rsv(fs_info);
 	spin_unlock(&info->lock);
 
 	if (!dump_block_groups)
@@ -1662,7 +1686,6 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 				      &space_info->priority_tickets);
 		}
 	} else if (!ret && space_info->flags & BTRFS_BLOCK_GROUP_METADATA) {
-		used += orig_bytes;
 		/*
 		 * We will do the space reservation dance during log replay,
 		 * which means we won't have fs_info->fs_root set, so don't do
@@ -1737,7 +1760,8 @@ int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
 	int ret;
 
 	ASSERT(flush == BTRFS_RESERVE_FLUSH_DATA ||
-	       flush == BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE);
+	       flush == BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE ||
+	       flush == BTRFS_RESERVE_NO_FLUSH);
 	ASSERT(!current->journal_info || flush != BTRFS_RESERVE_FLUSH_DATA);
 
 	ret = __reserve_bytes(fs_info, data_sinfo, bytes, flush);
@@ -1748,4 +1772,18 @@ int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
 			btrfs_dump_space_info(fs_info, data_sinfo, bytes, 0);
 	}
 	return ret;
+}
+
+/* Dump all the space infos when we abort a transaction due to ENOSPC. */
+__cold void btrfs_dump_space_info_for_trans_abort(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_space_info *space_info;
+
+	btrfs_info(fs_info, "dumping space info:");
+	list_for_each_entry(space_info, &fs_info->space_info, list) {
+		spin_lock(&space_info->lock);
+		__btrfs_dump_space_info(fs_info, space_info);
+		spin_unlock(&space_info->lock);
+	}
+	dump_global_block_rsv(fs_info);
 }

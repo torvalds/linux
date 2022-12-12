@@ -61,7 +61,7 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	spi-gpio {
+	spi {
 		compatible = "spi-gpio";
 		pinctrl-0 = <&pinctrl_gpio_spi>;
 		pinctrl-names = "default";

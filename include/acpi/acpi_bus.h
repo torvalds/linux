@@ -365,7 +365,6 @@ struct acpi_device {
 	int device_type;
 	acpi_handle handle;		/* no handle for fixed hardware */
 	struct fwnode_handle fwnode;
-	struct acpi_device *parent;
 	struct list_head wakeup_list;
 	struct list_head del_list;
 	struct acpi_device_status status;
@@ -458,6 +457,14 @@ static inline void *acpi_driver_data(struct acpi_device *d)
 #define to_acpi_device(d)	container_of(d, struct acpi_device, dev)
 #define to_acpi_driver(d)	container_of(d, struct acpi_driver, drv)
 
+static inline struct acpi_device *acpi_dev_parent(struct acpi_device *adev)
+{
+	if (adev->dev.parent)
+		return to_acpi_device(adev->dev.parent);
+
+	return NULL;
+}
+
 static inline void acpi_set_device_status(struct acpi_device *adev, u32 sta)
 {
 	*((u32 *)&adev->status) = sta;
@@ -512,7 +519,6 @@ extern int unregister_acpi_notifier(struct notifier_block *);
  * External Functions
  */
 
-struct acpi_device *acpi_fetch_acpi_dev(acpi_handle handle);
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);
 int acpi_bus_get_status(struct acpi_device *device);
@@ -613,8 +619,7 @@ enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev);
 int acpi_iommu_fwspec_init(struct device *dev, u32 id,
 			   struct fwnode_handle *fwnode,
 			   const struct iommu_ops *ops);
-int acpi_dma_get_range(struct device *dev, u64 *dma_addr, u64 *offset,
-		       u64 *size);
+int acpi_dma_get_range(struct device *dev, const struct bus_dma_region **map);
 int acpi_dma_configure_id(struct device *dev, enum dev_dma_attr attr,
 			   const u32 *input_id);
 static inline int acpi_dma_configure(struct device *dev,
@@ -733,10 +738,24 @@ static inline bool acpi_device_can_poweroff(struct acpi_device *adev)
 }
 
 bool acpi_dev_hid_uid_match(struct acpi_device *adev, const char *hid2, const char *uid2);
+int acpi_dev_uid_to_integer(struct acpi_device *adev, u64 *integer);
 
 void acpi_dev_clear_dependencies(struct acpi_device *supplier);
 bool acpi_dev_ready_for_enumeration(const struct acpi_device *device);
-struct acpi_device *acpi_dev_get_first_consumer_dev(struct acpi_device *supplier);
+struct acpi_device *acpi_dev_get_next_consumer_dev(struct acpi_device *supplier,
+						   struct acpi_device *start);
+
+/**
+ * for_each_acpi_consumer_dev - iterate over the consumer ACPI devices for a
+ *				given supplier
+ * @supplier: Pointer to the supplier's ACPI device
+ * @consumer: Pointer to &struct acpi_device to hold the consumer, initially NULL
+ */
+#define for_each_acpi_consumer_dev(supplier, consumer)			\
+	for (consumer = acpi_dev_get_next_consumer_dev(supplier, NULL);	\
+	     consumer;							\
+	     consumer = acpi_dev_get_next_consumer_dev(supplier, consumer))
+
 struct acpi_device *
 acpi_dev_get_next_match_dev(struct acpi_device *adev, const char *hid, const char *uid, s64 hrv);
 struct acpi_device *
@@ -767,9 +786,10 @@ static inline void acpi_dev_put(struct acpi_device *adev)
 		put_device(&adev->dev);
 }
 
-struct acpi_device *acpi_bus_get_acpi_device(acpi_handle handle);
+struct acpi_device *acpi_fetch_acpi_dev(acpi_handle handle);
+struct acpi_device *acpi_get_acpi_dev(acpi_handle handle);
 
-static inline void acpi_bus_put_acpi_device(struct acpi_device *adev)
+static inline void acpi_put_acpi_dev(struct acpi_device *adev)
 {
 	acpi_dev_put(adev);
 }

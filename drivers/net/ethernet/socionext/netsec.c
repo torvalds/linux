@@ -526,8 +526,8 @@ static int netsec_phy_read(struct mii_bus *bus, int phy_addr, int reg_addr)
 static void netsec_et_get_drvinfo(struct net_device *net_device,
 				  struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, "netsec", sizeof(info->driver));
-	strlcpy(info->bus_info, dev_name(net_device->dev.parent),
+	strscpy(info->driver, "netsec", sizeof(info->driver));
+	strscpy(info->bus_info, dev_name(net_device->dev.parent),
 		sizeof(info->bus_info));
 }
 
@@ -2093,7 +2093,7 @@ static int netsec_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "hardware revision %d.%d\n",
 		 hw_ver >> 16, hw_ver & 0xffff);
 
-	netif_napi_add(ndev, &priv->napi, netsec_napi_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add(ndev, &priv->napi, netsec_napi_poll);
 
 	ndev->netdev_ops = &netsec_netdev_ops;
 	ndev->ethtool_ops = &netsec_ethtool_ops;

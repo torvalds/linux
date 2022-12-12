@@ -283,11 +283,8 @@ arch___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 	return (old & mask) != 0;
 }
 
-static __always_inline bool
-arch_test_bit(unsigned long nr, const volatile unsigned long *addr)
-{
-	return (1UL & (((const int *) addr)[nr >> 5] >> (nr & 31))) != 0UL;
-}
+#define arch_test_bit generic_test_bit
+#define arch_test_bit_acquire generic_test_bit_acquire
 
 /*
  * ffz = Find First Zero in word. Undefined if no zero exists,

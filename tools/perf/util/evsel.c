@@ -46,7 +46,11 @@
 #include "string2.h"
 #include "memswap.h"
 #include "util.h"
-#include "hashmap.h"
+#ifdef HAVE_LIBBPF_SUPPORT
+#include <bpf/hashmap.h>
+#else
+#include "util/hashmap.h"
+#endif
 #include "pmu-hybrid.h"
 #include "off_cpu.h"
 #include "../perf-sys.h"
@@ -1157,6 +1161,7 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	attr->sample_id_all = perf_missing_features.sample_id_all ? 0 : 1;
 	attr->inherit	    = !opts->no_inherit;
 	attr->write_backward = opts->overwrite ? 1 : 0;
+	attr->read_format   = PERF_FORMAT_LOST;
 
 	evsel__set_sample_bit(evsel, IP);
 	evsel__set_sample_bit(evsel, TID);
@@ -1541,7 +1546,7 @@ static int evsel__read_one(struct evsel *evsel, int cpu_map_idx, int thread)
 }
 
 static void evsel__set_count(struct evsel *counter, int cpu_map_idx, int thread,
-			     u64 val, u64 ena, u64 run)
+			     u64 val, u64 ena, u64 run, u64 lost)
 {
 	struct perf_counts_values *count;
 
@@ -1550,6 +1555,7 @@ static void evsel__set_count(struct evsel *counter, int cpu_map_idx, int thread,
 	count->val    = val;
 	count->ena    = ena;
 	count->run    = run;
+	count->lost   = lost;
 
 	perf_counts__set_loaded(counter->counts, cpu_map_idx, thread, true);
 }
@@ -1558,7 +1564,7 @@ static int evsel__process_group_data(struct evsel *leader, int cpu_map_idx, int 
 {
 	u64 read_format = leader->core.attr.read_format;
 	struct sample_read_value *v;
-	u64 nr, ena = 0, run = 0, i;
+	u64 nr, ena = 0, run = 0, lost = 0;
 
 	nr = *data++;
 
@@ -1571,18 +1577,18 @@ static int evsel__process_group_data(struct evsel *leader, int cpu_map_idx, int 
 	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
 		run = *data++;
 
-	v = (struct sample_read_value *) data;
-
-	evsel__set_count(leader, cpu_map_idx, thread, v[0].value, ena, run);
-
-	for (i = 1; i < nr; i++) {
+	v = (void *)data;
+	sample_read_group__for_each(v, nr, read_format) {
 		struct evsel *counter;
 
-		counter = evlist__id2evsel(leader->evlist, v[i].id);
+		counter = evlist__id2evsel(leader->evlist, v->id);
 		if (!counter)
 			return -EINVAL;
 
-		evsel__set_count(counter, cpu_map_idx, thread, v[i].value, ena, run);
+		if (read_format & PERF_FORMAT_LOST)
+			lost = v->lost;
+
+		evsel__set_count(counter, cpu_map_idx, thread, v->value, ena, run, lost);
 	}
 
 	return 0;
@@ -1807,7 +1813,7 @@ static struct perf_thread_map *empty_thread_map;
 static int __evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads)
 {
-	int nthreads;
+	int nthreads = perf_thread_map__nr(threads);
 
 	if ((perf_missing_features.write_backward && evsel->core.attr.write_backward) ||
 	    (perf_missing_features.aux_output     && evsel->core.attr.aux_output))
@@ -1833,11 +1839,6 @@ static int __evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		threads = empty_thread_map;
 	}
 
-	if (evsel->core.system_wide)
-		nthreads = 1;
-	else
-		nthreads = threads->nr;
-
 	if (evsel->core.fd == NULL &&
 	    perf_evsel__alloc_fd(&evsel->core, perf_cpu_map__nr(cpus), nthreads) < 0)
 		return -ENOMEM;
@@ -1851,6 +1852,8 @@ static int __evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 
 static void evsel__disable_missing_features(struct evsel *evsel)
 {
+	if (perf_missing_features.read_lost)
+		evsel->core.attr.read_format &= ~PERF_FORMAT_LOST;
 	if (perf_missing_features.weight_struct) {
 		evsel__set_sample_bit(evsel, WEIGHT);
 		evsel__reset_sample_bit(evsel, WEIGHT_STRUCT);
@@ -1902,7 +1905,12 @@ bool evsel__detect_missing_features(struct evsel *evsel)
 	 * Must probe features in the order they were added to the
 	 * perf_event_attr interface.
 	 */
-	if (!perf_missing_features.weight_struct &&
+	if (!perf_missing_features.read_lost &&
+	    (evsel->core.attr.read_format & PERF_FORMAT_LOST)) {
+		perf_missing_features.read_lost = true;
+		pr_debug2("switching off PERF_FORMAT_LOST support\n");
+		return true;
+	} else if (!perf_missing_features.weight_struct &&
 	    (evsel->core.attr.sample_type & PERF_SAMPLE_WEIGHT_STRUCT)) {
 		perf_missing_features.weight_struct = true;
 		pr_debug2("switching off weight struct support\n");
@@ -2048,10 +2056,7 @@ static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 	if (threads == NULL)
 		threads = empty_thread_map;
 
-	if (evsel->core.system_wide)
-		nthreads = 1;
-	else
-		nthreads = threads->nr;
+	nthreads = perf_thread_map__nr(threads);
 
 	if (evsel->cgrp)
 		pid = evsel->cgrp->fd;
@@ -2076,6 +2081,7 @@ retry_open:
 
 			test_attr__ready();
 
+			/* Debug message used by test scripts */
 			pr_debug2_peo("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
 				pid, perf_cpu_map__cpu(cpus, idx).cpu, group_fd, evsel->open_flags);
 
@@ -2101,6 +2107,7 @@ retry_open:
 						fd, group_fd, evsel->open_flags);
 			}
 
+			/* Debug message used by test scripts */
 			pr_debug2_peo(" = %d\n", fd);
 
 			if (evsel->bpf_fd >= 0) {
@@ -2475,8 +2482,8 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 
 			if (data->read.group.nr > max_group_nr)
 				return -EFAULT;
-			sz = data->read.group.nr *
-			     sizeof(struct sample_read_value);
+
+			sz = data->read.group.nr * sample_read_value_size(read_format);
 			OVERFLOW_CHECK(array, sz, max_size);
 			data->read.group.values =
 					(struct sample_read_value *)array;
@@ -2485,6 +2492,12 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 			OVERFLOW_CHECK_u64(array);
 			data->read.one.id = *array;
 			array++;
+
+			if (read_format & PERF_FORMAT_LOST) {
+				OVERFLOW_CHECK_u64(array);
+				data->read.one.lost = *array;
+				array++;
+			}
 		}
 	}
 

@@ -107,7 +107,7 @@ config INPUT_ATC260X_ONKEY
 
 config INPUT_ATMEL_CAPTOUCH
 	tristate "Atmel Capacitive Touch Button Driver"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on I2C
 	help
 	  Say Y here if an Atmel Capacitive Touch Button device which
@@ -330,7 +330,7 @@ config INPUT_CPCAP_PWRBUTTON
 
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
-	depends on X86_32
+	depends on X86_32 && !UML
 	select INPUT_SPARSEKMAP
 	select NEW_LEDS
 	select LEDS_CLASS

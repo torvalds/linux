@@ -1799,6 +1799,12 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 
 	lockdep_assert_held(&local->mtx);
 
+	if (sdata->vif.active_links &&
+	    !(sdata->vif.active_links & BIT(link->link_id))) {
+		ieee80211_link_update_chandef(link, chandef);
+		return 0;
+	}
+
 	mutex_lock(&local->chanctx_mtx);
 
 	ret = cfg80211_chandef_dfs_required(local->hw.wiphy,

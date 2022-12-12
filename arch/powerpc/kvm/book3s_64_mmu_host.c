@@ -90,7 +90,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 	unsigned long pfn;
 
 	/* used to check for invalidations in progress */
-	mmu_seq = kvm->mmu_notifier_seq;
+	mmu_seq = kvm->mmu_invalidate_seq;
 	smp_rmb();
 
 	/* Get host physical address for gpa */
@@ -151,7 +151,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 	cpte = kvmppc_mmu_hpte_cache_next(vcpu);
 
 	spin_lock(&kvm->mmu_lock);
-	if (!cpte || mmu_notifier_retry(kvm, mmu_seq)) {
+	if (!cpte || mmu_invalidate_retry(kvm, mmu_seq)) {
 		r = -EAGAIN;
 		goto out_unlock;
 	}

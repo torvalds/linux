@@ -1171,7 +1171,7 @@ w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (isa)
 		mutex_unlock(&isa->update_lock);
 
-	strlcpy(info->type, client_name, I2C_NAME_SIZE);
+	strscpy(info->type, client_name, I2C_NAME_SIZE);
 
 	return 0;
 

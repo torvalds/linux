@@ -755,6 +755,14 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_FW_TOC		0x15
 	/* Subquery id: Query CAP firmware version */
 	#define AMDGPU_INFO_FW_CAP		0x16
+	/* Subquery id: Query GFX RLCP firmware version */
+	#define AMDGPU_INFO_FW_GFX_RLCP		0x17
+	/* Subquery id: Query GFX RLCV firmware version */
+	#define AMDGPU_INFO_FW_GFX_RLCV		0x18
+	/* Subquery id: Query MES_KIQ firmware version */
+	#define AMDGPU_INFO_FW_MES_KIQ		0x19
+	/* Subquery id: Query MES firmware version */
+	#define AMDGPU_INFO_FW_MES		0x1a
 
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f

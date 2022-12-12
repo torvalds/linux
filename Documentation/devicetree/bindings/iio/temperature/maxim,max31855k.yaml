@@ -32,7 +32,6 @@ properties:
   reg:
     maxItems: 1
 
-  spi-max-frequency: true
   spi-cpha: true
 
 required:
@@ -40,6 +39,7 @@ required:
   - reg
 
 allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
   - if:
       properties:
         compatible:
@@ -53,7 +53,7 @@ allOf:
       properties:
         spi-cpha: false
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

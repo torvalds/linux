@@ -115,6 +115,22 @@ static int __init test_find_last_bit(const void *bitmap, unsigned long len)
 	return 0;
 }
 
+static int __init test_find_nth_bit(const unsigned long *bitmap, unsigned long len)
+{
+	unsigned long l, n, w = bitmap_weight(bitmap, len);
+	ktime_t time;
+
+	time = ktime_get();
+	for (n = 0; n < w; n++) {
+		l = find_nth_bit(bitmap, len, n);
+		WARN_ON(l >= len);
+	}
+	time = ktime_get() - time;
+	pr_err("find_nth_bit:       %18llu ns, %6ld iterations\n", time, w);
+
+	return 0;
+}
+
 static int __init test_find_next_and_bit(const void *bitmap,
 		const void *bitmap2, unsigned long len)
 {
@@ -142,6 +158,7 @@ static int __init find_bit_test(void)
 	test_find_next_bit(bitmap, BITMAP_LEN);
 	test_find_next_zero_bit(bitmap, BITMAP_LEN);
 	test_find_last_bit(bitmap, BITMAP_LEN);
+	test_find_nth_bit(bitmap, BITMAP_LEN / 10);
 
 	/*
 	 * test_find_first_bit() may take some time, so
@@ -157,13 +174,14 @@ static int __init find_bit_test(void)
 	bitmap_zero(bitmap2, BITMAP_LEN);
 
 	while (nbits--) {
-		__set_bit(prandom_u32() % BITMAP_LEN, bitmap);
-		__set_bit(prandom_u32() % BITMAP_LEN, bitmap2);
+		__set_bit(prandom_u32_max(BITMAP_LEN), bitmap);
+		__set_bit(prandom_u32_max(BITMAP_LEN), bitmap2);
 	}
 
 	test_find_next_bit(bitmap, BITMAP_LEN);
 	test_find_next_zero_bit(bitmap, BITMAP_LEN);
 	test_find_last_bit(bitmap, BITMAP_LEN);
+	test_find_nth_bit(bitmap, BITMAP_LEN);
 	test_find_first_bit(bitmap, BITMAP_LEN);
 	test_find_first_and_bit(bitmap, bitmap2, BITMAP_LEN);
 	test_find_next_and_bit(bitmap, bitmap2, BITMAP_LEN);

@@ -2160,7 +2160,7 @@ static void setup_frame_info(struct ieee80211_hw *hw,
 		fi->keyix = an->ps_key;
 	else
 		fi->keyix = ATH9K_TXKEYIX_INVALID;
-	fi->dyn_smps = sta && sta->smps_mode == IEEE80211_SMPS_DYNAMIC;
+	fi->dyn_smps = sta && sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC;
 	fi->keytype = keytype;
 	fi->framelen = framelen;
 	fi->tx_power = txpower;

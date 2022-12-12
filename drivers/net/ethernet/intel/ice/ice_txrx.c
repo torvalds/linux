@@ -610,7 +610,7 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	if (test_bit(ICE_VSI_DOWN, vsi->state))
 		return -ENETDOWN;
 
-	if (!ice_is_xdp_ena_vsi(vsi) || queue_index >= vsi->num_xdp_txq)
+	if (!ice_is_xdp_ena_vsi(vsi))
 		return -ENXIO;
 
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
@@ -621,6 +621,9 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		xdp_ring = vsi->xdp_rings[queue_index];
 		spin_lock(&xdp_ring->tx_lock);
 	} else {
+		/* Generally, should not happen */
+		if (unlikely(queue_index >= vsi->num_xdp_txq))
+			return -ENXIO;
 		xdp_ring = vsi->xdp_rings[queue_index];
 	}
 
@@ -1464,7 +1467,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 		bool wd;
 
 		if (tx_ring->xsk_pool)
-			wd = ice_xmit_zc(tx_ring, ICE_DESC_UNUSED(tx_ring), budget);
+			wd = ice_xmit_zc(tx_ring);
 		else if (ice_ring_is_xdp(tx_ring))
 			wd = true;
 		else
@@ -2255,8 +2258,10 @@ ice_tstamp(struct ice_tx_ring *tx_ring, struct sk_buff *skb,
 
 	/* Grab an open timestamp slot */
 	idx = ice_ptp_request_ts(tx_ring->tx_tstamps, skb);
-	if (idx < 0)
+	if (idx < 0) {
+		tx_ring->vsi->back->ptp.tx_hwtstamp_skipped++;
 		return;
+	}
 
 	off->cd_qw1 |= (u64)(ICE_TX_DESC_DTYPE_CTX |
 			     (ICE_TX_CTX_DESC_TSYN << ICE_TXD_CTX_QW1_CMD_S) |

@@ -53,16 +53,16 @@ static int minix_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 }
 
 static int minix_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
-			 struct dentry *dentry, umode_t mode)
+			 struct file *file, umode_t mode)
 {
 	int error;
 	struct inode *inode = minix_new_inode(dir, mode, &error);
 	if (inode) {
 		minix_set_inode(inode, 0);
 		mark_inode_dirty(inode);
-		d_tmpfile(dentry, inode);
+		d_tmpfile(file, inode);
 	}
-	return error;
+	return finish_open_simple(file, error);
 }
 
 static int minix_create(struct user_namespace *mnt_userns, struct inode *dir,

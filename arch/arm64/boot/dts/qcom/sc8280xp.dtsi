@@ -1312,6 +1312,8 @@
 					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_USB3_0 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
 
+			wakeup-source;
+
 			status = "disabled";
 
 			usb_0_dwc3: usb@a600000 {
@@ -1363,6 +1365,8 @@
 			interconnects = <&aggre1_noc MASTER_USB3_1 0 &mc_virt SLAVE_EBI1 0>,
 					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_USB3_1 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
+
+			wakeup-source;
 
 			status = "disabled";
 

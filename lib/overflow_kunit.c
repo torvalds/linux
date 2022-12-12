@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Test cases for arithmetic overflow checks. See:
- * https://www.kernel.org/doc/html/latest/dev-tools/kunit/kunit-tool.html#configuring-building-and-running-tests
+ * "Running tests with kunit_tool" at Documentation/dev-tools/kunit/start.rst
  *	./tools/testing/kunit/kunit.py run overflow [--raw_output]
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -16,12 +16,15 @@
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 
-#define DEFINE_TEST_ARRAY(t)			\
-	static const struct test_ ## t {	\
-		t a, b;				\
-		t sum, diff, prod;		\
-		bool s_of, d_of, p_of;		\
-	} t ## _tests[]
+#define DEFINE_TEST_ARRAY_TYPED(t1, t2, t)			\
+	static const struct test_ ## t1 ## _ ## t2 ## __ ## t {	\
+		t1 a;						\
+		t2 b;						\
+		t sum, diff, prod;				\
+		bool s_of, d_of, p_of;				\
+	} t1 ## _ ## t2 ## __ ## t ## _tests[]
+
+#define DEFINE_TEST_ARRAY(t)	DEFINE_TEST_ARRAY_TYPED(t, t, t)
 
 DEFINE_TEST_ARRAY(u8) = {
 	{0, 0, 0, 0, 0, false, false, false},
@@ -222,21 +225,27 @@ DEFINE_TEST_ARRAY(s64) = {
 };
 #endif
 
-#define check_one_op(t, fmt, op, sym, a, b, r, of) do {		\
-	t _r;							\
-	bool _of;						\
-								\
-	_of = check_ ## op ## _overflow(a, b, &_r);		\
-	KUNIT_EXPECT_EQ_MSG(test, _of, of,			\
+#define check_one_op(t, fmt, op, sym, a, b, r, of) do {			\
+	int _a_orig = a, _a_bump = a + 1;				\
+	int _b_orig = b, _b_bump = b + 1;				\
+	bool _of;							\
+	t _r;								\
+									\
+	_of = check_ ## op ## _overflow(a, b, &_r);			\
+	KUNIT_EXPECT_EQ_MSG(test, _of, of,				\
 		"expected "fmt" "sym" "fmt" to%s overflow (type %s)\n",	\
-		a, b, of ? "" : " not", #t);			\
-	KUNIT_EXPECT_EQ_MSG(test, _r, r,			\
+		a, b, of ? "" : " not", #t);				\
+	KUNIT_EXPECT_EQ_MSG(test, _r, r,				\
 		"expected "fmt" "sym" "fmt" == "fmt", got "fmt" (type %s)\n", \
-		a, b, r, _r, #t);				\
+		a, b, r, _r, #t);					\
+	/* Check for internal macro side-effects. */			\
+	_of = check_ ## op ## _overflow(_a_orig++, _b_orig++, &_r);	\
+	KUNIT_EXPECT_EQ_MSG(test, _a_orig, _a_bump, "Unexpected " #op " macro side-effect!\n"); \
+	KUNIT_EXPECT_EQ_MSG(test, _b_orig, _b_bump, "Unexpected " #op " macro side-effect!\n"); \
 } while (0)
 
-#define DEFINE_TEST_FUNC(t, fmt)					\
-static void do_test_ ## t(struct kunit *test, const struct test_ ## t *p) \
+#define DEFINE_TEST_FUNC_TYPED(n, t, fmt)				\
+static void do_test_ ## n(struct kunit *test, const struct test_ ## n *p) \
 {							   		\
 	check_one_op(t, fmt, add, "+", p->a, p->b, p->sum, p->s_of);	\
 	check_one_op(t, fmt, add, "+", p->b, p->a, p->sum, p->s_of);	\
@@ -245,14 +254,17 @@ static void do_test_ ## t(struct kunit *test, const struct test_ ## t *p) \
 	check_one_op(t, fmt, mul, "*", p->b, p->a, p->prod, p->p_of);	\
 }									\
 									\
-static void t ## _overflow_test(struct kunit *test) {			\
+static void n ## _overflow_test(struct kunit *test) {			\
 	unsigned i;							\
 									\
-	for (i = 0; i < ARRAY_SIZE(t ## _tests); ++i)			\
-		do_test_ ## t(test, &t ## _tests[i]);			\
+	for (i = 0; i < ARRAY_SIZE(n ## _tests); ++i)			\
+		do_test_ ## n(test, &n ## _tests[i]);			\
 	kunit_info(test, "%zu %s arithmetic tests finished\n",		\
-		ARRAY_SIZE(t ## _tests), #t);				\
+		ARRAY_SIZE(n ## _tests), #n);				\
 }
+
+#define DEFINE_TEST_FUNC(t, fmt)					\
+	DEFINE_TEST_FUNC_TYPED(t ## _ ## t ## __ ## t, t, fmt)
 
 DEFINE_TEST_FUNC(u8, "%d");
 DEFINE_TEST_FUNC(s8, "%d");
@@ -265,9 +277,32 @@ DEFINE_TEST_FUNC(u64, "%llu");
 DEFINE_TEST_FUNC(s64, "%lld");
 #endif
 
-static void overflow_shift_test(struct kunit *test)
-{
-	int count = 0;
+DEFINE_TEST_ARRAY_TYPED(u32, u32, u8) = {
+	{0, 0, 0, 0, 0, false, false, false},
+	{U8_MAX, 2, 1, U8_MAX - 2, U8_MAX - 1, true, false, true},
+	{U8_MAX + 1, 0, 0, 0, 0, true, true, false},
+};
+DEFINE_TEST_FUNC_TYPED(u32_u32__u8, u8, "%d");
+
+DEFINE_TEST_ARRAY_TYPED(u32, u32, int) = {
+	{0, 0, 0, 0, 0, false, false, false},
+	{U32_MAX, 0, -1, -1, 0, true, true, false},
+};
+DEFINE_TEST_FUNC_TYPED(u32_u32__int, int, "%d");
+
+DEFINE_TEST_ARRAY_TYPED(u8, u8, int) = {
+	{0, 0, 0, 0, 0, false, false, false},
+	{U8_MAX, U8_MAX, 2 * U8_MAX, 0, U8_MAX * U8_MAX, false, false, false},
+	{1, 2, 3, -1, 2, false, false, false},
+};
+DEFINE_TEST_FUNC_TYPED(u8_u8__int, int, "%d");
+
+DEFINE_TEST_ARRAY_TYPED(int, int, u8) = {
+	{0, 0, 0, 0, 0, false, false, false},
+	{1, 2, 3, U8_MAX, 2, false, true, false},
+	{-1, 0, U8_MAX, U8_MAX, 0, true, true, false},
+};
+DEFINE_TEST_FUNC_TYPED(int_int__u8, u8, "%d");
 
 /* Args are: value, shift, type, expected result, overflow expected */
 #define TEST_ONE_SHIFT(a, s, t, expect, of)	do {			\
@@ -291,6 +326,10 @@ static void overflow_shift_test(struct kunit *test)
 	}								\
 	count++;							\
 } while (0)
+
+static void shift_sane_test(struct kunit *test)
+{
+	int count = 0;
 
 	/* Sane shifts. */
 	TEST_ONE_SHIFT(1, 0, u8, 1 << 0, false);
@@ -333,6 +372,13 @@ static void overflow_shift_test(struct kunit *test)
 	TEST_ONE_SHIFT(0, 30, int, 0, false);
 	TEST_ONE_SHIFT(0, 30, s32, 0, false);
 	TEST_ONE_SHIFT(0, 62, s64, 0, false);
+
+	kunit_info(test, "%d sane shift tests finished\n", count);
+}
+
+static void shift_overflow_test(struct kunit *test)
+{
+	int count = 0;
 
 	/* Overflow: shifted the bit off the end. */
 	TEST_ONE_SHIFT(1, 8, u8, 0, true);
@@ -381,6 +427,13 @@ static void overflow_shift_test(struct kunit *test)
 	/* 0100000100001000001000000010000001000010000001000100010001001011 */
 	TEST_ONE_SHIFT(4686030735197619275LL, 2, s64, 0, true);
 
+	kunit_info(test, "%d overflow shift tests finished\n", count);
+}
+
+static void shift_truncate_test(struct kunit *test)
+{
+	int count = 0;
+
 	/* Overflow: values larger than destination type. */
 	TEST_ONE_SHIFT(0x100, 0, u8, 0, true);
 	TEST_ONE_SHIFT(0xFF, 0, s8, 0, true);
@@ -391,6 +444,33 @@ static void overflow_shift_test(struct kunit *test)
 	TEST_ONE_SHIFT(0xFFFFFFFFUL, 0, s32, 0, true);
 	TEST_ONE_SHIFT(0xFFFFFFFFUL, 0, int, 0, true);
 	TEST_ONE_SHIFT(0xFFFFFFFFFFFFFFFFULL, 0, s64, 0, true);
+
+	/* Overflow: shifted at or beyond entire type's bit width. */
+	TEST_ONE_SHIFT(0, 8, u8, 0, true);
+	TEST_ONE_SHIFT(0, 9, u8, 0, true);
+	TEST_ONE_SHIFT(0, 8, s8, 0, true);
+	TEST_ONE_SHIFT(0, 9, s8, 0, true);
+	TEST_ONE_SHIFT(0, 16, u16, 0, true);
+	TEST_ONE_SHIFT(0, 17, u16, 0, true);
+	TEST_ONE_SHIFT(0, 16, s16, 0, true);
+	TEST_ONE_SHIFT(0, 17, s16, 0, true);
+	TEST_ONE_SHIFT(0, 32, u32, 0, true);
+	TEST_ONE_SHIFT(0, 33, u32, 0, true);
+	TEST_ONE_SHIFT(0, 32, int, 0, true);
+	TEST_ONE_SHIFT(0, 33, int, 0, true);
+	TEST_ONE_SHIFT(0, 32, s32, 0, true);
+	TEST_ONE_SHIFT(0, 33, s32, 0, true);
+	TEST_ONE_SHIFT(0, 64, u64, 0, true);
+	TEST_ONE_SHIFT(0, 65, u64, 0, true);
+	TEST_ONE_SHIFT(0, 64, s64, 0, true);
+	TEST_ONE_SHIFT(0, 65, s64, 0, true);
+
+	kunit_info(test, "%d truncate shift tests finished\n", count);
+}
+
+static void shift_nonsense_test(struct kunit *test)
+{
+	int count = 0;
 
 	/* Nonsense: negative initial value. */
 	TEST_ONE_SHIFT(-1, 0, s8, 0, true);
@@ -416,26 +496,6 @@ static void overflow_shift_test(struct kunit *test)
 	TEST_ONE_SHIFT(0, -30, s64, 0, true);
 	TEST_ONE_SHIFT(0, -30, u64, 0, true);
 
-	/* Overflow: shifted at or beyond entire type's bit width. */
-	TEST_ONE_SHIFT(0, 8, u8, 0, true);
-	TEST_ONE_SHIFT(0, 9, u8, 0, true);
-	TEST_ONE_SHIFT(0, 8, s8, 0, true);
-	TEST_ONE_SHIFT(0, 9, s8, 0, true);
-	TEST_ONE_SHIFT(0, 16, u16, 0, true);
-	TEST_ONE_SHIFT(0, 17, u16, 0, true);
-	TEST_ONE_SHIFT(0, 16, s16, 0, true);
-	TEST_ONE_SHIFT(0, 17, s16, 0, true);
-	TEST_ONE_SHIFT(0, 32, u32, 0, true);
-	TEST_ONE_SHIFT(0, 33, u32, 0, true);
-	TEST_ONE_SHIFT(0, 32, int, 0, true);
-	TEST_ONE_SHIFT(0, 33, int, 0, true);
-	TEST_ONE_SHIFT(0, 32, s32, 0, true);
-	TEST_ONE_SHIFT(0, 33, s32, 0, true);
-	TEST_ONE_SHIFT(0, 64, u64, 0, true);
-	TEST_ONE_SHIFT(0, 65, u64, 0, true);
-	TEST_ONE_SHIFT(0, 64, s64, 0, true);
-	TEST_ONE_SHIFT(0, 65, s64, 0, true);
-
 	/*
 	 * Corner case: for unsigned types, we fail when we've shifted
 	 * through the entire width of bits. For signed types, we might
@@ -451,9 +511,9 @@ static void overflow_shift_test(struct kunit *test)
 	TEST_ONE_SHIFT(0, 31, s32, 0, false);
 	TEST_ONE_SHIFT(0, 63, s64, 0, false);
 
-	kunit_info(test, "%d shift tests finished\n", count);
-#undef TEST_ONE_SHIFT
+	kunit_info(test, "%d nonsense shift tests finished\n", count);
 }
+#undef TEST_ONE_SHIFT
 
 /*
  * Deal with the various forms of allocator arguments. See comments above
@@ -649,18 +709,25 @@ static void overflow_size_helpers_test(struct kunit *test)
 }
 
 static struct kunit_case overflow_test_cases[] = {
-	KUNIT_CASE(u8_overflow_test),
-	KUNIT_CASE(s8_overflow_test),
-	KUNIT_CASE(u16_overflow_test),
-	KUNIT_CASE(s16_overflow_test),
-	KUNIT_CASE(u32_overflow_test),
-	KUNIT_CASE(s32_overflow_test),
+	KUNIT_CASE(u8_u8__u8_overflow_test),
+	KUNIT_CASE(s8_s8__s8_overflow_test),
+	KUNIT_CASE(u16_u16__u16_overflow_test),
+	KUNIT_CASE(s16_s16__s16_overflow_test),
+	KUNIT_CASE(u32_u32__u32_overflow_test),
+	KUNIT_CASE(s32_s32__s32_overflow_test),
 /* Clang 13 and earlier generate unwanted libcalls on 32-bit. */
 #if BITS_PER_LONG == 64
-	KUNIT_CASE(u64_overflow_test),
-	KUNIT_CASE(s64_overflow_test),
+	KUNIT_CASE(u64_u64__u64_overflow_test),
+	KUNIT_CASE(s64_s64__s64_overflow_test),
 #endif
-	KUNIT_CASE(overflow_shift_test),
+	KUNIT_CASE(u32_u32__u8_overflow_test),
+	KUNIT_CASE(u32_u32__int_overflow_test),
+	KUNIT_CASE(u8_u8__int_overflow_test),
+	KUNIT_CASE(int_int__u8_overflow_test),
+	KUNIT_CASE(shift_sane_test),
+	KUNIT_CASE(shift_overflow_test),
+	KUNIT_CASE(shift_truncate_test),
+	KUNIT_CASE(shift_nonsense_test),
 	KUNIT_CASE(overflow_allocation_test),
 	KUNIT_CASE(overflow_size_helpers_test),
 	{}

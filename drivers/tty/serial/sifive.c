@@ -646,7 +646,7 @@ static int sifive_serial_clk_notifier(struct notifier_block *nb,
 
 static void sifive_serial_set_termios(struct uart_port *port,
 				      struct ktermios *termios,
-				      struct ktermios *old)
+				      const struct ktermios *old)
 {
 	struct sifive_serial_port *ssp = port_to_sifive_serial_port(port);
 	unsigned long flags;
@@ -945,7 +945,7 @@ static int sifive_serial_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 	}
 
-	clk = devm_clk_get(&pdev->dev, NULL);
+	clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "unable to find controller clock\n");
 		return PTR_ERR(clk);

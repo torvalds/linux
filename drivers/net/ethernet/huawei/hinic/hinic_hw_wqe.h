@@ -261,23 +261,6 @@
 #define HINIC_RSS_TYPE_GET(val, member)                        \
 		(((u32)(val) >> HINIC_RSS_TYPE_##member##_SHIFT) & 0x1)
 
-enum hinic_l4offload_type {
-	HINIC_L4_OFF_DISABLE            = 0,
-	HINIC_TCP_OFFLOAD_ENABLE        = 1,
-	HINIC_SCTP_OFFLOAD_ENABLE       = 2,
-	HINIC_UDP_OFFLOAD_ENABLE        = 3,
-};
-
-enum hinic_vlan_offload {
-	HINIC_VLAN_OFF_DISABLE = 0,
-	HINIC_VLAN_OFF_ENABLE  = 1,
-};
-
-enum hinic_pkt_parsed {
-	HINIC_PKT_NOT_PARSED = 0,
-	HINIC_PKT_PARSED     = 1,
-};
-
 enum hinic_l3_offload_type {
 	L3TYPE_UNKNOWN = 0,
 	IPV6_PKT = 1,
@@ -305,16 +288,8 @@ enum hinic_outer_l3type {
 	HINIC_OUTER_L3TYPE_IPV4_CHKSUM          = 3,
 };
 
-enum hinic_media_type {
-	HINIC_MEDIA_UNKNOWN = 0,
-};
-
 enum hinic_l2type {
 	HINIC_L2TYPE_ETH = 0,
-};
-
-enum hinc_tunnel_l4type {
-	HINIC_TUNNEL_L4TYPE_UNKNOWN = 0,
 };
 
 struct hinic_cmdq_header {

@@ -15,6 +15,7 @@ void hmem_register_device(int target_nid, struct resource *r)
 		.start = r->start,
 		.end = r->end,
 		.flags = IORESOURCE_MEM,
+		.desc = IORES_DESC_SOFT_RESERVED,
 	};
 	struct platform_device *pdev;
 	struct memregion_info info;
@@ -47,7 +48,7 @@ void hmem_register_device(int target_nid, struct resource *r)
 	rc = platform_device_add_data(pdev, &info, sizeof(info));
 	if (rc < 0) {
 		pr_err("hmem memregion_info allocation failure for %pr\n", &res);
-		goto out_pdev;
+		goto out_resource;
 	}
 
 	rc = platform_device_add_resources(pdev, &res, 1);
@@ -65,7 +66,7 @@ void hmem_register_device(int target_nid, struct resource *r)
 	return;
 
 out_resource:
-	put_device(&pdev->dev);
+	platform_device_put(pdev);
 out_pdev:
 	memregion_free(id);
 }

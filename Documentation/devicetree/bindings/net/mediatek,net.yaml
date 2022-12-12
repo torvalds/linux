@@ -69,6 +69,15 @@ properties:
       A list of phandle to the syscon node that handles the SGMII setup which is required for
       those SoCs equipped with SGMII.
 
+  mediatek,wed:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    minItems: 2
+    maxItems: 2
+    items:
+      maxItems: 1
+    description:
+      List of phandles to wireless ethernet dispatch nodes.
+
   dma-coherent: true
 
   mdio-bus:
@@ -112,6 +121,8 @@ allOf:
             Phandle to the syscon node that handles the ports slew rate and
             driver current.
 
+        mediatek,wed: false
+
   - if:
       properties:
         compatible:
@@ -143,15 +154,6 @@ allOf:
         mediatek,sgmiisys:
           minItems: 1
           maxItems: 1
-
-        mediatek,wed:
-          $ref: /schemas/types.yaml#/definitions/phandle-array
-          minItems: 2
-          maxItems: 2
-          items:
-            maxItems: 1
-          description:
-            List of phandles to wireless ethernet dispatch nodes.
 
         mediatek,pcie-mirror:
           $ref: /schemas/types.yaml#/definitions/phandle
@@ -202,6 +204,8 @@ allOf:
           minItems: 2
           maxItems: 2
 
+        mediatek,wed: false
+
   - if:
       properties:
         compatible:
@@ -237,6 +241,11 @@ allOf:
         mediatek,sgmiisys:
           minItems: 2
           maxItems: 2
+
+        mediatek,wed-pcie:
+          $ref: /schemas/types.yaml#/definitions/phandle
+          description:
+            Phandle to the mediatek wed-pcie controller.
 
 patternProperties:
   "^mac@[0-1]$":

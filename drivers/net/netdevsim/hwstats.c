@@ -433,11 +433,11 @@ int nsim_dev_hwstats_init(struct nsim_dev *nsim_dev)
 		goto err_remove_hwstats_recursive;
 	}
 
-	debugfs_create_file("enable_ifindex", 0600, hwstats->l3_ddir, hwstats,
+	debugfs_create_file("enable_ifindex", 0200, hwstats->l3_ddir, hwstats,
 			    &nsim_dev_hwstats_l3_enable_fops.fops);
-	debugfs_create_file("disable_ifindex", 0600, hwstats->l3_ddir, hwstats,
+	debugfs_create_file("disable_ifindex", 0200, hwstats->l3_ddir, hwstats,
 			    &nsim_dev_hwstats_l3_disable_fops.fops);
-	debugfs_create_file("fail_next_enable", 0600, hwstats->l3_ddir, hwstats,
+	debugfs_create_file("fail_next_enable", 0200, hwstats->l3_ddir, hwstats,
 			    &nsim_dev_hwstats_l3_fail_fops.fops);
 
 	INIT_DELAYED_WORK(&hwstats->traffic_dw,

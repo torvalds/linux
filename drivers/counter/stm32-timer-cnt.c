@@ -417,3 +417,4 @@ MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_ALIAS("platform:stm32-timer-counter");
 MODULE_DESCRIPTION("STMicroelectronics STM32 TIMER counter driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(COUNTER);

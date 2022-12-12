@@ -298,7 +298,7 @@ static int sharp_ls060_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int sharp_ls060_remove(struct mipi_dsi_device *dsi)
+static void sharp_ls060_remove(struct mipi_dsi_device *dsi)
 {
 	struct sharp_ls060 *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
@@ -308,8 +308,6 @@ static int sharp_ls060_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "Failed to detach from DSI host: %d\n", ret);
 
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id sharp_ls060t1sx01_of_match[] = {

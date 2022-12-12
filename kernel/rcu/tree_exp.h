@@ -828,11 +828,13 @@ static void rcu_exp_handler(void *unused)
 {
 	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	struct rcu_node *rnp = rdp->mynode;
+	bool preempt_bh_enabled = !(preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK));
 
 	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask) ||
 	    __this_cpu_read(rcu_data.cpu_no_qs.b.exp))
 		return;
-	if (rcu_is_cpu_rrupt_from_idle()) {
+	if (rcu_is_cpu_rrupt_from_idle() ||
+	    (IS_ENABLED(CONFIG_PREEMPT_COUNT) && preempt_bh_enabled)) {
 		rcu_report_exp_rdp(this_cpu_ptr(&rcu_data));
 		return;
 	}
@@ -906,6 +908,7 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
 void synchronize_rcu_expedited(void)
 {
 	bool boottime = (rcu_scheduler_active == RCU_SCHEDULER_INIT);
+	unsigned long flags;
 	struct rcu_exp_work rew;
 	struct rcu_node *rnp;
 	unsigned long s;
@@ -924,8 +927,11 @@ void synchronize_rcu_expedited(void)
 		// them, which allows reuse of ->gp_seq_polled_exp_snap.
 		rcu_poll_gp_seq_start_unlocked(&rcu_state.gp_seq_polled_exp_snap);
 		rcu_poll_gp_seq_end_unlocked(&rcu_state.gp_seq_polled_exp_snap);
-		if (rcu_init_invoked())
-			cond_resched();
+
+		local_irq_save(flags);
+		WARN_ON_ONCE(num_online_cpus() > 1);
+		rcu_state.expedited_sequence += (1 << RCU_SEQ_CTR_SHIFT);
+		local_irq_restore(flags);
 		return;  // Context allows vacuous grace periods.
 	}
 
@@ -1028,6 +1034,24 @@ unsigned long start_poll_synchronize_rcu_expedited(void)
 EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu_expedited);
 
 /**
+ * start_poll_synchronize_rcu_expedited_full - Take a full snapshot and start expedited grace period
+ * @rgosp: Place to put snapshot of grace-period state
+ *
+ * Places the normal and expedited grace-period states in rgosp.  This
+ * state value can be passed to a later call to cond_synchronize_rcu_full()
+ * or poll_state_synchronize_rcu_full() to determine whether or not a
+ * grace period (whether normal or expedited) has elapsed in the meantime.
+ * If the needed expedited grace period is not already slated to start,
+ * initiates that grace period.
+ */
+void start_poll_synchronize_rcu_expedited_full(struct rcu_gp_oldstate *rgosp)
+{
+	get_state_synchronize_rcu_full(rgosp);
+	(void)start_poll_synchronize_rcu_expedited();
+}
+EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu_expedited_full);
+
+/**
  * cond_synchronize_rcu_expedited - Conditionally wait for an expedited RCU grace period
  *
  * @oldstate: value from get_state_synchronize_rcu(), start_poll_synchronize_rcu(), or start_poll_synchronize_rcu_expedited()
@@ -1053,3 +1077,30 @@ void cond_synchronize_rcu_expedited(unsigned long oldstate)
 		synchronize_rcu_expedited();
 }
 EXPORT_SYMBOL_GPL(cond_synchronize_rcu_expedited);
+
+/**
+ * cond_synchronize_rcu_expedited_full - Conditionally wait for an expedited RCU grace period
+ * @rgosp: value from get_state_synchronize_rcu_full(), start_poll_synchronize_rcu_full(), or start_poll_synchronize_rcu_expedited_full()
+ *
+ * If a full RCU grace period has elapsed since the call to
+ * get_state_synchronize_rcu_full(), start_poll_synchronize_rcu_full(),
+ * or start_poll_synchronize_rcu_expedited_full() from which @rgosp was
+ * obtained, just return.  Otherwise, invoke synchronize_rcu_expedited()
+ * to wait for a full grace period.
+ *
+ * Yes, this function does not take counter wrap into account.
+ * But counter wrap is harmless.  If the counter wraps, we have waited for
+ * more than 2 billion grace periods (and way more on a 64-bit system!),
+ * so waiting for a couple of additional grace periods should be just fine.
+ *
+ * This function provides the same memory-ordering guarantees that
+ * would be provided by a synchronize_rcu() that was invoked at the call
+ * to the function that provided @rgosp and that returned at the end of
+ * this function.
+ */
+void cond_synchronize_rcu_expedited_full(struct rcu_gp_oldstate *rgosp)
+{
+	if (!poll_state_synchronize_rcu_full(rgosp))
+		synchronize_rcu_expedited();
+}
+EXPORT_SYMBOL_GPL(cond_synchronize_rcu_expedited_full);

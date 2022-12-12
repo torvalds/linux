@@ -83,6 +83,36 @@ static bool is_iter_map_target(const char *target_name)
 	       strcmp(target_name, "bpf_sk_storage_map") == 0;
 }
 
+static bool is_iter_cgroup_target(const char *target_name)
+{
+	return strcmp(target_name, "cgroup") == 0;
+}
+
+static const char *cgroup_order_string(__u32 order)
+{
+	switch (order) {
+	case BPF_CGROUP_ITER_ORDER_UNSPEC:
+		return "order_unspec";
+	case BPF_CGROUP_ITER_SELF_ONLY:
+		return "self_only";
+	case BPF_CGROUP_ITER_DESCENDANTS_PRE:
+		return "descendants_pre";
+	case BPF_CGROUP_ITER_DESCENDANTS_POST:
+		return "descendants_post";
+	case BPF_CGROUP_ITER_ANCESTORS_UP:
+		return "ancestors_up";
+	default: /* won't happen */
+		return "unknown";
+	}
+}
+
+static bool is_iter_task_target(const char *target_name)
+{
+	return strcmp(target_name, "task") == 0 ||
+		strcmp(target_name, "task_file") == 0 ||
+		strcmp(target_name, "task_vma") == 0;
+}
+
 static void show_iter_json(struct bpf_link_info *info, json_writer_t *wtr)
 {
 	const char *target_name = u64_to_ptr(info->iter.target_name);
@@ -91,6 +121,18 @@ static void show_iter_json(struct bpf_link_info *info, json_writer_t *wtr)
 
 	if (is_iter_map_target(target_name))
 		jsonw_uint_field(wtr, "map_id", info->iter.map.map_id);
+	else if (is_iter_task_target(target_name)) {
+		if (info->iter.task.tid)
+			jsonw_uint_field(wtr, "tid", info->iter.task.tid);
+		else if (info->iter.task.pid)
+			jsonw_uint_field(wtr, "pid", info->iter.task.pid);
+	}
+
+	if (is_iter_cgroup_target(target_name)) {
+		jsonw_lluint_field(wtr, "cgroup_id", info->iter.cgroup.cgroup_id);
+		jsonw_string_field(wtr, "order",
+				   cgroup_order_string(info->iter.cgroup.order));
+	}
 }
 
 static int get_prog_info(int prog_id, struct bpf_prog_info *info)
@@ -208,6 +250,18 @@ static void show_iter_plain(struct bpf_link_info *info)
 
 	if (is_iter_map_target(target_name))
 		printf("map_id %u  ", info->iter.map.map_id);
+	else if (is_iter_task_target(target_name)) {
+		if (info->iter.task.tid)
+			printf("tid %u ", info->iter.task.tid);
+		else if (info->iter.task.pid)
+			printf("pid %u ", info->iter.task.pid);
+	}
+
+	if (is_iter_cgroup_target(target_name)) {
+		printf("cgroup_id %llu  ", info->iter.cgroup.cgroup_id);
+		printf("order %s  ",
+		       cgroup_order_string(info->iter.cgroup.order));
+	}
 }
 
 static int show_link_close_plain(int fd, struct bpf_link_info *info)

@@ -109,7 +109,6 @@ void __init free_bootmem_cpumask_var(cpumask_var_t mask)
 }
 #endif
 
-#if NR_CPUS > 1
 /**
  * cpumask_local_spread - select the i'th cpu with local numa cpu's first
  * @i: index number
@@ -129,23 +128,21 @@ unsigned int cpumask_local_spread(unsigned int i, int node)
 	i %= num_online_cpus();
 
 	if (node == NUMA_NO_NODE) {
-		for_each_cpu(cpu, cpu_online_mask)
-			if (i-- == 0)
-				return cpu;
+		cpu = cpumask_nth(i, cpu_online_mask);
+		if (cpu < nr_cpu_ids)
+			return cpu;
 	} else {
 		/* NUMA first. */
-		for_each_cpu_and(cpu, cpumask_of_node(node), cpu_online_mask)
-			if (i-- == 0)
-				return cpu;
+		cpu = cpumask_nth_and(i, cpu_online_mask, cpumask_of_node(node));
+		if (cpu < nr_cpu_ids)
+			return cpu;
 
-		for_each_cpu(cpu, cpu_online_mask) {
-			/* Skip NUMA nodes, done above. */
-			if (cpumask_test_cpu(cpu, cpumask_of_node(node)))
-				continue;
+		i -= cpumask_weight_and(cpu_online_mask, cpumask_of_node(node));
 
-			if (i-- == 0)
-				return cpu;
-		}
+		/* Skip NUMA nodes, done above. */
+		cpu = cpumask_nth_andnot(i, cpu_online_mask, cpumask_of_node(node));
+		if (cpu < nr_cpu_ids)
+			return cpu;
 	}
 	BUG();
 }
@@ -169,10 +166,8 @@ unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
 	/* NOTE: our first selection will skip 0. */
 	prev = __this_cpu_read(distribute_cpu_mask_prev);
 
-	next = cpumask_next_and(prev, src1p, src2p);
-	if (next >= nr_cpu_ids)
-		next = cpumask_first_and(src1p, src2p);
-
+	next = find_next_and_bit_wrap(cpumask_bits(src1p), cpumask_bits(src2p),
+					nr_cpumask_bits, prev + 1);
 	if (next < nr_cpu_ids)
 		__this_cpu_write(distribute_cpu_mask_prev, next);
 
@@ -186,15 +181,10 @@ unsigned int cpumask_any_distribute(const struct cpumask *srcp)
 
 	/* NOTE: our first selection will skip 0. */
 	prev = __this_cpu_read(distribute_cpu_mask_prev);
-
-	next = cpumask_next(prev, srcp);
-	if (next >= nr_cpu_ids)
-		next = cpumask_first(srcp);
-
+	next = find_next_bit_wrap(cpumask_bits(srcp), nr_cpumask_bits, prev + 1);
 	if (next < nr_cpu_ids)
 		__this_cpu_write(distribute_cpu_mask_prev, next);
 
 	return next;
 }
 EXPORT_SYMBOL(cpumask_any_distribute);
-#endif /* NR_CPUS */

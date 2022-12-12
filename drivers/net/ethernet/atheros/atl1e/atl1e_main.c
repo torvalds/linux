@@ -2354,7 +2354,7 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->mii.phy_id_mask = 0x1f;
 	adapter->mii.reg_num_mask = MDIO_REG_ADDR_MASK;
 
-	netif_napi_add(netdev, &adapter->napi, atl1e_clean, 64);
+	netif_napi_add(netdev, &adapter->napi, atl1e_clean);
 
 	timer_setup(&adapter->phy_config_timer, atl1e_phy_config, 0);
 

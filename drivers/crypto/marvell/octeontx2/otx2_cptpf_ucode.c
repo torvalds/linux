@@ -68,7 +68,7 @@ static int is_2nd_ucode_used(struct otx2_cpt_eng_grp_info *eng_grp)
 static void set_ucode_filename(struct otx2_cpt_ucode *ucode,
 			       const char *filename)
 {
-	strlcpy(ucode->filename, filename, OTX2_CPT_NAME_LENGTH);
+	strscpy(ucode->filename, filename, OTX2_CPT_NAME_LENGTH);
 }
 
 static char *get_eng_type_str(int eng_type)
@@ -126,7 +126,7 @@ static int get_ucode_type(struct device *dev,
 	int i, val = 0;
 	u8 nn;
 
-	strlcpy(tmp_ver_str, ucode_hdr->ver_str, OTX2_CPT_UCODE_VER_STR_SZ);
+	strscpy(tmp_ver_str, ucode_hdr->ver_str, OTX2_CPT_UCODE_VER_STR_SZ);
 	for (i = 0; i < strlen(tmp_ver_str); i++)
 		tmp_ver_str[i] = tolower(tmp_ver_str[i]);
 

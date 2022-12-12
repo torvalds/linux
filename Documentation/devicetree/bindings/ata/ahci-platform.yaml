@@ -30,14 +30,11 @@ select:
           - marvell,armada-3700-ahci
           - marvell,armada-8k-ahci
           - marvell,berlin2q-ahci
-          - snps,dwc-ahci
-          - snps,spear-ahci
   required:
     - compatible
 
 allOf:
-  - $ref: "sata-common.yaml#"
-
+  - $ref: "ahci-common.yaml#"
 
 properties:
   compatible:
@@ -49,17 +46,11 @@ properties:
               - marvell,berlin2-ahci
               - marvell,berlin2q-ahci
           - const: generic-ahci
-      - items:
-          - enum:
-              - rockchip,rk3568-dwc-ahci
-          - const: snps,dwc-ahci
       - enum:
           - cavium,octeon-7130-ahci
           - hisilicon,hisi-ahci
           - ibm,476gtr-ahci
           - marvell,armada-3700-ahci
-          - snps,dwc-ahci
-          - snps,spear-ahci
 
   reg:
     minItems: 1
@@ -69,48 +60,15 @@ properties:
     maxItems: 1
 
   clocks:
-    description:
-      Clock IDs array as required by the controller.
     minItems: 1
     maxItems: 3
 
   clock-names:
-    description:
-      Names of clocks corresponding to IDs in the clock property.
     minItems: 1
     maxItems: 3
 
   interrupts:
     maxItems: 1
-
-  ahci-supply:
-    description:
-      regulator for AHCI controller
-
-  dma-coherent: true
-
-  phy-supply:
-    description:
-      regulator for PHY power
-
-  phys:
-    description:
-      List of all PHYs on this controller
-    maxItems: 1
-
-  phy-names:
-    description:
-      Name specifier for the PHYs
-    maxItems: 1
-
-  ports-implemented:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
-    description: |
-      Mask that indicates which ports that the HBA supports
-      are available for software to use. Useful if PORTS_IMPL
-      is not programmed by the BIOS, which is true with
-      some embedded SoCs.
-    maximum: 0x1f
 
   power-domains:
     maxItems: 1
@@ -118,42 +76,20 @@ properties:
   resets:
     maxItems: 1
 
-  target-supply:
-    description:
-      regulator for SATA target power
+patternProperties:
+  "^sata-port@[0-9a-f]+$":
+    $ref: /schemas/ata/ahci-common.yaml#/$defs/ahci-port
+
+    anyOf:
+      - required: [ phys ]
+      - required: [ target-supply ]
+
+    unevaluatedProperties: false
 
 required:
   - compatible
   - reg
   - interrupts
-
-patternProperties:
-  "^sata-port@[0-9a-f]+$":
-    type: object
-    additionalProperties: false
-    description:
-      Subnode with configuration of the Ports.
-
-    properties:
-      reg:
-        maxItems: 1
-
-      phys:
-        maxItems: 1
-
-      phy-names:
-        maxItems: 1
-
-      target-supply:
-        description:
-          regulator for SATA target power
-
-    required:
-      - reg
-
-    anyOf:
-      - required: [ phys ]
-      - required: [ target-supply ]
 
 unevaluatedProperties: false
 
@@ -167,6 +103,8 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/berlin2q.h>
+    #include <dt-bindings/ata/ahci.h>
+
     sata@f7e90000 {
         compatible = "marvell,berlin2q-ahci", "generic-ahci";
         reg = <0xf7e90000 0x1000>;
@@ -175,15 +113,23 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
+        hba-cap = <HBA_SMPS>;
+
         sata0: sata-port@0 {
             reg = <0>;
+
             phys = <&sata_phy 0>;
             target-supply = <&reg_sata0>;
+
+            hba-port-cap = <(HBA_PORT_FBSCP | HBA_PORT_ESP)>;
         };
 
         sata1: sata-port@1 {
             reg = <1>;
+
             phys = <&sata_phy 1>;
             target-supply = <&reg_sata1>;
+
+            hba-port-cap = <(HBA_PORT_HPCP | HBA_PORT_MPSP | HBA_PORT_FBSCP)>;
         };
     };

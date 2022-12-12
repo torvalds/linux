@@ -482,7 +482,7 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->netdev_ops = &epic_netdev_ops;
 	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	netif_napi_add(dev, &ep->napi, epic_poll, 64);
+	netif_napi_add(dev, &ep->napi, epic_poll);
 
 	ret = register_netdev(dev);
 	if (ret < 0)
@@ -1392,9 +1392,9 @@ static void netdev_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *
 {
 	struct epic_private *np = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
 static int netdev_get_link_ksettings(struct net_device *dev,

@@ -170,7 +170,7 @@ static struct ovl_cache_entry *ovl_cache_entry_new(struct ovl_readdir_data *rdd,
 	return p;
 }
 
-static int ovl_cache_entry_add_rb(struct ovl_readdir_data *rdd,
+static bool ovl_cache_entry_add_rb(struct ovl_readdir_data *rdd,
 				  const char *name, int len, u64 ino,
 				  unsigned int d_type)
 {
@@ -179,22 +179,22 @@ static int ovl_cache_entry_add_rb(struct ovl_readdir_data *rdd,
 	struct ovl_cache_entry *p;
 
 	if (ovl_cache_entry_find_link(name, len, &newp, &parent))
-		return 0;
+		return true;
 
 	p = ovl_cache_entry_new(rdd, name, len, ino, d_type);
 	if (p == NULL) {
 		rdd->err = -ENOMEM;
-		return -ENOMEM;
+		return false;
 	}
 
 	list_add_tail(&p->l_node, rdd->list);
 	rb_link_node(&p->node, parent, newp);
 	rb_insert_color(&p->node, rdd->root);
 
-	return 0;
+	return true;
 }
 
-static int ovl_fill_lowest(struct ovl_readdir_data *rdd,
+static bool ovl_fill_lowest(struct ovl_readdir_data *rdd,
 			   const char *name, int namelen,
 			   loff_t offset, u64 ino, unsigned int d_type)
 {
@@ -211,7 +211,7 @@ static int ovl_fill_lowest(struct ovl_readdir_data *rdd,
 			list_add_tail(&p->l_node, &rdd->middle);
 	}
 
-	return rdd->err;
+	return rdd->err == 0;
 }
 
 void ovl_cache_free(struct list_head *list)
@@ -250,7 +250,7 @@ static void ovl_cache_put(struct ovl_dir_file *od, struct dentry *dentry)
 	}
 }
 
-static int ovl_fill_merge(struct dir_context *ctx, const char *name,
+static bool ovl_fill_merge(struct dir_context *ctx, const char *name,
 			  int namelen, loff_t offset, u64 ino,
 			  unsigned int d_type)
 {
@@ -264,7 +264,7 @@ static int ovl_fill_merge(struct dir_context *ctx, const char *name,
 		return ovl_fill_lowest(rdd, name, namelen, offset, ino, d_type);
 }
 
-static int ovl_check_whiteouts(struct path *path, struct ovl_readdir_data *rdd)
+static int ovl_check_whiteouts(const struct path *path, struct ovl_readdir_data *rdd)
 {
 	int err;
 	struct ovl_cache_entry *p;
@@ -291,7 +291,7 @@ static int ovl_check_whiteouts(struct path *path, struct ovl_readdir_data *rdd)
 	return err;
 }
 
-static inline int ovl_dir_read(struct path *realpath,
+static inline int ovl_dir_read(const struct path *realpath,
 			       struct ovl_readdir_data *rdd)
 {
 	struct file *realfile;
@@ -455,7 +455,7 @@ static u64 ovl_remap_lower_ino(u64 ino, int xinobits, int fsid,
  * copy up origin, call vfs_getattr() on the overlay entry to make
  * sure that d_ino will be consistent with st_ino from stat(2).
  */
-static int ovl_cache_update_ino(struct path *path, struct ovl_cache_entry *p)
+static int ovl_cache_update_ino(const struct path *path, struct ovl_cache_entry *p)
 
 {
 	struct dentry *dir = path->dentry;
@@ -528,7 +528,7 @@ fail:
 	goto out;
 }
 
-static int ovl_fill_plain(struct dir_context *ctx, const char *name,
+static bool ovl_fill_plain(struct dir_context *ctx, const char *name,
 			  int namelen, loff_t offset, u64 ino,
 			  unsigned int d_type)
 {
@@ -540,14 +540,14 @@ static int ovl_fill_plain(struct dir_context *ctx, const char *name,
 	p = ovl_cache_entry_new(rdd, name, namelen, ino, d_type);
 	if (p == NULL) {
 		rdd->err = -ENOMEM;
-		return -ENOMEM;
+		return false;
 	}
 	list_add_tail(&p->l_node, rdd->list);
 
-	return 0;
+	return true;
 }
 
-static int ovl_dir_read_impure(struct path *path,  struct list_head *list,
+static int ovl_dir_read_impure(const struct path *path,  struct list_head *list,
 			       struct rb_root *root)
 {
 	int err;
@@ -592,7 +592,7 @@ static int ovl_dir_read_impure(struct path *path,  struct list_head *list,
 	return 0;
 }
 
-static struct ovl_dir_cache *ovl_cache_get_impure(struct path *path)
+static struct ovl_dir_cache *ovl_cache_get_impure(const struct path *path)
 {
 	int res;
 	struct dentry *dentry = path->dentry;
@@ -648,7 +648,7 @@ struct ovl_readdir_translate {
 	bool xinowarn;
 };
 
-static int ovl_fill_real(struct dir_context *ctx, const char *name,
+static bool ovl_fill_real(struct dir_context *ctx, const char *name,
 			   int namelen, loff_t offset, u64 ino,
 			   unsigned int d_type)
 {
@@ -834,7 +834,7 @@ out_unlock:
 }
 
 static struct file *ovl_dir_open_realfile(const struct file *file,
-					  struct path *realpath)
+					  const struct path *realpath)
 {
 	struct file *res;
 	const struct cred *old_cred;
@@ -1027,7 +1027,7 @@ void ovl_cleanup_whiteouts(struct ovl_fs *ofs, struct dentry *upper,
 	inode_unlock(upper->d_inode);
 }
 
-static int ovl_check_d_type(struct dir_context *ctx, const char *name,
+static bool ovl_check_d_type(struct dir_context *ctx, const char *name,
 			  int namelen, loff_t offset, u64 ino,
 			  unsigned int d_type)
 {
@@ -1036,19 +1036,19 @@ static int ovl_check_d_type(struct dir_context *ctx, const char *name,
 
 	/* Even if d_type is not supported, DT_DIR is returned for . and .. */
 	if (!strncmp(name, ".", namelen) || !strncmp(name, "..", namelen))
-		return 0;
+		return true;
 
 	if (d_type != DT_UNKNOWN)
 		rdd->d_type_supported = true;
 
-	return 0;
+	return true;
 }
 
 /*
  * Returns 1 if d_type is supported, 0 not supported/unknown. Negative values
  * if error is encountered.
  */
-int ovl_check_d_type_supported(struct path *realpath)
+int ovl_check_d_type_supported(const struct path *realpath)
 {
 	int err;
 	struct ovl_readdir_data rdd = {
@@ -1065,7 +1065,7 @@ int ovl_check_d_type_supported(struct path *realpath)
 
 #define OVL_INCOMPATDIR_NAME "incompat"
 
-static int ovl_workdir_cleanup_recurse(struct ovl_fs *ofs, struct path *path,
+static int ovl_workdir_cleanup_recurse(struct ovl_fs *ofs, const struct path *path,
 				       int level)
 {
 	int err;

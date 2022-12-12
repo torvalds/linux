@@ -402,6 +402,7 @@ bool ice_is_pca9575_present(struct ice_hw *hw);
 #define INCVAL_HIGH_M			0xFF
 
 /* Timestamp block macros */
+#define TS_VALID			BIT(0)
 #define TS_LOW_M			0xFFFFFFFF
 #define TS_HIGH_M			0xFF
 #define TS_HIGH_S			32
@@ -412,6 +413,12 @@ bool ice_is_pca9575_present(struct ice_hw *hw);
 
 #define BYTES_PER_IDX_ADDR_L_U		8
 #define BYTES_PER_IDX_ADDR_L		4
+
+/* Tx timestamp low latency read definitions */
+#define TS_LL_READ_RETRIES		200
+#define TS_LL_READ_TS_HIGH		GENMASK(23, 16)
+#define TS_LL_READ_TS_IDX		GENMASK(29, 24)
+#define TS_LL_READ_TS			BIT(31)
 
 /* Internal PHY timestamp address */
 #define TS_L(a, idx) ((a) + ((idx) * BYTES_PER_IDX_ADDR_L_U))

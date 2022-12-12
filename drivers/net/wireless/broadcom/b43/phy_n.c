@@ -2479,11 +2479,7 @@ static void b43_nphy_gain_ctl_workarounds_rev19(struct b43_wldev *dev)
 
 static void b43_nphy_gain_ctl_workarounds_rev7(struct b43_wldev *dev)
 {
-	struct b43_phy *phy = &dev->phy;
-
-	switch (phy->rev) {
-	/* TODO */
-	}
+	/* TODO - should depend on phy->rev */
 }
 
 static void b43_nphy_gain_ctl_workarounds_rev3(struct b43_wldev *dev)

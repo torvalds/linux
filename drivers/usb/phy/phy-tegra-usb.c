@@ -1440,16 +1440,22 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 			return err;
 		}
 
-		gpiod = devm_gpiod_get_from_of_node(&pdev->dev, np,
-						    "nvidia,phy-reset-gpio",
-						    0, GPIOD_OUT_HIGH,
-						    "ulpi_phy_reset_b");
+		gpiod = devm_gpiod_get(&pdev->dev, "nvidia,phy-reset",
+				       GPIOD_OUT_HIGH);
 		err = PTR_ERR_OR_ZERO(gpiod);
 		if (err) {
 			dev_err(&pdev->dev,
 				"Request failed for reset GPIO: %d\n", err);
 			return err;
 		}
+
+		err = gpiod_set_consumer_name(gpiod, "ulpi_phy_reset_b");
+		if (err) {
+			dev_err(&pdev->dev,
+				"Failed to set up reset GPIO name: %d\n", err);
+			return err;
+		}
+
 		tegra_phy->reset_gpio = gpiod;
 
 		phy = devm_otg_ulpi_create(&pdev->dev,

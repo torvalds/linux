@@ -26,12 +26,10 @@ bool ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count);
 bool ice_xsk_any_rx_ring_ena(struct ice_vsi *vsi);
 void ice_xsk_clean_rx_ring(struct ice_rx_ring *rx_ring);
 void ice_xsk_clean_xdp_ring(struct ice_tx_ring *xdp_ring);
-bool ice_xmit_zc(struct ice_tx_ring *xdp_ring, u32 budget, int napi_budget);
+bool ice_xmit_zc(struct ice_tx_ring *xdp_ring);
+int ice_realloc_zc_buf(struct ice_vsi *vsi, bool zc);
 #else
-static inline bool
-ice_xmit_zc(struct ice_tx_ring __always_unused *xdp_ring,
-	    u32 __always_unused budget,
-	    int __always_unused napi_budget)
+static inline bool ice_xmit_zc(struct ice_tx_ring __always_unused *xdp_ring)
 {
 	return false;
 }
@@ -72,5 +70,12 @@ ice_xsk_wakeup(struct net_device __always_unused *netdev,
 
 static inline void ice_xsk_clean_rx_ring(struct ice_rx_ring *rx_ring) { }
 static inline void ice_xsk_clean_xdp_ring(struct ice_tx_ring *xdp_ring) { }
+
+static inline int
+ice_realloc_zc_buf(struct ice_vsi __always_unused *vsi,
+		   bool __always_unused zc)
+{
+	return 0;
+}
 #endif /* CONFIG_XDP_SOCKETS */
 #endif /* !_ICE_XSK_H_ */

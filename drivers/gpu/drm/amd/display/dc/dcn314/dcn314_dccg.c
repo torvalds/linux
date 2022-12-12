@@ -45,6 +45,48 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
+static void dccg314_get_pixel_rate_div(
+		struct dccg *dccg,
+		uint32_t otg_inst,
+		enum pixel_rate_div *k1,
+		enum pixel_rate_div *k2)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+	uint32_t val_k1 = PIXEL_RATE_DIV_NA, val_k2 = PIXEL_RATE_DIV_NA;
+
+	*k1 = PIXEL_RATE_DIV_NA;
+	*k2 = PIXEL_RATE_DIV_NA;
+
+	switch (otg_inst) {
+	case 0:
+		REG_GET_2(OTG_PIXEL_RATE_DIV,
+			OTG0_PIXEL_RATE_DIVK1, &val_k1,
+			OTG0_PIXEL_RATE_DIVK2, &val_k2);
+		break;
+	case 1:
+		REG_GET_2(OTG_PIXEL_RATE_DIV,
+			OTG1_PIXEL_RATE_DIVK1, &val_k1,
+			OTG1_PIXEL_RATE_DIVK2, &val_k2);
+		break;
+	case 2:
+		REG_GET_2(OTG_PIXEL_RATE_DIV,
+			OTG2_PIXEL_RATE_DIVK1, &val_k1,
+			OTG2_PIXEL_RATE_DIVK2, &val_k2);
+		break;
+	case 3:
+		REG_GET_2(OTG_PIXEL_RATE_DIV,
+			OTG3_PIXEL_RATE_DIVK1, &val_k1,
+			OTG3_PIXEL_RATE_DIVK2, &val_k2);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+	*k1 = (enum pixel_rate_div)val_k1;
+	*k2 = (enum pixel_rate_div)val_k2;
+}
+
 static void dccg314_set_pixel_rate_div(
 		struct dccg *dccg,
 		uint32_t otg_inst,
@@ -52,6 +94,11 @@ static void dccg314_set_pixel_rate_div(
 		enum pixel_rate_div k2)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+	enum pixel_rate_div cur_k1 = PIXEL_RATE_DIV_NA, cur_k2 = PIXEL_RATE_DIV_NA;
+
+	dccg314_get_pixel_rate_div(dccg, otg_inst, &cur_k1, &cur_k2);
+	if (k1 == PIXEL_RATE_DIV_NA || k2 == PIXEL_RATE_DIV_NA || (k1 == cur_k1 && k2 == cur_k2))
+		return;
 
 	switch (otg_inst) {
 	case 0:
@@ -137,7 +184,7 @@ static void dccg314_set_dtbclk_p_src(
 }
 
 /* Controls the generation of pixel valid for OTG in (OTG -> HPO case) */
-void dccg314_set_dtbclk_dto(
+static void dccg314_set_dtbclk_dto(
 		struct dccg *dccg,
 		const struct dtbclk_dto_params *params)
 {
@@ -181,7 +228,7 @@ void dccg314_set_dtbclk_dto(
 	}
 }
 
-void dccg314_set_dpstreamclk(
+static void dccg314_set_dpstreamclk(
 		struct dccg *dccg,
 		enum streamclk_source src,
 		int otg_inst,
@@ -220,7 +267,7 @@ void dccg314_set_dpstreamclk(
 	}
 }
 
-void dccg314_set_valid_pixel_rate(
+static void dccg314_set_valid_pixel_rate(
 		struct dccg *dccg,
 		int ref_dtbclk_khz,
 		int otg_inst,

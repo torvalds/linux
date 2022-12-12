@@ -245,7 +245,7 @@ static void rtl2832_sdr_urb_complete(struct urb *urb)
 		if (unlikely(fbuf == NULL)) {
 			dev->vb_full++;
 			dev_notice_ratelimited(&pdev->dev,
-					       "videobuf is full, %d packets dropped\n",
+					       "video buffer is full, %d packets dropped\n",
 					       dev->vb_full);
 			goto skip;
 		}

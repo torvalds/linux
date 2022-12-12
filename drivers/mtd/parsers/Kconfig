@@ -20,6 +20,16 @@ config MTD_BCM63XX_PARTS
 	  This provides partition parsing for BCM63xx devices with CFE
 	  bootloaders.
 
+config MTD_BRCM_U_BOOT
+	tristate "Broadcom's U-Boot partition parser"
+	depends on ARCH_BCM4908 || COMPILE_TEST
+	help
+	  Broadcom uses a custom way of storing U-Boot environment variables.
+	  They are placed inside U-Boot partition itself at unspecified offset.
+	  It's possible to locate them by looking for a custom header with a
+	  magic value. This driver does that and creates subpartitions for
+	  each found environment variables block.
+
 config MTD_CMDLINE_PARTS
 	tristate "Command line partition table parsing"
 	depends on MTD
@@ -69,8 +79,8 @@ config MTD_OF_PARTS
 
 config MTD_OF_PARTS_BCM4908
 	bool "BCM4908 partitioning support"
-	depends on MTD_OF_PARTS && (ARCH_BCM4908 || COMPILE_TEST)
-	default ARCH_BCM4908
+	depends on MTD_OF_PARTS && (ARCH_BCMBCA || COMPILE_TEST)
+	default ARCH_BCMBCA
 	help
 	  This provides partitions parser for BCM4908 family devices
 	  that can have multiple "firmware" partitions. It takes care of
@@ -78,7 +88,7 @@ config MTD_OF_PARTS_BCM4908
 
 config MTD_OF_PARTS_LINKSYS_NS
 	bool "Linksys Northstar partitioning support"
-	depends on MTD_OF_PARTS && (ARCH_BCM_5301X || ARCH_BCM4908 || COMPILE_TEST)
+	depends on MTD_OF_PARTS && (ARCH_BCM_5301X || ARCH_BCMBCA || COMPILE_TEST)
 	default ARCH_BCM_5301X
 	help
 	  This provides partitions parser for Linksys devices based on Broadcom

@@ -1186,6 +1186,68 @@ expression used.  For instance:
 	#endif /* CONFIG_SOMETHING */
 
 
+22) Do not crash the kernel
+---------------------------
+
+In general, the decision to crash the kernel belongs to the user, rather
+than to the kernel developer.
+
+Avoid panic()
+*************
+
+panic() should be used with care and primarily only during system boot.
+panic() is, for example, acceptable when running out of memory during boot and
+not being able to continue.
+
+Use WARN() rather than BUG()
+****************************
+
+Do not add new code that uses any of the BUG() variants, such as BUG(),
+BUG_ON(), or VM_BUG_ON(). Instead, use a WARN*() variant, preferably
+WARN_ON_ONCE(), and possibly with recovery code. Recovery code is not
+required if there is no reasonable way to at least partially recover.
+
+"I'm too lazy to do error handling" is not an excuse for using BUG(). Major
+internal corruptions with no way of continuing may still use BUG(), but need
+good justification.
+
+Use WARN_ON_ONCE() rather than WARN() or WARN_ON()
+**************************************************
+
+WARN_ON_ONCE() is generally preferred over WARN() or WARN_ON(), because it
+is common for a given warning condition, if it occurs at all, to occur
+multiple times. This can fill up and wrap the kernel log, and can even slow
+the system enough that the excessive logging turns into its own, additional
+problem.
+
+Do not WARN lightly
+*******************
+
+WARN*() is intended for unexpected, this-should-never-happen situations.
+WARN*() macros are not to be used for anything that is expected to happen
+during normal operation. These are not pre- or post-condition asserts, for
+example. Again: WARN*() must not be used for a condition that is expected
+to trigger easily, for example, by user space actions. pr_warn_once() is a
+possible alternative, if you need to notify the user of a problem.
+
+Do not worry about panic_on_warn users
+**************************************
+
+A few more words about panic_on_warn: Remember that ``panic_on_warn`` is an
+available kernel option, and that many users set this option. This is why
+there is a "Do not WARN lightly" writeup, above. However, the existence of
+panic_on_warn users is not a valid reason to avoid the judicious use
+WARN*(). That is because, whoever enables panic_on_warn has explicitly
+asked the kernel to crash if a WARN*() fires, and such users must be
+prepared to deal with the consequences of a system that is somewhat more
+likely to crash.
+
+Use BUILD_BUG_ON() for compile-time assertions
+**********************************************
+
+The use of BUILD_BUG_ON() is acceptable and encouraged, because it is a
+compile-time assertion that has no effect at runtime.
+
 Appendix I) References
 ----------------------
 

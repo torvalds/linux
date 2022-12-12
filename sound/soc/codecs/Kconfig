@@ -98,6 +98,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_DA9055
 	imply SND_SOC_DMIC
 	imply SND_SOC_ES8316
+	imply SND_SOC_ES8326
 	imply SND_SOC_ES8328_SPI
 	imply SND_SOC_ES8328_I2C
 	imply SND_SOC_ES7134
@@ -205,6 +206,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_SIMPLE_AMPLIFIER
 	imply SND_SOC_SIMPLE_MUX
 	imply SND_SOC_SPDIF
+	imply SND_SOC_SRC4XXX_I2C
 	imply SND_SOC_SSM2305
 	imply SND_SOC_SSM2518
 	imply SND_SOC_SSM2602_SPI
@@ -608,7 +610,7 @@ config SND_SOC_BT_SCO
 
 config SND_SOC_CPCAP
 	tristate "Motorola CPCAP codec"
-	depends on MFD_CPCAP
+	depends on MFD_CPCAP || COMPILE_TEST
 
 config SND_SOC_CQ0093VC
 	tristate
@@ -690,9 +692,15 @@ config SND_SOC_CS35L45_I2C
 	  Enable support for Cirrus Logic CS35L45 smart speaker amplifier
 	  with I2C control.
 
+config SND_SOC_CS42L42_CORE
+	tristate
+
 config SND_SOC_CS42L42
-	tristate "Cirrus Logic CS42L42 CODEC"
+	tristate "Cirrus Logic CS42L42 CODEC (I2C)"
 	depends on I2C
+	select REGMAP
+	select REGMAP_I2C
+	select SND_SOC_CS42L42_CORE
 
 config SND_SOC_CS42L51
 	tristate
@@ -713,6 +721,13 @@ config SND_SOC_CS42L56
 config SND_SOC_CS42L73
 	tristate "Cirrus Logic CS42L73 CODEC"
 	depends on I2C
+
+config SND_SOC_CS42L83
+	tristate "Cirrus Logic CS42L83 CODEC"
+	depends on I2C
+	select REGMAP
+	select REGMAP_I2C
+	select SND_SOC_CS42L42_CORE
 
 config SND_SOC_CS4234
 	tristate "Cirrus Logic CS4234 CODEC"
@@ -913,6 +928,10 @@ config SND_SOC_ES8316
 	tristate "Everest Semi ES8316 CODEC"
 	depends on I2C
 
+config SND_SOC_ES8326
+	tristate "Everest Semi ES8326 CODEC"
+	depends on I2C
+
 config SND_SOC_ES8328
 	tristate
 
@@ -966,7 +985,7 @@ config SND_SOC_LM49453
 
 config SND_SOC_LOCHNAGAR_SC
 	tristate "Lochnagar Sound Card"
-	depends on MFD_LOCHNAGAR
+	depends on MFD_LOCHNAGAR || COMPILE_TEST
 	help
 	  This driver support the sound card functionality of the Cirrus
 	  Logic Lochnagar audio development board.
@@ -1191,8 +1210,7 @@ config SND_SOC_RK3328
 
 config SND_SOC_RK817
 	tristate "Rockchip RK817 audio CODEC"
-	depends on MFD_RK808
-	select REGMAP_I2C
+	depends on MFD_RK808 || COMPILE_TEST
 
 config SND_SOC_RL6231
 	tristate
@@ -1471,6 +1489,18 @@ config SND_SOC_SIMPLE_MUX
 config SND_SOC_SPDIF
 	tristate "S/PDIF CODEC"
 
+config SND_SOC_SRC4XXX_I2C
+	tristate "Texas Instruments SRC4XXX DIR/DIT and SRC codecs"
+	depends on I2C
+	select SND_SOC_SRC4XXX
+	help
+	  Enable support for the TI SRC4XXX family of codecs. These include the
+	  scr4392 which has digital receivers, transmitters, and
+	  a sample rate converter, including numerous ports.
+
+config SND_SOC_SRC4XXX
+	tristate
+
 config SND_SOC_SSM2305
 	tristate "Analog Devices SSM2305 Class-D Amplifier"
 	help
@@ -1726,8 +1756,10 @@ config SND_SOC_WCD_MBHC
 config SND_SOC_WCD934X
 	tristate "WCD9340/WCD9341 Codec"
 	depends on COMMON_CLK
+	depends on SLIMBUS
+	select REGMAP_SLIMBUS
 	select SND_SOC_WCD_MBHC
-	depends on MFD_WCD934X
+	depends on MFD_WCD934X || COMPILE_TEST
 	help
 	  The WCD9340/9341 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SDM845.

@@ -203,9 +203,11 @@ static inline void uaccess_enable_privileged(void)
 }
 
 /*
- * Sanitise a uaccess pointer such that it becomes NULL if above the maximum
- * user address. In case the pointer is tagged (has the top byte set), untag
- * the pointer before checking.
+ * Sanitize a uaccess pointer such that it cannot reach any kernel address.
+ *
+ * Clearing bit 55 ensures the pointer cannot address any portion of the TTBR1
+ * address range (i.e. any kernel address), and either the pointer falls within
+ * the TTBR0 address range or must cause a fault.
  */
 #define uaccess_mask_ptr(ptr) (__typeof__(ptr))__uaccess_mask_ptr(ptr)
 static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
@@ -213,14 +215,12 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 	void __user *safe_ptr;
 
 	asm volatile(
-	"	bics	xzr, %3, %2\n"
-	"	csel	%0, %1, xzr, eq\n"
-	: "=&r" (safe_ptr)
-	: "r" (ptr), "r" (TASK_SIZE_MAX - 1),
-	  "r" (untagged_addr(ptr))
-	: "cc");
+	"	bic	%0, %1, %2\n"
+	: "=r" (safe_ptr)
+	: "r" (ptr),
+	  "i" (BIT(55))
+	);
 
-	csdb();
 	return safe_ptr;
 }
 

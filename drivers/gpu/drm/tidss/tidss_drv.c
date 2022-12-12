@@ -15,7 +15,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
@@ -101,13 +101,13 @@ static void tidss_release(struct drm_device *ddev)
 	drm_kms_helper_poll_fini(ddev);
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(tidss_fops);
+DEFINE_DRM_GEM_DMA_FOPS(tidss_fops);
 
 static const struct drm_driver tidss_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &tidss_fops,
 	.release		= tidss_release,
-	DRM_GEM_CMA_DRIVER_OPS_VMAP,
+	DRM_GEM_DMA_DRIVER_OPS_VMAP,
 	.name			= "tidss",
 	.desc			= "TI Keystone DSS",
 	.date			= "20180215",

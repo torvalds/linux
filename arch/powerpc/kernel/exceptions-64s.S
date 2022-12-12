@@ -281,7 +281,7 @@ BEGIN_FTR_SECTION
 	mfspr	r9,SPRN_PPR
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	HMT_MEDIUM
-	std	r10,IAREA+EX_R10(r13)		/* save r10 - r12 */
+	std	r10,IAREA+EX_R10(r13)		/* save r10 */
 	.if ICFAR
 BEGIN_FTR_SECTION
 	mfspr	r10,SPRN_CFAR
@@ -321,7 +321,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	mfctr	r10
 	std	r10,IAREA+EX_CTR(r13)
 	mfcr	r9
-	std	r11,IAREA+EX_R11(r13)
+	std	r11,IAREA+EX_R11(r13)		/* save r11 - r12 */
 	std	r12,IAREA+EX_R12(r13)
 
 	/*
@@ -580,7 +580,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	std	r2,GPR2(r1)		/* save r2 in stackframe	*/
 	SAVE_GPRS(3, 8, r1)		/* save r3 - r8 in stackframe   */
 	mflr	r9			/* Get LR, later save to stack	*/
-	ld	r2,PACATOC(r13)		/* get kernel TOC into r2	*/
+	LOAD_PACA_TOC()			/* get kernel TOC into r2	*/
 	std	r9,_LINK(r1)
 	lbz	r10,PACAIRQSOFTMASK(r13)
 	mfspr	r11,SPRN_XER		/* save XER in stackframe	*/
@@ -589,7 +589,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	li	r9,IVEC
 	std	r9,_TRAP(r1)		/* set trap number		*/
 	li	r10,0
-	ld	r11,exception_marker@toc(r2)
+	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
 	std	r10,RESULT(r1)		/* clear regs->result		*/
 	std	r11,STACK_FRAME_OVERHEAD-16(r1) /* mark the frame	*/
 .endm
@@ -610,7 +610,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 .macro SEARCH_RESTART_TABLE
 #ifdef CONFIG_RELOCATABLE
 	mr	r12,r2
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	LOAD_REG_ADDR(r9, __start___restart_table)
 	LOAD_REG_ADDR(r10, __stop___restart_table)
 	mr	r2,r12
@@ -640,7 +640,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 .macro SEARCH_SOFT_MASK_TABLE
 #ifdef CONFIG_RELOCATABLE
 	mr	r12,r2
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	LOAD_REG_ADDR(r9, __start___soft_mask_table)
 	LOAD_REG_ADDR(r10, __stop___soft_mask_table)
 	mr	r2,r12
@@ -700,6 +700,71 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	REST_GPR(0, r1)
 	/* restore original r1. */
 	ld	r1,GPR1(r1)
+.endm
+
+/*
+ * EARLY_BOOT_FIXUP - Fix real-mode interrupt with wrong endian in early boot.
+ *
+ * There's a short window during boot where although the kernel is running
+ * little endian, any exceptions will cause the CPU to switch back to big
+ * endian. For example a WARN() boils down to a trap instruction, which will
+ * cause a program check, and we end up here but with the CPU in big endian
+ * mode. The first instruction of the program check handler (in GEN_INT_ENTRY
+ * below) is an mtsprg, which when executed in the wrong endian is an lhzu with
+ * a ~3GB displacement from r3. The content of r3 is random, so that is a load
+ * from some random location, and depending on the system can easily lead to a
+ * checkstop, or an infinitely recursive page fault.
+ *
+ * So to handle that case we have a trampoline here that can detect we are in
+ * the wrong endian and flip us back to the correct endian. We can't flip
+ * MSR[LE] using mtmsr, so we have to use rfid. That requires backing up SRR0/1
+ * as well as a GPR. To do that we use SPRG0/2/3, as SPRG1 is already used for
+ * the paca. SPRG3 is user readable, but this trampoline is only active very
+ * early in boot, and SPRG3 will be reinitialised in vdso_getcpu_init() before
+ * userspace starts.
+ */
+.macro EARLY_BOOT_FIXUP
+BEGIN_FTR_SECTION
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+	tdi   0,0,0x48    // Trap never, or in reverse endian: b . + 8
+	b     2f          // Skip trampoline if endian is correct
+	.long 0xa643707d  // mtsprg  0, r11      Backup r11
+	.long 0xa6027a7d  // mfsrr0  r11
+	.long 0xa643727d  // mtsprg  2, r11      Backup SRR0 in SPRG2
+	.long 0xa6027b7d  // mfsrr1  r11
+	.long 0xa643737d  // mtsprg  3, r11      Backup SRR1 in SPRG3
+	.long 0xa600607d  // mfmsr   r11
+	.long 0x01006b69  // xori    r11, r11, 1 Invert MSR[LE]
+	.long 0xa6037b7d  // mtsrr1  r11
+	/*
+	 * This is 'li  r11,1f' where 1f is the absolute address of that
+	 * label, byteswapped into the SI field of the instruction.
+	 */
+	.long 0x00006039 | \
+		((ABS_ADDR(1f, real_vectors) & 0x00ff) << 24) | \
+		((ABS_ADDR(1f, real_vectors) & 0xff00) << 8)
+	.long 0xa6037a7d  // mtsrr0  r11
+	.long 0x2400004c  // rfid
+1:
+	mfsprg r11, 3
+	mtsrr1 r11        // Restore SRR1
+	mfsprg r11, 2
+	mtsrr0 r11        // Restore SRR0
+	mfsprg r11, 0     // Restore r11
+2:
+#endif
+	/*
+	 * program check could hit at any time, and pseries can not block
+	 * MSR[ME] in early boot. So check if there is anything useful in r13
+	 * yet, and spin forever if not.
+	 */
+	mtsprg	0, r11
+	mfcr	r11
+	cmpdi	r13, 0
+	beq	.
+	mtcr	r11
+	mfsprg	r11, 0
+END_FTR_SECTION(0, 1)     // nop out after boot
 .endm
 
 /*
@@ -1079,6 +1144,7 @@ INT_DEFINE_BEGIN(machine_check)
 INT_DEFINE_END(machine_check)
 
 EXC_REAL_BEGIN(machine_check, 0x200, 0x100)
+	EARLY_BOOT_FIXUP
 	GEN_INT_ENTRY machine_check_early, virt=0
 EXC_REAL_END(machine_check, 0x200, 0x100)
 EXC_VIRT_NONE(0x4200, 0x100)
@@ -1143,6 +1209,9 @@ BEGIN_FTR_SECTION
 	bl	enable_machine_check
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
+BEGIN_FTR_SECTION
+	bl	machine_check_early_boot
+END_FTR_SECTION(0, 1)     // nop out after boot
 	bl	machine_check_early
 	std	r3,RESULT(r1)	/* Save result */
 	ld	r12,_MSR(r1)
@@ -1619,51 +1688,7 @@ INT_DEFINE_BEGIN(program_check)
 INT_DEFINE_END(program_check)
 
 EXC_REAL_BEGIN(program_check, 0x700, 0x100)
-
-#ifdef CONFIG_CPU_LITTLE_ENDIAN
-	/*
-	 * There's a short window during boot where although the kernel is
-	 * running little endian, any exceptions will cause the CPU to switch
-	 * back to big endian. For example a WARN() boils down to a trap
-	 * instruction, which will cause a program check, and we end up here but
-	 * with the CPU in big endian mode. The first instruction of the program
-	 * check handler (in GEN_INT_ENTRY below) is an mtsprg, which when
-	 * executed in the wrong endian is an lhzu with a ~3GB displacement from
-	 * r3. The content of r3 is random, so that is a load from some random
-	 * location, and depending on the system can easily lead to a checkstop,
-	 * or an infinitely recursive page fault.
-	 *
-	 * So to handle that case we have a trampoline here that can detect we
-	 * are in the wrong endian and flip us back to the correct endian. We
-	 * can't flip MSR[LE] using mtmsr, so we have to use rfid. That requires
-	 * backing up SRR0/1 as well as a GPR. To do that we use SPRG0/2/3, as
-	 * SPRG1 is already used for the paca. SPRG3 is user readable, but this
-	 * trampoline is only active very early in boot, and SPRG3 will be
-	 * reinitialised in vdso_getcpu_init() before userspace starts.
-	 */
-BEGIN_FTR_SECTION
-	tdi   0,0,0x48    // Trap never, or in reverse endian: b . + 8
-	b     1f          // Skip trampoline if endian is correct
-	.long 0xa643707d  // mtsprg  0, r11      Backup r11
-	.long 0xa6027a7d  // mfsrr0  r11
-	.long 0xa643727d  // mtsprg  2, r11      Backup SRR0 in SPRG2
-	.long 0xa6027b7d  // mfsrr1  r11
-	.long 0xa643737d  // mtsprg  3, r11      Backup SRR1 in SPRG3
-	.long 0xa600607d  // mfmsr   r11
-	.long 0x01006b69  // xori    r11, r11, 1 Invert MSR[LE]
-	.long 0xa6037b7d  // mtsrr1  r11
-	.long 0x34076039  // li      r11, 0x734
-	.long 0xa6037a7d  // mtsrr0  r11
-	.long 0x2400004c  // rfid
-	mfsprg r11, 3
-	mtsrr1 r11        // Restore SRR1
-	mfsprg r11, 2
-	mtsrr0 r11        // Restore SRR0
-	mfsprg r11, 0     // Restore r11
-1:
-END_FTR_SECTION(0, 1)     // nop out after boot
-#endif /* CONFIG_CPU_LITTLE_ENDIAN */
-
+	EARLY_BOOT_FIXUP
 	GEN_INT_ENTRY program_check, virt=0
 EXC_REAL_END(program_check, 0x700, 0x100)
 EXC_VIRT_BEGIN(program_check, 0x4700, 0x100)
@@ -2794,6 +2819,20 @@ masked_Hinterrupt:
 masked_interrupt:
 	.endif
 	stw	r9,PACA_EXGEN+EX_CCR(r13)
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+	/*
+	 * Ensure there was no previous MUST_HARD_MASK interrupt or
+	 * HARD_DIS setting. If this does fire, the interrupt is still
+	 * masked and MSR[EE] will be cleared on return, so no need to
+	 * panic, but somebody probably enabled MSR[EE] under
+	 * PACA_IRQ_HARD_DIS, mtmsr(mfmsr() | MSR_x) being a common
+	 * cause.
+	 */
+	lbz	r9,PACAIRQHAPPENED(r13)
+	andi.	r9,r9,(PACA_IRQ_MUST_HARD_MASK|PACA_IRQ_HARD_DIS)
+0:	tdnei	r9,0
+	EMIT_WARN_ENTRY 0b,__FILE__,__LINE__,(BUGFLAG_WARNING | BUGFLAG_ONCE)
+#endif
 	lbz	r9,PACAIRQHAPPENED(r13)
 	or	r9,r9,r10
 	stb	r9,PACAIRQHAPPENED(r13)
@@ -3034,22 +3073,6 @@ EXPORT_SYMBOL(do_uaccess_flush)
 MASKED_INTERRUPT
 MASKED_INTERRUPT hsrr=1
 
-	/*
-	 * Relocation-on interrupts: A subset of the interrupts can be delivered
-	 * with IR=1/DR=1, if AIL==2 and MSR.HV won't be changed by delivering
-	 * it.  Addresses are the same as the original interrupt addresses, but
-	 * offset by 0xc000000000004000.
-	 * It's impossible to receive interrupts below 0x300 via this mechanism.
-	 * KVM: None of these traps are from the guest ; anything that escalated
-	 * to HV=1 from HV=0 is delivered via real mode handlers.
-	 */
-
-	/*
-	 * This uses the standard macro, since the original 0x300 vector
-	 * only has extra guff for STAB-based processors -- which never
-	 * come here.
-	 */
-
 USE_FIXED_SECTION(virt_trampolines)
 	/*
 	 * All code below __end_soft_masked is treated as soft-masked. If
@@ -3075,7 +3098,7 @@ CLOSE_FIXED_SECTION(virt_trampolines);
 USE_TEXT_SECTION()
 
 /* MSR[RI] should be clear because this uses SRR[01] */
-enable_machine_check:
+_GLOBAL(enable_machine_check)
 	mflr	r0
 	bcl	20,31,$+4
 0:	mflr	r3

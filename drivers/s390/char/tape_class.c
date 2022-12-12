@@ -54,10 +54,10 @@ struct tape_class_device *register_tape_dev(
 	if (!tcd)
 		return ERR_PTR(-ENOMEM);
 
-	strlcpy(tcd->device_name, device_name, TAPECLASS_NAME_LEN);
+	strscpy(tcd->device_name, device_name, TAPECLASS_NAME_LEN);
 	for (s = strchr(tcd->device_name, '/'); s; s = strchr(s, '/'))
 		*s = '!';
-	strlcpy(tcd->mode_name, mode_name, TAPECLASS_NAME_LEN);
+	strscpy(tcd->mode_name, mode_name, TAPECLASS_NAME_LEN);
 	for (s = strchr(tcd->mode_name, '/'); s; s = strchr(s, '/'))
 		*s = '!';
 

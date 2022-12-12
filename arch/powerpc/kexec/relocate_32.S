@@ -25,14 +25,14 @@ relocate_new_kernel:
 	/* r4 = reboot_code_buffer */
 	/* r5 = start_address      */
 
-#ifdef CONFIG_FSL_BOOKE
+#ifdef CONFIG_PPC_85xx
 
 	mr	r29, r3
 	mr	r30, r4
 	mr	r31, r5
 
 #define ENTRY_MAPPING_KEXEC_SETUP
-#include <kernel/fsl_booke_entry_mapping.S>
+#include <kernel/85xx_entry_mapping.S>
 #undef ENTRY_MAPPING_KEXEC_SETUP
 
 	mr      r3, r29

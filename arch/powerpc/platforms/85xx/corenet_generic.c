@@ -200,9 +200,5 @@ define_machine(corenet_generic) {
 #endif
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
-#ifdef CONFIG_PPC64
-	.power_save		= book3e_idle,
-#else
 	.power_save		= e500_idle,
-#endif
 };

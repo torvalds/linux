@@ -225,6 +225,12 @@ enum v4l2_colorfx {
  */
 #define V4L2_CID_USER_ISL7998X_BASE		(V4L2_CID_USER_BASE + 0x1180)
 
+/*
+ * The base for DW100 driver controls.
+ * We reserve 16 controls for this driver.
+ */
+#define V4L2_CID_USER_DW100_BASE		(V4L2_CID_USER_BASE + 0x1190)
+
 /* MPEG-class control IDs */
 /* The MPEG controls are applicable to all codec controls
  * and the 'MPEG' part of the define is historical */
@@ -1730,7 +1736,7 @@ struct v4l2_vp8_segment {
  * @sharpness_level: matches sharpness_level syntax element.
  * @level: matches loop_filter_level syntax element.
  * @padding: padding field. Should be zeroed by applications.
- * @flags: see V4L2_VP8_LF_FLAG_{}.
+ * @flags: see V4L2_VP8_LF_{}.
  *
  * This structure contains loop filter related parameters.
  * See the 'mb_lf_adjustments()' part of the frame header syntax,

@@ -534,6 +534,7 @@ typedef struct _MPI2_CONFIG_REPLY {
 ****************************************************************************/
 
 #define MPI2_MFGPAGE_VENDORID_LSI                   (0x1000)
+#define MPI2_MFGPAGE_VENDORID_ATTO                  (0x117C)
 
 /*MPI v2.0 SAS products */
 #define MPI2_MFGPAGE_DEVID_SAS2004                  (0x0070)

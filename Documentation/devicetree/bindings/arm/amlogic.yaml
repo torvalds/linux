@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/amlogic.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Amlogic MesonX device tree bindings
+title: Amlogic MesonX
 
 maintainers:
   - Kevin Hilman <khilman@baylibre.com>
@@ -120,6 +120,7 @@ properties:
           - enum:
               - amlogic,q200
               - amlogic,q201
+              - azw,gt1-ultimate
               - khadas,vim2
               - kingnovel,r-box-pro
               - libretech,aml-s912-pc
@@ -136,6 +137,7 @@ properties:
           - enum:
               - amlogic,s400
               - jethome,jethub-j100
+              - jethome,jethub-j110
           - const: amlogic,a113d
           - const: amlogic,meson-axg
 

@@ -37,7 +37,7 @@ static inline int mmap_is_legacy(struct rlimit *rlim_stack)
 
 unsigned long arch_mmap_rnd(void)
 {
-	return (get_random_int() & MMAP_RND_MASK) << PAGE_SHIFT;
+	return (get_random_u32() & MMAP_RND_MASK) << PAGE_SHIFT;
 }
 
 static unsigned long mmap_base_legacy(unsigned long rnd)

@@ -256,7 +256,6 @@ static void backend_disconnect(struct backend_info *be)
 		unsigned int queue_index;
 
 		xen_unregister_watchers(vif);
-		xenbus_rm(XBT_NIL, be->dev->nodename, "hotplug-status");
 #ifdef CONFIG_DEBUG_FS
 		xenvif_debugfs_delif(vif);
 #endif /* CONFIG_DEBUG_FS */
@@ -866,13 +865,12 @@ static int connect_data_rings(struct backend_info *be,
 	 * queue-N.
 	 */
 	if (num_queues == 1) {
-		xspath = kzalloc(strlen(dev->otherend) + 1, GFP_KERNEL);
+		xspath = kstrdup(dev->otherend, GFP_KERNEL);
 		if (!xspath) {
 			xenbus_dev_fatal(dev, -ENOMEM,
 					 "reading ring references");
 			return -ENOMEM;
 		}
-		strcpy(xspath, dev->otherend);
 	} else {
 		xspathsize = strlen(dev->otherend) + xenstore_path_ext_size;
 		xspath = kzalloc(xspathsize, GFP_KERNEL);
@@ -984,6 +982,7 @@ static int netback_remove(struct xenbus_device *dev)
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
 	unregister_hotplug_status_watch(be);
+	xenbus_rm(XBT_NIL, dev->nodename, "hotplug-status");
 	if (be->vif) {
 		kobject_uevent(&dev->dev.kobj, KOBJ_OFFLINE);
 		backend_disconnect(be);

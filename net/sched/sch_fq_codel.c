@@ -347,8 +347,6 @@ static void fq_codel_reset(struct Qdisc *sch)
 		codel_vars_init(&flow->cvars);
 	}
 	memset(q->backlogs, 0, q->flows_cnt * sizeof(u32));
-	sch->q.qlen = 0;
-	sch->qstats.backlog = 0;
 	q->memory_usage = 0;
 }
 
@@ -373,9 +371,6 @@ static int fq_codel_change(struct Qdisc *sch, struct nlattr *opt,
 	struct nlattr *tb[TCA_FQ_CODEL_MAX + 1];
 	u32 quantum = 0;
 	int err;
-
-	if (!opt)
-		return -EINVAL;
 
 	err = nla_parse_nested_deprecated(tb, TCA_FQ_CODEL_MAX, opt,
 					  fq_codel_policy, NULL);
@@ -483,26 +478,24 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt,
 	if (opt) {
 		err = fq_codel_change(sch, opt, extack);
 		if (err)
-			goto init_failure;
+			return err;
 	}
 
 	err = tcf_block_get(&q->block, &q->filter_list, sch, extack);
 	if (err)
-		goto init_failure;
+		return err;
 
 	if (!q->flows) {
 		q->flows = kvcalloc(q->flows_cnt,
 				    sizeof(struct fq_codel_flow),
 				    GFP_KERNEL);
-		if (!q->flows) {
-			err = -ENOMEM;
-			goto init_failure;
-		}
+		if (!q->flows)
+			return -ENOMEM;
+
 		q->backlogs = kvcalloc(q->flows_cnt, sizeof(u32), GFP_KERNEL);
-		if (!q->backlogs) {
-			err = -ENOMEM;
-			goto alloc_failure;
-		}
+		if (!q->backlogs)
+			return -ENOMEM;
+
 		for (i = 0; i < q->flows_cnt; i++) {
 			struct fq_codel_flow *flow = q->flows + i;
 
@@ -515,13 +508,6 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt,
 	else
 		sch->flags &= ~TCQ_F_CAN_BYPASS;
 	return 0;
-
-alloc_failure:
-	kvfree(q->flows);
-	q->flows = NULL;
-init_failure:
-	q->flows_cnt = 0;
-	return err;
 }
 
 static int fq_codel_dump(struct Qdisc *sch, struct sk_buff *skb)
@@ -687,16 +673,12 @@ static void fq_codel_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 		return;
 
 	for (i = 0; i < q->flows_cnt; i++) {
-		if (list_empty(&q->flows[i].flowchain) ||
-		    arg->count < arg->skip) {
+		if (list_empty(&q->flows[i].flowchain)) {
 			arg->count++;
 			continue;
 		}
-		if (arg->fn(sch, i + 1, arg) < 0) {
-			arg->stop = 1;
+		if (!tc_qdisc_stats_dump(sch, i + 1, arg))
 			break;
-		}
-		arg->count++;
 	}
 }
 

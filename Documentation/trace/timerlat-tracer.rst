@@ -20,7 +20,7 @@ For example::
         [root@f32 ~]# cd /sys/kernel/tracing/
         [root@f32 tracing]# echo timerlat > current_tracer
 
-It is possible to follow the trace by reading the trace trace file::
+It is possible to follow the trace by reading the trace file::
 
   [root@f32 tracing]# cat trace
   # tracer: timerlat

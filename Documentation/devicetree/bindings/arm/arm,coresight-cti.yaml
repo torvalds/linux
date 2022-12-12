@@ -98,6 +98,9 @@ properties:
       base cti node if compatible string arm,coresight-cti-v8-arch is used,
       or may appear in a trig-conns child node when appropriate.
 
+  power-domains:
+    maxItems: 1
+
   arm,cti-ctm-id:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:

@@ -375,19 +375,17 @@ EXPORT_SYMBOL_GPL(xdp_rxq_info_reg_mem_model);
 void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
 		  struct xdp_buff *xdp)
 {
-	struct xdp_mem_allocator *xa;
 	struct page *page;
 
 	switch (mem->type) {
 	case MEM_TYPE_PAGE_POOL:
-		rcu_read_lock();
-		/* mem->id is valid, checked in xdp_rxq_info_reg_mem_model() */
-		xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
 		page = virt_to_head_page(data);
 		if (napi_direct && xdp_return_frame_no_direct())
 			napi_direct = false;
-		page_pool_put_full_page(xa->page_pool, page, napi_direct);
-		rcu_read_unlock();
+		/* No need to check ((page->pp_magic & ~0x3UL) == PP_SIGNATURE)
+		 * as mem->type knows this a page_pool page
+		 */
+		page_pool_put_full_page(page->pp, page, napi_direct);
 		break;
 	case MEM_TYPE_PAGE_SHARED:
 		page_frag_free(data);

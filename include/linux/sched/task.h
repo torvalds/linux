@@ -127,6 +127,9 @@ static inline void put_task_struct_many(struct task_struct *t, int nr)
 
 void put_task_struct_rcu_user(struct task_struct *task);
 
+/* Free all architecture-specific resources held by a thread. */
+void release_thread(struct task_struct *dead_task);
+
 #ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
 extern int arch_task_struct_size __read_mostly;
 #else

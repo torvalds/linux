@@ -61,6 +61,11 @@ autop_names = {
 }
 
 class BlkgIterator:
+    def __init__(self, root_blkcg, q_id, include_dying=False):
+        self.include_dying = include_dying
+        self.blkgs = []
+        self.walk(root_blkcg, q_id, '')
+
     def blkcg_name(blkcg):
         return blkcg.css.cgroup.kn.name.string_().decode('utf-8')
 
@@ -81,11 +86,6 @@ class BlkgIterator:
         for c in list_for_each_entry('struct blkcg',
                                      blkcg.css.children.address_of_(), 'css.sibling'):
             self.walk(c, q_id, path)
-
-    def __init__(self, root_blkcg, q_id, include_dying=False):
-        self.include_dying = include_dying
-        self.blkgs = []
-        self.walk(root_blkcg, q_id, '')
 
     def __iter__(self):
         return iter(self.blkgs)

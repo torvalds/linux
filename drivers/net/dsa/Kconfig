@@ -76,7 +76,7 @@ config NET_DSA_SMSC_LAN9303
 	select NET_DSA_TAG_LAN9303
 	select REGMAP
 	help
-	  This enables support for the SMSC/Microchip LAN9303 3 port ethernet
+	  This enables support for the Microchip LAN9303/LAN9354 3 port ethernet
 	  switch chips.
 
 config NET_DSA_SMSC_LAN9303_I2C
@@ -90,11 +90,11 @@ config NET_DSA_SMSC_LAN9303_I2C
 	  for I2C managed mode.
 
 config NET_DSA_SMSC_LAN9303_MDIO
-	tristate "SMSC/Microchip LAN9303 3-ports 10/100 ethernet switch in MDIO managed mode"
+	tristate "Microchip LAN9303/LAN9354 3-ports 10/100 ethernet switch in MDIO managed mode"
 	select NET_DSA_SMSC_LAN9303
 	depends on VLAN_8021Q || VLAN_8021Q=n
 	help
-	  Enable access functions if the SMSC/Microchip LAN9303 is configured
+	  Enable access functions if the Microchip LAN9303/LAN9354 is configured
 	  for MDIO managed mode.
 
 config NET_DSA_VITESSE_VSC73XX

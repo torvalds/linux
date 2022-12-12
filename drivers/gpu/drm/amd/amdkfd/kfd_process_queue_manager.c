@@ -857,6 +857,13 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 		ret = -EINVAL;
 		goto exit;
 	}
+
+	if (!pdd->doorbell_index &&
+	    kfd_alloc_process_doorbells(pdd->dev, &pdd->doorbell_index) < 0) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
 	/* data stored in this order: mqd, ctl_stack */
 	mqd = q_extra_data;
 	ctl_stack = mqd + q_data->mqd_size;

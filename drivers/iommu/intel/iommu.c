@@ -15,7 +15,6 @@
 
 #include <linux/crash_dump.h>
 #include <linux/dma-direct.h>
-#include <linux/dma-iommu.h>
 #include <linux/dmi.h>
 #include <linux/intel-svm.h>
 #include <linux/memory.h>
@@ -26,6 +25,7 @@
 #include <linux/tboot.h>
 
 #include "iommu.h"
+#include "../dma-iommu.h"
 #include "../irq_remapping.h"
 #include "../iommu-sva-lib.h"
 #include "pasid.h"
@@ -163,38 +163,6 @@ static phys_addr_t root_entry_uctp(struct root_entry *re)
 	return re->hi & VTD_PAGE_MASK;
 }
 
-static inline void context_clear_pasid_enable(struct context_entry *context)
-{
-	context->lo &= ~(1ULL << 11);
-}
-
-static inline bool context_pasid_enabled(struct context_entry *context)
-{
-	return !!(context->lo & (1ULL << 11));
-}
-
-static inline void context_set_copied(struct context_entry *context)
-{
-	context->hi |= (1ull << 3);
-}
-
-static inline bool context_copied(struct context_entry *context)
-{
-	return !!(context->hi & (1ULL << 3));
-}
-
-static inline bool __context_present(struct context_entry *context)
-{
-	return (context->lo & 1);
-}
-
-bool context_present(struct context_entry *context)
-{
-	return context_pasid_enabled(context) ?
-	     __context_present(context) :
-	     __context_present(context) && !context_copied(context);
-}
-
 static inline void context_set_present(struct context_entry *context)
 {
 	context->lo |= 1;
@@ -231,6 +199,11 @@ static inline void context_set_domain_id(struct context_entry *context,
 	context->hi |= (value & ((1 << 16) - 1)) << 8;
 }
 
+static inline void context_set_pasid(struct context_entry *context)
+{
+	context->lo |= CONTEXT_PASIDE;
+}
+
 static inline int context_domain_id(struct context_entry *c)
 {
 	return((c->hi >> 8) & 0xffff);
@@ -240,6 +213,26 @@ static inline void context_clear_entry(struct context_entry *context)
 {
 	context->lo = 0;
 	context->hi = 0;
+}
+
+static inline bool context_copied(struct intel_iommu *iommu, u8 bus, u8 devfn)
+{
+	if (!iommu->copied_tables)
+		return false;
+
+	return test_bit(((long)bus << 8) | devfn, iommu->copied_tables);
+}
+
+static inline void
+set_context_copied(struct intel_iommu *iommu, u8 bus, u8 devfn)
+{
+	set_bit(((long)bus << 8) | devfn, iommu->copied_tables);
+}
+
+static inline void
+clear_context_copied(struct intel_iommu *iommu, u8 bus, u8 devfn)
+{
+	clear_bit(((long)bus << 8) | devfn, iommu->copied_tables);
 }
 
 /*
@@ -402,14 +395,36 @@ static inline int domain_pfn_supported(struct dmar_domain *domain,
 	return !(addr_width < BITS_PER_LONG && pfn >> addr_width);
 }
 
+/*
+ * Calculate the Supported Adjusted Guest Address Widths of an IOMMU.
+ * Refer to 11.4.2 of the VT-d spec for the encoding of each bit of
+ * the returned SAGAW.
+ */
+static unsigned long __iommu_calculate_sagaw(struct intel_iommu *iommu)
+{
+	unsigned long fl_sagaw, sl_sagaw;
+
+	fl_sagaw = BIT(2) | (cap_fl5lp_support(iommu->cap) ? BIT(3) : 0);
+	sl_sagaw = cap_sagaw(iommu->cap);
+
+	/* Second level only. */
+	if (!sm_supported(iommu) || !ecap_flts(iommu->ecap))
+		return sl_sagaw;
+
+	/* First level only. */
+	if (!ecap_slts(iommu->ecap))
+		return fl_sagaw;
+
+	return fl_sagaw & sl_sagaw;
+}
+
 static int __iommu_calculate_agaw(struct intel_iommu *iommu, int max_gaw)
 {
 	unsigned long sagaw;
 	int agaw;
 
-	sagaw = cap_sagaw(iommu->cap);
-	for (agaw = width_to_agaw(max_gaw);
-	     agaw >= 0; agaw--) {
+	sagaw = __iommu_calculate_sagaw(iommu);
+	for (agaw = width_to_agaw(max_gaw); agaw >= 0; agaw--) {
 		if (test_bit(agaw, &sagaw))
 			break;
 	}
@@ -505,8 +520,9 @@ static int domain_update_device_node(struct dmar_domain *domain)
 {
 	struct device_domain_info *info;
 	int nid = NUMA_NO_NODE;
+	unsigned long flags;
 
-	spin_lock(&domain->lock);
+	spin_lock_irqsave(&domain->lock, flags);
 	list_for_each_entry(info, &domain->devices, link) {
 		/*
 		 * There could possibly be multiple device numa nodes as devices
@@ -518,7 +534,7 @@ static int domain_update_device_node(struct dmar_domain *domain)
 		if (nid != NUMA_NO_NODE)
 			break;
 	}
-	spin_unlock(&domain->lock);
+	spin_unlock_irqrestore(&domain->lock, flags);
 
 	return nid;
 }
@@ -577,6 +593,13 @@ struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
 	struct root_entry *root = &iommu->root_entry[bus];
 	struct context_entry *context;
 	u64 *entry;
+
+	/*
+	 * Except that the caller requested to allocate a new entry,
+	 * returning a copied context entry makes no sense.
+	 */
+	if (!alloc && context_copied(iommu, bus, devfn))
+		return NULL;
 
 	entry = &root->lo;
 	if (sm_supported(iommu)) {
@@ -795,32 +818,11 @@ static void free_context_table(struct intel_iommu *iommu)
 }
 
 #ifdef CONFIG_DMAR_DEBUG
-static void pgtable_walk(struct intel_iommu *iommu, unsigned long pfn, u8 bus, u8 devfn)
+static void pgtable_walk(struct intel_iommu *iommu, unsigned long pfn,
+			 u8 bus, u8 devfn, struct dma_pte *parent, int level)
 {
-	struct device_domain_info *info;
-	struct dma_pte *parent, *pte;
-	struct dmar_domain *domain;
-	struct pci_dev *pdev;
-	int offset, level;
-
-	pdev = pci_get_domain_bus_and_slot(iommu->segment, bus, devfn);
-	if (!pdev)
-		return;
-
-	info = dev_iommu_priv_get(&pdev->dev);
-	if (!info || !info->domain) {
-		pr_info("device [%02x:%02x.%d] not probed\n",
-			bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
-		return;
-	}
-
-	domain = info->domain;
-	level = agaw_to_level(domain->agaw);
-	parent = domain->pgd;
-	if (!parent) {
-		pr_info("no page table setup\n");
-		return;
-	}
+	struct dma_pte *pte;
+	int offset;
 
 	while (1) {
 		offset = pfn_level_offset(pfn, level);
@@ -847,9 +849,10 @@ void dmar_fault_dump_ptes(struct intel_iommu *iommu, u16 source_id,
 	struct pasid_entry *entries, *pte;
 	struct context_entry *ctx_entry;
 	struct root_entry *rt_entry;
+	int i, dir_index, index, level;
 	u8 devfn = source_id & 0xff;
 	u8 bus = source_id >> 8;
-	int i, dir_index, index;
+	struct dma_pte *pgtable;
 
 	pr_info("Dump %s table entries for IOVA 0x%llx\n", iommu->name, addr);
 
@@ -877,8 +880,11 @@ void dmar_fault_dump_ptes(struct intel_iommu *iommu, u16 source_id,
 		ctx_entry->hi, ctx_entry->lo);
 
 	/* legacy mode does not require PASID entries */
-	if (!sm_supported(iommu))
+	if (!sm_supported(iommu)) {
+		level = agaw_to_level(ctx_entry->hi & 7);
+		pgtable = phys_to_virt(ctx_entry->lo & VTD_PAGE_MASK);
 		goto pgtable_walk;
+	}
 
 	/* get the pointer to pasid directory entry */
 	dir = phys_to_virt(ctx_entry->lo & VTD_PAGE_MASK);
@@ -905,8 +911,16 @@ void dmar_fault_dump_ptes(struct intel_iommu *iommu, u16 source_id,
 	for (i = 0; i < ARRAY_SIZE(pte->val); i++)
 		pr_info("pasid table entry[%d]: 0x%016llx\n", i, pte->val[i]);
 
+	if (pasid_pte_get_pgtt(pte) == PASID_ENTRY_PGTT_FL_ONLY) {
+		level = pte->val[2] & BIT_ULL(2) ? 5 : 4;
+		pgtable = phys_to_virt(pte->val[2] & VTD_PAGE_MASK);
+	} else {
+		level = agaw_to_level((pte->val[0] >> 2) & 0x7);
+		pgtable = phys_to_virt(pte->val[0] & VTD_PAGE_MASK);
+	}
+
 pgtable_walk:
-	pgtable_walk(iommu, addr >> VTD_PAGE_SHIFT, bus, devfn);
+	pgtable_walk(iommu, addr >> VTD_PAGE_SHIFT, bus, devfn, pgtable, level);
 }
 #endif
 
@@ -1225,6 +1239,13 @@ static void iommu_set_root_entry(struct intel_iommu *iommu)
 
 	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 
+	/*
+	 * Hardware invalidates all DMA remapping hardware translation
+	 * caches as part of SRTP flow.
+	 */
+	if (cap_esrtps(iommu->cap))
+		return;
+
 	iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL);
 	if (sm_supported(iommu))
 		qi_flush_pasid_cache(iommu, 0, QI_PC_GLOBAL, 0);
@@ -1341,23 +1362,21 @@ static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 }
 
 static struct device_domain_info *
-iommu_support_dev_iotlb(struct dmar_domain *domain, struct intel_iommu *iommu,
-			u8 bus, u8 devfn)
+domain_lookup_dev_info(struct dmar_domain *domain,
+		       struct intel_iommu *iommu, u8 bus, u8 devfn)
 {
 	struct device_domain_info *info;
+	unsigned long flags;
 
-	if (!iommu->qi)
-		return NULL;
-
-	spin_lock(&domain->lock);
+	spin_lock_irqsave(&domain->lock, flags);
 	list_for_each_entry(info, &domain->devices, link) {
 		if (info->iommu == iommu && info->bus == bus &&
 		    info->devfn == devfn) {
-			spin_unlock(&domain->lock);
-			return info->ats_supported ? info : NULL;
+			spin_unlock_irqrestore(&domain->lock, flags);
+			return info;
 		}
 	}
-	spin_unlock(&domain->lock);
+	spin_unlock_irqrestore(&domain->lock, flags);
 
 	return NULL;
 }
@@ -1366,8 +1385,9 @@ static void domain_update_iotlb(struct dmar_domain *domain)
 {
 	struct device_domain_info *info;
 	bool has_iotlb_device = false;
+	unsigned long flags;
 
-	spin_lock(&domain->lock);
+	spin_lock_irqsave(&domain->lock, flags);
 	list_for_each_entry(info, &domain->devices, link) {
 		if (info->ats_enabled) {
 			has_iotlb_device = true;
@@ -1375,10 +1395,10 @@ static void domain_update_iotlb(struct dmar_domain *domain)
 		}
 	}
 	domain->has_iotlb_device = has_iotlb_device;
-	spin_unlock(&domain->lock);
+	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
-static void iommu_enable_dev_iotlb(struct device_domain_info *info)
+static void iommu_enable_pci_caps(struct device_domain_info *info)
 {
 	struct pci_dev *pdev;
 
@@ -1401,7 +1421,6 @@ static void iommu_enable_dev_iotlb(struct device_domain_info *info)
 		info->pfsid = pci_dev_id(pf_pdev);
 	}
 
-#ifdef CONFIG_INTEL_IOMMU_SVM
 	/* The PCIe spec, in its wisdom, declares that the behaviour of
 	   the device if you enable PASID support after ATS support is
 	   undefined. So always enable PASID support on devices which
@@ -1414,7 +1433,7 @@ static void iommu_enable_dev_iotlb(struct device_domain_info *info)
 	    (info->pasid_enabled ? pci_prg_resp_pasid_required(pdev) : 1)  &&
 	    !pci_reset_pri(pdev) && !pci_enable_pri(pdev, PRQ_DEPTH))
 		info->pri_enabled = 1;
-#endif
+
 	if (info->ats_supported && pci_ats_page_aligned(pdev) &&
 	    !pci_enable_ats(pdev, VTD_PAGE_SHIFT)) {
 		info->ats_enabled = 1;
@@ -1437,16 +1456,16 @@ static void iommu_disable_dev_iotlb(struct device_domain_info *info)
 		info->ats_enabled = 0;
 		domain_update_iotlb(info->domain);
 	}
-#ifdef CONFIG_INTEL_IOMMU_SVM
+
 	if (info->pri_enabled) {
 		pci_disable_pri(pdev);
 		info->pri_enabled = 0;
 	}
+
 	if (info->pasid_enabled) {
 		pci_disable_pasid(pdev);
 		info->pasid_enabled = 0;
 	}
-#endif
 }
 
 static void __iommu_flush_dev_iotlb(struct device_domain_info *info,
@@ -1467,14 +1486,15 @@ static void iommu_flush_dev_iotlb(struct dmar_domain *domain,
 				  u64 addr, unsigned mask)
 {
 	struct device_domain_info *info;
+	unsigned long flags;
 
 	if (!domain->has_iotlb_device)
 		return;
 
-	spin_lock(&domain->lock);
+	spin_lock_irqsave(&domain->lock, flags);
 	list_for_each_entry(info, &domain->devices, link)
 		__iommu_flush_dev_iotlb(info, addr, mask);
-	spin_unlock(&domain->lock);
+	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
 static void iommu_flush_iotlb_psi(struct intel_iommu *iommu,
@@ -1688,6 +1708,11 @@ static void free_dmar_iommu(struct intel_iommu *iommu)
 		iommu->domain_ids = NULL;
 	}
 
+	if (iommu->copied_tables) {
+		bitmap_free(iommu->copied_tables);
+		iommu->copied_tables = NULL;
+	}
+
 	/* free context mapping */
 	free_context_table(iommu);
 
@@ -1890,7 +1915,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 				      u8 bus, u8 devfn)
 {
 	struct device_domain_info *info =
-			iommu_support_dev_iotlb(domain, iommu, bus, devfn);
+			domain_lookup_dev_info(domain, iommu, bus, devfn);
 	u16 did = domain_id_iommu(domain, iommu);
 	int translation = CONTEXT_TT_MULTI_LEVEL;
 	struct context_entry *context;
@@ -1913,7 +1938,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		goto out_unlock;
 
 	ret = 0;
-	if (context_present(context))
+	if (context_present(context) && !context_copied(iommu, bus, devfn))
 		goto out_unlock;
 
 	/*
@@ -1925,7 +1950,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	 * in-flight DMA will exist, and we don't need to worry anymore
 	 * hereafter.
 	 */
-	if (context_copied(context)) {
+	if (context_copied(iommu, bus, devfn)) {
 		u16 did_old = context_domain_id(context);
 
 		if (did_old < cap_ndoms(iommu->cap)) {
@@ -1936,6 +1961,8 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 			iommu->flush.flush_iotlb(iommu, did_old, 0, 0,
 						 DMA_TLB_DSI_FLUSH);
 		}
+
+		clear_context_copied(iommu, bus, devfn);
 	}
 
 	context_clear_entry(context);
@@ -1961,6 +1988,8 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 			context_set_sm_dte(context);
 		if (info && info->pri_supported)
 			context_set_sm_pre(context);
+		if (info && info->pasid_supported)
+			context_set_pasid(context);
 	} else {
 		struct dma_pte *pgd = domain->pgd;
 		int agaw;
@@ -2018,7 +2047,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	} else {
 		iommu_flush_write_buffer(iommu);
 	}
-	iommu_enable_dev_iotlb(info);
+	iommu_enable_pci_caps(info);
 
 	ret = 0;
 
@@ -2429,6 +2458,7 @@ static int domain_add_dev_info(struct dmar_domain *domain, struct device *dev)
 {
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct intel_iommu *iommu;
+	unsigned long flags;
 	u8 bus, devfn;
 	int ret;
 
@@ -2440,9 +2470,9 @@ static int domain_add_dev_info(struct dmar_domain *domain, struct device *dev)
 	if (ret)
 		return ret;
 	info->domain = domain;
-	spin_lock(&domain->lock);
+	spin_lock_irqsave(&domain->lock, flags);
 	list_add(&info->link, &domain->devices);
-	spin_unlock(&domain->lock);
+	spin_unlock_irqrestore(&domain->lock, flags);
 
 	/* PASID table is mandatory for a PCI device in scalable mode. */
 	if (sm_supported(iommu) && !dev_is_real_dma_subdevice(dev)) {
@@ -2684,32 +2714,14 @@ static int copy_context_table(struct intel_iommu *iommu,
 		/* Now copy the context entry */
 		memcpy(&ce, old_ce + idx, sizeof(ce));
 
-		if (!__context_present(&ce))
+		if (!context_present(&ce))
 			continue;
 
 		did = context_domain_id(&ce);
 		if (did >= 0 && did < cap_ndoms(iommu->cap))
 			set_bit(did, iommu->domain_ids);
 
-		/*
-		 * We need a marker for copied context entries. This
-		 * marker needs to work for the old format as well as
-		 * for extended context entries.
-		 *
-		 * Bit 67 of the context entry is used. In the old
-		 * format this bit is available to software, in the
-		 * extended format it is the PGE bit, but PGE is ignored
-		 * by HW if PASIDs are disabled (and thus still
-		 * available).
-		 *
-		 * So disable PASIDs first and then mark the entry
-		 * copied. This means that we don't copy PASID
-		 * translations from the old kernel, but this is fine as
-		 * faults there are not fatal.
-		 */
-		context_clear_pasid_enable(&ce);
-		context_set_copied(&ce);
-
+		set_context_copied(iommu, bus, devfn);
 		new_ce[idx] = ce;
 	}
 
@@ -2735,8 +2747,8 @@ static int copy_translation_tables(struct intel_iommu *iommu)
 	bool new_ext, ext;
 
 	rtaddr_reg = dmar_readq(iommu->reg + DMAR_RTADDR_REG);
-	ext        = !!(rtaddr_reg & DMA_RTADDR_RTT);
-	new_ext    = !!ecap_ecs(iommu->ecap);
+	ext        = !!(rtaddr_reg & DMA_RTADDR_SMT);
+	new_ext    = !!sm_supported(iommu);
 
 	/*
 	 * The RTT bit can only be changed when translation is disabled,
@@ -2746,6 +2758,10 @@ static int copy_translation_tables(struct intel_iommu *iommu)
 	 */
 	if (new_ext != ext)
 		return -EINVAL;
+
+	iommu->copied_tables = bitmap_zalloc(BIT_ULL(16), GFP_KERNEL);
+	if (!iommu->copied_tables)
+		return -ENOMEM;
 
 	old_rt_phys = rtaddr_reg & VTD_PAGE_MASK;
 	if (!old_rt_phys)
@@ -3890,7 +3906,6 @@ static int __init probe_acpi_namespace_devices(void)
 					continue;
 				}
 
-				pn->dev->bus->iommu_ops = &intel_iommu_ops;
 				ret = iommu_probe_device(pn->dev);
 				if (ret)
 					break;
@@ -4023,7 +4038,6 @@ int __init intel_iommu_init(void)
 	}
 	up_read(&dmar_global_lock);
 
-	bus_set_iommu(&pci_bus_type, &intel_iommu_ops);
 	if (si_domain && !hw_pass_through)
 		register_memory_notifier(&intel_iommu_memory_nb);
 
@@ -4080,6 +4094,7 @@ static void dmar_remove_one_dev_info(struct device *dev)
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct dmar_domain *domain = info->domain;
 	struct intel_iommu *iommu = info->iommu;
+	unsigned long flags;
 
 	if (!dev_is_real_dma_subdevice(info->dev)) {
 		if (dev_is_pci(info->dev) && sm_supported(iommu))
@@ -4091,9 +4106,9 @@ static void dmar_remove_one_dev_info(struct device *dev)
 		intel_pasid_free_table(info->dev);
 	}
 
-	spin_lock(&domain->lock);
+	spin_lock_irqsave(&domain->lock, flags);
 	list_del(&info->link);
-	spin_unlock(&domain->lock);
+	spin_unlock_irqrestore(&domain->lock, flags);
 
 	domain_detach_iommu(domain, iommu);
 	info->domain = NULL;
@@ -4412,24 +4427,25 @@ static void domain_set_force_snooping(struct dmar_domain *domain)
 static bool intel_iommu_enforce_cache_coherency(struct iommu_domain *domain)
 {
 	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
+	unsigned long flags;
 
 	if (dmar_domain->force_snooping)
 		return true;
 
-	spin_lock(&dmar_domain->lock);
+	spin_lock_irqsave(&dmar_domain->lock, flags);
 	if (!domain_support_force_snooping(dmar_domain)) {
-		spin_unlock(&dmar_domain->lock);
+		spin_unlock_irqrestore(&dmar_domain->lock, flags);
 		return false;
 	}
 
 	domain_set_force_snooping(dmar_domain);
 	dmar_domain->force_snooping = true;
-	spin_unlock(&dmar_domain->lock);
+	spin_unlock_irqrestore(&dmar_domain->lock, flags);
 
 	return true;
 }
 
-static bool intel_iommu_capable(enum iommu_cap cap)
+static bool intel_iommu_capable(struct device *dev, enum iommu_cap cap)
 {
 	if (cap == IOMMU_CAP_CACHE_COHERENCY)
 		return true;
@@ -4449,7 +4465,7 @@ static struct iommu_device *intel_iommu_probe_device(struct device *dev)
 	u8 bus, devfn;
 
 	iommu = device_to_iommu(dev, &bus, &devfn);
-	if (!iommu)
+	if (!iommu || !iommu->iommu.ops)
 		return ERR_PTR(-ENODEV);
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -4566,52 +4582,6 @@ static void intel_iommu_get_resv_regions(struct device *device,
 	list_add_tail(&reg->list, head);
 }
 
-int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct device *dev)
-{
-	struct device_domain_info *info = dev_iommu_priv_get(dev);
-	struct context_entry *context;
-	struct dmar_domain *domain;
-	u64 ctx_lo;
-	int ret;
-
-	domain = info->domain;
-	if (!domain)
-		return -EINVAL;
-
-	spin_lock(&iommu->lock);
-	ret = -EINVAL;
-	if (!info->pasid_supported)
-		goto out;
-
-	context = iommu_context_addr(iommu, info->bus, info->devfn, 0);
-	if (WARN_ON(!context))
-		goto out;
-
-	ctx_lo = context[0].lo;
-
-	if (!(ctx_lo & CONTEXT_PASIDE)) {
-		ctx_lo |= CONTEXT_PASIDE;
-		context[0].lo = ctx_lo;
-		wmb();
-		iommu->flush.flush_context(iommu,
-					   domain_id_iommu(domain, iommu),
-					   PCI_DEVID(info->bus, info->devfn),
-					   DMA_CCMD_MASK_NOBIT,
-					   DMA_CCMD_DEVICE_INVL);
-	}
-
-	/* Enable PASID support in the device, if it wasn't already */
-	if (!info->pasid_enabled)
-		iommu_enable_dev_iotlb(info);
-
-	ret = 0;
-
- out:
-	spin_unlock(&iommu->lock);
-
-	return ret;
-}
-
 static struct iommu_group *intel_iommu_device_group(struct device *dev)
 {
 	if (dev_is_pci(dev))
@@ -4633,9 +4603,6 @@ static int intel_iommu_enable_sva(struct device *dev)
 		return -EINVAL;
 
 	if (!(iommu->flags & VTD_FLAG_SVM_CAPABLE))
-		return -ENODEV;
-
-	if (intel_iommu_enable_pasid(iommu, dev))
 		return -ENODEV;
 
 	if (!info->pasid_enabled || !info->pri_enabled || !info->ats_enabled)

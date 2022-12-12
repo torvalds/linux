@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/amlogic,meson8-ddr-clkc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Amlogic DDR Clock Controller Device Tree Bindings
+title: Amlogic DDR Clock Controller
 
 maintainers:
   - Martin Blumenstingl <martin.blumenstingl@googlemail.com>

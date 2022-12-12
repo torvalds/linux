@@ -62,6 +62,11 @@ struct dma_resv_list;
  * For example when asking for WRITE fences then the KERNEL fences are returned
  * as well. Similar when asked for READ fences then both WRITE and KERNEL
  * fences are returned as well.
+ *
+ * Already used fences can be promoted in the sense that a fence with
+ * DMA_RESV_USAGE_BOOKKEEP could become DMA_RESV_USAGE_READ by adding it again
+ * with this usage. But fences can never be degraded in the sense that a fence
+ * with DMA_RESV_USAGE_WRITE could become DMA_RESV_USAGE_READ.
  */
 enum dma_resv_usage {
 	/**
@@ -98,10 +103,15 @@ enum dma_resv_usage {
 	 * @DMA_RESV_USAGE_BOOKKEEP: No implicit sync.
 	 *
 	 * This should be used by submissions which don't want to participate in
-	 * implicit synchronization.
+	 * any implicit synchronization.
 	 *
-	 * The most common case are preemption fences as well as page table
-	 * updates and their TLB flushes.
+	 * The most common case are preemption fences, page table updates, TLB
+	 * flushes as well as explicit synced user submissions.
+	 *
+	 * Explicit synced user user submissions can be promoted to
+	 * DMA_RESV_USAGE_READ or DMA_RESV_USAGE_WRITE as needed using
+	 * dma_buf_import_sync_file() when implicit synchronization should
+	 * become necessary after initial adding of the fence.
 	 */
 	DMA_RESV_USAGE_BOOKKEEP
 };

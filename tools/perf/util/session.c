@@ -916,33 +916,38 @@ static void perf_event__cpu_map_swap(union perf_event *event,
 				     bool sample_id_all __maybe_unused)
 {
 	struct perf_record_cpu_map_data *data = &event->cpu_map.data;
-	struct cpu_map_entries *cpus;
-	struct perf_record_record_cpu_map *mask;
-	unsigned i;
 
 	data->type = bswap_16(data->type);
 
 	switch (data->type) {
 	case PERF_CPU_MAP__CPUS:
-		cpus = (struct cpu_map_entries *)data->data;
+		data->cpus_data.nr = bswap_16(data->cpus_data.nr);
 
-		cpus->nr = bswap_16(cpus->nr);
-
-		for (i = 0; i < cpus->nr; i++)
-			cpus->cpu[i] = bswap_16(cpus->cpu[i]);
+		for (unsigned i = 0; i < data->cpus_data.nr; i++)
+			data->cpus_data.cpu[i] = bswap_16(data->cpus_data.cpu[i]);
 		break;
 	case PERF_CPU_MAP__MASK:
-		mask = (struct perf_record_record_cpu_map *)data->data;
+		data->mask32_data.long_size = bswap_16(data->mask32_data.long_size);
 
-		mask->nr = bswap_16(mask->nr);
-		mask->long_size = bswap_16(mask->long_size);
-
-		switch (mask->long_size) {
-		case 4: mem_bswap_32(&mask->mask, mask->nr); break;
-		case 8: mem_bswap_64(&mask->mask, mask->nr); break;
+		switch (data->mask32_data.long_size) {
+		case 4:
+			data->mask32_data.nr = bswap_16(data->mask32_data.nr);
+			for (unsigned i = 0; i < data->mask32_data.nr; i++)
+				data->mask32_data.mask[i] = bswap_32(data->mask32_data.mask[i]);
+			break;
+		case 8:
+			data->mask64_data.nr = bswap_16(data->mask64_data.nr);
+			for (unsigned i = 0; i < data->mask64_data.nr; i++)
+				data->mask64_data.mask[i] = bswap_64(data->mask64_data.mask[i]);
+			break;
 		default:
 			pr_err("cpu_map swap: unsupported long size\n");
 		}
+		break;
+	case PERF_CPU_MAP__RANGE_CPUS:
+		data->range_cpu_data.start_cpu = bswap_16(data->range_cpu_data.start_cpu);
+		data->range_cpu_data.end_cpu = bswap_16(data->range_cpu_data.end_cpu);
+		break;
 	default:
 		break;
 	}
@@ -1180,7 +1185,7 @@ static void branch_stack__printf(struct perf_sample *sample, bool callstack)
 				e->flags.abort ? "A" : " ",
 				e->flags.in_tx ? "T" : " ",
 				(unsigned)e->flags.reserved,
-				e->flags.type ? branch_type_name(e->flags.type) : "");
+				get_branch_type(e));
 		} else {
 			if (i == 0) {
 				printf("..... %2"PRIu64": %016" PRIx64 "\n"
@@ -1283,21 +1288,25 @@ static void sample_read__printf(struct perf_sample *sample, u64 read_format)
 		       sample->read.time_running);
 
 	if (read_format & PERF_FORMAT_GROUP) {
-		u64 i;
+		struct sample_read_value *value = sample->read.group.values;
 
 		printf(".... group nr %" PRIu64 "\n", sample->read.group.nr);
 
-		for (i = 0; i < sample->read.group.nr; i++) {
-			struct sample_read_value *value;
-
-			value = &sample->read.group.values[i];
+		sample_read_group__for_each(value, sample->read.group.nr, read_format) {
 			printf("..... id %016" PRIx64
-			       ", value %016" PRIx64 "\n",
+			       ", value %016" PRIx64,
 			       value->id, value->value);
+			if (read_format & PERF_FORMAT_LOST)
+				printf(", lost %" PRIu64, value->lost);
+			printf("\n");
 		}
-	} else
-		printf("..... id %016" PRIx64 ", value %016" PRIx64 "\n",
+	} else {
+		printf("..... id %016" PRIx64 ", value %016" PRIx64,
 			sample->read.one.id, sample->read.one.value);
+		if (read_format & PERF_FORMAT_LOST)
+			printf(", lost %" PRIu64, sample->read.one.lost);
+		printf("\n");
+	}
 }
 
 static void dump_event(struct evlist *evlist, union perf_event *event,
@@ -1411,6 +1420,9 @@ static void dump_read(struct evsel *evsel, union perf_event *event)
 
 	if (read_format & PERF_FORMAT_ID)
 		printf("... id           : %" PRI_lu64 "\n", read_event->id);
+
+	if (read_format & PERF_FORMAT_LOST)
+		printf("... lost         : %" PRI_lu64 "\n", read_event->lost);
 }
 
 static struct machine *machines__find_for_cpumode(struct machines *machines,
@@ -1479,14 +1491,14 @@ static int deliver_sample_group(struct evlist *evlist,
 				struct perf_tool *tool,
 				union  perf_event *event,
 				struct perf_sample *sample,
-				struct machine *machine)
+				struct machine *machine,
+				u64 read_format)
 {
 	int ret = -EINVAL;
-	u64 i;
+	struct sample_read_value *v = sample->read.group.values;
 
-	for (i = 0; i < sample->read.group.nr; i++) {
-		ret = deliver_sample_value(evlist, tool, event, sample,
-					   &sample->read.group.values[i],
+	sample_read_group__for_each(v, sample->read.group.nr, read_format) {
+		ret = deliver_sample_value(evlist, tool, event, sample, v,
 					   machine);
 		if (ret)
 			break;
@@ -1510,7 +1522,7 @@ static int evlist__deliver_sample(struct evlist *evlist, struct perf_tool *tool,
 	/* For PERF_SAMPLE_READ we have either single or group mode. */
 	if (read_format & PERF_FORMAT_GROUP)
 		return deliver_sample_group(evlist, tool, event, sample,
-					    machine);
+					    machine, read_format);
 	else
 		return deliver_sample_value(evlist, tool, event, sample,
 					    &sample->read.one, machine);

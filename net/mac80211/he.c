@@ -31,24 +31,26 @@ ieee80211_update_from_he_6ghz_capa(const struct ieee80211_he_6ghz_capa *he_6ghz_
 			break;
 		}
 
-		sta->sta.smps_mode = smps_mode;
+		link_sta->pub->smps_mode = smps_mode;
 	} else {
-		sta->sta.smps_mode = IEEE80211_SMPS_OFF;
+		link_sta->pub->smps_mode = IEEE80211_SMPS_OFF;
 	}
 
 	switch (le16_get_bits(he_6ghz_capa->capa,
 			      IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN)) {
 	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
-		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_11454;
+		link_sta->pub->agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_11454;
 		break;
 	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991:
-		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_7991;
+		link_sta->pub->agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_7991;
 		break;
 	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895:
 	default:
-		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_3895;
+		link_sta->pub->agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_3895;
 		break;
 	}
+
+	ieee80211_sta_recalc_aggregates(&sta->sta);
 
 	link_sta->pub->he_6ghz_capa = *he_6ghz_capa;
 }

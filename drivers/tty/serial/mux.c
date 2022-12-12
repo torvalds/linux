@@ -289,7 +289,7 @@ static void mux_shutdown(struct uart_port *port)
  */
 static void
 mux_set_termios(struct uart_port *port, struct ktermios *termios,
-	        struct ktermios *old)
+	        const struct ktermios *old)
 {
 }
 

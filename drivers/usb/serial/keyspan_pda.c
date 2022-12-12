@@ -321,7 +321,8 @@ static void keyspan_pda_break_ctl(struct tty_struct *tty, int break_state)
 }
 
 static void keyspan_pda_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+				    struct usb_serial_port *port,
+				    const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	speed_t speed;

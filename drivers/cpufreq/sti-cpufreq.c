@@ -252,7 +252,7 @@ static int sti_cpufreq_fetch_syscon_registers(void)
 	return 0;
 }
 
-static int sti_cpufreq_init(void)
+static int __init sti_cpufreq_init(void)
 {
 	int ret;
 

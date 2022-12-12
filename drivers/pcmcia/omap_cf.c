@@ -124,8 +124,6 @@ static int omap_cf_get_status(struct pcmcia_socket *s, u_int *sp)
 static int
 omap_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 {
-	u16		control;
-
 	/* REVISIT some non-OSK boards may support power switching */
 	switch (s->Vcc) {
 	case 0:
@@ -135,7 +133,7 @@ omap_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 		return -EINVAL;
 	}
 
-	control = omap_readw(CF_CONTROL);
+	omap_readw(CF_CONTROL);
 	if (s->flags & SS_RESET)
 		omap_writew(CF_CONTROL_RESET, CF_CONTROL);
 	else

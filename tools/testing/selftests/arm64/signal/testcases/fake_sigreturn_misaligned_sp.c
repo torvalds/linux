@@ -19,7 +19,7 @@ static int fake_sigreturn_misaligned_run(struct tdescr *td,
 					 siginfo_t *si, ucontext_t *uc)
 {
 	/* just to fill the ucontext_t with something real */
-	if (!get_current_context(td, &sf.uc))
+	if (!get_current_context(td, &sf.uc, sizeof(sf.uc)))
 		return 1;
 
 	/* Forcing sigframe on misaligned SP (16 + 3) */

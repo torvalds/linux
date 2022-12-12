@@ -644,7 +644,7 @@ static int lm95234_detect(struct i2c_client *client,
 	if (val & model_mask)
 		return -ENODEV;
 
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 	return 0;
 }
 

@@ -292,8 +292,8 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 		if (max_vsi_num < vsi->vsi_num)
 			max_vsi_num = vsi->vsi_num;
 
-		netif_napi_add(vf->repr->netdev, &vf->repr->q_vector->napi, ice_napi_poll,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(vf->repr->netdev, &vf->repr->q_vector->napi,
+			       ice_napi_poll);
 
 		netif_keep_dst(vf->repr->netdev);
 	}

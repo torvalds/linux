@@ -471,6 +471,8 @@ void __init find_legacy_serial_ports(void)
 	}
 #endif
 
+	of_node_put(stdout);
+
 	DBG("legacy_serial_console = %d\n", legacy_serial_console);
 	if (legacy_serial_console >= 0)
 		setup_legacy_serial_console(legacy_serial_console);

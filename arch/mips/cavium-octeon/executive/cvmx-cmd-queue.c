@@ -57,14 +57,11 @@ EXPORT_SYMBOL_GPL(__cvmx_cmd_queue_state_ptr);
 static cvmx_cmd_queue_result_t __cvmx_cmd_queue_init_state_ptr(void)
 {
 	char *alloc_name = "cvmx_cmd_queues";
-#if defined(CONFIG_CAVIUM_RESERVE32) && CONFIG_CAVIUM_RESERVE32
 	extern uint64_t octeon_reserve32_memory;
-#endif
 
 	if (likely(__cvmx_cmd_queue_state_ptr))
 		return CVMX_CMD_QUEUE_SUCCESS;
 
-#if defined(CONFIG_CAVIUM_RESERVE32) && CONFIG_CAVIUM_RESERVE32
 	if (octeon_reserve32_memory)
 		__cvmx_cmd_queue_state_ptr =
 		    cvmx_bootmem_alloc_named_range(sizeof(*__cvmx_cmd_queue_state_ptr),
@@ -73,7 +70,6 @@ static cvmx_cmd_queue_result_t __cvmx_cmd_queue_init_state_ptr(void)
 						   (CONFIG_CAVIUM_RESERVE32 <<
 						    20) - 1, 128, alloc_name);
 	else
-#endif
 		__cvmx_cmd_queue_state_ptr =
 		    cvmx_bootmem_alloc_named(sizeof(*__cvmx_cmd_queue_state_ptr),
 					    128,

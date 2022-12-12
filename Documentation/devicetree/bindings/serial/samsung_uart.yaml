@@ -17,7 +17,10 @@ description: |+
 
 properties:
   compatible:
-    items:
+    oneOf:
+      - items:
+          - const: samsung,exynosautov9-uart
+          - const: samsung,exynos850-uart
       - enum:
           - apple,s5l-uart
           - axis,artpec8-uart
@@ -37,7 +40,6 @@ properties:
     description: |
       The size (in bytes) of the IO accesses that should be performed
       on the device.
-    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 1, 4 ]
 
   clocks:
@@ -68,6 +70,9 @@ properties:
     description: RX interrupt and optionally TX interrupt.
     minItems: 1
     maxItems: 2
+
+  power-domains:
+    maxItems: 1
 
   samsung,uart-fifosize:
     description: The fifo size supported by the UART channel.

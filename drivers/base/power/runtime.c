@@ -792,10 +792,13 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		DEFINE_WAIT(wait);
 
 		if (rpmflags & (RPM_ASYNC | RPM_NOWAIT)) {
-			if (dev->power.runtime_status == RPM_SUSPENDING)
+			if (dev->power.runtime_status == RPM_SUSPENDING) {
 				dev->power.deferred_resume = true;
-			else
+				if (rpmflags & RPM_NOWAIT)
+					retval = -EINPROGRESS;
+			} else {
 				retval = -EINPROGRESS;
+			}
 			goto out;
 		}
 

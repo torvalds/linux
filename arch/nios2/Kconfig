@@ -44,7 +44,7 @@ menu "Kernel features"
 
 source "kernel/Kconfig.hz"
 
-config FORCE_MAX_ZONEORDER
+config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
 	range 9 20
 	default "11"

@@ -969,6 +969,7 @@ static struct genl_family tcp_metrics_nl_family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.small_ops	= tcp_metrics_nl_ops,
 	.n_small_ops	= ARRAY_SIZE(tcp_metrics_nl_ops),
+	.resv_start_op	= TCP_METRICS_CMD_DEL + 1,
 };
 
 static unsigned int tcpmhash_entries;

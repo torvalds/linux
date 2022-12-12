@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/mediatek.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek SoC based Platforms Device Tree Bindings
+title: MediaTek SoC based Platforms
 
 maintainers:
   - Sean Wang <sean.wang@mediatek.com>

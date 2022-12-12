@@ -124,8 +124,6 @@ struct hci_dev_info {
 	__u16 acl_pkts;
 	__u16 sco_mtu;
 	__u16 sco_pkts;
-	__u16 iso_mtu;
-	__u16 iso_pkts;
 
 	struct hci_dev_stats stat;
 };

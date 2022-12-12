@@ -160,6 +160,7 @@
 
 	pci: pciv3@62000000 {
 		compatible = "arm,integrator-ap-pci", "v3,v360epc-pci";
+		device_type = "pci";
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
@@ -261,7 +262,7 @@
 		lm0: bus@c0000000 {
 			compatible = "simple-bus";
 			ranges = <0x00000000 0xc0000000 0x10000000>;
-			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			dma-ranges = <0x00000000 0xc0000000 0x10000000>;
 			reg = <0xc0000000 0x10000000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -269,7 +270,7 @@
 		lm1: bus@d0000000 {
 			compatible = "simple-bus";
 			ranges = <0x00000000 0xd0000000 0x10000000>;
-			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			dma-ranges = <0x00000000 0xd0000000 0x10000000>;
 			reg = <0xd0000000 0x10000000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -277,7 +278,7 @@
 		lm2: bus@e0000000 {
 			compatible = "simple-bus";
 			ranges = <0x00000000 0xe0000000 0x10000000>;
-			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			dma-ranges = <0x00000000 0xe0000000 0x10000000>;
 			reg = <0xe0000000 0x10000000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -285,7 +286,7 @@
 		lm3: bus@f0000000 {
 			compatible = "simple-bus";
 			ranges = <0x00000000 0xf0000000 0x10000000>;
-			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			dma-ranges = <0x00000000 0xf0000000 0x10000000>;
 			reg = <0xf0000000 0x10000000>;
 			#address-cells = <1>;
 			#size-cells = <1>;

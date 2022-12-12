@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/timer/xlnx,xps-timer.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Xilinx LogiCORE IP AXI Timer Device Tree Binding
+title: Xilinx LogiCORE IP AXI Timer
 
 maintainers:
   - Sean Anderson <sean.anderson@seco.com>

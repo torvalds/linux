@@ -35,6 +35,8 @@
 #include "dc_link_ddc.h"
 #include "dce/dce_aux.h"
 #include "dmub/inc/dmub_cmd.h"
+#include "link_dpcd.h"
+#include "include/dal_asic_id.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -683,6 +685,21 @@ bool dc_link_aux_try_to_configure_timeout(struct ddc_service *ddc,
 	bool result = false;
 	struct ddc *ddc_pin = ddc->ddc_pin;
 
+	if ((ddc->link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+			!ddc->link->dc->debug.disable_fixed_vs_aux_timeout_wa &&
+			ASICREV_IS_YELLOW_CARP(ddc->ctx->asic_id.hw_internal_rev)) {
+		/* Fixed VS workaround for AUX timeout */
+		const uint32_t fixed_vs_address = 0xF004F;
+		const uint8_t fixed_vs_data[4] = {0x1, 0x22, 0x63, 0xc};
+
+		core_link_write_dpcd(ddc->link,
+				fixed_vs_address,
+				fixed_vs_data,
+				sizeof(fixed_vs_data));
+
+		timeout = 3072;
+	}
+
 	/* Do not try to access nonexistent DDC pin. */
 	if (ddc->link->ep_type != DISPLAY_ENDPOINT_PHY)
 		return true;
@@ -691,6 +708,7 @@ bool dc_link_aux_try_to_configure_timeout(struct ddc_service *ddc,
 		ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout(ddc, timeout);
 		result = true;
 	}
+
 	return result;
 }
 

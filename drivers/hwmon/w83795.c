@@ -1967,7 +1967,7 @@ static int w83795_detect(struct i2c_client *client,
 	else
 		chip_name = "w83795g";
 
-	strlcpy(info->type, chip_name, I2C_NAME_SIZE);
+	strscpy(info->type, chip_name, I2C_NAME_SIZE);
 	dev_info(&adapter->dev, "Found %s rev. %c at 0x%02hx\n", chip_name,
 		 'A' + (device_id & 0xf), address);
 

@@ -295,7 +295,8 @@ void dma_resv_add_fence(struct dma_resv *obj, struct dma_fence *fence,
 		enum dma_resv_usage old_usage;
 
 		dma_resv_list_entry(fobj, i, obj, &old, &old_usage);
-		if ((old->context == fence->context && old_usage >= usage) ||
+		if ((old->context == fence->context && old_usage >= usage &&
+		     dma_fence_is_later(fence, old)) ||
 		    dma_fence_is_signaled(old)) {
 			dma_resv_list_set(fobj, i, fence, usage);
 			dma_fence_put(old);

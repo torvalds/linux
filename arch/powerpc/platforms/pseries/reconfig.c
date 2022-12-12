@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/notifier.h>
 #include <linux/proc_fs.h>
+#include <linux/security.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 
@@ -360,6 +361,10 @@ static ssize_t ofdt_write(struct file *file, const char __user *buf, size_t coun
 	int rv;
 	char *kbuf;
 	char *tmp;
+
+	rv = security_locked_down(LOCKDOWN_DEVICE_TREE);
+	if (rv)
+		return rv;
 
 	kbuf = memdup_user_nul(buf, count);
 	if (IS_ERR(kbuf))

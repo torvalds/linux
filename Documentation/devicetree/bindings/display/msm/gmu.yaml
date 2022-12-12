@@ -20,35 +20,24 @@ description: |
 properties:
   compatible:
     items:
-      - enum:
-          - qcom,adreno-gmu-630.2
+      - pattern: '^qcom,adreno-gmu-6[0-9][0-9]\.[0-9]$'
       - const: qcom,adreno-gmu
 
   reg:
-    items:
-      - description: Core GMU registers
-      - description: GMU PDC registers
-      - description: GMU PDC sequence registers
+    minItems: 3
+    maxItems: 4
 
   reg-names:
-    items:
-      - const: gmu
-      - const: gmu_pdc
-      - const: gmu_pdc_seq
+    minItems: 3
+    maxItems: 4
 
   clocks:
-    items:
-      - description: GMU clock
-      - description: GPU CX clock
-      - description: GPU AXI clock
-      - description: GPU MEMNOC clock
+    minItems: 4
+    maxItems: 7
 
   clock-names:
-    items:
-      - const: gmu
-      - const: cxo
-      - const: axi
-      - const: memnoc
+    minItems: 4
+    maxItems: 7
 
   interrupts:
     items:
@@ -76,6 +65,9 @@ properties:
 
   operating-points-v2: true
 
+  opp-table:
+    type: object
+
 required:
   - compatible
   - reg
@@ -90,6 +82,140 @@ required:
   - operating-points-v2
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,adreno-gmu-618.0
+              - qcom,adreno-gmu-630.2
+    then:
+      properties:
+        reg:
+          items:
+            - description: Core GMU registers
+            - description: GMU PDC registers
+            - description: GMU PDC sequence registers
+        reg-names:
+          items:
+            - const: gmu
+            - const: gmu_pdc
+            - const: gmu_pdc_seq
+        clocks:
+          items:
+            - description: GMU clock
+            - description: GPU CX clock
+            - description: GPU AXI clock
+            - description: GPU MEMNOC clock
+        clock-names:
+          items:
+            - const: gmu
+            - const: cxo
+            - const: axi
+            - const: memnoc
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,adreno-gmu-635.0
+    then:
+      properties:
+        reg:
+          items:
+            - description: Core GMU registers
+            - description: Resource controller registers
+            - description: GMU PDC registers
+        reg-names:
+          items:
+            - const: gmu
+            - const: rscc
+            - const: gmu_pdc
+        clocks:
+          items:
+            - description: GMU clock
+            - description: GPU CX clock
+            - description: GPU AXI clock
+            - description: GPU MEMNOC clock
+            - description: GPU AHB clock
+            - description: GPU HUB CX clock
+            - description: GPU SMMU vote clock
+        clock-names:
+          items:
+            - const: gmu
+            - const: cxo
+            - const: axi
+            - const: memnoc
+            - const: ahb
+            - const: hub
+            - const: smmu_vote
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,adreno-gmu-640.1
+    then:
+      properties:
+        reg:
+          items:
+            - description: Core GMU registers
+            - description: GMU PDC registers
+            - description: GMU PDC sequence registers
+        reg-names:
+          items:
+            - const: gmu
+            - const: gmu_pdc
+            - const: gmu_pdc_seq
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,adreno-gmu-650.2
+    then:
+      properties:
+        reg:
+          items:
+            - description: Core GMU registers
+            - description: Resource controller registers
+            - description: GMU PDC registers
+            - description: GMU PDC sequence registers
+        reg-names:
+          items:
+            - const: gmu
+            - const: rscc
+            - const: gmu_pdc
+            - const: gmu_pdc_seq
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,adreno-gmu-640.1
+              - qcom,adreno-gmu-650.2
+    then:
+      properties:
+        clocks:
+          items:
+            - description: GPU AHB clock
+            - description: GMU clock
+            - description: GPU CX clock
+            - description: GPU AXI clock
+            - description: GPU MEMNOC clock
+        clock-names:
+          items:
+            - const: ahb
+            - const: gmu
+            - const: cxo
+            - const: axi
+            - const: memnoc
 
 examples:
   - |

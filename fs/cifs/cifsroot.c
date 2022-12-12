@@ -59,7 +59,7 @@ static int __init cifs_root_setup(char *line)
 			pr_err("Root-CIFS: UNC path too long\n");
 			return 1;
 		}
-		strlcpy(root_dev, line, len);
+		strscpy(root_dev, line, len);
 		srvaddr = parse_srvaddr(&line[2], s);
 		if (*s) {
 			int n = snprintf(root_opts,

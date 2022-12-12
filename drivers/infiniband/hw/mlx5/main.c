@@ -26,7 +26,7 @@
 #include <linux/mlx5/eswitch.h>
 #include <linux/list.h>
 #include <rdma/ib_smi.h>
-#include <rdma/ib_umem.h>
+#include <rdma/ib_umem_odp.h>
 #include <rdma/lag.h>
 #include <linux/in.h>
 #include <linux/etherdevice.h>
@@ -46,7 +46,6 @@
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/mlx5_user_ioctl_verbs.h>
 #include <rdma/mlx5_user_ioctl_cmds.h>
-#include <rdma/ib_umem_odp.h>
 
 #define UVERBS_MODULE_NAME mlx5_ib
 #include <rdma/uverbs_named_ioctl.h>
@@ -1826,6 +1825,9 @@ static int set_ucontext_resp(struct ib_ucontext *uctx,
 	if (MLX5_CAP_GEN(dev->mdev, drain_sigerr))
 		resp->comp_mask |= MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_SQD2RTS;
 
+	resp->comp_mask |=
+		MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_MKEY_UPDATE_TAG;
+
 	return 0;
 }
 
@@ -2738,26 +2740,24 @@ static int set_has_smi_cap(struct mlx5_ib_dev *dev)
 	int err;
 	int port;
 
-	for (port = 1; port <= ARRAY_SIZE(dev->port_caps); port++) {
-		dev->port_caps[port - 1].has_smi = false;
-		if (MLX5_CAP_GEN(dev->mdev, port_type) ==
-		    MLX5_CAP_PORT_TYPE_IB) {
-			if (MLX5_CAP_GEN(dev->mdev, ib_virt)) {
-				err = mlx5_query_hca_vport_context(dev->mdev, 0,
-								   port, 0,
-								   &vport_ctx);
-				if (err) {
-					mlx5_ib_err(dev, "query_hca_vport_context for port=%d failed %d\n",
-						    port, err);
-					return err;
-				}
-				dev->port_caps[port - 1].has_smi =
-					vport_ctx.has_smi;
-			} else {
-				dev->port_caps[port - 1].has_smi = true;
-			}
+	if (MLX5_CAP_GEN(dev->mdev, port_type) != MLX5_CAP_PORT_TYPE_IB)
+		return 0;
+
+	for (port = 1; port <= dev->num_ports; port++) {
+		if (!MLX5_CAP_GEN(dev->mdev, ib_virt)) {
+			dev->port_caps[port - 1].has_smi = true;
+			continue;
 		}
+		err = mlx5_query_hca_vport_context(dev->mdev, 0, port, 0,
+						   &vport_ctx);
+		if (err) {
+			mlx5_ib_err(dev, "query_hca_vport_context for port=%d failed %d\n",
+				    port, err);
+			return err;
+		}
+		dev->port_caps[port - 1].has_smi = vport_ctx.has_smi;
 	}
+
 	return 0;
 }
 
@@ -4338,7 +4338,7 @@ static int mlx5r_probe(struct auxiliary_device *adev,
 	dev->mdev = mdev;
 	dev->num_ports = num_ports;
 
-	if (ll == IB_LINK_LAYER_ETHERNET && !mlx5_is_roce_init_enabled(mdev))
+	if (ll == IB_LINK_LAYER_ETHERNET && !mlx5_get_roce_state(mdev))
 		profile = &raw_eth_profile;
 	else
 		profile = &pf_profile;

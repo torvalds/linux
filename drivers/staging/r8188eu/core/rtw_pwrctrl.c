@@ -89,7 +89,7 @@ static bool rtw_pwr_unassociated_idle(struct adapter *adapter)
 	struct wifidirect_info	*pwdinfo = &adapter->wdinfo;
 	bool ret = false;
 
-	if (adapter->pwrctrlpriv.ips_deny_time >= jiffies)
+	if (time_after_eq(adapter->pwrctrlpriv.ips_deny_time, jiffies))
 		goto exit;
 
 	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE | WIFI_SITE_MONITOR) ||

@@ -29,23 +29,33 @@
 
 &i2c0 {
 	status = "okay";
+
 	ina220@40 {
 		compatible = "ti,ina220";
 		reg = <0x40>;
 		shunt-resistor = <1000>;
 	};
+
 	adt7461a@4c {
 		compatible = "adi,adt7461";
 		reg = <0x4c>;
 	};
+
+	rtc@51 {
+		compatible = "nxp,pcf85263";
+		reg = <0x51>;
+	};
+
 	eeprom@52 {
 		compatible = "atmel,24c512";
 		reg = <0x52>;
 	};
+
 	eeprom@53 {
 		compatible = "atmel,24c512";
 		reg = <0x53>;
 	};
+
 	rtc@68 {
 		compatible = "pericom,pt7c4338";
 		reg = <0x68>;

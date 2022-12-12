@@ -339,29 +339,24 @@ void dcn314_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zs
 	if (!clk_mgr->smu_present)
 		return;
 
-	if (!clk_mgr->base.ctx->dc->debug.enable_z9_disable_interface &&
-			(support == DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY))
-		support = DCN_ZSTATE_SUPPORT_DISALLOW;
-
-
 	// Arg[15:0] = 8/9/0 for Z8/Z9/disallow -> existing bits
 	// Arg[16] = Disallow Z9 -> new bit
 	switch (support) {
 
 	case DCN_ZSTATE_SUPPORT_ALLOW:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
-		param = 9;
+		param = (1 << 10) | (1 << 9) | (1 << 8);
 		break;
 
 	case DCN_ZSTATE_SUPPORT_DISALLOW:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
-		param = 8;
+		param = 0;
 		break;
 
 
 	case DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
-		param = 0x00010008;
+		param = (1 << 10);
 		break;
 
 	default: //DCN_ZSTATE_SUPPORT_UNKNOWN

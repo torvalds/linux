@@ -27,7 +27,7 @@
 #include "../display_mode_vba.h"
 #include "../dml_inline_defs.h"
 #include "display_rq_dlg_calc_31.h"
-#include "dml/dcn30/display_mode_vba_30.h"
+#include "../dcn30/display_mode_vba_30.h"
 
 static bool is_dual_plane(enum source_format_class source_format)
 {

@@ -181,6 +181,9 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 	for (i = 0; i < AMDGPU_MES_MAX_SDMA_PIPES; i++) {
 		if (adev->ip_versions[SDMA0_HWIP][0] < IP_VERSION(6, 0, 0))
 			adev->mes.sdma_hqd_mask[i] = i ? 0 : 0x3fc;
+		/* zero sdma_hqd_mask for non-existent engine */
+		else if (adev->sdma.num_instances == 1)
+			adev->mes.sdma_hqd_mask[i] = i ? 0 : 0xfc;
 		else
 			adev->mes.sdma_hqd_mask[i] = 0xfc;
 	}

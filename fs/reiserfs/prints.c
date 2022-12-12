@@ -456,7 +456,7 @@ static int print_internal(struct buffer_head *bh, int first, int last)
 		to = B_NR_ITEMS(bh);
 	} else {
 		from = first;
-		to = last < B_NR_ITEMS(bh) ? last : B_NR_ITEMS(bh);
+		to = min_t(int, last, B_NR_ITEMS(bh));
 	}
 
 	reiserfs_printk("INTERNAL NODE (%ld) contains %z\n", bh->b_blocknr, bh);

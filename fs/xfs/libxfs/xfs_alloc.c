@@ -1520,7 +1520,7 @@ xfs_alloc_ag_vextent_lastblock(
 
 #ifdef DEBUG
 	/* Randomly don't execute the first algorithm. */
-	if (prandom_u32() & 1)
+	if (prandom_u32_max(2))
 		return 0;
 #endif
 

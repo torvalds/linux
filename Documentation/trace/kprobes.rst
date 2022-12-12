@@ -328,8 +328,8 @@ Configuring Kprobes
 ===================
 
 When configuring the kernel using make menuconfig/xconfig/oldconfig,
-ensure that CONFIG_KPROBES is set to "y". Under "General setup", look
-for "Kprobes".
+ensure that CONFIG_KPROBES is set to "y", look for "Kprobes" under
+"General architecture-dependent options".
 
 So that you can load and unload Kprobes-based instrumentation modules,
 make sure "Loadable module support" (CONFIG_MODULES) and "Module

@@ -742,7 +742,7 @@ void ipoib_flush_paths(struct net_device *dev)
 
 static void path_rec_completion(int status,
 				struct sa_path_rec *pathrec,
-				void *path_ptr)
+				int num_prs, void *path_ptr)
 {
 	struct ipoib_path *path = path_ptr;
 	struct net_device *dev = path->dev;

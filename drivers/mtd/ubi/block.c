@@ -409,7 +409,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	ret = blk_mq_alloc_tag_set(&dev->tag_set);
 	if (ret) {
 		dev_err(disk_to_dev(dev->gd), "blk_mq_alloc_tag_set failed");
-		goto out_free_dev;;
+		goto out_free_dev;
 	}
 
 
@@ -441,7 +441,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 	/*
 	 * Create one workqueue per volume (per registered block device).
-	 * Rembember workqueues are cheap, they're not threads.
+	 * Remember workqueues are cheap, they're not threads.
 	 */
 	dev->wq = alloc_workqueue("%s", 0, 0, gd->disk_name);
 	if (!dev->wq) {

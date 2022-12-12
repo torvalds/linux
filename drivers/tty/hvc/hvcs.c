@@ -69,6 +69,7 @@
 #include <asm/hvconsole.h>
 #include <asm/hvcserver.h>
 #include <linux/uaccess.h>
+#include <linux/termios_internal.h>
 #include <asm/vio.h>
 
 /*
@@ -839,7 +840,7 @@ static void hvcs_set_pi(struct hvcs_partner_info *pi, struct hvcs_struct *hvcsd)
 	hvcsd->p_partition_ID  = pi->partition_ID;
 
 	/* copy the null-term char too */
-	strlcpy(hvcsd->p_location_code, pi->location_code,
+	strscpy(hvcsd->p_location_code, pi->location_code,
 		sizeof(hvcsd->p_location_code));
 }
 

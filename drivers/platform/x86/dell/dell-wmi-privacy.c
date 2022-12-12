@@ -174,15 +174,12 @@ static ssize_t dell_privacy_current_state_show(struct device *dev,
 static DEVICE_ATTR_RO(dell_privacy_supported_type);
 static DEVICE_ATTR_RO(dell_privacy_current_state);
 
-static struct attribute *privacy_attributes[] = {
+static struct attribute *privacy_attrs[] = {
 	&dev_attr_dell_privacy_supported_type.attr,
 	&dev_attr_dell_privacy_current_state.attr,
 	NULL,
 };
-
-static const struct attribute_group privacy_attribute_group = {
-	.attrs = privacy_attributes
-};
+ATTRIBUTE_GROUPS(privacy);
 
 /*
  * Describes the Device State class exposed by BIOS which can be consumed by
@@ -342,10 +339,6 @@ static int dell_privacy_wmi_probe(struct wmi_device *wdev, const void *context)
 	if (ret)
 		return ret;
 
-	ret = devm_device_add_group(&wdev->dev, &privacy_attribute_group);
-	if (ret)
-		return ret;
-
 	if (priv->features_present & BIT(DELL_PRIVACY_TYPE_AUDIO)) {
 		ret = dell_privacy_leds_setup(&priv->wdev->dev);
 		if (ret)
@@ -374,6 +367,7 @@ static const struct wmi_device_id dell_wmi_privacy_wmi_id_table[] = {
 static struct wmi_driver dell_privacy_wmi_driver = {
 	.driver = {
 		.name = "dell-privacy",
+		.dev_groups = privacy_groups,
 	},
 	.probe = dell_privacy_wmi_probe,
 	.remove = dell_privacy_wmi_remove,

@@ -22,6 +22,13 @@
 #define DC21285_IO(x)		(x)
 #endif
 
+/*
+ * The footbridge is programmed to expose the system RAM at 0xe0000000.
+ * The requirement is that the RAM isn't placed at bus address 0, which
+ * would clash with VGA cards.
+ */
+#define BUS_OFFSET 0xe0000000
+
 #define CSR_PCICMD		DC21285_IO(0x0004)
 #define CSR_CLASSREV		DC21285_IO(0x0008)
 #define CSR_PCICACHELINESIZE	DC21285_IO(0x000c)
@@ -80,19 +87,6 @@
 #define SA110_CNTL_ROMTRISTATETIME(x)	((x)<<24)
 #define SA110_CNTL_XCSDIR(x)		((x)<<28)
 #define SA110_CNTL_PCICFN		(1 << 31)
-
-/*
- * footbridge_cfn_mode() is used when we want
- * to check whether we are the central function
- */
-#define __footbridge_cfn_mode() (*CSR_SA110_CNTL & SA110_CNTL_PCICFN)
-#if defined(CONFIG_FOOTBRIDGE_HOST) && defined(CONFIG_FOOTBRIDGE_ADDIN)
-#define footbridge_cfn_mode() __footbridge_cfn_mode()
-#elif defined(CONFIG_FOOTBRIDGE_HOST)
-#define footbridge_cfn_mode() (1)
-#else
-#define footbridge_cfn_mode() (0)
-#endif
 
 #define CSR_PCIADDR_EXTN	DC21285_IO(0x0140)
 #define CSR_PREFETCHMEMRANGE	DC21285_IO(0x0144)

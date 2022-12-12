@@ -471,7 +471,7 @@
 &sdhc2 {
 	status = "okay";
 
-	cd-gpios = <&tlmm 100 0>;
+	cd-gpios = <&tlmm 100 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&pm8994_l21>;
 	vqmmc-supply = <&pm8994_l13>;
 };

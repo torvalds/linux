@@ -44,6 +44,8 @@ static u8 srpc_dpll_locked[] = { 0x0, 0x1, 0x2, 0x3, 0x4, 0xa, 0xb };
 
 #define DEFAULT_RXCLK_SRC	1
 
+#define RX_SAMPLE_RATE_KCONTROL "RX Sample Rate"
+
 /**
  * struct fsl_spdif_soc_data: soc specific data
  *
@@ -98,6 +100,8 @@ struct spdif_mixer_control {
  * @soc: SPDIF soc data
  * @fsl_spdif_control: SPDIF control data
  * @cpu_dai_drv: cpu dai driver
+ * @snd_card: sound card pointer
+ * @rxrate_kcontrol: kcontrol for RX Sample Rate
  * @pdev: platform device pointer
  * @regmap: regmap handler
  * @dpll_locked: dpll lock flag
@@ -122,6 +126,8 @@ struct fsl_spdif_priv {
 	const struct fsl_spdif_soc_data *soc;
 	struct spdif_mixer_control fsl_spdif_control;
 	struct snd_soc_dai_driver cpu_dai_drv;
+	struct snd_card *snd_card;
+	struct snd_kcontrol *rxrate_kcontrol;
 	struct platform_device *pdev;
 	struct regmap *regmap;
 	bool dpll_locked;
@@ -226,6 +232,12 @@ static void spdif_irq_dpll_lock(struct fsl_spdif_priv *spdif_priv)
 			locked ? "locked" : "loss lock");
 
 	spdif_priv->dpll_locked = locked ? true : false;
+
+	if (spdif_priv->snd_card && spdif_priv->rxrate_kcontrol) {
+		snd_ctl_notify(spdif_priv->snd_card,
+			       SNDRV_CTL_EVENT_MASK_VALUE,
+			       &spdif_priv->rxrate_kcontrol->id);
+	}
 }
 
 /* Receiver found illegal symbol interrupt handler */
@@ -1197,7 +1209,7 @@ static struct snd_kcontrol_new fsl_spdif_ctrls[] = {
 	/* DPLL lock info get controller */
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
-		.name = "RX Sample Rate",
+		.name = RX_SAMPLE_RATE_KCONTROL,
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 		.info = fsl_spdif_rxrate_info,
@@ -1250,6 +1262,13 @@ static int fsl_spdif_dai_probe(struct snd_soc_dai *dai)
 	if (spdif_private->soc->raw_capture_mode)
 		snd_soc_add_dai_controls(dai, fsl_spdif_ctrls_rcm,
 					 ARRAY_SIZE(fsl_spdif_ctrls_rcm));
+
+	spdif_private->snd_card = dai->component->card->snd_card;
+	spdif_private->rxrate_kcontrol = snd_soc_card_get_kcontrol(dai->component->card,
+								   RX_SAMPLE_RATE_KCONTROL);
+	if (!spdif_private->rxrate_kcontrol)
+		dev_err(&spdif_private->pdev->dev, "failed to get %s kcontrol\n",
+			RX_SAMPLE_RATE_KCONTROL);
 
 	/*Clear the val bit for Tx*/
 	regmap_update_bits(spdif_private->regmap, REG_SPDIF_SCR,

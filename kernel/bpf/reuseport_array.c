@@ -24,7 +24,7 @@ void bpf_sk_reuseport_detach(struct sock *sk)
 	struct sock __rcu **socks;
 
 	write_lock_bh(&sk->sk_callback_lock);
-	socks = __rcu_dereference_sk_user_data_with_flags(sk, SK_USER_DATA_BPF);
+	socks = __locked_read_sk_user_data_with_flags(sk, SK_USER_DATA_BPF);
 	if (socks) {
 		WRITE_ONCE(sk->sk_user_data, NULL);
 		/*

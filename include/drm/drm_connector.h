@@ -319,8 +319,24 @@ enum drm_panel_orientation {
  *             EDID's detailed monitor range
  */
 struct drm_monitor_range_info {
-	u8 min_vfreq;
-	u8 max_vfreq;
+	u16 min_vfreq;
+	u16 max_vfreq;
+};
+
+/**
+ * struct drm_luminance_range_info - Panel's luminance range for
+ * &drm_display_info. Calculated using data in EDID
+ *
+ * This struct is used to store a luminance range supported by panel
+ * as calculated using data from EDID's static hdr metadata.
+ *
+ * @min_luminance: This is the min supported luminance value
+ *
+ * @max_luminance: This is the max supported luminance value
+ */
+struct drm_luminance_range_info {
+	u32 min_luminance;
+	u32 max_luminance;
 };
 
 /**
@@ -623,6 +639,11 @@ struct drm_display_info {
 	 * @monitor_range: Frequency range supported by monitor range descriptor
 	 */
 	struct drm_monitor_range_info monitor_range;
+
+	/**
+	 * @luminance_range: Luminance range supported by panel
+	 */
+	struct drm_luminance_range_info luminance_range;
 
 	/**
 	 * @mso_stream_count: eDP Multi-SST Operation (MSO) stream count from
@@ -1677,6 +1698,11 @@ int drm_connector_init_with_ddc(struct drm_device *dev,
 				const struct drm_connector_funcs *funcs,
 				int connector_type,
 				struct i2c_adapter *ddc);
+int drmm_connector_init(struct drm_device *dev,
+			struct drm_connector *connector,
+			const struct drm_connector_funcs *funcs,
+			int connector_type,
+			struct i2c_adapter *ddc);
 void drm_connector_attach_edid_property(struct drm_connector *connector);
 int drm_connector_register(struct drm_connector *connector);
 void drm_connector_unregister(struct drm_connector *connector);

@@ -326,7 +326,7 @@ static int cpio_mkfile(const char *name, const char *location,
 	char s[256];
 	struct stat buf;
 	unsigned long size;
-	int file = -1;
+	int file;
 	int retval;
 	int rc = -1;
 	int namesize;

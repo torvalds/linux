@@ -826,6 +826,7 @@ static struct genl_family netlbl_mgmt_gnl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.small_ops = netlbl_mgmt_genl_ops,
 	.n_small_ops = ARRAY_SIZE(netlbl_mgmt_genl_ops),
+	.resv_start_op = NLBL_MGMT_C_VERSION + 1,
 };
 
 /*

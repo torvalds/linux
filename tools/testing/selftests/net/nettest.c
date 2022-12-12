@@ -127,6 +127,9 @@ struct sock_args {
 
 	/* ESP in UDP encap test */
 	int use_xfrm;
+
+	/* use send() and connect() instead of sendto */
+	int datagram_connect;
 };
 
 static int server_mode;
@@ -979,6 +982,11 @@ static int send_msg(int sd, void *addr, socklen_t alen, struct sock_args *args)
 			log_err_errno("write failed sending msg to peer");
 			return 1;
 		}
+	} else if (args->datagram_connect) {
+		if (send(sd, msg, msglen, 0) < 0) {
+			log_err_errno("send failed sending msg to peer");
+			return 1;
+		}
 	} else if (args->ifindex && args->use_cmsg) {
 		if (send_msg_cmsg(sd, addr, alen, args->ifindex, args->version))
 			return 1;
@@ -1659,7 +1667,7 @@ static int connectsock(void *addr, socklen_t alen, struct sock_args *args)
 	if (args->has_local_ip && bind_socket(sd, args))
 		goto err;
 
-	if (args->type != SOCK_STREAM)
+	if (args->type != SOCK_STREAM && !args->datagram_connect)
 		goto out;
 
 	if (args->password && tcp_md5sig(sd, addr, alen, args))
@@ -1854,7 +1862,7 @@ static int ipc_parent(int cpid, int fd, struct sock_args *args)
 	return client_status;
 }
 
-#define GETOPT_STR  "sr:l:c:p:t:g:P:DRn:M:X:m:d:I:BN:O:SCi6xL:0:1:2:3:Fbqf"
+#define GETOPT_STR  "sr:l:c:p:t:g:P:DRn:M:X:m:d:I:BN:O:SUCi6xL:0:1:2:3:Fbqf"
 #define OPT_FORCE_BIND_KEY_IFINDEX 1001
 #define OPT_NO_BIND_KEY_IFINDEX 1002
 
@@ -1891,6 +1899,7 @@ static void print_usage(char *prog)
 	"    -I dev        bind socket to given device name - server mode\n"
 	"    -S            use setsockopt (IP_UNICAST_IF or IP_MULTICAST_IF)\n"
 	"                  to set device binding\n"
+	"    -U            Use connect() and send() for datagram sockets\n"
 	"    -f            bind socket with the IP[V6]_FREEBIND option\n"
 	"    -C            use cmsg and IP_PKTINFO to specify device binding\n"
 	"\n"
@@ -2073,6 +2082,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'x':
 			args.use_xfrm = 1;
+			break;
+		case 'U':
+			args.datagram_connect = 1;
 			break;
 		default:
 			print_usage(argv[0]);

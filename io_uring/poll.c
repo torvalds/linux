@@ -857,7 +857,7 @@ int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (sqe->buf_index || sqe->off || sqe->addr)
 		return -EINVAL;
 	flags = READ_ONCE(sqe->len);
-	if (flags & ~(IORING_POLL_ADD_MULTI|IORING_POLL_ADD_LEVEL))
+	if (flags & ~IORING_POLL_ADD_MULTI)
 		return -EINVAL;
 	if ((flags & IORING_POLL_ADD_MULTI) && (req->flags & REQ_F_CQE_SKIP))
 		return -EINVAL;

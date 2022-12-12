@@ -54,6 +54,10 @@ struct prestera_acl_ruleset {
 	struct prestera_acl_ruleset_ht_key ht_key;
 	struct rhashtable rule_ht;
 	struct prestera_acl *acl;
+	struct {
+		u32 min;
+		u32 max;
+	} prio;
 	unsigned long rule_count;
 	refcount_t refcount;
 	void *keymask;
@@ -162,6 +166,9 @@ prestera_acl_ruleset_create(struct prestera_acl *acl,
 	ruleset->pcl_id = PRESTERA_ACL_PCL_ID_MAKE((u8)uid, chain_index);
 	ruleset->index = uid;
 
+	ruleset->prio.min = UINT_MAX;
+	ruleset->prio.max = 0;
+
 	err = rhashtable_insert_fast(&acl->ruleset_ht, &ruleset->ht_node,
 				     prestera_acl_ruleset_ht_params);
 	if (err)
@@ -178,10 +185,14 @@ err_rhashtable_init:
 	return ERR_PTR(err);
 }
 
-void prestera_acl_ruleset_keymask_set(struct prestera_acl_ruleset *ruleset,
-				      void *keymask)
+int prestera_acl_ruleset_keymask_set(struct prestera_acl_ruleset *ruleset,
+				     void *keymask)
 {
 	ruleset->keymask = kmemdup(keymask, ACL_KEYMASK_SIZE, GFP_KERNEL);
+	if (!ruleset->keymask)
+		return -ENOMEM;
+
+	return 0;
 }
 
 int prestera_acl_ruleset_offload(struct prestera_acl_ruleset *ruleset)
@@ -365,6 +376,26 @@ prestera_acl_ruleset_block_unbind(struct prestera_acl_ruleset *ruleset,
 	block->ruleset_zero = NULL;
 }
 
+static void
+prestera_acl_ruleset_prio_refresh(struct prestera_acl *acl,
+				  struct prestera_acl_ruleset *ruleset)
+{
+	struct prestera_acl_rule *rule;
+
+	ruleset->prio.min = UINT_MAX;
+	ruleset->prio.max = 0;
+
+	list_for_each_entry(rule, &acl->rules, list) {
+		if (ruleset->ingress != rule->ruleset->ingress)
+			continue;
+		if (ruleset->ht_key.chain_index != rule->chain_index)
+			continue;
+
+		ruleset->prio.min = min(ruleset->prio.min, rule->priority);
+		ruleset->prio.max = max(ruleset->prio.max, rule->priority);
+	}
+}
+
 void
 prestera_acl_rule_keymask_pcl_id_set(struct prestera_acl_rule *rule, u16 pcl_id)
 {
@@ -387,6 +418,13 @@ prestera_acl_rule_lookup(struct prestera_acl_ruleset *ruleset,
 u32 prestera_acl_ruleset_index_get(const struct prestera_acl_ruleset *ruleset)
 {
 	return ruleset->index;
+}
+
+void prestera_acl_ruleset_prio_get(struct prestera_acl_ruleset *ruleset,
+				   u32 *prio_min, u32 *prio_max)
+{
+	*prio_min = ruleset->prio.min;
+	*prio_max = ruleset->prio.max;
 }
 
 bool prestera_acl_ruleset_is_offload(struct prestera_acl_ruleset *ruleset)
@@ -429,6 +467,13 @@ void prestera_acl_rule_destroy(struct prestera_acl_rule *rule)
 	kfree(rule);
 }
 
+static void prestera_acl_ruleset_prio_update(struct prestera_acl_ruleset *ruleset,
+					     u32 prio)
+{
+	ruleset->prio.min = min(ruleset->prio.min, prio);
+	ruleset->prio.max = max(ruleset->prio.max, prio);
+}
+
 int prestera_acl_rule_add(struct prestera_switch *sw,
 			  struct prestera_acl_rule *rule)
 {
@@ -468,6 +513,7 @@ int prestera_acl_rule_add(struct prestera_switch *sw,
 
 	list_add_tail(&rule->list, &sw->acl->rules);
 	ruleset->rule_count++;
+	prestera_acl_ruleset_prio_update(ruleset, rule->priority);
 	return 0;
 
 err_acl_block_bind:
@@ -492,6 +538,7 @@ void prestera_acl_rule_del(struct prestera_switch *sw,
 	list_del(&rule->list);
 
 	prestera_acl_rule_entry_destroy(sw->acl, rule->re);
+	prestera_acl_ruleset_prio_refresh(sw->acl, ruleset);
 
 	/* unbind block (all ports) */
 	if (!ruleset->ht_key.chain_index && !ruleset->rule_count)

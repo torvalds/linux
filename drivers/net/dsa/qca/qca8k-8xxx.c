@@ -1889,9 +1889,9 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->info = of_device_get_match_data(priv->dev);
 	priv->bus = mdiodev->bus;
 	priv->dev = &mdiodev->dev;
+	priv->info = of_device_get_match_data(priv->dev);
 
 	priv->reset_gpio = devm_gpiod_get_optional(priv->dev, "reset",
 						   GPIOD_ASIS);
@@ -1957,8 +1957,6 @@ qca8k_sw_remove(struct mdio_device *mdiodev)
 		qca8k_port_set_status(priv, i, 0);
 
 	dsa_unregister_switch(priv->ds);
-
-	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static void qca8k_sw_shutdown(struct mdio_device *mdiodev)

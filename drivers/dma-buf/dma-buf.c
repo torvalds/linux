@@ -53,7 +53,7 @@ static char *dmabuffs_dname(struct dentry *dentry, char *buffer, int buflen)
 		ret = strlcpy(name, dmabuf->name, DMA_BUF_NAME_LEN);
 	spin_unlock(&dmabuf->name_lock);
 
-	return dynamic_dname(dentry, buffer, buflen, "/%s:%s",
+	return dynamic_dname(buffer, buflen, "/%s:%s",
 			     dentry->d_name.name, ret > 0 ? name : "");
 }
 
@@ -531,11 +531,11 @@ static struct file *dma_buf_getfile(struct dma_buf *dmabuf, int flags)
 	 * value.
 	 */
 	inode->i_ino = atomic64_add_return(1, &dmabuf_inode);
+	flags &= O_ACCMODE | O_NONBLOCK;
 	file = alloc_file_pseudo(inode, dma_buf_mnt, "dmabuf",
 				 flags, &dma_buf_fops);
 	if (IS_ERR(file))
 		goto err_alloc_file;
-	file->f_flags = flags & (O_ACCMODE | O_NONBLOCK);
 	file->private_data = dmabuf;
 	file->f_path.dentry->d_fsdata = dmabuf;
 

@@ -1112,6 +1112,22 @@ struct pptable_funcs {
 	uint32_t (*get_gfx_off_status)(struct smu_context *smu);
 
 	/**
+	 * @gfx_off_entrycount: total GFXOFF entry count at the time of
+	 * query since system power-up
+	 */
+	u32 (*get_gfx_off_entrycount)(struct smu_context *smu, uint64_t *entrycount);
+
+	/**
+	 * @set_gfx_off_residency: set 1 to start logging, 0 to stop logging
+	 */
+	u32 (*set_gfx_off_residency)(struct smu_context *smu, bool start);
+
+	/**
+	 * @get_gfx_off_residency: Average GFXOFF residency % during the logging interval
+	 */
+	u32 (*get_gfx_off_residency)(struct smu_context *smu, uint32_t *residency);
+
+	/**
 	 * @register_irq_handler: Register interupt request handlers.
 	 */
 	int (*register_irq_handler)(struct smu_context *smu);
@@ -1453,6 +1469,12 @@ int smu_set_gfx_power_up_by_imu(struct smu_context *smu);
 int smu_set_ac_dc(struct smu_context *smu);
 
 int smu_allow_xgmi_power_down(struct smu_context *smu, bool en);
+
+int smu_get_entrycount_gfxoff(struct smu_context *smu, u64 *value);
+
+int smu_get_residency_gfxoff(struct smu_context *smu, u32 *value);
+
+int smu_set_residency_gfxoff(struct smu_context *smu, bool value);
 
 int smu_get_status_gfxoff(struct smu_context *smu, uint32_t *value);
 

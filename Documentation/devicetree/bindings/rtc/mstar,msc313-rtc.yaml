@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/rtc/mstar,msc313-rtc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Mstar MSC313e RTC Device Tree Bindings
+title: Mstar MSC313e RTC
 
 allOf:
   - $ref: "rtc.yaml#"

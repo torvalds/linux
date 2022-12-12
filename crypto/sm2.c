@@ -441,12 +441,12 @@ static struct akcipher_alg sm2 = {
 	},
 };
 
-static int sm2_init(void)
+static int __init sm2_init(void)
 {
 	return crypto_register_akcipher(&sm2);
 }
 
-static void sm2_exit(void)
+static void __exit sm2_exit(void)
 {
 	crypto_unregister_akcipher(&sm2);
 }

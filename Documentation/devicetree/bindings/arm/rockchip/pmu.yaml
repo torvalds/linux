@@ -21,10 +21,12 @@ select:
         enum:
           - rockchip,px30-pmu
           - rockchip,rk3066-pmu
+          - rockchip,rk3128-pmu
           - rockchip,rk3288-pmu
           - rockchip,rk3368-pmu
           - rockchip,rk3399-pmu
           - rockchip,rk3568-pmu
+          - rockchip,rk3588-pmu
 
   required:
     - compatible
@@ -35,10 +37,12 @@ properties:
       - enum:
           - rockchip,px30-pmu
           - rockchip,rk3066-pmu
+          - rockchip,rk3128-pmu
           - rockchip,rk3288-pmu
           - rockchip,rk3368-pmu
           - rockchip,rk3399-pmu
           - rockchip,rk3568-pmu
+          - rockchip,rk3588-pmu
       - const: syscon
       - const: simple-mfd
 

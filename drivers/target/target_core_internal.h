@@ -133,8 +133,6 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(struct se_portal_group *tpg,
 void core_tpg_del_initiator_node_acl(struct se_node_acl *acl);
 
 /* target_core_transport.c */
-extern struct kmem_cache *se_tmr_req_cache;
-
 int	init_se_kmem_caches(void);
 void	release_se_kmem_caches(void);
 u32	scsi_get_new_index(scsi_index_t);

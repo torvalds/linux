@@ -546,7 +546,7 @@ static int wl1251_build_null_data(struct wl1251 *wl)
 		size = sizeof(struct wl12xx_null_data_template);
 		ptr = NULL;
 	} else {
-		skb = ieee80211_nullfunc_get(wl->hw, wl->vif, false);
+		skb = ieee80211_nullfunc_get(wl->hw, wl->vif, -1, false);
 		if (!skb)
 			goto out;
 		size = skb->len;

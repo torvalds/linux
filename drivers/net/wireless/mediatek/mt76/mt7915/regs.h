@@ -4,17 +4,11 @@
 #ifndef __MT7915_REGS_H
 #define __MT7915_REGS_H
 
-struct __map {
-	u32 phys;
-	u32 maps;
-	u32 size;
-};
-
 /* used to differentiate between generations */
 struct mt7915_reg_desc {
 	const u32 *reg_rev;
 	const u32 *offs_rev;
-	const struct __map *map;
+	const struct mt76_connac_reg_map *map;
 	u32 map_size;
 };
 
@@ -52,6 +46,7 @@ enum offs_rev {
 	AGG_AWSCR0,
 	AGG_PCR0,
 	AGG_ACR0,
+	AGG_ACR4,
 	AGG_MRCR,
 	AGG_ATCR1,
 	AGG_ATCR3,
@@ -470,6 +465,9 @@ enum offs_rev {
 #define MT_AGG_ACR0(_band)		MT_WF_AGG(_band, __OFFS(AGG_ACR0))
 #define MT_AGG_ACR_CFEND_RATE		GENMASK(13, 0)
 #define MT_AGG_ACR_BAR_RATE		GENMASK(29, 16)
+
+#define MT_AGG_ACR4(_band)		MT_WF_AGG(_band, __OFFS(AGG_ACR4))
+#define MT_AGG_ACR_PPDU_TXS2H		BIT(1)
 
 #define MT_AGG_MRCR(_band)		MT_WF_AGG(_band, __OFFS(AGG_MRCR))
 #define MT_AGG_MRCR_BAR_CNT_LIMIT		GENMASK(15, 12)

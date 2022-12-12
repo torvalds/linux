@@ -794,6 +794,30 @@ bool acpi_dev_hid_uid_match(struct acpi_device *adev,
 EXPORT_SYMBOL(acpi_dev_hid_uid_match);
 
 /**
+ * acpi_dev_uid_to_integer - treat ACPI device _UID as integer
+ * @adev: ACPI device to get _UID from
+ * @integer: output buffer for integer
+ *
+ * Considers _UID as integer and converts it to @integer.
+ *
+ * Returns 0 on success, or negative error code otherwise.
+ */
+int acpi_dev_uid_to_integer(struct acpi_device *adev, u64 *integer)
+{
+	const char *uid;
+
+	if (!adev)
+		return -ENODEV;
+
+	uid = acpi_device_uid(adev);
+	if (!uid)
+		return -ENODATA;
+
+	return kstrtou64(uid, 0, integer);
+}
+EXPORT_SYMBOL(acpi_dev_uid_to_integer);
+
+/**
  * acpi_dev_found - Detect presence of a given ACPI device in the namespace.
  * @hid: Hardware ID of the device.
  *
@@ -878,7 +902,7 @@ bool acpi_dev_present(const char *hid, const char *uid, s64 hrv)
 	struct acpi_dev_match_info match = {};
 	struct device *dev;
 
-	strlcpy(match.hid[0].id, hid, sizeof(match.hid[0].id));
+	strscpy(match.hid[0].id, hid, sizeof(match.hid[0].id));
 	match.uid = uid;
 	match.hrv = hrv;
 
@@ -911,7 +935,7 @@ acpi_dev_get_next_match_dev(struct acpi_device *adev, const char *hid, const cha
 	struct acpi_dev_match_info match = {};
 	struct device *dev;
 
-	strlcpy(match.hid[0].id, hid, sizeof(match.hid[0].id));
+	strscpy(match.hid[0].id, hid, sizeof(match.hid[0].id));
 	match.uid = uid;
 	match.hrv = hrv;
 
@@ -961,7 +985,7 @@ EXPORT_SYMBOL(acpi_video_backlight_string);
 
 static int __init acpi_backlight(char *str)
 {
-	strlcpy(acpi_video_backlight_string, str,
+	strscpy(acpi_video_backlight_string, str,
 		sizeof(acpi_video_backlight_string));
 	return 1;
 }

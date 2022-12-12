@@ -154,7 +154,7 @@ vti6_tnl_link(struct vti6_net *ip6n, struct ip6_tnl *t)
 {
 	struct ip6_tnl __rcu **tp = vti6_tnl_bucket(ip6n, &t->parms);
 
-	rcu_assign_pointer(t->next , rtnl_dereference(*tp));
+	rcu_assign_pointer(t->next, rtnl_dereference(*tp));
 	rcu_assign_pointer(*tp, t);
 }
 
@@ -211,7 +211,7 @@ static struct ip6_tnl *vti6_tnl_create(struct net *net, struct __ip6_tnl_parm *p
 	if (p->name[0]) {
 		if (!dev_valid_name(p->name))
 			goto failed;
-		strlcpy(name, p->name, IFNAMSIZ);
+		strscpy(name, p->name, IFNAMSIZ);
 	} else {
 		sprintf(name, "ip6_vti%%d");
 	}

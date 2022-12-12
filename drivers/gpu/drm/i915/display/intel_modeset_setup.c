@@ -23,6 +23,7 @@
 #include "intel_modeset_setup.h"
 #include "intel_pch_display.h"
 #include "intel_pm.h"
+#include "skl_watermark.h"
 
 static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 					struct drm_modeset_acquire_ctx *ctx)
@@ -30,11 +31,11 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 	struct intel_encoder *encoder;
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_bw_state *bw_state =
-		to_intel_bw_state(i915->bw_obj.state);
+		to_intel_bw_state(i915->display.bw.obj.state);
 	struct intel_cdclk_state *cdclk_state =
-		to_intel_cdclk_state(i915->cdclk.obj.state);
+		to_intel_cdclk_state(i915->display.cdclk.obj.state);
 	struct intel_dbuf_state *dbuf_state =
-		to_intel_dbuf_state(i915->dbuf.obj.state);
+		to_intel_dbuf_state(i915->display.dbuf.obj.state);
 	struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
 	struct intel_plane *plane;
@@ -70,7 +71,7 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 
 	drm_WARN_ON(&i915->drm, IS_ERR(temp_crtc_state) || ret);
 
-	i915->display->crtc_disable(to_intel_atomic_state(state), crtc);
+	i915->display.funcs.display->crtc_disable(to_intel_atomic_state(state), crtc);
 
 	drm_atomic_state_put(state);
 
@@ -415,9 +416,9 @@ static void readout_plane_state(struct drm_i915_private *i915)
 static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 {
 	struct intel_cdclk_state *cdclk_state =
-		to_intel_cdclk_state(i915->cdclk.obj.state);
+		to_intel_cdclk_state(i915->display.cdclk.obj.state);
 	struct intel_dbuf_state *dbuf_state =
-		to_intel_dbuf_state(i915->dbuf.obj.state);
+		to_intel_dbuf_state(i915->display.dbuf.obj.state);
 	enum pipe pipe;
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
@@ -535,7 +536,7 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_bw_state *bw_state =
-			to_intel_bw_state(i915->bw_obj.state);
+			to_intel_bw_state(i915->display.bw.obj.state);
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane *plane;

@@ -267,5 +267,7 @@ int amdgpu_gfx_rlc_init_csb(struct amdgpu_device *adev);
 int amdgpu_gfx_rlc_init_cpt(struct amdgpu_device *adev);
 void amdgpu_gfx_rlc_setup_cp_table(struct amdgpu_device *adev);
 void amdgpu_gfx_rlc_fini(struct amdgpu_device *adev);
-
+int amdgpu_gfx_rlc_init_microcode(struct amdgpu_device *adev,
+				  uint16_t version_major,
+				  uint16_t version_minor);
 #endif

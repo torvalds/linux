@@ -88,6 +88,41 @@ static inline struct rb_node *rb_simple_search(struct rb_root *root, u64 bytenr)
 	return NULL;
 }
 
+/*
+ * Search @root from an entry that starts or comes after @bytenr.
+ *
+ * @root:	the root to search.
+ * @bytenr:	bytenr to search from.
+ *
+ * Return the rb_node that start at or after @bytenr.  If there is no entry at
+ * or after @bytner return NULL.
+ */
+static inline struct rb_node *rb_simple_search_first(struct rb_root *root,
+						     u64 bytenr)
+{
+	struct rb_node *node = root->rb_node, *ret = NULL;
+	struct rb_simple_node *entry, *ret_entry = NULL;
+
+	while (node) {
+		entry = rb_entry(node, struct rb_simple_node, rb_node);
+
+		if (bytenr < entry->bytenr) {
+			if (!ret || entry->bytenr < ret_entry->bytenr) {
+				ret = node;
+				ret_entry = entry;
+			}
+
+			node = node->rb_left;
+		} else if (bytenr > entry->bytenr) {
+			node = node->rb_right;
+		} else {
+			return node;
+		}
+	}
+
+	return ret;
+}
+
 static inline struct rb_node *rb_simple_insert(struct rb_root *root, u64 bytenr,
 					       struct rb_node *node)
 {

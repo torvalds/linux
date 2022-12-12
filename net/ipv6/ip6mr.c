@@ -1028,8 +1028,11 @@ static void ip6mr_cache_resolve(struct net *net, struct mr_table *mrt,
 				((struct nlmsgerr *)nlmsg_data(nlh))->error = -EMSGSIZE;
 			}
 			rtnl_unicast(skb, net, NETLINK_CB(skb).portid);
-		} else
+		} else {
+			rcu_read_lock();
 			ip6_mr_forward(net, mrt, skb->dev, skb, c);
+			rcu_read_unlock();
+		}
 	}
 }
 
@@ -1827,8 +1830,8 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, sockptr_t optval,
  *	Getsock opt support for the multicast routing system.
  */
 
-int ip6_mroute_getsockopt(struct sock *sk, int optname, char __user *optval,
-			  int __user *optlen)
+int ip6_mroute_getsockopt(struct sock *sk, int optname, sockptr_t optval,
+			  sockptr_t optlen)
 {
 	int olr;
 	int val;
@@ -1859,16 +1862,16 @@ int ip6_mroute_getsockopt(struct sock *sk, int optname, char __user *optval,
 		return -ENOPROTOOPT;
 	}
 
-	if (get_user(olr, optlen))
+	if (copy_from_sockptr(&olr, optlen, sizeof(int)))
 		return -EFAULT;
 
 	olr = min_t(int, olr, sizeof(int));
 	if (olr < 0)
 		return -EINVAL;
 
-	if (put_user(olr, optlen))
+	if (copy_to_sockptr(optlen, &olr, sizeof(int)))
 		return -EFAULT;
-	if (copy_to_user(optval, &val, olr))
+	if (copy_to_sockptr(optval, &val, olr))
 		return -EFAULT;
 	return 0;
 }

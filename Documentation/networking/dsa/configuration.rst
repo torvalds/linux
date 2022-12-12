@@ -49,6 +49,9 @@ In this documentation the following Ethernet interfaces are used:
 *eth0*
   the master interface
 
+*eth1*
+  another master interface
+
 *lan1*
   a slave interface
 
@@ -360,3 +363,96 @@ the ``self`` flag) has been removed. This results in the following changes:
 
 Script writers are therefore encouraged to use the ``master static`` set of
 flags when working with bridge FDB entries on DSA switch interfaces.
+
+Affinity of user ports to CPU ports
+-----------------------------------
+
+Typically, DSA switches are attached to the host via a single Ethernet
+interface, but in cases where the switch chip is discrete, the hardware design
+may permit the use of 2 or more ports connected to the host, for an increase in
+termination throughput.
+
+DSA can make use of multiple CPU ports in two ways. First, it is possible to
+statically assign the termination traffic associated with a certain user port
+to be processed by a certain CPU port. This way, user space can implement
+custom policies of static load balancing between user ports, by spreading the
+affinities according to the available CPU ports.
+
+Secondly, it is possible to perform load balancing between CPU ports on a per
+packet basis, rather than statically assigning user ports to CPU ports.
+This can be achieved by placing the DSA masters under a LAG interface (bonding
+or team). DSA monitors this operation and creates a mirror of this software LAG
+on the CPU ports facing the physical DSA masters that constitute the LAG slave
+devices.
+
+To make use of multiple CPU ports, the firmware (device tree) description of
+the switch must mark all the links between CPU ports and their DSA masters
+using the ``ethernet`` reference/phandle. At startup, only a single CPU port
+and DSA master will be used - the numerically first port from the firmware
+description which has an ``ethernet`` property. It is up to the user to
+configure the system for the switch to use other masters.
+
+DSA uses the ``rtnl_link_ops`` mechanism (with a "dsa" ``kind``) to allow
+changing the DSA master of a user port. The ``IFLA_DSA_MASTER`` u32 netlink
+attribute contains the ifindex of the master device that handles each slave
+device. The DSA master must be a valid candidate based on firmware node
+information, or a LAG interface which contains only slaves which are valid
+candidates.
+
+Using iproute2, the following manipulations are possible:
+
+  .. code-block:: sh
+
+    # See the DSA master in current use
+    ip -d link show dev swp0
+        (...)
+        dsa master eth0
+
+    # Static CPU port distribution
+    ip link set swp0 type dsa master eth1
+    ip link set swp1 type dsa master eth0
+    ip link set swp2 type dsa master eth1
+    ip link set swp3 type dsa master eth0
+
+    # CPU ports in LAG, using explicit assignment of the DSA master
+    ip link add bond0 type bond mode balance-xor && ip link set bond0 up
+    ip link set eth1 down && ip link set eth1 master bond0
+    ip link set swp0 type dsa master bond0
+    ip link set swp1 type dsa master bond0
+    ip link set swp2 type dsa master bond0
+    ip link set swp3 type dsa master bond0
+    ip link set eth0 down && ip link set eth0 master bond0
+    ip -d link show dev swp0
+        (...)
+        dsa master bond0
+
+    # CPU ports in LAG, relying on implicit migration of the DSA master
+    ip link add bond0 type bond mode balance-xor && ip link set bond0 up
+    ip link set eth0 down && ip link set eth0 master bond0
+    ip link set eth1 down && ip link set eth1 master bond0
+    ip -d link show dev swp0
+        (...)
+        dsa master bond0
+
+Notice that in the case of CPU ports under a LAG, the use of the
+``IFLA_DSA_MASTER`` netlink attribute is not strictly needed, but rather, DSA
+reacts to the ``IFLA_MASTER`` attribute change of its present master (``eth0``)
+and migrates all user ports to the new upper of ``eth0``, ``bond0``. Similarly,
+when ``bond0`` is destroyed using ``RTM_DELLINK``, DSA migrates the user ports
+that were assigned to this interface to the first physical DSA master which is
+eligible, based on the firmware description (it effectively reverts to the
+startup configuration).
+
+In a setup with more than 2 physical CPU ports, it is therefore possible to mix
+static user to CPU port assignment with LAG between DSA masters. It is not
+possible to statically assign a user port towards a DSA master that has any
+upper interfaces (this includes LAG devices - the master must always be the LAG
+in this case).
+
+Live changing of the DSA master (and thus CPU port) affinity of a user port is
+permitted, in order to allow dynamic redistribution in response to traffic.
+
+Physical DSA masters are allowed to join and leave at any time a LAG interface
+used as a DSA master; however, DSA will reject a LAG interface as a valid
+candidate for being a DSA master unless it has at least one physical DSA master
+as a slave device.

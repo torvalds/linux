@@ -105,7 +105,7 @@ static void carl9170_fw_info(struct ar9170 *ar)
 			 CARL9170FW_GET_MONTH(fw_date),
 			 CARL9170FW_GET_DAY(fw_date));
 
-		strlcpy(ar->hw->wiphy->fw_version, motd_desc->release,
+		strscpy(ar->hw->wiphy->fw_version, motd_desc->release,
 			sizeof(ar->hw->wiphy->fw_version));
 	}
 }

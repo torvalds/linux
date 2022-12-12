@@ -34,7 +34,7 @@
  */
 #define THREAD_NORMSAVE(offset)	(THREAD_NORMSAVES + (offset * 4))
 
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 #define BOOKE_CLEAR_BTB(reg)									\
 START_BTB_FLUSH_SECTION								\
 	BTB_FLUSH(reg)									\
@@ -103,7 +103,7 @@ END_BTB_FLUSH_SECTION
 .endm
 
 .macro prepare_transfer_to_handler
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 	andi.	r12,r9,MSR_PR
 	bne	777f
 	bl	prepare_transfer_to_handler
@@ -242,7 +242,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 
 
 .macro SAVE_MMU_REGS
-#ifdef CONFIG_PPC_BOOK3E_MMU
+#ifdef CONFIG_PPC_E500
 	mfspr	r0,SPRN_MAS0
 	stw	r0,MAS0(r1)
 	mfspr	r0,SPRN_MAS1
@@ -257,7 +257,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	mfspr	r0,SPRN_MAS7
 	stw	r0,MAS7(r1)
 #endif /* CONFIG_PHYS_64BIT */
-#endif /* CONFIG_PPC_BOOK3E_MMU */
+#endif /* CONFIG_PPC_E500 */
 #ifdef CONFIG_44x
 	mfspr	r0,SPRN_MMUCR
 	stw	r0,MMUCR(r1)

@@ -285,8 +285,10 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	_enter("%p,%lx", rx, p->user_call_ID);
 
 	limiter = rxrpc_get_call_slot(p, gfp);
-	if (!limiter)
+	if (!limiter) {
+		release_sock(&rx->sk);
 		return ERR_PTR(-ERESTARTSYS);
+	}
 
 	call = rxrpc_alloc_client_call(rx, srx, gfp, debug_id);
 	if (IS_ERR(call)) {

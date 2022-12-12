@@ -9,7 +9,7 @@ config NET_VENDOR_FREESCALE
 	depends on FSL_SOC || QUICC_ENGINE || CPM1 || CPM2 || PPC_MPC512x || \
 		   M523x || M527x || M5272 || M528x || M520x || M532x || \
 		   ARCH_MXC || ARCH_MXS || (PPC_MPC52xx && PPC_BESTCOMM) || \
-		   ARCH_LAYERSCAPE || COMPILE_TEST
+		   ARCH_LAYERSCAPE || ARCH_S32 || COMPILE_TEST
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -23,15 +23,16 @@ if NET_VENDOR_FREESCALE
 config FEC
 	tristate "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
 	depends on (M523x || M527x || M5272 || M528x || M520x || M532x || \
-		   ARCH_MXC || SOC_IMX28 || COMPILE_TEST)
+		   ARCH_MXC || ARCH_S32 || SOC_IMX28 || COMPILE_TEST)
 	default ARCH_MXC || SOC_IMX28 if ARM
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select CRC32
 	select PHYLIB
+	select PAGE_POOL
 	imply NET_SELFTESTS
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
-	  controller on some Motorola ColdFire and Freescale i.MX processors.
+	  controller on some Motorola ColdFire and Freescale i.MX/S32 processors.
 
 config FEC_MPC52xx
 	tristate "FEC MPC52xx driver"

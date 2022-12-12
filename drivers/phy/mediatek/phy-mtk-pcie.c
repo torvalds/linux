@@ -89,14 +89,14 @@ static void mtk_pcie_efuse_set_lane(struct mtk_pcie_phy *pcie_phy,
 	addr = pcie_phy->sif_base + PEXTP_ANA_LN0_TRX_REG +
 	       lane * PEXTP_ANA_LANE_OFFSET;
 
-	mtk_phy_update_bits(addr + PEXTP_ANA_TX_REG, EFUSE_LN_TX_PMOS_SEL,
-			    FIELD_PREP(EFUSE_LN_TX_PMOS_SEL, data->tx_pmos));
+	mtk_phy_update_field(addr + PEXTP_ANA_TX_REG, EFUSE_LN_TX_PMOS_SEL,
+			     data->tx_pmos);
 
-	mtk_phy_update_bits(addr + PEXTP_ANA_TX_REG, EFUSE_LN_TX_NMOS_SEL,
-			    FIELD_PREP(EFUSE_LN_TX_NMOS_SEL, data->tx_nmos));
+	mtk_phy_update_field(addr + PEXTP_ANA_TX_REG, EFUSE_LN_TX_NMOS_SEL,
+			     data->tx_nmos);
 
-	mtk_phy_update_bits(addr + PEXTP_ANA_RX_REG, EFUSE_LN_RX_SEL,
-			    FIELD_PREP(EFUSE_LN_RX_SEL, data->rx_data));
+	mtk_phy_update_field(addr + PEXTP_ANA_RX_REG, EFUSE_LN_RX_SEL,
+			     data->rx_data);
 }
 
 /**
@@ -116,9 +116,8 @@ static int mtk_pcie_phy_init(struct phy *phy)
 		return 0;
 
 	/* Set global data */
-	mtk_phy_update_bits(pcie_phy->sif_base + PEXTP_ANA_GLB_00_REG,
-			    EFUSE_GLB_INTR_SEL,
-			    FIELD_PREP(EFUSE_GLB_INTR_SEL, pcie_phy->efuse_glb_intr));
+	mtk_phy_update_field(pcie_phy->sif_base + PEXTP_ANA_GLB_00_REG,
+			     EFUSE_GLB_INTR_SEL, pcie_phy->efuse_glb_intr);
 
 	for (i = 0; i < pcie_phy->data->num_lanes; i++)
 		mtk_pcie_efuse_set_lane(pcie_phy, i);

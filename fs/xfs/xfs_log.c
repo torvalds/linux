@@ -226,12 +226,12 @@ xlog_ticket_reservation(
 	if (head == &log->l_write_head) {
 		ASSERT(tic->t_flags & XLOG_TIC_PERM_RESERV);
 		return tic->t_unit_res;
-	} else {
-		if (tic->t_flags & XLOG_TIC_PERM_RESERV)
-			return tic->t_unit_res * tic->t_cnt;
-		else
-			return tic->t_unit_res;
 	}
+
+	if (tic->t_flags & XLOG_TIC_PERM_RESERV)
+		return tic->t_unit_res * tic->t_cnt;
+
+	return tic->t_unit_res;
 }
 
 STATIC bool
@@ -3544,7 +3544,7 @@ xlog_ticket_alloc(
 	tic->t_curr_res		= unit_res;
 	tic->t_cnt		= cnt;
 	tic->t_ocnt		= cnt;
-	tic->t_tid		= prandom_u32();
+	tic->t_tid		= get_random_u32();
 	if (permanent)
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
 

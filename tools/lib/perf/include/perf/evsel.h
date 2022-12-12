@@ -18,8 +18,10 @@ struct perf_counts_values {
 			uint64_t val;
 			uint64_t ena;
 			uint64_t run;
+			uint64_t id;
+			uint64_t lost;
 		};
-		uint64_t values[3];
+		uint64_t values[5];
 	};
 };
 

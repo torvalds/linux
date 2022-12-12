@@ -15,6 +15,7 @@
 
 #include <asm/ucontext.h>
 #include <asm/vdso.h>
+#include <asm/signal.h>
 #include <asm/signal32.h>
 #include <asm/switch_to.h>
 #include <asm/csr.h>
@@ -122,6 +123,8 @@ SYSCALL_DEFINE0(rt_sigreturn)
 
 	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
+
+	regs->cause = -1UL;
 
 	return regs->a0;
 

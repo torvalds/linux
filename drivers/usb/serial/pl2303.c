@@ -789,7 +789,8 @@ static bool pl2303_enable_xonxoff(struct tty_struct *tty, const struct pl2303_ty
 }
 
 static void pl2303_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+			       struct usb_serial_port *port,
+			       const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);

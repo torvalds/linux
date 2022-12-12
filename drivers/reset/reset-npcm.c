@@ -291,7 +291,7 @@ static void npcm_usb_reset_npcm8xx(struct npcm_rc_data *rc)
 	iprst2 |= ipsrst2_bits;
 	iprst3 |= (ipsrst3_bits | NPCM_IPSRST3_USBPHY1 |
 		   NPCM_IPSRST3_USBPHY2);
-	iprst2 |= ipsrst4_bits;
+	iprst4 |= ipsrst4_bits;
 
 	writel(iprst1, rc->base + NPCM_IPSRST1);
 	writel(iprst2, rc->base + NPCM_IPSRST2);

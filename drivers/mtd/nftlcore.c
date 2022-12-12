@@ -124,7 +124,7 @@ int nftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 		  size_t *retlen, uint8_t *buf)
 {
 	loff_t mask = mtd->writesize - 1;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;
@@ -145,7 +145,7 @@ int nftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 		   size_t *retlen, uint8_t *buf)
 {
 	loff_t mask = mtd->writesize - 1;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;
@@ -168,7 +168,7 @@ static int nftl_write(struct mtd_info *mtd, loff_t offs, size_t len,
 		      size_t *retlen, uint8_t *buf, uint8_t *oob)
 {
 	loff_t mask = mtd->writesize - 1;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;

@@ -1441,31 +1441,6 @@ static const struct of_device_id pxa2xx_spi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, pxa2xx_spi_of_match);
 
-#ifdef CONFIG_ACPI
-
-static int pxa2xx_spi_get_port_id(struct device *dev)
-{
-	struct acpi_device *adev;
-	unsigned int devid;
-	int port_id = -1;
-
-	adev = ACPI_COMPANION(dev);
-	if (adev && adev->pnp.unique_id &&
-	    !kstrtouint(adev->pnp.unique_id, 0, &devid))
-		port_id = devid;
-	return port_id;
-}
-
-#else /* !CONFIG_ACPI */
-
-static int pxa2xx_spi_get_port_id(struct device *dev)
-{
-	return -1;
-}
-
-#endif /* CONFIG_ACPI */
-
-
 #ifdef CONFIG_PCI
 
 static bool pxa2xx_spi_idma_filter(struct dma_chan *chan, void *param)
@@ -1479,13 +1454,16 @@ static struct pxa2xx_spi_controller *
 pxa2xx_spi_init_pdata(struct platform_device *pdev)
 {
 	struct pxa2xx_spi_controller *pdata;
+	struct device *dev = &pdev->dev;
+	struct device *parent = dev->parent;
 	struct ssp_device *ssp;
 	struct resource *res;
-	struct device *parent = pdev->dev.parent;
 	struct pci_dev *pcidev = dev_is_pci(parent) ? to_pci_dev(parent) : NULL;
 	const struct pci_device_id *pcidev_id = NULL;
 	enum pxa_ssp_type type;
 	const void *match;
+	int status;
+	u64 uid;
 
 	if (pcidev)
 		pcidev_id = pci_match_id(pxa2xx_spi_pci_compound_match, pcidev);
@@ -1529,7 +1507,12 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 
 	ssp->type = type;
 	ssp->dev = &pdev->dev;
-	ssp->port_id = pxa2xx_spi_get_port_id(&pdev->dev);
+
+	status = acpi_dev_uid_to_integer(ACPI_COMPANION(dev), &uid);
+	if (status)
+		ssp->port_id = -1;
+	else
+		ssp->port_id = uid;
 
 	pdata->is_slave = device_property_read_bool(&pdev->dev, "spi-slave");
 	pdata->num_chipselect = 1;
@@ -1873,10 +1856,8 @@ static int pxa2xx_spi_runtime_suspend(struct device *dev)
 static int pxa2xx_spi_runtime_resume(struct device *dev)
 {
 	struct driver_data *drv_data = dev_get_drvdata(dev);
-	int status;
 
-	status = clk_prepare_enable(drv_data->ssp->clk);
-	return status;
+	return clk_prepare_enable(drv_data->ssp->clk);
 }
 #endif
 

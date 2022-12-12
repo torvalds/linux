@@ -382,9 +382,10 @@ int xenbus_setup_ring(struct xenbus_device *dev, gfp_t gfp, void **vaddr,
 	unsigned long ring_size = nr_pages * XEN_PAGE_SIZE;
 	grant_ref_t gref_head;
 	unsigned int i;
+	void *addr;
 	int ret;
 
-	*vaddr = alloc_pages_exact(ring_size, gfp | __GFP_ZERO);
+	addr = *vaddr = alloc_pages_exact(ring_size, gfp | __GFP_ZERO);
 	if (!*vaddr) {
 		ret = -ENOMEM;
 		goto err;
@@ -401,13 +402,15 @@ int xenbus_setup_ring(struct xenbus_device *dev, gfp_t gfp, void **vaddr,
 		unsigned long gfn;
 
 		if (is_vmalloc_addr(*vaddr))
-			gfn = pfn_to_gfn(vmalloc_to_pfn(vaddr[i]));
+			gfn = pfn_to_gfn(vmalloc_to_pfn(addr));
 		else
-			gfn = virt_to_gfn(vaddr[i]);
+			gfn = virt_to_gfn(addr);
 
 		grefs[i] = gnttab_claim_grant_reference(&gref_head);
 		gnttab_grant_foreign_access_ref(grefs[i], dev->otherend_id,
 						gfn, 0);
+
+		addr += XEN_PAGE_SIZE;
 	}
 
 	return 0;

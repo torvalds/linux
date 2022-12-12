@@ -177,7 +177,7 @@ static int sun6i_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/*
 	 * CSI will lookup the next dma buffer for next frame before the
-	 * the current frame done IRQ triggered. This is not documented
+	 * current frame done IRQ triggered. This is not documented
 	 * but reported by Ondřej Jirman.
 	 * The BSP code has workaround for this too. It skip to mark the
 	 * first buffer as frame done for VB2 and pass the second buffer

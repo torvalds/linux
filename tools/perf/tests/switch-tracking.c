@@ -6,6 +6,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <linux/zalloc.h>
+#include <linux/err.h>
 #include <perf/cpumap.h>
 #include <perf/evlist.h>
 #include <perf/mmap.h>
@@ -398,19 +399,13 @@ static int test__switch_tracking(struct test_suite *test __maybe_unused, int sub
 		goto out;
 	}
 
-	err = parse_event(evlist, sched_switch);
-	if (err) {
-		pr_debug("Failed to parse event %s\n", sched_switch);
+	switch_evsel = evlist__add_sched_switch(evlist, true);
+	if (IS_ERR(switch_evsel)) {
+		err = PTR_ERR(switch_evsel);
+		pr_debug("Failed to create event %s\n", sched_switch);
 		goto out_err;
 	}
 
-	switch_evsel = evlist__last(evlist);
-
-	evsel__set_sample_bit(switch_evsel, CPU);
-	evsel__set_sample_bit(switch_evsel, TIME);
-
-	switch_evsel->core.system_wide = true;
-	switch_evsel->no_aux_samples = true;
 	switch_evsel->immediate = true;
 
 	/* Test moving an event to the front */

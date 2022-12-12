@@ -173,8 +173,7 @@ netxen_napi_add(struct netxen_adapter *adapter, struct net_device *netdev)
 
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
-		netif_napi_add(netdev, &sds_ring->napi,
-				netxen_nic_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add(netdev, &sds_ring->napi, netxen_nic_poll);
 	}
 
 	return 0;

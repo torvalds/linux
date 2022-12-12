@@ -796,7 +796,6 @@ static void ssip_rx_strans(struct hsi_client *cl, u32 cmd)
 		dev_err(&cl->device, "No memory for rx skb\n");
 		goto out1;
 	}
-	skb->dev = ssi->netdev;
 	skb_put(skb, len * 4);
 	msg = ssip_alloc_data(ssi, skb, GFP_ATOMIC);
 	if (unlikely(!msg)) {
@@ -931,6 +930,7 @@ static int ssip_pn_open(struct net_device *dev)
 	if (err < 0) {
 		dev_err(&cl->device, "Register HSI port event failed (%d)\n",
 			err);
+		hsi_release_port(cl);
 		return err;
 	}
 	dev_dbg(&cl->device, "Configuring SSI port\n");

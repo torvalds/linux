@@ -326,7 +326,8 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	".align " __stringify(FASTOP_SIZE) " \n\t" \
 	".type " name ", @function \n\t" \
 	name ":\n\t" \
-	ASM_ENDBR
+	ASM_ENDBR \
+	IBT_NOSEAL(name)
 
 #define FOP_FUNC(name) \
 	__FOP_FUNC(#name)
@@ -446,27 +447,12 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	FOP_END
 
 /* Special case for SETcc - 1 instruction per cc */
-
-/*
- * Depending on .config the SETcc functions look like:
- *
- * ENDBR			[4 bytes; CONFIG_X86_KERNEL_IBT]
- * SETcc %al			[3 bytes]
- * RET | JMP __x86_return_thunk	[1,5 bytes; CONFIG_RETHUNK]
- * INT3				[1 byte; CONFIG_SLS]
- */
-#define SETCC_ALIGN	16
-
 #define FOP_SETCC(op) \
-	".align " __stringify(SETCC_ALIGN) " \n\t" \
-	".type " #op ", @function \n\t" \
-	#op ": \n\t" \
-	ASM_ENDBR \
+	FOP_FUNC(op) \
 	#op " %al \n\t" \
-	__FOP_RET(#op) \
-	".skip " __stringify(SETCC_ALIGN) " - (.-" #op "), 0xcc \n\t"
+	FOP_RET(op)
 
-__FOP_START(setcc, SETCC_ALIGN)
+FOP_START(setcc)
 FOP_SETCC(seto)
 FOP_SETCC(setno)
 FOP_SETCC(setc)
@@ -493,7 +479,7 @@ FOP_END;
 
 /*
  * XXX: inoutclob user must know where the argument is being expanded.
- *      Relying on CONFIG_CC_HAS_ASM_GOTO would allow us to remove _fault.
+ *      Using asm goto would allow us to remove _fault.
  */
 #define asm_safe(insn, inoutclob...) \
 ({ \
@@ -1079,7 +1065,7 @@ static int em_bsr_c(struct x86_emulate_ctxt *ctxt)
 static __always_inline u8 test_cc(unsigned int condition, unsigned long flags)
 {
 	u8 rc;
-	void (*fop)(void) = (void *)em_setcc + SETCC_ALIGN * (condition & 0xf);
+	void (*fop)(void) = (void *)em_setcc + FASTOP_SIZE * (condition & 0xf);
 
 	flags = (flags & EFLAGS_MASK) | X86_EFLAGS_IF;
 	asm("push %[flags]; popf; " CALL_NOSPEC
@@ -1151,9 +1137,11 @@ static int em_fnstsw(struct x86_emulate_ctxt *ctxt)
 static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 				    struct operand *op)
 {
-	unsigned reg = ctxt->modrm_reg;
+	unsigned int reg;
 
-	if (!(ctxt->d & ModRM))
+	if (ctxt->d & ModRM)
+		reg = ctxt->modrm_reg;
+	else
 		reg = (ctxt->b & 7) | ((ctxt->rex_prefix & 1) << 3);
 
 	if (ctxt->d & Sse) {
@@ -1967,7 +1955,7 @@ static int em_pop_sreg(struct x86_emulate_ctxt *ctxt)
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
-	if (ctxt->modrm_reg == VCPU_SREG_SS)
+	if (seg == VCPU_SREG_SS)
 		ctxt->interruptibility = KVM_X86_SHADOW_INT_MOV_SS;
 	if (ctxt->op_bytes > 2)
 		rsp_increment(ctxt, ctxt->op_bytes - 2);
@@ -3659,13 +3647,10 @@ static int em_wrmsr(struct x86_emulate_ctxt *ctxt)
 		| ((u64)reg_read(ctxt, VCPU_REGS_RDX) << 32);
 	r = ctxt->ops->set_msr_with_filter(ctxt, msr_index, msr_data);
 
-	if (r == X86EMUL_IO_NEEDED)
-		return r;
-
-	if (r > 0)
+	if (r == X86EMUL_PROPAGATE_FAULT)
 		return emulate_gp(ctxt, 0);
 
-	return r < 0 ? X86EMUL_UNHANDLEABLE : X86EMUL_CONTINUE;
+	return r;
 }
 
 static int em_rdmsr(struct x86_emulate_ctxt *ctxt)
@@ -3676,15 +3661,14 @@ static int em_rdmsr(struct x86_emulate_ctxt *ctxt)
 
 	r = ctxt->ops->get_msr_with_filter(ctxt, msr_index, &msr_data);
 
-	if (r == X86EMUL_IO_NEEDED)
-		return r;
-
-	if (r)
+	if (r == X86EMUL_PROPAGATE_FAULT)
 		return emulate_gp(ctxt, 0);
 
-	*reg_write(ctxt, VCPU_REGS_RAX) = (u32)msr_data;
-	*reg_write(ctxt, VCPU_REGS_RDX) = msr_data >> 32;
-	return X86EMUL_CONTINUE;
+	if (r == X86EMUL_CONTINUE) {
+		*reg_write(ctxt, VCPU_REGS_RAX) = (u32)msr_data;
+		*reg_write(ctxt, VCPU_REGS_RDX) = msr_data >> 32;
+	}
+	return r;
 }
 
 static int em_store_sreg(struct x86_emulate_ctxt *ctxt, int segment)
@@ -4146,6 +4130,9 @@ static int em_xsetbv(struct x86_emulate_ctxt *ctxt)
 {
 	u32 eax, ecx, edx;
 
+	if (!(ctxt->ops->get_cr(ctxt, 4) & X86_CR4_OSXSAVE))
+		return emulate_ud(ctxt);
+
 	eax = reg_read(ctxt, VCPU_REGS_RAX);
 	edx = reg_read(ctxt, VCPU_REGS_RDX);
 	ecx = reg_read(ctxt, VCPU_REGS_RCX);
@@ -4182,8 +4169,7 @@ static int check_dr7_gd(struct x86_emulate_ctxt *ctxt)
 
 	ctxt->ops->get_dr(ctxt, 7, &dr7);
 
-	/* Check if DR7.Global_Enable is set */
-	return dr7 & (1 << 13);
+	return dr7 & DR7_GD;
 }
 
 static int check_dr_read(struct x86_emulate_ctxt *ctxt)

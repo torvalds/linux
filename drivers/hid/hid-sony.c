@@ -368,7 +368,7 @@ static const unsigned int buzz_keymap[] = {
 };
 
 /* The Navigation controller is a partial DS3 and uses the same HID report
- * and hence the same keymap indices, however not not all axes/buttons
+ * and hence the same keymap indices, however not all axes/buttons
  * are physically present. We use the same axis and button mapping as
  * the DS3, which uses the Linux gamepad spec.
  */

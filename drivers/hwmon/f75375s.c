@@ -896,7 +896,7 @@ static int f75375_detect(struct i2c_client *client,
 
 	version = f75375_read8(client, F75375_REG_VERSION);
 	dev_info(&adapter->dev, "found %s version: %02X\n", name, version);
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }

@@ -19,6 +19,17 @@ struct scsi_nl_hdr;
 #define SCSI_CMD_RETRIES_NO_LIMIT -1
 
 /*
+ * Error codes used by scsi-ml internally. These must not be used by drivers.
+ */
+enum scsi_ml_status {
+	SCSIML_STAT_OK			= 0x00,
+	SCSIML_STAT_RESV_CONFLICT	= 0x01,	/* Reservation conflict */
+	SCSIML_STAT_NOSPC		= 0x02,	/* Space allocation on the dev failed */
+	SCSIML_STAT_MED_ERROR		= 0x03,	/* Medium error */
+	SCSIML_STAT_TGT_FAILURE		= 0x04,	/* Permanent target failure */
+};
+
+/*
  * Scsi Error Handler Flags
  */
 #define SCSI_EH_ABORT_SCHEDULED	0x0002	/* Abort has been scheduled */
@@ -94,7 +105,7 @@ extern void scsi_run_host_queues(struct Scsi_Host *shost);
 extern void scsi_requeue_run_queue(struct work_struct *work);
 extern void scsi_start_queue(struct scsi_device *sdev);
 extern int scsi_mq_setup_tags(struct Scsi_Host *shost);
-extern void scsi_mq_destroy_tags(struct Scsi_Host *shost);
+extern void scsi_mq_free_tags(struct kref *kref);
 extern void scsi_exit_queue(void);
 extern void scsi_evt_thread(struct work_struct *work);
 

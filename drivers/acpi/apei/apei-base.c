@@ -125,12 +125,9 @@ EXPORT_SYMBOL_GPL(apei_exec_write_register);
 int apei_exec_write_register_value(struct apei_exec_context *ctx,
 				   struct acpi_whea_header *entry)
 {
-	int rc;
-
 	ctx->value = entry->value;
-	rc = apei_exec_write_register(ctx, entry);
 
-	return rc;
+	return apei_exec_write_register(ctx, entry);
 }
 EXPORT_SYMBOL_GPL(apei_exec_write_register_value);
 

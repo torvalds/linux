@@ -58,7 +58,7 @@ static int zpci_setup_aipb(u8 nisc)
 	if (!zpci_aipb)
 		return -ENOMEM;
 
-	aift->sbv = airq_iv_create(ZPCI_NR_DEVICES, AIRQ_IV_ALLOC, 0);
+	aift->sbv = airq_iv_create(ZPCI_NR_DEVICES, AIRQ_IV_ALLOC, NULL);
 	if (!aift->sbv) {
 		rc = -ENOMEM;
 		goto free_aipb;
@@ -71,7 +71,7 @@ static int zpci_setup_aipb(u8 nisc)
 		rc = -ENOMEM;
 		goto free_sbv;
 	}
-	aift->gait = (struct zpci_gaite *)page_to_phys(page);
+	aift->gait = (struct zpci_gaite *)page_to_virt(page);
 
 	zpci_aipb->aipb.faisb = virt_to_phys(aift->sbv->vector);
 	zpci_aipb->aipb.gait = virt_to_phys(aift->gait);
@@ -373,7 +373,7 @@ static int kvm_s390_pci_aif_disable(struct zpci_dev *zdev, bool force)
 		gaite->gisc = 0;
 		gaite->aisbo = 0;
 		gaite->gisa = 0;
-		aift->kzdev[zdev->aisb] = 0;
+		aift->kzdev[zdev->aisb] = NULL;
 		/* Clear zdev info */
 		airq_iv_free_bit(aift->sbv, zdev->aisb);
 		airq_iv_release(zdev->aibv);
@@ -431,8 +431,9 @@ static void kvm_s390_pci_dev_release(struct zpci_dev *zdev)
  * available, enable them and let userspace indicate whether or not they will
  * be used (specify SHM bit to disable).
  */
-int kvm_s390_pci_register_kvm(struct zpci_dev *zdev, struct kvm *kvm)
+static int kvm_s390_pci_register_kvm(void *opaque, struct kvm *kvm)
 {
+	struct zpci_dev *zdev = opaque;
 	int rc;
 
 	if (!zdev)
@@ -510,10 +511,10 @@ err:
 	kvm_put_kvm(kvm);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(kvm_s390_pci_register_kvm);
 
-void kvm_s390_pci_unregister_kvm(struct zpci_dev *zdev)
+static void kvm_s390_pci_unregister_kvm(void *opaque)
 {
+	struct zpci_dev *zdev = opaque;
 	struct kvm *kvm;
 
 	if (!zdev)
@@ -566,7 +567,6 @@ out:
 
 	kvm_put_kvm(kvm);
 }
-EXPORT_SYMBOL_GPL(kvm_s390_pci_unregister_kvm);
 
 void kvm_s390_pci_init_list(struct kvm *kvm)
 {
@@ -672,6 +672,12 @@ out:
 
 int kvm_s390_pci_init(void)
 {
+	zpci_kvm_hook.kvm_register = kvm_s390_pci_register_kvm;
+	zpci_kvm_hook.kvm_unregister = kvm_s390_pci_unregister_kvm;
+
+	if (!kvm_s390_pci_interp_allowed())
+		return 0;
+
 	aift = kzalloc(sizeof(struct zpci_aift), GFP_KERNEL);
 	if (!aift)
 		return -ENOMEM;
@@ -684,6 +690,12 @@ int kvm_s390_pci_init(void)
 
 void kvm_s390_pci_exit(void)
 {
+	zpci_kvm_hook.kvm_register = NULL;
+	zpci_kvm_hook.kvm_unregister = NULL;
+
+	if (!kvm_s390_pci_interp_allowed())
+		return;
+
 	mutex_destroy(&aift->aift_lock);
 
 	kfree(aift);

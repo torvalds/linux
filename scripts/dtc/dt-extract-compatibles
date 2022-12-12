@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-only
+
+import os
+import glob
+import re
+import argparse
+
+
+def parse_of_declare_macros(data):
+	""" Find all compatible strings in OF_DECLARE() style macros """
+	compat_list = []
+	# CPU_METHOD_OF_DECLARE does not have a compatible string
+	for m in re.finditer(r'(?<!CPU_METHOD_)(IRQCHIP|OF)_(DECLARE|MATCH)(_DRIVER)?\(.*?\)', data):
+		try:
+			compat = re.search(r'"(.*?)"', m[0])[1]
+		except:
+			# Fails on compatible strings in #define, so just skip
+			continue
+		compat_list += [compat]
+
+	return compat_list
+
+
+def parse_of_device_id(data):
+	""" Find all compatible strings in of_device_id structs """
+	compat_list = []
+	for m in re.finditer(r'of_device_id\s+[a-zA-Z0-9_]+\[\]\s*=\s*({.*?);', data):
+		compat_list += re.findall(r'\.compatible\s+=\s+"([a-zA-Z0-9_\-,]+)"', m[1])
+
+	return compat_list
+
+
+def parse_compatibles(file):
+	with open(file, 'r', encoding='utf-8') as f:
+		data = f.read().replace('\n', '')
+
+	compat_list = parse_of_declare_macros(data)
+	compat_list += parse_of_device_id(data)
+
+	return compat_list
+
+def print_compat(filename, compatibles):
+	if not compatibles:
+		return
+	if show_filename:
+		compat_str = ' '.join(compatibles)
+		print(filename + ": compatible(s): " + compat_str)
+	else:
+		print(*compatibles, sep='\n')
+
+show_filename = False
+
+if __name__ == "__main__":
+	ap = argparse.ArgumentParser()
+	ap.add_argument("cfile", type=str, nargs='*', help="C source files or directories to parse")
+	ap.add_argument('-H', '--with-filename', help="Print filename with compatibles", action="store_true")
+	args = ap.parse_args()
+
+	show_filename = args.with_filename
+
+	for f in args.cfile:
+		if os.path.isdir(f):
+			for filename in glob.iglob(f + "/**/*.c", recursive=True):
+				compat_list = parse_compatibles(filename)
+				print_compat(filename, compat_list)
+		else:
+			compat_list = parse_compatibles(f)
+			print_compat(f, compat_list)

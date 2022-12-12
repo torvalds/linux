@@ -2456,7 +2456,7 @@ static int dme1737_i2c_detect(struct i2c_client *client,
 	dev_info(dev, "Found a %s chip at 0x%02x (rev 0x%02x).\n",
 		 verstep == SCH5027_VERSTEP ? "SCH5027" : "DME1737",
 		 client->addr, verstep);
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }

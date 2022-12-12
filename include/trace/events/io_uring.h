@@ -655,6 +655,35 @@ TRACE_EVENT(io_uring_short_write,
 			  __entry->wanted, __entry->got)
 );
 
+/*
+ * io_uring_local_work_run - ran ring local task work
+ *
+ * @tctx:		pointer to a io_uring_ctx
+ * @count:		how many functions it ran
+ * @loops:		how many loops it ran
+ *
+ */
+TRACE_EVENT(io_uring_local_work_run,
+
+	TP_PROTO(void *ctx, int count, unsigned int loops),
+
+	TP_ARGS(ctx, count, loops),
+
+	TP_STRUCT__entry (
+		__field(void *,		ctx	)
+		__field(int,		count	)
+		__field(unsigned int,	loops	)
+	),
+
+	TP_fast_assign(
+		__entry->ctx		= ctx;
+		__entry->count		= count;
+		__entry->loops		= loops;
+	),
+
+	TP_printk("ring %p, count %d, loops %u", __entry->ctx, __entry->count, __entry->loops)
+);
+
 #endif /* _TRACE_IO_URING_H */
 
 /* This part must be outside protection */

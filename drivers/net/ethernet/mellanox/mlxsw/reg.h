@@ -2218,76 +2218,6 @@ static inline void mlxsw_reg_smpe_pack(char *payload, u16 local_port,
 	mlxsw_reg_smpe_evid_set(payload, evid);
 }
 
-/* SFTR-V2 - Switch Flooding Table Version 2 Register
- * --------------------------------------------------
- * The switch flooding table is used for flooding packet replication. The table
- * defines a bit mask of ports for packet replication.
- */
-#define MLXSW_REG_SFTR2_ID 0x202F
-#define MLXSW_REG_SFTR2_LEN 0x120
-
-MLXSW_REG_DEFINE(sftr2, MLXSW_REG_SFTR2_ID, MLXSW_REG_SFTR2_LEN);
-
-/* reg_sftr2_swid
- * Switch partition ID with which to associate the port.
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr2, swid, 0x00, 24, 8);
-
-/* reg_sftr2_flood_table
- * Flooding table index to associate with the specific type on the specific
- * switch partition.
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr2, flood_table, 0x00, 16, 6);
-
-/* reg_sftr2_index
- * Index. Used as an index into the Flooding Table in case the table is
- * configured to use VID / FID or FID Offset.
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr2, index, 0x00, 0, 16);
-
-/* reg_sftr2_table_type
- * See mlxsw_flood_table_type
- * Access: RW
- */
-MLXSW_ITEM32(reg, sftr2, table_type, 0x04, 16, 3);
-
-/* reg_sftr2_range
- * Range of entries to update
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr2, range, 0x04, 0, 16);
-
-/* reg_sftr2_port
- * Local port membership (1 bit per port).
- * Access: RW
- */
-MLXSW_ITEM_BIT_ARRAY(reg, sftr2, port, 0x20, 0x80, 1);
-
-/* reg_sftr2_port_mask
- * Local port mask (1 bit per port).
- * Access: WO
- */
-MLXSW_ITEM_BIT_ARRAY(reg, sftr2, port_mask, 0xA0, 0x80, 1);
-
-static inline void mlxsw_reg_sftr2_pack(char *payload,
-					unsigned int flood_table,
-					unsigned int index,
-					enum mlxsw_flood_table_type table_type,
-					unsigned int range, u16 port, bool set)
-{
-	MLXSW_REG_ZERO(sftr2, payload);
-	mlxsw_reg_sftr2_swid_set(payload, 0);
-	mlxsw_reg_sftr2_flood_table_set(payload, flood_table);
-	mlxsw_reg_sftr2_index_set(payload, index);
-	mlxsw_reg_sftr2_table_type_set(payload, table_type);
-	mlxsw_reg_sftr2_range_set(payload, range);
-	mlxsw_reg_sftr2_port_set(payload, port, set);
-	mlxsw_reg_sftr2_port_mask_set(payload, port, 1);
-}
-
 /* SMID-V2 - Switch Multicast ID Version 2 Register
  * ------------------------------------------------
  * The MID record maps from a MID (Multicast ID), which is a unique identifier
@@ -4729,25 +4659,6 @@ MLXSW_ITEM32(reg, ptys, ext_eth_proto_cap, 0x08, 0, 32);
  */
 MLXSW_ITEM32(reg, ptys, eth_proto_cap, 0x0C, 0, 32);
 
-/* reg_ptys_ib_link_width_cap
- * IB port supported widths.
- * Access: RO
- */
-MLXSW_ITEM32(reg, ptys, ib_link_width_cap, 0x10, 16, 16);
-
-#define MLXSW_REG_PTYS_IB_SPEED_SDR	BIT(0)
-#define MLXSW_REG_PTYS_IB_SPEED_DDR	BIT(1)
-#define MLXSW_REG_PTYS_IB_SPEED_QDR	BIT(2)
-#define MLXSW_REG_PTYS_IB_SPEED_FDR10	BIT(3)
-#define MLXSW_REG_PTYS_IB_SPEED_FDR	BIT(4)
-#define MLXSW_REG_PTYS_IB_SPEED_EDR	BIT(5)
-
-/* reg_ptys_ib_proto_cap
- * IB port supported speeds and protocols.
- * Access: RO
- */
-MLXSW_ITEM32(reg, ptys, ib_proto_cap, 0x10, 0, 16);
-
 /* reg_ptys_ext_eth_proto_admin
  * Extended speed and protocol to set port to.
  * Access: RW
@@ -4760,18 +4671,6 @@ MLXSW_ITEM32(reg, ptys, ext_eth_proto_admin, 0x14, 0, 32);
  */
 MLXSW_ITEM32(reg, ptys, eth_proto_admin, 0x18, 0, 32);
 
-/* reg_ptys_ib_link_width_admin
- * IB width to set port to.
- * Access: RW
- */
-MLXSW_ITEM32(reg, ptys, ib_link_width_admin, 0x1C, 16, 16);
-
-/* reg_ptys_ib_proto_admin
- * IB speeds and protocols to set port to.
- * Access: RW
- */
-MLXSW_ITEM32(reg, ptys, ib_proto_admin, 0x1C, 0, 16);
-
 /* reg_ptys_ext_eth_proto_oper
  * The extended current speed and protocol configured for the port.
  * Access: RO
@@ -4783,18 +4682,6 @@ MLXSW_ITEM32(reg, ptys, ext_eth_proto_oper, 0x20, 0, 32);
  * Access: RO
  */
 MLXSW_ITEM32(reg, ptys, eth_proto_oper, 0x24, 0, 32);
-
-/* reg_ptys_ib_link_width_oper
- * The current IB width to set port to.
- * Access: RO
- */
-MLXSW_ITEM32(reg, ptys, ib_link_width_oper, 0x28, 16, 16);
-
-/* reg_ptys_ib_proto_oper
- * The current IB speed and protocol.
- * Access: RO
- */
-MLXSW_ITEM32(reg, ptys, ib_proto_oper, 0x28, 0, 16);
 
 enum mlxsw_reg_ptys_connector_type {
 	MLXSW_REG_PTYS_CONNECTOR_TYPE_UNKNOWN_OR_NO_CONNECTOR,
@@ -4864,33 +4751,6 @@ static inline void mlxsw_reg_ptys_ext_eth_unpack(char *payload,
 	if (p_eth_proto_oper)
 		*p_eth_proto_oper =
 			mlxsw_reg_ptys_ext_eth_proto_oper_get(payload);
-}
-
-static inline void mlxsw_reg_ptys_ib_pack(char *payload, u16 local_port,
-					  u16 proto_admin, u16 link_width)
-{
-	MLXSW_REG_ZERO(ptys, payload);
-	mlxsw_reg_ptys_local_port_set(payload, local_port);
-	mlxsw_reg_ptys_proto_mask_set(payload, MLXSW_REG_PTYS_PROTO_MASK_IB);
-	mlxsw_reg_ptys_ib_proto_admin_set(payload, proto_admin);
-	mlxsw_reg_ptys_ib_link_width_admin_set(payload, link_width);
-}
-
-static inline void mlxsw_reg_ptys_ib_unpack(char *payload, u16 *p_ib_proto_cap,
-					    u16 *p_ib_link_width_cap,
-					    u16 *p_ib_proto_oper,
-					    u16 *p_ib_link_width_oper)
-{
-	if (p_ib_proto_cap)
-		*p_ib_proto_cap = mlxsw_reg_ptys_ib_proto_cap_get(payload);
-	if (p_ib_link_width_cap)
-		*p_ib_link_width_cap =
-			mlxsw_reg_ptys_ib_link_width_cap_get(payload);
-	if (p_ib_proto_oper)
-		*p_ib_proto_oper = mlxsw_reg_ptys_ib_proto_oper_get(payload);
-	if (p_ib_link_width_oper)
-		*p_ib_link_width_oper =
-			mlxsw_reg_ptys_ib_link_width_oper_get(payload);
 }
 
 /* PPAD - Port Physical Address Register
@@ -5665,27 +5525,6 @@ static inline void mlxsw_reg_ppcnt_pack(char *payload, u16 local_port,
 	mlxsw_reg_ppcnt_lp_gl_set(payload, 1);
 	mlxsw_reg_ppcnt_prio_tc_set(payload, prio_tc);
 }
-
-/* PLIB - Port Local to InfiniBand Port
- * ------------------------------------
- * The PLIB register performs mapping from Local Port into InfiniBand Port.
- */
-#define MLXSW_REG_PLIB_ID 0x500A
-#define MLXSW_REG_PLIB_LEN 0x10
-
-MLXSW_REG_DEFINE(plib, MLXSW_REG_PLIB_ID, MLXSW_REG_PLIB_LEN);
-
-/* reg_plib_local_port
- * Local port number.
- * Access: Index
- */
-MLXSW_ITEM32_LP(reg, plib, 0x00, 16, 0x00, 12);
-
-/* reg_plib_ib_port
- * InfiniBand port remapping for local_port.
- * Access: RW
- */
-MLXSW_ITEM32(reg, plib, ib_port, 0x00, 0, 8);
 
 /* PPTB - Port Prio To Buffer Register
  * -----------------------------------
@@ -12924,7 +12763,6 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(spvc),
 	MLXSW_REG(spevet),
 	MLXSW_REG(smpe),
-	MLXSW_REG(sftr2),
 	MLXSW_REG(smid2),
 	MLXSW_REG(cwtp),
 	MLXSW_REG(cwtpm),
@@ -12962,7 +12800,6 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(paos),
 	MLXSW_REG(pfcc),
 	MLXSW_REG(ppcnt),
-	MLXSW_REG(plib),
 	MLXSW_REG(pptb),
 	MLXSW_REG(pbmc),
 	MLXSW_REG(pspa),

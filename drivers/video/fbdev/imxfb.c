@@ -681,7 +681,7 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 
 	fbi->devtype = pdev->id_entry->driver_data;
 
-	strlcpy(info->fix.id, IMX_NAME, sizeof(info->fix.id));
+	strscpy(info->fix.id, IMX_NAME, sizeof(info->fix.id));
 
 	info->fix.type			= FB_TYPE_PACKED_PIXELS;
 	info->fix.type_aux		= 0;
@@ -972,7 +972,6 @@ static int imxfb_probe(struct platform_device *pdev)
 
 	fbi->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(fbi->regs)) {
-		dev_err(&pdev->dev, "Cannot map frame buffer registers\n");
 		ret = PTR_ERR(fbi->regs);
 		goto failed_ioremap;
 	}

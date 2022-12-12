@@ -333,7 +333,7 @@ tcx_init_fix(struct fb_info *info, int linebytes)
 	else
 		tcx_name = "TCX24";
 
-	strlcpy(info->fix.id, tcx_name, sizeof(info->fix.id));
+	strscpy(info->fix.id, tcx_name, sizeof(info->fix.id));
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_PSEUDOCOLOR;

@@ -142,7 +142,7 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	mouse->dev = input_dev;
 
 	if (dev->manufacturer)
-		strlcpy(mouse->name, dev->manufacturer, sizeof(mouse->name));
+		strscpy(mouse->name, dev->manufacturer, sizeof(mouse->name));
 
 	if (dev->product) {
 		if (dev->manufacturer)

@@ -320,7 +320,7 @@ A bare bones test module might look like this:
 
    #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-   #include "../tools/testing/selftests/kselftest/module.h"
+   #include "../tools/testing/selftests/kselftest_module.h"
 
    KSTM_MODULE_GLOBALS();
 

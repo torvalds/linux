@@ -13,4 +13,6 @@ ipa-y			:=	ipa_main.o ipa_power.o ipa_reg.o ipa_mem.o \
 				ipa_resource.o ipa_qmi.o ipa_qmi_msg.o \
 				ipa_sysfs.o
 
+ipa-y			+=	$(IPA_VERSIONS:%=reg/ipa_reg-v%.o)
+
 ipa-y			+=	$(IPA_VERSIONS:%=data/ipa_data-v%.o)

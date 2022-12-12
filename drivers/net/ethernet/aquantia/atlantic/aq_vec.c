@@ -119,8 +119,7 @@ struct aq_vec_s *aq_vec_alloc(struct aq_nic_s *aq_nic, unsigned int idx,
 	self->tx_rings = 0;
 	self->rx_rings = 0;
 
-	netif_napi_add(aq_nic_get_ndev(aq_nic), &self->napi,
-		       aq_vec_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add(aq_nic_get_ndev(aq_nic), &self->napi, aq_vec_poll);
 
 err_exit:
 	return self;

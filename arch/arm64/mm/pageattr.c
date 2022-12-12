@@ -21,7 +21,13 @@ bool rodata_full __ro_after_init = IS_ENABLED(CONFIG_RODATA_FULL_DEFAULT_ENABLED
 
 bool can_set_direct_map(void)
 {
-	return rodata_full || debug_pagealloc_enabled();
+	/*
+	 * rodata_full, DEBUG_PAGEALLOC and KFENCE require linear map to be
+	 * mapped at page granularity, so that it is possible to
+	 * protect/unprotect single pages.
+	 */
+	return rodata_full || debug_pagealloc_enabled() ||
+		IS_ENABLED(CONFIG_KFENCE);
 }
 
 static int change_page_range(pte_t *ptep, unsigned long addr, void *data)

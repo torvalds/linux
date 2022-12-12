@@ -672,7 +672,6 @@
 							 <&clk IMX8MN_CLK_GPU_SHADER>,
 							 <&clk IMX8MN_CLK_GPU_BUS_ROOT>,
 							 <&clk IMX8MN_CLK_GPU_AHB>;
-						resets = <&src IMX8MQ_RESET_GPU_RESET>;
 					};
 
 					pgc_dispmix: power-domain@3 {

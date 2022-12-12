@@ -83,6 +83,7 @@ static int mt7663s_probe(struct sdio_func *func,
 		.tx_complete_skb = mt7663_usb_sdio_tx_complete_skb,
 		.tx_status_data = mt7663_usb_sdio_tx_status_data,
 		.rx_skb = mt7615_queue_rx_skb,
+		.rx_check = mt7615_rx_check,
 		.sta_ps = mt7615_sta_ps,
 		.sta_add = mt7615_mac_sta_add,
 		.sta_remove = mt7615_mac_sta_remove,
@@ -180,7 +181,6 @@ static void mt7663s_remove(struct sdio_func *func)
 	mt76_free_device(&dev->mt76);
 }
 
-#ifdef CONFIG_PM
 static int mt7663s_suspend(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
@@ -235,28 +235,20 @@ static int mt7663s_resume(struct device *dev)
 	return err;
 }
 
-static const struct dev_pm_ops mt7663s_pm_ops = {
-	.suspend = mt7663s_suspend,
-	.resume = mt7663s_resume,
-};
-#endif
-
 MODULE_DEVICE_TABLE(sdio, mt7663s_table);
 MODULE_FIRMWARE(MT7663_OFFLOAD_FIRMWARE_N9);
 MODULE_FIRMWARE(MT7663_OFFLOAD_ROM_PATCH);
 MODULE_FIRMWARE(MT7663_FIRMWARE_N9);
 MODULE_FIRMWARE(MT7663_ROM_PATCH);
 
+static DEFINE_SIMPLE_DEV_PM_OPS(mt7663s_pm_ops, mt7663s_suspend, mt7663s_resume);
+
 static struct sdio_driver mt7663s_driver = {
 	.name		= KBUILD_MODNAME,
 	.probe		= mt7663s_probe,
 	.remove		= mt7663s_remove,
 	.id_table	= mt7663s_table,
-#ifdef CONFIG_PM
-	.drv = {
-		.pm = &mt7663s_pm_ops,
-	}
-#endif
+	.drv.pm		= pm_sleep_ptr(&mt7663s_pm_ops),
 };
 module_sdio_driver(mt7663s_driver);
 

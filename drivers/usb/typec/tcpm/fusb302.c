@@ -151,7 +151,7 @@ static void _fusb302_log(struct fusb302_chip *chip, const char *fmt,
 
 	if (fusb302_log_full(chip)) {
 		chip->logbuffer_head = max(chip->logbuffer_head - 1, 0);
-		strlcpy(tmpbuffer, "overflow", sizeof(tmpbuffer));
+		strscpy(tmpbuffer, "overflow", sizeof(tmpbuffer));
 	}
 
 	if (chip->logbuffer_head < 0 ||
@@ -1743,9 +1743,8 @@ static int fusb302_probe(struct i2c_client *client,
 	chip->tcpm_port = tcpm_register_port(&client->dev, &chip->tcpc_dev);
 	if (IS_ERR(chip->tcpm_port)) {
 		fwnode_handle_put(chip->tcpc_dev.fwnode);
-		ret = PTR_ERR(chip->tcpm_port);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "cannot register tcpm port, ret=%d", ret);
+		ret = dev_err_probe(dev, PTR_ERR(chip->tcpm_port),
+				    "cannot register tcpm port\n");
 		goto destroy_workqueue;
 	}
 

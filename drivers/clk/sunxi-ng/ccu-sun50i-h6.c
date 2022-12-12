@@ -1191,9 +1191,13 @@ static int sun50i_h6_ccu_probe(struct platform_device *pdev)
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
-	/* Force PLL_GPU output divider bits to 0 */
+	/*
+	 * Force PLL_GPU output divider bits to 0 and adjust
+	 * multiplier to sensible default value of 432 MHz.
+	 */
 	val = readl(reg + SUN50I_H6_PLL_GPU_REG);
-	val &= ~BIT(0);
+	val &= ~(GENMASK(15, 8) | BIT(0));
+	val |= 17 << 8;
 	writel(val, reg + SUN50I_H6_PLL_GPU_REG);
 
 	/* Force GPU_CLK divider bits to 0 */

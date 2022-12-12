@@ -540,8 +540,9 @@ static int wilc_wfi_cfg_copy_wpa_info(struct wilc_wfi_key *key_info,
 	return 0;
 }
 
-static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-		   bool pairwise, const u8 *mac_addr, struct key_params *params)
+static int add_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+		   u8 key_index, bool pairwise, const u8 *mac_addr,
+		   struct key_params *params)
 
 {
 	int ret = 0, keylen = params->key_len;
@@ -644,7 +645,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	return ret;
 }
 
-static int del_key(struct wiphy *wiphy, struct net_device *netdev,
+static int del_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
 		   u8 key_index,
 		   bool pairwise,
 		   const u8 *mac_addr)
@@ -685,8 +686,9 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 	return 0;
 }
 
-static int get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-		   bool pairwise, const u8 *mac_addr, void *cookie,
+static int get_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+		   u8 key_index, bool pairwise, const u8 *mac_addr,
+		   void *cookie,
 		   void (*callback)(void *cookie, struct key_params *))
 {
 	struct wilc_vif *vif = netdev_priv(netdev);
@@ -723,13 +725,14 @@ static int get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 
 /* wiphy_new_nm() will WARNON if not present */
 static int set_default_key(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, bool unicast, bool multicast)
+			   int link_id, u8 key_index, bool unicast,
+			   bool multicast)
 {
 	return 0;
 }
 
 static int set_default_mgmt_key(struct wiphy *wiphy, struct net_device *netdev,
-				u8 key_index)
+				int link_id, u8 key_index)
 {
 	struct wilc_vif *vif = netdev_priv(netdev);
 
@@ -994,12 +997,11 @@ bool wilc_wfi_mgmt_frame_rx(struct wilc_vif *vif, u8 *buff, u32 size)
 {
 	struct wilc *wl = vif->wilc;
 	struct wilc_priv *priv = &vif->priv;
-	int freq, ret;
+	int freq;
 
 	freq = ieee80211_channel_to_frequency(wl->op_ch, NL80211_BAND_2GHZ);
-	ret = cfg80211_rx_mgmt(&priv->wdev, freq, 0, buff, size, 0);
 
-	return ret;
+	return cfg80211_rx_mgmt(&priv->wdev, freq, 0, buff, size, 0);
 }
 
 void wilc_wfi_p2p_rx(struct wilc_vif *vif, u8 *buff, u32 size)
@@ -1159,7 +1161,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 	const u8 *vendor_ie;
 	int ret = 0;
 
-	*cookie = prandom_u32();
+	*cookie = get_random_u32();
 	priv->tx_cookie = *cookie;
 	mgmt = (const struct ieee80211_mgmt *)buf;
 

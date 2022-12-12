@@ -613,14 +613,17 @@ static void ufshpb_activate_subregion(struct ufshpb_lu *hpb,
 	srgn->srgn_state = HPB_SRGN_VALID;
 }
 
-static void ufshpb_umap_req_compl_fn(struct request *req, blk_status_t error)
+static enum rq_end_io_ret ufshpb_umap_req_compl_fn(struct request *req,
+						   blk_status_t error)
 {
 	struct ufshpb_req *umap_req = (struct ufshpb_req *)req->end_io_data;
 
 	ufshpb_put_req(umap_req->hpb, umap_req);
+	return RQ_END_IO_NONE;
 }
 
-static void ufshpb_map_req_compl_fn(struct request *req, blk_status_t error)
+static enum rq_end_io_ret ufshpb_map_req_compl_fn(struct request *req,
+						  blk_status_t error)
 {
 	struct ufshpb_req *map_req = (struct ufshpb_req *) req->end_io_data;
 	struct ufshpb_lu *hpb = map_req->hpb;
@@ -636,6 +639,7 @@ static void ufshpb_map_req_compl_fn(struct request *req, blk_status_t error)
 	spin_unlock_irqrestore(&hpb->rgn_state_lock, flags);
 
 	ufshpb_put_map_req(map_req->hpb, map_req);
+	return RQ_END_IO_NONE;
 }
 
 static void ufshpb_set_unmap_cmd(unsigned char *cdb, struct ufshpb_region *rgn)

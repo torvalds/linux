@@ -484,7 +484,7 @@ void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 	enum dpio_phy rcomp_phy = phy_info->rcomp_phy;
 	bool was_enabled;
 
-	lockdep_assert_held(&dev_priv->power_domains.lock);
+	lockdep_assert_held(&dev_priv->display.power.domains.lock);
 
 	was_enabled = true;
 	if (rcomp_phy != -1)

@@ -5,6 +5,8 @@
  * Copyright (C) 2018, Google LLC.
  */
 
+#include <asm/msr-index.h>
+
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
@@ -542,9 +544,27 @@ void nested_identity_map_1g(struct vmx_pages *vmx, struct kvm_vm *vm,
 	__nested_map(vmx, vm, addr, addr, size, PG_LEVEL_1G);
 }
 
+bool kvm_vm_has_ept(struct kvm_vm *vm)
+{
+	struct kvm_vcpu *vcpu;
+	uint64_t ctrl;
+
+	vcpu = list_first_entry(&vm->vcpus, struct kvm_vcpu, list);
+	TEST_ASSERT(vcpu, "Cannot determine EPT support without vCPUs.\n");
+
+	ctrl = vcpu_get_msr(vcpu, MSR_IA32_VMX_TRUE_PROCBASED_CTLS) >> 32;
+	if (!(ctrl & CPU_BASED_ACTIVATE_SECONDARY_CONTROLS))
+		return false;
+
+	ctrl = vcpu_get_msr(vcpu, MSR_IA32_VMX_PROCBASED_CTLS2) >> 32;
+	return ctrl & SECONDARY_EXEC_ENABLE_EPT;
+}
+
 void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
 		  uint32_t eptp_memslot)
 {
+	TEST_REQUIRE(kvm_vm_has_ept(vm));
+
 	vmx->eptp = (void *)vm_vaddr_alloc_page(vm);
 	vmx->eptp_hva = addr_gva2hva(vm, (uintptr_t)vmx->eptp);
 	vmx->eptp_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->eptp);

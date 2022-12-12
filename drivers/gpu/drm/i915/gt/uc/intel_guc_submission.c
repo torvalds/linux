@@ -684,7 +684,7 @@ static int __guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 	 * Corner case where requests were sitting in the priority list or a
 	 * request resubmitted after the context was banned.
 	 */
-	if (unlikely(intel_context_is_banned(ce))) {
+	if (unlikely(!intel_context_is_schedulable(ce))) {
 		i915_request_put(i915_request_mark_eio(rq));
 		intel_engine_signal_breadcrumbs(ce->engine);
 		return 0;
@@ -870,15 +870,15 @@ static int guc_wq_item_append(struct intel_guc *guc,
 			      struct i915_request *rq)
 {
 	struct intel_context *ce = request_to_scheduling_context(rq);
-	int ret = 0;
+	int ret;
 
-	if (likely(!intel_context_is_banned(ce))) {
-		ret = __guc_wq_item_append(rq);
+	if (unlikely(!intel_context_is_schedulable(ce)))
+		return 0;
 
-		if (unlikely(ret == -EBUSY)) {
-			guc->stalled_request = rq;
-			guc->submission_stall_reason = STALL_MOVE_LRC_TAIL;
-		}
+	ret = __guc_wq_item_append(rq);
+	if (unlikely(ret == -EBUSY)) {
+		guc->stalled_request = rq;
+		guc->submission_stall_reason = STALL_MOVE_LRC_TAIL;
 	}
 
 	return ret;
@@ -897,7 +897,7 @@ static bool multi_lrc_submit(struct i915_request *rq)
 	 * submitting all the requests generated in parallel.
 	 */
 	return test_bit(I915_FENCE_FLAG_SUBMIT_PARALLEL, &rq->fence.flags) ||
-		intel_context_is_banned(ce);
+	       !intel_context_is_schedulable(ce);
 }
 
 static int guc_dequeue_one_context(struct intel_guc *guc)
@@ -966,7 +966,7 @@ register_context:
 		struct intel_context *ce = request_to_scheduling_context(last);
 
 		if (unlikely(!ctx_id_mapped(guc, ce->guc_id.id) &&
-			     !intel_context_is_banned(ce))) {
+			     intel_context_is_schedulable(ce))) {
 			ret = try_context_registration(ce, false);
 			if (unlikely(ret == -EPIPE)) {
 				goto deadlk;
@@ -1438,7 +1438,12 @@ void intel_guc_busyness_park(struct intel_gt *gt)
 	if (!guc_submission_initialized(guc))
 		return;
 
-	cancel_delayed_work(&guc->timestamp.work);
+	/*
+	 * There is a race with suspend flow where the worker runs after suspend
+	 * and causes an unclaimed register access warning. Cancel the worker
+	 * synchronously here.
+	 */
+	cancel_delayed_work_sync(&guc->timestamp.work);
 
 	/*
 	 * Before parking, we should sample engine busyness stats if we need to.
@@ -1532,8 +1537,8 @@ void intel_guc_submission_reset_prepare(struct intel_guc *guc)
 	__reset_guc_busyness_stats(guc);
 
 	/* Flush IRQ handler */
-	spin_lock_irq(&guc_to_gt(guc)->irq_lock);
-	spin_unlock_irq(&guc_to_gt(guc)->irq_lock);
+	spin_lock_irq(guc_to_gt(guc)->irq_lock);
+	spin_unlock_irq(guc_to_gt(guc)->irq_lock);
 
 	guc_flush_submissions(guc);
 	guc_flush_destroyed_contexts(guc);
@@ -1571,7 +1576,7 @@ static void guc_reset_state(struct intel_context *ce, u32 head, bool scrub)
 {
 	struct intel_engine_cs *engine = __context_to_physical_engine(ce);
 
-	if (intel_context_is_banned(ce))
+	if (!intel_context_is_schedulable(ce))
 		return;
 
 	GEM_BUG_ON(!intel_context_is_pinned(ce));
@@ -1868,7 +1873,7 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	if (guc->submission_initialized)
 		return 0;
 
-	if (guc->fw.major_ver_found < 70) {
+	if (GET_UC_VER(guc) < MAKE_UC_VER(70, 0, 0)) {
 		ret = guc_lrc_desc_pool_create_v69(guc);
 		if (ret)
 			return ret;
@@ -2303,7 +2308,7 @@ static int register_context(struct intel_context *ce, bool loop)
 	GEM_BUG_ON(intel_context_is_child(ce));
 	trace_intel_context_register(ce);
 
-	if (guc->fw.major_ver_found >= 70)
+	if (GET_UC_VER(guc) >= MAKE_UC_VER(70, 0, 0))
 		ret = register_context_v70(guc, ce, loop);
 	else
 		ret = register_context_v69(guc, ce, loop);
@@ -2315,7 +2320,7 @@ static int register_context(struct intel_context *ce, bool loop)
 		set_context_registered(ce);
 		spin_unlock_irqrestore(&ce->guc_state.lock, flags);
 
-		if (guc->fw.major_ver_found >= 70)
+		if (GET_UC_VER(guc) >= MAKE_UC_VER(70, 0, 0))
 			guc_context_policy_init_v70(ce, loop);
 	}
 
@@ -2420,7 +2425,6 @@ static int guc_context_policy_init_v70(struct intel_context *ce, bool loop)
 	struct context_policy policy;
 	u32 execution_quantum;
 	u32 preemption_timeout;
-	bool missing = false;
 	unsigned long flags;
 	int ret;
 
@@ -2438,32 +2442,9 @@ static int guc_context_policy_init_v70(struct intel_context *ce, bool loop)
 		__guc_context_policy_add_preempt_to_idle(&policy, 1);
 
 	ret = __guc_context_set_context_policies(guc, &policy, loop);
-	missing = ret != 0;
-
-	if (!missing && intel_context_is_parent(ce)) {
-		struct intel_context *child;
-
-		for_each_child(ce, child) {
-			__guc_context_policy_start_klv(&policy, child->guc_id.id);
-
-			if (engine->flags & I915_ENGINE_WANT_FORCED_PREEMPTION)
-				__guc_context_policy_add_preempt_to_idle(&policy, 1);
-
-			child->guc_state.prio = ce->guc_state.prio;
-			__guc_context_policy_add_priority(&policy, ce->guc_state.prio);
-			__guc_context_policy_add_execution_quantum(&policy, execution_quantum);
-			__guc_context_policy_add_preemption_timeout(&policy, preemption_timeout);
-
-			ret = __guc_context_set_context_policies(guc, &policy, loop);
-			if (ret) {
-				missing = true;
-				break;
-			}
-		}
-	}
 
 	spin_lock_irqsave(&ce->guc_state.lock, flags);
-	if (missing)
+	if (ret != 0)
 		set_context_policy_required(ce);
 	else
 		clr_context_policy_required(ce);
@@ -2945,7 +2926,7 @@ static void __guc_context_set_preemption_timeout(struct intel_guc *guc,
 						 u16 guc_id,
 						 u32 preemption_timeout)
 {
-	if (guc->fw.major_ver_found >= 70) {
+	if (GET_UC_VER(guc) >= MAKE_UC_VER(70, 0, 0)) {
 		struct context_policy policy;
 
 		__guc_context_policy_start_klv(&policy, guc_id);
@@ -3210,7 +3191,7 @@ static int guc_context_alloc(struct intel_context *ce)
 static void __guc_context_set_prio(struct intel_guc *guc,
 				   struct intel_context *ce)
 {
-	if (guc->fw.major_ver_found >= 70) {
+	if (GET_UC_VER(guc) >= MAKE_UC_VER(70, 0, 0)) {
 		struct context_policy policy;
 
 		__guc_context_policy_start_klv(&policy, ce->guc_id.id);
@@ -4027,6 +4008,13 @@ static inline void guc_init_lrc_mapping(struct intel_guc *guc)
 	xa_destroy(&guc->context_lookup);
 
 	/*
+	 * A reset might have occurred while we had a pending stalled request,
+	 * so make sure we clean that up.
+	 */
+	guc->stalled_request = NULL;
+	guc->submission_stall_reason = STALL_NONE;
+
+	/*
 	 * Some contexts might have been pinned before we enabled GuC
 	 * submission, so we need to add them to the GuC bookeeping.
 	 * Also, after a reset the of the GuC we want to make sure that the
@@ -4191,13 +4179,27 @@ int intel_guc_submission_setup(struct intel_engine_cs *engine)
 
 void intel_guc_submission_enable(struct intel_guc *guc)
 {
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	/* Enable and route to GuC */
+	if (GRAPHICS_VER(gt->i915) >= 12)
+		intel_uncore_write(gt->uncore, GEN12_GUC_SEM_INTR_ENABLES,
+				   GUC_SEM_INTR_ROUTE_TO_GUC |
+				   GUC_SEM_INTR_ENABLE_ALL);
+
 	guc_init_lrc_mapping(guc);
 	guc_init_engine_stats(guc);
 }
 
 void intel_guc_submission_disable(struct intel_guc *guc)
 {
+	struct intel_gt *gt = guc_to_gt(guc);
+
 	/* Note: By the time we're here, GuC may have already been reset */
+
+	/* Disable and route to host */
+	if (GRAPHICS_VER(gt->i915) >= 12)
+		intel_uncore_write(gt->uncore, GEN12_GUC_SEM_INTR_ENABLES, 0x0);
 }
 
 static bool __guc_submission_supported(struct intel_guc *guc)
@@ -4422,12 +4424,12 @@ static void guc_handle_context_reset(struct intel_guc *guc,
 {
 	trace_intel_context_reset(ce);
 
-	if (likely(!intel_context_is_banned(ce))) {
+	if (likely(intel_context_is_schedulable(ce))) {
 		capture_error_state(guc, ce);
 		guc_context_replay(ce);
 	} else {
 		drm_info(&guc_to_gt(guc)->i915->drm,
-			 "Ignoring context reset notification of banned context 0x%04X on %s",
+			 "Ignoring context reset notification of exiting context 0x%04X on %s",
 			 ce->guc_id.id, ce->engine->name);
 	}
 }
@@ -5163,4 +5165,5 @@ bool intel_guc_virtual_engine_has_heartbeat(const struct intel_engine_cs *ve)
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftest_guc.c"
 #include "selftest_guc_multi_lrc.c"
+#include "selftest_guc_hangcheck.c"
 #endif

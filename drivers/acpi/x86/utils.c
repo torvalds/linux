@@ -207,9 +207,26 @@ static const struct x86_cpu_id storage_d3_cpu_ids[] = {
 	{}
 };
 
+static const struct dmi_system_id force_storage_d3_dmi[] = {
+	{
+		/*
+		 * _ADR is ambiguous between GPP1.DEV0 and GPP1.NVME
+		 * but .NVME is needed to get StorageD3Enable node
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=216440
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 14 7425 2-in-1"),
+		}
+	},
+	{}
+};
+
 bool force_storage_d3(void)
 {
-	return x86_match_cpu(storage_d3_cpu_ids);
+	const struct dmi_system_id *dmi_id = dmi_first_match(force_storage_d3_dmi);
+
+	return dmi_id || x86_match_cpu(storage_d3_cpu_ids);
 }
 
 /*
@@ -351,11 +368,17 @@ int acpi_quirk_skip_serdev_enumeration(struct device *controller_parent, bool *s
 	struct acpi_device *adev = ACPI_COMPANION(controller_parent);
 	const struct dmi_system_id *dmi_id;
 	long quirks = 0;
+	u64 uid;
+	int ret;
 
 	*skip = false;
 
-	/* !dev_is_platform() to not match on PNP enumerated debug UARTs */
-	if (!adev || !adev->pnp.unique_id || !dev_is_platform(controller_parent))
+	ret = acpi_dev_uid_to_integer(adev, &uid);
+	if (ret)
+		return 0;
+
+	/* to not match on PNP enumerated debug UARTs */
+	if (!dev_is_platform(controller_parent))
 		return 0;
 
 	dmi_id = dmi_first_match(acpi_quirk_skip_dmi_ids);
@@ -363,10 +386,10 @@ int acpi_quirk_skip_serdev_enumeration(struct device *controller_parent, bool *s
 		quirks = (unsigned long)dmi_id->driver_data;
 
 	if (quirks & ACPI_QUIRK_UART1_TTY_UART2_SKIP) {
-		if (!strcmp(adev->pnp.unique_id, "1"))
+		if (uid == 1)
 			return -ENODEV; /* Create tty cdev instead of serdev */
 
-		if (!strcmp(adev->pnp.unique_id, "2"))
+		if (uid == 2)
 			*skip = true;
 	}
 

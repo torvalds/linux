@@ -317,11 +317,12 @@ static int sdhci_o2_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	u32 reg_val;
 
 	/*
-	 * This handler only implements the eMMC tuning that is specific to
+	 * This handler implements the hardware tuning that is specific to
 	 * this controller.  Fall back to the standard method for other TIMING.
 	 */
 	if ((host->timing != MMC_TIMING_MMC_HS200) &&
-		(host->timing != MMC_TIMING_UHS_SDR104))
+		(host->timing != MMC_TIMING_UHS_SDR104) &&
+		(host->timing != MMC_TIMING_UHS_SDR50))
 		return sdhci_execute_tuning(mmc, opcode);
 
 	if (WARN_ON((opcode != MMC_SEND_TUNING_BLOCK_HS200) &&
@@ -630,6 +631,8 @@ static int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 		reg = sdhci_readl(host, O2_SD_VENDOR_SETTING);
 		if (reg & 0x1)
 			host->quirks |= SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12;
+
+		host->quirks2 |= SDHCI_QUIRK2_BROKEN_DDR50;
 
 		sdhci_pci_o2_enable_msi(chip, host);
 

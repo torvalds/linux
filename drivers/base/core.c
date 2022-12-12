@@ -1625,7 +1625,7 @@ static int __init fw_devlink_setup(char *arg)
 }
 early_param("fw_devlink", fw_devlink_setup);
 
-static bool fw_devlink_strict = true;
+static bool fw_devlink_strict;
 static int __init fw_devlink_strict_setup(char *arg)
 {
 	return strtobool(arg, &fw_devlink_strict);
@@ -2509,7 +2509,7 @@ static ssize_t uevent_store(struct device *dev, struct device_attribute *attr,
 	rc = kobject_synth_uevent(&dev->kobj, buf, count);
 
 	if (rc) {
-		dev_err(dev, "uevent: failed to send synthetic uevent\n");
+		dev_err(dev, "uevent: failed to send synthetic uevent: %d\n", rc);
 		return rc;
 	}
 
@@ -4170,7 +4170,7 @@ device_create_groups_vargs(struct class *class, struct device *parent,
 	struct device *dev = NULL;
 	int retval = -ENODEV;
 
-	if (class == NULL || IS_ERR(class))
+	if (IS_ERR_OR_NULL(class))
 		goto error;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);

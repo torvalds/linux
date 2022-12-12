@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2014-2018 Advanced Micro Devices, Inc.
  *
@@ -40,10 +41,10 @@
 #define AMDGPU_USERPTR_RESTORE_DELAY_MS 1
 
 /*
- * Align VRAM allocations to 2MB to avoid fragmentation caused by 4K allocations in the tail 2MB
+ * Align VRAM availability to 2MB to avoid fragmentation caused by 4K allocations in the tail 2MB
  * BO chunk
  */
-#define VRAM_ALLOCATION_ALIGN (1 << 21)
+#define VRAM_AVAILABLITY_ALIGN (1 << 21)
 
 /* Impose limit on how much memory KFD can use */
 static struct {
@@ -149,7 +150,7 @@ int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 		 * to avoid fragmentation caused by 4K allocations in the tail
 		 * 2M BO chunk.
 		 */
-		vram_needed = ALIGN(size, VRAM_ALLOCATION_ALIGN);
+		vram_needed = size;
 	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR) {
 		system_mem_needed = size;
 	} else if (!(alloc_flag &
@@ -182,8 +183,10 @@ int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	 */
 	WARN_ONCE(vram_needed && !adev,
 		  "adev reference can't be null when vram is used");
-	if (adev)
+	if (adev) {
 		adev->kfd.vram_used += vram_needed;
+		adev->kfd.vram_used_aligned += ALIGN(vram_needed, VRAM_AVAILABLITY_ALIGN);
+	}
 	kfd_mem_limit.system_mem_used += system_mem_needed;
 	kfd_mem_limit.ttm_mem_used += ttm_mem_needed;
 
@@ -203,8 +206,10 @@ void amdgpu_amdkfd_unreserve_mem_limit(struct amdgpu_device *adev,
 	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
 		WARN_ONCE(!adev,
 			  "adev reference can't be null when alloc mem flags vram is set");
-		if (adev)
-			adev->kfd.vram_used -= ALIGN(size, VRAM_ALLOCATION_ALIGN);
+		if (adev) {
+			adev->kfd.vram_used -= size;
+			adev->kfd.vram_used_aligned -= ALIGN(size, VRAM_AVAILABLITY_ALIGN);
+		}
 	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR) {
 		kfd_mem_limit.system_mem_used -= size;
 	} else if (!(alloc_flag &
@@ -293,7 +298,7 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 	 */
 	replacement = dma_fence_get_stub();
 	dma_resv_replace_fences(bo->tbo.base.resv, ef->base.context,
-				replacement, DMA_RESV_USAGE_READ);
+				replacement, DMA_RESV_USAGE_BOOKKEEP);
 	dma_fence_put(replacement);
 	return 0;
 }
@@ -1386,8 +1391,9 @@ static int init_kfd_vm(struct amdgpu_vm *vm, void **process_info,
 	ret = dma_resv_reserve_fences(vm->root.bo->tbo.base.resv, 1);
 	if (ret)
 		goto reserve_shared_fail;
-	amdgpu_bo_fence(vm->root.bo,
-			&vm->process_info->eviction_fence->base, true);
+	dma_resv_add_fence(vm->root.bo->tbo.base.resv,
+			   &vm->process_info->eviction_fence->base,
+			   DMA_RESV_USAGE_BOOKKEEP);
 	amdgpu_bo_unreserve(vm->root.bo);
 
 	/* Update process info */
@@ -1611,12 +1617,12 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev)
 
 	spin_lock(&kfd_mem_limit.mem_limit_lock);
 	available = adev->gmc.real_vram_size
-		- adev->kfd.vram_used
+		- adev->kfd.vram_used_aligned
 		- atomic64_read(&adev->vram_pin_size)
 		- reserved_for_pt;
 	spin_unlock(&kfd_mem_limit.mem_limit_lock);
 
-	return ALIGN_DOWN(available, VRAM_ALLOCATION_ALIGN);
+	return ALIGN_DOWN(available, VRAM_AVAILABLITY_ALIGN);
 }
 
 int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
@@ -1725,7 +1731,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	add_kgd_mem_to_kfd_bo_list(*mem, avm->process_info, user_addr);
 
 	if (user_addr) {
-		pr_debug("creating userptr BO for user_addr = %llu\n", user_addr);
+		pr_debug("creating userptr BO for user_addr = %llx\n", user_addr);
 		ret = init_user_pages(*mem, user_addr, criu_resume);
 		if (ret)
 			goto allocate_init_user_pages_failed;
@@ -1984,9 +1990,9 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 	}
 
 	if (!amdgpu_ttm_tt_get_usermm(bo->tbo.ttm) && !bo->tbo.pin_count)
-		amdgpu_bo_fence(bo,
-				&avm->process_info->eviction_fence->base,
-				true);
+		dma_resv_add_fence(bo->tbo.base.resv,
+				   &avm->process_info->eviction_fence->base,
+				   DMA_RESV_USAGE_BOOKKEEP);
 	ret = unreserve_bo_and_vms(&ctx, false, false);
 
 	goto out;
@@ -2213,7 +2219,7 @@ int amdgpu_amdkfd_gpuvm_get_vm_fault_info(struct amdgpu_device *adev,
 {
 	if (atomic_read(&adev->gmc.vm_fault_info_updated) == 1) {
 		*mem = *adev->gmc.vm_fault_info;
-		mb();
+		mb(); /* make sure read happened */
 		atomic_set(&adev->gmc.vm_fault_info_updated, 0);
 	}
 	return 0;
@@ -2755,15 +2761,18 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 		if (mem->bo->tbo.pin_count)
 			continue;
 
-		amdgpu_bo_fence(mem->bo,
-			&process_info->eviction_fence->base, true);
+		dma_resv_add_fence(mem->bo->tbo.base.resv,
+				   &process_info->eviction_fence->base,
+				   DMA_RESV_USAGE_BOOKKEEP);
 	}
 	/* Attach eviction fence to PD / PT BOs */
 	list_for_each_entry(peer_vm, &process_info->vm_list_head,
 			    vm_list_node) {
 		struct amdgpu_bo *bo = peer_vm->root.bo;
 
-		amdgpu_bo_fence(bo, &process_info->eviction_fence->base, true);
+		dma_resv_add_fence(bo->tbo.base.resv,
+				   &process_info->eviction_fence->base,
+				   DMA_RESV_USAGE_BOOKKEEP);
 	}
 
 validate_map_fail:
@@ -2817,7 +2826,9 @@ int amdgpu_amdkfd_add_gws_to_process(void *info, void *gws, struct kgd_mem **mem
 	ret = dma_resv_reserve_fences(gws_bo->tbo.base.resv, 1);
 	if (ret)
 		goto reserve_shared_fail;
-	amdgpu_bo_fence(gws_bo, &process_info->eviction_fence->base, true);
+	dma_resv_add_fence(gws_bo->tbo.base.resv,
+			   &process_info->eviction_fence->base,
+			   DMA_RESV_USAGE_BOOKKEEP);
 	amdgpu_bo_unreserve(gws_bo);
 	mutex_unlock(&(*mem)->process_info->lock);
 

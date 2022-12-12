@@ -658,7 +658,7 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 	ktime_t now, cutoff;
 	const struct nfsd4_layout_ops *ops;
 
-
+	trace_nfsd_cb_layout_done(&ls->ls_stid.sc_stateid, task);
 	switch (task->tk_status) {
 	case 0:
 	case -NFS4ERR_DELAY:

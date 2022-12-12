@@ -39,6 +39,7 @@
 #include "soc15_common.h"
 #include "nbio_v4_3.h"
 #include "gfxhub_v3_0.h"
+#include "gfxhub_v3_0_3.h"
 #include "mmhub_v3_0.h"
 #include "mmhub_v3_0_1.h"
 #include "mmhub_v3_0_2.h"
@@ -233,7 +234,8 @@ static void gmc_v11_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 
 	/* Issue additional private vm invalidation to MMHUB */
 	if ((vmhub != AMDGPU_GFXHUB_0) &&
-	    (hub->vm_l2_bank_select_reserved_cid2)) {
+	    (hub->vm_l2_bank_select_reserved_cid2) &&
+		!amdgpu_sriov_vf(adev)) {
 		inv_req = RREG32_NO_KIQ(hub->vm_l2_bank_select_reserved_cid2);
 		/* bit 25: RSERVED_CACHE_PRIVATE_INVALIDATION */
 		inv_req |= (1 << 25);
@@ -590,7 +592,14 @@ static void gmc_v11_0_set_mmhub_funcs(struct amdgpu_device *adev)
 
 static void gmc_v11_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 {
-	adev->gfxhub.funcs = &gfxhub_v3_0_funcs;
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(11, 0, 3):
+		adev->gfxhub.funcs = &gfxhub_v3_0_3_funcs;
+		break;
+	default:
+		adev->gfxhub.funcs = &gfxhub_v3_0_funcs;
+		break;
+	}
 }
 
 static int gmc_v11_0_early_init(void *handle)
@@ -640,7 +649,10 @@ static void gmc_v11_0_vram_gtt_location(struct amdgpu_device *adev,
 	amdgpu_gmc_gart_location(adev, mc);
 
 	/* base offset of vram pages */
-	adev->vm_manager.vram_base_offset = adev->mmhub.funcs->get_mc_fb_offset(adev);
+	if (amdgpu_sriov_vf(adev))
+		adev->vm_manager.vram_base_offset = 0;
+	else
+		adev->vm_manager.vram_base_offset = adev->mmhub.funcs->get_mc_fb_offset(adev);
 }
 
 /**
@@ -732,6 +744,7 @@ static int gmc_v11_0_sw_init(void *handle)
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 2):
+	case IP_VERSION(11, 0, 3):
 		adev->num_vmhubs = 2;
 		/*
 		 * To fulfill 4-level page support,

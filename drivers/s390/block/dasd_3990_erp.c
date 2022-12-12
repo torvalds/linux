@@ -1050,6 +1050,11 @@ dasd_3990_erp_com_rej(struct dasd_ccw_req * erp, char *sense)
 		dev_err(&device->cdev->dev, "An I/O request was rejected"
 			" because writing is inhibited\n");
 		erp = dasd_3990_erp_cleanup(erp, DASD_CQR_FAILED);
+	} else if (sense[7] & SNS7_INVALID_ON_SEC) {
+		dev_err(&device->cdev->dev, "An I/O request was rejected on a copy pair secondary device\n");
+		/* suppress dump of sense data for this error */
+		set_bit(DASD_CQR_SUPPRESS_CR, &erp->refers->flags);
+		erp = dasd_3990_erp_cleanup(erp, DASD_CQR_FAILED);
 	} else {
 		/* fatal error -  set status to FAILED
 		   internal error 09 - Command Reject */

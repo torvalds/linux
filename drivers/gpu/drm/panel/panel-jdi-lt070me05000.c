@@ -482,7 +482,7 @@ static int jdi_panel_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int jdi_panel_remove(struct mipi_dsi_device *dsi)
+static void jdi_panel_remove(struct mipi_dsi_device *dsi)
 {
 	struct jdi_panel *jdi = mipi_dsi_get_drvdata(dsi);
 	int ret;
@@ -497,8 +497,6 @@ static int jdi_panel_remove(struct mipi_dsi_device *dsi)
 			ret);
 
 	jdi_panel_del(jdi);
-
-	return 0;
 }
 
 static void jdi_panel_shutdown(struct mipi_dsi_device *dsi)

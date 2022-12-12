@@ -321,7 +321,7 @@ xlog_recover_inode_commit_pass2(
 	 */
 	if (XFS_IS_CORRUPT(mp, !xfs_verify_magic16(bp, dip->di_magic))) {
 		xfs_alert(mp,
-	"%s: Bad inode magic number, dip = "PTR_FMT", dino bp = "PTR_FMT", ino = %Ld",
+	"%s: Bad inode magic number, dip = "PTR_FMT", dino bp = "PTR_FMT", ino = %lld",
 			__func__, dip, bp, in_f->ilf_ino);
 		error = -EFSCORRUPTED;
 		goto out_release;
@@ -329,7 +329,7 @@ xlog_recover_inode_commit_pass2(
 	ldip = item->ri_buf[1].i_addr;
 	if (XFS_IS_CORRUPT(mp, ldip->di_magic != XFS_DINODE_MAGIC)) {
 		xfs_alert(mp,
-			"%s: Bad inode log record, rec ptr "PTR_FMT", ino %Ld",
+			"%s: Bad inode log record, rec ptr "PTR_FMT", ino %lld",
 			__func__, item, in_f->ilf_ino);
 		error = -EFSCORRUPTED;
 		goto out_release;

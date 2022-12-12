@@ -265,11 +265,10 @@ static void vmemmap_remap_pte(pte_t *pte, unsigned long addr,
 
 static inline void reset_struct_pages(struct page *start)
 {
-	int i;
 	struct page *from = start + NR_RESET_STRUCT_PAGE;
 
-	for (i = 0; i < NR_RESET_STRUCT_PAGE; i++)
-		memcpy(start + i, from, sizeof(*from));
+	BUILD_BUG_ON(NR_RESET_STRUCT_PAGE * 2 > PAGE_SIZE / sizeof(struct page));
+	memcpy(start, from, sizeof(*from) * NR_RESET_STRUCT_PAGE);
 }
 
 static void vmemmap_restore_pte(pte_t *pte, unsigned long addr,
@@ -287,6 +286,11 @@ static void vmemmap_restore_pte(pte_t *pte, unsigned long addr,
 	copy_page(to, (void *)walk->reuse_addr);
 	reset_struct_pages(to);
 
+	/*
+	 * Makes sure that preceding stores to the page contents become visible
+	 * before the set_pte_at() write.
+	 */
+	smp_wmb();
 	set_pte_at(&init_mm, addr, pte, mk_pte(page, pgprot));
 }
 

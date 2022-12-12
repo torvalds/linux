@@ -215,13 +215,6 @@ nfnl_hook_entries_head(u8 pf, unsigned int hook, struct net *net, const char *de
 		hook_head = rcu_dereference(net->nf.hooks_bridge[hook]);
 #endif
 		break;
-#if IS_ENABLED(CONFIG_DECNET)
-	case NFPROTO_DECNET:
-		if (hook >= ARRAY_SIZE(net->nf.hooks_decnet))
-			return ERR_PTR(-EINVAL);
-		hook_head = rcu_dereference(net->nf.hooks_decnet[hook]);
-		break;
-#endif
 #if defined(CONFIG_NETFILTER_INGRESS) || defined(CONFIG_NETFILTER_EGRESS)
 	case NFPROTO_NETDEV:
 		if (hook >= NF_NETDEV_NUMHOOKS)

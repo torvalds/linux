@@ -922,3 +922,24 @@ is provided - file_open_root_mnt().  In-tree users adjusted.
 no_llseek is gone; don't set .llseek to that - just leave it NULL instead.
 Checks for "does that file have llseek(2), or should it fail with ESPIPE"
 should be done by looking at FMODE_LSEEK in file->f_mode.
+
+---
+
+*mandatory*
+
+filldir_t (readdir callbacks) calling conventions have changed.  Instead of
+returning 0 or -E... it returns bool now.  false means "no more" (as -E... used
+to) and true - "keep going" (as 0 in old calling conventions).  Rationale:
+callers never looked at specific -E... values anyway.  ->iterate() and
+->iterate_shared() instance require no changes at all, all filldir_t ones in
+the tree converted.
+
+---
+
+**mandatory**
+
+Calling conventions for ->tmpfile() have changed.  It now takes a struct
+file pointer instead of struct dentry pointer.  d_tmpfile() is similarly
+changed to simplify callers.  The passed file is in a non-open state and on
+success must be opened before returning (e.g. by calling
+finish_open_simple()).

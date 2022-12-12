@@ -2465,7 +2465,7 @@ static int unittest_i2c_bus_probe(struct platform_device *pdev)
 	adap = &std->adap;
 	i2c_set_adapdata(adap, std);
 	adap->nr = -1;
-	strlcpy(adap->name, pdev->name, sizeof(adap->name));
+	strscpy(adap->name, pdev->name, sizeof(adap->name));
 	adap->class = I2C_CLASS_DEPRECATED;
 	adap->algo = &unittest_i2c_algo;
 	adap->dev.parent = dev;
@@ -3464,6 +3464,9 @@ static int __init of_unittest(void)
 	int res;
 
 	pr_info("start of unittest - you will see error messages\n");
+
+	/* Taint the kernel so we know we've run tests. */
+	add_taint(TAINT_TEST, LOCKDEP_STILL_OK);
 
 	/* adding data for unittest */
 

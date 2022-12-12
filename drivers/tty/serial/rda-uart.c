@@ -238,7 +238,7 @@ static void rda_uart_change_baudrate(struct rda_uart_port *rda_port,
 
 static void rda_uart_set_termios(struct uart_port *port,
 				 struct ktermios *termios,
-				 struct ktermios *old)
+				 const struct ktermios *old)
 {
 	struct rda_uart_port *rda_port = to_rda_uart_port(port);
 	unsigned long flags;

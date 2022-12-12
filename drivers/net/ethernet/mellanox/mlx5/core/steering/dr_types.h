@@ -1294,20 +1294,6 @@ struct mlx5dr_cmd_gid_attr {
 	u32 roce_ver;
 };
 
-struct mlx5dr_cmd_qp_create_attr {
-	u32 page_id;
-	u32 pdn;
-	u32 cqn;
-	u32 pm_state;
-	u32 service_type;
-	u32 buff_umem_id;
-	u32 db_umem_id;
-	u32 sq_wqe_cnt;
-	u32 rq_wqe_cnt;
-	u32 rq_wqe_shift;
-	u8 isolate_vl_tc:1;
-};
-
 int mlx5dr_cmd_query_gid(struct mlx5_core_dev *mdev, u8 vhca_port_num,
 			 u16 index, struct mlx5dr_cmd_gid_attr *attr);
 

@@ -64,6 +64,20 @@ properties:
       - const: isp
       - const: phy
 
+  interconnects:
+    maxItems: 8
+
+  interconnect-names:
+    items:
+      - const: lcdif-rd
+      - const: lcdif-wr
+      - const: isi0
+      - const: isi1
+      - const: isi2
+      - const: isp0
+      - const: isp1
+      - const: dwe
+
 required:
   - compatible
   - reg

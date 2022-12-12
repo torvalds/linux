@@ -165,7 +165,7 @@ vclkdev_alloc(struct clk_hw *hw, const char *con_id, const char *dev_fmt,
 
 	cla->cl.clk_hw = hw;
 	if (con_id) {
-		strlcpy(cla->con_id, con_id, sizeof(cla->con_id));
+		strscpy(cla->con_id, con_id, sizeof(cla->con_id));
 		cla->cl.con_id = cla->con_id;
 	}
 
@@ -346,44 +346,10 @@ int clk_hw_register_clkdev(struct clk_hw *hw, const char *con_id,
 }
 EXPORT_SYMBOL(clk_hw_register_clkdev);
 
-static void devm_clkdev_release(struct device *dev, void *res)
+static void devm_clkdev_release(void *res)
 {
-	clkdev_drop(*(struct clk_lookup **)res);
+	clkdev_drop(res);
 }
-
-static int devm_clk_match_clkdev(struct device *dev, void *res, void *data)
-{
-	struct clk_lookup **l = res;
-
-	return *l == data;
-}
-
-/**
- * devm_clk_release_clkdev - Resource managed clkdev lookup release
- * @dev: device this lookup is bound
- * @con_id: connection ID string on device
- * @dev_id: format string describing device name
- *
- * Drop the clkdev lookup created with devm_clk_hw_register_clkdev.
- * Normally this function will not need to be called and the resource
- * management code will ensure that the resource is freed.
- */
-void devm_clk_release_clkdev(struct device *dev, const char *con_id,
-			     const char *dev_id)
-{
-	struct clk_lookup *cl;
-	int rval;
-
-	mutex_lock(&clocks_mutex);
-	cl = clk_find(dev_id, con_id);
-	mutex_unlock(&clocks_mutex);
-
-	WARN_ON(!cl);
-	rval = devres_release(dev, devm_clkdev_release,
-			      devm_clk_match_clkdev, cl);
-	WARN_ON(rval);
-}
-EXPORT_SYMBOL(devm_clk_release_clkdev);
 
 /**
  * devm_clk_hw_register_clkdev - managed clk lookup registration for clk_hw
@@ -403,17 +369,13 @@ EXPORT_SYMBOL(devm_clk_release_clkdev);
 int devm_clk_hw_register_clkdev(struct device *dev, struct clk_hw *hw,
 				const char *con_id, const char *dev_id)
 {
-	int rval = -ENOMEM;
-	struct clk_lookup **cl;
+	struct clk_lookup *cl;
+	int rval;
 
-	cl = devres_alloc(devm_clkdev_release, sizeof(*cl), GFP_KERNEL);
-	if (cl) {
-		rval = do_clk_register_clkdev(hw, cl, con_id, dev_id);
-		if (!rval)
-			devres_add(dev, cl);
-		else
-			devres_free(cl);
-	}
-	return rval;
+	rval = do_clk_register_clkdev(hw, &cl, con_id, dev_id);
+	if (rval)
+		return rval;
+
+	return devm_add_action_or_reset(dev, devm_clkdev_release, cl);
 }
 EXPORT_SYMBOL(devm_clk_hw_register_clkdev);

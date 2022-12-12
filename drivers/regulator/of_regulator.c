@@ -676,7 +676,7 @@ clean:
 }
 
 /**
- * of_parse_coupled regulator - Get regulator_dev pointer from rdev's property
+ * of_parse_coupled_regulator() - Get regulator_dev pointer from rdev's property
  * @rdev: Pointer to regulator_dev, whose DTS is used as a source to parse
  *	  "regulator-coupled-with" property
  * @index: Index in phandles array

@@ -374,12 +374,12 @@ pnfs_bucket_search_commit_reqs(struct pnfs_commit_bucket *buckets,
 	return NULL;
 }
 
-/* pnfs_generic_search_commit_reqs - Search lists in @cinfo for the head reqest
+/* pnfs_generic_search_commit_reqs - Search lists in @cinfo for the head request
  *				   for @page
  * @cinfo - commit info for current inode
  * @page - page to search for matching head request
  *
- * Returns a the head request if one is found, otherwise returns NULL.
+ * Return: the head request if one is found, otherwise %NULL.
  */
 struct nfs_page *
 pnfs_generic_search_commit_reqs(struct nfs_commit_info *cinfo, struct page *page)

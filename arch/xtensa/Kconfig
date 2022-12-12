@@ -771,7 +771,7 @@ config HIGHMEM
 
 	  If unsure, say Y.
 
-config FORCE_MAX_ZONEORDER
+config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
 	default "11"
 	help

@@ -1055,6 +1055,7 @@ EXPORT_SYMBOL_GPL(ata_scsi_dma_need_drain);
 int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 {
 	struct request_queue *q = sdev->request_queue;
+	int depth = 1;
 
 	if (!ata_id_has_unload(dev->id))
 		dev->flags |= ATA_DFLAG_NO_UNLOAD;
@@ -1100,13 +1101,10 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 	if (dev->flags & ATA_DFLAG_AN)
 		set_bit(SDEV_EVT_MEDIA_CHANGE, sdev->supported_events);
 
-	if (dev->flags & ATA_DFLAG_NCQ) {
-		int depth;
-
+	if (dev->flags & ATA_DFLAG_NCQ)
 		depth = min(sdev->host->can_queue, ata_id_queue_depth(dev->id));
-		depth = min(ATA_MAX_QUEUE, depth);
-		scsi_change_queue_depth(sdev, depth);
-	}
+	depth = min(ATA_MAX_QUEUE, depth);
+	scsi_change_queue_depth(sdev, depth);
 
 	if (dev->flags & ATA_DFLAG_TRUSTED)
 		sdev->security_supported = 1;
@@ -1605,9 +1603,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 	qc->flags |= ATA_QCFLAG_IO;
 	qc->nbytes = n_block * scmd->device->sector_size;
 
-	rc = ata_build_rw_tf(&qc->tf, qc->dev, block, n_block, tf_flags,
-			     qc->hw_tag, class);
-
+	rc = ata_build_rw_tf(qc, block, n_block, tf_flags, class);
 	if (likely(rc == 0))
 		return 0;
 

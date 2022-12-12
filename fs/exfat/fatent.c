@@ -270,8 +270,7 @@ int exfat_zeroed_cluster(struct inode *dir, unsigned int clu)
 	struct super_block *sb = dir->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct buffer_head *bh;
-	sector_t blknr, last_blknr;
-	int i;
+	sector_t blknr, last_blknr, i;
 
 	blknr = exfat_cluster_to_sector(sbi, clu);
 	last_blknr = blknr + sbi->sect_per_clus;

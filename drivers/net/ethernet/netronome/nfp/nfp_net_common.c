@@ -474,19 +474,22 @@ static void nfp_net_read_link_status(struct nfp_net *nn)
 {
 	unsigned long flags;
 	bool link_up;
-	u32 sts;
+	u16 sts;
 
 	spin_lock_irqsave(&nn->link_status_lock, flags);
 
-	sts = nn_readl(nn, NFP_NET_CFG_STS);
+	sts = nn_readw(nn, NFP_NET_CFG_STS);
 	link_up = !!(sts & NFP_NET_CFG_STS_LINK);
 
 	if (nn->link_up == link_up)
 		goto out;
 
 	nn->link_up = link_up;
-	if (nn->port)
+	if (nn->port) {
 		set_bit(NFP_PORT_CHANGED, &nn->port->flags);
+		if (nn->port->link_cb)
+			nn->port->link_cb(nn->port);
+	}
 
 	if (nn->link_up) {
 		netif_carrier_on(nn->dp.netdev);
@@ -768,9 +771,7 @@ nfp_net_napi_add(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec, int idx)
 {
 	if (dp->netdev)
 		netif_napi_add(dp->netdev, &r_vec->napi,
-			       nfp_net_has_xsk_pool_slow(dp, idx) ?
-			       dp->ops->xsk_poll : dp->ops->poll,
-			       NAPI_POLL_WEIGHT);
+			       nfp_net_has_xsk_pool_slow(dp, idx) ? dp->ops->xsk_poll : dp->ops->poll);
 	else
 		tasklet_enable(&r_vec->tasklet);
 }
@@ -1630,21 +1631,21 @@ static void nfp_net_stat64(struct net_device *netdev,
 		unsigned int start;
 
 		do {
-			start = u64_stats_fetch_begin(&r_vec->rx_sync);
+			start = u64_stats_fetch_begin_irq(&r_vec->rx_sync);
 			data[0] = r_vec->rx_pkts;
 			data[1] = r_vec->rx_bytes;
 			data[2] = r_vec->rx_drops;
-		} while (u64_stats_fetch_retry(&r_vec->rx_sync, start));
+		} while (u64_stats_fetch_retry_irq(&r_vec->rx_sync, start));
 		stats->rx_packets += data[0];
 		stats->rx_bytes += data[1];
 		stats->rx_dropped += data[2];
 
 		do {
-			start = u64_stats_fetch_begin(&r_vec->tx_sync);
+			start = u64_stats_fetch_begin_irq(&r_vec->tx_sync);
 			data[0] = r_vec->tx_pkts;
 			data[1] = r_vec->tx_bytes;
 			data[2] = r_vec->tx_errors;
-		} while (u64_stats_fetch_retry(&r_vec->tx_sync, start));
+		} while (u64_stats_fetch_retry_irq(&r_vec->tx_sync, start));
 		stats->tx_packets += data[0];
 		stats->tx_bytes += data[1];
 		stats->tx_errors += data[2];

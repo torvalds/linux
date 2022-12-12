@@ -23,13 +23,21 @@ config PPC_PSERIES
 	select SWIOTLB
 	default y
 
+config PARAVIRT
+	bool
+
 config PARAVIRT_SPINLOCKS
+	bool
+
+config PARAVIRT_TIME_ACCOUNTING
+	select PARAVIRT
 	bool
 
 config PPC_SPLPAR
 	bool "Support for shared-processor logical partitions"
 	depends on PPC_PSERIES
 	select PARAVIRT_SPINLOCKS if PPC_QUEUED_SPINLOCKS
+	select PARAVIRT_TIME_ACCOUNTING if VIRT_CPU_ACCOUNTING_GEN
 	default y
 	help
 	  Enabling this option will make the kernel run more efficiently

@@ -677,7 +677,7 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 				page_ref_sub(last_head, refs);
 				refs = 0;
 			}
-			skb_fill_page_desc(skb, frag++, head, start, size);
+			skb_fill_page_desc_noacc(skb, frag++, head, start, size);
 		}
 		if (refs)
 			page_ref_sub(last_head, refs);

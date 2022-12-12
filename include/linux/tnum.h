@@ -21,7 +21,12 @@ struct tnum {
 struct tnum tnum_const(u64 value);
 /* A completely unknown value */
 extern const struct tnum tnum_unknown;
-/* A value that's unknown except that @min <= value <= @max */
+/* An unknown value that is a superset of @min <= value <= @max.
+ *
+ * Could include values outside the range of [@min, @max].
+ * For example tnum_range(0, 2) is represented by {0, 1, 2, *3*},
+ * rather than the intended set of {0, 1, 2}.
+ */
 struct tnum tnum_range(u64 min, u64 max);
 
 /* Arithmetic and logical ops */
@@ -73,7 +78,18 @@ static inline bool tnum_is_unknown(struct tnum a)
  */
 bool tnum_is_aligned(struct tnum a, u64 size);
 
-/* Returns true if @b represents a subset of @a. */
+/* Returns true if @b represents a subset of @a.
+ *
+ * Note that using tnum_range() as @a requires extra cautions as tnum_in() may
+ * return true unexpectedly due to tnum limited ability to represent tight
+ * range, e.g.
+ *
+ *   tnum_in(tnum_range(0, 2), tnum_const(3)) == true
+ *
+ * As a rule of thumb, if @a is explicitly coded rather than coming from
+ * reg->var_off, it should be in form of tnum_const(), tnum_range(0, 2**n - 1),
+ * or tnum_range(2**n, 2**(n+1) - 1).
+ */
 bool tnum_in(struct tnum a, struct tnum b);
 
 /* Formatting functions.  These have snprintf-like semantics: they will write

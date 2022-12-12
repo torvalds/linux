@@ -104,7 +104,7 @@ static inline u32 cstamp_delta(unsigned long cstamp)
 static inline s32 rfc3315_s14_backoff_init(s32 irt)
 {
 	/* multiply 'initial retransmission time' by 0.9 .. 1.1 */
-	u64 tmp = (900000 + prandom_u32() % 200001) * (u64)irt;
+	u64 tmp = (900000 + prandom_u32_max(200001)) * (u64)irt;
 	do_div(tmp, 1000000);
 	return (s32)tmp;
 }
@@ -112,11 +112,11 @@ static inline s32 rfc3315_s14_backoff_init(s32 irt)
 static inline s32 rfc3315_s14_backoff_update(s32 rt, s32 mrt)
 {
 	/* multiply 'retransmission timeout' by 1.9 .. 2.1 */
-	u64 tmp = (1900000 + prandom_u32() % 200001) * (u64)rt;
+	u64 tmp = (1900000 + prandom_u32_max(200001)) * (u64)rt;
 	do_div(tmp, 1000000);
 	if ((s32)tmp > mrt) {
 		/* multiply 'maximum retransmission time' by 0.9 .. 1.1 */
-		tmp = (900000 + prandom_u32() % 200001) * (u64)mrt;
+		tmp = (900000 + prandom_u32_max(200001)) * (u64)mrt;
 		do_div(tmp, 1000000);
 	}
 	return (s32)tmp;
@@ -3557,11 +3557,15 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 		fallthrough;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
-		if (dev->flags & IFF_SLAVE)
-			break;
-
 		if (idev && idev->cnf.disable_ipv6)
 			break;
+
+		if (dev->flags & IFF_SLAVE) {
+			if (event == NETDEV_UP && !IS_ERR_OR_NULL(idev) &&
+			    dev->flags & IFF_UP && dev->flags & IFF_MULTICAST)
+				ipv6_mc_up(idev);
+			break;
+		}
 
 		if (event == NETDEV_UP) {
 			/* restore routes for permanent addresses */
@@ -3963,7 +3967,7 @@ static void addrconf_dad_kick(struct inet6_ifaddr *ifp)
 	if (ifp->flags & IFA_F_OPTIMISTIC)
 		rand_num = 0;
 	else
-		rand_num = prandom_u32() % (idev->cnf.rtr_solicit_delay ? : 1);
+		rand_num = prandom_u32_max(idev->cnf.rtr_solicit_delay ?: 1);
 
 	nonce = 0;
 	if (idev->cnf.enhanced_dad ||
@@ -7162,9 +7166,8 @@ static int __net_init addrconf_init_net(struct net *net)
 	if (!dflt)
 		goto err_alloc_dflt;
 
-	if (IS_ENABLED(CONFIG_SYSCTL) &&
-	    !net_eq(net, &init_net)) {
-		switch (sysctl_devconf_inherit_init_net) {
+	if (!net_eq(net, &init_net)) {
+		switch (net_inherit_devconf()) {
 		case 1:  /* copy from init_net */
 			memcpy(all, init_net.ipv6.devconf_all,
 			       sizeof(ipv6_devconf));

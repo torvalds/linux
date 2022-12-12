@@ -228,7 +228,7 @@ static irqreturn_t gma_irq_handler(int irq, void *arg)
 	vdc_stat &= dev_priv->vdc_irq_mask;
 	spin_unlock(&dev_priv->irqmask_lock);
 
-	if (dsp_int && gma_power_is_on(dev)) {
+	if (dsp_int) {
 		gma_vdc_interrupt(dev, vdc_stat);
 		handled = 1;
 	}
@@ -264,13 +264,12 @@ void gma_irq_preinstall(struct drm_device *dev)
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
-	if (gma_power_is_on(dev)) {
-		PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
-		PSB_WVDC32(0x00000000, PSB_INT_MASK_R);
-		PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
-		PSB_WSGX32(0x00000000, PSB_CR_EVENT_HOST_ENABLE);
-		PSB_RSGX32(PSB_CR_EVENT_HOST_ENABLE);
-	}
+	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
+	PSB_WVDC32(0x00000000, PSB_INT_MASK_R);
+	PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
+	PSB_WSGX32(0x00000000, PSB_CR_EVENT_HOST_ENABLE);
+	PSB_RSGX32(PSB_CR_EVENT_HOST_ENABLE);
+
 	if (dev->vblank[0].enabled)
 		dev_priv->vdc_irq_mask |= _PSB_VSYNC_PIPEA_FLAG;
 	if (dev->vblank[1].enabled)
@@ -316,17 +315,24 @@ void gma_irq_postinstall(struct drm_device *dev)
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 }
 
-int gma_irq_install(struct drm_device *dev, unsigned int irq)
+int gma_irq_install(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
 
-	if (irq == IRQ_NOTCONNECTED)
+	if (dev_priv->use_msi && pci_enable_msi(pdev)) {
+		dev_warn(dev->dev, "Enabling MSI failed!\n");
+		dev_priv->use_msi = false;
+	}
+
+	if (pdev->irq == IRQ_NOTCONNECTED)
 		return -ENOTCONN;
 
 	gma_irq_preinstall(dev);
 
 	/* PCI devices require shared interrupts. */
-	ret = request_irq(irq, gma_irq_handler, IRQF_SHARED, dev->driver->name, dev);
+	ret = request_irq(pdev->irq, gma_irq_handler, IRQF_SHARED, dev->driver->name, dev);
 	if (ret)
 		return ret;
 
@@ -369,6 +375,8 @@ void gma_irq_uninstall(struct drm_device *dev)
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 
 	free_irq(pdev->irq, dev);
+	if (dev_priv->use_msi)
+		pci_disable_msi(pdev);
 }
 
 int gma_crtc_enable_vblank(struct drm_crtc *crtc)

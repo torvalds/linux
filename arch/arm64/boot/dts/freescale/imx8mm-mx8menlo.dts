@@ -152,11 +152,11 @@
 	 * CPLD_reset is RESET_SOFT in schematic
 	 */
 	gpio-line-names =
-		"CPLD_D[1]", "CPLD_int", "CPLD_reset", "",
-		"", "CPLD_D[0]", "", "",
-		"", "", "", "CPLD_D[2]",
-		"CPLD_D[3]", "CPLD_D[4]", "CPLD_D[5]", "CPLD_D[6]",
-		"CPLD_D[7]", "", "", "",
+		"CPLD_D[6]", "CPLD_int", "CPLD_reset", "",
+		"", "CPLD_D[7]", "", "",
+		"", "", "", "CPLD_D[5]",
+		"CPLD_D[4]", "CPLD_D[3]", "CPLD_D[2]", "CPLD_D[1]",
+		"CPLD_D[0]", "", "", "",
 		"", "", "", "",
 		"", "", "", "KBD_intK",
 		"", "", "", "";

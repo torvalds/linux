@@ -78,8 +78,6 @@ static struct bpf_map *queue_stack_map_alloc(union bpf_attr *attr)
 	if (!qs)
 		return ERR_PTR(-ENOMEM);
 
-	memset(qs, 0, sizeof(*qs));
-
 	bpf_map_init_from_attr(&qs->map, attr);
 
 	qs->size = size;

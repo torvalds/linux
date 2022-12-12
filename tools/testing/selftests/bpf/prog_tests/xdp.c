@@ -8,7 +8,7 @@ void test_xdp(void)
 	struct vip key6 = {.protocol = 6, .family = AF_INET6};
 	struct iptnl_info value4 = {.family = AF_INET};
 	struct iptnl_info value6 = {.family = AF_INET6};
-	const char *file = "./test_xdp.o";
+	const char *file = "./test_xdp.bpf.o";
 	struct bpf_object *obj;
 	char buf[128];
 	struct ipv6hdr iph6;

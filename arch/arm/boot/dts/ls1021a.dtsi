@@ -647,7 +647,7 @@
 			status = "disabled";
 		};
 
-		edma0: edma@2c00000 {
+		edma0: dma-controller@2c00000 {
 			#dma-cells = <2>;
 			compatible = "fsl,vf610-edma";
 			reg = <0x0 0x2c00000 0x0 0x10000>,

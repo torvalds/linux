@@ -10,11 +10,14 @@
 #include <asm/sclp.h>
 #include <asm/diag.h>
 #include <asm/uv.h>
+#include <asm/abs_lowcore.h>
 #include "decompressor.h"
 #include "boot.h"
 #include "uv.h"
 
 unsigned long __bootdata_preserved(__kaslr_offset);
+unsigned long __bootdata_preserved(__abs_lowcore);
+unsigned long __bootdata_preserved(__memcpy_real_area);
 unsigned long __bootdata(__amode31_base);
 unsigned long __bootdata_preserved(VMALLOC_START);
 unsigned long __bootdata_preserved(VMALLOC_END);
@@ -180,7 +183,10 @@ static void setup_kernel_memory_layout(void)
 	/* force vmalloc and modules below kasan shadow */
 	vmax = min(vmax, KASAN_SHADOW_START);
 #endif
-	MODULES_END = vmax;
+	__memcpy_real_area = round_down(vmax - PAGE_SIZE, PAGE_SIZE);
+	__abs_lowcore = round_down(__memcpy_real_area - ABS_LOWCORE_MAP_SIZE,
+				   sizeof(struct lowcore));
+	MODULES_END = round_down(__abs_lowcore, _SEGMENT_SIZE);
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
 

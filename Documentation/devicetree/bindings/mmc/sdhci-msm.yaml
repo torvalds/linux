@@ -38,9 +38,11 @@ properties:
               - qcom,sc7180-sdhci
               - qcom,sc7280-sdhci
               - qcom,sdm630-sdhci
+              - qcom,sdm670-sdhci
               - qcom,sdm845-sdhci
               - qcom,sdx55-sdhci
               - qcom,sdx65-sdhci
+              - qcom,sm6115-sdhci
               - qcom,sm6125-sdhci
               - qcom,sm6350-sdhci
               - qcom,sm8150-sdhci
@@ -95,6 +97,10 @@ properties:
   pinctrl-0:
     description:
       Should specify pin control groups used for this controller.
+
+  pinctrl-1:
+    description:
+      Should specify sleep pin control groups used for this controller.
 
   resets:
     maxItems: 1

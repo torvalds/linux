@@ -470,7 +470,7 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 			    !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
 				err = -ENOENT;
 			else
-				err = rdev_del_key(rdev, dev, idx, pairwise,
+				err = rdev_del_key(rdev, dev, -1, idx, pairwise,
 						   addr);
 		}
 		wdev->wext.connect.privacy = false;
@@ -509,7 +509,7 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 	if (wdev->connected ||
 	    (wdev->iftype == NL80211_IFTYPE_ADHOC &&
 	     wdev->u.ibss.current_bss))
-		err = rdev_add_key(rdev, dev, idx, pairwise, addr, params);
+		err = rdev_add_key(rdev, dev, -1, idx, pairwise, addr, params);
 	else if (params->cipher != WLAN_CIPHER_SUITE_WEP40 &&
 		 params->cipher != WLAN_CIPHER_SUITE_WEP104)
 		return -EINVAL;
@@ -546,7 +546,8 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 				__cfg80211_leave_ibss(rdev, wdev->netdev, true);
 				rejoin = true;
 			}
-			err = rdev_set_default_key(rdev, dev, idx, true, true);
+			err = rdev_set_default_key(rdev, dev, -1, idx, true,
+						   true);
 		}
 		if (!err) {
 			wdev->wext.default_key = idx;
@@ -561,7 +562,7 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 		if (wdev->connected ||
 		    (wdev->iftype == NL80211_IFTYPE_ADHOC &&
 		     wdev->u.ibss.current_bss))
-			err = rdev_set_default_mgmt_key(rdev, dev, idx);
+			err = rdev_set_default_mgmt_key(rdev, dev, -1, idx);
 		if (!err)
 			wdev->wext.default_mgmt_key = idx;
 		return err;
@@ -632,7 +633,7 @@ static int cfg80211_wext_siwencode(struct net_device *dev,
 		if (wdev->connected ||
 		    (wdev->iftype == NL80211_IFTYPE_ADHOC &&
 		     wdev->u.ibss.current_bss))
-			err = rdev_set_default_key(rdev, dev, idx, true,
+			err = rdev_set_default_key(rdev, dev, -1, idx, true,
 						   true);
 		if (!err)
 			wdev->wext.default_key = idx;
@@ -684,6 +685,13 @@ static int cfg80211_wext_siwencodeext(struct net_device *dev,
 	    !rdev->ops->add_key ||
 	    !rdev->ops->set_default_key)
 		return -EOPNOTSUPP;
+
+	wdev_lock(wdev);
+	if (wdev->valid_links) {
+		wdev_unlock(wdev);
+		return -EOPNOTSUPP;
+	}
+	wdev_unlock(wdev);
 
 	switch (ext->alg) {
 	case IW_ENCODE_ALG_NONE:

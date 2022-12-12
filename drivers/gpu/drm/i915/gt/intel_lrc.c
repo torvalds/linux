@@ -662,6 +662,21 @@ static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
 		return -1;
 }
 
+static int lrc_ring_bb_offset(const struct intel_engine_cs *engine)
+{
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+		return 0x80;
+	else if (GRAPHICS_VER(engine->i915) >= 12)
+		return 0x70;
+	else if (GRAPHICS_VER(engine->i915) >= 9)
+		return 0x64;
+	else if (GRAPHICS_VER(engine->i915) >= 8 &&
+		 engine->class == RENDER_CLASS)
+		return 0xc4;
+	else
+		return -1;
+}
+
 static int lrc_ring_gpr0(const struct intel_engine_cs *engine)
 {
 	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
@@ -768,6 +783,7 @@ static void init_common_regs(u32 * const regs,
 			     bool inhibit)
 {
 	u32 ctl;
+	int loc;
 
 	ctl = _MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH);
 	ctl |= _MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
@@ -779,6 +795,10 @@ static void init_common_regs(u32 * const regs,
 	regs[CTX_CONTEXT_CONTROL] = ctl;
 
 	regs[CTX_TIMESTAMP] = ce->stats.runtime.last;
+
+	loc = lrc_ring_bb_offset(engine);
+	if (loc != -1)
+		regs[loc + 1] = 0;
 }
 
 static void init_wa_bb_regs(u32 * const regs,
@@ -1242,6 +1262,23 @@ dg2_emit_rcs_hang_wabb(const struct intel_context *ce, u32 *cs)
 	return cs;
 }
 
+/*
+ * The bspec's tuning guide asks us to program a vertical watermark value of
+ * 0x3FF.  However this register is not saved/restored properly by the
+ * hardware, so we're required to apply the desired value via INDIRECT_CTX
+ * batch buffer to ensure the value takes effect properly.  All other bits
+ * in this register should remain at 0 (the hardware default).
+ */
+static u32 *
+dg2_emit_draw_watermark_setting(u32 *cs)
+{
+	*cs++ = MI_LOAD_REGISTER_IMM(1);
+	*cs++ = i915_mmio_reg_offset(DRAW_WATERMARK);
+	*cs++ = REG_FIELD_PREP(VERT_WM_VAL, 0x3FF);
+
+	return cs;
+}
+
 static u32 *
 gen12_emit_indirect_ctx_rcs(const struct intel_context *ce, u32 *cs)
 {
@@ -1261,7 +1298,12 @@ gen12_emit_indirect_ctx_rcs(const struct intel_context *ce, u32 *cs)
 
 	/* hsdes: 1809175790 */
 	if (!HAS_FLAT_CCS(ce->engine->i915))
-		cs = gen12_emit_aux_table_inv(cs, GEN12_GFX_CCS_AUX_NV);
+		cs = gen12_emit_aux_table_inv(ce->engine->gt,
+					      cs, GEN12_GFX_CCS_AUX_NV);
+
+	/* Wa_16014892111 */
+	if (IS_DG2(ce->engine->i915))
+		cs = dg2_emit_draw_watermark_setting(cs);
 
 	return cs;
 }
@@ -1283,9 +1325,11 @@ gen12_emit_indirect_ctx_xcs(const struct intel_context *ce, u32 *cs)
 	/* hsdes: 1809175790 */
 	if (!HAS_FLAT_CCS(ce->engine->i915)) {
 		if (ce->engine->class == VIDEO_DECODE_CLASS)
-			cs = gen12_emit_aux_table_inv(cs, GEN12_VD0_AUX_NV);
+			cs = gen12_emit_aux_table_inv(ce->engine->gt,
+						      cs, GEN12_VD0_AUX_NV);
 		else if (ce->engine->class == VIDEO_ENHANCEMENT_CLASS)
-			cs = gen12_emit_aux_table_inv(cs, GEN12_VE0_AUX_NV);
+			cs = gen12_emit_aux_table_inv(ce->engine->gt,
+						      cs, GEN12_VE0_AUX_NV);
 	}
 
 	return cs;

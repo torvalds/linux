@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/mxicy,nand-ecc-engine.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Macronix NAND ECC engine device tree bindings
+title: Macronix NAND ECC engine
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>

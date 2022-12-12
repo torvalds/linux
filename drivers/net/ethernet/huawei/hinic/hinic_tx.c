@@ -74,7 +74,7 @@ enum hinic_offload_type {
  * hinic_txq_clean_stats - Clean the statistics of specific queue
  * @txq: Logical Tx Queue
  **/
-void hinic_txq_clean_stats(struct hinic_txq *txq)
+static void hinic_txq_clean_stats(struct hinic_txq *txq)
 {
 	struct hinic_txq_stats *txq_stats = &txq->txq_stats;
 
@@ -99,14 +99,14 @@ void hinic_txq_get_stats(struct hinic_txq *txq, struct hinic_txq_stats *stats)
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin(&txq_stats->syncp);
+		start = u64_stats_fetch_begin_irq(&txq_stats->syncp);
 		stats->pkts    = txq_stats->pkts;
 		stats->bytes   = txq_stats->bytes;
 		stats->tx_busy = txq_stats->tx_busy;
 		stats->tx_wake = txq_stats->tx_wake;
 		stats->tx_dropped = txq_stats->tx_dropped;
 		stats->big_frags_pkts = txq_stats->big_frags_pkts;
-	} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
+	} while (u64_stats_fetch_retry_irq(&txq_stats->syncp, start));
 }
 
 /**
@@ -530,7 +530,7 @@ netdev_tx_t hinic_lb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 process_sq_wqe:
-	hinic_sq_prepare_wqe(txq->sq, prod_idx, sq_wqe, txq->sges, nr_sges);
+	hinic_sq_prepare_wqe(txq->sq, sq_wqe, txq->sges, nr_sges);
 	hinic_sq_write_wqe(txq->sq, prod_idx, sq_wqe, skb, wqe_size);
 
 flush_skbs:
@@ -614,7 +614,7 @@ netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 process_sq_wqe:
-	hinic_sq_prepare_wqe(txq->sq, prod_idx, sq_wqe, txq->sges, nr_sges);
+	hinic_sq_prepare_wqe(txq->sq, sq_wqe, txq->sges, nr_sges);
 
 	err = hinic_tx_offload(skb, &sq_wqe->task, &sq_wqe->ctrl.queue_info);
 	if (err)

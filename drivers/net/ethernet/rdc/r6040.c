@@ -939,9 +939,9 @@ static void netdev_get_drvinfo(struct net_device *dev,
 {
 	struct r6040_private *rp = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(rp->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(rp->pdev), sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops netdev_ethtool_ops = {
@@ -1127,7 +1127,7 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
-	netif_napi_add(dev, &lp->napi, r6040_poll, 64);
+	netif_napi_add(dev, &lp->napi, r6040_poll);
 
 	lp->mii_bus = mdiobus_alloc();
 	if (!lp->mii_bus) {

@@ -50,7 +50,7 @@
  * hinic_rxq_clean_stats - Clean the statistics of specific queue
  * @rxq: Logical Rx Queue
  **/
-void hinic_rxq_clean_stats(struct hinic_rxq *rxq)
+static void hinic_rxq_clean_stats(struct hinic_rxq *rxq)
 {
 	struct hinic_rxq_stats *rxq_stats = &rxq->rxq_stats;
 
@@ -74,14 +74,14 @@ void hinic_rxq_get_stats(struct hinic_rxq *rxq, struct hinic_rxq_stats *stats)
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin(&rxq_stats->syncp);
+		start = u64_stats_fetch_begin_irq(&rxq_stats->syncp);
 		stats->pkts = rxq_stats->pkts;
 		stats->bytes = rxq_stats->bytes;
 		stats->errors = rxq_stats->csum_errors +
 				rxq_stats->other_errors;
 		stats->csum_errors = rxq_stats->csum_errors;
 		stats->other_errors = rxq_stats->other_errors;
-	} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
+	} while (u64_stats_fetch_retry_irq(&rxq_stats->syncp, start));
 }
 
 /**

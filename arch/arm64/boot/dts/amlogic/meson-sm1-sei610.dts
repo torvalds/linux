@@ -171,7 +171,6 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vddao_3v3>;
 		gpio = <&gpio GPIOH_8 GPIO_OPEN_DRAIN>;
-		enable-active-low;
 		regulator-always-on;
 	};
 
