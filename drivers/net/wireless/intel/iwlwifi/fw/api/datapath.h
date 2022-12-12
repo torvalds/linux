@@ -382,9 +382,11 @@ enum iwl_scd_queue_cfg_operation {
  * @u.add.cb_size: size code
  * @u.add.bc_dram_addr: byte-count table IOVA
  * @u.add.tfdq_dram_addr: TFD queue IOVA
- * @u.remove.queue: queue ID for removal
- * @u.modify.sta_mask: new station mask for modify
- * @u.modify.queue: queue ID to modify
+ * @u.remove.sta_mask: station mask of queue to remove
+ * @u.remove.tid: TID of queue to remove
+ * @u.modify.old_sta_mask: old station mask for modify
+ * @u.modify.tid: TID of queue to modify
+ * @u.modify.new_sta_mask: new station mask for modify
  */
 struct iwl_scd_queue_cfg_cmd {
 	__le32 operation;
@@ -399,11 +401,13 @@ struct iwl_scd_queue_cfg_cmd {
 			__le64 tfdq_dram_addr;
 		} __packed add; /* TX_QUEUE_CFG_CMD_ADD_API_S_VER_1 */
 		struct {
-			__le32 queue;
+			__le32 sta_mask;
+			__le32 tid;
 		} __packed remove; /* TX_QUEUE_CFG_CMD_REMOVE_API_S_VER_1 */
 		struct {
-			__le32 sta_mask;
-			__le32 queue;
+			__le32 old_sta_mask;
+			__le32 tid;
+			__le32 new_sta_mask;
 		} __packed modify; /* TX_QUEUE_CFG_CMD_MODIFY_API_S_VER_1 */
 	} __packed u; /* TX_QUEUE_CFG_CMD_OPERATION_API_U_VER_1 */
 } __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_3 */

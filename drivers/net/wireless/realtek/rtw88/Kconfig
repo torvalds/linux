@@ -16,6 +16,9 @@ config RTW88_CORE
 config RTW88_PCI
 	tristate
 
+config RTW88_USB
+	tristate
+
 config RTW88_8822B
 	tristate
 
@@ -39,6 +42,17 @@ config RTW88_8822BE
 
 	  802.11ac PCIe wireless network adapter
 
+config RTW88_8822BU
+	tristate "Realtek 8822BU USB wireless network adapter"
+	depends on USB
+	select RTW88_CORE
+	select RTW88_USB
+	select RTW88_8822B
+	help
+	  Select this option will enable support for 8822BU chipset
+
+	  802.11ac USB wireless network adapter
+
 config RTW88_8822CE
 	tristate "Realtek 8822CE PCI wireless network adapter"
 	depends on PCI
@@ -49,6 +63,17 @@ config RTW88_8822CE
 	  Select this option will enable support for 8822CE chipset
 
 	  802.11ac PCIe wireless network adapter
+
+config RTW88_8822CU
+	tristate "Realtek 8822CU USB wireless network adapter"
+	depends on USB
+	select RTW88_CORE
+	select RTW88_USB
+	select RTW88_8822C
+	help
+	  Select this option will enable support for 8822CU chipset
+
+	  802.11ac USB wireless network adapter
 
 config RTW88_8723DE
 	tristate "Realtek 8723DE PCI wireless network adapter"
@@ -61,6 +86,17 @@ config RTW88_8723DE
 
 	  802.11n PCIe wireless network adapter
 
+config RTW88_8723DU
+	tristate "Realtek 8723DU USB wireless network adapter"
+	depends on USB
+	select RTW88_CORE
+	select RTW88_USB
+	select RTW88_8723D
+	help
+	  Select this option will enable support for 8723DU chipset
+
+	  802.11n USB wireless network adapter
+
 config RTW88_8821CE
 	tristate "Realtek 8821CE PCI wireless network adapter"
 	depends on PCI
@@ -71,6 +107,17 @@ config RTW88_8821CE
 	  Select this option will enable support for 8821CE chipset
 
 	  802.11ac PCIe wireless network adapter
+
+config RTW88_8821CU
+	tristate "Realtek 8821CU USB wireless network adapter"
+	depends on USB
+	select RTW88_CORE
+	select RTW88_USB
+	select RTW88_8821C
+	help
+	  Select this option will enable support for 8821CU chipset
+
+	  802.11ac USB wireless network adapter
 
 config RTW88_DEBUG
 	bool "Realtek rtw88 debug support"

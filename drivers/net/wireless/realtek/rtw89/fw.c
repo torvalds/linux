@@ -273,29 +273,42 @@ static void rtw89_fw_recognize_features(struct rtw89_dev *rtwdev)
 	}
 }
 
-void rtw89_early_fw_feature_recognize(struct device *device,
-				      const struct rtw89_chip_info *chip,
-				      u32 *early_feat_map)
+const struct firmware *
+rtw89_early_fw_feature_recognize(struct device *device,
+				 const struct rtw89_chip_info *chip,
+				 u32 *early_feat_map)
 {
-	union {
-		struct rtw89_mfw_hdr mfw_hdr;
-		u8 fw_hdr[RTW89_FW_HDR_SIZE];
-	} buf = {};
+	union rtw89_compat_fw_hdr buf = {};
 	const struct firmware *firmware;
+	bool full_req = false;
 	u32 ver_code;
 	int ret;
 	int i;
 
-	ret = request_partial_firmware_into_buf(&firmware, chip->fw_name,
-						device, &buf, sizeof(buf), 0);
+	/* If SECURITY_LOADPIN_ENFORCE is enabled, reading partial files will
+	 * be denied (-EPERM). Then, we don't get right firmware things as
+	 * expected. So, in this case, we have to request full firmware here.
+	 */
+	if (IS_ENABLED(CONFIG_SECURITY_LOADPIN_ENFORCE))
+		full_req = true;
+
+	if (full_req)
+		ret = request_firmware(&firmware, chip->fw_name, device);
+	else
+		ret = request_partial_firmware_into_buf(&firmware, chip->fw_name,
+							device, &buf, sizeof(buf),
+							0);
+
 	if (ret) {
 		dev_err(device, "failed to early request firmware: %d\n", ret);
-		return;
+		return NULL;
 	}
 
-	ver_code = buf.mfw_hdr.sig != RTW89_MFW_SIG ?
-		   RTW89_FW_HDR_VER_CODE(&buf.fw_hdr) :
-		   RTW89_MFW_HDR_VER_CODE(&buf.mfw_hdr);
+	if (full_req)
+		ver_code = rtw89_compat_fw_hdr_ver_code(firmware->data);
+	else
+		ver_code = rtw89_compat_fw_hdr_ver_code(&buf);
+
 	if (!ver_code)
 		goto out;
 
@@ -310,7 +323,11 @@ void rtw89_early_fw_feature_recognize(struct device *device,
 	}
 
 out:
+	if (full_req)
+		return firmware;
+
 	release_firmware(firmware);
+	return NULL;
 }
 
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev)
@@ -617,6 +634,13 @@ int rtw89_load_firmware(struct rtw89_dev *rtwdev)
 	fw->rtwdev = rtwdev;
 	init_completion(&fw->completion);
 
+	if (fw->firmware) {
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "full firmware has been early requested\n");
+		complete_all(&fw->completion);
+		return 0;
+	}
+
 	ret = request_firmware_nowait(THIS_MODULE, true, fw_name, rtwdev->dev,
 				      GFP_KERNEL, fw, rtw89_load_firmware_cb);
 	if (ret) {
@@ -633,8 +657,14 @@ void rtw89_unload_firmware(struct rtw89_dev *rtwdev)
 
 	rtw89_wait_firmware_completion(rtwdev);
 
-	if (fw->firmware)
+	if (fw->firmware) {
 		release_firmware(fw->firmware);
+
+		/* assign NULL back in case rtw89_free_ieee80211_hw()
+		 * try to release the same one again.
+		 */
+		fw->firmware = NULL;
+	}
 }
 
 #define H2C_CAM_LEN 60
