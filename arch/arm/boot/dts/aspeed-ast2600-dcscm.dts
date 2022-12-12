@@ -186,6 +186,7 @@
 
 &i2c4 {
 	status = "okay";
+	multi-master;
 	/delete-node/ ssif-bmc@10;
 };
 
@@ -249,6 +250,7 @@
 
 &i2c13 {
 	status = "okay";
+	multi-master;
 };
 
 &i2c14 {
