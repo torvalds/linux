@@ -15,6 +15,8 @@
 
 #define BNXT_MIN_ROCE_CP_RINGS	2
 #define BNXT_MIN_ROCE_STAT_CTXS	1
+#define BNXT_MAX_ROCE_MSIX	9
+#define BNXT_MAX_VF_ROCE_MSIX	2
 
 struct hwrm_async_event_cmpl;
 struct bnxt;
@@ -51,6 +53,7 @@ struct bnxt_ulp {
 struct bnxt_en_dev {
 	struct net_device *net;
 	struct pci_dev *pdev;
+	struct bnxt_msix_entry			msix_entries[BNXT_MAX_ROCE_MSIX];
 	u32 flags;
 	#define BNXT_EN_FLAG_ROCEV1_CAP		0x1
 	#define BNXT_EN_FLAG_ROCEV2_CAP		0x2
@@ -101,9 +104,6 @@ void bnxt_rdma_aux_device_init(struct bnxt *bp);
 int bnxt_register_dev(struct bnxt_en_dev *edev, struct bnxt_ulp_ops *ulp_ops,
 		      void *handle);
 void bnxt_unregister_dev(struct bnxt_en_dev *edev);
-int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, struct bnxt_msix_entry *ent,
-		       int num_msix);
-void bnxt_free_msix_vecs(struct bnxt_en_dev *edev);
 int bnxt_send_msg(struct bnxt_en_dev *edev, struct bnxt_fw_msg *fw_msg);
 int bnxt_register_async_events(struct bnxt_en_dev *edev,
 			       unsigned long *events_bmap, u16 max_id);
