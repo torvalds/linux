@@ -379,7 +379,7 @@ void intel_hfi_online(unsigned int cpu)
 	die_id = topology_logical_die_id(cpu);
 	hfi_instance = info->hfi_instance;
 	if (!hfi_instance) {
-		if (die_id < 0 || die_id >= max_hfi_instances)
+		if (die_id >= max_hfi_instances)
 			return;
 
 		hfi_instance = &hfi_instances[die_id];
