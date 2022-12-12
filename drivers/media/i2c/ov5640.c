@@ -520,7 +520,18 @@ static u32 ov5640_code_to_bpp(struct ov5640_dev *sensor, u32 code)
  */
 /* YUV422 UYVY VGA@30fps */
 
-static const struct v4l2_mbus_framefmt ov5640_default_fmt = {
+static const struct v4l2_mbus_framefmt ov5640_csi2_default_fmt = {
+	.code = MEDIA_BUS_FMT_UYVY8_1X16,
+	.width = 640,
+	.height = 480,
+	.colorspace = V4L2_COLORSPACE_SRGB,
+	.ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(V4L2_COLORSPACE_SRGB),
+	.quantization = V4L2_QUANTIZATION_FULL_RANGE,
+	.xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(V4L2_COLORSPACE_SRGB),
+	.field = V4L2_FIELD_NONE,
+};
+
+static const struct v4l2_mbus_framefmt ov5640_dvp_default_fmt = {
 	.code = MEDIA_BUS_FMT_UYVY8_2X8,
 	.width = 640,
 	.height = 480,
@@ -3719,11 +3730,13 @@ out:
 static int ov5640_init_cfg(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *state)
 {
+	struct ov5640_dev *sensor = to_ov5640_dev(sd);
 	struct v4l2_mbus_framefmt *fmt =
 				v4l2_subdev_get_try_format(sd, state, 0);
 	struct v4l2_rect *crop = v4l2_subdev_get_try_crop(sd, state, 0);
 
-	*fmt = ov5640_default_fmt;
+	*fmt = ov5640_is_csi2(sensor) ? ov5640_csi2_default_fmt :
+					ov5640_dvp_default_fmt;
 
 	crop->left = OV5640_PIXEL_ARRAY_LEFT;
 	crop->top = OV5640_PIXEL_ARRAY_TOP;
@@ -3812,7 +3825,6 @@ static int ov5640_probe(struct i2c_client *client)
 	 * default init sequence initialize sensor to
 	 * YUV422 UYVY VGA@30fps
 	 */
-	sensor->fmt = ov5640_default_fmt;
 	sensor->frame_interval.numerator = 1;
 	sensor->frame_interval.denominator = ov5640_framerates[OV5640_30_FPS];
 	sensor->current_fr = OV5640_30_FPS;
@@ -3844,6 +3856,9 @@ static int ov5640_probe(struct i2c_client *client)
 		dev_err(dev, "Unsupported bus type %d\n", sensor->ep.bus_type);
 		return -EINVAL;
 	}
+
+	sensor->fmt = ov5640_is_csi2(sensor) ? ov5640_csi2_default_fmt :
+					       ov5640_dvp_default_fmt;
 
 	/* get system clock (xclk) */
 	sensor->xclk = devm_clk_get(dev, "xclk");
