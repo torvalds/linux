@@ -964,8 +964,8 @@ static void calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 		ordered = btrfs_lookup_ordered_extent(inode, file_offset);
 		if (ordered) {
 			bio_ctrl->len_to_oe_boundary = min_t(u32, U32_MAX,
-					ordered->disk_bytenr +
-					ordered->disk_num_bytes - logical);
+					ordered->file_offset +
+					ordered->disk_num_bytes - file_offset);
 			btrfs_put_ordered_extent(ordered);
 			return;
 		}
