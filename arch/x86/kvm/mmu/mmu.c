@@ -2355,7 +2355,16 @@ static void __link_shadow_page(struct kvm *kvm,
 
 	mmu_page_add_parent_pte(cache, sp, sptep);
 
-	if (sp->unsync_children || sp->unsync)
+	/*
+	 * The non-direct sub-pagetable must be updated before linking.  For
+	 * L1 sp, the pagetable is updated via kvm_sync_page() in
+	 * kvm_mmu_find_shadow_page() without write-protecting the gfn,
+	 * so sp->unsync can be true or false.  For higher level non-direct
+	 * sp, the pagetable is updated/synced via mmu_sync_children() in
+	 * FNAME(fetch)(), so sp->unsync_children can only be false.
+	 * WARN_ON_ONCE() if anything happens unexpectedly.
+	 */
+	if (WARN_ON_ONCE(sp->unsync_children) || sp->unsync)
 		mark_unsync(sptep);
 }
 
