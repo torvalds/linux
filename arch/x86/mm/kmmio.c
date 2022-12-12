@@ -246,14 +246,13 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	page_base &= page_level_mask(l);
 
 	/*
-	 * Preemption is now disabled to prevent process switch during
-	 * single stepping. We can only handle one active kmmio trace
+	 * Hold the RCU read lock over single stepping to avoid looking
+	 * up the probe and kmmio_fault_page again. The rcu_read_lock_sched()
+	 * also disables preemption and prevents process switch during
+	 * the single stepping. We can only handle one active kmmio trace
 	 * per cpu, so ensure that we finish it before something else
-	 * gets to run. We also hold the RCU read lock over single
-	 * stepping to avoid looking up the probe and kmmio_fault_page
-	 * again.
+	 * gets to run.
 	 */
-	preempt_disable();
 	rcu_read_lock_sched_notrace();
 
 	faultpage = get_kmmio_fault_page(page_base);
@@ -324,7 +323,6 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 
 no_kmmio:
 	rcu_read_unlock_sched_notrace();
-	preempt_enable_no_resched();
 	return ret;
 }
 
@@ -364,7 +362,6 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	ctx->active--;
 	BUG_ON(ctx->active);
 	rcu_read_unlock_sched_notrace();
-	preempt_enable_no_resched();
 
 	/*
 	 * if somebody else is singlestepping across a probe point, flags
