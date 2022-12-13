@@ -103,6 +103,20 @@ void snd_hdac_stream_init(struct hdac_bus *bus, struct hdac_stream *azx_dev,
 	azx_dev->stream_tag = tag;
 	snd_hdac_dsp_lock_init(azx_dev);
 	list_add_tail(&azx_dev->list, &bus->stream_list);
+
+	if (bus->spbcap) {
+		azx_dev->spib_addr = bus->spbcap + AZX_SPB_BASE +
+					AZX_SPB_INTERVAL * idx +
+					AZX_SPB_SPIB;
+
+		azx_dev->fifo_addr = bus->spbcap + AZX_SPB_BASE +
+					AZX_SPB_INTERVAL * idx +
+					AZX_SPB_MAXFIFO;
+	}
+
+	if (bus->drsmcap)
+		azx_dev->dpibr_addr = bus->drsmcap + AZX_DRSM_BASE +
+					AZX_DRSM_INTERVAL * idx;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_init);
 
@@ -717,6 +731,150 @@ void snd_hdac_stream_sync(struct hdac_stream *azx_dev, bool start,
 	}
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_sync);
+
+/**
+ * snd_hdac_stream_spbcap_enable - enable SPIB for a stream
+ * @bus: HD-audio core bus
+ * @enable: flag to enable/disable SPIB
+ * @index: stream index for which SPIB need to be enabled
+ */
+void snd_hdac_stream_spbcap_enable(struct hdac_bus *bus,
+				   bool enable, int index)
+{
+	u32 mask = 0;
+
+	if (!bus->spbcap) {
+		dev_err(bus->dev, "Address of SPB capability is NULL\n");
+		return;
+	}
+
+	mask |= (1 << index);
+
+	if (enable)
+		snd_hdac_updatel(bus->spbcap, AZX_REG_SPB_SPBFCCTL, mask, mask);
+	else
+		snd_hdac_updatel(bus->spbcap, AZX_REG_SPB_SPBFCCTL, mask, 0);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_spbcap_enable);
+
+/**
+ * snd_hdac_stream_set_spib - sets the spib value of a stream
+ * @bus: HD-audio core bus
+ * @azx_dev: hdac_stream
+ * @value: spib value to set
+ */
+int snd_hdac_stream_set_spib(struct hdac_bus *bus,
+			     struct hdac_stream *azx_dev, u32 value)
+{
+	if (!bus->spbcap) {
+		dev_err(bus->dev, "Address of SPB capability is NULL\n");
+		return -EINVAL;
+	}
+
+	writel(value, azx_dev->spib_addr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_set_spib);
+
+/**
+ * snd_hdac_stream_get_spbmaxfifo - gets the spib value of a stream
+ * @bus: HD-audio core bus
+ * @azx_dev: hdac_stream
+ *
+ * Return maxfifo for the stream
+ */
+int snd_hdac_stream_get_spbmaxfifo(struct hdac_bus *bus,
+				   struct hdac_stream *azx_dev)
+{
+	if (!bus->spbcap) {
+		dev_err(bus->dev, "Address of SPB capability is NULL\n");
+		return -EINVAL;
+	}
+
+	return readl(azx_dev->fifo_addr);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_get_spbmaxfifo);
+
+/**
+ * snd_hdac_stream_drsm_enable - enable DMA resume for a stream
+ * @bus: HD-audio core bus
+ * @enable: flag to enable/disable DRSM
+ * @index: stream index for which DRSM need to be enabled
+ */
+void snd_hdac_stream_drsm_enable(struct hdac_bus *bus,
+				 bool enable, int index)
+{
+	u32 mask = 0;
+
+	if (!bus->drsmcap) {
+		dev_err(bus->dev, "Address of DRSM capability is NULL\n");
+		return;
+	}
+
+	mask |= (1 << index);
+
+	if (enable)
+		snd_hdac_updatel(bus->drsmcap, AZX_REG_DRSM_CTL, mask, mask);
+	else
+		snd_hdac_updatel(bus->drsmcap, AZX_REG_DRSM_CTL, mask, 0);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_drsm_enable);
+
+/*
+ * snd_hdac_stream_wait_drsm - wait for HW to clear RSM for a stream
+ * @azx_dev: HD-audio core stream to await RSM for
+ *
+ * Returns 0 on success and -ETIMEDOUT upon a timeout.
+ */
+int snd_hdac_stream_wait_drsm(struct hdac_stream *azx_dev)
+{
+	struct hdac_bus *bus = azx_dev->bus;
+	u32 mask, reg;
+	int ret;
+
+	mask = 1 << azx_dev->index;
+
+	ret = read_poll_timeout(snd_hdac_reg_readl, reg, !(reg & mask), 250, 2000, false, bus,
+				bus->drsmcap + AZX_REG_DRSM_CTL);
+	if (ret)
+		dev_dbg(bus->dev, "polling RSM 0x%08x failed: %d\n", mask, ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_wait_drsm);
+
+/**
+ * snd_hdac_stream_set_dpibr - sets the dpibr value of a stream
+ * @bus: HD-audio core bus
+ * @azx_dev: hdac_stream
+ * @value: dpib value to set
+ */
+int snd_hdac_stream_set_dpibr(struct hdac_bus *bus,
+			      struct hdac_stream *azx_dev, u32 value)
+{
+	if (!bus->drsmcap) {
+		dev_err(bus->dev, "Address of DRSM capability is NULL\n");
+		return -EINVAL;
+	}
+
+	writel(value, azx_dev->dpibr_addr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_set_dpibr);
+
+/**
+ * snd_hdac_stream_set_lpib - sets the lpib value of a stream
+ * @azx_dev: hdac_stream
+ * @value: lpib value to set
+ */
+int snd_hdac_stream_set_lpib(struct hdac_stream *azx_dev, u32 value)
+{
+	snd_hdac_stream_writel(azx_dev, SD_LPIB, value);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_set_lpib);
 
 #ifdef CONFIG_SND_HDA_DSP_LOADER
 /**

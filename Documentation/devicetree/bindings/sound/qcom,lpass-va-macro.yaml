@@ -9,6 +9,9 @@ title: LPASS(Low Power Audio Subsystem) VA Macro audio codec DT bindings
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     enum:
@@ -39,8 +42,7 @@ properties:
           - const: mclk
 
   clock-output-names:
-    items:
-      - const: fsgen
+    maxItems: 1
 
   power-domains:
     maxItems: 2
@@ -62,7 +64,7 @@ required:
   - reg
   - "#sound-dai-cells"
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -24,6 +24,13 @@ struct avs_tplg_library;
 struct avs_soc_component;
 struct avs_ipc_msg;
 
+#ifdef CONFIG_ACPI
+#define AVS_S0IX_SUPPORTED \
+	(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)
+#else
+#define AVS_S0IX_SUPPORTED false
+#endif
+
 /*
  * struct avs_dsp_ops - Platform-specific DSP operations
  *
@@ -127,6 +134,7 @@ struct avs_dev {
 	struct list_head fw_list;
 	int *core_refs;		/* reference count per core */
 	char **lib_names;
+	int num_lp_paths;
 
 	struct completion fw_ready;
 	struct work_struct probe_work;
@@ -220,8 +228,10 @@ static inline void avs_ipc_err(struct avs_dev *adev, struct avs_ipc_msg *tx,
 	/*
 	 * If IPC channel is blocked e.g.: due to ongoing recovery,
 	 * -EPERM error code is expected and thus it's not an actual error.
+	 *
+	 * Unsupported IPCs are of no harm either.
 	 */
-	if (error == -EPERM)
+	if (error == -EPERM || error == AVS_IPC_NOT_SUPPORTED)
 		dev_dbg(adev->dev, "%s 0x%08x 0x%08x failed: %d\n", name,
 			tx->glb.primary, tx->glb.ext.val, error);
 	else

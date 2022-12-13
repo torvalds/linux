@@ -141,7 +141,7 @@ static void cl_skl_cldma_stream_run(struct snd_sof_dev *sdev, bool enable)
 	u32 run = enable ? 0x1 : 0;
 
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
-				sd_offset + SOF_HDA_ADSP_REG_CL_SD_CTL,
+				sd_offset + SOF_HDA_ADSP_REG_SD_CTL,
 				HDA_CL_SD_CTL_RUN(1), HDA_CL_SD_CTL_RUN(run));
 
 	retries = 300;
@@ -150,7 +150,7 @@ static void cl_skl_cldma_stream_run(struct snd_sof_dev *sdev, bool enable)
 
 		/* waiting for hardware to report the stream Run bit set */
 		val = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-				       sd_offset + SOF_HDA_ADSP_REG_CL_SD_CTL);
+				       sd_offset + SOF_HDA_ADSP_REG_SD_CTL);
 		val &= HDA_CL_SD_CTL_RUN(1);
 		if (enable && val)
 			break;
@@ -174,23 +174,23 @@ static void cl_skl_cldma_stream_clear(struct snd_sof_dev *sdev)
 	 * Descriptor Error Interrupt and set the cldma stream number to 0.
 	 */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
-				sd_offset + SOF_HDA_ADSP_REG_CL_SD_CTL,
+				sd_offset + SOF_HDA_ADSP_REG_SD_CTL,
 				HDA_CL_SD_CTL_INT_MASK, HDA_CL_SD_CTL_INT(0));
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
-				sd_offset + SOF_HDA_ADSP_REG_CL_SD_CTL,
+				sd_offset + SOF_HDA_ADSP_REG_SD_CTL,
 				HDA_CL_SD_CTL_STRM(0xf), HDA_CL_SD_CTL_STRM(0));
 
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL, HDA_CL_SD_BDLPLBA(0));
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPL, HDA_CL_SD_BDLPLBA(0));
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU, 0);
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPU, 0);
 
 	/* Set the Cyclic Buffer Length to 0. */
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_CBL, 0);
+			  sd_offset + SOF_HDA_ADSP_REG_SD_CBL, 0);
 	/* Set the Last Valid Index. */
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_LVI, 0);
+			  sd_offset + SOF_HDA_ADSP_REG_SD_LVI, 0);
 }
 
 static void cl_skl_cldma_setup_spb(struct snd_sof_dev *sdev,
@@ -240,27 +240,27 @@ static void cl_skl_cldma_setup_controller(struct snd_sof_dev *sdev,
 
 	/* setting the stream register */
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPL,
 			  HDA_CL_SD_BDLPLBA(dmab_bdl->addr));
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPU,
 			  HDA_CL_SD_BDLPUBA(dmab_bdl->addr));
 
 	/* Set the Cyclic Buffer Length. */
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_CBL, max_size);
+			  sd_offset + SOF_HDA_ADSP_REG_SD_CBL, max_size);
 	/* Set the Last Valid Index. */
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_LVI, count - 1);
+			  sd_offset + SOF_HDA_ADSP_REG_SD_LVI, count - 1);
 
 	/* Set the Interrupt On Completion, FIFO Error Interrupt,
 	 * Descriptor Error Interrupt and the cldma stream number.
 	 */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
-				sd_offset + SOF_HDA_ADSP_REG_CL_SD_CTL,
+				sd_offset + SOF_HDA_ADSP_REG_SD_CTL,
 				HDA_CL_SD_CTL_INT_MASK, HDA_CL_SD_CTL_INT(1));
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
-				sd_offset + SOF_HDA_ADSP_REG_CL_SD_CTL,
+				sd_offset + SOF_HDA_ADSP_REG_SD_CTL,
 				HDA_CL_SD_CTL_STRM(0xf),
 				HDA_CL_SD_CTL_STRM(1));
 }
@@ -439,7 +439,7 @@ static int cl_skl_cldma_wait_interruptible(struct snd_sof_dev *sdev,
 
 	/* now check DMA interrupt status */
 	cl_dma_intr_status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					      sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS);
+					      sd_offset + SOF_HDA_ADSP_REG_SD_STS);
 
 	if (!(cl_dma_intr_status & HDA_CL_DMA_SD_INT_COMPLETE)) {
 		dev_err(sdev->dev, "cldma copy failed\n");
@@ -494,14 +494,13 @@ static int cl_copy_fw_skl(struct snd_sof_dev *sdev,
 			  struct snd_dma_buffer *dmab)
 
 {
-	struct snd_sof_pdata *plat_data = sdev->pdata;
-	const struct firmware *fw =  plat_data->fw;
+	const struct firmware *fw =  sdev->basefw.fw;
 	struct firmware stripped_firmware;
 	unsigned int bufsize = HDA_SKL_CLDMA_MAX_BUFFER_SIZE;
 	int ret;
 
-	stripped_firmware.data = plat_data->fw->data + plat_data->fw_offset;
-	stripped_firmware.size = plat_data->fw->size - plat_data->fw_offset;
+	stripped_firmware.data = fw->data + sdev->basefw.payload_offset;
+	stripped_firmware.size = fw->size - sdev->basefw.payload_offset;
 
 	dev_dbg(sdev->dev, "firmware size: %#zx buffer size %#x\n", fw->size, bufsize);
 

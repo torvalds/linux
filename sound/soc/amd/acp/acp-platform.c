@@ -184,10 +184,6 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 
 	stream->substream = substream;
 
-	spin_lock_irq(&adata->acp_lock);
-	list_add_tail(&stream->list, &adata->stream_list);
-	spin_unlock_irq(&adata->acp_lock);
-
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		runtime->hw = acp_pcm_hardware_playback;
 	else
@@ -202,6 +198,10 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 	runtime->private_data = stream;
 
 	writel(1, ACP_EXTERNAL_INTR_ENB(adata));
+
+	spin_lock_irq(&adata->acp_lock);
+	list_add_tail(&stream->list, &adata->stream_list);
+	spin_unlock_irq(&adata->acp_lock);
 
 	return ret;
 }
