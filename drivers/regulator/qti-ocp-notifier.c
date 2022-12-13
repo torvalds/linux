@@ -27,12 +27,17 @@ struct ocp_log_entry {
 	u8	mode_at_ocp;
 };
 
+struct nvmem_log_info {
+	struct nvmem_cell	*nvmem_cell;
+	int			entry_count;
+	void			*ipc_log;
+};
+
 struct ocp_notifier_dev {
 	struct device		*dev;
-	void			*ipc_log;
-	struct nvmem_cell	*nvmem_cell;
-	int			ocp_log_entry_count;
 	struct idr		regulators;
+	struct nvmem_log_info	ocp;
+	struct nvmem_log_info	alarm;
 };
 
 static const char *rdev_name(struct regulator_dev *rdev)
@@ -87,7 +92,9 @@ static int ocp_notifier_get_regulator_name(struct ocp_notifier_dev *ocp_dev,
 }
 
 static int ocp_notifier_log_event(struct ocp_notifier_dev *ocp_dev,
-				struct ocp_log_entry *entry, const char *label)
+				  struct nvmem_log_info *log_info,
+				  struct ocp_log_entry *entry,
+				  const char *label)
 {
 	const char *name = NULL;
 	int ret;
@@ -102,29 +109,31 @@ static int ocp_notifier_log_event(struct ocp_notifier_dev *ocp_dev,
 	if (name) {
 		pr_err("%s name=%s, ppid=0x%03X, mode=%u\n",
 			label, name, entry->ppid, entry->mode_at_ocp);
-		ipc_log_string(ocp_dev->ipc_log, "%s name=%s, ppid=0x%03X, mode=%u\n",
+		ipc_log_string(log_info->ipc_log, "%s name=%s, ppid=0x%03X, mode=%u\n",
 			label, name, entry->ppid, entry->mode_at_ocp);
 	} else {
 		pr_err("%s ppid=0x%03X, mode=%u\n",
 			label, entry->ppid, entry->mode_at_ocp);
-		ipc_log_string(ocp_dev->ipc_log, "%s ppid=0x%03X, mode=%u\n",
+		ipc_log_string(log_info->ipc_log, "%s ppid=0x%03X, mode=%u\n",
 			label, entry->ppid, entry->mode_at_ocp);
 	}
 
 	return 0;
 }
 
-static int ocp_notifier_read_entry(struct ocp_notifier_dev *ocp_dev, u32 index,
+static int ocp_notifier_read_entry(struct ocp_notifier_dev *ocp_dev,
+				   struct nvmem_log_info *log_info,
+				   u32 index,
 				   struct ocp_log_entry *entry)
 {
 	size_t len = 0;
 	u8 *buf;
 	int ret, i;
 
-	if (index >= ocp_dev->ocp_log_entry_count)
+	if (index >= log_info->entry_count)
 		return -EINVAL;
 
-	buf = nvmem_cell_read(ocp_dev->nvmem_cell, &len);
+	buf = nvmem_cell_read(log_info->nvmem_cell, &len);
 	if (IS_ERR(buf)) {
 		ret = PTR_ERR(buf);
 		dev_err(ocp_dev->dev, "failed to read nvmem cell, ret=%d\n", ret);
@@ -159,11 +168,11 @@ static irqreturn_t ocp_notifier_handler(int irq, void *data)
 	struct regulator_dev *rdev;
 	int ret;
 
-	ret = ocp_notifier_read_entry(ocp_dev, 0, &entry);
+	ret = ocp_notifier_read_entry(ocp_dev, &ocp_dev->ocp, 0, &entry);
 	if (ret)
 		goto done;
 
-	ret = ocp_notifier_log_event(ocp_dev, &entry,
+	ret = ocp_notifier_log_event(ocp_dev, &ocp_dev->ocp, &entry,
 				     "Regulator OCP during runtime:");
 	if (ret)
 		goto done;
@@ -175,6 +184,98 @@ static irqreturn_t ocp_notifier_handler(int irq, void *data)
 	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_OVER_CURRENT, NULL);
 done:
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t alarm_notifier_handler(int irq, void *data)
+{
+	struct ocp_notifier_dev *ocp_dev = data;
+	struct ocp_log_entry entry = {0};
+	struct regulator_dev *rdev;
+	int ret;
+
+	ret = ocp_notifier_read_entry(ocp_dev, &ocp_dev->alarm, 0, &entry);
+	if (ret)
+		goto done;
+
+	ret = ocp_notifier_log_event(ocp_dev, &ocp_dev->alarm, &entry,
+				     "Regulator alarm during runtime:");
+	if (ret)
+		goto done;
+
+	rdev = idr_find(&ocp_dev->regulators, entry.ppid);
+	if (!rdev)
+		goto done;
+
+	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_UNDER_VOLTAGE,
+				      NULL);
+done:
+	return IRQ_HANDLED;
+}
+
+static int alarm_notifier_init(struct platform_device *pdev,
+			       struct ocp_notifier_dev *ocp_dev)
+{
+	struct ocp_log_entry entry = {0};
+	size_t len = 0;
+	int ret, i, irq;
+	u8 *buf;
+
+	ocp_dev->alarm.nvmem_cell = devm_nvmem_cell_get(&pdev->dev,
+							"alarm_log");
+	if (IS_ERR(ocp_dev->alarm.nvmem_cell)) {
+		ret = PTR_ERR(ocp_dev->alarm.nvmem_cell);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		/* Alarm event details are optional */
+		ocp_dev->alarm.nvmem_cell = NULL;
+		return 0;
+	}
+
+	irq = platform_get_irq(pdev, 1);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "failed to get alarm irq, ret=%d\n", irq);
+		return irq;
+	}
+
+	ocp_dev->alarm.ipc_log = ipc_log_context_create(IPC_LOG_PAGES,
+							"regulator_alarm", 0);
+
+	buf = nvmem_cell_read(ocp_dev->alarm.nvmem_cell, &len);
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
+		dev_err(&pdev->dev, "failed to read alarm nvmem cell, ret=%d\n", ret);
+		goto free_log;
+	}
+	ocp_dev->alarm.entry_count = len / OCP_LOG_ENTRY_SIZE;
+	kfree(buf);
+
+	for (i = 0; i < ocp_dev->alarm.entry_count; i++) {
+		ret = ocp_notifier_read_entry(ocp_dev, &ocp_dev->alarm, i,
+					      &entry);
+		if (ret)
+			goto free_log;
+
+		ret = ocp_notifier_log_event(ocp_dev, &ocp_dev->alarm, &entry,
+				"Regulator alarm event before kernel boot:");
+		if (ret) {
+			if (ret != -EPROBE_DEFER)
+				dev_err(&pdev->dev, "failed to log alarm entry %d, ret=%d\n",
+					i, ret);
+			goto free_log;
+		}
+	}
+
+	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+					alarm_notifier_handler, IRQF_ONESHOT,
+					"regulator-alarm", ocp_dev);
+	if (ret)
+		goto free_log;
+
+	return 0;
+
+free_log:
+	ipc_log_context_destroy(ocp_dev->alarm.ipc_log);
+	return ret;
 }
 
 static int ocp_notifier_probe(struct platform_device *pdev)
@@ -190,9 +291,9 @@ static int ocp_notifier_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	ocp_dev->dev = &pdev->dev;
 
-	ocp_dev->nvmem_cell = devm_nvmem_cell_get(&pdev->dev, "ocp_log");
-	if (IS_ERR(ocp_dev->nvmem_cell)) {
-		ret = PTR_ERR(ocp_dev->nvmem_cell);
+	ocp_dev->ocp.nvmem_cell = devm_nvmem_cell_get(&pdev->dev, "ocp_log");
+	if (IS_ERR(ocp_dev->ocp.nvmem_cell)) {
+		ret = PTR_ERR(ocp_dev->ocp.nvmem_cell);
 		if (ret != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "failed to get nvmem cell, ret=%d\n",
 				ret);
@@ -201,50 +302,66 @@ static int ocp_notifier_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to irq, ret=%d\n", irq);
+		dev_err(&pdev->dev, "failed to get OCP irq, ret=%d\n", irq);
 		return irq;
 	}
 
-	ocp_dev->ipc_log = ipc_log_context_create(IPC_LOG_PAGES,
-						  "regulator_ocp", 0);
+	ocp_dev->ocp.ipc_log = ipc_log_context_create(IPC_LOG_PAGES,
+						      "regulator_ocp", 0);
 	platform_set_drvdata(pdev, ocp_dev);
 
-	buf = nvmem_cell_read(ocp_dev->nvmem_cell, &len);
+	buf = nvmem_cell_read(ocp_dev->ocp.nvmem_cell, &len);
 	if (IS_ERR(buf)) {
 		ret = PTR_ERR(buf);
-		dev_err(&pdev->dev, "failed to read nvmem cell, ret=%d\n", ret);
-		return ret;
+		dev_err(&pdev->dev, "failed to read OCP nvmem cell, ret=%d\n", ret);
+		goto free_log;
 	}
-	ocp_dev->ocp_log_entry_count = len / OCP_LOG_ENTRY_SIZE;
+	ocp_dev->ocp.entry_count = len / OCP_LOG_ENTRY_SIZE;
 	kfree(buf);
 
 	idr_init(&ocp_dev->regulators);
 
-	for (i = 0; i < ocp_dev->ocp_log_entry_count; i++) {
-		ret = ocp_notifier_read_entry(ocp_dev, i, &entry);
+	for (i = 0; i < ocp_dev->ocp.entry_count; i++) {
+		ret = ocp_notifier_read_entry(ocp_dev, &ocp_dev->ocp, i,
+					      &entry);
 		if (ret)
-			return ret;
+			goto free_idr;
 
-		ret = ocp_notifier_log_event(ocp_dev, &entry,
+		ret = ocp_notifier_log_event(ocp_dev, &ocp_dev->ocp, &entry,
 				"Regulator OCP event before kernel boot:");
 		if (ret) {
 			if (ret != -EPROBE_DEFER)
-				dev_err(&pdev->dev, "failed to log entry %d, ret=%d\n",
+				dev_err(&pdev->dev, "failed to log OCP entry %d, ret=%d\n",
 					i, ret);
-			return ret;
+			goto free_idr;
 		}
 	}
 
-	return devm_request_threaded_irq(&pdev->dev, irq, NULL,
-					 ocp_notifier_handler, IRQF_ONESHOT,
-					 "regulator-ocp", ocp_dev);
+	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+					ocp_notifier_handler, IRQF_ONESHOT,
+					"regulator-ocp", ocp_dev);
+	if (ret)
+		goto free_idr;
+
+	ret = alarm_notifier_init(pdev, ocp_dev);
+	if (ret)
+		goto free_idr;
+
+	return 0;
+
+free_idr:
+	idr_destroy(&ocp_dev->regulators);
+free_log:
+	ipc_log_context_destroy(ocp_dev->ocp.ipc_log);
+	return ret;
 }
 
 static int ocp_notifier_remove(struct platform_device *pdev)
 {
 	struct ocp_notifier_dev *ocp_dev = platform_get_drvdata(pdev);
 
-	ipc_log_context_destroy(ocp_dev->ipc_log);
+	ipc_log_context_destroy(ocp_dev->ocp.ipc_log);
+	ipc_log_context_destroy(ocp_dev->alarm.ipc_log);
 	idr_destroy(&ocp_dev->regulators);
 
 	return 0;
