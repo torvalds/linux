@@ -25,7 +25,8 @@ hyp_spinlock_t pkvm_pgd_lock;
 struct memblock_region hyp_memory[HYP_MEMBLOCK_REGIONS];
 unsigned int hyp_memblock_nr;
 
-static u64 __io_map_base;
+static u64 __private_range_base;
+static u64 __private_range_cur;
 
 struct hyp_fixmap_slot {
 	u64 addr;
@@ -50,29 +51,29 @@ static int __pkvm_create_mappings(unsigned long start, unsigned long size,
  * @size:	The size of the VA range to reserve.
  * @haddr:	The hypervisor virtual start address of the allocation.
  *
- * The private virtual address (VA) range is allocated above __io_map_base
+ * The private virtual address (VA) range is allocated above __private_range_base
  * and aligned based on the order of @size.
  *
  * Return: 0 on success or negative error code on failure.
  */
 int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 {
-	unsigned long base, addr;
+	unsigned long cur, addr;
 	int ret = 0;
 
 	hyp_spin_lock(&pkvm_pgd_lock);
 
 	/* Align the allocation based on the order of its size */
-	addr = ALIGN(__io_map_base, PAGE_SIZE << get_order(size));
+	addr = ALIGN(__private_range_cur, PAGE_SIZE << get_order(size));
 
 	/* The allocated size is always a multiple of PAGE_SIZE */
-	base = addr + PAGE_ALIGN(size);
+	cur = addr + PAGE_ALIGN(size);
 
-	/* Are we overflowing on the vmemmap ? */
-	if (!addr || base > __hyp_vmemmap)
+	/* Has the private range grown too large ? */
+	if (!addr || cur > __hyp_vmemmap || (cur - __private_range_base) > __PKVM_PRIVATE_SZ) {
 		ret = -ENOMEM;
-	else {
-		__io_map_base = base;
+	} else {
+		__private_range_cur = cur;
 		*haddr = addr;
 	}
 
@@ -386,9 +387,10 @@ int hyp_create_idmap(u32 hyp_va_bits)
 	 * with the idmap to place the IOs and the vmemmap. IOs use the lower
 	 * half of the quarter and the vmemmap the upper half.
 	 */
-	__io_map_base = start & BIT(hyp_va_bits - 2);
-	__io_map_base ^= BIT(hyp_va_bits - 2);
-	__hyp_vmemmap = __io_map_base | BIT(hyp_va_bits - 3);
+	__private_range_base = start & BIT(hyp_va_bits - 2);
+	__private_range_base ^= BIT(hyp_va_bits - 2);
+	__private_range_cur = __private_range_base;
+	__hyp_vmemmap = __private_range_base | BIT(hyp_va_bits - 3);
 
 	return __pkvm_create_mappings(start, end - start, start, PAGE_HYP_EXEC);
 }

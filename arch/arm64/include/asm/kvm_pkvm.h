@@ -320,14 +320,15 @@ static inline unsigned long __hyp_pgtable_moveable_regs_pages(void)
 	return res;
 }
 
+#define __PKVM_PRIVATE_SZ SZ_1G
+
 static inline unsigned long hyp_s1_pgtable_pages(void)
 {
 	unsigned long res;
 
 	res = __hyp_pgtable_moveable_regs_pages();
 
-	/* Allow 1 GiB for private mappings */
-	res += __hyp_pgtable_max_pages(SZ_1G >> PAGE_SHIFT);
+	res += __hyp_pgtable_max_pages(__PKVM_PRIVATE_SZ >> PAGE_SHIFT);
 
 	return res;
 }
