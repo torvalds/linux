@@ -2302,14 +2302,18 @@ static void
 smb2_is_network_name_deleted(char *buf, struct TCP_Server_Info *server)
 {
 	struct smb2_hdr *shdr = (struct smb2_hdr *)buf;
+	struct TCP_Server_Info *pserver;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 
 	if (shdr->Status != STATUS_NETWORK_NAME_DELETED)
 		return;
 
+	/* If server is a channel, select the primary channel */
+	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			if (tcon->tid == le32_to_cpu(shdr->Id.SyncId.TreeId)) {
 				spin_lock(&tcon->tc_lock);
@@ -4264,21 +4268,23 @@ init_sg(int num_rqst, struct smb_rqst *rqst, u8 *sign)
 static int
 smb2_get_enc_key(struct TCP_Server_Info *server, __u64 ses_id, int enc, u8 *key)
 {
+	struct TCP_Server_Info *pserver;
 	struct cifs_ses *ses;
 	u8 *ses_enc_key;
 
+	/* If server is a channel, select the primary channel */
+	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
-		list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
-			if (ses->Suid == ses_id) {
-				spin_lock(&ses->ses_lock);
-				ses_enc_key = enc ? ses->smb3encryptionkey :
-					ses->smb3decryptionkey;
-				memcpy(key, ses_enc_key, SMB3_ENC_DEC_KEY_SIZE);
-				spin_unlock(&ses->ses_lock);
-				spin_unlock(&cifs_tcp_ses_lock);
-				return 0;
-			}
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+		if (ses->Suid == ses_id) {
+			spin_lock(&ses->ses_lock);
+			ses_enc_key = enc ? ses->smb3encryptionkey :
+				ses->smb3decryptionkey;
+			memcpy(key, ses_enc_key, SMB3_ENC_DEC_KEY_SIZE);
+			spin_unlock(&ses->ses_lock);
+			spin_unlock(&cifs_tcp_ses_lock);
+			return 0;
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);

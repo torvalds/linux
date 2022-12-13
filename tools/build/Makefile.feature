@@ -103,6 +103,7 @@ FEATURE_TESTS_EXTRA :=                  \
          libbpf-bpf_prog_load           \
          libbpf-bpf_object__next_program \
          libbpf-bpf_object__next_map    \
+         libbpf-bpf_program__set_insns  \
          libbpf-bpf_create_map		\
          libpfm4                        \
          libdebuginfod			\

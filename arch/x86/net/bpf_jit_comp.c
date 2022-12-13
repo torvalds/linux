@@ -11,6 +11,7 @@
 #include <linux/bpf.h>
 #include <linux/memory.h>
 #include <linux/sort.h>
+#include <linux/init.h>
 #include <asm/extable.h>
 #include <asm/set_memory.h>
 #include <asm/nospec-branch.h>
@@ -386,6 +387,18 @@ static int __bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 out:
 	mutex_unlock(&text_mutex);
 	return ret;
+}
+
+int __init bpf_arch_init_dispatcher_early(void *ip)
+{
+	const u8 *nop_insn = x86_nops[5];
+
+	if (is_endbr(*(u32 *)ip))
+		ip += ENDBR_INSN_SIZE;
+
+	if (memcmp(ip, nop_insn, X86_PATCH_SIZE))
+		text_poke_early(ip, nop_insn, X86_PATCH_SIZE);
+	return 0;
 }
 
 int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,

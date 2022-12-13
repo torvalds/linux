@@ -4418,6 +4418,11 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	if (likely(!is_multicast_ether_addr(eth->h_dest)))
 		goto normal;
 
+	if (unlikely(!ieee80211_sdata_running(sdata))) {
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
 	if (unlikely(ieee80211_multicast_to_unicast(skb, dev))) {
 		struct sk_buff_head queue;
 

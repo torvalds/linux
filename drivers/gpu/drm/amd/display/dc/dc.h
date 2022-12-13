@@ -852,6 +852,8 @@ struct dc_debug_options {
 	bool enable_double_buffered_dsc_pg_support;
 	bool enable_dp_dig_pixel_rate_div_policy;
 	enum lttpr_mode lttpr_mode_override;
+	unsigned int dsc_delay_factor_wa_x1000;
+	unsigned int min_prefetch_in_strobe_ns;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
