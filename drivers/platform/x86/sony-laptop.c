@@ -3263,7 +3263,7 @@ outwalk:
 	return result;
 }
 
-static int sony_nc_remove(struct acpi_device *device)
+static void sony_nc_remove(struct acpi_device *device)
 {
 	struct sony_nc_value *item;
 
@@ -3280,8 +3280,6 @@ static int sony_nc_remove(struct acpi_device *device)
 	sony_pf_remove();
 	sony_laptop_remove_input();
 	dprintk(SONY_NC_DRIVER_NAME " removed.\n");
-
-	return 0;
 }
 
 static const struct acpi_device_id sony_device_ids[] = {
@@ -4630,14 +4628,14 @@ found:
  *  ACPI driver
  *
  *****************/
-static int sony_pic_remove(struct acpi_device *device)
+static void sony_pic_remove(struct acpi_device *device)
 {
 	struct sony_pic_ioport *io, *tmp_io;
 	struct sony_pic_irq *irq, *tmp_irq;
 
 	if (sony_pic_disable(device)) {
 		pr_err("Couldn't disable device\n");
-		return -ENXIO;
+		return;
 	}
 
 	free_irq(spic_dev.cur_irq->irq.interrupts[0], &spic_dev);
@@ -4667,7 +4665,6 @@ static int sony_pic_remove(struct acpi_device *device)
 	spic_dev.cur_irq = NULL;
 
 	dprintk(SONY_PIC_DRIVER_NAME " removed.\n");
-	return 0;
 }
 
 static int sony_pic_add(struct acpi_device *device)

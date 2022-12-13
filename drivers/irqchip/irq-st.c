@@ -153,18 +153,13 @@ static int st_irq_syscfg_enable(struct platform_device *pdev)
 static int st_irq_syscfg_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	struct st_irq_syscfg *ddata;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
 
-	match = of_match_device(st_irq_syscfg_match, &pdev->dev);
-	if (!match)
-		return -ENODEV;
-
-	ddata->syscfg = (unsigned int)match->data;
+	ddata->syscfg = (unsigned int) device_get_match_data(&pdev->dev);
 
 	ddata->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(ddata->regmap)) {

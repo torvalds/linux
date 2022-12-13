@@ -193,13 +193,12 @@ static int apple_bl_add(struct acpi_device *dev)
 	return 0;
 }
 
-static int apple_bl_remove(struct acpi_device *dev)
+static void apple_bl_remove(struct acpi_device *dev)
 {
 	backlight_device_unregister(apple_backlight_device);
 
 	release_region(hw_data->iostart, hw_data->iolen);
 	hw_data = NULL;
-	return 0;
 }
 
 static const struct acpi_device_id apple_bl_ids[] = {

@@ -37,6 +37,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/pci.h>
 #include <clocksource/hyperv_timer.h>
+#include <asm/mshyperv.h>
 #include "hyperv_vmbus.h"
 
 struct vmbus_dynid {
@@ -2240,7 +2241,7 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 	return AE_OK;
 }
 
-static int vmbus_acpi_remove(struct acpi_device *device)
+static void vmbus_acpi_remove(struct acpi_device *device)
 {
 	struct resource *cur_res;
 	struct resource *next_res;
@@ -2257,8 +2258,6 @@ static int vmbus_acpi_remove(struct acpi_device *device)
 			kfree(cur_res);
 		}
 	}
-
-	return 0;
 }
 
 static void vmbus_reserve_fb(void)
