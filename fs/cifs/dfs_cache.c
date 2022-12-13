@@ -1346,14 +1346,15 @@ static void mark_for_reconnect_if_needed(struct cifs_tcon *tcon, struct dfs_cach
 /* Refresh dfs referral of tcon and mark it for reconnect if needed */
 static int __refresh_tcon(const char *path, struct cifs_tcon *tcon, bool force_refresh)
 {
-	struct cifs_ses *ses = CIFS_DFS_ROOT_SES(tcon->ses);
-	struct cache_entry *ce;
-	struct dfs_info3_param *refs = NULL;
-	int numrefs = 0;
-	bool needs_refresh = false;
 	struct dfs_cache_tgt_list tl = DFS_CACHE_TGT_LIST_INIT(tl);
-	int rc = 0;
+	struct cifs_ses *ses = CIFS_DFS_ROOT_SES(tcon->ses);
+	struct cifs_tcon *ipc = ses->tcon_ipc;
+	struct dfs_info3_param *refs = NULL;
+	bool needs_refresh = false;
+	struct cache_entry *ce;
 	unsigned int xid;
+	int numrefs = 0;
+	int rc = 0;
 
 	xid = get_xid();
 
@@ -1371,6 +1372,14 @@ static int __refresh_tcon(const char *path, struct cifs_tcon *tcon, bool force_r
 		rc = 0;
 		goto out;
 	}
+
+	spin_lock(&ipc->tc_lock);
+	if (ses->ses_status != SES_GOOD || ipc->status != TID_GOOD) {
+		spin_unlock(&ipc->tc_lock);
+		cifs_dbg(FYI, "%s: skip cache refresh due to disconnected ipc\n", __func__);
+		goto out;
+	}
+	spin_unlock(&ipc->tc_lock);
 
 	rc = get_dfs_referral(xid, ses, path, &refs, &numrefs);
 	if (!rc) {
@@ -1457,9 +1466,9 @@ int dfs_cache_remount_fs(struct cifs_sb_info *cifs_sb)
 static void refresh_cache_worker(struct work_struct *work)
 {
 	struct TCP_Server_Info *server;
-	struct cifs_ses *ses;
 	struct cifs_tcon *tcon, *ntcon;
 	struct list_head tcons;
+	struct cifs_ses *ses;
 
 	INIT_LIST_HEAD(&tcons);
 
@@ -1469,23 +1478,15 @@ static void refresh_cache_worker(struct work_struct *work)
 			continue;
 
 		list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
-			struct cifs_ses *root_ses = CIFS_DFS_ROOT_SES(ses);
-
-			spin_lock(&root_ses->ses_lock);
-			if (root_ses->ses_status != SES_GOOD) {
-				spin_unlock(&root_ses->ses_lock);
-				continue;
+			if (ses->tcon_ipc) {
+				ses->ses_count++;
+				list_add_tail(&ses->tcon_ipc->ulist, &tcons);
 			}
-			spin_unlock(&root_ses->ses_lock);
-
 			list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
-				spin_lock(&tcon->tc_lock);
-				if (!tcon->ipc && tcon->status != TID_NEW &&
-				    tcon->status != TID_NEED_TCON) {
+				if (!tcon->ipc) {
 					tcon->tc_count++;
 					list_add_tail(&tcon->ulist, &tcons);
 				}
-				spin_unlock(&tcon->tc_lock);
 			}
 		}
 	}
@@ -1501,7 +1502,10 @@ static void refresh_cache_worker(struct work_struct *work)
 			__refresh_tcon(server->leaf_fullpath + 1, tcon, false);
 		mutex_unlock(&server->refpath_lock);
 
-		cifs_put_tcon(tcon);
+		if (tcon->ipc)
+			cifs_put_smb_ses(tcon->ses);
+		else
+			cifs_put_tcon(tcon);
 	}
 
 	spin_lock(&cache_ttl_lock);
