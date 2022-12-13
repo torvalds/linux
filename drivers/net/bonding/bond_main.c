@@ -3247,7 +3247,7 @@ static int bond_na_rcv(const struct sk_buff *skb, struct bonding *bond,
 		goto out;
 
 	saddr = &combined->ip6.saddr;
-	daddr = &combined->ip6.saddr;
+	daddr = &combined->ip6.daddr;
 
 	slave_dbg(bond->dev, slave->dev, "%s: %s/%d av %d sv %d sip %pI6c tip %pI6c\n",
 		  __func__, slave->dev->name, bond_slave_state(slave),

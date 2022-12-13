@@ -22,6 +22,9 @@ define_common_kernels(target_configs = {
     "kernel_aarch64_debug": {
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
+    "kernel_riscv64": {
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+    },
     "kernel_x86_64": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
@@ -381,6 +384,15 @@ ddk_headers(
 )
 
 ddk_headers(
+    name = "all_headers_riscv64",
+    hdrs = [":all_headers_allowlist_riscv64"] + select({
+        "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+ddk_headers(
     name = "all_headers_x86_64",
     hdrs = [":all_headers_allowlist_x86_64"] + select({
         "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
@@ -431,6 +443,24 @@ ddk_headers(
 )
 
 ddk_headers(
+    name = "all_headers_allowlist_riscv64",
+    hdrs = [
+        ":all_headers_allowlist_common_globs",
+        ":all_headers_allowlist_riscv64_globs",
+    ],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    # These are prepended to LINUXINCLUDE.
+    linux_includes = [
+        "arch/riscv/include",
+        "arch/riscv/include/uapi",
+        "include",
+        "include/uapi",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+ddk_headers(
     name = "all_headers_allowlist_x86_64",
     hdrs = [
         ":all_headers_allowlist_common_globs",
@@ -454,6 +484,13 @@ ddk_headers(
 # These are separate filegroup targets so the all_headers_allowlist_* are
 # more friendly to batch BUILD file update tools like buildozer.
 
+# globs() for arm64 only
+filegroup(
+    name = "all_headers_allowlist_aarch64_globs",
+    srcs = glob(["arch/arm64/include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
+
 # globs() for arm only
 filegroup(
     name = "all_headers_allowlist_arm_globs",
@@ -461,10 +498,10 @@ filegroup(
     visibility = ["//visibility:private"],
 )
 
-# globs() for arm64 only
+# globs() for riscv64 only
 filegroup(
-    name = "all_headers_allowlist_aarch64_globs",
-    srcs = glob(["arch/arm64/include/**/*.h"]),
+    name = "all_headers_allowlist_riscv64_globs",
+    srcs = glob(["arch/riscv/include/**/*.h"]),
     visibility = ["//visibility:private"],
 )
 
