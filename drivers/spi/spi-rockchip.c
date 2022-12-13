@@ -194,6 +194,7 @@ struct rockchip_spi {
 
 	atomic_t state;
 
+	u32 version;
 	/*depth of the FIFO buffer */
 	u32 fifo_len;
 	/* frequency of spiclk */
@@ -227,16 +228,14 @@ static inline void spi_enable_chip(struct rockchip_spi *rs, bool enable)
 static inline void wait_for_tx_idle(struct rockchip_spi *rs, bool slave_mode)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(5);
+	u32 busy = SR_BUSY;
+
+	if (slave_mode && rs->version == ROCKCHIP_SPI_VER2_TYPE2)
+		busy = SR_SLAVE_TX_BUSY;
 
 	do {
-		if (slave_mode) {
-			if (!(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_SLAVE_TX_BUSY) &&
-			    !((readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY)))
-				return;
-		} else {
-			if (!(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY))
-				return;
-		}
+		if (!(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & busy))
+			return;
 	} while (!time_after(jiffies, timeout));
 
 	dev_warn(rs->dev, "spi controller is in busy state!\n");
@@ -244,11 +243,7 @@ static inline void wait_for_tx_idle(struct rockchip_spi *rs, bool slave_mode)
 
 static u32 get_fifo_len(struct rockchip_spi *rs)
 {
-	u32 ver;
-
-	ver = readl_relaxed(rs->regs + ROCKCHIP_SPI_VERSION);
-
-	switch (ver) {
+	switch (rs->version) {
 	case ROCKCHIP_SPI_VER2_TYPE1:
 	case ROCKCHIP_SPI_VER2_TYPE2:
 		return 64;
@@ -961,6 +956,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		rs->rsd = rsd;
 	}
 
+	rs->version = readl_relaxed(rs->regs + ROCKCHIP_SPI_VERSION);
 	rs->fifo_len = get_fifo_len(rs);
 	if (!rs->fifo_len) {
 		dev_err(&pdev->dev, "Failed to get fifo length\n");
@@ -1030,7 +1026,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		ctlr->can_dma = rockchip_spi_can_dma;
 	}
 
-	switch (readl_relaxed(rs->regs + ROCKCHIP_SPI_VERSION)) {
+	switch (rs->version) {
 	case ROCKCHIP_SPI_VER2_TYPE2:
 		rs->cs_high_supported = true;
 		ctlr->mode_bits |= SPI_CS_HIGH;
