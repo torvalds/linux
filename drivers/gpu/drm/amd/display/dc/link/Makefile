@@ -24,7 +24,7 @@
 # PHY, HPD, DDC and etc).
 
 LINK = link_hwss_dio.o link_hwss_dpia.o link_hwss_hpo_dp.o link_dp_trace.o \
-link_hpd.o link_ddc.o
+link_hpd.o link_ddc.o link_dpcd.o
 
 AMD_DAL_LINK = $(addprefix $(AMDDALPATH)/dc/link/,$(LINK))
 

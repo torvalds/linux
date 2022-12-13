@@ -55,7 +55,6 @@
 #include "audio.h"
 #include "reg_helper.h"
 #include "panel_cntl.h"
-#include "inc/link_dpcd.h"
 #include "dpcd_defs.h"
 /* include DCE11 register header files */
 #include "dce/dce_11_0_d.h"

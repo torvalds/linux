@@ -48,7 +48,6 @@
 #include "dce/dmub_outbox.h"
 #include "dc_link_dp.h"
 #include "inc/dc_link_dp.h"
-#include "inc/link_dpcd.h"
 #include "dcn10/dcn10_hw_sequencer.h"
 #include "inc/link_enc_cfg.h"
 #include "dcn30/dcn30_vpg.h"

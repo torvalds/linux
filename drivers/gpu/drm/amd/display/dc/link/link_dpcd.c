@@ -23,11 +23,14 @@
  *
  */
 
-#include <inc/core_status.h>
-#include <dc_link.h>
-#include <inc/link_hwss.h>
-#include <inc/link_dpcd.h>
-#include <dc_dp_types.h>
+/* FILE POLICY AND INTENDED USAGE:
+ *
+ * This file implements basic dpcd read/write functionality. It also does basic
+ * dpcd range check to ensure that every dpcd request is compliant with specs
+ * range requirements.
+ */
+
+#include "link_dpcd.h"
 #include <drm/display/drm_dp_helper.h>
 #include "dm_helpers.h"
 

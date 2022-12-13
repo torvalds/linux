@@ -51,7 +51,7 @@
 #include "dmub/dmub_srv.h"
 #include "inc/hw/panel_cntl.h"
 #include "inc/link_enc_cfg.h"
-#include "inc/link_dpcd.h"
+#include "link/link_dpcd.h"
 #include "link/link_dp_trace.h"
 #include "link/link_hpd.h"
 

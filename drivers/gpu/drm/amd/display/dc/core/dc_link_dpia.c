@@ -33,7 +33,7 @@
 #include "link_hwss.h"
 #include "dm_helpers.h"
 #include "dmub/inc/dmub_cmd.h"
-#include "inc/link_dpcd.h"
+#include "link/link_dpcd.h"
 #include "dc_dmub_srv.h"
 
 #define DC_LOGGER \
