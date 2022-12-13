@@ -205,10 +205,10 @@ enum sam_status {
 };
 
 #define STATUS_MASK         0xfe
+
 /*
  *  SENSE KEYS
  */
-
 #define NO_SENSE            0x00
 #define RECOVERED_ERROR     0x01
 #define NOT_READY           0x02
@@ -223,7 +223,7 @@ enum sam_status {
 #define ABORTED_COMMAND     0x0b
 #define VOLUME_OVERFLOW     0x0d
 #define MISCOMPARE          0x0e
-
+#define COMPLETED	    0x0f
 
 /*
  *  DEVICE TYPES
