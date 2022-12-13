@@ -1074,7 +1074,9 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 	int ret = RET_PF_FIXED;
 	bool wrprot = false;
 
-	WARN_ON(sp->role.level != fault->goal_level);
+	if (WARN_ON_ONCE(sp->role.level != fault->goal_level))
+		return RET_PF_RETRY;
+
 	if (unlikely(!fault->slot))
 		new_spte = make_mmio_spte(vcpu, iter->gfn, ACC_ALL);
 	else
