@@ -423,6 +423,8 @@ static void rockchip_spi_dma_rxcb(void *data)
 		writel_relaxed(0, rs->regs + ROCKCHIP_SPI_IMR);
 
 	spi_enable_chip(rs, false);
+	writel_relaxed(0, rs->regs + ROCKCHIP_SPI_IMR);
+	writel_relaxed(0xffffffff, rs->regs + ROCKCHIP_SPI_ICR);
 	spi_finalize_current_transfer(ctlr);
 }
 
@@ -439,6 +441,8 @@ static void rockchip_spi_dma_txcb(void *data)
 	wait_for_tx_idle(rs, ctlr->slave);
 
 	spi_enable_chip(rs, false);
+	writel_relaxed(0, rs->regs + ROCKCHIP_SPI_IMR);
+	writel_relaxed(0xffffffff, rs->regs + ROCKCHIP_SPI_ICR);
 	spi_finalize_current_transfer(ctlr);
 }
 
