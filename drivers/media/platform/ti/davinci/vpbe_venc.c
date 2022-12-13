@@ -655,14 +655,8 @@ static int venc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int venc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver venc_driver = {
 	.probe		= venc_probe,
-	.remove		= venc_remove,
 	.driver		= {
 		.name	= MODULE_NAME,
 	},
