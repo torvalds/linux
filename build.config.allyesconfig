@@ -1,0 +1,16 @@
+################################################################################
+# Common MSM configuration for building non-GKI-based kernels
+DEFCONFIG="gki_defconfig"
+
+function build_defconfig_fragments() {
+	if [[ "${VARIANT}" =~ ^(perf_defconfig)$ ]]; then
+		apply_defconfig_fragment ${KERNEL_DIR}/arch/${ARCH}/configs/vendor/${MSM_ARCH}_GKI.config vendor/${MSM_ARCH}-${DEFCONFIG}
+	fi
+}
+build_defconfig_fragments
+
+function update_config() {
+    (cd ${OUT_DIR} && \
+     make O=${OUT_DIR} $archsubarch CROSS_COMPILE=${CROSS_COMPILE} ${TOOL_ARGS} ${MAKE_ARGS} mod2yesconfig)
+}
+POST_DEFCONFIG_CMDS="update_config"
