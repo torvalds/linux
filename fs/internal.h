@@ -227,28 +227,28 @@ struct xattr_ctx {
 };
 
 
-ssize_t do_getxattr(struct user_namespace *mnt_userns,
+ssize_t do_getxattr(struct mnt_idmap *idmap,
 		    struct dentry *d,
 		    struct xattr_ctx *ctx);
 
 int setxattr_copy(const char __user *name, struct xattr_ctx *ctx);
-int do_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct xattr_ctx *ctx);
 int may_write_xattr(struct user_namespace *mnt_userns, struct inode *inode);
 
 #ifdef CONFIG_FS_POSIX_ACL
-int do_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int do_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	       const char *acl_name, const void *kvalue, size_t size);
-ssize_t do_get_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+ssize_t do_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		   const char *acl_name, void *kvalue, size_t size);
 #else
-static inline int do_set_acl(struct user_namespace *mnt_userns,
+static inline int do_set_acl(struct mnt_idmap *idmap,
 			     struct dentry *dentry, const char *acl_name,
 			     const void *kvalue, size_t size)
 {
 	return -EOPNOTSUPP;
 }
-static inline ssize_t do_get_acl(struct user_namespace *mnt_userns,
+static inline ssize_t do_get_acl(struct mnt_idmap *idmap,
 				 struct dentry *dentry, const char *acl_name,
 				 void *kvalue, size_t size)
 {

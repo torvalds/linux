@@ -5,12 +5,10 @@
 #include <linux/types.h>
 #include <linux/uidgid.h>
 
+struct mnt_idmap;
 struct user_namespace;
-/*
- * Carries the initial idmapping of 0:0:4294967295 which is an identity
- * mapping. This means that {g,u}id 0 is mapped to {g,u}id 0, {g,u}id 1 is
- * mapped to {g,u}id 1, [...], {g,u}id 1000 to {g,u}id 1000, [...].
- */
+
+extern struct mnt_idmap nop_mnt_idmap;
 extern struct user_namespace init_user_ns;
 
 typedef struct {
