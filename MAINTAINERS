@@ -19159,7 +19159,7 @@ M:	Masahisa Kojima <masahisa.kojima@linaro.org>
 M:	Jassi Brar <jaswinder.singh@linaro.org>
 L:	linux-spi@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/spi/spi-synquacer.txt
+F:	Documentation/devicetree/bindings/spi/socionext,synquacer-spi.yaml
 F:	drivers/spi/spi-synquacer.c
 
 SOCIONEXT SYNQUACER I2C DRIVER
