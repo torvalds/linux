@@ -46,14 +46,9 @@ examples:
   - |
     // The UniPhier thermal should be a subnode of a "syscon" compatible node.
 
-    sysctrl@61840000 {
-        compatible = "socionext,uniphier-ld20-sysctrl",
-                     "simple-mfd", "syscon";
-        reg = <0x61840000 0x10000>;
-
-        pvtctl: thermal {
-            compatible = "socionext,uniphier-ld20-thermal";
-            interrupts = <0 3 1>;
-            #thermal-sensor-cells = <0>;
-        };
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    pvtctl: thermal-sensor {
+        compatible = "socionext,uniphier-ld20-thermal";
+        interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+        #thermal-sensor-cells = <0>;
     };
