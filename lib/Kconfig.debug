@@ -2823,6 +2823,22 @@ config RUST_OVERFLOW_CHECKS
 
 	  If unsure, say Y.
 
+config RUST_BUILD_ASSERT_ALLOW
+	bool "Allow unoptimized build-time assertions"
+	depends on RUST
+	help
+	  Controls how are `build_error!` and `build_assert!` handled during build.
+
+	  If calls to them exist in the binary, it may indicate a violated invariant
+	  or that the optimizer failed to verify the invariant during compilation.
+
+	  This should not happen, thus by default the build is aborted. However,
+	  as an escape hatch, you can choose Y here to ignore them during build
+	  and let the check be carried at runtime (with `panic!` being called if
+	  the check fails).
+
+	  If unsure, say N.
+
 endmenu # "Rust"
 
 source "Documentation/Kconfig"
