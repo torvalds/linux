@@ -38,7 +38,7 @@ igt_vma_move_to_active_unlocked(struct i915_vma *vma, struct i915_request *rq,
 	int err;
 
 	i915_vma_lock(vma);
-	err = _i915_vma_move_to_active(vma, rq, &rq->fence, flags);
+	err = i915_vma_move_to_active(vma, rq, flags);
 	i915_vma_unlock(vma);
 	return err;
 }
