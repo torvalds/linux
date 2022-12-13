@@ -409,7 +409,9 @@
  *	@attr is the iattr structure containing the new file attributes.
  *	Return 0 if permission is granted.
  * @path_truncate:
- *	Check permission before truncating a file.
+ *	Check permission before truncating the file indicated by path.
+ *	Note that truncation permissions may also be checked based on
+ *	already opened files, using the @file_truncate hook.
  *	@path contains the path structure for the file.
  *	Return 0 if permission is granted.
  * @inode_getattr:
@@ -609,6 +611,12 @@
  *	This hook allows security modules to control the ability of a process
  *	to receive an open file descriptor via socket IPC.
  *	@file contains the file structure being received.
+ *	Return 0 if permission is granted.
+ * @file_truncate:
+ *	Check permission before truncating a file, i.e. using ftruncate.
+ *	Note that truncation permission may also be checked based on the path,
+ *	using the @path_truncate hook.
+ *	@file contains the file structure for the file.
  *	Return 0 if permission is granted.
  * @file_open:
  *	Save open-time permission checking state for later use upon

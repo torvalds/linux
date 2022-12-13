@@ -185,11 +185,12 @@ static void __init lsm_set_blob_size(int *need, int *lbs)
 {
 	int offset;
 
-	if (*need > 0) {
-		offset = *lbs;
-		*lbs += *need;
-		*need = offset;
-	}
+	if (*need <= 0)
+		return;
+
+	offset = ALIGN(*lbs, sizeof(void *));
+	*lbs = offset + *need;
+	*need = offset;
 }
 
 static void __init lsm_set_blob_sizes(struct lsm_blob_sizes *needed)
@@ -1692,6 +1693,11 @@ int security_file_open(struct file *file)
 		return ret;
 
 	return fsnotify_perm(file, MAY_OPEN);
+}
+
+int security_file_truncate(struct file *file)
+{
+	return call_int_hook(file_truncate, 0, file);
 }
 
 int security_task_alloc(struct task_struct *task, unsigned long clone_flags)
