@@ -1163,7 +1163,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 
 			bch2_trans_unlock(trans);
 			closure_sync(&cl);
-		} while (ret == -EAGAIN);
+		} while (bch2_err_matches(ret, BCH_ERR_operation_blocked));
 	}
 
 	if (ret) {

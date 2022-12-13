@@ -460,7 +460,7 @@ static inline int bch2_journal_preres_get(struct journal *j,
 		return 0;
 
 	if (flags & JOURNAL_RES_GET_NONBLOCK)
-		return -EAGAIN;
+		return -BCH_ERR_journal_preres_get_blocked;
 
 	return __bch2_journal_preres_get(j, res, new_u64s, flags);
 }

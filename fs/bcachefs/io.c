@@ -1264,7 +1264,7 @@ again:
 					      BCH_WRITE_ONLY_SPECIFIED_DEVS))
 				? NULL : &op->cl, &wp));
 		if (unlikely(ret)) {
-			if (ret == -EAGAIN)
+			if (bch2_err_matches(ret, BCH_ERR_operation_blocked))
 				break;
 
 			goto err;

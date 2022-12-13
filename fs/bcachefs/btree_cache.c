@@ -531,7 +531,7 @@ int bch2_btree_cache_cannibalize_lock(struct bch_fs *c, struct closure *cl)
 	}
 
 	trace_and_count(c, btree_cache_cannibalize_lock_fail, c);
-	return -EAGAIN;
+	return -BCH_ERR_btree_cache_cannibalize_lock_blocked;
 
 success:
 	trace_and_count(c, btree_cache_cannibalize_lock, c);
@@ -905,8 +905,6 @@ retry:
 /**
  * bch_btree_node_get - find a btree node in the cache and lock it, reading it
  * in from disk if necessary.
- *
- * If IO is necessary and running under generic_make_request, returns -EAGAIN.
  *
  * The btree node will have either a read or a write lock held, depending on
  * the @write parameter.

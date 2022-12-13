@@ -198,12 +198,6 @@ static bool journal_entry_close(struct journal *j)
 /*
  * should _only_ called from journal_res_get() - when we actually want a
  * journal reservation - journal entry is open means journal is dirty:
- *
- * returns:
- * 0:		success
- * -ENOSPC:	journal currently full, must invoke reclaim
- * -EAGAIN:	journal blocked, must wait
- * -EROFS:	insufficient rw devices or journal error
  */
 static int journal_entry_open(struct journal *j)
 {
@@ -455,7 +449,9 @@ unlock:
 		}
 	}
 
-	return ret == JOURNAL_ERR_insufficient_devices ? -EROFS : -EAGAIN;
+	return ret == JOURNAL_ERR_insufficient_devices
+		? -EROFS
+		: -BCH_ERR_journal_res_get_blocked;
 }
 
 /*
@@ -474,7 +470,8 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 	int ret;
 
 	closure_wait_event(&j->async_wait,
-		   (ret = __journal_res_get(j, res, flags)) != -EAGAIN ||
+		   (ret = __journal_res_get(j, res, flags)) !=
+		   -BCH_ERR_journal_res_get_blocked||
 		   (flags & JOURNAL_RES_GET_NONBLOCK));
 	return ret;
 }
@@ -792,12 +789,9 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		} else {
 			ob[nr_got] = bch2_bucket_alloc(c, ca, RESERVE_none,
 					       false, cl);
-			if (IS_ERR(ob[nr_got])) {
-				ret = cl
-					? -EAGAIN
-					: -BCH_ERR_ENOSPC_bucket_alloc;
+			ret = PTR_ERR_OR_ZERO(ob[nr_got]);
+			if (ret)
 				break;
-			}
 
 			bu[nr_got] = ob[nr_got]->bucket;
 		}
@@ -907,7 +901,7 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 
 	closure_init_stack(&cl);
 
-	while (ja->nr != nr && (ret == 0 || ret == -EAGAIN)) {
+	while (ja->nr != nr && (ret == 0 || ret == -BCH_ERR_bucket_alloc_blocked)) {
 		struct disk_reservation disk_res = { 0, 0 };
 
 		closure_sync(&cl);
