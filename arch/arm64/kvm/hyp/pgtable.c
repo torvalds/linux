@@ -273,15 +273,25 @@ struct hyp_map_data {
 
 static int hyp_set_prot_attr(enum kvm_pgtable_prot prot, kvm_pte_t *ptep)
 {
-	bool device = prot & KVM_PGTABLE_PROT_DEVICE;
-	u32 mtype = device ? MT_DEVICE_nGnRE : MT_NORMAL;
-	kvm_pte_t attr = FIELD_PREP(KVM_PTE_LEAF_ATTR_LO_S1_ATTRIDX, mtype);
-	u32 sh = KVM_PTE_LEAF_ATTR_LO_S1_SH_IS;
 	u32 ap = (prot & KVM_PGTABLE_PROT_W) ? KVM_PTE_LEAF_ATTR_LO_S1_AP_RW :
 					       KVM_PTE_LEAF_ATTR_LO_S1_AP_RO;
+	bool device = prot & KVM_PGTABLE_PROT_DEVICE;
+	u32 sh = KVM_PTE_LEAF_ATTR_LO_S1_SH_IS;
+	bool nc = prot & KVM_PGTABLE_PROT_NC;
+	kvm_pte_t attr;
+	u32 mtype;
 
-	if (!(prot & KVM_PGTABLE_PROT_R))
+	if (!(prot & KVM_PGTABLE_PROT_R) || (device && nc))
 		return -EINVAL;
+
+	if (device)
+		mtype = MT_DEVICE_nGnRnE;
+	else if (nc)
+		mtype = MT_NORMAL_NC;
+	else
+		mtype = MT_NORMAL;
+
+	attr = FIELD_PREP(KVM_PTE_LEAF_ATTR_LO_S1_ATTRIDX, mtype);
 
 	if (prot & KVM_PGTABLE_PROT_X) {
 		if (prot & KVM_PGTABLE_PROT_W)
@@ -563,9 +573,19 @@ static int stage2_set_prot_attr(struct kvm_pgtable *pgt, enum kvm_pgtable_prot p
 				kvm_pte_t *ptep)
 {
 	bool device = prot & KVM_PGTABLE_PROT_DEVICE;
-	kvm_pte_t attr = device ? KVM_S2_MEMATTR(pgt, DEVICE_nGnRE) :
-			    KVM_S2_MEMATTR(pgt, NORMAL);
 	u32 sh = KVM_PTE_LEAF_ATTR_LO_S2_SH_IS;
+	bool nc = prot & KVM_PGTABLE_PROT_NC;
+	kvm_pte_t attr;
+
+	if (device && nc)
+		return -EINVAL;
+
+	if (device)
+		attr = KVM_S2_MEMATTR(pgt, DEVICE_nGnRE);
+	else if (nc)
+		attr = KVM_S2_MEMATTR(pgt, NORMAL_NC);
+	else
+		attr = KVM_S2_MEMATTR(pgt, NORMAL);
 
 	if (!(prot & KVM_PGTABLE_PROT_X))
 		attr |= KVM_PTE_LEAF_ATTR_HI_S2_XN;
