@@ -1433,9 +1433,13 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 	lockdep_assert_irqs_disabled();
 
 
-	/* if draining, only works from the same workqueue are allowed */
-	if (unlikely(wq->flags & __WQ_DRAINING) &&
-	    WARN_ON_ONCE(!is_chained_work(wq)))
+	/*
+	 * For a draining wq, only works from the same workqueue are
+	 * allowed. The __WQ_DESTROYING helps to spot the issue that
+	 * queues a new work item to a wq after destroy_workqueue(wq).
+	 */
+	if (unlikely(wq->flags & (__WQ_DESTROYING | __WQ_DRAINING) &&
+		     WARN_ON_ONCE(!is_chained_work(wq))))
 		return;
 	rcu_read_lock();
 retry:
@@ -4413,6 +4417,11 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	 * lead to sysfs name conflicts.
 	 */
 	workqueue_sysfs_unregister(wq);
+
+	/* mark the workqueue destruction is in progress */
+	mutex_lock(&wq->mutex);
+	wq->flags |= __WQ_DESTROYING;
+	mutex_unlock(&wq->mutex);
 
 	/* drain it before proceeding with destruction */
 	drain_workqueue(wq);
