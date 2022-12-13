@@ -1181,7 +1181,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			goto retry;
 
 		if (iter.level == fault->goal_level)
-			break;
+			goto map_target_level;
 
 		/* Step down into the lower level page table if it exists. */
 		if (is_shadow_present_pte(iter.old_spte) &&
@@ -1203,8 +1203,8 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			r = tdp_mmu_link_sp(kvm, &iter, sp, true);
 
 		/*
-		 * Also force the guest to retry the access if the upper level SPTEs
-		 * aren't in place.
+		 * Force the guest to retry if installing an upper level SPTE
+		 * failed, e.g. because a different task modified the SPTE.
 		 */
 		if (r) {
 			tdp_mmu_free_sp(sp);
@@ -1219,6 +1219,14 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		}
 	}
 
+	/*
+	 * The walk aborted before reaching the target level, e.g. because the
+	 * iterator detected an upper level SPTE was frozen during traversal.
+	 */
+	WARN_ON_ONCE(iter.level == fault->goal_level);
+	goto retry;
+
+map_target_level:
 	ret = tdp_mmu_map_handle_target_level(vcpu, fault, &iter);
 
 retry:
