@@ -271,59 +271,9 @@ static inline u32 mlx5e_decompress_cqes_start(struct mlx5e_rq *rq,
 	return mlx5e_decompress_cqes_cont(rq, wq, 1, budget_rem);
 }
 
-static inline bool mlx5e_rx_cache_put(struct mlx5e_rq *rq, struct page *page)
-{
-	struct mlx5e_page_cache *cache = &rq->page_cache;
-	u32 tail_next = (cache->tail + 1) & (MLX5E_CACHE_SIZE - 1);
-	struct mlx5e_rq_stats *stats = rq->stats;
-
-	if (tail_next == cache->head) {
-		stats->cache_full++;
-		return false;
-	}
-
-	if (!dev_page_is_reusable(page)) {
-		stats->cache_waive++;
-		return false;
-	}
-
-	cache->page_cache[cache->tail] = page;
-	cache->tail = tail_next;
-	return true;
-}
-
-static inline bool mlx5e_rx_cache_get(struct mlx5e_rq *rq, struct page **pagep)
-{
-	struct mlx5e_page_cache *cache = &rq->page_cache;
-	struct mlx5e_rq_stats *stats = rq->stats;
-	dma_addr_t addr;
-
-	if (unlikely(cache->head == cache->tail)) {
-		stats->cache_empty++;
-		return false;
-	}
-
-	if (page_ref_count(cache->page_cache[cache->head]) != 1) {
-		stats->cache_busy++;
-		return false;
-	}
-
-	*pagep = cache->page_cache[cache->head];
-	cache->head = (cache->head + 1) & (MLX5E_CACHE_SIZE - 1);
-	stats->cache_reuse++;
-
-	addr = page_pool_get_dma_addr(*pagep);
-	/* Non-XSK always uses PAGE_SIZE. */
-	dma_sync_single_for_device(rq->pdev, addr, PAGE_SIZE, rq->buff.map_dir);
-	return true;
-}
-
 static inline int mlx5e_page_alloc_pool(struct mlx5e_rq *rq, struct page **pagep)
 {
 	dma_addr_t addr;
-
-	if (mlx5e_rx_cache_get(rq, pagep))
-		return 0;
 
 	*pagep = page_pool_dev_alloc_pages(rq->page_pool);
 	if (unlikely(!*pagep))
@@ -353,9 +303,6 @@ void mlx5e_page_dma_unmap(struct mlx5e_rq *rq, struct page *page)
 void mlx5e_page_release_dynamic(struct mlx5e_rq *rq, struct page *page, bool recycle)
 {
 	if (likely(recycle)) {
-		if (mlx5e_rx_cache_put(rq, page))
-			return;
-
 		mlx5e_page_dma_unmap(rq, page);
 		page_pool_recycle_direct(rq->page_pool, page);
 	} else {

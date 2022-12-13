@@ -628,11 +628,6 @@ struct mlx5e_mpw_info {
 #define MLX5E_CACHE_UNIT (MLX5_MPWRQ_MAX_PAGES_PER_WQE > NAPI_POLL_WEIGHT ? \
 			  MLX5_MPWRQ_MAX_PAGES_PER_WQE : NAPI_POLL_WEIGHT)
 #define MLX5E_CACHE_SIZE	(4 * roundup_pow_of_two(MLX5E_CACHE_UNIT))
-struct mlx5e_page_cache {
-	u32 head;
-	u32 tail;
-	struct page *page_cache[MLX5E_CACHE_SIZE];
-};
 
 struct mlx5e_rq;
 typedef void (*mlx5e_fp_handle_rx_cqe)(struct mlx5e_rq*, struct mlx5_cqe64*);
@@ -745,7 +740,6 @@ struct mlx5e_rq {
 	struct mlx5e_rq_stats *stats;
 	struct mlx5e_cq        cq;
 	struct mlx5e_cq_decomp cqd;
-	struct mlx5e_page_cache page_cache;
 	struct hwtstamp_config *tstamp;
 	struct mlx5_clock      *clock;
 	struct mlx5e_icosq    *icosq;
