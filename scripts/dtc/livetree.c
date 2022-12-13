@@ -581,12 +581,39 @@ struct node *get_node_by_phandle(struct node *tree, cell_t phandle)
 
 struct node *get_node_by_ref(struct node *tree, const char *ref)
 {
+	struct node *target = tree;
+	const char *label = NULL, *path = NULL;
+
 	if (streq(ref, "/"))
 		return tree;
-	else if (ref[0] == '/')
-		return get_node_by_path(tree, ref);
+
+	if (ref[0] == '/')
+		path = ref;
 	else
-		return get_node_by_label(tree, ref);
+		label = ref;
+
+	if (label) {
+		const char *slash = strchr(label, '/');
+		char *buf = NULL;
+
+		if (slash) {
+			buf = xstrndup(label, slash - label);
+			label = buf;
+			path = slash + 1;
+		}
+
+		target = get_node_by_label(tree, label);
+
+		free(buf);
+
+		if (!target)
+			return NULL;
+	}
+
+	if (path)
+		target = get_node_by_path(target, path);
+
+	return target;
 }
 
 cell_t get_node_phandle(struct node *root, struct node *node)
@@ -891,6 +918,12 @@ static void add_fixup_entry(struct dt_info *dti, struct node *fn,
 
 	/* m->ref can only be a REF_PHANDLE, but check anyway */
 	assert(m->type == REF_PHANDLE);
+
+	/* The format only permits fixups for references to label, not
+	 * references to path */
+	if (strchr(m->ref, '/'))
+		die("Can't generate fixup for reference to path &{%s}\n",
+		    m->ref);
 
 	/* there shouldn't be any ':' in the arguments */
 	if (strchr(node->fullpath, ':') || strchr(prop->name, ':'))

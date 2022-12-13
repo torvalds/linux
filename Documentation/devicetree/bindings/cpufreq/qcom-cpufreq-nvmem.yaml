@@ -38,7 +38,7 @@ properties:
     type: object
 
     patternProperties:
-      'cpu@[0-9a-f]+':
+      '^cpu@[0-9a-f]+$':
         type: object
 
         properties:

@@ -92,5 +92,4 @@ examples:
                      <&clk IMX8MP_CLK_ENET_QOS>;
             clock-names = "stmmaceth", "pclk", "ptp_ref", "tx";
             phy-mode = "rgmii";
-            status = "disabled";
     };

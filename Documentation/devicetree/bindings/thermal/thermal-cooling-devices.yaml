@@ -76,9 +76,13 @@ examples:
                     next-level-cache = <&L2_0>;
                     L2_0: l2-cache {
                             compatible = "cache";
+                            cache-unified;
+                            cache-level = <2>;
                             next-level-cache = <&L3_0>;
                             L3_0: l3-cache {
                                     compatible = "cache";
+                                    cache-unified;
+                                    cache-level = <3>;
                             };
                     };
           };

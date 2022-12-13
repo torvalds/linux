@@ -47,5 +47,4 @@ examples:
       compatible = "nvidia,tegra234-ccplex-cluster";
       reg = <0x0e000000 0x5ffff>;
       nvidia,bpmp = <&bpmp>;
-      status = "okay";
     };

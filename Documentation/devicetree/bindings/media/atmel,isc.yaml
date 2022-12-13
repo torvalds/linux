@@ -45,7 +45,7 @@ properties:
 
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base
-    unevaluatedProperties: false
+    additionalProperties: false
     description:
       Input port node, single endpoint describing the input pad.
 
@@ -76,8 +76,6 @@ properties:
           - remote-endpoint
 
         additionalProperties: false
-
-    additionalProperties: false
 
 required:
   - compatible
