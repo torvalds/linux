@@ -3866,7 +3866,7 @@ static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 #ifdef __KVM_HAVE_ARCH_VCPU_DEBUGFS
 static int vcpu_get_pid(void *data, u64 *val)
 {
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) data;
+	struct kvm_vcpu *vcpu = data;
 	*val = pid_nr(rcu_access_pointer(vcpu->pid));
 	return 0;
 }
@@ -5572,8 +5572,7 @@ static int kvm_debugfs_open(struct inode *inode, struct file *file,
 			   const char *fmt)
 {
 	int ret;
-	struct kvm_stat_data *stat_data = (struct kvm_stat_data *)
-					  inode->i_private;
+	struct kvm_stat_data *stat_data = inode->i_private;
 
 	/*
 	 * The debugfs files are a reference to the kvm struct which
@@ -5594,8 +5593,7 @@ static int kvm_debugfs_open(struct inode *inode, struct file *file,
 
 static int kvm_debugfs_release(struct inode *inode, struct file *file)
 {
-	struct kvm_stat_data *stat_data = (struct kvm_stat_data *)
-					  inode->i_private;
+	struct kvm_stat_data *stat_data = inode->i_private;
 
 	simple_attr_release(inode, file);
 	kvm_put_kvm(stat_data->kvm);
@@ -5644,7 +5642,7 @@ static int kvm_clear_stat_per_vcpu(struct kvm *kvm, size_t offset)
 static int kvm_stat_data_get(void *data, u64 *val)
 {
 	int r = -EFAULT;
-	struct kvm_stat_data *stat_data = (struct kvm_stat_data *)data;
+	struct kvm_stat_data *stat_data = data;
 
 	switch (stat_data->kind) {
 	case KVM_STAT_VM:
@@ -5663,7 +5661,7 @@ static int kvm_stat_data_get(void *data, u64 *val)
 static int kvm_stat_data_clear(void *data, u64 val)
 {
 	int r = -EFAULT;
-	struct kvm_stat_data *stat_data = (struct kvm_stat_data *)data;
+	struct kvm_stat_data *stat_data = data;
 
 	if (val)
 		return -EINVAL;
