@@ -21,6 +21,7 @@
 #include <linux/seq_file.h>
 #include <linux/poll.h>
 #include <linux/device.h>
+#include <linux/kstrtox.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 #include "input-compat.h"
@@ -1465,7 +1466,7 @@ static ssize_t inhibited_store(struct device *dev,
 	ssize_t rv;
 	bool inhibited;
 
-	if (strtobool(buf, &inhibited))
+	if (kstrtobool(buf, &inhibited))
 		return -EINVAL;
 
 	if (inhibited)

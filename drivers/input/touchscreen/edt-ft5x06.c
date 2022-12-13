@@ -1131,9 +1131,9 @@ static void edt_ft5x06_disable_regulators(void *arg)
 	regulator_disable(data->iovcc);
 }
 
-static int edt_ft5x06_ts_probe(struct i2c_client *client,
-					 const struct i2c_device_id *id)
+static int edt_ft5x06_ts_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	const struct edt_i2c_chip_data *chip_data;
 	struct edt_ft5x06_ts_data *tsdata;
 	u8 buf[2] = { 0xfc, 0x00 };
@@ -1504,7 +1504,7 @@ static struct i2c_driver edt_ft5x06_ts_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.id_table = edt_ft5x06_ts_id,
-	.probe    = edt_ft5x06_ts_probe,
+	.probe_new = edt_ft5x06_ts_probe,
 	.remove   = edt_ft5x06_ts_remove,
 };
 
