@@ -39,7 +39,7 @@ static void * __init kasan_early_alloc_segment(void)
 	if (segment_pos < segment_low)
 		kasan_early_panic("out of memory during initialisation\n");
 
-	return (void *)segment_pos;
+	return __va(segment_pos);
 }
 
 static void * __init kasan_early_alloc_pages(unsigned int order)
@@ -49,7 +49,7 @@ static void * __init kasan_early_alloc_pages(unsigned int order)
 	if (pgalloc_pos < pgalloc_low)
 		kasan_early_panic("out of memory during initialisation\n");
 
-	return (void *)pgalloc_pos;
+	return __va(pgalloc_pos);
 }
 
 static void * __init kasan_early_crst_alloc(unsigned long val)
