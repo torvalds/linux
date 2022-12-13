@@ -4150,7 +4150,8 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 	int rc;
 	struct TCP_Server_Info *server = tcon->ses->server;
 	const struct smb_version_operations *ops = server->ops;
-	struct cifs_tcon *ipc = tcon->ses->tcon_ipc;
+	struct cifs_ses *root_ses = CIFS_DFS_ROOT_SES(tcon->ses);
+	struct cifs_tcon *ipc = root_ses->tcon_ipc;
 	char *share = NULL, *prefix = NULL;
 	const char *tcp_host;
 	size_t tcp_host_len;
@@ -4208,7 +4209,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 		 * reconnect so either the demultiplex thread or the echo worker will reconnect to
 		 * newly resolved target.
 		 */
-		if (dfs_cache_find(xid, tcon->ses, cifs_sb->local_nls, cifs_remap(cifs_sb), target,
+		if (dfs_cache_find(xid, root_ses, cifs_sb->local_nls, cifs_remap(cifs_sb), target,
 				   NULL, &ntl)) {
 			rc = ops->tree_connect(xid, tcon->ses, tree, tcon, cifs_sb->local_nls);
 			if (rc)

@@ -107,6 +107,8 @@
 
 #define CIFS_MAX_WORKSTATION_LEN  (__NEW_UTS_LEN + 1)  /* reasonable max for client */
 
+#define CIFS_DFS_ROOT_SES(ses) ((ses)->dfs_root_ses ?: (ses))
+
 /*
  * CIFS vfs client Status information (based on what we know.)
  */
@@ -1099,6 +1101,7 @@ struct cifs_ses {
 	 */
 	unsigned long chans_need_reconnect;
 	/* ========= end: protected by chan_lock ======== */
+	struct cifs_ses *dfs_root_ses;
 };
 
 static inline bool
