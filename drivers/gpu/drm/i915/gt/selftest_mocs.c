@@ -228,9 +228,7 @@ static int check_mocs_engine(struct live_mocs *arg,
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
-	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	i915_vma_unlock(vma);
+	err = igt_vma_move_to_active_unlocked(vma, rq, EXEC_OBJECT_WRITE);
 
 	/* Read the mocs tables back using SRM */
 	offset = i915_ggtt_offset(vma);

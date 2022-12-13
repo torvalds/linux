@@ -1551,9 +1551,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 		goto err_unpin;
 	}
 
-	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, 0);
-	i915_vma_unlock(vma);
+	err = igt_vma_move_to_active_unlocked(vma, rq, 0);
 	if (err)
 		goto skip_request;
 
@@ -1686,9 +1684,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 		goto err_unpin;
 	}
 
-	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	i915_vma_unlock(vma);
+	err = igt_vma_move_to_active_unlocked(vma, rq, EXEC_OBJECT_WRITE);
 	if (err)
 		goto skip_request;
 

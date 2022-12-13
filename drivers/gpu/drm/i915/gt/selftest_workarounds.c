@@ -138,9 +138,7 @@ read_nonprivs(struct intel_context *ce)
 		goto err_pin;
 	}
 
-	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	i915_vma_unlock(vma);
+	err = igt_vma_move_to_active_unlocked(vma, rq, EXEC_OBJECT_WRITE);
 	if (err)
 		goto err_req;
 
@@ -853,9 +851,7 @@ static int read_whitelisted_registers(struct intel_context *ce,
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
-	i915_vma_lock(results);
-	err = i915_vma_move_to_active(results, rq, EXEC_OBJECT_WRITE);
-	i915_vma_unlock(results);
+	err = igt_vma_move_to_active_unlocked(results, rq, EXEC_OBJECT_WRITE);
 	if (err)
 		goto err_req;
 
@@ -935,9 +931,7 @@ static int scrub_whitelisted_registers(struct intel_context *ce)
 			goto err_request;
 	}
 
-	i915_vma_lock(batch);
-	err = i915_vma_move_to_active(batch, rq, 0);
-	i915_vma_unlock(batch);
+	err = igt_vma_move_to_active_unlocked(batch, rq, 0);
 	if (err)
 		goto err_request;
 
