@@ -34,13 +34,13 @@ unevaluatedProperties: false
 examples:
   - |
     spi {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      eeram@0 {
-        compatible = "microchip,48l640";
-        reg = <0>;
-        spi-max-frequency = <20000000>;
-      };
+        eeram@0 {
+            compatible = "microchip,48l640";
+            reg = <0>;
+            spi-max-frequency = <20000000>;
+        };
     };
 ...
