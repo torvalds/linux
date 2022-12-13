@@ -245,7 +245,8 @@ It's slow but very precise.
  Ngid                        NUMA group ID (0 if none)
  Pid                         process id
  PPid                        process id of the parent process
- TracerPid                   PID of process tracing this process (0 if not)
+ TracerPid                   PID of process tracing this process (0 if not, or
+                             the tracer is outside of the current pid namespace)
  Uid                         Real, effective, saved set, and  file system UIDs
  Gid                         Real, effective, saved set, and  file system GIDs
  FDSize                      number of file descriptor slots currently allocated

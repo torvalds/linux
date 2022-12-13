@@ -139,6 +139,8 @@ Highest valid capability of the running kernel.  Exports
 ``CAP_LAST_CAP`` from the kernel.
 
 
+.. _core_pattern:
+
 core_pattern
 ============
 

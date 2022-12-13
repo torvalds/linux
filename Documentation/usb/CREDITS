@@ -1,7 +1,7 @@
 Credits for the Simple Linux USB Driver:
 
 The following people have contributed to this code (in alphabetical
-order by last name).  I'm sure this list should be longer, its
+order by last name).  I'm sure this list should be longer, it's
 difficult to maintain, add yourself with a patch if desired.
 
   Georg Acher <acher@informatik.tu-muenchen.de>
@@ -126,7 +126,7 @@ THANKS file in Inaky's driver):
         - Jochen Karrer <karrer@wpfd25.physik.uni-wuerzburg.de>, for
           pointing out mortal bugs and giving advice.
 
-        - Edmund Humemberger <ed@atnet.at>, for it's great work on
+        - Edmund Humemberger <ed@atnet.at>, for his great work on
           public relationships and general management stuff for the
           Linux-USB effort.
 
@@ -136,7 +136,7 @@ THANKS file in Inaky's driver):
         - Ric Klaren <ia_ric@cs.utwente.nl> for doing nice
           introductory documents (competing with Alberto's :).
 
-        - Christian Groessler <cpg@aladdin.de>, for it's help on those
+        - Christian Groessler <cpg@aladdin.de>, for his help on those
           itchy bits ... :)
 
         - Paul MacKerras for polishing OHCI and pushing me harder for

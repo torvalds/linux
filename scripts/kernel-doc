@@ -866,48 +866,53 @@ sub output_function_rst(%) {
 	print "\n";
     }
 
-    print "**Parameters**\n\n";
+    #
+    # Put our descriptive text into a container (thus an HTML <div>) to help
+    # set the function prototypes apart.
+    #
+    print ".. container:: kernelindent\n\n";
     $lineprefix = "  ";
+    print $lineprefix . "**Parameters**\n\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	my $parameter_name = $parameter;
 	$parameter_name =~ s/\[.*//;
 	$type = $args{'parametertypes'}{$parameter};
 
 	if ($type ne "") {
-	    print "``$type``\n";
+	    print $lineprefix . "``$type``\n";
 	} else {
-	    print "``$parameter``\n";
+	    print $lineprefix . "``$parameter``\n";
 	}
 
         print_lineno($parameterdesc_start_lines{$parameter_name});
 
+	$lineprefix = "    ";
 	if (defined($args{'parameterdescs'}{$parameter_name}) &&
 	    $args{'parameterdescs'}{$parameter_name} ne $undescribed) {
 	    output_highlight_rst($args{'parameterdescs'}{$parameter_name});
 	} else {
-	    print "  *undescribed*\n";
+	    print $lineprefix . "*undescribed*\n";
 	}
+	$lineprefix = "  ";
 	print "\n";
     }
 
-    $lineprefix = $oldprefix;
     output_section_rst(@_);
+    $lineprefix = $oldprefix;
 }
 
 sub output_section_rst(%) {
     my %args = %{$_[0]};
     my $section;
     my $oldprefix = $lineprefix;
-    $lineprefix = "";
 
     foreach $section (@{$args{'sectionlist'}}) {
-	print "**$section**\n\n";
+	print $lineprefix . "**$section**\n\n";
         print_lineno($section_start_lines{$section});
 	output_highlight_rst($args{'sections'}{$section});
 	print "\n";
     }
     print "\n";
-    $lineprefix = $oldprefix;
 }
 
 sub output_enum_rst(%) {
@@ -915,6 +920,7 @@ sub output_enum_rst(%) {
     my ($parameter);
     my $oldprefix = $lineprefix;
     my $count;
+    my $outer;
 
     if ($sphinx_major < 3) {
 	my $name = "enum " . $args{'enum'};
@@ -924,22 +930,25 @@ sub output_enum_rst(%) {
 	print "\n\n.. c:enum:: " . $name . "\n\n";
     }
     print_lineno($declaration_start_line);
-    $lineprefix = "   ";
+    $lineprefix = "  ";
     output_highlight_rst($args{'purpose'});
     print "\n";
 
-    print "**Constants**\n\n";
-    $lineprefix = "  ";
+    print ".. container:: kernelindent\n\n";
+    $outer = $lineprefix . "  ";
+    $lineprefix = $outer . "  ";
+    print $outer . "**Constants**\n\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
-	print "``$parameter``\n";
+	print $outer . "``$parameter``\n";
+
 	if ($args{'parameterdescs'}{$parameter} ne $undescribed) {
 	    output_highlight_rst($args{'parameterdescs'}{$parameter});
 	} else {
-	    print "  *undescribed*\n";
+	    print $lineprefix . "*undescribed*\n";
 	}
 	print "\n";
     }
-
+    print "\n";
     $lineprefix = $oldprefix;
     output_section_rst(@_);
 }
@@ -982,18 +991,19 @@ sub output_struct_rst(%) {
 	}
     }
     print_lineno($declaration_start_line);
-    $lineprefix = "   ";
+    $lineprefix = "  ";
     output_highlight_rst($args{'purpose'});
     print "\n";
 
-    print "**Definition**\n\n";
-    print "::\n\n";
+    print ".. container:: kernelindent\n\n";
+    print $lineprefix . "**Definition**::\n\n";
     my $declaration = $args{'definition'};
-    $declaration =~ s/\t/  /g;
-    print "  " . $args{'type'} . " " . $args{'struct'} . " {\n$declaration  };\n\n";
+    $lineprefix = $lineprefix . "  ";
+    $declaration =~ s/\t/$lineprefix/g;
+    print $lineprefix . $args{'type'} . " " . $args{'struct'} . " {\n$declaration" . $lineprefix . "};\n\n";
 
-    print "**Members**\n\n";
     $lineprefix = "  ";
+    print $lineprefix . "**Members**\n\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	($parameter =~ /^#/) && next;
 
@@ -1003,8 +1013,10 @@ sub output_struct_rst(%) {
 	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
 	$type = $args{'parametertypes'}{$parameter};
         print_lineno($parameterdesc_start_lines{$parameter_name});
-	print "``" . $parameter . "``\n";
+	print $lineprefix . "``" . $parameter . "``\n";
+	$lineprefix = "    ";
 	output_highlight_rst($args{'parameterdescs'}{$parameter_name});
+	$lineprefix = "  ";
 	print "\n";
     }
     print "\n";

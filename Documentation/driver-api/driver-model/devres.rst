@@ -287,12 +287,16 @@ IIO
   devm_iio_device_register()
   devm_iio_dmaengine_buffer_setup()
   devm_iio_kfifo_buffer_setup()
+  devm_iio_kfifo_buffer_setup_ext()
   devm_iio_map_array_register()
   devm_iio_triggered_buffer_setup()
+  devm_iio_triggered_buffer_setup_ext()
   devm_iio_trigger_alloc()
   devm_iio_trigger_register()
   devm_iio_channel_get()
   devm_iio_channel_get_all()
+  devm_iio_hw_consumer_alloc()
+  devm_fwnode_iio_channel_get_by_name()
 
 INPUT
   devm_input_allocate_device()
@@ -339,7 +343,10 @@ IRQ
 
 LED
   devm_led_classdev_register()
+  devm_led_classdev_register_ext()
   devm_led_classdev_unregister()
+  devm_led_trigger_register()
+  devm_of_led_get()
 
 MDIO
   devm_mdiobus_alloc()
@@ -403,6 +410,7 @@ POWER
   devm_reboot_mode_unregister()
 
 PWM
+  devm_pwmchip_add()
   devm_pwm_get()
   devm_fwnode_pwm_get()
 
