@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kasan.h>
 #include <linux/sched/task.h>
-#include <linux/memblock.h>
 #include <linux/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/kasan.h>
@@ -15,15 +14,10 @@
 
 static unsigned long segment_pos __initdata;
 static unsigned long segment_low __initdata;
-static unsigned long pgalloc_pos __initdata;
-static unsigned long pgalloc_low __initdata;
-static unsigned long pgalloc_freeable __initdata;
 static bool has_edat __initdata;
 static bool has_nx __initdata;
 
 #define __sha(x) ((unsigned long)kasan_mem_to_shadow((void *)x))
-
-static pgd_t early_pg_dir[PTRS_PER_PGD] __initdata __aligned(PAGE_SIZE);
 
 static void __init kasan_early_panic(const char *reason)
 {
@@ -229,29 +223,6 @@ static void __init kasan_early_pgtable_populate(unsigned long address,
 	}
 }
 
-static void __init kasan_set_pgd(pgd_t *pgd, unsigned long asce_type)
-{
-	unsigned long asce_bits;
-
-	asce_bits = asce_type | _ASCE_TABLE_LENGTH;
-	S390_lowcore.kernel_asce = (__pa(pgd) & PAGE_MASK) | asce_bits;
-	S390_lowcore.user_asce = S390_lowcore.kernel_asce;
-
-	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
-	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
-}
-
-static void __init kasan_enable_dat(void)
-{
-	psw_t psw;
-
-	psw.mask = __extract_psw();
-	psw_bits(psw).dat = 1;
-	psw_bits(psw).as = PSW_BITS_AS_HOME;
-	__load_psw_mask(psw.mask);
-}
-
 static void __init kasan_early_detect_facilities(void)
 {
 	if (test_facility(8)) {
@@ -272,7 +243,6 @@ void __init kasan_early_init(void)
 	p4d_t p4d_z = __p4d(__pa(kasan_early_shadow_pud) | _REGION2_ENTRY);
 	unsigned long untracked_end = MODULES_VADDR;
 	unsigned long shadow_alloc_size;
-	unsigned long initrd_end;
 	unsigned long memsize;
 
 	kasan_early_detect_facilities();
@@ -298,36 +268,24 @@ void __init kasan_early_init(void)
 
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, P4D_SIZE));
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, P4D_SIZE));
-	crst_table_init((unsigned long *)early_pg_dir, _REGION2_ENTRY_EMPTY);
 
 	/* init kasan zero shadow */
-	crst_table_init((unsigned long *)kasan_early_shadow_p4d,
-				p4d_val(p4d_z));
-	crst_table_init((unsigned long *)kasan_early_shadow_pud,
-				pud_val(pud_z));
-	crst_table_init((unsigned long *)kasan_early_shadow_pmd,
-				pmd_val(pmd_z));
+	crst_table_init((unsigned long *)kasan_early_shadow_p4d, p4d_val(p4d_z));
+	crst_table_init((unsigned long *)kasan_early_shadow_pud, pud_val(pud_z));
+	crst_table_init((unsigned long *)kasan_early_shadow_pmd, pmd_val(pmd_z));
 	memset64((u64 *)kasan_early_shadow_pte, pte_val(pte_z), PTRS_PER_PTE);
 
 	shadow_alloc_size = memsize >> KASAN_SHADOW_SCALE_SHIFT;
-	pgalloc_low = round_up((unsigned long)_end, _SEGMENT_SIZE);
-	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD)) {
-		initrd_end =
-		    round_up(initrd_data.start + initrd_data.size, _SEGMENT_SIZE);
-		pgalloc_low = max(pgalloc_low, initrd_end);
-	}
 
 	if (pgalloc_low + shadow_alloc_size > memsize)
 		kasan_early_panic("out of memory during initialisation\n");
 
 	if (has_edat) {
-		segment_pos = round_down(memsize, _SEGMENT_SIZE);
+		segment_pos = round_down(pgalloc_pos, _SEGMENT_SIZE);
 		segment_low = segment_pos - shadow_alloc_size;
+		segment_low = round_down(segment_low, _SEGMENT_SIZE);
 		pgalloc_pos = segment_low;
-	} else {
-		pgalloc_pos = memsize;
 	}
-	init_mm.pgd = early_pg_dir;
 	/*
 	 * Current memory layout:
 	 * +- 0 -------------+	   +- shadow start -+
@@ -376,40 +334,7 @@ void __init kasan_early_init(void)
 				     POPULATE_ZERO_SHADOW);
 	kasan_early_pgtable_populate(__sha(MODULES_END), __sha(_REGION1_SIZE),
 				     POPULATE_ZERO_SHADOW);
-	/* memory allocated for identity mapping structs will be freed later */
-	pgalloc_freeable = pgalloc_pos;
-	/* populate identity mapping */
-	kasan_early_pgtable_populate(0, memsize, POPULATE_ONE2ONE);
-	kasan_set_pgd(early_pg_dir, _ASCE_TYPE_REGION2);
-	kasan_enable_dat();
 	/* enable kasan */
 	init_task.kasan_depth = 0;
-	memblock_reserve(pgalloc_pos, memsize - pgalloc_pos);
 	sclp_early_printk("KernelAddressSanitizer initialized\n");
-}
-
-void __init kasan_copy_shadow_mapping(void)
-{
-	/*
-	 * At this point we are still running on early pages setup early_pg_dir,
-	 * while swapper_pg_dir has just been initialized with identity mapping.
-	 * Carry over shadow memory region from early_pg_dir to swapper_pg_dir.
-	 */
-
-	pgd_t *pg_dir_src;
-	pgd_t *pg_dir_dst;
-	p4d_t *p4_dir_src;
-	p4d_t *p4_dir_dst;
-
-	pg_dir_src = pgd_offset_raw(early_pg_dir, KASAN_SHADOW_START);
-	pg_dir_dst = pgd_offset_raw(init_mm.pgd, KASAN_SHADOW_START);
-	p4_dir_src = p4d_offset(pg_dir_src, KASAN_SHADOW_START);
-	p4_dir_dst = p4d_offset(pg_dir_dst, KASAN_SHADOW_START);
-	memcpy(p4_dir_dst, p4_dir_src,
-	       (KASAN_SHADOW_SIZE >> P4D_SHIFT) * sizeof(p4d_t));
-}
-
-void __init kasan_free_early_identity(void)
-{
-	memblock_phys_free(pgalloc_pos, pgalloc_freeable - pgalloc_pos);
 }

@@ -16,7 +16,7 @@ struct machine_info {
 
 struct vmlinux_info {
 	unsigned long default_lma;
-	void (*entry)(void);
+	unsigned long entry;
 	unsigned long image_size;	/* does not include .bss */
 	unsigned long bss_size;		/* uncompressed image .bss size */
 	unsigned long bootdata_off;
@@ -27,6 +27,9 @@ struct vmlinux_info {
 	unsigned long rela_dyn_start;
 	unsigned long rela_dyn_end;
 	unsigned long amode31_size;
+	unsigned long init_mm_off;
+	unsigned long swapper_pg_dir_off;
+	unsigned long invalid_pg_dir_off;
 };
 
 void startup_kernel(void);
@@ -41,6 +44,7 @@ void print_missing_facilities(void);
 void sclp_early_setup_buffer(void);
 void print_pgm_check_info(void);
 unsigned long get_random_base(unsigned long safe_addr);
+void setup_vmem(unsigned long online_end, unsigned long asce_limit);
 void __printf(1, 2) decompressor_printk(const char *fmt, ...);
 void error(char *m);
 

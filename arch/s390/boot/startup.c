@@ -11,6 +11,7 @@
 #include <asm/diag.h>
 #include <asm/uv.h>
 #include <asm/abs_lowcore.h>
+#include <asm/mem_detect.h>
 #include "decompressor.h"
 #include "boot.h"
 #include "uv.h"
@@ -166,9 +167,10 @@ static void setup_ident_map_size(unsigned long max_physmem_end)
 #endif
 }
 
-static void setup_kernel_memory_layout(void)
+static unsigned long setup_kernel_memory_layout(void)
 {
 	unsigned long vmemmap_start;
+	unsigned long asce_limit;
 	unsigned long rte_size;
 	unsigned long pages;
 	unsigned long vmax;
@@ -183,10 +185,10 @@ static void setup_kernel_memory_layout(void)
 	    vmalloc_size > _REGION2_SIZE ||
 	    vmemmap_start + vmemmap_size + vmalloc_size + MODULES_LEN >
 		    _REGION2_SIZE) {
-		vmax = _REGION1_SIZE;
+		asce_limit = _REGION1_SIZE;
 		rte_size = _REGION2_SIZE;
 	} else {
-		vmax = _REGION2_SIZE;
+		asce_limit = _REGION2_SIZE;
 		rte_size = _REGION3_SIZE;
 	}
 	/*
@@ -194,7 +196,7 @@ static void setup_kernel_memory_layout(void)
 	 * secure storage limit, so that any vmalloc allocation
 	 * we do could be used to back secure guest storage.
 	 */
-	vmax = adjust_to_uv_max(vmax);
+	vmax = adjust_to_uv_max(asce_limit);
 #ifdef CONFIG_KASAN
 	/* force vmalloc and modules below kasan shadow */
 	vmax = min(vmax, KASAN_SHADOW_START);
@@ -223,6 +225,8 @@ static void setup_kernel_memory_layout(void)
 	/* make sure vmemmap doesn't overlay with vmalloc area */
 	VMALLOC_START = max(vmemmap_start + vmemmap_size, VMALLOC_START);
 	vmemmap = (struct page *)vmemmap_start;
+
+	return asce_limit;
 }
 
 /*
@@ -256,6 +260,9 @@ static void offset_vmlinux_info(unsigned long offset)
 	vmlinux.rela_dyn_start += offset;
 	vmlinux.rela_dyn_end += offset;
 	vmlinux.dynsym_start += offset;
+	vmlinux.init_mm_off += offset;
+	vmlinux.swapper_pg_dir_off += offset;
+	vmlinux.invalid_pg_dir_off += offset;
 }
 
 static unsigned long reserve_amode31(unsigned long safe_addr)
@@ -268,7 +275,10 @@ void startup_kernel(void)
 {
 	unsigned long random_lma;
 	unsigned long safe_addr;
+	unsigned long asce_limit;
+	unsigned long online_end;
 	void *img;
+	psw_t psw;
 
 	detect_facilities();
 
@@ -290,7 +300,8 @@ void startup_kernel(void)
 	sanitize_prot_virt_host();
 	setup_ident_map_size(detect_memory());
 	setup_vmalloc_size();
-	setup_kernel_memory_layout();
+	asce_limit = setup_kernel_memory_layout();
+	online_end = min(get_mem_detect_end(), ident_map_size);
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {
 		random_lma = get_random_base(safe_addr);
@@ -307,9 +318,23 @@ void startup_kernel(void)
 	} else if (__kaslr_offset)
 		memcpy((void *)vmlinux.default_lma, img, vmlinux.image_size);
 
+	/*
+	 * The order of the following operations is important:
+	 *
+	 * - handle_relocs() must follow clear_bss_section() to establish static
+	 *   memory references to data in .bss to be used by setup_vmem()
+	 *   (i.e init_mm.pgd)
+	 *
+	 * - setup_vmem() must follow handle_relocs() to be able using
+	 *   static memory references to data in .bss (i.e init_mm.pgd)
+	 *
+	 * - copy_bootdata() must follow setup_vmem() to propagate changes to
+	 *   bootdata made by setup_vmem()
+	 */
 	clear_bss_section();
-	copy_bootdata();
 	handle_relocs(__kaslr_offset);
+	setup_vmem(online_end, asce_limit);
+	copy_bootdata();
 
 	if (__kaslr_offset) {
 		/*
@@ -321,5 +346,11 @@ void startup_kernel(void)
 		if (IS_ENABLED(CONFIG_KERNEL_UNCOMPRESSED))
 			memset(img, 0, vmlinux.image_size);
 	}
-	vmlinux.entry();
+
+	/*
+	 * Jump to the decompressed kernel entry point and switch DAT mode on.
+	 */
+	psw.addr = vmlinux.entry;
+	psw.mask = PSW_KERNEL_BITS;
+	__load_psw(psw);
 }

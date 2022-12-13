@@ -23,6 +23,7 @@
 #include <asm/uv.h>
 
 extern pgd_t swapper_pg_dir[];
+extern pgd_t invalid_pg_dir[];
 extern void paging_init(void);
 extern unsigned long s390_invalid_asce;
 

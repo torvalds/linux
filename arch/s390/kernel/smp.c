@@ -327,7 +327,7 @@ static void pcpu_delegate(struct pcpu *pcpu,
 
 	lc = lowcore_ptr[pcpu - pcpu_devices];
 	source_cpu = stap();
-	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
+
 	if (pcpu->address == source_cpu) {
 		call_on_stack(2, stack, void, __pcpu_delegate,
 			      pcpu_delegate_fn *, func, void *, data);
@@ -488,7 +488,7 @@ void smp_send_stop(void)
 	int cpu;
 
 	/* Disable all interrupts/machine checks */
-	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
+	__load_psw_mask(PSW_KERNEL_BITS);
 	trace_hardirqs_off();
 
 	debug_set_critical();

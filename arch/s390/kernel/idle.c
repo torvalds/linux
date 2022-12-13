@@ -51,8 +51,8 @@ void arch_cpu_idle(void)
 	unsigned long psw_mask;
 
 	/* Wait for external, I/O or machine check interrupt. */
-	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT | PSW_MASK_DAT |
-		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
+	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT |
+		   PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	clear_cpu_flag(CIF_NOHZ_DELAY);
 
 	/* psw_idle() returns with interrupts disabled. */

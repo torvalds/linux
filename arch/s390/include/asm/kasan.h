@@ -14,8 +14,6 @@
 #define KASAN_SHADOW_END	(KASAN_SHADOW_START + KASAN_SHADOW_SIZE)
 
 extern void kasan_early_init(void);
-extern void kasan_copy_shadow_mapping(void);
-extern void kasan_free_early_identity(void);
 
 /*
  * Estimate kasan memory requirements, which it will reserve
@@ -43,8 +41,6 @@ static inline unsigned long kasan_estimate_memory_needs(unsigned long physmem)
 }
 #else
 static inline void kasan_early_init(void) { }
-static inline void kasan_copy_shadow_mapping(void) { }
-static inline void kasan_free_early_identity(void) { }
 static inline unsigned long kasan_estimate_memory_needs(unsigned long physmem) { return 0; }
 #endif
 
