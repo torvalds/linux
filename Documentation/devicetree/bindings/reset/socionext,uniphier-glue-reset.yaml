@@ -95,19 +95,12 @@ required:
 
 examples:
   - |
-    usb-glue@65b00000 {
-        compatible = "simple-mfd";
-        #address-cells = <1>;
-        #size-cells = <1>;
-        ranges = <0 0x65b00000 0x400>;
-
-        usb_rst: reset@0 {
-            compatible = "socionext,uniphier-ld20-usb3-reset";
-            reg = <0x0 0x4>;
-            #reset-cells = <1>;
-            clock-names = "link";
-            clocks = <&sys_clk 14>;
-            reset-names = "link";
-            resets = <&sys_rst 14>;
-        };
+    usb_rst: reset-controller@0 {
+        compatible = "socionext,uniphier-ld20-usb3-reset";
+        reg = <0x0 0x4>;
+        #reset-cells = <1>;
+        clock-names = "link";
+        clocks = <&sys_clk 14>;
+        reset-names = "link";
+        resets = <&sys_rst 14>;
     };
