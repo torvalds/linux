@@ -1282,8 +1282,7 @@ fsck_err:
 	return ret;
 }
 
-static int bch2_gc_start(struct bch_fs *c,
-			 bool metadata_only)
+static int bch2_gc_start(struct bch_fs *c)
 {
 	struct bch_dev *ca = NULL;
 	unsigned i;
@@ -1298,7 +1297,6 @@ static int bch2_gc_start(struct bch_fs *c,
 	}
 
 	for_each_member_device(ca, c, i) {
-		BUG_ON(ca->buckets_gc);
 		BUG_ON(ca->usage_gc);
 
 		ca->usage_gc = alloc_percpu(struct bch_dev_usage);
@@ -1313,6 +1311,22 @@ static int bch2_gc_start(struct bch_fs *c,
 	}
 
 	return 0;
+}
+
+static int bch2_gc_reset(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	unsigned i;
+
+	for_each_member_device(ca, c, i) {
+		free_percpu(ca->usage_gc);
+		ca->usage_gc = NULL;
+	}
+
+	free_percpu(c->usage_gc);
+	c->usage_gc = NULL;
+
+	return bch2_gc_start(c);
 }
 
 /* returns true if not equal */
@@ -1761,7 +1775,7 @@ int bch2_gc(struct bch_fs *c, bool initial, bool metadata_only)
 
 	bch2_btree_interior_updates_flush(c);
 
-	ret   = bch2_gc_start(c, metadata_only) ?:
+	ret   = bch2_gc_start(c) ?:
 		bch2_gc_alloc_start(c, metadata_only) ?:
 		bch2_gc_reflink_start(c, metadata_only);
 	if (ret)
@@ -1822,6 +1836,9 @@ again:
 		bch2_gc_stripes_reset(c, metadata_only);
 		bch2_gc_alloc_reset(c, metadata_only);
 		bch2_gc_reflink_reset(c, metadata_only);
+		ret = bch2_gc_reset(c);
+		if (ret)
+			goto out;
 
 		/* flush fsck errors, reset counters */
 		bch2_flush_fsck_errs(c);
