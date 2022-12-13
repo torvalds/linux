@@ -1126,14 +1126,8 @@ static void gpiochip_set_hierarchical_irqchip(struct gpio_chip *gc,
 			/* Just pick something */
 			fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
 			fwspec.param_count = 2;
-			ret = __irq_domain_alloc_irqs(gc->irq.domain,
-						      /* just pick something */
-						      -1,
-						      1,
-						      NUMA_NO_NODE,
-						      &fwspec,
-						      false,
-						      NULL);
+			ret = irq_domain_alloc_irqs(gc->irq.domain, 1,
+						    NUMA_NO_NODE, &fwspec);
 			if (ret < 0) {
 				chip_err(gc,
 					 "can not allocate irq for GPIO line %d parent hwirq %d in hierarchy domain: %d\n",
