@@ -2064,7 +2064,7 @@ static int etm_suspend(struct device *dev)
 {
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev);
 
-	if (mem_sleep_current == PM_SUSPEND_MEM)
+	if (pm_suspend_via_firmware())
 		coresight_disable(drvdata->csdev);
 
 	return 0;
