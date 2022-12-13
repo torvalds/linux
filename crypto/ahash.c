@@ -45,7 +45,7 @@ static int hash_walk_next(struct crypto_hash_walk *walk)
 	unsigned int nbytes = min(walk->entrylen,
 				  ((unsigned int)(PAGE_SIZE)) - offset);
 
-	walk->data = kmap_atomic(walk->pg);
+	walk->data = kmap_local_page(walk->pg);
 	walk->data += offset;
 
 	if (offset & alignmask) {
@@ -95,7 +95,7 @@ int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
 		}
 	}
 
-	kunmap_atomic(walk->data);
+	kunmap_local(walk->data);
 	crypto_yield(walk->flags);
 
 	if (err)
