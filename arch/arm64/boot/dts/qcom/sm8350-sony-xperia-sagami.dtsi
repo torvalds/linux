@@ -480,13 +480,6 @@
 	/* Some subset of SONY IMX663 camera sensor @ 38 */
 };
 
-&i2c2 {
-	status = "okay";
-	clock-frequency = <400000>;
-
-	/* Richwave RTC6226 FM Radio Receiver @ 64 */
-};
-
 &i2c4 {
 	status = "okay";
 	clock-frequency = <400000>;
