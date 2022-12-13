@@ -93,12 +93,6 @@ SYM_FUNC_START(__efi64_thunk)
 	movl	%ebx, %fs
 	movl	%ebx, %gs
 
-	/*
-	 * Convert 32-bit status code into 64-bit.
-	 */
-	roll	$1, %eax
-	rorq	$1, %rax
-
 	pop	%rbx
 	pop	%rbp
 	RET

@@ -29,7 +29,14 @@
  * handover_offset and xloadflags fields in the bootparams structure.
  */
 #define LINUX_EFISTUB_MAJOR_VERSION		0x1
-#define LINUX_EFISTUB_MINOR_VERSION		0x0
+#define LINUX_EFISTUB_MINOR_VERSION		0x1
+
+/*
+ * LINUX_PE_MAGIC appears at offset 0x38 into the MS-DOS header of EFI bootable
+ * Linux kernel images that target the architecture as specified by the PE/COFF
+ * header machine type field.
+ */
+#define LINUX_PE_MAGIC	0x818223cd
 
 #define MZ_MAGIC	0x5a4d	/* "MZ" */
 
