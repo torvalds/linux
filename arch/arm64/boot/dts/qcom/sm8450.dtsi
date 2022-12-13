@@ -2568,7 +2568,7 @@
 		};
 
 		cci0: cci@ac15000 {
-			compatible = "qcom,sm8450-cci";
+			compatible = "qcom,sm8450-cci", "qcom,msm8996-cci";
 			reg = <0 0xac15000 0 0x1000>;
 			interrupts = <GIC_SPI 460 IRQ_TYPE_EDGE_RISING>;
 			power-domains = <&camcc TITAN_TOP_GDSC>;
@@ -2607,7 +2607,7 @@
 		};
 
 		cci1: cci@ac16000 {
-			compatible = "qcom,sm8450-cci";
+			compatible = "qcom,sm8450-cci", "qcom,msm8996-cci";
 			reg = <0 0xac16000 0 0x1000>;
 			interrupts = <GIC_SPI 271 IRQ_TYPE_EDGE_RISING>;
 			power-domains = <&camcc TITAN_TOP_GDSC>;
