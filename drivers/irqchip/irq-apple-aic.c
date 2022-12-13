@@ -924,9 +924,7 @@ static int __init aic_init_smp(struct aic_irq_chip *irqc, struct device_node *no
 	ipi_domain->flags |= IRQ_DOMAIN_FLAG_IPI_SINGLE;
 	irq_domain_update_bus_token(ipi_domain, DOMAIN_BUS_IPI);
 
-	base_ipi = __irq_domain_alloc_irqs(ipi_domain, -1, AIC_NR_SWIPI,
-					   NUMA_NO_NODE, NULL, false, NULL);
-
+	base_ipi = irq_domain_alloc_irqs(ipi_domain, AIC_NR_SWIPI, NUMA_NO_NODE, NULL);
 	if (WARN_ON(!base_ipi)) {
 		irq_domain_remove(ipi_domain);
 		return -ENODEV;
