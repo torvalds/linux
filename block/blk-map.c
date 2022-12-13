@@ -267,6 +267,7 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 {
 	unsigned int max_sectors = queue_max_hw_sectors(rq->q);
 	unsigned int nr_vecs = iov_iter_npages(iter, BIO_MAX_VECS);
+	unsigned int gup_flags = 0;
 	struct bio *bio;
 	int ret;
 	int j;
@@ -278,6 +279,9 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 	if (bio == NULL)
 		return -ENOMEM;
 
+	if (blk_queue_pci_p2pdma(rq->q))
+		gup_flags |= FOLL_PCI_P2PDMA;
+
 	while (iov_iter_count(iter)) {
 		struct page **pages, *stack_pages[UIO_FASTIOV];
 		ssize_t bytes;
@@ -286,11 +290,11 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 
 		if (nr_vecs <= ARRAY_SIZE(stack_pages)) {
 			pages = stack_pages;
-			bytes = iov_iter_get_pages2(iter, pages, LONG_MAX,
-							nr_vecs, &offs);
+			bytes = iov_iter_get_pages(iter, pages, LONG_MAX,
+						   nr_vecs, &offs, gup_flags);
 		} else {
-			bytes = iov_iter_get_pages_alloc2(iter, &pages,
-							LONG_MAX, &offs);
+			bytes = iov_iter_get_pages_alloc(iter, &pages,
+						LONG_MAX, &offs, gup_flags);
 		}
 		if (unlikely(bytes <= 0)) {
 			ret = bytes ? bytes : -EFAULT;
@@ -555,7 +559,7 @@ static int blk_rq_map_user_bvec(struct request *rq, const struct iov_iter *iter)
 	size_t nr_iter = iov_iter_count(iter);
 	size_t nr_segs = iter->nr_segs;
 	struct bio_vec *bvecs, *bvprvp = NULL;
-	struct queue_limits *lim = &q->limits;
+	const struct queue_limits *lim = &q->limits;
 	unsigned int nsegs = 0, bytes = 0;
 	struct bio *bio;
 	size_t i;

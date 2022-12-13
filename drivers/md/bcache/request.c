@@ -244,7 +244,7 @@ static void bch_data_insert_start(struct closure *cl)
 		trace_bcache_cache_insert(k);
 		bch_keylist_push(&op->insert_keys);
 
-		bio_set_op_attrs(n, REQ_OP_WRITE, 0);
+		n->bi_opf = REQ_OP_WRITE;
 		bch_submit_bbio(n, op->c, k, 0);
 	} while (n != bio);
 

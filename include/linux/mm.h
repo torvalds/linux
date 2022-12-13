@@ -1129,7 +1129,7 @@ static inline void get_page(struct page *page)
 	folio_get(page_folio(page));
 }
 
-bool __must_check try_grab_page(struct page *page, unsigned int flags);
+int __must_check try_grab_page(struct page *page, unsigned int flags);
 
 static inline __must_check bool try_get_page(struct page *page)
 {
@@ -2979,6 +2979,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 #define FOLL_SPLIT_PMD	0x20000	/* split huge pmd before returning */
 #define FOLL_PIN	0x40000	/* pages must be released via unpin_user_page */
 #define FOLL_FAST_ONLY	0x80000	/* gup_fast: prevent fall-back to slow gup */
+#define FOLL_PCI_P2PDMA	0x100000 /* allow returning PCI P2PDMA pages */
 
 /*
  * FOLL_PIN and FOLL_LONGTERM may be used in various combinations with each

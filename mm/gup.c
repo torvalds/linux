@@ -123,6 +123,9 @@ retry:
  */
 struct folio *try_grab_folio(struct page *page, int refs, unsigned int flags)
 {
+	if (unlikely(!(flags & FOLL_PCI_P2PDMA) && is_pci_p2pdma_page(page)))
+		return NULL;
+
 	if (flags & FOLL_GET)
 		return try_get_folio(page, refs);
 	else if (flags & FOLL_PIN) {
@@ -202,17 +205,22 @@ static void gup_put_folio(struct folio *folio, int refs, unsigned int flags)
  * time. Cases: please see the try_grab_folio() documentation, with
  * "refs=1".
  *
- * Return: true for success, or if no action was required (if neither FOLL_PIN
- * nor FOLL_GET was set, nothing is done). False for failure: FOLL_GET or
- * FOLL_PIN was set, but the page could not be grabbed.
+ * Return: 0 for success, or if no action was required (if neither FOLL_PIN
+ * nor FOLL_GET was set, nothing is done). A negative error code for failure:
+ *
+ *   -ENOMEM		FOLL_GET or FOLL_PIN was set, but the page could not
+ *			be grabbed.
  */
-bool __must_check try_grab_page(struct page *page, unsigned int flags)
+int __must_check try_grab_page(struct page *page, unsigned int flags)
 {
 	struct folio *folio = page_folio(page);
 
 	WARN_ON_ONCE((flags & (FOLL_GET | FOLL_PIN)) == (FOLL_GET | FOLL_PIN));
 	if (WARN_ON_ONCE(folio_ref_count(folio) <= 0))
-		return false;
+		return -ENOMEM;
+
+	if (unlikely(!(flags & FOLL_PCI_P2PDMA) && is_pci_p2pdma_page(page)))
+		return -EREMOTEIO;
 
 	if (flags & FOLL_GET)
 		folio_ref_inc(folio);
@@ -232,7 +240,7 @@ bool __must_check try_grab_page(struct page *page, unsigned int flags)
 		node_stat_mod_folio(folio, NR_FOLL_PIN_ACQUIRED, 1);
 	}
 
-	return true;
+	return 0;
 }
 
 /**
@@ -624,10 +632,12 @@ retry:
 		       !PageAnonExclusive(page), page);
 
 	/* try_grab_page() does nothing unless FOLL_GET or FOLL_PIN is set. */
-	if (unlikely(!try_grab_page(page, flags))) {
-		page = ERR_PTR(-ENOMEM);
+	ret = try_grab_page(page, flags);
+	if (unlikely(ret)) {
+		page = ERR_PTR(ret);
 		goto out;
 	}
+
 	/*
 	 * We need to make the page accessible if and only if we are going
 	 * to access its content (the FOLL_PIN case).  Please see
@@ -960,10 +970,9 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
 			goto unmap;
 		*page = pte_page(*pte);
 	}
-	if (unlikely(!try_grab_page(*page, gup_flags))) {
-		ret = -ENOMEM;
+	ret = try_grab_page(*page, gup_flags);
+	if (unlikely(ret))
 		goto unmap;
-	}
 out:
 	ret = 0;
 unmap:
@@ -1056,6 +1065,9 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
 		return -EFAULT;
 
 	if ((gup_flags & FOLL_LONGTERM) && vma_is_fsdax(vma))
+		return -EOPNOTSUPP;
+
+	if ((gup_flags & FOLL_LONGTERM) && (gup_flags & FOLL_PCI_P2PDMA))
 		return -EOPNOTSUPP;
 
 	if (vma_is_secretmem(vma))
@@ -2534,9 +2546,15 @@ static int __gup_device_huge(unsigned long pfn, unsigned long addr,
 			undo_dev_pagemap(nr, nr_start, flags, pages);
 			break;
 		}
+
+		if (!(flags & FOLL_PCI_P2PDMA) && is_pci_p2pdma_page(page)) {
+			undo_dev_pagemap(nr, nr_start, flags, pages);
+			break;
+		}
+
 		SetPageReferenced(page);
 		pages[*nr] = page;
-		if (unlikely(!try_grab_page(page, flags))) {
+		if (unlikely(try_grab_page(page, flags))) {
 			undo_dev_pagemap(nr, nr_start, flags, pages);
 			break;
 		}
@@ -3018,7 +3036,8 @@ static int internal_get_user_pages_fast(unsigned long start,
 
 	if (WARN_ON_ONCE(gup_flags & ~(FOLL_WRITE | FOLL_LONGTERM |
 				       FOLL_FORCE | FOLL_PIN | FOLL_GET |
-				       FOLL_FAST_ONLY | FOLL_NOFAULT)))
+				       FOLL_FAST_ONLY | FOLL_NOFAULT |
+				       FOLL_PCI_P2PDMA)))
 		return -EINVAL;
 
 	if (gup_flags & FOLL_PIN)
