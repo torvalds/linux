@@ -207,6 +207,10 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 	regmap_write(priv->regmap, TIM_ARR, priv->max_arr);
 	regmap_write(priv->regmap, TIM_PSC, psc);
 
+	/* Reset input selector to its default input and disable slave mode */
+	regmap_write(priv->regmap, TIM_TISEL, 0x0);
+	regmap_write(priv->regmap, TIM_SMCR, 0x0);
+
 	/* Map TI1 or TI2 PWM input to IC1 & IC2 (or TI3/4 to IC3 & IC4) */
 	regmap_update_bits(priv->regmap,
 			   pwm->hwpwm < 2 ? TIM_CCMR1 : TIM_CCMR2,
