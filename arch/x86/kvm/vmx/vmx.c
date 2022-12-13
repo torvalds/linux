@@ -5170,8 +5170,13 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 	vect_info = vmx->idt_vectoring_info;
 	intr_info = vmx_get_intr_info(vcpu);
 
+	/*
+	 * Machine checks are handled by handle_exception_irqoff(), or by
+	 * vmx_vcpu_run() if a #MC occurs on VM-Entry.  NMIs are handled by
+	 * vmx_vcpu_enter_exit().
+	 */
 	if (is_machine_check(intr_info) || is_nmi(intr_info))
-		return 1; /* handled by handle_exception_nmi_irqoff() */
+		return 1;
 
 	/*
 	 * Queue the exception here instead of in handle_nm_fault_irqoff().
@@ -6884,7 +6889,7 @@ static void handle_nm_fault_irqoff(struct kvm_vcpu *vcpu)
 		rdmsrl(MSR_IA32_XFD_ERR, vcpu->arch.guest_fpu.xfd_err);
 }
 
-static void handle_exception_nmi_irqoff(struct vcpu_vmx *vmx)
+static void handle_exception_irqoff(struct vcpu_vmx *vmx)
 {
 	u32 intr_info = vmx_get_intr_info(&vmx->vcpu);
 
@@ -6897,12 +6902,6 @@ static void handle_exception_nmi_irqoff(struct vcpu_vmx *vmx)
 	/* Handle machine checks before interrupts are enabled */
 	else if (is_machine_check(intr_info))
 		kvm_machine_check();
-	/* We need to handle NMIs before interrupts are enabled */
-	else if (is_nmi(intr_info)) {
-		kvm_before_interrupt(&vmx->vcpu, KVM_HANDLING_NMI);
-		vmx_do_nmi_irqoff();
-		kvm_after_interrupt(&vmx->vcpu);
-	}
 }
 
 static void handle_external_interrupt_irqoff(struct kvm_vcpu *vcpu)
@@ -6932,7 +6931,7 @@ static void vmx_handle_exit_irqoff(struct kvm_vcpu *vcpu)
 	if (vmx->exit_reason.basic == EXIT_REASON_EXTERNAL_INTERRUPT)
 		handle_external_interrupt_irqoff(vcpu);
 	else if (vmx->exit_reason.basic == EXIT_REASON_EXCEPTION_NMI)
-		handle_exception_nmi_irqoff(vmx);
+		handle_exception_irqoff(vmx);
 }
 
 /*
@@ -7194,6 +7193,18 @@ static noinstr void vmx_vcpu_enter_exit(struct kvm_vcpu *vcpu,
 
 	vmx_enable_fb_clear(vmx);
 
+	if (unlikely(vmx->fail))
+		vmx->exit_reason.full = 0xdead;
+	else
+		vmx->exit_reason.full = vmcs_read32(VM_EXIT_REASON);
+
+	if ((u16)vmx->exit_reason.basic == EXIT_REASON_EXCEPTION_NMI &&
+	    is_nmi(vmx_get_intr_info(vcpu))) {
+		kvm_before_interrupt(vcpu, KVM_HANDLING_NMI);
+		vmx_do_nmi_irqoff();
+		kvm_after_interrupt(vcpu);
+	}
+
 	guest_state_exit_irqoff();
 }
 
@@ -7335,12 +7346,9 @@ static fastpath_t vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	vmx->idt_vectoring_info = 0;
 
-	if (unlikely(vmx->fail)) {
-		vmx->exit_reason.full = 0xdead;
+	if (unlikely(vmx->fail))
 		return EXIT_FASTPATH_NONE;
-	}
 
-	vmx->exit_reason.full = vmcs_read32(VM_EXIT_REASON);
 	if (unlikely((u16)vmx->exit_reason.basic == EXIT_REASON_MCE_DURING_VMENTRY))
 		kvm_machine_check();
 
