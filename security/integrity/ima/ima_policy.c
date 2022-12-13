@@ -85,8 +85,8 @@ struct ima_rule_entry {
 	kgid_t fgroup;
 	bool (*uid_op)(kuid_t cred_uid, kuid_t rule_uid);    /* Handlers for operators       */
 	bool (*gid_op)(kgid_t cred_gid, kgid_t rule_gid);
-	bool (*fowner_op)(kuid_t cred_uid, kuid_t rule_uid); /* uid_eq(), uid_gt(), uid_lt() */
-	bool (*fgroup_op)(kgid_t cred_gid, kgid_t rule_gid); /* gid_eq(), gid_gt(), gid_lt() */
+	bool (*fowner_op)(vfsuid_t vfsuid, kuid_t rule_uid); /* vfsuid_eq_kuid(), vfsuid_gt_kuid(), vfsuid_lt_kuid() */
+	bool (*fgroup_op)(vfsgid_t vfsgid, kgid_t rule_gid); /* vfsgid_eq_kgid(), vfsgid_gt_kgid(), vfsgid_lt_kgid() */
 	int pcr;
 	unsigned int allowed_algos; /* bitfield of allowed hash algorithms */
 	struct {
@@ -186,11 +186,11 @@ static struct ima_rule_entry default_appraise_rules[] __ro_after_init = {
 	.flags = IMA_FUNC | IMA_DIGSIG_REQUIRED},
 #endif
 #ifndef CONFIG_IMA_APPRAISE_SIGNED_INIT
-	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID, .fowner_op = &uid_eq,
+	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID, .fowner_op = &vfsuid_eq_kuid,
 	 .flags = IMA_FOWNER},
 #else
 	/* force signature */
-	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID, .fowner_op = &uid_eq,
+	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID, .fowner_op = &vfsuid_eq_kuid,
 	 .flags = IMA_FOWNER | IMA_DIGSIG_REQUIRED},
 #endif
 };
@@ -601,10 +601,12 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 			return false;
 	}
 	if ((rule->flags & IMA_FOWNER) &&
-	    !rule->fowner_op(i_uid_into_mnt(mnt_userns, inode), rule->fowner))
+	    !rule->fowner_op(i_uid_into_vfsuid(mnt_userns, inode),
+			     rule->fowner))
 		return false;
 	if ((rule->flags & IMA_FGROUP) &&
-	    !rule->fgroup_op(i_gid_into_mnt(mnt_userns, inode), rule->fgroup))
+	    !rule->fgroup_op(i_gid_into_vfsgid(mnt_userns, inode),
+			     rule->fgroup))
 		return false;
 	for (i = 0; i < MAX_LSM_RULES; i++) {
 		int rc = 0;
@@ -1371,8 +1373,8 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 	entry->fgroup = INVALID_GID;
 	entry->uid_op = &uid_eq;
 	entry->gid_op = &gid_eq;
-	entry->fowner_op = &uid_eq;
-	entry->fgroup_op = &gid_eq;
+	entry->fowner_op = &vfsuid_eq_kuid;
+	entry->fgroup_op = &vfsgid_eq_kgid;
 	entry->action = UNKNOWN;
 	while ((p = strsep(&rule, " \t")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
@@ -1650,11 +1652,11 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			}
 			break;
 		case Opt_fowner_gt:
-			entry->fowner_op = &uid_gt;
+			entry->fowner_op = &vfsuid_gt_kuid;
 			fallthrough;
 		case Opt_fowner_lt:
 			if (token == Opt_fowner_lt)
-				entry->fowner_op = &uid_lt;
+				entry->fowner_op = &vfsuid_lt_kuid;
 			fallthrough;
 		case Opt_fowner_eq:
 			ima_log_string_op(ab, "fowner", args[0].from, token);
@@ -1676,11 +1678,11 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			}
 			break;
 		case Opt_fgroup_gt:
-			entry->fgroup_op = &gid_gt;
+			entry->fgroup_op = &vfsgid_gt_kgid;
 			fallthrough;
 		case Opt_fgroup_lt:
 			if (token == Opt_fgroup_lt)
-				entry->fgroup_op = &gid_lt;
+				entry->fgroup_op = &vfsgid_lt_kgid;
 			fallthrough;
 		case Opt_fgroup_eq:
 			ima_log_string_op(ab, "fgroup", args[0].from, token);
@@ -2151,9 +2153,9 @@ int ima_policy_show(struct seq_file *m, void *v)
 
 	if (entry->flags & IMA_FOWNER) {
 		snprintf(tbuf, sizeof(tbuf), "%d", __kuid_val(entry->fowner));
-		if (entry->fowner_op == &uid_gt)
+		if (entry->fowner_op == &vfsuid_gt_kuid)
 			seq_printf(m, pt(Opt_fowner_gt), tbuf);
-		else if (entry->fowner_op == &uid_lt)
+		else if (entry->fowner_op == &vfsuid_lt_kuid)
 			seq_printf(m, pt(Opt_fowner_lt), tbuf);
 		else
 			seq_printf(m, pt(Opt_fowner_eq), tbuf);
@@ -2162,9 +2164,9 @@ int ima_policy_show(struct seq_file *m, void *v)
 
 	if (entry->flags & IMA_FGROUP) {
 		snprintf(tbuf, sizeof(tbuf), "%d", __kgid_val(entry->fgroup));
-		if (entry->fgroup_op == &gid_gt)
+		if (entry->fgroup_op == &vfsgid_gt_kgid)
 			seq_printf(m, pt(Opt_fgroup_gt), tbuf);
-		else if (entry->fgroup_op == &gid_lt)
+		else if (entry->fgroup_op == &vfsgid_lt_kgid)
 			seq_printf(m, pt(Opt_fgroup_lt), tbuf);
 		else
 			seq_printf(m, pt(Opt_fgroup_eq), tbuf);

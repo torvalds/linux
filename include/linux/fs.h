@@ -1632,23 +1632,6 @@ static inline void i_gid_write(struct inode *inode, gid_t gid)
 }
 
 /**
- * i_uid_into_mnt - map an inode's i_uid down into a mnt_userns
- * @mnt_userns: user namespace of the mount the inode was found from
- * @inode: inode to map
- *
- * Note, this will eventually be removed completely in favor of the type-safe
- * i_uid_into_vfsuid().
- *
- * Return: the inode's i_uid mapped down according to @mnt_userns.
- * If the inode's i_uid has no mapping INVALID_UID is returned.
- */
-static inline kuid_t i_uid_into_mnt(struct user_namespace *mnt_userns,
-				    const struct inode *inode)
-{
-	return AS_KUIDT(make_vfsuid(mnt_userns, i_user_ns(inode), inode->i_uid));
-}
-
-/**
  * i_uid_into_vfsuid - map an inode's i_uid down into a mnt_userns
  * @mnt_userns: user namespace of the mount the inode was found from
  * @inode: inode to map
@@ -1698,23 +1681,6 @@ static inline void i_uid_update(struct user_namespace *mnt_userns,
 	if (attr->ia_valid & ATTR_UID)
 		inode->i_uid = from_vfsuid(mnt_userns, i_user_ns(inode),
 					   attr->ia_vfsuid);
-}
-
-/**
- * i_gid_into_mnt - map an inode's i_gid down into a mnt_userns
- * @mnt_userns: user namespace of the mount the inode was found from
- * @inode: inode to map
- *
- * Note, this will eventually be removed completely in favor of the type-safe
- * i_gid_into_vfsgid().
- *
- * Return: the inode's i_gid mapped down according to @mnt_userns.
- * If the inode's i_gid has no mapping INVALID_GID is returned.
- */
-static inline kgid_t i_gid_into_mnt(struct user_namespace *mnt_userns,
-				    const struct inode *inode)
-{
-	return AS_KGIDT(make_vfsgid(mnt_userns, i_user_ns(inode), inode->i_gid));
 }
 
 /**
