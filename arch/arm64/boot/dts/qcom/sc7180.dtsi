@@ -3627,6 +3627,7 @@
 				<&apps_smmu 0x1032 0>;
 
 			power-domains = <&lpass_hm LPASS_CORE_HM_GDSCR>;
+			required-opps = <&rpmhpd_opp_nom>;
 
 			status = "disabled";
 
@@ -3657,6 +3658,8 @@
 			clocks = <&gcc GCC_LPASS_CFG_NOC_SWAY_CLK>,
 				 <&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "iface", "bi_tcxo";
+			power-domains = <&rpmhpd SC7180_CX>;
+
 			#clock-cells = <1>;
 			#power-domain-cells = <1>;
 		};
