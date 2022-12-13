@@ -70,6 +70,10 @@ void __init setup_cmdline(char **cmdline_p)
 			strlcat(p, "tty0", COMMAND_LINE_SIZE);
 	}
 
+	/* default to use early console */
+	if (!strstr(p, "earlycon"))
+		strlcat(p, " earlycon=pdc", COMMAND_LINE_SIZE);
+
 #ifdef CONFIG_BLK_DEV_INITRD
 		if (boot_args[2] != 0) /* did palo pass us a ramdisk? */
 		{
@@ -138,8 +142,6 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	if (__pa((unsigned long) &_end) >= KERNEL_INITIAL_SIZE)
 		panic("KERNEL_INITIAL_ORDER too small!");
-
-	pdc_console_init();
 
 #ifdef CONFIG_64BIT
 	if(parisc_narrow_firmware) {

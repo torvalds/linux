@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/allwinner,sun8i-a83t-de2-mixer.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner Display Engine 2.0 Mixer Device Tree Bindings
+title: Allwinner Display Engine 2.0 Mixer
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

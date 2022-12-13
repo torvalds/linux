@@ -128,14 +128,14 @@ skl_int3472_fill_clk_pdata(struct device *dev, struct tps68470_clk_platform_data
 	for_each_acpi_consumer_dev(adev, consumer) {
 		sensor_name = devm_kasprintf(dev, GFP_KERNEL, I2C_DEV_NAME_FORMAT,
 					     acpi_dev_name(consumer));
-		if (!sensor_name)
+		if (!sensor_name) {
+			acpi_dev_put(consumer);
 			return -ENOMEM;
+		}
 
 		(*clk_pdata)->consumers[i].consumer_dev_name = sensor_name;
 		i++;
 	}
-
-	acpi_dev_put(consumer);
 
 	return n_consumers;
 }

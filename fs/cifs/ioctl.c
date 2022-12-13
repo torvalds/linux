@@ -484,8 +484,31 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			tcon = tlink_tcon(tlink);
 			if (tcon && tcon->ses->server->ops->notify) {
 				rc = tcon->ses->server->ops->notify(xid,
-						filep, (void __user *)arg);
+						filep, (void __user *)arg,
+						false /* no ret data */);
 				cifs_dbg(FYI, "ioctl notify rc %d\n", rc);
+			} else
+				rc = -EOPNOTSUPP;
+			cifs_put_tlink(tlink);
+			break;
+		case CIFS_IOC_NOTIFY_INFO:
+			if (!S_ISDIR(inode->i_mode)) {
+				/* Notify can only be done on directories */
+				rc = -EOPNOTSUPP;
+				break;
+			}
+			cifs_sb = CIFS_SB(inode->i_sb);
+			tlink = cifs_sb_tlink(cifs_sb);
+			if (IS_ERR(tlink)) {
+				rc = PTR_ERR(tlink);
+				break;
+			}
+			tcon = tlink_tcon(tlink);
+			if (tcon && tcon->ses->server->ops->notify) {
+				rc = tcon->ses->server->ops->notify(xid,
+						filep, (void __user *)arg,
+						true /* return details */);
+				cifs_dbg(FYI, "ioctl notify info rc %d\n", rc);
 			} else
 				rc = -EOPNOTSUPP;
 			cifs_put_tlink(tlink);

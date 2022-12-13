@@ -1169,6 +1169,11 @@ static int adin1110_port_bridge_leave(struct adin1110_port_priv *port_priv,
 	return ret;
 }
 
+static bool adin1110_port_dev_check(const struct net_device *dev)
+{
+	return dev->netdev_ops == &adin1110_netdev_ops;
+}
+
 static int adin1110_netdevice_event(struct notifier_block *unused,
 				    unsigned long event, void *ptr)
 {
@@ -1176,6 +1181,9 @@ static int adin1110_netdevice_event(struct notifier_block *unused,
 	struct adin1110_port_priv *port_priv = netdev_priv(dev);
 	struct netdev_notifier_changeupper_info *info = ptr;
 	int ret = 0;
+
+	if (!adin1110_port_dev_check(dev))
+		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
@@ -1200,11 +1208,6 @@ static struct notifier_block adin1110_netdevice_nb = {
 static void adin1110_disconnect_phy(void *data)
 {
 	phy_disconnect(data);
-}
-
-static bool adin1110_port_dev_check(const struct net_device *dev)
-{
-	return dev->netdev_ops == &adin1110_netdev_ops;
 }
 
 static int adin1110_port_set_forwarding_state(struct adin1110_port_priv *port_priv)

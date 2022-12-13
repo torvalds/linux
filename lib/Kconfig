@@ -127,9 +127,6 @@ config TRACE_MMIO_ACCESS
 
 source "lib/crypto/Kconfig"
 
-config LIB_MEMNEQ
-	bool
-
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -343,12 +340,16 @@ config LZ4HC_COMPRESS
 config LZ4_DECOMPRESS
 	tristate
 
-config ZSTD_COMPRESS
+config ZSTD_COMMON
 	select XXHASH
 	tristate
 
+config ZSTD_COMPRESS
+	select ZSTD_COMMON
+	tristate
+
 config ZSTD_DECOMPRESS
-	select XXHASH
+	select ZSTD_COMMON
 	tristate
 
 source "lib/xz/Kconfig"
@@ -526,6 +527,15 @@ config CPUMASK_OFFSTACK
 	  Use dynamic allocation for cpumask_var_t, instead of putting
 	  them on the stack.  This is a bit more expensive, but avoids
 	  stack overflow.
+
+config FORCE_NR_CPUS
+       bool "NR_CPUS is set to an actual number of CPUs"
+       depends on SMP
+       help
+         Say Yes if you have NR_CPUS set to an actual number of possible
+         CPUs in your system, not to a default value. This forces the core
+         code to rely on compile-time value and optimize kernel routines
+         better.
 
 config CPU_RMAP
 	bool

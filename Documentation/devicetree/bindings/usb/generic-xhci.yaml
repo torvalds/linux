@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/generic-xhci.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: USB xHCI Controller Device Tree Bindings
+title: USB xHCI Controller
 
 maintainers:
   - Mathias Nyman <mathias.nyman@intel.com>

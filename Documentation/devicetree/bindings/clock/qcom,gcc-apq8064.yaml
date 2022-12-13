@@ -38,6 +38,15 @@ properties:
     description: child tsens device
     $ref: /schemas/thermal/qcom-tsens.yaml#
 
+  clocks:
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: cxo
+      - const: pxo
+      - const: pll4
+
   nvmem-cells:
     minItems: 1
     maxItems: 2

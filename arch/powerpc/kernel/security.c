@@ -16,6 +16,7 @@
 #include <asm/asm-prototypes.h>
 #include <asm/code-patching.h>
 #include <asm/security_features.h>
+#include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/inst.h>
 
@@ -34,7 +35,7 @@ static enum branch_cache_flush_type link_stack_flush_type = BRANCH_CACHE_FLUSH_N
 bool barrier_nospec_enabled;
 static bool no_nospec;
 static bool btb_flush_enabled;
-#if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_BOOK3S_64)
+#if defined(CONFIG_PPC_E500) || defined(CONFIG_PPC_BOOK3S_64)
 static bool no_spectrev2;
 #endif
 
@@ -121,7 +122,7 @@ static __init int security_feature_debugfs_init(void)
 device_initcall(security_feature_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
 
-#if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_BOOK3S_64)
+#if defined(CONFIG_PPC_E500) || defined(CONFIG_PPC_BOOK3S_64)
 static int __init handle_nospectre_v2(char *p)
 {
 	no_spectrev2 = true;
@@ -129,9 +130,9 @@ static int __init handle_nospectre_v2(char *p)
 	return 0;
 }
 early_param("nospectre_v2", handle_nospectre_v2);
-#endif /* CONFIG_PPC_FSL_BOOK3E || CONFIG_PPC_BOOK3S_64 */
+#endif /* CONFIG_PPC_E500 || CONFIG_PPC_BOOK3S_64 */
 
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 void __init setup_spectre_v2(void)
 {
 	if (no_spectrev2 || cpu_mitigations_off())
@@ -139,7 +140,7 @@ void __init setup_spectre_v2(void)
 	else
 		btb_flush_enabled = true;
 }
-#endif /* CONFIG_PPC_FSL_BOOK3E */
+#endif /* CONFIG_PPC_E500 */
 
 #ifdef CONFIG_PPC_BOOK3S_64
 ssize_t cpu_show_meltdown(struct device *dev, struct device_attribute *attr, char *buf)

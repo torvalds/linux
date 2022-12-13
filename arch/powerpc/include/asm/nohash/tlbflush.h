@@ -18,7 +18,7 @@
 /*
  * TLB flushing for software loaded TLB chips
  *
- * TODO: (CONFIG_FSL_BOOKE) determine if flush_tlb_range &
+ * TODO: (CONFIG_PPC_85xx) determine if flush_tlb_range &
  * flush_tlb_kernel_range are best implemented as tlbia vs
  * specific tlbie's
  */

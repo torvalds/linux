@@ -77,8 +77,8 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"42.100.00.00"
-#define MPT3SAS_MAJOR_VERSION		42
+#define MPT3SAS_DRIVER_VERSION		"43.100.00.00"
+#define MPT3SAS_MAJOR_VERSION		43
 #define MPT3SAS_MINOR_VERSION		100
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
@@ -1652,6 +1652,32 @@ struct mpt3sas_debugfs_buffer {
 typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
 
+/*
+ * struct ATTO_SAS_NVRAM - ATTO NVRAM settings stored
+ *				in Manufacturing page 1 used to get
+ *				ATTO SasAddr.
+ */
+struct ATTO_SAS_NVRAM {
+	u8		Signature[4];
+	u8		Version;
+#define ATTO_SASNVR_VERSION		0
+
+	u8		Checksum;
+#define ATTO_SASNVR_CKSUM_SEED	0x5A
+	u8		Pad[10];
+	u8		SasAddr[8];
+#define ATTO_SAS_ADDR_ALIGN		64
+	u8		Reserved[232];
+};
+
+#define ATTO_SAS_ADDR_DEVNAME_BIAS		63
+
+union ATTO_SAS_ADDRESS {
+	U8		b[8];
+	U16		w[4];
+	U32		d[2];
+	U64		q;
+};
 
 /* base shared API */
 extern struct list_head mpt3sas_ioc_list;
@@ -1828,6 +1854,9 @@ int mpt3sas_config_get_number_hba_phys(struct MPT3SAS_ADAPTER *ioc,
 	u8 *num_phys);
 int mpt3sas_config_get_manufacturing_pg0(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi2ManufacturingPage0_t *config_page);
+int mpt3sas_config_get_manufacturing_pg1(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi2ManufacturingPage1_t *config_page);
+
 int mpt3sas_config_get_manufacturing_pg7(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi2ManufacturingPage7_t *config_page,
 	u16 sz);
@@ -1846,6 +1875,12 @@ int mpt3sas_config_get_bios_pg2(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigReply_t
 	*mpi_reply, Mpi2BiosPage2_t *config_page);
 int mpt3sas_config_get_bios_pg3(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigReply_t
 	*mpi_reply, Mpi2BiosPage3_t *config_page);
+int mpt3sas_config_set_bios_pg4(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi2BiosPage4_t *config_page,
+	int sz_config_page);
+int mpt3sas_config_get_bios_pg4(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi2BiosPage4_t *config_page,
+	int sz_config_page);
 int mpt3sas_config_get_iounit_pg0(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigReply_t
 	*mpi_reply, Mpi2IOUnitPage0_t *config_page);
 int mpt3sas_config_get_sas_device_pg0(struct MPT3SAS_ADAPTER *ioc,

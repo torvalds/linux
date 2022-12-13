@@ -128,4 +128,9 @@ static inline const char *str_enabled_disabled(bool v)
 	return v ? "enabled" : "disabled";
 }
 
+static inline const char *str_read_write(bool v)
+{
+	return v ? "read" : "write";
+}
+
 #endif

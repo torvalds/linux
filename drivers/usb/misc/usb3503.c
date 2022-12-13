@@ -160,6 +160,7 @@ static int usb3503_probe(struct usb3503 *hub)
 	struct usb3503_platform_data *pdata = dev_get_platdata(dev);
 	struct device_node *np = dev->of_node;
 	int err;
+	bool is_clk_enabled = false;
 	u32 mode = USB3503_MODE_HUB;
 	const u32 *property;
 	enum gpiod_flags flags;
@@ -217,6 +218,7 @@ static int usb3503_probe(struct usb3503 *hub)
 			return err;
 		}
 
+		is_clk_enabled = true;
 		property = of_get_property(np, "disabled-ports", &len);
 		if (property && (len / sizeof(u32)) > 0) {
 			int i;
@@ -236,20 +238,26 @@ static int usb3503_probe(struct usb3503 *hub)
 	else
 		flags = GPIOD_OUT_HIGH;
 	hub->intn = devm_gpiod_get_optional(dev, "intn", flags);
-	if (IS_ERR(hub->intn))
-		return PTR_ERR(hub->intn);
+	if (IS_ERR(hub->intn)) {
+		err = PTR_ERR(hub->intn);
+		goto err_clk;
+	}
 	if (hub->intn)
 		gpiod_set_consumer_name(hub->intn, "usb3503 intn");
 
 	hub->connect = devm_gpiod_get_optional(dev, "connect", GPIOD_OUT_LOW);
-	if (IS_ERR(hub->connect))
-		return PTR_ERR(hub->connect);
+	if (IS_ERR(hub->connect)) {
+		err = PTR_ERR(hub->connect);
+		goto err_clk;
+	}
 	if (hub->connect)
 		gpiod_set_consumer_name(hub->connect, "usb3503 connect");
 
 	hub->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(hub->reset))
-		return PTR_ERR(hub->reset);
+	if (IS_ERR(hub->reset)) {
+		err = PTR_ERR(hub->reset);
+		goto err_clk;
+	}
 	if (hub->reset) {
 		/* Datasheet defines a hardware reset to be at least 100us */
 		usleep_range(100, 10000);
@@ -265,6 +273,11 @@ static int usb3503_probe(struct usb3503 *hub)
 			(hub->mode == USB3503_MODE_HUB) ? "hub" : "standby");
 
 	return 0;
+
+err_clk:
+	if (is_clk_enabled)
+		clk_disable_unprepare(hub->clk);
+	return err;
 }
 
 static int usb3503_i2c_probe(struct i2c_client *i2c,

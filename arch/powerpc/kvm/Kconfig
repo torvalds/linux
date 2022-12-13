@@ -189,7 +189,7 @@ config KVM_EXIT_TIMING
 
 config KVM_E500V2
 	bool "KVM support for PowerPC E500v2 processors"
-	depends on E500 && !PPC_E500MC
+	depends on PPC_E500 && !PPC_E500MC
 	select KVM
 	select KVM_MMIO
 	select MMU_NOTIFIER
@@ -220,7 +220,7 @@ config KVM_E500MC
 
 config KVM_MPIC
 	bool "KVM in-kernel MPIC emulation"
-	depends on KVM && E500
+	depends on KVM && PPC_E500
 	select HAVE_KVM_IRQCHIP
 	select HAVE_KVM_IRQFD
 	select HAVE_KVM_IRQ_ROUTING

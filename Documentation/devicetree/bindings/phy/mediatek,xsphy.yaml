@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/phy/mediatek,xsphy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek XS-PHY Controller Device Tree Bindings
+title: MediaTek XS-PHY Controller
 
 maintainers:
   - Chunfeng Yun <chunfeng.yun@mediatek.com>

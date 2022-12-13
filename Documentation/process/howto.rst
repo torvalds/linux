@@ -379,7 +379,7 @@ to subscribe and unsubscribe from the list can be found at:
 There are archives of the mailing list on the web in many different
 places.  Use a search engine to find these archives.  For example:
 
-	http://dir.gmane.org/gmane.linux.kernel
+	https://lore.kernel.org/lkml/
 
 It is highly recommended that you search the archives about the topic
 you want to bring up, before you post it to the list. A lot of things

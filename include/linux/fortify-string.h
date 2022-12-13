@@ -328,8 +328,10 @@ __FORTIFY_INLINE void fortify_memset_chk(__kernel_size_t size,
  * __struct_size() vs __member_size() must be captured here to avoid
  * evaluating argument side-effects further into the macro layers.
  */
+#ifndef CONFIG_KMSAN
 #define memset(p, c, s) __fortify_memset_chk(p, c, s,			\
 		__struct_size(p), __member_size(p))
+#endif
 
 /*
  * To make sure the compiler can enforce protection against buffer overflows,

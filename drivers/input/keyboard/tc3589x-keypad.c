@@ -70,7 +70,7 @@
 #define TC3589x_KBD_INT_CLR	0x1
 
 /**
- * struct tc35893_keypad_platform_data - platform specific keypad data
+ * struct tc3589x_keypad_platform_data - platform specific keypad data
  * @keymap_data:        matrix scan code table for keycodes
  * @krow:               mask for available rows, value is 0xFF
  * @kcol:               mask for available columns, value is 0xFF

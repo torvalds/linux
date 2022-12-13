@@ -13,6 +13,8 @@
 #include <linux/pci.h>
 #include <linux/hwmon.h>
 
+#include <trace/events/habanalabs.h>
+
 #define HL_RESET_DELAY_USEC		10000	/* 10ms */
 
 enum dma_alloc_type {
@@ -26,8 +28,9 @@ enum dma_alloc_type {
 /*
  * hl_set_dram_bar- sets the bar to allow later access to address
  *
- * @hdev: pointer to habanalabs device structure
+ * @hdev: pointer to habanalabs device structure.
  * @addr: the address the caller wants to access.
+ * @region: the PCI region.
  *
  * @return: the old BAR base address on success, U64_MAX for failure.
  *	    The caller should set it back to the old address after use.
@@ -37,58 +40,64 @@ enum dma_alloc_type {
  * This function can be called also if the bar doesn't need to be set,
  * in that case it just won't change the base.
  */
-static uint64_t hl_set_dram_bar(struct hl_device *hdev, u64 addr)
+static u64 hl_set_dram_bar(struct hl_device *hdev, u64 addr, struct pci_mem_region *region)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u64 bar_base_addr;
+	u64 bar_base_addr, old_base;
 
-	bar_base_addr = addr & ~(prop->dram_pci_bar_size - 0x1ull);
+	if (is_power_of_2(prop->dram_pci_bar_size))
+		bar_base_addr = addr & ~(prop->dram_pci_bar_size - 0x1ull);
+	else
+		bar_base_addr = DIV_ROUND_DOWN_ULL(addr, prop->dram_pci_bar_size) *
+				prop->dram_pci_bar_size;
 
-	return hdev->asic_funcs->set_dram_bar_base(hdev, bar_base_addr);
+	old_base = hdev->asic_funcs->set_dram_bar_base(hdev, bar_base_addr);
+
+	/* in case of success we need to update the new BAR base */
+	if (old_base != U64_MAX)
+		region->region_base = bar_base_addr;
+
+	return old_base;
 }
-
 
 static int hl_access_sram_dram_region(struct hl_device *hdev, u64 addr, u64 *val,
 	enum debugfs_access_type acc_type, enum pci_region region_type)
 {
 	struct pci_mem_region *region = &hdev->pci_mem_region[region_type];
+	void __iomem *acc_addr;
 	u64 old_base = 0, rc;
 
 	if (region_type == PCI_REGION_DRAM) {
-		old_base = hl_set_dram_bar(hdev, addr);
+		old_base = hl_set_dram_bar(hdev, addr, region);
 		if (old_base == U64_MAX)
 			return -EIO;
 	}
 
+	acc_addr = hdev->pcie_bar[region->bar_id] + addr - region->region_base +
+			region->offset_in_bar;
 	switch (acc_type) {
 	case DEBUGFS_READ8:
-		*val = readb(hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		*val = readb(acc_addr);
 		break;
 	case DEBUGFS_WRITE8:
-		writeb(*val, hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		writeb(*val, acc_addr);
 		break;
 	case DEBUGFS_READ32:
-		*val = readl(hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		*val = readl(acc_addr);
 		break;
 	case DEBUGFS_WRITE32:
-		writel(*val, hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		writel(*val, acc_addr);
 		break;
 	case DEBUGFS_READ64:
-		*val = readq(hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		*val = readq(acc_addr);
 		break;
 	case DEBUGFS_WRITE64:
-		writeq(*val, hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		writeq(*val, acc_addr);
 		break;
 	}
 
 	if (region_type == PCI_REGION_DRAM) {
-		rc = hl_set_dram_bar(hdev, old_base);
+		rc = hl_set_dram_bar(hdev, old_base, region);
 		if (rc == U64_MAX)
 			return -EIO;
 	}
@@ -97,9 +106,10 @@ static int hl_access_sram_dram_region(struct hl_device *hdev, u64 addr, u64 *val
 }
 
 static void *hl_dma_alloc_common(struct hl_device *hdev, size_t size, dma_addr_t *dma_handle,
-		gfp_t flag, enum dma_alloc_type alloc_type)
+					gfp_t flag, enum dma_alloc_type alloc_type,
+					const char *caller)
 {
-	void *ptr;
+	void *ptr = NULL;
 
 	switch (alloc_type) {
 	case DMA_ALLOC_COHERENT:
@@ -113,11 +123,16 @@ static void *hl_dma_alloc_common(struct hl_device *hdev, size_t size, dma_addr_t
 		break;
 	}
 
+	if (trace_habanalabs_dma_alloc_enabled() && !ZERO_OR_NULL_PTR(ptr))
+		trace_habanalabs_dma_alloc(hdev->dev, (u64) (uintptr_t) ptr, *dma_handle, size,
+						caller);
+
 	return ptr;
 }
 
 static void hl_asic_dma_free_common(struct hl_device *hdev, size_t size, void *cpu_addr,
-					dma_addr_t dma_handle, enum dma_alloc_type alloc_type)
+					dma_addr_t dma_handle, enum dma_alloc_type alloc_type,
+					const char *caller)
 {
 	switch (alloc_type) {
 	case DMA_ALLOC_COHERENT:
@@ -130,39 +145,44 @@ static void hl_asic_dma_free_common(struct hl_device *hdev, size_t size, void *c
 		hdev->asic_funcs->asic_dma_pool_free(hdev, cpu_addr, dma_handle);
 		break;
 	}
+
+	trace_habanalabs_dma_free(hdev->dev, (u64) (uintptr_t) cpu_addr, dma_handle, size, caller);
 }
 
-void *hl_asic_dma_alloc_coherent(struct hl_device *hdev, size_t size, dma_addr_t *dma_handle,
-					gfp_t flag)
+void *hl_asic_dma_alloc_coherent_caller(struct hl_device *hdev, size_t size, dma_addr_t *dma_handle,
+					gfp_t flag, const char *caller)
 {
-	return hl_dma_alloc_common(hdev, size, dma_handle, flag, DMA_ALLOC_COHERENT);
+	return hl_dma_alloc_common(hdev, size, dma_handle, flag, DMA_ALLOC_COHERENT, caller);
 }
 
-void hl_asic_dma_free_coherent(struct hl_device *hdev, size_t size, void *cpu_addr,
-					dma_addr_t dma_handle)
+void hl_asic_dma_free_coherent_caller(struct hl_device *hdev, size_t size, void *cpu_addr,
+					dma_addr_t dma_handle, const char *caller)
 {
-	hl_asic_dma_free_common(hdev, size, cpu_addr, dma_handle, DMA_ALLOC_COHERENT);
+	hl_asic_dma_free_common(hdev, size, cpu_addr, dma_handle, DMA_ALLOC_COHERENT, caller);
 }
 
-void *hl_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size, dma_addr_t *dma_handle)
+void *hl_cpu_accessible_dma_pool_alloc_caller(struct hl_device *hdev, size_t size,
+						dma_addr_t *dma_handle, const char *caller)
 {
-	return hl_dma_alloc_common(hdev, size, dma_handle, 0, DMA_ALLOC_CPU_ACCESSIBLE);
+	return hl_dma_alloc_common(hdev, size, dma_handle, 0, DMA_ALLOC_CPU_ACCESSIBLE, caller);
 }
 
-void hl_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size, void *vaddr)
+void hl_cpu_accessible_dma_pool_free_caller(struct hl_device *hdev, size_t size, void *vaddr,
+						const char *caller)
 {
-	hl_asic_dma_free_common(hdev, size, vaddr, 0, DMA_ALLOC_CPU_ACCESSIBLE);
+	hl_asic_dma_free_common(hdev, size, vaddr, 0, DMA_ALLOC_CPU_ACCESSIBLE, caller);
 }
 
-void *hl_asic_dma_pool_zalloc(struct hl_device *hdev, size_t size, gfp_t mem_flags,
-					dma_addr_t *dma_handle)
+void *hl_asic_dma_pool_zalloc_caller(struct hl_device *hdev, size_t size, gfp_t mem_flags,
+					dma_addr_t *dma_handle, const char *caller)
 {
-	return hl_dma_alloc_common(hdev, size, dma_handle, mem_flags, DMA_ALLOC_POOL);
+	return hl_dma_alloc_common(hdev, size, dma_handle, mem_flags, DMA_ALLOC_POOL, caller);
 }
 
-void hl_asic_dma_pool_free(struct hl_device *hdev, void *vaddr, dma_addr_t dma_addr)
+void hl_asic_dma_pool_free_caller(struct hl_device *hdev, void *vaddr, dma_addr_t dma_addr,
+					const char *caller)
 {
-	hl_asic_dma_free_common(hdev, 0, vaddr, dma_addr, DMA_ALLOC_POOL);
+	hl_asic_dma_free_common(hdev, 0, vaddr, dma_addr, DMA_ALLOC_POOL, caller);
 }
 
 int hl_dma_map_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_data_direction dir)
@@ -267,6 +287,30 @@ int hl_access_dev_mem(struct hl_device *hdev, enum pci_region region_type,
 	return 0;
 }
 
+void hl_engine_data_sprintf(struct engines_data *e, const char *fmt, ...)
+{
+	va_list args;
+	int str_size;
+
+	va_start(args, fmt);
+	/* Calculate formatted string length. Assuming each string is null terminated, hence
+	 * increment result by 1
+	 */
+	str_size = vsnprintf(NULL, 0, fmt, args) + 1;
+	va_end(args);
+
+	if ((e->actual_size + str_size) < e->allocated_buf_size) {
+		va_start(args, fmt);
+		vsnprintf(e->buf + e->actual_size, str_size, fmt, args);
+		va_end(args);
+	}
+
+	/* Need to update the size even when not updating destination buffer to get the exact size
+	 * of all input strings
+	 */
+	e->actual_size += str_size;
+}
+
 enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
 	enum hl_device_status status;
@@ -321,6 +365,8 @@ static void hpriv_release(struct kref *ref)
 	hpriv = container_of(ref, struct hl_fpriv, refcount);
 
 	hdev = hpriv->hdev;
+
+	hdev->asic_funcs->send_device_activity(hdev, false);
 
 	put_pid(hpriv->taskpid);
 
@@ -673,7 +719,7 @@ static int device_early_init(struct hl_device *hdev)
 
 	if (hdev->asic_prop.completion_queues_count) {
 		hdev->cq_wq = kcalloc(hdev->asic_prop.completion_queues_count,
-				sizeof(*hdev->cq_wq),
+				sizeof(struct workqueue_struct *),
 				GFP_KERNEL);
 		if (!hdev->cq_wq) {
 			rc = -ENOMEM;
@@ -1091,7 +1137,9 @@ int hl_device_resume(struct hl_device *hdev)
 	/* 'in_reset' was set to true during suspend, now we must clear it in order
 	 * for hard reset to be performed
 	 */
+	spin_lock(&hdev->reset_info.lock);
 	hdev->reset_info.in_reset = 0;
+	spin_unlock(&hdev->reset_info.lock);
 
 	rc = hl_device_reset(hdev, HL_DRV_RESET_HARD);
 	if (rc) {
@@ -1518,6 +1566,13 @@ kill_processes:
 	 */
 	hdev->disabled = false;
 
+	/* F/W security enabled indication might be updated after hard-reset */
+	if (hard_reset) {
+		rc = hl_fw_read_preboot_status(hdev);
+		if (rc)
+			goto out_err;
+	}
+
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize the H/W after reset\n");
@@ -1556,7 +1611,7 @@ kill_processes:
 		if (!hdev->asic_prop.fw_security_enabled)
 			hl_fw_set_max_power(hdev);
 	} else {
-		rc = hdev->asic_funcs->non_hard_reset_late_init(hdev);
+		rc = hdev->asic_funcs->compute_reset_late_init(hdev);
 		if (rc) {
 			if (reset_upon_device_release)
 				dev_err(hdev->dev,
@@ -1704,7 +1759,9 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	char *name;
 	bool add_cdev_sysfs_on_err = false;
 
-	name = kasprintf(GFP_KERNEL, "hl%d", hdev->id / 2);
+	hdev->cdev_idx = hdev->id / 2;
+
+	name = kasprintf(GFP_KERNEL, "hl%d", hdev->cdev_idx);
 	if (!name) {
 		rc = -ENOMEM;
 		goto out_disabled;
@@ -1719,7 +1776,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	if (rc)
 		goto out_disabled;
 
-	name = kasprintf(GFP_KERNEL, "hl_controlD%d", hdev->id / 2);
+	name = kasprintf(GFP_KERNEL, "hl_controlD%d", hdev->cdev_idx);
 	if (!name) {
 		rc = -ENOMEM;
 		goto free_dev;
@@ -1806,7 +1863,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	}
 
 	hdev->shadow_cs_queue = kcalloc(hdev->asic_prop.max_pending_cs,
-					sizeof(*hdev->shadow_cs_queue), GFP_KERNEL);
+					sizeof(struct hl_cs *), GFP_KERNEL);
 	if (!hdev->shadow_cs_queue) {
 		rc = -ENOMEM;
 		goto cq_fini;
@@ -1997,10 +2054,10 @@ out_disabled:
 	if (hdev->pdev)
 		dev_err(&hdev->pdev->dev,
 			"Failed to initialize hl%d. Device is NOT usable !\n",
-			hdev->id / 2);
+			hdev->cdev_idx);
 	else
 		pr_err("Failed to initialize hl%d. Device is NOT usable !\n",
-			hdev->id / 2);
+			hdev->cdev_idx);
 
 	return rc;
 }

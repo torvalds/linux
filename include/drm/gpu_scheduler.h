@@ -32,6 +32,15 @@
 
 #define MAX_WAIT_SCHED_ENTITY_Q_EMPTY msecs_to_jiffies(1000)
 
+/**
+ * DRM_SCHED_FENCE_DONT_PIPELINE - Prefent dependency pipelining
+ *
+ * Setting this flag on a scheduler fence prevents pipelining of jobs depending
+ * on this fence. In other words we always insert a full CPU round trip before
+ * dependen jobs are pushed to the hw queue.
+ */
+#define DRM_SCHED_FENCE_DONT_PIPELINE	DMA_FENCE_FLAG_USER_BITS
+
 struct drm_gem_object;
 
 struct drm_gpu_scheduler;

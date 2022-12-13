@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/brcm,bcm2711-dvp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom BCM2711 HDMI DVP Device Tree Bindings
+title: Broadcom BCM2711 HDMI DVP
 
 maintainers:
   - Maxime Ripard <mripard@kernel.org>

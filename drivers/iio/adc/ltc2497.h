@@ -4,9 +4,15 @@
 #define LTC2497_CONFIG_DEFAULT		LTC2497_ENABLE
 #define LTC2497_CONVERSION_TIME_MS	150ULL
 
+struct ltc2497_chip_info {
+	u32 resolution;
+	const char *name;
+};
+
 struct ltc2497core_driverdata {
 	struct regulator *ref;
 	ktime_t	time_prev;
+	const struct ltc2497_chip_info	*chip_info;
 	u8 addr_prev;
 	int (*result_and_measure)(struct ltc2497core_driverdata *ddata,
 				  u8 address, int *val);

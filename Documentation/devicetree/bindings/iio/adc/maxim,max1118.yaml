@@ -28,23 +28,25 @@ properties:
   vref-supply:
     description: External reference, needed to establish input scaling
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: maxim,max1118
-then:
-  required:
-    - vref-supply
-else:
-  properties:
-    vref-supply: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: maxim,max1118
+    then:
+      required:
+        - vref-supply
+    else:
+      properties:
+        vref-supply: false
 
 required:
   - compatible
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

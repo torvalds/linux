@@ -55,6 +55,12 @@ properties:
 
   dma-coherent: true
 
+  iommus:
+    minItems: 1
+    maxItems: 9
+    description: Up to 1 IOMMU entry per DMA channel for writes and 1
+      IOMMU entry for reads.
+
   power-domains:
     maxItems: 1
 

@@ -31,7 +31,7 @@ static bool dev_name_ends_with(struct device *dev, const char *suffix)
 
 static int retimer_fwnode_match(struct device *dev, const void *fwnode)
 {
-	return dev_fwnode(dev) == fwnode && dev_name_ends_with(dev, "-retimer");
+	return device_match_fwnode(dev, fwnode) && dev_name_ends_with(dev, "-retimer");
 }
 
 static void *typec_retimer_match(struct fwnode_handle *fwnode, const char *id, void *data)

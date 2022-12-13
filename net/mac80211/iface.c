@@ -243,7 +243,7 @@ static int ieee80211_can_powered_addr_change(struct ieee80211_sub_if_data *sdata
 		 */
 		break;
 	default:
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
 	}
 
 unlock:
@@ -461,7 +461,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	/*
 	 * Stop TX on this interface first.
 	 */
-	if (sdata->dev)
+	if (!local->ops->wake_tx_queue && sdata->dev)
 		netif_tx_stop_all_queues(sdata->dev);
 
 	ieee80211_roc_purge(local, sdata);
@@ -1412,8 +1412,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 			sdata->vif.type != NL80211_IFTYPE_STATION);
 	}
 
-	set_bit(SDATA_STATE_RUNNING, &sdata->state);
-
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
 		rcu_assign_pointer(local->p2p_sdata, sdata);
@@ -1471,6 +1469,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		}
 		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 	}
+
+	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	return 0;
  err_del_interface:

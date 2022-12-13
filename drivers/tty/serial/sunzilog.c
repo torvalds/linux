@@ -938,7 +938,7 @@ sunzilog_convert_to_zs(struct uart_sunzilog_port *up, unsigned int cflag,
 /* The port lock is not held.  */
 static void
 sunzilog_set_termios(struct uart_port *port, struct ktermios *termios,
-		     struct ktermios *old)
+		     const struct ktermios *old)
 {
 	struct uart_sunzilog_port *up =
 		container_of(port, struct uart_sunzilog_port, port);
@@ -1307,13 +1307,13 @@ static void sunzilog_register_serio(struct uart_sunzilog_port *up)
 	serio->id.type = SERIO_RS232;
 	if (up->flags & SUNZILOG_FLAG_CONS_KEYB) {
 		serio->id.proto = SERIO_SUNKBD;
-		strlcpy(serio->name, "zskbd", sizeof(serio->name));
+		strscpy(serio->name, "zskbd", sizeof(serio->name));
 	} else {
 		serio->id.proto = SERIO_SUN;
 		serio->id.extra = 1;
-		strlcpy(serio->name, "zsms", sizeof(serio->name));
+		strscpy(serio->name, "zsms", sizeof(serio->name));
 	}
-	strlcpy(serio->phys,
+	strscpy(serio->phys,
 		((up->flags & SUNZILOG_FLAG_CONS_KEYB) ?
 		 "zs/serio0" : "zs/serio1"),
 		sizeof(serio->phys));

@@ -1734,9 +1734,19 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	int i, k, l;
 	struct dc_stream_state *dc_streams[MAX_STREAMS] = {0};
 	struct dc_state *old_state;
+	bool subvp_prev_use = false;
 
 	dc_z10_restore(dc);
 	dc_allow_idle_optimizations(dc, false);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		/* Check old context for SubVP */
+		subvp_prev_use |= (old_pipe->stream && old_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM);
+		if (subvp_prev_use)
+			break;
+	}
 
 	for (i = 0; i < context->stream_count; i++)
 		dc_streams[i] =  context->streams[i];
@@ -1777,6 +1787,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe);
 	}
 
+	if (dc->hwss.subvp_pipe_control_lock)
+		dc->hwss.subvp_pipe_control_lock(dc, context, true, true, NULL, subvp_prev_use);
+
 	result = dc->hwss.apply_ctx_to_hw(dc, context);
 
 	if (result != DC_OK) {
@@ -1794,6 +1807,12 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		dc->hwss.interdependent_update_lock(dc, context, false);
 		dc->hwss.post_unlock_program_front_end(dc, context);
 	}
+
+	if (dc->hwss.commit_subvp_config)
+		dc->hwss.commit_subvp_config(dc, context);
+	if (dc->hwss.subvp_pipe_control_lock)
+		dc->hwss.subvp_pipe_control_lock(dc, context, false, true, NULL, subvp_prev_use);
+
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_link *link = context->streams[i]->link;
 
@@ -2927,6 +2946,12 @@ static bool update_planes_and_stream_state(struct dc *dc,
 		dc_resource_state_copy_construct(
 				dc->current_state, context);
 
+		/* For each full update, remove all existing phantom pipes first.
+		 * Ensures that we have enough pipes for newly added MPO planes
+		 */
+		if (dc->res_pool->funcs->remove_phantom_pipes)
+			dc->res_pool->funcs->remove_phantom_pipes(dc, context);
+
 		/*remove old surfaces from context */
 		if (!dc_rem_all_planes_for_stream(dc, stream, context)) {
 
@@ -3334,8 +3359,14 @@ static void commit_planes_for_stream(struct dc *dc,
 		/* Since phantom pipe programming is moved to post_unlock_program_front_end,
 		 * move the SubVP lock to after the phantom pipes have been setup
 		 */
-		if (dc->hwss.subvp_pipe_control_lock)
-			dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
+		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
+			if (dc->hwss.subvp_pipe_control_lock)
+				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
+		} else {
+			if (dc->hwss.subvp_pipe_control_lock)
+				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
+		}
+
 		return;
 	}
 
@@ -3495,6 +3526,9 @@ static void commit_planes_for_stream(struct dc *dc,
 
 	if (update_type != UPDATE_TYPE_FAST)
 		dc->hwss.post_unlock_program_front_end(dc, context);
+	if (update_type != UPDATE_TYPE_FAST)
+		if (dc->hwss.commit_subvp_config)
+			dc->hwss.commit_subvp_config(dc, context);
 
 	if (update_type != UPDATE_TYPE_FAST)
 		if (dc->hwss.commit_subvp_config)
@@ -3542,6 +3576,7 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 
 	struct dc_stream_status *cur_stream_status = stream_get_status(dc->current_state, stream);
 	bool force_minimal_pipe_splitting = false;
+	uint32_t i;
 
 	*is_plane_addition = false;
 
@@ -3573,6 +3608,36 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 		}
 	}
 
+	/* For SubVP pipe split case when adding MPO video
+	 * we need to add a minimal transition. In this case
+	 * there will be 2 streams (1 main stream, 1 phantom
+	 * stream).
+	 */
+	if (cur_stream_status &&
+			dc->current_state->stream_count == 2 &&
+			stream->mall_stream_config.type == SUBVP_MAIN) {
+		bool is_pipe_split = false;
+
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			if (dc->current_state->res_ctx.pipe_ctx[i].stream == stream &&
+					(dc->current_state->res_ctx.pipe_ctx[i].bottom_pipe ||
+					dc->current_state->res_ctx.pipe_ctx[i].next_odm_pipe)) {
+				is_pipe_split = true;
+				break;
+			}
+		}
+
+		/* determine if minimal transition is required due to SubVP*/
+		if (surface_count > 0 && is_pipe_split) {
+			if (cur_stream_status->plane_count > surface_count) {
+				force_minimal_pipe_splitting = true;
+			} else if (cur_stream_status->plane_count < surface_count) {
+				force_minimal_pipe_splitting = true;
+				*is_plane_addition = true;
+			}
+		}
+	}
+
 	return force_minimal_pipe_splitting;
 }
 
@@ -3582,6 +3647,7 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	struct dc_state *transition_context = dc_create_state(dc);
 	enum pipe_split_policy tmp_mpc_policy;
 	bool temp_dynamic_odm_policy;
+	bool temp_subvp_policy;
 	enum dc_status ret = DC_ERROR_UNEXPECTED;
 	unsigned int i, j;
 
@@ -3595,6 +3661,9 @@ static bool commit_minimal_transition_state(struct dc *dc,
 
 	temp_dynamic_odm_policy = dc->debug.enable_single_display_2to1_odm_policy;
 	dc->debug.enable_single_display_2to1_odm_policy = false;
+
+	temp_subvp_policy = dc->debug.force_disable_subvp;
+	dc->debug.force_disable_subvp = true;
 
 	dc_resource_state_copy_construct(transition_base_context, transition_context);
 
@@ -3624,6 +3693,7 @@ static bool commit_minimal_transition_state(struct dc *dc,
 		dc->debug.pipe_split_policy = tmp_mpc_policy;
 
 	dc->debug.enable_single_display_2to1_odm_policy = temp_dynamic_odm_policy;
+	dc->debug.force_disable_subvp = temp_subvp_policy;
 
 	if (ret != DC_OK) {
 		/*this should never happen*/
@@ -4584,6 +4654,37 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 	}
 
 	return DC_OK;
+}
+
+/**
+ *****************************************************************************
+ *  Function: dc_process_dmub_dpia_hpd_int_enable
+ *
+ *  @brief
+ *		Submits dpia hpd int enable command to dmub via inbox message
+ *
+ *  @param
+ *		[in] dc: dc structure
+ *		[in] hpd_int_enable: 1 for hpd int enable, 0 to disable
+ *
+ *	@return
+ *		None
+ *****************************************************************************
+ */
+void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
+				uint32_t hpd_int_enable)
+{
+	union dmub_rb_cmd cmd = {0};
+	struct dc_dmub_srv *dmub_srv = dc->ctx->dmub_srv;
+
+	cmd.dpia_hpd_int_enable.header.type = DMUB_CMD__DPIA_HPD_INT_ENABLE;
+	cmd.dpia_hpd_int_enable.enable = hpd_int_enable;
+
+	dc_dmub_srv_cmd_queue(dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dmub_srv);
+	dc_dmub_srv_wait_idle(dmub_srv);
+
+	DC_LOG_DEBUG("%s: hpd_int_enable(%d)\n", __func__, hpd_int_enable);
 }
 
 /**

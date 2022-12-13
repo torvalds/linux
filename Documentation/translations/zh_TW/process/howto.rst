@@ -309,7 +309,7 @@ bugzilla.kernel.org是Linux內核開發者們用來跟蹤內核Bug的網站。�
 網上很多地方都有這個郵件列表的存檔(archive)。可以使用搜尋引擎來找到這些
 存檔。比如：
 
-	http://dir.gmane.org/gmane.linux.kernel
+	https://lore.kernel.org/lkml/
 
 在發信之前，我們強烈建議你先在存檔中搜索你想要討論的問題。很多已經被詳細
 討論過的問題只在郵件列表的存檔中可以找到。

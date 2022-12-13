@@ -13,13 +13,10 @@
 
 void __delay(unsigned long loops)
 {
-        /*
-         * To end the bloody studid and useless discussion about the
-         * BogoMips number I took the liberty to define the __delay
-         * function in a way that that resulting BogoMips number will
-         * yield the megahertz number of the cpu. The important function
-         * is udelay and that is done using the tod clock. -- martin.
-         */
+	/*
+	 * Loop 'loops' times. Callers must not assume a specific
+	 * amount of time passes before this function returns.
+	 */
 	asm volatile("0: brct %0,0b" : : "d" ((loops/2) + 1));
 }
 EXPORT_SYMBOL(__delay);

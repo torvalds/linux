@@ -36,6 +36,7 @@ patternProperties:
       pins it needs, and how they should be configured, with regard to muxer
       configuration, pullups, drive strength.
     $ref: "pinmux-node.yaml"
+    additionalProperties: false
 
     properties:
       function:

@@ -560,7 +560,7 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 
 		buf = (ulong *)bh->b_data;
 
-		used = __bitmap_weight(buf, wbits);
+		used = bitmap_weight(buf, wbits);
 		if (used < wbits) {
 			frb = wbits - used;
 			wnd->free_bits[iw] = frb;
@@ -1364,7 +1364,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		buf = (ulong *)bh->b_data;
 
 		__bitmap_clear(buf, b0, blocksize * 8 - b0);
-		frb = wbits - __bitmap_weight(buf, wbits);
+		frb = wbits - bitmap_weight(buf, wbits);
 		wnd->total_zeroes += frb - wnd->free_bits[iw];
 		wnd->free_bits[iw] = frb;
 

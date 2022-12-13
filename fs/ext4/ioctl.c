@@ -454,8 +454,8 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	inode->i_ctime = inode_bl->i_ctime = current_time(inode);
 	inode_inc_iversion(inode);
 
-	inode->i_generation = prandom_u32();
-	inode_bl->i_generation = prandom_u32();
+	inode->i_generation = get_random_u32();
+	inode_bl->i_generation = get_random_u32();
 	ext4_reset_inode_seed(inode);
 	ext4_reset_inode_seed(inode_bl);
 

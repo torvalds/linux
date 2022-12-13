@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/allwinner,sun4i-a10-hdmi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 HDMI Controller Device Tree Bindings
+title: Allwinner A10 HDMI Controller
 
 description: |
   The HDMI Encoder supports the HDMI video and audio outputs, and does

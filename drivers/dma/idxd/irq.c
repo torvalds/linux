@@ -17,12 +17,6 @@ enum irq_work_type {
 	IRQ_WORK_PROCESS_FAULT,
 };
 
-struct idxd_fault {
-	struct work_struct work;
-	u64 addr;
-	struct idxd_device *idxd;
-};
-
 struct idxd_resubmit {
 	struct work_struct work;
 	struct idxd_desc *desc;
@@ -49,11 +43,12 @@ static void idxd_device_reinit(struct work_struct *work)
 		goto out;
 
 	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = idxd->wqs[i];
+		if (test_bit(i, idxd->wq_enable_map)) {
+			struct idxd_wq *wq = idxd->wqs[i];
 
-		if (wq->state == IDXD_WQ_ENABLED) {
 			rc = idxd_wq_enable(wq);
 			if (rc < 0) {
+				clear_bit(i, idxd->wq_enable_map);
 				dev_warn(dev, "Unable to re-enable wq %s\n",
 					 dev_name(wq_confdev(wq)));
 			}
@@ -324,13 +319,11 @@ halt:
 			idxd->state = IDXD_DEV_HALTED;
 			idxd_wqs_quiesce(idxd);
 			idxd_wqs_unmap_portal(idxd);
-			spin_lock(&idxd->dev_lock);
 			idxd_device_clear_state(idxd);
 			dev_err(&idxd->pdev->dev,
 				"idxd halted, need %s.\n",
 				gensts.reset_type == IDXD_DEVICE_RESET_FLR ?
 				"FLR" : "system reset");
-			spin_unlock(&idxd->dev_lock);
 			return -ENXIO;
 		}
 	}

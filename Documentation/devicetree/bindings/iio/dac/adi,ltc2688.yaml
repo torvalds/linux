@@ -48,6 +48,7 @@ properties:
 patternProperties:
   "^channel@([0-9]|1[0-5])$":
     type: object
+    additionalProperties: false
 
     properties:
       reg:

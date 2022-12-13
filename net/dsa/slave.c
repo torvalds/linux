@@ -3145,7 +3145,7 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 	case NETDEV_CHANGELOWERSTATE: {
 		struct netdev_notifier_changelowerstate_info *info = ptr;
 		struct dsa_port *dp;
-		int err;
+		int err = 0;
 
 		if (dsa_slave_dev_check(dev)) {
 			dp = dsa_slave_to_port(dev);

@@ -105,6 +105,9 @@ static void __init init_ioports(void)
 	if (dnode == NULL)
 		return;
 	prop = of_find_property(dnode, "ethernet1", &len);
+
+	of_node_put(dnode);
+
 	if (prop == NULL)
 		return;
 
