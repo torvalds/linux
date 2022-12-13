@@ -1085,8 +1085,14 @@ int set_trigger_filter(char *filter_str,
 	rcu_assign_pointer(data->filter, filter);
 
 	if (tmp) {
-		/* Make sure the call is done with the filter */
-		tracepoint_synchronize_unregister();
+		/*
+		 * Make sure the call is done with the filter.
+		 * It is possible that a filter could fail at boot up,
+		 * and then this path will be called. Avoid the synchronization
+		 * in that case.
+		 */
+		if (system_state != SYSTEM_BOOTING)
+			tracepoint_synchronize_unregister();
 		free_event_filter(tmp);
 	}
 
