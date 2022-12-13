@@ -1561,14 +1561,8 @@ static int osd_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int osd_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver osd_driver = {
 	.probe		= osd_probe,
-	.remove		= osd_remove,
 	.driver		= {
 		.name	= MODULE_NAME,
 	},
