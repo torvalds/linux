@@ -111,8 +111,7 @@ static const struct of_device_id tps6286x_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, tps6286x_dt_ids);
 
-static int tps6286x_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int tps6286x_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct regulator_config config = {};
@@ -150,7 +149,7 @@ static struct i2c_driver tps6286x_regulator_driver = {
 		.name = "tps6286x",
 		.of_match_table = of_match_ptr(tps6286x_dt_ids),
 	},
-	.probe = tps6286x_i2c_probe,
+	.probe_new = tps6286x_i2c_probe,
 	.id_table = tps6286x_i2c_id,
 };
 

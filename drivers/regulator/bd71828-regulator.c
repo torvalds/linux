@@ -750,23 +750,20 @@ static int bd71828_probe(struct platform_device *pdev)
 		rd = &bd71828_rdata[i];
 		rdev = devm_regulator_register(&pdev->dev,
 					       &rd->desc, &config);
-		if (IS_ERR(rdev)) {
-			dev_err(&pdev->dev,
-				"failed to register %s regulator\n",
-				rd->desc.name);
-			return PTR_ERR(rdev);
-		}
+		if (IS_ERR(rdev))
+			return dev_err_probe(&pdev->dev, PTR_ERR(rdev),
+					     "failed to register %s regulator\n",
+					     rd->desc.name);
+
 		for (j = 0; j < rd->reg_init_amnt; j++) {
 			ret = regmap_update_bits(config.regmap,
 						 rd->reg_inits[j].reg,
 						 rd->reg_inits[j].mask,
 						 rd->reg_inits[j].val);
-			if (ret) {
-				dev_err(&pdev->dev,
-					"regulator %s init failed\n",
-					rd->desc.name);
-				return ret;
-			}
+			if (ret)
+				return dev_err_probe(&pdev->dev, ret,
+						     "regulator %s init failed\n",
+						     rd->desc.name);
 		}
 	}
 	return 0;
