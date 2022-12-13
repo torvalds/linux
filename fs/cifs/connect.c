@@ -3554,9 +3554,6 @@ static int is_path_remote(struct mount_ctx *mnt_ctx)
 	struct cifs_tcon *tcon = mnt_ctx->tcon;
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	char *full_path;
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	bool nodfs = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS;
-#endif
 
 	if (!server->ops->is_path_accessible)
 		return -EOPNOTSUPP;
@@ -3573,19 +3570,6 @@ static int is_path_remote(struct mount_ctx *mnt_ctx)
 
 	rc = server->ops->is_path_accessible(xid, tcon, cifs_sb,
 					     full_path);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	if (nodfs) {
-		if (rc == -EREMOTE)
-			rc = -EOPNOTSUPP;
-		goto out;
-	}
-
-	/* path *might* exist with non-ASCII characters in DFS root
-	 * try again with full path (only if nodfs is not set) */
-	if (rc == -ENOENT && is_tcon_dfs(tcon))
-		rc = cifs_dfs_query_info_nonascii_quirk(xid, tcon, cifs_sb,
-							full_path);
-#endif
 	if (rc != 0 && rc != -EREMOTE)
 		goto out;
 
