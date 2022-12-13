@@ -43,6 +43,7 @@
 #include <linux/ctype.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/kstrtox.h>
 #include <linux/workqueue.h>
 #include <linux/mii.h>
 #include <linux/crc32.h>
@@ -318,7 +319,7 @@ static ssize_t ndp_to_end_store(struct device *d,  struct device_attribute *attr
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
 	bool enable;
 
-	if (strtobool(buf, &enable))
+	if (kstrtobool(buf, &enable))
 		return -EINVAL;
 
 	/* no change? */

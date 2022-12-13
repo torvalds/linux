@@ -20,6 +20,7 @@
 #include <net/tc_act/tc_sample.h>
 #include <net/psample.h>
 #include <net/pkt_cls.h>
+#include <net/tc_wrapper.h>
 
 #include <linux/if_arp.h>
 
@@ -153,8 +154,9 @@ static bool tcf_sample_dev_ok_push(struct net_device *dev)
 	}
 }
 
-static int tcf_sample_act(struct sk_buff *skb, const struct tc_action *a,
-			  struct tcf_result *res)
+TC_INDIRECT_SCOPE int tcf_sample_act(struct sk_buff *skb,
+				     const struct tc_action *a,
+				     struct tcf_result *res)
 {
 	struct tcf_sample *s = to_sample(a);
 	struct psample_group *psample_group;

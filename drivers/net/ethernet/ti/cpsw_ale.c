@@ -1452,6 +1452,16 @@ void cpsw_ale_dump(struct cpsw_ale *ale, u32 *data)
 	}
 }
 
+void cpsw_ale_restore(struct cpsw_ale *ale, u32 *data)
+{
+	int i;
+
+	for (i = 0; i < ale->params.ale_entries; i++) {
+		cpsw_ale_write(ale, i, data);
+		data += ALE_ENTRY_WORDS;
+	}
+}
+
 u32 cpsw_ale_get_num_entries(struct cpsw_ale *ale)
 {
 	return ale ? ale->params.ale_entries : 0;

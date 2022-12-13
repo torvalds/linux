@@ -290,6 +290,7 @@ struct bcm_rsb {
 
 #define RDMA_WRITE_PTR_HI		0x1010
 #define RDMA_WRITE_PTR_LO		0x1014
+#define RDMA_OVFL_DISC_CNTR		0x1018
 #define RDMA_PROD_INDEX			0x1018
 #define  RDMA_PROD_INDEX_MASK		0xffff
 
@@ -565,6 +566,7 @@ struct bcm_sysport_mib {
 	u32 rxchk_other_pkt_disc;
 	u32 rbuf_ovflow_cnt;
 	u32 rbuf_err_cnt;
+	u32 rdma_ovflow_cnt;
 	u32 alloc_rx_buff_failed;
 	u32 rx_dma_failed;
 	u32 tx_dma_failed;
@@ -581,6 +583,7 @@ enum bcm_sysport_stat_type {
 	BCM_SYSPORT_STAT_RUNT,
 	BCM_SYSPORT_STAT_RXCHK,
 	BCM_SYSPORT_STAT_RBUF,
+	BCM_SYSPORT_STAT_RDMA,
 	BCM_SYSPORT_STAT_SOFT,
 };
 
@@ -624,6 +627,14 @@ enum bcm_sysport_stat_type {
 	.stat_sizeof = sizeof(((struct bcm_sysport_priv *)0)->m), \
 	.stat_offset = offsetof(struct bcm_sysport_priv, m), \
 	.type = BCM_SYSPORT_STAT_RBUF, \
+	.reg_offset = ofs, \
+}
+
+#define STAT_RDMA(str, m, ofs) { \
+	.stat_string = str, \
+	.stat_sizeof = sizeof(((struct bcm_sysport_priv *)0)->m), \
+	.stat_offset = offsetof(struct bcm_sysport_priv, m), \
+	.type = BCM_SYSPORT_STAT_RDMA, \
 	.reg_offset = ofs, \
 }
 

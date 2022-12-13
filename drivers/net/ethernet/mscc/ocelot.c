@@ -872,10 +872,8 @@ void ocelot_phylink_mac_link_up(struct ocelot *ocelot, int port,
 		return;
 	}
 
-	/* Handle RX pause in all cases, with 2500base-X this is used for rate
-	 * adaptation.
-	 */
-	mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
+	if (rx_pause)
+		mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
 
 	if (tx_pause)
 		mac_fc_cfg |= SYS_MAC_FC_CFG_TX_FC_ENA |

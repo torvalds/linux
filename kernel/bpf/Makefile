@@ -25,7 +25,7 @@ ifeq ($(CONFIG_PERF_EVENTS),y)
 obj-$(CONFIG_BPF_SYSCALL) += stackmap.o
 endif
 ifeq ($(CONFIG_CGROUPS),y)
-obj-$(CONFIG_BPF_SYSCALL) += cgroup_iter.o
+obj-$(CONFIG_BPF_SYSCALL) += cgroup_iter.o bpf_cgrp_storage.o
 endif
 obj-$(CONFIG_CGROUP_BPF) += cgroup.o
 ifeq ($(CONFIG_INET),y)

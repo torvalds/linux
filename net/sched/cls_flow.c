@@ -24,6 +24,7 @@
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/flow_dissector.h>
+#include <net/tc_wrapper.h>
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <net/netfilter/nf_conntrack.h>
@@ -292,8 +293,9 @@ static u32 flow_key_get(struct sk_buff *skb, int key, struct flow_keys *flow)
 			  (1 << FLOW_KEY_NFCT_PROTO_SRC) |	\
 			  (1 << FLOW_KEY_NFCT_PROTO_DST))
 
-static int flow_classify(struct sk_buff *skb, const struct tcf_proto *tp,
-			 struct tcf_result *res)
+TC_INDIRECT_SCOPE int flow_classify(struct sk_buff *skb,
+				    const struct tcf_proto *tp,
+				    struct tcf_result *res)
 {
 	struct flow_head *head = rcu_dereference_bh(tp->root);
 	struct flow_filter *f;

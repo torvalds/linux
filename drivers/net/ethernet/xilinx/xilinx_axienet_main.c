@@ -1305,16 +1305,16 @@ axienet_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	netdev_stats_to_stats64(stats, &dev->stats);
 
 	do {
-		start = u64_stats_fetch_begin_irq(&lp->rx_stat_sync);
+		start = u64_stats_fetch_begin(&lp->rx_stat_sync);
 		stats->rx_packets = u64_stats_read(&lp->rx_packets);
 		stats->rx_bytes = u64_stats_read(&lp->rx_bytes);
-	} while (u64_stats_fetch_retry_irq(&lp->rx_stat_sync, start));
+	} while (u64_stats_fetch_retry(&lp->rx_stat_sync, start));
 
 	do {
-		start = u64_stats_fetch_begin_irq(&lp->tx_stat_sync);
+		start = u64_stats_fetch_begin(&lp->tx_stat_sync);
 		stats->tx_packets = u64_stats_read(&lp->tx_packets);
 		stats->tx_bytes = u64_stats_read(&lp->tx_bytes);
-	} while (u64_stats_fetch_retry_irq(&lp->tx_stat_sync, start));
+	} while (u64_stats_fetch_retry(&lp->tx_stat_sync, start));
 }
 
 static const struct net_device_ops axienet_netdev_ops = {
@@ -1736,7 +1736,6 @@ static void axienet_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops axienet_phylink_ops = {
-	.validate = phylink_generic_validate,
 	.mac_select_pcs = axienet_mac_select_pcs,
 	.mac_config = axienet_mac_config,
 	.mac_link_down = axienet_mac_link_down,
@@ -2217,12 +2216,48 @@ static void axienet_shutdown(struct platform_device *pdev)
 	rtnl_unlock();
 }
 
+static int axienet_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+
+	if (!netif_running(ndev))
+		return 0;
+
+	netif_device_detach(ndev);
+
+	rtnl_lock();
+	axienet_stop(ndev);
+	rtnl_unlock();
+
+	return 0;
+}
+
+static int axienet_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+
+	if (!netif_running(ndev))
+		return 0;
+
+	rtnl_lock();
+	axienet_open(ndev);
+	rtnl_unlock();
+
+	netif_device_attach(ndev);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(axienet_pm_ops,
+				axienet_suspend, axienet_resume);
+
 static struct platform_driver axienet_driver = {
 	.probe = axienet_probe,
 	.remove = axienet_remove,
 	.shutdown = axienet_shutdown,
 	.driver = {
 		 .name = "xilinx_axienet",
+		 .pm = &axienet_pm_ops,
 		 .of_match_table = axienet_of_match,
 	},
 };

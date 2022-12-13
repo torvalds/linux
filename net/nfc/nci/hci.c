@@ -14,6 +14,7 @@
 #include <net/nfc/nci.h>
 #include <net/nfc/nci_core.h>
 #include <linux/nfc.h>
+#include <linux/kcov.h>
 
 struct nci_data {
 	u8 conn_id;
@@ -409,7 +410,8 @@ static void nci_hci_msg_rx_work(struct work_struct *work)
 	const struct nci_hcp_message *message;
 	u8 pipe, type, instruction;
 
-	while ((skb = skb_dequeue(&hdev->msg_rx_queue)) != NULL) {
+	for (; (skb = skb_dequeue(&hdev->msg_rx_queue)); kcov_remote_stop()) {
+		kcov_remote_start_common(skb_get_kcov_handle(skb));
 		pipe = NCI_HCP_MSG_GET_PIPE(skb->data[0]);
 		skb_pull(skb, NCI_HCI_HCP_PACKET_HEADER_LEN);
 		message = (struct nci_hcp_message *)skb->data;

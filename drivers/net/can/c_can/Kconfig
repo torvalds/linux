@@ -20,5 +20,6 @@ config CAN_C_CAN_PCI
 	depends on PCI
 	help
 	  This driver adds support for the C_CAN/D_CAN chips connected
-	  to the PCI bus.
+	  to the PCI bus. E.g. for the C_CAN controller IP inside the
+	  Intel Atom E6xx series IOH (aka EG20T 'PCH CAN').
 endif

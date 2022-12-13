@@ -426,6 +426,7 @@ static int sctp_diag_dump_one(struct netlink_callback *cb,
 	struct net *net = sock_net(skb->sk);
 	const struct nlmsghdr *nlh = cb->nlh;
 	union sctp_addr laddr, paddr;
+	int dif = req->id.idiag_if;
 	struct sctp_comm_param commp = {
 		.skb = skb,
 		.r = req,
@@ -454,7 +455,7 @@ static int sctp_diag_dump_one(struct netlink_callback *cb,
 	}
 
 	return sctp_transport_lookup_process(sctp_sock_dump_one,
-					     net, &laddr, &paddr, &commp);
+					     net, &laddr, &paddr, &commp, dif);
 }
 
 static void sctp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,

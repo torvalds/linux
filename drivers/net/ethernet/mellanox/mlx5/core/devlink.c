@@ -46,10 +46,6 @@ mlx5_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	u32 running_fw, stored_fw;
 	int err;
 
-	err = devlink_info_driver_name_put(req, KBUILD_MODNAME);
-	if (err)
-		return err;
-
 	err = devlink_info_version_fixed_put(req, "fw.psid", dev->board_id);
 	if (err)
 		return err;
@@ -318,6 +314,10 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.rate_node_new = mlx5_esw_devlink_rate_node_new,
 	.rate_node_del = mlx5_esw_devlink_rate_node_del,
 	.rate_leaf_parent_set = mlx5_esw_devlink_rate_parent_set,
+	.port_fn_roce_get = mlx5_devlink_port_fn_roce_get,
+	.port_fn_roce_set = mlx5_devlink_port_fn_roce_set,
+	.port_fn_migratable_get = mlx5_devlink_port_fn_migratable_get,
+	.port_fn_migratable_set = mlx5_devlink_port_fn_migratable_set,
 #endif
 #ifdef CONFIG_MLX5_SF_MANAGER
 	.port_new = mlx5_devlink_sf_port_new,
@@ -840,7 +840,7 @@ static const struct devlink_trap_group mlx5_trap_groups_arr[] = {
 	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 0),
 };
 
-static int mlx5_devlink_traps_register(struct devlink *devlink)
+int mlx5_devlink_traps_register(struct devlink *devlink)
 {
 	struct mlx5_core_dev *core_dev = devlink_priv(devlink);
 	int err;
@@ -862,7 +862,7 @@ err_trap_group:
 	return err;
 }
 
-static void mlx5_devlink_traps_unregister(struct devlink *devlink)
+void mlx5_devlink_traps_unregister(struct devlink *devlink)
 {
 	devl_traps_unregister(devlink, mlx5_traps_arr, ARRAY_SIZE(mlx5_traps_arr));
 	devl_trap_groups_unregister(devlink, mlx5_trap_groups_arr,
@@ -889,17 +889,11 @@ int mlx5_devlink_register(struct devlink *devlink)
 	if (err)
 		goto max_uc_list_err;
 
-	err = mlx5_devlink_traps_register(devlink);
-	if (err)
-		goto traps_reg_err;
-
 	if (!mlx5_core_is_mp_slave(dev))
 		devlink_set_features(devlink, DEVLINK_F_RELOAD);
 
 	return 0;
 
-traps_reg_err:
-	mlx5_devlink_max_uc_list_param_unregister(devlink);
 max_uc_list_err:
 	mlx5_devlink_auxdev_params_unregister(devlink);
 auxdev_reg_err:
@@ -910,7 +904,6 @@ auxdev_reg_err:
 
 void mlx5_devlink_unregister(struct devlink *devlink)
 {
-	mlx5_devlink_traps_unregister(devlink);
 	mlx5_devlink_max_uc_list_param_unregister(devlink);
 	mlx5_devlink_auxdev_params_unregister(devlink);
 	devlink_params_unregister(devlink, mlx5_devlink_params,

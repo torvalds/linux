@@ -12,7 +12,7 @@ allOf:
 maintainers:
   - Andrew Lunn <andrew@lunn.ch>
   - Florian Fainelli <f.fainelli@gmail.com>
-  - Vivien Didelot <vivien.didelot@gmail.com>
+  - Vladimir Oltean <olteanv@gmail.com>
   - Kurt Kanzenbach <kurt@linutronix.de>
 
 description:

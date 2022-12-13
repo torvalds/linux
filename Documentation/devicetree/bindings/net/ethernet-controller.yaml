@@ -108,10 +108,16 @@ properties:
     $ref: "#/properties/phy-connection-type"
 
   pcs-handle:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description:
       Specifies a reference to a node representing a PCS PHY device on a MDIO
       bus to link with an external PHY (phy-handle) if exists.
+
+  pcs-handle-names:
+    description:
+      The name of each PCS in pcs-handle.
 
   phy-handle:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -215,6 +221,9 @@ properties:
 
         required:
           - speed
+
+dependencies:
+  pcs-handle-names: [pcs-handle]
 
 allOf:
   - if:

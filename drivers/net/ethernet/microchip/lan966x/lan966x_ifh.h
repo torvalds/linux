@@ -8,6 +8,7 @@
  */
 
 #define IFH_LEN                      7
+#define IFH_LEN_BYTES                (IFH_LEN * sizeof(u32))
 
 /* Timestamp for frame */
 #define IFH_POS_TIMESTAMP            192

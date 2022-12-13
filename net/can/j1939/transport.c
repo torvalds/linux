@@ -987,7 +987,7 @@ static int j1939_session_tx_eoma(struct j1939_session *session)
 	/* wait for the EOMA packet to come in */
 	j1939_tp_set_rxtimeout(session, 1250);
 
-	netdev_dbg(session->priv->ndev, "%p: 0x%p\n", __func__, session);
+	netdev_dbg(session->priv->ndev, "%s: 0x%p\n", __func__, session);
 
 	return 0;
 }

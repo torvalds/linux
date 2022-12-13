@@ -1512,6 +1512,15 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	phy_resume(phydev);
 	phy_led_triggers_register(phydev);
 
+	/**
+	 * If the external phy used by current mac interface is managed by
+	 * another mac interface, so we should create a device link between
+	 * phy dev and mac dev.
+	 */
+	if (phydev->mdio.bus->parent && dev->dev.parent != phydev->mdio.bus->parent)
+		phydev->devlink = device_link_add(dev->dev.parent, &phydev->mdio.dev,
+						  DL_FLAG_PM_RUNTIME | DL_FLAG_STATELESS);
+
 	return err;
 
 error:
@@ -1749,6 +1758,9 @@ void phy_detach(struct phy_device *phydev)
 	struct net_device *dev = phydev->attached_dev;
 	struct module *ndev_owner = NULL;
 	struct mii_bus *bus;
+
+	if (phydev->devlink)
+		device_link_del(phydev->devlink);
 
 	if (phydev->sysfs_links) {
 		if (dev)

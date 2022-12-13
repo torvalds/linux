@@ -67,6 +67,7 @@ static void phy_link_down(struct phy_device *phydev)
 {
 	phydev->phy_link_change(phydev, false);
 	phy_led_trigger_change_speed(phydev);
+	WRITE_ONCE(phydev->link_down_events, phydev->link_down_events + 1);
 }
 
 static const char *phy_pause_str(struct phy_device *phydev)

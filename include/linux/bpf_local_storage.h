@@ -116,21 +116,22 @@ static struct bpf_local_storage_cache name = {			\
 	.idx_lock = __SPIN_LOCK_UNLOCKED(name.idx_lock),	\
 }
 
-u16 bpf_local_storage_cache_idx_get(struct bpf_local_storage_cache *cache);
-void bpf_local_storage_cache_idx_free(struct bpf_local_storage_cache *cache,
-				      u16 idx);
-
 /* Helper functions for bpf_local_storage */
 int bpf_local_storage_map_alloc_check(union bpf_attr *attr);
 
-struct bpf_local_storage_map *bpf_local_storage_map_alloc(union bpf_attr *attr);
+struct bpf_map *
+bpf_local_storage_map_alloc(union bpf_attr *attr,
+			    struct bpf_local_storage_cache *cache);
 
 struct bpf_local_storage_data *
 bpf_local_storage_lookup(struct bpf_local_storage *local_storage,
 			 struct bpf_local_storage_map *smap,
 			 bool cacheit_lockit);
 
-void bpf_local_storage_map_free(struct bpf_local_storage_map *smap,
+bool bpf_local_storage_unlink_nolock(struct bpf_local_storage *local_storage);
+
+void bpf_local_storage_map_free(struct bpf_map *map,
+				struct bpf_local_storage_cache *cache,
 				int __percpu *busy_counter);
 
 int bpf_local_storage_map_check_btf(const struct bpf_map *map,
@@ -140,10 +141,6 @@ int bpf_local_storage_map_check_btf(const struct bpf_map *map,
 
 void bpf_selem_link_storage_nolock(struct bpf_local_storage *local_storage,
 				   struct bpf_local_storage_elem *selem);
-
-bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_storage,
-				     struct bpf_local_storage_elem *selem,
-				     bool uncharge_omem, bool use_trace_rcu);
 
 void bpf_selem_unlink(struct bpf_local_storage_elem *selem, bool use_trace_rcu);
 

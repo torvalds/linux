@@ -49,7 +49,8 @@ enum dr_dump_rec_type {
 	DR_DUMP_REC_TYPE_ACTION_POP_VLAN = 3413,
 	DR_DUMP_REC_TYPE_ACTION_SAMPLER = 3415,
 	DR_DUMP_REC_TYPE_ACTION_INSERT_HDR = 3420,
-	DR_DUMP_REC_TYPE_ACTION_REMOVE_HDR = 3421
+	DR_DUMP_REC_TYPE_ACTION_REMOVE_HDR = 3421,
+	DR_DUMP_REC_TYPE_ACTION_MATCH_RANGE = 3425,
 };
 
 void mlx5dr_dbg_tbl_add(struct mlx5dr_table *tbl)
@@ -107,6 +108,8 @@ dr_dump_rule_action_mem(struct seq_file *file, const u64 rule_id,
 {
 	struct mlx5dr_action *action = action_mem->action;
 	const u64 action_id = DR_DBG_PTR_TO_ID(action);
+	u64 hit_tbl_ptr, miss_tbl_ptr;
+	u32 hit_tbl_id, miss_tbl_id;
 
 	switch (action->action_type) {
 	case DR_ACTION_TYP_DROP:
@@ -197,6 +200,30 @@ dr_dump_rule_action_mem(struct seq_file *file, const u64 rule_id,
 			   0, 0, action->sampler->sampler_id,
 			   action->sampler->rx_icm_addr,
 			   action->sampler->tx_icm_addr);
+		break;
+	case DR_ACTION_TYP_RANGE:
+		if (action->range->hit_tbl_action->dest_tbl->is_fw_tbl) {
+			hit_tbl_id = action->range->hit_tbl_action->dest_tbl->fw_tbl.id;
+			hit_tbl_ptr = 0;
+		} else {
+			hit_tbl_id = action->range->hit_tbl_action->dest_tbl->tbl->table_id;
+			hit_tbl_ptr =
+				DR_DBG_PTR_TO_ID(action->range->hit_tbl_action->dest_tbl->tbl);
+		}
+
+		if (action->range->miss_tbl_action->dest_tbl->is_fw_tbl) {
+			miss_tbl_id = action->range->miss_tbl_action->dest_tbl->fw_tbl.id;
+			miss_tbl_ptr = 0;
+		} else {
+			miss_tbl_id = action->range->miss_tbl_action->dest_tbl->tbl->table_id;
+			miss_tbl_ptr =
+				DR_DBG_PTR_TO_ID(action->range->miss_tbl_action->dest_tbl->tbl);
+		}
+
+		seq_printf(file, "%d,0x%llx,0x%llx,0x%x,0x%llx,0x%x,0x%llx,0x%x\n",
+			   DR_DUMP_REC_TYPE_ACTION_MATCH_RANGE, action_id, rule_id,
+			   hit_tbl_id, hit_tbl_ptr, miss_tbl_id, miss_tbl_ptr,
+			   action->range->definer_id);
 		break;
 	default:
 		return 0;

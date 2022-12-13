@@ -287,8 +287,8 @@ EXPORT_SYMBOL_GPL(mptcp_token_get_sock);
  * This function returns the first mptcp connection structure found inside the
  * token container starting from the specified position, or NULL.
  *
- * On successful iteration, the iterator is move to the next position and the
- * the acquires a reference to the returned socket.
+ * On successful iteration, the iterator is moved to the next position and
+ * a reference to the returned socket is acquired.
  */
 struct mptcp_sock *mptcp_token_iter_next(const struct net *net, long *s_slot,
 					 long *s_num)

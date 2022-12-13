@@ -43,6 +43,7 @@ struct tcp_fastopen_context;
 
 struct netns_ipv4 {
 	struct inet_timewait_death_row tcp_death_row;
+	struct udp_table *udp_table;
 
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
@@ -183,6 +184,11 @@ struct netns_ipv4 {
 	unsigned long tfo_active_disable_stamp;
 	u32 tcp_challenge_timestamp;
 	u32 tcp_challenge_count;
+	u8 sysctl_tcp_plb_enabled;
+	u8 sysctl_tcp_plb_idle_rehash_rounds;
+	u8 sysctl_tcp_plb_rehash_rounds;
+	u8 sysctl_tcp_plb_suspend_rto_sec;
+	int sysctl_tcp_plb_cong_thresh;
 
 	int sysctl_udp_wmem_min;
 	int sysctl_udp_rmem_min;
@@ -201,6 +207,8 @@ struct netns_ipv4 {
 	struct ping_group_range ping_group_range;
 
 	atomic_t dev_addr_genid;
+
+	unsigned int sysctl_udp_child_hash_entries;
 
 #ifdef CONFIG_SYSCTL
 	unsigned long *sysctl_local_reserved_ports;

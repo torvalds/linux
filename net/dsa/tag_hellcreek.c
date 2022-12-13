@@ -11,7 +11,9 @@
 #include <linux/skbuff.h>
 #include <net/dsa.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
+
+#define HELLCREEK_NAME		"hellcreek"
 
 #define HELLCREEK_TAG_LEN	1
 
@@ -58,7 +60,7 @@ static struct sk_buff *hellcreek_rcv(struct sk_buff *skb,
 }
 
 static const struct dsa_device_ops hellcreek_netdev_ops = {
-	.name	  = "hellcreek",
+	.name	  = HELLCREEK_NAME,
 	.proto	  = DSA_TAG_PROTO_HELLCREEK,
 	.xmit	  = hellcreek_xmit,
 	.rcv	  = hellcreek_rcv,
@@ -66,6 +68,6 @@ static const struct dsa_device_ops hellcreek_netdev_ops = {
 };
 
 MODULE_LICENSE("Dual MIT/GPL");
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_HELLCREEK);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_HELLCREEK, HELLCREEK_NAME);
 
 module_dsa_tag_driver(hellcreek_netdev_ops);

@@ -665,10 +665,10 @@ static void be_get_stats64(struct net_device *netdev,
 		const struct be_rx_stats *rx_stats = rx_stats(rxo);
 
 		do {
-			start = u64_stats_fetch_begin_irq(&rx_stats->sync);
+			start = u64_stats_fetch_begin(&rx_stats->sync);
 			pkts = rx_stats(rxo)->rx_pkts;
 			bytes = rx_stats(rxo)->rx_bytes;
-		} while (u64_stats_fetch_retry_irq(&rx_stats->sync, start));
+		} while (u64_stats_fetch_retry(&rx_stats->sync, start));
 		stats->rx_packets += pkts;
 		stats->rx_bytes += bytes;
 		stats->multicast += rx_stats(rxo)->rx_mcast_pkts;
@@ -680,10 +680,10 @@ static void be_get_stats64(struct net_device *netdev,
 		const struct be_tx_stats *tx_stats = tx_stats(txo);
 
 		do {
-			start = u64_stats_fetch_begin_irq(&tx_stats->sync);
+			start = u64_stats_fetch_begin(&tx_stats->sync);
 			pkts = tx_stats(txo)->tx_pkts;
 			bytes = tx_stats(txo)->tx_bytes;
-		} while (u64_stats_fetch_retry_irq(&tx_stats->sync, start));
+		} while (u64_stats_fetch_retry(&tx_stats->sync, start));
 		stats->tx_packets += pkts;
 		stats->tx_bytes += bytes;
 	}
@@ -2155,16 +2155,16 @@ static int be_get_new_eqd(struct be_eq_obj *eqo)
 
 	for_all_rx_queues_on_eq(adapter, eqo, rxo, i) {
 		do {
-			start = u64_stats_fetch_begin_irq(&rxo->stats.sync);
+			start = u64_stats_fetch_begin(&rxo->stats.sync);
 			rx_pkts += rxo->stats.rx_pkts;
-		} while (u64_stats_fetch_retry_irq(&rxo->stats.sync, start));
+		} while (u64_stats_fetch_retry(&rxo->stats.sync, start));
 	}
 
 	for_all_tx_queues_on_eq(adapter, eqo, txo, i) {
 		do {
-			start = u64_stats_fetch_begin_irq(&txo->stats.sync);
+			start = u64_stats_fetch_begin(&txo->stats.sync);
 			tx_pkts += txo->stats.tx_reqs;
-		} while (u64_stats_fetch_retry_irq(&txo->stats.sync, start));
+		} while (u64_stats_fetch_retry(&txo->stats.sync, start));
 	}
 
 	/* Skip, if wrapped around or first calculation */

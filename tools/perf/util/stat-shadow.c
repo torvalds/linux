@@ -398,7 +398,7 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 
 		i = 0;
 		hashmap__for_each_entry(ctx->ids, cur, bkt) {
-			const char *metric_name = (const char *)cur->key;
+			const char *metric_name = cur->pkey;
 
 			found = false;
 			if (leader) {
