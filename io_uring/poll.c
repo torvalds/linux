@@ -237,7 +237,6 @@ enum {
  */
 static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	int v, ret;
 
 	/* req->task == current here, checking PF_EXITING is safe */
@@ -247,27 +246,30 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 	do {
 		v = atomic_read(&req->poll_refs);
 
-		/* tw handler should be the owner, and so have some references */
-		if (WARN_ON_ONCE(!(v & IO_POLL_REF_MASK)))
-			return IOU_POLL_DONE;
-		if (v & IO_POLL_CANCEL_FLAG)
-			return -ECANCELED;
-		/*
-		 * cqe.res contains only events of the first wake up
-		 * and all others are be lost. Redo vfs_poll() to get
-		 * up to date state.
-		 */
-		if ((v & IO_POLL_REF_MASK) != 1)
-			req->cqe.res = 0;
-		if (v & IO_POLL_RETRY_FLAG) {
-			req->cqe.res = 0;
+		if (unlikely(v != 1)) {
+			/* tw should be the owner and so have some refs */
+			if (WARN_ON_ONCE(!(v & IO_POLL_REF_MASK)))
+				return IOU_POLL_NO_ACTION;
+			if (v & IO_POLL_CANCEL_FLAG)
+				return -ECANCELED;
 			/*
-			 * We won't find new events that came in between
-			 * vfs_poll and the ref put unless we clear the flag
-			 * in advance.
+			 * cqe.res contains only events of the first wake up
+			 * and all others are to be lost. Redo vfs_poll() to get
+			 * up to date state.
 			 */
-			atomic_andnot(IO_POLL_RETRY_FLAG, &req->poll_refs);
-			v &= ~IO_POLL_RETRY_FLAG;
+			if ((v & IO_POLL_REF_MASK) != 1)
+				req->cqe.res = 0;
+
+			if (v & IO_POLL_RETRY_FLAG) {
+				req->cqe.res = 0;
+				/*
+				 * We won't find new events that came in between
+				 * vfs_poll and the ref put unless we clear the
+				 * flag in advance.
+				 */
+				atomic_andnot(IO_POLL_RETRY_FLAG, &req->poll_refs);
+				v &= ~IO_POLL_RETRY_FLAG;
+			}
 		}
 
 		/* the mask was stashed in __io_poll_execute */
@@ -286,7 +288,7 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 			__poll_t mask = mangle_poll(req->cqe.res &
 						    req->apoll_events);
 
-			if (!io_aux_cqe(ctx, *locked, req->cqe.user_data,
+			if (!io_aux_cqe(req->ctx, *locked, req->cqe.user_data,
 					mask, IORING_CQE_F_MORE, false)) {
 				io_req_set_res(req, mask, 0);
 				return IOU_POLL_REMOVE_POLL_USE_RES;
@@ -319,50 +321,38 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 	ret = io_poll_check_events(req, locked);
 	if (ret == IOU_POLL_NO_ACTION)
 		return;
-
-	if (ret == IOU_POLL_DONE) {
-		struct io_poll *poll = io_kiocb_to_cmd(req, struct io_poll);
-		req->cqe.res = mangle_poll(req->cqe.res & poll->events);
-	} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
-		req->cqe.res = ret;
-		req_set_fail(req);
-	}
-
 	io_poll_remove_entries(req);
 	io_poll_tw_hash_eject(req, locked);
 
-	io_req_set_res(req, req->cqe.res, 0);
-	io_req_task_complete(req, locked);
-}
+	if (req->opcode == IORING_OP_POLL_ADD) {
+		if (ret == IOU_POLL_DONE) {
+			struct io_poll *poll;
 
-static void io_apoll_task_func(struct io_kiocb *req, bool *locked)
-{
-	int ret;
+			poll = io_kiocb_to_cmd(req, struct io_poll);
+			req->cqe.res = mangle_poll(req->cqe.res & poll->events);
+		} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
+			req->cqe.res = ret;
+			req_set_fail(req);
+		}
 
-	ret = io_poll_check_events(req, locked);
-	if (ret == IOU_POLL_NO_ACTION)
-		return;
-
-	io_tw_lock(req->ctx, locked);
-	io_poll_remove_entries(req);
-	io_poll_tw_hash_eject(req, locked);
-
-	if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
+		io_req_set_res(req, req->cqe.res, 0);
 		io_req_task_complete(req, locked);
-	else if (ret == IOU_POLL_DONE)
-		io_req_task_submit(req, locked);
-	else
-		io_req_defer_failed(req, ret);
+	} else {
+		io_tw_lock(req->ctx, locked);
+
+		if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
+			io_req_task_complete(req, locked);
+		else if (ret == IOU_POLL_DONE)
+			io_req_task_submit(req, locked);
+		else
+			io_req_defer_failed(req, ret);
+	}
 }
 
 static void __io_poll_execute(struct io_kiocb *req, int mask)
 {
 	io_req_set_res(req, mask, 0);
-
-	if (req->opcode == IORING_OP_POLL_ADD)
-		req->io_task_work.func = io_poll_task_func;
-	else
-		req->io_task_work.func = io_apoll_task_func;
+	req->io_task_work.func = io_poll_task_func;
 
 	trace_io_uring_task_add(req, mask);
 	io_req_task_work_add(req);

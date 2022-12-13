@@ -93,6 +93,11 @@ static inline void io_cq_lock(struct io_ring_ctx *ctx)
 	spin_lock(&ctx->completion_lock);
 }
 
+static inline void io_cq_unlock(struct io_ring_ctx *ctx)
+{
+	spin_unlock(&ctx->completion_lock);
+}
+
 void io_cq_unlock_post(struct io_ring_ctx *ctx);
 
 static inline struct io_uring_cqe *io_get_cqe_overflow(struct io_ring_ctx *ctx,
@@ -128,7 +133,7 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 	 */
 	cqe = io_get_cqe(ctx);
 	if (unlikely(!cqe))
-		return io_req_cqe_overflow(req);
+		return false;
 
 	trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
 				req->cqe.res, req->cqe.flags,
@@ -149,6 +154,14 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 		WRITE_ONCE(cqe->big_cqe[1], extra2);
 	}
 	return true;
+}
+
+static inline bool io_fill_cqe_req(struct io_ring_ctx *ctx,
+				   struct io_kiocb *req)
+{
+	if (likely(__io_fill_cqe_req(ctx, req)))
+		return true;
+	return io_req_cqe_overflow(req);
 }
 
 static inline void req_set_fail(struct io_kiocb *req)
