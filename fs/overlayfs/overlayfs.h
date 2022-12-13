@@ -110,7 +110,7 @@ struct ovl_fh {
 	u8 padding[3];	/* make sure fb.fid is 32bit aligned */
 	union {
 		struct ovl_fb fb;
-		u8 buf[0];
+		DECLARE_FLEX_ARRAY(u8, buf);
 	};
 } __packed;
 
@@ -415,7 +415,7 @@ const char *ovl_dentry_get_redirect(struct dentry *dentry);
 void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect);
 void ovl_inode_update(struct inode *inode, struct dentry *upperdentry);
 void ovl_dir_modified(struct dentry *dentry, bool impurity);
-u64 ovl_dentry_version_get(struct dentry *dentry);
+u64 ovl_inode_version_get(struct inode *inode);
 bool ovl_is_whiteout(struct dentry *dentry);
 struct file *ovl_path_open(const struct path *path, int flags);
 int ovl_copy_up_start(struct dentry *dentry, int flags);
@@ -539,7 +539,8 @@ int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh, bool connected,
 int ovl_verify_set_fh(struct ovl_fs *ofs, struct dentry *dentry,
 		      enum ovl_xattr ox, struct dentry *real, bool is_upper,
 		      bool set);
-struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index);
+struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index,
+			       bool connected);
 int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index);
 int ovl_get_index_name(struct ovl_fs *ofs, struct dentry *origin,
 		       struct qstr *name);
@@ -584,9 +585,9 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs);
  * lower dir was removed under it and possibly before it was rotated from upper
  * to lower layer.
  */
-static inline bool ovl_dir_is_real(struct dentry *dir)
+static inline bool ovl_dir_is_real(struct inode *dir)
 {
-	return !ovl_test_flag(OVL_WHITEOUTS, d_inode(dir));
+	return !ovl_test_flag(OVL_WHITEOUTS, dir);
 }
 
 /* inode.c */
