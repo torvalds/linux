@@ -17,6 +17,13 @@ ignore="$(echo "$RCS_FIND_IGNORE" | sed 's|\\||g' )"
 # tags and cscope files should also ignore MODVERSION *.mod.c files
 ignore="$ignore ( -name *.mod.c ) -prune -o"
 
+# ignore arbitrary directories
+if [ -n "${IGNORE_DIRS}" ]; then
+	for i in ${IGNORE_DIRS}; do
+		ignore="${ignore} ( -path $i ) -prune -o"
+	done
+fi
+
 # Use make KBUILD_ABS_SRCTREE=1 {tags|cscope}
 # to force full paths for a non-O= build
 if [ "${srctree}" = "." -o -z "${srctree}" ]; then
