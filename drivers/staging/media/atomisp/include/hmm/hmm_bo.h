@@ -73,7 +73,7 @@
 
 enum hmm_bo_type {
 	HMM_BO_PRIVATE,
-	HMM_BO_USER,
+	HMM_BO_VMALLOC,
 	HMM_BO_LAST,
 };
 
@@ -207,7 +207,7 @@ int hmm_bo_allocated(struct hmm_buffer_object *bo);
  */
 int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 		       enum hmm_bo_type type,
-		       const void __user *userptr);
+		       void *vmalloc_addr);
 void hmm_bo_free_pages(struct hmm_buffer_object *bo);
 int hmm_bo_page_allocated(struct hmm_buffer_object *bo);
 

@@ -9,12 +9,12 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -59,7 +59,7 @@ struct s5k6a3 {
 	struct v4l2_subdev subdev;
 	struct media_pad pad;
 	struct regulator_bulk_data supplies[S5K6A3_NUM_SUPPLIES];
-	int gpio_reset;
+	struct gpio_desc *gpio_reset;
 	struct mutex lock;
 	struct v4l2_mbus_framefmt format;
 	struct clk *clock;
@@ -216,11 +216,11 @@ static int __s5k6a3_power_on(struct s5k6a3 *sensor)
 			goto error_clk;
 	}
 
-	gpio_set_value(sensor->gpio_reset, 1);
+	gpiod_set_value_cansleep(sensor->gpio_reset, 0);
 	usleep_range(600, 800);
-	gpio_set_value(sensor->gpio_reset, 0);
+	gpiod_set_value_cansleep(sensor->gpio_reset, 1);
 	usleep_range(600, 800);
-	gpio_set_value(sensor->gpio_reset, 1);
+	gpiod_set_value_cansleep(sensor->gpio_reset, 0);
 
 	/* Delay needed for the sensor initialization */
 	msleep(20);
@@ -240,7 +240,7 @@ static int __s5k6a3_power_off(struct s5k6a3 *sensor)
 {
 	int i;
 
-	gpio_set_value(sensor->gpio_reset, 0);
+	gpiod_set_value_cansleep(sensor->gpio_reset, 1);
 
 	for (i = S5K6A3_NUM_SUPPLIES - 1; i >= 0; i--)
 		regulator_disable(sensor->supplies[i].consumer);
@@ -285,31 +285,23 @@ static int s5k6a3_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct s5k6a3 *sensor;
 	struct v4l2_subdev *sd;
-	int gpio, i, ret;
+	int i, ret;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
 		return -ENOMEM;
 
 	mutex_init(&sensor->lock);
-	sensor->gpio_reset = -EINVAL;
-	sensor->clock = ERR_PTR(-EINVAL);
 	sensor->dev = dev;
 
 	sensor->clock = devm_clk_get(sensor->dev, S5K6A3_CLK_NAME);
 	if (IS_ERR(sensor->clock))
 		return PTR_ERR(sensor->clock);
 
-	gpio = of_get_gpio_flags(dev->of_node, 0, NULL);
-	if (!gpio_is_valid(gpio))
-		return gpio;
-
-	ret = devm_gpio_request_one(dev, gpio, GPIOF_OUT_INIT_LOW,
-						S5K6A3_DRV_NAME);
-	if (ret < 0)
+	sensor->gpio_reset = devm_gpiod_get(dev, NULL, GPIOD_OUT_HIGH);
+	ret = PTR_ERR_OR_ZERO(sensor->gpio_reset);
+	if (ret)
 		return ret;
-
-	sensor->gpio_reset = gpio;
 
 	if (of_property_read_u32(dev->of_node, "clock-frequency",
 				 &sensor->clock_frequency)) {

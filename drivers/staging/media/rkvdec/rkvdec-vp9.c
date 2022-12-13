@@ -84,6 +84,8 @@ struct rkvdec_vp9_probs {
 		struct rkvdec_vp9_inter_frame_probs inter;
 		struct rkvdec_vp9_intra_only_frame_probs intra_only;
 	};
+	/* 128 bit alignment */
+	u8 padding1[11];
 };
 
 /* Data structure describing auxiliary buffer format. */
@@ -1006,6 +1008,7 @@ static int rkvdec_vp9_start(struct rkvdec_ctx *ctx)
 
 	ctx->priv = vp9_ctx;
 
+	BUILD_BUG_ON(sizeof(priv_tbl->probs) % 16); /* ensure probs size is 128-bit aligned */
 	priv_tbl = dma_alloc_coherent(rkvdec->dev, sizeof(*priv_tbl),
 				      &vp9_ctx->priv_tbl.dma, GFP_KERNEL);
 	if (!priv_tbl) {

@@ -152,6 +152,7 @@ struct gc0310_device {
 	int vt_pix_clk_freq_mhz;
 	struct gc0310_resolution *res;
 	u8 type;
+	bool power_on;
 };
 
 enum gc0310_tok_type {
