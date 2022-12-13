@@ -1312,22 +1312,9 @@ static int video_drv_get_irqs(struct platform_device *pdev)
 	return 0;
 }
 
-static int video_drv_enable_vclk(struct platform_device *pdev)
-{
-	pAstRVAS->vclk = devm_clk_get(&pdev->dev, "vclk");
-	if (IS_ERR(pAstRVAS->vclk)) {
-		dev_err(&pdev->dev, "no vclk clock defined\n");
-		return PTR_ERR(pAstRVAS->vclk);
-	}
-
-	VIDEO_DBG("clk_prepare_enable: vclk\n");
-	clk_prepare_enable(pAstRVAS->vclk);
-
-	return 0;
-}
-
 static int video_drv_get_clock(struct platform_device *pdev)
 {
+
 	pAstRVAS->eclk = devm_clk_get(&pdev->dev, "eclk");
 	if (IS_ERR(pAstRVAS->eclk)) {
 		dev_err(&pdev->dev, "no eclk clock defined\n");
@@ -1336,6 +1323,13 @@ static int video_drv_get_clock(struct platform_device *pdev)
 
 	clk_prepare_enable(pAstRVAS->eclk);
 
+	pAstRVAS->vclk = devm_clk_get(&pdev->dev, "vclk");
+	if (IS_ERR(pAstRVAS->vclk)) {
+		dev_err(&pdev->dev, "no vclk clock defined\n");
+		return PTR_ERR(pAstRVAS->vclk);
+	}
+
+	clk_prepare_enable(pAstRVAS->vclk);
 
 	pAstRVAS->rvasclk = devm_clk_get(&pdev->dev, "rvasclk-gate");
 	if (IS_ERR(pAstRVAS->rvasclk)) {
@@ -1419,6 +1413,7 @@ static int video_drv_probe(struct platform_device *pdev)
 		dev_err(pAstRVAS->pdev, "video_probe: Error getting irqs\n");
 		return result;
 	}
+
 
 	pAstRVAS->rvas_reset = devm_reset_control_get_by_index(&pdev->dev, 0);
 	if (IS_ERR(pAstRVAS->rvas_reset)) {
@@ -1510,7 +1505,7 @@ static int video_drv_probe(struct platform_device *pdev)
 	video_engine_reserveMem(pAstRVAS);
 	video_engine_init();
 
-	video_drv_enable_vclk(pdev);
+
 	pr_info("RVAS: driver successfully loaded.\n");
 	return result;
 }
