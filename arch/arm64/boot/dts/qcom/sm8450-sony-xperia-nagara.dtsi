@@ -562,13 +562,6 @@
 	/* NXP SN1X0 NFC @ 28 */
 };
 
-&i2c13 {
-	clock-frequency = <400000>;
-	status = "okay";
-
-	/* Richwave RTC6226 FM Radio Receiver @ 64 */
-};
-
 &i2c14 {
 	clock-frequency = <1000000>;
 	status = "okay";
