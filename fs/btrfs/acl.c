@@ -11,10 +11,10 @@
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
-
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "xattr.h"
+#include "acl.h"
 
 struct posix_acl *btrfs_get_acl(struct inode *inode, int type, bool rcu)
 {

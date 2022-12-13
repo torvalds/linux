@@ -4,8 +4,9 @@
  */
 
 #include <asm/unaligned.h>
-
+#include "messages.h"
 #include "ctree.h"
+#include "accessors.h"
 
 static bool check_setget_bounds(const struct extent_buffer *eb,
 				const void *ptr, unsigned off, int size)
@@ -21,6 +22,13 @@ static bool check_setget_bounds(const struct extent_buffer *eb,
 	}
 
 	return true;
+}
+
+void btrfs_init_map_token(struct btrfs_map_token *token, struct extent_buffer *eb)
+{
+	token->eb = eb;
+	token->kaddr = page_address(eb->pages[0]);
+	token->offset = 0;
 }
 
 /*
@@ -160,7 +168,7 @@ DEFINE_BTRFS_SETGET_BITS(64)
 void btrfs_node_key(const struct extent_buffer *eb,
 		    struct btrfs_disk_key *disk_key, int nr)
 {
-	unsigned long ptr = btrfs_node_key_ptr_offset(nr);
+	unsigned long ptr = btrfs_node_key_ptr_offset(eb, nr);
 	read_eb_member(eb, (struct btrfs_key_ptr *)ptr,
 		       struct btrfs_key_ptr, key, disk_key);
 }
