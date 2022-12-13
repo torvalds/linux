@@ -627,6 +627,13 @@ config SDX_GCC_65
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
+config SM_CAMCC_6350
+	tristate "SM6350 Camera Clock Controller"
+	select SM_GCC_6350
+	help
+	  Support for the camera clock controller on SM6350 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
 config SM_CAMCC_8250
 	tristate "SM8250 Camera Clock Controller"
 	select SM_GCC_8250
