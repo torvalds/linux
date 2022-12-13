@@ -1083,9 +1083,9 @@ static int fschmd_detect(struct i2c_client *client,
 static int fschmd_probe(struct i2c_client *client)
 {
 	struct fschmd_data *data;
-	const char * const names[7] = { "Poseidon", "Hermes", "Scylla",
+	static const char * const names[7] = { "Poseidon", "Hermes", "Scylla",
 				"Heracles", "Heimdall", "Hades", "Syleus" };
-	const int watchdog_minors[] = { WATCHDOG_MINOR, 212, 213, 214, 215 };
+	static const int watchdog_minors[] = { WATCHDOG_MINOR, 212, 213, 214, 215 };
 	int i, err;
 	enum chips kind = i2c_match_id(fschmd_id, client)->driver_data;
 
