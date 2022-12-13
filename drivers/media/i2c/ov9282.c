@@ -1142,10 +1142,9 @@ static int ov9282_parse_hw_config(struct ov9282 *ov9282)
 	}
 
 	ret = ov9282_configure_regulators(ov9282);
-	if (ret) {
-		dev_err(ov9282->dev, "Failed to get power regulators\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(ov9282->dev, ret,
+				     "Failed to get power regulators\n");
 
 	rate = clk_get_rate(ov9282->inclk);
 	if (rate != OV9282_INCLK_RATE) {
