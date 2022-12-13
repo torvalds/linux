@@ -1549,74 +1549,6 @@ static void refresh_mounts(struct cifs_ses **sessions)
 	}
 }
 
-static void refresh_cache(struct cifs_ses **sessions)
-{
-	int i;
-	struct cifs_ses *ses;
-	unsigned int xid;
-	char *ref_paths[CACHE_MAX_ENTRIES];
-	int count = 0;
-	struct cache_entry *ce;
-
-	/*
-	 * Refresh all cached entries.  Get all new referrals outside critical section to avoid
-	 * starvation while performing SMB2 IOCTL on broken or slow connections.
-
-	 * The cache entries may cover more paths than the active mounts
-	 * (e.g. domain-based DFS referrals or multi tier DFS setups).
-	 */
-	down_read(&htable_rw_lock);
-	for (i = 0; i < CACHE_HTABLE_SIZE; i++) {
-		struct hlist_head *l = &cache_htable[i];
-
-		hlist_for_each_entry(ce, l, hlist) {
-			if (count == ARRAY_SIZE(ref_paths))
-				goto out_unlock;
-			if (hlist_unhashed(&ce->hlist) || !cache_entry_expired(ce) ||
-			    IS_ERR(find_ipc_from_server_path(sessions, ce->path)))
-				continue;
-			ref_paths[count++] = kstrdup(ce->path, GFP_ATOMIC);
-		}
-	}
-
-out_unlock:
-	up_read(&htable_rw_lock);
-
-	for (i = 0; i < count; i++) {
-		char *path = ref_paths[i];
-		struct dfs_info3_param *refs = NULL;
-		int numrefs = 0;
-		int rc = 0;
-
-		if (!path)
-			continue;
-
-		ses = find_ipc_from_server_path(sessions, path);
-		if (IS_ERR(ses))
-			goto next_referral;
-
-		xid = get_xid();
-		rc = get_dfs_referral(xid, ses, path, &refs, &numrefs);
-		free_xid(xid);
-
-		if (!rc) {
-			down_write(&htable_rw_lock);
-			ce = lookup_cache_entry(path);
-			/*
-			 * We need to re-check it because other tasks might have it deleted or
-			 * updated.
-			 */
-			if (!IS_ERR(ce) && cache_entry_expired(ce))
-				update_cache_entry_locked(ce, refs, numrefs);
-			up_write(&htable_rw_lock);
-		}
-
-next_referral:
-		kfree(path);
-		free_dfs_info_array(refs, numrefs);
-	}
-}
-
 /*
  * Worker that will refresh DFS cache and active mounts based on lowest TTL value from a DFS
  * referral.
@@ -1654,11 +1586,8 @@ static void refresh_cache_worker(struct work_struct *work)
 		i += count;
 	}
 
-	if (sessions[0]) {
-		/* Refresh all active mounts and cached entries */
+	if (sessions[0])
 		refresh_mounts(sessions);
-		refresh_cache(sessions);
-	}
 
 	list_for_each_entry_safe(mg, tmp_mg, &mglist, refresh_list) {
 		list_del_init(&mg->refresh_list);
