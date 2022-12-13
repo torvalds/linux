@@ -138,17 +138,13 @@ static void __init setup_cpu_entry_area(unsigned int cpu)
 	pgprot_t tss_prot = PAGE_KERNEL_RO;
 #else
 	/*
-	 * On native 32-bit systems, the GDT cannot be read-only because
+	 * On 32-bit systems, the GDT cannot be read-only because
 	 * our double fault handler uses a task gate, and entering through
 	 * a task gate needs to change an available TSS to busy.  If the
 	 * GDT is read-only, that will triple fault.  The TSS cannot be
 	 * read-only because the CPU writes to it on task switches.
-	 *
-	 * On Xen PV, the GDT must be read-only because the hypervisor
-	 * requires it.
 	 */
-	pgprot_t gdt_prot = boot_cpu_has(X86_FEATURE_XENPV) ?
-		PAGE_KERNEL_RO : PAGE_KERNEL;
+	pgprot_t gdt_prot = PAGE_KERNEL;
 	pgprot_t tss_prot = PAGE_KERNEL;
 #endif
 
