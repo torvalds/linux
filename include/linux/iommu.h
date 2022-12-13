@@ -605,6 +605,10 @@ struct iommu_group *fsl_mc_device_group(struct device *dev);
  * @flags: IOMMU_FWSPEC_* flags
  * @num_ids: number of associated device IDs
  * @ids: IDs which this device may present to the IOMMU
+ *
+ * Note that the IDs (and any other information, really) stored in this structure should be
+ * considered private to the IOMMU device driver and are not to be used directly by IOMMU
+ * consumers.
  */
 struct iommu_fwspec {
 	const struct iommu_ops	*ops;
@@ -1098,5 +1102,26 @@ static inline void iommu_dma_compose_msi_msg(struct msi_desc *desc, struct msi_m
 }
 
 #endif	/* CONFIG_IOMMU_DMA */
+
+/*
+ * Newer generations of Tegra SoCs require devices' stream IDs to be directly programmed into
+ * some registers. These are always paired with a Tegra SMMU or ARM SMMU, for which the contents
+ * of the struct iommu_fwspec are known. Use this helper to formalize access to these internals.
+ */
+#define TEGRA_STREAM_ID_BYPASS 0x7f
+
+static inline bool tegra_dev_iommu_get_stream_id(struct device *dev, u32 *stream_id)
+{
+#ifdef CONFIG_IOMMU_API
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+
+	if (fwspec && fwspec->num_ids == 1) {
+		*stream_id = fwspec->ids[0] & 0xffff;
+		return true;
+	}
+#endif
+
+	return false;
+}
 
 #endif /* __LINUX_IOMMU_H */
