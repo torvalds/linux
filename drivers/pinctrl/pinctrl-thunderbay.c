@@ -1278,19 +1278,12 @@ static int thunderbay_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int thunderbay_pinctrl_remove(struct platform_device *pdev)
-{
-	/* thunderbay_pinctrl_remove function to clear the assigned memory */
-	return 0;
-}
-
 static struct platform_driver thunderbay_pinctrl_driver = {
 	.driver = {
 		.name = "thunderbay-pinctrl",
 		.of_match_table = thunderbay_pinctrl_match,
 	},
 	.probe = thunderbay_pinctrl_probe,
-	.remove = thunderbay_pinctrl_remove,
 };
 
 builtin_platform_driver(thunderbay_pinctrl_driver);
