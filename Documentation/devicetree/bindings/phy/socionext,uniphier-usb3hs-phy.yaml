@@ -146,22 +146,15 @@ additionalProperties: false
 
 examples:
   - |
-    usb-glue@65b00000 {
-        compatible = "socionext,uniphier-ld20-dwc3-glue", "simple-mfd";
-        #address-cells = <1>;
-        #size-cells = <1>;
-        ranges = <0 0x65b00000 0x400>;
-
-        usb_hsphy0: hs-phy@200 {
-            compatible = "socionext,uniphier-ld20-usb3-hsphy";
-            reg = <0x200 0x10>;
-            #phy-cells = <0>;
-            clock-names = "link", "phy";
-            clocks = <&sys_clk 14>, <&sys_clk 16>;
-            reset-names = "link", "phy";
-            resets = <&sys_rst 14>, <&sys_rst 16>;
-            vbus-supply = <&usb_vbus0>;
-            nvmem-cell-names = "rterm", "sel_t", "hs_i";
-            nvmem-cells = <&usb_rterm0>, <&usb_sel_t0>, <&usb_hs_i0>;
-        };
+    usb_hsphy0: phy@200 {
+        compatible = "socionext,uniphier-ld20-usb3-hsphy";
+        reg = <0x200 0x10>;
+        #phy-cells = <0>;
+        clock-names = "link", "phy";
+        clocks = <&sys_clk 14>, <&sys_clk 16>;
+        reset-names = "link", "phy";
+        resets = <&sys_rst 14>, <&sys_rst 16>;
+        vbus-supply = <&usb_vbus0>;
+        nvmem-cell-names = "rterm", "sel_t", "hs_i";
+        nvmem-cells = <&usb_rterm0>, <&usb_sel_t0>, <&usb_hs_i0>;
     };
