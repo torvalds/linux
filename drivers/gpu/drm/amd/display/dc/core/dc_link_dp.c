@@ -37,7 +37,7 @@
 #include "dpcd_defs.h"
 #include "dc_dmub_srv.h"
 #include "dce/dmub_hw_lock_mgr.h"
-#include "inc/dc_link_dpia.h"
+#include "link/link_dp_dpia.h"
 #include "inc/link_enc_cfg.h"
 #include "link/link_dp_trace.h"
 

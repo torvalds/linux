@@ -33,7 +33,7 @@
 #include "gpio_service_interface.h"
 #include "core_status.h"
 #include "dc_link_dp.h"
-#include "dc_link_dpia.h"
+#include "link/link_dp_dpia.h"
 #include "link/link_ddc.h"
 #include "link_hwss.h"
 #include "link.h"

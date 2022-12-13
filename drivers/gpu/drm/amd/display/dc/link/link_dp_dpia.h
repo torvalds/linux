@@ -27,10 +27,8 @@
 #ifndef __DC_LINK_DPIA_H__
 #define __DC_LINK_DPIA_H__
 
+#include "link.h"
 /* This module implements functionality for training DPIA links. */
-
-struct dc_link;
-struct dc_link_settings;
 
 /* The approximate time (us) it takes to transmit 9 USB4 DP clock sync packets. */
 #define DPIA_CLK_SYNC_DELAY 16000
