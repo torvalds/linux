@@ -41,6 +41,10 @@
 #define FN(reg_name, field_name) \
 	hubbub2->shifts->field_name, hubbub2->masks->field_name
 
+/**
+ * @DCN32_CRB_SEGMENT_SIZE_KB: Maximum Configurable Return Buffer size for
+ * DCN32
+ */
 #define DCN32_CRB_SEGMENT_SIZE_KB 64
 
 static void dcn32_init_crb(struct hubbub *hubbub)
@@ -67,6 +71,23 @@ static void dcn32_init_crb(struct hubbub *hubbub)
 			COMPBUF_RESERVED_SPACE_ZS, hubbub2->pixel_chunk_size / 128);
 	REG_UPDATE(DCHUBBUB_DEBUG_CTRL_0, DET_DEPTH, 0x47F);
 }
+
+void hubbub32_set_request_limit(struct hubbub *hubbub, int memory_channel_count, int words_per_channel)
+{
+	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+
+	uint32_t request_limit = 3 * memory_channel_count * words_per_channel / 4;
+
+	ASSERT((request_limit & (~0xFFF)) == 0); //field is only 24 bits long
+	ASSERT(request_limit > 0); //field is only 24 bits long
+
+	if (request_limit > 0xFFF)
+		request_limit = 0xFFF;
+
+	if (request_limit > 0)
+		REG_UPDATE(SDPIF_REQUEST_RATE_LIMIT, SDPIF_REQUEST_RATE_LIMIT, request_limit);
+}
+
 
 void dcn32_program_det_size(struct hubbub *hubbub, int hubp_inst, unsigned int det_buffer_size_in_kbyte)
 {
@@ -945,6 +966,7 @@ static const struct hubbub_funcs hubbub32_funcs = {
 	.init_crb = dcn32_init_crb,
 	.hubbub_read_state = hubbub2_read_state,
 	.force_usr_retraining_allow = hubbub32_force_usr_retraining_allow,
+	.set_request_limit = hubbub32_set_request_limit
 };
 
 void hubbub32_construct(struct dcn20_hubbub *hubbub2,

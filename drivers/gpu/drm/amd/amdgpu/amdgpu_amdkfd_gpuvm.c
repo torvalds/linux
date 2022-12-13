@@ -29,6 +29,7 @@
 #include "amdgpu_object.h"
 #include "amdgpu_gem.h"
 #include "amdgpu_vm.h"
+#include "amdgpu_hmm.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_dma_buf.h"
 #include <uapi/linux/kfd_ioctl.h>
@@ -403,63 +404,15 @@ static int vm_update_pds(struct amdgpu_vm *vm, struct amdgpu_sync *sync)
 
 static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 {
-	struct amdgpu_device *bo_adev = amdgpu_ttm_adev(mem->bo->tbo.bdev);
-	bool coherent = mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_COHERENT;
-	bool uncached = mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_UNCACHED;
-	uint32_t mapping_flags;
-	uint64_t pte_flags;
-	bool snoop = false;
+	uint32_t mapping_flags = AMDGPU_VM_PAGE_READABLE |
+				 AMDGPU_VM_MTYPE_DEFAULT;
 
-	mapping_flags = AMDGPU_VM_PAGE_READABLE;
 	if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE)
 		mapping_flags |= AMDGPU_VM_PAGE_WRITEABLE;
 	if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE)
 		mapping_flags |= AMDGPU_VM_PAGE_EXECUTABLE;
 
-	switch (adev->asic_type) {
-	case CHIP_ARCTURUS:
-	case CHIP_ALDEBARAN:
-		if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
-			if (bo_adev == adev) {
-				if (uncached)
-					mapping_flags |= AMDGPU_VM_MTYPE_UC;
-				else if (coherent)
-					mapping_flags |= AMDGPU_VM_MTYPE_CC;
-				else
-					mapping_flags |= AMDGPU_VM_MTYPE_RW;
-				if (adev->asic_type == CHIP_ALDEBARAN &&
-				    adev->gmc.xgmi.connected_to_cpu)
-					snoop = true;
-			} else {
-				if (uncached || coherent)
-					mapping_flags |= AMDGPU_VM_MTYPE_UC;
-				else
-					mapping_flags |= AMDGPU_VM_MTYPE_NC;
-				if (amdgpu_xgmi_same_hive(adev, bo_adev))
-					snoop = true;
-			}
-		} else {
-			if (uncached || coherent)
-				mapping_flags |= AMDGPU_VM_MTYPE_UC;
-			else
-				mapping_flags |= AMDGPU_VM_MTYPE_NC;
-			snoop = true;
-		}
-		break;
-	default:
-		if (uncached || coherent)
-			mapping_flags |= AMDGPU_VM_MTYPE_UC;
-		else
-			mapping_flags |= AMDGPU_VM_MTYPE_NC;
-
-		if (!(mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM))
-			snoop = true;
-	}
-
-	pte_flags = amdgpu_gem_va_map_flags(adev, mapping_flags);
-	pte_flags |= snoop ? AMDGPU_PTE_SNOOPED : 0;
-
-	return pte_flags;
+	return amdgpu_gem_va_map_flags(adev, mapping_flags);
 }
 
 /**
@@ -997,7 +950,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 		goto out;
 	}
 
-	ret = amdgpu_mn_register(bo, user_addr);
+	ret = amdgpu_hmm_register(bo, user_addr);
 	if (ret) {
 		pr_err("%s: Failed to register MMU notifier: %d\n",
 		       __func__, ret);
@@ -1037,7 +990,7 @@ release_out:
 	amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm, range);
 unregister_out:
 	if (ret)
-		amdgpu_mn_unregister(bo);
+		amdgpu_hmm_unregister(bo);
 out:
 	mutex_unlock(&process_info->lock);
 	return ret;
@@ -1672,6 +1625,11 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		}
 	}
 
+	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_COHERENT)
+		alloc_flags |= AMDGPU_GEM_CREATE_COHERENT;
+	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_UNCACHED)
+		alloc_flags |= AMDGPU_GEM_CREATE_UNCACHED;
+
 	*mem = kzalloc(sizeof(struct kgd_mem), GFP_KERNEL);
 	if (!*mem) {
 		ret = -ENOMEM;
@@ -1816,7 +1774,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	mutex_unlock(&process_info->lock);
 
 	/* No more MMU notifiers */
-	amdgpu_mn_unregister(mem->bo);
+	amdgpu_hmm_unregister(mem->bo);
 
 	ret = reserve_bo_and_cond_vms(mem, NULL, BO_VM_ALL, &ctx);
 	if (unlikely(ret))
@@ -1905,16 +1863,6 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 	 * worker to do the mapping
 	 */
 	mutex_lock(&mem->process_info->lock);
-
-	/* Lock mmap-sem. If we find an invalid userptr BO, we can be
-	 * sure that the MMU notifier is no longer running
-	 * concurrently and the queues are actually stopped
-	 */
-	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm)) {
-		mmap_write_lock(current->mm);
-		is_invalid_userptr = atomic_read(&mem->invalid);
-		mmap_write_unlock(current->mm);
-	}
 
 	mutex_lock(&mem->lock);
 
@@ -2256,7 +2204,7 @@ int amdgpu_amdkfd_gpuvm_import_dmabuf(struct amdgpu_device *adev,
 
 	ret = drm_vma_node_allow(&obj->vma_node, drm_priv);
 	if (ret) {
-		kfree(mem);
+		kfree(*mem);
 		return ret;
 	}
 

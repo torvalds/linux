@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright © 2018 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2018 - 2022 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -29,11 +29,10 @@
 #define _VMWGFX_VALIDATION_H_
 
 #include <linux/list.h>
+#include <linux/hashtable.h>
 #include <linux/ww_mutex.h>
 
 #include <drm/ttm/ttm_execbuf_util.h>
-
-#include "vmwgfx_hashtab.h"
 
 #define VMW_RES_DIRTY_NONE 0
 #define VMW_RES_DIRTY_SET BIT(0)
@@ -59,7 +58,7 @@
  * @total_mem: Amount of reserved memory.
  */
 struct vmw_validation_context {
-	struct vmwgfx_open_hash *ht;
+	struct vmw_sw_context *sw_context;
 	struct list_head resource_list;
 	struct list_head resource_ctx_list;
 	struct list_head bo_list;
@@ -82,16 +81,16 @@ struct vmw_fence_obj;
 /**
  * DECLARE_VAL_CONTEXT - Declare a validation context with initialization
  * @_name: The name of the variable
- * @_ht: The hash table used to find dups or NULL if none
+ * @_sw_context: Contains the hash table used to find dups or NULL if none
  * @_merge_dups: Whether to merge duplicate buffer object- or resource
  * entries. If set to true, ideally a hash table pointer should be supplied
  * as well unless the number of resources and buffer objects per validation
  * is known to be very small
  */
 #endif
-#define DECLARE_VAL_CONTEXT(_name, _ht, _merge_dups)			\
+#define DECLARE_VAL_CONTEXT(_name, _sw_context, _merge_dups)		\
 	struct vmw_validation_context _name =				\
-	{ .ht = _ht,							\
+	{ .sw_context = _sw_context,					\
 	  .resource_list = LIST_HEAD_INIT((_name).resource_list),	\
 	  .resource_ctx_list = LIST_HEAD_INIT((_name).resource_ctx_list), \
 	  .bo_list = LIST_HEAD_INIT((_name).bo_list),			\
@@ -112,19 +111,6 @@ static inline bool
 vmw_validation_has_bos(struct vmw_validation_context *ctx)
 {
 	return !list_empty(&ctx->bo_list);
-}
-
-/**
- * vmw_validation_set_ht - Register a hash table for duplicate finding
- * @ctx: The validation context
- * @ht: Pointer to a hash table to use for duplicate finding
- * This function is intended to be used if the hash table wasn't
- * available at validation context declaration time
- */
-static inline void vmw_validation_set_ht(struct vmw_validation_context *ctx,
-					 struct vmwgfx_open_hash *ht)
-{
-	ctx->ht = ht;
 }
 
 /**

@@ -1187,7 +1187,12 @@ static int __init arkfb_init(void)
 
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("arkfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("arkfb", &option))
 		return -ENODEV;
 

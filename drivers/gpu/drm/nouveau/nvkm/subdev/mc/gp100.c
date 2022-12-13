@@ -21,108 +21,82 @@
  *
  * Authors: Ben Skeggs
  */
-#define gp100_mc(p) container_of((p), struct gp100_mc, base)
 #include "priv.h"
 
-struct gp100_mc {
-	struct nvkm_mc base;
-	spinlock_t lock;
-	bool intr;
-	u32 mask;
+const struct nvkm_intr_data
+gp100_mc_intrs[] = {
+	{ NVKM_ENGINE_DISP    , 0, 0, 0x04000000, true },
+	{ NVKM_ENGINE_FIFO    , 0, 0, 0x00000100 },
+	{ NVKM_SUBDEV_FAULT   , 0, 0, 0x00000200, true },
+	{ NVKM_SUBDEV_PRIVRING, 0, 0, 0x40000000, true },
+	{ NVKM_SUBDEV_BUS     , 0, 0, 0x10000000, true },
+	{ NVKM_SUBDEV_FB      , 0, 0, 0x08002000, true },
+	{ NVKM_SUBDEV_LTC     , 0, 0, 0x02000000, true },
+	{ NVKM_SUBDEV_PMU     , 0, 0, 0x01000000, true },
+	{ NVKM_SUBDEV_GPIO    , 0, 0, 0x00200000, true },
+	{ NVKM_SUBDEV_I2C     , 0, 0, 0x00200000, true },
+	{ NVKM_SUBDEV_TIMER   , 0, 0, 0x00100000, true },
+	{ NVKM_SUBDEV_THERM   , 0, 0, 0x00040000, true },
+	{ NVKM_SUBDEV_TOP     , 0, 0, 0x00009000 },
+	{ NVKM_SUBDEV_TOP     , 0, 0, 0xffff6fff, true },
+	{},
 };
 
 static void
-gp100_mc_intr_update(struct gp100_mc *mc)
+gp100_mc_intr_allow(struct nvkm_intr *intr, int leaf, u32 mask)
 {
-	struct nvkm_device *device = mc->base.subdev.device;
-	u32 mask = mc->intr ? mc->mask : 0, i;
-	for (i = 0; i < 2; i++) {
-		nvkm_wr32(device, 0x000180 + (i * 0x04), ~mask);
-		nvkm_wr32(device, 0x000160 + (i * 0x04),  mask);
-	}
+	struct nvkm_mc *mc = container_of(intr, typeof(*mc), intr);
+
+	nvkm_wr32(mc->subdev.device, 0x000160 + (leaf * 4), mask);
 }
 
-void
-gp100_mc_intr_unarm(struct nvkm_mc *base)
+static void
+gp100_mc_intr_block(struct nvkm_intr *intr, int leaf, u32 mask)
 {
-	struct gp100_mc *mc = gp100_mc(base);
-	unsigned long flags;
-	spin_lock_irqsave(&mc->lock, flags);
-	mc->intr = false;
-	gp100_mc_intr_update(mc);
-	spin_unlock_irqrestore(&mc->lock, flags);
+	struct nvkm_mc *mc = container_of(intr, typeof(*mc), intr);
+
+	nvkm_wr32(mc->subdev.device, 0x000180 + (leaf * 4), mask);
 }
 
-void
-gp100_mc_intr_rearm(struct nvkm_mc *base)
+static void
+gp100_mc_intr_rearm(struct nvkm_intr *intr)
 {
-	struct gp100_mc *mc = gp100_mc(base);
-	unsigned long flags;
-	spin_lock_irqsave(&mc->lock, flags);
-	mc->intr = true;
-	gp100_mc_intr_update(mc);
-	spin_unlock_irqrestore(&mc->lock, flags);
+	int i;
+
+	for (i = 0; i < intr->leaves; i++)
+		intr->func->allow(intr, i, intr->mask[i]);
 }
 
-void
-gp100_mc_intr_mask(struct nvkm_mc *base, u32 mask, u32 intr)
+static void
+gp100_mc_intr_unarm(struct nvkm_intr *intr)
 {
-	struct gp100_mc *mc = gp100_mc(base);
-	unsigned long flags;
-	spin_lock_irqsave(&mc->lock, flags);
-	mc->mask = (mc->mask & ~mask) | intr;
-	gp100_mc_intr_update(mc);
-	spin_unlock_irqrestore(&mc->lock, flags);
+	int i;
+
+	for (i = 0; i < intr->leaves; i++)
+		intr->func->block(intr, i, 0xffffffff);
 }
 
-const struct nvkm_mc_map
-gp100_mc_intr[] = {
-	{ 0x04000000, NVKM_ENGINE_DISP },
-	{ 0x00000100, NVKM_ENGINE_FIFO },
-	{ 0x00000200, NVKM_SUBDEV_FAULT },
-	{ 0x40000000, NVKM_SUBDEV_PRIVRING },
-	{ 0x10000000, NVKM_SUBDEV_BUS },
-	{ 0x08000000, NVKM_SUBDEV_FB },
-	{ 0x02000000, NVKM_SUBDEV_LTC },
-	{ 0x01000000, NVKM_SUBDEV_PMU },
-	{ 0x00200000, NVKM_SUBDEV_GPIO },
-	{ 0x00200000, NVKM_SUBDEV_I2C },
-	{ 0x00100000, NVKM_SUBDEV_TIMER },
-	{ 0x00040000, NVKM_SUBDEV_THERM },
-	{ 0x00002000, NVKM_SUBDEV_FB },
-	{},
+const struct nvkm_intr_func
+gp100_mc_intr = {
+	.pending = nv04_mc_intr_pending,
+	.unarm = gp100_mc_intr_unarm,
+	.rearm = gp100_mc_intr_rearm,
+	.block = gp100_mc_intr_block,
+	.allow = gp100_mc_intr_allow,
 };
 
 static const struct nvkm_mc_func
 gp100_mc = {
 	.init = nv50_mc_init,
-	.intr = gp100_mc_intr,
-	.intr_unarm = gp100_mc_intr_unarm,
-	.intr_rearm = gp100_mc_intr_rearm,
-	.intr_mask = gp100_mc_intr_mask,
-	.intr_stat = gf100_mc_intr_stat,
+	.intr = &gp100_mc_intr,
+	.intrs = gp100_mc_intrs,
+	.intr_nonstall = true,
+	.device = &nv04_mc_device,
 	.reset = gk104_mc_reset,
 };
 
 int
-gp100_mc_new_(const struct nvkm_mc_func *func, struct nvkm_device *device,
-	      enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
-{
-	struct gp100_mc *mc;
-
-	if (!(mc = kzalloc(sizeof(*mc), GFP_KERNEL)))
-		return -ENOMEM;
-	nvkm_mc_ctor(func, device, type, inst, &mc->base);
-	*pmc = &mc->base;
-
-	spin_lock_init(&mc->lock);
-	mc->intr = false;
-	mc->mask = 0x7fffffff;
-	return 0;
-}
-
-int
 gp100_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return gp100_mc_new_(&gp100_mc, device, type, inst, pmc);
+	return nvkm_mc_new_(&gp100_mc, device, type, inst, pmc);
 }

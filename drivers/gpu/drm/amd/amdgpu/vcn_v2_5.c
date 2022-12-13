@@ -770,6 +770,33 @@ static void vcn_v2_5_enable_clock_gating(struct amdgpu_device *adev)
 	}
 }
 
+static void vcn_v2_6_enable_ras(struct amdgpu_device *adev, int inst_idx,
+				bool indirect)
+{
+	uint32_t tmp;
+
+	if (adev->ip_versions[UVD_HWIP][0] != IP_VERSION(2, 6, 0))
+		return;
+
+	tmp = VCN_RAS_CNTL__VCPU_VCODEC_REARM_MASK |
+	      VCN_RAS_CNTL__VCPU_VCODEC_IH_EN_MASK |
+	      VCN_RAS_CNTL__VCPU_VCODEC_PMI_EN_MASK |
+	      VCN_RAS_CNTL__VCPU_VCODEC_STALL_EN_MASK;
+	WREG32_SOC15_DPG_MODE(inst_idx,
+			      SOC15_DPG_MODE_OFFSET(VCN, 0, mmVCN_RAS_CNTL),
+			      tmp, 0, indirect);
+
+	tmp = UVD_VCPU_INT_EN__RASCNTL_VCPU_VCODEC_EN_MASK;
+	WREG32_SOC15_DPG_MODE(inst_idx,
+			      SOC15_DPG_MODE_OFFSET(VCN, 0, mmUVD_VCPU_INT_EN),
+			      tmp, 0, indirect);
+
+	tmp = UVD_SYS_INT_EN__RASCNTL_VCPU_VCODEC_EN_MASK;
+	WREG32_SOC15_DPG_MODE(inst_idx,
+			      SOC15_DPG_MODE_OFFSET(VCN, 0, mmUVD_SYS_INT_EN),
+			      tmp, 0, indirect);
+}
+
 static int vcn_v2_5_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, bool indirect)
 {
 	volatile struct amdgpu_fw_shared *fw_shared = adev->vcn.inst[inst_idx].fw_shared.cpu_addr;
@@ -848,6 +875,8 @@ static int vcn_v2_5_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 	/* enable LMI MC and UMC channels */
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
 		VCN, 0, mmUVD_LMI_CTRL2), 0, 0, indirect);
+
+	vcn_v2_6_enable_ras(adev, inst_idx, indirect);
 
 	/* unblock VCPU register access */
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
@@ -2002,16 +2031,5 @@ static void vcn_v2_5_set_ras_funcs(struct amdgpu_device *adev)
 		break;
 	}
 
-	if (adev->vcn.ras) {
-		amdgpu_ras_register_ras_block(adev, &adev->vcn.ras->ras_block);
-
-		strcpy(adev->vcn.ras->ras_block.ras_comm.name, "vcn");
-		adev->vcn.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__VCN;
-		adev->vcn.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__POISON;
-		adev->vcn.ras_if = &adev->vcn.ras->ras_block.ras_comm;
-
-		/* If don't define special ras_late_init function, use default ras_late_init */
-		if (!adev->vcn.ras->ras_block.ras_late_init)
-			adev->vcn.ras->ras_block.ras_late_init = amdgpu_ras_block_late_init;
-	}
+	amdgpu_vcn_set_ras_funcs(adev);
 }

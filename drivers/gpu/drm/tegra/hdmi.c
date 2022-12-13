@@ -867,14 +867,7 @@ static int tegra_hdmi_reconfigure_audio(struct tegra_hdmi *hdmi)
 
 static bool tegra_output_is_hdmi(struct tegra_output *output)
 {
-	struct edid *edid;
-
-	if (!output->connector.edid_blob_ptr)
-		return false;
-
-	edid = (struct edid *)output->connector.edid_blob_ptr->data;
-
-	return drm_detect_hdmi_monitor(edid);
+	return output->connector.display_info.is_hdmi;
 }
 
 static enum drm_connector_status

@@ -13,6 +13,7 @@
 #include "intel_display_power_well.h"
 #include "intel_display_types.h"
 #include "intel_dkl_phy.h"
+#include "intel_dkl_phy_regs.h"
 #include "intel_dmc.h"
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
@@ -531,7 +532,7 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 
 		tc_port = TGL_AUX_PW_TO_TC_PORT(i915_power_well_instance(power_well)->hsw.idx);
 
-		if (wait_for(intel_dkl_phy_read(dev_priv, DKL_CMN_UC_DW_27(tc_port), 2) &
+		if (wait_for(intel_dkl_phy_read(dev_priv, DKL_CMN_UC_DW_27(tc_port)) &
 			     DKL_CMN_UC_DW27_UC_HEALTH, 1))
 			drm_warn(&dev_priv->drm,
 				 "Timeout waiting TC uC health\n");

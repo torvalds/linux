@@ -334,8 +334,7 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 		if (ret)
 			return ret;
 
-		/* exclusive fences must be ordered */
-		if (no_implicit && !write)
+		if (no_implicit)
 			continue;
 
 		ret = drm_sched_job_add_implicit_dependencies(&submit->base,

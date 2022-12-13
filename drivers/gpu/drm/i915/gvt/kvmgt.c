@@ -683,7 +683,6 @@ static int intel_vgpu_open_device(struct vfio_device *vfio_dev)
 
 	intel_gvt_activate_vgpu(vgpu);
 
-	atomic_set(&vgpu->released, 0);
 	return 0;
 }
 
@@ -703,9 +702,6 @@ static void intel_vgpu_close_device(struct vfio_device *vfio_dev)
 	struct intel_vgpu *vgpu = vfio_dev_to_vgpu(vfio_dev);
 
 	if (!vgpu->attached)
-		return;
-
-	if (atomic_cmpxchg(&vgpu->released, 0, 1))
 		return;
 
 	intel_gvt_release_vgpu(vgpu);

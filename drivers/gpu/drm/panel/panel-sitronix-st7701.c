@@ -19,6 +19,9 @@
 
 /* Command2 BKx selection command */
 #define DSI_CMD2BKX_SEL			0xFF
+#define DSI_CMD1			0
+#define DSI_CMD2			BIT(4)
+#define DSI_CMD2BK_MASK			GENMASK(3, 0)
 
 /* Command2, BK0 commands */
 #define DSI_CMD2_BK0_PVGAMCTRL		0xB0 /* Positive Voltage Gamma Control */
@@ -38,21 +41,6 @@
 #define DSI_CMD2_BK1_SPD1		0xC1 /* Source pre_drive timing set1 */
 #define DSI_CMD2_BK1_SPD2		0xC2 /* Source EQ2 Setting */
 #define DSI_CMD2_BK1_MIPISET1		0xD0 /* MIPI Setting 1 */
-
-/*
- * Command2 with BK function selection.
- *
- * BIT[4].....CN2
- * BIT[1:0]...BKXSEL
- * 1:00 = CMD2BK0, Command2 BK0
- * 1:01 = CMD2BK1, Command2 BK1
- * 1:11 = CMD2BK3, Command2 BK3
- * 0:00 = Command2 disable
- */
-#define DSI_CMD2BK0_SEL			0x10
-#define DSI_CMD2BK1_SEL			0x11
-#define DSI_CMD2BK3_SEL			0x13
-#define DSI_CMD2BKX_SEL_NONE		0x00
 
 /* Command2, BK0 bytes */
 #define DSI_CMD2_BK0_GAMCTRL_AJ_MASK	GENMASK(7, 6)
@@ -191,6 +179,18 @@ static u8 st7701_vgls_map(struct st7701 *st7701)
 	return 0;
 }
 
+static void st7701_switch_cmd_bkx(struct st7701 *st7701, bool cmd2, u8 bkx)
+{
+	u8 val;
+
+	if (cmd2)
+		val = DSI_CMD2 | FIELD_PREP(DSI_CMD2BK_MASK, bkx);
+	else
+		val = DSI_CMD1;
+
+	ST7701_DSI(st7701, DSI_CMD2BKX_SEL, 0x77, 0x01, 0x00, 0x00, val);
+}
+
 static void st7701_init_sequence(struct st7701 *st7701)
 {
 	const struct st7701_panel_desc *desc = st7701->desc;
@@ -208,8 +208,8 @@ static void st7701_init_sequence(struct st7701 *st7701)
 	msleep(st7701->sleep_delay);
 
 	/* Command2, BK0 */
-	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
-		   0x77, 0x01, 0x00, 0x00, DSI_CMD2BK0_SEL);
+	st7701_switch_cmd_bkx(st7701, true, 0);
+
 	mipi_dsi_dcs_write(st7701->dsi, DSI_CMD2_BK0_PVGAMCTRL,
 			   desc->pv_gamma, ARRAY_SIZE(desc->pv_gamma));
 	mipi_dsi_dcs_write(st7701->dsi, DSI_CMD2_BK0_NVGAMCTRL,
@@ -244,11 +244,10 @@ static void st7701_init_sequence(struct st7701 *st7701)
 		   DSI_CMD2_BK0_INVSEL_ONES_MASK |
 		   FIELD_PREP(DSI_CMD2_BK0_INVSEL_NLINV_MASK, desc->nlinv),
 		   FIELD_PREP(DSI_CMD2_BK0_INVSEL_RTNI_MASK,
-			      DIV_ROUND_UP(mode->htotal, 16)));
+			      (clamp((u32)mode->htotal, 512U, 1008U) - 512) / 16));
 
 	/* Command2, BK1 */
-	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
-			0x77, 0x01, 0x00, 0x00, DSI_CMD2BK1_SEL);
+	st7701_switch_cmd_bkx(st7701, true, 1);
 
 	/* Vop = 3.5375V + (VRHA[7:0] * 0.0125V) */
 	ST7701_DSI(st7701, DSI_CMD2_BK1_VRHS,
@@ -373,33 +372,27 @@ static void dmt028vghmcmi_1a_gip_sequence(struct st7701 *st7701)
 		   0x08, 0x08, 0x08, 0x40,
 			   0x3F, 0x64);
 
-	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
-		   0x77, 0x01, 0x00, 0x00, DSI_CMD2BKX_SEL_NONE);
+	st7701_switch_cmd_bkx(st7701, false, 0);
 
-	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
-		   0x77, 0x01, 0x00, 0x00, DSI_CMD2BK3_SEL);
+	st7701_switch_cmd_bkx(st7701, true, 3);
 	ST7701_DSI(st7701, 0xE6, 0x7C);
 	ST7701_DSI(st7701, 0xE8, 0x00, 0x0E);
 
-	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
-		   0x77, 0x01, 0x00, 0x00, DSI_CMD2BKX_SEL_NONE);
+	st7701_switch_cmd_bkx(st7701, false, 0);
 	ST7701_DSI(st7701, 0x11);
 	msleep(120);
 
-	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
-		   0x77, 0x01, 0x00, 0x00, DSI_CMD2BK3_SEL);
+	st7701_switch_cmd_bkx(st7701, true, 3);
 	ST7701_DSI(st7701, 0xE8, 0x00, 0x0C);
 	msleep(10);
 	ST7701_DSI(st7701, 0xE8, 0x00, 0x00);
 
-	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
-		   0x77, 0x01, 0x00, 0x00, DSI_CMD2BKX_SEL_NONE);
+	st7701_switch_cmd_bkx(st7701, false, 0);
 	ST7701_DSI(st7701, 0x11);
 	msleep(120);
 	ST7701_DSI(st7701, 0xE8, 0x00, 0x00);
 
-	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
-		   0x77, 0x01, 0x00, 0x00, DSI_CMD2BKX_SEL_NONE);
+	st7701_switch_cmd_bkx(st7701, false, 0);
 
 	ST7701_DSI(st7701, 0x3A, 0x70);
 }
@@ -426,8 +419,7 @@ static int st7701_prepare(struct drm_panel *panel)
 		st7701->desc->gip_sequence(st7701);
 
 	/* Disable Command2 */
-	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
-		   0x77, 0x01, 0x00, 0x00, DSI_CMD2BKX_SEL_NONE);
+	st7701_switch_cmd_bkx(st7701, false, 0);
 
 	return 0;
 }
@@ -762,7 +754,15 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 	st7701->dsi = dsi;
 	st7701->desc = desc;
 
-	return mipi_dsi_attach(dsi);
+	ret = mipi_dsi_attach(dsi);
+	if (ret)
+		goto err_attach;
+
+	return 0;
+
+err_attach:
+	drm_panel_remove(&st7701->panel);
+	return ret;
 }
 
 static void st7701_dsi_remove(struct mipi_dsi_device *dsi)

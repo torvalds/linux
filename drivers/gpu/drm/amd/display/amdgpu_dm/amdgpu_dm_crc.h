@@ -40,7 +40,7 @@ enum amdgpu_dm_pipe_crc_source {
 };
 
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
-struct crc_window_parm {
+struct crc_window_param {
 	uint16_t x_start;
 	uint16_t y_start;
 	uint16_t x_end;
@@ -53,12 +53,22 @@ struct crc_window_parm {
 	int skip_frame_cnt;
 };
 
+/* read_work for driver to call PSP to read */
 struct crc_rd_work {
 	struct work_struct notify_ta_work;
 	/* To protect crc_rd_work carried fields*/
 	spinlock_t crc_rd_work_lock;
 	struct drm_crtc *crtc;
 	uint8_t phy_inst;
+};
+
+/* forward_work for driver to forward ROI to dmu */
+struct crc_fw_work {
+	struct work_struct forward_roi_work;
+	struct amdgpu_display_manager *dm;
+	struct dc_stream_state *stream;
+	struct rect rect;
+	bool is_stop_cmd;
 };
 #endif
 

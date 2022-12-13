@@ -725,6 +725,9 @@ static int __init via_core_init(void)
 {
 	int ret;
 
+	if (fb_modesetting_disabled("viafb"))
+		return -ENODEV;
+
 	ret = viafb_init();
 	if (ret)
 		return ret;
