@@ -1669,18 +1669,18 @@ static int rkvdec_reset(struct mpp_dev *mpp)
 
 static int rkvdec_sip_reset(struct mpp_dev *mpp)
 {
-	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
+	if (IS_REACHABLE(CONFIG_ROCKCHIP_SIP)) {
+		/* The reset flow in arm trustzone firmware */
+		struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
-/* The reset flow in arm trustzone firmware */
-#if IS_ENABLED(CONFIG_ROCKCHIP_SIP)
-	mutex_lock(&dec->sip_reset_lock);
-	sip_smc_vpu_reset(0, 0, 0);
-	mutex_unlock(&dec->sip_reset_lock);
+		mutex_lock(&dec->sip_reset_lock);
+		sip_smc_vpu_reset(0, 0, 0);
+		mutex_unlock(&dec->sip_reset_lock);
 
-	return 0;
-#else
-	return rkvdec_reset(mpp);
-#endif
+		return 0;
+	} else {
+		return rkvdec_reset(mpp);
+	}
 }
 
 static struct mpp_hw_ops rkvdec_v1_hw_ops = {

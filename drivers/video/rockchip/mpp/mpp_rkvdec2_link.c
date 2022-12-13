@@ -1752,14 +1752,14 @@ static int rkvdec2_soft_ccu_reset(struct mpp_taskqueue *queue,
 		if (!(val & RKVDEC_BIT_BUS_IDLE))
 			mpp_err("bus busy\n");
 
-#if IS_ENABLED(CONFIG_ROCKCHIP_SIP)
-		/* sip reset */
-		rockchip_dmcfreq_lock();
-		sip_smc_vpu_reset(i, 0, 0);
-		rockchip_dmcfreq_unlock();
-#else
-		rkvdec2_reset(mpp);
-#endif
+		if (IS_REACHABLE(CONFIG_ROCKCHIP_SIP)) {
+			/* sip reset */
+			rockchip_dmcfreq_lock();
+			sip_smc_vpu_reset(i, 0, 0);
+			rockchip_dmcfreq_unlock();
+		} else {
+			rkvdec2_reset(mpp);
+		}
 		/* clear error mask */
 		writel(dec->core_mask & RKVDEC_CCU_CORE_RW_MASK,
 		       ccu->reg_base + RKVDEC_CCU_CORE_ERR_BASE);
