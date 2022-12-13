@@ -8,7 +8,19 @@
 #ifndef GPIOLIB_ACPI_H
 #define GPIOLIB_ACPI_H
 
+#include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/types.h>
+
+#include <linux/gpio/consumer.h>
+
 struct acpi_device;
+struct device;
+struct fwnode_handle;
+
+struct gpio_chip;
+struct gpio_desc;
+struct gpio_device;
 
 /**
  * struct acpi_gpio_info - ACPI GPIO specific information

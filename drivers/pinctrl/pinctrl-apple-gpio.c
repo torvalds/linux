@@ -11,6 +11,8 @@
  */
 
 #include <dt-bindings/pinctrl/apple.h>
+
+#include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
@@ -18,10 +20,11 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinmux.h>
 
 #include "pinctrl-utils.h"
 #include "core.h"
