@@ -222,7 +222,7 @@ static int gpu_set(struct context *ctx, unsigned long offset, u32 v)
 	}
 
 	if (GRAPHICS_VER(ctx->engine->i915) >= 8) {
-		*cs++ = MI_STORE_DWORD_IMM_GEN4 | 1 << 22;
+		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = lower_32_bits(i915_ggtt_offset(vma) + offset);
 		*cs++ = upper_32_bits(i915_ggtt_offset(vma) + offset);
 		*cs++ = v;
