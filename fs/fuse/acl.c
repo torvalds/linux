@@ -53,9 +53,10 @@ struct posix_acl *fuse_get_acl(struct inode *inode, int type, bool rcu)
 	return acl;
 }
 
-int fuse_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+int fuse_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
+	struct inode *inode = d_inode(dentry);
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	const char *name;
 	int ret;

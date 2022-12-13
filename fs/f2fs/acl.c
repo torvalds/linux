@@ -276,9 +276,11 @@ static int __f2fs_set_acl(struct user_namespace *mnt_userns,
 	return error;
 }
 
-int f2fs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+int f2fs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
+	struct inode *inode = d_inode(dentry);
+
 	if (unlikely(f2fs_cp_error(F2FS_I_SB(inode))))
 		return -EIO;
 

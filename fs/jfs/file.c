@@ -123,7 +123,7 @@ int jfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	mark_inode_dirty(inode);
 
 	if (iattr->ia_valid & ATTR_MODE)
-		rc = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
+		rc = posix_acl_chmod(&init_user_ns, dentry, inode->i_mode);
 	return rc;
 }
 
@@ -133,7 +133,7 @@ const struct inode_operations jfs_file_inode_operations = {
 	.fileattr_get	= jfs_fileattr_get,
 	.fileattr_set	= jfs_fileattr_set,
 #ifdef CONFIG_JFS_POSIX_ACL
-	.get_acl	= jfs_get_acl,
+	.get_inode_acl	= jfs_get_acl,
 	.set_acl	= jfs_set_acl,
 #endif
 };

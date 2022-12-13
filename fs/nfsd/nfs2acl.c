@@ -55,7 +55,7 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst *rqstp)
 		goto out;
 
 	if (resp->mask & (NFS_ACL|NFS_ACLCNT)) {
-		acl = get_acl(inode, ACL_TYPE_ACCESS);
+		acl = get_inode_acl(inode, ACL_TYPE_ACCESS);
 		if (acl == NULL) {
 			/* Solaris returns the inode's minimum ACL. */
 			acl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
@@ -69,7 +69,7 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst *rqstp)
 	if (resp->mask & (NFS_DFACL|NFS_DFACLCNT)) {
 		/* Check how Solaris handles requests for the Default ACL
 		   of a non-directory! */
-		acl = get_acl(inode, ACL_TYPE_DEFAULT);
+		acl = get_inode_acl(inode, ACL_TYPE_DEFAULT);
 		if (IS_ERR(acl)) {
 			resp->status = nfserrno(PTR_ERR(acl));
 			goto fail;
@@ -113,11 +113,11 @@ static __be32 nfsacld_proc_setacl(struct svc_rqst *rqstp)
 
 	inode_lock(inode);
 
-	error = set_posix_acl(&init_user_ns, inode, ACL_TYPE_ACCESS,
+	error = set_posix_acl(&init_user_ns, fh->fh_dentry, ACL_TYPE_ACCESS,
 			      argp->acl_access);
 	if (error)
 		goto out_drop_lock;
-	error = set_posix_acl(&init_user_ns, inode, ACL_TYPE_DEFAULT,
+	error = set_posix_acl(&init_user_ns, fh->fh_dentry, ACL_TYPE_DEFAULT,
 			      argp->acl_default);
 	if (error)
 		goto out_drop_lock;

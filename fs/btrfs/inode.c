@@ -5256,7 +5256,7 @@ static int btrfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentr
 		err = btrfs_dirty_inode(inode);
 
 		if (!err && attr->ia_valid & ATTR_MODE)
-			err = posix_acl_chmod(mnt_userns, inode, inode->i_mode);
+			err = posix_acl_chmod(mnt_userns, dentry, inode->i_mode);
 	}
 
 	return err;
@@ -11296,7 +11296,7 @@ static const struct inode_operations btrfs_dir_inode_operations = {
 	.mknod		= btrfs_mknod,
 	.listxattr	= btrfs_listxattr,
 	.permission	= btrfs_permission,
-	.get_acl	= btrfs_get_acl,
+	.get_inode_acl	= btrfs_get_acl,
 	.set_acl	= btrfs_set_acl,
 	.update_time	= btrfs_update_time,
 	.tmpfile        = btrfs_tmpfile,
@@ -11349,7 +11349,7 @@ static const struct inode_operations btrfs_file_inode_operations = {
 	.listxattr      = btrfs_listxattr,
 	.permission	= btrfs_permission,
 	.fiemap		= btrfs_fiemap,
-	.get_acl	= btrfs_get_acl,
+	.get_inode_acl	= btrfs_get_acl,
 	.set_acl	= btrfs_set_acl,
 	.update_time	= btrfs_update_time,
 	.fileattr_get	= btrfs_fileattr_get,
@@ -11360,7 +11360,7 @@ static const struct inode_operations btrfs_special_inode_operations = {
 	.setattr	= btrfs_setattr,
 	.permission	= btrfs_permission,
 	.listxattr	= btrfs_listxattr,
-	.get_acl	= btrfs_get_acl,
+	.get_inode_acl	= btrfs_get_acl,
 	.set_acl	= btrfs_set_acl,
 	.update_time	= btrfs_update_time,
 };

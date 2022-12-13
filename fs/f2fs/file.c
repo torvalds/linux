@@ -1025,7 +1025,7 @@ int f2fs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	__setattr_copy(mnt_userns, inode, attr);
 
 	if (attr->ia_valid & ATTR_MODE) {
-		err = posix_acl_chmod(mnt_userns, inode, f2fs_get_inode_mode(inode));
+		err = posix_acl_chmod(mnt_userns, dentry, f2fs_get_inode_mode(inode));
 
 		if (is_inode_flag_set(inode, FI_ACL_MODE)) {
 			if (!err)
@@ -1046,7 +1046,7 @@ int f2fs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 const struct inode_operations f2fs_file_inode_operations = {
 	.getattr	= f2fs_getattr,
 	.setattr	= f2fs_setattr,
-	.get_acl	= f2fs_get_acl,
+	.get_inode_acl	= f2fs_get_acl,
 	.set_acl	= f2fs_set_acl,
 	.listxattr	= f2fs_listxattr,
 	.fiemap		= f2fs_fiemap,

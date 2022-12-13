@@ -8,7 +8,7 @@
  *
  * File: evm_main.c
  *	implements evm_inode_setxattr, evm_inode_post_setxattr,
- *	evm_inode_removexattr, and evm_verifyxattr
+ *	evm_inode_removexattr, evm_verifyxattr, and evm_inode_set_acl.
  */
 
 #define pr_fmt(fmt) "EVM: "fmt
@@ -435,66 +435,6 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
 }
 
 /*
- * evm_xattr_acl_change - check if passed ACL changes the inode mode
- * @mnt_userns: user namespace of the idmapped mount
- * @dentry: pointer to the affected dentry
- * @xattr_name: requested xattr
- * @xattr_value: requested xattr value
- * @xattr_value_len: requested xattr value length
- *
- * Check if passed ACL changes the inode mode, which is protected by EVM.
- *
- * Returns 1 if passed ACL causes inode mode change, 0 otherwise.
- */
-static int evm_xattr_acl_change(struct user_namespace *mnt_userns,
-				struct dentry *dentry, const char *xattr_name,
-				const void *xattr_value, size_t xattr_value_len)
-{
-#ifdef CONFIG_FS_POSIX_ACL
-	umode_t mode;
-	struct posix_acl *acl = NULL, *acl_res;
-	struct inode *inode = d_backing_inode(dentry);
-	int rc;
-
-	/*
-	 * An earlier comment here mentioned that the idmappings for
-	 * ACL_{GROUP,USER} don't matter since EVM is only interested in the
-	 * mode stored as part of POSIX ACLs. Nonetheless, if it must translate
-	 * from the uapi POSIX ACL representation to the VFS internal POSIX ACL
-	 * representation it should do so correctly. There's no guarantee that
-	 * we won't change POSIX ACLs in a way that ACL_{GROUP,USER} matters
-	 * for the mode at some point and it's difficult to keep track of all
-	 * the LSM and integrity modules and what they do to POSIX ACLs.
-	 *
-	 * Frankly, EVM shouldn't try to interpret the uapi struct for POSIX
-	 * ACLs it received. It requires knowledge that only the VFS is
-	 * guaranteed to have.
-	 */
-	acl = vfs_set_acl_prepare(mnt_userns, i_user_ns(inode),
-				  xattr_value, xattr_value_len);
-	if (IS_ERR_OR_NULL(acl))
-		return 1;
-
-	acl_res = acl;
-	/*
-	 * Passing mnt_userns is necessary to correctly determine the GID in
-	 * an idmapped mount, as the GID is used to clear the setgid bit in
-	 * the inode mode.
-	 */
-	rc = posix_acl_update_mode(mnt_userns, inode, &mode, &acl_res);
-
-	posix_acl_release(acl);
-
-	if (rc)
-		return 1;
-
-	if (inode->i_mode != mode)
-		return 1;
-#endif
-	return 0;
-}
-
-/*
  * evm_xattr_change - check if passed xattr value differs from current value
  * @mnt_userns: user namespace of the idmapped mount
  * @dentry: pointer to the affected dentry
@@ -512,10 +452,6 @@ static int evm_xattr_change(struct user_namespace *mnt_userns,
 {
 	char *xattr_data = NULL;
 	int rc = 0;
-
-	if (posix_xattr_acl(xattr_name))
-		return evm_xattr_acl_change(mnt_userns, dentry, xattr_name,
-					    xattr_value, xattr_value_len);
 
 	rc = vfs_getxattr_alloc(&init_user_ns, dentry, xattr_name, &xattr_data,
 				0, GFP_NOFS);
@@ -668,6 +604,86 @@ int evm_inode_removexattr(struct user_namespace *mnt_userns,
 		return 0;
 
 	return evm_protect_xattr(mnt_userns, dentry, xattr_name, NULL, 0);
+}
+
+#ifdef CONFIG_FS_POSIX_ACL
+static int evm_inode_set_acl_change(struct user_namespace *mnt_userns,
+				    struct dentry *dentry, const char *name,
+				    struct posix_acl *kacl)
+{
+	int rc;
+
+	umode_t mode;
+	struct inode *inode = d_backing_inode(dentry);
+
+	if (!kacl)
+		return 1;
+
+	rc = posix_acl_update_mode(mnt_userns, inode, &mode, &kacl);
+	if (rc || (inode->i_mode != mode))
+		return 1;
+
+	return 0;
+}
+#else
+static inline int evm_inode_set_acl_change(struct user_namespace *mnt_userns,
+					   struct dentry *dentry,
+					   const char *name,
+					   struct posix_acl *kacl)
+{
+	return 0;
+}
+#endif
+
+/**
+ * evm_inode_set_acl - protect the EVM extended attribute from posix acls
+ * @mnt_userns: user namespace of the idmapped mount
+ * @dentry: pointer to the affected dentry
+ * @acl_name: name of the posix acl
+ * @kacl: pointer to the posix acls
+ *
+ * Prevent modifying posix acls causing the EVM HMAC to be re-calculated
+ * and 'security.evm' xattr updated, unless the existing 'security.evm' is
+ * valid.
+ */
+int evm_inode_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+		      const char *acl_name, struct posix_acl *kacl)
+{
+	enum integrity_status evm_status;
+
+	/* Policy permits modification of the protected xattrs even though
+	 * there's no HMAC key loaded
+	 */
+	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
+		return 0;
+
+	evm_status = evm_verify_current_integrity(dentry);
+	if ((evm_status == INTEGRITY_PASS) ||
+	    (evm_status == INTEGRITY_NOXATTRS))
+		return 0;
+
+	/* Exception if the HMAC is not going to be calculated. */
+	if (evm_hmac_disabled() && (evm_status == INTEGRITY_NOLABEL ||
+	    evm_status == INTEGRITY_UNKNOWN))
+		return 0;
+
+	/*
+	 * Writing other xattrs is safe for portable signatures, as portable
+	 * signatures are immutable and can never be updated.
+	 */
+	if (evm_status == INTEGRITY_FAIL_IMMUTABLE)
+		return 0;
+
+	if (evm_status == INTEGRITY_PASS_IMMUTABLE &&
+	    !evm_inode_set_acl_change(mnt_userns, dentry, acl_name, kacl))
+		return 0;
+
+	if (evm_status != INTEGRITY_PASS_IMMUTABLE)
+		integrity_audit_msg(AUDIT_INTEGRITY_METADATA, d_backing_inode(dentry),
+				    dentry->d_name.name, "appraise_metadata",
+				    integrity_status_msg[evm_status],
+				    -EPERM, 0);
+	return -EPERM;
 }
 
 static void evm_reset_status(struct inode *inode)

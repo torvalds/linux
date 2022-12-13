@@ -13,6 +13,9 @@
 #include <linux/string.h>
 #include <linux/keyctl.h>
 #include <linux/key-type.h>
+#include <uapi/linux/posix_acl.h>
+#include <linux/posix_acl.h>
+#include <linux/posix_acl_xattr.h>
 #include <keys/user-type.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
@@ -20,6 +23,8 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "fs_context.h"
+#include "cifs_fs_sb.h"
+#include "cifs_unicode.h"
 
 /* security id for everyone/world system group */
 static const struct cifs_sid sid_everyone = {
@@ -1667,4 +1672,138 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 *pnmode,
 	kfree(pnntsd);
 	kfree(pntsd);
 	return rc;
+}
+
+struct posix_acl *cifs_get_acl(struct user_namespace *mnt_userns,
+			       struct dentry *dentry, int type)
+{
+#if defined(CONFIG_CIFS_ALLOW_INSECURE_LEGACY) && defined(CONFIG_CIFS_POSIX)
+	struct posix_acl *acl = NULL;
+	ssize_t rc = -EOPNOTSUPP;
+	unsigned int xid;
+	struct super_block *sb = dentry->d_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct tcon_link *tlink;
+	struct cifs_tcon *pTcon;
+	const char *full_path;
+	void *page;
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return ERR_CAST(tlink);
+	pTcon = tlink_tcon(tlink);
+
+	xid = get_xid();
+	page = alloc_dentry_path();
+
+	full_path = build_path_from_dentry(dentry, page);
+	if (IS_ERR(full_path)) {
+		acl = ERR_CAST(full_path);
+		goto out;
+	}
+
+	/* return alt name if available as pseudo attr */
+	switch (type) {
+	case ACL_TYPE_ACCESS:
+		if (sb->s_flags & SB_POSIXACL)
+			rc = cifs_do_get_acl(xid, pTcon, full_path, &acl,
+					     ACL_TYPE_ACCESS,
+					     cifs_sb->local_nls,
+					     cifs_remap(cifs_sb));
+		break;
+
+	case ACL_TYPE_DEFAULT:
+		if (sb->s_flags & SB_POSIXACL)
+			rc = cifs_do_get_acl(xid, pTcon, full_path, &acl,
+					     ACL_TYPE_DEFAULT,
+					     cifs_sb->local_nls,
+					     cifs_remap(cifs_sb));
+		break;
+	}
+
+	if (rc < 0) {
+		if (rc == -EINVAL)
+			acl = ERR_PTR(-EOPNOTSUPP);
+		else
+			acl = ERR_PTR(rc);
+	}
+
+out:
+	free_dentry_path(page);
+	free_xid(xid);
+	cifs_put_tlink(tlink);
+	return acl;
+#else
+	return ERR_PTR(-EOPNOTSUPP);
+#endif
+}
+
+int cifs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+		 struct posix_acl *acl, int type)
+{
+#if defined(CONFIG_CIFS_ALLOW_INSECURE_LEGACY) && defined(CONFIG_CIFS_POSIX)
+	int rc = -EOPNOTSUPP;
+	unsigned int xid;
+	struct super_block *sb = dentry->d_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct tcon_link *tlink;
+	struct cifs_tcon *pTcon;
+	const char *full_path;
+	void *page;
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	pTcon = tlink_tcon(tlink);
+
+	xid = get_xid();
+	page = alloc_dentry_path();
+
+	full_path = build_path_from_dentry(dentry, page);
+	if (IS_ERR(full_path)) {
+		rc = PTR_ERR(full_path);
+		goto out;
+	}
+
+	if (!acl)
+		goto out;
+
+	/* return dos attributes as pseudo xattr */
+	/* return alt name if available as pseudo attr */
+
+	/* if proc/fs/cifs/streamstoxattr is set then
+		search server for EAs or streams to
+		returns as xattrs */
+	if (posix_acl_xattr_size(acl->a_count) > CIFSMaxBufSize) {
+		cifs_dbg(FYI, "size of EA value too large\n");
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
+
+	switch (type) {
+	case ACL_TYPE_ACCESS:
+		if (sb->s_flags & SB_POSIXACL)
+			rc = cifs_do_set_acl(xid, pTcon, full_path, acl,
+					     ACL_TYPE_ACCESS,
+					     cifs_sb->local_nls,
+					     cifs_remap(cifs_sb));
+		break;
+
+	case ACL_TYPE_DEFAULT:
+		if (sb->s_flags & SB_POSIXACL)
+			rc = cifs_do_set_acl(xid, pTcon, full_path, acl,
+					     ACL_TYPE_DEFAULT,
+					     cifs_sb->local_nls,
+					     cifs_remap(cifs_sb));
+		break;
+	}
+
+out:
+	free_dentry_path(page);
+	free_xid(xid);
+	cifs_put_tlink(tlink);
+	return rc;
+#else
+	return -EOPNOTSUPP;
+#endif
 }
