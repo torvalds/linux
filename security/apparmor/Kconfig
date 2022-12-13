@@ -106,8 +106,8 @@ config SECURITY_APPARMOR_PARANOID_LOAD
 	  Disabling the check will speed up policy loads.
 
 config SECURITY_APPARMOR_KUNIT_TEST
-	bool "Build KUnit tests for policy_unpack.c" if !KUNIT_ALL_TESTS
-	depends on KUNIT=y && SECURITY_APPARMOR
+	tristate "Build KUnit tests for policy_unpack.c" if !KUNIT_ALL_TESTS
+	depends on KUNIT && SECURITY_APPARMOR
 	default KUNIT_ALL_TESTS
 	help
 	  This builds the AppArmor KUnit tests.
