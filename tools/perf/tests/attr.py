@@ -129,7 +129,8 @@ class Event(dict):
 #   - needs to specify:
 #     'command' - perf command name
 #     'args'    - special command arguments
-#     'ret'     - expected command return value (0 by default)
+#     'ret'     - Skip test if Perf doesn't exit with this value (0 by default)
+#     'test_ret'- If set to 'true', fail test instead of skipping for 'ret' argument
 #     'arch'    - architecture specific test (optional)
 #                 comma separated list, ! at the beginning
 #                 negates it.
@@ -154,6 +155,8 @@ class Test(object):
             self.ret  = parser.get('config', 'ret')
         except:
             self.ret  = 0
+
+        self.test_ret = parser.getboolean('config', 'test_ret', fallback=False)
 
         try:
             self.arch  = parser.get('config', 'arch')
@@ -232,7 +235,10 @@ class Test(object):
         log.info("  '%s' ret '%s', expected '%s'" % (cmd, str(ret), str(self.ret)))
 
         if not data_equal(str(ret), str(self.ret)):
-            raise Unsup(self)
+            if self.test_ret:
+                raise Fail(self, "Perf exit code failure")
+            else:
+                raise Unsup(self)
 
     def compare(self, expect, result):
         match = {}
