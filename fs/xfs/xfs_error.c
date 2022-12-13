@@ -279,7 +279,7 @@ xfs_errortag_test(
 
 	ASSERT(error_tag < XFS_ERRTAG_MAX);
 	randfactor = mp->m_errortag[error_tag];
-	if (!randfactor || prandom_u32_max(randfactor))
+	if (!randfactor || get_random_u32_below(randfactor))
 		return false;
 
 	xfs_warn_ratelimited(mp,

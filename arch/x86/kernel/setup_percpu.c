@@ -11,6 +11,7 @@
 #include <linux/smp.h>
 #include <linux/topology.h>
 #include <linux/pfn.h>
+#include <linux/stackprotector.h>
 #include <asm/sections.h>
 #include <asm/processor.h>
 #include <asm/desc.h>
@@ -21,7 +22,6 @@
 #include <asm/proto.h>
 #include <asm/cpumask.h>
 #include <asm/cpu.h>
-#include <asm/stackprotector.h>
 
 DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);

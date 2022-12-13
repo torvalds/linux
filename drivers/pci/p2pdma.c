@@ -673,7 +673,7 @@ struct pci_dev *pci_p2pmem_find_many(struct device **clients, int num_clients)
 	}
 
 	if (dev_cnt)
-		pdev = pci_dev_get(closest_pdevs[prandom_u32_max(dev_cnt)]);
+		pdev = pci_dev_get(closest_pdevs[get_random_u32_below(dev_cnt)]);
 
 	for (i = 0; i < dev_cnt; i++)
 		pci_dev_put(closest_pdevs[i]);
