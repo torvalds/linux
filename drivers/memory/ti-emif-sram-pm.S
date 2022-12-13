@@ -28,6 +28,7 @@
 
 	.arm
 	.align 3
+	.arch armv7-a
 
 ENTRY(ti_emif_sram)
 

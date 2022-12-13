@@ -27,6 +27,7 @@ KASAN_SANITIZE		:= n
 
 # Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
 KCOV_INSTRUMENT		:= n
+UBSAN_SANITIZE		:= n
 
 #
 # Architecture dependencies
@@ -163,4 +164,3 @@ $(obj)/piggy_data: $(obj)/../Image FORCE
 $(obj)/piggy.o: $(obj)/piggy_data
 
 CFLAGS_font.o := -Dstatic=
-AFLAGS_hyp-stub.o := -Wa,-march=armv7-a
