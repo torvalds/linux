@@ -171,12 +171,10 @@ static struct snp_guest_crypto *init_crypto(struct snp_guest_dev *snp_dev, u8 *k
 	crypto->a_len = crypto_aead_authsize(crypto->tfm);
 	crypto->authtag = kmalloc(crypto->a_len, GFP_KERNEL_ACCOUNT);
 	if (!crypto->authtag)
-		goto e_free_auth;
+		goto e_free_iv;
 
 	return crypto;
 
-e_free_auth:
-	kfree(crypto->authtag);
 e_free_iv:
 	kfree(crypto->iv);
 e_free_crypto:
@@ -800,3 +798,4 @@ MODULE_AUTHOR("Brijesh Singh <brijesh.singh@amd.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");
 MODULE_DESCRIPTION("AMD SEV Guest Driver");
+MODULE_ALIAS("platform:sev-guest");
