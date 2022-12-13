@@ -529,7 +529,6 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
-		.regs = signal_pt_regs(),
 		.limit = rlimit(RLIMIT_CORE),
 		/*
 		 * We must use the same mm->flags while dumping core to avoid
