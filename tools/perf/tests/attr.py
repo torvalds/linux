@@ -8,7 +8,9 @@ import glob
 import optparse
 import tempfile
 import logging
+import re
 import shutil
+import subprocess
 
 try:
     import configparser
@@ -134,6 +136,8 @@ class Event(dict):
 #     'arch'    - architecture specific test (optional)
 #                 comma separated list, ! at the beginning
 #                 negates it.
+#     'auxv'    - Truthy statement that is evaled in the scope of the auxv map. When false,
+#                 the test is skipped. For example 'auxv["AT_HWCAP"] == 10'. (optional)
 #
 # [eventX:base]
 #   - one or multiple instances in file
@@ -164,6 +168,7 @@ class Test(object):
         except:
             self.arch  = ''
 
+        self.auxv = parser.get('config', 'auxv', fallback=None)
         self.expect   = {}
         self.result   = {}
         log.debug("  loading expected events");
@@ -175,7 +180,28 @@ class Test(object):
         else:
             return True
 
-    def skip_test(self, myarch):
+    def skip_test_auxv(self):
+        def new_auxv(a, pattern):
+            items = list(filter(None, pattern.split(a)))
+            # AT_HWCAP is hex but doesn't have a prefix, so special case it
+            if items[0] == "AT_HWCAP":
+                value = int(items[-1], 16)
+            else:
+                try:
+                    value = int(items[-1], 0)
+                except:
+                    value = items[-1]
+            return (items[0], value)
+
+        if not self.auxv:
+            return False
+        auxv = subprocess.check_output("LD_SHOW_AUXV=1 sleep 0", shell=True) \
+               .decode(sys.stdout.encoding)
+        pattern = re.compile(r"[: ]+")
+        auxv = dict([new_auxv(a, pattern) for a in auxv.splitlines()])
+        return not eval(self.auxv)
+
+    def skip_test_arch(self, myarch):
         # If architecture not set always run test
         if self.arch == '':
             # log.warning("test for arch %s is ok" % myarch)
@@ -225,8 +251,11 @@ class Test(object):
     def run_cmd(self, tempdir):
         junk1, junk2, junk3, junk4, myarch = (os.uname())
 
-        if self.skip_test(myarch):
+        if self.skip_test_arch(myarch):
             raise Notest(self, myarch)
+
+        if self.skip_test_auxv():
+            raise Notest(self, "auxv skip")
 
         cmd = "PERF_TEST_ATTR=%s %s %s -o %s/perf.data %s" % (tempdir,
               self.perf, self.command, tempdir, self.args)
