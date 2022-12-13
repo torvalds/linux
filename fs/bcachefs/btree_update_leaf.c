@@ -660,21 +660,13 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 		trans->journal_res.seq = c->journal.replay_journal_seq;
 	}
 
-	if (unlikely(trans->extra_journal_entries.nr)) {
-		memcpy_u64s_small(journal_res_entry(&c->journal, &trans->journal_res),
-				  trans->extra_journal_entries.data,
-				  trans->extra_journal_entries.nr);
-
-		trans->journal_res.offset	+= trans->extra_journal_entries.nr;
-		trans->journal_res.u64s		-= trans->extra_journal_entries.nr;
-	}
-
 	/*
 	 * Not allowed to fail after we've gotten our journal reservation - we
 	 * have to use it:
 	 */
 
-	if (!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)) {
+	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
+	    !(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)) {
 		if (bch2_journal_seq_verify)
 			trans_for_each_update(trans, i)
 				i->k->k.version.lo = trans->journal_res.seq;
@@ -698,6 +690,15 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 		ret = bch2_trans_commit_run_gc_triggers(trans);
 		if  (ret)
 			return ret;
+	}
+
+	if (unlikely(trans->extra_journal_entries.nr)) {
+		memcpy_u64s_small(journal_res_entry(&c->journal, &trans->journal_res),
+				  trans->extra_journal_entries.data,
+				  trans->extra_journal_entries.nr);
+
+		trans->journal_res.offset	+= trans->extra_journal_entries.nr;
+		trans->journal_res.u64s		-= trans->extra_journal_entries.nr;
 	}
 
 	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))) {
