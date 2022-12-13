@@ -260,8 +260,8 @@ static enum wd_read_status cs_watchdog_read(struct clocksource *cs, u64 *csnow, 
 			goto skip_test;
 	}
 
-	pr_warn("timekeeping watchdog on CPU%d: wd-%s-wd read-back delay of %lldns, attempt %d, marking unstable\n",
-		smp_processor_id(), cs->name, wd_delay, nretries);
+	pr_warn("timekeeping watchdog on CPU%d: wd-%s-wd excessive read-back delay of %lldns vs. limit of %ldns, wd-wd read-back delay only %lldns, attempt %d, marking %s unstable\n",
+		smp_processor_id(), cs->name, wd_delay, WATCHDOG_MAX_SKEW, wd_seq_delay, nretries, cs->name);
 	return WD_READ_UNSTABLE;
 
 skip_test:
