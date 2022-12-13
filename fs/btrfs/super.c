@@ -2514,6 +2514,7 @@ static __always_inline void btrfs_exit_btrfs_fs(void)
 static void __exit exit_btrfs_fs(void)
 {
 	btrfs_exit_btrfs_fs();
+	btrfs_cleanup_fs_uuids();
 }
 
 static int __init init_btrfs_fs(void)
