@@ -400,7 +400,7 @@ static inline sector_t exfat_cluster_to_sector(struct exfat_sb_info *sbi,
 		sbi->data_start_sector;
 }
 
-static inline int exfat_sector_to_cluster(struct exfat_sb_info *sbi,
+static inline unsigned int exfat_sector_to_cluster(struct exfat_sb_info *sbi,
 		sector_t sec)
 {
 	return ((sec - sbi->data_start_sector) >> sbi->sect_per_clus_bits) +
