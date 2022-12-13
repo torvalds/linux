@@ -352,14 +352,14 @@ static __u32 sansflags(__u32 m)
 	return m & ~VFS_CAP_FLAGS_EFFECTIVE;
 }
 
-static bool is_v2header(size_t size, const struct vfs_cap_data *cap)
+static bool is_v2header(int size, const struct vfs_cap_data *cap)
 {
 	if (size != XATTR_CAPS_SZ_2)
 		return false;
 	return sansflags(le32_to_cpu(cap->magic_etc)) == VFS_CAP_REVISION_2;
 }
 
-static bool is_v3header(size_t size, const struct vfs_cap_data *cap)
+static bool is_v3header(int size, const struct vfs_cap_data *cap)
 {
 	if (size != XATTR_CAPS_SZ_3)
 		return false;
@@ -381,7 +381,7 @@ int cap_inode_getsecurity(struct user_namespace *mnt_userns,
 			  struct inode *inode, const char *name, void **buffer,
 			  bool alloc)
 {
-	int size, ret;
+	int size;
 	kuid_t kroot;
 	vfsuid_t vfsroot;
 	u32 nsmagic, magic;
@@ -398,22 +398,18 @@ int cap_inode_getsecurity(struct user_namespace *mnt_userns,
 	dentry = d_find_any_alias(inode);
 	if (!dentry)
 		return -EINVAL;
-
-	size = sizeof(struct vfs_ns_cap_data);
-	ret = (int)vfs_getxattr_alloc(mnt_userns, dentry, XATTR_NAME_CAPS,
-				      &tmpbuf, size, GFP_NOFS);
+	size = vfs_getxattr_alloc(mnt_userns, dentry, XATTR_NAME_CAPS, &tmpbuf,
+				  sizeof(struct vfs_ns_cap_data), GFP_NOFS);
 	dput(dentry);
-
-	if (ret < 0 || !tmpbuf) {
-		size = ret;
+	/* gcc11 complains if we don't check for !tmpbuf */
+	if (size < 0 || !tmpbuf)
 		goto out_free;
-	}
 
 	fs_ns = inode->i_sb->s_user_ns;
 	cap = (struct vfs_cap_data *) tmpbuf;
-	if (is_v2header((size_t) ret, cap)) {
+	if (is_v2header(size, cap)) {
 		root = 0;
-	} else if (is_v3header((size_t) ret, cap)) {
+	} else if (is_v3header(size, cap)) {
 		nscap = (struct vfs_ns_cap_data *) tmpbuf;
 		root = le32_to_cpu(nscap->rootid);
 	} else {

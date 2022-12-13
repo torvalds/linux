@@ -293,7 +293,8 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	/* HASH sets the digital signature and update flags, nothing else */
 	if ((action & IMA_HASH) &&
 	    !(test_bit(IMA_DIGSIG, &iint->atomic_flags))) {
-		xattr_len = ima_read_xattr(file_dentry(file), &xattr_value);
+		xattr_len = ima_read_xattr(file_dentry(file),
+					   &xattr_value, xattr_len);
 		if ((xattr_value && xattr_len > 2) &&
 		    (xattr_value->type == EVM_IMA_XATTR_DIGSIG))
 			set_bit(IMA_DIGSIG, &iint->atomic_flags);
@@ -316,7 +317,8 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	if ((action & IMA_APPRAISE_SUBMASK) ||
 	    strcmp(template_desc->name, IMA_TEMPLATE_IMA_NAME) != 0) {
 		/* read 'security.ima' */
-		xattr_len = ima_read_xattr(file_dentry(file), &xattr_value);
+		xattr_len = ima_read_xattr(file_dentry(file),
+					   &xattr_value, xattr_len);
 
 		/*
 		 * Read the appended modsig if allowed by the policy, and allow
