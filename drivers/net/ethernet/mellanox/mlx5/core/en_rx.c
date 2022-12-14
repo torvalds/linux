@@ -273,40 +273,18 @@ static inline u32 mlx5e_decompress_cqes_start(struct mlx5e_rq *rq,
 
 static inline int mlx5e_page_alloc_pool(struct mlx5e_rq *rq, struct page **pagep)
 {
-	dma_addr_t addr;
-
 	*pagep = page_pool_dev_alloc_pages(rq->page_pool);
 	if (unlikely(!*pagep))
 		return -ENOMEM;
 
-	/* Non-XSK always uses PAGE_SIZE. */
-	addr = dma_map_page(rq->pdev, *pagep, 0, PAGE_SIZE, rq->buff.map_dir);
-	if (unlikely(dma_mapping_error(rq->pdev, addr))) {
-		page_pool_recycle_direct(rq->page_pool, *pagep);
-		*pagep = NULL;
-		return -ENOMEM;
-	}
-	page_pool_set_dma_addr(*pagep, addr);
-
 	return 0;
-}
-
-void mlx5e_page_dma_unmap(struct mlx5e_rq *rq, struct page *page)
-{
-	dma_addr_t dma_addr = page_pool_get_dma_addr(page);
-
-	dma_unmap_page_attrs(rq->pdev, dma_addr, PAGE_SIZE, rq->buff.map_dir,
-			     DMA_ATTR_SKIP_CPU_SYNC);
-	page_pool_set_dma_addr(page, 0);
 }
 
 void mlx5e_page_release_dynamic(struct mlx5e_rq *rq, struct page *page, bool recycle)
 {
 	if (likely(recycle)) {
-		mlx5e_page_dma_unmap(rq, page);
 		page_pool_recycle_direct(rq->page_pool, page);
 	} else {
-		mlx5e_page_dma_unmap(rq, page);
 		page_pool_release_page(rq->page_pool, page);
 		put_page(page);
 	}
