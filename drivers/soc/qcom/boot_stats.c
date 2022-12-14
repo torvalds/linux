@@ -38,12 +38,12 @@
 struct boot_stats {
 	uint32_t bootloader_start;
 	uint32_t bootloader_end;
-	uint32_t bootloader_display;
-	uint32_t bootloader_load_kernel;
-#ifdef CONFIG_MSM_BOOT_TIME_MARKER
-	uint32_t bootloader_load_kernel_start;
-	uint32_t bootloader_load_kernel_end;
-#endif
+	uint32_t bootloader_load_boot_start;
+	uint32_t bootloader_load_boot_end;
+	uint32_t bootloader_load_vendor_boot_start;
+	uint32_t bootloader_load_vendor_boot_end;
+	uint32_t bootloader_load_init_boot_start;
+	uint32_t bootloader_load_init_boot_end;
 } __packed;
 
 static void __iomem *mpm_counter_base;
@@ -221,21 +221,42 @@ EXPORT_SYMBOL(destroy_marker);
 
 static void set_bootloader_stats(void)
 {
+	unsigned long long ts1, ts2;
+
 	if (IS_ERR_OR_NULL(boot_stats)) {
 		pr_err("boot_marker: imem not initialized!\n");
 		return;
 	}
 
 	_create_boot_marker("M - APPSBL Start - ",
-		readl_relaxed(&boot_stats->bootloader_start));
-	_create_boot_marker("M - APPSBL Kernel Load Start - ",
-		readl_relaxed(&boot_stats->bootloader_load_kernel_start));
-	_create_boot_marker("M - APPSBL Kernel Load End - ",
-		readl_relaxed(&boot_stats->bootloader_load_kernel_end));
-	_create_boot_marker("D - APPSBL Kernel Load Time - ",
-		readl_relaxed(&boot_stats->bootloader_load_kernel));
+			readl_relaxed(&boot_stats->bootloader_start));
+
+	ts1 = readl_relaxed(&boot_stats->bootloader_load_boot_start);
+	if (ts1) {
+		_create_boot_marker("M - APPSBL Boot Load Start - ", ts1);
+		ts2 = readl_relaxed(&boot_stats->bootloader_load_boot_end);
+		_create_boot_marker("M - APPSBL Boot Load End - ", ts2);
+		_create_boot_marker("D - APPSBL Boot Load Time - ", ts2 - ts1);
+	}
+
+	ts1 = readl_relaxed(&boot_stats->bootloader_load_vendor_boot_start);
+	if (ts1) {
+		_create_boot_marker("M - APPSBL Vendor Boot Load Start - ", ts1);
+		ts2 = readl_relaxed(&boot_stats->bootloader_load_vendor_boot_end);
+		_create_boot_marker("M - APPSBL Vendor Boot Load End - ", ts2);
+		_create_boot_marker("D - APPSBL Vendor Boot Load Time - ", ts2 - ts1);
+	}
+
+	ts1 = readl_relaxed(&boot_stats->bootloader_load_init_boot_start);
+	if (ts1) {
+		_create_boot_marker("M - APPSBL Init Boot Load Start - ", ts1);
+		ts2 = readl_relaxed(&boot_stats->bootloader_load_init_boot_end);
+		_create_boot_marker("M - APPSBL Init Boot Load End - ", ts2);
+		_create_boot_marker("D - APPSBL Init Load Time - ", ts2 - ts1);
+	}
+
 	_create_boot_marker("M - APPSBL End - ",
-		readl_relaxed(&boot_stats->bootloader_end));
+			readl_relaxed(&boot_stats->bootloader_end));
 }
 
 static ssize_t bootkpi_reader(struct file *fp, struct kobject *obj,
@@ -439,10 +460,9 @@ static void print_boot_stats(void)
 		readl_relaxed(&boot_stats->bootloader_start));
 	pr_info("KPI: Bootloader end count = %u\n",
 		readl_relaxed(&boot_stats->bootloader_end));
-	pr_info("KPI: Bootloader display count = %u\n",
-		readl_relaxed(&boot_stats->bootloader_display));
 	pr_info("KPI: Bootloader load kernel count = %u\n",
-		readl_relaxed(&boot_stats->bootloader_load_kernel));
+		readl_relaxed(&boot_stats->bootloader_load_boot_end) -
+		readl_relaxed(&boot_stats->bootloader_load_boot_start));
 	pr_info("KPI: Kernel MPM timestamp = %u\n",
 		readl_relaxed(mpm_counter_base));
 	pr_info("KPI: Kernel MPM Clock frequency = %u\n",
