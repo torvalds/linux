@@ -288,7 +288,7 @@ static int ext2_unlink(struct inode * dir, struct dentry *dentry)
 	}
 
 	err = ext2_delete_entry (de, page, page_addr);
-	ext2_put_page(page, page_addr);
+	ext2_put_page(page, de);
 	if (err)
 		goto out;
 
@@ -370,7 +370,7 @@ static int ext2_rename (struct mnt_idmap * idmap,
 		}
 		err = ext2_set_link(new_dir, new_de, new_page, page_addr,
 				    old_inode, true);
-		ext2_put_page(new_page, page_addr);
+		ext2_put_page(new_page, new_de);
 		if (err)
 			goto out_dir;
 		new_inode->i_ctime = current_time(new_inode);
@@ -402,9 +402,9 @@ static int ext2_rename (struct mnt_idmap * idmap,
 	}
 out_dir:
 	if (dir_de)
-		ext2_put_page(dir_page, dir_page_addr);
+		ext2_put_page(dir_page, dir_de);
 out_old:
-	ext2_put_page(old_page, old_page_addr);
+	ext2_put_page(old_page, old_de);
 	return err;
 }
 
