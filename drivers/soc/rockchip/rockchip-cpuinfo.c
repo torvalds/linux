@@ -239,7 +239,7 @@ static void rk3568_init(void)
 	rk356x_set_cpu_version();
 }
 
-int __init rockchip_soc_id_init(void)
+int rockchip_soc_id_init(void)
 {
 	if (rockchip_soc_id)
 		return 0;
@@ -271,6 +271,7 @@ int __init rockchip_soc_id_init(void)
 
 	return 0;
 }
+EXPORT_SYMBOL(rockchip_soc_id_init);
 #ifndef MODULE
 pure_initcall(rockchip_soc_id_init);
 #endif
