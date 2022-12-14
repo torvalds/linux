@@ -6,13 +6,24 @@
 #ifndef __VFIO_VFIO_H__
 #define __VFIO_VFIO_H__
 
+#include <linux/file.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/module.h>
 
+struct iommufd_ctx;
 struct iommu_group;
 struct vfio_device;
 struct vfio_container;
+
+void vfio_device_put_registration(struct vfio_device *device);
+bool vfio_device_try_get_registration(struct vfio_device *device);
+int vfio_device_open(struct vfio_device *device,
+		     struct iommufd_ctx *iommufd, struct kvm *kvm);
+void vfio_device_close(struct vfio_device *device,
+		       struct iommufd_ctx *iommufd);
+
+extern const struct file_operations vfio_device_fops;
 
 enum vfio_group_type {
 	/*
@@ -54,14 +65,30 @@ struct vfio_group {
 	struct list_head		device_list;
 	struct mutex			device_lock;
 	struct list_head		vfio_next;
+#if IS_ENABLED(CONFIG_VFIO_CONTAINER)
 	struct list_head		container_next;
+#endif
 	enum vfio_group_type		type;
 	struct mutex			group_lock;
 	struct kvm			*kvm;
 	struct file			*opened_file;
 	struct blocking_notifier_head	notifier;
+	struct iommufd_ctx		*iommufd;
 };
 
+int vfio_device_set_group(struct vfio_device *device,
+			  enum vfio_group_type type);
+void vfio_device_remove_group(struct vfio_device *device);
+void vfio_device_group_register(struct vfio_device *device);
+void vfio_device_group_unregister(struct vfio_device *device);
+int vfio_device_group_use_iommu(struct vfio_device *device);
+void vfio_device_group_unuse_iommu(struct vfio_device *device);
+void vfio_device_group_close(struct vfio_device *device);
+bool vfio_device_has_container(struct vfio_device *device);
+int __init vfio_group_init(void);
+void vfio_group_cleanup(void);
+
+#if IS_ENABLED(CONFIG_VFIO_CONTAINER)
 /* events for the backend driver notify callback */
 enum vfio_iommu_notify_type {
 	VFIO_IOMMU_CONTAINER_CLOSE = 0,
@@ -109,20 +136,101 @@ struct vfio_iommu_driver {
 int vfio_register_iommu_driver(const struct vfio_iommu_driver_ops *ops);
 void vfio_unregister_iommu_driver(const struct vfio_iommu_driver_ops *ops);
 
-bool vfio_assert_device_open(struct vfio_device *device);
-
 struct vfio_container *vfio_container_from_file(struct file *filep);
-int vfio_device_assign_container(struct vfio_device *device);
-void vfio_device_unassign_container(struct vfio_device *device);
+int vfio_group_use_container(struct vfio_group *group);
+void vfio_group_unuse_container(struct vfio_group *group);
 int vfio_container_attach_group(struct vfio_container *container,
 				struct vfio_group *group);
 void vfio_group_detach_container(struct vfio_group *group);
 void vfio_device_container_register(struct vfio_device *device);
 void vfio_device_container_unregister(struct vfio_device *device);
-long vfio_container_ioctl_check_extension(struct vfio_container *container,
-					  unsigned long arg);
+int vfio_device_container_pin_pages(struct vfio_device *device,
+				    dma_addr_t iova, int npage,
+				    int prot, struct page **pages);
+void vfio_device_container_unpin_pages(struct vfio_device *device,
+				       dma_addr_t iova, int npage);
+int vfio_device_container_dma_rw(struct vfio_device *device,
+				 dma_addr_t iova, void *data,
+				 size_t len, bool write);
+
 int __init vfio_container_init(void);
 void vfio_container_cleanup(void);
+#else
+static inline struct vfio_container *
+vfio_container_from_file(struct file *filep)
+{
+	return NULL;
+}
+
+static inline int vfio_group_use_container(struct vfio_group *group)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void vfio_group_unuse_container(struct vfio_group *group)
+{
+}
+
+static inline int vfio_container_attach_group(struct vfio_container *container,
+					      struct vfio_group *group)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void vfio_group_detach_container(struct vfio_group *group)
+{
+}
+
+static inline void vfio_device_container_register(struct vfio_device *device)
+{
+}
+
+static inline void vfio_device_container_unregister(struct vfio_device *device)
+{
+}
+
+static inline int vfio_device_container_pin_pages(struct vfio_device *device,
+						  dma_addr_t iova, int npage,
+						  int prot, struct page **pages)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void vfio_device_container_unpin_pages(struct vfio_device *device,
+						     dma_addr_t iova, int npage)
+{
+}
+
+static inline int vfio_device_container_dma_rw(struct vfio_device *device,
+					       dma_addr_t iova, void *data,
+					       size_t len, bool write)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int vfio_container_init(void)
+{
+	return 0;
+}
+static inline void vfio_container_cleanup(void)
+{
+}
+#endif
+
+#if IS_ENABLED(CONFIG_IOMMUFD)
+int vfio_iommufd_bind(struct vfio_device *device, struct iommufd_ctx *ictx);
+void vfio_iommufd_unbind(struct vfio_device *device);
+#else
+static inline int vfio_iommufd_bind(struct vfio_device *device,
+				    struct iommufd_ctx *ictx)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void vfio_iommufd_unbind(struct vfio_device *device)
+{
+}
+#endif
 
 #ifdef CONFIG_VFIO_NOIOMMU
 extern bool vfio_noiommu __read_mostly;
