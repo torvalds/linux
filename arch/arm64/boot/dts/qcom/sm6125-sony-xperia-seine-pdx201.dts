@@ -61,7 +61,7 @@
 		};
 	};
 
-	reserved_memory {
+	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		debug_mem: memory@ffb00000 {

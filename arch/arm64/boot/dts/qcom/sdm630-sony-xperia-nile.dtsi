@@ -57,7 +57,7 @@
 		regulator-boot-on;
 	};
 
-	cam_vdig_imx300_219_vreg: cam_vdig_imx300_219_vreg {
+	cam_vdig_imx300_219_vreg: cam-vdig-imx300-219-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "cam_vdig_imx300_219_vreg";
 		startup-delay-us = <0>;
@@ -67,7 +67,7 @@
 		pinctrl-0 = <&cam_vdig_default>;
 	};
 
-	cam_vana_front_vreg: cam_vana_front_vreg {
+	cam_vana_front_vreg: cam-vana-front-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "cam_vana_front_vreg";
 		startup-delay-us = <0>;
@@ -77,7 +77,7 @@
 		pinctrl-0 = <&imx219_vana_default>;
 	};
 
-	cam_vana_rear_vreg: cam_vana_rear_vreg {
+	cam_vana_rear_vreg: cam-vana-rear-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "cam_vana_rear_vreg";
 		startup-delay-us = <0>;

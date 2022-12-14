@@ -23,7 +23,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	vreg_3p3: vreg_3p3_regulator {
+	vreg_3p3: vreg-3p3-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vreg_3p3";
 		regulator-min-microvolt = <3300000>;

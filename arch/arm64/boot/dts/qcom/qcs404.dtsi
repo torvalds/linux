@@ -1517,7 +1517,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cluster_crit: cluster_crit {
+				cluster_crit: cluster-crit {
 					temperature = <120000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -1551,7 +1551,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu0_crit: cpu_crit {
+				cpu0_crit: cpu-crit {
 					temperature = <120000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -1585,7 +1585,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu1_crit: cpu_crit {
+				cpu1_crit: cpu-crit {
 					temperature = <120000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -1619,7 +1619,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu2_crit: cpu_crit {
+				cpu2_crit: cpu-crit {
 					temperature = <120000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -1653,7 +1653,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu3_crit: cpu_crit {
+				cpu3_crit: cpu-crit {
 					temperature = <120000>;
 					hysteresis = <2000>;
 					type = "critical";

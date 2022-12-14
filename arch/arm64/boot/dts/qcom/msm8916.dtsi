@@ -1999,7 +1999,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu0_1_crit: cpu_crit {
+				cpu0_1_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -2029,7 +2029,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu2_3_crit: cpu_crit {
+				cpu2_3_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -2059,7 +2059,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				gpu_crit: gpu_crit {
+				gpu_crit: gpu-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";

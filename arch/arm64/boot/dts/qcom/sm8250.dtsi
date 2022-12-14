@@ -5528,7 +5528,7 @@
 					type = "passive";
 				};
 
-				cpu0_crit: cpu_crit {
+				cpu0_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5572,7 +5572,7 @@
 					type = "passive";
 				};
 
-				cpu1_crit: cpu_crit {
+				cpu1_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5616,7 +5616,7 @@
 					type = "passive";
 				};
 
-				cpu2_crit: cpu_crit {
+				cpu2_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5660,7 +5660,7 @@
 					type = "passive";
 				};
 
-				cpu3_crit: cpu_crit {
+				cpu3_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5704,7 +5704,7 @@
 					type = "passive";
 				};
 
-				cpu4_top_crit: cpu_crit {
+				cpu4_top_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5748,7 +5748,7 @@
 					type = "passive";
 				};
 
-				cpu5_top_crit: cpu_crit {
+				cpu5_top_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5792,7 +5792,7 @@
 					type = "passive";
 				};
 
-				cpu6_top_crit: cpu_crit {
+				cpu6_top_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5836,7 +5836,7 @@
 					type = "passive";
 				};
 
-				cpu7_top_crit: cpu_crit {
+				cpu7_top_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5880,7 +5880,7 @@
 					type = "passive";
 				};
 
-				cpu4_bottom_crit: cpu_crit {
+				cpu4_bottom_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5924,7 +5924,7 @@
 					type = "passive";
 				};
 
-				cpu5_bottom_crit: cpu_crit {
+				cpu5_bottom_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5968,7 +5968,7 @@
 					type = "passive";
 				};
 
-				cpu6_bottom_crit: cpu_crit {
+				cpu6_bottom_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -6012,7 +6012,7 @@
 					type = "passive";
 				};
 
-				cpu7_bottom_crit: cpu_crit {
+				cpu7_bottom_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
