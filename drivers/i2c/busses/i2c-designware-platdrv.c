@@ -50,6 +50,7 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "808622C1", ACCESS_NO_IRQ_SUSPEND },
 	{ "AMD0010", ACCESS_INTR_MASK },
 	{ "AMDI0010", ACCESS_INTR_MASK },
+	{ "AMDI0019", ACCESS_INTR_MASK | ARBITRATION_SEMAPHORE },
 	{ "AMDI0510", 0 },
 	{ "APMC0D0F", 0 },
 	{ "HISI02A1", 0 },
@@ -204,6 +205,63 @@ static const struct dmi_system_id dw_i2c_hwmon_class_dmi[] = {
 	{ } /* terminate list */
 };
 
+static const struct i2c_dw_semaphore_callbacks i2c_dw_semaphore_cb_table[] = {
+#ifdef CONFIG_I2C_DESIGNWARE_BAYTRAIL
+	{
+		.probe = i2c_dw_baytrail_probe_lock_support,
+	},
+#endif
+#ifdef CONFIG_I2C_DESIGNWARE_AMDPSP
+	{
+		.probe = i2c_dw_amdpsp_probe_lock_support,
+		.remove = i2c_dw_amdpsp_remove_lock_support,
+	},
+#endif
+	{}
+};
+
+static int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev)
+{
+	const struct i2c_dw_semaphore_callbacks *ptr;
+	int i = 0;
+	int ret;
+
+	ptr = i2c_dw_semaphore_cb_table;
+
+	dev->semaphore_idx = -1;
+
+	while (ptr->probe) {
+		ret = ptr->probe(dev);
+		if (ret) {
+			/*
+			 * If there is no semaphore device attached to this
+			 * controller, we shouldn't abort general i2c_controller
+			 * probe.
+			 */
+			if (ret != -ENODEV)
+				return ret;
+
+			i++;
+			ptr++;
+			continue;
+		}
+
+		dev->semaphore_idx = i;
+		break;
+	}
+
+	return 0;
+}
+
+static void i2c_dw_remove_lock_support(struct dw_i2c_dev *dev)
+{
+	if (dev->semaphore_idx < 0)
+		return;
+
+	if (i2c_dw_semaphore_cb_table[dev->semaphore_idx].remove)
+		i2c_dw_semaphore_cb_table[dev->semaphore_idx].remove(dev);
+}
+
 static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
 	struct i2c_adapter *adap;
@@ -262,8 +320,17 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		goto exit_reset;
 	}
 
-	dev->clk = devm_clk_get(&pdev->dev, NULL);
-	if (!i2c_dw_prepare_clk(dev, true)) {
+	dev->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	if (IS_ERR(dev->clk)) {
+		ret = PTR_ERR(dev->clk);
+		goto exit_reset;
+	}
+
+	ret = i2c_dw_prepare_clk(dev, true);
+	if (ret)
+		goto exit_reset;
+
+	if (dev->clk) {
 		u64 clk_khz;
 
 		dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
@@ -334,6 +401,8 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	dw_i2c_plat_pm_cleanup(dev);
 
+	i2c_dw_remove_lock_support(dev);
+
 	reset_control_assert(dev->rst);
 
 	return 0;
@@ -368,11 +437,9 @@ static void dw_i2c_plat_complete(struct device *dev)
 #endif
 
 #ifdef CONFIG_PM
-static int dw_i2c_plat_suspend(struct device *dev)
+static int dw_i2c_plat_runtime_suspend(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
-
-	i_dev->suspended = true;
 
 	if (i_dev->shared_with_punit)
 		return 0;
@@ -383,7 +450,16 @@ static int dw_i2c_plat_suspend(struct device *dev)
 	return 0;
 }
 
-static int dw_i2c_plat_resume(struct device *dev)
+static int __maybe_unused dw_i2c_plat_suspend(struct device *dev)
+{
+	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
+
+	i2c_mark_adapter_suspended(&i_dev->adapter);
+
+	return dw_i2c_plat_runtime_suspend(dev);
+}
+
+static int dw_i2c_plat_runtime_resume(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
@@ -391,7 +467,16 @@ static int dw_i2c_plat_resume(struct device *dev)
 		i2c_dw_prepare_clk(i_dev, true);
 
 	i_dev->init(i_dev);
-	i_dev->suspended = false;
+
+	return 0;
+}
+
+static int __maybe_unused dw_i2c_plat_resume(struct device *dev)
+{
+	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
+
+	dw_i2c_plat_runtime_resume(dev);
+	i2c_mark_adapter_resumed(&i_dev->adapter);
 
 	return 0;
 }
@@ -400,7 +485,7 @@ static const struct dev_pm_ops dw_i2c_dev_pm_ops = {
 	.prepare = dw_i2c_plat_prepare,
 	.complete = dw_i2c_plat_complete,
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(dw_i2c_plat_suspend, dw_i2c_plat_resume)
-	SET_RUNTIME_PM_OPS(dw_i2c_plat_suspend, dw_i2c_plat_resume, NULL)
+	SET_RUNTIME_PM_OPS(dw_i2c_plat_runtime_suspend, dw_i2c_plat_runtime_resume, NULL)
 };
 
 #define DW_I2C_DEV_PMOPS (&dw_i2c_dev_pm_ops)

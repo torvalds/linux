@@ -133,11 +133,17 @@ static void macvtap_setup(struct net_device *dev)
 	dev->tx_queue_len = TUN_READQ_SIZE;
 }
 
+static struct net *macvtap_link_net(const struct net_device *dev)
+{
+	return dev_net(macvlan_dev_real_dev(dev));
+}
+
 static struct rtnl_link_ops macvtap_link_ops __read_mostly = {
 	.kind		= "macvtap",
 	.setup		= macvtap_setup,
 	.newlink	= macvtap_newlink,
 	.dellink	= macvtap_dellink,
+	.get_link_net	= macvtap_link_net,
 	.priv_size      = sizeof(struct macvtap_dev),
 };
 
@@ -201,7 +207,7 @@ static struct notifier_block macvtap_notifier_block __read_mostly = {
 	.notifier_call	= macvtap_device_event,
 };
 
-static int macvtap_init(void)
+static int __init macvtap_init(void)
 {
 	int err;
 
@@ -235,7 +241,7 @@ out1:
 }
 module_init(macvtap_init);
 
-static void macvtap_exit(void)
+static void __exit macvtap_exit(void)
 {
 	rtnl_link_unregister(&macvtap_link_ops);
 	unregister_netdevice_notifier(&macvtap_notifier_block);

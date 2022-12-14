@@ -273,7 +273,6 @@ static int bnx2fc_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	struct fcoe_port	*port;
 	struct fcoe_hdr		*hp;
 	struct bnx2fc_rport	*tgt;
-	struct fc_stats		*stats;
 	u8			sof, eof;
 	u32			crc;
 	unsigned int		hlen, tlen, elen;
@@ -399,10 +398,8 @@ static int bnx2fc_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	}
 
 	/*update tx stats */
-	stats = per_cpu_ptr(lport->stats, get_cpu());
-	stats->TxFrames++;
-	stats->TxWords += wlen;
-	put_cpu();
+	this_cpu_inc(lport->stats->TxFrames);
+	this_cpu_add(lport->stats->TxWords, wlen);
 
 	/* send down to lld */
 	fr_dev(fp) = lport;
@@ -508,10 +505,10 @@ static int bnx2fc_l2_rcv_thread(void *arg)
 
 static void bnx2fc_recv_frame(struct sk_buff *skb)
 {
-	u32 fr_len;
+	u64 crc_err;
+	u32 fr_len, fr_crc;
 	struct fc_lport *lport;
 	struct fcoe_rcv_info *fr;
-	struct fc_stats *stats;
 	struct fc_frame_header *fh;
 	struct fcoe_crc_eof crc_eof;
 	struct fc_frame *fp;
@@ -541,6 +538,9 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 	fh = (struct fc_frame_header *) skb_transport_header(skb);
 	skb_pull(skb, sizeof(struct fcoe_hdr));
 	fr_len = skb->len - sizeof(struct fcoe_crc_eof);
+
+	this_cpu_inc(lport->stats->RxFrames);
+	this_cpu_add(lport->stats->RxWords, fr_len / FCOE_WORD_TO_BYTE);
 
 	fp = (struct fc_frame *)skb;
 	fc_frame_init(fp);
@@ -624,16 +624,13 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 		return;
 	}
 
-	stats = per_cpu_ptr(lport->stats, smp_processor_id());
-	stats->RxFrames++;
-	stats->RxWords += fr_len / FCOE_WORD_TO_BYTE;
+	fr_crc = le32_to_cpu(fr_crc(fp));
 
-	if (le32_to_cpu(fr_crc(fp)) !=
-			~crc32(~0, skb->data, fr_len)) {
-		if (stats->InvalidCRCCount < 5)
+	if (unlikely(fr_crc != ~crc32(~0, skb->data, fr_len))) {
+		crc_err = this_cpu_inc_return(lport->stats->InvalidCRCCount);
+		if (crc_err < 5)
 			printk(KERN_WARNING PFX "dropping frame with "
 			       "CRC error\n");
-		stats->InvalidCRCCount++;
 		kfree_skb(skb);
 		return;
 	}
@@ -959,9 +956,7 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event,
 				mutex_unlock(&lport->lp_mutex);
 				fc_host_port_type(lport->host) =
 					FC_PORTTYPE_UNKNOWN;
-				per_cpu_ptr(lport->stats,
-					    get_cpu())->LinkFailureCount++;
-				put_cpu();
+				this_cpu_inc(lport->stats->LinkFailureCount);
 				fcoe_clean_pending_queue(lport);
 				wait_for_upload = 1;
 			}
@@ -2713,14 +2708,13 @@ static int __init bnx2fc_mod_init(void)
 
 	bg = &bnx2fc_global;
 	skb_queue_head_init(&bg->fcoe_rx_list);
-	l2_thread = kthread_create(bnx2fc_l2_rcv_thread,
-				   (void *)bg,
-				   "bnx2fc_l2_thread");
+	l2_thread = kthread_run(bnx2fc_l2_rcv_thread,
+				(void *)bg,
+				"bnx2fc_l2_thread");
 	if (IS_ERR(l2_thread)) {
 		rc = PTR_ERR(l2_thread);
 		goto free_wq;
 	}
-	wake_up_process(l2_thread);
 	spin_lock_bh(&bg->fcoe_rx_list.lock);
 	bg->kthread = l2_thread;
 	spin_unlock_bh(&bg->fcoe_rx_list.lock);
@@ -2970,6 +2964,7 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.track_queue_depth	= 1,
 	.slave_configure	= bnx2fc_slave_configure,
 	.shost_groups		= bnx2fc_host_groups,
+	.cmd_size		= sizeof(struct bnx2fc_priv),
 };
 
 static struct libfc_function_template bnx2fc_libfc_fcn_templ = {

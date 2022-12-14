@@ -15,10 +15,11 @@
 #include <linux/of_graph.h>
 #include <linux/delay.h>
 
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_vblank.h>
 
@@ -89,7 +90,7 @@ static int tve200_display_check(struct drm_simple_display_pipe *pipe,
 	}
 
 	if (fb) {
-		u32 offset = drm_fb_cma_get_gem_addr(fb, pstate, 0);
+		u32 offset = drm_fb_dma_get_gem_addr(fb, pstate, 0);
 
 		/* FB base address must be dword aligned. */
 		if (offset & 3) {
@@ -266,14 +267,14 @@ static void tve200_display_update(struct drm_simple_display_pipe *pipe,
 
 	if (fb) {
 		/* For RGB, the Y component is used as base address */
-		writel(drm_fb_cma_get_gem_addr(fb, pstate, 0),
+		writel(drm_fb_dma_get_gem_addr(fb, pstate, 0),
 		       priv->regs + TVE200_Y_FRAME_BASE_ADDR);
 
 		/* For three plane YUV we need two more addresses */
 		if (fb->format->format == DRM_FORMAT_YUV420) {
-			writel(drm_fb_cma_get_gem_addr(fb, pstate, 1),
+			writel(drm_fb_dma_get_gem_addr(fb, pstate, 1),
 			       priv->regs + TVE200_U_FRAME_BASE_ADDR);
-			writel(drm_fb_cma_get_gem_addr(fb, pstate, 2),
+			writel(drm_fb_dma_get_gem_addr(fb, pstate, 2),
 			       priv->regs + TVE200_V_FRAME_BASE_ADDR);
 		}
 	}

@@ -352,7 +352,8 @@ static int qtnf_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static int qtnf_stop_ap(struct wiphy *wiphy, struct net_device *dev)
+static int qtnf_stop_ap(struct wiphy *wiphy, struct net_device *dev,
+			unsigned int link_id)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
@@ -448,7 +449,7 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
 	const struct ieee80211_mgmt *mgmt_frame = (void *)params->buf;
-	u32 short_cookie = prandom_u32();
+	u32 short_cookie = get_random_u32();
 	u16 flags = 0;
 	u16 freq;
 
@@ -500,7 +501,7 @@ qtnf_dump_station(struct wiphy *wiphy, struct net_device *dev,
 
 	switch (vif->wdev.iftype) {
 	case NL80211_IFTYPE_STATION:
-		if (idx != 0 || !vif->wdev.current_bss)
+		if (idx != 0 || !vif->wdev.connected)
 			return -ENOENT;
 
 		ether_addr_copy(mac, vif->bssid);
@@ -531,8 +532,8 @@ qtnf_dump_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int qtnf_add_key(struct wiphy *wiphy, struct net_device *dev,
-			u8 key_index, bool pairwise, const u8 *mac_addr,
-			struct key_params *params)
+			int link_id, u8 key_index, bool pairwise,
+			const u8 *mac_addr, struct key_params *params)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
@@ -547,7 +548,8 @@ static int qtnf_add_key(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int qtnf_del_key(struct wiphy *wiphy, struct net_device *dev,
-			u8 key_index, bool pairwise, const u8 *mac_addr)
+			int link_id, u8 key_index, bool pairwise,
+			const u8 *mac_addr)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
@@ -568,7 +570,8 @@ static int qtnf_del_key(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int qtnf_set_default_key(struct wiphy *wiphy, struct net_device *dev,
-				u8 key_index, bool unicast, bool multicast)
+				int link_id, u8 key_index, bool unicast,
+				bool multicast)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
@@ -584,7 +587,7 @@ static int qtnf_set_default_key(struct wiphy *wiphy, struct net_device *dev,
 
 static int
 qtnf_set_default_mgmt_key(struct wiphy *wiphy, struct net_device *dev,
-			  u8 key_index)
+			  int link_id, u8 key_index)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
@@ -720,16 +723,15 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		return -EFAULT;
 	}
 
-	if (vif->wdev.iftype != NL80211_IFTYPE_STATION) {
+	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
-	}
 
 	ret = qtnf_cmd_send_disconnect(vif, reason_code);
 	if (ret)
 		pr_err("VIF%u.%u: failed to disconnect\n",
 		       mac->macid, vif->vifid);
 
-	if (vif->wdev.current_bss) {
+	if (vif->wdev.connected) {
 		netif_carrier_off(vif->netdev);
 		cfg80211_disconnected(vif->netdev, reason_code,
 				      NULL, 0, true, GFP_KERNEL);
@@ -745,7 +747,7 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct ieee80211_supported_band *sband;
-	const struct cfg80211_chan_def *chandef = &wdev->chandef;
+	const struct cfg80211_chan_def *chandef = wdev_chandef(wdev, 0);
 	struct ieee80211_channel *chan;
 	int ret;
 
@@ -765,7 +767,7 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	survey->channel = chan;
 	survey->filled = 0x0;
 
-	if (chan == chandef->chan)
+	if (chandef && chan == chandef->chan)
 		survey->filled = SURVEY_INFO_IN_USE;
 
 	ret = qtnf_cmd_get_chan_stats(mac, chan->center_freq, survey);
@@ -778,7 +780,7 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 
 static int
 qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
-		 struct cfg80211_chan_def *chandef)
+		 unsigned int link_id, struct cfg80211_chan_def *chandef)
 {
 	struct net_device *ndev = wdev->netdev;
 	struct qtnf_vif *vif;
@@ -1221,7 +1223,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 			mac->macinfo.extended_capabilities_len;
 	}
 
-	strlcpy(wiphy->fw_version, hw_info->fw_version,
+	strscpy(wiphy->fw_version, hw_info->fw_version,
 		sizeof(wiphy->fw_version));
 	wiphy->hw_version = hw_info->hw_version;
 

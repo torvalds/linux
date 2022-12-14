@@ -14,10 +14,6 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/bitops.h>
-/* Include that go away with DT transition */
-#include <linux/irqchip/irq-ixp4xx.h>
-
-#include <asm/mach-types.h>
 
 #define IXP4XX_REG_GPOUT	0x00
 #define IXP4XX_REG_GPOE		0x04
@@ -67,6 +63,14 @@ static void ixp4xx_gpio_irq_ack(struct irq_data *d)
 	__raw_writel(BIT(d->hwirq), g->base + IXP4XX_REG_GPIS);
 }
 
+static void ixp4xx_gpio_mask_irq(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	irq_chip_mask_parent(d);
+	gpiochip_disable_irq(gc, d->hwirq);
+}
+
 static void ixp4xx_gpio_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
@@ -76,6 +80,7 @@ static void ixp4xx_gpio_irq_unmask(struct irq_data *d)
 	if (!(g->irq_edge & BIT(d->hwirq)))
 		ixp4xx_gpio_irq_ack(d);
 
+	gpiochip_enable_irq(gc, d->hwirq);
 	irq_chip_unmask_parent(d);
 }
 
@@ -128,7 +133,7 @@ static int ixp4xx_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		int_reg = IXP4XX_REG_GPIT1;
 	}
 
-	spin_lock_irqsave(&g->gc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&g->gc.bgpio_lock, flags);
 
 	/* Clear the style for the appropriate pin */
 	val = __raw_readl(g->base + int_reg);
@@ -147,18 +152,20 @@ static int ixp4xx_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	val |= BIT(d->hwirq);
 	__raw_writel(val, g->base + IXP4XX_REG_GPOE);
 
-	spin_unlock_irqrestore(&g->gc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&g->gc.bgpio_lock, flags);
 
 	/* This parent only accept level high (asserted) */
 	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
 }
 
-static struct irq_chip ixp4xx_gpio_irqchip = {
+static const struct irq_chip ixp4xx_gpio_irqchip = {
 	.name = "IXP4GPIO",
 	.irq_ack = ixp4xx_gpio_irq_ack,
-	.irq_mask = irq_chip_mask_parent,
+	.irq_mask = ixp4xx_gpio_mask_irq,
 	.irq_unmask = ixp4xx_gpio_irq_unmask,
 	.irq_set_type = ixp4xx_gpio_irq_set_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static int ixp4xx_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
@@ -195,6 +202,7 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct ixp4xx_gpio *g;
 	struct gpio_irq_chip *girq;
+	struct device_node *irq_parent;
 	int ret;
 
 	g = devm_kzalloc(dev, sizeof(*g), GFP_KERNEL);
@@ -207,40 +215,24 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(g->base))
 		return PTR_ERR(g->base);
 
-	/*
-	 * When we convert to device tree we will simply look up the
-	 * parent irqdomain using irq_find_host(parent) as parent comes
-	 * from IRQCHIP_DECLARE(), then use of_node_to_fwnode() to get
-	 * the fwnode. For now we need this boardfile style code.
-	 */
-	if (np) {
-		struct device_node *irq_parent;
-
-		irq_parent = of_irq_find_parent(np);
-		if (!irq_parent) {
-			dev_err(dev, "no IRQ parent node\n");
-			return -ENODEV;
-		}
-		parent = irq_find_host(irq_parent);
-		if (!parent) {
-			dev_err(dev, "no IRQ parent domain\n");
-			return -ENODEV;
-		}
-		g->fwnode = of_node_to_fwnode(np);
-	} else {
-		parent = ixp4xx_get_irq_domain();
-		g->fwnode = irq_domain_alloc_fwnode(&res->start);
-		if (!g->fwnode) {
-			dev_err(dev, "no domain base\n");
-			return -ENODEV;
-		}
+	irq_parent = of_irq_find_parent(np);
+	if (!irq_parent) {
+		dev_err(dev, "no IRQ parent node\n");
+		return -ENODEV;
 	}
+	parent = irq_find_host(irq_parent);
+	if (!parent) {
+		dev_err(dev, "no IRQ parent domain\n");
+		return -ENODEV;
+	}
+	g->fwnode = of_node_to_fwnode(np);
 
 	/*
 	 * Make sure GPIO 14 and 15 are NOT used as clocks but GPIO on
 	 * specific machines.
 	 */
-	if (machine_is_dsmg600() || machine_is_nas100d())
+	if (of_machine_is_compatible("dlink,dsm-g600-a") ||
+	    of_machine_is_compatible("iom,nas-100d"))
 		__raw_writel(0x0, g->base + IXP4XX_REG_GPCLK);
 
 	/*
@@ -282,7 +274,7 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	g->gc.owner = THIS_MODULE;
 
 	girq = &g->gc.irq;
-	girq->chip = &ixp4xx_gpio_irqchip;
+	gpio_irq_chip_set_chip(girq, &ixp4xx_gpio_irqchip);
 	girq->fwnode = g->fwnode;
 	girq->parent_domain = parent;
 	girq->child_to_parent_hwirq = ixp4xx_gpio_child_to_parent_hwirq;

@@ -47,7 +47,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		boot {
+		key-boot {
 			label = "BOOT";
 			linux,code = <BTN_0>;
 			gpios = <&gpio0 0 GPIO_ACTIVE_LOW>;
@@ -189,7 +189,7 @@
 	cs-gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
-	slot@0 {
+	mmc@0 {
 		compatible = "mmc-spi-slot";
 		reg = <0>;
 		voltage-ranges = <3300 3300>;
@@ -203,6 +203,8 @@
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 		m25p,fast-read;
 		broken-flash-reset;
 	};

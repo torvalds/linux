@@ -1331,7 +1331,7 @@ static void clear_fb_info(struct fb_info *fbi)
 {
 	memset(&fbi->var, 0, sizeof(fbi->var));
 	memset(&fbi->fix, 0, sizeof(fbi->fix));
-	strlcpy(fbi->fix.id, MODULE_NAME, sizeof(fbi->fix.id));
+	strscpy(fbi->fix.id, MODULE_NAME, sizeof(fbi->fix.id));
 }
 
 static int omapfb_free_all_fbmem(struct omapfb2_device *fbdev)
@@ -1854,7 +1854,6 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 	}
 
 	if (fbdev->auto_update_wq != NULL) {
-		flush_workqueue(fbdev->auto_update_wq);
 		destroy_workqueue(fbdev->auto_update_wq);
 		fbdev->auto_update_wq = NULL;
 	}

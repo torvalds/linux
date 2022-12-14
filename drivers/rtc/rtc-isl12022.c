@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/regmap.h>
 
 /* ISL register offsets */
 #define ISL12022_REG_SC		0x00
@@ -42,60 +43,8 @@ static struct i2c_driver isl12022_driver;
 
 struct isl12022 {
 	struct rtc_device *rtc;
-
-	bool write_enabled;	/* true if write enable is set */
+	struct regmap *regmap;
 };
-
-
-static int isl12022_read_regs(struct i2c_client *client, uint8_t reg,
-			      uint8_t *data, size_t n)
-{
-	struct i2c_msg msgs[] = {
-		{
-			.addr	= client->addr,
-			.flags	= 0,
-			.len	= 1,
-			.buf	= data
-		},		/* setup read ptr */
-		{
-			.addr	= client->addr,
-			.flags	= I2C_M_RD,
-			.len	= n,
-			.buf	= data
-		}
-	};
-
-	int ret;
-
-	data[0] = reg;
-	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-	if (ret != ARRAY_SIZE(msgs)) {
-		dev_err(&client->dev, "%s: read error, ret=%d\n",
-			__func__, ret);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-
-static int isl12022_write_reg(struct i2c_client *client,
-			      uint8_t reg, uint8_t val)
-{
-	uint8_t data[2] = { reg, val };
-	int err;
-
-	err = i2c_master_send(client, data, sizeof(data));
-	if (err != sizeof(data)) {
-		dev_err(&client->dev,
-			"%s: err=%d addr=%02x, data=%02x\n",
-			__func__, err, data[0], data[1]);
-		return -EIO;
-	}
-
-	return 0;
-}
-
 
 /*
  * In the routines that deal directly with the isl12022 hardware, we use
@@ -103,22 +52,23 @@ static int isl12022_write_reg(struct i2c_client *client,
  */
 static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct i2c_client *client = to_i2c_client(dev);
+	struct isl12022 *isl12022 = dev_get_drvdata(dev);
+	struct regmap *regmap = isl12022->regmap;
 	uint8_t buf[ISL12022_REG_INT + 1];
 	int ret;
 
-	ret = isl12022_read_regs(client, ISL12022_REG_SC, buf, sizeof(buf));
+	ret = regmap_bulk_read(regmap, ISL12022_REG_SC, buf, sizeof(buf));
 	if (ret)
 		return ret;
 
 	if (buf[ISL12022_REG_SR] & (ISL12022_SR_LBAT85 | ISL12022_SR_LBAT75)) {
-		dev_warn(&client->dev,
+		dev_warn(dev,
 			 "voltage dropped below %u%%, "
 			 "date and time is not reliable.\n",
 			 buf[ISL12022_REG_SR] & ISL12022_SR_LBAT85 ? 85 : 75);
 	}
 
-	dev_dbg(&client->dev,
+	dev_dbg(dev,
 		"%s: raw data is sec=%02x, min=%02x, hr=%02x, "
 		"mday=%02x, mon=%02x, year=%02x, wday=%02x, "
 		"sr=%02x, int=%02x",
@@ -141,65 +91,25 @@ static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_mon = bcd2bin(buf[ISL12022_REG_MO] & 0x1F) - 1;
 	tm->tm_year = bcd2bin(buf[ISL12022_REG_YR]) + 100;
 
-	dev_dbg(&client->dev, "%s: secs=%d, mins=%d, hours=%d, "
-		"mday=%d, mon=%d, year=%d, wday=%d\n",
-		__func__,
-		tm->tm_sec, tm->tm_min, tm->tm_hour,
-		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
+	dev_dbg(dev, "%s: %ptR\n", __func__, tm);
 
 	return 0;
 }
 
 static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct isl12022 *isl12022 = i2c_get_clientdata(client);
-	size_t i;
+	struct isl12022 *isl12022 = dev_get_drvdata(dev);
+	struct regmap *regmap = isl12022->regmap;
 	int ret;
 	uint8_t buf[ISL12022_REG_DW + 1];
 
-	dev_dbg(&client->dev, "%s: secs=%d, mins=%d, hours=%d, "
-		"mday=%d, mon=%d, year=%d, wday=%d\n",
-		__func__,
-		tm->tm_sec, tm->tm_min, tm->tm_hour,
-		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
+	dev_dbg(dev, "%s: %ptR\n", __func__, tm);
 
-	if (!isl12022->write_enabled) {
-
-		ret = isl12022_read_regs(client, ISL12022_REG_INT, buf, 1);
-		if (ret)
-			return ret;
-
-		/* Check if WRTC (write rtc enable) is set factory default is
-		 * 0 (not set) */
-		if (!(buf[0] & ISL12022_INT_WRTC)) {
-			dev_info(&client->dev,
-				 "init write enable and 24 hour format\n");
-
-			/* Set the write enable bit. */
-			ret = isl12022_write_reg(client,
-						 ISL12022_REG_INT,
-						 buf[0] | ISL12022_INT_WRTC);
-			if (ret)
-				return ret;
-
-			/* Write to any RTC register to start RTC, we use the
-			 * HR register, setting the MIL bit to use the 24 hour
-			 * format. */
-			ret = isl12022_read_regs(client, ISL12022_REG_HR,
-						 buf, 1);
-			if (ret)
-				return ret;
-
-			ret = isl12022_write_reg(client,
-						 ISL12022_REG_HR,
-						 buf[0] | ISL12022_HR_MIL);
-			if (ret)
-				return ret;
-		}
-
-		isl12022->write_enabled = true;
-	}
+	/* Ensure the write enable bit is set. */
+	ret = regmap_update_bits(regmap, ISL12022_REG_INT,
+				 ISL12022_INT_WRTC, ISL12022_INT_WRTC);
+	if (ret)
+		return ret;
 
 	/* hours, minutes and seconds */
 	buf[ISL12022_REG_SC] = bin2bcd(tm->tm_sec);
@@ -216,15 +126,8 @@ static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	buf[ISL12022_REG_DW] = tm->tm_wday & 0x07;
 
-	/* write register's data */
-	for (i = 0; i < ARRAY_SIZE(buf); i++) {
-		ret = isl12022_write_reg(client, ISL12022_REG_SC + i,
-					 buf[ISL12022_REG_SC + i]);
-		if (ret)
-			return -EIO;
-	}
-
-	return 0;
+	return regmap_bulk_write(isl12022->regmap, ISL12022_REG_SC,
+				 buf, sizeof(buf));
 }
 
 static const struct rtc_class_ops isl12022_rtc_ops = {
@@ -232,8 +135,13 @@ static const struct rtc_class_ops isl12022_rtc_ops = {
 	.set_time	= isl12022_rtc_set_time,
 };
 
-static int isl12022_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static const struct regmap_config regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.use_single_write = true,
+};
+
+static int isl12022_probe(struct i2c_client *client)
 {
 	struct isl12022 *isl12022;
 
@@ -244,13 +152,23 @@ static int isl12022_probe(struct i2c_client *client,
 				GFP_KERNEL);
 	if (!isl12022)
 		return -ENOMEM;
+	dev_set_drvdata(&client->dev, isl12022);
 
-	i2c_set_clientdata(client, isl12022);
+	isl12022->regmap = devm_regmap_init_i2c(client, &regmap_config);
+	if (IS_ERR(isl12022->regmap)) {
+		dev_err(&client->dev, "regmap allocation failed\n");
+		return PTR_ERR(isl12022->regmap);
+	}
 
-	isl12022->rtc = devm_rtc_device_register(&client->dev,
-					isl12022_driver.driver.name,
-					&isl12022_rtc_ops, THIS_MODULE);
-	return PTR_ERR_OR_ZERO(isl12022->rtc);
+	isl12022->rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(isl12022->rtc))
+		return PTR_ERR(isl12022->rtc);
+
+	isl12022->rtc->ops = &isl12022_rtc_ops;
+	isl12022->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	isl12022->rtc->range_max = RTC_TIMESTAMP_END_2099;
+
+	return devm_rtc_register_device(isl12022->rtc);
 }
 
 #ifdef CONFIG_OF
@@ -275,7 +193,7 @@ static struct i2c_driver isl12022_driver = {
 		.of_match_table = of_match_ptr(isl12022_dt_match),
 #endif
 	},
-	.probe		= isl12022_probe,
+	.probe_new	= isl12022_probe,
 	.id_table	= isl12022_id,
 };
 

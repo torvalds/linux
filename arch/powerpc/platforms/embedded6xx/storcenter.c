@@ -17,7 +17,6 @@
 #include <linux/of_platform.h>
 
 #include <asm/time.h>
-#include <asm/prom.h>
 #include <asm/mpic.h>
 #include <asm/pci-bridge.h>
 

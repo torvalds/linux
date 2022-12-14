@@ -22,10 +22,6 @@
 
 #ifndef __ASSEMBLY__
 
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
-
 /*
  * This is union'd with the "bottom" of the kernel stack.
  * It keeps track of thread info which is handy for routines
@@ -37,7 +33,6 @@ struct thread_info {
 	unsigned long		flags;          /* low level flags */
 	__u32                   cpu;            /* current cpu */
 	int                     preempt_count;  /* 0=>preemptible,<0=>BUG */
-	mm_segment_t            addr_limit;     /* segmentation sux */
 	/*
 	 * used for syscalls somehow;
 	 * seems to have a function pointer and four arguments
@@ -66,7 +61,6 @@ struct thread_info {
 	.flags          = 0,                    \
 	.cpu            = 0,                    \
 	.preempt_count  = 1,                    \
-	.addr_limit     = KERNEL_DS,            \
 	.sp = 0,				\
 	.regs = NULL,			\
 }

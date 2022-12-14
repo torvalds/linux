@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pci/samsung,exynos-pcie.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung SoC series PCIe Host Controller Device Tree Bindings
+title: Samsung SoC series PCIe Host Controller
 
 maintainers:
   - Marek Szyprowski <m.szyprowski@samsung.com>

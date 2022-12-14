@@ -173,8 +173,7 @@ netxen_napi_add(struct netxen_adapter *adapter, struct net_device *netdev)
 
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
-		netif_napi_add(netdev, &sds_ring->napi,
-				netxen_nic_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add(netdev, &sds_ring->napi, netxen_nic_poll);
 	}
 
 	return 0;
@@ -1877,7 +1876,7 @@ netxen_tso_check(struct net_device *netdev,
 	if ((netdev->features & (NETIF_F_TSO | NETIF_F_TSO6)) &&
 			skb_shinfo(skb)->gso_size > 0) {
 
-		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr_len = skb_tcp_all_headers(skb);
 
 		first_desc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
 		first_desc->total_hdr_length = hdr_len;

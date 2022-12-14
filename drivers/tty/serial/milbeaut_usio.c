@@ -298,7 +298,8 @@ static void mlb_usio_shutdown(struct uart_port *port)
 }
 
 static void mlb_usio_set_termios(struct uart_port *port,
-			struct ktermios *termios, struct ktermios *old)
+				 struct ktermios *termios,
+				 const struct ktermios *old)
 {
 	unsigned int escr, smr = MLB_USIO_SMR_SOE;
 	unsigned long flags, baud, quot;
@@ -400,7 +401,7 @@ static const struct uart_ops mlb_usio_ops = {
 
 #ifdef CONFIG_SERIAL_MILBEAUT_USIO_CONSOLE
 
-static void mlb_usio_console_putchar(struct uart_port *port, int c)
+static void mlb_usio_console_putchar(struct uart_port *port, unsigned char c)
 {
 	while (!(readb(port->membase + MLB_USIO_REG_SSR) & MLB_USIO_SSR_TDRE))
 		cpu_relax();

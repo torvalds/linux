@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/media/rockchip,rk3568-vepu.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Hantro G1 VPU encoders implemented on Rockchip SoCs
+
+maintainers:
+  - Nicolas Frattaroli <frattaroli.nicolas@gmail.com>
+
+description:
+  Hantro G1 video encode-only accelerators present on Rockchip SoCs.
+
+properties:
+  compatible:
+    enum:
+      - rockchip,rk3568-vepu
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: aclk
+      - const: hclk
+
+  power-domains:
+    maxItems: 1
+
+  iommus:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/rk3568-cru.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/rk3568-power.h>
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        vepu: video-codec@fdee0000 {
+            compatible = "rockchip,rk3568-vepu";
+            reg = <0x0 0xfdee0000 0x0 0x800>;
+            interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cru ACLK_JENC>, <&cru HCLK_JENC>;
+            clock-names = "aclk", "hclk";
+            iommus = <&vepu_mmu>;
+            power-domains = <&power RK3568_PD_RGA>;
+        };
+    };

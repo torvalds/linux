@@ -87,16 +87,16 @@ static struct da9121_range da9121_3A_1phase_current = {
 };
 
 static struct da9121_range da914x_40A_4phase_current = {
-	.val_min = 14000000,
-	.val_max = 80000000,
-	.val_stp =  2000000,
+	.val_min = 26000000,
+	.val_max = 78000000,
+	.val_stp =  4000000,
 	.reg_min = 1,
 	.reg_max = 14,
 };
 
 static struct da9121_range da914x_20A_2phase_current = {
-	.val_min =  7000000,
-	.val_max = 40000000,
+	.val_min = 13000000,
+	.val_max = 39000000,
 	.val_stp =  2000000,
 	.reg_min = 1,
 	.reg_max = 14,
@@ -561,7 +561,7 @@ static const struct regulator_desc da9217_reg = {
 };
 
 #define DA914X_MIN_MV		500
-#define DA914X_MAX_MV		1000
+#define DA914X_MAX_MV		1300
 #define DA914X_STEP_MV		10
 #define DA914X_MIN_SEL		(DA914X_MIN_MV / DA914X_STEP_MV)
 #define DA914X_N_VOLTAGES	(((DA914X_MAX_MV - DA914X_MIN_MV) / DA914X_STEP_MV) \
@@ -585,10 +585,6 @@ static const struct regulator_desc da9141_reg = {
 	.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
 	.enable_reg = DA9121_REG_BUCK_BUCK1_0,
 	.enable_mask = DA9121_MASK_BUCK_BUCKx_0_CHx_EN,
-	/* Default value of BUCK_BUCK1_0.CH1_SRC_DVC_UP */
-	.ramp_delay = 20000,
-	/* tBUCK_EN */
-	.enable_time = 20,
 };
 
 static const struct regulator_desc da9142_reg = {
@@ -1034,6 +1030,8 @@ static int da9121_assign_chip_model(struct i2c_client *i2c,
 		chip->variant_id = DA9121_TYPE_DA9142;
 		regmap = &da9121_2ch_regmap_config;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	/* Set these up for of_regulator_match call which may want .of_map_modes */
@@ -1166,7 +1164,7 @@ error:
 	return ret;
 }
 
-static int da9121_i2c_remove(struct i2c_client *i2c)
+static void da9121_i2c_remove(struct i2c_client *i2c)
 {
 	struct da9121 *chip = i2c_get_clientdata(i2c);
 	const int mask_all[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
@@ -1178,7 +1176,6 @@ static int da9121_i2c_remove(struct i2c_client *i2c)
 	ret = regmap_bulk_write(chip->regmap, DA9121_REG_SYS_MASK_0, mask_all, 4);
 	if (ret != 0)
 		dev_err(chip->dev, "Failed to set IRQ masks: %d\n", ret);
-	return 0;
 }
 
 static const struct i2c_device_id da9121_i2c_id[] = {

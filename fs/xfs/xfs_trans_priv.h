@@ -6,6 +6,7 @@
 #ifndef __XFS_TRANS_PRIV_H__
 #define	__XFS_TRANS_PRIV_H__
 
+struct xlog;
 struct xfs_log_item;
 struct xfs_mount;
 struct xfs_trans;
@@ -18,7 +19,8 @@ void	xfs_trans_add_item(struct xfs_trans *, struct xfs_log_item *);
 void	xfs_trans_del_item(struct xfs_log_item *);
 void	xfs_trans_unreserve_and_mod_sb(struct xfs_trans *tp);
 
-void	xfs_trans_committed_bulk(struct xfs_ail *ailp, struct xfs_log_vec *lv,
+void	xfs_trans_committed_bulk(struct xfs_ail *ailp,
+				struct list_head *lv_chain,
 				xfs_lsn_t commit_lsn, bool aborted);
 /*
  * AIL traversal cursor.
@@ -50,7 +52,7 @@ struct xfs_ail_cursor {
  * Eventually we need to drive the locking in here as well.
  */
 struct xfs_ail {
-	struct xfs_mount	*ail_mount;
+	struct xlog		*ail_log;
 	struct task_struct	*ail_task;
 	struct list_head	ail_head;
 	xfs_lsn_t		ail_target;

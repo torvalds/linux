@@ -117,15 +117,6 @@ static void svc_reclassify_socket(struct socket *sock)
  */
 static void svc_tcp_release_rqst(struct svc_rqst *rqstp)
 {
-	struct sk_buff *skb = rqstp->rq_xprt_ctxt;
-
-	if (skb) {
-		struct svc_sock *svsk =
-			container_of(rqstp->rq_xprt, struct svc_sock, sk_xprt);
-
-		rqstp->rq_xprt_ctxt = NULL;
-		skb_free_datagram_locked(svsk->sk_sk, skb);
-	}
 }
 
 /**
@@ -259,8 +250,6 @@ static ssize_t svc_tcp_read_msg(struct svc_rqst *rqstp, size_t buflen,
 	ssize_t len;
 	size_t t;
 
-	rqstp->rq_xprt_hlen = 0;
-
 	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 
 	for (i = 0, t = 0; t < buflen; i++, t += PAGE_SIZE) {
@@ -309,9 +298,9 @@ static void svc_sock_setbufsize(struct svc_sock *svsk, unsigned int nreqs)
 static void svc_sock_secure_port(struct svc_rqst *rqstp)
 {
 	if (svc_port_is_privileged(svc_addr(rqstp)))
-		set_bit(RQ_SECURE, &rqstp->rq_flags);
+		__set_bit(RQ_SECURE, &rqstp->rq_flags);
 	else
-		clear_bit(RQ_SECURE, &rqstp->rq_flags);
+		__clear_bit(RQ_SECURE, &rqstp->rq_flags);
 }
 
 /*
@@ -464,7 +453,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 			     0, 0, MSG_PEEK | MSG_DONTWAIT);
 	if (err < 0)
 		goto out_recv_err;
-	skb = skb_recv_udp(svsk->sk_sk, 0, 1, &err);
+	skb = skb_recv_udp(svsk->sk_sk, MSG_DONTWAIT, &err);
 	if (!skb)
 		goto out_recv_err;
 
@@ -579,15 +568,18 @@ static int svc_udp_sendto(struct svc_rqst *rqstp)
 	if (svc_xprt_is_dead(xprt))
 		goto out_notconn;
 
+	err = xdr_alloc_bvec(xdr, GFP_KERNEL);
+	if (err < 0)
+		goto out_unlock;
+
 	err = xprt_sock_sendmsg(svsk->sk_sock, &msg, xdr, 0, 0, &sent);
-	xdr_free_bvec(xdr);
 	if (err == -ECONNREFUSED) {
 		/* ICMP error on earlier request. */
 		err = xprt_sock_sendmsg(svsk->sk_sock, &msg, xdr, 0, 0, &sent);
-		xdr_free_bvec(xdr);
 	}
+	xdr_free_bvec(xdr);
 	trace_svcsock_udp_send(xprt, err);
-
+out_unlock:
 	mutex_unlock(&xprt->xpt_mutex);
 	if (err < 0)
 		return err;
@@ -1016,9 +1008,9 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	rqstp->rq_xprt_ctxt   = NULL;
 	rqstp->rq_prot	      = IPPROTO_TCP;
 	if (test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags))
-		set_bit(RQ_LOCAL, &rqstp->rq_flags);
+		__set_bit(RQ_LOCAL, &rqstp->rq_flags);
 	else
-		clear_bit(RQ_LOCAL, &rqstp->rq_flags);
+		__clear_bit(RQ_LOCAL, &rqstp->rq_flags);
 
 	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
 	calldir = p[1];
@@ -1096,7 +1088,9 @@ static int svc_tcp_sendmsg(struct socket *sock, struct xdr_buf *xdr,
 	int ret;
 
 	*sentp = 0;
-	xdr_alloc_bvec(xdr, GFP_KERNEL);
+	ret = xdr_alloc_bvec(xdr, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
 
 	ret = kernel_sendmsg(sock, &msg, &rm, 1, rm.iov_len);
 	if (ret < 0)

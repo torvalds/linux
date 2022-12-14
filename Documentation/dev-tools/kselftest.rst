@@ -7,6 +7,14 @@ directory. These are intended to be small tests to exercise individual code
 paths in the kernel. Tests are intended to be run after building, installing
 and booting a kernel.
 
+Kselftest from mainline can be run on older stable kernels. Running tests
+from mainline offers the best coverage. Several test rings run mainline
+kselftest suite on stable releases. The reason is that when a new test
+gets added to test existing code to regression test a bug, we should be
+able to run that test on an older kernel. Hence, it is important to keep
+code that can still test an older kernel and make sure it skips the test
+gracefully on newer releases.
+
 You can find additional information on Kselftest framework, how to
 write new tests using the framework on Kselftest wiki:
 
@@ -200,6 +208,14 @@ In general, the rules for selftests are
 Contributing new tests (details)
 ================================
 
+ * In your Makefile, use facilities from lib.mk by including it instead of
+   reinventing the wheel. Specify flags and binaries generation flags on
+   need basis before including lib.mk. ::
+
+    CFLAGS = $(KHDR_INCLUDES)
+    TEST_GEN_PROGS := close_range_test
+    include ../lib.mk
+
  * Use TEST_GEN_XXX if such binaries or files are generated during
    compiling.
 
@@ -222,12 +238,29 @@ Contributing new tests (details)
  * First use the headers inside the kernel source and/or git repo, and then the
    system headers.  Headers for the kernel release as opposed to headers
    installed by the distro on the system should be the primary focus to be able
-   to find regressions.
+   to find regressions. Use KHDR_INCLUDES in Makefile to include headers from
+   the kernel source.
 
  * If a test needs specific kernel config options enabled, add a config file in
    the test directory to enable them.
 
    e.g: tools/testing/selftests/android/config
+
+ * Create a .gitignore file inside test directory and add all generated objects
+   in it.
+
+ * Add new test name in TARGETS in selftests/Makefile::
+
+    TARGETS += android
+
+ * All changes should pass::
+
+    kselftest-{all,install,clean,gen_tar}
+    kselftest-{all,install,clean,gen_tar} O=abo_path
+    kselftest-{all,install,clean,gen_tar} O=rel_path
+    make -C tools/testing/selftests {all,install,clean,gen_tar}
+    make -C tools/testing/selftests {all,install,clean,gen_tar} O=abs_path
+    make -C tools/testing/selftests {all,install,clean,gen_tar} O=rel_path
 
 Test Module
 ===========
@@ -241,6 +274,14 @@ assist writing kernel modules that are for use with kselftest:
 
 - ``tools/testing/selftests/kselftest_module.h``
 - ``tools/testing/selftests/kselftest/module.sh``
+
+Note that test modules should taint the kernel with TAINT_TEST. This will
+happen automatically for modules which are in the ``tools/testing/``
+directory, or for modules which use the ``kselftest_module.h`` header above.
+Otherwise, you'll need to add ``MODULE_INFO(test, "Y")`` to your module
+source. selftests which do not load modules typically should not taint the
+kernel, but in cases where a non-test module is loaded, TEST_TAINT can be
+applied from userspace by writing to ``/proc/sys/kernel/tainted``.
 
 How to use
 ----------
@@ -279,7 +320,7 @@ A bare bones test module might look like this:
 
    #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-   #include "../tools/testing/selftests/kselftest/module.h"
+   #include "../tools/testing/selftests/kselftest_module.h"
 
    KSTM_MODULE_GLOBALS();
 
@@ -300,6 +341,7 @@ A bare bones test module might look like this:
    KSTM_MODULE_LOADERS(test_foo);
    MODULE_AUTHOR("John Developer <jd@fooman.org>");
    MODULE_LICENSE("GPL");
+   MODULE_INFO(test, "Y");
 
 Example test script
 -------------------

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include <linux/etherdevice.h>
 #include <linux/math64.h>
@@ -67,7 +67,7 @@ int iwl_mvm_ftm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * the TK is already configured for this station, so it
 	 * shouldn't be set again here.
 	 */
-	if (vif->bss_conf.assoc &&
+	if (vif->cfg.assoc &&
 	    !memcmp(addr, vif->bss_conf.bssid, ETH_ALEN)) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 		struct ieee80211_sta *sta;
@@ -222,7 +222,7 @@ static void iwl_mvm_ftm_cmd_v5(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	for (i = 0; i < ETH_ALEN; i++)
 		cmd->macaddr_mask[i] = ~req->mac_addr_mask[i];
 
-	if (vif->bss_conf.assoc)
+	if (vif->cfg.assoc)
 		memcpy(cmd->range_req_bssid, vif->bss_conf.bssid, ETH_ALEN);
 	else
 		eth_broadcast_addr(cmd->range_req_bssid);
@@ -254,7 +254,7 @@ static void iwl_mvm_ftm_cmd_common(struct iwl_mvm *mvm,
 	for (i = 0; i < ETH_ALEN; i++)
 		cmd->macaddr_mask[i] = ~req->mac_addr_mask[i];
 
-	if (vif->bss_conf.assoc) {
+	if (vif->cfg.assoc) {
 		memcpy(cmd->range_req_bssid, vif->bss_conf.bssid, ETH_ALEN);
 
 		/* AP's TSF is only relevant if associated */
@@ -346,8 +346,8 @@ iwl_mvm_ftm_target_chandef_v2(struct iwl_mvm *mvm,
 		*format_bw |= IWL_LOCATION_BW_80MHZ << LOCATION_BW_POS;
 		break;
 	case NL80211_CHAN_WIDTH_160:
-		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-						TOF_RANGE_REQ_CMD,
+		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+						WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 						IWL_FW_CMD_VER_UNKNOWN);
 
 		if (cmd_ver >= 13) {
@@ -503,7 +503,7 @@ iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_ftm_put_target_common(mvm, peer, target);
 
-	if (vif->bss_conf.assoc &&
+	if (vif->cfg.assoc &&
 	    !memcmp(peer->addr, vif->bss_conf.bssid, ETH_ALEN)) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 		struct ieee80211_sta *sta;
@@ -548,7 +548,7 @@ static int iwl_mvm_ftm_start_v5(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_tof_range_req_cmd_v5 cmd_v5;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd_v5,
 		.len[0] = sizeof(cmd_v5),
@@ -574,7 +574,7 @@ static int iwl_mvm_ftm_start_v7(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_tof_range_req_cmd_v7 cmd_v7;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd_v7,
 		.len[0] = sizeof(cmd_v7),
@@ -604,7 +604,7 @@ static int iwl_mvm_ftm_start_v8(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_tof_range_req_cmd_v8 cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
@@ -630,7 +630,7 @@ static int iwl_mvm_ftm_start_v9(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_tof_range_req_cmd_v9 cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
@@ -693,7 +693,7 @@ iwl_mvm_ftm_set_secured_ranging(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		target->cipher = entry->cipher;
 		memcpy(target->hltk, entry->hltk, sizeof(target->hltk));
 
-		if (vif->bss_conf.assoc &&
+		if (vif->cfg.assoc &&
 		    !memcmp(vif->bss_conf.bssid, target->bssid,
 			    sizeof(target->bssid)))
 			ieee80211_iter_keys(mvm->hw, vif, iter, target);
@@ -728,7 +728,7 @@ static int iwl_mvm_ftm_start_v11(struct iwl_mvm *mvm,
 {
 	struct iwl_tof_range_req_cmd_v11 cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
@@ -799,7 +799,7 @@ static int iwl_mvm_ftm_start_v12(struct iwl_mvm *mvm,
 {
 	struct iwl_tof_range_req_cmd_v12 cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
@@ -827,7 +827,7 @@ static int iwl_mvm_ftm_start_v13(struct iwl_mvm *mvm,
 {
 	struct iwl_tof_range_req_cmd_v13 cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
@@ -877,8 +877,8 @@ int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EBUSY;
 
 	if (new_api) {
-		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-						   TOF_RANGE_REQ_CMD,
+		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+						   WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 						   IWL_FW_CMD_VER_UNKNOWN);
 
 		switch (cmd_ver) {
@@ -927,8 +927,7 @@ void iwl_mvm_ftm_abort(struct iwl_mvm *mvm, struct cfg80211_pmsr_request *req)
 
 	iwl_mvm_ftm_reset(mvm);
 
-	if (iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_RANGE_ABORT_CMD,
-						 LOCATION_GROUP, 0),
+	if (iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(LOCATION_GROUP, TOF_RANGE_ABORT_CMD),
 				 0, sizeof(cmd), &cmd))
 		IWL_ERR(mvm, "failed to abort FTM process\n");
 }
@@ -1106,10 +1105,10 @@ static void iwl_mvm_debug_range_resp(struct iwl_mvm *mvm, u8 index,
 	IWL_DEBUG_INFO(mvm, "\tstatus: %d\n", res->status);
 	IWL_DEBUG_INFO(mvm, "\tBSSID: %pM\n", res->addr);
 	IWL_DEBUG_INFO(mvm, "\thost time: %llu\n", res->host_time);
-	IWL_DEBUG_INFO(mvm, "\tburst index: %hhu\n", res->ftm.burst_index);
+	IWL_DEBUG_INFO(mvm, "\tburst index: %d\n", res->ftm.burst_index);
 	IWL_DEBUG_INFO(mvm, "\tsuccess num: %u\n", res->ftm.num_ftmr_successes);
 	IWL_DEBUG_INFO(mvm, "\trssi: %d\n", res->ftm.rssi_avg);
-	IWL_DEBUG_INFO(mvm, "\trssi spread: %hhu\n", res->ftm.rssi_spread);
+	IWL_DEBUG_INFO(mvm, "\trssi spread: %d\n", res->ftm.rssi_spread);
 	IWL_DEBUG_INFO(mvm, "\trtt: %lld\n", res->ftm.rtt_avg);
 	IWL_DEBUG_INFO(mvm, "\trtt var: %llu\n", res->ftm.rtt_variance);
 	IWL_DEBUG_INFO(mvm, "\trtt spread: %llu\n", res->ftm.rtt_spread);

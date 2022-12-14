@@ -12,7 +12,6 @@ increase the chances of your change being accepted.
 * It should be unnecessary to mention, but please read and follow:
 
     - Documentation/process/submit-checklist.rst
-    - Documentation/process/submitting-drivers.rst
     - Documentation/process/submitting-patches.rst
     - Documentation/process/coding-style.rst
 

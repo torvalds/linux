@@ -80,7 +80,7 @@ static unsigned int bm_find(struct ts_config *conf, struct ts_state *state)
 
 			/* London calling... */
 			DEBUGP("found!\n");
-			return consumed += (shift-(bm->patlen-1));
+			return consumed + (shift-(bm->patlen-1));
 
 next:			bs = bm->bad_shift[text[shift-i]];
 

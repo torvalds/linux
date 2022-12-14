@@ -308,6 +308,7 @@ static void ext_queue_schedule_job(struct hl_cs_job *job)
 	cq_addr = cq->bus_address + cq->pi * sizeof(struct hl_cq_entry);
 
 	hdev->asic_funcs->add_end_of_cb_packets(hdev, cb->kernel_address, len,
+						job->user_cb_size,
 						cq_addr,
 						le32_to_cpu(cq_pkt.data),
 						q->msi_vec,
@@ -695,6 +696,16 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 			goto unroll_cq_resv;
 	}
 
+	rc = hdev->asic_funcs->pre_schedule_cs(cs);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed in pre-submission operations of CS %d.%llu\n",
+			ctx->asid, cs->sequence);
+		goto unroll_cq_resv;
+	}
+
+	hdev->shadow_cs_queue[cs->sequence &
+				(hdev->asic_prop.max_pending_cs - 1)] = cs;
 
 	if (cs->encaps_signals && cs->staged_first) {
 		rc = encaps_sig_first_staged_cs_handler(hdev, cs);
@@ -806,22 +817,16 @@ static int ext_and_cpu_queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 	int rc;
 
 	if (is_cpu_queue)
-		p = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
-							HL_QUEUE_SIZE_IN_BYTES,
-							&q->bus_address);
+		p = hl_cpu_accessible_dma_pool_alloc(hdev, HL_QUEUE_SIZE_IN_BYTES, &q->bus_address);
 	else
-		p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev,
-						HL_QUEUE_SIZE_IN_BYTES,
-						&q->bus_address,
+		p = hl_asic_dma_alloc_coherent(hdev, HL_QUEUE_SIZE_IN_BYTES, &q->bus_address,
 						GFP_KERNEL | __GFP_ZERO);
 	if (!p)
 		return -ENOMEM;
 
 	q->kernel_address = p;
 
-	q->shadow_queue = kmalloc_array(HL_QUEUE_LENGTH,
-					sizeof(*q->shadow_queue),
-					GFP_KERNEL);
+	q->shadow_queue = kmalloc_array(HL_QUEUE_LENGTH, sizeof(struct hl_cs_job *), GFP_KERNEL);
 	if (!q->shadow_queue) {
 		dev_err(hdev->dev,
 			"Failed to allocate shadow queue for H/W queue %d\n",
@@ -838,14 +843,10 @@ static int ext_and_cpu_queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 
 free_queue:
 	if (is_cpu_queue)
-		hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
-					HL_QUEUE_SIZE_IN_BYTES,
-					q->kernel_address);
+		hl_cpu_accessible_dma_pool_free(hdev, HL_QUEUE_SIZE_IN_BYTES, q->kernel_address);
 	else
-		hdev->asic_funcs->asic_dma_free_coherent(hdev,
-					HL_QUEUE_SIZE_IN_BYTES,
-					q->kernel_address,
-					q->bus_address);
+		hl_asic_dma_free_coherent(hdev, HL_QUEUE_SIZE_IN_BYTES, q->kernel_address,
+						q->bus_address);
 
 	return rc;
 }
@@ -884,10 +885,8 @@ static int hw_queue_init(struct hl_device *hdev, struct hl_hw_queue *q)
 {
 	void *p;
 
-	p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev,
-						HL_QUEUE_SIZE_IN_BYTES,
-						&q->bus_address,
-						GFP_KERNEL | __GFP_ZERO);
+	p = hl_asic_dma_alloc_coherent(hdev, HL_QUEUE_SIZE_IN_BYTES, &q->bus_address,
+					GFP_KERNEL | __GFP_ZERO);
 	if (!p)
 		return -ENOMEM;
 
@@ -1060,14 +1059,10 @@ static void queue_fini(struct hl_device *hdev, struct hl_hw_queue *q)
 	kfree(q->shadow_queue);
 
 	if (q->queue_type == QUEUE_TYPE_CPU)
-		hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
-					HL_QUEUE_SIZE_IN_BYTES,
-					q->kernel_address);
+		hl_cpu_accessible_dma_pool_free(hdev, HL_QUEUE_SIZE_IN_BYTES, q->kernel_address);
 	else
-		hdev->asic_funcs->asic_dma_free_coherent(hdev,
-					HL_QUEUE_SIZE_IN_BYTES,
-					q->kernel_address,
-					q->bus_address);
+		hl_asic_dma_free_coherent(hdev, HL_QUEUE_SIZE_IN_BYTES, q->kernel_address,
+						q->bus_address);
 }
 
 int hl_hw_queues_create(struct hl_device *hdev)

@@ -376,7 +376,7 @@ static ssize_t rnbd_clt_resize_dev_store(struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	ret = rnbd_clt_resize_disk(dev, (size_t)sectors);
+	ret = rnbd_clt_resize_disk(dev, sectors);
 	if (ret)
 		return ret;
 

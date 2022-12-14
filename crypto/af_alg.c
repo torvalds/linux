@@ -25,12 +25,9 @@ struct alg_type_list {
 	struct list_head list;
 };
 
-static atomic_long_t alg_memory_allocated;
-
 static struct proto alg_proto = {
 	.name			= "ALG",
 	.owner			= THIS_MODULE,
-	.memory_allocated	= &alg_memory_allocated,
 	.obj_size		= sizeof(struct alg_sock),
 };
 
@@ -407,7 +404,7 @@ int af_alg_make_sg(struct af_alg_sgl *sgl, struct iov_iter *iter, int len)
 	ssize_t n;
 	int npages, i;
 
-	n = iov_iter_get_pages(iter, sgl->pages, len, ALG_MAX_PAGES, &off);
+	n = iov_iter_get_pages2(iter, sgl->pages, len, ALG_MAX_PAGES, &off);
 	if (n < 0)
 		return n;
 
@@ -1194,7 +1191,6 @@ int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 		len += err;
 		atomic_add(err, &ctx->rcvused);
 		rsgl->sg_num_bytes = err;
-		iov_iter_advance(&msg->msg_iter, err);
 	}
 
 	*outlen = len;

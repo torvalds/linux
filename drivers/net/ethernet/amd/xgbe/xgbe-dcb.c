@@ -230,7 +230,7 @@ static int xgbe_dcb_ieee_setpfc(struct net_device *netdev,
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 
 	netif_dbg(pdata, drv, netdev,
-		  "cap=%hhu, en=%#hhx, mbc=%hhu, delay=%hhu\n",
+		  "cap=%d, en=%#x, mbc=%d, delay=%d\n",
 		  pfc->pfc_cap, pfc->pfc_en, pfc->mbc, pfc->delay);
 
 	/* Check PFC for supported number of traffic classes */

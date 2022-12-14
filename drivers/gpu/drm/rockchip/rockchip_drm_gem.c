@@ -10,7 +10,7 @@
 
 #include <drm/drm.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_vma_manager.h>
 
@@ -279,7 +279,7 @@ static const struct drm_gem_object_funcs rockchip_gem_object_funcs = {
 	.vmap = rockchip_gem_prime_vmap,
 	.vunmap	= rockchip_gem_prime_vunmap,
 	.mmap = rockchip_drm_gem_object_mmap,
-	.vm_ops = &drm_gem_cma_vm_ops,
+	.vm_ops = &drm_gem_dma_vm_ops,
 };
 
 static struct rockchip_gem_object *
@@ -364,9 +364,12 @@ rockchip_gem_create_with_handle(struct drm_file *file_priv,
 {
 	struct rockchip_gem_object *rk_obj;
 	struct drm_gem_object *obj;
+	bool is_framebuffer;
 	int ret;
 
-	rk_obj = rockchip_gem_create_object(drm, size, false);
+	is_framebuffer = drm->fb_helper && file_priv == drm->fb_helper->client.file;
+
+	rk_obj = rockchip_gem_create_object(drm, size, is_framebuffer);
 	if (IS_ERR(rk_obj))
 		return ERR_CAST(rk_obj);
 
@@ -510,7 +513,7 @@ err_free_rk_obj:
 	return ERR_PTR(ret);
 }
 
-int rockchip_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+int rockchip_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
 
@@ -519,18 +522,19 @@ int rockchip_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 				  pgprot_writecombine(PAGE_KERNEL));
 		if (!vaddr)
 			return -ENOMEM;
-		dma_buf_map_set_vaddr(map, vaddr);
+		iosys_map_set_vaddr(map, vaddr);
 		return 0;
 	}
 
 	if (rk_obj->dma_attrs & DMA_ATTR_NO_KERNEL_MAPPING)
 		return -ENOMEM;
-	dma_buf_map_set_vaddr(map, rk_obj->kvaddr);
+	iosys_map_set_vaddr(map, rk_obj->kvaddr);
 
 	return 0;
 }
 
-void rockchip_gem_prime_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+void rockchip_gem_prime_vunmap(struct drm_gem_object *obj,
+			       struct iosys_map *map)
 {
 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
 

@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/i2c.h>
-#include <asm/prom.h>
+
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/sections.h>
@@ -145,7 +145,7 @@ static int wf_lm87_probe(struct i2c_client *client,
 	return rc;
 }
 
-static int wf_lm87_remove(struct i2c_client *client)
+static void wf_lm87_remove(struct i2c_client *client)
 {
 	struct wf_lm87_sensor *lm = i2c_get_clientdata(client);
 
@@ -154,8 +154,6 @@ static int wf_lm87_remove(struct i2c_client *client)
 
 	/* release sensor */
 	wf_unregister_sensor(&lm->sens);
-
-	return 0;
 }
 
 static const struct i2c_device_id wf_lm87_id[] = {

@@ -97,6 +97,14 @@
 
 #define INTEL_EDP_BRIGHTNESS_OPTIMIZATION_1                            0x359
 
+enum intel_dp_aux_backlight_modparam {
+	INTEL_DP_AUX_BACKLIGHT_AUTO = -1,
+	INTEL_DP_AUX_BACKLIGHT_OFF = 0,
+	INTEL_DP_AUX_BACKLIGHT_ON = 1,
+	INTEL_DP_AUX_BACKLIGHT_FORCE_VESA = 2,
+	INTEL_DP_AUX_BACKLIGHT_FORCE_INTEL = 3,
+};
+
 /* Intel EDP backlight callbacks */
 static bool
 intel_dp_aux_supports_hdr_backlight(struct intel_connector *connector)
@@ -123,6 +131,24 @@ intel_dp_aux_supports_hdr_backlight(struct intel_connector *connector)
 	} else {
 		drm_dbg_kms(&i915->drm, "Detected unsupported HDR backlight interface version %d\n",
 			    tcon_cap[0]);
+		return false;
+	}
+
+	/*
+	 * If we don't have HDR static metadata there is no way to
+	 * runtime detect used range for nits based control. For now
+	 * do not use Intel proprietary eDP backlight control if we
+	 * don't have this data in panel EDID. In case we find panel
+	 * which supports only nits based control, but doesn't provide
+	 * HDR static metadata we need to start maintaining table of
+	 * ranges for such panels.
+	 */
+	if (i915->params.enable_dpcd_backlight != INTEL_DP_AUX_BACKLIGHT_FORCE_INTEL &&
+	    !(connector->base.hdr_sink_metadata.hdmi_type1.metadata_type &
+	      BIT(HDMI_STATIC_METADATA_TYPE1))) {
+		drm_info(&i915->drm,
+			 "Panel is missing HDR static metadata. Possible support for Intel HDR backlight interface is not used. If your backlight controls don't work try booting with i915.enable_dpcd_backlight=%d. needs this, please file a _new_ bug report on drm/i915, see " FDO_BUG_URL " for details.\n",
+			 INTEL_DP_AUX_BACKLIGHT_FORCE_INTEL);
 		return false;
 	}
 
@@ -252,6 +278,8 @@ intel_dp_aux_hdr_setup_backlight(struct intel_connector *connector, enum pipe pi
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
+	struct drm_luminance_range_info *luminance_range =
+		&connector->base.display_info.luminance_range;
 	int ret;
 
 	if (panel->backlight.edp.intel.sdr_uses_aux) {
@@ -267,8 +295,17 @@ intel_dp_aux_hdr_setup_backlight(struct intel_connector *connector, enum pipe pi
 		}
 	}
 
-	panel->backlight.max = 512;
-	panel->backlight.min = 0;
+	if (luminance_range->max_luminance) {
+		panel->backlight.max = luminance_range->max_luminance;
+		panel->backlight.min = luminance_range->min_luminance;
+	} else {
+		panel->backlight.max = 512;
+		panel->backlight.min = 0;
+	}
+
+	drm_dbg_kms(&i915->drm, "Using backlight range %d..%d\n", panel->backlight.min,
+		    panel->backlight.max);
+
 	panel->backlight.level = intel_dp_aux_hdr_get_backlight(connector, pipe);
 	panel->backlight.enabled = panel->backlight.level != 0;
 
@@ -344,7 +381,7 @@ static int intel_dp_aux_vesa_setup_backlight(struct intel_connector *connector, 
 	int ret;
 
 	ret = drm_edp_backlight_init(&intel_dp->aux, &panel->backlight.edp.vesa.info,
-				     i915->vbt.backlight.pwm_freq_hz, intel_dp->edp_dpcd,
+				     panel->vbt.backlight.pwm_freq_hz, intel_dp->edp_dpcd,
 				     &current_level, &current_mode);
 	if (ret < 0)
 		return ret;
@@ -413,14 +450,6 @@ static const struct intel_panel_bl_funcs intel_dp_vesa_bl_funcs = {
 	.get = intel_dp_aux_vesa_get_backlight,
 };
 
-enum intel_dp_aux_backlight_modparam {
-	INTEL_DP_AUX_BACKLIGHT_AUTO = -1,
-	INTEL_DP_AUX_BACKLIGHT_OFF = 0,
-	INTEL_DP_AUX_BACKLIGHT_ON = 1,
-	INTEL_DP_AUX_BACKLIGHT_FORCE_VESA = 2,
-	INTEL_DP_AUX_BACKLIGHT_FORCE_INTEL = 3,
-};
-
 int intel_dp_aux_init_backlight_funcs(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
@@ -436,7 +465,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *connector)
 	case INTEL_DP_AUX_BACKLIGHT_OFF:
 		return -ENODEV;
 	case INTEL_DP_AUX_BACKLIGHT_AUTO:
-		switch (i915->vbt.backlight.type) {
+		switch (panel->vbt.backlight.type) {
 		case INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE:
 			try_vesa_interface = true;
 			break;
@@ -448,7 +477,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *connector)
 		}
 		break;
 	case INTEL_DP_AUX_BACKLIGHT_ON:
-		if (i915->vbt.backlight.type != INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE)
+		if (panel->vbt.backlight.type != INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE)
 			try_intel_interface = true;
 
 		try_vesa_interface = true;

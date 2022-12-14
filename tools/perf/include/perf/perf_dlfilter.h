@@ -9,6 +9,12 @@
 #include <linux/perf_event.h>
 #include <linux/types.h>
 
+/*
+ * The following macro can be used to determine if this header defines
+ * perf_dlfilter_sample machine_pid and vcpu.
+ */
+#define PERF_DLFILTER_HAS_MACHINE_PID
+
 /* Definitions for perf_dlfilter_sample flags */
 enum {
 	PERF_DLFILTER_FLAG_BRANCH	= 1ULL << 0,
@@ -62,6 +68,8 @@ struct perf_dlfilter_sample {
 	__u64 raw_callchain_nr;	/* Number of raw_callchain entries */
 	const __u64 *raw_callchain; /* Refer <linux/perf_event.h> */
 	const char *event;
+	__s32 machine_pid;
+	__s32 vcpu;
 };
 
 /*

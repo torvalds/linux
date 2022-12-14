@@ -34,10 +34,14 @@ static int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target);
 static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target);
 static int bond_option_arp_ip_targets_set(struct bonding *bond,
 					  const struct bond_opt_value *newval);
+static int bond_option_ns_ip6_targets_set(struct bonding *bond,
+					  const struct bond_opt_value *newval);
 static int bond_option_arp_validate_set(struct bonding *bond,
 					const struct bond_opt_value *newval);
 static int bond_option_arp_all_targets_set(struct bonding *bond,
 					   const struct bond_opt_value *newval);
+static int bond_option_prio_set(struct bonding *bond,
+				const struct bond_opt_value *newval);
 static int bond_option_primary_set(struct bonding *bond,
 				   const struct bond_opt_value *newval);
 static int bond_option_primary_reselect_set(struct bonding *bond,
@@ -295,6 +299,13 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.flags = BOND_OPTFLAG_RAWVAL,
 		.set = bond_option_arp_ip_targets_set
 	},
+	[BOND_OPT_NS_TARGETS] = {
+		.id = BOND_OPT_NS_TARGETS,
+		.name = "ns_ip6_target",
+		.desc = "NS targets in ffff:ffff::ffff:ffff form",
+		.flags = BOND_OPTFLAG_RAWVAL,
+		.set = bond_option_ns_ip6_targets_set
+	},
 	[BOND_OPT_DOWNDELAY] = {
 		.id = BOND_OPT_DOWNDELAY,
 		.name = "downdelay",
@@ -355,6 +366,16 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.desc = "Link check interval in milliseconds",
 		.values = bond_intmax_tbl,
 		.set = bond_option_miimon_set
+	},
+	[BOND_OPT_PRIO] = {
+		.id = BOND_OPT_PRIO,
+		.name = "prio",
+		.desc = "Link priority for failover re-selection",
+		.flags = BOND_OPTFLAG_RAWVAL,
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_ACTIVEBACKUP) |
+						BIT(BOND_MODE_TLB) |
+						BIT(BOND_MODE_ALB)),
+		.set = bond_option_prio_set
 	},
 	[BOND_OPT_PRIMARY] = {
 		.id = BOND_OPT_PRIMARY,
@@ -623,27 +644,35 @@ static int bond_opt_check_deps(struct bonding *bond,
 }
 
 static void bond_opt_dep_print(struct bonding *bond,
-			       const struct bond_option *opt)
+			       const struct bond_option *opt,
+			       struct nlattr *bad_attr,
+			       struct netlink_ext_ack *extack)
 {
 	const struct bond_opt_value *modeval;
 	struct bond_params *params;
 
 	params = &bond->params;
 	modeval = bond_opt_get_val(BOND_OPT_MODE, params->mode);
-	if (test_bit(params->mode, &opt->unsuppmodes))
+	if (test_bit(params->mode, &opt->unsuppmodes)) {
 		netdev_err(bond->dev, "option %s: mode dependency failed, not supported in mode %s(%llu)\n",
 			   opt->name, modeval->string, modeval->value);
+		NL_SET_ERR_MSG_ATTR(extack, bad_attr,
+				    "option not supported in mode");
+	}
 }
 
 static void bond_opt_error_interpret(struct bonding *bond,
 				     const struct bond_option *opt,
-				     int error, const struct bond_opt_value *val)
+				     int error, const struct bond_opt_value *val,
+				     struct nlattr *bad_attr,
+				     struct netlink_ext_ack *extack)
 {
 	const struct bond_opt_value *minval, *maxval;
 	char *p;
 
 	switch (error) {
 	case -EINVAL:
+		NL_SET_ERR_MSG_ATTR(extack, bad_attr, "invalid option value");
 		if (val) {
 			if (val->string) {
 				/* sometimes RAWVAL opts may have new lines */
@@ -665,13 +694,17 @@ static void bond_opt_error_interpret(struct bonding *bond,
 			   opt->name, minval ? minval->value : 0, maxval->value);
 		break;
 	case -EACCES:
-		bond_opt_dep_print(bond, opt);
+		bond_opt_dep_print(bond, opt, bad_attr, extack);
 		break;
 	case -ENOTEMPTY:
+		NL_SET_ERR_MSG_ATTR(extack, bad_attr,
+				    "unable to set option because the bond device has slaves");
 		netdev_err(bond->dev, "option %s: unable to set because the bond device has slaves\n",
 			   opt->name);
 		break;
 	case -EBUSY:
+		NL_SET_ERR_MSG_ATTR(extack, bad_attr,
+				    "unable to set option because the bond is up");
 		netdev_err(bond->dev, "option %s: unable to set because the bond device is up\n",
 			   opt->name);
 		break;
@@ -682,6 +715,8 @@ static void bond_opt_error_interpret(struct bonding *bond,
 				*p = '\0';
 			netdev_err(bond->dev, "option %s: interface %s does not exist!\n",
 				   opt->name, val->string);
+			NL_SET_ERR_MSG_ATTR(extack, bad_attr,
+					    "interface does not exist");
 		}
 		break;
 	default:
@@ -694,13 +729,17 @@ static void bond_opt_error_interpret(struct bonding *bond,
  * @bond: target bond device
  * @option: option to set
  * @val: value to set it to
+ * @bad_attr: netlink attribue that caused the error
+ * @extack: extended netlink error structure, used when an error message
+ *          needs to be returned to the caller via netlink
  *
  * This function is used to change the bond's option value, it can be
  * used for both enabling/changing an option and for disabling it. RTNL lock
  * must be obtained before calling this function.
  */
 int __bond_opt_set(struct bonding *bond,
-		   unsigned int option, struct bond_opt_value *val)
+		   unsigned int option, struct bond_opt_value *val,
+		   struct nlattr *bad_attr, struct netlink_ext_ack *extack)
 {
 	const struct bond_opt_value *retval = NULL;
 	const struct bond_option *opt;
@@ -722,7 +761,7 @@ int __bond_opt_set(struct bonding *bond,
 	ret = opt->set(bond, retval);
 out:
 	if (ret)
-		bond_opt_error_interpret(bond, opt, ret, val);
+		bond_opt_error_interpret(bond, opt, ret, val, bad_attr, extack);
 
 	return ret;
 }
@@ -744,7 +783,7 @@ int __bond_opt_set_notify(struct bonding *bond,
 
 	ASSERT_RTNL();
 
-	ret = __bond_opt_set(bond, option, val);
+	ret = __bond_opt_set(bond, option, val, NULL, NULL);
 
 	if (!ret && (bond->dev->reg_state == NETREG_REGISTERED))
 		call_netdevice_notifiers(NETDEV_CHANGEINFODATA, bond->dev);
@@ -1052,7 +1091,7 @@ static int bond_option_arp_interval_set(struct bonding *bond,
 			cancel_delayed_work_sync(&bond->arp_work);
 		} else {
 			/* arp_validate can be set only in active-backup mode */
-			bond->recv_probe = bond_arp_rcv;
+			bond->recv_probe = bond_rcv_validate;
 			cancel_delayed_work_sync(&bond->mii_work);
 			queue_delayed_work(bond->wq, &bond->arp_work, 0);
 		}
@@ -1184,6 +1223,71 @@ static int bond_option_arp_ip_targets_set(struct bonding *bond,
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+static void _bond_options_ns_ip6_target_set(struct bonding *bond, int slot,
+					    struct in6_addr *target,
+					    unsigned long last_rx)
+{
+	struct in6_addr *targets = bond->params.ns_targets;
+	struct list_head *iter;
+	struct slave *slave;
+
+	if (slot >= 0 && slot < BOND_MAX_NS_TARGETS) {
+		bond_for_each_slave(bond, slave, iter)
+			slave->target_last_arp_rx[slot] = last_rx;
+		targets[slot] = *target;
+	}
+}
+
+void bond_option_ns_ip6_targets_clear(struct bonding *bond)
+{
+	struct in6_addr addr_any = in6addr_any;
+	int i;
+
+	for (i = 0; i < BOND_MAX_NS_TARGETS; i++)
+		_bond_options_ns_ip6_target_set(bond, i, &addr_any, 0);
+}
+
+static int bond_option_ns_ip6_targets_set(struct bonding *bond,
+					  const struct bond_opt_value *newval)
+{
+	struct in6_addr *target = (struct in6_addr *)newval->extra;
+	struct in6_addr *targets = bond->params.ns_targets;
+	struct in6_addr addr_any = in6addr_any;
+	int index;
+
+	if (!bond_is_ip6_target_ok(target)) {
+		netdev_err(bond->dev, "invalid NS target %pI6c specified for addition\n",
+			   target);
+		return -EINVAL;
+	}
+
+	if (bond_get_targets_ip6(targets, target) != -1) { /* dup */
+		netdev_err(bond->dev, "NS target %pI6c is already present\n",
+			   target);
+		return -EINVAL;
+	}
+
+	index = bond_get_targets_ip6(targets, &addr_any); /* first free slot */
+	if (index == -1) {
+		netdev_err(bond->dev, "NS target table is full!\n");
+		return -EINVAL;
+	}
+
+	netdev_dbg(bond->dev, "Adding NS target %pI6c\n", target);
+
+	_bond_options_ns_ip6_target_set(bond, index, target, jiffies);
+
+	return 0;
+}
+#else
+static int bond_option_ns_ip6_targets_set(struct bonding *bond,
+					  const struct bond_opt_value *newval)
+{
+	return -EPERM;
+}
+#endif
+
 static int bond_option_arp_validate_set(struct bonding *bond,
 					const struct bond_opt_value *newval)
 {
@@ -1210,6 +1314,27 @@ static int bond_option_missed_max_set(struct bonding *bond,
 	netdev_dbg(bond->dev, "Setting missed max to %s (%llu)\n",
 		   newval->string, newval->value);
 	bond->params.missed_max = newval->value;
+
+	return 0;
+}
+
+static int bond_option_prio_set(struct bonding *bond,
+				const struct bond_opt_value *newval)
+{
+	struct slave *slave;
+
+	slave = bond_slave_get_rtnl(newval->slave_dev);
+	if (!slave) {
+		netdev_dbg(newval->slave_dev, "%s called on NULL slave\n", __func__);
+		return -ENODEV;
+	}
+	slave->prio = newval->value;
+
+	if (rtnl_dereference(bond->primary_slave))
+		slave_warn(bond->dev, slave->dev,
+			   "prio updated, but will not affect failover re-selection as primary slave have been set\n");
+	else
+		bond_select_active_slave(bond);
 
 	return 0;
 }

@@ -216,9 +216,9 @@ kci_test_route_get()
 	check_err $?
 	ip route get fe80::1 dev "$devdummy" > /dev/null
 	check_err $?
-	ip route get 127.0.0.1 from 127.0.0.1 oif lo tos 0x1 mark 0x1 > /dev/null
+	ip route get 127.0.0.1 from 127.0.0.1 oif lo tos 0x10 mark 0x1 > /dev/null
 	check_err $?
-	ip route get ::1 from ::1 iif lo oif lo tos 0x1 mark 0x1 > /dev/null
+	ip route get ::1 from ::1 iif lo oif lo tos 0x10 mark 0x1 > /dev/null
 	check_err $?
 	ip addr add dev "$devdummy" 10.23.7.11/24
 	check_err $?
@@ -782,7 +782,7 @@ kci_test_ipsec_offload()
 	    tmpl proto esp src $srcip dst $dstip spi 9 \
 	    mode transport reqid 42
 	check_err $?
-	ip x p add dir out src $dstip/24 dst $srcip/24 \
+	ip x p add dir in src $dstip/24 dst $srcip/24 \
 	    tmpl proto esp src $dstip dst $srcip spi 9 \
 	    mode transport reqid 42
 	check_err $?

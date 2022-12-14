@@ -7,7 +7,7 @@
 //  Copyright: (C) 2009, 2010 Nicolas Palix, DIKU.
 //  Copyright: (C) 2009, 2010 Julia Lawall, DIKU.
 //  Copyright: (C) 2009, 2010 Gilles Muller, INRIA/LiP6.
-//  URL: http://coccinelle.lip6.fr/
+//  URL: https://coccinelle.gitlabpages.inria.fr/website
 //  Options:
 //
 //  Keywords: resource_size

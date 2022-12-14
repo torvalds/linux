@@ -2,7 +2,7 @@
 /*
  * Trace points for SSAM/SSH.
  *
- * Copyright (C) 2020-2021 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2020-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #undef TRACE_SYSTEM
@@ -76,7 +76,7 @@ TRACE_DEFINE_ENUM(SSAM_SSH_TC_HID);
 TRACE_DEFINE_ENUM(SSAM_SSH_TC_TCH);
 TRACE_DEFINE_ENUM(SSAM_SSH_TC_BKL);
 TRACE_DEFINE_ENUM(SSAM_SSH_TC_TAM);
-TRACE_DEFINE_ENUM(SSAM_SSH_TC_ACC);
+TRACE_DEFINE_ENUM(SSAM_SSH_TC_ACC0);
 TRACE_DEFINE_ENUM(SSAM_SSH_TC_UFI);
 TRACE_DEFINE_ENUM(SSAM_SSH_TC_USC);
 TRACE_DEFINE_ENUM(SSAM_SSH_TC_PEN);
@@ -85,6 +85,11 @@ TRACE_DEFINE_ENUM(SSAM_SSH_TC_AUD);
 TRACE_DEFINE_ENUM(SSAM_SSH_TC_SMC);
 TRACE_DEFINE_ENUM(SSAM_SSH_TC_KPD);
 TRACE_DEFINE_ENUM(SSAM_SSH_TC_REG);
+TRACE_DEFINE_ENUM(SSAM_SSH_TC_SPT);
+TRACE_DEFINE_ENUM(SSAM_SSH_TC_SYS);
+TRACE_DEFINE_ENUM(SSAM_SSH_TC_ACC1);
+TRACE_DEFINE_ENUM(SSAM_SSH_TC_SHB);
+TRACE_DEFINE_ENUM(SSAM_SSH_TC_POS);
 
 #define SSAM_PTR_UID_LEN		9
 #define SSAM_U8_FIELD_NOT_APPLICABLE	((u16)-1)
@@ -229,40 +234,45 @@ static inline u32 ssam_trace_get_request_tc(const struct ssh_packet *p)
 
 #define ssam_show_ssh_tc(rqid)						\
 	__print_symbolic(rqid,						\
-		{ SSAM_SSH_TC_NOT_APPLICABLE,		"N/A" },	\
-		{ SSAM_SSH_TC_SAM,			"SAM" },	\
-		{ SSAM_SSH_TC_BAT,			"BAT" },	\
-		{ SSAM_SSH_TC_TMP,			"TMP" },	\
-		{ SSAM_SSH_TC_PMC,			"PMC" },	\
-		{ SSAM_SSH_TC_FAN,			"FAN" },	\
-		{ SSAM_SSH_TC_PoM,			"PoM" },	\
-		{ SSAM_SSH_TC_DBG,			"DBG" },	\
-		{ SSAM_SSH_TC_KBD,			"KBD" },	\
-		{ SSAM_SSH_TC_FWU,			"FWU" },	\
-		{ SSAM_SSH_TC_UNI,			"UNI" },	\
-		{ SSAM_SSH_TC_LPC,			"LPC" },	\
-		{ SSAM_SSH_TC_TCL,			"TCL" },	\
-		{ SSAM_SSH_TC_SFL,			"SFL" },	\
-		{ SSAM_SSH_TC_KIP,			"KIP" },	\
-		{ SSAM_SSH_TC_EXT,			"EXT" },	\
-		{ SSAM_SSH_TC_BLD,			"BLD" },	\
-		{ SSAM_SSH_TC_BAS,			"BAS" },	\
-		{ SSAM_SSH_TC_SEN,			"SEN" },	\
-		{ SSAM_SSH_TC_SRQ,			"SRQ" },	\
-		{ SSAM_SSH_TC_MCU,			"MCU" },	\
-		{ SSAM_SSH_TC_HID,			"HID" },	\
-		{ SSAM_SSH_TC_TCH,			"TCH" },	\
-		{ SSAM_SSH_TC_BKL,			"BKL" },	\
-		{ SSAM_SSH_TC_TAM,			"TAM" },	\
-		{ SSAM_SSH_TC_ACC,			"ACC" },	\
-		{ SSAM_SSH_TC_UFI,			"UFI" },	\
-		{ SSAM_SSH_TC_USC,			"USC" },	\
-		{ SSAM_SSH_TC_PEN,			"PEN" },	\
-		{ SSAM_SSH_TC_VID,			"VID" },	\
-		{ SSAM_SSH_TC_AUD,			"AUD" },	\
-		{ SSAM_SSH_TC_SMC,			"SMC" },	\
-		{ SSAM_SSH_TC_KPD,			"KPD" },	\
-		{ SSAM_SSH_TC_REG,			"REG" }		\
+		{ SSAM_SSH_TC_NOT_APPLICABLE,		"N/A"  },	\
+		{ SSAM_SSH_TC_SAM,			"SAM"  },	\
+		{ SSAM_SSH_TC_BAT,			"BAT"  },	\
+		{ SSAM_SSH_TC_TMP,			"TMP"  },	\
+		{ SSAM_SSH_TC_PMC,			"PMC"  },	\
+		{ SSAM_SSH_TC_FAN,			"FAN"  },	\
+		{ SSAM_SSH_TC_PoM,			"PoM"  },	\
+		{ SSAM_SSH_TC_DBG,			"DBG"  },	\
+		{ SSAM_SSH_TC_KBD,			"KBD"  },	\
+		{ SSAM_SSH_TC_FWU,			"FWU"  },	\
+		{ SSAM_SSH_TC_UNI,			"UNI"  },	\
+		{ SSAM_SSH_TC_LPC,			"LPC"  },	\
+		{ SSAM_SSH_TC_TCL,			"TCL"  },	\
+		{ SSAM_SSH_TC_SFL,			"SFL"  },	\
+		{ SSAM_SSH_TC_KIP,			"KIP"  },	\
+		{ SSAM_SSH_TC_EXT,			"EXT"  },	\
+		{ SSAM_SSH_TC_BLD,			"BLD"  },	\
+		{ SSAM_SSH_TC_BAS,			"BAS"  },	\
+		{ SSAM_SSH_TC_SEN,			"SEN"  },	\
+		{ SSAM_SSH_TC_SRQ,			"SRQ"  },	\
+		{ SSAM_SSH_TC_MCU,			"MCU"  },	\
+		{ SSAM_SSH_TC_HID,			"HID"  },	\
+		{ SSAM_SSH_TC_TCH,			"TCH"  },	\
+		{ SSAM_SSH_TC_BKL,			"BKL"  },	\
+		{ SSAM_SSH_TC_TAM,			"TAM"  },	\
+		{ SSAM_SSH_TC_ACC0,			"ACC0" },	\
+		{ SSAM_SSH_TC_UFI,			"UFI"  },	\
+		{ SSAM_SSH_TC_USC,			"USC"  },	\
+		{ SSAM_SSH_TC_PEN,			"PEN"  },	\
+		{ SSAM_SSH_TC_VID,			"VID"  },	\
+		{ SSAM_SSH_TC_AUD,			"AUD"  },	\
+		{ SSAM_SSH_TC_SMC,			"SMC"  },	\
+		{ SSAM_SSH_TC_KPD,			"KPD"  },	\
+		{ SSAM_SSH_TC_REG,			"REG"  },	\
+		{ SSAM_SSH_TC_SPT,			"SPT"  },	\
+		{ SSAM_SSH_TC_SYS,			"SYS"  },	\
+		{ SSAM_SSH_TC_ACC1,			"ACC1" },	\
+		{ SSAM_SSH_TC_SHB,			"SMB"  },	\
+		{ SSAM_SSH_TC_POS,			"POS"  }	\
 	)
 
 DECLARE_EVENT_CLASS(ssam_frame_class,

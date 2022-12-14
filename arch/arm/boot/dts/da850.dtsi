@@ -419,7 +419,7 @@
 		edma0: edma@0 {
 			compatible = "ti,edma3-tpcc";
 			/* eDMA3 CC0: 0x01c0 0000 - 0x01c0 7fff */
-			reg =	<0x0 0x8000>;
+			reg = <0x0 0x8000>;
 			reg-names = "edma3_cc";
 			interrupts = <11 12>;
 			interrupt-names = "edma3_ccint", "edma3_ccerrint";
@@ -430,14 +430,14 @@
 		};
 		edma0_tptc0: tptc@8000 {
 			compatible = "ti,edma3-tptc";
-			reg =	<0x8000 0x400>;
+			reg = <0x8000 0x400>;
 			interrupts = <13>;
 			interrupt-names = "edm3_tcerrint";
 			power-domains = <&psc0 1>;
 		};
 		edma0_tptc1: tptc@8400 {
 			compatible = "ti,edma3-tptc";
-			reg =	<0x8400 0x400>;
+			reg = <0x8400 0x400>;
 			interrupts = <32>;
 			interrupt-names = "edm3_tcerrint";
 			power-domains = <&psc0 2>;
@@ -445,7 +445,7 @@
 		edma1: edma@230000 {
 			compatible = "ti,edma3-tpcc";
 			/* eDMA3 CC1: 0x01e3 0000 - 0x01e3 7fff */
-			reg =	<0x230000 0x8000>;
+			reg = <0x230000 0x8000>;
 			reg-names = "edma3_cc";
 			interrupts = <93 94>;
 			interrupt-names = "edma3_ccint", "edma3_ccerrint";
@@ -456,7 +456,7 @@
 		};
 		edma1_tptc0: tptc@238000 {
 			compatible = "ti,edma3-tptc";
-			reg =	<0x238000 0x400>;
+			reg = <0x238000 0x400>;
 			interrupts = <95>;
 			interrupt-names = "edm3_tcerrint";
 			power-domains = <&psc1 21>;
@@ -672,14 +672,16 @@
 
 			cppi41dma: dma-controller@201000 {
 				compatible = "ti,da830-cppi41";
-				reg =  <0x201000 0x1000
+				reg = <0x201000 0x1000
 					0x202000 0x1000
 					0x204000 0x4000>;
 				reg-names = "controller",
 					    "scheduler", "queuemgr";
 				interrupts = <58>;
 				#dma-cells = <2>;
+				/* For backwards compatibility: */
 				#dma-channels = <4>;
+				dma-channels = <4>;
 				power-domains = <&psc1 1>;
 				status = "okay";
 			};

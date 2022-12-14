@@ -50,6 +50,9 @@ static bool rt1308_volatile_register(struct device *dev, unsigned int reg)
 	case 0x3008:
 	case 0x300a:
 	case 0xc000:
+	case 0xc710:
+	case 0xc860 ... 0xc863:
+	case 0xc870 ... 0xc873:
 		return true;
 	default:
 		return false;
@@ -159,12 +162,46 @@ static int rt1308_read_prop(struct sdw_slave *slave)
 	return 0;
 }
 
+static void rt1308_apply_calib_params(struct rt1308_sdw_priv *rt1308)
+{
+	unsigned int efuse_m_btl_l, efuse_m_btl_r, tmp;
+	unsigned int efuse_c_btl_l, efuse_c_btl_r;
+
+	/* read efuse to apply calibration parameters */
+	regmap_write(rt1308->regmap, 0xc7f0, 0x04);
+	regmap_write(rt1308->regmap, 0xc7f1, 0xfe);
+	msleep(100);
+	regmap_write(rt1308->regmap, 0xc7f0, 0x44);
+	msleep(20);
+	regmap_write(rt1308->regmap, 0xc240, 0x10);
+
+	regmap_read(rt1308->regmap, 0xc861, &tmp);
+	efuse_m_btl_l = tmp;
+	regmap_read(rt1308->regmap, 0xc860, &tmp);
+	efuse_m_btl_l = efuse_m_btl_l | (tmp << 8);
+	regmap_read(rt1308->regmap, 0xc863, &tmp);
+	efuse_c_btl_l = tmp;
+	regmap_read(rt1308->regmap, 0xc862, &tmp);
+	efuse_c_btl_l = efuse_c_btl_l | (tmp << 8);
+	regmap_read(rt1308->regmap, 0xc871, &tmp);
+	efuse_m_btl_r = tmp;
+	regmap_read(rt1308->regmap, 0xc870, &tmp);
+	efuse_m_btl_r = efuse_m_btl_r | (tmp << 8);
+	regmap_read(rt1308->regmap, 0xc873, &tmp);
+	efuse_c_btl_r = tmp;
+	regmap_read(rt1308->regmap, 0xc872, &tmp);
+	efuse_c_btl_r = efuse_c_btl_r | (tmp << 8);
+	dev_dbg(&rt1308->sdw_slave->dev, "%s m_btl_l=0x%x, m_btl_r=0x%x\n", __func__,
+		efuse_m_btl_l, efuse_m_btl_r);
+	dev_dbg(&rt1308->sdw_slave->dev, "%s c_btl_l=0x%x, c_btl_r=0x%x\n", __func__,
+		efuse_c_btl_l, efuse_c_btl_r);
+}
+
 static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt1308_sdw_priv *rt1308 = dev_get_drvdata(dev);
 	int ret = 0;
-	unsigned int efuse_m_btl_l, efuse_m_btl_r, tmp;
-	unsigned int efuse_c_btl_l, efuse_c_btl_r;
+	unsigned int tmp;
 
 	if (rt1308->hw_init)
 		return 0;
@@ -196,36 +233,9 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	/* sw reset */
 	regmap_write(rt1308->regmap, RT1308_SDW_RESET, 0);
 
-	/* read efuse */
-	regmap_write(rt1308->regmap, 0xc360, 0x01);
-	regmap_write(rt1308->regmap, 0xc361, 0x80);
-	regmap_write(rt1308->regmap, 0xc7f0, 0x04);
-	regmap_write(rt1308->regmap, 0xc7f1, 0xfe);
-	msleep(100);
-	regmap_write(rt1308->regmap, 0xc7f0, 0x44);
-	msleep(20);
-	regmap_write(rt1308->regmap, 0xc240, 0x10);
-
-	regmap_read(rt1308->regmap, 0xc861, &tmp);
-	efuse_m_btl_l = tmp;
-	regmap_read(rt1308->regmap, 0xc860, &tmp);
-	efuse_m_btl_l = efuse_m_btl_l | (tmp << 8);
-	regmap_read(rt1308->regmap, 0xc863, &tmp);
-	efuse_c_btl_l = tmp;
-	regmap_read(rt1308->regmap, 0xc862, &tmp);
-	efuse_c_btl_l = efuse_c_btl_l | (tmp << 8);
-	regmap_read(rt1308->regmap, 0xc871, &tmp);
-	efuse_m_btl_r = tmp;
-	regmap_read(rt1308->regmap, 0xc870, &tmp);
-	efuse_m_btl_r = efuse_m_btl_r | (tmp << 8);
-	regmap_read(rt1308->regmap, 0xc873, &tmp);
-	efuse_c_btl_r = tmp;
-	regmap_read(rt1308->regmap, 0xc872, &tmp);
-	efuse_c_btl_r = efuse_c_btl_r | (tmp << 8);
-	dev_dbg(&slave->dev, "%s m_btl_l=0x%x, m_btl_r=0x%x\n", __func__,
-		efuse_m_btl_l, efuse_m_btl_r);
-	dev_dbg(&slave->dev, "%s c_btl_l=0x%x, c_btl_r=0x%x\n", __func__,
-		efuse_c_btl_l, efuse_c_btl_r);
+	regmap_read(rt1308->regmap, 0xc710, &tmp);
+	rt1308->hw_ver = tmp;
+	dev_dbg(dev, "%s, hw_ver=0x%x\n", __func__, rt1308->hw_ver);
 
 	/* initial settings */
 	regmap_write(rt1308->regmap, 0xc103, 0xc0);
@@ -242,8 +252,14 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	regmap_write(rt1308->regmap, 0xc062, 0x05);
 	regmap_write(rt1308->regmap, 0xc171, 0x07);
 	regmap_write(rt1308->regmap, 0xc173, 0x0d);
-	regmap_write(rt1308->regmap, 0xc311, 0x7f);
-	regmap_write(rt1308->regmap, 0xc900, 0x90);
+	if (rt1308->hw_ver == RT1308_VER_C) {
+		regmap_write(rt1308->regmap, 0xc311, 0x7f);
+		regmap_write(rt1308->regmap, 0xc300, 0x09);
+	} else {
+		regmap_write(rt1308->regmap, 0xc311, 0x4f);
+		regmap_write(rt1308->regmap, 0xc300, 0x0b);
+	}
+	regmap_write(rt1308->regmap, 0xc900, 0x5a);
 	regmap_write(rt1308->regmap, 0xc1a0, 0x84);
 	regmap_write(rt1308->regmap, 0xc1a1, 0x01);
 	regmap_write(rt1308->regmap, 0xc360, 0x78);
@@ -253,7 +269,6 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	regmap_write(rt1308->regmap, 0xc070, 0x00);
 	regmap_write(rt1308->regmap, 0xc100, 0xd7);
 	regmap_write(rt1308->regmap, 0xc101, 0xd7);
-	regmap_write(rt1308->regmap, 0xc300, 0x09);
 
 	if (rt1308->first_hw_init) {
 		regcache_cache_bypass(rt1308->regmap, false);
@@ -323,6 +338,8 @@ static int rt1308_classd_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
+	struct rt1308_sdw_priv *rt1308 =
+		snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -331,6 +348,7 @@ static int rt1308_classd_event(struct snd_soc_dapm_widget *w,
 			RT1308_SDW_OFFSET | (RT1308_POWER_STATUS << 4),
 			0x3,	0x3);
 		msleep(40);
+		rt1308_apply_calib_params(rt1308);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_component_update_bits(component,
@@ -601,13 +619,26 @@ static const struct sdw_slave_ops rt1308_slave_ops = {
 	.bus_config = rt1308_bus_config,
 };
 
+static int rt1308_sdw_component_probe(struct snd_soc_component *component)
+{
+	int ret;
+
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_component_sdw_rt1308 = {
+	.probe = rt1308_sdw_component_probe,
 	.controls = rt1308_snd_controls,
 	.num_controls = ARRAY_SIZE(rt1308_snd_controls),
 	.dapm_widgets = rt1308_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(rt1308_dapm_widgets),
 	.dapm_routes = rt1308_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(rt1308_dapm_routes),
+	.endianness = 1,
 };
 
 static const struct snd_soc_dai_ops rt1308_aif_dai_ops = {
@@ -683,6 +714,16 @@ static int rt1308_sdw_probe(struct sdw_slave *slave,
 	return 0;
 }
 
+static int rt1308_sdw_remove(struct sdw_slave *slave)
+{
+	struct rt1308_sdw_priv *rt1308 = dev_get_drvdata(&slave->dev);
+
+	if (rt1308->first_hw_init)
+		pm_runtime_disable(&slave->dev);
+
+	return 0;
+}
+
 static const struct sdw_device_id rt1308_id[] = {
 	SDW_SLAVE_ENTRY_EXT(0x025d, 0x1308, 0x2, 0, 0),
 	{},
@@ -719,6 +760,8 @@ static int __maybe_unused rt1308_dev_resume(struct device *dev)
 				msecs_to_jiffies(RT1308_PROBE_TIMEOUT));
 	if (!time) {
 		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		sdw_show_ping_status(slave->bus, true);
+
 		return -ETIMEDOUT;
 	}
 
@@ -742,6 +785,7 @@ static struct sdw_driver rt1308_sdw_driver = {
 		.pm = &rt1308_pm,
 	},
 	.probe = rt1308_sdw_probe,
+	.remove = rt1308_sdw_remove,
 	.ops = &rt1308_slave_ops,
 	.id_table = rt1308_id,
 };

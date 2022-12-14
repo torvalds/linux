@@ -14,13 +14,32 @@ struct xfs_bmbt_irec;
 struct xfs_refcount_irec;
 
 extern int xfs_refcount_lookup_le(struct xfs_btree_cur *cur,
-		xfs_agblock_t bno, int *stat);
+		enum xfs_refc_domain domain, xfs_agblock_t bno, int *stat);
 extern int xfs_refcount_lookup_ge(struct xfs_btree_cur *cur,
-		xfs_agblock_t bno, int *stat);
+		enum xfs_refc_domain domain, xfs_agblock_t bno, int *stat);
 extern int xfs_refcount_lookup_eq(struct xfs_btree_cur *cur,
-		xfs_agblock_t bno, int *stat);
+		enum xfs_refc_domain domain, xfs_agblock_t bno, int *stat);
 extern int xfs_refcount_get_rec(struct xfs_btree_cur *cur,
 		struct xfs_refcount_irec *irec, int *stat);
+
+static inline uint32_t
+xfs_refcount_encode_startblock(
+	xfs_agblock_t		startblock,
+	enum xfs_refc_domain	domain)
+{
+	uint32_t		start;
+
+	/*
+	 * low level btree operations need to handle the generic btree range
+	 * query functions (which set rc_domain == -1U), so we check that the
+	 * domain is /not/ shared.
+	 */
+	start = startblock & ~XFS_REFC_COWFLAG;
+	if (domain != XFS_REFC_DOMAIN_SHARED)
+		start |= XFS_REFC_COWFLAG;
+
+	return start;
+}
 
 enum xfs_refcount_intent_type {
 	XFS_REFCOUNT_INCREASE = 1,
@@ -35,6 +54,18 @@ struct xfs_refcount_intent {
 	xfs_extlen_t				ri_blockcount;
 	xfs_fsblock_t				ri_startblock;
 };
+
+/* Check that the refcount is appropriate for the record domain. */
+static inline bool
+xfs_refcount_check_domain(
+	const struct xfs_refcount_irec	*irec)
+{
+	if (irec->rc_domain == XFS_REFC_DOMAIN_COW && irec->rc_refcount != 1)
+		return false;
+	if (irec->rc_domain == XFS_REFC_DOMAIN_SHARED && irec->rc_refcount < 2)
+		return false;
+	return true;
+}
 
 void xfs_refcount_increase_extent(struct xfs_trans *tp,
 		struct xfs_bmbt_irec *irec);
@@ -67,16 +98,20 @@ extern int xfs_refcount_recover_cow_leftovers(struct xfs_mount *mp,
  * log (plus any key updates) so we'll conservatively assume 32 bytes
  * per record.  We must also leave space for btree splits on both ends
  * of the range and space for the CUD and a new CUI.
+ *
+ * Each EFI that we attach to the transaction is assumed to consume ~32 bytes.
+ * This is a low estimate for an EFI tracking a single extent (16 bytes for the
+ * EFI header, 16 for the extent, and 12 for the xlog op header), but the
+ * estimate is acceptable if there's more than one extent being freed.
+ * In the worst case of freeing every other block during a refcount decrease
+ * operation, we amortize the space used for one EFI log item across 16
+ * extents.
  */
 #define XFS_REFCOUNT_ITEM_OVERHEAD	32
 
-static inline xfs_fileoff_t xfs_refcount_max_unmap(int log_res)
-{
-	return (log_res * 3 / 4) / XFS_REFCOUNT_ITEM_OVERHEAD;
-}
-
 extern int xfs_refcount_has_record(struct xfs_btree_cur *cur,
-		xfs_agblock_t bno, xfs_extlen_t len, bool *exists);
+		enum xfs_refc_domain domain, xfs_agblock_t bno,
+		xfs_extlen_t len, bool *exists);
 union xfs_btree_rec;
 extern void xfs_refcount_btrec_to_irec(const union xfs_btree_rec *rec,
 		struct xfs_refcount_irec *irec);

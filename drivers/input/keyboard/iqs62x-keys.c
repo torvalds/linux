@@ -77,6 +77,7 @@ static int iqs62x_keys_parse_prop(struct platform_device *pdev,
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to read switch code: %d\n",
 				ret);
+			fwnode_handle_put(child);
 			return ret;
 		}
 		iqs62x_keys->switches[i].code = val;
@@ -90,6 +91,8 @@ static int iqs62x_keys_parse_prop(struct platform_device *pdev,
 			iqs62x_keys->switches[i].flag = (i == IQS62X_SW_HALL_N ?
 							 IQS62X_EVENT_HALL_N_T :
 							 IQS62X_EVENT_HALL_S_T);
+
+		fwnode_handle_put(child);
 	}
 
 	return 0;

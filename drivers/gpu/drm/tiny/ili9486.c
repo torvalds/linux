@@ -18,7 +18,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modeset_helper.h>
@@ -150,6 +150,7 @@ static void waveshare_enable(struct drm_simple_display_pipe *pipe,
 }
 
 static const struct drm_simple_display_pipe_funcs waveshare_pipe_funcs = {
+	.mode_valid = mipi_dbi_pipe_mode_valid,
 	.enable = waveshare_enable,
 	.disable = mipi_dbi_pipe_disable,
 	.update = mipi_dbi_pipe_update,
@@ -159,12 +160,12 @@ static const struct drm_display_mode waveshare_mode = {
 	DRM_SIMPLE_MODE(480, 320, 73, 49),
 };
 
-DEFINE_DRM_GEM_CMA_FOPS(ili9486_fops);
+DEFINE_DRM_GEM_DMA_FOPS(ili9486_fops);
 
 static const struct drm_driver ili9486_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &ili9486_fops,
-	DRM_GEM_CMA_DRIVER_OPS_VMAP,
+	DRM_GEM_DMA_DRIVER_OPS_VMAP,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "ili9486",
 	.desc			= "Ilitek ILI9486",
@@ -243,14 +244,12 @@ static int ili9486_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ili9486_remove(struct spi_device *spi)
+static void ili9486_remove(struct spi_device *spi)
 {
 	struct drm_device *drm = spi_get_drvdata(spi);
 
 	drm_dev_unplug(drm);
 	drm_atomic_helper_shutdown(drm);
-
-	return 0;
 }
 
 static void ili9486_shutdown(struct spi_device *spi)

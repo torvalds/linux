@@ -44,7 +44,7 @@
 #define AGPGART_MINOR		175
 #define TOSH_MINOR_DEV		181
 #define HWRNG_MINOR		183
-#define MICROCODE_MINOR		184
+/*#define MICROCODE_MINOR	184	unused */
 #define KEYPAD_MINOR		185
 #define IRNET_MINOR		187
 #define D7S_MINOR		193

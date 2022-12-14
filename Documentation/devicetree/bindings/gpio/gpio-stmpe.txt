@@ -8,8 +8,7 @@ Optional properties:
  - st,norequest-mask: bitmask specifying which GPIOs should _not_ be requestable
    due to different usage (e.g. touch, keypad)
 
-Node name must be stmpe_gpio and should be child node of stmpe node to which it
-belongs.
+Node should be child node of stmpe node to which it belongs.
 
 Example:
 	stmpe_gpio {

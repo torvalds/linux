@@ -31,8 +31,6 @@
 #define HNS_BUFFER_SIZE_2048 2048
 
 #define BD_MAX_SEND_SIZE 8191
-#define SKB_TMP_LEN(SKB) \
-	(((SKB)->transport_header - (SKB)->mac_header) + tcp_hdrlen(SKB))
 
 static void fill_v2_desc_hw(struct hnae_ring *ring, void *priv, int size,
 			    int send_sz, dma_addr_t dma, int frag_end,
@@ -94,7 +92,7 @@ static void fill_v2_desc_hw(struct hnae_ring *ring, void *priv, int size,
 						     HNSV2_TXD_TSE_B, 1);
 					l4_len = tcp_hdrlen(skb);
 					mss = skb_shinfo(skb)->gso_size;
-					paylen = skb->len - SKB_TMP_LEN(skb);
+					paylen = skb->len - skb_tcp_all_headers(skb);
 				}
 			} else if (skb->protocol == htons(ETH_P_IPV6)) {
 				hnae_set_bit(tvsvsn, HNSV2_TXD_IPV6_B, 1);
@@ -108,7 +106,7 @@ static void fill_v2_desc_hw(struct hnae_ring *ring, void *priv, int size,
 						     HNSV2_TXD_TSE_B, 1);
 					l4_len = tcp_hdrlen(skb);
 					mss = skb_shinfo(skb)->gso_size;
-					paylen = skb->len - SKB_TMP_LEN(skb);
+					paylen = skb->len - skb_tcp_all_headers(skb);
 				}
 			}
 			desc->tx.ip_offset = ip_offset;
@@ -1782,7 +1780,7 @@ static int hns_nic_set_features(struct net_device *netdev,
 			priv->ops.fill_desc = fill_tso_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
 			/* The chip only support 7*4096 */
-			netif_set_gso_max_size(netdev, 7 * 4096);
+			netif_set_tso_max_size(netdev, 7 * 4096);
 		} else {
 			priv->ops.fill_desc = fill_v2_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
@@ -2111,8 +2109,7 @@ static int hns_nic_init_ring_data(struct hns_nic_priv *priv)
 		rd->fini_process = is_ver1 ? hns_nic_tx_fini_pro :
 			hns_nic_tx_fini_pro_v2;
 
-		netif_napi_add(priv->netdev, &rd->napi,
-			       hns_nic_common_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add(priv->netdev, &rd->napi, hns_nic_common_poll);
 		rd->ring->irq_init_flag = RCB_IRQ_NOT_INITED;
 	}
 	for (i = h->q_num; i < h->q_num * 2; i++) {
@@ -2124,8 +2121,7 @@ static int hns_nic_init_ring_data(struct hns_nic_priv *priv)
 		rd->fini_process = is_ver1 ? hns_nic_rx_fini_pro :
 			hns_nic_rx_fini_pro_v2;
 
-		netif_napi_add(priv->netdev, &rd->napi,
-			       hns_nic_common_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add(priv->netdev, &rd->napi, hns_nic_common_poll);
 		rd->ring->irq_init_flag = RCB_IRQ_NOT_INITED;
 	}
 
@@ -2168,7 +2164,7 @@ static void hns_nic_set_priv_ops(struct net_device *netdev)
 			priv->ops.fill_desc = fill_tso_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
 			/* This chip only support 7*4096 */
-			netif_set_gso_max_size(netdev, 7 * 4096);
+			netif_set_tso_max_size(netdev, 7 * 4096);
 		} else {
 			priv->ops.fill_desc = fill_v2_desc;
 			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;

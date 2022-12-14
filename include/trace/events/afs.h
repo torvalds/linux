@@ -727,31 +727,31 @@ TRACE_EVENT(afs_cb_call,
 	    );
 
 TRACE_EVENT(afs_call,
-	    TP_PROTO(struct afs_call *call, enum afs_call_trace op,
-		     int usage, int outstanding, const void *where),
+	    TP_PROTO(unsigned int call_debug_id, enum afs_call_trace op,
+		     int ref, int outstanding, const void *where),
 
-	    TP_ARGS(call, op, usage, outstanding, where),
+	    TP_ARGS(call_debug_id, op, ref, outstanding, where),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
 		    __field(int,			op		)
-		    __field(int,			usage		)
+		    __field(int,			ref		)
 		    __field(int,			outstanding	)
 		    __field(const void *,		where		)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call->debug_id;
+		    __entry->call = call_debug_id;
 		    __entry->op = op;
-		    __entry->usage = usage;
+		    __entry->ref = ref;
 		    __entry->outstanding = outstanding;
 		    __entry->where = where;
 			   ),
 
-	    TP_printk("c=%08x %s u=%d o=%d sp=%pSR",
+	    TP_printk("c=%08x %s r=%d o=%d sp=%pSR",
 		      __entry->call,
 		      __print_symbolic(__entry->op, afs_call_traces),
-		      __entry->usage,
+		      __entry->ref,
 		      __entry->outstanding,
 		      __entry->where)
 	    );
@@ -1433,10 +1433,10 @@ TRACE_EVENT(afs_cb_miss,
 	    );
 
 TRACE_EVENT(afs_server,
-	    TP_PROTO(struct afs_server *server, int ref, int active,
+	    TP_PROTO(unsigned int server_debug_id, int ref, int active,
 		     enum afs_server_trace reason),
 
-	    TP_ARGS(server, ref, active, reason),
+	    TP_ARGS(server_debug_id, ref, active, reason),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		server		)
@@ -1446,7 +1446,7 @@ TRACE_EVENT(afs_server,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->server = server->debug_id;
+		    __entry->server = server_debug_id;
 		    __entry->ref = ref;
 		    __entry->active = active;
 		    __entry->reason = reason;
@@ -1476,36 +1476,36 @@ TRACE_EVENT(afs_volume,
 		    __entry->reason = reason;
 			   ),
 
-	    TP_printk("V=%llx %s u=%d",
+	    TP_printk("V=%llx %s ur=%d",
 		      __entry->vid,
 		      __print_symbolic(__entry->reason, afs_volume_traces),
 		      __entry->ref)
 	    );
 
 TRACE_EVENT(afs_cell,
-	    TP_PROTO(unsigned int cell_debug_id, int usage, int active,
+	    TP_PROTO(unsigned int cell_debug_id, int ref, int active,
 		     enum afs_cell_trace reason),
 
-	    TP_ARGS(cell_debug_id, usage, active, reason),
+	    TP_ARGS(cell_debug_id, ref, active, reason),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		cell		)
-		    __field(int,			usage		)
+		    __field(int,			ref		)
 		    __field(int,			active		)
 		    __field(int,			reason		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->cell = cell_debug_id;
-		    __entry->usage = usage;
+		    __entry->ref = ref;
 		    __entry->active = active;
 		    __entry->reason = reason;
 			   ),
 
-	    TP_printk("L=%08x %s u=%d a=%d",
+	    TP_printk("L=%08x %s r=%d a=%d",
 		      __entry->cell,
 		      __print_symbolic(__entry->reason, afs_cell_traces),
-		      __entry->usage,
+		      __entry->ref,
 		      __entry->active)
 	    );
 

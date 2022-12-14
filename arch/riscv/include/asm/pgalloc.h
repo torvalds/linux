@@ -59,6 +59,26 @@ static inline void p4d_populate_safe(struct mm_struct *mm, p4d_t *p4d,
 	}
 }
 
+static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, p4d_t *p4d)
+{
+	if (pgtable_l5_enabled) {
+		unsigned long pfn = virt_to_pfn(p4d);
+
+		set_pgd(pgd, __pgd((pfn << _PAGE_PFN_SHIFT) | _PAGE_TABLE));
+	}
+}
+
+static inline void pgd_populate_safe(struct mm_struct *mm, pgd_t *pgd,
+				     p4d_t *p4d)
+{
+	if (pgtable_l5_enabled) {
+		unsigned long pfn = virt_to_pfn(p4d);
+
+		set_pgd_safe(pgd,
+			     __pgd((pfn << _PAGE_PFN_SHIFT) | _PAGE_TABLE));
+	}
+}
+
 #define pud_alloc_one pud_alloc_one
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
@@ -76,7 +96,43 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 }
 
 #define __pud_free_tlb(tlb, pud, addr)  pud_free((tlb)->mm, pud)
+
+#define p4d_alloc_one p4d_alloc_one
+static inline p4d_t *p4d_alloc_one(struct mm_struct *mm, unsigned long addr)
+{
+	if (pgtable_l5_enabled) {
+		gfp_t gfp = GFP_PGTABLE_USER;
+
+		if (mm == &init_mm)
+			gfp = GFP_PGTABLE_KERNEL;
+		return (p4d_t *)get_zeroed_page(gfp);
+	}
+
+	return NULL;
+}
+
+static inline void __p4d_free(struct mm_struct *mm, p4d_t *p4d)
+{
+	BUG_ON((unsigned long)p4d & (PAGE_SIZE-1));
+	free_page((unsigned long)p4d);
+}
+
+#define p4d_free p4d_free
+static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
+{
+	if (pgtable_l5_enabled)
+		__p4d_free(mm, p4d);
+}
+
+#define __p4d_free_tlb(tlb, p4d, addr)  p4d_free((tlb)->mm, p4d)
 #endif /* __PAGETABLE_PMD_FOLDED */
+
+static inline void sync_kernel_mappings(pgd_t *pgd)
+{
+	memcpy(pgd + USER_PTRS_PER_PGD,
+	       init_mm.pgd + USER_PTRS_PER_PGD,
+	       (PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
+}
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
@@ -86,9 +142,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	if (likely(pgd != NULL)) {
 		memset(pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));
 		/* Copy kernel mappings */
-		memcpy(pgd + USER_PTRS_PER_PGD,
-			init_mm.pgd + USER_PTRS_PER_PGD,
-			(PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
+		sync_kernel_mappings(pgd);
 	}
 	return pgd;
 }

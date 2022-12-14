@@ -409,9 +409,11 @@ static u32 navi10_ih_get_wptr(struct amdgpu_device *adev,
 	u32 wptr, tmp;
 	struct amdgpu_ih_regs *ih_regs;
 
-	if (ih == &adev->irq.ih) {
+	if (ih == &adev->irq.ih || ih == &adev->irq.ih_soft) {
 		/* Only ring0 supports writeback. On other rings fall back
 		 * to register-based code with overflow checking below.
+		 * ih_soft ring doesn't have any backing hardware registers,
+		 * update wptr and return.
 		 */
 		wptr = le32_to_cpu(*ih->wptr_cpu);
 
@@ -482,6 +484,9 @@ static void navi10_ih_set_rptr(struct amdgpu_device *adev,
 			       struct amdgpu_ih_ring *ih)
 {
 	struct amdgpu_ih_regs *ih_regs;
+
+	if (ih == &adev->irq.ih_soft)
+		return;
 
 	if (ih->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
@@ -593,14 +598,9 @@ static int navi10_ih_sw_fini(void *handle)
 
 static int navi10_ih_hw_init(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = navi10_ih_irq_init(adev);
-	if (r)
-		return r;
-
-	return 0;
+	return navi10_ih_irq_init(adev);
 }
 
 static int navi10_ih_hw_fini(void *handle)
@@ -685,7 +685,7 @@ static int navi10_ih_set_powergating_state(void *handle,
 	return 0;
 }
 
-static void navi10_ih_get_clockgating_state(void *handle, u32 *flags)
+static void navi10_ih_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 

@@ -969,7 +969,7 @@ static int spear_smi_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_ATOMIC);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;
@@ -1045,13 +1045,9 @@ static int spear_smi_remove(struct platform_device *pdev)
 {
 	struct spear_smi *dev;
 	struct spear_snor_flash *flash;
-	int ret, i;
+	int i;
 
 	dev = platform_get_drvdata(pdev);
-	if (!dev) {
-		dev_err(&pdev->dev, "dev is null\n");
-		return -ENODEV;
-	}
 
 	/* clean up for all nor flash */
 	for (i = 0; i < dev->num_flashes; i++) {
@@ -1060,9 +1056,7 @@ static int spear_smi_remove(struct platform_device *pdev)
 			continue;
 
 		/* clean up mtd stuff */
-		ret = mtd_device_unregister(&flash->mtd);
-		if (ret)
-			dev_err(&pdev->dev, "error removing mtd\n");
+		WARN_ON(mtd_device_unregister(&flash->mtd));
 	}
 
 	clk_disable_unprepare(dev->clk);

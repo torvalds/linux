@@ -50,17 +50,12 @@ void test_ringbuf_multi(void)
 	if (CHECK(!skel, "skel_open", "skeleton open failed\n"))
 		return;
 
-	err = bpf_map__set_max_entries(skel->maps.ringbuf1, page_size);
-	if (CHECK(err != 0, "bpf_map__set_max_entries", "bpf_map__set_max_entries failed\n"))
-		goto cleanup;
-
-	err = bpf_map__set_max_entries(skel->maps.ringbuf2, page_size);
-	if (CHECK(err != 0, "bpf_map__set_max_entries", "bpf_map__set_max_entries failed\n"))
-		goto cleanup;
-
-	err = bpf_map__set_max_entries(bpf_map__inner_map(skel->maps.ringbuf_arr), page_size);
-	if (CHECK(err != 0, "bpf_map__set_max_entries", "bpf_map__set_max_entries failed\n"))
-		goto cleanup;
+	/* validate ringbuf size adjustment logic */
+	ASSERT_EQ(bpf_map__max_entries(skel->maps.ringbuf1), page_size, "rb1_size_before");
+	ASSERT_OK(bpf_map__set_max_entries(skel->maps.ringbuf1, page_size + 1), "rb1_resize");
+	ASSERT_EQ(bpf_map__max_entries(skel->maps.ringbuf1), 2 * page_size, "rb1_size_after");
+	ASSERT_OK(bpf_map__set_max_entries(skel->maps.ringbuf1, page_size), "rb1_reset");
+	ASSERT_EQ(bpf_map__max_entries(skel->maps.ringbuf1), page_size, "rb1_size_final");
 
 	proto_fd = bpf_map_create(BPF_MAP_TYPE_RINGBUF, NULL, 0, 0, page_size, NULL);
 	if (CHECK(proto_fd < 0, "bpf_map_create", "bpf_map_create failed\n"))
@@ -76,6 +71,10 @@ void test_ringbuf_multi(void)
 
 	close(proto_fd);
 	proto_fd = -1;
+
+	/* make sure we can't resize ringbuf after object load */
+	if (!ASSERT_ERR(bpf_map__set_max_entries(skel->maps.ringbuf1, 3 * page_size), "rb1_resize_after_load"))
+		goto cleanup;
 
 	/* only trigger BPF program for current process */
 	skel->bss->pid = getpid();

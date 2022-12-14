@@ -8,8 +8,8 @@
 /*
  * PF<->VF Gen2 Messaging format
  *
- * The PF has an array of 32-bit PF2VF registers, one for each VF.  The
- * PF can access all these registers; each VF can access only the one
+ * The PF has an array of 32-bit PF2VF registers, one for each VF. The
+ * PF can access all these registers while each VF can access only the one
  * register associated with that particular VF.
  *
  * The register functionally is split into two parts:

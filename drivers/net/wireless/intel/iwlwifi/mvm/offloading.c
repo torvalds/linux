@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2021-2022 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
@@ -47,8 +47,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 	struct iwl_proto_offload_cmd_common *common;
 	u32 enabled = 0, size;
 	u32 capa_flags = mvm->fw->ucode_capa.flags;
-	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					PROT_OFFLOAD_CONFIG_CMD, 0);
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, hcmd.id, 0);
 
 #if IS_ENABLED(CONFIG_IPV6)
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -193,9 +192,9 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 		size = sizeof(cmd.v1);
 	}
 
-	if (vif->bss_conf.arp_addr_cnt) {
+	if (vif->cfg.arp_addr_cnt) {
 		enabled |= IWL_D3_PROTO_OFFLOAD_ARP | IWL_D3_PROTO_IPV4_VALID;
-		common->host_ipv4_addr = vif->bss_conf.arp_addr_list[0];
+		common->host_ipv4_addr = vif->cfg.arp_addr_list[0];
 		memcpy(common->arp_mac_addr, vif->addr, ETH_ALEN);
 	}
 

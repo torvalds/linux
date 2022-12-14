@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #ifndef __iwl_fw_dbg_tlv_h__
 #define __iwl_fw_dbg_tlv_h__
@@ -11,7 +11,8 @@
 #define IWL_FW_INI_MAX_NAME			32
 #define IWL_FW_INI_MAX_CFG_NAME			64
 #define IWL_FW_INI_DOMAIN_ALWAYS_ON		0
-#define IWL_FW_INI_REGION_V2_MASK		0x0000FFFF
+#define IWL_FW_INI_REGION_ID_MASK		GENMASK(15, 0)
+#define IWL_FW_INI_REGION_DUMP_POLICY_MASK	GENMASK(31, 16)
 
 /**
  * struct iwl_fw_ini_hcmd
@@ -25,7 +26,7 @@ struct iwl_fw_ini_hcmd {
 	u8 id;
 	u8 group;
 	__le16 reserved;
-	u8 data[0];
+	u8 data[];
 } __packed; /* FW_DEBUG_TLV_HCMD_DATA_API_S_VER_1 */
 
 /**
@@ -249,11 +250,10 @@ struct iwl_fw_ini_hcmd_tlv {
 } __packed; /* FW_TLV_DEBUG_HCMD_API_S_VER_1 */
 
 /**
-* struct iwl_fw_ini_conf_tlv - preset configuration TLV
+* struct iwl_fw_ini_addr_val - Address and value to set it to
 *
 * @address: the base address
 * @value: value to set at address
-
 */
 struct iwl_fw_ini_addr_val {
 	__le32 address;
@@ -275,7 +275,7 @@ struct iwl_fw_ini_conf_set_tlv {
 	__le32 time_point;
 	__le32 set_type;
 	__le32 addr_offset;
-	struct iwl_fw_ini_addr_val addr_val[0];
+	struct iwl_fw_ini_addr_val addr_val[];
 } __packed; /* FW_TLV_DEBUG_CONFIG_SET_API_S_VER_1 */
 
 /**
@@ -475,6 +475,7 @@ enum iwl_fw_ini_time_point {
  * @IWL_FW_INI_APPLY_POLICY_OVERRIDE_CFG: override trigger configuration
  * @IWL_FW_INI_APPLY_POLICY_OVERRIDE_DATA: override trigger data.
  *	Append otherwise
+ * @IWL_FW_INI_APPLY_POLICY_DUMP_COMPLETE_CMD: send cmd once dump collected
  */
 enum iwl_fw_ini_trigger_apply_policy {
 	IWL_FW_INI_APPLY_POLICY_MATCH_TIME_POINT	= BIT(0),
@@ -482,6 +483,7 @@ enum iwl_fw_ini_trigger_apply_policy {
 	IWL_FW_INI_APPLY_POLICY_OVERRIDE_REGIONS	= BIT(8),
 	IWL_FW_INI_APPLY_POLICY_OVERRIDE_CFG		= BIT(9),
 	IWL_FW_INI_APPLY_POLICY_OVERRIDE_DATA		= BIT(10),
+	IWL_FW_INI_APPLY_POLICY_DUMP_COMPLETE_CMD	= BIT(16),
 };
 
 /**
@@ -495,5 +497,32 @@ enum iwl_fw_ini_trigger_reset_fw_policy {
 	IWL_FW_INI_RESET_FW_MODE_NOTHING = 0,
 	IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY,
 	IWL_FW_INI_RESET_FW_MODE_STOP_AND_RELOAD_FW
+};
+
+/**
+ * enum iwl_fw_ini_dump_policy - Determines how to handle dump based on enabled flags
+ *
+ * @IWL_FW_INI_DEBUG_DUMP_POLICY_NO_LIMIT: OS has no limit of dump size
+ * @IWL_FW_INI_DEBUG_DUMP_POLICY_MAX_LIMIT_600KB: mini dump only 600KB region dump
+ * @IWL_FW_IWL_DEBUG_DUMP_POLICY_MAX_LIMIT_5MB: mini dump 5MB size dump
+ */
+enum iwl_fw_ini_dump_policy {
+	IWL_FW_INI_DEBUG_DUMP_POLICY_NO_LIMIT           = BIT(0),
+	IWL_FW_INI_DEBUG_DUMP_POLICY_MAX_LIMIT_600KB    = BIT(1),
+	IWL_FW_IWL_DEBUG_DUMP_POLICY_MAX_LIMIT_5MB      = BIT(2),
+
+};
+
+/**
+ * enum iwl_fw_ini_dump_type - Determines dump type based on size defined by FW.
+ *
+ * @IWL_FW_INI_DUMP_BRIEF : only dump the most important regions
+ * @IWL_FW_INI_DEBUG_MEDIUM: dump more regions than "brief", but not all regions
+ * @IWL_FW_INI_DUMP_VERBOSE : dump all regions
+ */
+enum iwl_fw_ini_dump_type {
+	IWL_FW_INI_DUMP_BRIEF,
+	IWL_FW_INI_DUMP_MEDIUM,
+	IWL_FW_INI_DUMP_VERBOSE,
 };
 #endif

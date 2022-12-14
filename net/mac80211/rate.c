@@ -4,6 +4,7 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright (c) 2006 Jiri Benc <jbenc@suse.cz>
  * Copyright 2017	Intel Deutschland GmbH
+ * Copyright (C) 2022 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -36,14 +37,14 @@ void rate_control_rate_init(struct sta_info *sta)
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
-	ieee80211_sta_set_rx_nss(sta);
+	ieee80211_sta_set_rx_nss(&sta->deflink);
 
 	if (!ref)
 		return;
 
 	rcu_read_lock();
 
-	chanctx_conf = rcu_dereference(sta->sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sta->sdata->vif.bss_conf.chanctx_conf);
 	if (WARN_ON(!chanctx_conf)) {
 		rcu_read_unlock();
 		return;
@@ -67,15 +68,17 @@ void rate_control_rate_init(struct sta_info *sta)
 }
 
 void rate_control_tx_status(struct ieee80211_local *local,
-			    struct ieee80211_supported_band *sband,
 			    struct ieee80211_tx_status *st)
 {
 	struct rate_control_ref *ref = local->rate_ctrl;
 	struct sta_info *sta = container_of(st->sta, struct sta_info, sta);
 	void *priv_sta = sta->rate_ctrl_priv;
+	struct ieee80211_supported_band *sband;
 
 	if (!ref || !test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
 		return;
+
+	sband = local->hw.wiphy->bands[st->info->band];
 
 	spin_lock_bh(&sta->rate_ctrl_lock);
 	if (ref->ops->tx_status_ext)
@@ -89,18 +92,21 @@ void rate_control_tx_status(struct ieee80211_local *local,
 }
 
 void rate_control_rate_update(struct ieee80211_local *local,
-				    struct ieee80211_supported_band *sband,
-				    struct sta_info *sta, u32 changed)
+			      struct ieee80211_supported_band *sband,
+			      struct sta_info *sta, unsigned int link_id,
+			      u32 changed)
 {
 	struct rate_control_ref *ref = local->rate_ctrl;
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
+	WARN_ON(link_id != 0);
+
 	if (ref && ref->ops->rate_update) {
 		rcu_read_lock();
 
-		chanctx_conf = rcu_dereference(sta->sdata->vif.chanctx_conf);
+		chanctx_conf = rcu_dereference(sta->sdata->vif.bss_conf.chanctx_conf);
 		if (WARN_ON(!chanctx_conf)) {
 			rcu_read_unlock();
 			return;
@@ -112,6 +118,7 @@ void rate_control_rate_update(struct ieee80211_local *local,
 		spin_unlock_bh(&sta->rate_ctrl_lock);
 		rcu_read_unlock();
 	}
+
 	drv_sta_rc_update(local, sta->sdata, &sta->sta, changed);
 }
 
@@ -263,17 +270,18 @@ static void rate_control_free(struct ieee80211_local *local,
 	kfree(ctrl_ref);
 }
 
-void ieee80211_check_rate_mask(struct ieee80211_sub_if_data *sdata)
+void ieee80211_check_rate_mask(struct ieee80211_link_data *link)
 {
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
-	u32 user_mask, basic_rates = sdata->vif.bss_conf.basic_rates;
+	u32 user_mask, basic_rates = link->conf->basic_rates;
 	enum nl80211_band band;
 
-	if (WARN_ON(!sdata->vif.bss_conf.chandef.chan))
+	if (WARN_ON(!link->conf->chandef.chan))
 		return;
 
-	band = sdata->vif.bss_conf.chandef.chan->band;
+	band = link->conf->chandef.chan->band;
 	if (band == NL80211_BAND_S1GHZ) {
 		/* TODO */
 		return;
@@ -371,7 +379,7 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 	WARN_ONCE(i == sband->n_bitrates,
 		  "no supported rates for sta %pM (0x%x, band %d) in rate_mask 0x%x with flags 0x%x\n",
 		  sta ? sta->addr : NULL,
-		  sta ? sta->supp_rates[sband->band] : -1,
+		  sta ? sta->deflink.supp_rates[sband->band] : -1,
 		  sband->band,
 		  rate_mask, rate_flags);
 
@@ -781,11 +789,11 @@ static bool rate_control_cap_mask(struct ieee80211_sub_if_data *sdata,
 		u16 sta_vht_mask[NL80211_VHT_NSS_MAX];
 
 		/* Filter out rates that the STA does not support */
-		*mask &= sta->supp_rates[sband->band];
+		*mask &= sta->deflink.supp_rates[sband->band];
 		for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++)
-			mcs_mask[i] &= sta->ht_cap.mcs.rx_mask[i];
+			mcs_mask[i] &= sta->deflink.ht_cap.mcs.rx_mask[i];
 
-		sta_vht_cap = sta->vht_cap.vht_mcs.rx_mcs_map;
+		sta_vht_cap = sta->deflink.vht_cap.vht_mcs.rx_mcs_map;
 		ieee80211_get_vht_mask_from_cap(sta_vht_cap, sta_vht_mask);
 		for (i = 0; i < NL80211_VHT_NSS_MAX; i++)
 			vht_mask[i] &= sta_vht_mask[i];

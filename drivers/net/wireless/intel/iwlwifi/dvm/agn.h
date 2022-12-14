@@ -92,7 +92,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed);
 void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *bss_conf,
-			     u32 changes);
+			     u64 changes);
 void iwlagn_config_ht40(struct ieee80211_conf *conf,
 			struct iwl_rxon_context *ctx);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf);
@@ -112,7 +112,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 			      enum iwl_ucode_type ucode_type);
 int iwl_send_calib_results(struct iwl_priv *priv);
 int iwl_calib_set(struct iwl_priv *priv,
-		  const struct iwl_calib_hdr *cmd, int len);
+		  const struct iwl_calib_cmd *cmd, size_t len);
 void iwl_calib_free_results(struct iwl_priv *priv);
 int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 			    char **buf);

@@ -8,7 +8,6 @@
 #include <linux/kernel.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
-#include <asm/asm-prototypes.h>
 
 /*
  * We're called here very early in the boot.

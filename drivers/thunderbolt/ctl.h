@@ -35,7 +35,7 @@ struct tb_cfg_result {
 			    * If err = 1 then this is the port that send the
 			    * error.
 			    * If err = 0 and if this was a cfg_read/write then
-			    * this is the the upstream port of the responding
+			    * this is the upstream port of the responding
 			    * switch.
 			    * Otherwise the field is set to zero.
 			    */

@@ -30,7 +30,21 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Retired Instructions who experienced decode stream buffer (DSB - the decoded instruction-cache) miss.",
+        "BriefDescription": "Retired Instructions who experienced DSB miss.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3",
+        "EventCode": "0xC6",
+        "EventName": "FRONTEND_RETIRED.ANY_DSB_MISS",
+        "MSRIndex": "0x3F7",
+        "MSRValue": "0x1",
+        "PEBS": "1",
+        "PublicDescription": "Counts retired Instructions that experienced DSB (Decode stream buffer i.e. the decoded instruction-cache) miss.",
+        "SampleAfterValue": "100007",
+        "TakenAlone": "1",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Retired Instructions who experienced a critical DSB miss.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "EventCode": "0xC6",
@@ -38,7 +52,7 @@
         "MSRIndex": "0x3F7",
         "MSRValue": "0x11",
         "PEBS": "1",
-        "PublicDescription": "Counts retired Instructions that experienced DSB (Decode stream buffer i.e. the decoded instruction-cache) miss.",
+        "PublicDescription": "Number of retired Instructions that experienced a critical DSB (Decode stream buffer i.e. the decoded instruction-cache) miss. Critical means stalls were exposed to the back-end as a result of the DSB miss.",
         "SampleAfterValue": "100007",
         "TakenAlone": "1",
         "UMask": "0x1"

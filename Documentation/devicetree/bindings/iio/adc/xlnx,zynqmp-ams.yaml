@@ -92,6 +92,10 @@ properties:
     description: AMS Controller register space
     maxItems: 1
 
+  clocks:
+    items:
+      - description: AMS reference clock
+
   ranges:
     description:
       Maps the child address space for PS and/or PL.
@@ -130,6 +134,7 @@ properties:
 
   ams-pl@400:
     type: object
+    additionalProperties: false
     description:
       PL-SYSMON is capable of monitoring off chip voltage and temperature.
       PL-SYSMON block has DRP, JTAG and I2C interface to enable monitoring
@@ -181,12 +186,15 @@ properties:
 required:
   - compatible
   - reg
+  - clocks
   - ranges
 
 additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
+
     bus {
         #address-cells = <2>;
         #size-cells = <2>;
@@ -196,6 +204,7 @@ examples:
             interrupt-parent = <&gic>;
             interrupts = <0 56 4>;
             reg = <0x0 0xffa50000 0x0 0x800>;
+            clocks = <&zynqmp_clk AMS_REF>;
             #address-cells = <1>;
             #size-cells = <1>;
             #io-channel-cells = <1>;

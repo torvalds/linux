@@ -42,8 +42,42 @@ struct snd_kcontrol *snd_soc_card_get_kcontrol(struct snd_soc_card *soc_card,
 }
 EXPORT_SYMBOL_GPL(snd_soc_card_get_kcontrol);
 
+static int jack_new(struct snd_soc_card *card, const char *id, int type,
+		    struct snd_soc_jack *jack, bool initial_kctl)
+{
+	mutex_init(&jack->mutex);
+	jack->card = card;
+	INIT_LIST_HEAD(&jack->pins);
+	INIT_LIST_HEAD(&jack->jack_zones);
+	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
+
+	return snd_jack_new(card->snd_card, id, type, &jack->jack, initial_kctl, false);
+}
+
 /**
- * snd_soc_card_jack_new - Create a new jack
+ * snd_soc_card_jack_new - Create a new jack without pins
+ * @card:  ASoC card
+ * @id:    an identifying string for this jack
+ * @type:  a bitmask of enum snd_jack_type values that can be detected by
+ *         this jack
+ * @jack:  structure to use for the jack
+ *
+ * Creates a new jack object without pins. If adding pins later,
+ * snd_soc_card_jack_new_pins() should be used instead with 0 as num_pins
+ * argument.
+ *
+ * Returns zero if successful, or a negative error code on failure.
+ * On success jack will be initialised.
+ */
+int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
+			  struct snd_soc_jack *jack)
+{
+	return soc_card_ret(card, jack_new(card, id, type, jack, true));
+}
+EXPORT_SYMBOL_GPL(snd_soc_card_jack_new);
+
+/**
+ * snd_soc_card_jack_new_pins - Create a new jack with pins
  * @card:  ASoC card
  * @id:    an identifying string for this jack
  * @type:  a bitmask of enum snd_jack_type values that can be detected by
@@ -52,24 +86,20 @@ EXPORT_SYMBOL_GPL(snd_soc_card_get_kcontrol);
  * @pins:  Array of jack pins to be added to the jack or NULL
  * @num_pins: Number of elements in the @pins array
  *
- * Creates a new jack object.
+ * Creates a new jack object with pins. If not adding pins,
+ * snd_soc_card_jack_new() should be used instead.
  *
  * Returns zero if successful, or a negative error code on failure.
  * On success jack will be initialised.
  */
-int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
-			  struct snd_soc_jack *jack,
-			  struct snd_soc_jack_pin *pins, unsigned int num_pins)
+int snd_soc_card_jack_new_pins(struct snd_soc_card *card, const char *id,
+			       int type, struct snd_soc_jack *jack,
+			       struct snd_soc_jack_pin *pins,
+			       unsigned int num_pins)
 {
 	int ret;
 
-	mutex_init(&jack->mutex);
-	jack->card = card;
-	INIT_LIST_HEAD(&jack->pins);
-	INIT_LIST_HEAD(&jack->jack_zones);
-	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
-
-	ret = snd_jack_new(card->snd_card, id, type, &jack->jack, false, false);
+	ret = jack_new(card, id, type, jack, false);
 	if (ret)
 		goto end;
 
@@ -78,7 +108,7 @@ int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
 end:
 	return soc_card_ret(card, ret);
 }
-EXPORT_SYMBOL_GPL(snd_soc_card_jack_new);
+EXPORT_SYMBOL_GPL(snd_soc_card_jack_new_pins);
 
 int snd_soc_card_suspend_pre(struct snd_soc_card *card)
 {
@@ -165,6 +195,12 @@ int snd_soc_card_late_probe(struct snd_soc_card *card)
 	card->probed = 1;
 
 	return 0;
+}
+
+void snd_soc_card_fixup_controls(struct snd_soc_card *card)
+{
+	if (card->fixup_controls)
+		card->fixup_controls(card);
 }
 
 int snd_soc_card_remove(struct snd_soc_card *card)

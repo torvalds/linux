@@ -130,7 +130,7 @@ static struct attribute *generic_compat_events_attr[] = {
 	NULL
 };
 
-static struct attribute_group generic_compat_pmu_events_group = {
+static const struct attribute_group generic_compat_pmu_events_group = {
 	.name = "events",
 	.attrs = generic_compat_events_attr,
 };
@@ -146,14 +146,24 @@ static struct attribute *generic_compat_pmu_format_attr[] = {
 	NULL,
 };
 
-static struct attribute_group generic_compat_pmu_format_group = {
+static const struct attribute_group generic_compat_pmu_format_group = {
 	.name = "format",
 	.attrs = generic_compat_pmu_format_attr,
+};
+
+static struct attribute *generic_compat_pmu_caps_attrs[] = {
+	NULL
+};
+
+static struct attribute_group generic_compat_pmu_caps_group = {
+	.name  = "caps",
+	.attrs = generic_compat_pmu_caps_attrs,
 };
 
 static const struct attribute_group *generic_compat_pmu_attr_groups[] = {
 	&generic_compat_pmu_format_group,
 	&generic_compat_pmu_events_group,
+	&generic_compat_pmu_caps_group,
 	NULL,
 };
 
@@ -292,7 +302,7 @@ static int generic_compute_mmcr(u64 event[], int n_ev,
 }
 
 static struct power_pmu generic_compat_pmu = {
-	.name			= "GENERIC_COMPAT",
+	.name			= "ISAv3",
 	.n_counter		= MAX_PMU_COUNTERS,
 	.add_fields		= ISA207_ADD_FIELDS,
 	.test_adder		= ISA207_TEST_ADDER,

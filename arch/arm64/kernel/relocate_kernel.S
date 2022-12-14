@@ -37,6 +37,15 @@
  * safe memory that has been set up to be preserved during the copy operation.
  */
 SYM_CODE_START(arm64_relocate_new_kernel)
+	/*
+	 * The kimage structure isn't allocated specially and may be clobbered
+	 * during relocation. We must load any values we need from it prior to
+	 * any relocation occurring.
+	 */
+	ldr	x28, [x0, #KIMAGE_START]
+	ldr	x27, [x0, #KIMAGE_ARCH_EL2_VECTORS]
+	ldr	x26, [x0, #KIMAGE_ARCH_DTB_MEM]
+
 	/* Setup the list loop variables. */
 	ldr	x18, [x0, #KIMAGE_ARCH_ZERO_PAGE] /* x18 = zero page for BBM */
 	ldr	x17, [x0, #KIMAGE_ARCH_TTBR1]	/* x17 = linear map copy */
@@ -72,21 +81,20 @@ SYM_CODE_START(arm64_relocate_new_kernel)
 	ic	iallu
 	dsb	nsh
 	isb
-	ldr	x4, [x0, #KIMAGE_START]			/* relocation start */
-	ldr	x1, [x0, #KIMAGE_ARCH_EL2_VECTORS]	/* relocation start */
-	ldr	x0, [x0, #KIMAGE_ARCH_DTB_MEM]		/* dtb address */
 	turn_off_mmu x12, x13
 
 	/* Start new image. */
-	cbz	x1, .Lel1
-	mov	x1, x4				/* relocation start */
-	mov	x2, x0				/* dtb address */
+	cbz	x27, .Lel1
+	mov	x1, x28				/* kernel entry point */
+	mov	x2, x26				/* dtb address */
 	mov	x3, xzr
 	mov	x4, xzr
 	mov     x0, #HVC_SOFT_RESTART
 	hvc	#0				/* Jumps from el2 */
 .Lel1:
+	mov	x0, x26				/* dtb address */
+	mov	x1, xzr
 	mov	x2, xzr
 	mov	x3, xzr
-	br	x4				/* Jumps from el1 */
+	br	x28				/* Jumps from el1 */
 SYM_CODE_END(arm64_relocate_new_kernel)

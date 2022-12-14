@@ -29,6 +29,7 @@
 #include <linux/list.h>
 
 struct backlight_device;
+struct dentry;
 struct device_node;
 struct drm_connector;
 struct drm_device;
@@ -116,6 +117,15 @@ struct drm_panel_funcs {
 			 struct drm_connector *connector);
 
 	/**
+	 * @get_orientation:
+	 *
+	 * Return the panel orientation set by device tree or EDID.
+	 *
+	 * This function is optional.
+	 */
+	enum drm_panel_orientation (*get_orientation)(struct drm_panel *panel);
+
+	/**
 	 * @get_timings:
 	 *
 	 * Copy display timings into the provided array and return
@@ -125,6 +135,13 @@ struct drm_panel_funcs {
 	 */
 	int (*get_timings)(struct drm_panel *panel, unsigned int num_timings,
 			   struct display_timing *timings);
+
+	/**
+	 * @debugfs_init:
+	 *
+	 * Allows panels to create panels-specific debugfs files.
+	 */
+	void (*debugfs_init)(struct drm_panel *panel, struct dentry *root);
 };
 
 /**

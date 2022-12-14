@@ -2,6 +2,7 @@
 menuconfig ARCH_CNS3XXX
 	bool "Cavium Networks CNS3XXX family"
 	depends on ARCH_MULTI_V6
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select ARM_GIC
 	help
 	  Support for Cavium Networks CNS3XXX platform.

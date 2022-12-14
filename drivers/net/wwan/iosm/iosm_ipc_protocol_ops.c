@@ -372,8 +372,6 @@ bool ipc_protocol_dl_td_prepare(struct iosm_protocol *ipc_protocol,
 struct sk_buff *ipc_protocol_dl_td_process(struct iosm_protocol *ipc_protocol,
 					   struct ipc_pipe *pipe)
 {
-	u32 tail =
-		le32_to_cpu(ipc_protocol->p_ap_shm->tail_array[pipe->pipe_nr]);
 	struct ipc_protocol_td *p_td;
 	struct sk_buff *skb;
 
@@ -398,14 +396,6 @@ struct sk_buff *ipc_protocol_dl_td_process(struct iosm_protocol *ipc_protocol,
 		goto ret;
 	} else if (!p_td->buffer.address) {
 		dev_err(ipc_protocol->dev, "td/buffer address is null");
-		ipc_pcie_kfree_skb(ipc_protocol->pcie, skb);
-		skb = NULL;
-		goto ret;
-	}
-
-	if (!IPC_CB(skb)) {
-		dev_err(ipc_protocol->dev, "pipe# %d, tail: %d skb_cb is NULL",
-			pipe->pipe_nr, tail);
 		ipc_pcie_kfree_skb(ipc_protocol->pcie, skb);
 		skb = NULL;
 		goto ret;

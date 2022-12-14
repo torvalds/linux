@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/nxp,dwmac-imx.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NXP i.MX8 DWMAC glue layer Device Tree Bindings
+title: NXP i.MX8 DWMAC glue layer
 
 maintainers:
   - Joakim Zhang <qiangqing.zhang@nxp.com>
@@ -54,6 +54,10 @@ properties:
 
   intf_mode:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to the GPR syscon
+          - description: the offset of the GPR register
     description:
       Should be phandle/offset pair. The phandle to the syscon node which
       encompases the GPR register, and the offset of the GPR register.

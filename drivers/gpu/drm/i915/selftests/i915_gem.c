@@ -6,9 +6,10 @@
 
 #include <linux/random.h>
 
+#include "gem/i915_gem_internal.h"
+#include "gem/i915_gem_pm.h"
 #include "gem/selftests/igt_gem_utils.h"
 #include "gem/selftests/mock_context.h"
-#include "gem/i915_gem_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 
@@ -41,7 +42,7 @@ static int switch_to_context(struct i915_gem_context *ctx)
 
 static void trash_stolen(struct drm_i915_private *i915)
 {
-	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	const u64 slot = ggtt->error_capture.start;
 	const resource_size_t size = resource_size(&i915->dsm);
 	unsigned long page;
@@ -99,7 +100,7 @@ static void igt_pm_suspend(struct drm_i915_private *i915)
 	intel_wakeref_t wakeref;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		i915_ggtt_suspend(&i915->ggtt);
+		i915_ggtt_suspend(to_gt(i915)->ggtt);
 		i915_gem_suspend_late(i915);
 	}
 }
@@ -109,7 +110,7 @@ static void igt_pm_hibernate(struct drm_i915_private *i915)
 	intel_wakeref_t wakeref;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		i915_ggtt_suspend(&i915->ggtt);
+		i915_ggtt_suspend(to_gt(i915)->ggtt);
 
 		i915_gem_freeze(i915);
 		i915_gem_freeze_late(i915);
@@ -125,7 +126,7 @@ static void igt_pm_resume(struct drm_i915_private *i915)
 	 * that runtime-pm just works.
 	 */
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		i915_ggtt_resume(&i915->ggtt);
+		i915_ggtt_resume(to_gt(i915)->ggtt);
 		i915_gem_resume(i915);
 	}
 }

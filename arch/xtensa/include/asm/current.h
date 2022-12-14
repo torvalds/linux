@@ -26,6 +26,8 @@ static inline struct task_struct *get_current(void)
 
 #define current get_current()
 
+register unsigned long current_stack_pointer __asm__("a1");
+
 #else
 
 #define GET_CURRENT(reg,sp)		\

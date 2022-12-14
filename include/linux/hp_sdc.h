@@ -180,7 +180,7 @@ switch (val) {						\
 
 #define HP_SDC_CMD_SET_IM	0x40    /* 010xxxxx == set irq mask */
 
-/* The documents provided do not explicitly state that all registers betweem 
+/* The documents provided do not explicitly state that all registers between
  * 0x01 and 0x1f inclusive can be read by sending their register index as a 
  * command, but this is implied and appears to be the case.
  */

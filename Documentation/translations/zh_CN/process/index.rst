@@ -10,6 +10,7 @@
 
 .. _cn_process_index:
 
+========================
 与Linux 内核社区一起工作
 ========================
 
@@ -40,7 +41,6 @@
 .. toctree::
    :maxdepth: 1
 
-   submitting-drivers
    submit-checklist
    stable-api-nonsense
    stable-kernel-rules

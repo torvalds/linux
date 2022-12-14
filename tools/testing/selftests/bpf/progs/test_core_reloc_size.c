@@ -15,13 +15,21 @@ struct {
 
 struct core_reloc_size_output {
 	int int_sz;
+	int int_off;
 	int struct_sz;
+	int struct_off;
 	int union_sz;
+	int union_off;
 	int arr_sz;
+	int arr_off;
 	int arr_elem_sz;
+	int arr_elem_off;
 	int ptr_sz;
+	int ptr_off;
 	int enum_sz;
+	int enum_off;
 	int float_sz;
+	int float_off;
 };
 
 struct core_reloc_size {
@@ -41,13 +49,28 @@ int test_core_size(void *ctx)
 	struct core_reloc_size_output *out = (void *)&data.out;
 
 	out->int_sz = bpf_core_field_size(in->int_field);
+	out->int_off = bpf_core_field_offset(in->int_field);
+
 	out->struct_sz = bpf_core_field_size(in->struct_field);
+	out->struct_off = bpf_core_field_offset(in->struct_field);
+
 	out->union_sz = bpf_core_field_size(in->union_field);
+	out->union_off = bpf_core_field_offset(in->union_field);
+
 	out->arr_sz = bpf_core_field_size(in->arr_field);
-	out->arr_elem_sz = bpf_core_field_size(in->arr_field[0]);
-	out->ptr_sz = bpf_core_field_size(in->ptr_field);
-	out->enum_sz = bpf_core_field_size(in->enum_field);
-	out->float_sz = bpf_core_field_size(in->float_field);
+	out->arr_off = bpf_core_field_offset(in->arr_field);
+
+	out->arr_elem_sz = bpf_core_field_size(struct core_reloc_size, arr_field[1]);
+	out->arr_elem_off = bpf_core_field_offset(struct core_reloc_size, arr_field[1]);
+
+	out->ptr_sz = bpf_core_field_size(struct core_reloc_size, ptr_field);
+	out->ptr_off = bpf_core_field_offset(struct core_reloc_size, ptr_field);
+
+	out->enum_sz = bpf_core_field_size(struct core_reloc_size, enum_field);
+	out->enum_off = bpf_core_field_offset(struct core_reloc_size, enum_field);
+
+	out->float_sz = bpf_core_field_size(struct core_reloc_size, float_field);
+	out->float_off = bpf_core_field_offset(struct core_reloc_size, float_field);
 
 	return 0;
 }

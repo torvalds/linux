@@ -37,5 +37,5 @@ Smaller things:
 
   https://lore.kernel.org/linux-mm/20210301083320.943079-1-hch@lst.de/
 
-- tasklet helpers in i915_gem.h also look a bit misplaced and should
+- tasklet helpers in i915_tasklet.h also look a bit misplaced and should
   probably be moved to tasklet headers.

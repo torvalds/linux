@@ -358,7 +358,7 @@ static void mps2_uart_shutdown(struct uart_port *port)
 
 static void
 mps2_uart_set_termios(struct uart_port *port, struct ktermios *termios,
-		      struct ktermios *old)
+		      const struct ktermios *old)
 {
 	unsigned long flags;
 	unsigned int baud, bauddiv;
@@ -432,7 +432,7 @@ static const struct uart_ops mps2_uart_pops = {
 static DEFINE_IDR(ports_idr);
 
 #ifdef CONFIG_SERIAL_MPS2_UART_CONSOLE
-static void mps2_uart_console_putchar(struct uart_port *port, int ch)
+static void mps2_uart_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	while (mps2_uart_read8(port, UARTn_STATE) & UARTn_STATE_TX_FULL)
 		cpu_relax();
@@ -484,7 +484,7 @@ static struct console mps2_uart_console = {
 
 #define MPS2_SERIAL_CONSOLE (&mps2_uart_console)
 
-static void mps2_early_putchar(struct uart_port *port, int ch)
+static void mps2_early_putchar(struct uart_port *port, unsigned char ch)
 {
 	while (readb(port->membase + UARTn_STATE) & UARTn_STATE_TX_FULL)
 		cpu_relax();

@@ -103,13 +103,6 @@
 #define FARADAY_PCI_DMA_MEM2_BASE	0x00000000
 #define FARADAY_PCI_DMA_MEM3_BASE	0x00000000
 
-/* Defines for PCI configuration command register */
-#define PCI_CONF_ENABLE		BIT(31)
-#define PCI_CONF_WHERE(r)	((r) & 0xFC)
-#define PCI_CONF_BUS(b)		(((b) & 0xFF) << 16)
-#define PCI_CONF_DEVICE(d)	(((d) & 0x1F) << 11)
-#define PCI_CONF_FUNCTION(f)	(((f) & 0x07) << 8)
-
 /**
  * struct faraday_pci_variant - encodes IP block differences
  * @cascaded_irq: this host has cascaded IRQs from an interrupt controller
@@ -190,11 +183,8 @@ static int faraday_raw_pci_read_config(struct faraday_pci *p, int bus_number,
 				       unsigned int fn, int config, int size,
 				       u32 *value)
 {
-	writel(PCI_CONF_BUS(bus_number) |
-			PCI_CONF_DEVICE(PCI_SLOT(fn)) |
-			PCI_CONF_FUNCTION(PCI_FUNC(fn)) |
-			PCI_CONF_WHERE(config) |
-			PCI_CONF_ENABLE,
+	writel(PCI_CONF1_ADDRESS(bus_number, PCI_SLOT(fn),
+				 PCI_FUNC(fn), config),
 			p->base + FTPCI_CONFIG);
 
 	*value = readl(p->base + FTPCI_DATA);
@@ -225,11 +215,8 @@ static int faraday_raw_pci_write_config(struct faraday_pci *p, int bus_number,
 {
 	int ret = PCIBIOS_SUCCESSFUL;
 
-	writel(PCI_CONF_BUS(bus_number) |
-			PCI_CONF_DEVICE(PCI_SLOT(fn)) |
-			PCI_CONF_FUNCTION(PCI_FUNC(fn)) |
-			PCI_CONF_WHERE(config) |
-			PCI_CONF_ENABLE,
+	writel(PCI_CONF1_ADDRESS(bus_number, PCI_SLOT(fn),
+				 PCI_FUNC(fn), config),
 			p->base + FTPCI_CONFIG);
 
 	switch (size) {

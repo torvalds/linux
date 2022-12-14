@@ -30,6 +30,14 @@
 #define VAS_COPY_PASTE_USER_MODE	0x00000001
 #define VAS_COP_OP_USER_MODE		0x00000010
 
+#define VAS_GZIP_QOS_CAPABILITIES	0x56516F73477A6970
+#define VAS_GZIP_DEFAULT_CAPABILITIES	0x56446566477A6970
+
+enum vas_migrate_action {
+	VAS_SUSPEND,
+	VAS_RESUME,
+};
+
 /*
  * Co-processor feature - GZIP QoS windows or GZIP default windows
  */
@@ -72,9 +80,8 @@ struct vas_cop_feat_caps {
 	};
 	/* Total LPAR available credits. Can be different from max LPAR */
 	/* credits due to DLPAR operation */
-	atomic_t	target_lpar_creds;
-	atomic_t	used_lpar_creds; /* Used credits so far */
-	u16		avail_lpar_creds; /* Remaining available credits */
+	atomic_t	nr_total_credits;	/* Total credits assigned to LPAR */
+	atomic_t	nr_used_credits;	/* Used credits so far */
 };
 
 /*
@@ -84,6 +91,9 @@ struct vas_cop_feat_caps {
 struct vas_caps {
 	struct vas_cop_feat_caps caps;
 	struct list_head list;	/* List of open windows */
+	int nr_close_wins;	/* closed windows in the hypervisor for DLPAR */
+	int nr_open_windows;	/* Number of successful open windows */
+	u8 feat;		/* Feature type */
 };
 
 /*
@@ -115,11 +125,31 @@ struct pseries_vas_window {
 	u64 domain[6];		/* Associativity domain Ids */
 				/* this window is allocated */
 	u64 util;
+	u32 pid;		/* PID associated with this window */
 
 	/* List of windows opened which is used for LPM */
 	struct list_head win_list;
 	u64 flags;
 	char *name;
 	int fault_virq;
+	atomic_t pending_faults; /* Number of pending faults */
 };
+
+int sysfs_add_vas_caps(struct vas_cop_feat_caps *caps);
+int vas_reconfig_capabilties(u8 type, int new_nr_creds);
+int __init sysfs_pseries_vas_init(struct vas_all_caps *vas_caps);
+
+#ifdef CONFIG_PPC_VAS
+int vas_migration_handler(int action);
+int pseries_vas_dlpar_cpu(void);
+#else
+static inline int vas_migration_handler(int action)
+{
+	return 0;
+}
+static inline int pseries_vas_dlpar_cpu(void)
+{
+	return 0;
+}
+#endif
 #endif /* _VAS_H */

@@ -7,12 +7,12 @@
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 
 #include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
 #include <asm/rtas.h>
 #include <linux/uaccess.h>
-#include <asm/prom.h>
 
 #ifdef CONFIG_PPC64
 

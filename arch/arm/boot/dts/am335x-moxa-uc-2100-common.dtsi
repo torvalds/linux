@@ -166,10 +166,8 @@
 &buttons {
 	pinctrl-names = "default";
 	pinctrl-0 = <&push_button_pins>;
-	#address-cells = <1>;
-	#size-cells = <0>;
 
-	button@0 {
+	button-0 {
 		label = "push_button";
 		linux,code = <0x100>;
 		gpios = <&gpio2 23 GPIO_ACTIVE_LOW>;
@@ -182,7 +180,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_pins>;
 
-	m25p80@0 {
+	flash@0 {
 		compatible = "mx25l6405d";
 		spi-max-frequency = <40000000>;
 

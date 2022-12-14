@@ -1053,7 +1053,7 @@ check_hwcfg_error:
 	return ret;
 }
 
-static int ov2740_remove(struct i2c_client *client)
+static void ov2740_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov2740 *ov2740 = to_ov2740(sd);
@@ -1063,8 +1063,6 @@ static int ov2740_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	pm_runtime_disable(&client->dev);
 	mutex_destroy(&ov2740->mutex);
-
-	return 0;
 }
 
 static int ov2740_nvmem_read(void *priv, unsigned int off, void *val,
@@ -1162,6 +1160,7 @@ static int ov2740_probe(struct i2c_client *client)
 	if (!ov2740)
 		return -ENOMEM;
 
+	v4l2_i2c_subdev_init(&ov2740->sd, client, &ov2740_subdev_ops);
 	full_power = acpi_dev_state_d0(&client->dev);
 	if (full_power) {
 		ret = ov2740_identify_module(ov2740);
@@ -1169,13 +1168,6 @@ static int ov2740_probe(struct i2c_client *client)
 			dev_err(&client->dev, "failed to find sensor: %d", ret);
 			return ret;
 		}
-	}
-
-	v4l2_i2c_subdev_init(&ov2740->sd, client, &ov2740_subdev_ops);
-	ret = ov2740_identify_module(ov2740);
-	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
-		return ret;
 	}
 
 	mutex_init(&ov2740->mutex);

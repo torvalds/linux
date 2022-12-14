@@ -392,9 +392,9 @@ int dlm_unlock_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	struct dlm_ctxt *dlm = data;
 	struct dlm_unlock_lock *unlock = (struct dlm_unlock_lock *)msg->buf;
 	struct dlm_lock_resource *res = NULL;
-	struct dlm_lock *lock = NULL;
+	struct dlm_lock *lock = NULL, *iter;
 	enum dlm_status status = DLM_NORMAL;
-	int found = 0, i;
+	int i;
 	struct dlm_lockstatus *lksb = NULL;
 	int ignore;
 	u32 flags;
@@ -437,7 +437,6 @@ int dlm_unlock_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	queue=&res->granted;
-	found = 0;
 	spin_lock(&res->spinlock);
 	if (res->state & DLM_LOCK_RES_RECOVERING) {
 		spin_unlock(&res->spinlock);
@@ -461,21 +460,21 @@ int dlm_unlock_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	for (i=0; i<3; i++) {
-		list_for_each_entry(lock, queue, list) {
-			if (lock->ml.cookie == unlock->cookie &&
-		    	    lock->ml.node == unlock->node_idx) {
-				dlm_lock_get(lock);
-				found = 1;
+		list_for_each_entry(iter, queue, list) {
+			if (iter->ml.cookie == unlock->cookie &&
+			    iter->ml.node == unlock->node_idx) {
+				dlm_lock_get(iter);
+				lock = iter;
 				break;
 			}
 		}
-		if (found)
+		if (lock)
 			break;
 		/* scan granted -> converting -> blocked queues */
 		queue++;
 	}
 	spin_unlock(&res->spinlock);
-	if (!found) {
+	if (!lock) {
 		status = DLM_IVLOCKID;
 		goto not_found;
 	}
@@ -505,7 +504,7 @@ int dlm_unlock_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	dlm_kick_thread(dlm, res);
 
 not_found:
-	if (!found)
+	if (!lock)
 		mlog(ML_ERROR, "failed to find lock to unlock! "
 			       "cookie=%u:%llu\n",
 		     dlm_get_lock_cookie_node(be64_to_cpu(unlock->cookie)),

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/allwinner,sun4i-a10-i2s.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 I2S Controller Device Tree Bindings
+title: Allwinner A10 I2S Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
@@ -31,6 +31,10 @@ properties:
           - const: allwinner,sun50i-a64-i2s
           - const: allwinner,sun8i-h3-i2s
       - const: allwinner,sun50i-h6-i2s
+      - const: allwinner,sun50i-r329-i2s
+      - items:
+          - const: allwinner,sun20i-d1-i2s
+          - const: allwinner,sun50i-r329-i2s
 
   reg:
     maxItems: 1
@@ -67,6 +71,7 @@ allOf:
               - allwinner,sun8i-h3-i2s
               - allwinner,sun50i-a64-codec-i2s
               - allwinner,sun50i-h6-i2s
+              - allwinner,sun50i-r329-i2s
 
     then:
       required:
@@ -84,7 +89,6 @@ allOf:
       properties:
         dmas:
           minItems: 1
-          maxItems: 2
           items:
             - description: RX DMA Channel
             - description: TX DMA Channel

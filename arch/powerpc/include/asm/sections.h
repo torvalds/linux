@@ -6,17 +6,32 @@
 #include <linux/elf.h>
 #include <linux/uaccess.h>
 
+#ifdef CONFIG_HAVE_FUNCTION_DESCRIPTORS
+typedef struct func_desc func_desc_t;
+#endif
+
 #include <asm-generic/sections.h>
 
 extern char __head_end[];
+extern char __srwx_boundary[];
+
+/* Patch sites */
+extern s32 patch__call_flush_branch_caches1;
+extern s32 patch__call_flush_branch_caches2;
+extern s32 patch__call_flush_branch_caches3;
+extern s32 patch__flush_count_cache_return;
+extern s32 patch__flush_link_stack_return;
+extern s32 patch__call_kvm_flush_link_stack;
+extern s32 patch__call_kvm_flush_link_stack_p9;
+extern s32 patch__memset_nocache, patch__memcpy_nocache;
+
+extern long flush_branch_caches;
+extern long kvm_flush_link_stack;
 
 #ifdef __powerpc64__
 
 extern char __start_interrupts[];
 extern char __end_interrupts[];
-
-extern char __prom_init_toc_start[];
-extern char __prom_init_toc_end[];
 
 #ifdef CONFIG_PPC_POWERNV
 extern char start_real_trampolines[];
@@ -53,31 +68,6 @@ static inline int overlaps_kernel_text(unsigned long start, unsigned long end)
 	return start < (unsigned long)__init_end &&
 		(unsigned long)_stext < end;
 }
-
-#ifdef PPC64_ELF_ABI_v1
-
-#define HAVE_DEREFERENCE_FUNCTION_DESCRIPTOR 1
-
-#undef dereference_function_descriptor
-static inline void *dereference_function_descriptor(void *ptr)
-{
-	struct ppc64_opd_entry *desc = ptr;
-	void *p;
-
-	if (!get_kernel_nofault(p, (void *)&desc->funcaddr))
-		ptr = p;
-	return ptr;
-}
-
-#undef dereference_kernel_function_descriptor
-static inline void *dereference_kernel_function_descriptor(void *ptr)
-{
-	if (ptr < (void *)__start_opd || ptr >= (void *)__end_opd)
-		return ptr;
-
-	return dereference_function_descriptor(ptr);
-}
-#endif /* PPC64_ELF_ABI_v1 */
 
 #endif
 

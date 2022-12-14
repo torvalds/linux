@@ -166,14 +166,24 @@ struct iwl_dts_measurement_resp {
 
 /**
  * struct ct_kill_notif - CT-kill entry notification
+ * This structure represent both versions of this notification.
  *
  * @temperature: the current temperature in celsius
- * @reserved: reserved
+ * @dts: only in v2: DTS that trigger the CT Kill bitmap:
+ *			bit 0: ToP master
+ *			bit 1: PA chain A master
+ *			bit 2: PA chain B master
+ *			bit 3: ToP slave
+ *			bit 4: PA chain A slave
+ *			bit 5: PA chain B slave)
+ *			bits 6,7: reserved (set to 0)
+ * @scheme: only for v2: scheme that trigger the CT Kill (0-SW, 1-HW)
  */
 struct ct_kill_notif {
 	__le16 temperature;
-	__le16 reserved;
-} __packed; /* GRP_PHY_CT_KILL_NTF */
+	u8 dts;
+	u8 scheme;
+} __packed; /* CT_KILL_NOTIFICATION_API_S_VER_1, CT_KILL_NOTIFICATION_API_S_VER_2 */
 
 /**
 * enum ctdp_cmd_operation - CTDP command operations

@@ -13,7 +13,6 @@
 #include <linux/interrupt.h>
 #include <linux/gpio/machine.h>
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
 #include <asm/mach/arch.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-pxa.h>

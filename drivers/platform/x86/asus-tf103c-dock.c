@@ -250,7 +250,7 @@ static int tf103c_dock_hid_raw_request(struct hid_device *hid, u8 reportnum,
 	return 0;
 }
 
-struct hid_ll_driver tf103c_dock_hid_ll_driver = {
+static struct hid_ll_driver tf103c_dock_hid_ll_driver = {
 	.parse = tf103c_dock_hid_parse,
 	.start = tf103c_dock_hid_start,
 	.stop = tf103c_dock_hid_stop,
@@ -878,14 +878,12 @@ static int tf103c_dock_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int tf103c_dock_remove(struct i2c_client *client)
+static void tf103c_dock_remove(struct i2c_client *client)
 {
 	struct tf103c_dock_data *dock = i2c_get_clientdata(client);
 
 	tf103c_dock_stop_hpd(dock);
 	tf103c_dock_disable(dock);
-
-	return 0;
 }
 
 static int __maybe_unused tf103c_dock_suspend(struct device *dev)
@@ -921,7 +919,7 @@ static int __maybe_unused tf103c_dock_resume(struct device *dev)
 	return 0;
 }
 
-SIMPLE_DEV_PM_OPS(tf103c_dock_pm_ops, tf103c_dock_suspend, tf103c_dock_resume);
+static SIMPLE_DEV_PM_OPS(tf103c_dock_pm_ops, tf103c_dock_suspend, tf103c_dock_resume);
 
 static const struct acpi_device_id tf103c_dock_acpi_match[] = {
 	{"NPCE69A"},

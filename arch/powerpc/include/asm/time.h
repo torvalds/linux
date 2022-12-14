@@ -24,6 +24,7 @@ extern unsigned long tb_ticks_per_jiffy;
 extern unsigned long tb_ticks_per_usec;
 extern unsigned long tb_ticks_per_sec;
 extern struct clock_event_device decrementer_clockevent;
+extern u64 decrementer_max;
 
 
 extern void generic_calibrate_decr(void);
@@ -115,8 +116,9 @@ unsigned long long tb_to_ns(unsigned long long tb_ticks);
 
 void timer_broadcast_interrupt(void);
 
-/* SPLPAR */
-void accumulate_stolen_time(void);
+/* SPLPAR and VIRT_CPU_ACCOUNTING_NATIVE */
+void pseries_accumulate_stolen_time(void);
+u64 pseries_calculate_stolen_time(u64 stop_tb);
 
 #endif /* __KERNEL__ */
 #endif /* __POWERPC_TIME_H */

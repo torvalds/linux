@@ -15,7 +15,6 @@
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/signal.h>
-#include <linux/tracehook.h>
 #include <linux/audit.h>
 
 #include <linux/uaccess.h>
@@ -323,7 +322,7 @@ asmlinkage unsigned long syscall_trace_enter(void)
 	unsigned long ret = 0;
 	struct pt_regs *regs = current_pt_regs();
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(current_pt_regs()))
+	    ptrace_report_syscall_entry(current_pt_regs()))
 		ret = -1UL;
 	audit_syscall_entry(regs->r0, regs->r16, regs->r17, regs->r18, regs->r19);
 	return ret ?: current_pt_regs()->r0;
@@ -334,5 +333,5 @@ syscall_trace_leave(void)
 {
 	audit_syscall_exit(current_pt_regs());
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(current_pt_regs(), 0);
+		ptrace_report_syscall_exit(current_pt_regs(), 0);
 }

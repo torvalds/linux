@@ -1538,7 +1538,7 @@ static int ath6kl_htc_rx_alloc(struct htc_target *target,
 					     queue, n_msg);
 
 		/*
-		 * This is due to unavailabilty of buffers to rx entire data.
+		 * This is due to unavailability of buffers to rx entire data.
 		 * Return no error so that free buffers from queue can be used
 		 * to receive partial data.
 		 */

@@ -41,7 +41,8 @@ int mmc_can_ext_csd(struct mmc_card *card);
 int mmc_switch_status(struct mmc_card *card, bool crc_err_fatal);
 bool mmc_prepare_busy_cmd(struct mmc_host *host, struct mmc_command *cmd,
 			  unsigned int timeout_ms);
-int __mmc_poll_for_busy(struct mmc_host *host, unsigned int timeout_ms,
+int __mmc_poll_for_busy(struct mmc_host *host, unsigned int period_us,
+			unsigned int timeout_ms,
 			int (*busy_cb)(void *cb_data, bool *busy),
 			void *cb_data);
 int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,

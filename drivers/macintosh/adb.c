@@ -38,10 +38,10 @@
 #include <linux/kthread.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 
 #include <linux/uaccess.h>
 #ifdef CONFIG_PPC
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #endif
 
@@ -647,7 +647,7 @@ do_adb_query(struct adb_request *req)
 
 	switch(req->data[1]) {
 	case ADB_QUERY_GETDEVINFO:
-		if (req->nbytes < 3)
+		if (req->nbytes < 3 || req->data[2] >= 16)
 			break;
 		mutex_lock(&adb_handler_mutex);
 		req->reply[0] = adb_handler[req->data[2]].original_address;

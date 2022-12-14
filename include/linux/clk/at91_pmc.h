@@ -12,6 +12,8 @@
 #ifndef AT91_PMC_H
 #define AT91_PMC_H
 
+#include <linux/bits.h>
+
 #define AT91_PMC_V1		(1)			/* PMC version 1 */
 #define AT91_PMC_V2		(2)			/* PMC version 2 [SAM9X60] */
 
@@ -45,8 +47,8 @@
 #define	AT91_PMC_PCSR		0x18			/* Peripheral Clock Status Register */
 
 #define AT91_PMC_PLL_ACR	0x18			/* PLL Analog Control Register [for SAM9X60] */
-#define		AT91_PMC_PLL_ACR_DEFAULT_UPLL	0x12020010UL	/* Default PLL ACR value for UPLL */
-#define		AT91_PMC_PLL_ACR_DEFAULT_PLLA	0x00020010UL	/* Default PLL ACR value for PLLA */
+#define		AT91_PMC_PLL_ACR_DEFAULT_UPLL	UL(0x12020010)	/* Default PLL ACR value for UPLL */
+#define		AT91_PMC_PLL_ACR_DEFAULT_PLLA	UL(0x00020010)	/* Default PLL ACR value for PLLA */
 #define		AT91_PMC_PLL_ACR_UTMIVR		(1 << 12)	/* UPLL Voltage regulator Control */
 #define		AT91_PMC_PLL_ACR_UTMIBG		(1 << 13)	/* UPLL Bandgap Control */
 
@@ -78,6 +80,10 @@
 #define		AT91_PMC_MAINRDY	(1	<< 16)		/* Main Clock Ready */
 
 #define	AT91_CKGR_PLLAR		0x28			/* PLL A Register */
+
+#define	AT91_PMC_RATIO		0x2c			/* Processor clock ratio register [SAMA7G5 only] */
+#define		AT91_PMC_RATIO_RATIO	(0xf)		/* CPU clock ratio. */
+
 #define	AT91_CKGR_PLLBR		0x2c			/* PLL B Register */
 #define		AT91_PMC_DIV		(0xff  <<  0)		/* Divider */
 #define		AT91_PMC_PLLCOUNT	(0x3f  <<  8)		/* PLL Counter */

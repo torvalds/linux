@@ -85,7 +85,8 @@ RECORD OPTIONS
 	Be more verbose (show counter open errors, etc)
 
 --ldlat <n>::
-	Specify desired latency for loads event. (x86 only)
+	Specify desired latency for loads event. Supported on Intel and Arm64
+	processors only. Ignored on other archs.
 
 In addition, for report all perf report options are valid, and for record
 all perf record options.

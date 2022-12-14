@@ -148,7 +148,7 @@ struct ptff_qui {
 	asm volatile(							\
 		"	lgr	0,%[reg0]\n"				\
 		"	lgr	1,%[reg1]\n"				\
-		"	.insn	e,0x0104\n"				\
+		"	ptff\n"						\
 		"	ipm	%[rc]\n"				\
 		"	srl	%[rc],28\n"				\
 		: [rc] "=&d" (rc), "+m" (*(struct addrtype *)reg1)	\
@@ -187,20 +187,17 @@ static inline unsigned long get_tod_clock(void)
 
 static inline unsigned long get_tod_clock_fast(void)
 {
-#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
 	unsigned long clk;
 
 	asm volatile("stckf %0" : "=Q" (clk) : : "cc");
 	return clk;
-#else
-	return get_tod_clock();
-#endif
 }
 
 static inline cycles_t get_cycles(void)
 {
 	return (cycles_t) get_tod_clock() >> 2;
 }
+#define get_cycles get_cycles
 
 int get_phys_clock(unsigned long *clock);
 void init_cpu_timer(void);

@@ -128,9 +128,9 @@ static int dfl_spi_altera_probe(struct dfl_device *dfl_dev)
 	struct spi_master *master;
 	struct altera_spi *hw;
 	void __iomem *base;
-	int err = -ENODEV;
+	int err;
 
-	master = spi_alloc_master(dev, sizeof(struct altera_spi));
+	master = devm_spi_alloc_master(dev, sizeof(struct altera_spi));
 	if (!master)
 		return -ENOMEM;
 
@@ -159,10 +159,9 @@ static int dfl_spi_altera_probe(struct dfl_device *dfl_dev)
 	altera_spi_init_master(master);
 
 	err = devm_spi_register_master(dev, master);
-	if (err) {
-		dev_err(dev, "%s failed to register spi master %d\n", __func__, err);
-		goto exit;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "%s failed to register spi master\n",
+				     __func__);
 
 	if (dfl_dev->revision == FME_FEATURE_REV_MAX10_SPI_N5010)
 		strscpy(board_info.modalias, "m10-n5010", SPI_NAME_SIZE);
@@ -179,9 +178,6 @@ static int dfl_spi_altera_probe(struct dfl_device *dfl_dev)
 	}
 
 	return 0;
-exit:
-	spi_master_put(master);
-	return err;
 }
 
 static const struct dfl_device_id dfl_spi_altera_ids[] = {

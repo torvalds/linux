@@ -339,7 +339,7 @@ static void dce_v6_0_hpd_fini(struct amdgpu_device *adev)
 
 		tmp = RREG32(mmDC_HPD1_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd]);
 		tmp &= ~DC_HPD1_CONTROL__DC_HPD1_EN_MASK;
-		WREG32(mmDC_HPD1_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], 0);
+		WREG32(mmDC_HPD1_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 
 		amdgpu_irq_put(adev, &adev->hpd_irq, amdgpu_connector->hpd.hpd);
 	}
@@ -2424,7 +2424,7 @@ static void dce_v6_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 		break;
 	}
 	/* adjust pm to dpms */
-	amdgpu_pm_compute_clocks(adev);
+	amdgpu_dpm_compute_clocks(adev);
 }
 
 static void dce_v6_0_crtc_prepare(struct drm_crtc *crtc)
@@ -2674,6 +2674,7 @@ static int dce_v6_0_sw_init(void *handle)
 	adev_to_drm(adev)->mode_config.max_height = 16384;
 	adev_to_drm(adev)->mode_config.preferred_depth = 24;
 	adev_to_drm(adev)->mode_config.prefer_shadow = 1;
+	adev_to_drm(adev)->mode_config.fb_modifiers_not_supported = true;
 	adev_to_drm(adev)->mode_config.fb_base = adev->gmc.aper_base;
 
 	r = amdgpu_display_modeset_create_props(adev);

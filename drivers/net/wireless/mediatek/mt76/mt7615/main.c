@@ -194,7 +194,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 	    is_zero_ether_addr(vif->addr))
 		phy->monitor_vif = vif;
 
-	mvif->mt76.idx = ffs(~dev->mt76.vif_mask) - 1;
+	mvif->mt76.idx = __ffs64(~dev->mt76.vif_mask);
 	if (mvif->mt76.idx >= MT7615_MAX_INTERFACES) {
 		ret = -ENOSPC;
 		goto out;
@@ -212,7 +212,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 	if (ext_phy)
 		mvif->mt76.wmm_idx += 2;
 
-	dev->mt76.vif_mask |= BIT(mvif->mt76.idx);
+	dev->mt76.vif_mask |= BIT_ULL(mvif->mt76.idx);
 	dev->omac_mask |= BIT_ULL(mvif->mt76.omac_idx);
 	phy->omac_mask |= BIT_ULL(mvif->mt76.omac_idx);
 
@@ -224,7 +224,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 
 	INIT_LIST_HEAD(&mvif->sta.poll_list);
 	mvif->sta.wcid.idx = idx;
-	mvif->sta.wcid.ext_phy = mvif->mt76.band_idx;
+	mvif->sta.wcid.phy_idx = mvif->mt76.band_idx;
 	mvif->sta.wcid.hw_key_idx = -1;
 	mt76_packet_id_init(&mvif->sta.wcid);
 
@@ -234,7 +234,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
 	if (vif->txq) {
 		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
-		mtxq->wcid = &mvif->sta.wcid;
+		mtxq->wcid = idx;
 	}
 
 	ret = mt7615_mcu_add_dev_info(phy, vif, true);
@@ -268,7 +268,7 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
-	dev->mt76.vif_mask &= ~BIT(mvif->mt76.idx);
+	dev->mt76.vif_mask &= ~BIT_ULL(mvif->mt76.idx);
 	dev->omac_mask &= ~BIT_ULL(mvif->mt76.omac_idx);
 	phy->omac_mask &= ~BIT_ULL(mvif->mt76.omac_idx);
 
@@ -280,25 +280,6 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 	spin_unlock_bh(&dev->sta_poll_lock);
 
 	mt76_packet_id_flush(&dev->mt76, &mvif->sta.wcid);
-}
-
-static void mt7615_init_dfs_state(struct mt7615_phy *phy)
-{
-	struct mt76_phy *mphy = phy->mt76;
-	struct ieee80211_hw *hw = mphy->hw;
-	struct cfg80211_chan_def *chandef = &hw->conf.chandef;
-
-	if (hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
-		return;
-
-	if (!(chandef->chan->flags & IEEE80211_CHAN_RADAR))
-		return;
-
-	if (mphy->chandef.chan->center_freq == chandef->chan->center_freq &&
-	    mphy->chandef.width == chandef->width)
-		return;
-
-	phy->dfs_state = -1;
 }
 
 int mt7615_set_channel(struct mt7615_phy *phy)
@@ -313,7 +294,6 @@ int mt7615_set_channel(struct mt7615_phy *phy)
 
 	set_bit(MT76_RESET, &phy->mt76->state);
 
-	mt7615_init_dfs_state(phy);
 	mt76_set_channel(phy->mt76);
 
 	if (is_mt7615(&dev->mt76) && dev->flash_eeprom) {
@@ -365,6 +345,7 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			  struct ieee80211_key_conf *key)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+	struct mt7615_phy *phy = mt7615_hw_phy(hw);
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct mt7615_sta *msta = sta ? (struct mt7615_sta *)sta->drv_priv :
 				  &mvif->sta;
@@ -403,6 +384,11 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	mt7615_mutex_acquire(dev);
 
+	if (cmd == SET_KEY && !sta && !mvif->mt76.cipher) {
+		mvif->mt76.cipher = mt76_connac_mcu_get_cipher(key->cipher);
+		mt7615_mcu_add_bss_info(phy, vif, NULL, true);
+	}
+
 	if (cmd == SET_KEY)
 		*wcid_keyidx = idx;
 	else if (idx == *wcid_keyidx)
@@ -420,6 +406,29 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 out:
 	mt7615_mutex_release(dev);
+
+	return err;
+}
+
+static int mt7615_set_sar_specs(struct ieee80211_hw *hw,
+				const struct cfg80211_sar_specs *sar)
+{
+	struct mt7615_phy *phy = mt7615_hw_phy(hw);
+	int err;
+
+	if (!cfg80211_chandef_valid(&phy->mt76->chandef))
+		return -EINVAL;
+
+	err = mt76_init_sar_power(hw, sar);
+	if (err)
+		return err;
+
+	if (mt7615_firmware_offload(phy->dev))
+		return mt76_connac_mcu_set_rate_txpower(phy->mt76);
+
+	ieee80211_stop_queues(hw);
+	err = mt7615_set_channel(phy);
+	ieee80211_wake_queues(hw);
 
 	return err;
 }
@@ -464,7 +473,8 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 }
 
 static int
-mt7615_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+mt7615_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
@@ -546,7 +556,7 @@ static void mt7615_configure_filter(struct ieee80211_hw *hw,
 static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *info,
-				    u32 changed)
+				    u64 changed)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
@@ -586,7 +596,7 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC)
-		mt7615_mac_set_beacon_filter(phy, vif, info->assoc);
+		mt7615_mac_set_beacon_filter(phy, vif, vif->cfg.assoc);
 
 	mt7615_mutex_release(dev);
 }
@@ -620,7 +630,7 @@ int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	msta->vif = mvif;
 	msta->wcid.sta = 1;
 	msta->wcid.idx = idx;
-	msta->wcid.ext_phy = mvif->mt76.band_idx;
+	msta->wcid.phy_idx = mvif->mt76.band_idx;
 
 	phy = mvif->mt76.band_idx ? mt7615_ext_phy(dev) : &dev->phy;
 	err = mt76_connac_pm_wake(phy->mt76, &dev->pm);
@@ -682,6 +692,9 @@ static void mt7615_sta_rate_tbl_update(struct ieee80211_hw *hw,
 	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
 	struct ieee80211_sta_rates *sta_rates = rcu_dereference(sta->rates);
 	int i;
+
+	if (!sta_rates)
+		return;
 
 	spin_lock_bh(&dev->mt76.lock);
 	for (i = 0; i < ARRAY_SIZE(msta->rates); i++) {
@@ -1182,12 +1195,16 @@ static void mt7615_sta_set_decap_offload(struct ieee80211_hw *hw,
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
 
+	mt7615_mutex_acquire(dev);
+
 	if (enabled)
 		set_bit(MT_WCID_FLAG_HDR_TRANS, &msta->wcid.flags);
 	else
 		clear_bit(MT_WCID_FLAG_HDR_TRANS, &msta->wcid.flags);
 
 	mt7615_mcu_set_sta_decap_offload(dev, vif, sta);
+
+	mt7615_mutex_release(dev);
 }
 
 #ifdef CONFIG_PM
@@ -1323,6 +1340,7 @@ const struct ieee80211_ops mt7615_ops = {
 	.set_wakeup = mt7615_set_wakeup,
 	.set_rekey_data = mt7615_set_rekey_data,
 #endif /* CONFIG_PM */
+	.set_sar_specs = mt7615_set_sar_specs,
 };
 EXPORT_SYMBOL_GPL(mt7615_ops);
 

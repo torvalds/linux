@@ -8,7 +8,6 @@
 #include <linux/mbus.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/phy/phy.h>
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -71,47 +70,6 @@ int xhci_mvebu_mbus_init_quirk(struct usb_hcd *hcd)
 	 * windows, and is therefore no longer useful.
 	 */
 	iounmap(base);
-
-	return 0;
-}
-
-int xhci_mvebu_a3700_plat_setup(struct usb_hcd *hcd)
-{
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	struct device *dev = hcd->self.controller;
-	struct phy *phy;
-	int ret;
-
-	/* Old bindings miss the PHY handle */
-	phy = of_phy_get(dev->of_node, "usb3-phy");
-	if (IS_ERR(phy) && PTR_ERR(phy) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-	else if (IS_ERR(phy))
-		goto phy_out;
-
-	ret = phy_init(phy);
-	if (ret)
-		goto phy_put;
-
-	ret = phy_set_mode(phy, PHY_MODE_USB_HOST_SS);
-	if (ret)
-		goto phy_exit;
-
-	ret = phy_power_on(phy);
-	if (ret == -EOPNOTSUPP) {
-		/* Skip initializatin of XHCI PHY when it is unsupported by firmware */
-		dev_warn(dev, "PHY unsupported by firmware\n");
-		xhci->quirks |= XHCI_SKIP_PHY_INIT;
-	}
-	if (ret)
-		goto phy_exit;
-
-	phy_power_off(phy);
-phy_exit:
-	phy_exit(phy);
-phy_put:
-	of_phy_put(phy);
-phy_out:
 
 	return 0;
 }

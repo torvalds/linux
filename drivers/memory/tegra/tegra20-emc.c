@@ -540,7 +540,7 @@ static int emc_read_lpddr_mode_register(struct tegra_emc *emc,
 					unsigned int register_addr,
 					unsigned int *register_data)
 {
-	u32 memory_dev = emem_dev + 1;
+	u32 memory_dev = emem_dev ? 1 : 2;
 	u32 val, mr_mask = 0xff;
 	int err;
 

@@ -805,8 +805,8 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 			return -SAS_QUEUE_FULL;
 		}
 		/*
-		  * SAS IPTT bit0 should be 1, and SATA IPTT bit0 should be 0.
-		  */
+		 * SAS IPTT bit0 should be 1, and SATA IPTT bit0 should be 0.
+		 */
 		if (sata_dev ^ (start & 1))
 			break;
 		start++;
@@ -1742,7 +1742,7 @@ static void prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_port *port = slot->port;
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-	struct hisi_sas_tmf_task *tmf = slot->tmf;
+	struct sas_tmf_task *tmf = slot->tmf;
 	int has_data = 0, priority = !!tmf;
 	u8 *buf_cmd;
 	u32 dw1 = 0, dw2 = 0;
@@ -2344,8 +2344,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	sas_dev = device->lldd_dev;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
-	task->task_state_flags &=
-		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
+	task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	memset(ts, 0, sizeof(*ts));
@@ -2429,8 +2428,6 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 
 		ts->stat = SAS_SAM_STAT_GOOD;
 
-		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
-			     DMA_TO_DEVICE);
 		memcpy(to + sg_resp->offset,
 		       hisi_sas_status_buf_addr_mem(slot) +
 		       sizeof(struct hisi_sas_err_record),
@@ -2492,7 +2489,8 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
-	struct hisi_sas_tmf_task *tmf = slot->tmf;
+	struct sas_ata_task *ata_task = &task->ata_task;
+	struct sas_tmf_task *tmf = slot->tmf;
 	u8 *buf_cmd;
 	int has_data = 0, hdr_tag = 0;
 	u32 dw0, dw1 = 0, dw2 = 0;
@@ -2505,9 +2503,9 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	else
 		dw0 |= 4 << CMD_HDR_CMD_OFF;
 
-	if (tmf && tmf->force_phy) {
+	if (tmf && ata_task->force_phy) {
 		dw0 |= CMD_HDR_FORCE_PHY_MSK;
-		dw0 |= (1 << tmf->phy_id) << CMD_HDR_PHY_ID_OFF;
+		dw0 |= (1 << ata_task->force_phy_id) << CMD_HDR_PHY_ID_OFF;
 	}
 
 	hdr->dw0 = cpu_to_le32(dw0);
@@ -2603,14 +2601,15 @@ static void hisi_sas_internal_abort_quirk_timeout(struct timer_list *t)
 }
 
 static void prep_abort_v2_hw(struct hisi_hba *hisi_hba,
-		struct hisi_sas_slot *slot,
-		int device_id, int abort_flag, int tag_to_abort)
+			     struct hisi_sas_slot *slot)
 {
 	struct sas_task *task = slot->task;
+	struct sas_internal_abort_task *abort = &task->abort_task;
 	struct domain_device *dev = task->dev;
 	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
 	struct hisi_sas_port *port = slot->port;
 	struct timer_list *timer = &slot->internal_abort_timer;
+	struct hisi_sas_device *sas_dev = dev->lldd_dev;
 
 	/* setup the quirk timer */
 	timer_setup(timer, hisi_sas_internal_abort_quirk_timeout, 0);
@@ -2622,13 +2621,13 @@ static void prep_abort_v2_hw(struct hisi_hba *hisi_hba,
 			       (port->id << CMD_HDR_PORT_OFF) |
 			       (dev_is_sata(dev) <<
 				CMD_HDR_ABORT_DEVICE_TYPE_OFF) |
-			       (abort_flag << CMD_HDR_ABORT_FLAG_OFF));
+			       (abort->type << CMD_HDR_ABORT_FLAG_OFF));
 
 	/* dw1 */
-	hdr->dw1 = cpu_to_le32(device_id << CMD_HDR_DEV_ID_OFF);
+	hdr->dw1 = cpu_to_le32(sas_dev->device_id << CMD_HDR_DEV_ID_OFF);
 
 	/* dw7 */
-	hdr->dw7 = cpu_to_le32(tag_to_abort << CMD_HDR_ABORT_IPTT_OFF);
+	hdr->dw7 = cpu_to_le32(abort->tag << CMD_HDR_ABORT_IPTT_OFF);
 	hdr->transfer_tags = cpu_to_le32(slot->idx);
 }
 
@@ -2812,15 +2811,12 @@ static irqreturn_t int_phy_updown_v2_hw(int irq_no, void *p)
 static void phy_bcast_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
-	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	u32 bcast_status;
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 1);
 	bcast_status = hisi_sas_phy_read32(hisi_hba, phy_no, RX_PRIMS_STATUS);
-	if ((bcast_status & RX_BCAST_CHG_MSK) &&
-	    !test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags))
-		sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
-				      GFP_ATOMIC);
+	if (bcast_status & RX_BCAST_CHG_MSK)
+		hisi_sas_phy_bcast(phy);
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
 			     CHL_INT0_SL_RX_BCST_ACK_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 0);
@@ -3538,7 +3534,7 @@ static struct attribute *host_v2_hw_attrs[] = {
 
 ATTRIBUTE_GROUPS(host_v2_hw);
 
-static int map_queues_v2_hw(struct Scsi_Host *shost)
+static void map_queues_v2_hw(struct Scsi_Host *shost)
 {
 	struct hisi_hba *hisi_hba = shost_priv(shost);
 	struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
@@ -3553,9 +3549,6 @@ static int map_queues_v2_hw(struct Scsi_Host *shost)
 		for_each_cpu(cpu, mask)
 			qmap->mq_map[cpu] = qmap->queue_offset + queue;
 	}
-
-	return 0;
-
 }
 
 static struct scsi_host_template sht_v2_hw = {

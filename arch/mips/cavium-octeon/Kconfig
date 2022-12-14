@@ -67,6 +67,18 @@ config CAVIUM_OCTEON_LOCK_L2_MEMCPY
 	help
 	  Lock the kernel's implementation of memcpy() into L2.
 
+config CAVIUM_RESERVE32
+	int "Memory to reserve for user processes shared region (MB)"
+	range 0 1536
+	default "0"
+	help
+	  Reserve a shared memory region for user processes to use for hardware
+	  memory buffers. This is required for 32bit applications to be able to
+	  send and receive packets directly. Applications access this memory by
+	  memory mapping /dev/mem for the addresses in /proc/octeon_info. For
+	  optimal performance with HugeTLBs, keep this size an even number of
+	  megabytes.
+
 config OCTEON_ILM
 	tristate "Module to measure interrupt latency using Octeon CIU Timer"
 	help

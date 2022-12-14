@@ -5,8 +5,6 @@
  *
  **************************************************************************/
 
-#include <linux/backlight.h>
-
 #include <drm/drm.h>
 
 #include "gma_device.h"
@@ -24,8 +22,6 @@ static int psb_output_init(struct drm_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-
 /*
  *	Poulsbo Backlight Interfaces
  */
@@ -40,18 +36,6 @@ static int psb_output_init(struct drm_device *dev)
 
 #define PSB_BACKLIGHT_PWM_POLARITY_BIT_CLEAR (0xFFFE)
 #define PSB_BACKLIGHT_PWM_CTL_SHIFT	(16)
-
-static int psb_brightness;
-static struct backlight_device *psb_backlight_device;
-
-static int psb_get_brightness(struct backlight_device *bd)
-{
-	/* return locally cached var instead of HW read (due to DPST etc.) */
-	/* FIXME: ideally return actual value in case firmware fiddled with
-	   it */
-	return psb_brightness;
-}
-
 
 static int psb_backlight_setup(struct drm_device *dev)
 {
@@ -86,61 +70,12 @@ static int psb_backlight_setup(struct drm_device *dev)
 		REG_WRITE(BLC_PWM_CTL,
 			(value << PSB_BACKLIGHT_PWM_CTL_SHIFT) | (value));
 	}
-	return 0;
-}
 
-static int psb_set_brightness(struct backlight_device *bd)
-{
-	struct drm_device *dev = bl_get_data(psb_backlight_device);
-	int level = bd->props.brightness;
-
-	/* Percentage 1-100% being valid */
-	if (level < 1)
-		level = 1;
-
-	psb_intel_lvds_set_brightness(dev, level);
-	psb_brightness = level;
-	return 0;
-}
-
-static const struct backlight_ops psb_ops = {
-	.get_brightness = psb_get_brightness,
-	.update_status  = psb_set_brightness,
-};
-
-static int psb_backlight_init(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	int ret;
-	struct backlight_properties props;
-
-	memset(&props, 0, sizeof(struct backlight_properties));
-	props.max_brightness = 100;
-	props.type = BACKLIGHT_PLATFORM;
-
-	psb_backlight_device = backlight_device_register("psb-bl",
-					NULL, (void *)dev, &psb_ops, &props);
-	if (IS_ERR(psb_backlight_device))
-		return PTR_ERR(psb_backlight_device);
-
-	ret = psb_backlight_setup(dev);
-	if (ret < 0) {
-		backlight_device_unregister(psb_backlight_device);
-		psb_backlight_device = NULL;
-		return ret;
-	}
-	psb_backlight_device->props.brightness = 100;
-	psb_backlight_device->props.max_brightness = 100;
-	backlight_update_status(psb_backlight_device);
-	dev_priv->backlight_device = psb_backlight_device;
-
+	psb_intel_lvds_set_brightness(dev, PSB_MAX_BRIGHTNESS);
 	/* This must occur after the backlight is properly initialised */
 	psb_lid_timer_init(dev_priv);
-
 	return 0;
 }
-
-#endif
 
 /*
  *	Provide the Poulsbo specific chip logic and low level methods
@@ -168,8 +103,10 @@ static void psb_init_pm(struct drm_device *dev)
 static int psb_save_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct gma_connector *gma_connector;
 	struct drm_crtc *crtc;
-	struct gma_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
 	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration control + watermarks */
@@ -189,9 +126,13 @@ static int psb_save_display_registers(struct drm_device *dev)
 			dev_priv->ops->save_crtc(crtc);
 	}
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
-		if (connector->save)
-			connector->save(&connector->base);
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		gma_connector = to_gma_connector(connector);
+		if (gma_connector->save)
+			gma_connector->save(connector);
+	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	drm_modeset_unlock_all(dev);
 	return 0;
@@ -206,8 +147,10 @@ static int psb_save_display_registers(struct drm_device *dev)
 static int psb_restore_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct gma_connector *gma_connector;
 	struct drm_crtc *crtc;
-	struct gma_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
 	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration + watermarks */
@@ -228,9 +171,13 @@ static int psb_restore_display_registers(struct drm_device *dev)
 		if (drm_helper_crtc_in_use(crtc))
 			dev_priv->ops->restore_crtc(crtc);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
-		if (connector->restore)
-			connector->restore(&connector->base);
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		gma_connector = to_gma_connector(connector);
+		if (gma_connector->restore)
+			gma_connector->restore(connector);
+	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	drm_modeset_unlock_all(dev);
 	return 0;
@@ -329,14 +276,13 @@ const struct psb_ops psb_chip_ops = {
 	.chip_teardown = psb_chip_teardown,
 
 	.crtc_helper = &psb_intel_helper_funcs,
-	.crtc_funcs = &gma_intel_crtc_funcs,
 	.clock_funcs = &psb_clock_funcs,
 
 	.output_init = psb_output_init,
 
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-	.backlight_init = psb_backlight_init,
-#endif
+	.backlight_init = psb_backlight_setup,
+	.backlight_set = psb_intel_lvds_set_brightness,
+	.backlight_name = "psb-bl",
 
 	.init_pm = psb_init_pm,
 	.save_regs = psb_save_display_registers,

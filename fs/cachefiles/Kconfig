@@ -26,3 +26,15 @@ config CACHEFILES_ERROR_INJECTION
 	help
 	  This permits error injection to be enabled in cachefiles whilst a
 	  cache is in service.
+
+config CACHEFILES_ONDEMAND
+	bool "Support for on-demand read"
+	depends on CACHEFILES
+	default n
+	help
+	  This permits userspace to enable the cachefiles on-demand read mode.
+	  In this mode, when a cache miss occurs, responsibility for fetching
+	  the data lies with the cachefiles backend instead of with the netfs
+	  and is delegated to userspace.
+
+	  If unsure, say N.

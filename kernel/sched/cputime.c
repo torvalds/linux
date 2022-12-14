@@ -2,7 +2,6 @@
 /*
  * Simple CPU accounting cgroup controller
  */
-#include "sched.h"
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 
@@ -226,6 +225,21 @@ void account_idle_time(u64 cputime)
 	else
 		cpustat[CPUTIME_IDLE] += cputime;
 }
+
+
+#ifdef CONFIG_SCHED_CORE
+/*
+ * Account for forceidle time due to core scheduling.
+ *
+ * REQUIRES: schedstat is enabled.
+ */
+void __account_forceidle_time(struct task_struct *p, u64 delta)
+{
+	__schedstat_add(p->stats.core_forceidle_sum, delta);
+
+	task_group_account_field(p, CPUTIME_FORCEIDLE, delta);
+}
+#endif
 
 /*
  * When a guest is interrupted for a longer amount of time, missed clock

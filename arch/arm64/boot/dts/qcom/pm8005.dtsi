@@ -28,5 +28,9 @@
 		reg = <0x5 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		pm8005_regulators: regulators {
+			compatible = "qcom,pm8005-regulators";
+		};
 	};
 };

@@ -802,7 +802,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	if (of_property_read_u32(np, "clock-frequency", &i2c->op_clock))
 		i2c->op_clock = I2C_MAX_STANDARD_MODE_FREQ;
 
-	strlcpy(i2c->adap.name, "exynos5-i2c", sizeof(i2c->adap.name));
+	strscpy(i2c->adap.name, "exynos5-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;
 	i2c->adap.algo    = &exynos5_i2c_algorithm;
 	i2c->adap.retries = 3;

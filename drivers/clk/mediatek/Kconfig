@@ -259,6 +259,43 @@ config COMMON_CLK_MT6779_AUDSYS
 	help
 	  This driver supports Mediatek MT6779 audsys clocks.
 
+config COMMON_CLK_MT6795
+	tristate "Clock driver for MediaTek MT6795"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default ARCH_MEDIATEK
+	help
+	  This driver supports MediaTek MT6795 basic clocks and clocks
+	  required for various peripherals found on MediaTek.
+
+config COMMON_CLK_MT6795_MFGCFG
+	tristate "Clock driver for MediaTek MT6795 mfgcfg"
+	depends on COMMON_CLK_MT6795
+	default COMMON_CLK_MT6795
+	help
+	  This driver supports MediaTek MT6795 mfgcfg clocks.
+
+config COMMON_CLK_MT6795_MMSYS
+       tristate "Clock driver for MediaTek MT6795 mmsys"
+       depends on COMMON_CLK_MT6795
+	default COMMON_CLK_MT6795
+       help
+         This driver supports MediaTek MT6795 mmsys clocks.
+
+config COMMON_CLK_MT6795_VDECSYS
+	tristate "Clock driver for MediaTek MT6795 VDECSYS"
+	depends on COMMON_CLK_MT6795
+	default COMMON_CLK_MT6795
+	help
+	  This driver supports MediaTek MT6795 vdecsys clocks.
+
+config COMMON_CLK_MT6795_VENCSYS
+	tristate "Clock driver for MediaTek MT6795 VENCSYS"
+	depends on COMMON_CLK_MT6795
+	default COMMON_CLK_MT6795
+	help
+	  This driver supports MediaTek MT6795 vencsys clocks.
+
 config COMMON_CLK_MT6797
 	bool "Clock driver for MediaTek MT6797"
 	depends on (ARCH_MEDIATEK && ARM64) || COMPILE_TEST
@@ -512,6 +549,14 @@ config COMMON_CLK_MT8183_VENCSYS
 	help
 	  This driver supports MediaTek MT8183 vencsys clocks.
 
+config COMMON_CLK_MT8186
+	bool "Clock driver for MediaTek MT8186"
+	depends on ARM64 || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default ARCH_MEDIATEK
+	help
+	  This driver supports MediaTek MT8186 clocks.
+
 config COMMON_CLK_MT8192
 	bool "Clock driver for MediaTek MT8192"
 	depends on ARM64 || COMPILE_TEST
@@ -599,6 +644,56 @@ config COMMON_CLK_MT8195
         default ARCH_MEDIATEK
         help
           This driver supports MediaTek MT8195 clocks.
+
+config COMMON_CLK_MT8365
+	tristate "Clock driver for MediaTek MT8365"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default ARCH_MEDIATEK && ARM64
+	help
+	  This driver supports MediaTek MT8365 basic clocks.
+
+config COMMON_CLK_MT8365_APU
+	tristate "Clock driver for MediaTek MT8365 apu"
+	depends on COMMON_CLK_MT8365
+	default COMMON_CLK_MT8365
+	help
+	  This driver supports MediaTek MT8365 apu clocks.
+
+config COMMON_CLK_MT8365_CAM
+	tristate "Clock driver for MediaTek MT8365 cam"
+	depends on COMMON_CLK_MT8365
+	default COMMON_CLK_MT8365
+	help
+	  This driver supports MediaTek MT8365 cam clocks.
+
+config COMMON_CLK_MT8365_MFG
+	tristate "Clock driver for MediaTek MT8365 mfg"
+	depends on COMMON_CLK_MT8365
+	default COMMON_CLK_MT8365
+	help
+	  This driver supports MediaTek MT8365 mfg clocks.
+
+config COMMON_CLK_MT8365_MMSYS
+	tristate "Clock driver for MediaTek MT8365 mmsys"
+	depends on COMMON_CLK_MT8365
+	default COMMON_CLK_MT8365
+	help
+	  This driver supports MediaTek MT8365 mmsys clocks.
+
+config COMMON_CLK_MT8365_VDEC
+	tristate "Clock driver for MediaTek MT8365 vdec"
+	depends on COMMON_CLK_MT8365
+	default COMMON_CLK_MT8365
+	help
+	  This driver supports MediaTek MT8365 vdec clocks.
+
+config COMMON_CLK_MT8365_VENC
+	tristate "Clock driver for MediaTek MT8365 venc"
+	depends on COMMON_CLK_MT8365
+	default COMMON_CLK_MT8365
+	help
+	  This driver supports MediaTek MT8365 venc clocks.
 
 config COMMON_CLK_MT8516
 	bool "Clock driver for MediaTek MT8516"

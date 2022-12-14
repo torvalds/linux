@@ -470,7 +470,7 @@ static int adm1025_detect(struct i2c_client *client,
 	else
 		return -ENODEV;
 
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }

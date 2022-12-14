@@ -16,10 +16,12 @@ MODULE_PARM_DESC(block_transition, "block_transition (default=false)");
 
 static void busymod_work_func(struct work_struct *work);
 static DECLARE_WORK(work, busymod_work_func);
+static DECLARE_COMPLETION(busymod_work_started);
 
 static void busymod_work_func(struct work_struct *work)
 {
 	pr_info("%s enter\n", __func__);
+	complete(&busymod_work_started);
 
 	while (READ_ONCE(block_transition)) {
 		/*
@@ -36,6 +38,12 @@ static int test_klp_callbacks_busy_init(void)
 {
 	pr_info("%s\n", __func__);
 	schedule_work(&work);
+
+	/*
+	 * To synchronize kernel messages, hold the init function from
+	 * exiting until the work function's entry message has printed.
+	 */
+	wait_for_completion(&busymod_work_started);
 
 	if (!block_transition) {
 		/*

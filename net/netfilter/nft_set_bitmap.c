@@ -21,7 +21,7 @@ struct nft_bitmap_elem {
  * the element state in the current and the future generation.
  *
  * An element can be in three states. The generation cursor is represented using
- * the ^ character, note that this cursor shifts on every succesful transaction.
+ * the ^ character, note that this cursor shifts on every successful transaction.
  * If no transaction is going on, we observe all elements are in the following
  * state:
  *
@@ -39,7 +39,7 @@ struct nft_bitmap_elem {
  * 10 = this element is active in the current generation and it becomes inactive
  * ^    in the next one. This happens when the element is deactivated but commit
  *      path has not yet been executed yet, so removal is still pending. On
- *      transation abortion, the next generation bit is reset to go back to
+ *      transaction abortion, the next generation bit is reset to go back to
  *      restore its previous state.
  */
 struct nft_bitmap {

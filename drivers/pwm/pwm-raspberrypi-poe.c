@@ -66,7 +66,7 @@ static int raspberrypi_pwm_get_property(struct rpi_firmware *firmware,
 					u32 reg, u32 *val)
 {
 	struct raspberrypi_pwm_prop msg = {
-		.reg = reg
+		.reg = cpu_to_le32(reg),
 	};
 	int ret;
 
@@ -163,7 +163,6 @@ static int raspberrypi_pwm_probe(struct platform_device *pdev)
 	rpipwm->firmware = firmware;
 	rpipwm->chip.dev = dev;
 	rpipwm->chip.ops = &raspberrypi_pwm_ops;
-	rpipwm->chip.base = -1;
 	rpipwm->chip.npwm = RASPBERRYPI_FIRMWARE_PWM_NUM;
 
 	ret = raspberrypi_pwm_get_property(rpipwm->firmware, RPI_PWM_CUR_DUTY_REG,

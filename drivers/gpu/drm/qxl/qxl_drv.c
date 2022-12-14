@@ -39,6 +39,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem_ttm_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_probe_helper.h>
@@ -193,7 +194,6 @@ static int qxl_drm_resume(struct drm_device *dev, bool thaw)
 	qdev->ram_header->int_mask = QXL_INTERRUPT_MASK;
 	if (!thaw) {
 		qxl_reinit_memslots(qdev);
-		qxl_ring_init_hdr(qdev->release_ring);
 	}
 
 	qxl_create_monitors_object(qdev);
@@ -219,6 +219,7 @@ static int qxl_pm_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct qxl_device *qdev = to_qxl(drm_dev);
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
@@ -226,6 +227,7 @@ static int qxl_pm_resume(struct device *dev)
 		return -EIO;
 	}
 
+	qxl_io_reset(qdev);
 	return qxl_drm_resume(drm_dev, false);
 }
 
@@ -269,6 +271,16 @@ static struct pci_driver qxl_pci_driver = {
 	 .driver.pm = &qxl_pm_ops,
 };
 
+static const struct drm_ioctl_desc qxl_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(QXL_ALLOC, qxl_alloc_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_MAP, qxl_map_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_EXECBUFFER, qxl_execbuffer_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_UPDATE_AREA, qxl_update_area_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_GETPARAM, qxl_getparam_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_CLIENTCAP, qxl_clientcap_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_ALLOC_SURF, qxl_alloc_surf_ioctl, DRM_AUTH),
+};
+
 static struct drm_driver qxl_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 
@@ -282,6 +294,7 @@ static struct drm_driver qxl_driver = {
 	.gem_prime_import_sg_table = qxl_gem_prime_import_sg_table,
 	.fops = &qxl_fops,
 	.ioctls = qxl_ioctls,
+	.num_ioctls = ARRAY_SIZE(qxl_ioctls),
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
@@ -292,24 +305,7 @@ static struct drm_driver qxl_driver = {
 	.release = qxl_drm_release,
 };
 
-static int __init qxl_init(void)
-{
-	if (drm_firmware_drivers_only() && qxl_modeset == -1)
-		return -EINVAL;
-
-	if (qxl_modeset == 0)
-		return -EINVAL;
-	qxl_driver.num_ioctls = qxl_max_ioctls;
-	return pci_register_driver(&qxl_pci_driver);
-}
-
-static void __exit qxl_exit(void)
-{
-	pci_unregister_driver(&qxl_pci_driver);
-}
-
-module_init(qxl_init);
-module_exit(qxl_exit);
+drm_module_pci_driver_if_modeset(qxl_pci_driver, qxl_modeset);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

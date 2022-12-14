@@ -27,6 +27,7 @@
 #define	SPI_TX_OCTAL		_BITUL(13)	/* transmit with 8 wires */
 #define	SPI_RX_OCTAL		_BITUL(14)	/* receive with 8 wires */
 #define	SPI_3WIRE_HIZ		_BITUL(15)	/* high impedance turnaround */
+#define	SPI_RX_CPHA_FLIP	_BITUL(16)	/* flip CPHA on Rx only xfer */
 
 /*
  * All the bits defined above should be covered by SPI_MODE_USER_MASK.
@@ -36,6 +37,6 @@
  * These bits must not overlap. A static assert check should make sure of that.
  * If adding extra bits, make sure to increase the bit index below as well.
  */
-#define SPI_MODE_USER_MASK	(_BITUL(16) - 1)
+#define SPI_MODE_USER_MASK	(_BITUL(17) - 1)
 
 #endif /* _UAPI_SPI_H */

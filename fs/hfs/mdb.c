@@ -9,7 +9,7 @@
  */
 
 #include <linux/cdrom.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 #include <linux/nls.h>
 #include <linux/slab.h>
 

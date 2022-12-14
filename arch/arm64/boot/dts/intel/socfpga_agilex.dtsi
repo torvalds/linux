@@ -300,7 +300,7 @@
 			status = "disabled";
 		};
 
-		mmc: dwmmc0@ff808000 {
+		mmc: mmc@ff808000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "altr,socfpga-dw-mshc";
@@ -337,7 +337,7 @@
 			reg = <0xffe00000 0x40000>;
 		};
 
-		pdma: pdma@ffda0000 {
+		pdma: dma-controller@ffda0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0xffda0000 0x1000>;
 			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>,
@@ -350,8 +350,6 @@
 				     <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 			resets = <&rst DMA_RESET>, <&rst DMA_OCP_RESET>;
 			reset-names = "dma", "dma-ocp";
 			clocks = <&clkmgr AGILEX_L4_MAIN_CLK>;
@@ -502,7 +500,7 @@
 		};
 
 		usb0: usb@ffb00000 {
-			compatible = "snps,dwc2";
+			compatible = "intel,socfpga-agilex-hsotg", "snps,dwc2";
 			reg = <0xffb00000 0x40000>;
 			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usbphy0>;
@@ -510,12 +508,13 @@
 			resets = <&rst USB0_RESET>, <&rst USB0_OCP_RESET>;
 			reset-names = "dwc2", "dwc2-ecc";
 			clocks = <&clkmgr AGILEX_USB_CLK>;
+			clock-names = "otg";
 			iommus = <&smmu 6>;
 			status = "disabled";
 		};
 
 		usb1: usb@ffb40000 {
-			compatible = "snps,dwc2";
+			compatible = "intel,socfpga-agilex-hsotg", "snps,dwc2";
 			reg = <0xffb40000 0x40000>;
 			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usbphy0>;
@@ -582,7 +581,7 @@
 			sdramedac {
 				compatible = "altr,sdram-edac-s10";
 				altr,sdr-syscon = <&sdr>;
-				interrupts = <16 4>;
+				interrupts = <16 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			ocram-ecc@ff8cc000 {
@@ -590,7 +589,7 @@
 					     "altr,socfpga-a10-ocram-ecc";
 				reg = <0xff8cc000 0x100>;
 				altr,ecc-parent = <&ocram>;
-				interrupts = <1 4>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			usb0-ecc@ff8c4000 {
@@ -598,7 +597,7 @@
 					     "altr,socfpga-usb-ecc";
 				reg = <0xff8c4000 0x100>;
 				altr,ecc-parent = <&usb0>;
-				interrupts = <2 4>;
+				interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			emac0-rx-ecc@ff8c0000 {
@@ -606,7 +605,7 @@
 					     "altr,socfpga-eth-mac-ecc";
 				reg = <0xff8c0000 0x100>;
 				altr,ecc-parent = <&gmac0>;
-				interrupts = <4 4>;
+				interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			emac0-tx-ecc@ff8c0400 {
@@ -614,7 +613,7 @@
 					     "altr,socfpga-eth-mac-ecc";
 				reg = <0xff8c0400 0x100>;
 				altr,ecc-parent = <&gmac0>;
-				interrupts = <5 4>;
+				interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			sdmmca-ecc@ff8c8c00 {
@@ -622,8 +621,8 @@
 					     "altr,socfpga-sdmmc-ecc";
 				reg = <0xff8c8c00 0x100>;
 				altr,ecc-parent = <&mmc>;
-				interrupts = <14 4>,
-					     <15 4>;
+				interrupts = <14 IRQ_TYPE_LEVEL_HIGH>,
+					     <15 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 

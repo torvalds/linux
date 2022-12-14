@@ -80,6 +80,10 @@ static struct quirk_entry quirk_dell_inspiron_1012 = {
 	.kbd_led_not_present = true,
 };
 
+static struct quirk_entry quirk_dell_latitude_7520 = {
+	.kbd_missing_ac_tag = true,
+};
+
 static struct platform_driver platform_driver = {
 	.driver = {
 		.name = "dell-laptop",
@@ -335,6 +339,15 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1018"),
 		},
 		.driver_data = &quirk_dell_inspiron_1012,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Latitude 7520",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude 7520"),
+		},
+		.driver_data = &quirk_dell_latitude_7520,
 	},
 	{ }
 };
@@ -2180,7 +2193,7 @@ static int __init dell_init(void)
 	ret = platform_driver_register(&platform_driver);
 	if (ret)
 		goto fail_platform_driver;
-	platform_device = platform_device_alloc("dell-laptop", -1);
+	platform_device = platform_device_alloc("dell-laptop", PLATFORM_DEVID_NONE);
 	if (!platform_device) {
 		ret = -ENOMEM;
 		goto fail_platform_device1;

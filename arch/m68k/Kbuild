@@ -17,3 +17,4 @@ obj-$(CONFIG_M68060)		+= ifpsp060/
 obj-$(CONFIG_M68KFPU_EMU)	+= math-emu/
 obj-$(CONFIG_M68000)		+= 68000/
 obj-$(CONFIG_COLDFIRE)		+= coldfire/
+obj-$(CONFIG_VIRT)		+= virt/

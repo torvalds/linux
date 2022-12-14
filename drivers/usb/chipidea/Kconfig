@@ -34,26 +34,26 @@ config USB_CHIPIDEA_HOST
 	  ChipIdea driver.
 
 config USB_CHIPIDEA_PCI
-	tristate "Enable PCI glue driver" if EMBEDDED
+	tristate "Enable PCI glue driver" if EXPERT
 	depends on USB_PCI
 	depends on NOP_USB_XCEIV
 	default USB_CHIPIDEA
 
 config USB_CHIPIDEA_MSM
-	tristate "Enable MSM hsusb glue driver" if EMBEDDED
+	tristate "Enable MSM hsusb glue driver" if EXPERT
 	default USB_CHIPIDEA
 
 config USB_CHIPIDEA_IMX
-	tristate "Enable i.MX USB glue driver" if EMBEDDED
+	tristate "Enable i.MX USB glue driver" if EXPERT
 	depends on OF
 	default USB_CHIPIDEA
 
 config USB_CHIPIDEA_GENERIC
-	tristate "Enable generic USB2 glue driver" if EMBEDDED
+	tristate "Enable generic USB2 glue driver" if EXPERT
 	default USB_CHIPIDEA
 
 config USB_CHIPIDEA_TEGRA
-	tristate "Enable Tegra USB glue driver" if EMBEDDED
+	tristate "Enable Tegra USB glue driver" if EXPERT
 	depends on OF
 	default USB_CHIPIDEA
 

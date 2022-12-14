@@ -13,7 +13,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0 0>;
-			assigned-clocks	= <&clk_s_d2_quadfs 0>,
+			assigned-clocks = <&clk_s_d2_quadfs 0>,
 					  <&clk_s_d2_quadfs 1>,
 					  <&clk_s_c0_pll1 0>,
 					  <&clk_s_c0_flexgen CLK_COMPO_DVP>,
@@ -106,7 +106,7 @@
 				reg-names = "hdmi-reg";
 				#sound-dai-cells = <0>;
 				interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names	= "irq";
+				interrupt-names = "irq";
 				clock-names = "pix",
 					      "tmds",
 					      "phy",

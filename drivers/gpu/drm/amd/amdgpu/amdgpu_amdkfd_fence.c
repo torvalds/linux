@@ -159,11 +159,14 @@ static void amdkfd_fence_release(struct dma_fence *f)
 }
 
 /**
- * amdkfd_fence_check_mm - Check if @mm is same as that of the fence @f
- *  if same return TRUE else return FALSE.
+ * amdkfd_fence_check_mm - Check whether to prevent eviction of @f by @mm
  *
  * @f: [IN] fence
  * @mm: [IN] mm that needs to be verified
+ *
+ * Check if @mm is same as that of the fence @f, if same return TRUE else
+ * return FALSE.
+ * For svm bo, which support vram overcommitment, always return FALSE.
  */
 bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm)
 {
@@ -171,7 +174,7 @@ bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm)
 
 	if (!fence)
 		return false;
-	else if (fence->mm == mm)
+	else if (fence->mm == mm  && !fence->svm_bo)
 		return true;
 
 	return false;

@@ -105,6 +105,16 @@ struct mod_vrr_params_fixed_refresh {
 	uint32_t frame_counter;
 };
 
+struct mod_vrr_params_flip_interval {
+	bool flip_interval_workaround_active;
+	bool program_flip_interval_workaround;
+	bool do_flip_interval_workaround_cleanup;
+	uint32_t flip_interval_detect_counter;
+	uint32_t vsyncs_between_flip;
+	uint32_t vsync_to_flip_in_us;
+	uint32_t v_update_timestamp_in_us;
+};
+
 struct mod_vrr_params {
 	bool supported;
 	bool send_info_frame;
@@ -121,6 +131,8 @@ struct mod_vrr_params {
 	struct mod_vrr_params_fixed_refresh fixed;
 
 	struct mod_vrr_params_btr btr;
+
+	struct mod_vrr_params_flip_interval flip_interval;
 };
 
 struct mod_freesync *mod_freesync_create(struct dc *dc);
@@ -181,5 +193,8 @@ bool mod_freesync_is_valid_range(uint32_t min_refresh_cap_in_uhz,
 unsigned int mod_freesync_calc_v_total_from_refresh(
 		const struct dc_stream_state *stream,
 		unsigned int refresh_in_uhz);
+
+// Returns true when FreeSync is supported and enabled (even if it is inactive)
+bool mod_freesync_get_freesync_enabled(struct mod_vrr_params *pVrr);
 
 #endif

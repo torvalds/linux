@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=========================
-Run Tests with kunit_tool
-=========================
+=============================
+Running tests with kunit_tool
+=============================
 
 We can either run KUnit tests using kunit_tool or can run tests
 manually, and then use kunit_tool to parse the results. To run tests
@@ -22,7 +22,7 @@ We should see the following:
 
 .. code-block::
 
-	Generating .config...
+	Configuring KUnit Kernel ...
 	Building KUnit kernel...
 	Starting KUnit kernel...
 
@@ -30,7 +30,7 @@ We may want to use the following options:
 
 .. code-block::
 
-	./tools/testing/kunit/kunit.py run --timeout=30 --jobs=`nproc --all
+	./tools/testing/kunit/kunit.py run --timeout=30 --jobs=`nproc --all`
 
 - ``--timeout`` sets a maximum amount of time for tests to run.
 - ``--jobs`` sets the number of threads to build the kernel.
@@ -58,8 +58,8 @@ To view kunit_tool flags (optional command-line arguments), run:
 
 	./tools/testing/kunit/kunit.py run --help
 
-Create a  ``.kunitconfig`` File
-===============================
+Creating a ``.kunitconfig`` file
+================================
 
 If we want to run a specific set of tests (rather than those listed
 in the KUnit ``defconfig``), we can provide Kconfig options in the
@@ -98,8 +98,8 @@ have not included the options dependencies.
    The build dir needs to be set for ``make menuconfig`` to
    work, therefore  by default use ``make O=.kunit menuconfig``.
 
-Configure, Build, and Run Tests
-===============================
+Configuring, building, and running tests
+========================================
 
 If we want to make manual changes to the KUnit build process, we
 can run part of the KUnit build process independently.
@@ -125,11 +125,11 @@ argument:
 
 	./tools/testing/kunit/kunit.py exec
 
-The ``run`` command discussed in section: **Run Tests with kunit_tool**,
+The ``run`` command discussed in section: **Running tests with kunit_tool**,
 is equivalent to running the above three commands in sequence.
 
-Parse Test Results
-==================
+Parsing test results
+====================
 
 KUnit tests output displays results in TAP (Test Anything Protocol)
 format. When running tests, kunit_tool parses this output and prints
@@ -152,8 +152,8 @@ standard input.
 	# Reading from stdin
 	dmesg | ./tools/testing/kunit/kunit.py parse
 
-Run Selected Test Suites
-========================
+Filtering tests
+===============
 
 By passing a bash style glob filter to the ``exec`` or ``run``
 commands, we can run a subset of the tests built into a kernel . For
@@ -165,8 +165,10 @@ example: if we only want to run KUnit resource tests, use:
 
 This uses the standard glob format with wildcard characters.
 
-Run Tests on qemu
-=================
+.. _kunit-on-qemu:
+
+Running tests on QEMU
+=====================
 
 kunit_tool supports running tests on  qemu as well as
 via UML. To run tests on qemu, by default it requires two flags:
@@ -192,6 +194,21 @@ via UML. To run tests on qemu, by default it requires two flags:
     if we have downloaded the microblaze toolchain from the 0-day
     website to a directory in our home directory called toolchains.
 
+This means that for most architectures, running under qemu is as simple as:
+
+.. code-block:: bash
+
+	./tools/testing/kunit/kunit.py run --arch=x86_64
+
+When cross-compiling, we'll likely need to specify a different toolchain, for
+example:
+
+.. code-block:: bash
+
+	./tools/testing/kunit/kunit.py run \
+		--arch=s390 \
+		--cross_compile=s390x-linux-gnu-
+
 If we want to run KUnit tests on an architecture not supported by
 the ``--arch`` flag, or want to run KUnit tests on qemu using a
 non-default configuration; then we can write our own``QemuConfig``.
@@ -214,14 +231,11 @@ as
 		--jobs=12 \
 		--qemu_config=./tools/testing/kunit/qemu_configs/x86_64.py
 
-To run existing KUnit tests on non-UML architectures, see:
-Documentation/dev-tools/kunit/non_uml.rst.
-
-Command-Line Arguments
-======================
+Running command-line arguments
+==============================
 
 kunit_tool has a number of other command-line arguments which can
-be useful for our test environment. Below the most commonly used
+be useful for our test environment. Below are the most commonly used
 command line arguments:
 
 - ``--help``: Lists all available options. To list common options,
@@ -237,11 +251,73 @@ command line arguments:
   compiling a kernel (using ``build`` or ``run`` commands). For example:
   to enable compiler warnings, we can pass ``--make_options W=1``.
 
-- ``--alltests``: Builds a UML kernel with all config options enabled
-  using ``make allyesconfig``. This allows us to run as many tests as
-  possible.
+- ``--alltests``: Enable a predefined set of options in order to build
+  as many tests as possible.
 
-  .. note:: It is slow and prone to breakage as new options are
-            added or modified. Instead, enable all tests
-            which have satisfied dependencies by adding
-            ``CONFIG_KUNIT_ALL_TESTS=y`` to your ``.kunitconfig``.
+  .. note:: The list of enabled options can be found in
+            ``tools/testing/kunit/configs/all_tests.config``.
+
+            If you only want to enable all tests with otherwise satisfied
+            dependencies, instead add ``CONFIG_KUNIT_ALL_TESTS=y`` to your
+            ``.kunitconfig``.
+
+- ``--kunitconfig``: Specifies the path or the directory of the ``.kunitconfig``
+  file. For example:
+
+  - ``lib/kunit/.kunitconfig`` can be the path of the file.
+
+  - ``lib/kunit`` can be the directory in which the file is located.
+
+  This file is used to build and run with a predefined set of tests
+  and their dependencies. For example, to run tests for a given subsystem.
+
+- ``--kconfig_add``: Specifies additional configuration options to be
+  appended to the ``.kunitconfig`` file. For example:
+
+  .. code-block::
+
+	./tools/testing/kunit/kunit.py run --kconfig_add CONFIG_KASAN=y
+
+- ``--arch``: Runs tests on the specified architecture. The architecture
+  argument is same as the Kbuild ARCH environment variable.
+  For example, i386, x86_64, arm, um, etc. Non-UML architectures run on qemu.
+  Default is `um`.
+
+- ``--cross_compile``: Specifies the Kbuild toolchain. It passes the
+  same argument as passed to the ``CROSS_COMPILE`` variable used by
+  Kbuild. This will be the prefix for the toolchain
+  binaries such as GCC. For example:
+
+  - ``sparc64-linux-gnu-`` if we have the sparc toolchain installed on
+    our system.
+
+  - ``$HOME/toolchains/microblaze/gcc-9.2.0-nolibc/microblaze-linux/bin/microblaze-linux``
+    if we have downloaded the microblaze toolchain from the 0-day
+    website to a specified path in our home directory called toolchains.
+
+- ``--qemu_config``: Specifies the path to a file containing a
+  custom qemu architecture definition. This should be a python file
+  containing a `QemuArchParams` object.
+
+- ``--qemu_args``: Specifies additional qemu arguments, for example, ``-smp 8``.
+
+- ``--jobs``: Specifies the number of jobs (commands) to run simultaneously.
+  By default, this is set to the number of cores on your system.
+
+- ``--timeout``: Specifies the maximum number of seconds allowed for all tests to run.
+  This does not include the time taken to build the tests.
+
+- ``--kernel_args``: Specifies additional kernel command-line arguments. May be repeated.
+
+- ``--run_isolated``: If set, boots the kernel for each individual suite/test.
+  This is useful for debugging a non-hermetic test, one that
+  might pass/fail based on what ran before it.
+
+- ``--raw_output``: If set, generates unformatted output from kernel. Possible options are:
+
+   - ``all``: To view the full kernel output, use ``--raw_output=all``.
+
+   - ``kunit``: This is the default option and filters to KUnit output. Use ``--raw_output`` or ``--raw_output=kunit``.
+
+- ``--json``: If set, stores the test results in a JSON format and prints to `stdout` or
+  saves to a file if a filename is specified.

@@ -3,8 +3,7 @@ config DRM_IMX
 	tristate "DRM Support for Freescale i.MX"
 	select DRM_KMS_HELPER
 	select VIDEOMODE_HELPERS
-	select DRM_GEM_CMA_HELPER
-	select DRM_KMS_HELPER
+	select DRM_GEM_DMA_HELPER
 	depends on DRM && (ARCH_MXC || ARCH_MULTIPLATFORM || COMPILE_TEST)
 	depends on IMX_IPUV3_CORE
 	help

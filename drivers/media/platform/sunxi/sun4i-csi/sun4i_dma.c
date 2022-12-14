@@ -226,7 +226,7 @@ static void return_all_buffers(struct sun4i_csi *csi,
 static int sun4i_csi_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct sun4i_csi *csi = vb2_get_drv_priv(vq);
-	struct v4l2_fwnode_bus_parallel *bus = &csi->bus;
+	struct v4l2_mbus_config_parallel *bus = &csi->bus;
 	const struct sun4i_csi_format *csi_fmt;
 	unsigned long href_pol, pclk_pol, vref_pol;
 	unsigned long flags;
@@ -266,7 +266,7 @@ static int sun4i_csi_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto err_clear_dma_queue;
 	}
 
-	ret = media_pipeline_start(&csi->vdev.entity, &csi->vdev.pipe);
+	ret = video_device_pipeline_alloc_start(&csi->vdev);
 	if (ret < 0)
 		goto err_free_scratch_buffer;
 
@@ -330,7 +330,7 @@ err_disable_device:
 	sun4i_csi_capture_stop(csi);
 
 err_disable_pipeline:
-	media_pipeline_stop(&csi->vdev.entity);
+	video_device_pipeline_stop(&csi->vdev);
 
 err_free_scratch_buffer:
 	dma_free_coherent(csi->dev, csi->scratch.size, csi->scratch.vaddr,
@@ -359,7 +359,7 @@ static void sun4i_csi_stop_streaming(struct vb2_queue *vq)
 	return_all_buffers(csi, VB2_BUF_STATE_ERROR);
 	spin_unlock_irqrestore(&csi->qlock, flags);
 
-	media_pipeline_stop(&csi->vdev.entity);
+	video_device_pipeline_stop(&csi->vdev);
 
 	dma_free_coherent(csi->dev, csi->scratch.size, csi->scratch.vaddr,
 			  csi->scratch.paddr);

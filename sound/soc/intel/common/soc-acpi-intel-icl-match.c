@@ -10,6 +10,11 @@
 #include <sound/soc-acpi-intel-match.h>
 #include "../skylake/skl.h"
 
+static const struct snd_soc_acpi_codecs essx_83x6 = {
+	.num_codecs = 3,
+	.codecs = { "ESSX8316", "ESSX8326", "ESSX8336"},
+};
+
 static struct skl_machine_pdata icl_pdata = {
 	.use_tplg_pcm = true,
 };
@@ -20,14 +25,20 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_icl_machines[] = {
 		.drv_name = "icl_rt274",
 		.fw_filename = "intel/dsp_fw_icl.bin",
 		.pdata = &icl_pdata,
-		.sof_fw_filename = "sof-icl.ri",
 		.sof_tplg_filename = "sof-icl-rt274.tplg",
 	},
 	{
 		.id = "10EC5682",
 		.drv_name = "sof_rt5682",
-		.sof_fw_filename = "sof-icl.ri",
 		.sof_tplg_filename = "sof-icl-rt5682.tplg",
+	},
+	{
+		.comp_ids = &essx_83x6,
+		.drv_name = "sof-essx8336",
+		.sof_tplg_filename = "sof-icl-es8336", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
+					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
+					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
 	},
 	{},
 };
@@ -165,21 +176,18 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_icl_sdw_machines[] = {
 		.link_mask = 0xF, /* 4 active links required */
 		.links = icl_3_in_1_default,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-icl.ri",
 		.sof_tplg_filename = "sof-icl-rt711-rt1308-rt715.tplg",
 	},
 	{
 		.link_mask = 0xB, /* 3 active links required */
 		.links = icl_3_in_1_mono_amp,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-icl.ri",
 		.sof_tplg_filename = "sof-icl-rt711-rt1308-rt715-mono.tplg",
 	},
 	{
 		.link_mask = 0x1, /* rt700 connected on link0 */
 		.links = icl_rvp,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-icl.ri",
 		.sof_tplg_filename = "sof-icl-rt700.tplg",
 	},
 	{},

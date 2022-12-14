@@ -124,7 +124,7 @@ u32 ProgramClock(u32 refClock,
 	u32 ulScore, ulPhaseScore, ulVcoScore;
 	u32 ulTmp = 0, ulVCO;
 	u32 ulScaleClockReq, ulMinClock, ulMaxClock;
-	u32 ODValues[] = { 1, 2, 0 };
+	static const unsigned char ODValues[] = { 1, 2, 0 };
 
 	/* Translate clock in Hz */
 	coreClock *= 100;	/* in Hz */

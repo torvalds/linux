@@ -75,11 +75,11 @@ parent_hugetlb_cgroup(struct hugetlb_cgroup *h_cg)
 
 static inline bool hugetlb_cgroup_have_usage(struct hugetlb_cgroup *h_cg)
 {
-	int idx;
+	struct hstate *h;
 
-	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
+	for_each_hstate(h) {
 		if (page_counter_read(
-				hugetlb_cgroup_counter_from_cgroup(h_cg, idx)))
+		    hugetlb_cgroup_counter_from_cgroup(h_cg, hstate_index(h))))
 			return true;
 	}
 	return false;
@@ -154,9 +154,9 @@ hugetlb_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 	 * function.
 	 */
 	for_each_node(node) {
-		/* Set node_to_alloc to -1 for offline nodes. */
+		/* Set node_to_alloc to NUMA_NO_NODE for offline nodes. */
 		int node_to_alloc =
-			node_state(node, N_NORMAL_MEMORY) ? node : -1;
+			node_state(node, N_NORMAL_MEMORY) ? node : NUMA_NO_NODE;
 		h_cgroup->nodeinfo[node] =
 			kzalloc_node(sizeof(struct hugetlb_cgroup_per_node),
 				     GFP_KERNEL, node_to_alloc);
@@ -225,17 +225,14 @@ static void hugetlb_cgroup_css_offline(struct cgroup_subsys_state *css)
 	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
 	struct hstate *h;
 	struct page *page;
-	int idx;
 
 	do {
-		idx = 0;
 		for_each_hstate(h) {
 			spin_lock_irq(&hugetlb_lock);
 			list_for_each_entry(page, &h->hugepage_activelist, lru)
-				hugetlb_cgroup_move_parent(idx, h_cg, page);
+				hugetlb_cgroup_move_parent(hstate_index(h), h_cg, page);
 
 			spin_unlock_irq(&hugetlb_lock);
-			idx++;
 		}
 		cond_resched();
 	} while (hugetlb_cgroup_have_usage(h_cg));
@@ -442,7 +439,7 @@ void hugetlb_cgroup_uncharge_file_region(struct resv_map *resv,
 	if (hugetlb_cgroup_disabled() || !resv || !rg || !nr_pages)
 		return;
 
-	if (rg->reservation_counter && resv->pages_per_hpage && nr_pages > 0 &&
+	if (rg->reservation_counter && resv->pages_per_hpage &&
 	    !resv->reservation_counter) {
 		page_counter_uncharge(rg->reservation_counter,
 				      nr_pages * resv->pages_per_hpage);
@@ -675,12 +672,12 @@ static ssize_t hugetlb_cgroup_reset(struct kernfs_open_file *of,
 
 static char *mem_fmt(char *buf, int size, unsigned long hsize)
 {
-	if (hsize >= (1UL << 30))
-		snprintf(buf, size, "%luGB", hsize >> 30);
-	else if (hsize >= (1UL << 20))
-		snprintf(buf, size, "%luMB", hsize >> 20);
+	if (hsize >= SZ_1G)
+		snprintf(buf, size, "%luGB", hsize / SZ_1G);
+	else if (hsize >= SZ_1M)
+		snprintf(buf, size, "%luMB", hsize / SZ_1M);
 	else
-		snprintf(buf, size, "%luKB", hsize >> 10);
+		snprintf(buf, size, "%luKB", hsize / SZ_1K);
 	return buf;
 }
 
@@ -772,6 +769,7 @@ static void __init __hugetlb_cgroup_file_dfl_init(int idx)
 	/* Add the numa stat file */
 	cft = &h->cgroup_files_dfl[6];
 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.numa_stat", buf);
+	cft->private = MEMFILE_PRIVATE(idx, 0);
 	cft->seq_show = hugetlb_cgroup_read_numa_stat;
 	cft->flags = CFTYPE_NOT_ON_ROOT;
 

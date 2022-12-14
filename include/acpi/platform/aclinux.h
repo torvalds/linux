@@ -3,7 +3,7 @@
  *
  * Name: aclinux.h - OS specific defines, etc. for Linux
  *
- * Copyright (C) 2000 - 2021, Intel Corp.
+ * Copyright (C) 2000 - 2022, Intel Corp.
  *
  *****************************************************************************/
 
@@ -113,6 +113,11 @@
 #define acpi_spinlock                       spinlock_t *
 #define acpi_raw_spinlock                   raw_spinlock_t *
 #define acpi_cpu_flags                      unsigned long
+
+#define acpi_uintptr_t                      uintptr_t
+
+#define ACPI_TO_INTEGER(p)                  ((uintptr_t)(p))
+#define ACPI_OFFSET(d, f)                   offsetof(d, f)
 
 /* Use native linux version of acpi_os_allocate_zeroed */
 

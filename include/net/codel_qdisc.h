@@ -49,6 +49,7 @@
  * Implemented on linux by Dave Taht and Eric Dumazet
  */
 
+#include <net/codel.h>
 #include <net/pkt_sched.h>
 
 /* Qdiscs using codel plugin must use codel_skb_cb in their own cb[] */

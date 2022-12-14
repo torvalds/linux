@@ -663,7 +663,7 @@ static void __init mpc512x_clk_setup_mclk(struct mclk_setup_data *entry, size_t 
 	 *   the PSC/MSCAN/SPDIF (serial drivers et al) need the MCLK
 	 *   for their bitrate
 	 * - in the absence of "aliases" for clocks we need to create
-	 *   individial 'struct clk' items for whatever might get
+	 *   individual 'struct clk' items for whatever might get
 	 *   referenced or looked up, even if several of those items are
 	 *   identical from the logical POV (their rate value)
 	 * - for easier future maintenance and for better reflection of
@@ -950,7 +950,7 @@ static void __init mpc5121_clk_register_of_provider(struct device_node *np)
  */
 static void __init mpc5121_clk_provide_migration_support(void)
 {
-
+	struct device_node *np;
 	/*
 	 * pre-enable those clock items which are not yet appropriately
 	 * acquired by their peripheral driver
@@ -970,7 +970,9 @@ static void __init mpc5121_clk_provide_migration_support(void)
 	 * unused and so it gets disabled
 	 */
 	clk_prepare_enable(clks[MPC512x_CLK_PSC3_MCLK]);/* serial console */
-	if (of_find_compatible_node(NULL, "pci", "fsl,mpc5121-pci"))
+	np = of_find_compatible_node(NULL, "pci", "fsl,mpc5121-pci");
+	of_node_put(np);
+	if (np)
 		clk_prepare_enable(clks[MPC512x_CLK_PCI]);
 }
 
@@ -1207,6 +1209,8 @@ int __init mpc5121_clk_init(void)
 
 	/* register as an OF clock provider */
 	mpc5121_clk_register_of_provider(clk_np);
+
+	of_node_put(clk_np);
 
 	/*
 	 * unbreak not yet adjusted peripheral drivers during migration

@@ -52,53 +52,51 @@
 
 	keys@0 {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		key@0 {
+		key-0 {
 			label = "D-pad up";
 			linux,code = <KEY_UP>;
 			gpios = <&gpc 10 GPIO_ACTIVE_LOW>;
 		};
 
-		key@1 {
+		key-1 {
 			label = "D-pad down";
 			linux,code = <KEY_DOWN>;
 			gpios = <&gpc 11 GPIO_ACTIVE_LOW>;
 		};
 
-		key@2 {
+		key-2 {
 			label = "D-pad left";
 			linux,code = <KEY_LEFT>;
 			gpios = <&gpb 31 GPIO_ACTIVE_LOW>;
 		};
 
-		key@3 {
+		key-3 {
 			label = "D-pad right";
 			linux,code = <KEY_RIGHT>;
 			gpios = <&gpd 21 GPIO_ACTIVE_LOW>;
 		};
 
-		key@4 {
+		key-4 {
 			label = "Button A";
 			linux,code = <KEY_LEFTCTRL>;
 			gpios = <&gpc 31 GPIO_ACTIVE_LOW>;
 		};
 
-		key@5 {
+		key-5 {
 			label = "Button B";
 			linux,code = <KEY_LEFTALT>;
 			gpios = <&gpc 30 GPIO_ACTIVE_LOW>;
 		};
 
-		key@6 {
+		key-6 {
 			label = "Right shoulder button";
 			linux,code = <KEY_BACKSPACE>;
 			gpios = <&gpc 12 GPIO_ACTIVE_LOW>;
 			debounce-interval = <10>;
 		};
 
-		key@7 {
+		key-7 {
 			label = "Start button";
 			linux,code = <KEY_ENTER>;
 			gpios = <&gpd 17 GPIO_ACTIVE_LOW>;

@@ -146,13 +146,11 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 	    (req->diag_ext & (1 << (SMC_DIAG_LGRINFO - 1))) &&
 	    !list_empty(&smc->conn.lgr->list)) {
 		struct smc_link *link = smc->conn.lnk;
-		struct net *net = read_pnet(&link->smcibdev->ibdev->coredev.rdma_net);
 
 		struct smc_diag_lgrinfo linfo = {
 			.role = smc->conn.lgr->role,
 			.lnk[0].ibport = link->ibport,
 			.lnk[0].link_id = link->link_id,
-			.lnk[0].net_cookie = net->net_cookie,
 		};
 
 		memcpy(linfo.lnk[0].ibname,
@@ -270,3 +268,4 @@ module_init(smc_diag_init);
 module_exit(smc_diag_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 43 /* AF_SMC */);
+MODULE_ALIAS_GENL_FAMILY(SMCR_GENL_FAMILY_NAME);

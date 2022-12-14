@@ -123,8 +123,7 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 					   parent_names,
 					   &at91rm9200_master_layout,
 					   &sam9rl_mck_characteristics,
-					   &sam9rl_mck_lock, CLK_SET_RATE_GATE,
-					   INT_MIN);
+					   &sam9rl_mck_lock);
 	if (IS_ERR(hw))
 		goto err_free;
 

@@ -36,6 +36,7 @@
 #define NPCM_FIU_UMA_DR1		0x34
 #define NPCM_FIU_UMA_DR2		0x38
 #define NPCM_FIU_UMA_DR3		0x3C
+#define NPCM_FIU_CFG			0x78
 #define NPCM_FIU_MAX_REG_LIMIT		0x80
 
 /* FIU Direct Read Configuration Register */
@@ -151,6 +152,9 @@
 #define NPCM_FIU_UMA_DR3_RB13		GENMASK(15, 8)
 #define NPCM_FIU_UMA_DR3_RB12		GENMASK(7, 0)
 
+/* FIU Configuration Register */
+#define NPCM_FIU_CFG_FIU_FIX		BIT(31)
+
 /* FIU Read Mode */
 enum {
 	DRD_SINGLE_WIRE_MODE	= 0,
@@ -187,6 +191,7 @@ enum {
 	FIU0 = 0,
 	FIU3,
 	FIUX,
+	FIU1,
 };
 
 struct npcm_fiu_info {
@@ -201,7 +206,7 @@ struct fiu_data {
 	int fiu_max;
 };
 
-static const struct npcm_fiu_info npxm7xx_fiu_info[] = {
+static const struct npcm_fiu_info npcm7xx_fiu_info[] = {
 	{.name = "FIU0", .fiu_id = FIU0,
 		.max_map_size = MAP_SIZE_128MB, .max_cs = 2},
 	{.name = "FIU3", .fiu_id = FIU3,
@@ -209,9 +214,24 @@ static const struct npcm_fiu_info npxm7xx_fiu_info[] = {
 	{.name = "FIUX", .fiu_id = FIUX,
 		.max_map_size = MAP_SIZE_16MB, .max_cs = 2} };
 
-static const struct fiu_data npxm7xx_fiu_data = {
-	.npcm_fiu_data_info = npxm7xx_fiu_info,
+static const struct fiu_data npcm7xx_fiu_data = {
+	.npcm_fiu_data_info = npcm7xx_fiu_info,
 	.fiu_max = 3,
+};
+
+static const struct npcm_fiu_info npxm8xx_fiu_info[] = {
+	{.name = "FIU0", .fiu_id = FIU0,
+		.max_map_size = MAP_SIZE_128MB, .max_cs = 2},
+	{.name = "FIU3", .fiu_id = FIU3,
+		.max_map_size = MAP_SIZE_128MB, .max_cs = 4},
+	{.name = "FIUX", .fiu_id = FIUX,
+		.max_map_size = MAP_SIZE_16MB, .max_cs = 2},
+	{.name = "FIU1", .fiu_id = FIU1,
+		.max_map_size = MAP_SIZE_16MB, .max_cs = 4} };
+
+static const struct fiu_data npxm8xx_fiu_data = {
+	.npcm_fiu_data_info = npxm8xx_fiu_info,
+	.fiu_max = 4,
 };
 
 struct npcm_fiu_spi;
@@ -252,8 +272,7 @@ static void npcm_fiu_set_drd(struct npcm_fiu_spi *fiu,
 	fiu->drd_op.addr.buswidth = op->addr.buswidth;
 	regmap_update_bits(fiu->regmap, NPCM_FIU_DRD_CFG,
 			   NPCM_FIU_DRD_CFG_DBW,
-			   ((op->dummy.nbytes * ilog2(op->addr.buswidth)) / BITS_PER_BYTE)
-			   << NPCM_FIU_DRD_DBW_SHIFT);
+			   op->dummy.nbytes << NPCM_FIU_DRD_DBW_SHIFT);
 	fiu->drd_op.dummy.nbytes = op->dummy.nbytes;
 	regmap_update_bits(fiu->regmap, NPCM_FIU_DRD_CFG,
 			   NPCM_FIU_DRD_CFG_RDCMD, op->cmd.opcode);
@@ -625,6 +644,10 @@ static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 		regmap_update_bits(gcr_regmap, NPCM7XX_INTCR3_OFFSET,
 				   NPCM7XX_INTCR3_FIU_FIX,
 				   NPCM7XX_INTCR3_FIU_FIX);
+	} else {
+		regmap_update_bits(fiu->regmap, NPCM_FIU_CFG,
+				   NPCM_FIU_CFG_FIU_FIX,
+				   NPCM_FIU_CFG_FIU_FIX);
 	}
 
 	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN) {
@@ -664,14 +687,14 @@ static const struct spi_controller_mem_ops npcm_fiu_mem_ops = {
 };
 
 static const struct of_device_id npcm_fiu_dt_ids[] = {
-	{ .compatible = "nuvoton,npcm750-fiu", .data = &npxm7xx_fiu_data  },
+	{ .compatible = "nuvoton,npcm750-fiu", .data = &npcm7xx_fiu_data  },
+	{ .compatible = "nuvoton,npcm845-fiu", .data = &npxm8xx_fiu_data  },
 	{ /* sentinel */ }
 };
 
 static int npcm_fiu_probe(struct platform_device *pdev)
 {
 	const struct fiu_data *fiu_data_match;
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct spi_controller *ctrl;
 	struct npcm_fiu_spi *fiu;
@@ -685,13 +708,12 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 
 	fiu = spi_controller_get_devdata(ctrl);
 
-	match = of_match_device(npcm_fiu_dt_ids, dev);
-	if (!match || !match->data) {
+	fiu_data_match = of_device_get_match_data(dev);
+	if (!fiu_data_match) {
 		dev_err(dev, "No compatible OF match\n");
 		return -ENODEV;
 	}
 
-	fiu_data_match = match->data;
 	id = of_alias_get_id(dev->of_node, "fiu");
 	if (id < 0 || id >= fiu_data_match->fiu_max) {
 		dev_err(dev, "Invalid platform device id: %d\n", id);

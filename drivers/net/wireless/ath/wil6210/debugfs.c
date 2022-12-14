@@ -1010,20 +1010,14 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 	void *cmd;
 	int cmdlen = len - sizeof(struct wmi_cmd_hdr);
 	u16 cmdid;
-	int rc, rc1;
+	int rc1;
 
-	if (cmdlen < 0)
+	if (cmdlen < 0 || *ppos != 0)
 		return -EINVAL;
 
-	wmi = kmalloc(len, GFP_KERNEL);
-	if (!wmi)
-		return -ENOMEM;
-
-	rc = simple_write_to_buffer(wmi, len, ppos, buf, len);
-	if (rc < 0) {
-		kfree(wmi);
-		return rc;
-	}
+	wmi = memdup_user(buf, len);
+	if (IS_ERR(wmi))
+		return PTR_ERR(wmi);
 
 	cmd = (cmdlen > 0) ? &wmi[1] : NULL;
 	cmdid = le16_to_cpu(wmi->command_id);
@@ -1033,7 +1027,7 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 
 	wil_info(wil, "0x%04x[%d] -> %d\n", cmdid, cmdlen, rc1);
 
-	return rc;
+	return len;
 }
 
 static const struct file_operations fops_wmi = {
@@ -1390,19 +1384,6 @@ static int temp_show(struct seq_file *s, void *data)
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(temp);
-
-/*---------freq------------*/
-static int freq_show(struct seq_file *s, void *data)
-{
-	struct wil6210_priv *wil = s->private;
-	struct wireless_dev *wdev = wil->main_ndev->ieee80211_ptr;
-	u32 freq = wdev->chandef.chan ? wdev->chandef.chan->center_freq : 0;
-
-	seq_printf(s, "Freq = %d\n", freq);
-
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(freq);
 
 /*---------link------------*/
 static int link_show(struct seq_file *s, void *data)
@@ -2380,7 +2361,6 @@ static const struct {
 	{"pmcdata",	0444,		&fops_pmcdata},
 	{"pmcring",	0444,		&fops_pmcring},
 	{"temp",	0444,		&temp_fops},
-	{"freq",	0444,		&freq_fops},
 	{"link",	0444,		&link_fops},
 	{"info",	0444,		&info_fops},
 	{"recovery", 0644,		&fops_recovery},

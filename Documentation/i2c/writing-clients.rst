@@ -46,7 +46,7 @@ driver model device node, and its I2C address.
 	},
 
 	.id_table	= foo_idtable,
-	.probe		= foo_probe,
+	.probe_new	= foo_probe,
 	.remove		= foo_remove,
 	/* if device autodetection is needed: */
 	.class		= I2C_CLASS_SOMETHING,
@@ -155,9 +155,8 @@ those devices, and a remove() method to unbind.
 
 ::
 
-	static int foo_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id);
-	static int foo_remove(struct i2c_client *client);
+	static int foo_probe(struct i2c_client *client);
+	static void foo_remove(struct i2c_client *client);
 
 Remember that the i2c_driver does not create those client handles.  The
 handle may be used during foo_probe().  If foo_probe() reports success
@@ -165,8 +164,12 @@ handle may be used during foo_probe().  If foo_probe() reports success
 foo_remove() returns.  That binding model is used by most Linux drivers.
 
 The probe function is called when an entry in the id_table name field
-matches the device's name. It is passed the entry that was matched so
-the driver knows which one in the table matched.
+matches the device's name. If the probe function needs that entry, it
+can retrieve it using
+
+::
+
+	const struct i2c_device_id *id = i2c_match_id(foo_idtable, client);
 
 
 Device Creation
@@ -361,7 +364,7 @@ stop condition is issued between transaction. The i2c_msg structure
 contains for each message the client address, the number of bytes of the
 message and the message data itself.
 
-You can read the file ``i2c-protocol`` for more information about the
+You can read the file i2c-protocol.rst for more information about the
 actual I2C protocol.
 
 
@@ -411,7 +414,7 @@ transactions return 0 on success; the 'read' transactions return the read
 value, except for block transactions, which return the number of values
 read. The block buffers need not be longer than 32 bytes.
 
-You can read the file ``smbus-protocol`` for more information about the
+You can read the file smbus-protocol.rst for more information about the
 actual SMBus protocol.
 
 

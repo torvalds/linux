@@ -181,8 +181,7 @@ static int ohci_urb_enqueue (
 				size++;
 			else if ((urb->transfer_flags & URB_ZERO_PACKET) != 0
 				&& (urb->transfer_buffer_length
-					% usb_maxpacket (urb->dev, pipe,
-						usb_pipeout (pipe))) == 0)
+					% usb_maxpacket(urb->dev, pipe)) == 0)
 				size++;
 			break;
 		case PIPE_ISOCHRONOUS: /* number of packets from URB */
@@ -1277,7 +1276,6 @@ static int __init ohci_hcd_mod_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	printk(KERN_INFO "%s: " DRIVER_DESC "\n", hcd_name);
 	pr_debug ("%s: block sizes: ed %zd td %zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));
 	set_bit(USB_OHCI_LOADED, &usb_hcds_loaded);

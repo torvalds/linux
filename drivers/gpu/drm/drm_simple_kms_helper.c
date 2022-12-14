@@ -12,7 +12,6 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_managed.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
@@ -100,14 +99,12 @@ drm_simple_kms_crtc_mode_valid(struct drm_crtc *crtc,
 static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 				     struct drm_atomic_state *state)
 {
-	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
-									  crtc);
-	bool has_primary = crtc_state->plane_mask &
-			   drm_plane_mask(crtc->primary);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	int ret;
 
-	/* We always want to have an active plane with an active CRTC */
-	if (has_primary != crtc_state->enable)
-		return -EINVAL;
+	ret = drm_atomic_helper_check_crtc_state(crtc_state, false);
+	if (ret)
+		return ret;
 
 	return drm_atomic_add_affected_planes(state, crtc);
 }
@@ -225,9 +222,9 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 						   &pipe->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  false, true);
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  false, false);
 	if (ret)
 		return ret;
 

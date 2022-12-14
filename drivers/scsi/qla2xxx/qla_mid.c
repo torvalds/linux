@@ -166,9 +166,13 @@ qla24xx_disable_vp(scsi_qla_host_t *vha)
 	int ret = QLA_SUCCESS;
 	fc_port_t *fcport;
 
-	if (vha->hw->flags.edif_enabled)
+	if (vha->hw->flags.edif_enabled) {
+		if (DBELL_ACTIVE(vha))
+			qla2x00_post_aen_work(vha, FCH_EVT_VENDOR_UNIQUE,
+			    FCH_EVT_VENDOR_UNIQUE_VPORT_DOWN);
 		/* delete sessions and flush sa_indexes */
 		qla2x00_wait_for_sess_deletion(vha);
+	}
 
 	if (vha->hw->flags.fw_started)
 		ret = qla24xx_control_vp(vha, VCE_COMMAND_DISABLE_VPS_LOGO_ALL);
@@ -591,7 +595,6 @@ qla25xx_free_req_que(struct scsi_qla_host *vha, struct req_que *req)
 	}
 	kfree(req->outstanding_cmds);
 	kfree(req);
-	req = NULL;
 }
 
 static void
@@ -617,7 +620,6 @@ qla25xx_free_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 		mutex_unlock(&ha->vport_lock);
 	}
 	kfree(rsp);
-	rsp = NULL;
 }
 
 int
@@ -965,6 +967,7 @@ int qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 	if (vp_index == 0 || vp_index >= ha->max_npiv_vports)
 		return QLA_PARAMETER_ERROR;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(base_vha, NULL, GFP_KERNEL);
 	if (!sp)
 		return rval;
@@ -972,9 +975,8 @@ int qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 	sp->type = SRB_CTRL_VP;
 	sp->name = "ctrl_vp";
 	sp->comp = &comp;
-	sp->done = qla_ctrlvp_sp_done;
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla_ctrlvp_sp_done);
 	sp->u.iocb_cmd.u.ctrlvp.cmd = cmd;
 	sp->u.iocb_cmd.u.ctrlvp.vp_index = vp_index;
 
@@ -1008,6 +1010,7 @@ int qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 		break;
 	}
 done:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	return rval;
 }

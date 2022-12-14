@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
+#include <linux/phylink.h>
 
 #define ALTERA_TSE_SW_RESET_WATCHDOG_CNTR	10000
 #define ALTERA_TSE_MAC_FIFO_WIDTH		4	/* TX/RX FIFO width in
@@ -108,17 +109,6 @@
 #define MAC_CMDCFG_RX_ERR_DISC_GET(v)		GET_BIT_VALUE(v, 26)
 #define MAC_CMDCFG_DISABLE_READ_TIMEOUT_GET(v)	GET_BIT_VALUE(v, 27)
 #define MAC_CMDCFG_CNT_RESET_GET(v)		GET_BIT_VALUE(v, 31)
-
-/* SGMII PCS register addresses
- */
-#define SGMII_PCS_SCRATCH	0x10
-#define SGMII_PCS_REV		0x11
-#define SGMII_PCS_LINK_TIMER_0	0x12
-#define SGMII_PCS_LINK_TIMER_1	0x13
-#define SGMII_PCS_IF_MODE	0x14
-#define SGMII_PCS_DIS_READ_TO	0x15
-#define SGMII_PCS_READ_TO	0x16
-#define SGMII_PCS_SW_RESET_TIMEOUT 100 /* usecs */
 
 /* MDIO registers within MAC register Space
  */
@@ -423,6 +413,9 @@ struct altera_tse_private {
 	void __iomem *tx_dma_csr;
 	void __iomem *tx_dma_desc;
 
+	/* SGMII PCS address space */
+	void __iomem *pcs_base;
+
 	/* Rx buffers queue */
 	struct tse_buffer *rx_ring;
 	u32 rx_cons;
@@ -480,6 +473,10 @@ struct altera_tse_private {
 	u32 msg_enable;
 
 	struct altera_dmaops *dmaops;
+
+	struct phylink *phylink;
+	struct phylink_config phylink_config;
+	struct phylink_pcs *pcs;
 };
 
 /* Function prototypes

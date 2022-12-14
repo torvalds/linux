@@ -32,11 +32,6 @@
 #include "inc/hw/link_encoder.h"
 #include "core_status.h"
 
-enum vline_select {
-	VLINE0,
-	VLINE1
-};
-
 struct pipe_ctx;
 struct dc_state;
 struct dc_stream_status;
@@ -48,6 +43,7 @@ struct dc_phy_addr_space_config;
 struct dc_virtual_addr_space_config;
 struct dpp;
 struct dce_hwseq;
+struct link_resource;
 
 struct hw_sequencer_funcs {
 	void (*hardware_release)(struct dc *dc);
@@ -88,6 +84,7 @@ struct hw_sequencer_funcs {
 		struct pipe_ctx *pipe_ctx, bool enableTripleBuffer);
 	void (*update_pending_status)(struct pipe_ctx *pipe_ctx);
 	void (*power_down)(struct dc *dc);
+	void (*update_dsc_pg)(struct dc *dc, struct dc_state *context, bool safe_to_disable);
 
 	/* Pipe Lock Related */
 	void (*pipe_control_lock)(struct dc *dc,
@@ -116,8 +113,7 @@ struct hw_sequencer_funcs {
 			int group_index, int group_size,
 			struct pipe_ctx *grouped_pipes[]);
 	void (*setup_periodic_interrupt)(struct dc *dc,
-			struct pipe_ctx *pipe_ctx,
-			enum vline_select vline);
+			struct pipe_ctx *pipe_ctx);
 	void (*set_drr)(struct pipe_ctx **pipe_ctx, int num_pipes,
 			struct dc_crtc_timing_adjust adjust);
 	void (*set_static_screen_control)(struct pipe_ctx **pipe_ctx,
@@ -218,6 +214,25 @@ struct hw_sequencer_funcs {
 
 	void (*set_pipe)(struct pipe_ctx *pipe_ctx);
 
+	void (*enable_dp_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum signal_type signal,
+			enum clock_source_id clock_source,
+			const struct dc_link_settings *link_settings);
+	void (*enable_tmds_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum signal_type signal,
+			enum clock_source_id clock_source,
+			enum dc_color_depth color_depth,
+			uint32_t pixel_clock);
+	void (*enable_lvds_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum clock_source_id clock_source,
+			uint32_t pixel_clock);
+	void (*disable_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum signal_type signal);
+
 	void (*get_dcc_en_bits)(struct dc *dc, int *dcc_en_bits);
 
 	/* Idle Optimization Related */
@@ -244,6 +259,19 @@ struct hw_sequencer_funcs {
 			struct pipe_ctx *pipe_ctx,
 			struct tg_color *color,
 			int mpcc_id);
+
+	void (*update_phantom_vp_position)(struct dc *dc,
+			struct dc_state *context,
+			struct pipe_ctx *phantom_pipe);
+
+	void (*commit_subvp_config)(struct dc *dc, struct dc_state *context);
+	void (*subvp_pipe_control_lock)(struct dc *dc,
+			struct dc_state *context,
+			bool lock,
+			bool should_lock_all_pipes,
+			struct pipe_ctx *top_pipe_to_program,
+			bool subvp_prev_use);
+
 };
 
 void color_space_to_black_color(
@@ -261,6 +289,11 @@ const uint16_t *find_color_matrix(
 void get_surface_visual_confirm_color(
 		const struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
+
+void get_subvp_visual_confirm_color(
+	struct dc *dc,
+	struct pipe_ctx *pipe_ctx,
+	struct tg_color *color);
 
 void get_hdr_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,

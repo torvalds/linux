@@ -19,7 +19,7 @@ unsigned int no_const_str_size = STRNCMP_STR_SZ;
 
 char _license[] SEC("license") = "GPL";
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_nanosleep")
 int do_strncmp(void *ctx)
 {
 	if ((bpf_get_current_pid_tgid() >> 32) != target_pid)
@@ -29,7 +29,7 @@ int do_strncmp(void *ctx)
 	return 0;
 }
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_nanosleep")
 int strncmp_bad_not_const_str_size(void *ctx)
 {
 	/* The value of string size is not const, so will fail */
@@ -37,7 +37,7 @@ int strncmp_bad_not_const_str_size(void *ctx)
 	return 0;
 }
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_nanosleep")
 int strncmp_bad_writable_target(void *ctx)
 {
 	/* Compared target is not read-only, so will fail */
@@ -45,7 +45,7 @@ int strncmp_bad_writable_target(void *ctx)
 	return 0;
 }
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_nanosleep")
 int strncmp_bad_not_null_term_target(void *ctx)
 {
 	/* Compared target is not null-terminated, so will fail */

@@ -218,7 +218,7 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 		spin_lock(&inode->i_lock);
 		hlist_del(&fid->ilist);
 		spin_unlock(&inode->i_lock);
-		p9_client_clunk(fid);
+		p9_fid_put(fid);
 	}
 
 	if ((filp->f_mode & FMODE_WRITE)) {

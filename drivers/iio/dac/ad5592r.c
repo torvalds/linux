@@ -130,11 +130,9 @@ static int ad5592r_spi_probe(struct spi_device *spi)
 	return ad5592r_probe(&spi->dev, id->name, &ad5592r_rw_ops);
 }
 
-static int ad5592r_spi_remove(struct spi_device *spi)
+static void ad5592r_spi_remove(struct spi_device *spi)
 {
 	ad5592r_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id ad5592r_spi_ids[] = {
@@ -170,3 +168,4 @@ module_spi_driver(ad5592r_spi_driver);
 MODULE_AUTHOR("Paul Cercueil <paul.cercueil@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD5592R multi-channel converters");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_AD5592R);

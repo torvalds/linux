@@ -100,10 +100,14 @@ SYM_FUNC_END(__cpu_suspend_enter)
 	.pushsection ".idmap.text", "awx"
 SYM_CODE_START(cpu_resume)
 	bl	init_kernel_el
-	bl	switch_to_vhe
+	bl	finalise_el2
+#if VA_BITS > 48
+	ldr_l	x0, vabits_actual
+#endif
 	bl	__cpu_setup
 	/* enable the MMU early - so we can access sleep_save_stash by va */
 	adrp	x1, swapper_pg_dir
+	adrp	x2, idmap_pg_dir
 	bl	__enable_mmu
 	ldr	x8, =_cpu_resume
 	br	x8

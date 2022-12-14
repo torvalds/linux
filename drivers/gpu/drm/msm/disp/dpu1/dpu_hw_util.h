@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -9,26 +10,32 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include "dpu_hw_mdss.h"
+#include "dpu_hw_catalog.h"
 
 #define REG_MASK(n)                     ((BIT(n)) - 1)
+#define MISR_FRAME_COUNT_MASK           0xFF
+#define MISR_CTRL_ENABLE                BIT(8)
+#define MISR_CTRL_STATUS                BIT(9)
+#define MISR_CTRL_STATUS_CLEAR          BIT(10)
+#define MISR_CTRL_FREE_RUN_MASK         BIT(31)
 
 /*
  * This is the common struct maintained by each sub block
  * for mapping the register offsets in this block to the
  * absoulute IO address
- * @base_off:     mdp register mapped offset
- * @blk_off:      pipe offset relative to mdss offset
- * @length        length of register block offset
- * @xin_id        xin id
- * @hwversion     mdss hw version number
+ * @blk_addr:     hw block register mapped address
+ * @log_mask:     log mask for this block
  */
 struct dpu_hw_blk_reg_map {
-	void __iomem *base_off;
-	u32 blk_off;
-	u32 length;
-	u32 xin_id;
-	u32 hwversion;
+	void __iomem *blk_addr;
 	u32 log_mask;
+};
+
+/**
+ * struct dpu_hw_blk - opaque hardware block object
+ */
+struct dpu_hw_blk {
+	/* opaque */
 };
 
 /**
@@ -298,6 +305,21 @@ struct dpu_drm_scaler_v2 {
 	struct dpu_drm_de_v1 de;
 };
 
+/**
+ * struct dpu_hw_cdp_cfg : CDP configuration
+ * @enable: true to enable CDP
+ * @ubwc_meta_enable: true to enable ubwc metadata preload
+ * @tile_amortize_enable: true to enable amortization control for tile format
+ * @preload_ahead: number of request to preload ahead
+ *	DPU_*_CDP_PRELOAD_AHEAD_32,
+ *	DPU_*_CDP_PRELOAD_AHEAD_64
+ */
+struct dpu_hw_cdp_cfg {
+	bool enable;
+	bool ubwc_meta_enable;
+	bool tile_amortize_enable;
+	u32 preload_ahead;
+};
 
 u32 *dpu_hw_util_get_log_mask_ptr(void);
 
@@ -323,5 +345,18 @@ u32 dpu_hw_get_scaler3_ver(struct dpu_hw_blk_reg_map *c,
 void dpu_hw_csc_setup(struct dpu_hw_blk_reg_map  *c,
 		u32 csc_reg_off,
 		const struct dpu_csc_cfg *data, bool csc10);
+
+u64 _dpu_hw_get_qos_lut(const struct dpu_qos_lut_tbl *tbl,
+		u32 total_fl);
+
+void dpu_hw_setup_misr(struct dpu_hw_blk_reg_map *c,
+		u32 misr_ctrl_offset,
+		bool enable,
+		u32 frame_count);
+
+int dpu_hw_collect_misr(struct dpu_hw_blk_reg_map *c,
+		u32 misr_ctrl_offset,
+		u32 misr_signature_offset,
+		u32 *misr_value);
 
 #endif /* _DPU_HW_UTIL_H */

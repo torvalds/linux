@@ -32,22 +32,13 @@ static int kvm_linux_err_map_sbi(int err)
 	};
 }
 
-#ifdef CONFIG_RISCV_SBI_V01
-extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_v01;
-#else
+#ifndef CONFIG_RISCV_SBI_V01
 static const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_v01 = {
 	.extid_start = -1UL,
 	.extid_end = -1UL,
 	.handler = NULL,
 };
 #endif
-extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_base;
-extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_time;
-extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_ipi;
-extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_rfence;
-extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_hsm;
-extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_experimental;
-extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_vendor;
 
 static const struct kvm_vcpu_sbi_extension *sbi_ext[] = {
 	&vcpu_sbi_ext_v01,
@@ -55,6 +46,7 @@ static const struct kvm_vcpu_sbi_extension *sbi_ext[] = {
 	&vcpu_sbi_ext_time,
 	&vcpu_sbi_ext_ipi,
 	&vcpu_sbi_ext_rfence,
+	&vcpu_sbi_ext_srst,
 	&vcpu_sbi_ext_hsm,
 	&vcpu_sbi_ext_experimental,
 	&vcpu_sbi_ext_vendor,
@@ -77,6 +69,24 @@ void kvm_riscv_vcpu_sbi_forward(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	run->riscv_sbi.args[5] = cp->a5;
 	run->riscv_sbi.ret[0] = cp->a0;
 	run->riscv_sbi.ret[1] = cp->a1;
+}
+
+void kvm_riscv_vcpu_sbi_system_reset(struct kvm_vcpu *vcpu,
+				     struct kvm_run *run,
+				     u32 type, u64 reason)
+{
+	unsigned long i;
+	struct kvm_vcpu *tmp;
+
+	kvm_for_each_vcpu(i, tmp, vcpu->kvm)
+		tmp->arch.power_off = true;
+	kvm_make_all_cpus_request(vcpu->kvm, KVM_REQ_SLEEP);
+
+	memset(&run->system_event, 0, sizeof(run->system_event));
+	run->system_event.type = type;
+	run->system_event.ndata = 1;
+	run->system_event.data[0] = reason;
+	run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
 }
 
 int kvm_riscv_vcpu_sbi_return(struct kvm_vcpu *vcpu, struct kvm_run *run)

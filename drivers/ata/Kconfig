@@ -116,13 +116,15 @@ config SATA_AHCI
 	  If unsure, say N.
 
 config SATA_MOBILE_LPM_POLICY
-	int "Default SATA Link Power Management policy for mobile chipsets"
+	int "Default SATA Link Power Management policy for low power chipsets"
 	range 0 4
 	default 0
 	depends on SATA_AHCI
 	help
 	  Select the Default SATA Link Power Management (LPM) policy to use
-	  for mobile / laptop variants of chipsets / "South Bridges".
+	  for chipsets / "South Bridges" supporting low-power modes. Such
+	  chipsets are typically found on most laptops but desktops and
+	  servers now also widely use chipsets supporting low power modes.
 
 	  The value set has the following meanings:
 		0 => Keep firmware settings
@@ -146,7 +148,7 @@ config SATA_AHCI_PLATFORM
 config AHCI_BRCM
 	tristate "Broadcom AHCI SATA support"
 	depends on ARCH_BRCMSTB || BMIPS_GENERIC || ARCH_BCM_NSP || \
-		   ARCH_BCM_63XX || COMPILE_TEST
+		   ARCH_BCMBCA || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for the AHCI SATA3 controller found on
@@ -174,9 +176,19 @@ config AHCI_DM816
 
 	  If unsure, say N.
 
+config AHCI_DWC
+	tristate "Synopsys DWC AHCI SATA support"
+	select SATA_HOST
+	select MFD_SYSCON if (MIPS_BAIKAL_T1 || COMPILE_TEST)
+	help
+	  This option enables support for the Synopsys DWC AHCI SATA
+	  controller implementation.
+
+	  If unsure, say N.
+
 config AHCI_ST
 	tristate "ST AHCI SATA support"
-	depends on ARCH_STI
+	depends on ARCH_STI || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for ST AHCI SATA controller.
@@ -283,7 +295,7 @@ config SATA_FSL
 
 config SATA_GEMINI
 	tristate "Gemini SATA bridge support"
-	depends on ARCH_GEMINI || COMPILE_TEST
+	depends on ARCH_GEMINI || (OF && COMPILE_TEST)
 	select SATA_HOST
 	default ARCH_GEMINI
 	help
@@ -1100,8 +1112,7 @@ config PATA_PCMCIA
 	  If unsure, say N.
 
 config PATA_PLATFORM
-	tristate "Generic platform device PATA support"
-	depends on EXPERT || PPC || HAVE_PATA_PLATFORM
+	tristate "Generic platform device PATA support" if HAVE_PATA_PLATFORM
 	help
 	  This option enables support for generic directly connected ATA
 	  devices commonly found on embedded systems.
@@ -1110,7 +1121,8 @@ config PATA_PLATFORM
 
 config PATA_OF_PLATFORM
 	tristate "OpenFirmware platform device PATA support"
-	depends on PATA_PLATFORM && OF
+	depends on OF
+	select PATA_PLATFORM
 	help
 	  This option enables support for generic directly connected ATA
 	  devices commonly found on embedded systems with OpenFirmware

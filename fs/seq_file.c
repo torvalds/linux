@@ -554,9 +554,9 @@ int seq_dentry(struct seq_file *m, struct dentry *dentry, const char *esc)
 }
 EXPORT_SYMBOL(seq_dentry);
 
-static void *single_start(struct seq_file *p, loff_t *pos)
+void *single_start(struct seq_file *p, loff_t *pos)
 {
-	return NULL + (*pos == 0);
+	return *pos ? NULL : SEQ_START_TOKEN;
 }
 
 static void *single_next(struct seq_file *p, void *v, loff_t *pos)
@@ -930,6 +930,38 @@ struct list_head *seq_list_next(void *v, struct list_head *head, loff_t *ppos)
 	return lh == head ? NULL : lh;
 }
 EXPORT_SYMBOL(seq_list_next);
+
+struct list_head *seq_list_start_rcu(struct list_head *head, loff_t pos)
+{
+	struct list_head *lh;
+
+	list_for_each_rcu(lh, head)
+		if (pos-- == 0)
+			return lh;
+
+	return NULL;
+}
+EXPORT_SYMBOL(seq_list_start_rcu);
+
+struct list_head *seq_list_start_head_rcu(struct list_head *head, loff_t pos)
+{
+	if (!pos)
+		return head;
+
+	return seq_list_start_rcu(head, pos - 1);
+}
+EXPORT_SYMBOL(seq_list_start_head_rcu);
+
+struct list_head *seq_list_next_rcu(void *v, struct list_head *head,
+				    loff_t *ppos)
+{
+	struct list_head *lh;
+
+	lh = list_next_rcu((struct list_head *)v);
+	++*ppos;
+	return lh == head ? NULL : lh;
+}
+EXPORT_SYMBOL(seq_list_next_rcu);
 
 /**
  * seq_hlist_start - start an iteration of a hlist

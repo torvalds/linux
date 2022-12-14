@@ -3,7 +3,7 @@
  * apei-base.c - ACPI Platform Error Interface (APEI) supporting
  * infrastructure
  *
- * APEI allows to report errors (for example from the chipset) to the
+ * APEI allows to report errors (for example from the chipset) to
  * the operating system. This improves NMI handling especially. In
  * addition it supports error serialization and error injection.
  *
@@ -125,12 +125,9 @@ EXPORT_SYMBOL_GPL(apei_exec_write_register);
 int apei_exec_write_register_value(struct apei_exec_context *ctx,
 				   struct acpi_whea_header *entry)
 {
-	int rc;
-
 	ctx->value = entry->value;
-	rc = apei_exec_write_register(ctx, entry);
 
-	return rc;
+	return apei_exec_write_register(ctx, entry);
 }
 EXPORT_SYMBOL_GPL(apei_exec_write_register_value);
 
@@ -319,7 +316,7 @@ repeat:
 	if (res_ins)
 		list_add(&res_ins->list, res_list);
 	else {
-		res_ins = kmalloc(sizeof(*res), GFP_KERNEL);
+		res_ins = kmalloc(sizeof(*res_ins), GFP_KERNEL);
 		if (!res_ins)
 			return -ENOMEM;
 		res_ins->start = start;

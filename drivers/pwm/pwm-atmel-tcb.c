@@ -61,7 +61,7 @@ struct atmel_tcb_pwm_chip {
 	struct atmel_tcb_channel bkup;
 };
 
-const u8 atmel_tcb_divisors[] = { 2, 8, 32, 128, 0, };
+static const u8 atmel_tcb_divisors[] = { 2, 8, 32, 128, 0, };
 
 static inline struct atmel_tcb_pwm_chip *to_tcb_chip(struct pwm_chip *chip)
 {
@@ -72,7 +72,8 @@ static int atmel_tcb_pwm_set_polarity(struct pwm_chip *chip,
 				      struct pwm_device *pwm,
 				      enum pwm_polarity polarity)
 {
-	struct atmel_tcb_pwm_device *tcbpwm = pwm_get_chip_data(pwm);
+	struct atmel_tcb_pwm_chip *tcbpwmc = to_tcb_chip(chip);
+	struct atmel_tcb_pwm_device *tcbpwm = tcbpwmc->pwms[pwm->hwpwm];
 
 	tcbpwm->polarity = polarity;
 
@@ -97,7 +98,6 @@ static int atmel_tcb_pwm_request(struct pwm_chip *chip,
 		return ret;
 	}
 
-	pwm_set_chip_data(pwm, tcbpwm);
 	tcbpwm->polarity = PWM_POLARITY_NORMAL;
 	tcbpwm->duty = 0;
 	tcbpwm->period = 0;
@@ -139,7 +139,7 @@ static int atmel_tcb_pwm_request(struct pwm_chip *chip,
 static void atmel_tcb_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct atmel_tcb_pwm_chip *tcbpwmc = to_tcb_chip(chip);
-	struct atmel_tcb_pwm_device *tcbpwm = pwm_get_chip_data(pwm);
+	struct atmel_tcb_pwm_device *tcbpwm = tcbpwmc->pwms[pwm->hwpwm];
 
 	clk_disable_unprepare(tcbpwmc->clk);
 	tcbpwmc->pwms[pwm->hwpwm] = NULL;
@@ -149,7 +149,7 @@ static void atmel_tcb_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 static void atmel_tcb_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct atmel_tcb_pwm_chip *tcbpwmc = to_tcb_chip(chip);
-	struct atmel_tcb_pwm_device *tcbpwm = pwm_get_chip_data(pwm);
+	struct atmel_tcb_pwm_device *tcbpwm = tcbpwmc->pwms[pwm->hwpwm];
 	unsigned cmr;
 	enum pwm_polarity polarity = tcbpwm->polarity;
 
@@ -206,7 +206,7 @@ static void atmel_tcb_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 static int atmel_tcb_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct atmel_tcb_pwm_chip *tcbpwmc = to_tcb_chip(chip);
-	struct atmel_tcb_pwm_device *tcbpwm = pwm_get_chip_data(pwm);
+	struct atmel_tcb_pwm_device *tcbpwm = tcbpwmc->pwms[pwm->hwpwm];
 	u32 cmr;
 	enum pwm_polarity polarity = tcbpwm->polarity;
 
@@ -291,7 +291,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 				int duty_ns, int period_ns)
 {
 	struct atmel_tcb_pwm_chip *tcbpwmc = to_tcb_chip(chip);
-	struct atmel_tcb_pwm_device *tcbpwm = pwm_get_chip_data(pwm);
+	struct atmel_tcb_pwm_device *tcbpwm = tcbpwmc->pwms[pwm->hwpwm];
 	struct atmel_tcb_pwm_device *atcbpwm = NULL;
 	int i = 0;
 	int slowclk = 0;
@@ -304,7 +304,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	/*
 	 * Find best clk divisor:
 	 * the smallest divisor which can fulfill the period_ns requirements.
-	 * If there is a gclk, the first divisor is actuallly the gclk selector
+	 * If there is a gclk, the first divisor is actually the gclk selector
 	 */
 	if (tcbpwmc->gclk)
 		i = 1;

@@ -111,6 +111,21 @@ static const struct genl_ops smc_gen_nl_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.doit = smc_nl_disable_seid,
 	},
+	{
+		.cmd = SMC_NETLINK_DUMP_HS_LIMITATION,
+		/* can be retrieved by unprivileged users */
+		.dumpit = smc_nl_dump_hs_limitation,
+	},
+	{
+		.cmd = SMC_NETLINK_ENABLE_HS_LIMITATION,
+		.flags = GENL_ADMIN_PERM,
+		.doit = smc_nl_enable_hs_limitation,
+	},
+	{
+		.cmd = SMC_NETLINK_DISABLE_HS_LIMITATION,
+		.flags = GENL_ADMIN_PERM,
+		.doit = smc_nl_disable_hs_limitation,
+	},
 };
 
 static const struct nla_policy smc_gen_nl_policy[2] = {
@@ -127,7 +142,8 @@ struct genl_family smc_gen_nl_family __ro_after_init = {
 	.netnsok =	true,
 	.module =	THIS_MODULE,
 	.ops =		smc_gen_nl_ops,
-	.n_ops =	ARRAY_SIZE(smc_gen_nl_ops)
+	.n_ops =	ARRAY_SIZE(smc_gen_nl_ops),
+	.resv_start_op = SMC_NETLINK_DISABLE_HS_LIMITATION + 1,
 };
 
 int __init smc_nl_init(void)

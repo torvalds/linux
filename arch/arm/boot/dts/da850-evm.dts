@@ -52,15 +52,15 @@
 		enable-gpios = <&gpio 40 GPIO_ACTIVE_HIGH>; /* lcd_panel_pwr */
 
 		panel-info {
-			ac-bias		= <255>;
-			ac-bias-intrpt	= <0>;
-			dma-burst-sz	= <16>;
-			bpp		= <16>;
-			fdd		= <0x80>;
-			sync-edge	= <0>;
-			sync-ctrl	= <1>;
-			raster-order	= <0>;
-			fifo-th		= <0>;
+			ac-bias = <255>;
+			ac-bias-intrpt = <0>;
+			dma-burst-sz = <16>;
+			bpp = <16>;
+			fdd = <0x80>;
+			sync-edge = <0>;
+			sync-ctrl = <1>;
+			raster-order = <0>;
+			fifo-th = <0>;
 		};
 
 		display-timings {
@@ -278,7 +278,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1_pins &spi1_cs0_pin>;
-	flash: m25p80@0 {
+	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";

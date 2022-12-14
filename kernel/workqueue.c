@@ -154,15 +154,20 @@ struct worker_pool {
 
 	unsigned long		watchdog_ts;	/* L: watchdog timestamp */
 
-	/* The current concurrency level. */
-	atomic_t		nr_running;
+	/*
+	 * The counter is incremented in a process context on the associated CPU
+	 * w/ preemption disabled, and decremented or reset in the same context
+	 * but w/ pool->lock held. The readers grab pool->lock and are
+	 * guaranteed to see if the counter reached zero.
+	 */
+	int			nr_running;
 
 	struct list_head	worklist;	/* L: list of pending works */
 
 	int			nr_workers;	/* L: total number of workers */
 	int			nr_idle;	/* L: currently idle workers */
 
-	struct list_head	idle_list;	/* X: list of idle workers */
+	struct list_head	idle_list;	/* L: list of idle workers */
 	struct timer_list	idle_timer;	/* L: worker idle timeout */
 	struct timer_list	mayday_timer;	/* L: SOS timer for workers */
 
@@ -777,7 +782,7 @@ static bool work_is_canceling(struct work_struct *work)
 
 static bool __need_more_worker(struct worker_pool *pool)
 {
-	return !atomic_read(&pool->nr_running);
+	return !pool->nr_running;
 }
 
 /*
@@ -802,8 +807,7 @@ static bool may_start_working(struct worker_pool *pool)
 /* Do I need to keep working?  Called from currently running workers. */
 static bool keep_working(struct worker_pool *pool)
 {
-	return !list_empty(&pool->worklist) &&
-		atomic_read(&pool->nr_running) <= 1;
+	return !list_empty(&pool->worklist) && (pool->nr_running <= 1);
 }
 
 /* Do we need a new worker?  Called from manager. */
@@ -826,7 +830,7 @@ static bool too_many_workers(struct worker_pool *pool)
  * Wake up functions.
  */
 
-/* Return the first idle worker.  Safe with preemption disabled */
+/* Return the first idle worker.  Called with pool->lock held. */
 static struct worker *first_idle_worker(struct worker_pool *pool)
 {
 	if (unlikely(list_empty(&pool->idle_list)))
@@ -873,7 +877,7 @@ void wq_worker_running(struct task_struct *task)
 	 */
 	preempt_disable();
 	if (!(worker->flags & WORKER_NOT_RUNNING))
-		atomic_inc(&worker->pool->nr_running);
+		worker->pool->nr_running++;
 	preempt_enable();
 	worker->sleeping = 0;
 }
@@ -887,7 +891,7 @@ void wq_worker_running(struct task_struct *task)
  */
 void wq_worker_sleeping(struct task_struct *task)
 {
-	struct worker *next, *worker = kthread_data(task);
+	struct worker *worker = kthread_data(task);
 	struct worker_pool *pool;
 
 	/*
@@ -917,23 +921,9 @@ void wq_worker_sleeping(struct task_struct *task)
 		return;
 	}
 
-	/*
-	 * The counterpart of the following dec_and_test, implied mb,
-	 * worklist not empty test sequence is in insert_work().
-	 * Please read comment there.
-	 *
-	 * NOT_RUNNING is clear.  This means that we're bound to and
-	 * running on the local cpu w/ rq lock held and preemption
-	 * disabled, which in turn means that none else could be
-	 * manipulating idle_list, so dereferencing idle_list without pool
-	 * lock is safe.
-	 */
-	if (atomic_dec_and_test(&pool->nr_running) &&
-	    !list_empty(&pool->worklist)) {
-		next = first_idle_worker(pool);
-		if (next)
-			wake_up_process(next->task);
-	}
+	pool->nr_running--;
+	if (need_more_worker(pool))
+		wake_up_worker(pool);
 	raw_spin_unlock_irq(&pool->lock);
 }
 
@@ -987,7 +977,7 @@ static inline void worker_set_flags(struct worker *worker, unsigned int flags)
 	/* If transitioning into NOT_RUNNING, adjust nr_running. */
 	if ((flags & WORKER_NOT_RUNNING) &&
 	    !(worker->flags & WORKER_NOT_RUNNING)) {
-		atomic_dec(&pool->nr_running);
+		pool->nr_running--;
 	}
 
 	worker->flags |= flags;
@@ -1019,7 +1009,7 @@ static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
 	 */
 	if ((flags & WORKER_NOT_RUNNING) && (oflags & WORKER_NOT_RUNNING))
 		if (!(worker->flags & WORKER_NOT_RUNNING))
-			atomic_inc(&pool->nr_running);
+			pool->nr_running++;
 }
 
 /**
@@ -1372,13 +1362,6 @@ static void insert_work(struct pool_workqueue *pwq, struct work_struct *work,
 	list_add_tail(&work->entry, head);
 	get_pwq(pwq);
 
-	/*
-	 * Ensure either wq_worker_sleeping() sees the above
-	 * list_add_tail() or we see zero nr_running to avoid workers lying
-	 * around lazily while there are works to be processed.
-	 */
-	smp_mb();
-
 	if (__need_more_worker(pool))
 		wake_up_worker(pool);
 }
@@ -1668,7 +1651,7 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 	struct work_struct *work = &dwork->work;
 
 	WARN_ON_ONCE(!wq);
-	WARN_ON_FUNCTION_MISMATCH(timer->function, delayed_work_timer_fn);
+	WARN_ON_ONCE(timer->function != delayed_work_timer_fn);
 	WARN_ON_ONCE(timer_pending(timer));
 	WARN_ON_ONCE(!list_empty(&work->entry));
 
@@ -1827,8 +1810,7 @@ static void worker_enter_idle(struct worker *worker)
 		mod_timer(&pool->idle_timer, jiffies + IDLE_WORKER_TIMEOUT);
 
 	/* Sanity check nr_running. */
-	WARN_ON_ONCE(pool->nr_workers == pool->nr_idle &&
-		     atomic_read(&pool->nr_running));
+	WARN_ON_ONCE(pool->nr_workers == pool->nr_idle && pool->nr_running);
 }
 
 /**
@@ -2806,13 +2788,13 @@ static bool flush_workqueue_prep_pwqs(struct workqueue_struct *wq,
 }
 
 /**
- * flush_workqueue - ensure that any scheduled work has run to completion.
+ * __flush_workqueue - ensure that any scheduled work has run to completion.
  * @wq: workqueue to flush
  *
  * This function sleeps until all work items which were queued on entry
  * have finished execution, but it is not livelocked by new incoming ones.
  */
-void flush_workqueue(struct workqueue_struct *wq)
+void __flush_workqueue(struct workqueue_struct *wq)
 {
 	struct wq_flusher this_flusher = {
 		.list = LIST_HEAD_INIT(this_flusher.list),
@@ -2961,7 +2943,7 @@ void flush_workqueue(struct workqueue_struct *wq)
 out_unlock:
 	mutex_unlock(&wq->mutex);
 }
-EXPORT_SYMBOL(flush_workqueue);
+EXPORT_SYMBOL(__flush_workqueue);
 
 /**
  * drain_workqueue - drain a workqueue
@@ -2989,7 +2971,7 @@ void drain_workqueue(struct workqueue_struct *wq)
 		wq->flags |= __WQ_DRAINING;
 	mutex_unlock(&wq->mutex);
 reflush:
-	flush_workqueue(wq);
+	__flush_workqueue(wq);
 
 	mutex_lock(&wq->mutex);
 
@@ -3084,10 +3066,8 @@ static bool __flush_work(struct work_struct *work, bool from_cancel)
 	if (WARN_ON(!work->func))
 		return false;
 
-	if (!from_cancel) {
-		lock_map_acquire(&work->lockdep_map);
-		lock_map_release(&work->lockdep_map);
-	}
+	lock_map_acquire(&work->lockdep_map);
+	lock_map_release(&work->lockdep_map);
 
 	if (start_flush_work(work, &barr, from_cancel)) {
 		wait_for_completion(&barr.done);
@@ -3275,6 +3255,15 @@ static bool __cancel_work(struct work_struct *work, bool is_dwork)
 	local_irq_restore(flags);
 	return ret;
 }
+
+/*
+ * See cancel_delayed_work()
+ */
+bool cancel_work(struct work_struct *work)
+{
+	return __cancel_work(work, false);
+}
+EXPORT_SYMBOL(cancel_work);
 
 /**
  * cancel_delayed_work - cancel a delayed work
@@ -5006,7 +4995,7 @@ static void unbind_workers(int cpu)
 		 * an unbound (in terms of concurrency management) pool which
 		 * are served by workers tied to the pool.
 		 */
-		atomic_set(&pool->nr_running, 0);
+		pool->nr_running = 0;
 
 		/*
 		 * With concurrency management just turned off, a busy
@@ -5019,7 +5008,10 @@ static void unbind_workers(int cpu)
 
 		for_each_pool_worker(worker, pool) {
 			kthread_set_per_cpu(worker->task, -1);
-			WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, cpu_possible_mask) < 0);
+			if (cpumask_intersects(wq_unbound_cpumask, cpu_active_mask))
+				WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, wq_unbound_cpumask) < 0);
+			else
+				WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, cpu_possible_mask) < 0);
 		}
 
 		mutex_unlock(&wq_pool_attach_mutex);
@@ -6006,13 +5998,13 @@ static void __init wq_numa_init(void)
 void __init workqueue_init_early(void)
 {
 	int std_nice[NR_STD_WORKER_POOLS] = { 0, HIGHPRI_NICE_LEVEL };
-	int hk_flags = HK_FLAG_DOMAIN | HK_FLAG_WQ;
 	int i, cpu;
 
 	BUILD_BUG_ON(__alignof__(struct pool_workqueue) < __alignof__(long long));
 
 	BUG_ON(!alloc_cpumask_var(&wq_unbound_cpumask, GFP_KERNEL));
-	cpumask_copy(wq_unbound_cpumask, housekeeping_cpumask(hk_flags));
+	cpumask_copy(wq_unbound_cpumask, housekeeping_cpumask(HK_TYPE_WQ));
+	cpumask_and(wq_unbound_cpumask, wq_unbound_cpumask, housekeeping_cpumask(HK_TYPE_DOMAIN));
 
 	pwq_cache = KMEM_CACHE(pool_workqueue, SLAB_PANIC);
 
@@ -6129,3 +6121,11 @@ void __init workqueue_init(void)
 	wq_online = true;
 	wq_watchdog_init();
 }
+
+/*
+ * Despite the naming, this is a no-op function which is here only for avoiding
+ * link error. Since compile-time warning may fail to catch, we will need to
+ * emit run-time warning from __flush_workqueue().
+ */
+void __warn_flushing_systemwide_wq(void) { }
+EXPORT_SYMBOL(__warn_flushing_systemwide_wq);

@@ -52,14 +52,21 @@ struct thread_info {
 	__u32			cpu;		/* current CPU */
 	__s32			preempt_count;	/* 0 => preemptable,< 0 => BUG*/
 
-	mm_segment_t		addr_limit;	/* thread address space */
-
-	unsigned long		cpenable;
 #if XCHAL_HAVE_EXCLUSIVE
 	/* result of the most recent exclusive store */
 	unsigned long		atomctl8;
 #endif
+#ifdef CONFIG_USER_ABI_CALL0_PROBE
+	/* Address where PS.WOE was enabled by the ABI probing code */
+	unsigned long		ps_woe_fix_addr;
+#endif
 
+	/*
+	 * If i-th bit is set then coprocessor state is loaded into the
+	 * coprocessor i on CPU cp_owner_cpu.
+	 */
+	unsigned long		cpenable;
+	u32			cp_owner_cpu;
 	/* Allocate storage for extra user states and coprocessor states. */
 #if XTENSA_HAVE_COPROCESSORS
 	xtregs_coprocessor_t	xtregs_cp;
@@ -81,7 +88,6 @@ struct thread_info {
 	.flags		= 0,			\
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
-	.addr_limit	= KERNEL_DS,		\
 }
 
 /* how to get the thread information struct from C */

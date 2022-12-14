@@ -4,25 +4,35 @@
 /* TODO: corrupts other tests uses connect() */
 void serial_test_probe_user(void)
 {
-	const char *prog_name = "handle_sys_connect";
-	const char *obj_file = "./test_probe_user.o";
+	static const char *const prog_names[] = {
+		"handle_sys_connect",
+#if defined(__s390x__)
+		"handle_sys_socketcall",
+#endif
+	};
+	enum { prog_count = ARRAY_SIZE(prog_names) };
+	const char *obj_file = "./test_probe_user.bpf.o";
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts, );
 	int err, results_map_fd, sock_fd, duration = 0;
 	struct sockaddr curr, orig, tmp;
 	struct sockaddr_in *in = (struct sockaddr_in *)&curr;
-	struct bpf_link *kprobe_link = NULL;
-	struct bpf_program *kprobe_prog;
+	struct bpf_link *kprobe_links[prog_count] = {};
+	struct bpf_program *kprobe_progs[prog_count];
 	struct bpf_object *obj;
 	static const int zero = 0;
+	size_t i;
 
 	obj = bpf_object__open_file(obj_file, &opts);
 	if (!ASSERT_OK_PTR(obj, "obj_open_file"))
 		return;
 
-	kprobe_prog = bpf_object__find_program_by_name(obj, prog_name);
-	if (CHECK(!kprobe_prog, "find_probe",
-		  "prog '%s' not found\n", prog_name))
-		goto cleanup;
+	for (i = 0; i < prog_count; i++) {
+		kprobe_progs[i] =
+			bpf_object__find_program_by_name(obj, prog_names[i]);
+		if (CHECK(!kprobe_progs[i], "find_probe",
+			  "prog '%s' not found\n", prog_names[i]))
+			goto cleanup;
+	}
 
 	err = bpf_object__load(obj);
 	if (CHECK(err, "obj_load", "err %d\n", err))
@@ -33,9 +43,11 @@ void serial_test_probe_user(void)
 		  "err %d\n", results_map_fd))
 		goto cleanup;
 
-	kprobe_link = bpf_program__attach(kprobe_prog);
-	if (!ASSERT_OK_PTR(kprobe_link, "attach_kprobe"))
-		goto cleanup;
+	for (i = 0; i < prog_count; i++) {
+		kprobe_links[i] = bpf_program__attach(kprobe_progs[i]);
+		if (!ASSERT_OK_PTR(kprobe_links[i], "attach_kprobe"))
+			goto cleanup;
+	}
 
 	memset(&curr, 0, sizeof(curr));
 	in->sin_family = AF_INET;
@@ -69,6 +81,7 @@ void serial_test_probe_user(void)
 		  inet_ntoa(in->sin_addr), ntohs(in->sin_port)))
 		goto cleanup;
 cleanup:
-	bpf_link__destroy(kprobe_link);
+	for (i = 0; i < prog_count; i++)
+		bpf_link__destroy(kprobe_links[i]);
 	bpf_object__close(obj);
 }

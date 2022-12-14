@@ -16,7 +16,7 @@
  * try_get_task_stack() instead.  task_stack_page will return a pointer
  * that could get freed out from under you.
  */
-static inline void *task_stack_page(const struct task_struct *task)
+static __always_inline void *task_stack_page(const struct task_struct *task)
 {
 	return task->stack;
 }
@@ -78,6 +78,8 @@ static inline void *try_get_task_stack(struct task_struct *tsk)
 
 static inline void put_task_stack(struct task_struct *tsk) {}
 #endif
+
+void exit_task_stack_account(struct task_struct *tsk);
 
 #define task_stack_end_corrupted(task) \
 		(*(end_of_stack(task)) != STACK_END_MAGIC)

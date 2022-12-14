@@ -470,19 +470,11 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 	int32_t *msg, msg_type, handle;
 	unsigned img_size = 0;
 	void *ptr;
-
 	int i, r;
 
 	if (offset & 0x3F) {
 		DRM_ERROR("UVD messages must be 64 byte aligned!\n");
 		return -EINVAL;
-	}
-
-	r = dma_resv_wait_timeout(bo->tbo.base.resv, false, false,
-				  MAX_SCHEDULE_TIMEOUT);
-	if (r <= 0) {
-		DRM_ERROR("Failed waiting for UVD message (%d)!\n", r);
-		return r ? r : -ETIME;
 	}
 
 	r = radeon_bo_kmap(bo, &ptr);
@@ -497,6 +489,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 	handle = msg[2];
 
 	if (handle == 0) {
+		radeon_bo_kunmap(bo);
 		DRM_ERROR("Invalid UVD handle!\n");
 		return -EINVAL;
 	}
@@ -559,12 +552,10 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 		return 0;
 
 	default:
-
 		DRM_ERROR("Illegal UVD message type (%d)!\n", msg_type);
-		return -EINVAL;
 	}
 
-	BUG();
+	radeon_bo_kunmap(bo);
 	return -EINVAL;
 }
 

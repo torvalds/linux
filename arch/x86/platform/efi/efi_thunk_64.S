@@ -8,7 +8,7 @@
  * The below thunking functions are only used after ExitBootServices()
  * has been called. This simplifies things considerably as compared with
  * the early EFI thunking because we can leave all the kernel state
- * intact (GDT, IDT, etc) and simply invoke the the 32-bit EFI runtime
+ * intact (GDT, IDT, etc) and simply invoke the 32-bit EFI runtime
  * services from __KERNEL32_CS. This means we can continue to service
  * interrupts across an EFI mixed mode call.
  *
@@ -20,12 +20,14 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/objtool.h>
 #include <asm/page_types.h>
 #include <asm/segment.h>
 
 	.text
 	.code64
-SYM_CODE_START(__efi64_thunk)
+SYM_FUNC_START(__efi64_thunk)
+STACK_FRAME_NON_STANDARD __efi64_thunk
 	push	%rbp
 	push	%rbx
 
@@ -70,16 +72,26 @@ SYM_CODE_START(__efi64_thunk)
 	pushq	%rdi			/* EFI runtime service address */
 	lretq
 
+	// This return instruction is not needed for correctness, as it will
+	// never be reached. It only exists to make objtool happy, which will
+	// otherwise complain about unreachable instructions in the callers.
+	RET
+SYM_FUNC_END(__efi64_thunk)
+
+	.section ".rodata", "a", @progbits
+	.balign	16
+SYM_DATA_START(__efi64_thunk_ret_tramp)
 1:	movq	0x20(%rsp), %rsp
 	pop	%rbx
 	pop	%rbp
-	RET
+	ret
+	int3
 
 	.code32
 2:	pushl	$__KERNEL_CS
 	pushl	%ebp
 	lret
-SYM_CODE_END(__efi64_thunk)
+SYM_DATA_END(__efi64_thunk_ret_tramp)
 
 	.bss
 	.balign 8

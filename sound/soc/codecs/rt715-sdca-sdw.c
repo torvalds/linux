@@ -13,6 +13,7 @@
 #include <linux/soundwire/sdw_type.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>
 #include "rt715-sdca.h"
@@ -181,8 +182,6 @@ static int rt715_sdca_sdw_probe(struct sdw_slave *slave,
 {
 	struct regmap *mbq_regmap, *regmap;
 
-	slave->ops = &rt715_sdca_slave_ops;
-
 	/* Regmap Initialization */
 	mbq_regmap = devm_regmap_init_sdw_mbq(slave, &rt715_sdca_mbq_regmap);
 	if (IS_ERR(mbq_regmap))
@@ -193,6 +192,16 @@ static int rt715_sdca_sdw_probe(struct sdw_slave *slave,
 		return PTR_ERR(regmap);
 
 	return rt715_sdca_init(&slave->dev, mbq_regmap, regmap, slave);
+}
+
+static int rt715_sdca_sdw_remove(struct sdw_slave *slave)
+{
+	struct rt715_sdca_priv *rt715 = dev_get_drvdata(&slave->dev);
+
+	if (rt715->first_hw_init)
+		pm_runtime_disable(&slave->dev);
+
+	return 0;
 }
 
 static const struct sdw_device_id rt715_sdca_id[] = {
@@ -235,6 +244,8 @@ static int __maybe_unused rt715_dev_resume(struct device *dev)
 					   msecs_to_jiffies(RT715_PROBE_TIMEOUT));
 	if (!time) {
 		dev_err(&slave->dev, "Enumeration not complete, timed out\n");
+		sdw_show_ping_status(slave->bus, true);
+
 		return -ETIMEDOUT;
 	}
 
@@ -269,6 +280,7 @@ static struct sdw_driver rt715_sdw_driver = {
 		.pm = &rt715_pm,
 	},
 	.probe = rt715_sdca_sdw_probe,
+	.remove = rt715_sdca_sdw_remove,
 	.ops = &rt715_sdca_slave_ops,
 	.id_table = rt715_sdca_id,
 };

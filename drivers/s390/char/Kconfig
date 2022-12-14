@@ -89,7 +89,7 @@ config HMC_DRV
 	  Management Console (HMC) drive CD/DVD-ROM. It is available as a
 	  module, called 'hmcdrv', and also as kernel built-in. There is one
 	  optional parameter for this module: cachesize=N, which modifies the
-	  transfer cache size from it's default value 0.5MB to N bytes. If N
+	  transfer cache size from its default value 0.5MB to N bytes. If N
 	  is zero, then no caching is performed.
 
 config SCLP_OFB
@@ -99,6 +99,17 @@ config SCLP_OFB
 	help
 	  This option enables the Open-for-Business interface to the s390
 	  Service Element.
+
+config S390_UV_UAPI
+	def_tristate m
+	prompt "Ultravisor userspace API"
+	depends on S390
+	help
+	  Selecting exposes parts of the UV interface to userspace
+	  by providing a misc character device at /dev/uv.
+	  Using IOCTLs one can interact with the UV.
+	  The device is only available if the Ultravisor
+	  Facility (158) is present.
 
 config S390_TAPE
 	def_tristate m

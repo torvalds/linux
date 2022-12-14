@@ -288,7 +288,7 @@ struct drm_plane_state *armada_plane_duplicate_state(struct drm_plane *plane)
 static const struct drm_plane_funcs armada_primary_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.destroy	= drm_primary_helper_destroy,
+	.destroy	= drm_plane_helper_destroy,
 	.reset		= armada_plane_reset,
 	.atomic_duplicate_state = armada_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,

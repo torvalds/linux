@@ -55,7 +55,7 @@ union hfi1_ipoib_flow {
  */
 struct ipoib_txreq {
 	struct sdma_txreq           txreq;
-	struct hfi1_sdma_header     sdma_hdr;
+	struct hfi1_sdma_header     *sdma_hdr;
 	int                         sdma_status;
 	int                         complete;
 	struct hfi1_ipoib_dev_priv *priv;

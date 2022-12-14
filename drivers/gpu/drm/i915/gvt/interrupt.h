@@ -35,7 +35,7 @@
 #include <linux/hrtimer.h>
 #include <linux/kernel.h>
 
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 
 enum intel_gvt_event_type {
 	RCS_MI_USER_INTERRUPT = 0,
@@ -203,7 +203,7 @@ struct intel_gvt_irq_map {
 
 /* structure containing device specific IRQ state */
 struct intel_gvt_irq {
-	struct intel_gvt_irq_ops *ops;
+	const struct intel_gvt_irq_ops *ops;
 	struct intel_gvt_irq_info *info[INTEL_GVT_IRQ_INFO_MAX];
 	DECLARE_BITMAP(irq_info_bitmap, INTEL_GVT_IRQ_INFO_MAX);
 	struct intel_gvt_event_info events[INTEL_GVT_EVENT_MAX];

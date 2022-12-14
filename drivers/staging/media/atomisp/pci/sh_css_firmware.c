@@ -56,7 +56,11 @@ static struct firmware_header *firmware_header;
  * which will be replaced with the actual RELEASE_VERSION
  * during package generation. Please do not modify
  */
+#ifdef ISP2401
 static const char *release_version = STR(irci_stable_candrpv_0415_20150521_0458);
+#else
+static const char *release_version = STR(irci_stable_candrpv_0415_20150423_1753);
+#endif
 
 #define MAX_FW_REL_VER_NAME	300
 static char FW_rel_ver_name[MAX_FW_REL_VER_NAME] = "---";
@@ -365,7 +369,7 @@ void sh_css_unload_firmware(void)
 ia_css_ptr
 sh_css_load_blob(const unsigned char *blob, unsigned int size)
 {
-	ia_css_ptr target_addr = hmm_alloc(size, HMM_BO_PRIVATE, 0, NULL, 0);
+	ia_css_ptr target_addr = hmm_alloc(size);
 	/*
 	 * this will allocate memory aligned to a DDR word boundary which
 	 * is required for the CSS DMA to read the instructions.

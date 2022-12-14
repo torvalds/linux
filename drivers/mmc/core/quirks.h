@@ -100,6 +100,12 @@ static const struct mmc_fixup __maybe_unused mmc_blk_fixups[] = {
 	MMC_FIXUP("V10016", CID_MANFID_KINGSTON, CID_OEMID_ANY, add_quirk_mmc,
 		  MMC_QUIRK_TRIM_BROKEN),
 
+	/*
+	 * Some SD cards reports discard support while they don't
+	 */
+	MMC_FIXUP(CID_NAME_ANY, CID_MANFID_SANDISK_SD, 0x5344, add_quirk_sd,
+		  MMC_QUIRK_BROKEN_SD_DISCARD),
+
 	END_FIXUP
 };
 
@@ -149,6 +155,11 @@ static const struct mmc_fixup __maybe_unused sdio_fixup_methods[] = {
 static const struct mmc_fixup __maybe_unused sdio_card_init_methods[] = {
 	SDIO_FIXUP_COMPATIBLE("ti,wl1251", wl1251_quirk, 0),
 
+	SDIO_FIXUP_COMPATIBLE("silabs,wf200", add_quirk,
+			      MMC_QUIRK_BROKEN_BYTE_MODE_512 |
+			      MMC_QUIRK_LENIENT_FN0 |
+			      MMC_QUIRK_BLKSZ_FOR_BYTE_MODE),
+
 	END_FIXUP
 };
 
@@ -158,8 +169,10 @@ static inline bool mmc_fixup_of_compatible_match(struct mmc_card *card,
 	struct device_node *np;
 
 	for_each_child_of_node(mmc_dev(card->host)->of_node, np) {
-		if (of_device_is_compatible(np, compatible))
+		if (of_device_is_compatible(np, compatible)) {
+			of_node_put(np);
 			return true;
+		}
 	}
 
 	return false;

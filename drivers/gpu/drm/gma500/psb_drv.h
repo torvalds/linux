@@ -13,7 +13,6 @@
 
 #include <drm/drm_device.h>
 
-#include "gma_display.h"
 #include "gtt.h"
 #include "intel_bios.h"
 #include "mmu.h"
@@ -35,12 +34,6 @@
 
 /* Append new drm mode definition here, align with libdrm definition */
 #define DRM_MODE_SCALE_NO_SCALE   	2
-
-enum {
-	CHIP_PSB_8108 = 0,		/* Poulsbo */
-	CHIP_PSB_8109 = 1,		/* Poulsbo */
-	CHIP_MRST_4100 = 2,		/* Moorestown/Oaktrail */
-};
 
 #define IS_PSB(drm) ((to_pci_dev((drm)->dev)->device & 0xfffe) == 0x8108)
 #define IS_MRST(drm) ((to_pci_dev((drm)->dev)->device & 0xfff0) == 0x4100)
@@ -178,6 +171,8 @@ enum {
 #define PSB_NUM_VBLANKS 2
 #define PSB_WATCHDOG_DELAY (HZ * 2)
 #define PSB_LID_DELAY (HZ / 10)
+
+#define PSB_MAX_BRIGHTNESS		100
 
 #define PSB_PWR_STATE_ON		1
 #define PSB_PWR_STATE_OFF		2
@@ -408,7 +403,6 @@ struct drm_psb_private {
 	uint32_t stolen_base;
 	u8 __iomem *vram_addr;
 	unsigned long vram_stolen_size;
-	int gtt_initialized;
 	u16 gmch_ctrl;		/* Saved GTT setup */
 	u32 pge_ctl;
 
@@ -434,9 +428,7 @@ struct drm_psb_private {
 	spinlock_t irqmask_lock;
 
 	/* Power */
-	bool suspended;
-	bool display_power;
-	int display_count;
+	bool pm_initialized;
 
 	/* Modesetting */
 	struct psb_intel_mode_device mode_dev;
@@ -477,7 +469,7 @@ struct drm_psb_private {
 	struct drm_display_mode *sdvo_lvds_vbt_mode;
 
 	struct bdb_lvds_backlight *lvds_bl; /* LVDS backlight info from VBT */
-	struct psb_intel_i2c_chan *lvds_i2c_bus; /* FIXME: Remove this? */
+	struct gma_i2c_chan *lvds_i2c_bus; /* FIXME: Remove this? */
 
 	/* Feature bits from the VBIOS */
 	unsigned int int_tv_support:1;
@@ -494,10 +486,8 @@ struct drm_psb_private {
 	unsigned int core_freq;
 	uint32_t iLVDS_enable;
 
-	/* Runtime PM state */
-	int rpm_enabled;
-
 	/* MID specific */
+	bool use_msi;
 	bool has_gct;
 	struct oaktrail_gct_data gct_data;
 
@@ -506,10 +496,6 @@ struct drm_psb_private {
 
 	/* Register state */
 	struct psb_save_area regs;
-
-	/* MSI reg save */
-	uint32_t msi_addr;
-	uint32_t msi_data;
 
 	/* Hotplug handling */
 	struct work_struct hotplug_work;
@@ -537,10 +523,6 @@ struct drm_psb_private {
 	uint32_t blc_adj2;
 
 	struct drm_fb_helper *fb_helper;
-
-	/* Panel brightness */
-	int brightness;
-	int brightness_adjusted;
 
 	bool dsr_enable;
 	u32 dsr_fb_update;
@@ -586,7 +568,6 @@ struct psb_ops {
 
 	/* Sub functions */
 	struct drm_crtc_helper_funcs const *crtc_helper;
-	struct drm_crtc_funcs const *crtc_funcs;
 	const struct gma_clock_funcs *clock_funcs;
 
 	/* Setup hooks */
@@ -611,43 +592,19 @@ struct psb_ops {
 	void (*disable_sr)(struct drm_device *dev);
 
 	void (*lvds_bl_power)(struct drm_device *dev, bool on);
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+
 	/* Backlight */
 	int (*backlight_init)(struct drm_device *dev);
-#endif
+	void (*backlight_set)(struct drm_device *dev, int level);
+	int (*backlight_get)(struct drm_device *dev);
+	const char *backlight_name;
+
 	int i2c_bus;		/* I2C bus identifier for Moorestown */
 };
 
-
-
-extern int drm_crtc_probe_output_modes(struct drm_device *dev, int, int);
-extern int drm_pick_crtcs(struct drm_device *dev);
-
-/* psb_irq.c */
-extern void psb_irq_uninstall_islands(struct drm_device *dev, int hw_islands);
-extern int psb_vblank_wait2(struct drm_device *dev, unsigned int *sequence);
-extern int psb_vblank_wait(struct drm_device *dev, unsigned int *sequence);
-extern int psb_enable_vblank(struct drm_crtc *crtc);
-extern void psb_disable_vblank(struct drm_crtc *crtc);
-void
-psb_enable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask);
-
-void
-psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask);
-
-extern u32 psb_get_vblank_counter(struct drm_crtc *crtc);
-
-/* framebuffer.c */
-extern int psbfb_probed(struct drm_device *dev);
-extern int psbfb_remove(struct drm_device *dev,
-			struct drm_framebuffer *fb);
-/* psb_drv.c */
-extern void psb_spank(struct drm_psb_private *dev_priv);
-
-/* psb_reset.c */
+/* psb_lid.c */
 extern void psb_lid_timer_init(struct drm_psb_private *dev_priv);
 extern void psb_lid_timer_takedown(struct drm_psb_private *dev_priv);
-extern void psb_print_pagefault(struct drm_psb_private *dev_priv);
 
 /* modesetting */
 extern void psb_modeset_init(struct drm_device *dev);
@@ -670,7 +627,6 @@ extern void oaktrail_lvds_init(struct drm_device *dev,
 
 /* psb_intel_display.c */
 extern const struct drm_crtc_helper_funcs psb_intel_helper_funcs;
-extern const struct drm_crtc_funcs gma_intel_crtc_funcs;
 
 /* psb_intel_lvds.c */
 extern const struct drm_connector_helper_funcs
@@ -690,43 +646,7 @@ extern const struct psb_ops oaktrail_chip_ops;
 /* cdv_device.c */
 extern const struct psb_ops cdv_chip_ops;
 
-/* Debug print bits setting */
-#define PSB_D_GENERAL (1 << 0)
-#define PSB_D_INIT    (1 << 1)
-#define PSB_D_IRQ     (1 << 2)
-#define PSB_D_ENTRY   (1 << 3)
-/* debug the get H/V BP/FP count */
-#define PSB_D_HV      (1 << 4)
-#define PSB_D_DBI_BF  (1 << 5)
-#define PSB_D_PM      (1 << 6)
-#define PSB_D_RENDER  (1 << 7)
-#define PSB_D_REG     (1 << 8)
-#define PSB_D_MSVDX   (1 << 9)
-#define PSB_D_TOPAZ   (1 << 10)
-
-extern int drm_idle_check_interval;
-
 /* Utilities */
-static inline u32 MRST_MSG_READ32(int domain, uint port, uint offset)
-{
-	int mcr = (0xD0<<24) | (port << 16) | (offset << 8);
-	uint32_t ret_val = 0;
-	struct pci_dev *pci_root = pci_get_domain_bus_and_slot(domain, 0, 0);
-	pci_write_config_dword(pci_root, 0xD0, mcr);
-	pci_read_config_dword(pci_root, 0xD4, &ret_val);
-	pci_dev_put(pci_root);
-	return ret_val;
-}
-static inline void MRST_MSG_WRITE32(int domain, uint port, uint offset,
-				    u32 value)
-{
-	int mcr = (0xE0<<24) | (port << 16) | (offset << 8) | 0xF0;
-	struct pci_dev *pci_root = pci_get_domain_bus_and_slot(domain, 0, 0);
-	pci_write_config_dword(pci_root, 0xD4, value);
-	pci_write_config_dword(pci_root, 0xD0, mcr);
-	pci_dev_put(pci_root);
-}
-
 static inline uint32_t REGISTER_READ(struct drm_device *dev, uint32_t reg)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
@@ -807,23 +727,8 @@ static inline void REGISTER_WRITE8(struct drm_device *dev,
 #define PSB_WVDC32(_val, _offs)		iowrite32(_val, dev_priv->vdc_reg + (_offs))
 #define PSB_RVDC32(_offs)		ioread32(dev_priv->vdc_reg + (_offs))
 
-/* #define TRAP_SGX_PM_FAULT 1 */
-#ifdef TRAP_SGX_PM_FAULT
-#define PSB_RSGX32(_offs)						\
-({									\
-	if (inl(dev_priv->apm_base + PSB_APM_STS) & 0x3) {		\
-		pr_err("access sgx when it's off!! (READ) %s, %d\n",	\
-		       __FILE__, __LINE__);				\
-		melay(1000);						\
-	}								\
-	ioread32(dev_priv->sgx_reg + (_offs));				\
-})
-#else
 #define PSB_RSGX32(_offs)		ioread32(dev_priv->sgx_reg + (_offs))
-#endif
 #define PSB_WSGX32(_val, _offs)		iowrite32(_val, dev_priv->sgx_reg + (_offs))
-
-#define MSVDX_REG_DUMP 0
 
 #define PSB_WMSVDX32(_val, _offs)	iowrite32(_val, dev_priv->msvdx_reg + (_offs))
 #define PSB_RMSVDX32(_offs)		ioread32(dev_priv->msvdx_reg + (_offs))

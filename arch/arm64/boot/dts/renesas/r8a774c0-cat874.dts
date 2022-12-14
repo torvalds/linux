@@ -172,7 +172,7 @@
 
 	ports {
 		port@0 {
-			endpoint {
+			du_out_rgb: endpoint {
 				remote-endpoint = <&tda19988_in>;
 			};
 		};

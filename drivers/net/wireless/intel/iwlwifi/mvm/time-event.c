@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -97,8 +97,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 		/* In newer version of this command an aux station is added only
 		 * in cases of dedicated tx queue and need to be removed in end
 		 * of use */
-		if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					  ADD_STA, 0) >= 12)
+		if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) >= 12)
 			iwl_mvm_rm_aux_sta(mvm);
 	}
 
@@ -124,7 +123,7 @@ static void iwl_mvm_csa_noa_start(struct iwl_mvm *mvm)
 	rcu_read_lock();
 
 	csa_vif = rcu_dereference(mvm->csa_vif);
-	if (!csa_vif || !csa_vif->csa_active)
+	if (!csa_vif || !csa_vif->bss_conf.csa_active)
 		goto out_unlock;
 
 	IWL_DEBUG_TE(mvm, "CSA NOA started\n");
@@ -161,7 +160,7 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return false;
 
-	if (!mvmvif->csa_bcn_pending && vif->bss_conf.assoc &&
+	if (!mvmvif->csa_bcn_pending && vif->cfg.assoc &&
 	    vif->bss_conf.dtim_period)
 		return false;
 	if (errmsg)
@@ -177,7 +176,7 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 		rcu_read_unlock();
 	}
 
-	if (vif->bss_conf.assoc) {
+	if (vif->cfg.assoc) {
 		/*
 		 * When not associated, this will be called from
 		 * iwl_mvm_event_mlme_callback_ini()
@@ -347,7 +346,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 			 * and know the dtim period.
 			 */
 			iwl_mvm_te_check_disconnect(mvm, te_data->vif,
-				!te_data->vif->bss_conf.assoc ?
+				!te_data->vif->cfg.assoc ?
 				"Not associated and the time event is over already..." :
 				"No beacon heard and the time event is over already...");
 			break;
@@ -658,8 +657,8 @@ static void iwl_mvm_cancel_session_protection(struct iwl_mvm *mvm,
 	};
 	int ret;
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(SESSION_PROTECTION_CMD,
-						   MAC_CONF_GROUP, 0),
+	ret = iwl_mvm_send_cmd_pdu(mvm,
+				   WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 				   0, sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(mvm,
@@ -860,7 +859,7 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 			 * and know the dtim period.
 			 */
 			iwl_mvm_te_check_disconnect(mvm, vif,
-						    !vif->bss_conf.assoc ?
+						    !vif->cfg.assoc ?
 						    "Not associated and the session protection is over already..." :
 						    "No beacon heard and the session protection is over already...");
 			spin_lock_bh(&mvm->time_event_lock);
@@ -923,8 +922,8 @@ iwl_mvm_start_p2p_roc_session_protection(struct iwl_mvm *mvm,
 	}
 
 	cmd.conf_id = cpu_to_le32(mvmvif->time_event_data.id);
-	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(SESSION_PROTECTION_CMD,
-						    MAC_CONF_GROUP, 0),
+	return iwl_mvm_send_cmd_pdu(mvm,
+				    WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 				    0, sizeof(cmd), &cmd);
 }
 
@@ -1162,8 +1161,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
-	const u16 notif[] = { iwl_cmd_id(SESSION_PROTECTION_NOTIF,
-					 MAC_CONF_GROUP, 0) };
+	const u16 notif[] = { WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_NOTIF) };
 	struct iwl_notification_wait wait_notif;
 	struct iwl_mvm_session_prot_cmd cmd = {
 		.id_and_color =
@@ -1201,8 +1199,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 
 	if (!wait_for_notif) {
 		if (iwl_mvm_send_cmd_pdu(mvm,
-					 iwl_cmd_id(SESSION_PROTECTION_CMD,
-						    MAC_CONF_GROUP, 0),
+					 WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 					 0, sizeof(cmd), &cmd)) {
 			IWL_ERR(mvm,
 				"Couldn't send the SESSION_PROTECTION_CMD\n");
@@ -1219,8 +1216,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 				   iwl_mvm_session_prot_notif, NULL);
 
 	if (iwl_mvm_send_cmd_pdu(mvm,
-				 iwl_cmd_id(SESSION_PROTECTION_CMD,
-					    MAC_CONF_GROUP, 0),
+				 WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 				 0, sizeof(cmd), &cmd)) {
 		IWL_ERR(mvm,
 			"Couldn't send the SESSION_PROTECTION_CMD\n");

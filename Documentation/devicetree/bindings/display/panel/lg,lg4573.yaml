@@ -15,13 +15,13 @@ maintainers:
 
 allOf:
   - $ref: panel-common.yaml#
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:
   compatible:
     const: lg,lg4573
 
   reg: true
-  spi-max-frequency: true
 
 required:
   - compatible

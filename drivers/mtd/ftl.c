@@ -941,7 +941,7 @@ static int ftl_write(partition_t *part, caddr_t buffer,
 
 static int ftl_getgeo(struct mtd_blktrans_dev *dev, struct hd_geometry *geo)
 {
-	partition_t *part = (void *)dev;
+	partition_t *part = container_of(dev, struct partition_t, mbd);
 	u_long sect;
 
 	/* Sort of arbitrary: round size down to 4KiB boundary */
@@ -969,7 +969,7 @@ static int ftl_writesect(struct mtd_blktrans_dev *dev,
 static int ftl_discardsect(struct mtd_blktrans_dev *dev,
 			   unsigned long sector, unsigned nr_sects)
 {
-	partition_t *part = (void *)dev;
+	partition_t *part = container_of(dev, struct partition_t, mbd);
 	uint32_t bsize = 1 << part->header.EraseUnitSize;
 
 	pr_debug("FTL erase sector %ld for %d sectors\n",

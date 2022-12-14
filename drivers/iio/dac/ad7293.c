@@ -144,7 +144,7 @@ struct ad7293_state {
 	struct regulator *reg_avdd;
 	struct regulator *reg_vdrive;
 	u8 page_select;
-	u8 data[3] ____cacheline_aligned;
+	u8 data[3] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ad7293_page_select(struct ad7293_state *st, unsigned int reg)

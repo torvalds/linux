@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2020 Linaro Ltd.
+ * Copyright (C) 2018-2022 Linaro Ltd.
  */
 #ifndef _IPA_POWER_H_
 #define _IPA_POWER_H_
@@ -39,6 +39,13 @@ void ipa_power_modem_queue_wake(struct ipa *ipa);
  * @ipa:	IPA pointer
  */
 void ipa_power_modem_queue_active(struct ipa *ipa);
+
+/**
+ * ipa_power_retention() - Control register retention on power collapse
+ * @ipa:	IPA pointer
+ * @enable:	Whether retention should be enabled or disabled
+ */
+void ipa_power_retention(struct ipa *ipa, bool enable);
 
 /**
  * ipa_power_setup() - Set up IPA power management

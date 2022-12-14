@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
 #include <linux/configfs.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
@@ -293,7 +292,7 @@ static struct config_group *make_cma_dev(struct config_group *group,
 		goto fail;
 	}
 
-	strlcpy(cma_dev_group->name, name, sizeof(cma_dev_group->name));
+	strscpy(cma_dev_group->name, name, sizeof(cma_dev_group->name));
 
 	config_group_init_type_name(&cma_dev_group->ports_group, "ports",
 				    &cma_ports_group_type);

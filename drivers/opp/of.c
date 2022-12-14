@@ -242,20 +242,20 @@ void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
 	opp_table->np = opp_np;
 
 	_opp_table_alloc_required_tables(opp_table, dev, opp_np);
-	of_node_put(opp_np);
 }
 
 void _of_clear_opp_table(struct opp_table *opp_table)
 {
 	_opp_table_free_required_tables(opp_table);
+	of_node_put(opp_table->np);
 }
 
 /*
  * Release all resources previously acquired with a call to
  * _of_opp_alloc_required_opps().
  */
-void _of_opp_free_required_opps(struct opp_table *opp_table,
-				struct dev_pm_opp *opp)
+static void _of_opp_free_required_opps(struct opp_table *opp_table,
+				       struct dev_pm_opp *opp)
 {
 	struct dev_pm_opp **required_opps = opp->required_opps;
 	int i;
@@ -273,6 +273,12 @@ void _of_opp_free_required_opps(struct opp_table *opp_table,
 
 	opp->required_opps = NULL;
 	kfree(required_opps);
+}
+
+void _of_clear_opp(struct opp_table *opp_table, struct dev_pm_opp *opp)
+{
+	_of_opp_free_required_opps(opp_table, opp);
+	of_node_put(opp->np);
 }
 
 /* Populate all required OPPs which are part of "required-opps" list */
@@ -437,11 +443,11 @@ static int _bandwidth_supported(struct device *dev, struct opp_table *opp_table)
 
 	/* Checking only first OPP is sufficient */
 	np = of_get_next_available_child(opp_np, NULL);
+	of_node_put(opp_np);
 	if (!np) {
 		dev_err(dev, "OPP table empty\n");
 		return -EINVAL;
 	}
-	of_node_put(opp_np);
 
 	prop = of_find_property(np, "opp-peak-kBps", NULL);
 	of_node_put(np);
@@ -575,8 +581,9 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 			      struct opp_table *opp_table)
 {
-	u32 *microvolt, *microamp = NULL;
-	int supplies = opp_table->regulator_count, vcount, icount, ret, i, j;
+	u32 *microvolt, *microamp = NULL, *microwatt = NULL;
+	int supplies = opp_table->regulator_count;
+	int vcount, icount, pcount, ret, i, j;
 	struct property *prop = NULL;
 	char name[NAME_MAX];
 
@@ -688,6 +695,43 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 		}
 	}
 
+	/* Search for "opp-microwatt" */
+	sprintf(name, "opp-microwatt");
+	prop = of_find_property(opp->np, name, NULL);
+
+	if (prop) {
+		pcount = of_property_count_u32_elems(opp->np, name);
+		if (pcount < 0) {
+			dev_err(dev, "%s: Invalid %s property (%d)\n", __func__,
+				name, pcount);
+			ret = pcount;
+			goto free_microamp;
+		}
+
+		if (pcount != supplies) {
+			dev_err(dev, "%s: Invalid number of elements in %s property (%d) with supplies (%d)\n",
+				__func__, name, pcount, supplies);
+			ret = -EINVAL;
+			goto free_microamp;
+		}
+
+		microwatt = kmalloc_array(pcount, sizeof(*microwatt),
+					  GFP_KERNEL);
+		if (!microwatt) {
+			ret = -EINVAL;
+			goto free_microamp;
+		}
+
+		ret = of_property_read_u32_array(opp->np, name, microwatt,
+						 pcount);
+		if (ret) {
+			dev_err(dev, "%s: error parsing %s: %d\n", __func__,
+				name, ret);
+			ret = -EINVAL;
+			goto free_microwatt;
+		}
+	}
+
 	for (i = 0, j = 0; i < supplies; i++) {
 		opp->supplies[i].u_volt = microvolt[j++];
 
@@ -701,8 +745,13 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 
 		if (microamp)
 			opp->supplies[i].u_amp = microamp[i];
+
+		if (microwatt)
+			opp->supplies[i].u_watt = microwatt[i];
 	}
 
+free_microwatt:
+	kfree(microwatt);
 free_microamp:
 	kfree(microamp);
 free_microvolt:
@@ -724,7 +773,51 @@ void dev_pm_opp_of_remove_table(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
 
-static int _read_bw(struct dev_pm_opp *new_opp, struct opp_table *table,
+static int _read_rate(struct dev_pm_opp *new_opp, struct opp_table *opp_table,
+		      struct device_node *np)
+{
+	struct property *prop;
+	int i, count, ret;
+	u64 *rates;
+
+	prop = of_find_property(np, "opp-hz", NULL);
+	if (!prop)
+		return -ENODEV;
+
+	count = prop->length / sizeof(u64);
+	if (opp_table->clk_count != count) {
+		pr_err("%s: Count mismatch between opp-hz and clk_count (%d %d)\n",
+		       __func__, count, opp_table->clk_count);
+		return -EINVAL;
+	}
+
+	rates = kmalloc_array(count, sizeof(*rates), GFP_KERNEL);
+	if (!rates)
+		return -ENOMEM;
+
+	ret = of_property_read_u64_array(np, "opp-hz", rates, count);
+	if (ret) {
+		pr_err("%s: Error parsing opp-hz: %d\n", __func__, ret);
+	} else {
+		/*
+		 * Rate is defined as an unsigned long in clk API, and so
+		 * casting explicitly to its type. Must be fixed once rate is 64
+		 * bit guaranteed in clk API.
+		 */
+		for (i = 0; i < count; i++) {
+			new_opp->rates[i] = (unsigned long)rates[i];
+
+			/* This will happen for frequencies > 4.29 GHz */
+			WARN_ON(new_opp->rates[i] != rates[i]);
+		}
+	}
+
+	kfree(rates);
+
+	return ret;
+}
+
+static int _read_bw(struct dev_pm_opp *new_opp, struct opp_table *opp_table,
 		    struct device_node *np, bool peak)
 {
 	const char *name = peak ? "opp-peak-kBps" : "opp-avg-kBps";
@@ -737,9 +830,9 @@ static int _read_bw(struct dev_pm_opp *new_opp, struct opp_table *table,
 		return -ENODEV;
 
 	count = prop->length / sizeof(u32);
-	if (table->path_count != count) {
+	if (opp_table->path_count != count) {
 		pr_err("%s: Mismatch between %s and paths (%d %d)\n",
-				__func__, name, count, table->path_count);
+				__func__, name, count, opp_table->path_count);
 		return -EINVAL;
 	}
 
@@ -765,34 +858,27 @@ out:
 	return ret;
 }
 
-static int _read_opp_key(struct dev_pm_opp *new_opp, struct opp_table *table,
-			 struct device_node *np, bool *rate_not_available)
+static int _read_opp_key(struct dev_pm_opp *new_opp,
+			 struct opp_table *opp_table, struct device_node *np)
 {
 	bool found = false;
-	u64 rate;
 	int ret;
 
-	ret = of_property_read_u64(np, "opp-hz", &rate);
-	if (!ret) {
-		/*
-		 * Rate is defined as an unsigned long in clk API, and so
-		 * casting explicitly to its type. Must be fixed once rate is 64
-		 * bit guaranteed in clk API.
-		 */
-		new_opp->rate = (unsigned long)rate;
+	ret = _read_rate(new_opp, opp_table, np);
+	if (!ret)
 		found = true;
-	}
-	*rate_not_available = !!ret;
+	else if (ret != -ENODEV)
+		return ret;
 
 	/*
 	 * Bandwidth consists of peak and average (optional) values:
 	 * opp-peak-kBps = <path1_value path2_value>;
 	 * opp-avg-kBps = <path1_value path2_value>;
 	 */
-	ret = _read_bw(new_opp, table, np, true);
+	ret = _read_bw(new_opp, opp_table, np, true);
 	if (!ret) {
 		found = true;
-		ret = _read_bw(new_opp, table, np, false);
+		ret = _read_bw(new_opp, opp_table, np, false);
 	}
 
 	/* The properties were found but we failed to parse them */
@@ -838,13 +924,12 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	struct dev_pm_opp *new_opp;
 	u32 val;
 	int ret;
-	bool rate_not_available = false;
 
 	new_opp = _opp_allocate(opp_table);
 	if (!new_opp)
 		return ERR_PTR(-ENOMEM);
 
-	ret = _read_opp_key(new_opp, opp_table, np, &rate_not_available);
+	ret = _read_opp_key(new_opp, opp_table, np);
 	if (ret < 0) {
 		dev_err(dev, "%s: opp key field not found\n", __func__);
 		goto free_opp;
@@ -852,14 +937,14 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 
 	/* Check if the OPP supports hardware's hierarchy of versions or not */
 	if (!_opp_is_supported(dev, opp_table, np)) {
-		dev_dbg(dev, "OPP not supported by hardware: %lu\n",
-			new_opp->rate);
+		dev_dbg(dev, "OPP not supported by hardware: %s\n",
+			of_node_full_name(np));
 		goto free_opp;
 	}
 
 	new_opp->turbo = of_property_read_bool(np, "turbo-mode");
 
-	new_opp->np = np;
+	new_opp->np = of_node_get(np);
 	new_opp->dynamic = false;
 	new_opp->available = true;
 
@@ -877,7 +962,7 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	if (opp_table->is_genpd)
 		new_opp->pstate = pm_genpd_opp_to_performance_state(dev, new_opp);
 
-	ret = _opp_add(dev, new_opp, opp_table, rate_not_available);
+	ret = _opp_add(dev, new_opp, opp_table);
 	if (ret) {
 		/* Don't return error for duplicate OPPs */
 		if (ret == -EBUSY)
@@ -888,8 +973,8 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	/* OPP to select on device suspend */
 	if (of_property_read_bool(np, "opp-suspend")) {
 		if (opp_table->suspend_opp) {
-			/* Pick the OPP with higher rate as suspend OPP */
-			if (new_opp->rate > opp_table->suspend_opp->rate) {
+			/* Pick the OPP with higher rate/bw/level as suspend OPP */
+			if (_opp_compare_key(opp_table, new_opp, opp_table->suspend_opp) == 1) {
 				opp_table->suspend_opp->suspend = false;
 				new_opp->suspend = true;
 				opp_table->suspend_opp = new_opp;
@@ -904,7 +989,7 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 		opp_table->clock_latency_ns_max = new_opp->clock_latency_ns;
 
 	pr_debug("%s: turbo:%d rate:%lu uv:%lu uvmin:%lu uvmax:%lu latency:%lu level:%u\n",
-		 __func__, new_opp->turbo, new_opp->rate,
+		 __func__, new_opp->turbo, new_opp->rates[0],
 		 new_opp->supplies[0].u_volt, new_opp->supplies[0].u_volt_min,
 		 new_opp->supplies[0].u_volt_max, new_opp->clock_latency_ns,
 		 new_opp->level);
@@ -1041,7 +1126,7 @@ remove_static_opp:
 	return ret;
 }
 
-static int _of_add_table_indexed(struct device *dev, int index, bool getclk)
+static int _of_add_table_indexed(struct device *dev, int index)
 {
 	struct opp_table *opp_table;
 	int ret, count;
@@ -1057,7 +1142,7 @@ static int _of_add_table_indexed(struct device *dev, int index, bool getclk)
 			index = 0;
 	}
 
-	opp_table = _add_opp_table_indexed(dev, index, getclk);
+	opp_table = _add_opp_table_indexed(dev, index, true);
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
@@ -1081,11 +1166,11 @@ static void devm_pm_opp_of_table_release(void *data)
 	dev_pm_opp_of_remove_table(data);
 }
 
-static int _devm_of_add_table_indexed(struct device *dev, int index, bool getclk)
+static int _devm_of_add_table_indexed(struct device *dev, int index)
 {
 	int ret;
 
-	ret = _of_add_table_indexed(dev, index, getclk);
+	ret = _of_add_table_indexed(dev, index);
 	if (ret)
 		return ret;
 
@@ -1113,7 +1198,7 @@ static int _devm_of_add_table_indexed(struct device *dev, int index, bool getclk
  */
 int devm_pm_opp_of_add_table(struct device *dev)
 {
-	return _devm_of_add_table_indexed(dev, 0, true);
+	return _devm_of_add_table_indexed(dev, 0);
 }
 EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table);
 
@@ -1136,7 +1221,7 @@ EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table);
  */
 int dev_pm_opp_of_add_table(struct device *dev)
 {
-	return _of_add_table_indexed(dev, 0, true);
+	return _of_add_table_indexed(dev, 0);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
 
@@ -1152,7 +1237,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
  */
 int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 {
-	return _of_add_table_indexed(dev, index, true);
+	return _of_add_table_indexed(dev, index);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_indexed);
 
@@ -1165,41 +1250,9 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_indexed);
  */
 int devm_pm_opp_of_add_table_indexed(struct device *dev, int index)
 {
-	return _devm_of_add_table_indexed(dev, index, true);
+	return _devm_of_add_table_indexed(dev, index);
 }
 EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table_indexed);
-
-/**
- * dev_pm_opp_of_add_table_noclk() - Initialize indexed opp table from device
- *		tree without getting clk for device.
- * @dev:	device pointer used to lookup OPP table.
- * @index:	Index number.
- *
- * Register the initial OPP table with the OPP library for given device only
- * using the "operating-points-v2" property. Do not try to get the clk for the
- * device.
- *
- * Return: Refer to dev_pm_opp_of_add_table() for return values.
- */
-int dev_pm_opp_of_add_table_noclk(struct device *dev, int index)
-{
-	return _of_add_table_indexed(dev, index, false);
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_noclk);
-
-/**
- * devm_pm_opp_of_add_table_noclk() - Initialize indexed opp table from device
- *		tree without getting clk for device.
- * @dev:	device pointer used to lookup OPP table.
- * @index:	Index number.
- *
- * This is a resource-managed variant of dev_pm_opp_of_add_table_noclk().
- */
-int devm_pm_opp_of_add_table_noclk(struct device *dev, int index)
-{
-	return _devm_of_add_table_indexed(dev, index, false);
-}
-EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table_noclk);
 
 /* CPU device specific helpers */
 
@@ -1397,18 +1450,50 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);
 
 /*
  * Callback function provided to the Energy Model framework upon registration.
+ * It provides the power used by @dev at @kHz if it is the frequency of an
+ * existing OPP, or at the frequency of the first OPP above @kHz otherwise
+ * (see dev_pm_opp_find_freq_ceil()). This function updates @kHz to the ceiled
+ * frequency and @uW to the associated power.
+ *
+ * Returns 0 on success or a proper -EINVAL value in case of error.
+ */
+static int __maybe_unused
+_get_dt_power(struct device *dev, unsigned long *uW, unsigned long *kHz)
+{
+	struct dev_pm_opp *opp;
+	unsigned long opp_freq, opp_power;
+
+	/* Find the right frequency and related OPP */
+	opp_freq = *kHz * 1000;
+	opp = dev_pm_opp_find_freq_ceil(dev, &opp_freq);
+	if (IS_ERR(opp))
+		return -EINVAL;
+
+	opp_power = dev_pm_opp_get_power(opp);
+	dev_pm_opp_put(opp);
+	if (!opp_power)
+		return -EINVAL;
+
+	*kHz = opp_freq / 1000;
+	*uW = opp_power;
+
+	return 0;
+}
+
+/*
+ * Callback function provided to the Energy Model framework upon registration.
  * This computes the power estimated by @dev at @kHz if it is the frequency
  * of an existing OPP, or at the frequency of the first OPP above @kHz otherwise
  * (see dev_pm_opp_find_freq_ceil()). This function updates @kHz to the ceiled
- * frequency and @mW to the associated power. The power is estimated as
+ * frequency and @uW to the associated power. The power is estimated as
  * P = C * V^2 * f with C being the device's capacitance and V and f
  * respectively the voltage and frequency of the OPP.
  *
  * Returns -EINVAL if the power calculation failed because of missing
  * parameters, 0 otherwise.
  */
-static int __maybe_unused _get_power(unsigned long *mW, unsigned long *kHz,
-				     struct device *dev)
+static int __maybe_unused _get_power(struct device *dev, unsigned long *uW,
+				     unsigned long *kHz)
 {
 	struct dev_pm_opp *opp;
 	struct device_node *np;
@@ -1437,12 +1522,31 @@ static int __maybe_unused _get_power(unsigned long *mW, unsigned long *kHz,
 		return -EINVAL;
 
 	tmp = (u64)cap * mV * mV * (Hz / 1000000);
-	do_div(tmp, 1000000000);
+	/* Provide power in micro-Watts */
+	do_div(tmp, 1000000);
 
-	*mW = (unsigned long)tmp;
+	*uW = (unsigned long)tmp;
 	*kHz = Hz / 1000;
 
 	return 0;
+}
+
+static bool _of_has_opp_microwatt_property(struct device *dev)
+{
+	unsigned long power, freq = 0;
+	struct dev_pm_opp *opp;
+
+	/* Check if at least one OPP has needed property */
+	opp = dev_pm_opp_find_freq_ceil(dev, &freq);
+	if (IS_ERR(opp))
+		return false;
+
+	power = dev_pm_opp_get_power(opp);
+	dev_pm_opp_put(opp);
+	if (!power)
+		return false;
+
+	return true;
 }
 
 /**
@@ -1458,7 +1562,7 @@ static int __maybe_unused _get_power(unsigned long *mW, unsigned long *kHz,
  */
 int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 {
-	struct em_data_callback em_cb = EM_DATA_CB(_get_power);
+	struct em_data_callback em_cb;
 	struct device_node *np;
 	int ret, nr_opp;
 	u32 cap;
@@ -1472,6 +1576,12 @@ int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 	if (nr_opp <= 0) {
 		ret = -EINVAL;
 		goto failed;
+	}
+
+	/* First, try to find more precised Energy Model in DT */
+	if (_of_has_opp_microwatt_property(dev)) {
+		EM_SET_ACTIVE_POWER_CB(em_cb, _get_dt_power);
+		goto register_em;
 	}
 
 	np = of_node_get(dev->of_node);
@@ -1495,6 +1605,9 @@ int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 		goto failed;
 	}
 
+	EM_SET_ACTIVE_POWER_CB(em_cb, _get_power);
+
+register_em:
 	ret = em_dev_register_perf_domain(dev, nr_opp, &em_cb, cpus, true);
 	if (ret)
 		goto failed;

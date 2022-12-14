@@ -597,7 +597,7 @@ err_power_off:
 	return ret;
 }
 
-static int stk8312_remove(struct i2c_client *client)
+static void stk8312_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct stk8312_data *data = iio_priv(indio_dev);
@@ -608,10 +608,9 @@ static int stk8312_remove(struct i2c_client *client)
 	if (data->dready_trig)
 		iio_trigger_unregister(data->dready_trig);
 
-	return stk8312_set_mode(data, STK8312_MODE_STANDBY);
+	stk8312_set_mode(data, STK8312_MODE_STANDBY);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int stk8312_suspend(struct device *dev)
 {
 	struct stk8312_data *data;
@@ -630,12 +629,8 @@ static int stk8312_resume(struct device *dev)
 	return stk8312_set_mode(data, data->mode | STK8312_MODE_ACTIVE);
 }
 
-static SIMPLE_DEV_PM_OPS(stk8312_pm_ops, stk8312_suspend, stk8312_resume);
-
-#define STK8312_PM_OPS (&stk8312_pm_ops)
-#else
-#define STK8312_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(stk8312_pm_ops, stk8312_suspend,
+				stk8312_resume);
 
 static const struct i2c_device_id stk8312_i2c_id[] = {
 	/* Deprecated in favour of lowercase form */
@@ -648,7 +643,7 @@ MODULE_DEVICE_TABLE(i2c, stk8312_i2c_id);
 static struct i2c_driver stk8312_driver = {
 	.driver = {
 		.name = STK8312_DRIVER_NAME,
-		.pm = STK8312_PM_OPS,
+		.pm = pm_sleep_ptr(&stk8312_pm_ops),
 	},
 	.probe =            stk8312_probe,
 	.remove =           stk8312_remove,

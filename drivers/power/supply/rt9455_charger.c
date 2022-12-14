@@ -1698,7 +1698,7 @@ put_usb_notifier:
 	return ret;
 }
 
-static int rt9455_remove(struct i2c_client *client)
+static void rt9455_remove(struct i2c_client *client)
 {
 	int ret;
 	struct rt9455_info *info = i2c_get_clientdata(client);
@@ -1715,8 +1715,6 @@ static int rt9455_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&info->pwr_rdy_work);
 	cancel_delayed_work_sync(&info->max_charging_time_work);
 	cancel_delayed_work_sync(&info->batt_presence_work);
-
-	return ret;
 }
 
 static const struct i2c_device_id rt9455_i2c_id_table[] = {

@@ -1104,7 +1104,7 @@ static int init_alauda(struct us_data *us)
 
 	us->extra = kzalloc(sizeof(struct alauda_info), GFP_NOIO);
 	if (!us->extra)
-		return USB_STOR_TRANSPORT_ERROR;
+		return -ENOMEM;
 
 	info = (struct alauda_info *) us->extra;
 	us->extra_destructor = alauda_info_destructor;
@@ -1113,7 +1113,7 @@ static int init_alauda(struct us_data *us)
 		altsetting->endpoint[0].desc.bEndpointAddress
 		& USB_ENDPOINT_NUMBER_MASK);
 
-	return USB_STOR_TRANSPORT_GOOD;
+	return 0;
 }
 
 static int alauda_transport(struct scsi_cmnd *srb, struct us_data *us)

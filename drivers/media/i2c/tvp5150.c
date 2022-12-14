@@ -1198,8 +1198,10 @@ static int tvp5150_get_mbus_config(struct v4l2_subdev *sd,
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
 	cfg->type = decoder->mbus_type;
-	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING
-		   | V4L2_MBUS_FIELD_EVEN_LOW | V4L2_MBUS_DATA_ACTIVE_HIGH;
+	cfg->bus.parallel.flags = V4L2_MBUS_MASTER
+				| V4L2_MBUS_PCLK_SAMPLE_RISING
+				| V4L2_MBUS_FIELD_EVEN_LOW
+				| V4L2_MBUS_DATA_ACTIVE_HIGH;
 
 	return 0;
 }
@@ -1283,7 +1285,7 @@ static int tvp5150_disable_all_input_links(struct tvp5150 *decoder)
 	int err;
 
 	for (i = 0; i < TVP5150_NUM_PADS - 1; i++) {
-		connector_pad = media_entity_remote_pad(&decoder->pads[i]);
+		connector_pad = media_pad_remote_pad_first(&decoder->pads[i]);
 		if (!connector_pad)
 			continue;
 
@@ -2228,7 +2230,7 @@ err:
 	return res;
 }
 
-static int tvp5150_remove(struct i2c_client *c)
+static void tvp5150_remove(struct i2c_client *c)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(c);
 	struct tvp5150 *decoder = to_tvp5150(sd);
@@ -2248,8 +2250,6 @@ static int tvp5150_remove(struct i2c_client *c)
 	v4l2_ctrl_handler_free(&decoder->hdl);
 	pm_runtime_disable(&c->dev);
 	pm_runtime_set_suspended(&c->dev);
-
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

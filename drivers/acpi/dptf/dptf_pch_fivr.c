@@ -151,6 +151,7 @@ static int pch_fivr_remove(struct platform_device *pdev)
 static const struct acpi_device_id pch_fivr_device_ids[] = {
 	{"INTC1045", 0},
 	{"INTC1049", 0},
+	{"INTC1064", 0},
 	{"INTC10A3", 0},
 	{"", 0},
 };

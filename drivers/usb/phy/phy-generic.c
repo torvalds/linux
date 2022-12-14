@@ -230,12 +230,9 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 		err = PTR_ERR_OR_ZERO(nop->gpiod_vbus);
 	}
 
-	if (err == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-	if (err) {
-		dev_err(dev, "Error requesting RESET or VBUS GPIO\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "Error requesting RESET or VBUS GPIO\n");
 	if (nop->gpiod_reset)
 		gpiod_direction_output(nop->gpiod_reset, 1);
 
@@ -267,6 +264,13 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 		if (needs_vcc)
 			return -EPROBE_DEFER;
 	}
+
+	nop->vbus_draw = devm_regulator_get_exclusive(dev, "vbus");
+	if (PTR_ERR(nop->vbus_draw) == -ENODEV)
+		nop->vbus_draw = NULL;
+	if (IS_ERR(nop->vbus_draw))
+		return dev_err_probe(dev, PTR_ERR(nop->vbus_draw),
+				     "could not get vbus regulator\n");
 
 	nop->dev		= dev;
 	nop->phy.dev		= nop->dev;

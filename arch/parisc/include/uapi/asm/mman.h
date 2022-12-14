@@ -55,6 +55,8 @@
 #define MADV_POPULATE_READ	22	/* populate (prefault) page tables readable */
 #define MADV_POPULATE_WRITE	23	/* populate (prefault) page tables writable */
 
+#define MADV_DONTNEED_LOCKED	24	/* like DONTNEED, but drop locked pages too */
+
 #define MADV_MERGEABLE   65		/* KSM may merge identical pages */
 #define MADV_UNMERGEABLE 66		/* KSM may not merge identical pages */
 
@@ -67,6 +69,8 @@
 
 #define MADV_WIPEONFORK 71		/* Zero memory on fork, child only */
 #define MADV_KEEPONFORK 72		/* Undo MADV_WIPEONFORK */
+
+#define MADV_COLLAPSE	73		/* Synchronous hugepage collapse */
 
 #define MADV_HWPOISON     100		/* poison a page for testing */
 #define MADV_SOFT_OFFLINE 101		/* soft offline page for testing */

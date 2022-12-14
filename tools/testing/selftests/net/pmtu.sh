@@ -26,6 +26,15 @@
 # - pmtu_ipv6
 #	Same as pmtu_ipv4, except for locked PMTU tests, using IPv6
 #
+# - pmtu_ipv4_dscp_icmp_exception
+#	Set up the same network topology as pmtu_ipv4, but use non-default
+#	routing table in A. A fib-rule is used to jump to this routing table
+#	based on DSCP. Send ICMPv4 packets with the expected DSCP value and
+#	verify that ECN doesn't interfere with the creation of PMTU exceptions.
+#
+# - pmtu_ipv4_dscp_udp_exception
+#	Same as pmtu_ipv4_dscp_icmp_exception, but use UDP instead of ICMP.
+#
 # - pmtu_ipv4_vxlan4_exception
 #	Set up the same network topology as pmtu_ipv4, create a VXLAN tunnel
 #	over IPv4 between A and B, routed via R1. On the link between R1 and B,
@@ -203,6 +212,8 @@ which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
 tests="
 	pmtu_ipv4_exception		ipv4: PMTU exceptions			1
 	pmtu_ipv6_exception		ipv6: PMTU exceptions			1
+	pmtu_ipv4_dscp_icmp_exception	ICMPv4 with DSCP and ECN: PMTU exceptions	1
+	pmtu_ipv4_dscp_udp_exception	UDPv4 with DSCP and ECN: PMTU exceptions	1
 	pmtu_ipv4_vxlan4_exception	IPv4 over vxlan4: PMTU exceptions	1
 	pmtu_ipv6_vxlan4_exception	IPv6 over vxlan4: PMTU exceptions	1
 	pmtu_ipv4_vxlan6_exception	IPv4 over vxlan6: PMTU exceptions	1
@@ -323,6 +334,9 @@ routes_nh="
 	B	6	default			61
 "
 
+policy_mark=0x04
+rt_table=main
+
 veth4_a_addr="192.168.1.1"
 veth4_b_addr="192.168.1.2"
 veth4_c_addr="192.168.2.10"
@@ -346,6 +360,7 @@ dummy6_mask="64"
 err_buf=
 tcpdump_pids=
 nettest_pids=
+socat_pids=
 
 err() {
 	err_buf="${err_buf}${1}
@@ -372,6 +387,16 @@ run_cmd() {
 	fi
 
 	return $rc
+}
+
+run_cmd_bg() {
+	cmd="$*"
+
+	if [ "$VERBOSE" = "1" ]; then
+		printf "    COMMAND: %s &\n" "${cmd}"
+	fi
+
+	$cmd 2>&1 &
 }
 
 # Find the auto-generated name for this namespace
@@ -661,19 +686,21 @@ setup_xfrm() {
 }
 
 setup_nettest_xfrm() {
-	which nettest >/dev/null
-	if [ $? -ne 0 ]; then
-		echo "'nettest' command not found; skipping tests"
-	        return 1
+	if ! which nettest >/dev/null; then
+		PATH=$PWD:$PATH
+		if ! which nettest >/dev/null; then
+			echo "'nettest' command not found; skipping tests"
+			return 1
+		fi
 	fi
 
 	[ ${1} -eq 6 ] && proto="-6" || proto=""
 	port=${2}
 
-	run_cmd ${ns_a} nettest ${proto} -q -D -s -x -p ${port} -t 5 &
+	run_cmd_bg "${ns_a}" nettest "${proto}" -q -D -s -x -p "${port}" -t 5
 	nettest_pids="${nettest_pids} $!"
 
-	run_cmd ${ns_b} nettest ${proto} -q -D -s -x -p ${port} -t 5 &
+	run_cmd_bg "${ns_b}" nettest "${proto}" -q -D -s -x -p "${port}" -t 5
 	nettest_pids="${nettest_pids} $!"
 }
 
@@ -713,7 +740,7 @@ setup_routing_old() {
 
 		ns_name="$(nsname ${ns})"
 
-		ip -n ${ns_name} route add ${addr} via ${gw}
+		ip -n "${ns_name}" route add "${addr}" table "${rt_table}" via "${gw}"
 
 		ns=""; addr=""; gw=""
 	done
@@ -743,7 +770,7 @@ setup_routing_new() {
 
 		ns_name="$(nsname ${ns})"
 
-		ip -n ${ns_name} -${fam} route add ${addr} nhid ${nhid}
+		ip -n "${ns_name}" -"${fam}" route add "${addr}" table "${rt_table}" nhid "${nhid}"
 
 		ns=""; fam=""; addr=""; nhid=""
 	done
@@ -786,6 +813,24 @@ setup_routing() {
 	fi
 
 	return 0
+}
+
+setup_policy_routing() {
+	setup_routing
+
+	ip -netns "${NS_A}" -4 rule add dsfield "${policy_mark}" \
+		table "${rt_table}"
+
+	# Set the IPv4 Don't Fragment bit with tc, since socat doesn't seem to
+	# have an option do to it.
+	tc -netns "${NS_A}" qdisc replace dev veth_A-R1 root prio
+	tc -netns "${NS_A}" qdisc replace dev veth_A-R2 root prio
+	tc -netns "${NS_A}" filter add dev veth_A-R1                      \
+		protocol ipv4 flower ip_proto udp                         \
+		action pedit ex munge ip df set 0x40 pipe csum ip and udp
+	tc -netns "${NS_A}" filter add dev veth_A-R2                      \
+		protocol ipv4 flower ip_proto udp                         \
+		action pedit ex munge ip df set 0x40 pipe csum ip and udp
 }
 
 setup_bridge() {
@@ -865,7 +910,6 @@ setup_ovs_bridge() {
 setup() {
 	[ "$(id -u)" -ne 0 ] && echo "  need to run as root" && return $ksft_skip
 
-	cleanup
 	for arg do
 		eval setup_${arg} || { echo "  ${arg} not supported"; return 1; }
 	done
@@ -876,7 +920,7 @@ trace() {
 
 	for arg do
 		[ "${ns_cmd}" = "" ] && ns_cmd="${arg}" && continue
-		${ns_cmd} tcpdump -s 0 -i "${arg}" -w "${name}_${arg}.pcap" 2> /dev/null &
+		${ns_cmd} tcpdump --immediate-mode -s 0 -i "${arg}" -w "${name}_${arg}.pcap" 2> /dev/null &
 		tcpdump_pids="${tcpdump_pids} $!"
 		ns_cmd=
 	done
@@ -893,6 +937,11 @@ cleanup() {
 		kill ${pid}
 	done
 	nettest_pids=
+
+	for pid in ${socat_pids}; do
+		kill "${pid}"
+	done
+	socat_pids=
 
 	for n in ${NS_A} ${NS_B} ${NS_C} ${NS_R1} ${NS_R2}; do
 		ip netns del ${n} 2> /dev/null
@@ -941,15 +990,21 @@ link_get_mtu() {
 route_get_dst_exception() {
 	ns_cmd="${1}"
 	dst="${2}"
+	dsfield="${3}"
 
-	${ns_cmd} ip route get "${dst}"
+	if [ -z "${dsfield}" ]; then
+		dsfield=0
+	fi
+
+	${ns_cmd} ip route get "${dst}" dsfield "${dsfield}"
 }
 
 route_get_dst_pmtu_from_exception() {
 	ns_cmd="${1}"
 	dst="${2}"
+	dsfield="${3}"
 
-	mtu_parse "$(route_get_dst_exception "${ns_cmd}" ${dst})"
+	mtu_parse "$(route_get_dst_exception "${ns_cmd}" "${dst}" "${dsfield}")"
 }
 
 check_pmtu_value() {
@@ -1057,6 +1112,95 @@ test_pmtu_ipv4_exception() {
 
 test_pmtu_ipv6_exception() {
 	test_pmtu_ipvX 6
+}
+
+test_pmtu_ipv4_dscp_icmp_exception() {
+	rt_table=100
+
+	setup namespaces policy_routing || return $ksft_skip
+	trace "${ns_a}"  veth_A-R1    "${ns_r1}" veth_R1-A \
+	      "${ns_r1}" veth_R1-B    "${ns_b}"  veth_B-R1 \
+	      "${ns_a}"  veth_A-R2    "${ns_r2}" veth_R2-A \
+	      "${ns_r2}" veth_R2-B    "${ns_b}"  veth_B-R2
+
+	# Set up initial MTU values
+	mtu "${ns_a}"  veth_A-R1 2000
+	mtu "${ns_r1}" veth_R1-A 2000
+	mtu "${ns_r1}" veth_R1-B 1400
+	mtu "${ns_b}"  veth_B-R1 1400
+
+	mtu "${ns_a}"  veth_A-R2 2000
+	mtu "${ns_r2}" veth_R2-A 2000
+	mtu "${ns_r2}" veth_R2-B 1500
+	mtu "${ns_b}"  veth_B-R2 1500
+
+	len=$((2000 - 20 - 8)) # Fills MTU of veth_A-R1
+
+	dst1="${prefix4}.${b_r1}.1"
+	dst2="${prefix4}.${b_r2}.1"
+
+	# Create route exceptions
+	dsfield=${policy_mark} # No ECN bit set (Not-ECT)
+	run_cmd "${ns_a}" ping -q -M want -Q "${dsfield}" -c 1 -w 1 -s "${len}" "${dst1}"
+
+	dsfield=$(printf "%#x" $((policy_mark + 0x02))) # ECN=2 (ECT(0))
+	run_cmd "${ns_a}" ping -q -M want -Q "${dsfield}" -c 1 -w 1 -s "${len}" "${dst2}"
+
+	# Check that exceptions have been created with the correct PMTU
+	pmtu_1="$(route_get_dst_pmtu_from_exception "${ns_a}" "${dst1}" "${policy_mark}")"
+	check_pmtu_value "1400" "${pmtu_1}" "exceeding MTU" || return 1
+
+	pmtu_2="$(route_get_dst_pmtu_from_exception "${ns_a}" "${dst2}" "${policy_mark}")"
+	check_pmtu_value "1500" "${pmtu_2}" "exceeding MTU" || return 1
+}
+
+test_pmtu_ipv4_dscp_udp_exception() {
+	rt_table=100
+
+	if ! which socat > /dev/null 2>&1; then
+		echo "'socat' command not found; skipping tests"
+		return $ksft_skip
+	fi
+
+	setup namespaces policy_routing || return $ksft_skip
+	trace "${ns_a}"  veth_A-R1    "${ns_r1}" veth_R1-A \
+	      "${ns_r1}" veth_R1-B    "${ns_b}"  veth_B-R1 \
+	      "${ns_a}"  veth_A-R2    "${ns_r2}" veth_R2-A \
+	      "${ns_r2}" veth_R2-B    "${ns_b}"  veth_B-R2
+
+	# Set up initial MTU values
+	mtu "${ns_a}"  veth_A-R1 2000
+	mtu "${ns_r1}" veth_R1-A 2000
+	mtu "${ns_r1}" veth_R1-B 1400
+	mtu "${ns_b}"  veth_B-R1 1400
+
+	mtu "${ns_a}"  veth_A-R2 2000
+	mtu "${ns_r2}" veth_R2-A 2000
+	mtu "${ns_r2}" veth_R2-B 1500
+	mtu "${ns_b}"  veth_B-R2 1500
+
+	len=$((2000 - 20 - 8)) # Fills MTU of veth_A-R1
+
+	dst1="${prefix4}.${b_r1}.1"
+	dst2="${prefix4}.${b_r2}.1"
+
+	# Create route exceptions
+	run_cmd_bg "${ns_b}" socat UDP-LISTEN:50000 OPEN:/dev/null,wronly=1
+	socat_pids="${socat_pids} $!"
+
+	dsfield=${policy_mark} # No ECN bit set (Not-ECT)
+	run_cmd "${ns_a}" socat OPEN:/dev/zero,rdonly=1,readbytes="${len}" \
+		UDP:"${dst1}":50000,tos="${dsfield}"
+
+	dsfield=$(printf "%#x" $((policy_mark + 0x02))) # ECN=2 (ECT(0))
+	run_cmd "${ns_a}" socat OPEN:/dev/zero,rdonly=1,readbytes="${len}" \
+		UDP:"${dst2}":50000,tos="${dsfield}"
+
+	# Check that exceptions have been created with the correct PMTU
+	pmtu_1="$(route_get_dst_pmtu_from_exception "${ns_a}" "${dst1}" "${policy_mark}")"
+	check_pmtu_value "1400" "${pmtu_1}" "exceeding MTU" || return 1
+	pmtu_2="$(route_get_dst_pmtu_from_exception "${ns_a}" "${dst2}" "${policy_mark}")"
+	check_pmtu_value "1500" "${pmtu_2}" "exceeding MTU" || return 1
 }
 
 test_pmtu_ipvX_over_vxlanY_or_geneveY_exception() {
@@ -1835,6 +1979,10 @@ run_test() {
 	tdesc="$2"
 
 	unset IFS
+
+	# Since cleanup() relies on variables modified by this subshell, it
+	# has to run in this context.
+	trap cleanup EXIT
 
 	if [ "$VERBOSE" = "1" ]; then
 		printf "\n##########################################################################\n\n"

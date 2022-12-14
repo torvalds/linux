@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2015 Niklas Söderlund
  */
-#include <linux/init.h>
 #include <linux/kernel.h>
 
 #include "sh_pfc.h"
@@ -749,23 +748,14 @@ static const unsigned int cf_ctrl_mux[] = {
 	CF_CDB2_MARK,
 };
 
-static const unsigned int cf_data8_pins[] = {
-	/* CF_D[0:7] */
-	77, 78, 79, 80,
-	81, 82, 83, 84,
-};
-static const unsigned int cf_data8_mux[] = {
-	CF_D00_MARK, CF_D01_MARK, CF_D02_MARK, CF_D03_MARK,
-	CF_D04_MARK, CF_D05_MARK, CF_D06_MARK, CF_D07_MARK,
-};
-static const unsigned int cf_data16_pins[] = {
+static const unsigned int cf_data_pins[] = {
 	/* CF_D[0:15] */
 	77, 78, 79, 80,
 	81, 82, 83, 84,
 	85, 86, 87, 88,
 	89, 90, 91, 92,
 };
-static const unsigned int cf_data16_mux[] = {
+static const unsigned int cf_data_mux[] = {
 	CF_D00_MARK, CF_D01_MARK, CF_D02_MARK, CF_D03_MARK,
 	CF_D04_MARK, CF_D05_MARK, CF_D06_MARK, CF_D07_MARK,
 	CF_D08_MARK, CF_D09_MARK, CF_D10_MARK, CF_D11_MARK,
@@ -895,26 +885,12 @@ static const unsigned int sdi0_ctrl_mux[] = {
 	SDI0_CKO_MARK, SDI0_CKI_MARK, SDI0_CMD_MARK,
 };
 
-static const unsigned int sdi0_data1_pins[] = {
-	/* SDI0_DATA[0] */
-	53,
-};
-static const unsigned int sdi0_data1_mux[] = {
-	SDI0_DATA0_MARK,
-};
-static const unsigned int sdi0_data4_pins[] = {
-	/* SDI0_DATA[0:3] */
-	53, 54, 55, 56,
-};
-static const unsigned int sdi0_data4_mux[] = {
-	SDI0_DATA0_MARK, SDI0_DATA1_MARK, SDI0_DATA2_MARK, SDI0_DATA3_MARK,
-};
-static const unsigned int sdi0_data8_pins[] = {
+static const unsigned int sdi0_data_pins[] = {
 	/* SDI0_DATA[0:7] */
 	53, 54, 55, 56,
 	57, 58, 59, 60
 };
-static const unsigned int sdi0_data8_mux[] = {
+static const unsigned int sdi0_data_mux[] = {
 	SDI0_DATA0_MARK, SDI0_DATA1_MARK, SDI0_DATA2_MARK, SDI0_DATA3_MARK,
 	SDI0_DATA4_MARK, SDI0_DATA5_MARK, SDI0_DATA6_MARK, SDI0_DATA7_MARK,
 };
@@ -928,18 +904,11 @@ static const unsigned int sdi1_ctrl_mux[] = {
 	SDI1_CKO_MARK, SDI1_CKI_MARK, SDI1_CMD_MARK,
 };
 
-static const unsigned int sdi1_data1_pins[] = {
-	/* SDI1_DATA[0] */
-	64,
-};
-static const unsigned int sdi1_data1_mux[] = {
-	SDI1_DATA0_MARK,
-};
-static const unsigned int sdi1_data4_pins[] = {
+static const unsigned int sdi1_data_pins[] = {
 	/* SDI1_DATA[0:3] */
 	64, 65, 66, 67,
 };
-static const unsigned int sdi1_data4_mux[] = {
+static const unsigned int sdi1_data_mux[] = {
 	SDI1_DATA0_MARK, SDI1_DATA1_MARK, SDI1_DATA2_MARK, SDI1_DATA3_MARK,
 };
 
@@ -952,18 +921,11 @@ static const unsigned int sdi2_ctrl_mux[] = {
 	SDI2_CKO_MARK, SDI2_CKI_MARK, SDI2_CMD_MARK,
 };
 
-static const unsigned int sdi2_data1_pins[] = {
-	/* SDI2_DATA[0] */
-	89,
-};
-static const unsigned int sdi2_data1_mux[] = {
-	SDI2_DATA0_MARK,
-};
-static const unsigned int sdi2_data4_pins[] = {
+static const unsigned int sdi2_data_pins[] = {
 	/* SDI2_DATA[0:3] */
 	89, 90, 91, 92,
 };
-static const unsigned int sdi2_data4_mux[] = {
+static const unsigned int sdi2_data_mux[] = {
 	SDI2_DATA0_MARK, SDI2_DATA1_MARK, SDI2_DATA2_MARK, SDI2_DATA3_MARK,
 };
 
@@ -1131,8 +1093,8 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(cam),
 
 	SH_PFC_PIN_GROUP(cf_ctrl),
-	SH_PFC_PIN_GROUP(cf_data8),
-	SH_PFC_PIN_GROUP(cf_data16),
+	BUS_DATA_PIN_GROUP(cf_data, 8),
+	BUS_DATA_PIN_GROUP(cf_data, 16),
 
 	SH_PFC_PIN_GROUP(dtv_a),
 	SH_PFC_PIN_GROUP(dtv_b),
@@ -1161,17 +1123,17 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(sd_cki),
 
 	SH_PFC_PIN_GROUP(sdi0_ctrl),
-	SH_PFC_PIN_GROUP(sdi0_data1),
-	SH_PFC_PIN_GROUP(sdi0_data4),
-	SH_PFC_PIN_GROUP(sdi0_data8),
+	BUS_DATA_PIN_GROUP(sdi0_data, 1),
+	BUS_DATA_PIN_GROUP(sdi0_data, 4),
+	BUS_DATA_PIN_GROUP(sdi0_data, 8),
 
 	SH_PFC_PIN_GROUP(sdi1_ctrl),
-	SH_PFC_PIN_GROUP(sdi1_data1),
-	SH_PFC_PIN_GROUP(sdi1_data4),
+	BUS_DATA_PIN_GROUP(sdi1_data, 1),
+	BUS_DATA_PIN_GROUP(sdi1_data, 4),
 
 	SH_PFC_PIN_GROUP(sdi2_ctrl),
-	SH_PFC_PIN_GROUP(sdi2_data1),
-	SH_PFC_PIN_GROUP(sdi2_data4),
+	BUS_DATA_PIN_GROUP(sdi2_data, 1),
+	BUS_DATA_PIN_GROUP(sdi2_data, 4),
 
 	SH_PFC_PIN_GROUP(tp33),
 
@@ -1607,61 +1569,39 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		))
 	},
 	{ PINMUX_CFG_REG_VAR("CHG_PINSEL_LCD3", 0xe0140284, 32,
-			     GROUP(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-				   1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2,
-				   2, 2),
+			     GROUP(-20, 2, 2, -6, 2),
 			     GROUP(
-		/* 31 - 12 */
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
+		/* 31 - 12 RESERVED */
 		/* 11 - 10 */
 		FN_SEL_LCD3_11_10_00, FN_SEL_LCD3_11_10_01,
 		FN_SEL_LCD3_11_10_10, 0,
 		/* 9 - 8 */
 		FN_SEL_LCD3_9_8_00, 0, FN_SEL_LCD3_9_8_10, 0,
-		/* 7 - 2 */
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		/* 7 - 2 RESERVED */
 		/* 1 - 0 */
 		FN_SEL_LCD3_1_0_00, FN_SEL_LCD3_1_0_01, 0, 0,
 		))
 	},
 	{ PINMUX_CFG_REG_VAR("CHG_PINSEL_UART", 0xe0140288, 32,
-			     GROUP(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-				   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-				   1, 1, 1, 1, 1, 1, 2),
+			     GROUP(-30, 2),
 			     GROUP(
-		/* 31 - 2 */
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		/* 31 - 2 RESERVED */
 		/* 1 - 0 */
 		FN_SEL_UART_1_0_00, FN_SEL_UART_1_0_01, 0, 0,
 		))
 	},
 	{ PINMUX_CFG_REG_VAR("CHG_PINSEL_IIC", 0xe014028c, 32,
-			     GROUP(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-				   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-				   1, 1, 1, 1, 1, 1, 2),
+			     GROUP(-30, 2),
 			     GROUP(
-		/* 31 - 2 */
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		/* 31 - 2 RESERVED */
 		/* 1 - 0 */
 		FN_SEL_IIC_1_0_00, FN_SEL_IIC_1_0_01, 0, 0,
 		))
 	},
 	{ PINMUX_CFG_REG_VAR("CHG_PINSEL_AB", 0xe0140294, 32,
-			     GROUP(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-				   1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2),
+			     GROUP(-18, 2, 2, 2, 2, 2, 2, 2),
 			     GROUP(
-		/* 31 - 14 */
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0,
+		/* 31 - 14 RESERVED */
 		/* 13 - 12 */
 		FN_SEL_AB_13_12_00, 0, FN_SEL_AB_13_12_10, 0,
 		/* 11 - 10 */
@@ -1681,14 +1621,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		))
 	},
 	{ PINMUX_CFG_REG_VAR("CHG_PINSEL_USI", 0xe0140298, 32,
-			     GROUP(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-				   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2,
-				   2, 2, 2),
+			     GROUP(-22, 2, 2, 2, 2, 2),
 			     GROUP(
-		/* 31 - 10 */
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		/* 31 - 10 RESERVED */
 		/* 9 - 8 */
 		FN_SEL_USI_9_8_00, FN_SEL_USI_9_8_01, 0, 0,
 		/* 7 - 6 */
@@ -1702,15 +1637,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		))
 	},
 	{ PINMUX_CFG_REG_VAR("CHG_PINSEL_HSI", 0xe01402a8, 32,
-			     GROUP(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-				   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-				   1, 1, 1, 1, 1, 1, 2),
+			     GROUP(-30, 2),
 			     GROUP(
-		/* 31 - 2 */
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		/* 31 - 2 RESERVED */
 		/* 1 - 0 */
 		FN_SEL_HSI_1_0_00, FN_SEL_HSI_1_0_01, 0, 0,
 		))

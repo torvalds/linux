@@ -25,7 +25,10 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
+#include <drm/drm_blend.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_vblank.h>
 #include <drm/exynos_drm.h>
 
@@ -809,19 +812,17 @@ static int mixer_resources_init(struct mixer_context *mixer_ctx)
 		return -ENXIO;
 	}
 
-	res = platform_get_resource(mixer_ctx->pdev, IORESOURCE_IRQ, 0);
-	if (res == NULL) {
-		dev_err(dev, "get interrupt resource failed.\n");
-		return -ENXIO;
-	}
+	ret = platform_get_irq(mixer_ctx->pdev, 0);
+	if (ret < 0)
+		return ret;
+	mixer_ctx->irq = ret;
 
-	ret = devm_request_irq(dev, res->start, mixer_irq_handler,
-						0, "drm_mixer", mixer_ctx);
+	ret = devm_request_irq(dev, mixer_ctx->irq, mixer_irq_handler,
+			       0, "drm_mixer", mixer_ctx);
 	if (ret) {
 		dev_err(dev, "request interrupt failed.\n");
 		return ret;
 	}
-	mixer_ctx->irq = res->start;
 
 	return 0;
 }
@@ -1044,7 +1045,7 @@ static void mixer_atomic_disable(struct exynos_drm_crtc *crtc)
 	clear_bit(MXR_BIT_POWERED, &ctx->flags);
 }
 
-static int mixer_mode_valid(struct exynos_drm_crtc *crtc,
+static enum drm_mode_status mixer_mode_valid(struct exynos_drm_crtc *crtc,
 		const struct drm_display_mode *mode)
 {
 	struct mixer_context *ctx = crtc->ctx;

@@ -7,9 +7,11 @@
  */
 
 #include <linux/ctype.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -320,7 +322,7 @@ static ssize_t show_fault(struct device *dev, u8 faultbit, char *buf)
 
 	fault = reg_val & faultbit;
 
-	return sprintf(buf, "%d\n", fault);
+	return sysfs_emit(buf, "%d\n", fault);
 }
 
 static ssize_t show_fault_ovuv(struct device *dev,
@@ -344,7 +346,7 @@ static ssize_t show_filter(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct max31856_data *data = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", data->filter_50hz ? 50 : 60);
+	return sysfs_emit(buf, "%d\n", data->filter_50hz ? 50 : 60);
 }
 
 static ssize_t set_filter(struct device *dev,
@@ -422,9 +424,7 @@ static int max31856_probe(struct spi_device *spi)
 	indio_dev->channels = max31856_channels;
 	indio_dev->num_channels = ARRAY_SIZE(max31856_channels);
 
-	ret = of_property_read_u32(spi->dev.of_node, "thermocouple-type",
-				   &data->thermocouple_type);
-
+	ret = device_property_read_u32(&spi->dev, "thermocouple-type", &data->thermocouple_type);
 	if (ret) {
 		dev_info(&spi->dev,
 			 "Could not read thermocouple type DT property, configuring as a K-Type\n");

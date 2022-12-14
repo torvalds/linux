@@ -55,9 +55,9 @@ struct mtd_oob_buf64 {
  * @MTD_OPS_RAW:	data are transferred as-is, with no error correction;
  *			this mode implies %MTD_OPS_PLACE_OOB
  *
- * These modes can be passed to ioctl(MEMWRITE) and are also used internally.
- * See notes on "MTD file modes" for discussion on %MTD_OPS_RAW vs.
- * %MTD_FILE_MODE_RAW.
+ * These modes can be passed to ioctl(MEMWRITE) and ioctl(MEMREAD); they are
+ * also used internally. See notes on "MTD file modes" for discussion on
+ * %MTD_OPS_RAW vs. %MTD_FILE_MODE_RAW.
  */
 enum {
 	MTD_OPS_PLACE_OOB = 0,
@@ -69,8 +69,8 @@ enum {
  * struct mtd_write_req - data structure for requesting a write operation
  *
  * @start:	start address
- * @len:	length of data buffer
- * @ooblen:	length of OOB buffer
+ * @len:	length of data buffer (only lower 32 bits are used)
+ * @ooblen:	length of OOB buffer (only lower 32 bits are used)
  * @usr_data:	user-provided data buffer
  * @usr_oob:	user-provided OOB buffer
  * @mode:	MTD mode (see "MTD operation modes")
@@ -89,6 +89,53 @@ struct mtd_write_req {
 	__u64 usr_oob;
 	__u8 mode;
 	__u8 padding[7];
+};
+
+/**
+ * struct mtd_read_req_ecc_stats - ECC statistics for a read operation
+ *
+ * @uncorrectable_errors: the number of uncorrectable errors that happened
+ *			  during the read operation
+ * @corrected_bitflips: the number of bitflips corrected during the read
+ *			operation
+ * @max_bitflips: the maximum number of bitflips detected in any single ECC
+ *		  step for the data read during the operation; this information
+ *		  can be used to decide whether the data stored in a specific
+ *		  region of the MTD device should be moved somewhere else to
+ *		  avoid data loss.
+ */
+struct mtd_read_req_ecc_stats {
+	__u32 uncorrectable_errors;
+	__u32 corrected_bitflips;
+	__u32 max_bitflips;
+};
+
+/**
+ * struct mtd_read_req - data structure for requesting a read operation
+ *
+ * @start:	start address
+ * @len:	length of data buffer (only lower 32 bits are used)
+ * @ooblen:	length of OOB buffer (only lower 32 bits are used)
+ * @usr_data:	user-provided data buffer
+ * @usr_oob:	user-provided OOB buffer
+ * @mode:	MTD mode (see "MTD operation modes")
+ * @padding:	reserved, must be set to 0
+ * @ecc_stats:	ECC statistics for the read operation
+ *
+ * This structure supports ioctl(MEMREAD) operations, allowing data and/or OOB
+ * reads in various modes. To read from OOB-only, set @usr_data == NULL, and to
+ * read data-only, set @usr_oob == NULL. However, setting both @usr_data and
+ * @usr_oob to NULL is not allowed.
+ */
+struct mtd_read_req {
+	__u64 start;
+	__u64 len;
+	__u64 ooblen;
+	__u64 usr_data;
+	__u64 usr_oob;
+	__u8 mode;
+	__u8 padding[7];
+	struct mtd_read_req_ecc_stats ecc_stats;
 };
 
 #define MTD_ABSENT		0
@@ -207,6 +254,12 @@ struct otp_info {
 #define MEMWRITE		_IOWR('M', 24, struct mtd_write_req)
 /* Erase a given range of user data (must be in mode %MTD_FILE_MODE_OTP_USER) */
 #define OTPERASE		_IOW('M', 25, struct otp_info)
+/*
+ * Most generic read interface; can read in-band and/or out-of-band in various
+ * modes (see "struct mtd_read_req"). This ioctl is not supported for flashes
+ * without OOB, e.g., NOR flash.
+ */
+#define MEMREAD			_IOWR('M', 26, struct mtd_read_req)
 
 /*
  * Obsolete legacy interface. Keep it in order not to break userspace
@@ -270,8 +323,9 @@ struct mtd_ecc_stats {
  * Note: %MTD_FILE_MODE_RAW provides the same functionality as %MTD_OPS_RAW -
  * raw access to the flash, without error correction or autoplacement schemes.
  * Wherever possible, the MTD_OPS_* mode will override the MTD_FILE_MODE_* mode
- * (e.g., when using ioctl(MEMWRITE)), but in some cases, the MTD_FILE_MODE is
- * used out of necessity (e.g., `write()', ioctl(MEMWRITEOOB64)).
+ * (e.g., when using ioctl(MEMWRITE) or ioctl(MEMREAD)), but in some cases, the
+ * MTD_FILE_MODE is used out of necessity (e.g., `write()',
+ * ioctl(MEMWRITEOOB64)).
  */
 enum mtd_file_modes {
 	MTD_FILE_MODE_NORMAL = MTD_OTP_OFF,

@@ -28,11 +28,11 @@ void test_vcpu_creation(int first_vcpu_id, int num_vcpus)
 	pr_info("Testing creating %d vCPUs, with IDs %d...%d.\n",
 		num_vcpus, first_vcpu_id, first_vcpu_id + num_vcpus - 1);
 
-	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
+	vm = vm_create_barebones();
 
 	for (i = first_vcpu_id; i < first_vcpu_id + num_vcpus; i++)
 		/* This asserts that the vCPU was created. */
-		vm_vcpu_add(vm, i);
+		__vm_vcpu_add(vm, i);
 
 	kvm_vm_free(vm);
 }
@@ -64,11 +64,9 @@ int main(int argc, char *argv[])
 			rl.rlim_max = nr_fds_wanted;
 
 			int r = setrlimit(RLIMIT_NOFILE, &rl);
-			if (r < 0) {
-				printf("RLIMIT_NOFILE hard limit is too low (%d, wanted %d)\n",
+			__TEST_REQUIRE(r >= 0,
+				       "RLIMIT_NOFILE hard limit is too low (%d, wanted %d)\n",
 				       old_rlim_max, nr_fds_wanted);
-				exit(KSFT_SKIP);
-			}
 		} else {
 			TEST_ASSERT(!setrlimit(RLIMIT_NOFILE, &rl), "setrlimit() failed!");
 		}

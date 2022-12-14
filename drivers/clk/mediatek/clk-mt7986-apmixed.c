@@ -10,9 +10,11 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include "clk-mtk.h"
+
 #include "clk-gate.h"
+#include "clk-mtk.h"
 #include "clk-mux.h"
+#include "clk-pll.h"
 
 #include <dt-bindings/clock/mt7986-clk.h>
 #include <linux/clk.h>
@@ -40,21 +42,21 @@
 		 "clkxtal")
 
 static const struct mtk_pll_data plls[] = {
-	PLL(CLK_APMIXED_ARMPLL, "armpll", 0x0200, 0x020C, 0x00000001, 0, 32,
+	PLL(CLK_APMIXED_ARMPLL, "armpll", 0x0200, 0x020C, 0x0, 0, 32,
 	    0x0200, 4, 0, 0x0204, 0),
-	PLL(CLK_APMIXED_NET2PLL, "net2pll", 0x0210, 0x021C, 0x00000001, 0, 32,
+	PLL(CLK_APMIXED_NET2PLL, "net2pll", 0x0210, 0x021C, 0x0, 0, 32,
 	    0x0210, 4, 0, 0x0214, 0),
-	PLL(CLK_APMIXED_MMPLL, "mmpll", 0x0220, 0x022C, 0x00000001, 0, 32,
+	PLL(CLK_APMIXED_MMPLL, "mmpll", 0x0220, 0x022C, 0x0, 0, 32,
 	    0x0220, 4, 0, 0x0224, 0),
-	PLL(CLK_APMIXED_SGMPLL, "sgmpll", 0x0230, 0x023c, 0x00000001, 0, 32,
+	PLL(CLK_APMIXED_SGMPLL, "sgmpll", 0x0230, 0x023c, 0x0, 0, 32,
 	    0x0230, 4, 0, 0x0234, 0),
-	PLL(CLK_APMIXED_WEDMCUPLL, "wedmcupll", 0x0240, 0x024c, 0x00000001, 0,
+	PLL(CLK_APMIXED_WEDMCUPLL, "wedmcupll", 0x0240, 0x024c, 0x0, 0,
 	    32, 0x0240, 4, 0, 0x0244, 0),
-	PLL(CLK_APMIXED_NET1PLL, "net1pll", 0x0250, 0x025c, 0x00000001, 0, 32,
+	PLL(CLK_APMIXED_NET1PLL, "net1pll", 0x0250, 0x025c, 0x0, 0, 32,
 	    0x0250, 4, 0, 0x0254, 0),
-	PLL(CLK_APMIXED_MPLL, "mpll", 0x0260, 0x0270, 0x00000001, 0, 32, 0x0260,
+	PLL(CLK_APMIXED_MPLL, "mpll", 0x0260, 0x0270, 0x0, 0, 32, 0x0260,
 	    4, 0, 0x0264, 0),
-	PLL(CLK_APMIXED_APLL2, "apll2", 0x0278, 0x0288, 0x00000001, 0, 32,
+	PLL(CLK_APMIXED_APLL2, "apll2", 0x0278, 0x0288, 0x0, 0, 32,
 	    0x0278, 4, 0, 0x027c, 0),
 };
 
@@ -65,7 +67,7 @@ static const struct of_device_id of_match_clk_mt7986_apmixed[] = {
 
 static int clk_mt7986_apmixed_probe(struct platform_device *pdev)
 {
-	struct clk_onecell_data *clk_data;
+	struct clk_hw_onecell_data *clk_data;
 	struct device_node *node = pdev->dev.of_node;
 	int r;
 
@@ -75,9 +77,9 @@ static int clk_mt7986_apmixed_probe(struct platform_device *pdev)
 
 	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
 
-	clk_prepare_enable(clk_data->clks[CLK_APMIXED_ARMPLL]);
+	clk_prepare_enable(clk_data->hws[CLK_APMIXED_ARMPLL]->clk);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 	if (r) {
 		pr_err("%s(): could not register clock provider: %d\n",
 		       __func__, r);

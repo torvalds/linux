@@ -68,10 +68,10 @@ struct ad5449 {
 	uint16_t dac_cache[AD5449_MAX_CHANNELS];
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	__be16 data[2] ____cacheline_aligned;
+	__be16 data[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 enum ad5449_type {
@@ -330,7 +330,7 @@ error_disable_reg:
 	return ret;
 }
 
-static int ad5449_spi_remove(struct spi_device *spi)
+static void ad5449_spi_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5449 *st = iio_priv(indio_dev);
@@ -338,8 +338,6 @@ static int ad5449_spi_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 
 	regulator_bulk_disable(st->chip_info->num_channels, st->vref_reg);
-
-	return 0;
 }
 
 static const struct spi_device_id ad5449_spi_ids[] = {

@@ -504,6 +504,7 @@ cc2520_tx(struct ieee802154_hw *hw, struct sk_buff *skb)
 		goto err_tx;
 
 	if (status & CC2520_STATUS_TX_UNDERFLOW) {
+		rc = -EINVAL;
 		dev_err(&priv->spi->dev, "cc2520 tx underflow exception\n");
 		goto err_tx;
 	}
@@ -969,7 +970,7 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 
 		if (timeout-- <= 0) {
 			dev_err(&priv->spi->dev, "oscillator start failed!\n");
-			return ret;
+			return -ETIMEDOUT;
 		}
 		udelay(1);
 	} while (!(status & CC2520_STATUS_XOSC32M_STABLE));
@@ -1213,7 +1214,7 @@ err_hw_init:
 	return ret;
 }
 
-static int cc2520_remove(struct spi_device *spi)
+static void cc2520_remove(struct spi_device *spi)
 {
 	struct cc2520_private *priv = spi_get_drvdata(spi);
 
@@ -1222,8 +1223,6 @@ static int cc2520_remove(struct spi_device *spi)
 
 	ieee802154_unregister_hw(priv->hw);
 	ieee802154_free_hw(priv->hw);
-
-	return 0;
 }
 
 static const struct spi_device_id cc2520_ids[] = {

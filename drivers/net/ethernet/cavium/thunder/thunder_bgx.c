@@ -1409,7 +1409,8 @@ static acpi_status bgx_acpi_register_phy(acpi_handle handle,
 	struct device *dev = &bgx->pdev->dev;
 	struct acpi_device *adev;
 
-	if (acpi_bus_get_device(handle, &adev))
+	adev = acpi_fetch_acpi_dev(handle);
+	if (!adev)
 		goto out;
 
 	acpi_get_mac_address(dev, adev, bgx->lmac[bgx->acpi_lmac_idx].mac);
@@ -1435,8 +1436,10 @@ static acpi_status bgx_acpi_match_id(acpi_handle handle, u32 lvl,
 		return AE_OK;
 	}
 
-	if (strncmp(string.pointer, bgx_sel, 4))
+	if (strncmp(string.pointer, bgx_sel, 4)) {
+		kfree(string.pointer);
 		return AE_OK;
+	}
 
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
 			    bgx_acpi_register_phy, NULL, bgx, NULL);

@@ -112,7 +112,7 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      cap1188@28 {
+      touch@28 {
         compatible = "microchip,cap1188";
         interrupt-parent = <&gpio1>;
         interrupts = <0 0>;

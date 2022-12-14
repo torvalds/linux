@@ -262,7 +262,7 @@
 			 */
 			ti,system-reboot-controller;
 			mbox-names = "rx", "tx";
-			mboxes= <&msgmgr 5 2>,
+			mboxes = <&msgmgr 5 2>,
 				<&msgmgr 0 0>;
 			reg-names = "debug_messages";
 			reg = <0x02921c00 0x400>;
@@ -326,13 +326,13 @@
 
 		dss: dss@02540000 {
 			compatible = "ti,k2g-dss";
-			reg =	<0x02540000 0x400>,
+			reg = <0x02540000 0x400>,
 				<0x02550000 0x1000>,
 				<0x02557000 0x1000>,
 				<0x0255a800 0x100>,
 				<0x0255ac00 0x100>;
 			reg-names = "cfg", "common", "vid1", "ovr1", "vp1";
-			clocks =	<&k2g_clks 0x2 0>,
+			clocks = <&k2g_clks 0x2 0>,
 					<&k2g_clks 0x2 1>;
 			clock-names = "fck", "vp1";
 			interrupts = <GIC_SPI 247 IRQ_TYPE_EDGE_RISING>;
@@ -348,7 +348,7 @@
 
 		edma0: edma@2700000 {
 			compatible = "ti,k2g-edma3-tpcc", "ti,edma3-tpcc";
-			reg =	<0x02700000 0x8000>;
+			reg = <0x02700000 0x8000>;
 			reg-names = "edma3_cc";
 			interrupts = <GIC_SPI 200 IRQ_TYPE_EDGE_RISING>,
 					<GIC_SPI 216 IRQ_TYPE_EDGE_RISING>,
@@ -367,19 +367,19 @@
 
 		edma0_tptc0: tptc@2760000 {
 			compatible = "ti,k2g-edma3-tptc", "ti,edma3-tptc";
-			reg =	<0x02760000 0x400>;
+			reg = <0x02760000 0x400>;
 			power-domains = <&k2g_pds 0x3f>;
 		};
 
 		edma0_tptc1: tptc@2768000 {
 			compatible = "ti,k2g-edma3-tptc", "ti,edma3-tptc";
-			reg =	<0x02768000 0x400>;
+			reg = <0x02768000 0x400>;
 			power-domains = <&k2g_pds 0x3f>;
 		};
 
 		edma1: edma@2728000 {
 			compatible = "ti,k2g-edma3-tpcc", "ti,edma3-tpcc";
-			reg =	<0x02728000 0x8000>;
+			reg = <0x02728000 0x8000>;
 			reg-names = "edma3_cc";
 			interrupts = <GIC_SPI 208 IRQ_TYPE_EDGE_RISING>,
 					<GIC_SPI 219 IRQ_TYPE_EDGE_RISING>,
@@ -402,13 +402,13 @@
 
 		edma1_tptc0: tptc@27b0000 {
 			compatible = "ti,k2g-edma3-tptc", "ti,edma3-tptc";
-			reg =	<0x027b0000 0x400>;
+			reg = <0x027b0000 0x400>;
 			power-domains = <&k2g_pds 0x4f>;
 		};
 
 		edma1_tptc1: tptc@27b8000 {
 			compatible = "ti,k2g-edma3-tptc", "ti,edma3-tptc";
-			reg =	<0x027b8000 0x400>;
+			reg = <0x027b8000 0x400>;
 			power-domains = <&k2g_pds 0x4f>;
 		};
 

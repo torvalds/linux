@@ -44,8 +44,6 @@ static int dp_debug_show(struct seq_file *seq, void *p)
 	drm_mode = &debug->panel->dp_mode.drm_mode;
 
 	seq_printf(seq, "\tname = %s\n", DEBUG_NAME);
-	seq_printf(seq, "\tdp_panel\n\t\tmax_pclk_khz = %d\n",
-			debug->panel->max_pclk_khz);
 	seq_printf(seq, "\tdrm_dp_link\n\t\trate = %u\n",
 			debug->panel->link_info.rate);
 	seq_printf(seq, "\t\tnum_lanes = %u\n",
@@ -207,39 +205,39 @@ static const struct file_operations test_active_fops = {
 	.write = dp_test_active_write
 };
 
-static int dp_debug_init(struct dp_debug *dp_debug, struct drm_minor *minor)
+static void dp_debug_init(struct dp_debug *dp_debug, struct drm_minor *minor)
 {
-	int rc = 0;
+	char path[64];
 	struct dp_debug_private *debug = container_of(dp_debug,
 			struct dp_debug_private, dp_debug);
 
-	debugfs_create_file("dp_debug", 0444, minor->debugfs_root,
+	snprintf(path, sizeof(path), "msm_dp-%s", debug->connector->name);
+
+	debug->root = debugfs_create_dir(path, minor->debugfs_root);
+
+	debugfs_create_file("dp_debug", 0444, debug->root,
 			debug, &dp_debug_fops);
 
 	debugfs_create_file("msm_dp_test_active", 0444,
-			minor->debugfs_root,
+			debug->root,
 			debug, &test_active_fops);
 
 	debugfs_create_file("msm_dp_test_data", 0444,
-			minor->debugfs_root,
+			debug->root,
 			debug, &dp_test_data_fops);
 
 	debugfs_create_file("msm_dp_test_type", 0444,
-			minor->debugfs_root,
+			debug->root,
 			debug, &dp_test_type_fops);
-
-	debug->root = minor->debugfs_root;
-
-	return rc;
 }
 
 struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 		struct dp_usbpd *usbpd, struct dp_link *link,
 		struct drm_connector *connector, struct drm_minor *minor)
 {
-	int rc = 0;
 	struct dp_debug_private *debug;
 	struct dp_debug *dp_debug;
+	int rc;
 
 	if (!dev || !panel || !usbpd || !link) {
 		DRM_ERROR("invalid input\n");
@@ -266,11 +264,7 @@ struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 	dp_debug->hdisplay = 0;
 	dp_debug->vrefresh = 0;
 
-	rc = dp_debug_init(dp_debug, minor);
-	if (rc) {
-		devm_kfree(dev, debug);
-		goto error;
-	}
+	dp_debug_init(dp_debug, minor);
 
 	return dp_debug;
  error:

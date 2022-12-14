@@ -302,7 +302,7 @@ again:
 	 * found it, but truncated or holepunched or subjected to
 	 * invalidate_complete_page2 before we got the page lock (also
 	 * cases which we are happy to fail).  And we hold a reference,
-	 * so refcount care in invalidate_complete_page's remove_mapping
+	 * so refcount care in invalidate_inode_page's remove_mapping
 	 * prevents drop_caches from setting mapping to NULL beneath us.
 	 *
 	 * The case we do have to guard against is when memory pressure made

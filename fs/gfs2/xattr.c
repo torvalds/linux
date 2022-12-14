@@ -1313,7 +1313,7 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 	else
 		goto out;
 
-	gfs2_rlist_alloc(&rlist);
+	gfs2_rlist_alloc(&rlist, LM_ST_EXCLUSIVE, LM_FLAG_NODE_SCOPE);
 
 	for (x = 0; x < rlist.rl_rgrps; x++) {
 		rgd = gfs2_glock2rgrp(rlist.rl_ghs[x].gh_gl);

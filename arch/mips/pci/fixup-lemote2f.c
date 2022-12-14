@@ -80,7 +80,7 @@ int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		}
 		return dev->irq;
 	} else {
-		printk(KERN_INFO " strange pci slot number.\n");
+		printk(KERN_INFO "strange PCI slot number.\n");
 		return 0;
 	}
 }

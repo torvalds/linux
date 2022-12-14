@@ -50,7 +50,7 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 	 *
 	 * Many thanks to Jeff Campbell and Mike Bradley for their extensive
 	 * investigation, experimentation, testing, and suggested solutions of
-	 * of audio/video sync problems with SVideo and CVBS captures.
+	 * audio/video sync problems with SVideo and CVBS captures.
 	 */
 
 	if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {

@@ -199,7 +199,7 @@ static int p9_virtio_cancel(struct p9_client *client, struct p9_req_t *req)
 /* Reply won't come, so drop req ref */
 static int p9_virtio_cancelled(struct p9_client *client, struct p9_req_t *req)
 {
-	p9_req_put(req);
+	p9_req_put(client, req);
 	return 0;
 }
 
@@ -331,7 +331,7 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 			if (err == -ERESTARTSYS)
 				return err;
 		}
-		n = iov_iter_get_pages_alloc(data, pages, count, offs);
+		n = iov_iter_get_pages_alloc2(data, pages, count, offs);
 		if (n < 0)
 			return n;
 		*need_drop = 1;
@@ -373,8 +373,38 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 				(*pages)[index] = kmap_to_page(p);
 			p += PAGE_SIZE;
 		}
+		iov_iter_advance(data, len);
 		return len;
 	}
+}
+
+static void handle_rerror(struct p9_req_t *req, int in_hdr_len,
+			  size_t offs, struct page **pages)
+{
+	unsigned size, n;
+	void *to = req->rc.sdata + in_hdr_len;
+
+	// Fits entirely into the static data?  Nothing to do.
+	if (req->rc.size < in_hdr_len)
+		return;
+
+	// Really long error message?  Tough, truncate the reply.  Might get
+	// rejected (we can't be arsed to adjust the size encoded in header,
+	// or string size for that matter), but it wouldn't be anything valid
+	// anyway.
+	if (unlikely(req->rc.size > P9_ZC_HDR_SZ))
+		req->rc.size = P9_ZC_HDR_SZ;
+
+	// data won't span more than two pages
+	size = req->rc.size - in_hdr_len;
+	n = PAGE_SIZE - offs;
+	if (size > n) {
+		memcpy_from_page(to, *pages++, offs, n);
+		offs = 0;
+		to += n;
+		size -= n;
+	}
+	memcpy_from_page(to, *pages, offs, size);
 }
 
 /**
@@ -503,6 +533,11 @@ req_retry_pinned:
 	kicked = 1;
 	p9_debug(P9_DEBUG_TRANS, "virtio request kicked\n");
 	err = wait_event_killable(req->wq, req->status >= REQ_STATUS_RCVD);
+	// RERROR needs reply (== error string) in static data
+	if (req->status == REQ_STATUS_RCVD &&
+	    unlikely(req->rc.sdata[4] == P9_RERROR))
+		handle_rerror(req, in_hdr_len, offs, in_pages);
+
 	/*
 	 * Non kernel buffers are pinned, unpin them
 	 */
@@ -523,7 +558,7 @@ err_out:
 	kvfree(out_pages);
 	if (!kicked) {
 		/* reply won't come */
-		p9_req_put(req);
+		p9_req_put(client, req);
 	}
 	return err;
 }
@@ -767,6 +802,7 @@ static struct p9_trans_module p9_virtio_trans = {
 	 * page in zero copy.
 	 */
 	.maxsize = PAGE_SIZE * (VIRTQUEUE_NUM - 3),
+	.pooled_rbuffers = false,
 	.def = 1,
 	.owner = THIS_MODULE,
 };

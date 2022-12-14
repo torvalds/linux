@@ -67,20 +67,20 @@
 	sfp_cp0_eth0: sfp-cp0-eth0 {
 		compatible = "sff,sfp";
 		i2c-bus = <&sfpplus0_i2c>;
-		los-gpio = <&sfpplus_gpio 11 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&sfpplus_gpio 10 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&sfpplus_gpio 9 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio  = <&sfpplus_gpio 8 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&sfpplus_gpio 11 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sfpplus_gpio 10 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&sfpplus_gpio 9 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&sfpplus_gpio 8 GPIO_ACTIVE_HIGH>;
 		maximum-power-milliwatt = <3000>;
 	};
 
 	sfp_cp1_eth0: sfp-cp1-eth0 {
 		compatible = "sff,sfp";
 		i2c-bus = <&sfpplus1_i2c>;
-		los-gpio = <&sfpplus_gpio 3 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&sfpplus_gpio 2 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&sfpplus_gpio 1 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio  = <&sfpplus_gpio 0 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&sfpplus_gpio 3 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sfpplus_gpio 2 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&sfpplus_gpio 1 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&sfpplus_gpio 0 GPIO_ACTIVE_HIGH>;
 		maximum-power-milliwatt = <3000>;
 	};
 
@@ -185,7 +185,7 @@
 
 &spi0 {
 	status = "okay";
-	spi-flash@0 {
+	flash@0 {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
 		compatible = "jedec,spi-nor";

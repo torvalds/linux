@@ -36,4 +36,8 @@
 #include <linux/compiler-gcc.h>
 #endif
 
+#ifndef asm_volatile_goto
+#define asm_volatile_goto(x...) asm goto(x)
+#endif
+
 #endif /* __LINUX_COMPILER_TYPES_H */

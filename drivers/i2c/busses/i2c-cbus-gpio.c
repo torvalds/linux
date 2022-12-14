@@ -245,7 +245,7 @@ static int cbus_i2c_probe(struct platform_device *pdev)
 	adapter->nr		= pdev->id;
 	adapter->timeout	= HZ;
 	adapter->algo		= &cbus_i2c_algo;
-	strlcpy(adapter->name, "CBUS I2C adapter", sizeof(adapter->name));
+	strscpy(adapter->name, "CBUS I2C adapter", sizeof(adapter->name));
 
 	spin_lock_init(&chost->lock);
 	chost->dev = &pdev->dev;

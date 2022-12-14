@@ -12,6 +12,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/pgtable.h>
 #include <asm/machdep.h>
@@ -67,4 +68,5 @@ define_machine(qemu_e500) {
 	.get_irq		= mpic_get_coreint_irq,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
+	.power_save		= e500_idle,
 };

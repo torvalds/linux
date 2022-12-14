@@ -164,7 +164,7 @@ static uint64_t cik_sdma_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	u32 rptr;
 
-	rptr = ring->adev->wb.wb[ring->rptr_offs];
+	rptr = *ring->rptr_cpu_addr;
 
 	return (rptr & 0x3fffc) >> 2;
 }
@@ -195,7 +195,7 @@ static void cik_sdma_ring_set_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[ring->me],
-	       (lower_32_bits(ring->wptr) << 2) & 0x3fffc);
+	       (ring->wptr << 2) & 0x3fffc);
 }
 
 static void cik_sdma_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
@@ -309,14 +309,10 @@ static void cik_sdma_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
  */
 static void cik_sdma_gfx_stop(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *sdma0 = &adev->sdma.instance[0].ring;
-	struct amdgpu_ring *sdma1 = &adev->sdma.instance[1].ring;
 	u32 rb_cntl;
 	int i;
 
-	if ((adev->mman.buffer_funcs_ring == sdma0) ||
-	    (adev->mman.buffer_funcs_ring == sdma1))
-			amdgpu_ttm_set_buffer_funcs_status(adev, false);
+	amdgpu_sdma_unset_buffer_funcs_helper(adev);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		rb_cntl = RREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i]);
@@ -436,12 +432,10 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring;
 	u32 rb_cntl, ib_cntl;
 	u32 rb_bufsz;
-	u32 wb_offset;
 	int i, j, r;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;
-		wb_offset = (ring->rptr_offs * 4);
 
 		mutex_lock(&adev->srbm_mutex);
 		for (j = 0; j < 16; j++) {
@@ -477,9 +471,9 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 
 		/* set the wb address whether it's enabled or not */
 		WREG32(mmSDMA0_GFX_RB_RPTR_ADDR_HI + sdma_offsets[i],
-		       upper_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFF);
+		       upper_32_bits(ring->rptr_gpu_addr) & 0xFFFFFFFF);
 		WREG32(mmSDMA0_GFX_RB_RPTR_ADDR_LO + sdma_offsets[i],
-		       ((adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFC));
+		       ((ring->rptr_gpu_addr) & 0xFFFFFFFC));
 
 		rb_cntl |= SDMA0_GFX_RB_CNTL__RPTR_WRITEBACK_ENABLE_MASK;
 
@@ -487,7 +481,7 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_RB_BASE_HI + sdma_offsets[i], ring->gpu_addr >> 40);
 
 		ring->wptr = 0;
-		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], lower_32_bits(ring->wptr) << 2);
+		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], ring->wptr << 2);
 
 		/* enable DMA RB */
 		WREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i],

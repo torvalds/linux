@@ -51,7 +51,7 @@ EXPORT_SYMBOL_GPL(xen_start_info);
 
 struct shared_info xen_dummy_shared_info;
 
-__read_mostly int xen_have_vector_callback;
+__read_mostly bool xen_have_vector_callback = true;
 EXPORT_SYMBOL_GPL(xen_have_vector_callback);
 
 /*

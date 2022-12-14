@@ -22,6 +22,7 @@ properties:
           - qcom,sdm660-silver-saw2-v4.1-l2
           - qcom,msm8998-gold-saw2-v4.1-l2
           - qcom,msm8998-silver-saw2-v4.1-l2
+          - qcom,msm8909-saw2-v3.0-cpu
           - qcom,msm8916-saw2-v3.0-cpu
           - qcom,msm8226-saw2-v2.1-cpu
           - qcom,msm8974-saw2-v2.1-cpu

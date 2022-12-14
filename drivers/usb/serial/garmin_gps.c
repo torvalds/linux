@@ -988,7 +988,7 @@ static int garmin_write_bulk(struct usb_serial_port *port,
 	garmin_data_p->flags &= ~FLAGS_DROP_DATA;
 	spin_unlock_irqrestore(&garmin_data_p->lock, flags);
 
-	buffer = kmalloc(count, GFP_ATOMIC);
+	buffer = kmemdup(buf, count, GFP_ATOMIC);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -997,8 +997,6 @@ static int garmin_write_bulk(struct usb_serial_port *port,
 		kfree(buffer);
 		return -ENOMEM;
 	}
-
-	memcpy(buffer, buf, count);
 
 	usb_serial_debug_data(&port->dev, __func__, count, buffer);
 

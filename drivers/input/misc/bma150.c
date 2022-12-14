@@ -513,11 +513,9 @@ static int bma150_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int bma150_remove(struct i2c_client *client)
+static void bma150_remove(struct i2c_client *client)
 {
 	pm_runtime_disable(&client->dev);
-
-	return 0;
 }
 
 static int __maybe_unused bma150_suspend(struct device *dev)

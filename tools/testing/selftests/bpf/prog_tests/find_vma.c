@@ -7,12 +7,14 @@
 #include "find_vma_fail1.skel.h"
 #include "find_vma_fail2.skel.h"
 
-static void test_and_reset_skel(struct find_vma *skel, int expected_find_zero_ret)
+static void test_and_reset_skel(struct find_vma *skel, int expected_find_zero_ret, bool need_test)
 {
-	ASSERT_EQ(skel->bss->found_vm_exec, 1, "found_vm_exec");
-	ASSERT_EQ(skel->data->find_addr_ret, 0, "find_addr_ret");
-	ASSERT_EQ(skel->data->find_zero_ret, expected_find_zero_ret, "find_zero_ret");
-	ASSERT_OK_PTR(strstr(skel->bss->d_iname, "test_progs"), "find_test_progs");
+	if (need_test) {
+		ASSERT_EQ(skel->bss->found_vm_exec, 1, "found_vm_exec");
+		ASSERT_EQ(skel->data->find_addr_ret, 0, "find_addr_ret");
+		ASSERT_EQ(skel->data->find_zero_ret, expected_find_zero_ret, "find_zero_ret");
+		ASSERT_OK_PTR(strstr(skel->bss->d_iname, "test_progs"), "find_test_progs");
+	}
 
 	skel->bss->found_vm_exec = 0;
 	skel->data->find_addr_ret = -1;
@@ -30,10 +32,18 @@ static int open_pe(void)
 	attr.type = PERF_TYPE_HARDWARE;
 	attr.config = PERF_COUNT_HW_CPU_CYCLES;
 	attr.freq = 1;
-	attr.sample_freq = 4000;
+	attr.sample_freq = 1000;
 	pfd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, PERF_FLAG_FD_CLOEXEC);
 
 	return pfd >= 0 ? pfd : -errno;
+}
+
+static bool find_vma_pe_condition(struct find_vma *skel)
+{
+	return skel->bss->found_vm_exec == 0 ||
+		skel->data->find_addr_ret != 0 ||
+		skel->data->find_zero_ret == -1 ||
+		strcmp(skel->bss->d_iname, "test_progs") != 0;
 }
 
 static void test_find_vma_pe(struct find_vma *skel)
@@ -41,6 +51,7 @@ static void test_find_vma_pe(struct find_vma *skel)
 	struct bpf_link *link = NULL;
 	volatile int j = 0;
 	int pfd, i;
+	const int one_bn = 1000000000;
 
 	pfd = open_pe();
 	if (pfd < 0) {
@@ -57,10 +68,10 @@ static void test_find_vma_pe(struct find_vma *skel)
 	if (!ASSERT_OK_PTR(link, "attach_perf_event"))
 		goto cleanup;
 
-	for (i = 0; i < 1000000; ++i)
+	for (i = 0; i < one_bn && find_vma_pe_condition(skel); ++i)
 		++j;
 
-	test_and_reset_skel(skel, -EBUSY /* in nmi, irq_work is busy */);
+	test_and_reset_skel(skel, -EBUSY /* in nmi, irq_work is busy */, i == one_bn);
 cleanup:
 	bpf_link__destroy(link);
 	close(pfd);
@@ -75,7 +86,7 @@ static void test_find_vma_kprobe(struct find_vma *skel)
 		return;
 
 	getpgid(skel->bss->target_pid);
-	test_and_reset_skel(skel, -ENOENT /* could not find vma for ptr 0 */);
+	test_and_reset_skel(skel, -ENOENT /* could not find vma for ptr 0 */, true);
 }
 
 static void test_illegal_write_vma(void)
@@ -108,7 +119,6 @@ void serial_test_find_vma(void)
 	skel->bss->addr = (__u64)(uintptr_t)test_find_vma_pe;
 
 	test_find_vma_pe(skel);
-	usleep(100000); /* allow the irq_work to finish */
 	test_find_vma_kprobe(skel);
 
 	find_vma__destroy(skel);

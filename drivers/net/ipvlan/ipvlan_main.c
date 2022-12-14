@@ -83,6 +83,7 @@ static int ipvlan_port_create(struct net_device *dev)
 	if (err)
 		goto err;
 
+	netdev_hold(dev, &port->dev_tracker, GFP_KERNEL);
 	return 0;
 
 err:
@@ -95,6 +96,7 @@ static void ipvlan_port_destroy(struct net_device *dev)
 	struct ipvl_port *port = ipvlan_port_get_rtnl(dev);
 	struct sk_buff *skb;
 
+	netdev_put(dev, &port->dev_tracker);
 	if (port->mode == IPVLAN_MODE_L3S)
 		ipvlan_l3s_unregister(port);
 	netdev_rx_handler_unregister(dev);
@@ -139,8 +141,7 @@ static int ipvlan_init(struct net_device *dev)
 	dev->vlan_features = phy_dev->vlan_features & IPVLAN_FEATURES;
 	dev->vlan_features |= IPVLAN_ALWAYS_ON_OFLOADS;
 	dev->hw_enc_features |= dev->features;
-	netif_set_gso_max_size(dev, phy_dev->gso_max_size);
-	netif_set_gso_max_segs(dev, phy_dev->gso_max_segs);
+	netif_inherit_tso_max(dev, phy_dev);
 	dev->hard_header_len = phy_dev->hard_header_len;
 
 	netdev_lockdep_set_classes(dev);
@@ -225,8 +226,8 @@ static netdev_tx_t ipvlan_start_xmit(struct sk_buff *skb,
 		pcptr = this_cpu_ptr(ipvlan->pcpu_stats);
 
 		u64_stats_update_begin(&pcptr->syncp);
-		pcptr->tx_pkts++;
-		pcptr->tx_bytes += skblen;
+		u64_stats_inc(&pcptr->tx_pkts);
+		u64_stats_add(&pcptr->tx_bytes, skblen);
 		u64_stats_update_end(&pcptr->syncp);
 	} else {
 		this_cpu_inc(ipvlan->pcpu_stats->tx_drps);
@@ -301,11 +302,11 @@ static void ipvlan_get_stats64(struct net_device *dev,
 			pcptr = per_cpu_ptr(ipvlan->pcpu_stats, idx);
 			do {
 				strt= u64_stats_fetch_begin_irq(&pcptr->syncp);
-				rx_pkts = pcptr->rx_pkts;
-				rx_bytes = pcptr->rx_bytes;
-				rx_mcast = pcptr->rx_mcast;
-				tx_pkts = pcptr->tx_pkts;
-				tx_bytes = pcptr->tx_bytes;
+				rx_pkts = u64_stats_read(&pcptr->rx_pkts);
+				rx_bytes = u64_stats_read(&pcptr->rx_bytes);
+				rx_mcast = u64_stats_read(&pcptr->rx_mcast);
+				tx_pkts = u64_stats_read(&pcptr->tx_pkts);
+				tx_bytes = u64_stats_read(&pcptr->tx_bytes);
 			} while (u64_stats_fetch_retry_irq(&pcptr->syncp,
 							   strt));
 
@@ -316,8 +317,8 @@ static void ipvlan_get_stats64(struct net_device *dev,
 			s->tx_bytes += tx_bytes;
 
 			/* u32 values are updated without syncp protection. */
-			rx_errs += pcptr->rx_errs;
-			tx_drps += pcptr->tx_drps;
+			rx_errs += READ_ONCE(pcptr->rx_errs);
+			tx_drps += READ_ONCE(pcptr->tx_drps);
 		}
 		s->rx_errors = rx_errs;
 		s->rx_dropped = rx_errs;
@@ -409,8 +410,8 @@ static int ipvlan_ethtool_get_link_ksettings(struct net_device *dev,
 static void ipvlan_ethtool_get_drvinfo(struct net_device *dev,
 				       struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->driver, IPVLAN_DRV, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, IPV_DRV_VER, sizeof(drvinfo->version));
+	strscpy(drvinfo->driver, IPVLAN_DRV, sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, IPV_DRV_VER, sizeof(drvinfo->version));
 }
 
 static u32 ipvlan_ethtool_get_msglevel(struct net_device *dev)
@@ -762,8 +763,7 @@ static int ipvlan_device_event(struct notifier_block *unused,
 
 	case NETDEV_FEAT_CHANGE:
 		list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
-			netif_set_gso_max_size(ipvlan->dev, dev->gso_max_size);
-			netif_set_gso_max_segs(ipvlan->dev, dev->gso_max_segs);
+			netif_inherit_tso_max(ipvlan->dev, dev);
 			netdev_update_features(ipvlan->dev);
 		}
 		break;

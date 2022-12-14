@@ -1166,7 +1166,7 @@ static ssize_t sm501fb_crtsrc_show(struct device *dev,
 	ctrl = smc501_readl(info->regs + SM501_DC_CRT_CONTROL);
 	ctrl &= SM501_DC_CRT_CONTROL_SEL;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", ctrl ? "crt" : "panel");
+	return sysfs_emit(buf, "%s\n", ctrl ? "crt" : "panel");
 }
 
 /* sm501fb_crtsrc_show
@@ -1719,7 +1719,7 @@ static int sm501fb_init_fb(struct fb_info *fb, enum sm501_controller head,
 		enable = 0;
 	}
 
-	strlcpy(fb->fix.id, fbname, sizeof(fb->fix.id));
+	strscpy(fb->fix.id, fbname, sizeof(fb->fix.id));
 
 	memcpy(&par->ops,
 	       (head == HEAD_CRT) ? &sm501fb_ops_crt : &sm501fb_ops_pnl,

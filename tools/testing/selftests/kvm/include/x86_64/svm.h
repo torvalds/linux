@@ -99,7 +99,14 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u8 reserved_6[8];	/* Offset 0xe8 */
 	u64 avic_logical_id;	/* Offset 0xf0 */
 	u64 avic_physical_id;	/* Offset 0xf8 */
-	u8 reserved_7[768];
+	u8 reserved_7[8];
+	u64 vmsa_pa;		/* Used for an SEV-ES guest */
+	u8 reserved_8[720];
+	/*
+	 * Offset 0x3e0, 32 bytes reserved
+	 * for use by hypervisor/software.
+	 */
+	u8 reserved_sw[32];
 };
 
 
@@ -210,8 +217,6 @@ struct __attribute__ ((__packed__)) vmcb {
 	struct vmcb_control_area control;
 	struct vmcb_save_area save;
 };
-
-#define SVM_CPUID_FUNC 0x8000000a
 
 #define SVM_VM_CR_SVM_DISABLE 4
 

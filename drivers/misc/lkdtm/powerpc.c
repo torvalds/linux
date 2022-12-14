@@ -100,7 +100,7 @@ static void insert_dup_slb_entry_0(void)
 	preempt_enable();
 }
 
-void lkdtm_PPC_SLB_MULTIHIT(void)
+static void lkdtm_PPC_SLB_MULTIHIT(void)
 {
 	if (!radix_enabled()) {
 		pr_info("Injecting SLB multihit errors\n");
@@ -118,3 +118,12 @@ void lkdtm_PPC_SLB_MULTIHIT(void)
 		pr_err("XFAIL: This test is for ppc64 and with hash mode MMU only\n");
 	}
 }
+
+static struct crashtype crashtypes[] = {
+	CRASHTYPE(PPC_SLB_MULTIHIT),
+};
+
+struct crashtype_category powerpc_crashtypes = {
+	.crashtypes = crashtypes,
+	.len	    = ARRAY_SIZE(crashtypes),
+};

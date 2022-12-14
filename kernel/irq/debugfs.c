@@ -30,7 +30,7 @@ static void irq_debug_show_bits(struct seq_file *m, int ind, unsigned int state,
 static void irq_debug_show_masks(struct seq_file *m, struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
-	struct cpumask *msk;
+	const struct cpumask *msk;
 
 	msk = irq_data_get_affinity_mask(data);
 	seq_printf(m, "affinity: %*pbl\n", cpumask_pr_args(msk));
@@ -58,6 +58,7 @@ static const struct irq_bit_descr irqchip_flags[] = {
 	BIT_MASK_DESCR(IRQCHIP_SUPPORTS_LEVEL_MSI),
 	BIT_MASK_DESCR(IRQCHIP_SUPPORTS_NMI),
 	BIT_MASK_DESCR(IRQCHIP_ENABLE_WAKEUP_ON_SUSPEND),
+	BIT_MASK_DESCR(IRQCHIP_IMMUTABLE),
 };
 
 static void
@@ -69,8 +70,12 @@ irq_debug_show_chip(struct seq_file *m, struct irq_data *data, int ind)
 		seq_printf(m, "chip: None\n");
 		return;
 	}
-	seq_printf(m, "%*schip:    %s\n", ind, "", chip->name);
-	seq_printf(m, "%*sflags:   0x%lx\n", ind + 1, "", chip->flags);
+	seq_printf(m, "%*schip:    ", ind, "");
+	if (chip->irq_print_chip)
+		chip->irq_print_chip(data, m);
+	else
+		seq_printf(m, "%s", chip->name);
+	seq_printf(m, "\n%*sflags:   0x%lx\n", ind + 1, "", chip->flags);
 	irq_debug_show_bits(m, ind, chip->flags, irqchip_flags,
 			    ARRAY_SIZE(irqchip_flags));
 }

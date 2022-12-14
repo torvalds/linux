@@ -78,7 +78,7 @@ struct aob {
 
 struct aob_rq_header {
 	struct scm_device *scmdev;
-	char data[0];
+	char data[];
 };
 
 struct scm_device {

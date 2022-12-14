@@ -59,6 +59,9 @@ properties:
 
   interrupt-controller: true
 
+  '#interrupt-cells':
+    const: 0
+
   msi-controller: true
 
   ti,interrupt-ranges:
@@ -77,6 +80,8 @@ properties:
 
   ti,unmapped-event-sources:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description:
       Array of phandles to DMA controllers where the unmapped events originate.
 

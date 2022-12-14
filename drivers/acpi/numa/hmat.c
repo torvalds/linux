@@ -9,7 +9,6 @@
  */
 
 #define pr_fmt(fmt) "acpi/hmat: " fmt
-#define dev_fmt(fmt) "acpi/hmat: " fmt
 
 #include <linux/acpi.h>
 #include <linux/bitops.h>
@@ -302,7 +301,7 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 	u8 type, mem_hier;
 
 	if (hmat_loc->header.length < sizeof(*hmat_loc)) {
-		pr_notice("HMAT: Unexpected locality header length: %u\n",
+		pr_notice("Unexpected locality header length: %u\n",
 			 hmat_loc->header.length);
 		return -EINVAL;
 	}
@@ -314,12 +313,12 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 	total_size = sizeof(*hmat_loc) + sizeof(*entries) * ipds * tpds +
 		     sizeof(*inits) * ipds + sizeof(*targs) * tpds;
 	if (hmat_loc->header.length < total_size) {
-		pr_notice("HMAT: Unexpected locality header length:%u, minimum required:%u\n",
+		pr_notice("Unexpected locality header length:%u, minimum required:%u\n",
 			 hmat_loc->header.length, total_size);
 		return -EINVAL;
 	}
 
-	pr_info("HMAT: Locality: Flags:%02x Type:%s Initiator Domains:%u Target Domains:%u Base:%lld\n",
+	pr_info("Locality: Flags:%02x Type:%s Initiator Domains:%u Target Domains:%u Base:%lld\n",
 		hmat_loc->flags, hmat_data_type(type), ipds, tpds,
 		hmat_loc->entry_base_unit);
 
@@ -363,13 +362,13 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
 	u32 attrs;
 
 	if (cache->header.length < sizeof(*cache)) {
-		pr_notice("HMAT: Unexpected cache header length: %u\n",
+		pr_notice("Unexpected cache header length: %u\n",
 			 cache->header.length);
 		return -EINVAL;
 	}
 
 	attrs = cache->cache_attributes;
-	pr_info("HMAT: Cache: Domain:%u Size:%llu Attrs:%08x SMBIOS Handles:%d\n",
+	pr_info("Cache: Domain:%u Size:%llu Attrs:%08x SMBIOS Handles:%d\n",
 		cache->memory_PD, cache->cache_size, attrs,
 		cache->number_of_SMBIOShandles);
 
@@ -424,24 +423,24 @@ static int __init hmat_parse_proximity_domain(union acpi_subtable_headers *heade
 	struct memory_target *target = NULL;
 
 	if (p->header.length != sizeof(*p)) {
-		pr_notice("HMAT: Unexpected address range header length: %u\n",
+		pr_notice("Unexpected address range header length: %u\n",
 			 p->header.length);
 		return -EINVAL;
 	}
 
 	if (hmat_revision == 1)
-		pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%u Memory Domain:%u\n",
+		pr_info("Memory (%#llx length %#llx) Flags:%04x Processor Domain:%u Memory Domain:%u\n",
 			p->reserved3, p->reserved4, p->flags, p->processor_PD,
 			p->memory_PD);
 	else
-		pr_info("HMAT: Memory Flags:%04x Processor Domain:%u Memory Domain:%u\n",
+		pr_info("Memory Flags:%04x Processor Domain:%u Memory Domain:%u\n",
 			p->flags, p->processor_PD, p->memory_PD);
 
 	if ((hmat_revision == 1 && p->flags & ACPI_HMAT_MEMORY_PD_VALID) ||
 	    hmat_revision > 1) {
 		target = find_mem_target(p->memory_PD);
 		if (!target) {
-			pr_debug("HMAT: Memory Domain missing from SRAT\n");
+			pr_debug("Memory Domain missing from SRAT\n");
 			return -EINVAL;
 		}
 	}
@@ -449,7 +448,7 @@ static int __init hmat_parse_proximity_domain(union acpi_subtable_headers *heade
 		int p_node = pxm_to_node(p->processor_PD);
 
 		if (p_node == NUMA_NO_NODE) {
-			pr_debug("HMAT: Invalid Processor Domain\n");
+			pr_debug("Invalid Processor Domain\n");
 			return -EINVAL;
 		}
 		target->processor_pxm = p->processor_PD;
@@ -563,15 +562,24 @@ static int initiator_cmp(void *priv, const struct list_head *a,
 {
 	struct memory_initiator *ia;
 	struct memory_initiator *ib;
-	unsigned long *p_nodes = priv;
 
 	ia = list_entry(a, struct memory_initiator, node);
 	ib = list_entry(b, struct memory_initiator, node);
 
-	set_bit(ia->processor_pxm, p_nodes);
-	set_bit(ib->processor_pxm, p_nodes);
-
 	return ia->processor_pxm - ib->processor_pxm;
+}
+
+static int initiators_to_nodemask(unsigned long *p_nodes)
+{
+	struct memory_initiator *initiator;
+
+	if (list_empty(&initiators))
+		return -ENXIO;
+
+	list_for_each_entry(initiator, &initiators, node)
+		set_bit(initiator->processor_pxm, p_nodes);
+
+	return 0;
 }
 
 static void hmat_register_target_initiators(struct memory_target *target)
@@ -610,7 +618,10 @@ static void hmat_register_target_initiators(struct memory_target *target)
 	 * initiators.
 	 */
 	bitmap_zero(p_nodes, MAX_NUMNODES);
-	list_sort(p_nodes, &initiators, initiator_cmp);
+	list_sort(NULL, &initiators, initiator_cmp);
+	if (initiators_to_nodemask(p_nodes) < 0)
+		return;
+
 	if (!access0done) {
 		for (i = WRITE_LATENCY; i <= READ_BANDWIDTH; i++) {
 			loc = localities_types[i];
@@ -644,8 +655,9 @@ static void hmat_register_target_initiators(struct memory_target *target)
 
 	/* Access 1 ignores Generic Initiators */
 	bitmap_zero(p_nodes, MAX_NUMNODES);
-	list_sort(p_nodes, &initiators, initiator_cmp);
-	best = 0;
+	if (initiators_to_nodemask(p_nodes) < 0)
+		return;
+
 	for (i = WRITE_LATENCY; i <= READ_BANDWIDTH; i++) {
 		loc = localities_types[i];
 		if (!loc)
@@ -840,7 +852,7 @@ static __init int hmat_init(void)
 	case 2:
 		break;
 	default:
-		pr_notice("Ignoring HMAT: Unknown revision:%d\n", hmat_revision);
+		pr_notice("Ignoring: Unknown revision:%d\n", hmat_revision);
 		goto out_put;
 	}
 
@@ -848,7 +860,7 @@ static __init int hmat_init(void)
 		if (acpi_table_parse_entries(ACPI_SIG_HMAT,
 					     sizeof(struct acpi_table_hmat), i,
 					     hmat_parse_subtable, 0) < 0) {
-			pr_notice("Ignoring HMAT: Invalid table");
+			pr_notice("Ignoring: Invalid table");
 			goto out_put;
 		}
 	}

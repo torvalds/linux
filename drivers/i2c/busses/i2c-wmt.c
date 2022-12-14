@@ -413,7 +413,7 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 
 	adap = &i2c_dev->adapter;
 	i2c_set_adapdata(adap, i2c_dev);
-	strlcpy(adap->name, "WMT I2C adapter", sizeof(adap->name));
+	strscpy(adap->name, "WMT I2C adapter", sizeof(adap->name));
 	adap->owner = THIS_MODULE;
 	adap->algo = &wmt_i2c_algo;
 	adap->dev.parent = &pdev->dev;

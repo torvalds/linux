@@ -1072,7 +1072,6 @@ done:
 
 static int si476x_radio_fops_release(struct file *file)
 {
-	int err;
 	struct si476x_radio *radio = video_drvdata(file);
 
 	if (v4l2_fh_is_singular_file(file) &&
@@ -1080,9 +1079,7 @@ static int si476x_radio_fops_release(struct file *file)
 		si476x_core_set_power_state(radio->core,
 					    SI476X_POWER_DOWN);
 
-	err = v4l2_fh_release(file);
-
-	return err;
+	return v4l2_fh_release(file);
 }
 
 static ssize_t si476x_radio_fops_read(struct file *file, char __user *buf,

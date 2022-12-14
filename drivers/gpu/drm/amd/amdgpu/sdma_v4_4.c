@@ -188,7 +188,7 @@ static void sdma_v4_4_get_ras_error_count(struct amdgpu_device *adev,
 	}
 }
 
-static int sdma_v4_4_query_ras_error_count(struct amdgpu_device *adev,
+static int sdma_v4_4_query_ras_error_count_by_instance(struct amdgpu_device *adev,
 					   uint32_t instance,
 					   void *ras_error_status)
 {
@@ -245,9 +245,26 @@ static void sdma_v4_4_reset_ras_error_count(struct amdgpu_device *adev)
 	}
 }
 
-const struct amdgpu_sdma_ras_funcs sdma_v4_4_ras_funcs = {
-	.ras_late_init = amdgpu_sdma_ras_late_init,
-	.ras_fini = amdgpu_sdma_ras_fini,
+static void sdma_v4_4_query_ras_error_count(struct amdgpu_device *adev,  void *ras_error_status)
+{
+	int i = 0;
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		if (sdma_v4_4_query_ras_error_count_by_instance(adev, i, ras_error_status)) {
+			dev_err(adev->dev, "Query ras error count failed in SDMA%d\n", i);
+			return;
+		}
+	}
+
+}
+
+const struct amdgpu_ras_block_hw_ops sdma_v4_4_ras_hw_ops = {
 	.query_ras_error_count = sdma_v4_4_query_ras_error_count,
 	.reset_ras_error_count = sdma_v4_4_reset_ras_error_count,
+};
+
+struct amdgpu_sdma_ras sdma_v4_4_ras = {
+	.ras_block = {
+		.hw_ops = &sdma_v4_4_ras_hw_ops,
+	},
 };

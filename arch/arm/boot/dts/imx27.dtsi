@@ -74,14 +74,14 @@
 		};
 	};
 
-	soc {
+	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		interrupt-parent = <&aitc>;
 		ranges;
 
-		aipi@10000000 { /* AIPI1 */
+		aipi1: aipi@10000000 { /* AIPI1 */
 			compatible = "fsl,aipi-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -96,7 +96,7 @@
 					 <&clks IMX27_CLK_DMA_AHB_GATE>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <1>;
-				#dma-channels = <16>;
+				dma-channels = <16>;
 			};
 
 			wdog: watchdog@10002000 {
@@ -453,7 +453,7 @@
 			};
 		};
 
-		aipi@10020000 { /* AIPI2 */
+		aipi2: aipi@10020000 { /* AIPI2 */
 			compatible = "fsl,aipi-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

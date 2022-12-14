@@ -696,6 +696,12 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	buf_pool->rx_skb[skb_index] = NULL;
 
 	datalen = xgene_enet_get_data_len(le64_to_cpu(raw_desc->m1));
+
+	/* strip off CRC as HW isn't doing this */
+	nv = GET_VAL(NV, le64_to_cpu(raw_desc->m0));
+	if (!nv)
+		datalen -= 4;
+
 	skb_put(skb, datalen);
 	prefetch(skb->data - NET_IP_ALIGN);
 	skb->protocol = eth_type_trans(skb, ndev);
@@ -717,12 +723,8 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 		}
 	}
 
-	nv = GET_VAL(NV, le64_to_cpu(raw_desc->m0));
-	if (!nv) {
-		/* strip off CRC as HW isn't doing this */
-		datalen -= 4;
+	if (!nv)
 		goto skip_jumbo;
-	}
 
 	slots = page_pool->slots - 1;
 	head = page_pool->head;
@@ -1002,8 +1004,10 @@ static int xgene_enet_open(struct net_device *ndev)
 
 	xgene_enet_napi_enable(pdata);
 	ret = xgene_enet_register_irq(ndev);
-	if (ret)
+	if (ret) {
+		xgene_enet_napi_disable(pdata);
 		return ret;
+	}
 
 	if (ndev->phydev) {
 		phy_start(ndev->phydev);
@@ -1975,14 +1979,12 @@ static void xgene_enet_napi_add(struct xgene_enet_pdata *pdata)
 
 	for (i = 0; i < pdata->rxq_cnt; i++) {
 		napi = &pdata->rx_ring[i]->napi;
-		netif_napi_add(pdata->ndev, napi, xgene_enet_napi,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(pdata->ndev, napi, xgene_enet_napi);
 	}
 
 	for (i = 0; i < pdata->cq_cnt; i++) {
 		napi = &pdata->tx_ring[i]->cp_ring->napi;
-		netif_napi_add(pdata->ndev, napi, xgene_enet_napi,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(pdata->ndev, napi, xgene_enet_napi);
 	}
 }
 

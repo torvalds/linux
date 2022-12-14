@@ -300,7 +300,7 @@ static void doc_write_data_area(struct docg3 *docg3, const void *buf, int len)
 }
 
 /**
- * doc_set_data_mode - Sets the flash to normal or reliable data mode
+ * doc_set_reliable_mode - Sets the flash to normal or reliable data mode
  * @docg3: the device
  *
  * The reliable data mode is a bit slower than the fast mode, but less errors
@@ -442,7 +442,7 @@ static void doc_setup_writeaddr_sector(struct docg3 *docg3, int sector, int ofs)
 }
 
 /**
- * doc_seek - Set both flash planes to the specified block, page for reading
+ * doc_read_seek - Set both flash planes to the specified block, page for reading
  * @docg3: the device
  * @block0: the first plane block index
  * @block1: the second plane block index
@@ -871,6 +871,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	u8 *buf = ops->datbuf;
 	size_t len, ooblen, nbdata, nboob;
 	u8 hwecc[DOC_ECC_BCH_SIZE], eccconf1;
+	struct mtd_ecc_stats old_stats;
 	int max_bitflips = 0;
 
 	if (buf)
@@ -895,6 +896,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	ret = 0;
 	skip = from % DOC_LAYOUT_PAGE_SIZE;
 	mutex_lock(&docg3->cascade->lock);
+	old_stats = mtd->ecc_stats;
 	while (ret >= 0 && (len > 0 || ooblen > 0)) {
 		calc_block_sector(from - skip, &block0, &block1, &page, &ofs,
 			docg3->reliable);
@@ -966,6 +968,12 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	}
 
 out:
+	if (ops->stats) {
+		ops->stats->uncorrectable_errors +=
+			mtd->ecc_stats.failed - old_stats.failed;
+		ops->stats->corrected_bitflips +=
+			mtd->ecc_stats.corrected - old_stats.corrected;
+	}
 	mutex_unlock(&docg3->cascade->lock);
 	return ret;
 err_in_read:
@@ -1951,7 +1959,7 @@ static int docg3_suspend(struct platform_device *pdev, pm_message_t state)
 }
 
 /**
- * doc_probe - Probe the IO space for a DiskOnChip G3 chip
+ * docg3_probe - Probe the IO space for a DiskOnChip G3 chip
  * @pdev: platform device
  *
  * Probes for a G3 chip at the specified IO space in the platform data
@@ -1974,9 +1982,14 @@ static int __init docg3_probe(struct platform_device *pdev)
 		dev_err(dev, "No I/O memory resource defined\n");
 		return ret;
 	}
-	base = devm_ioremap(dev, ress->start, DOC_IOSPACE_SIZE);
 
 	ret = -ENOMEM;
+	base = devm_ioremap(dev, ress->start, DOC_IOSPACE_SIZE);
+	if (!base) {
+		dev_err(dev, "devm_ioremap dev failed\n");
+		return ret;
+	}
+
 	cascade = devm_kcalloc(dev, DOC_MAX_NBFLOORS, sizeof(*cascade),
 			       GFP_KERNEL);
 	if (!cascade)

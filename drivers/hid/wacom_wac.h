@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/*
- * drivers/input/tablet/wacom_wac.h
- */
+
 #ifndef WACOM_WAC_H
 #define WACOM_WAC_H
 
@@ -86,6 +84,7 @@
 #define WACOM_QUIRK_AESPEN		0x0004
 #define WACOM_QUIRK_BATTERY		0x0008
 #define WACOM_QUIRK_TOOLSERIAL		0x0010
+#define WACOM_QUIRK_PEN_BUTTON3	0x0020
 
 /* device types */
 #define WACOM_DEVICETYPE_NONE           0x0000
@@ -108,6 +107,7 @@
 #define WACOM_HID_WD_DIGITIZERFNKEYS    (WACOM_HID_UP_WACOMDIGITIZER | 0x39)
 #define WACOM_HID_WD_SERIALNUMBER       (WACOM_HID_UP_WACOMDIGITIZER | 0x5b)
 #define WACOM_HID_WD_SERIALHI           (WACOM_HID_UP_WACOMDIGITIZER | 0x5c)
+#define WACOM_HID_WD_BARRELSWITCH3      (WACOM_HID_UP_WACOMDIGITIZER | 0x5d)
 #define WACOM_HID_WD_TOOLTYPE           (WACOM_HID_UP_WACOMDIGITIZER | 0x77)
 #define WACOM_HID_WD_DISTANCE           (WACOM_HID_UP_WACOMDIGITIZER | 0x0132)
 #define WACOM_HID_WD_TOUCHSTRIP         (WACOM_HID_UP_WACOMDIGITIZER | 0x0136)
@@ -115,6 +115,7 @@
 #define WACOM_HID_WD_TOUCHRING          (WACOM_HID_UP_WACOMDIGITIZER | 0x0138)
 #define WACOM_HID_WD_TOUCHRINGSTATUS    (WACOM_HID_UP_WACOMDIGITIZER | 0x0139)
 #define WACOM_HID_WD_REPORT_VALID       (WACOM_HID_UP_WACOMDIGITIZER | 0x01d0)
+#define WACOM_HID_WD_SEQUENCENUMBER     (WACOM_HID_UP_WACOMDIGITIZER | 0x0220)
 #define WACOM_HID_WD_ACCELEROMETER_X    (WACOM_HID_UP_WACOMDIGITIZER | 0x0401)
 #define WACOM_HID_WD_ACCELEROMETER_Y    (WACOM_HID_UP_WACOMDIGITIZER | 0x0402)
 #define WACOM_HID_WD_ACCELEROMETER_Z    (WACOM_HID_UP_WACOMDIGITIZER | 0x0403)
@@ -300,6 +301,7 @@ struct hid_data {
 	bool tipswitch;
 	bool barrelswitch;
 	bool barrelswitch2;
+	bool barrelswitch3;
 	bool serialhi;
 	bool confidence;
 	int x;
@@ -320,6 +322,7 @@ struct hid_data {
 	int bat_connected;
 	int ps_connected;
 	bool pad_input_event_flag;
+	unsigned short sequence_number;
 };
 
 struct wacom_remote_data {

@@ -67,33 +67,35 @@ enum i915_cache_level;
  * Implementation and usage
  *
  * GGTT views are implemented using VMAs and are distinguished via enum
- * i915_ggtt_view_type and struct i915_ggtt_view.
+ * i915_gtt_view_type and struct i915_gtt_view.
  *
  * A new flavour of core GEM functions which work with GGTT bound objects were
  * added with the _ggtt_ infix, and sometimes with _view postfix to avoid
- * renaming  in large amounts of code. They take the struct i915_ggtt_view
+ * renaming  in large amounts of code. They take the struct i915_gtt_view
  * parameter encapsulating all metadata required to implement a view.
  *
  * As a helper for callers which are only interested in the normal view,
- * globally const i915_ggtt_view_normal singleton instance exists. All old core
+ * globally const i915_gtt_view_normal singleton instance exists. All old core
  * GEM API functions, the ones not taking the view parameter, are operating on,
  * or with the normal GGTT view.
  *
  * Code wanting to add or use a new GGTT view needs to:
  *
  * 1. Add a new enum with a suitable name.
- * 2. Extend the metadata in the i915_ggtt_view structure if required.
+ * 2. Extend the metadata in the i915_gtt_view structure if required.
  * 3. Add support to i915_get_vma_pages().
  *
  * New views are required to build a scatter-gather table from within the
- * i915_get_vma_pages function. This table is stored in the vma.ggtt_view and
+ * i915_get_vma_pages function. This table is stored in the vma.gtt_view and
  * exists for the lifetime of an VMA.
  *
  * Core API is designed to have copy semantics which means that passed in
- * struct i915_ggtt_view does not need to be persistent (left around after
+ * struct i915_gtt_view does not need to be persistent (left around after
  * calling the core API functions).
  *
  */
+
+struct i915_vma_resource;
 
 struct intel_remapped_plane_info {
 	/* in gtt pages */
@@ -128,11 +130,11 @@ struct intel_partial_info {
 	unsigned int size;
 } __packed;
 
-enum i915_ggtt_view_type {
-	I915_GGTT_VIEW_NORMAL = 0,
-	I915_GGTT_VIEW_ROTATED = sizeof(struct intel_rotation_info),
-	I915_GGTT_VIEW_PARTIAL = sizeof(struct intel_partial_info),
-	I915_GGTT_VIEW_REMAPPED = sizeof(struct intel_remapped_info),
+enum i915_gtt_view_type {
+	I915_GTT_VIEW_NORMAL = 0,
+	I915_GTT_VIEW_ROTATED = sizeof(struct intel_rotation_info),
+	I915_GTT_VIEW_PARTIAL = sizeof(struct intel_partial_info),
+	I915_GTT_VIEW_REMAPPED = sizeof(struct intel_remapped_info),
 };
 
 static inline void assert_i915_gem_gtt_types(void)
@@ -150,18 +152,18 @@ static inline void assert_i915_gem_gtt_types(void)
 	/* As we encode the size of each branch inside the union into its type,
 	 * we have to be careful that each branch has a unique size.
 	 */
-	switch ((enum i915_ggtt_view_type)0) {
-	case I915_GGTT_VIEW_NORMAL:
-	case I915_GGTT_VIEW_PARTIAL:
-	case I915_GGTT_VIEW_ROTATED:
-	case I915_GGTT_VIEW_REMAPPED:
+	switch ((enum i915_gtt_view_type)0) {
+	case I915_GTT_VIEW_NORMAL:
+	case I915_GTT_VIEW_PARTIAL:
+	case I915_GTT_VIEW_ROTATED:
+	case I915_GTT_VIEW_REMAPPED:
 		/* gcc complains if these are identical cases */
 		break;
 	}
 }
 
-struct i915_ggtt_view {
-	enum i915_ggtt_view_type type;
+struct i915_gtt_view {
+	enum i915_gtt_view_type type;
 	union {
 		/* Members need to contain no holes/padding */
 		struct intel_partial_info partial;
@@ -209,7 +211,6 @@ struct i915_vma {
 	 * handles (but same file) for execbuf, i.e. the number of aliases
 	 * that exist in the ctx->handle_vmas LUT for this vma.
 	 */
-	struct kref ref;
 	atomic_t open_count;
 	atomic_t flags;
 	/**
@@ -247,22 +248,20 @@ struct i915_vma {
 
 #define I915_VMA_BIND_MASK (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND)
 
-#define I915_VMA_ALLOC_BIT	12
-
-#define I915_VMA_ERROR_BIT	13
+#define I915_VMA_ERROR_BIT	12
 #define I915_VMA_ERROR		((int)BIT(I915_VMA_ERROR_BIT))
 
-#define I915_VMA_GGTT_BIT	14
-#define I915_VMA_CAN_FENCE_BIT	15
-#define I915_VMA_USERFAULT_BIT	16
-#define I915_VMA_GGTT_WRITE_BIT	17
+#define I915_VMA_GGTT_BIT	13
+#define I915_VMA_CAN_FENCE_BIT	14
+#define I915_VMA_USERFAULT_BIT	15
+#define I915_VMA_GGTT_WRITE_BIT	16
 
 #define I915_VMA_GGTT		((int)BIT(I915_VMA_GGTT_BIT))
 #define I915_VMA_CAN_FENCE	((int)BIT(I915_VMA_CAN_FENCE_BIT))
 #define I915_VMA_USERFAULT	((int)BIT(I915_VMA_USERFAULT_BIT))
 #define I915_VMA_GGTT_WRITE	((int)BIT(I915_VMA_GGTT_WRITE_BIT))
 
-#define I915_VMA_SCANOUT_BIT	18
+#define I915_VMA_SCANOUT_BIT	17
 #define I915_VMA_SCANOUT	((int)BIT(I915_VMA_SCANOUT_BIT))
 
 	struct i915_active active;
@@ -272,13 +271,20 @@ struct i915_vma {
 	atomic_t pages_count; /* number of active binds to the pages */
 
 	/**
+	 * Whether we hold a reference on the vm dma_resv lock to temporarily
+	 * block vm freeing until the vma is destroyed.
+	 * Protected by the vm mutex.
+	 */
+	bool vm_ddestroy;
+
+	/**
 	 * Support different GGTT views into the same object.
 	 * This means there can be multiple VMA mappings per object and per VM.
-	 * i915_ggtt_view_type is used to distinguish between those entries.
-	 * The default one of zero (I915_GGTT_VIEW_NORMAL) is default and also
+	 * i915_gtt_view_type is used to distinguish between those entries.
+	 * The default one of zero (I915_GTT_VIEW_NORMAL) is default and also
 	 * assumed in GEM functions which take no ggtt view parameter.
 	 */
-	struct i915_ggtt_view ggtt_view;
+	struct i915_gtt_view gtt_view;
 
 	/** This object's place on the active/inactive lists */
 	struct list_head vm_link;
@@ -291,6 +297,9 @@ struct i915_vma {
 	struct list_head evict_link;
 
 	struct list_head closed_link;
+
+	/** The async vma resource. Protected by the vm_mutex */
+	struct i915_vma_resource *resource;
 };
 
 #endif

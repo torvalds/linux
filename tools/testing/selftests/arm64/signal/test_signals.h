@@ -9,9 +9,7 @@
 #include <ucontext.h>
 
 /*
- * Using ARCH specific and sanitized Kernel headers installed by KSFT
- * framework since we asked for it by setting flag KSFT_KHDR_INSTALL
- * in our Makefile.
+ * Using ARCH specific and sanitized Kernel headers from the tree.
  */
 #include <asm/ptrace.h>
 #include <asm/hwcap.h>
@@ -34,11 +32,15 @@
 enum {
 	FSSBS_BIT,
 	FSVE_BIT,
+	FSME_BIT,
+	FSME_FA64_BIT,
 	FMAX_END
 };
 
 #define FEAT_SSBS		(1UL << FSSBS_BIT)
 #define FEAT_SVE		(1UL << FSVE_BIT)
+#define FEAT_SME		(1UL << FSME_BIT)
+#define FEAT_SME_FA64		(1UL << FSME_FA64_BIT)
 
 /*
  * A descriptor used to describe and configure a test case.
@@ -53,6 +55,7 @@ struct tdescr {
 	char			*name;
 	char			*descr;
 	unsigned long		feats_required;
+	unsigned long		feats_incompatible;
 	/* bitmask of effectively supported feats: populated at run-time */
 	unsigned long		feats_supported;
 	bool			initialized;

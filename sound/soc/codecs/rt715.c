@@ -737,7 +737,19 @@ static int rt715_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+static int rt715_probe(struct snd_soc_component *component)
+{
+	int ret;
+
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_codec_dev_rt715 = {
+	.probe = rt715_probe,
 	.set_bias_level = rt715_set_bias_level,
 	.controls = rt715_snd_controls,
 	.num_controls = ARRAY_SIZE(rt715_snd_controls),
@@ -745,6 +757,7 @@ static const struct snd_soc_component_driver soc_codec_dev_rt715 = {
 	.num_dapm_widgets = ARRAY_SIZE(rt715_dapm_widgets),
 	.dapm_routes = rt715_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(rt715_audio_map),
+	.endianness = 1,
 };
 
 static int rt715_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,

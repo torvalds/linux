@@ -50,9 +50,7 @@ next:
 
 		if (dv == 0 && bitstream_version) {
 			const unsigned char *ir = ip + 4;
-			const unsigned char *limit = ip_end
-				< (ip + MAX_ZERO_RUN_LENGTH + 1)
-				? ip_end : ip + MAX_ZERO_RUN_LENGTH + 1;
+			const unsigned char *limit = min(ip_end, ip + MAX_ZERO_RUN_LENGTH + 1);
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && \
 	defined(LZO_FAST_64BIT_MEMORY_ACCESS)
 			u64 dv64;
@@ -326,7 +324,7 @@ static int lzogeneric1x_1_compress(const unsigned char *in, size_t in_len,
 	data_start = op;
 
 	while (l > 20) {
-		size_t ll = l <= (m4_max_offset + 1) ? l : (m4_max_offset + 1);
+		size_t ll = min_t(size_t, l, m4_max_offset + 1);
 		uintptr_t ll_end = (uintptr_t) ip + ll;
 		if ((ll_end + ((t + ll) >> 5)) <= ll_end)
 			break;

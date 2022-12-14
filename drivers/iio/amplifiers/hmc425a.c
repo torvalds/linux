@@ -11,10 +11,10 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
@@ -192,7 +192,7 @@ static int hmc425a_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	st->type = (uintptr_t)of_device_get_match_data(&pdev->dev);
+	st->type = (uintptr_t)device_get_match_data(&pdev->dev);
 
 	st->chip_info = &hmc425a_chip_info_tbl[st->type];
 	indio_dev->num_channels = st->chip_info->num_channels;

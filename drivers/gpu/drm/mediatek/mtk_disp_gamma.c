@@ -27,6 +27,7 @@
 
 struct mtk_disp_gamma_data {
 	bool has_dither;
+	bool lut_diff;
 };
 
 /*
@@ -53,12 +54,13 @@ void mtk_gamma_clk_disable(struct device *dev)
 	clk_disable_unprepare(gamma->clk);
 }
 
-void mtk_gamma_set_common(void __iomem *regs, struct drm_crtc_state *state)
+void mtk_gamma_set_common(void __iomem *regs, struct drm_crtc_state *state, bool lut_diff)
 {
 	unsigned int i, reg;
 	struct drm_color_lut *lut;
 	void __iomem *lut_base;
 	u32 word;
+	u32 diff[3] = {0};
 
 	if (state->gamma_lut) {
 		reg = readl(regs + DISP_GAMMA_CFG);
@@ -67,9 +69,20 @@ void mtk_gamma_set_common(void __iomem *regs, struct drm_crtc_state *state)
 		lut_base = regs + DISP_GAMMA_LUT;
 		lut = (struct drm_color_lut *)state->gamma_lut->data;
 		for (i = 0; i < MTK_LUT_SIZE; i++) {
-			word = (((lut[i].red >> 6) & LUT_10BIT_MASK) << 20) +
-				(((lut[i].green >> 6) & LUT_10BIT_MASK) << 10) +
-				((lut[i].blue >> 6) & LUT_10BIT_MASK);
+
+			if (!lut_diff || (i % 2 == 0)) {
+				word = (((lut[i].red >> 6) & LUT_10BIT_MASK) << 20) +
+					(((lut[i].green >> 6) & LUT_10BIT_MASK) << 10) +
+					((lut[i].blue >> 6) & LUT_10BIT_MASK);
+			} else {
+				diff[0] = (lut[i].red >> 6) - (lut[i - 1].red >> 6);
+				diff[1] = (lut[i].green >> 6) - (lut[i - 1].green >> 6);
+				diff[2] = (lut[i].blue >> 6) - (lut[i - 1].blue >> 6);
+
+				word = ((diff[0] & LUT_10BIT_MASK) << 20) +
+					((diff[1] & LUT_10BIT_MASK) << 10) +
+					(diff[2] & LUT_10BIT_MASK);
+			}
 			writel(word, (lut_base + i * 4));
 		}
 	}
@@ -78,8 +91,12 @@ void mtk_gamma_set_common(void __iomem *regs, struct drm_crtc_state *state)
 void mtk_gamma_set(struct device *dev, struct drm_crtc_state *state)
 {
 	struct mtk_disp_gamma *gamma = dev_get_drvdata(dev);
+	bool lut_diff = false;
 
-	mtk_gamma_set_common(gamma->regs, state);
+	if (gamma->data)
+		lut_diff = gamma->data->lut_diff;
+
+	mtk_gamma_set_common(gamma->regs, state, lut_diff);
 }
 
 void mtk_gamma_config(struct device *dev, unsigned int w,
@@ -176,10 +193,15 @@ static const struct mtk_disp_gamma_data mt8173_gamma_driver_data = {
 	.has_dither = true,
 };
 
+static const struct mtk_disp_gamma_data mt8183_gamma_driver_data = {
+	.lut_diff = true,
+};
+
 static const struct of_device_id mtk_disp_gamma_driver_dt_match[] = {
 	{ .compatible = "mediatek,mt8173-disp-gamma",
 	  .data = &mt8173_gamma_driver_data},
-	{ .compatible = "mediatek,mt8183-disp-gamma"},
+	{ .compatible = "mediatek,mt8183-disp-gamma",
+	  .data = &mt8183_gamma_driver_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, mtk_disp_gamma_driver_dt_match);

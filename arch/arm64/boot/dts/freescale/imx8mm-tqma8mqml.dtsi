@@ -3,6 +3,7 @@
  * Copyright 2020-2021 TQ-Systems GmbH
  */
 
+#include <dt-bindings/phy/phy-imx8-pcie.h>
 #include "imx8mm.dtsi"
 
 / {
@@ -225,6 +226,11 @@
 		reg = <0x57>;
 		pagesize = <32>;
 	};
+};
+
+&pcie_phy {
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
+	fsl,clkreq-unsupported;
 };
 
 &usdhc3 {

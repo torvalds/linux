@@ -176,6 +176,7 @@ static void mmhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_L2_CACHE, 1);
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL2, tmp);
 
+	tmp = mmVM_L2_CNTL3_DEFAULT;
 	if (adev->gmc.translate_further) {
 		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, BANK_SELECT, 12);
 		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3,
@@ -546,7 +547,7 @@ static int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void mmhub_v1_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
+static void mmhub_v1_0_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 {
 	int data, data1;
 
@@ -774,11 +775,15 @@ static void mmhub_v1_0_reset_ras_error_count(struct amdgpu_device *adev)
 	}
 }
 
-const struct amdgpu_mmhub_ras_funcs mmhub_v1_0_ras_funcs = {
-	.ras_late_init = amdgpu_mmhub_ras_late_init,
-	.ras_fini = amdgpu_mmhub_ras_fini,
+struct amdgpu_ras_block_hw_ops mmhub_v1_0_ras_hw_ops = {
 	.query_ras_error_count = mmhub_v1_0_query_ras_error_count,
 	.reset_ras_error_count = mmhub_v1_0_reset_ras_error_count,
+};
+
+struct amdgpu_mmhub_ras mmhub_v1_0_ras = {
+	.ras_block = {
+		.hw_ops = &mmhub_v1_0_ras_hw_ops,
+	},
 };
 
 const struct amdgpu_mmhub_funcs mmhub_v1_0_funcs = {

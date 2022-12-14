@@ -42,7 +42,6 @@ properties:
     description:
       Specifying the interrupt-controller used to wake up the system when the
       TLMM block has been powered down.
-    maxItems: 1
 
   gpio-reserved-ranges:
     description:
@@ -73,7 +72,6 @@ $defs:
     properties:
       drive-strength:
         enum: [2, 4, 6, 8, 10, 12, 14, 16]
-        default: 2
         description:
           Selects the drive strength for the specified pins, in mA.
 

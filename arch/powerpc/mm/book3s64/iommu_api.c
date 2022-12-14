@@ -305,24 +305,6 @@ struct mm_iommu_table_group_mem_t *mm_iommu_lookup(struct mm_struct *mm,
 }
 EXPORT_SYMBOL_GPL(mm_iommu_lookup);
 
-struct mm_iommu_table_group_mem_t *mm_iommu_lookup_rm(struct mm_struct *mm,
-		unsigned long ua, unsigned long size)
-{
-	struct mm_iommu_table_group_mem_t *mem, *ret = NULL;
-
-	list_for_each_entry_lockless(mem, &mm->context.iommu_group_mem_list,
-			next) {
-		if ((mem->ua <= ua) &&
-				(ua + size <= mem->ua +
-				 (mem->entries << PAGE_SHIFT))) {
-			ret = mem;
-			break;
-		}
-	}
-
-	return ret;
-}
-
 struct mm_iommu_table_group_mem_t *mm_iommu_get(struct mm_struct *mm,
 		unsigned long ua, unsigned long entries)
 {
@@ -368,56 +350,6 @@ long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mm_iommu_ua_to_hpa);
-
-long mm_iommu_ua_to_hpa_rm(struct mm_iommu_table_group_mem_t *mem,
-		unsigned long ua, unsigned int pageshift, unsigned long *hpa)
-{
-	const long entry = (ua - mem->ua) >> PAGE_SHIFT;
-	unsigned long *pa;
-
-	if (entry >= mem->entries)
-		return -EFAULT;
-
-	if (pageshift > mem->pageshift)
-		return -EFAULT;
-
-	if (!mem->hpas) {
-		*hpa = mem->dev_hpa + (ua - mem->ua);
-		return 0;
-	}
-
-	pa = (void *) vmalloc_to_phys(&mem->hpas[entry]);
-	if (!pa)
-		return -EFAULT;
-
-	*hpa = (*pa & MM_IOMMU_TABLE_GROUP_PAGE_MASK) | (ua & ~PAGE_MASK);
-
-	return 0;
-}
-
-extern void mm_iommu_ua_mark_dirty_rm(struct mm_struct *mm, unsigned long ua)
-{
-	struct mm_iommu_table_group_mem_t *mem;
-	long entry;
-	void *va;
-	unsigned long *pa;
-
-	mem = mm_iommu_lookup_rm(mm, ua, PAGE_SIZE);
-	if (!mem)
-		return;
-
-	if (mem->dev_hpa != MM_IOMMU_TABLE_INVALID_HPA)
-		return;
-
-	entry = (ua - mem->ua) >> PAGE_SHIFT;
-	va = &mem->hpas[entry];
-
-	pa = (void *) vmalloc_to_phys(va);
-	if (!pa)
-		return;
-
-	*pa |= MM_IOMMU_TABLE_GROUP_PAGE_DIRTY;
-}
 
 bool mm_iommu_is_devmem(struct mm_struct *mm, unsigned long hpa,
 		unsigned int pageshift, unsigned long *size)

@@ -31,7 +31,9 @@ Declare the I2C devices via devicetree
 On platforms using devicetree, the declaration of I2C devices is done in
 subnodes of the master controller.
 
-Example::
+Example:
+
+.. code-block:: dts
 
 	i2c1: i2c@400a0000 {
 		/* ... master properties skipped ... */
@@ -71,7 +73,9 @@ code. Instantiating I2C devices via board files is done with an array of
 struct i2c_board_info which is registered by calling
 i2c_register_board_info().
 
-Example (from omap2 h4)::
+Example (from omap2 h4):
+
+.. code-block:: c
 
   static struct i2c_board_info h4_i2c_board_info[] __initdata = {
 	{
@@ -111,7 +115,9 @@ bus in advance, so the method 1 described above can't be used. Instead,
 you can instantiate your I2C devices explicitly. This is done by filling
 a struct i2c_board_info and calling i2c_new_client_device().
 
-Example (from the sfe4001 network driver)::
+Example (from the sfe4001 network driver):
+
+.. code-block:: c
 
   static struct i2c_board_info sfe4001_hwmon_info = {
 	I2C_BOARD_INFO("max6647", 0x4e),
@@ -136,7 +142,9 @@ it may have different addresses from one board to the next (manufacturer
 changing its design without notice). In this case, you can call
 i2c_new_scanned_device() instead of i2c_new_client_device().
 
-Example (from the nxp OHCI driver)::
+Example (from the nxp OHCI driver):
+
+.. code-block:: c
 
   static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 

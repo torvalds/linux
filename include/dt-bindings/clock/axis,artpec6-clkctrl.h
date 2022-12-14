@@ -2,7 +2,7 @@
 /*
  * ARTPEC-6 clock controller indexes
  *
- * Copyright 2016 Axis Comunications AB.
+ * Copyright 2016 Axis Communications AB.
  */
 
 #ifndef DT_BINDINGS_CLK_ARTPEC6_CLKCTRL_H

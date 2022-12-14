@@ -17,7 +17,6 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
-#include <linux/gpio.h>
 #include <linux/workqueue.h>
 #include <linux/hdmi.h>
 #include <linux/v4l2-dv-timings.h>
@@ -522,7 +521,7 @@ static void log_infoframe(struct v4l2_subdev *sd, const struct adv7511_cfg_read_
 	buffer[3] = 0;
 	buffer[3] = hdmi_infoframe_checksum(buffer, len + 4);
 
-	if (hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer)) < 0) {
+	if (hdmi_infoframe_unpack(&frame, buffer, len + 4) < 0) {
 		v4l2_err(sd, "%s: unpack of %s infoframe failed\n", __func__, cri->desc);
 		return;
 	}
@@ -944,8 +943,8 @@ static int adv7511_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 		v4l2_dbg(1, debug, sd, "%s: cec msg len %d\n", __func__,
 			 msg.len);
 
-		if (msg.len > 16)
-			msg.len = 16;
+		if (msg.len > CEC_MAX_MSG_SIZE)
+			msg.len = CEC_MAX_MSG_SIZE;
 
 		if (msg.len) {
 			u8 i;
@@ -1924,7 +1923,7 @@ err_hdl:
 
 /* ----------------------------------------------------------------------- */
 
-static int adv7511_remove(struct i2c_client *client)
+static void adv7511_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7511_state *state = get_adv7511_state(sd);
@@ -1944,7 +1943,6 @@ static int adv7511_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

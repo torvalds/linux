@@ -174,7 +174,7 @@ int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data)
 
 	/*
 	 * softe copies paca->irq_soft_mask variable state. Since irq_soft_mask is
-	 * no more used as a flag, lets force usr to alway see the softe value as 1
+	 * no more used as a flag, lets force usr to always see the softe value as 1
 	 * which means interrupts are not soft disabled.
 	 */
 	if (IS_ENABLED(CONFIG_PPC64) && regno == PT_SOFTE) {
@@ -841,7 +841,7 @@ static const struct user_regset_view user_ppc_compat_view = {
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
-	if (IS_ENABLED(CONFIG_PPC64) && test_tsk_thread_flag(task, TIF_32BIT))
+	if (IS_ENABLED(CONFIG_COMPAT) && is_tsk_32bit_task(task))
 		return &user_ppc_compat_view;
 	return &user_ppc_native_view;
 }

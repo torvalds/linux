@@ -11,5 +11,7 @@
 # Here trace-events-sample.c does the CREATE_TRACE_POINTS.
 #
 CFLAGS_trace-events-sample.o := -I$(src)
+CFLAGS_trace_custom_sched.o := -I$(src)
 
 obj-$(CONFIG_SAMPLE_TRACE_EVENTS) += trace-events-sample.o
+obj-$(CONFIG_SAMPLE_TRACE_CUSTOM_EVENTS) += trace_custom_sched.o

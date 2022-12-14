@@ -39,7 +39,6 @@
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
 #include <asm/irq.h>
 
 #include <asm/mach/arch.h>
@@ -50,7 +49,7 @@
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include "udc.h"
-#include <mach/corgi.h>
+#include "corgi.h"
 #include "sharpsl_pm.h"
 
 #include <asm/mach/sharpsl_param.h>
@@ -473,6 +472,25 @@ static struct platform_device corgiled_device = {
 	},
 };
 
+static struct gpiod_lookup_table corgi_audio_gpio_table = {
+	.dev_id = "corgi-audio",
+	.table = {
+		GPIO_LOOKUP("sharp-scoop",
+			    CORGI_GPIO_MUTE_L - CORGI_SCOOP_GPIO_BASE,
+			    "mute-l", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sharp-scoop",
+			    CORGI_GPIO_MUTE_R - CORGI_SCOOP_GPIO_BASE,
+			    "mute-r", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sharp-scoop",
+			    CORGI_GPIO_APM_ON - CORGI_SCOOP_GPIO_BASE,
+			    "apm-on", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sharp-scoop",
+			    CORGI_GPIO_MIC_BIAS - CORGI_SCOOP_GPIO_BASE,
+			    "mic-bias", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 /*
  * Corgi Audio
  */
@@ -530,6 +548,16 @@ static struct pxa2xx_spi_controller corgi_spi_info = {
 	.num_chipselect	= 3,
 };
 
+static struct gpiod_lookup_table corgi_spi_gpio_table = {
+	.dev_id = "spi1",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-pxa", CORGI_GPIO_ADS7846_CS, "cs", 0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("gpio-pxa", CORGI_GPIO_LCDCON_CS, "cs", 1, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("gpio-pxa", CORGI_GPIO_MAX1111_CS, "cs", 2, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static void corgi_wait_for_hsync(void)
 {
 	while (gpio_get_value(CORGI_GPIO_HSYNC))
@@ -546,10 +574,6 @@ static struct ads7846_platform_data corgi_ads7846_info = {
 	.y_plate_ohms		= 486,
 	.gpio_pendown		= CORGI_GPIO_TP_INT,
 	.wait_for_sync		= corgi_wait_for_hsync,
-};
-
-static struct pxa2xx_spi_chip corgi_ads7846_chip = {
-	.gpio_cs	= CORGI_GPIO_ADS7846_CS,
 };
 
 static void corgi_bl_kick_battery(void)
@@ -580,14 +604,6 @@ static struct corgi_lcd_platform_data corgi_lcdcon_info = {
 	.kick_battery		= corgi_bl_kick_battery,
 };
 
-static struct pxa2xx_spi_chip corgi_lcdcon_chip = {
-	.gpio_cs	= CORGI_GPIO_LCDCON_CS,
-};
-
-static struct pxa2xx_spi_chip corgi_max1111_chip = {
-	.gpio_cs	= CORGI_GPIO_MAX1111_CS,
-};
-
 static struct spi_board_info corgi_spi_devices[] = {
 	{
 		.modalias	= "ads7846",
@@ -595,7 +611,6 @@ static struct spi_board_info corgi_spi_devices[] = {
 		.bus_num	= 1,
 		.chip_select	= 0,
 		.platform_data	= &corgi_ads7846_info,
-		.controller_data= &corgi_ads7846_chip,
 		.irq		= PXA_GPIO_TO_IRQ(CORGI_GPIO_TP_INT),
 	}, {
 		.modalias	= "corgi-lcd",
@@ -603,18 +618,17 @@ static struct spi_board_info corgi_spi_devices[] = {
 		.bus_num	= 1,
 		.chip_select	= 1,
 		.platform_data	= &corgi_lcdcon_info,
-		.controller_data= &corgi_lcdcon_chip,
 	}, {
 		.modalias	= "max1111",
 		.max_speed_hz	= 450000,
 		.bus_num	= 1,
 		.chip_select	= 2,
-		.controller_data= &corgi_max1111_chip,
 	},
 };
 
 static void __init corgi_init_spi(void)
 {
+	gpiod_add_lookup_table(&corgi_spi_gpio_table);
 	pxa2xx_set_spi_info(1, &corgi_spi_info);
 	gpiod_add_lookup_table(&corgi_lcdcon_gpio_table);
 	spi_register_board_info(ARRAY_AND_SIZE(corgi_spi_devices));
@@ -749,6 +763,7 @@ static void __init corgi_init(void)
 
  	pxa_set_udc_info(&udc_info);
 	gpiod_add_lookup_table(&corgi_mci_gpio_table);
+	gpiod_add_lookup_table(&corgi_audio_gpio_table);
 	pxa_set_mci_info(&corgi_mci_platform_data);
 	pxa_set_ficp_info(&corgi_ficp_platform_data);
 	pxa_set_i2c_info(NULL);

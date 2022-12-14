@@ -221,7 +221,7 @@ static netdev_tx_t hsr_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_reset_mac_len(skb);
 		hsr_forward_skb(skb, master);
 	} else {
-		atomic_long_inc(&dev->tx_dropped);
+		dev_core_stats_tx_dropped_inc(dev);
 		dev_kfree_skb_any(skb);
 	}
 	return NETDEV_TX_OK;
@@ -485,12 +485,16 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 {
 	bool unregister = false;
 	struct hsr_priv *hsr;
-	int res;
+	int res, i;
 
 	hsr = netdev_priv(hsr_dev);
 	INIT_LIST_HEAD(&hsr->ports);
-	INIT_LIST_HEAD(&hsr->node_db);
-	INIT_LIST_HEAD(&hsr->self_node_db);
+	INIT_HLIST_HEAD(&hsr->self_node_db);
+	hsr->hash_buckets = HSR_HSIZE;
+	get_random_bytes(&hsr->hash_seed, sizeof(hsr->hash_seed));
+	for (i = 0; i < hsr->hash_buckets; i++)
+		INIT_HLIST_HEAD(&hsr->node_db[i]);
+
 	spin_lock_init(&hsr->list_lock);
 
 	eth_hw_addr_set(hsr_dev, slave[0]->dev_addr);

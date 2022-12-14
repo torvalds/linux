@@ -113,12 +113,16 @@
  * the sign bit. This register enables software to calculate frequency
  * adjustments and apply them directly to the clock rate.
  *
- * The math for converting ppb into TIMINCA values is fairly straightforward.
- *   TIMINCA value = ( Base_Frequency * ppb ) / 1000000000ULL
+ * The math for converting scaled_ppm into TIMINCA values is fairly
+ * straightforward.
  *
- * This assumes that ppb is never high enough to create a value bigger than
- * TIMINCA's 31 bits can store. This is ensured by the stack. Calculating this
- * value is also simple.
+ *   TIMINCA value = ( Base_Frequency * scaled_ppm ) / 1000000ULL << 16
+ *
+ * To avoid overflow, we simply use mul_u64_u64_div_u64.
+ *
+ * This assumes that scaled_ppm is never high enough to create a value bigger
+ * than TIMINCA's 31 bits can store. This is ensured by the stack, and is
+ * measured in parts per billion. Calculating this value is also simple.
  *   Max ppb = ( Max Adjustment / Base Frequency ) / 1000000000ULL
  *
  * For the X550, the Max adjustment is +/- 0.5 ns, and the base frequency is
@@ -138,7 +142,6 @@
 #define IXGBE_X550_BASE_PERIOD 0xC80000000ULL
 #define INCVALUE_MASK	0x7FFFFFFF
 #define ISGN		0x80000000
-#define MAX_TIMADJ	0x7FFFFFFF
 
 /**
  * ixgbe_ptp_setup_sdp_X540
@@ -434,45 +437,45 @@ static void ixgbe_ptp_convert_to_hwtstamp(struct ixgbe_adapter *adapter,
 }
 
 /**
- * ixgbe_ptp_adjfreq_82599
+ * ixgbe_ptp_adjfine_82599
  * @ptp: the ptp clock structure
- * @ppb: parts per billion adjustment from base
+ * @scaled_ppm: scaled parts per million adjustment from base
  *
- * adjust the frequency of the ptp cycle counter by the
- * indicated ppb from the base frequency.
+ * Adjust the frequency of the ptp cycle counter by the
+ * indicated scaled_ppm from the base frequency.
+ *
+ * Scaled parts per million is ppm with a 16-bit binary fractional field.
  */
-static int ixgbe_ptp_adjfreq_82599(struct ptp_clock_info *ptp, s32 ppb)
+static int ixgbe_ptp_adjfine_82599(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct ixgbe_adapter *adapter =
 		container_of(ptp, struct ixgbe_adapter, ptp_caps);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u64 freq, incval;
-	u32 diff;
+	u64 incval, diff;
 	int neg_adj = 0;
 
-	if (ppb < 0) {
+	if (scaled_ppm < 0) {
 		neg_adj = 1;
-		ppb = -ppb;
+		scaled_ppm = -scaled_ppm;
 	}
 
 	smp_mb();
 	incval = READ_ONCE(adapter->base_incval);
 
-	freq = incval;
-	freq *= ppb;
-	diff = div_u64(freq, 1000000000ULL);
+	diff = mul_u64_u64_div_u64(incval, scaled_ppm,
+				   1000000ULL << 16);
 
 	incval = neg_adj ? (incval - diff) : (incval + diff);
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_X540:
 		if (incval > 0xFFFFFFFFULL)
-			e_dev_warn("PTP ppb adjusted SYSTIME rate overflowed!\n");
+			e_dev_warn("PTP scaled_ppm adjusted SYSTIME rate overflowed!\n");
 		IXGBE_WRITE_REG(hw, IXGBE_TIMINCA, (u32)incval);
 		break;
 	case ixgbe_mac_82599EB:
 		if (incval > 0x00FFFFFFULL)
-			e_dev_warn("PTP ppb adjusted SYSTIME rate overflowed!\n");
+			e_dev_warn("PTP scaled_ppm adjusted SYSTIME rate overflowed!\n");
 		IXGBE_WRITE_REG(hw, IXGBE_TIMINCA,
 				BIT(IXGBE_INCPER_SHIFT_82599) |
 				((u32)incval & 0x00FFFFFFUL));
@@ -485,32 +488,35 @@ static int ixgbe_ptp_adjfreq_82599(struct ptp_clock_info *ptp, s32 ppb)
 }
 
 /**
- * ixgbe_ptp_adjfreq_X550
+ * ixgbe_ptp_adjfine_X550
  * @ptp: the ptp clock structure
- * @ppb: parts per billion adjustment from base
+ * @scaled_ppm: scaled parts per million adjustment from base
  *
- * adjust the frequency of the SYSTIME registers by the indicated ppb from base
- * frequency
+ * Adjust the frequency of the SYSTIME registers by the indicated scaled_ppm
+ * from base frequency.
+ *
+ * Scaled parts per million is ppm with a 16-bit binary fractional field.
  */
-static int ixgbe_ptp_adjfreq_X550(struct ptp_clock_info *ptp, s32 ppb)
+static int ixgbe_ptp_adjfine_X550(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct ixgbe_adapter *adapter =
 			container_of(ptp, struct ixgbe_adapter, ptp_caps);
 	struct ixgbe_hw *hw = &adapter->hw;
 	int neg_adj = 0;
-	u64 rate = IXGBE_X550_BASE_PERIOD;
+	u64 rate;
 	u32 inca;
 
-	if (ppb < 0) {
+	if (scaled_ppm < 0) {
 		neg_adj = 1;
-		ppb = -ppb;
+		scaled_ppm = -scaled_ppm;
 	}
-	rate *= ppb;
-	rate = div_u64(rate, 1000000000ULL);
+
+	rate = mul_u64_u64_div_u64(IXGBE_X550_BASE_PERIOD, scaled_ppm,
+				   1000000ULL << 16);
 
 	/* warn if rate is too large */
 	if (rate >= INCVALUE_MASK)
-		e_dev_warn("PTP ppb adjusted SYSTIME rate overflowed!\n");
+		e_dev_warn("PTP scaled_ppm adjusted SYSTIME rate overflowed!\n");
 
 	inca = rate & INCVALUE_MASK;
 	if (neg_adj)
@@ -1208,7 +1214,6 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 	struct cyclecounter cc;
 	unsigned long flags;
 	u32 incval = 0;
-	u32 tsauxc = 0;
 	u32 fuse0 = 0;
 
 	/* For some of the boards below this mask is technically incorrect.
@@ -1243,18 +1248,6 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 	case ixgbe_mac_x550em_a:
 	case ixgbe_mac_X550:
 		cc.read = ixgbe_ptp_read_X550;
-
-		/* enable SYSTIME counter */
-		IXGBE_WRITE_REG(hw, IXGBE_SYSTIMR, 0);
-		IXGBE_WRITE_REG(hw, IXGBE_SYSTIML, 0);
-		IXGBE_WRITE_REG(hw, IXGBE_SYSTIMH, 0);
-		tsauxc = IXGBE_READ_REG(hw, IXGBE_TSAUXC);
-		IXGBE_WRITE_REG(hw, IXGBE_TSAUXC,
-				tsauxc & ~IXGBE_TSAUXC_DISABLE_SYSTIME);
-		IXGBE_WRITE_REG(hw, IXGBE_TSIM, IXGBE_TSIM_TXTS);
-		IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EIMS_TIMESYNC);
-
-		IXGBE_WRITE_FLUSH(hw);
 		break;
 	case ixgbe_mac_X540:
 		cc.read = ixgbe_ptp_read_82599;
@@ -1287,6 +1280,50 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 }
 
 /**
+ * ixgbe_ptp_init_systime - Initialize SYSTIME registers
+ * @adapter: the ixgbe private board structure
+ *
+ * Initialize and start the SYSTIME registers.
+ */
+static void ixgbe_ptp_init_systime(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 tsauxc;
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
+	case ixgbe_mac_X550:
+		tsauxc = IXGBE_READ_REG(hw, IXGBE_TSAUXC);
+
+		/* Reset SYSTIME registers to 0 */
+		IXGBE_WRITE_REG(hw, IXGBE_SYSTIMR, 0);
+		IXGBE_WRITE_REG(hw, IXGBE_SYSTIML, 0);
+		IXGBE_WRITE_REG(hw, IXGBE_SYSTIMH, 0);
+
+		/* Reset interrupt settings */
+		IXGBE_WRITE_REG(hw, IXGBE_TSIM, IXGBE_TSIM_TXTS);
+		IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EIMS_TIMESYNC);
+
+		/* Activate the SYSTIME counter */
+		IXGBE_WRITE_REG(hw, IXGBE_TSAUXC,
+				tsauxc & ~IXGBE_TSAUXC_DISABLE_SYSTIME);
+		break;
+	case ixgbe_mac_X540:
+	case ixgbe_mac_82599EB:
+		/* Reset SYSTIME registers to 0 */
+		IXGBE_WRITE_REG(hw, IXGBE_SYSTIML, 0);
+		IXGBE_WRITE_REG(hw, IXGBE_SYSTIMH, 0);
+		break;
+	default:
+		/* Other devices aren't supported */
+		return;
+	};
+
+	IXGBE_WRITE_FLUSH(hw);
+}
+
+/**
  * ixgbe_ptp_reset
  * @adapter: the ixgbe private board structure
  *
@@ -1311,6 +1348,8 @@ void ixgbe_ptp_reset(struct ixgbe_adapter *adapter)
 		return;
 
 	ixgbe_ptp_start_cyclecounter(adapter);
+
+	ixgbe_ptp_init_systime(adapter);
 
 	spin_lock_irqsave(&adapter->tmreg_lock, flags);
 	timecounter_init(&adapter->hw_tc, &adapter->hw_cc,
@@ -1356,7 +1395,7 @@ static long ixgbe_ptp_create_clock(struct ixgbe_adapter *adapter)
 		adapter->ptp_caps.n_ext_ts = 0;
 		adapter->ptp_caps.n_per_out = 0;
 		adapter->ptp_caps.pps = 1;
-		adapter->ptp_caps.adjfreq = ixgbe_ptp_adjfreq_82599;
+		adapter->ptp_caps.adjfine = ixgbe_ptp_adjfine_82599;
 		adapter->ptp_caps.adjtime = ixgbe_ptp_adjtime;
 		adapter->ptp_caps.gettimex64 = ixgbe_ptp_gettimex;
 		adapter->ptp_caps.settime64 = ixgbe_ptp_settime;
@@ -1373,7 +1412,7 @@ static long ixgbe_ptp_create_clock(struct ixgbe_adapter *adapter)
 		adapter->ptp_caps.n_ext_ts = 0;
 		adapter->ptp_caps.n_per_out = 0;
 		adapter->ptp_caps.pps = 0;
-		adapter->ptp_caps.adjfreq = ixgbe_ptp_adjfreq_82599;
+		adapter->ptp_caps.adjfine = ixgbe_ptp_adjfine_82599;
 		adapter->ptp_caps.adjtime = ixgbe_ptp_adjtime;
 		adapter->ptp_caps.gettimex64 = ixgbe_ptp_gettimex;
 		adapter->ptp_caps.settime64 = ixgbe_ptp_settime;
@@ -1389,7 +1428,7 @@ static long ixgbe_ptp_create_clock(struct ixgbe_adapter *adapter)
 		adapter->ptp_caps.n_ext_ts = 0;
 		adapter->ptp_caps.n_per_out = 0;
 		adapter->ptp_caps.pps = 1;
-		adapter->ptp_caps.adjfreq = ixgbe_ptp_adjfreq_X550;
+		adapter->ptp_caps.adjfine = ixgbe_ptp_adjfine_X550;
 		adapter->ptp_caps.adjtime = ixgbe_ptp_adjtime;
 		adapter->ptp_caps.gettimex64 = ixgbe_ptp_gettimex;
 		adapter->ptp_caps.settime64 = ixgbe_ptp_settime;

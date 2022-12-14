@@ -168,7 +168,7 @@ struct acpi_ec_query {
 };
 
 static int acpi_ec_submit_query(struct acpi_ec *ec);
-static bool advance_transaction(struct acpi_ec *ec, bool interrupt);
+static void advance_transaction(struct acpi_ec *ec, bool interrupt);
 static void acpi_ec_event_handler(struct work_struct *work);
 
 struct acpi_ec *first_ec;
@@ -180,7 +180,6 @@ static struct workqueue_struct *ec_wq;
 static struct workqueue_struct *ec_query_wq;
 
 static int EC_FLAGS_CORRECT_ECDT; /* Needs ECDT port address correction */
-static int EC_FLAGS_IGNORE_DSDT_GPE; /* Needs ECDT GPE as correction setting */
 static int EC_FLAGS_TRUST_DSDT_GPE; /* Needs DSDT GPE as correction setting */
 static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
 
@@ -441,36 +440,35 @@ static bool acpi_ec_submit_flushable_request(struct acpi_ec *ec)
 	return true;
 }
 
-static bool acpi_ec_submit_event(struct acpi_ec *ec)
+static void acpi_ec_submit_event(struct acpi_ec *ec)
 {
+	/*
+	 * It is safe to mask the events here, because acpi_ec_close_event()
+	 * will run at least once after this.
+	 */
 	acpi_ec_mask_events(ec);
 	if (!acpi_ec_event_enabled(ec))
-		return false;
+		return;
 
-	if (ec->event_state == EC_EVENT_READY) {
-		ec_dbg_evt("Command(%s) submitted/blocked",
-			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
+	if (ec->event_state != EC_EVENT_READY)
+		return;
 
-		ec->event_state = EC_EVENT_IN_PROGRESS;
-		/*
-		 * If events_to_process is greqter than 0 at this point, the
-		 * while () loop in acpi_ec_event_handler() is still running
-		 * and incrementing events_to_process will cause it to invoke
-		 * acpi_ec_submit_query() once more, so it is not necessary to
-		 * queue up the event work to start the same loop again.
-		 */
-		if (ec->events_to_process++ > 0)
-			return true;
+	ec_dbg_evt("Command(%s) submitted/blocked",
+		   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 
-		ec->events_in_progress++;
-		return queue_work(ec_wq, &ec->work);
-	}
-
+	ec->event_state = EC_EVENT_IN_PROGRESS;
 	/*
-	 * The event handling work has not been completed yet, so it needs to be
-	 * flushed.
+	 * If events_to_process is greater than 0 at this point, the while ()
+	 * loop in acpi_ec_event_handler() is still running and incrementing
+	 * events_to_process will cause it to invoke acpi_ec_submit_query() once
+	 * more, so it is not necessary to queue up the event work to start the
+	 * same loop again.
 	 */
-	return true;
+	if (ec->events_to_process++ > 0)
+		return;
+
+	ec->events_in_progress++;
+	queue_work(ec_wq, &ec->work);
 }
 
 static void acpi_ec_complete_event(struct acpi_ec *ec)
@@ -655,11 +653,10 @@ static void acpi_ec_spurious_interrupt(struct acpi_ec *ec, struct transaction *t
 		acpi_ec_mask_events(ec);
 }
 
-static bool advance_transaction(struct acpi_ec *ec, bool interrupt)
+static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 {
 	struct transaction *t = ec->curr;
 	bool wakeup = false;
-	bool ret = false;
 	u8 status;
 
 	ec_dbg_stm("%s (%d)", interrupt ? "IRQ" : "TASK", smp_processor_id());
@@ -724,12 +721,10 @@ static bool advance_transaction(struct acpi_ec *ec, bool interrupt)
 
 out:
 	if (status & ACPI_EC_FLAG_SCI)
-		ret = acpi_ec_submit_event(ec);
+		acpi_ec_submit_event(ec);
 
 	if (wakeup && interrupt)
 		wake_up(&ec->wait);
-
-	return ret;
 }
 
 static void start_transaction(struct acpi_ec *ec)
@@ -922,14 +917,10 @@ EXPORT_SYMBOL(ec_read);
 
 int ec_write(u8 addr, u8 val)
 {
-	int err;
-
 	if (!first_ec)
 		return -ENODEV;
 
-	err = acpi_ec_write(first_ec, addr, val);
-
-	return err;
+	return acpi_ec_write(first_ec, addr, val);
 }
 EXPORT_SYMBOL(ec_write);
 
@@ -1242,6 +1233,7 @@ static void acpi_ec_event_handler(struct work_struct *work)
 		acpi_ec_submit_query(ec);
 
 		spin_lock_irq(&ec->lock);
+
 		ec->events_to_process--;
 	}
 
@@ -1250,27 +1242,30 @@ static void acpi_ec_event_handler(struct work_struct *work)
 	 * event handling work again regardless of whether or not the query
 	 * queued up above is processed successfully.
 	 */
-	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT)
+	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT) {
+		bool guard_timeout;
+
 		acpi_ec_complete_event(ec);
-	else
-		acpi_ec_close_event(ec);
 
-	spin_unlock_irq(&ec->lock);
+		ec_dbg_evt("Event stopped");
 
-	ec_dbg_evt("Event stopped");
+		spin_unlock_irq(&ec->lock);
 
-	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT && ec_guard(ec)) {
+		guard_timeout = !!ec_guard(ec);
+
 		spin_lock_irq(&ec->lock);
 
 		/* Take care of SCI_EVT unless someone else is doing that. */
-		if (!ec->curr)
+		if (guard_timeout && !ec->curr)
 			advance_transaction(ec, false);
+	} else {
+		acpi_ec_close_event(ec);
 
-		spin_unlock_irq(&ec->lock);
+		ec_dbg_evt("Event stopped");
 	}
 
-	spin_lock_irq(&ec->lock);
 	ec->events_in_progress--;
+
 	spin_unlock_irq(&ec->lock);
 }
 
@@ -1407,24 +1402,16 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	if (ec->data_addr == 0 || ec->command_addr == 0)
 		return AE_OK;
 
-	if (boot_ec && boot_ec_is_ecdt && EC_FLAGS_IGNORE_DSDT_GPE) {
-		/*
-		 * Always inherit the GPE number setting from the ECDT
-		 * EC.
-		 */
-		ec->gpe = boot_ec->gpe;
-	} else {
-		/* Get GPE bit assignment (EC events). */
-		/* TODO: Add support for _GPE returning a package */
-		status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
-		if (ACPI_SUCCESS(status))
-			ec->gpe = tmp;
+	/* Get GPE bit assignment (EC events). */
+	/* TODO: Add support for _GPE returning a package */
+	status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
+	if (ACPI_SUCCESS(status))
+		ec->gpe = tmp;
+	/*
+	 * Errors are non-fatal, allowing for ACPI Reduced Hardware
+	 * platforms which use GpioInt instead of GPE.
+	 */
 
-		/*
-		 * Errors are non-fatal, allowing for ACPI Reduced Hardware
-		 * platforms which use GpioInt instead of GPE.
-		 */
-	}
 	/* Use the global lock for all EC transactions? */
 	tmp = 0;
 	acpi_evaluate_integer(handle, "_GLK", NULL, &tmp);
@@ -1626,15 +1613,18 @@ static int acpi_ec_add(struct acpi_device *device)
 		}
 
 		if (boot_ec && ec->command_addr == boot_ec->command_addr &&
-		    ec->data_addr == boot_ec->data_addr &&
-		    !EC_FLAGS_TRUST_DSDT_GPE) {
+		    ec->data_addr == boot_ec->data_addr) {
 			/*
-			 * Trust PNP0C09 namespace location rather than
-			 * ECDT ID. But trust ECDT GPE rather than _GPE
-			 * because of ASUS quirks, so do not change
-			 * boot_ec->gpe to ec->gpe.
+			 * Trust PNP0C09 namespace location rather than ECDT ID.
+			 * But trust ECDT GPE rather than _GPE because of ASUS
+			 * quirks. So do not change boot_ec->gpe to ec->gpe,
+			 * except when the TRUST_DSDT_GPE quirk is set.
 			 */
 			boot_ec->handle = ec->handle;
+
+			if (EC_FLAGS_TRUST_DSDT_GPE)
+				boot_ec->gpe = ec->gpe;
+
 			acpi_handle_debug(ec->handle, "duplicated.\n");
 			acpi_ec_free(ec);
 			ec = boot_ec;
@@ -1862,68 +1852,40 @@ static int ec_honor_dsdt_gpe(const struct dmi_system_id *id)
 	return 0;
 }
 
-/*
- * Some DSDTs contain wrong GPE setting.
- * Asus FX502VD/VE, GL702VMK, X550VXK, X580VD
- * https://bugzilla.kernel.org/show_bug.cgi?id=195651
- */
-static int ec_honor_ecdt_gpe(const struct dmi_system_id *id)
-{
-	pr_debug("Detected system needing ignore DSDT GPE setting.\n");
-	EC_FLAGS_IGNORE_DSDT_GPE = 1;
-	return 0;
-}
-
 static const struct dmi_system_id ec_dmi_table[] __initconst = {
 	{
-	ec_correct_ecdt, "MSI MS-171F", {
-	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "MS-171F"),}, NULL},
+		/*
+		 * MSI MS-171F
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=12461
+		 */
+		.callback = ec_correct_ecdt,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MS-171F"),
+		},
+	},
 	{
-	ec_honor_ecdt_gpe, "ASUS FX502VD", {
-	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "FX502VD"),}, NULL},
+		/*
+		 * HP Pavilion Gaming Laptop 15-cx0xxx
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=209989
+		 */
+		.callback = ec_honor_dsdt_gpe,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion Gaming Laptop 15-cx0xxx"),
+		},
+	},
 	{
-	ec_honor_ecdt_gpe, "ASUS FX502VE", {
-	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "FX502VE"),}, NULL},
-	{
-	ec_honor_ecdt_gpe, "ASUS GL702VMK", {
-	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "GL702VMK"),}, NULL},
-	{
-	ec_honor_ecdt_gpe, "ASUSTeK COMPUTER INC. X505BA", {
-	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "X505BA"),}, NULL},
-	{
-	ec_honor_ecdt_gpe, "ASUSTeK COMPUTER INC. X505BP", {
-	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "X505BP"),}, NULL},
-	{
-	ec_honor_ecdt_gpe, "ASUSTeK COMPUTER INC. X542BA", {
-	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "X542BA"),}, NULL},
-	{
-	ec_honor_ecdt_gpe, "ASUSTeK COMPUTER INC. X542BP", {
-	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "X542BP"),}, NULL},
-	{
-	ec_honor_ecdt_gpe, "ASUS X550VXK", {
-	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "X550VXK"),}, NULL},
-	{
-	ec_honor_ecdt_gpe, "ASUS X580VD", {
-	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "X580VD"),}, NULL},
-	{
-	/* https://bugzilla.kernel.org/show_bug.cgi?id=209989 */
-	ec_honor_dsdt_gpe, "HP Pavilion Gaming Laptop 15-cx0xxx", {
-	DMI_MATCH(DMI_SYS_VENDOR, "HP"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion Gaming Laptop 15-cx0xxx"),}, NULL},
-	{
-	ec_clear_on_resume, "Samsung hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD.")}, NULL},
-	{},
+		/*
+		 * Samsung hardware
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=44161
+		 */
+		.callback = ec_clear_on_resume,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		},
+	},
+	{}
 };
 
 void __init acpi_ec_ecdt_probe(void)
@@ -2051,6 +2013,11 @@ void acpi_ec_set_gpe_wake_mask(u8 action)
 		acpi_set_gpe_wake_mask(NULL, first_ec->gpe, action);
 }
 
+static bool acpi_ec_work_in_progress(struct acpi_ec *ec)
+{
+	return ec->events_in_progress + ec->queries_in_progress > 0;
+}
+
 bool acpi_ec_dispatch_gpe(void)
 {
 	bool work_in_progress = false;
@@ -2066,13 +2033,27 @@ bool acpi_ec_dispatch_gpe(void)
 		return true;
 
 	/*
+	 * Cancel the SCI wakeup and process all pending events in case there
+	 * are any wakeup ones in there.
+	 *
+	 * Note that if any non-EC GPEs are active at this point, the SCI will
+	 * retrigger after the rearming in acpi_s2idle_wake(), so no events
+	 * should be missed by canceling the wakeup here.
+	 */
+	pm_system_cancel_wakeup();
+
+	/*
 	 * Dispatch the EC GPE in-band, but do not report wakeup in any case
 	 * to allow the caller to process events properly after that.
 	 */
 	spin_lock_irq(&first_ec->lock);
 
-	if (acpi_ec_gpe_status_set(first_ec))
-		work_in_progress = advance_transaction(first_ec, false);
+	if (acpi_ec_gpe_status_set(first_ec)) {
+		pm_pr_dbg("ACPI EC GPE status set\n");
+
+		advance_transaction(first_ec, false);
+		work_in_progress = acpi_ec_work_in_progress(first_ec);
+	}
 
 	spin_unlock_irq(&first_ec->lock);
 
@@ -2089,8 +2070,7 @@ bool acpi_ec_dispatch_gpe(void)
 
 		spin_lock_irq(&first_ec->lock);
 
-		work_in_progress = first_ec->events_in_progress +
-			first_ec->queries_in_progress > 0;
+		work_in_progress = acpi_ec_work_in_progress(first_ec);
 
 		spin_unlock_irq(&first_ec->lock);
 	} while (work_in_progress && !pm_wakeup_pending());
@@ -2183,28 +2163,18 @@ static int acpi_ec_init_workqueues(void)
 
 static const struct dmi_system_id acpi_ec_no_wakeup[] = {
 	{
-		.ident = "Thinkpad X1 Carbon 6th",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "Thinkpad X1 Carbon 6th"),
 		},
 	},
 	{
-		.ident = "ThinkPad X1 Carbon 6th",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_FAMILY, "ThinkPad X1 Carbon 6th"),
-		},
-	},
-	{
-		.ident = "ThinkPad X1 Yoga 3rd",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "ThinkPad X1 Yoga 3rd"),
 		},
 	},
 	{
-		.ident = "HP ZHAN 66 Pro",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "103C_5336AN HP ZHAN 66 Pro"),

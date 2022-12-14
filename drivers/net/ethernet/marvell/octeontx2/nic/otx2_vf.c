@@ -472,23 +472,7 @@ static void otx2vf_reset_task(struct work_struct *work)
 static int otx2vf_set_features(struct net_device *netdev,
 			       netdev_features_t features)
 {
-	netdev_features_t changed = features ^ netdev->features;
-	bool ntuple_enabled = !!(features & NETIF_F_NTUPLE);
-	struct otx2_nic *vf = netdev_priv(netdev);
-
-	if (changed & NETIF_F_NTUPLE) {
-		if (!ntuple_enabled) {
-			otx2_mcam_flow_del(vf);
-			return 0;
-		}
-
-		if (!otx2_get_maxflows(vf->flow_cfg)) {
-			netdev_err(netdev,
-				   "Can't enable NTUPLE, MCAM entries not allocated\n");
-			return -EINVAL;
-		}
-	}
-	return 0;
+	return otx2_handle_ntuple_tc_features(netdev, features);
 }
 
 static const struct net_device_ops otx2vf_netdev_ops = {
@@ -502,6 +486,7 @@ static const struct net_device_ops otx2vf_netdev_ops = {
 	.ndo_get_stats64 = otx2_get_stats64,
 	.ndo_tx_timeout = otx2_tx_timeout,
 	.ndo_eth_ioctl	= otx2_ioctl,
+	.ndo_setup_tc = otx2_setup_tc,
 };
 
 static int otx2_wq_init(struct otx2_nic *vf)
@@ -586,6 +571,9 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hw->tx_queues = qcount;
 	hw->max_queues = qcount;
 	hw->tot_tx_queues = qcount;
+	hw->rbuf_len = OTX2_DEFAULT_RBUF_LEN;
+	/* Use CQE of 128 byte descriptor size by default */
+	hw->xqe_size = 128;
 
 	hw->irq_name = devm_kmalloc_array(&hw->pdev->dev, num_vec, NAME_SIZE,
 					  GFP_KERNEL);
@@ -662,8 +650,9 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	netdev->hw_features |= NETIF_F_NTUPLE;
 	netdev->hw_features |= NETIF_F_RXALL;
+	netdev->hw_features |= NETIF_F_HW_TC;
 
-	netif_set_gso_max_segs(netdev, OTX2_MAX_GSO_SEGS);
+	netif_set_tso_max_segs(netdev, OTX2_MAX_GSO_SEGS);
 	netdev->watchdog_timeo = OTX2_TX_TIMEOUT;
 
 	netdev->netdev_ops = &otx2vf_netdev_ops;
@@ -697,16 +686,24 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_unreg_netdev;
 
-	err = otx2_register_dl(vf);
+	err = otx2_init_tc(vf);
 	if (err)
 		goto err_unreg_netdev;
 
-	/* Enable pause frames by default */
-	vf->flags |= OTX2_FLAG_RX_PAUSE_ENABLED;
-	vf->flags |= OTX2_FLAG_TX_PAUSE_ENABLED;
+	err = otx2_register_dl(vf);
+	if (err)
+		goto err_shutdown_tc;
+
+#ifdef CONFIG_DCB
+	err = otx2_dcbnl_set_ops(netdev);
+	if (err)
+		goto err_shutdown_tc;
+#endif
 
 	return 0;
 
+err_shutdown_tc:
+	otx2_shutdown_tc(vf);
 err_unreg_netdev:
 	unregister_netdev(netdev);
 err_ptp_destroy:
@@ -738,6 +735,22 @@ static void otx2vf_remove(struct pci_dev *pdev)
 		return;
 
 	vf = netdev_priv(netdev);
+
+	/* Disable 802.3x pause frames */
+	if (vf->flags & OTX2_FLAG_RX_PAUSE_ENABLED ||
+	    (vf->flags & OTX2_FLAG_TX_PAUSE_ENABLED)) {
+		vf->flags &= ~OTX2_FLAG_RX_PAUSE_ENABLED;
+		vf->flags &= ~OTX2_FLAG_TX_PAUSE_ENABLED;
+		otx2_config_pause_frm(vf);
+	}
+
+#ifdef CONFIG_DCB
+	/* Disable PFC config */
+	if (vf->pfc_en) {
+		vf->pfc_en = 0;
+		otx2_config_priority_flow_ctrl(vf);
+	}
+#endif
 
 	cancel_work_sync(&vf->reset_task);
 	otx2_unregister_dl(vf);

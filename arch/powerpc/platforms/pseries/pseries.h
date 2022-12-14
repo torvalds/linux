@@ -21,6 +21,7 @@ struct pt_regs;
 extern int pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
 extern long pseries_machine_check_realmode(struct pt_regs *regs);
+void pSeries_machine_check_log_err(void);
 
 #ifdef CONFIG_SMP
 extern void smp_init_pseries(void);
@@ -37,6 +38,7 @@ static inline void smp_init_pseries(void) { }
 #endif
 
 extern void pseries_kexec_cpu_down(int crash_shutdown, int secondary);
+void pseries_machine_kexec(struct kimage *image);
 
 extern void pSeries_final_fixup(void);
 
@@ -119,5 +121,7 @@ void pseries_lpar_read_hblkrm_characteristics(void);
 #else
 static inline void pseries_lpar_read_hblkrm_characteristics(void) { }
 #endif
+
+void pseries_rng_init(void);
 
 #endif /* _PSERIES_PSERIES_H */

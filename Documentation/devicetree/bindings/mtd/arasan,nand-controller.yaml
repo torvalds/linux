@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/arasan,nand-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Arasan NAND Flash Controller with ONFI 3.1 support device tree bindings
+title: Arasan NAND Flash Controller with ONFI 3.1 support
 
 allOf:
   - $ref: "nand-controller.yaml"

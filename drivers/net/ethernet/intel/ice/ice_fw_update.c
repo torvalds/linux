@@ -736,8 +736,96 @@ static int ice_finalize_update(struct pldmfw *context)
 	return 0;
 }
 
-static const struct pldmfw_ops ice_fwu_ops = {
+struct ice_pldm_pci_record_id {
+	u32 vendor;
+	u32 device;
+	u32 subsystem_vendor;
+	u32 subsystem_device;
+};
+
+/**
+ * ice_op_pci_match_record - Check if a PCI device matches the record
+ * @context: PLDM fw update structure
+ * @record: list of records extracted from the PLDM image
+ *
+ * Determine if the PCI device associated with this device matches the record
+ * data provided.
+ *
+ * Searches the descriptor TLVs and extracts the relevant descriptor data into
+ * a pldm_pci_record_id. This is then compared against the PCI device ID
+ * information.
+ *
+ * Returns: true if the device matches the record, false otherwise.
+ */
+static bool
+ice_op_pci_match_record(struct pldmfw *context, struct pldmfw_record *record)
+{
+	struct pci_dev *pdev = to_pci_dev(context->dev);
+	struct ice_pldm_pci_record_id id = {
+		.vendor = PCI_ANY_ID,
+		.device = PCI_ANY_ID,
+		.subsystem_vendor = PCI_ANY_ID,
+		.subsystem_device = PCI_ANY_ID,
+	};
+	struct pldmfw_desc_tlv *desc;
+
+	list_for_each_entry(desc, &record->descs, entry) {
+		u16 value;
+		int *ptr;
+
+		switch (desc->type) {
+		case PLDM_DESC_ID_PCI_VENDOR_ID:
+			ptr = &id.vendor;
+			break;
+		case PLDM_DESC_ID_PCI_DEVICE_ID:
+			ptr = &id.device;
+			break;
+		case PLDM_DESC_ID_PCI_SUBVENDOR_ID:
+			ptr = &id.subsystem_vendor;
+			break;
+		case PLDM_DESC_ID_PCI_SUBDEV_ID:
+			ptr = &id.subsystem_device;
+			break;
+		default:
+			/* Skip unrelated TLVs */
+			continue;
+		}
+
+		value = get_unaligned_le16(desc->data);
+		/* A value of zero for one of the descriptors is sometimes
+		 * used when the record should ignore this field when matching
+		 * device. For example if the record applies to any subsystem
+		 * device or vendor.
+		 */
+		if (value)
+			*ptr = value;
+		else
+			*ptr = PCI_ANY_ID;
+	}
+
+	/* the E822 device can have a generic device ID so check for that */
+	if ((id.vendor == PCI_ANY_ID || id.vendor == pdev->vendor) &&
+	    (id.device == PCI_ANY_ID || id.device == pdev->device ||
+	    id.device == ICE_DEV_ID_E822_SI_DFLT) &&
+	    (id.subsystem_vendor == PCI_ANY_ID ||
+	    id.subsystem_vendor == pdev->subsystem_vendor) &&
+	    (id.subsystem_device == PCI_ANY_ID ||
+	    id.subsystem_device == pdev->subsystem_device))
+		return true;
+
+	return false;
+}
+
+static const struct pldmfw_ops ice_fwu_ops_e810 = {
 	.match_record = &pldmfw_op_pci_match_record,
+	.send_package_data = &ice_send_package_data,
+	.send_component_table = &ice_send_component_table,
+	.flash_component = &ice_flash_component,
+	.finalize_update = &ice_finalize_update,
+};
+
+static const struct pldmfw_ops ice_fwu_ops_e822 = {
+	.match_record = &ice_op_pci_match_record,
 	.send_package_data = &ice_send_package_data,
 	.send_component_table = &ice_send_component_table,
 	.flash_component = &ice_flash_component,
@@ -921,7 +1009,11 @@ int ice_devlink_flash_update(struct devlink *devlink,
 
 	memset(&priv, 0, sizeof(priv));
 
-	priv.context.ops = &ice_fwu_ops;
+	/* the E822 device needs a slightly different ops */
+	if (hw->mac_type == ICE_MAC_GENERIC)
+		priv.context.ops = &ice_fwu_ops_e822;
+	else
+		priv.context.ops = &ice_fwu_ops_e810;
 	priv.context.dev = dev;
 	priv.extack = extack;
 	priv.pf = pf;

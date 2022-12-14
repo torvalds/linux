@@ -10,8 +10,6 @@
 #ifndef __DRV_TYPES_H__
 #define __DRV_TYPES_H__
 
-#define DRV_NAME "r8188eu"
-
 #include "osdep_service.h"
 #include "wlan_bssdef.h"
 #include "rtw_ht.h"
@@ -26,7 +24,6 @@
 #include "rtw_eeprom.h"
 #include "sta_info.h"
 #include "rtw_mlme.h"
-#include "rtw_debug.h"
 #include "rtw_rf.h"
 #include "rtw_event.h"
 #include "rtw_led.h"
@@ -35,11 +32,11 @@
 #include "rtw_ap.h"
 #include "rtw_br_ext.h"
 #include "rtl8188e_hal.h"
+#include "rtw_fw.h"
 
-#define DRIVERVERSION	"v4.1.4_6773.20130222"
+#define FW_RTL8188EU	"rtlwifi/rtl8188eufw.bin"
 
 struct registry_priv {
-	u8	chip_version;
 	u8	rfintfs;
 	u8	lbkmode;
 	u8	hci;
@@ -116,11 +113,6 @@ struct registry_priv {
 
 #define MAX_CONTINUAL_URB_ERR		4
 
-struct rt_firmware {
-	u8			*szFwBuffer;
-	u32			ulFwLength;
-};
-
 struct dvobj_priv {
 	struct adapter *if1;
 
@@ -133,23 +125,16 @@ struct dvobj_priv {
 	int	RtOutPipe[3];
 	u8	Queue2Pipe[HW_QUEUE_ENTRY];/* for out pipe mapping */
 
-	u8	irq_alloc;
-
 	struct rt_firmware firmware;
 
 /*-------- below is for USB INTERFACE --------*/
 
-	u8	ishighspeed;
 	u8	RtNumOutPipes;
-	int	RegUsbSS;
-	struct semaphore usb_suspend_sema;
-	struct mutex  usb_vendor_req_mutex;
 
 	struct usb_interface *pusbintf;
 	struct usb_device *pusbdev;
 
 	atomic_t continual_urb_error;
-	u8 signal_strength;
 };
 
 static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
@@ -159,29 +144,8 @@ static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 	return &dvobj->pusbintf->dev;
 };
 
-enum _IFACE_TYPE {
-	IFACE_PORT0, /* mapping to port0 for C/D series chips */
-	IFACE_PORT1, /* mapping to port1 for C/D series chip */
-	MAX_IFACE_PORT,
-};
-
-enum _ADAPTER_TYPE {
-	PRIMARY_ADAPTER,
-	SECONDARY_ADAPTER,
-	MAX_ADAPTER,
-};
-
-enum driver_state {
-	DRIVER_NORMAL = 0,
-	DRIVER_DISAPPEAR = 1,
-	DRIVER_REPLACE_DONGLE = 2,
-};
-
 struct adapter {
-	int	DriverState;/* for disable driver using module, use dongle toi
-			     * replace module. */
 	int	pid[3];/* process id from UI, 0:wps, 1:hostapd, 2:dhcpcd */
-	int	bDongle;/* build-in module or external dongle */
 
 	struct dvobj_priv *dvobj;
 	struct	mlme_priv mlmepriv;
@@ -197,7 +161,6 @@ struct adapter {
 	struct	pwrctrl_priv	pwrctrlpriv;
 	struct	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
-	struct	hostapd_priv	*phostapdpriv;
 	struct wifidirect_info	wdinfo;
 
 	struct hal_data_8188e haldata;
@@ -206,20 +169,10 @@ struct adapter {
 	s32	bSurpriseRemoved;
 	s32	bCardDisableWOHSM;
 
-	u32	IsrContent;
-	u32	ImrContent;
-
-	u8	EepromAddressSize;
 	u8	hw_init_completed;
-	u8	bDriverIsGoingToUnload;
-	u8	init_adpt_in_progress;
-	u8	bHaltInProgress;
 	s8	signal_strength;
 
 	void *cmdThread;
-	void *evtThread;
-	void *xmitThread;
-	void *recvThread;
 	void (*intf_start)(struct adapter *adapter);
 	void (*intf_stop)(struct adapter *adapter);
 	struct  net_device *pnetdev;
@@ -239,7 +192,6 @@ struct adapter {
 
 	int net_closed;
 	u8 bFWReady;
-	u8 bBTFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
 	u8 bRxRSSIDisplay;
@@ -263,13 +215,11 @@ struct adapter {
 	unsigned char			br_mac[ETH_ALEN];
 	unsigned char			br_ip[4];
 	struct br_ext_info		ethBrExtInfo;
-
-	unsigned char     in_cta_test;
 };
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)
 
-int rtw_handle_dualmac(struct adapter *adapter, bool init);
+void rtw_handle_dualmac(struct adapter *adapter, bool init);
 
 static inline u8 *myid(struct eeprom_priv *peepriv)
 {

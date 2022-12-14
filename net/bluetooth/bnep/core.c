@@ -400,7 +400,7 @@ static int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	dev->stats.rx_packets++;
 	nskb->ip_summed = CHECKSUM_NONE;
 	nskb->protocol  = eth_type_trans(nskb, dev);
-	netif_rx_ni(nskb);
+	netif_rx(nskb);
 	return 0;
 
 badframe:

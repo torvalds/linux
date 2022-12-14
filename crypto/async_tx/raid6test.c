@@ -37,7 +37,7 @@ static void makedata(int disks)
 	int i;
 
 	for (i = 0; i < disks; i++) {
-		prandom_bytes(page_address(data[i]), PAGE_SIZE);
+		get_random_bytes(page_address(data[i]), PAGE_SIZE);
 		dataptrs[i] = data[i];
 		dataoffs[i] = 0;
 	}
@@ -189,7 +189,7 @@ static int test(int disks, int *tests)
 }
 
 
-static int raid6_test(void)
+static int __init raid6_test(void)
 {
 	int err = 0;
 	int tests = 0;
@@ -217,7 +217,7 @@ static int raid6_test(void)
 		err += test(12, &tests);
 	}
 
-	/* the 24 disk case is special for ioatdma as it is the boudary point
+	/* the 24 disk case is special for ioatdma as it is the boundary point
 	 * at which it needs to switch from 8-source ops to 16-source
 	 * ops for continuation (assumes DMA_HAS_PQ_CONTINUE is not set)
 	 */
@@ -236,12 +236,12 @@ static int raid6_test(void)
 	return 0;
 }
 
-static void raid6_test_exit(void)
+static void __exit raid6_test_exit(void)
 {
 }
 
 /* when compiled-in wait for drivers to load first (assumes dma drivers
- * are also compliled-in)
+ * are also compiled-in)
  */
 late_initcall(raid6_test);
 module_exit(raid6_test_exit);

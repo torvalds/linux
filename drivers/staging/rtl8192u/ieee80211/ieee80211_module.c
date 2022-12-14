@@ -276,7 +276,7 @@ int __init ieee80211_debug_init(void)
 	return 0;
 }
 
-void __exit ieee80211_debug_exit(void)
+void ieee80211_debug_exit(void)
 {
 	if (ieee80211_proc) {
 		remove_proc_entry("debug_level", ieee80211_proc);

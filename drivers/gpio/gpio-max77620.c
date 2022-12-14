@@ -54,6 +54,7 @@ static void max77620_gpio_irq_mask(struct irq_data *data)
 	struct max77620_gpio *gpio = gpiochip_get_data(chip);
 
 	gpio->irq_enabled[data->hwirq] = false;
+	gpiochip_disable_irq(chip, data->hwirq);
 }
 
 static void max77620_gpio_irq_unmask(struct irq_data *data)
@@ -61,6 +62,7 @@ static void max77620_gpio_irq_unmask(struct irq_data *data)
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct max77620_gpio *gpio = gpiochip_get_data(chip);
 
+	gpiochip_enable_irq(chip, data->hwirq);
 	gpio->irq_enabled[data->hwirq] = true;
 }
 
@@ -119,14 +121,15 @@ static void max77620_gpio_bus_sync_unlock(struct irq_data *data)
 	mutex_unlock(&gpio->buslock);
 }
 
-static struct irq_chip max77620_gpio_irqchip = {
+static const struct irq_chip max77620_gpio_irqchip = {
 	.name		= "max77620-gpio",
 	.irq_mask	= max77620_gpio_irq_mask,
 	.irq_unmask	= max77620_gpio_irq_unmask,
 	.irq_set_type	= max77620_gpio_set_irq_type,
 	.irq_bus_lock	= max77620_gpio_bus_lock,
 	.irq_bus_sync_unlock = max77620_gpio_bus_sync_unlock,
-	.flags		= IRQCHIP_MASK_ON_SUSPEND,
+	.flags		= IRQCHIP_IMMUTABLE | IRQCHIP_MASK_ON_SUSPEND,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static int max77620_gpio_dir_input(struct gpio_chip *gc, unsigned int offset)
@@ -318,7 +321,7 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	mgpio->gpio_chip.base = -1;
 
 	girq = &mgpio->gpio_chip.irq;
-	girq->chip = &max77620_gpio_irqchip;
+	gpio_irq_chip_set_chip(girq, &max77620_gpio_irqchip);
 	/* This will let us handle the parent IRQ in the driver */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;

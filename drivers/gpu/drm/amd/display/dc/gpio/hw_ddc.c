@@ -23,9 +23,6 @@
  *
  */
 
-#include <linux/delay.h>
-#include <linux/slab.h>
-
 #include "dm_services.h"
 
 #include "include/gpio_interface.h"
@@ -97,11 +94,14 @@ static enum gpio_result set_config(
 		 * is required for detection of AUX mode */
 		if (hw_gpio->base.en != GPIO_DDC_LINE_VIP_PAD) {
 			if (!ddc_data_pd_en || !ddc_clk_pd_en) {
-
-				REG_SET_2(gpio.MASK_reg, regval,
+				if (hw_gpio->base.en == GPIO_DDC_LINE_DDC_VGA) {
+					// bit 4 of mask has different usage in some cases
+					REG_SET(gpio.MASK_reg, regval, DC_GPIO_DDC1DATA_PD_EN, 1);
+				} else {
+					REG_SET_2(gpio.MASK_reg, regval,
 						DC_GPIO_DDC1DATA_PD_EN, 1,
 						DC_GPIO_DDC1CLK_PD_EN, 1);
-
+				}
 				if (config_data->type ==
 						GPIO_CONFIG_TYPE_I2C_AUX_DUAL_MODE)
 					msleep(3);

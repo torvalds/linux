@@ -17,7 +17,7 @@ int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 node_id,
 			event_cb_func_t cb_fun, void *data);
 
 int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 node_id,
-			  const u32 event, event_cb_func_t cb_fun);
+			  const u32 event, event_cb_func_t cb_fun, void *data);
 #else
 static inline int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 node_id,
 				      const u32 event, const bool wake,
@@ -27,7 +27,7 @@ static inline int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32
 }
 
 static inline int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 node_id,
-					 const u32 event, event_cb_func_t cb_fun)
+					const u32 event, event_cb_func_t cb_fun, void *data)
 {
 	return -ENODEV;
 }

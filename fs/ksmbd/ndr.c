@@ -345,6 +345,8 @@ int ndr_encode_posix_acl(struct ndr *n,
 {
 	unsigned int ref_id = 0x00020000;
 	int ret;
+	vfsuid_t vfsuid;
+	vfsgid_t vfsgid;
 
 	n->offset = 0;
 	n->length = 1024;
@@ -372,10 +374,12 @@ int ndr_encode_posix_acl(struct ndr *n,
 	if (ret)
 		return ret;
 
-	ret = ndr_write_int64(n, from_kuid(&init_user_ns, i_uid_into_mnt(user_ns, inode)));
+	vfsuid = i_uid_into_vfsuid(user_ns, inode);
+	ret = ndr_write_int64(n, from_kuid(&init_user_ns, vfsuid_into_kuid(vfsuid)));
 	if (ret)
 		return ret;
-	ret = ndr_write_int64(n, from_kgid(&init_user_ns, i_gid_into_mnt(user_ns, inode)));
+	vfsgid = i_gid_into_vfsgid(user_ns, inode);
+	ret = ndr_write_int64(n, from_kgid(&init_user_ns, vfsgid_into_kgid(vfsgid)));
 	if (ret)
 		return ret;
 	ret = ndr_write_int32(n, inode->i_mode);

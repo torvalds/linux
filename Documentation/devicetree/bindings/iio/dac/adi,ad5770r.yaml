@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Analog Devices AD5770R DAC device driver
 
 maintainers:
-  - Mircea Caprioru <mircea.caprioru@analog.com>
+  - Alexandru Tachici <alexandru.tachici@analog.com>
 
 description: |
   Bindings for the Analog Devices AD5770R current DAC device. Datasheet can be
@@ -49,8 +49,6 @@ properties:
       asserted during driver probe.
     maxItems: 1
 
-  spi-max-frequency: true
-
   '#address-cells':
     const: 1
 
@@ -62,6 +60,7 @@ properties:
       connected to the DAC. Channel 0 can act both as a current
       source and sink.
     type: object
+    additionalProperties: false
 
     properties:
       reg:
@@ -85,6 +84,7 @@ properties:
     description: Represents an external channel which are
       connected to the DAC.
     type: object
+    additionalProperties: false
 
     properties:
       reg:
@@ -101,6 +101,7 @@ properties:
     description: Represents an external channel which are
       connected to the DAC.
     type: object
+    additionalProperties: false
 
     properties:
       reg:
@@ -116,6 +117,7 @@ properties:
 patternProperties:
   "^channel@([3-5])$":
     type: object
+    additionalProperties: false
     description: Represents the external channels which are connected to the DAC.
     properties:
       reg:
@@ -138,7 +140,10 @@ required:
   - channel@4
   - channel@5
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

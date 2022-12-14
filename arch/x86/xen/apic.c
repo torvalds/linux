@@ -51,7 +51,7 @@ static u32 xen_apic_read(u32 reg)
 		.interface_version = XENPF_INTERFACE_VERSION,
 		.u.pcpu_info.xen_cpuid = 0,
 	};
-	int ret = 0;
+	int ret;
 
 	/* Shouldn't need this as APIC is turned off for PV, and we only
 	 * get called on the bootup processor. But just in case. */

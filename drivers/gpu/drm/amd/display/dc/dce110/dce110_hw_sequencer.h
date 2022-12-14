@@ -90,6 +90,24 @@ bool dce110_set_backlight_level(struct pipe_ctx *pipe_ctx,
 		uint32_t frame_ramp);
 void dce110_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx);
 void dce110_set_pipe(struct pipe_ctx *pipe_ctx);
-
+void dce110_disable_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal);
+void dce110_enable_lvds_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum clock_source_id clock_source,
+		uint32_t pixel_clock);
+void dce110_enable_tmds_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal,
+		enum clock_source_id clock_source,
+		enum dc_color_depth color_depth,
+		uint32_t pixel_clock);
+void dce110_enable_dp_link_output(
+		struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal,
+		enum clock_source_id clock_source,
+		const struct dc_link_settings *link_settings);
 #endif /* __DC_HWSS_DCE110_H__ */
 

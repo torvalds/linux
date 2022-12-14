@@ -255,7 +255,7 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev,
 	if (skb_p80211_to_ether(wlandev, wlandev->ethconv, skb) == 0) {
 		wlandev->netdev->stats.rx_packets++;
 		wlandev->netdev->stats.rx_bytes += skb->len;
-		netif_rx_ni(skb);
+		netif_rx(skb);
 		return 0;
 	}
 
@@ -290,7 +290,7 @@ static void p80211netdev_rx_bh(struct tasklet_struct *t)
 
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += skb->len;
-				netif_rx_ni(skb);
+				netif_rx(skb);
 				continue;
 			} else {
 				if (!p80211_convert_to_ether(wlandev, skb))

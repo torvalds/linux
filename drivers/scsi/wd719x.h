@@ -56,6 +56,7 @@ struct wd719x_scb {
 	u8 flags[2];	/* 62-63 SCB specific flags (local to each thread) */
 	/* everything below is for driver use (not used by card) */
 	dma_addr_t phys;	/* bus address of the SCB */
+	dma_addr_t dma_handle;
 	struct scsi_cmnd *cmd;	/* a copy of the pointer we were passed */
 	struct list_head list;
 	struct wd719x_sglist sg_list[WD719X_SG] __aligned(8); /* SG list */

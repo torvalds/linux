@@ -10,7 +10,6 @@
 #include <linux/stringify.h>
 
 #define JUMP_LABEL_NOP_SIZE 6
-#define JUMP_LABEL_NOP_OFFSET 2
 
 #ifdef CONFIG_CC_IS_CLANG
 #define JUMP_LABEL_STATIC_KEY_CONSTRAINT "i"
@@ -21,12 +20,12 @@
 #endif
 
 /*
- * We use a brcl 0,2 instruction for jump labels at compile time so it
+ * We use a brcl 0,<offset> instruction for jump labels so it
  * can be easily distinguished from a hotpatch generated instruction.
  */
 static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
-	asm_volatile_goto("0:	brcl	0,"__stringify(JUMP_LABEL_NOP_OFFSET)"\n"
+	asm_volatile_goto("0:	brcl 0,%l[label]\n"
 			  ".pushsection __jump_table,\"aw\"\n"
 			  ".balign	8\n"
 			  ".long	0b-.,%l[label]-.\n"

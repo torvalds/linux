@@ -240,8 +240,7 @@ void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk)
 	unsigned int cpu = smp_processor_id();
 	u64 asid;
 
-	if (unlikely(mm->context.vmalloc_seq != init_mm.context.vmalloc_seq))
-		__check_vmalloc_seq(mm);
+	check_vmalloc_seq(mm);
 
 	/*
 	 * We cannot update the pgd and the ASID atomicly with classic

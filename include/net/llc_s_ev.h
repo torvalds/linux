@@ -13,6 +13,7 @@
  */
 
 #include <linux/skbuff.h>
+#include <net/llc.h>
 
 /* Defines SAP component events */
 /* Types of events (possible values in 'ev->type') */

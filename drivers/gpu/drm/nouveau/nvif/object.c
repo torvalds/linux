@@ -250,7 +250,7 @@ nvif_object_dtor(struct nvif_object *object)
 		.ioctl.type = NVIF_IOCTL_V0_DEL,
 	};
 
-	if (!object->client)
+	if (!nvif_object_constructed(object))
 		return;
 
 	nvif_object_unmap(object);

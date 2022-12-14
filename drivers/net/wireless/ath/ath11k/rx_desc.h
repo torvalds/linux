@@ -877,7 +877,7 @@ struct rx_msdu_start_wcn6855 {
  *
  * l4_offset
  *		Depending upon mode bit, this field either indicates the
- *		L4 offset nin bytes from the start of RX_HEADER (only valid
+ *		L4 offset in bytes from the start of RX_HEADER (only valid
  *		if either ipv4_proto or ipv6_proto is set to 1) or indicates
  *		the offset in bytes to the start of TCP or UDP header from
  *		the start of the IP header after decapsulation (Only valid if
@@ -1445,7 +1445,7 @@ struct hal_rx_desc_ipq8074 {
 	__le32 hdr_status_tag;
 	__le32 phy_ppdu_id;
 	u8 hdr_status[HAL_RX_DESC_HDR_STATUS_LEN];
-	u8 msdu_payload[0];
+	u8 msdu_payload[];
 } __packed;
 
 struct hal_rx_desc_qcn9074 {
@@ -1464,7 +1464,7 @@ struct hal_rx_desc_qcn9074 {
 	__le32 hdr_status_tag;
 	__le32 phy_ppdu_id;
 	u8 hdr_status[HAL_RX_DESC_HDR_STATUS_LEN];
-	u8 msdu_payload[0];
+	u8 msdu_payload[];
 } __packed;
 
 struct hal_rx_desc_wcn6855 {
@@ -1483,7 +1483,7 @@ struct hal_rx_desc_wcn6855 {
 	__le32 hdr_status_tag;
 	__le32 phy_ppdu_id;
 	u8 hdr_status[HAL_RX_DESC_HDR_STATUS_LEN];
-	u8 msdu_payload[0];
+	u8 msdu_payload[];
 } __packed;
 
 struct hal_rx_desc {

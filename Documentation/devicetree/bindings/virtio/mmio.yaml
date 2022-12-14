@@ -20,6 +20,8 @@ properties:
   reg:
     maxItems: 1
 
+  dma-coherent: true
+
   interrupts:
     maxItems: 1
 
@@ -30,6 +32,10 @@ properties:
   iommus:
     description: Required for devices making accesses thru an IOMMU.
     maxItems: 1
+
+  wakeup-source:
+    type: boolean
+    description: Required for setting irq of a virtio_mmio device as wakeup source.
 
 required:
   - compatible

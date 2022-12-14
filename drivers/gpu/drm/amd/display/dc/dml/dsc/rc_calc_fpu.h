@@ -27,7 +27,7 @@
 #define __RC_CALC_FPU_H__
 
 #include "os_types.h"
-#include <drm/drm_dsc.h>
+#include <drm/display/drm_dsc.h>
 
 #define QP_SET_SIZE 15
 

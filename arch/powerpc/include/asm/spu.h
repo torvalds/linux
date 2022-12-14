@@ -249,8 +249,8 @@ void unregister_spu_syscalls(struct spufs_calls *calls);
 int spu_add_dev_attr(struct device_attribute *attr);
 void spu_remove_dev_attr(struct device_attribute *attr);
 
-int spu_add_dev_attr_group(struct attribute_group *attrs);
-void spu_remove_dev_attr_group(struct attribute_group *attrs);
+int spu_add_dev_attr_group(const struct attribute_group *attrs);
+void spu_remove_dev_attr_group(const struct attribute_group *attrs);
 
 extern void notify_spus_active(void);
 extern void do_notify_spus_active(void);

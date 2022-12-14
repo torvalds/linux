@@ -18,7 +18,9 @@ description:
 properties:
   compatible:
     enum:
+      - qcom,sc8180x-lmh
       - qcom,sdm845-lmh
+      - qcom,sm8150-lmh
 
   reg:
     items:

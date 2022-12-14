@@ -68,15 +68,15 @@ static int pcm3060_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		priv->dai[dai->id].is_master = true;
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		priv->dai[dai->id].is_provider = true;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		priv->dai[dai->id].is_master = false;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		priv->dai[dai->id].is_provider = false;
 		break;
 	default:
-		dev_err(comp->dev, "unsupported DAI master mode: 0x%x\n", fmt);
+		dev_err(comp->dev, "unsupported DAI mode: 0x%x\n", fmt);
 		return -EINVAL;
 	}
 
@@ -116,7 +116,7 @@ static int pcm3060_hw_params(struct snd_pcm_substream *substream,
 	unsigned int reg;
 	unsigned int val;
 
-	if (!priv->dai[dai->id].is_master) {
+	if (!priv->dai[dai->id].is_provider) {
 		val = PCM3060_REG_MS_S;
 		goto val_ready;
 	}
@@ -255,6 +255,7 @@ static const struct snd_soc_component_driver pcm3060_soc_comp_driver = {
 	.num_dapm_widgets = ARRAY_SIZE(pcm3060_dapm_widgets),
 	.dapm_routes = pcm3060_dapm_map,
 	.num_dapm_routes = ARRAY_SIZE(pcm3060_dapm_map),
+	.endianness = 1,
 };
 
 /* regmap */

@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 config VIDEO_SUNXI_CEDRUS
 	tristate "Allwinner Cedrus VPU driver"
-	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_DEV
+	depends on RESET_CONTROLLER
 	depends on HAS_DMA
 	depends on OF
 	select MEDIA_CONTROLLER

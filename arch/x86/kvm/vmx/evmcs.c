@@ -10,6 +10,8 @@
 #include "vmx.h"
 #include "trace.h"
 
+#define CC KVM_NESTED_VMENTER_CONSISTENCY_CHECK
+
 DEFINE_STATIC_KEY_FALSE(enable_evmcs);
 
 #define EVMCS1_OFFSET(x) offsetof(struct hv_enlightened_vmcs, x)
@@ -27,6 +29,8 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 	EVMCS1_FIELD(HOST_IA32_PAT, host_ia32_pat,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_HOST_GRP1),
 	EVMCS1_FIELD(HOST_IA32_EFER, host_ia32_efer,
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_HOST_GRP1),
+	EVMCS1_FIELD(HOST_IA32_PERF_GLOBAL_CTRL, host_ia32_perf_global_ctrl,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_HOST_GRP1),
 	EVMCS1_FIELD(HOST_CR0, host_cr0,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_HOST_GRP1),
@@ -78,6 +82,8 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP1),
 	EVMCS1_FIELD(GUEST_IA32_EFER, guest_ia32_efer,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP1),
+	EVMCS1_FIELD(GUEST_IA32_PERF_GLOBAL_CTRL, guest_ia32_perf_global_ctrl,
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP1),
 	EVMCS1_FIELD(GUEST_PDPTR0, guest_pdptr0,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP1),
 	EVMCS1_FIELD(GUEST_PDPTR1, guest_pdptr1,
@@ -126,6 +132,28 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP1),
 	EVMCS1_FIELD(XSS_EXIT_BITMAP, xss_exit_bitmap,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_CONTROL_GRP2),
+	EVMCS1_FIELD(ENCLS_EXITING_BITMAP, encls_exiting_bitmap,
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_CONTROL_GRP2),
+	EVMCS1_FIELD(TSC_MULTIPLIER, tsc_multiplier,
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_CONTROL_GRP2),
+	/*
+	 * Not used by KVM:
+	 *
+	 * EVMCS1_FIELD(0x00006828, guest_ia32_s_cet,
+	 *	     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP1),
+	 * EVMCS1_FIELD(0x0000682A, guest_ssp,
+	 *	     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_BASIC),
+	 * EVMCS1_FIELD(0x0000682C, guest_ia32_int_ssp_table_addr,
+	 *	     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP1),
+	 * EVMCS1_FIELD(0x00002816, guest_ia32_lbr_ctl,
+	 *	     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP1),
+	 * EVMCS1_FIELD(0x00006C18, host_ia32_s_cet,
+	 *	     HV_VMX_ENLIGHTENED_CLEAN_FIELD_HOST_GRP1),
+	 * EVMCS1_FIELD(0x00006C1A, host_ssp,
+	 *	     HV_VMX_ENLIGHTENED_CLEAN_FIELD_HOST_GRP1),
+	 * EVMCS1_FIELD(0x00006C1C, host_ia32_int_ssp_table_addr,
+	 *	     HV_VMX_ENLIGHTENED_CLEAN_FIELD_HOST_GRP1),
+	 */
 
 	/* 64 bit read only */
 	EVMCS1_FIELD(GUEST_PHYSICAL_ADDRESS, guest_physical_address,
@@ -294,17 +322,6 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 };
 const unsigned int nr_evmcs_1_fields = ARRAY_SIZE(vmcs_field_to_evmcs_1);
 
-#if IS_ENABLED(CONFIG_HYPERV)
-__init void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
-{
-	vmcs_conf->pin_based_exec_ctrl &= ~EVMCS1_UNSUPPORTED_PINCTRL;
-	vmcs_conf->cpu_based_2nd_exec_ctrl &= ~EVMCS1_UNSUPPORTED_2NDEXEC;
-
-	vmcs_conf->vmexit_ctrl &= ~EVMCS1_UNSUPPORTED_VMEXIT_CTRL;
-	vmcs_conf->vmentry_ctrl &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
-}
-#endif
-
 bool nested_enlightened_vmentry(struct kvm_vcpu *vcpu, u64 *evmcs_gpa)
 {
 	struct hv_vp_assist_page assist_page;
@@ -332,6 +349,9 @@ uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
 	 * versions: lower 8 bits is the minimal version, higher 8 bits is the
 	 * maximum supported version. KVM supports versions from 1 to
 	 * KVM_EVMCS_VERSION.
+	 *
+	 * Note, do not check the Hyper-V is fully enabled in guest CPUID, this
+	 * helper is used to _get_ the vCPU's supported CPUID.
 	 */
 	if (kvm_cpu_cap_get(X86_FEATURE_VMX) &&
 	    (!vcpu || to_vmx(vcpu)->nested.enlightened_vmcs_enabled))
@@ -340,10 +360,67 @@ uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-void nested_evmcs_filter_control_msr(u32 msr_index, u64 *pdata)
+enum evmcs_revision {
+	EVMCSv1_LEGACY,
+	NR_EVMCS_REVISIONS,
+};
+
+enum evmcs_ctrl_type {
+	EVMCS_EXIT_CTRLS,
+	EVMCS_ENTRY_CTRLS,
+	EVMCS_2NDEXEC,
+	EVMCS_PINCTRL,
+	EVMCS_VMFUNC,
+	NR_EVMCS_CTRLS,
+};
+
+static const u32 evmcs_unsupported_ctrls[NR_EVMCS_CTRLS][NR_EVMCS_REVISIONS] = {
+	[EVMCS_EXIT_CTRLS] = {
+		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_VMEXIT_CTRL,
+	},
+	[EVMCS_ENTRY_CTRLS] = {
+		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_VMENTRY_CTRL,
+	},
+	[EVMCS_2NDEXEC] = {
+		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_2NDEXEC,
+	},
+	[EVMCS_PINCTRL] = {
+		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_PINCTRL,
+	},
+	[EVMCS_VMFUNC] = {
+		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_VMFUNC,
+	},
+};
+
+static u32 evmcs_get_unsupported_ctls(enum evmcs_ctrl_type ctrl_type)
+{
+	enum evmcs_revision evmcs_rev = EVMCSv1_LEGACY;
+
+	return evmcs_unsupported_ctrls[ctrl_type][evmcs_rev];
+}
+
+static bool evmcs_has_perf_global_ctrl(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+
+	/*
+	 * PERF_GLOBAL_CTRL has a quirk where some Windows guests may fail to
+	 * boot if a PV CPUID feature flag is not also set.  Treat the fields
+	 * as unsupported if the flag is not set in guest CPUID.  This should
+	 * be called only for guest accesses, and all guest accesses should be
+	 * gated on Hyper-V being enabled and initialized.
+	 */
+	if (WARN_ON_ONCE(!hv_vcpu))
+		return false;
+
+	return hv_vcpu->cpuid_cache.nested_ebx & HV_X64_NESTED_EVMCS1_PERF_GLOBAL_CTRL;
+}
+
+void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 {
 	u32 ctl_low = (u32)*pdata;
 	u32 ctl_high = (u32)(*pdata >> 32);
+	u32 unsupported_ctrls;
 
 	/*
 	 * Hyper-V 2016 and 2019 try using these features even when eVMCS
@@ -352,77 +429,70 @@ void nested_evmcs_filter_control_msr(u32 msr_index, u64 *pdata)
 	switch (msr_index) {
 	case MSR_IA32_VMX_EXIT_CTLS:
 	case MSR_IA32_VMX_TRUE_EXIT_CTLS:
-		ctl_high &= ~EVMCS1_UNSUPPORTED_VMEXIT_CTRL;
+		unsupported_ctrls = evmcs_get_unsupported_ctls(EVMCS_EXIT_CTRLS);
+		if (!evmcs_has_perf_global_ctrl(vcpu))
+			unsupported_ctrls |= VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
+		ctl_high &= ~unsupported_ctrls;
 		break;
 	case MSR_IA32_VMX_ENTRY_CTLS:
 	case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
-		ctl_high &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
+		unsupported_ctrls = evmcs_get_unsupported_ctls(EVMCS_ENTRY_CTRLS);
+		if (!evmcs_has_perf_global_ctrl(vcpu))
+			unsupported_ctrls |= VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
+		ctl_high &= ~unsupported_ctrls;
 		break;
 	case MSR_IA32_VMX_PROCBASED_CTLS2:
-		ctl_high &= ~EVMCS1_UNSUPPORTED_2NDEXEC;
+		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_2NDEXEC);
 		break;
 	case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
 	case MSR_IA32_VMX_PINBASED_CTLS:
-		ctl_high &= ~EVMCS1_UNSUPPORTED_PINCTRL;
+		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_PINCTRL);
 		break;
 	case MSR_IA32_VMX_VMFUNC:
-		ctl_low &= ~EVMCS1_UNSUPPORTED_VMFUNC;
+		ctl_low &= ~evmcs_get_unsupported_ctls(EVMCS_VMFUNC);
 		break;
 	}
 
 	*pdata = ctl_low | ((u64)ctl_high << 32);
 }
 
+static bool nested_evmcs_is_valid_controls(enum evmcs_ctrl_type ctrl_type,
+					   u32 val)
+{
+	return !(val & evmcs_get_unsupported_ctls(ctrl_type));
+}
+
 int nested_evmcs_check_controls(struct vmcs12 *vmcs12)
 {
-	int ret = 0;
-	u32 unsupp_ctl;
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_PINCTRL,
+					       vmcs12->pin_based_vm_exec_control)))
+		return -EINVAL;
 
-	unsupp_ctl = vmcs12->pin_based_vm_exec_control &
-		EVMCS1_UNSUPPORTED_PINCTRL;
-	if (unsupp_ctl) {
-		trace_kvm_nested_vmenter_failed(
-			"eVMCS: unsupported pin-based VM-execution controls",
-			unsupp_ctl);
-		ret = -EINVAL;
-	}
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_2NDEXEC,
+					       vmcs12->secondary_vm_exec_control)))
+		return -EINVAL;
 
-	unsupp_ctl = vmcs12->secondary_vm_exec_control &
-		EVMCS1_UNSUPPORTED_2NDEXEC;
-	if (unsupp_ctl) {
-		trace_kvm_nested_vmenter_failed(
-			"eVMCS: unsupported secondary VM-execution controls",
-			unsupp_ctl);
-		ret = -EINVAL;
-	}
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_EXIT_CTRLS,
+					       vmcs12->vm_exit_controls)))
+		return -EINVAL;
 
-	unsupp_ctl = vmcs12->vm_exit_controls &
-		EVMCS1_UNSUPPORTED_VMEXIT_CTRL;
-	if (unsupp_ctl) {
-		trace_kvm_nested_vmenter_failed(
-			"eVMCS: unsupported VM-exit controls",
-			unsupp_ctl);
-		ret = -EINVAL;
-	}
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_ENTRY_CTRLS,
+					       vmcs12->vm_entry_controls)))
+		return -EINVAL;
 
-	unsupp_ctl = vmcs12->vm_entry_controls &
-		EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
-	if (unsupp_ctl) {
-		trace_kvm_nested_vmenter_failed(
-			"eVMCS: unsupported VM-entry controls",
-			unsupp_ctl);
-		ret = -EINVAL;
-	}
+	/*
+	 * VM-Func controls are 64-bit, but KVM currently doesn't support any
+	 * controls in bits 63:32, i.e. dropping those bits on the consistency
+	 * check is intentional.
+	 */
+	if (WARN_ON_ONCE(vmcs12->vm_function_control >> 32))
+		return -EINVAL;
 
-	unsupp_ctl = vmcs12->vm_function_control & EVMCS1_UNSUPPORTED_VMFUNC;
-	if (unsupp_ctl) {
-		trace_kvm_nested_vmenter_failed(
-			"eVMCS: unsupported VM-function controls",
-			unsupp_ctl);
-		ret = -EINVAL;
-	}
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_VMFUNC,
+					       vmcs12->vm_function_control)))
+		return -EINVAL;
 
-	return ret;
+	return 0;
 }
 
 int nested_enable_evmcs(struct kvm_vcpu *vcpu,

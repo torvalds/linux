@@ -22,8 +22,6 @@
  *
  */
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-
 #include "dm_services.h"
 
 #include "include/logger_interface.h"
@@ -37,8 +35,8 @@
 
 #include "nbio/nbio_7_4_offset.h"
 
-#include "dcn/dpcs_3_0_0_offset.h"
-#include "dcn/dpcs_3_0_0_sh_mask.h"
+#include "dpcs/dpcs_3_0_0_offset.h"
+#include "dpcs/dpcs_3_0_0_sh_mask.h"
 
 #include "mmhub/mmhub_2_0_0_offset.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
@@ -47,7 +45,7 @@
 
 #include "ivsrcid/dcn/irqsrcs_dcn_1_0.h"
 
-enum dc_irq_source to_dal_irq_source_dcn30(
+static enum dc_irq_source to_dal_irq_source_dcn30(
 		struct irq_service *irq_service,
 		uint32_t src_id,
 		uint32_t ext_id)
@@ -291,19 +289,19 @@ static const struct irq_source_info_funcs vline0_irq_info_funcs = {
 		.funcs = &vblank_irq_info_funcs\
 	}
 
+#define dmub_trace_int_entry()\
+	[DC_IRQ_SOURCE_DMCUB_OUTBOX0] = {\
+		IRQ_REG_ENTRY_DMUB(DMCUB_INTERRUPT_ENABLE, DMCUB_OUTBOX0_READY_INT_EN,\
+			DMCUB_INTERRUPT_ACK, DMCUB_OUTBOX0_READY_INT_ACK),\
+		.funcs = &dmub_trace_irq_info_funcs\
+	}
+
 #define vline0_int_entry(reg_num)\
 	[DC_IRQ_SOURCE_DC1_VLINE0 + reg_num] = {\
 		IRQ_REG_ENTRY(OTG, reg_num,\
 			OTG_VERTICAL_INTERRUPT0_CONTROL, OTG_VERTICAL_INTERRUPT0_INT_ENABLE,\
 			OTG_VERTICAL_INTERRUPT0_CONTROL, OTG_VERTICAL_INTERRUPT0_CLEAR),\
 		.funcs = &vline0_irq_info_funcs\
-	}
-
-#define dmub_trace_int_entry()\
-	[DC_IRQ_SOURCE_DMCUB_OUTBOX0] = {\
-		IRQ_REG_ENTRY_DMUB(DMCUB_INTERRUPT_ENABLE, DMCUB_OUTBOX0_READY_INT_EN,\
-			DMCUB_INTERRUPT_ACK, DMCUB_OUTBOX0_READY_INT_ACK),\
-		.funcs = &dmub_trace_irq_info_funcs\
 	}
 
 #define dummy_irq_entry() \
@@ -450,4 +448,3 @@ struct irq_service *dal_irq_service_dcn30_create(
 	return irq_service;
 }
 
-#endif

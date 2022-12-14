@@ -47,12 +47,14 @@
 
 #include <asm/irq.h>
 
-#include <mach/hardware.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
+#include "hardware.h"
+#include "mux.h"
 #include "iomap.h"
 #include "common.h"
+#include "clock.h"
 
 #ifdef CONFIG_OMAP_MPU_TIMER
 
@@ -224,6 +226,9 @@ static inline void omap_mpu_timer_init(void)
  */
 void __init omap1_timer_init(void)
 {
+	omap1_clk_init();
+	omap1_mux_init();
+
 	if (omap_32k_timer_init() != 0)
 		omap_mpu_timer_init();
 }

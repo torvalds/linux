@@ -419,7 +419,7 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 	/* Step 5c: Enable SuperSpeed. */
 	uctl_ctl.s.ref_ssp_en = 1;
 
-	/* Step 5d: Cofngiure PHYs. SKIP */
+	/* Step 5d: Configure PHYs. SKIP */
 
 	/* Step 6a & 6b: Power up PHYs. */
 	uctl_ctl.s.hs_power_en = 1;

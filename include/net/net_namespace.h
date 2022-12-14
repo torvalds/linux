@@ -26,6 +26,9 @@
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #include <net/netns/conntrack.h>
 #endif
+#if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
+#include <net/netns/flow_table.h>
+#endif
 #include <net/netns/nftables.h>
 #include <net/netns/xfrm.h>
 #include <net/netns/mpls.h>
@@ -63,7 +66,7 @@ struct net {
 						 */
 	spinlock_t		rules_mod_lock;
 
-	unsigned int		dev_unreg_count;
+	atomic_t		dev_unreg_count;
 
 	unsigned int		dev_base_seq;	/* protected by rtnl_mutex */
 	int			ifindex;
@@ -120,7 +123,9 @@ struct net {
 	struct netns_core	core;
 	struct netns_mib	mib;
 	struct netns_packet	packet;
+#if IS_ENABLED(CONFIG_UNIX)
 	struct netns_unix	unx;
+#endif
 	struct netns_nexthop	nexthop;
 	struct netns_ipv4	ipv4;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -139,6 +144,9 @@ struct net {
 #endif
 #if defined(CONFIG_NF_TABLES) || defined(CONFIG_NF_TABLES_MODULE)
 	struct netns_nftables	nft;
+#endif
+#if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
+	struct netns_ft ft;
 #endif
 #endif
 #ifdef CONFIG_WEXT_CORE
@@ -512,5 +520,11 @@ static inline void fnhe_genid_bump(struct net *net)
 {
 	atomic_inc(&net->fnhe_genid);
 }
+
+#ifdef CONFIG_NET
+void net_ns_init(void);
+#else
+static inline void net_ns_init(void) {}
+#endif
 
 #endif /* __NET_NET_NAMESPACE_H */

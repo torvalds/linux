@@ -35,6 +35,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
     maxItems: 12
+    items:
+      maxItems: 1
     description: List of phandles for the CPUs connected to this DSU instance.
 
 required:

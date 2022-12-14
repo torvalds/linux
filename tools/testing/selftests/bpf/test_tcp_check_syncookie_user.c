@@ -15,17 +15,25 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
 
-static int start_server(const struct sockaddr *addr, socklen_t len)
+static int start_server(const struct sockaddr *addr, socklen_t len, bool dual)
 {
+	int mode = !dual;
 	int fd;
 
 	fd = socket(addr->sa_family, SOCK_STREAM, 0);
 	if (fd == -1) {
 		log_err("Failed to create server socket");
 		goto out;
+	}
+
+	if (addr->sa_family == AF_INET6) {
+		if (setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&mode,
+			       sizeof(mode)) == -1) {
+			log_err("Failed to set the dual-stack mode");
+			goto close_out;
+		}
 	}
 
 	if (bind(fd, addr, len) == -1) {
@@ -47,24 +55,17 @@ out:
 	return fd;
 }
 
-static int connect_to_server(int server_fd)
+static int connect_to_server(const struct sockaddr *addr, socklen_t len)
 {
-	struct sockaddr_storage addr;
-	socklen_t len = sizeof(addr);
 	int fd = -1;
 
-	if (getsockname(server_fd, (struct sockaddr *)&addr, &len)) {
-		log_err("Failed to get server addr");
-		goto out;
-	}
-
-	fd = socket(addr.ss_family, SOCK_STREAM, 0);
+	fd = socket(addr->sa_family, SOCK_STREAM, 0);
 	if (fd == -1) {
 		log_err("Failed to create client socket");
 		goto out;
 	}
 
-	if (connect(fd, (const struct sockaddr *)&addr, len) == -1) {
+	if (connect(fd, (const struct sockaddr *)addr, len) == -1) {
 		log_err("Fail to connect to server");
 		goto close_out;
 	}
@@ -116,7 +117,8 @@ err:
 	return map_fd;
 }
 
-static int run_test(int server_fd, int results_fd, bool xdp)
+static int run_test(int server_fd, int results_fd, bool xdp,
+		    const struct sockaddr *addr, socklen_t len)
 {
 	int client = -1, srv_client = -1;
 	int ret = 0;
@@ -142,7 +144,7 @@ static int run_test(int server_fd, int results_fd, bool xdp)
 		goto err;
 	}
 
-	client = connect_to_server(server_fd);
+	client = connect_to_server(addr, len);
 	if (client == -1)
 		goto err;
 
@@ -199,12 +201,30 @@ out:
 	return ret;
 }
 
+static bool get_port(int server_fd, in_port_t *port)
+{
+	struct sockaddr_in addr;
+	socklen_t len = sizeof(addr);
+
+	if (getsockname(server_fd, (struct sockaddr *)&addr, &len)) {
+		log_err("Failed to get server addr");
+		return false;
+	}
+
+	/* sin_port and sin6_port are located at the same offset. */
+	*port = addr.sin_port;
+	return true;
+}
+
 int main(int argc, char **argv)
 {
 	struct sockaddr_in addr4;
 	struct sockaddr_in6 addr6;
+	struct sockaddr_in addr4dual;
+	struct sockaddr_in6 addr6dual;
 	int server = -1;
 	int server_v6 = -1;
+	int server_dual = -1;
 	int results = -1;
 	int err = 0;
 	bool xdp;
@@ -213,6 +233,9 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Usage: %s prog_id\n", argv[0]);
 		exit(1);
 	}
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	results = get_map_fd_by_prog_id(atoi(argv[1]), &xdp);
 	if (results < 0) {
@@ -224,25 +247,43 @@ int main(int argc, char **argv)
 	addr4.sin_family = AF_INET;
 	addr4.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	addr4.sin_port = 0;
+	memcpy(&addr4dual, &addr4, sizeof(addr4dual));
 
 	memset(&addr6, 0, sizeof(addr6));
 	addr6.sin6_family = AF_INET6;
 	addr6.sin6_addr = in6addr_loopback;
 	addr6.sin6_port = 0;
 
-	server = start_server((const struct sockaddr *)&addr4, sizeof(addr4));
-	if (server == -1)
+	memset(&addr6dual, 0, sizeof(addr6dual));
+	addr6dual.sin6_family = AF_INET6;
+	addr6dual.sin6_addr = in6addr_any;
+	addr6dual.sin6_port = 0;
+
+	server = start_server((const struct sockaddr *)&addr4, sizeof(addr4),
+			      false);
+	if (server == -1 || !get_port(server, &addr4.sin_port))
 		goto err;
 
 	server_v6 = start_server((const struct sockaddr *)&addr6,
-				 sizeof(addr6));
-	if (server_v6 == -1)
+				 sizeof(addr6), false);
+	if (server_v6 == -1 || !get_port(server_v6, &addr6.sin6_port))
 		goto err;
 
-	if (run_test(server, results, xdp))
+	server_dual = start_server((const struct sockaddr *)&addr6dual,
+				   sizeof(addr6dual), true);
+	if (server_dual == -1 || !get_port(server_dual, &addr4dual.sin_port))
 		goto err;
 
-	if (run_test(server_v6, results, xdp))
+	if (run_test(server, results, xdp,
+		     (const struct sockaddr *)&addr4, sizeof(addr4)))
+		goto err;
+
+	if (run_test(server_v6, results, xdp,
+		     (const struct sockaddr *)&addr6, sizeof(addr6)))
+		goto err;
+
+	if (run_test(server_dual, results, xdp,
+		     (const struct sockaddr *)&addr4dual, sizeof(addr4dual)))
 		goto err;
 
 	printf("ok\n");
@@ -252,6 +293,7 @@ err:
 out:
 	close(server);
 	close(server_v6);
+	close(server_dual);
 	close(results);
 	return err;
 }

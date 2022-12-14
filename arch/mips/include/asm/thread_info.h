@@ -69,6 +69,10 @@ static inline struct thread_info *current_thread_info(void)
 	return __current_thread_info;
 }
 
+#ifdef CONFIG_ARCH_HAS_CURRENT_STACK_POINTER
+register unsigned long current_stack_pointer __asm__("sp");
+#endif
+
 #endif /* !__ASSEMBLY__ */
 
 /* thread information allocation */

@@ -136,7 +136,7 @@ static void vsc85xx_get_strings(struct phy_device *phydev, u8 *data)
 		return;
 
 	for (i = 0; i < priv->nstats; i++)
-		strlcpy(data + i * ETH_GSTRING_LEN, priv->hw_stats[i].string,
+		strscpy(data + i * ETH_GSTRING_LEN, priv->hw_stats[i].string,
 			ETH_GSTRING_LEN);
 }
 
@@ -2685,3 +2685,6 @@ MODULE_DEVICE_TABLE(mdio, vsc85xx_tbl);
 MODULE_DESCRIPTION("Microsemi VSC85xx PHY driver");
 MODULE_AUTHOR("Nagaraju Lakkaraju");
 MODULE_LICENSE("Dual MIT/GPL");
+
+MODULE_FIRMWARE(MSCC_VSC8584_REVB_INT8051_FW);
+MODULE_FIRMWARE(MSCC_VSC8574_REVB_INT8051_FW);

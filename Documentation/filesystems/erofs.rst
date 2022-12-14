@@ -1,63 +1,82 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ======================================
-Enhanced Read-Only File System - EROFS
+EROFS - Enhanced Read-Only File System
 ======================================
 
 Overview
 ========
 
-EROFS file-system stands for Enhanced Read-Only File System. Different
-from other read-only file systems, it aims to be designed for flexibility,
-scalability, but be kept simple and high performance.
+EROFS filesystem stands for Enhanced Read-Only File System.  It aims to form a
+generic read-only filesystem solution for various read-only use cases instead
+of just focusing on storage space saving without considering any side effects
+of runtime performance.
 
-It is designed as a better filesystem solution for the following scenarios:
+It is designed to meet the needs of flexibility, feature extendability and user
+payload friendly, etc.  Apart from those, it is still kept as a simple
+random-access friendly high-performance filesystem to get rid of unneeded I/O
+amplification and memory-resident overhead compared to similar approaches.
+
+It is implemented to be a better choice for the following scenarios:
 
  - read-only storage media or
 
  - part of a fully trusted read-only solution, which means it needs to be
    immutable and bit-for-bit identical to the official golden image for
-   their releases due to security and other considerations and
+   their releases due to security or other considerations and
 
  - hope to minimize extra storage space with guaranteed end-to-end performance
    by using compact layout, transparent file compression and direct access,
    especially for those embedded devices with limited memory and high-density
-   hosts with numerous containers;
+   hosts with numerous containers.
 
 Here is the main features of EROFS:
 
  - Little endian on-disk design;
 
- - Currently 4KB block size (nobh) and therefore maximum 16TB address space;
+ - 4KiB block size and 32-bit block addresses, therefore 16TiB address space
+   at most for now;
 
- - Metadata & data could be mixed by design;
+ - Two inode layouts for different requirements:
 
- - 2 inode versions for different requirements:
-
-   =====================  ============  =====================================
+   =====================  ============  ======================================
                           compact (v1)  extended (v2)
-   =====================  ============  =====================================
+   =====================  ============  ======================================
    Inode metadata size    32 bytes      64 bytes
-   Max file size          4 GB          16 EB (also limited by max. vol size)
+   Max file size          4 GiB         16 EiB (also limited by max. vol size)
    Max uids/gids          65536         4294967296
-   File change time       no            yes (64 + 32-bit timestamp)
+   Per-inode timestamp    no            yes (64 + 32-bit timestamp)
    Max hardlinks          65536         4294967296
-   Metadata reserved      4 bytes       14 bytes
-   =====================  ============  =====================================
+   Metadata reserved      8 bytes       18 bytes
+   =====================  ============  ======================================
+
+ - Metadata and data could be mixed as an option;
 
  - Support extended attributes (xattrs) as an option;
 
- - Support xattr inline and tail-end data inline for all files;
+ - Support tailpacking data and xattr inline compared to byte-addressed
+   unaligned metadata or smaller block size alternatives;
 
  - Support POSIX.1e ACLs by using xattrs;
 
  - Support transparent data compression as an option:
-   LZ4 algorithm with the fixed-sized output compression for high performance;
+   LZ4 and MicroLZMA algorithms can be used on a per-file basis; In addition,
+   inplace decompression is also supported to avoid bounce compressed buffers
+   and page cache thrashing.
 
- - Multiple device support for multi-layer container images.
+ - Support direct I/O on uncompressed files to avoid double caching for loop
+   devices;
+
+ - Support FSDAX on uncompressed images for secure containers and ramdisks in
+   order to get rid of unnecessary page cache.
+
+ - Support multiple devices for multi blob container images;
+
+ - Support file-based on-demand loading with the Fscache infrastructure.
 
 The following git tree provides the file system user-space tools under
-development (ex, formatting tool mkfs.erofs):
+development, such as a formatting tool (mkfs.erofs), an on-disk consistency &
+compatibility checking tool (fsck.erofs), and a debugging tool (dump.erofs):
 
 - git://git.kernel.org/pub/scm/linux/kernel/git/xiang/erofs-utils.git
 
@@ -91,6 +110,7 @@ dax={always,never}     Use direct access (no page cache).  See
                        Documentation/filesystems/dax.rst.
 dax                    A legacy option which is an alias for ``dax=always``.
 device=%s              Specify a path to an extra device to be used together.
+fsid=%s                Specify a filesystem image ID for Fscache back-end.
 ===================    =========================================================
 
 Sysfs Entries
@@ -226,8 +246,8 @@ Note that apart from the offset of the first filename, nameoff0 also indicates
 the total number of directory entries in this block since it is no need to
 introduce another on-disk field at all.
 
-Chunk-based file
-----------------
+Chunk-based files
+-----------------
 In order to support chunk-based data deduplication, a new inode data layout has
 been supported since Linux v5.15: Files are split in equal-sized data chunks
 with ``extents`` area of the inode metadata indicating how to get the chunk

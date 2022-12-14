@@ -52,7 +52,7 @@ static int test_btf_dump_case(int n, struct btf_dump_test_case *t)
 	int err = 0, fd = -1;
 	FILE *f = NULL;
 
-	snprintf(test_file, sizeof(test_file), "%s.o", t->file);
+	snprintf(test_file, sizeof(test_file), "%s.bpf.o", t->file);
 
 	btf = btf__parse_elf(test_file, NULL);
 	if (!ASSERT_OK_PTR(btf, "btf_parse_elf")) {
@@ -148,22 +148,38 @@ static void test_btf_dump_incremental(void)
 
 	/* First, generate BTF corresponding to the following C code:
 	 *
-	 * enum { VAL = 1 };
+	 * enum x;
+	 *
+	 * enum x { X = 1 };
+	 *
+	 * enum { Y = 1 };
+	 *
+	 * struct s;
 	 *
 	 * struct s { int x; };
 	 *
 	 */
+	id = btf__add_enum(btf, "x", 4);
+	ASSERT_EQ(id, 1, "enum_declaration_id");
+	id = btf__add_enum(btf, "x", 4);
+	ASSERT_EQ(id, 2, "named_enum_id");
+	err = btf__add_enum_value(btf, "X", 1);
+	ASSERT_OK(err, "named_enum_val_ok");
+
 	id = btf__add_enum(btf, NULL, 4);
-	ASSERT_EQ(id, 1, "enum_id");
-	err = btf__add_enum_value(btf, "VAL", 1);
-	ASSERT_OK(err, "enum_val_ok");
+	ASSERT_EQ(id, 3, "anon_enum_id");
+	err = btf__add_enum_value(btf, "Y", 1);
+	ASSERT_OK(err, "anon_enum_val_ok");
 
 	id = btf__add_int(btf, "int", 4, BTF_INT_SIGNED);
-	ASSERT_EQ(id, 2, "int_id");
+	ASSERT_EQ(id, 4, "int_id");
+
+	id = btf__add_fwd(btf, "s", BTF_FWD_STRUCT);
+	ASSERT_EQ(id, 5, "fwd_id");
 
 	id = btf__add_struct(btf, "s", 4);
-	ASSERT_EQ(id, 3, "struct_id");
-	err = btf__add_field(btf, "x", 2, 0, 0);
+	ASSERT_EQ(id, 6, "struct_id");
+	err = btf__add_field(btf, "x", 4, 0, 0);
 	ASSERT_OK(err, "field_ok");
 
 	for (i = 1; i < btf__type_cnt(btf); i++) {
@@ -173,10 +189,19 @@ static void test_btf_dump_incremental(void)
 
 	fflush(dump_buf_file);
 	dump_buf[dump_buf_sz] = 0; /* some libc implementations don't do this */
+
 	ASSERT_STREQ(dump_buf,
-"enum {\n"
-"	VAL = 1,\n"
+"enum x;\n"
+"\n"
+"enum x {\n"
+"	X = 1,\n"
 "};\n"
+"\n"
+"enum {\n"
+"	Y = 1,\n"
+"};\n"
+"\n"
+"struct s;\n"
 "\n"
 "struct s {\n"
 "	int x;\n"
@@ -199,10 +224,12 @@ static void test_btf_dump_incremental(void)
 	fseek(dump_buf_file, 0, SEEK_SET);
 
 	id = btf__add_struct(btf, "s", 4);
-	ASSERT_EQ(id, 4, "struct_id");
-	err = btf__add_field(btf, "x", 1, 0, 0);
+	ASSERT_EQ(id, 7, "struct_id");
+	err = btf__add_field(btf, "x", 2, 0, 0);
 	ASSERT_OK(err, "field_ok");
-	err = btf__add_field(btf, "s", 3, 32, 0);
+	err = btf__add_field(btf, "y", 3, 32, 0);
+	ASSERT_OK(err, "field_ok");
+	err = btf__add_field(btf, "s", 6, 64, 0);
 	ASSERT_OK(err, "field_ok");
 
 	for (i = 1; i < btf__type_cnt(btf); i++) {
@@ -214,9 +241,10 @@ static void test_btf_dump_incremental(void)
 	dump_buf[dump_buf_sz] = 0; /* some libc implementations don't do this */
 	ASSERT_STREQ(dump_buf,
 "struct s___2 {\n"
+"	enum x x;\n"
 "	enum {\n"
-"		VAL___2 = 1,\n"
-"	} x;\n"
+"		Y___2 = 1,\n"
+"	} y;\n"
 "	struct s s;\n"
 "};\n\n" , "c_dump1");
 
@@ -736,8 +764,8 @@ static void test_btf_dump_struct_data(struct btf *btf, struct btf_dump *d,
 
 	/* union with nested struct */
 	TEST_BTF_DUMP_DATA(btf, d, "union", str, union bpf_iter_link_info, BTF_F_COMPACT,
-			   "(union bpf_iter_link_info){.map = (struct){.map_fd = (__u32)1,},}",
-			   { .map = { .map_fd = 1 }});
+			   "(union bpf_iter_link_info){.map = (struct){.map_fd = (__u32)1,},.cgroup = (struct){.order = (enum bpf_cgroup_iter_order)BPF_CGROUP_ITER_SELF_ONLY,.cgroup_fd = (__u32)1,},.task = (struct){.tid = (__u32)1,.pid = (__u32)1,},}",
+			   { .cgroup = { .order = 1, .cgroup_fd = 1, }});
 
 	/* struct skb with nested structs/unions; because type output is so
 	 * complex, we don't do a string comparison, just verify we return
@@ -813,8 +841,8 @@ static void test_btf_dump_datasec_data(char *str)
 	char license[4] = "GPL";
 	struct btf_dump *d;
 
-	btf = btf__parse("xdping_kern.o", NULL);
-	if (!ASSERT_OK_PTR(btf, "xdping_kern.o BTF not found"))
+	btf = btf__parse("xdping_kern.bpf.o", NULL);
+	if (!ASSERT_OK_PTR(btf, "xdping_kern.bpf.o BTF not found"))
 		return;
 
 	d = btf_dump__new(btf, btf_dump_snprintf, str, NULL);

@@ -26,8 +26,7 @@ void mlx5e_tc_sample_skb(struct sk_buff *skb, struct mlx5_mapped_obj *mapped_obj
 struct mlx5_flow_handle *
 mlx5e_tc_sample_offload(struct mlx5e_tc_psample *sample_priv,
 			struct mlx5_flow_spec *spec,
-			struct mlx5_flow_attr *attr,
-			u32 tunnel_id);
+			struct mlx5_flow_attr *attr);
 
 void
 mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *sample_priv,
@@ -45,8 +44,7 @@ mlx5e_tc_sample_cleanup(struct mlx5e_tc_psample *tc_psample);
 static inline struct mlx5_flow_handle *
 mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 			struct mlx5_flow_spec *spec,
-			struct mlx5_flow_attr *attr,
-			u32 tunnel_id)
+			struct mlx5_flow_attr *attr)
 { return ERR_PTR(-EOPNOTSUPP); }
 
 static inline void

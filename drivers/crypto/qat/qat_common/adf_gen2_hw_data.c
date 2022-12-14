@@ -98,6 +98,19 @@ void adf_gen2_get_arb_info(struct arb_info *arb_info)
 }
 EXPORT_SYMBOL_GPL(adf_gen2_get_arb_info);
 
+void adf_gen2_enable_ints(struct adf_accel_dev *accel_dev)
+{
+	void __iomem *addr = adf_get_pmisc_base(accel_dev);
+	u32 val;
+
+	val = accel_dev->pf.vf_info ? 0 : BIT_ULL(GET_MAX_BANKS(accel_dev)) - 1;
+
+	/* Enable bundle and misc interrupts */
+	ADF_CSR_WR(addr, ADF_GEN2_SMIAPF0_MASK_OFFSET, val);
+	ADF_CSR_WR(addr, ADF_GEN2_SMIAPF1_MASK_OFFSET, ADF_GEN2_SMIA1_MASK);
+}
+EXPORT_SYMBOL_GPL(adf_gen2_enable_ints);
+
 static u64 build_csr_ring_base_addr(dma_addr_t addr, u32 size)
 {
 	return BUILD_RING_BASE_ADDR(addr, size);

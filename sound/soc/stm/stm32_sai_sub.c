@@ -45,8 +45,6 @@
 #define STM_SAI_B_ID		0x1
 
 #define STM_SAI_IS_SUB_A(x)	((x)->id == STM_SAI_A_ID)
-#define STM_SAI_IS_SUB_B(x)	((x)->id == STM_SAI_B_ID)
-#define STM_SAI_BLOCK_NAME(x)	(((x)->id == STM_SAI_A_ID) ? "A" : "B")
 
 #define SAI_SYNC_NONE		0x0
 #define SAI_SYNC_INTERNAL	0x1
@@ -719,18 +717,18 @@ static int stm32_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	stm32_sai_sub_reg_up(sai, STM_SAI_FRCR_REGX, frcr_mask, frcr);
 
 	/* DAI clock master masks */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BC_FC:
 		/* codec is master */
 		cr1 |= SAI_XCR1_SLAVE;
 		sai->master = false;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_BP_FP:
 		sai->master = true;
 		break;
 	default:
 		dev_err(cpu_dai->dev, "Unsupported mode %#x\n",
-			fmt & SND_SOC_DAIFMT_MASTER_MASK);
+			fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK);
 		return -EINVAL;
 	}
 
@@ -1338,6 +1336,7 @@ static const struct snd_dmaengine_pcm_config stm32_sai_pcm_config_spdif = {
 
 static const struct snd_soc_component_driver stm32_component = {
 	.name = "stm32-sai",
+	.legacy_dai_naming = 1,
 };
 
 static const struct of_device_id stm32_sai_sub_ids[] = {

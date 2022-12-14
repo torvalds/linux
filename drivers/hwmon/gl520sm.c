@@ -811,7 +811,7 @@ static int gl520_detect(struct i2c_client *client, struct i2c_board_info *info)
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, "gl520sm", I2C_NAME_SIZE);
+	strscpy(info->type, "gl520sm", I2C_NAME_SIZE);
 
 	return 0;
 }

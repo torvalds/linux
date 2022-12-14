@@ -237,7 +237,6 @@ static int rsi_mac80211_hw_scan_start(struct ieee80211_hw *hw,
 	struct cfg80211_scan_request *scan_req = &hw_req->req;
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
-	struct ieee80211_bss_conf *bss = &vif->bss_conf;
 
 	rsi_dbg(INFO_ZONE, "***** Hardware scan start *****\n");
 	common->mac_ops_resumed = false;
@@ -256,7 +255,7 @@ static int rsi_mac80211_hw_scan_start(struct ieee80211_hw *hw,
 	/* If STA is not connected, return with special value 1, in order
 	 * to start sw_scan in mac80211
 	 */
-	if (!bss->assoc)
+	if (!vif->cfg.assoc)
 		return 1;
 
 	mutex_lock(&common->mutex);
@@ -579,7 +578,6 @@ static int rsi_channel_change(struct ieee80211_hw *hw)
 	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
 	u16 channel = curchan->hw_value;
 	struct ieee80211_vif *vif;
-	struct ieee80211_bss_conf *bss;
 	bool assoc = false;
 	int i;
 
@@ -593,8 +591,7 @@ static int rsi_channel_change(struct ieee80211_hw *hw)
 		if (!vif)
 			continue;
 		if (vif->type == NL80211_IFTYPE_STATION) {
-			bss = &vif->bss_conf;
-			if (bss->assoc) {
+			if (vif->cfg.assoc) {
 				assoc = true;
 				break;
 			}
@@ -700,7 +697,7 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 			}
 			if ((vif->type == NL80211_IFTYPE_STATION ||
 			     vif->type == NL80211_IFTYPE_P2P_CLIENT) &&
-			    (!sta_vif || vif->bss_conf.assoc))
+			    (!sta_vif || vif->cfg.assoc))
 				sta_vif = vif;
 		}
 		if (set_ps && sta_vif) {
@@ -786,7 +783,7 @@ static void rsi_switch_channel(struct rsi_hw *adapter,
 static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 					  struct ieee80211_vif *vif,
 					  struct ieee80211_bss_conf *bss_conf,
-					  u32 changed)
+					  u64 changed)
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
@@ -797,8 +794,8 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_lock(&common->mutex);
 	if (changed & BSS_CHANGED_ASSOC) {
 		rsi_dbg(INFO_ZONE, "%s: Changed Association status: %d\n",
-			__func__, bss_conf->assoc);
-		if (bss_conf->assoc) {
+			__func__, vif->cfg.assoc);
+		if (vif->cfg.assoc) {
 			/* Send the RX filter frame */
 			rx_filter_word = (ALLOW_DATA_ASSOC_PEER |
 					  ALLOW_CTRL_ASSOC_PEER |
@@ -807,17 +804,17 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 		}
 		rsi_inform_bss_status(common,
 				      RSI_OPMODE_STA,
-				      bss_conf->assoc,
+				      vif->cfg.assoc,
 				      bss_conf->bssid,
 				      bss_conf->qos,
-				      bss_conf->aid,
+				      vif->cfg.aid,
 				      NULL, 0,
 				      bss_conf->assoc_capability, vif);
 		adapter->ps_info.dtim_interval_duration = bss->dtim_period;
 		adapter->ps_info.listen_interval = conf->listen_interval;
 
 		/* If U-APSD is updated, send ps parameters to firmware */
-		if (bss->assoc) {
+		if (vif->cfg.assoc) {
 			if (common->uapsd_bitmap) {
 				rsi_dbg(INFO_ZONE, "Configuring UAPSD\n");
 				rsi_conf_uapsd(adapter, vif);
@@ -892,13 +889,15 @@ static void rsi_mac80211_conf_filter(struct ieee80211_hw *hw,
  *			    for a hardware TX queue.
  * @hw: Pointer to the ieee80211_hw structure
  * @vif: Pointer to the ieee80211_vif structure.
+ * @link_id: the link ID if MLO is used, otherwise 0
  * @queue: Queue number.
  * @params: Pointer to ieee80211_tx_queue_params structure.
  *
  * Return: 0 on success, negative error code on failure.
  */
 static int rsi_mac80211_conf_tx(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif, u16 queue,
+				struct ieee80211_vif *vif,
+				unsigned int link_id, u16 queue,
 				const struct ieee80211_tx_queue_params *params)
 {
 	struct rsi_hw *adapter = hw->priv;
@@ -1359,7 +1358,7 @@ static void rsi_fill_rx_status(struct ieee80211_hw *hw,
 	if (!bss)
 		return;
 	/* CQM only for connected AP beacons, the RSSI is a weighted avg */
-	if (bss->assoc && !(memcmp(bss->bssid, hdr->addr2, ETH_ALEN))) {
+	if (vif->cfg.assoc && !(memcmp(bss->bssid, hdr->addr2, ETH_ALEN))) {
 		if (ieee80211_is_beacon(hdr->frame_control))
 			rsi_perform_cqm(common, hdr->addr2, rxs->signal, vif);
 	}
@@ -1490,13 +1489,13 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 
 	if ((vif->type == NL80211_IFTYPE_STATION) ||
 	    (vif->type == NL80211_IFTYPE_P2P_CLIENT)) {
-		common->bitrate_mask[common->band] = sta->supp_rates[common->band];
-		common->vif_info[0].is_ht = sta->ht_cap.ht_supported;
-		if (sta->ht_cap.ht_supported) {
+		common->bitrate_mask[common->band] = sta->deflink.supp_rates[common->band];
+		common->vif_info[0].is_ht = sta->deflink.ht_cap.ht_supported;
+		if (sta->deflink.ht_cap.ht_supported) {
 			common->bitrate_mask[NL80211_BAND_2GHZ] =
-					sta->supp_rates[NL80211_BAND_2GHZ];
-			if ((sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
-			    (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
+					sta->deflink.supp_rates[NL80211_BAND_2GHZ];
+			if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
+			    (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
 				common->vif_info[0].sgi = true;
 			ieee80211_start_tx_ba_session(sta, 0, 0);
 		}
@@ -1737,7 +1736,7 @@ static void rsi_resume_conn_channel(struct rsi_common *common)
 		}
 		if (((vif->type == NL80211_IFTYPE_STATION) ||
 		     (vif->type == NL80211_IFTYPE_P2P_CLIENT)) &&
-		    vif->bss_conf.assoc) {
+		    vif->cfg.assoc) {
 			rsi_switch_channel(adapter, vif);
 			break;
 		}
@@ -1862,16 +1861,14 @@ static u16 rsi_wow_map_triggers(struct rsi_common *common,
 int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan)
 {
 	struct rsi_common *common = adapter->priv;
+	struct ieee80211_vif *vif = adapter->vifs[0];
 	u16 triggers = 0;
 	u16 rx_filter_word = 0;
-	struct ieee80211_bss_conf *bss = NULL;
 
 	rsi_dbg(INFO_ZONE, "Config WoWLAN to device\n");
 
-	if (!adapter->vifs[0])
+	if (!vif)
 		return -EINVAL;
-
-	bss = &adapter->vifs[0]->bss_conf;
 
 	if (WARN_ON(!wowlan)) {
 		rsi_dbg(ERR_ZONE, "WoW triggers not enabled\n");
@@ -1884,7 +1881,7 @@ int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan)
 		rsi_dbg(ERR_ZONE, "%s:No valid WoW triggers\n", __func__);
 		return -EINVAL;
 	}
-	if (!bss->assoc) {
+	if (!vif->cfg.assoc) {
 		rsi_dbg(ERR_ZONE,
 			"Cannot configure WoWLAN (Station not connected)\n");
 		common->wow_flags |= RSI_WOW_NO_CONNECTION;

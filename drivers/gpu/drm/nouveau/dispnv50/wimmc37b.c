@@ -23,7 +23,7 @@
 #include "atom.h"
 #include "wndw.h"
 
-#include <nvif/clc37b.h>
+#include <nvif/if0014.h>
 #include <nvif/pushc37b.h>
 
 #include <nvhw/class/clc37b.h>
@@ -68,9 +68,8 @@ static int
 wimmc37b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	       s32 oclass, struct nv50_wndw *wndw)
 {
-	struct nvc37b_window_imm_channel_dma_v0 args = {
-		.pushbuf = 0xb0007b00 | wndw->id,
-		.index = wndw->id,
+	struct nvif_disp_chan_v0 args = {
+		.id = wndw->id,
 	};
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	int ret;

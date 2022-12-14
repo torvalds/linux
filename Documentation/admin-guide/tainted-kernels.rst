@@ -100,6 +100,7 @@ Bit  Log  Number  Reason that got the kernel tainted
  15  _/K   32768  kernel has been live patched
  16  _/X   65536  auxiliary taint, defined for and used by distros
  17  _/T  131072  kernel was built with the struct randomization plugin
+ 18  _/N  262144  an in-kernel test has been run
 ===  ===  ======  ========================================================
 
 Note: The character ``_`` is representing a blank in this table to make reading
@@ -133,6 +134,12 @@ More detailed explanation for tainting
        scsi/snic on something else than x86_64, scsi/ips on non
        x86/x86_64/itanium, have broken firmware settings for the
        irqchip/irq-gic on arm64 ...).
+     - x86/x86_64: Microcode late loading is dangerous and will result in
+       tainting the kernel. It requires that all CPUs rendezvous to make sure
+       the update happens when the system is as quiescent as possible. However,
+       a higher priority MCE/SMI/NMI can move control flow away from that
+       rendezvous and interrupt the update, which can be detrimental to the
+       machine.
 
  3)  ``R`` if a module was force unloaded by ``rmmod -f``, ``' '`` if all
      modules were unloaded normally.

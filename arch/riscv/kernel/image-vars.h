@@ -25,20 +25,11 @@
  */
 __efistub_memcmp		= memcmp;
 __efistub_memchr		= memchr;
-__efistub_memcpy		= memcpy;
-__efistub_memmove		= memmove;
-__efistub_memset		= memset;
 __efistub_strlen		= strlen;
 __efistub_strnlen		= strnlen;
 __efistub_strcmp		= strcmp;
 __efistub_strncmp		= strncmp;
 __efistub_strrchr		= strrchr;
-
-#ifdef CONFIG_KASAN
-__efistub___memcpy		= memcpy;
-__efistub___memmove		= memmove;
-__efistub___memset		= memset;
-#endif
 
 __efistub__start		= _start;
 __efistub__start_kernel		= _start_kernel;

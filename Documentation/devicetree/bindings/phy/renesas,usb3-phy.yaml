@@ -34,7 +34,7 @@ properties:
     # must not be 0.
     minItems: 2
     items:
-      - const: usb3-if # The funcional clock
+      - const: usb3-if # The functional clock
       - const: usb3s_clk # The usb3's external clock
       - const: usb_extal # The usb2's external clock
 

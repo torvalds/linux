@@ -31,6 +31,7 @@ static const char *const mlx5_rsc_sgmt_name[] = {
 struct mlx5_rsc_dump {
 	u32 pdn;
 	u32 mkey;
+	u32 number_of_menu_items;
 	u16 fw_segment_type[MLX5_SGMT_TYPE_NUM];
 };
 
@@ -50,21 +51,37 @@ static int mlx5_rsc_dump_sgmt_get_by_name(char *name)
 	return -EINVAL;
 }
 
-static void mlx5_rsc_dump_read_menu_sgmt(struct mlx5_rsc_dump *rsc_dump, struct page *page)
+#define MLX5_RSC_DUMP_MENU_HEADER_SIZE (MLX5_ST_SZ_BYTES(resource_dump_info_segment) + \
+					MLX5_ST_SZ_BYTES(resource_dump_command_segment) + \
+					MLX5_ST_SZ_BYTES(resource_dump_menu_segment))
+
+static int mlx5_rsc_dump_read_menu_sgmt(struct mlx5_rsc_dump *rsc_dump, struct page *page,
+					int read_size, int start_idx)
 {
 	void *data = page_address(page);
 	enum mlx5_sgmt_type sgmt_idx;
 	int num_of_items;
 	char *sgmt_name;
 	void *member;
+	int size = 0;
 	void *menu;
 	int i;
 
-	menu = MLX5_ADDR_OF(menu_resource_dump_response, data, menu);
-	num_of_items = MLX5_GET(resource_dump_menu_segment, menu, num_of_records);
+	if (!start_idx) {
+		menu = MLX5_ADDR_OF(menu_resource_dump_response, data, menu);
+		rsc_dump->number_of_menu_items = MLX5_GET(resource_dump_menu_segment, menu,
+							  num_of_records);
+		size = MLX5_RSC_DUMP_MENU_HEADER_SIZE;
+		data += size;
+	}
+	num_of_items = rsc_dump->number_of_menu_items;
 
-	for (i = 0; i < num_of_items; i++) {
-		member = MLX5_ADDR_OF(resource_dump_menu_segment, menu, record[i]);
+	for (i = 0; start_idx + i < num_of_items; i++) {
+		size += MLX5_ST_SZ_BYTES(resource_dump_menu_record);
+		if (size >= read_size)
+			return start_idx + i;
+
+		member = data + MLX5_ST_SZ_BYTES(resource_dump_menu_record) * i;
 		sgmt_name =  MLX5_ADDR_OF(resource_dump_menu_record, member, segment_name);
 		sgmt_idx = mlx5_rsc_dump_sgmt_get_by_name(sgmt_name);
 		if (sgmt_idx == -EINVAL)
@@ -72,6 +89,7 @@ static void mlx5_rsc_dump_read_menu_sgmt(struct mlx5_rsc_dump *rsc_dump, struct 
 		rsc_dump->fw_segment_type[sgmt_idx] = MLX5_GET(resource_dump_menu_record,
 							       member, segment_type);
 	}
+	return 0;
 }
 
 static int mlx5_rsc_dump_trigger(struct mlx5_core_dev *dev, struct mlx5_rsc_dump_cmd *cmd,
@@ -168,6 +186,7 @@ static int mlx5_rsc_dump_menu(struct mlx5_core_dev *dev)
 	struct mlx5_rsc_dump_cmd *cmd = NULL;
 	struct mlx5_rsc_key key = {};
 	struct page *page;
+	int start_idx = 0;
 	int size;
 	int err;
 
@@ -189,7 +208,7 @@ static int mlx5_rsc_dump_menu(struct mlx5_core_dev *dev)
 		if (err < 0)
 			goto destroy_cmd;
 
-		mlx5_rsc_dump_read_menu_sgmt(dev->rsc_dump, page);
+		start_idx = mlx5_rsc_dump_read_menu_sgmt(dev->rsc_dump, page, size, start_idx);
 
 	} while (err > 0);
 

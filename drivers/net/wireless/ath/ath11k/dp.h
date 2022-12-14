@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_DP_H
@@ -115,6 +116,8 @@ struct ath11k_pdev_mon_stats {
 	u32 dest_mpdu_drop;
 	u32 dup_mon_linkdesc_cnt;
 	u32 dup_mon_buf_cnt;
+	u32 dest_mon_stuck;
+	u32 dest_mon_not_reaped;
 };
 
 struct dp_full_mon_mpdu {
@@ -167,6 +170,7 @@ struct ath11k_mon_data {
 
 struct ath11k_pdev_dp {
 	u32 mac_id;
+	u32 mon_dest_ring_stuck_cnt;
 	atomic_t num_tx_pending;
 	wait_queue_head_t tx_empty_waitq;
 	struct dp_rxdma_ring rx_refill_buf_ring;
@@ -200,6 +204,7 @@ struct ath11k_pdev_dp {
 
 #define DP_WBM_RELEASE_RING_SIZE	64
 #define DP_TCL_DATA_RING_SIZE		512
+#define DP_TCL_DATA_RING_SIZE_WCN6750	2048
 #define DP_TX_COMP_RING_SIZE		32768
 #define DP_TX_IDR_SIZE			DP_TX_COMP_RING_SIZE
 #define DP_TCL_CMD_RING_SIZE		32
@@ -218,6 +223,8 @@ struct ath11k_pdev_dp {
 #define DP_RXDMA_MONITOR_BUF_RING_SIZE	4096
 #define DP_RXDMA_MONITOR_DST_RING_SIZE	2048
 #define DP_RXDMA_MONITOR_DESC_RING_SIZE	4096
+
+#define DP_RX_RELEASE_RING_NUM	3
 
 #define DP_RX_BUFFER_SIZE	2048
 #define	DP_RX_BUFFER_SIZE_LITE  1024
@@ -296,7 +303,7 @@ struct ath11k_dp {
 
 #define HTT_TX_WBM_COMP_STATUS_OFFSET 8
 
-/* HTT tx completion is overlayed in wbm_release_ring */
+/* HTT tx completion is overlaid in wbm_release_ring */
 #define HTT_TX_WBM_COMP_INFO0_STATUS		GENMASK(12, 9)
 #define HTT_TX_WBM_COMP_INFO0_REINJECT_REASON	GENMASK(16, 13)
 #define HTT_TX_WBM_COMP_INFO0_REINJECT_REASON	GENMASK(16, 13)
@@ -463,7 +470,7 @@ enum htt_srng_ring_id {
  *                     3'b010: 4 usec
  *                     3'b011: 8 usec (default)
  *                     3'b100: 16 usec
- *                     Others: Reserverd
+ *                     Others: Reserved
  *           b'19    - response_required:
  *                     Host needs HTT_T2H_MSG_TYPE_SRING_SETUP_DONE as response
  *           b'20:31 - reserved:  reserved for future use
@@ -990,8 +997,7 @@ struct htt_rx_ring_tlv_filter {
 #define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_NON_ZERO_MPDUS_END	BIT(2)
 #define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_RELEASE_RING		GENMASK(10, 3)
 
-/**
- * Enumeration for full monitor mode destination ring select
+/* Enumeration for full monitor mode destination ring select
  * 0 - REO destination ring select
  * 1 - FW destination ring select
  * 2 - SW destination ring select
@@ -1170,12 +1176,12 @@ struct ath11k_htt_ppdu_stats_msg {
 	u32 ppdu_id;
 	u32 timestamp;
 	u32 rsvd;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct htt_tlv {
 	u32 header;
-	u8 value[0];
+	u8 value[];
 } __packed;
 
 #define HTT_TLV_TAG			GENMASK(11, 0)
@@ -1362,7 +1368,7 @@ struct htt_ppdu_stats_usr_cmn_array {
 	 * tx_ppdu_stats_info is variable length, with length =
 	 *     number_of_ppdu_stats * sizeof (struct htt_tx_ppdu_stats_info)
 	 */
-	struct htt_tx_ppdu_stats_info tx_ppdu_info[0];
+	struct htt_tx_ppdu_stats_info tx_ppdu_info[];
 } __packed;
 
 struct htt_ppdu_user_stats {
@@ -1388,8 +1394,7 @@ struct htt_ppdu_stats_info {
 	struct list_head list;
 };
 
-/**
- * @brief target -> host packet log message
+/* @brief target -> host packet log message
  *
  * @details
  * The following field definitions describe the format of the packet log
@@ -1424,11 +1429,10 @@ struct htt_ppdu_stats_info {
  */
 struct htt_pktlog_msg {
 	u32 hdr;
-	u8 payload[0];
+	u8 payload[];
 };
 
-/**
- * @brief host -> target FW extended statistics retrieve
+/* @brief host -> target FW extended statistics retrieve
  *
  * @details
  * The following field definitions describe the format of the HTT host
@@ -1563,8 +1567,7 @@ struct htt_ext_stats_cfg_params {
 	u32 cfg3;
 };
 
-/**
- * @brief target -> host extended statistics upload
+/* @brief target -> host extended statistics upload
  *
  * @details
  * The following field definitions describe the format of the HTT target
@@ -1645,7 +1648,7 @@ struct ath11k_htt_extd_stats_msg {
 	u32 info0;
 	u64 cookie;
 	u32 info1;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define	HTT_MAC_ADDR_L32_0	GENMASK(7, 0)

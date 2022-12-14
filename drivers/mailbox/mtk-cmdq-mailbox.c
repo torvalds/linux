@@ -192,15 +192,10 @@ static bool cmdq_thread_is_in_wfe(struct cmdq_thread *thread)
 
 static void cmdq_task_exec_done(struct cmdq_task *task, int sta)
 {
-	struct cmdq_task_cb *cb = &task->pkt->async_cb;
 	struct cmdq_cb_data data;
 
 	data.sta = sta;
-	data.data = cb->data;
 	data.pkt = task->pkt;
-	if (cb->cb)
-		cb->cb(data);
-
 	mbox_chan_received_data(task->thread->chan, &data);
 
 	list_del(&task->list_entry);
@@ -448,7 +443,6 @@ done:
 static int cmdq_mbox_flush(struct mbox_chan *chan, unsigned long timeout)
 {
 	struct cmdq_thread *thread = (struct cmdq_thread *)chan->con_priv;
-	struct cmdq_task_cb *cb;
 	struct cmdq_cb_data data;
 	struct cmdq *cmdq = dev_get_drvdata(chan->mbox->dev);
 	struct cmdq_task *task, *tmp;
@@ -465,13 +459,8 @@ static int cmdq_mbox_flush(struct mbox_chan *chan, unsigned long timeout)
 
 	list_for_each_entry_safe(task, tmp, &thread->task_busy_list,
 				 list_entry) {
-		cb = &task->pkt->async_cb;
 		data.sta = -ECONNABORTED;
-		data.data = cb->data;
 		data.pkt = task->pkt;
-		if (cb->cb)
-			cb->cb(data);
-
 		mbox_chan_received_data(task->thread->chan, &data);
 		list_del(&task->list_entry);
 		kfree(task);

@@ -18,8 +18,9 @@
 #include <asm/kdump.h>
 #include <asm/machdep.h>
 #include <asm/pgalloc.h>
-#include <asm/prom.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
+#include <asm/firmware.h>
 
 void machine_kexec_mask_interrupts(void) {
 	unsigned int i;
@@ -134,11 +135,18 @@ void __init reserve_crashkernel(void)
 	if (!crashk_res.start) {
 #ifdef CONFIG_PPC64
 		/*
-		 * On 64bit we split the RMO in half but cap it at half of
-		 * a small SLB (128MB) since the crash kernel needs to place
-		 * itself and some stacks to be in the first segment.
+		 * On the LPAR platform place the crash kernel to mid of
+		 * RMA size (max. of 512MB) to ensure the crash kernel
+		 * gets enough space to place itself and some stack to be
+		 * in the first segment. At the same time normal kernel
+		 * also get enough space to allocate memory for essential
+		 * system resource in the first segment. Keep the crash
+		 * kernel starts at 128MB offset on other platforms.
 		 */
-		crashk_res.start = min(0x8000000ULL, (ppc64_rma_size / 2));
+		if (firmware_has_feature(FW_FEATURE_LPAR))
+			crashk_res.start = min_t(u64, ppc64_rma_size / 2, SZ_512M);
+		else
+			crashk_res.start = min_t(u64, ppc64_rma_size / 2, SZ_128M);
 #else
 		crashk_res.start = KDUMP_KERNELBASE;
 #endif

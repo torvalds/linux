@@ -550,11 +550,8 @@ static struct dmz_mblock *dmz_get_mblock_slow(struct dmz_metadata *zmd,
 	if (!mblk)
 		return ERR_PTR(-ENOMEM);
 
-	bio = bio_alloc(GFP_NOIO, 1);
-	if (!bio) {
-		dmz_free_mblock(zmd, mblk);
-		return ERR_PTR(-ENOMEM);
-	}
+	bio = bio_alloc(dev->bdev, 1, REQ_OP_READ | REQ_META | REQ_PRIO,
+			GFP_NOIO);
 
 	spin_lock(&zmd->mblk_lock);
 
@@ -578,10 +575,8 @@ static struct dmz_mblock *dmz_get_mblock_slow(struct dmz_metadata *zmd,
 
 	/* Submit read BIO */
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
-	bio_set_dev(bio, dev->bdev);
 	bio->bi_private = mblk;
 	bio->bi_end_io = dmz_mblock_bio_end_io;
-	bio_set_op_attrs(bio, REQ_OP_READ, REQ_META | REQ_PRIO);
 	bio_add_page(bio, mblk->page, DMZ_BLOCK_SIZE, 0);
 	submit_bio(bio);
 
@@ -725,19 +720,14 @@ static int dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
 	if (dmz_bdev_is_dying(dev))
 		return -EIO;
 
-	bio = bio_alloc(GFP_NOIO, 1);
-	if (!bio) {
-		set_bit(DMZ_META_ERROR, &mblk->state);
-		return -ENOMEM;
-	}
+	bio = bio_alloc(dev->bdev, 1, REQ_OP_WRITE | REQ_META | REQ_PRIO,
+			GFP_NOIO);
 
 	set_bit(DMZ_META_WRITING, &mblk->state);
 
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
-	bio_set_dev(bio, dev->bdev);
 	bio->bi_private = mblk;
 	bio->bi_end_io = dmz_mblock_bio_end_io;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_META | REQ_PRIO);
 	bio_add_page(bio, mblk->page, DMZ_BLOCK_SIZE, 0);
 	submit_bio(bio);
 
@@ -747,7 +737,7 @@ static int dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
 /*
  * Read/write a metadata block.
  */
-static int dmz_rdwr_block(struct dmz_dev *dev, int op,
+static int dmz_rdwr_block(struct dmz_dev *dev, enum req_op op,
 			  sector_t block, struct page *page)
 {
 	struct bio *bio;
@@ -759,13 +749,9 @@ static int dmz_rdwr_block(struct dmz_dev *dev, int op,
 	if (dmz_bdev_is_dying(dev))
 		return -EIO;
 
-	bio = bio_alloc(GFP_NOIO, 1);
-	if (!bio)
-		return -ENOMEM;
-
+	bio = bio_alloc(dev->bdev, 1, op | REQ_SYNC | REQ_META | REQ_PRIO,
+			GFP_NOIO);
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
-	bio_set_dev(bio, dev->bdev);
-	bio_set_op_attrs(bio, op, REQ_SYNC | REQ_META | REQ_PRIO);
 	bio_add_page(bio, page, DMZ_BLOCK_SIZE, 0);
 	ret = submit_bio_wait(bio);
 	bio_put(bio);
@@ -1115,8 +1101,8 @@ static int dmz_check_sb(struct dmz_metadata *zmd, struct dmz_sb *dsb,
  */
 static int dmz_read_sb(struct dmz_metadata *zmd, struct dmz_sb *sb, int set)
 {
-	dmz_zmd_debug(zmd, "read superblock set %d dev %s block %llu",
-		      set, sb->dev->name, sb->block);
+	dmz_zmd_debug(zmd, "read superblock set %d dev %pg block %llu",
+		      set, sb->dev->bdev, sb->block);
 
 	return dmz_rdwr_block(sb->dev, REQ_OP_READ,
 			      sb->block, sb->mblk->page);
@@ -2059,7 +2045,8 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd,
  * allocated and used to map the chunk.
  * The zone returned will be set to the active state.
  */
-struct dm_zone *dmz_get_chunk_mapping(struct dmz_metadata *zmd, unsigned int chunk, int op)
+struct dm_zone *dmz_get_chunk_mapping(struct dmz_metadata *zmd,
+				      unsigned int chunk, enum req_op op)
 {
 	struct dmz_mblock *dmap_mblk = zmd->map_mblk[chunk >> DMZ_MAP_ENTRIES_SHIFT];
 	struct dmz_map *dmap = (struct dmz_map *) dmap_mblk->data;
@@ -2958,7 +2945,9 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 	zmd->mblk_shrinker.seeks = DEFAULT_SEEKS;
 
 	/* Metadata cache shrinker */
-	ret = register_shrinker(&zmd->mblk_shrinker);
+	ret = register_shrinker(&zmd->mblk_shrinker, "md-meta:(%u:%u)",
+				MAJOR(dev->bdev->bd_dev),
+				MINOR(dev->bdev->bd_dev));
 	if (ret) {
 		dmz_zmd_err(zmd, "Register metadata cache shrinker failed");
 		goto err;

@@ -1488,8 +1488,7 @@ static const struct regmap_config smb347_regmap = {
 	.max_register	= SMB347_MAX_REGISTER,
 	.volatile_reg	= smb347_volatile_reg,
 	.readable_reg	= smb347_readable_reg,
-	.cache_type	= REGCACHE_FLAT,
-	.num_reg_defaults_raw = SMB347_MAX_REGISTER,
+	.cache_type	= REGCACHE_RBTREE,
 };
 
 static const struct regulator_ops smb347_usb_vbus_regulator_ops = {
@@ -1596,14 +1595,12 @@ static int smb347_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int smb347_remove(struct i2c_client *client)
+static void smb347_remove(struct i2c_client *client)
 {
 	struct smb347_charger *smb = i2c_get_clientdata(client);
 
 	smb347_usb_vbus_regulator_disable(smb->usb_rdev);
 	smb347_irq_disable(smb);
-
-	return 0;
 }
 
 static void smb347_shutdown(struct i2c_client *client)

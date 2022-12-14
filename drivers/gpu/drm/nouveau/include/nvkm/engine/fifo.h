@@ -26,7 +26,6 @@ struct nvkm_fifo_chan {
 	struct nvkm_gpuobj *inst;
 	struct nvkm_gpuobj *push;
 	struct nvkm_vmm *vmm;
-	void __iomem *user;
 	u64 addr;
 	u32 size;
 
@@ -44,7 +43,6 @@ struct nvkm_fifo {
 	struct mutex mutex;
 
 	struct nvkm_event uevent; /* async user trigger */
-	struct nvkm_event cevent; /* channel creation event */
 	struct nvkm_event kevent; /* channel killed */
 };
 

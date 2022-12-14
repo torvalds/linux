@@ -4,6 +4,8 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <unistd.h>
+#include <linux/types.h>
 
 enum perf_data_mode {
 	PERF_DATA_MODE_WRITE,
@@ -98,6 +100,8 @@ void perf_data__close_dir(struct perf_data *data);
 int perf_data__update_dir(struct perf_data *data);
 unsigned long perf_data__size(struct perf_data *data);
 int perf_data__make_kcore_dir(struct perf_data *data, char *buf, size_t buf_sz);
+bool has_kcore_dir(const char *path);
 char *perf_data__kallsyms_name(struct perf_data *data);
+char *perf_data__guest_kallsyms_name(struct perf_data *data, pid_t machine_pid);
 bool is_perf_data(const char *path);
 #endif /* __PERF_DATA_H */

@@ -40,6 +40,12 @@ struct mtd_erase_region_info {
 	unsigned long *lockmap;		/* If keeping bitmap of locks */
 };
 
+struct mtd_req_stats {
+	unsigned int uncorrectable_errors;
+	unsigned int corrected_bitflips;
+	unsigned int max_bitflips;
+};
+
 /**
  * struct mtd_oob_ops - oob operation operands
  * @mode:	operation mode
@@ -70,6 +76,7 @@ struct mtd_oob_ops {
 	uint32_t	ooboffs;
 	uint8_t		*datbuf;
 	uint8_t		*oobbuf;
+	struct mtd_req_stats *stats;
 };
 
 /**
@@ -188,9 +195,6 @@ struct module;	/* only needed for owner field in mtd_info */
  */
 struct mtd_debug_info {
 	struct dentry *dfs_dir;
-
-	const char *partname;
-	const char *partid;
 };
 
 /**
@@ -392,10 +396,8 @@ struct mtd_info {
 	/* List of partitions attached to this MTD device */
 	struct list_head partitions;
 
-	union {
-		struct mtd_part part;
-		struct mtd_master master;
-	};
+	struct mtd_part part;
+	struct mtd_master master;
 };
 
 static inline struct mtd_info *mtd_get_master(struct mtd_info *mtd)
@@ -682,6 +684,7 @@ extern int mtd_device_unregister(struct mtd_info *master);
 extern struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num);
 extern int __get_mtd_device(struct mtd_info *mtd);
 extern void __put_mtd_device(struct mtd_info *mtd);
+extern struct mtd_info *of_get_mtd_device_by_node(struct device_node *np);
 extern struct mtd_info *get_mtd_device_nm(const char *name);
 extern void put_mtd_device(struct mtd_info *mtd);
 
@@ -711,7 +714,11 @@ static inline int mtd_is_bitflip_or_eccerr(int err) {
 
 unsigned mtd_mmap_capabilities(struct mtd_info *mtd);
 
-extern char *mtd_expert_analysis_warning;
-extern bool mtd_expert_analysis_mode;
+#ifdef CONFIG_DEBUG_FS
+bool mtd_check_expert_analysis_mode(void);
+#else
+static inline bool mtd_check_expert_analysis_mode(void) { return false; }
+#endif
+
 
 #endif /* __MTD_MTD_H__ */

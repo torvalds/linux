@@ -32,7 +32,7 @@
 };
 
 &pmi8998_gpio {
-	button_backlight_default: button-backlight-default {
+	button_backlight_default: button-backlight-state {
 		pinconf {
 			pins = "gpio5";
 			function = "normal";

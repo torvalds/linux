@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2019-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2019-2021 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2016 Intel Deutschland GmbH
  */
@@ -160,6 +160,11 @@ void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	notif = (struct ct_kill_notif *)pkt->data;
 	IWL_DEBUG_TEMP(mvm, "CT Kill notification temperature = %d\n",
 		       notif->temperature);
+	if (iwl_fw_lookup_notif_ver(mvm->fw, PHY_OPS_GROUP,
+				    CT_KILL_NOTIFICATION, 0) > 1)
+		IWL_DEBUG_TEMP(mvm,
+			       "CT kill notification DTS bitmap = 0x%x, Scheme = %d\n",
+			       notif->dts, notif->scheme);
 
 	iwl_mvm_enter_ctkill(mvm);
 }
@@ -240,8 +245,8 @@ int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp)
 	 * a response. For older versions we send the command and wait for a
 	 * notification (no command TLV for previous versions).
 	 */
-	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
-					CMD_DTS_MEASUREMENT_TRIGGER_WIDE,
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+					WIDE_ID(PHY_OPS_GROUP, CMD_DTS_MEASUREMENT_TRIGGER_WIDE),
 					IWL_FW_CMD_VER_UNKNOWN);
 	if (cmd_ver == 1)
 		return iwl_mvm_send_temp_cmd(mvm, true, temp);

@@ -14,11 +14,18 @@ config CAN_EMS_USB
 	  This driver is for the one channel CPC-USB/ARM7 CAN/USB interface
 	  from EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
 
-config CAN_ESD_USB2
-	tristate "ESD USB/2 CAN/USB interface"
+config CAN_ESD_USB
+	tristate "esd electronics gmbh CAN/USB interfaces"
 	help
-	  This driver supports the CAN-USB/2 interface
-	  from esd electronic system design gmbh (http://www.esd.eu).
+	  This driver adds supports for several CAN/USB interfaces
+	  from esd electronics gmbh (https://www.esd.eu).
+
+	  The drivers supports the following devices:
+	    - esd CAN-USB/2
+	    - esd CAN-USB/Micro
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called esd_usb.
 
 config CAN_ETAS_ES58X
 	tristate "ETAS ES58X CAN/USB interfaces"

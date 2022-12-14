@@ -251,7 +251,7 @@ static void uart_clps711x_shutdown(struct uart_port *port)
 
 static void uart_clps711x_set_termios(struct uart_port *port,
 				      struct ktermios *termios,
-				      struct ktermios *old)
+				      const struct ktermios *old)
 {
 	u32 ubrlcr;
 	unsigned int baud, quot;
@@ -348,7 +348,7 @@ static const struct uart_ops uart_clps711x_ops = {
 };
 
 #ifdef CONFIG_SERIAL_CLPS711X_CONSOLE
-static void uart_clps711x_console_putchar(struct uart_port *port, int ch)
+static void uart_clps711x_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
 	u32 sysflg = 0;

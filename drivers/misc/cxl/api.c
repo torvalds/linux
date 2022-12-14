@@ -12,6 +12,7 @@
 #include <linux/pseudo_fs.h>
 #include <linux/sched/mm.h>
 #include <linux/mmu_context.h>
+#include <linux/irqdomain.h>
 
 #include "cxl.h"
 

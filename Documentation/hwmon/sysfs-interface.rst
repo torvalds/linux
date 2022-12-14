@@ -99,6 +99,10 @@ Global attributes
 `name`
 		The chip name.
 
+`label`
+		A descriptive label that allows to uniquely identify a device
+		within the system.
+
 `update_interval`
 		The interval at which the chip will update readings.
 

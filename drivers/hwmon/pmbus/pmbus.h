@@ -319,6 +319,7 @@ enum pmbus_fan_mode { percent = 0, rpm };
 /*
  * STATUS_VOUT, STATUS_INPUT
  */
+#define PB_VOLTAGE_VIN_OFF		BIT(3)
 #define PB_VOLTAGE_UV_FAULT		BIT(4)
 #define PB_VOLTAGE_UV_WARNING		BIT(5)
 #define PB_VOLTAGE_OV_WARNING		BIT(6)
@@ -405,7 +406,7 @@ enum pmbus_sensor_classes {
 #define PMBUS_PHASE_VIRTUAL	BIT(30)	/* Phases on this page are virtual */
 #define PMBUS_PAGE_VIRTUAL	BIT(31)	/* Page is virtual */
 
-enum pmbus_data_format { linear = 0, direct, vid };
+enum pmbus_data_format { linear = 0, ieee754, direct, vid };
 enum vrm_version { vr11 = 0, vr12, vr13, imvp9, amd625mv };
 
 struct pmbus_driver_info {
@@ -437,6 +438,8 @@ struct pmbus_driver_info {
 	int (*read_byte_data)(struct i2c_client *client, int page, int reg);
 	int (*read_word_data)(struct i2c_client *client, int page, int phase,
 			      int reg);
+	int (*write_byte_data)(struct i2c_client *client, int page, int reg,
+			      u8 byte);
 	int (*write_word_data)(struct i2c_client *client, int page, int reg,
 			       u16 word);
 	int (*write_byte)(struct i2c_client *client, int page, u8 value);
@@ -460,8 +463,8 @@ struct pmbus_driver_info {
 
 extern const struct regulator_ops pmbus_regulator_ops;
 
-/* Macro for filling in array of struct regulator_desc */
-#define PMBUS_REGULATOR(_name, _id)				\
+/* Macros for filling in array of struct regulator_desc */
+#define PMBUS_REGULATOR_STEP(_name, _id, _voltages, _step)  \
 	[_id] = {						\
 		.name = (_name # _id),				\
 		.id = (_id),					\
@@ -470,7 +473,11 @@ extern const struct regulator_ops pmbus_regulator_ops;
 		.ops = &pmbus_regulator_ops,			\
 		.type = REGULATOR_VOLTAGE,			\
 		.owner = THIS_MODULE,				\
+		.n_voltages = _voltages,			\
+		.uV_step = _step,				\
 	}
+
+#define PMBUS_REGULATOR(_name, _id)	PMBUS_REGULATOR_STEP(_name, _id, 0, 0)
 
 /* Function declarations */
 

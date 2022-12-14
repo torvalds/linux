@@ -29,46 +29,51 @@ struct napi_gro_cb {
 	/* Number of segments aggregated. */
 	u16	count;
 
-	/* Start offset for remote checksum offload */
-	u16	gro_remcsum_start;
+	/* Used in ipv6_gro_receive() and foo-over-udp */
+	u16	proto;
 
 	/* jiffies when first packet was created/queued */
 	unsigned long age;
 
-	/* Used in ipv6_gro_receive() and foo-over-udp */
-	u16	proto;
-
-	/* This is non-zero if the packet may be of the same flow. */
-	u8	same_flow:1;
-
-	/* Used in tunnel GRO receive */
-	u8	encap_mark:1;
-
-	/* GRO checksum is valid */
-	u8	csum_valid:1;
-
-	/* Number of checksums via CHECKSUM_UNNECESSARY */
-	u8	csum_cnt:3;
-
-	/* Free the skb? */
-	u8	free:2;
-#define NAPI_GRO_FREE		  1
+/* Used in napi_gro_cb::free */
+#define NAPI_GRO_FREE             1
 #define NAPI_GRO_FREE_STOLEN_HEAD 2
+	/* portion of the cb set to zero at every gro iteration */
+	struct_group(zeroed,
 
-	/* Used in foo-over-udp, set in udp[46]_gro_receive */
-	u8	is_ipv6:1;
+		/* Start offset for remote checksum offload */
+		u16	gro_remcsum_start;
 
-	/* Used in GRE, set in fou/gue_gro_receive */
-	u8	is_fou:1;
+		/* This is non-zero if the packet may be of the same flow. */
+		u8	same_flow:1;
 
-	/* Used to determine if flush_id can be ignored */
-	u8	is_atomic:1;
+		/* Used in tunnel GRO receive */
+		u8	encap_mark:1;
 
-	/* Number of gro_receive callbacks this packet already went through */
-	u8 recursion_counter:4;
+		/* GRO checksum is valid */
+		u8	csum_valid:1;
 
-	/* GRO is done by frag_list pointer chaining. */
-	u8	is_flist:1;
+		/* Number of checksums via CHECKSUM_UNNECESSARY */
+		u8	csum_cnt:3;
+
+		/* Free the skb? */
+		u8	free:2;
+
+		/* Used in foo-over-udp, set in udp[46]_gro_receive */
+		u8	is_ipv6:1;
+
+		/* Used in GRE, set in fou/gue_gro_receive */
+		u8	is_fou:1;
+
+		/* Used to determine if flush_id can be ignored */
+		u8	is_atomic:1;
+
+		/* Number of gro_receive callbacks this packet already went through */
+		u8 recursion_counter:4;
+
+		/* GRO is done by frag_list pointer chaining. */
+		u8	is_flist:1;
+	);
 
 	/* used to support CHECKSUM_COMPLETE for tunneling protocols */
 	__wsum	csum;
@@ -153,6 +158,17 @@ static inline void *skb_gro_header_slow(struct sk_buff *skb, unsigned int hlen,
 
 	skb_gro_frag0_invalidate(skb);
 	return skb->data + offset;
+}
+
+static inline void *skb_gro_header(struct sk_buff *skb,
+					unsigned int hlen, unsigned int offset)
+{
+	void *ptr;
+
+	ptr = skb_gro_header_fast(skb, offset);
+	if (skb_gro_header_hard(skb, hlen))
+		ptr = skb_gro_header_slow(skb, hlen, offset);
+	return ptr;
 }
 
 static inline void *skb_gro_network_header(struct sk_buff *skb)
@@ -296,12 +312,9 @@ static inline void *skb_gro_remcsum_process(struct sk_buff *skb, void *ptr,
 		return ptr;
 	}
 
-	ptr = skb_gro_header_fast(skb, off);
-	if (skb_gro_header_hard(skb, off + plen)) {
-		ptr = skb_gro_header_slow(skb, off + plen, off);
-		if (!ptr)
-			return NULL;
-	}
+	ptr = skb_gro_header(skb, off + plen, off);
+	if (!ptr)
+		return NULL;
 
 	delta = remcsum_adjust(ptr + hdrlen, NAPI_GRO_CB(skb)->csum,
 			       start, offset);
@@ -324,12 +337,9 @@ static inline void skb_gro_remcsum_cleanup(struct sk_buff *skb,
 	if (!grc->delta)
 		return;
 
-	ptr = skb_gro_header_fast(skb, grc->offset);
-	if (skb_gro_header_hard(skb, grc->offset + sizeof(u16))) {
-		ptr = skb_gro_header_slow(skb, plen, grc->offset);
-		if (!ptr)
-			return;
-	}
+	ptr = skb_gro_header(skb, plen, grc->offset);
+	if (!ptr)
+		return;
 
 	remcsum_unadjust((__sum16 *)ptr, grc->delta);
 }
@@ -400,9 +410,7 @@ static inline struct udphdr *udp_gro_udphdr(struct sk_buff *skb)
 
 	off  = skb_gro_offset(skb);
 	hlen = off + sizeof(*uh);
-	uh   = skb_gro_header_fast(skb, off);
-	if (skb_gro_header_hard(skb, hlen))
-		uh = skb_gro_header_slow(skb, hlen, off);
+	uh   = skb_gro_header(skb, hlen, off);
 
 	return uh;
 }
@@ -434,7 +442,7 @@ static inline void gro_normal_one(struct napi_struct *napi, struct sk_buff *skb,
 {
 	list_add_tail(&skb->list, &napi->rx_list);
 	napi->rx_count += segs;
-	if (napi->rx_count >= gro_normal_batch)
+	if (napi->rx_count >= READ_ONCE(gro_normal_batch))
 		gro_normal_list(napi);
 }
 

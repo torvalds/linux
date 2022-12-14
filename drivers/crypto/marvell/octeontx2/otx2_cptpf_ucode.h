@@ -166,4 +166,7 @@ int otx2_cpt_dl_custom_egrp_create(struct otx2_cptpf_dev *cptpf,
 int otx2_cpt_dl_custom_egrp_delete(struct otx2_cptpf_dev *cptpf,
 				   struct devlink_param_gset_ctx *ctx);
 void otx2_cpt_print_uc_dbg_info(struct otx2_cptpf_dev *cptpf);
+struct otx2_cpt_engs_rsvd *find_engines_by_type(
+					struct otx2_cpt_eng_grp_info *eng_grp,
+					int eng_type);
 #endif /* __OTX2_CPTPF_UCODE_H */

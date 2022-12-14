@@ -129,28 +129,46 @@ static int get_counterset_start(int setnr)
 	}
 }
 
+struct get_counter_name_data {
+	int wanted;
+	const char *result;
+};
+
+static int get_counter_name_callback(const struct pmu_event *evp,
+				     const struct pmu_events_table *table __maybe_unused,
+				     void *vdata)
+{
+	struct get_counter_name_data *data = vdata;
+	int rc, event_nr;
+
+	if (evp->name == NULL || evp->event == NULL)
+		return 0;
+	rc = sscanf(evp->event, "event=%x", &event_nr);
+	if (rc == 1 && event_nr == data->wanted) {
+		data->result = evp->name;
+		return 1; /* Terminate the search. */
+	}
+	return 0;
+}
+
 /* Scan the PMU table and extract the logical name of a counter from the
  * PMU events table. Input is the counter set and counter number with in the
  * set. Construct the event number and use this as key. If they match return
  * the name of this counter.
  * If no match is found a NULL pointer is returned.
  */
-static const char *get_counter_name(int set, int nr, const struct pmu_events_map *map)
+static const char *get_counter_name(int set, int nr, const struct pmu_events_table *table)
 {
-	int rc, event_nr, wanted = get_counterset_start(set) + nr;
+	struct get_counter_name_data data = {
+		.wanted = get_counterset_start(set) + nr,
+		.result = NULL,
+	};
 
-	if (map) {
-		const struct pmu_event *evp = map->table;
+	if (!table)
+		return NULL;
 
-		for (; evp->name || evp->event || evp->desc; ++evp) {
-			if (evp->name == NULL || evp->event == NULL)
-				continue;
-			rc = sscanf(evp->event, "event=%x", &event_nr);
-			if (rc == 1 && event_nr == wanted)
-				return evp->name;
-		}
-	}
-	return NULL;
+	pmu_events_table_for_each_event(table, get_counter_name_callback, &data);
+	return data.result;
 }
 
 static void s390_cpumcfdg_dump(struct perf_sample *sample)
@@ -159,10 +177,10 @@ static void s390_cpumcfdg_dump(struct perf_sample *sample)
 	unsigned char *buf = sample->raw_data;
 	const char *color = PERF_COLOR_BLUE;
 	struct cf_ctrset_entry *cep, ce;
-	const struct pmu_events_map *map;
+	const struct pmu_events_table *table;
 	u64 *p;
 
-	map = pmu_events_map__find();
+	table = pmu_events_table__find();
 	while (offset < len) {
 		cep = (struct cf_ctrset_entry *)(buf + offset);
 
@@ -180,7 +198,7 @@ static void s390_cpumcfdg_dump(struct perf_sample *sample)
 		color_fprintf(stdout, color, "    [%#08zx] Counterset:%d"
 			      " Counters:%d\n", offset, ce.set, ce.ctr);
 		for (i = 0, p = (u64 *)(cep + 1); i < ce.ctr; ++i, ++p) {
-			const char *ev_name = get_counter_name(ce.set, i, map);
+			const char *ev_name = get_counter_name(ce.set, i, table);
 
 			color_fprintf(stdout, color,
 				      "\tCounter:%03d %s Value:%#018lx\n", i,

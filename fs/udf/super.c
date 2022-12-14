@@ -136,7 +136,7 @@ static struct kmem_cache *udf_inode_cachep;
 static struct inode *udf_alloc_inode(struct super_block *sb)
 {
 	struct udf_inode_info *ei;
-	ei = kmem_cache_alloc(udf_inode_cachep, GFP_KERNEL);
+	ei = alloc_inode_sb(sb, udf_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 
@@ -2474,7 +2474,6 @@ static unsigned int udf_count_free_table(struct super_block *sb,
 	unsigned int accum = 0;
 	uint32_t elen;
 	struct kernel_lb_addr eloc;
-	int8_t etype;
 	struct extent_position epos;
 
 	mutex_lock(&UDF_SB(sb)->s_alloc_mutex);
@@ -2482,7 +2481,7 @@ static unsigned int udf_count_free_table(struct super_block *sb,
 	epos.offset = sizeof(struct unallocSpaceEntry);
 	epos.bh = NULL;
 
-	while ((etype = udf_next_aext(table, &epos, &eloc, &elen, 1)) != -1)
+	while (udf_next_aext(table, &epos, &eloc, &elen, 1) != -1)
 		accum += (elen >> table->i_sb->s_blocksize_bits);
 
 	brelse(epos.bh);

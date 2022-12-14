@@ -30,7 +30,7 @@
 
 #include "atom.h"
 #include "atom-bits.h"
-#include <drm/drm_dp_helper.h>
+#include <drm/display/drm_dp_helper.h>
 
 /* move these to drm_dp_helper.c/h */
 #define DP_LINK_CONFIGURATION_SIZE 9

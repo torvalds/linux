@@ -164,7 +164,7 @@ static int p54spi_request_firmware(struct ieee80211_hw *dev)
 
 	ret = p54_parse_firmware(dev, priv->firmware);
 	if (ret) {
-		release_firmware(priv->firmware);
+		/* the firmware is released by the caller */
 		return ret;
 	}
 
@@ -659,6 +659,7 @@ static int p54spi_probe(struct spi_device *spi)
 	return 0;
 
 err_free_common:
+	release_firmware(priv->firmware);
 	free_irq(gpio_to_irq(p54spi_gpio_irq), spi);
 err_free_gpio_irq:
 	gpio_free(p54spi_gpio_irq);
@@ -669,7 +670,7 @@ err_free:
 	return ret;
 }
 
-static int p54spi_remove(struct spi_device *spi)
+static void p54spi_remove(struct spi_device *spi)
 {
 	struct p54s_priv *priv = spi_get_drvdata(spi);
 
@@ -684,8 +685,6 @@ static int p54spi_remove(struct spi_device *spi)
 	mutex_destroy(&priv->mutex);
 
 	p54_free_common(priv->hw);
-
-	return 0;
 }
 
 

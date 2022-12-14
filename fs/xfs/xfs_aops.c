@@ -136,7 +136,20 @@ done:
 	memalloc_nofs_restore(nofs_flag);
 }
 
-/* Finish all pending io completions. */
+/*
+ * Finish all pending IO completions that require transactional modifications.
+ *
+ * We try to merge physical and logically contiguous ioends before completion to
+ * minimise the number of transactions we need to perform during IO completion.
+ * Both unwritten extent conversion and COW remapping need to iterate and modify
+ * one physical extent at a time, so we gain nothing by merging physically
+ * discontiguous extents here.
+ *
+ * The ioend chain length that we can be processing here is largely unbound in
+ * length and we may have to perform significant amounts of work on each ioend
+ * to complete it. Hence we have to be careful about holding the CPU for too
+ * long in this loop.
+ */
 void
 xfs_end_io(
 	struct work_struct	*work)
@@ -157,6 +170,7 @@ xfs_end_io(
 		list_del_init(&ioend->io_list);
 		iomap_ioend_try_merge(ioend, &tmp);
 		xfs_end_ioend(ioend);
+		cond_resched();
 	}
 }
 
@@ -450,7 +464,7 @@ xfs_discard_folio(
 	int			error;
 
 	if (xfs_is_shutdown(mp))
-		goto out_invalidate;
+		return;
 
 	xfs_alert_ratelimited(mp,
 		"page discard on page "PTR_FMT", inode 0x%llx, pos %llu.",
@@ -460,8 +474,6 @@ xfs_discard_folio(
 			i_blocks_per_folio(inode, folio) - pageoff_fsb);
 	if (error && !xfs_is_shutdown(mp))
 		xfs_alert(mp, "page discard unable to remove delalloc mapping.");
-out_invalidate:
-	iomap_invalidate_folio(folio, offset, folio_size(folio) - offset);
 }
 
 static const struct iomap_writeback_ops xfs_writeback_ops = {
@@ -524,11 +536,11 @@ xfs_vm_bmap(
 }
 
 STATIC int
-xfs_vm_readpage(
+xfs_vm_read_folio(
 	struct file		*unused,
-	struct page		*page)
+	struct folio		*folio)
 {
-	return iomap_readpage(page, &xfs_read_iomap_ops);
+	return iomap_read_folio(folio, &xfs_read_iomap_ops);
 }
 
 STATIC void
@@ -550,15 +562,15 @@ xfs_iomap_swapfile_activate(
 }
 
 const struct address_space_operations xfs_address_space_operations = {
-	.readpage		= xfs_vm_readpage,
+	.read_folio		= xfs_vm_read_folio,
 	.readahead		= xfs_vm_readahead,
 	.writepages		= xfs_vm_writepages,
-	.set_page_dirty		= __set_page_dirty_nobuffers,
-	.releasepage		= iomap_releasepage,
-	.invalidatepage		= iomap_invalidatepage,
+	.dirty_folio		= filemap_dirty_folio,
+	.release_folio		= iomap_release_folio,
+	.invalidate_folio	= iomap_invalidate_folio,
 	.bmap			= xfs_vm_bmap,
 	.direct_IO		= noop_direct_IO,
-	.migratepage		= iomap_migrate_page,
+	.migrate_folio		= filemap_migrate_folio,
 	.is_partially_uptodate  = iomap_is_partially_uptodate,
 	.error_remove_page	= generic_error_remove_page,
 	.swap_activate		= xfs_iomap_swapfile_activate,
@@ -567,7 +579,6 @@ const struct address_space_operations xfs_address_space_operations = {
 const struct address_space_operations xfs_dax_aops = {
 	.writepages		= xfs_dax_writepages,
 	.direct_IO		= noop_direct_IO,
-	.set_page_dirty		= __set_page_dirty_no_writeback,
-	.invalidatepage		= noop_invalidatepage,
+	.dirty_folio		= noop_dirty_folio,
 	.swap_activate		= xfs_iomap_swapfile_activate,
 };

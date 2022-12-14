@@ -1979,7 +1979,6 @@ static int cadence_nand_force_byte_access(struct nand_chip *chip,
 					  bool force_8bit)
 {
 	struct cdns_nand_ctrl *cdns_ctrl = to_cdns_nand_ctrl(chip->controller);
-	int status;
 
 	/*
 	 * Callers of this function do not verify if the NAND is using a 16-bit
@@ -1990,9 +1989,7 @@ static int cadence_nand_force_byte_access(struct nand_chip *chip,
 	if (!(chip->options & NAND_BUSWIDTH_16))
 		return 0;
 
-	status = cadence_nand_set_access_width16(cdns_ctrl, !force_8bit);
-
-	return status;
+	return cadence_nand_set_access_width16(cdns_ctrl, !force_8bit);
 }
 
 static int cadence_nand_cmd_opcode(struct nand_chip *chip,
@@ -2983,11 +2980,10 @@ static int cadence_nand_dt_probe(struct platform_device *ofdev)
 	if (IS_ERR(cdns_ctrl->reg))
 		return PTR_ERR(cdns_ctrl->reg);
 
-	res = platform_get_resource(ofdev, IORESOURCE_MEM, 1);
-	cdns_ctrl->io.dma = res->start;
-	cdns_ctrl->io.virt = devm_ioremap_resource(&ofdev->dev, res);
+	cdns_ctrl->io.virt = devm_platform_get_and_ioremap_resource(ofdev, 1, &res);
 	if (IS_ERR(cdns_ctrl->io.virt))
 		return PTR_ERR(cdns_ctrl->io.virt);
+	cdns_ctrl->io.dma = res->start;
 
 	dt->clk = devm_clk_get(cdns_ctrl->dev, "nf_clk");
 	if (IS_ERR(dt->clk))

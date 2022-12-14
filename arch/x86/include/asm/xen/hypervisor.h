@@ -43,20 +43,6 @@ static inline uint32_t xen_cpuid_base(void)
 	return hypervisor_cpuid_base("XenVMMXenVMM", 2);
 }
 
-#ifdef CONFIG_XEN
-extern bool __init xen_hvm_need_lapic(void);
-
-static inline bool __init xen_x2apic_para_available(void)
-{
-	return xen_hvm_need_lapic();
-}
-#else
-static inline bool __init xen_x2apic_para_available(void)
-{
-	return (xen_cpuid_base() != 0);
-}
-#endif
-
 struct pci_dev;
 
 #ifdef CONFIG_XEN_PV_DOM0

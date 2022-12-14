@@ -371,7 +371,7 @@ static int em_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	strlcpy(priv->adap.name, "EMEV2 I2C", sizeof(priv->adap.name));
+	strscpy(priv->adap.name, "EMEV2 I2C", sizeof(priv->adap.name));
 
 	priv->sclk = devm_clk_get(&pdev->dev, "sclk");
 	if (IS_ERR(priv->sclk))

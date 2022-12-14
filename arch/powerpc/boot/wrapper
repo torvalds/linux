@@ -162,7 +162,7 @@ while [ "$#" -gt 0 ]; do
 	fi
 	;;
     --no-gzip)
-        # a "feature" of the the wrapper script is that it can be used outside
+        # a "feature" of the wrapper script is that it can be used outside
         # the kernel tree. So keeping this around for backwards compatibility.
         compression=
 	uboot_comp=none
@@ -433,7 +433,7 @@ fi
 # Extract kernel version information, some platforms want to include
 # it in the image header
 version=`${CROSS}strings "$kernel" | grep '^Linux version [-0-9.]' | \
-    cut -d' ' -f3`
+    head -n1 | cut -d' ' -f3`
 if [ -n "$version" ]; then
     uboot_version="-n Linux-$version"
 fi

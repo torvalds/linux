@@ -216,7 +216,7 @@ static int snow_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret,
 				     "snd_soc_register_card failed\n");
 
-	return ret;
+	return 0;
 }
 
 static int snow_remove(struct platform_device *pdev)

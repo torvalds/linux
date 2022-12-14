@@ -71,6 +71,17 @@
 		};
 	};
 
+	miphy28lp_phy: miphy28lp {
+
+		phy_port0: port@9b22000 {
+			st,osc-rdy;
+		};
+
+		phy_port1: port@9b2a000 {
+			st,osc-force-ext;
+		};
+	};
+
 	soc {
 		sbc_serial0: serial@9530000 {
 			status = "okay";
@@ -128,17 +139,6 @@
 			st,i2c-min-sda-pulse-width-us = <5>;
 		};
 
-		miphy28lp_phy: miphy28lp@0 {
-
-			phy_port0: port@9b22000 {
-				st,osc-rdy;
-			};
-
-			phy_port1: port@9b2a000 {
-				st,osc-force-ext;
-			};
-		};
-
 		st_dwc3: dwc3@8f94000 {
 			status = "okay";
 		};
@@ -175,11 +175,11 @@
 
 			/* tsin0 is TSA on NIMA */
 			tsin0: port {
-				tsin-num	= <0>;
+				tsin-num = <0>;
 				serial-not-parallel;
-				i2c-bus		= <&ssc2>;
-				reset-gpios	= <&pio15 4 GPIO_ACTIVE_HIGH>;
-				dvb-card	= <STV0367_TDA18212_NIMA_1>;
+				i2c-bus = <&ssc2>;
+				reset-gpios = <&pio15 4 GPIO_ACTIVE_HIGH>;
+				dvb-card = <STV0367_TDA18212_NIMA_1>;
 			};
 		};
 

@@ -13,9 +13,8 @@ e argomenti correlati. Primo tra questi sarà sempre la cartella Documentation
 che si trova nei sorgenti kernel.
 
 Il file :ref:`process/howto.rst <it_process_howto>` è un punto di partenza
-importante; :ref:`process/submitting-patches.rst <it_submittingpatches>` e
-:ref:`process/submitting-drivers.rst <it_submittingdrivers>` sono
-anch'essi qualcosa che tutti gli sviluppatori del kernel dovrebbero leggere.
+importante; :ref:`process/submitting-patches.rst <it_submittingpatches>` è
+anch'esso qualcosa che tutti gli sviluppatori del kernel dovrebbero leggere.
 Molte API interne al kernel sono documentate utilizzando il meccanismo
 kerneldoc; "make htmldocs" o "make pdfdocs" possono essere usati per generare
 quei documenti in HTML o PDF (sebbene le versioni di TeX di alcune

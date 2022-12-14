@@ -3,6 +3,10 @@
  * Copyright © 2008-2021 Intel Corporation
  */
 
+#include <drm/drm_cache.h>
+
+#include "gem/i915_gem_internal.h"
+
 #include "gen2_engine_cs.h"
 #include "gen6_engine_cs.h"
 #include "gen6_ppgtt.h"
@@ -11,8 +15,10 @@
 #include "i915_mitigations.h"
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
+#include "intel_engine_regs.h"
 #include "intel_gt.h"
 #include "intel_gt_irq.h"
+#include "intel_gt_regs.h"
 #include "intel_reset.h"
 #include "intel_ring.h"
 #include "shmem_utils.h"
@@ -111,7 +117,9 @@ static void flush_cs_tlb(struct intel_engine_cs *engine)
 		return;
 
 	/* ring should be idle before issuing a sync flush*/
-	GEM_DEBUG_WARN_ON((ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0);
+	if ((ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0)
+		drm_warn(&engine->i915->drm, "%s not idle before sync flush!\n",
+			 engine->name);
 
 	ENGINE_WRITE_FW(engine, RING_INSTPM,
 			_MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
@@ -590,8 +598,9 @@ static void ring_context_reset(struct intel_context *ce)
 	clear_bit(CONTEXT_VALID_BIT, &ce->flags);
 }
 
-static void ring_context_ban(struct intel_context *ce,
-			     struct i915_request *rq)
+static void ring_context_revoke(struct intel_context *ce,
+				struct i915_request *rq,
+				unsigned int preempt_timeout_ms)
 {
 	struct intel_engine_cs *engine;
 
@@ -626,7 +635,7 @@ static const struct intel_context_ops ring_context_ops = {
 
 	.cancel_request = ring_context_cancel_request,
 
-	.ban = ring_context_ban,
+	.revoke = ring_context_revoke,
 
 	.pre_pin = ring_context_pre_pin,
 	.pin = ring_context_pin,
@@ -761,7 +770,7 @@ static int mi_set_context(struct i915_request *rq,
 	if (GRAPHICS_VER(i915) == 7) {
 		if (num_engines) {
 			struct intel_engine_cs *signaller;
-			i915_reg_t last_reg = {}; /* keep gcc quiet */
+			i915_reg_t last_reg = INVALID_MMIO_REG; /* keep gcc quiet */
 
 			*cs++ = MI_LOAD_REGISTER_IMM(num_engines);
 			for_each_engine(signaller, engine->gt, id) {
@@ -1002,15 +1011,15 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 	/* Disable notification that the ring is IDLE. The GT
 	 * will then assume that it is busy and bring it out of rc6.
 	 */
-	intel_uncore_write_fw(uncore, GEN6_BSD_SLEEP_PSMI_CONTROL,
-			      _MASKED_BIT_ENABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
+	intel_uncore_write_fw(uncore, RING_PSMI_CTL(GEN6_BSD_RING_BASE),
+			      _MASKED_BIT_ENABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 
 	/* Clear the context id. Here be magic! */
 	intel_uncore_write64_fw(uncore, GEN6_BSD_RNCID, 0x0);
 
 	/* Wait for the ring not to be idle, i.e. for it to wake up. */
 	if (__intel_wait_for_register_fw(uncore,
-					 GEN6_BSD_SLEEP_PSMI_CONTROL,
+					 RING_PSMI_CTL(GEN6_BSD_RING_BASE),
 					 GEN6_BSD_SLEEP_INDICATOR,
 					 0,
 					 1000, 0, NULL))
@@ -1023,8 +1032,8 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 	/* Let the ring send IDLE messages to the GT again,
 	 * and so let it sleep to conserve power when idle.
 	 */
-	intel_uncore_write_fw(uncore, GEN6_BSD_SLEEP_PSMI_CONTROL,
-			      _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
+	intel_uncore_write_fw(uncore, RING_PSMI_CTL(GEN6_BSD_RING_BASE),
+			      _MASKED_BIT_DISABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 }

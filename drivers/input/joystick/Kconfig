@@ -399,4 +399,16 @@ config JOYSTICK_N64
 	  Say Y here if you want enable support for the four
 	  built-in controller ports on the Nintendo 64 console.
 
+config JOYSTICK_SENSEHAT
+	tristate "Raspberry Pi Sense HAT joystick"
+	depends on INPUT && I2C
+	depends on HAS_IOMEM
+	select MFD_SIMPLE_MFD_I2C
+	help
+	  Say Y here if you want to enable the driver for the
+	  the Raspberry Pi Sense HAT.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sensehat_joystick.
+
 endif

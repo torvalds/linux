@@ -12,6 +12,7 @@
  * who were very cooperative and answered my questions.
  */
 
+#include <linux/ethtool.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -21,7 +22,6 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-#include <linux/can/led.h>
 
 /* driver constants */
 #define MAX_RX_URBS			20
@@ -439,9 +439,11 @@ static void usb_8dev_rx_err_msg(struct usb_8dev_priv *priv,
 
 	if (rx_errors)
 		stats->rx_errors++;
-
-	cf->data[6] = txerr;
-	cf->data[7] = rxerr;
+	if (priv->can.state != CAN_STATE_BUS_OFF) {
+		cf->can_id |= CAN_ERR_CNT;
+		cf->data[6] = txerr;
+		cf->data[7] = rxerr;
+	}
 
 	priv->bec.txerr = txerr;
 	priv->bec.rxerr = rxerr;
@@ -480,8 +482,6 @@ static void usb_8dev_rx_can_msg(struct usb_8dev_priv *priv,
 		stats->rx_packets++;
 
 		netif_rx(skb);
-
-		can_led_event(priv->netdev, CAN_LED_EVENT_RX);
 	} else {
 		netdev_warn(priv->netdev, "frame type %d unknown",
 			 msg->type);
@@ -582,8 +582,6 @@ static void usb_8dev_write_bulk_callback(struct urb *urb)
 	netdev->stats.tx_packets++;
 	netdev->stats.tx_bytes += can_get_echo_skb(netdev, context->echo_index, NULL);
 
-	can_led_event(netdev, CAN_LED_EVENT_TX);
-
 	/* Release context */
 	context->echo_index = MAX_TX_URBS;
 
@@ -604,7 +602,7 @@ static netdev_tx_t usb_8dev_start_xmit(struct sk_buff *skb,
 	int i, err;
 	size_t size = sizeof(struct usb_8dev_tx_msg);
 
-	if (can_dropped_invalid_skb(netdev, skb))
+	if (can_dev_dropped_skb(netdev, skb))
 		return NETDEV_TX_OK;
 
 	/* create a URB, and a buffer for it, and copy the data to the URB */
@@ -663,9 +661,20 @@ static netdev_tx_t usb_8dev_start_xmit(struct sk_buff *skb,
 	atomic_inc(&priv->active_tx_urbs);
 
 	err = usb_submit_urb(urb, GFP_ATOMIC);
-	if (unlikely(err))
-		goto failed;
-	else if (atomic_read(&priv->active_tx_urbs) >= MAX_TX_URBS)
+	if (unlikely(err)) {
+		can_free_echo_skb(netdev, context->echo_index, NULL);
+
+		usb_unanchor_urb(urb);
+		usb_free_coherent(priv->udev, size, buf, urb->transfer_dma);
+
+		atomic_dec(&priv->active_tx_urbs);
+
+		if (err == -ENODEV)
+			netif_device_detach(netdev);
+		else
+			netdev_warn(netdev, "failed tx_urb %d\n", err);
+		stats->tx_dropped++;
+	} else if (atomic_read(&priv->active_tx_urbs) >= MAX_TX_URBS)
 		/* Slow down tx path */
 		netif_stop_queue(netdev);
 
@@ -683,19 +692,6 @@ nofreecontext:
 	netdev_warn(netdev, "couldn't find free context");
 
 	return NETDEV_TX_BUSY;
-
-failed:
-	can_free_echo_skb(netdev, context->echo_index, NULL);
-
-	usb_unanchor_urb(urb);
-	usb_free_coherent(priv->udev, size, buf, urb->transfer_dma);
-
-	atomic_dec(&priv->active_tx_urbs);
-
-	if (err == -ENODEV)
-		netif_device_detach(netdev);
-	else
-		netdev_warn(netdev, "failed tx_urb %d\n", err);
 
 nomembuf:
 	usb_free_urb(urb);
@@ -809,8 +805,6 @@ static int usb_8dev_open(struct net_device *netdev)
 	if (err)
 		return err;
 
-	can_led_event(netdev, CAN_LED_EVENT_OPEN);
-
 	/* finally start device */
 	err = usb_8dev_start(priv);
 	if (err) {
@@ -867,8 +861,6 @@ static int usb_8dev_close(struct net_device *netdev)
 
 	close_candev(netdev);
 
-	can_led_event(netdev, CAN_LED_EVENT_STOP);
-
 	return err;
 }
 
@@ -879,8 +871,12 @@ static const struct net_device_ops usb_8dev_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops usb_8dev_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static const struct can_bittiming_const usb_8dev_bittiming_const = {
-	.name = "usb_8dev",
+	.name = KBUILD_MODNAME,
 	.tseg1_min = 1,
 	.tseg1_max = 16,
 	.tseg2_min = 1,
@@ -936,6 +932,7 @@ static int usb_8dev_probe(struct usb_interface *intf,
 				      CAN_CTRLMODE_CC_LEN8_DLC;
 
 	netdev->netdev_ops = &usb_8dev_netdev_ops;
+	netdev->ethtool_ops = &usb_8dev_ethtool_ops;
 
 	netdev->flags |= IFF_ECHO; /* we support local echo */
 
@@ -976,8 +973,6 @@ static int usb_8dev_probe(struct usb_interface *intf,
 			 (version>>8) & 0xff, version & 0xff);
 	}
 
-	devm_can_led_init(netdev);
-
 	return 0;
 
 cleanup_unregister_candev:
@@ -1008,7 +1003,7 @@ static void usb_8dev_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver usb_8dev_driver = {
-	.name =		"usb_8dev",
+	.name =		KBUILD_MODNAME,
 	.probe =	usb_8dev_probe,
 	.disconnect =	usb_8dev_disconnect,
 	.id_table =	usb_8dev_table,

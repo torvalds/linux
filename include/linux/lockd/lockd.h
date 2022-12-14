@@ -292,6 +292,7 @@ void		  nlmsvc_locks_init_private(struct file_lock *, struct nlm_host *, pid_t);
 __be32		  nlm_lookup_file(struct svc_rqst *, struct nlm_file **,
 					struct nlm_lock *);
 void		  nlm_release_file(struct nlm_file *);
+void		  nlmsvc_put_lockowner(struct nlm_lockowner *);
 void		  nlmsvc_release_lockowner(struct nlm_lock *);
 void		  nlmsvc_mark_resources(struct net *);
 void		  nlmsvc_free_host_resources(struct nlm_host *);

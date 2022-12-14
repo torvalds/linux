@@ -20,6 +20,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/tty.h>
 #include <linux/interrupt.h>
 #include <linux/dmi.h>
@@ -52,10 +53,12 @@
  * struct bcm_device_data - device specific data
  * @no_early_set_baudrate: Disallow set baudrate before driver setup()
  * @drive_rts_on_open: drive RTS signal on ->open() when platform requires it
+ * @max_autobaud_speed: max baudrate supported by device in autobaud mode
  */
 struct bcm_device_data {
 	bool	no_early_set_baudrate;
 	bool	drive_rts_on_open;
+	u32	max_autobaud_speed;
 };
 
 /**
@@ -98,6 +101,8 @@ struct bcm_device_data {
  * @no_early_set_baudrate: don't set_baudrate before setup()
  * @drive_rts_on_open: drive RTS signal on ->open() when platform requires it
  * @pcm_int_params: keep the initial PCM configuration
+ * @use_autobaud_mode: start Bluetooth device in autobaud mode
+ * @max_autobaud_speed: max baudrate supported by device in autobaud mode
  */
 struct bcm_device {
 	/* Must be the first member, hci_serdev.c expects this. */
@@ -135,7 +140,9 @@ struct bcm_device {
 #endif
 	bool			no_early_set_baudrate;
 	bool			drive_rts_on_open;
+	bool			use_autobaud_mode;
 	u8			pcm_int_params[5];
+	u32			max_autobaud_speed;
 };
 
 /* generic bcm uart resources */
@@ -471,15 +478,20 @@ static int bcm_open(struct hci_uart *hu)
 
 out:
 	if (bcm->dev) {
-		if (bcm->dev->drive_rts_on_open)
+		if (bcm->dev->use_autobaud_mode)
+			hci_uart_set_flow_control(hu, false);	/* Assert BT_UART_CTS_N */
+		else if (bcm->dev->drive_rts_on_open)
 			hci_uart_set_flow_control(hu, true);
 
-		hu->init_speed = bcm->dev->init_speed;
+		if (bcm->dev->use_autobaud_mode && bcm->dev->max_autobaud_speed)
+			hu->init_speed = min(bcm->dev->oper_speed, bcm->dev->max_autobaud_speed);
+		else
+			hu->init_speed = bcm->dev->init_speed;
 
 		/* If oper_speed is set, ldisc/serdev will set the baudrate
 		 * before calling setup()
 		 */
-		if (!bcm->dev->no_early_set_baudrate)
+		if (!bcm->dev->no_early_set_baudrate && !bcm->dev->use_autobaud_mode)
 			hu->oper_speed = bcm->dev->oper_speed;
 
 		err = bcm_gpio_set_power(bcm->dev, true);
@@ -563,6 +575,7 @@ static int bcm_setup(struct hci_uart *hu)
 {
 	struct bcm_data *bcm = hu->priv;
 	bool fw_load_done = false;
+	bool use_autobaud_mode = (bcm->dev ? bcm->dev->use_autobaud_mode : 0);
 	unsigned int speed;
 	int err;
 
@@ -571,7 +584,7 @@ static int bcm_setup(struct hci_uart *hu)
 	hu->hdev->set_diag = bcm_set_diag;
 	hu->hdev->set_bdaddr = btbcm_set_bdaddr;
 
-	err = btbcm_initialize(hu->hdev, &fw_load_done);
+	err = btbcm_initialize(hu->hdev, &fw_load_done, use_autobaud_mode);
 	if (err)
 		return err;
 
@@ -579,8 +592,8 @@ static int bcm_setup(struct hci_uart *hu)
 		return 0;
 
 	/* Init speed if any */
-	if (hu->init_speed)
-		speed = hu->init_speed;
+	if (bcm->dev && bcm->dev->init_speed)
+		speed = bcm->dev->init_speed;
 	else if (hu->proto->init_speed)
 		speed = hu->proto->init_speed;
 	else
@@ -615,7 +628,7 @@ static int bcm_setup(struct hci_uart *hu)
 		btbcm_write_pcm_int_params(hu->hdev, &params);
 	}
 
-	err = btbcm_finalize(hu->hdev, &fw_load_done);
+	err = btbcm_finalize(hu->hdev, &fw_load_done, use_autobaud_mode);
 	if (err)
 		return err;
 
@@ -870,7 +883,23 @@ unlock:
 #endif
 
 /* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
+static struct gpiod_lookup_table asus_tf103c_irq_gpios = {
+	.dev_id = "serial0-0",
+	.table = {
+		GPIO_LOOKUP("INT33FC:02", 17, "host-wakeup-alt", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
 static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
+	{
+		.ident = "Asus TF103C",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TF103C"),
+		},
+		.driver_data = &asus_tf103c_irq_gpios,
+	},
 	{
 		.ident = "Meegopad T08",
 		.matches = {
@@ -1027,7 +1056,8 @@ static struct clk *bcm_get_txco(struct device *dev)
 
 static int bcm_get_resources(struct bcm_device *dev)
 {
-	const struct dmi_system_id *dmi_id;
+	const struct dmi_system_id *broken_irq_dmi_id;
+	const char *irq_con_id = "host-wakeup";
 	int err;
 
 	dev->name = dev_name(dev->dev);
@@ -1083,23 +1113,33 @@ static int bcm_get_resources(struct bcm_device *dev)
 	if (err)
 		return err;
 
+	broken_irq_dmi_id = dmi_first_match(bcm_broken_irq_dmi_table);
+	if (broken_irq_dmi_id && broken_irq_dmi_id->driver_data) {
+		gpiod_add_lookup_table(broken_irq_dmi_id->driver_data);
+		irq_con_id = "host-wakeup-alt";
+		dev->irq_active_low = false;
+		dev->irq = 0;
+	}
+
 	/* IRQ can be declared in ACPI table as Interrupt or GpioInt */
 	if (dev->irq <= 0) {
 		struct gpio_desc *gpio;
 
-		gpio = devm_gpiod_get_optional(dev->dev, "host-wakeup",
-					       GPIOD_IN);
+		gpio = devm_gpiod_get_optional(dev->dev, irq_con_id, GPIOD_IN);
 		if (IS_ERR(gpio))
 			return PTR_ERR(gpio);
 
 		dev->irq = gpiod_to_irq(gpio);
 	}
 
-	dmi_id = dmi_first_match(bcm_broken_irq_dmi_table);
-	if (dmi_id) {
-		dev_info(dev->dev, "%s: Has a broken IRQ config, disabling IRQ support / runtime-pm\n",
-			 dmi_id->ident);
-		dev->irq = 0;
+	if (broken_irq_dmi_id) {
+		if (broken_irq_dmi_id->driver_data) {
+			gpiod_remove_lookup_table(broken_irq_dmi_id->driver_data);
+		} else {
+			dev_info(dev->dev, "%s: Has a broken IRQ config, disabling IRQ support / runtime-pm\n",
+				 broken_irq_dmi_id->ident);
+			dev->irq = 0;
+		}
 	}
 
 	dev_dbg(dev->dev, "BCM irq: %d\n", dev->irq);
@@ -1169,6 +1209,8 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 
 static int bcm_of_probe(struct bcm_device *bdev)
 {
+	bdev->use_autobaud_mode = device_property_read_bool(bdev->dev,
+							    "brcm,requires-autobaud-mode");
 	device_property_read_u32(bdev->dev, "max-speed", &bdev->oper_speed);
 	device_property_read_u8_array(bdev->dev, "brcm,bt-pcm-int-params",
 				      bdev->pcm_int_params, 5);
@@ -1484,6 +1526,7 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 
 	data = device_get_match_data(bcmdev->dev);
 	if (data) {
+		bcmdev->max_autobaud_speed = data->max_autobaud_speed;
 		bcmdev->no_early_set_baudrate = data->no_early_set_baudrate;
 		bcmdev->drive_rts_on_open = data->drive_rts_on_open;
 	}
@@ -1507,15 +1550,23 @@ static struct bcm_device_data bcm43438_device_data = {
 	.drive_rts_on_open = true,
 };
 
+static struct bcm_device_data cyw55572_device_data = {
+	.max_autobaud_speed = 921600,
+};
+
 static const struct of_device_id bcm_bluetooth_of_match[] = {
 	{ .compatible = "brcm,bcm20702a1" },
 	{ .compatible = "brcm,bcm4329-bt" },
 	{ .compatible = "brcm,bcm4330-bt" },
 	{ .compatible = "brcm,bcm4334-bt" },
 	{ .compatible = "brcm,bcm4345c5" },
+	{ .compatible = "brcm,bcm43430a0-bt" },
+	{ .compatible = "brcm,bcm43430a1-bt" },
 	{ .compatible = "brcm,bcm43438-bt", .data = &bcm43438_device_data },
+	{ .compatible = "brcm,bcm4349-bt", .data = &bcm43438_device_data },
 	{ .compatible = "brcm,bcm43540-bt", .data = &bcm4354_device_data },
 	{ .compatible = "brcm,bcm4335a0" },
+	{ .compatible = "infineon,cyw55572-bt", .data = &cyw55572_device_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bcm_bluetooth_of_match);

@@ -3,27 +3,21 @@
  * Copyright (C) 2015-2017 Josh Poimboeuf <jpoimboe@redhat.com>
  */
 
-/*
- * objtool check:
- *
- * This command analyzes every .o file and ensures the validity of its stack
- * trace metadata.  It enforces a set of rules on asm code and C inline
- * assembly code so that stack traces can be reliable.
- *
- * For more information, see tools/objtool/Documentation/stack-validation.txt.
- */
-
 #include <subcmd/parse-options.h>
 #include <string.h>
 #include <stdlib.h>
 #include <objtool/builtin.h>
 #include <objtool/objtool.h>
 
-bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats,
-     validate_dup, vmlinux, mcount, noinstr, backup, sls;
+#define ERROR(format, ...)				\
+	fprintf(stderr,					\
+		"error: objtool: " format "\n",		\
+		##__VA_ARGS__)
+
+struct opts opts;
 
 static const char * const check_usage[] = {
-	"objtool check [<options>] file.o",
+	"objtool <actions> [<options>] file.o",
 	NULL,
 };
 
@@ -32,20 +26,66 @@ static const char * const env_usage[] = {
 	NULL,
 };
 
+static int parse_dump(const struct option *opt, const char *str, int unset)
+{
+	if (!str || !strcmp(str, "orc")) {
+		opts.dump_orc = true;
+		return 0;
+	}
+
+	return -1;
+}
+
+static int parse_hacks(const struct option *opt, const char *str, int unset)
+{
+	bool found = false;
+
+	/*
+	 * Use strstr() as a lazy method of checking for comma-separated
+	 * options.
+	 *
+	 * No string provided == enable all options.
+	 */
+
+	if (!str || strstr(str, "jump_label")) {
+		opts.hack_jump_label = true;
+		found = true;
+	}
+
+	if (!str || strstr(str, "noinstr")) {
+		opts.hack_noinstr = true;
+		found = true;
+	}
+
+	return found ? 0 : -1;
+}
+
 const struct option check_options[] = {
-	OPT_BOOLEAN('f', "no-fp", &no_fp, "Skip frame pointer validation"),
-	OPT_BOOLEAN('u', "no-unreachable", &no_unreachable, "Skip 'unreachable instruction' warnings"),
-	OPT_BOOLEAN('r', "retpoline", &retpoline, "Validate retpoline assumptions"),
-	OPT_BOOLEAN('m', "module", &module, "Indicates the object will be part of a kernel module"),
-	OPT_BOOLEAN('b', "backtrace", &backtrace, "unwind on error"),
-	OPT_BOOLEAN('a', "uaccess", &uaccess, "enable uaccess checking"),
-	OPT_BOOLEAN('s', "stats", &stats, "print statistics"),
-	OPT_BOOLEAN('d', "duplicate", &validate_dup, "duplicate validation for vmlinux.o"),
-	OPT_BOOLEAN('n', "noinstr", &noinstr, "noinstr validation for vmlinux.o"),
-	OPT_BOOLEAN('l', "vmlinux", &vmlinux, "vmlinux.o validation"),
-	OPT_BOOLEAN('M', "mcount", &mcount, "generate __mcount_loc"),
-	OPT_BOOLEAN('B', "backup", &backup, "create .orig files before modification"),
-	OPT_BOOLEAN('S', "sls", &sls, "validate straight-line-speculation"),
+	OPT_GROUP("Actions:"),
+	OPT_CALLBACK_OPTARG('h', "hacks", NULL, NULL, "jump_label,noinstr", "patch toolchain bugs/limitations", parse_hacks),
+	OPT_BOOLEAN('i', "ibt", &opts.ibt, "validate and annotate IBT"),
+	OPT_BOOLEAN('m', "mcount", &opts.mcount, "annotate mcount/fentry calls for ftrace"),
+	OPT_BOOLEAN('n', "noinstr", &opts.noinstr, "validate noinstr rules"),
+	OPT_BOOLEAN('o', "orc", &opts.orc, "generate ORC metadata"),
+	OPT_BOOLEAN('r', "retpoline", &opts.retpoline, "validate and annotate retpoline usage"),
+	OPT_BOOLEAN(0,   "rethunk", &opts.rethunk, "validate and annotate rethunk usage"),
+	OPT_BOOLEAN(0,   "unret", &opts.unret, "validate entry unret placement"),
+	OPT_BOOLEAN('l', "sls", &opts.sls, "validate straight-line-speculation mitigations"),
+	OPT_BOOLEAN('s', "stackval", &opts.stackval, "validate frame pointer rules"),
+	OPT_BOOLEAN('t', "static-call", &opts.static_call, "annotate static calls"),
+	OPT_BOOLEAN('u', "uaccess", &opts.uaccess, "validate uaccess rules for SMAP"),
+	OPT_CALLBACK_OPTARG(0, "dump", NULL, NULL, "orc", "dump metadata", parse_dump),
+
+	OPT_GROUP("Options:"),
+	OPT_BOOLEAN(0, "backtrace", &opts.backtrace, "unwind on error"),
+	OPT_BOOLEAN(0, "backup", &opts.backup, "create .orig files before modification"),
+	OPT_BOOLEAN(0, "dry-run", &opts.dryrun, "don't write modifications"),
+	OPT_BOOLEAN(0, "link", &opts.link, "object is a linked object"),
+	OPT_BOOLEAN(0, "module", &opts.module, "object is part of a kernel module"),
+	OPT_BOOLEAN(0, "no-unreachable", &opts.no_unreachable, "skip 'unreachable instruction' warnings"),
+	OPT_BOOLEAN(0, "sec-address", &opts.sec_address, "print section addresses in warnings"),
+	OPT_BOOLEAN(0, "stats", &opts.stats, "print statistics"),
+
 	OPT_END(),
 };
 
@@ -76,7 +116,70 @@ int cmd_parse_options(int argc, const char **argv, const char * const usage[])
 	return argc;
 }
 
-int cmd_check(int argc, const char **argv)
+static bool opts_valid(void)
+{
+	if (opts.hack_jump_label	||
+	    opts.hack_noinstr		||
+	    opts.ibt			||
+	    opts.mcount			||
+	    opts.noinstr		||
+	    opts.orc			||
+	    opts.retpoline		||
+	    opts.rethunk		||
+	    opts.sls			||
+	    opts.stackval		||
+	    opts.static_call		||
+	    opts.uaccess) {
+		if (opts.dump_orc) {
+			ERROR("--dump can't be combined with other options");
+			return false;
+		}
+
+		return true;
+	}
+
+	if (opts.unret && !opts.rethunk) {
+		ERROR("--unret requires --rethunk");
+		return false;
+	}
+
+	if (opts.dump_orc)
+		return true;
+
+	ERROR("At least one command required");
+	return false;
+}
+
+static bool link_opts_valid(struct objtool_file *file)
+{
+	if (opts.link)
+		return true;
+
+	if (has_multiple_files(file->elf)) {
+		ERROR("Linked object detected, forcing --link");
+		opts.link = true;
+		return true;
+	}
+
+	if (opts.noinstr) {
+		ERROR("--noinstr requires --link");
+		return false;
+	}
+
+	if (opts.ibt) {
+		ERROR("--ibt requires --link");
+		return false;
+	}
+
+	if (opts.unret) {
+		ERROR("--unret requires --link");
+		return false;
+	}
+
+	return true;
+}
+
+int objtool_run(int argc, const char **argv)
 {
 	const char *objname;
 	struct objtool_file *file;
@@ -85,8 +188,17 @@ int cmd_check(int argc, const char **argv)
 	argc = cmd_parse_options(argc, argv, check_usage);
 	objname = argv[0];
 
+	if (!opts_valid())
+		return 1;
+
+	if (opts.dump_orc)
+		return orc_dump(objname);
+
 	file = objtool_open_read(objname);
 	if (!file)
+		return 1;
+
+	if (!link_opts_valid(file))
 		return 1;
 
 	ret = check(file);

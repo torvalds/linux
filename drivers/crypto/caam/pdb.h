@@ -144,7 +144,7 @@ struct ipsec_encap_pdb {
 	};
 	u32 spi;
 	u32 ip_hdr_len;
-	u32 ip_hdr[0];
+	u32 ip_hdr[];
 };
 
 /**

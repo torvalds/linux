@@ -671,7 +671,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 
 		/*
 		 *because we should back channel to
-		 *current_network.chan in in scanning,
+		 *current_network.chan in scanning,
 		 *So if set_chan == current_network.chan
 		 *we should set it.
 		 *because mac80211 tell us wrong bw40
@@ -903,18 +903,18 @@ static int rtl_op_sta_add(struct ieee80211_hw *hw,
 		spin_unlock_bh(&rtlpriv->locks.entry_list_lock);
 		if (rtlhal->current_bandtype == BAND_ON_2_4G) {
 			sta_entry->wireless_mode = WIRELESS_MODE_G;
-			if (sta->supp_rates[0] <= 0xf)
+			if (sta->deflink.supp_rates[0] <= 0xf)
 				sta_entry->wireless_mode = WIRELESS_MODE_B;
-			if (sta->ht_cap.ht_supported)
+			if (sta->deflink.ht_cap.ht_supported)
 				sta_entry->wireless_mode = WIRELESS_MODE_N_24G;
 
 			if (vif->type == NL80211_IFTYPE_ADHOC)
 				sta_entry->wireless_mode = WIRELESS_MODE_G;
 		} else if (rtlhal->current_bandtype == BAND_ON_5G) {
 			sta_entry->wireless_mode = WIRELESS_MODE_A;
-			if (sta->ht_cap.ht_supported)
+			if (sta->deflink.ht_cap.ht_supported)
 				sta_entry->wireless_mode = WIRELESS_MODE_N_5G;
-			if (sta->vht_cap.vht_supported)
+			if (sta->deflink.vht_cap.vht_supported)
 				sta_entry->wireless_mode = WIRELESS_MODE_AC_5G;
 
 			if (vif->type == NL80211_IFTYPE_ADHOC)
@@ -922,7 +922,7 @@ static int rtl_op_sta_add(struct ieee80211_hw *hw,
 		}
 		/*disable cck rate for p2p*/
 		if (mac->p2p)
-			sta->supp_rates[0] &= 0xfffffff0;
+			sta->deflink.supp_rates[0] &= 0xfffffff0;
 
 		memcpy(sta_entry->mac_addr, sta->addr, ETH_ALEN);
 		rtl_dbg(rtlpriv, COMP_MAC80211, DBG_DMESG,
@@ -982,7 +982,8 @@ static int _rtl_get_hal_qnum(u16 queue)
  *for rtl819x  BE = 0, BK = 1, VI = 2, VO = 3
  */
 static int rtl_op_conf_tx(struct ieee80211_hw *hw,
-			  struct ieee80211_vif *vif, u16 queue,
+			  struct ieee80211_vif *vif,
+			  unsigned int link_id, u16 queue,
 			  const struct ieee80211_tx_queue_params *param)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1009,7 +1010,7 @@ static void send_beacon_frame(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct sk_buff *skb = ieee80211_beacon_get(hw, vif);
+	struct sk_buff *skb = ieee80211_beacon_get(hw, vif, 0);
 	struct rtl_tcb_desc tcb_desc;
 
 	if (skb) {
@@ -1040,7 +1041,7 @@ EXPORT_SYMBOL_GPL(rtl_update_beacon_work_callback);
 static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *bss_conf,
-				    u32 changed)
+				    u64 changed)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
@@ -1094,7 +1095,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		u8 mstatus;
 
-		if (bss_conf->assoc) {
+		if (vif->cfg.assoc) {
 			struct ieee80211_sta *sta = NULL;
 			u8 keep_alive = 10;
 
@@ -1111,7 +1112,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			mac->link_state = MAC80211_LINKED;
 			mac->cnt_after_linked = 0;
-			mac->assoc_id = bss_conf->aid;
+			mac->assoc_id = vif->cfg.aid;
 			memcpy(mac->bssid, bss_conf->bssid, ETH_ALEN);
 
 			if (rtlpriv->cfg->ops->linked_set_reg)
@@ -1126,7 +1127,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			rtl_dbg(rtlpriv, COMP_EASY_CONCURRENT, DBG_LOUD,
 				"send PS STATIC frame\n");
 			if (rtlpriv->dm.supp_phymode_switch) {
-				if (sta->ht_cap.ht_supported)
+				if (sta->deflink.ht_cap.ht_supported)
 					rtl_send_smps_action(hw, sta,
 							IEEE80211_SMPS_STATIC);
 			}
@@ -1134,20 +1135,20 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (rtlhal->current_bandtype == BAND_ON_5G) {
 				mac->mode = WIRELESS_MODE_A;
 			} else {
-				if (sta->supp_rates[0] <= 0xf)
+				if (sta->deflink.supp_rates[0] <= 0xf)
 					mac->mode = WIRELESS_MODE_B;
 				else
 					mac->mode = WIRELESS_MODE_G;
 			}
 
-			if (sta->ht_cap.ht_supported) {
+			if (sta->deflink.ht_cap.ht_supported) {
 				if (rtlhal->current_bandtype == BAND_ON_2_4G)
 					mac->mode = WIRELESS_MODE_N_24G;
 				else
 					mac->mode = WIRELESS_MODE_N_5G;
 			}
 
-			if (sta->vht_cap.vht_supported) {
+			if (sta->deflink.vht_cap.vht_supported) {
 				if (rtlhal->current_bandtype == BAND_ON_5G)
 					mac->mode = WIRELESS_MODE_AC_5G;
 				else
@@ -1256,14 +1257,14 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		rcu_read_lock();
 		sta = ieee80211_find_sta(vif, (u8 *)bss_conf->bssid);
 		if (sta) {
-			if (sta->ht_cap.ampdu_density >
+			if (sta->deflink.ht_cap.ampdu_density >
 			    mac->current_ampdu_density)
 				mac->current_ampdu_density =
-				    sta->ht_cap.ampdu_density;
-			if (sta->ht_cap.ampdu_factor <
+				    sta->deflink.ht_cap.ampdu_density;
+			if (sta->deflink.ht_cap.ampdu_factor <
 			    mac->current_ampdu_factor)
 				mac->current_ampdu_factor =
-				    sta->ht_cap.ampdu_factor;
+				    sta->deflink.ht_cap.ampdu_factor;
 		}
 		rcu_read_unlock();
 
@@ -1298,20 +1299,20 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (rtlhal->current_bandtype == BAND_ON_5G) {
 			mac->mode = WIRELESS_MODE_A;
 		} else {
-			if (sta->supp_rates[0] <= 0xf)
+			if (sta->deflink.supp_rates[0] <= 0xf)
 				mac->mode = WIRELESS_MODE_B;
 			else
 				mac->mode = WIRELESS_MODE_G;
 		}
 
-		if (sta->ht_cap.ht_supported) {
+		if (sta->deflink.ht_cap.ht_supported) {
 			if (rtlhal->current_bandtype == BAND_ON_2_4G)
 				mac->mode = WIRELESS_MODE_N_24G;
 			else
 				mac->mode = WIRELESS_MODE_N_5G;
 		}
 
-		if (sta->vht_cap.vht_supported) {
+		if (sta->deflink.vht_cap.vht_supported) {
 			if (rtlhal->current_bandtype == BAND_ON_5G)
 				mac->mode = WIRELESS_MODE_AC_5G;
 			else
@@ -1327,7 +1328,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			sta_entry->wireless_mode = mac->mode;
 		}
 
-		if (sta->ht_cap.ht_supported) {
+		if (sta->deflink.ht_cap.ht_supported) {
 			mac->ht_enable = true;
 
 			/*
@@ -1338,16 +1339,16 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			 * */
 		}
 
-		if (sta->vht_cap.vht_supported)
+		if (sta->deflink.vht_cap.vht_supported)
 			mac->vht_enable = true;
 
 		if (changed & BSS_CHANGED_BASIC_RATES) {
 			/* for 5G must << RATE_6M_INDEX = 4,
 			 * because 5G have no cck rate*/
 			if (rtlhal->current_bandtype == BAND_ON_5G)
-				basic_rates = sta->supp_rates[1] << 4;
+				basic_rates = sta->deflink.supp_rates[1] << 4;
 			else
-				basic_rates = sta->supp_rates[0];
+				basic_rates = sta->deflink.supp_rates[0];
 
 			mac->basic_rates = basic_rates;
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_BASIC_RATE,
@@ -1702,7 +1703,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		rtlpriv->sec.key_len[key_idx] = 0;
 		eth_zero_addr(mac_addr);
 		/*
-		 *mac80211 will delete entrys one by one,
+		 *mac80211 will delete entries one by one,
 		 *so don't use rtl_cam_reset_all_entry
 		 *or clear all entry here.
 		 */

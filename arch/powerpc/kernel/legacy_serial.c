@@ -7,10 +7,10 @@
 #include <linux/pci.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/serial_reg.h>
 #include <asm/io.h>
 #include <asm/mmu.h>
-#include <asm/prom.h>
 #include <asm/serial.h>
 #include <asm/udbg.h>
 #include <asm/pci-bridge.h>
@@ -470,6 +470,8 @@ void __init find_legacy_serial_ports(void)
 		of_node_put(parent);
 	}
 #endif
+
+	of_node_put(stdout);
 
 	DBG("legacy_serial_console = %d\n", legacy_serial_console);
 	if (legacy_serial_console >= 0)

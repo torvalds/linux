@@ -22,6 +22,7 @@
 #include "nfp6000/nfp_xpb.h"
 
 /* NFP6000 PL */
+#define NFP_PL_DEVICE_PART_NFP6000		0x6200
 #define NFP_PL_DEVICE_ID			0x00000004
 #define   NFP_PL_DEVICE_ID_MASK			GENMASK(7, 0)
 #define   NFP_PL_DEVICE_PART_MASK		GENMASK(31, 16)
@@ -130,8 +131,12 @@ int nfp_cpp_model_autodetect(struct nfp_cpp *cpp, u32 *model)
 		return err;
 
 	*model = reg & NFP_PL_DEVICE_MODEL_MASK;
-	if (*model & NFP_PL_DEVICE_ID_MASK)
-		*model -= 0x10;
+	/* Disambiguate the NFP4000/NFP5000/NFP6000 chips */
+	if (FIELD_GET(NFP_PL_DEVICE_PART_MASK, reg) ==
+	    NFP_PL_DEVICE_PART_NFP6000) {
+		if (*model & NFP_PL_DEVICE_ID_MASK)
+			*model -= 0x10;
+	}
 
 	return 0;
 }

@@ -37,20 +37,6 @@
 #undef pr_info
 #undef pr_debug
 
-/*
- * Although these are defined in each ASIC's specific header file.
- * They share the same definitions and values. That makes common
- * APIs for SMC messages issuing for all ASICs possible.
- */
-#define mmMP1_SMN_C2PMSG_66                                                                            0x0282
-#define mmMP1_SMN_C2PMSG_66_BASE_IDX                                                                   0
-
-#define mmMP1_SMN_C2PMSG_82                                                                            0x0292
-#define mmMP1_SMN_C2PMSG_82_BASE_IDX                                                                   0
-
-#define mmMP1_SMN_C2PMSG_90                                                                            0x029a
-#define mmMP1_SMN_C2PMSG_90_BASE_IDX                                                                   0
-
 #define MP1_C2PMSG_90__CONTENT_MASK                                                                    0xFFFFFFFFL
 
 #undef __SMU_DUMMY_MAP
@@ -58,6 +44,12 @@
 static const char * const __smu_message_names[] = {
 	SMU_MESSAGE_TYPES
 };
+
+#define smu_cmn_call_asic_func(intf, smu, args...)                             \
+	((smu)->ppt_funcs ? ((smu)->ppt_funcs->intf ?                          \
+				     (smu)->ppt_funcs->intf(smu, ##args) :     \
+				     -ENOTSUPP) :                              \
+			    -EINVAL)
 
 static const char *smu_get_message_name(struct smu_context *smu,
 					enum smu_message_type type)
@@ -73,7 +65,7 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
+	*arg = RREG32(smu->param_reg);
 }
 
 /* Redefine the SMU error codes here.
@@ -119,7 +111,7 @@ static u32 __smu_cmn_poll_stat(struct smu_context *smu)
 	u32 reg;
 
 	for ( ; timeout > 0; timeout--) {
-		reg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
+		reg = RREG32(smu->resp_reg);
 		if ((reg & MP1_C2PMSG_90__CONTENT_MASK) != 0)
 			break;
 
@@ -137,15 +129,16 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	const char *message = smu_get_message_name(smu, msg);
+	u32 msg_idx, prm;
 
 	switch (reg_c2pmsg_90) {
 	case SMU_RESP_NONE: {
-		u32 msg_idx = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66);
-		u32 prm     = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
+		msg_idx = RREG32(smu->msg_reg);
+		prm     = RREG32(smu->param_reg);
 		dev_err_ratelimited(adev->dev,
 				    "SMU: I'm not done with your previous command: SMN_C2PMSG_66:0x%08X SMN_C2PMSG_82:0x%08X",
 				    msg_idx, prm);
-	}
+		}
 		break;
 	case SMU_RESP_OK:
 		/* The SMU executed the command. It completed with a
@@ -235,9 +228,9 @@ static void __smu_cmn_send_msg(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
+	WREG32(smu->resp_reg, 0);
+	WREG32(smu->param_reg, param);
+	WREG32(smu->msg_reg, msg);
 }
 
 /**
@@ -267,7 +260,6 @@ int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
 	if (reg == SMU_RESP_NONE ||
-	    reg == SMU_RESP_BUSY_OTHER ||
 	    res == -EREMOTEIO)
 		goto Out;
 	__smu_cmn_send_msg(smu, msg_index, param);
@@ -321,9 +313,11 @@ int smu_cmn_wait_for_response(struct smu_context *smu)
  * completion of the command, and return back a value from the SMU in
  * @read_arg pointer.
  *
- * Return 0 on success, -errno on error, if we weren't able to send
- * the message or if the message completed with some kind of
- * error. See __smu_cmn_reg2errno() for details of the -errno.
+ * Return 0 on success, -errno when a problem is encountered sending
+ * message or receiving reply. If there is a PCI bus recovery or
+ * the destination is a virtual GPU which does not allow this message
+ * type, the message is simply dropped and success is also returned.
+ * See __smu_cmn_reg2errno() for details of the -errno.
  *
  * If we weren't able to send the message to the SMU, we also print
  * the error to the standard log.
@@ -361,7 +355,6 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
 	if (reg == SMU_RESP_NONE ||
-	    reg == SMU_RESP_BUSY_OTHER ||
 	    res == -EREMOTEIO) {
 		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
 		goto Out;
@@ -461,7 +454,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 		return mapping.map_to;
 
 	case CMN2ASIC_MAPPING_WORKLOAD:
-		if (index > PP_SMC_POWER_PROFILE_CUSTOM ||
+		if (index > PP_SMC_POWER_PROFILE_WINDOW3D ||
 		    !smu->workload_map)
 			return -EINVAL;
 
@@ -481,7 +474,6 @@ int smu_cmn_feature_is_supported(struct smu_context *smu,
 {
 	struct smu_feature *feature = &smu->smu_feature;
 	int feature_id;
-	int ret = 0;
 
 	feature_id = smu_cmn_to_asic_specific_index(smu,
 						    CMN2ASIC_MAPPING_FEATURE,
@@ -491,22 +483,33 @@ int smu_cmn_feature_is_supported(struct smu_context *smu,
 
 	WARN_ON(feature_id > feature->feature_num);
 
-	mutex_lock(&feature->mutex);
-	ret = test_bit(feature_id, feature->supported);
-	mutex_unlock(&feature->mutex);
+	return test_bit(feature_id, feature->supported);
+}
 
-	return ret;
+static int __smu_get_enabled_features(struct smu_context *smu,
+			       uint64_t *enabled_features)
+{
+	return smu_cmn_call_asic_func(get_enabled_mask, smu, enabled_features);
 }
 
 int smu_cmn_feature_is_enabled(struct smu_context *smu,
 			       enum smu_feature_mask mask)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	struct amdgpu_device *adev = smu->adev;
+	uint64_t enabled_features;
 	int feature_id;
-	int ret = 0;
 
-	if (smu->is_apu && adev->family < AMDGPU_FAMILY_VGH)
+	if (__smu_get_enabled_features(smu, &enabled_features)) {
+		dev_err(adev->dev, "Failed to retrieve enabled ppfeatures!\n");
+		return 0;
+	}
+
+	/*
+	 * For Renoir and Cyan Skillfish, they are assumed to have all features
+	 * enabled. Also considering they have no feature_map available, the
+	 * check here can avoid unwanted feature_map check below.
+	 */
+	if (enabled_features == ULLONG_MAX)
 		return 1;
 
 	feature_id = smu_cmn_to_asic_specific_index(smu,
@@ -515,13 +518,7 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 	if (feature_id < 0)
 		return 0;
 
-	WARN_ON(feature_id > feature->feature_num);
-
-	mutex_lock(&feature->mutex);
-	ret = test_bit(feature_id, feature->enabled);
-	mutex_unlock(&feature->mutex);
-
-	return ret;
+	return test_bit(feature_id, (unsigned long *)&enabled_features);
 }
 
 bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
@@ -541,6 +538,17 @@ bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
 	case SMU_SOCCLK:
 		feature_id = SMU_FEATURE_DPM_SOCCLK_BIT;
 		break;
+	case SMU_VCLK:
+	case SMU_VCLK1:
+		feature_id = SMU_FEATURE_DPM_VCLK_BIT;
+		break;
+	case SMU_DCLK:
+	case SMU_DCLK1:
+		feature_id = SMU_FEATURE_DPM_DCLK_BIT;
+		break;
+	case SMU_FCLK:
+		feature_id = SMU_FEATURE_DPM_FCLK_BIT;
+		break;
 	default:
 		return true;
 	}
@@ -552,70 +560,46 @@ bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
 }
 
 int smu_cmn_get_enabled_mask(struct smu_context *smu,
-			     uint32_t *feature_mask,
-			     uint32_t num)
+			     uint64_t *feature_mask)
 {
-	uint32_t feature_mask_high = 0, feature_mask_low = 0;
-	struct smu_feature *feature = &smu->smu_feature;
-	int ret = 0;
+	uint32_t *feature_mask_high;
+	uint32_t *feature_mask_low;
+	int ret = 0, index = 0;
 
-	if (!feature_mask || num < 2)
+	if (!feature_mask)
 		return -EINVAL;
 
-	if (bitmap_empty(feature->enabled, feature->feature_num)) {
-		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh, &feature_mask_high);
+	feature_mask_low = &((uint32_t *)feature_mask)[0];
+	feature_mask_high = &((uint32_t *)feature_mask)[1];
+
+	index = smu_cmn_to_asic_specific_index(smu,
+						CMN2ASIC_MAPPING_MSG,
+						SMU_MSG_GetEnabledSmuFeatures);
+	if (index > 0) {
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_GetEnabledSmuFeatures,
+						      0,
+						      feature_mask_low);
 		if (ret)
 			return ret;
 
-		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow, &feature_mask_low);
-		if (ret)
-			return ret;
-
-		feature_mask[0] = feature_mask_low;
-		feature_mask[1] = feature_mask_high;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_GetEnabledSmuFeatures,
+						      1,
+						      feature_mask_high);
 	} else {
-		bitmap_copy((unsigned long *)feature_mask, feature->enabled,
-			     feature->feature_num);
+		ret = smu_cmn_send_smc_msg(smu,
+					   SMU_MSG_GetEnabledSmuFeaturesHigh,
+					   feature_mask_high);
+		if (ret)
+			return ret;
+
+		ret = smu_cmn_send_smc_msg(smu,
+					   SMU_MSG_GetEnabledSmuFeaturesLow,
+					   feature_mask_low);
 	}
 
 	return ret;
-}
-
-int smu_cmn_get_enabled_32_bits_mask(struct smu_context *smu,
-					uint32_t *feature_mask,
-					uint32_t num)
-{
-	uint32_t feature_mask_en_low = 0;
-	uint32_t feature_mask_en_high = 0;
-	struct smu_feature *feature = &smu->smu_feature;
-	int ret = 0;
-
-	if (!feature_mask || num < 2)
-		return -EINVAL;
-
-	if (bitmap_empty(feature->enabled, feature->feature_num)) {
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetEnabledSmuFeatures, 0,
-										 &feature_mask_en_low);
-
-		if (ret)
-			return ret;
-
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetEnabledSmuFeatures, 1,
-										 &feature_mask_en_high);
-
-		if (ret)
-			return ret;
-
-		feature_mask[0] = feature_mask_en_low;
-		feature_mask[1] = feature_mask_en_high;
-
-	} else {
-		bitmap_copy((unsigned long *)feature_mask, feature->enabled,
-				 feature->feature_num);
-	}
-
-	return ret;
-
 }
 
 uint64_t smu_cmn_get_indep_throttler_status(
@@ -635,7 +619,6 @@ int smu_cmn_feature_update_enable_state(struct smu_context *smu,
 					uint64_t feature_mask,
 					bool enabled)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	int ret = 0;
 
 	if (enabled) {
@@ -649,8 +632,6 @@ int smu_cmn_feature_update_enable_state(struct smu_context *smu,
 						  SMU_MSG_EnableSmuFeaturesHigh,
 						  upper_32_bits(feature_mask),
 						  NULL);
-		if (ret)
-			return ret;
 	} else {
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 						  SMU_MSG_DisableSmuFeaturesLow,
@@ -662,18 +643,7 @@ int smu_cmn_feature_update_enable_state(struct smu_context *smu,
 						  SMU_MSG_DisableSmuFeaturesHigh,
 						  upper_32_bits(feature_mask),
 						  NULL);
-		if (ret)
-			return ret;
 	}
-
-	mutex_lock(&feature->mutex);
-	if (enabled)
-		bitmap_or(feature->enabled, feature->enabled,
-				(unsigned long *)(&feature_mask), SMU_FEATURE_MAX);
-	else
-		bitmap_andnot(feature->enabled, feature->enabled,
-				(unsigned long *)(&feature_mask), SMU_FEATURE_MAX);
-	mutex_unlock(&feature->mutex);
 
 	return ret;
 }
@@ -682,7 +652,6 @@ int smu_cmn_feature_set_enabled(struct smu_context *smu,
 				enum smu_feature_mask mask,
 				bool enable)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	int feature_id;
 
 	feature_id = smu_cmn_to_asic_specific_index(smu,
@@ -690,8 +659,6 @@ int smu_cmn_feature_set_enabled(struct smu_context *smu,
 						    mask);
 	if (feature_id < 0)
 		return -EINVAL;
-
-	WARN_ON(feature_id > feature->feature_num);
 
 	return smu_cmn_feature_update_enable_state(smu,
 					       1ULL << feature_id,
@@ -715,29 +682,17 @@ static const char *smu_get_feature_name(struct smu_context *smu,
 size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 				   char *buf)
 {
-	uint32_t feature_mask[2] = { 0 };
-	int feature_index = 0;
+	int8_t sort_feature[max(SMU_FEATURE_COUNT, SMU_FEATURE_MAX)];
+	uint64_t feature_mask;
+	int i, feature_index;
 	uint32_t count = 0;
-	int8_t sort_feature[SMU_FEATURE_COUNT];
 	size_t size = 0;
-	int ret = 0, i;
 
-	if (!smu->is_apu) {
-		ret = smu_cmn_get_enabled_mask(smu,
-						feature_mask,
-						2);
-		if (ret)
-			return 0;
-	} else {
-		ret = smu_cmn_get_enabled_32_bits_mask(smu,
-					feature_mask,
-					2);
-		if (ret)
-			return 0;
-	}
+	if (__smu_get_enabled_features(smu, &feature_mask))
+		return 0;
 
 	size =  sysfs_emit_at(buf, size, "features high: 0x%08x low: 0x%08x\n",
-			feature_mask[1], feature_mask[0]);
+			upper_32_bits(feature_mask), lower_32_bits(feature_mask));
 
 	memset(sort_feature, -1, sizeof(sort_feature));
 
@@ -754,15 +709,15 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	size += sysfs_emit_at(buf, size, "%-2s. %-20s  %-3s : %-s\n",
 			"No", "Feature", "Bit", "State");
 
-	for (i = 0; i < SMU_FEATURE_COUNT; i++) {
-		if (sort_feature[i] < 0)
+	for (feature_index = 0; feature_index < SMU_FEATURE_MAX; feature_index++) {
+		if (sort_feature[feature_index] < 0)
 			continue;
 
 		size += sysfs_emit_at(buf, size, "%02d. %-20s (%2d) : %s\n",
 				count++,
-				smu_get_feature_name(smu, sort_feature[i]),
-				i,
-				!!smu_cmn_feature_is_enabled(smu, sort_feature[i]) ?
+				smu_get_feature_name(smu, sort_feature[feature_index]),
+				feature_index,
+				!!test_bit(feature_index, (unsigned long *)&feature_mask) ?
 				"enabled" : "disabled");
 	}
 
@@ -773,22 +728,16 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
 				uint64_t new_mask)
 {
 	int ret = 0;
-	uint32_t feature_mask[2] = { 0 };
+	uint64_t feature_mask;
 	uint64_t feature_2_enabled = 0;
 	uint64_t feature_2_disabled = 0;
-	uint64_t feature_enables = 0;
 
-	ret = smu_cmn_get_enabled_mask(smu,
-				       feature_mask,
-				       2);
+	ret = __smu_get_enabled_features(smu, &feature_mask);
 	if (ret)
 		return ret;
 
-	feature_enables = ((uint64_t)feature_mask[1] << 32 |
-			   (uint64_t)feature_mask[0]);
-
-	feature_2_enabled  = ~feature_enables & new_mask;
-	feature_2_disabled = feature_enables & ~new_mask;
+	feature_2_enabled  = ~feature_mask & new_mask;
+	feature_2_disabled = feature_mask & ~new_mask;
 
 	if (feature_2_enabled) {
 		ret = smu_cmn_feature_update_enable_state(smu,
@@ -814,9 +763,6 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
  *                                               @mask
  *
  * @smu:               smu_context pointer
- * @no_hw_disablement: whether real dpm disablement should be performed
- *                     true: update the cache(about dpm enablement state) only
- *                     false: real dpm disablement plus cache update
  * @mask:              the dpm feature which should not be disabled
  *                     SMU_FEATURE_COUNT: no exception, all dpm features
  *                     to disable
@@ -825,10 +771,8 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
  * 0 on success or a negative error code on failure.
  */
 int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
-						bool no_hw_disablement,
 						enum smu_feature_mask mask)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	uint64_t features_to_disable = U64_MAX;
 	int skipped_feature_id;
 
@@ -842,18 +786,9 @@ int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
 		features_to_disable &= ~(1ULL << skipped_feature_id);
 	}
 
-	if (no_hw_disablement) {
-		mutex_lock(&feature->mutex);
-		bitmap_andnot(feature->enabled, feature->enabled,
-				(unsigned long *)(&features_to_disable), SMU_FEATURE_MAX);
-		mutex_unlock(&feature->mutex);
-
-		return 0;
-	} else {
-		return smu_cmn_feature_update_enable_state(smu,
-							   features_to_disable,
-							   0);
-	}
+	return smu_cmn_feature_update_enable_state(smu,
+						   features_to_disable,
+						   0);
 }
 
 int smu_cmn_get_smc_version(struct smu_context *smu,
@@ -964,9 +899,9 @@ int smu_cmn_write_pptable(struct smu_context *smu)
 				    true);
 }
 
-int smu_cmn_get_metrics_table_locked(struct smu_context *smu,
-				     void *metrics_table,
-				     bool bypass_cache)
+int smu_cmn_get_metrics_table(struct smu_context *smu,
+			      void *metrics_table,
+			      bool bypass_cache)
 {
 	struct smu_table_context *smu_table= &smu->smu_table;
 	uint32_t table_size =
@@ -994,19 +929,15 @@ int smu_cmn_get_metrics_table_locked(struct smu_context *smu,
 	return 0;
 }
 
-int smu_cmn_get_metrics_table(struct smu_context *smu,
-			      void *metrics_table,
-			      bool bypass_cache)
+int smu_cmn_get_combo_pptable(struct smu_context *smu)
 {
-	int ret = 0;
+	void *pptable = smu->smu_table.combo_pptable;
 
-	mutex_lock(&smu->metrics_lock);
-	ret = smu_cmn_get_metrics_table_locked(smu,
-					       metrics_table,
-					       bypass_cache);
-	mutex_unlock(&smu->metrics_lock);
-
-	return ret;
+	return smu_cmn_update_table(smu,
+				    SMU_TABLE_COMBO_PPTABLE,
+				    0,
+				    pptable,
+				    false);
 }
 
 void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
@@ -1037,6 +968,9 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 		break;
 	case METRICS_VERSION(2, 2):
 		structure_size = sizeof(struct gpu_metrics_v2_2);
+		break;
+	case METRICS_VERSION(2, 3):
+		structure_size = sizeof(struct gpu_metrics_v2_3);
 		break;
 	default:
 		return;

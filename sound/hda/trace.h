@@ -19,37 +19,48 @@ struct hdac_codec;
 TRACE_EVENT(hda_send_cmd,
 	TP_PROTO(struct hdac_bus *bus, unsigned int cmd),
 	TP_ARGS(bus, cmd),
-	TP_STRUCT__entry(__dynamic_array(char, msg, HDAC_MSG_MAX)),
-	TP_fast_assign(
-		snprintf(__get_str(msg), HDAC_MSG_MAX,
-			 "[%s:%d] val=0x%08x",
-			 dev_name((bus)->dev), (cmd) >> 28, cmd);
+	TP_STRUCT__entry(
+		__string(name, dev_name((bus)->dev))
+		__field(u32, cmd)
 	),
-	TP_printk("%s", __get_str(msg))
+	TP_fast_assign(
+		__assign_str(name, dev_name((bus)->dev));
+		__entry->cmd = cmd;
+	),
+	TP_printk("[%s:%d] val=0x%08x", __get_str(name), __entry->cmd >> 28, __entry->cmd)
 );
 
 TRACE_EVENT(hda_get_response,
 	TP_PROTO(struct hdac_bus *bus, unsigned int addr, unsigned int res),
 	TP_ARGS(bus, addr, res),
-	TP_STRUCT__entry(__dynamic_array(char, msg, HDAC_MSG_MAX)),
-	TP_fast_assign(
-		snprintf(__get_str(msg), HDAC_MSG_MAX,
-			 "[%s:%d] val=0x%08x",
-			 dev_name((bus)->dev), addr, res);
+	TP_STRUCT__entry(
+		__string(name, dev_name((bus)->dev))
+		__field(u32, addr)
+		__field(u32, res)
 	),
-	TP_printk("%s", __get_str(msg))
+	TP_fast_assign(
+		__assign_str(name, dev_name((bus)->dev));
+		__entry->addr = addr;
+		__entry->res = res;
+	),
+	TP_printk("[%s:%d] val=0x%08x", __get_str(name), __entry->addr, __entry->res)
 );
 
 TRACE_EVENT(hda_unsol_event,
 	TP_PROTO(struct hdac_bus *bus, u32 res, u32 res_ex),
 	TP_ARGS(bus, res, res_ex),
-	TP_STRUCT__entry(__dynamic_array(char, msg, HDAC_MSG_MAX)),
-	TP_fast_assign(
-		snprintf(__get_str(msg), HDAC_MSG_MAX,
-			 "[%s:%d] res=0x%08x, res_ex=0x%08x",
-			 dev_name((bus)->dev), res_ex & 0x0f, res, res_ex);
+	TP_STRUCT__entry(
+		__string(name, dev_name((bus)->dev))
+		__field(u32, res)
+		__field(u32, res_ex)
 	),
-	TP_printk("%s", __get_str(msg))
+	TP_fast_assign(
+		__assign_str(name, dev_name((bus)->dev));
+		__entry->res = res;
+		__entry->res_ex = res_ex;
+	),
+	TP_printk("[%s:%d] res=0x%08x, res_ex=0x%08x", __get_str(name),
+		  __entry->res_ex & 0x0f, __entry->res, __entry->res_ex)
 );
 
 DECLARE_EVENT_CLASS(hdac_stream,

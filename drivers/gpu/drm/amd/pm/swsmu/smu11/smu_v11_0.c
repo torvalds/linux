@@ -225,15 +225,15 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t if_version = 0xff, smu_version = 0xff;
-	uint16_t smu_major;
-	uint8_t smu_minor, smu_debug;
+	uint8_t smu_program, smu_major, smu_minor, smu_debug;
 	int ret = 0;
 
 	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
 	if (ret)
 		return ret;
 
-	smu_major = (smu_version >> 16) & 0xffff;
+	smu_program = (smu_version >> 24) & 0xff;
+	smu_major = (smu_version >> 16) & 0xff;
 	smu_minor = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 	if (smu->is_apu)
@@ -287,9 +287,9 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	 */
 	if (if_version != smu->smc_driver_if_version) {
 		dev_info(smu->adev->dev, "smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
-			"smu fw version = 0x%08x (%d.%d.%d)\n",
+			"smu fw program = %d, version = 0x%08x (%d.%d.%d)\n",
 			smu->smc_driver_if_version, if_version,
-			smu_version, smu_major, smu_minor, smu_debug);
+			smu_program, smu_version, smu_major, smu_minor, smu_debug);
 		dev_warn(smu->adev->dev, "SMU driver if version not matched\n");
 	}
 
@@ -473,8 +473,12 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 	kfree(smu_table->hardcode_pptable);
 	smu_table->hardcode_pptable = NULL;
 
+	kfree(smu_table->driver_smu_config_table);
+	kfree(smu_table->ecc_table);
 	kfree(smu_table->metrics_table);
 	kfree(smu_table->watermarks_table);
+	smu_table->driver_smu_config_table = NULL;
+	smu_table->ecc_table = NULL;
 	smu_table->metrics_table = NULL;
 	smu_table->watermarks_table = NULL;
 	smu_table->metrics_time = 0;
@@ -777,7 +781,7 @@ int smu_v11_0_set_allowed_mask(struct smu_context *smu)
 		goto failed;
 	}
 
-	bitmap_copy((unsigned long *)feature_mask, feature->allowed, 64);
+	bitmap_to_arr32(feature_mask, feature->allowed, 64);
 
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetAllowedFeaturesMaskHigh,
 					  feature_mask[1], NULL);
@@ -796,30 +800,8 @@ failed:
 int smu_v11_0_system_features_control(struct smu_context *smu,
 					     bool en)
 {
-	struct smu_feature *feature = &smu->smu_feature;
-	uint32_t feature_mask[2];
-	int ret = 0;
-
-	ret = smu_cmn_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
-				     SMU_MSG_DisableAllSmuFeatures), NULL);
-	if (ret)
-		return ret;
-
-	bitmap_zero(feature->enabled, feature->feature_num);
-	bitmap_zero(feature->supported, feature->feature_num);
-
-	if (en) {
-		ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
-		if (ret)
-			return ret;
-
-		bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
-			    feature->feature_num);
-		bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
-			    feature->feature_num);
-	}
-
-	return ret;
+	return smu_cmn_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
+					  SMU_MSG_DisableAllSmuFeatures), NULL);
 }
 
 int smu_v11_0_notify_display_change(struct smu_context *smu)
@@ -1246,6 +1228,8 @@ int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
 	uint32_t crystal_clock_freq = 2500;
 	uint32_t tach_period;
 
+	if (speed == 0)
+		return -EINVAL;
 	/*
 	 * To prevent from possible overheat, some ASICs may have requirement
 	 * for minimum fan speed:
@@ -1372,7 +1356,7 @@ static int smu_v11_0_set_irq_state(struct amdgpu_device *adev,
 				   unsigned tyep,
 				   enum amdgpu_interrupt_state state)
 {
-	struct smu_context *smu = &adev->smu;
+	struct smu_context *smu = adev->powerplay.pp_handle;
 	uint32_t low, high;
 	uint32_t val = 0;
 
@@ -1441,7 +1425,7 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				 struct amdgpu_irq_src *source,
 				 struct amdgpu_iv_entry *entry)
 {
-	struct smu_context *smu = &adev->smu;
+	struct smu_context *smu = adev->powerplay.pp_handle;
 	uint32_t client_id = entry->client_id;
 	uint32_t src_id = entry->src_id;
 	/*
@@ -1592,7 +1576,7 @@ int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu)
 }
 
 int smu_v11_0_baco_set_armd3_sequence(struct smu_context *smu,
-				      enum smu_v11_0_baco_seq baco_seq)
+				      enum smu_baco_seq baco_seq)
 {
 	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ArmD3, baco_seq, NULL);
 }
@@ -1615,13 +1599,8 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
-	enum smu_baco_state baco_state;
 
-	mutex_lock(&smu_baco->mutex);
-	baco_state = smu_baco->state;
-	mutex_unlock(&smu_baco->mutex);
-
-	return baco_state;
+	return smu_baco->state;
 }
 
 #define D3HOT_BACO_SEQUENCE 0
@@ -1637,8 +1616,6 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 
 	if (smu_v11_0_baco_get_state(smu) == state)
 		return 0;
-
-	mutex_lock(&smu_baco->mutex);
 
 	if (state == SMU_BACO_STATE_ENTER) {
 		switch (adev->ip_versions[MP1_HWIP][0]) {
@@ -1680,18 +1657,16 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 	} else {
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_ExitBaco, NULL);
 		if (ret)
-			goto out;
+			return ret;
 
 		/* clear vbios scratch 6 and 7 for coming asic reinit */
 		WREG32(adev->bios_scratch_reg_offset + 6, 0);
 		WREG32(adev->bios_scratch_reg_offset + 7, 0);
 	}
-	if (ret)
-		goto out;
 
-	smu_baco->state = state;
-out:
-	mutex_unlock(&smu_baco->mutex);
+	if (!ret)
+		smu_baco->state = state;
+
 	return ret;
 }
 
@@ -1798,7 +1773,6 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
 					  uint32_t min,
 					  uint32_t max)
 {
-	struct amdgpu_device *adev = smu->adev;
 	int ret = 0, clk_id = 0;
 	uint32_t param;
 
@@ -1810,9 +1784,6 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
 						clk_type);
 	if (clk_id < 0)
 		return clk_id;
-
-	if (clk_type == SMU_GFXCLK)
-		amdgpu_gfx_off_ctrl(adev, false);
 
 	if (max > 0) {
 		param = (uint32_t)((clk_id << 16) | (max & 0xffff));
@@ -1831,9 +1802,6 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
 	}
 
 out:
-	if (clk_type == SMU_GFXCLK)
-		amdgpu_gfx_off_ctrl(adev, true);
-
 	return ret;
 }
 
@@ -2230,4 +2198,13 @@ int smu_v11_0_restore_user_od_settings(struct smu_context *smu)
 		dev_err(smu->adev->dev, "Failed to import overdrive table!\n");
 
 	return ret;
+}
+
+void smu_v11_0_set_smu_mailbox_registers(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_82);
+	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_66);
+	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_90);
 }

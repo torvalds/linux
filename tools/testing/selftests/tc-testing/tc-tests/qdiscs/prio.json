@@ -272,5 +272,25 @@
         "teardown": [
             "$IP link del dev $DUMMY type dummy"
         ]
+    },
+    {
+        "id": "2410",
+        "name": "Show prio class",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root prio",
+        "expExitCode": "0",
+        "verifyCmd": "$TC class show dev $DUMMY",
+        "matchPattern": "class prio 1:[0-9]+ parent 1:",
+        "matchCount": "3",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root prio",
+            "$IP link del dev $DUMMY type dummy"
+        ]
     }
 ]

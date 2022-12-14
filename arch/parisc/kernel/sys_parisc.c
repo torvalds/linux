@@ -239,14 +239,14 @@ static unsigned long mmap_rnd(void)
 	unsigned long rnd = 0;
 
 	if (current->flags & PF_RANDOMIZE)
-		rnd = get_random_int() & MMAP_RND_MASK;
+		rnd = get_random_u32() & MMAP_RND_MASK;
 
 	return rnd << PAGE_SHIFT;
 }
 
 unsigned long arch_mmap_rnd(void)
 {
-	return (get_random_int() & MMAP_RND_MASK) << PAGE_SHIFT;
+	return (get_random_u32() & MMAP_RND_MASK) << PAGE_SHIFT;
 }
 
 static unsigned long mmap_legacy_base(void)

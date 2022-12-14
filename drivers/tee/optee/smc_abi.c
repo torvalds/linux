@@ -42,7 +42,15 @@
  * 6. Driver initialization.
  */
 
-#define OPTEE_SHM_NUM_PRIV_PAGES	CONFIG_OPTEE_SHM_NUM_PRIV_PAGES
+/*
+ * A typical OP-TEE private shm allocation is 224 bytes (argument struct
+ * with 6 parameters, needed for open session). So with an alignment of 512
+ * we'll waste a bit more than 50%. However, it's only expected that we'll
+ * have a handful of these structs allocated at a time. Most memory will
+ * be allocated aligned to the page size, So all in all this should scale
+ * up and down quite well.
+ */
+#define OPTEE_MIN_STATIC_POOL_ALIGN    9 /* 512 bytes aligned */
 
 /*
  * 1. Convert between struct tee_param and struct optee_msg_param
@@ -74,16 +82,6 @@ static int from_msg_param_tmp_mem(struct tee_param *p, u32 attr,
 
 	p->u.memref.shm_offs = mp->u.tmem.buf_ptr - pa;
 	p->u.memref.shm = shm;
-
-	/* Check that the memref is covered by the shm object */
-	if (p->u.memref.size) {
-		size_t o = p->u.memref.shm_offs +
-			   p->u.memref.size - 1;
-
-		rc = tee_shm_get_pa(shm, o, NULL);
-		if (rc)
-			return rc;
-	}
 
 	return 0;
 }
@@ -230,7 +228,7 @@ static int optee_to_msg_param(struct optee *optee,
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
-			if (tee_shm_is_registered(p->u.memref.shm))
+			if (tee_shm_is_dynamic(p->u.memref.shm))
 				rc = to_msg_param_reg_mem(mp, p);
 			else
 				rc = to_msg_param_tmp_mem(mp, p);
@@ -439,6 +437,7 @@ static int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 	struct optee_msg_arg *msg_arg;
 	struct tee_shm *shm_arg;
 	u64 *pages_list;
+	size_t sz;
 	int rc;
 
 	if (!num_pages)
@@ -452,15 +451,30 @@ static int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 	if (!pages_list)
 		return -ENOMEM;
 
-	shm_arg = optee_get_msg_arg(ctx, 1, &msg_arg);
+	/*
+	 * We're about to register shared memory we can't register shared
+	 * memory for this request or there's a catch-22.
+	 *
+	 * So in this we'll have to do the good old temporary private
+	 * allocation instead of using optee_get_msg_arg().
+	 */
+	sz = optee_msg_arg_size(optee->rpc_param_count);
+	shm_arg = tee_shm_alloc_priv_buf(ctx, sz);
 	if (IS_ERR(shm_arg)) {
 		rc = PTR_ERR(shm_arg);
+		goto out;
+	}
+	msg_arg = tee_shm_get_va(shm_arg, 0);
+	if (IS_ERR(msg_arg)) {
+		rc = PTR_ERR(msg_arg);
 		goto out;
 	}
 
 	optee_fill_pages_list(pages_list, pages, num_pages,
 			      tee_shm_get_page_offset(shm));
 
+	memset(msg_arg, 0, OPTEE_MSG_GET_ARG_SIZE(1));
+	msg_arg->num_params = 1;
 	msg_arg->cmd = OPTEE_MSG_CMD_REGISTER_SHM;
 	msg_arg->params->attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
 				OPTEE_MSG_ATTR_NONCONTIG;
@@ -473,7 +487,7 @@ static int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 	msg_arg->params->u.tmem.buf_ptr = virt_to_phys(pages_list) |
 	  (tee_shm_get_page_offset(shm) & (OPTEE_MSG_NONCONTIG_PAGE_SIZE - 1));
 
-	if (optee->ops->do_call_with_arg(ctx, shm_arg) ||
+	if (optee->ops->do_call_with_arg(ctx, shm_arg, 0) ||
 	    msg_arg->ret != TEEC_SUCCESS)
 		rc = -EINVAL;
 
@@ -489,19 +503,37 @@ static int optee_shm_unregister(struct tee_context *ctx, struct tee_shm *shm)
 	struct optee_msg_arg *msg_arg;
 	struct tee_shm *shm_arg;
 	int rc = 0;
+	size_t sz;
 
-	shm_arg = optee_get_msg_arg(ctx, 1, &msg_arg);
+	/*
+	 * We're about to unregister shared memory and we may not be able
+	 * register shared memory for this request in case we're called
+	 * from optee_shm_arg_cache_uninit().
+	 *
+	 * So in order to keep things simple in this function just as in
+	 * optee_shm_register() we'll use temporary private allocation
+	 * instead of using optee_get_msg_arg().
+	 */
+	sz = optee_msg_arg_size(optee->rpc_param_count);
+	shm_arg = tee_shm_alloc_priv_buf(ctx, sz);
 	if (IS_ERR(shm_arg))
 		return PTR_ERR(shm_arg);
+	msg_arg = tee_shm_get_va(shm_arg, 0);
+	if (IS_ERR(msg_arg)) {
+		rc = PTR_ERR(msg_arg);
+		goto out;
+	}
 
+	memset(msg_arg, 0, sz);
+	msg_arg->num_params = 1;
 	msg_arg->cmd = OPTEE_MSG_CMD_UNREGISTER_SHM;
-
 	msg_arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_RMEM_INPUT;
 	msg_arg->params[0].u.rmem.shm_ref = (unsigned long)shm;
 
-	if (optee->ops->do_call_with_arg(ctx, shm_arg) ||
+	if (optee->ops->do_call_with_arg(ctx, shm_arg, 0) ||
 	    msg_arg->ret != TEEC_SUCCESS)
 		rc = -EINVAL;
+out:
 	tee_shm_free(shm_arg);
 	return rc;
 }
@@ -532,38 +564,38 @@ static int optee_shm_unregister_supp(struct tee_context *ctx,
  * The main function is optee_shm_pool_alloc_pages().
  */
 
-static int pool_op_alloc(struct tee_shm_pool_mgr *poolm,
-			 struct tee_shm *shm, size_t size)
+static int pool_op_alloc(struct tee_shm_pool *pool,
+			 struct tee_shm *shm, size_t size, size_t align)
 {
 	/*
 	 * Shared memory private to the OP-TEE driver doesn't need
 	 * to be registered with OP-TEE.
 	 */
 	if (shm->flags & TEE_SHM_PRIV)
-		return optee_pool_op_alloc_helper(poolm, shm, size, NULL);
+		return optee_pool_op_alloc_helper(pool, shm, size, align, NULL);
 
-	return optee_pool_op_alloc_helper(poolm, shm, size, optee_shm_register);
+	return optee_pool_op_alloc_helper(pool, shm, size, align,
+					  optee_shm_register);
 }
 
-static void pool_op_free(struct tee_shm_pool_mgr *poolm,
+static void pool_op_free(struct tee_shm_pool *pool,
 			 struct tee_shm *shm)
 {
 	if (!(shm->flags & TEE_SHM_PRIV))
-		optee_shm_unregister(shm->ctx, shm);
-
-	free_pages((unsigned long)shm->kaddr, get_order(shm->size));
-	shm->kaddr = NULL;
+		optee_pool_op_free_helper(pool, shm, optee_shm_unregister);
+	else
+		optee_pool_op_free_helper(pool, shm, NULL);
 }
 
-static void pool_op_destroy_poolmgr(struct tee_shm_pool_mgr *poolm)
+static void pool_op_destroy_pool(struct tee_shm_pool *pool)
 {
-	kfree(poolm);
+	kfree(pool);
 }
 
-static const struct tee_shm_pool_mgr_ops pool_ops = {
+static const struct tee_shm_pool_ops pool_ops = {
 	.alloc = pool_op_alloc,
 	.free = pool_op_free,
-	.destroy_poolmgr = pool_op_destroy_poolmgr,
+	.destroy_pool = pool_op_destroy_pool,
 };
 
 /**
@@ -572,16 +604,16 @@ static const struct tee_shm_pool_mgr_ops pool_ops = {
  * This pool is used when OP-TEE supports dymanic SHM. In this case
  * command buffers and such are allocated from kernel's own memory.
  */
-static struct tee_shm_pool_mgr *optee_shm_pool_alloc_pages(void)
+static struct tee_shm_pool *optee_shm_pool_alloc_pages(void)
 {
-	struct tee_shm_pool_mgr *mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
+	struct tee_shm_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 
-	if (!mgr)
+	if (!pool)
 		return ERR_PTR(-ENOMEM);
 
-	mgr->ops = &pool_ops;
+	pool->ops = &pool_ops;
 
-	return mgr;
+	return pool;
 }
 
 /*
@@ -622,6 +654,7 @@ static void handle_rpc_func_cmd_shm_free(struct tee_context *ctx,
 }
 
 static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
+					  struct optee *optee,
 					  struct optee_msg_arg *arg,
 					  struct optee_call_ctx *call_ctx)
 {
@@ -651,7 +684,7 @@ static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
 		shm = optee_rpc_cmd_alloc_suppl(ctx, sz);
 		break;
 	case OPTEE_RPC_SHM_TYPE_KERNEL:
-		shm = tee_shm_alloc(ctx, sz, TEE_SHM_MAPPED | TEE_SHM_PRIV);
+		shm = tee_shm_alloc_priv_buf(optee->ctx, sz);
 		break;
 	default:
 		arg->ret = TEEC_ERROR_BAD_PARAMETERS;
@@ -670,7 +703,7 @@ static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
 
 	sz = tee_shm_get_size(shm);
 
-	if (tee_shm_is_registered(shm)) {
+	if (tee_shm_is_dynamic(shm)) {
 		struct page **pages;
 		u64 *pages_list;
 		size_t page_num;
@@ -733,21 +766,14 @@ static void optee_rpc_finalize_call(struct optee_call_ctx *call_ctx)
 }
 
 static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
-				struct tee_shm *shm,
+				struct optee_msg_arg *arg,
 				struct optee_call_ctx *call_ctx)
 {
-	struct optee_msg_arg *arg;
-
-	arg = tee_shm_get_va(shm, 0);
-	if (IS_ERR(arg)) {
-		pr_err("%s: tee_shm_get_va %p failed\n", __func__, shm);
-		return;
-	}
 
 	switch (arg->cmd) {
 	case OPTEE_RPC_CMD_SHM_ALLOC:
 		free_pages_list(call_ctx);
-		handle_rpc_func_cmd_shm_alloc(ctx, arg, call_ctx);
+		handle_rpc_func_cmd_shm_alloc(ctx, optee, arg, call_ctx);
 		break;
 	case OPTEE_RPC_CMD_SHM_FREE:
 		handle_rpc_func_cmd_shm_free(ctx, arg);
@@ -766,18 +792,19 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
  * Result of RPC is written back into @param.
  */
 static void optee_handle_rpc(struct tee_context *ctx,
+			     struct optee_msg_arg *rpc_arg,
 			     struct optee_rpc_param *param,
 			     struct optee_call_ctx *call_ctx)
 {
 	struct tee_device *teedev = ctx->teedev;
 	struct optee *optee = tee_get_drvdata(teedev);
+	struct optee_msg_arg *arg;
 	struct tee_shm *shm;
 	phys_addr_t pa;
 
 	switch (OPTEE_SMC_RETURN_GET_RPC_FUNC(param->a0)) {
 	case OPTEE_SMC_RPC_FUNC_ALLOC:
-		shm = tee_shm_alloc(ctx, param->a1,
-				    TEE_SHM_MAPPED | TEE_SHM_PRIV);
+		shm = tee_shm_alloc_priv_buf(optee->ctx, param->a1);
 		if (!IS_ERR(shm) && !tee_shm_get_pa(shm, 0, &pa)) {
 			reg_pair_from_64(&param->a1, &param->a2, pa);
 			reg_pair_from_64(&param->a4, &param->a5,
@@ -803,8 +830,19 @@ static void optee_handle_rpc(struct tee_context *ctx,
 		 */
 		break;
 	case OPTEE_SMC_RPC_FUNC_CMD:
-		shm = reg_pair_to_ptr(param->a1, param->a2);
-		handle_rpc_func_cmd(ctx, optee, shm, call_ctx);
+		if (rpc_arg) {
+			arg = rpc_arg;
+		} else {
+			shm = reg_pair_to_ptr(param->a1, param->a2);
+			arg = tee_shm_get_va(shm, 0);
+			if (IS_ERR(arg)) {
+				pr_err("%s: tee_shm_get_va %p failed\n",
+				       __func__, shm);
+				break;
+			}
+		}
+
+		handle_rpc_func_cmd(ctx, optee, arg, call_ctx);
 		break;
 	default:
 		pr_warn("Unknown RPC func 0x%x\n",
@@ -818,7 +856,8 @@ static void optee_handle_rpc(struct tee_context *ctx,
 /**
  * optee_smc_do_call_with_arg() - Do an SMC to OP-TEE in secure world
  * @ctx:	calling context
- * @arg:	shared memory holding the message to pass to secure world
+ * @shm:	shared memory holding the message to pass to secure world
+ * @offs:	offset of the message in @shm
  *
  * Does and SMC to OP-TEE in secure world and handles eventual resulting
  * Remote Procedure Calls (RPC) from OP-TEE.
@@ -826,21 +865,46 @@ static void optee_handle_rpc(struct tee_context *ctx,
  * Returns return code from secure world, 0 is OK
  */
 static int optee_smc_do_call_with_arg(struct tee_context *ctx,
-				      struct tee_shm *arg)
+				      struct tee_shm *shm, u_int offs)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_call_waiter w;
 	struct optee_rpc_param param = { };
 	struct optee_call_ctx call_ctx = { };
-	phys_addr_t parg;
+	struct optee_msg_arg *rpc_arg = NULL;
 	int rc;
 
-	rc = tee_shm_get_pa(arg, 0, &parg);
-	if (rc)
-		return rc;
+	if (optee->rpc_param_count) {
+		struct optee_msg_arg *arg;
+		unsigned int rpc_arg_offs;
 
-	param.a0 = OPTEE_SMC_CALL_WITH_ARG;
-	reg_pair_from_64(&param.a1, &param.a2, parg);
+		arg = tee_shm_get_va(shm, offs);
+		if (IS_ERR(arg))
+			return PTR_ERR(arg);
+
+		rpc_arg_offs = OPTEE_MSG_GET_ARG_SIZE(arg->num_params);
+		rpc_arg = tee_shm_get_va(shm, offs + rpc_arg_offs);
+		if (IS_ERR(rpc_arg))
+			return PTR_ERR(rpc_arg);
+	}
+
+	if  (rpc_arg && tee_shm_is_dynamic(shm)) {
+		param.a0 = OPTEE_SMC_CALL_WITH_REGD_ARG;
+		reg_pair_from_64(&param.a1, &param.a2, (u_long)shm);
+		param.a3 = offs;
+	} else {
+		phys_addr_t parg;
+
+		rc = tee_shm_get_pa(shm, offs, &parg);
+		if (rc)
+			return rc;
+
+		if (rpc_arg)
+			param.a0 = OPTEE_SMC_CALL_WITH_RPC_ARG;
+		else
+			param.a0 = OPTEE_SMC_CALL_WITH_ARG;
+		reg_pair_from_64(&param.a1, &param.a2, parg);
+	}
 	/* Initialize waiter */
 	optee_cq_wait_init(&optee->call_queue, &w);
 	while (true) {
@@ -864,7 +928,7 @@ static int optee_smc_do_call_with_arg(struct tee_context *ctx,
 			param.a1 = res.a1;
 			param.a2 = res.a2;
 			param.a3 = res.a3;
-			optee_handle_rpc(ctx, &param, &call_ctx);
+			optee_handle_rpc(ctx, rpc_arg, &param, &call_ctx);
 		} else {
 			rc = res.a0;
 			break;
@@ -883,17 +947,19 @@ static int optee_smc_do_call_with_arg(struct tee_context *ctx,
 
 static int simple_call_with_arg(struct tee_context *ctx, u32 cmd)
 {
+	struct optee_shm_arg_entry *entry;
 	struct optee_msg_arg *msg_arg;
 	struct tee_shm *shm;
+	u_int offs;
 
-	shm = optee_get_msg_arg(ctx, 0, &msg_arg);
-	if (IS_ERR(shm))
-		return PTR_ERR(shm);
+	msg_arg = optee_get_msg_arg(ctx, 0, &entry, &shm, &offs);
+	if (IS_ERR(msg_arg))
+		return PTR_ERR(msg_arg);
 
 	msg_arg->cmd = cmd;
-	optee_smc_do_call_with_arg(ctx, shm);
+	optee_smc_do_call_with_arg(ctx, shm, offs);
 
-	tee_shm_free(shm);
+	optee_free_msg_arg(ctx, entry, offs);
 	return 0;
 }
 
@@ -954,57 +1020,34 @@ static irqreturn_t notif_irq_thread_fn(int irq, void *dev_id)
 {
 	struct optee *optee = dev_id;
 
-	optee_smc_do_bottom_half(optee->notif.ctx);
+	optee_smc_do_bottom_half(optee->ctx);
 
 	return IRQ_HANDLED;
 }
 
 static int optee_smc_notif_init_irq(struct optee *optee, u_int irq)
 {
-	struct tee_context *ctx;
 	int rc;
 
-	ctx = teedev_open(optee->teedev);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
-
-	optee->notif.ctx = ctx;
 	rc = request_threaded_irq(irq, notif_irq_handler,
 				  notif_irq_thread_fn,
 				  0, "optee_notification", optee);
 	if (rc)
-		goto err_close_ctx;
+		return rc;
 
 	optee->smc.notif_irq = irq;
 
 	return 0;
-
-err_close_ctx:
-	teedev_close_context(optee->notif.ctx);
-	optee->notif.ctx = NULL;
-
-	return rc;
 }
 
 static void optee_smc_notif_uninit_irq(struct optee *optee)
 {
-	if (optee->notif.ctx) {
-		optee_smc_stop_async_notif(optee->notif.ctx);
+	if (optee->smc.sec_caps & OPTEE_SMC_SEC_CAP_ASYNC_NOTIF) {
+		optee_smc_stop_async_notif(optee->ctx);
 		if (optee->smc.notif_irq) {
 			free_irq(optee->smc.notif_irq, optee);
 			irq_dispose_mapping(optee->smc.notif_irq);
 		}
-
-		/*
-		 * The thread normally working with optee->notif.ctx was
-		 * stopped with free_irq() above.
-		 *
-		 * Note we're not using teedev_close_context() or
-		 * tee_client_close_context() since we have already called
-		 * tee_device_put() while initializing to avoid a circular
-		 * reference counting.
-		 */
-		teedev_close_context(optee->notif.ctx);
 	}
 }
 
@@ -1143,7 +1186,8 @@ static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
 }
 
 static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
-					    u32 *sec_caps, u32 *max_notif_value)
+					    u32 *sec_caps, u32 *max_notif_value,
+					    unsigned int *rpc_param_count)
 {
 	union {
 		struct arm_smccc_res smccc;
@@ -1170,35 +1214,12 @@ static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 		*max_notif_value = res.result.max_notif_value;
 	else
 		*max_notif_value = OPTEE_DEFAULT_MAX_NOTIF_VALUE;
+	if (*sec_caps & OPTEE_SMC_SEC_CAP_RPC_ARG)
+		*rpc_param_count = (u8)res.result.data;
+	else
+		*rpc_param_count = 0;
 
 	return true;
-}
-
-static struct tee_shm_pool *optee_config_dyn_shm(void)
-{
-	struct tee_shm_pool_mgr *priv_mgr;
-	struct tee_shm_pool_mgr *dmabuf_mgr;
-	void *rc;
-
-	rc = optee_shm_pool_alloc_pages();
-	if (IS_ERR(rc))
-		return rc;
-	priv_mgr = rc;
-
-	rc = optee_shm_pool_alloc_pages();
-	if (IS_ERR(rc)) {
-		tee_shm_pool_mgr_destroy(priv_mgr);
-		return rc;
-	}
-	dmabuf_mgr = rc;
-
-	rc = tee_shm_pool_alloc(priv_mgr, dmabuf_mgr);
-	if (IS_ERR(rc)) {
-		tee_shm_pool_mgr_destroy(priv_mgr);
-		tee_shm_pool_mgr_destroy(dmabuf_mgr);
-	}
-
-	return rc;
 }
 
 static struct tee_shm_pool *
@@ -1214,10 +1235,7 @@ optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
 	phys_addr_t begin;
 	phys_addr_t end;
 	void *va;
-	struct tee_shm_pool_mgr *priv_mgr;
-	struct tee_shm_pool_mgr *dmabuf_mgr;
 	void *rc;
-	const int sz = OPTEE_SHM_NUM_PRIV_PAGES * PAGE_SIZE;
 
 	invoke_fn(OPTEE_SMC_GET_SHM_CONFIG, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
 	if (res.result.status != OPTEE_SMC_RETURN_OK) {
@@ -1235,11 +1253,6 @@ optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
 	paddr = begin;
 	size = end - begin;
 
-	if (size < 2 * OPTEE_SHM_NUM_PRIV_PAGES * PAGE_SIZE) {
-		pr_err("too small shared memory area\n");
-		return ERR_PTR(-EINVAL);
-	}
-
 	va = memremap(paddr, size, MEMREMAP_WB);
 	if (!va) {
 		pr_err("shared memory ioremap failed\n");
@@ -1247,35 +1260,13 @@ optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
 	}
 	vaddr = (unsigned long)va;
 
-	rc = tee_shm_pool_mgr_alloc_res_mem(vaddr, paddr, sz,
-					    3 /* 8 bytes aligned */);
+	rc = tee_shm_pool_alloc_res_mem(vaddr, paddr, size,
+					OPTEE_MIN_STATIC_POOL_ALIGN);
 	if (IS_ERR(rc))
-		goto err_memunmap;
-	priv_mgr = rc;
+		memunmap(va);
+	else
+		*memremaped_shm = va;
 
-	vaddr += sz;
-	paddr += sz;
-	size -= sz;
-
-	rc = tee_shm_pool_mgr_alloc_res_mem(vaddr, paddr, size, PAGE_SHIFT);
-	if (IS_ERR(rc))
-		goto err_free_priv_mgr;
-	dmabuf_mgr = rc;
-
-	rc = tee_shm_pool_alloc(priv_mgr, dmabuf_mgr);
-	if (IS_ERR(rc))
-		goto err_free_dmabuf_mgr;
-
-	*memremaped_shm = va;
-
-	return rc;
-
-err_free_dmabuf_mgr:
-	tee_shm_pool_mgr_destroy(dmabuf_mgr);
-err_free_priv_mgr:
-	tee_shm_pool_mgr_destroy(priv_mgr);
-err_memunmap:
-	memunmap(va);
 	return rc;
 }
 
@@ -1333,7 +1324,8 @@ static int optee_smc_remove(struct platform_device *pdev)
 	 * reference counters and also avoid wild pointers in secure world
 	 * into the old shared memory range.
 	 */
-	optee_disable_shm_cache(optee);
+	if (!optee->rpc_param_count)
+		optee_disable_shm_cache(optee);
 
 	optee_smc_notif_uninit_irq(optee);
 
@@ -1356,7 +1348,10 @@ static int optee_smc_remove(struct platform_device *pdev)
  */
 static void optee_shutdown(struct platform_device *pdev)
 {
-	optee_disable_shm_cache(platform_get_drvdata(pdev));
+	struct optee *optee = platform_get_drvdata(pdev);
+
+	if (!optee->rpc_param_count)
+		optee_disable_shm_cache(optee);
 }
 
 static int optee_probe(struct platform_device *pdev)
@@ -1365,8 +1360,11 @@ static int optee_probe(struct platform_device *pdev)
 	struct tee_shm_pool *pool = ERR_PTR(-EINVAL);
 	struct optee *optee = NULL;
 	void *memremaped_shm = NULL;
+	unsigned int rpc_param_count;
 	struct tee_device *teedev;
+	struct tee_context *ctx;
 	u32 max_notif_value;
+	u32 arg_cache_flags;
 	u32 sec_caps;
 	int rc;
 
@@ -1387,7 +1385,8 @@ static int optee_probe(struct platform_device *pdev)
 	}
 
 	if (!optee_msg_exchange_capabilities(invoke_fn, &sec_caps,
-					     &max_notif_value)) {
+					     &max_notif_value,
+					     &rpc_param_count)) {
 		pr_warn("capabilities mismatch\n");
 		return -EINVAL;
 	}
@@ -1395,14 +1394,48 @@ static int optee_probe(struct platform_device *pdev)
 	/*
 	 * Try to use dynamic shared memory if possible
 	 */
-	if (sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
-		pool = optee_config_dyn_shm();
+	if (sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM) {
+		/*
+		 * If we have OPTEE_SMC_SEC_CAP_RPC_ARG we can ask
+		 * optee_get_msg_arg() to pre-register (by having
+		 * OPTEE_SHM_ARG_ALLOC_PRIV cleared) the page used to pass
+		 * an argument struct.
+		 *
+		 * With the page is pre-registered we can use a non-zero
+		 * offset for argument struct, this is indicated with
+		 * OPTEE_SHM_ARG_SHARED.
+		 *
+		 * This means that optee_smc_do_call_with_arg() will use
+		 * OPTEE_SMC_CALL_WITH_REGD_ARG for pre-registered pages.
+		 */
+		if (sec_caps & OPTEE_SMC_SEC_CAP_RPC_ARG)
+			arg_cache_flags = OPTEE_SHM_ARG_SHARED;
+		else
+			arg_cache_flags = OPTEE_SHM_ARG_ALLOC_PRIV;
+
+		pool = optee_shm_pool_alloc_pages();
+	}
 
 	/*
 	 * If dynamic shared memory is not available or failed - try static one
 	 */
-	if (IS_ERR(pool) && (sec_caps & OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM))
+	if (IS_ERR(pool) && (sec_caps & OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM)) {
+		/*
+		 * The static memory pool can use non-zero page offsets so
+		 * let optee_get_msg_arg() know that with OPTEE_SHM_ARG_SHARED.
+		 *
+		 * optee_get_msg_arg() should not pre-register the
+		 * allocated page used to pass an argument struct, this is
+		 * indicated with OPTEE_SHM_ARG_ALLOC_PRIV.
+		 *
+		 * This means that optee_smc_do_call_with_arg() will use
+		 * OPTEE_SMC_CALL_WITH_ARG if rpc_param_count is 0, else
+		 * OPTEE_SMC_CALL_WITH_RPC_ARG.
+		 */
+		arg_cache_flags = OPTEE_SHM_ARG_SHARED |
+				  OPTEE_SHM_ARG_ALLOC_PRIV;
 		pool = optee_config_shm_memremap(invoke_fn, &memremaped_shm);
+	}
 
 	if (IS_ERR(pool))
 		return PTR_ERR(pool);
@@ -1416,6 +1449,7 @@ static int optee_probe(struct platform_device *pdev)
 	optee->ops = &optee_ops;
 	optee->smc.invoke_fn = invoke_fn;
 	optee->smc.sec_caps = sec_caps;
+	optee->rpc_param_count = rpc_param_count;
 
 	teedev = tee_device_alloc(&optee_clnt_desc, NULL, pool, optee);
 	if (IS_ERR(teedev)) {
@@ -1444,11 +1478,18 @@ static int optee_probe(struct platform_device *pdev)
 	optee_supp_init(&optee->supp);
 	optee->smc.memremaped_shm = memremaped_shm;
 	optee->pool = pool;
+	optee_shm_arg_cache_init(optee, arg_cache_flags);
 
 	platform_set_drvdata(pdev, optee);
+	ctx = teedev_open(optee->teedev);
+	if (IS_ERR(ctx)) {
+		rc = PTR_ERR(ctx);
+		goto err_supp_uninit;
+	}
+	optee->ctx = ctx;
 	rc = optee_notif_init(optee, max_notif_value);
 	if (rc)
-		goto err_supp_uninit;
+		goto err_close_ctx;
 
 	if (sec_caps & OPTEE_SMC_SEC_CAP_ASYNC_NOTIF) {
 		unsigned int irq;
@@ -1478,7 +1519,12 @@ static int optee_probe(struct platform_device *pdev)
 	 */
 	optee_disable_unmapped_shm_cache(optee);
 
-	optee_enable_shm_cache(optee);
+	/*
+	 * Only enable the shm cache in case we're not able to pass the RPC
+	 * arg struct right after the normal arg struct.
+	 */
+	if (!optee->rpc_param_count)
+		optee_enable_shm_cache(optee);
 
 	if (optee->smc.sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
 		pr_info("dynamic shared memory is enabled\n");
@@ -1491,12 +1537,16 @@ static int optee_probe(struct platform_device *pdev)
 	return 0;
 
 err_disable_shm_cache:
-	optee_disable_shm_cache(optee);
+	if (!optee->rpc_param_count)
+		optee_disable_shm_cache(optee);
 	optee_smc_notif_uninit_irq(optee);
 	optee_unregister_devices();
 err_notif_uninit:
 	optee_notif_uninit(optee);
+err_close_ctx:
+	teedev_close_context(ctx);
 err_supp_uninit:
+	optee_shm_arg_cache_uninit(optee);
 	optee_supp_uninit(&optee->supp);
 	mutex_destroy(&optee->call_queue.mutex);
 err_unreg_supp_teedev:

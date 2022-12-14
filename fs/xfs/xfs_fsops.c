@@ -17,6 +17,7 @@
 #include "xfs_fsops.h"
 #include "xfs_trans_space.h"
 #include "xfs_log.h"
+#include "xfs_log_priv.h"
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 #include "xfs_trace.h"
@@ -40,6 +41,7 @@ xfs_resizefs_init_new_ags(
 	xfs_agnumber_t		oagcount,
 	xfs_agnumber_t		nagcount,
 	xfs_rfsblock_t		delta,
+	struct xfs_perag	*last_pag,
 	bool			*lastag_extended)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
@@ -72,7 +74,7 @@ xfs_resizefs_init_new_ags(
 
 	if (delta) {
 		*lastag_extended = true;
-		error = xfs_ag_extend_space(mp, tp, id, delta);
+		error = xfs_ag_extend_space(last_pag, tp, delta);
 	}
 	return error;
 }
@@ -95,6 +97,7 @@ xfs_growfs_data_private(
 	xfs_agnumber_t		oagcount;
 	struct xfs_trans	*tp;
 	struct aghdr_init_data	id = {};
+	struct xfs_perag	*last_pag;
 
 	nb = in->newblocks;
 	error = xfs_sb_validate_fsb_count(&mp->m_sb, nb);
@@ -127,10 +130,9 @@ xfs_growfs_data_private(
 		return -EINVAL;
 
 	oagcount = mp->m_sb.sb_agcount;
-
 	/* allocate the new per-ag structures */
 	if (nagcount > oagcount) {
-		error = xfs_initialize_perag(mp, nagcount, &nagimax);
+		error = xfs_initialize_perag(mp, nagcount, nb, &nagimax);
 		if (error)
 			return error;
 	} else if (nagcount < oagcount) {
@@ -144,20 +146,17 @@ xfs_growfs_data_private(
 	if (error)
 		return error;
 
+	last_pag = xfs_perag_get(mp, oagcount - 1);
 	if (delta > 0) {
 		error = xfs_resizefs_init_new_ags(tp, &id, oagcount, nagcount,
-						  delta, &lastag_extended);
+				delta, last_pag, &lastag_extended);
 	} else {
-		static struct ratelimit_state shrink_warning = \
-			RATELIMIT_STATE_INIT("shrink_warning", 86400 * HZ, 1);
-		ratelimit_set_flags(&shrink_warning, RATELIMIT_MSG_ON_RELEASE);
-
-		if (__ratelimit(&shrink_warning))
-			xfs_alert(mp,
+		xfs_warn_mount(mp, XFS_OPSTATE_WARNED_SHRINK,
 	"EXPERIMENTAL online shrink feature in use. Use at your own risk!");
 
-		error = xfs_ag_shrink_space(mp, &tp, nagcount - 1, -delta);
+		error = xfs_ag_shrink_space(last_pag, &tp, -delta);
 	}
+	xfs_perag_put(last_pag);
 	if (error)
 		goto out_trans_cancel;
 
@@ -347,11 +346,8 @@ xfs_fs_counts(
 	cnt->allocino = percpu_counter_read_positive(&mp->m_icount);
 	cnt->freeino = percpu_counter_read_positive(&mp->m_ifree);
 	cnt->freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
-						mp->m_alloc_set_aside;
-
-	spin_lock(&mp->m_sb_lock);
-	cnt->freertx = mp->m_sb.sb_frextents;
-	spin_unlock(&mp->m_sb_lock);
+						xfs_fdblocks_unavailable(mp);
+	cnt->freertx = percpu_counter_read_positive(&mp->m_frextents);
 }
 
 /*
@@ -430,46 +426,36 @@ xfs_reserve_blocks(
 	 * If the request is larger than the current reservation, reserve the
 	 * blocks before we update the reserve counters. Sample m_fdblocks and
 	 * perform a partial reservation if the request exceeds free space.
+	 *
+	 * The code below estimates how many blocks it can request from
+	 * fdblocks to stash in the reserve pool.  This is a classic TOCTOU
+	 * race since fdblocks updates are not always coordinated via
+	 * m_sb_lock.  Set the reserve size even if there's not enough free
+	 * space to fill it because mod_fdblocks will refill an undersized
+	 * reserve when it can.
 	 */
-	error = -ENOSPC;
-	do {
-		free = percpu_counter_sum(&mp->m_fdblocks) -
-						mp->m_alloc_set_aside;
-		if (free <= 0)
-			break;
-
-		delta = request - mp->m_resblks;
-		lcounter = free - delta;
-		if (lcounter < 0)
-			/* We can't satisfy the request, just get what we can */
-			fdblks_delta = free;
-		else
-			fdblks_delta = delta;
-
+	free = percpu_counter_sum(&mp->m_fdblocks) -
+						xfs_fdblocks_unavailable(mp);
+	delta = request - mp->m_resblks;
+	mp->m_resblks = request;
+	if (delta > 0 && free > 0) {
 		/*
 		 * We'll either succeed in getting space from the free block
-		 * count or we'll get an ENOSPC. If we get a ENOSPC, it means
-		 * things changed while we were calculating fdblks_delta and so
-		 * we should try again to see if there is anything left to
-		 * reserve.
+		 * count or we'll get an ENOSPC.  Don't set the reserved flag
+		 * here - we don't want to reserve the extra reserve blocks
+		 * from the reserve.
 		 *
-		 * Don't set the reserved flag here - we don't want to reserve
-		 * the extra reserve blocks from the reserve.....
+		 * The desired reserve size can change after we drop the lock.
+		 * Use mod_fdblocks to put the space into the reserve or into
+		 * fdblocks as appropriate.
 		 */
+		fdblks_delta = min(free, delta);
 		spin_unlock(&mp->m_sb_lock);
 		error = xfs_mod_fdblocks(mp, -fdblks_delta, 0);
+		if (!error)
+			xfs_mod_fdblocks(mp, fdblks_delta, 0);
 		spin_lock(&mp->m_sb_lock);
-	} while (error == -ENOSPC);
-
-	/*
-	 * Update the reserve counters if blocks have been successfully
-	 * allocated.
-	 */
-	if (!error && fdblks_delta) {
-		mp->m_resblks += fdblks_delta;
-		mp->m_resblks_avail += fdblks_delta;
 	}
-
 out:
 	if (outval) {
 		outval->resblks = mp->m_resblks;
@@ -521,15 +507,18 @@ xfs_fs_goingdown(
 void
 xfs_do_force_shutdown(
 	struct xfs_mount *mp,
-	int		flags,
+	uint32_t	flags,
 	char		*fname,
 	int		lnnum)
 {
 	int		tag;
 	const char	*why;
 
-	if (test_and_set_bit(XFS_OPSTATE_SHUTDOWN, &mp->m_opstate))
+
+	if (test_and_set_bit(XFS_OPSTATE_SHUTDOWN, &mp->m_opstate)) {
+		xlog_shutdown_wait(mp->m_log);
 		return;
+	}
 	if (mp->m_sb_bp)
 		mp->m_sb_bp->b_flags |= XBF_DONE;
 
@@ -542,6 +531,9 @@ xfs_do_force_shutdown(
 	} else if (flags & SHUTDOWN_CORRUPT_INCORE) {
 		tag = XFS_PTAG_SHUTDOWN_CORRUPT;
 		why = "Corruption of in-memory data";
+	} else if (flags & SHUTDOWN_CORRUPT_ONDISK) {
+		tag = XFS_PTAG_SHUTDOWN_CORRUPT;
+		why = "Corruption of on-disk metadata";
 	} else {
 		tag = XFS_PTAG_SHUTDOWN_IOERROR;
 		why = "Metadata I/O Error";

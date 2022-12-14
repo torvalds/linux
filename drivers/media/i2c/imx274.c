@@ -11,13 +11,11 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -2144,7 +2142,7 @@ err_regmap:
 	return ret;
 }
 
-static int imx274_remove(struct i2c_client *client)
+static void imx274_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct stimx274 *imx274 = to_imx274(sd);
@@ -2159,7 +2157,6 @@ static int imx274_remove(struct i2c_client *client)
 
 	media_entity_cleanup(&sd->entity);
 	mutex_destroy(&imx274->lock);
-	return 0;
 }
 
 static const struct dev_pm_ops imx274_pm_ops = {

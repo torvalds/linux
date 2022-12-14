@@ -56,7 +56,6 @@ struct dmz_dev {
 	struct dmz_metadata	*metadata;
 	struct dmz_reclaim	*reclaim;
 
-	char			name[BDEVNAME_SIZE];
 	uuid_t			uuid;
 
 	sector_t		capacity;
@@ -176,16 +175,16 @@ enum {
  * Message functions.
  */
 #define dmz_dev_info(dev, format, args...)	\
-	DMINFO("(%s): " format, (dev)->name, ## args)
+	DMINFO("(%pg): " format, (dev)->bdev, ## args)
 
 #define dmz_dev_err(dev, format, args...)	\
-	DMERR("(%s): " format, (dev)->name, ## args)
+	DMERR("(%pg): " format, (dev)->bdev, ## args)
 
 #define dmz_dev_warn(dev, format, args...)	\
-	DMWARN("(%s): " format, (dev)->name, ## args)
+	DMWARN("(%pg): " format, (dev)->bdev, ## args)
 
 #define dmz_dev_debug(dev, format, args...)	\
-	DMDEBUG("(%s): " format, (dev)->name, ## args)
+	DMDEBUG("(%pg): " format, (dev)->bdev, ## args)
 
 /*
  * Functions defined in dm-zoned-metadata.c
@@ -249,7 +248,7 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd,
 					 unsigned int dev_idx, bool idle);
 
 struct dm_zone *dmz_get_chunk_mapping(struct dmz_metadata *zmd,
-				      unsigned int chunk, int op);
+				      unsigned int chunk, enum req_op op);
 void dmz_put_chunk_mapping(struct dmz_metadata *zmd, struct dm_zone *zone);
 struct dm_zone *dmz_get_chunk_buffer(struct dmz_metadata *zmd,
 				     struct dm_zone *dzone);

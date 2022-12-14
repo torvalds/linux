@@ -91,6 +91,7 @@ enum {
 #define GL_ASYNC		0x0040
 #define GL_EXACT		0x0080
 #define GL_SKIP			0x0100
+#define GL_NOPID		0x0200
 #define GL_NOCACHE		0x0400
   
 /*
@@ -138,6 +139,11 @@ struct lm_lockops {
 	const match_table_t *lm_tokens;
 };
 
+struct gfs2_glock_aspace {
+	struct gfs2_glock glock;
+	struct address_space mapping;
+};
+
 extern struct workqueue_struct *gfs2_delete_workqueue;
 static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
 {
@@ -179,8 +185,11 @@ static inline int gfs2_glock_is_held_shrd(struct gfs2_glock *gl)
 
 static inline struct address_space *gfs2_glock2aspace(struct gfs2_glock *gl)
 {
-	if (gl->gl_ops->go_flags & GLOF_ASPACE)
-		return (struct address_space *)(gl + 1);
+	if (gl->gl_ops->go_flags & GLOF_ASPACE) {
+		struct gfs2_glock_aspace *gla =
+			container_of(gl, struct gfs2_glock_aspace, glock);
+		return &gla->mapping;
+	}
 	return NULL;
 }
 
@@ -205,6 +214,7 @@ extern void gfs2_holder_uninit(struct gfs2_holder *gh);
 extern int gfs2_glock_nq(struct gfs2_holder *gh);
 extern int gfs2_glock_poll(struct gfs2_holder *gh);
 extern int gfs2_instantiate(struct gfs2_holder *gh);
+extern int gfs2_glock_holder_ready(struct gfs2_holder *gh);
 extern int gfs2_glock_wait(struct gfs2_holder *gh);
 extern int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs);
 extern void gfs2_glock_dq(struct gfs2_holder *gh);
@@ -265,7 +275,7 @@ extern void gfs2_cancel_delete_work(struct gfs2_glock *gl);
 extern bool gfs2_delete_work_queued(const struct gfs2_glock *gl);
 extern void gfs2_flush_delete_work(struct gfs2_sbd *sdp);
 extern void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
-extern void gfs2_glock_finish_truncate(struct gfs2_inode *ip);
+extern void gfs2_gl_dq_holders(struct gfs2_sbd *sdp);
 extern void gfs2_glock_thaw(struct gfs2_sbd *sdp);
 extern void gfs2_glock_add_to_lru(struct gfs2_glock *gl);
 extern void gfs2_glock_free(struct gfs2_glock *gl);

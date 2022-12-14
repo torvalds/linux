@@ -79,7 +79,7 @@
 			status = "okay";
 		};
 
-		dma@7884000 {
+		dma-controller@7884000 {
 			status = "okay";
 		};
 
@@ -87,20 +87,20 @@
 			pinctrl-0 = <&spi_0_pins>;
 			pinctrl-names = "default";
 			status = "okay";
-			cs-gpios = <&tlmm 12 0>;
+			cs-gpios = <&tlmm 12 GPIO_ACTIVE_HIGH>;
 
-			m25p80@0 {
+			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
 				reg = <0>;
-				compatible = "n25q128a11";
+				compatible = "micron,n25q128a11", "jedec,spi-nor";
 				spi-max-frequency = <24000000>;
 			};
 		};
 
 		pci@40000000 {
 			status = "okay";
-			perst-gpio = <&tlmm 38 0x1>;
+			perst-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 		};
 
 		qpic-nand@79b0000 {

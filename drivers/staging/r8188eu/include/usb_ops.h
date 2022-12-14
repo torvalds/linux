@@ -25,17 +25,14 @@
  * @return true:
  * @return false:
  */
-static inline int rtw_inc_and_chk_continual_urb_error(struct dvobj_priv *dvobj)
+static inline bool rtw_inc_and_chk_continual_urb_error(struct dvobj_priv *dvobj)
 {
-	int ret = false;
-	int value;
-	value = atomic_inc_return(&dvobj->continual_urb_error);
-	if (value > MAX_CONTINUAL_URB_ERR) {
-		DBG_88E("[dvobj:%p][ERROR] continual_urb_error:%d > %d\n",
-			dvobj, value, MAX_CONTINUAL_URB_ERR);
-		ret = true;
-	}
-	return ret;
+	int value = atomic_inc_return(&dvobj->continual_urb_error);
+
+	if (value > MAX_CONTINUAL_URB_ERR)
+		return true;
+
+	return false;
 }
 
 /*
@@ -49,19 +46,14 @@ static inline void rtw_reset_continual_urb_error(struct dvobj_priv *dvobj)
 #define USB_HIGH_SPEED_BULK_SIZE	512
 #define USB_FULL_SPEED_BULK_SIZE	64
 
-static inline u8 rtw_usb_bulk_size_boundary(struct adapter *padapter,
-					    int buf_len)
+static inline bool rtw_usb_bulk_size_boundary(struct adapter *padapter, int buf_len)
 {
-	u8 rst = true;
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
 
-	if (pdvobjpriv->ishighspeed)
-		rst = (0 == (buf_len) % USB_HIGH_SPEED_BULK_SIZE) ?
-		      true : false;
+	if (pdvobjpriv->pusbdev->speed == USB_SPEED_HIGH)
+		return buf_len % USB_HIGH_SPEED_BULK_SIZE == 0;
 	else
-		rst = (0 == (buf_len) % USB_FULL_SPEED_BULK_SIZE) ?
-		      true : false;
-	return rst;
+		return buf_len % USB_FULL_SPEED_BULK_SIZE == 0;
 }
 
 #endif /* __USB_OPS_H_ */

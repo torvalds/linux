@@ -207,7 +207,6 @@ struct ceph_msg_data_cursor {
 
 	struct ceph_msg_data	*data;		/* current data item */
 	size_t			resid;		/* bytes not yet consumed */
-	bool			last_piece;	/* current is last piece */
 	bool			need_crc;	/* crc update needed */
 	union {
 #ifdef CONFIG_BLOCK
@@ -383,6 +382,10 @@ struct ceph_connection_v2_info {
 	struct ceph_gcm_nonce in_gcm_nonce;
 	struct ceph_gcm_nonce out_gcm_nonce;
 
+	struct page **in_enc_pages;
+	int in_enc_page_cnt;
+	int in_enc_resid;
+	int in_enc_i;
 	struct page **out_enc_pages;
 	int out_enc_page_cnt;
 	int out_enc_resid;
@@ -457,6 +460,7 @@ struct ceph_connection {
 	struct ceph_msg *out_msg;        /* sending message (== tail of
 					    out_sent) */
 
+	struct page *bounce_page;
 	u32 in_front_crc, in_middle_crc, in_data_crc;  /* calculated crc */
 
 	struct timespec64 last_keepalive_ack; /* keepalive2 ack stamp */
@@ -493,8 +497,7 @@ void ceph_con_discard_requeued(struct ceph_connection *con, u64 reconnect_seq);
 void ceph_msg_data_cursor_init(struct ceph_msg_data_cursor *cursor,
 			       struct ceph_msg *msg, size_t length);
 struct page *ceph_msg_data_next(struct ceph_msg_data_cursor *cursor,
-				size_t *page_offset, size_t *length,
-				bool *last_piece);
+				size_t *page_offset, size_t *length);
 void ceph_msg_data_advance(struct ceph_msg_data_cursor *cursor, size_t bytes);
 
 u32 ceph_crc32c_page(u32 crc, struct page *page, unsigned int page_offset,

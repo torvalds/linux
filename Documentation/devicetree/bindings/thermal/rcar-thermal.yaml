@@ -42,7 +42,7 @@ properties:
     description:
       Address ranges of the thermal registers. If more then one range is given
       the first one must be the common registers followed by each sensor
-      according the the datasheet.
+      according to the datasheet.
     minItems: 1
     maxItems: 4
 

@@ -3136,7 +3136,7 @@ ath5k_combine_pwr_to_pdadc_curves(struct ath5k_hw *ah,
 		pdadc_n = gain_boundaries[pdg] + pd_gain_overlap - pwr_min[pdg];
 		/* Limit it to be inside pwr range */
 		table_size = pwr_max[pdg] - pwr_min[pdg];
-		max_idx = (pdadc_n < table_size) ? pdadc_n : table_size;
+		max_idx = min(pdadc_n, table_size);
 
 		/* Fill pdadc_out table */
 		while (pdadc_0 < max_idx && pdadc_i < 128)

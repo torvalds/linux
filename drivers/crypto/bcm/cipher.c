@@ -1928,7 +1928,7 @@ static int ahash_enqueue(struct ahash_request *req)
 	/* SPU2 hardware does not compute hash of zero length data */
 	if ((rctx->is_final == 1) && (rctx->total_todo == 0) &&
 	    (iproc_priv.spu.spu_type == SPU_TYPE_SPU2)) {
-		alg_name = crypto_tfm_alg_name(crypto_ahash_tfm(tfm));
+		alg_name = crypto_ahash_alg_name(tfm);
 		flow_log("Doing %sfinal %s zero-len hash request in software\n",
 			 rctx->is_final ? "" : "non-", alg_name);
 		err = do_shash((unsigned char *)alg_name, req->result,
@@ -2029,7 +2029,7 @@ static int ahash_init(struct ahash_request *req)
 		 * supported by the hardware, we need to handle it in software
 		 * by calling synchronous hash functions.
 		 */
-		alg_name = crypto_tfm_alg_name(crypto_ahash_tfm(tfm));
+		alg_name = crypto_ahash_alg_name(tfm);
 		hash = crypto_alloc_shash(alg_name, 0, 0);
 		if (IS_ERR(hash)) {
 			ret = PTR_ERR(hash);

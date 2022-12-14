@@ -332,7 +332,7 @@ static void df_v3_6_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 }
 
 static void df_v3_6_get_clockgating_state(struct amdgpu_device *adev,
-					  u32 *flags)
+					  u64 *flags)
 {
 	u32 tmp;
 
@@ -458,7 +458,7 @@ static int df_v3_6_pmc_add_cntr(struct amdgpu_device *adev,
 
 #define DEFERRED_ARM_MASK	(1 << 31)
 static int df_v3_6_pmc_set_deferred(struct amdgpu_device *adev,
-				    int counter_idx, uint64_t config,
+				    uint64_t config, int counter_idx,
 				    bool is_deferred)
 {
 
@@ -476,8 +476,8 @@ static int df_v3_6_pmc_set_deferred(struct amdgpu_device *adev,
 }
 
 static bool df_v3_6_pmc_is_deferred(struct amdgpu_device *adev,
-				    int counter_idx,
-				    uint64_t config)
+				    uint64_t config,
+				    int counter_idx)
 {
 	return	(df_v3_6_pmc_has_counter(adev, config, counter_idx) &&
 			(adev->df_perfmon_config_assign_mask[counter_idx]

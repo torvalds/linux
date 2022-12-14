@@ -53,14 +53,14 @@ static int fsverity_read_merkle_tree(struct inode *inode,
 			break;
 		}
 
-		virt = kmap(page);
+		virt = kmap_local_page(page);
 		if (copy_to_user(buf, virt + offs_in_page, bytes_to_copy)) {
-			kunmap(page);
+			kunmap_local(virt);
 			put_page(page);
 			err = -EFAULT;
 			break;
 		}
-		kunmap(page);
+		kunmap_local(virt);
 		put_page(page);
 
 		retval += bytes_to_copy;
@@ -101,7 +101,7 @@ static int fsverity_read_descriptor(struct inode *inode,
 	size_t desc_size;
 	int res;
 
-	res = fsverity_get_descriptor(inode, &desc, &desc_size);
+	res = fsverity_get_descriptor(inode, &desc);
 	if (res)
 		return res;
 
@@ -119,10 +119,9 @@ static int fsverity_read_signature(struct inode *inode,
 				   void __user *buf, u64 offset, int length)
 {
 	struct fsverity_descriptor *desc;
-	size_t desc_size;
 	int res;
 
-	res = fsverity_get_descriptor(inode, &desc, &desc_size);
+	res = fsverity_get_descriptor(inode, &desc);
 	if (res)
 		return res;
 

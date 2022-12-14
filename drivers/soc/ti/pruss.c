@@ -279,10 +279,9 @@ static int pruss_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pruss);
 
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
 		dev_err(dev, "couldn't enable module\n");
-		pm_runtime_put_noidle(dev);
 		goto rpm_disable;
 	}
 
@@ -339,6 +338,7 @@ static const struct of_device_id pruss_of_match[] = {
 	{ .compatible = "ti,am654-icssg", .data = &am65x_j721e_pruss_data, },
 	{ .compatible = "ti,j721e-icssg", .data = &am65x_j721e_pruss_data, },
 	{ .compatible = "ti,am642-icssg", .data = &am65x_j721e_pruss_data, },
+	{ .compatible = "ti,am625-pruss", .data = &am65x_j721e_pruss_data, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, pruss_of_match);

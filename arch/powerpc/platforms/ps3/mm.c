@@ -14,7 +14,6 @@
 
 #include <asm/cell-regs.h>
 #include <asm/firmware.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
 #include <asm/setup.h>
@@ -364,7 +363,7 @@ static void  __maybe_unused _dma_dump_region(const struct ps3_dma_region *r,
  * @bus_addr: Starting ioc bus address of the area to map.
  * @len: Length in bytes of the area to map.
  * @link: A struct list_head used with struct ps3_dma_region.chunk_list, the
- * list of all chuncks owned by the region.
+ * list of all chunks owned by the region.
  *
  * This implementation uses a very simple dma page manager
  * based on the dma_chunk structure.  This scheme assumes

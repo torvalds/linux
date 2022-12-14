@@ -158,7 +158,7 @@ MODULE_PARM_DESC(full_duplex, "DP8381x full duplex setting(s) (1)");
 I. Board Compatibility
 
 This driver is designed for National Semiconductor DP83815 PCI Ethernet NIC.
-It also works with other chips in in the DP83810 series.
+It also works with other chips in the DP83810 series.
 
 II. Board-specific settings
 
@@ -869,7 +869,7 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	np = netdev_priv(dev);
 	np->ioaddr = ioaddr;
 
-	netif_napi_add(dev, &np->napi, natsemi_poll, 64);
+	netif_napi_add(dev, &np->napi, natsemi_poll);
 	np->dev = dev;
 
 	np->pci_dev = pdev;
@@ -989,8 +989,6 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
    No extra delay is needed with 33Mhz PCI, but future 66Mhz access may need
    a delay.  Note that pre-2.0.34 kernels had a cache-alignment bug that
    made udelay() unreliable.
-   The old method of using an ISA access as a delay, __SLOW_DOWN_IO__, is
-   deprecated.
 */
 #define eeprom_delay(ee_addr)	readl(ee_addr)
 
@@ -2566,9 +2564,9 @@ static void set_rx_mode(struct net_device *dev)
 static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct netdev_private *np = netdev_priv(dev);
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
 static int get_regs_len(struct net_device *dev)

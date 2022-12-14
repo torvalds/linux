@@ -55,7 +55,7 @@
 #define CLKID_AHB_I2S1		45
 #define CLKID_AHB_MAC1		46
 
-/* devider */
+/* divider */
 #define CLKID_SYS_CPU		47
 #define CLKID_SYS_AHB		48
 #define CLKID_SYS_I2S0M		49

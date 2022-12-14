@@ -584,21 +584,6 @@ static struct platform_driver acerhdf_driver = {
 	.remove = acerhdf_remove,
 };
 
-/* checks if str begins with start */
-static int str_starts_with(const char *str, const char *start)
-{
-	unsigned long str_len = 0, start_len = 0;
-
-	str_len = strlen(str);
-	start_len = strlen(start);
-
-	if (str_len >= start_len &&
-			!strncmp(str, start, start_len))
-		return 1;
-
-	return 0;
-}
-
 /* check hardware */
 static int __init acerhdf_check_hardware(void)
 {
@@ -651,9 +636,9 @@ static int __init acerhdf_check_hardware(void)
 		 * check if actual hardware BIOS vendor, product and version
 		 * IDs start with the strings of BIOS table entry
 		 */
-		if (str_starts_with(vendor, bt->vendor) &&
-				str_starts_with(product, bt->product) &&
-				str_starts_with(version, bt->version)) {
+		if (strstarts(vendor, bt->vendor) &&
+		    strstarts(product, bt->product) &&
+		    strstarts(version, bt->version)) {
 			found = 1;
 			break;
 		}
@@ -691,7 +676,7 @@ static int __init acerhdf_register_platform(void)
 	if (err)
 		return err;
 
-	acerhdf_dev = platform_device_alloc("acerhdf", -1);
+	acerhdf_dev = platform_device_alloc("acerhdf", PLATFORM_DEVID_NONE);
 	if (!acerhdf_dev) {
 		err = -ENOMEM;
 		goto err_device_alloc;

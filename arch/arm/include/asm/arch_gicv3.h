@@ -48,6 +48,7 @@ static inline u32 read_ ## a64(void)		\
 	return read_sysreg(a32); 		\
 }						\
 
+CPUIF_MAP(ICC_EOIR1, ICC_EOIR1_EL1)
 CPUIF_MAP(ICC_PMR, ICC_PMR_EL1)
 CPUIF_MAP(ICC_AP0R0, ICC_AP0R0_EL1)
 CPUIF_MAP(ICC_AP0R1, ICC_AP0R1_EL1)
@@ -62,12 +63,6 @@ CPUIF_MAP(ICC_AP1R3, ICC_AP1R3_EL1)
 #define write_gicreg(v, r)             write_##r(v)
 
 /* Low-level accessors */
-
-static inline void gic_write_eoir(u32 irq)
-{
-	write_sysreg(irq, ICC_EOIR1);
-	isb();
-}
 
 static inline void gic_write_dir(u32 val)
 {

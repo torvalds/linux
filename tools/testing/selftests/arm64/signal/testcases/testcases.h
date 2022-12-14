@@ -16,7 +16,8 @@
 
 #define FPSIMD_CTX	(1 << 0)
 #define SVE_CTX		(1 << 1)
-#define EXTRA_CTX	(1 << 2)
+#define ZA_CTX		(1 << 2)
+#define EXTRA_CTX	(1 << 3)
 
 #define KSFT_BAD_MAGIC	0xdeadbeef
 
@@ -28,6 +29,13 @@
 
 #define GET_SF_RESV_SIZE(sf) \
 	sizeof((sf).uc.uc_mcontext.__reserved)
+
+#define GET_BUF_RESV_HEAD(buf) \
+	(struct _aarch64_ctx *)(&(buf).uc.uc_mcontext.__reserved)
+
+#define GET_BUF_RESV_SIZE(buf) \
+	(sizeof(buf) - sizeof(buf.uc) +	\
+	 sizeof((buf).uc.uc_mcontext.__reserved))
 
 #define GET_UCP_RESV_SIZE(ucp) \
 	sizeof((ucp)->uc_mcontext.__reserved)
@@ -77,8 +85,6 @@ struct fake_sigframe {
 
 
 bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err);
-
-bool validate_extra_context(struct extra_context *extra, char **err);
 
 struct _aarch64_ctx *get_header(struct _aarch64_ctx *head, uint32_t magic,
 				size_t resv_sz, size_t *offset);

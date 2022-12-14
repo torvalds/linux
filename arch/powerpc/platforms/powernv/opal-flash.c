@@ -512,13 +512,17 @@ static struct attribute *image_op_attrs[] = {
 	NULL	/* need to NULL terminate the list of attributes */
 };
 
-static struct attribute_group image_op_attr_group = {
+static const struct attribute_group image_op_attr_group = {
 	.attrs = image_op_attrs,
 };
 
 void __init opal_flash_update_init(void)
 {
 	int ret;
+
+	/* Firmware update is not supported by firmware */
+	if (!opal_check_token(OPAL_FLASH_VALIDATE))
+		return;
 
 	/* Allocate validate image buffer */
 	validate_flash_data.buf = kzalloc(VALIDATE_BUF_SIZE, GFP_KERNEL);

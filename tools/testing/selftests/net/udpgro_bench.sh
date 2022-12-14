@@ -5,6 +5,8 @@
 
 readonly PEER_NS="ns-peer-$(mktemp -u XXXXXX)"
 
+BPF_FILE="../bpf/xdp_dummy.bpf.o"
+
 cleanup() {
 	local -r jobs="$(jobs -p)"
 	local -r ns="$(ip netns list|grep $PEER_NS)"
@@ -34,12 +36,12 @@ run_one() {
 	ip -netns "${PEER_NS}" addr add dev veth1 2001:db8::1/64 nodad
 	ip -netns "${PEER_NS}" link set dev veth1 up
 
-	ip -n "${PEER_NS}" link set veth1 xdp object ../bpf/xdp_dummy.o section xdp_dummy
+	ip -n "${PEER_NS}" link set veth1 xdp object ${BPF_FILE} section xdp
 	ip netns exec "${PEER_NS}" ./udpgso_bench_rx ${rx_args} -r &
 	ip netns exec "${PEER_NS}" ./udpgso_bench_rx -t ${rx_args} -r &
 
 	# Hack: let bg programs complete the startup
-	sleep 0.1
+	sleep 0.2
 	./udpgso_bench_tx ${tx_args}
 }
 
@@ -80,8 +82,8 @@ run_all() {
 	run_udp "${ipv6_args}"
 }
 
-if [ ! -f ../bpf/xdp_dummy.o ]; then
-	echo "Missing xdp_dummy helper. Build bpf selftest first"
+if [ ! -f ${BPF_FILE} ]; then
+	echo "Missing ${BPF_FILE}. Build bpf selftest first"
 	exit -1
 fi
 

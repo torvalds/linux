@@ -256,7 +256,6 @@ static int da311_probe(struct i2c_client *client,
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int da311_suspend(struct device *dev)
 {
 	return da311_enable(to_i2c_client(dev), false);
@@ -266,9 +265,8 @@ static int da311_resume(struct device *dev)
 {
 	return da311_enable(to_i2c_client(dev), true);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(da311_pm_ops, da311_suspend, da311_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(da311_pm_ops, da311_suspend, da311_resume);
 
 static const struct i2c_device_id da311_i2c_id[] = {
 	{"da311", 0},
@@ -279,7 +277,7 @@ MODULE_DEVICE_TABLE(i2c, da311_i2c_id);
 static struct i2c_driver da311_driver = {
 	.driver = {
 		.name = "da311",
-		.pm = &da311_pm_ops,
+		.pm = pm_sleep_ptr(&da311_pm_ops),
 	},
 	.probe		= da311_probe,
 	.id_table	= da311_i2c_id,

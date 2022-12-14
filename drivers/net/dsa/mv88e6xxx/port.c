@@ -294,28 +294,10 @@ static int mv88e6xxx_port_set_speed_duplex(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-/* Support 10, 100, 200 Mbps (e.g. 88E6065 family) */
-int mv88e6065_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
-				    int speed, int duplex)
-{
-	if (speed == SPEED_MAX)
-		speed = 200;
-
-	if (speed > 200)
-		return -EOPNOTSUPP;
-
-	/* Setting 200 Mbps on port 0 to 3 selects 100 Mbps */
-	return mv88e6xxx_port_set_speed_duplex(chip, port, speed, false, false,
-					       duplex);
-}
-
 /* Support 10, 100, 1000 Mbps (e.g. 88E6185 family) */
 int mv88e6185_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = 1000;
-
 	if (speed == 200 || speed > 1000)
 		return -EOPNOTSUPP;
 
@@ -327,9 +309,6 @@ int mv88e6185_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 int mv88e6250_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = 100;
-
 	if (speed > 100)
 		return -EOPNOTSUPP;
 
@@ -341,9 +320,6 @@ int mv88e6250_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 int mv88e6341_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = port < 5 ? 1000 : 2500;
-
 	if (speed > 2500)
 		return -EOPNOTSUPP;
 
@@ -369,9 +345,6 @@ phy_interface_t mv88e6341_port_max_speed_mode(int port)
 int mv88e6352_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = 1000;
-
 	if (speed > 1000)
 		return -EOPNOTSUPP;
 
@@ -386,9 +359,6 @@ int mv88e6352_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 int mv88e6390_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = port < 9 ? 1000 : 2500;
-
 	if (speed > 2500)
 		return -EOPNOTSUPP;
 
@@ -414,9 +384,6 @@ phy_interface_t mv88e6390_port_max_speed_mode(int port)
 int mv88e6390x_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				     int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = port < 9 ? 1000 : 10000;
-
 	if (speed == 200 && port != 0)
 		return -EOPNOTSUPP;
 
@@ -444,9 +411,6 @@ int mv88e6393x_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 {
 	u16 reg, ctrl;
 	int err;
-
-	if (speed == SPEED_MAX)
-		speed = (port > 0 && port < 9) ? 1000 : 10000;
 
 	if (speed == 200 && port != 0)
 		return -EOPNOTSUPP;
@@ -550,6 +514,15 @@ static int mv88e6xxx_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		mode = PHY_INTERFACE_MODE_1000BASEX;
 
 	switch (mode) {
+	case PHY_INTERFACE_MODE_RMII:
+		cmode = MV88E6XXX_PORT_STS_CMODE_RMII;
+		break;
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		cmode = MV88E6XXX_PORT_STS_CMODE_RGMII;
+		break;
 	case PHY_INTERFACE_MODE_1000BASEX:
 		cmode = MV88E6XXX_PORT_STS_CMODE_1000BASEX;
 		break;
@@ -610,6 +583,8 @@ static int mv88e6xxx_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		chip->ports[port].cmode = cmode;
 
 		lane = mv88e6xxx_serdes_get_lane(chip, port);
+		if (lane == -ENODEV)
+			return 0;
 		if (lane < 0)
 			return lane;
 
@@ -664,6 +639,19 @@ int mv88e6393x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 
 	if (port != 0 && port != 9 && port != 10)
 		return -EOPNOTSUPP;
+
+	if (port == 9 || port == 10) {
+		switch (mode) {
+		case PHY_INTERFACE_MODE_RMII:
+		case PHY_INTERFACE_MODE_RGMII:
+		case PHY_INTERFACE_MODE_RGMII_ID:
+		case PHY_INTERFACE_MODE_RGMII_RXID:
+		case PHY_INTERFACE_MODE_RGMII_TXID:
+			return -EINVAL;
+		default:
+			break;
+		}
+	}
 
 	/* mv88e6393x errata 4.5: EEE should be disabled on SERDES ports */
 	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL, &reg);
@@ -1234,6 +1222,35 @@ int mv88e6xxx_port_set_mirror(struct mv88e6xxx_chip *chip, int port,
 	return err;
 }
 
+int mv88e6xxx_port_set_lock(struct mv88e6xxx_chip *chip, int port,
+			    bool locked)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
+	if (err)
+		return err;
+
+	reg &= ~MV88E6XXX_PORT_CTL0_SA_FILT_MASK;
+	if (locked)
+		reg |= MV88E6XXX_PORT_CTL0_SA_FILT_DROP_ON_LOCK;
+
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_ASSOC_VECTOR, &reg);
+	if (err)
+		return err;
+
+	reg &= ~MV88E6XXX_PORT_ASSOC_VECTOR_LOCKED_PORT;
+	if (locked)
+		reg |= MV88E6XXX_PORT_ASSOC_VECTOR_LOCKED_PORT;
+
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_ASSOC_VECTOR, reg);
+}
+
 int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 				  u16 mode)
 {
@@ -1278,7 +1295,7 @@ int mv88e6xxx_port_drop_untagged(struct mv88e6xxx_chip *chip, int port,
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, new);
 }
 
-int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port)
+int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port, bool map)
 {
 	u16 reg;
 	int err;
@@ -1287,7 +1304,10 @@ int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	reg |= MV88E6XXX_PORT_CTL2_MAP_DA;
+	if (map)
+		reg |= MV88E6XXX_PORT_CTL2_MAP_DA;
+	else
+		reg &= ~MV88E6XXX_PORT_CTL2_MAP_DA;
 
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 }

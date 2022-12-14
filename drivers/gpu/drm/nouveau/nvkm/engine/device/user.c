@@ -346,6 +346,7 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 			return -EINVAL;
 
 		oclass->base = sclass->base;
+		oclass->engine = NULL;
 	}
 
 	oclass->ctor = nvkm_udevice_child_new;

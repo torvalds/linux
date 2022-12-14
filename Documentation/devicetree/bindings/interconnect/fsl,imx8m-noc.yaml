@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Generic i.MX bus frequency device
 
 maintainers:
-  - Leonard Crestez <leonard.crestez@nxp.com>
+  - Peng Fan <peng.fan@nxp.com>
 
 description: |
   The i.MX SoC family has multiple buses for which clock frequency (and
@@ -26,14 +26,16 @@ properties:
     oneOf:
       - items:
           - enum:
-              - fsl,imx8mn-nic
               - fsl,imx8mm-nic
+              - fsl,imx8mn-nic
+              - fsl,imx8mp-nic
               - fsl,imx8mq-nic
           - const: fsl,imx8m-nic
       - items:
           - enum:
-              - fsl,imx8mn-noc
               - fsl,imx8mm-noc
+              - fsl,imx8mn-noc
+              - fsl,imx8mp-noc
               - fsl,imx8mq-noc
           - const: fsl,imx8m-noc
       - const: fsl,imx8m-nic
@@ -45,7 +47,8 @@ properties:
     maxItems: 1
 
   operating-points-v2: true
-  opp-table: true
+  opp-table:
+    type: object
 
   fsl,ddrc:
     $ref: "/schemas/types.yaml#/definitions/phandle"

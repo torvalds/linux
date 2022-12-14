@@ -53,6 +53,31 @@
 		};
 	};
 
+	lvds-decoder {
+		compatible = "ti,ds90cf364a", "lvds-decoder";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lvds_decoder_in: endpoint {
+					remote-endpoint = <&lvds0_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lvds_decoder_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+		};
+	};
+
 	panel {
 		compatible = "edt,etm0700g0dh6";
 		pinctrl-0 = <&pinctrl_display_gpio>;
@@ -61,7 +86,7 @@
 
 		port {
 			panel_in: endpoint {
-				remote-endpoint = <&lvds0_out>;
+				remote-endpoint = <&lvds_decoder_out>;
 			};
 		};
 	};
@@ -450,7 +475,7 @@
 			reg = <2>;
 
 			lvds0_out: endpoint {
-				remote-endpoint = <&panel_in>;
+				remote-endpoint = <&lvds_decoder_in>;
 			};
 		};
 	};

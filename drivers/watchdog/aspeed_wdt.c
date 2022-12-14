@@ -13,6 +13,11 @@
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+
 struct aspeed_wdt {
 	struct watchdog_device	wdd;
 	void __iomem		*base;
@@ -266,6 +271,8 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.timeout = WDT_DEFAULT_TIMEOUT;
 	watchdog_init_timeout(&wdt->wdd, 0, dev);
 
+	watchdog_set_nowayout(&wdt->wdd, nowayout);
+
 	np = dev->of_node;
 
 	ofdid = of_match_node(aspeed_wdt_of_table, np);
@@ -325,18 +332,18 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 		u32 reg = readl(wdt->base + WDT_RESET_WIDTH);
 
 		reg &= config->ext_pulse_width_mask;
-		if (of_property_read_bool(np, "aspeed,ext-push-pull"))
-			reg |= WDT_PUSH_PULL_MAGIC;
-		else
-			reg |= WDT_OPEN_DRAIN_MAGIC;
-
-		writel(reg, wdt->base + WDT_RESET_WIDTH);
-
-		reg &= config->ext_pulse_width_mask;
 		if (of_property_read_bool(np, "aspeed,ext-active-high"))
 			reg |= WDT_ACTIVE_HIGH_MAGIC;
 		else
 			reg |= WDT_ACTIVE_LOW_MAGIC;
+
+		writel(reg, wdt->base + WDT_RESET_WIDTH);
+
+		reg &= config->ext_pulse_width_mask;
+		if (of_property_read_bool(np, "aspeed,ext-push-pull"))
+			reg |= WDT_PUSH_PULL_MAGIC;
+		else
+			reg |= WDT_OPEN_DRAIN_MAGIC;
 
 		writel(reg, wdt->base + WDT_RESET_WIDTH);
 	}

@@ -5,7 +5,7 @@
  * Copyright (C) 2017 Tony Lindgren <tony@atomide.com>
  *
  * Rewritten for Linux power framework with some parts based on
- * on earlier driver found in the Motorola Linux kernel:
+ * earlier driver found in the Motorola Linux kernel:
  *
  * Copyright (C) 2009-2010 Motorola, Inc.
  */

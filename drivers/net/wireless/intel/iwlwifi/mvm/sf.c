@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2013-2014, 2018-2019 Intel Corporation
+ * Copyright (C) 2013-2014, 2018-2019, 2022 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  */
 #include "mvm.h"
@@ -31,7 +31,7 @@ static void iwl_mvm_bound_iface_iterator(void *_data, u8 *mac,
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		data->sta_vif_ap_sta_id = mvmvif->ap_sta_id;
-		if (vif->bss_conf.assoc)
+		if (vif->cfg.assoc)
 			data->sta_vif_state = SF_FULL_ON;
 		else
 			data->sta_vif_state = SF_INIT_OFF;
@@ -106,10 +106,10 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 	 * capabilities of the AP station, and choose the watermark accordingly.
 	 */
 	if (sta) {
-		if (sta->ht_cap.ht_supported ||
-		    sta->vht_cap.vht_supported ||
-		    sta->he_cap.has_he) {
-			switch (sta->rx_nss) {
+		if (sta->deflink.ht_cap.ht_supported ||
+		    sta->deflink.vht_cap.vht_supported ||
+		    sta->deflink.he_cap.has_he) {
+			switch (sta->deflink.rx_nss) {
 			case 1:
 				watermark = SF_W_MARK_SISO;
 				break;
@@ -261,7 +261,7 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 				return -EINVAL;
 			if (changed_vif->type != NL80211_IFTYPE_STATION) {
 				new_state = SF_UNINIT;
-			} else if (changed_vif->bss_conf.assoc &&
+			} else if (changed_vif->cfg.assoc &&
 				   changed_vif->bss_conf.dtim_period) {
 				mvmvif = iwl_mvm_vif_from_mac80211(changed_vif);
 				sta_id = mvmvif->ap_sta_id;

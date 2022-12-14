@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2009-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -88,17 +88,9 @@ struct lpfc_bsg_mbox {
 	uint32_t outExtWLen; /* from app */
 };
 
-#define MENLO_DID 0x0000FC0E
-
-struct lpfc_bsg_menlo {
-	struct lpfc_iocbq *cmdiocbq;
-	struct lpfc_dmabuf *rmp;
-};
-
 #define TYPE_EVT 	1
 #define TYPE_IOCB	2
 #define TYPE_MBOX	3
-#define TYPE_MENLO	4
 struct bsg_job_data {
 	uint32_t type;
 	struct bsg_job *set_job; /* job waiting for this iocb to finish */
@@ -106,7 +98,6 @@ struct bsg_job_data {
 		struct lpfc_bsg_event *evt;
 		struct lpfc_bsg_iocb iocb;
 		struct lpfc_bsg_mbox mbox;
-		struct lpfc_bsg_menlo menlo;
 	} context_un;
 };
 
@@ -303,15 +294,14 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 	struct bsg_job_data *dd_data;
 	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
-	IOCB_t *rsp;
 	struct lpfc_dmabuf *bmp, *cmp, *rmp;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_bsg_iocb *iocb;
 	unsigned long flags;
-	unsigned int rsp_size;
 	int rc = 0;
+	u32 ulp_status, ulp_word4, total_data_placed;
 
-	dd_data = cmdiocbq->context1;
+	dd_data = cmdiocbq->context_un.dd_data;
 
 	/* Determine if job has been aborted */
 	spin_lock_irqsave(&phba->ct_ev_lock, flags);
@@ -325,22 +315,24 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 
 	/* Close the timeout handler abort window */
 	spin_lock_irqsave(&phba->hbalock, flags);
-	cmdiocbq->iocb_flag &= ~LPFC_IO_CMD_OUTSTANDING;
+	cmdiocbq->cmd_flag &= ~LPFC_IO_CMD_OUTSTANDING;
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
 	iocb = &dd_data->context_un.iocb;
-	ndlp = iocb->cmdiocbq->context_un.ndlp;
+	ndlp = iocb->cmdiocbq->ndlp;
 	rmp = iocb->rmp;
-	cmp = cmdiocbq->context2;
-	bmp = cmdiocbq->context3;
-	rsp = &rspiocbq->iocb;
+	cmp = cmdiocbq->cmd_dmabuf;
+	bmp = cmdiocbq->bpl_dmabuf;
+	ulp_status = get_job_ulpstatus(phba, rspiocbq);
+	ulp_word4 = get_job_word4(phba, rspiocbq);
+	total_data_placed = get_job_data_placed(phba, rspiocbq);
 
 	/* Copy the completed data or set the error status */
 
 	if (job) {
-		if (rsp->ulpStatus) {
-			if (rsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
-				switch (rsp->un.ulpWord[4] & IOERR_PARAM_MASK) {
+		if (ulp_status) {
+			if (ulp_status == IOSTAT_LOCAL_REJECT) {
+				switch (ulp_word4 & IOERR_PARAM_MASK) {
 				case IOERR_SEQUENCE_TIMEOUT:
 					rc = -ETIMEDOUT;
 					break;
@@ -355,10 +347,9 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 				rc = -EACCES;
 			}
 		} else {
-			rsp_size = rsp->un.genreq64.bdl.bdeSize;
 			bsg_reply->reply_payload_rcv_len =
 				lpfc_bsg_copy_data(rmp, &job->reply_payload,
-						   rsp_size, 0);
+						   total_data_placed, 0);
 		}
 	}
 
@@ -388,22 +379,21 @@ static int
 lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 {
 	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
-	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_rport_data *rdata = fc_bsg_to_rport(job)->dd_data;
+	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_nodelist *ndlp = rdata->pnode;
 	struct fc_bsg_reply *bsg_reply = job->reply;
 	struct ulp_bde64 *bpl = NULL;
-	uint32_t timeout;
 	struct lpfc_iocbq *cmdiocbq = NULL;
-	IOCB_t *cmd;
 	struct lpfc_dmabuf *bmp = NULL, *cmp = NULL, *rmp = NULL;
-	int request_nseg;
-	int reply_nseg;
+	int request_nseg, reply_nseg;
+	u32 num_entry;
 	struct bsg_job_data *dd_data;
 	unsigned long flags;
 	uint32_t creg_val;
 	int rc = 0;
 	int iocb_stat;
+	u16 ulp_context;
 
 	/* in case no data is transferred */
 	bsg_reply->reply_payload_rcv_len = 0;
@@ -425,8 +415,6 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 		rc = -ENOMEM;
 		goto free_dd;
 	}
-
-	cmd = &cmdiocbq->iocb;
 
 	bmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
 	if (!bmp) {
@@ -461,34 +449,24 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 		goto free_cmp;
 	}
 
-	cmd->un.genreq64.bdl.ulpIoTag32 = 0;
-	cmd->un.genreq64.bdl.addrHigh = putPaddrHigh(bmp->phys);
-	cmd->un.genreq64.bdl.addrLow = putPaddrLow(bmp->phys);
-	cmd->un.genreq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
-	cmd->un.genreq64.bdl.bdeSize =
-		(request_nseg + reply_nseg) * sizeof(struct ulp_bde64);
-	cmd->ulpCommand = CMD_GEN_REQUEST64_CR;
-	cmd->un.genreq64.w5.hcsw.Fctl = (SI | LA);
-	cmd->un.genreq64.w5.hcsw.Dfctl = 0;
-	cmd->un.genreq64.w5.hcsw.Rctl = FC_RCTL_DD_UNSOL_CTL;
-	cmd->un.genreq64.w5.hcsw.Type = FC_TYPE_CT;
-	cmd->ulpBdeCount = 1;
-	cmd->ulpLe = 1;
-	cmd->ulpClass = CLASS3;
-	cmd->ulpContext = ndlp->nlp_rpi;
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		cmd->ulpContext = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
-	cmd->ulpOwner = OWN_CHIP;
-	cmdiocbq->vport = phba->pport;
-	cmdiocbq->context3 = bmp;
-	cmdiocbq->iocb_flag |= LPFC_IO_LIBDFC;
-	timeout = phba->fc_ratov * 2;
-	cmd->ulpTimeout = timeout;
+	num_entry = request_nseg + reply_nseg;
 
-	cmdiocbq->iocb_cmpl = lpfc_bsg_send_mgmt_cmd_cmp;
-	cmdiocbq->context1 = dd_data;
-	cmdiocbq->context2 = cmp;
-	cmdiocbq->context3 = bmp;
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		ulp_context = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
+	else
+		ulp_context = ndlp->nlp_rpi;
+
+	lpfc_sli_prep_gen_req(phba, cmdiocbq, bmp, ulp_context, num_entry,
+			      phba->fc_ratov * 2);
+
+	cmdiocbq->num_bdes = num_entry;
+	cmdiocbq->vport = phba->pport;
+	cmdiocbq->cmd_dmabuf = cmp;
+	cmdiocbq->bpl_dmabuf = bmp;
+	cmdiocbq->cmd_flag |= LPFC_IO_LIBDFC;
+
+	cmdiocbq->cmd_cmpl = lpfc_bsg_send_mgmt_cmd_cmp;
+	cmdiocbq->context_un.dd_data = dd_data;
 
 	dd_data->type = TYPE_IOCB;
 	dd_data->set_job = job;
@@ -506,8 +484,8 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 		readl(phba->HCregaddr); /* flush */
 	}
 
-	cmdiocbq->context_un.ndlp = lpfc_nlp_get(ndlp);
-	if (!cmdiocbq->context_un.ndlp) {
+	cmdiocbq->ndlp = lpfc_nlp_get(ndlp);
+	if (!cmdiocbq->ndlp) {
 		rc = -ENODEV;
 		goto free_rmp;
 	}
@@ -516,9 +494,9 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 	if (iocb_stat == IOCB_SUCCESS) {
 		spin_lock_irqsave(&phba->hbalock, flags);
 		/* make sure the I/O had not been completed yet */
-		if (cmdiocbq->iocb_flag & LPFC_IO_LIBDFC) {
+		if (cmdiocbq->cmd_flag & LPFC_IO_LIBDFC) {
 			/* open up abort window to timeout handler */
-			cmdiocbq->iocb_flag |= LPFC_IO_CMD_OUTSTANDING;
+			cmdiocbq->cmd_flag |= LPFC_IO_CMD_OUTSTANDING;
 		}
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return 0; /* done for now */
@@ -575,7 +553,6 @@ lpfc_bsg_rport_els_cmp(struct lpfc_hba *phba,
 	struct bsg_job_data *dd_data;
 	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
-	IOCB_t *rsp;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_dmabuf *pcmd = NULL, *prsp = NULL;
 	struct fc_bsg_ctels_reply *els_reply;
@@ -583,10 +560,11 @@ lpfc_bsg_rport_els_cmp(struct lpfc_hba *phba,
 	unsigned long flags;
 	unsigned int rsp_size;
 	int rc = 0;
+	u32 ulp_status, ulp_word4, total_data_placed;
 
-	dd_data = cmdiocbq->context1;
+	dd_data = cmdiocbq->context_un.dd_data;
 	ndlp = dd_data->context_un.iocb.ndlp;
-	cmdiocbq->context1 = ndlp;
+	cmdiocbq->ndlp = ndlp;
 
 	/* Determine if job has been aborted */
 	spin_lock_irqsave(&phba->ct_ev_lock, flags);
@@ -600,11 +578,13 @@ lpfc_bsg_rport_els_cmp(struct lpfc_hba *phba,
 
 	/* Close the timeout handler abort window */
 	spin_lock_irqsave(&phba->hbalock, flags);
-	cmdiocbq->iocb_flag &= ~LPFC_IO_CMD_OUTSTANDING;
+	cmdiocbq->cmd_flag &= ~LPFC_IO_CMD_OUTSTANDING;
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
-	rsp = &rspiocbq->iocb;
-	pcmd = (struct lpfc_dmabuf *)cmdiocbq->context2;
+	ulp_status = get_job_ulpstatus(phba, rspiocbq);
+	ulp_word4 = get_job_word4(phba, rspiocbq);
+	total_data_placed = get_job_data_placed(phba, rspiocbq);
+	pcmd = cmdiocbq->cmd_dmabuf;
 	prsp = (struct lpfc_dmabuf *)pcmd->list.next;
 
 	/* Copy the completed job data or determine the job status if job is
@@ -612,24 +592,28 @@ lpfc_bsg_rport_els_cmp(struct lpfc_hba *phba,
 	 */
 
 	if (job) {
-		if (rsp->ulpStatus == IOSTAT_SUCCESS) {
-			rsp_size = rsp->un.elsreq64.bdl.bdeSize;
+		if (ulp_status == IOSTAT_SUCCESS) {
+			rsp_size = total_data_placed;
 			bsg_reply->reply_payload_rcv_len =
 				sg_copy_from_buffer(job->reply_payload.sg_list,
 						    job->reply_payload.sg_cnt,
 						    prsp->virt,
 						    rsp_size);
-		} else if (rsp->ulpStatus == IOSTAT_LS_RJT) {
+		} else if (ulp_status == IOSTAT_LS_RJT) {
 			bsg_reply->reply_payload_rcv_len =
 				sizeof(struct fc_bsg_ctels_reply);
 			/* LS_RJT data returned in word 4 */
-			rjt_data = (uint8_t *)&rsp->un.ulpWord[4];
+			rjt_data = (uint8_t *)&ulp_word4;
 			els_reply = &bsg_reply->reply_data.ctels_reply;
 			els_reply->status = FC_CTELS_STATUS_REJECT;
 			els_reply->rjt_data.action = rjt_data[3];
 			els_reply->rjt_data.reason_code = rjt_data[2];
 			els_reply->rjt_data.reason_explanation = rjt_data[1];
 			els_reply->rjt_data.vendor_unique = rjt_data[0];
+		} else if (ulp_status == IOSTAT_LOCAL_REJECT &&
+			   (ulp_word4 & IOERR_PARAM_MASK) ==
+			   IOERR_SEQUENCE_TIMEOUT) {
+			rc = -ETIMEDOUT;
 		} else {
 			rc = -EIO;
 		}
@@ -706,7 +690,6 @@ lpfc_bsg_rport_els(struct bsg_job *job)
 	 * we won't be dma into memory that is no longer allocated to for the
 	 * request.
 	 */
-
 	cmdiocbq = lpfc_prep_els_iocb(vport, 1, cmdsize, 0, ndlp,
 				      ndlp->nlp_DID, elscmd);
 	if (!cmdiocbq) {
@@ -717,19 +700,20 @@ lpfc_bsg_rport_els(struct bsg_job *job)
 	/* Transfer the request payload to allocated command dma buffer */
 	sg_copy_to_buffer(job->request_payload.sg_list,
 			  job->request_payload.sg_cnt,
-			  ((struct lpfc_dmabuf *)cmdiocbq->context2)->virt,
+			  cmdiocbq->cmd_dmabuf->virt,
 			  cmdsize);
 
 	rpi = ndlp->nlp_rpi;
 
 	if (phba->sli_rev == LPFC_SLI_REV4)
-		cmdiocbq->iocb.ulpContext = phba->sli4_hba.rpi_ids[rpi];
+		bf_set(wqe_ctxt_tag, &cmdiocbq->wqe.generic.wqe_com,
+		       phba->sli4_hba.rpi_ids[rpi]);
 	else
 		cmdiocbq->iocb.ulpContext = rpi;
-	cmdiocbq->iocb_flag |= LPFC_IO_LIBDFC;
-	cmdiocbq->context1 = dd_data;
-	cmdiocbq->context_un.ndlp = ndlp;
-	cmdiocbq->iocb_cmpl = lpfc_bsg_rport_els_cmp;
+	cmdiocbq->cmd_flag |= LPFC_IO_LIBDFC;
+	cmdiocbq->context_un.dd_data = dd_data;
+	cmdiocbq->ndlp = ndlp;
+	cmdiocbq->cmd_cmpl = lpfc_bsg_rport_els_cmp;
 	dd_data->type = TYPE_IOCB;
 	dd_data->set_job = job;
 	dd_data->context_un.iocb.cmdiocbq = cmdiocbq;
@@ -747,19 +731,13 @@ lpfc_bsg_rport_els(struct bsg_job *job)
 		readl(phba->HCregaddr); /* flush */
 	}
 
-	cmdiocbq->context1 = lpfc_nlp_get(ndlp);
-	if (!cmdiocbq->context1) {
-		rc = -EIO;
-		goto linkdown_err;
-	}
-
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, cmdiocbq, 0);
 	if (rc == IOCB_SUCCESS) {
 		spin_lock_irqsave(&phba->hbalock, flags);
 		/* make sure the I/O had not been completed/released */
-		if (cmdiocbq->iocb_flag & LPFC_IO_LIBDFC) {
+		if (cmdiocbq->cmd_flag & LPFC_IO_LIBDFC) {
 			/* open up abort window to timeout handler */
-			cmdiocbq->iocb_flag |= LPFC_IO_CMD_OUTSTANDING;
+			cmdiocbq->cmd_flag |= LPFC_IO_CMD_OUTSTANDING;
 		}
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return 0; /* done for now */
@@ -916,20 +894,21 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	struct lpfc_bsg_event *evt;
 	struct event_data *evt_dat = NULL;
 	struct lpfc_iocbq *iocbq;
+	IOCB_t *iocb = NULL;
 	size_t offset = 0;
 	struct list_head head;
 	struct ulp_bde64 *bde;
 	dma_addr_t dma_addr;
 	int i;
-	struct lpfc_dmabuf *bdeBuf1 = piocbq->context2;
-	struct lpfc_dmabuf *bdeBuf2 = piocbq->context3;
-	struct lpfc_hbq_entry *hbqe;
+	struct lpfc_dmabuf *bdeBuf1 = piocbq->cmd_dmabuf;
+	struct lpfc_dmabuf *bdeBuf2 = piocbq->bpl_dmabuf;
 	struct lpfc_sli_ct_request *ct_req;
 	struct bsg_job *job = NULL;
 	struct fc_bsg_reply *bsg_reply;
 	struct bsg_job_data *dd_data = NULL;
 	unsigned long flags;
 	int size = 0;
+	u32 bde_count = 0;
 
 	INIT_LIST_HEAD(&head);
 	list_add_tail(&head, &piocbq->list);
@@ -959,12 +938,17 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
 			/* take accumulated byte count from the last iocbq */
 			iocbq = list_entry(head.prev, typeof(*iocbq), list);
-			evt_dat->len = iocbq->iocb.unsli3.rcvsli3.acc_len;
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				evt_dat->len = iocbq->wcqe_cmpl.total_data_placed;
+			else
+				evt_dat->len = iocbq->iocb.unsli3.rcvsli3.acc_len;
 		} else {
 			list_for_each_entry(iocbq, &head, list) {
-				for (i = 0; i < iocbq->iocb.ulpBdeCount; i++)
+				iocb = &iocbq->iocb;
+				for (i = 0; i < iocb->ulpBdeCount;
+				     i++)
 					evt_dat->len +=
-					iocbq->iocb.un.cont64[i].tus.f.bdeSize;
+					iocb->un.cont64[i].tus.f.bdeSize;
 			}
 		}
 
@@ -984,22 +968,21 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		list_for_each_entry(iocbq, &head, list) {
 			size = 0;
 			if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
-				bdeBuf1 = iocbq->context2;
-				bdeBuf2 = iocbq->context3;
+				bdeBuf1 = iocbq->cmd_dmabuf;
+				bdeBuf2 = iocbq->bpl_dmabuf;
 			}
-			for (i = 0; i < iocbq->iocb.ulpBdeCount; i++) {
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				bde_count = iocbq->wcqe_cmpl.word3;
+			else
+				bde_count = iocbq->iocb.ulpBdeCount;
+			for (i = 0; i < bde_count; i++) {
 				if (phba->sli3_options &
 				    LPFC_SLI3_HBQ_ENABLED) {
 					if (i == 0) {
-						hbqe = (struct lpfc_hbq_entry *)
-						  &iocbq->iocb.un.ulpWord[0];
-						size = hbqe->bde.tus.f.bdeSize;
+						size = iocbq->wqe.gen_req.bde.tus.f.bdeSize;
 						dmabuf = bdeBuf1;
 					} else if (i == 1) {
-						hbqe = (struct lpfc_hbq_entry *)
-							&iocbq->iocb.unsli3.
-							sli3Words[4];
-						size = hbqe->bde.tus.f.bdeSize;
+						size = iocbq->unsol_rcv_len;
 						dmabuf = bdeBuf2;
 					}
 					if ((offset + size) > evt_dat->len)
@@ -1053,17 +1036,17 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 							lpfc_in_buf_free(phba,
 									dmabuf);
 						} else {
-							lpfc_post_buffer(phba,
-									 pring,
-									 1);
+							lpfc_sli3_post_buffer(phba,
+									      pring,
+									      1);
 						}
 						break;
 					default:
 						if (!(phba->sli3_options &
 						      LPFC_SLI3_HBQ_ENABLED))
-							lpfc_post_buffer(phba,
-									 pring,
-									 1);
+							lpfc_sli3_post_buffer(phba,
+									      pring,
+									      1);
 						break;
 					}
 				}
@@ -1086,14 +1069,15 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 						phba->ct_ctx[
 						    evt_dat->immed_dat].SID);
 			phba->ct_ctx[evt_dat->immed_dat].rxid =
-				piocbq->iocb.ulpContext;
+				get_job_ulpcontext(phba, piocbq);
 			phba->ct_ctx[evt_dat->immed_dat].oxid =
-				piocbq->iocb.unsli3.rcvsli3.ox_id;
+				get_job_rcvoxid(phba, piocbq);
 			phba->ct_ctx[evt_dat->immed_dat].SID =
-				piocbq->iocb.un.rcvels.remoteID;
+				bf_get(wqe_els_did,
+				       &piocbq->wqe.xmit_els_rsp.wqe_dest);
 			phba->ct_ctx[evt_dat->immed_dat].valid = UNSOL_VALID;
 		} else
-			evt_dat->immed_dat = piocbq->iocb.ulpContext;
+			evt_dat->immed_dat = get_job_ulpcontext(phba, piocbq);
 
 		evt_dat->type = FC_REG_CT_EVENT;
 		list_add(&evt_dat->node, &evt->events_to_see);
@@ -1376,13 +1360,13 @@ lpfc_issue_ct_rsp_cmp(struct lpfc_hba *phba,
 	struct bsg_job_data *dd_data;
 	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
-	IOCB_t *rsp;
 	struct lpfc_dmabuf *bmp, *cmp;
 	struct lpfc_nodelist *ndlp;
 	unsigned long flags;
 	int rc = 0;
+	u32 ulp_status, ulp_word4;
 
-	dd_data = cmdiocbq->context1;
+	dd_data = cmdiocbq->context_un.dd_data;
 
 	/* Determine if job has been aborted */
 	spin_lock_irqsave(&phba->ct_ev_lock, flags);
@@ -1395,21 +1379,23 @@ lpfc_issue_ct_rsp_cmp(struct lpfc_hba *phba,
 
 	/* Close the timeout handler abort window */
 	spin_lock_irqsave(&phba->hbalock, flags);
-	cmdiocbq->iocb_flag &= ~LPFC_IO_CMD_OUTSTANDING;
+	cmdiocbq->cmd_flag &= ~LPFC_IO_CMD_OUTSTANDING;
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
 	ndlp = dd_data->context_un.iocb.ndlp;
-	cmp = cmdiocbq->context2;
-	bmp = cmdiocbq->context3;
-	rsp = &rspiocbq->iocb;
+	cmp = cmdiocbq->cmd_dmabuf;
+	bmp = cmdiocbq->bpl_dmabuf;
+
+	ulp_status = get_job_ulpstatus(phba, rspiocbq);
+	ulp_word4 = get_job_word4(phba, rspiocbq);
 
 	/* Copy the completed job data or set the error status */
 
 	if (job) {
 		bsg_reply = job->reply;
-		if (rsp->ulpStatus) {
-			if (rsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
-				switch (rsp->un.ulpWord[4] & IOERR_PARAM_MASK) {
+		if (ulp_status) {
+			if (ulp_status == IOSTAT_LOCAL_REJECT) {
+				switch (ulp_word4 & IOERR_PARAM_MASK) {
 				case IOERR_SEQUENCE_TIMEOUT:
 					rc = -ETIMEDOUT;
 					break;
@@ -1459,13 +1445,13 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct bsg_job *job, uint32_t tag,
 		  struct lpfc_dmabuf *cmp, struct lpfc_dmabuf *bmp,
 		  int num_entry)
 {
-	IOCB_t *icmd;
 	struct lpfc_iocbq *ctiocb = NULL;
 	int rc = 0;
 	struct lpfc_nodelist *ndlp = NULL;
 	struct bsg_job_data *dd_data;
 	unsigned long flags;
 	uint32_t creg_val;
+	u16 ulp_context, iotag;
 
 	ndlp = lpfc_findnode_did(phba->pport, phba->ct_ctx[tag].SID);
 	if (!ndlp) {
@@ -1492,70 +1478,44 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct bsg_job *job, uint32_t tag,
 		goto no_ctiocb;
 	}
 
-	icmd = &ctiocb->iocb;
-	icmd->un.xseq64.bdl.ulpIoTag32 = 0;
-	icmd->un.xseq64.bdl.addrHigh = putPaddrHigh(bmp->phys);
-	icmd->un.xseq64.bdl.addrLow = putPaddrLow(bmp->phys);
-	icmd->un.xseq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
-	icmd->un.xseq64.bdl.bdeSize = (num_entry * sizeof(struct ulp_bde64));
-	icmd->un.xseq64.w5.hcsw.Fctl = (LS | LA);
-	icmd->un.xseq64.w5.hcsw.Dfctl = 0;
-	icmd->un.xseq64.w5.hcsw.Rctl = FC_RCTL_DD_SOL_CTL;
-	icmd->un.xseq64.w5.hcsw.Type = FC_TYPE_CT;
-
-	/* Fill in rest of iocb */
-	icmd->ulpCommand = CMD_XMIT_SEQUENCE64_CX;
-	icmd->ulpBdeCount = 1;
-	icmd->ulpLe = 1;
-	icmd->ulpClass = CLASS3;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		/* Do not issue unsol response if oxid not marked as valid */
 		if (phba->ct_ctx[tag].valid != UNSOL_VALID) {
 			rc = IOCB_ERROR;
 			goto issue_ct_rsp_exit;
 		}
-		icmd->ulpContext = phba->ct_ctx[tag].rxid;
-		icmd->unsli3.rcvsli3.ox_id = phba->ct_ctx[tag].oxid;
-		ndlp = lpfc_findnode_did(phba->pport, phba->ct_ctx[tag].SID);
-		if (!ndlp) {
-			lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
-				 "2721 ndlp null for oxid %x SID %x\n",
-					icmd->ulpContext,
-					phba->ct_ctx[tag].SID);
-			rc = IOCB_ERROR;
-			goto issue_ct_rsp_exit;
-		}
 
-		/* get a refernece count so the ndlp doesn't go away while
-		 * we respond
-		 */
-		if (!lpfc_nlp_get(ndlp)) {
-			rc = IOCB_ERROR;
-			goto issue_ct_rsp_exit;
-		}
-
-		icmd->un.ulpWord[3] =
-				phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
+		lpfc_sli_prep_xmit_seq64(phba, ctiocb, bmp,
+					 phba->sli4_hba.rpi_ids[ndlp->nlp_rpi],
+					 phba->ct_ctx[tag].oxid, num_entry,
+					 FC_RCTL_DD_SOL_CTL, 1,
+					 CMD_XMIT_SEQUENCE64_WQE);
 
 		/* The exchange is done, mark the entry as invalid */
 		phba->ct_ctx[tag].valid = UNSOL_INVALID;
-	} else
-		icmd->ulpContext = (ushort) tag;
+		iotag = get_wqe_reqtag(ctiocb);
+	} else {
+		lpfc_sli_prep_xmit_seq64(phba, ctiocb, bmp, 0, tag, num_entry,
+					 FC_RCTL_DD_SOL_CTL, 1,
+					 CMD_XMIT_SEQUENCE64_CX);
+		ctiocb->num_bdes = num_entry;
+		iotag = ctiocb->iocb.ulpIoTag;
+	}
 
-	icmd->ulpTimeout = phba->fc_ratov * 2;
+	ulp_context = get_job_ulpcontext(phba, ctiocb);
 
 	/* Xmit CT response on exchange <xid> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-		"2722 Xmit CT response on exchange x%x Data: x%x x%x x%x\n",
-		icmd->ulpContext, icmd->ulpIoTag, tag, phba->link_state);
+			"2722 Xmit CT response on exchange x%x Data: x%x x%x x%x\n",
+			ulp_context, iotag, tag, phba->link_state);
 
-	ctiocb->iocb_flag |= LPFC_IO_LIBDFC;
+	ctiocb->cmd_flag |= LPFC_IO_LIBDFC;
 	ctiocb->vport = phba->pport;
-	ctiocb->context1 = dd_data;
-	ctiocb->context2 = cmp;
-	ctiocb->context3 = bmp;
-	ctiocb->context_un.ndlp = ndlp;
-	ctiocb->iocb_cmpl = lpfc_issue_ct_rsp_cmp;
+	ctiocb->context_un.dd_data = dd_data;
+	ctiocb->cmd_dmabuf = cmp;
+	ctiocb->bpl_dmabuf = bmp;
+	ctiocb->ndlp = ndlp;
+	ctiocb->cmd_cmpl = lpfc_issue_ct_rsp_cmp;
 
 	dd_data->type = TYPE_IOCB;
 	dd_data->set_job = job;
@@ -1582,9 +1542,9 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct bsg_job *job, uint32_t tag,
 	if (rc == IOCB_SUCCESS) {
 		spin_lock_irqsave(&phba->hbalock, flags);
 		/* make sure the I/O had not been completed/released */
-		if (ctiocb->iocb_flag & LPFC_IO_LIBDFC) {
+		if (ctiocb->cmd_flag & LPFC_IO_LIBDFC) {
 			/* open up abort window to timeout handler */
-			ctiocb->iocb_flag |= LPFC_IO_CMD_OUTSTANDING;
+			ctiocb->cmd_flag |= LPFC_IO_CMD_OUTSTANDING;
 		}
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return 0; /* done for now */
@@ -2017,8 +1977,6 @@ lpfc_sli4_bsg_set_loopback_mode(struct lpfc_hba *phba, int mode,
 static int
 lpfc_sli4_diag_fcport_reg_setup(struct lpfc_hba *phba)
 {
-	int rc;
-
 	if (phba->pport->fc_flag & FC_VFI_REGISTERED) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 				"3136 Port still had vfi registered: "
@@ -2028,8 +1986,7 @@ lpfc_sli4_diag_fcport_reg_setup(struct lpfc_hba *phba)
 				phba->vpi_ids[phba->pport->vpi]);
 		return -EINVAL;
 	}
-	rc = lpfc_issue_reg_vfi(phba->pport);
-	return rc;
+	return lpfc_issue_reg_vfi(phba->pport);
 }
 
 /**
@@ -2625,7 +2582,7 @@ static int lpfcdiag_loop_self_unreg(struct lpfc_hba *phba, uint16_t rpi)
  *
  * This function obtains the transmit and receive ids required to send
  * an unsolicited ct command with a payload. A special lpfc FsType and CmdRsp
- * flags are used to the unsolicted response handler is able to process
+ * flags are used to the unsolicited response handler is able to process
  * the ct command sent on the same port.
  **/
 static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
@@ -2633,7 +2590,6 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 {
 	struct lpfc_bsg_event *evt;
 	struct lpfc_iocbq *cmdiocbq, *rspiocbq;
-	IOCB_t *cmd, *rsp;
 	struct lpfc_dmabuf *dmabuf;
 	struct ulp_bde64 *bpl = NULL;
 	struct lpfc_sli_ct_request *ctreq = NULL;
@@ -2641,6 +2597,7 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 	int time_left;
 	int iocb_stat = IOCB_SUCCESS;
 	unsigned long flags;
+	u32 status;
 
 	*txxri = 0;
 	*rxxri = 0;
@@ -2684,9 +2641,6 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 		goto err_get_xri_exit;
 	}
 
-	cmd = &cmdiocbq->iocb;
-	rsp = &rspiocbq->iocb;
-
 	memset(ctreq, 0, ELX_LOOPBACK_HEADER_SZ);
 
 	ctreq->RevisionId.bits.Revision = SLI_CT_REVISION;
@@ -2696,36 +2650,24 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 	ctreq->CommandResponse.bits.CmdRsp = ELX_LOOPBACK_XRI_SETUP;
 	ctreq->CommandResponse.bits.Size = 0;
 
-
-	cmd->un.xseq64.bdl.addrHigh = putPaddrHigh(dmabuf->phys);
-	cmd->un.xseq64.bdl.addrLow = putPaddrLow(dmabuf->phys);
-	cmd->un.xseq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
-	cmd->un.xseq64.bdl.bdeSize = sizeof(*bpl);
-
-	cmd->un.xseq64.w5.hcsw.Fctl = LA;
-	cmd->un.xseq64.w5.hcsw.Dfctl = 0;
-	cmd->un.xseq64.w5.hcsw.Rctl = FC_RCTL_DD_UNSOL_CTL;
-	cmd->un.xseq64.w5.hcsw.Type = FC_TYPE_CT;
-
-	cmd->ulpCommand = CMD_XMIT_SEQUENCE64_CR;
-	cmd->ulpBdeCount = 1;
-	cmd->ulpLe = 1;
-	cmd->ulpClass = CLASS3;
-	cmd->ulpContext = rpi;
-
-	cmdiocbq->iocb_flag |= LPFC_IO_LIBDFC;
+	cmdiocbq->bpl_dmabuf = dmabuf;
+	cmdiocbq->cmd_flag |= LPFC_IO_LIBDFC;
 	cmdiocbq->vport = phba->pport;
-	cmdiocbq->iocb_cmpl = NULL;
+	cmdiocbq->cmd_cmpl = NULL;
+
+	lpfc_sli_prep_xmit_seq64(phba, cmdiocbq, dmabuf, rpi, 0, 1,
+				 FC_RCTL_DD_SOL_CTL, 0, CMD_XMIT_SEQUENCE64_CR);
 
 	iocb_stat = lpfc_sli_issue_iocb_wait(phba, LPFC_ELS_RING, cmdiocbq,
-				rspiocbq,
-				(phba->fc_ratov * 2)
-				+ LPFC_DRVR_TIMEOUT);
-	if ((iocb_stat != IOCB_SUCCESS) || (rsp->ulpStatus != IOSTAT_SUCCESS)) {
+					     rspiocbq, (phba->fc_ratov * 2)
+					     + LPFC_DRVR_TIMEOUT);
+
+	status = get_job_ulpstatus(phba, rspiocbq);
+	if (iocb_stat != IOCB_SUCCESS || status != IOCB_SUCCESS) {
 		ret_val = -EIO;
 		goto err_get_xri_exit;
 	}
-	*txxri =  rsp->ulpContext;
+	*txxri = get_job_ulpcontext(phba, rspiocbq);
 
 	evt->waiting = 1;
 	evt->wait_time_stamp = jiffies;
@@ -2926,16 +2868,16 @@ out:
 }
 
 /**
- * lpfcdiag_loop_post_rxbufs - post the receive buffers for an unsol CT cmd
+ * lpfcdiag_sli3_loop_post_rxbufs - post the receive buffers for an unsol CT cmd
  * @phba: Pointer to HBA context object
  * @rxxri: Receive exchange id
  * @len: Number of data bytes
  *
  * This function allocates and posts a data buffer of sufficient size to receive
- * an unsolicted CT command.
+ * an unsolicited CT command.
  **/
-static int lpfcdiag_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
-			     size_t len)
+static int lpfcdiag_sli3_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
+					  size_t len)
 {
 	struct lpfc_sli_ring *pring;
 	struct lpfc_iocbq *cmdiocbq;
@@ -2972,7 +2914,6 @@ static int lpfcdiag_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
 	/* Queue buffers for the receive exchange */
 	num_bde = (uint32_t)rxbuffer->flag;
 	dmp = &rxbuffer->dma;
-
 	cmd = &cmdiocbq->iocb;
 	i = 0;
 
@@ -3040,7 +2981,6 @@ static int lpfcdiag_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
 			ret_val = -EIO;
 			goto err_post_rxbufs_exit;
 		}
-
 		cmd = &cmdiocbq->iocb;
 		i = 0;
 	}
@@ -3092,7 +3032,7 @@ lpfc_bsg_diag_loopback_run(struct bsg_job *job)
 	size_t segment_len = 0, segment_offset = 0, current_offset = 0;
 	uint16_t rpi = 0;
 	struct lpfc_iocbq *cmdiocbq, *rspiocbq = NULL;
-	IOCB_t *cmd, *rsp = NULL;
+	union lpfc_wqe128 *cmdwqe, *rspwqe;
 	struct lpfc_sli_ct_request *ctreq;
 	struct lpfc_dmabuf *txbmp;
 	struct ulp_bde64 *txbpl = NULL;
@@ -3185,7 +3125,7 @@ lpfc_bsg_diag_loopback_run(struct bsg_job *job)
 			goto loopback_test_exit;
 		}
 
-		rc = lpfcdiag_loop_post_rxbufs(phba, rxxri, full_size);
+		rc = lpfcdiag_sli3_loop_post_rxbufs(phba, rxxri, full_size);
 		if (rc) {
 			lpfcdiag_loop_self_unreg(phba, rpi);
 			goto loopback_test_exit;
@@ -3228,9 +3168,12 @@ lpfc_bsg_diag_loopback_run(struct bsg_job *job)
 		goto err_loopback_test_exit;
 	}
 
-	cmd = &cmdiocbq->iocb;
-	if (phba->sli_rev < LPFC_SLI_REV4)
-		rsp = &rspiocbq->iocb;
+	cmdwqe = &cmdiocbq->wqe;
+	memset(cmdwqe, 0, sizeof(union lpfc_wqe));
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		rspwqe = &rspiocbq->wqe;
+		memset(rspwqe, 0, sizeof(union lpfc_wqe));
+	}
 
 	INIT_LIST_HEAD(&head);
 	list_add_tail(&head, &txbuffer->dma.list);
@@ -3262,41 +3205,32 @@ lpfc_bsg_diag_loopback_run(struct bsg_job *job)
 	/* Build the XMIT_SEQUENCE iocb */
 	num_bde = (uint32_t)txbuffer->flag;
 
-	cmd->un.xseq64.bdl.addrHigh = putPaddrHigh(txbmp->phys);
-	cmd->un.xseq64.bdl.addrLow = putPaddrLow(txbmp->phys);
-	cmd->un.xseq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
-	cmd->un.xseq64.bdl.bdeSize = (num_bde * sizeof(struct ulp_bde64));
-
-	cmd->un.xseq64.w5.hcsw.Fctl = (LS | LA);
-	cmd->un.xseq64.w5.hcsw.Dfctl = 0;
-	cmd->un.xseq64.w5.hcsw.Rctl = FC_RCTL_DD_UNSOL_CTL;
-	cmd->un.xseq64.w5.hcsw.Type = FC_TYPE_CT;
-
-	cmd->ulpCommand = CMD_XMIT_SEQUENCE64_CX;
-	cmd->ulpBdeCount = 1;
-	cmd->ulpLe = 1;
-	cmd->ulpClass = CLASS3;
+	cmdiocbq->num_bdes = num_bde;
+	cmdiocbq->cmd_flag |= LPFC_IO_LIBDFC;
+	cmdiocbq->cmd_flag |= LPFC_IO_LOOPBACK;
+	cmdiocbq->vport = phba->pport;
+	cmdiocbq->cmd_cmpl = NULL;
+	cmdiocbq->bpl_dmabuf = txbmp;
 
 	if (phba->sli_rev < LPFC_SLI_REV4) {
-		cmd->ulpContext = txxri;
+		lpfc_sli_prep_xmit_seq64(phba, cmdiocbq, txbmp, 0, txxri,
+					 num_bde, FC_RCTL_DD_UNSOL_CTL, 1,
+					 CMD_XMIT_SEQUENCE64_CX);
+
 	} else {
-		cmd->un.xseq64.bdl.ulpIoTag32 = 0;
-		cmd->un.ulpWord[3] = phba->sli4_hba.rpi_ids[rpi];
-		cmdiocbq->context3 = txbmp;
+		lpfc_sli_prep_xmit_seq64(phba, cmdiocbq, txbmp,
+					 phba->sli4_hba.rpi_ids[rpi], 0xffff,
+					 full_size, FC_RCTL_DD_UNSOL_CTL, 1,
+					 CMD_XMIT_SEQUENCE64_WQE);
 		cmdiocbq->sli4_xritag = NO_XRI;
-		cmd->unsli3.rcvsli3.ox_id = 0xffff;
 	}
-	cmdiocbq->iocb_flag |= LPFC_IO_LIBDFC;
-	cmdiocbq->iocb_flag |= LPFC_IO_LOOPBACK;
-	cmdiocbq->vport = phba->pport;
-	cmdiocbq->iocb_cmpl = NULL;
+
 	iocb_stat = lpfc_sli_issue_iocb_wait(phba, LPFC_ELS_RING, cmdiocbq,
 					     rspiocbq, (phba->fc_ratov * 2) +
 					     LPFC_DRVR_TIMEOUT);
-
-	if ((iocb_stat != IOCB_SUCCESS) ||
-	    ((phba->sli_rev < LPFC_SLI_REV4) &&
-	     (rsp->ulpStatus != IOSTAT_SUCCESS))) {
+	if (iocb_stat != IOCB_SUCCESS ||
+	    (phba->sli_rev < LPFC_SLI_REV4 &&
+	     (get_job_ulpstatus(phba, rspiocbq) != IOSTAT_SUCCESS))) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
 				"3126 Failed loopback test issue iocb: "
 				"iocb_stat:x%x\n", iocb_stat);
@@ -3429,7 +3363,7 @@ job_error:
  * This is completion handler function for mailbox commands issued from
  * lpfc_bsg_issue_mbox function. This function is called by the
  * mailbox event handler function with no lock held. This function
- * will wake up thread waiting on the wait queue pointed by context1
+ * will wake up thread waiting on the wait queue pointed by dd_data
  * of the mailbox.
  **/
 static void
@@ -3556,15 +3490,6 @@ static int lpfc_bsg_check_cmd_access(struct lpfc_hba *phba,
 			"1226 mbox: set_variable 0x%x, 0x%x\n",
 			mb->un.varWords[0],
 			mb->un.varWords[1]);
-		if ((mb->un.varWords[0] == SETVAR_MLOMNT)
-			&& (mb->un.varWords[1] == 1)) {
-			phba->wait_4_mlo_maint_flg = 1;
-		} else if (mb->un.varWords[0] == SETVAR_MLORST) {
-			spin_lock_irq(&phba->hbalock);
-			phba->link_flag &= ~LS_LOOPBACK_MODE;
-			spin_unlock_irq(&phba->hbalock);
-			phba->fc_topology = LPFC_TOPOLOGY_PT_PT;
-		}
 		break;
 	case MBX_READ_SPARM64:
 	case MBX_REG_LOGIN:
@@ -5046,283 +4971,6 @@ lpfc_bsg_mbox_cmd(struct bsg_job *job)
 	return rc;
 }
 
-/**
- * lpfc_bsg_menlo_cmd_cmp - lpfc_menlo_cmd completion handler
- * @phba: Pointer to HBA context object.
- * @cmdiocbq: Pointer to command iocb.
- * @rspiocbq: Pointer to response iocb.
- *
- * This function is the completion handler for iocbs issued using
- * lpfc_menlo_cmd function. This function is called by the
- * ring event handler function without any lock held. This function
- * can be called from both worker thread context and interrupt
- * context. This function also can be called from another thread which
- * cleans up the SLI layer objects.
- * This function copies the contents of the response iocb to the
- * response iocb memory object provided by the caller of
- * lpfc_sli_issue_iocb_wait and then wakes up the thread which
- * sleeps for the iocb completion.
- **/
-static void
-lpfc_bsg_menlo_cmd_cmp(struct lpfc_hba *phba,
-			struct lpfc_iocbq *cmdiocbq,
-			struct lpfc_iocbq *rspiocbq)
-{
-	struct bsg_job_data *dd_data;
-	struct bsg_job *job;
-	struct fc_bsg_reply *bsg_reply;
-	IOCB_t *rsp;
-	struct lpfc_dmabuf *bmp, *cmp, *rmp;
-	struct lpfc_bsg_menlo *menlo;
-	unsigned long flags;
-	struct menlo_response *menlo_resp;
-	unsigned int rsp_size;
-	int rc = 0;
-
-	dd_data = cmdiocbq->context1;
-	cmp = cmdiocbq->context2;
-	bmp = cmdiocbq->context3;
-	menlo = &dd_data->context_un.menlo;
-	rmp = menlo->rmp;
-	rsp = &rspiocbq->iocb;
-
-	/* Determine if job has been aborted */
-	spin_lock_irqsave(&phba->ct_ev_lock, flags);
-	job = dd_data->set_job;
-	if (job) {
-		bsg_reply = job->reply;
-		/* Prevent timeout handling from trying to abort job  */
-		job->dd_data = NULL;
-	}
-	spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
-
-	/* Copy the job data or set the failing status for the job */
-
-	if (job) {
-		/* always return the xri, this would be used in the case
-		 * of a menlo download to allow the data to be sent as a
-		 * continuation of the exchange.
-		 */
-
-		menlo_resp = (struct menlo_response *)
-			bsg_reply->reply_data.vendor_reply.vendor_rsp;
-		menlo_resp->xri = rsp->ulpContext;
-		if (rsp->ulpStatus) {
-			if (rsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
-				switch (rsp->un.ulpWord[4] & IOERR_PARAM_MASK) {
-				case IOERR_SEQUENCE_TIMEOUT:
-					rc = -ETIMEDOUT;
-					break;
-				case IOERR_INVALID_RPI:
-					rc = -EFAULT;
-					break;
-				default:
-					rc = -EACCES;
-					break;
-				}
-			} else {
-				rc = -EACCES;
-			}
-		} else {
-			rsp_size = rsp->un.genreq64.bdl.bdeSize;
-			bsg_reply->reply_payload_rcv_len =
-				lpfc_bsg_copy_data(rmp, &job->reply_payload,
-						   rsp_size, 0);
-		}
-
-	}
-
-	lpfc_sli_release_iocbq(phba, cmdiocbq);
-	lpfc_free_bsg_buffers(phba, cmp);
-	lpfc_free_bsg_buffers(phba, rmp);
-	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
-	kfree(bmp);
-	kfree(dd_data);
-
-	/* Complete the job if active */
-
-	if (job) {
-		bsg_reply->result = rc;
-		bsg_job_done(job, bsg_reply->result,
-			       bsg_reply->reply_payload_rcv_len);
-	}
-
-	return;
-}
-
-/**
- * lpfc_menlo_cmd - send an ioctl for menlo hardware
- * @job: fc_bsg_job to handle
- *
- * This function issues a gen request 64 CR ioctl for all menlo cmd requests,
- * all the command completions will return the xri for the command.
- * For menlo data requests a gen request 64 CX is used to continue the exchange
- * supplied in the menlo request header xri field.
- **/
-static int
-lpfc_menlo_cmd(struct bsg_job *job)
-{
-	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
-	struct fc_bsg_request *bsg_request = job->request;
-	struct fc_bsg_reply *bsg_reply = job->reply;
-	struct lpfc_hba *phba = vport->phba;
-	struct lpfc_iocbq *cmdiocbq;
-	IOCB_t *cmd;
-	int rc = 0;
-	struct menlo_command *menlo_cmd;
-	struct lpfc_dmabuf *bmp = NULL, *cmp = NULL, *rmp = NULL;
-	int request_nseg;
-	int reply_nseg;
-	struct bsg_job_data *dd_data;
-	struct ulp_bde64 *bpl = NULL;
-
-	/* in case no data is returned return just the return code */
-	bsg_reply->reply_payload_rcv_len = 0;
-
-	if (job->request_len <
-	    sizeof(struct fc_bsg_request) +
-		sizeof(struct menlo_command)) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
-				"2784 Received MENLO_CMD request below "
-				"minimum size\n");
-		rc = -ERANGE;
-		goto no_dd_data;
-	}
-
-	if (job->reply_len < sizeof(*bsg_reply) +
-				sizeof(struct menlo_response)) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
-				"2785 Received MENLO_CMD reply below "
-				"minimum size\n");
-		rc = -ERANGE;
-		goto no_dd_data;
-	}
-
-	if (!(phba->menlo_flag & HBA_MENLO_SUPPORT)) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
-				"2786 Adapter does not support menlo "
-				"commands\n");
-		rc = -EPERM;
-		goto no_dd_data;
-	}
-
-	menlo_cmd = (struct menlo_command *)
-		bsg_request->rqst_data.h_vendor.vendor_cmd;
-
-	/* allocate our bsg tracking structure */
-	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
-	if (!dd_data) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
-				"2787 Failed allocation of dd_data\n");
-		rc = -ENOMEM;
-		goto no_dd_data;
-	}
-
-	bmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (!bmp) {
-		rc = -ENOMEM;
-		goto free_dd;
-	}
-
-	bmp->virt = lpfc_mbuf_alloc(phba, 0, &bmp->phys);
-	if (!bmp->virt) {
-		rc = -ENOMEM;
-		goto free_bmp;
-	}
-
-	INIT_LIST_HEAD(&bmp->list);
-
-	bpl = (struct ulp_bde64 *)bmp->virt;
-	request_nseg = LPFC_BPL_SIZE/sizeof(struct ulp_bde64);
-	cmp = lpfc_alloc_bsg_buffers(phba, job->request_payload.payload_len,
-				     1, bpl, &request_nseg);
-	if (!cmp) {
-		rc = -ENOMEM;
-		goto free_bmp;
-	}
-	lpfc_bsg_copy_data(cmp, &job->request_payload,
-			   job->request_payload.payload_len, 1);
-
-	bpl += request_nseg;
-	reply_nseg = LPFC_BPL_SIZE/sizeof(struct ulp_bde64) - request_nseg;
-	rmp = lpfc_alloc_bsg_buffers(phba, job->reply_payload.payload_len, 0,
-				     bpl, &reply_nseg);
-	if (!rmp) {
-		rc = -ENOMEM;
-		goto free_cmp;
-	}
-
-	cmdiocbq = lpfc_sli_get_iocbq(phba);
-	if (!cmdiocbq) {
-		rc = -ENOMEM;
-		goto free_rmp;
-	}
-
-	cmd = &cmdiocbq->iocb;
-	cmd->un.genreq64.bdl.ulpIoTag32 = 0;
-	cmd->un.genreq64.bdl.addrHigh = putPaddrHigh(bmp->phys);
-	cmd->un.genreq64.bdl.addrLow = putPaddrLow(bmp->phys);
-	cmd->un.genreq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
-	cmd->un.genreq64.bdl.bdeSize =
-	    (request_nseg + reply_nseg) * sizeof(struct ulp_bde64);
-	cmd->un.genreq64.w5.hcsw.Fctl = (SI | LA);
-	cmd->un.genreq64.w5.hcsw.Dfctl = 0;
-	cmd->un.genreq64.w5.hcsw.Rctl = FC_RCTL_DD_UNSOL_CMD;
-	cmd->un.genreq64.w5.hcsw.Type = MENLO_TRANSPORT_TYPE; /* 0xfe */
-	cmd->ulpBdeCount = 1;
-	cmd->ulpClass = CLASS3;
-	cmd->ulpOwner = OWN_CHIP;
-	cmd->ulpLe = 1; /* Limited Edition */
-	cmdiocbq->iocb_flag |= LPFC_IO_LIBDFC;
-	cmdiocbq->vport = phba->pport;
-	/* We want the firmware to timeout before we do */
-	cmd->ulpTimeout = MENLO_TIMEOUT - 5;
-	cmdiocbq->iocb_cmpl = lpfc_bsg_menlo_cmd_cmp;
-	cmdiocbq->context1 = dd_data;
-	cmdiocbq->context2 = cmp;
-	cmdiocbq->context3 = bmp;
-	if (menlo_cmd->cmd == LPFC_BSG_VENDOR_MENLO_CMD) {
-		cmd->ulpCommand = CMD_GEN_REQUEST64_CR;
-		cmd->ulpPU = MENLO_PU; /* 3 */
-		cmd->un.ulpWord[4] = MENLO_DID; /* 0x0000FC0E */
-		cmd->ulpContext = MENLO_CONTEXT; /* 0 */
-	} else {
-		cmd->ulpCommand = CMD_GEN_REQUEST64_CX;
-		cmd->ulpPU = 1;
-		cmd->un.ulpWord[4] = 0;
-		cmd->ulpContext = menlo_cmd->xri;
-	}
-
-	dd_data->type = TYPE_MENLO;
-	dd_data->set_job = job;
-	dd_data->context_un.menlo.cmdiocbq = cmdiocbq;
-	dd_data->context_un.menlo.rmp = rmp;
-	job->dd_data = dd_data;
-
-	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, cmdiocbq,
-		MENLO_TIMEOUT - 5);
-	if (rc == IOCB_SUCCESS)
-		return 0; /* done for now */
-
-	lpfc_sli_release_iocbq(phba, cmdiocbq);
-
-free_rmp:
-	lpfc_free_bsg_buffers(phba, rmp);
-free_cmp:
-	lpfc_free_bsg_buffers(phba, cmp);
-free_bmp:
-	if (bmp->virt)
-		lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
-	kfree(bmp);
-free_dd:
-	kfree(dd_data);
-no_dd_data:
-	/* make error code available to userspace */
-	bsg_reply->result = rc;
-	job->dd_data = NULL;
-	return rc;
-}
-
 static int
 lpfc_forced_link_speed(struct bsg_job *job)
 {
@@ -5877,10 +5525,6 @@ lpfc_bsg_hst_vendor(struct bsg_job *job)
 	case LPFC_BSG_VENDOR_MBOX:
 		rc = lpfc_bsg_mbox_cmd(job);
 		break;
-	case LPFC_BSG_VENDOR_MENLO_CMD:
-	case LPFC_BSG_VENDOR_MENLO_DATA:
-		rc = lpfc_menlo_cmd(job);
-		break;
 	case LPFC_BSG_VENDOR_FORCED_LINK_SPEED:
 		rc = lpfc_forced_link_speed(job);
 		break;
@@ -6001,7 +5645,7 @@ lpfc_bsg_timeout(struct bsg_job *job)
 
 		spin_lock_irqsave(&phba->hbalock, flags);
 		/* make sure the I/O abort window is still open */
-		if (!(cmdiocb->iocb_flag & LPFC_IO_CMD_OUTSTANDING)) {
+		if (!(cmdiocb->cmd_flag & LPFC_IO_CMD_OUTSTANDING)) {
 			spin_unlock_irqrestore(&phba->hbalock, flags);
 			return -EAGAIN;
 		}
@@ -6032,31 +5676,6 @@ lpfc_bsg_timeout(struct bsg_job *job)
 		if (phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_PORT)
 			phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_ABTS;
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
-		break;
-	case TYPE_MENLO:
-		/* Check to see if IOCB was issued to the port or not. If not,
-		 * remove it from the txq queue and call cancel iocbs.
-		 * Otherwise, call abort iotag.
-		 */
-		cmdiocb = dd_data->context_un.menlo.cmdiocbq;
-		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
-
-		spin_lock_irqsave(&phba->hbalock, flags);
-		list_for_each_entry_safe(check_iocb, next_iocb, &pring->txq,
-					 list) {
-			if (check_iocb == cmdiocb) {
-				list_move_tail(&check_iocb->list, &completions);
-				break;
-			}
-		}
-		if (list_empty(&completions))
-			lpfc_sli_issue_abort_iotag(phba, pring, cmdiocb, NULL);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		if (!list_empty(&completions)) {
-			lpfc_sli_cancel_iocbs(phba, &completions,
-					      IOSTAT_LOCAL_REJECT,
-					      IOERR_SLI_ABORTED);
-		}
 		break;
 	default:
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);

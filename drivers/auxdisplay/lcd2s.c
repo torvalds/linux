@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  console driver for LCD2S 4x20 character displays connected through i2c.
- *  The display also has a spi interface, but the driver does not support
+ *  Console driver for LCD2S 4x20 character displays connected through i2c.
+ *  The display also has a SPI interface, but the driver does not support
  *  this yet.
  *
- *  This is a driver allowing you to use a LCD2S 4x20 from modtronix
+ *  This is a driver allowing you to use a LCD2S 4x20 from Modtronix
  *  engineering as auxdisplay character device.
  *
  *  (C) 2019 by Lemonage Software GmbH
@@ -12,7 +12,9 @@
  *  All rights reserved.
  */
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
@@ -104,7 +106,7 @@ static int lcd2s_print(struct charlcd *lcd, int c)
 static int lcd2s_gotoxy(struct charlcd *lcd, unsigned int x, unsigned int y)
 {
 	struct lcd2s_data *lcd2s = lcd->drvdata;
-	u8 buf[] = { LCD2S_CMD_CUR_POS, y + 1, x + 1};
+	u8 buf[3] = { LCD2S_CMD_CUR_POS, y + 1, x + 1 };
 
 	lcd2s_i2c_master_send(lcd2s->i2c, buf, sizeof(buf));
 
@@ -214,16 +216,15 @@ static int lcd2s_lines(struct charlcd *lcd, enum charlcd_lines lines)
 	return 0;
 }
 
+/*
+ * Generator: LGcxxxxx...xx; must have <c> between '0' and '7',
+ * representing the numerical ASCII code of the redefined character,
+ * and <xx...xx> a sequence of 16 hex digits representing 8 bytes
+ * for each character. Most LCDs will only use 5 lower bits of
+ * the 7 first bytes.
+ */
 static int lcd2s_redefine_char(struct charlcd *lcd, char *esc)
 {
-	/* Generator : LGcxxxxx...xx; must have <c> between '0'
-	 * and '7', representing the numerical ASCII code of the
-	 * redefined character, and <xx...xx> a sequence of 16
-	 * hex digits representing 8 bytes for each character.
-	 * Most LCDs will only use 5 lower bits of the 7 first
-	 * bytes.
-	 */
-
 	struct lcd2s_data *lcd2s = lcd->drvdata;
 	u8 buf[LCD2S_CHARACTER_SIZE + 2] = { LCD2S_CMD_DEF_CUSTOM_CHAR };
 	u8 value;
@@ -238,7 +239,7 @@ static int lcd2s_redefine_char(struct charlcd *lcd, char *esc)
 	if (buf[1] > 7)
 		return 1;
 
-	i = 0;
+	i = 2;
 	shift = 0;
 	value = 0;
 	while (*esc && i < LCD2S_CHARACTER_SIZE + 2) {
@@ -286,8 +287,7 @@ static const struct charlcd_ops lcd2s_ops = {
 	.redefine_char	= lcd2s_redefine_char,
 };
 
-static int lcd2s_i2c_probe(struct i2c_client *i2c,
-				const struct i2c_device_id *id)
+static int lcd2s_i2c_probe(struct i2c_client *i2c)
 {
 	struct charlcd *lcd;
 	struct lcd2s_data *lcd2s;
@@ -298,6 +298,10 @@ static int lcd2s_i2c_probe(struct i2c_client *i2c,
 			I2C_FUNC_SMBUS_WRITE_BLOCK_DATA))
 		return -EIO;
 
+	lcd2s = devm_kzalloc(&i2c->dev, sizeof(*lcd2s), GFP_KERNEL);
+	if (!lcd2s)
+		return -ENOMEM;
+
 	/* Test, if the display is responding */
 	err = lcd2s_i2c_smbus_write_byte(i2c, LCD2S_CMD_DISPLAY_OFF);
 	if (err < 0)
@@ -307,12 +311,6 @@ static int lcd2s_i2c_probe(struct i2c_client *i2c,
 	if (!lcd)
 		return -ENOMEM;
 
-	lcd2s = kzalloc(sizeof(struct lcd2s_data), GFP_KERNEL);
-	if (!lcd2s) {
-		err = -ENOMEM;
-		goto fail1;
-	}
-
 	lcd->drvdata = lcd2s;
 	lcd2s->i2c = i2c;
 	lcd2s->charlcd = lcd;
@@ -321,36 +319,33 @@ static int lcd2s_i2c_probe(struct i2c_client *i2c,
 	err = device_property_read_u32(&i2c->dev, "display-height-chars",
 			&lcd->height);
 	if (err)
-		goto fail2;
+		goto fail1;
 
 	err = device_property_read_u32(&i2c->dev, "display-width-chars",
 			&lcd->width);
 	if (err)
-		goto fail2;
+		goto fail1;
 
 	lcd->ops = &lcd2s_ops;
 
 	err = charlcd_register(lcd2s->charlcd);
 	if (err)
-		goto fail2;
+		goto fail1;
 
 	i2c_set_clientdata(i2c, lcd2s);
 	return 0;
 
-fail2:
-	kfree(lcd2s);
 fail1:
-	kfree(lcd);
+	charlcd_free(lcd2s->charlcd);
 	return err;
 }
 
-static int lcd2s_i2c_remove(struct i2c_client *i2c)
+static void lcd2s_i2c_remove(struct i2c_client *i2c)
 {
 	struct lcd2s_data *lcd2s = i2c_get_clientdata(i2c);
 
 	charlcd_unregister(lcd2s->charlcd);
-	kfree(lcd2s->charlcd);
-	return 0;
+	charlcd_free(lcd2s->charlcd);
 }
 
 static const struct i2c_device_id lcd2s_i2c_id[] = {
@@ -359,43 +354,22 @@ static const struct i2c_device_id lcd2s_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lcd2s_i2c_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id lcd2s_of_table[] = {
 	{ .compatible = "modtronix,lcd2s" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, lcd2s_of_table);
-#endif
 
 static struct i2c_driver lcd2s_i2c_driver = {
 	.driver = {
 		.name = "lcd2s",
-#ifdef CONFIG_OF
-		.of_match_table = of_match_ptr(lcd2s_of_table),
-#endif
+		.of_match_table = lcd2s_of_table,
 	},
-	.probe = lcd2s_i2c_probe,
+	.probe_new = lcd2s_i2c_probe,
 	.remove = lcd2s_i2c_remove,
 	.id_table = lcd2s_i2c_id,
 };
-
-static int __init lcd2s_modinit(void)
-{
-	int ret = 0;
-
-	ret = i2c_add_driver(&lcd2s_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register lcd2s driver\n");
-
-	return ret;
-}
-module_init(lcd2s_modinit)
-
-static void __exit lcd2s_exit(void)
-{
-	i2c_del_driver(&lcd2s_i2c_driver);
-}
-module_exit(lcd2s_exit)
+module_i2c_driver(lcd2s_i2c_driver);
 
 MODULE_DESCRIPTION("LCD2S character display driver");
 MODULE_AUTHOR("Lars Poeschel");

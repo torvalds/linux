@@ -11,7 +11,7 @@
 /*
  * Default IO priority.
  */
-#define IOPRIO_DEFAULT	IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_BE_NORM)
+#define IOPRIO_DEFAULT	IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, 0)
 
 /*
  * Check that a priority value has a valid class.
@@ -46,23 +46,19 @@ static inline int task_nice_ioclass(struct task_struct *task)
 		return IOPRIO_CLASS_BE;
 }
 
-/*
- * If the calling process has set an I/O priority, use that. Otherwise, return
- * the default I/O priority.
- */
-static inline int get_current_ioprio(void)
+#ifdef CONFIG_BLOCK
+int __get_task_ioprio(struct task_struct *p);
+#else
+static inline int __get_task_ioprio(struct task_struct *p)
 {
-	struct io_context *ioc = current->io_context;
-
-	if (ioc)
-		return ioc->ioprio;
 	return IOPRIO_DEFAULT;
 }
+#endif /* CONFIG_BLOCK */
 
-/*
- * For inheritance, return the highest of the two given priorities
- */
-extern int ioprio_best(unsigned short aprio, unsigned short bprio);
+static inline int get_current_ioprio(void)
+{
+	return __get_task_ioprio(current);
+}
 
 extern int set_task_ioprio(struct task_struct *task, int ioprio);
 

@@ -25,26 +25,28 @@
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 
 				ab8500_clock: clock-controller {
 					compatible = "stericsson,ab8500-clk";
 					#clock-cells = <1>;
 				};
 
-				ab8505_gpio: ab8505-gpiocontroller {
+				ab8505_gpio: gpio {
 					compatible = "stericsson,ab8505-gpio";
 					gpio-controller;
 					#gpio-cells = <2>;
 				};
 
-				ab8500-rtc {
+				rtc {
 					compatible = "stericsson,ab8500-rtc";
 					interrupts = <17 IRQ_TYPE_LEVEL_HIGH>,
 						     <18 IRQ_TYPE_LEVEL_HIGH>;
 					interrupt-names = "60S", "ALARM";
 				};
 
-				gpadc: ab8500-gpadc {
+				gpadc: adc {
 					compatible = "stericsson,ab8500-gpadc";
 					interrupts = <39 IRQ_TYPE_LEVEL_HIGH>;
 					interrupt-names = "SW_CONV_END";
@@ -92,8 +94,13 @@
 					};
 				};
 
+				thermal {
+					compatible = "stericsson,abx500-temp";
+					interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "ABX500_TEMP_WARM";
+				};
+
 				ab8500_fg {
-					status = "disabled";
 					compatible = "stericsson,ab8500-fg";
 					interrupts = <24 IRQ_TYPE_LEVEL_HIGH>,
 						     <8 IRQ_TYPE_LEVEL_HIGH>,
@@ -111,7 +118,6 @@
 				};
 
 				ab8500_btemp {
-					status = "disabled";
 					compatible = "stericsson,ab8500-btemp";
 					interrupts = <20 IRQ_TYPE_LEVEL_HIGH>,
 						     <80 IRQ_TYPE_LEVEL_HIGH>,
@@ -131,7 +137,6 @@
 				};
 
 				ab8500_charger {
-					status = "disabled";
 					compatible = "stericsson,ab8500-charger";
 					interrupts = <10 IRQ_TYPE_LEVEL_HIGH>,
 						     <11 IRQ_TYPE_LEVEL_HIGH>,
@@ -170,12 +175,11 @@
 				};
 
 				ab8500_chargalg {
-					status = "disabled";
 					compatible = "stericsson,ab8500-chargalg";
 					monitored-battery = <&battery>;
 				};
 
-				ab8500_usb: ab8500_usb {
+				ab8500_usb: phy {
 					compatible = "stericsson,ab8500-usb";
 					interrupts = <90 IRQ_TYPE_LEVEL_HIGH>,
 						     <96 IRQ_TYPE_LEVEL_HIGH>,
@@ -199,7 +203,7 @@
 					#phy-cells = <0>;
 				};
 
-				ab8500-ponkey {
+				key {
 					compatible = "stericsson,ab8500-poweron-key";
 					interrupts = <6 IRQ_TYPE_LEVEL_HIGH>,
 						     <7 IRQ_TYPE_LEVEL_HIGH>;
@@ -210,17 +214,15 @@
 					compatible = "stericsson,ab8500-sysctrl";
 				};
 
-				ab8500-pwm {
+				pwm@1 {
 					compatible = "stericsson,ab8500-pwm";
+					reg = <1>;
 					clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
 					clock-names = "intclk";
+					#pwm-cells = <1>;
 				};
 
-				ab8500-debugfs {
-					compatible = "stericsson,ab8500-debug";
-				};
-
-				codec: ab8500-codec {
+				codec: codec {
 					compatible = "stericsson,ab8500-codec";
 
 					V-AUD-supply = <&ab8500_ldo_audio_reg>;
@@ -233,7 +235,7 @@
 					stericsson,earpeice-cmv = <950>; /* Units in mV. */
 				};
 
-				ab8505-regulators {
+				regulator {
 					compatible = "stericsson,ab8505-regulator";
 
 					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {

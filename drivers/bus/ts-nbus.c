@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NBUS driver for TS-4600 based boards
  *
  * Copyright (c) 2016 - Savoir-faire Linux
  * Author: Sebastien Bourdelin <sebastien.bourdelin@savoirfairelinux.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * This driver implements a GPIOs bit-banged bus, called the NBUS by Technologic
  * Systems. It is used to communicate with the peripherals in the FPGA on the

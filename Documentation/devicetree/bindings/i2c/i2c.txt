@@ -95,6 +95,10 @@ wants to support one of the below features, it should adapt these bindings.
 - smbus-alert
 	states that the optional SMBus-Alert feature apply to this bus.
 
+- mctp-controller
+	indicates that the system is accessible via this bus as an endpoint for
+	MCTP over I2C transport.
+
 Required properties (per child device)
 --------------------------------------
 

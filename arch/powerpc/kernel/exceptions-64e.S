@@ -216,17 +216,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 	mtlr	r10
 	mtcr	r11
 
-	ld	r10,GPR10(r1)
-	ld	r11,GPR11(r1)
-	ld	r12,GPR12(r1)
+	REST_GPRS(10, 12, r1)
 	mtspr	\scratch,r0
 
 	std	r10,\paca_ex+EX_R10(r13);
 	std	r11,\paca_ex+EX_R11(r13);
 	ld	r10,_NIP(r1)
 	ld	r11,_MSR(r1)
-	ld	r0,GPR0(r1)
-	ld	r1,GPR1(r1)
+	REST_GPR(0, r1)
+	REST_GPR(1, r1)
 	mtspr	\srr0,r10
 	mtspr	\srr1,r11
 	ld	r10,\paca_ex+EX_R10(r13)
@@ -291,7 +289,6 @@ ret_from_mc_except:
 #define SPRN_MC_SRR0	SPRN_MCSRR0
 #define SPRN_MC_SRR1	SPRN_MCSRR1
 
-#ifdef CONFIG_PPC_FSL_BOOK3E
 #define GEN_BTB_FLUSH			\
 	START_BTB_FLUSH_SECTION		\
 		beq 1f;			\
@@ -307,13 +304,6 @@ ret_from_mc_except:
 #define DBG_BTB_FLUSH CRIT_BTB_FLUSH
 #define MC_BTB_FLUSH CRIT_BTB_FLUSH
 #define GDBELL_BTB_FLUSH GEN_BTB_FLUSH
-#else
-#define GEN_BTB_FLUSH
-#define CRIT_BTB_FLUSH
-#define DBG_BTB_FLUSH
-#define MC_BTB_FLUSH
-#define GDBELL_BTB_FLUSH
-#endif
 
 #define NORMAL_EXCEPTION_PROLOG(n, intnum, addition)			    \
 	EXCEPTION_PROLOG(n, intnum, GEN, addition##_GEN(n))
@@ -372,25 +362,24 @@ ret_from_mc_except:
 /* Core exception code for all exceptions except TLB misses. */
 #define EXCEPTION_COMMON_LVL(n, scratch, excf)				    \
 exc_##n##_common:							    \
-	std	r0,GPR0(r1);		/* save r0 in stackframe */	    \
-	std	r2,GPR2(r1);		/* save r2 in stackframe */	    \
-	SAVE_GPRS(3, 9, r1);		/* save r3 - r9 in stackframe */    \
+	SAVE_GPR(0, r1);		/* save r0 in stackframe */	    \
+	SAVE_GPRS(2, 9, r1);		/* save r2 - r9 in stackframe */    \
 	std	r10,_NIP(r1);		/* save SRR0 to stackframe */	    \
 	std	r11,_MSR(r1);		/* save SRR1 to stackframe */	    \
 	beq	2f;			/* if from kernel mode */	    \
 2:	ld	r3,excf+EX_R10(r13);	/* get back r10 */		    \
 	ld	r4,excf+EX_R11(r13);	/* get back r11 */		    \
 	mfspr	r5,scratch;		/* get back r13 */		    \
-	std	r12,GPR12(r1);		/* save r12 in stackframe */	    \
-	ld	r2,PACATOC(r13);	/* get kernel TOC into r2 */	    \
+	SAVE_GPR(12, r1);		/* save r12 in stackframe */	    \
+	LOAD_PACA_TOC();		/* get kernel TOC into r2 */	    \
 	mflr	r6;			/* save LR in stackframe */	    \
 	mfctr	r7;			/* save CTR in stackframe */	    \
 	mfspr	r8,SPRN_XER;		/* save XER in stackframe */	    \
 	ld	r9,excf+EX_R1(r13);	/* load orig r1 back from PACA */   \
 	lwz	r10,excf+EX_CR(r13);	/* load orig CR back from PACA	*/  \
 	lbz	r11,PACAIRQSOFTMASK(r13); /* get current IRQ softe */	    \
-	ld	r12,exception_marker@toc(r2);				    \
-	li	r0,0;							    \
+	LOAD_REG_IMMEDIATE(r12, STACK_FRAME_REGS_MARKER);		    \
+	ZEROIZE_GPR(0);							    \
 	std	r3,GPR10(r1);		/* save r10 to stackframe */	    \
 	std	r4,GPR11(r1);		/* save r11 to stackframe */	    \
 	std	r5,GPR13(r1);		/* save it to stackframe */	    \
@@ -469,12 +458,6 @@ exc_##n##_bad_stack:							    \
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				\
 	bl	hdlr;							\
 	b	interrupt_return
-
-/* This value is used to mark exception frames on the stack. */
-	.section	".toc","aw"
-exception_marker:
-	.tc	ID_EXC_MARKER[TC],STACK_FRAME_REGS_MARKER
-
 
 /*
  * And here we have the exception vectors !
@@ -704,9 +687,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	beq+	1f
 
 #ifdef CONFIG_RELOCATABLE
-	ld	r15,PACATOC(r13)
-	ld	r14,interrupt_base_book3e@got(r15)
-	ld	r15,__end_interrupts@got(r15)
+	__LOAD_PACA_TOC(r15)
+	LOAD_REG_ADDR_ALTTOC(r14, r15, interrupt_base_book3e)
+	LOAD_REG_ADDR_ALTTOC(r15, r15, __end_interrupts)
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
 #else
@@ -775,9 +758,9 @@ kernel_dbg_exc:
 	beq+	1f
 
 #ifdef CONFIG_RELOCATABLE
-	ld	r15,PACATOC(r13)
-	ld	r14,interrupt_base_book3e@got(r15)
-	ld	r15,__end_interrupts@got(r15)
+	__LOAD_PACA_TOC(r15)
+	LOAD_REG_ADDR_ALTTOC(r14, r15, interrupt_base_book3e)
+	LOAD_REG_ADDR_ALTTOC(r15, r15, __end_interrupts)
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
 #else
@@ -830,6 +813,13 @@ kernel_dbg_exc:
 	EXCEPTION_COMMON(0x260)
 	CHECK_NAPPING()
 	addi	r3,r1,STACK_FRAME_OVERHEAD
+	/*
+	 * XXX: Returning from performance_monitor_exception taken as a
+	 * soft-NMI (Linux irqs disabled) may be risky to use interrupt_return
+	 * and could cause bugs in return or elsewhere. That case should just
+	 * restore registers and return. There is a workaround for one known
+	 * problem in interrupt_exit_kernel_prepare().
+	 */
 	bl	performance_monitor_exception
 	b	interrupt_return
 
@@ -900,9 +890,9 @@ kernel_dbg_exc:
 
 .macro SEARCH_RESTART_TABLE
 #ifdef CONFIG_RELOCATABLE
-	ld	r11,PACATOC(r13)
-	ld	r14,__start___restart_table@got(r11)
-	ld	r15,__stop___restart_table@got(r11)
+	__LOAD_PACA_TOC(r11)
+	LOAD_REG_ADDR_ALTTOC(r14, r11, __start___restart_table)
+	LOAD_REG_ADDR_ALTTOC(r15, r11, __stop___restart_table)
 #else
 	LOAD_REG_IMMEDIATE_SYM(r14, r11, __start___restart_table)
 	LOAD_REG_IMMEDIATE_SYM(r15, r11, __stop___restart_table)
@@ -1056,15 +1046,14 @@ bad_stack_book3e:
 	mfspr	r11,SPRN_ESR
 	std	r10,_DEAR(r1)
 	std	r11,_ESR(r1)
-	std	r0,GPR0(r1);		/* save r0 in stackframe */	    \
-	std	r2,GPR2(r1);		/* save r2 in stackframe */	    \
-	SAVE_GPRS(3, 9, r1);		/* save r3 - r9 in stackframe */    \
+	SAVE_GPR(0, r1);		/* save r0 in stackframe */	    \
+	SAVE_GPRS(2, 9, r1);		/* save r2 - r9 in stackframe */    \
 	ld	r3,PACA_EXGEN+EX_R10(r13);/* get back r10 */		    \
 	ld	r4,PACA_EXGEN+EX_R11(r13);/* get back r11 */		    \
 	mfspr	r5,SPRN_SPRG_GEN_SCRATCH;/* get back r13 XXX can be wrong */ \
 	std	r3,GPR10(r1);		/* save r10 to stackframe */	    \
 	std	r4,GPR11(r1);		/* save r11 to stackframe */	    \
-	std	r12,GPR12(r1);		/* save r12 in stackframe */	    \
+	SAVE_GPR(12, r1);		/* save r12 in stackframe */	    \
 	std	r5,GPR13(r1);		/* save it to stackframe */	    \
 	mflr	r10
 	mfctr	r11
@@ -1072,14 +1061,14 @@ bad_stack_book3e:
 	std	r10,_LINK(r1)
 	std	r11,_CTR(r1)
 	std	r12,_XER(r1)
-	SAVE_GPRS(14, 31, r1)
+	SAVE_NVGPRS(r1)
 	lhz	r12,PACA_TRAP_SAVE(r13)
 	std	r12,_TRAP(r1)
 	addi	r11,r1,INT_FRAME_SIZE
 	std	r11,0(r1)
-	li	r12,0
+	ZEROIZE_GPR(12)
 	std	r12,0(r11)
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	kernel_bad_stack
 	b	1b
@@ -1320,8 +1309,8 @@ a2_tlbinit_after_linear_map:
 
 	/* Now we branch the new virtual address mapped by this entry */
 #ifdef CONFIG_RELOCATABLE
-	ld	r5,PACATOC(r13)
-	ld	r3,1f@got(r5)
+	__LOAD_PACA_TOC(r5)
+	LOAD_REG_ADDR_ALTTOC(r3, r5, 1f)
 #else
 	LOAD_REG_IMMEDIATE_SYM(r3, r5, 1f)
 #endif

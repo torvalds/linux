@@ -27,94 +27,7 @@
 #include "../display_mode_vba.h"
 #include "../dml_inline_defs.h"
 #include "display_rq_dlg_calc_31.h"
-
-static bool CalculateBytePerPixelAnd256BBlockSizes(
-		enum source_format_class SourcePixelFormat,
-		enum dm_swizzle_mode SurfaceTiling,
-		unsigned int *BytePerPixelY,
-		unsigned int *BytePerPixelC,
-		double *BytePerPixelDETY,
-		double *BytePerPixelDETC,
-		unsigned int *BlockHeight256BytesY,
-		unsigned int *BlockHeight256BytesC,
-		unsigned int *BlockWidth256BytesY,
-		unsigned int *BlockWidth256BytesC)
-{
-	if (SourcePixelFormat == dm_444_64) {
-		*BytePerPixelDETY = 8;
-		*BytePerPixelDETC = 0;
-		*BytePerPixelY = 8;
-		*BytePerPixelC = 0;
-	} else if (SourcePixelFormat == dm_444_32 || SourcePixelFormat == dm_rgbe) {
-		*BytePerPixelDETY = 4;
-		*BytePerPixelDETC = 0;
-		*BytePerPixelY = 4;
-		*BytePerPixelC = 0;
-	} else if (SourcePixelFormat == dm_444_16) {
-		*BytePerPixelDETY = 2;
-		*BytePerPixelDETC = 0;
-		*BytePerPixelY = 2;
-		*BytePerPixelC = 0;
-	} else if (SourcePixelFormat == dm_444_8) {
-		*BytePerPixelDETY = 1;
-		*BytePerPixelDETC = 0;
-		*BytePerPixelY = 1;
-		*BytePerPixelC = 0;
-	} else if (SourcePixelFormat == dm_rgbe_alpha) {
-		*BytePerPixelDETY = 4;
-		*BytePerPixelDETC = 1;
-		*BytePerPixelY = 4;
-		*BytePerPixelC = 1;
-	} else if (SourcePixelFormat == dm_420_8) {
-		*BytePerPixelDETY = 1;
-		*BytePerPixelDETC = 2;
-		*BytePerPixelY = 1;
-		*BytePerPixelC = 2;
-	} else if (SourcePixelFormat == dm_420_12) {
-		*BytePerPixelDETY = 2;
-		*BytePerPixelDETC = 4;
-		*BytePerPixelY = 2;
-		*BytePerPixelC = 4;
-	} else {
-		*BytePerPixelDETY = 4.0 / 3;
-		*BytePerPixelDETC = 8.0 / 3;
-		*BytePerPixelY = 2;
-		*BytePerPixelC = 4;
-	}
-
-	if ((SourcePixelFormat == dm_444_64 || SourcePixelFormat == dm_444_32 || SourcePixelFormat == dm_444_16 || SourcePixelFormat == dm_444_8 || SourcePixelFormat == dm_mono_16
-			|| SourcePixelFormat == dm_mono_8 || SourcePixelFormat == dm_rgbe)) {
-		if (SurfaceTiling == dm_sw_linear) {
-			*BlockHeight256BytesY = 1;
-		} else if (SourcePixelFormat == dm_444_64) {
-			*BlockHeight256BytesY = 4;
-		} else if (SourcePixelFormat == dm_444_8) {
-			*BlockHeight256BytesY = 16;
-		} else {
-			*BlockHeight256BytesY = 8;
-		}
-		*BlockWidth256BytesY = 256U / *BytePerPixelY / *BlockHeight256BytesY;
-		*BlockHeight256BytesC = 0;
-		*BlockWidth256BytesC = 0;
-	} else {
-		if (SurfaceTiling == dm_sw_linear) {
-			*BlockHeight256BytesY = 1;
-			*BlockHeight256BytesC = 1;
-		} else if (SourcePixelFormat == dm_rgbe_alpha) {
-			*BlockHeight256BytesY = 8;
-			*BlockHeight256BytesC = 16;
-		} else if (SourcePixelFormat == dm_420_8) {
-			*BlockHeight256BytesY = 16;
-			*BlockHeight256BytesC = 8;
-		} else {
-			*BlockHeight256BytesY = 8;
-			*BlockHeight256BytesC = 8;
-		}
-		*BlockWidth256BytesY = 256U / *BytePerPixelY / *BlockHeight256BytesY;
-		*BlockWidth256BytesC = 256U / *BytePerPixelC / *BlockHeight256BytesC;
-	}
-	return true;
-}
+#include "../dcn30/display_mode_vba_30.h"
 
 static bool is_dual_plane(enum source_format_class source_format)
 {
@@ -467,7 +380,7 @@ static void get_meta_and_pte_attr(
 	double byte_per_pixel_det_y;
 	double byte_per_pixel_det_c;
 
-	CalculateBytePerPixelAnd256BBlockSizes(
+	dml30_CalculateBytePerPixelAnd256BBlockSizes(
 			(enum source_format_class) (source_format),
 			(enum dm_swizzle_mode) (tiling),
 			&bytes_per_element_y,
@@ -953,7 +866,6 @@ static void dml_rq_dlg_get_dlg_params(
 {
 	const display_pipe_source_params_st *src = &e2e_pipe_param[pipe_idx].pipe.src;
 	const display_pipe_dest_params_st *dst = &e2e_pipe_param[pipe_idx].pipe.dest;
-	const display_output_params_st *dout = &e2e_pipe_param[pipe_idx].dout;
 	const display_clocks_and_cfg_st *clks = &e2e_pipe_param[pipe_idx].clks_cfg;
 	const scaler_ratio_depth_st *scl = &e2e_pipe_param[pipe_idx].pipe.scale_ratio_depth;
 	const scaler_taps_st *taps = &e2e_pipe_param[pipe_idx].pipe.scale_taps;
@@ -1002,9 +914,6 @@ static void dml_rq_dlg_get_dlg_params(
 	unsigned int vupdate_offset;
 	unsigned int vupdate_width;
 	unsigned int vready_offset;
-
-	unsigned int dppclk_delay_subtotal;
-	unsigned int dispclk_delay_subtotal;
 
 	unsigned int vstartup_start;
 	unsigned int dst_x_after_scaler;
@@ -1078,8 +987,9 @@ static void dml_rq_dlg_get_dlg_params(
 	min_ttu_vblank = get_min_ttu_vblank_in_us(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);	// From VBA
 
 	dlg_vblank_start = interlaced ? (vblank_start / 2) : vblank_start;
-
 	disp_dlg_regs->min_dst_y_next_start = (unsigned int) (((double) dlg_vblank_start) * dml_pow(2, 2));
+	disp_dlg_regs->optimized_min_dst_y_next_start_us = 0;
+	disp_dlg_regs->optimized_min_dst_y_next_start = disp_dlg_regs->min_dst_y_next_start;
 	ASSERT(disp_dlg_regs->min_dst_y_next_start < (unsigned int)dml_pow(2, 18));
 
 	dml_print("DML_DLG: %s: min_ttu_vblank (us)         = %3.2f\n", __func__, min_ttu_vblank);
@@ -1122,21 +1032,6 @@ static void dml_rq_dlg_get_dlg_params(
 	vupdate_offset = dst->vupdate_offset;
 	vupdate_width = dst->vupdate_width;
 	vready_offset = dst->vready_offset;
-
-	dppclk_delay_subtotal = mode_lib->ip.dppclk_delay_subtotal;
-	dispclk_delay_subtotal = mode_lib->ip.dispclk_delay_subtotal;
-
-	if (scl_enable)
-		dppclk_delay_subtotal += mode_lib->ip.dppclk_delay_scl;
-	else
-		dppclk_delay_subtotal += mode_lib->ip.dppclk_delay_scl_lb_only;
-
-	dppclk_delay_subtotal += mode_lib->ip.dppclk_delay_cnvc_formatter + src->num_cursors * mode_lib->ip.dppclk_delay_cnvc_cursor;
-
-	if (dout->dsc_enable) {
-		double dsc_delay = get_dsc_delay(mode_lib, e2e_pipe_param, num_pipes, pipe_idx); // FROM VBA
-		dispclk_delay_subtotal += dsc_delay;
-	}
 
 	vstartup_start = dst->vstartup_start;
 	if (interlaced) {

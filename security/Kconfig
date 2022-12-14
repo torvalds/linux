@@ -54,17 +54,6 @@ config SECURITY_NETWORK
 	  implement socket and networking access controls.
 	  If you are unsure how to answer this question, answer N.
 
-config PAGE_TABLE_ISOLATION
-	bool "Remove the kernel mapping in user mode"
-	default y
-	depends on (X86_64 || X86_PAE) && !UML
-	help
-	  This feature reduces the number of hardware side channels by
-	  ensuring that the majority of kernel addresses are not mapped
-	  into userspace.
-
-	  See Documentation/x86/pti.rst for more details.
-
 config SECURITY_INFINIBAND
 	bool "Infiniband Security Hooks"
 	depends on SECURITY && INFINIBAND
@@ -160,26 +149,16 @@ config HARDENED_USERCOPY
 	  copy_from_user() functions) by rejecting memory ranges that
 	  are larger than the specified heap object, span multiple
 	  separately allocated pages, are not on the process stack,
-	  or are part of the kernel text. This kills entire classes
+	  or are part of the kernel text. This prevents entire classes
 	  of heap overflow exploits and similar kernel memory exposures.
-
-config HARDENED_USERCOPY_PAGESPAN
-	bool "Refuse to copy allocations that span multiple pages"
-	depends on HARDENED_USERCOPY
-	depends on EXPERT
-	help
-	  When a multi-page allocation is done without __GFP_COMP,
-	  hardened usercopy will reject attempts to copy it. There are,
-	  however, several cases of this in the kernel that have not all
-	  been removed. This config is intended to be used only while
-	  trying to find such users.
 
 config FORTIFY_SOURCE
 	bool "Harden common str/mem functions against buffer overflows"
 	depends on ARCH_HAS_FORTIFY_SOURCE
-	# https://bugs.llvm.org/show_bug.cgi?id=50322
 	# https://bugs.llvm.org/show_bug.cgi?id=41459
-	depends on !CC_IS_CLANG
+	depends on !CC_IS_CLANG || CLANG_VERSION >= 120001
+	# https://github.com/llvm/llvm-project/issues/53645
+	depends on !CC_IS_CLANG || !X86_32
 	help
 	  Detect overflows of buffers in common string and memory functions
 	  where the compiler can determine and validate the buffer sizes.

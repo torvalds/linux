@@ -12,11 +12,103 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
+#include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_acl.h"
-#include "xfs_da_btree.h"
+#include "xfs_log.h"
+#include "xfs_xattr.h"
 
 #include <linux/posix_acl_xattr.h>
+
+/*
+ * Get permission to use log-assisted atomic exchange of file extents.
+ *
+ * Callers must not be running any transactions or hold any inode locks, and
+ * they must release the permission by calling xlog_drop_incompat_feat
+ * when they're done.
+ */
+static inline int
+xfs_attr_grab_log_assist(
+	struct xfs_mount	*mp)
+{
+	int			error = 0;
+
+	/*
+	 * Protect ourselves from an idle log clearing the logged xattrs log
+	 * incompat feature bit.
+	 */
+	xlog_use_incompat_feat(mp->m_log);
+
+	/*
+	 * If log-assisted xattrs are already enabled, the caller can use the
+	 * log assisted swap functions with the log-incompat reference we got.
+	 */
+	if (xfs_sb_version_haslogxattrs(&mp->m_sb))
+		return 0;
+
+	/* Enable log-assisted xattrs. */
+	error = xfs_add_incompat_log_feature(mp,
+			XFS_SB_FEAT_INCOMPAT_LOG_XATTRS);
+	if (error)
+		goto drop_incompat;
+
+	xfs_warn_mount(mp, XFS_OPSTATE_WARNED_LARP,
+ "EXPERIMENTAL logged extended attributes feature in use. Use at your own risk!");
+
+	return 0;
+drop_incompat:
+	xlog_drop_incompat_feat(mp->m_log);
+	return error;
+}
+
+static inline void
+xfs_attr_rele_log_assist(
+	struct xfs_mount	*mp)
+{
+	xlog_drop_incompat_feat(mp->m_log);
+}
+
+static inline bool
+xfs_attr_want_log_assist(
+	struct xfs_mount	*mp)
+{
+#ifdef DEBUG
+	/* Logged xattrs require a V5 super for log_incompat */
+	return xfs_has_crc(mp) && xfs_globals.larp;
+#else
+	return false;
+#endif
+}
+
+/*
+ * Set or remove an xattr, having grabbed the appropriate logging resources
+ * prior to calling libxfs.
+ */
+int
+xfs_attr_change(
+	struct xfs_da_args	*args)
+{
+	struct xfs_mount	*mp = args->dp->i_mount;
+	bool			use_logging = false;
+	int			error;
+
+	ASSERT(!(args->op_flags & XFS_DA_OP_LOGGED));
+
+	if (xfs_attr_want_log_assist(mp)) {
+		error = xfs_attr_grab_log_assist(mp);
+		if (error)
+			return error;
+
+		args->op_flags |= XFS_DA_OP_LOGGED;
+		use_logging = true;
+	}
+
+	error = xfs_attr_set(args);
+
+	if (use_logging)
+		xfs_attr_rele_log_assist(mp);
+	return error;
+}
 
 
 static int
@@ -56,7 +148,7 @@ xfs_xattr_set(const struct xattr_handler *handler,
 	};
 	int			error;
 
-	error = xfs_attr_set(&args);
+	error = xfs_attr_change(&args);
 	if (!error && (handler->flags & XFS_ATTR_ROOT))
 		xfs_forget_acl(inode, name);
 	return error;

@@ -444,7 +444,7 @@ static int eeepc_platform_init(struct eeepc_laptop *eeepc)
 {
 	int result;
 
-	eeepc->platform_device = platform_device_alloc(EEEPC_LAPTOP_FILE, -1);
+	eeepc->platform_device = platform_device_alloc(EEEPC_LAPTOP_FILE, PLATFORM_DEVID_NONE);
 	if (!eeepc->platform_device)
 		return -ENOMEM;
 	platform_set_drvdata(eeepc->platform_device, eeepc);

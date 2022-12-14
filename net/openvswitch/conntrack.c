@@ -152,7 +152,7 @@ static u8 ovs_ct_get_state(enum ip_conntrack_info ctinfo)
 static u32 ovs_ct_get_mark(const struct nf_conn *ct)
 {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_MARK)
-	return ct ? ct->mark : 0;
+	return ct ? READ_ONCE(ct->mark) : 0;
 #else
 	return 0;
 #endif
@@ -340,9 +340,9 @@ static int ovs_ct_set_mark(struct nf_conn *ct, struct sw_flow_key *key,
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_MARK)
 	u32 new_mark;
 
-	new_mark = ct_mark | (ct->mark & ~(mask));
-	if (ct->mark != new_mark) {
-		ct->mark = new_mark;
+	new_mark = ct_mark | (READ_ONCE(ct->mark) & ~(mask));
+	if (READ_ONCE(ct->mark) != new_mark) {
+		WRITE_ONCE(ct->mark, new_mark);
 		if (nf_ct_is_confirmed(ct))
 			nf_conntrack_event_cache(IPCT_MARK, ct);
 		key->ct.mark = new_mark;
@@ -734,6 +734,57 @@ static bool skb_nfct_cached(struct net *net,
 }
 
 #if IS_ENABLED(CONFIG_NF_NAT)
+static void ovs_nat_update_key(struct sw_flow_key *key,
+			       const struct sk_buff *skb,
+			       enum nf_nat_manip_type maniptype)
+{
+	if (maniptype == NF_NAT_MANIP_SRC) {
+		__be16 src;
+
+		key->ct_state |= OVS_CS_F_SRC_NAT;
+		if (key->eth.type == htons(ETH_P_IP))
+			key->ipv4.addr.src = ip_hdr(skb)->saddr;
+		else if (key->eth.type == htons(ETH_P_IPV6))
+			memcpy(&key->ipv6.addr.src, &ipv6_hdr(skb)->saddr,
+			       sizeof(key->ipv6.addr.src));
+		else
+			return;
+
+		if (key->ip.proto == IPPROTO_UDP)
+			src = udp_hdr(skb)->source;
+		else if (key->ip.proto == IPPROTO_TCP)
+			src = tcp_hdr(skb)->source;
+		else if (key->ip.proto == IPPROTO_SCTP)
+			src = sctp_hdr(skb)->source;
+		else
+			return;
+
+		key->tp.src = src;
+	} else {
+		__be16 dst;
+
+		key->ct_state |= OVS_CS_F_DST_NAT;
+		if (key->eth.type == htons(ETH_P_IP))
+			key->ipv4.addr.dst = ip_hdr(skb)->daddr;
+		else if (key->eth.type == htons(ETH_P_IPV6))
+			memcpy(&key->ipv6.addr.dst, &ipv6_hdr(skb)->daddr,
+			       sizeof(key->ipv6.addr.dst));
+		else
+			return;
+
+		if (key->ip.proto == IPPROTO_UDP)
+			dst = udp_hdr(skb)->dest;
+		else if (key->ip.proto == IPPROTO_TCP)
+			dst = tcp_hdr(skb)->dest;
+		else if (key->ip.proto == IPPROTO_SCTP)
+			dst = sctp_hdr(skb)->dest;
+		else
+			return;
+
+		key->tp.dst = dst;
+	}
+}
+
 /* Modelled after nf_nat_ipv[46]_fn().
  * range is only used for new, uninitialized NAT state.
  * Returns either NF_ACCEPT or NF_DROP.
@@ -741,7 +792,7 @@ static bool skb_nfct_cached(struct net *net,
 static int ovs_ct_nat_execute(struct sk_buff *skb, struct nf_conn *ct,
 			      enum ip_conntrack_info ctinfo,
 			      const struct nf_nat_range2 *range,
-			      enum nf_nat_manip_type maniptype)
+			      enum nf_nat_manip_type maniptype, struct sw_flow_key *key)
 {
 	int hooknum, nh_off, err = NF_ACCEPT;
 
@@ -813,58 +864,11 @@ static int ovs_ct_nat_execute(struct sk_buff *skb, struct nf_conn *ct,
 push:
 	skb_push_rcsum(skb, nh_off);
 
+	/* Update the flow key if NAT successful. */
+	if (err == NF_ACCEPT)
+		ovs_nat_update_key(key, skb, maniptype);
+
 	return err;
-}
-
-static void ovs_nat_update_key(struct sw_flow_key *key,
-			       const struct sk_buff *skb,
-			       enum nf_nat_manip_type maniptype)
-{
-	if (maniptype == NF_NAT_MANIP_SRC) {
-		__be16 src;
-
-		key->ct_state |= OVS_CS_F_SRC_NAT;
-		if (key->eth.type == htons(ETH_P_IP))
-			key->ipv4.addr.src = ip_hdr(skb)->saddr;
-		else if (key->eth.type == htons(ETH_P_IPV6))
-			memcpy(&key->ipv6.addr.src, &ipv6_hdr(skb)->saddr,
-			       sizeof(key->ipv6.addr.src));
-		else
-			return;
-
-		if (key->ip.proto == IPPROTO_UDP)
-			src = udp_hdr(skb)->source;
-		else if (key->ip.proto == IPPROTO_TCP)
-			src = tcp_hdr(skb)->source;
-		else if (key->ip.proto == IPPROTO_SCTP)
-			src = sctp_hdr(skb)->source;
-		else
-			return;
-
-		key->tp.src = src;
-	} else {
-		__be16 dst;
-
-		key->ct_state |= OVS_CS_F_DST_NAT;
-		if (key->eth.type == htons(ETH_P_IP))
-			key->ipv4.addr.dst = ip_hdr(skb)->daddr;
-		else if (key->eth.type == htons(ETH_P_IPV6))
-			memcpy(&key->ipv6.addr.dst, &ipv6_hdr(skb)->daddr,
-			       sizeof(key->ipv6.addr.dst));
-		else
-			return;
-
-		if (key->ip.proto == IPPROTO_UDP)
-			dst = udp_hdr(skb)->dest;
-		else if (key->ip.proto == IPPROTO_TCP)
-			dst = tcp_hdr(skb)->dest;
-		else if (key->ip.proto == IPPROTO_SCTP)
-			dst = sctp_hdr(skb)->dest;
-		else
-			return;
-
-		key->tp.dst = dst;
-	}
 }
 
 /* Returns NF_DROP if the packet should be dropped, NF_ACCEPT otherwise. */
@@ -906,7 +910,7 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 	} else {
 		return NF_ACCEPT; /* Connection is not NATed. */
 	}
-	err = ovs_ct_nat_execute(skb, ct, ctinfo, &info->range, maniptype);
+	err = ovs_ct_nat_execute(skb, ct, ctinfo, &info->range, maniptype, key);
 
 	if (err == NF_ACCEPT && ct->status & IPS_DST_NAT) {
 		if (ct->status & IPS_SRC_NAT) {
@@ -916,16 +920,12 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 				maniptype = NF_NAT_MANIP_SRC;
 
 			err = ovs_ct_nat_execute(skb, ct, ctinfo, &info->range,
-						 maniptype);
+						 maniptype, key);
 		} else if (CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL) {
 			err = ovs_ct_nat_execute(skb, ct, ctinfo, NULL,
-						 NF_NAT_MANIP_SRC);
+						 NF_NAT_MANIP_SRC, key);
 		}
 	}
-
-	/* Mark NAT done if successful and update the flow key. */
-	if (err == NF_ACCEPT)
-		ovs_nat_update_key(key, skb, maniptype);
 
 	return err;
 }
@@ -1015,7 +1015,8 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		 * connections which we will commit, we may need to attach
 		 * the helper here.
 		 */
-		if (info->commit && info->helper && !nfct_help(ct)) {
+		if (!nf_ct_is_confirmed(ct) && info->commit &&
+		    info->helper && !nfct_help(ct)) {
 			int err = __nf_ct_try_assign_helper(ct, info->ct,
 							    GFP_ATOMIC);
 			if (err)
@@ -1342,7 +1343,9 @@ int ovs_ct_clear(struct sk_buff *skb, struct sw_flow_key *key)
 
 	nf_ct_put(ct);
 	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
-	ovs_ct_fill_key(skb, key, false);
+
+	if (key)
+		ovs_ct_fill_key(skb, key, false);
 
 	return 0;
 }
@@ -1980,7 +1983,8 @@ static int ovs_ct_limit_set_zone_limit(struct nlattr *nla_zone_limit,
 		} else {
 			struct ovs_ct_limit *ct_limit;
 
-			ct_limit = kmalloc(sizeof(*ct_limit), GFP_KERNEL);
+			ct_limit = kmalloc(sizeof(*ct_limit),
+					   GFP_KERNEL_ACCOUNT);
 			if (!ct_limit)
 				return -ENOMEM;
 
@@ -2250,14 +2254,16 @@ exit_err:
 static const struct genl_small_ops ct_limit_genl_ops[] = {
 	{ .cmd = OVS_CT_LIMIT_CMD_SET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
-					   * privilege. */
+		.flags = GENL_UNS_ADMIN_PERM, /* Requires CAP_NET_ADMIN
+					       * privilege.
+					       */
 		.doit = ovs_ct_limit_cmd_set,
 	},
 	{ .cmd = OVS_CT_LIMIT_CMD_DEL,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
-					   * privilege. */
+		.flags = GENL_UNS_ADMIN_PERM, /* Requires CAP_NET_ADMIN
+					       * privilege.
+					       */
 		.doit = ovs_ct_limit_cmd_del,
 	},
 	{ .cmd = OVS_CT_LIMIT_CMD_GET,
@@ -2281,6 +2287,7 @@ struct genl_family dp_ct_limit_genl_family __ro_after_init = {
 	.parallel_ops = true,
 	.small_ops = ct_limit_genl_ops,
 	.n_small_ops = ARRAY_SIZE(ct_limit_genl_ops),
+	.resv_start_op = OVS_CT_LIMIT_CMD_GET + 1,
 	.mcgrps = &ovs_ct_limit_multicast_group,
 	.n_mcgrps = 1,
 	.module = THIS_MODULE,

@@ -10,6 +10,7 @@
 #include "bench.h"
 #include <linux/compiler.h>
 #include "../util/debug.h"
+#include "../util/mutex.h"
 
 #ifndef HAVE_PTHREAD_BARRIER
 int bench_futex_wake_parallel(int argc __maybe_unused, const char **argv __maybe_unused)
@@ -49,8 +50,8 @@ static u_int32_t futex = 0;
 
 static pthread_t *blocked_worker;
 static bool done = false;
-static pthread_mutex_t thread_lock;
-static pthread_cond_t thread_parent, thread_worker;
+static struct mutex thread_lock;
+static struct cond thread_parent, thread_worker;
 static pthread_barrier_t barrier;
 static struct stats waketime_stats, wakeup_stats;
 static unsigned int threads_starting;
@@ -125,12 +126,12 @@ static void wakeup_threads(struct thread_data *td, pthread_attr_t thread_attr)
 
 static void *blocked_workerfn(void *arg __maybe_unused)
 {
-	pthread_mutex_lock(&thread_lock);
+	mutex_lock(&thread_lock);
 	threads_starting--;
 	if (!threads_starting)
-		pthread_cond_signal(&thread_parent);
-	pthread_cond_wait(&thread_worker, &thread_lock);
-	pthread_mutex_unlock(&thread_lock);
+		cond_signal(&thread_parent);
+	cond_wait(&thread_worker, &thread_lock);
+	mutex_unlock(&thread_lock);
 
 	while (1) { /* handle spurious wakeups */
 		if (futex_wait(&futex, 0, NULL, futex_flag) != EINTR)
@@ -144,22 +145,33 @@ static void *blocked_workerfn(void *arg __maybe_unused)
 static void block_threads(pthread_t *w, pthread_attr_t thread_attr,
 			  struct perf_cpu_map *cpu)
 {
-	cpu_set_t cpuset;
+	cpu_set_t *cpuset;
 	unsigned int i;
+	int nrcpus = perf_cpu_map__nr(cpu);
+	size_t size;
 
 	threads_starting = params.nthreads;
 
+	cpuset = CPU_ALLOC(nrcpus);
+	BUG_ON(!cpuset);
+	size = CPU_ALLOC_SIZE(nrcpus);
+
 	/* create and block all threads */
 	for (i = 0; i < params.nthreads; i++) {
-		CPU_ZERO(&cpuset);
-		CPU_SET(perf_cpu_map__cpu(cpu, i % perf_cpu_map__nr(cpu)).cpu, &cpuset);
+		CPU_ZERO_S(size, cpuset);
+		CPU_SET_S(perf_cpu_map__cpu(cpu, i % perf_cpu_map__nr(cpu)).cpu, size, cpuset);
 
-		if (pthread_attr_setaffinity_np(&thread_attr, sizeof(cpu_set_t), &cpuset))
+		if (pthread_attr_setaffinity_np(&thread_attr, size, cpuset)) {
+			CPU_FREE(cpuset);
 			err(EXIT_FAILURE, "pthread_attr_setaffinity_np");
+		}
 
-		if (pthread_create(&w[i], &thread_attr, blocked_workerfn, NULL))
+		if (pthread_create(&w[i], &thread_attr, blocked_workerfn, NULL)) {
+			CPU_FREE(cpuset);
 			err(EXIT_FAILURE, "pthread_create");
+		}
 	}
+	CPU_FREE(cpuset);
 }
 
 static void print_run(struct thread_data *waking_worker, unsigned int run_num)
@@ -283,9 +295,9 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 	init_stats(&waketime_stats);
 
 	pthread_attr_init(&thread_attr);
-	pthread_mutex_init(&thread_lock, NULL);
-	pthread_cond_init(&thread_parent, NULL);
-	pthread_cond_init(&thread_worker, NULL);
+	mutex_init(&thread_lock);
+	cond_init(&thread_parent);
+	cond_init(&thread_worker);
 
 	for (j = 0; j < bench_repeat && !done; j++) {
 		waking_worker = calloc(params.nwakes, sizeof(*waking_worker));
@@ -296,11 +308,11 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 		block_threads(blocked_worker, thread_attr, cpu);
 
 		/* make sure all threads are already blocked */
-		pthread_mutex_lock(&thread_lock);
+		mutex_lock(&thread_lock);
 		while (threads_starting)
-			pthread_cond_wait(&thread_parent, &thread_lock);
-		pthread_cond_broadcast(&thread_worker);
-		pthread_mutex_unlock(&thread_lock);
+			cond_wait(&thread_parent, &thread_lock);
+		cond_broadcast(&thread_worker);
+		mutex_unlock(&thread_lock);
 
 		usleep(100000);
 
@@ -321,9 +333,9 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 	}
 
 	/* cleanup & report results */
-	pthread_cond_destroy(&thread_parent);
-	pthread_cond_destroy(&thread_worker);
-	pthread_mutex_destroy(&thread_lock);
+	cond_destroy(&thread_parent);
+	cond_destroy(&thread_worker);
+	mutex_destroy(&thread_lock);
 	pthread_attr_destroy(&thread_attr);
 
 	print_summary();

@@ -10,6 +10,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/hugetlb.h>
+#include <linux/memremap.h>
 #include <linux/memcontrol.h>
 #include <linux/mmu_notifier.h>
 #include <linux/page_idle.h>
@@ -90,6 +91,7 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
 }
 
 static const struct proc_ops kpagecount_proc_ops = {
+	.proc_flags	= PROC_ENTRY_PERMANENT,
 	.proc_lseek	= mem_lseek,
 	.proc_read	= kpagecount_read,
 };
@@ -267,6 +269,7 @@ static ssize_t kpageflags_read(struct file *file, char __user *buf,
 }
 
 static const struct proc_ops kpageflags_proc_ops = {
+	.proc_flags	= PROC_ENTRY_PERMANENT,
 	.proc_lseek	= mem_lseek,
 	.proc_read	= kpageflags_read,
 };
@@ -321,6 +324,7 @@ static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
 }
 
 static const struct proc_ops kpagecgroup_proc_ops = {
+	.proc_flags	= PROC_ENTRY_PERMANENT,
 	.proc_lseek	= mem_lseek,
 	.proc_read	= kpagecgroup_read,
 };

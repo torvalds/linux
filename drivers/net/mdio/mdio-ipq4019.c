@@ -200,7 +200,11 @@ static int ipq_mdio_reset(struct mii_bus *bus)
 	if (ret)
 		return ret;
 
-	return clk_prepare_enable(priv->mdio_clk);
+	ret = clk_prepare_enable(priv->mdio_clk);
+	if (ret == 0)
+		mdelay(10);
+
+	return ret;
 }
 
 static int ipq4019_mdio_probe(struct platform_device *pdev)

@@ -134,7 +134,7 @@ static inline bool is_multicast_ether_addr(const u8 *addr)
 #endif
 }
 
-static inline bool is_multicast_ether_addr_64bits(const u8 addr[6+2])
+static inline bool is_multicast_ether_addr_64bits(const u8 *addr)
 {
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
 #ifdef __BIG_ENDIAN
@@ -372,8 +372,7 @@ static inline bool ether_addr_equal(const u8 *addr1, const u8 *addr2)
  * Please note that alignment of addr1 & addr2 are only guaranteed to be 16 bits.
  */
 
-static inline bool ether_addr_equal_64bits(const u8 addr1[6+2],
-					   const u8 addr2[6+2])
+static inline bool ether_addr_equal_64bits(const u8 *addr1, const u8 *addr2)
 {
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
 	u64 fold = (*(const u64 *)addr1) ^ (*(const u64 *)addr2);
@@ -427,6 +426,28 @@ static inline bool ether_addr_equal_masked(const u8 *addr1, const u8 *addr2,
 	}
 
 	return true;
+}
+
+static inline bool ether_addr_is_ipv4_mcast(const u8 *addr)
+{
+	u8 base[ETH_ALEN] = { 0x01, 0x00, 0x5e, 0x00, 0x00, 0x00 };
+	u8 mask[ETH_ALEN] = { 0xff, 0xff, 0xff, 0x80, 0x00, 0x00 };
+
+	return ether_addr_equal_masked(addr, base, mask);
+}
+
+static inline bool ether_addr_is_ipv6_mcast(const u8 *addr)
+{
+	u8 base[ETH_ALEN] = { 0x33, 0x33, 0x00, 0x00, 0x00, 0x00 };
+	u8 mask[ETH_ALEN] = { 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 };
+
+	return ether_addr_equal_masked(addr, base, mask);
+}
+
+static inline bool ether_addr_is_ip_mcast(const u8 *addr)
+{
+	return ether_addr_is_ipv4_mcast(addr) ||
+		ether_addr_is_ipv6_mcast(addr);
 }
 
 /**

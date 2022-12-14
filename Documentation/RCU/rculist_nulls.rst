@@ -8,7 +8,7 @@ This section describes how to use hlist_nulls to
 protect read-mostly linked lists and
 objects using SLAB_TYPESAFE_BY_RCU allocations.
 
-Please read the basics in Documentation/RCU/listRCU.rst
+Please read the basics in listRCU.rst.
 
 Using 'nulls'
 =============

@@ -265,7 +265,7 @@ static bool acard_ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
 	if (qc->tf.protocol == ATA_PROT_PIO && qc->dma_dir == DMA_FROM_DEVICE &&
 	    !(qc->flags & ATA_QCFLAG_FAILED)) {
 		ata_tf_from_fis(rx_fis + RX_FIS_PIO_SETUP, &qc->result_tf);
-		qc->result_tf.command = (rx_fis + RX_FIS_PIO_SETUP)[15];
+		qc->result_tf.status = (rx_fis + RX_FIS_PIO_SETUP)[15];
 	} else
 		ata_tf_from_fis(rx_fis + RX_FIS_D2H_REG, &qc->result_tf);
 

@@ -255,10 +255,6 @@ static inline void write_word_mode0(short ioaddr, unsigned short value)
 #define EE_DATA_WRITE	0x01	/* EEPROM chip data in. */
 #define EE_DATA_READ	0x08	/* EEPROM chip data out. */
 
-/* Delay between EEPROM clock transitions. */
-#define eeprom_delay(ticks) \
-do { int _i = 40; while (--_i > 0) { __SLOW_DOWN_IO; } } while (0)
-
 /* The EEPROM commands include the alway-set leading bit. */
 #define EE_WRITE_CMD(offset)	(((5 << 6) + (offset)) << 17)
 #define EE_READ(offset)		(((6 << 6) + (offset)) << 17)

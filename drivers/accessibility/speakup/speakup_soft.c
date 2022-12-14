@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2003  Kirk Reiser.
  *
- * this code is specificly written as a driver for the speakup screenreview
+ * this code is specifically written as a driver for the speakup screenreview
  * package and is not a general device driver.
  */
 
@@ -26,6 +26,7 @@
 static int softsynth_probe(struct spk_synth *synth);
 static void softsynth_release(struct spk_synth *synth);
 static int softsynth_is_alive(struct spk_synth *synth);
+static int softsynth_adjust(struct spk_synth *synth, struct st_var_header *var);
 static unsigned char get_index(struct spk_synth *synth);
 
 static struct miscdevice synth_device, synthu_device;
@@ -33,6 +34,9 @@ static int init_pos;
 static int misc_registered;
 
 static struct var_t vars[] = {
+	/* DIRECT is put first so that module_param_named can access it easily */
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
+
 	{ CAPS_START, .u.s = {"\x01+3p" } },
 	{ CAPS_STOP, .u.s = {"\x01-3p" } },
 	{ PAUSE, .u.n = {"\x01P" } },
@@ -41,10 +45,9 @@ static struct var_t vars[] = {
 	{ INFLECTION, .u.n = {"\x01%dr", 5, 0, 9, 0, 0, NULL } },
 	{ VOL, .u.n = {"\x01%dv", 5, 0, 9, 0, 0, NULL } },
 	{ TONE, .u.n = {"\x01%dx", 1, 0, 2, 0, 0, NULL } },
-	{ PUNCT, .u.n = {"\x01%db", 0, 0, 2, 0, 0, NULL } },
+	{ PUNCT, .u.n = {"\x01%db", 0, 0, 3, 0, 0, NULL } },
 	{ VOICE, .u.n = {"\x01%do", 0, 0, 7, 0, 0, NULL } },
 	{ FREQUENCY, .u.n = {"\x01%df", 5, 0, 9, 0, 0, NULL } },
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -133,7 +136,7 @@ static struct spk_synth synth_soft = {
 	.catch_up = NULL,
 	.flush = NULL,
 	.is_alive = softsynth_is_alive,
-	.synth_adjust = NULL,
+	.synth_adjust = softsynth_adjust,
 	.read_buff_add = NULL,
 	.get_index = get_index,
 	.indexing = {
@@ -397,6 +400,7 @@ static int softsynth_probe(struct spk_synth *synth)
 	synthu_device.name = "softsynthu";
 	synthu_device.fops = &softsynthu_fops;
 	if (misc_register(&synthu_device)) {
+		misc_deregister(&synth_device);
 		pr_warn("Couldn't initialize miscdevice /dev/softsynthu.\n");
 		return -ENODEV;
 	}
@@ -425,9 +429,32 @@ static int softsynth_is_alive(struct spk_synth *synth)
 	return 0;
 }
 
+static int softsynth_adjust(struct spk_synth *synth, struct st_var_header *var)
+{
+	struct st_var_header *punc_level_var;
+	struct var_t *var_data;
+
+	if (var->var_id != PUNC_LEVEL)
+		return 0;
+
+	/* We want to set the the speech synthesis punctuation level
+	 * accordingly, so it properly tunes speaking A_PUNC characters */
+	var_data = var->data;
+	if (!var_data)
+		return 0;
+	punc_level_var = spk_get_var_header(PUNCT);
+	if (!punc_level_var)
+		return 0;
+	spk_set_num_var(var_data->u.n.value, punc_level_var, E_SET);
+
+	return 1;
+}
+
 module_param_named(start, synth_soft.startup, short, 0444);
+module_param_named(direct, vars[0].u.n.default_val, int, 0444);
 
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
+MODULE_PARM_DESC(direct, "Set the direct variable on load.");
 
 module_spk_synth(synth_soft);
 

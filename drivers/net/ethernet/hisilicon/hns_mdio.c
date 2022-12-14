@@ -174,7 +174,7 @@ static int hns_mdio_wait_ready(struct mii_bus *bus)
 	u32 cmd_reg_value;
 	int i;
 
-	/* waitting for MDIO_COMMAND_REG 's mdio_start==0 */
+	/* waiting for MDIO_COMMAND_REG's mdio_start==0 */
 	/* after that can do read or write*/
 	for (i = 0; i < MDIO_TIMEOUT; i++) {
 		cmd_reg_value = MDIO_GET_REG_BIT(mdio_dev,
@@ -319,7 +319,7 @@ static int hns_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 				   MDIO_C45_READ, phy_id, devad);
 	}
 
-	/* Step 5: waitting for MDIO_COMMAND_REG 's mdio_start==0,*/
+	/* Step 5: waiting for MDIO_COMMAND_REG's mdio_start==0,*/
 	/* check for read or write opt is finished */
 	ret = hns_mdio_wait_ready(bus);
 	if (ret) {

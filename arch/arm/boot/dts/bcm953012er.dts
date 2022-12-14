@@ -37,7 +37,7 @@
 
 / {
 	model = "NorthStar Enterprise Router (BCM953012ER)";
-	compatible = "brcm,bcm953012er", "brcm,brcm53012", "brcm,bcm4708";
+	compatible = "brcm,bcm953012er", "brcm,bcm53012", "brcm,bcm4708";
 
 	memory@0 {
 		device_type = "memory";
@@ -47,13 +47,13 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		wps {
+		button-wps {
 			label = "WPS";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
 		};
 
-		restart {
+		button-restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;

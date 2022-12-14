@@ -751,7 +751,7 @@ xfrm_dev_state_flush_secctx_check(struct net *net, struct net_device *dev, bool 
 
 	for (i = 0; i <= net->xfrm.state_hmask; i++) {
 		struct xfrm_state *x;
-		struct xfrm_state_offload *xso;
+		struct xfrm_dev_offload *xso;
 
 		hlist_for_each_entry(x, net->xfrm.state_bydst+i, bydst) {
 			xso = &x->xso;
@@ -835,7 +835,7 @@ int xfrm_dev_state_flush(struct net *net, struct net_device *dev, bool task_vali
 	err = -ESRCH;
 	for (i = 0; i <= net->xfrm.state_hmask; i++) {
 		struct xfrm_state *x;
-		struct xfrm_state_offload *xso;
+		struct xfrm_dev_offload *xso;
 restart:
 		hlist_for_each_entry(x, net->xfrm.state_bydst+i, bydst) {
 			xso = &x->xso;
@@ -1579,9 +1579,6 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig,
 	memcpy(&x->mark, &orig->mark, sizeof(x->mark));
 	memcpy(&x->props.smark, &orig->props.smark, sizeof(x->props.smark));
 
-	if (xfrm_init_state(x) < 0)
-		goto error;
-
 	x->props.flags = orig->props.flags;
 	x->props.extra_flags = orig->props.extra_flags;
 
@@ -1595,6 +1592,7 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig,
 	x->replay = orig->replay;
 	x->preplay = orig->preplay;
 	x->mapping_maxage = orig->mapping_maxage;
+	x->lastused = orig->lastused;
 	x->new_mapping = 0;
 	x->new_mapping_sport = 0;
 
@@ -1606,7 +1604,8 @@ out:
 	return NULL;
 }
 
-struct xfrm_state *xfrm_migrate_state_find(struct xfrm_migrate *m, struct net *net)
+struct xfrm_state *xfrm_migrate_state_find(struct xfrm_migrate *m, struct net *net,
+						u32 if_id)
 {
 	unsigned int h;
 	struct xfrm_state *x = NULL;
@@ -1622,6 +1621,8 @@ struct xfrm_state *xfrm_migrate_state_find(struct xfrm_migrate *m, struct net *n
 				continue;
 			if (m->reqid && x->props.reqid != m->reqid)
 				continue;
+			if (if_id != 0 && x->if_id != if_id)
+				continue;
 			if (!xfrm_addr_equal(&x->id.daddr, &m->old_daddr,
 					     m->old_family) ||
 			    !xfrm_addr_equal(&x->props.saddr, &m->old_saddr,
@@ -1636,6 +1637,8 @@ struct xfrm_state *xfrm_migrate_state_find(struct xfrm_migrate *m, struct net *n
 		hlist_for_each_entry(x, net->xfrm.state_bysrc+h, bysrc) {
 			if (x->props.mode != m->mode ||
 			    x->id.proto != m->proto)
+				continue;
+			if (if_id != 0 && x->if_id != if_id)
 				continue;
 			if (!xfrm_addr_equal(&x->id.daddr, &m->old_daddr,
 					     m->old_family) ||
@@ -1662,6 +1665,11 @@ struct xfrm_state *xfrm_state_migrate(struct xfrm_state *x,
 	xc = xfrm_state_clone(x, encap);
 	if (!xc)
 		return NULL;
+
+	xc->props.family = m->new_family;
+
+	if (xfrm_init_state(xc) < 0)
+		goto error;
 
 	memcpy(&xc->id.daddr, &m->new_daddr, sizeof(xc->id.daddr));
 	memcpy(&xc->props.saddr, &m->new_saddr, sizeof(xc->props.saddr));
@@ -2064,7 +2072,7 @@ int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high)
 	} else {
 		u32 spi = 0;
 		for (h = 0; h < high-low+1; h++) {
-			spi = low + prandom_u32()%(high-low+1);
+			spi = low + prandom_u32_max(high - low + 1);
 			x0 = xfrm_state_lookup(net, mark, &x->id.daddr, htonl(spi), x->id.proto, x->props.family);
 			if (x0 == NULL) {
 				newspi = htonl(spi);
@@ -2474,22 +2482,20 @@ EXPORT_SYMBOL(xfrm_user_policy);
 
 static DEFINE_SPINLOCK(xfrm_km_lock);
 
-int xfrm_register_km(struct xfrm_mgr *km)
+void xfrm_register_km(struct xfrm_mgr *km)
 {
 	spin_lock_bh(&xfrm_km_lock);
 	list_add_tail_rcu(&km->list, &xfrm_km_list);
 	spin_unlock_bh(&xfrm_km_lock);
-	return 0;
 }
 EXPORT_SYMBOL(xfrm_register_km);
 
-int xfrm_unregister_km(struct xfrm_mgr *km)
+void xfrm_unregister_km(struct xfrm_mgr *km)
 {
 	spin_lock_bh(&xfrm_km_lock);
 	list_del_rcu(&km->list);
 	spin_unlock_bh(&xfrm_km_lock);
 	synchronize_rcu();
-	return 0;
 }
 EXPORT_SYMBOL(xfrm_unregister_km);
 
@@ -2572,7 +2578,7 @@ void xfrm_state_delete_tunnel(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(xfrm_state_delete_tunnel);
 
-u32 __xfrm_state_mtu(struct xfrm_state *x, int mtu)
+u32 xfrm_state_mtu(struct xfrm_state *x, int mtu)
 {
 	const struct xfrm_type *type = READ_ONCE(x->type);
 	struct crypto_aead *aead;
@@ -2603,19 +2609,10 @@ u32 __xfrm_state_mtu(struct xfrm_state *x, int mtu)
 	return ((mtu - x->props.header_len - crypto_aead_authsize(aead) -
 		 net_adj) & ~(blksize - 1)) + net_adj - 2;
 }
-EXPORT_SYMBOL_GPL(__xfrm_state_mtu);
+EXPORT_SYMBOL_GPL(xfrm_state_mtu);
 
-u32 xfrm_state_mtu(struct xfrm_state *x, int mtu)
-{
-	mtu = __xfrm_state_mtu(x, mtu);
-
-	if (x->props.family == AF_INET6 && mtu < IPV6_MIN_MTU)
-		return IPV6_MIN_MTU;
-
-	return mtu;
-}
-
-int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
+int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload,
+		      struct netlink_ext_ack *extack)
 {
 	const struct xfrm_mode *inner_mode;
 	const struct xfrm_mode *outer_mode;
@@ -2623,19 +2620,23 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 	int err;
 
 	if (family == AF_INET &&
-	    xs_net(x)->ipv4.sysctl_ip_no_pmtu_disc)
+	    READ_ONCE(xs_net(x)->ipv4.sysctl_ip_no_pmtu_disc))
 		x->props.flags |= XFRM_STATE_NOPMTUDISC;
 
 	err = -EPROTONOSUPPORT;
 
 	if (x->sel.family != AF_UNSPEC) {
 		inner_mode = xfrm_get_mode(x->props.mode, x->sel.family);
-		if (inner_mode == NULL)
+		if (inner_mode == NULL) {
+			NL_SET_ERR_MSG(extack, "Requested mode not found");
 			goto error;
+		}
 
 		if (!(inner_mode->flags & XFRM_MODE_FLAG_TUNNEL) &&
-		    family != x->sel.family)
+		    family != x->sel.family) {
+			NL_SET_ERR_MSG(extack, "Only tunnel modes can accommodate a change of family");
 			goto error;
+		}
 
 		x->inner_mode = *inner_mode;
 	} else {
@@ -2643,11 +2644,15 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 		int iafamily = AF_INET;
 
 		inner_mode = xfrm_get_mode(x->props.mode, x->props.family);
-		if (inner_mode == NULL)
+		if (inner_mode == NULL) {
+			NL_SET_ERR_MSG(extack, "Requested mode not found");
 			goto error;
+		}
 
-		if (!(inner_mode->flags & XFRM_MODE_FLAG_TUNNEL))
+		if (!(inner_mode->flags & XFRM_MODE_FLAG_TUNNEL)) {
+			NL_SET_ERR_MSG(extack, "Only tunnel modes can accommodate an AF_UNSPEC selector");
 			goto error;
+		}
 
 		x->inner_mode = *inner_mode;
 
@@ -2662,24 +2667,27 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 	}
 
 	x->type = xfrm_get_type(x->id.proto, family);
-	if (x->type == NULL)
+	if (x->type == NULL) {
+		NL_SET_ERR_MSG(extack, "Requested type not found");
 		goto error;
+	}
 
 	x->type_offload = xfrm_get_type_offload(x->id.proto, family, offload);
 
-	err = x->type->init_state(x);
+	err = x->type->init_state(x, extack);
 	if (err)
 		goto error;
 
 	outer_mode = xfrm_get_mode(x->props.mode, family);
 	if (!outer_mode) {
+		NL_SET_ERR_MSG(extack, "Requested mode not found");
 		err = -EPROTONOSUPPORT;
 		goto error;
 	}
 
 	x->outer_mode = *outer_mode;
 	if (init_replay) {
-		err = xfrm_init_replay(x);
+		err = xfrm_init_replay(x, extack);
 		if (err)
 			goto error;
 	}
@@ -2694,7 +2702,7 @@ int xfrm_init_state(struct xfrm_state *x)
 {
 	int err;
 
-	err = __xfrm_init_state(x, true, false);
+	err = __xfrm_init_state(x, true, false, NULL);
 	if (!err)
 		x->km.state = XFRM_STATE_VALID;
 

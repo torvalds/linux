@@ -7,6 +7,9 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
+#define NR_XMITFRAME		256
+#define WMM_XMIT_THRESHOLD	(NR_XMITFRAME * 2 / 5)
+
 #define MAX_XMITBUF_SZ	(20480)	/*  20k */
 #define NR_XMITBUFF		(4)
 
@@ -198,7 +201,7 @@ struct xmit_buf {
 	u32  len;
 	struct submit_ctx *sctx;
 	u32	ff_hwaddr;
-	struct urb *pxmit_urb[8];
+	struct urb *pxmit_urb;
 	dma_addr_t dma_transfer_addr;	/* (in) dma addr for transfer_buffer */
 	u8 bpending[8];
 	int last[8];
@@ -304,6 +307,15 @@ struct	xmit_priv {
 	struct submit_ctx ack_tx_ops;
 };
 
+struct pkt_file {
+	struct sk_buff *pkt;
+	size_t pkt_len;	 /* the remainder length of the open_file */
+	unsigned char *cur_buffer;
+	u8 *buf_start;
+	u8 *cur_addr;
+	size_t buf_len;
+};
+
 struct xmit_buf *rtw_alloc_xmitbuf_ext(struct xmit_priv *pxmitpriv);
 s32 rtw_free_xmitbuf_ext(struct xmit_priv *pxmitpriv,
 			 struct xmit_buf *pxmitbuf);
@@ -341,7 +353,7 @@ s32 rtw_txframes_sta_ac_pending(struct adapter *padapter,
 void rtw_init_hwxmits(struct hw_xmit *phwxmit, int entry);
 s32 _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter);
 void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv);
-void rtw_alloc_hwxmits(struct adapter *padapter);
+int rtw_alloc_hwxmits(struct adapter *padapter);
 void rtw_free_hwxmits(struct adapter *padapter);
 s32 rtw_xmit(struct adapter *padapter, struct sk_buff **pkt);
 
@@ -355,7 +367,7 @@ u32	rtw_get_ff_hwaddr(struct xmit_frame *pxmitframe);
 int rtw_ack_tx_wait(struct xmit_priv *pxmitpriv, u32 timeout_ms);
 void rtw_ack_tx_done(struct xmit_priv *pxmitpriv, int status);
 
-/* include after declaring struct xmit_buf, in order to avoid warning */
-#include "xmit_osdep.h"
+void rtw_xmit_complete(struct adapter *padapter, struct xmit_frame *pxframe);
+netdev_tx_t rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev);
 
 #endif	/* _RTL871X_XMIT_H_ */

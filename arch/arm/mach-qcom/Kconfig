@@ -2,7 +2,6 @@
 menuconfig ARCH_QCOM
 	bool "Qualcomm Support"
 	depends on ARCH_MULTI_V7
-	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARM_GIC
 	select ARM_AMBA
 	select PINCTRL
@@ -20,6 +19,10 @@ config ARCH_IPQ40XX
 config ARCH_MSM8X60
 	bool "Enable support for MSM8X60"
 	select CLKSRC_QCOM
+
+config ARCH_MSM8909
+	bool "Enable support for MSM8909"
+	select HAVE_ARM_ARCH_TIMER
 
 config ARCH_MSM8916
 	bool "Enable support for MSM8916"

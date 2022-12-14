@@ -43,6 +43,8 @@ void notrace __cpu_suspend_exit(void)
 {
 	unsigned int cpu = smp_processor_id();
 
+	mte_suspend_exit();
+
 	/*
 	 * We are resuming from reset with the idmap active in TTBR0_EL1.
 	 * We must uninstall the idmap and restore the expected MMU
@@ -52,7 +54,7 @@ void notrace __cpu_suspend_exit(void)
 
 	/* Restore CnP bit in TTBR1_EL1 */
 	if (system_supports_cnp())
-		cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
+		cpu_replace_ttbr1(lm_alias(swapper_pg_dir), idmap_pg_dir);
 
 	/*
 	 * PSTATE was not saved over suspend/resume, re-enable any detected
@@ -140,7 +142,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	/*
 	 * Restore pstate flags. OS lock and mdscr have been already
 	 * restored, so from this point onwards, debugging is fully
-	 * renabled if it was enabled when core started shutdown.
+	 * reenabled if it was enabled when core started shutdown.
 	 */
 	local_daif_restore(flags);
 

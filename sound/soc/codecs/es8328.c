@@ -84,7 +84,7 @@ struct es8328_priv {
 	int mclkdiv2;
 	const struct snd_pcm_hw_constraint_list *sysclk_constraints;
 	const int *mclk_ratios;
-	bool master;
+	bool provider;
 	struct regulator_bulk_data supplies[ES8328_SUPPLY_NUM];
 };
 
@@ -161,13 +161,16 @@ static int es8328_put_deemph(struct snd_kcontrol *kcontrol,
 	if (deemph > 1)
 		return -EINVAL;
 
+	if (es8328->deemph == deemph)
+		return 0;
+
 	ret = es8328_set_deemph(component);
 	if (ret < 0)
 		return ret;
 
 	es8328->deemph = deemph;
 
-	return 0;
+	return 1;
 }
 
 
@@ -462,7 +465,7 @@ static int es8328_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct es8328_priv *es8328 = snd_soc_component_get_drvdata(component);
 
-	if (es8328->master && es8328->sysclk_constraints)
+	if (es8328->provider && es8328->sysclk_constraints)
 		snd_pcm_hw_constraint_list(substream->runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE,
 				es8328->sysclk_constraints);
@@ -486,7 +489,7 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 	else
 		reg = ES8328_ADCCONTROL5;
 
-	if (es8328->master) {
+	if (es8328->provider) {
 		if (!es8328->sysclk_constraints) {
 			dev_err(component->dev, "No MCLK configured\n");
 			return -EINVAL;
@@ -590,19 +593,19 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	u8 dac_mode = 0;
 	u8 adc_mode = 0;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		/* Master serial port mode, with BCLK generated automatically */
 		snd_soc_component_update_bits(component, ES8328_MASTERMODE,
 				    ES8328_MASTERMODE_MSC,
 				    ES8328_MASTERMODE_MSC);
-		es8328->master = true;
+		es8328->provider = true;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		/* Slave serial port mode */
 		snd_soc_component_update_bits(component, ES8328_MASTERMODE,
 				    ES8328_MASTERMODE_MSC, 0);
-		es8328->master = false;
+		es8328->provider = false;
 		break;
 	default:
 		return -EINVAL;
@@ -841,7 +844,6 @@ static const struct snd_soc_component_driver es8328_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 int es8328_probe(struct device *dev, struct regmap *regmap)

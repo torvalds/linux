@@ -62,7 +62,7 @@ Documentation/process/howto.rst
  - "Practical C Programming" by Steve Oualline [O'Reilly]
  - "C:  A Reference Manual" by Harbison and Steele [Prentice Hall]
 
-커널은 GNU C와 GNU 툴체인을 사용하여 작성되었다. 이 툴들은 ISO C89 표준을
+커널은 GNU C와 GNU 툴체인을 사용하여 작성되었다. 이 툴들은 ISO C11 표준을
 따르는 반면 표준에 있지 않은 많은 확장기능도 가지고 있다. 커널은 표준 C
 라이브러리와는 관계없이 freestanding C 환경이어서 C 표준의 일부는
 지원되지 않는다. 임의의 long long 나누기나 floating point는 지원되지 않는다.
@@ -124,7 +124,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     메인테이너들은 이 규칙을 따르는 패치들만을 받아들일 것이고 많은 사람들이
     그 패치가 올바른 스타일일 경우만 코드를 검토할 것이다.
 
-  :ref:`Documentation/process/submitting-patches.rst <submittingpatches>` 와 :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
+  :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
     이 파일들은 성공적으로 패치를 만들고 보내는 법을 다음의 내용들로
     굉장히 상세히 설명하고 있다(그러나 다음으로 한정되진 않는다).
 
@@ -386,7 +386,7 @@ https://bugzilla.kernel.org 를 체크하고자 할 수도 있다; 소수의 커
 웹상의 많은 다른 곳에도 메일링 리스트의 아카이브들이 있다.
 이러한 아카이브들을 찾으려면 검색 엔진을 사용하라. 예를 들어:
 
-      http://dir.gmane.org/gmane.linux.kernel
+      https://lore.kernel.org/lkml/
 
 여러분이 새로운 문제에 관해 리스트에 올리기 전에 말하고 싶은 주제에 관한
 것을 아카이브에서 먼저 찾아보기를 강력히 권장한다. 이미 상세하게 토론된 많은

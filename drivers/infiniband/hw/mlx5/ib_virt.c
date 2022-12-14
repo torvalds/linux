@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
 #include <linux/mlx5/vport.h>
 #include "mlx5_ib.h"
 

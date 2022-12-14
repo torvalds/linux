@@ -130,7 +130,7 @@ struct blk_zone_report {
 	__u64		sector;
 	__u32		nr_zones;
 	__u32		flags;
-	struct blk_zone zones[0];
+	struct blk_zone zones[];
 };
 
 /**

@@ -52,7 +52,7 @@
 			status = "okay";
 		};
 
-		dma@7884000 {
+		dma-controller@7884000 {
 			status = "okay";
 		};
 
@@ -62,7 +62,7 @@
 			status = "okay";
 		};
 
-		dma@7984000 {
+		dma-controller@7984000 {
 			status = "okay";
 		};
 

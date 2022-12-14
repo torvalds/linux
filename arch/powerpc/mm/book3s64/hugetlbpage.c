@@ -150,7 +150,7 @@ void huge_ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr
 	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
 }
 
-void __init hugetlbpage_init_default(void)
+void __init hugetlbpage_init_defaultsize(void)
 {
 	/* Set default large page size. Currently, we pick 16M or 1M
 	 * depending on what is available

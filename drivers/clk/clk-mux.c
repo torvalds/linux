@@ -40,7 +40,7 @@ static inline void clk_mux_writel(struct clk_mux *mux, u32 val)
 		writel(val, mux->reg);
 }
 
-int clk_mux_val_to_index(struct clk_hw *hw, u32 *table, unsigned int flags,
+int clk_mux_val_to_index(struct clk_hw *hw, const u32 *table, unsigned int flags,
 			 unsigned int val)
 {
 	int num_parents = clk_hw_get_num_parents(hw);
@@ -67,7 +67,7 @@ int clk_mux_val_to_index(struct clk_hw *hw, u32 *table, unsigned int flags,
 }
 EXPORT_SYMBOL_GPL(clk_mux_val_to_index);
 
-unsigned int clk_mux_index_to_val(u32 *table, unsigned int flags, u8 index)
+unsigned int clk_mux_index_to_val(const u32 *table, unsigned int flags, u8 index)
 {
 	unsigned int val = index;
 
@@ -152,16 +152,16 @@ struct clk_hw *__clk_hw_register_mux(struct device *dev, struct device_node *np,
 		const struct clk_hw **parent_hws,
 		const struct clk_parent_data *parent_data,
 		unsigned long flags, void __iomem *reg, u8 shift, u32 mask,
-		u8 clk_mux_flags, u32 *table, spinlock_t *lock)
+		u8 clk_mux_flags, const u32 *table, spinlock_t *lock)
 {
 	struct clk_mux *mux;
 	struct clk_hw *hw;
 	struct clk_init_data init = {};
-	u8 width = 0;
 	int ret = -EINVAL;
 
 	if (clk_mux_flags & CLK_MUX_HIWORD_MASK) {
-		width = fls(mask) - ffs(mask) + 1;
+		u8 width = fls(mask) - ffs(mask) + 1;
+
 		if (width + shift > 16) {
 			pr_err("mux value exceeds LOWORD field\n");
 			return ERR_PTR(-EINVAL);
@@ -218,7 +218,7 @@ struct clk_hw *__devm_clk_hw_register_mux(struct device *dev, struct device_node
 		const struct clk_hw **parent_hws,
 		const struct clk_parent_data *parent_data,
 		unsigned long flags, void __iomem *reg, u8 shift, u32 mask,
-		u8 clk_mux_flags, u32 *table, spinlock_t *lock)
+		u8 clk_mux_flags, const u32 *table, spinlock_t *lock)
 {
 	struct clk_hw **ptr, *hw;
 
@@ -244,7 +244,7 @@ EXPORT_SYMBOL_GPL(__devm_clk_hw_register_mux);
 struct clk *clk_register_mux_table(struct device *dev, const char *name,
 		const char * const *parent_names, u8 num_parents,
 		unsigned long flags, void __iomem *reg, u8 shift, u32 mask,
-		u8 clk_mux_flags, u32 *table, spinlock_t *lock)
+		u8 clk_mux_flags, const u32 *table, spinlock_t *lock)
 {
 	struct clk_hw *hw;
 

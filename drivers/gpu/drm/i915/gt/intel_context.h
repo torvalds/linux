@@ -25,6 +25,8 @@
 		     ##__VA_ARGS__);					\
 } while (0)
 
+#define INTEL_CONTEXT_BANNED_PREEMPT_TIMEOUT_MS (1)
+
 struct i915_gem_ww_ctx;
 
 void intel_context_init(struct intel_context *ce,
@@ -309,17 +311,25 @@ static inline bool intel_context_set_banned(struct intel_context *ce)
 	return test_and_set_bit(CONTEXT_BANNED, &ce->flags);
 }
 
-static inline bool intel_context_ban(struct intel_context *ce,
-				     struct i915_request *rq)
+bool intel_context_ban(struct intel_context *ce, struct i915_request *rq);
+
+static inline bool intel_context_is_schedulable(const struct intel_context *ce)
 {
-	bool ret = intel_context_set_banned(ce);
-
-	trace_intel_context_ban(ce);
-	if (ce->ops->ban)
-		ce->ops->ban(ce, rq);
-
-	return ret;
+	return !test_bit(CONTEXT_EXITING, &ce->flags) &&
+	       !test_bit(CONTEXT_BANNED, &ce->flags);
 }
+
+static inline bool intel_context_is_exiting(const struct intel_context *ce)
+{
+	return test_bit(CONTEXT_EXITING, &ce->flags);
+}
+
+static inline bool intel_context_set_exiting(struct intel_context *ce)
+{
+	return test_and_set_bit(CONTEXT_EXITING, &ce->flags);
+}
+
+bool intel_context_revoke(struct intel_context *ce);
 
 static inline bool
 intel_context_force_single_submission(const struct intel_context *ce)
@@ -351,18 +361,13 @@ intel_context_clear_nopreempt(struct intel_context *ce)
 	clear_bit(CONTEXT_NOPREEMPT, &ce->flags);
 }
 
-static inline u64 intel_context_get_total_runtime_ns(struct intel_context *ce)
+u64 intel_context_get_total_runtime_ns(const struct intel_context *ce);
+u64 intel_context_get_avg_runtime_ns(struct intel_context *ce);
+
+static inline u64 intel_context_clock(void)
 {
-	const u32 period = ce->engine->gt->clock_period_ns;
-
-	return READ_ONCE(ce->runtime.total) * period;
-}
-
-static inline u64 intel_context_get_avg_runtime_ns(struct intel_context *ce)
-{
-	const u32 period = ce->engine->gt->clock_period_ns;
-
-	return mul_u32_u32(ewma_runtime_read(&ce->runtime.avg), period);
+	/* As we mix CS cycles with CPU clocks, use the raw monotonic clock. */
+	return ktime_get_raw_fast_ns();
 }
 
 #endif /* __INTEL_CONTEXT_H__ */

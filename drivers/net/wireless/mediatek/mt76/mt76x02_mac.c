@@ -404,7 +404,7 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 		txwi->rate |= cpu_to_le16(MT_RXWI_RATE_LDPC);
 	if ((info->flags & IEEE80211_TX_CTL_STBC) && nss == 1)
 		txwi->rate |= cpu_to_le16(MT_RXWI_RATE_STBC);
-	if (nss > 1 && sta && sta->smps_mode == IEEE80211_SMPS_DYNAMIC)
+	if (nss > 1 && sta && sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC)
 		txwi_flags |= MT_TXWI_FLAGS_MMPS;
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_REQ;
@@ -412,9 +412,9 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_NSEQ;
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) && sta) {
 		u8 ba_size = IEEE80211_MIN_AMPDU_BUF;
-		u8 ampdu_density = sta->ht_cap.ampdu_density;
+		u8 ampdu_density = sta->deflink.ht_cap.ampdu_density;
 
-		ba_size <<= sta->ht_cap.ampdu_factor;
+		ba_size <<= sta->deflink.ht_cap.ampdu_factor;
 		ba_size = min_t(int, 63, ba_size - 1);
 		if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
 			ba_size = 0;
@@ -860,9 +860,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 		status->chain_signal[1] = mt76x02_mac_get_rssi(dev,
 							       rxwi->rssi[1],
 							       1);
-		signal = max_t(s8, signal, status->chain_signal[1]);
 	}
-	status->signal = signal;
 	status->freq = dev->mphy.chandef.chan->center_freq;
 	status->band = dev->mphy.chandef.chan->band;
 
@@ -1040,15 +1038,34 @@ EXPORT_SYMBOL_GPL(mt76x02_update_channel);
 
 static void mt76x02_check_mac_err(struct mt76x02_dev *dev)
 {
-	u32 val = mt76_rr(dev, 0x10f4);
+	if (dev->mt76.beacon_mask) {
+		if (mt76_rr(dev, MT_TX_STA_0) & MT_TX_STA_0_BEACONS) {
+			dev->beacon_hang_check = 0;
+			return;
+		}
 
-	if (!(val & BIT(29)) || !(val & (BIT(7) | BIT(5))))
-		return;
+		if (dev->beacon_hang_check < 10)
+			return;
 
-	dev_err(dev->mt76.dev, "mac specific condition occurred\n");
+	} else {
+		u32 val = mt76_rr(dev, 0x10f4);
+		if (!(val & BIT(29)) || !(val & (BIT(7) | BIT(5))))
+			return;
+	}
 
+	dev_err(dev->mt76.dev, "MAC error detected\n");
+
+	mt76_wr(dev, MT_MAC_SYS_CTRL, 0);
+	if (!mt76x02_wait_for_txrx_idle(&dev->mt76)) {
+		dev_err(dev->mt76.dev, "MAC stop failed\n");
+		goto out;
+	}
+
+	dev->beacon_hang_check = 0;
 	mt76_set(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_RESET_CSR);
 	udelay(10);
+
+out:
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
 		MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
 }
@@ -1178,8 +1195,7 @@ void mt76x02_mac_work(struct work_struct *work)
 		dev->mt76.aggr_stats[idx++] += val >> 16;
 	}
 
-	if (!dev->mt76.beacon_mask)
-		mt76x02_check_mac_err(dev);
+	mt76x02_check_mac_err(dev);
 
 	if (dev->ed_monitor)
 		mt76x02_edcca_check(dev);

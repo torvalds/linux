@@ -164,6 +164,11 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 		}
 		if (!ret)
 			gfs2_make_fs_ro(sdp);
+		/*
+		 * Dequeue any pending non-system glock holders that can no
+		 * longer be granted because the file system is withdrawn.
+		 */
+		gfs2_gl_dq_holders(sdp);
 		gfs2_freeze_unlock(&freeze_gh);
 	}
 
@@ -204,6 +209,7 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	 * exception code in glock_dq.
 	 */
 	iput(inode);
+	sdp->sd_jdesc->jd_inode = NULL;
 	/*
 	 * Wait until the journal inode's glock is freed. This allows try locks
 	 * on other nodes to be successful, otherwise we remain the owner of
@@ -226,7 +232,8 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	 */
 	fs_warn(sdp, "Requesting recovery of jid %d.\n",
 		sdp->sd_lockstruct.ls_jid);
-	gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | LM_FLAG_NOEXP,
+	gfs2_holder_reinit(LM_ST_EXCLUSIVE,
+			   LM_FLAG_TRY_1CB | LM_FLAG_NOEXP | GL_NOPID,
 			   &sdp->sd_live_gh);
 	msleep(GL_GLOCK_MAX_HOLD);
 	/*
@@ -251,7 +258,8 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 			fs_warn(sdp, "Unable to recover our journal jid %d.\n",
 				sdp->sd_lockstruct.ls_jid);
 		gfs2_glock_dq_wait(&sdp->sd_live_gh);
-		gfs2_holder_reinit(LM_ST_SHARED, LM_FLAG_NOEXP | GL_EXACT,
+		gfs2_holder_reinit(LM_ST_SHARED,
+				   LM_FLAG_NOEXP | GL_EXACT | GL_NOPID,
 				   &sdp->sd_live_gh);
 		gfs2_glock_nq(&sdp->sd_live_gh);
 	}

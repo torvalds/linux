@@ -801,8 +801,6 @@ struct qeth_priv {
 	u32 brport_features;
 };
 
-#define QETH_NAPI_WEIGHT NAPI_POLL_WEIGHT
-
 struct qeth_card {
 	enum qeth_card_states state;
 	spinlock_t lock;

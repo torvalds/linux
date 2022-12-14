@@ -7,7 +7,6 @@
  *  - HAVE_MARCH_Z196_FEATURES: laal, laalg
  *  - HAVE_MARCH_Z10_FEATURES: msfi, cgrj, clgrj
  *  - HAVE_MARCH_Z9_109_FEATURES: alfi, llilf, clfi, oilf, nilf
- *  - PACK_STACK
  *  - 64BIT
  *
  * Copyright IBM Corp. 2012,2015
@@ -26,6 +25,7 @@
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <asm/cacheflush.h>
+#include <asm/extable.h>
 #include <asm/dis.h>
 #include <asm/facility.h>
 #include <asm/nospec-branch.h>
@@ -570,15 +570,8 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	if (nospec_uses_trampoline()) {
 		jit->r14_thunk_ip = jit->prg;
 		/* Generate __s390_indirect_jump_r14 thunk */
-		if (test_facility(35)) {
-			/* exrl %r0,.+10 */
-			EMIT6_PCREL_RIL(0xc6000000, jit->prg + 10);
-		} else {
-			/* larl %r1,.+14 */
-			EMIT6_PCREL_RILB(0xc0000000, REG_1, jit->prg + 14);
-			/* ex 0,0(%r1) */
-			EMIT4_DISP(0x44000000, REG_0, REG_1, 0);
-		}
+		/* exrl %r0,.+10 */
+		EMIT6_PCREL_RIL(0xc6000000, jit->prg + 10);
 		/* j . */
 		EMIT4_PCREL(0xa7f40000, 0);
 	}
@@ -589,20 +582,12 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	    (is_first_pass(jit) || (jit->seen & SEEN_FUNC))) {
 		jit->r1_thunk_ip = jit->prg;
 		/* Generate __s390_indirect_jump_r1 thunk */
-		if (test_facility(35)) {
-			/* exrl %r0,.+10 */
-			EMIT6_PCREL_RIL(0xc6000000, jit->prg + 10);
-			/* j . */
-			EMIT4_PCREL(0xa7f40000, 0);
-			/* br %r1 */
-			_EMIT2(0x07f1);
-		} else {
-			/* ex 0,S390_lowcore.br_r1_tampoline */
-			EMIT4_DISP(0x44000000, REG_0, REG_0,
-				   offsetof(struct lowcore, br_r1_trampoline));
-			/* j . */
-			EMIT4_PCREL(0xa7f40000, 0);
-		}
+		/* exrl %r0,.+10 */
+		EMIT6_PCREL_RIL(0xc6000000, jit->prg + 10);
+		/* j . */
+		EMIT4_PCREL(0xa7f40000, 0);
+		/* br %r1 */
+		_EMIT2(0x07f1);
 	}
 }
 
@@ -622,19 +607,10 @@ static int get_probe_mem_regno(const u8 *insn)
 	return insn[1] >> 4;
 }
 
-static bool ex_handler_bpf(const struct exception_table_entry *x,
-			   struct pt_regs *regs)
+bool ex_handler_bpf(const struct exception_table_entry *x, struct pt_regs *regs)
 {
-	int regno;
-	u8 *insn;
-
 	regs->psw.addr = extable_fixup(x);
-	insn = (u8 *)__rewind_psw(regs->psw, regs->int_code >> 16);
-	regno = get_probe_mem_regno(insn);
-	if (WARN_ON_ONCE(regno < 0))
-		/* JIT bug - unexpected instruction. */
-		return false;
-	regs->gprs[regno] = 0;
+	regs->gprs[x->data] = 0;
 	return true;
 }
 
@@ -642,16 +618,17 @@ static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
 			     int probe_prg, int nop_prg)
 {
 	struct exception_table_entry *ex;
+	int reg, prg;
 	s64 delta;
 	u8 *insn;
-	int prg;
 	int i;
 
 	if (!fp->aux->extable)
 		/* Do nothing during early JIT passes. */
 		return 0;
 	insn = jit->prg_buf + probe_prg;
-	if (WARN_ON_ONCE(get_probe_mem_regno(insn) < 0))
+	reg = get_probe_mem_regno(insn);
+	if (WARN_ON_ONCE(reg < 0))
 		/* JIT bug - unexpected probe instruction. */
 		return -1;
 	if (WARN_ON_ONCE(probe_prg + insn_length(*insn) != nop_prg))
@@ -678,7 +655,8 @@ static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
 			/* JIT bug - landing pad and extable must be close. */
 			return -1;
 		ex->fixup = delta;
-		ex->handler = (u8 *)ex_handler_bpf - (u8 *)&ex->handler;
+		ex->type = EX_TYPE_BPF;
+		ex->data = reg;
 		jit->excnt++;
 	}
 	return 0;
@@ -1831,7 +1809,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	/*
 	 * Three initial passes:
 	 *   - 1/2: Determine clobbered registers
-	 *   - 3:   Calculate program size and addrs arrray
+	 *   - 3:   Calculate program size and addrs array
 	 */
 	for (pass = 1; pass <= 3; pass++) {
 		if (bpf_jit_prog(&jit, fp, extra_pass, stack_depth)) {

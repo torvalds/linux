@@ -38,7 +38,7 @@ enum clock_rate {
 #define ELDO_CTRL_REG   0x12
 
 #define ELDO1_SEL_REG	0x19
-#define ELDO1_1P8V	0x16
+#define ELDO1_1P6V	0x12
 #define ELDO1_CTRL_SHIFT 0x00
 
 #define ELDO2_SEL_REG	0x1a
@@ -89,7 +89,7 @@ struct gmin_subdev {
 	u8 pwm_i2c_addr;
 
 	/* For PMIC AXP */
-	int eldo1_sel_reg, eldo1_1p8v, eldo1_ctrl_shift;
+	int eldo1_sel_reg, eldo1_1p6v, eldo1_ctrl_shift;
 	int eldo2_sel_reg, eldo2_1p8v, eldo2_ctrl_shift;
 };
 
@@ -118,6 +118,10 @@ static const char *pmic_name[] = {
 	[PMIC_CRYSTALCOVE]	= "Crystal Cove PMIC",
 };
 
+static DEFINE_MUTEX(gmin_regulator_mutex);
+static int gmin_v1p8_enable_count;
+static int gmin_v2p8_enable_count;
+
 /* The atomisp uses type==0 for the end-of-list marker, so leave space. */
 static struct intel_v4l2_subdev_table pdata_subdevs[MAX_SUBDEVS + 1];
 
@@ -129,24 +133,6 @@ static LIST_HEAD(vcm_devices);
 static DEFINE_MUTEX(vcm_lock);
 
 static struct gmin_subdev *find_gmin_subdev(struct v4l2_subdev *subdev);
-
-/*
- * Legacy/stub behavior copied from upstream platform_camera.c.  The
- * atomisp driver relies on these values being non-NULL in a few
- * places, even though they are hard-coded in all current
- * implementations.
- */
-const struct atomisp_camera_caps *atomisp_get_default_camera_caps(void)
-{
-	static const struct atomisp_camera_caps caps = {
-		.sensor_num = 1,
-		.sensor = {
-			{ .stream_num = 1, },
-		},
-	};
-	return &caps;
-}
-EXPORT_SYMBOL_GPL(atomisp_get_default_camera_caps);
 
 const struct atomisp_platform_data *atomisp_get_platform_data(void)
 {
@@ -536,7 +522,7 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 	struct i2c_client *client = v4l2_get_subdevdata(gs->subdev);
 	struct device *dev = &client->dev;
 	struct acpi_device *adev = ACPI_COMPANION(dev);
-	int ret, clock_num = -1;
+	int ret, default_val, clock_num = -1;
 
 	dev_info(dev, "%s: ACPI path is %pfw\n", __func__, dev_fwnode(dev));
 
@@ -544,7 +530,20 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 	gs->clock_src = gmin_get_var_int(dev, false, "ClkSrc",
 				         VLV2_CLK_PLL_19P2MHZ);
 
-	gs->csi_port = gmin_get_var_int(dev, false, "CsiPort", 0);
+	/*
+	 * Get ACPI _PR0 derived clock here already because it is used
+	 * to determine the csi_port default.
+	 */
+	if (acpi_device_power_manageable(adev))
+		clock_num = atomisp_get_acpi_power(dev);
+
+	/* Compare clock to CsiPort 1 pmc-clock used in the CHT/BYT reference designs */
+	if (IS_ISP2401)
+		default_val = clock_num == 4 ? 1 : 0;
+	else
+		default_val = clock_num == 0 ? 1 : 0;
+
+	gs->csi_port = gmin_get_var_int(dev, false, "CsiPort", default_val);
 	gs->csi_lanes = gmin_get_var_int(dev, false, "CsiLanes", 1);
 
 	gs->gpio0 = gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
@@ -625,11 +624,7 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 	 * otherwise.
 	 */
 
-	/* Try first to use ACPI to get the clock resource */
-	if (acpi_device_power_manageable(adev))
-		clock_num = atomisp_get_acpi_power(dev);
-
-	/* Fall-back use EFI and/or DMI match */
+	/* If getting the clock from _PR0 above failed, fall-back to EFI and/or DMI match */
 	if (clock_num < 0)
 		clock_num = gmin_get_var_int(dev, false, "CamClk", 0);
 
@@ -681,9 +676,9 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 		break;
 
 	case PMIC_AXP:
-		gs->eldo1_1p8v = gmin_get_var_int(dev, false,
+		gs->eldo1_1p6v = gmin_get_var_int(dev, false,
 						  "eldo1_1p8v",
-						  ELDO1_1P8V);
+						  ELDO1_1P6V);
 		gs->eldo1_sel_reg = gmin_get_var_int(dev, false,
 						     "eldo1_sel_reg",
 						     ELDO1_SEL_REG);
@@ -741,12 +736,27 @@ static int axp_regulator_set(struct device *dev, struct gmin_subdev *gs,
 
 	val = on ? 1 << shift : 0;
 
-	ret = gmin_i2c_write(dev, gs->pwm_i2c_addr, sel_reg, val, 1 << shift);
+	ret = gmin_i2c_write(dev, gs->pwm_i2c_addr, ctrl_reg, val, 1 << shift);
 	if (ret)
 		return ret;
 
 	return 0;
 }
+
+/*
+ * Some boards contain a hw-bug where turning eldo2 back on after having turned
+ * it off causes the CPLM3218 ambient-light-sensor on the image-sensor's I2C bus
+ * to crash, hanging the bus. Do not turn eldo2 off on these systems.
+ */
+static const struct dmi_system_id axp_leave_eldo2_on_ids[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TrekStor"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SurfTab duo W1 10.1 (VT4)"),
+		},
+	},
+	{ }
+};
 
 static int axp_v1p8_on(struct device *dev, struct gmin_subdev *gs)
 {
@@ -763,13 +773,8 @@ static int axp_v1p8_on(struct device *dev, struct gmin_subdev *gs)
 	 */
 	usleep_range(110, 150);
 
-	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p8v,
-		ELDO_CTRL_REG, gs->eldo1_ctrl_shift, true);
-	if (ret)
-		return ret;
-
-	ret = axp_regulator_set(dev, gs, gs->eldo2_sel_reg, gs->eldo2_1p8v,
-				ELDO_CTRL_REG, gs->eldo2_ctrl_shift, false);
+	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p6v,
+				ELDO_CTRL_REG, gs->eldo1_ctrl_shift, true);
 	return ret;
 }
 
@@ -777,10 +782,13 @@ static int axp_v1p8_off(struct device *dev, struct gmin_subdev *gs)
 {
 	int ret;
 
-	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p8v,
+	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p6v,
 				ELDO_CTRL_REG, gs->eldo1_ctrl_shift, false);
 	if (ret)
 		return ret;
+
+	if (dmi_check_system(axp_leave_eldo2_on_ids))
+		return 0;
 
 	ret = axp_regulator_set(dev, gs, gs->eldo2_sel_reg, gs->eldo2_1p8v,
 				ELDO_CTRL_REG, gs->eldo2_ctrl_shift, false);
@@ -851,38 +859,58 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 
 	gs->v1p8_on = on;
 
+	ret = 0;
+	mutex_lock(&gmin_regulator_mutex);
+	if (on) {
+		gmin_v1p8_enable_count++;
+		if (gmin_v1p8_enable_count > 1)
+			goto out; /* Already on */
+	} else {
+		gmin_v1p8_enable_count--;
+		if (gmin_v1p8_enable_count > 0)
+			goto out; /* Still needed */
+	}
+
 	if (gs->v1p8_gpio >= 0)
 		gpio_set_value(gs->v1p8_gpio, on);
 
 	if (gs->v1p8_reg) {
 		regulator_set_voltage(gs->v1p8_reg, 1800000, 1800000);
 		if (on)
-			return regulator_enable(gs->v1p8_reg);
+			ret = regulator_enable(gs->v1p8_reg);
 		else
-			return regulator_disable(gs->v1p8_reg);
+			ret = regulator_disable(gs->v1p8_reg);
+
+		goto out;
 	}
 
 	switch (pmic_id) {
 	case PMIC_AXP:
 		if (on)
-			return axp_v1p8_on(subdev->dev, gs);
+			ret = axp_v1p8_on(subdev->dev, gs);
 		else
-			return axp_v1p8_off(subdev->dev, gs);
+			ret = axp_v1p8_off(subdev->dev, gs);
+		break;
 	case PMIC_TI:
 		value = on ? LDO_1P8V_ON : LDO_1P8V_OFF;
 
-		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
-				      LDO10_REG, value, 0xff);
+		ret = gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				     LDO10_REG, value, 0xff);
+		break;
 	case PMIC_CRYSTALCOVE:
 		value = on ? CRYSTAL_ON : CRYSTAL_OFF;
 
-		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
-				      CRYSTAL_1P8V_REG, value, 0xff);
+		ret = gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				     CRYSTAL_1P8V_REG, value, 0xff);
+		break;
 	default:
-		dev_err(subdev->dev, "Couldn't set power mode for v1p2\n");
+		dev_err(subdev->dev, "Couldn't set power mode for v1p8\n");
+		ret = -EINVAL;
 	}
 
-	return -EINVAL;
+out:
+	mutex_unlock(&gmin_regulator_mutex);
+	return ret;
 }
 
 static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
@@ -908,37 +936,57 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 		return 0;
 	gs->v2p8_on = on;
 
+	ret = 0;
+	mutex_lock(&gmin_regulator_mutex);
+	if (on) {
+		gmin_v2p8_enable_count++;
+		if (gmin_v2p8_enable_count > 1)
+			goto out; /* Already on */
+	} else {
+		gmin_v2p8_enable_count--;
+		if (gmin_v2p8_enable_count > 0)
+			goto out; /* Still needed */
+	}
+
 	if (gs->v2p8_gpio >= 0)
 		gpio_set_value(gs->v2p8_gpio, on);
 
 	if (gs->v2p8_reg) {
 		regulator_set_voltage(gs->v2p8_reg, 2900000, 2900000);
 		if (on)
-			return regulator_enable(gs->v2p8_reg);
+			ret = regulator_enable(gs->v2p8_reg);
 		else
-			return regulator_disable(gs->v2p8_reg);
+			ret = regulator_disable(gs->v2p8_reg);
+
+		goto out;
 	}
 
 	switch (pmic_id) {
 	case PMIC_AXP:
-		return axp_regulator_set(subdev->dev, gs, ALDO1_SEL_REG,
-					 ALDO1_2P8V, ALDO1_CTRL3_REG,
-					 ALDO1_CTRL3_SHIFT, on);
+		ret = axp_regulator_set(subdev->dev, gs, ALDO1_SEL_REG,
+					ALDO1_2P8V, ALDO1_CTRL3_REG,
+					ALDO1_CTRL3_SHIFT, on);
+		break;
 	case PMIC_TI:
 		value = on ? LDO_2P8V_ON : LDO_2P8V_OFF;
 
-		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
-				      LDO9_REG, value, 0xff);
+		ret = gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				     LDO9_REG, value, 0xff);
+		break;
 	case PMIC_CRYSTALCOVE:
 		value = on ? CRYSTAL_ON : CRYSTAL_OFF;
 
-		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
-				      CRYSTAL_2P8V_REG, value, 0xff);
+		ret = gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				     CRYSTAL_2P8V_REG, value, 0xff);
+		break;
 	default:
-		dev_err(subdev->dev, "Couldn't set power mode for v1p2\n");
+		dev_err(subdev->dev, "Couldn't set power mode for v2p8\n");
+		ret = -EINVAL;
 	}
 
-	return -EINVAL;
+out:
+	mutex_unlock(&gmin_regulator_mutex);
+	return ret;
 }
 
 static int gmin_acpi_pm_ctrl(struct v4l2_subdev *subdev, int on)
@@ -1000,6 +1048,38 @@ static int gmin_flisclk_ctrl(struct v4l2_subdev *subdev, int on)
 	return ret;
 }
 
+static int camera_sensor_csi_alloc(struct v4l2_subdev *sd, u32 port, u32 lanes,
+				   u32 format, u32 bayer_order)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct camera_mipi_info *csi;
+
+	csi = kzalloc(sizeof(*csi), GFP_KERNEL);
+	if (!csi)
+		return -ENOMEM;
+
+	csi->port = port;
+	csi->num_lanes = lanes;
+	csi->input_format = format;
+	csi->raw_bayer_order = bayer_order;
+	v4l2_set_subdev_hostdata(sd, csi);
+	csi->metadata_format = ATOMISP_INPUT_FORMAT_EMBEDDED;
+	csi->metadata_effective_width = NULL;
+	dev_info(&client->dev,
+		 "camera pdata: port: %d lanes: %d order: %8.8x\n",
+		 port, lanes, bayer_order);
+
+	return 0;
+}
+
+static void camera_sensor_csi_free(struct v4l2_subdev *sd)
+{
+	struct camera_mipi_info *csi;
+
+	csi = v4l2_get_subdev_hostdata(sd);
+	kfree(csi);
+}
+
 static int gmin_csi_cfg(struct v4l2_subdev *sd, int flag)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1008,8 +1088,11 @@ static int gmin_csi_cfg(struct v4l2_subdev *sd, int flag)
 	if (!client || !gs)
 		return -ENODEV;
 
-	return camera_sensor_csi(sd, gs->csi_port, gs->csi_lanes,
-				 gs->csi_fmt, gs->csi_bayer, flag);
+	if (flag)
+		return camera_sensor_csi_alloc(sd, gs->csi_port, gs->csi_lanes,
+					       gs->csi_fmt, gs->csi_bayer);
+	camera_sensor_csi_free(sd);
+	return 0;
 }
 
 static struct camera_vcm_control *gmin_get_vcm_ctrl(struct v4l2_subdev *subdev,
@@ -1141,15 +1224,13 @@ static int gmin_get_config_dsm_var(struct device *dev,
 	if (!strcmp(var, "CamClk"))
 		return -EINVAL;
 
-	obj = acpi_evaluate_dsm(handle, &atomisp_dsm_guid, 0, 0, NULL);
+	/* Return on unexpected object type */
+	obj = acpi_evaluate_dsm_typed(handle, &atomisp_dsm_guid, 0, 0, NULL,
+				      ACPI_TYPE_PACKAGE);
 	if (!obj) {
 		dev_info_once(dev, "Didn't find ACPI _DSM table.\n");
 		return -EINVAL;
 	}
-
-	/* Return on unexpected object type */
-	if (obj->type != ACPI_TYPE_PACKAGE)
-		return -EINVAL;
 
 #if 0 /* Just for debugging purposes */
 	for (i = 0; i < obj->package.count; i++) {
@@ -1218,7 +1299,7 @@ static int gmin_get_config_var(struct device *maindev,
 	const struct dmi_system_id *id;
 	struct device *dev = maindev;
 	char var8[CFG_VAR_NAME_MAX];
-	struct efivar_entry *ev;
+	efi_status_t status;
 	int i, ret;
 
 	/* For sensors, try first to use the _DSM table */
@@ -1260,32 +1341,17 @@ static int gmin_get_config_var(struct device *maindev,
 	for (i = 0; i < sizeof(var8) && var8[i]; i++)
 		var16[i] = var8[i];
 
-	/* Not sure this API usage is kosher; efivar_entry_get()'s
-	 * implementation simply uses VariableName and VendorGuid from
-	 * the struct and ignores the rest, but it seems like there
-	 * ought to be an "official" efivar_entry registered
-	 * somewhere?
-	 */
-	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-	if (!ev)
-		return -ENOMEM;
-	memcpy(&ev->var.VariableName, var16, sizeof(var16));
-	ev->var.VendorGuid = GMIN_CFG_VAR_EFI_GUID;
-	ev->var.DataSize = *out_len;
-
-	ret = efivar_entry_get(ev, &ev->var.Attributes,
-			       &ev->var.DataSize, ev->var.Data);
-	if (ret == 0) {
-		memcpy(out, ev->var.Data, ev->var.DataSize);
-		*out_len = ev->var.DataSize;
+	status = EFI_UNSUPPORTED;
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
+		status = efi.get_variable(var16, &GMIN_CFG_VAR_EFI_GUID, NULL,
+					  (unsigned long *)out_len, out);
+	if (status == EFI_SUCCESS) {
 		dev_info(maindev, "found EFI entry for '%s'\n", var8);
 	} else if (is_gmin) {
 		dev_info(maindev, "Failed to find EFI gmin variable %s\n", var8);
 	} else {
 		dev_info(maindev, "Failed to find EFI variable %s\n", var8);
 	}
-
-	kfree(ev);
 
 	return ret;
 }
@@ -1308,35 +1374,6 @@ int gmin_get_var_int(struct device *dev, bool is_gmin, const char *var, int def)
 	return ret ? def : result;
 }
 EXPORT_SYMBOL_GPL(gmin_get_var_int);
-
-int camera_sensor_csi(struct v4l2_subdev *sd, u32 port,
-		      u32 lanes, u32 format, u32 bayer_order, int flag)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct camera_mipi_info *csi = NULL;
-
-	if (flag) {
-		csi = kzalloc(sizeof(*csi), GFP_KERNEL);
-		if (!csi)
-			return -ENOMEM;
-		csi->port = port;
-		csi->num_lanes = lanes;
-		csi->input_format = format;
-		csi->raw_bayer_order = bayer_order;
-		v4l2_set_subdev_hostdata(sd, (void *)csi);
-		csi->metadata_format = ATOMISP_INPUT_FORMAT_EMBEDDED;
-		csi->metadata_effective_width = NULL;
-		dev_info(&client->dev,
-			 "camera pdata: port: %d lanes: %d order: %8.8x\n",
-			 port, lanes, bayer_order);
-	} else {
-		csi = v4l2_get_subdev_hostdata(sd);
-		kfree(csi);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(camera_sensor_csi);
 
 /* PCI quirk: The BYT ISP advertises PCI runtime PM but it doesn't
  * work.  Disable so the kernel framework doesn't hang the device

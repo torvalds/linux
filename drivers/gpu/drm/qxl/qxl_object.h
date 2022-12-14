@@ -59,8 +59,8 @@ extern int qxl_bo_create(struct qxl_device *qdev,
 			 u32 priority,
 			 struct qxl_surface *surf,
 			 struct qxl_bo **bo_ptr);
-int qxl_bo_vmap(struct qxl_bo *bo, struct dma_buf_map *map);
-int qxl_bo_vmap_locked(struct qxl_bo *bo, struct dma_buf_map *map);
+int qxl_bo_vmap(struct qxl_bo *bo, struct iosys_map *map);
+int qxl_bo_vmap_locked(struct qxl_bo *bo, struct iosys_map *map);
 int qxl_bo_vunmap(struct qxl_bo *bo);
 void qxl_bo_vunmap_locked(struct qxl_bo *bo);
 void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev, struct qxl_bo *bo, int page_offset);

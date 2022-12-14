@@ -2,6 +2,8 @@
 #ifndef __ASM_QSPINLOCK_PARAVIRT_H
 #define __ASM_QSPINLOCK_PARAVIRT_H
 
+#include <asm/ibt.h>
+
 /*
  * For x86-64, PV_CALLEE_SAVE_REGS_THUNK() saves and restores 8 64-bit
  * registers. For i386, however, only 1 32-bit register needs to be saved
@@ -10,7 +12,7 @@
  */
 #ifdef CONFIG_64BIT
 
-PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock_slowpath);
+__PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock_slowpath, ".spinlock.text");
 #define __pv_queued_spin_unlock	__pv_queued_spin_unlock
 #define PV_UNLOCK		"__raw_callee_save___pv_queued_spin_unlock"
 #define PV_UNLOCK_SLOWPATH	"__raw_callee_save___pv_queued_spin_unlock_slowpath"
@@ -18,9 +20,10 @@ PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock_slowpath);
 /*
  * Optimized assembly version of __raw_callee_save___pv_queued_spin_unlock
  * which combines the registers saving trunk and the body of the following
- * C code:
+ * C code.  Note that it puts the code in the .spinlock.text section which
+ * is equivalent to adding __lockfunc in the C code:
  *
- * void __pv_queued_spin_unlock(struct qspinlock *lock)
+ * void __lockfunc __pv_queued_spin_unlock(struct qspinlock *lock)
  * {
  *	u8 lockval = cmpxchg(&lock->locked, _Q_LOCKED_VAL, 0);
  *
@@ -34,11 +37,12 @@ PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock_slowpath);
  *   rsi = lockval           (second argument)
  *   rdx = internal variable (set to 0)
  */
-asm    (".pushsection .text;"
+asm    (".pushsection .spinlock.text, \"ax\";"
 	".globl " PV_UNLOCK ";"
 	".type " PV_UNLOCK ", @function;"
 	".align 4,0x90;"
 	PV_UNLOCK ": "
+	ASM_ENDBR
 	FRAME_BEGIN
 	"push  %rdx;"
 	"mov   $0x1,%eax;"
@@ -62,8 +66,8 @@ asm    (".pushsection .text;"
 
 #else /* CONFIG_64BIT */
 
-extern void __pv_queued_spin_unlock(struct qspinlock *lock);
-PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock);
+extern void __lockfunc __pv_queued_spin_unlock(struct qspinlock *lock);
+__PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock, ".spinlock.text");
 
 #endif /* CONFIG_64BIT */
 #endif

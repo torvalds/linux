@@ -35,6 +35,8 @@
 #include "util/tool.h"
 #include "util/data.h"
 #include "util/debug.h"
+#include "util/string2.h"
+#include "util/tracepoint.h"
 #include <linux/err.h>
 
 #ifdef LACKS_OPEN_MEMSTREAM_PROTOTYPE
@@ -213,6 +215,19 @@ static struct per_pid *find_create_pid(struct timechart *tchart, int pid)
 	return cursor;
 }
 
+static struct per_pidcomm *create_pidcomm(struct per_pid *p)
+{
+	struct per_pidcomm *c;
+
+	c = zalloc(sizeof(*c));
+	if (!c)
+		return NULL;
+	p->current = c;
+	c->next = p->all;
+	p->all = c;
+	return c;
+}
+
 static void pid_set_comm(struct timechart *tchart, int pid, char *comm)
 {
 	struct per_pid *p;
@@ -231,12 +246,9 @@ static void pid_set_comm(struct timechart *tchart, int pid, char *comm)
 		}
 		c = c->next;
 	}
-	c = zalloc(sizeof(*c));
+	c = create_pidcomm(p);
 	assert(c != NULL);
 	c->comm = strdup(comm);
-	p->current = c;
-	c->next = p->all;
-	p->all = c;
 }
 
 static void pid_fork(struct timechart *tchart, int pid, int ppid, u64 timestamp)
@@ -275,11 +287,8 @@ static void pid_put_sample(struct timechart *tchart, int pid, int type,
 	p = find_create_pid(tchart, pid);
 	c = p->current;
 	if (!c) {
-		c = zalloc(sizeof(*c));
+		c = create_pidcomm(p);
 		assert(c != NULL);
-		p->current = c;
-		c->next = p->all;
-		p->all = c;
 	}
 
 	sample = zalloc(sizeof(*sample));
@@ -367,16 +376,13 @@ static void c_state_end(struct timechart *tchart, int cpu, u64 timestamp)
 	tchart->power_events = pwr;
 }
 
-static void p_state_change(struct timechart *tchart, int cpu, u64 timestamp, u64 new_freq)
+static struct power_event *p_state_end(struct timechart *tchart, int cpu,
+					u64 timestamp)
 {
-	struct power_event *pwr;
+	struct power_event *pwr = zalloc(sizeof(*pwr));
 
-	if (new_freq > 8000000) /* detect invalid data */
-		return;
-
-	pwr = zalloc(sizeof(*pwr));
 	if (!pwr)
-		return;
+		return NULL;
 
 	pwr->state = cpus_pstate_state[cpu];
 	pwr->start_time = cpus_pstate_start_times[cpu];
@@ -384,11 +390,23 @@ static void p_state_change(struct timechart *tchart, int cpu, u64 timestamp, u64
 	pwr->cpu = cpu;
 	pwr->type = PSTATE;
 	pwr->next = tchart->power_events;
-
 	if (!pwr->start_time)
 		pwr->start_time = tchart->first_time;
 
 	tchart->power_events = pwr;
+	return pwr;
+}
+
+static void p_state_change(struct timechart *tchart, int cpu, u64 timestamp, u64 new_freq)
+{
+	struct power_event *pwr;
+
+	if (new_freq > 8000000) /* detect invalid data */
+		return;
+
+	pwr = p_state_end(tchart, cpu, timestamp);
+	if (!pwr)
+		return;
 
 	cpus_pstate_state[cpu] = new_freq;
 	cpus_pstate_start_times[cpu] = timestamp;
@@ -696,22 +714,12 @@ static void end_sample_processing(struct timechart *tchart)
 #endif
 		/* P state */
 
-		pwr = zalloc(sizeof(*pwr));
+		pwr = p_state_end(tchart, cpu, tchart->last_time);
 		if (!pwr)
 			return;
 
-		pwr->state = cpus_pstate_state[cpu];
-		pwr->start_time = cpus_pstate_start_times[cpu];
-		pwr->end_time = tchart->last_time;
-		pwr->cpu = cpu;
-		pwr->type = PSTATE;
-		pwr->next = tchart->power_events;
-
-		if (!pwr->start_time)
-			pwr->start_time = tchart->first_time;
 		if (!pwr->state)
 			pwr->state = tchart->min_freq;
-		tchart->power_events = pwr;
 	}
 }
 
@@ -724,12 +732,9 @@ static int pid_begin_io_sample(struct timechart *tchart, int pid, int type,
 	struct io_sample *prev;
 
 	if (!c) {
-		c = zalloc(sizeof(*c));
+		c = create_pidcomm(p);
 		if (!c)
 			return -ENOMEM;
-		p->current = c;
-		c->next = p->all;
-		p->all = c;
 	}
 
 	prev = c->io_samples;
@@ -1983,7 +1988,7 @@ int cmd_timechart(int argc, const char **argv)
 		return -1;
 	}
 
-	if (argc && !strncmp(argv[0], "rec", 3)) {
+	if (argc && strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
 		argc = parse_options(argc, argv, timechart_record_options,
 				     timechart_record_usage,
 				     PARSE_OPT_STOP_AT_NON_OPTION);

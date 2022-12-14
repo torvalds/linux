@@ -3,6 +3,7 @@
 #define __IXP4XX_NPE_H
 
 #include <linux/kernel.h>
+#include <linux/regmap.h>
 
 extern const char *npe_names[];
 
@@ -17,6 +18,7 @@ struct npe_regs {
 
 struct npe {
 	struct npe_regs __iomem *regs;
+	struct regmap *rmap;
 	int id;
 	int valid;
 };

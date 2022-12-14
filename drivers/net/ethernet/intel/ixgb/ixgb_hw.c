@@ -576,7 +576,7 @@ ixgb_rar_set(struct ixgb_hw *hw,
  * Writes a value to the specified offset in the VLAN filter table.
  *
  * hw - Struct containing variables accessed by shared code
- * offset - Offset in VLAN filer table to write
+ * offset - Offset in VLAN filter table to write
  * value - Value to write into VLAN filter table
  *****************************************************************************/
 void
@@ -588,7 +588,7 @@ ixgb_write_vfta(struct ixgb_hw *hw,
 }
 
 /******************************************************************************
- * Clears the VLAN filer table
+ * Clears the VLAN filter table
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/

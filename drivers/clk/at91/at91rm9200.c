@@ -40,7 +40,7 @@ static const struct clk_pll_characteristics rm9200_pll_characteristics = {
 };
 
 static const struct sck at91rm9200_systemck[] = {
-	{ .n = "udpck", .p = "usbck",    .id = 2 },
+	{ .n = "udpck", .p = "usbck",    .id = 1 },
 	{ .n = "uhpck", .p = "usbck",    .id = 4 },
 	{ .n = "pck0",  .p = "prog0",    .id = 8 },
 	{ .n = "pck1",  .p = "prog1",    .id = 9 },
@@ -143,8 +143,7 @@ static void __init at91rm9200_pmc_setup(struct device_node *np)
 					   parent_names,
 					   &at91rm9200_master_layout,
 					   &rm9200_mck_characteristics,
-					   &rm9200_mck_lock, CLK_SET_RATE_GATE,
-					   INT_MIN);
+					   &rm9200_mck_lock);
 	if (IS_ERR(hw))
 		goto err_free;
 

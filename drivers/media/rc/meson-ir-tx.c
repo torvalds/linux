@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * meson-ir-tx.c - Amlogic Meson IR TX driver
  *
  * Copyright (c) 2021, SberDevices. All Rights Reserved.
@@ -323,10 +323,8 @@ static int __init meson_irtx_probe(struct platform_device *pdev)
 		return PTR_ERR(ir->reg_base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "no irq resource found\n");
+	if (irq < 0)
 		return -ENODEV;
-	}
 
 	ir->dev = dev;
 	ir->carrier = MIRTX_DEFAULT_CARRIER;

@@ -158,21 +158,20 @@ static bool tb_cfg_request_is_active(struct tb_cfg_request *req)
 static struct tb_cfg_request *
 tb_cfg_request_find(struct tb_ctl *ctl, struct ctl_pkg *pkg)
 {
-	struct tb_cfg_request *req;
-	bool found = false;
+	struct tb_cfg_request *req = NULL, *iter;
 
 	mutex_lock(&pkg->ctl->request_queue_lock);
-	list_for_each_entry(req, &pkg->ctl->request_queue, list) {
-		tb_cfg_request_get(req);
-		if (req->match(req, pkg)) {
-			found = true;
+	list_for_each_entry(iter, &pkg->ctl->request_queue, list) {
+		tb_cfg_request_get(iter);
+		if (iter->match(iter, pkg)) {
+			req = iter;
 			break;
 		}
-		tb_cfg_request_put(req);
+		tb_cfg_request_put(iter);
 	}
 	mutex_unlock(&pkg->ctl->request_queue_lock);
 
-	return found ? req : NULL;
+	return req;
 }
 
 /* utility functions */
@@ -408,7 +407,7 @@ static void tb_ctl_rx_submit(struct ctl_pkg *pkg)
 
 static int tb_async_error(const struct ctl_pkg *pkg)
 {
-	const struct cfg_error_pkg *error = (const struct cfg_error_pkg *)pkg;
+	const struct cfg_error_pkg *error = pkg->buffer;
 
 	if (pkg->frame.eof != TB_CFG_PKG_ERROR)
 		return false;
@@ -695,7 +694,7 @@ void tb_ctl_free(struct tb_ctl *ctl)
 }
 
 /**
- * tb_cfg_start() - start/resume the control channel
+ * tb_ctl_start() - start/resume the control channel
  * @ctl: Control channel to start
  */
 void tb_ctl_start(struct tb_ctl *ctl)
@@ -711,7 +710,7 @@ void tb_ctl_start(struct tb_ctl *ctl)
 }
 
 /**
- * tb_ctrl_stop() - pause the control channel
+ * tb_ctl_stop() - pause the control channel
  * @ctl: Control channel to stop
  *
  * All invocations of ctl->callback will have finished after this method
@@ -913,7 +912,7 @@ struct tb_cfg_result tb_cfg_read_raw(struct tb_ctl *ctl, void *buffer,
 }
 
 /**
- * tb_cfg_write() - write from buffer into config space
+ * tb_cfg_write_raw() - write from buffer into config space
  * @ctl: Pointer to the control channel
  * @buffer: Data to write
  * @route: Route string of the router

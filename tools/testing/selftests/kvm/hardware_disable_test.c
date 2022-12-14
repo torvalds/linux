@@ -27,12 +27,6 @@
 
 sem_t *sem;
 
-/* Arguments for the pthreads */
-struct payload {
-	struct kvm_vm *vm;
-	uint32_t index;
-};
-
 static void guest_code(void)
 {
 	for (;;)
@@ -42,14 +36,14 @@ static void guest_code(void)
 
 static void *run_vcpu(void *arg)
 {
-	struct payload *payload = (struct payload *)arg;
-	struct kvm_run *state = vcpu_state(payload->vm, payload->index);
+	struct kvm_vcpu *vcpu = arg;
+	struct kvm_run *run = vcpu->run;
 
-	vcpu_run(payload->vm, payload->index);
+	vcpu_run(vcpu);
 
 	TEST_ASSERT(false, "%s: exited with reason %d: %s\n",
-		    __func__, state->exit_reason,
-		    exit_reason_str(state->exit_reason));
+		    __func__, run->exit_reason,
+		    exit_reason_str(run->exit_reason));
 	pthread_exit(NULL);
 }
 
@@ -92,11 +86,11 @@ static inline void check_join(pthread_t thread, void **retval)
 
 static void run_test(uint32_t run)
 {
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	cpu_set_t cpu_set;
 	pthread_t threads[VCPU_NUM];
 	pthread_t throw_away;
-	struct payload payloads[VCPU_NUM];
 	void *b;
 	uint32_t i, j;
 
@@ -104,18 +98,13 @@ static void run_test(uint32_t run)
 	for (i = 0; i < VCPU_NUM; i++)
 		CPU_SET(i, &cpu_set);
 
-	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
-	kvm_vm_elf_load(vm, program_invocation_name);
-	vm_create_irqchip(vm);
+	vm = vm_create(VCPU_NUM);
 
 	pr_debug("%s: [%d] start vcpus\n", __func__, run);
 	for (i = 0; i < VCPU_NUM; ++i) {
-		vm_vcpu_add_default(vm, i, guest_code);
-		payloads[i].vm = vm;
-		payloads[i].index = i;
+		vcpu = vm_vcpu_add(vm, i, guest_code);
 
-		check_create_thread(&threads[i], NULL, run_vcpu,
-				    (void *)&payloads[i]);
+		check_create_thread(&threads[i], NULL, run_vcpu, vcpu);
 		check_set_affinity(threads[i], &cpu_set);
 
 		for (j = 0; j < SLEEPING_THREAD_NUM; ++j) {

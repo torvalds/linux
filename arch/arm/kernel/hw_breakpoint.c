@@ -941,6 +941,23 @@ static int hw_breakpoint_pending(unsigned long addr, unsigned int fsr,
 	return ret;
 }
 
+#ifdef CONFIG_ARM_ERRATA_764319
+static int oslsr_fault;
+
+static int debug_oslsr_trap(struct pt_regs *regs, unsigned int instr)
+{
+	oslsr_fault = 1;
+	instruction_pointer(regs) += 4;
+	return 0;
+}
+
+static struct undef_hook debug_oslsr_hook = {
+	.instr_mask  = 0xffffffff,
+	.instr_val = 0xee115e91,
+	.fn = debug_oslsr_trap,
+};
+#endif
+
 /*
  * One-time initialisation.
  */
@@ -974,7 +991,16 @@ static bool core_has_os_save_restore(void)
 	case ARM_DEBUG_ARCH_V7_1:
 		return true;
 	case ARM_DEBUG_ARCH_V7_ECP14:
+#ifdef CONFIG_ARM_ERRATA_764319
+		oslsr_fault = 0;
+		register_undef_hook(&debug_oslsr_hook);
 		ARM_DBG_READ(c1, c1, 4, oslsr);
+		unregister_undef_hook(&debug_oslsr_hook);
+		if (oslsr_fault)
+			return false;
+#else
+		ARM_DBG_READ(c1, c1, 4, oslsr);
+#endif
 		if (oslsr & ARM_OSLSR_OSLM0)
 			return true;
 		fallthrough;

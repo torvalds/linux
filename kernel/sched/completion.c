@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+
 /*
  * Generic wait-for-completion handler;
  *
@@ -11,7 +12,6 @@
  * typically be used for exclusion which gives rise to priority inversion.
  * Waiting for completion is a typically sync point, but not an exclusion point.
  */
-#include "sched.h"
 
 /**
  * complete: - signals a single thread waiting on this completion
@@ -204,6 +204,7 @@ EXPORT_SYMBOL(wait_for_completion_io_timeout);
 int __sched wait_for_completion_interruptible(struct completion *x)
 {
 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE);
+
 	if (t == -ERESTARTSYS)
 		return t;
 	return 0;
@@ -241,11 +242,22 @@ EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
 int __sched wait_for_completion_killable(struct completion *x)
 {
 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_KILLABLE);
+
 	if (t == -ERESTARTSYS)
 		return t;
 	return 0;
 }
 EXPORT_SYMBOL(wait_for_completion_killable);
+
+int __sched wait_for_completion_state(struct completion *x, unsigned int state)
+{
+	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, state);
+
+	if (t == -ERESTARTSYS)
+		return t;
+	return 0;
+}
+EXPORT_SYMBOL(wait_for_completion_state);
 
 /**
  * wait_for_completion_killable_timeout: - waits for completion of a task (w/(to,killable))

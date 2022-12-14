@@ -457,8 +457,8 @@
 
 #define OV8865_NATIVE_WIDTH			3296
 #define OV8865_NATIVE_HEIGHT			2528
-#define OV8865_ACTIVE_START_TOP			32
-#define OV8865_ACTIVE_START_LEFT		80
+#define OV8865_ACTIVE_START_LEFT		16
+#define OV8865_ACTIVE_START_TOP			40
 #define OV8865_ACTIVE_WIDTH			3264
 #define OV8865_ACTIVE_HEIGHT			2448
 
@@ -1471,7 +1471,7 @@ static int ov8865_charge_pump_configure(struct ov8865_sensor *sensor)
 
 static int ov8865_mipi_configure(struct ov8865_sensor *sensor)
 {
-	struct v4l2_fwnode_bus_mipi_csi2 *bus_mipi_csi2 =
+	struct v4l2_mbus_config_mipi_csi2 *bus_mipi_csi2 =
 		&sensor->endpoint.bus.mipi_csi2;
 	unsigned int lanes_count = bus_mipi_csi2->num_data_lanes;
 	int ret;
@@ -2241,7 +2241,7 @@ static int ov8865_state_mipi_configure(struct ov8865_sensor *sensor,
 				       u32 mbus_code)
 {
 	struct ov8865_ctrls *ctrls = &sensor->ctrls;
-	struct v4l2_fwnode_bus_mipi_csi2 *bus_mipi_csi2 =
+	struct v4l2_mbus_config_mipi_csi2 *bus_mipi_csi2 =
 		&sensor->endpoint.bus.mipi_csi2;
 	unsigned long mipi_clk_rate;
 	unsigned int bits_per_sample;
@@ -2838,8 +2838,8 @@ static int ov8865_get_selection(struct v4l2_subdev *subdev,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
 		mutex_lock(&sensor->mutex);
-			__ov8865_get_pad_crop(sensor, state, sel->pad,
-					      sel->which, &sel->r);
+		__ov8865_get_pad_crop(sensor, state, sel->pad,
+				      sel->which, &sel->r);
 		mutex_unlock(&sensor->mutex);
 		break;
 	case V4L2_SEL_TGT_NATIVE_SIZE:
@@ -3034,11 +3034,13 @@ static int ov8865_probe(struct i2c_client *client)
 				       &rate);
 	if (!ret && sensor->extclk) {
 		ret = clk_set_rate(sensor->extclk, rate);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "failed to set clock rate\n");
+		if (ret) {
+			dev_err_probe(dev, ret, "failed to set clock rate\n");
+			goto error_endpoint;
+		}
 	} else if (ret && !sensor->extclk) {
-		return dev_err_probe(dev, ret, "invalid clock config\n");
+		dev_err_probe(dev, ret, "invalid clock config\n");
+		goto error_endpoint;
 	}
 
 	sensor->extclk_rate = rate ? rate : clk_get_rate(sensor->extclk);
@@ -3119,7 +3121,7 @@ error_endpoint:
 	return ret;
 }
 
-static int ov8865_remove(struct i2c_client *client)
+static void ov8865_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct ov8865_sensor *sensor = ov8865_subdev_sensor(subdev);
@@ -3131,8 +3133,6 @@ static int ov8865_remove(struct i2c_client *client)
 	media_entity_cleanup(&subdev->entity);
 
 	v4l2_fwnode_endpoint_free(&sensor->endpoint);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ov8865_pm_ops = {

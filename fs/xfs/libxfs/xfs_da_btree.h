@@ -30,6 +30,7 @@ struct xfs_da_geometry {
 	unsigned int	free_hdr_size;	/* dir2 free header size */
 	unsigned int	free_max_bests;	/* # of bests entries in dir2 free */
 	xfs_dablk_t	freeblk;	/* blockno of free data v2 */
+	xfs_extnum_t	max_extents;	/* Max. extents in corresponding fork */
 
 	xfs_dir2_data_aoff_t data_first_offset;
 	size_t		data_entry_offset;
@@ -76,27 +77,33 @@ typedef struct xfs_da_args {
 	xfs_dablk_t	rmtblkno2;	/* remote attr value starting blkno */
 	int		rmtblkcnt2;	/* remote attr value block count */
 	int		rmtvaluelen2;	/* remote attr value length in bytes */
-	int		op_flags;	/* operation flags */
+	uint32_t	op_flags;	/* operation flags */
 	enum xfs_dacmp	cmpresult;	/* name compare result for lookups */
 } xfs_da_args_t;
 
 /*
  * Operation flags:
  */
-#define XFS_DA_OP_JUSTCHECK	0x0001	/* check for ok with no space */
-#define XFS_DA_OP_RENAME	0x0002	/* this is an atomic rename op */
-#define XFS_DA_OP_ADDNAME	0x0004	/* this is an add operation */
-#define XFS_DA_OP_OKNOENT	0x0008	/* lookup/add op, ENOENT ok, else die */
-#define XFS_DA_OP_CILOOKUP	0x0010	/* lookup to return CI name if found */
-#define XFS_DA_OP_NOTIME	0x0020	/* don't update inode timestamps */
+#define XFS_DA_OP_JUSTCHECK	(1u << 0) /* check for ok with no space */
+#define XFS_DA_OP_REPLACE	(1u << 1) /* this is an atomic replace op */
+#define XFS_DA_OP_ADDNAME	(1u << 2) /* this is an add operation */
+#define XFS_DA_OP_OKNOENT	(1u << 3) /* lookup op, ENOENT ok, else die */
+#define XFS_DA_OP_CILOOKUP	(1u << 4) /* lookup returns CI name if found */
+#define XFS_DA_OP_NOTIME	(1u << 5) /* don't update inode timestamps */
+#define XFS_DA_OP_REMOVE	(1u << 6) /* this is a remove operation */
+#define XFS_DA_OP_RECOVERY	(1u << 7) /* Log recovery operation */
+#define XFS_DA_OP_LOGGED	(1u << 8) /* Use intent items to track op */
 
 #define XFS_DA_OP_FLAGS \
 	{ XFS_DA_OP_JUSTCHECK,	"JUSTCHECK" }, \
-	{ XFS_DA_OP_RENAME,	"RENAME" }, \
+	{ XFS_DA_OP_REPLACE,	"REPLACE" }, \
 	{ XFS_DA_OP_ADDNAME,	"ADDNAME" }, \
 	{ XFS_DA_OP_OKNOENT,	"OKNOENT" }, \
 	{ XFS_DA_OP_CILOOKUP,	"CILOOKUP" }, \
-	{ XFS_DA_OP_NOTIME,	"NOTIME" }
+	{ XFS_DA_OP_NOTIME,	"NOTIME" }, \
+	{ XFS_DA_OP_REMOVE,	"REMOVE" }, \
+	{ XFS_DA_OP_RECOVERY,	"RECOVERY" }, \
+	{ XFS_DA_OP_LOGGED,	"LOGGED" }
 
 /*
  * Storage for holding state during Btree searches and split/join ops.
@@ -197,7 +204,7 @@ int	xfs_da3_node_read_mapped(struct xfs_trans *tp, struct xfs_inode *dp,
  * Utility routines.
  */
 
-#define XFS_DABUF_MAP_HOLE_OK	(1 << 0)
+#define XFS_DABUF_MAP_HOLE_OK	(1u << 0)
 
 int	xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno);
 int	xfs_da_grow_inode_int(struct xfs_da_args *args, xfs_fileoff_t *bno,
@@ -220,6 +227,7 @@ enum xfs_dacmp xfs_da_compname(struct xfs_da_args *args,
 
 struct xfs_da_state *xfs_da_state_alloc(struct xfs_da_args *args);
 void xfs_da_state_free(xfs_da_state_t *state);
+void xfs_da_state_reset(struct xfs_da_state *state, struct xfs_da_args *args);
 
 void	xfs_da3_node_hdr_from_disk(struct xfs_mount *mp,
 		struct xfs_da3_icnode_hdr *to, struct xfs_da_intnode *from);

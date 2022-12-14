@@ -9,6 +9,7 @@
  * for more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -494,6 +495,8 @@ static int kyrofb_set_par(struct fb_info *info)
 				    info->var.hsync_len +
 				    info->var.left_margin)) / 1000;
 
+	if (!lineclock)
+		return -EINVAL;
 
 	/* time for a frame in ns (precision in 32bpp) */
 	frameclock = lineclock * (info->var.yres +
@@ -673,6 +676,10 @@ static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct kyrofb_info *currentpar;
 	unsigned long size;
 	int err;
+
+	err = aperture_remove_conflicting_pci_devices(pdev, "kyrofb");
+	if (err)
+		return err;
 
 	if ((err = pci_enable_device(pdev))) {
 		printk(KERN_WARNING "kyrofb: Can't enable pdev: %d\n", err);

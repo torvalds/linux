@@ -15,7 +15,6 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gate.h>
 
-static unsigned int gate_net_id;
 static struct tc_action_ops act_gate_ops;
 
 static ktime_t gate_get_time(struct tcf_gate *gact)
@@ -298,7 +297,7 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 			 struct tcf_proto *tp, u32 flags,
 			 struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, gate_net_id);
+	struct tc_action_net *tn = net_generic(net, act_gate_ops.net_id);
 	enum tk_offsets tk_offset = TK_OFFS_TAI;
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_GATE_MAX + 1];
@@ -565,16 +564,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_gate_walker(struct net *net, struct sk_buff *skb,
-			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops,
-			   struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, gate_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
 static void tcf_gate_stats_update(struct tc_action *a, u64 bytes, u64 packets,
 				  u64 drops, u64 lastuse, bool hw)
 {
@@ -583,13 +572,6 @@ static void tcf_gate_stats_update(struct tc_action *a, u64 bytes, u64 packets,
 
 	tcf_action_update_stats(a, bytes, packets, drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
-}
-
-static int tcf_gate_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, gate_net_id);
-
-	return tcf_idr_search(tn, a, index);
 }
 
 static size_t tcf_gate_get_fill_size(const struct tc_action *act)
@@ -619,7 +601,8 @@ static int tcf_gate_get_entries(struct flow_action_entry *entry,
 }
 
 static int tcf_gate_offload_act_setup(struct tc_action *act, void *entry_data,
-				      u32 *index_inc, bool bind)
+				      u32 *index_inc, bool bind,
+				      struct netlink_ext_ack *extack)
 {
 	int err;
 
@@ -653,30 +636,28 @@ static struct tc_action_ops act_gate_ops = {
 	.dump		=	tcf_gate_dump,
 	.init		=	tcf_gate_init,
 	.cleanup	=	tcf_gate_cleanup,
-	.walk		=	tcf_gate_walker,
 	.stats_update	=	tcf_gate_stats_update,
 	.get_fill_size	=	tcf_gate_get_fill_size,
-	.lookup		=	tcf_gate_search,
 	.offload_act_setup =	tcf_gate_offload_act_setup,
 	.size		=	sizeof(struct tcf_gate),
 };
 
 static __net_init int gate_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, gate_net_id);
+	struct tc_action_net *tn = net_generic(net, act_gate_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_gate_ops);
 }
 
 static void __net_exit gate_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, gate_net_id);
+	tc_action_net_exit(net_list, act_gate_ops.net_id);
 }
 
 static struct pernet_operations gate_net_ops = {
 	.init = gate_init_net,
 	.exit_batch = gate_exit_net,
-	.id   = &gate_net_id,
+	.id   = &act_gate_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

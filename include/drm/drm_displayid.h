@@ -25,7 +25,7 @@
 #include <linux/types.h>
 #include <linux/bits.h>
 
-struct edid;
+struct drm_edid;
 
 #define VESA_IEEE_OUI				0x3a0292
 
@@ -141,7 +141,7 @@ struct displayid_vesa_vendor_specific_block {
 
 /* DisplayID iteration */
 struct displayid_iter {
-	const struct edid *edid;
+	const struct drm_edid *drm_edid;
 
 	const u8 *section;
 	int length;
@@ -149,7 +149,7 @@ struct displayid_iter {
 	int ext_index;
 };
 
-void displayid_iter_edid_begin(const struct edid *edid,
+void displayid_iter_edid_begin(const struct drm_edid *drm_edid,
 			       struct displayid_iter *iter);
 const struct displayid_block *
 __displayid_iter_next(struct displayid_iter *iter);

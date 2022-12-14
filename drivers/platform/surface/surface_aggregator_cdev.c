@@ -3,7 +3,7 @@
  * Provides user-space access to the SSAM EC via the /dev/surface/aggregator
  * misc device. Intended for debugging and development.
  *
- * Copyright (C) 2020-2021 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2020-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <linux/fs.h>

@@ -18,6 +18,7 @@
 #include <linux/scmi_protocol.h>
 #include <linux/time.h>
 #include <linux/types.h>
+#include <linux/units.h>
 
 #define SCMI_IIO_NUM_OF_AXIS 3
 
@@ -130,7 +131,6 @@ static const struct iio_buffer_setup_ops scmi_iio_buffer_ops = {
 static int scmi_iio_set_odr_val(struct iio_dev *iio_dev, int val, int val2)
 {
 	struct scmi_iio_priv *sensor = iio_priv(iio_dev);
-	const unsigned long UHZ_PER_HZ = 1000000UL;
 	u64 sec, mult, uHz, sf;
 	u32 sensor_config;
 	char buf[32];
@@ -145,7 +145,7 @@ static int scmi_iio_set_odr_val(struct iio_dev *iio_dev, int val, int val2)
 		return err;
 	}
 
-	uHz = val * UHZ_PER_HZ + val2;
+	uHz = val * MICROHZ_PER_HZ + val2;
 
 	/*
 	 * The seconds field in the sensor interval in SCMI is 16 bits long
@@ -156,10 +156,10 @@ static int scmi_iio_set_odr_val(struct iio_dev *iio_dev, int val, int val2)
 	 * count the number of characters
 	 */
 	sf = (u64)uHz * 0xFFFF;
-	do_div(sf,  UHZ_PER_HZ);
+	do_div(sf,  MICROHZ_PER_HZ);
 	mult = scnprintf(buf, sizeof(buf), "%llu", sf) - 1;
 
-	sec = int_pow(10, mult) * UHZ_PER_HZ;
+	sec = int_pow(10, mult) * MICROHZ_PER_HZ;
 	do_div(sec, uHz);
 	if (sec == 0) {
 		dev_err(&iio_dev->dev,
@@ -686,7 +686,6 @@ static int scmi_iio_dev_probe(struct scmi_device *sdev)
 
 		err = devm_iio_kfifo_buffer_setup(&scmi_iio_dev->dev,
 						  scmi_iio_dev,
-						  INDIO_BUFFER_SOFTWARE,
 						  &scmi_iio_buffer_ops);
 		if (err < 0) {
 			dev_err(dev,

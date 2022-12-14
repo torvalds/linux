@@ -189,6 +189,13 @@ struct nfsd_net {
 	struct nfsd_fcache_disposal *fcache_disposal;
 
 	siphash_key_t		siphash_key;
+
+	atomic_t		nfs4_client_count;
+	int			nfs4_max_clients;
+
+	atomic_t		nfsd_courtesy_clients;
+	struct shrinker		nfsd_client_shrinker;
+	struct delayed_work	nfsd_shrinker_work;
 };
 
 /* Simple check to find out if a given net was properly initialized */

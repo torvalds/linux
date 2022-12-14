@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "dp_rx.h"
@@ -249,7 +250,7 @@ const struct ce_attr ath11k_host_ce_config_qcn9074[] = {
 
 static bool ath11k_ce_need_shadow_fix(int ce_id)
 {
-	/* only ce4 needs shadow workaroud*/
+	/* only ce4 needs shadow workaround */
 	if (ce_id == 4)
 		return true;
 	return false;
@@ -918,9 +919,6 @@ int ath11k_ce_init_pipes(struct ath11k_base *ab)
 	int i;
 	int ret;
 
-	ath11k_ce_get_shadow_config(ab, &ab->qmi.ce_cfg.shadow_reg_v2,
-				    &ab->qmi.ce_cfg.shadow_reg_v2_len);
-
 	for (i = 0; i < ab->hw_params.ce_count; i++) {
 		pipe = &ab->ce.ce_pipe[i];
 
@@ -1044,7 +1042,7 @@ int ath11k_ce_alloc_pipes(struct ath11k_base *ab)
 
 		ret = ath11k_ce_alloc_pipe(ab, i);
 		if (ret) {
-			/* Free any parial successful allocation */
+			/* Free any partial successful allocation */
 			ath11k_ce_free_pipes(ab);
 			return ret;
 		}

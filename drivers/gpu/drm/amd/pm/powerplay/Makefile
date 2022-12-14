@@ -30,10 +30,6 @@ include $(AMD_POWERPLAY)
 
 POWER_MGR-y = amd_powerplay.o
 
-POWER_MGR-$(CONFIG_DRM_AMDGPU_CIK)+= kv_dpm.o kv_smc.o
-
-POWER_MGR-$(CONFIG_DRM_AMDGPU_SI)+= si_dpm.o si_smc.o
-
 AMD_PP_POWER = $(addprefix $(AMD_PP_PATH)/,$(POWER_MGR-y))
 
 AMD_POWERPLAY_FILES += $(AMD_PP_POWER)

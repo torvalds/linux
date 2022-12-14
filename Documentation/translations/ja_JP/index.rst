@@ -3,9 +3,9 @@
 	\renewcommand\thesection*
 	\renewcommand\thesubsection*
 	\kerneldocCJKon
-	\kerneldocBeginJP
+	\kerneldocBeginJP{
 
-Japanese translations
+日本語訳
 =====================
 
 .. toctree::
@@ -15,4 +15,4 @@ Japanese translations
 
 .. raw:: latex
 
-	\kerneldocEndJP
+	}\kerneldocEndJP

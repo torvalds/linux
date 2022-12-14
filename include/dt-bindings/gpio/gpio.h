@@ -39,4 +39,7 @@
 /* Bit 5 express pull down */
 #define GPIO_PULL_DOWN 32
 
+/* Bit 6 express pull disable */
+#define GPIO_PULL_DISABLE 64
+
 #endif

@@ -266,7 +266,7 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 	if (!priv)
 		return -ENOMEM;
 
-	ret = ida_simple_get(&alcor_pci_idr, 0, 0, GFP_KERNEL);
+	ret = ida_alloc(&alcor_pci_idr, GFP_KERNEL);
 	if (ret < 0)
 		return ret;
 	priv->id = ret;
@@ -280,7 +280,8 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 	ret = pci_request_regions(pdev, DRV_NAME_ALCOR_PCI);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot request region\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error_free_ida;
 	}
 
 	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
@@ -316,14 +317,19 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 	ret = mfd_add_devices(&pdev->dev, priv->id, alcor_pci_cells,
 			ARRAY_SIZE(alcor_pci_cells), NULL, 0, NULL);
 	if (ret < 0)
-		goto error_release_regions;
+		goto error_clear_drvdata;
 
 	alcor_pci_aspm_ctrl(priv, 0);
 
 	return 0;
 
+error_clear_drvdata:
+	pci_clear_master(pdev);
+	pci_set_drvdata(pdev, NULL);
 error_release_regions:
 	pci_release_regions(pdev);
+error_free_ida:
+	ida_free(&alcor_pci_idr, priv->id);
 	return ret;
 }
 
@@ -337,9 +343,10 @@ static void alcor_pci_remove(struct pci_dev *pdev)
 
 	mfd_remove_devices(&pdev->dev);
 
-	ida_simple_remove(&alcor_pci_idr, priv->id);
+	ida_free(&alcor_pci_idr, priv->id);
 
 	pci_release_regions(pdev);
+	pci_clear_master(pdev);
 	pci_set_drvdata(pdev, NULL);
 }
 

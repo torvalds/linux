@@ -762,8 +762,6 @@ static int tw686x_querycap(struct file *file, void *priv,
 
 	strscpy(cap->driver, "tw686x", sizeof(cap->driver));
 	strscpy(cap->card, dev->name, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "PCI:%s", pci_name(dev->pci_dev));
 	return 0;
 }
 
@@ -1282,8 +1280,10 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		video_set_drvdata(vdev, vc);
 
 		err = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
-		if (err < 0)
+		if (err < 0) {
+			video_device_release(vdev);
 			goto error;
+		}
 		vc->num = vdev->num;
 	}
 

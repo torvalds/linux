@@ -54,13 +54,8 @@ static ssize_t blk_ia_range_sysfs_show(struct kobject *kobj,
 		container_of(attr, struct blk_ia_range_sysfs_entry, attr);
 	struct blk_independent_access_range *iar =
 		container_of(kobj, struct blk_independent_access_range, kobj);
-	ssize_t ret;
 
-	mutex_lock(&iar->queue->sysfs_lock);
-	ret = entry->show(iar, buf);
-	mutex_unlock(&iar->queue->sysfs_lock);
-
-	return ret;
+	return entry->show(iar, buf);
 }
 
 static const struct sysfs_ops blk_ia_range_sysfs_ops = {
@@ -107,31 +102,18 @@ static struct kobj_type blk_ia_ranges_ktype = {
  * disk_register_independent_access_ranges - register with sysfs a set of
  *		independent access ranges
  * @disk:	Target disk
- * @new_iars:	New set of independent access ranges
  *
  * Register with sysfs a set of independent access ranges for @disk.
- * If @new_iars is not NULL, this set of ranges is registered and the old set
- * specified by q->ia_ranges is unregistered. Otherwise, q->ia_ranges is
- * registered if it is not already.
  */
-int disk_register_independent_access_ranges(struct gendisk *disk,
-				struct blk_independent_access_ranges *new_iars)
+int disk_register_independent_access_ranges(struct gendisk *disk)
 {
+	struct blk_independent_access_ranges *iars = disk->ia_ranges;
 	struct request_queue *q = disk->queue;
-	struct blk_independent_access_ranges *iars;
 	int i, ret;
 
 	lockdep_assert_held(&q->sysfs_dir_lock);
 	lockdep_assert_held(&q->sysfs_lock);
 
-	/* If a new range set is specified, unregister the old one */
-	if (new_iars) {
-		if (q->ia_ranges)
-			disk_unregister_independent_access_ranges(disk);
-		q->ia_ranges = new_iars;
-	}
-
-	iars = q->ia_ranges;
 	if (!iars)
 		return 0;
 
@@ -143,13 +125,12 @@ int disk_register_independent_access_ranges(struct gendisk *disk,
 	ret = kobject_init_and_add(&iars->kobj, &blk_ia_ranges_ktype,
 				   &q->kobj, "%s", "independent_access_ranges");
 	if (ret) {
-		q->ia_ranges = NULL;
+		disk->ia_ranges = NULL;
 		kobject_put(&iars->kobj);
 		return ret;
 	}
 
 	for (i = 0; i < iars->nr_ia_ranges; i++) {
-		iars->ia_range[i].queue = q;
 		ret = kobject_init_and_add(&iars->ia_range[i].kobj,
 					   &blk_ia_range_ktype, &iars->kobj,
 					   "%d", i);
@@ -170,7 +151,7 @@ int disk_register_independent_access_ranges(struct gendisk *disk,
 void disk_unregister_independent_access_ranges(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
-	struct blk_independent_access_ranges *iars = q->ia_ranges;
+	struct blk_independent_access_ranges *iars = disk->ia_ranges;
 	int i;
 
 	lockdep_assert_held(&q->sysfs_dir_lock);
@@ -188,7 +169,7 @@ void disk_unregister_independent_access_ranges(struct gendisk *disk)
 		kfree(iars);
 	}
 
-	q->ia_ranges = NULL;
+	disk->ia_ranges = NULL;
 }
 
 static struct blk_independent_access_range *
@@ -215,6 +196,9 @@ static bool disk_check_ia_ranges(struct gendisk *disk,
 	sector_t capacity = get_capacity(disk);
 	sector_t sector = 0;
 	int i;
+
+	if (WARN_ON_ONCE(!iars->nr_ia_ranges))
+		return false;
 
 	/*
 	 * While sorting the ranges in increasing LBA order, check that the
@@ -248,7 +232,7 @@ static bool disk_check_ia_ranges(struct gendisk *disk,
 static bool disk_ia_ranges_changed(struct gendisk *disk,
 				   struct blk_independent_access_ranges *new)
 {
-	struct blk_independent_access_ranges *old = disk->queue->ia_ranges;
+	struct blk_independent_access_ranges *old = disk->ia_ranges;
 	int i;
 
 	if (!old)
@@ -304,25 +288,15 @@ void disk_set_independent_access_ranges(struct gendisk *disk,
 {
 	struct request_queue *q = disk->queue;
 
-	if (WARN_ON_ONCE(iars && !iars->nr_ia_ranges)) {
+	mutex_lock(&q->sysfs_dir_lock);
+	mutex_lock(&q->sysfs_lock);
+	if (iars && !disk_check_ia_ranges(disk, iars)) {
 		kfree(iars);
 		iars = NULL;
 	}
-
-	mutex_lock(&q->sysfs_dir_lock);
-	mutex_lock(&q->sysfs_lock);
-
-	if (iars) {
-		if (!disk_check_ia_ranges(disk, iars)) {
-			kfree(iars);
-			iars = NULL;
-			goto reg;
-		}
-
-		if (!disk_ia_ranges_changed(disk, iars)) {
-			kfree(iars);
-			goto unlock;
-		}
+	if (iars && !disk_ia_ranges_changed(disk, iars)) {
+		kfree(iars);
+		goto unlock;
 	}
 
 	/*
@@ -330,17 +304,12 @@ void disk_set_independent_access_ranges(struct gendisk *disk,
 	 * revalidation. If that is the case, we need to unregister the old
 	 * set of independent access ranges and register the new set. If the
 	 * queue is not registered, registration of the device request queue
-	 * will register the independent access ranges, so only swap in the
-	 * new set and free the old one.
+	 * will register the independent access ranges.
 	 */
-reg:
-	if (blk_queue_registered(q)) {
-		disk_register_independent_access_ranges(disk, iars);
-	} else {
-		swap(q->ia_ranges, iars);
-		kfree(iars);
-	}
-
+	disk_unregister_independent_access_ranges(disk);
+	disk->ia_ranges = iars;
+	if (blk_queue_registered(q))
+		disk_register_independent_access_ranges(disk);
 unlock:
 	mutex_unlock(&q->sysfs_lock);
 	mutex_unlock(&q->sysfs_dir_lock);

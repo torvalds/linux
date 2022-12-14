@@ -2,7 +2,7 @@
 /*
  */
 
-/**
+/*
  * Both AR2315 and AR2316 chips have PCI interface unit, which supports DMA
  * and interrupt. PCI interface supports MMIO access method, but does not
  * seem to support I/O ports.
@@ -384,7 +384,7 @@ static int ar2315_pci_irq_map(struct irq_domain *d, unsigned irq,
 	return 0;
 }
 
-static struct irq_domain_ops ar2315_pci_irq_domain_ops = {
+static const struct irq_domain_ops ar2315_pci_irq_domain_ops = {
 	.map = ar2315_pci_irq_map,
 };
 

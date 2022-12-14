@@ -49,7 +49,8 @@
 #include <linux/audit.h> /* for audit_free() */
 #include <linux/resource.h>
 #include <linux/task_io_accounting_ops.h>
-#include <linux/tracehook.h>
+#include <linux/blkdev.h>
+#include <linux/task_work.h>
 #include <linux/fs_struct.h>
 #include <linux/init_task.h>
 #include <linux/perf_event.h>
@@ -59,11 +60,13 @@
 #include <linux/writeback.h>
 #include <linux/shm.h>
 #include <linux/kcov.h>
+#include <linux/kmsan.h>
 #include <linux/random.h>
 #include <linux/rcuwait.h>
 #include <linux/compat.h>
 #include <linux/io_uring.h>
 #include <linux/kprobes.h>
+#include <linux/rethook.h>
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -169,6 +172,7 @@ static void delayed_put_task_struct(struct rcu_head *rhp)
 	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
 
 	kprobe_flush_task(tsk);
+	rethook_flush_task(tsk);
 	perf_event_delayed_put(tsk);
 	trace_sched_process_free(tsk);
 	put_task_struct(tsk);
@@ -178,6 +182,10 @@ void put_task_struct_rcu_user(struct task_struct *task)
 {
 	if (refcount_dec_and_test(&task->rcu_users))
 		call_rcu(&task->rcu, delayed_put_task_struct);
+}
+
+void __weak release_thread(struct task_struct *dead_task)
+{
 }
 
 void release_task(struct task_struct *p)
@@ -371,10 +379,10 @@ static void coredump_task_exit(struct task_struct *tsk)
 			complete(&core_state->startup);
 
 		for (;;) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
+			set_current_state(TASK_UNINTERRUPTIBLE|TASK_FREEZABLE);
 			if (!self.task) /* see coredump_finish() */
 				break;
-			freezable_schedule();
+			schedule();
 		}
 		__set_current_state(TASK_RUNNING);
 	}
@@ -463,6 +471,7 @@ assign_new_owner:
 		goto retry;
 	}
 	WRITE_ONCE(mm->owner, c);
+	lru_gen_migrate_mm(mm);
 	task_unlock(c);
 	put_task_struct(c);
 }
@@ -730,28 +739,33 @@ static void check_stack_usage(void)
 static inline void check_stack_usage(void) {}
 #endif
 
+static void synchronize_group_exit(struct task_struct *tsk, long code)
+{
+	struct sighand_struct *sighand = tsk->sighand;
+	struct signal_struct *signal = tsk->signal;
+
+	spin_lock_irq(&sighand->siglock);
+	signal->quick_threads--;
+	if ((signal->quick_threads == 0) &&
+	    !(signal->flags & SIGNAL_GROUP_EXIT)) {
+		signal->flags = SIGNAL_GROUP_EXIT;
+		signal->group_exit_code = code;
+		signal->group_stop_count = 0;
+	}
+	spin_unlock_irq(&sighand->siglock);
+}
+
 void __noreturn do_exit(long code)
 {
 	struct task_struct *tsk = current;
 	int group_dead;
 
-	WARN_ON(blk_needs_flush_plug(tsk));
+	synchronize_group_exit(tsk, code);
 
-	/*
-	 * If do_dead is called because this processes oopsed, it's possible
-	 * that get_fs() was left as KERNEL_DS, so reset it to USER_DS before
-	 * continuing. Amongst other possible reasons, this is to prevent
-	 * mm_release()->clear_child_tid() from writing to a user-controlled
-	 * kernel address.
-	 *
-	 * On uptodate architectures force_uaccess_begin is a noop.  On
-	 * architectures that still have set_fs/get_fs in addition to handling
-	 * oopses handles kernel threads that run as set_fs(KERNEL_DS) by
-	 * default.
-	 */
-	force_uaccess_begin();
+	WARN_ON(tsk->plug);
 
 	kcov_task_exit(tsk);
+	kmsan_task_exit(tsk);
 
 	coredump_task_exit(tsk);
 	ptrace_event(PTRACE_EVENT_EXIT, code);
@@ -777,7 +791,7 @@ void __noreturn do_exit(long code)
 
 #ifdef CONFIG_POSIX_TIMERS
 		hrtimer_cancel(&tsk->signal->real_timer);
-		exit_itimers(tsk->signal);
+		exit_itimers(tsk);
 #endif
 		if (tsk->mm)
 			setmax_mm_hiwater_rss(&tsk->signal->maxrss, tsk->mm);
@@ -845,6 +859,7 @@ void __noreturn do_exit(long code)
 		put_page(tsk->task_frag.page);
 
 	validate_creds_for_do_exit(tsk);
+	exit_task_stack_account(tsk);
 
 	check_stack_usage();
 	preempt_disable();
@@ -906,7 +921,7 @@ SYSCALL_DEFINE1(exit, int, error_code)
  * Take down every thread in the group.  This is called by fatal signals
  * as well as by sys_exit_group (below).
  */
-void
+void __noreturn
 do_group_exit(int exit_code)
 {
 	struct signal_struct *sig = current->signal;
@@ -915,7 +930,7 @@ do_group_exit(int exit_code)
 		exit_code = sig->group_exit_code;
 	else if (sig->group_exec_task)
 		exit_code = 0;
-	else if (!thread_group_empty(current)) {
+	else {
 		struct sighand_struct *const sighand = current->sighand;
 
 		spin_lock_irq(&sighand->siglock);
@@ -1061,7 +1076,7 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		 * p->signal fields because the whole thread group is dead
 		 * and nobody can change them.
 		 *
-		 * psig->stats_lock also protects us from our sub-theads
+		 * psig->stats_lock also protects us from our sub-threads
 		 * which can reap other children at the same time. Until
 		 * we change k_getrusage()-like users to rely on this lock
 		 * we have to take ->siglock as well.

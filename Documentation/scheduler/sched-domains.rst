@@ -37,10 +37,10 @@ rebalancing event for the current runqueue has arrived. The actual load
 balancing workhorse, run_rebalance_domains()->rebalance_domains(), is then run
 in softirq context (SCHED_SOFTIRQ).
 
-The latter function takes two arguments: the current CPU and whether it was idle
-at the time the scheduler_tick() happened and iterates over all sched domains
-our CPU is on, starting from its base domain and going up the ->parent chain.
-While doing that, it checks to see if the current domain has exhausted its
+The latter function takes two arguments: the runqueue of current CPU and whether
+the CPU was idle at the time the scheduler_tick() happened and iterates over all
+sched domains our CPU is on, starting from its base domain and going up the ->parent
+chain. While doing that, it checks to see if the current domain has exhausted its
 rebalance interval. If so, it runs load_balance() on that domain. It then checks
 the parent sched_domain (if it exists), and the parent of the parent and so
 forth.

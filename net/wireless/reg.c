@@ -5,7 +5,7 @@
  * Copyright 2008-2011	Luis R. Rodriguez <mcgrof@qca.qualcomm.com>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright      2017  Intel Deutschland GmbH
- * Copyright (C) 2018 - 2021 Intel Corporation
+ * Copyright (C) 2018 - 2022 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -807,6 +807,8 @@ static int __init load_builtin_regdb_keys(void)
 	return 0;
 }
 
+MODULE_FIRMWARE("regulatory.db.p7s");
+
 static bool regdb_has_valid_signature(const u8 *data, unsigned int size)
 {
 	const struct firmware *sig;
@@ -1078,8 +1080,12 @@ static void regdb_fw_cb(const struct firmware *fw, void *context)
 	release_firmware(fw);
 }
 
+MODULE_FIRMWARE("regulatory.db");
+
 static int query_regdb_file(const char *alpha2)
 {
+	int err;
+
 	ASSERT_RTNL();
 
 	if (regdb)
@@ -1089,9 +1095,13 @@ static int query_regdb_file(const char *alpha2)
 	if (!alpha2)
 		return -ENOMEM;
 
-	return request_firmware_nowait(THIS_MODULE, true, "regulatory.db",
-				       &reg_pdev->dev, GFP_KERNEL,
-				       (void *)alpha2, regdb_fw_cb);
+	err = request_firmware_nowait(THIS_MODULE, true, "regulatory.db",
+				      &reg_pdev->dev, GFP_KERNEL,
+				      (void *)alpha2, regdb_fw_cb);
+	if (err)
+		kfree(alpha2);
+
+	return err;
 }
 
 int reg_reload_regdb(void)
@@ -1238,6 +1248,8 @@ unsigned int reg_get_max_bandwidth(const struct ieee80211_regdomain *rd,
 {
 	unsigned int bw = reg_get_max_bandwidth_from_range(rd, rule);
 
+	if (rule->flags & NL80211_RRF_NO_320MHZ)
+		bw = min_t(unsigned int, bw, MHZ_TO_KHZ(160));
 	if (rule->flags & NL80211_RRF_NO_160MHZ)
 		bw = min_t(unsigned int, bw, MHZ_TO_KHZ(80));
 	if (rule->flags & NL80211_RRF_NO_80MHZ)
@@ -1611,6 +1623,8 @@ static u32 map_regdom_flags(u32 rd_flags)
 		channel_flags |= IEEE80211_CHAN_NO_160MHZ;
 	if (rd_flags & NL80211_RRF_NO_HE)
 		channel_flags |= IEEE80211_CHAN_NO_HE;
+	if (rd_flags & NL80211_RRF_NO_320MHZ)
+		channel_flags |= IEEE80211_CHAN_NO_320MHZ;
 	return channel_flags;
 }
 
@@ -1773,6 +1787,8 @@ static uint32_t reg_rule_to_chan_bw_flags(const struct ieee80211_regdomain *regd
 			bw_flags |= IEEE80211_CHAN_NO_80MHZ;
 		if (max_bandwidth_khz < MHZ_TO_KHZ(160))
 			bw_flags |= IEEE80211_CHAN_NO_160MHZ;
+		if (max_bandwidth_khz < MHZ_TO_KHZ(320))
+			bw_flags |= IEEE80211_CHAN_NO_320MHZ;
 	}
 	return bw_flags;
 }
@@ -2360,6 +2376,7 @@ static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	enum nl80211_iftype iftype;
 	bool ret;
+	int link;
 
 	wdev_lock(wdev);
 	iftype = wdev->iftype;
@@ -2368,61 +2385,86 @@ static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
 	if (!wdev->netdev || !netif_running(wdev->netdev))
 		goto wdev_inactive_unlock;
 
-	switch (iftype) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_P2P_GO:
-	case NL80211_IFTYPE_MESH_POINT:
-		if (!wdev->beacon_interval)
-			goto wdev_inactive_unlock;
-		chandef = wdev->chandef;
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		if (!wdev->ssid_len)
-			goto wdev_inactive_unlock;
-		chandef = wdev->chandef;
-		break;
-	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_P2P_CLIENT:
-		if (!wdev->current_bss ||
-		    !wdev->current_bss->pub.channel)
-			goto wdev_inactive_unlock;
+	for (link = 0; link < ARRAY_SIZE(wdev->links); link++) {
+		struct ieee80211_channel *chan;
 
-		if (!rdev->ops->get_channel ||
-		    rdev_get_channel(rdev, wdev, &chandef))
-			cfg80211_chandef_create(&chandef,
-						wdev->current_bss->pub.channel,
-						NL80211_CHAN_NO_HT);
-		break;
-	case NL80211_IFTYPE_MONITOR:
-	case NL80211_IFTYPE_AP_VLAN:
-	case NL80211_IFTYPE_P2P_DEVICE:
-		/* no enforcement required */
-		break;
-	default:
-		/* others not implemented for now */
-		WARN_ON(1);
-		break;
+		if (!wdev->valid_links && link > 0)
+			break;
+		if (!(wdev->valid_links & BIT(link)))
+			continue;
+		switch (iftype) {
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_P2P_GO:
+			if (!wdev->links[link].ap.beacon_interval)
+				continue;
+			chandef = wdev->links[link].ap.chandef;
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			if (!wdev->u.mesh.beacon_interval)
+				continue;
+			chandef = wdev->u.mesh.chandef;
+			break;
+		case NL80211_IFTYPE_ADHOC:
+			if (!wdev->u.ibss.ssid_len)
+				continue;
+			chandef = wdev->u.ibss.chandef;
+			break;
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_P2P_CLIENT:
+			/* Maybe we could consider disabling that link only? */
+			if (!wdev->links[link].client.current_bss)
+				continue;
+
+			chan = wdev->links[link].client.current_bss->pub.channel;
+			if (!chan)
+				continue;
+
+			if (!rdev->ops->get_channel ||
+			    rdev_get_channel(rdev, wdev, link, &chandef))
+				cfg80211_chandef_create(&chandef, chan,
+							NL80211_CHAN_NO_HT);
+			break;
+		case NL80211_IFTYPE_MONITOR:
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_P2P_DEVICE:
+			/* no enforcement required */
+			break;
+		default:
+			/* others not implemented for now */
+			WARN_ON(1);
+			break;
+		}
+
+		wdev_unlock(wdev);
+
+		switch (iftype) {
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_P2P_GO:
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_MESH_POINT:
+			wiphy_lock(wiphy);
+			ret = cfg80211_reg_can_beacon_relax(wiphy, &chandef,
+							    iftype);
+			wiphy_unlock(wiphy);
+
+			if (!ret)
+				return ret;
+			break;
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_P2P_CLIENT:
+			ret = cfg80211_chandef_usable(wiphy, &chandef,
+						      IEEE80211_CHAN_DISABLED);
+			if (!ret)
+				return ret;
+			break;
+		default:
+			break;
+		}
+
+		wdev_lock(wdev);
 	}
 
 	wdev_unlock(wdev);
-
-	switch (iftype) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_P2P_GO:
-	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_MESH_POINT:
-		wiphy_lock(wiphy);
-		ret = cfg80211_reg_can_beacon_relax(wiphy, &chandef, iftype);
-		wiphy_unlock(wiphy);
-
-		return ret;
-	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_P2P_CLIENT:
-		return cfg80211_chandef_usable(wiphy, &chandef,
-					       IEEE80211_CHAN_DISABLED);
-	default:
-		break;
-	}
 
 	return true;
 
@@ -4205,8 +4247,17 @@ static void cfg80211_check_and_end_cac(struct cfg80211_registered_device *rdev)
 	 * In both cases we should end the CAC on the wdev.
 	 */
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
-		if (wdev->cac_started &&
-		    !cfg80211_chandef_dfs_usable(&rdev->wiphy, &wdev->chandef))
+		struct cfg80211_chan_def *chandef;
+
+		if (!wdev->cac_started)
+			continue;
+
+		/* FIXME: radar detection is tied to link 0 for now */
+		chandef = wdev_chandef(wdev, 0);
+		if (!chandef)
+			continue;
+
+		if (!cfg80211_chandef_dfs_usable(&rdev->wiphy, chandef))
 			rdev_end_cac(rdev, wdev->netdev);
 	}
 }

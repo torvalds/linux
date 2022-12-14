@@ -59,6 +59,9 @@ struct hda_bus {
 	unsigned int no_response_fallback:1; /* don't fallback at RIRB error */
 	unsigned int bus_probing :1;	/* during probing process */
 	unsigned int keep_power:1;	/* keep power up for notification */
+	unsigned int jackpoll_in_suspend:1; /* keep jack polling during
+					     * runtime suspend
+					     */
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
 	unsigned int mixer_assigned;	/* codec addr for mixer name */
@@ -228,7 +231,6 @@ struct hda_codec {
 	/* misc flags */
 	unsigned int configured:1; /* codec was configured */
 	unsigned int in_freeing:1; /* being released */
-	unsigned int registered:1; /* codec was registered */
 	unsigned int display_power_control:1; /* needs display power */
 	unsigned int spdif_status_reset :1; /* needs to toggle SPDIF for each
 					     * status change
@@ -256,7 +258,6 @@ struct hda_codec {
 	unsigned int link_down_at_suspend:1; /* link down at runtime suspend */
 	unsigned int relaxed_resume:1;	/* don't resume forcibly for jack */
 	unsigned int forced_resume:1; /* forced resume for jack */
-	unsigned int mst_no_extra_pcms:1; /* no backup PCMs for DP-MST */
 
 #ifdef CONFIG_PM
 	unsigned long power_on_acct;
@@ -291,8 +292,6 @@ struct hda_codec {
 #define dev_to_hda_codec(_dev)	container_of(_dev, struct hda_codec, core.dev)
 #define hda_codec_dev(_dev)	(&(_dev)->core.dev)
 
-#define hdac_to_hda_priv(_hdac) \
-			container_of(_hdac, struct hdac_hda_priv, codec.core)
 #define hdac_to_hda_codec(_hdac) container_of(_hdac, struct hda_codec, core)
 
 #define list_for_each_codec(c, bus) \
@@ -306,12 +305,19 @@ struct hda_codec {
 /*
  * constructors
  */
+__printf(3, 4) struct hda_codec *
+snd_hda_codec_device_init(struct hda_bus *bus, unsigned int codec_addr,
+			  const char *fmt, ...);
 int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 		      unsigned int codec_addr, struct hda_codec **codecp);
 int snd_hda_codec_device_new(struct hda_bus *bus, struct snd_card *card,
-		      unsigned int codec_addr, struct hda_codec *codec);
+		      unsigned int codec_addr, struct hda_codec *codec,
+		      bool snddev_managed);
 int snd_hda_codec_configure(struct hda_codec *codec);
 int snd_hda_codec_update_widgets(struct hda_codec *codec);
+void snd_hda_codec_register(struct hda_codec *codec);
+void snd_hda_codec_unregister(struct hda_codec *codec);
+void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec);
 
 /*
  * low level functions
@@ -490,9 +496,11 @@ int hda_call_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 #define snd_hda_power_down(codec)	snd_hdac_power_down(&(codec)->core)
 #define snd_hda_power_down_pm(codec)	snd_hdac_power_down_pm(&(codec)->core)
 #ifdef CONFIG_PM
+void snd_hda_codec_set_power_save(struct hda_codec *codec, int delay);
 void snd_hda_set_power_save(struct hda_bus *bus, int delay);
 void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
+static inline void snd_hda_codec_set_power_save(struct hda_codec *codec, int delay) {}
 static inline void snd_hda_set_power_save(struct hda_bus *bus, int delay) {}
 #endif
 

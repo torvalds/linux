@@ -129,7 +129,7 @@ static ssize_t ad5624r_write_dac_powerdown(struct iio_dev *indio_dev,
 	int ret;
 	struct ad5624r_state *st = iio_priv(indio_dev);
 
-	ret = strtobool(buf, &pwr_down);
+	ret = kstrtobool(buf, &pwr_down);
 	if (ret)
 		return ret;
 
@@ -293,7 +293,7 @@ error_disable_reg:
 	return ret;
 }
 
-static int ad5624r_remove(struct spi_device *spi)
+static void ad5624r_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5624r_state *st = iio_priv(indio_dev);
@@ -301,8 +301,6 @@ static int ad5624r_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-
-	return 0;
 }
 
 static const struct spi_device_id ad5624r_id[] = {

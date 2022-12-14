@@ -38,7 +38,7 @@ struct microcode_header_amd {
 
 struct microcode_amd {
 	struct microcode_header_amd	hdr;
-	unsigned int			mpb[0];
+	unsigned int			mpb[];
 };
 
 #define PATCH_MAX_SIZE (3 * PAGE_SIZE)

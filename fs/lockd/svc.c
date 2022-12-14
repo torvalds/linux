@@ -184,8 +184,7 @@ lockd(void *vrqstp)
 	dprintk("lockd_down: service stopped\n");
 
 	svc_exit_thread(rqstp);
-
-	module_put_and_kthread_exit(0);
+	return 0;
 }
 
 static int create_lockd_listener(struct svc_serv *serv, const char *name,
@@ -197,8 +196,8 @@ static int create_lockd_listener(struct svc_serv *serv, const char *name,
 
 	xprt = svc_find_xprt(serv, name, net, family, 0);
 	if (xprt == NULL)
-		return svc_create_xprt(serv, name, net, family, port,
-						SVC_SOCK_DEFAULTS, cred);
+		return svc_xprt_create(serv, name, net, family, port,
+				       SVC_SOCK_DEFAULTS, cred);
 	svc_xprt_put(xprt);
 	return 0;
 }
@@ -248,7 +247,8 @@ out_err:
 	if (warned++ == 0)
 		printk(KERN_WARNING
 			"lockd_up: makesock failed, error=%d\n", err);
-	svc_shutdown_net(serv, net);
+	svc_xprt_destroy_all(serv, net);
+	svc_rpcb_cleanup(serv, net);
 	return err;
 }
 
@@ -286,9 +286,8 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 			nlm_shutdown_hosts_net(net);
 			cancel_delayed_work_sync(&ln->grace_period_end);
 			locks_end_grace(&ln->lockd_manager);
-			svc_shutdown_net(serv, net);
-			dprintk("%s: per-net data destroyed; net=%x\n",
-				__func__, net->ns.inum);
+			svc_xprt_destroy_all(serv, net);
+			svc_rpcb_cleanup(serv, net);
 		}
 	} else {
 		pr_err("%s: no users! net=%x\n",
@@ -350,13 +349,6 @@ static struct notifier_block lockd_inet6addr_notifier = {
 };
 #endif
 
-static const struct svc_serv_ops lockd_sv_ops = {
-	.svo_shutdown		= svc_rpcb_cleanup,
-	.svo_function		= lockd,
-	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
-	.svo_module		= THIS_MODULE,
-};
-
 static int lockd_get(void)
 {
 	struct svc_serv *serv;
@@ -380,7 +372,7 @@ static int lockd_get(void)
 		nlm_timeout = LOCKD_DFLT_TIMEO;
 	nlmsvc_timeout = nlm_timeout * HZ;
 
-	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, &lockd_sv_ops);
+	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, lockd);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		return -ENOMEM;

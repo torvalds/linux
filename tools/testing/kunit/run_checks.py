@@ -14,7 +14,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Sequence
 
 ABS_TOOL_PATH = os.path.abspath(os.path.dirname(__file__))
 TIMEOUT = datetime.timedelta(minutes=5).total_seconds()
@@ -61,7 +61,7 @@ def main(argv: Sequence[str]) -> None:
 		elif isinstance(ex, subprocess.CalledProcessError):
 			print(f'{name}: FAILED')
 		else:
-			print('{name}: unexpected exception: {ex}')
+			print(f'{name}: unexpected exception: {ex}')
 			continue
 
 		output = ex.output

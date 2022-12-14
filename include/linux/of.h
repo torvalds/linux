@@ -207,7 +207,7 @@ static inline void of_node_clear_flag(struct device_node *n, unsigned long flag)
 }
 
 #if defined(CONFIG_OF_DYNAMIC) || defined(CONFIG_SPARC)
-static inline int of_property_check_flag(struct property *p, unsigned long flag)
+static inline int of_property_check_flag(const struct property *p, unsigned long flag)
 {
 	return test_bit(flag, &p->_flags);
 }
@@ -342,7 +342,7 @@ extern int of_property_read_string_helper(const struct device_node *np,
 					      const char **out_strs, size_t sz, int index);
 extern int of_device_is_compatible(const struct device_node *device,
 				   const char *);
-extern int of_device_compatible_match(struct device_node *device,
+extern int of_device_compatible_match(const struct device_node *device,
 				      const char *const *compat);
 extern bool of_device_is_available(const struct device_node *device);
 extern bool of_device_is_big_endian(const struct device_node *device);
@@ -388,9 +388,6 @@ extern int of_phandle_iterator_args(struct of_phandle_iterator *it,
 extern void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align));
 extern int of_alias_get_id(struct device_node *np, const char *stem);
 extern int of_alias_get_highest_id(const char *stem);
-extern int of_alias_get_alias_list(const struct of_device_id *matches,
-				   const char *stem, unsigned long *bitmap,
-				   unsigned int nbits);
 
 extern int of_machine_is_compatible(const char *compat);
 
@@ -444,8 +441,6 @@ void *of_kexec_alloc_and_setup_fdt(const struct kimage *image,
 				   unsigned long initrd_load_addr,
 				   unsigned long initrd_len,
 				   const char *cmdline, size_t extra_fdt_size);
-int ima_get_kexec_buffer(void **addr, size_t *size);
-int ima_free_kexec_buffer(void);
 #else /* CONFIG_OF */
 
 static inline void of_core_init(void)
@@ -567,7 +562,7 @@ static inline int of_device_is_compatible(const struct device_node *device,
 	return 0;
 }
 
-static inline  int of_device_compatible_match(struct device_node *device,
+static inline  int of_device_compatible_match(const struct device_node *device,
 					      const char *const *compat)
 {
 	return 0;
@@ -766,13 +761,6 @@ static inline int of_alias_get_highest_id(const char *stem)
 	return -ENOSYS;
 }
 
-static inline int of_alias_get_alias_list(const struct of_device_id *matches,
-					  const char *stem, unsigned long *bitmap,
-					  unsigned int nbits)
-{
-	return -ENOSYS;
-}
-
 static inline int of_machine_is_compatible(const char *compat)
 {
 	return 0;
@@ -824,7 +812,8 @@ static inline void of_node_clear_flag(struct device_node *n, unsigned long flag)
 {
 }
 
-static inline int of_property_check_flag(struct property *p, unsigned long flag)
+static inline int of_property_check_flag(const struct property *p,
+					 unsigned long flag)
 {
 	return 0;
 }
@@ -1553,11 +1542,25 @@ static inline bool of_device_is_system_power_controller(const struct device_node
  */
 
 enum of_overlay_notify_action {
-	OF_OVERLAY_PRE_APPLY = 0,
+	OF_OVERLAY_INIT = 0,	/* kzalloc() of ovcs sets this value */
+	OF_OVERLAY_PRE_APPLY,
 	OF_OVERLAY_POST_APPLY,
 	OF_OVERLAY_PRE_REMOVE,
 	OF_OVERLAY_POST_REMOVE,
 };
+
+static inline char *of_overlay_action_name(enum of_overlay_notify_action action)
+{
+	static char *of_overlay_action_name[] = {
+		"init",
+		"pre-apply",
+		"post-apply",
+		"pre-remove",
+		"post-remove",
+	};
+
+	return of_overlay_action_name[action];
+}
 
 struct of_overlay_notify_data {
 	struct device_node *overlay;

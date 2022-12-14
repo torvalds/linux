@@ -260,11 +260,9 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 		rxrpc_end_rx_phase(call, serial);
 	} else {
 		/* Check to see if there's an ACK that needs sending. */
-		if (after_eq(hard_ack, call->ackr_consumed + 2) ||
-		    after_eq(top, call->ackr_seen + 2) ||
-		    (hard_ack == top && after(hard_ack, call->ackr_consumed)))
-			rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, serial,
-					  true, true,
+		if (atomic_inc_return(&call->ackr_nr_consumed) > 2)
+			rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, serial,
+					  true, false,
 					  rxrpc_propose_ack_rotate_rx);
 		if (call->ackr_reason && call->ackr_reason != RXRPC_ACK_DELAY)
 			rxrpc_send_ack_packet(call, false, NULL);
@@ -773,46 +771,3 @@ call_complete:
 	goto out;
 }
 EXPORT_SYMBOL(rxrpc_kernel_recv_data);
-
-/**
- * rxrpc_kernel_get_reply_time - Get timestamp on first reply packet
- * @sock: The socket that the call exists on
- * @call: The call to query
- * @_ts: Where to put the timestamp
- *
- * Retrieve the timestamp from the first DATA packet of the reply if it is
- * in the ring.  Returns true if successful, false if not.
- */
-bool rxrpc_kernel_get_reply_time(struct socket *sock, struct rxrpc_call *call,
-				 ktime_t *_ts)
-{
-	struct sk_buff *skb;
-	rxrpc_seq_t hard_ack, top, seq;
-	bool success = false;
-
-	mutex_lock(&call->user_mutex);
-
-	if (READ_ONCE(call->state) != RXRPC_CALL_CLIENT_RECV_REPLY)
-		goto out;
-
-	hard_ack = call->rx_hard_ack;
-	if (hard_ack != 0)
-		goto out;
-
-	seq = hard_ack + 1;
-	top = smp_load_acquire(&call->rx_top);
-	if (after(seq, top))
-		goto out;
-
-	skb = call->rxtx_buffer[seq & RXRPC_RXTX_BUFF_MASK];
-	if (!skb)
-		goto out;
-
-	*_ts = skb_get_ktime(skb);
-	success = true;
-
-out:
-	mutex_unlock(&call->user_mutex);
-	return success;
-}
-EXPORT_SYMBOL(rxrpc_kernel_get_reply_time);

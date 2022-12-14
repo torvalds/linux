@@ -100,7 +100,7 @@ u8 PwrState)
 u16
 Efuse_GetCurrentSize(
 	struct adapter *padapter,
-	u8 	efuseType,
+	u8	efuseType,
 	bool		bPseudoTest)
 {
 	return padapter->HalFunc.EfuseGetCurrentSize(padapter, efuseType,
@@ -124,29 +124,29 @@ Efuse_CalculateWordCnts(u8 word_en)
 }
 
 /*  */
-/* 	Description: */
-/* 		1. Execute E-Fuse read byte operation according as map offset and */
-/* 		    save to E-Fuse table. */
-/* 		2. Referred from SD1 Richard. */
+/* Description: */
+/*		1. Execute E-Fuse read byte operation according as map offset and */
+/*			save to E-Fuse table. */
+/*		2. Referred from SD1 Richard. */
 /*  */
-/* 	Assumption: */
-/* 		1. Boot from E-Fuse and successfully auto-load. */
-/* 		2. PASSIVE_LEVEL (USB interface) */
+/* Assumption: */
+/*		1. Boot from E-Fuse and successfully auto-load. */
+/*		2. PASSIVE_LEVEL (USB interface) */
 /*  */
-/* 	Created by Roger, 2008.10.21. */
+/* Created by Roger, 2008.10.21. */
 /*  */
-/* 	2008/12/12 MH	1. Reorganize code flow and reserve bytes. and add description. */
-/* 					2. Add efuse utilization collect. */
-/* 	2008/12/22 MH	Read Efuse must check if we write section 1 data again!!! Sec1 */
-/* 					write addr must be after sec5. */
+/* 2008/12/12 MH	1. Reorganize code flow and reserve bytes. and add description. */
+/*					2. Add efuse utilization collect. */
+/* 2008/12/22 MH	Read Efuse must check if we write section 1 data again!!! Sec1 */
+/*					write addr must be after sec5. */
 /*  */
 
 void
 efuse_ReadEFuse(
 	struct adapter *Adapter,
 	u8 efuseType,
-	u16 	_offset,
-	u16 	_size_byte,
+	u16		_offset,
+	u16		_size_byte,
 	u8 *pbuf,
 bool	bPseudoTest
 	);
@@ -154,8 +154,8 @@ void
 efuse_ReadEFuse(
 	struct adapter *Adapter,
 	u8 efuseType,
-	u16 	_offset,
-	u16 	_size_byte,
+	u16		_offset,
+	u16		_size_byte,
 	u8 *pbuf,
 bool	bPseudoTest
 	)
@@ -168,7 +168,7 @@ EFUSE_GetEfuseDefinition(
 	struct adapter *padapter,
 	u8 efuseType,
 	u8 type,
-	void 	*pOut,
+	void	*pOut,
 	bool		bPseudoTest
 	)
 {
@@ -194,7 +194,7 @@ EFUSE_GetEfuseDefinition(
 u8
 EFUSE_Read1Byte(
 struct adapter *Adapter,
-u16 	Address)
+u16		Address)
 {
 	u8 Bytetemp = {0x00};
 	u8 temp = {0x00};
@@ -235,8 +235,8 @@ u16 	Address)
 u8
 efuse_OneByteRead(
 struct adapter *padapter,
-u16 		addr,
-u8 	*data,
+u16	addr,
+u8	*data,
 bool		bPseudoTest)
 {
 	u32 tmpidx = 0;
@@ -324,8 +324,8 @@ u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoT
 
 int
 Efuse_PgPacketRead(struct adapter *padapter,
-				u8 	offset,
-				u8 	*data,
+				u8	offset,
+				u8	*data,
 				bool		bPseudoTest)
 {
 	return padapter->HalFunc.Efuse_PgPacketRead(padapter, offset, data,
@@ -334,9 +334,9 @@ Efuse_PgPacketRead(struct adapter *padapter,
 
 int
 Efuse_PgPacketWrite(struct adapter *padapter,
-				u8 	offset,
-				u8 	word_en,
-				u8 	*data,
+				u8	offset,
+				u8	word_en,
+				u8	*data,
 				bool		bPseudoTest)
 {
 	return padapter->HalFunc.Efuse_PgPacketWrite(padapter, offset, word_en,
@@ -386,7 +386,7 @@ efuse_WordEnableDataRead(u8 word_en,
 
 u8
 Efuse_WordEnableDataWrite(struct adapter *padapter,
-						u16 	efuse_addr,
+						u16		efuse_addr,
 						u8 word_en,
 						u8 *data,
 						bool		bPseudoTest)

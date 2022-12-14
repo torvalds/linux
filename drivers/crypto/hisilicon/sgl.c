@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 HiSilicon Limited. */
+#include <linux/align.h>
 #include <linux/dma-mapping.h>
+#include <linux/hisi_acc_qm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include "qm.h"
 
 #define HISI_ACC_SGL_SGE_NR_MIN		1
 #define HISI_ACC_SGL_NR_MAX		256
@@ -64,8 +65,9 @@ struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
 	if (!dev || !count || !sge_nr || sge_nr > HISI_ACC_SGL_SGE_NR_MAX)
 		return ERR_PTR(-EINVAL);
 
-	sgl_size = sizeof(struct acc_hw_sge) * sge_nr +
-		   sizeof(struct hisi_acc_hw_sgl);
+	sgl_size = ALIGN(sizeof(struct acc_hw_sge) * sge_nr +
+			 sizeof(struct hisi_acc_hw_sgl),
+			 HISI_ACC_SGL_ALIGN_SIZE);
 
 	/*
 	 * the pool may allocate a block of memory of size PAGE_SIZE * 2^(MAX_ORDER - 1),

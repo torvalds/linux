@@ -1486,7 +1486,7 @@ static const struct clk_init_data sdcc1_apps_clk_src_8976v1_1_init = {
 	.name = "sdcc1_apps_clk_src",
 	.parent_data = gcc_parent_data_v1_1,
 	.num_parents = ARRAY_SIZE(gcc_parent_data_v1_1),
-	.ops = &clk_rcg2_ops,
+	.ops = &clk_rcg2_floor_ops,
 };
 
 static struct clk_rcg2 sdcc1_apps_clk_src = {
@@ -1499,7 +1499,7 @@ static struct clk_rcg2 sdcc1_apps_clk_src = {
 		.name = "sdcc1_apps_clk_src",
 		.parent_data = gcc_parent_data_1,
 		.num_parents = ARRAY_SIZE(gcc_parent_data_1),
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -1547,7 +1547,7 @@ static struct clk_rcg2 sdcc2_apps_clk_src = {
 		.name = "sdcc2_apps_clk_src",
 		.parent_data = gcc_parent_data_4_8,
 		.num_parents = ARRAY_SIZE(gcc_parent_data_4_8),
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -4056,6 +4056,7 @@ static const struct qcom_reset_map gcc_msm8976_resets[] = {
 	[RST_CAMSS_CSI_VFE1_BCR]	= { 0x58070 },
 	[RST_CAMSS_VFE1_BCR]		= { 0x5807c },
 	[RST_CAMSS_CPP_BCR]		= { 0x58080 },
+	[RST_MSS_BCR]			= { 0x71000 },
 };
 
 static struct gdsc *gcc_msm8976_gdscs[] = {

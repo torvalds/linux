@@ -317,7 +317,7 @@ static int __init oaktrail_init(void)
 		goto err_driver_reg;
 	}
 
-	oaktrail_device = platform_device_alloc(DRIVER_NAME, -1);
+	oaktrail_device = platform_device_alloc(DRIVER_NAME, PLATFORM_DEVID_NONE);
 	if (!oaktrail_device) {
 		pr_warn("Unable to allocate platform device\n");
 		ret = -ENOMEM;

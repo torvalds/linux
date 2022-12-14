@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP interface clock support
  *
  * Copyright (C) 2013 Texas Instruments, Inc.
  *
  * Tero Kristo <t-kristo@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
@@ -72,6 +64,7 @@ static void __init _of_ti_interface_clk_setup(struct device_node *node,
 	const char *parent_name;
 	struct clk_omap_reg reg;
 	u8 enable_bit = 0;
+	const char *name;
 	u32 val;
 
 	if (ti_clk_get_reg_addr(node, 0, &reg))
@@ -86,7 +79,8 @@ static void __init _of_ti_interface_clk_setup(struct device_node *node,
 		return;
 	}
 
-	clk = _register_interface(NULL, node->name, parent_name, &reg,
+	name = ti_dt_clk_name(node);
+	clk = _register_interface(NULL, name, parent_name, &reg,
 				  enable_bit, ops);
 
 	if (!IS_ERR(clk))

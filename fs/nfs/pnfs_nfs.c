@@ -374,12 +374,12 @@ pnfs_bucket_search_commit_reqs(struct pnfs_commit_bucket *buckets,
 	return NULL;
 }
 
-/* pnfs_generic_search_commit_reqs - Search lists in @cinfo for the head reqest
+/* pnfs_generic_search_commit_reqs - Search lists in @cinfo for the head request
  *				   for @page
  * @cinfo - commit info for current inode
  * @page - page to search for matching head request
  *
- * Returns a the head request if one is found, otherwise returns NULL.
+ * Return: the head request if one is found, otherwise %NULL.
  */
 struct nfs_page *
 pnfs_generic_search_commit_reqs(struct nfs_commit_info *cinfo, struct page *page)
@@ -419,7 +419,7 @@ static struct nfs_commit_data *
 pnfs_bucket_fetch_commitdata(struct pnfs_commit_bucket *bucket,
 			     struct nfs_commit_info *cinfo)
 {
-	struct nfs_commit_data *data = nfs_commitdata_alloc(false);
+	struct nfs_commit_data *data = nfs_commitdata_alloc();
 
 	if (!data)
 		return NULL;
@@ -515,7 +515,11 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 	unsigned int nreq = 0;
 
 	if (!list_empty(mds_pages)) {
-		data = nfs_commitdata_alloc(true);
+		data = nfs_commitdata_alloc();
+		if (!data) {
+			nfs_retry_commit(mds_pages, NULL, cinfo, -1);
+			return -ENOMEM;
+		}
 		data->ds_commit_index = -1;
 		list_splice_init(mds_pages, &data->pages);
 		list_add_tail(&data->list, &list);
@@ -817,7 +821,7 @@ static void nfs4_clear_ds_conn_bit(struct nfs4_pnfs_ds *ds)
 
 static struct nfs_client *(*get_v3_ds_connect)(
 			struct nfs_server *mds_srv,
-			const struct sockaddr *ds_addr,
+			const struct sockaddr_storage *ds_addr,
 			int ds_addrlen,
 			int ds_proto,
 			unsigned int ds_timeo,
@@ -878,7 +882,7 @@ static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 			continue;
 		}
 		clp = get_v3_ds_connect(mds_srv,
-				(struct sockaddr *)&da->da_addr,
+				&da->da_addr,
 				da->da_addrlen, da->da_transport,
 				timeo, retrans);
 		if (IS_ERR(clp))
@@ -947,7 +951,7 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 				put_cred(xprtdata.cred);
 		} else {
 			clp = nfs4_set_ds_client(mds_srv,
-						(struct sockaddr *)&da->da_addr,
+						&da->da_addr,
 						da->da_addrlen,
 						da->da_transport, timeo,
 						retrans, minor_version);

@@ -256,8 +256,8 @@ static void stih_rx_done(struct stih_cec *cec, u32 status)
 	if (!msg.len)
 		return;
 
-	if (msg.len > 16)
-		msg.len = 16;
+	if (msg.len > CEC_MAX_MSG_SIZE)
+		msg.len = CEC_MAX_MSG_SIZE;
 
 	for (i = 0; i < msg.len; i++)
 		msg.msg[i] = readl(cec->regs + CEC_RX_DATA_BASE + i);

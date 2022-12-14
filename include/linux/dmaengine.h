@@ -50,7 +50,6 @@ enum dma_status {
  */
 enum dma_transaction_type {
 	DMA_MEMCPY,
-	DMA_MEMCPY_SG,
 	DMA_XOR,
 	DMA_PQ,
 	DMA_XOR_VAL,
@@ -870,7 +869,6 @@ struct dma_device {
 	struct device *dev;
 	struct module *owner;
 	struct ida chan_ida;
-	struct mutex chan_mutex;	/* to protect chan_ida */
 
 	u32 src_addr_widths;
 	u32 dst_addr_widths;
@@ -888,11 +886,6 @@ struct dma_device {
 	struct dma_async_tx_descriptor *(*device_prep_dma_memcpy)(
 		struct dma_chan *chan, dma_addr_t dst, dma_addr_t src,
 		size_t len, unsigned long flags);
-	struct dma_async_tx_descriptor *(*device_prep_dma_memcpy_sg)(
-		struct dma_chan *chan,
-		struct scatterlist *dst_sg, unsigned int dst_nents,
-		struct scatterlist *src_sg, unsigned int src_nents,
-		unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_xor)(
 		struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
 		unsigned int src_cnt, size_t len, unsigned long flags);
@@ -1031,6 +1024,14 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_interleaved_dma(
 	return chan->device->device_prep_interleaved_dma(chan, xt, flags);
 }
 
+/**
+ * dmaengine_prep_dma_memset() - Prepare a DMA memset descriptor.
+ * @chan: The channel to be used for this descriptor
+ * @dest: Address of buffer to be set
+ * @value: Treated as a single byte value that fills the destination buffer
+ * @len: The total size of dest
+ * @flags: DMA engine flags
+ */
 static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_memset(
 		struct dma_chan *chan, dma_addr_t dest, int value, size_t len,
 		unsigned long flags)
@@ -1051,20 +1052,6 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_memcpy(
 
 	return chan->device->device_prep_dma_memcpy(chan, dest, src,
 						    len, flags);
-}
-
-static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_memcpy_sg(
-		struct dma_chan *chan,
-		struct scatterlist *dst_sg, unsigned int dst_nents,
-		struct scatterlist *src_sg, unsigned int src_nents,
-		unsigned long flags)
-{
-	if (!chan || !chan->device || !chan->device->device_prep_dma_memcpy_sg)
-		return NULL;
-
-	return chan->device->device_prep_dma_memcpy_sg(chan, dst_sg, dst_nents,
-						       src_sg, src_nents,
-						       flags);
 }
 
 static inline bool dmaengine_is_metadata_mode_supported(struct dma_chan *chan,

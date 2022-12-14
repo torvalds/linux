@@ -217,7 +217,7 @@ static int check_code(uint64_t pc, uint32_t *code, size_t sz)
 )
 
 	/*
-	 * Skip the first instructionm allowing check_ll to look backwards
+	 * Skip the first instruction, allowing check_ll to look backwards
 	 * unconditionally.
 	 */
 	advance();

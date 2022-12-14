@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/delay.h>
-
 #include "dm_services.h"
 #include "core_types.h"
 #include "timing_generator.h"
@@ -401,6 +399,44 @@ void get_hdr_visual_confirm_color(
 		color->color_b_cb = color_value/2;
 		color->color_g_y = color_value/2;
 		break;
+	}
+}
+
+void get_subvp_visual_confirm_color(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color)
+{
+	uint32_t color_value = MAX_TG_COLOR_VALUE;
+	bool enable_subvp = false;
+	int i;
+
+	if (!dc->ctx || !dc->ctx->dmub_srv || !pipe_ctx)
+		return;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream && pipe->stream->mall_stream_config.paired_stream &&
+		    pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+			/* SubVP enable - red */
+			color->color_r_cr = color_value;
+			enable_subvp = true;
+
+			if (pipe_ctx->stream == pipe->stream)
+				return;
+			break;
+		}
+	}
+
+	if (enable_subvp && pipe_ctx->stream->mall_stream_config.type == SUBVP_NONE) {
+		color->color_r_cr = 0;
+		if (pipe_ctx->stream->ignore_msa_timing_param == 1)
+			/* SubVP enable and DRR on - green */
+			color->color_g_y = color_value;
+		else
+			/* SubVP enable and No DRR - blue */
+			color->color_b_cb = color_value;
 	}
 }
 

@@ -719,7 +719,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8750 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8750_of_match[] = {
@@ -780,8 +779,7 @@ static struct spi_driver wm8750_spi_driver = {
 #endif /* CONFIG_SPI_MASTER */
 
 #if IS_ENABLED(CONFIG_I2C)
-static int wm8750_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8750_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8750_priv *wm8750;
 	struct regmap *regmap;
@@ -815,7 +813,7 @@ static struct i2c_driver wm8750_i2c_driver = {
 		.name = "wm8750",
 		.of_match_table = wm8750_of_match,
 	},
-	.probe =    wm8750_i2c_probe,
+	.probe_new = wm8750_i2c_probe,
 	.id_table = wm8750_i2c_id,
 };
 #endif

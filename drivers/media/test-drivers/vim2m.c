@@ -2,7 +2,7 @@
 /*
  * A virtual v4l2-mem2mem example device.
  *
- * This is a virtual device driver for testing mem-to-mem videobuf framework.
+ * This is a virtual device driver for testing mem-to-mem vb2 framework.
  * It simulates a device that uses memory buffers for both source and
  * destination, processes the data and issues an "irq" (simulated by a delayed
  * workqueue).

@@ -26,9 +26,12 @@ struct interrupt_cnt_priv {
 
 static irqreturn_t interrupt_cnt_isr(int irq, void *dev_id)
 {
-	struct interrupt_cnt_priv *priv = dev_id;
+	struct counter_device *counter = dev_id;
+	struct interrupt_cnt_priv *priv = counter_priv(counter);
 
 	atomic_inc(&priv->count);
+
+	counter_push_event(counter, COUNTER_EVENT_CHANGE_OF_STATE, 0);
 
 	return IRQ_HANDLED;
 }
@@ -136,12 +139,23 @@ static int interrupt_cnt_signal_read(struct counter_device *counter,
 	return 0;
 }
 
+static int interrupt_cnt_watch_validate(struct counter_device *counter,
+					const struct counter_watch *watch)
+{
+	if (watch->channel != 0 ||
+	    watch->event != COUNTER_EVENT_CHANGE_OF_STATE)
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct counter_ops interrupt_cnt_ops = {
 	.action_read = interrupt_cnt_action_read,
 	.count_read = interrupt_cnt_read,
 	.count_write = interrupt_cnt_write,
 	.function_read = interrupt_cnt_function_read,
 	.signal_read  = interrupt_cnt_signal_read,
+	.watch_validate  = interrupt_cnt_watch_validate,
 };
 
 static int interrupt_cnt_probe(struct platform_device *pdev)
@@ -209,7 +223,7 @@ static int interrupt_cnt_probe(struct platform_device *pdev)
 	irq_set_status_flags(priv->irq, IRQ_NOAUTOEN);
 	ret = devm_request_irq(dev, priv->irq, interrupt_cnt_isr,
 			       IRQF_TRIGGER_RISING | IRQF_NO_THREAD,
-			       dev_name(dev), priv);
+			       dev_name(dev), counter);
 	if (ret)
 		return ret;
 
@@ -239,3 +253,4 @@ MODULE_ALIAS("platform:interrupt-counter");
 MODULE_AUTHOR("Oleksij Rempel <o.rempel@pengutronix.de>");
 MODULE_DESCRIPTION("Interrupt counter driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(COUNTER);

@@ -39,6 +39,7 @@ struct fscache_cookie;
 #define FSCACHE_ADV_SINGLE_CHUNK	0x01 /* The object is a single chunk of data */
 #define FSCACHE_ADV_WRITE_CACHE		0x00 /* Do cache if written to locally */
 #define FSCACHE_ADV_WRITE_NOCACHE	0x02 /* Don't cache if written to locally */
+#define FSCACHE_ADV_WANT_CACHE_SIZE	0x04 /* Retrieve cache size at runtime */
 
 #define FSCACHE_INVAL_DIO_WRITE		0x01 /* Invalidate due to DIO write */
 
@@ -74,7 +75,7 @@ struct fscache_volume {
 	atomic_t			n_accesses;	/* Number of cache accesses in progress */
 	unsigned int			debug_id;
 	unsigned int			key_hash;	/* Hash of key string */
-	char				*key;		/* Volume ID, eg. "afs@example.com@1234" */
+	u8				*key;		/* Volume ID, eg. "afs@example.com@1234" */
 	struct list_head		proc_link;	/* Link in /proc/fs/fscache/volumes */
 	struct hlist_bl_node		hash_link;	/* Link in hash table */
 	struct work_struct		work;
@@ -129,6 +130,7 @@ struct fscache_cookie {
 #define FSCACHE_COOKIE_DO_PREP_TO_WRITE	12		/* T if cookie needs write preparation */
 #define FSCACHE_COOKIE_HAVE_DATA	13		/* T if this cookie has data stored */
 #define FSCACHE_COOKIE_IS_HASHED	14		/* T if this cookie is hashed */
+#define FSCACHE_COOKIE_DO_INVALIDATE	15		/* T if cookie needs invalidation */
 
 	enum fscache_cookie_state	state;
 	u8				advice;		/* FSCACHE_ADV_* */
@@ -256,7 +258,7 @@ struct fscache_cookie *fscache_acquire_cookie(struct fscache_volume *volume,
 
 /**
  * fscache_use_cookie - Request usage of cookie attached to an object
- * @object: Object description
+ * @cookie: The cookie representing the cache object
  * @will_modify: If cache is expected to be modified locally
  *
  * Request usage of the cookie attached to an object.  The caller should tell
@@ -272,7 +274,7 @@ static inline void fscache_use_cookie(struct fscache_cookie *cookie,
 
 /**
  * fscache_unuse_cookie - Cease usage of cookie attached to an object
- * @object: Object description
+ * @cookie: The cookie representing the cache object
  * @aux_data: Updated auxiliary data (or NULL)
  * @object_size: Revised size of the object (or NULL)
  *
@@ -377,7 +379,7 @@ void fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data,
  *
  * Request that the size of an object be changed.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -454,6 +456,20 @@ int fscache_begin_read_operation(struct netfs_cache_resources *cres,
 	if (fscache_cookie_enabled(cookie))
 		return __fscache_begin_read_operation(cres, cookie);
 	return -ENOBUFS;
+}
+
+/**
+ * fscache_end_operation - End the read operation for the netfs lib
+ * @cres: The cache resources for the read operation
+ *
+ * Clean up the resources at the end of the read request.
+ */
+static inline void fscache_end_operation(struct netfs_cache_resources *cres)
+{
+	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
+
+	if (ops)
+		ops->end_operation(cres);
 }
 
 /**
@@ -559,7 +575,6 @@ int fscache_write(struct netfs_cache_resources *cres,
 
 /**
  * fscache_clear_page_bits - Clear the PG_fscache bits from a set of pages
- * @cookie: The cookie representing the cache object
  * @mapping: The netfs inode to use as the source
  * @start: The start position in @mapping
  * @len: The amount of data to unlock
@@ -568,8 +583,7 @@ int fscache_write(struct netfs_cache_resources *cres,
  * Clear the PG_fscache flag from a sequence of pages and wake up anyone who's
  * waiting.
  */
-static inline void fscache_clear_page_bits(struct fscache_cookie *cookie,
-					   struct address_space *mapping,
+static inline void fscache_clear_page_bits(struct address_space *mapping,
 					   loff_t start, size_t len,
 					   bool caching)
 {
@@ -616,9 +630,11 @@ static inline void fscache_write_to_cache(struct fscache_cookie *cookie,
 }
 
 #if __fscache_available
-extern int fscache_set_page_dirty(struct page *page, struct fscache_cookie *cookie);
+bool fscache_dirty_folio(struct address_space *mapping, struct folio *folio,
+		struct fscache_cookie *cookie);
 #else
-#define fscache_set_page_dirty(PAGE, COOKIE) (__set_page_dirty_nobuffers((PAGE)))
+#define fscache_dirty_folio(MAPPING, FOLIO, COOKIE) \
+		filemap_dirty_folio(MAPPING, FOLIO)
 #endif
 
 /**
@@ -626,7 +642,7 @@ extern int fscache_set_page_dirty(struct page *page, struct fscache_cookie *cook
  * @wbc: The writeback control
  * @cookie: The cookie referring to the cache object
  *
- * Unpin the writeback resources pinned by fscache_set_page_dirty().  This is
+ * Unpin the writeback resources pinned by fscache_dirty_folio().  This is
  * intended to be called by the netfs's ->write_inode() method.
  */
 static inline void fscache_unpin_writeback(struct writeback_control *wbc,

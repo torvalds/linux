@@ -202,7 +202,7 @@ out_disable_pm:
 	return ret;
 }
 
-static int bh1780_remove(struct i2c_client *client)
+static void bh1780_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct bh1780_data *bh1780 = iio_priv(indio_dev);
@@ -213,15 +213,11 @@ static int bh1780_remove(struct i2c_client *client)
 	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 	ret = bh1780_write(bh1780, BH1780_REG_CONTROL, BH1780_POFF);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to power off\n");
-		return ret;
-	}
-
-	return 0;
+	if (ret < 0)
+		dev_err(&client->dev, "failed to power off (%pe)\n",
+			ERR_PTR(ret));
 }
 
-#ifdef CONFIG_PM
 static int bh1780_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -256,14 +252,9 @@ static int bh1780_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
 
-static const struct dev_pm_ops bh1780_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(bh1780_runtime_suspend,
-			   bh1780_runtime_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(bh1780_dev_pm_ops, bh1780_runtime_suspend,
+				bh1780_runtime_resume, NULL);
 
 static const struct i2c_device_id bh1780_id[] = {
 	{ "bh1780", 0 },
@@ -284,7 +275,7 @@ static struct i2c_driver bh1780_driver = {
 	.id_table	= bh1780_id,
 	.driver = {
 		.name = "bh1780",
-		.pm = &bh1780_dev_pm_ops,
+		.pm = pm_ptr(&bh1780_dev_pm_ops),
 		.of_match_table = of_bh1780_match,
 	},
 };

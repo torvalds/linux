@@ -119,12 +119,12 @@ xprt_rdma_bc_allocate(struct rpc_task *task)
 		return -EINVAL;
 	}
 
-	page = alloc_page(RPCRDMA_DEF_GFP);
+	page = alloc_page(GFP_NOIO | __GFP_NOWARN);
 	if (!page)
 		return -ENOMEM;
 	rqst->rq_buffer = page_address(page);
 
-	rqst->rq_rbuffer = kmalloc(rqst->rq_rcvsize, RPCRDMA_DEF_GFP);
+	rqst->rq_rbuffer = kmalloc(rqst->rq_rcvsize, GFP_NOIO | __GFP_NOWARN);
 	if (!rqst->rq_rbuffer) {
 		put_page(page);
 		return -ENOMEM;
@@ -198,7 +198,7 @@ static int xprt_rdma_bc_send_request(struct rpc_rqst *rqst)
 
 	ret = rpcrdma_bc_send_request(rdma, rqst);
 	if (ret == -ENOTCONN)
-		svc_close_xprt(sxprt);
+		svc_xprt_close(sxprt);
 	return ret;
 }
 

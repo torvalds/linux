@@ -17,7 +17,7 @@ See: Documentation/devicetree/bindings/clock/clock-bindings.txt
  - resets		: phandle + reset specifier pairs to the powerdown and softreset lines
 			  of the USB IP
  - reset-names		: should be "power" and "softreset"
-See: Documentation/devicetree/bindings/reset/st,sti-powerdown.txt
+See: Documentation/devicetree/bindings/reset/st,stih407-powerdown.yaml
 See: Documentation/devicetree/bindings/reset/reset.txt
 
 Example:

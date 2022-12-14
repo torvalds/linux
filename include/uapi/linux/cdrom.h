@@ -103,7 +103,7 @@
 #define CDROMREADALL		0x5318	/* read all 2646 bytes */
 
 /* 
- * These ioctls are (now) only in ide-cd.c for controlling 
+ * These ioctls were only in (now removed) ide-cd.c for controlling
  * drive spindown time.  They should be implemented in the
  * Uniform driver, via generic packet commands, GPCMD_MODE_SELECT_10,
  * GPCMD_MODE_SENSE_10 and the GPMODE_POWER_PAGE...

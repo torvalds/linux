@@ -16,7 +16,6 @@
 	};
 
 	chosen {
-		// bootargs = "console=ttymxc2,115200 earlycon=ec_imx6q,0x30880000,115200";
 		stdout-path = &uart3;
 	};
 
@@ -26,21 +25,21 @@
 		pinctrl-0 = <&pinctrl_gpiobutton>;
 		autorepeat;
 
-		switch1 {
+		switch-1 {
 			label = "switch1";
 			linux,code = <BTN_0>;
 			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 			wakeup-source;
 		};
 
-		btn2: switch2 {
+		btn2: switch-2 {
 			label = "switch2";
 			linux,code = <BTN_1>;
 			gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
 			wakeup-source;
 		};
 
-		switch3 {
+		switch-3 {
 			label = "switch3";
 			linux,code = <BTN_2>;
 			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
@@ -64,6 +63,12 @@
 			gpios = <&gpio3 14 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
+	};
+
+	pcie0_refclk: pcie0-refclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
 	};
 
 	reg_hub_vbus: regulator-hub-vbus {
@@ -91,7 +96,7 @@
 
 	sound {
 		compatible = "fsl,imx-audio-tlv320aic32x4";
-		model = "tqm-tlv320aic32";
+		model = "imx-audio-tlv320aic32x4";
 		ssi-controller = <&sai3>;
 		audio-codec = <&tlv320aic3x04>;
 	};
@@ -266,7 +271,6 @@
 	status = "okay";
 };
 
-/* UART4 is assigned to Cortex-M4 */
 &usdhc2 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_gpio>;

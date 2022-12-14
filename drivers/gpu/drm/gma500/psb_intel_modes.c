@@ -7,6 +7,8 @@
 
 #include <linux/i2c.h>
 
+#include <drm/drm_edid.h>
+
 #include "psb_intel_drv.h"
 
 /**

@@ -7,8 +7,36 @@
  */
 
 #include <linux/pm_runtime.h>
+#include <linux/component.h>
+#include <linux/property.h>
 
 #include "tb.h"
+
+static int connector_bind(struct device *dev, struct device *connector, void *data)
+{
+	int ret;
+
+	ret = sysfs_create_link(&dev->kobj, &connector->kobj, "connector");
+	if (ret)
+		return ret;
+
+	ret = sysfs_create_link(&connector->kobj, &dev->kobj, dev_name(dev));
+	if (ret)
+		sysfs_remove_link(&dev->kobj, "connector");
+
+	return ret;
+}
+
+static void connector_unbind(struct device *dev, struct device *connector, void *data)
+{
+	sysfs_remove_link(&connector->kobj, dev_name(dev));
+	sysfs_remove_link(&dev->kobj, "connector");
+}
+
+static const struct component_ops connector_ops = {
+	.bind = connector_bind,
+	.unbind = connector_unbind,
+};
 
 static ssize_t link_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
@@ -25,6 +53,8 @@ static ssize_t link_show(struct device *dev, struct device_attribute *attr,
 		link = port->sw->link_usb4 ? "usb4" : "tbt";
 	else if (tb_port_has_remote(port))
 		link = port->remote->sw->link_usb4 ? "usb4" : "tbt";
+	else if (port->xdomain)
+		link = port->xdomain->link_usb4 ? "usb4" : "tbt";
 	else
 		link = "none";
 
@@ -246,6 +276,14 @@ struct usb4_port *usb4_port_device_add(struct tb_port *port)
 		return ERR_PTR(ret);
 	}
 
+	if (dev_fwnode(&usb4->dev)) {
+		ret = component_add(&usb4->dev, &connector_ops);
+		if (ret) {
+			dev_err(&usb4->dev, "failed to add component\n");
+			device_unregister(&usb4->dev);
+		}
+	}
+
 	pm_runtime_no_callbacks(&usb4->dev);
 	pm_runtime_set_active(&usb4->dev);
 	pm_runtime_enable(&usb4->dev);
@@ -265,6 +303,8 @@ struct usb4_port *usb4_port_device_add(struct tb_port *port)
  */
 void usb4_port_device_remove(struct usb4_port *usb4)
 {
+	if (dev_fwnode(&usb4->dev))
+		component_del(&usb4->dev, &connector_ops);
 	device_unregister(&usb4->dev);
 }
 

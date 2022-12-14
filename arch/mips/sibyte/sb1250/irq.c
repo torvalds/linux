@@ -262,12 +262,6 @@ void __init arch_init_irq(void)
 	__raw_writeq(tmp, IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_MASK)));
 	__raw_writeq(tmp, IOADDR(A_IMR_REGISTER(1, R_IMR_INTERRUPT_MASK)));
 
-	/*
-	 * Note that the timer interrupts are also mapped, but this is
-	 * done in sb1250_time_init().	Also, the profiling driver
-	 * does its own management of IP7.
-	 */
-
 	/* Enable necessary IPs, disable the rest */
 	change_c0_status(ST0_IM, imask);
 }

@@ -139,6 +139,14 @@ krait_add_sec_mux(struct device *dev, int id, const char *s,
 	mux->hw.init = &init;
 	mux->safe_sel = 0;
 
+	/* Checking for qcom,krait-cc-v1 or qcom,krait-cc-v2 is not
+	 * enough to limit this to apq/ipq8064. Directly check machine
+	 * compatible to correctly handle this errata.
+	 */
+	if (of_machine_is_compatible("qcom,ipq8064") ||
+	    of_machine_is_compatible("qcom,apq8064"))
+		mux->disable_sec_src_gating = true;
+
 	init.name = kasprintf(GFP_KERNEL, "krait%s_sec_mux", s);
 	if (!init.name)
 		return -ENOMEM;

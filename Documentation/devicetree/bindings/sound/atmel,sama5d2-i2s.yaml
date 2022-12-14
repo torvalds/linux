@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright (C) 2022 Microchip Technology, Inc. and its subsidiaries
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/atmel,sama5d2-i2s.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atmel I2S controller
+
+maintainers:
+  - Nicolas Ferre <nicolas.ferre@microchip.com>
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+  - Claudiu Beznea <claudiu.beznea@microchip.com>
+
+description:
+  Atmel I2S (Inter-IC Sound Controller) bus is the standard
+  interface for connecting audio devices, such as audio codecs.
+
+properties:
+  compatible:
+    const: atmel,sama5d2-i2s
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: Peripheral clock
+      - description: Generated clock (Optional)
+      - description: I2S mux clock (Optional). Set
+          with gclk when Master Mode is required.
+    minItems: 1
+
+  clock-names:
+    items:
+      - const: pclk
+      - const: gclk
+      - const: muxclk
+    minItems: 1
+
+  dmas:
+    items:
+      - description: TX DMA Channel
+      - description: RX DMA Channel
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - dmas
+  - dma-names
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/dma/at91.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    i2s@f8050000 {
+        compatible = "atmel,sama5d2-i2s";
+        reg = <0xf8050000 0x300>;
+        interrupts = <54 IRQ_TYPE_LEVEL_HIGH 7>;
+        dmas = <&dma0
+                (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+                AT91_XDMAC_DT_PERID(31))>,
+               <&dma0
+                (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+                AT91_XDMAC_DT_PERID(32))>;
+        dma-names = "tx", "rx";
+        clocks = <&i2s0_clk>, <&i2s0_gclk>, <&i2s0muxck>;
+        clock-names = "pclk", "gclk", "muxclk";
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_i2s0_default>;
+    };

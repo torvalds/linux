@@ -24,16 +24,43 @@ struct rproc_debug_trace {
 	struct rproc_mem_entry trace_mem;
 };
 
+/**
+ * struct rproc_vdev_data - remoteproc virtio device data
+ * @rsc_offset: offset of the vdev's resource entry
+ * @id: virtio device id (as in virtio_ids.h)
+ * @index: vdev position versus other vdev declared in resource table
+ * @rsc: pointer to the vdev resource entry. Valid only during vdev init as
+ *       the resource can be cached by rproc.
+ */
+struct rproc_vdev_data {
+	u32 rsc_offset;
+	unsigned int id;
+	u32 index;
+	struct fw_rsc_vdev *rsc;
+};
+
+static inline bool rproc_has_feature(struct rproc *rproc, unsigned int feature)
+{
+	return test_bit(feature, rproc->features);
+}
+
+static inline int rproc_set_feature(struct rproc *rproc, unsigned int feature)
+{
+	if (feature >= RPROC_MAX_FEATURES)
+		return -EINVAL;
+
+	set_bit(feature, rproc->features);
+
+	return 0;
+}
+
 /* from remoteproc_core.c */
 void rproc_release(struct kref *kref);
-irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int vq_id);
-void rproc_vdev_release(struct kref *ref);
 int rproc_of_parse_firmware(struct device *dev, int index,
 			    const char **fw_name);
 
 /* from remoteproc_virtio.c */
-int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id);
-int rproc_remove_virtio_dev(struct device *dev, void *data);
+irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int vq_id);
 
 /* from remoteproc_debugfs.c */
 void rproc_remove_trace_file(struct dentry *tfile);
@@ -83,8 +110,8 @@ static inline void  rproc_char_device_remove(struct rproc *rproc)
 
 void rproc_free_vring(struct rproc_vring *rvring);
 int rproc_alloc_vring(struct rproc_vdev *rvdev, int i);
+int rproc_parse_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i);
 
-void *rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem);
 phys_addr_t rproc_va_to_pa(void *cpu_addr);
 int rproc_trigger_recovery(struct rproc *rproc);
 
@@ -96,6 +123,8 @@ struct resource_table *rproc_elf_find_loaded_rsc_table(struct rproc *rproc,
 						       const struct firmware *fw);
 struct rproc_mem_entry *
 rproc_find_carveout_by_name(struct rproc *rproc, const char *name, ...);
+void rproc_add_rvdev(struct rproc *rproc, struct rproc_vdev *rvdev);
+void rproc_remove_rvdev(struct rproc_vdev *rvdev);
 
 static inline int rproc_prepare_device(struct rproc *rproc)
 {

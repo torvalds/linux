@@ -23,6 +23,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/string_helpers.h>
+
 #include <drm/drm_debugfs.h>
 #include <drm/drm_file.h>
 
@@ -31,7 +33,7 @@
 static void virtio_gpu_add_bool(struct seq_file *m, const char *name,
 				bool value)
 {
-	seq_printf(m, "%-16s : %s\n", name, value ? "yes" : "no");
+	seq_printf(m, "%-16s : %s\n", name, str_yes_no(value));
 }
 
 static void virtio_gpu_add_int(struct seq_file *m, const char *name, int value)

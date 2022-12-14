@@ -6,6 +6,7 @@
 
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
@@ -14,6 +15,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -341,13 +343,11 @@ static int tfp410_init(struct device *dev, bool i2c)
 	return 0;
 }
 
-static int tfp410_fini(struct device *dev)
+static void tfp410_fini(struct device *dev)
 {
 	struct tfp410 *dvi = dev_get_drvdata(dev);
 
 	drm_bridge_remove(&dvi->bridge);
-
-	return 0;
 }
 
 static int tfp410_probe(struct platform_device *pdev)
@@ -357,7 +357,9 @@ static int tfp410_probe(struct platform_device *pdev)
 
 static int tfp410_remove(struct platform_device *pdev)
 {
-	return tfp410_fini(&pdev->dev);
+	tfp410_fini(&pdev->dev);
+
+	return 0;
 }
 
 static const struct of_device_id tfp410_match[] = {
@@ -392,9 +394,9 @@ static int tfp410_i2c_probe(struct i2c_client *client,
 	return tfp410_init(&client->dev, true);
 }
 
-static int tfp410_i2c_remove(struct i2c_client *client)
+static void tfp410_i2c_remove(struct i2c_client *client)
 {
-	return tfp410_fini(&client->dev);
+	tfp410_fini(&client->dev);
 }
 
 static const struct i2c_device_id tfp410_i2c_ids[] = {

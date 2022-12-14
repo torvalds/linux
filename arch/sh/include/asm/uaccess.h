@@ -2,30 +2,8 @@
 #ifndef __ASM_SH_UACCESS_H
 #define __ASM_SH_UACCESS_H
 
-#include <asm/segment.h>
 #include <asm/extable.h>
-
-#define __addr_ok(addr) \
-	((unsigned long __force)(addr) < current_thread_info()->addr_limit.seg)
-
-/*
- * __access_ok: Check if address with size is OK or not.
- *
- * Uhhuh, this needs 33-bit arithmetic. We have a carry..
- *
- * sum := addr + size;  carry? --> flag = true;
- * if (sum >= addr_limit) flag = true;
- */
-#define __access_ok(addr, size)	({				\
-	unsigned long __ao_a = (addr), __ao_b = (size);		\
-	unsigned long __ao_end = __ao_a + __ao_b - !!__ao_b;	\
-	__ao_end >= __ao_a && __addr_ok(__ao_end); })
-
-#define access_ok(addr, size)	\
-	(__chk_user_ptr(addr),		\
-	 __access_ok((unsigned long __force)(addr), (size)))
-
-#define user_addr_max()	(current_thread_info()->addr_limit.seg)
+#include <asm-generic/access_ok.h>
 
 /*
  * Uh, these should become the main single-value transfer routines ...

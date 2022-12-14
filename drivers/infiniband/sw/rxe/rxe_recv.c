@@ -16,48 +16,36 @@ static int check_type_state(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	unsigned int pkt_type;
 
 	if (unlikely(!qp->valid))
-		goto err1;
+		return -EINVAL;
 
 	pkt_type = pkt->opcode & 0xe0;
 
 	switch (qp_type(qp)) {
 	case IB_QPT_RC:
-		if (unlikely(pkt_type != IB_OPCODE_RC)) {
-			pr_warn_ratelimited("bad qp type\n");
-			goto err1;
-		}
+		if (unlikely(pkt_type != IB_OPCODE_RC))
+			return -EINVAL;
 		break;
 	case IB_QPT_UC:
-		if (unlikely(pkt_type != IB_OPCODE_UC)) {
-			pr_warn_ratelimited("bad qp type\n");
-			goto err1;
-		}
+		if (unlikely(pkt_type != IB_OPCODE_UC))
+			return -EINVAL;
 		break;
 	case IB_QPT_UD:
-	case IB_QPT_SMI:
 	case IB_QPT_GSI:
-		if (unlikely(pkt_type != IB_OPCODE_UD)) {
-			pr_warn_ratelimited("bad qp type\n");
-			goto err1;
-		}
+		if (unlikely(pkt_type != IB_OPCODE_UD))
+			return -EINVAL;
 		break;
 	default:
-		pr_warn_ratelimited("unsupported qp type\n");
-		goto err1;
+		return -EINVAL;
 	}
 
 	if (pkt->mask & RXE_REQ_MASK) {
 		if (unlikely(qp->resp.state != QP_STATE_READY))
-			goto err1;
+			return -EINVAL;
 	} else if (unlikely(qp->req.state < QP_STATE_READY ||
-				qp->req.state > QP_STATE_DRAINED)) {
-		goto err1;
-	}
+				qp->req.state > QP_STATE_DRAINED))
+		return -EINVAL;
 
 	return 0;
-
-err1:
-	return -EINVAL;
 }
 
 static void set_bad_pkey_cntr(struct rxe_port *port)
@@ -85,26 +73,20 @@ static int check_keys(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	pkt->pkey_index = 0;
 
 	if (!pkey_match(pkey, IB_DEFAULT_PKEY_FULL)) {
-		pr_warn_ratelimited("bad pkey = 0x%x\n", pkey);
 		set_bad_pkey_cntr(port);
-		goto err1;
+		return -EINVAL;
 	}
 
 	if (qp_type(qp) == IB_QPT_UD || qp_type(qp) == IB_QPT_GSI) {
 		u32 qkey = (qpn == 1) ? GSI_QKEY : qp->attr.qkey;
 
 		if (unlikely(deth_qkey(pkt) != qkey)) {
-			pr_warn_ratelimited("bad qkey, got 0x%x expected 0x%x for qpn 0x%x\n",
-					    deth_qkey(pkt), qkey, qpn);
 			set_qkey_viol_cntr(port);
-			goto err1;
+			return -EINVAL;
 		}
 	}
 
 	return 0;
-
-err1:
-	return -EINVAL;
 }
 
 static int check_addr(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
@@ -113,13 +95,10 @@ static int check_addr(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	struct sk_buff *skb = PKT_TO_SKB(pkt);
 
 	if (qp_type(qp) != IB_QPT_RC && qp_type(qp) != IB_QPT_UC)
-		goto done;
+		return 0;
 
-	if (unlikely(pkt->port_num != qp->attr.port_num)) {
-		pr_warn_ratelimited("port %d != qp port %d\n",
-				    pkt->port_num, qp->attr.port_num);
-		goto err1;
-	}
+	if (unlikely(pkt->port_num != qp->attr.port_num))
+		return -EINVAL;
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		struct in_addr *saddr =
@@ -127,19 +106,9 @@ static int check_addr(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		struct in_addr *daddr =
 			&qp->pri_av.dgid_addr._sockaddr_in.sin_addr;
 
-		if (ip_hdr(skb)->daddr != saddr->s_addr) {
-			pr_warn_ratelimited("dst addr %pI4 != qp source addr %pI4\n",
-					    &ip_hdr(skb)->daddr,
-					    &saddr->s_addr);
-			goto err1;
-		}
-
-		if (ip_hdr(skb)->saddr != daddr->s_addr) {
-			pr_warn_ratelimited("source addr %pI4 != qp dst addr %pI4\n",
-					    &ip_hdr(skb)->saddr,
-					    &daddr->s_addr);
-			goto err1;
-		}
+		if ((ip_hdr(skb)->daddr != saddr->s_addr) ||
+		    (ip_hdr(skb)->saddr != daddr->s_addr))
+			return -EINVAL;
 
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		struct in6_addr *saddr =
@@ -147,24 +116,12 @@ static int check_addr(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		struct in6_addr *daddr =
 			&qp->pri_av.dgid_addr._sockaddr_in6.sin6_addr;
 
-		if (memcmp(&ipv6_hdr(skb)->daddr, saddr, sizeof(*saddr))) {
-			pr_warn_ratelimited("dst addr %pI6 != qp source addr %pI6\n",
-					    &ipv6_hdr(skb)->daddr, saddr);
-			goto err1;
-		}
-
-		if (memcmp(&ipv6_hdr(skb)->saddr, daddr, sizeof(*daddr))) {
-			pr_warn_ratelimited("source addr %pI6 != qp dst addr %pI6\n",
-					    &ipv6_hdr(skb)->saddr, daddr);
-			goto err1;
-		}
+		if (memcmp(&ipv6_hdr(skb)->daddr, saddr, sizeof(*saddr)) ||
+		    memcmp(&ipv6_hdr(skb)->saddr, daddr, sizeof(*daddr)))
+			return -EINVAL;
 	}
 
-done:
 	return 0;
-
-err1:
-	return -EINVAL;
 }
 
 static int hdr_check(struct rxe_pkt_info *pkt)
@@ -176,24 +133,18 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 	int index;
 	int err;
 
-	if (unlikely(bth_tver(pkt) != BTH_TVER)) {
-		pr_warn_ratelimited("bad tver\n");
+	if (unlikely(bth_tver(pkt) != BTH_TVER))
 		goto err1;
-	}
 
-	if (unlikely(qpn == 0)) {
-		pr_warn_once("QP 0 not supported");
+	if (unlikely(qpn == 0))
 		goto err1;
-	}
 
 	if (qpn != IB_MULTICAST_QPN) {
 		index = (qpn == 1) ? port->qp_gsi_index : qpn;
 
 		qp = rxe_pool_get_index(&rxe->qp_pool, index);
-		if (unlikely(!qp)) {
-			pr_warn_ratelimited("no qp matches qpn 0x%x\n", qpn);
+		if (unlikely(!qp))
 			goto err1;
-		}
 
 		err = check_type_state(rxe, pkt, qp);
 		if (unlikely(err))
@@ -207,17 +158,15 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 		if (unlikely(err))
 			goto err2;
 	} else {
-		if (unlikely((pkt->mask & RXE_GRH_MASK) == 0)) {
-			pr_warn_ratelimited("no grh for mcast qpn\n");
+		if (unlikely((pkt->mask & RXE_GRH_MASK) == 0))
 			goto err1;
-		}
 	}
 
 	pkt->qp = qp;
 	return 0;
 
 err2:
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 err1:
 	return -EINVAL;
 }
@@ -233,8 +182,8 @@ static inline void rxe_rcv_pkt(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 {
 	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
-	struct rxe_mc_grp *mcg;
-	struct rxe_mc_elem *mce;
+	struct rxe_mcg *mcg;
+	struct rxe_mca *mca;
 	struct rxe_qp *qp;
 	union ib_gid dgid;
 	int err;
@@ -246,19 +195,19 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		memcpy(&dgid, &ipv6_hdr(skb)->daddr, sizeof(dgid));
 
 	/* lookup mcast group corresponding to mgid, takes a ref */
-	mcg = rxe_pool_get_key(&rxe->mc_grp_pool, &dgid);
+	mcg = rxe_lookup_mcg(rxe, &dgid);
 	if (!mcg)
 		goto drop;	/* mcast group not registered */
 
-	spin_lock_bh(&mcg->mcg_lock);
+	spin_lock_bh(&rxe->mcg_lock);
 
 	/* this is unreliable datagram service so we let
 	 * failures to deliver a multicast packet to a
 	 * single QP happen and just move on and try
 	 * the rest of them on the list
 	 */
-	list_for_each_entry(mce, &mcg->qp_list, qp_list) {
-		qp = mce->qp;
+	list_for_each_entry(mca, &mcg->qp_list, qp_list) {
+		qp = mca->qp;
 
 		/* validate qp for incoming packet */
 		err = check_type_state(rxe, pkt, qp);
@@ -273,7 +222,7 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		 * skb and pass to the QP. Pass the original skb to
 		 * the last QP in the list.
 		 */
-		if (mce->qp_list.next != &mcg->qp_list) {
+		if (mca->qp_list.next != &mcg->qp_list) {
 			struct sk_buff *cskb;
 			struct rxe_pkt_info *cpkt;
 
@@ -288,19 +237,19 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 
 			cpkt = SKB_TO_PKT(cskb);
 			cpkt->qp = qp;
-			rxe_add_ref(qp);
+			rxe_get(qp);
 			rxe_rcv_pkt(cpkt, cskb);
 		} else {
 			pkt->qp = qp;
-			rxe_add_ref(qp);
+			rxe_get(qp);
 			rxe_rcv_pkt(pkt, skb);
 			skb = NULL;	/* mark consumed */
 		}
 	}
 
-	spin_unlock_bh(&mcg->mcg_lock);
+	spin_unlock_bh(&rxe->mcg_lock);
 
-	rxe_drop_ref(mcg);	/* drop ref from rxe_pool_get_key. */
+	kref_put(&mcg->ref_cnt, rxe_cleanup_mcg);
 
 	if (likely(!skb))
 		return;
@@ -365,10 +314,8 @@ void rxe_rcv(struct sk_buff *skb)
 	if (unlikely(skb->len < RXE_BTH_BYTES))
 		goto drop;
 
-	if (rxe_chk_dgid(rxe, skb) < 0) {
-		pr_warn_ratelimited("failed checking dgid\n");
+	if (rxe_chk_dgid(rxe, skb) < 0)
 		goto drop;
-	}
 
 	pkt->opcode = bth_opcode(pkt);
 	pkt->psn = bth_psn(pkt);
@@ -397,7 +344,7 @@ void rxe_rcv(struct sk_buff *skb)
 
 drop:
 	if (pkt->qp)
-		rxe_drop_ref(pkt->qp);
+		rxe_put(pkt->qp);
 
 	kfree_skb(skb);
 	ib_device_put(&rxe->ib_dev);

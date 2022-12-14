@@ -109,6 +109,13 @@
 	.endm
 
 /*
+ * Clear Branch History instruction
+ */
+	.macro clearbhb
+	hint	#22
+	.endm
+
+/*
  * Speculation barrier
  */
 	.macro	sb
@@ -286,7 +293,7 @@ alternative_endif
 alternative_if_not ARM64_KVM_PROTECTED_MODE
 	ASM_BUG()
 alternative_else_nop_endif
-alternative_cb kvm_compute_final_ctr_el0
+alternative_cb ARM64_ALWAYS_SYSTEM, kvm_compute_final_ctr_el0
 	movz	\reg, #0
 	movk	\reg, #0, lsl #16
 	movk	\reg, #0, lsl #32
@@ -353,6 +360,20 @@ alternative_cb_end
 	.endm
 
 /*
+ * idmap_get_t0sz - get the T0SZ value needed to cover the ID map
+ *
+ * Calculate the maximum allowed value for TCR_EL1.T0SZ so that the
+ * entire ID map region can be mapped. As T0SZ == (64 - #bits used),
+ * this number conveniently equals the number of leading zeroes in
+ * the physical address of _end.
+ */
+	.macro	idmap_get_t0sz, reg
+	adrp	\reg, _end
+	orr	\reg, \reg, #(1 << VA_BITS_MIN) - 1
+	clz	\reg, \reg
+	.endm
+
+/*
  * tcr_compute_pa_size - set TCR.(I)PS to the highest supported
  * ID_AA64MMFR0_EL1.PARange value
  *
@@ -363,8 +384,8 @@ alternative_cb_end
 	.macro	tcr_compute_pa_size, tcr, pos, tmp0, tmp1
 	mrs	\tmp0, ID_AA64MMFR0_EL1
 	// Narrow PARange to fit the PS field in TCR_ELx
-	ubfx	\tmp0, \tmp0, #ID_AA64MMFR0_PARANGE_SHIFT, #3
-	mov	\tmp1, #ID_AA64MMFR0_PARANGE_MAX
+	ubfx	\tmp0, \tmp0, #ID_AA64MMFR0_EL1_PARANGE_SHIFT, #3
+	mov	\tmp1, #ID_AA64MMFR0_EL1_PARANGE_MAX
 	cmp	\tmp0, \tmp1
 	csel	\tmp0, \tmp1, \tmp0, hi
 	bfi	\tcr, \tmp0, \pos, #3
@@ -416,7 +437,7 @@ alternative_endif
 	b.lo	.Ldcache_op\@
 	dsb	\domain
 
-	_cond_extable .Ldcache_op\@, \fixup
+	_cond_uaccess_extable .Ldcache_op\@, \fixup
 	.endm
 
 /*
@@ -455,7 +476,19 @@ alternative_endif
 	dsb	ish
 	isb
 
-	_cond_extable .Licache_op\@, \fixup
+	_cond_uaccess_extable .Licache_op\@, \fixup
+	.endm
+
+/*
+ * load_ttbr1 - install @pgtbl as a TTBR1 page table
+ * pgtbl preserved
+ * tmp1/tmp2 clobbered, either may overlap with pgtbl
+ */
+	.macro		load_ttbr1, pgtbl, tmp1, tmp2
+	phys_to_ttbr	\tmp1, \pgtbl
+	offset_ttbr1 	\tmp1, \tmp2
+	msr		ttbr1_el1, \tmp1
+	isb
 	.endm
 
 /*
@@ -471,10 +504,7 @@ alternative_endif
 	isb
 	tlbi	vmalle1
 	dsb	nsh
-	phys_to_ttbr \tmp, \page_table
-	offset_ttbr1 \tmp, \tmp2
-	msr	ttbr1_el1, \tmp
-	isb
+	load_ttbr1 \page_table, \tmp, \tmp2
 	.endm
 
 /*
@@ -482,7 +512,7 @@ alternative_endif
  */
 	.macro	reset_pmuserenr_el0, tmpreg
 	mrs	\tmpreg, id_aa64dfr0_el1
-	sbfx	\tmpreg, \tmpreg, #ID_AA64DFR0_PMUVER_SHIFT, #4
+	sbfx	\tmpreg, \tmpreg, #ID_AA64DFR0_EL1_PMUVer_SHIFT, #4
 	cmp	\tmpreg, #1			// Skip if no PMU present
 	b.lt	9000f
 	msr	pmuserenr_el0, xzr		// Disable PMU access from EL0
@@ -494,7 +524,7 @@ alternative_endif
  */
 	.macro	reset_amuserenr_el0, tmpreg
 	mrs	\tmpreg, id_aa64pfr0_el1	// Check ID_AA64PFR0_EL1
-	ubfx	\tmpreg, \tmpreg, #ID_AA64PFR0_AMU_SHIFT, #4
+	ubfx	\tmpreg, \tmpreg, #ID_AA64PFR0_EL1_AMU_SHIFT, #4
 	cbz	\tmpreg, .Lskip_\@		// Skip if no AMU present
 	msr_s	SYS_AMUSERENR_EL0, xzr		// Disable AMU access from EL0
 .Lskip_\@:
@@ -535,11 +565,6 @@ alternative_endif
 #define EXPORT_SYMBOL_NOKASAN(name)	EXPORT_SYMBOL(name)
 #endif
 
-#ifdef CONFIG_KASAN_HW_TAGS
-#define EXPORT_SYMBOL_NOHWKASAN(name)
-#else
-#define EXPORT_SYMBOL_NOHWKASAN(name)	EXPORT_SYMBOL_NOKASAN(name)
-#endif
 	/*
 	 * Emit a 64-bit absolute little endian symbol reference in a way that
 	 * ensures that it will be resolved at build time, even when building a
@@ -587,7 +612,7 @@ alternative_endif
 	.macro	offset_ttbr1, ttbr, tmp
 #ifdef CONFIG_ARM64_VA_BITS_52
 	mrs_s	\tmp, SYS_ID_AA64MMFR2_EL1
-	and	\tmp, \tmp, #(0xf << ID_AA64MMFR2_LVA_SHIFT)
+	and	\tmp, \tmp, #(0xf << ID_AA64MMFR2_EL1_VARange_SHIFT)
 	cbnz	\tmp, .Lskipoffs_\@
 	orr	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
 .Lskipoffs_\@ :
@@ -850,4 +875,50 @@ alternative_endif
 
 #endif /* GNU_PROPERTY_AARCH64_FEATURE_1_DEFAULT */
 
+	.macro __mitigate_spectre_bhb_loop      tmp
+#ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
+alternative_cb ARM64_ALWAYS_SYSTEM, spectre_bhb_patch_loop_iter
+	mov	\tmp, #32		// Patched to correct the immediate
+alternative_cb_end
+.Lspectre_bhb_loop\@:
+	b	. + 4
+	subs	\tmp, \tmp, #1
+	b.ne	.Lspectre_bhb_loop\@
+	sb
+#endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
+	.endm
+
+	.macro mitigate_spectre_bhb_loop	tmp
+#ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
+alternative_cb ARM64_ALWAYS_SYSTEM, spectre_bhb_patch_loop_mitigation_enable
+	b	.L_spectre_bhb_loop_done\@	// Patched to NOP
+alternative_cb_end
+	__mitigate_spectre_bhb_loop	\tmp
+.L_spectre_bhb_loop_done\@:
+#endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
+	.endm
+
+	/* Save/restores x0-x3 to the stack */
+	.macro __mitigate_spectre_bhb_fw
+#ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
+	stp	x0, x1, [sp, #-16]!
+	stp	x2, x3, [sp, #-16]!
+	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_3
+alternative_cb ARM64_ALWAYS_SYSTEM, smccc_patch_fw_mitigation_conduit
+	nop					// Patched to SMC/HVC #0
+alternative_cb_end
+	ldp	x2, x3, [sp], #16
+	ldp	x0, x1, [sp], #16
+#endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
+	.endm
+
+	.macro mitigate_spectre_bhb_clear_insn
+#ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
+alternative_cb ARM64_ALWAYS_SYSTEM, spectre_bhb_patch_clearbhb
+	/* Patched to NOP when not supported */
+	clearbhb
+	isb
+alternative_cb_end
+#endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
+	.endm
 #endif	/* __ASM_ASSEMBLER_H */

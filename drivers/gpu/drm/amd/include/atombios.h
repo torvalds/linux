@@ -3255,8 +3255,8 @@ ucMaxNBVoltageHigh:     Voltage regulator dependent PWM value. High 8 bits of  t
 ucMinNBVoltageHigh:     Voltage regulator dependent PWM value. High 8 bits of the value for the min voltage.Set this one to 0x00 if VC without PWM or no VC at all.
 
 
-usInterNBVoltageLow:    Voltage regulator dependent PWM value. The value makes the the voltage >=Min NB voltage but <=InterNBVoltageHigh. Set this to 0x0000 if VC without PWM or no VC at all.
-usInterNBVoltageHigh:   Voltage regulator dependent PWM value. The value makes the the voltage >=InterNBVoltageLow but <=Max NB voltage.Set this to 0x0000 if VC without PWM or no VC at all.
+usInterNBVoltageLow:    Voltage regulator dependent PWM value. The value makes the voltage >=Min NB voltage but <=InterNBVoltageHigh. Set this to 0x0000 if VC without PWM or no VC at all.
+usInterNBVoltageHigh:   Voltage regulator dependent PWM value. The value makes the voltage >=InterNBVoltageLow but <=Max NB voltage.Set this to 0x0000 if VC without PWM or no VC at all.
 */
 
 
@@ -4665,7 +4665,7 @@ typedef  struct _ATOM_EXTERNAL_DISPLAY_CONNECTION_INFO
   UCHAR                    Reserved[3];                           // for potential expansion
 }ATOM_EXTERNAL_DISPLAY_CONNECTION_INFO;
 
-//Related definitions, all records are differnt but they have a commond header
+//Related definitions, all records are different but they have a common header
 typedef struct _ATOM_COMMON_RECORD_HEADER
 {
   UCHAR               ucRecordType;                      //An emun to indicate the record type

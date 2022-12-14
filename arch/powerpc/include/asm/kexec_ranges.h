@@ -9,7 +9,7 @@ struct crash_mem *realloc_mem_ranges(struct crash_mem **mem_ranges);
 int add_mem_range(struct crash_mem **mem_ranges, u64 base, u64 size);
 int add_tce_mem_ranges(struct crash_mem **mem_ranges);
 int add_initrd_mem_range(struct crash_mem **mem_ranges);
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 int add_htab_mem_range(struct crash_mem **mem_ranges);
 #else
 static inline int add_htab_mem_range(struct crash_mem **mem_ranges)

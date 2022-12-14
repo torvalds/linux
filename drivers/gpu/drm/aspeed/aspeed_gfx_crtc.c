@@ -7,10 +7,11 @@
 
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_device.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_vblank.h>
@@ -167,7 +168,7 @@ static void aspeed_gfx_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_framebuffer *fb = pipe->plane.state->fb;
 	struct drm_pending_vblank_event *event;
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 
 	spin_lock_irq(&crtc->dev->event_lock);
 	event = crtc->state->event;
@@ -184,10 +185,10 @@ static void aspeed_gfx_pipe_update(struct drm_simple_display_pipe *pipe,
 	if (!fb)
 		return;
 
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
+	gem = drm_fb_dma_get_gem_obj(fb, 0);
 	if (!gem)
 		return;
-	writel(gem->paddr, priv->base + CRT_ADDR);
+	writel(gem->dma_addr, priv->base + CRT_ADDR);
 }
 
 static int aspeed_gfx_enable_vblank(struct drm_simple_display_pipe *pipe)

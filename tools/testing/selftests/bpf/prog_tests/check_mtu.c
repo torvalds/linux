@@ -79,28 +79,21 @@ static void test_check_mtu_run_xdp(struct test_check_mtu *skel,
 				   struct bpf_program *prog,
 				   __u32 mtu_expect)
 {
-	const char *prog_name = bpf_program__name(prog);
 	int retval_expect = XDP_PASS;
 	__u32 mtu_result = 0;
 	char buf[256] = {};
-	int err;
-	struct bpf_prog_test_run_attr tattr = {
+	int err, prog_fd = bpf_program__fd(prog);
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
 		.repeat = 1,
 		.data_in = &pkt_v4,
 		.data_size_in = sizeof(pkt_v4),
 		.data_out = buf,
 		.data_size_out = sizeof(buf),
-		.prog_fd = bpf_program__fd(prog),
-	};
+	);
 
-	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err != 0, "bpf_prog_test_run",
-		   "prog_name:%s (err %d errno %d retval %d)\n",
-		   prog_name, err, errno, tattr.retval);
-
-	CHECK(tattr.retval != retval_expect, "retval",
-	      "progname:%s unexpected retval=%d expected=%d\n",
-	      prog_name, tattr.retval, retval_expect);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, retval_expect, "retval");
 
 	/* Extract MTU that BPF-prog got */
 	mtu_result = skel->bss->global_bpf_mtu_xdp;
@@ -139,28 +132,21 @@ static void test_check_mtu_run_tc(struct test_check_mtu *skel,
 				  struct bpf_program *prog,
 				  __u32 mtu_expect)
 {
-	const char *prog_name = bpf_program__name(prog);
 	int retval_expect = BPF_OK;
 	__u32 mtu_result = 0;
 	char buf[256] = {};
-	int err;
-	struct bpf_prog_test_run_attr tattr = {
-		.repeat = 1,
+	int err, prog_fd = bpf_program__fd(prog);
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
 		.data_in = &pkt_v4,
 		.data_size_in = sizeof(pkt_v4),
 		.data_out = buf,
 		.data_size_out = sizeof(buf),
-		.prog_fd = bpf_program__fd(prog),
-	};
+		.repeat = 1,
+	);
 
-	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err != 0, "bpf_prog_test_run",
-		   "prog_name:%s (err %d errno %d retval %d)\n",
-		   prog_name, err, errno, tattr.retval);
-
-	CHECK(tattr.retval != retval_expect, "retval",
-	      "progname:%s unexpected retval=%d expected=%d\n",
-	      prog_name, tattr.retval, retval_expect);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, retval_expect, "retval");
 
 	/* Extract MTU that BPF-prog got */
 	mtu_result = skel->bss->global_bpf_mtu_tc;

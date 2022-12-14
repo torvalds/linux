@@ -14,6 +14,7 @@
 #include <linux/compat.h>
 #include <linux/mount.h>
 #include <linux/fs.h>
+#include <linux/dax.h>
 #include "internal.h"
 
 #include <linux/uaccess.h>
@@ -71,7 +72,8 @@ static int generic_remap_checks(struct file *file_in, loff_t pos_in,
 	 * Otherwise, make sure the count is also block-aligned, having
 	 * already confirmed the starting offsets' block alignment.
 	 */
-	if (pos_in + count == size_in) {
+	if (pos_in + count == size_in &&
+	    (!(remap_flags & REMAP_FILE_DEDUP) || pos_out + count == size_out)) {
 		bcount = ALIGN(size_in, bs) - pos_in;
 	} else {
 		if (!IS_ALIGNED(count, bs))
@@ -146,18 +148,9 @@ static int generic_remap_check_len(struct inode *inode_in,
 }
 
 /* Read a page's worth of file data into the page cache. */
-static struct folio *vfs_dedupe_get_folio(struct inode *inode, loff_t pos)
+static struct folio *vfs_dedupe_get_folio(struct file *file, loff_t pos)
 {
-	struct folio *folio;
-
-	folio = read_mapping_folio(inode->i_mapping, pos >> PAGE_SHIFT, NULL);
-	if (IS_ERR(folio))
-		return folio;
-	if (!folio_test_uptodate(folio)) {
-		folio_put(folio);
-		return ERR_PTR(-EIO);
-	}
-	return folio;
+	return read_mapping_folio(file->f_mapping, pos >> PAGE_SHIFT, file);
 }
 
 /*
@@ -187,8 +180,8 @@ static void vfs_unlock_two_folios(struct folio *folio1, struct folio *folio2)
  * Compare extents of two files to see if they are the same.
  * Caller must have locked both inodes to prevent write races.
  */
-static int vfs_dedupe_file_range_compare(struct inode *src, loff_t srcoff,
-					 struct inode *dest, loff_t dstoff,
+static int vfs_dedupe_file_range_compare(struct file *src, loff_t srcoff,
+					 struct file *dest, loff_t dstoff,
 					 loff_t len, bool *is_same)
 {
 	bool same = true;
@@ -224,8 +217,8 @@ static int vfs_dedupe_file_range_compare(struct inode *src, loff_t srcoff,
 		 * someone is invalidating pages on us and we lose.
 		 */
 		if (!folio_test_uptodate(src_folio) || !folio_test_uptodate(dst_folio) ||
-		    src_folio->mapping != src->i_mapping ||
-		    dst_folio->mapping != dest->i_mapping) {
+		    src_folio->mapping != src->f_mapping ||
+		    dst_folio->mapping != dest->f_mapping) {
 			same = false;
 			goto unlock;
 		}
@@ -271,9 +264,11 @@ out_error:
  * If there's an error, then the usual negative error code is returned.
  * Otherwise returns 0 with *len set to the request length.
  */
-int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
-				  struct file *file_out, loff_t pos_out,
-				  loff_t *len, unsigned int remap_flags)
+int
+__generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
+				struct file *file_out, loff_t pos_out,
+				loff_t *len, unsigned int remap_flags,
+				const struct iomap_ops *dax_read_ops)
 {
 	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
@@ -333,8 +328,18 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	if (remap_flags & REMAP_FILE_DEDUP) {
 		bool		is_same = false;
 
-		ret = vfs_dedupe_file_range_compare(inode_in, pos_in,
-				inode_out, pos_out, *len, &is_same);
+		if (*len == 0)
+			return 0;
+
+		if (!IS_DAX(inode_in))
+			ret = vfs_dedupe_file_range_compare(file_in, pos_in,
+					file_out, pos_out, *len, &is_same);
+		else if (dax_read_ops)
+			ret = dax_dedupe_file_range_compare(inode_in, pos_in,
+					inode_out, pos_out, *len, &is_same,
+					dax_read_ops);
+		else
+			return -EINVAL;
 		if (ret)
 			return ret;
 		if (!is_same)
@@ -352,6 +357,14 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 
 	return ret;
 }
+
+int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
+				  struct file *file_out, loff_t pos_out,
+				  loff_t *len, unsigned int remap_flags)
+{
+	return __generic_remap_file_range_prep(file_in, pos_in, file_out,
+					       pos_out, len, remap_flags, NULL);
+}
 EXPORT_SYMBOL(generic_remap_file_range_prep);
 
 loff_t do_clone_file_range(struct file *file_in, loff_t pos_in,
@@ -362,11 +375,6 @@ loff_t do_clone_file_range(struct file *file_in, loff_t pos_in,
 
 	WARN_ON_ONCE(remap_flags & REMAP_FILE_DEDUP);
 
-	/*
-	 * FICLONE/FICLONERANGE ioctls enforce that src and dest files are on
-	 * the same mount. Practically, they only need to be on the same file
-	 * system.
-	 */
 	if (file_inode(file_in)->i_sb != file_inode(file_out)->i_sb)
 		return -EXDEV;
 
@@ -458,7 +466,7 @@ loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
 		goto out_drop_write;
 
 	ret = -EXDEV;
-	if (src_file->f_path.mnt != dst_file->f_path.mnt)
+	if (file_inode(src_file)->i_sb != file_inode(dst_file)->i_sb)
 		goto out_drop_write;
 
 	ret = -EISDIR;

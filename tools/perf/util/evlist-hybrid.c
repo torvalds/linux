@@ -154,8 +154,8 @@ int evlist__fix_hybrid_cpus(struct evlist *evlist, const char *cpu_list)
 		perf_cpu_map__put(matched_cpus);
 		perf_cpu_map__put(unmatched_cpus);
 	}
-
-	ret = (unmatched_count == events_nr) ? -1 : 0;
+	if (events_nr)
+		ret = (unmatched_count == events_nr) ? -1 : 0;
 out:
 	perf_cpu_map__put(cpus);
 	return ret;

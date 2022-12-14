@@ -975,7 +975,7 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 			/* update statistics */
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += len;
-			netif_rx_ni(skb);
+			netif_rx(skb);
 		}
 	}
 	/*
@@ -1467,9 +1467,9 @@ static void enc28j60_restart_work_handler(struct work_struct *work)
 static void
 enc28j60_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info,
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info,
 		dev_name(dev->dev.parent), sizeof(info->bus_info));
 }
 
@@ -1612,15 +1612,13 @@ error_alloc:
 	return ret;
 }
 
-static int enc28j60_remove(struct spi_device *spi)
+static void enc28j60_remove(struct spi_device *spi)
 {
 	struct enc28j60_net *priv = spi_get_drvdata(spi);
 
 	unregister_netdev(priv->netdev);
 	free_irq(spi->irq, priv);
 	free_netdev(priv->netdev);
-
-	return 0;
 }
 
 static const struct of_device_id enc28j60_dt_ids[] = {

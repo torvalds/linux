@@ -55,9 +55,9 @@ unsigned int rtsx_stor_access_xfer_buf(unsigned char *buffer,
 		*offset += cnt;
 
 	/*
-	 * Using scatter-gather.  We have to go through the list one entry
-	 * at a time.  Each s-g entry contains some number of pages, and
-	 * each page has to be kmap()'ed separately.
+	 * Using scatter-gather. We have to go through the list one entry
+	 * at a time. Each s-g entry contains some number of pages which
+	 * have to be copied one at a time.
 	 */
 	} else {
 		struct scatterlist *sg =
@@ -92,13 +92,11 @@ unsigned int rtsx_stor_access_xfer_buf(unsigned char *buffer,
 			while (sglen > 0) {
 				unsigned int plen = min(sglen, (unsigned int)
 						PAGE_SIZE - poff);
-				unsigned char *ptr = kmap(page);
 
 				if (dir == TO_XFER_BUF)
-					memcpy(ptr + poff, buffer + cnt, plen);
+					memcpy_to_page(page, poff, buffer + cnt, plen);
 				else
-					memcpy(buffer + cnt, ptr + poff, plen);
-				kunmap(page);
+					memcpy_from_page(buffer + cnt, page, poff, plen);
 
 				/* Start at the beginning of the next page */
 				poff = 0;

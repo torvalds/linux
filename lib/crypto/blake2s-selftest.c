@@ -4,6 +4,8 @@
  */
 
 #include <crypto/internal/blake2s.h>
+#include <linux/kernel.h>
+#include <linux/random.h>
 #include <linux/string.h>
 
 /*
@@ -584,6 +586,45 @@ bool __init blake2s_selftest(void)
 			pr_err("blake2s init/update/final self-test %d: FAIL\n",
 			       i + 1);
 			success = false;
+		}
+	}
+
+	for (i = 0; i < 32; ++i) {
+		enum { TEST_ALIGNMENT = 16 };
+		u8 unaligned_block[BLAKE2S_BLOCK_SIZE + TEST_ALIGNMENT - 1]
+					__aligned(TEST_ALIGNMENT);
+		u8 blocks[BLAKE2S_BLOCK_SIZE * 2];
+		struct blake2s_state state1, state2;
+
+		get_random_bytes(blocks, sizeof(blocks));
+		get_random_bytes(&state, sizeof(state));
+
+#if defined(CONFIG_CRYPTO_LIB_BLAKE2S_GENERIC) && \
+    defined(CONFIG_CRYPTO_ARCH_HAVE_LIB_BLAKE2S)
+		memcpy(&state1, &state, sizeof(state1));
+		memcpy(&state2, &state, sizeof(state2));
+		blake2s_compress(&state1, blocks, 2, BLAKE2S_BLOCK_SIZE);
+		blake2s_compress_generic(&state2, blocks, 2, BLAKE2S_BLOCK_SIZE);
+		if (memcmp(&state1, &state2, sizeof(state1))) {
+			pr_err("blake2s random compress self-test %d: FAIL\n",
+			       i + 1);
+			success = false;
+		}
+#endif
+
+		memcpy(&state1, &state, sizeof(state1));
+		blake2s_compress(&state1, blocks, 1, BLAKE2S_BLOCK_SIZE);
+		for (l = 1; l < TEST_ALIGNMENT; ++l) {
+			memcpy(unaligned_block + l, blocks,
+			       BLAKE2S_BLOCK_SIZE);
+			memcpy(&state2, &state, sizeof(state2));
+			blake2s_compress(&state2, unaligned_block + l, 1,
+					 BLAKE2S_BLOCK_SIZE);
+			if (memcmp(&state1, &state2, sizeof(state1))) {
+				pr_err("blake2s random compress align %d self-test %d: FAIL\n",
+				       l, i + 1);
+				success = false;
+			}
 		}
 	}
 

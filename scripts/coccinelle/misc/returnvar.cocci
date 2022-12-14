@@ -4,7 +4,7 @@
 ///
 // Confidence: Moderate
 // Copyright: (C) 2012 Peter Senna Tschudin, INRIA/LIP6.
-// URL: http://coccinelle.lip6.fr/
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments: Comments on code can be deleted if near code that is removed.
 //           "when strict" can be removed to get more hits, but adds false
 //           positives

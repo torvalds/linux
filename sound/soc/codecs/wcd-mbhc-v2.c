@@ -5,6 +5,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/pm_runtime.h>
 #include <linux/printk.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
@@ -711,6 +712,16 @@ static irqreturn_t wcd_mbhc_hphr_ocp_irq(int irq, void *data)
 static int wcd_mbhc_initialise(struct wcd_mbhc *mbhc)
 {
 	struct snd_soc_component *component = mbhc->component;
+	int ret;
+
+	ret = pm_runtime_get_sync(component->dev);
+	if (ret < 0 && ret != -EACCES) {
+		dev_err_ratelimited(component->dev,
+				    "pm_runtime_get_sync failed in %s, ret %d\n",
+				    __func__, ret);
+		pm_runtime_put_noidle(component->dev);
+		return ret;
+	}
 
 	mutex_lock(&mbhc->lock);
 
@@ -750,6 +761,9 @@ static int wcd_mbhc_initialise(struct wcd_mbhc *mbhc)
 	wcd_program_btn_threshold(mbhc, false);
 
 	mutex_unlock(&mbhc->lock);
+
+	pm_runtime_mark_last_busy(component->dev);
+	pm_runtime_put_autosuspend(component->dev);
 
 	return 0;
 }
@@ -1078,10 +1092,19 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	int output_mv, cross_conn, hs_threshold, try = 0, micbias_mv;
 	bool is_spl_hs = false;
 	bool is_pa_on;
+	int ret;
 
 	mbhc = container_of(work, struct wcd_mbhc, correct_plug_swch);
 	component = mbhc->component;
 
+	ret = pm_runtime_get_sync(component->dev);
+	if (ret < 0 && ret != -EACCES) {
+		dev_err_ratelimited(component->dev,
+				    "pm_runtime_get_sync failed in %s, ret %d\n",
+				    __func__, ret);
+		pm_runtime_put_noidle(component->dev);
+		return;
+	}
 	micbias_mv = wcd_mbhc_get_micbias(mbhc);
 	hs_threshold = wcd_mbhc_adc_get_hs_thres(mbhc);
 
@@ -1168,7 +1191,7 @@ correct_plug_type:
 				pt_gnd_mic_swap_cnt = 0;
 				plug_type = wcd_mbhc_get_plug_from_adc(mbhc, output_mv);
 				continue;
-			} else if (cross_conn < 0) /* Error */
+			} else /* Error if (cross_conn < 0) */
 				continue;
 
 			if (pt_gnd_mic_swap_cnt == GND_MIC_SWAP_THRESHOLD) {
@@ -1232,6 +1255,9 @@ exit:
 
 	if (mbhc->mbhc_cb->hph_pull_down_ctrl)
 		mbhc->mbhc_cb->hph_pull_down_ctrl(component, true);
+
+	pm_runtime_mark_last_busy(component->dev);
+	pm_runtime_put_autosuspend(component->dev);
 }
 
 static irqreturn_t wcd_mbhc_adc_hs_rem_irq(int irq, void *data)
@@ -1280,7 +1306,7 @@ exit:
 static irqreturn_t wcd_mbhc_adc_hs_ins_irq(int irq, void *data)
 {
 	struct wcd_mbhc *mbhc = data;
-	u8 clamp_state = 0;
+	u8 clamp_state;
 	u8 clamp_retry = WCD_MBHC_FAKE_INS_RETRY;
 
 	/*

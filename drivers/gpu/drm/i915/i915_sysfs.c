@@ -30,6 +30,7 @@
 #include <linux/stat.h>
 #include <linux/sysfs.h>
 
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_rc6.h"
 #include "gt/intel_rps.h"
 #include "gt/sysfs_engines.h"
@@ -38,112 +39,11 @@
 #include "i915_sysfs.h"
 #include "intel_pm.h"
 
-static inline struct drm_i915_private *kdev_minor_to_i915(struct device *kdev)
+struct drm_i915_private *kdev_minor_to_i915(struct device *kdev)
 {
 	struct drm_minor *minor = dev_get_drvdata(kdev);
 	return to_i915(minor->dev);
 }
-
-#ifdef CONFIG_PM
-static u32 calc_residency(struct drm_i915_private *dev_priv,
-			  i915_reg_t reg)
-{
-	intel_wakeref_t wakeref;
-	u64 res = 0;
-
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
-		res = intel_rc6_residency_us(&to_gt(dev_priv)->rc6, reg);
-
-	return DIV_ROUND_CLOSEST_ULL(res, 1000);
-}
-
-static ssize_t rc6_enable_show(struct device *kdev,
-			       struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	unsigned int mask;
-
-	mask = 0;
-	if (HAS_RC6(dev_priv))
-		mask |= BIT(0);
-	if (HAS_RC6p(dev_priv))
-		mask |= BIT(1);
-	if (HAS_RC6pp(dev_priv))
-		mask |= BIT(2);
-
-	return sysfs_emit(buf, "%x\n", mask);
-}
-
-static ssize_t rc6_residency_ms_show(struct device *kdev,
-				     struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	u32 rc6_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6);
-	return sysfs_emit(buf, "%u\n", rc6_residency);
-}
-
-static ssize_t rc6p_residency_ms_show(struct device *kdev,
-				      struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	u32 rc6p_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6p);
-	return sysfs_emit(buf, "%u\n", rc6p_residency);
-}
-
-static ssize_t rc6pp_residency_ms_show(struct device *kdev,
-				       struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	u32 rc6pp_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6pp);
-	return sysfs_emit(buf, "%u\n", rc6pp_residency);
-}
-
-static ssize_t media_rc6_residency_ms_show(struct device *kdev,
-					   struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	u32 rc6_residency = calc_residency(dev_priv, VLV_GT_MEDIA_RC6);
-	return sysfs_emit(buf, "%u\n", rc6_residency);
-}
-
-static DEVICE_ATTR_RO(rc6_enable);
-static DEVICE_ATTR_RO(rc6_residency_ms);
-static DEVICE_ATTR_RO(rc6p_residency_ms);
-static DEVICE_ATTR_RO(rc6pp_residency_ms);
-static DEVICE_ATTR_RO(media_rc6_residency_ms);
-
-static struct attribute *rc6_attrs[] = {
-	&dev_attr_rc6_enable.attr,
-	&dev_attr_rc6_residency_ms.attr,
-	NULL
-};
-
-static const struct attribute_group rc6_attr_group = {
-	.name = power_group_name,
-	.attrs =  rc6_attrs
-};
-
-static struct attribute *rc6p_attrs[] = {
-	&dev_attr_rc6p_residency_ms.attr,
-	&dev_attr_rc6pp_residency_ms.attr,
-	NULL
-};
-
-static const struct attribute_group rc6p_attr_group = {
-	.name = power_group_name,
-	.attrs =  rc6p_attrs
-};
-
-static struct attribute *media_rc6_attrs[] = {
-	&dev_attr_media_rc6_residency_ms.attr,
-	NULL
-};
-
-static const struct attribute_group media_rc6_attr_group = {
-	.name = power_group_name,
-	.attrs =  media_rc6_attrs
-};
-#endif
 
 static int l3_access_valid(struct drm_i915_private *i915, loff_t offset)
 {
@@ -256,171 +156,6 @@ static const struct bin_attribute dpf_attrs_1 = {
 	.private = (void *)1
 };
 
-static ssize_t gt_act_freq_mhz_show(struct device *kdev,
-				    struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &to_gt(i915)->rps;
-
-	return sysfs_emit(buf, "%d\n", intel_rps_read_actual_frequency(rps));
-}
-
-static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
-				    struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &to_gt(i915)->rps;
-
-	return sysfs_emit(buf, "%d\n", intel_rps_get_requested_frequency(rps));
-}
-
-static ssize_t gt_boost_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &to_gt(i915)->rps;
-
-	return sysfs_emit(buf, "%d\n", intel_rps_get_boost_frequency(rps));
-}
-
-static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
-				       struct device_attribute *attr,
-				       const char *buf, size_t count)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &to_gt(dev_priv)->rps;
-	ssize_t ret;
-	u32 val;
-
-	ret = kstrtou32(buf, 0, &val);
-	if (ret)
-		return ret;
-
-	ret = intel_rps_set_boost_frequency(rps, val);
-
-	return ret ?: count;
-}
-
-static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
-				     struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &to_gt(dev_priv)->rps;
-
-	return sysfs_emit(buf, "%d\n", intel_gpu_freq(rps, rps->efficient_freq));
-}
-
-static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_gt *gt = to_gt(dev_priv);
-	struct intel_rps *rps = &gt->rps;
-
-	return sysfs_emit(buf, "%d\n", intel_rps_get_max_frequency(rps));
-}
-
-static ssize_t gt_max_freq_mhz_store(struct device *kdev,
-				     struct device_attribute *attr,
-				     const char *buf, size_t count)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_gt *gt = to_gt(dev_priv);
-	struct intel_rps *rps = &gt->rps;
-	ssize_t ret;
-	u32 val;
-
-	ret = kstrtou32(buf, 0, &val);
-	if (ret)
-		return ret;
-
-	ret = intel_rps_set_max_frequency(rps, val);
-
-	return ret ?: count;
-}
-
-static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct intel_gt *gt = to_gt(i915);
-	struct intel_rps *rps = &gt->rps;
-
-	return sysfs_emit(buf, "%d\n", intel_rps_get_min_frequency(rps));
-}
-
-static ssize_t gt_min_freq_mhz_store(struct device *kdev,
-				     struct device_attribute *attr,
-				     const char *buf, size_t count)
-{
-	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &to_gt(i915)->rps;
-	ssize_t ret;
-	u32 val;
-
-	ret = kstrtou32(buf, 0, &val);
-	if (ret)
-		return ret;
-
-	ret = intel_rps_set_min_frequency(rps, val);
-
-	return ret ?: count;
-}
-
-static DEVICE_ATTR_RO(gt_act_freq_mhz);
-static DEVICE_ATTR_RO(gt_cur_freq_mhz);
-static DEVICE_ATTR_RW(gt_boost_freq_mhz);
-static DEVICE_ATTR_RW(gt_max_freq_mhz);
-static DEVICE_ATTR_RW(gt_min_freq_mhz);
-
-static DEVICE_ATTR_RO(vlv_rpe_freq_mhz);
-
-static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf);
-static DEVICE_ATTR(gt_RP0_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
-static DEVICE_ATTR(gt_RP1_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
-static DEVICE_ATTR(gt_RPn_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
-
-/* For now we have a static number of RP states */
-static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
-{
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &to_gt(dev_priv)->rps;
-	u32 val;
-
-	if (attr == &dev_attr_gt_RP0_freq_mhz)
-		val = intel_rps_get_rp0_frequency(rps);
-	else if (attr == &dev_attr_gt_RP1_freq_mhz)
-		val = intel_rps_get_rp1_frequency(rps);
-	else if (attr == &dev_attr_gt_RPn_freq_mhz)
-		val = intel_rps_get_rpn_frequency(rps);
-	else
-		BUG();
-
-	return sysfs_emit(buf, "%d\n", val);
-}
-
-static const struct attribute * const gen6_attrs[] = {
-	&dev_attr_gt_act_freq_mhz.attr,
-	&dev_attr_gt_cur_freq_mhz.attr,
-	&dev_attr_gt_boost_freq_mhz.attr,
-	&dev_attr_gt_max_freq_mhz.attr,
-	&dev_attr_gt_min_freq_mhz.attr,
-	&dev_attr_gt_RP0_freq_mhz.attr,
-	&dev_attr_gt_RP1_freq_mhz.attr,
-	&dev_attr_gt_RPn_freq_mhz.attr,
-	NULL,
-};
-
-static const struct attribute * const vlv_attrs[] = {
-	&dev_attr_gt_act_freq_mhz.attr,
-	&dev_attr_gt_cur_freq_mhz.attr,
-	&dev_attr_gt_boost_freq_mhz.attr,
-	&dev_attr_gt_max_freq_mhz.attr,
-	&dev_attr_gt_min_freq_mhz.attr,
-	&dev_attr_gt_RP0_freq_mhz.attr,
-	&dev_attr_gt_RP1_freq_mhz.attr,
-	&dev_attr_gt_RPn_freq_mhz.attr,
-	&dev_attr_vlv_rpe_freq_mhz.attr,
-	NULL,
-};
-
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 
 static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
@@ -431,7 +166,14 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 	struct device *kdev = kobj_to_dev(kobj);
 	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
 	struct i915_gpu_coredump *gpu;
-	ssize_t ret;
+	ssize_t ret = 0;
+
+	/*
+	 * FIXME: Concurrent clients triggering resets and reading + clearing
+	 * dumps can cause inconsistent sysfs reads when a user calls in with a
+	 * non-zero offset to complete a prior partial read but the
+	 * gpu_coredump has been cleared or replaced.
+	 */
 
 	gpu = i915_first_error_state(i915);
 	if (IS_ERR(gpu)) {
@@ -443,8 +185,10 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 		const char *str = "No error state collected\n";
 		size_t len = strlen(str);
 
-		ret = min_t(size_t, count, len - off);
-		memcpy(buf, str + off, ret);
+		if (off < len) {
+			ret = min_t(size_t, count, len - off);
+			memcpy(buf, str + off, ret);
+		}
 	}
 
 	return ret;
@@ -491,29 +235,6 @@ void i915_setup_sysfs(struct drm_i915_private *dev_priv)
 	struct device *kdev = dev_priv->drm.primary->kdev;
 	int ret;
 
-#ifdef CONFIG_PM
-	if (HAS_RC6(dev_priv)) {
-		ret = sysfs_merge_group(&kdev->kobj,
-					&rc6_attr_group);
-		if (ret)
-			drm_err(&dev_priv->drm,
-				"RC6 residency sysfs setup failed\n");
-	}
-	if (HAS_RC6p(dev_priv)) {
-		ret = sysfs_merge_group(&kdev->kobj,
-					&rc6p_attr_group);
-		if (ret)
-			drm_err(&dev_priv->drm,
-				"RC6p residency sysfs setup failed\n");
-	}
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		ret = sysfs_merge_group(&kdev->kobj,
-					&media_rc6_attr_group);
-		if (ret)
-			drm_err(&dev_priv->drm,
-				"Media RC6 residency sysfs setup failed\n");
-	}
-#endif
 	if (HAS_L3_DPF(dev_priv)) {
 		ret = device_create_bin_file(kdev, &dpf_attrs);
 		if (ret)
@@ -529,13 +250,10 @@ void i915_setup_sysfs(struct drm_i915_private *dev_priv)
 		}
 	}
 
-	ret = 0;
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		ret = sysfs_create_files(&kdev->kobj, vlv_attrs);
-	else if (GRAPHICS_VER(dev_priv) >= 6)
-		ret = sysfs_create_files(&kdev->kobj, gen6_attrs);
-	if (ret)
-		drm_err(&dev_priv->drm, "RPS sysfs setup failed\n");
+	dev_priv->sysfs_gt = kobject_create_and_add("gt", &kdev->kobj);
+	if (!dev_priv->sysfs_gt)
+		drm_warn(&dev_priv->drm,
+			 "failed to register GT sysfs directory\n");
 
 	i915_setup_error_capture(kdev);
 
@@ -548,14 +266,8 @@ void i915_teardown_sysfs(struct drm_i915_private *dev_priv)
 
 	i915_teardown_error_capture(kdev);
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		sysfs_remove_files(&kdev->kobj, vlv_attrs);
-	else
-		sysfs_remove_files(&kdev->kobj, gen6_attrs);
 	device_remove_bin_file(kdev,  &dpf_attrs_1);
 	device_remove_bin_file(kdev,  &dpf_attrs);
-#ifdef CONFIG_PM
-	sysfs_unmerge_group(&kdev->kobj, &rc6_attr_group);
-	sysfs_unmerge_group(&kdev->kobj, &rc6p_attr_group);
-#endif
+
+	kobject_put(dev_priv->sysfs_gt);
 }

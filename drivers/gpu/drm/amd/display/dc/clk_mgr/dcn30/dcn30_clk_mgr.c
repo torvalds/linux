@@ -25,30 +25,24 @@
 
 #include "dccg.h"
 #include "clk_mgr_internal.h"
-
 #include "dcn30_clk_mgr_smu_msg.h"
 #include "dcn20/dcn20_clk_mgr.h"
 #include "dce100/dce_clk_mgr.h"
+#include "dcn30/dcn30_clk_mgr.h"
+#include "dml/dcn30/dcn30_fpu.h"
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dm_helpers.h"
-
 #include "atomfirmware.h"
-
-
 #include "sienna_cichlid_ip_offset.h"
 #include "dcn/dcn_3_0_0_offset.h"
 #include "dcn/dcn_3_0_0_sh_mask.h"
-
 #include "nbio/nbio_7_4_offset.h"
-
-#include "dcn/dpcs_3_0_0_offset.h"
-#include "dcn/dpcs_3_0_0_sh_mask.h"
-
+#include "dpcs/dpcs_3_0_0_offset.h"
+#include "dpcs/dpcs_3_0_0_sh_mask.h"
 #include "mmhub/mmhub_2_0_0_offset.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
-/*we don't have clk folder yet*/
-#include "dcn30/dcn30_clk_mgr.h"
+#include "dcn30_smu11_driver_if.h"
 
 #undef FN
 #define FN(reg_name, field_name) \
@@ -83,7 +77,7 @@ static const struct clk_mgr_mask clk_mgr_mask = {
 
 
 /* Query SMU for all clock states for a particular clock */
-static void dcn3_init_single_clock(struct clk_mgr_internal *clk_mgr, PPCLK_e clk, unsigned int *entry_0, unsigned int *num_levels)
+static void dcn3_init_single_clock(struct clk_mgr_internal *clk_mgr, uint32_t clk, unsigned int *entry_0, unsigned int *num_levels)
 {
 	unsigned int i;
 	char *entry_i = (char *)entry_0;
@@ -104,57 +98,11 @@ static void dcn3_init_single_clock(struct clk_mgr_internal *clk_mgr, PPCLK_e clk
 	}
 }
 
-static noinline void dcn3_build_wm_range_table(struct clk_mgr_internal *clk_mgr)
+static void dcn3_build_wm_range_table(struct clk_mgr_internal *clk_mgr)
 {
-	/* defaults */
-	double pstate_latency_us = clk_mgr->base.ctx->dc->dml.soc.dram_clock_change_latency_us;
-	double sr_exit_time_us = clk_mgr->base.ctx->dc->dml.soc.sr_exit_time_us;
-	double sr_enter_plus_exit_time_us = clk_mgr->base.ctx->dc->dml.soc.sr_enter_plus_exit_time_us;
-	uint16_t min_uclk_mhz = clk_mgr->base.bw_params->clk_table.entries[0].memclk_mhz;
-
-	/* Set A - Normal - default values*/
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_A].valid = true;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us = pstate_latency_us;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_A].dml_input.sr_exit_time_us = sr_exit_time_us;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_A].dml_input.sr_enter_plus_exit_time_us = sr_enter_plus_exit_time_us;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.wm_type = WATERMARKS_CLOCK_RANGE;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.min_dcfclk = 0;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.max_dcfclk = 0xFFFF;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.min_uclk = min_uclk_mhz;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.max_uclk = 0xFFFF;
-
-	/* Set B - Performance - higher minimum clocks */
-//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].valid = true;
-//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].dml_input.pstate_latency_us = pstate_latency_us;
-//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].dml_input.sr_exit_time_us = sr_exit_time_us;
-//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].dml_input.sr_enter_plus_exit_time_us = sr_enter_plus_exit_time_us;
-//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.wm_type = WATERMARKS_CLOCK_RANGE;
-//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.min_dcfclk = TUNED VALUE;
-//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.max_dcfclk = 0xFFFF;
-//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.min_uclk = TUNED VALUE;
-//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.max_uclk = 0xFFFF;
-
-	/* Set C - Dummy P-State - P-State latency set to "dummy p-state" value */
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].valid = true;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].dml_input.pstate_latency_us = clk_mgr->base.ctx->dc->dml.soc.dummy_pstate_latency_us;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].dml_input.sr_exit_time_us = sr_exit_time_us;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].dml_input.sr_enter_plus_exit_time_us = sr_enter_plus_exit_time_us;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.wm_type = WATERMARKS_DUMMY_PSTATE;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.min_dcfclk = 0;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.max_dcfclk = 0xFFFF;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.min_uclk = min_uclk_mhz;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.max_uclk = 0xFFFF;
-
-	/* Set D - MALL - SR enter and exit times adjusted for MALL */
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].valid = true;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].dml_input.pstate_latency_us = pstate_latency_us;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].dml_input.sr_exit_time_us = 2;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].dml_input.sr_enter_plus_exit_time_us = 4;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.wm_type = WATERMARKS_MALL;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.min_dcfclk = 0;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.max_dcfclk = 0xFFFF;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.min_uclk = min_uclk_mhz;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.max_uclk = 0xFFFF;
+	DC_FP_START();
+	dcn3_fpu_build_wm_range_table(&clk_mgr->base);
+	DC_FP_END();
 }
 
 void dcn3_init_clocks(struct clk_mgr *clk_mgr_base)
@@ -184,6 +132,7 @@ void dcn3_init_clocks(struct clk_mgr *clk_mgr_base)
 	dcn3_init_single_clock(clk_mgr, PPCLK_DCEFCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].dcfclk_mhz,
 			&num_levels);
+	dcn30_smu_set_min_deep_sleep_dcef_clk(clk_mgr, 0);
 
 	/* DTBCLK */
 	dcn3_init_single_clock(clk_mgr, PPCLK_DTBCLK,
@@ -473,8 +422,10 @@ static void dcn3_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 	clk_mgr_base->bw_params->dc_mode_softmax_memclk = dcn30_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_UCLK);
 
 	/* Refresh bounding box */
+	DC_FP_START();
 	clk_mgr_base->ctx->dc->res_pool->funcs->update_bw_bounding_box(
 			clk_mgr->base.ctx->dc, clk_mgr_base->bw_params);
+	DC_FP_END();
 }
 
 static bool dcn3_is_smu_present(struct clk_mgr *clk_mgr_base)
@@ -520,6 +471,8 @@ static void dcn30_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct d
 
 	if (!clk_mgr->smu_present)
 		return;
+
+	/* TODO - DP2.0 HW: calculate link 128b/132 link rate in clock manager with new formula */
 
 	clk_mgr->cur_phyclk_req_table[link->link_index] = link->cur_link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
 
@@ -624,7 +577,8 @@ void dcn3_clk_mgr_construct(
 
 void dcn3_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr)
 {
-	kfree(clk_mgr->base.bw_params);
+	if (clk_mgr->base.bw_params)
+		kfree(clk_mgr->base.bw_params);
 
 	if (clk_mgr->wm_range_table)
 		dm_helpers_free_gpu_mem(clk_mgr->base.ctx, DC_MEM_ALLOC_TYPE_GART,

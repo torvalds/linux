@@ -416,6 +416,7 @@ static int ak8975_power_on(const struct ak8975_data *data)
 	if (ret) {
 		dev_warn(&data->client->dev,
 			 "Failed to enable specified Vid supply\n");
+		regulator_disable(data->vdd);
 		return ret;
 	}
 
@@ -1017,7 +1018,7 @@ power_off:
 	return err;
 }
 
-static int ak8975_remove(struct i2c_client *client)
+static void ak8975_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ak8975_data *data = iio_priv(indio_dev);
@@ -1029,11 +1030,8 @@ static int ak8975_remove(struct i2c_client *client)
 	iio_triggered_buffer_cleanup(indio_dev);
 	ak8975_set_mode(data, POWER_DOWN);
 	ak8975_power_off(data);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM
 static int ak8975_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1074,14 +1072,9 @@ static int ak8975_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
 
-static const struct dev_pm_ops ak8975_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(ak8975_runtime_suspend,
-			   ak8975_runtime_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(ak8975_dev_pm_ops, ak8975_runtime_suspend,
+				 ak8975_runtime_resume, NULL);
 
 static const struct i2c_device_id ak8975_id[] = {
 	{"ak8975", AK8975},
@@ -1113,7 +1106,7 @@ MODULE_DEVICE_TABLE(of, ak8975_of_match);
 static struct i2c_driver ak8975_driver = {
 	.driver = {
 		.name	= "ak8975",
-		.pm = &ak8975_dev_pm_ops,
+		.pm = pm_ptr(&ak8975_dev_pm_ops),
 		.of_match_table = ak8975_of_match,
 		.acpi_match_table = ak_acpi_match,
 	},

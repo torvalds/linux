@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/tcp.h>
+#include <errno.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "bpf_tcp_helpers.h"
@@ -23,6 +24,7 @@ const char tcp_cdg[] = "cdg";
 char cc_res[TCP_CA_NAME_MAX];
 int tcp_cdg_res = 0;
 int stg_result = 0;
+int ebusy_cnt = 0;
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
@@ -64,16 +66,23 @@ void BPF_PROG(dctcp_init, struct sock *sk)
 
 	if (!(tp->ecn_flags & TCP_ECN_OK) && fallback[0]) {
 		/* Switch to fallback */
-		bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
-			       (void *)fallback, sizeof(fallback));
-		/* Switch back to myself which the bpf trampoline
-		 * stopped calling dctcp_init recursively.
+		if (bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+				   (void *)fallback, sizeof(fallback)) == -EBUSY)
+			ebusy_cnt++;
+
+		/* Switch back to myself and the recurred dctcp_init()
+		 * will get -EBUSY for all bpf_setsockopt(TCP_CONGESTION),
+		 * except the last "cdg" one.
 		 */
-		bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
-			       (void *)bpf_dctcp, sizeof(bpf_dctcp));
+		if (bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+				   (void *)bpf_dctcp, sizeof(bpf_dctcp)) == -EBUSY)
+			ebusy_cnt++;
+
 		/* Switch back to fallback */
-		bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
-			       (void *)fallback, sizeof(fallback));
+		if (bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+				   (void *)fallback, sizeof(fallback)) == -EBUSY)
+			ebusy_cnt++;
+
 		/* Expecting -ENOTSUPP for tcp_cdg_res */
 		tcp_cdg_res = bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
 					     (void *)tcp_cdg, sizeof(tcp_cdg));

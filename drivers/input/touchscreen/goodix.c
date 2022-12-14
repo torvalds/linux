@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/platform_data/x86/soc.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/of.h>
@@ -94,6 +95,7 @@ static const struct goodix_chip_data gt9x_chip_data = {
 
 static const struct goodix_chip_id goodix_chip_ids[] = {
 	{ .id = "1151", .data = &gt1x_chip_data },
+	{ .id = "1158", .data = &gt1x_chip_data },
 	{ .id = "5663", .data = &gt1x_chip_data },
 	{ .id = "5688", .data = &gt1x_chip_data },
 	{ .id = "917S", .data = &gt1x_chip_data },
@@ -297,32 +299,17 @@ static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 	return -ENOMSG;
 }
 
-static struct input_dev *goodix_create_pen_input(struct goodix_ts_data *ts)
+static int goodix_create_pen_input(struct goodix_ts_data *ts)
 {
 	struct device *dev = &ts->client->dev;
 	struct input_dev *input;
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return NULL;
+		return -ENOMEM;
 
-	input_alloc_absinfo(input);
-	if (!input->absinfo) {
-		input_free_device(input);
-		return NULL;
-	}
-
-	input->absinfo[ABS_X] = ts->input_dev->absinfo[ABS_MT_POSITION_X];
-	input->absinfo[ABS_Y] = ts->input_dev->absinfo[ABS_MT_POSITION_Y];
-	__set_bit(ABS_X, input->absbit);
-	__set_bit(ABS_Y, input->absbit);
-	input_set_abs_params(input, ABS_PRESSURE, 0, 255, 0, 0);
-
-	input_set_capability(input, EV_KEY, BTN_TOUCH);
-	input_set_capability(input, EV_KEY, BTN_TOOL_PEN);
-	input_set_capability(input, EV_KEY, BTN_STYLUS);
-	input_set_capability(input, EV_KEY, BTN_STYLUS2);
-	__set_bit(INPUT_PROP_DIRECT, input->propbit);
+	input_copy_abs(input, ABS_X, ts->input_dev, ABS_MT_POSITION_X);
+	input_copy_abs(input, ABS_Y, ts->input_dev, ABS_MT_POSITION_Y);
 	/*
 	 * The resolution of these touchscreens is about 10 units/mm, the actual
 	 * resolution does not matter much since we set INPUT_PROP_DIRECT.
@@ -330,6 +317,13 @@ static struct input_dev *goodix_create_pen_input(struct goodix_ts_data *ts)
 	 */
 	input_abs_set_res(input, ABS_X, 10);
 	input_abs_set_res(input, ABS_Y, 10);
+	input_set_abs_params(input, ABS_PRESSURE, 0, 255, 0, 0);
+
+	input_set_capability(input, EV_KEY, BTN_TOUCH);
+	input_set_capability(input, EV_KEY, BTN_TOOL_PEN);
+	input_set_capability(input, EV_KEY, BTN_STYLUS);
+	input_set_capability(input, EV_KEY, BTN_STYLUS2);
+	__set_bit(INPUT_PROP_DIRECT, input->propbit);
 
 	input->name = "Goodix Active Pen";
 	input->phys = "input/pen";
@@ -339,24 +333,22 @@ static struct input_dev *goodix_create_pen_input(struct goodix_ts_data *ts)
 		input->id.product = 0x1001;
 	input->id.version = ts->version;
 
-	if (input_register_device(input) != 0) {
-		input_free_device(input);
-		return NULL;
-	}
-
-	return input;
+	ts->input_pen = input;
+	return 0;
 }
 
 static void goodix_ts_report_pen_down(struct goodix_ts_data *ts, u8 *data)
 {
-	int input_x, input_y, input_w;
+	int input_x, input_y, input_w, error;
 	u8 key_value;
 
-	if (!ts->input_pen) {
-		ts->input_pen = goodix_create_pen_input(ts);
-		if (!ts->input_pen)
-			return;
+	if (!ts->pen_input_registered) {
+		error = input_register_device(ts->input_pen);
+		ts->pen_input_registered = (error == 0) ? 1 : error;
 	}
+
+	if (ts->pen_input_registered < 0)
+		return;
 
 	if (ts->contact_size == 9) {
 		input_x = get_unaligned_le16(&data[4]);
@@ -805,21 +797,6 @@ static int goodix_reset(struct goodix_ts_data *ts)
 }
 
 #ifdef ACPI_GPIO_SUPPORT
-#include <asm/cpu_device_id.h>
-#include <asm/intel-family.h>
-
-static const struct x86_cpu_id baytrail_cpu_ids[] = {
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT, X86_FEATURE_ANY, },
-	{}
-};
-
-static inline bool is_byt(void)
-{
-	const struct x86_cpu_id *id = x86_match_cpu(baytrail_cpu_ids);
-
-	return !!id;
-}
-
 static const struct acpi_gpio_params first_gpio = { 0, 0, false };
 static const struct acpi_gpio_params second_gpio = { 1, 0, false };
 
@@ -846,22 +823,16 @@ static int goodix_resource(struct acpi_resource *ares, void *data)
 	struct device *dev = &ts->client->dev;
 	struct acpi_resource_gpio *gpio;
 
-	switch (ares->type) {
-	case ACPI_RESOURCE_TYPE_GPIO:
-		gpio = &ares->data.gpio;
-		if (gpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT) {
-			if (ts->gpio_int_idx == -1) {
-				ts->gpio_int_idx = ts->gpio_count;
-			} else {
-				dev_err(dev, "More then one GpioInt resource, ignoring ACPI GPIO resources\n");
-				ts->gpio_int_idx = -2;
-			}
+	if (acpi_gpio_get_irq_resource(ares, &gpio)) {
+		if (ts->gpio_int_idx == -1) {
+			ts->gpio_int_idx = ts->gpio_count;
+		} else {
+			dev_err(dev, "More then one GpioInt resource, ignoring ACPI GPIO resources\n");
+			ts->gpio_int_idx = -2;
 		}
 		ts->gpio_count++;
-		break;
-	default:
-		break;
-	}
+	} else if (acpi_gpio_get_io_resource(ares, &gpio))
+		ts->gpio_count++;
 
 	return 0;
 }
@@ -878,7 +849,7 @@ static int goodix_add_acpi_gpio_mappings(struct goodix_ts_data *ts)
 	const struct acpi_gpio_mapping *gpio_mapping = NULL;
 	struct device *dev = &ts->client->dev;
 	LIST_HEAD(resources);
-	int ret;
+	int irq, ret;
 
 	ts->gpio_count = 0;
 	ts->gpio_int_idx = -1;
@@ -890,6 +861,20 @@ static int goodix_add_acpi_gpio_mappings(struct goodix_ts_data *ts)
 	}
 
 	acpi_dev_free_resource_list(&resources);
+
+	/*
+	 * CHT devices should have a GpioInt + a regular GPIO ACPI resource.
+	 * Some CHT devices have a bug (where the also is bogus Interrupt
+	 * resource copied from a previous BYT based generation). i2c-core-acpi
+	 * will use the non-working Interrupt resource, fix this up.
+	 */
+	if (soc_intel_is_cht() && ts->gpio_count == 2 && ts->gpio_int_idx != -1) {
+		irq = acpi_dev_gpio_irq_get(ACPI_COMPANION(dev), 0);
+		if (irq > 0 && irq != ts->client->irq) {
+			dev_warn(dev, "Overriding IRQ %d -> %d\n", ts->client->irq, irq);
+			ts->client->irq = irq;
+		}
+	}
 
 	if (ts->gpio_count == 2 && ts->gpio_int_idx == 0) {
 		ts->irq_pin_access_method = IRQ_PIN_ACCESS_ACPI_GPIO;
@@ -903,13 +888,18 @@ static int goodix_add_acpi_gpio_mappings(struct goodix_ts_data *ts)
 		dev_info(dev, "Using ACPI INTI and INTO methods for IRQ pin access\n");
 		ts->irq_pin_access_method = IRQ_PIN_ACCESS_ACPI_METHOD;
 		gpio_mapping = acpi_goodix_reset_only_gpios;
-	} else if (is_byt() && ts->gpio_count == 2 && ts->gpio_int_idx == -1) {
+	} else if (soc_intel_is_byt() && ts->gpio_count == 2 && ts->gpio_int_idx == -1) {
 		dev_info(dev, "No ACPI GpioInt resource, assuming that the GPIO order is reset, int\n");
 		ts->irq_pin_access_method = IRQ_PIN_ACCESS_ACPI_GPIO;
 		gpio_mapping = acpi_goodix_int_last_gpios;
 	} else {
 		dev_warn(dev, "Unexpected ACPI resources: gpio_count %d, gpio_int_idx %d\n",
 			 ts->gpio_count, ts->gpio_int_idx);
+		/*
+		 * On some devices _PS0 does a reset for us and
+		 * sometimes this is necessary for things to work.
+		 */
+		acpi_device_fix_up_power(ACPI_COMPANION(dev));
 		return -EINVAL;
 	}
 
@@ -1168,6 +1158,7 @@ static int goodix_configure_dev(struct goodix_ts_data *ts)
 	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 
+retry_read_config:
 	/* Read configuration and apply touchscreen parameters */
 	goodix_read_config(ts);
 
@@ -1175,6 +1166,16 @@ static int goodix_configure_dev(struct goodix_ts_data *ts)
 	touchscreen_parse_properties(ts->input_dev, true, &ts->prop);
 
 	if (!ts->prop.max_x || !ts->prop.max_y || !ts->max_touch_num) {
+		if (!ts->reset_controller_at_probe &&
+		    ts->irq_pin_access_method != IRQ_PIN_ACCESS_NONE) {
+			dev_info(&ts->client->dev, "Config not set, resetting controller\n");
+			/* Retry after a controller reset */
+			ts->reset_controller_at_probe = true;
+			error = goodix_reset(ts);
+			if (error)
+				return error;
+			goto retry_read_config;
+		}
 		dev_err(&ts->client->dev,
 			"Invalid config (%d, %d, %d), using defaults\n",
 			ts->prop.max_x, ts->prop.max_y, ts->max_touch_num);
@@ -1214,6 +1215,17 @@ static int goodix_configure_dev(struct goodix_ts_data *ts)
 			"Failed to register input device: %d", error);
 		return error;
 	}
+
+	/*
+	 * Create the input_pen device before goodix_request_irq() calls
+	 * devm_request_threaded_irq() so that the devm framework frees
+	 * it after disabling the irq.
+	 * Unfortunately there is no way to detect if the touchscreen has pen
+	 * support, so registering the dev is delayed till the first pen event.
+	 */
+	error = goodix_create_pen_input(ts);
+	if (error)
+		return error;
 
 	ts->irq_flags = goodix_irq_flags[ts->int_trigger_type] | IRQF_ONESHOT;
 	error = goodix_request_irq(ts);
@@ -1382,14 +1394,12 @@ reset:
 	return 0;
 }
 
-static int goodix_ts_remove(struct i2c_client *client)
+static void goodix_ts_remove(struct i2c_client *client)
 {
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
 
 	if (ts->load_cfg_from_disk)
 		wait_for_completion(&ts->firmware_loading_complete);
-
-	return 0;
 }
 
 static int __maybe_unused goodix_suspend(struct device *dev)
@@ -1508,6 +1518,7 @@ MODULE_DEVICE_TABLE(acpi, goodix_acpi_match);
 #ifdef CONFIG_OF
 static const struct of_device_id goodix_of_match[] = {
 	{ .compatible = "goodix,gt1151" },
+	{ .compatible = "goodix,gt1158" },
 	{ .compatible = "goodix,gt5663" },
 	{ .compatible = "goodix,gt5688" },
 	{ .compatible = "goodix,gt911" },

@@ -21,9 +21,9 @@ struct xfs_ifork {
 		void		*if_root;	/* extent tree root */
 		char		*if_data;	/* inline file data */
 	} if_u1;
+	xfs_extnum_t		if_nextents;	/* # of extents in this fork */
 	short			if_broot_bytes;	/* bytes allocated for root */
 	int8_t			if_format;	/* format of this fork */
-	xfs_extnum_t		if_nextents;	/* # of extents in this fork */
 };
 
 /*
@@ -38,19 +38,6 @@ struct xfs_ifork {
  * i.e. | Old extent | Hole | Old extent |
  */
 #define XFS_IEXT_PUNCH_HOLE_CNT		(1)
-
-/*
- * Directory entry addition can cause the following,
- * 1. Data block can be added/removed.
- *    A new extent can cause extent count to increase by 1.
- * 2. Free disk block can be added/removed.
- *    Same behaviour as described above for Data block.
- * 3. Dabtree blocks.
- *    XFS_DA_NODE_MAXDEPTH blocks can be added. Each of these can be new
- *    extents. Hence extent count can increase by XFS_DA_NODE_MAXDEPTH.
- */
-#define XFS_IEXT_DIR_MANIP_CNT(mp) \
-	((XFS_DA_NODE_MAXDEPTH + 1 + 1) * (mp)->m_dir_geo->fsbcount)
 
 /*
  * Adding/removing an xattr can cause XFS_DA_NODE_MAXDEPTH extents to
@@ -90,28 +77,8 @@ struct xfs_ifork {
 /*
  * Fork handling.
  */
-
-#define XFS_IFORK_Q(ip)			((ip)->i_forkoff != 0)
-#define XFS_IFORK_BOFF(ip)		((int)((ip)->i_forkoff << 3))
-
-#define XFS_IFORK_PTR(ip,w)		\
-	((w) == XFS_DATA_FORK ? \
-		&(ip)->i_df : \
-		((w) == XFS_ATTR_FORK ? \
-			(ip)->i_afp : \
-			(ip)->i_cowfp))
-#define XFS_IFORK_DSIZE(ip) \
-	(XFS_IFORK_Q(ip) ? XFS_IFORK_BOFF(ip) : XFS_LITINO((ip)->i_mount))
-#define XFS_IFORK_ASIZE(ip) \
-	(XFS_IFORK_Q(ip) ? XFS_LITINO((ip)->i_mount) - XFS_IFORK_BOFF(ip) : 0)
-#define XFS_IFORK_SIZE(ip,w) \
-	((w) == XFS_DATA_FORK ? \
-		XFS_IFORK_DSIZE(ip) : \
-		((w) == XFS_ATTR_FORK ? \
-			XFS_IFORK_ASIZE(ip) : \
-			0))
 #define XFS_IFORK_MAXEXT(ip, w) \
-	(XFS_IFORK_SIZE(ip, w) / sizeof(xfs_bmbt_rec_t))
+	(xfs_inode_fork_size(ip, w) / sizeof(xfs_bmbt_rec_t))
 
 static inline bool xfs_ifork_has_extents(struct xfs_ifork *ifp)
 {
@@ -133,8 +100,68 @@ static inline int8_t xfs_ifork_format(struct xfs_ifork *ifp)
 	return ifp->if_format;
 }
 
-struct xfs_ifork *xfs_ifork_alloc(enum xfs_dinode_fmt format,
-				xfs_extnum_t nextents);
+static inline xfs_extnum_t xfs_iext_max_nextents(bool has_large_extent_counts,
+				int whichfork)
+{
+	switch (whichfork) {
+	case XFS_DATA_FORK:
+	case XFS_COW_FORK:
+		if (has_large_extent_counts)
+			return XFS_MAX_EXTCNT_DATA_FORK_LARGE;
+		return XFS_MAX_EXTCNT_DATA_FORK_SMALL;
+
+	case XFS_ATTR_FORK:
+		if (has_large_extent_counts)
+			return XFS_MAX_EXTCNT_ATTR_FORK_LARGE;
+		return XFS_MAX_EXTCNT_ATTR_FORK_SMALL;
+
+	default:
+		ASSERT(0);
+		return 0;
+	}
+}
+
+static inline xfs_extnum_t
+xfs_dfork_data_extents(
+	struct xfs_dinode	*dip)
+{
+	if (xfs_dinode_has_large_extent_counts(dip))
+		return be64_to_cpu(dip->di_big_nextents);
+
+	return be32_to_cpu(dip->di_nextents);
+}
+
+static inline xfs_extnum_t
+xfs_dfork_attr_extents(
+	struct xfs_dinode	*dip)
+{
+	if (xfs_dinode_has_large_extent_counts(dip))
+		return be32_to_cpu(dip->di_big_anextents);
+
+	return be16_to_cpu(dip->di_anextents);
+}
+
+static inline xfs_extnum_t
+xfs_dfork_nextents(
+	struct xfs_dinode	*dip,
+	int			whichfork)
+{
+	switch (whichfork) {
+	case XFS_DATA_FORK:
+		return xfs_dfork_data_extents(dip);
+	case XFS_ATTR_FORK:
+		return xfs_dfork_attr_extents(dip);
+	default:
+		ASSERT(0);
+		break;
+	}
+
+	return 0;
+}
+
+void xfs_ifork_zap_attr(struct xfs_inode *ip);
+void xfs_ifork_init_attr(struct xfs_inode *ip, enum xfs_dinode_fmt format,
+		xfs_extnum_t nextents);
 struct xfs_ifork *xfs_iext_state_to_fork(struct xfs_inode *ip, int state);
 
 int		xfs_iformat_data_fork(struct xfs_inode *, struct xfs_dinode *);
@@ -229,6 +256,8 @@ int xfs_ifork_verify_local_data(struct xfs_inode *ip);
 int xfs_ifork_verify_local_attr(struct xfs_inode *ip);
 int xfs_iext_count_may_overflow(struct xfs_inode *ip, int whichfork,
 		int nr_to_add);
+int xfs_iext_count_upgrade(struct xfs_trans *tp, struct xfs_inode *ip,
+		uint nr_to_add);
 
 /* returns true if the fork has extents but they are not read in yet. */
 static inline bool xfs_need_iread_extents(struct xfs_ifork *ifp)

@@ -83,7 +83,7 @@ properties:
       - const: ss
 
   nvidia,xusb-padctl:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       phandle to the XUSB pad controller that is used to configure the USB pads
       used by the XUDC controller.

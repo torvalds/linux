@@ -714,6 +714,20 @@ The Test Pattern Controls are all specific to video capture.
 
 	does the same for the EAV (End of Active Video) code.
 
+- Insert Video Guard Band
+
+	adds 4 columns of pixels with the HDMI Video Guard Band code at the
+	left hand side of the image. This only works with 3 or 4 byte RGB pixel
+	formats. The RGB pixel value 0xab/0x55/0xab turns out to be equivalent
+	to the HDMI Video Guard Band code that precedes each active video line
+	(see section 5.2.2.1 in the HDMI 1.3 Specification). To test if a video
+	receiver has correct HDMI Video Guard Band processing, enable this
+	control and then move the image to the left hand side of the screen.
+	That will result in video lines that start with multiple pixels that
+	have the same value as the Video Guard Band that precedes them.
+	Receivers that will just keep skipping Video Guard Band values will
+	now fail and either loose sync or these video lines will shift.
+
 
 Capture Feature Selection Controls
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1304,7 +1318,7 @@ instance. This setup would require the following commands:
 	$ v4l2-ctl -d2 -i2
 	$ v4l2-ctl -d2 -c horizontal_movement=4
 	$ v4l2-ctl -d1 --overlay=1
-	$ v4l2-ctl -d1 -c loop_video=1
+	$ v4l2-ctl -d0 -c loop_video=1
 	$ v4l2-ctl -d2 --stream-mmap --overlay=1
 
 And from another console:

@@ -83,6 +83,9 @@ struct s3c2410_udc {
 	u32				port_status;
 	int				ep0state;
 
+	struct gpio_desc		*vbus_gpiod;
+	struct gpio_desc		*pullup_gpiod;
+
 	unsigned			got_irq : 1;
 
 	unsigned			req_std : 1;

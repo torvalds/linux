@@ -10,7 +10,7 @@
 #include "intel_pps.h"
 #include "intel_tc.h"
 
-u32 intel_dp_pack_aux(const u8 *src, int src_bytes)
+static u32 intel_dp_aux_pack(const u8 *src, int src_bytes)
 {
 	int i;
 	u32 v = 0;
@@ -22,7 +22,7 @@ u32 intel_dp_pack_aux(const u8 *src, int src_bytes)
 	return v;
 }
 
-static void intel_dp_unpack_aux(u32 src, u8 *dst, int dst_bytes)
+static void intel_dp_aux_unpack(u32 src, u8 *dst, int dst_bytes)
 {
 	int i;
 
@@ -42,7 +42,7 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 	bool done;
 
 #define C (((status = intel_uncore_read_notrace(&i915->uncore, ch_ctl)) & DP_AUX_CH_CTL_SEND_BUSY) == 0)
-	done = wait_event_timeout(i915->gmbus_wait_queue, C,
+	done = wait_event_timeout(i915->display.gmbus.wait_queue, C,
 				  msecs_to_jiffies_timeout(timeout_ms));
 
 	/* just trace the final value */
@@ -86,7 +86,7 @@ static u32 ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	 * divide by 2000 and use that
 	 */
 	if (dig_port->aux_ch == AUX_CH_A)
-		freq = dev_priv->cdclk.hw.cdclk;
+		freq = dev_priv->display.cdclk.hw.cdclk;
 	else
 		freq = RUNTIME_INFO(dev_priv)->rawclk_freq;
 	return DIV_ROUND_CLOSEST(freq, 2000);
@@ -150,6 +150,7 @@ static u32 skl_get_aux_send_ctl(struct intel_dp *intel_dp,
 				u32 unused)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *i915 =	to_i915(dig_port->base.base.dev);
 	u32 ret;
 
 	/*
@@ -169,6 +170,13 @@ static u32 skl_get_aux_send_ctl(struct intel_dp *intel_dp,
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
 		ret |= DP_AUX_CH_CTL_TBT_IO;
+
+	/*
+	 * Power request bit is already set during aux power well enable.
+	 * Preserve the bit across aux transactions.
+	 */
+	if (DISPLAY_VER(i915) >= 14)
+		ret |= XELPDP_DP_AUX_CH_CTL_POWER_REQUEST;
 
 	return ret;
 }
@@ -267,7 +275,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 			for (i = 0; i < send_bytes; i += 4)
 				intel_uncore_write(uncore,
 						   ch_data[i >> 2],
-						   intel_dp_pack_aux(send + i,
+						   intel_dp_aux_pack(send + i,
 								     send_bytes - i));
 
 			/* Send the command and wait for it to complete */
@@ -352,7 +360,7 @@ done:
 		recv_bytes = recv_size;
 
 	for (i = 0; i < recv_bytes; i += 4)
-		intel_dp_unpack_aux(intel_uncore_read(uncore, ch_data[i >> 2]),
+		intel_dp_aux_unpack(intel_uncore_read(uncore, ch_data[i >> 2]),
 				    recv + i, recv_bytes - i);
 
 	ret = recv_bytes;
@@ -629,6 +637,46 @@ static i915_reg_t tgl_aux_data_reg(struct intel_dp *intel_dp, int index)
 	}
 }
 
+static i915_reg_t xelpdp_aux_ctl_reg(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
+
+	switch (aux_ch) {
+	case AUX_CH_A:
+	case AUX_CH_B:
+	case AUX_CH_USBC1:
+	case AUX_CH_USBC2:
+	case AUX_CH_USBC3:
+	case AUX_CH_USBC4:
+		return XELPDP_DP_AUX_CH_CTL(aux_ch);
+	default:
+		MISSING_CASE(aux_ch);
+		return XELPDP_DP_AUX_CH_CTL(AUX_CH_A);
+	}
+}
+
+static i915_reg_t xelpdp_aux_data_reg(struct intel_dp *intel_dp, int index)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
+
+	switch (aux_ch) {
+	case AUX_CH_A:
+	case AUX_CH_B:
+	case AUX_CH_USBC1:
+	case AUX_CH_USBC2:
+	case AUX_CH_USBC3:
+	case AUX_CH_USBC4:
+		return XELPDP_DP_AUX_CH_DATA(aux_ch, index);
+	default:
+		MISSING_CASE(aux_ch);
+		return XELPDP_DP_AUX_CH_DATA(AUX_CH_A, index);
+	}
+}
+
 void intel_dp_aux_fini(struct intel_dp *intel_dp)
 {
 	if (cpu_latency_qos_request_active(&intel_dp->pm_qos))
@@ -644,7 +692,10 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 	struct intel_encoder *encoder = &dig_port->base;
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
-	if (DISPLAY_VER(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 14) {
+		intel_dp->aux_ch_ctl_reg = xelpdp_aux_ctl_reg;
+		intel_dp->aux_ch_data_reg = xelpdp_aux_data_reg;
+	} else if (DISPLAY_VER(dev_priv) >= 12) {
 		intel_dp->aux_ch_ctl_reg = tgl_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = tgl_aux_data_reg;
 	} else if (DISPLAY_VER(dev_priv) >= 9) {

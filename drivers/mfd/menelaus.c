@@ -1222,14 +1222,13 @@ fail:
 	return err;
 }
 
-static int menelaus_remove(struct i2c_client *client)
+static void menelaus_remove(struct i2c_client *client)
 {
 	struct menelaus_chip	*menelaus = i2c_get_clientdata(client);
 
 	free_irq(client->irq, menelaus);
 	flush_work(&menelaus->work);
 	the_menelaus = NULL;
-	return 0;
 }
 
 static const struct i2c_device_id menelaus_id[] = {

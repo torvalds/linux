@@ -82,6 +82,10 @@
  *	driver boot-up state too. Drivers can access this blob through
  *	&drm_crtc_state.gamma_lut.
  *
+ *	Note that for mostly historical reasons stemming from Xorg heritage,
+ *	this is also used to store the color map (also sometimes color lut, CLUT
+ *	or color palette) for indexed formats like DRM_FORMAT_C8.
+ *
  * “GAMMA_LUT_SIZE”:
  *	Unsigned range property to give the size of the lookup table to be set
  *	on the GAMMA_LUT property (the size depends on the underlying hardware).
@@ -255,7 +259,7 @@ static bool drm_crtc_supports_legacy_gamma(struct drm_crtc *crtc)
  * @crtc: CRTC object
  * @red: red correction table
  * @green: green correction table
- * @blue: green correction table
+ * @blue: blue correction table
  * @size: size of the tables
  * @ctx: lock acquire context
  *
@@ -571,7 +575,7 @@ int drm_plane_create_color_properties(struct drm_plane *plane,
 		len++;
 	}
 
-	prop = drm_property_create_enum(dev, 0,	"COLOR_RANGE",
+	prop = drm_property_create_enum(dev, 0, "COLOR_RANGE",
 					enum_list, len);
 	if (!prop)
 		return -ENOMEM;

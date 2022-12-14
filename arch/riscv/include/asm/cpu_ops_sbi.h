@@ -10,6 +10,8 @@
 #include <linux/sched.h>
 #include <linux/threads.h>
 
+extern const struct cpu_operations cpu_ops_sbi;
+
 /**
  * struct sbi_hart_boot_data - Hart specific boot used during booting and
  *			       cpu hotplug.

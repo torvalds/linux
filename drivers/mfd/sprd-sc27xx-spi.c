@@ -240,13 +240,14 @@ static int sprd_pmic_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(sprd_pmic_pm_ops, sprd_pmic_suspend, sprd_pmic_resume);
 
 static const struct of_device_id sprd_pmic_match[] = {
-	{ .compatible = "sprd,sc2731", .data = &sc2731_data },
 	{ .compatible = "sprd,sc2730", .data = &sc2730_data },
+	{ .compatible = "sprd,sc2731", .data = &sc2731_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sprd_pmic_match);
 
 static const struct spi_device_id sprd_pmic_spi_ids[] = {
+	{ .name = "sc2730", .driver_data = (unsigned long)&sc2730_data },
 	{ .name = "sc2731", .driver_data = (unsigned long)&sc2731_data },
 	{},
 };

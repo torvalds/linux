@@ -6,7 +6,6 @@
 
 #include <net/tls.h>
 #include "en.h"
-#include "accel/tls.h"
 
 enum {
 	MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_NO_OFFLOAD     = 0,
@@ -27,6 +26,12 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 		      struct tls_crypto_info *crypto_info, u32 start_offload_tcp_sn);
 void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx);
 void mlx5e_ktls_rx_resync(struct net_device *netdev, struct sock *sk, u32 seq, u8 *rcd_sn);
+
+union mlx5e_crypto_info {
+	struct tls_crypto_info crypto_info;
+	struct tls12_crypto_info_aes_gcm_128 crypto_info_128;
+	struct tls12_crypto_info_aes_gcm_256 crypto_info_256;
+};
 
 struct mlx5e_set_tls_static_params_wqe {
 	struct mlx5_wqe_ctrl_seg ctrl;
@@ -73,7 +78,7 @@ struct mlx5e_get_tls_progress_params_wqe {
 void
 mlx5e_ktls_build_static_params(struct mlx5e_set_tls_static_params_wqe *wqe,
 			       u16 pc, u32 sqn,
-			       struct tls12_crypto_info_aes_gcm_128 *info,
+			       union mlx5e_crypto_info *crypto_info,
 			       u32 tis_tir_num, u32 key_id, u32 resync_tcp_sn,
 			       bool fence, enum tls_offload_ctx_dir direction);
 void

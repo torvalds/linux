@@ -22,6 +22,8 @@
 #include <linux/mfd/tmio.h>
 #include <linux/mfd/tc6393xb.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 
 #define SCR_REVID	0x08		/* b Revision ID	*/
@@ -87,8 +89,10 @@
 
 struct tc6393xb {
 	void __iomem		*scr;
+	struct device		*dev;
 
 	struct gpio_chip	gpio;
+	struct gpio_desc	*vcc_on;
 
 	struct clk		*clk; /* 3,6 Mhz */
 
@@ -497,17 +501,93 @@ static int tc6393xb_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
-static int tc6393xb_register_gpio(struct tc6393xb *tc6393xb, int gpio_base)
-{
-	tc6393xb->gpio.label = "tc6393xb";
-	tc6393xb->gpio.base = gpio_base;
-	tc6393xb->gpio.ngpio = 16;
-	tc6393xb->gpio.set = tc6393xb_gpio_set;
-	tc6393xb->gpio.get = tc6393xb_gpio_get;
-	tc6393xb->gpio.direction_input = tc6393xb_gpio_direction_input;
-	tc6393xb->gpio.direction_output = tc6393xb_gpio_direction_output;
+/*
+ * TC6393XB GPIOs as used on TOSA, are the only user of this chip.
+ * GPIOs 2, 5, 8 and 13 are not connected.
+ */
+#define TOSA_GPIO_TG_ON			0
+#define TOSA_GPIO_L_MUTE		1
+#define TOSA_GPIO_BL_C20MA		3
+#define TOSA_GPIO_CARD_VCC_ON		4
+#define TOSA_GPIO_CHARGE_OFF		6
+#define TOSA_GPIO_CHARGE_OFF_JC		7
+#define TOSA_GPIO_BAT0_V_ON		9
+#define TOSA_GPIO_BAT1_V_ON		10
+#define TOSA_GPIO_BU_CHRG_ON		11
+#define TOSA_GPIO_BAT_SW_ON		12
+#define TOSA_GPIO_BAT0_TH_ON		14
+#define TOSA_GPIO_BAT1_TH_ON		15
 
-	return gpiochip_add_data(&tc6393xb->gpio, tc6393xb);
+
+GPIO_LOOKUP_SINGLE(tosa_lcd_gpio_lookup, "spi2.0", "tc6393xb",
+		   TOSA_GPIO_TG_ON, "tg #pwr", GPIO_ACTIVE_HIGH);
+
+GPIO_LOOKUP_SINGLE(tosa_lcd_bl_gpio_lookup, "i2c-tos-bl", "tc6393xb",
+		   TOSA_GPIO_BL_C20MA, "backlight", GPIO_ACTIVE_HIGH);
+
+GPIO_LOOKUP_SINGLE(tosa_audio_gpio_lookup, "tosa-audio", "tc6393xb",
+		   TOSA_GPIO_L_MUTE, NULL, GPIO_ACTIVE_HIGH);
+
+static struct gpiod_lookup_table tosa_battery_gpio_lookup = {
+	.dev_id = "wm97xx-battery",
+	.table = {
+		GPIO_LOOKUP("tc6393xb", TOSA_GPIO_CHARGE_OFF,
+			    "main charge off", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("tc6393xb", TOSA_GPIO_CHARGE_OFF_JC,
+			    "jacket charge off", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("tc6393xb", TOSA_GPIO_BAT0_V_ON,
+			    "main battery", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("tc6393xb", TOSA_GPIO_BAT1_V_ON,
+			    "jacket battery", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("tc6393xb", TOSA_GPIO_BU_CHRG_ON,
+			    "backup battery", GPIO_ACTIVE_HIGH),
+		/* BAT1 and BAT0 thermistors appear to be swapped */
+		GPIO_LOOKUP("tc6393xb", TOSA_GPIO_BAT1_TH_ON,
+			    "main battery temp", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("tc6393xb", TOSA_GPIO_BAT0_TH_ON,
+			    "jacket battery temp", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("tc6393xb", TOSA_GPIO_BAT_SW_ON,
+			    "battery switch", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table *tc6393xb_gpio_lookups[] = {
+	&tosa_lcd_gpio_lookup,
+	&tosa_lcd_bl_gpio_lookup,
+	&tosa_audio_gpio_lookup,
+	&tosa_battery_gpio_lookup,
+};
+
+static int tc6393xb_register_gpio(struct tc6393xb *tc6393xb)
+{
+	struct gpio_chip *gc = &tc6393xb->gpio;
+	struct device *dev = tc6393xb->dev;
+	int ret;
+
+	gc->label = "tc6393xb";
+	gc->base = -1; /* Dynamic allocation */
+	gc->ngpio = 16;
+	gc->set = tc6393xb_gpio_set;
+	gc->get = tc6393xb_gpio_get;
+	gc->direction_input = tc6393xb_gpio_direction_input;
+	gc->direction_output = tc6393xb_gpio_direction_output;
+
+	ret = devm_gpiochip_add_data(dev, gc, tc6393xb);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to add GPIO chip\n");
+
+	/* Register descriptor look-ups for consumers */
+	gpiod_add_lookup_tables(tc6393xb_gpio_lookups, ARRAY_SIZE(tc6393xb_gpio_lookups));
+
+	/* Request some of our own GPIOs */
+	tc6393xb->vcc_on = gpiochip_request_own_desc(gc, TOSA_GPIO_CARD_VCC_ON, "VCC ON",
+						     GPIO_ACTIVE_HIGH, GPIOD_OUT_HIGH);
+	if (IS_ERR(tc6393xb->vcc_on))
+		return dev_err_probe(dev, PTR_ERR(tc6393xb->vcc_on),
+				     "failed to request VCC ON GPIO\n");
+
+	return 0;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -617,6 +697,7 @@ static int tc6393xb_probe(struct platform_device *dev)
 		ret = -ENOMEM;
 		goto err_kzalloc;
 	}
+	tc6393xb->dev = &dev->dev;
 
 	raw_spin_lock_init(&tc6393xb->lock);
 
@@ -676,21 +757,11 @@ static int tc6393xb_probe(struct platform_device *dev)
 			tmio_ioread8(tc6393xb->scr + SCR_REVID),
 			(unsigned long) iomem->start, tc6393xb->irq);
 
-	tc6393xb->gpio.base = -1;
-
-	if (tcpd->gpio_base >= 0) {
-		ret = tc6393xb_register_gpio(tc6393xb, tcpd->gpio_base);
-		if (ret)
-			goto err_gpio_add;
-	}
+	ret = tc6393xb_register_gpio(tc6393xb);
+	if (ret)
+		goto err_gpio_add;
 
 	tc6393xb_attach_irq(dev);
-
-	if (tcpd->setup) {
-		ret = tcpd->setup(dev);
-		if (ret)
-			goto err_setup;
-	}
 
 	tc6393xb_cells[TC6393XB_CELL_NAND].platform_data = tcpd->nand_data;
 	tc6393xb_cells[TC6393XB_CELL_NAND].pdata_size =
@@ -705,15 +776,8 @@ static int tc6393xb_probe(struct platform_device *dev)
 	if (!ret)
 		return 0;
 
-	if (tcpd->teardown)
-		tcpd->teardown(dev);
-
-err_setup:
 	tc6393xb_detach_irq(dev);
-
 err_gpio_add:
-	if (tc6393xb->gpio.base != -1)
-		gpiochip_remove(&tc6393xb->gpio);
 	tcpd->disable(dev);
 err_enable:
 	clk_disable_unprepare(tc6393xb->clk);
@@ -734,26 +798,19 @@ static int tc6393xb_remove(struct platform_device *dev)
 {
 	struct tc6393xb_platform_data *tcpd = dev_get_platdata(&dev->dev);
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
-	int ret;
 
 	mfd_remove_devices(&dev->dev);
 
-	if (tcpd->teardown)
-		tcpd->teardown(dev);
-
 	tc6393xb_detach_irq(dev);
 
-	if (tc6393xb->gpio.base != -1)
-		gpiochip_remove(&tc6393xb->gpio);
-
-	ret = tcpd->disable(dev);
+	tcpd->disable(dev);
 	clk_disable_unprepare(tc6393xb->clk);
 	iounmap(tc6393xb->scr);
 	release_resource(&tc6393xb->rscr);
 	clk_put(tc6393xb->clk);
 	kfree(tc6393xb);
 
-	return ret;
+	return 0;
 }
 
 #ifdef CONFIG_PM

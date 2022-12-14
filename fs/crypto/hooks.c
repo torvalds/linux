@@ -5,8 +5,6 @@
  * Encryption hooks for higher-level filesystem operations.
  */
 
-#include <linux/key.h>
-
 #include "fscrypt_private.h"
 
 /**
@@ -142,7 +140,6 @@ int fscrypt_prepare_setflags(struct inode *inode,
 			     unsigned int oldflags, unsigned int flags)
 {
 	struct fscrypt_info *ci;
-	struct key *key;
 	struct fscrypt_master_key *mk;
 	int err;
 
@@ -158,14 +155,13 @@ int fscrypt_prepare_setflags(struct inode *inode,
 		ci = inode->i_crypt_info;
 		if (ci->ci_policy.version != FSCRYPT_POLICY_V2)
 			return -EINVAL;
-		key = ci->ci_master_key;
-		mk = key->payload.data[0];
-		down_read(&key->sem);
+		mk = ci->ci_master_key;
+		down_read(&mk->mk_sem);
 		if (is_master_key_secret_present(&mk->mk_secret))
 			err = fscrypt_derive_dirhash_key(ci, mk);
 		else
 			err = -ENOKEY;
-		up_read(&key->sem);
+		up_read(&mk->mk_sem);
 		return err;
 	}
 	return 0;
@@ -228,9 +224,9 @@ int fscrypt_prepare_symlink(struct inode *dir, const char *target,
 	 * counting it (even though it is meaningless for ciphertext) is simpler
 	 * for now since filesystems will assume it is there and subtract it.
 	 */
-	if (!fscrypt_fname_encrypted_size(policy, len,
-					  max_len - sizeof(struct fscrypt_symlink_data),
-					  &disk_link->len))
+	if (!__fscrypt_fname_encrypted_size(policy, len,
+					    max_len - sizeof(struct fscrypt_symlink_data),
+					    &disk_link->len))
 		return -ENAMETOOLONG;
 	disk_link->len += sizeof(struct fscrypt_symlink_data);
 

@@ -15,6 +15,7 @@ properties:
   compatible:
     enum:
       - mps,mp5416
+      - mps,mp5496
 
   reg:
     maxItems: 1

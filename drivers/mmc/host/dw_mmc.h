@@ -99,6 +99,7 @@ struct dw_mci_dma_slave {
  * @bus_hz: The rate of @mck in Hz. This forms the basis for MMC bus
  *	rate and timeout calculations.
  * @current_speed: Configured rate of the controller.
+ * @minimum_speed: Stored minimum rate of the controller.
  * @fifoth_val: The value of FIFOTH register.
  * @verid: Denote Version ID.
  * @dev: Device associated with the MMC controller.
@@ -201,6 +202,7 @@ struct dw_mci {
 
 	u32			bus_hz;
 	u32			current_speed;
+	u32			minimum_speed;
 	u32			fifoth_val;
 	u16			verid;
 	struct device		*dev;

@@ -71,6 +71,40 @@ static ssize_t write_blk(struct qtree_mem_dqinfo *info, uint blk, char *buf)
 	return ret;
 }
 
+static inline int do_check_range(struct super_block *sb, const char *val_name,
+				 uint val, uint min_val, uint max_val)
+{
+	if (val < min_val || val > max_val) {
+		quota_error(sb, "Getting %s %u out of range %u-%u",
+			    val_name, val, min_val, max_val);
+		return -EUCLEAN;
+	}
+
+	return 0;
+}
+
+static int check_dquot_block_header(struct qtree_mem_dqinfo *info,
+				    struct qt_disk_dqdbheader *dh)
+{
+	int err = 0;
+
+	err = do_check_range(info->dqi_sb, "dqdh_next_free",
+			     le32_to_cpu(dh->dqdh_next_free), 0,
+			     info->dqi_blocks - 1);
+	if (err)
+		return err;
+	err = do_check_range(info->dqi_sb, "dqdh_prev_free",
+			     le32_to_cpu(dh->dqdh_prev_free), 0,
+			     info->dqi_blocks - 1);
+	if (err)
+		return err;
+	err = do_check_range(info->dqi_sb, "dqdh_entries",
+			     le16_to_cpu(dh->dqdh_entries), 0,
+			     qtree_dqstr_in_blk(info));
+
+	return err;
+}
+
 /* Remove empty block from list and return it */
 static int get_free_dqblk(struct qtree_mem_dqinfo *info)
 {
@@ -84,6 +118,9 @@ static int get_free_dqblk(struct qtree_mem_dqinfo *info)
 		blk = info->dqi_free_blk;
 		ret = read_blk(info, blk, buf);
 		if (ret < 0)
+			goto out_buf;
+		ret = check_dquot_block_header(info, dh);
+		if (ret)
 			goto out_buf;
 		info->dqi_free_blk = le32_to_cpu(dh->dqdh_next_free);
 	}
@@ -232,6 +269,9 @@ static uint find_free_dqentry(struct qtree_mem_dqinfo *info,
 		*err = read_blk(info, blk, buf);
 		if (*err < 0)
 			goto out_buf;
+		*err = check_dquot_block_header(info, dh);
+		if (*err)
+			goto out_buf;
 	} else {
 		blk = get_free_dqblk(info);
 		if ((int)blk < 0) {
@@ -313,6 +353,10 @@ static int do_insert_tree(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 	}
 	ref = (__le32 *)buf;
 	newblk = le32_to_cpu(ref[get_index(info, dquot->dq_id, depth)]);
+	ret = do_check_range(dquot->dq_sb, "block", newblk, 0,
+			     info->dqi_blocks - 1);
+	if (ret)
+		goto out_buf;
 	if (!newblk)
 		newson = 1;
 	if (depth == info->dqi_qtree_depth - 1) {
@@ -424,6 +468,9 @@ static int free_dqentry(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 		goto out_buf;
 	}
 	dh = (struct qt_disk_dqdbheader *)buf;
+	ret = check_dquot_block_header(info, dh);
+	if (ret)
+		goto out_buf;
 	le16_add_cpu(&dh->dqdh_entries, -1);
 	if (!le16_to_cpu(dh->dqdh_entries)) {	/* Block got free? */
 		ret = remove_free_dqentry(info, buf, blk);
@@ -480,12 +527,10 @@ static int remove_tree(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 		goto out_buf;
 	}
 	newblk = le32_to_cpu(ref[get_index(info, dquot->dq_id, depth)]);
-	if (newblk < QT_TREEOFF || newblk >= info->dqi_blocks) {
-		quota_error(dquot->dq_sb, "Getting block too big (%u >= %u)",
-			    newblk, info->dqi_blocks);
-		ret = -EUCLEAN;
+	ret = do_check_range(dquot->dq_sb, "block", newblk, QT_TREEOFF,
+			     info->dqi_blocks - 1);
+	if (ret)
 		goto out_buf;
-	}
 
 	if (depth == info->dqi_qtree_depth - 1) {
 		ret = free_dqentry(info, dquot, newblk);
@@ -586,12 +631,10 @@ static loff_t find_tree_dqentry(struct qtree_mem_dqinfo *info,
 	blk = le32_to_cpu(ref[get_index(info, dquot->dq_id, depth)]);
 	if (!blk)	/* No reference? */
 		goto out_buf;
-	if (blk < QT_TREEOFF || blk >= info->dqi_blocks) {
-		quota_error(dquot->dq_sb, "Getting block too big (%u >= %u)",
-			    blk, info->dqi_blocks);
-		ret = -EUCLEAN;
+	ret = do_check_range(dquot->dq_sb, "block", blk, QT_TREEOFF,
+			     info->dqi_blocks - 1);
+	if (ret)
 		goto out_buf;
-	}
 
 	if (depth < info->dqi_qtree_depth - 1)
 		ret = find_tree_dqentry(info, dquot, blk, depth+1);
@@ -705,15 +748,21 @@ static int find_next_id(struct qtree_mem_dqinfo *info, qid_t *id,
 		goto out_buf;
 	}
 	for (i = __get_index(info, *id, depth); i < epb; i++) {
-		if (ref[i] == cpu_to_le32(0)) {
+		uint blk_no = le32_to_cpu(ref[i]);
+
+		if (blk_no == 0) {
 			*id += level_inc;
 			continue;
 		}
+		ret = do_check_range(info->dqi_sb, "block", blk_no, 0,
+				     info->dqi_blocks - 1);
+		if (ret)
+			goto out_buf;
 		if (depth == info->dqi_qtree_depth - 1) {
 			ret = 0;
 			goto out_buf;
 		}
-		ret = find_next_id(info, id, le32_to_cpu(ref[i]), depth + 1);
+		ret = find_next_id(info, id, blk_no, depth + 1);
 		if (ret != -ENOENT)
 			break;
 	}

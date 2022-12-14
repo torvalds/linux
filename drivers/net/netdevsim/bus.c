@@ -72,16 +72,7 @@ new_port_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	if (!mutex_trylock(&nsim_bus_dev->nsim_bus_reload_lock))
-		return -EBUSY;
-
-	if (nsim_bus_dev->in_reload) {
-		mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
-		return -EBUSY;
-	}
-
 	ret = nsim_drv_port_add(nsim_bus_dev, NSIM_DEV_PORT_TYPE_PF, port_index);
-	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 	return ret ? ret : count;
 }
 
@@ -102,16 +93,7 @@ del_port_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	if (!mutex_trylock(&nsim_bus_dev->nsim_bus_reload_lock))
-		return -EBUSY;
-
-	if (nsim_bus_dev->in_reload) {
-		mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
-		return -EBUSY;
-	}
-
 	ret = nsim_drv_port_del(nsim_bus_dev, NSIM_DEV_PORT_TYPE_PF, port_index);
-	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 	return ret ? ret : count;
 }
 
@@ -135,6 +117,10 @@ static const struct attribute_group *nsim_bus_dev_attr_groups[] = {
 
 static void nsim_bus_dev_release(struct device *dev)
 {
+	struct nsim_bus_dev *nsim_bus_dev;
+
+	nsim_bus_dev = container_of(dev, struct nsim_bus_dev, dev);
+	kfree(nsim_bus_dev);
 }
 
 static struct device_type nsim_bus_dev_type = {
@@ -298,7 +284,6 @@ nsim_bus_dev_new(unsigned int id, unsigned int port_count, unsigned int num_queu
 	nsim_bus_dev->num_queues = num_queues;
 	nsim_bus_dev->initial_net = current->nsproxy->net_ns;
 	nsim_bus_dev->max_vfs = NSIM_BUS_DEV_MAX_VFS;
-	mutex_init(&nsim_bus_dev->nsim_bus_reload_lock);
 	/* Disallow using nsim_bus_dev */
 	smp_store_release(&nsim_bus_dev->init, false);
 
@@ -310,6 +295,8 @@ nsim_bus_dev_new(unsigned int id, unsigned int port_count, unsigned int num_queu
 
 err_nsim_bus_dev_id_free:
 	ida_free(&nsim_bus_dev_ids, nsim_bus_dev->dev.id);
+	put_device(&nsim_bus_dev->dev);
+	nsim_bus_dev = NULL;
 err_nsim_bus_dev_free:
 	kfree(nsim_bus_dev);
 	return ERR_PTR(err);
@@ -319,9 +306,8 @@ static void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev)
 {
 	/* Disallow using nsim_bus_dev */
 	smp_store_release(&nsim_bus_dev->init, false);
-	device_unregister(&nsim_bus_dev->dev);
 	ida_free(&nsim_bus_dev_ids, nsim_bus_dev->dev.id);
-	kfree(nsim_bus_dev);
+	device_unregister(&nsim_bus_dev->dev);
 }
 
 static struct device_driver nsim_driver = {

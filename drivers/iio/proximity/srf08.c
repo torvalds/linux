@@ -354,7 +354,7 @@ static ssize_t srf08_write_sensitivity(struct srf08_data *data,
 		return -EINVAL;
 
 	for (i = 0; i < data->chip_info->num_sensitivity_avail; i++)
-		if (val && (val == data->chip_info->sensitivity_avail[i])) {
+		if (val == data->chip_info->sensitivity_avail[i]) {
 			regval = i;
 			break;
 		}
@@ -528,9 +528,9 @@ static int srf08_probe(struct i2c_client *client,
 }
 
 static const struct of_device_id of_srf08_match[] = {
-	{ .compatible = "devantech,srf02", (void *)SRF02},
-	{ .compatible = "devantech,srf08", (void *)SRF08},
-	{ .compatible = "devantech,srf10", (void *)SRF10},
+	{ .compatible = "devantech,srf02", (void *)SRF02 },
+	{ .compatible = "devantech,srf08", (void *)SRF08 },
+	{ .compatible = "devantech,srf10", (void *)SRF10 },
 	{},
 };
 

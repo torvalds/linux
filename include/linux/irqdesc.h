@@ -160,6 +160,7 @@ static inline void generic_handle_irq_desc(struct irq_desc *desc)
 
 int handle_irq_desc(struct irq_desc *desc);
 int generic_handle_irq(unsigned int irq);
+int generic_handle_irq_safe(unsigned int irq);
 
 #ifdef CONFIG_IRQ_DOMAIN
 /*
@@ -168,6 +169,7 @@ int generic_handle_irq(unsigned int irq);
  * conversion failed.
  */
 int generic_handle_domain_irq(struct irq_domain *domain, unsigned int hwirq);
+int generic_handle_domain_irq_safe(struct irq_domain *domain, unsigned int hwirq);
 int generic_handle_domain_nmi(struct irq_domain *domain, unsigned int hwirq);
 #endif
 
@@ -208,14 +210,15 @@ static inline void irq_set_handler_locked(struct irq_data *data,
  * Must be called with irq_desc locked and valid parameters.
  */
 static inline void
-irq_set_chip_handler_name_locked(struct irq_data *data, struct irq_chip *chip,
+irq_set_chip_handler_name_locked(struct irq_data *data,
+				 const struct irq_chip *chip,
 				 irq_flow_handler_t handler, const char *name)
 {
 	struct irq_desc *desc = irq_data_to_desc(data);
 
 	desc->handle_irq = handler;
 	desc->name = name;
-	data->chip = chip;
+	data->chip = (struct irq_chip *)chip;
 }
 
 bool irq_check_status_bit(unsigned int irq, unsigned int bitmask);

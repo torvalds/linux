@@ -41,6 +41,8 @@ struct vdpasim_dev_attr {
 	size_t buffer_size;
 	int nvqs;
 	u32 id;
+	u32 ngroups;
+	u32 nas;
 
 	work_func_t work_fn;
 	void (*get_config)(struct vdpasim *vdpasim, void *config);
@@ -63,11 +65,14 @@ struct vdpasim {
 	u32 status;
 	u32 generation;
 	u64 features;
+	u32 groups;
+	bool running;
 	/* spinlock to synchronize iommu table */
 	spinlock_t iommu_lock;
 };
 
-struct vdpasim *vdpasim_create(struct vdpasim_dev_attr *attr);
+struct vdpasim *vdpasim_create(struct vdpasim_dev_attr *attr,
+			       const struct vdpa_dev_set_config *config);
 
 /* TODO: cross-endian support */
 static inline bool vdpasim_is_little_endian(struct vdpasim *vdpasim)

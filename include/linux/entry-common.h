@@ -3,7 +3,7 @@
 #define __LINUX_ENTRYCOMMON_H
 
 #include <linux/static_call_types.h>
-#include <linux/tracehook.h>
+#include <linux/ptrace.h>
 #include <linux/syscalls.h>
 #include <linux/seccomp.h>
 #include <linux/sched.h>
@@ -63,7 +63,7 @@
 	 ARCH_EXIT_TO_USER_MODE_WORK)
 
 /**
- * arch_check_user_regs - Architecture specific sanity check for user mode regs
+ * arch_enter_from_user_mode - Architecture specific sanity check for user mode regs
  * @regs:	Pointer to currents pt_regs
  *
  * Defaults to an empty implementation. Can be replaced by architecture
@@ -73,30 +73,10 @@
  * section. Use __always_inline so the compiler cannot push it out of line
  * and make it instrumentable.
  */
-static __always_inline void arch_check_user_regs(struct pt_regs *regs);
+static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs);
 
-#ifndef arch_check_user_regs
-static __always_inline void arch_check_user_regs(struct pt_regs *regs) {}
-#endif
-
-/**
- * arch_syscall_enter_tracehook - Wrapper around tracehook_report_syscall_entry()
- * @regs:	Pointer to currents pt_regs
- *
- * Returns: 0 on success or an error code to skip the syscall.
- *
- * Defaults to tracehook_report_syscall_entry(). Can be replaced by
- * architecture specific code.
- *
- * Invoked from syscall_enter_from_user_mode()
- */
-static inline __must_check int arch_syscall_enter_tracehook(struct pt_regs *regs);
-
-#ifndef arch_syscall_enter_tracehook
-static inline __must_check int arch_syscall_enter_tracehook(struct pt_regs *regs)
-{
-	return tracehook_report_syscall_entry(regs);
-}
+#ifndef arch_enter_from_user_mode
+static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs) {}
 #endif
 
 /**
@@ -157,7 +137,7 @@ void syscall_enter_from_user_mode_prepare(struct pt_regs *regs);
  * It handles the following work items:
  *
  *  1) syscall_work flag dependent invocations of
- *     arch_syscall_enter_tracehook(), __secure_computing(), trace_sys_enter()
+ *     ptrace_report_syscall_entry(), __secure_computing(), trace_sys_enter()
  *  2) Invocation of audit_syscall_entry()
  */
 long syscall_enter_from_user_mode_work(struct pt_regs *regs, long syscall);
@@ -273,30 +253,10 @@ static __always_inline void arch_exit_to_user_mode(void) { }
 /**
  * arch_do_signal_or_restart -  Architecture specific signal delivery function
  * @regs:	Pointer to currents pt_regs
- * @has_signal:	actual signal to handle
  *
  * Invoked from exit_to_user_mode_loop().
  */
-void arch_do_signal_or_restart(struct pt_regs *regs, bool has_signal);
-
-/**
- * arch_syscall_exit_tracehook - Wrapper around tracehook_report_syscall_exit()
- * @regs:	Pointer to currents pt_regs
- * @step:	Indicator for single step
- *
- * Defaults to tracehook_report_syscall_exit(). Can be replaced by
- * architecture specific code.
- *
- * Invoked from syscall_exit_to_user_mode()
- */
-static inline void arch_syscall_exit_tracehook(struct pt_regs *regs, bool step);
-
-#ifndef arch_syscall_exit_tracehook
-static inline void arch_syscall_exit_tracehook(struct pt_regs *regs, bool step)
-{
-	tracehook_report_syscall_exit(regs, step);
-}
-#endif
+void arch_do_signal_or_restart(struct pt_regs *regs);
 
 /**
  * exit_to_user_mode - Fixup state when exiting to user mode
@@ -347,7 +307,7 @@ void syscall_exit_to_user_mode_work(struct pt_regs *regs);
  *	- rseq syscall exit
  *      - audit
  *	- syscall tracing
- *	- tracehook (single stepping)
+ *	- ptrace (single stepping)
  *
  *  2) Preparatory work
  *	- Exit to user mode loop (common TIF handling). Invokes
@@ -396,7 +356,7 @@ void irqentry_exit_to_user_mode(struct pt_regs *regs);
 /**
  * struct irqentry_state - Opaque object for exception state storage
  * @exit_rcu: Used exclusively in the irqentry_*() calls; signals whether the
- *            exit path has to invoke rcu_irq_exit().
+ *            exit path has to invoke ct_irq_exit().
  * @lockdep: Used exclusively in the irqentry_nmi_*() calls; ensures that
  *           lockdep state is restored correctly on exit from nmi.
  *
@@ -434,12 +394,12 @@ typedef struct irqentry_state {
  *
  * For kernel mode entries RCU handling is done conditional. If RCU is
  * watching then the only RCU requirement is to check whether the tick has
- * to be restarted. If RCU is not watching then rcu_irq_enter() has to be
- * invoked on entry and rcu_irq_exit() on exit.
+ * to be restarted. If RCU is not watching then ct_irq_enter() has to be
+ * invoked on entry and ct_irq_exit() on exit.
  *
- * Avoiding the rcu_irq_enter/exit() calls is an optimization but also
+ * Avoiding the ct_irq_enter/exit() calls is an optimization but also
  * solves the problem of kernel mode pagefaults which can schedule, which
- * is not possible after invoking rcu_irq_enter() without undoing it.
+ * is not possible after invoking ct_irq_enter() without undoing it.
  *
  * For user mode entries irqentry_enter_from_user_mode() is invoked to
  * establish the proper context for NOHZ_FULL. Otherwise scheduling on exit
@@ -454,10 +414,21 @@ irqentry_state_t noinstr irqentry_enter(struct pt_regs *regs);
  *
  * Conditional reschedule with additional sanity checks.
  */
-void irqentry_exit_cond_resched(void);
+void raw_irqentry_exit_cond_resched(void);
 #ifdef CONFIG_PREEMPT_DYNAMIC
-DECLARE_STATIC_CALL(irqentry_exit_cond_resched, irqentry_exit_cond_resched);
+#if defined(CONFIG_HAVE_PREEMPT_DYNAMIC_CALL)
+#define irqentry_exit_cond_resched_dynamic_enabled	raw_irqentry_exit_cond_resched
+#define irqentry_exit_cond_resched_dynamic_disabled	NULL
+DECLARE_STATIC_CALL(irqentry_exit_cond_resched, raw_irqentry_exit_cond_resched);
+#define irqentry_exit_cond_resched()	static_call(irqentry_exit_cond_resched)()
+#elif defined(CONFIG_HAVE_PREEMPT_DYNAMIC_KEY)
+DECLARE_STATIC_KEY_TRUE(sk_dynamic_irqentry_exit_cond_resched);
+void dynamic_irqentry_exit_cond_resched(void);
+#define irqentry_exit_cond_resched()	dynamic_irqentry_exit_cond_resched()
 #endif
+#else /* CONFIG_PREEMPT_DYNAMIC */
+#define irqentry_exit_cond_resched()	raw_irqentry_exit_cond_resched()
+#endif /* CONFIG_PREEMPT_DYNAMIC */
 
 /**
  * irqentry_exit - Handle return from exception that used irqentry_enter()

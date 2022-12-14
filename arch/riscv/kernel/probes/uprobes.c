@@ -59,8 +59,6 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 
 	instruction_pointer_set(regs, utask->xol_vaddr);
 
-	regs->status &= ~SR_SPIE;
-
 	return 0;
 }
 
@@ -71,8 +69,6 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	WARN_ON_ONCE(current->thread.bad_cause != UPROBE_TRAP_NR);
 
 	instruction_pointer_set(regs, utask->vaddr + auprobe->insn_size);
-
-	regs->status |= SR_SPIE;
 
 	return 0;
 }
@@ -111,8 +107,6 @@ void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	 * address.
 	 */
 	instruction_pointer_set(regs, utask->vaddr);
-
-	regs->status &= ~SR_SPIE;
 }
 
 bool arch_uretprobe_is_alive(struct return_instance *ret, enum rp_check ctx,

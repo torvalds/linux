@@ -46,13 +46,14 @@ properties:
   mount-matrix:
     description: an optional 3x3 mounting rotation matrix
 
-  spi-max-frequency: true
-
 required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

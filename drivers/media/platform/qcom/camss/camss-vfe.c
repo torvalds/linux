@@ -118,6 +118,7 @@ static const struct vfe_format formats_rdi_845[] = {
 	{ MEDIA_BUS_FMT_SGBRG14_1X14, 14 },
 	{ MEDIA_BUS_FMT_SGRBG14_1X14, 14 },
 	{ MEDIA_BUS_FMT_SRGGB14_1X14, 14 },
+	{ MEDIA_BUS_FMT_Y8_1X8, 8 },
 	{ MEDIA_BUS_FMT_Y10_1X10, 10 },
 	{ MEDIA_BUS_FMT_Y10_2X8_PADHI_LE, 16 },
 };
@@ -219,7 +220,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 		}
 	else if (vfe->camss->version == CAMSS_8x96 ||
 		 vfe->camss->version == CAMSS_660 ||
-		 vfe->camss->version == CAMSS_845)
+		 vfe->camss->version == CAMSS_845 ||
+		 vfe->camss->version == CAMSS_8250)
 		switch (sink_code) {
 		case MEDIA_BUS_FMT_YUYV8_2X8:
 		{
@@ -573,7 +575,7 @@ static int vfe_check_clock_rates(struct vfe_device *vfe)
  *
  * Return 0 on success or a negative error code otherwise
  */
-static int vfe_get(struct vfe_device *vfe)
+int vfe_get(struct vfe_device *vfe)
 {
 	int ret;
 
@@ -635,7 +637,7 @@ error_pm_domain:
  * vfe_put - Power down VFE module
  * @vfe: VFE Device
  */
-static void vfe_put(struct vfe_device *vfe)
+void vfe_put(struct vfe_device *vfe)
 {
 	mutex_lock(&vfe->power_lock);
 
@@ -1279,7 +1281,6 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 {
 	struct device *dev = camss->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct resource *r;
 	int i, j;
 	int ret;
 
@@ -1293,9 +1294,11 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	case CAMSS_660:
 		vfe->ops = &vfe_ops_4_8;
 		break;
-
 	case CAMSS_845:
 		vfe->ops = &vfe_ops_170;
+		break;
+	case CAMSS_8250:
+		vfe->ops = &vfe_ops_480;
 		break;
 	default:
 		return -EINVAL;
@@ -1312,16 +1315,13 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 
 	/* Interrupt */
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-					 res->interrupt[0]);
-	if (!r) {
-		dev_err(dev, "missing IRQ\n");
-		return -EINVAL;
-	}
+	ret = platform_get_irq_byname(pdev, res->interrupt[0]);
+	if (ret < 0)
+		return ret;
 
-	vfe->irq = r->start;
+	vfe->irq = ret;
 	snprintf(vfe->irq_name, sizeof(vfe->irq_name), "%s_%s%d",
-		 dev_name(dev), MSM_VFE_NAME, vfe->id);
+		 dev_name(dev), MSM_VFE_NAME, id);
 	ret = devm_request_irq(dev, vfe->irq, vfe->ops->isr,
 			       IRQF_TRIGGER_RISING, vfe->irq_name, vfe);
 	if (ret < 0) {
@@ -1407,7 +1407,8 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 				l->formats = formats_rdi_8x96;
 				l->nformats = ARRAY_SIZE(formats_rdi_8x96);
 			}
-		} else if (camss->version == CAMSS_845) {
+		} else if (camss->version == CAMSS_845 ||
+			   camss->version == CAMSS_8250) {
 			l->formats = formats_rdi_845;
 			l->nformats = ARRAY_SIZE(formats_rdi_845);
 		} else {
@@ -1419,40 +1420,6 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	init_completion(&vfe->halt_complete);
 
 	return 0;
-}
-
-/*
- * msm_vfe_get_vfe_id - Get VFE HW module id
- * @entity: Pointer to VFE media entity structure
- * @id: Return CSID HW module id here
- */
-void msm_vfe_get_vfe_id(struct media_entity *entity, u8 *id)
-{
-	struct v4l2_subdev *sd;
-	struct vfe_line *line;
-	struct vfe_device *vfe;
-
-	sd = media_entity_to_v4l2_subdev(entity);
-	line = v4l2_get_subdevdata(sd);
-	vfe = to_vfe(line);
-
-	*id = vfe->id;
-}
-
-/*
- * msm_vfe_get_vfe_line_id - Get VFE line id by media entity
- * @entity: Pointer to VFE media entity structure
- * @id: Return VFE line id here
- */
-void msm_vfe_get_vfe_line_id(struct media_entity *entity, enum vfe_line_id *id)
-{
-	struct v4l2_subdev *sd;
-	struct vfe_line *line;
-
-	sd = media_entity_to_v4l2_subdev(entity);
-	line = v4l2_get_subdevdata(sd);
-
-	*id = line->id;
 }
 
 /*
@@ -1469,7 +1436,7 @@ static int vfe_link_setup(struct media_entity *entity,
 			  const struct media_pad *remote, u32 flags)
 {
 	if (flags & MEDIA_LNK_FL_ENABLED)
-		if (media_entity_remote_pad(local))
+		if (media_pad_remote_pad_first(local))
 			return -EBUSY;
 
 	return 0;

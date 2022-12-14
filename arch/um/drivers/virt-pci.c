@@ -544,6 +544,8 @@ static int um_pci_init_vqs(struct um_pci_device *dev)
 	dev->cmd_vq = vqs[0];
 	dev->irq_vq = vqs[1];
 
+	virtio_device_ready(dev->vdev);
+
 	for (i = 0; i < NUM_IRQ_MSGS; i++) {
 		void *msg = kzalloc(MAX_IRQ_MSG_SIZE, GFP_KERNEL);
 
@@ -587,7 +589,7 @@ static int um_pci_virtio_probe(struct virtio_device *vdev)
 	dev->irq = irq_alloc_desc(numa_node_id());
 	if (dev->irq < 0) {
 		err = dev->irq;
-		goto error;
+		goto err_reset;
 	}
 	um_pci_devices[free].dev = dev;
 	vdev->priv = dev;
@@ -604,6 +606,9 @@ static int um_pci_virtio_probe(struct virtio_device *vdev)
 
 	um_pci_rescan();
 	return 0;
+err_reset:
+	virtio_reset_device(vdev);
+	vdev->config->del_vqs(vdev);
 error:
 	mutex_unlock(&um_pci_mtx);
 	kfree(dev);
@@ -852,7 +857,7 @@ void *pci_root_bus_fwnode(struct pci_bus *bus)
 	return um_pci_fwnode;
 }
 
-static int um_pci_init(void)
+static int __init um_pci_init(void)
 {
 	int err, i;
 
@@ -935,7 +940,7 @@ free:
 }
 module_init(um_pci_init);
 
-static void um_pci_exit(void)
+static void __exit um_pci_exit(void)
 {
 	unregister_virtio_driver(&um_pci_virtio_driver);
 	irq_domain_remove(um_pci_msi_domain);

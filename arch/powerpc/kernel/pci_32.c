@@ -21,7 +21,6 @@
 
 #include <asm/processor.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
@@ -37,17 +36,12 @@ int pcibios_assign_bus_offset = 1;
 EXPORT_SYMBOL(isa_io_base);
 EXPORT_SYMBOL(pci_dram_offset);
 
-void __init pcibios_make_OF_bus_map(void);
-
 static void fixup_cpc710_pci64(struct pci_dev* dev);
-static u8* pci_to_OF_bus_map;
 
 /* By default, we don't re-assign bus numbers. We do this only on
  * some pmacs
  */
 static int pci_assign_all_buses;
-
-static int pci_bus_count;
 
 /* This will remain NULL for now, until isa-bridge.c is made common
  * to both 32-bit and 64-bit.
@@ -67,6 +61,11 @@ fixup_cpc710_pci64(struct pci_dev* dev)
 	dev->resource[1].flags = 0;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM,	PCI_DEVICE_ID_IBM_CPC710_PCI64,	fixup_cpc710_pci64);
+
+#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
+
+static u8* pci_to_OF_bus_map;
+static int pci_bus_count;
 
 /*
  * Functions below are used on OpenFirmware machines.
@@ -109,7 +108,7 @@ make_one_node_map(struct device_node* node, u8 pci_bus)
 	}
 }
 	
-void __init
+static void __init
 pcibios_make_OF_bus_map(void)
 {
 	int i;
@@ -155,6 +154,7 @@ pcibios_make_OF_bus_map(void)
 }
 
 
+#ifdef CONFIG_PPC_PMAC
 /*
  * Returns the PCI device matching a given OF node
  */
@@ -194,7 +194,9 @@ int pci_device_from_OF_node(struct device_node *node, u8 *bus, u8 *devfn)
 	return -ENODEV;
 }
 EXPORT_SYMBOL(pci_device_from_OF_node);
+#endif
 
+#ifdef CONFIG_PPC_CHRP
 /* We create the "pci-OF-bus-map" property now so it appears in the
  * /proc device tree
  */
@@ -219,6 +221,9 @@ pci_create_OF_bus_map(void)
 		of_node_put(dn);
 	}
 }
+#endif
+
+#endif /* defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP) */
 
 void pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
@@ -234,23 +239,40 @@ void pcibios_setup_phb_io_space(struct pci_controller *hose)
 static int __init pcibios_init(void)
 {
 	struct pci_controller *hose, *tmp;
+#ifndef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 	int next_busno = 0;
+#endif
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
+
+#ifdef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
+	/*
+	 * Enable PCI domains in /proc when PCI bus numbers are not unique
+	 * across all PCI domains to prevent conflicts. And keep PCI domain 0
+	 * backward compatible in /proc for video cards.
+	 */
+	pci_add_flags(PCI_ENABLE_PROC_DOMAINS | PCI_COMPAT_DOMAIN_0);
+#endif
 
 	if (pci_has_flag(PCI_REASSIGN_ALL_BUS))
 		pci_assign_all_buses = 1;
 
 	/* Scan all of the recorded PCI controllers.  */
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+#ifndef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 		if (pci_assign_all_buses)
 			hose->first_busno = next_busno;
+#endif
 		hose->last_busno = 0xff;
 		pcibios_scan_phb(hose);
 		pci_bus_add_devices(hose->bus);
+#ifndef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 		if (pci_assign_all_buses || next_busno <= hose->last_busno)
 			next_busno = hose->last_busno + pcibios_assign_bus_offset;
+#endif
 	}
+
+#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
 	pci_bus_count = next_busno;
 
 	/* OpenFirmware based machines need a map of OF bus
@@ -259,6 +281,7 @@ static int __init pcibios_init(void)
 	 */
 	if (pci_assign_all_buses)
 		pcibios_make_OF_bus_map();
+#endif
 
 	/* Call common code to handle resource allocation */
 	pcibios_resource_survey();

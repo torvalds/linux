@@ -142,16 +142,6 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 
-struct bfq_group *bfq_bfqq_to_bfqg(struct bfq_queue *bfqq)
-{
-	struct bfq_entity *group_entity = bfqq->entity.parent;
-
-	if (!group_entity)
-		group_entity = &bfqq->bfqd->root_group->entity;
-
-	return container_of(group_entity, struct bfq_group, entity);
-}
-
 /*
  * Returns true if this budget changes may let next_in_service->parent
  * become the next_in_service entity for its parent entity.
@@ -229,11 +219,6 @@ static bool bfq_no_longer_next_in_service(struct bfq_entity *entity)
 }
 
 #else /* CONFIG_BFQ_GROUP_IOSCHED */
-
-struct bfq_group *bfq_bfqq_to_bfqg(struct bfq_queue *bfqq)
-{
-	return bfqq->bfqd->root_group;
-}
 
 static bool bfq_update_parent_budget(struct bfq_entity *next_in_service)
 {
@@ -519,7 +504,7 @@ unsigned short bfq_ioprio_to_weight(int ioprio)
 static unsigned short bfq_weight_to_ioprio(int weight)
 {
 	return max_t(int, 0,
-		     IOPRIO_NR_LEVELS * BFQ_WEIGHT_CONVERSION_COEFF - weight);
+		     IOPRIO_NR_LEVELS - weight / BFQ_WEIGHT_CONVERSION_COEFF);
 }
 
 static void bfq_get_entity(struct bfq_entity *entity)
@@ -1375,6 +1360,8 @@ left:
 /**
  * __bfq_lookup_next_entity - return the first eligible entity in @st.
  * @st: the service tree.
+ * @in_service: whether or not there is an in-service entity for the sched_data
+ *	this active tree belongs to.
  *
  * If there is no in-service entity for the sched_data st belongs to,
  * then return the entity that will be set in service if:
@@ -1486,9 +1473,6 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 		if (entity)
 			break;
 	}
-
-	if (!entity)
-		return NULL;
 
 	return entity;
 }
@@ -1667,9 +1651,10 @@ void bfq_requeue_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
  * the service tree. As a special case, it can be invoked during an
  * expiration.
  */
-void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
-		       bool expiration)
+void bfq_del_bfqq_busy(struct bfq_queue *bfqq, bool expiration)
 {
+	struct bfq_data *bfqd = bfqq->bfqd;
+
 	bfq_log_bfqq(bfqd, bfqq, "del from busy");
 
 	bfq_clear_bfqq_busy(bfqq);
@@ -1690,8 +1675,10 @@ void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 /*
  * Called when an inactive queue receives a new request.
  */
-void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq)
+void bfq_add_bfqq_busy(struct bfq_queue *bfqq)
 {
+	struct bfq_data *bfqd = bfqq->bfqd;
+
 	bfq_log_bfqq(bfqd, bfqq, "add to busy");
 
 	bfq_activate_bfqq(bfqd, bfqq);

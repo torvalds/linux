@@ -21,8 +21,7 @@
  * inline functions
  */
 
-static inline u32
-psb_pipestat(int pipe)
+static inline u32 gma_pipestat(int pipe)
 {
 	if (pipe == 0)
 		return PIPEASTAT;
@@ -33,8 +32,7 @@ psb_pipestat(int pipe)
 	BUG();
 }
 
-static inline u32
-mid_pipe_event(int pipe)
+static inline u32 gma_pipe_event(int pipe)
 {
 	if (pipe == 0)
 		return _PSB_PIPEA_EVENT_FLAG;
@@ -45,20 +43,7 @@ mid_pipe_event(int pipe)
 	BUG();
 }
 
-static inline u32
-mid_pipe_vsync(int pipe)
-{
-	if (pipe == 0)
-		return _PSB_VSYNC_PIPEA_FLAG;
-	if (pipe == 1)
-		return _PSB_VSYNC_PIPEB_FLAG;
-	if (pipe == 2)
-		return _MDFLD_PIPEC_VBLANK_FLAG;
-	BUG();
-}
-
-static inline u32
-mid_pipeconf(int pipe)
+static inline u32 gma_pipeconf(int pipe)
 {
 	if (pipe == 0)
 		return PIPEACONF;
@@ -69,11 +54,10 @@ mid_pipeconf(int pipe)
 	BUG();
 }
 
-void
-psb_enable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
+void gma_enable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
 {
 	if ((dev_priv->pipestat[pipe] & mask) != mask) {
-		u32 reg = psb_pipestat(pipe);
+		u32 reg = gma_pipestat(pipe);
 		dev_priv->pipestat[pipe] |= mask;
 		/* Enable the interrupt, clear any pending status */
 		if (gma_power_begin(&dev_priv->dev, false)) {
@@ -86,11 +70,10 @@ psb_enable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
 	}
 }
 
-void
-psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
+void gma_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
 {
 	if ((dev_priv->pipestat[pipe] & mask) != 0) {
-		u32 reg = psb_pipestat(pipe);
+		u32 reg = gma_pipestat(pipe);
 		dev_priv->pipestat[pipe] &= ~mask;
 		if (gma_power_begin(&dev_priv->dev, false)) {
 			u32 writeVal = PSB_RVDC32(reg);
@@ -105,12 +88,12 @@ psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
 /*
  * Display controller interrupt handler for pipe event.
  */
-static void mid_pipe_event_handler(struct drm_device *dev, int pipe)
+static void gma_pipe_event_handler(struct drm_device *dev, int pipe)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	uint32_t pipe_stat_val = 0;
-	uint32_t pipe_stat_reg = psb_pipestat(pipe);
+	uint32_t pipe_stat_reg = gma_pipestat(pipe);
 	uint32_t pipe_enable = dev_priv->pipestat[pipe];
 	uint32_t pipe_status = dev_priv->pipestat[pipe] >> 16;
 	uint32_t pipe_clear;
@@ -160,22 +143,22 @@ static void mid_pipe_event_handler(struct drm_device *dev, int pipe)
 /*
  * Display controller interrupt handler.
  */
-static void psb_vdc_interrupt(struct drm_device *dev, uint32_t vdc_stat)
+static void gma_vdc_interrupt(struct drm_device *dev, uint32_t vdc_stat)
 {
 	if (vdc_stat & _PSB_IRQ_ASLE)
 		psb_intel_opregion_asle_intr(dev);
 
 	if (vdc_stat & _PSB_VSYNC_PIPEA_FLAG)
-		mid_pipe_event_handler(dev, 0);
+		gma_pipe_event_handler(dev, 0);
 
 	if (vdc_stat & _PSB_VSYNC_PIPEB_FLAG)
-		mid_pipe_event_handler(dev, 1);
+		gma_pipe_event_handler(dev, 1);
 }
 
 /*
  * SGX interrupt handler
  */
-static void psb_sgx_interrupt(struct drm_device *dev, u32 stat_1, u32 stat_2)
+static void gma_sgx_interrupt(struct drm_device *dev, u32 stat_1, u32 stat_2)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 val, addr;
@@ -222,7 +205,7 @@ static void psb_sgx_interrupt(struct drm_device *dev, u32 stat_1, u32 stat_2)
 	PSB_RSGX32(PSB_CR_EVENT_HOST_CLEAR2);
 }
 
-static irqreturn_t psb_irq_handler(int irq, void *arg)
+static irqreturn_t gma_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
@@ -245,15 +228,15 @@ static irqreturn_t psb_irq_handler(int irq, void *arg)
 	vdc_stat &= dev_priv->vdc_irq_mask;
 	spin_unlock(&dev_priv->irqmask_lock);
 
-	if (dsp_int && gma_power_is_on(dev)) {
-		psb_vdc_interrupt(dev, vdc_stat);
+	if (dsp_int) {
+		gma_vdc_interrupt(dev, vdc_stat);
 		handled = 1;
 	}
 
 	if (sgx_int) {
 		sgx_stat_1 = PSB_RSGX32(PSB_CR_EVENT_STATUS);
 		sgx_stat_2 = PSB_RSGX32(PSB_CR_EVENT_STATUS2);
-		psb_sgx_interrupt(dev, sgx_stat_1, sgx_stat_2);
+		gma_sgx_interrupt(dev, sgx_stat_1, sgx_stat_2);
 		handled = 1;
 	}
 
@@ -274,20 +257,19 @@ static irqreturn_t psb_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-void psb_irq_preinstall(struct drm_device *dev)
+void gma_irq_preinstall(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
-	if (gma_power_is_on(dev)) {
-		PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
-		PSB_WVDC32(0x00000000, PSB_INT_MASK_R);
-		PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
-		PSB_WSGX32(0x00000000, PSB_CR_EVENT_HOST_ENABLE);
-		PSB_RSGX32(PSB_CR_EVENT_HOST_ENABLE);
-	}
+	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
+	PSB_WVDC32(0x00000000, PSB_INT_MASK_R);
+	PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
+	PSB_WSGX32(0x00000000, PSB_CR_EVENT_HOST_ENABLE);
+	PSB_RSGX32(PSB_CR_EVENT_HOST_ENABLE);
+
 	if (dev->vblank[0].enabled)
 		dev_priv->vdc_irq_mask |= _PSB_VSYNC_PIPEA_FLAG;
 	if (dev->vblank[1].enabled)
@@ -303,7 +285,7 @@ void psb_irq_preinstall(struct drm_device *dev)
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 }
 
-void psb_irq_postinstall(struct drm_device *dev)
+void gma_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long irqflags;
@@ -322,9 +304,9 @@ void psb_irq_postinstall(struct drm_device *dev)
 
 	for (i = 0; i < dev->num_crtcs; ++i) {
 		if (dev->vblank[i].enabled)
-			psb_enable_pipestat(dev_priv, i, PIPE_VBLANK_INTERRUPT_ENABLE);
+			gma_enable_pipestat(dev_priv, i, PIPE_VBLANK_INTERRUPT_ENABLE);
 		else
-			psb_disable_pipestat(dev_priv, i, PIPE_VBLANK_INTERRUPT_ENABLE);
+			gma_disable_pipestat(dev_priv, i, PIPE_VBLANK_INTERRUPT_ENABLE);
 	}
 
 	if (dev_priv->ops->hotplug_enable)
@@ -333,26 +315,33 @@ void psb_irq_postinstall(struct drm_device *dev)
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 }
 
-int psb_irq_install(struct drm_device *dev, unsigned int irq)
+int gma_irq_install(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
 
-	if (irq == IRQ_NOTCONNECTED)
+	if (dev_priv->use_msi && pci_enable_msi(pdev)) {
+		dev_warn(dev->dev, "Enabling MSI failed!\n");
+		dev_priv->use_msi = false;
+	}
+
+	if (pdev->irq == IRQ_NOTCONNECTED)
 		return -ENOTCONN;
 
-	psb_irq_preinstall(dev);
+	gma_irq_preinstall(dev);
 
 	/* PCI devices require shared interrupts. */
-	ret = request_irq(irq, psb_irq_handler, IRQF_SHARED, dev->driver->name, dev);
+	ret = request_irq(pdev->irq, gma_irq_handler, IRQF_SHARED, dev->driver->name, dev);
 	if (ret)
 		return ret;
 
-	psb_irq_postinstall(dev);
+	gma_irq_postinstall(dev);
 
 	return 0;
 }
 
-void psb_irq_uninstall(struct drm_device *dev)
+void gma_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
@@ -368,7 +357,7 @@ void psb_irq_uninstall(struct drm_device *dev)
 
 	for (i = 0; i < dev->num_crtcs; ++i) {
 		if (dev->vblank[i].enabled)
-			psb_disable_pipestat(dev_priv, i, PIPE_VBLANK_INTERRUPT_ENABLE);
+			gma_disable_pipestat(dev_priv, i, PIPE_VBLANK_INTERRUPT_ENABLE);
 	}
 
 	dev_priv->vdc_irq_mask &= _PSB_IRQ_SGX_FLAG |
@@ -386,19 +375,18 @@ void psb_irq_uninstall(struct drm_device *dev)
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 
 	free_irq(pdev->irq, dev);
+	if (dev_priv->use_msi)
+		pci_disable_msi(pdev);
 }
 
-/*
- * It is used to enable VBLANK interrupt
- */
-int psb_enable_vblank(struct drm_crtc *crtc)
+int gma_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long irqflags;
 	uint32_t reg_val = 0;
-	uint32_t pipeconf_reg = mid_pipeconf(pipe);
+	uint32_t pipeconf_reg = gma_pipeconf(pipe);
 
 	if (gma_power_begin(dev, false)) {
 		reg_val = REG_READ(pipeconf_reg);
@@ -417,17 +405,14 @@ int psb_enable_vblank(struct drm_crtc *crtc)
 
 	PSB_WVDC32(~dev_priv->vdc_irq_mask, PSB_INT_MASK_R);
 	PSB_WVDC32(dev_priv->vdc_irq_mask, PSB_INT_ENABLE_R);
-	psb_enable_pipestat(dev_priv, pipe, PIPE_VBLANK_INTERRUPT_ENABLE);
+	gma_enable_pipestat(dev_priv, pipe, PIPE_VBLANK_INTERRUPT_ENABLE);
 
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 
 	return 0;
 }
 
-/*
- * It is used to disable VBLANK interrupt
- */
-void psb_disable_vblank(struct drm_crtc *crtc)
+void gma_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
@@ -443,7 +428,7 @@ void psb_disable_vblank(struct drm_crtc *crtc)
 
 	PSB_WVDC32(~dev_priv->vdc_irq_mask, PSB_INT_MASK_R);
 	PSB_WVDC32(dev_priv->vdc_irq_mask, PSB_INT_ENABLE_R);
-	psb_disable_pipestat(dev_priv, pipe, PIPE_VBLANK_INTERRUPT_ENABLE);
+	gma_disable_pipestat(dev_priv, pipe, PIPE_VBLANK_INTERRUPT_ENABLE);
 
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 }
@@ -451,7 +436,7 @@ void psb_disable_vblank(struct drm_crtc *crtc)
 /* Called from drm generic code, passed a 'crtc', which
  * we use as a pipe index
  */
-u32 psb_get_vblank_counter(struct drm_crtc *crtc)
+u32 gma_crtc_get_vblank_counter(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
@@ -486,8 +471,8 @@ u32 psb_get_vblank_counter(struct drm_crtc *crtc)
 
 	if (!(reg_val & PIPEACONF_ENABLE)) {
 		dev_err(dev->dev, "trying to get vblank count for disabled pipe %u\n",
-								pipe);
-		goto psb_get_vblank_counter_exit;
+			pipe);
+		goto err_gma_power_end;
 	}
 
 	/*
@@ -506,8 +491,7 @@ u32 psb_get_vblank_counter(struct drm_crtc *crtc)
 
 	count = (high1 << 8) | low;
 
-psb_get_vblank_counter_exit:
-
+err_gma_power_end:
 	gma_power_end(dev);
 
 	return count;

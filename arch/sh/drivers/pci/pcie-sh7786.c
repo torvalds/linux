@@ -314,7 +314,7 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	 * class to match. Hardware takes care of propagating the IDSETR
 	 * settings, so there is no need to bother with a quirk.
 	 */
-	pci_write_reg(chan, PCI_CLASS_BRIDGE_PCI << 16, SH4A_PCIEIDSETR1);
+	pci_write_reg(chan, PCI_CLASS_BRIDGE_PCI_NORMAL << 8, SH4A_PCIEIDSETR1);
 
 	/* Initialize default capabilities. */
 	data = pci_read_reg(chan, SH4A_PCIEEXPCAP0);

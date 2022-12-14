@@ -637,7 +637,7 @@ static int ieee80211_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 	struct ieee80211_tkip_data *tkey = priv;
 
 	if (len < TKIP_KEY_LEN)
-		return -1;
+		return 0;
 
 	if (!tkey->key_set)
 		return 0;
@@ -712,7 +712,7 @@ int __init ieee80211_crypto_tkip_init(void)
 	return ieee80211_register_crypto_ops(&ieee80211_crypt_tkip);
 }
 
-void __exit ieee80211_crypto_tkip_exit(void)
+void ieee80211_crypto_tkip_exit(void)
 {
 	ieee80211_unregister_crypto_ops(&ieee80211_crypt_tkip);
 }

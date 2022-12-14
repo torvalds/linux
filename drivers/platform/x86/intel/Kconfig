@@ -4,14 +4,16 @@
 #
 
 source "drivers/platform/x86/intel/atomisp2/Kconfig"
+source "drivers/platform/x86/intel/ifs/Kconfig"
 source "drivers/platform/x86/intel/int1092/Kconfig"
-source "drivers/platform/x86/intel/int33fe/Kconfig"
 source "drivers/platform/x86/intel/int3472/Kconfig"
 source "drivers/platform/x86/intel/pmc/Kconfig"
 source "drivers/platform/x86/intel/pmt/Kconfig"
 source "drivers/platform/x86/intel/speed_select_if/Kconfig"
 source "drivers/platform/x86/intel/telemetry/Kconfig"
 source "drivers/platform/x86/intel/wmi/Kconfig"
+source "drivers/platform/x86/intel/uncore-frequency/Kconfig"
+
 
 config INTEL_HID_EVENT
 	tristate "Intel HID Event"
@@ -89,6 +91,26 @@ config INTEL_CHTDC_TI_PWRBTN
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_chtdc_ti_pwrbtn.
 
+config INTEL_CHTWC_INT33FE
+	tristate "Intel Cherry Trail Whiskey Cove ACPI INT33FE Driver"
+	depends on X86 && ACPI && I2C && REGULATOR
+	depends on CHARGER_BQ24190=y || (CHARGER_BQ24190=m && m)
+	depends on USB_ROLES_INTEL_XHCI=y || (USB_ROLES_INTEL_XHCI=m && m)
+	depends on TYPEC_MUX_PI3USB30532=y || (TYPEC_MUX_PI3USB30532=m && m)
+	help
+	  This driver add support for the Intel Cherry Trail Whiskey Cove
+	  INT33FE ACPI device found on the GPD win and the GPD pocket.
+
+	  The INT33FE ACPI device on these mini laptops contains I2cSerialBusV2
+	  resources for a MAX17042 Fuel Gauge, FUSB302 USB Type-C Controller
+	  and PI3USB30532 USB switch.
+	  This driver instantiates i2c-clients for these, so that standard
+	  i2c drivers for these chips can bind to the them.
+
+	  If you enable this driver it is advised to also select
+	  CONFIG_TYPEC_FUSB302=m, CONFIG_TYPEC_MUX_PI3USB30532=m and
+	  CONFIG_BATTERY_MAX17042=m.
+
 config INTEL_ISHTP_ECLITE
 	tristate "Intel ISHTP eclite controller Driver"
 	depends on INTEL_ISH_HID
@@ -134,6 +156,18 @@ config INTEL_RST
 	  firmware will copy the memory contents back to RAM and resume the OS
 	  as usual.
 
+config INTEL_SDSI
+	tristate "Intel Software Defined Silicon Driver"
+	depends on INTEL_VSEC
+	depends on X86_64
+	help
+	  This driver enables access to the Intel Software Defined Silicon
+	  interface used to provision silicon features with an authentication
+	  certificate and capability license.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called intel_sdsi.
+
 config INTEL_SMARTCONNECT
 	tristate "Intel Smart Connect disabling driver"
 	depends on ACPI
@@ -158,18 +192,6 @@ config INTEL_TURBO_MAX_3
 
 	  This driver is only required when the system is not using Hardware
 	  P-States (HWP). In HWP mode, priority can be read from ACPI tables.
-
-config INTEL_UNCORE_FREQ_CONTROL
-	tristate "Intel Uncore frequency control driver"
-	depends on X86_64
-	help
-	  This driver allows control of Uncore frequency limits on
-	  supported server platforms.
-
-	  Uncore frequency controls RING/LLC (last-level cache) clocks.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called intel-uncore-frequency.
 
 config INTEL_VSEC
 	tristate "Intel Vendor Specific Extended Capabilities Driver"

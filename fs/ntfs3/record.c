@@ -395,28 +395,6 @@ int mi_format_new(struct mft_inode *mi, struct ntfs_sb_info *sbi, CLST rno,
 }
 
 /*
- * mi_mark_free - Mark record as unused and marks it as free in bitmap.
- */
-void mi_mark_free(struct mft_inode *mi)
-{
-	CLST rno = mi->rno;
-	struct ntfs_sb_info *sbi = mi->sbi;
-
-	if (rno >= MFT_REC_RESERVED && rno < MFT_REC_FREE) {
-		ntfs_clear_mft_tail(sbi, rno, rno + 1);
-		mi->dirty = false;
-		return;
-	}
-
-	if (mi->mrec) {
-		clear_rec_inuse(mi->mrec);
-		mi->dirty = true;
-		mi_write(mi, 0);
-	}
-	ntfs_mark_rec_free(sbi, rno);
-}
-
-/*
  * mi_insert_attr - Reserve space for new attribute.
  *
  * Return: Not full constructed attribute or NULL if not possible to create.
@@ -445,12 +423,11 @@ struct ATTRIB *mi_insert_attr(struct mft_inode *mi, enum ATTR_TYPE type,
 	attr = NULL;
 	while ((attr = mi_enum_attr(mi, attr))) {
 		diff = compare_attr(attr, type, name, name_len, upcase);
-		if (diff > 0)
-			break;
+
 		if (diff < 0)
 			continue;
 
-		if (!is_attr_indexed(attr))
+		if (!diff && !is_attr_indexed(attr))
 			return NULL;
 		break;
 	}

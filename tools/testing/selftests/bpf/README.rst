@@ -32,11 +32,19 @@ For more information on about using the script, run:
 
   $ tools/testing/selftests/bpf/vmtest.sh -h
 
+In case of linker errors when running selftests, try using static linking:
+
+.. code-block:: console
+
+  $ LDLIBS=-static vmtest.sh
+
+.. note:: Some distros may not support static linking.
+
 .. note:: The script uses pahole and clang based on host environment setting.
           If you want to change pahole and llvm, you can change `PATH` environment
           variable in the beginning of script.
 
-.. note:: The script currently only supports x86_64.
+.. note:: The script currently only supports x86_64 and s390x architectures.
 
 Additional information about selftest failures are
 documented here.
@@ -118,11 +126,11 @@ available in 10.0.1. The patch is available in llvm 11.0.0 trunk.
 
 __  https://reviews.llvm.org/D78466
 
-bpf_verif_scale/loop6.o test failure with Clang 12
-==================================================
+bpf_verif_scale/loop6.bpf.o test failure with Clang 12
+======================================================
 
 With Clang 12, the following bpf_verif_scale test failed:
-  * ``bpf_verif_scale/loop6.o``
+  * ``bpf_verif_scale/loop6.bpf.o``
 
 The verifier output looks like
 
@@ -206,6 +214,8 @@ btf_tag test and Clang version
 
 The btf_tag selftest requires LLVM support to recognize the btf_decl_tag and
 btf_type_tag attributes. They are introduced in `Clang 14` [0_, 1_].
+The subtests ``btf_type_tag_user_{mod1, mod2, vmlinux}`` also requires
+pahole version ``1.23``.
 
 Without them, the btf_tag selftest will be skipped and you will observe:
 
@@ -235,7 +245,7 @@ See `kernel llvm reloc`_ for more explanation and some examples.
 Using clang 13 to compile old libbpf which has static linker support,
 there will be a compilation failure::
 
-  libbpf: ELF relo #0 in section #6 has unexpected type 2 in .../bpf_tcp_nogpl.o
+  libbpf: ELF relo #0 in section #6 has unexpected type 2 in .../bpf_tcp_nogpl.bpf.o
 
 Here, ``type 2`` refers to new relocation type ``R_BPF_64_ABS64``.
 To fix this issue, user newer libbpf.

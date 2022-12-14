@@ -58,14 +58,15 @@ properties:
               - enum:
                   - nvidia,tegra186-agic
                   - nvidia,tegra194-agic
+                  - nvidia,tegra234-agic
               - const: nvidia,tegra210-agic
 
   interrupt-controller: true
 
   "#address-cells":
-    enum: [ 0, 1 ]
+    enum: [ 0, 1, 2 ]
   "#size-cells":
-    const: 1
+    enum: [ 1, 2 ]
 
   "#interrupt-cells":
     const: 3

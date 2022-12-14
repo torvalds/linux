@@ -2509,6 +2509,7 @@ static void atmel_aes_get_cap(struct atmel_aes_dev *dd)
 
 	/* keep only major version number */
 	switch (dd->hw_version & 0xff0) {
+	case 0x700:
 	case 0x500:
 		dd->caps.has_dualbuff = 1;
 		dd->caps.has_cfb64 = 1;
@@ -2668,8 +2669,7 @@ static int atmel_aes_remove(struct platform_device *pdev)
 	struct atmel_aes_dev *aes_dd;
 
 	aes_dd = platform_get_drvdata(pdev);
-	if (!aes_dd)
-		return -ENODEV;
+
 	spin_lock(&atmel_aes.lock);
 	list_del(&aes_dd->list);
 	spin_unlock(&atmel_aes.lock);

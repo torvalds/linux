@@ -16,7 +16,6 @@
 
 #define pr_fmt(fmt)	"OF: " fmt
 
-#include <linux/bitmap.h>
 #include <linux/console.h>
 #include <linux/ctype.h>
 #include <linux/cpu.h>
@@ -562,7 +561,7 @@ EXPORT_SYMBOL(of_device_is_compatible);
  *  a NULL terminated array of strings. Returns the best match
  *  score or 0.
  */
-int of_device_compatible_match(struct device_node *device,
+int of_device_compatible_match(const struct device_node *device,
 			       const char *const *compat)
 {
 	unsigned int tmp, score = 0;
@@ -579,6 +578,7 @@ int of_device_compatible_match(struct device_node *device,
 
 	return score;
 }
+EXPORT_SYMBOL_GPL(of_device_compatible_match);
 
 /**
  * of_machine_is_compatible - Test root of device tree for a given compatible value
@@ -1229,7 +1229,7 @@ int of_modalias_node(struct device_node *node, char *modalias, int len)
 	if (!compatible || strlen(compatible) > cplen)
 		return -ENODEV;
 	p = strchr(compatible, ',');
-	strlcpy(modalias, p ? p + 1 : compatible, len);
+	strscpy(modalias, p ? p + 1 : compatible, len);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_modalias_node);
@@ -1920,6 +1920,8 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 			of_property_read_string(of_aliases, "stdout", &name);
 		if (name)
 			of_stdout = of_find_node_opts_by_path(name, &of_stdout_options);
+		if (of_stdout)
+			of_stdout->fwnode.flags |= FWNODE_FLAG_BEST_EFFORT;
 	}
 
 	if (!of_aliases)
@@ -1991,59 +1993,6 @@ int of_alias_get_id(struct device_node *np, const char *stem)
 	return id;
 }
 EXPORT_SYMBOL_GPL(of_alias_get_id);
-
-/**
- * of_alias_get_alias_list - Get alias list for the given device driver
- * @matches:	Array of OF device match structures to search in
- * @stem:	Alias stem of the given device_node
- * @bitmap:	Bitmap field pointer
- * @nbits:	Maximum number of alias IDs which can be recorded in bitmap
- *
- * The function travels the lookup table to record alias ids for the given
- * device match structures and alias stem.
- *
- * Return:	0 or -ENOSYS when !CONFIG_OF or
- *		-EOVERFLOW if alias ID is greater then allocated nbits
- */
-int of_alias_get_alias_list(const struct of_device_id *matches,
-			     const char *stem, unsigned long *bitmap,
-			     unsigned int nbits)
-{
-	struct alias_prop *app;
-	int ret = 0;
-
-	/* Zero bitmap field to make sure that all the time it is clean */
-	bitmap_zero(bitmap, nbits);
-
-	mutex_lock(&of_mutex);
-	pr_debug("%s: Looking for stem: %s\n", __func__, stem);
-	list_for_each_entry(app, &aliases_lookup, link) {
-		pr_debug("%s: stem: %s, id: %d\n",
-			 __func__, app->stem, app->id);
-
-		if (strcmp(app->stem, stem) != 0) {
-			pr_debug("%s: stem comparison didn't pass %s\n",
-				 __func__, app->stem);
-			continue;
-		}
-
-		if (of_match_node(matches, app->np)) {
-			pr_debug("%s: Allocated ID %d\n", __func__, app->id);
-
-			if (app->id >= nbits) {
-				pr_warn("%s: ID %d >= than bitmap field %d\n",
-					__func__, app->id, nbits);
-				ret = -EOVERFLOW;
-			} else {
-				set_bit(app->id, bitmap);
-			}
-		}
-	}
-	mutex_unlock(&of_mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(of_alias_get_alias_list);
 
 /**
  * of_alias_get_highest_id - Get highest alias id for the given stem
@@ -2131,7 +2080,7 @@ struct device_node *of_find_next_cache_node(const struct device_node *np)
  *
  * @cpu: cpu number(logical index) for which the last cache level is needed
  *
- * Return: The the level at which the last cache is present. It is exactly
+ * Return: The level at which the last cache is present. It is exactly
  * same as  the total number of cache levels for the given logical cpu.
  */
 int of_find_last_cache_level(unsigned int cpu)
@@ -2140,12 +2089,13 @@ int of_find_last_cache_level(unsigned int cpu)
 	struct device_node *prev = NULL, *np = of_cpu_device_node_get(cpu);
 
 	while (np) {
+		of_node_put(prev);
 		prev = np;
-		of_node_put(np);
 		np = of_find_next_cache_node(np);
 	}
 
 	of_property_read_u32(prev, "cache-level", &cache_level);
+	of_node_put(prev);
 
 	return cache_level;
 }

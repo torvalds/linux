@@ -26,7 +26,7 @@ struct ad8801_state {
 	struct regulator *vrefh_reg;
 	struct regulator *vrefl_reg;
 
-	__be16 data ____cacheline_aligned;
+	__be16 data __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ad8801_spi_write(struct ad8801_state *state,
@@ -193,7 +193,7 @@ error_disable_vrefh_reg:
 	return ret;
 }
 
-static int ad8801_remove(struct spi_device *spi)
+static void ad8801_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad8801_state *state = iio_priv(indio_dev);
@@ -202,8 +202,6 @@ static int ad8801_remove(struct spi_device *spi)
 	if (state->vrefl_reg)
 		regulator_disable(state->vrefl_reg);
 	regulator_disable(state->vrefh_reg);
-
-	return 0;
 }
 
 static const struct spi_device_id ad8801_ids[] = {

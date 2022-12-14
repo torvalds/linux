@@ -53,6 +53,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/kthread.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
@@ -60,6 +61,7 @@
 #include <asm/hvcall.h>
 #include <linux/atomic.h>
 #include <asm/vio.h>
+#include <asm/xive.h>
 #include <asm/iommu.h>
 #include <linux/uaccess.h>
 #include <asm/firmware.h>
@@ -110,6 +112,7 @@ static void ibmvnic_tx_scrq_clean_buffer(struct ibmvnic_adapter *adapter,
 					 struct ibmvnic_sub_crq_queue *tx_scrq);
 static void free_long_term_buff(struct ibmvnic_adapter *adapter,
 				struct ibmvnic_long_term_buff *ltb);
+static void ibmvnic_disable_irqs(struct ibmvnic_adapter *adapter);
 
 struct ibmvnic_stat {
 	char name[ETH_GSTRING_LEN];
@@ -255,12 +258,14 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 				struct ibmvnic_long_term_buff *ltb, int size)
 {
 	struct device *dev = &adapter->vdev->dev;
+	u64 prev = 0;
 	int rc;
 
 	if (!reuse_ltb(ltb, size)) {
 		dev_dbg(dev,
 			"LTB size changed from 0x%llx to 0x%x, reallocating\n",
 			 ltb->size, size);
+		prev = ltb->size;
 		free_long_term_buff(adapter, ltb);
 	}
 
@@ -281,8 +286,8 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 		bitmap_set(adapter->map_ids, ltb->map_id, 1);
 
 		dev_dbg(dev,
-			"Allocated new LTB [map %d, size 0x%llx]\n",
-			 ltb->map_id, ltb->size);
+			"Allocated new LTB [map %d, size 0x%llx was 0x%llx]\n",
+			 ltb->map_id, ltb->size, prev);
 	}
 
 	/* Ensure ltb is zeroed - specially when reusing it. */
@@ -343,6 +348,208 @@ static void free_long_term_buff(struct ibmvnic_adapter *adapter,
 	ltb->map_id = 0;
 }
 
+/**
+ * free_ltb_set - free the given set of long term buffers (LTBS)
+ * @adapter: The ibmvnic adapter containing this ltb set
+ * @ltb_set: The ltb_set to be freed
+ *
+ * Free the set of LTBs in the given set.
+ */
+
+static void free_ltb_set(struct ibmvnic_adapter *adapter,
+			 struct ibmvnic_ltb_set *ltb_set)
+{
+	int i;
+
+	for (i = 0; i < ltb_set->num_ltbs; i++)
+		free_long_term_buff(adapter, &ltb_set->ltbs[i]);
+
+	kfree(ltb_set->ltbs);
+	ltb_set->ltbs = NULL;
+	ltb_set->num_ltbs = 0;
+}
+
+/**
+ * alloc_ltb_set() - Allocate a set of long term buffers (LTBs)
+ *
+ * @adapter: ibmvnic adapter associated to the LTB
+ * @ltb_set: container object for the set of LTBs
+ * @num_buffs: Number of buffers in the LTB
+ * @buff_size: Size of each buffer in the LTB
+ *
+ * Allocate a set of LTBs to accommodate @num_buffs buffers of @buff_size
+ * each. We currently cap size each LTB to IBMVNIC_ONE_LTB_SIZE. If the
+ * new set of LTBs have fewer LTBs than the old set, free the excess LTBs.
+ * If new set needs more than in old set, allocate the remaining ones.
+ * Try and reuse as many LTBs as possible and avoid reallocation.
+ *
+ * Any changes to this allocation strategy must be reflected in
+ * map_rxpool_buff_to_ltb() and map_txpool_buff_to_ltb().
+ */
+static int alloc_ltb_set(struct ibmvnic_adapter *adapter,
+			 struct ibmvnic_ltb_set *ltb_set, int num_buffs,
+			 int buff_size)
+{
+	struct device *dev = &adapter->vdev->dev;
+	struct ibmvnic_ltb_set old_set;
+	struct ibmvnic_ltb_set new_set;
+	int rem_size;
+	int tot_size;		/* size of all ltbs */
+	int ltb_size;		/* size of one ltb */
+	int nltbs;
+	int rc;
+	int n;
+	int i;
+
+	dev_dbg(dev, "%s() num_buffs %d, buff_size %d\n", __func__, num_buffs,
+		buff_size);
+
+	ltb_size = rounddown(IBMVNIC_ONE_LTB_SIZE, buff_size);
+	tot_size = num_buffs * buff_size;
+
+	if (ltb_size > tot_size)
+		ltb_size = tot_size;
+
+	nltbs = tot_size / ltb_size;
+	if (tot_size % ltb_size)
+		nltbs++;
+
+	old_set = *ltb_set;
+
+	if (old_set.num_ltbs == nltbs) {
+		new_set = old_set;
+	} else {
+		int tmp = nltbs * sizeof(struct ibmvnic_long_term_buff);
+
+		new_set.ltbs = kzalloc(tmp, GFP_KERNEL);
+		if (!new_set.ltbs)
+			return -ENOMEM;
+
+		new_set.num_ltbs = nltbs;
+
+		/* Free any excess ltbs in old set */
+		for (i = new_set.num_ltbs; i < old_set.num_ltbs; i++)
+			free_long_term_buff(adapter, &old_set.ltbs[i]);
+
+		/* Copy remaining ltbs to new set. All LTBs except the
+		 * last one are of the same size. alloc_long_term_buff()
+		 * will realloc if the size changes.
+		 */
+		n = min(old_set.num_ltbs, new_set.num_ltbs);
+		for (i = 0; i < n; i++)
+			new_set.ltbs[i] = old_set.ltbs[i];
+
+		/* Any additional ltbs in new set will have NULL ltbs for
+		 * now and will be allocated in alloc_long_term_buff().
+		 */
+
+		/* We no longer need the old_set so free it. Note that we
+		 * may have reused some ltbs from old set and freed excess
+		 * ltbs above. So we only need to free the container now
+		 * not the LTBs themselves. (i.e. dont free_ltb_set()!)
+		 */
+		kfree(old_set.ltbs);
+		old_set.ltbs = NULL;
+		old_set.num_ltbs = 0;
+
+		/* Install the new set. If allocations fail below, we will
+		 * retry later and know what size LTBs we need.
+		 */
+		*ltb_set = new_set;
+	}
+
+	i = 0;
+	rem_size = tot_size;
+	while (rem_size) {
+		if (ltb_size > rem_size)
+			ltb_size = rem_size;
+
+		rem_size -= ltb_size;
+
+		rc = alloc_long_term_buff(adapter, &new_set.ltbs[i], ltb_size);
+		if (rc)
+			goto out;
+		i++;
+	}
+
+	WARN_ON(i != new_set.num_ltbs);
+
+	return 0;
+out:
+	/* We may have allocated one/more LTBs before failing and we
+	 * want to try and reuse on next reset. So don't free ltb set.
+	 */
+	return rc;
+}
+
+/**
+ * map_rxpool_buf_to_ltb - Map given rxpool buffer to offset in an LTB.
+ * @rxpool: The receive buffer pool containing buffer
+ * @bufidx: Index of buffer in rxpool
+ * @ltbp: (Output) pointer to the long term buffer containing the buffer
+ * @offset: (Output) offset of buffer in the LTB from @ltbp
+ *
+ * Map the given buffer identified by [rxpool, bufidx] to an LTB in the
+ * pool and its corresponding offset. Assume for now that each LTB is of
+ * different size but could possibly be optimized based on the allocation
+ * strategy in alloc_ltb_set().
+ */
+static void map_rxpool_buf_to_ltb(struct ibmvnic_rx_pool *rxpool,
+				  unsigned int bufidx,
+				  struct ibmvnic_long_term_buff **ltbp,
+				  unsigned int *offset)
+{
+	struct ibmvnic_long_term_buff *ltb;
+	int nbufs;	/* # of buffers in one ltb */
+	int i;
+
+	WARN_ON(bufidx >= rxpool->size);
+
+	for (i = 0; i < rxpool->ltb_set.num_ltbs; i++) {
+		ltb = &rxpool->ltb_set.ltbs[i];
+		nbufs = ltb->size / rxpool->buff_size;
+		if (bufidx < nbufs)
+			break;
+		bufidx -= nbufs;
+	}
+
+	*ltbp = ltb;
+	*offset = bufidx * rxpool->buff_size;
+}
+
+/**
+ * map_txpool_buf_to_ltb - Map given txpool buffer to offset in an LTB.
+ * @txpool: The transmit buffer pool containing buffer
+ * @bufidx: Index of buffer in txpool
+ * @ltbp: (Output) pointer to the long term buffer (LTB) containing the buffer
+ * @offset: (Output) offset of buffer in the LTB from @ltbp
+ *
+ * Map the given buffer identified by [txpool, bufidx] to an LTB in the
+ * pool and its corresponding offset.
+ */
+static void map_txpool_buf_to_ltb(struct ibmvnic_tx_pool *txpool,
+				  unsigned int bufidx,
+				  struct ibmvnic_long_term_buff **ltbp,
+				  unsigned int *offset)
+{
+	struct ibmvnic_long_term_buff *ltb;
+	int nbufs;	/* # of buffers in one ltb */
+	int i;
+
+	WARN_ON_ONCE(bufidx >= txpool->num_buffers);
+
+	for (i = 0; i < txpool->ltb_set.num_ltbs; i++) {
+		ltb = &txpool->ltb_set.ltbs[i];
+		nbufs = ltb->size / txpool->buf_size;
+		if (bufidx < nbufs)
+			break;
+		bufidx -= nbufs;
+	}
+
+	*ltbp = ltb;
+	*offset = bufidx * txpool->buf_size;
+}
+
 static void deactivate_rx_pools(struct ibmvnic_adapter *adapter)
 {
 	int i;
@@ -359,6 +566,7 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_ind_xmit_queue *ind_bufp;
 	struct ibmvnic_sub_crq_queue *rx_scrq;
+	struct ibmvnic_long_term_buff *ltb;
 	union sub_crq *sub_crq;
 	int buffers_added = 0;
 	unsigned long lpar_rc;
@@ -367,7 +575,7 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 	dma_addr_t dma_addr;
 	unsigned char *dst;
 	int shift = 0;
-	int index;
+	int bufidx;
 	int i;
 
 	if (!pool->active)
@@ -383,14 +591,14 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 	 * be 0.
 	 */
 	for (i = ind_bufp->index; i < count; ++i) {
-		index = pool->free_map[pool->next_free];
+		bufidx = pool->free_map[pool->next_free];
 
 		/* We maybe reusing the skb from earlier resets. Allocate
 		 * only if necessary. But since the LTB may have changed
 		 * during reset (see init_rx_pools()), update LTB below
 		 * even if reusing skb.
 		 */
-		skb = pool->rx_buff[index].skb;
+		skb = pool->rx_buff[bufidx].skb;
 		if (!skb) {
 			skb = netdev_alloc_skb(adapter->netdev,
 					       pool->buff_size);
@@ -405,26 +613,26 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 		pool->next_free = (pool->next_free + 1) % pool->size;
 
 		/* Copy the skb to the long term mapped DMA buffer */
-		offset = index * pool->buff_size;
-		dst = pool->long_term_buff.buff + offset;
+		map_rxpool_buf_to_ltb(pool, bufidx, &ltb, &offset);
+		dst = ltb->buff + offset;
 		memset(dst, 0, pool->buff_size);
-		dma_addr = pool->long_term_buff.addr + offset;
+		dma_addr = ltb->addr + offset;
 
 		/* add the skb to an rx_buff in the pool */
-		pool->rx_buff[index].data = dst;
-		pool->rx_buff[index].dma = dma_addr;
-		pool->rx_buff[index].skb = skb;
-		pool->rx_buff[index].pool_index = pool->index;
-		pool->rx_buff[index].size = pool->buff_size;
+		pool->rx_buff[bufidx].data = dst;
+		pool->rx_buff[bufidx].dma = dma_addr;
+		pool->rx_buff[bufidx].skb = skb;
+		pool->rx_buff[bufidx].pool_index = pool->index;
+		pool->rx_buff[bufidx].size = pool->buff_size;
 
 		/* queue the rx_buff for the next send_subcrq_indirect */
 		sub_crq = &ind_bufp->indir_arr[ind_bufp->index++];
 		memset(sub_crq, 0, sizeof(*sub_crq));
 		sub_crq->rx_add.first = IBMVNIC_CRQ_CMD;
 		sub_crq->rx_add.correlator =
-		    cpu_to_be64((u64)&pool->rx_buff[index]);
+		    cpu_to_be64((u64)&pool->rx_buff[bufidx]);
 		sub_crq->rx_add.ioba = cpu_to_be32(dma_addr);
-		sub_crq->rx_add.map_id = pool->long_term_buff.map_id;
+		sub_crq->rx_add.map_id = ltb->map_id;
 
 		/* The length field of the sCRQ is defined to be 24 bits so the
 		 * buffer size needs to be left shifted by a byte before it is
@@ -464,10 +672,10 @@ failure:
 		sub_crq = &ind_bufp->indir_arr[i];
 		rx_buff = (struct ibmvnic_rx_buff *)
 				be64_to_cpu(sub_crq->rx_add.correlator);
-		index = (int)(rx_buff - pool->rx_buff);
-		pool->free_map[pool->next_free] = index;
-		dev_kfree_skb_any(pool->rx_buff[index].skb);
-		pool->rx_buff[index].skb = NULL;
+		bufidx = (int)(rx_buff - pool->rx_buff);
+		pool->free_map[pool->next_free] = bufidx;
+		dev_kfree_skb_any(pool->rx_buff[bufidx].skb);
+		pool->rx_buff[bufidx].skb = NULL;
 	}
 	adapter->replenish_add_buff_failure += ind_bufp->index;
 	atomic_add(buffers_added, &pool->available);
@@ -577,7 +785,7 @@ static void release_rx_pools(struct ibmvnic_adapter *adapter)
 
 		kfree(rx_pool->free_map);
 
-		free_long_term_buff(adapter, &rx_pool->long_term_buff);
+		free_ltb_set(adapter, &rx_pool->ltb_set);
 
 		if (!rx_pool->rx_buff)
 			continue;
@@ -722,8 +930,8 @@ update_ltb:
 		dev_dbg(dev, "Updating LTB for rx pool %d [%d, %d]\n",
 			i, rx_pool->size, rx_pool->buff_size);
 
-		rc = alloc_long_term_buff(adapter, &rx_pool->long_term_buff,
-					  rx_pool->size * rx_pool->buff_size);
+		rc = alloc_ltb_set(adapter, &rx_pool->ltb_set,
+				   rx_pool->size, rx_pool->buff_size);
 		if (rc)
 			goto out;
 
@@ -780,7 +988,7 @@ static void release_one_tx_pool(struct ibmvnic_adapter *adapter,
 {
 	kfree(tx_pool->tx_buff);
 	kfree(tx_pool->free_map);
-	free_long_term_buff(adapter, &tx_pool->long_term_buff);
+	free_ltb_set(adapter, &tx_pool->ltb_set);
 }
 
 /**
@@ -970,17 +1178,16 @@ update_ltb:
 	for (i = 0; i < num_pools; i++) {
 		struct ibmvnic_tx_pool *tso_pool;
 		struct ibmvnic_tx_pool *tx_pool;
-		u32 ltb_size;
 
 		tx_pool = &adapter->tx_pool[i];
-		ltb_size = tx_pool->num_buffers * tx_pool->buf_size;
-		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
-					 ltb_size))
-			goto out;
 
-		dev_dbg(dev, "Updated LTB for tx pool %d [%p, %d, %d]\n",
-			i, tx_pool->long_term_buff.buff,
-			tx_pool->num_buffers, tx_pool->buf_size);
+		dev_dbg(dev, "Updating LTB for tx pool %d [%d, %d]\n",
+			i, tx_pool->num_buffers, tx_pool->buf_size);
+
+		rc = alloc_ltb_set(adapter, &tx_pool->ltb_set,
+				   tx_pool->num_buffers, tx_pool->buf_size);
+		if (rc)
+			goto out;
 
 		tx_pool->consumer_index = 0;
 		tx_pool->producer_index = 0;
@@ -989,14 +1196,14 @@ update_ltb:
 			tx_pool->free_map[j] = j;
 
 		tso_pool = &adapter->tso_pool[i];
-		ltb_size = tso_pool->num_buffers * tso_pool->buf_size;
-		if (alloc_long_term_buff(adapter, &tso_pool->long_term_buff,
-					 ltb_size))
-			goto out;
 
-		dev_dbg(dev, "Updated LTB for tso pool %d [%p, %d, %d]\n",
-			i, tso_pool->long_term_buff.buff,
-			tso_pool->num_buffers, tso_pool->buf_size);
+		dev_dbg(dev, "Updating LTB for tso pool %d [%d, %d]\n",
+			i, tso_pool->num_buffers, tso_pool->buf_size);
+
+		rc = alloc_ltb_set(adapter, &tso_pool->ltb_set,
+				   tso_pool->num_buffers, tso_pool->buf_size);
+		if (rc)
+			goto out;
 
 		tso_pool->consumer_index = 0;
 		tso_pool->producer_index = 0;
@@ -1055,7 +1262,7 @@ static int init_napi(struct ibmvnic_adapter *adapter)
 	for (i = 0; i < adapter->req_rx_queues; i++) {
 		netdev_dbg(adapter->netdev, "Adding napi[%d]\n", i);
 		netif_napi_add(adapter->netdev, &adapter->napi[i],
-			       ibmvnic_poll, NAPI_POLL_WEIGHT);
+			       ibmvnic_poll);
 	}
 
 	adapter->num_active_rx_napi = adapter->req_rx_queues;
@@ -1424,9 +1631,18 @@ static int __ibmvnic_open(struct net_device *netdev)
 	rc = set_link_state(adapter, IBMVNIC_LOGICAL_LNK_UP);
 	if (rc) {
 		ibmvnic_napi_disable(adapter);
-		release_resources(adapter);
+		ibmvnic_disable_irqs(adapter);
 		return rc;
 	}
+
+	adapter->tx_queues_active = true;
+
+	/* Since queues were stopped until now, there shouldn't be any
+	 * one in ibmvnic_complete_tx() or ibmvnic_xmit() so maybe we
+	 * don't need the synchronize_rcu()? Leaving it for consistency
+	 * with setting ->tx_queues_active = false.
+	 */
+	synchronize_rcu();
 
 	netif_tx_start_all_queues(netdev);
 
@@ -1474,9 +1690,6 @@ static int ibmvnic_open(struct net_device *netdev)
 		rc = init_resources(adapter);
 		if (rc) {
 			netdev_err(netdev, "failed to initialize resources\n");
-			release_resources(adapter);
-			release_rx_pools(adapter);
-			release_tx_pools(adapter);
 			goto out;
 		}
 	}
@@ -1493,6 +1706,13 @@ out:
 		adapter->state = VNIC_OPEN;
 		rc = 0;
 	}
+
+	if (rc) {
+		release_resources(adapter);
+		release_rx_pools(adapter);
+		release_tx_pools(adapter);
+	}
+
 	return rc;
 }
 
@@ -1598,6 +1818,14 @@ static void ibmvnic_cleanup(struct net_device *netdev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 
 	/* ensure that transmissions are stopped if called by do_reset */
+
+	adapter->tx_queues_active = false;
+
+	/* Ensure complete_tx() and ibmvnic_xmit() see ->tx_queues_active
+	 * update so they don't restart a queue after we stop it below.
+	 */
+	synchronize_rcu();
+
 	if (test_bit(0, &adapter->resetting))
 		netif_tx_disable(netdev);
 	else
@@ -1837,14 +2065,21 @@ static void ibmvnic_tx_scrq_clean_buffer(struct ibmvnic_adapter *adapter,
 		tx_buff->skb = NULL;
 		adapter->netdev->stats.tx_dropped++;
 	}
+
 	ind_bufp->index = 0;
+
 	if (atomic_sub_return(entries, &tx_scrq->used) <=
 	    (adapter->req_tx_entries_per_subcrq / 2) &&
-	    __netif_subqueue_stopped(adapter->netdev, queue_num) &&
-	    !test_bit(0, &adapter->resetting)) {
-		netif_wake_subqueue(adapter->netdev, queue_num);
-		netdev_dbg(adapter->netdev, "Started queue %d\n",
-			   queue_num);
+	    __netif_subqueue_stopped(adapter->netdev, queue_num)) {
+		rcu_read_lock();
+
+		if (adapter->tx_queues_active) {
+			netif_wake_subqueue(adapter->netdev, queue_num);
+			netdev_dbg(adapter->netdev, "Started queue %d\n",
+				   queue_num);
+		}
+
+		rcu_read_unlock();
 	}
 }
 
@@ -1881,6 +2116,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct ibmvnic_ind_xmit_queue *ind_bufp;
 	struct ibmvnic_tx_buff *tx_buff = NULL;
 	struct ibmvnic_sub_crq_queue *tx_scrq;
+	struct ibmvnic_long_term_buff *ltb;
 	struct ibmvnic_tx_pool *tx_pool;
 	unsigned int tx_send_failed = 0;
 	netdev_tx_t ret = NETDEV_TX_OK;
@@ -1896,14 +2132,15 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int offset;
 	int num_entries = 1;
 	unsigned char *dst;
-	int index = 0;
+	int bufidx = 0;
 	u8 proto = 0;
 
-	tx_scrq = adapter->tx_scrq[queue_num];
-	txq = netdev_get_tx_queue(netdev, queue_num);
-	ind_bufp = &tx_scrq->ind_buf;
-
-	if (test_bit(0, &adapter->resetting)) {
+	/* If a reset is in progress, drop the packet since
+	 * the scrqs may get torn down. Otherwise use the
+	 * rcu to ensure reset waits for us to complete.
+	 */
+	rcu_read_lock();
+	if (!adapter->tx_queues_active) {
 		dev_kfree_skb_any(skb);
 
 		tx_send_failed++;
@@ -1912,6 +2149,10 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto out;
 	}
 
+	tx_scrq = adapter->tx_scrq[queue_num];
+	txq = netdev_get_tx_queue(netdev, queue_num);
+	ind_bufp = &tx_scrq->ind_buf;
+
 	if (ibmvnic_xmit_workarounds(skb, netdev)) {
 		tx_dropped++;
 		tx_send_failed++;
@@ -1919,14 +2160,15 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		ibmvnic_tx_scrq_flush(adapter, tx_scrq);
 		goto out;
 	}
+
 	if (skb_is_gso(skb))
 		tx_pool = &adapter->tso_pool[queue_num];
 	else
 		tx_pool = &adapter->tx_pool[queue_num];
 
-	index = tx_pool->free_map[tx_pool->consumer_index];
+	bufidx = tx_pool->free_map[tx_pool->consumer_index];
 
-	if (index == IBMVNIC_INVALID_MAP) {
+	if (bufidx == IBMVNIC_INVALID_MAP) {
 		dev_kfree_skb_any(skb);
 		tx_send_failed++;
 		tx_dropped++;
@@ -1937,10 +2179,11 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_pool->free_map[tx_pool->consumer_index] = IBMVNIC_INVALID_MAP;
 
-	offset = index * tx_pool->buf_size;
-	dst = tx_pool->long_term_buff.buff + offset;
+	map_txpool_buf_to_ltb(tx_pool, bufidx, &ltb, &offset);
+
+	dst = ltb->buff + offset;
 	memset(dst, 0, tx_pool->buf_size);
-	data_dma_addr = tx_pool->long_term_buff.addr + offset;
+	data_dma_addr = ltb->addr + offset;
 
 	if (skb_shinfo(skb)->nr_frags) {
 		int cur, i;
@@ -1967,9 +2210,9 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	tx_pool->consumer_index =
 	    (tx_pool->consumer_index + 1) % tx_pool->num_buffers;
 
-	tx_buff = &tx_pool->tx_buff[index];
+	tx_buff = &tx_pool->tx_buff[bufidx];
 	tx_buff->skb = skb;
-	tx_buff->index = index;
+	tx_buff->index = bufidx;
 	tx_buff->pool_index = queue_num;
 
 	memset(&tx_crq, 0, sizeof(tx_crq));
@@ -1981,10 +2224,10 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if (skb_is_gso(skb))
 		tx_crq.v1.correlator =
-			cpu_to_be32(index | IBMVNIC_TSO_POOL_MASK);
+			cpu_to_be32(bufidx | IBMVNIC_TSO_POOL_MASK);
 	else
-		tx_crq.v1.correlator = cpu_to_be32(index);
-	tx_crq.v1.dma_reg = cpu_to_be16(tx_pool->long_term_buff.map_id);
+		tx_crq.v1.correlator = cpu_to_be32(bufidx);
+	tx_crq.v1.dma_reg = cpu_to_be16(ltb->map_id);
 	tx_crq.v1.sge_len = cpu_to_be32(skb->len);
 	tx_crq.v1.ioba = cpu_to_be64(data_dma_addr);
 
@@ -2073,6 +2316,7 @@ tx_err:
 		netif_carrier_off(netdev);
 	}
 out:
+	rcu_read_unlock();
 	netdev->stats.tx_dropped += tx_dropped;
 	netdev->stats.tx_bytes += tx_bytes;
 	netdev->stats.tx_packets += tx_packets;
@@ -2208,6 +2452,19 @@ static const char *reset_reason_to_string(enum ibmvnic_reset_reason reason)
 }
 
 /*
+ * Initialize the init_done completion and return code values. We
+ * can get a transport event just after registering the CRQ and the
+ * tasklet will use this to communicate the transport event. To ensure
+ * we don't miss the notification/error, initialize these _before_
+ * regisering the CRQ.
+ */
+static inline void reinit_init_done(struct ibmvnic_adapter *adapter)
+{
+	reinit_completion(&adapter->init_done);
+	adapter->init_done_rc = 0;
+}
+
+/*
  * do_reset returns zero if we are able to keep processing reset events, or
  * non-zero if we hit a fatal error and must halt.
  */
@@ -2312,6 +2569,8 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		 * we are coming from the probed state.
 		 */
 		adapter->state = VNIC_PROBED;
+
+		reinit_init_done(adapter);
 
 		if (adapter->reset_reason == VNIC_RESET_CHANGE_PARAM) {
 			rc = init_crq_queue(adapter);
@@ -2456,7 +2715,8 @@ static int do_hard_reset(struct ibmvnic_adapter *adapter,
 	 */
 	adapter->state = VNIC_PROBED;
 
-	reinit_completion(&adapter->init_done);
+	reinit_init_done(adapter);
+
 	rc = init_crq_queue(adapter);
 	if (rc) {
 		netdev_err(adapter->netdev,
@@ -2597,22 +2857,81 @@ out:
 static void __ibmvnic_reset(struct work_struct *work)
 {
 	struct ibmvnic_adapter *adapter;
-	bool saved_state = false;
+	unsigned int timeout = 5000;
 	struct ibmvnic_rwi *tmprwi;
+	bool saved_state = false;
 	struct ibmvnic_rwi *rwi;
 	unsigned long flags;
-	u32 reset_state;
+	struct device *dev;
+	bool need_reset;
 	int num_fails = 0;
+	u32 reset_state;
 	int rc = 0;
 
 	adapter = container_of(work, struct ibmvnic_adapter, ibmvnic_reset);
+		dev = &adapter->vdev->dev;
 
-	if (test_and_set_bit_lock(0, &adapter->resetting)) {
+	/* Wait for ibmvnic_probe() to complete. If probe is taking too long
+	 * or if another reset is in progress, defer work for now. If probe
+	 * eventually fails it will flush and terminate our work.
+	 *
+	 * Three possibilities here:
+	 * 1. Adpater being removed  - just return
+	 * 2. Timed out on probe or another reset in progress - delay the work
+	 * 3. Completed probe - perform any resets in queue
+	 */
+	if (adapter->state == VNIC_PROBING &&
+	    !wait_for_completion_timeout(&adapter->probe_done, timeout)) {
+		dev_err(dev, "Reset thread timed out on probe");
 		queue_delayed_work(system_long_wq,
 				   &adapter->ibmvnic_delayed_reset,
 				   IBMVNIC_RESET_DELAY);
 		return;
 	}
+
+	/* adapter is done with probe (i.e state is never VNIC_PROBING now) */
+	if (adapter->state == VNIC_REMOVING)
+		return;
+
+	/* ->rwi_list is stable now (no one else is removing entries) */
+
+	/* ibmvnic_probe() may have purged the reset queue after we were
+	 * scheduled to process a reset so there maybe no resets to process.
+	 * Before setting the ->resetting bit though, we have to make sure
+	 * that there is infact a reset to process. Otherwise we may race
+	 * with ibmvnic_open() and end up leaving the vnic down:
+	 *
+	 *	__ibmvnic_reset()	    ibmvnic_open()
+	 *	-----------------	    --------------
+	 *
+	 *  set ->resetting bit
+	 *  				find ->resetting bit is set
+	 *  				set ->state to IBMVNIC_OPEN (i.e
+	 *  				assume reset will open device)
+	 *  				return
+	 *  find reset queue empty
+	 *  return
+	 *
+	 *  	Neither performed vnic login/open and vnic stays down
+	 *
+	 * If we hold the lock and conditionally set the bit, either we
+	 * or ibmvnic_open() will complete the open.
+	 */
+	need_reset = false;
+	spin_lock(&adapter->rwi_lock);
+	if (!list_empty(&adapter->rwi_list)) {
+		if (test_and_set_bit_lock(0, &adapter->resetting)) {
+			queue_delayed_work(system_long_wq,
+					   &adapter->ibmvnic_delayed_reset,
+					   IBMVNIC_RESET_DELAY);
+		} else {
+			need_reset = true;
+		}
+	}
+	spin_unlock(&adapter->rwi_lock);
+
+	if (!need_reset)
+		return;
 
 	rwi = get_next_rwi(adapter);
 	while (rwi) {
@@ -2688,19 +3007,19 @@ static void __ibmvnic_reset(struct work_struct *work)
 		rwi = get_next_rwi(adapter);
 
 		/*
-		 * If there is another reset queued, free the previous rwi
-		 * and process the new reset even if previous reset failed
-		 * (the previous reset could have failed because of a fail
-		 * over for instance, so process the fail over).
-		 *
 		 * If there are no resets queued and the previous reset failed,
 		 * the adapter would be in an undefined state. So retry the
 		 * previous reset as a hard reset.
+		 *
+		 * Else, free the previous rwi and, if there is another reset
+		 * queued, process the new reset even if previous reset failed
+		 * (the previous reset could have failed because of a fail
+		 * over for instance, so process the fail over).
 		 */
-		if (rwi)
-			kfree(tmprwi);
-		else if (rc)
+		if (!rwi && rc)
 			rwi = tmprwi;
+		else
+			kfree(tmprwi);
 
 		if (rwi && (rwi->reset_reason == VNIC_RESET_FAILOVER ||
 			    rwi->reset_reason == VNIC_RESET_MOBILITY || rc))
@@ -2730,12 +3049,23 @@ static void __ibmvnic_delayed_reset(struct work_struct *work)
 	__ibmvnic_reset(&adapter->ibmvnic_reset);
 }
 
+static void flush_reset_queue(struct ibmvnic_adapter *adapter)
+{
+	struct list_head *entry, *tmp_entry;
+
+	if (!list_empty(&adapter->rwi_list)) {
+		list_for_each_safe(entry, tmp_entry, &adapter->rwi_list) {
+			list_del(entry);
+			kfree(list_entry(entry, struct ibmvnic_rwi, list));
+		}
+	}
+}
+
 static int ibmvnic_reset(struct ibmvnic_adapter *adapter,
 			 enum ibmvnic_reset_reason reason)
 {
-	struct list_head *entry, *tmp_entry;
-	struct ibmvnic_rwi *rwi, *tmp;
 	struct net_device *netdev = adapter->netdev;
+	struct ibmvnic_rwi *rwi, *tmp;
 	unsigned long flags;
 	int ret;
 
@@ -2751,13 +3081,6 @@ static int ibmvnic_reset(struct ibmvnic_adapter *adapter,
 	    (adapter->failover_pending && reason != VNIC_RESET_FAILOVER)) {
 		ret = EBUSY;
 		netdev_dbg(netdev, "Adapter removing or pending failover, skipping reset\n");
-		goto err;
-	}
-
-	if (adapter->state == VNIC_PROBING) {
-		netdev_warn(netdev, "Adapter reset during probe\n");
-		adapter->init_done_rc = -EAGAIN;
-		ret = EAGAIN;
 		goto err;
 	}
 
@@ -2778,10 +3101,9 @@ static int ibmvnic_reset(struct ibmvnic_adapter *adapter,
 	/* if we just received a transport event,
 	 * flush reset queue and process this reset
 	 */
-	if (adapter->force_reset_recovery && !list_empty(&adapter->rwi_list)) {
-		list_for_each_safe(entry, tmp_entry, &adapter->rwi_list)
-			list_del(entry);
-	}
+	if (adapter->force_reset_recovery)
+		flush_reset_queue(adapter);
+
 	rwi->reset_reason = reason;
 	list_add_tail(&rwi->list, &adapter->rwi_list);
 	netdev_dbg(adapter->netdev, "Scheduling reset (reason %s)\n",
@@ -3095,13 +3417,8 @@ static void ibmvnic_get_ringparam(struct net_device *netdev,
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 
-	if (adapter->priv_flags & IBMVNIC_USE_SERVER_MAXES) {
-		ring->rx_max_pending = adapter->max_rx_add_entries_per_subcrq;
-		ring->tx_max_pending = adapter->max_tx_entries_per_subcrq;
-	} else {
-		ring->rx_max_pending = IBMVNIC_MAX_QUEUE_SZ;
-		ring->tx_max_pending = IBMVNIC_MAX_QUEUE_SZ;
-	}
+	ring->rx_max_pending = adapter->max_rx_add_entries_per_subcrq;
+	ring->tx_max_pending = adapter->max_tx_entries_per_subcrq;
 	ring->rx_mini_max_pending = 0;
 	ring->rx_jumbo_max_pending = 0;
 	ring->rx_pending = adapter->req_rx_add_entries_per_subcrq;
@@ -3116,23 +3433,21 @@ static int ibmvnic_set_ringparam(struct net_device *netdev,
 				 struct netlink_ext_ack *extack)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	int ret;
 
-	ret = 0;
+	if (ring->rx_pending > adapter->max_rx_add_entries_per_subcrq  ||
+	    ring->tx_pending > adapter->max_tx_entries_per_subcrq) {
+		netdev_err(netdev, "Invalid request.\n");
+		netdev_err(netdev, "Max tx buffers = %llu\n",
+			   adapter->max_rx_add_entries_per_subcrq);
+		netdev_err(netdev, "Max rx buffers = %llu\n",
+			   adapter->max_tx_entries_per_subcrq);
+		return -EINVAL;
+	}
+
 	adapter->desired.rx_entries = ring->rx_pending;
 	adapter->desired.tx_entries = ring->tx_pending;
 
-	ret = wait_for_reset(adapter);
-
-	if (!ret &&
-	    (adapter->req_rx_add_entries_per_subcrq != ring->rx_pending ||
-	     adapter->req_tx_entries_per_subcrq != ring->tx_pending))
-		netdev_info(netdev,
-			    "Could not match full ringsize request. Requested: RX %d, TX %d; Allowed: RX %llu, TX %llu\n",
-			    ring->rx_pending, ring->tx_pending,
-			    adapter->req_rx_add_entries_per_subcrq,
-			    adapter->req_tx_entries_per_subcrq);
-	return ret;
+	return wait_for_reset(adapter);
 }
 
 static void ibmvnic_get_channels(struct net_device *netdev,
@@ -3140,14 +3455,8 @@ static void ibmvnic_get_channels(struct net_device *netdev,
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 
-	if (adapter->priv_flags & IBMVNIC_USE_SERVER_MAXES) {
-		channels->max_rx = adapter->max_rx_queues;
-		channels->max_tx = adapter->max_tx_queues;
-	} else {
-		channels->max_rx = IBMVNIC_MAX_QUEUES;
-		channels->max_tx = IBMVNIC_MAX_QUEUES;
-	}
-
+	channels->max_rx = adapter->max_rx_queues;
+	channels->max_tx = adapter->max_tx_queues;
 	channels->max_other = 0;
 	channels->max_combined = 0;
 	channels->rx_count = adapter->req_rx_queues;
@@ -3160,22 +3469,11 @@ static int ibmvnic_set_channels(struct net_device *netdev,
 				struct ethtool_channels *channels)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	int ret;
 
-	ret = 0;
 	adapter->desired.rx_queues = channels->rx_count;
 	adapter->desired.tx_queues = channels->tx_count;
 
-	ret = wait_for_reset(adapter);
-
-	if (!ret &&
-	    (adapter->req_rx_queues != channels->rx_count ||
-	     adapter->req_tx_queues != channels->tx_count))
-		netdev_info(netdev,
-			    "Could not match full channels request. Requested: RX %d, TX %d; Allowed: RX %llu, TX %llu\n",
-			    channels->rx_count, channels->tx_count,
-			    adapter->req_rx_queues, adapter->req_tx_queues);
-	return ret;
+	return wait_for_reset(adapter);
 }
 
 static void ibmvnic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -3183,43 +3481,32 @@ static void ibmvnic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	struct ibmvnic_adapter *adapter = netdev_priv(dev);
 	int i;
 
-	switch (stringset) {
-	case ETH_SS_STATS:
-		for (i = 0; i < ARRAY_SIZE(ibmvnic_stats);
-				i++, data += ETH_GSTRING_LEN)
-			memcpy(data, ibmvnic_stats[i].name, ETH_GSTRING_LEN);
-
-		for (i = 0; i < adapter->req_tx_queues; i++) {
-			snprintf(data, ETH_GSTRING_LEN, "tx%d_packets", i);
-			data += ETH_GSTRING_LEN;
-
-			snprintf(data, ETH_GSTRING_LEN, "tx%d_bytes", i);
-			data += ETH_GSTRING_LEN;
-
-			snprintf(data, ETH_GSTRING_LEN,
-				 "tx%d_dropped_packets", i);
-			data += ETH_GSTRING_LEN;
-		}
-
-		for (i = 0; i < adapter->req_rx_queues; i++) {
-			snprintf(data, ETH_GSTRING_LEN, "rx%d_packets", i);
-			data += ETH_GSTRING_LEN;
-
-			snprintf(data, ETH_GSTRING_LEN, "rx%d_bytes", i);
-			data += ETH_GSTRING_LEN;
-
-			snprintf(data, ETH_GSTRING_LEN, "rx%d_interrupts", i);
-			data += ETH_GSTRING_LEN;
-		}
-		break;
-
-	case ETH_SS_PRIV_FLAGS:
-		for (i = 0; i < ARRAY_SIZE(ibmvnic_priv_flags); i++)
-			strcpy(data + i * ETH_GSTRING_LEN,
-			       ibmvnic_priv_flags[i]);
-		break;
-	default:
+	if (stringset != ETH_SS_STATS)
 		return;
+
+	for (i = 0; i < ARRAY_SIZE(ibmvnic_stats); i++, data += ETH_GSTRING_LEN)
+		memcpy(data, ibmvnic_stats[i].name, ETH_GSTRING_LEN);
+
+	for (i = 0; i < adapter->req_tx_queues; i++) {
+		snprintf(data, ETH_GSTRING_LEN, "tx%d_packets", i);
+		data += ETH_GSTRING_LEN;
+
+		snprintf(data, ETH_GSTRING_LEN, "tx%d_bytes", i);
+		data += ETH_GSTRING_LEN;
+
+		snprintf(data, ETH_GSTRING_LEN, "tx%d_dropped_packets", i);
+		data += ETH_GSTRING_LEN;
+	}
+
+	for (i = 0; i < adapter->req_rx_queues; i++) {
+		snprintf(data, ETH_GSTRING_LEN, "rx%d_packets", i);
+		data += ETH_GSTRING_LEN;
+
+		snprintf(data, ETH_GSTRING_LEN, "rx%d_bytes", i);
+		data += ETH_GSTRING_LEN;
+
+		snprintf(data, ETH_GSTRING_LEN, "rx%d_interrupts", i);
+		data += ETH_GSTRING_LEN;
 	}
 }
 
@@ -3232,8 +3519,6 @@ static int ibmvnic_get_sset_count(struct net_device *dev, int sset)
 		return ARRAY_SIZE(ibmvnic_stats) +
 		       adapter->req_tx_queues * NUM_TX_STATS +
 		       adapter->req_rx_queues * NUM_RX_STATS;
-	case ETH_SS_PRIV_FLAGS:
-		return ARRAY_SIZE(ibmvnic_priv_flags);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3286,26 +3571,6 @@ static void ibmvnic_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
-static u32 ibmvnic_get_priv_flags(struct net_device *netdev)
-{
-	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-
-	return adapter->priv_flags;
-}
-
-static int ibmvnic_set_priv_flags(struct net_device *netdev, u32 flags)
-{
-	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	bool which_maxes = !!(flags & IBMVNIC_USE_SERVER_MAXES);
-
-	if (which_maxes)
-		adapter->priv_flags |= IBMVNIC_USE_SERVER_MAXES;
-	else
-		adapter->priv_flags &= ~IBMVNIC_USE_SERVER_MAXES;
-
-	return 0;
-}
-
 static const struct ethtool_ops ibmvnic_ethtool_ops = {
 	.get_drvinfo		= ibmvnic_get_drvinfo,
 	.get_msglevel		= ibmvnic_get_msglevel,
@@ -3319,8 +3584,6 @@ static const struct ethtool_ops ibmvnic_ethtool_ops = {
 	.get_sset_count         = ibmvnic_get_sset_count,
 	.get_ethtool_stats	= ibmvnic_get_ethtool_stats,
 	.get_link_ksettings	= ibmvnic_get_link_ksettings,
-	.get_priv_flags		= ibmvnic_get_priv_flags,
-	.set_priv_flags		= ibmvnic_set_priv_flags,
 };
 
 /* Routines for managing CRQs/sCRQs  */
@@ -3557,6 +3820,30 @@ static int disable_scrq_irq(struct ibmvnic_adapter *adapter,
 	return rc;
 }
 
+/* We can not use the IRQ chip EOI handler because that has the
+ * unintended effect of changing the interrupt priority.
+ */
+static void ibmvnic_xics_eoi(struct device *dev, struct ibmvnic_sub_crq_queue *scrq)
+{
+	u64 val = 0xff000000 | scrq->hw_irq;
+	unsigned long rc;
+
+	rc = plpar_hcall_norets(H_EOI, val);
+	if (rc)
+		dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n", val, rc);
+}
+
+/* Due to a firmware bug, the hypervisor can send an interrupt to a
+ * transmit or receive queue just prior to a partition migration.
+ * Force an EOI after migration.
+ */
+static void ibmvnic_clear_pending_interrupt(struct device *dev,
+					    struct ibmvnic_sub_crq_queue *scrq)
+{
+	if (!xive_enabled())
+		ibmvnic_xics_eoi(dev, scrq);
+}
+
 static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 			   struct ibmvnic_sub_crq_queue *scrq)
 {
@@ -3570,15 +3857,7 @@ static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 
 	if (test_bit(0, &adapter->resetting) &&
 	    adapter->reset_reason == VNIC_RESET_MOBILITY) {
-		u64 val = (0xff000000) | scrq->hw_irq;
-
-		rc = plpar_hcall_norets(H_EOI, val);
-		/* H_EOI would fail with rc = H_FUNCTION when running
-		 * in XIVE mode which is expected, but not an error.
-		 */
-		if (rc && (rc != H_FUNCTION))
-			dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
-				val, rc);
+		ibmvnic_clear_pending_interrupt(dev, scrq);
 	}
 
 	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
@@ -3649,9 +3928,15 @@ restart_loop:
 		    (adapter->req_tx_entries_per_subcrq / 2) &&
 		    __netif_subqueue_stopped(adapter->netdev,
 					     scrq->pool_index)) {
-			netif_wake_subqueue(adapter->netdev, scrq->pool_index);
-			netdev_dbg(adapter->netdev, "Started queue %d\n",
-				   scrq->pool_index);
+			rcu_read_lock();
+			if (adapter->tx_queues_active) {
+				netif_wake_subqueue(adapter->netdev,
+						    scrq->pool_index);
+				netdev_dbg(adapter->netdev,
+					   "Started queue %d\n",
+					   scrq->pool_index);
+			}
+			rcu_read_unlock();
 		}
 	}
 
@@ -3894,16 +4179,16 @@ static void send_request_cap(struct ibmvnic_adapter *adapter, int retry)
 			adapter->desired.rx_entries =
 					adapter->max_rx_add_entries_per_subcrq;
 
-		max_entries = IBMVNIC_MAX_LTB_SIZE /
+		max_entries = IBMVNIC_LTB_SET_SIZE /
 			      (adapter->req_mtu + IBMVNIC_BUFFER_HLEN);
 
 		if ((adapter->req_mtu + IBMVNIC_BUFFER_HLEN) *
-			adapter->desired.tx_entries > IBMVNIC_MAX_LTB_SIZE) {
+			adapter->desired.tx_entries > IBMVNIC_LTB_SET_SIZE) {
 			adapter->desired.tx_entries = max_entries;
 		}
 
 		if ((adapter->req_mtu + IBMVNIC_BUFFER_HLEN) *
-			adapter->desired.rx_entries > IBMVNIC_MAX_LTB_SIZE) {
+			adapter->desired.rx_entries > IBMVNIC_LTB_SET_SIZE) {
 			adapter->desired.rx_entries = max_entries;
 		}
 
@@ -5316,9 +5601,9 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			}
 
 			if (!completion_done(&adapter->init_done)) {
-				complete(&adapter->init_done);
 				if (!adapter->init_done_rc)
 					adapter->init_done_rc = -EAGAIN;
+				complete(&adapter->init_done);
 			}
 
 			break;
@@ -5341,6 +5626,13 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			adapter->fw_done_rc = -EIO;
 			complete(&adapter->fw_done);
 		}
+
+		/* if we got here during crq-init, retry crq-init */
+		if (!completion_done(&adapter->init_done)) {
+			adapter->init_done_rc = -EAGAIN;
+			complete(&adapter->init_done);
+		}
+
 		if (!completion_done(&adapter->stats_done))
 			complete(&adapter->stats_done);
 		if (test_bit(0, &adapter->resetting))
@@ -5657,10 +5949,6 @@ static int ibmvnic_reset_init(struct ibmvnic_adapter *adapter, bool reset)
 
 	adapter->from_passive_init = false;
 
-	if (reset)
-		reinit_completion(&adapter->init_done);
-
-	adapter->init_done_rc = 0;
 	rc = ibmvnic_send_crq_init(adapter);
 	if (rc) {
 		dev_err(dev, "Send crq init failed with error %d\n", rc);
@@ -5674,12 +5962,14 @@ static int ibmvnic_reset_init(struct ibmvnic_adapter *adapter, bool reset)
 
 	if (adapter->init_done_rc) {
 		release_crq_queue(adapter);
+		dev_err(dev, "CRQ-init failed, %d\n", adapter->init_done_rc);
 		return adapter->init_done_rc;
 	}
 
 	if (adapter->from_passive_init) {
 		adapter->state = VNIC_OPEN;
 		adapter->from_passive_init = false;
+		dev_err(dev, "CRQ-init failed, passive-init\n");
 		return -EINVAL;
 	}
 
@@ -5691,6 +5981,15 @@ static int ibmvnic_reset_init(struct ibmvnic_adapter *adapter, bool reset)
 			release_sub_crqs(adapter, 0);
 			rc = init_sub_crqs(adapter);
 		} else {
+			/* no need to reinitialize completely, but we do
+			 * need to clean up transmits that were in flight
+			 * when we processed the reset.  Failure to do so
+			 * will confound the upper layer, usually TCP, by
+			 * creating the illusion of transmits that are
+			 * awaiting completion.
+			 */
+			clean_tx_pools(adapter);
+
 			rc = reset_sub_crq_queues(adapter);
 		}
 	} else {
@@ -5719,6 +6018,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	struct ibmvnic_adapter *adapter;
 	struct net_device *netdev;
 	unsigned char *mac_addr_p;
+	unsigned long flags;
 	bool init_success;
 	int rc;
 
@@ -5763,6 +6063,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	spin_lock_init(&adapter->rwi_lock);
 	spin_lock_init(&adapter->state_lock);
 	mutex_init(&adapter->fw_lock);
+	init_completion(&adapter->probe_done);
 	init_completion(&adapter->init_done);
 	init_completion(&adapter->fw_done);
 	init_completion(&adapter->reset_done);
@@ -5773,6 +6074,33 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 	init_success = false;
 	do {
+		reinit_init_done(adapter);
+
+		/* clear any failovers we got in the previous pass
+		 * since we are reinitializing the CRQ
+		 */
+		adapter->failover_pending = false;
+
+		/* If we had already initialized CRQ, we may have one or
+		 * more resets queued already. Discard those and release
+		 * the CRQ before initializing the CRQ again.
+		 */
+		release_crq_queue(adapter);
+
+		/* Since we are still in PROBING state, __ibmvnic_reset()
+		 * will not access the ->rwi_list and since we released CRQ,
+		 * we won't get _new_ transport events. But there maybe an
+		 * ongoing ibmvnic_reset() call. So serialize access to
+		 * rwi_list. If we win the race, ibvmnic_reset() could add
+		 * a reset after we purged but thats ok - we just may end
+		 * up with an extra reset (i.e similar to having two or more
+		 * resets in the queue at once).
+		 * CHECK.
+		 */
+		spin_lock_irqsave(&adapter->rwi_lock, flags);
+		flush_reset_queue(adapter);
+		spin_unlock_irqrestore(&adapter->rwi_lock, flags);
+
 		rc = init_crq_queue(adapter);
 		if (rc) {
 			dev_err(&dev->dev, "Couldn't initialize crq. rc=%d\n",
@@ -5804,12 +6132,6 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		goto ibmvnic_dev_file_err;
 
 	netif_carrier_off(netdev);
-	rc = register_netdev(netdev);
-	if (rc) {
-		dev_err(&dev->dev, "failed to register netdev rc=%d\n", rc);
-		goto ibmvnic_register_fail;
-	}
-	dev_info(&dev->dev, "ibmvnic registered\n");
 
 	if (init_success) {
 		adapter->state = VNIC_PROBED;
@@ -5822,6 +6144,16 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 	adapter->wait_for_reset = false;
 	adapter->last_reset_time = jiffies;
+
+	rc = register_netdev(netdev);
+	if (rc) {
+		dev_err(&dev->dev, "failed to register netdev rc=%d\n", rc);
+		goto ibmvnic_register_fail;
+	}
+	dev_info(&dev->dev, "ibmvnic registered\n");
+
+	complete(&adapter->probe_done);
+
 	return 0;
 
 ibmvnic_register_fail:
@@ -5836,6 +6168,17 @@ ibmvnic_stats_fail:
 ibmvnic_init_fail:
 	release_sub_crqs(adapter, 1);
 	release_crq_queue(adapter);
+
+	/* cleanup worker thread after releasing CRQ so we don't get
+	 * transport events (i.e new work items for the worker thread).
+	 */
+	adapter->state = VNIC_REMOVING;
+	complete(&adapter->probe_done);
+	flush_work(&adapter->ibmvnic_reset);
+	flush_delayed_work(&adapter->ibmvnic_delayed_reset);
+
+	flush_reset_queue(adapter);
+
 	mutex_destroy(&adapter->fw_lock);
 	free_netdev(netdev);
 
@@ -5912,10 +6255,14 @@ static ssize_t failover_store(struct device *dev, struct device_attribute *attr,
 		   be64_to_cpu(session_token));
 	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
 				H_SESSION_ERR_DETECTED, session_token, 0, 0);
-	if (rc)
+	if (rc) {
 		netdev_err(netdev,
 			   "H_VIOCTL initiated failover failed, rc %ld\n",
 			   rc);
+		goto last_resort;
+	}
+
+	return count;
 
 last_resort:
 	netdev_dbg(netdev, "Trying to send CRQ_CMD, the last resort\n");

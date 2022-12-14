@@ -35,8 +35,7 @@ Linux カーネルに変更を加えたいと思っている個人又は会社�
 てもらえやすくする提案を集めたものです。
 
 コードを投稿する前に、Documentation/process/submit-checklist.rst の項目リストに目
-を通してチェックしてください。もしあなたがドライバーを投稿しようとし
-ているなら、Documentation/process/submitting-drivers.rst にも目を通してください。
+を通してチェックしてください。
 
 --------------------------------------------
 セクション1 パッチの作り方と送り方
@@ -81,9 +80,7 @@ Linux カーネルに対する全ての変更は diff(1) コマンドによる�
 dontdiff ファイルには Linux カーネルのビルドプロセスの過程で生成された
 ファイルの一覧がのっています。そして、それらはパッチを生成する diff(1)
 コマンドで無視されるべきです。dontdiff ファイルは 2.6.12 以後のバージョ
-ンの Linux カーネルソースツリーに含まれています。それより前のバージョン
-の Linux カーネルソースツリーに対する dontdiff ファイルは、
-<http://www.xenotime.net/linux/doc/dontdiff>から取得することができます。
+ンの Linux カーネルソースツリーに含まれています。
 
 投稿するパッチの中に関係のない余分なファイルが含まれていないことを確
 認してください。diff(1) コマンドで生成したパッチがあなたの意図したとお
@@ -125,6 +122,17 @@ http://savannah.nongnu.org/projects/quilt
 登録済みのバグエントリを修正するパッチであれば、そのバグエントリを示すバグ ID
 や URL を明記してください。
 
+特定のコミットを参照したい場合は、その SHA-1 ID だけでなく、一行サマリ
+も含めてください。それにより、それが何に関するコミットなのかがレビューする
+人にわかりやすくなります。
+例 (英文のママ):
+
+       Commit e21d2170f36602ae2708 ("video: remove unnecessary
+       platform_set_drvdata()") removed the unnecessary
+       platform_set_drvdata(), but left the variable "dev" unused,
+       delete it.
+
+
 3) パッチの分割
 
 意味のあるひとまとまりごとに変更を個々のパッチファイルに分けてください。
@@ -162,7 +170,8 @@ http://savannah.nongnu.org/projects/quilt
 
 MAINTAINERS ファイルとソースコードに目を通してください。そして、その変
 更がメンテナのいる特定のサブシステムに加えられるものであることが分か
-れば、その人に電子メールを送ってください。
+れば、その人に電子メールを送ってください。その際
+./scripts/get_maintainers.pl のスクリプトが有用です。
 
 もし、メンテナが載っていなかったり、メンテナからの応答がないなら、
 LKML ( linux-kernel@vger.kernel.org )へパッチを送ってください。ほとんど
@@ -400,7 +409,7 @@ Acked-by: が必ずしもパッチ全体の承認を示しているわけでは�
 このタグはパッチに関心があると思われる人達がそのパッチの議論に含まれていたこと
 を明文化します。
 
-14) Reported-by と Tested-by: と Reviewed-by: の利用
+14) Reported-by:, Tested-by:, Reviewed-by: および Suggested-by: の利用
 
 他の誰かによって報告された問題を修正するパッチであれば、問題報告者という寄与を
 クレジットするために、Reported-by: タグを追加することを検討してください。
@@ -448,6 +457,13 @@ Reviewd-by タグはそのパッチがカーネルに対して適切な修正で
 知らせる働きを持ちます。そのパッチの領域に詳しく、そして、しっかりとした
 レビューを実施したレビューアによって提供される時、Reviewed-by: タグがあなたの
 パッチをカーネルにマージする可能性を高めるでしょう。
+
+Suggested-by: タグは、パッチのアイデアがその人からの提案に基づくものである
+ことを示し、アイデアの提供をクレジットするものです。提案者の明示的な許可が
+ない場合、特にそのアイデアが公開のフォーラムで示されていない場合には、この
+タグをつけないように注意してください。とはいえ、アイデアの提供者をこつこつ
+クレジットしていけば、望むらくはその人たちが将来別の機会に再度力を貸す気に
+なってくれるかもしれません。
 
 15) 標準的なパッチのフォーマット
 
@@ -681,10 +697,11 @@ Jeff Garzik, "Linux kernel patch submission format".
   <https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html>
 
 Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".
-  <http://www.kroah.com/log/2005/03/31/>
-  <http://www.kroah.com/log/2005/07/08/>
-  <http://www.kroah.com/log/2005/10/19/>
-  <http://www.kroah.com/log/2006/01/11/>
+  <http://www.kroah.com/log/linux/maintainer.html>
+  <http://www.kroah.com/log/linux/maintainer-02.html>
+  <http://www.kroah.com/log/linux/maintainer-03.html>
+  <http://www.kroah.com/log/linux/maintainer-04.html>
+  <http://www.kroah.com/log/linux/maintainer-05.html>
 
 NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <https://lore.kernel.org/r/20050711.125305.08322243.davem@davemloft.net>

@@ -9,6 +9,7 @@
 #include <linux/cpu.h>
 #include <linux/debugfs.h>
 #include <linux/sched/smt.h>
+#include <linux/task_work.h>
 
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
@@ -733,10 +734,10 @@ static void flush_tlb_func(void *info)
 	const struct flush_tlb_info *f = info;
 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
 	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
-	u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
 	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen);
 	bool local = smp_processor_id() == f->initiating_cpu;
 	unsigned long nr_invalidate = 0;
+	u64 mm_tlb_gen;
 
 	/* This code cannot presently handle being reentered. */
 	VM_WARN_ON(!irqs_disabled());
@@ -769,6 +770,23 @@ static void flush_tlb_func(void *info)
 		switch_mm_irqs_off(NULL, &init_mm, NULL);
 		return;
 	}
+
+	if (unlikely(f->new_tlb_gen != TLB_GENERATION_INVALID &&
+		     f->new_tlb_gen <= local_tlb_gen)) {
+		/*
+		 * The TLB is already up to date in respect to f->new_tlb_gen.
+		 * While the core might be still behind mm_tlb_gen, checking
+		 * mm_tlb_gen unnecessarily would have negative caching effects
+		 * so avoid it.
+		 */
+		return;
+	}
+
+	/*
+	 * Defer mm_tlb_gen reading as long as possible to avoid cache
+	 * contention.
+	 */
+	mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
 
 	if (unlikely(local_tlb_gen == mm_tlb_gen)) {
 		/*
@@ -826,6 +844,12 @@ static void flush_tlb_func(void *info)
 		/* Partial flush */
 		unsigned long addr = f->start;
 
+		/* Partial flush cannot have invalid generations */
+		VM_WARN_ON(f->new_tlb_gen == TLB_GENERATION_INVALID);
+
+		/* Partial flush must have valid mm */
+		VM_WARN_ON(f->mm == NULL);
+
 		nr_invalidate = (f->end - f->start) >> f->stride_shift;
 
 		while (addr < f->end) {
@@ -854,12 +878,10 @@ done:
 			nr_invalidate);
 }
 
-static bool tlb_is_not_lazy(int cpu)
+static bool tlb_is_not_lazy(int cpu, void *data)
 {
 	return !per_cpu(cpu_tlbstate_shared.is_lazy, cpu);
 }
-
-static DEFINE_PER_CPU(cpumask_t, flush_tlb_mask);
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state_shared, cpu_tlbstate_shared);
 EXPORT_PER_CPU_SYMBOL(cpu_tlbstate_shared);
@@ -889,36 +911,11 @@ STATIC_NOPV void native_flush_tlb_multi(const struct cpumask *cpumask,
 	 * up on the new contents of what used to be page tables, while
 	 * doing a speculative memory access.
 	 */
-	if (info->freed_tables) {
+	if (info->freed_tables)
 		on_each_cpu_mask(cpumask, flush_tlb_func, (void *)info, true);
-	} else {
-		/*
-		 * Although we could have used on_each_cpu_cond_mask(),
-		 * open-coding it has performance advantages, as it eliminates
-		 * the need for indirect calls or retpolines. In addition, it
-		 * allows to use a designated cpumask for evaluating the
-		 * condition, instead of allocating one.
-		 *
-		 * This code works under the assumption that there are no nested
-		 * TLB flushes, an assumption that is already made in
-		 * flush_tlb_mm_range().
-		 *
-		 * cond_cpumask is logically a stack-local variable, but it is
-		 * more efficient to have it off the stack and not to allocate
-		 * it on demand. Preemption is disabled and this code is
-		 * non-reentrant.
-		 */
-		struct cpumask *cond_cpumask = this_cpu_ptr(&flush_tlb_mask);
-		int cpu;
-
-		cpumask_clear(cond_cpumask);
-
-		for_each_cpu(cpu, cpumask) {
-			if (tlb_is_not_lazy(cpu))
-				__cpumask_set_cpu(cpu, cond_cpumask);
-		}
-		on_each_cpu_mask(cond_cpumask, flush_tlb_func, (void *)info, true);
-	}
+	else
+		on_each_cpu_cond_mask(tlb_is_not_lazy, flush_tlb_func,
+				(void *)info, 1, cpumask);
 }
 
 void flush_tlb_multi(const struct cpumask *cpumask,
@@ -1055,7 +1052,8 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		struct flush_tlb_info *info;
 
 		preempt_disable();
-		info = get_flush_tlb_info(NULL, start, end, 0, false, 0);
+		info = get_flush_tlb_info(NULL, start, end, 0, false,
+					  TLB_GENERATION_INVALID);
 
 		on_each_cpu(do_kernel_range_flush, info, 1);
 
@@ -1224,7 +1222,8 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
 
 	int cpu = get_cpu();
 
-	info = get_flush_tlb_info(NULL, 0, TLB_FLUSH_ALL, 0, false, 0);
+	info = get_flush_tlb_info(NULL, 0, TLB_FLUSH_ALL, 0, false,
+				  TLB_GENERATION_INVALID);
 	/*
 	 * flush_tlb_multi() is not optimized for the common case in which only
 	 * a local TLB flush is needed. Optimize this use-case by calling

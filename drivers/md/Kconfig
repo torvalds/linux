@@ -204,6 +204,7 @@ config BLK_DEV_DM
 	tristate "Device mapper support"
 	select BLOCK_HOLDER_DEPRECATED if SYSFS
 	select BLK_DEV_DM_BUILTIN
+	select BLK_MQ_STACKING
 	depends on DAX || DAX=n
 	help
 	  Device-mapper is a low level volume manager.  It works by allowing

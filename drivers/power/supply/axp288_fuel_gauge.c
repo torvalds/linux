@@ -9,6 +9,7 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
+#include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -88,6 +89,13 @@
 
 #define AXP288_REG_UPDATE_INTERVAL		(60 * HZ)
 #define AXP288_FG_INTR_NUM			6
+
+#define AXP288_QUIRK_NO_BATTERY			BIT(0)
+
+static bool no_current_sense_res;
+module_param(no_current_sense_res, bool, 0444);
+MODULE_PARM_DESC(no_current_sense_res, "No (or broken) current sense resistor");
+
 enum {
 	QWBTU_IRQ = 0,
 	WBTU_IRQ,
@@ -107,7 +115,6 @@ enum {
 struct axp288_fg_info {
 	struct device *dev;
 	struct regmap *regmap;
-	struct regmap_irq_chip_data *regmap_irqc;
 	int irq[AXP288_FG_INTR_NUM];
 	struct iio_channel *iio_channel[IIO_CHANNEL_NUM];
 	struct power_supply *bat;
@@ -138,12 +145,13 @@ static enum power_supply_property fuel_gauge_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
+	/* The 3 props below are not used when no_current_sense_res is set */
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
 static int fuel_gauge_reg_readb(struct axp288_fg_info *info, int reg)
@@ -225,7 +233,10 @@ static int fuel_gauge_update_registers(struct axp288_fg_info *info)
 		goto out;
 	info->pwr_stat = ret;
 
-	ret = fuel_gauge_reg_readb(info, AXP20X_FG_RES);
+	if (no_current_sense_res)
+		ret = fuel_gauge_reg_readb(info, AXP288_FG_OCV_CAP_REG);
+	else
+		ret = fuel_gauge_reg_readb(info, AXP20X_FG_RES);
 	if (ret < 0)
 		goto out;
 	info->fg_res = ret;
@@ -233,6 +244,14 @@ static int fuel_gauge_update_registers(struct axp288_fg_info *info)
 	ret = iio_read_channel_raw(info->iio_channel[BAT_VOLT], &info->bat_volt);
 	if (ret < 0)
 		goto out;
+
+	ret = fuel_gauge_read_12bit_word(info, AXP288_FG_OCVH_REG);
+	if (ret < 0)
+		goto out;
+	info->ocv = ret;
+
+	if (no_current_sense_res)
+		goto out_no_current_sense_res;
 
 	if (info->pwr_stat & PS_STAT_BAT_CHRG_DIR) {
 		info->d_curr = 0;
@@ -246,11 +265,6 @@ static int fuel_gauge_update_registers(struct axp288_fg_info *info)
 			goto out;
 	}
 
-	ret = fuel_gauge_read_12bit_word(info, AXP288_FG_OCVH_REG);
-	if (ret < 0)
-		goto out;
-	info->ocv = ret;
-
 	ret = fuel_gauge_read_15bit_word(info, AXP288_FG_CC_MTR1_REG);
 	if (ret < 0)
 		goto out;
@@ -261,6 +275,7 @@ static int fuel_gauge_update_registers(struct axp288_fg_info *info)
 		goto out;
 	info->fg_des_cap1 = ret;
 
+out_no_current_sense_res:
 	info->last_updated = jiffies;
 	info->valid = 1;
 	ret = 0;
@@ -293,7 +308,7 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 	 * When this happens the AXP288 reports a not-charging status and
 	 * 0 mA discharge current.
 	 */
-	if (fg_res < 90 || (pwr_stat & PS_STAT_BAT_CHRG_DIR))
+	if (fg_res < 90 || (pwr_stat & PS_STAT_BAT_CHRG_DIR) || no_current_sense_res)
 		goto not_full;
 
 	if (curr == 0) {
@@ -477,7 +492,9 @@ static irqreturn_t fuel_gauge_thread_handler(int irq, void *dev)
 		dev_warn(info->dev, "Spurious Interrupt!!!\n");
 	}
 
+	mutex_lock(&info->lock);
 	info->valid = 0; /* Force updating of the cached registers */
+	mutex_unlock(&info->lock);
 
 	power_supply_changed(info->bat);
 	return IRQ_HANDLED;
@@ -487,11 +504,13 @@ static void fuel_gauge_external_power_changed(struct power_supply *psy)
 {
 	struct axp288_fg_info *info = power_supply_get_drvdata(psy);
 
+	mutex_lock(&info->lock);
 	info->valid = 0; /* Force updating of the cached registers */
+	mutex_unlock(&info->lock);
 	power_supply_changed(info->bat);
 }
 
-static const struct power_supply_desc fuel_gauge_desc = {
+static struct power_supply_desc fuel_gauge_desc = {
 	.name			= DEV_NAME,
 	.type			= POWER_SUPPLY_TYPE_BATTERY,
 	.properties		= fuel_gauge_props,
@@ -502,44 +521,12 @@ static const struct power_supply_desc fuel_gauge_desc = {
 	.external_power_changed	= fuel_gauge_external_power_changed,
 };
 
-static void fuel_gauge_init_irq(struct axp288_fg_info *info, struct platform_device *pdev)
-{
-	int ret, i, pirq;
-
-	for (i = 0; i < AXP288_FG_INTR_NUM; i++) {
-		pirq = platform_get_irq(pdev, i);
-		info->irq[i] = regmap_irq_get_virq(info->regmap_irqc, pirq);
-		if (info->irq[i] < 0) {
-			dev_warn(info->dev, "regmap_irq get virq failed for IRQ %d: %d\n",
-				pirq, info->irq[i]);
-			info->irq[i] = -1;
-			goto intr_failed;
-		}
-		ret = request_threaded_irq(info->irq[i],
-				NULL, fuel_gauge_thread_handler,
-				IRQF_ONESHOT, DEV_NAME, info);
-		if (ret) {
-			dev_warn(info->dev, "request irq failed for IRQ %d: %d\n",
-				pirq, info->irq[i]);
-			info->irq[i] = -1;
-			goto intr_failed;
-		}
-	}
-	return;
-
-intr_failed:
-	for (; i > 0; i--) {
-		free_irq(info->irq[i - 1], info);
-		info->irq[i - 1] = -1;
-	}
-}
-
 /*
  * Some devices have no battery (HDMI sticks) and the axp288 battery's
  * detection reports one despite it not being there.
  * Please keep this listed sorted alphabetically.
  */
-static const struct dmi_system_id axp288_no_battery_list[] = {
+static const struct dmi_system_id axp288_quirks[] = {
 	{
 		/* ACEPC T8 Cherry Trail Z8350 mini PC */
 		.matches = {
@@ -549,6 +536,7 @@ static const struct dmi_system_id axp288_no_battery_list[] = {
 			/* also match on somewhat unique bios-version */
 			DMI_EXACT_MATCH(DMI_BIOS_VERSION, "1.000"),
 		},
+		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
 	},
 	{
 		/* ACEPC T11 Cherry Trail Z8350 mini PC */
@@ -559,12 +547,7 @@ static const struct dmi_system_id axp288_no_battery_list[] = {
 			/* also match on somewhat unique bios-version */
 			DMI_EXACT_MATCH(DMI_BIOS_VERSION, "1.000"),
 		},
-	},
-	{
-		/* ECS EF20EA */
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
-		},
+		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
 	},
 	{
 		/* Intel Cherry Trail Compute Stick, Windows version */
@@ -572,6 +555,7 @@ static const struct dmi_system_id axp288_no_battery_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "STK1AW32SC"),
 		},
+		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
 	},
 	{
 		/* Intel Cherry Trail Compute Stick, version without an OS */
@@ -579,117 +563,85 @@ static const struct dmi_system_id axp288_no_battery_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "STK1A32SC"),
 		},
+		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
 	},
 	{
 		/* Meegopad T02 */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "MEEGOPAD T02"),
 		},
+		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
 	},
 	{	/* Mele PCG03 Mini PC */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Mini PC"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Mini PC"),
 		},
+		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
 	},
 	{
 		/* Minix Neo Z83-4 mini PC */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MINIX"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
-		}
+		},
+		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
 	},
 	{
-		/* Various Ace PC/Meegopad/MinisForum/Wintel Mini-PCs/HDMI-sticks */
+		/*
+		 * One Mix 1, this uses the "T3 MRD" boardname used by
+		 * generic mini PCs, but it is a mini laptop so it does
+		 * actually have a battery!
+		 */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "T3 MRD"),
+			DMI_MATCH(DMI_BIOS_DATE, "06/14/2018"),
+		},
+		.driver_data = NULL,
+	},
+	{
+		/*
+		 * Various Ace PC/Meegopad/MinisForum/Wintel Mini-PCs/HDMI-sticks
+		 * This entry must be last because it is generic, this allows
+		 * adding more specifuc quirks overriding this generic entry.
+		 */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "T3 MRD"),
 			DMI_MATCH(DMI_CHASSIS_TYPE, "3"),
 			DMI_MATCH(DMI_BIOS_VENDOR, "American Megatrends Inc."),
-			DMI_MATCH(DMI_BIOS_VERSION, "5.11"),
 		},
+		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
 	},
 	{}
 };
 
-static int axp288_fuel_gauge_probe(struct platform_device *pdev)
+static int axp288_fuel_gauge_read_initial_regs(struct axp288_fg_info *info)
 {
-	int i, ret = 0;
-	struct axp288_fg_info *info;
-	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
-	struct power_supply_config psy_cfg = {};
-	static const char * const iio_chan_name[] = {
-		[BAT_CHRG_CURR] = "axp288-chrg-curr",
-		[BAT_D_CURR] = "axp288-chrg-d-curr",
-		[BAT_VOLT] = "axp288-batt-volt",
-	};
 	unsigned int val;
-
-	if (dmi_check_system(axp288_no_battery_list))
-		return -ENODEV;
-
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	info->dev = &pdev->dev;
-	info->regmap = axp20x->regmap;
-	info->regmap_irqc = axp20x->regmap_irqc;
-	info->status = POWER_SUPPLY_STATUS_UNKNOWN;
-	info->valid = 0;
-
-	platform_set_drvdata(pdev, info);
-
-	mutex_init(&info->lock);
-
-	for (i = 0; i < IIO_CHANNEL_NUM; i++) {
-		/*
-		 * Note cannot use devm_iio_channel_get because x86 systems
-		 * lack the device<->channel maps which iio_channel_get will
-		 * try to use when passed a non NULL device pointer.
-		 */
-		info->iio_channel[i] =
-			iio_channel_get(NULL, iio_chan_name[i]);
-		if (IS_ERR(info->iio_channel[i])) {
-			ret = PTR_ERR(info->iio_channel[i]);
-			dev_dbg(&pdev->dev, "error getting iiochan %s: %d\n",
-				iio_chan_name[i], ret);
-			/* Wait for axp288_adc to load */
-			if (ret == -ENODEV)
-				ret = -EPROBE_DEFER;
-
-			goto out_free_iio_chan;
-		}
-	}
-
-	ret = iosf_mbi_block_punit_i2c_access();
-	if (ret < 0)
-		goto out_free_iio_chan;
+	int ret;
 
 	/*
 	 * On some devices the fuelgauge and charger parts of the axp288 are
 	 * not used, check that the fuelgauge is enabled (CC_CTRL != 0).
 	 */
-	ret = regmap_read(axp20x->regmap, AXP20X_CC_CTRL, &val);
+	ret = regmap_read(info->regmap, AXP20X_CC_CTRL, &val);
 	if (ret < 0)
-		goto unblock_punit_i2c_access;
-	if (val == 0) {
-		ret = -ENODEV;
-		goto unblock_punit_i2c_access;
-	}
+		return ret;
+	if (val == 0)
+		return -ENODEV;
 
 	ret = fuel_gauge_reg_readb(info, AXP288_FG_DES_CAP1_REG);
 	if (ret < 0)
-		goto unblock_punit_i2c_access;
+		return ret;
 
 	if (!(ret & FG_DES_CAP1_VALID)) {
-		dev_err(&pdev->dev, "axp288 not configured by firmware\n");
-		ret = -ENODEV;
-		goto unblock_punit_i2c_access;
+		dev_err(info->dev, "axp288 not configured by firmware\n");
+		return -ENODEV;
 	}
 
 	ret = fuel_gauge_reg_readb(info, AXP20X_CHRG_CTRL1);
 	if (ret < 0)
-		goto unblock_punit_i2c_access;
+		return ret;
 	switch ((ret & CHRG_CCCV_CV_MASK) >> CHRG_CCCV_CV_BIT_POS) {
 	case CHRG_CCCV_CV_4100MV:
 		info->max_volt = 4100;
@@ -707,38 +659,130 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 
 	ret = fuel_gauge_reg_readb(info, AXP20X_PWR_OP_MODE);
 	if (ret < 0)
-		goto unblock_punit_i2c_access;
+		return ret;
 	info->pwr_op = ret;
 
 	ret = fuel_gauge_reg_readb(info, AXP288_FG_LOW_CAP_REG);
 	if (ret < 0)
-		goto unblock_punit_i2c_access;
+		return ret;
 	info->low_cap = ret;
 
-unblock_punit_i2c_access:
-	iosf_mbi_unblock_punit_i2c_access();
-	/* In case we arrive here by goto because of a register access error */
-	if (ret < 0)
-		goto out_free_iio_chan;
-
-	psy_cfg.drv_data = info;
-	info->bat = power_supply_register(&pdev->dev, &fuel_gauge_desc, &psy_cfg);
-	if (IS_ERR(info->bat)) {
-		ret = PTR_ERR(info->bat);
-		dev_err(&pdev->dev, "failed to register battery: %d\n", ret);
-		goto out_free_iio_chan;
-	}
-
-	fuel_gauge_init_irq(info, pdev);
-
 	return 0;
+}
 
-out_free_iio_chan:
+static void axp288_fuel_gauge_release_iio_chans(void *data)
+{
+	struct axp288_fg_info *info = data;
+	int i;
+
 	for (i = 0; i < IIO_CHANNEL_NUM; i++)
 		if (!IS_ERR_OR_NULL(info->iio_channel[i]))
 			iio_channel_release(info->iio_channel[i]);
+}
 
-	return ret;
+static int axp288_fuel_gauge_probe(struct platform_device *pdev)
+{
+	struct axp288_fg_info *info;
+	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
+	struct power_supply_config psy_cfg = {};
+	static const char * const iio_chan_name[] = {
+		[BAT_CHRG_CURR] = "axp288-chrg-curr",
+		[BAT_D_CURR] = "axp288-chrg-d-curr",
+		[BAT_VOLT] = "axp288-batt-volt",
+	};
+	const struct dmi_system_id *dmi_id;
+	struct device *dev = &pdev->dev;
+	unsigned long quirks = 0;
+	int i, pirq, ret;
+
+	/*
+	 * Normally the native AXP288 fg/charger drivers are preferred but
+	 * on some devices the ACPI drivers should be used instead.
+	 */
+	if (!acpi_quirk_skip_acpi_ac_and_battery())
+		return -ENODEV;
+
+	dmi_id = dmi_first_match(axp288_quirks);
+	if (dmi_id)
+		quirks = (unsigned long)dmi_id->driver_data;
+
+	if (quirks & AXP288_QUIRK_NO_BATTERY)
+		return -ENODEV;
+
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	info->dev = dev;
+	info->regmap = axp20x->regmap;
+	info->status = POWER_SUPPLY_STATUS_UNKNOWN;
+	info->valid = 0;
+
+	platform_set_drvdata(pdev, info);
+
+	mutex_init(&info->lock);
+
+	for (i = 0; i < AXP288_FG_INTR_NUM; i++) {
+		pirq = platform_get_irq(pdev, i);
+		ret = regmap_irq_get_virq(axp20x->regmap_irqc, pirq);
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "getting vIRQ %d\n", pirq);
+
+		info->irq[i] = ret;
+	}
+
+	for (i = 0; i < IIO_CHANNEL_NUM; i++) {
+		/*
+		 * Note cannot use devm_iio_channel_get because x86 systems
+		 * lack the device<->channel maps which iio_channel_get will
+		 * try to use when passed a non NULL device pointer.
+		 */
+		info->iio_channel[i] =
+			iio_channel_get(NULL, iio_chan_name[i]);
+		if (IS_ERR(info->iio_channel[i])) {
+			ret = PTR_ERR(info->iio_channel[i]);
+			dev_dbg(dev, "error getting iiochan %s: %d\n", iio_chan_name[i], ret);
+			/* Wait for axp288_adc to load */
+			if (ret == -ENODEV)
+				ret = -EPROBE_DEFER;
+
+			axp288_fuel_gauge_release_iio_chans(info);
+			return ret;
+		}
+	}
+
+	ret = devm_add_action_or_reset(dev, axp288_fuel_gauge_release_iio_chans, info);
+	if (ret)
+		return ret;
+
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret < 0)
+		return ret;
+
+	ret = axp288_fuel_gauge_read_initial_regs(info);
+	iosf_mbi_unblock_punit_i2c_access();
+	if (ret < 0)
+		return ret;
+
+	psy_cfg.drv_data = info;
+	if (no_current_sense_res)
+		fuel_gauge_desc.num_properties = ARRAY_SIZE(fuel_gauge_props) - 3;
+	info->bat = devm_power_supply_register(dev, &fuel_gauge_desc, &psy_cfg);
+	if (IS_ERR(info->bat)) {
+		ret = PTR_ERR(info->bat);
+		dev_err(dev, "failed to register battery: %d\n", ret);
+		return ret;
+	}
+
+	for (i = 0; i < AXP288_FG_INTR_NUM; i++) {
+		ret = devm_request_threaded_irq(dev, info->irq[i], NULL,
+						fuel_gauge_thread_handler,
+						IRQF_ONESHOT, DEV_NAME, info);
+		if (ret)
+			return dev_err_probe(dev, ret, "requesting IRQ %d\n", info->irq[i]);
+	}
+
+	return 0;
 }
 
 static const struct platform_device_id axp288_fg_id_table[] = {
@@ -747,26 +791,8 @@ static const struct platform_device_id axp288_fg_id_table[] = {
 };
 MODULE_DEVICE_TABLE(platform, axp288_fg_id_table);
 
-static int axp288_fuel_gauge_remove(struct platform_device *pdev)
-{
-	struct axp288_fg_info *info = platform_get_drvdata(pdev);
-	int i;
-
-	power_supply_unregister(info->bat);
-
-	for (i = 0; i < AXP288_FG_INTR_NUM; i++)
-		if (info->irq[i] >= 0)
-			free_irq(info->irq[i], info);
-
-	for (i = 0; i < IIO_CHANNEL_NUM; i++)
-		iio_channel_release(info->iio_channel[i]);
-
-	return 0;
-}
-
 static struct platform_driver axp288_fuel_gauge_driver = {
 	.probe = axp288_fuel_gauge_probe,
-	.remove = axp288_fuel_gauge_remove,
 	.id_table = axp288_fg_id_table,
 	.driver = {
 		.name = DEV_NAME,

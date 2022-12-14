@@ -1238,7 +1238,7 @@ static int swim3_attach(struct macio_dev *mdev,
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 out_free_tag_set:
 	blk_mq_free_tag_set(&fs->tag_set);
 out_unregister:

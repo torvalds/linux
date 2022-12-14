@@ -47,10 +47,18 @@ properties:
 
   intel,syscfg:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to Chip configuration registers
+          - description: ComboPhy instance id
     description: Chip configuration registers handle and ComboPhy instance id
 
   intel,hsio:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to HSIO registers
+          - description: ComboPhy instance id
     description: HSIO registers handle and ComboPhy instance id on NOC
 
   intel,aggregation:

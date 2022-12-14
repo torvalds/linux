@@ -94,11 +94,9 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	 * the module SYSSTATUS register
 	 */
 	pm_runtime_enable(&pdev->dev);
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
+	if (ret < 0)
 		goto runtime_err;
-	}
 
 	/* Determine number of locks */
 	i = readl(io_base + SYSSTATUS_OFFSET);

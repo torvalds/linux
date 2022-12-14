@@ -19,6 +19,11 @@ properties:
   interrupts:
     maxItems: 1
 
+  reset-gpios:
+    maxItems: 1
+
+  vdd-supply: true
+
 required:
   - compatible
   - reg

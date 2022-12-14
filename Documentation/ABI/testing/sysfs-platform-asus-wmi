@@ -57,3 +57,44 @@ Description:
 			* 0 - default,
 			* 1 - overboost,
 			* 2 - silent
+
+What:		/sys/devices/platform/<platform>/gpu_mux_mode
+Date:		Aug 2022
+KernelVersion:	6.1
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Switch the GPU hardware MUX mode. Laptops with this feature can
+		can be toggled to boot with only the dGPU (discrete mode) or in
+		standard Optimus/Hybrid mode. On switch a reboot is required:
+
+			* 0 - Discrete GPU,
+			* 1 - Optimus/Hybrid,
+
+What:		/sys/devices/platform/<platform>/dgpu_disable
+Date:		Aug 2022
+KernelVersion:	5.17
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Disable discrete GPU:
+			* 0 - Enable dGPU,
+			* 1 - Disable dGPU
+
+What:		/sys/devices/platform/<platform>/egpu_enable
+Date:		Aug 2022
+KernelVersion:	5.17
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Enable the external GPU paired with ROG X-Flow laptops.
+		Toggling this setting will also trigger ACPI to disable the dGPU:
+
+			* 0 - Disable,
+			* 1 - Enable
+
+What:		/sys/devices/platform/<platform>/panel_od
+Date:		Aug 2022
+KernelVersion:	5.17
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Enable an LCD response-time boost to reduce or remove ghosting:
+			* 0 - Disable,
+			* 1 - Enable

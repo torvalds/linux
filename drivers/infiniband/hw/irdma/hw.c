@@ -61,7 +61,7 @@ static void irdma_iwarp_ce_handler(struct irdma_sc_cq *iwcq)
 	struct irdma_cq *cq = iwcq->back_cq;
 
 	if (!cq->user_mode)
-		cq->armed = false;
+		atomic_set(&cq->armed, 0);
 	if (cq->ibcq.comp_handler)
 		cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
@@ -75,12 +75,12 @@ static void irdma_puda_ce_handler(struct irdma_pci_f *rf,
 				  struct irdma_sc_cq *cq)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
-	enum irdma_status_code status;
 	u32 compl_error;
+	int status;
 
 	do {
 		status = irdma_puda_poll_cmpl(dev, cq, &compl_error);
-		if (status == IRDMA_ERR_Q_EMPTY)
+		if (status == -ENOENT)
 			break;
 		if (status) {
 			ibdev_dbg(to_ibdev(dev), "ERR: puda status = %d\n", status);
@@ -138,59 +138,68 @@ static void irdma_set_flush_fields(struct irdma_sc_qp *qp,
 	qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
 
 	switch (info->ae_id) {
-	case IRDMA_AE_AMP_UNALLOCATED_STAG:
 	case IRDMA_AE_AMP_BOUNDS_VIOLATION:
 	case IRDMA_AE_AMP_INVALID_STAG:
-		qp->event_type = IRDMA_QP_EVENT_ACCESS_ERR;
-		fallthrough;
+	case IRDMA_AE_AMP_RIGHTS_VIOLATION:
+	case IRDMA_AE_AMP_UNALLOCATED_STAG:
 	case IRDMA_AE_AMP_BAD_PD:
-	case IRDMA_AE_UDA_XMIT_BAD_PD:
-		qp->flush_code = FLUSH_PROT_ERR;
-		break;
 	case IRDMA_AE_AMP_BAD_QP:
-	case IRDMA_AE_WQE_UNEXPECTED_OPCODE:
-		qp->flush_code = FLUSH_LOC_QP_OP_ERR;
-		break;
 	case IRDMA_AE_AMP_BAD_STAG_KEY:
 	case IRDMA_AE_AMP_BAD_STAG_INDEX:
 	case IRDMA_AE_AMP_TO_WRAP:
-	case IRDMA_AE_AMP_RIGHTS_VIOLATION:
-	case IRDMA_AE_AMP_INVALIDATE_NO_REMOTE_ACCESS_RIGHTS:
 	case IRDMA_AE_PRIV_OPERATION_DENIED:
-	case IRDMA_AE_IB_INVALID_REQUEST:
+		qp->flush_code = FLUSH_PROT_ERR;
+		qp->event_type = IRDMA_QP_EVENT_ACCESS_ERR;
+		break;
+	case IRDMA_AE_UDA_XMIT_BAD_PD:
+	case IRDMA_AE_WQE_UNEXPECTED_OPCODE:
+		qp->flush_code = FLUSH_LOC_QP_OP_ERR;
+		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
+		break;
+	case IRDMA_AE_UDA_XMIT_DGRAM_TOO_LONG:
+	case IRDMA_AE_UDA_XMIT_DGRAM_TOO_SHORT:
+	case IRDMA_AE_UDA_L4LEN_INVALID:
+	case IRDMA_AE_DDP_UBE_INVALID_MO:
+	case IRDMA_AE_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:
+		qp->flush_code = FLUSH_LOC_LEN_ERR;
+		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
+		break;
+	case IRDMA_AE_AMP_INVALIDATE_NO_REMOTE_ACCESS_RIGHTS:
 	case IRDMA_AE_IB_REMOTE_ACCESS_ERROR:
 		qp->flush_code = FLUSH_REM_ACCESS_ERR;
 		qp->event_type = IRDMA_QP_EVENT_ACCESS_ERR;
 		break;
 	case IRDMA_AE_LLP_SEGMENT_TOO_SMALL:
-	case IRDMA_AE_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:
-	case IRDMA_AE_UDA_XMIT_DGRAM_TOO_LONG:
-	case IRDMA_AE_UDA_XMIT_DGRAM_TOO_SHORT:
-	case IRDMA_AE_UDA_L4LEN_INVALID:
+	case IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR:
 	case IRDMA_AE_ROCE_RSP_LENGTH_ERROR:
-		qp->flush_code = FLUSH_LOC_LEN_ERR;
+	case IRDMA_AE_IB_REMOTE_OP_ERROR:
+		qp->flush_code = FLUSH_REM_OP_ERR;
+		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
 		break;
 	case IRDMA_AE_LCE_QP_CATASTROPHIC:
 		qp->flush_code = FLUSH_FATAL_ERR;
+		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
 		break;
-	case IRDMA_AE_DDP_UBE_INVALID_MO:
 	case IRDMA_AE_IB_RREQ_AND_Q1_FULL:
-	case IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR:
 		qp->flush_code = FLUSH_GENERAL_ERR;
 		break;
 	case IRDMA_AE_LLP_TOO_MANY_RETRIES:
 		qp->flush_code = FLUSH_RETRY_EXC_ERR;
+		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
 		break;
 	case IRDMA_AE_AMP_MWBIND_INVALID_RIGHTS:
 	case IRDMA_AE_AMP_MWBIND_BIND_DISABLED:
 	case IRDMA_AE_AMP_MWBIND_INVALID_BOUNDS:
 		qp->flush_code = FLUSH_MW_BIND_ERR;
+		qp->event_type = IRDMA_QP_EVENT_ACCESS_ERR;
 		break;
-	case IRDMA_AE_IB_REMOTE_OP_ERROR:
-		qp->flush_code = FLUSH_REM_OP_ERR;
+	case IRDMA_AE_IB_INVALID_REQUEST:
+		qp->flush_code = FLUSH_REM_INV_REQ_ERR;
+		qp->event_type = IRDMA_QP_EVENT_REQ_ERR;
 		break;
 	default:
-		qp->flush_code = FLUSH_FATAL_ERR;
+		qp->flush_code = FLUSH_GENERAL_ERR;
+		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
 		break;
 	}
 }
@@ -257,10 +266,6 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 				iwqp->last_aeq = info->ae_id;
 			spin_unlock_irqrestore(&iwqp->lock, flags);
 			ctx_info = &iwqp->ctx_info;
-			if (rdma_protocol_roce(&iwqp->iwdev->ibdev, 1))
-				ctx_info->roce_info->err_rq_idx_valid = true;
-			else
-				ctx_info->iwarp_info->err_rq_idx_valid = true;
 		} else {
 			if (info->ae_id != IRDMA_AE_CQ_OPERATION_ERROR)
 				continue;
@@ -370,16 +375,12 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 		case IRDMA_AE_LCE_FUNCTION_CATASTROPHIC:
 		case IRDMA_AE_LCE_CQ_CATASTROPHIC:
 		case IRDMA_AE_UDA_XMIT_DGRAM_TOO_LONG:
-			if (rdma_protocol_roce(&iwdev->ibdev, 1))
-				ctx_info->roce_info->err_rq_idx_valid = false;
-			else
-				ctx_info->iwarp_info->err_rq_idx_valid = false;
-			fallthrough;
 		default:
-			ibdev_err(&iwdev->ibdev, "abnormal ae_id = 0x%x bool qp=%d qp_id = %d\n",
-				  info->ae_id, info->qp, info->qp_cq_id);
+			ibdev_err(&iwdev->ibdev, "abnormal ae_id = 0x%x bool qp=%d qp_id = %d, ae_src=%d\n",
+				  info->ae_id, info->qp, info->qp_cq_id, info->ae_src);
 			if (rdma_protocol_roce(&iwdev->ibdev, 1)) {
-				if (!info->sq && ctx_info->roce_info->err_rq_idx_valid) {
+				ctx_info->roce_info->err_rq_idx_valid = info->rq;
+				if (info->rq) {
 					ctx_info->roce_info->err_rq_idx = info->wqe_idx;
 					irdma_sc_qp_setctx_roce(&iwqp->sc_qp, iwqp->host_ctx.va,
 								ctx_info);
@@ -388,7 +389,8 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 				irdma_cm_disconn(iwqp);
 				break;
 			}
-			if (!info->sq && ctx_info->iwarp_info->err_rq_idx_valid) {
+			ctx_info->iwarp_info->err_rq_idx_valid = info->rq;
+			if (info->rq) {
 				ctx_info->iwarp_info->err_rq_idx = info->wqe_idx;
 				ctx_info->tcp_info_valid = false;
 				ctx_info->iwarp_info_valid = true;
@@ -456,7 +458,7 @@ static void irdma_ceq_dpc(struct tasklet_struct *t)
  * Allocate iwdev msix table and copy the msix info to the table
  * Return 0 if successful, otherwise return error
  */
-static enum irdma_status_code irdma_save_msix_info(struct irdma_pci_f *rf)
+static int irdma_save_msix_info(struct irdma_pci_f *rf)
 {
 	struct irdma_qvlist_info *iw_qvlist;
 	struct irdma_qv_info *iw_qvinfo;
@@ -466,13 +468,13 @@ static enum irdma_status_code irdma_save_msix_info(struct irdma_pci_f *rf)
 	size_t size;
 
 	if (!rf->msix_count)
-		return IRDMA_ERR_NO_INTR;
+		return -EINVAL;
 
 	size = sizeof(struct irdma_msix_vector) * rf->msix_count;
 	size += struct_size(iw_qvlist, qv_info, rf->msix_count);
 	rf->iw_msixtbl = kzalloc(size, GFP_KERNEL);
 	if (!rf->iw_msixtbl)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	rf->iw_qvlist = (struct irdma_qvlist_info *)
 			(&rf->iw_msixtbl[rf->msix_count]);
@@ -564,9 +566,9 @@ static void irdma_destroy_irq(struct irdma_pci_f *rf,
  */
 static void irdma_destroy_cqp(struct irdma_pci_f *rf, bool free_hwcqp)
 {
-	enum irdma_status_code status = 0;
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_cqp *cqp = &rf->cqp;
+	int status = 0;
 
 	if (rf->cqp_cmpl_wq)
 		destroy_workqueue(rf->cqp_cmpl_wq);
@@ -606,9 +608,9 @@ static void irdma_destroy_virt_aeq(struct irdma_pci_f *rf)
  */
 static void irdma_destroy_aeq(struct irdma_pci_f *rf)
 {
-	enum irdma_status_code status = IRDMA_ERR_NOT_READY;
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_aeq *aeq = &rf->aeq;
+	int status = -EBUSY;
 
 	if (!rf->msix_shared) {
 		rf->sc_dev.irq_ops->irdma_cfg_aeq(&rf->sc_dev, rf->iw_msixtbl->idx, false);
@@ -642,8 +644,8 @@ exit:
  */
 static void irdma_destroy_ceq(struct irdma_pci_f *rf, struct irdma_ceq *iwceq)
 {
-	enum irdma_status_code status;
 	struct irdma_sc_dev *dev = &rf->sc_dev;
+	int status;
 
 	if (rf->reset)
 		goto exit;
@@ -733,7 +735,7 @@ static void irdma_destroy_ccq(struct irdma_pci_f *rf)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_ccq *ccq = &rf->ccq;
-	enum irdma_status_code status = 0;
+	int status = 0;
 
 	if (!rf->reset)
 		status = irdma_sc_ccq_destroy(dev->ccq, 0, true);
@@ -796,9 +798,8 @@ static void irdma_del_hmc_objects(struct irdma_sc_dev *dev,
  * @dev: hardware control device structure
  * @info: information for the hmc object to create
  */
-static enum irdma_status_code
-irdma_create_hmc_obj_type(struct irdma_sc_dev *dev,
-			  struct irdma_hmc_create_obj_info *info)
+static int irdma_create_hmc_obj_type(struct irdma_sc_dev *dev,
+				     struct irdma_hmc_create_obj_info *info)
 {
 	return irdma_sc_create_hmc_obj(dev, info);
 }
@@ -812,13 +813,12 @@ irdma_create_hmc_obj_type(struct irdma_sc_dev *dev,
  * Create the device hmc objects and allocate hmc pages
  * Return 0 if successful, otherwise clean up and return error
  */
-static enum irdma_status_code
-irdma_create_hmc_objs(struct irdma_pci_f *rf, bool privileged, enum irdma_vers vers)
+static int irdma_create_hmc_objs(struct irdma_pci_f *rf, bool privileged,
+				 enum irdma_vers vers)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_hmc_create_obj_info info = {};
-	enum irdma_status_code status = 0;
-	int i;
+	int i, status = 0;
 
 	info.hmc_info = dev->hmc_info;
 	info.privileged = privileged;
@@ -868,9 +868,9 @@ irdma_create_hmc_objs(struct irdma_pci_f *rf, bool privileged, enum irdma_vers v
  * update the memptr to point to the new aligned memory
  * Return 0 if successful, otherwise return no memory error
  */
-static enum irdma_status_code
-irdma_obj_aligned_mem(struct irdma_pci_f *rf, struct irdma_dma_mem *memptr,
-		      u32 size, u32 mask)
+static int irdma_obj_aligned_mem(struct irdma_pci_f *rf,
+				 struct irdma_dma_mem *memptr, u32 size,
+				 u32 mask)
 {
 	unsigned long va, newva;
 	unsigned long extra;
@@ -884,7 +884,7 @@ irdma_obj_aligned_mem(struct irdma_pci_f *rf, struct irdma_dma_mem *memptr,
 	memptr->pa = rf->obj_next.pa + extra;
 	memptr->size = size;
 	if (((u8 *)memptr->va + size) > ((u8 *)rf->obj_mem.va + rf->obj_mem.size))
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	rf->obj_next.va = (u8 *)memptr->va + size;
 	rf->obj_next.pa = memptr->pa + size;
@@ -899,25 +899,24 @@ irdma_obj_aligned_mem(struct irdma_pci_f *rf, struct irdma_dma_mem *memptr,
  * Return 0, if the cqp and all the resources associated with it
  * are successfully created, otherwise return error
  */
-static enum irdma_status_code irdma_create_cqp(struct irdma_pci_f *rf)
+static int irdma_create_cqp(struct irdma_pci_f *rf)
 {
-	enum irdma_status_code status;
 	u32 sqsize = IRDMA_CQP_SW_SQSIZE_2048;
 	struct irdma_dma_mem mem;
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_cqp_init_info cqp_init_info = {};
 	struct irdma_cqp *cqp = &rf->cqp;
 	u16 maj_err, min_err;
-	int i;
+	int i, status;
 
 	cqp->cqp_requests = kcalloc(sqsize, sizeof(*cqp->cqp_requests), GFP_KERNEL);
 	if (!cqp->cqp_requests)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp->scratch_array = kcalloc(sqsize, sizeof(*cqp->scratch_array), GFP_KERNEL);
 	if (!cqp->scratch_array) {
 		kfree(cqp->cqp_requests);
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 	}
 
 	dev->cqp = &cqp->sc_cqp;
@@ -929,7 +928,7 @@ static enum irdma_status_code irdma_create_cqp(struct irdma_pci_f *rf)
 	if (!cqp->sq.va) {
 		kfree(cqp->scratch_array);
 		kfree(cqp->cqp_requests);
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 	}
 
 	status = irdma_obj_aligned_mem(rf, &mem, sizeof(struct irdma_cqp_ctx),
@@ -999,12 +998,12 @@ exit:
  * Return 0, if the ccq and the resources associated with it
  * are successfully created, otherwise return error
  */
-static enum irdma_status_code irdma_create_ccq(struct irdma_pci_f *rf)
+static int irdma_create_ccq(struct irdma_pci_f *rf)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
-	enum irdma_status_code status;
 	struct irdma_ccq_init_info info = {};
 	struct irdma_ccq *ccq = &rf->ccq;
+	int status;
 
 	dev->ccq = &ccq->sc_cq;
 	dev->ccq->dev = dev;
@@ -1015,7 +1014,7 @@ static enum irdma_status_code irdma_create_ccq(struct irdma_pci_f *rf)
 	ccq->mem_cq.va = dma_alloc_coherent(dev->hw->device, ccq->mem_cq.size,
 					    &ccq->mem_cq.pa, GFP_KERNEL);
 	if (!ccq->mem_cq.va)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	status = irdma_obj_aligned_mem(rf, &ccq->shadow_area,
 				       ccq->shadow_area.size,
@@ -1054,9 +1053,9 @@ exit:
  * Allocate a mac ip entry and add it to the hw table Return 0
  * if successful, otherwise return error
  */
-static enum irdma_status_code irdma_alloc_set_mac(struct irdma_device *iwdev)
+static int irdma_alloc_set_mac(struct irdma_device *iwdev)
 {
-	enum irdma_status_code status;
+	int status;
 
 	status = irdma_alloc_local_mac_entry(iwdev->rf,
 					     &iwdev->mac_ip_table_idx);
@@ -1082,9 +1081,8 @@ static enum irdma_status_code irdma_alloc_set_mac(struct irdma_device *iwdev)
  * Allocate interrupt resources and enable irq handling
  * Return 0 if successful, otherwise return error
  */
-static enum irdma_status_code
-irdma_cfg_ceq_vector(struct irdma_pci_f *rf, struct irdma_ceq *iwceq,
-		     u32 ceq_id, struct irdma_msix_vector *msix_vec)
+static int irdma_cfg_ceq_vector(struct irdma_pci_f *rf, struct irdma_ceq *iwceq,
+				u32 ceq_id, struct irdma_msix_vector *msix_vec)
 {
 	int status;
 
@@ -1103,7 +1101,7 @@ irdma_cfg_ceq_vector(struct irdma_pci_f *rf, struct irdma_ceq *iwceq,
 	irq_update_affinity_hint(msix_vec->irq, &msix_vec->mask);
 	if (status) {
 		ibdev_dbg(&rf->iwdev->ibdev, "ERR: ceq irq config fail\n");
-		return IRDMA_ERR_CFG;
+		return status;
 	}
 
 	msix_vec->ceq_id = ceq_id;
@@ -1119,7 +1117,7 @@ irdma_cfg_ceq_vector(struct irdma_pci_f *rf, struct irdma_ceq *iwceq,
  * Allocate interrupt resources and enable irq handling
  * Return 0 if successful, otherwise return error
  */
-static enum irdma_status_code irdma_cfg_aeq_vector(struct irdma_pci_f *rf)
+static int irdma_cfg_aeq_vector(struct irdma_pci_f *rf)
 {
 	struct irdma_msix_vector *msix_vec = rf->iw_msixtbl;
 	u32 ret = 0;
@@ -1131,7 +1129,7 @@ static enum irdma_status_code irdma_cfg_aeq_vector(struct irdma_pci_f *rf)
 	}
 	if (ret) {
 		ibdev_dbg(&rf->iwdev->ibdev, "ERR: aeq irq config fail\n");
-		return IRDMA_ERR_CFG;
+		return -EINVAL;
 	}
 
 	rf->sc_dev.irq_ops->irdma_cfg_aeq(&rf->sc_dev, msix_vec->idx, true);
@@ -1149,12 +1147,10 @@ static enum irdma_status_code irdma_cfg_aeq_vector(struct irdma_pci_f *rf)
  * Return 0, if the ceq and the resources associated with it
  * are successfully created, otherwise return error
  */
-static enum irdma_status_code irdma_create_ceq(struct irdma_pci_f *rf,
-					       struct irdma_ceq *iwceq,
-					       u32 ceq_id,
-					       struct irdma_sc_vsi *vsi)
+static int irdma_create_ceq(struct irdma_pci_f *rf, struct irdma_ceq *iwceq,
+			    u32 ceq_id, struct irdma_sc_vsi *vsi)
 {
-	enum irdma_status_code status;
+	int status;
 	struct irdma_ceq_init_info info = {};
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	u64 scratch;
@@ -1169,7 +1165,7 @@ static enum irdma_status_code irdma_create_ceq(struct irdma_pci_f *rf,
 	iwceq->mem.va = dma_alloc_coherent(dev->hw->device, iwceq->mem.size,
 					   &iwceq->mem.pa, GFP_KERNEL);
 	if (!iwceq->mem.va)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	info.ceq_id = ceq_id;
 	info.ceqe_base = iwceq->mem.va;
@@ -1205,18 +1201,18 @@ static enum irdma_status_code irdma_create_ceq(struct irdma_pci_f *rf,
  * Create the ceq 0 and configure it's msix interrupt vector
  * Return 0, if successfully set up, otherwise return error
  */
-static enum irdma_status_code irdma_setup_ceq_0(struct irdma_pci_f *rf)
+static int irdma_setup_ceq_0(struct irdma_pci_f *rf)
 {
 	struct irdma_ceq *iwceq;
 	struct irdma_msix_vector *msix_vec;
 	u32 i;
-	enum irdma_status_code status = 0;
+	int status = 0;
 	u32 num_ceqs;
 
 	num_ceqs = min(rf->msix_count, rf->sc_dev.hmc_fpm_misc.max_ceqs);
 	rf->ceqlist = kcalloc(num_ceqs, sizeof(*rf->ceqlist), GFP_KERNEL);
 	if (!rf->ceqlist) {
-		status = IRDMA_ERR_NO_MEMORY;
+		status = -ENOMEM;
 		goto exit;
 	}
 
@@ -1262,14 +1258,13 @@ exit:
  * Create the ceq's and configure their msix interrupt vectors
  * Return 0, if ceqs are successfully set up, otherwise return error
  */
-static enum irdma_status_code irdma_setup_ceqs(struct irdma_pci_f *rf,
-					       struct irdma_sc_vsi *vsi)
+static int irdma_setup_ceqs(struct irdma_pci_f *rf, struct irdma_sc_vsi *vsi)
 {
 	u32 i;
 	u32 ceq_id;
 	struct irdma_ceq *iwceq;
 	struct irdma_msix_vector *msix_vec;
-	enum irdma_status_code status;
+	int status;
 	u32 num_ceqs;
 
 	num_ceqs = min(rf->msix_count, rf->sc_dev.hmc_fpm_misc.max_ceqs);
@@ -1303,22 +1298,21 @@ del_ceqs:
 	return status;
 }
 
-static enum irdma_status_code irdma_create_virt_aeq(struct irdma_pci_f *rf,
-						    u32 size)
+static int irdma_create_virt_aeq(struct irdma_pci_f *rf, u32 size)
 {
-	enum irdma_status_code status = IRDMA_ERR_NO_MEMORY;
 	struct irdma_aeq *aeq = &rf->aeq;
 	dma_addr_t *pg_arr;
 	u32 pg_cnt;
+	int status;
 
 	if (rf->rdma_ver < IRDMA_GEN_2)
-		return IRDMA_NOT_SUPPORTED;
+		return -EOPNOTSUPP;
 
 	aeq->mem.size = sizeof(struct irdma_sc_aeqe) * size;
 	aeq->mem.va = vzalloc(aeq->mem.size);
 
 	if (!aeq->mem.va)
-		return status;
+		return -ENOMEM;
 
 	pg_cnt = DIV_ROUND_UP(aeq->mem.size, PAGE_SIZE);
 	status = irdma_get_pble(rf->pble_rsrc, &aeq->palloc, pg_cnt, true);
@@ -1345,15 +1339,15 @@ static enum irdma_status_code irdma_create_virt_aeq(struct irdma_pci_f *rf,
  * Return 0, if the aeq and the resources associated with it
  * are successfully created, otherwise return error
  */
-static enum irdma_status_code irdma_create_aeq(struct irdma_pci_f *rf)
+static int irdma_create_aeq(struct irdma_pci_f *rf)
 {
-	enum irdma_status_code status;
 	struct irdma_aeq_init_info info = {};
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_aeq *aeq = &rf->aeq;
 	struct irdma_hmc_info *hmc_info = rf->sc_dev.hmc_info;
 	u32 aeq_size;
 	u8 multiplier = (rf->protocol_used == IRDMA_IWARP_PROTOCOL_ONLY) ? 2 : 1;
+	int status;
 
 	aeq_size = multiplier * hmc_info->hmc_obj[IRDMA_HMC_IW_QP].cnt +
 		   hmc_info->hmc_obj[IRDMA_HMC_IW_CQ].cnt;
@@ -1412,10 +1406,10 @@ err:
  * Create the aeq and configure its msix interrupt vector
  * Return 0 if successful, otherwise return error
  */
-static enum irdma_status_code irdma_setup_aeq(struct irdma_pci_f *rf)
+static int irdma_setup_aeq(struct irdma_pci_f *rf)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
-	enum irdma_status_code status;
+	int status;
 
 	status = irdma_create_aeq(rf);
 	if (status)
@@ -1439,10 +1433,10 @@ static enum irdma_status_code irdma_setup_aeq(struct irdma_pci_f *rf)
  *
  * Return 0 if successful, otherwise return error
  */
-static enum irdma_status_code irdma_initialize_ilq(struct irdma_device *iwdev)
+static int irdma_initialize_ilq(struct irdma_device *iwdev)
 {
 	struct irdma_puda_rsrc_info info = {};
-	enum irdma_status_code status;
+	int status;
 
 	info.type = IRDMA_PUDA_RSRC_TYPE_ILQ;
 	info.cq_id = 1;
@@ -1469,10 +1463,10 @@ static enum irdma_status_code irdma_initialize_ilq(struct irdma_device *iwdev)
  *
  * Return 0 if successful, otherwise return error
  */
-static enum irdma_status_code irdma_initialize_ieq(struct irdma_device *iwdev)
+static int irdma_initialize_ieq(struct irdma_device *iwdev)
 {
 	struct irdma_puda_rsrc_info info = {};
-	enum irdma_status_code status;
+	int status;
 
 	info.type = IRDMA_PUDA_RSRC_TYPE_IEQ;
 	info.cq_id = 2;
@@ -1515,15 +1509,12 @@ void irdma_reinitialize_ieq(struct irdma_sc_vsi *vsi)
  * the hmc objects and create the objects
  * Return 0 if successful, otherwise return error
  */
-static enum irdma_status_code irdma_hmc_setup(struct irdma_pci_f *rf)
+static int irdma_hmc_setup(struct irdma_pci_f *rf)
 {
-	enum irdma_status_code status;
+	int status;
 	u32 qpcnt;
 
-	if (rf->rdma_ver == IRDMA_GEN_1)
-		qpcnt = rsrc_limits_table[rf->limits_sel].qplimit * 2;
-	else
-		qpcnt = rsrc_limits_table[rf->limits_sel].qplimit;
+	qpcnt = rsrc_limits_table[rf->limits_sel].qplimit;
 
 	rf->sd_type = IRDMA_SD_TYPE_DIRECT;
 	status = irdma_cfg_fpm_val(&rf->sc_dev, qpcnt);
@@ -1551,7 +1542,7 @@ static void irdma_del_init_mem(struct irdma_pci_f *rf)
 			  rf->obj_mem.pa);
 	rf->obj_mem.va = NULL;
 	if (rf->rdma_ver != IRDMA_GEN_1) {
-		kfree(rf->allocated_ws_nodes);
+		bitmap_free(rf->allocated_ws_nodes);
 		rf->allocated_ws_nodes = NULL;
 	}
 	kfree(rf->ceqlist);
@@ -1570,9 +1561,9 @@ static void irdma_del_init_mem(struct irdma_pci_f *rf)
  * Return 0 if successful, otherwise clean up the resources
  * and return error
  */
-static enum irdma_status_code irdma_initialize_dev(struct irdma_pci_f *rf)
+static int irdma_initialize_dev(struct irdma_pci_f *rf)
 {
-	enum irdma_status_code status;
+	int status;
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_device_init_info info = {};
 	struct irdma_dma_mem mem;
@@ -1584,7 +1575,7 @@ static enum irdma_status_code irdma_initialize_dev(struct irdma_pci_f *rf)
 
 	rf->hmc_info_mem = kzalloc(size, GFP_KERNEL);
 	if (!rf->hmc_info_mem)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	rf->pble_rsrc = (struct irdma_hmc_pble_rsrc *)rf->hmc_info_mem;
 	dev->hmc_info = &rf->hw.hmc;
@@ -1608,7 +1599,7 @@ static enum irdma_status_code irdma_initialize_dev(struct irdma_pci_f *rf)
 	info.fpm_commit_buf = mem.va;
 
 	info.bar0 = rf->hw.hw_addr;
-	info.hmc_fn_id = PCI_FUNC(rf->pcidev->devfn);
+	info.hmc_fn_id = rf->pf_id;
 	info.hw = &rf->hw;
 	status = irdma_sc_dev_init(rf->rdma_ver, &rf->sc_dev, &info);
 	if (status)
@@ -1667,9 +1658,9 @@ void irdma_rt_deinit_hw(struct irdma_device *iwdev)
 		destroy_workqueue(iwdev->cleanup_wq);
 }
 
-static enum irdma_status_code irdma_setup_init_state(struct irdma_pci_f *rf)
+static int irdma_setup_init_state(struct irdma_pci_f *rf)
 {
-	enum irdma_status_code status;
+	int status;
 
 	status = irdma_save_msix_info(rf);
 	if (status)
@@ -1680,7 +1671,7 @@ static enum irdma_status_code irdma_setup_init_state(struct irdma_pci_f *rf)
 	rf->obj_mem.va = dma_alloc_coherent(rf->hw.device, rf->obj_mem.size,
 					    &rf->obj_mem.pa, GFP_KERNEL);
 	if (!rf->obj_mem.va) {
-		status = IRDMA_ERR_NO_MEMORY;
+		status = -ENOMEM;
 		goto clean_msixtbl;
 	}
 
@@ -1763,14 +1754,14 @@ void irdma_ctrl_deinit_hw(struct irdma_pci_f *rf)
  * Create device queues ILQ, IEQ, CEQs and PBLEs. Setup irdma
  * device resource objects.
  */
-enum irdma_status_code irdma_rt_init_hw(struct irdma_device *iwdev,
-					struct irdma_l2params *l2params)
+int irdma_rt_init_hw(struct irdma_device *iwdev,
+		     struct irdma_l2params *l2params)
 {
 	struct irdma_pci_f *rf = iwdev->rf;
 	struct irdma_sc_dev *dev = &rf->sc_dev;
-	enum irdma_status_code status;
 	struct irdma_vsi_init_info vsi_info = {};
 	struct irdma_vsi_stats_info stats_info = {};
+	int status;
 
 	vsi_info.dev = dev;
 	vsi_info.back_vsi = iwdev;
@@ -1788,7 +1779,7 @@ enum irdma_status_code irdma_rt_init_hw(struct irdma_device *iwdev,
 	stats_info.pestat = kzalloc(sizeof(*stats_info.pestat), GFP_KERNEL);
 	if (!stats_info.pestat) {
 		irdma_cleanup_cm_core(&iwdev->cm_core);
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 	}
 	stats_info.fcn_id = dev->hmc_fn_id;
 	status = irdma_vsi_stats_init(&iwdev->vsi, &stats_info);
@@ -1835,10 +1826,6 @@ enum irdma_status_code irdma_rt_init_hw(struct irdma_device *iwdev,
 			rf->rsrc_created = true;
 		}
 
-		iwdev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY |
-					  IB_DEVICE_MEM_WINDOW |
-					  IB_DEVICE_MEM_MGT_EXTENSIONS;
-
 		if (iwdev->rf->sc_dev.hw_attrs.uk_attrs.hw_rev == IRDMA_GEN_1)
 			irdma_alloc_set_mac(iwdev);
 		irdma_add_ip(iwdev);
@@ -1850,7 +1837,7 @@ enum irdma_status_code irdma_rt_init_hw(struct irdma_device *iwdev,
 		iwdev->cleanup_wq = alloc_workqueue("irdma-cleanup-wq",
 					WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
 		if (!iwdev->cleanup_wq)
-			return IRDMA_ERR_NO_MEMORY;
+			return -ENOMEM;
 		irdma_get_used_rsrc(iwdev);
 		init_waitqueue_head(&iwdev->suspend_wq);
 
@@ -1870,10 +1857,10 @@ enum irdma_status_code irdma_rt_init_hw(struct irdma_device *iwdev,
  *
  * Create admin queues, HMC obejcts and RF resource objects
  */
-enum irdma_status_code irdma_ctrl_init_hw(struct irdma_pci_f *rf)
+int irdma_ctrl_init_hw(struct irdma_pci_f *rf)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
-	enum irdma_status_code status;
+	int status;
 	do {
 		status = irdma_setup_init_state(rf);
 		if (status)
@@ -1915,7 +1902,7 @@ enum irdma_status_code irdma_ctrl_init_hw(struct irdma_pci_f *rf)
 		rf->cqp_cmpl_wq = alloc_ordered_workqueue("cqp_cmpl_wq",
 						WQ_HIGHPRI | WQ_UNBOUND);
 		if (!rf->cqp_cmpl_wq) {
-			status = IRDMA_ERR_NO_MEMORY;
+			status = -ENOMEM;
 			break;
 		}
 		INIT_WORK(&rf->cqp_cmpl_work, cqp_compl_worker);
@@ -1984,9 +1971,8 @@ u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf)
 	u32 ret;
 
 	if (rf->rdma_ver != IRDMA_GEN_1) {
-		rf->allocated_ws_nodes =
-			kcalloc(BITS_TO_LONGS(IRDMA_MAX_WS_NODES),
-				sizeof(unsigned long), GFP_KERNEL);
+		rf->allocated_ws_nodes = bitmap_zalloc(IRDMA_MAX_WS_NODES,
+						       GFP_KERNEL);
 		if (!rf->allocated_ws_nodes)
 			return -ENOMEM;
 
@@ -2035,7 +2021,7 @@ u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf)
 	return 0;
 
 mem_rsrc_kzalloc_fail:
-	kfree(rf->allocated_ws_nodes);
+	bitmap_free(rf->allocated_ws_nodes);
 	rf->allocated_ws_nodes = NULL;
 
 	return ret;
@@ -2202,11 +2188,11 @@ int irdma_add_local_mac_entry(struct irdma_pci_f *rf, const u8 *mac_addr, u16 id
 	struct irdma_cqp *iwcqp = &rf->cqp;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, true);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	cqp_info->post_sq = 1;
@@ -2238,11 +2224,11 @@ int irdma_alloc_local_mac_entry(struct irdma_pci_f *rf, u16 *mac_tbl_idx)
 	struct irdma_cqp *iwcqp = &rf->cqp;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status = 0;
+	int status = 0;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, true);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	cqp_info->cqp_cmd = IRDMA_OP_ALLOC_LOCAL_MAC_ENTRY;
@@ -2264,18 +2250,17 @@ int irdma_alloc_local_mac_entry(struct irdma_pci_f *rf, u16 *mac_tbl_idx)
  * @accel_local_port: port for apbvt
  * @add_port: add ordelete port
  */
-static enum irdma_status_code
-irdma_cqp_manage_apbvt_cmd(struct irdma_device *iwdev, u16 accel_local_port,
-			   bool add_port)
+static int irdma_cqp_manage_apbvt_cmd(struct irdma_device *iwdev,
+				      u16 accel_local_port, bool add_port)
 {
 	struct irdma_apbvt_info *info;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&iwdev->rf->cqp, add_port);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.manage_apbvt_entry.info;
@@ -2429,22 +2414,21 @@ static void irdma_send_syn_cqp_callback(struct irdma_cqp_request *cqp_request)
  * @cmnode: cmnode associated with connection
  * @wait: wait for completion
  */
-enum irdma_status_code
-irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
-		   enum irdma_quad_entry_type etype,
-		   enum irdma_quad_hash_manage_type mtype, void *cmnode,
-		   bool wait)
+int irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
+		       enum irdma_quad_entry_type etype,
+		       enum irdma_quad_hash_manage_type mtype, void *cmnode,
+		       bool wait)
 {
 	struct irdma_qhash_table_info *info;
-	enum irdma_status_code status;
 	struct irdma_cqp *iwcqp = &iwdev->rf->cqp;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_cm_node *cm_node = cmnode;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, wait);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.manage_qhash_table_entry.info;
@@ -2558,12 +2542,10 @@ static void irdma_hw_flush_wqes_callback(struct irdma_cqp_request *cqp_request)
  * @info: info for flush
  * @wait: flag wait for completion
  */
-enum irdma_status_code irdma_hw_flush_wqes(struct irdma_pci_f *rf,
-					   struct irdma_sc_qp *qp,
-					   struct irdma_qp_flush_info *info,
-					   bool wait)
+int irdma_hw_flush_wqes(struct irdma_pci_f *rf, struct irdma_sc_qp *qp,
+			struct irdma_qp_flush_info *info, bool wait)
 {
-	enum irdma_status_code status;
+	int status;
 	struct irdma_qp_flush_info *hw_info;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
@@ -2571,7 +2553,7 @@ enum irdma_status_code irdma_hw_flush_wqes(struct irdma_pci_f *rf,
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, wait);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	if (!wait)
@@ -2619,7 +2601,7 @@ enum irdma_status_code irdma_hw_flush_wqes(struct irdma_pci_f *rf,
 				info->sq = true;
 				new_req = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
 				if (!new_req) {
-					status = IRDMA_ERR_NO_MEMORY;
+					status = -ENOMEM;
 					goto put_cqp;
 				}
 				cqp_info = &new_req->info;
@@ -2705,24 +2687,29 @@ void irdma_flush_wqes(struct irdma_qp *iwqp, u32 flush_mask)
 	info.sq = flush_mask & IRDMA_FLUSH_SQ;
 	info.rq = flush_mask & IRDMA_FLUSH_RQ;
 
-	if (flush_mask & IRDMA_REFLUSH) {
-		if (info.sq)
-			iwqp->sc_qp.flush_sq = false;
-		if (info.rq)
-			iwqp->sc_qp.flush_rq = false;
-	}
-
 	/* Generate userflush errors in CQE */
 	info.sq_major_code = IRDMA_FLUSH_MAJOR_ERR;
 	info.sq_minor_code = FLUSH_GENERAL_ERR;
 	info.rq_major_code = IRDMA_FLUSH_MAJOR_ERR;
 	info.rq_minor_code = FLUSH_GENERAL_ERR;
 	info.userflushcode = true;
-	if (flush_code) {
-		if (info.sq && iwqp->sc_qp.sq_flush_code)
-			info.sq_minor_code = flush_code;
-		if (info.rq && iwqp->sc_qp.rq_flush_code)
-			info.rq_minor_code = flush_code;
+
+	if (flush_mask & IRDMA_REFLUSH) {
+		if (info.sq)
+			iwqp->sc_qp.flush_sq = false;
+		if (info.rq)
+			iwqp->sc_qp.flush_rq = false;
+	} else {
+		if (flush_code) {
+			if (info.sq && iwqp->sc_qp.sq_flush_code)
+				info.sq_minor_code = flush_code;
+			if (info.rq && iwqp->sc_qp.rq_flush_code)
+				info.rq_minor_code = flush_code;
+		}
+		if (!iwqp->user_mode)
+			queue_delayed_work(iwqp->iwdev->cleanup_wq,
+					   &iwqp->dwork_flush,
+					   msecs_to_jiffies(IRDMA_FLUSH_DELAY_MS));
 	}
 
 	/* Issue flush */

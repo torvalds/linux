@@ -40,7 +40,7 @@ struct amdgpu_df_funcs {
 	void (*update_medium_grain_clock_gating)(struct amdgpu_device *adev,
 						 bool enable);
 	void (*get_clockgating_state)(struct amdgpu_device *adev,
-				      u32 *flags);
+				      u64 *flags);
 	void (*enable_ecc_force_par_wr_rmw)(struct amdgpu_device *adev,
 					    bool enable);
 	int (*pmc_start)(struct amdgpu_device *adev, uint64_t config,

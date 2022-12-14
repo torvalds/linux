@@ -188,7 +188,7 @@
 	rotary-encoder-key {
 		compatible = "gpio-keys";
 
-		rotary-encoder-press {
+		rotary-encoder-event {
 			label = "rotary-encoder press";
 			gpios = <&tca6424a 0 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_ENTER>;

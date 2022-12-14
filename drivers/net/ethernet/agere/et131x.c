@@ -1106,7 +1106,7 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	writel(0, &rxmac->mif_ctrl);
 	writel(0, &rxmac->space_avail);
 
-	/* Initialize the the mif_ctrl register
+	/* Initialize the mif_ctrl register
 	 * bit 3:  Receive code error. One or more nibbles were signaled as
 	 *	   errors  during the reception of the packet.  Clear this
 	 *	   bit in Gigabit, set it in 100Mbit.  This was derived
@@ -2413,11 +2413,13 @@ static void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
 	kfree(tx_ring->tcb_ring);
 }
 
+#define MAX_TX_DESC_PER_PKT 24
+
 /* nic_send_packet - NIC specific send handler for version B silicon. */
 static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 {
 	u32 i;
-	struct tx_desc desc[24];
+	struct tx_desc desc[MAX_TX_DESC_PER_PKT];
 	u32 frag = 0;
 	u32 thiscopy, remainder;
 	struct sk_buff *skb = tcb->skb;
@@ -2431,9 +2433,6 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	 * sending 24 fragments at a pass.  In practice we should never see
 	 * more than 5 fragments.
 	 */
-
-	/* nr_frags should be no more than 18. */
-	BUILD_BUG_ON(MAX_SKB_FRAGS + 1 > 23);
 
 	memset(desc, 0, sizeof(struct tx_desc) * (nr_frags + 1));
 
@@ -2953,8 +2952,8 @@ static void et131x_get_drvinfo(struct net_device *netdev,
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
-	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
-	strlcpy(info->bus_info, pci_name(adapter->pdev),
+	strscpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strscpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 }
 
@@ -3762,6 +3761,13 @@ static netdev_tx_t et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct tx_ring *tx_ring = &adapter->tx_ring;
 
+	/* This driver does not support TSO, it is very unlikely
+	 * this condition is true.
+	 */
+	if (unlikely(skb_shinfo(skb)->nr_frags > MAX_TX_DESC_PER_PKT - 2)) {
+		if (skb_linearize(skb))
+			goto drop_err;
+	}
 	/* stop the queue if it's getting full */
 	if (tx_ring->used >= NUM_TCB - 1 && !netif_queue_stopped(netdev))
 		netif_stop_queue(netdev);
@@ -3963,7 +3969,7 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 
 	et131x_init_send(adapter);
 
-	netif_napi_add(netdev, &adapter->napi, et131x_poll, 64);
+	netif_napi_add(netdev, &adapter->napi, et131x_poll);
 
 	eth_hw_addr_set(netdev, adapter->addr);
 

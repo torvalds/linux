@@ -4233,7 +4233,7 @@ static void nfp_bpf_opt_ldst_gather(struct nfp_prog *nfp_prog)
 			}
 
 			/* If the chain is ended by an load/store pair then this
-			 * could serve as the new head of the the next chain.
+			 * could serve as the new head of the next chain.
 			 */
 			if (curr_pair_is_memcpy(meta1, meta2)) {
 				head_ld_meta = meta1;

@@ -102,7 +102,7 @@ static int atiixp_prereset(struct ata_link *link, unsigned long deadline)
 
 static void atiixp_set_pio_timing(struct ata_port *ap, struct ata_device *adev, int pio)
 {
-	static u8 pio_timings[5] = { 0x5D, 0x47, 0x34, 0x22, 0x20 };
+	static const u8 pio_timings[5] = { 0x5D, 0x47, 0x34, 0x22, 0x20 };
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int dn = 2 * ap->port_no + adev->devno;
@@ -149,7 +149,7 @@ static void atiixp_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 static void atiixp_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-	static u8 mwdma_timings[5] = { 0x77, 0x21, 0x20 };
+	static const u8 mwdma_timings[5] = { 0x77, 0x21, 0x20 };
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int dma = adev->dma_mode;

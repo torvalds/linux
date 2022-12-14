@@ -4,7 +4,6 @@
 #ifndef NFP_CRC32_H
 #define NFP_CRC32_H
 
-#include <linux/kernel.h>
 #include <linux/crc32.h>
 
 /**

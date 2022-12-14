@@ -137,7 +137,7 @@ static int rockchip_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		/*
 		 * We communicate with the bootrom to active the cpus other
 		 * than cpu0, after a blob of initialize code, they will
-		 * stay at wfe state, once they are actived, they will check
+		 * stay at wfe state, once they are activated, they will check
 		 * the mailbox:
 		 * sram_base_addr + 4: 0xdeadbeaf
 		 * sram_base_addr + 8: start address for pc

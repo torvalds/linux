@@ -177,13 +177,13 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRV_PTR(mixer_driver, CONFIG_DRM_EXYNOS_MIXER),
 		DRM_COMPONENT_DRIVER
 	}, {
-		DRV_PTR(mic_driver, CONFIG_DRM_EXYNOS_MIC),
-		DRM_COMPONENT_DRIVER
-	}, {
 		DRV_PTR(dp_driver, CONFIG_DRM_EXYNOS_DP),
 		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(dsi_driver, CONFIG_DRM_EXYNOS_DSI),
+		DRM_COMPONENT_DRIVER
+	}, {
+		DRV_PTR(mic_driver, CONFIG_DRM_EXYNOS_MIC),
 		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(hdmi_driver, CONFIG_DRM_EXYNOS_HDMI),
@@ -212,11 +212,6 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 	}
 };
 
-static int compare_dev(struct device *dev, void *data)
-{
-	return dev == (struct device *)data;
-}
-
 static struct component_match *exynos_drm_match_add(struct device *dev)
 {
 	struct component_match *match = NULL;
@@ -234,8 +229,7 @@ static struct component_match *exynos_drm_match_add(struct device *dev)
 
 			if (!(info->flags & DRM_FIMC_DEVICE) ||
 			    exynos_drm_check_fimc_device(d) == 0)
-				component_match_add(dev, &match,
-						    compare_dev, d);
+				component_match_add(dev, &match, component_compare_dev, d);
 			p = d;
 		}
 		put_device(p);
@@ -454,6 +448,9 @@ fail:
 static int exynos_drm_init(void)
 {
 	int ret;
+
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
 
 	ret = exynos_drm_register_devices();
 	if (ret)

@@ -497,7 +497,7 @@ struct cpl_t5_pass_accept_rpl {
 	__be32 opt2;
 	__be64 opt0;
 	__be32 iss;
-	__be32 rsvd[3];
+	__be32 rsvd;
 };
 
 struct cpl_act_open_req {

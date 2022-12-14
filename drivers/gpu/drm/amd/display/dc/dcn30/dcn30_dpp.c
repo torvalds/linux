@@ -41,9 +41,9 @@
 	dpp->tf_shift->field_name, dpp->tf_mask->field_name
 
 
-static void dpp30_read_state(struct dpp *dpp_base, struct dcn_dpp_state *s)
+void dpp30_read_state(struct dpp *dpp_base, struct dcn_dpp_state *s)
 {
-	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
+	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
 	REG_GET(DPP_CONTROL,
 			DPP_CLOCK_ENABLE, &s->is_enabled);
@@ -167,7 +167,7 @@ void dpp3_set_pre_degam(struct dpp *dpp_base, enum dc_transfer_func_predefined t
 			PRE_DEGAM_SELECT, degamma_lut_selection);
 }
 
-static void dpp3_cnv_setup (
+void dpp3_cnv_setup (
 		struct dpp *dpp_base,
 		enum surface_pixel_format format,
 		enum expansion_mode mode,
@@ -294,6 +294,9 @@ static void dpp3_cnv_setup (
 		break;
 	}
 
+	/* Set default color space based on format if none is given. */
+	color_space = input_color_space ? input_color_space : color_space;
+
 	if (is_2bit == 1 && alpha_2bit_lut != NULL) {
 		REG_UPDATE(ALPHA_2BIT_LUT, ALPHA_2BIT_LUT0, alpha_2bit_lut->lut0);
 		REG_UPDATE(ALPHA_2BIT_LUT, ALPHA_2BIT_LUT1, alpha_2bit_lut->lut1);
@@ -369,10 +372,14 @@ void dpp3_set_cursor_attributes(
 		REG_UPDATE(CURSOR0_COLOR1,
 				CUR0_COLOR1, 0xFFFFFFFF);
 	}
+
+	dpp_base->att.cur0_ctl.bits.expansion_mode = 0;
+	dpp_base->att.cur0_ctl.bits.cur0_rom_en = cur_rom_en;
+	dpp_base->att.cur0_ctl.bits.mode = color_format;
 }
 
 
-static bool dpp3_get_optimal_number_of_taps(
+bool dpp3_get_optimal_number_of_taps(
 		struct dpp *dpp,
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)
@@ -711,28 +718,27 @@ static enum dc_lut_mode dpp3_get_blndgam_current(struct dpp *dpp_base)
 
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
-	REG_GET(CM_BLNDGAM_CONTROL,
-			CM_BLNDGAM_MODE_CURRENT, &mode_current);
-	REG_GET(CM_BLNDGAM_CONTROL,
-			CM_BLNDGAM_SELECT_CURRENT, &in_use);
+	REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_MODE_CURRENT, &mode_current);
+	REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_SELECT_CURRENT, &in_use);
 
-		switch (mode_current) {
-		case 0:
-		case 1:
-			mode = LUT_BYPASS;
-			break;
+	switch (mode_current) {
+	case 0:
+	case 1:
+		mode = LUT_BYPASS;
+		break;
 
-		case 2:
-			if (in_use == 0)
-				mode = LUT_RAM_A;
-			else
-				mode = LUT_RAM_B;
-			break;
-		default:
-			mode = LUT_BYPASS;
-			break;
-		}
-		return mode;
+	case 2:
+		if (in_use == 0)
+			mode = LUT_RAM_A;
+		else
+			mode = LUT_RAM_B;
+		break;
+	default:
+		mode = LUT_BYPASS;
+		break;
+	}
+
+	return mode;
 }
 
 static bool dpp3_program_blnd_lut(struct dpp *dpp_base,
@@ -812,24 +818,24 @@ static enum dc_lut_mode dpp3_get_shaper_current(struct dpp *dpp_base)
 	uint32_t state_mode;
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
-	REG_GET(CM_SHAPER_CONTROL,
-			CM_SHAPER_MODE_CURRENT, &state_mode);
+	REG_GET(CM_SHAPER_CONTROL, CM_SHAPER_MODE_CURRENT, &state_mode);
 
-		switch (state_mode) {
-		case 0:
-			mode = LUT_BYPASS;
-			break;
-		case 1:
-			mode = LUT_RAM_A;
-			break;
-		case 2:
-			mode = LUT_RAM_B;
-			break;
-		default:
-			mode = LUT_BYPASS;
-			break;
-		}
-		return mode;
+	switch (state_mode) {
+	case 0:
+		mode = LUT_BYPASS;
+		break;
+	case 1:
+		mode = LUT_RAM_A;
+		break;
+	case 2:
+		mode = LUT_RAM_B;
+		break;
+	default:
+		mode = LUT_BYPASS;
+		break;
+	}
+
+	return mode;
 }
 
 static void dpp3_configure_shaper_lut(

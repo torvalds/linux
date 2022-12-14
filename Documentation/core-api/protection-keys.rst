@@ -4,31 +4,29 @@
 Memory Protection Keys
 ======================
 
-Memory Protection Keys for Userspace (PKU aka PKEYs) is a feature
-which is found on Intel's Skylake (and later) "Scalable Processor"
-Server CPUs. It will be available in future non-server Intel parts
-and future AMD processors.
+Memory Protection Keys provide a mechanism for enforcing page-based
+protections, but without requiring modification of the page tables when an
+application changes protection domains.
 
-For anyone wishing to test or use this feature, it is available in
-Amazon's EC2 C5 instances and is known to work there using an Ubuntu
-17.04 image.
+Pkeys Userspace (PKU) is a feature which can be found on:
+        * Intel server CPUs, Skylake and later
+        * Intel client CPUs, Tiger Lake (11th Gen Core) and later
+        * Future AMD CPUs
 
-Memory Protection Keys provides a mechanism for enforcing page-based
-protections, but without requiring modification of the page tables
-when an application changes protection domains.  It works by
-dedicating 4 previously ignored bits in each page table entry to a
-"protection key", giving 16 possible keys.
+Pkeys work by dedicating 4 previously Reserved bits in each page table entry to
+a "protection key", giving 16 possible keys.
 
-There is also a new user-accessible register (PKRU) with two separate
-bits (Access Disable and Write Disable) for each key.  Being a CPU
-register, PKRU is inherently thread-local, potentially giving each
+Protections for each key are defined with a per-CPU user-accessible register
+(PKRU).  Each of these is a 32-bit register storing two bits (Access Disable
+and Write Disable) for each of 16 keys.
+
+Being a CPU register, PKRU is inherently thread-local, potentially giving each
 thread a different set of protections from every other thread.
 
-There are two new instructions (RDPKRU/WRPKRU) for reading and writing
-to the new register.  The feature is only available in 64-bit mode,
-even though there is theoretically space in the PAE PTEs.  These
-permissions are enforced on data access only and have no effect on
-instruction fetches.
+There are two instructions (RDPKRU/WRPKRU) for reading and writing to the
+register.  The feature is only available in 64-bit mode, even though there is
+theoretically space in the PAE PTEs.  These permissions are enforced on data
+access only and have no effect on instruction fetches.
 
 Syscalls
 ========

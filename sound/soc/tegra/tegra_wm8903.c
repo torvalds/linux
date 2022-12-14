@@ -79,11 +79,11 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 		struct snd_soc_component *component = codec_dai->component;
 		int shrt = 0;
 
-		err = snd_soc_card_jack_new(rtd->card, "Mic Jack",
-					    SND_JACK_MICROPHONE,
-					    machine->mic_jack,
-					    tegra_wm8903_mic_jack_pins,
-					    ARRAY_SIZE(tegra_wm8903_mic_jack_pins));
+		err = snd_soc_card_jack_new_pins(rtd->card, "Mic Jack",
+						 SND_JACK_MICROPHONE,
+						 machine->mic_jack,
+						 tegra_wm8903_mic_jack_pins,
+						 ARRAY_SIZE(tegra_wm8903_mic_jack_pins));
 		if (err) {
 			dev_err(rtd->dev, "Mic Jack creation failed: %d\n", err);
 			return err;

@@ -21,7 +21,6 @@
 #define NUM_STA 32
 #define NUM_ACL 64
 
-
 /* if mode ==0, then the sta is allowed once the addr is hit.
  * if mode ==1, then the sta is rejected once the addr is non-hit.
  */

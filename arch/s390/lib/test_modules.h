@@ -47,4 +47,7 @@
 	__REPEAT_10000_1(f, 8); \
 	__REPEAT_10000_1(f, 9)
 
+#define DECLARE_RETURN(i) int test_modules_return_ ## i(void)
+REPEAT_10000(DECLARE_RETURN);
+
 #endif

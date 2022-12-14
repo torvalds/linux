@@ -11,6 +11,7 @@
  * of the boot process, for example.
  */
 
+#include <linux/console.h>
 #include <linux/device.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
@@ -163,6 +164,18 @@ static const struct tty_port_operations tpk_port_ops = {
 
 static struct tty_driver *ttyprintk_driver;
 
+static struct tty_driver *ttyprintk_console_device(struct console *c,
+						   int *index)
+{
+	*index = 0;
+	return ttyprintk_driver;
+}
+
+static struct console ttyprintk_console = {
+	.name = "ttyprintk",
+	.device = ttyprintk_console_device,
+};
+
 static int __init ttyprintk_init(void)
 {
 	int ret;
@@ -195,6 +208,8 @@ static int __init ttyprintk_init(void)
 		goto error;
 	}
 
+	register_console(&ttyprintk_console);
+
 	return 0;
 
 error:
@@ -205,6 +220,7 @@ error:
 
 static void __exit ttyprintk_exit(void)
 {
+	unregister_console(&ttyprintk_console);
 	tty_unregister_driver(ttyprintk_driver);
 	tty_driver_kref_put(ttyprintk_driver);
 	tty_port_destroy(&tpk_port.port);

@@ -668,7 +668,7 @@ timestamping:
   (through another RX timestamping FIFO). Deferral on RX is typically
   necessary when retrieving the timestamp needs a sleepable context. In
   that case, it is the responsibility of the DSA driver to call
-  ``netif_rx_ni()`` on the freshly timestamped skb.
+  ``netif_rx()`` on the freshly timestamped skb.
 
 3.2.2 Ethernet PHYs
 ^^^^^^^^^^^^^^^^^^^

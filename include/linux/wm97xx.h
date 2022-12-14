@@ -254,9 +254,6 @@ struct wm97xx_mach_ops {
 	int (*acc_startup) (struct wm97xx *);
 	void (*acc_shutdown) (struct wm97xx *);
 
-	/* interrupt mask control - required for accelerated operation */
-	void (*irq_enable) (struct wm97xx *, int enable);
-
 	/* GPIO pin used for accelerated operation */
 	int irq_gpio;
 
@@ -281,7 +278,6 @@ struct wm97xx {
 	unsigned long ts_reader_min_interval; /* Minimum interval */
 	unsigned int pen_irq;		/* Pen IRQ number in use */
 	struct workqueue_struct *ts_workq;
-	struct work_struct pen_event_work;
 	u16 acc_slot;			/* AC97 slot used for acc touch data */
 	u16 acc_rate;			/* acc touch data rate */
 	unsigned pen_is_down:1;		/* Pen is down */

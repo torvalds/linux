@@ -55,6 +55,14 @@ Description:
 		The object directory contains subdirectories for each function
 		that is patched within the object.
 
+What:		/sys/kernel/livepatch/<patch>/<object>/patched
+Date:		August 2022
+KernelVersion:	6.1.0
+Contact:	live-patching@vger.kernel.org
+Description:
+		An attribute which indicates whether the object is currently
+		patched.
+
 What:		/sys/kernel/livepatch/<patch>/<object>/<function,sympos>
 Date:		Nov 2014
 KernelVersion:	3.19.0

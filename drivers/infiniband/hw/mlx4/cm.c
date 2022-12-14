@@ -80,6 +80,7 @@ struct cm_req_msg {
 	union ib_gid primary_path_sgid;
 };
 
+static struct workqueue_struct *cm_wq;
 
 static void set_local_comm_id(struct ib_mad *mad, u32 cm_id)
 {
@@ -288,10 +289,10 @@ static void schedule_delayed(struct ib_device *ibdev, struct id_map_entry *id)
 	/*make sure that there is no schedule inside the scheduled work.*/
 	if (!sriov->is_going_down && !id->scheduled_delete) {
 		id->scheduled_delete = 1;
-		schedule_delayed_work(&id->timeout, CM_CLEANUP_CACHE_TIMEOUT);
+		queue_delayed_work(cm_wq, &id->timeout, CM_CLEANUP_CACHE_TIMEOUT);
 	} else if (id->scheduled_delete) {
 		/* Adjust timeout if already scheduled */
-		mod_delayed_work(system_wq, &id->timeout, CM_CLEANUP_CACHE_TIMEOUT);
+		mod_delayed_work(cm_wq, &id->timeout, CM_CLEANUP_CACHE_TIMEOUT);
 	}
 	spin_unlock_irqrestore(&sriov->going_down_lock, flags);
 	spin_unlock(&sriov->id_map_lock);
@@ -370,7 +371,7 @@ static int alloc_rej_tmout(struct mlx4_ib_sriov *sriov, u32 rem_pv_cm_id, int sl
 			ret =  xa_err(item);
 		else
 			/* If a retry, adjust delayed work */
-			mod_delayed_work(system_wq, &item->timeout, CM_CLEANUP_CACHE_TIMEOUT);
+			mod_delayed_work(cm_wq, &item->timeout, CM_CLEANUP_CACHE_TIMEOUT);
 		goto err_or_exists;
 	}
 	xa_unlock(&sriov->xa_rej_tmout);
@@ -393,7 +394,7 @@ static int alloc_rej_tmout(struct mlx4_ib_sriov *sriov, u32 rem_pv_cm_id, int sl
 		return xa_err(old);
 	}
 
-	schedule_delayed_work(&item->timeout, CM_CLEANUP_CACHE_TIMEOUT);
+	queue_delayed_work(cm_wq, &item->timeout, CM_CLEANUP_CACHE_TIMEOUT);
 
 	return 0;
 
@@ -500,7 +501,7 @@ static void rej_tmout_xa_cleanup(struct mlx4_ib_sriov *sriov, int slave)
 	xa_lock(&sriov->xa_rej_tmout);
 	xa_for_each(&sriov->xa_rej_tmout, id, item) {
 		if (slave < 0 || slave == item->slave) {
-			mod_delayed_work(system_wq, &item->timeout, 0);
+			mod_delayed_work(cm_wq, &item->timeout, 0);
 			flush_needed = true;
 			++cnt;
 		}
@@ -508,7 +509,7 @@ static void rej_tmout_xa_cleanup(struct mlx4_ib_sriov *sriov, int slave)
 	xa_unlock(&sriov->xa_rej_tmout);
 
 	if (flush_needed) {
-		flush_scheduled_work();
+		flush_workqueue(cm_wq);
 		pr_debug("Deleted %d entries in xarray for slave %d during cleanup\n",
 			 cnt, slave);
 	}
@@ -540,7 +541,7 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 	spin_unlock(&sriov->id_map_lock);
 
 	if (need_flush)
-		flush_scheduled_work(); /* make sure all timers were flushed */
+		flush_workqueue(cm_wq); /* make sure all timers were flushed */
 
 	/* now, remove all leftover entries from databases*/
 	spin_lock(&sriov->id_map_lock);
@@ -586,4 +587,18 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 	}
 
 	rej_tmout_xa_cleanup(sriov, slave);
+}
+
+int mlx4_ib_cm_init(void)
+{
+	cm_wq = alloc_workqueue("mlx4_ib_cm", 0, 0);
+	if (!cm_wq)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void mlx4_ib_cm_destroy(void)
+{
+	destroy_workqueue(cm_wq);
 }

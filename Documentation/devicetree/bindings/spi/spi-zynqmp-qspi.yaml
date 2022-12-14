@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spi/spi-zynqmp-qspi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Xilinx Zynq UltraScale+ MPSoC GQSPI controller Device Tree Bindings
+title: Xilinx Zynq UltraScale+ MPSoC GQSPI controller
 
 maintainers:
   - Michal Simek <michal.simek@xilinx.com>
@@ -29,6 +29,13 @@ properties:
 
   clocks:
     maxItems: 2
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clock-names
+  - clocks
 
 unevaluatedProperties: false
 

@@ -130,8 +130,8 @@ gss_krb5_make_confounder(char *p, u32 conflen)
 
 	/* initialize to random value */
 	if (i == 0) {
-		i = prandom_u32();
-		i = (i << 32) | prandom_u32();
+		i = get_random_u32();
+		i = (i << 32) | get_random_u32();
 	}
 
 	switch (conflen) {
@@ -409,7 +409,7 @@ static u32
 gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 		     struct xdr_buf *buf, struct page **pages)
 {
-	u8		*ptr, *plainhdr;
+	u8		*ptr;
 	time64_t	now;
 	u8		flags = 0x00;
 	__be16		*be16ptr;
@@ -426,7 +426,7 @@ gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 		return GSS_S_FAILURE;
 
 	/* construct gss token header */
-	ptr = plainhdr = buf->head[0].iov_base + offset;
+	ptr = buf->head[0].iov_base + offset;
 	*ptr++ = (unsigned char) ((KG2_TOK_WRAP>>8) & 0xff);
 	*ptr++ = (unsigned char) (KG2_TOK_WRAP & 0xff);
 

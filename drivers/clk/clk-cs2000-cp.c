@@ -11,6 +11,7 @@
 #include <linux/i2c.h>
 #include <linux/of_device.h>
 #include <linux/module.h>
+#include <linux/regmap.h>
 
 #define CH_MAX 4
 #define RATIO_REG_SIZE 4
@@ -39,6 +40,8 @@
 /* DEVICE_CFG1 */
 #define RSEL(x)		(((x) & 0x3) << 3)
 #define RSEL_MASK	RSEL(0x3)
+#define AUXOUTSRC(x)	(((x) & 0x3) << 1)
+#define AUXOUTSRC_MASK	AUXOUTSRC(0x3)
 #define ENDEV1		(0x1)
 
 /* DEVICE_CFG2 */
@@ -47,9 +50,10 @@
 #define LOCKCLK_MASK	LOCKCLK(0x3)
 #define FRACNSRC_MASK	(1 << 0)
 #define FRACNSRC_STATIC		(0 << 0)
-#define FRACNSRC_DYNAMIC	(1 << 1)
+#define FRACNSRC_DYNAMIC	(1 << 0)
 
 /* GLOBAL_CFG */
+#define FREEZE		(1 << 7)
 #define ENDEV2		(0x1)
 
 /* FUNC_CFG1 */
@@ -71,11 +75,40 @@
 #define REF_CLK	1
 #define CLK_MAX 2
 
+static bool cs2000_readable_reg(struct device *dev, unsigned int reg)
+{
+	return reg > 0;
+}
+
+static bool cs2000_writeable_reg(struct device *dev, unsigned int reg)
+{
+	return reg != DEVICE_ID;
+}
+
+static bool cs2000_volatile_reg(struct device *dev, unsigned int reg)
+{
+	return reg == DEVICE_CTRL;
+}
+
+static const struct regmap_config cs2000_regmap_config = {
+	.reg_bits	= 8,
+	.val_bits	= 8,
+	.max_register	= FUNC_CFG2,
+	.readable_reg	= cs2000_readable_reg,
+	.writeable_reg	= cs2000_writeable_reg,
+	.volatile_reg	= cs2000_volatile_reg,
+};
+
 struct cs2000_priv {
 	struct clk_hw hw;
 	struct i2c_client *client;
 	struct clk *clk_in;
 	struct clk *ref_clk;
+	struct regmap *regmap;
+
+	bool dynamic_mode;
+	bool lf_ratio;
+	bool clk_skip;
 
 	/* suspend/resume */
 	unsigned long saved_rate;
@@ -94,55 +127,30 @@ static const struct i2c_device_id cs2000_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cs2000_id);
 
-#define cs2000_read(priv, addr) \
-	i2c_smbus_read_byte_data(priv_to_client(priv), addr)
-#define cs2000_write(priv, addr, val) \
-	i2c_smbus_write_byte_data(priv_to_client(priv), addr, val)
-
-static int cs2000_bset(struct cs2000_priv *priv, u8 addr, u8 mask, u8 val)
-{
-	s32 data;
-
-	data = cs2000_read(priv, addr);
-	if (data < 0)
-		return data;
-
-	data &= ~mask;
-	data |= (val & mask);
-
-	return cs2000_write(priv, addr, data);
-}
-
 static int cs2000_enable_dev_config(struct cs2000_priv *priv, bool enable)
 {
 	int ret;
 
-	ret = cs2000_bset(priv, DEVICE_CFG1, ENDEV1,
-			  enable ? ENDEV1 : 0);
+	ret = regmap_update_bits(priv->regmap, DEVICE_CFG1, ENDEV1,
+				 enable ? ENDEV1 : 0);
 	if (ret < 0)
 		return ret;
 
-	ret = cs2000_bset(priv, GLOBAL_CFG,  ENDEV2,
-			  enable ? ENDEV2 : 0);
+	ret = regmap_update_bits(priv->regmap, GLOBAL_CFG,  ENDEV2,
+				 enable ? ENDEV2 : 0);
 	if (ret < 0)
 		return ret;
 
-	ret = cs2000_bset(priv, FUNC_CFG1, CLKSKIPEN,
-			  enable ? CLKSKIPEN : 0);
-	if (ret < 0)
-		return ret;
-
-	/* FIXME: for Static ratio mode */
-	ret = cs2000_bset(priv, FUNC_CFG2, LFRATIO_MASK,
-			  LFRATIO_12_20);
+	ret = regmap_update_bits(priv->regmap, FUNC_CFG1, CLKSKIPEN,
+				 (enable && priv->clk_skip) ? CLKSKIPEN : 0);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-static int cs2000_clk_in_bound_rate(struct cs2000_priv *priv,
-				    u32 rate_in)
+static int cs2000_ref_clk_bound_rate(struct cs2000_priv *priv,
+				     u32 rate_in)
 {
 	u32 val;
 
@@ -155,21 +163,21 @@ static int cs2000_clk_in_bound_rate(struct cs2000_priv *priv,
 	else
 		return -EINVAL;
 
-	return cs2000_bset(priv, FUNC_CFG1,
-			   REFCLKDIV_MASK,
-			   REFCLKDIV(val));
+	return regmap_update_bits(priv->regmap, FUNC_CFG1,
+				  REFCLKDIV_MASK,
+				  REFCLKDIV(val));
 }
 
 static int cs2000_wait_pll_lock(struct cs2000_priv *priv)
 {
 	struct device *dev = priv_to_dev(priv);
-	s32 val;
-	unsigned int i;
+	unsigned int i, val;
+	int ret;
 
 	for (i = 0; i < 256; i++) {
-		val = cs2000_read(priv, DEVICE_CTRL);
-		if (val < 0)
-			return val;
+		ret = regmap_read(priv->regmap, DEVICE_CTRL, &val);
+		if (ret < 0)
+			return ret;
 		if (!(val & PLL_UNLOCK))
 			return 0;
 		udelay(1);
@@ -183,41 +191,43 @@ static int cs2000_wait_pll_lock(struct cs2000_priv *priv)
 static int cs2000_clk_out_enable(struct cs2000_priv *priv, bool enable)
 {
 	/* enable both AUX_OUT, CLK_OUT */
-	return cs2000_bset(priv, DEVICE_CTRL,
-			   (AUXOUTDIS | CLKOUTDIS),
-			   enable ? 0 :
-			   (AUXOUTDIS | CLKOUTDIS));
+	return regmap_update_bits(priv->regmap, DEVICE_CTRL,
+				  (AUXOUTDIS | CLKOUTDIS),
+				  enable ? 0 :
+				  (AUXOUTDIS | CLKOUTDIS));
 }
 
-static u32 cs2000_rate_to_ratio(u32 rate_in, u32 rate_out)
+static u32 cs2000_rate_to_ratio(u32 rate_in, u32 rate_out, bool lf_ratio)
 {
 	u64 ratio;
+	u32 multiplier = lf_ratio ? 12 : 20;
 
 	/*
-	 * ratio = rate_out / rate_in * 2^20
+	 * ratio = rate_out / rate_in * 2^multiplier
 	 *
 	 * To avoid over flow, rate_out is u64.
 	 * The result should be u32.
 	 */
-	ratio = (u64)rate_out << 20;
+	ratio = (u64)rate_out << multiplier;
 	do_div(ratio, rate_in);
 
 	return ratio;
 }
 
-static unsigned long cs2000_ratio_to_rate(u32 ratio, u32 rate_in)
+static unsigned long cs2000_ratio_to_rate(u32 ratio, u32 rate_in, bool lf_ratio)
 {
 	u64 rate_out;
+	u32 multiplier = lf_ratio ? 12 : 20;
 
 	/*
-	 * ratio = rate_out / rate_in * 2^20
+	 * ratio = rate_out / rate_in * 2^multiplier
 	 *
 	 * To avoid over flow, rate_out is u64.
 	 * The result should be u32 or unsigned long.
 	 */
 
 	rate_out = (u64)ratio * rate_in;
-	return rate_out >> 20;
+	return rate_out >> multiplier;
 }
 
 static int cs2000_ratio_set(struct cs2000_priv *priv,
@@ -230,9 +240,9 @@ static int cs2000_ratio_set(struct cs2000_priv *priv,
 	if (CH_SIZE_ERR(ch))
 		return -EINVAL;
 
-	val = cs2000_rate_to_ratio(rate_in, rate_out);
+	val = cs2000_rate_to_ratio(rate_in, rate_out, priv->lf_ratio);
 	for (i = 0; i < RATIO_REG_SIZE; i++) {
-		ret = cs2000_write(priv,
+		ret = regmap_write(priv->regmap,
 				   Ratio_Add(ch, i),
 				   Ratio_Val(val, i));
 		if (ret < 0)
@@ -244,14 +254,14 @@ static int cs2000_ratio_set(struct cs2000_priv *priv,
 
 static u32 cs2000_ratio_get(struct cs2000_priv *priv, int ch)
 {
-	s32 tmp;
+	unsigned int tmp, i;
 	u32 val;
-	unsigned int i;
+	int ret;
 
 	val = 0;
 	for (i = 0; i < RATIO_REG_SIZE; i++) {
-		tmp = cs2000_read(priv, Ratio_Add(ch, i));
-		if (tmp < 0)
+		ret = regmap_read(priv->regmap, Ratio_Add(ch, i), &tmp);
+		if (ret < 0)
 			return 0;
 
 		val |= Val_Ratio(tmp, i);
@@ -263,22 +273,20 @@ static u32 cs2000_ratio_get(struct cs2000_priv *priv, int ch)
 static int cs2000_ratio_select(struct cs2000_priv *priv, int ch)
 {
 	int ret;
+	u8 fracnsrc;
 
 	if (CH_SIZE_ERR(ch))
 		return -EINVAL;
 
-	/*
-	 * FIXME
-	 *
-	 * this driver supports static ratio mode only at this point.
-	 */
-	ret = cs2000_bset(priv, DEVICE_CFG1, RSEL_MASK, RSEL(ch));
+	ret = regmap_update_bits(priv->regmap, DEVICE_CFG1, RSEL_MASK, RSEL(ch));
 	if (ret < 0)
 		return ret;
 
-	ret = cs2000_bset(priv, DEVICE_CFG2,
-			  (AUTORMOD | LOCKCLK_MASK | FRACNSRC_MASK),
-			  (LOCKCLK(ch) | FRACNSRC_STATIC));
+	fracnsrc = priv->dynamic_mode ? FRACNSRC_DYNAMIC : FRACNSRC_STATIC;
+
+	ret = regmap_update_bits(priv->regmap, DEVICE_CFG2,
+				 AUTORMOD | LOCKCLK_MASK | FRACNSRC_MASK,
+				 LOCKCLK(ch) | fracnsrc);
 	if (ret < 0)
 		return ret;
 
@@ -294,17 +302,39 @@ static unsigned long cs2000_recalc_rate(struct clk_hw *hw,
 
 	ratio = cs2000_ratio_get(priv, ch);
 
-	return cs2000_ratio_to_rate(ratio, parent_rate);
+	return cs2000_ratio_to_rate(ratio, parent_rate, priv->lf_ratio);
 }
 
 static long cs2000_round_rate(struct clk_hw *hw, unsigned long rate,
 			      unsigned long *parent_rate)
 {
+	struct cs2000_priv *priv = hw_to_priv(hw);
 	u32 ratio;
 
-	ratio = cs2000_rate_to_ratio(*parent_rate, rate);
+	ratio = cs2000_rate_to_ratio(*parent_rate, rate, priv->lf_ratio);
 
-	return cs2000_ratio_to_rate(ratio, *parent_rate);
+	return cs2000_ratio_to_rate(ratio, *parent_rate, priv->lf_ratio);
+}
+
+static int cs2000_select_ratio_mode(struct cs2000_priv *priv,
+				    unsigned long rate,
+				    unsigned long parent_rate)
+{
+	/*
+	 * From the datasheet:
+	 *
+	 * | It is recommended that the 12.20 High-Resolution format be
+	 * | utilized whenever the desired ratio is less than 4096 since
+	 * | the output frequency accuracy of the PLL is directly proportional
+	 * | to the accuracy of the timing reference clock and the resolution
+	 * | of the R_UD.
+	 *
+	 * This mode is only available in dynamic mode.
+	 */
+	priv->lf_ratio = priv->dynamic_mode && ((rate / parent_rate) > 4096);
+
+	return regmap_update_bits(priv->regmap, FUNC_CFG2, LFRATIO_MASK,
+				  priv->lf_ratio ? LFRATIO_20_12 : LFRATIO_12_20);
 }
 
 static int __cs2000_set_rate(struct cs2000_priv *priv, int ch,
@@ -313,7 +343,11 @@ static int __cs2000_set_rate(struct cs2000_priv *priv, int ch,
 {
 	int ret;
 
-	ret = cs2000_clk_in_bound_rate(priv, parent_rate);
+	ret = regmap_update_bits(priv->regmap, GLOBAL_CFG, FREEZE, FREEZE);
+	if (ret < 0)
+		return ret;
+
+	ret = cs2000_select_ratio_mode(priv, rate, parent_rate);
 	if (ret < 0)
 		return ret;
 
@@ -322,6 +356,10 @@ static int __cs2000_set_rate(struct cs2000_priv *priv, int ch,
 		return ret;
 
 	ret = cs2000_ratio_select(priv, ch);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_update_bits(priv->regmap, GLOBAL_CFG, FREEZE, 0);
 	if (ret < 0)
 		return ret;
 
@@ -380,8 +418,13 @@ static void cs2000_disable(struct clk_hw *hw)
 
 static u8 cs2000_get_parent(struct clk_hw *hw)
 {
-	/* always return REF_CLK */
-	return REF_CLK;
+	struct cs2000_priv *priv = hw_to_priv(hw);
+
+	/*
+	 * In dynamic mode, output rates are derived from CLK_IN.
+	 * In static mode, CLK_IN is ignored, so we return REF_CLK instead.
+	 */
+	return priv->dynamic_mode ? CLK_IN : REF_CLK;
 }
 
 static const struct clk_ops cs2000_ops = {
@@ -421,21 +464,43 @@ static int cs2000_clk_register(struct cs2000_priv *priv)
 	struct clk_init_data init;
 	const char *name = np->name;
 	static const char *parent_names[CLK_MAX];
+	u32 aux_out = 0;
+	int ref_clk_rate;
 	int ch = 0; /* it uses ch0 only at this point */
-	int rate;
 	int ret;
 
 	of_property_read_string(np, "clock-output-names", &name);
 
-	/*
-	 * set default rate as 1/1.
-	 * otherwise .set_rate which setup ratio
-	 * is never called if user requests 1/1 rate
-	 */
-	rate = clk_get_rate(priv->ref_clk);
-	ret = __cs2000_set_rate(priv, ch, rate, rate);
+	priv->dynamic_mode = of_property_read_bool(np, "cirrus,dynamic-mode");
+	dev_info(dev, "operating in %s mode\n",
+		 priv->dynamic_mode ? "dynamic" : "static");
+
+	of_property_read_u32(np, "cirrus,aux-output-source", &aux_out);
+	ret = regmap_update_bits(priv->regmap, DEVICE_CFG1,
+				 AUXOUTSRC_MASK, AUXOUTSRC(aux_out));
 	if (ret < 0)
 		return ret;
+
+	priv->clk_skip = of_property_read_bool(np, "cirrus,clock-skip");
+
+	ref_clk_rate = clk_get_rate(priv->ref_clk);
+	ret = cs2000_ref_clk_bound_rate(priv, ref_clk_rate);
+	if (ret < 0)
+		return ret;
+
+	if (priv->dynamic_mode) {
+		/* Default to low-frequency mode to allow for large ratios */
+		priv->lf_ratio = true;
+	} else {
+		/*
+		 * set default rate as 1/1.
+		 * otherwise .set_rate which setup ratio
+		 * is never called if user requests 1/1 rate
+		 */
+		ret = __cs2000_set_rate(priv, ch, ref_clk_rate, ref_clk_rate);
+		if (ret < 0)
+			return ret;
+	}
 
 	parent_names[CLK_IN]	= __clk_get_name(priv->clk_in);
 	parent_names[REF_CLK]	= __clk_get_name(priv->ref_clk);
@@ -464,12 +529,13 @@ static int cs2000_clk_register(struct cs2000_priv *priv)
 static int cs2000_version_print(struct cs2000_priv *priv)
 {
 	struct device *dev = priv_to_dev(priv);
-	s32 val;
 	const char *revision;
+	unsigned int val;
+	int ret;
 
-	val = cs2000_read(priv, DEVICE_ID);
-	if (val < 0)
-		return val;
+	ret = regmap_read(priv->regmap, DEVICE_ID, &val);
+	if (ret < 0)
+		return ret;
 
 	/* CS2000 should be 0x0 */
 	if (val >> 3)
@@ -491,7 +557,7 @@ static int cs2000_version_print(struct cs2000_priv *priv)
 	return 0;
 }
 
-static int cs2000_remove(struct i2c_client *client)
+static void cs2000_remove(struct i2c_client *client)
 {
 	struct cs2000_priv *priv = i2c_get_clientdata(client);
 	struct device *dev = priv_to_dev(priv);
@@ -500,12 +566,9 @@ static int cs2000_remove(struct i2c_client *client)
 	of_clk_del_provider(np);
 
 	clk_hw_unregister(&priv->hw);
-
-	return 0;
 }
 
-static int cs2000_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int cs2000_probe(struct i2c_client *client)
 {
 	struct cs2000_priv *priv;
 	struct device *dev = &client->dev;
@@ -517,6 +580,10 @@ static int cs2000_probe(struct i2c_client *client,
 
 	priv->client = client;
 	i2c_set_clientdata(client, priv);
+
+	priv->regmap = devm_regmap_init_i2c(client, &cs2000_regmap_config);
+	if (IS_ERR(priv->regmap))
+		return PTR_ERR(priv->regmap);
 
 	ret = cs2000_clk_get(priv);
 	if (ret < 0)
@@ -555,7 +622,7 @@ static struct i2c_driver cs2000_driver = {
 		.pm	= &cs2000_pm_ops,
 		.of_match_table = cs2000_of_match,
 	},
-	.probe		= cs2000_probe,
+	.probe_new	= cs2000_probe,
 	.remove		= cs2000_remove,
 	.id_table	= cs2000_id,
 };

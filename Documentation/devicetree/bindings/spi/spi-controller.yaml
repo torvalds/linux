@@ -93,9 +93,23 @@ properties:
 patternProperties:
   "^.*@[0-9a-f]+$":
     type: object
+    $ref: spi-peripheral-props.yaml
 
-    allOf:
-      - $ref: spi-peripheral-props.yaml
+    properties:
+      spi-3wire:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          The device requires 3-wire mode.
+
+      spi-cpha:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          The device requires shifted clock phase (CPHA) mode.
+
+      spi-cpol:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          The device requires inverse clock polarity (CPOL) mode.
 
     required:
       - compatible
@@ -138,5 +152,12 @@ examples:
             compatible = "bosch,bme680";
             spi-max-frequency = <100000>;
             reg = <1>;
+        };
+
+        flash@2 {
+            compatible = "jedec,spi-nor";
+            spi-max-frequency = <50000000>;
+            reg = <2>, <3>;
+            stacked-memories = /bits/ 64 <0x10000000 0x10000000>;
         };
     };

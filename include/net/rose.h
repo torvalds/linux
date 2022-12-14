@@ -9,6 +9,7 @@
 #define _ROSE_H 
 
 #include <linux/rose.h>
+#include <net/ax25.h>
 #include <net/sock.h>
 
 #define	ROSE_ADDR_LEN			5
@@ -131,7 +132,8 @@ struct rose_sock {
 	ax25_address		source_digis[ROSE_MAX_DIGIS];
 	ax25_address		dest_digis[ROSE_MAX_DIGIS];
 	struct rose_neigh	*neighbour;
-	struct net_device		*device;
+	struct net_device	*device;
+	netdevice_tracker	dev_tracker;
 	unsigned int		lci, rand;
 	unsigned char		state, condition, qbitincl, defer;
 	unsigned char		cause, diagnostic;

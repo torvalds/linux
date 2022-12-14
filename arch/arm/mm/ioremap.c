@@ -117,16 +117,21 @@ EXPORT_SYMBOL(ioremap_page);
 
 void __check_vmalloc_seq(struct mm_struct *mm)
 {
-	unsigned int seq;
+	int seq;
 
 	do {
-		seq = init_mm.context.vmalloc_seq;
+		seq = atomic_read(&init_mm.context.vmalloc_seq);
 		memcpy(pgd_offset(mm, VMALLOC_START),
 		       pgd_offset_k(VMALLOC_START),
 		       sizeof(pgd_t) * (pgd_index(VMALLOC_END) -
 					pgd_index(VMALLOC_START)));
-		mm->context.vmalloc_seq = seq;
-	} while (seq != init_mm.context.vmalloc_seq);
+		/*
+		 * Use a store-release so that other CPUs that observe the
+		 * counter's new value are guaranteed to see the results of the
+		 * memcpy as well.
+		 */
+		atomic_set_release(&mm->context.vmalloc_seq, seq);
+	} while (seq != atomic_read(&init_mm.context.vmalloc_seq));
 }
 
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
@@ -157,7 +162,7 @@ static void unmap_area_sections(unsigned long virt, unsigned long size)
 			 * Note: this is still racy on SMP machines.
 			 */
 			pmd_clear(pmdp);
-			init_mm.context.vmalloc_seq++;
+			atomic_inc_return_release(&init_mm.context.vmalloc_seq);
 
 			/*
 			 * Free the page table, if there was one.
@@ -174,8 +179,7 @@ static void unmap_area_sections(unsigned long virt, unsigned long size)
 	 * Ensure that the active_mm is up to date - we want to
 	 * catch any use-after-iounmap cases.
 	 */
-	if (current->active_mm->context.vmalloc_seq != init_mm.context.vmalloc_seq)
-		__check_vmalloc_seq(current->active_mm);
+	check_vmalloc_seq(current->active_mm);
 
 	flush_tlb_kernel_range(virt, end);
 }
@@ -414,7 +418,7 @@ void *arch_memremap_wb(phys_addr_t phys_addr, size_t size)
 						   __builtin_return_address(0));
 }
 
-void __iounmap(volatile void __iomem *io_addr)
+void iounmap(volatile void __iomem *io_addr)
 {
 	void *addr = (void *)(PAGE_MASK & (unsigned long)io_addr);
 	struct static_vm *svm;
@@ -442,16 +446,9 @@ void __iounmap(volatile void __iomem *io_addr)
 
 	vunmap(addr);
 }
-
-void (*arch_iounmap)(volatile void __iomem *) = __iounmap;
-
-void iounmap(volatile void __iomem *cookie)
-{
-	arch_iounmap(cookie);
-}
 EXPORT_SYMBOL(iounmap);
 
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) || IS_ENABLED(CONFIG_PCMCIA)
 static int pci_ioremap_mem_type = MT_DEVICE;
 
 void pci_ioremap_set_mem_type(int mem_type)
@@ -488,4 +485,12 @@ EXPORT_SYMBOL_GPL(pci_remap_cfgspace);
 void __init early_ioremap_init(void)
 {
 	early_ioremap_setup();
+}
+
+bool arch_memremap_can_ram_remap(resource_size_t offset, size_t size,
+				 unsigned long flags)
+{
+	unsigned long pfn = PHYS_PFN(offset);
+
+	return memblock_is_map_memory(pfn);
 }

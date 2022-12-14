@@ -176,7 +176,7 @@ int hvcs_get_partner_info(uint32_t unit_address, struct list_head *head,
 			= (unsigned int)last_p_partition_ID;
 
 		/* copy the Null-term char too */
-		strlcpy(&next_partner_info->location_code[0],
+		strscpy(&next_partner_info->location_code[0],
 			(char *)&pi_buff[2],
 			sizeof(next_partner_info->location_code));
 

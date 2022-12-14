@@ -75,7 +75,6 @@ switch@0 {
 		};
 		vsc: port@6 {
 			reg = <6>;
-			label = "cpu";
 			ethernet = <&gmac1>;
 			phy-mode = "rgmii";
 			fixed-link {
@@ -117,7 +116,6 @@ switch@2,0 {
 		};
 		vsc: port@6 {
 			reg = <6>;
-			label = "cpu";
 			ethernet = <&enet0>;
 			phy-mode = "rgmii";
 			fixed-link {

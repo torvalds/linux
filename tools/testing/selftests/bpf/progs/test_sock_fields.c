@@ -12,6 +12,7 @@
 enum bpf_linum_array_idx {
 	EGRESS_LINUM_IDX,
 	INGRESS_LINUM_IDX,
+	READ_SK_DST_PORT_LINUM_IDX,
 	__NR_BPF_LINUM_ARRAY_IDX,
 };
 
@@ -113,7 +114,7 @@ static void tpcpy(struct bpf_tcp_sock *dst,
 
 #define RET_LOG() ({						\
 	linum = __LINE__;					\
-	bpf_map_update_elem(&linum_map, &linum_idx, &linum, BPF_NOEXIST);	\
+	bpf_map_update_elem(&linum_map, &linum_idx, &linum, BPF_ANY);	\
 	return CG_OK;						\
 })
 
@@ -133,11 +134,11 @@ int egress_read_sock_fields(struct __sk_buff *skb)
 	if (!sk)
 		RET_LOG();
 
-	/* Not the testing egress traffic or
-	 * TCP_LISTEN (10) socket will be copied at the ingress side.
+	/* Not testing the egress traffic or the listening socket,
+	 * which are covered by the cgroup_skb/ingress test program.
 	 */
 	if (sk->family != AF_INET6 || !is_loopback6(sk->src_ip6) ||
-	    sk->state == 10)
+	    sk->state == BPF_TCP_LISTEN)
 		return CG_OK;
 
 	if (sk->src_port == bpf_ntohs(srv_sa6.sin6_port)) {
@@ -231,8 +232,8 @@ int ingress_read_sock_fields(struct __sk_buff *skb)
 	    sk->src_port != bpf_ntohs(srv_sa6.sin6_port))
 		return CG_OK;
 
-	/* Only interested in TCP_LISTEN */
-	if (sk->state != 10)
+	/* Only interested in the listening socket */
+	if (sk->state != BPF_TCP_LISTEN)
 		return CG_OK;
 
 	/* It must be a fullsock for cgroup_skb/ingress prog */
@@ -246,6 +247,56 @@ int ingress_read_sock_fields(struct __sk_buff *skb)
 
 	skcpy(&listen_sk, sk);
 	tpcpy(&listen_tp, tp);
+
+	return CG_OK;
+}
+
+/*
+ * NOTE: 4-byte load from bpf_sock at dst_port offset is quirky. It
+ * gets rewritten by the access converter to a 2-byte load for
+ * backward compatibility. Treating the load result as a be16 value
+ * makes the code portable across little- and big-endian platforms.
+ */
+static __noinline bool sk_dst_port__load_word(struct bpf_sock *sk)
+{
+	__u32 *word = (__u32 *)&sk->dst_port;
+	return word[0] == bpf_htons(0xcafe);
+}
+
+static __noinline bool sk_dst_port__load_half(struct bpf_sock *sk)
+{
+	__u16 *half = (__u16 *)&sk->dst_port;
+	return half[0] == bpf_htons(0xcafe);
+}
+
+static __noinline bool sk_dst_port__load_byte(struct bpf_sock *sk)
+{
+	__u8 *byte = (__u8 *)&sk->dst_port;
+	return byte[0] == 0xca && byte[1] == 0xfe;
+}
+
+SEC("cgroup_skb/egress")
+int read_sk_dst_port(struct __sk_buff *skb)
+{
+	__u32 linum, linum_idx;
+	struct bpf_sock *sk;
+
+	linum_idx = READ_SK_DST_PORT_LINUM_IDX;
+
+	sk = skb->sk;
+	if (!sk)
+		RET_LOG();
+
+	/* Ignore everything but the SYN from the client socket */
+	if (sk->state != BPF_TCP_SYN_SENT)
+		return CG_OK;
+
+	if (!sk_dst_port__load_word(sk))
+		RET_LOG();
+	if (!sk_dst_port__load_half(sk))
+		RET_LOG();
+	if (!sk_dst_port__load_byte(sk))
+		RET_LOG();
 
 	return CG_OK;
 }

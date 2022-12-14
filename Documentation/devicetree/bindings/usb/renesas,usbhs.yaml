@@ -19,7 +19,9 @@ properties:
       - items:
           - enum:
               - renesas,usbhs-r7s9210   # RZ/A2
+              - renesas,usbhs-r9a07g043 # RZ/G2UL
               - renesas,usbhs-r9a07g044 # RZ/G2{L,LC}
+              - renesas,usbhs-r9a07g054 # RZ/V2L
           - const: renesas,rza2-usbhs
 
       - items:
@@ -116,7 +118,10 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,usbhs-r9a07g044
+            enum:
+              - renesas,usbhs-r9a07g043
+              - renesas,usbhs-r9a07g044
+              - renesas,usbhs-r9a07g054
     then:
       properties:
         interrupts:
@@ -125,6 +130,8 @@ allOf:
             - description: U2P_INT_DMA[0]
             - description: U2P_INT_DMA[1]
             - description: U2P_INT_DMAERR
+      required:
+        - resets
     else:
       properties:
         interrupts:

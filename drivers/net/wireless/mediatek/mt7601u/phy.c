@@ -1097,7 +1097,10 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 void mt7601u_phy_con_cal_onoff(struct mt7601u_dev *dev,
 			       struct ieee80211_bss_conf *info)
 {
-	if (!info->assoc)
+	struct ieee80211_vif *vif = container_of(info, struct ieee80211_vif,
+						 bss_conf);
+
+	if (!vif->cfg.assoc)
 		cancel_delayed_work_sync(&dev->freq_cal.work);
 
 	/* Start/stop collecting beacon data */
@@ -1108,10 +1111,10 @@ void mt7601u_phy_con_cal_onoff(struct mt7601u_dev *dev,
 	spin_unlock_bh(&dev->con_mon_lock);
 
 	dev->freq_cal.freq = dev->ee->rf_freq_off;
-	dev->freq_cal.enabled = info->assoc;
+	dev->freq_cal.enabled = vif->cfg.assoc;
 	dev->freq_cal.adjusting = false;
 
-	if (info->assoc)
+	if (vif->cfg.assoc)
 		ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work,
 					     MT_FREQ_CAL_INIT_DELAY);
 }

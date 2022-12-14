@@ -1,17 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * TI Clock driver internal definitions
  *
  * Copyright (C) 2014 Texas Instruments, Inc
  *     Tero Kristo (t-kristo@ti.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 #ifndef __DRIVERS_CLK_TI_CLOCK__
 #define __DRIVERS_CLK_TI_CLOCK__
@@ -201,10 +193,7 @@ extern const struct omap_clkctrl_data am3_clkctrl_data[];
 extern const struct omap_clkctrl_data am3_clkctrl_compat_data[];
 extern struct ti_dt_clk am33xx_compat_clks[];
 extern const struct omap_clkctrl_data am4_clkctrl_data[];
-extern const struct omap_clkctrl_data am4_clkctrl_compat_data[];
-extern struct ti_dt_clk am43xx_compat_clks[];
 extern const struct omap_clkctrl_data am438x_clkctrl_data[];
-extern const struct omap_clkctrl_data am438x_clkctrl_compat_data[];
 extern const struct omap_clkctrl_data dm814_clkctrl_data[];
 extern const struct omap_clkctrl_data dm816_clkctrl_data[];
 
@@ -214,6 +203,7 @@ struct clk *ti_clk_register(struct device *dev, struct clk_hw *hw,
 			    const char *con);
 struct clk *ti_clk_register_omap_hw(struct device *dev, struct clk_hw *hw,
 				    const char *con);
+const char *ti_dt_clk_name(struct device_node *np);
 int ti_clk_add_alias(struct device *dev, struct clk *clk, const char *con);
 void ti_clk_add_aliases(void);
 

@@ -19,6 +19,8 @@ properties:
       - nvidia,tegra210-qspi
       - nvidia,tegra186-qspi
       - nvidia,tegra194-qspi
+      - nvidia,tegra234-qspi
+      - nvidia,tegra241-qspi
 
   reg:
     maxItems: 1
@@ -56,27 +58,6 @@ patternProperties:
       spi-tx-bus-width:
         enum: [1, 2, 4]
 
-      nvidia,tx-clk-tap-delay:
-        description:
-          Delays the clock going out to device with this tap value.
-          Tap value varies based on platform design trace lengths from Tegra
-          QSPI to corresponding slave device.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        minimum: 0
-        maximum: 31
-
-      nvidia,rx-clk-tap-delay:
-        description:
-          Delays the clock coming in from the device with this tap value.
-          Tap value varies based on platform design trace lengths from Tegra
-          QSPI to corresponding slave device.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        minimum: 0
-        maximum: 255
-
-    required:
-      - reg
-
 required:
   - compatible
   - reg
@@ -106,7 +87,7 @@ examples:
             dma-names = "rx", "tx";
 
             flash@0 {
-                    compatible = "spi-nor";
+                    compatible = "jedec,spi-nor";
                     reg = <0>;
                     spi-max-frequency = <104000000>;
                     spi-tx-bus-width = <2>;

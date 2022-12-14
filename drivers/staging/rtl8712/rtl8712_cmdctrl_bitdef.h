@@ -91,6 +91,5 @@
 #define	_BCNSPACE_MSK			0x0FFF
 #define	_BCNSPACE_SHT			0
 
-
 #endif /* __RTL8712_CMDCTRL_BITDEF_H__*/
 

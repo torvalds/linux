@@ -203,8 +203,8 @@ struct wpan_phy {
 
 	/* PHY depended MAC PIB values */
 
-	/* 802.15.4 acronym: Tdsym in usec */
-	u8 symbol_duration;
+	/* 802.15.4 acronym: Tdsym in nsec */
+	u32 symbol_duration;
 	/* lifs and sifs periods timing */
 	u16 lifs_period;
 	u16 sifs_period;
@@ -227,6 +227,16 @@ static inline void wpan_phy_net_set(struct wpan_phy *wpan_phy, struct net *net)
 	write_pnet(&wpan_phy->_net, net);
 }
 
+/**
+ * struct ieee802154_addr - IEEE802.15.4 device address
+ * @mode: Address mode from frame header. Can be one of:
+ *        - @IEEE802154_ADDR_NONE
+ *        - @IEEE802154_ADDR_SHORT
+ *        - @IEEE802154_ADDR_LONG
+ * @pan_id: The PAN ID this address belongs to
+ * @short_addr: address if @mode is @IEEE802154_ADDR_SHORT
+ * @extended_addr: address if @mode is @IEEE802154_ADDR_LONG
+ */
 struct ieee802154_addr {
 	u8 mode;
 	__le16 pan_id;
@@ -363,6 +373,7 @@ struct wpan_dev {
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
 
+#if IS_ENABLED(CONFIG_IEEE802154) || IS_ENABLED(CONFIG_6LOWPAN)
 static inline int
 wpan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		     const struct ieee802154_addr *daddr,
@@ -373,6 +384,7 @@ wpan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 	return wpan_dev->header_ops->create(skb, dev, daddr, saddr, len);
 }
+#endif
 
 struct wpan_phy *
 wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size);
@@ -404,5 +416,7 @@ static inline const char *wpan_phy_name(struct wpan_phy *phy)
 {
 	return dev_name(&phy->dev);
 }
+
+void ieee802154_configure_durations(struct wpan_phy *phy);
 
 #endif /* __NET_CFG802154_H */

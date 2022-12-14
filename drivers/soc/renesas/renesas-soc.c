@@ -50,6 +50,10 @@ static const struct renesas_family fam_rza2 __initconst __maybe_unused = {
 	.name	= "RZ/A2",
 };
 
+static const struct renesas_family fam_rzfive __initconst __maybe_unused = {
+	.name	= "RZ/Five",
+};
+
 static const struct renesas_family fam_rzg1 __initconst __maybe_unused = {
 	.name	= "RZ/G1",
 	.reg	= 0xff000044,		/* PRR (Product Register) */
@@ -62,6 +66,14 @@ static const struct renesas_family fam_rzg2 __initconst __maybe_unused = {
 
 static const struct renesas_family fam_rzg2l __initconst __maybe_unused = {
 	.name	= "RZ/G2L",
+};
+
+static const struct renesas_family fam_rzg2ul __initconst __maybe_unused = {
+	.name	= "RZ/G2UL",
+};
+
+static const struct renesas_family fam_rzv2l __initconst __maybe_unused = {
+	.name	= "RZ/V2L",
 };
 
 static const struct renesas_family fam_shmobile __initconst __maybe_unused = {
@@ -92,6 +104,11 @@ static const struct renesas_soc soc_rmobile_ape6 __initconst __maybe_unused = {
 static const struct renesas_soc soc_rmobile_a1 __initconst __maybe_unused = {
 	.family	= &fam_rmobile,
 	.id	= 0x40,
+};
+
+static const struct renesas_soc soc_rz_five __initconst __maybe_unused = {
+	.family = &fam_rzfive,
+	.id     = 0x847c447,
 };
 
 static const struct renesas_soc soc_rz_g1h __initconst __maybe_unused = {
@@ -142,6 +159,16 @@ static const struct renesas_soc soc_rz_g2h __initconst __maybe_unused = {
 static const struct renesas_soc soc_rz_g2l __initconst __maybe_unused = {
 	.family = &fam_rzg2l,
 	.id     = 0x841c447,
+};
+
+static const struct renesas_soc soc_rz_g2ul __initconst __maybe_unused = {
+	.family = &fam_rzg2ul,
+	.id     = 0x8450447,
+};
+
+static const struct renesas_soc soc_rz_v2l __initconst __maybe_unused = {
+	.family = &fam_rzv2l,
+	.id     = 0x8447447,
 };
 
 static const struct renesas_soc soc_rcar_m1a __initconst __maybe_unused = {
@@ -214,13 +241,18 @@ static const struct renesas_soc soc_rcar_d3 __initconst __maybe_unused = {
 };
 
 static const struct renesas_soc soc_rcar_v3u __initconst __maybe_unused = {
-	.family	= &fam_rcar_gen3,
+	.family	= &fam_rcar_gen4,
 	.id	= 0x59,
 };
 
 static const struct renesas_soc soc_rcar_s4 __initconst __maybe_unused = {
 	.family	= &fam_rcar_gen4,
 	.id	= 0x5a,
+};
+
+static const struct renesas_soc soc_rcar_v4h __initconst __maybe_unused = {
+	.family	= &fam_rcar_gen4,
+	.id	= 0x5c,
 };
 
 static const struct renesas_soc soc_shmobile_ag5 __initconst __maybe_unused = {
@@ -297,6 +329,7 @@ static const struct of_device_id renesas_socs[] __initconst = {
 	{ .compatible = "renesas,r8a779m0",	.data = &soc_rcar_h3 },
 	{ .compatible = "renesas,r8a779m1",	.data = &soc_rcar_h3 },
 	{ .compatible = "renesas,r8a779m8",	.data = &soc_rcar_h3 },
+	{ .compatible = "renesas,r8a779mb",	.data = &soc_rcar_h3 },
 #endif
 #ifdef CONFIG_ARCH_R8A77960
 	{ .compatible = "renesas,r8a7796",	.data = &soc_rcar_m3_w },
@@ -331,8 +364,21 @@ static const struct of_device_id renesas_socs[] __initconst = {
 #ifdef CONFIG_ARCH_R8A779F0
 	{ .compatible = "renesas,r8a779f0",	.data = &soc_rcar_s4 },
 #endif
+#ifdef CONFIG_ARCH_R8A779G0
+	{ .compatible = "renesas,r8a779g0",	.data = &soc_rcar_v4h },
+#endif
+#if defined(CONFIG_ARCH_R9A07G043)
+#ifdef CONFIG_RISCV
+	{ .compatible = "renesas,r9a07g043",	.data = &soc_rz_five },
+#else
+	{ .compatible = "renesas,r9a07g043",	.data = &soc_rz_g2ul },
+#endif
+#endif
 #if defined(CONFIG_ARCH_R9A07G044)
 	{ .compatible = "renesas,r9a07g044",	.data = &soc_rz_g2l },
+#endif
+#if defined(CONFIG_ARCH_R9A07G054)
+	{ .compatible = "renesas,r9a07g054",	.data = &soc_rz_v2l },
 #endif
 #ifdef CONFIG_ARCH_SH73A0
 	{ .compatible = "renesas,sh73a0",	.data = &soc_shmobile_ag5 },
@@ -366,7 +412,9 @@ static const struct renesas_id id_prr __initconst = {
 
 static const struct of_device_id renesas_ids[] __initconst = {
 	{ .compatible = "renesas,bsid",			.data = &id_bsid },
+	{ .compatible = "renesas,r9a07g043-sysc",	.data = &id_rzg2l },
 	{ .compatible = "renesas,r9a07g044-sysc",	.data = &id_rzg2l },
+	{ .compatible = "renesas,r9a07g054-sysc",	.data = &id_rzg2l },
 	{ .compatible = "renesas,prr",			.data = &id_prr },
 	{ /* sentinel */ }
 };
@@ -380,9 +428,11 @@ static int __init renesas_soc_init(void)
 	const struct renesas_soc *soc;
 	const struct renesas_id *id;
 	void __iomem *chipid = NULL;
+	const char *rev_prefix = "";
 	struct soc_device *soc_dev;
 	struct device_node *np;
 	const char *soc_id;
+	int ret;
 
 	match = of_match_node(renesas_socs, of_root);
 	if (!match)
@@ -403,6 +453,17 @@ static int __init renesas_soc_init(void)
 		chipid = ioremap(family->reg, 4);
 	}
 
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return -ENOMEM;
+
+	np = of_find_node_by_path("/");
+	of_property_read_string(np, "model", &soc_dev_attr->machine);
+	of_node_put(np);
+
+	soc_dev_attr->family = kstrdup_const(family->name, GFP_KERNEL);
+	soc_dev_attr->soc_id = kstrdup_const(soc_id, GFP_KERNEL);
+
 	if (chipid) {
 		product = readl(chipid + id->offset);
 		iounmap(chipid);
@@ -417,41 +478,39 @@ static int __init renesas_soc_init(void)
 
 			eshi = ((product >> 4) & 0x0f) + 1;
 			eslo = product & 0xf;
+			soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u",
+							   eshi, eslo);
+		}  else if (id == &id_rzg2l) {
+			eshi =  ((product >> 28) & 0x0f);
+			soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%u",
+							   eshi);
+			rev_prefix = "Rev ";
 		}
 
 		if (soc->id &&
 		    ((product & id->mask) >> __ffs(id->mask)) != soc->id) {
 			pr_warn("SoC mismatch (product = 0x%x)\n", product);
-			return -ENODEV;
+			ret = -ENODEV;
+			goto free_soc_dev_attr;
 		}
 	}
 
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
-	if (!soc_dev_attr)
-		return -ENOMEM;
-
-	np = of_find_node_by_path("/");
-	of_property_read_string(np, "model", &soc_dev_attr->machine);
-	of_node_put(np);
-
-	soc_dev_attr->family = kstrdup_const(family->name, GFP_KERNEL);
-	soc_dev_attr->soc_id = kstrdup_const(soc_id, GFP_KERNEL);
-	if (eshi)
-		soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u", eshi,
-						   eslo);
-
-	pr_info("Detected Renesas %s %s %s\n", soc_dev_attr->family,
-		soc_dev_attr->soc_id, soc_dev_attr->revision ?: "");
+	pr_info("Detected Renesas %s %s %s%s\n", soc_dev_attr->family,
+		soc_dev_attr->soc_id, rev_prefix, soc_dev_attr->revision ?: "");
 
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
-		kfree(soc_dev_attr->revision);
-		kfree_const(soc_dev_attr->soc_id);
-		kfree_const(soc_dev_attr->family);
-		kfree(soc_dev_attr);
-		return PTR_ERR(soc_dev);
+		ret = PTR_ERR(soc_dev);
+		goto free_soc_dev_attr;
 	}
 
 	return 0;
+
+free_soc_dev_attr:
+	kfree(soc_dev_attr->revision);
+	kfree_const(soc_dev_attr->soc_id);
+	kfree_const(soc_dev_attr->family);
+	kfree(soc_dev_attr);
+	return ret;
 }
 early_initcall(renesas_soc_init);

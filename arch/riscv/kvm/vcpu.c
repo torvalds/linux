@@ -7,6 +7,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/entry-kvm.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kdebug.h>
@@ -18,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/kvm_host.h>
 #include <asm/csr.h>
+#include <asm/cacheflush.h>
 #include <asm/hwcap.h>
 
 const struct _kvm_stats_desc kvm_vcpu_stats_desc[] = {
@@ -26,6 +28,9 @@ const struct _kvm_stats_desc kvm_vcpu_stats_desc[] = {
 	STATS_DESC_COUNTER(VCPU, wfi_exit_stat),
 	STATS_DESC_COUNTER(VCPU, mmio_exit_user),
 	STATS_DESC_COUNTER(VCPU, mmio_exit_kernel),
+	STATS_DESC_COUNTER(VCPU, csr_exit_user),
+	STATS_DESC_COUNTER(VCPU, csr_exit_kernel),
+	STATS_DESC_COUNTER(VCPU, signal_exits),
 	STATS_DESC_COUNTER(VCPU, exits)
 };
 
@@ -38,14 +43,68 @@ const struct kvm_stats_header kvm_vcpu_stats_header = {
 		       sizeof(kvm_vcpu_stats_desc),
 };
 
-#define KVM_RISCV_ISA_ALLOWED	(riscv_isa_extension_mask(a) | \
-				 riscv_isa_extension_mask(c) | \
-				 riscv_isa_extension_mask(d) | \
-				 riscv_isa_extension_mask(f) | \
-				 riscv_isa_extension_mask(i) | \
-				 riscv_isa_extension_mask(m) | \
-				 riscv_isa_extension_mask(s) | \
-				 riscv_isa_extension_mask(u))
+#define KVM_RISCV_BASE_ISA_MASK		GENMASK(25, 0)
+
+#define KVM_ISA_EXT_ARR(ext)		[KVM_RISCV_ISA_EXT_##ext] = RISCV_ISA_EXT_##ext
+
+/* Mapping between KVM ISA Extension ID & Host ISA extension ID */
+static const unsigned long kvm_isa_ext_arr[] = {
+	[KVM_RISCV_ISA_EXT_A] = RISCV_ISA_EXT_a,
+	[KVM_RISCV_ISA_EXT_C] = RISCV_ISA_EXT_c,
+	[KVM_RISCV_ISA_EXT_D] = RISCV_ISA_EXT_d,
+	[KVM_RISCV_ISA_EXT_F] = RISCV_ISA_EXT_f,
+	[KVM_RISCV_ISA_EXT_H] = RISCV_ISA_EXT_h,
+	[KVM_RISCV_ISA_EXT_I] = RISCV_ISA_EXT_i,
+	[KVM_RISCV_ISA_EXT_M] = RISCV_ISA_EXT_m,
+
+	KVM_ISA_EXT_ARR(SSTC),
+	KVM_ISA_EXT_ARR(SVINVAL),
+	KVM_ISA_EXT_ARR(SVPBMT),
+	KVM_ISA_EXT_ARR(ZIHINTPAUSE),
+	KVM_ISA_EXT_ARR(ZICBOM),
+};
+
+static unsigned long kvm_riscv_vcpu_base2isa_ext(unsigned long base_ext)
+{
+	unsigned long i;
+
+	for (i = 0; i < KVM_RISCV_ISA_EXT_MAX; i++) {
+		if (kvm_isa_ext_arr[i] == base_ext)
+			return i;
+	}
+
+	return KVM_RISCV_ISA_EXT_MAX;
+}
+
+static bool kvm_riscv_vcpu_isa_enable_allowed(unsigned long ext)
+{
+	switch (ext) {
+	case KVM_RISCV_ISA_EXT_H:
+		return false;
+	default:
+		break;
+	}
+
+	return true;
+}
+
+static bool kvm_riscv_vcpu_isa_disable_allowed(unsigned long ext)
+{
+	switch (ext) {
+	case KVM_RISCV_ISA_EXT_A:
+	case KVM_RISCV_ISA_EXT_C:
+	case KVM_RISCV_ISA_EXT_I:
+	case KVM_RISCV_ISA_EXT_M:
+	case KVM_RISCV_ISA_EXT_SSTC:
+	case KVM_RISCV_ISA_EXT_SVINVAL:
+	case KVM_RISCV_ISA_EXT_ZIHINTPAUSE:
+		return false;
+	default:
+		break;
+	}
+
+	return true;
+}
 
 static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
 {
@@ -65,6 +124,8 @@ static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
 	if (loaded)
 		kvm_arch_vcpu_put(vcpu);
 
+	vcpu->arch.last_exit_cpu = -1;
+
 	memcpy(csr, reset_csr, sizeof(*csr));
 
 	memcpy(cntx, reset_cntx, sizeof(*cntx));
@@ -75,6 +136,10 @@ static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
 
 	WRITE_ONCE(vcpu->arch.irqs_pending, 0);
 	WRITE_ONCE(vcpu->arch.irqs_pending_mask, 0);
+
+	vcpu->arch.hfence_head = 0;
+	vcpu->arch.hfence_tail = 0;
+	memset(vcpu->arch.hfence_queue, 0, sizeof(vcpu->arch.hfence_queue));
 
 	/* Reset the guest CSRs for hotplug usecase */
 	if (loaded)
@@ -90,13 +155,24 @@ int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
 int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *cntx;
+	struct kvm_vcpu_csr *reset_csr = &vcpu->arch.guest_reset_csr;
+	unsigned long host_isa, i;
 
 	/* Mark this VCPU never ran */
 	vcpu->arch.ran_atleast_once = false;
 	vcpu->arch.mmu_page_cache.gfp_zero = __GFP_ZERO;
+	bitmap_zero(vcpu->arch.isa, RISCV_ISA_EXT_MAX);
 
 	/* Setup ISA features available to VCPU */
-	vcpu->arch.isa = riscv_isa_extension_base(NULL) & KVM_RISCV_ISA_ALLOWED;
+	for (i = 0; i < ARRAY_SIZE(kvm_isa_ext_arr); i++) {
+		host_isa = kvm_isa_ext_arr[i];
+		if (__riscv_isa_extension_available(NULL, host_isa) &&
+		    kvm_riscv_vcpu_isa_enable_allowed(i))
+			set_bit(host_isa, vcpu->arch.isa);
+	}
+
+	/* Setup VCPU hfence queue */
+	spin_lock_init(&vcpu->arch.hfence_lock);
 
 	/* Setup reset state of shadow SSTATUS and HSTATUS CSRs */
 	cntx = &vcpu->arch.guest_reset_context;
@@ -105,6 +181,9 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	cntx->hstatus |= HSTATUS_VTW;
 	cntx->hstatus |= HSTATUS_SPVP;
 	cntx->hstatus |= HSTATUS_SPV;
+
+	/* By default, make CY, TM, and IR counters accessible in VU mode */
+	reset_csr->scounteren = 0x7;
 
 	/* Setup VCPU timer */
 	kvm_riscv_vcpu_timer_init(vcpu);
@@ -131,13 +210,13 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	/* Cleanup VCPU timer */
 	kvm_riscv_vcpu_timer_deinit(vcpu);
 
-	/* Free unused pages pre-allocated for Stage2 page table mappings */
+	/* Free unused pages pre-allocated for G-stage page table mappings */
 	kvm_mmu_free_memory_cache(&vcpu->arch.mmu_page_cache);
 }
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	return kvm_riscv_vcpu_has_interrupts(vcpu, 1UL << IRQ_VS_TIMER);
+	return kvm_riscv_vcpu_timer_pending(vcpu);
 }
 
 void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)
@@ -184,7 +263,12 @@ static int kvm_riscv_vcpu_get_reg_config(struct kvm_vcpu *vcpu,
 
 	switch (reg_num) {
 	case KVM_REG_RISCV_CONFIG_REG(isa):
-		reg_val = vcpu->arch.isa;
+		reg_val = vcpu->arch.isa[0] & KVM_RISCV_BASE_ISA_MASK;
+		break;
+	case KVM_REG_RISCV_CONFIG_REG(zicbom_block_size):
+		if (!riscv_isa_extension_available(vcpu->arch.isa, ZICBOM))
+			return -EINVAL;
+		reg_val = riscv_cbom_block_size;
 		break;
 	default:
 		return -EINVAL;
@@ -204,7 +288,7 @@ static int kvm_riscv_vcpu_set_reg_config(struct kvm_vcpu *vcpu,
 	unsigned long reg_num = reg->id & ~(KVM_REG_ARCH_MASK |
 					    KVM_REG_SIZE_MASK |
 					    KVM_REG_RISCV_CONFIG);
-	unsigned long reg_val;
+	unsigned long i, isa_ext, reg_val;
 
 	if (KVM_REG_SIZE(reg->id) != sizeof(unsigned long))
 		return -EINVAL;
@@ -212,17 +296,39 @@ static int kvm_riscv_vcpu_set_reg_config(struct kvm_vcpu *vcpu,
 	if (copy_from_user(&reg_val, uaddr, KVM_REG_SIZE(reg->id)))
 		return -EFAULT;
 
+	/* This ONE REG interface is only defined for single letter extensions */
+	if (fls(reg_val) >= RISCV_ISA_EXT_BASE)
+		return -EINVAL;
+
 	switch (reg_num) {
 	case KVM_REG_RISCV_CONFIG_REG(isa):
 		if (!vcpu->arch.ran_atleast_once) {
-			vcpu->arch.isa = reg_val;
-			vcpu->arch.isa &= riscv_isa_extension_base(NULL);
-			vcpu->arch.isa &= KVM_RISCV_ISA_ALLOWED;
+			/* Ignore the enable/disable request for certain extensions */
+			for (i = 0; i < RISCV_ISA_EXT_BASE; i++) {
+				isa_ext = kvm_riscv_vcpu_base2isa_ext(i);
+				if (isa_ext >= KVM_RISCV_ISA_EXT_MAX) {
+					reg_val &= ~BIT(i);
+					continue;
+				}
+				if (!kvm_riscv_vcpu_isa_enable_allowed(isa_ext))
+					if (reg_val & BIT(i))
+						reg_val &= ~BIT(i);
+				if (!kvm_riscv_vcpu_isa_disable_allowed(isa_ext))
+					if (!(reg_val & BIT(i)))
+						reg_val |= BIT(i);
+			}
+			reg_val &= riscv_isa_extension_base(NULL);
+			/* Do not modify anything beyond single letter extensions */
+			reg_val = (vcpu->arch.isa[0] & ~KVM_RISCV_BASE_ISA_MASK) |
+				  (reg_val & KVM_RISCV_BASE_ISA_MASK);
+			vcpu->arch.isa[0] = reg_val;
 			kvm_riscv_vcpu_fp_reset(vcpu);
 		} else {
 			return -EOPNOTSUPP;
 		}
 		break;
+	case KVM_REG_RISCV_CONFIG_REG(zicbom_block_size):
+		return -EOPNOTSUPP;
 	default:
 		return -EINVAL;
 	}
@@ -358,6 +464,80 @@ static int kvm_riscv_vcpu_set_reg_csr(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static int kvm_riscv_vcpu_get_reg_isa_ext(struct kvm_vcpu *vcpu,
+					  const struct kvm_one_reg *reg)
+{
+	unsigned long __user *uaddr =
+			(unsigned long __user *)(unsigned long)reg->addr;
+	unsigned long reg_num = reg->id & ~(KVM_REG_ARCH_MASK |
+					    KVM_REG_SIZE_MASK |
+					    KVM_REG_RISCV_ISA_EXT);
+	unsigned long reg_val = 0;
+	unsigned long host_isa_ext;
+
+	if (KVM_REG_SIZE(reg->id) != sizeof(unsigned long))
+		return -EINVAL;
+
+	if (reg_num >= KVM_RISCV_ISA_EXT_MAX ||
+	    reg_num >= ARRAY_SIZE(kvm_isa_ext_arr))
+		return -EINVAL;
+
+	host_isa_ext = kvm_isa_ext_arr[reg_num];
+	if (__riscv_isa_extension_available(vcpu->arch.isa, host_isa_ext))
+		reg_val = 1; /* Mark the given extension as available */
+
+	if (copy_to_user(uaddr, &reg_val, KVM_REG_SIZE(reg->id)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int kvm_riscv_vcpu_set_reg_isa_ext(struct kvm_vcpu *vcpu,
+					  const struct kvm_one_reg *reg)
+{
+	unsigned long __user *uaddr =
+			(unsigned long __user *)(unsigned long)reg->addr;
+	unsigned long reg_num = reg->id & ~(KVM_REG_ARCH_MASK |
+					    KVM_REG_SIZE_MASK |
+					    KVM_REG_RISCV_ISA_EXT);
+	unsigned long reg_val;
+	unsigned long host_isa_ext;
+
+	if (KVM_REG_SIZE(reg->id) != sizeof(unsigned long))
+		return -EINVAL;
+
+	if (reg_num >= KVM_RISCV_ISA_EXT_MAX ||
+	    reg_num >= ARRAY_SIZE(kvm_isa_ext_arr))
+		return -EINVAL;
+
+	if (copy_from_user(&reg_val, uaddr, KVM_REG_SIZE(reg->id)))
+		return -EFAULT;
+
+	host_isa_ext = kvm_isa_ext_arr[reg_num];
+	if (!__riscv_isa_extension_available(NULL, host_isa_ext))
+		return	-EOPNOTSUPP;
+
+	if (!vcpu->arch.ran_atleast_once) {
+		/*
+		 * All multi-letter extension and a few single letter
+		 * extension can be disabled
+		 */
+		if (reg_val == 1 &&
+		    kvm_riscv_vcpu_isa_enable_allowed(reg_num))
+			set_bit(host_isa_ext, vcpu->arch.isa);
+		else if (!reg_val &&
+			 kvm_riscv_vcpu_isa_disable_allowed(reg_num))
+			clear_bit(host_isa_ext, vcpu->arch.isa);
+		else
+			return -EINVAL;
+		kvm_riscv_vcpu_fp_reset(vcpu);
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int kvm_riscv_vcpu_set_reg(struct kvm_vcpu *vcpu,
 				  const struct kvm_one_reg *reg)
 {
@@ -375,6 +555,8 @@ static int kvm_riscv_vcpu_set_reg(struct kvm_vcpu *vcpu,
 	else if ((reg->id & KVM_REG_RISCV_TYPE_MASK) == KVM_REG_RISCV_FP_D)
 		return kvm_riscv_vcpu_set_reg_fp(vcpu, reg,
 						 KVM_REG_RISCV_FP_D);
+	else if ((reg->id & KVM_REG_RISCV_TYPE_MASK) == KVM_REG_RISCV_ISA_EXT)
+		return kvm_riscv_vcpu_set_reg_isa_ext(vcpu, reg);
 
 	return -EINVAL;
 }
@@ -396,6 +578,8 @@ static int kvm_riscv_vcpu_get_reg(struct kvm_vcpu *vcpu,
 	else if ((reg->id & KVM_REG_RISCV_TYPE_MASK) == KVM_REG_RISCV_FP_D)
 		return kvm_riscv_vcpu_get_reg_fp(vcpu, reg,
 						 KVM_REG_RISCV_FP_D);
+	else if ((reg->id & KVM_REG_RISCV_TYPE_MASK) == KVM_REG_RISCV_ISA_EXT)
+		return kvm_riscv_vcpu_get_reg_isa_ext(vcpu, reg);
 
 	return -EINVAL;
 }
@@ -524,6 +708,9 @@ void kvm_riscv_vcpu_sync_interrupts(struct kvm_vcpu *vcpu)
 				clear_bit(IRQ_VS_SOFT, &v->irqs_pending);
 		}
 	}
+
+	/* Sync-up timer CSRs */
+	kvm_riscv_vcpu_timer_sync(vcpu);
 }
 
 int kvm_riscv_vcpu_set_interrupt(struct kvm_vcpu *vcpu, unsigned int irq)
@@ -614,6 +801,25 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
+static void kvm_riscv_vcpu_update_config(const unsigned long *isa)
+{
+	u64 henvcfg = 0;
+
+	if (riscv_isa_extension_available(isa, SVPBMT))
+		henvcfg |= ENVCFG_PBMTE;
+
+	if (riscv_isa_extension_available(isa, SSTC))
+		henvcfg |= ENVCFG_STCE;
+
+	if (riscv_isa_extension_available(isa, ZICBOM))
+		henvcfg |= (ENVCFG_CBIE | ENVCFG_CBCFE);
+
+	csr_write(CSR_HENVCFG, henvcfg);
+#ifdef CONFIG_32BIT
+	csr_write(CSR_HENVCFGH, henvcfg >> 32);
+#endif
+}
+
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
@@ -628,7 +834,9 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	csr_write(CSR_HVIP, csr->hvip);
 	csr_write(CSR_VSATP, csr->vsatp);
 
-	kvm_riscv_stage2_update_hgatp(vcpu);
+	kvm_riscv_vcpu_update_config(vcpu->arch.isa);
+
+	kvm_riscv_gstage_update_hgatp(vcpu);
 
 	kvm_riscv_vcpu_timer_restore(vcpu);
 
@@ -649,7 +857,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 				     vcpu->arch.isa);
 	kvm_riscv_vcpu_host_fp_restore(&vcpu->arch.host_context);
 
-	csr_write(CSR_HGATP, 0);
+	kvm_riscv_vcpu_timer_save(vcpu);
 
 	csr->vsstatus = csr_read(CSR_VSSTATUS);
 	csr->vsie = csr_read(CSR_VSIE);
@@ -668,9 +876,11 @@ static void kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)
 
 	if (kvm_request_pending(vcpu)) {
 		if (kvm_check_request(KVM_REQ_SLEEP, vcpu)) {
+			kvm_vcpu_srcu_read_unlock(vcpu);
 			rcuwait_wait_event(wait,
 				(!vcpu->arch.power_off) && (!vcpu->arch.pause),
 				TASK_INTERRUPTIBLE);
+			kvm_vcpu_srcu_read_lock(vcpu);
 
 			if (vcpu->arch.power_off || vcpu->arch.pause) {
 				/*
@@ -685,10 +895,23 @@ static void kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)
 			kvm_riscv_reset_vcpu(vcpu);
 
 		if (kvm_check_request(KVM_REQ_UPDATE_HGATP, vcpu))
-			kvm_riscv_stage2_update_hgatp(vcpu);
+			kvm_riscv_gstage_update_hgatp(vcpu);
 
-		if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu))
-			__kvm_riscv_hfence_gvma_all();
+		if (kvm_check_request(KVM_REQ_FENCE_I, vcpu))
+			kvm_riscv_fence_i_process(vcpu);
+
+		/*
+		 * The generic KVM_REQ_TLB_FLUSH is same as
+		 * KVM_REQ_HFENCE_GVMA_VMID_ALL
+		 */
+		if (kvm_check_request(KVM_REQ_HFENCE_GVMA_VMID_ALL, vcpu))
+			kvm_riscv_hfence_gvma_vmid_all_process(vcpu);
+
+		if (kvm_check_request(KVM_REQ_HFENCE_VVMA_ALL, vcpu))
+			kvm_riscv_hfence_vvma_all_process(vcpu);
+
+		if (kvm_check_request(KVM_REQ_HFENCE, vcpu))
+			kvm_riscv_hfence_process(vcpu);
 	}
 }
 
@@ -697,6 +920,21 @@ static void kvm_riscv_update_hvip(struct kvm_vcpu *vcpu)
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
 
 	csr_write(CSR_HVIP, csr->hvip);
+}
+
+/*
+ * Actually run the vCPU, entering an RCU extended quiescent state (EQS) while
+ * the vCPU is running.
+ *
+ * This must be noinstr as instrumentation may make use of RCU, and this is not
+ * safe during the EQS.
+ */
+static void noinstr kvm_riscv_vcpu_enter_exit(struct kvm_vcpu *vcpu)
+{
+	guest_state_enter_irqoff();
+	__kvm_riscv_switch_to(&vcpu->arch);
+	vcpu->arch.last_exit_cpu = vcpu->cpu;
+	guest_state_exit_irqoff();
 }
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
@@ -708,28 +946,32 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 	/* Mark this VCPU ran at least once */
 	vcpu->arch.ran_atleast_once = true;
 
-	vcpu->arch.srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+	kvm_vcpu_srcu_read_lock(vcpu);
 
-	/* Process MMIO value returned from user-space */
-	if (run->exit_reason == KVM_EXIT_MMIO) {
+	switch (run->exit_reason) {
+	case KVM_EXIT_MMIO:
+		/* Process MMIO value returned from user-space */
 		ret = kvm_riscv_vcpu_mmio_return(vcpu, vcpu->run);
-		if (ret) {
-			srcu_read_unlock(&vcpu->kvm->srcu, vcpu->arch.srcu_idx);
-			return ret;
-		}
-	}
-
-	/* Process SBI value returned from user-space */
-	if (run->exit_reason == KVM_EXIT_RISCV_SBI) {
+		break;
+	case KVM_EXIT_RISCV_SBI:
+		/* Process SBI value returned from user-space */
 		ret = kvm_riscv_vcpu_sbi_return(vcpu, vcpu->run);
-		if (ret) {
-			srcu_read_unlock(&vcpu->kvm->srcu, vcpu->arch.srcu_idx);
-			return ret;
-		}
+		break;
+	case KVM_EXIT_RISCV_CSR:
+		/* Process CSR value returned from user-space */
+		ret = kvm_riscv_vcpu_csr_return(vcpu, vcpu->run);
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+	if (ret) {
+		kvm_vcpu_srcu_read_unlock(vcpu);
+		return ret;
 	}
 
 	if (run->immediate_exit) {
-		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->arch.srcu_idx);
+		kvm_vcpu_srcu_read_unlock(vcpu);
 		return -EINTR;
 	}
 
@@ -741,24 +983,15 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	while (ret > 0) {
 		/* Check conditions before entering the guest */
-		cond_resched();
+		ret = xfer_to_guest_mode_handle_work(vcpu);
+		if (!ret)
+			ret = 1;
 
-		kvm_riscv_stage2_vmid_update(vcpu);
+		kvm_riscv_gstage_vmid_update(vcpu);
 
 		kvm_riscv_check_vcpu_requests(vcpu);
 
-		preempt_disable();
-
 		local_irq_disable();
-
-		/*
-		 * Exit if we have a signal pending so that we can deliver
-		 * the signal to user space.
-		 */
-		if (signal_pending(current)) {
-			ret = -EINTR;
-			run->exit_reason = KVM_EXIT_INTR;
-		}
 
 		/*
 		 * Ensure we set mode to IN_GUEST_MODE after we disable
@@ -768,7 +1001,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		 */
 		vcpu->mode = IN_GUEST_MODE;
 
-		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->arch.srcu_idx);
+		kvm_vcpu_srcu_read_unlock(vcpu);
 		smp_mb__after_srcu_read_unlock();
 
 		/*
@@ -781,18 +1014,26 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		kvm_riscv_update_hvip(vcpu);
 
 		if (ret <= 0 ||
-		    kvm_riscv_stage2_vmid_ver_changed(&vcpu->kvm->arch.vmid) ||
-		    kvm_request_pending(vcpu)) {
+		    kvm_riscv_gstage_vmid_ver_changed(&vcpu->kvm->arch.vmid) ||
+		    kvm_request_pending(vcpu) ||
+		    xfer_to_guest_mode_work_pending()) {
 			vcpu->mode = OUTSIDE_GUEST_MODE;
 			local_irq_enable();
-			preempt_enable();
-			vcpu->arch.srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+			kvm_vcpu_srcu_read_lock(vcpu);
 			continue;
 		}
 
-		guest_enter_irqoff();
+		/*
+		 * Cleanup stale TLB enteries
+		 *
+		 * Note: This should be done after G-stage VMID has been
+		 * updated using kvm_riscv_gstage_vmid_ver_changed()
+		 */
+		kvm_riscv_local_tlb_sanitize(vcpu);
 
-		__kvm_riscv_switch_to(&vcpu->arch);
+		guest_timing_enter_irqoff();
+
+		kvm_riscv_vcpu_enter_exit(vcpu);
 
 		vcpu->mode = OUTSIDE_GUEST_MODE;
 		vcpu->stat.exits++;
@@ -811,30 +1052,28 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		/* Syncup interrupts state with HW */
 		kvm_riscv_vcpu_sync_interrupts(vcpu);
 
-		/*
-		 * We may have taken a host interrupt in VS/VU-mode (i.e.
-		 * while executing the guest). This interrupt is still
-		 * pending, as we haven't serviced it yet!
-		 *
-		 * We're now back in HS-mode with interrupts disabled
-		 * so enabling the interrupts now will have the effect
-		 * of taking the interrupt again, in HS-mode this time.
-		 */
-		local_irq_enable();
+		preempt_disable();
 
 		/*
-		 * We do local_irq_enable() before calling guest_exit() so
-		 * that if a timer interrupt hits while running the guest
-		 * we account that tick as being spent in the guest. We
-		 * enable preemption after calling guest_exit() so that if
-		 * we get preempted we make sure ticks after that is not
-		 * counted as guest time.
+		 * We must ensure that any pending interrupts are taken before
+		 * we exit guest timing so that timer ticks are accounted as
+		 * guest time. Transiently unmask interrupts so that any
+		 * pending interrupts are taken.
+		 *
+		 * There's no barrier which ensures that pending interrupts are
+		 * recognised, so we just hope that the CPU takes any pending
+		 * interrupts between the enable and disable.
 		 */
-		guest_exit();
+		local_irq_enable();
+		local_irq_disable();
+
+		guest_timing_exit_irqoff();
+
+		local_irq_enable();
 
 		preempt_enable();
 
-		vcpu->arch.srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+		kvm_vcpu_srcu_read_lock(vcpu);
 
 		ret = kvm_riscv_vcpu_exit(vcpu, run, &trap);
 	}
@@ -843,7 +1082,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 
 	vcpu_put(vcpu);
 
-	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->arch.srcu_idx);
+	kvm_vcpu_srcu_read_unlock(vcpu);
 
 	return ret;
 }

@@ -91,7 +91,6 @@ static char *driver_name     = "SyncLink GT";
 static char *slgt_driver_name = "synclink_gt";
 static char *tty_dev_prefix  = "ttySLG";
 MODULE_LICENSE("GPL");
-#define MGSL_MAGIC 0x5401
 #define MAX_DEVICES 32
 
 static const struct pci_device_id pci_table[] = {
@@ -214,8 +213,6 @@ struct slgt_info {
 	struct tty_port port;
 
 	struct slgt_info *next_device;	/* device list link */
-
-	int magic;
 
 	char device_name[25];
 	struct pci_dev *pdev;
@@ -554,10 +551,6 @@ static inline int sanity_check(struct slgt_info *info, char *devname, const char
 		printk("null struct slgt_info for (%s) in %s\n", devname, name);
 		return 1;
 	}
-	if (info->magic != MGSL_MAGIC) {
-		printk("bad magic number struct slgt_info (%s) in %s\n", devname, name);
-		return 1;
-	}
 #else
 	if (!info)
 		return 1;
@@ -707,7 +700,8 @@ static void hangup(struct tty_struct *tty)
 	wake_up_interruptible(&info->port.open_wait);
 }
 
-static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
+static void set_termios(struct tty_struct *tty,
+			const struct ktermios *old_termios)
 {
 	struct slgt_info *info = tty->driver_data;
 	unsigned long flags;
@@ -1746,6 +1740,8 @@ static int hdlcdev_init(struct slgt_info *info)
  */
 static void hdlcdev_exit(struct slgt_info *info)
 {
+	if (!info->netdev)
+		return;
 	unregister_hdlc_device(info->netdev);
 	free_netdev(info->netdev);
 	info->netdev = NULL;
@@ -3496,7 +3492,6 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 	} else {
 		tty_port_init(&info->port);
 		info->port.ops = &slgt_port_ops;
-		info->magic = MGSL_MAGIC;
 		INIT_WORK(&info->task, bh_handler);
 		info->max_frame_size = 4096;
 		info->base_clock = 14745600;

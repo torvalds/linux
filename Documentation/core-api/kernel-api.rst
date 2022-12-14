@@ -118,6 +118,12 @@ Text Searching
 CRC and Math Functions in Linux
 ===============================
 
+Arithmetic Overflow Checking
+----------------------------
+
+.. kernel-doc:: include/linux/overflow.h
+   :internal:
+
 CRC Functions
 -------------
 
@@ -223,7 +229,7 @@ Module Loading
 Inter Module support
 --------------------
 
-Refer to the file kernel/module.c for more information.
+Refer to the files in kernel/module/ for more information.
 
 Hardware Interfaces
 ===================

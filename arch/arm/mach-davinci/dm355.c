@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI DaVinci DM355 chip specific setup
  *
  * Author: Kevin Hilman, Deep Root Systems, LLC
  *
- * 2007 (c) Deep Root Systems, LLC. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2007 (c) Deep Root Systems, LLC.
  */
 
 #include <linux/clk-provider.h>
@@ -24,15 +22,13 @@
 #include <linux/serial_8250.h>
 #include <linux/spi/spi.h>
 
-#include <asm/mach/map.h>
-
-#include <mach/common.h>
-#include <mach/cputype.h>
-#include <mach/mux.h>
-#include <mach/serial.h>
-
 #include <clocksource/timer-davinci.h>
 
+#include <asm/mach/map.h>
+
+#include "common.h"
+#include "cputype.h"
+#include "serial.h"
 #include "asp.h"
 #include "davinci.h"
 #include "irqs.h"

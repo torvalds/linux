@@ -20,6 +20,7 @@
 
 static int da_command_address;
 static int da_command_code;
+static struct smi_buffer smi_buf;
 static struct calling_interface_buffer *buffer;
 static struct platform_device *platform_device;
 static DEFINE_MUTEX(smm_mutex);
@@ -57,7 +58,7 @@ static int dell_smbios_smm_call(struct calling_interface_buffer *input)
 	command.magic = SMI_CMD_MAGIC;
 	command.command_address = da_command_address;
 	command.command_code = da_command_code;
-	command.ebx = virt_to_phys(buffer);
+	command.ebx = smi_buf.dma;
 	command.ecx = 0x42534931;
 
 	mutex_lock(&smm_mutex);
@@ -101,9 +102,10 @@ int init_dell_smbios_smm(void)
 	 * Allocate buffer below 4GB for SMI data--only 32-bit physical addr
 	 * is passed to SMI handler.
 	 */
-	buffer = (void *)__get_free_page(GFP_KERNEL | GFP_DMA32);
-	if (!buffer)
-		return -ENOMEM;
+	ret = dcdbas_smi_alloc(&smi_buf, PAGE_SIZE);
+	if (ret)
+		return ret;
+	buffer = (void *)smi_buf.virt;
 
 	dmi_walk(find_cmd_address, NULL);
 
@@ -138,7 +140,7 @@ fail_platform_device_add:
 
 fail_wsmt:
 fail_platform_device_alloc:
-	free_page((unsigned long)buffer);
+	dcdbas_smi_free(&smi_buf);
 	return ret;
 }
 
@@ -147,6 +149,6 @@ void exit_dell_smbios_smm(void)
 	if (platform_device) {
 		dell_smbios_unregister_device(&platform_device->dev);
 		platform_device_unregister(platform_device);
-		free_page((unsigned long)buffer);
+		dcdbas_smi_free(&smi_buf);
 	}
 }

@@ -8,6 +8,7 @@
 #include <linux/mm_types.h>
 #include <linux/gfp.h>
 #include <linux/sync_core.h>
+#include <linux/ioasid.h>
 
 /*
  * Routines for handling mm_structs
@@ -28,7 +29,7 @@ extern struct mm_struct *mm_alloc(void);
  *
  * Use mmdrop() to release the reference acquired by mmgrab().
  *
- * See also <Documentation/vm/active_mm.rst> for an in-depth explanation
+ * See also <Documentation/mm/active_mm.rst> for an in-depth explanation
  * of &mm_struct.mm_count vs &mm_struct.mm_users.
  */
 static inline void mmgrab(struct mm_struct *mm)
@@ -91,7 +92,7 @@ static inline void mmdrop_sched(struct mm_struct *mm)
  *
  * Use mmput() to release the reference acquired by mmget().
  *
- * See also <Documentation/vm/active_mm.rst> for an in-depth explanation
+ * See also <Documentation/mm/active_mm.rst> for an in-depth explanation
  * of &mm_struct.mm_count vs &mm_struct.mm_users.
  */
 static inline void mmget(struct mm_struct *mm)
@@ -135,6 +136,14 @@ static inline void mm_update_next_owner(struct mm_struct *mm)
 #endif /* CONFIG_MEMCG */
 
 #ifdef CONFIG_MMU
+#ifndef arch_get_mmap_end
+#define arch_get_mmap_end(addr, len, flags)	(TASK_SIZE)
+#endif
+
+#ifndef arch_get_mmap_base
+#define arch_get_mmap_base(addr, base) (base)
+#endif
+
 extern void arch_pick_mmap_layout(struct mm_struct *mm,
 				  struct rlimit *rlim_stack);
 extern unsigned long
@@ -144,6 +153,15 @@ extern unsigned long
 arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
 			  unsigned long len, unsigned long pgoff,
 			  unsigned long flags);
+
+unsigned long
+generic_get_unmapped_area(struct file *filp, unsigned long addr,
+			  unsigned long len, unsigned long pgoff,
+			  unsigned long flags);
+unsigned long
+generic_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
+				  unsigned long len, unsigned long pgoff,
+				  unsigned long flags);
 #else
 static inline void arch_pick_mmap_layout(struct mm_struct *mm,
 					 struct rlimit *rlim_stack) {}
@@ -431,6 +449,31 @@ static inline void membarrier_mm_sync_core_before_usermode(struct mm_struct *mm)
 static inline void membarrier_update_current_mm(struct mm_struct *next_mm)
 {
 }
+#endif
+
+#ifdef CONFIG_IOMMU_SVA
+static inline void mm_pasid_init(struct mm_struct *mm)
+{
+	mm->pasid = INVALID_IOASID;
+}
+
+/* Associate a PASID with an mm_struct: */
+static inline void mm_pasid_set(struct mm_struct *mm, u32 pasid)
+{
+	mm->pasid = pasid;
+}
+
+static inline void mm_pasid_drop(struct mm_struct *mm)
+{
+	if (pasid_valid(mm->pasid)) {
+		ioasid_free(mm->pasid);
+		mm->pasid = INVALID_IOASID;
+	}
+}
+#else
+static inline void mm_pasid_init(struct mm_struct *mm) {}
+static inline void mm_pasid_set(struct mm_struct *mm, u32 pasid) {}
+static inline void mm_pasid_drop(struct mm_struct *mm) {}
 #endif
 
 #endif /* _LINUX_SCHED_MM_H */

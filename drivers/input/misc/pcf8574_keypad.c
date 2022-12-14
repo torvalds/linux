@@ -157,7 +157,7 @@ static int pcf8574_kp_probe(struct i2c_client *client, const struct i2c_device_i
 	return ret;
 }
 
-static int pcf8574_kp_remove(struct i2c_client *client)
+static void pcf8574_kp_remove(struct i2c_client *client)
 {
 	struct kp_data *lp = i2c_get_clientdata(client);
 
@@ -165,8 +165,6 @@ static int pcf8574_kp_remove(struct i2c_client *client)
 
 	input_unregister_device(lp->idev);
 	kfree(lp);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

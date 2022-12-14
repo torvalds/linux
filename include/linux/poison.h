@@ -81,4 +81,7 @@
 /********** net/core/page_pool.c **********/
 #define PP_SIGNATURE		(0x40 + POISON_POINTER_DELTA)
 
+/********** kernel/bpf/ **********/
+#define BPF_PTR_POISON ((void *)(0xeB9FUL + POISON_POINTER_DELTA))
+
 #endif

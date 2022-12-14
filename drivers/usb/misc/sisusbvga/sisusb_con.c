@@ -248,7 +248,7 @@ sisusbcon_init(struct vc_data *c, int init)
 	 */
 	kref_get(&sisusb->kref);
 
-	if (!*c->vc_uni_pagedir_loc)
+	if (!*c->uni_pagedict_loc)
 		con_set_default_unimap(c);
 
 	mutex_unlock(&sisusb->lock);

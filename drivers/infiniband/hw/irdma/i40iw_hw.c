@@ -3,7 +3,6 @@
 #include "osdep.h"
 #include "type.h"
 #include "i40iw_hw.h"
-#include "status.h"
 #include "protos.h"
 
 static u32 i40iw_regs[IRDMA_MAX_REGS] = {
@@ -202,6 +201,7 @@ void i40iw_init_hw(struct irdma_sc_dev *dev)
 	dev->hw_attrs.uk_attrs.max_hw_read_sges = I40IW_MAX_SGE_RD;
 	dev->hw_attrs.max_hw_device_pages = I40IW_MAX_PUSH_PAGE_COUNT;
 	dev->hw_attrs.uk_attrs.max_hw_inline = I40IW_MAX_INLINE_DATA_SIZE;
+	dev->hw_attrs.page_size_cap = SZ_4K | SZ_2M;
 	dev->hw_attrs.max_hw_ird = I40IW_MAX_IRD_SIZE;
 	dev->hw_attrs.max_hw_ord = I40IW_MAX_ORD_SIZE;
 	dev->hw_attrs.max_hw_wqes = I40IW_MAX_WQ_ENTRIES;

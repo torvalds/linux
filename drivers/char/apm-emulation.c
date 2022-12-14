@@ -544,7 +544,7 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 		wake_up_interruptible(&apm_waitqueue);
 
 		/*
-		 * Wait for the the suspend_acks_pending variable to drop to
+		 * Wait for the suspend_acks_pending variable to drop to
 		 * zero, meaning everybody acked the suspend event (or the
 		 * process was killed.)
 		 *

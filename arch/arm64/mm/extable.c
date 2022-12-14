@@ -16,13 +16,6 @@ get_ex_fixup(const struct exception_table_entry *ex)
 	return ((unsigned long)&ex->fixup + ex->fixup);
 }
 
-static bool ex_handler_fixup(const struct exception_table_entry *ex,
-			     struct pt_regs *regs)
-{
-	regs->pc = get_ex_fixup(ex);
-	return true;
-}
-
 static bool ex_handler_uaccess_err_zero(const struct exception_table_entry *ex,
 					struct pt_regs *regs)
 {
@@ -72,11 +65,10 @@ bool fixup_exception(struct pt_regs *regs)
 		return false;
 
 	switch (ex->type) {
-	case EX_TYPE_FIXUP:
-		return ex_handler_fixup(ex, regs);
 	case EX_TYPE_BPF:
 		return ex_handler_bpf(ex, regs);
 	case EX_TYPE_UACCESS_ERR_ZERO:
+	case EX_TYPE_KACCESS_ERR_ZERO:
 		return ex_handler_uaccess_err_zero(ex, regs);
 	case EX_TYPE_LOAD_UNALIGNED_ZEROPAD:
 		return ex_handler_load_unaligned_zeropad(ex, regs);

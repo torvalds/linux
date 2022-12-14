@@ -221,7 +221,7 @@ static ssize_t cleaning_period_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", be32_to_cpu(val));
+	return sysfs_emit(buf, "%d\n", be32_to_cpu(val));
 }
 
 static ssize_t cleaning_period_store(struct device *dev, struct device_attribute *attr,
@@ -372,7 +372,7 @@ int sps30_probe(struct device *dev, const char *name, void *priv, const struct s
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_GPL(sps30_probe);
+EXPORT_SYMBOL_NS_GPL(sps30_probe, IIO_SPS30);
 
 MODULE_AUTHOR("Tomasz Duszynski <tduszyns@gmail.com>");
 MODULE_DESCRIPTION("Sensirion SPS30 particulate matter sensor driver");

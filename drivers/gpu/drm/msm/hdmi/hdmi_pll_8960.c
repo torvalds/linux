@@ -434,7 +434,7 @@ int msm_hdmi_pll_8960_init(struct platform_device *pdev)
 	if (!pll)
 		return -ENOMEM;
 
-	pll->mmio = msm_ioremap(pdev, "hdmi_pll", "HDMI_PLL");
+	pll->mmio = msm_ioremap(pdev, "hdmi_pll");
 	if (IS_ERR(pll->mmio)) {
 		DRM_DEV_ERROR(dev, "failed to map pll base\n");
 		return -ENOMEM;

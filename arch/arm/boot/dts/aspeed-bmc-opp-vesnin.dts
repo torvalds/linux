@@ -63,13 +63,13 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		button_checkstop {
+		event-checkstop {
 			label = "checkstop";
 			linux,code = <74>;
 			gpios = <&gpio ASPEED_GPIO(P, 5) GPIO_ACTIVE_LOW>;
 		};
 
-		button_identify {
+		event-identify {
 			label = "identify";
 			linux,code = <152>;
 			gpios = <&gpio ASPEED_GPIO(O, 7) GPIO_ACTIVE_LOW>;

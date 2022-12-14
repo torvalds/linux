@@ -79,6 +79,7 @@
 
 enum brcm_family_type {
 	BRCM_FAMILY_3390A0,
+	BRCM_FAMILY_4908,
 	BRCM_FAMILY_7250B0,
 	BRCM_FAMILY_7271A0,
 	BRCM_FAMILY_7364A0,
@@ -96,6 +97,7 @@ enum brcm_family_type {
 
 static const char *family_names[BRCM_FAMILY_COUNT] = {
 	USB_BRCM_FAMILY(3390A0),
+	USB_BRCM_FAMILY(4908),
 	USB_BRCM_FAMILY(7250B0),
 	USB_BRCM_FAMILY(7271A0),
 	USB_BRCM_FAMILY(7364A0),
@@ -202,6 +204,27 @@ usb_reg_bits_map_table[BRCM_FAMILY_COUNT][USB_CTRL_SELECTOR_COUNT] = {
 		0, /* USB_CTRL_SETUP_STRAP_CC_DRD_MODE_ENABLE_SEL_MASK */
 		USB_CTRL_USB_PM_USB20_HC_RESETB_VAR_MASK,
 		ENDIAN_SETTINGS, /* USB_CTRL_SETUP ENDIAN bits */
+	},
+	/* 4908 */
+	[BRCM_FAMILY_4908] = {
+		0, /* USB_CTRL_SETUP_SCB1_EN_MASK */
+		0, /* USB_CTRL_SETUP_SCB2_EN_MASK */
+		0, /* USB_CTRL_SETUP_SS_EHCI64BIT_EN_MASK */
+		0, /* USB_CTRL_SETUP_STRAP_IPP_SEL_MASK */
+		0, /* USB_CTRL_SETUP_OC3_DISABLE_MASK */
+		0, /* USB_CTRL_PLL_CTL_PLL_IDDQ_PWRDN_MASK */
+		0, /* USB_CTRL_USB_PM_BDC_SOFT_RESETB_MASK */
+		USB_CTRL_USB_PM_XHC_SOFT_RESETB_MASK,
+		USB_CTRL_USB_PM_USB_PWRDN_MASK,
+		0, /* USB_CTRL_USB30_CTL1_XHC_SOFT_RESETB_MASK */
+		0, /* USB_CTRL_USB30_CTL1_USB3_IOC_MASK */
+		0, /* USB_CTRL_USB30_CTL1_USB3_IPP_MASK */
+		0, /* USB_CTRL_USB_DEVICE_CTL1_PORT_MODE_MASK */
+		0, /* USB_CTRL_USB_PM_SOFT_RESET_MASK */
+		0, /* USB_CTRL_SETUP_CC_DRD_MODE_ENABLE_MASK */
+		0, /* USB_CTRL_SETUP_STRAP_CC_DRD_MODE_ENABLE_SEL_MASK */
+		0, /* USB_CTRL_USB_PM_USB20_HC_RESETB_VAR_MASK */
+		0, /* USB_CTRL_SETUP ENDIAN bits */
 	},
 	/* 7250b0 */
 	[BRCM_FAMILY_7250B0] = {
@@ -559,6 +582,7 @@ static void brcmusb_usb3_pll_54mhz(struct brcm_usb_init_params *params)
 	 */
 	switch (params->selected_family) {
 	case BRCM_FAMILY_3390A0:
+	case BRCM_FAMILY_4908:
 	case BRCM_FAMILY_7250B0:
 	case BRCM_FAMILY_7366C0:
 	case BRCM_FAMILY_74371A0:
@@ -837,7 +861,7 @@ static void usb_init_common(struct brcm_usb_init_params *params)
 	brcmusb_usb2_eye_fix(ctrl);
 
 	/*
-	 * Make sure the the second and third memory controller
+	 * Make sure the second and third memory controller
 	 * interfaces are enabled if they exist.
 	 */
 	if (USB_CTRL_MASK_FAMILY(params, SETUP, SCB1_EN))
@@ -1003,6 +1027,18 @@ static const struct brcm_usb_init_ops bcm7445_ops = {
 	.get_dual_select = usb_get_dual_select,
 	.set_dual_select = usb_set_dual_select,
 };
+
+void brcm_usb_dvr_init_4908(struct brcm_usb_init_params *params)
+{
+	int fam;
+
+	fam = BRCM_FAMILY_4908;
+	params->selected_family = fam;
+	params->usb_reg_bits_map =
+		&usb_reg_bits_map_table[fam][0];
+	params->family_name = family_names[fam];
+	params->ops = &bcm7445_ops;
+}
 
 void brcm_usb_dvr_init_7445(struct brcm_usb_init_params *params)
 {

@@ -11,6 +11,7 @@
 
 #define COEX_MIN_DELAY		10 /* delay unit in ms */
 #define COEX_RFK_TIMEOUT	600 /* RFK timeout in ms */
+#define COEX_BT_GAMEHID_CNT	800
 
 #define COEX_RF_OFF	0x0
 #define COEX_RF_ON	0x1
@@ -172,6 +173,7 @@ enum coex_bt_profile {
 enum coex_wl_link_mode {
 	COEX_WLINK_2G1PORT	= 0x0,
 	COEX_WLINK_5G		= 0x3,
+	COEX_WLINK_2GFREE	= 0x7,
 	COEX_WLINK_MAX
 };
 
@@ -325,7 +327,7 @@ struct coex_rf_para {
 
 static inline void rtw_coex_set_init(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	chip->ops->coex_set_init(rtwdev);
 }
@@ -333,7 +335,7 @@ static inline void rtw_coex_set_init(struct rtw_dev *rtwdev)
 static inline
 void rtw_coex_set_ant_switch(struct rtw_dev *rtwdev, u8 ctrl_type, u8 pos_type)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	if (!chip->ops->coex_set_ant_switch)
 		return;
@@ -343,28 +345,28 @@ void rtw_coex_set_ant_switch(struct rtw_dev *rtwdev, u8 ctrl_type, u8 pos_type)
 
 static inline void rtw_coex_set_gnt_fix(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	chip->ops->coex_set_gnt_fix(rtwdev);
 }
 
 static inline void rtw_coex_set_gnt_debug(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	chip->ops->coex_set_gnt_debug(rtwdev);
 }
 
 static inline  void rtw_coex_set_rfe_type(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	chip->ops->coex_set_rfe_type(rtwdev);
 }
 
 static inline void rtw_coex_set_wl_tx_power(struct rtw_dev *rtwdev, u8 wl_pwr)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	chip->ops->coex_set_wl_tx_power(rtwdev, wl_pwr);
 }
@@ -372,7 +374,7 @@ static inline void rtw_coex_set_wl_tx_power(struct rtw_dev *rtwdev, u8 wl_pwr)
 static inline
 void rtw_coex_set_wl_rx_gain(struct rtw_dev *rtwdev, bool low_gain)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	chip->ops->coex_set_wl_rx_gain(rtwdev, low_gain);
 }
@@ -401,9 +403,12 @@ void rtw_coex_scan_notify(struct rtw_dev *rtwdev, u8 type);
 void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 type);
 void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 type);
 void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
+void rtw_coex_bt_hid_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
 void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
 void rtw_coex_switchband_notify(struct rtw_dev *rtwdev, u8 type);
 void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev, u32 type);
+void rtw_coex_wl_status_check(struct rtw_dev *rtwdev);
+void rtw_coex_query_bt_hid_list(struct rtw_dev *rtwdev);
 void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m);
 
 static inline bool rtw_coex_disabled(struct rtw_dev *rtwdev)

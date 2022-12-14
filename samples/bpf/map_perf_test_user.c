@@ -13,7 +13,6 @@
 #include <signal.h>
 #include <string.h>
 #include <time.h>
-#include <sys/resource.h>
 #include <arpa/inet.h>
 #include <errno.h>
 
@@ -73,7 +72,7 @@ static int test_flags = ~0;
 static uint32_t num_map_entries;
 static uint32_t inner_lru_hash_size;
 static int lru_hash_lookup_test_entries = 32;
-static uint32_t max_cnt = 1000000;
+static uint32_t max_cnt = 10000;
 
 static int check_test_flags(enum test_type t)
 {
@@ -413,7 +412,7 @@ static void fixup_map(struct bpf_object *obj)
 		for (i = 0; i < NR_TESTS; i++) {
 			if (!strcmp(test_map_names[i], name) &&
 			    (check_test_flags(i))) {
-				bpf_map__resize(map, num_map_entries);
+				bpf_map__set_max_entries(map, num_map_entries);
 				continue;
 			}
 		}

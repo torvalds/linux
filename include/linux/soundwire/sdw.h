@@ -637,7 +637,6 @@ struct sdw_slave_ops {
  * @dev: Linux device
  * @status: Status reported by the Slave
  * @bus: Bus handle
- * @ops: Slave callback ops
  * @prop: Slave properties
  * @debugfs: Slave debugfs
  * @node: node for bus list
@@ -646,9 +645,6 @@ struct sdw_slave_ops {
  * @dev_num: Current Device Number, values can be 0 or dev_num_sticky
  * @dev_num_sticky: one-time static Device Number assigned by Bus
  * @probed: boolean tracking driver state
- * @probe_complete: completion utility to control potential races
- * on startup between driver probe/initialization and SoundWire
- * Slave state changes/implementation-defined interrupts
  * @enumeration_complete: completion utility to control potential races
  * on startup between device enumeration and read/write access to the
  * Slave device
@@ -663,13 +659,13 @@ struct sdw_slave_ops {
  * for a Slave happens for the first time after enumeration
  * @is_mockup_device: status flag used to squelch errors in the command/control
  * protocol for SoundWire mockup devices
+ * @sdw_dev_lock: mutex used to protect callbacks/remove races
  */
 struct sdw_slave {
 	struct sdw_slave_id id;
 	struct device dev;
 	enum sdw_slave_status status;
 	struct sdw_bus *bus;
-	const struct sdw_slave_ops *ops;
 	struct sdw_slave_prop prop;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
@@ -680,12 +676,12 @@ struct sdw_slave {
 	u16 dev_num;
 	u16 dev_num_sticky;
 	bool probed;
-	struct completion probe_complete;
 	struct completion enumeration_complete;
 	struct completion initialization_complete;
 	u32 unattach_request;
 	bool first_interrupt_done;
 	bool is_mockup_device;
+	struct mutex sdw_dev_lock; /* protect callbacks/remove races */
 };
 
 #define dev_to_sdw_dev(_dev) container_of(_dev, struct sdw_slave, dev)
@@ -843,6 +839,8 @@ struct sdw_defer {
  * @set_bus_conf: Set the bus configuration
  * @pre_bank_switch: Callback for pre bank switch
  * @post_bank_switch: Callback for post bank switch
+ * @read_ping_status: Read status from PING frames, reported with two bits per Device.
+ * Bits 31:24 are reserved.
  */
 struct sdw_master_ops {
 	int (*read_prop)(struct sdw_bus *bus);
@@ -859,6 +857,7 @@ struct sdw_master_ops {
 			struct sdw_bus_params *params);
 	int (*pre_bank_switch)(struct sdw_bus *bus);
 	int (*post_bank_switch)(struct sdw_bus *bus);
+	u32 (*read_ping_status)(struct sdw_bus *bus);
 
 };
 
@@ -893,6 +892,9 @@ struct sdw_master_ops {
  * meaningful if multi_link is set. If set to 1, hardware-based
  * synchronization will be used even if a stream only uses a single
  * SoundWire segment.
+ * @dev_num_ida_min: if set, defines the minimum values for the IDA
+ * used to allocate system-unique device numbers. This value needs to be
+ * identical across all SoundWire bus in the system.
  */
 struct sdw_bus {
 	struct device *dev;
@@ -917,11 +919,14 @@ struct sdw_bus {
 	u32 bank_switch_timeout;
 	bool multi_link;
 	int hw_sync_min_links;
+	int dev_num_ida_min;
 };
 
 int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 		       struct fwnode_handle *fwnode);
 void sdw_bus_master_delete(struct sdw_bus *bus);
+
+void sdw_show_ping_status(struct sdw_bus *bus, bool sync_delay);
 
 /**
  * sdw_port_config: Master or Slave Port configuration

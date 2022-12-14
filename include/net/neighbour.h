@@ -48,6 +48,7 @@ enum {
 	NEIGH_VAR_RETRANS_TIME,
 	NEIGH_VAR_BASE_REACHABLE_TIME,
 	NEIGH_VAR_DELAY_PROBE_TIME,
+	NEIGH_VAR_INTERVAL_PROBE_TIME_MS,
 	NEIGH_VAR_GC_STALETIME,
 	NEIGH_VAR_QUEUE_LEN_BYTES,
 	NEIGH_VAR_PROXY_QLEN,
@@ -82,6 +83,7 @@ struct neigh_parms {
 	struct rcu_head rcu_head;
 
 	int	reachable_time;
+	u32	qlen;
 	int	data[NEIGH_VAR_DATA_MAX];
 	DECLARE_BITMAP(data_state, NEIGH_VAR_DATA_MAX);
 };
@@ -274,11 +276,6 @@ static inline void *neighbour_priv(const struct neighbour *n)
 
 extern const struct nla_policy nda_policy[];
 
-static inline bool neigh_key_eq16(const struct neighbour *n, const void *pkey)
-{
-	return *(const u16 *)n->primary_key == *(const u16 *)pkey;
-}
-
 static inline bool neigh_key_eq32(const struct neighbour *n, const void *pkey)
 {
 	return *(const u32 *)n->primary_key == *(const u32 *)pkey;
@@ -350,7 +347,8 @@ static inline struct neighbour *neigh_create(struct neigh_table *tbl,
 	return __neigh_create(tbl, pkey, dev, true);
 }
 void neigh_destroy(struct neighbour *neigh);
-int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb);
+int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb,
+		       const bool immediate_ok);
 int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new, u32 flags,
 		 u32 nlmsg_pid);
 void __neigh_set_probe_once(struct neighbour *neigh);
@@ -460,15 +458,22 @@ static inline struct neighbour * neigh_clone(struct neighbour *neigh)
 
 #define neigh_hold(n)	refcount_inc(&(n)->refcnt)
 
-static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
+static __always_inline int neigh_event_send_probe(struct neighbour *neigh,
+						  struct sk_buff *skb,
+						  const bool immediate_ok)
 {
 	unsigned long now = jiffies;
-	
+
 	if (READ_ONCE(neigh->used) != now)
 		WRITE_ONCE(neigh->used, now);
-	if (!(neigh->nud_state&(NUD_CONNECTED|NUD_DELAY|NUD_PROBE)))
-		return __neigh_event_send(neigh, skb);
+	if (!(neigh->nud_state & (NUD_CONNECTED | NUD_DELAY | NUD_PROBE)))
+		return __neigh_event_send(neigh, skb, immediate_ok);
 	return 0;
+}
+
+static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
+{
+	return neigh_event_send_probe(neigh, skb, true);
 }
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)

@@ -771,9 +771,8 @@ static void sprd_shutdown(struct uart_port *port)
 	devm_free_irq(port->dev, port->irq, port);
 }
 
-static void sprd_set_termios(struct uart_port *port,
-			     struct ktermios *termios,
-			     struct ktermios *old)
+static void sprd_set_termios(struct uart_port *port, struct ktermios *termios,
+		             const struct ktermios *old)
 {
 	unsigned int baud, quot;
 	unsigned int lcr = 0, fc;
@@ -984,7 +983,7 @@ static void wait_for_xmitr(struct uart_port *port)
 	} while (status & SPRD_TX_FIFO_CNT_MASK);
 }
 
-static void sprd_console_putchar(struct uart_port *port, int ch)
+static void sprd_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	wait_for_xmitr(port);
 	serial_out(port, SPRD_TXD, ch);
@@ -1058,7 +1057,7 @@ console_initcall(sprd_serial_console_init);
 #define SPRD_CONSOLE	(&sprd_console)
 
 /* Support for earlycon */
-static void sprd_putc(struct uart_port *port, int c)
+static void sprd_putc(struct uart_port *port, unsigned char c)
 {
 	unsigned int timeout = SPRD_TIMEOUT;
 

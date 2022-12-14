@@ -484,6 +484,78 @@
 //MP1_SMN_C2PMSG_103
 #define MP1_SMN_C2PMSG_103__CONTENT__SHIFT                                                                    0x0
 #define MP1_SMN_C2PMSG_103__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_104
+#define MP1_SMN_C2PMSG_104__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_104__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_105
+#define MP1_SMN_C2PMSG_105__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_105__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_106
+#define MP1_SMN_C2PMSG_106__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_106__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_107
+#define MP1_SMN_C2PMSG_107__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_107__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_108
+#define MP1_SMN_C2PMSG_108__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_108__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_109
+#define MP1_SMN_C2PMSG_109__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_109__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_110
+#define MP1_SMN_C2PMSG_110__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_110__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_111
+#define MP1_SMN_C2PMSG_111__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_111__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_112
+#define MP1_SMN_C2PMSG_112__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_112__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_113
+#define MP1_SMN_C2PMSG_113__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_113__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_114
+#define MP1_SMN_C2PMSG_114__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_114__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_115
+#define MP1_SMN_C2PMSG_115__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_115__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_116
+#define MP1_SMN_C2PMSG_116__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_116__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_117
+#define MP1_SMN_C2PMSG_117__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_117__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_118
+#define MP1_SMN_C2PMSG_118__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_118__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_119
+#define MP1_SMN_C2PMSG_119__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_119__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_120
+#define MP1_SMN_C2PMSG_120__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_120__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_121
+#define MP1_SMN_C2PMSG_121__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_121__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_122
+#define MP1_SMN_C2PMSG_122__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_122__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_123
+#define MP1_SMN_C2PMSG_123__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_123__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_124
+#define MP1_SMN_C2PMSG_124__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_124__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_125
+#define MP1_SMN_C2PMSG_125__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_125__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_126
+#define MP1_SMN_C2PMSG_126__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_126__CONTENT_MASK                                                                      0xFFFFFFFFL
+//MP1_SMN_C2PMSG_127
+#define MP1_SMN_C2PMSG_127__CONTENT__SHIFT                                                                    0x0
+#define MP1_SMN_C2PMSG_127__CONTENT_MASK                                                                      0xFFFFFFFFL
 //MP1_SMN_IH_CREDIT
 #define MP1_SMN_IH_CREDIT__CREDIT_VALUE__SHIFT                                                                0x0
 #define MP1_SMN_IH_CREDIT__CLIENT_ID__SHIFT                                                                   0x10

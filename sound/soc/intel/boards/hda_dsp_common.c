@@ -54,7 +54,7 @@ int hda_dsp_hdmi_build_controls(struct snd_soc_card *card,
 		return -EINVAL;
 
 	hda_pvt = snd_soc_component_get_drvdata(comp);
-	hcodec = &hda_pvt->codec;
+	hcodec = hda_pvt->codec;
 
 	list_for_each_entry(hpcm, &hcodec->pcm_list_head, list) {
 		spcm = hda_dsp_hdmi_pcm_handle(card, i);
@@ -62,8 +62,8 @@ int hda_dsp_hdmi_build_controls(struct snd_soc_card *card,
 			hpcm->pcm = spcm;
 			hpcm->device = spcm->device;
 			dev_dbg(card->dev,
-				"%s: mapping HDMI converter %d to PCM %d (%p)\n",
-				__func__, i, hpcm->device, spcm);
+				"mapping HDMI converter %d to PCM %d (%p)\n",
+				i, hpcm->device, spcm);
 		} else {
 			hpcm->pcm = NULL;
 			hpcm->device = SNDRV_PCM_INVALID_DEVICE;

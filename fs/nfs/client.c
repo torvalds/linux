@@ -177,6 +177,7 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 	INIT_LIST_HEAD(&clp->cl_superblocks);
 	clp->cl_rpcclient = ERR_PTR(-EINVAL);
 
+	clp->cl_flags = cl_init->init_flags;
 	clp->cl_proto = cl_init->proto;
 	clp->cl_nconnect = cl_init->nconnect;
 	clp->cl_max_connect = cl_init->max_connect ? cl_init->max_connect : 1;
@@ -279,7 +280,7 @@ EXPORT_SYMBOL_GPL(nfs_put_client);
 static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *data)
 {
 	struct nfs_client *clp;
-	const struct sockaddr *sap = data->addr;
+	const struct sockaddr *sap = (struct sockaddr *)data->addr;
 	struct nfs_net *nn = net_generic(data->net, nfs_net_id);
 	int error;
 
@@ -423,7 +424,6 @@ struct nfs_client *nfs_get_client(const struct nfs_client_initdata *cl_init)
 			list_add_tail(&new->cl_share_link,
 					&nn->nfs_client_list);
 			spin_unlock(&nn->nfs_client_lock);
-			new->cl_flags = cl_init->init_flags;
 			return rpc_ops->init_client(new, cl_init);
 		}
 
@@ -666,7 +666,7 @@ static int nfs_init_server(struct nfs_server *server,
 	struct rpc_timeout timeparms;
 	struct nfs_client_initdata cl_init = {
 		.hostname = ctx->nfs_server.hostname,
-		.addr = (const struct sockaddr *)&ctx->nfs_server.address,
+		.addr = &ctx->nfs_server._address,
 		.addrlen = ctx->nfs_server.addrlen,
 		.nfs_mod = ctx->nfs_mod,
 		.proto = ctx->nfs_server.protocol,
@@ -708,9 +708,9 @@ static int nfs_init_server(struct nfs_server *server,
 	}
 
 	if (ctx->rsize)
-		server->rsize = nfs_block_size(ctx->rsize, NULL);
+		server->rsize = nfs_io_size(ctx->rsize, clp->cl_proto);
 	if (ctx->wsize)
-		server->wsize = nfs_block_size(ctx->wsize, NULL);
+		server->wsize = nfs_io_size(ctx->wsize, clp->cl_proto);
 
 	server->acregmin = ctx->acregmin * HZ;
 	server->acregmax = ctx->acregmax * HZ;
@@ -755,18 +755,19 @@ error:
 static void nfs_server_set_fsinfo(struct nfs_server *server,
 				  struct nfs_fsinfo *fsinfo)
 {
+	struct nfs_client *clp = server->nfs_client;
 	unsigned long max_rpc_payload, raw_max_rpc_payload;
 
 	/* Work out a lot of parameters */
 	if (server->rsize == 0)
-		server->rsize = nfs_block_size(fsinfo->rtpref, NULL);
+		server->rsize = nfs_io_size(fsinfo->rtpref, clp->cl_proto);
 	if (server->wsize == 0)
-		server->wsize = nfs_block_size(fsinfo->wtpref, NULL);
+		server->wsize = nfs_io_size(fsinfo->wtpref, clp->cl_proto);
 
 	if (fsinfo->rtmax >= 512 && server->rsize > fsinfo->rtmax)
-		server->rsize = nfs_block_size(fsinfo->rtmax, NULL);
+		server->rsize = nfs_io_size(fsinfo->rtmax, clp->cl_proto);
 	if (fsinfo->wtmax >= 512 && server->wsize > fsinfo->wtmax)
-		server->wsize = nfs_block_size(fsinfo->wtmax, NULL);
+		server->wsize = nfs_io_size(fsinfo->wtmax, clp->cl_proto);
 
 	raw_max_rpc_payload = rpc_max_payload(server->client);
 	max_rpc_payload = nfs_block_size(raw_max_rpc_payload, NULL);
@@ -857,7 +858,8 @@ static int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *mntfh, str
 	}
 
 	if (clp->rpc_ops->discover_trunking != NULL &&
-			(server->caps & NFS_CAP_FS_LOCATIONS)) {
+			(server->caps & NFS_CAP_FS_LOCATIONS &&
+			 (server->flags & NFS_MOUNT_TRUNK_DISCOVERY))) {
 		error = clp->rpc_ops->discover_trunking(server, mntfh);
 		if (error < 0)
 			return error;

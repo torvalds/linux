@@ -703,8 +703,10 @@ static int dpaa2_switch_port_open(struct net_device *netdev)
 
 	dpaa2_switch_enable_ctrl_if_napi(ethsw);
 
-	if (dpaa2_switch_port_is_type_phy(port_priv))
+	if (dpaa2_switch_port_is_type_phy(port_priv)) {
+		dpaa2_mac_start(port_priv->mac);
 		phylink_start(port_priv->mac->phylink);
+	}
 
 	return 0;
 }
@@ -717,6 +719,7 @@ static int dpaa2_switch_port_stop(struct net_device *netdev)
 
 	if (dpaa2_switch_port_is_type_phy(port_priv)) {
 		phylink_stop(port_priv->mac->phylink);
+		dpaa2_mac_stop(port_priv->mac);
 	} else {
 		netif_tx_stop_all_queues(netdev);
 		netif_carrier_off(netdev);
@@ -3370,9 +3373,8 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	 * different queues for each switch ports.
 	 */
 	for (i = 0; i < DPAA2_SWITCH_RX_NUM_FQS; i++)
-		netif_napi_add(ethsw->ports[0]->netdev,
-			       &ethsw->fq[i].napi, dpaa2_switch_poll,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(ethsw->ports[0]->netdev, &ethsw->fq[i].napi,
+			       dpaa2_switch_poll);
 
 	/* Setup IRQs */
 	err = dpaa2_switch_setup_irqs(sw_dev);

@@ -85,8 +85,13 @@ properties:
     description: battery factory internal resistance
 
   resistance-temp-table:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    items:
+      items:
+        - description: the temperature in degree Celsius
+        - description: battery internal resistance percent
     description: |
-      An array providing the temperature in degree Celsius
+      A table providing the temperature in degree Celsius
       and corresponding battery internal resistance percent, which is used to
       look up the resistance percent according to current temperature to get an
       accurate batterty internal resistance in different temperatures.

@@ -11,7 +11,6 @@
 
 #define MLX5E_TC_MAX_SPLITS 1
 
-#define mlx5e_nic_chains(priv) ((priv)->fs.tc.chains)
 
 enum {
 	MLX5E_TC_FLOW_FLAG_INGRESS               = MLX5E_TC_FLAG_INGRESS_BIT,
@@ -35,13 +34,16 @@ enum {
 
 struct mlx5e_tc_flow_parse_attr {
 	const struct ip_tunnel_info *tun_info[MLX5_MAX_FLOW_FWD_VPORTS];
+	struct mlx5e_mpls_info mpls_info[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct net_device *filter_dev;
 	struct mlx5_flow_spec spec;
+	struct pedit_headers_action hdrs[__PEDIT_CMD_MAX];
 	struct mlx5e_tc_mod_hdr_acts mod_hdr_acts;
 	int mirred_ifindex[MLX5_MAX_FLOW_FWD_VPORTS];
-	struct ethhdr eth;
 	struct mlx5e_tc_act_parse_state parse_state;
 };
+
+struct mlx5_fs_chains *mlx5e_nic_chains(struct mlx5e_tc_table *tc);
 
 /* Helper struct for accessing a struct containing list_head array.
  * Containing struct
@@ -94,6 +96,7 @@ struct mlx5e_tc_flow {
 	struct encap_flow_item encaps[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct mlx5e_tc_flow *peer_flow;
 	struct mlx5e_mod_hdr_handle *mh; /* attached mod header instance */
+	struct mlx5e_mod_hdr_handle *slow_mh; /* attached mod header instance for slow path */
 	struct mlx5e_hairpin_entry *hpe; /* attached hairpin instance */
 	struct list_head hairpin; /* flows sharing the same hairpin */
 	struct list_head peer;    /* flows with peer flow */
@@ -107,9 +110,20 @@ struct mlx5e_tc_flow {
 	struct rcu_head rcu_head;
 	struct completion init_done;
 	struct completion del_hw_done;
-	int tunnel_id; /* the mapped tunnel id of this flow */
 	struct mlx5_flow_attr *attr;
+	struct list_head attrs;
+	u32 chain_mapping;
 };
+
+struct mlx5_flow_handle *
+mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
+		      struct mlx5_flow_spec *spec,
+		      struct mlx5_flow_attr *attr);
+
+void
+mlx5e_tc_rule_unoffload(struct mlx5e_priv *priv,
+			struct mlx5_flow_handle *rule,
+			struct mlx5_flow_attr *attr);
 
 u8 mlx5e_tc_get_ip_version(struct mlx5_flow_spec *spec, bool outer);
 
@@ -118,6 +132,12 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 			   struct mlx5e_tc_flow *flow,
 			   struct mlx5_flow_spec *spec,
 			   struct mlx5_flow_attr *attr);
+
+struct mlx5_flow_attr *
+mlx5e_tc_get_encap_attr(struct mlx5e_tc_flow *flow);
+
+void mlx5e_tc_unoffload_flow_post_acts(struct mlx5e_tc_flow *flow);
+int mlx5e_tc_offload_flow_post_acts(struct mlx5e_tc_flow *flow);
 
 bool mlx5e_is_eswitch_flow(struct mlx5e_tc_flow *flow);
 bool mlx5e_is_ft_flow(struct mlx5e_tc_flow *flow);
@@ -173,6 +193,7 @@ struct mlx5_flow_handle *
 mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 			      struct mlx5e_tc_flow *flow,
 			      struct mlx5_flow_spec *spec);
+
 void mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 				  struct mlx5e_tc_flow *flow,
 				  struct mlx5_flow_attr *attr);
@@ -185,7 +206,13 @@ struct mlx5_fc *mlx5e_tc_get_counter(struct mlx5e_tc_flow *flow);
 struct mlx5e_tc_int_port_priv *
 mlx5e_get_int_port_priv(struct mlx5e_priv *priv);
 
+struct mlx5e_flow_meters *mlx5e_get_flow_meters(struct mlx5_core_dev *dev);
+
 void *mlx5e_get_match_headers_value(u32 flags, struct mlx5_flow_spec *spec);
 void *mlx5e_get_match_headers_criteria(u32 flags, struct mlx5_flow_spec *spec);
+
+int mlx5e_policer_validate(const struct flow_action *action,
+			   const struct flow_action_entry *act,
+			   struct netlink_ext_ack *extack);
 
 #endif /* __MLX5_EN_TC_PRIV_H__ */

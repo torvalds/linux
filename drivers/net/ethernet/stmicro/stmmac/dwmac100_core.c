@@ -15,7 +15,6 @@
 *******************************************************************************/
 
 #include <linux/crc32.h>
-#include <net/dsa.h>
 #include <asm/io.h>
 #include "stmmac.h"
 #include "dwmac100.h"
@@ -27,13 +26,6 @@ static void dwmac100_core_init(struct mac_device_info *hw,
 	u32 value = readl(ioaddr + MAC_CONTROL);
 
 	value |= MAC_CORE_INIT;
-
-	/* Clear ASTP bit because Ethernet switch tagging formats such as
-	 * Broadcom tags can look like invalid LLC/SNAP packets and cause the
-	 * hardware to truncate packets on reception.
-	 */
-	if (netdev_uses_dsa(dev))
-		value &= ~MAC_CONTROL_ASTP;
 
 	writel(value, ioaddr + MAC_CONTROL);
 

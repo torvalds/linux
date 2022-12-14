@@ -573,7 +573,7 @@ int ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	unsigned int usable_sge = priv->max_send_sge - !!skb_headlen(skb);
 
 	if (skb_is_gso(skb)) {
-		hlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hlen = skb_tcp_all_headers(skb);
 		phead = skb->data;
 		if (unlikely(!skb_pull(skb, hlen))) {
 			ipoib_warn(priv, "linear data too small\n");
@@ -1109,7 +1109,7 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 	 * if he sets the device address back to be based on GID index 0,
 	 * he no longer wishs to control it.
 	 *
-	 * If the user doesn't control the the device address,
+	 * If the user doesn't control the device address,
 	 * IPOIB_FLAG_DEV_ADDR_SET is set and ib_find_gid failed it means
 	 * the port GUID has changed and GID at index 0 has changed
 	 * so we need to change priv->local_gid and priv->dev->dev_addr

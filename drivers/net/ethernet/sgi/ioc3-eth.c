@@ -1158,9 +1158,9 @@ static inline unsigned int ioc3_hash(const unsigned char *addr)
 static void ioc3_get_drvinfo(struct net_device *dev,
 			     struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, IOC3_NAME, sizeof(info->driver));
-	strlcpy(info->version, IOC3_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(to_pci_dev(dev->dev.parent)),
+	strscpy(info->driver, IOC3_NAME, sizeof(info->driver));
+	strscpy(info->version, IOC3_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(to_pci_dev(dev->dev.parent)),
 		sizeof(info->bus_info));
 }
 

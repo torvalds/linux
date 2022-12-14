@@ -72,7 +72,6 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 	int i;
 	int nr_bad_entries = 0;
 	struct trt *trts;
-	struct acpi_device *adev;
 	union acpi_object *p;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_buffer element = { 0, NULL };
@@ -112,12 +111,10 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 		if (!create_dev)
 			continue;
 
-		result = acpi_bus_get_device(trt->source, &adev);
-		if (result)
+		if (!acpi_fetch_acpi_dev(trt->source))
 			pr_warn("Failed to get source ACPI device\n");
 
-		result = acpi_bus_get_device(trt->target, &adev);
-		if (result)
+		if (!acpi_fetch_acpi_dev(trt->target))
 			pr_warn("Failed to get target ACPI device\n");
 	}
 
@@ -149,7 +146,6 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 	int i;
 	int nr_bad_entries = 0;
 	struct art *arts;
-	struct acpi_device *adev;
 	union acpi_object *p;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_buffer element = { 0, NULL };
@@ -191,16 +187,11 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 		if (!create_dev)
 			continue;
 
-		if (art->source) {
-			result = acpi_bus_get_device(art->source, &adev);
-			if (result)
-				pr_warn("Failed to get source ACPI device\n");
-		}
-		if (art->target) {
-			result = acpi_bus_get_device(art->target, &adev);
-			if (result)
-				pr_warn("Failed to get target ACPI device\n");
-		}
+		if (!acpi_fetch_acpi_dev(art->source))
+			pr_warn("Failed to get source ACPI device\n");
+
+		if (!acpi_fetch_acpi_dev(art->target))
+			pr_warn("Failed to get target ACPI device\n");
 	}
 
 	*artp = arts;

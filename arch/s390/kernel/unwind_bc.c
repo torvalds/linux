@@ -64,8 +64,8 @@ bool unwind_next_frame(struct unwind_state *state)
 		ip = READ_ONCE_NOCHECK(sf->gprs[8]);
 		reliable = false;
 		regs = NULL;
-		if (!__kernel_text_address(ip)) {
-			/* skip bogus %r14 */
+		/* skip bogus %r14 or if is the same as regs->psw.addr */
+		if (!__kernel_text_address(ip) || state->ip == unwind_recover_ret_addr(state, ip)) {
 			state->regs = NULL;
 			return unwind_next_frame(state);
 		}
@@ -103,13 +103,11 @@ bool unwind_next_frame(struct unwind_state *state)
 	if (sp & 0x7)
 		goto out_err;
 
-	ip = ftrace_graph_ret_addr(state->task, &state->graph_idx, ip, (void *) sp);
-
 	/* Update unwind state */
 	state->sp = sp;
-	state->ip = ip;
 	state->regs = regs;
 	state->reliable = reliable;
+	state->ip = unwind_recover_ret_addr(state, ip);
 	return true;
 
 out_err:
@@ -161,12 +159,10 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		ip = READ_ONCE_NOCHECK(sf->gprs[8]);
 	}
 
-	ip = ftrace_graph_ret_addr(state->task, &state->graph_idx, ip, NULL);
-
 	/* Update unwind state */
 	state->sp = sp;
-	state->ip = ip;
 	state->reliable = true;
+	state->ip = unwind_recover_ret_addr(state, ip);
 
 	if (!first_frame)
 		return;

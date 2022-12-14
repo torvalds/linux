@@ -31,6 +31,8 @@
  */
 
 #define	FM25_SN_LEN	8		/* serial number length */
+#define EE_MAXADDRLEN	3		/* 24 bit addresses, up to 2 MBytes */
+
 struct at25_data {
 	struct spi_eeprom	chip;
 	struct spi_device	*spi;
@@ -39,6 +41,7 @@ struct at25_data {
 	struct nvmem_config	nvmem_config;
 	struct nvmem_device	*nvmem;
 	u8 sernum[FM25_SN_LEN];
+	u8 command[EE_MAXADDRLEN + 1];
 };
 
 #define	AT25_WREN	0x06		/* latch the write enable */
@@ -61,8 +64,6 @@ struct at25_data {
 
 #define	FM25_ID_LEN	9		/* ID length */
 
-#define EE_MAXADDRLEN	3		/* 24 bit addresses, up to 2 MBytes */
-
 /*
  * Specs often allow 5ms for a page write, sometimes 20ms;
  * it's important to recover from write timeouts.
@@ -78,7 +79,10 @@ static int at25_ee_read(void *priv, unsigned int offset,
 {
 	struct at25_data *at25 = priv;
 	char *buf = val;
-	u8			command[EE_MAXADDRLEN + 1];
+	size_t max_chunk = spi_max_transfer_size(at25->spi);
+	unsigned int msg_offset = offset;
+	size_t bytes_left = count;
+	size_t segment;
 	u8			*cp;
 	ssize_t			status;
 	struct spi_transfer	t[2];
@@ -92,53 +96,58 @@ static int at25_ee_read(void *priv, unsigned int offset,
 	if (unlikely(!count))
 		return -EINVAL;
 
-	cp = command;
+	do {
+		segment = min(bytes_left, max_chunk);
+		cp = at25->command;
 
-	instr = AT25_READ;
-	if (at25->chip.flags & EE_INSTR_BIT3_IS_ADDR)
-		if (offset >= BIT(at25->addrlen * 8))
-			instr |= AT25_INSTR_BIT3;
-	*cp++ = instr;
+		instr = AT25_READ;
+		if (at25->chip.flags & EE_INSTR_BIT3_IS_ADDR)
+			if (msg_offset >= BIT(at25->addrlen * 8))
+				instr |= AT25_INSTR_BIT3;
 
-	/* 8/16/24-bit address is written MSB first */
-	switch (at25->addrlen) {
-	default:	/* case 3 */
-		*cp++ = offset >> 16;
-		fallthrough;
-	case 2:
-		*cp++ = offset >> 8;
-		fallthrough;
-	case 1:
-	case 0:	/* can't happen: for better code generation */
-		*cp++ = offset >> 0;
-	}
+		mutex_lock(&at25->lock);
 
-	spi_message_init(&m);
-	memset(t, 0, sizeof(t));
+		*cp++ = instr;
 
-	t[0].tx_buf = command;
-	t[0].len = at25->addrlen + 1;
-	spi_message_add_tail(&t[0], &m);
+		/* 8/16/24-bit address is written MSB first */
+		switch (at25->addrlen) {
+		default:	/* case 3 */
+			*cp++ = msg_offset >> 16;
+			fallthrough;
+		case 2:
+			*cp++ = msg_offset >> 8;
+			fallthrough;
+		case 1:
+		case 0:	/* can't happen: for better code generation */
+			*cp++ = msg_offset >> 0;
+		}
 
-	t[1].rx_buf = buf;
-	t[1].len = count;
-	spi_message_add_tail(&t[1], &m);
+		spi_message_init(&m);
+		memset(t, 0, sizeof(t));
 
-	mutex_lock(&at25->lock);
+		t[0].tx_buf = at25->command;
+		t[0].len = at25->addrlen + 1;
+		spi_message_add_tail(&t[0], &m);
 
-	/*
-	 * Read it all at once.
-	 *
-	 * REVISIT that's potentially a problem with large chips, if
-	 * other devices on the bus need to be accessed regularly or
-	 * this chip is clocked very slowly.
-	 */
-	status = spi_sync(at25->spi, &m);
-	dev_dbg(&at25->spi->dev, "read %zu bytes at %d --> %zd\n",
-		count, offset, status);
+		t[1].rx_buf = buf;
+		t[1].len = segment;
+		spi_message_add_tail(&t[1], &m);
 
-	mutex_unlock(&at25->lock);
-	return status;
+		status = spi_sync(at25->spi, &m);
+
+		mutex_unlock(&at25->lock);
+
+		if (status)
+			return status;
+
+		msg_offset += segment;
+		buf += segment;
+		bytes_left -= segment;
+	} while (bytes_left > 0);
+
+	dev_dbg(&at25->spi->dev, "read %zu bytes at %d\n",
+		count, offset);
+	return 0;
 }
 
 /* Read extra registers as ID or serial number */
@@ -152,7 +161,7 @@ static int fm25_aux_read(struct at25_data *at25, u8 *buf, uint8_t command,
 	spi_message_init(&m);
 	memset(t, 0, sizeof(t));
 
-	t[0].tx_buf = &command;
+	t[0].tx_buf = at25->command;
 	t[0].len = 1;
 	spi_message_add_tail(&t[0], &m);
 
@@ -161,6 +170,8 @@ static int fm25_aux_read(struct at25_data *at25, u8 *buf, uint8_t command,
 	spi_message_add_tail(&t[1], &m);
 
 	mutex_lock(&at25->lock);
+
+	at25->command[0] = command;
 
 	status = spi_sync(at25->spi, &m);
 	dev_dbg(&at25->spi->dev, "read %d aux bytes --> %d\n", len, status);
@@ -187,6 +198,7 @@ ATTRIBUTE_GROUPS(sernum);
 static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 {
 	struct at25_data *at25 = priv;
+	size_t maxsz = spi_max_transfer_size(at25->spi);
 	const char *buf = val;
 	int			status = 0;
 	unsigned		buf_size;
@@ -215,7 +227,7 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 	do {
 		unsigned long	timeout, retries;
 		unsigned	segment;
-		unsigned	offset = (unsigned) off;
+		unsigned	offset = off;
 		u8		*cp = bounce;
 		int		sr;
 		u8		instr;
@@ -250,6 +262,8 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 		segment = buf_size - (offset % buf_size);
 		if (segment > count)
 			segment = count;
+		if (segment > maxsz)
+			segment = maxsz;
 		memcpy(cp, buf, segment);
 		status = spi_write(at25->spi, bounce,
 				segment + at25->addrlen + 1);
@@ -309,7 +323,7 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 	u32 val;
 	int err;
 
-	strncpy(chip->name, "at25", sizeof(chip->name));
+	strscpy(chip->name, "at25", sizeof(chip->name));
 
 	err = device_property_read_u32(dev, "size", &val);
 	if (err)
@@ -370,7 +384,7 @@ static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
 	u8 id[FM25_ID_LEN];
 	int i;
 
-	strncpy(chip->name, "fm25", sizeof(chip->name));
+	strscpy(chip->name, "fm25", sizeof(chip->name));
 
 	/* Get ID of chip */
 	fm25_aux_read(at25, id, FM25_RDID, FM25_ID_LEN);

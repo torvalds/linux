@@ -740,38 +740,6 @@ enum atomisp_frame_status {
 	ATOMISP_FRAME_STATUS_FLASH_FAILED,
 };
 
-enum atomisp_acc_type {
-	ATOMISP_ACC_STANDALONE,	/* Stand-alone acceleration */
-	ATOMISP_ACC_OUTPUT,	/* Accelerator stage on output frame */
-	ATOMISP_ACC_VIEWFINDER	/* Accelerator stage on viewfinder frame */
-};
-
-enum atomisp_acc_arg_type {
-	ATOMISP_ACC_ARG_SCALAR_IN,    /* Scalar input argument */
-	ATOMISP_ACC_ARG_SCALAR_OUT,   /* Scalar output argument */
-	ATOMISP_ACC_ARG_SCALAR_IO,    /* Scalar in/output argument */
-	ATOMISP_ACC_ARG_PTR_IN,	     /* Pointer input argument */
-	ATOMISP_ACC_ARG_PTR_OUT,	     /* Pointer output argument */
-	ATOMISP_ACC_ARG_PTR_IO,	     /* Pointer in/output argument */
-	ATOMISP_ARG_PTR_NOFLUSH,  /* Pointer argument will not be flushed */
-	ATOMISP_ARG_PTR_STABLE,   /* Pointer input argument that is stable */
-	ATOMISP_ACC_ARG_FRAME	     /* Frame argument */
-};
-
-/* ISP memories, isp2400 */
-enum atomisp_acc_memory {
-	ATOMISP_ACC_MEMORY_PMEM0 = 0,
-	ATOMISP_ACC_MEMORY_DMEM0,
-	/* for backward compatibility */
-	ATOMISP_ACC_MEMORY_DMEM = ATOMISP_ACC_MEMORY_DMEM0,
-	ATOMISP_ACC_MEMORY_VMEM0,
-	ATOMISP_ACC_MEMORY_VAMEM0,
-	ATOMISP_ACC_MEMORY_VAMEM1,
-	ATOMISP_ACC_MEMORY_VAMEM2,
-	ATOMISP_ACC_MEMORY_HMEM0,
-	ATOMISP_ACC_NR_MEMORY
-};
-
 enum atomisp_ext_isp_id {
 	EXT_ISP_CID_ISO = 0,
 	EXT_ISP_CID_CAPTURE_HDR,
@@ -836,92 +804,11 @@ enum atomisp_burst_capture_options {
 #define EXT_ISP_SHOT_MODE_ANIMATED_PHOTO	10
 #define EXT_ISP_SHOT_MODE_SPORTS	11
 
-struct atomisp_sp_arg {
-	enum atomisp_acc_arg_type type;	/* Type  of SP argument */
-	void                    *value;	/* Value of SP argument */
-	unsigned int             size;	/* Size  of SP argument */
-};
-
-/* Acceleration API */
-
-/* For CSS 1.0 only */
-struct atomisp_acc_fw_arg {
-	unsigned int fw_handle;
-	unsigned int index;
-	void __user *value;
-	size_t size;
-};
-
-/*
- * Set arguments after first mapping with ATOMISP_IOC_ACC_S_MAPPED_ARG.
- */
-struct atomisp_acc_s_mapped_arg {
-	unsigned int fw_handle;
-	__u32 memory;			/* one of enum atomisp_acc_memory */
-	size_t length;
-	unsigned long css_ptr;
-};
-
-struct atomisp_acc_fw_abort {
-	unsigned int fw_handle;
-	/* Timeout in us */
-	unsigned int timeout;
-};
-
-struct atomisp_acc_fw_load {
-	unsigned int size;
-	unsigned int fw_handle;
-	void __user *data;
-};
-
-/*
- * Load firmware to specified pipeline.
- */
-struct atomisp_acc_fw_load_to_pipe {
-	__u32 flags;			/* Flags, see below for valid values */
-	unsigned int fw_handle;		/* Handle, filled by kernel. */
-	__u32 size;			/* Firmware binary size */
-	void __user *data;		/* Pointer to firmware */
-	__u32 type;			/* Binary type */
-	__u32 reserved[3];		/* Set to zero */
-};
-
 /*
  * Set Senor run mode
  */
 struct atomisp_s_runmode {
 	__u32 mode;
-};
-
-#define ATOMISP_ACC_FW_LOAD_FL_PREVIEW		BIT(0)
-#define ATOMISP_ACC_FW_LOAD_FL_COPY		BIT(1)
-#define ATOMISP_ACC_FW_LOAD_FL_VIDEO		BIT(2)
-#define ATOMISP_ACC_FW_LOAD_FL_CAPTURE		BIT(3)
-#define ATOMISP_ACC_FW_LOAD_FL_ACC		BIT(4)
-#define ATOMISP_ACC_FW_LOAD_FL_ENABLE		BIT(16)
-
-#define ATOMISP_ACC_FW_LOAD_TYPE_NONE		0 /* Normal binary: don't use */
-#define ATOMISP_ACC_FW_LOAD_TYPE_OUTPUT		1 /* Stage on output */
-#define ATOMISP_ACC_FW_LOAD_TYPE_VIEWFINDER	2 /* Stage on viewfinder */
-#define ATOMISP_ACC_FW_LOAD_TYPE_STANDALONE	3 /* Stand-alone acceleration */
-
-struct atomisp_acc_map {
-	__u32 flags;			/* Flags, see list below */
-	__u32 length;			/* Length of data in bytes */
-	void __user *user_ptr;		/* Pointer into user space */
-	unsigned long css_ptr;		/* Pointer into CSS address space */
-	__u32 reserved[4];		/* Set to zero */
-};
-
-#define ATOMISP_MAP_FLAG_NOFLUSH	0x0001	/* Do not flush cache */
-#define ATOMISP_MAP_FLAG_CACHED		0x0002	/* Enable cache */
-#define ATOMISP_MAP_FLAG_CONTIGUOUS	0x0004
-#define ATOMISP_MAP_FLAG_CLEARED	0x0008
-
-struct atomisp_acc_state {
-	__u32 flags;			/* Flags, see list below */
-#define ATOMISP_STATE_FLAG_ENABLE	ATOMISP_ACC_FW_LOAD_FL_ENABLE
-	unsigned int fw_handle;
 };
 
 struct atomisp_update_exposure {
@@ -1091,29 +978,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 #define ATOMISP_IOC_S_3A_CONFIG \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 23, struct atomisp_3a_config)
 
-/* Accelerate ioctls */
-#define ATOMISP_IOC_ACC_LOAD \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 24, struct atomisp_acc_fw_load)
-
-#define ATOMISP_IOC_ACC_UNLOAD \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 24, unsigned int)
-
-/* For CSS 1.0 only */
-#define ATOMISP_IOC_ACC_S_ARG \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 24, struct atomisp_acc_fw_arg)
-
-#define ATOMISP_IOC_ACC_START \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 24, unsigned int)
-
-#define ATOMISP_IOC_ACC_WAIT \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 25, unsigned int)
-
-#define ATOMISP_IOC_ACC_ABORT \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 25, struct atomisp_acc_fw_abort)
-
-#define ATOMISP_IOC_ACC_DESTAB \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 25, struct atomisp_acc_fw_arg)
-
 /* sensor OTP memory read */
 #define ATOMISP_IOC_G_SENSOR_PRIV_INT_DATA \
 	_IOWR('v', BASE_VIDIOC_PRIVATE + 26, struct v4l2_private_int_data)
@@ -1132,24 +996,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 /* motor internal memory read */
 #define ATOMISP_IOC_G_MOTOR_PRIV_INT_DATA \
 	_IOWR('v', BASE_VIDIOC_PRIVATE + 29, struct v4l2_private_int_data)
-
-/*
- * Ioctls to map and unmap user buffers to CSS address space for acceleration.
- * User fills fields length and user_ptr and sets other fields to zero,
- * kernel may modify the flags and sets css_ptr.
- */
-#define ATOMISP_IOC_ACC_MAP \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 30, struct atomisp_acc_map)
-
-/* User fills fields length, user_ptr, and css_ptr and zeroes other fields. */
-#define ATOMISP_IOC_ACC_UNMAP \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 30, struct atomisp_acc_map)
-
-#define ATOMISP_IOC_ACC_S_MAPPED_ARG \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 30, struct atomisp_acc_s_mapped_arg)
-
-#define ATOMISP_IOC_ACC_LOAD_TO_PIPE \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 31, struct atomisp_acc_fw_load_to_pipe)
 
 #define ATOMISP_IOC_S_PARAMETERS \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 32, struct atomisp_parameters)
@@ -1183,12 +1029,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 
 #define ATOMISP_IOC_S_EXPOSURE_WINDOW \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 40, struct atomisp_ae_window)
-
-#define ATOMISP_IOC_S_ACC_STATE \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 41, struct atomisp_acc_state)
-
-#define ATOMISP_IOC_G_ACC_STATE \
-	_IOR('v', BASE_VIDIOC_PRIVATE + 41, struct atomisp_acc_state)
 
 #define ATOMISP_IOC_INJECT_A_FAKE_EVENT \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 42, int)

@@ -1518,7 +1518,7 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	priv->firmware = NULL;
 	priv->firmware_type = fw_type;
 	if (firmware) /* module parameter */
-		strlcpy(priv->firmware_id, firmware, sizeof(priv->firmware_id));
+		strscpy(priv->firmware_id, firmware, sizeof(priv->firmware_id));
 	priv->bus_type = card_present ? BUS_TYPE_PCCARD : BUS_TYPE_PCI;
 	priv->station_state = STATION_STATE_DOWN;
 	priv->do_rx_crc = 0;
@@ -3353,7 +3353,7 @@ static void atmel_management_frame(struct atmel_private *priv,
 					priv->beacons_this_sec++;
 					atmel_smooth_qual(priv);
 					if (priv->last_beacon_timestamp) {
-						/* Note truncate this to 32 bits - kernel can't divide a long long */
+						/* Note truncate this to 32 bits - kernel can't divide a long */
 						u32 beacon_delay = timestamp - priv->last_beacon_timestamp;
 						int beacons = beacon_delay / (beacon_interval * 1000);
 						if (beacons > 1)

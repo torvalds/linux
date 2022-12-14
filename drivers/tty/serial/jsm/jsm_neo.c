@@ -291,7 +291,8 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 	ch->ch_cached_lsr = 0;
 
 	/* Store how much space we have left in the queue */
-	if ((qleft = tail - head - 1) < 0)
+	qleft = tail - head - 1;
+	if (qleft < 0)
 		qleft += RQUEUEMASK + 1;
 
 	/*
@@ -937,7 +938,7 @@ static void neo_param(struct jsm_channel *ch)
 	/*
 	 * If baud rate is zero, flush queues, and set mval to drop DTR.
 	 */
-	if ((ch->ch_c_cflag & (CBAUD)) == 0) {
+	if ((ch->ch_c_cflag & CBAUD) == B0) {
 		ch->ch_r_head = ch->ch_r_tail = 0;
 		ch->ch_e_head = ch->ch_e_tail = 0;
 
@@ -996,33 +997,13 @@ static void neo_param(struct jsm_channel *ch)
 	if (!(ch->ch_c_cflag & PARODD))
 		lcr |= UART_LCR_EPAR;
 
-	/*
-	 * Not all platforms support mark/space parity,
-	 * so this will hide behind an ifdef.
-	 */
-#ifdef CMSPAR
 	if (ch->ch_c_cflag & CMSPAR)
 		lcr |= UART_LCR_SPAR;
-#endif
 
 	if (ch->ch_c_cflag & CSTOPB)
 		lcr |= UART_LCR_STOP;
 
-	switch (ch->ch_c_cflag & CSIZE) {
-	case CS5:
-		lcr |= UART_LCR_WLEN5;
-		break;
-	case CS6:
-		lcr |= UART_LCR_WLEN6;
-		break;
-	case CS7:
-		lcr |= UART_LCR_WLEN7;
-		break;
-	case CS8:
-	default:
-		lcr |= UART_LCR_WLEN8;
-	break;
-	}
+	lcr |= UART_LCR_WLEN(tty_get_char_size(ch->ch_c_cflag));
 
 	ier = readb(&ch->ch_neo_uart->ier);
 	uart_lcr = readb(&ch->ch_neo_uart->lcr);

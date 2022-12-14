@@ -376,7 +376,7 @@ static int lp8788_update_charger_params(struct platform_device *pdev,
 		return 0;
 	}
 
-	/* settting charging parameters */
+	/* setting charging parameters */
 	for (i = 0; i < pdata->num_chg_params; i++) {
 		param = pdata->chg_params + i;
 

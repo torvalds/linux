@@ -112,7 +112,11 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 		rawir.pulse = i % 2 ? false : true;
 		rawir.duration = txbuf[i];
 
-		ir_raw_event_store_with_filter(dev, &rawir);
+		/* simulate overflow if ridiculously long pulse was sent */
+		if (rawir.pulse && rawir.duration > MS_TO_US(50))
+			ir_raw_event_overflow(dev);
+		else
+			ir_raw_event_store_with_filter(dev, &rawir);
 	}
 
 	if (lodev->carrierreport) {

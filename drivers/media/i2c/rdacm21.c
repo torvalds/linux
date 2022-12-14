@@ -583,7 +583,7 @@ static int rdacm21_probe(struct i2c_client *client)
 		goto error_free_ctrls;
 
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
-	dev->sd.entity.flags |= MEDIA_ENT_F_CAM_SENSOR;
+	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&dev->sd.entity, 1, &dev->pad);
 	if (ret < 0)
 		goto error_free_ctrls;
@@ -614,7 +614,7 @@ error:
 	return ret;
 }
 
-static int rdacm21_remove(struct i2c_client *client)
+static void rdacm21_remove(struct i2c_client *client)
 {
 	struct rdacm21_device *dev = sd_to_rdacm21(i2c_get_clientdata(client));
 
@@ -622,8 +622,6 @@ static int rdacm21_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&dev->ctrls);
 	i2c_unregister_device(dev->isp);
 	fwnode_handle_put(dev->sd.fwnode);
-
-	return 0;
 }
 
 static const struct of_device_id rdacm21_of_ids[] = {

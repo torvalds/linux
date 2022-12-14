@@ -629,11 +629,12 @@ static void _rtl_query_shortgi(struct ieee80211_hw *hw,
 	if (sta == NULL)
 		return;
 
-	sgi_40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40;
-	sgi_20 = sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20;
-	sgi_80 = sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80;
+	sgi_40 = sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40;
+	sgi_20 = sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20;
+	sgi_80 = sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80;
 
-	if ((!sta->ht_cap.ht_supported) && (!sta->vht_cap.vht_supported))
+	if (!sta->deflink.ht_cap.ht_supported &&
+	    !sta->deflink.vht_cap.vht_supported)
 		return;
 
 	if (!sgi_40 && !sgi_20)
@@ -645,8 +646,8 @@ static void _rtl_query_shortgi(struct ieee80211_hw *hw,
 	} else if (mac->opmode == NL80211_IFTYPE_AP ||
 		 mac->opmode == NL80211_IFTYPE_ADHOC ||
 		 mac->opmode == NL80211_IFTYPE_MESH_POINT) {
-		bw_40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-		bw_80 = sta->vht_cap.vht_supported;
+		bw_40 = sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+		bw_80 = sta->deflink.vht_cap.vht_supported;
 	}
 
 	if (bw_80) {
@@ -864,11 +865,11 @@ static void _rtl_query_bandwidth_mode(struct ieee80211_hw *hw,
 	if (mac->opmode == NL80211_IFTYPE_AP ||
 	    mac->opmode == NL80211_IFTYPE_ADHOC ||
 	    mac->opmode == NL80211_IFTYPE_MESH_POINT) {
-		if (!(sta->ht_cap.ht_supported) ||
-		    !(sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+		if (!(sta->deflink.ht_cap.ht_supported) ||
+		    !(sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
 			return;
 	} else if (mac->opmode == NL80211_IFTYPE_STATION) {
-		if (!mac->bw_40 || !(sta->ht_cap.ht_supported))
+		if (!mac->bw_40 || !(sta->deflink.ht_cap.ht_supported))
 			return;
 	}
 	if (tcb_desc->multicast || tcb_desc->broadcast)
@@ -884,11 +885,11 @@ static void _rtl_query_bandwidth_mode(struct ieee80211_hw *hw,
 		if (mac->opmode == NL80211_IFTYPE_AP ||
 		    mac->opmode == NL80211_IFTYPE_ADHOC ||
 		    mac->opmode == NL80211_IFTYPE_MESH_POINT) {
-			if (!(sta->vht_cap.vht_supported))
+			if (!(sta->deflink.vht_cap.vht_supported))
 				return;
 		} else if (mac->opmode == NL80211_IFTYPE_STATION) {
 			if (!mac->bw_80 ||
-			    !(sta->vht_cap.vht_supported))
+			    !(sta->deflink.vht_cap.vht_supported))
 				return;
 		}
 		if (tcb_desc->hw_rate <=
@@ -904,7 +905,7 @@ static u8 _rtl_get_vht_highest_n_rate(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	u8 hw_rate;
-	u16 tx_mcs_map = le16_to_cpu(sta->vht_cap.vht_mcs.tx_mcs_map);
+	u16 tx_mcs_map = le16_to_cpu(sta->deflink.vht_cap.vht_mcs.tx_mcs_map);
 
 	if ((get_rf_type(rtlphy) == RF_2T2R) &&
 	    (tx_mcs_map & 0x000c) != 0x000c) {
@@ -944,7 +945,7 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw,
 	u8 hw_rate;
 
 	if (get_rf_type(rtlphy) == RF_2T2R &&
-	    sta->ht_cap.mcs.rx_mask[1] != 0)
+	    sta->deflink.ht_cap.mcs.rx_mask[1] != 0)
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS15];
 	else
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS7];
@@ -1271,11 +1272,11 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 			 *and N rate will all be controlled by FW
 			 *when tcb_desc->use_driver_rate = false
 			 */
-			if (sta && sta->vht_cap.vht_supported) {
+			if (sta && sta->deflink.vht_cap.vht_supported) {
 				tcb_desc->hw_rate =
 				_rtl_get_vht_highest_n_rate(hw, sta);
 			} else {
-				if (sta && sta->ht_cap.ht_supported) {
+				if (sta && sta->deflink.ht_cap.ht_supported) {
 					tcb_desc->hw_rate =
 						_rtl_get_highest_n_rate(hw, sta);
 				} else {
@@ -1994,8 +1995,7 @@ void rtl_collect_scan_list(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	unsigned long flags;
 
-	struct rtl_bssid_entry *entry;
-	bool entry_found = false;
+	struct rtl_bssid_entry *entry = NULL, *iter;
 
 	/* check if it is scanning */
 	if (!mac->act_scanning)
@@ -2008,10 +2008,10 @@ void rtl_collect_scan_list(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	spin_lock_irqsave(&rtlpriv->locks.scan_list_lock, flags);
 
-	list_for_each_entry(entry, &rtlpriv->scan_list.list, list) {
-		if (memcmp(entry->bssid, hdr->addr3, ETH_ALEN) == 0) {
-			list_del_init(&entry->list);
-			entry_found = true;
+	list_for_each_entry(iter, &rtlpriv->scan_list.list, list) {
+		if (memcmp(iter->bssid, hdr->addr3, ETH_ALEN) == 0) {
+			list_del_init(&iter->list);
+			entry = iter;
 			rtl_dbg(rtlpriv, COMP_SCAN, DBG_LOUD,
 				"Update BSSID=%pM to scan list (total=%d)\n",
 				hdr->addr3, rtlpriv->scan_list.num);
@@ -2019,7 +2019,7 @@ void rtl_collect_scan_list(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 	}
 
-	if (!entry_found) {
+	if (!entry) {
 		entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 
 		if (!entry)

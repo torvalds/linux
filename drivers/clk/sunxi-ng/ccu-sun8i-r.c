@@ -114,7 +114,7 @@ static struct ccu_mp a83t_ir_clk = {
 	},
 };
 
-static struct ccu_common *sun8i_a83t_r_ccu_clks[] = {
+static struct ccu_common *sun8i_r_ccu_clks[] = {
 	&ar100_clk.common,
 	&apb0_clk.common,
 	&apb0_pio_clk.common,
@@ -124,32 +124,8 @@ static struct ccu_common *sun8i_a83t_r_ccu_clks[] = {
 	&apb0_uart_clk.common,
 	&apb0_i2c_clk.common,
 	&apb0_twd_clk.common,
+	&ir_clk.common,
 	&a83t_ir_clk.common,
-};
-
-static struct ccu_common *sun8i_h3_r_ccu_clks[] = {
-	&ar100_clk.common,
-	&apb0_clk.common,
-	&apb0_pio_clk.common,
-	&apb0_ir_clk.common,
-	&apb0_timer_clk.common,
-	&apb0_uart_clk.common,
-	&apb0_i2c_clk.common,
-	&apb0_twd_clk.common,
-	&ir_clk.common,
-};
-
-static struct ccu_common *sun50i_a64_r_ccu_clks[] = {
-	&ar100_clk.common,
-	&apb0_clk.common,
-	&apb0_pio_clk.common,
-	&apb0_ir_clk.common,
-	&apb0_timer_clk.common,
-	&apb0_rsb_clk.common,
-	&apb0_uart_clk.common,
-	&apb0_i2c_clk.common,
-	&apb0_twd_clk.common,
-	&ir_clk.common,
 };
 
 static struct clk_hw_onecell_data sun8i_a83t_r_hw_clks = {
@@ -226,8 +202,8 @@ static struct ccu_reset_map sun50i_a64_r_ccu_resets[] = {
 };
 
 static const struct sunxi_ccu_desc sun8i_a83t_r_ccu_desc = {
-	.ccu_clks	= sun8i_a83t_r_ccu_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun8i_a83t_r_ccu_clks),
+	.ccu_clks	= sun8i_r_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_r_ccu_clks),
 
 	.hw_clks	= &sun8i_a83t_r_hw_clks,
 
@@ -236,8 +212,8 @@ static const struct sunxi_ccu_desc sun8i_a83t_r_ccu_desc = {
 };
 
 static const struct sunxi_ccu_desc sun8i_h3_r_ccu_desc = {
-	.ccu_clks	= sun8i_h3_r_ccu_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun8i_h3_r_ccu_clks),
+	.ccu_clks	= sun8i_r_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_r_ccu_clks),
 
 	.hw_clks	= &sun8i_h3_r_hw_clks,
 
@@ -246,8 +222,8 @@ static const struct sunxi_ccu_desc sun8i_h3_r_ccu_desc = {
 };
 
 static const struct sunxi_ccu_desc sun50i_a64_r_ccu_desc = {
-	.ccu_clks	= sun50i_a64_r_ccu_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun50i_a64_r_ccu_clks),
+	.ccu_clks	= sun8i_r_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_r_ccu_clks),
 
 	.hw_clks	= &sun50i_a64_r_hw_clks,
 

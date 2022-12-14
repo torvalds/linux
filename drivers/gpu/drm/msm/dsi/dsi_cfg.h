@@ -32,7 +32,8 @@
 
 struct msm_dsi_config {
 	u32 io_offset;
-	struct dsi_reg_config reg_cfg;
+	const struct regulator_bulk_data *regulator_data;
+	int num_regulators;
 	const char * const *bus_clk_names;
 	const int num_bus_clks;
 	const resource_size_t io_start[DSI_MAX];
@@ -59,6 +60,9 @@ struct msm_dsi_cfg_handler {
 };
 
 const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 minor);
+
+/* Non autodetect configs */
+extern const struct msm_dsi_cfg_handler qcm2290_dsi_cfg_handler;
 
 #endif /* __MSM_DSI_CFG_H__ */
 

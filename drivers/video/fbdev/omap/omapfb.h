@@ -204,6 +204,8 @@ struct omapfb_device {
 	struct lcd_panel	*panel;			/* LCD panel */
 	const struct lcd_ctrl	*ctrl;			/* LCD controller */
 	const struct lcd_ctrl	*int_ctrl;		/* internal LCD ctrl */
+	int			ext_irq;
+	int			int_irq;
 	struct lcd_ctrl_extif	*ext_if;		/* LCD ctrl external
 							   interface */
 	struct device		*dev;
@@ -225,9 +227,4 @@ extern int  omapfb_register_client(struct omapfb_notifier_block *nb,
 				   omapfb_notifier_callback_t callback,
 				   void *callback_data);
 extern int  omapfb_unregister_client(struct omapfb_notifier_block *nb);
-extern int  omapfb_update_window_async(struct fb_info *fbi,
-				       struct omapfb_update_window *win,
-				       void (*callback)(void *),
-				       void *callback_data);
-
 #endif /* __OMAPFB_H */

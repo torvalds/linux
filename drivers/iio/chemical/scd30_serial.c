@@ -252,7 +252,7 @@ static struct serdev_device_driver scd30_serdev_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = scd30_serdev_of_match,
-		.pm = &scd30_pm_ops,
+		.pm = pm_sleep_ptr(&scd30_pm_ops),
 	},
 	.probe = scd30_serdev_probe,
 };
@@ -261,3 +261,4 @@ module_serdev_device_driver(scd30_serdev_driver);
 MODULE_AUTHOR("Tomasz Duszynski <tomasz.duszynski@octakon.com>");
 MODULE_DESCRIPTION("Sensirion SCD30 carbon dioxide sensor serial driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_SCD30);

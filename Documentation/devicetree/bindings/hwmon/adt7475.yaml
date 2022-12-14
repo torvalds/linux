@@ -57,9 +57,29 @@ patternProperties:
       Configures bypassing the individual voltage input attenuator. If
       set to 1 the attenuator is bypassed if set to 0 the attenuator is
       not bypassed. If the property is absent then the attenuator
-      retains it's configuration from the bios/bootloader.
+      retains its configuration from the bios/bootloader.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
+
+  "adi,pin(5|10)-function":
+    description: |
+      Configures the function for pin 5 on the adi,adt7473 and adi,adt7475. Or
+      pin 10 on the adi,adt7476 and adi,adt7490.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - pwm2
+      - smbalert#
+
+  "adi,pin(9|14)-function":
+    description: |
+      Configures the function for pin 9 on the adi,adt7473 and adi,adt7475. Or
+      pin 14 on the adi,adt7476 and adi,adt7490
+    $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - tach4
+      - therm#
+      - smbalert#
+      - gpio
 
 required:
   - compatible
@@ -79,6 +99,7 @@ examples:
         adi,bypass-attenuator-in0 = <1>;
         adi,bypass-attenuator-in1 = <0>;
         adi,pwm-active-state = <1 0 1>;
+        adi,pin10-function = "smbalert#";
+        adi,pin14-function = "tach4";
       };
     };
-

@@ -10,9 +10,6 @@ maintainers:
   - Al Cooper <alcooperx@gmail.com>
   - Florian Fainelli <f.fainelli@gmail.com>
 
-allOf:
-  - $ref: mmc-controller.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -31,7 +28,7 @@ properties:
           - const: brcm,sdhci-brcmstb
 
   reg:
-    minItems: 2
+    maxItems: 2
 
   reg-names:
     items:
@@ -42,45 +39,72 @@ properties:
     maxItems: 1
 
   clocks:
-    maxItems: 1
-    description:
-      handle to core clock for the sdhci controller.
+    minItems: 1
+    items:
+      - description: handle to core clock for the sdhci controller
+      - description: handle to improved 150Mhz clock for sdhci controller (Optional clock)
 
   clock-names:
+    minItems: 1
     items:
       - const: sw_sdio
+      - const: sdio_freq # Optional clock
+
+  clock-frequency:
+    description:
+      Maximum operating frequency of sdio_freq sdhci controller clock
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 100000000
+    maximum: 150000000
 
   sdhci,auto-cmd12:
     type: boolean
     description: Specifies that controller should use auto CMD12
+
+allOf:
+  - $ref: mmc-controller.yaml#
+  - if:
+      properties:
+        clock-names:
+          contains:
+            const: sdio_freq
+
+    then:
+      required:
+        - clock-frequency
 
 required:
   - compatible
   - reg
   - interrupts
   - clocks
+  - clock-names
 
 unevaluatedProperties: false
 
 examples:
   - |
     mmc@84b0000 {
-      sd-uhs-sdr50;
-      sd-uhs-ddr50;
-      sd-uhs-sdr104;
-      sdhci,auto-cmd12;
       compatible = "brcm,bcm7216-sdhci",
                    "brcm,bcm7445-sdhci",
                    "brcm,sdhci-brcmstb";
       reg = <0x84b0000 0x260>, <0x84b0300 0x200>;
       reg-names = "host", "cfg";
+      sd-uhs-sdr50;
+      sd-uhs-ddr50;
+      sd-uhs-sdr104;
+      sdhci,auto-cmd12;
       interrupts = <0x0 0x26 0x4>;
-      interrupt-names = "sdio0_0";
       clocks = <&scmi_clk 245>;
       clock-names = "sw_sdio";
     };
 
     mmc@84b1000 {
+      compatible = "brcm,bcm7216-sdhci",
+                   "brcm,bcm7445-sdhci",
+                   "brcm,sdhci-brcmstb";
+      reg = <0x84b1000 0x260>, <0x84b1300 0x200>;
+      reg-names = "host", "cfg";
       mmc-ddr-1_8v;
       mmc-hs200-1_8v;
       mmc-hs400-1_8v;
@@ -88,13 +112,7 @@ examples:
       supports-cqe;
       non-removable;
       bus-width = <0x8>;
-      compatible = "brcm,bcm7216-sdhci",
-           "brcm,bcm7445-sdhci",
-            "brcm,sdhci-brcmstb";
-      reg = <0x84b1000 0x260>, <0x84b1300 0x200>;
-      reg-names = "host", "cfg";
       interrupts = <0x0 0x27 0x4>;
-      interrupt-names = "sdio1_0";
       clocks = <&scmi_clk 245>;
       clock-names = "sw_sdio";
     };

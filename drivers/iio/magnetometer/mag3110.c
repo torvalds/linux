@@ -559,7 +559,7 @@ disable_regulator_vdd:
 	return ret;
 }
 
-static int mag3110_remove(struct i2c_client *client)
+static void mag3110_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct mag3110_data *data = iio_priv(indio_dev);
@@ -569,11 +569,8 @@ static int mag3110_remove(struct i2c_client *client)
 	mag3110_standby(iio_priv(indio_dev));
 	regulator_disable(data->vddio_reg);
 	regulator_disable(data->vdd_reg);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mag3110_suspend(struct device *dev)
 {
 	struct mag3110_data *data = iio_priv(i2c_get_clientdata(
@@ -623,11 +620,8 @@ static int mag3110_resume(struct device *dev)
 		data->ctrl_reg1);
 }
 
-static SIMPLE_DEV_PM_OPS(mag3110_pm_ops, mag3110_suspend, mag3110_resume);
-#define MAG3110_PM_OPS (&mag3110_pm_ops)
-#else
-#define MAG3110_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(mag3110_pm_ops, mag3110_suspend,
+				mag3110_resume);
 
 static const struct i2c_device_id mag3110_id[] = {
 	{ "mag3110", 0 },
@@ -645,7 +639,7 @@ static struct i2c_driver mag3110_driver = {
 	.driver = {
 		.name	= "mag3110",
 		.of_match_table = mag3110_of_match,
-		.pm	= MAG3110_PM_OPS,
+		.pm	= pm_sleep_ptr(&mag3110_pm_ops),
 	},
 	.probe = mag3110_probe,
 	.remove = mag3110_remove,

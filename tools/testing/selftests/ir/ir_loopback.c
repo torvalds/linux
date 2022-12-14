@@ -29,6 +29,16 @@
 #define SYSFS_PATH_MAX 256
 #define DNAME_PATH_MAX 256
 
+/*
+ * Support ancient lirc.h which does not have these values. Can be removed
+ * once RHEL 8 is no longer a relevant testing platform.
+ */
+#if RC_PROTO_MAX < 26
+#define RC_PROTO_RCMM12 24
+#define RC_PROTO_RCMM24 25
+#define RC_PROTO_RCMM32 26
+#endif
+
 static const struct {
 	enum rc_proto proto;
 	const char *name;

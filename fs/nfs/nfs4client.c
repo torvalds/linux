@@ -254,7 +254,7 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 			goto error;
 		ip_addr = (const char *)buf;
 	}
-	strlcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
+	strscpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
 
 	err = nfs_idmap_new(clp);
 	if (err < 0) {
@@ -346,6 +346,7 @@ int nfs40_init_client(struct nfs_client *clp)
 	ret = nfs4_setup_slot_table(tbl, NFS4_MAX_SLOT_TABLE,
 					"NFSv4.0 transport Slot table");
 	if (ret) {
+		nfs4_shutdown_slot_table(tbl);
 		kfree(tbl);
 		return ret;
 	}
@@ -889,7 +890,7 @@ nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
  */
 static int nfs4_set_client(struct nfs_server *server,
 		const char *hostname,
-		const struct sockaddr *addr,
+		const struct sockaddr_storage *addr,
 		const size_t addrlen,
 		const char *ip_addr,
 		int proto, const struct rpc_timeout *timeparms,
@@ -924,7 +925,7 @@ static int nfs4_set_client(struct nfs_server *server,
 		__set_bit(NFS_CS_MIGRATION, &cl_init.init_flags);
 	if (test_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status))
 		__set_bit(NFS_CS_TSM_POSSIBLE, &cl_init.init_flags);
-	server->port = rpc_get_port(addr);
+	server->port = rpc_get_port((struct sockaddr *)addr);
 
 	/* Allocate or find a client reference we can use */
 	clp = nfs_get_client(&cl_init);
@@ -960,7 +961,7 @@ static int nfs4_set_client(struct nfs_server *server,
  * the MDS.
  */
 struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
-		const struct sockaddr *ds_addr, int ds_addrlen,
+		const struct sockaddr_storage *ds_addr, int ds_addrlen,
 		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans,
 		u32 minor_version)
 {
@@ -980,7 +981,7 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 	};
 	char buf[INET6_ADDRSTRLEN + 1];
 
-	if (rpc_ntop(ds_addr, buf, sizeof(buf)) <= 0)
+	if (rpc_ntop((struct sockaddr *)ds_addr, buf, sizeof(buf)) <= 0)
 		return ERR_PTR(-EINVAL);
 	cl_init.hostname = buf;
 
@@ -1148,7 +1149,7 @@ static int nfs4_init_server(struct nfs_server *server, struct fs_context *fc)
 	/* Get a client record */
 	error = nfs4_set_client(server,
 				ctx->nfs_server.hostname,
-				&ctx->nfs_server.address,
+				&ctx->nfs_server._address,
 				ctx->nfs_server.addrlen,
 				ctx->client_address,
 				ctx->nfs_server.protocol,
@@ -1161,9 +1162,9 @@ static int nfs4_init_server(struct nfs_server *server, struct fs_context *fc)
 		return error;
 
 	if (ctx->rsize)
-		server->rsize = nfs_block_size(ctx->rsize, NULL);
+		server->rsize = nfs_io_size(ctx->rsize, server->nfs_client->cl_proto);
 	if (ctx->wsize)
-		server->wsize = nfs_block_size(ctx->wsize, NULL);
+		server->wsize = nfs_io_size(ctx->wsize, server->nfs_client->cl_proto);
 
 	server->acregmin = ctx->acregmin * HZ;
 	server->acregmax = ctx->acregmax * HZ;
@@ -1238,7 +1239,7 @@ struct nfs_server *nfs4_create_referral_server(struct fs_context *fc)
 	rpc_set_port(&ctx->nfs_server.address, NFS_RDMA_PORT);
 	error = nfs4_set_client(server,
 				ctx->nfs_server.hostname,
-				&ctx->nfs_server.address,
+				&ctx->nfs_server._address,
 				ctx->nfs_server.addrlen,
 				parent_client->cl_ipaddr,
 				XPRT_TRANSPORT_RDMA,
@@ -1254,7 +1255,7 @@ struct nfs_server *nfs4_create_referral_server(struct fs_context *fc)
 	rpc_set_port(&ctx->nfs_server.address, NFS_PORT);
 	error = nfs4_set_client(server,
 				ctx->nfs_server.hostname,
-				&ctx->nfs_server.address,
+				&ctx->nfs_server._address,
 				ctx->nfs_server.addrlen,
 				parent_client->cl_ipaddr,
 				XPRT_TRANSPORT_TCP,
@@ -1303,14 +1304,14 @@ error:
  * Returns zero on success, or a negative errno value.
  */
 int nfs4_update_server(struct nfs_server *server, const char *hostname,
-		       struct sockaddr *sap, size_t salen, struct net *net)
+		       struct sockaddr_storage *sap, size_t salen, struct net *net)
 {
 	struct nfs_client *clp = server->nfs_client;
 	struct rpc_clnt *clnt = server->client;
 	struct xprt_create xargs = {
 		.ident		= clp->cl_proto,
 		.net		= net,
-		.dstaddr	= sap,
+		.dstaddr	= (struct sockaddr *)sap,
 		.addrlen	= salen,
 		.servername	= hostname,
 	};

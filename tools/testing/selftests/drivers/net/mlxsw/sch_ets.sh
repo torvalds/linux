@@ -15,13 +15,15 @@ ALL_TESTS="
 	ets_test_dwrr
 "
 
+PARENT="parent 3:3"
+
 switch_create()
 {
-	ets_switch_create
-
 	# Create a bottleneck so that the DWRR process can kick in.
-	ethtool -s $h2 speed 1000 autoneg off
-	ethtool -s $swp2 speed 1000 autoneg off
+	tc qdisc replace dev $swp2 root handle 3: tbf rate 1gbit \
+		burst 128K limit 1G
+
+	ets_switch_create
 
 	# Set the ingress quota high and use the three egress TCs to limit the
 	# amount of traffic that is admitted to the shared buffers. This makes
@@ -55,10 +57,9 @@ switch_destroy()
 	devlink_tc_bind_pool_th_restore $swp1 0 ingress
 	devlink_port_pool_th_restore $swp1 0
 
-	ethtool -s $swp2 autoneg on
-	ethtool -s $h2 autoneg on
-
 	ets_switch_destroy
+
+	tc qdisc del dev $swp2 root handle 3:
 }
 
 # Callback from sch_ets_tests.sh

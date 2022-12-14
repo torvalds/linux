@@ -139,7 +139,7 @@ static int __init omap4_sram_init(void)
 		pr_warn("%s:Unable to get sram pool needed to handle errata I688\n",
 			__func__);
 	else
-		sram_sync = (void *)gen_pool_alloc(sram_pool, PAGE_SIZE);
+		sram_sync = (void __iomem *)gen_pool_alloc(sram_pool, PAGE_SIZE);
 
 	return 0;
 }
@@ -314,10 +314,12 @@ void __init omap_gic_of_init(void)
 
 	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-gic");
 	gic_dist_base_addr = of_iomap(np, 0);
+	of_node_put(np);
 	WARN_ON(!gic_dist_base_addr);
 
 	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-twd-timer");
 	twd_base = of_iomap(np, 0);
+	of_node_put(np);
 	WARN_ON(!twd_base);
 
 skip_errata_init:

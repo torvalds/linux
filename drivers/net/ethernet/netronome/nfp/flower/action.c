@@ -149,7 +149,7 @@ nfp_fl_pre_lag(struct nfp_app *app, const struct flow_action_entry *act,
 	}
 
 	/* Pre_lag action must be first on action list.
-	 * If other actions already exist they need pushed forward.
+	 * If other actions already exist they need to be pushed forward.
 	 */
 	if (act_len)
 		memmove(nfp_flow->action_data + act_size,
@@ -220,7 +220,8 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 		}
 		output->port = cpu_to_be32(NFP_FL_LAG_OUT | gid);
 	} else if (nfp_flower_internal_port_can_offload(app, out_dev)) {
-		if (!(priv->flower_ext_feats & NFP_FL_FEATS_PRE_TUN_RULES)) {
+		if (!(priv->flower_ext_feats & NFP_FL_FEATS_PRE_TUN_RULES) &&
+		    !(priv->flower_ext_feats & NFP_FL_FEATS_DECAP_V2)) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: pre-tunnel rules not supported in loaded firmware");
 			return -EOPNOTSUPP;
 		}
@@ -426,6 +427,12 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 		return -EOPNOTSUPP;
 	}
 
+	if (ip_tun->key.tun_flags & ~NFP_FL_SUPPORTED_UDP_TUN_FLAGS) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "unsupported offload: loaded firmware does not support tunnel flag offload");
+		return -EOPNOTSUPP;
+	}
+
 	set_tun->head.jump_id = NFP_FL_ACTION_OPCODE_SET_TUNNEL;
 	set_tun->head.len_lw = act_size >> NFP_FL_LW_SIZ;
 
@@ -435,7 +442,8 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 		FIELD_PREP(NFP_FL_PRE_TUN_INDEX, pretun_idx);
 
 	set_tun->tun_type_index = cpu_to_be32(tmp_set_ip_tun_type_index);
-	set_tun->tun_id = ip_tun->key.tun_id;
+	if (ip_tun->key.tun_flags & NFP_FL_TUNNEL_KEY)
+		set_tun->tun_id = ip_tun->key.tun_id;
 
 	if (ip_tun->key.ttl) {
 		set_tun->ttl = ip_tun->key.ttl;
@@ -473,17 +481,11 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 			set_tun->ttl = ip4_dst_hoplimit(&rt->dst);
 			ip_rt_put(rt);
 		} else {
-			set_tun->ttl = net->ipv4.sysctl_ip_default_ttl;
+			set_tun->ttl = READ_ONCE(net->ipv4.sysctl_ip_default_ttl);
 		}
 	}
 
 	set_tun->tos = ip_tun->key.tos;
-
-	if (!(ip_tun->key.tun_flags & NFP_FL_TUNNEL_KEY) ||
-	    ip_tun->key.tun_flags & ~NFP_FL_SUPPORTED_UDP_TUN_FLAGS) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support tunnel flag offload");
-		return -EOPNOTSUPP;
-	}
 	set_tun->tun_flags = ip_tun->key.tun_flags;
 
 	if (tun_type == NFP_FL_TUNNEL_GENEVE) {
@@ -673,9 +675,9 @@ nfp_fl_set_ip6_hop_limit_flow_label(u32 off, __be32 exact, __be32 mask,
 					    fl_hl_mask->hop_limit;
 		break;
 	case round_down(offsetof(struct ipv6hdr, flow_lbl), 4):
-		if (mask & ~IPV6_FLOW_LABEL_MASK ||
-		    exact & ~IPV6_FLOW_LABEL_MASK) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid pedit IPv6 flow label action");
+		if (mask & ~IPV6_FLOWINFO_MASK ||
+		    exact & ~IPV6_FLOWINFO_MASK) {
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid pedit IPv6 flow info action");
 			return -EOPNOTSUPP;
 		}
 
@@ -922,6 +924,51 @@ nfp_fl_pedit(const struct flow_action_entry *act,
 	}
 }
 
+static struct nfp_fl_meter *nfp_fl_meter(char *act_data)
+{
+	size_t act_size = sizeof(struct nfp_fl_meter);
+	struct nfp_fl_meter *meter_act;
+
+	meter_act = (struct nfp_fl_meter *)act_data;
+
+	memset(meter_act, 0, act_size);
+
+	meter_act->head.jump_id = NFP_FL_ACTION_OPCODE_METER;
+	meter_act->head.len_lw = act_size >> NFP_FL_LW_SIZ;
+
+	return meter_act;
+}
+
+static int
+nfp_flower_meter_action(struct nfp_app *app,
+			const struct flow_action_entry *action,
+			struct nfp_fl_payload *nfp_fl, int *a_len,
+			struct net_device *netdev,
+			struct netlink_ext_ack *extack)
+{
+	struct nfp_fl_meter *fl_meter;
+	u32 meter_id;
+
+	if (*a_len + sizeof(struct nfp_fl_meter) > NFP_FL_MAX_A_SIZ) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "unsupported offload:meter action size beyond the allowed maximum");
+		return -EOPNOTSUPP;
+	}
+
+	meter_id = action->hw_index;
+	if (!nfp_flower_search_meter_entry(app, meter_id)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "can not offload flow table with unsupported police action.");
+		return -EOPNOTSUPP;
+	}
+
+	fl_meter = nfp_fl_meter(&nfp_fl->action_data[*a_len]);
+	*a_len += sizeof(struct nfp_fl_meter);
+	fl_meter->meter_id = cpu_to_be32(meter_id);
+
+	return 0;
+}
+
 static int
 nfp_flower_output_action(struct nfp_app *app,
 			 const struct flow_action_entry *act,
@@ -985,6 +1032,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		       struct nfp_flower_pedit_acts *set_act, bool *pkt_host,
 		       struct netlink_ext_ack *extack, int act_idx)
 {
+	struct nfp_flower_priv *fl_priv = app->priv;
 	struct nfp_fl_pre_tunnel *pre_tun;
 	struct nfp_fl_set_tun *set_tun;
 	struct nfp_fl_push_vlan *psh_v;
@@ -1148,6 +1196,18 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 			return -EOPNOTSUPP;
 
 		*pkt_host = true;
+		break;
+	case FLOW_ACTION_POLICE:
+		if (!(fl_priv->flower_ext_feats & NFP_FL_FEATS_QOS_METER)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "unsupported offload: unsupported police action in action list");
+			return -EOPNOTSUPP;
+		}
+
+		err = nfp_flower_meter_action(app, act, nfp_fl, a_len, netdev,
+					      extack);
+		if (err)
+			return err;
 		break;
 	default:
 		/* Currently we do not handle any other actions. */

@@ -17,15 +17,25 @@
 #define WCID_START	33
 #define WCID_END	222
 #define STA_IDS_SIZE	(WCID_END - WCID_START + 2)
+#define CHAIN_0		0x0
+#define CHAIN_1		0x1
+#define RF_ALC_NUM	6
+#define CHAIN_NUM	2
+
+struct rf_reg_pair {
+	u8 bank;
+	u8 reg;
+	u8 value;
+};
 
 /* RT2800 driver data structure */
 struct rt2800_drv_data {
 	u8 calibration_bw20;
 	u8 calibration_bw40;
-	char rx_calibration_bw20;
-	char rx_calibration_bw40;
-	char tx_calibration_bw20;
-	char tx_calibration_bw40;
+	s8 rx_calibration_bw20;
+	s8 rx_calibration_bw40;
+	s8 tx_calibration_bw20;
+	s8 tx_calibration_bw40;
 	u8 bbp25;
 	u8 bbp26;
 	u8 txmixer_gain_24g;
@@ -245,7 +255,8 @@ void rt2800_get_key_seq(struct ieee80211_hw *hw,
 			struct ieee80211_key_seq *seq);
 int rt2800_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 int rt2800_conf_tx(struct ieee80211_hw *hw,
-		   struct ieee80211_vif *vif, u16 queue_idx,
+		   struct ieee80211_vif *vif,
+		   unsigned int link_id, u16 queue_idx,
 		   const struct ieee80211_tx_queue_params *params);
 u64 rt2800_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

@@ -44,6 +44,9 @@
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
 #define PFX "iavf: "
 
+int iavf_status_to_errno(enum iavf_status status);
+int virtchnl_status_to_errno(enum virtchnl_status_code v_status);
+
 /* VSI state flags shared with common code */
 enum iavf_vsi_state_t {
 	__IAVF_VSI_DOWN,
@@ -61,7 +64,6 @@ struct iavf_vsi {
 	u16 id;
 	DECLARE_BITMAP(state, __IAVF_VSI_STATE_SIZE__);
 	int base_vector;
-	u16 work_limit;
 	u16 qs_handle;
 	void *priv;     /* client driver data reference. */
 };
@@ -90,6 +92,7 @@ struct iavf_vsi {
 #define IAVF_HKEY_ARRAY_SIZE ((IAVF_VFQF_HKEY_MAX_INDEX + 1) * 4)
 #define IAVF_HLUT_ARRAY_SIZE ((IAVF_VFQF_HLUT_MAX_INDEX + 1) * 4)
 #define IAVF_MBPS_DIVISOR	125000 /* divisor to convert to Mbps */
+#define IAVF_MBPS_QUANTA	50
 
 #define IAVF_VIRTCHNL_VF_RESOURCE_SIZE (sizeof(struct virtchnl_vf_resource) + \
 					(IAVF_MAX_VF_VSI * \
@@ -143,7 +146,8 @@ struct iavf_mac_filter {
 		u8 remove:1;        /* filter needs to be removed */
 		u8 add:1;           /* filter needs to be added */
 		u8 is_primary:1;    /* filter is a default VF MAC */
-		u8 padding:4;
+		u8 add_handled:1;   /* received response for filter add */
+		u8 padding:3;
 	};
 };
 
@@ -156,8 +160,12 @@ struct iavf_vlan {
 struct iavf_vlan_filter {
 	struct list_head list;
 	struct iavf_vlan vlan;
-	bool remove;		/* filter needs to be removed */
-	bool add;		/* filter needs to be added */
+	struct {
+		u8 is_new_vlan:1;	/* filter is new, wait for PF answer */
+		u8 remove:1;		/* filter needs to be removed */
+		u8 add:1;		/* filter needs to be added */
+		u8 padding:5;
+	};
 };
 
 #define IAVF_MAX_TRAFFIC_CLASS	4
@@ -188,7 +196,7 @@ enum iavf_state_t {
 	__IAVF_REMOVE,		/* driver is being unloaded */
 	__IAVF_INIT_VERSION_CHECK,	/* aq msg sent, awaiting reply */
 	__IAVF_INIT_GET_RESOURCES,	/* aq msg sent, awaiting reply */
-	__IAVF_INIT_GET_OFFLOAD_VLAN_V2_CAPS,
+	__IAVF_INIT_EXTENDED_CAPS,	/* process extended caps which require aq msg exchange */
 	__IAVF_INIT_CONFIG_ADAPTER,
 	__IAVF_INIT_SW,		/* got resources, setting up structs */
 	__IAVF_INIT_FAILED,	/* init failed, restarting procedure */
@@ -199,6 +207,10 @@ enum iavf_state_t {
 	__IAVF_DOWN_PENDING,		/* descending, waiting for watchdog */
 	__IAVF_TESTING,		/* in ethtool self-test */
 	__IAVF_RUNNING,		/* opened, working */
+};
+
+enum iavf_critical_section_t {
+	__IAVF_IN_REMOVE_TASK,	/* device being removed */
 };
 
 #define IAVF_CLOUD_FIELD_OMAC		0x01
@@ -241,12 +253,12 @@ struct iavf_adapter {
 	struct work_struct adminq_task;
 	struct delayed_work client_task;
 	wait_queue_head_t down_waitqueue;
+	wait_queue_head_t vc_waitqueue;
 	struct iavf_q_vector *q_vectors;
 	struct list_head vlan_filter_list;
 	struct list_head mac_filter_list;
 	struct mutex crit_lock;
 	struct mutex client_lock;
-	struct mutex remove_lock;
 	/* Lock to protect accesses to MAC and VLAN lists */
 	spinlock_t mac_vlan_list_lock;
 	char misc_vector_name[IFNAMSIZ + 9];
@@ -284,6 +296,8 @@ struct iavf_adapter {
 #define IAVF_FLAG_LEGACY_RX			BIT(15)
 #define IAVF_FLAG_REINIT_ITR_NEEDED		BIT(16)
 #define IAVF_FLAG_QUEUES_DISABLED		BIT(17)
+#define IAVF_FLAG_SETUP_NETDEV_FEATURES		BIT(18)
+#define IAVF_FLAG_REINIT_MSIX_NEEDED		BIT(20)
 /* duplicates for common code */
 #define IAVF_FLAG_DCB_ENABLED			0
 	/* flags for admin queue service task */
@@ -328,6 +342,21 @@ struct iavf_adapter {
 #define IAVF_FLAG_AQ_DISABLE_CTAG_VLAN_INSERTION	BIT_ULL(36)
 #define IAVF_FLAG_AQ_ENABLE_STAG_VLAN_INSERTION		BIT_ULL(37)
 #define IAVF_FLAG_AQ_DISABLE_STAG_VLAN_INSERTION	BIT_ULL(38)
+
+	/* flags for processing extended capability messages during
+	 * __IAVF_INIT_EXTENDED_CAPS. Each capability exchange requires
+	 * both a SEND and a RECV step, which must be processed in sequence.
+	 *
+	 * During the __IAVF_INIT_EXTENDED_CAPS state, the driver will
+	 * process one flag at a time during each state loop.
+	 */
+	u64 extended_caps;
+#define IAVF_EXTENDED_CAP_SEND_VLAN_V2			BIT_ULL(0)
+#define IAVF_EXTENDED_CAP_RECV_VLAN_V2			BIT_ULL(1)
+
+#define IAVF_EXTENDED_CAPS				\
+	(IAVF_EXTENDED_CAP_SEND_VLAN_V2 |		\
+	 IAVF_EXTENDED_CAP_RECV_VLAN_V2)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -404,6 +433,11 @@ struct iavf_adapter {
 	/* lock to protect access to the cloud filter list */
 	spinlock_t cloud_filter_list_lock;
 	u16 num_cloud_filters;
+	/* snapshot of "num_active_queues" before setup_tc for qdisc add
+	 * is invoked. This information is useful during qdisc del flow,
+	 * to restore correct number of queues
+	 */
+	int orig_num_active_queues;
 
 #define IAVF_MAX_FDIR_FILTERS 128	/* max allowed Flow Director filters */
 	u16 fdir_active_fltr;
@@ -438,6 +472,10 @@ static inline const char *iavf_state_str(enum iavf_state_t state)
 		return "__IAVF_INIT_VERSION_CHECK";
 	case __IAVF_INIT_GET_RESOURCES:
 		return "__IAVF_INIT_GET_RESOURCES";
+	case __IAVF_INIT_EXTENDED_CAPS:
+		return "__IAVF_INIT_EXTENDED_CAPS";
+	case __IAVF_INIT_CONFIG_ADAPTER:
+		return "__IAVF_INIT_CONFIG_ADAPTER";
 	case __IAVF_INIT_SW:
 		return "__IAVF_INIT_SW";
 	case __IAVF_INIT_FAILED:
@@ -497,6 +535,7 @@ int iavf_get_vf_config(struct iavf_adapter *adapter);
 int iavf_get_vf_vlan_v2_caps(struct iavf_adapter *adapter);
 int iavf_send_vf_offload_vlan_v2_msg(struct iavf_adapter *adapter);
 void iavf_set_queue_vlan_tag_loc(struct iavf_adapter *adapter);
+u16 iavf_get_num_vlans_added(struct iavf_adapter *adapter);
 void iavf_irq_enable(struct iavf_adapter *adapter, bool flush);
 void iavf_configure_queues(struct iavf_adapter *adapter);
 void iavf_deconfigure_queues(struct iavf_adapter *adapter);
@@ -510,7 +549,7 @@ void iavf_add_vlans(struct iavf_adapter *adapter);
 void iavf_del_vlans(struct iavf_adapter *adapter);
 void iavf_set_promiscuous(struct iavf_adapter *adapter, int flags);
 void iavf_request_stats(struct iavf_adapter *adapter);
-void iavf_request_reset(struct iavf_adapter *adapter);
+int iavf_request_reset(struct iavf_adapter *adapter);
 void iavf_get_hena(struct iavf_adapter *adapter);
 void iavf_set_hena(struct iavf_adapter *adapter);
 void iavf_set_rss_key(struct iavf_adapter *adapter);
@@ -536,6 +575,8 @@ void iavf_enable_vlan_stripping_v2(struct iavf_adapter *adapter, u16 tpid);
 void iavf_disable_vlan_stripping_v2(struct iavf_adapter *adapter, u16 tpid);
 void iavf_enable_vlan_insertion_v2(struct iavf_adapter *adapter, u16 tpid);
 void iavf_disable_vlan_insertion_v2(struct iavf_adapter *adapter, u16 tpid);
+int iavf_replace_primary_mac(struct iavf_adapter *adapter,
+			     const u8 *new_mac);
 void
 iavf_set_vlan_offload_features(struct iavf_adapter *adapter,
 			       netdev_features_t prev_features,

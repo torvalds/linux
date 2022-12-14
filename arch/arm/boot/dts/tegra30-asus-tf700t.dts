@@ -742,7 +742,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			dsi-bridge@7 {
+			dsi@7 {
 				compatible = "toshiba,tc358768";
 				reg = <0x7>;
 

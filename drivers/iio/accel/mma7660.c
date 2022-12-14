@@ -7,8 +7,8 @@
  * IIO driver for Freescale MMA7660FC; 7-bit I2C address: 0x4c.
  */
 
-#include <linux/acpi.h>
 #include <linux/i2c.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -207,7 +207,7 @@ static int mma7660_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int mma7660_remove(struct i2c_client *client)
+static void mma7660_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	int ret;
@@ -218,11 +218,8 @@ static int mma7660_remove(struct i2c_client *client)
 	if (ret)
 		dev_warn(&client->dev, "Failed to put device in stand-by mode (%pe), ignoring\n",
 			 ERR_PTR(ret));
-
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mma7660_suspend(struct device *dev)
 {
 	struct mma7660_data *data;
@@ -241,12 +238,8 @@ static int mma7660_resume(struct device *dev)
 	return mma7660_set_mode(data, MMA7660_MODE_ACTIVE);
 }
 
-static SIMPLE_DEV_PM_OPS(mma7660_pm_ops, mma7660_suspend, mma7660_resume);
-
-#define MMA7660_PM_OPS (&mma7660_pm_ops)
-#else
-#define MMA7660_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(mma7660_pm_ops, mma7660_suspend,
+				mma7660_resume);
 
 static const struct i2c_device_id mma7660_i2c_id[] = {
 	{"mma7660", 0},
@@ -260,7 +253,7 @@ static const struct of_device_id mma7660_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mma7660_of_match);
 
-static const struct acpi_device_id __maybe_unused mma7660_acpi_id[] = {
+static const struct acpi_device_id mma7660_acpi_id[] = {
 	{"MMA7660", 0},
 	{}
 };
@@ -270,9 +263,9 @@ MODULE_DEVICE_TABLE(acpi, mma7660_acpi_id);
 static struct i2c_driver mma7660_driver = {
 	.driver = {
 		.name = "mma7660",
-		.pm = MMA7660_PM_OPS,
+		.pm = pm_sleep_ptr(&mma7660_pm_ops),
 		.of_match_table = mma7660_of_match,
-		.acpi_match_table = ACPI_PTR(mma7660_acpi_id),
+		.acpi_match_table = mma7660_acpi_id,
 	},
 	.probe		= mma7660_probe,
 	.remove		= mma7660_remove,

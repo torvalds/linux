@@ -271,6 +271,7 @@ struct tegra_dfll {
 	struct clk			*ref_clk;
 	struct clk			*i2c_clk;
 	struct clk			*dfll_clk;
+	struct reset_control		*dfll_rst;
 	struct reset_control		*dvco_rst;
 	unsigned long			ref_rate;
 	unsigned long			i2c_clk_rate;
@@ -666,7 +667,7 @@ static int dfll_force_output(struct tegra_dfll *td, unsigned int out_sel)
 }
 
 /**
- * dfll_load_lut - load the voltage lookup table
+ * dfll_load_i2c_lut - load the voltage lookup table
  * @td: struct tegra_dfll *
  *
  * Load the voltage-to-PMIC register value lookup table into the DFLL
@@ -897,7 +898,7 @@ static void dfll_set_frequency_request(struct tegra_dfll *td,
 }
 
 /**
- * tegra_dfll_request_rate - set the next rate for the DFLL to tune to
+ * dfll_request_rate - set the next rate for the DFLL to tune to
  * @td: DFLL instance
  * @rate: clock rate to target
  *
@@ -1005,7 +1006,7 @@ static void dfll_set_open_loop_config(struct tegra_dfll *td)
 }
 
 /**
- * tegra_dfll_lock - switch from open-loop to closed-loop mode
+ * dfll_lock - switch from open-loop to closed-loop mode
  * @td: DFLL instance
  *
  * Switch from OPEN_LOOP state to CLOSED_LOOP state. Returns 0 upon success,
@@ -1046,7 +1047,7 @@ static int dfll_lock(struct tegra_dfll *td)
 }
 
 /**
- * tegra_dfll_unlock - switch from closed-loop to open-loop mode
+ * dfll_unlock - switch from closed-loop to open-loop mode
  * @td: DFLL instance
  *
  * Switch from CLOSED_LOOP state to OPEN_LOOP state. Returns 0 upon success,
@@ -1464,6 +1465,7 @@ static int dfll_init(struct tegra_dfll *td)
 		return -EINVAL;
 	}
 
+	reset_control_deassert(td->dfll_rst);
 	reset_control_deassert(td->dvco_rst);
 
 	ret = clk_prepare(td->ref_clk);
@@ -1509,6 +1511,7 @@ di_err1:
 	clk_unprepare(td->ref_clk);
 
 	reset_control_assert(td->dvco_rst);
+	reset_control_assert(td->dfll_rst);
 
 	return ret;
 }
@@ -1530,6 +1533,7 @@ int tegra_dfll_suspend(struct device *dev)
 	}
 
 	reset_control_assert(td->dvco_rst);
+	reset_control_assert(td->dfll_rst);
 
 	return 0;
 }
@@ -1548,6 +1552,7 @@ int tegra_dfll_resume(struct device *dev)
 {
 	struct tegra_dfll *td = dev_get_drvdata(dev);
 
+	reset_control_deassert(td->dfll_rst);
 	reset_control_deassert(td->dvco_rst);
 
 	pm_runtime_get_sync(td->dev);
@@ -1951,6 +1956,12 @@ int tegra_dfll_register(struct platform_device *pdev,
 
 	td->soc = soc;
 
+	td->dfll_rst = devm_reset_control_get_optional(td->dev, "dfll");
+	if (IS_ERR(td->dfll_rst)) {
+		dev_err(td->dev, "couldn't get dfll reset\n");
+		return PTR_ERR(td->dfll_rst);
+	}
+
 	td->dvco_rst = devm_reset_control_get(td->dev, "dvco");
 	if (IS_ERR(td->dvco_rst)) {
 		dev_err(td->dev, "couldn't get dvco reset\n");
@@ -2087,6 +2098,7 @@ struct tegra_dfll_soc_data *tegra_dfll_unregister(struct platform_device *pdev)
 	clk_unprepare(td->i2c_clk);
 
 	reset_control_assert(td->dvco_rst);
+	reset_control_assert(td->dfll_rst);
 
 	return td->soc;
 }

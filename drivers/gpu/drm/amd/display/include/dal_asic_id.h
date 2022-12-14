@@ -212,21 +212,18 @@ enum {
 #define ASICREV_IS_GREEN_SARDINE(eChipRev) ((eChipRev >= GREEN_SARDINE_A0) && (eChipRev < 0xFF))
 #endif
 #define DEVICE_ID_NV_13FE 0x13FE  // CYAN_SKILLFISH
+#define DEVICE_ID_NV_143F 0x143F
 #define FAMILY_VGH 144
 #define DEVICE_ID_VGH_163F 0x163F
+#define DEVICE_ID_VGH_1435 0x1435
 #define VANGOGH_A0 0x01
 #define VANGOGH_UNKNOWN 0xFF
 
 #ifndef ASICREV_IS_VANGOGH
 #define ASICREV_IS_VANGOGH(eChipRev) ((eChipRev >= VANGOGH_A0) && (eChipRev < VANGOGH_UNKNOWN))
 #endif
-#define GREEN_SARDINE_A0 0xA1
-#ifndef ASICREV_IS_GREEN_SARDINE
-#define ASICREV_IS_GREEN_SARDINE(eChipRev) ((eChipRev >= GREEN_SARDINE_A0) && (eChipRev < 0xFF))
-#endif
 
 #define FAMILY_YELLOW_CARP                     146
-
 #define YELLOW_CARP_A0 0x01
 #define YELLOW_CARP_B0 0x20
 #define YELLOW_CARP_UNKNOWN 0xFF
@@ -235,6 +232,28 @@ enum {
 #define ASICREV_IS_YELLOW_CARP(eChipRev) ((eChipRev >= YELLOW_CARP_A0) && (eChipRev < YELLOW_CARP_UNKNOWN))
 #endif
 
+#define AMDGPU_FAMILY_GC_10_3_6                     149
+#define GC_10_3_6_A0            0x01
+#define GC_10_3_6_UNKNOWN       0xFF
+
+#define ASICREV_IS_GC_10_3_6(eChipRev) ((eChipRev >= GC_10_3_6_A0) && (eChipRev < GC_10_3_6_UNKNOWN))
+
+#define AMDGPU_FAMILY_GC_10_3_7                151
+#define GC_10_3_7_A0 0x01
+#define GC_10_3_7_UNKNOWN 0xFF
+
+#define ASICREV_IS_GC_10_3_7(eChipRev) ((eChipRev >= GC_10_3_7_A0) && (eChipRev < GC_10_3_7_UNKNOWN))
+
+#define AMDGPU_FAMILY_GC_11_0_0 145
+#define AMDGPU_FAMILY_GC_11_0_1 148
+#define GC_11_0_0_A0 0x1
+#define GC_11_0_2_A0 0x10
+#define GC_11_0_3_A0 0x20
+#define GC_11_UNKNOWN 0xFF
+
+#define ASICREV_IS_GC_11_0_0(eChipRev) (eChipRev < GC_11_0_2_A0)
+#define ASICREV_IS_GC_11_0_2(eChipRev) (eChipRev >= GC_11_0_2_A0 && eChipRev < GC_11_0_3_A0)
+#define ASICREV_IS_GC_11_0_3(eChipRev) (eChipRev >= GC_11_0_3_A0 && eChipRev < GC_11_UNKNOWN)
 
 /*
  * ASIC chip ID
@@ -268,7 +287,5 @@ enum {
 #define FAMILY_AI 141
 
 #define	FAMILY_UNKNOWN 0xFF
-
-
 
 #endif /* __DAL_ASIC_ID_H__ */

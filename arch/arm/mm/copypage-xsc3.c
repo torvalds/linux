@@ -29,6 +29,7 @@ static void xsc3_mc_copy_user_page(void *kto, const void *kfrom)
 	int tmp;
 
 	asm volatile ("\
+.arch xscale					\n\
 	pld	[%1, #0]			\n\
 	pld	[%1, #32]			\n\
 1:	pld	[%1, #64]			\n\
@@ -80,6 +81,7 @@ void xsc3_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
 {
 	void *ptr, *kaddr = kmap_atomic(page);
 	asm volatile ("\
+.arch xscale					\n\
 	mov	r1, %2				\n\
 	mov	r2, #0				\n\
 	mov	r3, #0				\n\

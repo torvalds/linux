@@ -33,6 +33,7 @@ properties:
     enum:
       - rockchip,px30-pinctrl
       - rockchip,rk2928-pinctrl
+      - rockchip,rk3036-pinctrl
       - rockchip,rk3066a-pinctrl
       - rockchip,rk3066b-pinctrl
       - rockchip,rk3128-pinctrl
@@ -44,7 +45,9 @@ properties:
       - rockchip,rk3368-pinctrl
       - rockchip,rk3399-pinctrl
       - rockchip,rk3568-pinctrl
+      - rockchip,rk3588-pinctrl
       - rockchip,rv1108-pinctrl
+      - rockchip,rv1126-pinctrl
 
   rockchip,grf:
     $ref: "/schemas/types.yaml#/definitions/phandle"
@@ -129,7 +132,7 @@ additionalProperties:
               description:
                 Pin bank index.
             - minimum: 0
-              maximum: 6
+              maximum: 10
               description:
                 Mux 0 means GPIO and mux 1 to N means
                 the specific device function.

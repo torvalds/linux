@@ -1810,7 +1810,7 @@ error_probe:
 	return ret;
 }
 
-static int imx355_remove(struct i2c_client *client)
+static void imx355_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx355 *imx355 = to_imx355(sd);
@@ -1823,8 +1823,6 @@ static int imx355_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 
 	mutex_destroy(&imx355->mutex);
-
-	return 0;
 }
 
 static const struct dev_pm_ops imx355_pm_ops = {

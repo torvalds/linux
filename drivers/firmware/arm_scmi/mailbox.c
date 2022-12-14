@@ -36,7 +36,7 @@ static void tx_prepare(struct mbox_client *cl, void *m)
 {
 	struct scmi_mailbox *smbox = client_to_scmi_mailbox(cl);
 
-	shmem_tx_prepare(smbox->shmem, m);
+	shmem_tx_prepare(smbox->shmem, m, smbox->cinfo);
 }
 
 static void rx_callback(struct mbox_client *cl, void *m)
@@ -140,7 +140,8 @@ static int mailbox_send_message(struct scmi_chan_info *cinfo,
 	return ret;
 }
 
-static void mailbox_mark_txdone(struct scmi_chan_info *cinfo, int ret)
+static void mailbox_mark_txdone(struct scmi_chan_info *cinfo, int ret,
+				struct scmi_xfer *__unused)
 {
 	struct scmi_mailbox *smbox = cinfo->transport_info;
 

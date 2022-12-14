@@ -5,6 +5,7 @@
 :翻译:
 
  司延腾 Yanteng Si <siyanteng@loongson.cn>
+ 周彬彬 Binbin Zhou <zhoubinbin@loongson.cn>
 
 .. _cn_irq-domain.rst:
 
@@ -52,8 +53,18 @@ irq_domain和一个hwirq号作为参数。 如果hwirq的映射还不存在，�
 一个新的Linux irq_desc，将其与hwirq关联起来，并调用.map()回调，这样驱动
 程序就可以执行任何必要的硬件设置。
 
-当接收到一个中断时，应该使用irq_find_mapping()函数从hwirq号中找到
-Linux IRQ号。
+一旦建立了映射，可以通过多种方法检索或使用它：
+
+- irq_resolve_mapping()返回一个指向给定域和hwirq号的irq_desc结构指针，
+  如果没有映射则返回NULL。
+
+- irq_find_mapping()返回给定域和hwirq的Linux IRQ号，如果没有映射则返回0。
+
+- irq_linear_revmap()现与irq_find_mapping()相同，已被废弃。
+
+- generic_handle_domain_irq()处理一个由域和hwirq号描述的中断。
+
+请注意，irq域的查找必须发生在与RCU读临界区兼容的上下文中。
 
 在调用irq_find_mapping()之前，至少要调用一次irq_create_mapping()函数，
 以免描述符不能被分配。
@@ -119,7 +130,8 @@ irq_domain_add_tree()和irq_domain_create_tree()在功能上是等价的，除�
 Linux IRQ号编入硬件本身，这样就不需要映射了。 调用irq_create_direct_mapping()
 会分配一个Linux IRQ号，并调用.map()回调，这样驱动就可以将Linux IRQ号编入硬件中。
 
-大多数驱动程序不能使用这个映射。
+大多数驱动程序无法使用此映射，现在它由CONFIG_IRQ_DOMAIN_NOMAP选项控制。
+请不要引入此API的新用户。
 
 传统映射类型
 ------------
@@ -128,7 +140,6 @@ Linux IRQ号编入硬件本身，这样就不需要映射了。 调用irq_create
 
 	irq_domain_add_simple()
 	irq_domain_add_legacy()
-	irq_domain_add_legacy_isa()
 	irq_domain_create_simple()
 	irq_domain_create_legacy()
 
@@ -136,6 +147,9 @@ Linux IRQ号编入硬件本身，这样就不需要映射了。 调用irq_create
 序不能立即转换为使用线性映射时，就会使用它。 例如，许多嵌入式系统板卡支持文件使用
 一组用于IRQ号的定义（#define），这些定义被传递给struct设备注册。 在这种情况下，
 不能动态分配Linux IRQ号，应该使用传统映射。
+
+顾名思义，\*_legacy()系列函数已被废弃，只是为了方便对古老平台的支持而存在。
+不应该增加新的用户。当\*_simple()系列函数的使用导致遗留行为时，他们也是如此。
 
 传统映射假设已经为控制器分配了一个连续的IRQ号范围，并且可以通过向hwirq号添加一
 个固定的偏移来计算IRQ号，反之亦然。 缺点是需要中断控制器管理IRQ分配，并且需要为每

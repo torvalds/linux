@@ -40,15 +40,15 @@ static inline int avtab_hash(const struct avtab_key *keyp, u32 mask)
 
 	u32 hash = 0;
 
-#define mix(input) { \
-	u32 v = input; \
-	v *= c1; \
-	v = (v << r1) | (v >> (32 - r1)); \
-	v *= c2; \
-	hash ^= v; \
-	hash = (hash << r2) | (hash >> (32 - r2)); \
-	hash = hash * m + n; \
-}
+#define mix(input) do { \
+		u32 v = input; \
+		v *= c1; \
+		v = (v << r1) | (v >> (32 - r1)); \
+		v *= c2; \
+		hash ^= v; \
+		hash = (hash << r2) | (hash >> (32 - r2)); \
+		hash = hash * m + n; \
+	} while (0)
 
 	mix(keyp->target_class);
 	mix(keyp->target_type);
@@ -67,7 +67,7 @@ static inline int avtab_hash(const struct avtab_key *keyp, u32 mask)
 
 static struct avtab_node*
 avtab_insert_node(struct avtab *h, int hvalue,
-		  struct avtab_node *prev, struct avtab_node *cur,
+		  struct avtab_node *prev,
 		  const struct avtab_key *key, const struct avtab_datum *datum)
 {
 	struct avtab_node *newnode;
@@ -137,7 +137,7 @@ static int avtab_insert(struct avtab *h, const struct avtab_key *key,
 			break;
 	}
 
-	newnode = avtab_insert_node(h, hvalue, prev, cur, key, datum);
+	newnode = avtab_insert_node(h, hvalue, prev, key, datum);
 	if (!newnode)
 		return -ENOMEM;
 
@@ -177,7 +177,7 @@ struct avtab_node *avtab_insert_nonunique(struct avtab *h,
 		    key->target_class < cur->key.target_class)
 			break;
 	}
-	return avtab_insert_node(h, hvalue, prev, cur, key, datum);
+	return avtab_insert_node(h, hvalue, prev, key, datum);
 }
 
 struct avtab_datum *avtab_search(struct avtab *h, const struct avtab_key *key)
@@ -385,7 +385,7 @@ void avtab_hash_eval(struct avtab *h, char *tag)
 	       chain2_len_sum);
 }
 
-static uint16_t spec_order[] = {
+static const uint16_t spec_order[] = {
 	AVTAB_ALLOWED,
 	AVTAB_AUDITDENY,
 	AVTAB_AUDITALLOW,

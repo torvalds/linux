@@ -36,6 +36,7 @@ properties:
 
   init-delay:
     description: delay after initialization sequence [ms]
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   panel-width-mm:
     description: physical panel width [mm]

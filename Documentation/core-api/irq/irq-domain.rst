@@ -71,7 +71,7 @@ variety of methods:
 Note that irq domain lookups must happen in contexts that are
 compatible with a RCU read-side critical section.
 
-The irq_create_mapping() function must be called *atleast once*
+The irq_create_mapping() function must be called *at least once*
 before any call to irq_find_mapping(), lest the descriptor will not
 be allocated.
 

@@ -62,6 +62,7 @@ properties:
       - const: mrvl,pxa-uart
       - const: nuvoton,wpcm450-uart
       - const: nuvoton,npcm750-uart
+      - const: nuvoton,npcm845-uart
       - const: nvidia,tegra20-uart
       - const: nxp,lpc3220-uart
       - items:
@@ -138,6 +139,7 @@ properties:
     description: The current active speed of the UART.
 
   reg-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Offset to apply to the mapbase from the start of the registers.
 

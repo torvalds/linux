@@ -324,11 +324,6 @@ static const struct hwmon_chip_info power_supply_hwmon_chip_info = {
 	.info = power_supply_hwmon_info,
 };
 
-static void power_supply_hwmon_bitmap_free(void *data)
-{
-	bitmap_free(data);
-}
-
 int power_supply_add_hwmon_sysfs(struct power_supply *psy)
 {
 	const struct power_supply_desc *desc = psy->desc;
@@ -349,17 +344,13 @@ int power_supply_add_hwmon_sysfs(struct power_supply *psy)
 	}
 
 	psyhw->psy = psy;
-	psyhw->props = bitmap_zalloc(POWER_SUPPLY_PROP_TIME_TO_FULL_AVG + 1,
-				     GFP_KERNEL);
+	psyhw->props = devm_bitmap_zalloc(dev,
+					  POWER_SUPPLY_PROP_TIME_TO_FULL_AVG + 1,
+					  GFP_KERNEL);
 	if (!psyhw->props) {
 		ret = -ENOMEM;
 		goto error;
 	}
-
-	ret = devm_add_action_or_reset(dev, power_supply_hwmon_bitmap_free,
-			      psyhw->props);
-	if (ret)
-		goto error;
 
 	for (i = 0; i < desc->num_properties; i++) {
 		const enum power_supply_property prop = desc->properties[i];

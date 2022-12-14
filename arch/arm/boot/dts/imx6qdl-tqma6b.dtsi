@@ -4,9 +4,14 @@
  * Copyright 2013-2017 Markus Niebel <Markus.Niebel@tq-group.com>
  */
 
+#include <dt-bindings/gpio/gpio.h>
+
 &i2c3 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c3>;
+	pinctrl-1 = <&pinctrl_i2c3_recovery>;
+	scl-gpios = <&gpio1 5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio1 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	clock-frequency = <100000>;
 	status = "okay";
 
@@ -24,5 +29,6 @@
 		compatible = "st,24c64", "atmel,24c64";
 		reg = <0x50>;
 		pagesize = <32>;
+		vcc-supply = <&reg_3p3v>;
 	};
 };

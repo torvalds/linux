@@ -154,13 +154,13 @@ static int ctrl_set_rational(struct bcm2835_mmal_dev *dev,
 			     struct v4l2_ctrl *ctrl,
 			     const struct bcm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
-	struct mmal_parameter_rational rational_value;
+	struct s32_fract rational_value;
 	struct vchiq_mmal_port *control;
 
 	control = &dev->component[COMP_CAMERA]->control;
 
-	rational_value.num = ctrl->val;
-	rational_value.den = 100;
+	rational_value.numerator = ctrl->val;
+	rational_value.denominator = 100;
 
 	return vchiq_mmal_port_parameter_set(dev->instance, control,
 					     mmal_ctrl->mmal_id,
@@ -489,9 +489,10 @@ static int ctrl_set_awb_gains(struct bcm2835_mmal_dev *dev,
 	else if (ctrl->id == V4L2_CID_BLUE_BALANCE)
 		dev->blue_gain = ctrl->val;
 
-	gains.r_gain.num = dev->red_gain;
-	gains.b_gain.num = dev->blue_gain;
-	gains.r_gain.den = gains.b_gain.den = 1000;
+	gains.r_gain.numerator = dev->red_gain;
+	gains.r_gain.denominator = 1000;
+	gains.b_gain.numerator = dev->blue_gain;
+	gains.b_gain.denominator = 1000;
 
 	return vchiq_mmal_port_parameter_set(dev->instance, control,
 					     mmal_ctrl->mmal_id,
@@ -1271,26 +1272,26 @@ int set_framerate_params(struct bcm2835_mmal_dev *dev)
 	struct mmal_parameter_fps_range fps_range;
 	int ret;
 
-	fps_range.fps_high.num = dev->capture.timeperframe.denominator;
-	fps_range.fps_high.den = dev->capture.timeperframe.numerator;
+	fps_range.fps_high.numerator = dev->capture.timeperframe.denominator;
+	fps_range.fps_high.denominator = dev->capture.timeperframe.numerator;
 
 	if ((dev->exposure_mode_active != MMAL_PARAM_EXPOSUREMODE_OFF) &&
 	    (dev->exp_auto_priority)) {
 		/* Variable FPS. Define min FPS as 1fps. */
-		fps_range.fps_low.num = 1;
-		fps_range.fps_low.den = 1;
+		fps_range.fps_low.numerator = 1;
+		fps_range.fps_low.denominator = 1;
 	} else {
 		/* Fixed FPS - set min and max to be the same */
-		fps_range.fps_low.num = fps_range.fps_high.num;
-		fps_range.fps_low.den = fps_range.fps_high.den;
+		fps_range.fps_low.numerator = fps_range.fps_high.numerator;
+		fps_range.fps_low.denominator = fps_range.fps_high.denominator;
 	}
 
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 		 "Set fps range to %d/%d to %d/%d\n",
-		 fps_range.fps_low.num,
-		 fps_range.fps_low.den,
-		 fps_range.fps_high.num,
-		 fps_range.fps_high.den);
+		 fps_range.fps_low.numerator,
+		 fps_range.fps_low.denominator,
+		 fps_range.fps_high.numerator,
+		 fps_range.fps_high.denominator);
 
 	ret = vchiq_mmal_port_parameter_set(dev->instance,
 					    &dev->component[COMP_CAMERA]->output[CAM_PORT_PREVIEW],

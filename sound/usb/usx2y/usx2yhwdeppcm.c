@@ -321,7 +321,7 @@ static int usx2y_usbpcm_urbs_allocate(struct snd_usx2y_substream *subs)
 
 	pipe = is_playback ? usb_sndisocpipe(dev, subs->endpoint) :
 			usb_rcvisocpipe(dev, subs->endpoint);
-	subs->maxpacksize = usb_maxpacket(dev, pipe, is_playback);
+	subs->maxpacksize = usb_maxpacket(dev, pipe);
 	if (!subs->maxpacksize)
 		return -EINVAL;
 
@@ -374,8 +374,7 @@ static int snd_usx2y_usbpcm_hw_free(struct snd_pcm_substream *substream)
 		usx2y_usbpcm_urbs_release(subs);
 		if (!cap_subs->pcm_substream ||
 		    !cap_subs->pcm_substream->runtime ||
-		    !cap_subs->pcm_substream->runtime->status ||
-		    cap_subs->pcm_substream->runtime->status->state < SNDRV_PCM_STATE_PREPARED) {
+		    cap_subs->pcm_substream->runtime->state < SNDRV_PCM_STATE_PREPARED) {
 			atomic_set(&cap_subs->state, STATE_STOPPED);
 			if (cap_subs2)
 				atomic_set(&cap_subs2->state, STATE_STOPPED);

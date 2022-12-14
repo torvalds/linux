@@ -26,7 +26,6 @@
 #ifndef __RTL871X_MP_PHY_REGDEF_H
 #define __RTL871X_MP_PHY_REGDEF_H
 
-
 /*--------------------------Define Parameters-------------------------------*/
 
 /*============================================================
@@ -1008,7 +1007,6 @@
 #define	ANTENNA_C	0x4
 #define	ANTENNA_D	0x8
 
-
 /* accept all physical address */
 #define RCR_AAP		BIT(0)
 #define RCR_APM		BIT(1)		/* accept physical match */
@@ -1031,7 +1029,6 @@
 #define RCR_OnlyErlPkt	BIT(31)
 
 /*--------------------------Define Parameters-------------------------------*/
-
 
 #endif	/*__INC_HAL8192SPHYREG_H */
 

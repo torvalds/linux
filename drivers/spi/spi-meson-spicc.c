@@ -156,9 +156,11 @@ struct meson_spicc_device {
 	void __iomem			*base;
 	struct clk			*core;
 	struct clk			*pclk;
+	struct clk_divider		pow2_div;
 	struct clk			*clk;
 	struct spi_message		*message;
 	struct spi_transfer		*xfer;
+	struct completion		done;
 	const struct meson_spicc_data	*data;
 	u8				*tx_buf;
 	u8				*rx_buf;
@@ -167,6 +169,8 @@ struct meson_spicc_device {
 	unsigned long			rx_remain;
 	unsigned long			xfer_remain;
 };
+
+#define pow2_clk_to_spicc(_div) container_of(_div, struct meson_spicc_device, pow2_div)
 
 static void meson_spicc_oen_enable(struct meson_spicc_device *spicc)
 {
@@ -279,7 +283,7 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 		/* Disable all IRQs */
 		writel(0, spicc->base + SPICC_INTREG);
 
-		spi_finalize_current_transfer(spicc->master);
+		complete(&spicc->done);
 
 		return IRQ_HANDLED;
 	}
@@ -383,6 +387,7 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 				    struct spi_transfer *xfer)
 {
 	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
+	uint64_t timeout;
 
 	/* Store current transfer */
 	spicc->xfer = xfer;
@@ -407,13 +412,29 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 	/* Setup burst */
 	meson_spicc_setup_burst(spicc);
 
+	/* Setup wait for completion */
+	reinit_completion(&spicc->done);
+
+	/* For each byte we wait for 8 cycles of the SPI clock */
+	timeout = 8LL * MSEC_PER_SEC * xfer->len;
+	do_div(timeout, xfer->speed_hz);
+
+	/* Add 10us delay between each fifo bursts */
+	timeout += ((xfer->len >> 4) * 10) / MSEC_PER_SEC;
+
+	/* Increase it twice and add 200 ms tolerance */
+	timeout += timeout + 200;
+
 	/* Start burst */
 	writel_bits_relaxed(SPICC_XCH, SPICC_XCH, spicc->base + SPICC_CONREG);
 
 	/* Enable interrupts */
 	writel_relaxed(SPICC_TC_EN, spicc->base + SPICC_INTREG);
 
-	return 1;
+	if (!wait_for_completion_timeout(&spicc->done, msecs_to_jiffies(timeout)))
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 static int meson_spicc_prepare_message(struct spi_master *master,
@@ -421,7 +442,7 @@ static int meson_spicc_prepare_message(struct spi_master *master,
 {
 	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
 	struct spi_device *spi = message->spi;
-	u32 conf = 0;
+	u32 conf = readl_relaxed(spicc->base + SPICC_CONREG) & SPICC_DATARATE_MASK;
 
 	/* Store current message */
 	spicc->message = message;
@@ -458,8 +479,6 @@ static int meson_spicc_prepare_message(struct spi_master *master,
 	/* Select CS */
 	conf |= FIELD_PREP(SPICC_CS_MASK, spi->chip_select);
 
-	/* Default Clock rate core/4 */
-
 	/* Default 8bit word */
 	conf |= FIELD_PREP(SPICC_BITLENGTH_MASK, 8 - 1);
 
@@ -476,11 +495,15 @@ static int meson_spicc_prepare_message(struct spi_master *master,
 static int meson_spicc_unprepare_transfer(struct spi_master *master)
 {
 	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
+	u32 conf = readl_relaxed(spicc->base + SPICC_CONREG) & SPICC_DATARATE_MASK;
 
 	/* Disable all IRQs */
 	writel(0, spicc->base + SPICC_INTREG);
 
 	device_reset_optional(&spicc->pdev->dev);
+
+	/* Set default configuration, keeping datarate field */
+	writel_relaxed(conf, spicc->base + SPICC_CONREG);
 
 	return 0;
 }
@@ -518,14 +541,60 @@ static void meson_spicc_cleanup(struct spi_device *spi)
  * Clk path for G12A series:
  *    pclk -> pow2 fixed div -> pow2 div -> mux -> out
  *    pclk -> enh fixed div -> enh div -> mux -> out
+ *
+ * The pow2 divider is tied to the controller HW state, and the
+ * divider is only valid when the controller is initialized.
+ *
+ * A set of clock ops is added to make sure we don't read/set this
+ * clock rate while the controller is in an unknown state.
  */
 
-static int meson_spicc_clk_init(struct meson_spicc_device *spicc)
+static unsigned long meson_spicc_pow2_recalc_rate(struct clk_hw *hw,
+						  unsigned long parent_rate)
+{
+	struct clk_divider *divider = to_clk_divider(hw);
+	struct meson_spicc_device *spicc = pow2_clk_to_spicc(divider);
+
+	if (!spicc->master->cur_msg)
+		return 0;
+
+	return clk_divider_ops.recalc_rate(hw, parent_rate);
+}
+
+static int meson_spicc_pow2_determine_rate(struct clk_hw *hw,
+					   struct clk_rate_request *req)
+{
+	struct clk_divider *divider = to_clk_divider(hw);
+	struct meson_spicc_device *spicc = pow2_clk_to_spicc(divider);
+
+	if (!spicc->master->cur_msg)
+		return -EINVAL;
+
+	return clk_divider_ops.determine_rate(hw, req);
+}
+
+static int meson_spicc_pow2_set_rate(struct clk_hw *hw, unsigned long rate,
+				     unsigned long parent_rate)
+{
+	struct clk_divider *divider = to_clk_divider(hw);
+	struct meson_spicc_device *spicc = pow2_clk_to_spicc(divider);
+
+	if (!spicc->master->cur_msg)
+		return -EINVAL;
+
+	return clk_divider_ops.set_rate(hw, rate, parent_rate);
+}
+
+static const struct clk_ops meson_spicc_pow2_clk_ops = {
+	.recalc_rate = meson_spicc_pow2_recalc_rate,
+	.determine_rate = meson_spicc_pow2_determine_rate,
+	.set_rate = meson_spicc_pow2_set_rate,
+};
+
+static int meson_spicc_pow2_clk_init(struct meson_spicc_device *spicc)
 {
 	struct device *dev = &spicc->pdev->dev;
-	struct clk_fixed_factor *pow2_fixed_div, *enh_fixed_div;
-	struct clk_divider *pow2_div, *enh_div;
-	struct clk_mux *mux;
+	struct clk_fixed_factor *pow2_fixed_div;
 	struct clk_init_data init;
 	struct clk *clk;
 	struct clk_parent_data parent_data[2];
@@ -560,31 +629,45 @@ static int meson_spicc_clk_init(struct meson_spicc_device *spicc)
 	if (WARN_ON(IS_ERR(clk)))
 		return PTR_ERR(clk);
 
-	pow2_div = devm_kzalloc(dev, sizeof(*pow2_div), GFP_KERNEL);
-	if (!pow2_div)
-		return -ENOMEM;
-
 	snprintf(name, sizeof(name), "%s#pow2_div", dev_name(dev));
 	init.name = name;
-	init.ops = &clk_divider_ops;
-	init.flags = CLK_SET_RATE_PARENT;
+	init.ops = &meson_spicc_pow2_clk_ops;
+	/*
+	 * Set NOCACHE here to make sure we read the actual HW value
+	 * since we reset the HW after each transfer.
+	 */
+	init.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE;
 	parent_data[0].hw = &pow2_fixed_div->hw;
 	init.num_parents = 1;
 
-	pow2_div->shift = 16,
-	pow2_div->width = 3,
-	pow2_div->flags = CLK_DIVIDER_POWER_OF_TWO,
-	pow2_div->reg = spicc->base + SPICC_CONREG;
-	pow2_div->hw.init = &init;
+	spicc->pow2_div.shift = 16,
+	spicc->pow2_div.width = 3,
+	spicc->pow2_div.flags = CLK_DIVIDER_POWER_OF_TWO,
+	spicc->pow2_div.reg = spicc->base + SPICC_CONREG;
+	spicc->pow2_div.hw.init = &init;
 
-	clk = devm_clk_register(dev, &pow2_div->hw);
-	if (WARN_ON(IS_ERR(clk)))
-		return PTR_ERR(clk);
+	spicc->clk = devm_clk_register(dev, &spicc->pow2_div.hw);
+	if (WARN_ON(IS_ERR(spicc->clk)))
+		return PTR_ERR(spicc->clk);
 
-	if (!spicc->data->has_enhance_clk_div) {
-		spicc->clk = clk;
-		return 0;
-	}
+	return 0;
+}
+
+static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
+{
+	struct device *dev = &spicc->pdev->dev;
+	struct clk_fixed_factor *enh_fixed_div;
+	struct clk_divider *enh_div;
+	struct clk_mux *mux;
+	struct clk_init_data init;
+	struct clk *clk;
+	struct clk_parent_data parent_data[2];
+	char name[64];
+
+	memset(&init, 0, sizeof(init));
+	memset(&parent_data, 0, sizeof(parent_data));
+
+	init.parent_data = parent_data;
 
 	/* algorithm for enh div: rate = freq / 2 / (N + 1) */
 
@@ -637,7 +720,7 @@ static int meson_spicc_clk_init(struct meson_spicc_device *spicc)
 	snprintf(name, sizeof(name), "%s#sel", dev_name(dev));
 	init.name = name;
 	init.ops = &clk_mux_ops;
-	parent_data[0].hw = &pow2_div->hw;
+	parent_data[0].hw = &spicc->pow2_div.hw;
 	parent_data[1].hw = &enh_div->hw;
 	init.num_parents = 2;
 	init.flags = CLK_SET_RATE_PARENT;
@@ -678,6 +761,8 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	spicc->pdev = pdev;
 	platform_set_drvdata(pdev, spicc);
 
+	init_completion(&spicc->done);
+
 	spicc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(spicc->base)) {
 		dev_err(&pdev->dev, "io resource mapping failed\n");
@@ -693,6 +778,11 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	writel_relaxed(0, spicc->base + SPICC_INTREG);
 
 	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		goto out_master;
+	}
+
 	ret = devm_request_irq(&pdev->dev, irq, meson_spicc_irq,
 			       0, NULL, spicc);
 	if (ret) {
@@ -749,10 +839,18 @@ static int meson_spicc_probe(struct platform_device *pdev)
 
 	meson_spicc_oen_enable(spicc);
 
-	ret = meson_spicc_clk_init(spicc);
+	ret = meson_spicc_pow2_clk_init(spicc);
 	if (ret) {
-		dev_err(&pdev->dev, "clock registration failed\n");
+		dev_err(&pdev->dev, "pow2 clock registration failed\n");
 		goto out_clk;
+	}
+
+	if (spicc->data->has_enhance_clk_div) {
+		ret = meson_spicc_enh_clk_init(spicc);
+		if (ret) {
+			dev_err(&pdev->dev, "clock registration failed\n");
+			goto out_clk;
+		}
 	}
 
 	ret = devm_spi_register_master(&pdev->dev, master);

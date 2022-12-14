@@ -18,7 +18,7 @@ RISC-V 体系结构
     :maxdepth: 1
 
     boot-image-header
-    pmu
+    vm-layout
     patch-acceptance
 
 

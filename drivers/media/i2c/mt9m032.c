@@ -858,7 +858,7 @@ error_sensor:
 	return ret;
 }
 
-static int mt9m032_remove(struct i2c_client *client)
+static void mt9m032_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct mt9m032 *sensor = to_mt9m032(subdev);
@@ -867,7 +867,6 @@ static int mt9m032_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&sensor->ctrls);
 	media_entity_cleanup(&subdev->entity);
 	mutex_destroy(&sensor->lock);
-	return 0;
 }
 
 static const struct i2c_device_id mt9m032_id_table[] = {

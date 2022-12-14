@@ -23,9 +23,9 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <mach/mux.h>
-
-#include <mach/usb.h>
+#include <linux/soc/ti/omap1-mux.h>
+#include <linux/soc/ti/omap1-usb.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #undef VERBOSE
 
@@ -1196,7 +1196,7 @@ static void isp1301_release(struct device *dev)
 
 static struct isp1301 *the_transceiver;
 
-static int isp1301_remove(struct i2c_client *i2c)
+static void isp1301_remove(struct i2c_client *i2c)
 {
 	struct isp1301	*isp;
 
@@ -1214,8 +1214,6 @@ static int isp1301_remove(struct i2c_client *i2c)
 
 	put_device(&i2c->dev);
 	the_transceiver = NULL;
-
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/

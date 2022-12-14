@@ -29,21 +29,21 @@
 	status = "okay";
 };
 
-&i2c_1 {
+&blsp1_i2c3 {
 	pinctrl-0 = <&i2c_1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
 
-&spi_0 {
+&blsp1_spi1 {
 	cs-select = <0>;
 	status = "okay";
 
-	m25p80@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;
-		compatible = "n25q128a11";
+		compatible = "micron,n25q128a11", "jedec,spi-nor";
 		spi-max-frequency = <50000000>;
 	};
 };

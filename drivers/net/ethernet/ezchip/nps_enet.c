@@ -608,13 +608,12 @@ static s32 nps_enet_probe(struct platform_device *pdev)
 	/* Get IRQ number */
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq < 0) {
-		dev_err(dev, "failed to retrieve <irq Rx-Tx> value from device tree\n");
 		err = -ENODEV;
 		goto out_netdev;
 	}
 
-	netif_napi_add(ndev, &priv->napi, nps_enet_poll,
-		       NPS_ENET_NAPI_POLL_WEIGHT);
+	netif_napi_add_weight(ndev, &priv->napi, nps_enet_poll,
+			      NPS_ENET_NAPI_POLL_WEIGHT);
 
 	/* Register the driver. Should be the last thing in probe */
 	err = register_netdev(ndev);

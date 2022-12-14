@@ -13,6 +13,7 @@
 #include <linux/ftrace.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/lockdep.h>
 #include <linux/mm.h>
 #include <linux/printk.h>
 #include <linux/sched.h>
@@ -64,6 +65,40 @@ static int __init early_kasan_fault(char *arg)
 }
 early_param("kasan.fault", early_kasan_fault);
 
+static int __init kasan_set_multi_shot(char *str)
+{
+	set_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags);
+	return 1;
+}
+__setup("kasan_multi_shot", kasan_set_multi_shot);
+
+/*
+ * Used to suppress reports within kasan_disable/enable_current() critical
+ * sections, which are used for marking accesses to slab metadata.
+ */
+static bool report_suppressed(void)
+{
+#if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
+	if (current->kasan_depth)
+		return true;
+#endif
+	return false;
+}
+
+/*
+ * Used to avoid reporting more than one KASAN bug unless kasan_multi_shot
+ * is enabled. Note that KASAN tests effectively enable kasan_multi_shot
+ * for their duration.
+ */
+static bool report_enabled(void)
+{
+	if (test_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags))
+		return true;
+	return !test_and_set_bit(KASAN_BIT_REPORTED, &kasan_flags);
+}
+
+#if IS_ENABLED(CONFIG_KASAN_KUNIT_TEST) || IS_ENABLED(CONFIG_KASAN_MODULE_TEST)
+
 bool kasan_save_enable_multi_shot(void)
 {
 	return test_and_set_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags);
@@ -77,17 +112,77 @@ void kasan_restore_multi_shot(bool enabled)
 }
 EXPORT_SYMBOL_GPL(kasan_restore_multi_shot);
 
-static int __init kasan_set_multi_shot(char *str)
-{
-	set_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags);
-	return 1;
-}
-__setup("kasan_multi_shot", kasan_set_multi_shot);
+#endif
 
-static void print_error_description(struct kasan_access_info *info)
+#if IS_ENABLED(CONFIG_KASAN_KUNIT_TEST)
+static void update_kunit_status(bool sync)
 {
-	pr_err("BUG: KASAN: %s in %pS\n",
-		kasan_get_bug_type(info), (void *)info->ip);
+	struct kunit *test;
+	struct kunit_resource *resource;
+	struct kunit_kasan_status *status;
+
+	test = current->kunit_test;
+	if (!test)
+		return;
+
+	resource = kunit_find_named_resource(test, "kasan_status");
+	if (!resource) {
+		kunit_set_failure(test);
+		return;
+	}
+
+	status = (struct kunit_kasan_status *)resource->data;
+	WRITE_ONCE(status->report_found, true);
+	WRITE_ONCE(status->sync_fault, sync);
+
+	kunit_put_resource(resource);
+}
+#else
+static void update_kunit_status(bool sync) { }
+#endif
+
+static DEFINE_SPINLOCK(report_lock);
+
+static void start_report(unsigned long *flags, bool sync)
+{
+	/* Respect the /proc/sys/kernel/traceoff_on_warning interface. */
+	disable_trace_on_warning();
+	/* Update status of the currently running KASAN test. */
+	update_kunit_status(sync);
+	/* Do not allow LOCKDEP mangling KASAN reports. */
+	lockdep_off();
+	/* Make sure we don't end up in loop. */
+	kasan_disable_current();
+	spin_lock_irqsave(&report_lock, *flags);
+	pr_err("==================================================================\n");
+}
+
+static void end_report(unsigned long *flags, void *addr)
+{
+	if (addr)
+		trace_error_report_end(ERROR_DETECTOR_KASAN,
+				       (unsigned long)addr);
+	pr_err("==================================================================\n");
+	spin_unlock_irqrestore(&report_lock, *flags);
+	if (panic_on_warn && !test_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags))
+		panic("panic_on_warn set ...\n");
+	if (kasan_arg_fault == KASAN_ARG_FAULT_PANIC)
+		panic("kasan.fault=panic set ...\n");
+	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+	lockdep_on();
+	kasan_enable_current();
+}
+
+static void print_error_description(struct kasan_report_info *info)
+{
+	pr_err("BUG: KASAN: %s in %pS\n", info->bug_type, (void *)info->ip);
+
+	if (info->type != KASAN_REPORT_ACCESS) {
+		pr_err("Free of addr %px by task %s/%d\n",
+			info->access_addr, current->comm, task_pid_nr(current));
+		return;
+	}
+
 	if (info->access_size)
 		pr_err("%s of size %zu at addr %px by task %s/%d\n",
 			info->is_write ? "Write" : "Read", info->access_size,
@@ -98,68 +193,24 @@ static void print_error_description(struct kasan_access_info *info)
 			info->access_addr, current->comm, task_pid_nr(current));
 }
 
-static DEFINE_SPINLOCK(report_lock);
-
-static void start_report(unsigned long *flags)
-{
-	/*
-	 * Make sure we don't end up in loop.
-	 */
-	kasan_disable_current();
-	spin_lock_irqsave(&report_lock, *flags);
-	pr_err("==================================================================\n");
-}
-
-static void end_report(unsigned long *flags, unsigned long addr)
-{
-	if (!kasan_async_fault_possible())
-		trace_error_report_end(ERROR_DETECTOR_KASAN, addr);
-	pr_err("==================================================================\n");
-	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
-	spin_unlock_irqrestore(&report_lock, *flags);
-	if (panic_on_warn && !test_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags)) {
-		/*
-		 * This thread may hit another WARN() in the panic path.
-		 * Resetting this prevents additional WARN() from panicking the
-		 * system on this thread.  Other threads are blocked by the
-		 * panic_mutex in panic().
-		 */
-		panic_on_warn = 0;
-		panic("panic_on_warn set ...\n");
-	}
-	if (kasan_arg_fault == KASAN_ARG_FAULT_PANIC)
-		panic("kasan.fault=panic set ...\n");
-	kasan_enable_current();
-}
-
 static void print_track(struct kasan_track *track, const char *prefix)
 {
 	pr_err("%s by task %u:\n", prefix, track->pid);
-	if (track->stack) {
+	if (track->stack)
 		stack_depot_print(track->stack);
-	} else {
+	else
 		pr_err("(stack is not available)\n");
-	}
 }
 
-struct page *kasan_addr_to_page(const void *addr)
+static inline struct page *addr_to_page(const void *addr)
 {
-	if ((addr >= (void *)PAGE_OFFSET) &&
-			(addr < high_memory))
+	if (virt_addr_valid(addr))
 		return virt_to_head_page(addr);
 	return NULL;
 }
 
-struct slab *kasan_addr_to_slab(const void *addr)
-{
-	if ((addr >= (void *)PAGE_OFFSET) &&
-			(addr < high_memory))
-		return virt_to_slab(addr);
-	return NULL;
-}
-
-static void describe_object_addr(struct kmem_cache *cache, void *object,
-				const void *addr)
+static void describe_object_addr(const void *addr, struct kmem_cache *cache,
+				 void *object)
 {
 	unsigned long access_addr = (unsigned long)addr;
 	unsigned long object_addr = (unsigned long)object;
@@ -169,9 +220,6 @@ static void describe_object_addr(struct kmem_cache *cache, void *object,
 	pr_err("The buggy address belongs to the object at %px\n"
 	       " which belongs to the cache %s of size %d\n",
 		object, cache->name, cache->object_size);
-
-	if (!addr)
-		return;
 
 	if (access_addr < object_addr) {
 		rel_type = "to the left";
@@ -190,46 +238,26 @@ static void describe_object_addr(struct kmem_cache *cache, void *object,
 		(void *)(object_addr + cache->object_size));
 }
 
-static void describe_object_stacks(struct kmem_cache *cache, void *object,
-					const void *addr, u8 tag)
+static void describe_object_stacks(struct kasan_report_info *info)
 {
-	struct kasan_alloc_meta *alloc_meta;
-	struct kasan_track *free_track;
-
-	alloc_meta = kasan_get_alloc_meta(cache, object);
-	if (alloc_meta) {
-		print_track(&alloc_meta->alloc_track, "Allocated");
+	if (info->alloc_track.stack) {
+		print_track(&info->alloc_track, "Allocated");
 		pr_err("\n");
 	}
 
-	free_track = kasan_get_free_track(cache, object, tag);
-	if (free_track) {
-		print_track(free_track, "Freed");
+	if (info->free_track.stack) {
+		print_track(&info->free_track, "Freed");
 		pr_err("\n");
 	}
 
-#ifdef CONFIG_KASAN_GENERIC
-	if (!alloc_meta)
-		return;
-	if (alloc_meta->aux_stack[0]) {
-		pr_err("Last potentially related work creation:\n");
-		stack_depot_print(alloc_meta->aux_stack[0]);
-		pr_err("\n");
-	}
-	if (alloc_meta->aux_stack[1]) {
-		pr_err("Second to last potentially related work creation:\n");
-		stack_depot_print(alloc_meta->aux_stack[1]);
-		pr_err("\n");
-	}
-#endif
+	kasan_print_aux_stacks(info->cache, info->object);
 }
 
-static void describe_object(struct kmem_cache *cache, void *object,
-				const void *addr, u8 tag)
+static void describe_object(const void *addr, struct kasan_report_info *info)
 {
 	if (kasan_stack_collection_enabled())
-		describe_object_stacks(cache, object, addr, tag);
-	describe_object_addr(cache, object, addr);
+		describe_object_stacks(info);
+	describe_object_addr(addr, info->cache, info->object);
 }
 
 static inline bool kernel_or_module_addr(const void *addr)
@@ -248,32 +276,53 @@ static inline bool init_task_stack_addr(const void *addr)
 			sizeof(init_thread_union.stack));
 }
 
-static void print_address_description(void *addr, u8 tag)
+static void print_address_description(void *addr, u8 tag,
+				      struct kasan_report_info *info)
 {
-	struct page *page = kasan_addr_to_page(addr);
+	struct page *page = addr_to_page(addr);
 
 	dump_stack_lvl(KERN_ERR);
 	pr_err("\n");
 
-	if (page && PageSlab(page)) {
-		struct slab *slab = page_slab(page);
-		struct kmem_cache *cache = slab->slab_cache;
-		void *object = nearest_obj(cache, slab,	addr);
-
-		describe_object(cache, object, addr, tag);
+	if (info->cache && info->object) {
+		describe_object(addr, info);
+		pr_err("\n");
 	}
 
 	if (kernel_or_module_addr(addr) && !init_task_stack_addr(addr)) {
 		pr_err("The buggy address belongs to the variable:\n");
 		pr_err(" %pS\n", addr);
+		pr_err("\n");
+	}
+
+	if (object_is_on_stack(addr)) {
+		/*
+		 * Currently, KASAN supports printing frame information only
+		 * for accesses to the task's own stack.
+		 */
+		kasan_print_address_stack_frame(addr);
+		pr_err("\n");
+	}
+
+	if (is_vmalloc_addr(addr)) {
+		struct vm_struct *va = find_vm_area(addr);
+
+		if (va) {
+			pr_err("The buggy address belongs to the virtual mapping at\n"
+			       " [%px, %px) created by:\n"
+			       " %pS\n",
+			       va->addr, va->addr + va->size, va->caller);
+			pr_err("\n");
+
+			page = vmalloc_to_page(addr);
+		}
 	}
 
 	if (page) {
-		pr_err("The buggy address belongs to the page:\n");
+		pr_err("The buggy address belongs to the physical page:\n");
 		dump_page(page, "kasan: bad access detected");
+		pr_err("\n");
 	}
-
-	kasan_print_address_stack_frame(addr);
 }
 
 static bool meta_row_is_guilty(const void *row, const void *addr)
@@ -332,56 +381,125 @@ static void print_memory_metadata(const void *addr)
 	}
 }
 
-static bool report_enabled(void)
+static void print_report(struct kasan_report_info *info)
 {
-#if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
-	if (current->kasan_depth)
-		return false;
-#endif
-	if (test_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags))
-		return true;
-	return !test_and_set_bit(KASAN_BIT_REPORTED, &kasan_flags);
+	void *addr = kasan_reset_tag(info->access_addr);
+	u8 tag = get_tag(info->access_addr);
+
+	print_error_description(info);
+	if (addr_has_metadata(addr))
+		kasan_print_tags(tag, info->first_bad_addr);
+	pr_err("\n");
+
+	if (addr_has_metadata(addr)) {
+		print_address_description(addr, tag, info);
+		print_memory_metadata(info->first_bad_addr);
+	} else {
+		dump_stack_lvl(KERN_ERR);
+	}
 }
 
-#if IS_ENABLED(CONFIG_KUNIT)
-static void kasan_update_kunit_status(struct kunit *cur_test)
+static void complete_report_info(struct kasan_report_info *info)
 {
-	struct kunit_resource *resource;
-	struct kunit_kasan_expectation *kasan_data;
+	void *addr = kasan_reset_tag(info->access_addr);
+	struct slab *slab;
 
-	resource = kunit_find_named_resource(cur_test, "kasan_data");
+	if (info->type == KASAN_REPORT_ACCESS)
+		info->first_bad_addr = kasan_find_first_bad_addr(
+					info->access_addr, info->access_size);
+	else
+		info->first_bad_addr = addr;
 
-	if (!resource) {
-		kunit_set_failure(cur_test);
-		return;
+	slab = kasan_addr_to_slab(addr);
+	if (slab) {
+		info->cache = slab->slab_cache;
+		info->object = nearest_obj(info->cache, slab, addr);
+	} else
+		info->cache = info->object = NULL;
+
+	switch (info->type) {
+	case KASAN_REPORT_INVALID_FREE:
+		info->bug_type = "invalid-free";
+		break;
+	case KASAN_REPORT_DOUBLE_FREE:
+		info->bug_type = "double-free";
+		break;
+	default:
+		/* bug_type filled in by kasan_complete_mode_report_info. */
+		break;
 	}
 
-	kasan_data = (struct kunit_kasan_expectation *)resource->data;
-	WRITE_ONCE(kasan_data->report_found, true);
-	kunit_put_resource(resource);
+	/* Fill in mode-specific report info fields. */
+	kasan_complete_mode_report_info(info);
 }
-#endif /* IS_ENABLED(CONFIG_KUNIT) */
 
-void kasan_report_invalid_free(void *object, unsigned long ip)
+void kasan_report_invalid_free(void *ptr, unsigned long ip, enum kasan_report_type type)
 {
 	unsigned long flags;
-	u8 tag = get_tag(object);
+	struct kasan_report_info info;
 
-	object = kasan_reset_tag(object);
+	/*
+	 * Do not check report_suppressed(), as an invalid-free cannot be
+	 * caused by accessing slab metadata and thus should not be
+	 * suppressed by kasan_disable/enable_current() critical sections.
+	 */
+	if (unlikely(!report_enabled()))
+		return;
 
-#if IS_ENABLED(CONFIG_KUNIT)
-	if (current->kunit_test)
-		kasan_update_kunit_status(current->kunit_test);
-#endif /* IS_ENABLED(CONFIG_KUNIT) */
+	start_report(&flags, true);
 
-	start_report(&flags);
-	pr_err("BUG: KASAN: double-free or invalid-free in %pS\n", (void *)ip);
-	kasan_print_tags(tag, object);
-	pr_err("\n");
-	print_address_description(object, tag);
-	pr_err("\n");
-	print_memory_metadata(object);
-	end_report(&flags, (unsigned long)object);
+	memset(&info, 0, sizeof(info));
+	info.type = type;
+	info.access_addr = ptr;
+	info.access_size = 0;
+	info.is_write = false;
+	info.ip = ip;
+
+	complete_report_info(&info);
+
+	print_report(&info);
+
+	end_report(&flags, ptr);
+}
+
+/*
+ * kasan_report() is the only reporting function that uses
+ * user_access_save/restore(): kasan_report_invalid_free() cannot be called
+ * from a UACCESS region, and kasan_report_async() is not used on x86.
+ */
+bool kasan_report(unsigned long addr, size_t size, bool is_write,
+			unsigned long ip)
+{
+	bool ret = true;
+	void *ptr = (void *)addr;
+	unsigned long ua_flags = user_access_save();
+	unsigned long irq_flags;
+	struct kasan_report_info info;
+
+	if (unlikely(report_suppressed()) || unlikely(!report_enabled())) {
+		ret = false;
+		goto out;
+	}
+
+	start_report(&irq_flags, true);
+
+	memset(&info, 0, sizeof(info));
+	info.type = KASAN_REPORT_ACCESS;
+	info.access_addr = ptr;
+	info.access_size = size;
+	info.is_write = is_write;
+	info.ip = ip;
+
+	complete_report_info(&info);
+
+	print_report(&info);
+
+	end_report(&irq_flags, ptr);
+
+out:
+	user_access_restore(ua_flags);
+
+	return ret;
 }
 
 #ifdef CONFIG_KASAN_HW_TAGS
@@ -389,81 +507,21 @@ void kasan_report_async(void)
 {
 	unsigned long flags;
 
-#if IS_ENABLED(CONFIG_KUNIT)
-	if (current->kunit_test)
-		kasan_update_kunit_status(current->kunit_test);
-#endif /* IS_ENABLED(CONFIG_KUNIT) */
+	/*
+	 * Do not check report_suppressed(), as kasan_disable/enable_current()
+	 * critical sections do not affect Hardware Tag-Based KASAN.
+	 */
+	if (unlikely(!report_enabled()))
+		return;
 
-	start_report(&flags);
+	start_report(&flags, false);
 	pr_err("BUG: KASAN: invalid-access\n");
-	pr_err("Asynchronous mode enabled: no access details available\n");
+	pr_err("Asynchronous fault: no details available\n");
 	pr_err("\n");
 	dump_stack_lvl(KERN_ERR);
-	end_report(&flags, 0);
+	end_report(&flags, NULL);
 }
 #endif /* CONFIG_KASAN_HW_TAGS */
-
-static void __kasan_report(unsigned long addr, size_t size, bool is_write,
-				unsigned long ip)
-{
-	struct kasan_access_info info;
-	void *tagged_addr;
-	void *untagged_addr;
-	unsigned long flags;
-
-#if IS_ENABLED(CONFIG_KUNIT)
-	if (current->kunit_test)
-		kasan_update_kunit_status(current->kunit_test);
-#endif /* IS_ENABLED(CONFIG_KUNIT) */
-
-	disable_trace_on_warning();
-
-	tagged_addr = (void *)addr;
-	untagged_addr = kasan_reset_tag(tagged_addr);
-
-	info.access_addr = tagged_addr;
-	if (addr_has_metadata(untagged_addr))
-		info.first_bad_addr =
-			kasan_find_first_bad_addr(tagged_addr, size);
-	else
-		info.first_bad_addr = untagged_addr;
-	info.access_size = size;
-	info.is_write = is_write;
-	info.ip = ip;
-
-	start_report(&flags);
-
-	print_error_description(&info);
-	if (addr_has_metadata(untagged_addr))
-		kasan_print_tags(get_tag(tagged_addr), info.first_bad_addr);
-	pr_err("\n");
-
-	if (addr_has_metadata(untagged_addr)) {
-		print_address_description(untagged_addr, get_tag(tagged_addr));
-		pr_err("\n");
-		print_memory_metadata(info.first_bad_addr);
-	} else {
-		dump_stack_lvl(KERN_ERR);
-	}
-
-	end_report(&flags, addr);
-}
-
-bool kasan_report(unsigned long addr, size_t size, bool is_write,
-			unsigned long ip)
-{
-	unsigned long flags = user_access_save();
-	bool ret = false;
-
-	if (likely(report_enabled())) {
-		__kasan_report(addr, size, is_write, ip);
-		ret = true;
-	}
-
-	user_access_restore(flags);
-
-	return ret;
-}
 
 #ifdef CONFIG_KASAN_INLINE
 /*

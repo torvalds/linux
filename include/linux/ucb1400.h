@@ -23,7 +23,7 @@
 #include <sound/ac97_codec.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 /*
  * UCB1400 AC-link registers
@@ -84,8 +84,6 @@ struct ucb1400_gpio {
 	struct gpio_chip	gc;
 	struct snd_ac97		*ac97;
 	int			gpio_offset;
-	int			(*gpio_setup)(struct device *dev, int ngpio);
-	int			(*gpio_teardown)(struct device *dev, int ngpio);
 };
 
 struct ucb1400_ts {

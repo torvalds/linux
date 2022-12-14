@@ -46,6 +46,11 @@ struct mt6577_auxadc_device {
 	const struct mtk_auxadc_compatible *dev_comp;
 };
 
+static const struct mtk_auxadc_compatible mt8186_compat = {
+	.sample_data_cali = false,
+	.check_global_idle = false,
+};
+
 static const struct mtk_auxadc_compatible mt8173_compat = {
 	.sample_data_cali = false,
 	.check_global_idle = true,
@@ -210,7 +215,7 @@ static const struct iio_info mt6577_auxadc_info = {
 	.read_raw = &mt6577_auxadc_read_raw,
 };
 
-static int __maybe_unused mt6577_auxadc_resume(struct device *dev)
+static int mt6577_auxadc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct mt6577_auxadc_device *adc_dev = iio_priv(indio_dev);
@@ -229,7 +234,7 @@ static int __maybe_unused mt6577_auxadc_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mt6577_auxadc_suspend(struct device *dev)
+static int mt6577_auxadc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct mt6577_auxadc_device *adc_dev = iio_priv(indio_dev);
@@ -325,16 +330,17 @@ static int mt6577_auxadc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(mt6577_auxadc_pm_ops,
-			 mt6577_auxadc_suspend,
-			 mt6577_auxadc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mt6577_auxadc_pm_ops,
+				mt6577_auxadc_suspend,
+				mt6577_auxadc_resume);
 
 static const struct of_device_id mt6577_auxadc_of_match[] = {
-	{ .compatible = "mediatek,mt2701-auxadc", .data = &mt8173_compat},
-	{ .compatible = "mediatek,mt2712-auxadc", .data = &mt8173_compat},
-	{ .compatible = "mediatek,mt7622-auxadc", .data = &mt8173_compat},
-	{ .compatible = "mediatek,mt8173-auxadc", .data = &mt8173_compat},
-	{ .compatible = "mediatek,mt6765-auxadc", .data = &mt6765_compat},
+	{ .compatible = "mediatek,mt2701-auxadc", .data = &mt8173_compat },
+	{ .compatible = "mediatek,mt2712-auxadc", .data = &mt8173_compat },
+	{ .compatible = "mediatek,mt7622-auxadc", .data = &mt8173_compat },
+	{ .compatible = "mediatek,mt8173-auxadc", .data = &mt8173_compat },
+	{ .compatible = "mediatek,mt8186-auxadc", .data = &mt8186_compat },
+	{ .compatible = "mediatek,mt6765-auxadc", .data = &mt6765_compat },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mt6577_auxadc_of_match);
@@ -343,7 +349,7 @@ static struct platform_driver mt6577_auxadc_driver = {
 	.driver = {
 		.name   = "mt6577-auxadc",
 		.of_match_table = mt6577_auxadc_of_match,
-		.pm = &mt6577_auxadc_pm_ops,
+		.pm = pm_sleep_ptr(&mt6577_auxadc_pm_ops),
 	},
 	.probe	= mt6577_auxadc_probe,
 	.remove	= mt6577_auxadc_remove,

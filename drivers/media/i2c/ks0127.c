@@ -675,14 +675,13 @@ static int ks0127_probe(struct i2c_client *client, const struct i2c_device_id *i
 	return 0;
 }
 
-static int ks0127_remove(struct i2c_client *client)
+static void ks0127_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
 	ks0127_write(sd, KS_OFMTA, 0x20); /* tristate */
 	ks0127_write(sd, KS_CMDA, 0x2c | 0x80); /* power down */
-	return 0;
 }
 
 static const struct i2c_device_id ks0127_id[] = {

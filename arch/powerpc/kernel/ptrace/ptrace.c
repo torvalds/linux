@@ -16,13 +16,12 @@
  */
 
 #include <linux/regset.h>
-#include <linux/tracehook.h>
+#include <linux/ptrace.h>
 #include <linux/audit.h>
 #include <linux/context_tracking.h>
 #include <linux/syscalls.h>
 
 #include <asm/switch_to.h>
-#include <asm/asm-prototypes.h>
 #include <asm/debug.h>
 
 #define CREATE_TRACE_POINTS
@@ -263,12 +262,12 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 	flags = read_thread_flags() & (_TIF_SYSCALL_EMU | _TIF_SYSCALL_TRACE);
 
 	if (flags) {
-		int rc = tracehook_report_syscall_entry(regs);
+		int rc = ptrace_report_syscall_entry(regs);
 
 		if (unlikely(flags & _TIF_SYSCALL_EMU)) {
 			/*
 			 * A nonzero return code from
-			 * tracehook_report_syscall_entry() tells us to prevent
+			 * ptrace_report_syscall_entry() tells us to prevent
 			 * the syscall execution, but we are not going to
 			 * execute it anyway.
 			 *
@@ -334,7 +333,7 @@ void do_syscall_trace_leave(struct pt_regs *regs)
 
 	step = test_thread_flag(TIF_SINGLESTEP);
 	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, step);
+		ptrace_report_syscall_exit(regs, step);
 }
 
 void __init pt_regs_check(void);
@@ -445,4 +444,7 @@ void __init pt_regs_check(void)
 	 * real registers.
 	 */
 	BUILD_BUG_ON(PT_DSCR < sizeof(struct user_pt_regs) / sizeof(unsigned long));
+
+	// ptrace_get/put_fpr() rely on PPC32 and VSX being incompatible
+	BUILD_BUG_ON(IS_ENABLED(CONFIG_PPC32) && IS_ENABLED(CONFIG_VSX));
 }

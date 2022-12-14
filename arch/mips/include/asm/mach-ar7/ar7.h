@@ -104,8 +104,6 @@ struct plat_dsl_data {
 	int reset_bit_sar;
 };
 
-extern int ar7_cpu_clock, ar7_bus_clock, ar7_dsp_clock;
-
 static inline int ar7_is_titan(void)
 {
 	return (readl((void *)KSEG1ADDR(AR7_REGS_GPIO + 0x24)) & 0xffff) ==

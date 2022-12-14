@@ -221,7 +221,7 @@
 		linux,no-autorepeat;
 	};
 
-	spi_gpio: spi-gpio {
+	spi_gpio: spi {
 		compatible = "spi-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -338,7 +338,7 @@
 	};
 
 	ds1339: rtc@68 {
-		compatible = "mxim,ds1339";
+		compatible = "dallas,ds1339";
 		reg = <0x68>;
 		trickle-resistor-ohms = <250>;
 		trickle-diode-disable;

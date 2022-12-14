@@ -201,9 +201,6 @@ static_key->entry field makes use of the two least significant bits.
 * ``void arch_jump_label_transform(struct jump_entry *entry, enum jump_label_type type)``,
     see: arch/x86/kernel/jump_label.c
 
-* ``__init_or_module void arch_jump_label_transform_static(struct jump_entry *entry, enum jump_label_type type)``,
-    see: arch/x86/kernel/jump_label.c
-
 * ``struct jump_entry``,
     see: arch/x86/include/asm/jump_label.h
 

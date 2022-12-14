@@ -169,6 +169,14 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_VECTOR0_ALL_MSIX_ERR_B	6U
 #define HCLGE_TRIGGER_IMP_RESET_B	7U
 
+#define HCLGE_TQP_MEM_SIZE		0x10000
+#define HCLGE_MEM_BAR			4
+/* in the bar4, the first half is for roce, and the second half is for nic */
+#define HCLGE_NIC_MEM_OFFSET(hdev)	\
+	(pci_resource_len((hdev)->pdev, HCLGE_MEM_BAR) >> 1)
+#define HCLGE_TQP_MEM_OFFSET(hdev, i)	\
+	(HCLGE_NIC_MEM_OFFSET(hdev) + HCLGE_TQP_MEM_SIZE * (i))
+
 #define HCLGE_MAC_DEFAULT_FRAME \
 	(ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN + ETH_DATA_LEN)
 #define HCLGE_MAC_MIN_FRAME		64
@@ -208,6 +216,7 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_FD_USER_DEF_CHANGED,
 	HCLGE_STATE_PTP_EN,
 	HCLGE_STATE_PTP_TX_HANDLING,
+	HCLGE_STATE_FEC_STATS_UPDATING,
 	HCLGE_STATE_MAX
 };
 
@@ -250,6 +259,7 @@ struct hclge_mac {
 	u8 duplex;
 	u8 support_autoneg;
 	u8 speed_type;	/* 0: sfp speed, 1: active speed */
+	u8 lane_num;
 	u32 speed;
 	u32 max_speed;
 	u32 speed_ability; /* speed ability supported by current media */
@@ -479,6 +489,26 @@ struct hclge_mac_stats {
 };
 
 #define HCLGE_STATS_TIMER_INTERVAL	300UL
+
+/* fec stats ,opcode id: 0x0316 */
+#define HCLGE_FEC_STATS_MAX_LANES	8
+struct hclge_fec_stats {
+	/* fec rs mode total stats */
+	u64 rs_corr_blocks;
+	u64 rs_uncorr_blocks;
+	u64 rs_error_blocks;
+	/* fec base-r mode per lanes stats */
+	u64 base_r_lane_num;
+	u64 base_r_corr_blocks;
+	u64 base_r_uncorr_blocks;
+	union {
+		struct {
+			u64 base_r_corr_per_lanes[HCLGE_FEC_STATS_MAX_LANES];
+			u64 base_r_uncorr_per_lanes[HCLGE_FEC_STATS_MAX_LANES];
+		};
+		u64 per_lanes[HCLGE_FEC_STATS_MAX_LANES * 2];
+	};
+};
 
 struct hclge_vlan_type_cfg {
 	u16 rx_ot_fst_vlan_type;
@@ -772,8 +802,8 @@ struct hclge_vf_vlan_cfg {
 	union {
 		struct {
 			u8 is_kill;
-			u16 vlan;
-			u16 proto;
+			__le16 vlan;
+			__le16 proto;
 		};
 		u8 enable;
 	};
@@ -818,6 +848,7 @@ struct hclge_dev {
 	struct hclge_hw hw;
 	struct hclge_misc_vector misc_vector;
 	struct hclge_mac_stats mac_stats;
+	struct hclge_fec_stats fec_stats;
 	unsigned long state;
 	unsigned long flr_state;
 	unsigned long last_reset_time;
@@ -930,8 +961,6 @@ struct hclge_dev {
 	DECLARE_KFIFO(mac_tnl_log, struct hclge_mac_tnl_stats,
 		      HCLGE_MAC_TNL_LOG_SIZE);
 
-	/* affinity mask and notify for misc interrupt */
-	cpumask_t affinity_mask;
 	struct hclge_ptp *ptp;
 	struct devlink *devlink;
 	struct hclge_comm_rss_cfg rss_cfg;
@@ -977,7 +1006,9 @@ struct hclge_vlan_info {
 
 struct hclge_port_base_vlan_config {
 	u16 state;
+	bool tbl_sta;
 	struct hclge_vlan_info vlan_info;
+	struct hclge_vlan_info old_vlan_info;
 };
 
 struct hclge_vf_info {
@@ -1023,6 +1054,7 @@ struct hclge_vport {
 	spinlock_t mac_list_lock; /* protect mac address need to add/detele */
 	struct list_head uc_mac_list;   /* Store VF unicast table */
 	struct list_head mc_mac_list;   /* Store VF multicast table */
+
 	struct list_head vlan_list;     /* Store VF vlan table */
 };
 
@@ -1060,13 +1092,8 @@ static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 	return tqp->index;
 }
 
-static inline bool hclge_is_reset_pending(struct hclge_dev *hdev)
-{
-	return !!hdev->reset_pending;
-}
-
 int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport);
-int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex);
+int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex, u8 lane_num);
 int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 			  u16 vlan_id, bool is_kill);
 int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable);
@@ -1097,6 +1124,7 @@ void hclge_rm_vport_all_mac_table(struct hclge_vport *vport, bool is_del_list,
 void hclge_rm_vport_all_vlan_table(struct hclge_vport *vport, bool is_del_list);
 void hclge_uninit_vport_vlan_table(struct hclge_dev *hdev);
 void hclge_restore_mac_table_common(struct hclge_vport *vport);
+void hclge_restore_vport_port_base_vlan_config(struct hclge_dev *hdev);
 void hclge_restore_vport_vlan_table(struct hclge_vport *vport);
 int hclge_update_port_base_vlan_cfg(struct hclge_vport *vport, u16 state,
 				    struct hclge_vlan_info *vlan_info);

@@ -159,8 +159,12 @@ enum {
 };
 
 #define VHOST_SCSI_MAX_TARGET	256
-#define VHOST_SCSI_MAX_VQ	128
+#define VHOST_SCSI_MAX_IO_VQ	1024
 #define VHOST_SCSI_MAX_EVENT	128
+
+static unsigned vhost_scsi_max_io_vqs = 128;
+module_param_named(max_io_vqs, vhost_scsi_max_io_vqs, uint, 0644);
+MODULE_PARM_DESC(max_io_vqs, "Set the max number of IO virtqueues a vhost scsi device can support. The default is 128. The max is 1024.");
 
 struct vhost_scsi_virtqueue {
 	struct vhost_virtqueue vq;
@@ -186,7 +190,9 @@ struct vhost_scsi {
 	char vs_vhost_wwpn[TRANSPORT_IQN_LEN];
 
 	struct vhost_dev dev;
-	struct vhost_scsi_virtqueue vqs[VHOST_SCSI_MAX_VQ];
+	struct vhost_scsi_virtqueue *vqs;
+	unsigned long *compl_bitmap;
+	struct vhost_scsi_inflight **old_inflight;
 
 	struct vhost_work vs_completion_work; /* cmd completion work item */
 	struct llist_head vs_completion_list; /* cmd completion queue */
@@ -245,7 +251,7 @@ static void vhost_scsi_init_inflight(struct vhost_scsi *vs,
 	struct vhost_virtqueue *vq;
 	int idx, i;
 
-	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
+	for (i = 0; i < vs->dev.nvqs;  i++) {
 		vq = &vs->vqs[i].vq;
 
 		mutex_lock(&vq->mutex);
@@ -533,7 +539,6 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 {
 	struct vhost_scsi *vs = container_of(work, struct vhost_scsi,
 					vs_completion_work);
-	DECLARE_BITMAP(signal, VHOST_SCSI_MAX_VQ);
 	struct virtio_scsi_cmd_resp v_rsp;
 	struct vhost_scsi_cmd *cmd, *t;
 	struct llist_node *llnode;
@@ -541,7 +546,7 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 	struct iov_iter iov_iter;
 	int ret, vq;
 
-	bitmap_zero(signal, VHOST_SCSI_MAX_VQ);
+	bitmap_zero(vs->compl_bitmap, vs->dev.nvqs);
 	llnode = llist_del_all(&vs->vs_completion_list);
 	llist_for_each_entry_safe(cmd, t, llnode, tvc_completion_list) {
 		se_cmd = &cmd->tvc_se_cmd;
@@ -566,7 +571,7 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 			vhost_add_used(cmd->tvc_vq, cmd->tvc_vq_desc, 0);
 			q = container_of(cmd->tvc_vq, struct vhost_scsi_virtqueue, vq);
 			vq = q - vs->vqs;
-			__set_bit(vq, signal);
+			__set_bit(vq, vs->compl_bitmap);
 		} else
 			pr_err("Faulted on virtio_scsi_cmd_resp\n");
 
@@ -574,8 +579,8 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 	}
 
 	vq = -1;
-	while ((vq = find_next_bit(signal, VHOST_SCSI_MAX_VQ, vq + 1))
-		< VHOST_SCSI_MAX_VQ)
+	while ((vq = find_next_bit(vs->compl_bitmap, vs->dev.nvqs, vq + 1))
+		< vs->dev.nvqs)
 		vhost_signal(&vs->dev, &vs->vqs[vq].vq);
 }
 
@@ -643,13 +648,11 @@ vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
 	size_t offset;
 	unsigned int npages = 0;
 
-	bytes = iov_iter_get_pages(iter, pages, LONG_MAX,
+	bytes = iov_iter_get_pages2(iter, pages, LONG_MAX,
 				VHOST_SCSI_PREALLOC_UPAGES, &offset);
 	/* No pages were pinned */
 	if (bytes <= 0)
 		return bytes < 0 ? bytes : -EFAULT;
-
-	iov_iter_advance(iter, bytes);
 
 	while (bytes) {
 		unsigned n = min_t(unsigned, PAGE_SIZE - offset, bytes);
@@ -1421,26 +1424,25 @@ static void vhost_scsi_handle_kick(struct vhost_work *work)
 /* Callers must hold dev mutex */
 static void vhost_scsi_flush(struct vhost_scsi *vs)
 {
-	struct vhost_scsi_inflight *old_inflight[VHOST_SCSI_MAX_VQ];
 	int i;
 
 	/* Init new inflight and remember the old inflight */
-	vhost_scsi_init_inflight(vs, old_inflight);
+	vhost_scsi_init_inflight(vs, vs->old_inflight);
 
 	/*
 	 * The inflight->kref was initialized to 1. We decrement it here to
 	 * indicate the start of the flush operation so that it will reach 0
 	 * when all the reqs are finished.
 	 */
-	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++)
-		kref_put(&old_inflight[i]->kref, vhost_scsi_done_inflight);
+	for (i = 0; i < vs->dev.nvqs; i++)
+		kref_put(&vs->old_inflight[i]->kref, vhost_scsi_done_inflight);
 
 	/* Flush both the vhost poll and vhost work */
-	vhost_work_dev_flush(&vs->dev);
+	vhost_dev_flush(&vs->dev);
 
 	/* Wait for all reqs issued before the flush to be finished */
-	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++)
-		wait_for_completion(&old_inflight[i]->comp);
+	for (i = 0; i < vs->dev.nvqs; i++)
+		wait_for_completion(&vs->old_inflight[i]->comp);
 }
 
 static void vhost_scsi_destroy_vq_cmds(struct vhost_virtqueue *vq)
@@ -1603,7 +1605,7 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 		memcpy(vs->vs_vhost_wwpn, t->vhost_wwpn,
 		       sizeof(vs->vs_vhost_wwpn));
 
-		for (i = VHOST_SCSI_VQ_IO; i < VHOST_SCSI_MAX_VQ; i++) {
+		for (i = VHOST_SCSI_VQ_IO; i < vs->dev.nvqs; i++) {
 			vq = &vs->vqs[i].vq;
 			if (!vhost_vq_is_setup(vq))
 				continue;
@@ -1613,7 +1615,7 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 				goto destroy_vq_cmds;
 		}
 
-		for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
+		for (i = 0; i < vs->dev.nvqs; i++) {
 			vq = &vs->vqs[i].vq;
 			mutex_lock(&vq->mutex);
 			vhost_vq_set_backend(vq, vs_tpg);
@@ -1715,7 +1717,7 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 		target_undepend_item(&se_tpg->tpg_group.cg_item);
 	}
 	if (match) {
-		for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
+		for (i = 0; i < vs->dev.nvqs; i++) {
 			vq = &vs->vqs[i].vq;
 			mutex_lock(&vq->mutex);
 			vhost_vq_set_backend(vq, NULL);
@@ -1724,7 +1726,7 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 		/* Make sure cmds are not running before tearing them down. */
 		vhost_scsi_flush(vs);
 
-		for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
+		for (i = 0; i < vs->dev.nvqs; i++) {
 			vq = &vs->vqs[i].vq;
 			vhost_scsi_destroy_vq_cmds(vq);
 		}
@@ -1764,7 +1766,7 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 		return -EFAULT;
 	}
 
-	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
+	for (i = 0; i < vs->dev.nvqs; i++) {
 		vq = &vs->vqs[i].vq;
 		mutex_lock(&vq->mutex);
 		vq->acked_features = features;
@@ -1778,15 +1780,39 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 {
 	struct vhost_scsi *vs;
 	struct vhost_virtqueue **vqs;
-	int r = -ENOMEM, i;
+	int r = -ENOMEM, i, nvqs = vhost_scsi_max_io_vqs;
 
 	vs = kvzalloc(sizeof(*vs), GFP_KERNEL);
 	if (!vs)
 		goto err_vs;
 
-	vqs = kmalloc_array(VHOST_SCSI_MAX_VQ, sizeof(*vqs), GFP_KERNEL);
-	if (!vqs)
+	if (nvqs > VHOST_SCSI_MAX_IO_VQ) {
+		pr_err("Invalid max_io_vqs of %d. Using %d.\n", nvqs,
+		       VHOST_SCSI_MAX_IO_VQ);
+		nvqs = VHOST_SCSI_MAX_IO_VQ;
+	} else if (nvqs == 0) {
+		pr_err("Invalid max_io_vqs of %d. Using 1.\n", nvqs);
+		nvqs = 1;
+	}
+	nvqs += VHOST_SCSI_VQ_IO;
+
+	vs->compl_bitmap = bitmap_alloc(nvqs, GFP_KERNEL);
+	if (!vs->compl_bitmap)
+		goto err_compl_bitmap;
+
+	vs->old_inflight = kmalloc_array(nvqs, sizeof(*vs->old_inflight),
+					 GFP_KERNEL | __GFP_ZERO);
+	if (!vs->old_inflight)
+		goto err_inflight;
+
+	vs->vqs = kmalloc_array(nvqs, sizeof(*vs->vqs),
+				GFP_KERNEL | __GFP_ZERO);
+	if (!vs->vqs)
 		goto err_vqs;
+
+	vqs = kmalloc_array(nvqs, sizeof(*vqs), GFP_KERNEL);
+	if (!vqs)
+		goto err_local_vqs;
 
 	vhost_work_init(&vs->vs_completion_work, vhost_scsi_complete_cmd_work);
 	vhost_work_init(&vs->vs_event_work, vhost_scsi_evt_work);
@@ -1798,11 +1824,11 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	vqs[VHOST_SCSI_VQ_EVT] = &vs->vqs[VHOST_SCSI_VQ_EVT].vq;
 	vs->vqs[VHOST_SCSI_VQ_CTL].vq.handle_kick = vhost_scsi_ctl_handle_kick;
 	vs->vqs[VHOST_SCSI_VQ_EVT].vq.handle_kick = vhost_scsi_evt_handle_kick;
-	for (i = VHOST_SCSI_VQ_IO; i < VHOST_SCSI_MAX_VQ; i++) {
+	for (i = VHOST_SCSI_VQ_IO; i < nvqs; i++) {
 		vqs[i] = &vs->vqs[i].vq;
 		vs->vqs[i].vq.handle_kick = vhost_scsi_handle_kick;
 	}
-	vhost_dev_init(&vs->dev, vqs, VHOST_SCSI_MAX_VQ, UIO_MAXIOV,
+	vhost_dev_init(&vs->dev, vqs, nvqs, UIO_MAXIOV,
 		       VHOST_SCSI_WEIGHT, 0, true, NULL);
 
 	vhost_scsi_init_inflight(vs, NULL);
@@ -1810,7 +1836,13 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	f->private_data = vs;
 	return 0;
 
+err_local_vqs:
+	kfree(vs->vqs);
 err_vqs:
+	kfree(vs->old_inflight);
+err_inflight:
+	bitmap_free(vs->compl_bitmap);
+err_compl_bitmap:
 	kvfree(vs);
 err_vs:
 	return r;
@@ -1827,9 +1859,10 @@ static int vhost_scsi_release(struct inode *inode, struct file *f)
 	vhost_scsi_clear_endpoint(vs, &t);
 	vhost_dev_stop(&vs->dev);
 	vhost_dev_cleanup(&vs->dev);
-	/* Jobs can re-queue themselves in evt kick handler. Do extra flush. */
-	vhost_scsi_flush(vs);
 	kfree(vs->dev.vqs);
+	kfree(vs->vqs);
+	kfree(vs->old_inflight);
+	bitmap_free(vs->compl_bitmap);
 	kvfree(vs);
 	return 0;
 }

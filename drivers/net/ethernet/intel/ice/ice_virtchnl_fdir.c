@@ -5,6 +5,7 @@
 #include "ice_base.h"
 #include "ice_lib.h"
 #include "ice_flow.h"
+#include "ice_vf_lib_private.h"
 
 #define to_fltr_conf_from_desc(p) \
 	container_of(p, struct virtchnl_fdir_fltr_conf, input)
@@ -1288,15 +1289,16 @@ ice_vc_fdir_irq_handler(struct ice_vsi *ctrl_vsi,
 			union ice_32b_rx_flex_desc *rx_desc)
 {
 	struct ice_pf *pf = ctrl_vsi->back;
+	struct ice_vf *vf = ctrl_vsi->vf;
 	struct ice_vf_fdir_ctx *ctx_done;
 	struct ice_vf_fdir_ctx *ctx_irq;
 	struct ice_vf_fdir *fdir;
 	unsigned long flags;
 	struct device *dev;
-	struct ice_vf *vf;
 	int ret;
 
-	vf = &pf->vf[ctrl_vsi->vf_id];
+	if (WARN_ON(!vf))
+		return;
 
 	fdir = &vf->fdir;
 	ctx_done = &fdir->ctx_done;
@@ -1342,12 +1344,17 @@ static void ice_vf_fdir_dump_info(struct ice_vf *vf)
 	pf = vf->pf;
 	hw = &pf->hw;
 	dev = ice_pf_to_dev(pf);
-	vf_vsi = pf->vsi[vf->lan_vsi_idx];
+	vf_vsi = ice_get_vf_vsi(vf);
+	if (!vf_vsi) {
+		dev_dbg(dev, "VF %d: invalid VSI pointer\n", vf->vf_id);
+		return;
+	}
+
 	vsi_num = ice_get_hw_vsi_num(hw, vf_vsi->idx);
 
 	fd_size = rd32(hw, VSIQF_FD_SIZE(vsi_num));
 	fd_cnt = rd32(hw, VSIQF_FD_CNT(vsi_num));
-	dev_dbg(dev, "VF %d: space allocated: guar:0x%x, be:0x%x, space consumed: guar:0x%x, be:0x%x",
+	dev_dbg(dev, "VF %d: space allocated: guar:0x%x, be:0x%x, space consumed: guar:0x%x, be:0x%x\n",
 		vf->vf_id,
 		(fd_size & VSIQF_FD_CNT_FD_GCNT_M) >> VSIQF_FD_CNT_FD_GCNT_S,
 		(fd_size & VSIQF_FD_CNT_FD_BCNT_M) >> VSIQF_FD_CNT_FD_BCNT_S,
@@ -1571,15 +1578,16 @@ err_exit:
  */
 void ice_flush_fdir_ctx(struct ice_pf *pf)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
 	if (!test_and_clear_bit(ICE_FD_VF_FLUSH_CTX, pf->state))
 		return;
 
-	ice_for_each_vf(pf, i) {
+	mutex_lock(&pf->vfs.table_lock);
+	ice_for_each_vf(pf, bkt, vf) {
 		struct device *dev = ice_pf_to_dev(pf);
 		enum virtchnl_fdir_prgm_status status;
-		struct ice_vf *vf = &pf->vf[i];
 		struct ice_vf_fdir_ctx *ctx;
 		unsigned long flags;
 		int ret;
@@ -1633,6 +1641,7 @@ err_exit:
 		ctx->flags &= ~ICE_VF_FDIR_CTX_VALID;
 		spin_unlock_irqrestore(&vf->fdir.ctx_lock, flags);
 	}
+	mutex_unlock(&pf->vfs.table_lock);
 }
 
 /**

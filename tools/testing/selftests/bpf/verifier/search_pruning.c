@@ -104,7 +104,7 @@
 		BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	.errstr = "R6 invalid mem access 'inv'",
+	.errstr = "R6 invalid mem access 'scalar'",
 	.result = REJECT,
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },

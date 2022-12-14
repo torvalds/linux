@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Broadcom STB CPU SMP and hotplug support for ARM
  *
  * Copyright (C) 2013-2014 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -59,7 +51,7 @@ static u32 hif_cont_reg;
 /*
  * We must quiesce a dying CPU before it can be killed by the boot CPU. Because
  * one or more cache may be disabled, we must flush to ensure coherency. We
- * cannot use traditionl completion structures or spinlocks as they rely on
+ * cannot use traditional completion structures or spinlocks as they rely on
  * coherency.
  */
 static DEFINE_PER_CPU_ALIGNED(int, per_cpu_sw_state);

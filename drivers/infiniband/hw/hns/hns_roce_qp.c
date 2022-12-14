@@ -56,7 +56,7 @@ static void flush_work_handle(struct work_struct *work)
 	if (test_and_clear_bit(HNS_ROCE_FLUSH_FLAG, &hr_qp->flush_flag)) {
 		ret = hns_roce_modify_qp(&hr_qp->ibqp, &attr, attr_mask, NULL);
 		if (ret)
-			dev_err(dev, "Modify QP to error state failed(%d) during CQE flush\n",
+			dev_err(dev, "modify QP to error state failed(%d) during CQE flush\n",
 				ret);
 	}
 
@@ -105,7 +105,7 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 	xa_unlock(&hr_dev->qp_table_xa);
 
 	if (!qp) {
-		dev_warn(dev, "Async event for bogus QP %08x\n", qpn);
+		dev_warn(dev, "async event for bogus QP %08x\n", qpn);
 		return;
 	}
 
@@ -218,7 +218,6 @@ static int alloc_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 
 	if (hr_qp->ibqp.qp_type == IB_QPT_GSI) {
 		num = 1;
-		hr_qp->doorbell_qpn = 1;
 	} else {
 		mutex_lock(&qp_table->bank_mutex);
 		bankid = get_least_load_bankid_for_qp(qp_table->bank);
@@ -234,33 +233,11 @@ static int alloc_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 
 		qp_table->bank[bankid].inuse++;
 		mutex_unlock(&qp_table->bank_mutex);
-
-		hr_qp->doorbell_qpn = (u32)num;
 	}
 
 	hr_qp->qpn = num;
 
 	return 0;
-}
-
-enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state)
-{
-	switch (state) {
-	case IB_QPS_RESET:
-		return HNS_ROCE_QP_STATE_RST;
-	case IB_QPS_INIT:
-		return HNS_ROCE_QP_STATE_INIT;
-	case IB_QPS_RTR:
-		return HNS_ROCE_QP_STATE_RTR;
-	case IB_QPS_RTS:
-		return HNS_ROCE_QP_STATE_RTS;
-	case IB_QPS_SQD:
-		return HNS_ROCE_QP_STATE_SQD;
-	case IB_QPS_ERR:
-		return HNS_ROCE_QP_STATE_ERR;
-	default:
-		return HNS_ROCE_QP_NUM_STATE;
-	}
 }
 
 static void add_qp_to_list(struct hns_roce_dev *hr_dev,
@@ -298,7 +275,7 @@ static int hns_roce_qp_store(struct hns_roce_dev *hr_dev,
 
 	ret = xa_err(xa_store_irq(xa, hr_qp->qpn, hr_qp, GFP_KERNEL));
 	if (ret)
-		dev_err(hr_dev->dev, "Failed to xa store for QPC\n");
+		dev_err(hr_dev->dev, "failed to xa store for QPC\n");
 	else
 		/* add QP to device's QP list for softwc */
 		add_qp_to_list(hr_dev, hr_qp, init_attr->send_cq,
@@ -319,14 +296,14 @@ static int alloc_qpc(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	/* Alloc memory for QPC */
 	ret = hns_roce_table_get(hr_dev, &qp_table->qp_table, hr_qp->qpn);
 	if (ret) {
-		dev_err(dev, "Failed to get QPC table\n");
+		dev_err(dev, "failed to get QPC table\n");
 		goto err_out;
 	}
 
 	/* Alloc memory for IRRL */
 	ret = hns_roce_table_get(hr_dev, &qp_table->irrl_table, hr_qp->qpn);
 	if (ret) {
-		dev_err(dev, "Failed to get IRRL table\n");
+		dev_err(dev, "failed to get IRRL table\n");
 		goto err_put_qp;
 	}
 
@@ -335,7 +312,7 @@ static int alloc_qpc(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 		ret = hns_roce_table_get(hr_dev, &qp_table->trrl_table,
 					 hr_qp->qpn);
 		if (ret) {
-			dev_err(dev, "Failed to get TRRL table\n");
+			dev_err(dev, "failed to get TRRL table\n");
 			goto err_put_irrl;
 		}
 	}
@@ -345,7 +322,7 @@ static int alloc_qpc(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 		ret = hns_roce_table_get(hr_dev, &qp_table->sccc_table,
 					 hr_qp->qpn);
 		if (ret) {
-			dev_err(dev, "Failed to get SCC CTX table\n");
+			dev_err(dev, "failed to get SCC CTX table\n");
 			goto err_put_trrl;
 		}
 	}
@@ -482,11 +459,8 @@ static int set_rq_size(struct hns_roce_dev *hr_dev, struct ib_qp_cap *cap,
 	hr_qp->rq.max_gs = roundup_pow_of_two(max(1U, cap->max_recv_sge) +
 					      hr_qp->rq.rsv_sge);
 
-	if (hr_dev->caps.max_rq_sg <= HNS_ROCE_SGE_IN_WQE)
-		hr_qp->rq.wqe_shift = ilog2(hr_dev->caps.max_rq_desc_sz);
-	else
-		hr_qp->rq.wqe_shift = ilog2(hr_dev->caps.max_rq_desc_sz *
-					    hr_qp->rq.max_gs);
+	hr_qp->rq.wqe_shift = ilog2(hr_dev->caps.max_rq_desc_sz *
+				    hr_qp->rq.max_gs);
 
 	hr_qp->rq.wqe_cnt = cnt;
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE &&
@@ -1229,7 +1203,7 @@ int hns_roce_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *init_attr,
 
 	ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata, hr_qp);
 	if (ret)
-		ibdev_err(ibdev, "Create QP type 0x%x failed(%d)\n",
+		ibdev_err(ibdev, "create QP type 0x%x failed(%d)\n",
 			  init_attr->qp_type, ret);
 
 	return ret;

@@ -25,7 +25,7 @@ static u32 owl_pll_calculate_mul(struct owl_pll_hw *pll_hw, unsigned long rate)
 	else if (mul > pll_hw->max_mul)
 		mul = pll_hw->max_mul;
 
-	return mul &= mul_mask(pll_hw);
+	return mul & mul_mask(pll_hw);
 }
 
 static unsigned long _get_table_rate(const struct clk_pll_table *table,

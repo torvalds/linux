@@ -25,6 +25,13 @@
 #define __KGD_PP_INTERFACE_H__
 
 extern const struct amdgpu_ip_block_version pp_smu_ip_block;
+extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
+extern const struct amdgpu_ip_block_version smu_v12_0_ip_block;
+extern const struct amdgpu_ip_block_version smu_v13_0_ip_block;
+
+enum smu_event_type {
+	SMU_EVENT_RESET_COMPLETE = 0,
+};
 
 struct amd_vce_state {
 	/* vce clocks */
@@ -150,6 +157,7 @@ enum PP_SMC_POWER_PROFILE {
 	PP_SMC_POWER_PROFILE_VR           = 0x4,
 	PP_SMC_POWER_PROFILE_COMPUTE      = 0x5,
 	PP_SMC_POWER_PROFILE_CUSTOM       = 0x6,
+	PP_SMC_POWER_PROFILE_WINDOW3D     = 0x7,
 	PP_SMC_POWER_PROFILE_COUNT,
 };
 
@@ -308,12 +316,13 @@ struct amd_pm_funcs {
 				void  *rps,
 				bool  *equal);
 /* export for sysfs */
-	void (*set_fan_control_mode)(void *handle, u32 mode);
-	u32 (*get_fan_control_mode)(void *handle);
+	int (*set_fan_control_mode)(void *handle, u32 mode);
+	int (*get_fan_control_mode)(void *handle, u32 *fan_mode);
 	int (*set_fan_speed_pwm)(void *handle, u32 speed);
 	int (*get_fan_speed_pwm)(void *handle, u32 *speed);
 	int (*force_clock_level)(void *handle, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
+	int (*emit_clock_levels)(void *handle, enum pp_clock_type type, char *buf, int *offset);
 	int (*force_performance_level)(void *handle, enum amd_dpm_forced_level level);
 	int (*get_sclk_od)(void *handle);
 	int (*set_sclk_od)(void *handle, uint32_t value);
@@ -400,6 +409,7 @@ struct amd_pm_funcs {
 	int (*get_dpm_clock_table)(void *handle,
 				   struct dpm_clocks *clock_table);
 	int (*get_smu_prv_buf_details)(void *handle, void **addr, size_t *size);
+	void (*pm_compute_clocks)(void *handle);
 };
 
 struct metrics_table_header {
@@ -814,4 +824,62 @@ struct gpu_metrics_v2_2 {
 	uint64_t			indep_throttle_status;
 };
 
+struct gpu_metrics_v2_3 {
+	struct metrics_table_header	common_header;
+
+	/* Temperature */
+	uint16_t			temperature_gfx; // gfx temperature on APUs
+	uint16_t			temperature_soc; // soc temperature on APUs
+	uint16_t			temperature_core[8]; // CPU core temperature on APUs
+	uint16_t			temperature_l3[2];
+
+	/* Utilization */
+	uint16_t			average_gfx_activity;
+	uint16_t			average_mm_activity; // UVD or VCN
+
+	/* Driver attached timestamp (in ns) */
+	uint64_t			system_clock_counter;
+
+	/* Power/Energy */
+	uint16_t			average_socket_power; // dGPU + APU power on A + A platform
+	uint16_t			average_cpu_power;
+	uint16_t			average_soc_power;
+	uint16_t			average_gfx_power;
+	uint16_t			average_core_power[8]; // CPU core power on APUs
+
+	/* Average clocks */
+	uint16_t			average_gfxclk_frequency;
+	uint16_t			average_socclk_frequency;
+	uint16_t			average_uclk_frequency;
+	uint16_t			average_fclk_frequency;
+	uint16_t			average_vclk_frequency;
+	uint16_t			average_dclk_frequency;
+
+	/* Current clocks */
+	uint16_t			current_gfxclk;
+	uint16_t			current_socclk;
+	uint16_t			current_uclk;
+	uint16_t			current_fclk;
+	uint16_t			current_vclk;
+	uint16_t			current_dclk;
+	uint16_t			current_coreclk[8]; // CPU core clocks
+	uint16_t			current_l3clk[2];
+
+	/* Throttle status (ASIC dependent) */
+	uint32_t			throttle_status;
+
+	/* Fans */
+	uint16_t			fan_pwm;
+
+	uint16_t			padding[3];
+
+	/* Throttle status (ASIC independent) */
+	uint64_t			indep_throttle_status;
+
+	/* Average Temperature */
+	uint16_t			average_temperature_gfx; // average gfx temperature on APUs
+	uint16_t			average_temperature_soc; // average soc temperature on APUs
+	uint16_t			average_temperature_core[8]; // average CPU core temperature on APUs
+	uint16_t			average_temperature_l3[2];
+};
 #endif

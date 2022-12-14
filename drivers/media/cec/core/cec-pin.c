@@ -135,7 +135,7 @@ static void cec_pin_update(struct cec_pin *pin, bool v, bool force)
 
 static bool cec_pin_read(struct cec_pin *pin)
 {
-	bool v = pin->ops->read(pin->adap);
+	bool v = call_pin_op(pin, read);
 
 	cec_pin_update(pin, v, false);
 	return v;
@@ -143,13 +143,13 @@ static bool cec_pin_read(struct cec_pin *pin)
 
 static void cec_pin_low(struct cec_pin *pin)
 {
-	pin->ops->low(pin->adap);
+	call_void_pin_op(pin, low);
 	cec_pin_update(pin, false, false);
 }
 
 static bool cec_pin_high(struct cec_pin *pin)
 {
-	pin->ops->high(pin->adap);
+	call_void_pin_op(pin, high);
 	return cec_pin_read(pin);
 }
 
@@ -1037,11 +1037,14 @@ static int cec_pin_thread_func(void *_adap)
 
 	for (;;) {
 		wait_event_interruptible(pin->kthread_waitq,
-			kthread_should_stop() ||
-			pin->work_rx_msg.len ||
-			pin->work_tx_status ||
-			atomic_read(&pin->work_irq_change) ||
-			atomic_read(&pin->work_pin_num_events));
+					 kthread_should_stop() ||
+					 pin->work_rx_msg.len ||
+					 pin->work_tx_status ||
+					 atomic_read(&pin->work_irq_change) ||
+					 atomic_read(&pin->work_pin_num_events));
+
+		if (kthread_should_stop())
+			break;
 
 		if (pin->work_rx_msg.len) {
 			struct cec_msg *msg = &pin->work_rx_msg;
@@ -1086,10 +1089,12 @@ static int cec_pin_thread_func(void *_adap)
 				    CEC_PIN_IRQ_UNCHANGED)) {
 		case CEC_PIN_IRQ_DISABLE:
 			if (irq_enabled) {
-				pin->ops->disable_irq(adap);
+				call_void_pin_op(pin, disable_irq);
 				irq_enabled = false;
 			}
 			cec_pin_high(pin);
+			if (pin->state == CEC_ST_OFF)
+				break;
 			cec_pin_to_idle(pin);
 			hrtimer_start(&pin->timer, ns_to_ktime(0),
 				      HRTIMER_MODE_REL);
@@ -1097,7 +1102,7 @@ static int cec_pin_thread_func(void *_adap)
 		case CEC_PIN_IRQ_ENABLE:
 			if (irq_enabled)
 				break;
-			pin->enable_irq_failed = !pin->ops->enable_irq(adap);
+			pin->enable_irq_failed = !call_pin_op(pin, enable_irq);
 			if (pin->enable_irq_failed) {
 				cec_pin_to_idle(pin);
 				hrtimer_start(&pin->timer, ns_to_ktime(0),
@@ -1109,15 +1114,7 @@ static int cec_pin_thread_func(void *_adap)
 		default:
 			break;
 		}
-		if (kthread_should_stop())
-			break;
 	}
-	if (pin->ops->disable_irq && irq_enabled)
-		pin->ops->disable_irq(adap);
-	hrtimer_cancel(&pin->timer);
-	cec_pin_read(pin);
-	cec_pin_to_idle(pin);
-	pin->state = CEC_ST_OFF;
 	return 0;
 }
 
@@ -1126,24 +1123,32 @@ static int cec_pin_adap_enable(struct cec_adapter *adap, bool enable)
 	struct cec_pin *pin = adap->pin;
 
 	if (enable) {
-		atomic_set(&pin->work_pin_num_events, 0);
-		pin->work_pin_events_rd = pin->work_pin_events_wr = 0;
-		pin->work_pin_events_dropped = false;
 		cec_pin_read(pin);
 		cec_pin_to_idle(pin);
 		pin->tx_msg.len = 0;
 		pin->timer_ts = ns_to_ktime(0);
 		atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_UNCHANGED);
-		pin->kthread = kthread_run(cec_pin_thread_func, adap,
-					   "cec-pin");
-		if (IS_ERR(pin->kthread)) {
-			pr_err("cec-pin: kernel_thread() failed\n");
-			return PTR_ERR(pin->kthread);
+		if (!pin->kthread) {
+			pin->kthread = kthread_run(cec_pin_thread_func, adap,
+						   "cec-pin");
+			if (IS_ERR(pin->kthread)) {
+				int err = PTR_ERR(pin->kthread);
+
+				pr_err("cec-pin: kernel_thread() failed\n");
+				pin->kthread = NULL;
+				return err;
+			}
 		}
 		hrtimer_start(&pin->timer, ns_to_ktime(0),
 			      HRTIMER_MODE_REL);
-	} else {
-		kthread_stop(pin->kthread);
+	} else if (pin->kthread) {
+		hrtimer_cancel(&pin->timer);
+		cec_pin_high(pin);
+		cec_pin_to_idle(pin);
+		pin->state = CEC_ST_OFF;
+		pin->work_tx_status = 0;
+		atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_DISABLE);
+		wake_up_interruptible(&pin->kthread_waitq);
 	}
 	return 0;
 }
@@ -1207,7 +1212,7 @@ static void cec_pin_adap_status(struct cec_adapter *adap,
 	seq_printf(file, "state: %s\n", states[pin->state].name);
 	seq_printf(file, "tx_bit: %d\n", pin->tx_bit);
 	seq_printf(file, "rx_bit: %d\n", pin->rx_bit);
-	seq_printf(file, "cec pin: %d\n", pin->ops->read(adap));
+	seq_printf(file, "cec pin: %d\n", call_pin_op(pin, read));
 	seq_printf(file, "cec pin events dropped: %u\n",
 		   pin->work_pin_events_dropped_cnt);
 	seq_printf(file, "irq failed: %d\n", pin->enable_irq_failed);
@@ -1260,8 +1265,7 @@ static void cec_pin_adap_status(struct cec_adapter *adap,
 	pin->rx_data_bit_too_long_cnt = 0;
 	pin->rx_low_drive_cnt = 0;
 	pin->tx_low_drive_cnt = 0;
-	if (pin->ops->status)
-		pin->ops->status(adap, file);
+	call_void_pin_op(pin, status, file);
 }
 
 static int cec_pin_adap_monitor_all_enable(struct cec_adapter *adap,
@@ -1277,6 +1281,9 @@ static void cec_pin_adap_free(struct cec_adapter *adap)
 {
 	struct cec_pin *pin = adap->pin;
 
+	if (pin->kthread)
+		kthread_stop(pin->kthread);
+	pin->kthread = NULL;
 	if (pin->ops->free)
 		pin->ops->free(adap);
 	adap->pin = NULL;
@@ -1287,7 +1294,7 @@ static int cec_pin_received(struct cec_adapter *adap, struct cec_msg *msg)
 {
 	struct cec_pin *pin = adap->pin;
 
-	if (pin->ops->received)
+	if (pin->ops->received && !adap->devnode.unregistered)
 		return pin->ops->received(adap, msg);
 	return -ENOMSG;
 }
@@ -1327,6 +1334,7 @@ struct cec_adapter *cec_pin_allocate_adapter(const struct cec_pin_ops *pin_ops,
 		return ERR_PTR(-ENOMEM);
 	pin->ops = pin_ops;
 	hrtimer_init(&pin->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	atomic_set(&pin->work_pin_num_events, 0);
 	pin->timer.function = cec_pin_timer;
 	init_waitqueue_head(&pin->kthread_waitq);
 	pin->tx_custom_low_usecs = CEC_TIM_CUSTOM_DEFAULT;

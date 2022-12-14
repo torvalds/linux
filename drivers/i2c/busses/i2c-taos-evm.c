@@ -239,7 +239,7 @@ static int taos_connect(struct serio *serio, struct serio_driver *drv)
 		dev_err(&serio->dev, "TAOS EVM identification failed\n");
 		goto exit_close;
 	}
-	strlcpy(adapter->name, name, sizeof(adapter->name));
+	strscpy(adapter->name, name, sizeof(adapter->name));
 
 	/* Turn echo off for better performance */
 	taos->state = TAOS_STATE_EOFF;

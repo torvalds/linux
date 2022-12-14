@@ -505,13 +505,17 @@ static inline int pci_iov_bus_range(struct pci_bus *bus)
 #endif /* CONFIG_PCI_IOV */
 
 #ifdef CONFIG_PCIE_PTM
+void pci_ptm_init(struct pci_dev *dev);
 void pci_save_ptm_state(struct pci_dev *dev);
 void pci_restore_ptm_state(struct pci_dev *dev);
-void pci_disable_ptm(struct pci_dev *dev);
+void pci_suspend_ptm(struct pci_dev *dev);
+void pci_resume_ptm(struct pci_dev *dev);
 #else
+static inline void pci_ptm_init(struct pci_dev *dev) { }
 static inline void pci_save_ptm_state(struct pci_dev *dev) { }
 static inline void pci_restore_ptm_state(struct pci_dev *dev) { }
-static inline void pci_disable_ptm(struct pci_dev *dev) { }
+static inline void pci_suspend_ptm(struct pci_dev *dev) { }
+static inline void pci_resume_ptm(struct pci_dev *dev) { }
 #endif
 
 unsigned long pci_cardbus_resource_alignment(struct resource *);
@@ -560,13 +564,15 @@ bool pcie_wait_for_link(struct pci_dev *pdev, bool active);
 #ifdef CONFIG_PCIEASPM
 void pcie_aspm_init_link_state(struct pci_dev *pdev);
 void pcie_aspm_exit_link_state(struct pci_dev *pdev);
-void pcie_aspm_pm_state_change(struct pci_dev *pdev);
 void pcie_aspm_powersave_config_link(struct pci_dev *pdev);
+void pci_save_aspm_l1ss_state(struct pci_dev *dev);
+void pci_restore_aspm_l1ss_state(struct pci_dev *dev);
 #else
 static inline void pcie_aspm_init_link_state(struct pci_dev *pdev) { }
 static inline void pcie_aspm_exit_link_state(struct pci_dev *pdev) { }
-static inline void pcie_aspm_pm_state_change(struct pci_dev *pdev) { }
 static inline void pcie_aspm_powersave_config_link(struct pci_dev *pdev) { }
+static inline void pci_save_aspm_l1ss_state(struct pci_dev *dev) { }
+static inline void pci_restore_aspm_l1ss_state(struct pci_dev *dev) { }
 #endif
 
 #ifdef CONFIG_PCIE_ECRC
@@ -575,12 +581,6 @@ void pcie_ecrc_get_policy(char *str);
 #else
 static inline void pcie_set_ecrc_checking(struct pci_dev *dev) { }
 static inline void pcie_ecrc_get_policy(char *str) { }
-#endif
-
-#ifdef CONFIG_PCIE_PTM
-void pci_ptm_init(struct pci_dev *dev);
-#else
-static inline void pci_ptm_init(struct pci_dev *dev) { }
 #endif
 
 struct pci_dev_reset_methods {
@@ -627,6 +627,9 @@ struct device_node;
 int of_pci_parse_bus_range(struct device_node *node, struct resource *res);
 int of_get_pci_domain_nr(struct device_node *node);
 int of_pci_get_max_link_speed(struct device_node *node);
+u32 of_pci_get_slot_power_limit(struct device_node *node,
+				u8 *slot_power_limit_value,
+				u8 *slot_power_limit_scale);
 void pci_set_of_node(struct pci_dev *dev);
 void pci_release_of_node(struct pci_dev *dev);
 void pci_set_bus_of_node(struct pci_bus *bus);
@@ -651,6 +654,18 @@ static inline int
 of_pci_get_max_link_speed(struct device_node *node)
 {
 	return -EINVAL;
+}
+
+static inline u32
+of_pci_get_slot_power_limit(struct device_node *node,
+			    u8 *slot_power_limit_value,
+			    u8 *slot_power_limit_scale)
+{
+	if (slot_power_limit_value)
+		*slot_power_limit_value = 0;
+	if (slot_power_limit_scale)
+		*slot_power_limit_scale = 0;
+	return 0;
 }
 
 static inline void pci_set_of_node(struct pci_dev *dev) { }
@@ -760,5 +775,50 @@ static inline pci_power_t mid_pci_get_power_state(struct pci_dev *pdev)
 	return PCI_UNKNOWN;
 }
 #endif
+
+/*
+ * Config Address for PCI Configuration Mechanism #1
+ *
+ * See PCI Local Bus Specification, Revision 3.0,
+ * Section 3.2.2.3.2, Figure 3-2, p. 50.
+ */
+
+#define PCI_CONF1_BUS_SHIFT	16 /* Bus number */
+#define PCI_CONF1_DEV_SHIFT	11 /* Device number */
+#define PCI_CONF1_FUNC_SHIFT	8  /* Function number */
+
+#define PCI_CONF1_BUS_MASK	0xff
+#define PCI_CONF1_DEV_MASK	0x1f
+#define PCI_CONF1_FUNC_MASK	0x7
+#define PCI_CONF1_REG_MASK	0xfc /* Limit aligned offset to a maximum of 256B */
+
+#define PCI_CONF1_ENABLE	BIT(31)
+#define PCI_CONF1_BUS(x)	(((x) & PCI_CONF1_BUS_MASK) << PCI_CONF1_BUS_SHIFT)
+#define PCI_CONF1_DEV(x)	(((x) & PCI_CONF1_DEV_MASK) << PCI_CONF1_DEV_SHIFT)
+#define PCI_CONF1_FUNC(x)	(((x) & PCI_CONF1_FUNC_MASK) << PCI_CONF1_FUNC_SHIFT)
+#define PCI_CONF1_REG(x)	((x) & PCI_CONF1_REG_MASK)
+
+#define PCI_CONF1_ADDRESS(bus, dev, func, reg) \
+	(PCI_CONF1_ENABLE | \
+	 PCI_CONF1_BUS(bus) | \
+	 PCI_CONF1_DEV(dev) | \
+	 PCI_CONF1_FUNC(func) | \
+	 PCI_CONF1_REG(reg))
+
+/*
+ * Extension of PCI Config Address for accessing extended PCIe registers
+ *
+ * No standardized specification, but used on lot of non-ECAM-compliant ARM SoCs
+ * or on AMD Barcelona and new CPUs. Reserved bits [27:24] of PCI Config Address
+ * are used for specifying additional 4 high bits of PCI Express register.
+ */
+
+#define PCI_CONF1_EXT_REG_SHIFT	16
+#define PCI_CONF1_EXT_REG_MASK	0xf00
+#define PCI_CONF1_EXT_REG(x)	(((x) & PCI_CONF1_EXT_REG_MASK) << PCI_CONF1_EXT_REG_SHIFT)
+
+#define PCI_CONF1_EXT_ADDRESS(bus, dev, func, reg) \
+	(PCI_CONF1_ADDRESS(bus, dev, func, reg) | \
+	 PCI_CONF1_EXT_REG(reg))
 
 #endif /* DRIVERS_PCI_H */

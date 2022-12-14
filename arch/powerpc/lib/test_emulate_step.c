@@ -53,9 +53,6 @@
 	ppc_inst_prefix(PPC_PREFIX_MLS | __PPC_PRFX_R(pr) | IMM_H(i), \
 			PPC_RAW_ADDI(t, a, i))
 
-#define TEST_SETB(t, bfa)       ppc_inst(PPC_INST_SETB | ___PPC_RT(t) | ___PPC_RA((bfa & 0x7) << 2))
-
-
 static void __init init_pt_regs(struct pt_regs *regs)
 {
 	static unsigned long msr;
@@ -935,21 +932,21 @@ static struct compute_test compute_tests[] = {
 		.subtests = {
 			{
 				.descr = "BFA = 1, CR = GT",
-				.instr = TEST_SETB(20, 1),
+				.instr = ppc_inst(PPC_RAW_SETB(20, 1)),
 				.regs = {
 					.ccr = 0x4000000,
 				}
 			},
 			{
 				.descr = "BFA = 4, CR = LT",
-				.instr = TEST_SETB(20, 4),
+				.instr = ppc_inst(PPC_RAW_SETB(20, 4)),
 				.regs = {
 					.ccr = 0x8000,
 				}
 			},
 			{
 				.descr = "BFA = 5, CR = EQ",
-				.instr = TEST_SETB(20, 5),
+				.instr = ppc_inst(PPC_RAW_SETB(20, 5)),
 				.regs = {
 					.ccr = 0x200,
 				}
@@ -1616,11 +1613,11 @@ static int __init emulate_compute_instr(struct pt_regs *regs,
 	if (analysed != 1 || GETTYPE(op.type) != COMPUTE) {
 		if (negative)
 			return -EFAULT;
-		pr_info("emulation failed, instruction = %s\n", ppc_inst_as_str(instr));
+		pr_info("emulation failed, instruction = %08lx\n", ppc_inst_as_ulong(instr));
 		return -EFAULT;
 	}
 	if (analysed == 1 && negative)
-		pr_info("negative test failed, instruction = %s\n", ppc_inst_as_str(instr));
+		pr_info("negative test failed, instruction = %08lx\n", ppc_inst_as_ulong(instr));
 	if (!negative)
 		emulate_update_regs(regs, &op);
 	return 0;
@@ -1637,7 +1634,7 @@ static int __init execute_compute_instr(struct pt_regs *regs,
 	/* Patch the NOP with the actual instruction */
 	patch_instruction_site(&patch__exec_instr, instr);
 	if (exec_instr(regs)) {
-		pr_info("execution failed, instruction = %s\n", ppc_inst_as_str(instr));
+		pr_info("execution failed, instruction = %08lx\n", ppc_inst_as_ulong(instr));
 		return -EFAULT;
 	}
 

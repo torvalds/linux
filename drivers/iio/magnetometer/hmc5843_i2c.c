@@ -65,11 +65,9 @@ static int hmc5843_i2c_probe(struct i2c_client *cli,
 			id->driver_data, id->name);
 }
 
-static int hmc5843_i2c_remove(struct i2c_client *client)
+static void hmc5843_i2c_remove(struct i2c_client *client)
 {
 	hmc5843_common_remove(&client->dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id hmc5843_id[] = {
@@ -93,7 +91,7 @@ MODULE_DEVICE_TABLE(of, hmc5843_of_match);
 static struct i2c_driver hmc5843_driver = {
 	.driver = {
 		.name	= "hmc5843",
-		.pm	= HMC5843_PM_OPS,
+		.pm	= pm_sleep_ptr(&hmc5843_pm_ops),
 		.of_match_table = hmc5843_of_match,
 	},
 	.id_table	= hmc5843_id,
@@ -105,3 +103,4 @@ module_i2c_driver(hmc5843_driver);
 MODULE_AUTHOR("Josef Gajdusek <atx@atx.name>");
 MODULE_DESCRIPTION("HMC5843/5883/5883L/5983 i2c driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_HMC5843);

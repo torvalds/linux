@@ -2,7 +2,6 @@
 #ifndef _ARCH_POWERPC_UACCESS_H
 #define _ARCH_POWERPC_UACCESS_H
 
-#include <asm/ppc_asm.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/extable.h>
@@ -11,18 +10,9 @@
 #ifdef __powerpc64__
 /* We use TASK_SIZE_USER64 as TASK_SIZE is not constant */
 #define TASK_SIZE_MAX		TASK_SIZE_USER64
-#else
-#define TASK_SIZE_MAX		TASK_SIZE
 #endif
 
-static inline bool __access_ok(unsigned long addr, unsigned long size)
-{
-	return addr < TASK_SIZE_MAX && size <= TASK_SIZE_MAX - addr;
-}
-
-#define access_ok(addr, size)		\
-	(__chk_user_ptr(addr),		\
-	 __access_ok((unsigned long)(addr), (size)))
+#include <asm-generic/access_ok.h>
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -125,8 +115,11 @@ do {								\
  */
 #define __get_user_atomic_128_aligned(kaddr, uaddr, err)		\
 	__asm__ __volatile__(				\
+		".machine push\n"			\
+		".machine altivec\n"			\
 		"1:	lvx  0,0,%1	# get user\n"	\
 		" 	stvx 0,0,%2	# put kernel\n"	\
+		".machine pop\n"			\
 		"2:\n"					\
 		".section .fixup,\"ax\"\n"		\
 		"3:	li %0,%3\n"			\
@@ -354,7 +347,7 @@ copy_mc_to_kernel(void *to, const void *from, unsigned long size)
 static inline unsigned long __must_check
 copy_mc_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (likely(check_copy_size(from, n, true))) {
+	if (check_copy_size(from, n, true)) {
 		if (access_ok(to, n)) {
 			allow_write_to_user(to, n);
 			n = copy_mc_generic((void *)to, from, n);
@@ -466,8 +459,6 @@ do {									\
 	if (_len & 1) \
 		unsafe_put_user(*(u8*)(_src + _i), (u8 __user *)(_dst + _i), e); \
 } while (0)
-
-#define HAVE_GET_KERNEL_NOFAULT
 
 #define __get_kernel_nofault(dst, src, type, err_label)			\
 	__get_user_size_goto(*((type *)(dst)),				\

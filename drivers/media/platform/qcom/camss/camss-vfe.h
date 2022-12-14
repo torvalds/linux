@@ -163,9 +163,6 @@ int msm_vfe_register_entities(struct vfe_device *vfe,
 
 void msm_vfe_unregister_entities(struct vfe_device *vfe);
 
-void msm_vfe_get_vfe_id(struct media_entity *entity, u8 *id);
-void msm_vfe_get_vfe_line_id(struct media_entity *entity, enum vfe_line_id *id);
-
 /*
  * vfe_buf_add_pending - Add output buffer to list of pending
  * @output: VFE output
@@ -201,5 +198,9 @@ extern const struct vfe_hw_ops vfe_ops_4_1;
 extern const struct vfe_hw_ops vfe_ops_4_7;
 extern const struct vfe_hw_ops vfe_ops_4_8;
 extern const struct vfe_hw_ops vfe_ops_170;
+extern const struct vfe_hw_ops vfe_ops_480;
+
+int vfe_get(struct vfe_device *vfe);
+void vfe_put(struct vfe_device *vfe);
 
 #endif /* QC_MSM_CAMSS_VFE_H */

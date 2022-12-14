@@ -47,10 +47,10 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		hook {
+		button-hook {
 			label = "HOOK";
 			linux,code = <KEY_O>;
 			gpios = <&gpio_asiu 48 0>;

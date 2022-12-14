@@ -12,30 +12,7 @@
 #include <linux/string.h>
 
 #include <asm/processor.h>
-
-/* Sparc is not segmented, however we need to be able to fool access_ok()
- * when doing system calls from kernel mode legitimately.
- *
- * "For historical reasons, these macros are grossly misnamed." -Linus
- */
-
-#define KERNEL_DS   ((mm_segment_t) { 0 })
-#define USER_DS     ((mm_segment_t) { -1 })
-
-#define get_fs()	(current->thread.current_ds)
-#define set_fs(val)	((current->thread.current_ds) = (val))
-
-#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
-
-/* We have there a nice not-mapped page at PAGE_OFFSET - PAGE_SIZE, so that this test
- * can be fairly lightweight.
- * No one can read/write anything from userland in the kernel space by setting
- * large size and address near to PAGE_OFFSET - a fault will break his intentions.
- */
-#define __user_ok(addr, size) ({ (void)(size); (addr) < STACK_TOP; })
-#define __kernel_ok (uaccess_kernel())
-#define __access_ok(addr, size) (__user_ok((addr) & get_fs().seg, (size)))
-#define access_ok(addr, size) __access_ok((unsigned long)(addr), size)
+#include <asm-generic/access_ok.h>
 
 /* Uh, these should become the main single-value transfer routines..
  * They automatically use the right size if we just have the right
@@ -47,13 +24,13 @@
  * and hide all the ugliness from the user.
  */
 #define put_user(x, ptr) ({ \
-	unsigned long __pu_addr = (unsigned long)(ptr); \
+	void __user *__pu_addr = (ptr); \
 	__chk_user_ptr(ptr); \
 	__put_user_check((__typeof__(*(ptr)))(x), __pu_addr, sizeof(*(ptr))); \
 })
 
 #define get_user(x, ptr) ({ \
-	unsigned long __gu_addr = (unsigned long)(ptr); \
+	const void __user *__gu_addr = (ptr); \
 	__chk_user_ptr(ptr); \
 	__get_user_check((x), __gu_addr, sizeof(*(ptr)), __typeof__(*(ptr))); \
 })
@@ -232,7 +209,7 @@ static inline unsigned long __clear_user(void __user *addr, unsigned long size)
 
 static inline unsigned long clear_user(void __user *addr, unsigned long n)
 {
-	if (n && __access_ok((unsigned long) addr, n))
+	if (n && __access_ok(addr, n))
 		return __clear_user(addr, n);
 	else
 		return n;

@@ -209,12 +209,14 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 			if (ast->chip == AST2500 &&
 			    scu_rev == 0x100)           /* ast2510 */
 				ast->support_wide_screen = true;
+			if (ast->chip == AST2600)		/* ast2600 */
+				ast->support_wide_screen = true;
 		}
 		break;
 	}
 
 	/* Check 3rd Tx option (digital output afaik) */
-	ast->tx_chip_type = AST_TX_NONE;
+	ast->tx_chip_types |= AST_TX_NONE_BIT;
 
 	/*
 	 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
@@ -227,10 +229,10 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	if (!*need_post) {
 		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
 		if (jreg & 0x80)
-			ast->tx_chip_type = AST_TX_SIL164;
+			ast->tx_chip_types = AST_TX_SIL164_BIT;
 	}
 
-	if ((ast->chip == AST2300) || (ast->chip == AST2400)) {
+	if ((ast->chip == AST2300) || (ast->chip == AST2400) || (ast->chip == AST2500)) {
 		/*
 		 * On AST2300 and 2400, look the configuration set by the SoC in
 		 * the SOC scratch register #1 bits 11:8 (interestingly marked
@@ -239,7 +241,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
 		switch (jreg) {
 		case 0x04:
-			ast->tx_chip_type = AST_TX_SIL164;
+			ast->tx_chip_types = AST_TX_SIL164_BIT;
 			break;
 		case 0x08:
 			ast->dp501_fw_addr = drmm_kzalloc(dev, 32*1024, GFP_KERNEL);
@@ -252,21 +254,19 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 			}
 			fallthrough;
 		case 0x0c:
-			ast->tx_chip_type = AST_TX_DP501;
+			ast->tx_chip_types = AST_TX_DP501_BIT;
 		}
-	}
+	} else if (ast->chip == AST2600)
+		ast_dp_launch(&ast->base, 0);
 
 	/* Print stuff for diagnostic purposes */
-	switch(ast->tx_chip_type) {
-	case AST_TX_SIL164:
+	if (ast->tx_chip_types & AST_TX_NONE_BIT)
+		drm_info(dev, "Using analog VGA\n");
+	if (ast->tx_chip_types & AST_TX_SIL164_BIT)
 		drm_info(dev, "Using Sil164 TMDS transmitter\n");
-		break;
-	case AST_TX_DP501:
+	if (ast->tx_chip_types & AST_TX_DP501_BIT)
 		drm_info(dev, "Using DP501 DisplayPort transmitter\n");
-		break;
-	default:
-		drm_info(dev, "Analog VGA only\n");
-	}
+
 	return 0;
 }
 
@@ -417,6 +417,10 @@ struct ast_private *ast_device_create(const struct drm_driver *drv,
 	dev = &ast->base;
 
 	pci_set_drvdata(pdev, dev);
+
+	ret = drmm_mutex_init(dev, &ast->ioregs_lock);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ast->regs = pcim_iomap(pdev, 1, 0);
 	if (!ast->regs)

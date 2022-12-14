@@ -24,10 +24,10 @@
  *          Alex Deucher
  */
 
+#include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/radeon_drm.h>
 #include "radeon.h"
@@ -37,33 +37,12 @@
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
 
-static int radeon_dp_handle_hpd(struct drm_connector *connector)
-{
-	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-	int ret;
-
-	ret = radeon_dp_mst_check_status(radeon_connector);
-	if (ret == -EINVAL)
-		return 1;
-	return 0;
-}
 void radeon_connector_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
-		struct radeon_connector_atom_dig *dig_connector =
-			radeon_connector->con_priv;
-
-		if (radeon_connector->is_mst_connector)
-			return;
-		if (dig_connector->is_mst) {
-			radeon_dp_handle_hpd(connector);
-			return;
-		}
-	}
 	/* bail if the connector does not have hpd pin, e.g.,
 	 * VGA, TV, etc.
 	 */
@@ -204,7 +183,7 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 
 			/* Check if bpc is within clock limit. Try to degrade gracefully otherwise */
 			if ((bpc == 12) && (mode_clock * 3/2 > max_tmds_clock)) {
-				if ((connector->display_info.edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_30) &&
+				if ((connector->display_info.edid_hdmi_rgb444_dc_modes & DRM_EDID_HDMI_DC_30) &&
 					(mode_clock * 5/4 <= max_tmds_clock))
 					bpc = 10;
 				else
@@ -473,6 +452,8 @@ static struct drm_display_mode *radeon_fp_native_mode(struct drm_encoder *encode
 	    native_mode->vdisplay != 0 &&
 	    native_mode->clock != 0) {
 		mode = drm_mode_duplicate(dev, native_mode);
+		if (!mode)
+			return NULL;
 		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
 		drm_mode_set_name(mode);
 
@@ -487,6 +468,8 @@ static struct drm_display_mode *radeon_fp_native_mode(struct drm_encoder *encode
 		 * simpler.
 		 */
 		mode = drm_cvt_mode(dev, native_mode->hdisplay, native_mode->vdisplay, 60, true, false, false);
+		if (!mode)
+			return NULL;
 		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
 		DRM_DEBUG_KMS("Adding cvt approximation of native panel mode %s\n", mode->name);
 	}
@@ -777,7 +760,7 @@ static void radeon_fixup_lvds_native_mode(struct drm_encoder *encoder,
 		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
 			if (mode->hdisplay != native_mode->hdisplay ||
 			    mode->vdisplay != native_mode->vdisplay)
-				memcpy(native_mode, mode, sizeof(*mode));
+				drm_mode_copy(native_mode, mode);
 		}
 	}
 
@@ -786,7 +769,7 @@ static void radeon_fixup_lvds_native_mode(struct drm_encoder *encoder,
 		list_for_each_entry_safe(mode, t, &connector->probed_modes, head) {
 			if (mode->hdisplay == native_mode->hdisplay &&
 			    mode->vdisplay == native_mode->vdisplay) {
-				*native_mode = *mode;
+				drm_mode_copy(native_mode, mode);
 				drm_mode_set_crtcinfo(native_mode, CRTC_INTERLACE_HALVE_V);
 				DRM_DEBUG_KMS("Determined LVDS native mode details from EDID\n");
 				break;
@@ -1660,9 +1643,6 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 	struct drm_encoder *encoder = radeon_best_single_encoder(connector);
 	int r;
 
-	if (radeon_dig_connector->is_mst)
-		return connector_status_disconnected;
-
 	if (!drm_kms_helper_is_poll_worker()) {
 		r = pm_runtime_get_sync(connector->dev->dev);
 		if (r < 0) {
@@ -1725,21 +1705,12 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 		radeon_dig_connector->dp_sink_type = radeon_dp_getsinktype(radeon_connector);
 		if (radeon_hpd_sense(rdev, radeon_connector->hpd.hpd)) {
 			ret = connector_status_connected;
-			if (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
+			if (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT)
 				radeon_dp_getdpcd(radeon_connector);
-				r = radeon_dp_mst_probe(radeon_connector);
-				if (r == 1)
-					ret = connector_status_disconnected;
-			}
 		} else {
 			if (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
-				if (radeon_dp_getdpcd(radeon_connector)) {
-					r = radeon_dp_mst_probe(radeon_connector);
-					if (r == 1)
-						ret = connector_status_disconnected;
-					else
-						ret = connector_status_connected;
-				}
+				if (radeon_dp_getdpcd(radeon_connector))
+					ret = connector_status_connected;
 			} else {
 				/* try non-aux ddc (DP to DVI/HDMI/etc. adapter) */
 				if (radeon_ddc_probe(radeon_connector, false))
@@ -2556,26 +2527,4 @@ radeon_add_legacy_connector(struct drm_device *dev,
 
 	connector->display_info.subpixel_order = subpixel_order;
 	drm_connector_register(connector);
-}
-
-void radeon_setup_mst_connector(struct drm_device *dev)
-{
-	struct radeon_device *rdev = dev->dev_private;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector;
-
-	if (!ASIC_IS_DCE5(rdev))
-		return;
-
-	if (radeon_mst == 0)
-		return;
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		radeon_connector = to_radeon_connector(connector);
-
-		if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
-			continue;
-
-		radeon_dp_mst_init(radeon_connector);
-	}
 }

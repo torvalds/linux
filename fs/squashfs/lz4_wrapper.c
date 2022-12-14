@@ -119,10 +119,12 @@ static int lz4_uncompress(struct squashfs_sb_info *msblk, void *strm,
 	buff = stream->output;
 	while (data) {
 		if (bytes <= PAGE_SIZE) {
-			memcpy(data, buff, bytes);
+			if (!IS_ERR(data))
+				memcpy(data, buff, bytes);
 			break;
 		}
-		memcpy(data, buff, PAGE_SIZE);
+		if (!IS_ERR(data))
+			memcpy(data, buff, PAGE_SIZE);
 		buff += PAGE_SIZE;
 		bytes -= PAGE_SIZE;
 		data = squashfs_next_page(output);
@@ -139,5 +141,6 @@ const struct squashfs_decompressor squashfs_lz4_comp_ops = {
 	.decompress = lz4_uncompress,
 	.id = LZ4_COMPRESSION,
 	.name = "lz4",
+	.alloc_buffer = 0,
 	.supported = 1
 };

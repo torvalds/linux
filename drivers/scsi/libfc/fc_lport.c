@@ -308,21 +308,21 @@ struct fc_host_statistics *fc_get_host_stats(struct Scsi_Host *shost)
 
 		stats = per_cpu_ptr(lport->stats, cpu);
 
-		fc_stats->tx_frames += stats->TxFrames;
-		fc_stats->tx_words += stats->TxWords;
-		fc_stats->rx_frames += stats->RxFrames;
-		fc_stats->rx_words += stats->RxWords;
-		fc_stats->error_frames += stats->ErrorFrames;
-		fc_stats->invalid_crc_count += stats->InvalidCRCCount;
-		fc_stats->fcp_input_requests += stats->InputRequests;
-		fc_stats->fcp_output_requests += stats->OutputRequests;
-		fc_stats->fcp_control_requests += stats->ControlRequests;
-		fcp_in_bytes += stats->InputBytes;
-		fcp_out_bytes += stats->OutputBytes;
-		fc_stats->fcp_packet_alloc_failures += stats->FcpPktAllocFails;
-		fc_stats->fcp_packet_aborts += stats->FcpPktAborts;
-		fc_stats->fcp_frame_alloc_failures += stats->FcpFrameAllocFails;
-		fc_stats->link_failure_count += stats->LinkFailureCount;
+		fc_stats->tx_frames += READ_ONCE(stats->TxFrames);
+		fc_stats->tx_words += READ_ONCE(stats->TxWords);
+		fc_stats->rx_frames += READ_ONCE(stats->RxFrames);
+		fc_stats->rx_words += READ_ONCE(stats->RxWords);
+		fc_stats->error_frames += READ_ONCE(stats->ErrorFrames);
+		fc_stats->invalid_crc_count += READ_ONCE(stats->InvalidCRCCount);
+		fc_stats->fcp_input_requests += READ_ONCE(stats->InputRequests);
+		fc_stats->fcp_output_requests += READ_ONCE(stats->OutputRequests);
+		fc_stats->fcp_control_requests += READ_ONCE(stats->ControlRequests);
+		fcp_in_bytes += READ_ONCE(stats->InputBytes);
+		fcp_out_bytes += READ_ONCE(stats->OutputBytes);
+		fc_stats->fcp_packet_alloc_failures += READ_ONCE(stats->FcpPktAllocFails);
+		fc_stats->fcp_packet_aborts += READ_ONCE(stats->FcpPktAborts);
+		fc_stats->fcp_frame_alloc_failures += READ_ONCE(stats->FcpFrameAllocFails);
+		fc_stats->link_failure_count += READ_ONCE(stats->LinkFailureCount);
 	}
 	fc_stats->fcp_input_megabytes = div_u64(fcp_in_bytes, 1000000);
 	fc_stats->fcp_output_megabytes = div_u64(fcp_out_bytes, 1000000);

@@ -30,6 +30,7 @@
 #include <linux/omap-dma.h>
 
 #include "soc.h"
+#include "common.h"
 
 static const struct omap_dma_reg reg_map[] = {
 	[REVISION]	= { 0x0000, 0x00, OMAP_DMA_REG_32BIT },

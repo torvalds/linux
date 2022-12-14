@@ -353,29 +353,27 @@ static void ipmi_flush_tx_msg(struct acpi_ipmi_device *ipmi)
 static void ipmi_cancel_tx_msg(struct acpi_ipmi_device *ipmi,
 			       struct acpi_ipmi_msg *msg)
 {
-	struct acpi_ipmi_msg *tx_msg, *temp;
-	bool msg_found = false;
+	struct acpi_ipmi_msg *tx_msg = NULL, *iter, *temp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ipmi->tx_msg_lock, flags);
-	list_for_each_entry_safe(tx_msg, temp, &ipmi->tx_msg_list, head) {
-		if (msg == tx_msg) {
-			msg_found = true;
-			list_del(&tx_msg->head);
+	list_for_each_entry_safe(iter, temp, &ipmi->tx_msg_list, head) {
+		if (msg == iter) {
+			tx_msg = iter;
+			list_del(&iter->head);
 			break;
 		}
 	}
 	spin_unlock_irqrestore(&ipmi->tx_msg_lock, flags);
 
-	if (msg_found)
+	if (tx_msg)
 		acpi_ipmi_msg_put(tx_msg);
 }
 
 static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 {
 	struct acpi_ipmi_device *ipmi_device = user_msg_data;
-	bool msg_found = false;
-	struct acpi_ipmi_msg *tx_msg, *temp;
+	struct acpi_ipmi_msg *tx_msg = NULL, *iter, *temp;
 	struct device *dev = ipmi_device->dev;
 	unsigned long flags;
 
@@ -387,16 +385,16 @@ static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 	}
 
 	spin_lock_irqsave(&ipmi_device->tx_msg_lock, flags);
-	list_for_each_entry_safe(tx_msg, temp, &ipmi_device->tx_msg_list, head) {
-		if (msg->msgid == tx_msg->tx_msgid) {
-			msg_found = true;
-			list_del(&tx_msg->head);
+	list_for_each_entry_safe(iter, temp, &ipmi_device->tx_msg_list, head) {
+		if (msg->msgid == iter->tx_msgid) {
+			tx_msg = iter;
+			list_del(&iter->head);
 			break;
 		}
 	}
 	spin_unlock_irqrestore(&ipmi_device->tx_msg_lock, flags);
 
-	if (!msg_found) {
+	if (!tx_msg) {
 		dev_warn(dev,
 			 "Unexpected response (msg id %ld) is returned.\n",
 			 msg->msgid);
@@ -482,15 +480,14 @@ err_ref:
 
 static void ipmi_bmc_gone(int iface)
 {
-	struct acpi_ipmi_device *ipmi_device, *temp;
-	bool dev_found = false;
+	struct acpi_ipmi_device *ipmi_device = NULL, *iter, *temp;
 
 	mutex_lock(&driver_data.ipmi_lock);
-	list_for_each_entry_safe(ipmi_device, temp,
+	list_for_each_entry_safe(iter, temp,
 				 &driver_data.ipmi_devices, head) {
-		if (ipmi_device->ipmi_ifnum != iface) {
-			dev_found = true;
-			__ipmi_dev_kill(ipmi_device);
+		if (iter->ipmi_ifnum != iface) {
+			ipmi_device = iter;
+			__ipmi_dev_kill(iter);
 			break;
 		}
 	}
@@ -500,7 +497,7 @@ static void ipmi_bmc_gone(int iface)
 					struct acpi_ipmi_device, head);
 	mutex_unlock(&driver_data.ipmi_lock);
 
-	if (dev_found) {
+	if (ipmi_device) {
 		ipmi_flush_tx_msg(ipmi_device);
 		acpi_ipmi_dev_put(ipmi_device);
 	}

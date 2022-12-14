@@ -179,7 +179,7 @@ static int tps6105x_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int tps6105x_remove(struct i2c_client *client)
+static void tps6105x_remove(struct i2c_client *client)
 {
 	struct tps6105x *tps6105x = i2c_get_clientdata(client);
 
@@ -189,8 +189,6 @@ static int tps6105x_remove(struct i2c_client *client)
 	regmap_update_bits(tps6105x->regmap, TPS6105X_REG_0,
 		TPS6105X_REG0_MODE_MASK,
 		TPS6105X_MODE_SHUTDOWN << TPS6105X_REG0_MODE_SHIFT);
-
-	return 0;
 }
 
 static const struct i2c_device_id tps6105x_id[] = {

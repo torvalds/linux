@@ -247,6 +247,8 @@ void snd_device_free_all(struct snd_card *card)
  * device, either @SNDRV_DEV_BUILD, @SNDRV_DEV_REGISTERED or
  * @SNDRV_DEV_DISCONNECTED is returned.
  * Or for a non-existing device, -1 is returned as an error.
+ *
+ * Return: the current state, or -1 if not found
  */
 int snd_device_get_state(struct snd_card *card, void *device_data)
 {

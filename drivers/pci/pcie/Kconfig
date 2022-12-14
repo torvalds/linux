@@ -43,7 +43,7 @@ config PCIEAER_INJECT
 	  error injection can fake almost all kinds of errors with the
 	  help of a user space helper tool aer-inject, which can be
 	  gotten from:
-	     https://www.kernel.org/pub/linux/utils/pci/aer-inject/
+	     https://git.kernel.org/cgit/linux/kernel/git/gong.chen/aer-inject.git/
 
 #
 # PCI Express ECRC

@@ -35,7 +35,7 @@ then
 	exit 1
 fi
 
-# Remember where we started so that we can get back and the end.
+# Remember where we started so that we can get back at the end.
 curcommit="`git status | head -1 | awk '{ print $NF }'`"
 
 nfail=0
@@ -49,8 +49,8 @@ fi
 mkdir $resdir/$ds
 echo Results directory: $resdir/$ds
 
-KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
-PATH=${KVM}/bin:$PATH; export PATH
+RCUTORTURE="`pwd`/tools/testing/selftests/rcutorture"; export RCUTORTURE
+PATH=${RCUTORTURE}/bin:$PATH; export PATH
 . functions.sh
 echo Using all `identify_qemu_vcpus` CPUs.
 
@@ -73,15 +73,10 @@ do
 		# Test the specified commit.
 		git checkout $i > $resdir/$ds/$idir/git-checkout.out 2>&1
 		echo git checkout return code: $? "(Commit $ntry: $i)"
-		kvm.sh --allcpus --duration 3 --trust-make > $resdir/$ds/$idir/kvm.sh.out 2>&1
+		kvm.sh --allcpus --duration 3 --trust-make --datestamp "$ds/$idir" > $resdir/$ds/$idir/kvm.sh.out 2>&1
 		ret=$?
 		echo kvm.sh return code $ret for commit $i from branch $gitbr
-
-		# Move the build products to their resting place.
-		runresdir="`grep -m 1 '^Results directory:' < $resdir/$ds/$idir/kvm.sh.out | sed -e 's/^Results directory://'`"
-		mv $runresdir $resdir/$ds/$idir
-		rrd="`echo $runresdir | sed -e 's,^.*/,,'`"
-		echo Run results: $resdir/$ds/$idir/$rrd
+		echo Run results: $resdir/$ds/$idir
 		if test "$ret" -ne 0
 		then
 			# Failure, so leave all evidence intact.

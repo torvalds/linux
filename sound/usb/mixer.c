@@ -1527,6 +1527,10 @@ error:
 		usb_audio_err(chip,
 			"cannot get connectors status: req = %#x, wValue = %#x, wIndex = %#x, type = %d\n",
 			UAC_GET_CUR, validx, idx, cval->val_type);
+
+		if (val)
+			*val = 0;
+
 		return filter_error(cval, ret);
 	}
 
@@ -1627,7 +1631,7 @@ static void check_no_speaker_on_headset(struct snd_kcontrol *kctl,
 	if (!found)
 		return;
 
-	strscpy(kctl->id.name, "Headphone", sizeof(kctl->id.name));
+	snd_ctl_rename(card, kctl, "Headphone");
 }
 
 static const struct usb_feature_control_info *get_feature_control_info(int control)
@@ -3674,17 +3678,14 @@ static int restore_mixer_value(struct usb_mixer_elem_list *list)
 				err = snd_usb_set_cur_mix_value(cval, c + 1, idx,
 							cval->cache_val[idx]);
 				if (err < 0)
-					return err;
+					break;
 			}
 			idx++;
 		}
 	} else {
 		/* master */
-		if (cval->cached) {
-			err = snd_usb_set_cur_mix_value(cval, 0, 0, *cval->cache_val);
-			if (err < 0)
-				return err;
-		}
+		if (cval->cached)
+			snd_usb_set_cur_mix_value(cval, 0, 0, *cval->cache_val);
 	}
 
 	return 0;

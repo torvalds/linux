@@ -184,13 +184,13 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	retval = v9fs_get_acl(inode, fid);
 	if (retval)
 		goto release_sb;
-	v9fs_fid_add(root, fid);
+	v9fs_fid_add(root, &fid);
 
 	p9_debug(P9_DEBUG_VFS, " simple set mount, return 0\n");
 	return dget(sb->s_root);
 
 clunk_fid:
-	p9_client_clunk(fid);
+	p9_fid_put(fid);
 	v9fs_session_close(v9ses);
 free_session:
 	kfree(v9ses);
@@ -203,7 +203,7 @@ release_sb:
 	 * attached the fid to dentry so it won't get clunked
 	 * automatically.
 	 */
-	p9_client_clunk(fid);
+	p9_fid_put(fid);
 	deactivate_locked_super(sb);
 	return ERR_PTR(retval);
 }
@@ -270,7 +270,7 @@ static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	}
 	res = simple_statfs(dentry, buf);
 done:
-	p9_client_clunk(fid);
+	p9_fid_put(fid);
 	return res;
 }
 

@@ -1184,9 +1184,9 @@ static int lpc_eth_open(struct net_device *ndev)
 static void lpc_eth_ethtool_getdrvinfo(struct net_device *ndev,
 	struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, MODNAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, dev_name(ndev->dev.parent),
+	strscpy(info->driver, MODNAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, dev_name(ndev->dev.parent),
 		sizeof(info->bus_info));
 }
 
@@ -1373,7 +1373,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	pldat->duplex = DUPLEX_FULL;
 	__lpc_params_setup(pldat);
 
-	netif_napi_add(ndev, &pldat->napi, lpc_eth_poll, NAPI_WEIGHT);
+	netif_napi_add_weight(ndev, &pldat->napi, lpc_eth_poll, NAPI_WEIGHT);
 
 	ret = register_netdev(ndev);
 	if (ret) {
@@ -1471,6 +1471,7 @@ static int lpc_eth_drv_resume(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct netdata_local *pldat;
+	int ret;
 
 	if (device_may_wakeup(&pdev->dev))
 		disable_irq_wake(ndev->irq);
@@ -1480,7 +1481,9 @@ static int lpc_eth_drv_resume(struct platform_device *pdev)
 			pldat = netdev_priv(ndev);
 
 			/* Enable interface clock */
-			clk_enable(pldat->clk);
+			ret = clk_enable(pldat->clk);
+			if (ret)
+				return ret;
 
 			/* Reset and initialize */
 			__lpc_eth_reset(pldat);

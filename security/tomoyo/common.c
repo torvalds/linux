@@ -8,6 +8,7 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/security.h>
+#include <linux/string_helpers.h>
 #include "common.h"
 
 /* String table for operation mode. */
@@ -173,16 +174,6 @@ static const char * const tomoyo_category_keywords
 static bool tomoyo_manage_by_non_root;
 
 /* Utility functions. */
-
-/**
- * tomoyo_yesno - Return "yes" or "no".
- *
- * @value: Bool value.
- */
-const char *tomoyo_yesno(const unsigned int value)
-{
-	return value ? "yes" : "no";
-}
 
 /**
  * tomoyo_addprintf - strncat()-like-snprintf().
@@ -730,8 +721,8 @@ static void tomoyo_print_config(struct tomoyo_io_buffer *head, const u8 config)
 {
 	tomoyo_io_printf(head, "={ mode=%s grant_log=%s reject_log=%s }\n",
 			 tomoyo_mode[config & 3],
-			 tomoyo_yesno(config & TOMOYO_CONFIG_WANT_GRANT_LOG),
-			 tomoyo_yesno(config & TOMOYO_CONFIG_WANT_REJECT_LOG));
+			 str_yes_no(config & TOMOYO_CONFIG_WANT_GRANT_LOG),
+			 str_yes_no(config & TOMOYO_CONFIG_WANT_REJECT_LOG));
 }
 
 /**
@@ -1354,8 +1345,8 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 	case 3:
 		if (cond->grant_log != TOMOYO_GRANTLOG_AUTO)
 			tomoyo_io_printf(head, " grant_log=%s",
-					 tomoyo_yesno(cond->grant_log ==
-						      TOMOYO_GRANTLOG_YES));
+					 str_yes_no(cond->grant_log ==
+						    TOMOYO_GRANTLOG_YES));
 		tomoyo_set_lf(head);
 		return true;
 	}
@@ -2066,7 +2057,7 @@ int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
 	bool quota_exceeded = false;
 
 	va_start(args, fmt);
-	len = vsnprintf((char *) &len, 1, fmt, args) + 1;
+	len = vsnprintf(NULL, 0, fmt, args) + 1;
 	va_end(args);
 	/* Write /sys/kernel/security/tomoyo/audit. */
 	va_start(args, fmt);

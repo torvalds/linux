@@ -7,8 +7,8 @@ RISC-V architecture
 
     boot-image-header
     vm-layout
-    pmu
     patch-acceptance
+    uabi
 
     features
 

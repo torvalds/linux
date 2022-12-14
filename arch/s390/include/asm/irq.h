@@ -81,8 +81,13 @@ static __always_inline void inc_irq_stat(enum interruption_class irq)
 }
 
 struct ext_code {
-	unsigned short subcode;
-	unsigned short code;
+	union {
+		struct {
+			unsigned short subcode;
+			unsigned short code;
+		};
+		unsigned int int_code;
+	};
 };
 
 typedef void (*ext_int_handler_t)(struct ext_code, unsigned int, unsigned long);

@@ -559,9 +559,6 @@ struct dma_async_tx_descriptor *fsl_edma_prep_slave_sg(
 	}
 
 	for_each_sg(sgl, sg, sg_len, i) {
-		/* get next sg's physical address */
-		last_sg = fsl_desc->tcd[(i + 1) % sg_len].ptcd;
-
 		if (direction == DMA_MEM_TO_DEV) {
 			src_addr = sg_dma_address(sg);
 			dst_addr = fsl_chan->dma_dev_addr;

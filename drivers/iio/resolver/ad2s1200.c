@@ -41,7 +41,7 @@ struct ad2s1200_state {
 	struct spi_device *sdev;
 	struct gpio_desc *sample;
 	struct gpio_desc *rdvel;
-	__be16 rx ____cacheline_aligned;
+	__be16 rx __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ad2s1200_read_raw(struct iio_dev *indio_dev,

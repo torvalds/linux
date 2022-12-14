@@ -331,7 +331,7 @@ static void hellcreek_get_rxts(struct hellcreek *hellcreek,
 		shwt = skb_hwtstamps(skb);
 		memset(shwt, 0, sizeof(*shwt));
 		shwt->hwtstamp = ns_to_ktime(ns);
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 }
 

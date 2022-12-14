@@ -8,6 +8,7 @@
 #include <asm/processor.h>
 #include <asm/sections.h>
 #include <asm/alternative.h>
+#include <asm/cacheflush.h>
 
 #include <linux/module.h>
 
@@ -25,7 +26,7 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 	struct alt_instr *entry;
 	int index = 0, applied = 0;
 	int num_cpus = num_online_cpus();
-	u32 cond_check;
+	u16 cond_check;
 
 	cond_check = ALT_COND_ALWAYS |
 		((num_cpus == 1) ? ALT_COND_NO_SMP : 0) |
@@ -44,8 +45,9 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 
 	for (entry = start; entry < end; entry++, index++) {
 
-		u32 *from, cond, replacement;
-		s32 len;
+		u32 *from, replacement;
+		u16 cond;
+		s16 len;
 
 		from = (u32 *)((ulong)&entry->orig_offset + entry->orig_offset);
 		len = entry->len;
@@ -106,6 +108,15 @@ void __init apply_alternatives_all(void)
 
 	apply_alternatives((struct alt_instr *) &__alt_instructions,
 		(struct alt_instr *) &__alt_instructions_end, NULL);
+
+	if (cache_info.dc_size == 0 && cache_info.ic_size == 0) {
+		pr_info("alternatives: optimizing cache-flushes.\n");
+		static_branch_disable(&parisc_has_cache);
+	}
+	if (cache_info.dc_size == 0)
+		static_branch_disable(&parisc_has_dcache);
+	if (cache_info.ic_size == 0)
+		static_branch_disable(&parisc_has_icache);
 
 	set_kernel_text_rw(0);
 }

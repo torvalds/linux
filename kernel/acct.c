@@ -70,10 +70,30 @@
  * Turned into sysctl-controllable parameters. AV, 12/11/98
  */
 
-int acct_parm[3] = {4, 2, 30};
+static int acct_parm[3] = {4, 2, 30};
 #define RESUME		(acct_parm[0])	/* >foo% free space - resume */
 #define SUSPEND		(acct_parm[1])	/* <foo% free space - suspend */
 #define ACCT_TIMEOUT	(acct_parm[2])	/* foo second timeout between checks */
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table kern_acct_table[] = {
+	{
+		.procname       = "acct",
+		.data           = &acct_parm,
+		.maxlen         = 3*sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
+	},
+	{ }
+};
+
+static __init int kernel_acct_sysctls_init(void)
+{
+	register_sysctl_init("kernel", kern_acct_table);
+	return 0;
+}
+late_initcall(kernel_acct_sysctls_init);
+#endif /* CONFIG_SYSCTL */
 
 /*
  * External references and all of the globals.
@@ -535,15 +555,14 @@ void acct_collect(long exitcode, int group_dead)
 	unsigned long vsize = 0;
 
 	if (group_dead && current->mm) {
+		struct mm_struct *mm = current->mm;
+		VMA_ITERATOR(vmi, mm, 0);
 		struct vm_area_struct *vma;
 
-		mmap_read_lock(current->mm);
-		vma = current->mm->mmap;
-		while (vma) {
+		mmap_read_lock(mm);
+		for_each_vma(vmi, vma)
 			vsize += vma->vm_end - vma->vm_start;
-			vma = vma->vm_next;
-		}
-		mmap_read_unlock(current->mm);
+		mmap_read_unlock(mm);
 	}
 
 	spin_lock_irq(&current->sighand->siglock);

@@ -15,11 +15,13 @@
 #define PIF_EXECVE_PGSTE_RESTART	1	/* restart execve for PGSTE binaries */
 #define PIF_SYSCALL_RET_SET		2	/* return value was set via ptrace */
 #define PIF_GUEST_FAULT			3	/* indicates program check in sie64a */
+#define PIF_FTRACE_FULL_REGS		4	/* all register contents valid (ftrace) */
 
 #define _PIF_SYSCALL			BIT(PIF_SYSCALL)
 #define _PIF_EXECVE_PGSTE_RESTART	BIT(PIF_EXECVE_PGSTE_RESTART)
 #define _PIF_SYSCALL_RET_SET		BIT(PIF_SYSCALL_RET_SET)
 #define _PIF_GUEST_FAULT		BIT(PIF_GUEST_FAULT)
+#define _PIF_FTRACE_FULL_REGS		BIT(PIF_FTRACE_FULL_REGS)
 
 #ifndef __ASSEMBLY__
 
@@ -68,6 +70,35 @@ enum {
 	typecheck(psw_t, __psw);		\
 	&(*(struct psw_bits *)(&(__psw)));	\
 }))
+
+#define PSW32_MASK_PER		0x40000000UL
+#define PSW32_MASK_DAT		0x04000000UL
+#define PSW32_MASK_IO		0x02000000UL
+#define PSW32_MASK_EXT		0x01000000UL
+#define PSW32_MASK_KEY		0x00F00000UL
+#define PSW32_MASK_BASE		0x00080000UL	/* Always one */
+#define PSW32_MASK_MCHECK	0x00040000UL
+#define PSW32_MASK_WAIT		0x00020000UL
+#define PSW32_MASK_PSTATE	0x00010000UL
+#define PSW32_MASK_ASC		0x0000C000UL
+#define PSW32_MASK_CC		0x00003000UL
+#define PSW32_MASK_PM		0x00000f00UL
+#define PSW32_MASK_RI		0x00000080UL
+
+#define PSW32_ADDR_AMODE	0x80000000UL
+#define PSW32_ADDR_INSN		0x7FFFFFFFUL
+
+#define PSW32_DEFAULT_KEY	(((u32)PAGE_DEFAULT_ACC) << 20)
+
+#define PSW32_ASC_PRIMARY	0x00000000UL
+#define PSW32_ASC_ACCREG	0x00004000UL
+#define PSW32_ASC_SECONDARY	0x00008000UL
+#define PSW32_ASC_HOME		0x0000C000UL
+
+typedef struct {
+	unsigned int mask;
+	unsigned int addr;
+} psw_t32 __aligned(8);
 
 #define PGM_INT_CODE_MASK	0x7f
 #define PGM_INT_CODE_PER	0x80

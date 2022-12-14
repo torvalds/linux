@@ -208,6 +208,7 @@ static int ci_read_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr,
 
 static int ci_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	int ret;
 
 	cgs_write_register(hwmgr->device, mmSMC_RESP_0, 0);
@@ -218,7 +219,8 @@ static int ci_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 	ret = PHM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
 
 	if (ret != 1)
-		pr_info("\n failed to send message %x ret is %d\n",  msg, ret);
+		dev_info(adev->dev,
+			"failed to send message %x ret is %d\n", msg,ret);
 
 	return 0;
 }

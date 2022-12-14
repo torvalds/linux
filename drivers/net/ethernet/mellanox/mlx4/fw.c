@@ -463,7 +463,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 
 		field = min(
 			bitmap_weight(actv_ports.ports, dev->caps.num_ports),
-			dev->caps.num_ports);
+			(unsigned int) dev->caps.num_ports);
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
 
 		size = dev->caps.function_caps; /* set PF behaviours */
@@ -1779,7 +1779,7 @@ static void get_board_id(void *vsd, char *board_id)
 
 	if (be16_to_cpup(vsd + VSD_OFFSET_SIG1) == VSD_SIGNATURE_TOPSPIN &&
 	    be16_to_cpup(vsd + VSD_OFFSET_SIG2) == VSD_SIGNATURE_TOPSPIN) {
-		strlcpy(board_id, vsd + VSD_OFFSET_TS_BOARD_ID, MLX4_BOARD_ID_LEN);
+		strscpy(board_id, vsd + VSD_OFFSET_TS_BOARD_ID, MLX4_BOARD_ID_LEN);
 	} else {
 		/*
 		 * The board ID is a string but the firmware byte

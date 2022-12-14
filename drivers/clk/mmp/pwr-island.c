@@ -76,7 +76,7 @@ static int mmp_pm_domain_power_off(struct generic_pm_domain *genpd)
 	if (pm_domain->lock)
 		spin_lock_irqsave(pm_domain->lock, flags);
 
-	/* Turn off and isolate the the power island. */
+	/* Turn off and isolate the power island. */
 	val = readl(pm_domain->reg);
 	val &= ~pm_domain->power_on;
 	val &= ~0x100;

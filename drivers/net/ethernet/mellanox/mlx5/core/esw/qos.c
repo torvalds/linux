@@ -697,7 +697,7 @@ void mlx5_esw_qos_vport_disable(struct mlx5_eswitch *esw, struct mlx5_vport *vpo
 }
 
 int mlx5_esw_qos_set_vport_rate(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
-				u32 min_rate, u32 max_rate)
+				u32 max_rate, u32 min_rate)
 {
 	int err;
 
@@ -924,12 +924,16 @@ int mlx5_esw_qos_vport_update_group(struct mlx5_eswitch *esw,
 				    struct mlx5_esw_rate_group *group,
 				    struct netlink_ext_ack *extack)
 {
-	int err;
+	int err = 0;
 
 	mutex_lock(&esw->state_lock);
+	if (!vport->qos.enabled && !group)
+		goto unlock;
+
 	err = esw_qos_vport_enable(esw, vport, 0, 0, extack);
 	if (!err)
 		err = esw_qos_vport_update_group(esw, vport, group, extack);
+unlock:
 	mutex_unlock(&esw->state_lock);
 	return err;
 }

@@ -39,7 +39,7 @@ report::
 	- a raw PMU event in the form of rN where N is a hexadecimal value
 	  that represents the raw register encoding with the layout of the
 	  event control registers as described by entries in
-	  /sys/bus/event_sources/devices/cpu/format/*.
+	  /sys/bus/event_source/devices/cpu/format/*.
 
         - a symbolic or raw PMU event followed by an optional colon
 	  and a list of event modifiers, e.g., cpu-cycles:p.  See the
@@ -454,6 +454,16 @@ Multiple events are created from a single event specification when:
 2. Aliases, which are listed immediately after the Kernel PMU events
    by perf list, are used.
 
+--hybrid-merge::
+Merge the hybrid event counts from all PMUs.
+
+For hybrid events, by default, the stat aggregates and reports the event
+counts per PMU. But sometimes, it's also useful to aggregate event counts
+from all PMUs. This option enables that behavior and reports the counts
+without PMUs.
+
+For non-hybrid events, it should be no effect.
+
 --smi-cost::
 Measure SMI cost if msr/aperf/ and msr/smi/ events are supported.
 
@@ -559,6 +569,27 @@ The fields are in this order:
 Additional metrics may be printed with all earlier fields being empty.
 
 include::intel-hybrid.txt[]
+
+JSON FORMAT
+-----------
+
+With -j, perf stat is able to print out a JSON format output
+that can be used for parsing.
+
+- timestamp : optional usec time stamp in fractions of second (with -I)
+- optional aggregate options:
+		- core : core identifier (with --per-core)
+		- die : die identifier (with --per-die)
+		- socket : socket identifier (with --per-socket)
+		- node : node identifier (with --per-node)
+		- thread : thread identifier (with --per-thread)
+- counter-value : counter value
+- unit : unit of the counter value or empty
+- event : event name
+- variance : optional variance if multiple values are collected (with -r)
+- runtime : run time of counter
+- metric-value : optional metric value
+- metric-unit : optional unit of metric
 
 SEE ALSO
 --------

@@ -163,6 +163,7 @@ struct ffa_drv_info {
 	struct mutex tx_lock; /* lock to protect Tx buffer */
 	void *rx_buffer;
 	void *tx_buffer;
+	bool mem_ops_native;
 };
 
 static struct ffa_drv_info *drv_info;
@@ -263,18 +264,24 @@ static int ffa_rxtx_unmap(u16 vm_id)
 	return 0;
 }
 
+#define PARTITION_INFO_GET_RETURN_COUNT_ONLY	BIT(0)
+
 /* buffer must be sizeof(struct ffa_partition_info) * num_partitions */
 static int
 __ffa_partition_info_get(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 			 struct ffa_partition_info *buffer, int num_partitions)
 {
-	int count;
+	int idx, count, flags = 0, sz, buf_sz;
 	ffa_value_t partition_info;
+
+	if (!buffer || !num_partitions) /* Just get the count for now */
+		flags = PARTITION_INFO_GET_RETURN_COUNT_ONLY;
 
 	mutex_lock(&drv_info->rx_lock);
 	invoke_ffa_fn((ffa_value_t){
 		      .a0 = FFA_PARTITION_INFO_GET,
 		      .a1 = uuid0, .a2 = uuid1, .a3 = uuid2, .a4 = uuid3,
+		      .a5 = flags,
 		      }, &partition_info);
 
 	if (partition_info.a0 == FFA_ERROR) {
@@ -284,8 +291,19 @@ __ffa_partition_info_get(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 
 	count = partition_info.a2;
 
+	if (drv_info->version > FFA_VERSION_1_0) {
+		buf_sz = sz = partition_info.a3;
+		if (sz > sizeof(*buffer))
+			buf_sz = sizeof(*buffer);
+	} else {
+		/* FFA_VERSION_1_0 lacks size in the response */
+		buf_sz = sz = 8;
+	}
+
 	if (buffer && count <= num_partitions)
-		memcpy(buffer, drv_info->rx_buffer, sizeof(*buffer) * count);
+		for (idx = 0; idx < count; idx++)
+			memcpy(buffer + idx, drv_info->rx_buffer + idx * sz,
+			       buf_sz);
 
 	ffa_rx_release();
 
@@ -398,11 +416,15 @@ static int ffa_mem_first_frag(u32 func_id, phys_addr_t buf, u32 buf_sz,
 	if (ret.a0 == FFA_ERROR)
 		return ffa_to_linux_errno((int)ret.a2);
 
-	if (ret.a0 != FFA_SUCCESS)
+	if (ret.a0 == FFA_SUCCESS) {
+		if (handle)
+			*handle = PACK_HANDLE(ret.a2, ret.a3);
+	} else if (ret.a0 == FFA_MEM_FRAG_RX) {
+		if (handle)
+			*handle = PACK_HANDLE(ret.a1, ret.a2);
+	} else {
 		return -EOPNOTSUPP;
-
-	if (handle)
-		*handle = PACK_HANDLE(ret.a2, ret.a3);
+	}
 
 	return frag_len;
 }
@@ -426,10 +448,12 @@ static int ffa_mem_next_frag(u64 handle, u32 frag_len)
 	if (ret.a0 == FFA_ERROR)
 		return ffa_to_linux_errno((int)ret.a2);
 
-	if (ret.a0 != FFA_MEM_FRAG_RX)
-		return -EOPNOTSUPP;
+	if (ret.a0 == FFA_MEM_FRAG_RX)
+		return ret.a3;
+	else if (ret.a0 == FFA_SUCCESS)
+		return 0;
 
-	return ret.a3;
+	return -EOPNOTSUPP;
 }
 
 static int
@@ -565,6 +589,39 @@ static int ffa_memory_reclaim(u64 g_handle, u32 flags)
 	return 0;
 }
 
+static int ffa_features(u32 func_feat_id, u32 input_props,
+			u32 *if_props_1, u32 *if_props_2)
+{
+	ffa_value_t id;
+
+	if (!ARM_SMCCC_IS_FAST_CALL(func_feat_id) && input_props) {
+		pr_err("%s: Invalid Parameters: %x, %x", __func__,
+		       func_feat_id, input_props);
+		return ffa_to_linux_errno(FFA_RET_INVALID_PARAMETERS);
+	}
+
+	invoke_ffa_fn((ffa_value_t){
+		.a0 = FFA_FEATURES, .a1 = func_feat_id, .a2 = input_props,
+		}, &id);
+
+	if (id.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)id.a2);
+
+	if (if_props_1)
+		*if_props_1 = id.a2;
+	if (if_props_2)
+		*if_props_2 = id.a3;
+
+	return 0;
+}
+
+static void ffa_set_up_mem_ops_native_flag(void)
+{
+	if (!ffa_features(FFA_FN_NATIVE(MEM_LEND), 0, NULL, NULL) ||
+	    !ffa_features(FFA_FN_NATIVE(MEM_SHARE), 0, NULL, NULL))
+		drv_info->mem_ops_native = true;
+}
+
 static u32 ffa_api_version_get(void)
 {
 	return drv_info->version;
@@ -582,7 +639,7 @@ static int ffa_partition_info_get(const char *uuid_str,
 		return -ENODEV;
 	}
 
-	count = ffa_partition_probe(&uuid_null, &pbuf);
+	count = ffa_partition_probe(&uuid, &pbuf);
 	if (count <= 0)
 		return -ENOENT;
 
@@ -591,9 +648,17 @@ static int ffa_partition_info_get(const char *uuid_str,
 	return 0;
 }
 
-static void ffa_mode_32bit_set(struct ffa_device *dev)
+static void _ffa_mode_32bit_set(struct ffa_device *dev)
 {
 	dev->mode_32bit = true;
+}
+
+static void ffa_mode_32bit_set(struct ffa_device *dev)
+{
+	if (drv_info->version > FFA_VERSION_1_0)
+		return;
+
+	_ffa_mode_32bit_set(dev);
 }
 
 static int ffa_sync_send_receive(struct ffa_device *dev,
@@ -603,17 +668,15 @@ static int ffa_sync_send_receive(struct ffa_device *dev,
 				       dev->mode_32bit, data);
 }
 
-static int
-ffa_memory_share(struct ffa_device *dev, struct ffa_mem_ops_args *args)
+static int ffa_memory_share(struct ffa_mem_ops_args *args)
 {
-	if (dev->mode_32bit)
-		return ffa_memory_ops(FFA_MEM_SHARE, args);
+	if (drv_info->mem_ops_native)
+		return ffa_memory_ops(FFA_FN_NATIVE(MEM_SHARE), args);
 
-	return ffa_memory_ops(FFA_FN_NATIVE(MEM_SHARE), args);
+	return ffa_memory_ops(FFA_MEM_SHARE, args);
 }
 
-static int
-ffa_memory_lend(struct ffa_device *dev, struct ffa_mem_ops_args *args)
+static int ffa_memory_lend(struct ffa_mem_ops_args *args)
 {
 	/* Note that upon a successful MEM_LEND request the caller
 	 * must ensure that the memory region specified is not accessed
@@ -622,35 +685,46 @@ ffa_memory_lend(struct ffa_device *dev, struct ffa_mem_ops_args *args)
 	 * however on systems without a hypervisor the responsibility
 	 * falls to the calling kernel driver to prevent access.
 	 */
-	if (dev->mode_32bit)
-		return ffa_memory_ops(FFA_MEM_LEND, args);
+	if (drv_info->mem_ops_native)
+		return ffa_memory_ops(FFA_FN_NATIVE(MEM_LEND), args);
 
-	return ffa_memory_ops(FFA_FN_NATIVE(MEM_LEND), args);
+	return ffa_memory_ops(FFA_MEM_LEND, args);
 }
 
-static const struct ffa_dev_ops ffa_ops = {
+static const struct ffa_info_ops ffa_drv_info_ops = {
 	.api_version_get = ffa_api_version_get,
 	.partition_info_get = ffa_partition_info_get,
+};
+
+static const struct ffa_msg_ops ffa_drv_msg_ops = {
 	.mode_32bit_set = ffa_mode_32bit_set,
 	.sync_send_receive = ffa_sync_send_receive,
+};
+
+static const struct ffa_mem_ops ffa_drv_mem_ops = {
 	.memory_reclaim = ffa_memory_reclaim,
 	.memory_share = ffa_memory_share,
 	.memory_lend = ffa_memory_lend,
 };
 
-const struct ffa_dev_ops *ffa_dev_ops_get(struct ffa_device *dev)
-{
-	if (ffa_device_is_valid(dev))
-		return &ffa_ops;
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(ffa_dev_ops_get);
+static const struct ffa_ops ffa_drv_ops = {
+	.info_ops = &ffa_drv_info_ops,
+	.msg_ops = &ffa_drv_msg_ops,
+	.mem_ops = &ffa_drv_mem_ops,
+};
 
 void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 {
 	int count, idx;
 	struct ffa_partition_info *pbuf, *tpbuf;
+
+	/*
+	 * FF-A v1.1 provides UUID for each partition as part of the discovery
+	 * API, the discovered UUID must be populated in the device's UUID and
+	 * there is no need to copy the same from the driver table.
+	 */
+	if (drv_info->version > FFA_VERSION_1_0)
+		return;
 
 	count = ffa_partition_probe(uuid, &pbuf);
 	if (count <= 0)
@@ -665,6 +739,7 @@ void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 static void ffa_setup_partitions(void)
 {
 	int count, idx;
+	uuid_t uuid;
 	struct ffa_device *ffa_dev;
 	struct ffa_partition_info *pbuf, *tpbuf;
 
@@ -675,21 +750,24 @@ static void ffa_setup_partitions(void)
 	}
 
 	for (idx = 0, tpbuf = pbuf; idx < count; idx++, tpbuf++) {
-		/* Note that the &uuid_null parameter will require
+		import_uuid(&uuid, (u8 *)tpbuf->uuid);
+
+		/* Note that if the UUID will be uuid_null, that will require
 		 * ffa_device_match() to find the UUID of this partition id
-		 * with help of ffa_device_match_uuid(). Once the FF-A spec
-		 * is updated to provide correct UUID here for each partition
-		 * as part of the discovery API, we need to pass the
-		 * discovered UUID here instead.
+		 * with help of ffa_device_match_uuid(). FF-A v1.1 and above
+		 * provides UUID here for each partition as part of the
+		 * discovery API and the same is passed.
 		 */
-		ffa_dev = ffa_device_register(&uuid_null, tpbuf->id);
+		ffa_dev = ffa_device_register(&uuid, tpbuf->id, &ffa_drv_ops);
 		if (!ffa_dev) {
 			pr_err("%s: failed to register partition ID 0x%x\n",
 			       __func__, tpbuf->id);
 			continue;
 		}
 
-		ffa_dev_set_drvdata(ffa_dev, drv_info);
+		if (drv_info->version > FFA_VERSION_1_0 &&
+		    !(tpbuf->properties & FFA_PARTITION_AARCH64_EXEC))
+			_ffa_mode_32bit_set(ffa_dev);
 	}
 	kfree(pbuf);
 }
@@ -746,6 +824,8 @@ static int __init ffa_init(void)
 	mutex_init(&drv_info->tx_lock);
 
 	ffa_setup_partitions();
+
+	ffa_set_up_mem_ops_native_flag();
 
 	return 0;
 free_pages:

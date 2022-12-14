@@ -58,7 +58,7 @@ static void __iomem *u8500_prcc_reset_base(struct u8500_prcc_reset *ur,
 	prcc_num = id / PRCC_PERIPHS_PER_CLUSTER;
 	index = prcc_num_to_index(prcc_num);
 
-	if (index > ARRAY_SIZE(ur->base))
+	if (index >= ARRAY_SIZE(ur->base))
 		return NULL;
 
 	return ur->base[index];

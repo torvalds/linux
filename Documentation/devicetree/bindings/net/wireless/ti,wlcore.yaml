@@ -36,8 +36,6 @@ properties:
       This is required when connected via SPI, and optional when connected via
       SDIO.
 
-  spi-max-frequency: true
-
   interrupts:
     minItems: 1
     maxItems: 2
@@ -54,9 +52,11 @@ properties:
 
 
   ref-clock-frequency:
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: Reference clock frequency.
 
   tcxo-clock-frequency:
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: TCXO clock frequency.
 
   clock-xtal:
@@ -67,20 +67,22 @@ required:
   - compatible
   - interrupts
 
-if:
-  properties:
-    compatible:
-      contains:
-        enum:
-          - ti,wl1271
-          - ti,wl1273
-          - ti,wl1281
-          - ti,wl1283
-then:
-  required:
-    - ref-clock-frequency
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,wl1271
+              - ti,wl1273
+              - ti,wl1281
+              - ti,wl1283
+    then:
+      required:
+        - ref-clock-frequency
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

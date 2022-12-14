@@ -672,11 +672,6 @@ struct task_abort_req {
 	u32	reserved[27];
 } __attribute__((packed, aligned(4)));
 
-/* These flags used for SSP SMP & SATA Abort */
-#define ABORT_MASK		0x3
-#define ABORT_SINGLE		0x0
-#define ABORT_ALL		0x1
-
 /**
  * brief the data structure of SSP SATA SMP Abort Response
  * use to describe SSP SMP & SATA Abort Response ( 64 bytes)
@@ -972,7 +967,7 @@ struct dek_mgmt_req {
 struct set_phy_profile_req {
 	__le32	tag;
 	__le32	ppc_phyid;
-	u32	reserved[29];
+	__le32	reserved[29];
 } __attribute__((packed, aligned(4)));
 
 /**
@@ -1366,8 +1361,8 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define MSGU_HOST_SCRATCH_PAD_3			0x60
 #define MSGU_HOST_SCRATCH_PAD_4			0x64
 #define MSGU_HOST_SCRATCH_PAD_5			0x68
-#define MSGU_HOST_SCRATCH_PAD_6			0x6C
-#define MSGU_HOST_SCRATCH_PAD_7			0x70
+#define MSGU_SCRATCH_PAD_RSVD_0			0x6C
+#define MSGU_SCRATCH_PAD_RSVD_1			0x70
 
 #define MSGU_SCRATCHPAD1_RAAE_STATE_ERR(x) ((x & 0x3) == 0x2)
 #define MSGU_SCRATCHPAD1_ILA_STATE_ERR(x) (((x >> 2) & 0x3) == 0x2)
@@ -1438,6 +1433,11 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 
 #define SCRATCH_PAD_ERROR_MASK		0xFFFFFC00 /* Error mask bits */
 #define SCRATCH_PAD_STATE_MASK		0x00000003 /* State Mask bits */
+
+/*state definition for Scratchpad Rsvd 0, Offset 0x6C, Non-fatal*/
+#define NON_FATAL_SPBC_LBUS_ECC_ERR	0x70000001
+#define NON_FATAL_BDMA_ERR		0xE0000001
+#define NON_FATAL_THERM_OVERTEMP_ERR	0x80000001
 
 /* main configuration offset - byte offset */
 #define MAIN_SIGNATURE_OFFSET		0x00 /* DWORD 0x00 */

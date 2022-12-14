@@ -19,7 +19,7 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/personality.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/sched/task_stack.h>
 
 #include <asm/ucontext.h>
@@ -162,8 +162,7 @@ setup_sigcontext(struct rt_sigframe __user *frame, struct pt_regs *regs)
 		return err;
 
 #if XTENSA_HAVE_COPROCESSORS
-	coprocessor_flush_all(ti);
-	coprocessor_release_all(ti);
+	coprocessor_flush_release_all(ti);
 	err |= __copy_to_user(&frame->xtregs.cp, &ti->xtregs_cp,
 			      sizeof (frame->xtregs.cp));
 #endif
@@ -473,7 +472,7 @@ static void do_signal(struct pt_regs *regs)
 		/* Set up the stack frame */
 		ret = setup_frame(&ksig, sigmask_to_save(), regs);
 		signal_setup_done(ret, &ksig, 0);
-		if (current->ptrace & PT_SINGLESTEP)
+		if (test_thread_flag(TIF_SINGLESTEP))
 			task_pt_regs(current)->icountlevel = 1;
 
 		return;
@@ -499,7 +498,7 @@ static void do_signal(struct pt_regs *regs)
 	/* If there's no signal to deliver, we just restore the saved mask.  */
 	restore_saved_sigmask();
 
-	if (current->ptrace & PT_SINGLESTEP)
+	if (test_thread_flag(TIF_SINGLESTEP))
 		task_pt_regs(current)->icountlevel = 1;
 	return;
 }
@@ -511,5 +510,5 @@ void do_notify_resume(struct pt_regs *regs)
 		do_signal(regs);
 
 	if (test_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 }

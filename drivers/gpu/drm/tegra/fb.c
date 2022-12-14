@@ -3,13 +3,14 @@
  * Copyright (C) 2012-2013 Avionic Design GmbH
  * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
  *
- * Based on the KMS/FB CMA helpers
+ * Based on the KMS/FB DMA helpers
  *   Copyright (C) 2012 Analog Devices Inc.
  */
 
 #include <linux/console.h>
 
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
 

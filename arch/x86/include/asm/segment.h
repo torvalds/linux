@@ -4,6 +4,7 @@
 
 #include <linux/const.h>
 #include <asm/alternative.h>
+#include <asm/ibt.h>
 
 /*
  * Constructor for a conventional segment GDT (or LDT) entry.
@@ -275,7 +276,7 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
  * vector has no error code (two bytes), a 'push $vector_number' (two
  * bytes), and a jump to the common entry code (up to five bytes).
  */
-#define EARLY_IDT_HANDLER_SIZE 9
+#define EARLY_IDT_HANDLER_SIZE (9 + ENDBR_INSN_SIZE)
 
 /*
  * xen_early_idt_handler_array is for Xen pv guests: for each entry in
@@ -283,7 +284,7 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
  * pop %rcx; pop %r11; jmp early_idt_handler_array[i]; summing up to
  * max 8 bytes.
  */
-#define XEN_EARLY_IDT_HANDLER_SIZE 8
+#define XEN_EARLY_IDT_HANDLER_SIZE (8 + ENDBR_INSN_SIZE)
 
 #ifndef __ASSEMBLY__
 
@@ -348,18 +349,6 @@ static inline void __loadsegment_fs(unsigned short value)
  */
 #define savesegment(seg, value)				\
 	asm("mov %%" #seg ",%0":"=r" (value) : : "memory")
-
-/*
- * x86-32 user GS accessors.  This is ugly and could do with some cleaning up.
- */
-#ifdef CONFIG_X86_32
-# define get_user_gs(regs)		(u16)({ unsigned long v; savesegment(gs, v); v; })
-# define set_user_gs(regs, v)		loadsegment(gs, (unsigned long)(v))
-# define task_user_gs(tsk)		((tsk)->thread.gs)
-# define lazy_save_gs(v)		savesegment(gs, (v))
-# define lazy_load_gs(v)		loadsegment(gs, (v))
-# define load_gs_index(v)		loadsegment(gs, (v))
-#endif	/* X86_32 */
 
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */

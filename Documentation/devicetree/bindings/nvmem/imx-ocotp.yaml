@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/imx-ocotp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale i.MX6 On-Chip OTP Controller (OCOTP) device tree bindings
+title: Freescale i.MX6 On-Chip OTP Controller (OCOTP)
 
 maintainers:
   - Anson Huang <Anson.Huang@nxp.com>

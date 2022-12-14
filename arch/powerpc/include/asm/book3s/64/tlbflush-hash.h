@@ -32,6 +32,11 @@ static inline void arch_enter_lazy_mmu_mode(void)
 
 	if (radix_enabled())
 		return;
+	/*
+	 * apply_to_page_range can call us this preempt enabled when
+	 * operating on kernel page tables.
+	 */
+	preempt_disable();
 	batch = this_cpu_ptr(&ppc64_tlb_batch);
 	batch->active = 1;
 }
@@ -47,6 +52,7 @@ static inline void arch_leave_lazy_mmu_mode(void)
 	if (batch->index)
 		__flush_tlb_pending(batch);
 	batch->active = 0;
+	preempt_enable();
 }
 
 #define arch_flush_lazy_mmu_mode()      do {} while (0)
@@ -112,13 +118,11 @@ static inline void hash__flush_tlb_kernel_range(unsigned long start,
 
 struct mmu_gather;
 extern void hash__tlb_flush(struct mmu_gather *tlb);
-void flush_tlb_pmd_range(struct mm_struct *mm, pmd_t *pmd, unsigned long addr);
 
 #ifdef CONFIG_PPC_64S_HASH_MMU
 /* Private function for use by PCI IO mapping code */
 extern void __flush_hash_table_range(unsigned long start, unsigned long end);
-extern void flush_tlb_pmd_range(struct mm_struct *mm, pmd_t *pmd,
-				unsigned long addr);
+void flush_hash_table_pmd_range(struct mm_struct *mm, pmd_t *pmd, unsigned long addr);
 #else
 static inline void __flush_hash_table_range(unsigned long start, unsigned long end) { }
 #endif

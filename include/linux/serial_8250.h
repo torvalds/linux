@@ -32,7 +32,7 @@ struct plat_serial8250_port {
 	void		(*serial_out)(struct uart_port *, int, int);
 	void		(*set_termios)(struct uart_port *,
 			               struct ktermios *new,
-			               struct ktermios *old);
+			               const struct ktermios *old);
 	void		(*set_ldisc)(struct uart_port *,
 				     struct ktermios *);
 	unsigned int	(*get_mctrl)(struct uart_port *);
@@ -74,6 +74,7 @@ struct uart_8250_port;
 struct uart_8250_ops {
 	int		(*setup_irq)(struct uart_8250_port *);
 	void		(*release_irq)(struct uart_8250_port *);
+	void		(*setup_timer)(struct uart_8250_port *);
 };
 
 struct uart_8250_em485 {
@@ -119,7 +120,8 @@ struct uart_8250_port {
 	 * be immediately processed.
 	 */
 #define LSR_SAVE_FLAGS UART_LSR_BRK_ERROR_BITS
-	unsigned char		lsr_saved_flags;
+	u16			lsr_saved_flags;
+	u16			lsr_save_mask;
 #define MSR_SAVE_FLAGS UART_MSR_ANY_DELTA
 	unsigned char		msr_saved_flags;
 
@@ -156,7 +158,7 @@ extern int early_serial8250_setup(struct earlycon_device *device,
 extern void serial8250_update_uartclk(struct uart_port *port,
 				      unsigned int uartclk);
 extern void serial8250_do_set_termios(struct uart_port *port,
-		struct ktermios *termios, struct ktermios *old);
+		struct ktermios *termios, const struct ktermios *old);
 extern void serial8250_do_set_ldisc(struct uart_port *port,
 				    struct ktermios *termios);
 extern unsigned int serial8250_do_get_mctrl(struct uart_port *port);
@@ -170,8 +172,8 @@ extern void serial8250_do_set_divisor(struct uart_port *port, unsigned int baud,
 				      unsigned int quot_frac);
 extern int fsl8250_handle_irq(struct uart_port *port);
 int serial8250_handle_irq(struct uart_port *port, unsigned int iir);
-unsigned char serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr);
-void serial8250_read_char(struct uart_8250_port *up, unsigned char lsr);
+u16 serial8250_rx_chars(struct uart_8250_port *up, u16 lsr);
+void serial8250_read_char(struct uart_8250_port *up, u16 lsr);
 void serial8250_tx_chars(struct uart_8250_port *up);
 unsigned int serial8250_modem_status(struct uart_8250_port *up);
 void serial8250_init_port(struct uart_8250_port *up);

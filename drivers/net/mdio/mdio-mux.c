@@ -168,8 +168,8 @@ int mdio_mux_init(struct device *dev,
 		cb->mii_bus->priv = cb;
 
 		cb->mii_bus->name = "mdio_mux";
-		snprintf(cb->mii_bus->id, MII_BUS_ID_SIZE, "%x.%x",
-			 pb->parent_id, v);
+		snprintf(cb->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x.%x",
+			 cb->mii_bus->name, pb->parent_id, v);
 		cb->mii_bus->parent = dev;
 		cb->mii_bus->read = mdio_mux_read;
 		cb->mii_bus->write = mdio_mux_write;

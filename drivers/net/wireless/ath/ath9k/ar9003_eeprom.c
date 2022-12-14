@@ -3911,7 +3911,7 @@ static void ar9003_hw_atten_apply(struct ath_hw *ah, struct ath9k_channel *chan)
 	}
 
 	/* Test value. if 0 then attenuation is unused. Don't load anything. */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
 		if (ah->txchainmask & BIT(i)) {
 			value = ar9003_hw_atten_chain_get(ah, i, chan);
 			REG_RMW_FIELD(ah, ext_atten_reg[i],
@@ -4747,7 +4747,7 @@ static void ar9003_hw_get_target_power_eeprom(struct ath_hw *ah,
 }
 
 static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
-				  int mode,
+				  bool is2ghz,
 				  int ipier,
 				  int ichain,
 				  int *pfrequency,
@@ -4757,7 +4757,6 @@ static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
 {
 	u8 *pCalPier;
 	struct ar9300_cal_data_per_freq_op_loop *pCalPierStruct;
-	int is2GHz;
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
 	struct ath_common *common = ath9k_hw_common(ah);
 
@@ -4768,17 +4767,7 @@ static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
 		return -1;
 	}
 
-	if (mode) {		/* 5GHz */
-		if (ipier >= AR9300_NUM_5G_CAL_PIERS) {
-			ath_dbg(common, EEPROM,
-				"Invalid 5GHz cal pier index, must be less than %d\n",
-				AR9300_NUM_5G_CAL_PIERS);
-			return -1;
-		}
-		pCalPier = &(eep->calFreqPier5G[ipier]);
-		pCalPierStruct = &(eep->calPierData5G[ichain][ipier]);
-		is2GHz = 0;
-	} else {
+	if (is2ghz) {
 		if (ipier >= AR9300_NUM_2G_CAL_PIERS) {
 			ath_dbg(common, EEPROM,
 				"Invalid 2GHz cal pier index, must be less than %d\n",
@@ -4788,10 +4777,18 @@ static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
 
 		pCalPier = &(eep->calFreqPier2G[ipier]);
 		pCalPierStruct = &(eep->calPierData2G[ichain][ipier]);
-		is2GHz = 1;
+	} else {
+		if (ipier >= AR9300_NUM_5G_CAL_PIERS) {
+			ath_dbg(common, EEPROM,
+				"Invalid 5GHz cal pier index, must be less than %d\n",
+				AR9300_NUM_5G_CAL_PIERS);
+			return -1;
+		}
+		pCalPier = &(eep->calFreqPier5G[ipier]);
+		pCalPierStruct = &(eep->calPierData5G[ichain][ipier]);
 	}
 
-	*pfrequency = ath9k_hw_fbin2freq(*pCalPier, is2GHz);
+	*pfrequency = ath9k_hw_fbin2freq(*pCalPier, is2ghz);
 	*pcorrection = pCalPierStruct->refPower;
 	*ptemperature = pCalPierStruct->tempMeas;
 	*pvoltage = pCalPierStruct->voltMeas;
@@ -4960,7 +4957,6 @@ tempslope:
 static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 {
 	int ichain, ipier, npier;
-	int mode;
 	int lfrequency[AR9300_MAX_CHAINS],
 	    lcorrection[AR9300_MAX_CHAINS],
 	    ltemperature[AR9300_MAX_CHAINS], lvoltage[AR9300_MAX_CHAINS],
@@ -4976,12 +4972,12 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 	int pfrequency, pcorrection, ptemperature, pvoltage,
 	    pnf_cal, pnf_pwr;
 	struct ath_common *common = ath9k_hw_common(ah);
+	bool is2ghz = frequency < 4000;
 
-	mode = (frequency >= 4000);
-	if (mode)
-		npier = AR9300_NUM_5G_CAL_PIERS;
-	else
+	if (is2ghz)
 		npier = AR9300_NUM_2G_CAL_PIERS;
+	else
+		npier = AR9300_NUM_5G_CAL_PIERS;
 
 	for (ichain = 0; ichain < AR9300_MAX_CHAINS; ichain++) {
 		lfrequency[ichain] = 0;
@@ -4990,7 +4986,7 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 	/* identify best lower and higher frequency calibration measurement */
 	for (ichain = 0; ichain < AR9300_MAX_CHAINS; ichain++) {
 		for (ipier = 0; ipier < npier; ipier++) {
-			if (!ar9003_hw_cal_pier_get(ah, mode, ipier, ichain,
+			if (!ar9003_hw_cal_pier_get(ah, is2ghz, ipier, ichain,
 						    &pfrequency, &pcorrection,
 						    &ptemperature, &pvoltage,
 						    &pnf_cal, &pnf_pwr)) {
@@ -5126,13 +5122,13 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 		frequency, correction[0], correction[1], correction[2]);
 
 	/* Store calibrated noise floor values */
-	for (ichain = 0; ichain < AR5416_MAX_CHAINS; ichain++)
-		if (mode) {
-			ah->nf_5g.cal[ichain] = nf_cal[ichain];
-			ah->nf_5g.pwr[ichain] = nf_pwr[ichain];
-		} else {
+	for (ichain = 0; ichain < AR9300_MAX_CHAINS; ichain++)
+		if (is2ghz) {
 			ah->nf_2g.cal[ichain] = nf_cal[ichain];
 			ah->nf_2g.pwr[ichain] = nf_pwr[ichain];
+		} else {
+			ah->nf_5g.cal[ichain] = nf_cal[ichain];
+			ah->nf_5g.pwr[ichain] = nf_pwr[ichain];
 		}
 
 	return 0;
@@ -5449,8 +5445,6 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
-	struct ar9300_modal_eep_header *modal_hdr;
 	u8 targetPowerValT2[ar9300RateSize];
 	u8 target_power_val_t2_eep[ar9300RateSize];
 	u8 targetPowerValT2_tpc[ar9300RateSize];
@@ -5465,17 +5459,12 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 	ar9003_hw_get_target_power_eeprom(ah, chan, targetPowerValT2);
 
 	if (ar9003_is_paprd_enabled(ah)) {
-		if (IS_CHAN_2GHZ(chan))
-			modal_hdr = &eep->modalHeader2G;
-		else
-			modal_hdr = &eep->modalHeader5G;
-
 		ah->paprd_ratemask =
-			le32_to_cpu(modal_hdr->papdRateMaskHt20) &
+			ar9003_get_paprd_rate_mask_ht20(ah, IS_CHAN_2GHZ(chan)) &
 			AR9300_PAPRD_RATE_MASK;
 
 		ah->paprd_ratemask_ht40 =
-			le32_to_cpu(modal_hdr->papdRateMaskHt40) &
+			ar9003_get_paprd_rate_mask_ht40(ah, IS_CHAN_2GHZ(chan)) &
 			AR9300_PAPRD_RATE_MASK;
 
 		paprd_scale_factor = ar9003_get_paprd_scale_factor(ah, chan);
@@ -5592,30 +5581,40 @@ u8 *ar9003_get_spur_chan_ptr(struct ath_hw *ah, bool is2ghz)
 	return ar9003_modal_header(ah, is2ghz)->spurChans;
 }
 
+u32 ar9003_get_paprd_rate_mask_ht20(struct ath_hw *ah, bool is2ghz)
+{
+	return le32_to_cpu(ar9003_modal_header(ah, is2ghz)->papdRateMaskHt20);
+}
+
+u32 ar9003_get_paprd_rate_mask_ht40(struct ath_hw *ah, bool is2ghz)
+{
+	return le32_to_cpu(ar9003_modal_header(ah, is2ghz)->papdRateMaskHt40);
+}
+
 unsigned int ar9003_get_paprd_scale_factor(struct ath_hw *ah,
 					   struct ath9k_channel *chan)
 {
-	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	bool is2ghz = IS_CHAN_2GHZ(chan);
 
-	if (IS_CHAN_2GHZ(chan))
-		return MS(le32_to_cpu(eep->modalHeader2G.papdRateMaskHt20),
+	if (is2ghz)
+		return MS(ar9003_get_paprd_rate_mask_ht20(ah, is2ghz),
 			  AR9300_PAPRD_SCALE_1);
 	else {
 		if (chan->channel >= 5700)
-			return MS(le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20),
+			return MS(ar9003_get_paprd_rate_mask_ht20(ah, is2ghz),
 				  AR9300_PAPRD_SCALE_1);
 		else if (chan->channel >= 5400)
-			return MS(le32_to_cpu(eep->modalHeader5G.papdRateMaskHt40),
+			return MS(ar9003_get_paprd_rate_mask_ht40(ah, is2ghz),
 				  AR9300_PAPRD_SCALE_2);
 		else
-			return MS(le32_to_cpu(eep->modalHeader5G.papdRateMaskHt40),
+			return MS(ar9003_get_paprd_rate_mask_ht40(ah, is2ghz),
 				  AR9300_PAPRD_SCALE_1);
 	}
 }
 
 static u8 ar9003_get_eepmisc(struct ath_hw *ah)
 {
-	return ah->eeprom.map4k.baseEepHeader.eepMisc;
+	return ah->eeprom.ar9300_eep.baseEepHeader.opCapFlags.eepMisc;
 }
 
 const struct eeprom_ops eep_ar9300_ops = {

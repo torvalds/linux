@@ -81,16 +81,6 @@ static const struct mtk_pin_spec_pupd_set_samereg mt2712_spec_pupd[] = {
 	MTK_PIN_PUPD_SPEC_SR(142, 0xe60, 5, 4, 3)
 };
 
-static int mt2712_spec_pull_set(struct regmap *regmap,
-				unsigned int pin,
-				unsigned char align,
-				bool isup,
-				unsigned int r1r0)
-{
-	return mtk_pctrl_spec_pull_set_samereg(regmap, mt2712_spec_pupd,
-		ARRAY_SIZE(mt2712_spec_pupd), pin, align, isup, r1r0);
-}
-
 static const struct mtk_pin_ies_smt_set mt2712_smt_set[] = {
 	MTK_PIN_IES_SMT_SPEC(0, 3, 0x900, 2),
 	MTK_PIN_IES_SMT_SPEC(4, 7, 0x900, 0),
@@ -284,19 +274,6 @@ static const struct mtk_pin_ies_smt_set mt2712_ies_set[] = {
 	MTK_PIN_IES_SMT_SPEC(204, 206, 0x8b0, 14),
 	MTK_PIN_IES_SMT_SPEC(207, 209, 0x8b0, 15)
 };
-
-static int mt2712_ies_smt_set(struct regmap *regmap, unsigned int pin,
-			      unsigned char align,
-			      int value, enum pin_config_param arg)
-{
-	if (arg == PIN_CONFIG_INPUT_ENABLE)
-		return mtk_pconf_spec_set_ies_smt_range(regmap, mt2712_ies_set,
-			ARRAY_SIZE(mt2712_ies_set), pin, align, value);
-	if (arg == PIN_CONFIG_INPUT_SCHMITT_ENABLE)
-		return mtk_pconf_spec_set_ies_smt_range(regmap, mt2712_smt_set,
-			ARRAY_SIZE(mt2712_smt_set), pin, align, value);
-	return -EINVAL;
-}
 
 static const struct mtk_drv_group_desc mt2712_drv_grp[] =  {
 	/* 0E4E8SR 4/8/12/16 */
@@ -563,8 +540,14 @@ static const struct mtk_pinctrl_devdata mt2712_pinctrl_data = {
 	.n_grp_cls = ARRAY_SIZE(mt2712_drv_grp),
 	.pin_drv_grp = mt2712_pin_drv,
 	.n_pin_drv_grps = ARRAY_SIZE(mt2712_pin_drv),
-	.spec_pull_set = mt2712_spec_pull_set,
-	.spec_ies_smt_set = mt2712_ies_smt_set,
+	.spec_ies = mt2712_ies_set,
+	.n_spec_ies = ARRAY_SIZE(mt2712_ies_set),
+	.spec_pupd = mt2712_spec_pupd,
+	.n_spec_pupd = ARRAY_SIZE(mt2712_spec_pupd),
+	.spec_smt = mt2712_smt_set,
+	.n_spec_smt = ARRAY_SIZE(mt2712_smt_set),
+	.spec_pull_set = mtk_pctrl_spec_pull_set_samereg,
+	.spec_ies_smt_set = mtk_pconf_spec_set_ies_smt_range,
 	.dir_offset = 0x0000,
 	.pullen_offset = 0x0100,
 	.pullsel_offset = 0x0200,
@@ -584,24 +567,18 @@ static const struct mtk_pinctrl_devdata mt2712_pinctrl_data = {
 		.ports     = 8,
 		.ap_num    = 229,
 		.db_cnt    = 40,
+		.db_time   = debounce_time_mt2701,
 	},
 };
 
-static int mt2712_pinctrl_probe(struct platform_device *pdev)
-{
-	return mtk_pctrl_init(pdev, &mt2712_pinctrl_data, NULL);
-}
-
 static const struct of_device_id mt2712_pctrl_match[] = {
-	{
-		.compatible = "mediatek,mt2712-pinctrl",
-	},
+	{ .compatible = "mediatek,mt2712-pinctrl", .data = &mt2712_pinctrl_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mt2712_pctrl_match);
 
 static struct platform_driver mtk_pinctrl_driver = {
-	.probe = mt2712_pinctrl_probe,
+	.probe = mtk_pctrl_common_probe,
 	.driver = {
 		.name = "mediatek-mt2712-pinctrl",
 		.of_match_table = mt2712_pctrl_match,

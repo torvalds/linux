@@ -10,6 +10,7 @@
 #define __U_AUDIO_H
 
 #include <linux/usb/composite.h>
+#include "uac_common.h"
 
 /*
  * Same maximum frequency deviation on the slower side as in
@@ -40,15 +41,17 @@ struct uac_fu_params {
 struct uac_params {
 	/* playback */
 	int p_chmask;	/* channel mask */
-	int p_srate;	/* rate in Hz */
+	int p_srates[UAC_MAX_RATES];	/* available rates in Hz (0 terminated list) */
 	int p_ssize;	/* sample size */
 	struct uac_fu_params p_fu;	/* Feature Unit parameters */
 
 	/* capture */
 	int c_chmask;	/* channel mask */
-	int c_srate;	/* rate in Hz */
+	int c_srates[UAC_MAX_RATES];	/* available rates in Hz (0 terminated list) */
 	int c_ssize;	/* sample size */
 	struct uac_fu_params c_fu;	/* Feature Unit parameters */
+
+	/* rates are dynamic, in uac_rtd_params */
 
 	int req_number; /* number of preallocated requests */
 	int fb_max;	/* upper frequency drift feedback limit per-mil */
@@ -117,9 +120,16 @@ void u_audio_stop_capture(struct g_audio *g_audio);
 int u_audio_start_playback(struct g_audio *g_audio);
 void u_audio_stop_playback(struct g_audio *g_audio);
 
+int u_audio_get_capture_srate(struct g_audio *audio_dev, u32 *val);
+int u_audio_set_capture_srate(struct g_audio *audio_dev, int srate);
+int u_audio_get_playback_srate(struct g_audio *audio_dev, u32 *val);
+int u_audio_set_playback_srate(struct g_audio *audio_dev, int srate);
+
 int u_audio_get_volume(struct g_audio *g_audio, int playback, s16 *val);
 int u_audio_set_volume(struct g_audio *g_audio, int playback, s16 val);
 int u_audio_get_mute(struct g_audio *g_audio, int playback, int *val);
 int u_audio_set_mute(struct g_audio *g_audio, int playback, int val);
+
+void u_audio_suspend(struct g_audio *g_audio);
 
 #endif /* __U_AUDIO_H */

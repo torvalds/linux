@@ -19,9 +19,9 @@ properties:
 
   cpu:
     type: object
+    additionalProperties: false
     properties:
       sound-dai:
-        $ref: /schemas/types.yaml#/definitions/phandle-array
         maxItems: 1
         description: phandle to the I2S controller
     required:
@@ -29,9 +29,9 @@ properties:
 
   codec:
     type: object
+    additionalProperties: false
     properties:
       sound-dai:
-        $ref: /schemas/types.yaml#/definitions/phandle-array
         maxItems: 1
         description: phandle to the WM1811 CODEC
     required:

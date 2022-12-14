@@ -269,7 +269,7 @@ EXPORT_SYMBOL(drm_privacy_screen_get_state);
  *
  * The notifier is called with no locks held. The new hw_state and sw_state
  * can be retrieved using the drm_privacy_screen_get_state() function.
- * A pointer to the drm_privacy_screen's struct is passed as the void *data
+ * A pointer to the drm_privacy_screen's struct is passed as the ``void *data``
  * argument of the notifier_block's notifier_call.
  *
  * The notifier will NOT be called when changes are made through
@@ -379,6 +379,7 @@ static void drm_privacy_screen_device_release(struct device *dev)
  * drm_privacy_screen_register - register a privacy-screen
  * @parent: parent-device for the privacy-screen
  * @ops: &struct drm_privacy_screen_ops pointer with ops for the privacy-screen
+ * @data: Private data owned by the privacy screen provider
  *
  * Create and register a privacy-screen.
  *
@@ -387,7 +388,8 @@ static void drm_privacy_screen_device_release(struct device *dev)
  * * An ERR_PTR(errno) on failure.
  */
 struct drm_privacy_screen *drm_privacy_screen_register(
-	struct device *parent, const struct drm_privacy_screen_ops *ops)
+	struct device *parent, const struct drm_privacy_screen_ops *ops,
+	void *data)
 {
 	struct drm_privacy_screen *priv;
 	int ret;
@@ -404,6 +406,7 @@ struct drm_privacy_screen *drm_privacy_screen_register(
 	priv->dev.parent = parent;
 	priv->dev.release = drm_privacy_screen_device_release;
 	dev_set_name(&priv->dev, "privacy_screen-%s", dev_name(parent));
+	priv->drvdata = data;
 	priv->ops = ops;
 
 	priv->ops->get_hw_state(priv);
@@ -439,6 +442,7 @@ void drm_privacy_screen_unregister(struct drm_privacy_screen *priv)
 	mutex_unlock(&drm_privacy_screen_devs_lock);
 
 	mutex_lock(&priv->lock);
+	priv->drvdata = NULL;
 	priv->ops = NULL;
 	mutex_unlock(&priv->lock);
 

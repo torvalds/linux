@@ -10,7 +10,6 @@
 #include <linux/memblock.h>
 
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
 #include <asm/ps3fb.h>

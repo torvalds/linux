@@ -20,8 +20,6 @@
 #include "tsc.h"
 #include "mmap.h"
 #include "tests.h"
-#include "pmu.h"
-#include "pmu-hybrid.h"
 
 /*
  * Except x86_64/i386 and Arm64, other archs don't support TSC in perf.  Just
@@ -47,13 +45,24 @@
 	}					\
 }
 
+static int test__tsc_is_supported(struct test_suite *test __maybe_unused,
+				  int subtest __maybe_unused)
+{
+	if (!TSC_IS_SUPPORTED) {
+		pr_debug("Test not supported on this architecture\n");
+		return TEST_SKIP;
+	}
+
+	return TEST_OK;
+}
+
 /**
  * test__perf_time_to_tsc - test converting perf time to TSC.
  *
  * This function implements a test that checks that the conversion of perf time
  * to and from TSC is consistent with the order of events.  If the test passes
  * %0 is returned, otherwise %-1 is returned.  If TSC conversion is not
- * supported then then the test passes but " (not supported)" is printed.
+ * supported then the test passes but " (not supported)" is printed.
  */
 static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
@@ -70,7 +79,7 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 	struct perf_cpu_map *cpus = NULL;
 	struct evlist *evlist = NULL;
 	struct evsel *evsel = NULL;
-	int err = -1, ret, i;
+	int err = TEST_FAIL, ret, i;
 	const char *comm1, *comm2;
 	struct perf_tsc_conversion tc;
 	struct perf_event_mmap_page *pc;
@@ -79,10 +88,6 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 	u64 test_time, comm1_time = 0, comm2_time = 0;
 	struct mmap *md;
 
-	if (!TSC_IS_SUPPORTED) {
-		pr_debug("Test not supported on this architecture");
-		return TEST_SKIP;
-	}
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	CHECK_NOT_NULL__(threads);
@@ -95,28 +100,25 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
-	CHECK__(parse_events(evlist, "cycles:u", NULL));
+	CHECK__(parse_event(evlist, "cycles:u"));
 
 	evlist__config(evlist, &opts, NULL);
 
-	evsel = evlist__first(evlist);
-
-	evsel->core.attr.comm = 1;
-	evsel->core.attr.disabled = 1;
-	evsel->core.attr.enable_on_exec = 0;
-
-	/*
-	 * For hybrid "cycles:u", it creates two events.
-	 * Init the second evsel here.
-	 */
-	if (perf_pmu__has_hybrid() && perf_pmu__hybrid_mounted("cpu_atom")) {
-		evsel = evsel__next(evsel);
+	/* For hybrid "cycles:u", it creates two events */
+	evlist__for_each_entry(evlist, evsel) {
 		evsel->core.attr.comm = 1;
 		evsel->core.attr.disabled = 1;
 		evsel->core.attr.enable_on_exec = 0;
 	}
 
-	CHECK__(evlist__open(evlist));
+	ret = evlist__open(evlist);
+	if (ret < 0) {
+		if (ret == -ENOENT)
+			err = TEST_SKIP;
+		else
+			pr_debug("evlist__open() failed\n");
+		goto out_err;
+	}
 
 	CHECK__(evlist__mmap(evlist, UINT_MAX));
 
@@ -124,8 +126,8 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 	ret = perf_read_tsc_conversion(pc, &tc);
 	if (ret) {
 		if (ret == -EOPNOTSUPP) {
-			fprintf(stderr, " (not supported)");
-			return 0;
+			pr_debug("perf_read_tsc_conversion is not supported in current kernel\n");
+			err = TEST_SKIP;
 		}
 		goto out_err;
 	}
@@ -156,10 +158,12 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 				goto next_event;
 
 			if (strcmp(event->comm.comm, comm1) == 0) {
+				CHECK_NOT_NULL__(evsel = evlist__event2evsel(evlist, event));
 				CHECK__(evsel__parse_sample(evsel, event, &sample));
 				comm1_time = sample.time;
 			}
 			if (strcmp(event->comm.comm, comm2) == 0) {
+				CHECK_NOT_NULL__(evsel = evlist__event2evsel(evlist, event));
 				CHECK__(evsel__parse_sample(evsel, event, &sample));
 				comm2_time = sample.time;
 			}
@@ -191,7 +195,7 @@ next_event:
 	    test_tsc >= comm2_tsc)
 		goto out_err;
 
-	err = 0;
+	err = TEST_OK;
 
 out_err:
 	evlist__delete(evlist);
@@ -200,4 +204,15 @@ out_err:
 	return err;
 }
 
-DEFINE_SUITE("Convert perf time to TSC", perf_time_to_tsc);
+static struct test_case time_to_tsc_tests[] = {
+	TEST_CASE_REASON("TSC support", tsc_is_supported,
+			 "This architecture does not support"),
+	TEST_CASE_REASON("Perf time to TSC", perf_time_to_tsc,
+			 "perf_read_tsc_conversion is not supported"),
+	{ .name = NULL, }
+};
+
+struct test_suite suite__perf_time_to_tsc = {
+	.desc = "Convert perf time to TSC",
+	.test_cases = time_to_tsc_tests,
+};

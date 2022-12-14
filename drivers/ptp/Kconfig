@@ -176,6 +176,7 @@ config PTP_1588_CLOCK_OCP
 	depends on !S390
 	depends on COMMON_CLK
 	select NET_DEVLINK
+	select CRC16
 	help
 	  This driver adds support for an OpenCompute time card.
 

@@ -774,6 +774,7 @@ static int wdm_release(struct inode *inode, struct file *file)
 			poison_urbs(desc);
 			spin_lock_irq(&desc->iuspin);
 			desc->resp_count = 0;
+			clear_bit(WDM_RESPONDING, &desc->flags);
 			spin_unlock_irq(&desc->iuspin);
 			desc->manage_power(desc->intf, 0);
 			unpoison_urbs(desc);
@@ -957,7 +958,7 @@ static void wdm_wwan_rx(struct wdm_device *desc, int length)
 	if (!skb)
 		return;
 
-	memcpy(skb_put(skb, length), desc->inbuf, length);
+	skb_put_data(skb, desc->inbuf, length);
 	wwan_port_rx(port, skb);
 
 	/* inbuf has been copied, it is safe to check for outstanding data */

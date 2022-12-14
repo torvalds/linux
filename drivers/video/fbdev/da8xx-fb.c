@@ -1076,7 +1076,8 @@ static int fb_remove(struct platform_device *dev)
 	if (par->lcd_supply) {
 		ret = regulator_disable(par->lcd_supply);
 		if (ret)
-			return ret;
+			dev_warn(&dev->dev, "Failed to disable regulator (%pe)\n",
+				 ERR_PTR(ret));
 	}
 
 	lcd_disable_raster(DA8XX_FRAME_WAIT);
@@ -1354,10 +1355,9 @@ static int fb_probe(struct platform_device *device)
 		return PTR_ERR(da8xx_fb_reg_base);
 
 	tmp_lcdc_clk = devm_clk_get(&device->dev, "fck");
-	if (IS_ERR(tmp_lcdc_clk)) {
-		dev_err(&device->dev, "Can not get device clock\n");
-		return PTR_ERR(tmp_lcdc_clk);
-	}
+	if (IS_ERR(tmp_lcdc_clk))
+		return dev_err_probe(&device->dev, PTR_ERR(tmp_lcdc_clk),
+				     "Can not get device clock\n");
 
 	pm_runtime_enable(&device->dev);
 	pm_runtime_get_sync(&device->dev);

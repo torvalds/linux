@@ -374,10 +374,10 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 		refcount_inc(&skb->users);
 		ireq->pktopts = skb;
 	}
-	ireq->ir_iif = sk->sk_bound_dev_if;
+	ireq->ir_iif = READ_ONCE(sk->sk_bound_dev_if);
 
 	/* So that link locals have meaning */
-	if (!sk->sk_bound_dev_if &&
+	if (!ireq->ir_iif &&
 	    ipv6_addr_type(&ireq->ir_v6_rmt_addr) & IPV6_ADDR_LINKLOCAL)
 		ireq->ir_iif = inet6_iif(skb);
 
@@ -892,7 +892,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 		SOCK_DEBUG(sk, "connect: ipv4 mapped\n");
 
-		if (__ipv6_only_sock(sk))
+		if (ipv6_only_sock(sk))
 			return -ENETUNREACH;
 
 		sin.sin_family = AF_INET;
@@ -935,7 +935,10 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	if (saddr == NULL) {
 		saddr = &fl6.saddr;
-		sk->sk_v6_rcv_saddr = *saddr;
+
+		err = inet_bhash2_update_saddr(sk, saddr, AF_INET6);
+		if (err)
+			goto failure;
 	}
 
 	/* set the source address */
@@ -967,6 +970,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 late_failure:
 	dccp_set_state(sk, DCCP_CLOSED);
+	inet_bhash2_reset_saddr(sk);
 	__sk_dst_reset(sk);
 failure:
 	inet->inet_dport = 0;

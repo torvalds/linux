@@ -1168,20 +1168,18 @@ static int max98095_dai1_set_fmt(struct snd_soc_dai *codec_dai,
 	if (fmt != cdata->fmt) {
 		cdata->fmt = fmt;
 
-		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-		case SND_SOC_DAIFMT_CBS_CFS:
-			/* Slave mode PLL */
+		switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+		case SND_SOC_DAIFMT_CBC_CFC:
+			/* Consumer mode PLL */
 			snd_soc_component_write(component, M98095_028_DAI1_CLKCFG_HI,
 				0x80);
 			snd_soc_component_write(component, M98095_029_DAI1_CLKCFG_LO,
 				0x00);
 			break;
-		case SND_SOC_DAIFMT_CBM_CFM:
-			/* Set to master mode */
+		case SND_SOC_DAIFMT_CBP_CFP:
+			/* Set to provider mode */
 			regval |= M98095_DAI_MAS;
 			break;
-		case SND_SOC_DAIFMT_CBS_CFM:
-		case SND_SOC_DAIFMT_CBM_CFS:
 		default:
 			dev_err(component->dev, "Clock mode unsupported");
 			return -EINVAL;
@@ -1236,20 +1234,18 @@ static int max98095_dai2_set_fmt(struct snd_soc_dai *codec_dai,
 	if (fmt != cdata->fmt) {
 		cdata->fmt = fmt;
 
-		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-		case SND_SOC_DAIFMT_CBS_CFS:
-			/* Slave mode PLL */
+		switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+		case SND_SOC_DAIFMT_CBC_CFC:
+			/* Consumer mode PLL */
 			snd_soc_component_write(component, M98095_032_DAI2_CLKCFG_HI,
 				0x80);
 			snd_soc_component_write(component, M98095_033_DAI2_CLKCFG_LO,
 				0x00);
 			break;
-		case SND_SOC_DAIFMT_CBM_CFM:
-			/* Set to master mode */
+		case SND_SOC_DAIFMT_CBP_CFP:
+			/* Set to provider mode */
 			regval |= M98095_DAI_MAS;
 			break;
-		case SND_SOC_DAIFMT_CBS_CFM:
-		case SND_SOC_DAIFMT_CBM_CFS:
 		default:
 			dev_err(component->dev, "Clock mode unsupported");
 			return -EINVAL;
@@ -1305,20 +1301,18 @@ static int max98095_dai3_set_fmt(struct snd_soc_dai *codec_dai,
 	if (fmt != cdata->fmt) {
 		cdata->fmt = fmt;
 
-		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-		case SND_SOC_DAIFMT_CBS_CFS:
-			/* Slave mode PLL */
+		switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+		case SND_SOC_DAIFMT_CBC_CFC:
+			/* Consumer mode PLL */
 			snd_soc_component_write(component, M98095_03C_DAI3_CLKCFG_HI,
 				0x80);
 			snd_soc_component_write(component, M98095_03D_DAI3_CLKCFG_LO,
 				0x00);
 			break;
-		case SND_SOC_DAIFMT_CBM_CFM:
-			/* Set to master mode */
+		case SND_SOC_DAIFMT_CBP_CFP:
+			/* Set to provider mode */
 			regval |= M98095_DAI_MAS;
 			break;
-		case SND_SOC_DAIFMT_CBS_CFM:
-		case SND_SOC_DAIFMT_CBM_CFS:
 		default:
 			dev_err(component->dev, "Clock mode unsupported");
 			return -EINVAL;
@@ -2109,14 +2103,19 @@ static const struct snd_soc_component_driver soc_component_dev_max98095 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
-static int max98095_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static const struct i2c_device_id max98095_i2c_id[] = {
+	{ "max98095", MAX98095 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, max98095_i2c_id);
+
+static int max98095_i2c_probe(struct i2c_client *i2c)
 {
 	struct max98095_priv *max98095;
 	int ret;
+	const struct i2c_device_id *id;
 
 	max98095 = devm_kzalloc(&i2c->dev, sizeof(struct max98095_priv),
 				GFP_KERNEL);
@@ -2132,6 +2131,7 @@ static int max98095_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
+	id = i2c_match_id(max98095_i2c_id, i2c);
 	max98095->devtype = id->driver_data;
 	i2c_set_clientdata(i2c, max98095);
 	max98095->pdata = i2c->dev.platform_data;
@@ -2141,12 +2141,6 @@ static int max98095_i2c_probe(struct i2c_client *i2c,
 				     max98095_dai, ARRAY_SIZE(max98095_dai));
 	return ret;
 }
-
-static const struct i2c_device_id max98095_i2c_id[] = {
-	{ "max98095", MAX98095 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, max98095_i2c_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id max98095_of_match[] = {
@@ -2161,7 +2155,7 @@ static struct i2c_driver max98095_i2c_driver = {
 		.name = "max98095",
 		.of_match_table = of_match_ptr(max98095_of_match),
 	},
-	.probe  = max98095_i2c_probe,
+	.probe_new = max98095_i2c_probe,
 	.id_table = max98095_i2c_id,
 };
 

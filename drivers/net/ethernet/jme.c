@@ -28,6 +28,7 @@
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include <net/ip6_checksum.h>
 #include "jme.h"
 
@@ -2179,7 +2180,7 @@ jme_stop_queue_if_full(struct jme_adapter *jme)
 	}
 
 	if (unlikely(txbi->start_xmit &&
-			(jiffies - txbi->start_xmit) >= TX_TIMEOUT &&
+			time_is_before_eq_jiffies(txbi->start_xmit + TX_TIMEOUT) &&
 			txbi->skb)) {
 		netif_stop_queue(jme->dev);
 		netif_info(jme, tx_queued, jme->dev,
@@ -2331,9 +2332,9 @@ jme_get_drvinfo(struct net_device *netdev,
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(jme->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(jme->pdev), sizeof(info->bus_info));
 }
 
 static int
@@ -3008,7 +3009,7 @@ jme_init_one(struct pci_dev *pdev,
 		jwrite32(jme, JME_APMC, apmc);
 	}
 
-	NETIF_NAPI_SET(netdev, &jme->napi, jme_poll, NAPI_POLL_WEIGHT)
+	netif_napi_add(netdev, &jme->napi, jme_poll);
 
 	spin_lock_init(&jme->phy_lock);
 	spin_lock_init(&jme->macaddr_lock);

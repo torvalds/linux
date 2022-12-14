@@ -704,7 +704,7 @@ static int lm3532_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int lm3532_remove(struct i2c_client *client)
+static void lm3532_remove(struct i2c_client *client)
 {
 	struct lm3532_data *drvdata = i2c_get_clientdata(client);
 
@@ -712,8 +712,6 @@ static int lm3532_remove(struct i2c_client *client)
 
 	if (drvdata->enable_gpio)
 		gpiod_direction_output(drvdata->enable_gpio, 0);
-
-	return 0;
 }
 
 static const struct of_device_id of_lm3532_leds_match[] = {

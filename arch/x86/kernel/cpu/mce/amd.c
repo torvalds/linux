@@ -993,6 +993,7 @@ static struct attribute *default_attrs[] = {
 	NULL,	/* possibly interrupt_enable if supported, see below */
 	NULL,
 };
+ATTRIBUTE_GROUPS(default);
 
 #define to_block(k)	container_of(k, struct threshold_block, kobj)
 #define to_attr(a)	container_of(a, struct threshold_attr, attr)
@@ -1029,7 +1030,7 @@ static void threshold_block_release(struct kobject *kobj);
 
 static struct kobj_type threshold_ktype = {
 	.sysfs_ops		= &threshold_ops,
-	.default_attrs		= default_attrs,
+	.default_groups		= default_groups,
 	.release		= threshold_block_release,
 };
 
@@ -1101,10 +1102,10 @@ static int allocate_threshold_blocks(unsigned int cpu, struct threshold_bank *tb
 	b->threshold_limit	= THRESHOLD_MAX;
 
 	if (b->interrupt_capable) {
-		threshold_ktype.default_attrs[2] = &interrupt_enable.attr;
+		default_attrs[2] = &interrupt_enable.attr;
 		b->interrupt_enable = 1;
 	} else {
-		threshold_ktype.default_attrs[2] = NULL;
+		default_attrs[2] = NULL;
 	}
 
 	INIT_LIST_HEAD(&b->miscj);
@@ -1293,10 +1294,23 @@ out_free:
 	kfree(bank);
 }
 
+static void __threshold_remove_device(struct threshold_bank **bp)
+{
+	unsigned int bank, numbanks = this_cpu_read(mce_num_banks);
+
+	for (bank = 0; bank < numbanks; bank++) {
+		if (!bp[bank])
+			continue;
+
+		threshold_remove_bank(bp[bank]);
+		bp[bank] = NULL;
+	}
+	kfree(bp);
+}
+
 int mce_threshold_remove_device(unsigned int cpu)
 {
 	struct threshold_bank **bp = this_cpu_read(threshold_banks);
-	unsigned int bank, numbanks = this_cpu_read(mce_num_banks);
 
 	if (!bp)
 		return 0;
@@ -1307,13 +1321,7 @@ int mce_threshold_remove_device(unsigned int cpu)
 	 */
 	this_cpu_write(threshold_banks, NULL);
 
-	for (bank = 0; bank < numbanks; bank++) {
-		if (bp[bank]) {
-			threshold_remove_bank(bp[bank]);
-			bp[bank] = NULL;
-		}
-	}
-	kfree(bp);
+	__threshold_remove_device(bp);
 	return 0;
 }
 
@@ -1350,15 +1358,14 @@ int mce_threshold_create_device(unsigned int cpu)
 		if (!(this_cpu_read(bank_map) & (1 << bank)))
 			continue;
 		err = threshold_create_bank(bp, cpu, bank);
-		if (err)
-			goto out_err;
+		if (err) {
+			__threshold_remove_device(bp);
+			return err;
+		}
 	}
 	this_cpu_write(threshold_banks, bp);
 
 	if (thresholding_irq_en)
 		mce_threshold_vector = amd_threshold_interrupt;
 	return 0;
-out_err:
-	mce_threshold_remove_device(cpu);
-	return err;
 }

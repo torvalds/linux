@@ -91,6 +91,9 @@ config DWMAC_IPQ806X
 	  acceleration features available on this SoC. Network devices
 	  will behave like standard non-accelerated ethernet interfaces.
 
+	  Select the QCOM_SOCINFO config flag to enable specific dwmac
+	  fixup based on the ipq806x SoC revision.
+
 config DWMAC_LPC18XX
 	tristate "NXP LPC18xx/43xx DWMAC support"
 	default ARCH_LPC18XX

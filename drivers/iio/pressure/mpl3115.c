@@ -290,18 +290,15 @@ static int mpl3115_standby(struct mpl3115_data *data)
 		data->ctrl_reg1 & ~MPL3115_CTRL_ACTIVE);
 }
 
-static int mpl3115_remove(struct i2c_client *client)
+static void mpl3115_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	mpl3115_standby(iio_priv(indio_dev));
-
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mpl3115_suspend(struct device *dev)
 {
 	return mpl3115_standby(iio_priv(i2c_get_clientdata(
@@ -317,11 +314,8 @@ static int mpl3115_resume(struct device *dev)
 		data->ctrl_reg1);
 }
 
-static SIMPLE_DEV_PM_OPS(mpl3115_pm_ops, mpl3115_suspend, mpl3115_resume);
-#define MPL3115_PM_OPS (&mpl3115_pm_ops)
-#else
-#define MPL3115_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(mpl3115_pm_ops, mpl3115_suspend,
+				mpl3115_resume);
 
 static const struct i2c_device_id mpl3115_id[] = {
 	{ "mpl3115", 0 },
@@ -339,7 +333,7 @@ static struct i2c_driver mpl3115_driver = {
 	.driver = {
 		.name	= "mpl3115",
 		.of_match_table = mpl3115_of_match,
-		.pm	= MPL3115_PM_OPS,
+		.pm	= pm_sleep_ptr(&mpl3115_pm_ops),
 	},
 	.probe = mpl3115_probe,
 	.remove = mpl3115_remove,

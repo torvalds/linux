@@ -17,17 +17,20 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/uaccess.h>
+#include <asm/asm-extable.h>
 #include <asm/pci_debug.h>
 #include <asm/pci_clp.h>
 #include <asm/clp.h>
 #include <uapi/asm/clp.h>
+
+#include "pci_bus.h"
 
 bool zpci_unique_uid;
 
 void update_uid_checking(bool new)
 {
 	if (zpci_unique_uid != new)
-		zpci_dbg(1, "uid checking:%d\n", new);
+		zpci_dbg(3, "uid checking:%d\n", new);
 
 	zpci_unique_uid = new;
 }
@@ -103,6 +106,8 @@ static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 	zdev->max_msi = response->noi;
 	zdev->fmb_update = response->mui;
 	zdev->version = response->version;
+	zdev->maxstbl = response->maxstbl;
+	zdev->dtsm = response->dtsm;
 
 	switch (response->version) {
 	case 1:
@@ -226,11 +231,15 @@ static int clp_set_pci_fn(struct zpci_dev *zdev, u32 *fh, u8 nr_dma_as, u8 comma
 {
 	struct clp_req_rsp_set_pci *rrb;
 	int rc, retries = 100;
+	u32 gisa = 0;
 
 	*fh = 0;
 	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
 		return -ENOMEM;
+
+	if (command != CLP_SET_DISABLE_PCI_FN)
+		gisa = zdev->gisa;
 
 	do {
 		memset(rrb, 0, sizeof(*rrb));
@@ -240,6 +249,7 @@ static int clp_set_pci_fn(struct zpci_dev *zdev, u32 *fh, u8 nr_dma_as, u8 comma
 		rrb->request.fh = zdev->fh;
 		rrb->request.oc = command;
 		rrb->request.ndas = nr_dma_as;
+		rrb->request.gisa = gisa;
 
 		rc = clp_req(rrb, CLP_LPS_PCI);
 		if (rrb->response.hdr.rsp == CLP_RC_SETPCIFN_BUSY) {
@@ -403,8 +413,11 @@ static void __clp_add(struct clp_fh_list_entry *entry, void *data)
 		return;
 
 	zdev = get_zdev_by_fid(entry->fid);
-	if (!zdev)
-		zpci_create_device(entry->fid, entry->fh, entry->config_state);
+	if (zdev) {
+		zpci_zdev_put(zdev);
+		return;
+	}
+	zpci_create_device(entry->fid, entry->fh, entry->config_state);
 }
 
 int clp_scan_pci_devices(void)

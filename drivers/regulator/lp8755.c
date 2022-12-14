@@ -422,15 +422,13 @@ err:
 	return ret;
 }
 
-static int lp8755_remove(struct i2c_client *client)
+static void lp8755_remove(struct i2c_client *client)
 {
 	int icnt;
 	struct lp8755_chip *pchip = i2c_get_clientdata(client);
 
 	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 		regmap_write(pchip->regmap, icnt, 0x00);
-
-	return 0;
 }
 
 static const struct i2c_device_id lp8755_id[] = {

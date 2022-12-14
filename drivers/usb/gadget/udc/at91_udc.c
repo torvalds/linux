@@ -704,7 +704,7 @@ done:
 static int at91_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct at91_ep		*ep;
-	struct at91_request	*req;
+	struct at91_request	*req = NULL, *iter;
 	unsigned long		flags;
 	struct at91_udc		*udc;
 
@@ -717,11 +717,13 @@ static int at91_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	spin_lock_irqsave(&udc->lock, flags);
 
 	/* make sure it's actually queued on this endpoint */
-	list_for_each_entry (req, &ep->queue, queue) {
-		if (&req->req == _req)
-			break;
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		req = iter;
+		break;
 	}
-	if (&req->req != _req) {
+	if (!req) {
 		spin_unlock_irqrestore(&udc->lock, flags);
 		return -EINVAL;
 	}
@@ -992,7 +994,7 @@ static const struct usb_gadget_ops at91_udc_ops = {
 	.udc_stop		= at91_stop,
 
 	/*
-	 * VBUS-powered devices may also also want to support bigger
+	 * VBUS-powered devices may also want to support bigger
 	 * power budgets after an appropriate SET_CONFIGURATION.
 	 */
 	/* .vbus_power		= at91_vbus_power, */
@@ -1777,12 +1779,14 @@ static void at91udc_of_init(struct at91_udc *udc, struct device_node *np)
 	if (of_property_read_u32(np, "atmel,vbus-polled", &val) == 0)
 		board->vbus_polled = 1;
 
-	board->vbus_pin = gpiod_get_from_of_node(np, "atmel,vbus-gpio", 0,
-						 GPIOD_IN, "udc_vbus");
+	board->vbus_pin = fwnode_gpiod_get_index(of_fwnode_handle(np),
+						 "atmel,vbus", 0, GPIOD_IN,
+						 "udc_vbus");
 	if (IS_ERR(board->vbus_pin))
 		board->vbus_pin = NULL;
 
-	board->pullup_pin = gpiod_get_from_of_node(np, "atmel,pullup-gpio", 0,
+	board->pullup_pin = fwnode_gpiod_get_index(of_fwnode_handle(np),
+						   "atmel,pullup", 0,
 						   GPIOD_ASIS, "udc_pullup");
 	if (IS_ERR(board->pullup_pin))
 		board->pullup_pin = NULL;

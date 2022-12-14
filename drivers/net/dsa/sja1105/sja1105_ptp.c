@@ -399,7 +399,7 @@ static long sja1105_rxtstamp_work(struct ptp_clock_info *ptp)
 		ts = sja1105_tstamp_reconstruct(ds, ticks, ts);
 
 		shwt->hwtstamp = ns_to_ktime(sja1105_ticks_to_ns(ts));
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 
 	if (ptp_data->extts_enabled)

@@ -45,40 +45,6 @@ config BPQETHER
 	  useful if some other computer on your local network has a direct
 	  amateur radio connection.
 
-config DMASCC
-	tristate "High-speed (DMA) SCC driver for AX.25"
-	depends on ISA && AX25 && BROKEN_ON_SMP && ISA_DMA_API
-	depends on VIRT_TO_BUS
-	help
-	  This is a driver for high-speed SCC boards, i.e. those supporting
-	  DMA on one port. You usually use those boards to connect your
-	  computer to an amateur radio modem (such as the WA4DSY 56kbps
-	  modem), in order to send and receive AX.25 packet radio network
-	  traffic.
-
-	  Currently, this driver supports Ottawa PI/PI2, Paccomm/Gracilis
-	  PackeTwin, and S5SCC/DMA boards. They are detected automatically.
-	  If you have one of these cards, say Y here and read the AX25-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>.
-
-	  This driver can operate multiple boards simultaneously. If you
-	  compile it as a module (by saying M instead of Y), it will be called
-	  dmascc. If you don't pass any parameter to the driver, all
-	  possible I/O addresses are probed. This could irritate other devices
-	  that are currently not in use. You may specify the list of addresses
-	  to be probed by "dmascc.io=addr1,addr2,..." (when compiled into the
-	  kernel image) or "io=addr1,addr2,..." (when loaded as a module). The
-	  network interfaces will be called dmascc0 and dmascc1 for the board
-	  detected first, dmascc2 and dmascc3 for the second one, and so on.
-
-	  Before you configure each interface with ifconfig, you MUST set
-	  certain parameters, such as channel access timing, clock mode, and
-	  DMA channel. This is accomplished with a small utility program,
-	  dmascc_cfg, available at
-	  <http://www.linux-ax25.org/wiki/Ax25-tools>. Please be sure to
-	  get at least version 1.27 of dmascc_cfg, as older versions will not
-	  work with the current driver.
-
 config SCC
 	tristate "Z8530 SCC driver"
 	depends on ISA && AX25 && ISA_DMA_API

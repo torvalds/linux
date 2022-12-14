@@ -203,12 +203,12 @@ struct iser_reg_resources;
  *
  * @sge:          memory region sg element
  * @rkey:         memory region remote key
- * @mem_h:        pointer to registration context (FMR/Fastreg)
+ * @desc:         pointer to fast registration context
  */
 struct iser_mem_reg {
-	struct ib_sge	 sge;
-	u32		 rkey;
-	void		*mem_h;
+	struct ib_sge sge;
+	u32 rkey;
+	struct iser_fr_desc *desc;
 };
 
 enum iser_desc_type {
@@ -363,7 +363,7 @@ struct iser_fr_pool {
  * @cq:                  Connection completion queue
  * @cq_size:             The number of max outstanding completions
  * @device:              reference to iser device
- * @fr_pool:             connection fast registration poool
+ * @fr_pool:             connection fast registration pool
  * @pi_support:          Indicate device T10-PI support
  * @reg_cqe:             completion handler
  */
@@ -531,13 +531,12 @@ int  iser_post_recvm(struct iser_conn *iser_conn,
 int  iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc);
 
 int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
-			   struct iser_data_buf *data,
 			   enum iser_data_dir iser_dir,
 			   enum dma_data_direction dma_dir);
 
 void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task,
-			      struct iser_data_buf *data,
-			      enum dma_data_direction dir);
+			      enum iser_data_dir iser_dir,
+			      enum dma_data_direction dma_dir);
 
 int  iser_initialize_task_headers(struct iscsi_task *task,
 			struct iser_tx_desc *tx_desc);

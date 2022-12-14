@@ -162,13 +162,37 @@ int acrn_vm_ram_map(struct acrn_vm *vm, struct acrn_vm_memmap *memmap)
 	void *remap_vaddr;
 	int ret, pinned;
 	u64 user_vm_pa;
+	unsigned long pfn;
+	struct vm_area_struct *vma;
 
 	if (!vm || !memmap)
 		return -EINVAL;
 
+	mmap_read_lock(current->mm);
+	vma = vma_lookup(current->mm, memmap->vma_base);
+	if (vma && ((vma->vm_flags & VM_PFNMAP) != 0)) {
+		if ((memmap->vma_base + memmap->len) > vma->vm_end) {
+			mmap_read_unlock(current->mm);
+			return -EINVAL;
+		}
+
+		ret = follow_pfn(vma, memmap->vma_base, &pfn);
+		mmap_read_unlock(current->mm);
+		if (ret < 0) {
+			dev_dbg(acrn_dev.this_device,
+				"Failed to lookup PFN at VMA:%pK.\n", (void *)memmap->vma_base);
+			return ret;
+		}
+
+		return acrn_mm_region_add(vm, memmap->user_vm_pa,
+			 PFN_PHYS(pfn), memmap->len,
+			 ACRN_MEM_TYPE_WB, memmap->attr);
+	}
+	mmap_read_unlock(current->mm);
+
 	/* Get the page number of the map region */
 	nr_pages = memmap->len >> PAGE_SHIFT;
-	pages = vzalloc(nr_pages * sizeof(struct page *));
+	pages = vzalloc(array_size(nr_pages, sizeof(*pages)));
 	if (!pages)
 		return -ENOMEM;
 
@@ -220,16 +244,15 @@ int acrn_vm_ram_map(struct acrn_vm *vm, struct acrn_vm_memmap *memmap)
 	}
 
 	/* Prepare the vm_memory_region_batch */
-	regions_info = kzalloc(sizeof(*regions_info) +
-			       sizeof(*vm_region) * nr_regions,
-			       GFP_KERNEL);
+	regions_info = kzalloc(struct_size(regions_info, regions_op,
+					   nr_regions), GFP_KERNEL);
 	if (!regions_info) {
 		ret = -ENOMEM;
 		goto unmap_kernel_map;
 	}
 
 	/* Fill each vm_memory_region_op */
-	vm_region = (struct vm_memory_region_op *)(regions_info + 1);
+	vm_region = regions_info->regions_op;
 	regions_info->vmid = vm->vmid;
 	regions_info->regions_num = nr_regions;
 	regions_info->regions_gpa = virt_to_phys(vm_region);

@@ -636,7 +636,8 @@ static void sccnxp_break_ctl(struct uart_port *port, int break_state)
 }
 
 static void sccnxp_set_termios(struct uart_port *port,
-			       struct ktermios *termios, struct ktermios *old)
+			       struct ktermios *termios,
+			       const struct ktermios *old)
 {
 	struct sccnxp_port *s = dev_get_drvdata(port->dev);
 	unsigned long flags;
@@ -828,7 +829,7 @@ static const struct uart_ops sccnxp_ops = {
 };
 
 #ifdef CONFIG_SERIAL_SCCNXP_CONSOLE
-static void sccnxp_console_putchar(struct uart_port *port, int c)
+static void sccnxp_console_putchar(struct uart_port *port, unsigned char c)
 {
 	int tryes = 100000;
 

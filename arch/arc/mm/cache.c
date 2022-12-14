@@ -401,7 +401,7 @@ static inline void __before_dc_op(const int op)
 {
 	if (op == OP_FLUSH_N_INV) {
 		/* Dcache provides 2 cmd: FLUSH or INV
-		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
+		 * INV in turn has sub-modes: DISCARD or FLUSH-BEFORE
 		 * flush-n-inv is achieved by INV cmd but with IM=1
 		 * So toggle INV sub-mode depending on op request and default
 		 */
@@ -750,7 +750,7 @@ static inline void arc_slc_enable(void)
  *  -In SMP, if hardware caches are coherent
  *
  * There's a corollary case, where kernel READs from a userspace mapped page.
- * If the U-mapping is not congruent to to K-mapping, former needs flushing.
+ * If the U-mapping is not congruent to K-mapping, former needs flushing.
  */
 void flush_dcache_page(struct page *page)
 {
@@ -910,7 +910,7 @@ EXPORT_SYMBOL(flush_icache_range);
  * @vaddr is typically user vaddr (breakpoint) or kernel vaddr (vmalloc)
  *    However in one instance, when called by kprobe (for a breakpt in
  *    builtin kernel code) @vaddr will be paddr only, meaning CDU operation will
- *    use a paddr to index the cache (despite VIPT). This is fine since since a
+ *    use a paddr to index the cache (despite VIPT). This is fine since a
  *    builtin kernel page will not have any virtual mappings.
  *    kprobe on loadable module will be kernel vaddr.
  */

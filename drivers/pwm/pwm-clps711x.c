@@ -23,29 +23,6 @@ static inline struct clps711x_chip *to_clps711x_chip(struct pwm_chip *chip)
 	return container_of(chip, struct clps711x_chip, chip);
 }
 
-static void clps711x_pwm_update_val(struct clps711x_chip *priv, u32 n, u32 v)
-{
-	/* PWM0 - bits 4..7, PWM1 - bits 8..11 */
-	u32 shift = (n + 1) * 4;
-	unsigned long flags;
-	u32 tmp;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	tmp = readl(priv->pmpcon);
-	tmp &= ~(0xf << shift);
-	tmp |= v << shift;
-	writel(tmp, priv->pmpcon);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-static unsigned int clps711x_get_duty(struct pwm_device *pwm, unsigned int v)
-{
-	/* Duty cycle 0..15 max */
-	return DIV64_U64_ROUND_CLOSEST(v * 0xf, pwm->args.period);
-}
-
 static int clps711x_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct clps711x_chip *priv = to_clps711x_chip(chip);
@@ -60,44 +37,41 @@ static int clps711x_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	return 0;
 }
 
-static int clps711x_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			       int duty_ns, int period_ns)
+static int clps711x_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			      const struct pwm_state *state)
 {
 	struct clps711x_chip *priv = to_clps711x_chip(chip);
-	unsigned int duty;
+	/* PWM0 - bits 4..7, PWM1 - bits 8..11 */
+	u32 shift = (pwm->hwpwm + 1) * 4;
+	unsigned long flags;
+	u32 pmpcon, val;
 
-	if (period_ns != pwm->args.period)
+	if (state->polarity != PWM_POLARITY_NORMAL)
 		return -EINVAL;
 
-	duty = clps711x_get_duty(pwm, duty_ns);
-	clps711x_pwm_update_val(priv, pwm->hwpwm, duty);
+	if (state->period != pwm->args.period)
+		return -EINVAL;
+
+	if (state->enabled)
+		val = mul_u64_u64_div_u64(state->duty_cycle, 0xf, state->period);
+	else
+		val = 0;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	pmpcon = readl(priv->pmpcon);
+	pmpcon &= ~(0xf << shift);
+	pmpcon |= val << shift;
+	writel(pmpcon, priv->pmpcon);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
-}
-
-static int clps711x_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct clps711x_chip *priv = to_clps711x_chip(chip);
-	unsigned int duty;
-
-	duty = clps711x_get_duty(pwm, pwm_get_duty_cycle(pwm));
-	clps711x_pwm_update_val(priv, pwm->hwpwm, duty);
-
-	return 0;
-}
-
-static void clps711x_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct clps711x_chip *priv = to_clps711x_chip(chip);
-
-	clps711x_pwm_update_val(priv, pwm->hwpwm, 0);
 }
 
 static const struct pwm_ops clps711x_pwm_ops = {
 	.request = clps711x_pwm_request,
-	.config = clps711x_pwm_config,
-	.enable = clps711x_pwm_enable,
-	.disable = clps711x_pwm_disable,
+	.apply = clps711x_pwm_apply,
 	.owner = THIS_MODULE,
 };
 

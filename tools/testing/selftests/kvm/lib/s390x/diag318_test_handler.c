@@ -8,8 +8,6 @@
 #include "test_util.h"
 #include "kvm_util.h"
 
-#define VCPU_ID	6
-
 #define ICPT_INSTRUCTION	0x04
 #define IPA0_DIAG		0x8300
 
@@ -27,14 +25,15 @@ static void guest_code(void)
  */
 static uint64_t diag318_handler(void)
 {
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct kvm_run *run;
 	uint64_t reg;
 	uint64_t diag318_info;
 
-	vm = vm_create_default(VCPU_ID, 0, guest_code);
-	vcpu_run(vm, VCPU_ID);
-	run = vcpu_state(vm, VCPU_ID);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	vcpu_run(vcpu);
+	run = vcpu->run;
 
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_S390_SIEIC,
 		    "DIAGNOSE 0x0318 instruction was not intercepted");
@@ -62,7 +61,7 @@ uint64_t get_diag318_info(void)
 	 * If KVM does not support diag318, then return 0 to
 	 * ensure tests do not break.
 	 */
-	if (!kvm_check_cap(KVM_CAP_S390_DIAG318)) {
+	if (!kvm_has_cap(KVM_CAP_S390_DIAG318)) {
 		if (!printed_skip) {
 			fprintf(stdout, "KVM_CAP_S390_DIAG318 not supported. "
 				"Skipping diag318 test.\n");

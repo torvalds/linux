@@ -20,6 +20,7 @@ properties:
           - enum:
               - rockchip,px30-wdt
               - rockchip,rk3066-wdt
+              - rockchip,rk3128-wdt
               - rockchip,rk3188-wdt
               - rockchip,rk3228-wdt
               - rockchip,rk3288-wdt

@@ -153,6 +153,7 @@ static void __init snappercl15_init_machine(void)
 MACHINE_START(SNAPPER_CL15, "Bluewater Systems Snapper CL15")
 	/* Maintainer: Ryan Mallon */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_EP93XX_IRQS,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
 	.init_time	= ep93xx_timer_init,

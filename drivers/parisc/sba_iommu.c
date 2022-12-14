@@ -28,6 +28,12 @@
 #include <linux/dma-map-ops.h>
 #include <linux/scatterlist.h>
 #include <linux/iommu-helper.h>
+/*
+ * The semantics of 64 register access on 32bit systems can't be guaranteed
+ * by the C standard, we hope the _lo_hi() macros defining readq and writeq
+ * here will behave as expected.
+ */
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -1047,7 +1053,7 @@ sba_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	spin_unlock_irqrestore(&ioc->res_lock, flags);
 #endif
 
-	while (sg_dma_len(sglist) && nents--) {
+	while (nents && sg_dma_len(sglist)) {
 
 		sba_unmap_page(dev, sg_dma_address(sglist), sg_dma_len(sglist),
 				direction, 0);
@@ -1056,6 +1062,7 @@ sba_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 		ioc->usingle_calls--;	/* kluge since call is unmap_sg() */
 #endif
 		++sglist;
+		nents--;
 	}
 
 	DBG_RUN_SG("%s() DONE (nents %d)\n", __func__,  nents);

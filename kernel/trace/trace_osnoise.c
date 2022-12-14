@@ -917,7 +917,7 @@ void osnoise_trace_irq_entry(int id)
 void osnoise_trace_irq_exit(int id, const char *desc)
 {
 	struct osnoise_variables *osn_var = this_cpu_osn_var();
-	int duration;
+	s64 duration;
 
 	if (!osn_var->sampling)
 		return;
@@ -1048,7 +1048,7 @@ static void trace_softirq_entry_callback(void *data, unsigned int vec_nr)
 static void trace_softirq_exit_callback(void *data, unsigned int vec_nr)
 {
 	struct osnoise_variables *osn_var = this_cpu_osn_var();
-	int duration;
+	s64 duration;
 
 	if (!osn_var->sampling)
 		return;
@@ -1144,7 +1144,7 @@ thread_entry(struct osnoise_variables *osn_var, struct task_struct *t)
 static void
 thread_exit(struct osnoise_variables *osn_var, struct task_struct *t)
 {
-	int duration;
+	s64 duration;
 
 	if (!osn_var->sampling)
 		return;
@@ -1167,8 +1167,10 @@ thread_exit(struct osnoise_variables *osn_var, struct task_struct *t)
  * used to record the beginning and to report the end of a thread noise window.
  */
 static void
-trace_sched_switch_callback(void *data, bool preempt, struct task_struct *p,
-			    struct task_struct *n)
+trace_sched_switch_callback(void *data, bool preempt,
+			    struct task_struct *p,
+			    struct task_struct *n,
+			    unsigned int prev_state)
 {
 	struct osnoise_variables *osn_var = this_cpu_osn_var();
 
@@ -1387,6 +1389,26 @@ static int run_osnoise(void)
 		}
 
 		/*
+		 * In some cases, notably when running on a nohz_full CPU with
+		 * a stopped tick PREEMPT_RCU has no way to account for QSs.
+		 * This will eventually cause unwarranted noise as PREEMPT_RCU
+		 * will force preemption as the means of ending the current
+		 * grace period. We avoid this problem by calling
+		 * rcu_momentary_dyntick_idle(), which performs a zero duration
+		 * EQS allowing PREEMPT_RCU to end the current grace period.
+		 * This call shouldn't be wrapped inside an RCU critical
+		 * section.
+		 *
+		 * Note that in non PREEMPT_RCU kernels QSs are handled through
+		 * cond_resched()
+		 */
+		if (IS_ENABLED(CONFIG_PREEMPT_RCU)) {
+			local_irq_disable();
+			rcu_momentary_dyntick_idle();
+			local_irq_enable();
+		}
+
+		/*
 		 * For the non-preemptive kernel config: let threads runs, if
 		 * they so wish.
 		 */
@@ -1437,6 +1459,37 @@ static struct cpumask osnoise_cpumask;
 static struct cpumask save_cpumask;
 
 /*
+ * osnoise_sleep - sleep until the next period
+ */
+static void osnoise_sleep(void)
+{
+	u64 interval;
+	ktime_t wake_time;
+
+	mutex_lock(&interface_lock);
+	interval = osnoise_data.sample_period - osnoise_data.sample_runtime;
+	mutex_unlock(&interface_lock);
+
+	/*
+	 * differently from hwlat_detector, the osnoise tracer can run
+	 * without a pause because preemption is on.
+	 */
+	if (!interval) {
+		/* Let synchronize_rcu_tasks() make progress */
+		cond_resched_tasks_rcu_qs();
+		return;
+	}
+
+	wake_time = ktime_add_us(ktime_get(), interval);
+	__set_current_state(TASK_INTERRUPTIBLE);
+
+	while (schedule_hrtimeout_range(&wake_time, 0, HRTIMER_MODE_ABS)) {
+		if (kthread_should_stop())
+			break;
+	}
+}
+
+/*
  * osnoise_main - The osnoise detection kernel thread
  *
  * Calls run_osnoise() function to measure the osnoise for the configured runtime,
@@ -1444,30 +1497,10 @@ static struct cpumask save_cpumask;
  */
 static int osnoise_main(void *data)
 {
-	u64 interval;
 
 	while (!kthread_should_stop()) {
-
 		run_osnoise();
-
-		mutex_lock(&interface_lock);
-		interval = osnoise_data.sample_period - osnoise_data.sample_runtime;
-		mutex_unlock(&interface_lock);
-
-		do_div(interval, USEC_PER_MSEC);
-
-		/*
-		 * differently from hwlat_detector, the osnoise tracer can run
-		 * without a pause because preemption is on.
-		 */
-		if (interval < 1) {
-			/* Let synchronize_rcu_tasks() make progress */
-			cond_resched_tasks_rcu_qs();
-			continue;
-		}
-
-		if (msleep_interruptible(interval))
-			break;
+		osnoise_sleep();
 	}
 
 	return 0;
@@ -1545,11 +1578,27 @@ static enum hrtimer_restart timerlat_irq(struct hrtimer *timer)
 
 	trace_timerlat_sample(&s);
 
-	notify_new_max_latency(diff);
+	if (osnoise_data.stop_tracing) {
+		if (time_to_us(diff) >= osnoise_data.stop_tracing) {
 
-	if (osnoise_data.stop_tracing)
-		if (time_to_us(diff) >= osnoise_data.stop_tracing)
+			/*
+			 * At this point, if stop_tracing is set and <= print_stack,
+			 * print_stack is set and would be printed in the thread handler.
+			 *
+			 * Thus, print the stack trace as it is helpful to define the
+			 * root cause of an IRQ latency.
+			 */
+			if (osnoise_data.stop_tracing <= osnoise_data.print_stack) {
+				timerlat_save_stack(0);
+				timerlat_dump_stack(time_to_us(diff));
+			}
+
 			osnoise_stop_tracing();
+			notify_new_max_latency(diff);
+
+			return HRTIMER_NORESTART;
+		}
+	}
 
 	wake_up_process(tlat->kthread);
 
@@ -1737,8 +1786,9 @@ static int start_per_cpu_kthreads(void)
 	for_each_cpu(cpu, current_mask) {
 		retval = start_kthread(cpu);
 		if (retval) {
+			cpus_read_unlock();
 			stop_per_cpu_kthreads();
-			break;
+			return retval;
 		}
 	}
 
@@ -2187,6 +2237,17 @@ static void osnoise_workload_stop(void)
 	 * the last instance, and the workload can stop.
 	 */
 	if (osnoise_has_registered_instances())
+		return;
+
+	/*
+	 * If callbacks were already disabled in a previous stop
+	 * call, there is no need to disable then again.
+	 *
+	 * For instance, this happens when tracing is stopped via:
+	 * echo 0 > tracing_on
+	 * echo nop > current_tracer.
+	 */
+	if (!trace_osnoise_callback_enabled)
 		return;
 
 	trace_osnoise_callback_enabled = false;

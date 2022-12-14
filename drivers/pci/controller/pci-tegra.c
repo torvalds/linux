@@ -726,7 +726,7 @@ static void tegra_pcie_port_free(struct tegra_pcie_port *port)
 /* Tegra PCIE root complex wrongly reports device class */
 static void tegra_pcie_fixup_class(struct pci_dev *dev)
 {
-	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
+	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0bf0, tegra_pcie_fixup_class);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0bf1, tegra_pcie_fixup_class);
@@ -2707,7 +2707,7 @@ static int tegra_pcie_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused tegra_pcie_pm_suspend(struct device *dev)
+static int tegra_pcie_pm_suspend(struct device *dev)
 {
 	struct tegra_pcie *pcie = dev_get_drvdata(dev);
 	struct tegra_pcie_port *port;
@@ -2742,7 +2742,7 @@ static int __maybe_unused tegra_pcie_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tegra_pcie_pm_resume(struct device *dev)
+static int tegra_pcie_pm_resume(struct device *dev)
 {
 	struct tegra_pcie *pcie = dev_get_drvdata(dev);
 	int err;
@@ -2798,9 +2798,8 @@ poweroff:
 }
 
 static const struct dev_pm_ops tegra_pcie_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra_pcie_pm_suspend, tegra_pcie_pm_resume, NULL)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(tegra_pcie_pm_suspend,
-				      tegra_pcie_pm_resume)
+	RUNTIME_PM_OPS(tegra_pcie_pm_suspend, tegra_pcie_pm_resume, NULL)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(tegra_pcie_pm_suspend, tegra_pcie_pm_resume)
 };
 
 static struct platform_driver tegra_pcie_driver = {

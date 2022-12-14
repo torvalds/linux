@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <drm/drm_dp_helper.h>
+#include <drm/display/drm_dp_helper.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_connector.h"
@@ -107,7 +107,7 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 	struct nv50_mstm *mstm = nv_encoder->dp.mstm;
 	enum drm_connector_status status;
 	u8 *dpcd = nv_encoder->dp.dpcd;
-	int ret = NOUVEAU_DP_NONE;
+	int ret = NOUVEAU_DP_NONE, hpd;
 
 	/* If we've already read the DPCD on an eDP device, we don't need to
 	 * reread it as it won't change
@@ -133,6 +133,16 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 		}
 	}
 
+	/* Check status of HPD pin before attempting an AUX transaction that
+	 * would result in a number of (futile) retries on a connector which
+	 * has no display plugged.
+	 *
+	 * TODO: look into checking this before probing I2C to detect DVI/HDMI
+	 */
+	hpd = nvif_conn_hpd_status(&nv_connector->conn);
+	if (hpd == NVIF_CONN_HPD_STATUS_NOT_PRESENT)
+		goto out;
+
 	status = nouveau_dp_probe_dpcd(nv_connector, nv_encoder);
 	if (status == connector_status_disconnected)
 		goto out;
@@ -146,6 +156,21 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 	nv_encoder->dp.link_bw = 27000 * dpcd[DP_MAX_LINK_RATE];
 	nv_encoder->dp.link_nr =
 		dpcd[DP_MAX_LANE_COUNT] & DP_MAX_LANE_COUNT_MASK;
+
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP && dpcd[DP_DPCD_REV] >= 0x13) {
+		struct drm_dp_aux *aux = &nv_connector->aux;
+		int ret, i;
+		u8 sink_rates[16];
+
+		ret = drm_dp_dpcd_read(aux, DP_SUPPORTED_LINK_RATES, sink_rates, sizeof(sink_rates));
+		if (ret == sizeof(sink_rates)) {
+			for (i = 0; i < ARRAY_SIZE(sink_rates); i += 2) {
+				int val = ((sink_rates[i + 1] << 8) | sink_rates[i]) * 200 / 10;
+				if (val && (i == 0 || val > nv_encoder->dp.link_bw))
+					nv_encoder->dp.link_bw = val;
+			}
+		}
+	}
 
 	NV_DEBUG(drm, "display: %dx%d dpcd 0x%02x\n",
 		 nv_encoder->dp.link_nr, nv_encoder->dp.link_bw,

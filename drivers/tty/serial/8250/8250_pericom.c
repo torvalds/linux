@@ -73,7 +73,7 @@ static void pericom_do_set_divisor(struct uart_port *port, unsigned int baud,
 			struct uart_8250_port *up = up_to_u8250p(port);
 			int lcr = serial_port_in(port, UART_LCR);
 
-			serial_port_out(port, UART_LCR, lcr | 0x80);
+			serial_port_out(port, UART_LCR, lcr | UART_LCR_DLAB);
 			serial_dl_write(up, divisor);
 			serial_port_out(port, 2, 16 - scr);
 			serial_port_out(port, UART_LCR, lcr);
@@ -117,7 +117,7 @@ static int pericom8250_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	uart.port.private_data = pericom;
 	uart.port.iotype = UPIO_PORT;
 	uart.port.uartclk = 921600 * 16;
-	uart.port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ | UPF_MAGIC_MULTIPLIER;
+	uart.port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
 	uart.port.set_divisor = pericom_do_set_divisor;
 	for (i = 0; i < nr && i < maxnr; i++) {
 		unsigned int offset = (i == 3 && nr == 4) ? 0x38 : i * 0x8;

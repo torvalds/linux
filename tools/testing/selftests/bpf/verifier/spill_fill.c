@@ -102,7 +102,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.errstr_unpriv = "attempt to corrupt spilled",
-	.errstr = "R0 invalid mem access 'inv",
+	.errstr = "R0 invalid mem access 'scalar'",
 	.result = REJECT,
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
@@ -147,11 +147,11 @@
 	BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_10, -8),
 	/* r0 = r2 */
 	BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
-	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=inv20 */
+	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=20 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_4),
-	/* if (r0 > r3) R0=pkt,off=20 R2=pkt R3=pkt_end R4=inv20 */
+	/* if (r0 > r3) R0=pkt,off=20 R2=pkt R3=pkt_end R4=20 */
 	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
-	/* r0 = *(u32 *)r2 R0=pkt,off=20,r=20 R2=pkt,r=20 R3=pkt_end R4=inv20 */
+	/* r0 = *(u32 *)r2 R0=pkt,off=20,r=20 R2=pkt,r=20 R3=pkt_end R4=20 */
 	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_2, 0),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
@@ -190,11 +190,11 @@
 	BPF_LDX_MEM(BPF_H, BPF_REG_4, BPF_REG_10, -8),
 	/* r0 = r2 */
 	BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
-	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=inv,umax=65535 */
+	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=umax=65535 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_4),
-	/* if (r0 > r3) R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=inv,umax=65535 */
+	/* if (r0 > r3) R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=umax=65535 */
 	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
-	/* r0 = *(u32 *)r2 R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=inv20 */
+	/* r0 = *(u32 *)r2 R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=20 */
 	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_2, 0),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
@@ -222,11 +222,11 @@
 	BPF_LDX_MEM(BPF_H, BPF_REG_4, BPF_REG_10, -8),
 	/* r0 = r2 */
 	BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
-	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=inv,umax=65535 */
+	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=umax=65535 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_4),
-	/* if (r0 > r3) R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=inv,umax=65535 */
+	/* if (r0 > r3) R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=umax=65535 */
 	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
-	/* r0 = *(u32 *)r2 R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=inv20 */
+	/* r0 = *(u32 *)r2 R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=20 */
 	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_2, 0),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
@@ -250,11 +250,11 @@
 	BPF_LDX_MEM(BPF_H, BPF_REG_4, BPF_REG_10, -6),
 	/* r0 = r2 */
 	BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
-	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=inv,umax=65535 */
+	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=umax=65535 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_4),
-	/* if (r0 > r3) R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=inv,umax=65535 */
+	/* if (r0 > r3) R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=umax=65535 */
 	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
-	/* r0 = *(u32 *)r2 R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=inv20 */
+	/* r0 = *(u32 *)r2 R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=20 */
 	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_2, 0),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
@@ -280,11 +280,11 @@
 	BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_10, -4),
 	/* r0 = r2 */
 	BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
-	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=inv,umax=U32_MAX */
+	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=umax=U32_MAX */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_4),
-	/* if (r0 > r3) R0=pkt,umax=U32_MAX R2=pkt R3=pkt_end R4=inv */
+	/* if (r0 > r3) R0=pkt,umax=U32_MAX R2=pkt R3=pkt_end R4= */
 	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
-	/* r0 = *(u32 *)r2 R0=pkt,umax=U32_MAX R2=pkt R3=pkt_end R4=inv */
+	/* r0 = *(u32 *)r2 R0=pkt,umax=U32_MAX R2=pkt R3=pkt_end R4= */
 	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_2, 0),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
@@ -305,13 +305,13 @@
 	BPF_JMP_IMM(BPF_JLE, BPF_REG_4, 40, 2),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
-	/* *(u32 *)(r10 -8) = r4 R4=inv,umax=40 */
+	/* *(u32 *)(r10 -8) = r4 R4=umax=40 */
 	BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_4, -8),
 	/* r4 = (*u32 *)(r10 - 8) */
 	BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_10, -8),
-	/* r2 += r4 R2=pkt R4=inv,umax=40 */
+	/* r2 += r4 R2=pkt R4=umax=40 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_4),
-	/* r0 = r2 R2=pkt,umax=40 R4=inv,umax=40 */
+	/* r0 = r2 R2=pkt,umax=40 R4=umax=40 */
 	BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
 	/* r2 += 20 R0=pkt,umax=40 R2=pkt,umax=40 */
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, 20),

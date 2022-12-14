@@ -419,6 +419,39 @@ static void cs8409_fix_caps(struct hda_codec *codec, unsigned int nid)
 	snd_hda_override_wcaps(codec, nid, (get_wcaps(codec, nid) | AC_WCAP_UNSOL_CAP));
 }
 
+static int cs8409_spk_sw_gpio_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct cs8409_spec *spec = codec->spec;
+
+	ucontrol->value.integer.value[0] = !!(spec->gpio_data & spec->speaker_pdn_gpio);
+	return 0;
+}
+
+static int cs8409_spk_sw_gpio_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct cs8409_spec *spec = codec->spec;
+	unsigned int gpio_data;
+
+	gpio_data = (spec->gpio_data & ~spec->speaker_pdn_gpio) |
+		(ucontrol->value.integer.value[0] ? spec->speaker_pdn_gpio : 0);
+	if (gpio_data == spec->gpio_data)
+		return 0;
+	spec->gpio_data = gpio_data;
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, spec->gpio_data);
+	return 1;
+}
+
+static const struct snd_kcontrol_new cs8409_spk_sw_ctrl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.info = snd_ctl_boolean_mono_info,
+	.get = cs8409_spk_sw_gpio_get,
+	.put = cs8409_spk_sw_gpio_put,
+};
+
 /******************************************************************************
  *                        CS42L42 Specific Functions
  ******************************************************************************/
@@ -481,26 +514,26 @@ static void cs42l42_mute(struct sub_codec *cs42l42, int vol_type,
 	if (mute) {
 		if (vol_type == CS42L42_VOL_DAC) {
 			if (chs & BIT(0))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_HS_VOL_CHA, 0x3f);
+				cs8409_i2c_write(cs42l42, CS42L42_MIXER_CHA_VOL, 0x3f);
 			if (chs & BIT(1))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_HS_VOL_CHB, 0x3f);
+				cs8409_i2c_write(cs42l42, CS42L42_MIXER_CHB_VOL, 0x3f);
 		} else if (vol_type == CS42L42_VOL_ADC) {
 			if (chs & BIT(0))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_AMIC_VOL, 0x9f);
+				cs8409_i2c_write(cs42l42, CS42L42_ADC_VOLUME, 0x9f);
 		}
 	} else {
 		if (vol_type == CS42L42_VOL_DAC) {
 			if (chs & BIT(0))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_HS_VOL_CHA,
+				cs8409_i2c_write(cs42l42, CS42L42_MIXER_CHA_VOL,
 					-(cs42l42->vol[CS42L42_DAC_CH0_VOL_OFFSET])
-					& CS42L42_REG_HS_VOL_MASK);
+					& CS42L42_MIXER_CH_VOL_MASK);
 			if (chs & BIT(1))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_HS_VOL_CHB,
+				cs8409_i2c_write(cs42l42, CS42L42_MIXER_CHB_VOL,
 					-(cs42l42->vol[CS42L42_DAC_CH1_VOL_OFFSET])
-					& CS42L42_REG_HS_VOL_MASK);
+					& CS42L42_MIXER_CH_VOL_MASK);
 		} else if (vol_type == CS42L42_VOL_ADC) {
 			if (chs & BIT(0))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_AMIC_VOL,
+				cs8409_i2c_write(cs42l42, CS42L42_ADC_VOLUME,
 					cs42l42->vol[CS42L42_ADC_VOL_OFFSET]
 					& CS42L42_REG_AMIC_VOL_MASK);
 		}
@@ -601,76 +634,167 @@ static void cs42l42_capture_pcm_hook(struct hda_pcm_stream *hinfo,
 /* Configure CS42L42 slave codec for jack autodetect */
 static void cs42l42_enable_jack_detect(struct sub_codec *cs42l42)
 {
-	cs8409_i2c_write(cs42l42, 0x1b70, cs42l42->hsbias_hiz);
+	cs8409_i2c_write(cs42l42, CS42L42_HSBIAS_SC_AUTOCTL, cs42l42->hsbias_hiz);
 	/* Clear WAKE# */
-	cs8409_i2c_write(cs42l42, 0x1b71, 0x00C1);
+	cs8409_i2c_write(cs42l42, CS42L42_WAKE_CTL, 0x00C1);
 	/* Wait ~2.5ms */
 	usleep_range(2500, 3000);
 	/* Set mode WAKE# output follows the combination logic directly */
-	cs8409_i2c_write(cs42l42, 0x1b71, 0x00C0);
+	cs8409_i2c_write(cs42l42, CS42L42_WAKE_CTL, 0x00C0);
 	/* Clear interrupts status */
-	cs8409_i2c_read(cs42l42, 0x130f);
+	cs8409_i2c_read(cs42l42, CS42L42_TSRS_PLUG_STATUS);
 	/* Enable interrupt */
-	cs8409_i2c_write(cs42l42, 0x1320, 0xF3);
+	cs8409_i2c_write(cs42l42, CS42L42_TSRS_PLUG_INT_MASK, 0xF3);
 }
 
 /* Enable and run CS42L42 slave codec jack auto detect */
 static void cs42l42_run_jack_detect(struct sub_codec *cs42l42)
 {
 	/* Clear interrupts */
-	cs8409_i2c_read(cs42l42, 0x1308);
-	cs8409_i2c_read(cs42l42, 0x1b77);
-	cs8409_i2c_write(cs42l42, 0x1320, 0xFF);
-	cs8409_i2c_read(cs42l42, 0x130f);
+	cs8409_i2c_read(cs42l42, CS42L42_CODEC_STATUS);
+	cs8409_i2c_read(cs42l42, CS42L42_DET_STATUS1);
+	cs8409_i2c_write(cs42l42, CS42L42_TSRS_PLUG_INT_MASK, 0xFF);
+	cs8409_i2c_read(cs42l42, CS42L42_TSRS_PLUG_STATUS);
 
-	cs8409_i2c_write(cs42l42, 0x1102, 0x87);
-	cs8409_i2c_write(cs42l42, 0x1f06, 0x86);
-	cs8409_i2c_write(cs42l42, 0x1b74, 0x07);
-	cs8409_i2c_write(cs42l42, 0x131b, 0xFD);
-	cs8409_i2c_write(cs42l42, 0x1120, 0x80);
+	cs8409_i2c_write(cs42l42, CS42L42_PWR_CTL2, 0x87);
+	cs8409_i2c_write(cs42l42, CS42L42_DAC_CTL2, 0x86);
+	cs8409_i2c_write(cs42l42, CS42L42_MISC_DET_CTL, 0x07);
+	cs8409_i2c_write(cs42l42, CS42L42_CODEC_INT_MASK, 0xFD);
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2, 0x80);
 	/* Wait ~20ms*/
 	usleep_range(20000, 25000);
-	cs8409_i2c_write(cs42l42, 0x111f, 0x77);
-	cs8409_i2c_write(cs42l42, 0x1120, 0xc0);
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL1, 0x77);
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2, 0xc0);
+}
+
+static int cs42l42_manual_hs_det(struct sub_codec *cs42l42)
+{
+	unsigned int hs_det_status;
+	unsigned int hs_det_comp1;
+	unsigned int hs_det_comp2;
+	unsigned int hs_det_sw;
+	unsigned int hs_type;
+
+	/* Set hs detect to manual, active mode */
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2,
+			 (1 << CS42L42_HSDET_CTRL_SHIFT) |
+			 (0 << CS42L42_HSDET_SET_SHIFT) |
+			 (0 << CS42L42_HSBIAS_REF_SHIFT) |
+			 (0 << CS42L42_HSDET_AUTO_TIME_SHIFT));
+
+	/* Configure HS DET comparator reference levels. */
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL1,
+			 (CS42L42_HSDET_COMP1_LVL_VAL << CS42L42_HSDET_COMP1_LVL_SHIFT) |
+			 (CS42L42_HSDET_COMP2_LVL_VAL << CS42L42_HSDET_COMP2_LVL_SHIFT));
+
+	/* Open the SW_HSB_HS3 switch and close SW_HSB_HS4 for a Type 1 headset. */
+	cs8409_i2c_write(cs42l42, CS42L42_HS_SWITCH_CTL, CS42L42_HSDET_SW_COMP1);
+
+	msleep(100);
+
+	hs_det_status = cs8409_i2c_read(cs42l42, CS42L42_HS_DET_STATUS);
+
+	hs_det_comp1 = (hs_det_status & CS42L42_HSDET_COMP1_OUT_MASK) >>
+			CS42L42_HSDET_COMP1_OUT_SHIFT;
+	hs_det_comp2 = (hs_det_status & CS42L42_HSDET_COMP2_OUT_MASK) >>
+			CS42L42_HSDET_COMP2_OUT_SHIFT;
+
+	/* Close the SW_HSB_HS3 switch for a Type 2 headset. */
+	cs8409_i2c_write(cs42l42, CS42L42_HS_SWITCH_CTL, CS42L42_HSDET_SW_COMP2);
+
+	msleep(100);
+
+	hs_det_status = cs8409_i2c_read(cs42l42, CS42L42_HS_DET_STATUS);
+
+	hs_det_comp1 |= ((hs_det_status & CS42L42_HSDET_COMP1_OUT_MASK) >>
+			CS42L42_HSDET_COMP1_OUT_SHIFT) << 1;
+	hs_det_comp2 |= ((hs_det_status & CS42L42_HSDET_COMP2_OUT_MASK) >>
+			CS42L42_HSDET_COMP2_OUT_SHIFT) << 1;
+
+	/* Use Comparator 1 with 1.25V Threshold. */
+	switch (hs_det_comp1) {
+	case CS42L42_HSDET_COMP_TYPE1:
+		hs_type = CS42L42_PLUG_CTIA;
+		hs_det_sw = CS42L42_HSDET_SW_TYPE1;
+		break;
+	case CS42L42_HSDET_COMP_TYPE2:
+		hs_type = CS42L42_PLUG_OMTP;
+		hs_det_sw = CS42L42_HSDET_SW_TYPE2;
+		break;
+	default:
+		/* Fallback to Comparator 2 with 1.75V Threshold. */
+		switch (hs_det_comp2) {
+		case CS42L42_HSDET_COMP_TYPE1:
+			hs_type = CS42L42_PLUG_CTIA;
+			hs_det_sw = CS42L42_HSDET_SW_TYPE1;
+			break;
+		case CS42L42_HSDET_COMP_TYPE2:
+			hs_type = CS42L42_PLUG_OMTP;
+			hs_det_sw = CS42L42_HSDET_SW_TYPE2;
+			break;
+		case CS42L42_HSDET_COMP_TYPE3:
+			hs_type = CS42L42_PLUG_HEADPHONE;
+			hs_det_sw = CS42L42_HSDET_SW_TYPE3;
+			break;
+		default:
+			hs_type = CS42L42_PLUG_INVALID;
+			hs_det_sw = CS42L42_HSDET_SW_TYPE4;
+			break;
+		}
+	}
+
+	/* Set Switches */
+	cs8409_i2c_write(cs42l42, CS42L42_HS_SWITCH_CTL, hs_det_sw);
+
+	/* Set HSDET mode to Manual—Disabled */
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2,
+			 (0 << CS42L42_HSDET_CTRL_SHIFT) |
+			 (0 << CS42L42_HSDET_SET_SHIFT) |
+			 (0 << CS42L42_HSBIAS_REF_SHIFT) |
+			 (0 << CS42L42_HSDET_AUTO_TIME_SHIFT));
+
+	/* Configure HS DET comparator reference levels. */
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL1,
+			 (CS42L42_HSDET_COMP1_LVL_DEFAULT << CS42L42_HSDET_COMP1_LVL_SHIFT) |
+			 (CS42L42_HSDET_COMP2_LVL_DEFAULT << CS42L42_HSDET_COMP2_LVL_SHIFT));
+
+	return hs_type;
 }
 
 static int cs42l42_handle_tip_sense(struct sub_codec *cs42l42, unsigned int reg_ts_status)
 {
-	int status_changed = cs42l42->force_status_change;
-
-	cs42l42->force_status_change = 0;
+	int status_changed = 0;
 
 	/* TIP_SENSE INSERT/REMOVE */
 	switch (reg_ts_status) {
-	case CS42L42_JACK_INSERTED:
-		if (!cs42l42->hp_jack_in) {
-			if (cs42l42->no_type_dect) {
-				status_changed = 1;
-				cs42l42->hp_jack_in = 1;
-				cs42l42->mic_jack_in = 0;
-			} else {
-				cs42l42_run_jack_detect(cs42l42);
-			}
+	case CS42L42_TS_PLUG:
+		if (cs42l42->no_type_dect) {
+			status_changed = 1;
+			cs42l42->hp_jack_in = 1;
+			cs42l42->mic_jack_in = 0;
+		} else {
+			cs42l42_run_jack_detect(cs42l42);
 		}
 		break;
 
-	case CS42L42_JACK_REMOVED:
-		if (cs42l42->hp_jack_in || cs42l42->mic_jack_in) {
-			status_changed = 1;
-			cs42l42->hp_jack_in = 0;
-			cs42l42->mic_jack_in = 0;
-		}
+	case CS42L42_TS_UNPLUG:
+		status_changed = 1;
+		cs42l42->hp_jack_in = 0;
+		cs42l42->mic_jack_in = 0;
 		break;
 	default:
 		/* jack in transition */
 		break;
 	}
 
+	codec_dbg(cs42l42->codec, "Tip Sense Detection: (%d)\n", reg_ts_status);
+
 	return status_changed;
 }
 
 static int cs42l42_jack_unsol_event(struct sub_codec *cs42l42)
 {
+	int current_plug_status;
 	int status_changed = 0;
 	int reg_cdc_status;
 	int reg_hs_status;
@@ -678,46 +802,65 @@ static int cs42l42_jack_unsol_event(struct sub_codec *cs42l42)
 	int type;
 
 	/* Read jack detect status registers */
-	reg_cdc_status = cs8409_i2c_read(cs42l42, 0x1308);
-	reg_hs_status = cs8409_i2c_read(cs42l42, 0x1124);
-	reg_ts_status = cs8409_i2c_read(cs42l42, 0x130f);
+	reg_cdc_status = cs8409_i2c_read(cs42l42, CS42L42_CODEC_STATUS);
+	reg_hs_status = cs8409_i2c_read(cs42l42, CS42L42_HS_DET_STATUS);
+	reg_ts_status = cs8409_i2c_read(cs42l42, CS42L42_TSRS_PLUG_STATUS);
 
 	/* If status values are < 0, read error has occurred. */
 	if (reg_cdc_status < 0 || reg_hs_status < 0 || reg_ts_status < 0)
 		return -EIO;
 
+	current_plug_status = (reg_ts_status & (CS42L42_TS_PLUG_MASK | CS42L42_TS_UNPLUG_MASK))
+				>> CS42L42_TS_PLUG_SHIFT;
+
 	/* HSDET_AUTO_DONE */
-	if (reg_cdc_status & CS42L42_HSDET_AUTO_DONE) {
+	if (reg_cdc_status & CS42L42_HSDET_AUTO_DONE_MASK) {
 
 		/* Disable HSDET_AUTO_DONE */
-		cs8409_i2c_write(cs42l42, 0x131b, 0xFF);
+		cs8409_i2c_write(cs42l42, CS42L42_CODEC_INT_MASK, 0xFF);
 
-		type = ((reg_hs_status & CS42L42_HSTYPE_MASK) + 1);
+		type = (reg_hs_status & CS42L42_HSDET_TYPE_MASK) >> CS42L42_HSDET_TYPE_SHIFT;
+
+		/* Configure the HSDET mode. */
+		cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2, 0x80);
 
 		if (cs42l42->no_type_dect) {
-			status_changed = cs42l42_handle_tip_sense(cs42l42, reg_ts_status);
-		} else if (type == 4) {
-			/* Type 4 not supported	*/
-			status_changed = cs42l42_handle_tip_sense(cs42l42, CS42L42_JACK_REMOVED);
+			status_changed = cs42l42_handle_tip_sense(cs42l42, current_plug_status);
 		} else {
-			if (!cs42l42->hp_jack_in) {
+			if (type == CS42L42_PLUG_INVALID || type == CS42L42_PLUG_HEADPHONE) {
+				codec_dbg(cs42l42->codec,
+					  "Auto detect value not valid (%d), running manual det\n",
+					  type);
+				type = cs42l42_manual_hs_det(cs42l42);
+			}
+
+			switch (type) {
+			case CS42L42_PLUG_CTIA:
+			case CS42L42_PLUG_OMTP:
 				status_changed = 1;
 				cs42l42->hp_jack_in = 1;
-			}
-			/* type = 3 has no mic */
-			if ((!cs42l42->mic_jack_in) && (type != 3)) {
-				status_changed = 1;
 				cs42l42->mic_jack_in = 1;
+				break;
+			case CS42L42_PLUG_HEADPHONE:
+				status_changed = 1;
+				cs42l42->hp_jack_in = 1;
+				cs42l42->mic_jack_in = 0;
+				break;
+			default:
+				status_changed = 1;
+				cs42l42->hp_jack_in = 0;
+				cs42l42->mic_jack_in = 0;
+				break;
 			}
+			codec_dbg(cs42l42->codec, "Detection done (%d)\n", type);
 		}
-		/* Configure the HSDET mode. */
-		cs8409_i2c_write(cs42l42, 0x1120, 0x80);
+
 		/* Enable the HPOUT ground clamp and configure the HP pull-down */
-		cs8409_i2c_write(cs42l42, 0x1F06, 0x02);
+		cs8409_i2c_write(cs42l42, CS42L42_DAC_CTL2, 0x02);
 		/* Re-Enable Tip Sense Interrupt */
-		cs8409_i2c_write(cs42l42, 0x1320, 0xF3);
+		cs8409_i2c_write(cs42l42, CS42L42_TSRS_PLUG_INT_MASK, 0xF3);
 	} else {
-		status_changed = cs42l42_handle_tip_sense(cs42l42, reg_ts_status);
+		status_changed = cs42l42_handle_tip_sense(cs42l42, current_plug_status);
 	}
 
 	return status_changed;
@@ -726,18 +869,19 @@ static int cs42l42_jack_unsol_event(struct sub_codec *cs42l42)
 static void cs42l42_resume(struct sub_codec *cs42l42)
 {
 	struct hda_codec *codec = cs42l42->codec;
-	unsigned int gpio_data;
+	struct cs8409_spec *spec = codec->spec;
 	struct cs8409_i2c_param irq_regs[] = {
-		{ 0x1308, 0x00 },
-		{ 0x1309, 0x00 },
-		{ 0x130A, 0x00 },
-		{ 0x130F, 0x00 },
+		{ CS42L42_CODEC_STATUS, 0x00 },
+		{ CS42L42_DET_INT_STATUS1, 0x00 },
+		{ CS42L42_DET_INT_STATUS2, 0x00 },
+		{ CS42L42_TSRS_PLUG_STATUS, 0x00 },
 	};
+	int fsv_old, fsv_new;
 
 	/* Bring CS42L42 out of Reset */
-	gpio_data = snd_hda_codec_read(codec, CS8409_PIN_AFG, 0, AC_VERB_GET_GPIO_DATA, 0);
-	gpio_data |= cs42l42->reset_gpio;
-	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, gpio_data);
+	spec->gpio_data = snd_hda_codec_read(codec, CS8409_PIN_AFG, 0, AC_VERB_GET_GPIO_DATA, 0);
+	spec->gpio_data |= cs42l42->reset_gpio;
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, spec->gpio_data);
 	usleep_range(10000, 15000);
 
 	cs42l42->suspended = 0;
@@ -749,8 +893,13 @@ static void cs42l42_resume(struct sub_codec *cs42l42)
 	/* Clear interrupts, by reading interrupt status registers */
 	cs8409_i2c_bulk_read(cs42l42, irq_regs, ARRAY_SIZE(irq_regs));
 
-	if (cs42l42->full_scale_vol)
-		cs8409_i2c_write(cs42l42, 0x2001, 0x01);
+	fsv_old = cs8409_i2c_read(cs42l42, CS42L42_HP_CTL);
+	if (cs42l42->full_scale_vol == CS42L42_FULL_SCALE_VOL_0DB)
+		fsv_new = fsv_old & ~CS42L42_FULL_SCALE_VOL_MASK;
+	else
+		fsv_new = fsv_old & CS42L42_FULL_SCALE_VOL_MASK;
+	if (fsv_new != fsv_old)
+		cs8409_i2c_write(cs42l42, CS42L42_HP_CTL, fsv_new);
 
 	/* we have to explicitly allow unsol event handling even during the
 	 * resume phase so that the jack event is processed properly
@@ -764,41 +913,40 @@ static void cs42l42_resume(struct sub_codec *cs42l42)
 static void cs42l42_suspend(struct sub_codec *cs42l42)
 {
 	struct hda_codec *codec = cs42l42->codec;
-	unsigned int gpio_data;
+	struct cs8409_spec *spec = codec->spec;
 	int reg_cdc_status = 0;
 	const struct cs8409_i2c_param cs42l42_pwr_down_seq[] = {
-		{ 0x1F06, 0x02 },
-		{ 0x1129, 0x00 },
-		{ 0x2301, 0x3F },
-		{ 0x2302, 0x3F },
-		{ 0x2303, 0x3F },
-		{ 0x2001, 0x0F },
-		{ 0x2A01, 0x00 },
-		{ 0x1207, 0x00 },
-		{ 0x1101, 0xFE },
-		{ 0x1102, 0x8C },
-		{ 0x1101, 0xFF },
+		{ CS42L42_DAC_CTL2, 0x02 },
+		{ CS42L42_HS_CLAMP_DISABLE, 0x00 },
+		{ CS42L42_MIXER_CHA_VOL, 0x3F },
+		{ CS42L42_MIXER_ADC_VOL, 0x3F },
+		{ CS42L42_MIXER_CHB_VOL, 0x3F },
+		{ CS42L42_HP_CTL, 0x0F },
+		{ CS42L42_ASP_RX_DAI0_EN, 0x00 },
+		{ CS42L42_ASP_CLK_CFG, 0x00 },
+		{ CS42L42_PWR_CTL1, 0xFE },
+		{ CS42L42_PWR_CTL2, 0x8C },
+		{ CS42L42_PWR_CTL1, 0xFF },
 	};
 
 	cs8409_i2c_bulk_write(cs42l42, cs42l42_pwr_down_seq, ARRAY_SIZE(cs42l42_pwr_down_seq));
 
 	if (read_poll_timeout(cs8409_i2c_read, reg_cdc_status,
 			(reg_cdc_status & 0x1), CS42L42_PDN_SLEEP_US, CS42L42_PDN_TIMEOUT_US,
-			true, cs42l42, 0x1308) < 0)
+			true, cs42l42, CS42L42_CODEC_STATUS) < 0)
 		codec_warn(codec, "Timeout waiting for PDN_DONE for CS42L42\n");
 
 	/* Power down CS42L42 ASP/EQ/MIX/HP */
-	cs8409_i2c_write(cs42l42, 0x1102, 0x9C);
+	cs8409_i2c_write(cs42l42, CS42L42_PWR_CTL2, 0x9C);
 	cs42l42->suspended = 1;
 	cs42l42->last_page = 0;
 	cs42l42->hp_jack_in = 0;
 	cs42l42->mic_jack_in = 0;
-	cs42l42->force_status_change = 1;
 
 	/* Put CS42L42 into Reset */
-	gpio_data = snd_hda_codec_read(codec, CS8409_PIN_AFG, 0, AC_VERB_GET_GPIO_DATA, 0);
-	gpio_data &= ~cs42l42->reset_gpio;
-	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, gpio_data);
+	spec->gpio_data = snd_hda_codec_read(codec, CS8409_PIN_AFG, 0, AC_VERB_GET_GPIO_DATA, 0);
+	spec->gpio_data &= ~cs42l42->reset_gpio;
+	snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA, spec->gpio_data);
 }
 #endif
 
@@ -906,9 +1054,19 @@ static void cs8409_cs42l42_hw_init(struct hda_codec *codec)
 			cs8409_vendor_coef_set(codec, seq_bullseye->cir, seq_bullseye->coeff);
 	}
 
-	/* DMIC1_MO=00b, DMIC1/2_SR=1 */
-	if (codec->fixup_id == CS8409_WARLOCK || codec->fixup_id == CS8409_CYBORG)
-		cs8409_vendor_coef_set(codec, 0x09, 0x0003);
+	switch (codec->fixup_id) {
+	case CS8409_CYBORG:
+	case CS8409_WARLOCK_MLK_DUAL_MIC:
+		/* DMIC1_MO=00b, DMIC1/2_SR=1 */
+		cs8409_vendor_coef_set(codec, CS8409_DMIC_CFG, 0x0003);
+		break;
+	case CS8409_ODIN:
+		/* ASP1/2_xxx_EN=1, ASP1/2_MCLK_EN=0, DMIC1_SCL_EN=0 */
+		cs8409_vendor_coef_set(codec, CS8409_PAD_CFG_SLW_RATE_CTRL, 0xfc00);
+		break;
+	default:
+		break;
+	}
 
 	cs42l42_resume(cs42l42);
 
@@ -982,6 +1140,8 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		spec->gen.no_primary_hp = 1;
 		spec->gen.suppress_vmaster = 1;
 
+		spec->speaker_pdn_gpio = 0;
+
 		/* GPIO 5 out, 3,4 in */
 		spec->gpio_dir = spec->scodecs[CS8409_CODEC0]->reset_gpio;
 		spec->gpio_data = 0;
@@ -993,26 +1153,33 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		cs8409_fix_caps(codec, CS8409_CS42L42_HP_PIN_NID);
 		cs8409_fix_caps(codec, CS8409_CS42L42_AMIC_PIN_NID);
 
-		/* Set TIP_SENSE_EN for analog front-end of tip sense.
-		 * Additionally set HSBIAS_SENSE_EN and Full Scale volume for some variants.
-		 */
+		spec->scodecs[CS8409_CODEC0]->hsbias_hiz = 0x0020;
+
 		switch (codec->fixup_id) {
-		case CS8409_WARLOCK:
-			spec->scodecs[CS8409_CODEC0]->hsbias_hiz = 0x0020;
-			spec->scodecs[CS8409_CODEC0]->full_scale_vol = 1;
-			break;
-		case CS8409_BULLSEYE:
-			spec->scodecs[CS8409_CODEC0]->hsbias_hiz = 0x0020;
-			spec->scodecs[CS8409_CODEC0]->full_scale_vol = 0;
-			break;
 		case CS8409_CYBORG:
-			spec->scodecs[CS8409_CODEC0]->hsbias_hiz = 0x00a0;
-			spec->scodecs[CS8409_CODEC0]->full_scale_vol = 1;
+			spec->scodecs[CS8409_CODEC0]->full_scale_vol =
+				CS42L42_FULL_SCALE_VOL_MINUS6DB;
+			spec->speaker_pdn_gpio = CS8409_CYBORG_SPEAKER_PDN;
+			break;
+		case CS8409_ODIN:
+			spec->scodecs[CS8409_CODEC0]->full_scale_vol = CS42L42_FULL_SCALE_VOL_0DB;
+			spec->speaker_pdn_gpio = CS8409_CYBORG_SPEAKER_PDN;
+			break;
+		case CS8409_WARLOCK_MLK:
+		case CS8409_WARLOCK_MLK_DUAL_MIC:
+			spec->scodecs[CS8409_CODEC0]->full_scale_vol = CS42L42_FULL_SCALE_VOL_0DB;
+			spec->speaker_pdn_gpio = CS8409_WARLOCK_SPEAKER_PDN;
 			break;
 		default:
-			spec->scodecs[CS8409_CODEC0]->hsbias_hiz = 0x0003;
-			spec->scodecs[CS8409_CODEC0]->full_scale_vol = 1;
+			spec->scodecs[CS8409_CODEC0]->full_scale_vol =
+				CS42L42_FULL_SCALE_VOL_MINUS6DB;
+			spec->speaker_pdn_gpio = CS8409_WARLOCK_SPEAKER_PDN;
 			break;
+		}
+
+		if (spec->speaker_pdn_gpio > 0) {
+			spec->gpio_dir |= spec->speaker_pdn_gpio;
+			spec->gpio_data |= spec->speaker_pdn_gpio;
 		}
 
 		break;
@@ -1023,13 +1190,17 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		/* add hooks */
 		spec->gen.pcm_playback_hook = cs42l42_playback_pcm_hook;
 		spec->gen.pcm_capture_hook = cs42l42_capture_pcm_hook;
-		/* Set initial DMIC volume to -26 dB */
-		snd_hda_codec_amp_init_stereo(codec, CS8409_CS42L42_DMIC_ADC_PIN_NID,
-					      HDA_INPUT, 0, 0xff, 0x19);
+		if (codec->fixup_id != CS8409_ODIN)
+			/* Set initial DMIC volume to -26 dB */
+			snd_hda_codec_amp_init_stereo(codec, CS8409_CS42L42_DMIC_ADC_PIN_NID,
+						      HDA_INPUT, 0, 0xff, 0x19);
 		snd_hda_gen_add_kctl(&spec->gen, "Headphone Playback Volume",
 				&cs42l42_dac_volume_mixer);
 		snd_hda_gen_add_kctl(&spec->gen, "Mic Capture Volume",
 				&cs42l42_adc_volume_mixer);
+		if (spec->speaker_pdn_gpio > 0)
+			snd_hda_gen_add_kctl(&spec->gen, "Speaker Playback Switch",
+					     &cs8409_spk_sw_ctrl);
 		/* Disable Unsolicited Response during boot */
 		cs8409_enable_ur(codec, 0);
 		snd_hda_codec_set_name(codec, "CS8409/CS42L42");
@@ -1221,6 +1392,9 @@ void dolphin_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int ac
 		cs8409_fix_caps(codec, DOLPHIN_HP_PIN_NID);
 		cs8409_fix_caps(codec, DOLPHIN_LO_PIN_NID);
 		cs8409_fix_caps(codec, DOLPHIN_AMIC_PIN_NID);
+
+		spec->scodecs[CS8409_CODEC0]->full_scale_vol = CS42L42_FULL_SCALE_VOL_MINUS6DB;
+		spec->scodecs[CS8409_CODEC1]->full_scale_vol = CS42L42_FULL_SCALE_VOL_MINUS6DB;
 
 		break;
 	case HDA_FIXUP_ACT_PROBE:

@@ -40,12 +40,18 @@ bool within_error_injection_list(unsigned long addr)
 int get_injectable_error_type(unsigned long addr)
 {
 	struct ei_entry *ent;
+	int ei_type = EI_ETYPE_NONE;
 
+	mutex_lock(&ei_mutex);
 	list_for_each_entry(ent, &error_injection_list, list) {
-		if (addr >= ent->start_addr && addr < ent->end_addr)
-			return ent->etype;
+		if (addr >= ent->start_addr && addr < ent->end_addr) {
+			ei_type = ent->etype;
+			break;
+		}
 	}
-	return EI_ETYPE_NONE;
+	mutex_unlock(&ei_mutex);
+
+	return ei_type;
 }
 
 /*
@@ -197,24 +203,14 @@ static int ei_seq_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static const struct seq_operations ei_seq_ops = {
+static const struct seq_operations ei_sops = {
 	.start = ei_seq_start,
 	.next  = ei_seq_next,
 	.stop  = ei_seq_stop,
 	.show  = ei_seq_show,
 };
 
-static int ei_open(struct inode *inode, struct file *filp)
-{
-	return seq_open(filp, &ei_seq_ops);
-}
-
-static const struct file_operations debugfs_ei_ops = {
-	.open           = ei_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(ei);
 
 static int __init ei_debugfs_init(void)
 {
@@ -224,7 +220,7 @@ static int __init ei_debugfs_init(void)
 	if (!dir)
 		return -ENOMEM;
 
-	file = debugfs_create_file("list", 0444, dir, NULL, &debugfs_ei_ops);
+	file = debugfs_create_file("list", 0444, dir, NULL, &ei_fops);
 	if (!file) {
 		debugfs_remove(dir);
 		return -ENOMEM;

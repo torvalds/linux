@@ -230,12 +230,14 @@ static const struct mtk_spec_pull_set spec_pupd[] = {
 	SPEC_PULL(202, PUPD_BASE2+0xc0, 10, R0_BASE1, 12, R1_BASE2+0xc0, 10)
 };
 
-static int spec_pull_set(struct regmap *regmap, unsigned int pin,
-		unsigned char align, bool isup, unsigned int r1r0)
+static int spec_pull_set(struct regmap *regmap,
+		const struct mtk_pinctrl_devdata *devdata,
+		unsigned int pin, bool isup, unsigned int r1r0)
 {
 	unsigned int i;
 	unsigned int reg_pupd, reg_set_r0, reg_set_r1;
 	unsigned int reg_rst_r0, reg_rst_r1;
+	unsigned char align = devdata->port_align;
 	bool find = false;
 
 	for (i = 0; i < ARRAY_SIZE(spec_pupd); i++) {
@@ -313,23 +315,17 @@ static const struct mtk_pinctrl_devdata mt8135_pinctrl_data = {
 		.ports     = 6,
 		.ap_num    = 192,
 		.db_cnt    = 16,
+		.db_time = debounce_time_mt2701,
 	},
 };
 
-static int mt8135_pinctrl_probe(struct platform_device *pdev)
-{
-	return mtk_pctrl_init(pdev, &mt8135_pinctrl_data, NULL);
-}
-
 static const struct of_device_id mt8135_pctrl_match[] = {
-	{
-		.compatible = "mediatek,mt8135-pinctrl",
-	},
+	{ .compatible = "mediatek,mt8135-pinctrl", .data = &mt8135_pinctrl_data },
 	{ }
 };
 
 static struct platform_driver mtk_pinctrl_driver = {
-	.probe = mt8135_pinctrl_probe,
+	.probe = mtk_pctrl_common_probe,
 	.driver = {
 		.name = "mediatek-mt8135-pinctrl",
 		.of_match_table = mt8135_pctrl_match,

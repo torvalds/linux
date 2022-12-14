@@ -74,6 +74,16 @@ static inline bool have_hwcap2(unsigned long ftr2)
 }
 #endif
 
+static inline char *auxv_base_platform(void)
+{
+	return ((char *)get_auxv_entry(AT_BASE_PLATFORM));
+}
+
+static inline char *auxv_platform(void)
+{
+	return ((char *)get_auxv_entry(AT_PLATFORM));
+}
+
 bool is_ppc64le(void);
 int using_hash_mmu(bool *using_hash);
 
@@ -133,6 +143,11 @@ do {								\
 /* POWER10 feature */
 #ifndef PPC_FEATURE2_ARCH_3_1
 #define PPC_FEATURE2_ARCH_3_1 0x00040000
+#endif
+
+/* POWER10 features */
+#ifndef PPC_FEATURE2_MMA
+#define PPC_FEATURE2_MMA 0x00020000
 #endif
 
 #if defined(__powerpc64__)

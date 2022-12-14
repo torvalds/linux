@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-/* Copyright (C) 2021 Linaro Ltd. */
+/* Copyright (C) 2021-2022 Linaro Ltd. */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -96,38 +96,71 @@ const struct attribute_group ipa_feature_attribute_group = {
 	.attrs		= ipa_feature_attrs,
 };
 
-static ssize_t
-ipa_endpoint_id_show(struct ipa *ipa, char *buf, enum ipa_endpoint_name name)
+static umode_t ipa_endpoint_id_is_visible(struct kobject *kobj,
+					  struct attribute *attr, int n)
 {
-	u32 endpoint_id = ipa->name_map[name]->endpoint_id;
+	struct ipa *ipa = dev_get_drvdata(kobj_to_dev(kobj));
+	struct device_attribute *dev_attr;
+	struct dev_ext_attribute *ea;
+	bool visible;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", endpoint_id);
+	/* An endpoint id attribute is only visible if it's defined */
+	dev_attr = container_of(attr, struct device_attribute, attr);
+	ea = container_of(dev_attr, struct dev_ext_attribute, attr);
+
+	visible = !!ipa->name_map[(enum ipa_endpoint_name)(uintptr_t)ea->var];
+
+	return visible ? attr->mode : 0;
 }
 
-static ssize_t rx_endpoint_id_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t endpoint_id_attr_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct ipa *ipa = dev_get_drvdata(dev);
+	struct ipa_endpoint *endpoint;
+	struct dev_ext_attribute *ea;
 
-	return ipa_endpoint_id_show(ipa, buf, IPA_ENDPOINT_AP_MODEM_RX);
+	ea = container_of(attr, struct dev_ext_attribute, attr);
+	endpoint = ipa->name_map[(enum ipa_endpoint_name)(uintptr_t)ea->var];
+
+	return sysfs_emit(buf, "%u\n", endpoint->endpoint_id);
 }
 
-static DEVICE_ATTR_RO(rx_endpoint_id);
+#define ENDPOINT_ID_ATTR(_n, _endpoint_name)				    \
+	static struct dev_ext_attribute dev_attr_endpoint_id_ ## _n = {	    \
+		.attr	= __ATTR(_n, 0444, endpoint_id_attr_show, NULL),    \
+		.var	= (void *)(_endpoint_name),			    \
+	}
 
-static ssize_t tx_endpoint_id_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	struct ipa *ipa = dev_get_drvdata(dev);
+ENDPOINT_ID_ATTR(modem_rx, IPA_ENDPOINT_AP_MODEM_RX);
+ENDPOINT_ID_ATTR(modem_tx, IPA_ENDPOINT_AP_MODEM_TX);
 
-	return ipa_endpoint_id_show(ipa, buf, IPA_ENDPOINT_AP_MODEM_TX);
-}
+static struct attribute *ipa_endpoint_id_attrs[] = {
+	&dev_attr_endpoint_id_modem_rx.attr.attr,
+	&dev_attr_endpoint_id_modem_tx.attr.attr,
+	NULL
+};
 
-static DEVICE_ATTR_RO(tx_endpoint_id);
+const struct attribute_group ipa_endpoint_id_attribute_group = {
+	.name		= "endpoint_id",
+	.is_visible	= ipa_endpoint_id_is_visible,
+	.attrs		= ipa_endpoint_id_attrs,
+};
+
+/* Reuse endpoint ID attributes for the legacy modem endpoint IDs */
+#define MODEM_ATTR(_n, _endpoint_name)					    \
+	static struct dev_ext_attribute dev_attr_modem_ ## _n = {	    \
+		.attr	= __ATTR(_n, 0444, endpoint_id_attr_show, NULL),    \
+		.var	= (void *)(_endpoint_name),			    \
+	}
+
+MODEM_ATTR(rx_endpoint_id, IPA_ENDPOINT_AP_MODEM_RX);
+MODEM_ATTR(tx_endpoint_id, IPA_ENDPOINT_AP_MODEM_TX);
 
 static struct attribute *ipa_modem_attrs[] = {
-	&dev_attr_rx_endpoint_id.attr,
-	&dev_attr_tx_endpoint_id.attr,
-	NULL
+	&dev_attr_modem_rx_endpoint_id.attr.attr,
+	&dev_attr_modem_tx_endpoint_id.attr.attr,
+	NULL,
 };
 
 const struct attribute_group ipa_modem_attribute_group = {

@@ -35,12 +35,11 @@ class CachedType:
 
 
 long_type = CachedType("long")
-
+atomic_long_type = CachedType("atomic_long_t")
 
 def get_long_type():
     global long_type
     return long_type.get_type()
-
 
 def offset_of(typeobj, field):
     element = gdb.Value(0).cast(typeobj)
@@ -129,6 +128,17 @@ def read_ulong(buffer, offset):
     else:
         return read_u32(buffer, offset)
 
+atomic_long_counter_offset = atomic_long_type.get_type()['counter'].bitpos
+atomic_long_counter_sizeof = atomic_long_type.get_type()['counter'].type.sizeof
+
+def read_atomic_long(buffer, offset):
+    global atomic_long_counter_offset
+    global atomic_long_counter_sizeof
+
+    if atomic_long_counter_sizeof == 8:
+        return read_u64(buffer, offset + atomic_long_counter_offset)
+    else:
+        return read_u32(buffer, offset + atomic_long_counter_offset)
 
 target_arch = None
 

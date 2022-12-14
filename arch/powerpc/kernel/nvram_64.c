@@ -19,9 +19,9 @@
 #include <linux/pstore.h>
 #include <linux/zlib.h>
 #include <linux/uaccess.h>
+#include <linux/of.h>
 #include <asm/nvram.h>
 #include <asm/rtas.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 
 #undef DEBUG_NVRAM

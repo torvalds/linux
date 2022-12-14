@@ -39,12 +39,13 @@
 # from root namespace, the following operations happen:
 # 1) Route lookup shows 10.1.1.100/24 belongs to tnl dev, fwd to tnl dev.
 # 2) Tnl device's egress BPF program is triggered and set the tunnel metadata,
-#    with remote_ip=172.16.1.200 and others.
+#    with remote_ip=172.16.1.100 and others.
 # 3) Outer tunnel header is prepended and route the packet to veth1's egress
 # 4) veth0's ingress queue receive the tunneled packet at namespace at_ns0
 # 5) Tunnel protocol handler, ex: vxlan_rcv, decap the packet
 # 6) Forward the packet to the overlay tnl dev
 
+BPF_PIN_TUNNEL_DIR="/sys/fs/bpf/tc/tunnel"
 PING_ARG="-c 3 -w 10 -q"
 ret=0
 GREEN='\033[0;92m'
@@ -151,52 +152,6 @@ add_ip6erspan_tunnel()
 
 	# root namespace
 	ip link add dev $DEV type $TYPE external
-	ip addr add dev $DEV 10.1.1.200/24
-	ip link set dev $DEV up
-}
-
-add_vxlan_tunnel()
-{
-	# Set static ARP entry here because iptables set-mark works
-	# on L3 packet, as a result not applying to ARP packets,
-	# causing errors at get_tunnel_{key/opt}.
-
-	# at_ns0 namespace
-	ip netns exec at_ns0 \
-		ip link add dev $DEV_NS type $TYPE \
-		id 2 dstport 4789 gbp remote 172.16.1.200
-	ip netns exec at_ns0 \
-		ip link set dev $DEV_NS address 52:54:00:d9:01:00 up
-	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
-	ip netns exec at_ns0 \
-		ip neigh add 10.1.1.200 lladdr 52:54:00:d9:02:00 dev $DEV_NS
-	ip netns exec at_ns0 iptables -A OUTPUT -j MARK --set-mark 0x800FF
-
-	# root namespace
-	ip link add dev $DEV type $TYPE external gbp dstport 4789
-	ip link set dev $DEV address 52:54:00:d9:02:00 up
-	ip addr add dev $DEV 10.1.1.200/24
-	ip neigh add 10.1.1.100 lladdr 52:54:00:d9:01:00 dev $DEV
-}
-
-add_ip6vxlan_tunnel()
-{
-	#ip netns exec at_ns0 ip -4 addr del 172.16.1.100 dev veth0
-	ip netns exec at_ns0 ip -6 addr add ::11/96 dev veth0
-	ip netns exec at_ns0 ip link set dev veth0 up
-	#ip -4 addr del 172.16.1.200 dev veth1
-	ip -6 addr add dev veth1 ::22/96
-	ip link set dev veth1 up
-
-	# at_ns0 namespace
-	ip netns exec at_ns0 \
-		ip link add dev $DEV_NS type $TYPE id 22 dstport 4789 \
-		local ::11 remote ::22
-	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
-	ip netns exec at_ns0 ip link set dev $DEV_NS up
-
-	# root namespace
-	ip link add dev $DEV type $TYPE external dstport 4789
 	ip addr add dev $DEV 10.1.1.200/24
 	ip link set dev $DEV up
 }
@@ -403,58 +358,6 @@ test_ip6erspan()
         echo -e ${GREEN}"PASS: $TYPE"${NC}
 }
 
-test_vxlan()
-{
-	TYPE=vxlan
-	DEV_NS=vxlan00
-	DEV=vxlan11
-	ret=0
-
-	check $TYPE
-	config_device
-	add_vxlan_tunnel
-	attach_bpf $DEV vxlan_set_tunnel vxlan_get_tunnel
-	ping $PING_ARG 10.1.1.100
-	check_err $?
-	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
-	check_err $?
-	cleanup
-
-	if [ $ret -ne 0 ]; then
-                echo -e ${RED}"FAIL: $TYPE"${NC}
-                return 1
-        fi
-        echo -e ${GREEN}"PASS: $TYPE"${NC}
-}
-
-test_ip6vxlan()
-{
-	TYPE=vxlan
-	DEV_NS=ip6vxlan00
-	DEV=ip6vxlan11
-	ret=0
-
-	check $TYPE
-	config_device
-	add_ip6vxlan_tunnel
-	ip link set dev veth1 mtu 1500
-	attach_bpf $DEV ip6vxlan_set_tunnel ip6vxlan_get_tunnel
-	# underlay
-	ping6 $PING_ARG ::11
-	# ip4 over ip6
-	ping $PING_ARG 10.1.1.100
-	check_err $?
-	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
-	check_err $?
-	cleanup
-
-	if [ $ret -ne 0 ]; then
-                echo -e ${RED}"FAIL: ip6$TYPE"${NC}
-                return 1
-        fi
-        echo -e ${GREEN}"PASS: ip6$TYPE"${NC}
-}
-
 test_geneve()
 {
 	TYPE=geneve
@@ -641,9 +544,11 @@ test_xfrm_tunnel()
 	config_device
 	> /sys/kernel/debug/tracing/trace
 	setup_xfrm_tunnel
+	mkdir -p ${BPF_PIN_TUNNEL_DIR}
+	bpftool prog loadall ./test_tunnel_kern.o ${BPF_PIN_TUNNEL_DIR}
 	tc qdisc add dev veth1 clsact
-	tc filter add dev veth1 proto ip ingress bpf da obj test_tunnel_kern.o \
-		sec xfrm_get_state
+	tc filter add dev veth1 proto ip ingress bpf da object-pinned \
+		${BPF_PIN_TUNNEL_DIR}/xfrm_get_state
 	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
 	sleep 1
 	grep "reqid 1" /sys/kernel/debug/tracing/trace
@@ -666,13 +571,17 @@ attach_bpf()
 	DEV=$1
 	SET=$2
 	GET=$3
+	mkdir -p ${BPF_PIN_TUNNEL_DIR}
+	bpftool prog loadall ./test_tunnel_kern.o ${BPF_PIN_TUNNEL_DIR}/
 	tc qdisc add dev $DEV clsact
-	tc filter add dev $DEV egress bpf da obj test_tunnel_kern.o sec $SET
-	tc filter add dev $DEV ingress bpf da obj test_tunnel_kern.o sec $GET
+	tc filter add dev $DEV egress bpf da object-pinned ${BPF_PIN_TUNNEL_DIR}/$SET
+	tc filter add dev $DEV ingress bpf da object-pinned ${BPF_PIN_TUNNEL_DIR}/$GET
 }
 
 cleanup()
 {
+        rm -rf ${BPF_PIN_TUNNEL_DIR}
+
 	ip netns delete at_ns0 2> /dev/null
 	ip link del veth1 2> /dev/null
 	ip link del ipip11 2> /dev/null
@@ -681,8 +590,6 @@ cleanup()
 	ip link del gretap11 2> /dev/null
 	ip link del ip6gre11 2> /dev/null
 	ip link del ip6gretap11 2> /dev/null
-	ip link del vxlan11 2> /dev/null
-	ip link del ip6vxlan11 2> /dev/null
 	ip link del geneve11 2> /dev/null
 	ip link del ip6geneve11 2> /dev/null
 	ip link del erspan11 2> /dev/null
@@ -714,7 +621,6 @@ enable_debug()
 {
 	echo 'file ip_gre.c +p' > /sys/kernel/debug/dynamic_debug/control
 	echo 'file ip6_gre.c +p' > /sys/kernel/debug/dynamic_debug/control
-	echo 'file vxlan.c +p' > /sys/kernel/debug/dynamic_debug/control
 	echo 'file geneve.c +p' > /sys/kernel/debug/dynamic_debug/control
 	echo 'file ipip.c +p' > /sys/kernel/debug/dynamic_debug/control
 }
@@ -748,14 +654,6 @@ bpf_tunnel_test()
 
 	echo "Testing IP6ERSPAN tunnel..."
 	test_ip6erspan v2
-	errors=$(( $errors + $? ))
-
-	echo "Testing VXLAN tunnel..."
-	test_vxlan
-	errors=$(( $errors + $? ))
-
-	echo "Testing IP6VXLAN tunnel..."
-	test_ip6vxlan
 	errors=$(( $errors + $? ))
 
 	echo "Testing GENEVE tunnel..."

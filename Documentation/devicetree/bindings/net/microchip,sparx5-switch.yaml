@@ -53,12 +53,14 @@ properties:
     items:
       - description: register based extraction
       - description: frame dma based extraction
+      - description: ptp interrupt
 
   interrupt-names:
     minItems: 1
     items:
       - const: xtr
       - const: fdma
+      - const: ptp
 
   resets:
     items:
@@ -72,16 +74,20 @@ properties:
 
   ethernet-ports:
     type: object
+    additionalProperties: false
+
+    properties:
+      '#address-cells':
+        const: 1
+      '#size-cells':
+        const: 0
+
     patternProperties:
       "^port@[0-9a-f]+$":
-        type: object
+        $ref: /schemas/net/ethernet-controller.yaml#
+        unevaluatedProperties: false
 
         properties:
-          '#address-cells':
-            const: 1
-          '#size-cells':
-            const: 0
-
           reg:
             description: Switch port number
 
@@ -91,28 +97,10 @@ properties:
               phandle of a Ethernet SerDes PHY.  This defines which SerDes
               instance will handle the Ethernet traffic.
 
-          phy-mode:
-            description:
-              This specifies the interface used by the Ethernet SerDes towards
-              the PHY or SFP.
-
           microchip,bandwidth:
             description: Specifies bandwidth in Mbit/s allocated to the port.
             $ref: "/schemas/types.yaml#/definitions/uint32"
             maximum: 25000
-
-          phy-handle:
-            description:
-              phandle of a Ethernet PHY.  This is optional and if provided it
-              points to the cuPHY used by the Ethernet SerDes.
-
-          sfp:
-            description:
-              phandle of an SFP.  This is optional and used when not specifying
-              a cuPHY.  It points to the SFP node that describes the SFP used by
-              the Ethernet SerDes.
-
-          managed: true
 
           microchip,sd-sgpio:
             description:
@@ -142,8 +130,6 @@ required:
   - reg-names
   - interrupts
   - interrupt-names
-  - resets
-  - reset-names
   - ethernet-ports
 
 additionalProperties: false

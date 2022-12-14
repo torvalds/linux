@@ -58,24 +58,13 @@
  */
 static unsigned int sec;
 
-static char *alg = NULL;
+static char *alg;
 static u32 type;
 static u32 mask;
 static int mode;
 static u32 num_mb = 8;
 static unsigned int klen;
 static char *tvmem[TVMEMSIZE];
-
-static const char *check[] = {
-	"des", "md5", "des3_ede", "rot13", "sha1", "sha224", "sha256", "sm3",
-	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
-	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
-	"khazad", "wp512", "wp384", "wp256", "xeta",  "fcrypt",
-	"camellia", "seed", "rmd160",
-	"lzo", "lzo-rle", "cts", "sha3-224", "sha3-256", "sha3-384",
-	"sha3-512", "streebog256", "streebog512",
-	NULL
-};
 
 static const int block_sizes[] = { 16, 64, 128, 256, 1024, 1420, 4096, 0 };
 static const int aead_sizes[] = { 16, 64, 256, 512, 1024, 1420, 4096, 8192, 0 };
@@ -722,200 +711,6 @@ static inline int do_one_ahash_op(struct ahash_request *req, int ret)
 	struct crypto_wait *wait = req->base.data;
 
 	return crypto_wait_req(ret, wait);
-}
-
-struct test_mb_ahash_data {
-	struct scatterlist sg[XBUFSIZE];
-	char result[64];
-	struct ahash_request *req;
-	struct crypto_wait wait;
-	char *xbuf[XBUFSIZE];
-};
-
-static inline int do_mult_ahash_op(struct test_mb_ahash_data *data, u32 num_mb,
-				   int *rc)
-{
-	int i, err = 0;
-
-	/* Fire up a bunch of concurrent requests */
-	for (i = 0; i < num_mb; i++)
-		rc[i] = crypto_ahash_digest(data[i].req);
-
-	/* Wait for all requests to finish */
-	for (i = 0; i < num_mb; i++) {
-		rc[i] = crypto_wait_req(rc[i], &data[i].wait);
-
-		if (rc[i]) {
-			pr_info("concurrent request %d error %d\n", i, rc[i]);
-			err = rc[i];
-		}
-	}
-
-	return err;
-}
-
-static int test_mb_ahash_jiffies(struct test_mb_ahash_data *data, int blen,
-				 int secs, u32 num_mb)
-{
-	unsigned long start, end;
-	int bcount;
-	int ret = 0;
-	int *rc;
-
-	rc = kcalloc(num_mb, sizeof(*rc), GFP_KERNEL);
-	if (!rc)
-		return -ENOMEM;
-
-	for (start = jiffies, end = start + secs * HZ, bcount = 0;
-	     time_before(jiffies, end); bcount++) {
-		ret = do_mult_ahash_op(data, num_mb, rc);
-		if (ret)
-			goto out;
-	}
-
-	pr_cont("%d operations in %d seconds (%llu bytes)\n",
-		bcount * num_mb, secs, (u64)bcount * blen * num_mb);
-
-out:
-	kfree(rc);
-	return ret;
-}
-
-static int test_mb_ahash_cycles(struct test_mb_ahash_data *data, int blen,
-				u32 num_mb)
-{
-	unsigned long cycles = 0;
-	int ret = 0;
-	int i;
-	int *rc;
-
-	rc = kcalloc(num_mb, sizeof(*rc), GFP_KERNEL);
-	if (!rc)
-		return -ENOMEM;
-
-	/* Warm-up run. */
-	for (i = 0; i < 4; i++) {
-		ret = do_mult_ahash_op(data, num_mb, rc);
-		if (ret)
-			goto out;
-	}
-
-	/* The real thing. */
-	for (i = 0; i < 8; i++) {
-		cycles_t start, end;
-
-		start = get_cycles();
-		ret = do_mult_ahash_op(data, num_mb, rc);
-		end = get_cycles();
-
-		if (ret)
-			goto out;
-
-		cycles += end - start;
-	}
-
-	pr_cont("1 operation in %lu cycles (%d bytes)\n",
-		(cycles + 4) / (8 * num_mb), blen);
-
-out:
-	kfree(rc);
-	return ret;
-}
-
-static void test_mb_ahash_speed(const char *algo, unsigned int secs,
-				struct hash_speed *speed, u32 num_mb)
-{
-	struct test_mb_ahash_data *data;
-	struct crypto_ahash *tfm;
-	unsigned int i, j, k;
-	int ret;
-
-	data = kcalloc(num_mb, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return;
-
-	tfm = crypto_alloc_ahash(algo, 0, 0);
-	if (IS_ERR(tfm)) {
-		pr_err("failed to load transform for %s: %ld\n",
-			algo, PTR_ERR(tfm));
-		goto free_data;
-	}
-
-	for (i = 0; i < num_mb; ++i) {
-		if (testmgr_alloc_buf(data[i].xbuf))
-			goto out;
-
-		crypto_init_wait(&data[i].wait);
-
-		data[i].req = ahash_request_alloc(tfm, GFP_KERNEL);
-		if (!data[i].req) {
-			pr_err("alg: hash: Failed to allocate request for %s\n",
-			       algo);
-			goto out;
-		}
-
-		ahash_request_set_callback(data[i].req, 0, crypto_req_done,
-					   &data[i].wait);
-
-		sg_init_table(data[i].sg, XBUFSIZE);
-		for (j = 0; j < XBUFSIZE; j++) {
-			sg_set_buf(data[i].sg + j, data[i].xbuf[j], PAGE_SIZE);
-			memset(data[i].xbuf[j], 0xff, PAGE_SIZE);
-		}
-	}
-
-	pr_info("\ntesting speed of multibuffer %s (%s)\n", algo,
-		get_driver_name(crypto_ahash, tfm));
-
-	for (i = 0; speed[i].blen != 0; i++) {
-		/* For some reason this only tests digests. */
-		if (speed[i].blen != speed[i].plen)
-			continue;
-
-		if (speed[i].blen > XBUFSIZE * PAGE_SIZE) {
-			pr_err("template (%u) too big for tvmem (%lu)\n",
-			       speed[i].blen, XBUFSIZE * PAGE_SIZE);
-			goto out;
-		}
-
-		if (klen)
-			crypto_ahash_setkey(tfm, tvmem[0], klen);
-
-		for (k = 0; k < num_mb; k++)
-			ahash_request_set_crypt(data[k].req, data[k].sg,
-						data[k].result, speed[i].blen);
-
-		pr_info("test%3u "
-			"(%5u byte blocks,%5u bytes per update,%4u updates): ",
-			i, speed[i].blen, speed[i].plen,
-			speed[i].blen / speed[i].plen);
-
-		if (secs) {
-			ret = test_mb_ahash_jiffies(data, speed[i].blen, secs,
-						    num_mb);
-			cond_resched();
-		} else {
-			ret = test_mb_ahash_cycles(data, speed[i].blen, num_mb);
-		}
-
-
-		if (ret) {
-			pr_err("At least one hashing failed ret=%d\n", ret);
-			break;
-		}
-	}
-
-out:
-	for (k = 0; k < num_mb; ++k)
-		ahash_request_free(data[k].req);
-
-	for (k = 0; k < num_mb; ++k)
-		testmgr_free_buf(data[k].xbuf);
-
-	crypto_free_ahash(tfm);
-
-free_data:
-	kfree(data);
 }
 
 static int test_ahash_jiffies_digest(struct ahash_request *req, int blen,
@@ -1648,18 +1443,6 @@ static void test_cipher_speed(const char *algo, int enc, unsigned int secs,
 				   false);
 }
 
-static void test_available(void)
-{
-	const char **name = check;
-
-	while (*name) {
-		printk("alg %s ", *name);
-		printk(crypto_has_alg(*name, 0, 0) ?
-		       "found\n" : "not found\n");
-		name++;
-	}
-}
-
 static inline int tcrypt_test(const char *alg)
 {
 	int ret;
@@ -1667,8 +1450,8 @@ static inline int tcrypt_test(const char *alg)
 	pr_debug("testing %s\n", alg);
 
 	ret = alg_test(alg, alg, 0, 0);
-	/* non-fips algs return -EINVAL in fips mode */
-	if (fips_enabled && ret == -EINVAL)
+	/* non-fips algs return -EINVAL or -ECANCELED in fips mode */
+	if (fips_enabled && (ret == -EINVAL || ret == -ECANCELED))
 		ret = 0;
 	return ret;
 }
@@ -1750,6 +1533,7 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("rfc3686(ctr(aes))");
 		ret += tcrypt_test("ofb(aes)");
 		ret += tcrypt_test("cfb(aes)");
+		ret += tcrypt_test("xctr(aes)");
 		break;
 
 	case 11:
@@ -1863,10 +1647,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("rmd160");
 		break;
 
-	case 41:
-		ret += tcrypt_test("blake2s-256");
-		break;
-
 	case 42:
 		ret += tcrypt_test("blake2b-512");
 		break;
@@ -1921,6 +1701,14 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 
 	case 56:
 		ret += tcrypt_test("ccm(sm4)");
+		break;
+
+	case 57:
+		ret += tcrypt_test("polyval");
+		break;
+
+	case 58:
+		ret += tcrypt_test("gcm(aria)");
 		break;
 
 	case 100:
@@ -2058,6 +1846,12 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("cbc(sm4)");
 		ret += tcrypt_test("cfb(sm4)");
 		ret += tcrypt_test("ctr(sm4)");
+		break;
+	case 192:
+		ret += tcrypt_test("ecb(aria)");
+		ret += tcrypt_test("cbc(aria)");
+		ret += tcrypt_test("cfb(aria)");
+		ret += tcrypt_test("ctr(aria)");
 		break;
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
@@ -2380,6 +2174,44 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 				   16, 16, aead_speed_template_19, num_mb);
 		break;
 
+	case 226:
+		test_cipher_speed("hctr2(aes)", ENCRYPT, sec, NULL,
+				  0, speed_template_32);
+		break;
+
+	case 227:
+		test_cipher_speed("ecb(aria)", ENCRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("ecb(aria)", DECRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("cbc(aria)", ENCRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("cbc(aria)", DECRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("cfb(aria)", ENCRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("cfb(aria)", DECRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("ctr(aria)", ENCRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("ctr(aria)", DECRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		break;
+
+	case 228:
+		test_aead_speed("gcm(aria)", ENCRYPT, sec,
+				NULL, 0, 16, 8, speed_template_16_24_32);
+		test_aead_speed("gcm(aria)", DECRYPT, sec,
+				NULL, 0, 16, 8, speed_template_16_24_32);
+		break;
+
+	case 229:
+		test_mb_aead_speed("gcm(aria)", ENCRYPT, sec, NULL, 0, 16, 8,
+				   speed_template_16, num_mb);
+		test_mb_aead_speed("gcm(aria)", DECRYPT, sec, NULL, 0, 16, 8,
+				   speed_template_16, num_mb);
+		break;
+
 	case 300:
 		if (alg) {
 			test_hash_speed(alg, sec, generic_hash_speed_template);
@@ -2432,10 +2264,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		fallthrough;
 	case 315:
 		test_hash_speed("rmd160", sec, generic_hash_speed_template);
-		if (mode > 300 && mode < 400) break;
-		fallthrough;
-	case 316:
-		test_hash_speed("blake2s-256", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 		fallthrough;
 	case 317:
@@ -2546,10 +2374,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		test_ahash_speed("rmd160", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
 		fallthrough;
-	case 416:
-		test_ahash_speed("blake2s-256", sec, generic_hash_speed_template);
-		if (mode > 400 && mode < 500) break;
-		fallthrough;
 	case 417:
 		test_ahash_speed("blake2b-512", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
@@ -2571,33 +2395,7 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		if (mode > 400 && mode < 500) break;
 		fallthrough;
 	case 422:
-		test_mb_ahash_speed("sha1", sec, generic_hash_speed_template,
-				    num_mb);
-		if (mode > 400 && mode < 500) break;
-		fallthrough;
-	case 423:
-		test_mb_ahash_speed("sha256", sec, generic_hash_speed_template,
-				    num_mb);
-		if (mode > 400 && mode < 500) break;
-		fallthrough;
-	case 424:
-		test_mb_ahash_speed("sha512", sec, generic_hash_speed_template,
-				    num_mb);
-		if (mode > 400 && mode < 500) break;
-		fallthrough;
-	case 425:
-		test_mb_ahash_speed("sm3", sec, generic_hash_speed_template,
-				    num_mb);
-		if (mode > 400 && mode < 500) break;
-		fallthrough;
-	case 426:
-		test_mb_ahash_speed("streebog256", sec,
-				    generic_hash_speed_template, num_mb);
-		if (mode > 400 && mode < 500) break;
-		fallthrough;
-	case 427:
-		test_mb_ahash_speed("streebog512", sec,
-				    generic_hash_speed_template, num_mb);
+		test_ahash_speed("sm3", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
 		fallthrough;
 	case 499:
@@ -2834,6 +2632,17 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 				speed_template_16);
 		break;
 
+	case 519:
+		test_acipher_speed("ecb(aria)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
+		test_acipher_speed("ecb(aria)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
+		test_acipher_speed("ctr(aria)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
+		test_acipher_speed("ctr(aria)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
+		break;
+
 	case 600:
 		test_mb_skcipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
 				       speed_template_16_24_32, num_mb);
@@ -3046,9 +2855,17 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 				       speed_template_8_32, num_mb);
 		break;
 
-	case 1000:
-		test_available();
+	case 610:
+		test_mb_skcipher_speed("ecb(aria)", ENCRYPT, sec, NULL, 0,
+				       speed_template_16_32, num_mb);
+		test_mb_skcipher_speed("ecb(aria)", DECRYPT, sec, NULL, 0,
+				       speed_template_16_32, num_mb);
+		test_mb_skcipher_speed("ctr(aria)", ENCRYPT, sec, NULL, 0,
+				       speed_template_16_32, num_mb);
+		test_mb_skcipher_speed("ctr(aria)", DECRYPT, sec, NULL, 0,
+				       speed_template_16_32, num_mb);
 		break;
+
 	}
 
 	return ret;

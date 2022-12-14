@@ -2,8 +2,11 @@
 #ifndef BOOT_BOOT_H
 #define BOOT_BOOT_H
 
-#include <asm/extable.h>
 #include <linux/types.h>
+
+#define IPL_START	0x200
+
+#ifndef __ASSEMBLY__
 
 void startup_kernel(void);
 unsigned long detect_memory(void);
@@ -31,4 +34,5 @@ extern char _stack_start[], _stack_end[];
 
 unsigned long read_ipl_report(unsigned long safe_offset);
 
+#endif /* __ASSEMBLY__ */
 #endif /* BOOT_BOOT_H */

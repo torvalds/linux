@@ -2161,7 +2161,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt5651 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt5651_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5651_regmap = {
@@ -2209,8 +2208,7 @@ MODULE_DEVICE_TABLE(i2c, rt5651_i2c_id);
  * Note this function MUST not look at device-properties, see the comment
  * above rt5651_apply_properties().
  */
-static int rt5651_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5651_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5651_priv *rt5651;
 	int ret;
@@ -2281,7 +2279,7 @@ static struct i2c_driver rt5651_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5651_acpi_match),
 		.of_match_table = of_match_ptr(rt5651_of_match),
 	},
-	.probe = rt5651_i2c_probe,
+	.probe_new = rt5651_i2c_probe,
 	.id_table = rt5651_i2c_id,
 };
 module_i2c_driver(rt5651_i2c_driver);

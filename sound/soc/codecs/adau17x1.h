@@ -10,6 +10,7 @@
 enum adau17x1_type {
 	ADAU1361,
 	ADAU1761,
+	ADAU1761_AS_1361,
 	ADAU1381,
 	ADAU1781,
 };

@@ -43,7 +43,7 @@ Hardware Monitoring Kernel Drivers
    asb100
    asc7621
    aspeed-pwm-tacho
-   asus_wmi_ec_sensors
+   asus_ec_sensors
    asus_wmi_sensors
    bcm54140
    bel-pfe
@@ -62,6 +62,7 @@ Hardware Monitoring Kernel Drivers
    ds620
    emc1403
    emc2103
+   emc2305
    emc6w201
    f71805f
    f71882fg
@@ -89,6 +90,7 @@ Hardware Monitoring Kernel Drivers
    jc42
    k10temp
    k8temp
+   lan966x
    lineage-pem
    lm25066
    lm63
@@ -107,6 +109,7 @@ Hardware Monitoring Kernel Drivers
    lm95234
    lm95245
    lochnagar
+   lt7182s
    ltc2992
    ltc2945
    ltc2947
@@ -130,6 +133,7 @@ Hardware Monitoring Kernel Drivers
    max20751
    max31722
    max31730
+   max31760
    max31785
    max31790
    max34440
@@ -160,7 +164,10 @@ Hardware Monitoring Kernel Drivers
    pc87427
    pcf8591
    pim4328
+   pli1209bc
    pm6764tr
+   peci-cputemp
+   peci-dimmtemp
    pmbus
    powr1220
    pxe1610
@@ -185,6 +192,7 @@ Hardware Monitoring Kernel Drivers
    smsc47m1
    sparx5-temp
    stpddc60
+   sy7636a-hwmon
    tc654
    tc74
    thmc50
@@ -193,10 +201,12 @@ Hardware Monitoring Kernel Drivers
    tmp108
    tmp401
    tmp421
+   tmp464
    tmp513
    tps23861
    tps40422
    tps53679
+   tps546d24
    twl4030-madc-hwmon
    ucd9000
    ucd9200
@@ -217,6 +227,7 @@ Hardware Monitoring Kernel Drivers
    wm8350
    xgene-hwmon
    xdpe12284
+   xdpe152c4
    zl6100
 
 .. only::  subproject and html

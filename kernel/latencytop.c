@@ -55,6 +55,7 @@
 #include <linux/sched/stat.h>
 #include <linux/list.h>
 #include <linux/stacktrace.h>
+#include <linux/sysctl.h>
 
 static DEFINE_RAW_SPINLOCK(latency_lock);
 
@@ -62,6 +63,31 @@ static DEFINE_RAW_SPINLOCK(latency_lock);
 static struct latency_record latency_record[MAXLR];
 
 int latencytop_enabled;
+
+#ifdef CONFIG_SYSCTL
+static int sysctl_latencytop(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos)
+{
+	int err;
+
+	err = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (latencytop_enabled)
+		force_schedstat_enabled();
+
+	return err;
+}
+
+static struct ctl_table latencytop_sysctl[] = {
+	{
+		.procname   = "latencytop",
+		.data       = &latencytop_enabled,
+		.maxlen     = sizeof(int),
+		.mode       = 0644,
+		.proc_handler   = sysctl_latencytop,
+	},
+	{}
+};
+#endif
 
 void clear_tsk_latency_tracing(struct task_struct *p)
 {
@@ -86,7 +112,7 @@ static void __sched
 account_global_scheduler_latency(struct task_struct *tsk,
 				 struct latency_record *lat)
 {
-	int firstnonnull = MAXLR + 1;
+	int firstnonnull = MAXLR;
 	int i;
 
 	/* skip kernel threads for now */
@@ -124,7 +150,7 @@ account_global_scheduler_latency(struct task_struct *tsk,
 	}
 
 	i = firstnonnull;
-	if (i >= MAXLR - 1)
+	if (i >= MAXLR)
 		return;
 
 	/* Allocted a new one: */
@@ -266,18 +292,9 @@ static const struct proc_ops lstats_proc_ops = {
 static int __init init_lstats_procfs(void)
 {
 	proc_create("latency_stats", 0644, NULL, &lstats_proc_ops);
+#ifdef CONFIG_SYSCTL
+	register_sysctl_init("kernel", latencytop_sysctl);
+#endif
 	return 0;
-}
-
-int sysctl_latencytop(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
-{
-	int err;
-
-	err = proc_dointvec(table, write, buffer, lenp, ppos);
-	if (latencytop_enabled)
-		force_schedstat_enabled();
-
-	return err;
 }
 device_initcall(init_lstats_procfs);

@@ -242,7 +242,7 @@ als_error1:
 	return res;
 }
 
-static int apds9802als_remove(struct i2c_client *client)
+static void apds9802als_remove(struct i2c_client *client)
 {
 	struct als_data *data = i2c_get_clientdata(client);
 
@@ -256,7 +256,6 @@ static int apds9802als_remove(struct i2c_client *client)
 	pm_runtime_put_noidle(&client->dev);
 
 	kfree(data);
-	return 0;
 }
 
 #ifdef CONFIG_PM

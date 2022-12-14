@@ -278,8 +278,8 @@ static int ssm4567_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int ctrl1 = 0;
 	bool invert_fclk;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;
@@ -427,7 +427,6 @@ static const struct snd_soc_component_driver ssm4567_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(ssm4567_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ssm4567_regmap_config = {
@@ -444,8 +443,7 @@ static const struct regmap_config ssm4567_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(ssm4567_reg_defaults),
 };
 
-static int ssm4567_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int ssm4567_i2c_probe(struct i2c_client *i2c)
 {
 	struct ssm4567 *ssm4567;
 	int ret;
@@ -502,7 +500,7 @@ static struct i2c_driver ssm4567_driver = {
 		.of_match_table = of_match_ptr(ssm4567_of_match),
 		.acpi_match_table = ACPI_PTR(ssm4567_acpi_match),
 	},
-	.probe = ssm4567_i2c_probe,
+	.probe_new = ssm4567_i2c_probe,
 	.id_table = ssm4567_i2c_ids,
 };
 module_i2c_driver(ssm4567_driver);

@@ -19,7 +19,7 @@
 struct ucsi_acpi {
 	struct device *dev;
 	struct ucsi *ucsi;
-	void __iomem *base;
+	void *base;
 	struct completion complete;
 	unsigned long flags;
 	guid_t guid;
@@ -51,7 +51,7 @@ static int ucsi_acpi_read(struct ucsi *ucsi, unsigned int offset,
 	if (ret)
 		return ret;
 
-	memcpy(val, (const void __force *)(ua->base + offset), val_len);
+	memcpy(val, ua->base + offset, val_len);
 
 	return 0;
 }
@@ -61,7 +61,7 @@ static int ucsi_acpi_async_write(struct ucsi *ucsi, unsigned int offset,
 {
 	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
 
-	memcpy((void __force *)(ua->base + offset), val, val_len);
+	memcpy(ua->base + offset, val, val_len);
 
 	return ucsi_acpi_dsm(ua, UCSI_DSM_FUNC_WRITE);
 }
@@ -132,20 +132,9 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* This will make sure we can use ioremap() */
-	status = acpi_release_memory(ACPI_HANDLE(&pdev->dev), res, 1);
-	if (ACPI_FAILURE(status))
-		return -ENOMEM;
-
-	/*
-	 * NOTE: The memory region for the data structures is used also in an
-	 * operation region, which means ACPI has already reserved it. Therefore
-	 * it can not be requested here, and we can not use
-	 * devm_ioremap_resource().
-	 */
-	ua->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!ua->base)
-		return -ENOMEM;
+	ua->base = devm_memremap(&pdev->dev, res->start, resource_size(res), MEMREMAP_WB);
+	if (IS_ERR(ua->base))
+		return PTR_ERR(ua->base);
 
 	ret = guid_parse(UCSI_DSM_UUID, &ua->guid);
 	if (ret)
@@ -196,6 +185,15 @@ static int ucsi_acpi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int ucsi_acpi_resume(struct device *dev)
+{
+	struct ucsi_acpi *ua = dev_get_drvdata(dev);
+
+	return ucsi_resume(ua->ucsi);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(ucsi_acpi_pm_ops, NULL, ucsi_acpi_resume);
+
 static const struct acpi_device_id ucsi_acpi_match[] = {
 	{ "PNP0CA0", 0 },
 	{ },
@@ -205,6 +203,7 @@ MODULE_DEVICE_TABLE(acpi, ucsi_acpi_match);
 static struct platform_driver ucsi_acpi_platform_driver = {
 	.driver = {
 		.name = "ucsi_acpi",
+		.pm = pm_ptr(&ucsi_acpi_pm_ops),
 		.acpi_match_table = ACPI_PTR(ucsi_acpi_match),
 	},
 	.probe = ucsi_acpi_probe,

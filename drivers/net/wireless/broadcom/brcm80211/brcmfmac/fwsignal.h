@@ -40,8 +40,9 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb);
 void brcmf_fws_reset_interface(struct brcmf_if *ifp);
 void brcmf_fws_add_interface(struct brcmf_if *ifp);
 void brcmf_fws_del_interface(struct brcmf_if *ifp);
-void brcmf_fws_bustxfail(struct brcmf_fws_info *fws, struct sk_buff *skb);
+void brcmf_fws_bustxcomplete(struct brcmf_fws_info *fws, struct sk_buff *skb,
+			     bool success);
 void brcmf_fws_bus_blocked(struct brcmf_pub *drvr, bool flow_blocked);
-void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *skb, bool inirq);
+void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *skb);
 
 #endif /* FWSIGNAL_H_ */

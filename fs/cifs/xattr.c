@@ -175,11 +175,13 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 				switch (handler->flags) {
 				case XATTR_CIFS_NTSD_FULL:
 					aclflags = (CIFS_ACL_OWNER |
+						    CIFS_ACL_GROUP |
 						    CIFS_ACL_DACL |
 						    CIFS_ACL_SACL);
 					break;
 				case XATTR_CIFS_NTSD:
 					aclflags = (CIFS_ACL_OWNER |
+						    CIFS_ACL_GROUP |
 						    CIFS_ACL_DACL);
 					break;
 				case XATTR_CIFS_ACL:
@@ -199,6 +201,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 		break;
 	}
 
+#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 	case XATTR_ACL_ACCESS:
 #ifdef CONFIG_CIFS_POSIX
 		if (!value)
@@ -222,6 +225,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 				cifs_remap(cifs_sb));
 #endif  /* CONFIG_CIFS_POSIX */
 		break;
+#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 	}
 
 out:
@@ -362,7 +366,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 		}
 		break;
 	}
-
+#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 	case XATTR_ACL_ACCESS:
 #ifdef CONFIG_CIFS_POSIX
 		if (sb->s_flags & SB_POSIXACL)
@@ -382,6 +386,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 				cifs_remap(cifs_sb));
 #endif  /* CONFIG_CIFS_POSIX */
 		break;
+#endif /* ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 	}
 
 	/* We could add an additional check for streams ie

@@ -47,7 +47,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			reg = <0x02348400 0x100>;
-			clocks	= <&clkuart2>;
+			clocks = <&clkuart2>;
 			interrupts = <GIC_SPI 432 IRQ_TYPE_EDGE_RISING>;
 		};
 
@@ -57,7 +57,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			reg = <0x02348800 0x100>;
-			clocks	= <&clkuart3>;
+			clocks = <&clkuart3>;
 			interrupts = <GIC_SPI 435 IRQ_TYPE_EDGE_RISING>;
 		};
 
@@ -388,14 +388,14 @@
 		};
 
 		mdio: mdio@26200f00 {
-			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
+			compatible = "ti,keystone_mdio", "ti,davinci_mdio";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x26200f00 0x100>;
 			status = "disabled";
 			clocks = <&clkcpgmac>;
 			clock-names = "fck";
-			bus_freq	= <2500000>;
+			bus_freq = <2500000>;
 		};
 		/include/ "keystone-k2l-netcp.dtsi"
 };

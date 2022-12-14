@@ -222,24 +222,6 @@ devm_request_any_context_irq(struct device *dev, unsigned int irq,
 
 extern void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id);
 
-/*
- * On lockdep we dont want to enable hardirqs in hardirq
- * context. Use local_irq_enable_in_hardirq() to annotate
- * kernel code that has to do this nevertheless (pretty much
- * the only valid case is for old/broken hardware that is
- * insanely slow).
- *
- * NOTE: in theory this might break fragile code that relies
- * on hardirq delivery - in practice we dont seem to have such
- * places left. So the only effect should be slightly increased
- * irqs-off latencies.
- */
-#ifdef CONFIG_LOCKDEP
-# define local_irq_enable_in_hardirq()	do { } while (0)
-#else
-# define local_irq_enable_in_hardirq()	local_irq_enable()
-#endif
-
 bool irq_has_action(unsigned int irq);
 extern void disable_irq_nosync(unsigned int irq);
 extern bool disable_hardirq(unsigned int irq);
@@ -579,7 +561,16 @@ enum
 	NR_SOFTIRQS
 };
 
-#define SOFTIRQ_STOP_IDLE_MASK (~(1 << RCU_SOFTIRQ))
+/*
+ * The following vectors can be safely ignored after ksoftirqd is parked:
+ *
+ * _ RCU:
+ * 	1) rcutree_migrate_callbacks() migrates the queue.
+ * 	2) rcu_report_dead() reports the final quiescent states.
+ *
+ * _ IRQ_POLL: irq_poll_cpu_dead() migrates the queue
+ */
+#define SOFTIRQ_HOTPLUG_SAFE_MASK (BIT(RCU_SOFTIRQ) | BIT(IRQ_POLL_SOFTIRQ))
 
 /* map softirq index to softirq name. update 'softirq_to_name' in
  * kernel/softirq.c when adding a new softirq.
@@ -597,6 +588,15 @@ struct softirq_action
 
 asmlinkage void do_softirq(void);
 asmlinkage void __do_softirq(void);
+
+#ifdef CONFIG_PREEMPT_RT
+extern void do_softirq_post_smp_call_flush(unsigned int was_pending);
+#else
+static inline void do_softirq_post_smp_call_flush(unsigned int unused)
+{
+	do_softirq();
+}
+#endif
 
 extern void open_softirq(int nr, void (*action)(struct softirq_action *));
 extern void softirq_init(void);

@@ -13,6 +13,8 @@
 #include "xfs_inode.h"
 #include "xfs_acl.h"
 #include "xfs_quota.h"
+#include "xfs_da_format.h"
+#include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_trans.h"
 #include "xfs_trace.h"
@@ -22,6 +24,7 @@
 #include "xfs_iomap.h"
 #include "xfs_error.h"
 #include "xfs_ioctl.h"
+#include "xfs_xattr.h"
 
 #include <linux/posix_acl.h>
 #include <linux/security.h>
@@ -59,7 +62,7 @@ xfs_initxattrs(
 			.value		= xattr->value,
 			.valuelen	= xattr->value_len,
 		};
-		error = xfs_attr_set(&args);
+		error = xfs_attr_change(&args);
 		if (error < 0)
 			break;
 	}
@@ -72,9 +75,8 @@ xfs_initxattrs(
  * these attrs can be journalled at inode creation time (along with the
  * inode, of course, such that log replay can't cause these to be lost).
  */
-
-STATIC int
-xfs_init_security(
+int
+xfs_inode_init_security(
 	struct inode	*inode,
 	struct inode	*dir,
 	const struct qstr *qstr)
@@ -119,7 +121,7 @@ xfs_cleanup_inode(
 
 	/* Oh, the horror.
 	 * If we can't add the ACL or we fail in
-	 * xfs_init_security we must back out.
+	 * xfs_inode_init_security we must back out.
 	 * ENOSPC can hit here, among other things.
 	 */
 	xfs_dentry_to_name(&teardown, dentry);
@@ -165,7 +167,7 @@ xfs_generic_create(
 	struct dentry	*dentry,
 	umode_t		mode,
 	dev_t		rdev,
-	bool		tmpfile)	/* unnamed file */
+	struct file	*tmpfile)	/* unnamed file */
 {
 	struct inode	*inode;
 	struct xfs_inode *ip = NULL;
@@ -205,11 +207,10 @@ xfs_generic_create(
 
 	inode = VFS_I(ip);
 
-	error = xfs_init_security(inode, dir, &dentry->d_name);
+	error = xfs_inode_init_security(inode, dir, &dentry->d_name);
 	if (unlikely(error))
 		goto out_cleanup_inode;
 
-#ifdef CONFIG_XFS_POSIX_ACL
 	if (default_acl) {
 		error = __xfs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
 		if (error)
@@ -220,7 +221,6 @@ xfs_generic_create(
 		if (error)
 			goto out_cleanup_inode;
 	}
-#endif
 
 	xfs_setup_iops(ip);
 
@@ -234,7 +234,7 @@ xfs_generic_create(
 		 * d_tmpfile can immediately set it back to zero.
 		 */
 		set_nlink(inode, 1);
-		d_tmpfile(dentry, inode);
+		d_tmpfile(tmpfile, inode);
 	} else
 		d_instantiate(dentry, inode);
 
@@ -261,7 +261,7 @@ xfs_vn_mknod(
 	umode_t			mode,
 	dev_t			rdev)
 {
-	return xfs_generic_create(mnt_userns, dir, dentry, mode, rdev, false);
+	return xfs_generic_create(mnt_userns, dir, dentry, mode, rdev, NULL);
 }
 
 STATIC int
@@ -272,7 +272,7 @@ xfs_vn_create(
 	umode_t			mode,
 	bool			flags)
 {
-	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, false);
+	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, NULL);
 }
 
 STATIC int
@@ -283,7 +283,7 @@ xfs_vn_mkdir(
 	umode_t			mode)
 {
 	return xfs_generic_create(mnt_userns, dir, dentry, mode | S_IFDIR, 0,
-				  false);
+				  NULL);
 }
 
 STATIC struct dentry *
@@ -423,7 +423,7 @@ xfs_vn_symlink(
 
 	inode = VFS_I(cip);
 
-	error = xfs_init_security(inode, dir, &dentry->d_name);
+	error = xfs_inode_init_security(inode, dir, &dentry->d_name);
 	if (unlikely(error))
 		goto out_cleanup_inode;
 
@@ -558,6 +558,8 @@ xfs_vn_getattr(
 	struct inode		*inode = d_inode(path->dentry);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
+	vfsuid_t		vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+	vfsgid_t		vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
 
 	trace_xfs_getattr(ip);
 
@@ -568,8 +570,8 @@ xfs_vn_getattr(
 	stat->dev = inode->i_sb->s_dev;
 	stat->mode = inode->i_mode;
 	stat->nlink = inode->i_nlink;
-	stat->uid = i_uid_into_mnt(mnt_userns, inode);
-	stat->gid = i_gid_into_mnt(mnt_userns, inode);
+	stat->uid = vfsuid_into_kuid(vfsuid);
+	stat->gid = vfsgid_into_kgid(vfsgid);
 	stat->ino = ip->i_ino;
 	stat->atime = inode->i_atime;
 	stat->mtime = inode->i_mtime;
@@ -604,6 +606,16 @@ xfs_vn_getattr(
 		stat->blksize = BLKDEV_IOSIZE;
 		stat->rdev = inode->i_rdev;
 		break;
+	case S_IFREG:
+		if (request_mask & STATX_DIOALIGN) {
+			struct xfs_buftarg	*target = xfs_inode_buftarg(ip);
+			struct block_device	*bdev = target->bt_bdev;
+
+			stat->result_mask |= STATX_DIOALIGN;
+			stat->dio_mem_align = bdev_dma_alignment(bdev) + 1;
+			stat->dio_offset_align = bdev_logical_block_size(bdev);
+		}
+		fallthrough;
 	default:
 		stat->blksize = xfs_stat_blksize(ip);
 		stat->rdev = 0;
@@ -611,37 +623,6 @@ xfs_vn_getattr(
 	}
 
 	return 0;
-}
-
-static void
-xfs_setattr_mode(
-	struct xfs_inode	*ip,
-	struct iattr		*iattr)
-{
-	struct inode		*inode = VFS_I(ip);
-	umode_t			mode = iattr->ia_mode;
-
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-
-	inode->i_mode &= S_IFMT;
-	inode->i_mode |= mode & ~S_IFMT;
-}
-
-void
-xfs_setattr_time(
-	struct xfs_inode	*ip,
-	struct iattr		*iattr)
-{
-	struct inode		*inode = VFS_I(ip);
-
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-
-	if (iattr->ia_valid & ATTR_ATIME)
-		inode->i_atime = iattr->ia_atime;
-	if (iattr->ia_valid & ATTR_CTIME)
-		inode->i_ctime = iattr->ia_ctime;
-	if (iattr->ia_valid & ATTR_MTIME)
-		inode->i_mtime = iattr->ia_mtime;
 }
 
 static int
@@ -678,10 +659,10 @@ xfs_setattr_nonsize(
 	int			mask = iattr->ia_valid;
 	xfs_trans_t		*tp;
 	int			error;
-	kuid_t			uid = GLOBAL_ROOT_UID, iuid = GLOBAL_ROOT_UID;
-	kgid_t			gid = GLOBAL_ROOT_GID, igid = GLOBAL_ROOT_GID;
+	kuid_t			uid = GLOBAL_ROOT_UID;
+	kgid_t			gid = GLOBAL_ROOT_GID;
 	struct xfs_dquot	*udqp = NULL, *gdqp = NULL;
-	struct xfs_dquot	*olddquot1 = NULL, *olddquot2 = NULL;
+	struct xfs_dquot	*old_udqp = NULL, *old_gdqp = NULL;
 
 	ASSERT((mask & ATTR_SIZE) == 0);
 
@@ -697,13 +678,15 @@ xfs_setattr_nonsize(
 		uint	qflags = 0;
 
 		if ((mask & ATTR_UID) && XFS_IS_UQUOTA_ON(mp)) {
-			uid = iattr->ia_uid;
+			uid = from_vfsuid(mnt_userns, i_user_ns(inode),
+					  iattr->ia_vfsuid);
 			qflags |= XFS_QMOPT_UQUOTA;
 		} else {
 			uid = inode->i_uid;
 		}
 		if ((mask & ATTR_GID) && XFS_IS_GQUOTA_ON(mp)) {
-			gid = iattr->ia_gid;
+			gid = from_vfsgid(mnt_userns, i_user_ns(inode),
+					  iattr->ia_vfsgid);
 			qflags |= XFS_QMOPT_GQUOTA;
 		}  else {
 			gid = inode->i_gid;
@@ -723,66 +706,30 @@ xfs_setattr_nonsize(
 	}
 
 	error = xfs_trans_alloc_ichange(ip, udqp, gdqp, NULL,
-			capable(CAP_FOWNER), &tp);
+			has_capability_noaudit(current, CAP_FOWNER), &tp);
 	if (error)
 		goto out_dqrele;
 
 	/*
-	 * Change file ownership.  Must be the owner or privileged.
+	 * Register quota modifications in the transaction.  Must be the owner
+	 * or privileged.  These IDs could have changed since we last looked at
+	 * them.  But, we're assured that if the ownership did change while we
+	 * didn't have the inode locked, inode's dquot(s) would have changed
+	 * also.
 	 */
-	if (mask & (ATTR_UID|ATTR_GID)) {
-		/*
-		 * These IDs could have changed since we last looked at them.
-		 * But, we're assured that if the ownership did change
-		 * while we didn't have the inode locked, inode's dquot(s)
-		 * would have changed also.
-		 */
-		iuid = inode->i_uid;
-		igid = inode->i_gid;
-		gid = (mask & ATTR_GID) ? iattr->ia_gid : igid;
-		uid = (mask & ATTR_UID) ? iattr->ia_uid : iuid;
-
-		/*
-		 * CAP_FSETID overrides the following restrictions:
-		 *
-		 * The set-user-ID and set-group-ID bits of a file will be
-		 * cleared upon successful return from chown()
-		 */
-		if ((inode->i_mode & (S_ISUID|S_ISGID)) &&
-		    !capable(CAP_FSETID))
-			inode->i_mode &= ~(S_ISUID|S_ISGID);
-
-		/*
-		 * Change the ownerships and register quota modifications
-		 * in the transaction.
-		 */
-		if (!uid_eq(iuid, uid)) {
-			if (XFS_IS_UQUOTA_ON(mp)) {
-				ASSERT(mask & ATTR_UID);
-				ASSERT(udqp);
-				olddquot1 = xfs_qm_vop_chown(tp, ip,
-							&ip->i_udquot, udqp);
-			}
-			inode->i_uid = uid;
-		}
-		if (!gid_eq(igid, gid)) {
-			if (XFS_IS_GQUOTA_ON(mp)) {
-				ASSERT(xfs_has_pquotino(mp) ||
-				       !XFS_IS_PQUOTA_ON(mp));
-				ASSERT(mask & ATTR_GID);
-				ASSERT(gdqp);
-				olddquot2 = xfs_qm_vop_chown(tp, ip,
-							&ip->i_gdquot, gdqp);
-			}
-			inode->i_gid = gid;
-		}
+	if (XFS_IS_UQUOTA_ON(mp) &&
+	    i_uid_needs_update(mnt_userns, iattr, inode)) {
+		ASSERT(udqp);
+		old_udqp = xfs_qm_vop_chown(tp, ip, &ip->i_udquot, udqp);
+	}
+	if (XFS_IS_GQUOTA_ON(mp) &&
+	    i_gid_needs_update(mnt_userns, iattr, inode)) {
+		ASSERT(xfs_has_pquotino(mp) || !XFS_IS_PQUOTA_ON(mp));
+		ASSERT(gdqp);
+		old_gdqp = xfs_qm_vop_chown(tp, ip, &ip->i_gdquot, gdqp);
 	}
 
-	if (mask & ATTR_MODE)
-		xfs_setattr_mode(ip, iattr);
-	if (mask & (ATTR_ATIME|ATTR_CTIME|ATTR_MTIME))
-		xfs_setattr_time(ip, iattr);
-
+	setattr_copy(mnt_userns, inode, iattr);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	XFS_STATS_INC(mp, xs_ig_attrchg);
@@ -794,8 +741,8 @@ xfs_setattr_nonsize(
 	/*
 	 * Release any dquot(s) the inode had kept before chown.
 	 */
-	xfs_qm_dqrele(olddquot1);
-	xfs_qm_dqrele(olddquot2);
+	xfs_qm_dqrele(old_udqp);
+	xfs_qm_dqrele(old_gdqp);
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
 
@@ -1006,11 +953,8 @@ xfs_setattr_size(
 		xfs_inode_clear_eofblocks_tag(ip);
 	}
 
-	if (iattr->ia_valid & ATTR_MODE)
-		xfs_setattr_mode(ip, iattr);
-	if (iattr->ia_valid & (ATTR_ATIME|ATTR_CTIME|ATTR_MTIME))
-		xfs_setattr_time(ip, iattr);
-
+	ASSERT(!(iattr->ia_valid & (ATTR_UID | ATTR_GID)));
+	setattr_copy(mnt_userns, inode, iattr);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	XFS_STATS_INC(mp, xs_ig_attrchg);
@@ -1148,10 +1092,12 @@ STATIC int
 xfs_vn_tmpfile(
 	struct user_namespace	*mnt_userns,
 	struct inode		*dir,
-	struct dentry		*dentry,
+	struct file		*file,
 	umode_t			mode)
 {
-	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, true);
+	int err = xfs_generic_create(mnt_userns, dir, file->f_path.dentry, mode, 0, file);
+
+	return finish_open_simple(file, err);
 }
 
 static const struct inode_operations xfs_inode_operations = {
@@ -1349,7 +1295,7 @@ xfs_setup_inode(
 	 * If there is no attribute fork no ACL can exist on this inode,
 	 * and it can't have any file capabilities attached to it either.
 	 */
-	if (!XFS_IFORK_Q(ip)) {
+	if (!xfs_inode_has_attr_fork(ip)) {
 		inode_has_no_xattr(inode);
 		cache_no_acl(inode);
 	}

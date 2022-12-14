@@ -3,21 +3,13 @@
 # UTF-8 normalization
 #
 config UNICODE
-	bool "UTF-8 normalization and casefolding support"
+	tristate "UTF-8 normalization and casefolding support"
 	help
 	  Say Y here to enable UTF-8 NFD normalization and NFD+CF casefolding
-	  support.
-
-config UNICODE_UTF8_DATA
-	tristate "UTF-8 normalization and casefolding tables"
-	depends on UNICODE
-	default UNICODE
-	help
-	  This contains a large table of case foldings, which can be loaded as
-	  a separate module if you say M here.  To be on the safe side stick
-	  to the default of Y.  Saying N here makes no sense, if you do not want
-	  utf8 casefolding support, disable CONFIG_UNICODE instead.
+	  support.  If you say M here the large table of case foldings will
+	  be a separate loadable module that gets requested only when a file
+	  system actually use it.
 
 config UNICODE_NORMALIZATION_SELFTEST
 	tristate "Test UTF-8 normalization support"
-	depends on UNICODE_UTF8_DATA
+	depends on UNICODE

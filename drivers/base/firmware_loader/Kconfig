@@ -29,6 +29,9 @@ if FW_LOADER
 config FW_LOADER_PAGED_BUF
 	bool
 
+config FW_LOADER_SYSFS
+	bool
+
 config EXTRA_FIRMWARE
 	string "Build named firmware blobs into the kernel binary"
 	help
@@ -60,6 +63,8 @@ config EXTRA_FIRMWARE
 	  image since it combines both GPL and non-GPL work. You should
 	  consult a lawyer of your own before distributing such an image.
 
+	  NOTE: Compressed files are not supported in EXTRA_FIRMWARE.
+
 config EXTRA_FIRMWARE_DIR
 	string "Firmware blobs root directory"
 	depends on EXTRA_FIRMWARE != ""
@@ -70,6 +75,7 @@ config EXTRA_FIRMWARE_DIR
 
 config FW_LOADER_USER_HELPER
 	bool "Enable the firmware sysfs fallback mechanism"
+	select FW_LOADER_SYSFS
 	select FW_LOADER_PAGED_BUF
 	help
 	  This option enables a sysfs loading facility to enable firmware
@@ -157,17 +163,33 @@ config FW_LOADER_USER_HELPER_FALLBACK
 
 config FW_LOADER_COMPRESS
 	bool "Enable compressed firmware support"
-	select FW_LOADER_PAGED_BUF
-	select XZ_DEC
 	help
 	  This option enables the support for loading compressed firmware
 	  files. The caller of firmware API receives the decompressed file
 	  content. The compressed file is loaded as a fallback, only after
 	  loading the raw file failed at first.
 
-	  Currently only XZ-compressed files are supported, and they have to
-	  be compressed with either none or crc32 integrity check type (pass
-	  "-C crc32" option to xz command).
+	  Compressed firmware support does not apply to firmware images
+	  that are built into the kernel image (CONFIG_EXTRA_FIRMWARE).
+
+if FW_LOADER_COMPRESS
+config FW_LOADER_COMPRESS_XZ
+	bool "Enable XZ-compressed firmware support"
+	select FW_LOADER_PAGED_BUF
+	select XZ_DEC
+	default y
+	help
+	  This option adds the support for XZ-compressed files.
+	  The files have to be compressed with either none or crc32
+	  integrity check type (pass "-C crc32" option to xz command).
+
+config FW_LOADER_COMPRESS_ZSTD
+	bool "Enable ZSTD-compressed firmware support"
+	select ZSTD_DECOMPRESS
+	help
+	  This option adds the support for ZSTD-compressed files.
+
+endif # FW_LOADER_COMPRESS
 
 config FW_CACHE
 	bool "Enable firmware caching during suspend"
@@ -180,6 +202,20 @@ config FW_CACHE
 	  option.
 
 	  If unsure, say Y.
+
+config FW_UPLOAD
+	bool "Enable users to initiate firmware updates using sysfs"
+	select FW_LOADER_SYSFS
+	select FW_LOADER_PAGED_BUF
+	help
+	  Enabling this option will allow device drivers to expose a persistent
+	  sysfs interface that allows firmware updates to be initiated from
+	  userspace. For example, FPGA based PCIe cards load firmware and FPGA
+	  images from local FLASH when the card boots. The images in FLASH may
+	  be updated with new images provided by the user. Enable this device
+	  to support cards that rely on user-initiated updates for firmware files.
+
+	  If unsure, say N.
 
 endif # FW_LOADER
 endmenu

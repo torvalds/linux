@@ -27,6 +27,8 @@ properties:
       - description: APB interface clock source
       - description: GPIO debounce reference clock source
 
+  gpio-ranges: true
+
   gpio-controller: true
 
   gpio-line-names: true

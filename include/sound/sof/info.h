@@ -25,6 +25,7 @@
 #define SOF_IPC_INFO_LOCKS		BIT(1)
 #define SOF_IPC_INFO_LOCKSV		BIT(2)
 #define SOF_IPC_INFO_GDB		BIT(3)
+#define SOF_IPC_INFO_D3_PERSISTENT	BIT(4)
 
 /* extended data types that can be appended onto end of sof_ipc_fw_ready */
 enum sof_ipc_ext_data {
@@ -34,6 +35,10 @@ enum sof_ipc_ext_data {
 	SOF_IPC_EXT_PROBE_INFO		= 3,
 	SOF_IPC_EXT_USER_ABI_INFO	= 4,
 };
+
+/* Build u32 number in format MMmmmppp */
+#define SOF_FW_VER(MAJOR, MINOR, PATCH) ((uint32_t)( \
+	((MAJOR) << 24) | ((MINOR) << 12) | (PATCH)))
 
 /* FW version - SOF_IPC_GLB_VERSION */
 struct sof_ipc_fw_version {

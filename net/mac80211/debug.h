@@ -1,4 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Portions
+ * Copyright (C) 2022 Intel Corporation
+ */
 #ifndef __MAC80211_DEBUG_H
 #define __MAC80211_DEBUG_H
 #include <net/cfg80211.h>
@@ -129,6 +133,35 @@ do {									\
 	_sdata_err(sdata, fmt, ##__VA_ARGS__)
 #define sdata_dbg(sdata, fmt, ...)					\
 	_sdata_dbg(1, sdata, fmt, ##__VA_ARGS__)
+
+#define link_info(link, fmt, ...)					\
+	do {								\
+		if ((link)->sdata->vif.valid_links)			\
+			_sdata_info((link)->sdata, "[link %d] " fmt,	\
+				    (link)->link_id,			\
+				    ##__VA_ARGS__);			\
+		else							\
+			_sdata_info((link)->sdata, fmt, ##__VA_ARGS__);	\
+	} while (0)
+#define link_err(link, fmt, ...)					\
+	do {								\
+		if ((link)->sdata->vif.valid_links)			\
+			_sdata_err((link)->sdata, "[link %d] " fmt,	\
+				   (link)->link_id,			\
+				   ##__VA_ARGS__);			\
+		else							\
+			_sdata_err((link)->sdata, fmt, ##__VA_ARGS__);	\
+	} while (0)
+#define link_dbg(link, fmt, ...)					\
+	do {								\
+		if ((link)->sdata->vif.valid_links)			\
+			_sdata_dbg(1, (link)->sdata, "[link %d] " fmt,	\
+				   (link)->link_id,			\
+				   ##__VA_ARGS__);			\
+		else							\
+			_sdata_dbg(1, (link)->sdata, fmt,		\
+				   ##__VA_ARGS__);			\
+	} while (0)
 
 #define ht_dbg(sdata, fmt, ...)						\
 	_sdata_dbg(MAC80211_HT_DEBUG,					\

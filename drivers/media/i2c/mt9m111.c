@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/log2.h>
-#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include <linux/v4l2-mediabus.h>
@@ -1143,14 +1142,16 @@ static int mt9m111_get_mbus_config(struct v4l2_subdev *sd,
 {
 	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
 
-	cfg->flags = V4L2_MBUS_MASTER |
-		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_HIGH |
-		V4L2_MBUS_DATA_ACTIVE_HIGH;
-
-	cfg->flags |= mt9m111->pclk_sample ? V4L2_MBUS_PCLK_SAMPLE_RISING :
-		V4L2_MBUS_PCLK_SAMPLE_FALLING;
-
 	cfg->type = V4L2_MBUS_PARALLEL;
+
+	cfg->bus.parallel.flags = V4L2_MBUS_MASTER |
+				  V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+				  V4L2_MBUS_VSYNC_ACTIVE_HIGH |
+				  V4L2_MBUS_DATA_ACTIVE_HIGH;
+
+	cfg->bus.parallel.flags |= mt9m111->pclk_sample ?
+				   V4L2_MBUS_PCLK_SAMPLE_RISING :
+				   V4L2_MBUS_PCLK_SAMPLE_FALLING;
 
 	return 0;
 }
@@ -1358,15 +1359,13 @@ out_hdlfree:
 	return ret;
 }
 
-static int mt9m111_remove(struct i2c_client *client)
+static void mt9m111_remove(struct i2c_client *client)
 {
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
 	v4l2_async_unregister_subdev(&mt9m111->subdev);
 	media_entity_cleanup(&mt9m111->subdev.entity);
 	v4l2_ctrl_handler_free(&mt9m111->hdl);
-
-	return 0;
 }
 static const struct of_device_id mt9m111_of_match[] = {
 	{ .compatible = "micron,mt9m111", },

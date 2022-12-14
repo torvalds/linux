@@ -204,7 +204,6 @@ static int alloc_command_queues(struct otx_cptvf *cptvf,
 
 	/* per queue initialization */
 	for (i = 0; i < cptvf->num_queues; i++) {
-		c_size = 0;
 		rem_q_size = q_size;
 		first = NULL;
 		last = NULL;
@@ -662,7 +661,7 @@ static ssize_t vf_type_show(struct device *dev,
 		msg = "Invalid";
 	}
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", msg);
+	return sysfs_emit(buf, "%s\n", msg);
 }
 
 static ssize_t vf_engine_group_show(struct device *dev,
@@ -671,7 +670,7 @@ static ssize_t vf_engine_group_show(struct device *dev,
 {
 	struct otx_cptvf *cptvf = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", cptvf->vfgrp);
+	return sysfs_emit(buf, "%d\n", cptvf->vfgrp);
 }
 
 static ssize_t vf_engine_group_store(struct device *dev,
@@ -707,7 +706,7 @@ static ssize_t vf_coalesc_time_wait_show(struct device *dev,
 {
 	struct otx_cptvf *cptvf = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 			 cptvf_read_vq_done_timewait(cptvf));
 }
 
@@ -717,7 +716,7 @@ static ssize_t vf_coalesc_num_wait_show(struct device *dev,
 {
 	struct otx_cptvf *cptvf = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 			 cptvf_read_vq_done_numwait(cptvf));
 }
 

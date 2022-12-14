@@ -319,7 +319,7 @@ static inline int iucv_call_b2f0(int command, union iucv_param *parm)
  */
 static int __iucv_query_maxconn(void *param, unsigned long *max_pathid)
 {
-	unsigned long reg1 = (unsigned long)param;
+	unsigned long reg1 = virt_to_phys(param);
 	int cc;
 
 	asm volatile (

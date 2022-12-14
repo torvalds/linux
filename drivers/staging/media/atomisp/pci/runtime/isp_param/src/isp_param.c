@@ -131,7 +131,7 @@ ia_css_isp_param_allocate_isp_parameters(
 					goto cleanup;
 				}
 				if (pclass != IA_CSS_PARAM_CLASS_PARAM) {
-					css_params->params[pclass][mem].address = hmm_alloc(size, HMM_BO_PRIVATE, 0, NULL, 0);
+					css_params->params[pclass][mem].address = hmm_alloc(size);
 					if (!css_params->params[pclass][mem].address) {
 						err = -ENOMEM;
 						goto cleanup;

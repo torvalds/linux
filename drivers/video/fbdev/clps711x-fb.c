@@ -268,8 +268,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 		goto out_fb_release;
 	}
 
-	cfb->syscon =
-		syscon_regmap_lookup_by_compatible("cirrus,ep7209-syscon1");
+	cfb->syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(cfb->syscon)) {
 		ret = PTR_ERR(cfb->syscon);
 		goto out_fb_release;
@@ -327,7 +326,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 	info->var.vmode = FB_VMODE_NONINTERLACED;
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.accel = FB_ACCEL_NONE;
-	strlcpy(info->fix.id, CLPS711X_FB_NAME, sizeof(info->fix.id));
+	strscpy(info->fix.id, CLPS711X_FB_NAME, sizeof(info->fix.id));
 	fb_videomode_to_var(&info->var, &cfb->mode);
 
 	ret = fb_alloc_cmap(&info->cmap, BIT(CLPS711X_FB_BPP_MAX), 0);

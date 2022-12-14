@@ -79,7 +79,7 @@ static int pata_of_platform_probe(struct platform_device *ofdev)
 
 static const struct of_device_id pata_of_platform_match[] = {
 	{ .compatible = "ata-generic", },
-	{ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pata_of_platform_match);
 

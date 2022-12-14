@@ -8,6 +8,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/leds.h>
@@ -123,34 +124,37 @@ static int regulator_led_probe(struct platform_device *pdev)
 {
 	struct led_regulator_platform_data *pdata =
 			dev_get_platdata(&pdev->dev);
+	struct device *dev = &pdev->dev;
+	struct led_init_data init_data = {};
 	struct regulator_led *led;
 	struct regulator *vcc;
 	int ret = 0;
 
-	if (pdata == NULL) {
-		dev_err(&pdev->dev, "no platform data\n");
-		return -ENODEV;
-	}
-
-	vcc = devm_regulator_get_exclusive(&pdev->dev, "vled");
+	vcc = devm_regulator_get_exclusive(dev, "vled");
 	if (IS_ERR(vcc)) {
-		dev_err(&pdev->dev, "Cannot get vcc for %s\n", pdata->name);
+		dev_err(dev, "Cannot get vcc\n");
 		return PTR_ERR(vcc);
 	}
 
-	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 	if (led == NULL)
 		return -ENOMEM;
 
+	init_data.fwnode = dev->fwnode;
+
 	led->cdev.max_brightness = led_regulator_get_max_brightness(vcc);
-	if (pdata->brightness > led->cdev.max_brightness) {
-		dev_err(&pdev->dev, "Invalid default brightness %d\n",
+	/* Legacy platform data label assignment */
+	if (pdata) {
+		if (pdata->brightness > led->cdev.max_brightness) {
+			dev_err(dev, "Invalid default brightness %d\n",
 				pdata->brightness);
-		return -EINVAL;
+			return -EINVAL;
+		}
+		led->cdev.brightness = pdata->brightness;
+		init_data.default_label = pdata->name;
 	}
 
 	led->cdev.brightness_set_blocking = regulator_led_brightness_set;
-	led->cdev.name = pdata->name;
 	led->cdev.flags |= LED_CORE_SUSPENDRESUME;
 	led->vcc = vcc;
 
@@ -162,15 +166,9 @@ static int regulator_led_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, led);
 
-	ret = led_classdev_register(&pdev->dev, &led->cdev);
+	ret = led_classdev_register_ext(dev, &led->cdev, &init_data);
 	if (ret < 0)
 		return ret;
-
-	/* to expose the default value to userspace */
-	led->cdev.brightness = pdata->brightness;
-
-	/* Set the default led status */
-	regulator_led_brightness_set(&led->cdev, led->cdev.brightness);
 
 	return 0;
 }
@@ -184,10 +182,17 @@ static int regulator_led_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id regulator_led_of_match[] = {
+	{ .compatible = "regulator-led", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, regulator_led_of_match);
+
 static struct platform_driver regulator_led_driver = {
 	.driver = {
-		   .name  = "leds-regulator",
-		   },
+		.name  = "leds-regulator",
+		.of_match_table = regulator_led_of_match,
+	},
 	.probe  = regulator_led_probe,
 	.remove = regulator_led_remove,
 };

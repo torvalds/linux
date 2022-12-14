@@ -452,7 +452,7 @@ err:
 	return ret;
 }
 
-static int apds9300_remove(struct i2c_client *client)
+static void apds9300_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct apds9300_data *data = iio_priv(indio_dev);
@@ -462,11 +462,8 @@ static int apds9300_remove(struct i2c_client *client)
 	/* Ensure that power off and interrupts are disabled */
 	apds9300_set_intr_state(data, 0);
 	apds9300_set_power_state(data, 0);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int apds9300_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -493,11 +490,8 @@ static int apds9300_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(apds9300_pm_ops, apds9300_suspend, apds9300_resume);
-#define APDS9300_PM_OPS (&apds9300_pm_ops)
-#else
-#define APDS9300_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(apds9300_pm_ops, apds9300_suspend,
+				apds9300_resume);
 
 static const struct i2c_device_id apds9300_id[] = {
 	{ APDS9300_DRV_NAME, 0 },
@@ -509,7 +503,7 @@ MODULE_DEVICE_TABLE(i2c, apds9300_id);
 static struct i2c_driver apds9300_driver = {
 	.driver = {
 		.name	= APDS9300_DRV_NAME,
-		.pm	= APDS9300_PM_OPS,
+		.pm	= pm_sleep_ptr(&apds9300_pm_ops),
 	},
 	.probe		= apds9300_probe,
 	.remove		= apds9300_remove,

@@ -9,6 +9,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/export.h>
+#include <linux/math.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -51,6 +52,51 @@ int snd_soc_params_to_bclk(struct snd_pcm_hw_params *params)
 		return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_params_to_bclk);
+
+/**
+ * snd_soc_tdm_params_to_bclk - calculate bclk from params and tdm slot info.
+ *
+ * Calculate the bclk from the params sample rate, the tdm slot count and the
+ * tdm slot width. Optionally round-up the slot count to a given multiple.
+ * Either or both of tdm_width and tdm_slots can be 0.
+ *
+ * If tdm_width == 0:	use params_width() as the slot width.
+ * If tdm_slots == 0:	use params_channels() as the slot count.
+ *
+ * If slot_multiple > 1 the slot count (or params_channels() if tdm_slots == 0)
+ * will be rounded up to a multiple of slot_multiple. This is mainly useful for
+ * I2S mode, which has a left and right phase so the number of slots is always
+ * a multiple of 2.
+ *
+ * If tdm_width == 0 && tdm_slots == 0 && slot_multiple < 2, this is equivalent
+ * to calling snd_soc_params_to_bclk().
+ *
+ * @params:        Pointer to struct_pcm_hw_params.
+ * @tdm_width:     Width in bits of the tdm slots. Must be >= 0.
+ * @tdm_slots:     Number of tdm slots per frame. Must be >= 0.
+ * @slot_multiple: If >1 roundup slot count to a multiple of this value.
+ *
+ * Return: bclk frequency in Hz, else a negative error code if params format
+ *	   is invalid.
+ */
+int snd_soc_tdm_params_to_bclk(struct snd_pcm_hw_params *params,
+			       int tdm_width, int tdm_slots, int slot_multiple)
+{
+	if (!tdm_slots)
+		tdm_slots = params_channels(params);
+
+	if (slot_multiple > 1)
+		tdm_slots = roundup(tdm_slots, slot_multiple);
+
+	if (!tdm_width) {
+		tdm_width = snd_pcm_format_width(params_format(params));
+		if (tdm_width < 0)
+			return tdm_width;
+	}
+
+	return snd_soc_calc_bclk(params_rate(params), tdm_width, 1, tdm_slots);
+}
+EXPORT_SYMBOL_GPL(snd_soc_tdm_params_to_bclk);
 
 static const struct snd_pcm_hardware dummy_dma_hardware = {
 	/* Random values to keep userspace happy when checking constraints */
@@ -96,7 +142,6 @@ static const struct snd_soc_component_driver dummy_codec = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_384000
@@ -219,7 +264,7 @@ int __init snd_soc_util_init(void)
 	return ret;
 }
 
-void __exit snd_soc_util_exit(void)
+void snd_soc_util_exit(void)
 {
 	platform_driver_unregister(&soc_dummy_driver);
 	platform_device_unregister(soc_dummy_dev);

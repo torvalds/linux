@@ -147,13 +147,12 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	switch (cq->type) {
 	case TX:
 		cq->mcq.comp = mlx4_en_tx_irq;
-		netif_tx_napi_add(cq->dev, &cq->napi, mlx4_en_poll_tx_cq,
-				  NAPI_POLL_WEIGHT);
+		netif_napi_add_tx(cq->dev, &cq->napi, mlx4_en_poll_tx_cq);
 		napi_enable(&cq->napi);
 		break;
 	case RX:
 		cq->mcq.comp = mlx4_en_rx_irq;
-		netif_napi_add(cq->dev, &cq->napi, mlx4_en_poll_rx_cq, 64);
+		netif_napi_add(cq->dev, &cq->napi, mlx4_en_poll_rx_cq);
 		napi_enable(&cq->napi);
 		break;
 	case TX_XDP:

@@ -149,23 +149,30 @@ int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 			int fd, group_fd, *evsel_fd;
 
 			evsel_fd = FD(evsel, idx, thread);
-			if (evsel_fd == NULL)
-				return -EINVAL;
+			if (evsel_fd == NULL) {
+				err = -EINVAL;
+				goto out;
+			}
 
 			err = get_group_fd(evsel, idx, thread, &group_fd);
 			if (err < 0)
-				return err;
+				goto out;
 
 			fd = sys_perf_event_open(&evsel->attr,
 						 threads->map[thread].pid,
 						 cpu, group_fd, 0);
 
-			if (fd < 0)
-				return -errno;
+			if (fd < 0) {
+				err = -errno;
+				goto out;
+			}
 
 			*evsel_fd = fd;
 		}
 	}
+out:
+	if (err)
+		perf_evsel__close(evsel);
 
 	return err;
 }
@@ -298,6 +305,9 @@ int perf_evsel__read_size(struct perf_evsel *evsel)
 	if (read_format & PERF_FORMAT_ID)
 		entry += sizeof(u64);
 
+	if (read_format & PERF_FORMAT_LOST)
+		entry += sizeof(u64);
+
 	if (read_format & PERF_FORMAT_GROUP) {
 		nr = evsel->nr_members;
 		size += sizeof(u64);
@@ -307,25 +317,110 @@ int perf_evsel__read_size(struct perf_evsel *evsel)
 	return size;
 }
 
+/* This only reads values for the leader */
+static int perf_evsel__read_group(struct perf_evsel *evsel, int cpu_map_idx,
+				  int thread, struct perf_counts_values *count)
+{
+	size_t size = perf_evsel__read_size(evsel);
+	int *fd = FD(evsel, cpu_map_idx, thread);
+	u64 read_format = evsel->attr.read_format;
+	u64 *data;
+	int idx = 1;
+
+	if (fd == NULL || *fd < 0)
+		return -EINVAL;
+
+	data = calloc(1, size);
+	if (data == NULL)
+		return -ENOMEM;
+
+	if (readn(*fd, data, size) <= 0) {
+		free(data);
+		return -errno;
+	}
+
+	/*
+	 * This reads only the leader event intentionally since we don't have
+	 * perf counts values for sibling events.
+	 */
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		count->ena = data[idx++];
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		count->run = data[idx++];
+
+	/* value is always available */
+	count->val = data[idx++];
+	if (read_format & PERF_FORMAT_ID)
+		count->id = data[idx++];
+	if (read_format & PERF_FORMAT_LOST)
+		count->lost = data[idx++];
+
+	free(data);
+	return 0;
+}
+
+/*
+ * The perf read format is very flexible.  It needs to set the proper
+ * values according to the read format.
+ */
+static void perf_evsel__adjust_values(struct perf_evsel *evsel, u64 *buf,
+				      struct perf_counts_values *count)
+{
+	u64 read_format = evsel->attr.read_format;
+	int n = 0;
+
+	count->val = buf[n++];
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		count->ena = buf[n++];
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		count->run = buf[n++];
+
+	if (read_format & PERF_FORMAT_ID)
+		count->id = buf[n++];
+
+	if (read_format & PERF_FORMAT_LOST)
+		count->lost = buf[n++];
+}
+
 int perf_evsel__read(struct perf_evsel *evsel, int cpu_map_idx, int thread,
 		     struct perf_counts_values *count)
 {
 	size_t size = perf_evsel__read_size(evsel);
 	int *fd = FD(evsel, cpu_map_idx, thread);
+	u64 read_format = evsel->attr.read_format;
+	struct perf_counts_values buf;
 
 	memset(count, 0, sizeof(*count));
 
 	if (fd == NULL || *fd < 0)
 		return -EINVAL;
 
+	if (read_format & PERF_FORMAT_GROUP)
+		return perf_evsel__read_group(evsel, cpu_map_idx, thread, count);
+
 	if (MMAP(evsel, cpu_map_idx, thread) &&
+	    !(read_format & (PERF_FORMAT_ID | PERF_FORMAT_LOST)) &&
 	    !perf_mmap__read_self(MMAP(evsel, cpu_map_idx, thread), count))
 		return 0;
 
-	if (readn(*fd, count->values, size) <= 0)
+	if (readn(*fd, buf.values, size) <= 0)
 		return -errno;
 
+	perf_evsel__adjust_values(evsel, buf.values, count);
 	return 0;
+}
+
+static int perf_evsel__ioctl(struct perf_evsel *evsel, int ioc, void *arg,
+			     int cpu_map_idx, int thread)
+{
+	int *fd = FD(evsel, cpu_map_idx, thread);
+
+	if (fd == NULL || *fd < 0)
+		return -1;
+
+	return ioctl(*fd, ioc, arg);
 }
 
 static int perf_evsel__run_ioctl(struct perf_evsel *evsel,
@@ -335,13 +430,7 @@ static int perf_evsel__run_ioctl(struct perf_evsel *evsel,
 	int thread;
 
 	for (thread = 0; thread < xyarray__max_y(evsel->fd); thread++) {
-		int err;
-		int *fd = FD(evsel, cpu_map_idx, thread);
-
-		if (fd == NULL || *fd < 0)
-			return -1;
-
-		err = ioctl(*fd, ioc, arg);
+		int err = perf_evsel__ioctl(evsel, ioc, arg, cpu_map_idx, thread);
 
 		if (err)
 			return err;
@@ -353,6 +442,21 @@ static int perf_evsel__run_ioctl(struct perf_evsel *evsel,
 int perf_evsel__enable_cpu(struct perf_evsel *evsel, int cpu_map_idx)
 {
 	return perf_evsel__run_ioctl(evsel, PERF_EVENT_IOC_ENABLE, NULL, cpu_map_idx);
+}
+
+int perf_evsel__enable_thread(struct perf_evsel *evsel, int thread)
+{
+	struct perf_cpu cpu __maybe_unused;
+	int idx;
+	int err;
+
+	perf_cpu_map__for_each_cpu(cpu, idx, evsel->cpus) {
+		err = perf_evsel__ioctl(evsel, PERF_EVENT_IOC_ENABLE, NULL, idx, thread);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 int perf_evsel__enable(struct perf_evsel *evsel)
@@ -410,9 +514,6 @@ int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	if (ncpus == 0 || nthreads == 0)
 		return 0;
-
-	if (evsel->system_wide)
-		nthreads = 1;
 
 	evsel->sample_id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
 	if (evsel->sample_id == NULL)

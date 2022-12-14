@@ -14,7 +14,10 @@ extern void do_lwsync_fixups(unsigned long value, void *fixup_start,
 
 static inline void eieio(void)
 {
-	__asm__ __volatile__ ("eieio" : : : "memory");
+	if (IS_ENABLED(CONFIG_BOOKE))
+		__asm__ __volatile__ ("mbar" : : : "memory");
+	else
+		__asm__ __volatile__ ("eieio" : : : "memory");
 }
 
 static inline void isync(void)
@@ -41,7 +44,7 @@ static inline void ppc_after_tlbiel_barrier(void)
 
 #if defined(__powerpc64__)
 #    define LWSYNC	lwsync
-#elif defined(CONFIG_E500)
+#elif defined(CONFIG_PPC_E500)
 #    define LWSYNC					\
 	START_LWSYNC_SECTION(96);			\
 	sync;						\

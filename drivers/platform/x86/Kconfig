@@ -93,6 +93,7 @@ config PEAQ_WMI
 
 config NVIDIA_WMI_EC_BACKLIGHT
 	tristate "EC Backlight Driver for Hybrid Graphics Notebook Systems"
+	depends on ACPI_VIDEO
 	depends on ACPI_WMI
 	depends on BACKLIGHT_CLASS_DEVICE
 	help
@@ -177,17 +178,15 @@ config ACER_WIRELESS
 
 config ACER_WMI
 	tristate "Acer WMI Laptop Extras"
-	depends on ACPI
-	select LEDS_CLASS
-	select NEW_LEDS
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on SERIO_I8042
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
 	depends on ACPI_WMI
+	select ACPI_VIDEO
 	select INPUT_SPARSEKMAP
-	# Acer WMI depends on ACPI_VIDEO when ACPI is enabled
-        select ACPI_VIDEO if ACPI
+	select LEDS_CLASS
+	select NEW_LEDS
 	help
 	  This is a driver for newer Acer (and Wistron) laptops. It adds
 	  wireless radio and bluetooth control, and on some laptops,
@@ -196,19 +195,7 @@ config ACER_WMI
 	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
 	  here.
 
-config AMD_PMC
-	tristate "AMD SoC PMC driver"
-	depends on ACPI && PCI && RTC_CLASS
-	help
-	  The driver provides support for AMD Power Management Controller
-	  primarily responsible for S2Idle transactions that are driven from
-	  a platform firmware running on SMU. This driver also provides a debug
-	  mechanism to investigate the S2Idle transactions and failures.
-
-	  Say Y or M here if you have a notebook powered by AMD RYZEN CPU/APU.
-
-	  If you choose to compile this driver as a module the module will be
-	  called amd-pmc.
+source "drivers/platform/x86/amd/Kconfig"
 
 config ADV_SWBUTTON
 	tristate "Advantech ACPI Software Button Driver"
@@ -287,6 +274,8 @@ config ASUS_WMI
 	select INPUT_SPARSEKMAP
 	select LEDS_CLASS
 	select NEW_LEDS
+	select LEDS_TRIGGERS
+	select LEDS_TRIGGER_AUDIO
 	select ACPI_PLATFORM_PROFILE
 	help
 	  Say Y here if you have a WMI aware Asus laptop (like Eee PCs or new
@@ -802,6 +791,7 @@ config SAMSUNG_Q10
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on ACPI
+	depends on ACPI_BATTERY
 	depends on ACPI_WMI
 	select LEDS_CLASS
 	select NEW_LEDS
@@ -809,6 +799,7 @@ config ACPI_TOSHIBA
 	depends on INPUT
 	depends on SERIO_I8042 || SERIO_I8042 = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on HWMON || HWMON = n
 	depends on RFKILL || RFKILL = n
 	depends on IIO
 	select INPUT_SPARSEKMAP
@@ -915,6 +906,7 @@ config COMPAL_LAPTOP
 config LG_LAPTOP
 	tristate "LG Laptop Extras"
 	depends on ACPI
+	depends on ACPI_BATTERY
 	depends on ACPI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
@@ -931,6 +923,8 @@ config PANASONIC_LAPTOP
 	tristate "Panasonic Laptop Extras"
 	depends on INPUT && ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_VIDEO=n || ACPI_VIDEO
+	depends on SERIO_I8042 || SERIO_I8042 = n
 	select INPUT_SPARSEKMAP
 	help
 	  This driver adds support for access to backlight control and hotkeys
@@ -990,16 +984,16 @@ config TOPSTAR_LAPTOP
 
 	  If you have a Topstar laptop, say Y or M here.
 
-config I2C_MULTI_INSTANTIATE
-	tristate "I2C multi instantiate pseudo device driver"
-	depends on I2C && ACPI
+config SERIAL_MULTI_INSTANTIATE
+	tristate "Serial bus multi instantiate pseudo device driver"
+	depends on I2C && SPI && ACPI
 	help
-	  Some ACPI-based systems list multiple i2c-devices in a single ACPI
-	  firmware-node. This driver will instantiate separate i2c-clients
+	  Some ACPI-based systems list multiple devices in a single ACPI
+	  firmware-node. This driver will instantiate separate clients
 	  for each device in the firmware-node.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called i2c-multi-instantiate.
+	  will be called serial-multi-instantiate.
 
 config MLX_PLATFORM
 	tristate "Mellanox Technologies platform support"
@@ -1027,7 +1021,7 @@ config TOUCHSCREEN_DMI
 
 config X86_ANDROID_TABLETS
 	tristate "X86 Android tablet support"
-	depends on I2C && SERIAL_DEV_BUS && ACPI && GPIOLIB
+	depends on I2C && SPI && SERIAL_DEV_BUS && ACPI && EFI && GPIOLIB
 	help
 	  X86 tablets which ship with Android as (part of) the factory image
 	  typically have various problems with their DSDTs. The factory kernels
@@ -1138,9 +1132,24 @@ config SIEMENS_SIMATIC_IPC
 	  To compile this driver as a module, choose M here: the module
 	  will be called simatic-ipc.
 
+config WINMATE_FM07_KEYS
+	tristate "Winmate FM07/FM07P front-panel keys driver"
+	depends on INPUT
+	help
+	  Winmate FM07 and FM07P in-vehicle computers have a row of five
+	  buttons below the display. This module adds an input device
+	  that delivers key events when these buttons are pressed.
+
 endif # X86_PLATFORM_DEVICES
 
-config PMC_ATOM
-       def_bool y
-       depends on PCI
-       select COMMON_CLK
+config P2SB
+	bool "Primary to Sideband (P2SB) bridge access support"
+	depends on PCI && X86
+	help
+	  The Primary to Sideband (P2SB) bridge is an interface to some
+	  PCI devices connected through it. In particular, SPI NOR controller
+	  in Intel Apollo Lake SoC is one of such devices.
+
+	  The main purpose of this library is to unhide P2SB device in case
+	  firmware kept it hidden on some platforms in order to access devices
+	  behind it.

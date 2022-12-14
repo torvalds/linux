@@ -37,6 +37,17 @@
 		};
 	};
 
+	miphy28lp_phy: miphy28lp {
+
+		phy_port0: port@9b22000 {
+			st,osc-rdy;
+		};
+
+		phy_port1: port@9b2a000 {
+			st,osc-force-ext;
+		};
+	};
+
 	soc {
 		sbc_serial0: serial@9530000 {
 			status = "okay";
@@ -82,17 +93,6 @@
 			sd-uhs-sdr104;
 			sd-uhs-ddr50;
 			non-removable;
-		};
-
-		miphy28lp_phy: miphy28lp@0 {
-
-			phy_port0: port@9b22000 {
-				st,osc-rdy;
-			};
-
-			phy_port1: port@9b2a000 {
-				st,osc-force-ext;
-			};
 		};
 
 		st_dwc3: dwc3@8f94000 {

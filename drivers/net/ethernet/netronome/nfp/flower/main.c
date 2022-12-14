@@ -266,7 +266,7 @@ nfp_flower_reprs_reify(struct nfp_app *app, enum nfp_repr_type type,
 	int i, err, count = 0;
 
 	reprs = rcu_dereference_protected(app->reprs[type],
-					  lockdep_is_held(&app->pf->lock));
+					  nfp_app_is_locked(app));
 	if (!reprs)
 		return 0;
 
@@ -295,7 +295,7 @@ nfp_flower_wait_repr_reify(struct nfp_app *app, atomic_t *replies, int tot_repl)
 	if (!tot_repl)
 		return 0;
 
-	lockdep_assert_held(&app->pf->lock);
+	assert_nfp_app_locked(app);
 	if (!wait_event_timeout(priv->reify_wait_queue,
 				atomic_read(replies) >= tot_repl,
 				NFP_FL_REPLY_TIMEOUT)) {

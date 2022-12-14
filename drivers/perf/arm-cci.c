@@ -1096,7 +1096,7 @@ static void cci_pmu_enable(struct pmu *pmu)
 {
 	struct cci_pmu *cci_pmu = to_cci_pmu(pmu);
 	struct cci_pmu_hw_events *hw_events = &cci_pmu->hw_events;
-	int enabled = bitmap_weight(hw_events->used_mask, cci_pmu->num_cntrs);
+	bool enabled = !bitmap_empty(hw_events->used_mask, cci_pmu->num_cntrs);
 	unsigned long flags;
 
 	if (!enabled)
@@ -1139,7 +1139,7 @@ static void cci_pmu_start(struct perf_event *event, int pmu_flags)
 
 	/*
 	 * To handle interrupt latency, we always reprogram the period
-	 * regardlesss of PERF_EF_RELOAD.
+	 * regardless of PERF_EF_RELOAD.
 	 */
 	if (pmu_flags & PERF_EF_RELOAD)
 		WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
@@ -1261,7 +1261,7 @@ static int validate_group(struct perf_event *event)
 		 */
 		.used_mask = mask,
 	};
-	memset(mask, 0, BITS_TO_LONGS(cci_pmu->num_cntrs) * sizeof(unsigned long));
+	bitmap_zero(mask, cci_pmu->num_cntrs);
 
 	if (!validate_event(event->pmu, &fake_pmu, leader))
 		return -EINVAL;
@@ -1629,10 +1629,9 @@ static struct cci_pmu *cci_pmu_alloc(struct device *dev)
 					     GFP_KERNEL);
 	if (!cci_pmu->hw_events.events)
 		return ERR_PTR(-ENOMEM);
-	cci_pmu->hw_events.used_mask = devm_kcalloc(dev,
-						BITS_TO_LONGS(CCI_PMU_MAX_HW_CNTRS(model)),
-						sizeof(*cci_pmu->hw_events.used_mask),
-						GFP_KERNEL);
+	cci_pmu->hw_events.used_mask = devm_bitmap_zalloc(dev,
+							  CCI_PMU_MAX_HW_CNTRS(model),
+							  GFP_KERNEL);
 	if (!cci_pmu->hw_events.used_mask)
 		return ERR_PTR(-ENOMEM);
 

@@ -28,7 +28,6 @@
 // 5. We can read keycode from same /dev/lirc device
 
 #include <linux/bpf.h>
-#include <linux/lirc.h>
 #include <linux/input.h>
 #include <errno.h>
 #include <stdio.h>
@@ -60,7 +59,7 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
-	ret = bpf_prog_test_load("test_lirc_mode2_kern.o",
+	ret = bpf_prog_test_load("test_lirc_mode2_kern.bpf.o",
 				 BPF_PROG_TYPE_LIRC_MODE2, &obj, &progfd);
 	if (ret) {
 		printf("Failed to load bpf program\n");

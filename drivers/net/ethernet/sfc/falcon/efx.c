@@ -112,11 +112,6 @@ module_param(ef4_separate_tx_channels, bool, 0444);
 MODULE_PARM_DESC(ef4_separate_tx_channels,
 		 "Use separate channels for TX and RX");
 
-/* This is the weight assigned to each of the (per-channel) virtual
- * NAPI devices.
- */
-static int napi_weight = 64;
-
 /* This is the time (in jiffies) between invocations of the hardware
  * monitor.
  * On Falcon-based NICs, this will:
@@ -2017,8 +2012,7 @@ static void ef4_init_napi_channel(struct ef4_channel *channel)
 	struct ef4_nic *efx = channel->efx;
 
 	channel->napi_dev = efx->net_dev;
-	netif_napi_add(channel->napi_dev, &channel->napi_str,
-		       ef4_poll, napi_weight);
+	netif_napi_add(channel->napi_dev, &channel->napi_str, ef4_poll);
 }
 
 static void ef4_init_napi(struct ef4_nic *efx)
@@ -2267,7 +2261,7 @@ static int ef4_register_netdev(struct ef4_nic *efx)
 	net_dev->irq = efx->pci_dev->irq;
 	net_dev->netdev_ops = &ef4_netdev_ops;
 	net_dev->ethtool_ops = &ef4_ethtool_ops;
-	netif_set_gso_max_segs(net_dev, EF4_TSO_MAX_SEGS);
+	netif_set_tso_max_segs(net_dev, EF4_TSO_MAX_SEGS);
 	net_dev->min_mtu = EF4_MIN_MTU;
 	net_dev->max_mtu = EF4_MAX_MTU;
 
@@ -2335,7 +2329,7 @@ static void ef4_unregister_netdev(struct ef4_nic *efx)
 	BUG_ON(netdev_priv(efx->net_dev) != efx);
 
 	if (ef4_dev_registered(efx)) {
-		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
+		strscpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
 		device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_type);
 		unregister_netdev(efx->net_dev);
 	}
@@ -2646,7 +2640,7 @@ static int ef4_init_struct(struct ef4_nic *efx,
 	efx->pci_dev = pci_dev;
 	efx->msg_enable = debug;
 	efx->state = STATE_UNINIT;
-	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
+	strscpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
 
 	efx->net_dev = net_dev;
 	efx->rx_prefix_size = efx->type->rx_prefix_size;

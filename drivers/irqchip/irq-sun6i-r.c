@@ -249,11 +249,13 @@ static int sun6i_r_intc_domain_alloc(struct irq_domain *domain,
 	for (i = 0; i < nr_irqs; ++i, ++hwirq, ++virq) {
 		if (hwirq == nmi_hwirq) {
 			irq_domain_set_hwirq_and_chip(domain, virq, hwirq,
-						      &sun6i_r_intc_nmi_chip, 0);
+						      &sun6i_r_intc_nmi_chip,
+						      NULL);
 			irq_set_handler(virq, handle_fasteoi_ack_irq);
 		} else {
 			irq_domain_set_hwirq_and_chip(domain, virq, hwirq,
-						      &sun6i_r_intc_wakeup_chip, 0);
+						      &sun6i_r_intc_wakeup_chip,
+						      NULL);
 		}
 	}
 

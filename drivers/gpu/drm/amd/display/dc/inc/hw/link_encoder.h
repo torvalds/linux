@@ -85,7 +85,26 @@ union dpcd_psr_configuration {
 		unsigned char LINE_CAPTURE_INDICATION   : 1;
 		/* For eDP 1.4, PSR v2*/
 		unsigned char IRQ_HPD_WITH_CRC_ERROR    : 1;
-		unsigned char RESERVED                  : 2;
+		unsigned char ENABLE_PSR2               : 1;
+		/* For eDP 1.5, PSR v2 w/ early transport */
+		unsigned char EARLY_TRANSPORT_ENABLE    : 1;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_alpm_configuration {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char IRQ_HPD_ENABLE            : 1;
+		unsigned char RESERVED                  : 6;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_sink_active_vtotal_control_mode {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char RESERVED                  : 7;
 	} bits;
 	unsigned char raw;
 };
@@ -162,7 +181,8 @@ struct link_encoder_funcs {
 	void (*disable_output)(struct link_encoder *link_enc,
 		enum signal_type signal);
 	void (*dp_set_lane_settings)(struct link_encoder *enc,
-		const struct link_training_settings *link_settings);
+		const struct dc_link_settings *link_settings,
+		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
 	void (*dp_set_phy_pattern)(struct link_encoder *enc,
 		const struct encoder_set_dp_phy_pattern_param *para);
 	void (*update_mst_stream_allocation_table)(
@@ -199,6 +219,8 @@ struct link_encoder_funcs {
 		struct link_encoder *enc,
 		enum encoder_type_select sel,
 		uint32_t hpo_inst);
+	void (*set_dig_output_mode)(
+			struct link_encoder *enc, uint8_t pix_per_container);
 };
 
 /*
@@ -220,7 +242,6 @@ enum link_enc_cfg_mode {
 	LINK_ENC_CFG_TRANSIENT /* During commit state - use state to be committed. */
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 enum dp2_link_mode {
 	DP2_LINK_TRAINING_TPS1,
 	DP2_LINK_TRAINING_TPS2,
@@ -306,6 +327,5 @@ struct hpo_dp_link_encoder_funcs {
 		const struct dc_link_settings *link_settings,
 		uint8_t ffe_preset);
 };
-#endif
 
 #endif /* LINK_ENCODER_H_ */

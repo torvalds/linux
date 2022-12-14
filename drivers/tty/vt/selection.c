@@ -68,7 +68,8 @@ sel_pos(int n, bool unicode)
 {
 	if (unicode)
 		return screen_glyph_unicode(vc_sel.cons, n / 2);
-	return inverse_translate(vc_sel.cons, screen_glyph(vc_sel.cons, n), 0);
+	return inverse_translate(vc_sel.cons, screen_glyph(vc_sel.cons, n),
+			false);
 }
 
 /**

@@ -114,6 +114,9 @@ static ssize_t ee1004_eeprom_read(struct i2c_client *client, char *buf,
 	if (offset + count > EE1004_PAGE_SIZE)
 		count = EE1004_PAGE_SIZE - offset;
 
+	if (count > I2C_SMBUS_BLOCK_MAX)
+		count = I2C_SMBUS_BLOCK_MAX;
+
 	return i2c_smbus_read_i2c_block_data_or_emulated(client, offset, count, buf);
 }
 
@@ -216,14 +219,12 @@ static int ee1004_probe(struct i2c_client *client)
 	return err;
 }
 
-static int ee1004_remove(struct i2c_client *client)
+static void ee1004_remove(struct i2c_client *client)
 {
 	/* Remove page select clients if this is the last device */
 	mutex_lock(&ee1004_bus_lock);
 	ee1004_cleanup(EE1004_NUM_PAGES);
 	mutex_unlock(&ee1004_bus_lock);
-
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/

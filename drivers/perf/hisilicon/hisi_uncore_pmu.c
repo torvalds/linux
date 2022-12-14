@@ -393,7 +393,7 @@ EXPORT_SYMBOL_GPL(hisi_uncore_pmu_read);
 void hisi_uncore_pmu_enable(struct pmu *pmu)
 {
 	struct hisi_pmu *hisi_pmu = to_hisi_pmu(pmu);
-	int enabled = bitmap_weight(hisi_pmu->pmu_events.used_mask,
+	bool enabled = !bitmap_empty(hisi_pmu->pmu_events.used_mask,
 				    hisi_pmu->num_counters);
 
 	if (!enabled)
@@ -457,6 +457,10 @@ static void hisi_read_sccl_and_ccl_id(int *scclp, int *cclp)
 static bool hisi_pmu_cpu_is_associated_pmu(struct hisi_pmu *hisi_pmu)
 {
 	int sccl_id, ccl_id;
+
+	/* If SCCL_ID is -1, the PMU is in a SICL and has no CPU affinity */
+	if (hisi_pmu->sccl_id == -1)
+		return true;
 
 	if (hisi_pmu->ccl_id == -1) {
 		/* If CCL_ID is -1, the PMU only shares the same SCCL */
@@ -526,5 +530,23 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hisi_uncore_pmu_offline_cpu);
+
+void hisi_pmu_init(struct pmu *pmu, const char *name,
+		const struct attribute_group **attr_groups, struct module *module)
+{
+	pmu->name               = name;
+	pmu->module             = module;
+	pmu->task_ctx_nr        = perf_invalid_context;
+	pmu->event_init         = hisi_uncore_pmu_event_init;
+	pmu->pmu_enable         = hisi_uncore_pmu_enable;
+	pmu->pmu_disable        = hisi_uncore_pmu_disable;
+	pmu->add                = hisi_uncore_pmu_add;
+	pmu->del                = hisi_uncore_pmu_del;
+	pmu->start              = hisi_uncore_pmu_start;
+	pmu->stop               = hisi_uncore_pmu_stop;
+	pmu->read               = hisi_uncore_pmu_read;
+	pmu->attr_groups        = attr_groups;
+}
+EXPORT_SYMBOL_GPL(hisi_pmu_init);
 
 MODULE_LICENSE("GPL v2");

@@ -75,7 +75,7 @@ void bnxt_devlink_health_fw_report(struct bnxt *bp);
 void bnxt_dl_health_fw_status_update(struct bnxt *bp, bool healthy);
 void bnxt_dl_health_fw_recovery_done(struct bnxt *bp);
 void bnxt_dl_fw_reporters_create(struct bnxt *bp);
-void bnxt_dl_fw_reporters_destroy(struct bnxt *bp, bool all);
+void bnxt_dl_fw_reporters_destroy(struct bnxt *bp);
 int bnxt_dl_register(struct bnxt *bp);
 void bnxt_dl_unregister(struct bnxt *bp);
 

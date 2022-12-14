@@ -217,7 +217,7 @@ static inline void al_pcie_target_bus_set(struct al_pcie *pcie,
 static void __iomem *al_pcie_conf_addr_map_bus(struct pci_bus *bus,
 					       unsigned int devfn, int where)
 {
-	struct pcie_port *pp = bus->sysdata;
+	struct dw_pcie_rp *pp = bus->sysdata;
 	struct al_pcie *pcie = to_al_pcie(to_dw_pcie_from_pp(pp));
 	unsigned int busnr = bus->number;
 	struct al_pcie_target_bus_cfg *target_bus_cfg = &pcie->target_bus_cfg;
@@ -245,7 +245,7 @@ static struct pci_ops al_child_pci_ops = {
 static void al_pcie_config_prepare(struct al_pcie *pcie)
 {
 	struct al_pcie_target_bus_cfg *target_bus_cfg;
-	struct pcie_port *pp = &pcie->pci->pp;
+	struct dw_pcie_rp *pp = &pcie->pci->pp;
 	unsigned int ecam_bus_mask;
 	u32 cfg_control_offset;
 	u8 subordinate_bus;
@@ -289,7 +289,7 @@ static void al_pcie_config_prepare(struct al_pcie *pcie)
 	al_pcie_controller_writel(pcie, cfg_control_offset, reg);
 }
 
-static int al_pcie_host_init(struct pcie_port *pp)
+static int al_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct al_pcie *pcie = to_al_pcie(pci);

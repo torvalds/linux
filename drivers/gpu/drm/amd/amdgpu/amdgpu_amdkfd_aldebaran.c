@@ -37,12 +37,10 @@ const struct kfd2kgd_calls aldebaran_kfd2kgd = {
 	.hqd_sdma_is_occupied = kgd_arcturus_hqd_sdma_is_occupied,
 	.hqd_destroy = kgd_gfx_v9_hqd_destroy,
 	.hqd_sdma_destroy = kgd_arcturus_hqd_sdma_destroy,
-	.address_watch_disable = kgd_gfx_v9_address_watch_disable,
-	.address_watch_execute = kgd_gfx_v9_address_watch_execute,
 	.wave_control_execute = kgd_gfx_v9_wave_control_execute,
-	.address_watch_get_offset = kgd_gfx_v9_address_watch_get_offset,
 	.get_atc_vmid_pasid_mapping_info =
 				kgd_gfx_v9_get_atc_vmid_pasid_mapping_info,
 	.set_vm_context_page_table_base = kgd_gfx_v9_set_vm_context_page_table_base,
+	.get_cu_occupancy = kgd_gfx_v9_get_cu_occupancy,
 	.program_trap_handler_settings = kgd_gfx_v9_program_trap_handler_settings
 };

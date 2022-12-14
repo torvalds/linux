@@ -41,6 +41,7 @@
  * By default, CONFIG_PAGE_OFFSET value corresponds to SV48 address space so
  * define the PAGE_OFFSET value for SV39.
  */
+#define PAGE_OFFSET_L4		_AC(0xffffaf8000000000, UL)
 #define PAGE_OFFSET_L3		_AC(0xffffffd800000000, UL)
 #else
 #define PAGE_OFFSET		_AC(CONFIG_PAGE_OFFSET, UL)
@@ -119,7 +120,7 @@ extern phys_addr_t phys_ram_base;
 	((x) >= kernel_map.virt_addr && (x) < (kernel_map.virt_addr + kernel_map.size))
 
 #define is_linear_mapping(x)	\
-	((x) >= PAGE_OFFSET && (!IS_ENABLED(CONFIG_64BIT) || (x) < kernel_map.virt_addr))
+	((x) >= PAGE_OFFSET && (!IS_ENABLED(CONFIG_64BIT) || (x) < PAGE_OFFSET + KERN_VIRT_SIZE))
 
 #define linear_mapping_pa_to_va(x)	((void *)((unsigned long)(x) + kernel_map.va_pa_offset))
 #define kernel_mapping_pa_to_va(y)	({						\
@@ -166,7 +167,6 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #define page_to_virt(page)	(pfn_to_virt(page_to_pfn(page)))
 
 #define page_to_phys(page)	(pfn_to_phys(page_to_pfn(page)))
-#define page_to_bus(page)	(page_to_phys(page))
 #define phys_to_page(paddr)	(pfn_to_page(phys_to_pfn(paddr)))
 
 #define sym_to_pfn(x)           __phys_to_pfn(__pa_symbol(x))

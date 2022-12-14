@@ -6,6 +6,7 @@
 
 #include <linux/uaccess.h>
 #include <linux/export.h>
+#include <linux/instrumented.h>
 
 #include <asm/tlbflush.h>
 
@@ -32,7 +33,7 @@ copy_from_user_nmi(void *to, const void __user *from, unsigned long n)
 {
 	unsigned long ret;
 
-	if (__range_not_ok(from, n, TASK_SIZE))
+	if (!__access_ok(from, n))
 		return n;
 
 	if (!nmi_uaccess_okay())
@@ -44,7 +45,9 @@ copy_from_user_nmi(void *to, const void __user *from, unsigned long n)
 	 * called from other contexts.
 	 */
 	pagefault_disable();
-	ret = __copy_from_user_inatomic(to, from, n);
+	instrument_copy_from_user_before(to, from, n);
+	ret = raw_copy_from_user(to, from, n);
+	instrument_copy_from_user_after(to, from, n, ret);
 	pagefault_enable();
 
 	return ret;

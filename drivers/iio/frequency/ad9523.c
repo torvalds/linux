@@ -287,13 +287,13 @@ struct ad9523_state {
 	struct mutex		lock;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
-	 * transfer buffers to live in their own cache lines.
+	 * DMA (thus cache coherency maintenance) may require that
+	 * transfer buffers live in their own cache lines.
 	 */
 	union {
 		__be32 d32;
 		u8 d8[4];
-	} data[2] ____cacheline_aligned;
+	} data[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ad9523_read(struct iio_dev *indio_dev, unsigned int addr)
@@ -516,7 +516,7 @@ static ssize_t ad9523_store(struct device *dev,
 	bool state;
 	int ret;
 
-	ret = strtobool(buf, &state);
+	ret = kstrtobool(buf, &state);
 	if (ret < 0)
 		return ret;
 
@@ -551,7 +551,7 @@ static ssize_t ad9523_show(struct device *dev,
 	mutex_lock(&st->lock);
 	ret = ad9523_read(indio_dev, AD9523_READBACK_0);
 	if (ret >= 0) {
-		ret = sprintf(buf, "%d\n", !!(ret & (1 <<
+		ret = sysfs_emit(buf, "%d\n", !!(ret & (1 <<
 			(u32)this_attr->address)));
 	}
 	mutex_unlock(&st->lock);

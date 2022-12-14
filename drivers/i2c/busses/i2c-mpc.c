@@ -239,6 +239,7 @@ static const struct mpc_i2c_divider mpc_i2c_dividers_52xx[] = {
 static int mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock,
 					  u32 *real_clk)
 {
+	struct fwnode_handle *fwnode = of_fwnode_handle(node);
 	const struct mpc_i2c_divider *div = NULL;
 	unsigned int pvr = mfspr(SPRN_PVR);
 	u32 divider;
@@ -246,12 +247,12 @@ static int mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock,
 
 	if (clock == MPC_I2C_CLOCK_LEGACY) {
 		/* see below - default fdr = 0x3f -> div = 2048 */
-		*real_clk = mpc5xxx_get_bus_frequency(node) / 2048;
+		*real_clk = mpc5xxx_fwnode_get_bus_frequency(fwnode) / 2048;
 		return -EINVAL;
 	}
 
 	/* Determine divider value */
-	divider = mpc5xxx_get_bus_frequency(node) / clock;
+	divider = mpc5xxx_fwnode_get_bus_frequency(fwnode) / clock;
 
 	/*
 	 * We want to choose an FDR/DFSR that generates an I2C bus speed that
@@ -266,7 +267,7 @@ static int mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock,
 			break;
 	}
 
-	*real_clk = mpc5xxx_get_bus_frequency(node) / div->divider;
+	*real_clk = mpc5xxx_fwnode_get_bus_frequency(fwnode) / div->divider;
 	return (int)div->fdr;
 }
 

@@ -1274,14 +1274,13 @@ error:
 	return ret;
 }
 
-static int si2165_remove(struct i2c_client *client)
+static void si2165_remove(struct i2c_client *client)
 {
 	struct si2165_state *state = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev, "\n");
 
 	kfree(state);
-	return 0;
 }
 
 static const struct i2c_device_id si2165_id_table[] = {

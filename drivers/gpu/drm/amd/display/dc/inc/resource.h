@@ -54,10 +54,8 @@ struct resource_caps {
 	int num_dsc;
 	unsigned int num_dig_link_enc; // Total number of DIGs (digital encoders) in DIO (Display Input/Output).
 	unsigned int num_usb4_dpia; // Total number of USB4 DPIA (DisplayPort Input Adapters).
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	int num_hpo_dp_stream_encoder;
 	int num_hpo_dp_link_encoder;
-#endif
 	int num_mpc_3dlut;
 };
 
@@ -77,14 +75,12 @@ struct resource_create_funcs {
 	struct stream_encoder *(*create_stream_encoder)(
 			enum engine_id eng_id, struct dc_context *ctx);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct hpo_dp_stream_encoder *(*create_hpo_dp_stream_encoder)(
 			enum engine_id eng_id, struct dc_context *ctx);
 
 	struct hpo_dp_link_encoder *(*create_hpo_dp_link_encoder)(
 			uint8_t inst,
 			struct dc_context *ctx);
-#endif
 
 	struct dce_hwseq *(*create_hwseq)(
 			struct dc_context *ctx);
@@ -205,6 +201,10 @@ int get_num_mpc_splits(struct pipe_ctx *pipe);
 
 int get_num_odm_splits(struct pipe_ctx *pipe);
 
+bool get_temp_dp_link_res(struct dc_link *link,
+		struct link_resource *link_res,
+		struct dc_link_settings *link_settings);
+
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 struct hpo_dp_link_encoder *resource_get_hpo_dp_link_enc_for_det_lt(
 		const struct resource_context *res_ctx,
@@ -219,6 +219,21 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 	struct dc_state *context,
 	uint8_t disabled_master_pipe_idx);
 
+void reset_sync_context_for_pipe(const struct dc *dc,
+	struct dc_state *context,
+	uint8_t pipe_idx);
+
 uint8_t resource_transmitter_to_phy_idx(const struct dc *dc, enum transmitter transmitter);
 
+const struct link_hwss *get_link_hwss(const struct dc_link *link,
+		const struct link_resource *link_res);
+
+bool is_h_timing_divisible_by_2(struct dc_stream_state *stream);
+
+bool dc_resource_acquire_secondary_pipe_for_mpc_odm(
+		const struct dc *dc,
+		struct dc_state *state,
+		struct pipe_ctx *pri_pipe,
+		struct pipe_ctx *sec_pipe,
+		bool odm);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

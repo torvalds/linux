@@ -134,7 +134,7 @@ static int gpio_sim_get_multiple(struct gpio_chip *gc,
 	struct gpio_sim_chip *chip = gpiochip_get_data(gc);
 
 	mutex_lock(&chip->lock);
-	bitmap_copy(bits, chip->value_map, gc->ngpio);
+	bitmap_replace(bits, bits, chip->value_map, mask, gc->ngpio);
 	mutex_unlock(&chip->lock);
 
 	return 0;
@@ -146,7 +146,7 @@ static void gpio_sim_set_multiple(struct gpio_chip *gc,
 	struct gpio_sim_chip *chip = gpiochip_get_data(gc);
 
 	mutex_lock(&chip->lock);
-	bitmap_copy(chip->value_map, bits, gc->ngpio);
+	bitmap_replace(chip->value_map, chip->value_map, bits, mask, gc->ngpio);
 	mutex_unlock(&chip->lock);
 }
 
@@ -314,8 +314,8 @@ static int gpio_sim_setup_sysfs(struct gpio_sim_chip *chip)
 
 	for (i = 0; i < num_lines; i++) {
 		attr_group = devm_kzalloc(dev, sizeof(*attr_group), GFP_KERNEL);
-		attrs = devm_kcalloc(dev, sizeof(*attrs),
-				     GPIO_SIM_NUM_ATTRS, GFP_KERNEL);
+		attrs = devm_kcalloc(dev, GPIO_SIM_NUM_ATTRS, sizeof(*attrs),
+				     GFP_KERNEL);
 		val_attr = devm_kzalloc(dev, sizeof(*val_attr), GFP_KERNEL);
 		pull_attr = devm_kzalloc(dev, sizeof(*pull_attr), GFP_KERNEL);
 		if (!attr_group || !attrs || !val_attr || !pull_attr)
@@ -547,7 +547,7 @@ struct gpio_sim_bank {
 	 *
 	 * So we need to store the pointer to the parent struct here. We can
 	 * dereference it anywhere we need with no checks and no locking as
-	 * it's guaranteed to survive the childred and protected by configfs
+	 * it's guaranteed to survive the children and protected by configfs
 	 * locks.
 	 *
 	 * Same for other structures.
@@ -568,6 +568,11 @@ static struct gpio_sim_bank *to_gpio_sim_bank(struct config_item *item)
 	struct config_group *group = to_config_group(item);
 
 	return container_of(group, struct gpio_sim_bank, group);
+}
+
+static bool gpio_sim_bank_has_label(struct gpio_sim_bank *bank)
+{
+	return bank->label && *bank->label;
 }
 
 static struct gpio_sim_device *
@@ -770,9 +775,15 @@ static int gpio_sim_add_hogs(struct gpio_sim_device *dev)
 			 * point the device doesn't exist yet and so dev_name()
 			 * is not available.
 			 */
-			hog->chip_label = kasprintf(GFP_KERNEL,
-						    "gpio-sim.%u-%s", dev->id,
-						    fwnode_get_name(bank->swnode));
+			if (gpio_sim_bank_has_label(bank))
+				hog->chip_label = kstrdup(bank->label,
+							  GFP_KERNEL);
+			else
+				hog->chip_label = kasprintf(GFP_KERNEL,
+							"gpio-sim.%u-%s",
+							dev->id,
+							fwnode_get_name(
+								bank->swnode));
 			if (!hog->chip_label) {
 				gpio_sim_remove_hogs(dev);
 				return -ENOMEM;
@@ -816,7 +827,7 @@ gpio_sim_make_bank_swnode(struct gpio_sim_bank *bank,
 
 	properties[prop_idx++] = PROPERTY_ENTRY_U32("ngpios", bank->num_lines);
 
-	if (bank->label && (strlen(bank->label) > 0))
+	if (gpio_sim_bank_has_label(bank))
 		properties[prop_idx++] = PROPERTY_ENTRY_STRING("gpio-sim,label",
 							       bank->label);
 
@@ -980,28 +991,22 @@ static struct configfs_attribute *gpio_sim_device_config_attrs[] = {
 };
 
 struct gpio_sim_chip_name_ctx {
-	struct gpio_sim_device *dev;
+	struct fwnode_handle *swnode;
 	char *page;
 };
 
 static int gpio_sim_emit_chip_name(struct device *dev, void *data)
 {
 	struct gpio_sim_chip_name_ctx *ctx = data;
-	struct fwnode_handle *swnode;
-	struct gpio_sim_bank *bank;
 
 	/* This would be the sysfs device exported in /sys/class/gpio. */
 	if (dev->class)
 		return 0;
 
-	swnode = dev_fwnode(dev);
+	if (device_match_fwnode(dev, ctx->swnode))
+		return sprintf(ctx->page, "%s\n", dev_name(dev));
 
-	list_for_each_entry(bank, &ctx->dev->bank_list, siblings) {
-		if (bank->swnode == swnode)
-			return sprintf(ctx->page, "%s\n", dev_name(dev));
-	}
-
-	return -ENODATA;
+	return 0;
 }
 
 static ssize_t gpio_sim_bank_config_chip_name_show(struct config_item *item,
@@ -1009,7 +1014,7 @@ static ssize_t gpio_sim_bank_config_chip_name_show(struct config_item *item,
 {
 	struct gpio_sim_bank *bank = to_gpio_sim_bank(item);
 	struct gpio_sim_device *dev = gpio_sim_bank_get_device(bank);
-	struct gpio_sim_chip_name_ctx ctx = { dev, page };
+	struct gpio_sim_chip_name_ctx ctx = { bank->swnode, page };
 	int ret;
 
 	mutex_lock(&dev->lock);
@@ -1311,7 +1316,7 @@ static void gpio_sim_hog_config_item_release(struct config_item *item)
 	kfree(hog);
 }
 
-struct configfs_item_operations gpio_sim_hog_config_item_ops = {
+static struct configfs_item_operations gpio_sim_hog_config_item_ops = {
 	.release	= gpio_sim_hog_config_item_release,
 };
 

@@ -2,7 +2,7 @@
 /*
  * SSH request transport layer.
  *
- * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #ifndef _SURFACE_AGGREGATOR_SSH_REQUEST_LAYER_H

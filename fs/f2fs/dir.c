@@ -16,7 +16,7 @@
 #include "xattr.h"
 #include <trace/events/f2fs.h>
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 extern struct kmem_cache *f2fs_cf_name_slab;
 #endif
 
@@ -79,10 +79,11 @@ unsigned char f2fs_get_de_type(struct f2fs_dir_entry *de)
 int f2fs_init_casefolded_name(const struct inode *dir,
 			      struct f2fs_filename *fname)
 {
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	struct super_block *sb = dir->i_sb;
 
-	if (IS_CASEFOLDED(dir)) {
+	if (IS_CASEFOLDED(dir) &&
+	    !is_dot_dotdot(fname->usr_fname->name, fname->usr_fname->len)) {
 		fname->cf_name.name = f2fs_kmem_cache_alloc(f2fs_cf_name_slab,
 					GFP_NOFS, false, F2FS_SB(sb));
 		if (!fname->cf_name.name)
@@ -174,7 +175,7 @@ void f2fs_free_filename(struct f2fs_filename *fname)
 	kfree(fname->crypto_buf.name);
 	fname->crypto_buf.name = NULL;
 #endif
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	if (fname->cf_name.name) {
 		kmem_cache_free(f2fs_cf_name_slab, fname->cf_name.name);
 		fname->cf_name.name = NULL;
@@ -208,7 +209,7 @@ static struct f2fs_dir_entry *find_in_block(struct inode *dir,
 	return f2fs_find_target_dentry(&d, fname, max_slots);
 }
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 /*
  * Test whether a case-insensitive directory entry matches the filename
  * being searched for.
@@ -266,7 +267,7 @@ static inline int f2fs_match_name(const struct inode *dir,
 {
 	struct fscrypt_name f;
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	if (fname->cf_name.name) {
 		struct qstr cf = FSTR_TO_QSTR(&fname->cf_name);
 
@@ -766,7 +767,7 @@ add_dentry:
 	f2fs_wait_on_page_writeback(dentry_page, DATA, true, true);
 
 	if (inode) {
-		down_write(&F2FS_I(inode)->i_sem);
+		f2fs_down_write(&F2FS_I(inode)->i_sem);
 		page = f2fs_init_inode_metadata(inode, dir, fname, NULL);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
@@ -793,7 +794,7 @@ add_dentry:
 	f2fs_update_parent_metadata(dir, inode, current_depth);
 fail:
 	if (inode)
-		up_write(&F2FS_I(inode)->i_sem);
+		f2fs_up_write(&F2FS_I(inode)->i_sem);
 
 	f2fs_put_page(dentry_page, 1);
 
@@ -858,7 +859,7 @@ int f2fs_do_tmpfile(struct inode *inode, struct inode *dir)
 	struct page *page;
 	int err = 0;
 
-	down_write(&F2FS_I(inode)->i_sem);
+	f2fs_down_write(&F2FS_I(inode)->i_sem);
 	page = f2fs_init_inode_metadata(inode, dir, NULL, NULL);
 	if (IS_ERR(page)) {
 		err = PTR_ERR(page);
@@ -869,7 +870,7 @@ int f2fs_do_tmpfile(struct inode *inode, struct inode *dir)
 	clear_inode_flag(inode, FI_NEW_INODE);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 fail:
-	up_write(&F2FS_I(inode)->i_sem);
+	f2fs_up_write(&F2FS_I(inode)->i_sem);
 	return err;
 }
 
@@ -877,7 +878,7 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 
-	down_write(&F2FS_I(inode)->i_sem);
+	f2fs_down_write(&F2FS_I(inode)->i_sem);
 
 	if (S_ISDIR(inode->i_mode))
 		f2fs_i_links_write(dir, false);
@@ -888,7 +889,7 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode)
 		f2fs_i_links_write(inode, false);
 		f2fs_i_size_write(inode, 0);
 	}
-	up_write(&F2FS_I(inode)->i_sem);
+	f2fs_up_write(&F2FS_I(inode)->i_sem);
 
 	if (inode->i_nlink == 0)
 		f2fs_add_orphan_inode(inode);
@@ -1040,6 +1041,7 @@ int f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 				  __func__, le16_to_cpu(de->name_len));
 			set_sbi_flag(sbi, SBI_NEED_FSCK);
 			err = -EFSCORRUPTED;
+			f2fs_handle_error(sbi, ERROR_CORRUPTED_DIRENT);
 			goto out;
 		}
 

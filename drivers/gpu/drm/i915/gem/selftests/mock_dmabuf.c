@@ -61,7 +61,7 @@ static void mock_dmabuf_release(struct dma_buf *dma_buf)
 	kfree(mock);
 }
 
-static int mock_dmabuf_vmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
+static int mock_dmabuf_vmap(struct dma_buf *dma_buf, struct iosys_map *map)
 {
 	struct mock_dmabuf *mock = to_mock(dma_buf);
 	void *vaddr;
@@ -69,12 +69,12 @@ static int mock_dmabuf_vmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
 	vaddr = vm_map_ram(mock->pages, mock->npages, 0);
 	if (!vaddr)
 		return -ENOMEM;
-	dma_buf_map_set_vaddr(map, vaddr);
+	iosys_map_set_vaddr(map, vaddr);
 
 	return 0;
 }
 
-static void mock_dmabuf_vunmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
+static void mock_dmabuf_vunmap(struct dma_buf *dma_buf, struct iosys_map *map)
 {
 	struct mock_dmabuf *mock = to_mock(dma_buf);
 

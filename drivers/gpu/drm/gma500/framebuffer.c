@@ -21,6 +21,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
 #include "framebuffer.h"
@@ -451,6 +452,7 @@ static const struct drm_mode_config_funcs psb_mode_funcs = {
 static void psb_setup_outputs(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
 
 	drm_mode_create_scaling_mode_property(dev);
@@ -461,8 +463,8 @@ static void psb_setup_outputs(struct drm_device *dev)
 							"backlight", 0, 100);
 	dev_priv->ops->output_init(dev);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 		struct drm_encoder *encoder = &gma_encoder->base;
 		int crtc_mask = 0, clone_mask = 0;
@@ -505,6 +507,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 		encoder->possible_clones =
 		    gma_connector_clones(dev, clone_mask);
 	}
+	drm_connector_list_iter_end(&conn_iter);
 }
 
 void psb_modeset_init(struct drm_device *dev)
@@ -514,7 +517,8 @@ void psb_modeset_init(struct drm_device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int i;
 
-	drm_mode_config_init(dev);
+	if (drmm_mode_config_init(dev))
+		return;
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
@@ -546,6 +550,5 @@ void psb_modeset_cleanup(struct drm_device *dev)
 	if (dev_priv->modeset) {
 		drm_kms_helper_poll_fini(dev);
 		psb_fbdev_fini(dev);
-		drm_mode_config_cleanup(dev);
 	}
 }

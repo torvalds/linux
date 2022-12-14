@@ -3,9 +3,6 @@
 # Copyright 2008 Openmoko, Inc.
 # Copyright 2008 Simtec Electronics
 
-ccflags-$(CONFIG_ARCH_MULTIPLATFORM) := -I$(srctree)/$(src)/include
-asflags-$(CONFIG_ARCH_MULTIPLATFORM) := -I$(srctree)/$(src)/include
-
 # PM
 
 obj-$(CONFIG_PM)		+= pm-s3c64xx.o

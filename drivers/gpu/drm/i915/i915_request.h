@@ -40,7 +40,7 @@
 #include "i915_scheduler.h"
 #include "i915_selftest.h"
 #include "i915_sw_fence.h"
-#include "i915_vma_snapshot.h"
+#include "i915_vma_resource.h"
 
 #include <uapi/drm/i915_drm.h>
 
@@ -52,7 +52,7 @@ struct i915_request;
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 struct i915_capture_list {
-	struct i915_vma_snapshot *vma_snapshot;
+	struct i915_vma_resource *vma_res;
 	struct i915_capture_list *next;
 };
 
@@ -196,6 +196,8 @@ struct i915_request {
 	struct dma_fence fence;
 	spinlock_t lock;
 
+	struct drm_i915_private *i915;
+
 	/**
 	 * Context and ring buffer related to this request
 	 * Contexts are refcounted, so when this request is associated with a
@@ -300,7 +302,7 @@ struct i915_request {
 	/** Batch buffer pointer for selftest internal use. */
 	I915_SELFTEST_DECLARE(struct i915_vma *batch);
 
-	struct i915_vma_snapshot batch_snapshot;
+	struct i915_vma_resource *batch_res;
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 	/**

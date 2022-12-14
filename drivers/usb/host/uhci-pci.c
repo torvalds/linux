@@ -294,7 +294,7 @@ MODULE_DEVICE_TABLE(pci, uhci_pci_ids);
 
 static int uhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return usb_hcd_pci_probe(dev, id, &uhci_driver);
+	return usb_hcd_pci_probe(dev, &uhci_driver);
 }
 
 static struct pci_driver uhci_pci_driver = {

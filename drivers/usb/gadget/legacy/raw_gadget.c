@@ -11,6 +11,7 @@
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/idr.h>
 #include <linux/kref.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -35,6 +36,9 @@ MODULE_AUTHOR("Andrey Konovalov");
 MODULE_LICENSE("GPL");
 
 /*----------------------------------------------------------------------*/
+
+static DEFINE_IDA(driver_id_numbers);
+#define DRIVER_DRIVER_NAME_LENGTH_MAX	32
 
 #define RAW_EVENT_QUEUE_SIZE	16
 
@@ -145,6 +149,7 @@ enum dev_state {
 	STATE_DEV_INVALID = 0,
 	STATE_DEV_OPENED,
 	STATE_DEV_INITIALIZED,
+	STATE_DEV_REGISTERING,
 	STATE_DEV_RUNNING,
 	STATE_DEV_CLOSED,
 	STATE_DEV_FAILED
@@ -159,6 +164,9 @@ struct raw_dev {
 
 	/* Reference to misc device: */
 	struct device			*dev;
+
+	/* Make driver names unique */
+	int				driver_id_number;
 
 	/* Protected by lock: */
 	enum dev_state			state;
@@ -188,6 +196,7 @@ static struct raw_dev *dev_new(void)
 	spin_lock_init(&dev->lock);
 	init_completion(&dev->ep0_done);
 	raw_event_queue_init(&dev->queue);
+	dev->driver_id_number = -1;
 	return dev;
 }
 
@@ -198,6 +207,9 @@ static void dev_free(struct kref *kref)
 
 	kfree(dev->udc_name);
 	kfree(dev->driver.udc_name);
+	kfree(dev->driver.driver.name);
+	if (dev->driver_id_number >= 0)
+		ida_free(&driver_id_numbers, dev->driver_id_number);
 	if (dev->req) {
 		if (dev->ep0_urb_queued)
 			usb_ep_dequeue(dev->gadget->ep0, dev->req);
@@ -418,9 +430,11 @@ out_put:
 static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 {
 	int ret = 0;
+	int driver_id_number;
 	struct usb_raw_init arg;
 	char *udc_driver_name;
 	char *udc_device_name;
+	char *driver_driver_name;
 	unsigned long flags;
 
 	if (copy_from_user(&arg, (void __user *)value, sizeof(arg)))
@@ -439,36 +453,43 @@ static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 		return -EINVAL;
 	}
 
+	driver_id_number = ida_alloc(&driver_id_numbers, GFP_KERNEL);
+	if (driver_id_number < 0)
+		return driver_id_number;
+
+	driver_driver_name = kmalloc(DRIVER_DRIVER_NAME_LENGTH_MAX, GFP_KERNEL);
+	if (!driver_driver_name) {
+		ret = -ENOMEM;
+		goto out_free_driver_id_number;
+	}
+	snprintf(driver_driver_name, DRIVER_DRIVER_NAME_LENGTH_MAX,
+				DRIVER_NAME ".%d", driver_id_number);
+
 	udc_driver_name = kmalloc(UDC_NAME_LENGTH_MAX, GFP_KERNEL);
-	if (!udc_driver_name)
-		return -ENOMEM;
+	if (!udc_driver_name) {
+		ret = -ENOMEM;
+		goto out_free_driver_driver_name;
+	}
 	ret = strscpy(udc_driver_name, &arg.driver_name[0],
 				UDC_NAME_LENGTH_MAX);
-	if (ret < 0) {
-		kfree(udc_driver_name);
-		return ret;
-	}
+	if (ret < 0)
+		goto out_free_udc_driver_name;
 	ret = 0;
 
 	udc_device_name = kmalloc(UDC_NAME_LENGTH_MAX, GFP_KERNEL);
 	if (!udc_device_name) {
-		kfree(udc_driver_name);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_free_udc_driver_name;
 	}
 	ret = strscpy(udc_device_name, &arg.device_name[0],
 				UDC_NAME_LENGTH_MAX);
-	if (ret < 0) {
-		kfree(udc_driver_name);
-		kfree(udc_device_name);
-		return ret;
-	}
+	if (ret < 0)
+		goto out_free_udc_device_name;
 	ret = 0;
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->state != STATE_DEV_OPENED) {
 		dev_dbg(dev->dev, "fail, device is not opened\n");
-		kfree(udc_driver_name);
-		kfree(udc_device_name);
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -483,14 +504,25 @@ static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 	dev->driver.suspend = gadget_suspend;
 	dev->driver.resume = gadget_resume;
 	dev->driver.reset = gadget_reset;
-	dev->driver.driver.name = DRIVER_NAME;
+	dev->driver.driver.name = driver_driver_name;
 	dev->driver.udc_name = udc_device_name;
 	dev->driver.match_existing_only = 1;
+	dev->driver_id_number = driver_id_number;
 
 	dev->state = STATE_DEV_INITIALIZED;
+	spin_unlock_irqrestore(&dev->lock, flags);
+	return ret;
 
 out_unlock:
 	spin_unlock_irqrestore(&dev->lock, flags);
+out_free_udc_device_name:
+	kfree(udc_device_name);
+out_free_udc_driver_name:
+	kfree(udc_driver_name);
+out_free_driver_driver_name:
+	kfree(driver_driver_name);
+out_free_driver_id_number:
+	ida_free(&driver_id_numbers, driver_id_number);
 	return ret;
 }
 
@@ -508,14 +540,15 @@ static int raw_ioctl_run(struct raw_dev *dev, unsigned long value)
 		ret = -EINVAL;
 		goto out_unlock;
 	}
+	dev->state = STATE_DEV_REGISTERING;
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	ret = usb_gadget_probe_driver(&dev->driver);
+	ret = usb_gadget_register_driver(&dev->driver);
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (ret) {
 		dev_err(dev->dev,
-			"fail, usb_gadget_probe_driver returned %d\n", ret);
+			"fail, usb_gadget_register_driver returned %d\n", ret);
 		dev->state = STATE_DEV_FAILED;
 		goto out_unlock;
 	}
@@ -758,6 +791,7 @@ static int raw_ioctl_ep_enable(struct raw_dev *dev, unsigned long value)
 	unsigned long flags;
 	struct usb_endpoint_descriptor *desc;
 	struct raw_ep *ep;
+	bool ep_props_matched = false;
 
 	desc = memdup_user((void __user *)value, sizeof(*desc));
 	if (IS_ERR(desc))
@@ -787,12 +821,13 @@ static int raw_ioctl_ep_enable(struct raw_dev *dev, unsigned long value)
 
 	for (i = 0; i < dev->eps_num; i++) {
 		ep = &dev->eps[i];
-		if (ep->state != STATE_EP_DISABLED)
-			continue;
 		if (ep->addr != usb_endpoint_num(desc) &&
 				ep->addr != USB_RAW_EP_ADDR_ANY)
 			continue;
 		if (!usb_gadget_ep_match_desc(dev->gadget, ep->ep, desc, NULL))
+			continue;
+		ep_props_matched = true;
+		if (ep->state != STATE_EP_DISABLED)
 			continue;
 		ep->ep->desc = desc;
 		ret = usb_ep_enable(ep->ep);
@@ -815,8 +850,13 @@ static int raw_ioctl_ep_enable(struct raw_dev *dev, unsigned long value)
 		goto out_unlock;
 	}
 
-	dev_dbg(&dev->gadget->dev, "fail, no gadget endpoints available\n");
-	ret = -EBUSY;
+	if (!ep_props_matched) {
+		dev_dbg(&dev->gadget->dev, "fail, bad endpoint descriptor\n");
+		ret = -EINVAL;
+	} else {
+		dev_dbg(&dev->gadget->dev, "fail, no endpoints available\n");
+		ret = -EBUSY;
+	}
 
 out_free:
 	kfree(desc);
@@ -1004,7 +1044,7 @@ static int raw_process_ep_io(struct raw_dev *dev, struct usb_raw_ep_io *io,
 		ret = -EBUSY;
 		goto out_unlock;
 	}
-	if ((in && !ep->ep->caps.dir_in) || (!in && ep->ep->caps.dir_in)) {
+	if (in != usb_endpoint_dir_in(ep->ep->desc)) {
 		dev_dbg(&dev->gadget->dev, "fail, wrong direction\n");
 		ret = -EINVAL;
 		goto out_unlock;
@@ -1157,7 +1197,7 @@ static int raw_ioctl_eps_info(struct raw_dev *dev, unsigned long value)
 	struct usb_raw_eps_info *info;
 	struct raw_ep *ep;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		ret = -ENOMEM;
 		goto out;
@@ -1177,7 +1217,6 @@ static int raw_ioctl_eps_info(struct raw_dev *dev, unsigned long value)
 		goto out_free;
 	}
 
-	memset(info, 0, sizeof(*info));
 	for (i = 0; i < dev->eps_num; i++) {
 		ep = &dev->eps[i];
 		strscpy(&info->eps[i].name[0], ep->ep->name,

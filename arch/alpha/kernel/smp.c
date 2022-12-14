@@ -497,12 +497,6 @@ smp_cpus_done(unsigned int max_cpus)
 	       ((bogosum + 2500) / (5000/HZ)) % 100);
 }
 
-int
-setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
-
 static void
 send_ipi_message(const struct cpumask *to_whom, enum ipi_message_type operation)
 {

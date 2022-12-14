@@ -44,8 +44,3 @@ struct dma_struct {
  * isa_dma_add - add an ISA-style DMA channel
  */
 extern int isa_dma_add(unsigned int, dma_t *dma);
-
-/*
- * Add the ISA DMA controller.  Always takes channels 0-7.
- */
-extern void isa_init_dma(void);

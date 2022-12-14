@@ -3,9 +3,9 @@
 # Makefile for the Linux/MIPS kernel.
 #
 
-extra-y		:= head.o vmlinux.lds
+extra-y		:= vmlinux.lds
 
-obj-y		+= branch.o cmpxchg.o elf.o entry.o genex.o idle.o irq.o \
+obj-y		+= head.o branch.o cmpxchg.o elf.o entry.o genex.o idle.o irq.o \
 		   process.o prom.o ptrace.o reset.o setup.o signal.o \
 		   syscall.o time.o topology.o traps.o unaligned.o watch.o \
 		   vdso.o cacheinfo.o
@@ -44,7 +44,6 @@ obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o ftrace.o
 
 sw-y				:= r4k_switch.o
 sw-$(CONFIG_CPU_R3000)		:= r2300_switch.o
-sw-$(CONFIG_CPU_TX39XX)		:= r2300_switch.o
 sw-$(CONFIG_CPU_CAVIUM_OCTEON)	:= octeon_switch.o
 obj-y				+= $(sw-y)
 

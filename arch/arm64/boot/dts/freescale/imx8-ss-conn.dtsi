@@ -38,9 +38,9 @@ conn_subsys: bus@5b000000 {
 		interrupts = <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
 		reg = <0x5b010000 0x10000>;
 		clocks = <&sdhc0_lpcg IMX_LPCG_CLK_4>,
-			 <&sdhc0_lpcg IMX_LPCG_CLK_5>,
-			 <&sdhc0_lpcg IMX_LPCG_CLK_0>;
-		clock-names = "ipg", "per", "ahb";
+			 <&sdhc0_lpcg IMX_LPCG_CLK_0>,
+			 <&sdhc0_lpcg IMX_LPCG_CLK_5>;
+		clock-names = "ipg", "ahb", "per";
 		power-domains = <&pd IMX_SC_R_SDHC_0>;
 		status = "disabled";
 	};
@@ -49,12 +49,12 @@ conn_subsys: bus@5b000000 {
 		interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
 		reg = <0x5b020000 0x10000>;
 		clocks = <&sdhc1_lpcg IMX_LPCG_CLK_4>,
-			 <&sdhc1_lpcg IMX_LPCG_CLK_5>,
-			 <&sdhc1_lpcg IMX_LPCG_CLK_0>;
-		clock-names = "ipg", "per", "ahb";
+			 <&sdhc1_lpcg IMX_LPCG_CLK_0>,
+			 <&sdhc1_lpcg IMX_LPCG_CLK_5>;
+		clock-names = "ipg", "ahb", "per";
 		power-domains = <&pd IMX_SC_R_SDHC_1>;
 		fsl,tuning-start-tap = <20>;
-		fsl,tuning-step= <2>;
+		fsl,tuning-step = <2>;
 		status = "disabled";
 	};
 
@@ -62,9 +62,9 @@ conn_subsys: bus@5b000000 {
 		interrupts = <GIC_SPI 234 IRQ_TYPE_LEVEL_HIGH>;
 		reg = <0x5b030000 0x10000>;
 		clocks = <&sdhc2_lpcg IMX_LPCG_CLK_4>,
-			 <&sdhc2_lpcg IMX_LPCG_CLK_5>,
-			 <&sdhc2_lpcg IMX_LPCG_CLK_0>;
-		clock-names = "ipg", "per", "ahb";
+			 <&sdhc2_lpcg IMX_LPCG_CLK_0>,
+			 <&sdhc2_lpcg IMX_LPCG_CLK_5>;
+		clock-names = "ipg", "ahb", "per";
 		power-domains = <&pd IMX_SC_R_SDHC_2>;
 		status = "disabled";
 	};
@@ -83,8 +83,8 @@ conn_subsys: bus@5b000000 {
 		assigned-clocks = <&clk IMX_SC_R_ENET_0 IMX_SC_PM_CLK_PER>,
 				  <&clk IMX_SC_R_ENET_0 IMX_SC_C_CLKDIV>;
 		assigned-clock-rates = <250000000>, <125000000>;
-		fsl,num-tx-queues=<3>;
-		fsl,num-rx-queues=<3>;
+		fsl,num-tx-queues = <3>;
+		fsl,num-rx-queues = <3>;
 		power-domains = <&pd IMX_SC_R_ENET_0>;
 		status = "disabled";
 	};
@@ -103,8 +103,8 @@ conn_subsys: bus@5b000000 {
 		assigned-clocks = <&clk IMX_SC_R_ENET_1 IMX_SC_PM_CLK_PER>,
 				  <&clk IMX_SC_R_ENET_1 IMX_SC_C_CLKDIV>;
 		assigned-clock-rates = <250000000>, <125000000>;
-		fsl,num-tx-queues=<3>;
-		fsl,num-rx-queues=<3>;
+		fsl,num-tx-queues = <3>;
+		fsl,num-rx-queues = <3>;
 		power-domains = <&pd IMX_SC_R_ENET_1>;
 		status = "disabled";
 	};

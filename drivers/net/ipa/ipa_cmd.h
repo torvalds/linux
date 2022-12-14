@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2020 Linaro Ltd.
+ * Copyright (C) 2019-2022 Linaro Ltd.
  */
 #ifndef _IPA_CMD_H_
 #define _IPA_CMD_H_
@@ -44,17 +44,6 @@ enum ipa_cmd_opcode {
 	IPA_CMD_IP_PACKET_INIT		= 0x10,
 	IPA_CMD_DMA_SHARED_MEM		= 0x13,
 	IPA_CMD_IP_PACKET_TAG_STATUS	= 0x14,
-};
-
-/**
- * struct ipa_cmd_info - information needed for an IPA immediate command
- *
- * @opcode:	The command opcode.
- * @direction:	Direction of data transfer for DMA commands
- */
-struct ipa_cmd_info {
-	enum ipa_cmd_opcode opcode;
-	enum dma_data_direction direction;
 };
 
 /**

@@ -25,10 +25,12 @@ struct msm_dsi_phy_ops {
 	void (*save_pll_state)(struct msm_dsi_phy *phy);
 	int (*restore_pll_state)(struct msm_dsi_phy *phy);
 	bool (*set_continuous_clock)(struct msm_dsi_phy *phy, bool enable);
+	int (*parse_dt_properties)(struct msm_dsi_phy *phy);
 };
 
 struct msm_dsi_phy_cfg {
-	struct dsi_reg_config reg_cfg;
+	const struct regulator_bulk_data *regulator_data;
+	int num_regulators;
 	struct msm_dsi_phy_ops ops;
 
 	unsigned long	min_pll_rate;
@@ -82,6 +84,8 @@ struct msm_dsi_dphy_timing {
 #define DSI_PIXEL_PLL_CLK		1
 #define NUM_PROVIDED_CLKS		2
 
+#define DSI_LANE_MAX			5
+
 struct msm_dsi_phy {
 	struct platform_device *pdev;
 	void __iomem *base;
@@ -95,10 +99,11 @@ struct msm_dsi_phy {
 	int id;
 
 	struct clk *ahb_clk;
-	struct regulator_bulk_data supplies[DSI_DEV_REGULATOR_MAX];
+	struct regulator_bulk_data *supplies;
 
 	struct msm_dsi_dphy_timing timing;
 	const struct msm_dsi_phy_cfg *cfg;
+	void *tuning_cfg;
 
 	enum msm_dsi_phy_usecase usecase;
 	bool regulator_ldo_mode;

@@ -65,7 +65,7 @@ static int daemon_setup(char *str, char **mac_out, void *data)
 
 	*init = ((struct daemon_init)
 		{ .sock_type 		= "unix",
-		  .ctl_sock 		= "/tmp/uml.ctl" });
+		  .ctl_sock 		= CONFIG_UML_NET_DAEMON_DEFAULT_SOCK });
 
 	remain = split_if_spec(str, mac_out, &init->sock_type, &init->ctl_sock,
 			       NULL);

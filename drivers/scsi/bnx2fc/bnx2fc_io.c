@@ -204,7 +204,7 @@ static void bnx2fc_scsi_done(struct bnx2fc_cmd *io_req, int err_code)
 		sc_cmd, host_byte(sc_cmd->result), sc_cmd->retries,
 		sc_cmd->allowed);
 	scsi_set_resid(sc_cmd, scsi_bufflen(sc_cmd));
-	sc_cmd->SCp.ptr = NULL;
+	bnx2fc_priv(sc_cmd)->io_req = NULL;
 	scsi_done(sc_cmd);
 }
 
@@ -472,7 +472,7 @@ struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
 	u32 free_sqes;
 	u32 max_sqes;
 	u16 xid;
-	int index = get_cpu();
+	int index = raw_smp_processor_id();
 
 	max_sqes = BNX2FC_SCSI_MAX_SQES;
 	/*
@@ -485,7 +485,6 @@ struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
 	    (tgt->num_active_ios.counter  >= max_sqes) ||
 	    (free_sqes + max_sqes <= BNX2FC_SQ_WQES_MAX)) {
 		spin_unlock_bh(&cmd_mgr->free_list_lock[index]);
-		put_cpu();
 		return NULL;
 	}
 
@@ -498,7 +497,6 @@ struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
 	atomic_inc(&tgt->num_active_ios);
 	atomic_dec(&tgt->free_sqes);
 	spin_unlock_bh(&cmd_mgr->free_list_lock[index]);
-	put_cpu();
 
 	INIT_LIST_HEAD(&io_req->link);
 
@@ -765,7 +763,7 @@ retry_tmf:
 	task = &(task_page[index]);
 	bnx2fc_init_mp_task(io_req, task);
 
-	sc_cmd->SCp.ptr = (char *)io_req;
+	bnx2fc_priv(sc_cmd)->io_req = io_req;
 
 	/* Obtain free SQ entry */
 	spin_lock_bh(&tgt->tgt_lock);
@@ -1147,7 +1145,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	BNX2FC_TGT_DBG(tgt, "Entered bnx2fc_eh_abort\n");
 
 	spin_lock_bh(&tgt->tgt_lock);
-	io_req = (struct bnx2fc_cmd *)sc_cmd->SCp.ptr;
+	io_req = bnx2fc_priv(sc_cmd)->io_req;
 	if (!io_req) {
 		/* Command might have just completed */
 		printk(KERN_ERR PFX "eh_abort: io_req is NULL\n");
@@ -1572,8 +1570,8 @@ void bnx2fc_process_tm_compl(struct bnx2fc_cmd *io_req,
 		printk(KERN_ERR PFX "tmf's fc_hdr r_ctl = 0x%x\n",
 			fc_hdr->fh_r_ctl);
 	}
-	if (!sc_cmd->SCp.ptr) {
-		printk(KERN_ERR PFX "tm_compl: SCp.ptr is NULL\n");
+	if (!bnx2fc_priv(sc_cmd)->io_req) {
+		printk(KERN_ERR PFX "tm_compl: io_req is NULL\n");
 		return;
 	}
 	switch (io_req->fcp_status) {
@@ -1609,7 +1607,7 @@ void bnx2fc_process_tm_compl(struct bnx2fc_cmd *io_req,
 		return;
 	}
 
-	sc_cmd->SCp.ptr = NULL;
+	bnx2fc_priv(sc_cmd)->io_req = NULL;
 	scsi_done(sc_cmd);
 
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
@@ -1773,8 +1771,7 @@ static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
 		io_req->fcp_resid = fcp_rsp->fcp_resid;
 
 	io_req->scsi_comp_flags = rsp_flags;
-	CMD_SCSI_STATUS(sc_cmd) = io_req->cdb_status =
-				fcp_rsp->scsi_status_code;
+	io_req->cdb_status = fcp_rsp->scsi_status_code;
 
 	/* Fetch fcp_rsp_info and fcp_sns_info if available */
 	if (num_rq) {
@@ -1946,8 +1943,8 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 	/* parse fcp_rsp and obtain sense data from RQ if available */
 	bnx2fc_parse_fcp_rsp(io_req, fcp_rsp, num_rq, rq_data);
 
-	if (!sc_cmd->SCp.ptr) {
-		printk(KERN_ERR PFX "SCp.ptr is NULL\n");
+	if (!bnx2fc_priv(sc_cmd)->io_req) {
+		printk(KERN_ERR PFX "io_req is NULL\n");
 		return;
 	}
 
@@ -2018,7 +2015,7 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 			io_req->fcp_status);
 		break;
 	}
-	sc_cmd->SCp.ptr = NULL;
+	bnx2fc_priv(sc_cmd)->io_req = NULL;
 	scsi_done(sc_cmd);
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
 }
@@ -2033,7 +2030,6 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	struct bnx2fc_interface *interface = port->priv;
 	struct bnx2fc_hba *hba = interface->hba;
 	struct fc_lport *lport = port->lport;
-	struct fc_stats *stats;
 	int task_idx, index;
 	u16 xid;
 
@@ -2044,22 +2040,20 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	io_req->port = port;
 	io_req->tgt = tgt;
 	io_req->data_xfer_len = scsi_bufflen(sc_cmd);
-	sc_cmd->SCp.ptr = (char *)io_req;
+	bnx2fc_priv(sc_cmd)->io_req = io_req;
 
-	stats = per_cpu_ptr(lport->stats, get_cpu());
 	if (sc_cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		io_req->io_req_flags = BNX2FC_READ;
-		stats->InputRequests++;
-		stats->InputBytes += io_req->data_xfer_len;
+		this_cpu_inc(lport->stats->InputRequests);
+		this_cpu_add(lport->stats->InputBytes, io_req->data_xfer_len);
 	} else if (sc_cmd->sc_data_direction == DMA_TO_DEVICE) {
 		io_req->io_req_flags = BNX2FC_WRITE;
-		stats->OutputRequests++;
-		stats->OutputBytes += io_req->data_xfer_len;
+		this_cpu_inc(lport->stats->OutputRequests);
+		this_cpu_add(lport->stats->OutputBytes, io_req->data_xfer_len);
 	} else {
 		io_req->io_req_flags = 0;
-		stats->ControlRequests++;
+		this_cpu_inc(lport->stats->ControlRequests);
 	}
-	put_cpu();
 
 	xid = io_req->xid;
 

@@ -93,6 +93,7 @@ properties:
       - 4 # MIPI CSI-2 D-PHY
       - 5 # Parallel
       - 6 # BT.656
+      - 7 # DPI
     description:
       Data bus type.
 

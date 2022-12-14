@@ -263,7 +263,7 @@ void in6_dev_finish_destroy(struct inet6_dev *idev)
 #ifdef NET_REFCNT_DEBUG
 	pr_debug("%s: %s\n", __func__, dev ? dev->name : "NIL");
 #endif
-	dev_put_track(dev, &idev->dev_tracker);
+	netdev_put(dev, &idev->dev_tracker);
 	if (!idev->dead) {
 		pr_warn("Freeing alive inet6 device %p\n", idev);
 		return;

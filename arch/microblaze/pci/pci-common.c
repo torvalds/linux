@@ -165,55 +165,6 @@ int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma)
 	return 0;
 }
 
-/*
- * This one is used by /dev/mem and fbdev who have no clue about the
- * PCI device, it tries to find the PCI device first and calls the
- * above routine
- */
-pgprot_t pci_phys_mem_access_prot(struct file *file,
-				  unsigned long pfn,
-				  unsigned long size,
-				  pgprot_t prot)
-{
-	struct pci_dev *pdev = NULL;
-	struct resource *found = NULL;
-	resource_size_t offset = ((resource_size_t)pfn) << PAGE_SHIFT;
-	int i;
-
-	if (page_is_ram(pfn))
-		return prot;
-
-	prot = pgprot_noncached(prot);
-	for_each_pci_dev(pdev) {
-		for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-			struct resource *rp = &pdev->resource[i];
-			int flags = rp->flags;
-
-			/* Active and same type? */
-			if ((flags & IORESOURCE_MEM) == 0)
-				continue;
-			/* In the range of this resource? */
-			if (offset < (rp->start & PAGE_MASK) ||
-			    offset > rp->end)
-				continue;
-			found = rp;
-			break;
-		}
-		if (found)
-			break;
-	}
-	if (found) {
-		if (found->flags & IORESOURCE_PREFETCH)
-			prot = pgprot_noncached_wc(prot);
-		pci_dev_put(pdev);
-	}
-
-	pr_debug("PCI: Non-PCI map for %llx, prot: %lx\n",
-		 (unsigned long long)offset, pgprot_val(prot));
-
-	return prot;
-}
-
 /* This provides legacy IO read access on a bus */
 int pci_legacy_read(struct pci_bus *bus, loff_t port, u32 *val, size_t size)
 {

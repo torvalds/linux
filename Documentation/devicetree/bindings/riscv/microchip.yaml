@@ -4,11 +4,11 @@
 $id: http://devicetree.org/schemas/riscv/microchip.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip PolarFire SoC-based boards device tree bindings
+title: Microchip PolarFire SoC-based boards
 
 maintainers:
-  - Cyril Jean <Cyril.Jean@microchip.com>
-  - Lewis Hanly <lewis.hanly@microchip.com>
+  - Conor Dooley <conor.dooley@microchip.com>
+  - Daire McNamara <daire.mcnamara@microchip.com>
 
 description:
   Microchip PolarFire SoC-based boards
@@ -17,10 +17,20 @@ properties:
   $nodename:
     const: '/'
   compatible:
-    items:
-      - enum:
-          - microchip,mpfs-icicle-kit
-      - const: microchip,mpfs
+    oneOf:
+      - items:
+          - enum:
+              - microchip,mpfs-icicle-reference-rtlv2203
+              - microchip,mpfs-icicle-reference-rtlv2210
+          - const: microchip,mpfs-icicle-kit
+          - const: microchip,mpfs
+
+      - items:
+          - enum:
+              - aries,m100pfsevp
+              - microchip,mpfs-sev-kit
+              - sundance,polarberry
+          - const: microchip,mpfs
 
 additionalProperties: true
 

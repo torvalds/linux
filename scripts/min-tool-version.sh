@@ -24,12 +24,17 @@ icc)
 	echo 16.0.3
 	;;
 llvm)
-	# https://lore.kernel.org/r/YMtib5hKVyNknZt3@osiris/
 	if [ "$SRCARCH" = s390 ]; then
-		echo 13.0.0
+		echo 15.0.0
 	else
 		echo 11.0.0
 	fi
+	;;
+rustc)
+	echo 1.62.0
+	;;
+bindgen)
+	echo 0.56.0
 	;;
 *)
 	echo "$1: unknown tool" >&2

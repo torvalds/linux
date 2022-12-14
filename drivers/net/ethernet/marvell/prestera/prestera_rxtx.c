@@ -102,7 +102,7 @@ struct prestera_sdma {
 	struct net_device napi_dev;
 	u32 map_addr;
 	u64 dma_mask;
-	/* protect SDMA with concurrrent access from multiple CPUs */
+	/* protect SDMA with concurrent access from multiple CPUs */
 	spinlock_t tx_lock;
 };
 
@@ -659,7 +659,7 @@ static int prestera_sdma_switch_init(struct prestera_switch *sw)
 
 	init_dummy_netdev(&sdma->napi_dev);
 
-	netif_napi_add(&sdma->napi_dev, &sdma->rx_napi, prestera_sdma_rx_poll, 64);
+	netif_napi_add(&sdma->napi_dev, &sdma->rx_napi, prestera_sdma_rx_poll);
 	napi_enable(&sdma->rx_napi);
 
 	return 0;
@@ -776,6 +776,7 @@ tx_done:
 int prestera_rxtx_switch_init(struct prestera_switch *sw)
 {
 	struct prestera_rxtx *rxtx;
+	int err;
 
 	rxtx = kzalloc(sizeof(*rxtx), GFP_KERNEL);
 	if (!rxtx)
@@ -783,7 +784,11 @@ int prestera_rxtx_switch_init(struct prestera_switch *sw)
 
 	sw->rxtx = rxtx;
 
-	return prestera_sdma_switch_init(sw);
+	err = prestera_sdma_switch_init(sw);
+	if (err)
+		kfree(rxtx);
+
+	return err;
 }
 
 void prestera_rxtx_switch_fini(struct prestera_switch *sw)

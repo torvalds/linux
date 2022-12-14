@@ -24,7 +24,7 @@ struct vb2_dvb {
 	struct dvb_frontend	*frontend;
 	struct vb2_queue	dvbq;
 
-	/* video-buf-dvb state info */
+	/* vb2-dvb state info */
 	struct mutex		lock;
 	int			nfeeds;
 

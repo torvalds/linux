@@ -115,8 +115,7 @@ static int da8xx_ddrctl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ddrctl = devm_ioremap_resource(dev, res);
+	ddrctl = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(ddrctl)) {
 		dev_err(dev, "unable to map memory controller registers\n");
 		return PTR_ERR(ddrctl);

@@ -34,6 +34,8 @@
 #ifndef __ARCH_ARM_MACH_OMAP1_PM_H
 #define __ARCH_ARM_MACH_OMAP1_PM_H
 
+#include <linux/soc/ti/omap1-io.h>
+
 /*
  * ----------------------------------------------------------------------------
  * Register and offset definitions to be used in PM assembler code

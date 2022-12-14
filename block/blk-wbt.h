@@ -101,9 +101,6 @@ u64 wbt_default_latency_nsec(struct request_queue *);
 
 #else
 
-static inline void wbt_track(struct request *rq, enum wbt_flags flags)
-{
-}
 static inline int wbt_init(struct request_queue *q)
 {
 	return -EINVAL;

@@ -443,7 +443,7 @@
 	status = "okay";
 
 	usbhub: usbhub@2c {
-		compatible ="microchip,usb2513b";
+		compatible = "microchip,usb2513b";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usbhub>;
 		reg = <0x2c>;

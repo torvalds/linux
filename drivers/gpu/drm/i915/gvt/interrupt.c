@@ -29,7 +29,10 @@
  *
  */
 
+#include <linux/eventfd.h>
+
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "gvt.h"
 #include "trace.h"
 
@@ -176,7 +179,7 @@ int intel_vgpu_reg_imr_handler(struct intel_vgpu *vgpu,
 	unsigned int reg, void *p_data, unsigned int bytes)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
-	struct intel_gvt_irq_ops *ops = gvt->irq.ops;
+	const struct intel_gvt_irq_ops *ops = gvt->irq.ops;
 	u32 imr = *(u32 *)p_data;
 
 	trace_write_ir(vgpu->id, "IMR", reg, imr, vgpu_vreg(vgpu, reg),
@@ -206,7 +209,7 @@ int intel_vgpu_reg_master_irq_handler(struct intel_vgpu *vgpu,
 	unsigned int reg, void *p_data, unsigned int bytes)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
-	struct intel_gvt_irq_ops *ops = gvt->irq.ops;
+	const struct intel_gvt_irq_ops *ops = gvt->irq.ops;
 	u32 ier = *(u32 *)p_data;
 	u32 virtual_ier = vgpu_vreg(vgpu, reg);
 
@@ -246,7 +249,7 @@ int intel_vgpu_reg_ier_handler(struct intel_vgpu *vgpu,
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct drm_i915_private *i915 = gvt->gt->i915;
-	struct intel_gvt_irq_ops *ops = gvt->irq.ops;
+	const struct intel_gvt_irq_ops *ops = gvt->irq.ops;
 	struct intel_gvt_irq_info *info;
 	u32 ier = *(u32 *)p_data;
 
@@ -396,9 +399,45 @@ static void init_irq_map(struct intel_gvt_irq *irq)
 }
 
 /* =======================vEvent injection===================== */
+
+#define MSI_CAP_CONTROL(offset) (offset + 2)
+#define MSI_CAP_ADDRESS(offset) (offset + 4)
+#define MSI_CAP_DATA(offset) (offset + 8)
+#define MSI_CAP_EN 0x1
+
 static int inject_virtual_interrupt(struct intel_vgpu *vgpu)
 {
-	return intel_gvt_hypervisor_inject_msi(vgpu);
+	unsigned long offset = vgpu->gvt->device_info.msi_cap_offset;
+	u16 control, data;
+	u32 addr;
+
+	control = *(u16 *)(vgpu_cfg_space(vgpu) + MSI_CAP_CONTROL(offset));
+	addr = *(u32 *)(vgpu_cfg_space(vgpu) + MSI_CAP_ADDRESS(offset));
+	data = *(u16 *)(vgpu_cfg_space(vgpu) + MSI_CAP_DATA(offset));
+
+	/* Do not generate MSI if MSIEN is disabled */
+	if (!(control & MSI_CAP_EN))
+		return 0;
+
+	if (WARN(control & GENMASK(15, 1), "only support one MSI format\n"))
+		return -EINVAL;
+
+	trace_inject_msi(vgpu->id, addr, data);
+
+	/*
+	 * When guest is powered off, msi_trigger is set to NULL, but vgpu's
+	 * config and mmio register isn't restored to default during guest
+	 * poweroff. If this vgpu is still used in next vm, this vgpu's pipe
+	 * may be enabled, then once this vgpu is active, it will get inject
+	 * vblank interrupt request. But msi_trigger is null until msi is
+	 * enabled by guest. so if msi_trigger is null, success is still
+	 * returned and don't inject interrupt into guest.
+	 */
+	if (!vgpu->attached)
+		return -ESRCH;
+	if (vgpu->msi_trigger && eventfd_signal(vgpu->msi_trigger, 1) != 1)
+		return -EFAULT;
+	return 0;
 }
 
 static void propagate_event(struct intel_gvt_irq *irq,
@@ -604,7 +643,7 @@ static void gen8_init_irq(
 	SET_BIT_INFO(irq, 25, PCU_PCODE2DRIVER_MAILBOX, INTEL_GVT_IRQ_INFO_PCU);
 }
 
-static struct intel_gvt_irq_ops gen8_irq_ops = {
+static const struct intel_gvt_irq_ops gen8_irq_ops = {
 	.init_irq = gen8_init_irq,
 	.check_pending_irq = gen8_check_pending_irq,
 };
@@ -626,7 +665,7 @@ void intel_vgpu_trigger_virtual_event(struct intel_vgpu *vgpu,
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_gvt_irq *irq = &gvt->irq;
 	gvt_event_virt_handler_t handler;
-	struct intel_gvt_irq_ops *ops = gvt->irq.ops;
+	const struct intel_gvt_irq_ops *ops = gvt->irq.ops;
 
 	handler = get_event_virt_handler(irq, event);
 	drm_WARN_ON(&i915->drm, !handler);

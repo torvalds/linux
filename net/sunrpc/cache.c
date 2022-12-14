@@ -33,7 +33,9 @@
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
 #include <trace/events/sunrpc.h>
+
 #include "netns.h"
+#include "fail.h"
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
@@ -675,7 +677,7 @@ static void cache_limit_defers(void)
 
 	/* Consider removing either the first or the last */
 	if (cache_defer_cnt > DFR_MAX) {
-		if (prandom_u32() & 1)
+		if (prandom_u32_max(2))
 			discard = list_entry(cache_defer_list.next,
 					     struct cache_deferred_req, recent);
 		else
@@ -688,16 +690,30 @@ static void cache_limit_defers(void)
 		discard->revisit(discard, 1);
 }
 
+#if IS_ENABLED(CONFIG_FAIL_SUNRPC)
+static inline bool cache_defer_immediately(void)
+{
+	return !fail_sunrpc.ignore_cache_wait &&
+		should_fail(&fail_sunrpc.attr, 1);
+}
+#else
+static inline bool cache_defer_immediately(void)
+{
+	return false;
+}
+#endif
+
 /* Return true if and only if a deferred request is queued. */
 static bool cache_defer_req(struct cache_req *req, struct cache_head *item)
 {
 	struct cache_deferred_req *dreq;
 
-	if (req->thread_wait) {
+	if (!cache_defer_immediately()) {
 		cache_wait_req(req, item);
 		if (!test_bit(CACHE_PENDING, &item->flags))
 			return false;
 	}
+
 	dreq = req->defer(req);
 	if (dreq == NULL)
 		return false;

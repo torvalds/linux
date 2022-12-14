@@ -43,6 +43,26 @@ static int tty_port_default_receive_buf(struct tty_port *port,
 	return ret;
 }
 
+static void tty_port_default_lookahead_buf(struct tty_port *port, const unsigned char *p,
+					   const unsigned char *f, unsigned int count)
+{
+	struct tty_struct *tty;
+	struct tty_ldisc *disc;
+
+	tty = READ_ONCE(port->itty);
+	if (!tty)
+		return;
+
+	disc = tty_ldisc_ref(tty);
+	if (!disc)
+		return;
+
+	if (disc->ops->lookahead_buf)
+		disc->ops->lookahead_buf(disc->tty, p, f, count);
+
+	tty_ldisc_deref(disc);
+}
+
 static void tty_port_default_wakeup(struct tty_port *port)
 {
 	struct tty_struct *tty = tty_port_tty_get(port);
@@ -55,6 +75,7 @@ static void tty_port_default_wakeup(struct tty_port *port)
 
 const struct tty_port_client_operations tty_port_default_client_ops = {
 	.receive_buf = tty_port_default_receive_buf,
+	.lookahead_buf = tty_port_default_lookahead_buf,
 	.write_wakeup = tty_port_default_wakeup,
 };
 EXPORT_SYMBOL_GPL(tty_port_default_client_ops);
@@ -225,8 +246,11 @@ int tty_port_alloc_xmit_buf(struct tty_port *port)
 {
 	/* We may sleep in get_zeroed_page() */
 	mutex_lock(&port->buf_mutex);
-	if (port->xmit_buf == NULL)
+	if (port->xmit_buf == NULL) {
 		port->xmit_buf = (unsigned char *)get_zeroed_page(GFP_KERNEL);
+		if (port->xmit_buf)
+			kfifo_init(&port->xmit_fifo, port->xmit_buf, PAGE_SIZE);
+	}
 	mutex_unlock(&port->buf_mutex);
 	if (port->xmit_buf == NULL)
 		return -ENOMEM;
@@ -237,10 +261,9 @@ EXPORT_SYMBOL(tty_port_alloc_xmit_buf);
 void tty_port_free_xmit_buf(struct tty_port *port)
 {
 	mutex_lock(&port->buf_mutex);
-	if (port->xmit_buf != NULL) {
-		free_page((unsigned long)port->xmit_buf);
-		port->xmit_buf = NULL;
-	}
+	free_page((unsigned long)port->xmit_buf);
+	port->xmit_buf = NULL;
+	INIT_KFIFO(port->xmit_fifo);
 	mutex_unlock(&port->buf_mutex);
 }
 EXPORT_SYMBOL(tty_port_free_xmit_buf);
@@ -267,8 +290,7 @@ static void tty_port_destructor(struct kref *kref)
 	/* check if last port ref was dropped before tty release */
 	if (WARN_ON(port->itty))
 		return;
-	if (port->xmit_buf)
-		free_page((unsigned long)port->xmit_buf);
+	free_page((unsigned long)port->xmit_buf);
 	tty_port_destroy(port);
 	if (port->ops && port->ops->destruct)
 		port->ops->destruct(port);
@@ -731,6 +753,9 @@ EXPORT_SYMBOL_GPL(tty_port_install);
  * the devices using @port->ops->activate if not active already. And waits for
  * the device to be ready using tty_port_block_til_ready() (e.g.  raises
  * DTR/CTS and waits for carrier).
+ *
+ * Note that @port->ops->shutdown is not called when @port->ops->activate
+ * returns an error (on the contrary, @tty->ops->close is).
  *
  * Locking: Caller holds tty lock.
  *

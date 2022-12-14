@@ -914,7 +914,6 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 				err = 0;
 				goto out_free;
 			}
-			pr_warn("WARNING: Invalid SPROM CRC (corrupt SPROM)\n");
 		}
 	}
 	err = sprom_extract(bus, sprom, buf, bus->sprom_size);

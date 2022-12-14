@@ -25,6 +25,8 @@ enum {
 	EXTENT_FLAG_FILLING,
 	/* filesystem extent mapping type */
 	EXTENT_FLAG_FS_MAPPING,
+	/* This em is merged from two or more physically adjacent ems */
+	EXTENT_FLAG_MERGED,
 };
 
 struct extent_map {
@@ -40,6 +42,12 @@ struct extent_map {
 	u64 ram_bytes;
 	u64 block_start;
 	u64 block_len;
+
+	/*
+	 * Generation of the extent map, for merged em it's the highest
+	 * generation of all merged ems.
+	 * For non-merged extents, it's from btrfs_file_extent_item::generation.
+	 */
 	u64 generation;
 	unsigned long flags;
 	/* Used for chunk mappings, flag EXTENT_FLAG_FS_MAPPING must be set */
@@ -54,6 +62,8 @@ struct extent_map_tree {
 	struct list_head modified_extents;
 	rwlock_t lock;
 };
+
+struct btrfs_inode;
 
 static inline int extent_map_in_tree(const struct extent_map *em)
 {
@@ -96,5 +106,11 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
 int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
 			     struct extent_map_tree *em_tree,
 			     struct extent_map **em_in, u64 start, u64 len);
+void btrfs_drop_extent_map_range(struct btrfs_inode *inode,
+				 u64 start, u64 end,
+				 bool skip_pinned);
+int btrfs_replace_extent_map_range(struct btrfs_inode *inode,
+				   struct extent_map *new_em,
+				   bool modified);
 
 #endif

@@ -24,7 +24,6 @@ int
 mlx5e_tc_act_vlan_add_rewrite_action(struct mlx5e_priv *priv, int namespace,
 				     const struct flow_action_entry *act,
 				     struct mlx5e_tc_flow_parse_attr *parse_attr,
-				     struct pedit_headers_action *hdrs,
 				     u32 *action, struct netlink_ext_ack *extack);
 
 #endif /* __MLX5_EN_TC_ACT_VLAN_H__ */

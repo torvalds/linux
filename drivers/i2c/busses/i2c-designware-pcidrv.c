@@ -24,9 +24,9 @@
 #include <linux/slab.h>
 
 #include "i2c-designware-core.h"
+#include "i2c-ccgx-ucsi.h"
 
 #define DRIVER_NAME "i2c-designware-pci"
-#define AMD_CLK_RATE_HZ	100000
 
 enum dw_pci_ctl_id_t {
 	medfield,
@@ -99,11 +99,6 @@ static u32 mfld_get_clk_rate_khz(struct dw_i2c_dev *dev)
 	return 25000;
 }
 
-static u32 navi_amd_get_clk_rate_khz(struct dw_i2c_dev *dev)
-{
-	return AMD_CLK_RATE_HZ;
-}
-
 static int mfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 {
 	struct dw_i2c_dev *dev = dev_get_drvdata(&pdev->dev);
@@ -123,35 +118,6 @@ static int mfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 		return 0;
 	}
 	return -ENODEV;
-}
-
- /*
-  * TODO find a better way how to deduplicate instantiation
-  * of USB PD slave device from nVidia GPU driver.
-  */
-static int navi_amd_register_client(struct dw_i2c_dev *dev)
-{
-	struct i2c_board_info	info;
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	strscpy(info.type, "ccgx-ucsi", I2C_NAME_SIZE);
-	info.addr = 0x08;
-	info.irq = dev->irq;
-
-	dev->slave = i2c_new_client_device(&dev->adapter, &info);
-	if (IS_ERR(dev->slave))
-		return PTR_ERR(dev->slave);
-
-	return 0;
-}
-
-static int navi_amd_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
-{
-	struct dw_i2c_dev *dev = dev_get_drvdata(&pdev->dev);
-
-	dev->flags |= MODEL_AMD_NAVI_GPU;
-	dev->timings.bus_freq_hz = I2C_MAX_STANDARD_MODE_FREQ;
-	return 0;
 }
 
 static int mrfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
@@ -176,6 +142,20 @@ static int mrfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 static u32 ehl_get_clk_rate_khz(struct dw_i2c_dev *dev)
 {
 	return 100000;
+}
+
+static u32 navi_amd_get_clk_rate_khz(struct dw_i2c_dev *dev)
+{
+	return 100000;
+}
+
+static int navi_amd_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
+{
+	struct dw_i2c_dev *dev = dev_get_drvdata(&pdev->dev);
+
+	dev->flags |= MODEL_AMD_NAVI_GPU;
+	dev->timings.bus_freq_hz = I2C_MAX_STANDARD_MODE_FREQ;
+	return 0;
 }
 
 static struct dw_pci_controller dw_pci_controllers[] = {
@@ -213,14 +193,28 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 	},
 };
 
+static int __maybe_unused i2c_dw_pci_runtime_suspend(struct device *dev)
+{
+	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
+
+	i_dev->disable(i_dev);
+	return 0;
+}
+
 static int __maybe_unused i2c_dw_pci_suspend(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
-	i_dev->suspended = true;
-	i_dev->disable(i_dev);
+	i2c_mark_adapter_suspended(&i_dev->adapter);
 
-	return 0;
+	return i2c_dw_pci_runtime_suspend(dev);
+}
+
+static int __maybe_unused i2c_dw_pci_runtime_resume(struct device *dev)
+{
+	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
+
+	return i_dev->init(i_dev);
 }
 
 static int __maybe_unused i2c_dw_pci_resume(struct device *dev)
@@ -228,14 +222,17 @@ static int __maybe_unused i2c_dw_pci_resume(struct device *dev)
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 	int ret;
 
-	ret = i_dev->init(i_dev);
-	i_dev->suspended = false;
+	ret = i2c_dw_pci_runtime_resume(dev);
+
+	i2c_mark_adapter_resumed(&i_dev->adapter);
 
 	return ret;
 }
 
-static UNIVERSAL_DEV_PM_OPS(i2c_dw_pm_ops, i2c_dw_pci_suspend,
-			    i2c_dw_pci_resume, NULL);
+static const struct dev_pm_ops i2c_dw_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(i2c_dw_pci_suspend, i2c_dw_pci_resume)
+	SET_RUNTIME_PM_OPS(i2c_dw_pci_runtime_suspend, i2c_dw_pci_runtime_resume, NULL)
+};
 
 static int i2c_dw_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
@@ -245,6 +242,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	int r;
 	struct dw_pci_controller *controller;
 	struct dw_scl_sda_cfg *cfg;
+	struct i2c_timings *t;
 
 	if (id->driver_data >= ARRAY_SIZE(dw_pci_controllers))
 		return dev_err_probe(&pdev->dev, -EINVAL,
@@ -265,7 +263,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		return dev_err_probe(&pdev->dev, r,
 				     "I/O memory remapping failed\n");
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct dw_i2c_dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
@@ -274,11 +272,13 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		return r;
 
 	dev->get_clk_rate_khz = controller->get_clk_rate_khz;
-	dev->timings.bus_freq_hz = I2C_MAX_FAST_MODE_FREQ;
 	dev->base = pcim_iomap_table(pdev)[0];
 	dev->dev = &pdev->dev;
 	dev->irq = pci_irq_vector(pdev, 0);
 	dev->flags |= controller->flags;
+
+	t = &dev->timings;
+	i2c_parse_fw_timings(&pdev->dev, t, false);
 
 	pci_set_drvdata(pdev, dev);
 
@@ -325,11 +325,10 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	}
 
 	if ((dev->flags & MODEL_MASK) == MODEL_AMD_NAVI_GPU) {
-		r = navi_amd_register_client(dev);
-		if (r) {
-			dev_err(dev->dev, "register client failed with %d\n", r);
-			return r;
-		}
+		dev->slave = i2c_new_ccgx_ucsi(&dev->adapter, dev->irq, NULL);
+		if (IS_ERR(dev->slave))
+			return dev_err_probe(dev->dev, PTR_ERR(dev->slave),
+					     "register UCSI failed\n");
 	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
@@ -392,6 +391,7 @@ static const struct pci_device_id i2_designware_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x4bbe), elkhartlake },
 	{ PCI_VDEVICE(INTEL, 0x4bbf), elkhartlake },
 	{ PCI_VDEVICE(INTEL, 0x4bc0), elkhartlake },
+	/* AMD NAVI */
 	{ PCI_VDEVICE(ATI,  0x7314), navi_amd },
 	{ PCI_VDEVICE(ATI,  0x73a4), navi_amd },
 	{ PCI_VDEVICE(ATI,  0x73e4), navi_amd },

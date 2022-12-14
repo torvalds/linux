@@ -7,6 +7,7 @@
 #include <linux/dim.h>
 #include <linux/if_vlan.h>
 #include <net/page_pool.h>
+#include <asm/barrier.h>
 
 #include "hnae3.h"
 
@@ -25,8 +26,11 @@ enum hns3_nic_state {
 	HNS3_NIC_STATE2_RESET_REQUESTED,
 	HNS3_NIC_STATE_HW_TX_CSUM_ENABLE,
 	HNS3_NIC_STATE_RXD_ADV_LAYOUT_ENABLE,
+	HNS3_NIC_STATE_TX_PUSH_ENABLE,
 	HNS3_NIC_STATE_MAX
 };
+
+#define HNS3_MAX_PUSH_BD_NUM		2
 
 #define HNS3_RING_RX_RING_BASEADDR_L_REG	0x00000
 #define HNS3_RING_RX_RING_BASEADDR_H_REG	0x00004
@@ -400,6 +404,7 @@ struct hns3_rx_ptype {
 	u32 ip_summed : 2;
 	u32 l3_type : 4;
 	u32 valid : 1;
+	u32 hash_type: 3;
 };
 
 struct ring_stats {
@@ -410,6 +415,8 @@ struct ring_stats {
 			u64 tx_pkts;
 			u64 tx_bytes;
 			u64 tx_more;
+			u64 tx_push;
+			u64 tx_mem_doorbell;
 			u64 restart_queue;
 			u64 tx_busy;
 			u64 tx_copy;
@@ -738,4 +745,7 @@ u16 hns3_get_max_available_channels(struct hnae3_handle *h);
 void hns3_cq_period_mode_init(struct hns3_nic_priv *priv,
 			      enum dim_cq_period_mode tx_mode,
 			      enum dim_cq_period_mode rx_mode);
+
+void hns3_external_lb_prepare(struct net_device *ndev, bool if_running);
+void hns3_external_lb_restore(struct net_device *ndev, bool if_running);
 #endif

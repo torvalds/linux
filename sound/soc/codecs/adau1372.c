@@ -859,6 +859,7 @@ static const struct snd_soc_component_driver adau1372_driver = {
 	.num_dapm_widgets = ARRAY_SIZE(adau1372_dapm_widgets),
 	.dapm_routes = adau1372_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(adau1372_dapm_routes),
+	.endianness = 1,
 };
 
 static const struct snd_soc_dai_ops adau1372_dai_ops = {
