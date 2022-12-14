@@ -773,24 +773,9 @@ void it66121_bridge_mode_set(struct drm_bridge *bridge,
 			     const struct drm_display_mode *mode,
 			     const struct drm_display_mode *adjusted_mode)
 {
-	int ret, i;
 	u8 buf[HDMI_INFOFRAME_SIZE(AVI)];
 	struct it66121_ctx *ctx = container_of(bridge, struct it66121_ctx, bridge);
-	const u16 aviinfo_reg[HDMI_AVI_INFOFRAME_SIZE] = {
-		IT66121_AVIINFO_DB1_REG,
-		IT66121_AVIINFO_DB2_REG,
-		IT66121_AVIINFO_DB3_REG,
-		IT66121_AVIINFO_DB4_REG,
-		IT66121_AVIINFO_DB5_REG,
-		IT66121_AVIINFO_DB6_REG,
-		IT66121_AVIINFO_DB7_REG,
-		IT66121_AVIINFO_DB8_REG,
-		IT66121_AVIINFO_DB9_REG,
-		IT66121_AVIINFO_DB10_REG,
-		IT66121_AVIINFO_DB11_REG,
-		IT66121_AVIINFO_DB12_REG,
-		IT66121_AVIINFO_DB13_REG
-	};
+	int ret;
 
 	mutex_lock(&ctx->lock);
 
@@ -810,10 +795,12 @@ void it66121_bridge_mode_set(struct drm_bridge *bridge,
 	}
 
 	/* Write new AVI infoframe packet */
-	for (i = 0; i < HDMI_AVI_INFOFRAME_SIZE; i++) {
-		if (regmap_write(ctx->regmap, aviinfo_reg[i], buf[i + HDMI_INFOFRAME_HEADER_SIZE]))
-			goto unlock;
-	}
+	ret = regmap_bulk_write(ctx->regmap, IT66121_AVIINFO_DB1_REG,
+				&buf[HDMI_INFOFRAME_HEADER_SIZE],
+				HDMI_AVI_INFOFRAME_SIZE);
+	if (ret)
+		goto unlock;
+
 	if (regmap_write(ctx->regmap, IT66121_AVIINFO_CSUM_REG, buf[3]))
 		goto unlock;
 
