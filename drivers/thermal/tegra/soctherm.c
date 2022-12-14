@@ -594,7 +594,7 @@ static int tegra_thermctl_set_trip_temp(struct thermal_zone_device *tz, int trip
 	if (!tz)
 		return -EINVAL;
 
-	ret = thermal_zone_get_trip(tz, trip_id, &trip);
+	ret = __thermal_zone_get_trip(tz, trip_id, &trip);
 	if (ret)
 		return ret;
 
