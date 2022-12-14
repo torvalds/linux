@@ -1,0 +1,31 @@
+################################################################################
+## Inheriting configs from ACK
+. ${ROOT_DIR}/msm-kernel/build.config.common
+. ${ROOT_DIR}/msm-kernel/build.config.aarch64
+
+################################################################################
+## Variant setup
+MSM_ARCH=pineapple
+VARIANTS=(perf_defconfig)
+[ -z "${VARIANT}" ] && VARIANT=perf_defconfig
+
+ABL_SRC=bootable/bootloader/edk2
+BOOT_IMAGE_HEADER_VERSION=2
+BASE_ADDRESS=0x80000000
+PAGE_SIZE=4096
+TARGET_HAS_SEPARATE_RD=1
+PREFERRED_USERSPACE=le
+BUILD_BOOT_IMG=1
+SKIP_UNPACKING_RAMDISK=1
+BUILD_INITRAMFS=1
+
+[ -z "${DT_OVERLAY_SUPPORT}" ] && DT_OVERLAY_SUPPORT=1
+
+if [ "${KERNEL_CMDLINE_CONSOLE_AUTO}" != "0" ]; then
+	KERNEL_VENDOR_CMDLINE+=' console=ttyMSM0,115200n8 earlycon=qcom_geni,0x00a9C000 qcom_geni_serial.con_enabled=1 '
+fi
+
+################################################################################
+## Inheriting MSM configs
+. ${KERNEL_DIR}/build.config.msm.common
+. ${KERNEL_DIR}/build.config.allyesconfig
