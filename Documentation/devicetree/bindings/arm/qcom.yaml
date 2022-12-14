@@ -959,6 +959,7 @@ allOf:
               - qcom,apq8094
               - qcom,apq8096
               - qcom,msm8953
+              - qcom,msm8956
               - qcom,msm8992
               - qcom,msm8994
               - qcom,msm8996
@@ -966,9 +967,11 @@ allOf:
               - qcom,sdm450
               - qcom,sdm630
               - qcom,sdm632
+              - qcom,sdm636
               - qcom,sdm845
               - qcom,sdx55
               - qcom,sdx65
+              - qcom,sm4250
               - qcom,sm6125
               - qcom,sm6350
               - qcom,sm7225
@@ -992,6 +995,8 @@ allOf:
               - oneplus,dumpling
               - oneplus,enchilada
               - oneplus,fajita
+              - oneplus,oneplus3
+              - oneplus,oneplus3t
     then:
       properties:
         qcom,board-id:
