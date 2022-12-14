@@ -36,33 +36,31 @@ static struct dentry *minix_lookup(struct inode * dir, struct dentry *dentry, un
 static int minix_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
-	int error;
 	struct inode *inode;
 
 	if (!old_valid_dev(rdev))
 		return -EINVAL;
 
-	inode = minix_new_inode(dir, mode, &error);
+	inode = minix_new_inode(dir, mode);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
-	if (inode) {
-		minix_set_inode(inode, rdev);
-		mark_inode_dirty(inode);
-		error = add_nondir(dentry, inode);
-	}
-	return error;
+	minix_set_inode(inode, rdev);
+	mark_inode_dirty(inode);
+	return add_nondir(dentry, inode);
 }
 
 static int minix_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 			 struct file *file, umode_t mode)
 {
-	int error;
-	struct inode *inode = minix_new_inode(dir, mode, &error);
-	if (inode) {
-		minix_set_inode(inode, 0);
-		mark_inode_dirty(inode);
-		d_tmpfile(file, inode);
-	}
-	return finish_open_simple(file, error);
+	struct inode *inode = minix_new_inode(dir, mode);
+
+	if (IS_ERR(inode))
+		return finish_open_simple(file, PTR_ERR(inode));
+	minix_set_inode(inode, 0);
+	mark_inode_dirty(inode);
+	d_tmpfile(file, inode);
+	return finish_open_simple(file, 0);
 }
 
 static int minix_create(struct user_namespace *mnt_userns, struct inode *dir,
@@ -74,30 +72,25 @@ static int minix_create(struct user_namespace *mnt_userns, struct inode *dir,
 static int minix_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 			 struct dentry *dentry, const char *symname)
 {
-	int err = -ENAMETOOLONG;
 	int i = strlen(symname)+1;
 	struct inode * inode;
+	int err;
 
 	if (i > dir->i_sb->s_blocksize)
-		goto out;
+		return -ENAMETOOLONG;
 
-	inode = minix_new_inode(dir, S_IFLNK | 0777, &err);
-	if (!inode)
-		goto out;
+	inode = minix_new_inode(dir, S_IFLNK | 0777);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
 	minix_set_inode(inode, 0);
 	err = page_symlink(inode, symname, i);
-	if (err)
-		goto out_fail;
-
-	err = add_nondir(dentry, inode);
-out:
-	return err;
-
-out_fail:
-	inode_dec_link_count(inode);
-	iput(inode);
-	goto out;
+	if (unlikely(err)) {
+		inode_dec_link_count(inode);
+		iput(inode);
+		return err;
+	}
+	return add_nondir(dentry, inode);
 }
 
 static int minix_link(struct dentry * old_dentry, struct inode * dir,
@@ -117,14 +110,12 @@ static int minix_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
 	struct inode * inode;
 	int err;
 
+	inode = minix_new_inode(dir, S_IFDIR | mode);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
+
 	inode_inc_link_count(dir);
-
-	inode = minix_new_inode(dir, S_IFDIR | mode, &err);
-	if (!inode)
-		goto out_dir;
-
 	minix_set_inode(inode, 0);
-
 	inode_inc_link_count(inode);
 
 	err = minix_make_empty(inode, dir);
@@ -143,7 +134,6 @@ out_fail:
 	inode_dec_link_count(inode);
 	inode_dec_link_count(inode);
 	iput(inode);
-out_dir:
 	inode_dec_link_count(dir);
 	goto out;
 }
