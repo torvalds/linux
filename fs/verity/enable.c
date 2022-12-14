@@ -120,8 +120,8 @@ static int build_merkle_tree_level(struct file *filp, unsigned int level,
 			       params->block_size - pending_size);
 			err = vops->write_merkle_tree_block(inode,
 					pending_hashes,
-					dst_block_num,
-					params->log_blocksize);
+					dst_block_num << params->log_blocksize,
+					params->block_size);
 			if (err) {
 				fsverity_err(inode,
 					     "Error %d writing Merkle tree block %llu",
