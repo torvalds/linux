@@ -348,7 +348,12 @@ static int qpnp_tm_init(struct qpnp_tm_chip *chip)
 	if (stage)
 		chip->temp = qpnp_tm_decode_temp(chip, stage);
 
+	mutex_unlock(&chip->lock);
+
 	crit_temp = qpnp_tm_get_critical_trip_temp(chip);
+
+	mutex_lock(&chip->lock);
+
 	ret = qpnp_tm_update_critical_trip_temp(chip, crit_temp);
 	if (ret < 0)
 		goto out;
