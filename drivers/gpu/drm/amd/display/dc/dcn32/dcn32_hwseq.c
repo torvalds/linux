@@ -685,6 +685,25 @@ void dcn32_program_mall_pipe_config(struct dc *dc, struct dc_state *context)
 	}
 }
 
+static void dcn32_initialize_min_clocks(struct dc *dc)
+{
+	struct dc_clocks *clocks = &dc->current_state->bw_ctx.bw.dcn.clk;
+
+	clocks->dcfclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dcfclk_mhz * 1000;
+	clocks->socclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].socclk_mhz * 1000;
+	clocks->dramclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].memclk_mhz * 1000;
+	clocks->dppclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dppclk_mhz * 1000;
+	clocks->dispclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dispclk_mhz * 1000;
+	clocks->ref_dtbclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
+	clocks->fclk_p_state_change_support = true;
+	clocks->p_state_change_support = true;
+
+	dc->clk_mgr->funcs->update_clocks(
+			dc->clk_mgr,
+			dc->current_state,
+			true);
+}
+
 void dcn32_init_hw(struct dc *dc)
 {
 	struct abm **abms = dc->res_pool->multiple_abms;
@@ -779,6 +798,8 @@ void dcn32_init_hw(struct dc *dc)
 		if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
 			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
 					!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
+
+		dcn32_initialize_min_clocks(dc);
 	}
 
 	/* In headless boot cases, DIG may be turned
