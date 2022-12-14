@@ -364,7 +364,9 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 
 			/* No support for VLAN with MLO yet */
 			if (iftype == NL80211_IFTYPE_AP_VLAN &&
-			    nsdata->wdev.use_4addr)
+			    sdata->wdev.use_4addr &&
+			    nsdata->vif.type == NL80211_IFTYPE_AP &&
+			    nsdata->vif.valid_links)
 				return -EOPNOTSUPP;
 
 			/*
