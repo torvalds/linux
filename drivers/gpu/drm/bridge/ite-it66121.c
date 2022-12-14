@@ -35,10 +35,6 @@
 #define IT66121_DEVICE_ID0_REG			0x02
 #define IT66121_DEVICE_ID1_REG			0x03
 
-#define IT66121_VENDOR_ID0			0x54
-#define IT66121_VENDOR_ID1			0x49
-#define IT66121_DEVICE_ID0			0x12
-#define IT66121_DEVICE_ID1			0x06
 #define IT66121_REVISION_MASK			GENMASK(7, 4)
 #define IT66121_DEVICE_ID1_MASK			GENMASK(3, 0)
 
@@ -286,12 +282,11 @@
 #define IT66121_AUD_SWL_16BIT			0x2
 #define IT66121_AUD_SWL_NOT_INDICATED		0x0
 
-#define IT66121_VENDOR_ID0			0x54
-#define IT66121_VENDOR_ID1			0x49
-#define IT66121_DEVICE_ID0			0x12
-#define IT66121_DEVICE_ID1			0x06
-#define IT66121_DEVICE_MASK			0x0F
 #define IT66121_AFE_CLK_HIGH			80000 /* Khz */
+
+struct it66121_chip_info {
+	u16 vid, pid;
+};
 
 struct it66121_ctx {
 	struct regmap *regmap;
@@ -311,6 +306,7 @@ struct it66121_ctx {
 		u8 swl;
 		bool auto_cts;
 	} audio;
+	const struct it66121_chip_info *info;
 };
 
 static const struct regmap_range_cfg it66121_regmap_banks[] = {
@@ -1451,6 +1447,7 @@ static const char * const it66121_supplies[] = {
 
 static int it66121_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	u32 revision_id, vendor_ids[2] = { 0 }, device_ids[2] = { 0 };
 	struct device_node *ep;
 	int ret;
@@ -1472,6 +1469,7 @@ static int it66121_probe(struct i2c_client *client)
 
 	ctx->dev = dev;
 	ctx->client = client;
+	ctx->info = (const struct it66121_chip_info *) id->driver_data;
 
 	of_property_read_u32(ep, "bus-width", &ctx->bus_width);
 	of_node_put(ep);
@@ -1523,8 +1521,8 @@ static int it66121_probe(struct i2c_client *client)
 	revision_id = FIELD_GET(IT66121_REVISION_MASK, device_ids[1]);
 	device_ids[1] &= IT66121_DEVICE_ID1_MASK;
 
-	if (vendor_ids[0] != IT66121_VENDOR_ID0 || vendor_ids[1] != IT66121_VENDOR_ID1 ||
-	    device_ids[0] != IT66121_DEVICE_ID0 || device_ids[1] != IT66121_DEVICE_ID1) {
+	if ((vendor_ids[1] << 8 | vendor_ids[0]) != ctx->info->vid ||
+	    (device_ids[1] << 8 | device_ids[0]) != ctx->info->pid) {
 		return -ENODEV;
 	}
 
@@ -1563,8 +1561,13 @@ static const struct of_device_id it66121_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, it66121_dt_match);
 
+static const struct it66121_chip_info it66121_chip_info = {
+	.vid = 0x4954,
+	.pid = 0x0612,
+};
+
 static const struct i2c_device_id it66121_id[] = {
-	{ "it66121", 0 },
+	{ "it66121", (kernel_ulong_t) &it66121_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, it66121_id);
