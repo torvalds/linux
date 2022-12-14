@@ -54,6 +54,7 @@
 #include "link/link_dpcd.h"
 #include "link/link_dp_trace.h"
 #include "link/link_hpd.h"
+#include "link/link_dp_training.h"
 
 #include "dc/dcn30/dcn30_vpg.h"
 
