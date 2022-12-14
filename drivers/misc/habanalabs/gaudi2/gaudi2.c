@@ -9271,8 +9271,8 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 	if (error_count == GAUDI2_NA_EVENT_CAUSE && !is_info_event(event_type))
 		gaudi2_print_event(hdev, event_type, true, "%d", event_type);
 	else if (error_count == 0)
-		dev_err_ratelimited(hdev->dev,
-			"No Error cause for H/W event %d\n", event_type);
+		gaudi2_print_event(hdev, event_type, true,
+				"No error cause for H/W event %u\n", event_type);
 
 	if ((gaudi2_irq_map_table[event_type].reset || reset_required) &&
 				(hdev->hard_reset_on_fw_events ||
