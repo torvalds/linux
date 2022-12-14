@@ -530,7 +530,6 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 	size_t count = iov_iter_count(iter);
 	ssize_t total_count = 0;
 	ssize_t ret = -EINVAL;
-	int i = 0;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		"%s-BEGIN(%pU): count(%d) after estimate_max_iovecs.\n",
@@ -556,7 +555,6 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 	while (iov_iter_count(iter)) {
 		size_t each_count = iov_iter_count(iter);
 		size_t amt_complete;
-		i++;
 
 		/* how much to transfer in this loop iteration */
 		if (each_count > orangefs_bufmap_size_query())
