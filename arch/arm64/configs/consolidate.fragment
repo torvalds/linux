@@ -3,8 +3,7 @@
 # CONFIG_BITFIELD_KUNIT is not set
 # CONFIG_BITS_TEST is not set
 CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC=y
-CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE=1
-CONFIG_CMDLINE="kasan.stacktrace=off stack_depot_disable=off page_owner=on no_hash_pointers panic_on_taint=0x20"
+CONFIG_CMDLINE="console=ttyMSM0,115200n8 kasan.stacktrace=off stack_depot_disable=off page_owner=on no_hash_pointers panic_on_taint=0x20"
 CONFIG_DEBUG_KMEMLEAK=y
 # CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN is not set
 CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF=y
@@ -55,7 +54,6 @@ CONFIG_TASKS_RUDE_RCU=y
 # CONFIG_TEST_BPF is not set
 # CONFIG_TEST_FIRMWARE is not set
 # CONFIG_TEST_FREE_PAGES is not set
-# CONFIG_TEST_HASH is not set
 # CONFIG_TEST_HEXDUMP is not set
 # CONFIG_TEST_IDA is not set
 # CONFIG_TEST_KMOD is not set
@@ -65,7 +63,6 @@ CONFIG_TASKS_RUDE_RCU=y
 # CONFIG_TEST_MEMCAT_P is not set
 # CONFIG_TEST_MEMINIT is not set
 # CONFIG_TEST_MIN_HEAP is not set
-# CONFIG_TEST_OVERFLOW is not set
 # CONFIG_TEST_PRINTF is not set
 # CONFIG_TEST_RHASHTABLE is not set
 # CONFIG_TEST_SORT is not set
