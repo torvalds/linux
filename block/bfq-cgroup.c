@@ -724,9 +724,9 @@ void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
  * sure that the reference to cgroup is valid across the call (see
  * comments in bfq_bic_update_cgroup on this issue)
  */
-static void *__bfq_bic_change_cgroup(struct bfq_data *bfqd,
-				     struct bfq_io_cq *bic,
-				     struct bfq_group *bfqg)
+static void __bfq_bic_change_cgroup(struct bfq_data *bfqd,
+				    struct bfq_io_cq *bic,
+				    struct bfq_group *bfqg)
 {
 	struct bfq_queue *async_bfqq = bic_to_bfqq(bic, 0);
 	struct bfq_queue *sync_bfqq = bic_to_bfqq(bic, 1);
@@ -776,8 +776,6 @@ static void *__bfq_bic_change_cgroup(struct bfq_data *bfqd,
 			}
 		}
 	}
-
-	return bfqg;
 }
 
 void bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio)
