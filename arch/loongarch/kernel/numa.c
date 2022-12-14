@@ -78,7 +78,7 @@ void __init pcpu_populate_pte(unsigned long addr)
 		new = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 		pgd_populate(&init_mm, pgd, new);
 #ifndef __PAGETABLE_PUD_FOLDED
-		pud_init((unsigned long)new, (unsigned long)invalid_pmd_table);
+		pud_init(new);
 #endif
 	}
 
@@ -89,7 +89,7 @@ void __init pcpu_populate_pte(unsigned long addr)
 		new = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 		pud_populate(&init_mm, pud, new);
 #ifndef __PAGETABLE_PMD_FOLDED
-		pmd_init((unsigned long)new, (unsigned long)invalid_pte_table);
+		pmd_init(new);
 #endif
 	}
 

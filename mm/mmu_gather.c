@@ -1,7 +1,6 @@
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/kernel.h>
-#include <linux/kmsan-checks.h>
 #include <linux/mmdebug.h>
 #include <linux/mm_types.h>
 #include <linux/mm_inline.h>
@@ -9,6 +8,7 @@
 #include <linux/rcupdate.h>
 #include <linux/smp.h>
 #include <linux/swap.h>
+#include <linux/rmap.h>
 
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
@@ -18,6 +18,10 @@
 static bool tlb_next_batch(struct mmu_gather *tlb)
 {
 	struct mmu_gather_batch *batch;
+
+	/* Limit batching if we have delayed rmaps pending */
+	if (tlb->delayed_rmap && tlb->active != &tlb->local)
+		return false;
 
 	batch = tlb->active;
 	if (batch->next) {
@@ -43,12 +47,46 @@ static bool tlb_next_batch(struct mmu_gather *tlb)
 	return true;
 }
 
+#ifdef CONFIG_SMP
+static void tlb_flush_rmap_batch(struct mmu_gather_batch *batch, struct vm_area_struct *vma)
+{
+	for (int i = 0; i < batch->nr; i++) {
+		struct encoded_page *enc = batch->encoded_pages[i];
+
+		if (encoded_page_flags(enc)) {
+			struct page *page = encoded_page_ptr(enc);
+			page_remove_rmap(page, vma, false);
+		}
+	}
+}
+
+/**
+ * tlb_flush_rmaps - do pending rmap removals after we have flushed the TLB
+ * @tlb: the current mmu_gather
+ *
+ * Note that because of how tlb_next_batch() above works, we will
+ * never start multiple new batches with pending delayed rmaps, so
+ * we only need to walk through the current active batch and the
+ * original local one.
+ */
+void tlb_flush_rmaps(struct mmu_gather *tlb, struct vm_area_struct *vma)
+{
+	if (!tlb->delayed_rmap)
+		return;
+
+	tlb_flush_rmap_batch(&tlb->local, vma);
+	if (tlb->active != &tlb->local)
+		tlb_flush_rmap_batch(tlb->active, vma);
+	tlb->delayed_rmap = 0;
+}
+#endif
+
 static void tlb_batch_pages_flush(struct mmu_gather *tlb)
 {
 	struct mmu_gather_batch *batch;
 
 	for (batch = &tlb->local; batch && batch->nr; batch = batch->next) {
-		struct page **pages = batch->pages;
+		struct encoded_page **pages = batch->encoded_pages;
 
 		do {
 			/*
@@ -77,7 +115,7 @@ static void tlb_batch_list_free(struct mmu_gather *tlb)
 	tlb->local.next = NULL;
 }
 
-bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_size)
+bool __tlb_remove_page_size(struct mmu_gather *tlb, struct encoded_page *page, int page_size)
 {
 	struct mmu_gather_batch *batch;
 
@@ -92,13 +130,13 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 	 * Add the page and check if we are full. If so
 	 * force a flush.
 	 */
-	batch->pages[batch->nr++] = page;
+	batch->encoded_pages[batch->nr++] = page;
 	if (batch->nr == batch->max) {
 		if (!tlb_next_batch(tlb))
 			return true;
 		batch = tlb->active;
 	}
-	VM_BUG_ON_PAGE(batch->nr > batch->max, page);
+	VM_BUG_ON_PAGE(batch->nr > batch->max, encoded_page_ptr(page));
 
 	return false;
 }
@@ -264,15 +302,6 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
 static void __tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
 			     bool fullmm)
 {
-	/*
-	 * struct mmu_gather contains 7 1-bit fields packed into a 32-bit
-	 * unsigned int value. The remaining 25 bits remain uninitialized
-	 * and are never used, but KMSAN updates the origin for them in
-	 * zap_pXX_range() in mm/memory.c, thus creating very long origin
-	 * chains. This is technically correct, but consumes too much memory.
-	 * Unpoisoning the whole structure will prevent creating such chains.
-	 */
-	kmsan_unpoison_memory(tlb, sizeof(*tlb));
 	tlb->mm = mm;
 	tlb->fullmm = fullmm;
 
@@ -284,6 +313,7 @@ static void __tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
 	tlb->active     = &tlb->local;
 	tlb->batch_count = 0;
 #endif
+	tlb->delayed_rmap = 0;
 
 	tlb_table_init(tlb);
 #ifdef CONFIG_MMU_GATHER_PAGE_SIZE

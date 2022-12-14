@@ -1461,7 +1461,7 @@ static void scan_gray_list(void)
 }
 
 /*
- * Conditionally call resched() in a object iteration loop while making sure
+ * Conditionally call resched() in an object iteration loop while making sure
  * that the given object won't go away without RCU read lock by performing a
  * get_object() if !pinned.
  *

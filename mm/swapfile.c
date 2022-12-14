@@ -1780,7 +1780,7 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
 		pte_t pteval;
 
 		dec_mm_counter(vma->vm_mm, MM_SWAPENTS);
-		pteval = swp_entry_to_pte(make_swapin_error_entry(page));
+		pteval = swp_entry_to_pte(make_swapin_error_entry());
 		set_pte_at(vma->vm_mm, addr, pte, pteval);
 		swap_free(entry);
 		ret = 0;

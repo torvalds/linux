@@ -66,6 +66,7 @@ int mfill_atomic_install_pte(struct mm_struct *dst_mm, pmd_t *dst_pmd,
 	bool vm_shared = dst_vma->vm_flags & VM_SHARED;
 	bool page_in_cache = page_mapping(page);
 	spinlock_t *ptl;
+	struct folio *folio;
 	struct inode *inode;
 	pgoff_t offset, max_off;
 
@@ -113,14 +114,15 @@ int mfill_atomic_install_pte(struct mm_struct *dst_mm, pmd_t *dst_pmd,
 	if (!pte_none_mostly(*dst_pte))
 		goto out_unlock;
 
+	folio = page_folio(page);
 	if (page_in_cache) {
 		/* Usually, cache pages are already added to LRU */
 		if (newly_allocated)
-			lru_cache_add(page);
+			folio_add_lru(folio);
 		page_add_file_rmap(page, dst_vma, false);
 	} else {
 		page_add_new_anon_rmap(page, dst_vma, dst_addr);
-		lru_cache_add_inactive_or_unevictable(page, dst_vma);
+		folio_add_lru_vma(folio, dst_vma);
 	}
 
 	/*
