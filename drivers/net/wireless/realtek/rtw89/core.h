@@ -2811,6 +2811,7 @@ struct rtw89_chip_info {
 	u8 dcfo_comp_sft;
 	const struct rtw89_imr_info *imr_info;
 	const struct rtw89_rrsr_cfgs *rrsr_cfgs;
+	u32 bss_clr_map_reg;
 	u32 dma_ch_mask;
 	const struct wiphy_wowlan_support *wowlan_stub;
 };
