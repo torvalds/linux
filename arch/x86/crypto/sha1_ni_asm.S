@@ -93,7 +93,6 @@
  * numBlocks: Number of blocks to process
  */
 .text
-.align 32
 SYM_TYPED_FUNC_START(sha1_ni_transform)
 	push		%rbp
 	mov		%rsp, %rbp

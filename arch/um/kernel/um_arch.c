@@ -444,6 +444,11 @@ void apply_returns(s32 *start, s32 *end)
 {
 }
 
+void apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
+		   s32 *start_cfi, s32 *end_cfi)
+{
+}
+
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 {
 }

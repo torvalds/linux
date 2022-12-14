@@ -328,7 +328,6 @@
  * void sm3_transform_avx(struct sm3_state *state,
  *                        const u8 *data, int nblocks);
  */
-.align 16
 SYM_TYPED_FUNC_START(sm3_transform_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
