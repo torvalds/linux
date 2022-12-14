@@ -89,6 +89,23 @@ struct gh_vm_dtb_config {
  */
 #define GH_FN_IRQFD 		2
 
+/**
+ * GH_FN_IOEVENTFD - register ioeventfd to trigger when VM faults on parameter
+ *
+ * gh_fn_desc is filled with gh_fn_ioeventfd_arg
+ *
+ * Attaches an ioeventfd to a legal mmio address within the guest. A guest write
+ * in the registered address will signal the provided event instead of triggering
+ * an exit on the GH_VCPU_RUN ioctl.
+ *
+ * If GH_IOEVENTFD_DATAMATCH flag is set, the event will be signaled only if the
+ * written value to the registered address is equal to datamatch in
+ * struct gh_fn_ioeventfd_arg.
+ *
+ * Return: 0
+ */
+#define GH_FN_IOEVENTFD 	3
+
 #define GH_FN_MAX_ARG_SIZE		256
 
 /**
@@ -117,6 +134,26 @@ struct gh_fn_irqfd_arg {
 };
 
 #define GH_IOEVENTFD_DATAMATCH		(1UL << 0)
+
+/**
+ * struct gh_fn_ioeventfd_arg - Arguments to create an ioeventfd function
+ * @datamatch: data used when GH_IOEVENTFD_DATAMATCH is set
+ * @addr: Address in guest memory
+ * @len: Length of access
+ * @fd: When ioeventfd is matched, this eventfd is written
+ * @flags: If GH_IOEVENTFD_DATAMATCH flag is set, the event will be signaled
+ *         only if the written value to the registered address is equal to
+ *         @datamatch
+ * @padding: padding bytes
+ */
+struct gh_fn_ioeventfd_arg {
+	__u64 datamatch;
+	__u64 addr;        /* legal mmio address */
+	__u32 len;         /* 1, 2, 4, or 8 bytes; or 0 to ignore length */
+	__s32 fd;
+	__u32 flags;
+	__u32 padding;
+};
 
 /**
  * struct gh_fn_desc - Arguments to create a VM function
