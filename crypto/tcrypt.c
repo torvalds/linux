@@ -2044,11 +2044,11 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 
 	case 211:
 		test_aead_speed("rfc4106(gcm(aes))", ENCRYPT, sec,
-				NULL, 0, 16, 16, aead_speed_template_20);
+				NULL, 0, 16, 16, aead_speed_template_20_28_36);
 		test_aead_speed("gcm(aes)", ENCRYPT, sec,
 				NULL, 0, 16, 8, speed_template_16_24_32);
 		test_aead_speed("rfc4106(gcm(aes))", DECRYPT, sec,
-				NULL, 0, 16, 16, aead_speed_template_20);
+				NULL, 0, 16, 16, aead_speed_template_20_28_36);
 		test_aead_speed("gcm(aes)", DECRYPT, sec,
 				NULL, 0, 16, 8, speed_template_16_24_32);
 		break;
@@ -2074,11 +2074,11 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 
 	case 215:
 		test_mb_aead_speed("rfc4106(gcm(aes))", ENCRYPT, sec, NULL,
-				   0, 16, 16, aead_speed_template_20, num_mb);
+				   0, 16, 16, aead_speed_template_20_28_36, num_mb);
 		test_mb_aead_speed("gcm(aes)", ENCRYPT, sec, NULL, 0, 16, 8,
 				   speed_template_16_24_32, num_mb);
 		test_mb_aead_speed("rfc4106(gcm(aes))", DECRYPT, sec, NULL,
-				   0, 16, 16, aead_speed_template_20, num_mb);
+				   0, 16, 16, aead_speed_template_20_28_36, num_mb);
 		test_mb_aead_speed("gcm(aes)", DECRYPT, sec, NULL, 0, 16, 8,
 				   speed_template_16_24_32, num_mb);
 		break;
