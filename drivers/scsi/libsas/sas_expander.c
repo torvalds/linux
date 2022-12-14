@@ -875,9 +875,6 @@ static struct domain_device *sas_ex_discover_end_dev(
  out_list_del:
 	sas_rphy_free(child->rphy);
 	list_del(&child->disco_list_node);
-	spin_lock_irq(&parent->port->dev_list_lock);
-	list_del(&child->dev_list_node);
-	spin_unlock_irq(&parent->port->dev_list_lock);
  out_free:
 	sas_port_delete(phy->port);
  out_err:
