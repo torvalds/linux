@@ -1137,7 +1137,15 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 		if (!last_journal_entry) {
 			fsck_err_on(!c->sb.clean, c, "no journal entries found");
-			goto use_clean;
+			if (clean)
+				goto use_clean;
+
+			genradix_for_each_reverse(&c->journal_entries, iter, i)
+				if (*i) {
+					last_journal_entry = &(*i)->j;
+					(*i)->ignore = false;
+					break;
+				}
 		}
 
 		ret = journal_keys_sort(c);
