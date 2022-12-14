@@ -8,7 +8,6 @@ obj-$(CONFIG_ASPEED_SSP)		+= aspeed-ssp.o
 obj-$(CONFIG_ASPEED_P2A_CTRL)		+= aspeed-p2a-ctrl.o
 obj-$(CONFIG_ASPEED_SOCINFO)		+= aspeed-socinfo.o
 obj-$(CONFIG_ASPEED_XDMA)		+= aspeed-xdma.o
-obj-$(CONFIG_ASPEED_VIDEO)		+= ast_video.o
 obj-$(CONFIG_ASPEED_ESPI)		+= aspeed-espi-ctrl.o \
 					   aspeed-espi-perif.o \
 					   aspeed-espi-vw.o \

@@ -10,12 +10,6 @@ config ASPEED_BMC_DEV
 config ASPEED_HOST_BMC_DEV
 	tristate "ASPEED Host BMC Device"
 
-config ASPEED_VIDEO
-	tristate "ASPEED Video Engine driver"
-	default n
-	help
-	  Driver for AST Video Engine
-
 config ASPEED_LPC_CTRL
 	tristate "ASPEED LPC firmware cycle control"
 	select REGMAP
