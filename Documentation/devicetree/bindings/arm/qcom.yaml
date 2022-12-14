@@ -692,6 +692,18 @@ properties:
           - const: google,zombie-sku512
           - const: qcom,sc7280
 
+      - description: Google Zombie with NVMe (newest rev)
+        items:
+          - const: google,zombie-sku2
+          - const: google,zombie-sku3
+          - const: google,zombie-sku515
+          - const: qcom,sc7280
+
+      - description: Google Zombie with LTE and NVMe (newest rev)
+        items:
+          - const: google,zombie-sku514
+          - const: qcom,sc7280
+
       - items:
           - enum:
               - lenovo,flex-5g
