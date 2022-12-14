@@ -469,24 +469,59 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *ssp, int idx)
 
 	/*
 	 * If the locks are the same as the unlocks, then there must have
-	 * been no readers on this index at some time in between. This does
-	 * not mean that there are no more readers, as one could have read
-	 * the current index but not have incremented the lock counter yet.
+	 * been no readers on this index at some point in this function.
+	 * But there might be more readers, as a task might have read
+	 * the current ->srcu_idx but not yet have incremented its CPU's
+	 * ->srcu_lock_count[idx] counter.  In fact, it is possible
+	 * that most of the tasks have been preempted between fetching
+	 * ->srcu_idx and incrementing ->srcu_lock_count[idx].  And there
+	 * could be almost (ULONG_MAX / sizeof(struct task_struct)) tasks
+	 * in a system whose address space was fully populated with memory.
+	 * Call this quantity Nt.
 	 *
-	 * So suppose that the updater is preempted here for so long
-	 * that more than ULONG_MAX non-nested readers come and go in
-	 * the meantime.  It turns out that this cannot result in overflow
-	 * because if a reader modifies its unlock count after we read it
-	 * above, then that reader's next load of ->srcu_idx is guaranteed
-	 * to get the new value, which will cause it to operate on the
-	 * other bank of counters, where it cannot contribute to the
-	 * overflow of these counters.  This means that there is a maximum
-	 * of 2*NR_CPUS increments, which cannot overflow given current
-	 * systems, especially not on 64-bit systems.
+	 * So suppose that the updater is preempted at this point in the
+	 * code for a long time.  That now-preempted updater has already
+	 * flipped ->srcu_idx (possibly during the preceding grace period),
+	 * done an smp_mb() (again, possibly during the preceding grace
+	 * period), and summed up the ->srcu_unlock_count[idx] counters.
+	 * How many times can a given one of the aforementioned Nt tasks
+	 * increment the old ->srcu_idx value's ->srcu_lock_count[idx]
+	 * counter, in the absence of nesting?
 	 *
-	 * OK, how about nesting?  This does impose a limit on nesting
-	 * of floor(ULONG_MAX/NR_CPUS/2), which should be sufficient,
-	 * especially on 64-bit systems.
+	 * It can clearly do so once, given that it has already fetched
+	 * the old value of ->srcu_idx and is just about to use that value
+	 * to index its increment of ->srcu_lock_count[idx].  But as soon as
+	 * it leaves that SRCU read-side critical section, it will increment
+	 * ->srcu_unlock_count[idx], which must follow the updater's above
+	 * read from that same value.  Thus, as soon the reading task does
+	 * an smp_mb() and a later fetch from ->srcu_idx, that task will be
+	 * guaranteed to get the new index.  Except that the increment of
+	 * ->srcu_unlock_count[idx] in __srcu_read_unlock() is after the
+	 * smp_mb(), and the fetch from ->srcu_idx in __srcu_read_lock()
+	 * is before the smp_mb().  Thus, that task might not see the new
+	 * value of ->srcu_idx until the -second- __srcu_read_lock(),
+	 * which in turn means that this task might well increment
+	 * ->srcu_lock_count[idx] for the old value of ->srcu_idx twice,
+	 * not just once.
+	 *
+	 * However, it is important to note that a given smp_mb() takes
+	 * effect not just for the task executing it, but also for any
+	 * later task running on that same CPU.
+	 *
+	 * That is, there can be almost Nt + Nc further increments of
+	 * ->srcu_lock_count[idx] for the old index, where Nc is the number
+	 * of CPUs.  But this is OK because the size of the task_struct
+	 * structure limits the value of Nt and current systems limit Nc
+	 * to a few thousand.
+	 *
+	 * OK, but what about nesting?  This does impose a limit on
+	 * nesting of half of the size of the task_struct structure
+	 * (measured in bytes), which should be sufficient.  A late 2022
+	 * TREE01 rcutorture run reported this size to be no less than
+	 * 9408 bytes, allowing up to 4704 levels of nesting, which is
+	 * comfortably beyond excessive.  Especially on 64-bit systems,
+	 * which are unlikely to be configured with an address space fully
+	 * populated with memory, at least not anytime soon.
 	 */
 	return srcu_readers_lock_idx(ssp, idx) == unlocks;
 }
