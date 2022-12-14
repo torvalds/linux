@@ -36,8 +36,13 @@ void sas_ata_device_link_abort(struct domain_device *dev, bool force_reset);
 int sas_execute_ata_cmd(struct domain_device *device, u8 *fis,
 			int force_phy_id);
 int smp_ata_check_ready_type(struct ata_link *link);
+int sas_discover_sata(struct domain_device *dev);
 #else
 
+static inline void sas_ata_disabled_notice(void)
+{
+	pr_notice_once("ATA device seen but CONFIG_SCSI_SAS_ATA=N\n");
+}
 
 static inline int dev_is_sata(struct domain_device *dev)
 {
@@ -102,6 +107,12 @@ static inline int sas_execute_ata_cmd(struct domain_device *device, u8 *fis,
 static inline int smp_ata_check_ready_type(struct ata_link *link)
 {
 	return 0;
+}
+
+static inline int sas_discover_sata(struct domain_device *dev)
+{
+	sas_ata_disabled_notice();
+	return -ENXIO;
 }
 #endif
 
