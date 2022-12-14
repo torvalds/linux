@@ -207,6 +207,7 @@ rk803_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct regmap *regmap;
 	struct regmap_config regmap_config = { };
 	int ret;
+	int cnt = 3;
 
 	rk803 = devm_kzalloc(dev, sizeof(*rk803), GFP_KERNEL);
 	if (!rk803)
@@ -222,21 +223,34 @@ rk803_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	rk803_power_on(rk803);
 
-	/* check chip id */
-	msb = i2c_smbus_read_byte_data(client, RK803_CHIPID1);
-	if (msb < 0) {
-		dev_err(dev, "failed to read the chip1 id at 0x%x\n",
-			RK803_CHIPID1);
-		ret = -EPROBE_DEFER;
-		goto error;
+	while (cnt--) {
+
+		if (ret)
+			usleep_range(1000, 2000);
+
+		/* check chip id */
+		msb = i2c_smbus_read_byte_data(client, RK803_CHIPID1);
+		if (msb < 0) {
+			dev_err(dev, "failed to read the chip1 id at 0x%x\n",
+				RK803_CHIPID1);
+			ret = -ENODEV;
+			continue;
+		}
+
+		lsb = i2c_smbus_read_byte_data(client, RK803_CHIPID2);
+		if (lsb < 0) {
+			dev_err(dev, "failed to read the chip2 id at 0x%x\n",
+				RK803_CHIPID2);
+			ret = -ENODEV;
+			continue;
+		}
+
+		ret = 0;
+		break;
 	}
-	lsb = i2c_smbus_read_byte_data(client, RK803_CHIPID2);
-	if (lsb < 0) {
-		dev_err(dev, "failed to read the chip2 id at 0x%x\n",
-			RK803_CHIPID2);
-		ret = lsb;
-		goto error;
-	}
+
+	if (ret)
+		return ret;
 
 	chipid = ((msb << 8) | lsb);
 	dev_info(dev, "chip id: 0x%x\n", (unsigned int)chipid);
