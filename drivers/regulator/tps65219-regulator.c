@@ -342,7 +342,7 @@ static int tps65219_regulator_probe(struct platform_device *pdev)
 					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(tps->dev, "failed to register %s regulator\n",
-				pdev->name);
+				regulators[i].name);
 			return PTR_ERR(rdev);
 		}
 		rdevtbl[i] = rdev;
