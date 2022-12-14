@@ -142,6 +142,8 @@ void dcn32_restore_mall_state(struct dc *dc,
 		struct dc_state *context,
 		struct mall_temp_config *temp_config);
 
+bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe);
+
 /* definitions for run time init of reg offsets */
 
 /* CLK SRC */
