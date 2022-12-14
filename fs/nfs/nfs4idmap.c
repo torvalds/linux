@@ -203,7 +203,7 @@ int nfs_idmap_init(void)
 	printk(KERN_NOTICE "NFS: Registering the %s key type\n",
 		key_type_id_resolver.name);
 
-	cred = prepare_kernel_cred(NULL);
+	cred = prepare_kernel_cred(&init_task);
 	if (!cred)
 		return -ENOMEM;
 

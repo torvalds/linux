@@ -13,6 +13,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <kunit/test.h>
 #include <linux/siphash.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -109,114 +110,88 @@ static const u32 test_vectors_hsiphash[64] = {
 };
 #endif
 
-static int __init siphash_test_init(void)
+#define chk(hash, vector, fmt...)			\
+	KUNIT_EXPECT_EQ_MSG(test, hash, vector, fmt)
+
+static void siphash_test(struct kunit *test)
 {
 	u8 in[64] __aligned(SIPHASH_ALIGNMENT);
 	u8 in_unaligned[65] __aligned(SIPHASH_ALIGNMENT);
 	u8 i;
-	int ret = 0;
 
 	for (i = 0; i < 64; ++i) {
 		in[i] = i;
 		in_unaligned[i + 1] = i;
-		if (siphash(in, i, &test_key_siphash) !=
-						test_vectors_siphash[i]) {
-			pr_info("siphash self-test aligned %u: FAIL\n", i + 1);
-			ret = -EINVAL;
-		}
-		if (siphash(in_unaligned + 1, i, &test_key_siphash) !=
-						test_vectors_siphash[i]) {
-			pr_info("siphash self-test unaligned %u: FAIL\n", i + 1);
-			ret = -EINVAL;
-		}
-		if (hsiphash(in, i, &test_key_hsiphash) !=
-						test_vectors_hsiphash[i]) {
-			pr_info("hsiphash self-test aligned %u: FAIL\n", i + 1);
-			ret = -EINVAL;
-		}
-		if (hsiphash(in_unaligned + 1, i, &test_key_hsiphash) !=
-						test_vectors_hsiphash[i]) {
-			pr_info("hsiphash self-test unaligned %u: FAIL\n", i + 1);
-			ret = -EINVAL;
-		}
+		chk(siphash(in, i, &test_key_siphash),
+		    test_vectors_siphash[i],
+		    "siphash self-test aligned %u: FAIL", i + 1);
+		chk(siphash(in_unaligned + 1, i, &test_key_siphash),
+		    test_vectors_siphash[i],
+		    "siphash self-test unaligned %u: FAIL", i + 1);
+		chk(hsiphash(in, i, &test_key_hsiphash),
+		    test_vectors_hsiphash[i],
+		    "hsiphash self-test aligned %u: FAIL", i + 1);
+		chk(hsiphash(in_unaligned + 1, i, &test_key_hsiphash),
+		    test_vectors_hsiphash[i],
+		    "hsiphash self-test unaligned %u: FAIL", i + 1);
 	}
-	if (siphash_1u64(0x0706050403020100ULL, &test_key_siphash) !=
-						test_vectors_siphash[8]) {
-		pr_info("siphash self-test 1u64: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (siphash_2u64(0x0706050403020100ULL, 0x0f0e0d0c0b0a0908ULL,
-			 &test_key_siphash) != test_vectors_siphash[16]) {
-		pr_info("siphash self-test 2u64: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (siphash_3u64(0x0706050403020100ULL, 0x0f0e0d0c0b0a0908ULL,
-			 0x1716151413121110ULL, &test_key_siphash) !=
-						test_vectors_siphash[24]) {
-		pr_info("siphash self-test 3u64: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (siphash_4u64(0x0706050403020100ULL, 0x0f0e0d0c0b0a0908ULL,
+	chk(siphash_1u64(0x0706050403020100ULL, &test_key_siphash),
+	    test_vectors_siphash[8],
+	    "siphash self-test 1u64: FAIL");
+	chk(siphash_2u64(0x0706050403020100ULL, 0x0f0e0d0c0b0a0908ULL,
+			 &test_key_siphash),
+	    test_vectors_siphash[16],
+	    "siphash self-test 2u64: FAIL");
+	chk(siphash_3u64(0x0706050403020100ULL, 0x0f0e0d0c0b0a0908ULL,
+			 0x1716151413121110ULL, &test_key_siphash),
+	    test_vectors_siphash[24],
+	    "siphash self-test 3u64: FAIL");
+	chk(siphash_4u64(0x0706050403020100ULL, 0x0f0e0d0c0b0a0908ULL,
 			 0x1716151413121110ULL, 0x1f1e1d1c1b1a1918ULL,
-			 &test_key_siphash) != test_vectors_siphash[32]) {
-		pr_info("siphash self-test 4u64: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (siphash_1u32(0x03020100U, &test_key_siphash) !=
-						test_vectors_siphash[4]) {
-		pr_info("siphash self-test 1u32: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (siphash_2u32(0x03020100U, 0x07060504U, &test_key_siphash) !=
-						test_vectors_siphash[8]) {
-		pr_info("siphash self-test 2u32: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (siphash_3u32(0x03020100U, 0x07060504U,
-			 0x0b0a0908U, &test_key_siphash) !=
-						test_vectors_siphash[12]) {
-		pr_info("siphash self-test 3u32: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (siphash_4u32(0x03020100U, 0x07060504U,
-			 0x0b0a0908U, 0x0f0e0d0cU, &test_key_siphash) !=
-						test_vectors_siphash[16]) {
-		pr_info("siphash self-test 4u32: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (hsiphash_1u32(0x03020100U, &test_key_hsiphash) !=
-						test_vectors_hsiphash[4]) {
-		pr_info("hsiphash self-test 1u32: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (hsiphash_2u32(0x03020100U, 0x07060504U, &test_key_hsiphash) !=
-						test_vectors_hsiphash[8]) {
-		pr_info("hsiphash self-test 2u32: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (hsiphash_3u32(0x03020100U, 0x07060504U,
-			  0x0b0a0908U, &test_key_hsiphash) !=
-						test_vectors_hsiphash[12]) {
-		pr_info("hsiphash self-test 3u32: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (hsiphash_4u32(0x03020100U, 0x07060504U,
-			  0x0b0a0908U, 0x0f0e0d0cU, &test_key_hsiphash) !=
-						test_vectors_hsiphash[16]) {
-		pr_info("hsiphash self-test 4u32: FAIL\n");
-		ret = -EINVAL;
-	}
-	if (!ret)
-		pr_info("self-tests: pass\n");
-	return ret;
+			 &test_key_siphash),
+	    test_vectors_siphash[32],
+	    "siphash self-test 4u64: FAIL");
+	chk(siphash_1u32(0x03020100U, &test_key_siphash),
+	    test_vectors_siphash[4],
+	    "siphash self-test 1u32: FAIL");
+	chk(siphash_2u32(0x03020100U, 0x07060504U, &test_key_siphash),
+	    test_vectors_siphash[8],
+	    "siphash self-test 2u32: FAIL");
+	chk(siphash_3u32(0x03020100U, 0x07060504U,
+			 0x0b0a0908U, &test_key_siphash),
+	    test_vectors_siphash[12],
+	    "siphash self-test 3u32: FAIL");
+	chk(siphash_4u32(0x03020100U, 0x07060504U,
+			 0x0b0a0908U, 0x0f0e0d0cU, &test_key_siphash),
+	    test_vectors_siphash[16],
+	    "siphash self-test 4u32: FAIL");
+	chk(hsiphash_1u32(0x03020100U, &test_key_hsiphash),
+	    test_vectors_hsiphash[4],
+	    "hsiphash self-test 1u32: FAIL");
+	chk(hsiphash_2u32(0x03020100U, 0x07060504U, &test_key_hsiphash),
+	    test_vectors_hsiphash[8],
+	    "hsiphash self-test 2u32: FAIL");
+	chk(hsiphash_3u32(0x03020100U, 0x07060504U,
+			  0x0b0a0908U, &test_key_hsiphash),
+	    test_vectors_hsiphash[12],
+	    "hsiphash self-test 3u32: FAIL");
+	chk(hsiphash_4u32(0x03020100U, 0x07060504U,
+			  0x0b0a0908U, 0x0f0e0d0cU, &test_key_hsiphash),
+	    test_vectors_hsiphash[16],
+	    "hsiphash self-test 4u32: FAIL");
 }
 
-static void __exit siphash_test_exit(void)
-{
-}
+static struct kunit_case siphash_test_cases[] = {
+	KUNIT_CASE(siphash_test),
+	{}
+};
 
-module_init(siphash_test_init);
-module_exit(siphash_test_exit);
+static struct kunit_suite siphash_test_suite = {
+	.name = "siphash",
+	.test_cases = siphash_test_cases,
+};
+
+kunit_test_suite(siphash_test_suite);
 
 MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 MODULE_LICENSE("Dual BSD/GPL");

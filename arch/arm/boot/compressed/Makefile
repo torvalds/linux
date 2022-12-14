@@ -124,7 +124,7 @@ LDFLAGS_vmlinux += --no-undefined
 LDFLAGS_vmlinux += -X
 # Report orphan sections
 ifdef CONFIG_LD_ORPHAN_WARN
-LDFLAGS_vmlinux += --orphan-handling=warn
+LDFLAGS_vmlinux += --orphan-handling=$(CONFIG_LD_ORPHAN_WARN_LEVEL)
 endif
 # Next argument is a linker script
 LDFLAGS_vmlinux += -T

@@ -2234,9 +2234,6 @@ config STRING_SELFTEST
 config TEST_STRING_HELPERS
 	tristate "Test functions located in the string_helpers module at runtime"
 
-config TEST_STRSCPY
-	tristate "Test strscpy*() family of functions at runtime"
-
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
 
@@ -2270,15 +2267,6 @@ config TEST_RHASHTABLE
 	  Enable this option to test the rhashtable functions at boot.
 
 	  If unsure, say N.
-
-config TEST_SIPHASH
-	tristate "Perform selftest on siphash functions"
-	help
-	  Enable this option to test the kernel's siphash (<linux/siphash.h>) hash
-	  functions on boot (or module load).
-
-	  This is intended to help people writing architecture-specific
-	  optimized versions.  If unsure, say N.
 
 config TEST_IDA
 	tristate "Perform selftest on IDA functions"
@@ -2606,6 +2594,22 @@ config HW_BREAKPOINT_KUNIT_TEST
 	  Tests for hw_breakpoint constraints accounting.
 
 	  If unsure, say N.
+
+config STRSCPY_KUNIT_TEST
+	tristate "Test strscpy*() family of functions at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+
+config SIPHASH_KUNIT_TEST
+	tristate "Perform selftest on siphash functions" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test the kernel's siphash (<linux/siphash.h>) hash
+	  functions on boot (or module load).
+
+	  This is intended to help people writing architecture-specific
+	  optimized versions.  If unsure, say N.
 
 config TEST_UDELAY
 	tristate "udelay test driver"

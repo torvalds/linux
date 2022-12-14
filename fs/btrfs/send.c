@@ -486,6 +486,11 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 	old_buf_len = p->buf_len;
 
 	/*
+	 * Allocate to the next largest kmalloc bucket size, to let
+	 * the fast path happen most of the time.
+	 */
+	len = kmalloc_size_roundup(len);
+	/*
 	 * First time the inline_buf does not suffice
 	 */
 	if (p->buf == p->inline_buf) {
@@ -498,11 +503,7 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 	if (!tmp_buf)
 		return -ENOMEM;
 	p->buf = tmp_buf;
-	/*
-	 * The real size of the buffer is bigger, this will let the fast path
-	 * happen most of the time
-	 */
-	p->buf_len = ksize(p->buf);
+	p->buf_len = len;
 
 	if (p->reversed) {
 		tmp_buf = p->buf + old_buf_len - path_len - 1;
