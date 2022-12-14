@@ -488,25 +488,10 @@ static void agp_amdk7_remove(struct pci_dev *pdev)
 	agp_put_bridge(bridge);
 }
 
-#ifdef CONFIG_PM
-
-static int agp_amdk7_suspend(struct pci_dev *pdev, pm_message_t state)
+static int agp_amdk7_resume(struct device *dev)
 {
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
-	return 0;
-}
-
-static int agp_amdk7_resume(struct pci_dev *pdev)
-{
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
 	return amd_irongate_driver.configure();
 }
-
-#endif /* CONFIG_PM */
 
 /* must be the same order as name table above */
 static const struct pci_device_id agp_amdk7_pci_table[] = {
@@ -539,15 +524,14 @@ static const struct pci_device_id agp_amdk7_pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, agp_amdk7_pci_table);
 
+static DEFINE_SIMPLE_DEV_PM_OPS(agp_amdk7_pm_ops, NULL, agp_amdk7_resume);
+
 static struct pci_driver agp_amdk7_pci_driver = {
 	.name		= "agpgart-amdk7",
 	.id_table	= agp_amdk7_pci_table,
 	.probe		= agp_amdk7_probe,
 	.remove		= agp_amdk7_remove,
-#ifdef CONFIG_PM
-	.suspend	= agp_amdk7_suspend,
-	.resume		= agp_amdk7_resume,
-#endif
+	.driver.pm	= &agp_amdk7_pm_ops,
 };
 
 static int __init agp_amdk7_init(void)

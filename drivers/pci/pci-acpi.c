@@ -67,7 +67,7 @@ static acpi_status acpi_match_rc(acpi_handle handle, u32 lvl, void *context,
 	unsigned long long uid;
 	acpi_status status;
 
-	status = acpi_evaluate_integer(handle, "_UID", NULL, &uid);
+	status = acpi_evaluate_integer(handle, METHOD_NAME__UID, NULL, &uid);
 	if (ACPI_FAILURE(status) || uid != *segment)
 		return AE_CTRL_DEPTH;
 
