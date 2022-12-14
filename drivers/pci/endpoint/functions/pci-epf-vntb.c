@@ -84,15 +84,15 @@ enum epf_ntb_bar {
  * |                                                  |
  * |                                                  |
  * |                                                  |
- * +-----------------------+--------------------------+ Base+span_offset
+ * +-----------------------+--------------------------+ Base+spad_offset
  * |                       |                          |
- * |    Peer Span Space    |    Span Space            |
+ * |    Peer Spad Space    |    Spad Space            |
  * |                       |                          |
  * |                       |                          |
- * +-----------------------+--------------------------+ Base+span_offset
- * |                       |                          |     +span_count * 4
+ * +-----------------------+--------------------------+ Base+spad_offset
+ * |                       |                          |     +spad_count * 4
  * |                       |                          |
- * |     Span Space        |   Peer Span Space        |
+ * |     Spad Space        |   Peer Spad Space        |
  * |                       |                          |
  * +-----------------------+--------------------------+
  *       Virtual PCI             PCIe Endpoint
