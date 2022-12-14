@@ -70,6 +70,9 @@
 
 #define MT7915_WED_RX_TOKEN_SIZE	12288
 
+#define MT7915_CRIT_TEMP_IDX		0
+#define MT7915_MAX_TEMP_IDX		1
+
 struct mt7915_vif;
 struct mt7915_sta;
 struct mt7915_dfs_pulse;
