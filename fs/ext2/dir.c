@@ -464,8 +464,7 @@ static int ext2_handle_dirsync(struct inode *dir)
 }
 
 int ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
-		struct page *page, void *page_addr, struct inode *inode,
-		bool update_times)
+		struct page *page, struct inode *inode, bool update_times)
 {
 	loff_t pos = page_offset(page) + offset_in_page(de);
 	unsigned len = ext2_rec_len_from_disk(de->rec_len);
@@ -586,16 +585,16 @@ out_unlock:
  * ext2_delete_entry deletes a directory entry by merging it with the
  * previous entry. Page is up-to-date.
  */
-int ext2_delete_entry (struct ext2_dir_entry_2 *dir, struct page *page,
-			char *kaddr)
+int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
+	char *kaddr = (char *)((unsigned long)dir & PAGE_MASK);
 	unsigned from = offset_in_page(dir) & ~(ext2_chunk_size(inode)-1);
 	unsigned to = offset_in_page(dir) +
 				ext2_rec_len_from_disk(dir->rec_len);
 	loff_t pos;
-	ext2_dirent * pde = NULL;
-	ext2_dirent * de = (ext2_dirent *) (kaddr + from);
+	ext2_dirent *pde = NULL;
+	ext2_dirent *de = (ext2_dirent *)(kaddr + from);
 	int err;
 
 	while ((char*)de < (char*)dir) {

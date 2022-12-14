@@ -731,13 +731,11 @@ extern int ext2_inode_by_name(struct inode *dir,
 extern int ext2_make_empty(struct inode *, struct inode *);
 extern struct ext2_dir_entry_2 *ext2_find_entry(struct inode *, const struct qstr *,
 						struct page **, void **res_page_addr);
-extern int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct page *page,
-			     char *kaddr);
+extern int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct page *page);
 extern int ext2_empty_dir (struct inode *);
 extern struct ext2_dir_entry_2 *ext2_dotdot(struct inode *dir, struct page **p, void **pa);
 int ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
-		struct page *page, void *page_addr, struct inode *inode,
-		bool update_times);
+		struct page *page, struct inode *inode, bool update_times);
 static inline void ext2_put_page(struct page *page, void *page_addr)
 {
 	kunmap_local(page_addr);
