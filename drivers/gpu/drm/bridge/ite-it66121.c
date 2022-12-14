@@ -515,16 +515,6 @@ static int it66121_get_edid_block(void *context, u8 *buf,
 	offset = (block % 2) * len;
 	block = block / 2;
 
-	ret = regmap_read(ctx->regmap, IT66121_INT_STATUS1_REG, &val);
-	if (ret)
-		return ret;
-
-	if (val & IT66121_INT_STATUS1_DDC_BUSHANG) {
-		ret = it66121_abort_ddc_ops(ctx);
-		if (ret)
-			return ret;
-	}
-
 	ret = it66121_clear_ddc_fifo(ctx);
 	if (ret)
 		return ret;
@@ -544,16 +534,6 @@ static int it66121_get_edid_block(void *context, u8 *buf,
 		ret = it66121_wait_ddc_ready(ctx);
 		if (ret)
 			return ret;
-
-		ret = regmap_read(ctx->regmap, IT66121_INT_STATUS1_REG, &val);
-		if (ret)
-			return ret;
-
-		if (val & IT66121_INT_STATUS1_DDC_BUSHANG) {
-			ret = it66121_abort_ddc_ops(ctx);
-			if (ret)
-				return ret;
-		}
 
 		ret = it66121_preamble_ddc(ctx);
 		if (ret)
@@ -585,8 +565,10 @@ static int it66121_get_edid_block(void *context, u8 *buf,
 		remain -= cnt;
 
 		ret = it66121_wait_ddc_ready(ctx);
-		if (ret)
+		if (ret) {
+			it66121_abort_ddc_ops(ctx);
 			return ret;
+		}
 
 		ret = regmap_noinc_read(ctx->regmap, IT66121_DDC_RD_FIFO_REG,
 					buf, cnt);
@@ -671,11 +653,7 @@ static int it66121_bridge_attach(struct drm_bridge *bridge,
 	/* Per programming manual, sleep here for bridge to settle */
 	msleep(50);
 
-	/* Start interrupts */
-	return regmap_write_bits(ctx->regmap, IT66121_INT_MASK1_REG,
-				 IT66121_INT_MASK1_DDC_NOACK |
-				 IT66121_INT_MASK1_DDC_FIFOERR |
-				 IT66121_INT_MASK1_DDC_BUSHANG, 0);
+	return 0;
 }
 
 static int it66121_set_mute(struct it66121_ctx *ctx, bool mute)
@@ -926,21 +904,14 @@ static irqreturn_t it66121_irq_threaded_handler(int irq, void *dev_id)
 	ret = regmap_read(ctx->regmap, IT66121_INT_STATUS1_REG, &val);
 	if (ret) {
 		dev_err(dev, "Cannot read STATUS1_REG %d\n", ret);
-	} else {
-		if (val & IT66121_INT_STATUS1_DDC_FIFOERR)
-			it66121_clear_ddc_fifo(ctx);
-		if (val & (IT66121_INT_STATUS1_DDC_BUSHANG |
-			   IT66121_INT_STATUS1_DDC_NOACK))
-			it66121_abort_ddc_ops(ctx);
-		if (val & IT66121_INT_STATUS1_HPD_STATUS) {
-			regmap_write_bits(ctx->regmap, IT66121_INT_CLR1_REG,
-					  IT66121_INT_CLR1_HPD, IT66121_INT_CLR1_HPD);
+	} else if (val & IT66121_INT_STATUS1_HPD_STATUS) {
+		regmap_write_bits(ctx->regmap, IT66121_INT_CLR1_REG,
+				  IT66121_INT_CLR1_HPD, IT66121_INT_CLR1_HPD);
 
-			status = it66121_is_hpd_detect(ctx) ? connector_status_connected
-							    : connector_status_disconnected;
+		status = it66121_is_hpd_detect(ctx) ? connector_status_connected
+			: connector_status_disconnected;
 
-			event = true;
-		}
+		event = true;
 	}
 
 	regmap_write_bits(ctx->regmap, IT66121_SYS_STATUS_REG,
