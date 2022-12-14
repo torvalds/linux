@@ -464,6 +464,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_alloc_si);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alloc_si);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_free_pages);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_shmem_page_flag);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mmput);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sched_pelt_multiplier);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alloc_pages_reclaim_bypass);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alloc_pages_failure_bypass);
