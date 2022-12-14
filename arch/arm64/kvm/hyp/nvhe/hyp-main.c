@@ -1131,8 +1131,6 @@ static void handle___pkvm_iommu_driver_init(struct kvm_cpu_context *host_ctxt)
 	DECLARE_REG(void *, data, host_ctxt, 2);
 	DECLARE_REG(size_t, size, host_ctxt, 3);
 
-	/* __pkvm_iommu_driver_init expects hyp_va as it can be called from EL2 as a function. */
-	drv = kern_hyp_va(drv);
 	data = kern_hyp_va(data);
 
 	cpu_reg(host_ctxt, 1) = __pkvm_iommu_driver_init(drv, data, size);
@@ -1148,8 +1146,6 @@ static void handle___pkvm_iommu_register(struct kvm_cpu_context *host_ctxt)
 	DECLARE_REG(void *, mem, host_ctxt, 6);
 	DECLARE_REG(size_t, mem_size, host_ctxt, 7);
 
-	/* drv_id is the hyp address of the driver. */
-	drv_id = kern_hyp_va(drv_id);
 	cpu_reg(host_ctxt, 1) = __pkvm_iommu_register(dev_id, drv_id, dev_pa,
 						      dev_size, parent_id,
 						      mem, mem_size);
