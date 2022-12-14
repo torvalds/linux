@@ -27,6 +27,10 @@ struct gh_resource {
 	enum gh_resource_type type;
 	u64 capid;
 	unsigned int irq;
+
+	/* To help allocator in vm manager */
+	struct list_head list;
+	u32 rm_label;
 };
 
 /**
