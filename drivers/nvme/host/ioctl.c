@@ -219,6 +219,7 @@ static int nvme_submit_user_cmd(struct request_queue *q,
 		void __user *meta_buffer, unsigned meta_len, u32 meta_seed,
 		u64 *result, unsigned timeout, unsigned int flags)
 {
+	struct nvme_ns *ns = q->queuedata;
 	struct nvme_ctrl *ctrl;
 	struct request *req;
 	void *meta = NULL;
@@ -241,8 +242,8 @@ static int nvme_submit_user_cmd(struct request_queue *q,
 	bio = req->bio;
 	ctrl = nvme_req(req)->ctrl;
 
-	ret = nvme_execute_passthru_rq(req, &effects);
-
+	effects = nvme_passthru_start(ctrl, ns, cmd->common.opcode);
+	ret = nvme_execute_rq(req, false);
 	if (result)
 		*result = le64_to_cpu(nvme_req(req)->result.u64);
 	if (meta)
