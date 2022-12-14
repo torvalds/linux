@@ -1214,6 +1214,7 @@ int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 
 	return tz->ops->get_trip_type(tz, trip_id, &trip->type);
 }
+EXPORT_SYMBOL_GPL(__thermal_zone_get_trip);
 
 int thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 			  struct thermal_trip *trip)

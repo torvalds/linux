@@ -270,7 +270,7 @@ static int qpnp_tm_set_trip_temp(struct thermal_zone_device *tz, int trip_id, in
 	struct thermal_trip trip;
 	int ret;
 
-	ret = thermal_zone_get_trip(chip->tz_dev, trip_id, &trip);
+	ret = __thermal_zone_get_trip(chip->tz_dev, trip_id, &trip);
 	if (ret)
 		return ret;
 
