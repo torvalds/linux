@@ -2921,7 +2921,8 @@ struct kfree_rcu_cpu_work {
  * @lock: Synchronize access to this structure
  * @monitor_work: Promote @head to @head_free after KFREE_DRAIN_JIFFIES
  * @initialized: The @rcu_work fields have been initialized
- * @count: Number of objects for which GP not started
+ * @head_count: Number of objects in rcu_head singular list
+ * @bulk_count: Number of objects in bulk-list
  * @bkvcache:
  *	A simple cache list that contains objects for reuse purpose.
  *	In order to save some per-cpu space the list is singular.
@@ -2939,13 +2940,19 @@ struct kfree_rcu_cpu_work {
  * the interactions with the slab allocators.
  */
 struct kfree_rcu_cpu {
+	// Objects queued on a linked list
+	// through their rcu_head structures.
 	struct rcu_head *head;
+	atomic_t head_count;
+
+	// Objects queued on a bulk-list.
 	struct list_head bulk_head[FREE_N_CHANNELS];
+	atomic_t bulk_count[FREE_N_CHANNELS];
+
 	struct kfree_rcu_cpu_work krw_arr[KFREE_N_BATCHES];
 	raw_spinlock_t lock;
 	struct delayed_work monitor_work;
 	bool initialized;
-	int count;
 
 	struct delayed_work page_cache_work;
 	atomic_t backoff_page_cache_fill;
@@ -3168,12 +3175,23 @@ need_offload_krc(struct kfree_rcu_cpu *krcp)
 	return !!READ_ONCE(krcp->head);
 }
 
+static int krc_count(struct kfree_rcu_cpu *krcp)
+{
+	int sum = atomic_read(&krcp->head_count);
+	int i;
+
+	for (i = 0; i < FREE_N_CHANNELS; i++)
+		sum += atomic_read(&krcp->bulk_count[i]);
+
+	return sum;
+}
+
 static void
 schedule_delayed_monitor_work(struct kfree_rcu_cpu *krcp)
 {
 	long delay, delay_left;
 
-	delay = READ_ONCE(krcp->count) >= KVFREE_BULK_MAX_ENTR ? 1:KFREE_DRAIN_JIFFIES;
+	delay = krc_count(krcp) >= KVFREE_BULK_MAX_ENTR ? 1:KFREE_DRAIN_JIFFIES;
 	if (delayed_work_pending(&krcp->monitor_work)) {
 		delay_left = krcp->monitor_work.timer.expires - jiffies;
 		if (delay < delay_left)
@@ -3211,8 +3229,10 @@ static void kfree_rcu_monitor(struct work_struct *work)
 			// Channel 1 corresponds to the SLAB-pointer bulk path.
 			// Channel 2 corresponds to vmalloc-pointer bulk path.
 			for (j = 0; j < FREE_N_CHANNELS; j++) {
-				if (list_empty(&krwp->bulk_head_free[j]))
+				if (list_empty(&krwp->bulk_head_free[j])) {
 					list_replace_init(&krcp->bulk_head[j], &krwp->bulk_head_free[j]);
+					atomic_set(&krcp->bulk_count[j], 0);
+				}
 			}
 
 			// Channel 3 corresponds to both SLAB and vmalloc
@@ -3220,14 +3240,13 @@ static void kfree_rcu_monitor(struct work_struct *work)
 			if (!krwp->head_free) {
 				krwp->head_free = krcp->head;
 				WRITE_ONCE(krcp->head, NULL);
+				atomic_set(&krcp->head_count, 0);
 
 				// Take a snapshot for this krwp. Please note no more
 				// any objects can be added to attached head_free channel
 				// therefore fixate a GP for it here.
 				krwp->head_free_gp_snap = get_state_synchronize_rcu();
 			}
-
-			WRITE_ONCE(krcp->count, 0);
 
 			// One work is per one batch, so there are three
 			// "free channels", the batch can handle. It can
@@ -3365,6 +3384,8 @@ add_ptr_to_bulk_krc_lock(struct kfree_rcu_cpu **krcp,
 	// Finally insert and update the GP for this page.
 	bnode->records[bnode->nr_records++] = ptr;
 	bnode->gp_snap = get_state_synchronize_rcu();
+	atomic_inc(&(*krcp)->bulk_count[idx]);
+
 	return true;
 }
 
@@ -3418,10 +3439,9 @@ void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 		head->func = ptr;
 		head->next = krcp->head;
 		WRITE_ONCE(krcp->head, head);
+		atomic_inc(&krcp->head_count);
 		success = true;
 	}
-
-	WRITE_ONCE(krcp->count, krcp->count + 1);
 
 	// Set timer to drain after KFREE_DRAIN_JIFFIES.
 	if (rcu_scheduler_active == RCU_SCHEDULER_RUNNING)
@@ -3453,7 +3473,7 @@ kfree_rcu_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 	for_each_possible_cpu(cpu) {
 		struct kfree_rcu_cpu *krcp = per_cpu_ptr(&krc, cpu);
 
-		count += READ_ONCE(krcp->count);
+		count += krc_count(krcp);
 		count += READ_ONCE(krcp->nr_bkv_objs);
 		atomic_set(&krcp->backoff_page_cache_fill, 1);
 	}
@@ -3470,7 +3490,7 @@ kfree_rcu_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		int count;
 		struct kfree_rcu_cpu *krcp = per_cpu_ptr(&krc, cpu);
 
-		count = krcp->count;
+		count = krc_count(krcp);
 		count += drain_page_cache(krcp);
 		kfree_rcu_monitor(&krcp->monitor_work.work);
 
