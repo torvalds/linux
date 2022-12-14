@@ -146,6 +146,17 @@ static void gf128mul_x8_lle(be128 *x)
 	x->a = cpu_to_be64((a >> 8) ^ (_tt << 48));
 }
 
+/* time invariant version of gf128mul_x8_lle */
+static void gf128mul_x8_lle_ti(be128 *x)
+{
+	u64 a = be64_to_cpu(x->a);
+	u64 b = be64_to_cpu(x->b);
+	u64 _tt = xda_le(b & 0xff); /* avoid table lookup */
+
+	x->b = cpu_to_be64((b >> 8) | (a << 56));
+	x->a = cpu_to_be64((a >> 8) ^ (_tt << 48));
+}
+
 static void gf128mul_x8_bbe(be128 *x)
 {
 	u64 a = be64_to_cpu(x->a);
@@ -169,38 +180,47 @@ EXPORT_SYMBOL(gf128mul_x8_ble);
 
 void gf128mul_lle(be128 *r, const be128 *b)
 {
-	be128 p[8];
+	/*
+	 * The p array should be aligned to twice the size of its element type,
+	 * so that every even/odd pair is guaranteed to share a cacheline
+	 * (assuming a cacheline size of 32 bytes or more, which is by far the
+	 * most common). This ensures that each be128_xor() call in the loop
+	 * takes the same amount of time regardless of the value of 'ch', which
+	 * is derived from function parameter 'b', which is commonly used as a
+	 * key, e.g., for GHASH. The odd array elements are all set to zero,
+	 * making each be128_xor() a NOP if its associated bit in 'ch' is not
+	 * set, and this is equivalent to calling be128_xor() conditionally.
+	 * This approach aims to avoid leaking information about such keys
+	 * through execution time variances.
+	 *
+	 * Unfortunately, __aligned(16) or higher does not work on x86 for
+	 * variables on the stack so we need to perform the alignment by hand.
+	 */
+	be128 array[16 + 3] = {};
+	be128 *p = PTR_ALIGN(&array[0], 2 * sizeof(be128));
 	int i;
 
 	p[0] = *r;
 	for (i = 0; i < 7; ++i)
-		gf128mul_x_lle(&p[i + 1], &p[i]);
+		gf128mul_x_lle(&p[2 * i + 2], &p[2 * i]);
 
 	memset(r, 0, sizeof(*r));
 	for (i = 0;;) {
 		u8 ch = ((u8 *)b)[15 - i];
 
-		if (ch & 0x80)
-			be128_xor(r, r, &p[0]);
-		if (ch & 0x40)
-			be128_xor(r, r, &p[1]);
-		if (ch & 0x20)
-			be128_xor(r, r, &p[2]);
-		if (ch & 0x10)
-			be128_xor(r, r, &p[3]);
-		if (ch & 0x08)
-			be128_xor(r, r, &p[4]);
-		if (ch & 0x04)
-			be128_xor(r, r, &p[5]);
-		if (ch & 0x02)
-			be128_xor(r, r, &p[6]);
-		if (ch & 0x01)
-			be128_xor(r, r, &p[7]);
+		be128_xor(r, r, &p[ 0 + !(ch & 0x80)]);
+		be128_xor(r, r, &p[ 2 + !(ch & 0x40)]);
+		be128_xor(r, r, &p[ 4 + !(ch & 0x20)]);
+		be128_xor(r, r, &p[ 6 + !(ch & 0x10)]);
+		be128_xor(r, r, &p[ 8 + !(ch & 0x08)]);
+		be128_xor(r, r, &p[10 + !(ch & 0x04)]);
+		be128_xor(r, r, &p[12 + !(ch & 0x02)]);
+		be128_xor(r, r, &p[14 + !(ch & 0x01)]);
 
 		if (++i >= 16)
 			break;
 
-		gf128mul_x8_lle(r);
+		gf128mul_x8_lle_ti(r); /* use the time invariant version */
 	}
 }
 EXPORT_SYMBOL(gf128mul_lle);

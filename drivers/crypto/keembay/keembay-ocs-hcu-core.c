@@ -226,7 +226,7 @@ static void kmb_ocs_hcu_dma_cleanup(struct ahash_request *req,
  */
 static int kmb_ocs_dma_prepare(struct ahash_request *req)
 {
-	struct ocs_hcu_rctx *rctx = ahash_request_ctx(req);
+	struct ocs_hcu_rctx *rctx = ahash_request_ctx_dma(req);
 	struct device *dev = rctx->hcu_dev->dev;
 	unsigned int remainder = 0;
 	unsigned int total;
@@ -356,7 +356,7 @@ cleanup:
 
 static void kmb_ocs_hcu_secure_cleanup(struct ahash_request *req)
 {
-	struct ocs_hcu_rctx *rctx = ahash_request_ctx(req);
+	struct ocs_hcu_rctx *rctx = ahash_request_ctx_dma(req);
 
 	/* Clear buffer of any data. */
 	memzero_explicit(rctx->buffer, sizeof(rctx->buffer));
@@ -374,7 +374,7 @@ static int kmb_ocs_hcu_handle_queue(struct ahash_request *req)
 
 static int prepare_ipad(struct ahash_request *req)
 {
-	struct ocs_hcu_rctx *rctx = ahash_request_ctx(req);
+	struct ocs_hcu_rctx *rctx = ahash_request_ctx_dma(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ocs_hcu_ctx *ctx = crypto_ahash_ctx(tfm);
 	int i;
@@ -414,7 +414,7 @@ static int kmb_ocs_hcu_do_one_request(struct crypto_engine *engine, void *areq)
 						 base);
 	struct ocs_hcu_dev *hcu_dev = kmb_ocs_hcu_find_dev(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ocs_hcu_rctx *rctx = ahash_request_ctx(req);
+	struct ocs_hcu_rctx *rctx = ahash_request_ctx_dma(req);
 	struct ocs_hcu_ctx *tctx = crypto_ahash_ctx(tfm);
 	int rc;
 	int i;
@@ -561,7 +561,7 @@ error:
 static int kmb_ocs_hcu_init(struct ahash_request *req)
 {
 	struct ocs_hcu_dev *hcu_dev = kmb_ocs_hcu_find_dev(req);
-	struct ocs_hcu_rctx *rctx = ahash_request_ctx(req);
+	struct ocs_hcu_rctx *rctx = ahash_request_ctx_dma(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ocs_hcu_ctx *ctx = crypto_ahash_ctx(tfm);
 
@@ -614,7 +614,7 @@ static int kmb_ocs_hcu_init(struct ahash_request *req)
 
 static int kmb_ocs_hcu_update(struct ahash_request *req)
 {
-	struct ocs_hcu_rctx *rctx = ahash_request_ctx(req);
+	struct ocs_hcu_rctx *rctx = ahash_request_ctx_dma(req);
 	int rc;
 
 	if (!req->nbytes)
@@ -650,7 +650,7 @@ static int kmb_ocs_hcu_update(struct ahash_request *req)
 /* Common logic for kmb_ocs_hcu_final() and kmb_ocs_hcu_finup(). */
 static int kmb_ocs_hcu_fin_common(struct ahash_request *req)
 {
-	struct ocs_hcu_rctx *rctx = ahash_request_ctx(req);
+	struct ocs_hcu_rctx *rctx = ahash_request_ctx_dma(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ocs_hcu_ctx *ctx = crypto_ahash_ctx(tfm);
 	int rc;
@@ -687,7 +687,7 @@ static int kmb_ocs_hcu_fin_common(struct ahash_request *req)
 
 static int kmb_ocs_hcu_final(struct ahash_request *req)
 {
-	struct ocs_hcu_rctx *rctx = ahash_request_ctx(req);
+	struct ocs_hcu_rctx *rctx = ahash_request_ctx_dma(req);
 
 	rctx->sg_data_total = 0;
 	rctx->sg_data_offset = 0;
@@ -698,7 +698,7 @@ static int kmb_ocs_hcu_final(struct ahash_request *req)
 
 static int kmb_ocs_hcu_finup(struct ahash_request *req)
 {
-	struct ocs_hcu_rctx *rctx = ahash_request_ctx(req);
+	struct ocs_hcu_rctx *rctx = ahash_request_ctx_dma(req);
 
 	rctx->sg_data_total = req->nbytes;
 	rctx->sg_data_offset = 0;
@@ -726,7 +726,7 @@ static int kmb_ocs_hcu_digest(struct ahash_request *req)
 
 static int kmb_ocs_hcu_export(struct ahash_request *req, void *out)
 {
-	struct ocs_hcu_rctx *rctx = ahash_request_ctx(req);
+	struct ocs_hcu_rctx *rctx = ahash_request_ctx_dma(req);
 
 	/* Intermediate data is always stored and applied per request. */
 	memcpy(out, rctx, sizeof(*rctx));
@@ -736,7 +736,7 @@ static int kmb_ocs_hcu_export(struct ahash_request *req, void *out)
 
 static int kmb_ocs_hcu_import(struct ahash_request *req, const void *in)
 {
-	struct ocs_hcu_rctx *rctx = ahash_request_ctx(req);
+	struct ocs_hcu_rctx *rctx = ahash_request_ctx_dma(req);
 
 	/* Intermediate data is always stored and applied per request. */
 	memcpy(rctx, in, sizeof(*rctx));
@@ -822,8 +822,8 @@ err_free_ahash:
 /* Set request size and initialize tfm context. */
 static void __cra_init(struct crypto_tfm *tfm, struct ocs_hcu_ctx *ctx)
 {
-	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
-				 sizeof(struct ocs_hcu_rctx));
+	crypto_ahash_set_reqsize_dma(__crypto_ahash_cast(tfm),
+				     sizeof(struct ocs_hcu_rctx));
 
 	/* Init context to 0. */
 	memzero_explicit(ctx, sizeof(*ctx));
