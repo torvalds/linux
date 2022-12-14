@@ -325,24 +325,8 @@ out_free_desc:
 	return err;
 }
 
-/**
- * fsverity_file_open() - prepare to open a verity file
- * @inode: the inode being opened
- * @filp: the struct file being set up
- *
- * When opening a verity file, deny the open if it is for writing.  Otherwise,
- * set up the inode's ->i_verity_info if not already done.
- *
- * When combined with fscrypt, this must be called after fscrypt_file_open().
- * Otherwise, we won't have the key set up to decrypt the verity metadata.
- *
- * Return: 0 on success, -errno on failure
- */
-int fsverity_file_open(struct inode *inode, struct file *filp)
+int __fsverity_file_open(struct inode *inode, struct file *filp)
 {
-	if (!IS_VERITY(inode))
-		return 0;
-
 	if (filp->f_mode & FMODE_WRITE) {
 		pr_debug("Denying opening verity file (ino %lu) for write\n",
 			 inode->i_ino);
@@ -351,7 +335,7 @@ int fsverity_file_open(struct inode *inode, struct file *filp)
 
 	return ensure_verity_info(inode);
 }
-EXPORT_SYMBOL_GPL(fsverity_file_open);
+EXPORT_SYMBOL_GPL(__fsverity_file_open);
 
 /**
  * fsverity_prepare_setattr() - prepare to change a verity inode's attributes
