@@ -342,4 +342,14 @@ enum scsi_version_descriptor {
 	SCSI_VERSION_DESCRIPTOR_SRP	= 0x0940
 };
 
+enum scsi_support_opcode {
+	SCSI_SUPPORT_NO_INFO		= 0,
+	SCSI_SUPPORT_NOT_SUPPORTED	= 1,
+	SCSI_SUPPORT_FULL		= 3,
+	SCSI_SUPPORT_VENDOR		= 5,
+};
+
+#define SCSI_CONTROL_MASK 0
+#define SCSI_GROUP_NUMBER_MASK 0
+
 #endif /* _SCSI_PROTO_H_ */
