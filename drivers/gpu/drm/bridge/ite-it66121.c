@@ -506,9 +506,6 @@ static int it66121_get_edid_block(void *context, u8 *buf,
 	while (remain > 0) {
 		cnt = (remain > IT66121_EDID_FIFO_SIZE) ?
 				IT66121_EDID_FIFO_SIZE : remain;
-		ret = it66121_preamble_ddc(ctx);
-		if (ret)
-			return ret;
 
 		ret = regmap_write(ctx->regmap, IT66121_DDC_COMMAND_REG,
 				   IT66121_DDC_COMMAND_FIFO_CLR);
@@ -516,15 +513,6 @@ static int it66121_get_edid_block(void *context, u8 *buf,
 			return ret;
 
 		ret = it66121_wait_ddc_ready(ctx);
-		if (ret)
-			return ret;
-
-		ret = it66121_preamble_ddc(ctx);
-		if (ret)
-			return ret;
-
-		ret = regmap_write(ctx->regmap, IT66121_DDC_HEADER_REG,
-				   IT66121_DDC_HEADER_EDID);
 		if (ret)
 			return ret;
 
@@ -842,9 +830,25 @@ static struct edid *it66121_bridge_get_edid(struct drm_bridge *bridge,
 {
 	struct it66121_ctx *ctx = container_of(bridge, struct it66121_ctx, bridge);
 	struct edid *edid;
+	int ret;
 
 	mutex_lock(&ctx->lock);
+	ret = it66121_preamble_ddc(ctx);
+	if (ret) {
+		edid = ERR_PTR(ret);
+		goto out_unlock;
+	}
+
+	ret = regmap_write(ctx->regmap, IT66121_DDC_HEADER_REG,
+			   IT66121_DDC_HEADER_EDID);
+	if (ret) {
+		edid = ERR_PTR(ret);
+		goto out_unlock;
+	}
+
 	edid = drm_do_get_edid(connector, it66121_get_edid_block, ctx);
+
+out_unlock:
 	mutex_unlock(&ctx->lock);
 
 	return edid;
