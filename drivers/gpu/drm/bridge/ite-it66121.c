@@ -68,6 +68,7 @@
 #define IT66121_AFE_XP_ENO			BIT(4)
 #define IT66121_AFE_XP_RESETB			BIT(3)
 #define IT66121_AFE_XP_PWDI			BIT(2)
+#define IT6610_AFE_XP_BYPASS			BIT(0)
 
 #define IT66121_AFE_IP_REG			0x64
 #define IT66121_AFE_IP_GAINBIT			BIT(7)
@@ -284,7 +285,13 @@
 
 #define IT66121_AFE_CLK_HIGH			80000 /* Khz */
 
+enum chip_id {
+	ID_IT6610,
+	ID_IT66121,
+};
+
 struct it66121_chip_info {
+	enum chip_id id;
 	u16 vid, pid;
 };
 
@@ -391,16 +398,22 @@ static int it66121_configure_afe(struct it66121_ctx *ctx,
 
 		ret = regmap_write_bits(ctx->regmap, IT66121_AFE_IP_REG,
 					IT66121_AFE_IP_GAINBIT |
-					IT66121_AFE_IP_ER0 |
-					IT66121_AFE_IP_EC1,
+					IT66121_AFE_IP_ER0,
 					IT66121_AFE_IP_GAINBIT);
 		if (ret)
 			return ret;
 
-		ret = regmap_write_bits(ctx->regmap, IT66121_AFE_XP_EC1_REG,
-					IT66121_AFE_XP_EC1_LOWCLK, 0x80);
-		if (ret)
-			return ret;
+		if (ctx->info->id == ID_IT66121) {
+			ret = regmap_write_bits(ctx->regmap, IT66121_AFE_IP_REG,
+						IT66121_AFE_IP_EC1, 0);
+			if (ret)
+				return ret;
+
+			ret = regmap_write_bits(ctx->regmap, IT66121_AFE_XP_EC1_REG,
+						IT66121_AFE_XP_EC1_LOWCLK, 0x80);
+			if (ret)
+				return ret;
+		}
 	} else {
 		ret = regmap_write_bits(ctx->regmap, IT66121_AFE_XP_REG,
 					IT66121_AFE_XP_GAINBIT |
@@ -411,17 +424,24 @@ static int it66121_configure_afe(struct it66121_ctx *ctx,
 
 		ret = regmap_write_bits(ctx->regmap, IT66121_AFE_IP_REG,
 					IT66121_AFE_IP_GAINBIT |
-					IT66121_AFE_IP_ER0 |
-					IT66121_AFE_IP_EC1, IT66121_AFE_IP_ER0 |
-					IT66121_AFE_IP_EC1);
+					IT66121_AFE_IP_ER0,
+					IT66121_AFE_IP_ER0);
 		if (ret)
 			return ret;
 
-		ret = regmap_write_bits(ctx->regmap, IT66121_AFE_XP_EC1_REG,
-					IT66121_AFE_XP_EC1_LOWCLK,
-					IT66121_AFE_XP_EC1_LOWCLK);
-		if (ret)
-			return ret;
+		if (ctx->info->id == ID_IT66121) {
+			ret = regmap_write_bits(ctx->regmap, IT66121_AFE_IP_REG,
+						IT66121_AFE_IP_EC1,
+						IT66121_AFE_IP_EC1);
+			if (ret)
+				return ret;
+
+			ret = regmap_write_bits(ctx->regmap, IT66121_AFE_XP_EC1_REG,
+						IT66121_AFE_XP_EC1_LOWCLK,
+						IT66121_AFE_XP_EC1_LOWCLK);
+			if (ret)
+				return ret;
+		}
 	}
 
 	/* Clear reset flags */
@@ -429,6 +449,14 @@ static int it66121_configure_afe(struct it66121_ctx *ctx,
 				IT66121_SW_RST_REF | IT66121_SW_RST_VID, 0);
 	if (ret)
 		return ret;
+
+	if (ctx->info->id == ID_IT6610) {
+		ret = regmap_write_bits(ctx->regmap, IT66121_AFE_XP_REG,
+					IT6610_AFE_XP_BYPASS,
+					IT6610_AFE_XP_BYPASS);
+		if (ret)
+			return ret;
+	}
 
 	return it66121_fire_afe(ctx);
 }
@@ -491,7 +519,6 @@ static int it66121_get_edid_block(void *context, u8 *buf,
 				  unsigned int block, size_t len)
 {
 	struct it66121_ctx *ctx = context;
-	unsigned int val;
 	int remain = len;
 	int offset = 0;
 	int ret, cnt;
@@ -572,10 +599,12 @@ static int it66121_bridge_attach(struct drm_bridge *bridge,
 	if (ret)
 		return ret;
 
-	ret = regmap_write_bits(ctx->regmap, IT66121_CLK_BANK_REG,
-				IT66121_CLK_BANK_PWROFF_RCLK, 0);
-	if (ret)
-		return ret;
+	if (ctx->info->id == ID_IT66121) {
+		ret = regmap_write_bits(ctx->regmap, IT66121_CLK_BANK_REG,
+					IT66121_CLK_BANK_PWROFF_RCLK, 0);
+		if (ret)
+			return ret;
+	}
 
 	ret = regmap_write_bits(ctx->regmap, IT66121_INT_REG,
 				IT66121_INT_TX_CLK_OFF, 0);
@@ -713,6 +742,24 @@ static void it66121_bridge_disable(struct drm_bridge *bridge,
 	ctx->connector = NULL;
 }
 
+static int it66121_bridge_check(struct drm_bridge *bridge,
+				struct drm_bridge_state *bridge_state,
+				struct drm_crtc_state *crtc_state,
+				struct drm_connector_state *conn_state)
+{
+	struct it66121_ctx *ctx = container_of(bridge, struct it66121_ctx, bridge);
+
+	if (ctx->info->id == ID_IT6610) {
+		/* The IT6610 only supports these settings */
+		bridge_state->input_bus_cfg.flags |= DRM_BUS_FLAG_DE_HIGH |
+			DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE;
+		bridge_state->input_bus_cfg.flags &=
+			~DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE;
+	}
+
+	return 0;
+}
+
 static
 void it66121_bridge_mode_set(struct drm_bridge *bridge,
 			     const struct drm_display_mode *mode,
@@ -758,9 +805,12 @@ void it66121_bridge_mode_set(struct drm_bridge *bridge,
 	if (regmap_write(ctx->regmap, IT66121_HDMI_MODE_REG, IT66121_HDMI_MODE_HDMI))
 		goto unlock;
 
-	if (regmap_write_bits(ctx->regmap, IT66121_CLK_BANK_REG,
-			      IT66121_CLK_BANK_PWROFF_TXCLK, IT66121_CLK_BANK_PWROFF_TXCLK))
+	if (ctx->info->id == ID_IT66121 &&
+	    regmap_write_bits(ctx->regmap, IT66121_CLK_BANK_REG,
+			      IT66121_CLK_BANK_PWROFF_TXCLK,
+			      IT66121_CLK_BANK_PWROFF_TXCLK)) {
 		goto unlock;
+	}
 
 	if (it66121_configure_input(ctx))
 		goto unlock;
@@ -768,7 +818,11 @@ void it66121_bridge_mode_set(struct drm_bridge *bridge,
 	if (it66121_configure_afe(ctx, adjusted_mode))
 		goto unlock;
 
-	regmap_write_bits(ctx->regmap, IT66121_CLK_BANK_REG, IT66121_CLK_BANK_PWROFF_TXCLK, 0);
+	if (ctx->info->id == ID_IT66121 &&
+	    regmap_write_bits(ctx->regmap, IT66121_CLK_BANK_REG,
+			      IT66121_CLK_BANK_PWROFF_TXCLK, 0)) {
+		goto unlock;
+	}
 
 unlock:
 	mutex_unlock(&ctx->lock);
@@ -859,6 +913,7 @@ static const struct drm_bridge_funcs it66121_bridge_funcs = {
 	.atomic_get_input_bus_fmts = it66121_bridge_atomic_get_input_bus_fmts,
 	.atomic_enable = it66121_bridge_enable,
 	.atomic_disable = it66121_bridge_disable,
+	.atomic_check = it66121_bridge_check,
 	.mode_set = it66121_bridge_mode_set,
 	.mode_valid = it66121_bridge_mode_valid,
 	.detect = it66121_bridge_detect,
@@ -1557,17 +1612,26 @@ static void it66121_remove(struct i2c_client *client)
 
 static const struct of_device_id it66121_dt_match[] = {
 	{ .compatible = "ite,it66121" },
+	{ .compatible = "ite,it6610" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, it66121_dt_match);
 
 static const struct it66121_chip_info it66121_chip_info = {
+	.id = ID_IT66121,
 	.vid = 0x4954,
 	.pid = 0x0612,
 };
 
+static const struct it66121_chip_info it6610_chip_info = {
+	.id = ID_IT6610,
+	.vid = 0xca00,
+	.pid = 0x0611,
+};
+
 static const struct i2c_device_id it66121_id[] = {
 	{ "it66121", (kernel_ulong_t) &it66121_chip_info },
+	{ "it6610", (kernel_ulong_t) &it6610_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, it66121_id);
