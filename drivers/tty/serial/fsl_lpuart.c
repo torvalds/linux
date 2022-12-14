@@ -1828,10 +1828,10 @@ static void lpuart32_shutdown(struct uart_port *port)
 	temp &= ~(UARTBAUD_TDMAE | UARTBAUD_RDMAE);
 	lpuart32_write(port, temp, UARTBAUD);
 
-	/* disable Rx/Tx and interrupts */
+	/* disable Rx/Tx and interrupts and break condition */
 	temp = lpuart32_read(port, UARTCTRL);
 	temp &= ~(UARTCTRL_TE | UARTCTRL_RE | UARTCTRL_ILIE |
-			UARTCTRL_TIE | UARTCTRL_TCIE | UARTCTRL_RIE);
+			UARTCTRL_TIE | UARTCTRL_TCIE | UARTCTRL_RIE | UARTCTRL_SBK);
 	lpuart32_write(port, temp, UARTCTRL);
 
 	spin_unlock_irqrestore(&port->lock, flags);
