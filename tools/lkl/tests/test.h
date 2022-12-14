@@ -67,5 +67,12 @@ int lkl_test_logf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 		return (ret == expect) ? TEST_SUCCESS : TEST_FAILURE;	\
 	}
 
+/**
+ * lkl_test_get_log - return a copy of the log
+ *
+ * The caller is resposible for freeing the returned buffer with free().
+ */
+char *lkl_test_get_log(void);
+
 
 #endif /* _LKL_TEST_H */

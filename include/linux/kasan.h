@@ -465,7 +465,7 @@ static inline void kasan_poison_vmalloc(const void *start, unsigned long size)
 #endif /* CONFIG_KASAN_VMALLOC */
 
 #if (defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)) && \
-		!defined(CONFIG_KASAN_VMALLOC)
+	!defined(CONFIG_KASAN_VMALLOC) && defined(CONFIG_MODULE)
 
 /*
  * These functions allocate and free shadow memory for kernel modules.

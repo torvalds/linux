@@ -497,8 +497,51 @@ static int lkl_test_join(void)
 	}
 }
 
-LKL_TEST_CALL(start_kernel, lkl_start_kernel, 0, &lkl_host_ops,
-	     "mem=16M loglevel=8");
+static const char *boot_log;
+
+#ifdef LKL_HOST_CONFIG_KASAN_TEST
+
+#define KASAN_CMD_LINE "kunit.filter_glob=kasan* "
+
+static int lkl_test_kasan(void)
+{
+	char *log = strdup(boot_log);
+	char *line = NULL;
+	char c, d;
+
+	line = strtok(log, "\n");
+	while (line) {
+		if (sscanf(line, "[ %*f] ok %*d - kasa%c%c", &c, &d) == 1 &&
+			   c == 'n') {
+			lkl_test_logf("%s", line);
+			return TEST_SUCCESS;
+		}
+
+		line = strtok(NULL, "\n");
+	}
+
+	free(log);
+
+	return TEST_FAILURE;
+}
+#else
+#define KASAN_CMD_LINE
+#endif
+
+#define CMD_LINE "mem=16M loglevel=8 " KASAN_CMD_LINE
+
+static int lkl_test_start_kernel(void)
+{
+	int ret;
+
+	ret = lkl_start_kernel(CMD_LINE);
+
+	boot_log = lkl_test_get_log();
+
+	return ret == 0 ? TEST_SUCCESS : TEST_FAILURE;
+}
+
+
 LKL_TEST_CALL(stop_kernel, lkl_sys_halt, 0);
 
 struct lkl_test tests[] = {
@@ -506,6 +549,9 @@ struct lkl_test tests[] = {
 	LKL_TEST(semaphore),
 	LKL_TEST(join),
 	LKL_TEST(start_kernel),
+#ifdef LKL_HOST_CONFIG_KASAN_TEST
+	LKL_TEST(kasan),
+#endif
 	LKL_TEST(getpid),
 	LKL_TEST(syscall_latency),
 	LKL_TEST(umask),
@@ -550,8 +596,16 @@ struct lkl_test tests[] = {
 
 int main(int argc, const char **argv)
 {
+	int ret;
+
 	lkl_host_ops.print = lkl_test_log;
 
-	return lkl_test_run(tests, sizeof(tests)/sizeof(struct lkl_test),
-			    "boot");
+	lkl_init(&lkl_host_ops);
+
+	ret = lkl_test_run(tests, sizeof(tests)/sizeof(struct lkl_test),
+			"boot");
+
+	lkl_cleanup();
+
+	return ret;
 }

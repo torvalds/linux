@@ -40,10 +40,11 @@ config LKL
        select UACCESS_MEMCPY
        select GENERIC_STRNCPY_FROM_USER
        select GENERIC_STRNLEN_USER
+       select HAVE_ARCH_KASAN
 
 config OUTPUT_FORMAT
        string "Output format"
-       default "$(OUTPUT_FORMAT)"
+       default ""
 
 config ARCH_DMA_ADDR_T_64BIT
        def_bool 64BIT
@@ -52,13 +53,14 @@ config PHYS_ADDR_T_64BIT
        def_bool 64BIT
 
 config 64BIT
-       def_bool y if "$(EXEC_FORMAT)" = "elf64" || "$(OUTPUT_FORMAT)" = "pe-x86-64"
+       bool "64bit kernel"
+       default n
 
 config COREDUMP
        def_bool n
 
 config BIG_ENDIAN
-       def_bool y if "$(OUTPUT_FORMAT)" = "elf64-s390"
+       def_bool n
 
 config CPU_BIG_ENDIAN
        def_bool BIG_ENDIAN
@@ -100,3 +102,25 @@ config PCI
 config RAID6_PQ_BENCHMARK
 	bool
 	default n
+
+config STACKTRACE_SUPPORT
+       def_bool y
+
+if KASAN
+config KASAN_SHADOW_OFFSET
+       hex "KASAN shadow offset"
+       default "0"
+
+config KASAN_SHADOW_SIZE
+       hex "KASAN shadow size"
+       default "0"
+endif
+
+config BUILTIN_CMDLINE
+	string "Built-in kernel command string"
+	default ""
+	help
+	  Enter arguments here that should be compiled into the kernel
+	  image and used at boot time. The command line provided to
+	  lkl_start_kernel is appended to this string to form the full
+	  command line.

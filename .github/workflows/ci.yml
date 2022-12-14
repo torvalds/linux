@@ -17,6 +17,11 @@ jobs:
             os: unix
             runs_on: ubuntu-22.04
             shell: bash
+          - displayTargetName: kasan
+            os: unix
+            runs_on: ubuntu-22.04
+            shell: bash
+            build_options: "kasan=yes kasan_test=yes"
           - displayTargetName: windows-2019
             os: windows
             runs_on: windows-2019
@@ -106,14 +111,14 @@ jobs:
 
       - name: Build
         run: |
-          make -j4 -C tools/lkl
+          make -j4 -C tools/lkl ${{ matrix.build_options }}
       - name: Tests
         run: mkdir /tmp/junit && make -C tools/lkl run-tests tests="--junit-dir /tmp/junit"
       - name: Save test results
         uses: actions/upload-artifact@v2
         if: success() || failure()
         with:
-          name: test-results
+          name: test-results-${{ matrix.displayTargetName }}
           path: /tmp/junit/*.xml
 
   checkpatch:

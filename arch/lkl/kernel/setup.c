@@ -48,21 +48,43 @@ static void __init lkl_run_kernel(void *arg)
 	start_kernel();
 }
 
-int __init lkl_start_kernel(struct lkl_host_operations *ops,
-			const char *fmt, ...)
+static char *cmd_line_ptr __initdata = boot_command_line;
+static int cmd_line_len __initdata = COMMAND_LINE_SIZE;
+
+static __init void cmd_line_append_va(const char *fmt, va_list ap)
 {
-	va_list ap;
 	int ret;
 
-	lkl_ops = ops;
+	ret = vsnprintf(cmd_line_ptr, cmd_line_len, fmt, ap);
+
+	if (ret > 0) {
+		cmd_line_ptr += ret;
+		cmd_line_len -= ret;
+	}
+}
+
+static inline __init void cmd_line_append(const char *fmt, ...)
+{
+	va_list ap;
 
 	va_start(ap, fmt);
-	ret = vsnprintf(boot_command_line, COMMAND_LINE_SIZE, fmt, ap);
+	cmd_line_append_va(fmt, ap);
+	va_end(ap);
+}
+
+int __init lkl_start_kernel(const char *fmt, ...)
+{
+	int ret;
+	va_list ap;
+
+	cmd_line_append("%s ", CONFIG_BUILTIN_CMDLINE);
+
+	va_start(ap, fmt);
+	cmd_line_append_va(fmt, ap);
 	va_end(ap);
 
-	if (ops->virtio_devices)
-		strscpy(boot_command_line + ret, ops->virtio_devices,
-			COMMAND_LINE_SIZE - ret);
+	if (lkl_ops->virtio_devices)
+		cmd_line_append("%s", lkl_ops->virtio_devices);
 
 	memcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
 
@@ -139,7 +161,6 @@ long lkl_sys_halt(void)
 
 	return 0;
 }
-
 
 static int lkl_run_init(struct linux_binprm *bprm);
 

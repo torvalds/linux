@@ -111,8 +111,10 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		lkl_ops->sem_down(_prev->sched_sem);
 	}
 
-	if (_prev->dead)
+	if (_prev->dead) {
+		kasan_unpoison_stack();
 		lkl_ops->thread_exit();
+	}
 
 	return abs_prev;
 }
@@ -187,10 +189,6 @@ int copy_thread(unsigned long clone_flags, unsigned long esp,
 	}
 
 	return 0;
-}
-
-void show_stack(struct task_struct *task, unsigned long *esp)
-{
 }
 
 /**
