@@ -37,6 +37,8 @@ int sas_execute_ata_cmd(struct domain_device *device, u8 *fis,
 			int force_phy_id);
 int smp_ata_check_ready_type(struct ata_link *link);
 int sas_discover_sata(struct domain_device *dev);
+int sas_ata_add_dev(struct domain_device *parent, struct ex_phy *phy,
+		    struct domain_device *child, int phy_id);
 #else
 
 static inline void sas_ata_disabled_notice(void)
@@ -113,6 +115,13 @@ static inline int sas_discover_sata(struct domain_device *dev)
 {
 	sas_ata_disabled_notice();
 	return -ENXIO;
+}
+
+static inline int sas_ata_add_dev(struct domain_device *parent, struct ex_phy *phy,
+				  struct domain_device *child, int phy_id)
+{
+	sas_ata_disabled_notice();
+	return -ENODEV;
 }
 #endif
 

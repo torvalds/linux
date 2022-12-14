@@ -675,6 +675,68 @@ void sas_probe_sata(struct asd_sas_port *port)
 
 }
 
+int sas_ata_add_dev(struct domain_device *parent, struct ex_phy *phy,
+		    struct domain_device *child, int phy_id)
+{
+	struct sas_rphy *rphy;
+	int ret;
+
+	if (child->linkrate > parent->min_linkrate) {
+		struct sas_phy *cphy = child->phy;
+		enum sas_linkrate min_prate = cphy->minimum_linkrate,
+			parent_min_lrate = parent->min_linkrate,
+			min_linkrate = (min_prate > parent_min_lrate) ?
+					parent_min_lrate : 0;
+		struct sas_phy_linkrates rates = {
+			.maximum_linkrate = parent->min_linkrate,
+			.minimum_linkrate = min_linkrate,
+		};
+
+		pr_notice("ex %016llx phy%02d SATA device linkrate > min pathway connection rate, attempting to lower device linkrate\n",
+			  SAS_ADDR(child->sas_addr), phy_id);
+		ret = sas_smp_phy_control(parent, phy_id,
+					  PHY_FUNC_LINK_RESET, &rates);
+		if (ret) {
+			pr_err("ex %016llx phy%02d SATA device could not set linkrate (%d)\n",
+			       SAS_ADDR(child->sas_addr), phy_id, ret);
+			return ret;
+		}
+		pr_notice("ex %016llx phy%02d SATA device set linkrate successfully\n",
+			  SAS_ADDR(child->sas_addr), phy_id);
+		child->linkrate = child->min_linkrate;
+	}
+	ret = sas_get_ata_info(child, phy);
+	if (ret)
+		return ret;
+
+	sas_init_dev(child);
+	ret = sas_ata_init(child);
+	if (ret)
+		return ret;
+
+	rphy = sas_end_device_alloc(phy->port);
+	if (!rphy)
+		return ret;
+
+	rphy->identify.phy_identifier = phy_id;
+	child->rphy = rphy;
+	get_device(&rphy->dev);
+
+	list_add_tail(&child->disco_list_node, &parent->port->disco_list);
+
+	ret = sas_discover_sata(child);
+	if (ret) {
+		pr_notice("sas_discover_sata() for device %16llx at %016llx:%02d returned 0x%x\n",
+			  SAS_ADDR(child->sas_addr),
+			  SAS_ADDR(parent->sas_addr), phy_id, ret);
+		sas_rphy_free(child->rphy);
+		list_del(&child->disco_list_node);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void sas_ata_flush_pm_eh(struct asd_sas_port *port, const char *func)
 {
 	struct domain_device *dev, *n;

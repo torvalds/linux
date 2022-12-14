@@ -785,61 +785,11 @@ static struct domain_device *sas_ex_discover_end_dev(
 	sas_ex_get_linkrate(parent, child, phy);
 	sas_device_set_phy(child, phy->port);
 
-#ifdef CONFIG_SCSI_SAS_ATA
 	if ((phy->attached_tproto & SAS_PROTOCOL_STP) || phy->attached_sata_dev) {
-		if (child->linkrate > parent->min_linkrate) {
-			struct sas_phy *cphy = child->phy;
-			enum sas_linkrate min_prate = cphy->minimum_linkrate,
-				parent_min_lrate = parent->min_linkrate,
-				min_linkrate = (min_prate > parent_min_lrate) ?
-					       parent_min_lrate : 0;
-			struct sas_phy_linkrates rates = {
-				.maximum_linkrate = parent->min_linkrate,
-				.minimum_linkrate = min_linkrate,
-			};
-			int ret;
-
-			pr_notice("ex %016llx phy%02d SATA device linkrate > min pathway connection rate, attempting to lower device linkrate\n",
-				   SAS_ADDR(child->sas_addr), phy_id);
-			ret = sas_smp_phy_control(parent, phy_id,
-						  PHY_FUNC_LINK_RESET, &rates);
-			if (ret) {
-				pr_err("ex %016llx phy%02d SATA device could not set linkrate (%d)\n",
-				       SAS_ADDR(child->sas_addr), phy_id, ret);
-				goto out_free;
-			}
-			pr_notice("ex %016llx phy%02d SATA device set linkrate successfully\n",
-				  SAS_ADDR(child->sas_addr), phy_id);
-			child->linkrate = child->min_linkrate;
-		}
-		res = sas_get_ata_info(child, phy);
+		res = sas_ata_add_dev(parent, phy, child, phy_id);
 		if (res)
 			goto out_free;
-
-		sas_init_dev(child);
-		res = sas_ata_init(child);
-		if (res)
-			goto out_free;
-		rphy = sas_end_device_alloc(phy->port);
-		if (!rphy)
-			goto out_free;
-		rphy->identify.phy_identifier = phy_id;
-
-		child->rphy = rphy;
-		get_device(&rphy->dev);
-
-		list_add_tail(&child->disco_list_node, &parent->port->disco_list);
-
-		res = sas_discover_sata(child);
-		if (res) {
-			pr_notice("sas_discover_sata() for device %16llx at %016llx:%02d returned 0x%x\n",
-				  SAS_ADDR(child->sas_addr),
-				  SAS_ADDR(parent->sas_addr), phy_id, res);
-			goto out_list_del;
-		}
-	} else
-#endif
-	  if (phy->attached_tproto & SAS_PROTOCOL_SSP) {
+	} else if (phy->attached_tproto & SAS_PROTOCOL_SSP) {
 		child->dev_type = SAS_END_DEVICE;
 		rphy = sas_end_device_alloc(phy->port);
 		/* FIXME: error handling */
