@@ -23,6 +23,16 @@ static struct avs_dev *avs_get_kcontrol_adev(struct snd_kcontrol *kcontrol)
 
 static struct avs_path_module *avs_get_kcontrol_module(struct avs_dev *adev, u32 id)
 {
+	struct avs_path *path;
+	struct avs_path_pipeline *ppl;
+	struct avs_path_module *mod;
+
+	list_for_each_entry(path, &adev->path_list, node)
+		list_for_each_entry(ppl, &path->ppl_list, node)
+			list_for_each_entry(mod, &ppl->mod_list, node)
+				if (mod->template->ctl_id && mod->template->ctl_id == id)
+					return mod;
+
 	return NULL;
 }
 
