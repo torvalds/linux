@@ -269,19 +269,18 @@ out_dir:
 	goto out;
 }
 
-static int ext2_unlink(struct inode * dir, struct dentry *dentry)
+static int ext2_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct inode * inode = d_inode(dentry);
-	struct ext2_dir_entry_2 * de;
-	struct page * page;
-	void *page_addr;
+	struct inode *inode = d_inode(dentry);
+	struct ext2_dir_entry_2 *de;
+	struct page *page;
 	int err;
 
 	err = dquot_initialize(dir);
 	if (err)
 		goto out;
 
-	de = ext2_find_entry(dir, &dentry->d_name, &page, &page_addr);
+	de = ext2_find_entry(dir, &dentry->d_name, &page);
 	if (IS_ERR(de)) {
 		err = PTR_ERR(de);
 		goto out;
@@ -323,10 +322,8 @@ static int ext2_rename (struct mnt_idmap * idmap,
 	struct inode * old_inode = d_inode(old_dentry);
 	struct inode * new_inode = d_inode(new_dentry);
 	struct page * dir_page = NULL;
-	void *dir_page_addr;
 	struct ext2_dir_entry_2 * dir_de = NULL;
 	struct page * old_page;
-	void *old_page_addr;
 	struct ext2_dir_entry_2 * old_de;
 	int err;
 
@@ -341,20 +338,18 @@ static int ext2_rename (struct mnt_idmap * idmap,
 	if (err)
 		return err;
 
-	old_de = ext2_find_entry(old_dir, &old_dentry->d_name, &old_page,
-				 &old_page_addr);
+	old_de = ext2_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (IS_ERR(old_de))
 		return PTR_ERR(old_de);
 
 	if (S_ISDIR(old_inode->i_mode)) {
 		err = -EIO;
-		dir_de = ext2_dotdot(old_inode, &dir_page, &dir_page_addr);
+		dir_de = ext2_dotdot(old_inode, &dir_page);
 		if (!dir_de)
 			goto out_old;
 	}
 
 	if (new_inode) {
-		void *page_addr;
 		struct page *new_page;
 		struct ext2_dir_entry_2 *new_de;
 
@@ -363,7 +358,7 @@ static int ext2_rename (struct mnt_idmap * idmap,
 			goto out_dir;
 
 		new_de = ext2_find_entry(new_dir, &new_dentry->d_name,
-					 &new_page, &page_addr);
+					 &new_page);
 		if (IS_ERR(new_de)) {
 			err = PTR_ERR(new_de);
 			goto out_dir;

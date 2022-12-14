@@ -339,8 +339,7 @@ ext2_readdir(struct file *file, struct dir_context *ctx)
  * should be treated as a call to ext2_get_page() for nesting purposes.
  */
 struct ext2_dir_entry_2 *ext2_find_entry (struct inode *dir,
-			const struct qstr *child, struct page **res_page,
-			void **res_page_addr)
+			const struct qstr *child, struct page **res_page)
 {
 	const char *name = child->name;
 	int namelen = child->len;
@@ -350,27 +349,22 @@ struct ext2_dir_entry_2 *ext2_find_entry (struct inode *dir,
 	struct page *page = NULL;
 	struct ext2_inode_info *ei = EXT2_I(dir);
 	ext2_dirent * de;
-	void *page_addr;
 
 	if (npages == 0)
 		goto out;
 
 	/* OFFSET_CACHE */
 	*res_page = NULL;
-	*res_page_addr = NULL;
 
 	start = ei->i_dir_start_lookup;
 	if (start >= npages)
 		start = 0;
 	n = start;
 	do {
-		char *kaddr;
+		char *kaddr = ext2_get_page(dir, n, 0, &page);
+		if (IS_ERR(kaddr))
+			return ERR_CAST(kaddr);
 
-		page_addr = ext2_get_page(dir, n, 0, &page);
-		if (IS_ERR(page_addr))
-			return ERR_CAST(page_addr);
-
-		kaddr = page_addr;
 		de = (ext2_dirent *) kaddr;
 		kaddr += ext2_last_byte(dir, n) - reclen;
 		while ((char *) de <= kaddr) {
@@ -402,7 +396,6 @@ out:
 
 found:
 	*res_page = page;
-	*res_page_addr = page_addr;
 	ei->i_dir_start_lookup = n;
 	return de;
 }
@@ -419,26 +412,21 @@ found:
  * ext2_find_entry() and ext2_dotdot() act as a call to ext2_get_page() and
  * should be treated as a call to ext2_get_page() for nesting purposes.
  */
-struct ext2_dir_entry_2 *ext2_dotdot(struct inode *dir, struct page **p,
-				     void **pa)
+struct ext2_dir_entry_2 *ext2_dotdot(struct inode *dir, struct page **p)
 {
-	void *page_addr = ext2_get_page(dir, 0, 0, p);
-	ext2_dirent *de = NULL;
+	ext2_dirent *de = ext2_get_page(dir, 0, 0, p);
 
-	if (!IS_ERR(page_addr)) {
-		de = ext2_next_entry((ext2_dirent *) page_addr);
-		*pa = page_addr;
-	}
-	return de;
+	if (!IS_ERR(de))
+		return ext2_next_entry(de);
+	return NULL;
 }
 
 int ext2_inode_by_name(struct inode *dir, const struct qstr *child, ino_t *ino)
 {
 	struct ext2_dir_entry_2 *de;
 	struct page *page;
-	void *page_addr;
 	
-	de = ext2_find_entry(dir, child, &page, &page_addr);
+	de = ext2_find_entry(dir, child, &page);
 	if (IS_ERR(de))
 		return PTR_ERR(de);
 
@@ -510,10 +498,9 @@ int ext2_add_link (struct dentry *dentry, struct inode *inode)
 	 * to protect that region.
 	 */
 	for (n = 0; n <= npages; n++) {
-		char *kaddr;
+		char *kaddr = ext2_get_page(dir, n, 0, &page);
 		char *dir_end;
 
-		kaddr = ext2_get_page(dir, n, 0, &page);
 		if (IS_ERR(kaddr))
 			return PTR_ERR(kaddr);
 		lock_page(page);
