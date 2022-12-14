@@ -359,7 +359,7 @@ TRACE_EVENT(foo_bar,
 		  __print_array(__get_dynamic_array(list),
 				__get_dynamic_array_len(list) / sizeof(int),
 				sizeof(int)),
-		  __get_str(str), __get_bitmask(cpus), __get_cpumask(cpus),
+		  __get_str(str), __get_bitmask(cpus), __get_cpumask(cpum),
 		  __get_str(vstr))
 );
 
