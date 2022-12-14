@@ -17,7 +17,6 @@ properties:
               - samsung,exynos3-sysreg
               - samsung,exynos4-sysreg
               - samsung,exynos5-sysreg
-              - samsung,exynos850-sysreg
               - samsung,exynosautov9-sysreg
               - tesla,fsd-cam-sysreg
               - tesla,fsd-fsys0-sysreg
@@ -33,9 +32,17 @@ properties:
           - const: samsung,exynos5433-sysreg
           - const: syscon
       - items:
-          - const: samsung,exynos5433-sysreg
+          - enum:
+              - samsung,exynos5433-sysreg
+              - samsung,exynos850-sysreg
           - const: syscon
-        deprecated: true
+            deprecated: true
+      - items:
+          - enum:
+              - samsung,exynos850-cmgp-sysreg
+              - samsung,exynos850-peri-sysreg
+          - const: samsung,exynos850-sysreg
+          - const: syscon
 
   reg:
     maxItems: 1
@@ -53,6 +60,8 @@ allOf:
         compatible:
           contains:
             enum:
+              - samsung,exynos850-cmgp-sysreg
+              - samsung,exynos850-peri-sysreg
               - samsung,exynos850-sysreg
     then:
       required:
