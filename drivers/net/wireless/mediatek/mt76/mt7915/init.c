@@ -134,9 +134,6 @@ mt7915_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
 	if (state > MT7915_CDEV_THROTTLE_MAX)
 		return -EINVAL;
 
-	if (phy->throttle_temp[0] > phy->throttle_temp[1])
-		return 0;
-
 	if (state == phy->cdev_state)
 		return 0;
 
