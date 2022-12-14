@@ -433,7 +433,7 @@ struct btree_trans {
 
 	/* update path: */
 	struct btree_trans_commit_hook *hooks;
-	DARRAY(u64)		extra_journal_entries;
+	darray_u64		extra_journal_entries;
 	struct journal_entry_pin *journal_pin;
 
 	struct journal_res	journal_res;

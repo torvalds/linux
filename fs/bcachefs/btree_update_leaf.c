@@ -1772,18 +1772,25 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 	return ret;
 }
 
-int bch2_trans_log_msg(struct btree_trans *trans, const char *msg)
+static int __bch2_trans_log_msg(darray_u64 *entries, const char *fmt, va_list args)
 {
-	unsigned len = strlen(msg);
-	unsigned u64s = DIV_ROUND_UP(len, sizeof(u64));
+	struct printbuf buf = PRINTBUF;
 	struct jset_entry_log *l;
+	unsigned u64s;
 	int ret;
 
-	ret = darray_make_room(&trans->extra_journal_entries, jset_u64s(u64s));
+	prt_vprintf(&buf, fmt, args);
+	ret = buf.allocation_failure ? -ENOMEM : 0;
 	if (ret)
-		return ret;
+		goto err;
 
-	l = (void *) &darray_top(trans->extra_journal_entries);
+	u64s = DIV_ROUND_UP(buf.pos, sizeof(u64));
+
+	ret = darray_make_room(entries, jset_u64s(u64s));
+	if (ret)
+		goto err;
+
+	l = (void *) &darray_top(*entries);
 	l->entry.u64s		= cpu_to_le16(u64s);
 	l->entry.btree_id	= 0;
 	l->entry.level		= 1;
@@ -1791,10 +1798,44 @@ int bch2_trans_log_msg(struct btree_trans *trans, const char *msg)
 	l->entry.pad[0]		= 0;
 	l->entry.pad[1]		= 0;
 	l->entry.pad[2]		= 0;
-	memcpy(l->d, msg, len);
-	while (len & 7)
-		l->d[len++] = '\0';
+	memcpy(l->d, buf.buf, buf.pos);
+	while (buf.pos & 7)
+		l->d[buf.pos++] = '\0';
 
-	trans->extra_journal_entries.nr += jset_u64s(u64s);
-	return 0;
+	entries->nr += jset_u64s(u64s);
+err:
+	printbuf_exit(&buf);
+	return ret;
+}
+
+int bch2_trans_log_msg(struct btree_trans *trans, const char *fmt, ...)
+{
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	ret = __bch2_trans_log_msg(&trans->extra_journal_entries, fmt, args);
+	va_end(args);
+
+	return ret;
+}
+
+int bch2_fs_log_msg(struct bch_fs *c, const char *fmt, ...)
+{
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+
+	if (!test_bit(JOURNAL_STARTED, &c->journal.flags)) {
+		ret = __bch2_trans_log_msg(&c->journal.early_journal_entries, fmt, args);
+	} else {
+		ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_LAZY_RW,
+			__bch2_trans_log_msg(&trans.extra_journal_entries, fmt, args));
+	}
+
+	va_end(args);
+
+	return ret;
+
 }

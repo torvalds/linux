@@ -52,7 +52,7 @@ void bch2_journal_entry_to_text(struct printbuf *, struct bch_fs *,
 void bch2_journal_ptrs_to_text(struct printbuf *, struct bch_fs *,
 			       struct journal_replay *);
 
-int bch2_journal_read(struct bch_fs *, u64 *, u64 *);
+int bch2_journal_read(struct bch_fs *, u64 *, u64 *, u64 *);
 
 void bch2_journal_write(struct closure *);
 

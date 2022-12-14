@@ -249,7 +249,7 @@ static int journal_entry_open(struct journal *j)
 		journal_entry_overhead(j);
 	u64s = clamp_t(int, u64s, 0, JOURNAL_ENTRY_CLOSED_VAL - 1);
 
-	if (u64s <= 0)
+	if (u64s <= (ssize_t) j->early_journal_entries.nr)
 		return JOURNAL_ERR_journal_full;
 
 	if (fifo_empty(&j->pin) && j->reclaim_thread)
@@ -274,6 +274,12 @@ static int journal_entry_open(struct journal *j)
 	buf->data->seq	= cpu_to_le64(journal_cur_seq(j));
 	buf->data->u64s	= 0;
 
+	if (j->early_journal_entries.nr) {
+		memcpy(buf->data->_data, j->early_journal_entries.data,
+		       j->early_journal_entries.nr * sizeof(u64));
+		le32_add_cpu(&buf->data->u64s, j->early_journal_entries.nr);
+	}
+
 	/*
 	 * Must be set before marking the journal entry as open:
 	 */
@@ -290,7 +296,9 @@ static int journal_entry_open(struct journal *j)
 		BUG_ON(new.idx != (journal_cur_seq(j) & JOURNAL_BUF_MASK));
 
 		journal_state_inc(&new);
-		new.cur_entry_offset = 0;
+
+		/* Handle any already added entries */
+		new.cur_entry_offset = le32_to_cpu(buf->data->u64s);
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
 
@@ -303,6 +311,9 @@ static int journal_entry_open(struct journal *j)
 			 &j->write_work,
 			 msecs_to_jiffies(c->opts.journal_flush_delay));
 	journal_wake(j);
+
+	if (j->early_journal_entries.nr)
+		darray_exit(&j->early_journal_entries);
 	return 0;
 }
 
@@ -713,39 +724,6 @@ int bch2_journal_meta(struct journal *j)
 		buf->flush_time	= local_clock() ?: 1;
 		buf->expires = jiffies;
 	}
-
-	bch2_journal_res_put(j, &res);
-
-	return bch2_journal_flush_seq(j, res.seq);
-}
-
-int bch2_journal_log_msg(struct journal *j, const char *fmt, ...)
-{
-	struct jset_entry_log *entry;
-	struct journal_res res = { 0 };
-	unsigned msglen, u64s;
-	va_list args;
-	int ret;
-
-	va_start(args, fmt);
-	msglen = vsnprintf(NULL, 0, fmt, args) + 1;
-	va_end(args);
-
-	u64s = jset_u64s(DIV_ROUND_UP(msglen, sizeof(u64)));
-
-	ret = bch2_journal_res_get(j, &res, u64s, 0);
-	if (ret)
-		return ret;
-
-	entry = container_of(journal_res_entry(j, &res),
-			     struct jset_entry_log, entry);
-	memset(entry, 0, u64s * sizeof(u64));
-	entry->entry.type = BCH_JSET_ENTRY_log;
-	entry->entry.u64s = u64s - 1;
-
-	va_start(args, fmt);
-	vsnprintf(entry->d, INT_MAX, fmt, args);
-	va_end(args);
 
 	bch2_journal_res_put(j, &res);
 
@@ -1196,6 +1174,8 @@ int bch2_dev_journal_init(struct bch_dev *ca, struct bch_sb *sb)
 void bch2_fs_journal_exit(struct journal *j)
 {
 	unsigned i;
+
+	darray_exit(&j->early_journal_entries);
 
 	for (i = 0; i < ARRAY_SIZE(j->buf); i++)
 		kvpfree(j->buf[i].data, j->buf[i].buf_size);

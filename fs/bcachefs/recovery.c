@@ -587,7 +587,7 @@ static int journal_sort_seq_cmp(const void *_l, const void *_r)
 	return cmp_int(l->journal_seq, r->journal_seq);
 }
 
-static int bch2_journal_replay(struct bch_fs *c)
+static int bch2_journal_replay(struct bch_fs *c, u64 start_seq, u64 end_seq)
 {
 	struct journal_keys *keys = &c->journal_keys;
 	struct journal_key **keys_sorted, *k;
@@ -608,6 +608,13 @@ static int bch2_journal_replay(struct bch_fs *c)
 	sort(keys_sorted, keys->nr,
 	     sizeof(keys_sorted[0]),
 	     journal_sort_seq_cmp, NULL);
+
+	if (keys->nr) {
+		ret = bch2_fs_log_msg(c, "Starting journal replay (%zu keys in entries %llu-%llu)",
+				      keys->nr, start_seq, end_seq);
+		if (ret)
+			goto err;
+	}
 
 	for (i = 0; i < keys->nr; i++) {
 		k = keys_sorted[i];
@@ -638,7 +645,7 @@ static int bch2_journal_replay(struct bch_fs *c)
 	ret = bch2_journal_error(j);
 
 	if (keys->nr && !ret)
-		bch2_journal_log_msg(&c->journal, "journal replay finished");
+		bch2_fs_log_msg(c, "journal replay finished");
 err:
 	kvfree(keys_sorted);
 	return ret;
@@ -1042,7 +1049,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	const char *err = "cannot allocate memory";
 	struct bch_sb_field_clean *clean = NULL;
 	struct jset *last_journal_entry = NULL;
-	u64 blacklist_seq, journal_seq;
+	u64 last_seq, blacklist_seq, journal_seq;
 	bool write_sb = false;
 	int ret = 0;
 
@@ -1109,7 +1116,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		struct journal_replay **i;
 
 		bch_verbose(c, "starting journal read");
-		ret = bch2_journal_read(c, &blacklist_seq, &journal_seq);
+		ret = bch2_journal_read(c, &last_seq, &blacklist_seq, &journal_seq);
 		if (ret)
 			goto err;
 
@@ -1191,7 +1198,9 @@ use_clean:
 		journal_seq += 8;
 
 	if (blacklist_seq != journal_seq) {
-		ret = bch2_journal_seq_blacklist_add(c,
+		ret =   bch2_fs_log_msg(c, "blacklisting entries %llu-%llu",
+					blacklist_seq, journal_seq) ?:
+			bch2_journal_seq_blacklist_add(c,
 					blacklist_seq, journal_seq);
 		if (ret) {
 			bch_err(c, "error creating new journal seq blacklist entry");
@@ -1199,12 +1208,14 @@ use_clean:
 		}
 	}
 
-	ret = bch2_fs_journal_start(&c->journal, journal_seq);
+	ret =   bch2_fs_log_msg(c, "starting journal at entry %llu, replaying %llu-%llu",
+				journal_seq, last_seq, blacklist_seq - 1) ?:
+		bch2_fs_journal_start(&c->journal, journal_seq);
 	if (ret)
 		goto err;
 
 	if (c->opts.reconstruct_alloc)
-		bch2_journal_log_msg(&c->journal, "dropping alloc info");
+		bch2_fs_log_msg(c, "dropping alloc info");
 
 	/*
 	 * Skip past versions that might have possibly been used (as nonces),
@@ -1260,7 +1271,7 @@ use_clean:
 
 		bch_info(c, "starting journal replay, %zu keys", c->journal_keys.nr);
 		err = "journal replay failed";
-		ret = bch2_journal_replay(c);
+		ret = bch2_journal_replay(c, last_seq, blacklist_seq - 1);
 		if (ret)
 			goto err;
 		if (c->opts.verbose || !c->sb.clean)
@@ -1293,7 +1304,7 @@ use_clean:
 
 		bch_verbose(c, "starting journal replay, %zu keys", c->journal_keys.nr);
 		err = "journal replay failed";
-		ret = bch2_journal_replay(c);
+		ret = bch2_journal_replay(c, last_seq, blacklist_seq - 1);
 		if (ret)
 			goto err;
 		if (c->opts.verbose || !c->sb.clean)
