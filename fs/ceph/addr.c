@@ -1367,7 +1367,7 @@ out:
 	folio_put(folio);
 
 	if (check_cap)
-		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_AUTHONLY, NULL);
+		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_AUTHONLY);
 
 	return copied;
 }

@@ -1909,7 +1909,7 @@ static void ceph_do_invalidate_pages(struct inode *inode)
 	mutex_unlock(&ci->i_truncate_mutex);
 out:
 	if (check)
-		ceph_check_caps(ci, 0, NULL);
+		ceph_check_caps(ci, 0);
 }
 
 /*
@@ -1969,7 +1969,7 @@ retry:
 	mutex_unlock(&ci->i_truncate_mutex);
 
 	if (wrbuffer_refs == 0)
-		ceph_check_caps(ci, 0, NULL);
+		ceph_check_caps(ci, 0);
 
 	wake_up_all(&ci->i_cap_wq);
 }
@@ -1991,7 +1991,7 @@ static void ceph_inode_work(struct work_struct *work)
 		__ceph_do_pending_vmtruncate(inode);
 
 	if (test_and_clear_bit(CEPH_I_WORK_CHECK_CAPS, &ci->i_work_mask))
-		ceph_check_caps(ci, 0, NULL);
+		ceph_check_caps(ci, 0);
 
 	if (test_and_clear_bit(CEPH_I_WORK_FLUSH_SNAPS, &ci->i_work_mask))
 		ceph_flush_snaps(ci, NULL);
