@@ -440,15 +440,17 @@ static int it66121_configure_afe(struct it66121_ctx *ctx,
 static inline int it66121_wait_ddc_ready(struct it66121_ctx *ctx)
 {
 	int ret, val;
-	u32 busy = IT66121_DDC_STATUS_NOACK | IT66121_DDC_STATUS_WAIT_BUS |
-		   IT66121_DDC_STATUS_ARBI_LOSE;
+	u32 error = IT66121_DDC_STATUS_NOACK | IT66121_DDC_STATUS_WAIT_BUS |
+		    IT66121_DDC_STATUS_ARBI_LOSE;
+	u32 done = IT66121_DDC_STATUS_TX_DONE;
 
-	ret = regmap_read_poll_timeout(ctx->regmap, IT66121_DDC_STATUS_REG, val, true,
-				       IT66121_EDID_SLEEP_US, IT66121_EDID_TIMEOUT_US);
+	ret = regmap_read_poll_timeout(ctx->regmap, IT66121_DDC_STATUS_REG, val,
+				       val & (error | done), IT66121_EDID_SLEEP_US,
+				       IT66121_EDID_TIMEOUT_US);
 	if (ret)
 		return ret;
 
-	if (val & busy)
+	if (val & error)
 		return -EAGAIN;
 
 	return 0;
@@ -581,9 +583,6 @@ static int it66121_get_edid_block(void *context, u8 *buf,
 
 		offset += cnt;
 		remain -= cnt;
-
-		/* Per programming manual, sleep here before emptying the FIFO */
-		msleep(20);
 
 		ret = it66121_wait_ddc_ready(ctx);
 		if (ret)
