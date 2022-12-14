@@ -301,7 +301,6 @@ struct it66121_ctx {
 	struct device *dev;
 	struct gpio_desc *gpio_reset;
 	struct i2c_client *client;
-	struct regulator_bulk_data supplies[3];
 	u32 bus_width;
 	struct mutex lock; /* Protects fields below and device registers */
 	struct hdmi_avi_infoframe hdmi_avi_infoframe;
@@ -340,16 +339,6 @@ static void it66121_hw_reset(struct it66121_ctx *ctx)
 	gpiod_set_value(ctx->gpio_reset, 1);
 	msleep(20);
 	gpiod_set_value(ctx->gpio_reset, 0);
-}
-
-static inline int ite66121_power_on(struct it66121_ctx *ctx)
-{
-	return regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
-}
-
-static inline int ite66121_power_off(struct it66121_ctx *ctx)
-{
-	return regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 }
 
 static inline int it66121_preamble_ddc(struct it66121_ctx *ctx)
@@ -1512,6 +1501,10 @@ static int it66121_audio_codec_init(struct it66121_ctx *ctx, struct device *dev)
 	return PTR_ERR_OR_ZERO(ctx->audio.pdev);
 }
 
+static const char * const it66121_supplies[] = {
+	"vcn33", "vcn18", "vrf12"
+};
+
 static int it66121_probe(struct i2c_client *client)
 {
 	u32 revision_id, vendor_ids[2] = { 0 }, device_ids[2] = { 0 };
@@ -1564,26 +1557,18 @@ static int it66121_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, ctx);
 	mutex_init(&ctx->lock);
 
-	ctx->supplies[0].supply = "vcn33";
-	ctx->supplies[1].supply = "vcn18";
-	ctx->supplies[2].supply = "vrf12";
-	ret = devm_regulator_bulk_get(ctx->dev, 3, ctx->supplies);
+	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(it66121_supplies),
+					     it66121_supplies);
 	if (ret) {
-		dev_err(ctx->dev, "regulator_bulk failed\n");
+		dev_err(dev, "Failed to enable power supplies\n");
 		return ret;
 	}
-
-	ret = ite66121_power_on(ctx);
-	if (ret)
-		return ret;
 
 	it66121_hw_reset(ctx);
 
 	ctx->regmap = devm_regmap_init_i2c(client, &it66121_regmap_config);
-	if (IS_ERR(ctx->regmap)) {
-		ite66121_power_off(ctx);
+	if (IS_ERR(ctx->regmap))
 		return PTR_ERR(ctx->regmap);
-	}
 
 	regmap_read(ctx->regmap, IT66121_VENDOR_ID0_REG, &vendor_ids[0]);
 	regmap_read(ctx->regmap, IT66121_VENDOR_ID1_REG, &vendor_ids[1]);
@@ -1596,7 +1581,6 @@ static int it66121_probe(struct i2c_client *client)
 
 	if (vendor_ids[0] != IT66121_VENDOR_ID0 || vendor_ids[1] != IT66121_VENDOR_ID1 ||
 	    device_ids[0] != IT66121_DEVICE_ID0 || device_ids[1] != IT66121_DEVICE_ID1) {
-		ite66121_power_off(ctx);
 		return -ENODEV;
 	}
 
@@ -1609,7 +1593,6 @@ static int it66121_probe(struct i2c_client *client)
 					IRQF_ONESHOT, dev_name(dev), ctx);
 	if (ret < 0) {
 		dev_err(dev, "Failed to request irq %d:%d\n", client->irq, ret);
-		ite66121_power_off(ctx);
 		return ret;
 	}
 
@@ -1626,7 +1609,6 @@ static void it66121_remove(struct i2c_client *client)
 {
 	struct it66121_ctx *ctx = i2c_get_clientdata(client);
 
-	ite66121_power_off(ctx);
 	drm_bridge_remove(&ctx->bridge);
 	mutex_destroy(&ctx->lock);
 }
