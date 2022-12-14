@@ -149,7 +149,7 @@ int fsverity_get_digest(struct inode *inode,
 /* open.c */
 
 int __fsverity_file_open(struct inode *inode, struct file *filp);
-int fsverity_prepare_setattr(struct dentry *dentry, struct iattr *attr);
+int __fsverity_prepare_setattr(struct dentry *dentry, struct iattr *attr);
 void fsverity_cleanup_inode(struct inode *inode);
 
 /* read_metadata.c */
@@ -198,10 +198,10 @@ static inline int __fsverity_file_open(struct inode *inode, struct file *filp)
 	return -EOPNOTSUPP;
 }
 
-static inline int fsverity_prepare_setattr(struct dentry *dentry,
-					   struct iattr *attr)
+static inline int __fsverity_prepare_setattr(struct dentry *dentry,
+					     struct iattr *attr)
 {
-	return IS_VERITY(d_inode(dentry)) ? -EOPNOTSUPP : 0;
+	return -EOPNOTSUPP;
 }
 
 static inline void fsverity_cleanup_inode(struct inode *inode)
@@ -271,6 +271,24 @@ static inline int fsverity_file_open(struct inode *inode, struct file *filp)
 {
 	if (IS_VERITY(inode))
 		return __fsverity_file_open(inode, filp);
+	return 0;
+}
+
+/**
+ * fsverity_prepare_setattr() - prepare to change a verity inode's attributes
+ * @dentry: dentry through which the inode is being changed
+ * @attr: attributes to change
+ *
+ * Verity files are immutable, so deny truncates.  This isn't covered by the
+ * open-time check because sys_truncate() takes a path, not a file descriptor.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static inline int fsverity_prepare_setattr(struct dentry *dentry,
+					   struct iattr *attr)
+{
+	if (IS_VERITY(d_inode(dentry)))
+		return __fsverity_prepare_setattr(dentry, attr);
 	return 0;
 }
 
