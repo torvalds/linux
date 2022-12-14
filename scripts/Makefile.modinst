@@ -14,7 +14,7 @@ modules := $(call read-file, $(MODORDER))
 ifeq ($(KBUILD_EXTMOD),)
 dst := $(MODLIB)/kernel
 else
-INSTALL_MOD_DIR ?= extra
+INSTALL_MOD_DIR ?= updates
 dst := $(MODLIB)/$(INSTALL_MOD_DIR)
 endif
 
