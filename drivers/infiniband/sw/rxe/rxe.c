@@ -187,14 +187,14 @@ static int rxe_newlink(const char *ibdev_name, struct net_device *ndev)
 	exists = rxe_get_dev_from_net(ndev);
 	if (exists) {
 		ib_device_put(&exists->ib_dev);
-		pr_err("already configured on %s\n", ndev->name);
+		rxe_dbg(exists, "already configured on %s\n", ndev->name);
 		err = -EEXIST;
 		goto err;
 	}
 
 	err = rxe_net_add(ibdev_name, ndev);
 	if (err) {
-		pr_err("failed to add %s\n", ndev->name);
+		rxe_dbg(exists, "failed to add %s\n", ndev->name);
 		goto err;
 	}
 err:
