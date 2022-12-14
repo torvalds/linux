@@ -589,13 +589,12 @@ static int it66121_get_edid_block(void *context, u8 *buf,
 		if (ret)
 			return ret;
 
-		do {
-			ret = regmap_read(ctx->regmap, IT66121_DDC_RD_FIFO_REG, &val);
-			if (ret)
-				return ret;
-			*(buf++) = val;
-			cnt--;
-		} while (cnt > 0);
+		ret = regmap_noinc_read(ctx->regmap, IT66121_DDC_RD_FIFO_REG,
+					buf, cnt);
+		if (ret)
+			return ret;
+
+		buf += cnt;
 	}
 
 	return 0;
