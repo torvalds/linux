@@ -456,18 +456,6 @@ static inline int it66121_wait_ddc_ready(struct it66121_ctx *ctx)
 	return 0;
 }
 
-static int it66121_clear_ddc_fifo(struct it66121_ctx *ctx)
-{
-	int ret;
-
-	ret = it66121_preamble_ddc(ctx);
-	if (ret)
-		return ret;
-
-	return regmap_write(ctx->regmap, IT66121_DDC_COMMAND_REG,
-			    IT66121_DDC_COMMAND_FIFO_CLR);
-}
-
 static int it66121_abort_ddc_ops(struct it66121_ctx *ctx)
 {
 	int ret;
@@ -514,10 +502,6 @@ static int it66121_get_edid_block(void *context, u8 *buf,
 
 	offset = (block % 2) * len;
 	block = block / 2;
-
-	ret = it66121_clear_ddc_fifo(ctx);
-	if (ret)
-		return ret;
 
 	while (remain > 0) {
 		cnt = (remain > IT66121_EDID_FIFO_SIZE) ?
