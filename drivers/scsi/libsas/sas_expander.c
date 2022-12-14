@@ -751,13 +751,46 @@ static void sas_ex_get_linkrate(struct domain_device *parent,
 	child->pathways = min(child->pathways, parent->pathways);
 }
 
+static int sas_ex_add_dev(struct domain_device *parent, struct ex_phy *phy,
+			  struct domain_device *child, int phy_id)
+{
+	struct sas_rphy *rphy;
+	int res;
+
+	child->dev_type = SAS_END_DEVICE;
+	rphy = sas_end_device_alloc(phy->port);
+	if (!rphy)
+		return -ENOMEM;
+
+	child->tproto = phy->attached_tproto;
+	sas_init_dev(child);
+
+	child->rphy = rphy;
+	get_device(&rphy->dev);
+	rphy->identify.phy_identifier = phy_id;
+	sas_fill_in_rphy(child, rphy);
+
+	list_add_tail(&child->disco_list_node, &parent->port->disco_list);
+
+	res = sas_notify_lldd_dev_found(child);
+	if (res) {
+		pr_notice("notify lldd for device %016llx at %016llx:%02d returned 0x%x\n",
+			  SAS_ADDR(child->sas_addr),
+			  SAS_ADDR(parent->sas_addr), phy_id, res);
+		sas_rphy_free(child->rphy);
+		list_del(&child->disco_list_node);
+		return res;
+	}
+
+	return 0;
+}
+
 static struct domain_device *sas_ex_discover_end_dev(
 	struct domain_device *parent, int phy_id)
 {
 	struct expander_device *parent_ex = &parent->ex_dev;
 	struct ex_phy *phy = &parent_ex->ex_phy[phy_id];
 	struct domain_device *child = NULL;
-	struct sas_rphy *rphy;
 	int res;
 
 	if (phy->attached_sata_host || phy->attached_sata_ps)
@@ -787,44 +820,21 @@ static struct domain_device *sas_ex_discover_end_dev(
 
 	if ((phy->attached_tproto & SAS_PROTOCOL_STP) || phy->attached_sata_dev) {
 		res = sas_ata_add_dev(parent, phy, child, phy_id);
-		if (res)
-			goto out_free;
 	} else if (phy->attached_tproto & SAS_PROTOCOL_SSP) {
-		child->dev_type = SAS_END_DEVICE;
-		rphy = sas_end_device_alloc(phy->port);
-		/* FIXME: error handling */
-		if (unlikely(!rphy))
-			goto out_free;
-		child->tproto = phy->attached_tproto;
-		sas_init_dev(child);
-
-		child->rphy = rphy;
-		get_device(&rphy->dev);
-		rphy->identify.phy_identifier = phy_id;
-		sas_fill_in_rphy(child, rphy);
-
-		list_add_tail(&child->disco_list_node, &parent->port->disco_list);
-
-		res = sas_discover_end_dev(child);
-		if (res) {
-			pr_notice("sas_discover_end_dev() for device %016llx at %016llx:%02d returned 0x%x\n",
-				  SAS_ADDR(child->sas_addr),
-				  SAS_ADDR(parent->sas_addr), phy_id, res);
-			goto out_list_del;
-		}
+		res = sas_ex_add_dev(parent, phy, child, phy_id);
 	} else {
 		pr_notice("target proto 0x%x at %016llx:0x%x not handled\n",
 			  phy->attached_tproto, SAS_ADDR(parent->sas_addr),
 			  phy_id);
-		goto out_free;
+		res = -ENODEV;
 	}
+
+	if (res)
+		goto out_free;
 
 	list_add_tail(&child->siblings, &parent_ex->children);
 	return child;
 
- out_list_del:
-	sas_rphy_free(child->rphy);
-	list_del(&child->disco_list_node);
  out_free:
 	sas_port_delete(phy->port);
  out_err:
