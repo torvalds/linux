@@ -2749,7 +2749,7 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 		if (ssid_num == 1 && req->ssids[0].ssid_len == 0) {
 			ch_info->tx_pkt = false;
 			if (!req->duration_mandatory)
-				ch_info->period -= RTW89_DWELL_TIME;
+				ch_info->period -= RTW89_DWELL_TIME_6G;
 		}
 	}
 
@@ -2802,7 +2802,8 @@ static int rtw89_hw_scan_add_chan_list(struct rtw89_dev *rtwdev,
 		if (req->duration_mandatory)
 			ch_info->period = req->duration;
 		else if (channel->band == NL80211_BAND_6GHZ)
-			ch_info->period = RTW89_CHANNEL_TIME_6G + RTW89_DWELL_TIME;
+			ch_info->period = RTW89_CHANNEL_TIME_6G +
+					  RTW89_DWELL_TIME_6G;
 		else
 			ch_info->period = RTW89_CHANNEL_TIME;
 
