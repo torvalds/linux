@@ -240,7 +240,7 @@ ext2_validate_entry(char *base, unsigned offset, unsigned mask)
 			break;
 		p = ext2_next_entry(p);
 	}
-	return (char *)p - base;
+	return offset_in_page(p);
 }
 
 static inline void ext2_set_de_type(ext2_dirent *de, struct inode *inode)
@@ -465,8 +465,7 @@ int ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
 		struct page *page, void *page_addr, struct inode *inode,
 		bool update_times)
 {
-	loff_t pos = page_offset(page) +
-			(char *) de - (char *) page_addr;
+	loff_t pos = page_offset(page) + offset_in_page(de);
 	unsigned len = ext2_rec_len_from_disk(de->rec_len);
 	int err;
 
@@ -556,8 +555,7 @@ int ext2_add_link (struct dentry *dentry, struct inode *inode)
 	return -EINVAL;
 
 got_it:
-	pos = page_offset(page) +
-		(char *)de - (char *)page_addr;
+	pos = page_offset(page) + offset_in_page(de);
 	err = ext2_prepare_chunk(page, pos, rec_len);
 	if (err)
 		goto out_unlock;
@@ -594,8 +592,8 @@ int ext2_delete_entry (struct ext2_dir_entry_2 *dir, struct page *page,
 			char *kaddr)
 {
 	struct inode *inode = page->mapping->host;
-	unsigned from = ((char*)dir - kaddr) & ~(ext2_chunk_size(inode)-1);
-	unsigned to = ((char *)dir - kaddr) +
+	unsigned from = offset_in_page(dir) & ~(ext2_chunk_size(inode)-1);
+	unsigned to = offset_in_page(dir) +
 				ext2_rec_len_from_disk(dir->rec_len);
 	loff_t pos;
 	ext2_dirent * pde = NULL;
@@ -612,7 +610,7 @@ int ext2_delete_entry (struct ext2_dir_entry_2 *dir, struct page *page,
 		de = ext2_next_entry(de);
 	}
 	if (pde)
-		from = (char *)pde - kaddr;
+		from = offset_in_page(pde);
 	pos = page_offset(page) + from;
 	lock_page(page);
 	err = ext2_prepare_chunk(page, pos, to - from);
