@@ -198,7 +198,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 	/*
 	 * Then do more get_blocks calls until we are done with this folio.
 	 */
-	map_bh->b_page = &folio->page;
+	map_bh->b_folio = folio;
 	while (page_block < blocks_per_page) {
 		map_bh->b_state = 0;
 		map_bh->b_size = 0;
