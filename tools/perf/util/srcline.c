@@ -573,13 +573,15 @@ static int addr2line(const char *dso_name, u64 addr,
 	 * "??"/"??:0" lines.
 	 */
 	if (fprintf(a2l->to_child, "%016"PRIx64"\n,\n", addr) < 0 || fflush(a2l->to_child) != 0) {
-		pr_warning("%s %s: could not send request\n", __func__, dso_name);
+		if (!symbol_conf.disable_add2line_warn)
+			pr_warning("%s %s: could not send request\n", __func__, dso_name);
 		goto out;
 	}
 
 	switch (read_addr2line_record(a2l, &record_function, &record_filename, &record_line_nr)) {
 	case -1:
-		pr_warning("%s %s: could not read first record\n", __func__, dso_name);
+		if (!symbol_conf.disable_add2line_warn)
+			pr_warning("%s %s: could not read first record\n", __func__, dso_name);
 		goto out;
 	case 0:
 		/*
@@ -588,14 +590,17 @@ static int addr2line(const char *dso_name, u64 addr,
 		 */
 		switch (read_addr2line_record(a2l, NULL, NULL, NULL)) {
 		case -1:
-			pr_warning("%s %s: could not read delimiter record\n", __func__, dso_name);
+			if (!symbol_conf.disable_add2line_warn)
+				pr_warning("%s %s: could not read delimiter record\n",
+					   __func__, dso_name);
 			break;
 		case 0:
 			/* As expected. */
 			break;
 		default:
-			pr_warning("%s %s: unexpected record instead of sentinel",
-				   __func__, dso_name);
+			if (!symbol_conf.disable_add2line_warn)
+				pr_warning("%s %s: unexpected record instead of sentinel",
+					   __func__, dso_name);
 			break;
 		}
 		goto out;
