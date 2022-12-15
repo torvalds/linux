@@ -3333,9 +3333,10 @@ void __init kfree_rcu_scheduler_running(void)
  */
 static int rcu_blocking_is_gp(void)
 {
-	if (rcu_scheduler_active != RCU_SCHEDULER_INACTIVE)
+	if (rcu_scheduler_active != RCU_SCHEDULER_INACTIVE) {
+		might_sleep();
 		return false;
-	might_sleep();  /* Check for RCU read-side critical section. */
+	}
 	return true;
 }
 
