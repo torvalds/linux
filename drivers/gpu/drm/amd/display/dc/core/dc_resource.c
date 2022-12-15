@@ -3821,9 +3821,20 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 		pipe_ctx_check = &context->res_ctx.pipe_ctx[i];
 
 		if ((GET_PIPE_SYNCD_FROM_PIPE(pipe_ctx_check) == disabled_master_pipe_idx) &&
-			IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx))
+		    IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx)) {
+			struct pipe_ctx *first_pipe = pipe_ctx_check;
+
+			while (first_pipe->prev_odm_pipe)
+				first_pipe = first_pipe->prev_odm_pipe;
+			/* When ODM combine is enabled, this case is expected. If the disabled pipe
+			 * is part of the ODM tree, then we should not print an error.
+			 * */
+			if (first_pipe->pipe_idx == disabled_master_pipe_idx)
+				continue;
+
 			DC_ERR("DC: Failure: pipe_idx[%d] syncd with disabled master pipe_idx[%d]\n",
-				i, disabled_master_pipe_idx);
+				   i, disabled_master_pipe_idx);
+		}
 	}
 }
 
