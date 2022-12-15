@@ -33,6 +33,7 @@
 #include "link_dp_phy.h"
 #include "link_dpcd.h"
 #include "link_dp_training.h"
+#include "link_dp_capability.h"
 #include "clk_mgr.h"
 #include "resource.h"
 #include "dc_link_dp.h"
@@ -117,7 +118,7 @@ void dp_disable_link_phy_mst(struct dc_link *link,
 
 static inline bool is_immediate_downstream(struct dc_link *link, uint32_t offset)
 {
-	return (dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) ==
+	return (dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) ==
 			offset);
 }
 

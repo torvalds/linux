@@ -31,6 +31,7 @@
 #include "link_dp_training_8b_10b.h"
 #include "link_dpcd.h"
 #include "link_dp_phy.h"
+#include "link_dp_capability.h"
 #include "dc_link_dp.h"
 
 #define DC_LOGGER \
@@ -238,7 +239,7 @@ void decide_128b_132b_training_settings(struct dc_link *link,
 	lt_settings->eq_loop_count_limit = 20;
 	lt_settings->pattern_for_cds = DP_128b_132b_TPS2_CDS;
 	lt_settings->cds_pattern_time = 2500;
-	lt_settings->cds_wait_time_limit = (dp_convert_to_count(
+	lt_settings->cds_wait_time_limit = (dp_parse_lttpr_repeater_count(
 			link->dpcd_caps.lttpr_caps.phy_repeater_cnt) + 1) * 20000;
 	lt_settings->disallow_per_lane_settings = true;
 	lt_settings->lttpr_mode = dp_decide_128b_132b_lttpr_mode(link);

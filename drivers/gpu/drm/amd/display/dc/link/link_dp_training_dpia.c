@@ -39,6 +39,7 @@
 #include "dmub/inc/dmub_cmd.h"
 #include "link_dpcd.h"
 #include "link_dp_training_8b_10b.h"
+#include "link_dp_capability.h"
 #include "dc_dmub_srv.h"
 #define DC_LOGGER \
 	link->ctx->logger
@@ -300,7 +301,7 @@ static enum link_training_result dpia_training_cr_non_transparent(
 	uint8_t set_cfg_data;
 	enum dpia_set_config_ts ts;
 
-	repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+	repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 	/* Cap of LINK_TRAINING_MAX_CR_RETRY attempts at clock recovery.
 	 * Fix inherited from perform_clock_recovery_sequence() -
@@ -631,7 +632,7 @@ static enum link_training_result dpia_training_eq_non_transparent(
 	else
 		tr_pattern = DP_TRAINING_PATTERN_SEQUENCE_4;
 
-	repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+	repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 	for (retries_eq = 0; retries_eq < LINK_TRAINING_MAX_RETRY_COUNT; retries_eq++) {
 
@@ -900,7 +901,7 @@ static enum link_training_result dpia_training_end(
 
 	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
 
-		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+		repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 		if (hop == repeater_cnt) { /* DPTX-to-DPIA */
 			/* Send SET_CONFIG(SET_TRAINING:0xff) to notify DPOA that
@@ -1004,7 +1005,7 @@ enum link_training_result dc_link_dpia_perform_link_training(
 		return result;
 
 	if (lt_settings.lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
-		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+		repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 	/* Train each hop in turn starting with the one closest to DPTX.
 	 * In transparent or non-LTTPR mode, train only the final hop (DPRX).

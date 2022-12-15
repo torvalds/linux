@@ -34,6 +34,7 @@
 #include "core_types.h"
 #include "dm_helpers.h"
 #include "dc_link_dp.h"
+#include "link.h"
 
 #include "atomfirmware.h"
 #include "smu13_driver_if.h"

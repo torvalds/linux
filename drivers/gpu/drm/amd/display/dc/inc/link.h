@@ -80,5 +80,13 @@ bool link_aux_transfer_with_retries_no_mutex(struct ddc_service *ddc,
 
 uint32_t link_get_aux_defer_delay(struct ddc_service *ddc);
 
+bool link_is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx);
+
+enum dp_link_encoding link_dp_get_encoding_format(
+		const struct dc_link_settings *link_settings);
+
+bool link_decide_link_settings(
+	struct dc_stream_state *stream,
+	struct dc_link_settings *link_setting);
 
 #endif /* __DC_LINK_HPD_H__ */

@@ -50,6 +50,7 @@
 #include "dmub_subvp_state.h"
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dcn32_resource.h"
+#include "link.h"
 #include "dc_link_dp.h"
 #include "dmub/inc/dmub_subvp_state.h"
 
@@ -1056,7 +1057,7 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 	two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
 		*k1_div = PIXEL_RATE_DIV_BY_1;
 		*k2_div = PIXEL_RATE_DIV_BY_1;
 	} else if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) || dc_is_dvi_signal(pipe_ctx->stream->signal)) {
@@ -1120,7 +1121,7 @@ void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 	params.link_settings.link_rate = link_settings->link_rate;
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
 		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_unblank(
 				pipe_ctx->stream_res.hpo_dp_stream_enc,
@@ -1147,7 +1148,7 @@ bool dcn32_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx)
 	if (!is_h_timing_divisible_by_2(pipe_ctx->stream))
 		return false;
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal) && !is_dp_128b_132b_signal(pipe_ctx) &&
+	if (dc_is_dp_signal(pipe_ctx->stream->signal) && !link_is_dp_128b_132b_signal(pipe_ctx) &&
 		dc->debug.enable_dp_dig_pixel_rate_div_policy)
 		return true;
 	return false;
@@ -1181,7 +1182,7 @@ static void apply_symclk_on_tx_off_wa(struct dc_link *link)
 				pipe_ctx->clock_source->funcs->program_pix_clk(
 						pipe_ctx->clock_source,
 						&pipe_ctx->stream_res.pix_clk_params,
-						dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+						link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
 						&pipe_ctx->pll_settings);
 				link->phy_state.symclk_state = SYMCLK_ON_TX_OFF;
 				break;

@@ -35,6 +35,7 @@
 #include "link_dp_training_8b_10b.h"
 #include "link_dpcd.h"
 #include "link_dp_phy.h"
+#include "link_dp_capability.h"
 #include "dc_link_dp.h"
 
 #define DC_LOGGER \
@@ -46,7 +47,7 @@ void dp_fixed_vs_pe_read_lane_adjust(
 {
 	const uint8_t vendor_lttpr_write_data_vs[3] = {0x0, 0x53, 0x63};
 	const uint8_t vendor_lttpr_write_data_pe[3] = {0x0, 0x54, 0x63};
-	const uint8_t offset = dp_convert_to_count(
+	const uint8_t offset = dp_parse_lttpr_repeater_count(
 			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	uint32_t vendor_lttpr_write_address = 0xF004F;
 	uint32_t vendor_lttpr_read_address = 0xF0053;
@@ -95,7 +96,7 @@ void dp_fixed_vs_pe_set_retimer_lane_settings(
 	const union dpcd_training_lane dpcd_lane_adjust[LANE_COUNT_DP_MAX],
 	uint8_t lane_count)
 {
-	const uint8_t offset = dp_convert_to_count(
+	const uint8_t offset = dp_parse_lttpr_repeater_count(
 			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	const uint8_t vendor_lttpr_write_data_reset[4] = {0x1, 0x50, 0x63, 0xFF};
 	uint32_t vendor_lttpr_write_address = 0xF004F;
@@ -180,7 +181,7 @@ static enum link_training_result perform_fixed_vs_pe_nontransparent_training_seq
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)
 		 */
-		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+		repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 		for (repeater_id = repeater_cnt; (repeater_id > 0 && status == LINK_TRAINING_SUCCESS);
 				repeater_id--) {
@@ -229,7 +230,7 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 	struct link_training_settings *lt_settings)
 {
 	const uint8_t vendor_lttpr_write_data_reset[4] = {0x1, 0x50, 0x63, 0xFF};
-	const uint8_t offset = dp_convert_to_count(
+	const uint8_t offset = dp_parse_lttpr_repeater_count(
 			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	const uint8_t vendor_lttpr_write_data_intercept_en[4] = {0x1, 0x55, 0x63, 0x0};
 	const uint8_t vendor_lttpr_write_data_intercept_dis[4] = {0x1, 0x55, 0x63, 0x68};
@@ -245,7 +246,7 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 	uint8_t rate;
 
 	/* Only 8b/10b is supported */
-	ASSERT(dp_get_link_encoding_format(&lt_settings->link_settings) ==
+	ASSERT(link_dp_get_encoding_format(&lt_settings->link_settings) ==
 			DP_8b_10b_ENCODING);
 
 	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {

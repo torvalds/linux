@@ -56,6 +56,7 @@
 #include "link/link_hpd.h"
 #include "link/link_dp_training.h"
 #include "link/link_dp_phy.h"
+#include "link/link_dp_capability.h"
 
 #include "dc/dcn30/dcn30_vpg.h"
 
@@ -1032,7 +1033,7 @@ static bool should_verify_link_capability_destructively(struct dc_link *link,
 				dc_is_embedded_signal(link->local_sink->sink_signal) ||
 				link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
 			destrictive = false;
-		} else if (dp_get_link_encoding_format(&max_link_cap) ==
+		} else if (link_dp_get_encoding_format(&max_link_cap) ==
 				DP_8b_10b_ENCODING) {
 			if (link->dpcd_caps.is_mst_capable ||
 					is_link_enc_unavailable) {
@@ -2005,7 +2006,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	 * Temporary w/a to get DP2.0 link rates to work with SST.
 	 * TODO DP2.0 - Workaround: Remove w/a if and when the issue is resolved.
 	 */
-	if (dp_get_link_encoding_format(link_settings) == DP_128b_132b_ENCODING &&
+	if (link_dp_get_encoding_format(link_settings) == DP_128b_132b_ENCODING &&
 			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT &&
 			link->dc->debug.set_mst_en_for_sst) {
 		dp_enable_mst_on_sink(link, true);
@@ -2018,7 +2019,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
 
-	if (dp_get_link_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
+	if (link_dp_get_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
 		/* TODO - DP2.0 HW: calculate 32 symbol clock for HPO encoder */
 	} else {
 		pipe_ctx->stream_res.pix_clk_params.requested_sym_clk =
@@ -2059,7 +2060,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	else
 		fec_enable = true;
 
-	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING)
+	if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING)
 		dp_set_fec_enable(link, fec_enable);
 
 	// during mode set we do DP_SET_POWER off then on, aux writes are lost
@@ -2640,7 +2641,7 @@ static void disable_link(struct dc_link *link, const struct link_resource *link_
 
 		if (dc_is_dp_sst_signal(signal) ||
 				link->mst_stream_alloc_table.stream_count == 0) {
-			if (dp_get_link_encoding_format(&link_settings) == DP_8b_10b_ENCODING) {
+			if (link_dp_get_encoding_format(&link_settings) == DP_8b_10b_ENCODING) {
 				dp_set_fec_enable(link, false);
 				dp_set_fec_ready(link, link_res, false);
 			}
@@ -3688,7 +3689,7 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 	}
 
 	/* slot X.Y for SST payload allocate */
-	if (allocate && dp_get_link_encoding_format(&link->cur_link_settings) ==
+	if (allocate && link_dp_get_encoding_format(&link->cur_link_settings) ==
 			DP_128b_132b_ENCODING) {
 		avg_time_slots_per_mtp = calculate_sst_avg_time_slots_per_mtp(stream, link);
 
@@ -3771,7 +3772,7 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 	/* program DP source TX for payload */
 	if (link_hwss->ext.update_stream_allocation_table == NULL ||
-			dp_get_link_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
+			link_dp_get_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
 		DC_LOG_ERROR("Failure: unknown encoding format\n");
 		return DC_ERROR_UNEXPECTED;
 	}
@@ -3887,7 +3888,7 @@ enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw
 
 	/* update mst stream allocation table hardware state */
 	if (link_hwss->ext.update_stream_allocation_table == NULL ||
-			dp_get_link_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
+			link_dp_get_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
 		DC_LOG_ERROR("Failure: unknown encoding format\n");
 		return DC_ERROR_UNEXPECTED;
 	}
@@ -3954,7 +3955,7 @@ enum dc_status dc_link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t 
 
 	/* update mst stream allocation table hardware state */
 	if (link_hwss->ext.update_stream_allocation_table == NULL ||
-			dp_get_link_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
+			link_dp_get_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
 		DC_LOG_ERROR("Failure: unknown encoding format\n");
 		return DC_ERROR_UNEXPECTED;
 	}
@@ -4067,7 +4068,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 	/* update mst stream allocation table hardware state */
 	if (link_hwss->ext.update_stream_allocation_table == NULL ||
-			dp_get_link_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
+			link_dp_get_encoding_format(&link->cur_link_settings) == DP_UNKNOWN_ENCODING) {
 		DC_LOG_DEBUG("Unknown encoding format\n");
 		return DC_ERROR_UNEXPECTED;
 	}
@@ -4115,7 +4116,7 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 
 	/* stream encoder index */
 	config.stream_enc_idx = pipe_ctx->stream_res.stream_enc->id - ENGINE_ID_DIGA;
-	if (is_dp_128b_132b_signal(pipe_ctx))
+	if (link_is_dp_128b_132b_signal(pipe_ctx))
 		config.stream_enc_idx =
 				pipe_ctx->stream_res.hpo_dp_stream_enc->id - ENGINE_ID_HPO_DP_0;
 
@@ -4124,7 +4125,7 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 
 	/* link encoder index */
 	config.link_enc_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
-	if (is_dp_128b_132b_signal(pipe_ctx))
+	if (link_is_dp_128b_132b_signal(pipe_ctx))
 		config.link_enc_idx = pipe_ctx->link_res.hpo_dp_link_enc->inst;
 
 	/* dio output index is dpia index for DPIA endpoint & dcio index by default */
@@ -4145,7 +4146,7 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 	config.assr_enabled = (panel_mode == DP_PANEL_MODE_EDP) ? 1 : 0;
 	config.mst_enabled = (pipe_ctx->stream->signal ==
 			SIGNAL_TYPE_DISPLAY_PORT_MST) ? 1 : 0;
-	config.dp2_enabled = is_dp_128b_132b_signal(pipe_ctx) ? 1 : 0;
+	config.dp2_enabled = link_is_dp_128b_132b_signal(pipe_ctx) ? 1 : 0;
 	config.usb4_enabled = (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) ?
 			1 : 0;
 	config.dpms_off = dpms_off;
@@ -4248,7 +4249,7 @@ void core_link_enable_stream(
 	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 
-	if (is_dp_128b_132b_signal(pipe_ctx))
+	if (link_is_dp_128b_132b_signal(pipe_ctx))
 		vpg = pipe_ctx->stream_res.hpo_dp_stream_enc->vpg;
 
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
@@ -4270,7 +4271,7 @@ void core_link_enable_stream(
 	ASSERT(link_enc);
 
 	if (!dc_is_virtual_signal(pipe_ctx->stream->signal)
-			&& !is_dp_128b_132b_signal(pipe_ctx)) {
+			&& !link_is_dp_128b_132b_signal(pipe_ctx)) {
 		if (link_enc)
 			link_enc->funcs->setup(
 				link_enc,
@@ -4280,7 +4281,7 @@ void core_link_enable_stream(
 	pipe_ctx->stream->link->link_state_valid = true;
 
 	if (pipe_ctx->stream_res.tg->funcs->set_out_mux) {
-		if (is_dp_128b_132b_signal(pipe_ctx))
+		if (link_is_dp_128b_132b_signal(pipe_ctx))
 			otg_out_dest = OUT_MUX_HPO_DP;
 		else
 			otg_out_dest = OUT_MUX_DIO;
@@ -4382,7 +4383,7 @@ void core_link_enable_stream(
 		 * from transmitter control.
 		 */
 		if (!(dc_is_virtual_signal(pipe_ctx->stream->signal) ||
-				is_dp_128b_132b_signal(pipe_ctx)))
+				link_is_dp_128b_132b_signal(pipe_ctx)))
 			if (link_enc)
 				link_enc->funcs->setup(
 					link_enc,
@@ -4402,7 +4403,7 @@ void core_link_enable_stream(
 		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 			dc_link_allocate_mst_payload(pipe_ctx);
 		else if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT &&
-				is_dp_128b_132b_signal(pipe_ctx))
+				link_is_dp_128b_132b_signal(pipe_ctx))
 			dc_link_update_sst_payload(pipe_ctx, true);
 
 		dc->hwss.unblank_stream(pipe_ctx,
@@ -4420,7 +4421,7 @@ void core_link_enable_stream(
 		dc->hwss.enable_audio_stream(pipe_ctx);
 
 	} else { // if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		if (is_dp_128b_132b_signal(pipe_ctx))
+		if (link_is_dp_128b_132b_signal(pipe_ctx))
 			fpga_dp_hpo_enable_link_and_stream(state, pipe_ctx);
 		if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
 				dc_is_virtual_signal(pipe_ctx->stream->signal))
@@ -4439,7 +4440,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_link *link = stream->sink->link;
 	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
 
-	if (is_dp_128b_132b_signal(pipe_ctx))
+	if (link_is_dp_128b_132b_signal(pipe_ctx))
 		vpg = pipe_ctx->stream_res.hpo_dp_stream_enc->vpg;
 
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
@@ -4472,7 +4473,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
 	else if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT &&
-			is_dp_128b_132b_signal(pipe_ctx))
+			link_is_dp_128b_132b_signal(pipe_ctx))
 		dc_link_update_sst_payload(pipe_ctx, false);
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
@@ -4501,7 +4502,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 	}
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT &&
-			!is_dp_128b_132b_signal(pipe_ctx)) {
+			!link_is_dp_128b_132b_signal(pipe_ctx)) {
 
 		/* In DP1.x SST mode, our encoder will go to TPS1
 		 * when link is on but stream is off.
@@ -4521,7 +4522,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			dp_set_dsc_enable(pipe_ctx, false);
 	}
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
 		if (pipe_ctx->stream_res.tg->funcs->set_out_mux)
 			pipe_ctx->stream_res.tg->funcs->set_out_mux(pipe_ctx->stream_res.tg, OUT_MUX_DIO);
 	}
@@ -4596,7 +4597,7 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 	if (link_stream->dpms_off)
 		return;
 
-	if (decide_link_settings(link_stream, &store_settings))
+	if (link_decide_link_settings(link_stream, &store_settings))
 		dp_retrain_link_dp_test(link, &store_settings, false);
 }
 
@@ -4651,7 +4652,7 @@ uint32_t dc_link_bandwidth_kbps(
 	uint32_t total_data_bw_efficiency_x10000 = 0;
 	uint32_t link_rate_per_lane_kbps = 0;
 
-	switch (dp_get_link_encoding_format(link_setting)) {
+	switch (link_dp_get_encoding_format(link_setting)) {
 	case DP_8b_10b_ENCODING:
 		/* For 8b/10b encoding:
 		 * link rate is defined in the unit of LINK_RATE_REF_FREQ_IN_KHZ per DP byte per lane.
@@ -4678,57 +4679,6 @@ uint32_t dc_link_bandwidth_kbps(
 
 	/* overall effective link bandwidth = link rate per lane * lane count * total data bandwidth efficiency */
 	return link_rate_per_lane_kbps * link_setting->lane_count / 10000 * total_data_bw_efficiency_x10000;
-}
-
-const struct dc_link_settings *dc_link_get_link_cap(
-		const struct dc_link *link)
-{
-	if (link->preferred_link_setting.lane_count != LANE_COUNT_UNKNOWN &&
-			link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN)
-		return &link->preferred_link_setting;
-	return &link->verified_link_cap;
-}
-
-void dc_link_overwrite_extended_receiver_cap(
-		struct dc_link *link)
-{
-	dp_overwrite_extended_receiver_cap(link);
-}
-
-bool dc_link_is_fec_supported(const struct dc_link *link)
-{
-	/* TODO - use asic cap instead of link_enc->features
-	 * we no longer know which link enc to use for this link before commit
-	 */
-	struct link_encoder *link_enc = NULL;
-
-	link_enc = link_enc_cfg_get_link_enc(link);
-	ASSERT(link_enc);
-
-	return (dc_is_dp_signal(link->connector_signal) && link_enc &&
-			link_enc->features.fec_supported &&
-			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE &&
-			!IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment));
-}
-
-bool dc_link_should_enable_fec(const struct dc_link *link)
-{
-	bool force_disable = false;
-
-	if (link->fec_state == dc_link_fec_enabled)
-		force_disable = false;
-	else if (link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT_MST &&
-			link->local_sink &&
-			link->local_sink->edid_caps.panel_patch.disable_fec)
-		force_disable = true;
-	else if (link->connector_signal == SIGNAL_TYPE_EDP
-			&& (link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.
-			 dsc_support.DSC_SUPPORT == false
-				|| link->panel_config.dsc.disable_dsc_edp
-				|| !link->dc->caps.edp_dsc_support))
-		force_disable = true;
-
-	return !force_disable && dc_link_is_fec_supported(link);
 }
 
 uint32_t dc_bandwidth_in_kbps_from_timing(
@@ -4835,8 +4785,8 @@ void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map)
 		for (i = 0; i < dc->caps.max_links; i++) {
 			link = dc->links[i];
 			if (link->link_status.link_active &&
-					dp_get_link_encoding_format(&link->reported_link_cap) == DP_128b_132b_ENCODING &&
-					dp_get_link_encoding_format(&link->cur_link_settings) != DP_128b_132b_ENCODING)
+					link_dp_get_encoding_format(&link->reported_link_cap) == DP_128b_132b_ENCODING &&
+					link_dp_get_encoding_format(&link->cur_link_settings) != DP_128b_132b_ENCODING)
 				/* hpo dp link encoder is considered as recycled, when RX reports 128b/132b encoding capability
 				 * but current link doesn't use it.
 				 */
@@ -4879,7 +4829,7 @@ void dc_restore_link_res_map(const struct dc *dc, uint32_t *map)
 			if ((hpo_dp_recycle_map & (1 << i)) == 0) {
 				link = dc->links[i];
 				if (link->type != dc_connection_none &&
-						dp_get_link_encoding_format(&link->verified_link_cap) == DP_128b_132b_ENCODING) {
+						link_dp_get_encoding_format(&link->verified_link_cap) == DP_128b_132b_ENCODING) {
 					if (available_hpo_dp_count > 0)
 						available_hpo_dp_count--;
 					else
@@ -4893,7 +4843,7 @@ void dc_restore_link_res_map(const struct dc *dc, uint32_t *map)
 			if ((hpo_dp_recycle_map & (1 << i)) != 0) {
 				link = dc->links[i];
 				if (link->type != dc_connection_none &&
-						dp_get_link_encoding_format(&link->verified_link_cap) == DP_128b_132b_ENCODING) {
+						link_dp_get_encoding_format(&link->verified_link_cap) == DP_128b_132b_ENCODING) {
 					if (available_hpo_dp_count > 0)
 						available_hpo_dp_count--;
 					else

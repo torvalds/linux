@@ -30,6 +30,7 @@
 #include "link_dp_training_8b_10b.h"
 #include "link_dpcd.h"
 #include "link_dp_phy.h"
+#include "link_dp_capability.h"
 #include "dc_link_dp.h"
 
 #define DC_LOGGER \
@@ -42,7 +43,7 @@ static int32_t get_cr_training_aux_rd_interval(struct dc_link *link,
 	uint32_t wait_in_micro_secs = 100;
 
 	memset(&training_rd_interval, 0, sizeof(training_rd_interval));
-	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING &&
+	if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING &&
 			link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12) {
 		core_link_read_dpcd(
 				link,
@@ -62,13 +63,13 @@ static uint32_t get_eq_training_aux_rd_interval(
 	union training_aux_rd_interval training_rd_interval;
 
 	memset(&training_rd_interval, 0, sizeof(training_rd_interval));
-	if (dp_get_link_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
+	if (link_dp_get_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
 		core_link_read_dpcd(
 				link,
 				DP_128B132B_TRAINING_AUX_RD_INTERVAL,
 				(uint8_t *)&training_rd_interval,
 				sizeof(training_rd_interval));
-	} else if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING &&
+	} else if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING &&
 			link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12) {
 		core_link_read_dpcd(
 				link,
@@ -229,7 +230,7 @@ enum link_training_result perform_8b_10b_clock_recovery_sequence(
 			return LINK_TRAINING_SUCCESS;
 
 		/* 6. max VS reached*/
-		if ((dp_get_link_encoding_format(&lt_settings->link_settings) ==
+		if ((link_dp_get_encoding_format(&lt_settings->link_settings) ==
 				DP_8b_10b_ENCODING) &&
 				dp_is_max_vs_reached(lt_settings))
 			break;
@@ -237,11 +238,11 @@ enum link_training_result perform_8b_10b_clock_recovery_sequence(
 		/* 7. same lane settings*/
 		/* Note: settings are the same for all lanes,
 		 * so comparing first lane is sufficient*/
-		if ((dp_get_link_encoding_format(&lt_settings->link_settings) == DP_8b_10b_ENCODING) &&
+		if ((link_dp_get_encoding_format(&lt_settings->link_settings) == DP_8b_10b_ENCODING) &&
 				lt_settings->dpcd_lane_settings[0].bits.VOLTAGE_SWING_SET ==
 						dpcd_lane_adjust[0].bits.VOLTAGE_SWING_LANE)
 			retries_cr++;
-		else if ((dp_get_link_encoding_format(&lt_settings->link_settings) == DP_128b_132b_ENCODING) &&
+		else if ((link_dp_get_encoding_format(&lt_settings->link_settings) == DP_128b_132b_ENCODING) &&
 				lt_settings->dpcd_lane_settings[0].tx_ffe.PRESET_VALUE ==
 						dpcd_lane_adjust[0].tx_ffe.PRESET_VALUE)
 			retries_cr++;
@@ -282,7 +283,7 @@ enum link_training_result perform_8b_10b_channel_equalization_sequence(
 	/* Note: also check that TPS4 is a supported feature*/
 	tr_pattern = lt_settings->pattern_for_eq;
 
-	if (is_repeater(lt_settings, offset) && dp_get_link_encoding_format(&lt_settings->link_settings) == DP_8b_10b_ENCODING)
+	if (is_repeater(lt_settings, offset) && link_dp_get_encoding_format(&lt_settings->link_settings) == DP_8b_10b_ENCODING)
 		tr_pattern = DP_TRAINING_PATTERN_SEQUENCE_4;
 
 	dp_set_hw_training_pattern(link, link_res, tr_pattern, offset);
@@ -371,7 +372,7 @@ enum link_training_result dp_perform_8b_10b_link_training(
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)
 		 */
-		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+		repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 		for (repeater_id = repeater_cnt; (repeater_id > 0 && status == LINK_TRAINING_SUCCESS);
 				repeater_id--) {

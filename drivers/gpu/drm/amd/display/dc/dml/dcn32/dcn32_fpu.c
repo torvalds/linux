@@ -31,6 +31,7 @@
 // We need this includes for WATERMARKS_* defines
 #include "clk_mgr/dcn32/dcn32_smu13_driver_if.h"
 #include "dcn30/dcn30_resource.h"
+#include "link.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1263,7 +1264,7 @@ static bool is_dtbclk_required(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
-		if (is_dp_128b_132b_signal(&context->res_ctx.pipe_ctx[i]))
+		if (link_is_dp_128b_132b_signal(&context->res_ctx.pipe_ctx[i]))
 			return true;
 	}
 	return false;

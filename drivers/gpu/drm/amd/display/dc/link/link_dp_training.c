@@ -39,6 +39,7 @@
 #include "link_dpcd.h"
 #include "link_dp_trace.h"
 #include "link_dp_phy.h"
+#include "link_dp_capability.h"
 #include "dc_link_dp.h"
 #include "atomfirmware.h"
 #include "link_enc_cfg.h"
@@ -342,7 +343,7 @@ void dp_hw_to_dpcd_lane_settings(
 	uint8_t lane = 0;
 
 	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
-		if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
+		if (link_dp_get_encoding_format(&lt_settings->link_settings) ==
 				DP_8b_10b_ENCODING) {
 			dpcd_lane_settings[lane].bits.VOLTAGE_SWING_SET =
 					(uint8_t)(hw_lane_settings[lane].VOLTAGE_SWING);
@@ -354,7 +355,7 @@ void dp_hw_to_dpcd_lane_settings(
 			dpcd_lane_settings[lane].bits.MAX_PRE_EMPHASIS_REACHED =
 					(hw_lane_settings[lane].PRE_EMPHASIS ==
 							PRE_EMPHASIS_MAX_LEVEL ? 1 : 0);
-		} else if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
+		} else if (link_dp_get_encoding_format(&lt_settings->link_settings) ==
 				DP_128b_132b_ENCODING) {
 			dpcd_lane_settings[lane].tx_ffe.PRESET_VALUE =
 					hw_lane_settings[lane].FFE_PRESET.settings.level;
@@ -365,7 +366,7 @@ void dp_hw_to_dpcd_lane_settings(
 uint8_t get_dpcd_link_rate(const struct dc_link_settings *link_settings)
 {
 	uint8_t link_rate = 0;
-	enum dp_link_encoding encoding = dp_get_link_encoding_format(link_settings);
+	enum dp_link_encoding encoding = link_dp_get_encoding_format(link_settings);
 
 	if (encoding == DP_128b_132b_ENCODING)
 		switch (link_settings->link_rate) {
@@ -736,7 +737,7 @@ void override_training_settings(
 enum dc_dp_training_pattern decide_cr_training_pattern(
 		const struct dc_link_settings *link_settings)
 {
-	switch (dp_get_link_encoding_format(link_settings)) {
+	switch (link_dp_get_encoding_format(link_settings)) {
 	case DP_8b_10b_ENCODING:
 	default:
 		return DP_TRAINING_PATTERN_SEQUENCE_1;
@@ -757,7 +758,7 @@ enum dc_dp_training_pattern decide_eq_training_pattern(struct dc_link *link,
 	ASSERT(link_enc);
 	enc_caps = &link_enc->features;
 
-	switch (dp_get_link_encoding_format(link_settings)) {
+	switch (link_dp_get_encoding_format(link_settings)) {
 	case DP_8b_10b_ENCODING:
 		if (enc_caps->flags.bits.IS_TPS4_CAPABLE &&
 				rx_caps->max_down_spread.bits.TPS4_SUPPORTED)
@@ -781,7 +782,7 @@ enum dc_dp_training_pattern decide_eq_training_pattern(struct dc_link *link,
 enum lttpr_mode dc_link_decide_lttpr_mode(struct dc_link *link,
 		struct dc_link_settings *link_setting)
 {
-	enum dp_link_encoding encoding = dp_get_link_encoding_format(link_setting);
+	enum dp_link_encoding encoding = link_dp_get_encoding_format(link_setting);
 
 	if (encoding == DP_8b_10b_ENCODING)
 		return dp_decide_8b_10b_lttpr_mode(link);
@@ -801,7 +802,7 @@ void dp_decide_lane_settings(
 	uint32_t lane;
 
 	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
-		if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
+		if (link_dp_get_encoding_format(&lt_settings->link_settings) ==
 				DP_8b_10b_ENCODING) {
 			hw_lane_settings[lane].VOLTAGE_SWING =
 					(enum dc_voltage_swing)(ln_adjust[lane].bits.
@@ -809,7 +810,7 @@ void dp_decide_lane_settings(
 			hw_lane_settings[lane].PRE_EMPHASIS =
 					(enum dc_pre_emphasis)(ln_adjust[lane].bits.
 							PRE_EMPHASIS_LANE);
-		} else if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
+		} else if (link_dp_get_encoding_format(&lt_settings->link_settings) ==
 				DP_128b_132b_ENCODING) {
 			hw_lane_settings[lane].FFE_PRESET.raw =
 					ln_adjust[lane].tx_ffe.PRESET_VALUE;
@@ -834,9 +835,9 @@ void dp_decide_training_settings(
 		const struct dc_link_settings *link_settings,
 		struct link_training_settings *lt_settings)
 {
-	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING)
+	if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING)
 		decide_8b_10b_training_settings(link, link_settings, lt_settings);
-	else if (dp_get_link_encoding_format(link_settings) == DP_128b_132b_ENCODING)
+	else if (link_dp_get_encoding_format(link_settings) == DP_128b_132b_ENCODING)
 		decide_128b_132b_training_settings(link, link_settings, lt_settings);
 }
 
@@ -864,7 +865,7 @@ static enum dc_status configure_lttpr_mode_non_transparent(
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
 
-	enum dp_link_encoding encoding = dp_get_link_encoding_format(&lt_settings->link_settings);
+	enum dp_link_encoding encoding = link_dp_get_encoding_format(&lt_settings->link_settings);
 
 	if (encoding == DP_8b_10b_ENCODING) {
 		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
@@ -894,7 +895,7 @@ static enum dc_status configure_lttpr_mode_non_transparent(
 		}
 
 		if (encoding == DP_8b_10b_ENCODING) {
-			repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+			repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 			/* Driver does not need to train the first hop. Skip DPCD read and clear
 			 * AUX_RD_INTERVAL for DPTX-to-DPIA hop.
@@ -977,7 +978,7 @@ enum dc_status dpcd_configure_channel_coding(struct dc_link *link,
 		struct link_training_settings *lt_settings)
 {
 	enum dp_link_encoding encoding =
-			dp_get_link_encoding_format(
+			link_dp_get_encoding_format(
 					&lt_settings->link_settings);
 	enum dc_status status;
 
@@ -1190,7 +1191,7 @@ void dpcd_set_lt_pattern_and_lane_settings(
 		size_in_bytes);
 
 	if (is_repeater(lt_settings, offset)) {
-		if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
+		if (link_dp_get_encoding_format(&lt_settings->link_settings) ==
 				DP_128b_132b_ENCODING)
 			DC_LOG_HW_LINK_TRAINING("%s:\n LTTPR Repeater ID: %d\n"
 					" 0x%X TX_FFE_PRESET_VALUE = %x\n",
@@ -1198,7 +1199,7 @@ void dpcd_set_lt_pattern_and_lane_settings(
 					offset,
 					dpcd_base_lt_offset,
 					lt_settings->dpcd_lane_settings[0].tx_ffe.PRESET_VALUE);
-		else if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
+		else if (link_dp_get_encoding_format(&lt_settings->link_settings) ==
 				DP_8b_10b_ENCODING)
 		DC_LOG_HW_LINK_TRAINING("%s:\n LTTPR Repeater ID: %d\n"
 				" 0x%X VS set = %x PE set = %x max VS Reached = %x  max PE Reached = %x\n",
@@ -1210,13 +1211,13 @@ void dpcd_set_lt_pattern_and_lane_settings(
 			lt_settings->dpcd_lane_settings[0].bits.MAX_SWING_REACHED,
 			lt_settings->dpcd_lane_settings[0].bits.MAX_PRE_EMPHASIS_REACHED);
 	} else {
-		if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
+		if (link_dp_get_encoding_format(&lt_settings->link_settings) ==
 				DP_128b_132b_ENCODING)
 			DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X TX_FFE_PRESET_VALUE = %x\n",
 					__func__,
 					dpcd_base_lt_offset,
 					lt_settings->dpcd_lane_settings[0].tx_ffe.PRESET_VALUE);
-		else if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
+		else if (link_dp_get_encoding_format(&lt_settings->link_settings) ==
 				DP_8b_10b_ENCODING)
 			DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 					__func__,
@@ -1242,7 +1243,7 @@ void dpcd_set_lt_pattern_and_lane_settings(
 			(uint8_t *)(lt_settings->dpcd_lane_settings),
 			size_in_bytes);
 
-	} else if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
+	} else if (link_dp_get_encoding_format(&lt_settings->link_settings) ==
 			DP_128b_132b_ENCODING) {
 		core_link_write_dpcd(
 				link,
@@ -1467,7 +1468,7 @@ enum link_training_result dp_perform_link_training(
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	struct link_training_settings lt_settings = {0};
 	enum dp_link_encoding encoding =
-			dp_get_link_encoding_format(link_settings);
+			link_dp_get_encoding_format(link_settings);
 
 	/* decide training settings */
 	dp_decide_training_settings(
@@ -1544,7 +1545,7 @@ bool perform_link_training_with_retries(
 	dp_trace_commit_lt_init(link);
 
 
-	if (dp_get_link_encoding_format(&cur_link_settings) == DP_8b_10b_ENCODING)
+	if (link_dp_get_encoding_format(&cur_link_settings) == DP_8b_10b_ENCODING)
 		/* We need to do this before the link training to ensure the idle
 		 * pattern in SST mode will be sent right after the link training
 		 */
