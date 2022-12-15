@@ -8449,6 +8449,11 @@ err:
 
 static void ufshcd_config_mcq(struct ufs_hba *hba)
 {
+	int ret;
+
+	ret = ufshcd_mcq_vops_config_esi(hba);
+	dev_info(hba->dev, "ESI %sconfigured\n", ret ? "is not " : "");
+
 	ufshcd_enable_intr(hba, UFSHCD_ENABLE_MCQ_INTRS);
 	ufshcd_mcq_make_queues_operational(hba);
 	ufshcd_mcq_config_mac(hba, hba->nutrs);
