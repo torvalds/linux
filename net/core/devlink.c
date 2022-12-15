@@ -11925,8 +11925,10 @@ void devl_region_destroy(struct devlink_region *region)
 	devl_assert_locked(devlink);
 
 	/* Free all snapshots of region */
+	mutex_lock(&region->snapshot_lock);
 	list_for_each_entry_safe(snapshot, ts, &region->snapshot_list, list)
 		devlink_region_snapshot_del(region, snapshot);
+	mutex_unlock(&region->snapshot_lock);
 
 	list_del(&region->list);
 	mutex_destroy(&region->snapshot_lock);
