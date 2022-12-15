@@ -538,7 +538,7 @@ static void io_eventfd_signal(struct io_ring_ctx *ctx)
 	} else {
 		atomic_inc(&ev_fd->refs);
 		if (!atomic_fetch_or(BIT(IO_EVENTFD_OP_SIGNAL_BIT), &ev_fd->ops))
-			call_rcu(&ev_fd->rcu, io_eventfd_ops);
+			call_rcu_hurry(&ev_fd->rcu, io_eventfd_ops);
 		else
 			atomic_dec(&ev_fd->refs);
 	}
