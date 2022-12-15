@@ -433,6 +433,12 @@ static char *addr_map_symbol__srcline(struct addr_map_symbol *ams)
 static int64_t
 sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	return left->branch_info->from.addr - right->branch_info->from.addr;
+}
+
+static int64_t
+sort__srcline_from_collapse(struct hist_entry *left, struct hist_entry *right)
+{
 	if (!left->branch_info->srcline_from)
 		left->branch_info->srcline_from = addr_map_symbol__srcline(&left->branch_info->from);
 
@@ -440,6 +446,18 @@ sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 		right->branch_info->srcline_from = addr_map_symbol__srcline(&right->branch_info->from);
 
 	return strcmp(right->branch_info->srcline_from, left->branch_info->srcline_from);
+}
+
+static int64_t
+sort__srcline_from_sort(struct hist_entry *left, struct hist_entry *right)
+{
+	return sort__srcline_from_collapse(left, right);
+}
+
+static void sort__srcline_from_init(struct hist_entry *he)
+{
+	if (!he->branch_info->srcline_from)
+		he->branch_info->srcline_from = addr_map_symbol__srcline(&he->branch_info->from);
 }
 
 static int hist_entry__srcline_from_snprintf(struct hist_entry *he, char *bf,
@@ -451,6 +469,9 @@ static int hist_entry__srcline_from_snprintf(struct hist_entry *he, char *bf,
 struct sort_entry sort_srcline_from = {
 	.se_header	= "From Source:Line",
 	.se_cmp		= sort__srcline_from_cmp,
+	.se_collapse	= sort__srcline_from_collapse,
+	.se_sort	= sort__srcline_from_sort,
+	.se_init	= sort__srcline_from_init,
 	.se_snprintf	= hist_entry__srcline_from_snprintf,
 	.se_width_idx	= HISTC_SRCLINE_FROM,
 };
@@ -460,6 +481,12 @@ struct sort_entry sort_srcline_from = {
 static int64_t
 sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	return left->branch_info->to.addr - right->branch_info->to.addr;
+}
+
+static int64_t
+sort__srcline_to_collapse(struct hist_entry *left, struct hist_entry *right)
+{
 	if (!left->branch_info->srcline_to)
 		left->branch_info->srcline_to = addr_map_symbol__srcline(&left->branch_info->to);
 
@@ -467,6 +494,18 @@ sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 		right->branch_info->srcline_to = addr_map_symbol__srcline(&right->branch_info->to);
 
 	return strcmp(right->branch_info->srcline_to, left->branch_info->srcline_to);
+}
+
+static int64_t
+sort__srcline_to_sort(struct hist_entry *left, struct hist_entry *right)
+{
+	return sort__srcline_to_collapse(left, right);
+}
+
+static void sort__srcline_to_init(struct hist_entry *he)
+{
+	if (!he->branch_info->srcline_to)
+		he->branch_info->srcline_to = addr_map_symbol__srcline(&he->branch_info->to);
 }
 
 static int hist_entry__srcline_to_snprintf(struct hist_entry *he, char *bf,
@@ -478,6 +517,9 @@ static int hist_entry__srcline_to_snprintf(struct hist_entry *he, char *bf,
 struct sort_entry sort_srcline_to = {
 	.se_header	= "To Source:Line",
 	.se_cmp		= sort__srcline_to_cmp,
+	.se_collapse	= sort__srcline_to_collapse,
+	.se_sort	= sort__srcline_to_sort,
+	.se_init	= sort__srcline_to_init,
 	.se_snprintf	= hist_entry__srcline_to_snprintf,
 	.se_width_idx	= HISTC_SRCLINE_TO,
 };
