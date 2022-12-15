@@ -167,3 +167,7 @@ static struct platform_driver imxrt1050_clk_driver = {
 	},
 };
 module_platform_driver(imxrt1050_clk_driver);
+
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_AUTHOR("Jesse Taube <Mr.Bossman075@gmail.com>");
+MODULE_AUTHOR("Giulio Benetti <giulio.benetti@benettiengineering.com>");
