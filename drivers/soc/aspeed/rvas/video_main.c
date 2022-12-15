@@ -1314,6 +1314,17 @@ static int video_drv_get_irqs(struct platform_device *pdev)
 
 static int video_drv_get_clock(struct platform_device *pdev)
 {
+	//enable Video Engine clocks:
+	//vclk enable will not reset
+	//eclk enable will reset the Video Engine
+	//so enable vclk first then eclk
+	pAstRVAS->vclk = devm_clk_get(&pdev->dev, "vclk");
+	if (IS_ERR(pAstRVAS->vclk)) {
+		dev_err(&pdev->dev, "no vclk clock defined\n");
+		return PTR_ERR(pAstRVAS->vclk);
+	}
+
+	clk_prepare_enable(pAstRVAS->vclk);
 
 	pAstRVAS->eclk = devm_clk_get(&pdev->dev, "eclk");
 	if (IS_ERR(pAstRVAS->eclk)) {
@@ -1323,14 +1334,7 @@ static int video_drv_get_clock(struct platform_device *pdev)
 
 	clk_prepare_enable(pAstRVAS->eclk);
 
-	pAstRVAS->vclk = devm_clk_get(&pdev->dev, "vclk");
-	if (IS_ERR(pAstRVAS->vclk)) {
-		dev_err(&pdev->dev, "no vclk clock defined\n");
-		return PTR_ERR(pAstRVAS->vclk);
-	}
-
-	clk_prepare_enable(pAstRVAS->vclk);
-
+	//enable RVAS engine clock
 	pAstRVAS->rvasclk = devm_clk_get(&pdev->dev, "rvasclk-gate");
 	if (IS_ERR(pAstRVAS->rvasclk)) {
 		dev_err(&pdev->dev, "no rvasclk clock defined\n");
