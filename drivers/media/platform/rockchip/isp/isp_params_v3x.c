@@ -4275,8 +4275,8 @@ multi_overflow:
 		 * |_________|
 		 *
 		 * case1:      bigmode               special reg cfg
-		 *  _________  max width:4672
-		 * | sensor0 | max size:3840*2160    mode=0 index=0
+		 *  _________  max width:3840
+		 * | sensor0 | max size:3840*2160    mode=1 index=0
 		 * |_________|
 		 * |_sensor1_| max size:2560*1536    mode=2 index=2
 		 * |_sensor2_| max size:2560*1536    mode=2 index=3
@@ -4304,7 +4304,7 @@ multi_overflow:
 				goto multi_overflow;
 			} else {
 				if (idx1[0] == ispdev->dev_id) {
-					ispdev->multi_mode = 0;
+					ispdev->multi_mode = 1;
 					ispdev->multi_index = 0;
 				} else {
 					ispdev->multi_mode = 2;
