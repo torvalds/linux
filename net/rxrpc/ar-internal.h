@@ -812,9 +812,9 @@ extern struct workqueue_struct *rxrpc_workqueue;
  */
 int rxrpc_service_prealloc(struct rxrpc_sock *, gfp_t);
 void rxrpc_discard_prealloc(struct rxrpc_sock *);
-bool rxrpc_new_incoming_call(struct rxrpc_local *, struct rxrpc_peer *,
-			     struct rxrpc_connection *, struct sockaddr_rxrpc *,
-			     struct sk_buff *);
+int rxrpc_new_incoming_call(struct rxrpc_local *, struct rxrpc_peer *,
+			    struct rxrpc_connection *, struct sockaddr_rxrpc *,
+			    struct sk_buff *);
 void rxrpc_accept_incoming_calls(struct rxrpc_local *);
 int rxrpc_user_charge_accept(struct rxrpc_sock *, unsigned long);
 

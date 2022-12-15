@@ -292,7 +292,7 @@ protocol_error:
 	skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
 reject_packet:
 	rxrpc_reject_packet(local, skb);
-	return ret;
+	return 0;
 }
 
 /*
@@ -384,7 +384,7 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
 		if (rxrpc_to_client(sp))
 			goto bad_message;
 		if (rxrpc_new_incoming_call(conn->local, conn->peer, conn,
-					    peer_srx, skb))
+					    peer_srx, skb) == 0)
 			return 0;
 		goto reject_packet;
 	}
