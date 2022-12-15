@@ -248,7 +248,6 @@
 		 */
 		regulators {
 			buck1: BUCK1 {	/* VDD_SOC (dual-phase with BUCK3) */
-				regulator-compatible = "BUCK1";
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-ramp-delay = <3125>;
@@ -257,7 +256,6 @@
 			};
 
 			buck2: BUCK2 {	/* VDD_ARM */
-				regulator-compatible = "BUCK2";
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-ramp-delay = <3125>;
@@ -266,7 +264,6 @@
 			};
 
 			buck4: BUCK4 {	/* VDD_3V3 */
-				regulator-compatible = "BUCK4";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
@@ -274,7 +271,6 @@
 			};
 
 			buck5: BUCK5 {	/* VDD_1V8 */
-				regulator-compatible = "BUCK5";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -282,7 +278,6 @@
 			};
 
 			buck6: BUCK6 {	/* NVCC_DRAM_1V1 */
-				regulator-compatible = "BUCK6";
 				regulator-min-microvolt = <1100000>;
 				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
@@ -290,7 +285,6 @@
 			};
 
 			ldo1: LDO1 {	/* NVCC_SNVS_1V8 */
-				regulator-compatible = "LDO1";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -298,7 +292,6 @@
 			};
 
 			ldo3: LDO3 {	/* VDDA_1V8 */
-				regulator-compatible = "LDO3";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -306,13 +299,11 @@
 			};
 
 			ldo4: LDO4 {	/* PMIC_LDO4 */
-				regulator-compatible = "LDO4";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo5: LDO5 {	/* NVCC_SD2 */
-				regulator-compatible = "LDO5";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 			};
