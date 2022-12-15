@@ -392,7 +392,7 @@ static int __init clk_starfive_jh7110_probe(struct platform_device *pdev)
 		if (PLL0_DEFAULT_FREQ >= PLL0_FREQ_1500_VALUE) {
 			struct clk *cpu_core = priv->reg[JH7110_CPU_CORE].hw.clk;
 
-			if (clk_set_rate(cpu_core, PLL0_FREQ_1500_VALUE / 2)) {
+			if (clk_set_rate(cpu_core, clk_get_rate(pll0_clk) / 2)) {
 				dev_err(&pdev->dev, "set cpu_core rate failed\n");
 				goto failed_set;
 			}
