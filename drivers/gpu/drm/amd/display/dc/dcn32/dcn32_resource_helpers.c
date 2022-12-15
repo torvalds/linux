@@ -240,6 +240,14 @@ bool dcn32_is_center_timing(struct pipe_ctx *pipe)
 			is_center_timing = true;
 		}
 	}
+
+	if (pipe->plane_state) {
+		if (pipe->stream->timing.v_addressable != pipe->plane_state->dst_rect.height &&
+				pipe->stream->timing.v_addressable != pipe->plane_state->src_rect.height) {
+			is_center_timing = true;
+		}
+	}
+
 	return is_center_timing;
 }
 
