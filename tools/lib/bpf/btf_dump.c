@@ -829,47 +829,26 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 	}
 }
 
-static int btf_natural_align_of(const struct btf *btf, __u32 id)
-{
-	const struct btf_type *t = btf__type_by_id(btf, id);
-	int i, align, vlen;
-	const struct btf_member *m;
-
-	if (!btf_is_composite(t))
-		return btf__align_of(btf, id);
-
-	align = 1;
-	m = btf_members(t);
-	vlen = btf_vlen(t);
-	for (i = 0; i < vlen; i++, m++) {
-		align = max(align, btf__align_of(btf, m->type));
-	}
-
-	return align;
-}
-
 static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 				 const struct btf_type *t)
 {
 	const struct btf_member *m;
-	int align, i, bit_sz;
+	int max_align = 1, align, i, bit_sz;
 	__u16 vlen;
-
-	align = btf_natural_align_of(btf, id);
-	/* size of a non-packed struct has to be a multiple of its alignment */
-	if (align && (t->size % align) != 0)
-		return true;
 
 	m = btf_members(t);
 	vlen = btf_vlen(t);
 	/* all non-bitfield fields have to be naturally aligned */
 	for (i = 0; i < vlen; i++, m++) {
-		align = btf_natural_align_of(btf, m->type);
+		align = btf__align_of(btf, m->type);
 		bit_sz = btf_member_bitfield_size(t, i);
 		if (align && bit_sz == 0 && m->offset % (8 * align) != 0)
 			return true;
+		max_align = max(align, max_align);
 	}
-
+	/* size of a non-packed struct has to be a multiple of its alignment */
+	if (t->size % max_align != 0)
+		return true;
 	/*
 	 * if original struct was marked as packed, but its layout is
 	 * naturally aligned, we'll detect that it's not packed
