@@ -17,6 +17,10 @@ unsigned long __bootdata(pgalloc_pos);
 unsigned long __bootdata(pgalloc_end);
 unsigned long __bootdata(pgalloc_low);
 
+enum populate_mode {
+	POPULATE_ONE2ONE,
+};
+
 static void boot_check_oom(void)
 {
 	if (pgalloc_pos < pgalloc_low)
@@ -81,6 +85,16 @@ static pte_t *boot_pte_alloc(void)
 	return pte;
 }
 
+static unsigned long _pa(unsigned long addr, enum populate_mode mode)
+{
+	switch (mode) {
+	case POPULATE_ONE2ONE:
+		return addr;
+	default:
+		return -1;
+	}
+}
+
 static bool can_large_pud(pud_t *pu_dir, unsigned long addr, unsigned long end)
 {
 	return machine.has_edat2 &&
@@ -93,7 +107,8 @@ static bool can_large_pmd(pmd_t *pm_dir, unsigned long addr, unsigned long end)
 	       IS_ALIGNED(addr, PMD_SIZE) && (end - addr) >= PMD_SIZE;
 }
 
-static void pgtable_pte_populate(pmd_t *pmd, unsigned long addr, unsigned long end)
+static void pgtable_pte_populate(pmd_t *pmd, unsigned long addr, unsigned long end,
+				 enum populate_mode mode)
 {
 	unsigned long next;
 	pte_t *pte, entry;
@@ -101,14 +116,15 @@ static void pgtable_pte_populate(pmd_t *pmd, unsigned long addr, unsigned long e
 	pte = pte_offset_kernel(pmd, addr);
 	for (; addr < end; addr += PAGE_SIZE, pte++) {
 		if (pte_none(*pte)) {
-			entry = __pte(__pa(addr));
+			entry = __pte(_pa(addr, mode));
 			entry = set_pte_bit(entry, PAGE_KERNEL_EXEC);
 			set_pte(pte, entry);
 		}
 	}
 }
 
-static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long end)
+static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long end,
+				 enum populate_mode mode)
 {
 	unsigned long next;
 	pmd_t *pmd, entry;
@@ -119,7 +135,7 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 		next = pmd_addr_end(addr, end);
 		if (pmd_none(*pmd)) {
 			if (can_large_pmd(pmd, addr, next)) {
-				entry = __pmd(__pa(addr));
+				entry = __pmd(_pa(addr, mode));
 				entry = set_pmd_bit(entry, SEGMENT_KERNEL_EXEC);
 				set_pmd(pmd, entry);
 				continue;
@@ -129,11 +145,12 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 		} else if (pmd_large(*pmd)) {
 			continue;
 		}
-		pgtable_pte_populate(pmd, addr, next);
+		pgtable_pte_populate(pmd, addr, next, mode);
 	}
 }
 
-static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long end)
+static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long end,
+				 enum populate_mode mode)
 {
 	unsigned long next;
 	pud_t *pud, entry;
@@ -144,7 +161,7 @@ static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long e
 		next = pud_addr_end(addr, end);
 		if (pud_none(*pud)) {
 			if (can_large_pud(pud, addr, next)) {
-				entry = __pud(__pa(addr));
+				entry = __pud(_pa(addr, mode));
 				entry = set_pud_bit(entry, REGION3_KERNEL_EXEC);
 				set_pud(pud, entry);
 				continue;
@@ -154,11 +171,12 @@ static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long e
 		} else if (pud_large(*pud)) {
 			continue;
 		}
-		pgtable_pmd_populate(pud, addr, next);
+		pgtable_pmd_populate(pud, addr, next, mode);
 	}
 }
 
-static void pgtable_p4d_populate(pgd_t *pgd, unsigned long addr, unsigned long end)
+static void pgtable_p4d_populate(pgd_t *pgd, unsigned long addr, unsigned long end,
+				 enum populate_mode mode)
 {
 	unsigned long next;
 	p4d_t *p4d;
@@ -171,11 +189,11 @@ static void pgtable_p4d_populate(pgd_t *pgd, unsigned long addr, unsigned long e
 			pud = boot_crst_alloc(_REGION3_ENTRY_EMPTY);
 			p4d_populate(&init_mm, p4d, pud);
 		}
-		pgtable_pud_populate(p4d, addr, next);
+		pgtable_pud_populate(p4d, addr, next, mode);
 	}
 }
 
-static void pgtable_populate(unsigned long addr, unsigned long end)
+static void pgtable_populate(unsigned long addr, unsigned long end, enum populate_mode mode)
 {
 	unsigned long next;
 	pgd_t *pgd;
@@ -188,7 +206,7 @@ static void pgtable_populate(unsigned long addr, unsigned long end)
 			p4d = boot_crst_alloc(_REGION2_ENTRY_EMPTY);
 			pgd_populate(&init_mm, pgd, p4d);
 		}
-		pgtable_p4d_populate(pgd, addr, next);
+		pgtable_p4d_populate(pgd, addr, next, mode);
 	}
 }
 
@@ -208,7 +226,7 @@ static void pgtable_populate_end(void)
 
 	do {
 		pgalloc_pos_prev = pgalloc_pos;
-		pgtable_populate(pgalloc_pos, pgalloc_end_curr);
+		pgtable_populate(pgalloc_pos, pgalloc_end_curr, POPULATE_ONE2ONE);
 		pgalloc_end_curr = pgalloc_pos_prev;
 	} while (pgalloc_pos < pgalloc_pos_prev);
 }
@@ -239,8 +257,8 @@ void setup_vmem(unsigned long online_end, unsigned long asce_limit)
 	 * of pgalloc_pos finalized with a call to pgtable_populate_end().
 	 */
 	pgtable_populate_begin(online_end);
-	pgtable_populate(0, sizeof(struct lowcore));
-	pgtable_populate(0, online_end);
+	pgtable_populate(0, sizeof(struct lowcore), POPULATE_ONE2ONE);
+	pgtable_populate(0, online_end, POPULATE_ONE2ONE);
 	pgtable_populate_end();
 
 	S390_lowcore.kernel_asce = swapper_pg_dir | asce_bits;
