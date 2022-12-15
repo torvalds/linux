@@ -439,25 +439,6 @@ void rxrpc_put_peer(struct rxrpc_peer *peer, enum rxrpc_peer_trace why)
 }
 
 /*
- * Drop a ref on a peer record where the caller already holds the
- * peer_hash_lock.
- */
-void rxrpc_put_peer_locked(struct rxrpc_peer *peer, enum rxrpc_peer_trace why)
-{
-	unsigned int debug_id = peer->debug_id;
-	bool dead;
-	int r;
-
-	dead = __refcount_dec_and_test(&peer->ref, &r);
-	trace_rxrpc_peer(debug_id, r - 1, why);
-	if (dead) {
-		hash_del_rcu(&peer->hash_link);
-		list_del_init(&peer->keepalive_link);
-		rxrpc_free_peer(peer);
-	}
-}
-
-/*
  * Make sure all peer records have been discarded.
  */
 void rxrpc_destroy_all_peers(struct rxrpc_net *rxnet)

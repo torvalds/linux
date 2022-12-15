@@ -1073,7 +1073,6 @@ void rxrpc_destroy_all_peers(struct rxrpc_net *);
 struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *, enum rxrpc_peer_trace);
 struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *, enum rxrpc_peer_trace);
 void rxrpc_put_peer(struct rxrpc_peer *, enum rxrpc_peer_trace);
-void rxrpc_put_peer_locked(struct rxrpc_peer *, enum rxrpc_peer_trace);
 
 /*
  * proc.c
