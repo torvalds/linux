@@ -35,6 +35,7 @@ static int rga_mpi_set_channel_buffer(struct dma_buf *dma_buf,
 {
 	struct rga_external_buffer buffer;
 
+	memset(&buffer, 0x0, sizeof(buffer));
 	buffer.memory = (unsigned long)dma_buf;
 	buffer.type = RGA_DMA_BUFFER_PTR;
 	buffer.memory_parm.width = channel_info->vir_w;
