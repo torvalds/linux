@@ -52,6 +52,8 @@ enum {
 	 * added in HW Version 3.0.0
 	 */
 	UFS_AH8_CFG				= 0xFC,
+
+	REG_UFS_CFG3				= 0x271C,
 };
 
 /* QCOM UFS host controller vendor specific debug registers */
@@ -217,6 +219,9 @@ struct ufs_qcom_host {
 	struct gpio_desc *device_reset;
 
 	u32 hs_gear;
+
+	int esi_base;
+	bool esi_enabled;
 };
 
 static inline u32
