@@ -4143,8 +4143,6 @@ int mlx5_devlink_port_fn_migratable_set(struct devlink_port *port, bool enable,
 	}
 
 	hca_caps = MLX5_ADDR_OF(query_hca_cap_out, query_ctx, capability);
-	memcpy(hca_caps, MLX5_ADDR_OF(query_hca_cap_out, query_ctx, capability),
-	       MLX5_UN_SZ_BYTES(hca_cap_union));
 	MLX5_SET(cmd_hca_cap_2, hca_caps, migratable, 1);
 
 	err = mlx5_vport_set_other_func_cap(esw->dev, hca_caps, vport->vport,
@@ -4236,8 +4234,6 @@ int mlx5_devlink_port_fn_roce_set(struct devlink_port *port, bool enable,
 	}
 
 	hca_caps = MLX5_ADDR_OF(query_hca_cap_out, query_ctx, capability);
-	memcpy(hca_caps, MLX5_ADDR_OF(query_hca_cap_out, query_ctx, capability),
-	       MLX5_UN_SZ_BYTES(hca_cap_union));
 	MLX5_SET(cmd_hca_cap, hca_caps, roce, enable);
 
 	err = mlx5_vport_set_other_func_cap(esw->dev, hca_caps, vport_num,
