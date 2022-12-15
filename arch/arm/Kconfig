@@ -661,7 +661,9 @@ config ARM_ERRATA_458693
 	  hazard might then cause a processor deadlock. The workaround enables
 	  the L1 caching of the NEON accesses and disables the PLD instruction
 	  in the ACTLR register. Note that setting specific bits in the ACTLR
-	  register may not be available in non-secure mode.
+	  register may not be available in non-secure mode and thus is not
+	  available on a multiplatform kernel. This should be applied by the
+	  bootloader instead.
 
 config ARM_ERRATA_460075
 	bool "ARM errata: Data written to the L2 cache can be overwritten with stale data"
@@ -674,7 +676,9 @@ config ARM_ERRATA_460075
 	  and overwritten with stale memory contents from external memory. The
 	  workaround disables the write-allocate mode for the L2 cache via the
 	  ACTLR register. Note that setting specific bits in the ACTLR register
-	  may not be available in non-secure mode.
+	  may not be available in non-secure mode and thus is not available on
+	  a multiplatform kernel. This should be applied by the bootloader
+	  instead.
 
 config ARM_ERRATA_742230
 	bool "ARM errata: DMB operation may be faulty"
@@ -687,7 +691,10 @@ config ARM_ERRATA_742230
 	  ordering of the two writes. This workaround sets a specific bit in
 	  the diagnostic register of the Cortex-A9 which causes the DMB
 	  instruction to behave as a DSB, ensuring the correct behaviour of
-	  the two writes.
+	  the two writes. Note that setting specific bits in the diagnostics
+	  register may not be available in non-secure mode and thus is not
+	  available on a multiplatform kernel. This should be applied by the
+	  bootloader instead.
 
 config ARM_ERRATA_742231
 	bool "ARM errata: Incorrect hazard handling in the SCU may lead to data corruption"
@@ -702,7 +709,10 @@ config ARM_ERRATA_742231
 	  replaced from one of the CPUs at the same time as another CPU is
 	  accessing it. This workaround sets specific bits in the diagnostic
 	  register of the Cortex-A9 which reduces the linefill issuing
-	  capabilities of the processor.
+	  capabilities of the processor. Note that setting specific bits in the
+	  diagnostics register may not be available in non-secure mode and thus
+	  is not available on a multiplatform kernel. This should be applied by
+	  the bootloader instead.
 
 config ARM_ERRATA_643719
 	bool "ARM errata: LoUIS bit field in CLIDR register is incorrect"
@@ -739,7 +749,9 @@ config ARM_ERRATA_743622
 	  register of the Cortex-A9 which disables the Store Buffer
 	  optimisation, preventing the defect from occurring. This has no
 	  visible impact on the overall performance or power consumption of the
-	  processor.
+	  processor. Note that setting specific bits in the diagnostics register
+	  may not be available in non-secure mode and thus is not available on a
+	  multiplatform kernel. This should be applied by the bootloader instead.
 
 config ARM_ERRATA_751472
 	bool "ARM errata: Interrupted ICIALLUIS may prevent completion of broadcasted operation"
@@ -751,6 +763,10 @@ config ARM_ERRATA_751472
 	  completion of a following broadcasted operation if the second
 	  operation is received by a CPU before the ICIALLUIS has completed,
 	  potentially leading to corrupted entries in the cache or TLB.
+	  Note that setting specific bits in the diagnostics register may
+	  not be available in non-secure mode and thus is not available on
+	  a multiplatform kernel. This should be applied by the bootloader
+	  instead.
 
 config ARM_ERRATA_754322
 	bool "ARM errata: possible faulty MMU translations following an ASID switch"
