@@ -1402,6 +1402,8 @@ static int dwc2_gadget_set_ep0_desc_chain(struct dwc2_hsotg *hsotg,
 	return 0;
 }
 
+static void dwc2_gadget_start_next_request(struct dwc2_hsotg_ep *hs_ep);
+
 static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 			       gfp_t gfp_flags)
 {
@@ -1518,6 +1520,20 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 
 		if (hs_ep->target_frame != TARGET_FRAME_INITIAL)
 			dwc2_hsotg_start_req(hs, hs_ep, hs_req, false);
+	} else if (hs_ep->isochronous && hs_ep->dir_in && !hs_ep->req &&
+		   !(dwc2_readl(hs, GHWCFG2) & GHWCFG2_MULTI_PROC_INT)) {
+		/* Update current frame number value. */
+		hs->frame_number = dwc2_hsotg_read_frameno(hs);
+		while (dwc2_gadget_target_frame_elapsed(hs_ep)) {
+			dwc2_gadget_incr_frame_num(hs_ep);
+			/* Update current frame number value once more as it
+			 * changes here.
+			 */
+			hs->frame_number = dwc2_hsotg_read_frameno(hs);
+		}
+
+		if (hs_ep->target_frame != TARGET_FRAME_INITIAL)
+			dwc2_gadget_start_next_request(hs_ep);
 	}
 	return 0;
 }
@@ -2989,8 +3005,25 @@ static void dwc2_gadget_handle_nak(struct dwc2_hsotg_ep *hs_ep)
 
 		hs_ep->target_frame = hsotg->frame_number;
 		if (hs_ep->interval > 1) {
-			u32 ctrl = dwc2_readl(hsotg,
-					      DIEPCTL(hs_ep->index));
+			u32 mask;
+			u32 ctrl;
+
+			/*
+			 * Disable nak interrupt when we have got the first
+			 * isoc in token. This can avoid nak interrupt storm
+			 * on the Rockchip platforms which don't support the
+			 * "OTG_MULTI_PROC_INTRPT", and all device endpoints
+			 * share the same nak mask and interrupt.
+			 */
+			if (!(dwc2_readl(hsotg, GHWCFG2) &
+			    GHWCFG2_MULTI_PROC_INT)) {
+				mask = dwc2_readl(hsotg, DIEPMSK);
+				mask &= ~DIEPMSK_NAKMSK;
+				dwc2_writel(hsotg, mask, DIEPMSK);
+			}
+
+			ctrl = dwc2_readl(hsotg,
+					  DIEPCTL(hs_ep->index));
 			if (hs_ep->target_frame & 0x1)
 				ctrl |= DXEPCTL_SETODDFR;
 			else
