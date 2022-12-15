@@ -891,6 +891,7 @@ static int rkvdec_run(struct mpp_dev *mpp,
 	int i;
 	u32 reg_en;
 	struct rkvdec_task *task = NULL;
+	u32 timing_en = mpp->srv->timing_en;
 
 	mpp_debug_enter();
 
@@ -922,10 +923,13 @@ static int rkvdec_run(struct mpp_dev *mpp,
 		}
 		/* init current task */
 		mpp->cur_task = mpp_task;
+		mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
 		/* Flush the register before the start the device */
 		wmb();
 		mpp_write(mpp, RKVDEC_REG_INT_EN,
 			  task->reg[reg_en] | RKVDEC_DEC_START);
+
+		mpp_task_run_end(mpp_task, timing_en);
 	} break;
 	default:
 		break;
