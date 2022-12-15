@@ -374,6 +374,18 @@ char *hist_entry__srcline(struct hist_entry *he)
 static int64_t
 sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	int64_t ret;
+
+	ret = _sort__addr_cmp(left->ip, right->ip);
+	if (ret)
+		return ret;
+
+	return sort__dso_cmp(left, right);
+}
+
+static int64_t
+sort__srcline_collapse(struct hist_entry *left, struct hist_entry *right)
+{
 	if (!left->srcline)
 		left->srcline = hist_entry__srcline(left);
 	if (!right->srcline)
@@ -382,18 +394,31 @@ sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 	return strcmp(right->srcline, left->srcline);
 }
 
-static int hist_entry__srcline_snprintf(struct hist_entry *he, char *bf,
-					size_t size, unsigned int width)
+static int64_t
+sort__srcline_sort(struct hist_entry *left, struct hist_entry *right)
+{
+	return sort__srcline_collapse(left, right);
+}
+
+static void
+sort__srcline_init(struct hist_entry *he)
 {
 	if (!he->srcline)
 		he->srcline = hist_entry__srcline(he);
+}
 
+static int hist_entry__srcline_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
 	return repsep_snprintf(bf, size, "%-.*s", width, he->srcline);
 }
 
 struct sort_entry sort_srcline = {
 	.se_header	= "Source:Line",
 	.se_cmp		= sort__srcline_cmp,
+	.se_collapse	= sort__srcline_collapse,
+	.se_sort	= sort__srcline_sort,
+	.se_init	= sort__srcline_init,
 	.se_snprintf	= hist_entry__srcline_snprintf,
 	.se_width_idx	= HISTC_SRCLINE,
 };
