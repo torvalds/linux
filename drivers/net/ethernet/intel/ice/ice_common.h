@@ -122,7 +122,7 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures,
 	   bool ena_auto_link_update);
 int
 ice_cfg_phy_fc(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
-	       enum ice_fc_mode fc);
+	       enum ice_fc_mode req_mode);
 bool
 ice_phy_caps_equals_cfg(struct ice_aqc_get_phy_caps_data *caps,
 			struct ice_aqc_set_phy_cfg_data *cfg);
