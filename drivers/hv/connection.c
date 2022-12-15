@@ -21,6 +21,7 @@
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/set_memory.h>
+#include <asm/mem_encrypt.h>
 #include <asm/mshyperv.h>
 
 #include "hyperv_vmbus.h"
