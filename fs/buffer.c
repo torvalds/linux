@@ -246,18 +246,18 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	unsigned long flags;
 	struct buffer_head *first;
 	struct buffer_head *tmp;
-	struct page *page;
-	int page_uptodate = 1;
+	struct folio *folio;
+	int folio_uptodate = 1;
 
 	BUG_ON(!buffer_async_read(bh));
 
-	page = bh->b_page;
+	folio = bh->b_folio;
 	if (uptodate) {
 		set_buffer_uptodate(bh);
 	} else {
 		clear_buffer_uptodate(bh);
 		buffer_io_error(bh, ", async page read");
-		SetPageError(page);
+		folio_set_error(folio);
 	}
 
 	/*
@@ -265,14 +265,14 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	 * two buffer heads end IO at almost the same time and both
 	 * decide that the page is now completely done.
 	 */
-	first = page_buffers(page);
+	first = folio_buffers(folio);
 	spin_lock_irqsave(&first->b_uptodate_lock, flags);
 	clear_buffer_async_read(bh);
 	unlock_buffer(bh);
 	tmp = bh;
 	do {
 		if (!buffer_uptodate(tmp))
-			page_uptodate = 0;
+			folio_uptodate = 0;
 		if (buffer_async_read(tmp)) {
 			BUG_ON(!buffer_locked(tmp));
 			goto still_busy;
@@ -285,9 +285,9 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	 * If all of the buffers are uptodate then we can set the page
 	 * uptodate.
 	 */
-	if (page_uptodate)
-		SetPageUptodate(page);
-	unlock_page(page);
+	if (folio_uptodate)
+		folio_mark_uptodate(folio);
+	folio_unlock(folio);
 	return;
 
 still_busy:
