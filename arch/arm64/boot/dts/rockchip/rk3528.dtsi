@@ -1010,17 +1010,16 @@
 		power-domains = <&power RK3528_PD_GPU>;
 		operating-points-v2 = <&gpu_opp_table>;
 		#cooling-cells = <2>;
-		dynamic-power-coefficient = <742>;
 		rockchip,grf = <&grf>;
 		status = "disabled";
 
-		gpu_power_model: power_model {
-			compatible = "arm,mali-simple-power-model";
-			voltage = <900>;
-			frequency = <500>;
-			static-power = <300>;
-			dynamic-power = <396>;
-			ts = <32000 4700 (-80) 2>;
+		gpu_power_model: power-model {
+			compatible = "simple-power-model";
+			leakage-range= <1 3>;
+			ls = <(-15658) 67354 0>;
+			static-coefficient = <10000>;
+			dynamic-coefficient = <724>;
+			ts = <3156546 120154 (-2506) 39>;
 			thermal-zone = "soc-thermal";
 		};
 	};
