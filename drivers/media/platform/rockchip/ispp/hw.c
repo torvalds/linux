@@ -472,8 +472,6 @@ static int __maybe_unused rkispp_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rkispp_hw_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(rkispp_runtime_suspend,
 			   rkispp_runtime_resume, NULL)
 };
