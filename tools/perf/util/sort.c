@@ -569,18 +569,41 @@ sort__srcfile_cmp(struct hist_entry *left, struct hist_entry *right)
 	return strcmp(right->srcfile, left->srcfile);
 }
 
-static int hist_entry__srcfile_snprintf(struct hist_entry *he, char *bf,
-					size_t size, unsigned int width)
+static int64_t
+sort__srcfile_collapse(struct hist_entry *left, struct hist_entry *right)
+{
+	if (!left->srcfile)
+		left->srcfile = hist_entry__get_srcfile(left);
+	if (!right->srcfile)
+		right->srcfile = hist_entry__get_srcfile(right);
+
+	return strcmp(right->srcfile, left->srcfile);
+}
+
+static int64_t
+sort__srcfile_sort(struct hist_entry *left, struct hist_entry *right)
+{
+	return sort__srcfile_collapse(left, right);
+}
+
+static void sort__srcfile_init(struct hist_entry *he)
 {
 	if (!he->srcfile)
 		he->srcfile = hist_entry__get_srcfile(he);
+}
 
+static int hist_entry__srcfile_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
 	return repsep_snprintf(bf, size, "%-.*s", width, he->srcfile);
 }
 
 struct sort_entry sort_srcfile = {
 	.se_header	= "Source File",
 	.se_cmp		= sort__srcfile_cmp,
+	.se_collapse	= sort__srcfile_collapse,
+	.se_sort	= sort__srcfile_sort,
+	.se_init	= sort__srcfile_init,
 	.se_snprintf	= hist_entry__srcfile_snprintf,
 	.se_width_idx	= HISTC_SRCFILE,
 };
