@@ -60,7 +60,7 @@ static void submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
 inline void touch_buffer(struct buffer_head *bh)
 {
 	trace_block_touch_buffer(bh);
-	mark_page_accessed(bh->b_page);
+	folio_mark_accessed(bh->b_folio);
 }
 EXPORT_SYMBOL(touch_buffer);
 
