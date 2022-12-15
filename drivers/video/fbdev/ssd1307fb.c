@@ -803,10 +803,8 @@ static int ssd1307fb_probe(struct i2c_client *client)
 bl_init_error:
 	unregister_framebuffer(info);
 panel_init_error:
-	if (par->device_info->need_pwm) {
-		pwm_disable(par->pwm);
-		pwm_put(par->pwm);
-	}
+	pwm_disable(par->pwm);
+	pwm_put(par->pwm);
 regulator_enable_error:
 	if (par->vbat_reg)
 		regulator_disable(par->vbat_reg);
@@ -827,10 +825,8 @@ static void ssd1307fb_remove(struct i2c_client *client)
 	backlight_device_unregister(info->bl_dev);
 
 	unregister_framebuffer(info);
-	if (par->device_info->need_pwm) {
-		pwm_disable(par->pwm);
-		pwm_put(par->pwm);
-	}
+	pwm_disable(par->pwm);
+	pwm_put(par->pwm);
 	if (par->vbat_reg)
 		regulator_disable(par->vbat_reg);
 	fb_deferred_io_cleanup(info);

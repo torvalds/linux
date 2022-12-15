@@ -1431,7 +1431,7 @@ static int fb_probe(struct platform_device *device)
 		dev_err(&device->dev,
 			"GLCD: kmalloc for frame buffer failed\n");
 		ret = -EINVAL;
-		goto err_release_fb;
+		goto err_disable_reg;
 	}
 
 	da8xx_fb_info->screen_base = (char __iomem *) par->vram_virt;
@@ -1475,7 +1475,7 @@ static int fb_probe(struct platform_device *device)
 
 	ret = fb_alloc_cmap(&da8xx_fb_info->cmap, PALETTE_SIZE, 0);
 	if (ret)
-		goto err_release_fb;
+		goto err_disable_reg;
 	da8xx_fb_info->cmap.len = par->palette_sz;
 
 	/* initialize var_screeninfo */
@@ -1529,6 +1529,9 @@ err_cpu_freq:
 err_dealloc_cmap:
 	fb_dealloc_cmap(&da8xx_fb_info->cmap);
 
+err_disable_reg:
+	if (par->lcd_supply)
+		regulator_disable(par->lcd_supply);
 err_release_fb:
 	framebuffer_release(da8xx_fb_info);
 
