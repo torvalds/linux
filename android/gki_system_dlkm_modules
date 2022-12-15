@@ -11,4 +11,3 @@ net/can/can-gw.ko
 net/can/can-raw.ko
 net/mac80211/mac80211.ko
 net/wireless/cfg80211.ko
-
