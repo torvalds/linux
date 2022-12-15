@@ -1319,8 +1319,14 @@ static bool arm_smmu_capable(struct device *dev, enum iommu_cap cap)
 
 	switch (cap) {
 	case IOMMU_CAP_CACHE_COHERENCY:
-		/* Assume that a coherent TCU implies coherent TBUs */
-		return cfg->smmu->features & ARM_SMMU_FEAT_COHERENT_WALK;
+		/*
+		 * It's overwhelmingly the case in practice that when the pagetable
+		 * walk interface is connected to a coherent interconnect, all the
+		 * translation interfaces are too. Furthermore if the device is
+		 * natively coherent, then its translation interface must also be.
+		 */
+		return cfg->smmu->features & ARM_SMMU_FEAT_COHERENT_WALK ||
+			device_get_dma_attr(dev) == DEV_DMA_COHERENT;
 	case IOMMU_CAP_NOEXEC:
 		return true;
 	default:
