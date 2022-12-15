@@ -439,19 +439,11 @@ static void ilk_fdi_link_train(struct intel_crtc *crtc,
 		drm_err(&dev_priv->drm, "FDI train 1 fail!\n");
 
 	/* Train 2 */
-	reg = FDI_TX_CTL(pipe);
-	temp = intel_de_read(dev_priv, reg);
-	temp &= ~FDI_LINK_TRAIN_NONE;
-	temp |= FDI_LINK_TRAIN_PATTERN_2;
-	intel_de_write(dev_priv, reg, temp);
-
-	reg = FDI_RX_CTL(pipe);
-	temp = intel_de_read(dev_priv, reg);
-	temp &= ~FDI_LINK_TRAIN_NONE;
-	temp |= FDI_LINK_TRAIN_PATTERN_2;
-	intel_de_write(dev_priv, reg, temp);
-
-	intel_de_posting_read(dev_priv, reg);
+	intel_de_rmw(dev_priv, FDI_TX_CTL(pipe),
+		     FDI_LINK_TRAIN_NONE, FDI_LINK_TRAIN_PATTERN_2);
+	intel_de_rmw(dev_priv, FDI_RX_CTL(pipe),
+		     FDI_LINK_TRAIN_NONE, FDI_LINK_TRAIN_PATTERN_2);
+	intel_de_posting_read(dev_priv, FDI_RX_CTL(pipe));
 	udelay(150);
 
 	reg = FDI_RX_IIR(pipe);
@@ -538,13 +530,9 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc,
 	udelay(150);
 
 	for (i = 0; i < 4; i++) {
-		reg = FDI_TX_CTL(pipe);
-		temp = intel_de_read(dev_priv, reg);
-		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
-		temp |= snb_b_fdi_train_param[i];
-		intel_de_write(dev_priv, reg, temp);
-
-		intel_de_posting_read(dev_priv, reg);
+		intel_de_rmw(dev_priv, FDI_TX_CTL(pipe),
+			     FDI_LINK_TRAIN_VOL_EMP_MASK, snb_b_fdi_train_param[i]);
+		intel_de_posting_read(dev_priv, FDI_TX_CTL(pipe));
 		udelay(500);
 
 		for (retry = 0; retry < 5; retry++) {
@@ -593,13 +581,9 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc,
 	udelay(150);
 
 	for (i = 0; i < 4; i++) {
-		reg = FDI_TX_CTL(pipe);
-		temp = intel_de_read(dev_priv, reg);
-		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
-		temp |= snb_b_fdi_train_param[i];
-		intel_de_write(dev_priv, reg, temp);
-
-		intel_de_posting_read(dev_priv, reg);
+		intel_de_rmw(dev_priv, FDI_TX_CTL(pipe),
+			     FDI_LINK_TRAIN_VOL_EMP_MASK, snb_b_fdi_train_param[i]);
+		intel_de_posting_read(dev_priv, FDI_TX_CTL(pipe));
 		udelay(500);
 
 		for (retry = 0; retry < 5; retry++) {
@@ -719,19 +703,13 @@ static void ivb_manual_fdi_link_train(struct intel_crtc *crtc,
 		}
 
 		/* Train 2 */
-		reg = FDI_TX_CTL(pipe);
-		temp = intel_de_read(dev_priv, reg);
-		temp &= ~FDI_LINK_TRAIN_NONE_IVB;
-		temp |= FDI_LINK_TRAIN_PATTERN_2_IVB;
-		intel_de_write(dev_priv, reg, temp);
-
-		reg = FDI_RX_CTL(pipe);
-		temp = intel_de_read(dev_priv, reg);
-		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
-		temp |= FDI_LINK_TRAIN_PATTERN_2_CPT;
-		intel_de_write(dev_priv, reg, temp);
-
-		intel_de_posting_read(dev_priv, reg);
+		intel_de_rmw(dev_priv, FDI_TX_CTL(pipe),
+			     FDI_LINK_TRAIN_NONE_IVB,
+			     FDI_LINK_TRAIN_PATTERN_2_IVB);
+		intel_de_rmw(dev_priv, FDI_RX_CTL(pipe),
+			     FDI_LINK_TRAIN_PATTERN_MASK_CPT,
+			     FDI_LINK_TRAIN_PATTERN_2_CPT);
+		intel_de_posting_read(dev_priv, FDI_RX_CTL(pipe));
 		udelay(2); /* should be 1.5us */
 
 		for (i = 0; i < 4; i++) {
@@ -837,9 +815,8 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 		udelay(30);
 
 		/* Unset FDI_RX_MISC pwrdn lanes */
-		temp = intel_de_read(dev_priv, FDI_RX_MISC(PIPE_A));
-		temp &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
-		intel_de_write(dev_priv, FDI_RX_MISC(PIPE_A), temp);
+		intel_de_rmw(dev_priv, FDI_RX_MISC(PIPE_A),
+			     FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK, 0);
 		intel_de_posting_read(dev_priv, FDI_RX_MISC(PIPE_A));
 
 		/* Wait for FDI auto training time */
@@ -865,25 +842,21 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 		intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), rx_ctl_val);
 		intel_de_posting_read(dev_priv, FDI_RX_CTL(PIPE_A));
 
-		temp = intel_de_read(dev_priv, DDI_BUF_CTL(PORT_E));
-		temp &= ~DDI_BUF_CTL_ENABLE;
-		intel_de_write(dev_priv, DDI_BUF_CTL(PORT_E), temp);
+		intel_de_rmw(dev_priv, DDI_BUF_CTL(PORT_E), DDI_BUF_CTL_ENABLE, 0);
 		intel_de_posting_read(dev_priv, DDI_BUF_CTL(PORT_E));
 
 		/* Disable DP_TP_CTL and FDI_RX_CTL and retry */
-		temp = intel_de_read(dev_priv, DP_TP_CTL(PORT_E));
-		temp &= ~(DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK);
-		temp |= DP_TP_CTL_LINK_TRAIN_PAT1;
-		intel_de_write(dev_priv, DP_TP_CTL(PORT_E), temp);
+		intel_de_rmw(dev_priv, DP_TP_CTL(PORT_E),
+			     DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK,
+			     DP_TP_CTL_LINK_TRAIN_PAT1);
 		intel_de_posting_read(dev_priv, DP_TP_CTL(PORT_E));
 
 		intel_wait_ddi_buf_idle(dev_priv, PORT_E);
 
 		/* Reset FDI_RX_MISC pwrdn lanes */
-		temp = intel_de_read(dev_priv, FDI_RX_MISC(PIPE_A));
-		temp &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
-		temp |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
-		intel_de_write(dev_priv, FDI_RX_MISC(PIPE_A), temp);
+		intel_de_rmw(dev_priv, FDI_RX_MISC(PIPE_A),
+			     FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK,
+			     FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2));
 		intel_de_posting_read(dev_priv, FDI_RX_MISC(PIPE_A));
 	}
 
@@ -898,7 +871,6 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 void hsw_fdi_disable(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 val;
 
 	/*
 	 * Bspec lists this as both step 13 (before DDI_BUF_CTL disable)
@@ -906,30 +878,15 @@ void hsw_fdi_disable(struct intel_encoder *encoder)
 	 * step 13 is the correct place for it. Step 18 is where it was
 	 * originally before the BUN.
 	 */
-	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
-	val &= ~FDI_RX_ENABLE;
-	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
-
-	val = intel_de_read(dev_priv, DDI_BUF_CTL(PORT_E));
-	val &= ~DDI_BUF_CTL_ENABLE;
-	intel_de_write(dev_priv, DDI_BUF_CTL(PORT_E), val);
-
+	intel_de_rmw(dev_priv, FDI_RX_CTL(PIPE_A), FDI_RX_ENABLE, 0);
+	intel_de_rmw(dev_priv, DDI_BUF_CTL(PORT_E), DDI_BUF_CTL_ENABLE, 0);
 	intel_wait_ddi_buf_idle(dev_priv, PORT_E);
-
 	intel_ddi_disable_clock(encoder);
-
-	val = intel_de_read(dev_priv, FDI_RX_MISC(PIPE_A));
-	val &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
-	val |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
-	intel_de_write(dev_priv, FDI_RX_MISC(PIPE_A), val);
-
-	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
-	val &= ~FDI_PCDCLK;
-	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
-
-	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
-	val &= ~FDI_RX_PLL_ENABLE;
-	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
+	intel_de_rmw(dev_priv, FDI_RX_MISC(PIPE_A),
+		     FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK,
+		     FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2));
+	intel_de_rmw(dev_priv, FDI_RX_CTL(PIPE_A), FDI_PCDCLK, 0);
+	intel_de_rmw(dev_priv, FDI_RX_CTL(PIPE_A), FDI_RX_PLL_ENABLE, 0);
 }
 
 void ilk_fdi_pll_enable(const struct intel_crtc_state *crtc_state)
@@ -952,9 +909,7 @@ void ilk_fdi_pll_enable(const struct intel_crtc_state *crtc_state)
 	udelay(200);
 
 	/* Switch from Rawclk to PCDclk */
-	temp = intel_de_read(dev_priv, reg);
-	intel_de_write(dev_priv, reg, temp | FDI_PCDCLK);
-
+	intel_de_rmw(dev_priv, reg, 0, FDI_PCDCLK);
 	intel_de_posting_read(dev_priv, reg);
 	udelay(200);
 
@@ -974,28 +929,18 @@ void ilk_fdi_pll_disable(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum pipe pipe = crtc->pipe;
-	i915_reg_t reg;
-	u32 temp;
 
 	/* Switch from PCDclk to Rawclk */
-	reg = FDI_RX_CTL(pipe);
-	temp = intel_de_read(dev_priv, reg);
-	intel_de_write(dev_priv, reg, temp & ~FDI_PCDCLK);
+	intel_de_rmw(dev_priv, FDI_RX_CTL(pipe), FDI_PCDCLK, 0);
 
 	/* Disable CPU FDI TX PLL */
-	reg = FDI_TX_CTL(pipe);
-	temp = intel_de_read(dev_priv, reg);
-	intel_de_write(dev_priv, reg, temp & ~FDI_TX_PLL_ENABLE);
-
-	intel_de_posting_read(dev_priv, reg);
+	intel_de_rmw(dev_priv, FDI_TX_CTL(pipe), FDI_TX_PLL_ENABLE, 0);
+	intel_de_posting_read(dev_priv, FDI_TX_CTL(pipe));
 	udelay(100);
 
-	reg = FDI_RX_CTL(pipe);
-	temp = intel_de_read(dev_priv, reg);
-	intel_de_write(dev_priv, reg, temp & ~FDI_RX_PLL_ENABLE);
-
 	/* Wait for the clocks to turn off. */
-	intel_de_posting_read(dev_priv, reg);
+	intel_de_rmw(dev_priv, FDI_RX_CTL(pipe), FDI_RX_PLL_ENABLE, 0);
+	intel_de_posting_read(dev_priv, FDI_RX_CTL(pipe));
 	udelay(100);
 }
 
@@ -1007,10 +952,8 @@ void ilk_fdi_disable(struct intel_crtc *crtc)
 	u32 temp;
 
 	/* disable CPU FDI tx and PCH FDI rx */
-	reg = FDI_TX_CTL(pipe);
-	temp = intel_de_read(dev_priv, reg);
-	intel_de_write(dev_priv, reg, temp & ~FDI_TX_ENABLE);
-	intel_de_posting_read(dev_priv, reg);
+	intel_de_rmw(dev_priv, FDI_TX_CTL(pipe), FDI_TX_ENABLE, 0);
+	intel_de_posting_read(dev_priv, FDI_TX_CTL(pipe));
 
 	reg = FDI_RX_CTL(pipe);
 	temp = intel_de_read(dev_priv, reg);
@@ -1027,11 +970,8 @@ void ilk_fdi_disable(struct intel_crtc *crtc)
 			       FDI_RX_PHASE_SYNC_POINTER_OVR);
 
 	/* still set train pattern 1 */
-	reg = FDI_TX_CTL(pipe);
-	temp = intel_de_read(dev_priv, reg);
-	temp &= ~FDI_LINK_TRAIN_NONE;
-	temp |= FDI_LINK_TRAIN_PATTERN_1;
-	intel_de_write(dev_priv, reg, temp);
+	intel_de_rmw(dev_priv, FDI_TX_CTL(pipe),
+		     FDI_LINK_TRAIN_NONE, FDI_LINK_TRAIN_PATTERN_1);
 
 	reg = FDI_RX_CTL(pipe);
 	temp = intel_de_read(dev_priv, reg);
