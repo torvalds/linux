@@ -737,6 +737,7 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
 	struct request_queue *q = container_of(rcu_head, struct request_queue,
 					       rcu_head);
 
+	percpu_ref_exit(&q->q_usage_counter);
 	kmem_cache_free(blk_get_queue_kmem_cache(blk_queue_has_srcu(q)), q);
 }
 
@@ -761,8 +762,6 @@ static void blk_release_queue(struct kobject *kobj)
 		container_of(kobj, struct request_queue, kobj);
 
 	might_sleep();
-
-	percpu_ref_exit(&q->q_usage_counter);
 
 	if (q->poll_stat)
 		blk_stat_remove_callback(q, q->poll_cb);
