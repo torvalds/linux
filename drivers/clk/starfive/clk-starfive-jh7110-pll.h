@@ -125,9 +125,7 @@ enum starfive_pll0_freq_value {
 	PLL0_FREQ_1000_VALUE = 1000000000,
 	PLL0_FREQ_1250_VALUE = 1250000000,
 	PLL0_FREQ_1375_VALUE = 1375000000,
-	PLL0_FREQ_1500_VALUE = 1500000000,
-	PLL0_FREQ_1625_VALUE = 1625000000,
-	PLL0_FREQ_1750_VALUE = 1750000000
+	PLL0_FREQ_1500_VALUE = 1500000000
 };
 
 enum starfive_pll0_freq {
@@ -140,9 +138,7 @@ enum starfive_pll0_freq {
 	PLL0_FREQ_1250,
 	PLL0_FREQ_1375,
 	PLL0_FREQ_1500,
-	PLL0_FREQ_1625,
-	PLL0_FREQ_1750,
-	PLL0_FREQ_MAX
+	PLL0_FREQ_MAX = PLL0_FREQ_1500
 };
 
 enum starfive_pll1_freq_value {
@@ -164,7 +160,7 @@ enum starfive_pll2_freq {
 };
 
 static const struct starfive_pll_syscon_value
-	jh7110_pll0_syscon_freq[PLL0_FREQ_MAX] = {
+	jh7110_pll0_syscon_freq[] = {
 	[PLL0_FREQ_375] = {
 		.freq = PLL0_FREQ_375_VALUE,
 		.prediv = 8,
@@ -233,22 +229,6 @@ static const struct starfive_pll_syscon_value
 		.freq = PLL0_FREQ_1500_VALUE,
 		.prediv = 2,
 		.fbdiv = 125,
-		.postdiv1 = 1,
-		.dacpd = 1,
-		.dsmpd = 1,
-	},
-	[PLL0_FREQ_1625] = {
-		.freq = PLL0_FREQ_1625_VALUE,
-		.prediv = 24,
-		.fbdiv = 1625,
-		.postdiv1 = 1,
-		.dacpd = 1,
-		.dsmpd = 1,
-	},
-	[PLL0_FREQ_1750] = {
-		.freq = PLL0_FREQ_1750_VALUE,
-		.prediv = 12,
-		.fbdiv = 875,
 		.postdiv1 = 1,
 		.dacpd = 1,
 		.dsmpd = 1,
