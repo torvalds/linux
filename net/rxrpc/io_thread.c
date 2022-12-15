@@ -425,6 +425,7 @@ int rxrpc_io_thread(void *data)
 	struct rxrpc_local *local = data;
 	struct rxrpc_call *call;
 	struct sk_buff *skb;
+	bool should_stop;
 
 	complete(&local->io_thread_ready);
 
@@ -478,13 +479,14 @@ int rxrpc_io_thread(void *data)
 		}
 
 		set_current_state(TASK_INTERRUPTIBLE);
+		should_stop = kthread_should_stop();
 		if (!skb_queue_empty(&local->rx_queue) ||
 		    !list_empty(&local->call_attend_q)) {
 			__set_current_state(TASK_RUNNING);
 			continue;
 		}
 
-		if (kthread_should_stop())
+		if (should_stop)
 			break;
 		schedule();
 	}
