@@ -398,7 +398,7 @@ int nilfs_btree_broken_node_block(struct buffer_head *bh)
 	if (buffer_nilfs_checked(bh))
 		return 0;
 
-	inode = bh->b_page->mapping->host;
+	inode = bh->b_folio->mapping->host;
 	ret = nilfs_btree_node_broken((struct nilfs_btree_node *)bh->b_data,
 				      bh->b_size, inode, bh->b_blocknr);
 	if (likely(!ret))
