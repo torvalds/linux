@@ -1833,15 +1833,15 @@ void dml32_CalculateSurfaceSizeInMall(
 			}
 			if (DCCEnable[k] == true) {
 				SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
-						dml_min(dml_ceil(DCCMetaPitchY[k], 8 * Read256BytesBlockWidthY[k]),
+						(dml_min(dml_ceil(DCCMetaPitchY[k], 8 * Read256BytesBlockWidthY[k]),
 							dml_floor(ViewportXStartY[k] + ViewportWidthY[k] + 8 *
 							Read256BytesBlockWidthY[k] - 1, 8 * Read256BytesBlockWidthY[k])
 							- dml_floor(ViewportXStartY[k], 8 * Read256BytesBlockWidthY[k]))
 							* dml_min(dml_ceil(SurfaceHeightY[k], 8 *
 							Read256BytesBlockHeightY[k]), dml_floor(ViewportYStartY[k] +
 							ViewportHeightY[k] + 8 * Read256BytesBlockHeightY[k] - 1, 8 *
-							Read256BytesBlockHeightY[k]) - dml_floor(ViewportYStartY[k], 8
-							* Read256BytesBlockHeightY[k])) * BytesPerPixelY[k] / 256;
+							Read256BytesBlockHeightY[k]) - dml_floor(ViewportYStartY[k], 8 *
+							Read256BytesBlockHeightY[k])) * BytesPerPixelY[k] / 256) + (64 * 1024);
 				if (Read256BytesBlockWidthC[k] > 0) {
 					SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
 							dml_min(dml_ceil(DCCMetaPitchC[k], 8 *
@@ -1877,12 +1877,12 @@ void dml32_CalculateSurfaceSizeInMall(
 			}
 			if (DCCEnable[k] == true) {
 				SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
-						dml_ceil(dml_min(DCCMetaPitchY[k], ViewportWidthY[k] + 8 *
+						(dml_ceil(dml_min(DCCMetaPitchY[k], ViewportWidthY[k] + 8 *
 								Read256BytesBlockWidthY[k] - 1), 8 *
 								Read256BytesBlockWidthY[k]) *
 						dml_ceil(dml_min(SurfaceHeightY[k], ViewportHeightY[k] + 8 *
 								Read256BytesBlockHeightY[k] - 1), 8 *
-								Read256BytesBlockHeightY[k]) * BytesPerPixelY[k] / 256;
+								Read256BytesBlockHeightY[k]) * BytesPerPixelY[k] / 256) + (64 * 1024);
 
 				if (Read256BytesBlockWidthC[k] > 0) {
 					SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
