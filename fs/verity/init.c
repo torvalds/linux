@@ -49,7 +49,6 @@ static int __init fsverity_init(void)
 	if (err)
 		goto err_exit_workqueue;
 
-	pr_debug("Initialized fs-verity\n");
 	return 0;
 
 err_exit_workqueue:

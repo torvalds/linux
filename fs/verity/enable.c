@@ -70,10 +70,6 @@ static int build_merkle_tree_level(struct file *filp, unsigned int level,
 	for (i = 0; i < num_blocks_to_hash; i++) {
 		struct page *src_page;
 
-		if ((pgoff_t)i % 10000 == 0 || i + 1 == num_blocks_to_hash)
-			pr_debug("Hashing block %llu of %llu for level %u\n",
-				 i + 1, num_blocks_to_hash, level);
-
 		if (level == 0) {
 			/* Leaf: hashing a data block */
 			src_page = read_file_data_page(filp, i, &ra,
@@ -263,15 +259,12 @@ static int enable_verity(struct file *filp,
 	 * ->begin_enable_verity() and ->end_enable_verity() using the inode
 	 * lock and only allow one process to be here at a time on a given file.
 	 */
-	pr_debug("Building Merkle tree...\n");
 	BUILD_BUG_ON(sizeof(desc->root_hash) < FS_VERITY_MAX_DIGEST_SIZE);
 	err = build_merkle_tree(filp, &params, desc->root_hash);
 	if (err) {
 		fsverity_err(inode, "Error %d building Merkle tree", err);
 		goto rollback;
 	}
-	pr_debug("Done building Merkle tree.  Root hash is %s:%*phN\n",
-		 params.hash_alg->name, params.digest_size, desc->root_hash);
 
 	/*
 	 * Create the fsverity_info.  Don't bother trying to save work by
@@ -285,10 +278,6 @@ static int enable_verity(struct file *filp,
 		err = PTR_ERR(vi);
 		goto rollback;
 	}
-
-	if (arg->sig_size)
-		pr_debug("Storing a %u-byte PKCS#7 signature alongside the file\n",
-			 arg->sig_size);
 
 	/*
 	 * Tell the filesystem to finish enabling verity on the file.

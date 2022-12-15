@@ -9,7 +9,6 @@
 
 #include <crypto/hash.h>
 #include <linux/bio.h>
-#include <linux/ratelimit.h>
 
 static struct workqueue_struct *fsverity_read_workqueue;
 
@@ -91,8 +90,6 @@ static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
 	if (WARN_ON_ONCE(!PageLocked(data_page) || PageUptodate(data_page)))
 		return false;
 
-	pr_debug_ratelimited("Verifying data page %lu...\n", index);
-
 	/*
 	 * Starting at the leaf level, ascend the tree saving hash pages along
 	 * the way until we find a verified hash page, indicated by PageChecked;
@@ -104,9 +101,6 @@ static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
 		struct page *hpage;
 
 		hash_at_level(params, index, level, &hindex, &hoffset);
-
-		pr_debug_ratelimited("Level %d: hindex=%lu, hoffset=%u\n",
-				     level, hindex, hoffset);
 
 		hpage = inode->i_sb->s_vop->read_merkle_tree_page(inode, hindex,
 				level == 0 ? level0_ra_pages : 0);
@@ -122,19 +116,13 @@ static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
 			memcpy_from_page(_want_hash, hpage, hoffset, hsize);
 			want_hash = _want_hash;
 			put_page(hpage);
-			pr_debug_ratelimited("Hash page already checked, want %s:%*phN\n",
-					     params->hash_alg->name,
-					     hsize, want_hash);
 			goto descend;
 		}
-		pr_debug_ratelimited("Hash page not yet checked\n");
 		hpages[level] = hpage;
 		hoffsets[level] = hoffset;
 	}
 
 	want_hash = vi->root_hash;
-	pr_debug("Want root hash: %s:%*phN\n",
-		 params->hash_alg->name, hsize, want_hash);
 descend:
 	/* Descend the tree verifying hash pages */
 	for (; level > 0; level--) {
@@ -151,8 +139,6 @@ descend:
 		memcpy_from_page(_want_hash, hpage, hoffset, hsize);
 		want_hash = _want_hash;
 		put_page(hpage);
-		pr_debug("Verified hash page at level %d, now want %s:%*phN\n",
-			 level - 1, params->hash_alg->name, hsize, want_hash);
 	}
 
 	/* Finally, verify the data page */

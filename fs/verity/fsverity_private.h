@@ -8,10 +8,6 @@
 #ifndef _FSVERITY_PRIVATE_H
 #define _FSVERITY_PRIVATE_H
 
-#ifdef CONFIG_FS_VERITY_DEBUG
-#define DEBUG
-#endif
-
 #define pr_fmt(fmt) "fs-verity: " fmt
 
 #include <linux/fsverity.h>

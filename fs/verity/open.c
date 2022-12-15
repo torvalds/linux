@@ -77,10 +77,6 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	params->log_arity = params->log_blocksize - ilog2(params->digest_size);
 	params->hashes_per_block = 1 << params->log_arity;
 
-	pr_debug("Merkle tree uses %s with %u-byte blocks (%u hashes/block), salt=%*phN\n",
-		 hash_alg->name, params->block_size, params->hashes_per_block,
-		 (int)salt_size, salt);
-
 	/*
 	 * Compute the number of levels in the Merkle tree and create a map from
 	 * level to the starting block of that level.  Level 'num_levels - 1' is
@@ -90,7 +86,6 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 
 	/* Compute number of levels and the number of blocks in each level */
 	blocks = ((u64)inode->i_size + params->block_size - 1) >> log_blocksize;
-	pr_debug("Data is %lld bytes (%llu blocks)\n", inode->i_size, blocks);
 	while (blocks > 1) {
 		if (params->num_levels >= FS_VERITY_MAX_LEVELS) {
 			fsverity_err(inode, "Too many levels in Merkle tree");
@@ -109,8 +104,6 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	for (level = (int)params->num_levels - 1; level >= 0; level--) {
 		blocks = params->level_start[level];
 		params->level_start[level] = offset;
-		pr_debug("Level %d is %llu blocks starting at index %llu\n",
-			 level, blocks, offset);
 		offset += blocks;
 	}
 
@@ -176,9 +169,6 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 		fsverity_err(inode, "Error %d computing file digest", err);
 		goto out;
 	}
-	pr_debug("Computed file digest: %s:%*phN\n",
-		 vi->tree_params.hash_alg->name,
-		 vi->tree_params.digest_size, vi->file_digest);
 
 	err = fsverity_verify_signature(vi, desc->signature,
 					le32_to_cpu(desc->sig_size));
@@ -327,23 +317,16 @@ out_free_desc:
 
 int __fsverity_file_open(struct inode *inode, struct file *filp)
 {
-	if (filp->f_mode & FMODE_WRITE) {
-		pr_debug("Denying opening verity file (ino %lu) for write\n",
-			 inode->i_ino);
+	if (filp->f_mode & FMODE_WRITE)
 		return -EPERM;
-	}
-
 	return ensure_verity_info(inode);
 }
 EXPORT_SYMBOL_GPL(__fsverity_file_open);
 
 int __fsverity_prepare_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	if (attr->ia_valid & ATTR_SIZE) {
-		pr_debug("Denying truncate of verity file (ino %lu)\n",
-			 d_inode(dentry)->i_ino);
+	if (attr->ia_valid & ATTR_SIZE)
 		return -EPERM;
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__fsverity_prepare_setattr);
