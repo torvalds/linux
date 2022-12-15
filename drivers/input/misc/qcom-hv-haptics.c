@@ -4909,8 +4909,8 @@ static int haptics_measure_realtime_lra_impedance(struct haptics_chip *chip)
 	if (chip->hap_cfg_nvmem != NULL) {
 		rc = nvmem_device_read(chip->hap_cfg_nvmem,
 				HAP_LRA_NOMINAL_OHM_SDAM_OFFSET, 1, &val);
-		if (!rc && val) {
-			nominal_ohm = val;
+		if (rc > 0 && val) {
+			nominal_ohm = val * LRA_IMPEDANCE_MOHMS_LSB / 1000;
 			/*
 			 * use 250mA current_sel when nominal impedance is lower than 15 Ohms
 			 * and use 125mA detection when nominal impedance is higher than 40 Ohms
@@ -4983,8 +4983,8 @@ static int haptics_measure_realtime_lra_impedance(struct haptics_chip *chip)
 			chip->config.lra_measured_mohms);
 	/* store the detected LRA impedance into SDAM for future usage */
 	if (chip->hap_cfg_nvmem != NULL) {
-		rc = nvmem_device_write(chip->hap_cfg_nvmem, HAP_LRA_DETECTED_OHM_SDAM_OFFSET, 1,
-				&chip->config.lra_measured_mohms);
+		rc = nvmem_device_write(chip->hap_cfg_nvmem,
+				HAP_LRA_DETECTED_OHM_SDAM_OFFSET, 1, &val);
 		if (rc < 0)
 			dev_err(chip->dev, "write measured impedance value into SDAM failed, rc=%d\n",
 					rc);
