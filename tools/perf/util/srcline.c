@@ -716,7 +716,7 @@ out:
 
 	if (!show_addr)
 		return (show_sym && sym) ?
-			    strndup(sym->name, sym->namelen) : NULL;
+			    strndup(sym->name, sym->namelen) : SRCLINE_UNKNOWN;
 
 	if (sym) {
 		if (asprintf(&srcline, "%s+%" PRIu64, show_sym ? sym->name : "",
