@@ -34,6 +34,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_data/x86/nvidia-wmi-ec-backlight.h>
+#include <linux/pnp.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <acpi/video.h>
@@ -104,6 +105,26 @@ static bool nvidia_wmi_ec_supported(void)
 	return false;
 }
 #endif
+
+static bool apple_gmux_backlight_present(void)
+{
+	struct acpi_device *adev;
+	struct device *dev;
+
+	adev = acpi_dev_get_first_match_dev(GMUX_ACPI_HID, NULL, -1);
+	if (!adev)
+		return false;
+
+	dev = acpi_get_first_physical_node(adev);
+	if (!dev)
+		return false;
+
+	/*
+	 * drivers/platform/x86/apple-gmux.c only supports old style
+	 * Apple GMUX with an IO-resource.
+	 */
+	return pnp_get_resource(to_pnp_dev(dev), IORESOURCE_IO, 0) != NULL;
+}
 
 /* Force to use vendor driver when the ACPI device is known to be
  * buggy */
@@ -767,7 +788,7 @@ static enum acpi_backlight_type __acpi_video_get_backlight_type(bool native)
 	if (nvidia_wmi_ec_present)
 		return acpi_backlight_nvidia_wmi_ec;
 
-	if (apple_gmux_present())
+	if (apple_gmux_backlight_present())
 		return acpi_backlight_apple_gmux;
 
 	/* Use ACPI video if available, except when native should be preferred. */
