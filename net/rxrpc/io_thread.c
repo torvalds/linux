@@ -426,6 +426,8 @@ int rxrpc_io_thread(void *data)
 	struct rxrpc_call *call;
 	struct sk_buff *skb;
 
+	complete(&local->io_thread_ready);
+
 	skb_queue_head_init(&rx_queue);
 
 	set_user_nice(current, MIN_NICE);
