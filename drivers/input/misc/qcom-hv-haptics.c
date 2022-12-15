@@ -336,7 +336,7 @@
 #define CHAR_PER_SAMPLE				8
 #define CHAR_MSG_HEADER				16
 #define CHAR_BRAKE_MODE				24
-#define HW_BRAKE_CYCLES				5
+#define HW_BRAKE_MAX_CYCLES			16
 #define F_LRA_VARIATION_HZ			5
 #define NON_HBOOST_MAX_VMAX_MV			4000
 /* below definitions are only for HAP525_HV */
@@ -956,13 +956,13 @@ static int get_brake_play_length_us(struct brake_cfg *brake, u32 t_lra_us)
 		return 0;
 
 	if (brake->mode == PREDICT_BRAKE || brake->mode == AUTO_BRAKE)
-		return HW_BRAKE_CYCLES * t_lra_us;
+		return HW_BRAKE_MAX_CYCLES * t_lra_us / 2;
 
 	for (; i >= 0; i--)
 		if (brake->samples[i] != 0)
 			break;
 
-	return t_lra_us * (i + 1);
+	return t_lra_us * (i + 1) / 2;
 }
 
 static int haptics_get_status_data(struct haptics_chip *chip,
@@ -1637,6 +1637,53 @@ static int haptics_clear_fault(struct haptics_chip *chip)
 			HAP_CFG_FAULT_CLR_REG, &val, 1);
 }
 
+static int haptics_wait_brake_complete(struct haptics_chip *chip)
+{
+	struct haptics_play_info *play = &chip->play;
+	u32 brake_length_us, t_lra_us, timeout, delay_us;
+	int rc;
+	u8 val;
+
+	if (chip->hw_type != HAP525_HV)
+		return 0;
+
+	t_lra_us = (chip->config.cl_t_lra_us) ?
+		chip->config.cl_t_lra_us : chip->config.t_lra_us;
+
+	brake_length_us = get_brake_play_length_us(play->brake, t_lra_us);
+
+	/* add a cycle to give some margin for brake synchronization */
+	brake_length_us += t_lra_us;
+	delay_us = t_lra_us / 2;
+	timeout = brake_length_us / delay_us + 1;
+	dev_dbg(chip->dev, "wait %d us for brake pattern to complete\n", brake_length_us);
+
+	/* poll HPWR_DISABLED to guarantee the brake pattern has been played completely */
+	do {
+		usleep_range(delay_us, delay_us + 1);
+		rc = haptics_read(chip, chip->cfg_addr_base, HAP_CFG_HPWR_INTF_REG, &val, 1);
+		if (rc < 0) {
+			dev_err(chip->dev, "read HPWR_INTF failed, rc=%d\n", rc);
+			return rc;
+		}
+
+		if ((val & HPWR_INTF_STATUS_MASK) == HPWR_DISABLED) {
+			dev_dbg(chip->dev, "stopped play completely");
+			break;
+		}
+
+		dev_dbg(chip->dev, "polling HPWR_INTF timeout %d, value = %d\n",
+				timeout, val);
+	} while (--timeout);
+
+	if (timeout == 0) {
+		dev_warn(chip->dev, "poll HPWR_DISABLED failed after stopped play\n");
+		return haptics_toggle_module_enable(chip);
+	}
+
+	return 0;
+}
+
 #define BOOST_VREG_OFF_DELAY_SECONDS	2
 static int haptics_enable_play(struct haptics_chip *chip, bool en)
 {
@@ -1670,6 +1717,9 @@ static int haptics_enable_play(struct haptics_chip *chip, bool en)
 		dev_err(chip->dev, "Write SPMI_PLAY failed, rc=%d\n", rc);
 		return rc;
 	}
+
+	if (!en)
+		haptics_wait_brake_complete(chip);
 
 	if (chip->wa_flags & SW_CTRL_HBST) {
 		if (en) {
@@ -2662,25 +2712,12 @@ static int haptics_upload_effect(struct input_dev *dev,
 static int haptics_playback(struct input_dev *dev, int effect_id, int val)
 {
 	struct haptics_chip *chip = input_get_drvdata(dev);
-	struct haptics_play_info *play = &chip->play;
-	int rc;
 
 	dev_dbg(chip->dev, "playback val = %d\n", val);
-	if (!!val) {
-		rc = haptics_enable_play(chip, true);
-		if (rc < 0)
-			return rc;
-	} else {
-		if (play->pattern_src == FIFO &&
-				atomic_read(&play->fifo_status.is_busy)) {
-			dev_dbg(chip->dev, "FIFO playing is not done yet, defer stopping in erase\n");
-			return 0;
-		}
+	if (!!val)
+		return haptics_enable_play(chip, true);
 
-		rc = haptics_enable_play(chip, false);
-	}
-
-	return rc;
+	return 0;
 }
 
 static int haptics_erase(struct input_dev *dev, int effect_id)
@@ -2689,6 +2726,7 @@ static int haptics_erase(struct input_dev *dev, int effect_id)
 	struct haptics_play_info *play = &chip->play;
 	int rc;
 
+	dev_dbg(chip->dev, "erase effect, really stop play\n");
 	mutex_lock(&play->lock);
 	if ((play->pattern_src == FIFO) &&
 			atomic_read(&play->fifo_status.is_busy)) {
@@ -2701,6 +2739,13 @@ static int haptics_erase(struct input_dev *dev, int effect_id)
 		if (rc < 0) {
 			dev_err(chip->dev, "stop FIFO playing failed, rc=%d\n",
 					rc);
+			mutex_unlock(&play->lock);
+			return rc;
+		}
+	} else {
+		rc = haptics_enable_play(chip, false);
+		if (rc < 0) {
+			dev_err(chip->dev, "stop play failed, rc=%d\n", rc);
 			mutex_unlock(&play->lock);
 			return rc;
 		}
