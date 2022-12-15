@@ -344,21 +344,21 @@ void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 	unsigned long flags;
 	struct buffer_head *first;
 	struct buffer_head *tmp;
-	struct page *page;
+	struct folio *folio;
 
 	BUG_ON(!buffer_async_write(bh));
 
-	page = bh->b_page;
+	folio = bh->b_folio;
 	if (uptodate) {
 		set_buffer_uptodate(bh);
 	} else {
 		buffer_io_error(bh, ", lost async page write");
 		mark_buffer_write_io_error(bh);
 		clear_buffer_uptodate(bh);
-		SetPageError(page);
+		folio_set_error(folio);
 	}
 
-	first = page_buffers(page);
+	first = folio_buffers(folio);
 	spin_lock_irqsave(&first->b_uptodate_lock, flags);
 
 	clear_buffer_async_write(bh);
@@ -372,7 +372,7 @@ void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 		tmp = tmp->b_this_page;
 	}
 	spin_unlock_irqrestore(&first->b_uptodate_lock, flags);
-	end_page_writeback(page);
+	folio_end_writeback(folio);
 	return;
 
 still_busy:
