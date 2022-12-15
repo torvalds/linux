@@ -45,6 +45,7 @@
 #include "link/link_dp_training_fixed_vs_pe_retimer.h"
 #include "link/link_dp_training_dpia.h"
 #include "link/link_dp_training_auxless.h"
+#include "link/link_dp_phy.h"
 #include "resource.h"
 #define DC_LOGGER \
 	link->ctx->logger
@@ -137,21 +138,6 @@ uint8_t dp_convert_to_count(uint8_t lttpr_repeater_count)
 		break;
 	}
 	return 0; // invalid value
-}
-
-void dc_link_dp_set_drive_settings(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	struct link_training_settings *lt_settings)
-{
-	/* program ASIC PHY settings*/
-	dp_set_hw_lane_settings(link, link_res, lt_settings, DPRX);
-
-	dp_hw_to_dpcd_lane_settings(lt_settings,
-			lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
-
-	/* Notify DP sink the PHY settings from source */
-	dpcd_set_lane_settings(link, lt_settings, DPRX);
 }
 
 static enum clock_source_id get_clock_source_id(struct dc_link *link)
@@ -2195,7 +2181,7 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 
 	if (!link->dpcd_caps.dpcd_rev.raw) {
 		do {
-			dp_receiver_power_ctrl(link, true);
+			dc_link_dp_receiver_power_ctrl(link, true);
 			core_link_read_dpcd(link, DP_DPCD_REV,
 							dpcd_data, length);
 			link->dpcd_caps.dpcd_rev.raw = dpcd_data[
@@ -4106,69 +4092,11 @@ void dc_link_clear_dprx_states(struct dc_link *link)
 	memset(&link->dprx_states, 0, sizeof(link->dprx_states));
 }
 
-void dp_receiver_power_ctrl(struct dc_link *link, bool on)
-{
-	uint8_t state;
-
-	state = on ? DP_POWER_STATE_D0 : DP_POWER_STATE_D3;
-
-	if (link->sync_lt_in_progress)
-		return;
-
-	core_link_write_dpcd(link, DP_SET_POWER, &state,
-						 sizeof(state));
-
-}
-
 void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode)
 {
 	if (link != NULL && link->dc->debug.enable_driver_sequence_debug)
 		core_link_write_dpcd(link, DP_SOURCE_SEQUENCE,
 					&dp_test_mode, sizeof(dp_test_mode));
-}
-
-
-static uint8_t convert_to_count(uint8_t lttpr_repeater_count)
-{
-	switch (lttpr_repeater_count) {
-	case 0x80: // 1 lttpr repeater
-		return 1;
-	case 0x40: // 2 lttpr repeaters
-		return 2;
-	case 0x20: // 3 lttpr repeaters
-		return 3;
-	case 0x10: // 4 lttpr repeaters
-		return 4;
-	case 0x08: // 5 lttpr repeaters
-		return 5;
-	case 0x04: // 6 lttpr repeaters
-		return 6;
-	case 0x02: // 7 lttpr repeaters
-		return 7;
-	case 0x01: // 8 lttpr repeaters
-		return 8;
-	default:
-		break;
-	}
-	return 0; // invalid value
-}
-
-static inline bool is_immediate_downstream(struct dc_link *link, uint32_t offset)
-{
-	return (convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) == offset);
-}
-
-void dp_enable_link_phy(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	enum signal_type signal,
-	enum clock_source_id clock_source,
-	const struct dc_link_settings *link_settings)
-{
-	link->cur_link_settings = *link_settings;
-	link->dc->hwss.enable_dp_link_output(link, link_res, signal,
-			clock_source, link_settings);
-	dp_receiver_power_ctrl(link, true);
 }
 
 void edp_add_delay_for_T9(struct dc_link *link)
@@ -4234,57 +4162,6 @@ bool edp_receiver_ready_T7(struct dc_link *link)
 		udelay(link->panel_config.pps.extra_t7_ms * 1000);
 
 	return result;
-}
-
-void dp_disable_link_phy(struct dc_link *link, const struct link_resource *link_res,
-		enum signal_type signal)
-{
-	struct dc  *dc = link->ctx->dc;
-
-	if (!link->wa_flags.dp_keep_receiver_powered)
-		dp_receiver_power_ctrl(link, false);
-
-	dc->hwss.disable_link_output(link, link_res, signal);
-	/* Clear current link setting.*/
-	memset(&link->cur_link_settings, 0,
-			sizeof(link->cur_link_settings));
-
-	if (dc->clk_mgr->funcs->notify_link_rate_change)
-		dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
-}
-
-void dp_disable_link_phy_mst(struct dc_link *link, const struct link_resource *link_res,
-		enum signal_type signal)
-{
-	/* MST disable link only when no stream use the link */
-	if (link->mst_stream_alloc_table.stream_count > 0)
-		return;
-
-	dp_disable_link_phy(link, link_res, signal);
-
-	/* set the sink to SST mode after disabling the link */
-	dp_enable_mst_on_sink(link, false);
-}
-
-void dp_set_hw_lane_settings(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	const struct link_training_settings *link_settings,
-	uint32_t offset)
-{
-	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
-
-	if ((link_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) && !is_immediate_downstream(link, offset))
-		return;
-
-	if (link_hwss->ext.set_dp_lane_settings)
-		link_hwss->ext.set_dp_lane_settings(link, link_res,
-				&link_settings->link_settings,
-				link_settings->hw_lane_settings);
-
-	memmove(link->cur_lane_setting,
-			link_settings->hw_lane_settings,
-			sizeof(link->cur_lane_setting));
 }
 
 void dp_retrain_link_dp_test(struct dc_link *link,

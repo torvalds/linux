@@ -38,6 +38,7 @@
 #include "link_dp_training_fixed_vs_pe_retimer.h"
 #include "link_dpcd.h"
 #include "link_dp_trace.h"
+#include "link_dp_phy.h"
 #include "dc_link_dp.h"
 #include "atomfirmware.h"
 #include "link_enc_cfg.h"

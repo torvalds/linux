@@ -29,6 +29,7 @@
  */
 #include "link_dp_training_8b_10b.h"
 #include "link_dpcd.h"
+#include "link_dp_phy.h"
 #include "dc_link_dp.h"
 
 #define DC_LOGGER \

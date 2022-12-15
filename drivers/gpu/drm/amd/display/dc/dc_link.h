@@ -583,4 +583,6 @@ int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 
 enum lttpr_mode dc_link_decide_lttpr_mode(struct dc_link *link,
 		struct dc_link_settings *link_setting);
+void dc_link_dp_receiver_power_ctrl(struct dc_link *link, bool on);
+
 #endif /* DC_LINK_H_ */

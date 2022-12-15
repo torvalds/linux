@@ -55,6 +55,7 @@
 #include "link/link_dp_trace.h"
 #include "link/link_hpd.h"
 #include "link/link_dp_training.h"
+#include "link/link_dp_phy.h"
 
 #include "dc/dcn30/dcn30_vpg.h"
 
@@ -2174,7 +2175,7 @@ void dc_link_blank_dp_stream(struct dc_link *link, bool hw_init)
 		}
 
 		if ((!link->wa_flags.dp_keep_receiver_powered) || hw_init)
-			dp_receiver_power_ctrl(link, false);
+			dc_link_dp_receiver_power_ctrl(link, false);
 	}
 }
 
