@@ -31,7 +31,7 @@ config FTGMAC100
 	depends on ARM || COMPILE_TEST
 	depends on !64BIT || BROKEN
 	select PHYLIB
-	select MDIO_ASPEED if MACH_ASPEED_G6
+	select MDIO_ASPEED if MACH_ASPEED_G6 || MACH_ASPEED_G7
 	select CRC32
 	help
 	  This driver supports the FTGMAC100 Gigabit Ethernet controller

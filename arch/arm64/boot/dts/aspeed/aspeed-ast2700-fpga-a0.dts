@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright 2021 IBM Corp.
+
+#include "aspeed-ast2700-fpga.dts"
+
+/ {
+	model = "AST2700 A0 FPGA";
+	compatible = "aspeed,ast2700-fpga-a0", "aspeed,ast2700-fpga", "aspeed,ast2700";
+
+	/delete-node/regulator-vcc-sdhci0;
+	/delete-node/regulator-vcc-sdhci1;
+	/delete-node/regulator-vccq-sdhci0;
+	/delete-node/regulator-vccq-sdhci1;
+};

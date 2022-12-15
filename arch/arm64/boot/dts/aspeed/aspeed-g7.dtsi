@@ -1,0 +1,146 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright 2019 IBM Corp.
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/aspeed-scu-ic.h>
+
+/ {
+	model = "Aspeed BMC";
+	compatible = "aspeed,ast2700";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&gic>;
+
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
+	};
+
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "aspeed,ast2700-smp";
+
+		cpu@0 {
+			compatible = "arm,cortex-a35";
+			device_type = "cpu";
+			reg = <0>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a35";
+			device_type = "cpu";
+			reg = <1>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a35";
+			device_type = "cpu";
+			reg = <1>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a35";
+			device_type = "cpu";
+			reg = <1>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+				<GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+				<GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+				<GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
+		arm,cpu-registers-not-fw-configured;
+		always-on;
+	};
+
+	ahb {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		device_type = "soc";
+		ranges;
+
+		gic: interrupt-controller@12200000 {
+				compatible = "arm,gic-v3";
+				interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
+				#interrupt-cells = <3>;
+				interrupt-controller;
+				interrupt-parent = <&gic>;
+				#redistributor-regions = <1>;
+				reg =	<0 0x12200000 0 0x10000>,		//GICD
+					<0 0x12280000 0 0x80000>,		//GICR
+					<0 0x40440000 0 0x1000>;		//GICC
+		};
+
+		apb {
+			compatible = "simple-bus";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			uart1: serial@14c33000 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33000 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			uart2: serial@14c33100 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33100 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			uart3: serial@14c33200 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33200 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			uart4: serial@14c33300 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33300 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			uart5: serial@12c1a000 {
+				compatible = "ns16550a";
+				reg = <0x0 0x12c1a000 0x0 0x1000>;
+				reg-shift = <2>;
+				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				no-loopback-test;
+				status = "okay";
+			};
+
+		};
+	};
+};
+
