@@ -471,7 +471,7 @@ TRACE_EVENT(rxrpc_peer,
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	peer		)
 		    __field(int,		ref		)
-		    __field(int,		why		)
+		    __field(enum rxrpc_peer_trace, why		)
 			     ),
 
 	    TP_fast_assign(

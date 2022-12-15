@@ -226,7 +226,7 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp,
 		rxrpc_peer_init_rtt(peer);
 
 		peer->cong_ssthresh = RXRPC_TX_MAX_WINDOW;
-		trace_rxrpc_peer(peer->debug_id, why, 1);
+		trace_rxrpc_peer(peer->debug_id, 1, why);
 	}
 
 	_leave(" = %p", peer);
@@ -382,7 +382,7 @@ struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *peer, enum rxrpc_peer_trace
 	int r;
 
 	__refcount_inc(&peer->ref, &r);
-	trace_rxrpc_peer(peer->debug_id, why, r + 1);
+	trace_rxrpc_peer(peer->debug_id, r + 1, why);
 	return peer;
 }
 
