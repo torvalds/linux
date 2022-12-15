@@ -550,6 +550,9 @@ static int addr2line(const char *dso_name, u64 addr,
 	size_t inline_count = 0;
 
 	if (!a2l) {
+		if (!filename__has_section(dso_name, ".debug_line"))
+			goto out;
+
 		dso->a2l = addr2line_subprocess_init(dso_name);
 		a2l = dso->a2l;
 	}
