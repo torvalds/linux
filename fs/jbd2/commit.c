@@ -63,16 +63,12 @@ static void journal_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
 static void release_buffer_page(struct buffer_head *bh)
 {
 	struct folio *folio;
-	struct page *page;
 
 	if (buffer_dirty(bh))
 		goto nope;
 	if (atomic_read(&bh->b_count) != 1)
 		goto nope;
-	page = bh->b_page;
-	if (!page)
-		goto nope;
-	folio = page_folio(page);
+	folio = bh->b_folio;
 	if (folio->mapping)
 		goto nope;
 
@@ -1040,7 +1036,7 @@ restart_loop:
 			 * already detached from the mapping and buffers cannot
 			 * get reused.
 			 */
-			mapping = READ_ONCE(bh->b_page->mapping);
+			mapping = READ_ONCE(bh->b_folio->mapping);
 			if (mapping && !sb_is_blkdev_sb(mapping->host->i_sb)) {
 				clear_buffer_mapped(bh);
 				clear_buffer_new(bh);
