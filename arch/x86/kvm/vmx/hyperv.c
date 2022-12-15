@@ -3,9 +3,9 @@
 #include <linux/errno.h>
 #include <linux/smp.h>
 
-#include "../hyperv.h"
 #include "../cpuid.h"
-#include "evmcs.h"
+#include "hyperv.h"
+#include "nested.h"
 #include "vmcs.h"
 #include "vmx.h"
 #include "trace.h"
@@ -322,24 +322,17 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 };
 const unsigned int nr_evmcs_1_fields = ARRAY_SIZE(vmcs_field_to_evmcs_1);
 
-bool nested_enlightened_vmentry(struct kvm_vcpu *vcpu, u64 *evmcs_gpa)
+u64 nested_get_evmptr(struct kvm_vcpu *vcpu)
 {
-	struct hv_vp_assist_page assist_page;
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 
-	*evmcs_gpa = -1ull;
+	if (unlikely(kvm_hv_get_assist_page(vcpu)))
+		return EVMPTR_INVALID;
 
-	if (unlikely(!kvm_hv_get_assist_page(vcpu, &assist_page)))
-		return false;
+	if (unlikely(!hv_vcpu->vp_assist_page.enlighten_vmentry))
+		return EVMPTR_INVALID;
 
-	if (unlikely(!assist_page.enlighten_vmentry))
-		return false;
-
-	if (unlikely(!evmptr_is_valid(assist_page.current_nested_vmcs)))
-		return false;
-
-	*evmcs_gpa = assist_page.current_nested_vmcs;
-
-	return true;
+	return hv_vcpu->vp_assist_page.current_nested_vmcs;
 }
 
 uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
@@ -506,4 +499,24 @@ int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 		*vmcs_version = nested_get_evmcs_version(vcpu);
 
 	return 0;
+}
+
+bool nested_evmcs_l2_tlb_flush_enabled(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct hv_enlightened_vmcs *evmcs = vmx->nested.hv_evmcs;
+
+	if (!hv_vcpu || !evmcs)
+		return false;
+
+	if (!evmcs->hv_enlightenments_control.nested_flush_hypercall)
+		return false;
+
+	return hv_vcpu->vp_assist_page.nested_control.features.directhypercall;
+}
+
+void vmx_hv_inject_synthetic_vmexit_post_tlb_flush(struct kvm_vcpu *vcpu)
+{
+	nested_vmx_vmexit(vcpu, HV_VMX_SYNTHETIC_EXIT_REASON_TRAP_AFTER_FLUSH, 0, 0);
 }

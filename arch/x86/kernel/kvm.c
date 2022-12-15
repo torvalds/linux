@@ -349,7 +349,7 @@ static notrace void kvm_guest_apic_eoi_write(u32 reg, u32 val)
 static void kvm_guest_cpu_init(void)
 {
 	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF_INT) && kvmapf) {
-		u64 pa = slow_virt_to_phys(this_cpu_ptr(&apf_reason));
+		u64 pa;
 
 		WARN_ON_ONCE(!static_branch_likely(&kvm_async_pf_enabled));
 

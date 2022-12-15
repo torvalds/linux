@@ -16,6 +16,7 @@
 
 #include "kvm_util.h"
 
+#include "hyperv.h"
 #include "vmx.h"
 
 static int ud_count;
@@ -30,24 +31,19 @@ static void guest_nmi_handler(struct ex_regs *regs)
 {
 }
 
-/* Exits to L1 destroy GRPs! */
-static inline void rdmsr_fs_base(void)
+static inline void rdmsr_from_l2(uint32_t msr)
 {
-	__asm__ __volatile__ ("mov $0xc0000100, %%rcx; rdmsr" : : :
-			      "rax", "rbx", "rcx", "rdx",
-			      "rsi", "rdi", "r8", "r9", "r10", "r11", "r12",
-			      "r13", "r14", "r15");
-}
-static inline void rdmsr_gs_base(void)
-{
-	__asm__ __volatile__ ("mov $0xc0000101, %%rcx; rdmsr" : : :
-			      "rax", "rbx", "rcx", "rdx",
-			      "rsi", "rdi", "r8", "r9", "r10", "r11", "r12",
-			      "r13", "r14", "r15");
+	/* Currently, L1 doesn't preserve GPRs during vmexits. */
+	__asm__ __volatile__ ("rdmsr" : : "c"(msr) :
+			      "rax", "rbx", "rdx", "rsi", "rdi", "r8", "r9",
+			      "r10", "r11", "r12", "r13", "r14", "r15");
 }
 
+/* Exit to L1 from L2 with RDMSR instruction */
 void l2_guest_code(void)
 {
+	u64 unused;
+
 	GUEST_SYNC(7);
 
 	GUEST_SYNC(8);
@@ -58,42 +54,58 @@ void l2_guest_code(void)
 	vmcall();
 
 	/* MSR-Bitmap tests */
-	rdmsr_fs_base(); /* intercepted */
-	rdmsr_fs_base(); /* intercepted */
-	rdmsr_gs_base(); /* not intercepted */
+	rdmsr_from_l2(MSR_FS_BASE); /* intercepted */
+	rdmsr_from_l2(MSR_FS_BASE); /* intercepted */
+	rdmsr_from_l2(MSR_GS_BASE); /* not intercepted */
 	vmcall();
-	rdmsr_gs_base(); /* intercepted */
+	rdmsr_from_l2(MSR_GS_BASE); /* intercepted */
+
+	/* L2 TLB flush tests */
+	hyperv_hypercall(HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE | HV_HYPERCALL_FAST_BIT, 0x0,
+			 HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES | HV_FLUSH_ALL_PROCESSORS);
+	rdmsr_from_l2(MSR_FS_BASE);
+	/*
+	 * Note: hypercall status (RAX) is not preserved correctly by L1 after
+	 * synthetic vmexit, use unchecked version.
+	 */
+	__hyperv_hypercall(HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE | HV_HYPERCALL_FAST_BIT, 0x0,
+			   HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES | HV_FLUSH_ALL_PROCESSORS,
+			   &unused);
 
 	/* Done, exit to L1 and never come back.  */
 	vmcall();
 }
 
-void guest_code(struct vmx_pages *vmx_pages)
+void guest_code(struct vmx_pages *vmx_pages, struct hyperv_test_pages *hv_pages,
+		vm_vaddr_t hv_hcall_page_gpa)
 {
 #define L2_GUEST_STACK_SIZE 64
 	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
+
+	wrmsr(HV_X64_MSR_GUEST_OS_ID, HYPERV_LINUX_OS_ID);
+	wrmsr(HV_X64_MSR_HYPERCALL, hv_hcall_page_gpa);
 
 	x2apic_enable();
 
 	GUEST_SYNC(1);
 	GUEST_SYNC(2);
 
-	enable_vp_assist(vmx_pages->vp_assist_gpa, vmx_pages->vp_assist);
+	enable_vp_assist(hv_pages->vp_assist_gpa, hv_pages->vp_assist);
+	evmcs_enable();
 
-	GUEST_ASSERT(vmx_pages->vmcs_gpa);
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
 	GUEST_SYNC(3);
-	GUEST_ASSERT(load_vmcs(vmx_pages));
-	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
+	GUEST_ASSERT(load_evmcs(hv_pages));
+	GUEST_ASSERT(vmptrstz() == hv_pages->enlightened_vmcs_gpa);
 
 	GUEST_SYNC(4);
-	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
+	GUEST_ASSERT(vmptrstz() == hv_pages->enlightened_vmcs_gpa);
 
 	prepare_vmcs(vmx_pages, l2_guest_code,
 		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
 
 	GUEST_SYNC(5);
-	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
+	GUEST_ASSERT(vmptrstz() == hv_pages->enlightened_vmcs_gpa);
 	current_evmcs->revision_id = -1u;
 	GUEST_ASSERT(vmlaunch());
 	current_evmcs->revision_id = EVMCS_VERSION;
@@ -102,8 +114,18 @@ void guest_code(struct vmx_pages *vmx_pages)
 	vmwrite(PIN_BASED_VM_EXEC_CONTROL, vmreadz(PIN_BASED_VM_EXEC_CONTROL) |
 		PIN_BASED_NMI_EXITING);
 
+	/* L2 TLB flush setup */
+	current_evmcs->partition_assist_page = hv_pages->partition_assist_gpa;
+	current_evmcs->hv_enlightenments_control.nested_flush_hypercall = 1;
+	current_evmcs->hv_vm_id = 1;
+	current_evmcs->hv_vp_id = 1;
+	current_vp_assist->nested_control.features.directhypercall = 1;
+	*(u32 *)(hv_pages->partition_assist) = 0;
+
 	GUEST_ASSERT(!vmlaunch());
-	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
+	GUEST_ASSERT_EQ(vmreadz(VM_EXIT_REASON), EXIT_REASON_EXCEPTION_NMI);
+	GUEST_ASSERT_EQ((vmreadz(VM_EXIT_INTR_INFO) & 0xff), NMI_VECTOR);
+	GUEST_ASSERT(vmptrstz() == hv_pages->enlightened_vmcs_gpa);
 
 	/*
 	 * NMI forces L2->L1 exit, resuming L2 and hope that EVMCS is
@@ -120,7 +142,7 @@ void guest_code(struct vmx_pages *vmx_pages)
 	/* Intercept RDMSR 0xc0000100 */
 	vmwrite(CPU_BASED_VM_EXEC_CONTROL, vmreadz(CPU_BASED_VM_EXEC_CONTROL) |
 		CPU_BASED_USE_MSR_BITMAPS);
-	set_bit(MSR_FS_BASE & 0x1fff, vmx_pages->msr + 0x400);
+	__set_bit(MSR_FS_BASE & 0x1fff, vmx_pages->msr + 0x400);
 	GUEST_ASSERT(!vmresume());
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_MSR_READ);
 	current_evmcs->guest_rip += 2; /* rdmsr */
@@ -132,7 +154,7 @@ void guest_code(struct vmx_pages *vmx_pages)
 	current_evmcs->guest_rip += 2; /* rdmsr */
 
 	/* Intercept RDMSR 0xc0000101 without telling KVM about it */
-	set_bit(MSR_GS_BASE & 0x1fff, vmx_pages->msr + 0x400);
+	__set_bit(MSR_GS_BASE & 0x1fff, vmx_pages->msr + 0x400);
 	/* Make sure HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP is set */
 	current_evmcs->hv_clean_fields |= HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP;
 	GUEST_ASSERT(!vmresume());
@@ -146,12 +168,24 @@ void guest_code(struct vmx_pages *vmx_pages)
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_MSR_READ);
 	current_evmcs->guest_rip += 2; /* rdmsr */
 
+	/*
+	 * L2 TLB flush test. First VMCALL should be handled directly by L0,
+	 * no VMCALL exit expected.
+	 */
+	GUEST_ASSERT(!vmresume());
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_MSR_READ);
+	current_evmcs->guest_rip += 2; /* rdmsr */
+	/* Enable synthetic vmexit */
+	*(u32 *)(hv_pages->partition_assist) = 1;
+	GUEST_ASSERT(!vmresume());
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == HV_VMX_SYNTHETIC_EXIT_REASON_TRAP_AFTER_FLUSH);
+
 	GUEST_ASSERT(!vmresume());
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
 	GUEST_SYNC(11);
 
 	/* Try enlightened vmptrld with an incorrect GPA */
-	evmcs_vmptrld(0xdeadbeef, vmx_pages->enlightened_vmcs);
+	evmcs_vmptrld(0xdeadbeef, hv_pages->enlightened_vmcs);
 	GUEST_ASSERT(vmlaunch());
 	GUEST_ASSERT(ud_count == 1);
 	GUEST_DONE();
@@ -198,7 +232,8 @@ static struct kvm_vcpu *save_restore_vm(struct kvm_vm *vm,
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t vmx_pages_gva = 0;
+	vm_vaddr_t vmx_pages_gva = 0, hv_pages_gva = 0;
+	vm_vaddr_t hcall_page;
 
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
@@ -212,11 +247,16 @@ int main(int argc, char *argv[])
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_NESTED_STATE));
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS));
 
+	hcall_page = vm_vaddr_alloc_pages(vm, 1);
+	memset(addr_gva2hva(vm, hcall_page), 0x0,  getpagesize());
+
 	vcpu_set_hv_cpuid(vcpu);
 	vcpu_enable_evmcs(vcpu);
 
 	vcpu_alloc_vmx(vm, &vmx_pages_gva);
-	vcpu_args_set(vcpu, 1, vmx_pages_gva);
+	vcpu_alloc_hyperv_test_pages(vm, &hv_pages_gva);
+	vcpu_args_set(vcpu, 3, vmx_pages_gva, hv_pages_gva, addr_gva2gpa(vm, hcall_page));
+	vcpu_set_msr(vcpu, HV_X64_MSR_VP_INDEX, vcpu->id);
 
 	vm_init_descriptor_tables(vm);
 	vcpu_init_descriptor_tables(vcpu);
