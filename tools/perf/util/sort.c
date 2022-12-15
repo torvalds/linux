@@ -2251,6 +2251,19 @@ static void hse_free(struct perf_hpp_fmt *fmt)
 	free(hse);
 }
 
+static void hse_init(struct perf_hpp_fmt *fmt, struct hist_entry *he)
+{
+	struct hpp_sort_entry *hse;
+
+	if (!perf_hpp__is_sort_entry(fmt))
+		return;
+
+	hse = container_of(fmt, struct hpp_sort_entry, hpp);
+
+	if (hse->se->se_init)
+		hse->se->se_init(he);
+}
+
 static struct hpp_sort_entry *
 __sort_dimension__alloc_hpp(struct sort_dimension *sd, int level)
 {
@@ -2274,6 +2287,7 @@ __sort_dimension__alloc_hpp(struct sort_dimension *sd, int level)
 	hse->hpp.sort = __sort__hpp_sort;
 	hse->hpp.equal = __sort__hpp_equal;
 	hse->hpp.free = hse_free;
+	hse->hpp.init = hse_init;
 
 	INIT_LIST_HEAD(&hse->hpp.list);
 	INIT_LIST_HEAD(&hse->hpp.sort_list);
@@ -2556,11 +2570,6 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 
 	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
 
-	if (b == NULL) {
-		update_dynamic_len(hde, a);
-		return 0;
-	}
-
 	field = hde->field;
 	if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 		unsigned long long dyn;
@@ -2610,6 +2619,17 @@ static void hde_free(struct perf_hpp_fmt *fmt)
 	free(hde);
 }
 
+static void __sort__hde_init(struct perf_hpp_fmt *fmt, struct hist_entry *he)
+{
+	struct hpp_dynamic_entry *hde;
+
+	if (!perf_hpp__is_dynamic_entry(fmt))
+		return;
+
+	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
+	update_dynamic_len(hde, he);
+}
+
 static struct hpp_dynamic_entry *
 __alloc_dynamic_entry(struct evsel *evsel, struct tep_format_field *field,
 		      int level)
@@ -2632,6 +2652,7 @@ __alloc_dynamic_entry(struct evsel *evsel, struct tep_format_field *field,
 	hde->hpp.entry  = __sort__hde_entry;
 	hde->hpp.color  = NULL;
 
+	hde->hpp.init = __sort__hde_init;
 	hde->hpp.cmp = __sort__hde_cmp;
 	hde->hpp.collapse = __sort__hde_cmp;
 	hde->hpp.sort = __sort__hde_cmp;
