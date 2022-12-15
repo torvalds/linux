@@ -15,6 +15,7 @@
 #include "usbaudio.h"
 #include "card.h"
 #include "helper.h"
+#include "pcm.h"
 #include "implicit.h"
 
 enum {
@@ -455,7 +456,8 @@ const struct audioformat *
 snd_usb_find_implicit_fb_sync_format(struct snd_usb_audio *chip,
 				     const struct audioformat *target,
 				     const struct snd_pcm_hw_params *params,
-				     int stream)
+				     int stream,
+				     bool *fixed_rate)
 {
 	struct snd_usb_substream *subs;
 	const struct audioformat *fp, *sync_fmt = NULL;
@@ -483,6 +485,8 @@ snd_usb_find_implicit_fb_sync_format(struct snd_usb_audio *chip,
 		}
 	}
 
+	if (fixed_rate)
+		*fixed_rate = snd_usb_pcm_has_fixed_rate(subs);
 	return sync_fmt;
 }
 
