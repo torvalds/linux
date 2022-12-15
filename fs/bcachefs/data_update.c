@@ -11,6 +11,7 @@
 #include "io.h"
 #include "keylist.h"
 #include "move.h"
+#include "nocow_locking.h"
 #include "subvolume.h"
 #include "trace.h"
 

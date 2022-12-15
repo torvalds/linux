@@ -28,6 +28,7 @@
 #include "io.h"
 #include "journal.h"
 #include "movinggc.h"
+#include "nocow_locking.h"
 #include "trace.h"
 
 #include <linux/math64.h>

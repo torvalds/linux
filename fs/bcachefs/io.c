@@ -27,6 +27,7 @@
 #include "journal.h"
 #include "keylist.h"
 #include "move.h"
+#include "nocow_locking.h"
 #include "rebalance.h"
 #include "subvolume.h"
 #include "super.h"
@@ -1469,7 +1470,7 @@ static void bch2_nocow_write(struct bch_write_op *op)
 	struct {
 		struct bpos	b;
 		unsigned	gen;
-		two_state_lock_t *l;
+		struct nocow_lock_bucket *l;
 	} buckets[BCH_REPLICAS_MAX];
 	unsigned nr_buckets = 0;
 	u32 snapshot;
@@ -1516,7 +1517,8 @@ retry:
 			buckets[nr_buckets].b = PTR_BUCKET_POS(c, ptr);
 			buckets[nr_buckets].gen = ptr->gen;
 			buckets[nr_buckets].l =
-				bucket_nocow_lock(&c->nocow_locks, buckets[nr_buckets].b);
+				bucket_nocow_lock(&c->nocow_locks,
+						  bucket_to_u64(buckets[nr_buckets].b));
 
 			prefetch(buckets[nr_buckets].l);
 			nr_buckets++;
@@ -1538,11 +1540,12 @@ retry:
 
 		for (i = 0; i < nr_buckets; i++) {
 			struct bch_dev *ca = bch_dev_bkey_exists(c, buckets[i].b.inode);
-			two_state_lock_t *l = buckets[i].l;
+			struct nocow_lock_bucket *l = buckets[i].l;
 			bool stale;
 
-			if (!bch2_two_state_trylock(l, BUCKET_NOCOW_LOCK_UPDATE))
-				__bch2_bucket_nocow_lock(&c->nocow_locks, l, BUCKET_NOCOW_LOCK_UPDATE);
+			__bch2_bucket_nocow_lock(&c->nocow_locks, l,
+						 bucket_to_u64(buckets[i].b),
+						 BUCKET_NOCOW_LOCK_UPDATE);
 
 			rcu_read_lock();
 			stale = gen_after(*bucket_gen(ca, buckets[i].b.offset), buckets[i].gen);
@@ -2984,11 +2987,6 @@ void bch2_fs_io_exit(struct bch_fs *c)
 
 int bch2_fs_io_init(struct bch_fs *c)
 {
-	unsigned i;
-
-	for (i = 0; i < ARRAY_SIZE(c->nocow_locks.l); i++)
-		two_state_lock_init(&c->nocow_locks.l[i]);
-
 	if (bioset_init(&c->bio_read, 1, offsetof(struct bch_read_bio, bio),
 			BIOSET_NEED_BVECS) ||
 	    bioset_init(&c->bio_read_split, 1, offsetof(struct bch_read_bio, bio),

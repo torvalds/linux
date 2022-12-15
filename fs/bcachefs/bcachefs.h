@@ -206,7 +206,7 @@
 #include "bcachefs_format.h"
 #include "errcode.h"
 #include "fifo.h"
-#include "nocow_locking.h"
+#include "nocow_locking_types.h"
 #include "opts.h"
 #include "util.h"
 
