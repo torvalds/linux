@@ -399,6 +399,7 @@ enum rxrpc_conn_proto_state {
 struct rxrpc_bundle {
 	struct rxrpc_conn_parameters params;
 	refcount_t		ref;
+	atomic_t		active;		/* Number of active users */
 	unsigned int		debug_id;
 	bool			try_upgrade;	/* True if the bundle is attempting upgrade */
 	bool			alloc_conn;	/* True if someone's getting a conn */

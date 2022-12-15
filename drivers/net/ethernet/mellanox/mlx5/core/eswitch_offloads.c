@@ -433,7 +433,7 @@ esw_setup_vport_dest(struct mlx5_flow_destination *dest, struct mlx5_flow_act *f
 		    mlx5_lag_mpesw_is_activated(esw->dev))
 			dest[dest_idx].type = MLX5_FLOW_DESTINATION_TYPE_UPLINK;
 	}
-	if (esw_attr->dests[attr_idx].flags & MLX5_ESW_DEST_ENCAP) {
+	if (esw_attr->dests[attr_idx].flags & MLX5_ESW_DEST_ENCAP_VALID) {
 		if (pkt_reformat) {
 			flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
 			flow_act->pkt_reformat = esw_attr->dests[attr_idx].pkt_reformat;
@@ -3387,6 +3387,13 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 	int err;
 
 	esw->mode = MLX5_ESWITCH_LEGACY;
+
+	/* If changing from switchdev to legacy mode without sriov enabled,
+	 * no need to create legacy fdb.
+	 */
+	if (!mlx5_sriov_is_enabled(esw->dev))
+		return 0;
+
 	err = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_IGNORE_NUM_VFS);
 	if (err)
 		NL_SET_ERR_MSG_MOD(extack, "Failed setting eswitch to legacy");

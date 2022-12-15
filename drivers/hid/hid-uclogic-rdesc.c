@@ -1193,7 +1193,7 @@ __u8 *uclogic_rdesc_template_apply(const __u8 *template_ptr,
 			   p[sizeof(btn_head)] < param_num) {
 			v = param_list[p[sizeof(btn_head)]];
 			put_unaligned((__u8)0x2A, p); /* Usage Maximum */
-			put_unaligned_le16((__force u16)cpu_to_le16(v), p + 1);
+			put_unaligned((__force u16)cpu_to_le16(v), (s16 *)(p + 1));
 			p += sizeof(btn_head) + 1;
 		} else {
 			p++;
