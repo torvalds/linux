@@ -401,6 +401,13 @@ static const struct acpi_device_id amd_hid_ids[] = {
 	{}
 };
 
+static int lps0_prefer_amd(const struct dmi_system_id *id)
+{
+	pr_debug("Using AMD GUID w/ _REV 2.\n");
+	rev_id = 2;
+	return 0;
+}
+
 static int lps0_prefer_microsoft(const struct dmi_system_id *id)
 {
 	pr_debug("Preferring Microsoft GUID.\n");
@@ -460,6 +467,19 @@ static const struct dmi_system_id s2idle_dmi_table[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "ROG Flow X16 GV601"),
+		},
+	},
+	{
+		/*
+		 * AMD Rembrandt based HP EliteBook 835/845/865 G9
+		 * Contains specialized AML in AMD/_REV 2 path to avoid
+		 * triggering a bug in Qualcomm WLAN firmware. This may be
+		 * removed in the future if that firmware is fixed.
+		 */
+		.callback = lps0_prefer_amd,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "8990"),
 		},
 	},
 	{}
