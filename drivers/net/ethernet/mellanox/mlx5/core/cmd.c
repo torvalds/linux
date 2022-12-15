@@ -813,7 +813,8 @@ static void cmd_status_print(struct mlx5_core_dev *dev, void *in, void *out)
 	op_mod = MLX5_GET(mbox_in, in, op_mod);
 	uid    = MLX5_GET(mbox_in, in, uid);
 
-	if (!uid && opcode != MLX5_CMD_OP_DESTROY_MKEY)
+	if (!uid && opcode != MLX5_CMD_OP_DESTROY_MKEY &&
+	    opcode != MLX5_CMD_OP_CREATE_UCTX)
 		mlx5_cmd_out_err(dev, opcode, op_mod, out);
 }
 
