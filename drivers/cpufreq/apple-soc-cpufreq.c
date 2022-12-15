@@ -321,7 +321,6 @@ static struct cpufreq_driver apple_soc_cpufreq_driver = {
 	.flags		= CPUFREQ_HAVE_GOVERNOR_PER_POLICY |
 			  CPUFREQ_NEED_INITIAL_FREQ_CHECK | CPUFREQ_IS_COOLING_DEV,
 	.verify		= cpufreq_generic_frequency_table_verify,
-	.attr		= cpufreq_generic_attr,
 	.get		= apple_soc_cpufreq_get_rate,
 	.init		= apple_soc_cpufreq_init,
 	.exit		= apple_soc_cpufreq_exit,
