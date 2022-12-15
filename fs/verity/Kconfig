@@ -34,14 +34,6 @@ config FS_VERITY
 
 	  If unsure, say N.
 
-config FS_VERITY_DEBUG
-	bool "FS Verity debugging"
-	depends on FS_VERITY
-	help
-	  Enable debugging messages related to fs-verity by default.
-
-	  Say N unless you are an fs-verity developer.
-
 config FS_VERITY_BUILTIN_SIGNATURES
 	bool "FS Verity builtin signature support"
 	depends on FS_VERITY
