@@ -1923,7 +1923,7 @@ err:
 }
 
 static const struct dev_pm_ops at91_gpio_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(at91_gpio_suspend, at91_gpio_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(at91_gpio_suspend, at91_gpio_resume)
 };
 
 static struct platform_driver at91_gpio_driver = {
