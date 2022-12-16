@@ -1093,15 +1093,6 @@ static inline bool pud_sect_supported(void)
 }
 
 
-#define __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
-#define ptep_modify_prot_start ptep_modify_prot_start
-extern pte_t ptep_modify_prot_start(struct vm_area_struct *vma,
-				    unsigned long addr, pte_t *ptep);
-
-#define ptep_modify_prot_commit ptep_modify_prot_commit
-extern void ptep_modify_prot_commit(struct vm_area_struct *vma,
-				    unsigned long addr, pte_t *ptep,
-				    pte_t old_pte, pte_t new_pte);
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_PGTABLE_H */

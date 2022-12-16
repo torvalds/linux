@@ -235,7 +235,7 @@ out_put_device:
 }
 EXPORT_SYMBOL_GPL(bsg_register_queue);
 
-static char *bsg_devnode(struct device *dev, umode_t *mode)
+static char *bsg_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "bsg/%s", dev_name(dev));
 }

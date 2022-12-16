@@ -48,13 +48,8 @@ config VFIO_NOIOMMU
 	  If you don't know what to do here, say N.
 endif
 
-config VFIO_SPAPR_EEH
-	tristate
-	depends on EEH && VFIO_IOMMU_SPAPR_TCE
-	default VFIO
-
 config VFIO_VIRQFD
-	tristate
+	bool
 	select EVENTFD
 	default n
 

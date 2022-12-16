@@ -23,7 +23,7 @@ static u32 phy_calculate_bit_shift(u32 bitmask)
 /**
 * Function:	PHY_QueryBBReg
 *
-* OverView:	Read "sepcific bits" from BB register
+* Overview:	Read "sepcific bits" from BB register
 *
 * Input:
 *			struct adapter *Adapter,
@@ -56,7 +56,7 @@ rtl8188e_PHY_QueryBBReg(
 /**
 * Function:	PHY_SetBBReg
 *
-* OverView:	Write "Specific bits" to BB register (page 8~)
+* Overview:	Write "Specific bits" to BB register (page 8~)
 *
 * Input:
 *			struct adapter *Adapter,
@@ -94,7 +94,7 @@ void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask, u3
 /**
 * Function:	phy_RFSerialRead
 *
-* OverView:	Read regster from RF chips
+* Overview:	Read register from RF chips
 *
 * Input:
 *			struct adapter *Adapter,
@@ -160,7 +160,7 @@ phy_RFSerialRead(
 /**
 * Function:	phy_RFSerialWrite
 *
-* OverView:	Write data to RF register (page 8~)
+* Overview:	Write data to RF register (page 8~)
 *
 * Input:
 *			struct adapter *Adapter,
@@ -235,7 +235,7 @@ phy_RFSerialWrite(
 /**
 * Function:	PHY_QueryRFReg
 *
-* OverView:	Query "Specific bits" to RF register (page 8~)
+* Overview:	Query "Specific bits" to RF register (page 8~)
 *
 * Input:
 *			struct adapter *Adapter,
@@ -261,7 +261,7 @@ u32 rtl8188e_PHY_QueryRFReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
 /**
 * Function:	PHY_SetRFReg
 *
-* OverView:	Write "Specific bits" to RF register (page 8~)
+* Overview:	Write "Specific bits" to RF register (page 8~)
 *
 * Input:
 *			struct adapter *Adapter,
@@ -335,7 +335,7 @@ s32 PHY_MACConfig8188E(struct adapter *Adapter)
 /**
 * Function:	phy_InitBBRFRegisterDefinition
 *
-* OverView:	Initialize Register definition offset for Radio Path A/B/C/D
+* Overview:	Initialize Register definition offset for Radio Path A/B/C/D
 *
 * Input:
 *			struct adapter *Adapter,
@@ -363,7 +363,7 @@ phy_InitBBRFRegisterDefinition(
 	/*  RF Interface (Output and)  Enable */
 	pHalData->PHYRegDef.rfintfe = rFPGA0_XA_RFInterfaceOE; /*  16 MSBs if read 32-bit from 0x860 (16-bit for 0x862) */
 
-	/* Addr of LSSI. Wirte RF register by driver */
+	/* Addr of LSSI. Write RF register by driver */
 	pHalData->PHYRegDef.rf3wireOffset = rFPGA0_XA_LSSIParameter; /* LSSI Parameter */
 
 	/*  RF parameter */

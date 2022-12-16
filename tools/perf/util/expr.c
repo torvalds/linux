@@ -11,6 +11,7 @@
 #include "expr.h"
 #include "expr-bison.h"
 #include "expr-flex.h"
+#include "util/hashmap.h"
 #include "smt.h"
 #include "tsc.h"
 #include <linux/err.h>

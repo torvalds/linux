@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
@@ -108,7 +109,8 @@ struct imx7d_adc {
 	struct device *dev;
 	void __iomem *regs;
 	struct clk *clk;
-
+	/* lock to protect against multiple access to the device */
+	struct mutex lock;
 	u32 vref_uv;
 	u32 value;
 	u32 channel;
@@ -293,7 +295,7 @@ static int imx7d_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&info->lock);
 		reinit_completion(&info->completion);
 
 		channel = chan->channel & 0x03;
@@ -303,16 +305,16 @@ static int imx7d_adc_read_raw(struct iio_dev *indio_dev,
 		ret = wait_for_completion_interruptible_timeout
 				(&info->completion, IMX7D_ADC_TIMEOUT);
 		if (ret == 0) {
-			mutex_unlock(&indio_dev->mlock);
+			mutex_unlock(&info->lock);
 			return -ETIMEDOUT;
 		}
 		if (ret < 0) {
-			mutex_unlock(&indio_dev->mlock);
+			mutex_unlock(&info->lock);
 			return ret;
 		}
 
 		*val = info->value;
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&info->lock);
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -530,6 +532,8 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 	ret = devm_add_action_or_reset(dev, __imx7d_adc_disable, dev);
 	if (ret)
 		return ret;
+
+	mutex_init(&info->lock);
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret) {

@@ -22,7 +22,6 @@
 #include "srcline.h"
 #include "strlist.h"
 #include "strbuf.h"
-#include <traceevent/event-parse.h>
 #include "mem-events.h"
 #include "annotate.h"
 #include "event.h"
@@ -31,6 +30,10 @@
 #include "machine.h"
 #include <linux/kernel.h>
 #include <linux/string.h>
+
+#ifdef HAVE_LIBTRACEEVENT
+#include <traceevent/event-parse.h>
+#endif
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
@@ -743,6 +746,7 @@ struct sort_entry sort_time = {
 
 /* --sort trace */
 
+#ifdef HAVE_LIBTRACEEVENT
 static char *get_trace_output(struct hist_entry *he)
 {
 	struct trace_seq seq;
@@ -806,6 +810,7 @@ struct sort_entry sort_trace = {
 	.se_snprintf    = hist_entry__trace_snprintf,
 	.se_width_idx	= HISTC_TRACE,
 };
+#endif /* HAVE_LIBTRACEEVENT */
 
 /* sort keys for branch stacks */
 
@@ -2022,7 +2027,9 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_LOCAL_WEIGHT, "local_weight", sort_local_weight),
 	DIM(SORT_GLOBAL_WEIGHT, "weight", sort_global_weight),
 	DIM(SORT_TRANSACTION, "transaction", sort_transaction),
+#ifdef HAVE_LIBTRACEEVENT
 	DIM(SORT_TRACE, "trace", sort_trace),
+#endif
 	DIM(SORT_SYM_SIZE, "symbol_size", sort_sym_size),
 	DIM(SORT_DSO_SIZE, "dso_size", sort_dso_size),
 	DIM(SORT_CGROUP, "cgroup", sort_cgroup),
@@ -2206,7 +2213,14 @@ bool perf_hpp__is_ ## key ## _entry(struct perf_hpp_fmt *fmt)	\
 	return hse->se == &sort_ ## key ;			\
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 MK_SORT_ENTRY_CHK(trace)
+#else
+bool perf_hpp__is_trace_entry(struct perf_hpp_fmt *fmt __maybe_unused)
+{
+	return false;
+}
+#endif
 MK_SORT_ENTRY_CHK(srcline)
 MK_SORT_ENTRY_CHK(srcfile)
 MK_SORT_ENTRY_CHK(thread)
@@ -2347,6 +2361,17 @@ static int __sort_dimension__add_hpp_output(struct sort_dimension *sd,
 	return 0;
 }
 
+#ifndef HAVE_LIBTRACEEVENT
+bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *fmt __maybe_unused)
+{
+	return false;
+}
+bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt __maybe_unused,
+				     struct hists *hists __maybe_unused)
+{
+	return false;
+}
+#else
 struct hpp_dynamic_entry {
 	struct perf_hpp_fmt hpp;
 	struct evsel *evsel;
@@ -2543,9 +2568,10 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 		tep_read_number_field(field, a->raw_data, &dyn);
 		offset = dyn & 0xffff;
 		size = (dyn >> 16) & 0xffff;
+#ifdef HAVE_LIBTRACEEVENT_TEP_FIELD_IS_RELATIVE
 		if (field->flags & TEP_FIELD_IS_RELATIVE)
 			offset += field->offset + field->size;
-
+#endif
 		/* record max width for output */
 		if (size > hde->dynamic_len)
 			hde->dynamic_len = size;
@@ -2621,6 +2647,7 @@ __alloc_dynamic_entry(struct evsel *evsel, struct tep_format_field *field,
 
 	return hde;
 }
+#endif /* HAVE_LIBTRACEEVENT */
 
 struct perf_hpp_fmt *perf_hpp_fmt__dup(struct perf_hpp_fmt *fmt)
 {
@@ -2633,6 +2660,7 @@ struct perf_hpp_fmt *perf_hpp_fmt__dup(struct perf_hpp_fmt *fmt)
 		new_hse = memdup(hse, sizeof(*hse));
 		if (new_hse)
 			new_fmt = &new_hse->hpp;
+#ifdef HAVE_LIBTRACEEVENT
 	} else if (perf_hpp__is_dynamic_entry(fmt)) {
 		struct hpp_dynamic_entry *hde, *new_hde;
 
@@ -2640,6 +2668,7 @@ struct perf_hpp_fmt *perf_hpp_fmt__dup(struct perf_hpp_fmt *fmt)
 		new_hde = memdup(hde, sizeof(*hde));
 		if (new_hde)
 			new_fmt = &new_hde->hpp;
+#endif
 	} else {
 		new_fmt = memdup(fmt, sizeof(*fmt));
 	}
@@ -2719,6 +2748,7 @@ static struct evsel *find_evsel(struct evlist *evlist, char *event_name)
 	return evsel;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int __dynamic_dimension__add(struct evsel *evsel,
 				    struct tep_format_field *field,
 				    bool raw_trace, int level)
@@ -2789,13 +2819,13 @@ static int add_all_matching_fields(struct evlist *evlist,
 	}
 	return ret;
 }
+#endif /* HAVE_LIBTRACEEVENT */
 
 static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 			     int level)
 {
 	char *str, *event_name, *field_name, *opt_name;
 	struct evsel *evsel;
-	struct tep_format_field *field;
 	bool raw_trace = symbol_conf.raw_trace;
 	int ret = 0;
 
@@ -2820,6 +2850,7 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 		raw_trace = true;
 	}
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (!strcmp(field_name, "trace_fields")) {
 		ret = add_all_dynamic_fields(evlist, raw_trace, level);
 		goto out;
@@ -2829,6 +2860,7 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 		ret = add_all_matching_fields(evlist, field_name, raw_trace, level);
 		goto out;
 	}
+#endif
 
 	evsel = find_evsel(evlist, event_name);
 	if (evsel == NULL) {
@@ -2843,10 +2875,12 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 		goto out;
 	}
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (!strcmp(field_name, "*")) {
 		ret = add_evsel_fields(evsel, raw_trace, level);
 	} else {
-		field = tep_find_any_field(evsel->tp_format, field_name);
+		struct tep_format_field *field = tep_find_any_field(evsel->tp_format, field_name);
+
 		if (field == NULL) {
 			pr_debug("Cannot find event field for %s.%s\n",
 				 event_name, field_name);
@@ -2855,6 +2889,10 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 
 		ret = __dynamic_dimension__add(evsel, field, raw_trace, level);
 	}
+#else
+	(void)level;
+	(void)raw_trace;
+#endif /* HAVE_LIBTRACEEVENT */
 
 out:
 	free(str);
@@ -2955,11 +2993,11 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
 		struct sort_dimension *sd = &common_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		for (j = 0; j < ARRAY_SIZE(dynamic_headers); j++) {
-			if (!strcmp(dynamic_headers[j], sd->name))
+			if (sd->name && !strcmp(dynamic_headers[j], sd->name))
 				sort_dimension_add_dynamic_header(sd);
 		}
 
@@ -3009,7 +3047,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
 		struct sort_dimension *sd = &bstack_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		if (sort__mode != SORT_MODE__BRANCH)
@@ -3025,7 +3063,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 	for (i = 0; i < ARRAY_SIZE(memory_sort_dimensions); i++) {
 		struct sort_dimension *sd = &memory_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		if (sort__mode != SORT_MODE__MEMORY)
@@ -3339,7 +3377,7 @@ int output_field_add(struct perf_hpp_list *list, char *tok)
 	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
 		struct sort_dimension *sd = &common_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		return __sort_dimension__add_output(list, sd);
@@ -3357,7 +3395,7 @@ int output_field_add(struct perf_hpp_list *list, char *tok)
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
 		struct sort_dimension *sd = &bstack_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		if (sort__mode != SORT_MODE__BRANCH)
@@ -3369,7 +3407,7 @@ int output_field_add(struct perf_hpp_list *list, char *tok)
 	for (i = 0; i < ARRAY_SIZE(memory_sort_dimensions); i++) {
 		struct sort_dimension *sd = &memory_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		if (sort__mode != SORT_MODE__MEMORY)
@@ -3508,6 +3546,9 @@ void reset_output_field(void)
 
 static void add_key(struct strbuf *sb, const char *str, int *llen)
 {
+	if (!str)
+		return;
+
 	if (*llen >= 75) {
 		strbuf_addstr(sb, "\n\t\t\t ");
 		*llen = INDENT;

@@ -22,6 +22,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/units.h>
 
 #include "stm32-adc-core.h"
 
@@ -306,8 +307,8 @@ out:
 static const struct stm32_adc_common_regs stm32f4_adc_common_regs = {
 	.csr = STM32F4_ADC_CSR,
 	.ccr = STM32F4_ADC_CCR,
-	.eoc_msk = { STM32F4_EOC1, STM32F4_EOC2, STM32F4_EOC3},
-	.ovr_msk = { STM32F4_OVR1, STM32F4_OVR2, STM32F4_OVR3},
+	.eoc_msk = { STM32F4_EOC1, STM32F4_EOC2, STM32F4_EOC3 },
+	.ovr_msk = { STM32F4_OVR1, STM32F4_OVR2, STM32F4_OVR3 },
 	.ier = STM32F4_ADC_CR1,
 	.eocie_msk = STM32F4_EOCIE,
 };
@@ -316,8 +317,18 @@ static const struct stm32_adc_common_regs stm32f4_adc_common_regs = {
 static const struct stm32_adc_common_regs stm32h7_adc_common_regs = {
 	.csr = STM32H7_ADC_CSR,
 	.ccr = STM32H7_ADC_CCR,
-	.eoc_msk = { STM32H7_EOC_MST, STM32H7_EOC_SLV},
-	.ovr_msk = { STM32H7_OVR_MST, STM32H7_OVR_SLV},
+	.eoc_msk = { STM32H7_EOC_MST, STM32H7_EOC_SLV },
+	.ovr_msk = { STM32H7_OVR_MST, STM32H7_OVR_SLV },
+	.ier = STM32H7_ADC_IER,
+	.eocie_msk = STM32H7_EOCIE,
+};
+
+/* STM32MP13 common registers definitions */
+static const struct stm32_adc_common_regs stm32mp13_adc_common_regs = {
+	.csr = STM32H7_ADC_CSR,
+	.ccr = STM32H7_ADC_CCR,
+	.eoc_msk = { STM32H7_EOC_MST },
+	.ovr_msk = { STM32H7_OVR_MST },
 	.ier = STM32H7_ADC_IER,
 	.eocie_msk = STM32H7_EOCIE,
 };
@@ -868,6 +879,14 @@ static const struct stm32_adc_priv_cfg stm32mp1_adc_priv_cfg = {
 	.num_irqs = 2,
 };
 
+static const struct stm32_adc_priv_cfg stm32mp13_adc_priv_cfg = {
+	.regs = &stm32mp13_adc_common_regs,
+	.clk_sel = stm32h7_adc_clk_sel,
+	.max_clk_rate_hz = 75 * HZ_PER_MHZ,
+	.ipid = STM32MP13_IPIDR_NUMBER,
+	.num_irqs = 1,
+};
+
 static const struct of_device_id stm32_adc_of_match[] = {
 	{
 		.compatible = "st,stm32f4-adc-core",
@@ -878,6 +897,9 @@ static const struct of_device_id stm32_adc_of_match[] = {
 	}, {
 		.compatible = "st,stm32mp1-adc-core",
 		.data = (void *)&stm32mp1_adc_priv_cfg
+	}, {
+		.compatible = "st,stm32mp13-adc-core",
+		.data = (void *)&stm32mp13_adc_priv_cfg
 	}, {
 	},
 };

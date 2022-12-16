@@ -66,8 +66,8 @@ struct dig_t {
 
 	u8		dig_state;
 	u8		dig_highpwr_state;
-	u8		CurSTAConnectState;
-	u8		PreSTAConnectState;
+	u8		cur_sta_connect_state;
+	u8		pre_sta_connect_state;
 
 	u8		curpd_thstate;
 	u8		prepd_thstate;
@@ -152,9 +152,9 @@ enum dm_cck_rx_path_method {
 
 
 struct dcmd_txcmd {
-	u32	Op;
-	u32	Length;
-	u32	Value;
+	u32	op;
+	u32	length;
+	u32	value;
 };
 /*------------------------------Define structure----------------------------*/
 

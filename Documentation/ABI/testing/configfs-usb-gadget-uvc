@@ -197,7 +197,7 @@ Description:	Specific MJPEG format descriptors
 					read-only
 		bmaControls		this format's data for bmaControls in
 					the streaming header
-		bmInterfaceFlags	specifies interlace information,
+		bmInterlaceFlags	specifies interlace information,
 					read-only
 		bAspectRatioY		the X dimension of the picture aspect
 					ratio, read-only
@@ -253,7 +253,7 @@ Description:	Specific uncompressed format descriptors
 					read-only
 		bmaControls		this format's data for bmaControls in
 					the streaming header
-		bmInterfaceFlags	specifies interlace information,
+		bmInterlaceFlags	specifies interlace information,
 					read-only
 		bAspectRatioY		the X dimension of the picture aspect
 					ratio, read-only

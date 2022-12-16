@@ -30,7 +30,7 @@ static ssize_t usbip_status_show(struct device *dev,
 	status = sdev->ud.status;
 	spin_unlock_irq(&sdev->ud.lock);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", status);
+	return sysfs_emit(buf, "%d\n", status);
 }
 static DEVICE_ATTR_RO(usbip_status);
 
@@ -117,6 +117,8 @@ static ssize_t usbip_sockfd_store(struct device *dev, struct device_attribute *a
 
 	} else {
 		dev_info(dev, "stub down\n");
+
+		mutex_lock(&sdev->ud.sysfs_lock);
 
 		spin_lock_irq(&sdev->ud.lock);
 		if (sdev->ud.status != SDEV_ST_USED)
