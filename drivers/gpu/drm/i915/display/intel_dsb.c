@@ -30,20 +30,23 @@ struct intel_dsb {
 	struct intel_crtc *crtc;
 
 	/*
-	 * free_pos will point the first free entry position
-	 * and help in calculating tail of command buffer.
+	 * maximum number of dwords the buffer will hold.
 	 */
-	int free_pos;
+	unsigned int size;
 
 	/*
-	 * ins_start_offset will help to store start address of the dsb
+	 * free_pos will point the first free dword and
+	 * help in calculating tail of command buffer.
+	 */
+	unsigned int free_pos;
+
+	/*
+	 * ins_start_offset will help to store start dword of the dsb
 	 * instuction and help in identifying the batch of auto-increment
 	 * register.
 	 */
-	u32 ins_start_offset;
+	unsigned int ins_start_offset;
 };
-
-#define DSB_BUF_SIZE    (2 * PAGE_SIZE)
 
 /**
  * DOC: DSB
@@ -76,7 +79,7 @@ static bool assert_dsb_has_room(struct intel_dsb *dsb)
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
 	/* each instruction is 2 dwords */
-	return !drm_WARN(&i915->drm, ALIGN(dsb->free_pos, 2) > DSB_BUF_SIZE / 4 - 2,
+	return !drm_WARN(&i915->drm, dsb->free_pos > dsb->size - 2,
 			 "DSB buffer overflow\n");
 }
 
@@ -168,7 +171,7 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 		if (intel_dsb_prev_ins_is_mmio_write(dsb, reg)) {
 			u32 prev_val = buf[dsb->ins_start_offset + 0];
 
-			buf[dsb->ins_start_offset + 0] = 1; /* size */
+			buf[dsb->ins_start_offset + 0] = 1; /* count */
 			buf[dsb->ins_start_offset + 1] =
 				(DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT) |
 				i915_mmio_reg_offset(reg);
@@ -178,7 +181,7 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 		}
 
 		buf[dsb->free_pos++] = val;
-		/* Update the size. */
+		/* Update the count */
 		buf[dsb->ins_start_offset]++;
 
 		/* if number of data words is odd, then the last dword should be 0.*/
@@ -250,6 +253,7 @@ reset:
 /**
  * intel_dsb_prepare() - Allocate, pin and map the DSB command buffer.
  * @crtc: the CRTC
+ * @max_cmds: number of commands we need to fit into command buffer
  *
  * This function prepare the command buffer which is used to store dsb
  * instructions with data.
@@ -257,25 +261,30 @@ reset:
  * Returns:
  * DSB context, NULL on failure
  */
-struct intel_dsb *intel_dsb_prepare(struct intel_crtc *crtc)
+struct intel_dsb *intel_dsb_prepare(struct intel_crtc *crtc,
+				    unsigned int max_cmds)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct intel_dsb *dsb;
 	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	u32 *buf;
 	intel_wakeref_t wakeref;
+	struct intel_dsb *dsb;
+	struct i915_vma *vma;
+	unsigned int size;
+	u32 *buf;
 
 	if (!HAS_DSB(i915))
 		return NULL;
 
-	dsb = kmalloc(sizeof(*dsb), GFP_KERNEL);
+	dsb = kzalloc(sizeof(*dsb), GFP_KERNEL);
 	if (!dsb)
 		goto out;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	obj = i915_gem_object_create_internal(i915, DSB_BUF_SIZE);
+	/* ~1 qword per instruction, full cachelines */
+	size = ALIGN(max_cmds * 8, CACHELINE_BYTES);
+
+	obj = i915_gem_object_create_internal(i915, PAGE_ALIGN(size));
 	if (IS_ERR(obj))
 		goto out_put_rpm;
 
@@ -297,6 +306,7 @@ struct intel_dsb *intel_dsb_prepare(struct intel_crtc *crtc)
 	dsb->vma = vma;
 	dsb->crtc = crtc;
 	dsb->cmd_buf = buf;
+	dsb->size = size / 4; /* in dwords */
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
 
