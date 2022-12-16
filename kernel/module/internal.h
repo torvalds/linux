@@ -306,9 +306,14 @@ static inline int same_magic(const char *amagic, const char *bmagic, bool has_cr
 
 #ifdef CONFIG_MODULE_SIG_PROTECT
 extern bool gki_is_module_unprotected_symbol(const char *name);
+extern bool gki_is_module_protected_export(const char *name);
 #else
 static inline bool gki_is_module_unprotected_symbol(const char *name)
 {
 	return true;
+}
+static inline bool gki_is_module_protected_export(const char *name)
+{
+	return false;
 }
 #endif /* CONFIG_MODULE_SIG_PROTECT */

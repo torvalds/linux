@@ -25,9 +25,15 @@ obj-$(CONFIG_MODULE_UNLOAD_TAINT_TRACKING) += tracking.o
 # ANDROID: GKI: Generate headerfile required for gki_module.o
 #
 # Dependencies on generated files need to be listed explicitly
-$(obj)/gki_module.o: $(obj)/gki_module_unprotected.h
+$(obj)/gki_module.o: $(obj)/gki_module_protected_exports.h \
+			$(obj)/gki_module_unprotected.h
 
 $(obj)/gki_module_unprotected.h: $(srctree)/scripts/gen_gki_modules_headers.sh \
-                                $(if $(wildcard ${OUT_DIR}/abi_symbollist.raw), ${OUT_DIR}/abi_symbollist.raw)
+	                         $(if $(wildcard ${OUT_DIR}/abi_symbollist.raw), ${OUT_DIR}/abi_symbollist.raw)
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/gen_gki_modules_headers.sh $@ \
+	"$(srctree)"
+
+$(obj)/gki_module_protected_exports.h: $(srctree)/android/abi_gki_protected_exports \
+				$(srctree)/scripts/gen_gki_modules_headers.sh
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/gen_gki_modules_headers.sh $@ \
 	"$(srctree)"

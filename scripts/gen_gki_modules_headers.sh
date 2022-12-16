@@ -49,11 +49,11 @@ generate_header() {
 
 	# Find Maximum symbol name length if valid symbol_file exist
 	if [  -s "${symbol_file}" ]; then
-		# Skip 1st line (symbol header), Trim white spaces & +1 for null termination
+		# Trim white spaces & +1 for null termination
 		local max_name_len=$(awk '
 				{
 					$1=$1;
-					if ( length > L && NR > 1) {
+					if ( length > L ) {
 						L=length
 					}
 				} END { print ++L }' "${symbol_file}")
@@ -67,11 +67,11 @@ generate_header() {
 	/*
 	 * DO NOT EDIT
 	 *
-	 * Build generated header file with unprotected symbols/exports
+	 * Build generated header file with ${symbol_type}
 	 */
 
-	#define NO_OF_$(printf ${symbol_type} | tr [:lower:] [:upper:])_SYMBOLS \\
-	$(printf '\t')(sizeof(gki_${symbol_type}_symbols) / sizeof(gki_${symbol_type}_symbols[0]))
+	#define NR_$(printf ${symbol_type} | tr [:lower:] [:upper:])_SYMBOLS \\
+	$(printf '\t')(ARRAY_SIZE(gki_${symbol_type}_symbols))
 	#define MAX_$(printf ${symbol_type} | tr [:lower:] [:upper:])_NAME_LEN (${max_name_len})
 
 	static const char gki_${symbol_type}_symbols[][MAX_$(printf ${symbol_type} |
@@ -87,8 +87,15 @@ generate_header() {
 	echo "};" >> "${header_file}"
 }
 
-# Sorted list of vendor symbols
-GKI_VENDOR_SYMBOLS="${OUT_DIR}/abi_symbollist.raw"
+if [ "$(basename "${TARGET}")" = "gki_module_unprotected.h" ]; then
+	# Sorted list of vendor symbols
+	GKI_VENDOR_SYMBOLS="${OUT_DIR}/abi_symbollist.raw"
 
-generate_header "${TARGET}" "${GKI_VENDOR_SYMBOLS}" "unprotected"
+	generate_header "${TARGET}" "${GKI_VENDOR_SYMBOLS}" "unprotected"
+else
+	# Sorted list of exported symbols
+	GKI_EXPORTED_SYMBOLS="${SRCTREE}/android/abi_gki_protected_exports"
+
+	generate_header "${TARGET}" "${GKI_EXPORTED_SYMBOLS}" "protected_exports"
+fi
 
