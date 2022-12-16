@@ -144,6 +144,8 @@ enum mt7921_rxq_id {
 	MT7921_RXQ_MCU_WM = 0,
 };
 
+DECLARE_EWMA(avg_signal, 10, 8)
+
 struct mt7921_sta {
 	struct mt76_wcid wcid; /* must be first */
 
@@ -151,6 +153,9 @@ struct mt7921_sta {
 
 	struct list_head poll_list;
 	u32 airtime_ac[8];
+
+	int ack_signal;
+	struct ewma_avg_signal avg_ack_signal;
 
 	unsigned long last_txs;
 	unsigned long ampdu_state;
