@@ -73,42 +73,34 @@ struct intel_dsb {
 static bool is_dsb_busy(struct drm_i915_private *i915, enum pipe pipe,
 			enum dsb_id id)
 {
-	return DSB_STATUS & intel_de_read(i915, DSB_CTRL(pipe, id));
+	return intel_de_read(i915, DSB_CTRL(pipe, id)) & DSB_STATUS_BUSY;
 }
 
 static bool intel_dsb_enable_engine(struct drm_i915_private *i915,
 				    enum pipe pipe, enum dsb_id id)
 {
-	u32 dsb_ctrl;
-
-	dsb_ctrl = intel_de_read(i915, DSB_CTRL(pipe, id));
-	if (DSB_STATUS & dsb_ctrl) {
+	if (is_dsb_busy(i915, pipe, id)) {
 		drm_dbg_kms(&i915->drm, "DSB engine is busy.\n");
 		return false;
 	}
 
-	dsb_ctrl |= DSB_ENABLE;
-	intel_de_write(i915, DSB_CTRL(pipe, id), dsb_ctrl);
-
+	intel_de_write(i915, DSB_CTRL(pipe, id), DSB_ENABLE);
 	intel_de_posting_read(i915, DSB_CTRL(pipe, id));
+
 	return true;
 }
 
 static bool intel_dsb_disable_engine(struct drm_i915_private *i915,
 				     enum pipe pipe, enum dsb_id id)
 {
-	u32 dsb_ctrl;
-
-	dsb_ctrl = intel_de_read(i915, DSB_CTRL(pipe, id));
-	if (DSB_STATUS & dsb_ctrl) {
+	if (is_dsb_busy(i915, pipe, id)) {
 		drm_dbg_kms(&i915->drm, "DSB engine is busy.\n");
 		return false;
 	}
 
-	dsb_ctrl &= ~DSB_ENABLE;
-	intel_de_write(i915, DSB_CTRL(pipe, id), dsb_ctrl);
-
+	intel_de_write(i915, DSB_CTRL(pipe, id), 0);
 	intel_de_posting_read(i915, DSB_CTRL(pipe, id));
+
 	return true;
 }
 
