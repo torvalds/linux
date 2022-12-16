@@ -88,6 +88,16 @@ static void init_page_pinner(void)
 	if (!page_pinner_enabled)
 		return;
 
+	pp_buffer.buffer = kvmalloc_array(pp_buf_size, sizeof(*pp_buffer.buffer),
+				GFP_KERNEL);
+	if (!pp_buffer.buffer) {
+		pr_info("page_pinner disabled due to failure of buffer allocation\n");
+		return;
+	}
+
+	spin_lock_init(&pp_buffer.lock);
+	pp_buffer.index = 0;
+
 	register_failure_stack();
 	static_branch_enable(&page_pinner_inited);
 }
@@ -395,16 +405,6 @@ static int __init page_pinner_init(void)
 
 	if (!static_branch_unlikely(&page_pinner_inited))
 		return 0;
-
-	pp_buffer.buffer = kvmalloc_array(pp_buf_size, sizeof(*pp_buffer.buffer),
-				GFP_KERNEL);
-	if (!pp_buffer.buffer) {
-		pr_info("page_pinner disabled due to failure of buffer allocation\n");
-		return 1;
-	}
-
-	spin_lock_init(&pp_buffer.lock);
-	pp_buffer.index = 0;
 
 	pr_info("page_pinner enabled\n");
 
