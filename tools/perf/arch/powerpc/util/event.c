@@ -9,6 +9,7 @@
 #include "../../../util/tool.h"
 #include "../../../util/map.h"
 #include "../../../util/debug.h"
+#include "../../../util/sample.h"
 
 void arch_perf_parse_sample_weight(struct perf_sample *data,
 				   const __u64 *array, u64 type)

@@ -16431,7 +16431,7 @@ F:	tools/lib/perf/
 F:	tools/perf/
 
 PERFORMANCE EVENTS TOOLING ARM64
-R:	John Garry <john.garry@huawei.com>
+R:	John Garry <john.g.garry@oracle.com>
 R:	Will Deacon <will@kernel.org>
 R:	James Clark <james.clark@arm.com>
 R:	Mike Leach <mike.leach@linaro.org>

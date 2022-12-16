@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <byteswap.h>
 #include <unistd.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/compiler.h>
@@ -54,6 +55,10 @@
 
 #include <linux/ctype.h>
 #include <internal/lib.h>
+
+#ifdef HAVE_LIBTRACEEVENT
+#include <traceevent/event-parse.h>
+#endif
 
 /*
  * magic2 = "PERFILE2"
@@ -298,6 +303,7 @@ static int do_read_bitmap(struct feat_fd *ff, unsigned long **pset, u64 *psize)
 	return 0;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int write_tracing_data(struct feat_fd *ff,
 			      struct evlist *evlist)
 {
@@ -306,6 +312,7 @@ static int write_tracing_data(struct feat_fd *ff,
 
 	return read_tracing_data(ff->fd, &evlist->core.entries);
 }
+#endif
 
 static int write_build_id(struct feat_fd *ff,
 			  struct evlist *evlist __maybe_unused)
@@ -2394,12 +2401,14 @@ FEAT_PROCESS_STR_FUN(arch, arch);
 FEAT_PROCESS_STR_FUN(cpudesc, cpu_desc);
 FEAT_PROCESS_STR_FUN(cpuid, cpuid);
 
+#ifdef HAVE_LIBTRACEEVENT
 static int process_tracing_data(struct feat_fd *ff, void *data)
 {
 	ssize_t ret = trace_report(ff->fd, data, false);
 
 	return ret < 0 ? -1 : 0;
 }
+#endif
 
 static int process_build_id(struct feat_fd *ff, void *data __maybe_unused)
 {
@@ -3366,7 +3375,9 @@ err:
 const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE];
 
 const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE] = {
+#ifdef HAVE_LIBTRACEEVENT
 	FEAT_OPN(TRACING_DATA,	tracing_data,	false),
+#endif
 	FEAT_OPN(BUILD_ID,	build_id,	false),
 	FEAT_OPR(HOSTNAME,	hostname,	false),
 	FEAT_OPR(OSRELEASE,	osrelease,	false),
@@ -4082,6 +4093,7 @@ static int read_attr(int fd, struct perf_header *ph,
 	return ret <= 0 ? -1 : 0;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int evsel__prepare_tracepoint_event(struct evsel *evsel, struct tep_handle *pevent)
 {
 	struct tep_event *event;
@@ -4125,6 +4137,7 @@ static int evlist__prepare_tracepoint_events(struct evlist *evlist, struct tep_h
 
 	return 0;
 }
+#endif
 
 int perf_session__read_header(struct perf_session *session, int repipe_fd)
 {
@@ -4230,11 +4243,15 @@ int perf_session__read_header(struct perf_session *session, int repipe_fd)
 		lseek(fd, tmp, SEEK_SET);
 	}
 
+#ifdef HAVE_LIBTRACEEVENT
 	perf_header__process_sections(header, fd, &session->tevent,
 				      perf_file_section__process);
 
 	if (evlist__prepare_tracepoint_events(session->evlist, session->tevent.pevent))
 		goto out_delete_evlist;
+#else
+	perf_header__process_sections(header, fd, NULL, perf_file_section__process);
+#endif
 
 	return 0;
 out_errno:
@@ -4412,6 +4429,7 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 int perf_event__process_tracing_data(struct perf_session *session,
 				     union perf_event *event)
 {
@@ -4459,6 +4477,7 @@ int perf_event__process_tracing_data(struct perf_session *session,
 
 	return size_read + padding;
 }
+#endif
 
 int perf_event__process_build_id(struct perf_session *session,
 				 union perf_event *event)
