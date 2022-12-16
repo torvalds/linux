@@ -86,6 +86,22 @@ static bool is_dsb_busy(struct drm_i915_private *i915, enum pipe pipe,
 	return intel_de_read(i915, DSB_CTRL(pipe, id)) & DSB_STATUS_BUSY;
 }
 
+static void intel_dsb_emit(struct intel_dsb *dsb, u32 ldw, u32 udw)
+{
+	u32 *buf = dsb->cmd_buf;
+
+	if (!assert_dsb_has_room(dsb))
+		return;
+
+	/* Every instruction should be 8 byte aligned. */
+	dsb->free_pos = ALIGN(dsb->free_pos, 2);
+
+	dsb->ins_start_offset = dsb->free_pos;
+
+	buf[dsb->free_pos++] = ldw;
+	buf[dsb->free_pos++] = udw;
+}
+
 /**
  * intel_dsb_indexed_reg_write() -Write to the DSB context for auto
  * increment register.
@@ -169,19 +185,13 @@ void intel_dsb_indexed_reg_write(struct intel_dsb *dsb,
 void intel_dsb_reg_write(struct intel_dsb *dsb,
 			 i915_reg_t reg, u32 val)
 {
-	u32 *buf = dsb->cmd_buf;
-
 	if (!assert_dsb_has_room(dsb))
 		return;
 
-	/* Every instruction should be 8 byte aligned. */
-	dsb->free_pos = ALIGN(dsb->free_pos, 2);
-
-	dsb->ins_start_offset = dsb->free_pos;
-	buf[dsb->free_pos++] = val;
-	buf[dsb->free_pos++] = (DSB_OPCODE_MMIO_WRITE  << DSB_OPCODE_SHIFT) |
-			       (DSB_BYTE_EN << DSB_BYTE_EN_SHIFT) |
-			       i915_mmio_reg_offset(reg);
+	intel_dsb_emit(dsb, val,
+		       (DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT) |
+		       (DSB_BYTE_EN << DSB_BYTE_EN_SHIFT) |
+		       i915_mmio_reg_offset(reg));
 }
 
 /**
