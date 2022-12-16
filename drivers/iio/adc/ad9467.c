@@ -388,6 +388,8 @@ static int ad9467_probe(struct spi_device *spi)
 
 	info = of_device_get_match_data(&spi->dev);
 	if (!info)
+		info = (void *)spi_get_device_id(spi)->driver_data;
+	if (!info)
 		return -ENODEV;
 
 	conv = devm_adi_axi_adc_conv_register(&spi->dev, sizeof(*st));
@@ -447,12 +449,21 @@ static const struct of_device_id ad9467_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ad9467_of_match);
 
+static const struct spi_device_id ad9467_ids[] = {
+	{ "ad9265", (kernel_ulong_t)&ad9467_chip_tbl[ID_AD9265] },
+	{ "ad9434", (kernel_ulong_t)&ad9467_chip_tbl[ID_AD9434] },
+	{ "ad9467", (kernel_ulong_t)&ad9467_chip_tbl[ID_AD9467] },
+	{}
+};
+MODULE_DEVICE_TABLE(spi, ad9467_ids);
+
 static struct spi_driver ad9467_driver = {
 	.driver = {
 		.name = "ad9467",
 		.of_match_table = ad9467_of_match,
 	},
 	.probe = ad9467_probe,
+	.id_table = ad9467_ids,
 };
 module_spi_driver(ad9467_driver);
 

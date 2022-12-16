@@ -568,7 +568,6 @@ static void vfio_fsl_mc_release_dev(struct vfio_device *core_vdev)
 
 	vfio_fsl_uninit_device(vdev);
 	mutex_destroy(&vdev->igate);
-	vfio_free_device(core_vdev);
 }
 
 static int vfio_fsl_mc_remove(struct fsl_mc_device *mc_dev)

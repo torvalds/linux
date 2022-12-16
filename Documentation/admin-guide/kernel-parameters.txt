@@ -6266,6 +6266,25 @@
 			See also Documentation/trace/ftrace.rst "trace options"
 			section.
 
+	trace_trigger=[trigger-list]
+			[FTRACE] Add a event trigger on specific events.
+			Set a trigger on top of a specific event, with an optional
+			filter.
+
+			The format is is "trace_trigger=<event>.<trigger>[ if <filter>],..."
+			Where more than one trigger may be specified that are comma deliminated.
+
+			For example:
+
+			  trace_trigger="sched_switch.stacktrace if prev_state == 2"
+
+			The above will enable the "stacktrace" trigger on the "sched_switch"
+			event but only trigger it if the "prev_state" of the "sched_switch"
+			event is "2" (TASK_UNINTERUPTIBLE).
+
+			See also "Event triggers" in Documentation/trace/events.rst
+
+
 	traceoff_on_warning
 			[FTRACE] enable this option to disable tracing when a
 			warning is hit. This turns off "tracing_on". Tracing can

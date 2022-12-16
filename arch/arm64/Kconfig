@@ -972,22 +972,6 @@ config ARM64_ERRATUM_2457168
 
 	  If unsure, say Y.
 
-config ARM64_ERRATUM_2645198
-	bool "Cortex-A715: 2645198: Workaround possible [ESR|FAR]_ELx corruption"
-	default y
-	help
-	  This option adds the workaround for ARM Cortex-A715 erratum 2645198.
-
-	  If a Cortex-A715 cpu sees a page mapping permissions change from executable
-	  to non-executable, it may corrupt the ESR_ELx and FAR_ELx registers on the
-	  next instruction abort caused by permission fault.
-
-	  Only user-space does executable to non-executable permission transition via
-	  mprotect() system call. Workaround the problem by doing a break-before-make
-	  TLB invalidation, for all changes to executable user space mappings.
-
-	  If unsure, say Y.
-
 config CAVIUM_ERRATUM_22375
 	bool "Cavium erratum 22375, 24313"
 	default y

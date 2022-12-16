@@ -425,9 +425,7 @@ static int brcmuart_tx_dma(struct uart_8250_port *p)
 
 	priv->dma.tx_err = 0;
 	memcpy(priv->tx_buf, &xmit->buf[xmit->tail], tx_size);
-	xmit->tail += tx_size;
-	xmit->tail &= UART_XMIT_SIZE - 1;
-	p->port.icount.tx += tx_size;
+	uart_xmit_advance(&p->port, tx_size);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&p->port);
@@ -1212,9 +1210,17 @@ static struct platform_driver brcmuart_platform_driver = {
 
 static int __init brcmuart_init(void)
 {
+	int ret;
+
 	brcmuart_debugfs_root = debugfs_create_dir(
 		brcmuart_platform_driver.driver.name, NULL);
-	return platform_driver_register(&brcmuart_platform_driver);
+	ret = platform_driver_register(&brcmuart_platform_driver);
+	if (ret) {
+		debugfs_remove_recursive(brcmuart_debugfs_root);
+		return ret;
+	}
+
+	return 0;
 }
 module_init(brcmuart_init);
 

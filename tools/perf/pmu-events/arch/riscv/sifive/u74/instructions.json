@@ -1,0 +1,92 @@
+[
+  {
+    "EventName": "EXCEPTION_TAKEN",
+    "EventCode": "0x0000100",
+    "BriefDescription": "Exception taken"
+  },
+  {
+    "EventName": "INTEGER_LOAD_RETIRED",
+    "EventCode": "0x0000200",
+    "BriefDescription": "Integer load instruction retired"
+  },
+  {
+    "EventName": "INTEGER_STORE_RETIRED",
+    "EventCode": "0x0000400",
+    "BriefDescription": "Integer store instruction retired"
+  },
+  {
+    "EventName": "ATOMIC_MEMORY_RETIRED",
+    "EventCode": "0x0000800",
+    "BriefDescription": "Atomic memory operation retired"
+  },
+  {
+    "EventName": "SYSTEM_INSTRUCTION_RETIRED",
+    "EventCode": "0x0001000",
+    "BriefDescription": "System instruction retired"
+  },
+  {
+    "EventName": "INTEGER_ARITHMETIC_RETIRED",
+    "EventCode": "0x0002000",
+    "BriefDescription": "Integer arithmetic instruction retired"
+  },
+  {
+    "EventName": "CONDITIONAL_BRANCH_RETIRED",
+    "EventCode": "0x0004000",
+    "BriefDescription": "Conditional branch retired"
+  },
+  {
+    "EventName": "JAL_INSTRUCTION_RETIRED",
+    "EventCode": "0x0008000",
+    "BriefDescription": "JAL instruction retired"
+  },
+  {
+    "EventName": "JALR_INSTRUCTION_RETIRED",
+    "EventCode": "0x0010000",
+    "BriefDescription": "JALR instruction retired"
+  },
+  {
+    "EventName": "INTEGER_MULTIPLICATION_RETIRED",
+    "EventCode": "0x0020000",
+    "BriefDescription": "Integer multiplication instruction retired"
+  },
+  {
+    "EventName": "INTEGER_DIVISION_RETIRED",
+    "EventCode": "0x0040000",
+    "BriefDescription": "Integer division instruction retired"
+  },
+  {
+    "EventName": "FP_LOAD_RETIRED",
+    "EventCode": "0x0080000",
+    "BriefDescription": "Floating-point load instruction retired"
+  },
+  {
+    "EventName": "FP_STORE_RETIRED",
+    "EventCode": "0x0100000",
+    "BriefDescription": "Floating-point store instruction retired"
+  },
+  {
+    "EventName": "FP_ADDITION_RETIRED",
+    "EventCode": "0x0200000",
+    "BriefDescription": "Floating-point addition retired"
+  },
+  {
+    "EventName": "FP_MULTIPLICATION_RETIRED",
+    "EventCode": "0x0400000",
+    "BriefDescription": "Floating-point multiplication retired"
+  },
+  {
+    "EventName": "FP_FUSEDMADD_RETIRED",
+    "EventCode": "0x0800000",
+    "BriefDescription": "Floating-point fused multiply-add retired"
+  },
+  {
+    "EventName": "FP_DIV_SQRT_RETIRED",
+    "EventCode": "0x1000000",
+    "BriefDescription": "Floating-point division or square-root retired"
+  },
+  {
+    "EventName": "OTHER_FP_RETIRED",
+    "EventCode": "0x2000000",
+    "BriefDescription": "Other floating-point instruction retired"
+  }
+]

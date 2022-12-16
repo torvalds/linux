@@ -108,7 +108,7 @@ struct smb3_notify_info {
 #define CIFS_IOC_NOTIFY _IOW(CIFS_IOCTL_MAGIC, 9, struct smb3_notify)
 #define CIFS_DUMP_FULL_KEY _IOWR(CIFS_IOCTL_MAGIC, 10, struct smb3_full_key_debug_info)
 #define CIFS_IOC_NOTIFY_INFO _IOWR(CIFS_IOCTL_MAGIC, 11, struct smb3_notify_info)
-#define CIFS_IOC_SHUTDOWN _IOR ('X', 125, __u32)
+#define CIFS_IOC_SHUTDOWN _IOR('X', 125, __u32)
 
 /*
  * Flags for going down operation

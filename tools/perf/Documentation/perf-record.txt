@@ -238,10 +238,6 @@ OPTIONS
 	Also, by adding a comma, the number of mmap pages for AUX
 	area tracing can be specified.
 
---group::
-	Put all events in a single event group.  This precedes the --event
-	option and remains only for backward compatibility.  See --event.
-
 -g::
 	Enables call-graph (stack chain/backtrace) recording for both
 	kernel space and user space.
@@ -282,7 +278,7 @@ OPTIONS
 
 -q::
 --quiet::
-	Don't print any message, useful for scripting.
+	Don't print any warnings or messages, useful for scripting.
 
 -v::
 --verbose::
@@ -388,6 +384,7 @@ following filters are defined:
         - any_call: any function call or system call
         - any_ret: any function return or system call return
         - ind_call: any indirect branch
+        - ind_jmp: any indirect jump
         - call: direct calls, including far (to/from kernel) calls
         - u:  only when the branch target is at the user level
         - k: only when the branch target is in the kernel
@@ -396,6 +393,10 @@ following filters are defined:
 	- no_tx: only when the target is not in a hardware transaction
 	- abort_tx: only when the target is a hardware transaction abort
 	- cond: conditional branches
+	- call_stack: save call stack
+	- no_flags: don't save branch flags e.g prediction, misprediction etc
+	- no_cycles: don't save branch cycles
+	- hw_index: save branch hardware index
 	- save_type: save branch type during sampling in case binary is not available later
 		     For the platforms with Intel Arch LBR support (12th-Gen+ client or
 		     4th-Gen Xeon+ server), the save branch type is unconditionally enabled

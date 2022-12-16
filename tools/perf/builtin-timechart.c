@@ -38,6 +38,7 @@
 #include "util/string2.h"
 #include "util/tracepoint.h"
 #include <linux/err.h>
+#include <traceevent/event-parse.h>
 
 #ifdef LACKS_OPEN_MEMSTREAM_PROTOTYPE
 FILE *open_memstream(char **ptr, size_t *sizeloc);

@@ -6,10 +6,15 @@
  */
 
 #include "builtin.h"
+#include "perf.h"
 
 #include "util/data.h"
+#include "util/evlist.h"
+#include "util/evsel.h"
+#include "util/header.h"
 #include "util/kwork.h"
 #include "util/debug.h"
+#include "util/session.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/string2.h"
@@ -18,9 +23,11 @@
 
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
+#include <traceevent/event-parse.h>
 
 #include <errno.h>
 #include <inttypes.h>
+#include <signal.h>
 #include <linux/err.h>
 #include <linux/time64.h>
 #include <linux/zalloc.h>

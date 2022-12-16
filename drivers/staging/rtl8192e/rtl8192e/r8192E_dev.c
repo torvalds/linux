@@ -224,8 +224,6 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 		u8 acm = pAciAifsn->f.acm;
 		u8 AcmCtrl = rtl92e_readb(dev, AcmHwCtrl);
 
-		AcmCtrl = AcmCtrl | ((priv->AcmMethod == 2) ? 0x0 : 0x1);
-
 		if (acm) {
 			switch (eACI) {
 			case AC0_BE:
@@ -474,10 +472,10 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 
 	priv->rf_chip = RF_8256;
 
-	if (priv->RegChannelPlan == 0xf)
+	if (priv->reg_chnl_plan == 0xf)
 		priv->ChannelPlan = priv->eeprom_ChannelPlan;
 	else
-		priv->ChannelPlan = priv->RegChannelPlan;
+		priv->ChannelPlan = priv->reg_chnl_plan;
 
 	if (priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
 		priv->CustomerID =  RT_CID_DLINK;
@@ -503,7 +501,6 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			priv->ChannelPlan = 0x0;
 		break;
 	case EEPROM_CID_Nettronix:
-		priv->ScanDelay = 100;
 		priv->CustomerID = RT_CID_Nettronix;
 		break;
 	case EEPROM_CID_Pronet:
@@ -618,14 +615,11 @@ bool rtl92e_start_adapter(struct net_device *dev)
 start:
 	rtl92e_reset_desc_ring(dev);
 	priv->Rf_Mode = RF_OP_By_SW_3wire;
-	if (priv->ResetProgress == RESET_TYPE_NORESET) {
+	if (priv->rst_progress == RESET_TYPE_NORESET) {
 		rtl92e_writeb(dev, ANAPAR, 0x37);
 		mdelay(500);
 	}
 	priv->pFirmware->status = FW_STATUS_0_INIT;
-
-	if (priv->RegRfOff)
-		priv->rtllib->rf_power_state = rf_off;
 
 	ulRegRead = rtl92e_readl(dev, CPU_GEN);
 	if (priv->pFirmware->status == FW_STATUS_0_INIT)
@@ -654,7 +648,7 @@ start:
 	}
 
 	priv->LoopbackMode = RTL819X_NO_LOOPBACK;
-	if (priv->ResetProgress == RESET_TYPE_NORESET) {
+	if (priv->rst_progress == RESET_TYPE_NORESET) {
 		ulRegRead = rtl92e_readl(dev, CPU_GEN);
 		if (priv->LoopbackMode == RTL819X_NO_LOOPBACK)
 			ulRegRead = (ulRegRead & CPU_GEN_NO_LOOPBACK_MSK) |
@@ -703,7 +697,7 @@ start:
 
 	rtl92e_writeb(dev, ACK_TIMEOUT, 0x30);
 
-	if (priv->ResetProgress == RESET_TYPE_NORESET)
+	if (priv->rst_progress == RESET_TYPE_NORESET)
 		rtl92e_set_wireless_mode(dev, priv->rtllib->mode);
 	rtl92e_cam_reset(dev);
 	{
@@ -743,7 +737,7 @@ start:
 		}
 	}
 
-	if (priv->ResetProgress == RESET_TYPE_NORESET) {
+	if (priv->rst_progress == RESET_TYPE_NORESET) {
 		rtStatus = rtl92e_config_phy(dev);
 		if (!rtStatus) {
 			netdev_info(dev, "RF Config failed\n");
@@ -756,9 +750,7 @@ start:
 
 	rtl92e_writeb(dev, 0x87, 0x0);
 
-	if (priv->RegRfOff) {
-		rtl92e_set_rf_state(dev, rf_off, RF_CHANGE_BY_SW);
-	} else if (priv->rtllib->rf_off_reason > RF_CHANGE_BY_PS) {
+	if (priv->rtllib->rf_off_reason > RF_CHANGE_BY_PS) {
 		rtl92e_set_rf_state(dev, rf_off, priv->rtllib->rf_off_reason);
 	} else if (priv->rtllib->rf_off_reason >= RF_CHANGE_BY_IPS) {
 		rtl92e_set_rf_state(dev, rf_off, priv->rtllib->rf_off_reason);
@@ -772,7 +764,7 @@ start:
 	else
 		priv->Rf_Mode = RF_OP_By_SW_3wire;
 
-	if (priv->ResetProgress == RESET_TYPE_NORESET) {
+	if (priv->rst_progress == RESET_TYPE_NORESET) {
 		rtl92e_dm_init_txpower_tracking(dev);
 
 		if (priv->IC_Cut >= IC_VersionCut_D) {
@@ -801,7 +793,7 @@ start:
 			}
 			priv->CCKPresentAttentuation_40Mdefault = 0;
 			priv->CCKPresentAttentuation_difference = 0;
-			priv->CCKPresentAttentuation =
+			priv->cck_present_attn =
 				  priv->CCKPresentAttentuation_20Mdefault;
 			priv->btxpower_tracking = false;
 		}
@@ -865,7 +857,7 @@ void rtl92e_link_change(struct net_device *dev)
 
 		reg = rtl92e_readl(dev, RCR);
 		if (priv->rtllib->state == RTLLIB_LINKED) {
-			if (ieee->IntelPromiscuousModeInfo.bPromiscuousOn)
+			if (ieee->intel_promiscuous_md_info.promiscuous_on)
 				;
 			else
 				priv->ReceiveConfig = reg |= RCR_CBSSID;
@@ -1112,9 +1104,8 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	if (cb_desc->bHwSec) {
 		static u8 tmp;
 
-		if (!tmp) {
+		if (!tmp)
 			tmp = 1;
-		}
 		switch (priv->rtllib->pairwise_key_type) {
 		case KEY_TYPE_WEP40:
 		case KEY_TYPE_WEP104:
@@ -1143,8 +1134,8 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 							  cb_desc->priority);
 	pdesc->TxFWInfoSize = sizeof(struct tx_fwinfo_8190pci);
 
-	pdesc->DISFB = cb_desc->bTxDisableRateFallBack;
-	pdesc->USERATE = cb_desc->bTxUseDriverAssingedRate;
+	pdesc->DISFB = cb_desc->tx_dis_rate_fallback;
+	pdesc->USERATE = cb_desc->tx_use_drv_assinged_rate;
 
 	pdesc->FirstSeg = 1;
 	pdesc->LastSeg = 1;
@@ -1935,7 +1926,7 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 	if (!reset) {
 		mdelay(150);
 
-		priv->bHwRfOffAction = 2;
+		priv->hw_rf_off_action = 2;
 
 		if (!priv->rtllib->bSupportRemoteWakeUp) {
 			rtl92e_set_rf_off(dev);
@@ -1955,8 +1946,6 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
 		skb_queue_purge(&priv->rtllib->skb_waitQ[i]);
-	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_purge(&priv->rtllib->skb_aggQ[i]);
 
 	skb_queue_purge(&priv->skb_queue);
 }
@@ -1965,7 +1954,7 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
-	u8 *pMcsRate = ieee->dot11HTOperationalRateSet;
+	u8 *pMcsRate = ieee->dot11ht_oper_rate_set;
 	u32 ratr_value = 0;
 	u16 rate_config = 0;
 	u8 rate_index = 0;
@@ -1985,7 +1974,7 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 		break;
 	case IEEE_N_24G:
 	case IEEE_N_5G:
-		if (ieee->pHTInfo->peer_mimo_ps == 0) {
+		if (ieee->ht_info->peer_mimo_ps == 0) {
 			ratr_value &= 0x0007F007;
 		} else {
 			if (priv->rf_type == RF_1T2R)
@@ -1998,11 +1987,11 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 		break;
 	}
 	ratr_value &= 0x0FFFFFFF;
-	if (ieee->pHTInfo->cur_tx_bw40mhz &&
-	    ieee->pHTInfo->bCurShortGI40MHz)
+	if (ieee->ht_info->cur_tx_bw40mhz &&
+	    ieee->ht_info->bCurShortGI40MHz)
 		ratr_value |= 0x80000000;
-	else if (!ieee->pHTInfo->cur_tx_bw40mhz &&
-		  ieee->pHTInfo->bCurShortGI20MHz)
+	else if (!ieee->ht_info->cur_tx_bw40mhz &&
+		  ieee->ht_info->bCurShortGI20MHz)
 		ratr_value |= 0x80000000;
 	rtl92e_writel(dev, RATR0+rate_index*4, ratr_value);
 	rtl92e_writeb(dev, UFWP, 1);
@@ -2136,7 +2125,7 @@ bool rtl92e_is_rx_stuck(struct net_device *dev)
 
 	SlotIndex = (priv->SilentResetRxSlotIndex++)%SilentResetRxSoltNum;
 
-	if (priv->RxCounter == RegRxCounter) {
+	if (priv->rx_ctr == RegRxCounter) {
 		priv->SilentResetRxStuckEvent[SlotIndex] = 1;
 
 		for (i = 0; i < SilentResetRxSoltNum; i++)
@@ -2154,7 +2143,7 @@ bool rtl92e_is_rx_stuck(struct net_device *dev)
 		priv->SilentResetRxStuckEvent[SlotIndex] = 0;
 	}
 
-	priv->RxCounter = RegRxCounter;
+	priv->rx_ctr = RegRxCounter;
 
 	return bStuck;
 }

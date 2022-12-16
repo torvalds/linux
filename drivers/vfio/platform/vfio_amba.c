@@ -95,7 +95,6 @@ static void vfio_amba_release_dev(struct vfio_device *core_vdev)
 
 	vfio_platform_release_common(vdev);
 	kfree(vdev->name);
-	vfio_free_device(core_vdev);
 }
 
 static void vfio_amba_remove(struct amba_device *adev)

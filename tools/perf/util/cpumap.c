@@ -12,6 +12,7 @@
 
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
+#include <internal/cpumap.h>
 
 static struct perf_cpu max_cpu_num;
 static struct perf_cpu max_present_cpu_num;
@@ -234,7 +235,7 @@ static int aggr_cpu_id__cmp(const void *a_pointer, const void *b_pointer)
 
 struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
 				       aggr_cpu_id_get_t get_id,
-				       void *data)
+				       void *data, bool needs_sort)
 {
 	int idx;
 	struct perf_cpu cpu;
@@ -270,8 +271,10 @@ struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
 		if (trimmed_c)
 			c = trimmed_c;
 	}
+
 	/* ensure we process id in increasing order */
-	qsort(c->map, c->nr, sizeof(struct aggr_cpu_id), aggr_cpu_id__cmp);
+	if (needs_sort)
+		qsort(c->map, c->nr, sizeof(struct aggr_cpu_id), aggr_cpu_id__cmp);
 
 	return c;
 
@@ -351,6 +354,16 @@ struct aggr_cpu_id aggr_cpu_id__node(struct perf_cpu cpu, void *data __maybe_unu
 	struct aggr_cpu_id id = aggr_cpu_id__empty();
 
 	id.node = cpu__get_node(cpu);
+	return id;
+}
+
+struct aggr_cpu_id aggr_cpu_id__global(struct perf_cpu cpu, void *data __maybe_unused)
+{
+	struct aggr_cpu_id id = aggr_cpu_id__empty();
+
+	/* it always aggregates to the cpu 0 */
+	cpu.cpu = 0;
+	id.cpu = cpu;
 	return id;
 }
 
