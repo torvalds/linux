@@ -938,7 +938,7 @@ out:
 
 static void __update_extent_cache(struct dnode_of_data *dn, enum extent_type type)
 {
-	struct extent_info ei;
+	struct extent_info ei = {};
 
 	if (!__may_extent_tree(dn->inode, type))
 		return;
