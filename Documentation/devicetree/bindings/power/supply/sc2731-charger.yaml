@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/power/supply/sc2731-charger.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Spreadtrum SC2731 PMICs battery charger binding
+title: Spreadtrum SC2731 PMICs battery charger
 
 maintainers:
   - Sebastian Reichel <sre@kernel.org>

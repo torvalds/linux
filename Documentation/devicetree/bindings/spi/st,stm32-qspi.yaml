@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spi/st,stm32-qspi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 Quad Serial Peripheral Interface (QSPI) bindings
+title: STMicroelectronics STM32 Quad Serial Peripheral Interface (QSPI)
 
 maintainers:
   - Christophe Kerello <christophe.kerello@foss.st.com>
