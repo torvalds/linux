@@ -17,8 +17,6 @@ struct intel_dsb *intel_dsb_prepare(struct intel_crtc *crtc);
 void intel_dsb_cleanup(struct intel_dsb *dsb);
 void intel_dsb_reg_write(struct intel_dsb *dsb,
 			 i915_reg_t reg, u32 val);
-void intel_dsb_indexed_reg_write(struct intel_dsb *dsb,
-				 i915_reg_t reg, u32 val);
 void intel_dsb_commit(struct intel_dsb *dsb);
 
 #endif
