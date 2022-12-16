@@ -1051,8 +1051,7 @@ static const struct attribute_group apds990x_attribute_group[] = {
 	{.attrs = sysfs_attrs_ctrl },
 };
 
-static int apds990x_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int apds990x_probe(struct i2c_client *client)
 {
 	struct apds990x_chip *chip;
 	int err;
@@ -1272,7 +1271,7 @@ static struct i2c_driver apds990x_driver = {
 		.name	= "apds990x",
 		.pm	= &apds990x_pm_ops,
 	},
-	.probe	  = apds990x_probe,
+	.probe_new = apds990x_probe,
 	.remove	  = apds990x_remove,
 	.id_table = apds990x_id,
 };

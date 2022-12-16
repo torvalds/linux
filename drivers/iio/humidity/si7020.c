@@ -103,8 +103,7 @@ static const struct iio_info si7020_info = {
 	.read_raw = si7020_read_raw,
 };
 
-static int si7020_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int si7020_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct i2c_client **data;
@@ -156,7 +155,7 @@ static struct i2c_driver si7020_driver = {
 		.name = "si7020",
 		.of_match_table = si7020_dt_ids,
 	},
-	.probe		= si7020_probe,
+	.probe_new	= si7020_probe,
 	.id_table	= si7020_id,
 };
 

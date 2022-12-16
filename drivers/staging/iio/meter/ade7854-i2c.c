@@ -61,7 +61,10 @@ static int ade7854_i2c_write_reg(struct device *dev,
 unlock:
 	mutex_unlock(&st->buf_lock);
 
-	return ret < 0 ? ret : 0;
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int ade7854_i2c_read_reg(struct device *dev,

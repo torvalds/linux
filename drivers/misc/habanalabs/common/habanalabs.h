@@ -50,9 +50,14 @@ struct hl_fpriv;
 #define HL_MMAP_OFFSET_VALUE_MASK	(0x1FFFFFFFFFFFull >> PAGE_SHIFT)
 #define HL_MMAP_OFFSET_VALUE_GET(off)	(off & HL_MMAP_OFFSET_VALUE_MASK)
 
-#define HL_PENDING_RESET_PER_SEC	10
-#define HL_PENDING_RESET_MAX_TRIALS	60 /* 10 minutes */
-#define HL_PENDING_RESET_LONG_SEC	60
+#define HL_PENDING_RESET_PER_SEC		10
+#define HL_PENDING_RESET_MAX_TRIALS		60 /* 10 minutes */
+#define HL_PENDING_RESET_LONG_SEC		60
+/*
+ * In device fini, wait 10 minutes for user processes to be terminated after we kill them.
+ * This is needed to prevent situation of clearing resources while user processes are still alive.
+ */
+#define HL_WAIT_PROCESS_KILL_ON_DEVICE_FINI	600
 
 #define HL_HARD_RESET_MAX_TIMEOUT	120
 #define HL_PLDM_HARD_RESET_MAX_TIMEOUT	(HL_HARD_RESET_MAX_TIMEOUT * 3)
@@ -191,6 +196,9 @@ enum hl_mmu_enablement {
  *
  * - HL_DRV_RESET_DELAY
  *       Set if a delay should be added before the reset
+ *
+ * - HL_DRV_RESET_FROM_WD_THR
+ *       Set if the caller is the device release watchdog thread
  */
 
 #define HL_DRV_RESET_HARD		(1 << 0)
@@ -201,6 +209,7 @@ enum hl_mmu_enablement {
 #define HL_DRV_RESET_BYPASS_REQ_TO_FW	(1 << 5)
 #define HL_DRV_RESET_FW_FATAL_ERR	(1 << 6)
 #define HL_DRV_RESET_DELAY		(1 << 7)
+#define HL_DRV_RESET_FROM_WD_THR	(1 << 8)
 
 /*
  * Security
@@ -1188,7 +1197,7 @@ struct hl_dec {
  * @ASIC_GAUDI: Gaudi device (HL-2000).
  * @ASIC_GAUDI_SEC: Gaudi secured device (HL-2000).
  * @ASIC_GAUDI2: Gaudi2 device.
- * @ASIC_GAUDI2_SEC: Gaudi2 secured device.
+ * @ASIC_GAUDI2B: Gaudi2B device.
  */
 enum hl_asic_type {
 	ASIC_INVALID,
@@ -1196,7 +1205,7 @@ enum hl_asic_type {
 	ASIC_GAUDI,
 	ASIC_GAUDI_SEC,
 	ASIC_GAUDI2,
-	ASIC_GAUDI2_SEC,
+	ASIC_GAUDI2B,
 };
 
 struct hl_cs_parser;
@@ -2489,13 +2498,9 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 #define WREG32_AND(reg, and) WREG32_P(reg, 0, and)
 #define WREG32_OR(reg, or) WREG32_P(reg, or, ~(or))
 
-#define RMWREG32(reg, val, mask)				\
-	do {							\
-		u32 tmp_ = RREG32(reg);				\
-		tmp_ &= ~(mask);				\
-		tmp_ |= ((val) << __ffs(mask));			\
-		WREG32(reg, tmp_);				\
-	} while (0)
+#define RMWREG32_SHIFTED(reg, val, mask) WREG32_P(reg, val, ~(mask))
+
+#define RMWREG32(reg, val, mask) RMWREG32_SHIFTED(reg, (val) << __ffs(mask), mask)
 
 #define RREG32_MASK(reg, mask) ((RREG32(reg) & mask) >> __ffs(mask))
 
@@ -2528,7 +2533,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 				break; \
 			(val) = __elbi_read; \
 		} else {\
-			(val) = RREG32((u32)(addr)); \
+			(val) = RREG32(lower_32_bits(addr)); \
 		} \
 		if (cond) \
 			break; \
@@ -2539,7 +2544,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 					break; \
 				(val) = __elbi_read; \
 			} else {\
-				(val) = RREG32((u32)(addr)); \
+				(val) = RREG32(lower_32_bits(addr)); \
 			} \
 			break; \
 		} \
@@ -2594,7 +2599,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 				if (__rc) \
 					break; \
 			} else { \
-				__read_val = RREG32((u32)(addr_arr)[__arr_idx]); \
+				__read_val = RREG32(lower_32_bits(addr_arr[__arr_idx])); \
 			} \
 			if (__read_val == (expected_val))	\
 				__elem_bitmask &= ~BIT_ULL(__arr_idx);	\
@@ -2682,17 +2687,15 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 struct hwmon_chip_info;
 
 /**
- * struct hl_device_reset_work - reset workqueue task wrapper.
- * @wq: work queue for device reset procedure.
+ * struct hl_device_reset_work - reset work wrapper.
  * @reset_work: reset work to be done.
  * @hdev: habanalabs device structure.
  * @flags: reset flags.
  */
 struct hl_device_reset_work {
-	struct workqueue_struct		*wq;
-	struct delayed_work		reset_work;
-	struct hl_device		*hdev;
-	u32				flags;
+	struct delayed_work	reset_work;
+	struct hl_device	*hdev;
+	u32			flags;
 };
 
 /**
@@ -2811,7 +2814,7 @@ struct hl_mmu_funcs {
 
 /**
  * struct hl_prefetch_work - prefetch work structure handler
- * @pf_work: actual work struct.
+ * @prefetch_work: actual work struct.
  * @ctx: compute context.
  * @va: virtual address to pre-fetch.
  * @size: pre-fetch size.
@@ -2819,7 +2822,7 @@ struct hl_mmu_funcs {
  * @asid: ASID for maintenance operation.
  */
 struct hl_prefetch_work {
-	struct work_struct	pf_work;
+	struct work_struct	prefetch_work;
 	struct hl_ctx		*ctx;
 	u64			va;
 	u64			size;
@@ -2925,30 +2928,6 @@ struct cs_timeout_info {
 	u64		seq;
 };
 
-/**
- * struct razwi_info - info about last razwi error occurred.
- * @timestamp: razwi timestamp.
- * @write_enable: if set writing to razwi parameters in the structure is enabled.
- *                otherwise - disabled, so the first (root cause) razwi will not be overwritten.
- * @addr: address that caused razwi.
- * @engine_id_1: engine id of the razwi initiator, if it was initiated by engine that does
- *               not have engine id it will be set to U16_MAX.
- * @engine_id_2: second engine id of razwi initiator. Might happen that razwi have 2 possible
- *               engines which one them caused the razwi. In that case, it will contain the
- *               second possible engine id, otherwise it will be set to U16_MAX.
- * @non_engine_initiator: in case the initiator of the razwi does not have engine id.
- * @type: cause of razwi, page fault or access error, otherwise it will be set to U8_MAX.
- */
-struct razwi_info {
-	ktime_t		timestamp;
-	atomic_t	write_enable;
-	u64		addr;
-	u16		engine_id_1;
-	u16		engine_id_2;
-	u8		non_engine_initiator;
-	u8		type;
-};
-
 #define MAX_QMAN_STREAMS_INFO		4
 #define OPCODE_INFO_MAX_ADDR_SIZE	8
 /**
@@ -2982,15 +2961,37 @@ struct undefined_opcode_info {
 };
 
 /**
+ * struct page_fault_info - info about page fault
+ * @pgf_info: page fault information.
+ * @user_mappings: buffer containing user mappings.
+ * @num_of_user_mappings: number of user mappings.
+ */
+struct page_fault_info {
+	struct hl_page_fault_info	pgf;
+	struct hl_user_mapping		*user_mappings;
+	u64				num_of_user_mappings;
+};
+
+/**
  * struct hl_error_info - holds information collected during an error.
  * @cs_timeout: CS timeout error information.
  * @razwi: razwi information.
+ * @razwi_info_recorded: if set writing to razwi information is enabled.
+ *                       otherwise - disabled, so the first (root cause) razwi will not be
+ *                       overwritten.
  * @undef_opcode: undefined opcode information
+ * @pgf_info: page fault information.
+ * @pgf_info_recorded: if set writing to page fault information is enabled.
+ *                     otherwise - disabled, so the first (root cause) page fault will not be
+ *                     overwritten.
  */
 struct hl_error_info {
 	struct cs_timeout_info		cs_timeout;
-	struct razwi_info		razwi;
+	struct hl_info_razwi_event	razwi;
+	atomic_t			razwi_info_recorded;
 	struct undefined_opcode_info	undef_opcode;
+	struct page_fault_info		pgf_info;
+	atomic_t			pgf_info_recorded;
 };
 
 /**
@@ -3013,6 +3014,7 @@ struct hl_error_info {
  *                          same cause.
  * @skip_reset_on_timeout: Skip device reset if CS has timed out, wait for it to
  *                         complete instead.
+ * @watchdog_active: true if a device release watchdog work is scheduled.
  */
 struct hl_reset_info {
 	spinlock_t	lock;
@@ -3023,12 +3025,11 @@ struct hl_reset_info {
 	u8		in_compute_reset;
 	u8		needs_reset;
 	u8		hard_reset_pending;
-
 	u8		curr_reset_cause;
 	u8		prev_reset_trigger;
 	u8		reset_trigger_repeated;
-
 	u8		skip_reset_on_timeout;
+	u8		watchdog_active;
 };
 
 /**
@@ -3044,6 +3045,8 @@ struct hl_reset_info {
  * @dev_ctrl: related kernel device structure for the control device
  * @work_heartbeat: delayed work for CPU-CP is-alive check.
  * @device_reset_work: delayed work which performs hard reset
+ * @device_release_watchdog_work: watchdog work that performs hard reset if user doesn't release
+ *                                device upon certain error cases.
  * @asic_name: ASIC specific name.
  * @asic_type: ASIC specific type.
  * @completion_queue: array of hl_cq.
@@ -3062,7 +3065,8 @@ struct hl_reset_info {
  * @cs_cmplt_wq: work queue of CS completions for executing work in process
  *               context.
  * @ts_free_obj_wq: work queue for timestamp registration objects release.
- * @pf_wq: work queue for MMU pre-fetch operations.
+ * @prefetch_wq: work queue for MMU pre-fetch operations.
+ * @reset_wq: work queue for device reset procedure.
  * @kernel_ctx: Kernel driver context structure.
  * @kernel_queues: array of hl_hw_queue.
  * @cs_mirror_list: CS mirror list for TDR.
@@ -3152,6 +3156,7 @@ struct hl_reset_info {
  *                   indicates which decoder engines are binned-out
  * @edma_binning: contains mask of edma engines that is received from the f/w which
  *                   indicates which edma engines are binned-out
+ * @device_release_watchdog_timeout_sec: device release watchdog timeout value in seconds.
  * @id: device minor.
  * @id_control: minor of the control device.
  * @cdev_idx: char device index. Used for setting its name.
@@ -3221,6 +3226,7 @@ struct hl_device {
 	struct device			*dev_ctrl;
 	struct delayed_work		work_heartbeat;
 	struct hl_device_reset_work	device_reset_work;
+	struct hl_device_reset_work	device_release_watchdog_work;
 	char				asic_name[HL_STR_MAX];
 	char				status[HL_DEV_STS_MAX][HL_STR_MAX];
 	enum hl_asic_type		asic_type;
@@ -3233,7 +3239,8 @@ struct hl_device {
 	struct workqueue_struct		*eq_wq;
 	struct workqueue_struct		*cs_cmplt_wq;
 	struct workqueue_struct		*ts_free_obj_wq;
-	struct workqueue_struct		*pf_wq;
+	struct workqueue_struct		*prefetch_wq;
+	struct workqueue_struct		*reset_wq;
 	struct hl_ctx			*kernel_ctx;
 	struct hl_hw_queue		*kernel_queues;
 	struct list_head		cs_mirror_list;
@@ -3314,6 +3321,7 @@ struct hl_device {
 	u32				high_pll;
 	u32				decoder_binning;
 	u32				edma_binning;
+	u32				device_release_watchdog_timeout_sec;
 	u16				id;
 	u16				id_control;
 	u16				cdev_idx;
@@ -3488,6 +3496,8 @@ void hl_asic_dma_pool_free_caller(struct hl_device *hdev, void *vaddr, dma_addr_
 int hl_dma_map_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_data_direction dir);
 void hl_dma_unmap_sgtable(struct hl_device *hdev, struct sg_table *sgt,
 				enum dma_data_direction dir);
+int hl_access_sram_dram_region(struct hl_device *hdev, u64 addr, u64 *val,
+	enum debugfs_access_type acc_type, enum pci_region region_type, bool set_dram_bar);
 int hl_access_cfg_region(struct hl_device *hdev, u64 addr, u64 *val,
 	enum debugfs_access_type acc_type);
 int hl_access_dev_mem(struct hl_device *hdev, enum pci_region region_type,
@@ -3495,6 +3505,8 @@ int hl_access_dev_mem(struct hl_device *hdev, enum pci_region region_type,
 int hl_device_open(struct inode *inode, struct file *filp);
 int hl_device_open_ctrl(struct inode *inode, struct file *filp);
 bool hl_device_operational(struct hl_device *hdev,
+		enum hl_device_status *status);
+bool hl_ctrl_device_operational(struct hl_device *hdev,
 		enum hl_device_status *status);
 enum hl_device_status hl_device_status(struct hl_device *hdev);
 int hl_device_set_debug_mode(struct hl_device *hdev, struct hl_ctx *ctx, bool enable);
@@ -3549,6 +3561,7 @@ void hl_device_fini(struct hl_device *hdev);
 int hl_device_suspend(struct hl_device *hdev);
 int hl_device_resume(struct hl_device *hdev);
 int hl_device_reset(struct hl_device *hdev, u32 flags);
+int hl_device_cond_reset(struct hl_device *hdev, u32 flags, u64 event_mask);
 void hl_hpriv_get(struct hl_fpriv *hpriv);
 int hl_hpriv_put(struct hl_fpriv *hpriv);
 int hl_device_utilization(struct hl_device *hdev, u32 *utilization);
@@ -3762,7 +3775,8 @@ void hl_sysfs_add_dev_vrm_attr(struct hl_device *hdev, struct attribute_group *d
 
 void hw_sob_get(struct hl_hw_sob *hw_sob);
 void hw_sob_put(struct hl_hw_sob *hw_sob);
-void hl_encaps_handle_do_release(struct kref *ref);
+void hl_encaps_release_handle_and_put_ctx(struct kref *ref);
+void hl_encaps_release_handle_and_put_sob_ctx(struct kref *ref);
 void hl_hw_queue_encaps_sig_set_sob_info(struct hl_device *hdev,
 			struct hl_cs *cs, struct hl_cs_job *job,
 			struct hl_cs_compl *cs_cmpl);
@@ -3798,6 +3812,13 @@ hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
 		      struct hl_mmap_mem_buf_behavior *behavior, gfp_t gfp,
 		      void *args);
 __printf(2, 3) void hl_engine_data_sprintf(struct engines_data *e, const char *fmt, ...);
+void hl_capture_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_of_engines,
+			u8 flags);
+void hl_handle_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_of_engines,
+			u8 flags, u64 *event_mask);
+void hl_capture_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_pmmu);
+void hl_handle_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_pmmu,
+				u64 *event_mask);
 
 #ifdef CONFIG_DEBUG_FS
 

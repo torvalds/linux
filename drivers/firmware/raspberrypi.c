@@ -288,9 +288,11 @@ static int rpi_firmware_probe(struct platform_device *pdev)
 	fw->cl.tx_block = true;
 
 	fw->chan = mbox_request_channel(&fw->cl, 0);
-	if (IS_ERR(fw->chan))
-		return dev_err_probe(dev, PTR_ERR(fw->chan),
-				     "Failed to get mbox channel\n");
+	if (IS_ERR(fw->chan)) {
+		int ret = PTR_ERR(fw->chan);
+		kfree(fw);
+		return dev_err_probe(dev, ret, "Failed to get mbox channel\n");
+	}
 
 	init_completion(&fw->c);
 	kref_init(&fw->consumers);
