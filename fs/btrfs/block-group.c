@@ -665,7 +665,7 @@ static int load_block_group_size_class(struct btrfs_caching_control *caching_ctl
 	enum btrfs_block_group_size_class size_class = BTRFS_BG_SZ_NONE;
 	int ret;
 
-	if (!btrfs_is_block_group_data_only(block_group))
+	if (!btrfs_block_group_should_use_size_class(block_group))
 		return 0;
 
 	for (i = 0; i < 5; ++i) {
@@ -3597,7 +3597,7 @@ int btrfs_add_reserved_bytes(struct btrfs_block_group *cache,
 		goto out;
 	}
 
-	if (btrfs_is_block_group_data_only(cache)) {
+	if (btrfs_block_group_should_use_size_class(cache)) {
 		size_class = btrfs_calc_block_group_size_class(num_bytes);
 		ret = btrfs_use_block_group_size_class(cache, size_class, force_wrong_size_class);
 		if (ret)
@@ -4438,4 +4438,13 @@ int btrfs_use_block_group_size_class(struct btrfs_block_group *bg,
 	bg->size_class = size_class;
 
 	return 0;
+}
+
+bool btrfs_block_group_should_use_size_class(struct btrfs_block_group *bg)
+{
+	if (btrfs_is_zoned(bg->fs_info))
+		return false;
+	if (!btrfs_is_block_group_data_only(bg))
+		return false;
+	return true;
 }

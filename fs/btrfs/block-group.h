@@ -363,5 +363,6 @@ enum btrfs_block_group_size_class btrfs_calc_block_group_size_class(u64 size);
 int btrfs_use_block_group_size_class(struct btrfs_block_group *bg,
 				     enum btrfs_block_group_size_class size_class,
 				     bool force_wrong_size_class);
+bool btrfs_block_group_should_use_size_class(struct btrfs_block_group *bg);
 
 #endif /* BTRFS_BLOCK_GROUP_H */

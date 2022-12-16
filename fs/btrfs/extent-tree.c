@@ -4064,7 +4064,7 @@ static bool find_free_extent_check_size_class(struct find_free_extent_ctl *ffe_c
 {
 	if (ffe_ctl->policy == BTRFS_EXTENT_ALLOC_ZONED)
 		return true;
-	if (!btrfs_is_block_group_data_only(bg))
+	if (!btrfs_block_group_should_use_size_class(bg))
 		return true;
 	if (ffe_ctl->loop >= LOOP_WRONG_SIZE_CLASS)
 		return true;
