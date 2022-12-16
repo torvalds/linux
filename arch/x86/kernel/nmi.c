@@ -69,6 +69,15 @@ struct nmi_stats {
 	unsigned int unknown;
 	unsigned int external;
 	unsigned int swallow;
+	unsigned long recv_jiffies;
+	unsigned long idt_seq;
+	unsigned long idt_nmi_seq;
+	unsigned long idt_ignored;
+	atomic_long_t idt_calls;
+	unsigned long idt_seq_snap;
+	unsigned long idt_nmi_seq_snap;
+	unsigned long idt_ignored_snap;
+	long idt_calls_snap;
 };
 
 static DEFINE_PER_CPU(struct nmi_stats, nmi_stats);
@@ -479,12 +488,15 @@ static DEFINE_PER_CPU(unsigned long, nmi_dr7);
 DEFINE_IDTENTRY_RAW(exc_nmi)
 {
 	irqentry_state_t irq_state;
+	struct nmi_stats *nsp = this_cpu_ptr(&nmi_stats);
 
 	/*
 	 * Re-enable NMIs right here when running as an SEV-ES guest. This might
 	 * cause nested NMIs, but those can be handled safely.
 	 */
 	sev_es_nmi_complete();
+	if (IS_ENABLED(CONFIG_NMI_CHECK_CPU))
+		arch_atomic_long_inc(&nsp->idt_calls);
 
 	if (IS_ENABLED(CONFIG_SMP) && arch_cpu_is_offline(smp_processor_id()))
 		return;
@@ -495,6 +507,11 @@ DEFINE_IDTENTRY_RAW(exc_nmi)
 	}
 	this_cpu_write(nmi_state, NMI_EXECUTING);
 	this_cpu_write(nmi_cr2, read_cr2());
+	if (IS_ENABLED(CONFIG_NMI_CHECK_CPU)) {
+		WRITE_ONCE(nsp->idt_seq, nsp->idt_seq + 1);
+		WARN_ON_ONCE(!(nsp->idt_seq & 0x1));
+		WRITE_ONCE(nsp->recv_jiffies, jiffies);
+	}
 nmi_restart:
 
 	/*
@@ -509,8 +526,19 @@ nmi_restart:
 
 	inc_irq_stat(__nmi_count);
 
-	if (!ignore_nmis)
+	if (IS_ENABLED(CONFIG_NMI_CHECK_CPU) && ignore_nmis) {
+		WRITE_ONCE(nsp->idt_ignored, nsp->idt_ignored + 1);
+	} else if (!ignore_nmis) {
+		if (IS_ENABLED(CONFIG_NMI_CHECK_CPU)) {
+			WRITE_ONCE(nsp->idt_nmi_seq, nsp->idt_nmi_seq + 1);
+			WARN_ON_ONCE(!(nsp->idt_nmi_seq & 0x1));
+		}
 		default_do_nmi(regs);
+		if (IS_ENABLED(CONFIG_NMI_CHECK_CPU)) {
+			WRITE_ONCE(nsp->idt_nmi_seq, nsp->idt_nmi_seq + 1);
+			WARN_ON_ONCE(nsp->idt_nmi_seq & 0x1);
+		}
+	}
 
 	irqentry_nmi_exit(regs, irq_state);
 
@@ -525,6 +553,11 @@ nmi_restart:
 
 	if (user_mode(regs))
 		mds_user_clear_cpu_buffers();
+	if (IS_ENABLED(CONFIG_NMI_CHECK_CPU)) {
+		WRITE_ONCE(nsp->idt_seq, nsp->idt_seq + 1);
+		WARN_ON_ONCE(nsp->idt_seq & 0x1);
+		WRITE_ONCE(nsp->recv_jiffies, jiffies);
+	}
 }
 
 #if defined(CONFIG_X86_64) && IS_ENABLED(CONFIG_KVM_INTEL)
