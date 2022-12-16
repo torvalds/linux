@@ -147,11 +147,36 @@
 	};
 };
 
+&gpi_dma0 {
+	status = "okay";
+};
+
 &hsusb_phy1 {
 	vdd-supply = <&pm6125_l7>;
 	vdda-pll-supply = <&pm6125_l10>;
 	vdda-phy-dpdm-supply = <&pm6125_l15>;
 	status = "okay";
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	/* NXP PN553 NFC @ 28 */
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	/* Samsung touchscreen @ 48 */
+};
+
+&i2c3 {
+	clock-frequency = <1000000>;
+	status = "okay";
+
+	/* Cirrus Logic CS35L41 boosted audio amplifier @ 40 */
 };
 
 &pm6125_adc {
@@ -396,6 +421,10 @@
 			regulator-allow-set-load;
 		};
 	};
+};
+
+&qupv3_id_0 {
+	status = "okay";
 };
 
 &sdc2_off_state {
