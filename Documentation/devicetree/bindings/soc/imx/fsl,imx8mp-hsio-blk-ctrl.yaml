@@ -39,6 +39,9 @@ properties:
       - const: pcie
       - const: pcie-phy
 
+  '#clock-cells':
+    const: 0
+
   clocks:
     minItems: 2
     maxItems: 2
@@ -85,4 +88,5 @@ examples:
         power-domain-names = "bus", "usb", "usb-phy1",
                              "usb-phy2", "pcie", "pcie-phy";
         #power-domain-cells = <1>;
+        #clock-cells = <0>;
     };
