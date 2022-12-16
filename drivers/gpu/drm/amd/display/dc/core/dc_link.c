@@ -33,8 +33,8 @@
 #include "gpio_service_interface.h"
 #include "core_status.h"
 #include "dc_link_dp.h"
-#include "link/link_dp_dpia.h"
-#include "link/link_ddc.h"
+#include "link/protocols/link_dp_dpia.h"
+#include "link/protocols/link_ddc.h"
 #include "link_hwss.h"
 #include "link.h"
 #include "opp.h"
@@ -51,12 +51,12 @@
 #include "dmub/dmub_srv.h"
 #include "inc/hw/panel_cntl.h"
 #include "inc/link_enc_cfg.h"
-#include "link/link_dpcd.h"
-#include "link/link_dp_trace.h"
-#include "link/link_hpd.h"
-#include "link/link_dp_training.h"
-#include "link/link_dp_phy.h"
-#include "link/link_dp_capability.h"
+#include "link/protocols/link_dpcd.h"
+#include "link/accessories/link_dp_trace.h"
+#include "link/protocols/link_hpd.h"
+#include "link/protocols/link_dp_training.h"
+#include "link/protocols/link_dp_phy.h"
+#include "link/protocols/link_dp_capability.h"
 
 #include "dc/dcn30/dcn30_vpg.h"
 
@@ -4567,7 +4567,7 @@ void dc_link_set_drive_settings(struct dc *dc,
 		ASSERT_CRITICAL(false);
 
 	dc_link_get_cur_link_res(link, &link_res);
-	dc_link_dp_set_drive_settings(dc->links[i], &link_res, lt_settings);
+	dp_set_drive_settings(dc->links[i], &link_res, lt_settings);
 }
 
 void dc_link_set_preferred_link_settings(struct dc *dc,

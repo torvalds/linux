@@ -39,7 +39,7 @@
 #include "link_dpcd.h"
 #include "link_dp_dpia.h"
 #include "link_dp_phy.h"
-#include "link_dp_trace.h"
+#include "link/accessories/link_dp_trace.h"
 #include "link_dp_training.h"
 #include "atomfirmware.h"
 #include "resource.h"

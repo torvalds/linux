@@ -23,44 +23,34 @@
  *
  */
 
-#ifndef __DC_LINK_DP_CAPABILITY_H__
-#define __DC_LINK_DP_CAPABILITY_H__
+#ifndef __DC_LINK_DP_PHY_H__
+#define __DC_LINK_DP_PHY_H__
 
 #include "link.h"
+void dp_enable_link_phy(
+	struct dc_link *link,
+	const struct link_resource *link_res,
+	enum signal_type signal,
+	enum clock_source_id clock_source,
+	const struct dc_link_settings *link_settings);
 
-bool detect_dp_sink_caps(struct dc_link *link);
+void dp_disable_link_phy(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal);
 
-void detect_edp_sink_caps(struct dc_link *link);
+void dp_disable_link_phy_mst(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal);
 
-struct dc_link_settings dp_get_max_link_cap(struct dc_link *link);
-
-
-enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link);
-
-/* Convert PHY repeater count read from DPCD uint8_t. */
-uint8_t dp_parse_lttpr_repeater_count(uint8_t lttpr_repeater_count);
-
-bool dp_is_lttpr_present(struct dc_link *link);
-
-bool is_dp_active_dongle(const struct dc_link *link);
-
-bool is_dp_branch_device(const struct dc_link *link);
-
-bool decide_edp_link_settings_with_dsc(struct dc_link *link,
-		struct dc_link_settings *link_setting,
-		uint32_t req_bw,
-		enum dc_link_rate max_link_rate);
-
-void dpcd_set_source_specific_data(struct dc_link *link);
-
-/*query dpcd for version and mst cap addresses*/
-bool read_is_mst_supported(struct dc_link *link);
-
-bool decide_fallback_link_setting(
+void dp_set_hw_lane_settings(
 		struct dc_link *link,
-		struct dc_link_settings *max,
-		struct dc_link_settings *cur,
-		enum link_training_result training_result);
+		const struct link_resource *link_res,
+		const struct link_training_settings *link_settings,
+		uint32_t offset);
 
+void dp_set_drive_settings(
+	struct dc_link *link,
+	const struct link_resource *link_res,
+	struct link_training_settings *lt_settings);
 
-#endif /* __DC_LINK_DP_CAPABILITY_H__ */
+#endif /* __DC_LINK_DP_PHY_H__ */

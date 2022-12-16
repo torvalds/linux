@@ -89,4 +89,9 @@ bool link_decide_link_settings(
 	struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting);
 
+void link_dp_trace_set_edp_power_timestamp(struct dc_link *link,
+		bool power_up);
+uint64_t link_dp_trace_get_edp_poweron_timestamp(struct dc_link *link);
+uint64_t link_dp_trace_get_edp_poweroff_timestamp(struct dc_link *link);
+
 #endif /* __DC_LINK_HPD_H__ */

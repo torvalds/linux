@@ -37,7 +37,7 @@
 #include "link_dp_training_dpia.h"
 #include "link_dp_training_fixed_vs_pe_retimer.h"
 #include "link_dpcd.h"
-#include "link_dp_trace.h"
+#include "link/accessories/link_dp_trace.h"
 #include "link_dp_phy.h"
 #include "link_dp_capability.h"
 #include "dc_link_dp.h"
@@ -1389,7 +1389,7 @@ static bool perform_post_lt_adj_req_sequence(
 				dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
 						lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 
-				dc_link_dp_set_drive_settings(link,
+				dp_set_drive_settings(link,
 						link_res,
 						lt_settings);
 				break;

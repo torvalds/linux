@@ -31,27 +31,27 @@
 
 #include "inc/core_types.h"
 #include "link_hwss.h"
-#include "link/link_ddc.h"
+#include "link/protocols/link_ddc.h"
 #include "core_status.h"
 #include "dpcd_defs.h"
 
 #include "dc_dmub_srv.h"
 #include "dce/dmub_hw_lock_mgr.h"
-#include "link/link_dp_dpia.h"
+#include "link/protocols/link_dp_dpia.h"
 #include "inc/link_enc_cfg.h"
 #include "clk_mgr.h"
-#include "link/link_dp_trace.h"
-#include "link/link_dp_training.h"
-#include "link/link_dp_training_fixed_vs_pe_retimer.h"
-#include "link/link_dp_training_dpia.h"
-#include "link/link_dp_training_auxless.h"
-#include "link/link_dp_phy.h"
-#include "link/link_dp_capability.h"
+#include "link/accessories/link_dp_trace.h"
+#include "link/protocols/link_dp_training.h"
+#include "link/protocols/link_dp_training_fixed_vs_pe_retimer.h"
+#include "link/protocols/link_dp_training_dpia.h"
+#include "link/protocols/link_dp_training_auxless.h"
+#include "link/protocols/link_dp_phy.h"
+#include "link/protocols/link_dp_capability.h"
 #define DC_LOGGER \
 	link->ctx->logger
 
 #define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
-#include "link/link_dpcd.h"
+#include "link/protocols/link_dpcd.h"
 
 static uint8_t get_nibble_at_index(const uint8_t *buf,
 	uint32_t index)

@@ -47,12 +47,6 @@ enum {
 	PEAK_FACTOR_X1000 = 1006,
 };
 
-
-bool dp_verify_link_cap_with_retries(
-	struct dc_link *link,
-	struct dc_link_settings *known_limit_link_setting,
-	int attempts);
-
 bool dp_validate_mode_timing(
 	struct dc_link *link,
 	const struct dc_crtc_timing *timing);
@@ -70,8 +64,6 @@ void dp_enable_mst_on_sink(struct dc_link *link, bool enable);
 enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
 
-void dpcd_write_cable_id_to_dprx(struct dc_link *link);
-
 enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource *link_res, bool ready);
 void dp_set_fec_enable(struct dc_link *link, bool enable);
 bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable);
@@ -79,12 +71,6 @@ bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable, bool immediate_u
 void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable);
 bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx);
 bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable);
-
-/* Initialize output parameter lt_settings. */
-void dp_decide_training_settings(
-	struct dc_link *link,
-	const struct dc_link_settings *link_setting,
-	struct link_training_settings *lt_settings);
 
 bool dpcd_write_128b_132b_sst_payload_allocation_table(
 		const struct dc_stream_state *stream,
@@ -97,12 +83,6 @@ bool dpcd_poll_for_allocation_change_trigger(struct dc_link *link);
 struct fixed31_32 calculate_sst_avg_time_slots_per_mtp(
 		const struct dc_stream_state *stream,
 		const struct dc_link *link);
-void enable_dp_hpo_output(struct dc_link *link,
-		const struct link_resource *link_res,
-		const struct dc_link_settings *link_settings);
-void disable_dp_hpo_output(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal);
 void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable);
 void edp_panel_backlight_power_on(struct dc_link *link, bool wait_for_hpd);
 void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode);
