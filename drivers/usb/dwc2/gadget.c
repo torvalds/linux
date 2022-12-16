@@ -4549,7 +4549,8 @@ static int dwc2_hsotg_udc_start(struct usb_gadget *gadget,
 	hsotg->gadget.dev.of_node = hsotg->dev->of_node;
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 
-	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) {
+	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL ||
+	    (hsotg->dr_mode == USB_DR_MODE_OTG && dwc2_is_device_mode(hsotg))) {
 		ret = dwc2_lowlevel_hw_enable(hsotg);
 		if (ret)
 			goto err;
@@ -4611,7 +4612,8 @@ static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
 	if (!IS_ERR_OR_NULL(hsotg->uphy))
 		otg_set_peripheral(hsotg->uphy->otg, NULL);
 
-	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
+	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL ||
+	    (hsotg->dr_mode == USB_DR_MODE_OTG && dwc2_is_device_mode(hsotg)))
 		dwc2_lowlevel_hw_disable(hsotg);
 
 	return 0;

@@ -39,8 +39,8 @@
 #include <asm/irq.h>
 #include <asm/unaligned.h>
 
-#define DRIVER_AUTHOR "Yuan-Hsin Chen"
-#define DRIVER_DESC "FOTG210 Host Controller (EHCI) Driver"
+#include "fotg210.h"
+
 static const char hcd_name[] = "fotg210_hcd";
 
 #undef FOTG210_URB_TRACE
@@ -77,7 +77,7 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 
 #define INTR_MASK (STS_IAA | STS_FATAL | STS_PCD | STS_ERR | STS_INT)
 
-#include "fotg210.h"
+#include "fotg210-hcd.h"
 
 #define fotg210_dbg(fotg210, fmt, args...) \
 	dev_dbg(fotg210_to_hcd(fotg210)->self.controller, fmt, ## args)
@@ -5490,9 +5490,6 @@ static int fotg210_get_frame(struct usb_hcd *hcd)
  * functions  and in order to facilitate role switching we cannot
  * give the fotg210 driver exclusive access to those.
  */
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_LICENSE("GPL");
 
 static const struct hc_driver fotg210_fotg210_hc_driver = {
 	.description		= hcd_name,
@@ -5560,7 +5557,7 @@ static void fotg210_init(struct fotg210_hcd *fotg210)
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
  */
-static int fotg210_hcd_probe(struct platform_device *pdev)
+int fotg210_hcd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct usb_hcd *hcd;
@@ -5652,7 +5649,7 @@ fail_create_hcd:
  * @dev: USB Host Controller being removed
  *
  */
-static int fotg210_hcd_remove(struct platform_device *pdev)
+int fotg210_hcd_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct fotg210_hcd *fotg210 = hcd_to_fotg210(hcd);
@@ -5668,27 +5665,8 @@ static int fotg210_hcd_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
-static const struct of_device_id fotg210_of_match[] = {
-	{ .compatible = "faraday,fotg210" },
-	{},
-};
-MODULE_DEVICE_TABLE(of, fotg210_of_match);
-#endif
-
-static struct platform_driver fotg210_hcd_driver = {
-	.driver = {
-		.name   = "fotg210-hcd",
-		.of_match_table = of_match_ptr(fotg210_of_match),
-	},
-	.probe  = fotg210_hcd_probe,
-	.remove = fotg210_hcd_remove,
-};
-
-static int __init fotg210_hcd_init(void)
+int __init fotg210_hcd_init(void)
 {
-	int retval = 0;
-
 	if (usb_disabled())
 		return -ENODEV;
 
@@ -5704,24 +5682,11 @@ static int __init fotg210_hcd_init(void)
 
 	fotg210_debug_root = debugfs_create_dir("fotg210", usb_debug_root);
 
-	retval = platform_driver_register(&fotg210_hcd_driver);
-	if (retval < 0)
-		goto clean;
-	return retval;
-
-clean:
-	debugfs_remove(fotg210_debug_root);
-	fotg210_debug_root = NULL;
-
-	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
-	return retval;
+	return 0;
 }
-module_init(fotg210_hcd_init);
 
-static void __exit fotg210_hcd_cleanup(void)
+void __exit fotg210_hcd_cleanup(void)
 {
-	platform_driver_unregister(&fotg210_hcd_driver);
 	debugfs_remove(fotg210_debug_root);
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 }
-module_exit(fotg210_hcd_cleanup);
