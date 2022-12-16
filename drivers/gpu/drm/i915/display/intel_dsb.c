@@ -97,7 +97,7 @@ void intel_dsb_indexed_reg_write(struct intel_dsb *dsb,
 	u32 *buf = dsb->cmd_buf;
 	u32 reg_val;
 
-	if (drm_WARN_ON(&dev_priv->drm, dsb->free_pos >= DSB_BUF_SIZE)) {
+	if (drm_WARN_ON(&dev_priv->drm, ALIGN(dsb->free_pos, 2) > DSB_BUF_SIZE / 4 - 2)) {
 		drm_dbg_kms(&dev_priv->drm, "DSB buffer overflow\n");
 		return;
 	}
@@ -167,7 +167,7 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 *buf = dsb->cmd_buf;
 
-	if (drm_WARN_ON(&dev_priv->drm, dsb->free_pos >= DSB_BUF_SIZE)) {
+	if (drm_WARN_ON(&dev_priv->drm, ALIGN(dsb->free_pos, 2) > DSB_BUF_SIZE / 4 - 2)) {
 		drm_dbg_kms(&dev_priv->drm, "DSB buffer overflow\n");
 		return;
 	}
