@@ -690,7 +690,8 @@ static int update_usable_mem_fdt(void *fdt, struct crash_mem *usable_mem)
 		ret = fdt_setprop(fdt, node, "linux,drconf-usable-memory",
 				  um_info.buf, (um_info.idx * sizeof(u64)));
 		if (ret) {
-			pr_err("Failed to update fdt with linux,drconf-usable-memory property");
+			pr_err("Failed to update fdt with linux,drconf-usable-memory property: %s",
+			       fdt_strerror(ret));
 			goto out;
 		}
 	}
