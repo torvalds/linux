@@ -165,7 +165,8 @@ static bool msi_ctrl_valid(struct device *dev, struct msi_ctrl *ctrl)
 	unsigned int hwsize;
 
 	if (WARN_ON_ONCE(ctrl->domid >= MSI_MAX_DEVICE_IRQDOMAINS ||
-			 !dev->msi.data->__domains[ctrl->domid].domain))
+			 (dev->msi.domain &&
+			  !dev->msi.data->__domains[ctrl->domid].domain)))
 		return false;
 
 	hwsize = msi_domain_get_hwsize(dev, ctrl->domid);
