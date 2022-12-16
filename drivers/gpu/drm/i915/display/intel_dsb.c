@@ -102,6 +102,23 @@ static void intel_dsb_emit(struct intel_dsb *dsb, u32 ldw, u32 udw)
 	buf[dsb->free_pos++] = udw;
 }
 
+static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
+					u32 opcode, i915_reg_t reg)
+{
+	const u32 *buf = dsb->cmd_buf;
+	u32 prev_opcode, prev_reg;
+
+	prev_opcode = buf[dsb->ins_start_offset + 1] >> DSB_OPCODE_SHIFT;
+	prev_reg = buf[dsb->ins_start_offset + 1] & DSB_REG_VALUE_MASK;
+
+	return prev_opcode == opcode && prev_reg == i915_mmio_reg_offset(reg);
+}
+
+static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_t reg)
+{
+	return intel_dsb_prev_ins_is_write(dsb, DSB_OPCODE_INDEXED_WRITE, reg);
+}
+
 /**
  * intel_dsb_indexed_reg_write() -Write to the DSB context for auto
  * increment register.
@@ -119,7 +136,6 @@ void intel_dsb_indexed_reg_write(struct intel_dsb *dsb,
 				 i915_reg_t reg, u32 val)
 {
 	u32 *buf = dsb->cmd_buf;
-	u32 reg_val;
 
 	if (!assert_dsb_has_room(dsb))
 		return;
@@ -140,8 +156,7 @@ void intel_dsb_indexed_reg_write(struct intel_dsb *dsb,
 	 * we are writing odd no of dwords, Zeros will be added in the end for
 	 * padding.
 	 */
-	reg_val = buf[dsb->ins_start_offset + 1] & DSB_REG_VALUE_MASK;
-	if (reg_val != i915_mmio_reg_offset(reg)) {
+	if (!intel_dsb_prev_ins_is_indexed_write(dsb, reg)) {
 		/* Every instruction should be 8 byte aligned. */
 		dsb->free_pos = ALIGN(dsb->free_pos, 2);
 
