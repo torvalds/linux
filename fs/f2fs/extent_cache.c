@@ -881,7 +881,8 @@ static unsigned long long __calculate_block_age(unsigned long long new,
 }
 
 /* This returns a new age and allocated blocks in ei */
-static int __get_new_block_age(struct inode *inode, struct extent_info *ei)
+static int __get_new_block_age(struct inode *inode, struct extent_info *ei,
+						block_t blkaddr)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	loff_t f_size = i_size_read(inode);
@@ -894,7 +895,7 @@ static int __get_new_block_age(struct inode *inode, struct extent_info *ei)
 	 * block here.
 	 */
 	if ((f_size >> PAGE_SHIFT) == ei->fofs && f_size & (PAGE_SIZE - 1) &&
-			ei->blk == NEW_ADDR)
+			blkaddr == NEW_ADDR)
 		return -EINVAL;
 
 	if (__lookup_extent_tree(inode, ei->fofs, ei, EX_BLOCK_AGE)) {
@@ -915,14 +916,14 @@ static int __get_new_block_age(struct inode *inode, struct extent_info *ei)
 		return 0;
 	}
 
-	f2fs_bug_on(sbi, ei->blk == NULL_ADDR);
+	f2fs_bug_on(sbi, blkaddr == NULL_ADDR);
 
 	/* the data block was allocated for the first time */
-	if (ei->blk == NEW_ADDR)
+	if (blkaddr == NEW_ADDR)
 		goto out;
 
-	if (__is_valid_data_blkaddr(ei->blk) &&
-			!f2fs_is_valid_blkaddr(sbi, ei->blk, DATA_GENERIC_ENHANCE)) {
+	if (__is_valid_data_blkaddr(blkaddr) &&
+	    !f2fs_is_valid_blkaddr(sbi, blkaddr, DATA_GENERIC_ENHANCE)) {
 		f2fs_bug_on(sbi, 1);
 		return -EINVAL;
 	}
@@ -953,8 +954,7 @@ static void __update_extent_cache(struct dnode_of_data *dn, enum extent_type typ
 		else
 			ei.blk = dn->data_blkaddr;
 	} else if (type == EX_BLOCK_AGE) {
-		ei.blk = dn->data_blkaddr;
-		if (__get_new_block_age(dn->inode, &ei))
+		if (__get_new_block_age(dn->inode, &ei, dn->data_blkaddr))
 			return;
 	}
 	__update_extent_tree_range(dn->inode, &ei, type);
