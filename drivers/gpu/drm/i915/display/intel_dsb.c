@@ -187,6 +187,22 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 	}
 }
 
+static u32 intel_dsb_align_tail(struct intel_dsb *dsb)
+{
+	u32 aligned_tail, tail;
+
+	tail = dsb->free_pos * 4;
+	aligned_tail = ALIGN(tail, CACHELINE_BYTES);
+
+	if (aligned_tail > tail)
+		memset(&dsb->cmd_buf[dsb->free_pos], 0,
+		       aligned_tail - tail);
+
+	dsb->free_pos = aligned_tail / 4;
+
+	return aligned_tail;
+}
+
 /**
  * intel_dsb_commit() - Trigger workload execution of DSB.
  * @dsb: DSB context
@@ -200,13 +216,9 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 	enum pipe pipe = crtc->pipe;
 	u32 tail;
 
-	if (!(dsb && dsb->free_pos))
+	tail = intel_dsb_align_tail(dsb);
+	if (tail == 0)
 		return;
-
-	tail = ALIGN(dsb->free_pos * 4, CACHELINE_BYTES);
-	if (tail > dsb->free_pos * 4)
-		memset(&dsb->cmd_buf[dsb->free_pos], 0,
-		       (tail - dsb->free_pos * 4));
 
 	if (is_dsb_busy(dev_priv, pipe, dsb->id)) {
 		drm_err(&dev_priv->drm, "DSB engine is busy.\n");
