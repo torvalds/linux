@@ -76,34 +76,6 @@ static bool is_dsb_busy(struct drm_i915_private *i915, enum pipe pipe,
 	return intel_de_read(i915, DSB_CTRL(pipe, id)) & DSB_STATUS_BUSY;
 }
 
-static bool intel_dsb_enable_engine(struct drm_i915_private *i915,
-				    enum pipe pipe, enum dsb_id id)
-{
-	if (is_dsb_busy(i915, pipe, id)) {
-		drm_dbg_kms(&i915->drm, "DSB engine is busy.\n");
-		return false;
-	}
-
-	intel_de_write(i915, DSB_CTRL(pipe, id), DSB_ENABLE);
-	intel_de_posting_read(i915, DSB_CTRL(pipe, id));
-
-	return true;
-}
-
-static bool intel_dsb_disable_engine(struct drm_i915_private *i915,
-				     enum pipe pipe, enum dsb_id id)
-{
-	if (is_dsb_busy(i915, pipe, id)) {
-		drm_dbg_kms(&i915->drm, "DSB engine is busy.\n");
-		return false;
-	}
-
-	intel_de_write(i915, DSB_CTRL(pipe, id), 0);
-	intel_de_posting_read(i915, DSB_CTRL(pipe, id));
-
-	return true;
-}
-
 /**
  * intel_dsb_indexed_reg_write() -Write to the DSB context for auto
  * increment register.
@@ -223,42 +195,36 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 	if (!(dsb && dsb->free_pos))
 		return;
 
-	if (!intel_dsb_enable_engine(dev_priv, pipe, dsb->id))
-		goto reset;
-
-	if (is_dsb_busy(dev_priv, pipe, dsb->id)) {
-		drm_err(&dev_priv->drm,
-			"HEAD_PTR write failed - dsb engine is busy.\n");
-		goto reset;
-	}
-	intel_de_write(dev_priv, DSB_HEAD(pipe, dsb->id),
-		       i915_ggtt_offset(dsb->vma));
-
 	tail = ALIGN(dsb->free_pos * 4, CACHELINE_BYTES);
 	if (tail > dsb->free_pos * 4)
 		memset(&dsb->cmd_buf[dsb->free_pos], 0,
 		       (tail - dsb->free_pos * 4));
 
 	if (is_dsb_busy(dev_priv, pipe, dsb->id)) {
-		drm_err(&dev_priv->drm,
-			"TAIL_PTR write failed - dsb engine is busy.\n");
+		drm_err(&dev_priv->drm, "DSB engine is busy.\n");
 		goto reset;
 	}
-	drm_dbg_kms(&dev_priv->drm,
-		    "DSB execution started - head 0x%x, tail 0x%x\n",
-		    i915_ggtt_offset(dsb->vma), tail);
+
+	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id),
+		       DSB_ENABLE);
+	intel_de_write(dev_priv, DSB_HEAD(pipe, dsb->id),
+		       i915_ggtt_offset(dsb->vma));
 	intel_de_write(dev_priv, DSB_TAIL(pipe, dsb->id),
 		       i915_ggtt_offset(dsb->vma) + tail);
-	if (wait_for(!is_dsb_busy(dev_priv, pipe, dsb->id), 1)) {
+
+	drm_dbg_kms(&dev_priv->drm,
+		    "DSB execution started - head 0x%x, tail 0x%x\n",
+		    i915_ggtt_offset(dsb->vma),
+		    i915_ggtt_offset(dsb->vma) + tail);
+
+	if (wait_for(!is_dsb_busy(dev_priv, pipe, dsb->id), 1))
 		drm_err(&dev_priv->drm,
 			"Timed out waiting for DSB workload completion.\n");
-		goto reset;
-	}
 
 reset:
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
-	intel_dsb_disable_engine(dev_priv, pipe, dsb->id);
+	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id), 0);
 }
 
 /**
