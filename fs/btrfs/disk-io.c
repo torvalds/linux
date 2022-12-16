@@ -717,6 +717,10 @@ static void run_one_async_start(struct btrfs_work *work)
 		ret = btrfs_submit_bio_start_direct_io(async->inode,
 				async->bio, async->dio_file_offset);
 		break;
+	default:
+		/* Can't happen so return something that would prevent the IO. */
+		ret = BLK_STS_IOERR;
+		ASSERT(0);
 	}
 	if (ret)
 		async->status = ret;
