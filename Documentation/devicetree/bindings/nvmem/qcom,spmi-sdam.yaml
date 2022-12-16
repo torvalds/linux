@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/qcom,spmi-sdam.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. SPMI SDAM DT bindings
+title: Qualcomm Technologies, Inc. SPMI SDAM
 
 maintainers:
   - Shyam Kumar Thella <sthella@codeaurora.org>

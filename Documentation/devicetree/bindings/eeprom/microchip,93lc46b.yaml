@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/eeprom/microchip,93lc46b.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip 93xx46 SPI compatible EEPROM family dt bindings
+title: Microchip 93xx46 SPI compatible EEPROM family
 
 maintainers:
   - Cory Tusar <cory.tusar@pid1solutions.com>

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/dma/ingenic,dma.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs DMA Controller DT bindings
+title: Ingenic SoCs DMA Controller
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>
