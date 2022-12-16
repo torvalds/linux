@@ -789,7 +789,7 @@ static struct dm_table *dm_get_inactive_table(struct mapped_device *md, int *src
 
 	down_read(&_hash_lock);
 	hc = dm_get_mdptr(md);
-	if (!hc || hc->md != md) {
+	if (!hc) {
 		DMERR("device has been removed from the dev hash table.");
 		goto out;
 	}
@@ -1500,7 +1500,7 @@ static int table_load(struct file *filp, struct dm_ioctl *param, size_t param_si
 	/* stage inactive table */
 	down_write(&_hash_lock);
 	hc = dm_get_mdptr(md);
-	if (!hc || hc->md != md) {
+	if (!hc) {
 		DMERR("device has been removed from the dev hash table.");
 		up_write(&_hash_lock);
 		r = -ENXIO;
@@ -2152,7 +2152,7 @@ int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid)
 
 	mutex_lock(&dm_hash_cells_mutex);
 	hc = dm_get_mdptr(md);
-	if (!hc || hc->md != md) {
+	if (!hc) {
 		r = -ENXIO;
 		goto out;
 	}
