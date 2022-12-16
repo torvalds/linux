@@ -619,6 +619,8 @@ process migrations.
 and is an example of this type.
 
 
+.. _cgroupv2-limits-distributor:
+
 Limits
 ------
 
@@ -635,6 +637,7 @@ process migrations.
 "io.max" limits the maximum BPS and/or IOPS that a cgroup can consume
 on an IO device and is an example of this type.
 
+.. _cgroupv2-protections-distributor:
 
 Protections
 -----------
