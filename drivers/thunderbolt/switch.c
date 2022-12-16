@@ -723,7 +723,7 @@ static int tb_init_port(struct tb_port *port)
 		 * can be read from the path config space. Legacy
 		 * devices we use hard-coded value.
 		 */
-		if (tb_switch_is_usb4(port->sw)) {
+		if (port->cap_usb4) {
 			struct tb_regs_hop hop;
 
 			if (!tb_port_read(port, &hop, TB_CFG_HOPS, 0, 2))
