@@ -67,8 +67,16 @@ struct intel_dsb {
 
 /* DSB opcodes. */
 #define DSB_OPCODE_SHIFT		24
+#define DSB_OPCODE_NOOP			0x0
 #define DSB_OPCODE_MMIO_WRITE		0x1
+#define DSB_OPCODE_WAIT_USEC		0x2
+#define DSB_OPCODE_WAIT_LINES		0x3
+#define DSB_OPCODE_WAIT_VBLANKS		0x4
+#define DSB_OPCODE_WAIT_DSL_IN		0x5
+#define DSB_OPCODE_WAIT_DSL_OUT		0x6
+#define DSB_OPCODE_INTERRUPT		0x7
 #define DSB_OPCODE_INDEXED_WRITE	0x9
+#define DSB_OPCODE_POLL			0xA
 #define DSB_BYTE_EN			0xF
 #define DSB_BYTE_EN_SHIFT		20
 #define DSB_REG_VALUE_MASK		0xfffff
