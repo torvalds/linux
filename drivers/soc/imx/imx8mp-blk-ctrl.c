@@ -60,6 +60,7 @@ struct imx8mp_blk_ctrl_domain {
 
 struct imx8mp_blk_ctrl_data {
 	int max_reg;
+	int (*probe) (struct imx8mp_blk_ctrl *bc);
 	notifier_fn_t power_notifier_fn;
 	void (*power_off) (struct imx8mp_blk_ctrl *bc, struct imx8mp_blk_ctrl_domain *domain);
 	void (*power_on) (struct imx8mp_blk_ctrl *bc, struct imx8mp_blk_ctrl_domain *domain);
@@ -632,6 +633,12 @@ static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err_probe(dev, ret, "failed to add power notifier\n");
 		goto cleanup_provider;
+	}
+
+	if (bc_data->probe) {
+		ret = bc_data->probe(bc);
+		if (ret)
+			goto cleanup_provider;
 	}
 
 	dev_set_drvdata(dev, bc);
