@@ -32,6 +32,7 @@ config IMX8M_BLK_CTRL
 	bool
 	default SOC_IMX8M && IMX_GPCV2_PM_DOMAINS
 	depends on PM_GENERIC_DOMAINS
+	depends on COMMON_CLK
 
 config IMX9_BLK_CTRL
 	bool
