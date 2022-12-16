@@ -406,7 +406,7 @@ tc358746_apply_pll_config(struct tc358746 *tc358746)
 
 	val = PLL_FRS(ilog2(post)) | RESETB | PLL_EN;
 	mask = PLL_FRS_MASK | RESETB | PLL_EN;
-	tc358746_update_bits(tc358746, PLLCTL1_REG, mask, val);
+	err = tc358746_update_bits(tc358746, PLLCTL1_REG, mask, val);
 	if (err)
 		return err;
 
