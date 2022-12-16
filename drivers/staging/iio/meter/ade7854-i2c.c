@@ -109,8 +109,7 @@ unlock:
 	return ret;
 }
 
-static int ade7854_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int ade7854_i2c_probe(struct i2c_client *client)
 {
 	struct ade7854_state *st;
 	struct iio_dev *indio_dev;
@@ -141,7 +140,7 @@ static struct i2c_driver ade7854_i2c_driver = {
 	.driver = {
 		.name = "ade7854",
 	},
-	.probe    = ade7854_i2c_probe,
+	.probe_new = ade7854_i2c_probe,
 	.id_table = ade7854_id,
 };
 module_i2c_driver(ade7854_i2c_driver);
