@@ -178,7 +178,6 @@ static int text_area_cpu_up_mm(unsigned int cpu)
 
 	this_cpu_write(cpu_patching_context.mm, mm);
 	this_cpu_write(cpu_patching_context.addr, addr);
-	this_cpu_write(cpu_patching_context.pte, pte);
 
 	return 0;
 
@@ -195,7 +194,6 @@ static int text_area_cpu_down_mm(unsigned int cpu)
 
 	this_cpu_write(cpu_patching_context.mm, NULL);
 	this_cpu_write(cpu_patching_context.addr, 0);
-	this_cpu_write(cpu_patching_context.pte, NULL);
 
 	return 0;
 }
@@ -289,11 +287,15 @@ static int __do_patch_instruction_mm(u32 *addr, ppc_inst_t instr)
 	unsigned long pfn = get_patch_pfn(addr);
 	struct mm_struct *patching_mm;
 	struct mm_struct *orig_mm;
+	spinlock_t *ptl;
 
 	patching_mm = __this_cpu_read(cpu_patching_context.mm);
-	pte = __this_cpu_read(cpu_patching_context.pte);
 	text_poke_addr = __this_cpu_read(cpu_patching_context.addr);
 	patch_addr = (u32 *)(text_poke_addr + offset_in_page(addr));
+
+	pte = get_locked_pte(patching_mm, text_poke_addr, &ptl);
+	if (!pte)
+		return -ENOMEM;
 
 	__set_pte_at(patching_mm, text_poke_addr, pte, pfn_pte(pfn, PAGE_KERNEL), 0);
 
@@ -320,6 +322,8 @@ static int __do_patch_instruction_mm(u32 *addr, ppc_inst_t instr)
 	 * by radix__local_flush_tlb_page_psize (in _tlbiel_va)
 	 */
 	local_flush_tlb_page_psize(patching_mm, text_poke_addr, mmu_virtual_psize);
+
+	pte_unmap_unlock(pte, ptl);
 
 	return err;
 }
