@@ -76,6 +76,9 @@ struct find_free_extent_ctl {
 
 	/* Allocation policy */
 	enum btrfs_extent_allocation_policy policy;
+
+	/* Whether or not the allocator is currently following a hint */
+	bool hinted;
 };
 
 enum btrfs_inline_ref_type {
