@@ -86,25 +86,32 @@ enum populate_mode {
 	POPULATE_ZERO_SHADOW,
 	POPULATE_SHALLOW
 };
+
+static inline pgprot_t pgprot_clear_bit(pgprot_t pgprot, unsigned long bit)
+{
+	return __pgprot(pgprot_val(pgprot) & ~bit);
+}
+
 static void __init kasan_early_pgtable_populate(unsigned long address,
 						unsigned long end,
 						enum populate_mode mode)
 {
-	unsigned long pgt_prot_zero, pgt_prot, sgt_prot;
+	pgprot_t pgt_prot_zero = PAGE_KERNEL_RO;
+	pgprot_t pgt_prot = PAGE_KERNEL;
+	pgprot_t sgt_prot = SEGMENT_KERNEL;
 	pgd_t *pg_dir;
 	p4d_t *p4_dir;
 	pud_t *pu_dir;
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
+	pmd_t pmd;
+	pte_t pte;
 
-	pgt_prot_zero = pgprot_val(PAGE_KERNEL_RO);
 	if (!has_nx)
-		pgt_prot_zero &= ~_PAGE_NOEXEC;
-	pgt_prot = pgprot_val(PAGE_KERNEL);
-	sgt_prot = pgprot_val(SEGMENT_KERNEL);
+		pgt_prot_zero = pgprot_clear_bit(pgt_prot_zero, _PAGE_NOEXEC);
 	if (!has_nx || mode == POPULATE_ONE2ONE) {
-		pgt_prot &= ~_PAGE_NOEXEC;
-		sgt_prot &= ~_SEGMENT_ENTRY_NOEXEC;
+		pgt_prot = pgprot_clear_bit(pgt_prot, _PAGE_NOEXEC);
+		sgt_prot = pgprot_clear_bit(sgt_prot, _SEGMENT_ENTRY_NOEXEC);
 	}
 
 	/*
@@ -175,7 +182,9 @@ static void __init kasan_early_pgtable_populate(unsigned long address,
 						page = kasan_early_alloc_segment();
 						memset(page, 0, _SEGMENT_SIZE);
 					}
-					set_pmd(pm_dir, __pmd(__pa(page) | sgt_prot));
+					pmd = __pmd(__pa(page));
+					pmd = set_pmd_bit(pmd, sgt_prot);
+					set_pmd(pm_dir, pmd);
 					address = (address + PMD_SIZE) & PMD_MASK;
 					continue;
 				}
@@ -194,16 +203,22 @@ static void __init kasan_early_pgtable_populate(unsigned long address,
 			switch (mode) {
 			case POPULATE_ONE2ONE:
 				page = (void *)address;
-				set_pte(pt_dir, __pte(__pa(page) | pgt_prot));
+				pte = __pte(__pa(page));
+				pte = set_pte_bit(pte, pgt_prot);
+				set_pte(pt_dir, pte);
 				break;
 			case POPULATE_MAP:
 				page = kasan_early_alloc_pages(0);
 				memset(page, 0, PAGE_SIZE);
-				set_pte(pt_dir, __pte(__pa(page) | pgt_prot));
+				pte = __pte(__pa(page));
+				pte = set_pte_bit(pte, pgt_prot);
+				set_pte(pt_dir, pte);
 				break;
 			case POPULATE_ZERO_SHADOW:
 				page = kasan_early_shadow_page;
-				set_pte(pt_dir, __pte(__pa(page) | pgt_prot_zero));
+				pte = __pte(__pa(page));
+				pte = set_pte_bit(pte, pgt_prot_zero);
+				set_pte(pt_dir, pte);
 				break;
 			case POPULATE_SHALLOW:
 				/* should never happen */
