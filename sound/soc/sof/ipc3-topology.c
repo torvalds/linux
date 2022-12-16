@@ -1651,6 +1651,7 @@ static int sof_ipc3_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 static int sof_ipc3_control_load_bytes(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
 {
 	struct sof_ipc_ctrl_data *cdata;
+	size_t priv_size_check;
 	int ret;
 
 	if (scontrol->max_size < (sizeof(*cdata) + sizeof(struct sof_abi_hdr))) {
@@ -1694,8 +1695,10 @@ static int sof_ipc3_control_load_bytes(struct snd_sof_dev *sdev, struct snd_sof_
 			goto err;
 		}
 
-		if (cdata->data->size + sizeof(struct sof_abi_hdr) != scontrol->priv_size) {
-			dev_err(sdev->dev, "Conflict in bytes vs. priv size.\n");
+		priv_size_check = cdata->data->size + sizeof(struct sof_abi_hdr);
+		if (priv_size_check != scontrol->priv_size) {
+			dev_err(sdev->dev, "Conflict in bytes (%zu) vs. priv size (%zu).\n",
+				priv_size_check, scontrol->priv_size);
 			ret = -EINVAL;
 			goto err;
 		}
