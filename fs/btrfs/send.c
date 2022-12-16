@@ -956,14 +956,12 @@ out:
 static int get_inode_gen(struct btrfs_root *root, u64 ino, u64 *gen)
 {
 	int ret;
-	struct btrfs_inode_info info;
+	struct btrfs_inode_info info = { 0 };
 
-	if (!gen)
-		return -EPERM;
+	ASSERT(gen);
 
 	ret = get_inode_info(root, ino, &info);
-	if (!ret)
-		*gen = info.gen;
+	*gen = info.gen;
 	return ret;
 }
 
