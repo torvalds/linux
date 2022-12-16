@@ -70,6 +70,16 @@ struct intel_dsb {
 #define DSB_BYTE_EN_SHIFT		20
 #define DSB_REG_VALUE_MASK		0xfffff
 
+static bool assert_dsb_has_room(struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	/* each instruction is 2 dwords */
+	return !drm_WARN(&i915->drm, ALIGN(dsb->free_pos, 2) > DSB_BUF_SIZE / 4 - 2,
+			 "DSB buffer overflow\n");
+}
+
 static bool is_dsb_busy(struct drm_i915_private *i915, enum pipe pipe,
 			enum dsb_id id)
 {
@@ -92,15 +102,11 @@ static bool is_dsb_busy(struct drm_i915_private *i915, enum pipe pipe,
 void intel_dsb_indexed_reg_write(struct intel_dsb *dsb,
 				 i915_reg_t reg, u32 val)
 {
-	struct intel_crtc *crtc = dsb->crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 *buf = dsb->cmd_buf;
 	u32 reg_val;
 
-	if (drm_WARN_ON(&dev_priv->drm, ALIGN(dsb->free_pos, 2) > DSB_BUF_SIZE / 4 - 2)) {
-		drm_dbg_kms(&dev_priv->drm, "DSB buffer overflow\n");
+	if (!assert_dsb_has_room(dsb))
 		return;
-	}
 
 	/*
 	 * For example the buffer will look like below for 3 dwords for auto
@@ -163,14 +169,10 @@ void intel_dsb_indexed_reg_write(struct intel_dsb *dsb,
 void intel_dsb_reg_write(struct intel_dsb *dsb,
 			 i915_reg_t reg, u32 val)
 {
-	struct intel_crtc *crtc = dsb->crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 *buf = dsb->cmd_buf;
 
-	if (drm_WARN_ON(&dev_priv->drm, ALIGN(dsb->free_pos, 2) > DSB_BUF_SIZE / 4 - 2)) {
-		drm_dbg_kms(&dev_priv->drm, "DSB buffer overflow\n");
+	if (!assert_dsb_has_room(dsb))
 		return;
-	}
 
 	/* Every instruction should be 8 byte aligned. */
 	dsb->free_pos = ALIGN(dsb->free_pos, 2);
