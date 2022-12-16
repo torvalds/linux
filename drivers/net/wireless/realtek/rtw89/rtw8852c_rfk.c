@@ -26,7 +26,7 @@ static const u32 rtw8852c_backup_bb_regs[] = {
 };
 
 static const u32 rtw8852c_backup_rf_regs[] = {
-	0xdf, 0x8f, 0x97, 0xa3, 0x5, 0x10005
+	0xdf, 0x5f, 0x8f, 0x97, 0xa3, 0x5, 0x10005
 };
 
 #define BACKUP_BB_REGS_NR ARRAY_SIZE(rtw8852c_backup_bb_regs)
@@ -1757,7 +1757,7 @@ u8 _rx_dck_channel_calc(struct rtw89_dev *rtwdev, const struct rtw89_chan *chan)
 }
 
 #define RTW8852C_RF_REL_VERSION 34
-#define RTW8852C_DPK_VER 0x10
+#define RTW8852C_DPK_VER 0xf
 #define RTW8852C_DPK_TH_AVG_NUM 4
 #define RTW8852C_DPK_RF_PATH 2
 #define RTW8852C_DPK_KIP_REG_NUM 5
@@ -1795,6 +1795,12 @@ enum dpk_agc_step {
 	DPK_AGC_STEP_GL_GT_CRITERION,
 	DPK_AGC_STEP_GL_LT_CRITERION,
 	DPK_AGC_STEP_SET_TX_GAIN,
+};
+
+enum dpk_pas_result {
+	DPK_PAS_NOR,
+	DPK_PAS_GT,
+	DPK_PAS_LT,
 };
 
 static void _rf_direct_cntrl(struct rtw89_dev *rtwdev,
@@ -2206,9 +2212,10 @@ static u8 _dpk_gainloss(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 	return _dpk_gainloss_read(rtwdev);
 }
 
-static bool _dpk_pas_read(struct rtw89_dev *rtwdev, bool is_check)
+static enum dpk_pas_result _dpk_pas_read(struct rtw89_dev *rtwdev, bool is_check)
 {
 	u32 val1_i = 0, val1_q = 0, val2_i = 0, val2_q = 0;
+	u32 val1_sqrt_sum, val2_sqrt_sum;
 	u8 i;
 
 	rtw89_phy_write32_mask(rtwdev, R_KIP_RPT1, MASKBYTE2, 0x06);
@@ -2239,15 +2246,25 @@ static bool _dpk_pas_read(struct rtw89_dev *rtwdev, bool is_check)
 		}
 	}
 
-	if (val1_i * val1_i + val1_q * val1_q >= (val2_i * val2_i + val2_q * val2_q) * 8 / 5)
-		return true;
+	val1_sqrt_sum = val1_i * val1_i + val1_q * val1_q;
+	val2_sqrt_sum = val2_i * val2_i + val2_q * val2_q;
+
+	if (val1_sqrt_sum < val2_sqrt_sum)
+		return DPK_PAS_LT;
+	else if (val1_sqrt_sum >= val2_sqrt_sum * 8 / 5)
+		return DPK_PAS_GT;
 	else
-		return false;
+		return DPK_PAS_NOR;
 }
 
 static bool _dpk_kip_set_rxagc(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 			       enum rtw89_rf_path path, u8 kidx)
 {
+	_dpk_kip_control_rfc(rtwdev, path, false);
+	rtw89_phy_write32_mask(rtwdev, R_KIP_MOD, B_KIP_MOD,
+			       rtw89_read_rf(rtwdev, path, RR_MOD, RFREG_MASK));
+	_dpk_kip_control_rfc(rtwdev, path, true);
+
 	_dpk_one_shot(rtwdev, phy, path, D_RXAGC);
 
 	return _dpk_sync_check(rtwdev, path, kidx);
@@ -2285,6 +2302,7 @@ static u8 _dpk_agc(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 	u8 tmp_dbm = init_xdbm, tmp_gl_idx = 0;
 	u8 tmp_rxbb;
 	u8 goout = 0, agc_cnt = 0;
+	enum dpk_pas_result pas;
 	u16 dgain = 0;
 	bool is_fail = false;
 	int limit = 200;
@@ -2320,9 +2338,13 @@ static u8 _dpk_agc(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 
 		case DPK_AGC_STEP_GAIN_LOSS_IDX:
 			tmp_gl_idx = _dpk_gainloss(rtwdev, phy, path, kidx);
+			pas = _dpk_pas_read(rtwdev, true);
 
-			if ((tmp_gl_idx == 0 && _dpk_pas_read(rtwdev, true)) ||
-			    tmp_gl_idx >= 7)
+			if (pas == DPK_PAS_LT && tmp_gl_idx > 0)
+				step = DPK_AGC_STEP_GL_LT_CRITERION;
+			else if (pas == DPK_PAS_GT && tmp_gl_idx == 0)
+				step = DPK_AGC_STEP_GL_GT_CRITERION;
+			else if (tmp_gl_idx >= 7)
 				step = DPK_AGC_STEP_GL_GT_CRITERION;
 			else if (tmp_gl_idx == 0)
 				step = DPK_AGC_STEP_GL_LT_CRITERION;
