@@ -118,7 +118,7 @@ static int find_console_handle(void)
 		return 0;
 
 	stdout_irq = irq_of_parse_and_map(np, 0);
-	if (stdout_irq == NO_IRQ) {
+	if (!stdout_irq) {
 		pr_err("ehv-bc: no 'interrupts' property in %pOF node\n", np);
 		return 0;
 	}
@@ -696,7 +696,7 @@ static int ehv_bc_tty_probe(struct platform_device *pdev)
 
 	bc->rx_irq = irq_of_parse_and_map(np, 0);
 	bc->tx_irq = irq_of_parse_and_map(np, 1);
-	if ((bc->rx_irq == NO_IRQ) || (bc->tx_irq == NO_IRQ)) {
+	if (!bc->rx_irq || !bc->tx_irq) {
 		dev_err(&pdev->dev, "no 'interrupts' property in %pOFn node\n",
 			np);
 		ret = -ENODEV;
