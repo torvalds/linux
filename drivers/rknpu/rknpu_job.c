@@ -193,8 +193,8 @@ static inline int rknpu_job_wait(struct rknpu_job *job)
 		args->task_counter = 0;
 		rknpu_core_base = rknpu_dev->base[core_index];
 		if (args->flags & RKNPU_JOB_PC) {
-			uint32_t task_status =
-				REG_READ(RKNPU_OFFSET_PC_TASK_STATUS);
+			uint32_t task_status = REG_READ(
+				rknpu_dev->config->pc_task_status_offset);
 			args->task_counter =
 				(task_status &
 				 rknpu_dev->config->pc_task_number_mask);
@@ -490,7 +490,7 @@ static void rknpu_job_abort(struct rknpu_job *job)
 			job->flags, REG_READ(RKNPU_OFFSET_INT_STATUS),
 			REG_READ(RKNPU_OFFSET_INT_RAW_STATUS),
 			job->int_mask[core_index],
-			(REG_READ(RKNPU_OFFSET_PC_TASK_STATUS) &
+			(REG_READ(rknpu_dev->config->pc_task_status_offset) &
 			 rknpu_dev->config->pc_task_number_mask),
 			ktime_to_us(ktime_sub(ktime_get(), job->timestamp)));
 		rknpu_soft_reset(rknpu_dev);
@@ -560,7 +560,7 @@ static inline irqreturn_t rknpu_irq_handler(int irq, void *data, int core_index)
 			"invalid irq status: %#x, raw status: %#x, require mask: %#x, task counter: %#x\n",
 			status, REG_READ(RKNPU_OFFSET_INT_RAW_STATUS),
 			job->int_mask[core_index],
-			(REG_READ(RKNPU_OFFSET_PC_TASK_STATUS) &
+			(REG_READ(rknpu_dev->config->pc_task_status_offset) &
 			 rknpu_dev->config->pc_task_number_mask));
 		REG_WRITE(RKNPU_INT_CLEAR, RKNPU_OFFSET_INT_CLEAR);
 		return IRQ_HANDLED;
@@ -779,7 +779,7 @@ int rknpu_get_hw_version(struct rknpu_device *rknpu_dev, uint32_t *version)
 		return -EINVAL;
 
 	*version = REG_READ(RKNPU_OFFSET_VERSION) +
-		   REG_READ(RKNPU_OFFSET_VERSION_NUM);
+		   (REG_READ(RKNPU_OFFSET_VERSION_NUM) & 0xffff);
 
 	return 0;
 }

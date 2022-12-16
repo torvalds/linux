@@ -30,10 +30,10 @@
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20220829"
+#define DRIVER_DATE "20221110"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 8
-#define DRIVER_PATCHLEVEL 2
+#define DRIVER_PATCHLEVEL 3
 
 #define LOG_TAG "RKNPU"
 
@@ -54,7 +54,7 @@
 #define LOG_DEV_DEBUG(dev, fmt, args...) dev_dbg(dev, LOG_TAG ": " fmt, ##args)
 #define LOG_DEV_ERROR(dev, fmt, args...) dev_err(dev, LOG_TAG ": " fmt, ##args)
 
-struct npu_reset_data {
+struct rknpu_reset_data {
 	const char *srst_a_name;
 	const char *srst_h_name;
 };
@@ -66,9 +66,10 @@ struct rknpu_config {
 	__u32 pc_data_amount_scale;
 	__u32 pc_task_number_bits;
 	__u32 pc_task_number_mask;
+	__u32 pc_task_status_offset;
 	__u32 bw_enable;
-	const struct npu_irqs_data *irqs;
-	const struct npu_reset_data *resets;
+	const struct rknpu_irqs_data *irqs;
+	const struct rknpu_reset_data *resets;
 	int num_irqs;
 	int num_resets;
 };

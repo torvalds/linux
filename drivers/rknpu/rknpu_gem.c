@@ -115,15 +115,14 @@ static void rknpu_gem_put_pages(struct rknpu_gem_object *rknpu_obj)
 		rknpu_obj->kv_addr = NULL;
 	}
 
-	dma_unmap_sg(drm->dev, rknpu_obj->sgt->sgl, rknpu_obj->sgt->nents,
-		     DMA_BIDIRECTIONAL);
-
-	drm_gem_put_pages(&rknpu_obj->base, rknpu_obj->pages, true, true);
-
 	if (rknpu_obj->sgt != NULL) {
+		dma_unmap_sg(drm->dev, rknpu_obj->sgt->sgl,
+			     rknpu_obj->sgt->nents, DMA_BIDIRECTIONAL);
 		sg_free_table(rknpu_obj->sgt);
 		kfree(rknpu_obj->sgt);
 	}
+
+	drm_gem_put_pages(&rknpu_obj->base, rknpu_obj->pages, true, true);
 }
 #endif
 
@@ -641,8 +640,9 @@ struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *drm,
 	if (rknpu_obj)
 		LOG_DEBUG(
 			"created dma addr: %pad, cookie: %p, ddr size: %lu, sram size: %lu, attrs: %#lx, flags: %#x\n",
-			&rknpu_obj->dma_addr, rknpu_obj->cookie, rknpu_obj->size,
-			rknpu_obj->sram_size, rknpu_obj->dma_attrs, rknpu_obj->flags);
+			&rknpu_obj->dma_addr, rknpu_obj->cookie,
+			rknpu_obj->size, rknpu_obj->sram_size,
+			rknpu_obj->dma_attrs, rknpu_obj->flags);
 
 	return rknpu_obj;
 
@@ -1233,7 +1233,8 @@ int rknpu_gem_sync_ioctl(struct drm_device *dev, void *data,
 		length = args->size;
 		offset = args->offset;
 
-		if (IS_ENABLED(CONFIG_ROCKCHIP_RKNPU_SRAM) && rknpu_obj->sram_size > 0) {
+		if (IS_ENABLED(CONFIG_ROCKCHIP_RKNPU_SRAM) &&
+		    rknpu_obj->sram_size > 0) {
 			struct drm_gem_object *obj = &rknpu_obj->base;
 			struct rknpu_device *rknpu_dev = obj->dev->dev_private;
 			unsigned long sram_offset =

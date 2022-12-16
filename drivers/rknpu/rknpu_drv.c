@@ -79,36 +79,29 @@ module_param(bypass_soft_reset, int, 0644);
 MODULE_PARM_DESC(bypass_soft_reset,
 		 "bypass RKNPU soft reset if set it to 1, disabled by default");
 
-struct npu_irqs_data {
+struct rknpu_irqs_data {
 	const char *name;
 	irqreturn_t (*irq_hdl)(int irq, void *ctx);
 };
 
-static const struct npu_irqs_data rk356x_npu_irqs[] = {
+static const struct rknpu_irqs_data rknpu_irqs[] = {
 	{ "npu_irq", rknpu_core0_irq_handler }
 };
 
-static const struct npu_irqs_data rk3588_npu_irqs[] = {
+static const struct rknpu_irqs_data rk3588_npu_irqs[] = {
 	{ "npu0_irq", rknpu_core0_irq_handler },
 	{ "npu1_irq", rknpu_core1_irq_handler },
 	{ "npu2_irq", rknpu_core2_irq_handler }
 };
 
-static const struct npu_irqs_data rv110x_npu_irqs[] = {
-	{ "npu_irq", rknpu_core0_irq_handler }
-};
+static const struct rknpu_reset_data rknpu_resets[] = { { "srst_a",
+							  "srst_h" } };
 
-static const struct npu_reset_data rk356x_npu_resets[] = { { "srst_a",
-							     "srst_h" } };
-
-static const struct npu_reset_data rk3588_npu_resets[] = {
+static const struct rknpu_reset_data rk3588_npu_resets[] = {
 	{ "srst_a0", "srst_h0" },
 	{ "srst_a1", "srst_h1" },
 	{ "srst_a2", "srst_h2" }
 };
-
-static const struct npu_reset_data rv110x_npu_resets[] = { { "srst_a",
-							     "srst_h" } };
 
 static const struct rknpu_config rk356x_rknpu_config = {
 	.bw_priority_addr = 0xfe180008,
@@ -117,11 +110,12 @@ static const struct rknpu_config rk356x_rknpu_config = {
 	.pc_data_amount_scale = 1,
 	.pc_task_number_bits = 12,
 	.pc_task_number_mask = 0xfff,
+	.pc_task_status_offset = 0x3c,
 	.bw_enable = 1,
-	.irqs = rk356x_npu_irqs,
-	.resets = rk356x_npu_resets,
-	.num_irqs = ARRAY_SIZE(rk356x_npu_irqs),
-	.num_resets = ARRAY_SIZE(rk356x_npu_resets)
+	.irqs = rknpu_irqs,
+	.resets = rknpu_resets,
+	.num_irqs = ARRAY_SIZE(rknpu_irqs),
+	.num_resets = ARRAY_SIZE(rknpu_resets)
 };
 
 static const struct rknpu_config rk3588_rknpu_config = {
@@ -131,6 +125,7 @@ static const struct rknpu_config rk3588_rknpu_config = {
 	.pc_data_amount_scale = 2,
 	.pc_task_number_bits = 12,
 	.pc_task_number_mask = 0xfff,
+	.pc_task_status_offset = 0x3c,
 	.bw_enable = 0,
 	.irqs = rk3588_npu_irqs,
 	.resets = rk3588_npu_resets,
@@ -145,11 +140,27 @@ static const struct rknpu_config rv1106_rknpu_config = {
 	.pc_data_amount_scale = 2,
 	.pc_task_number_bits = 16,
 	.pc_task_number_mask = 0xffff,
+	.pc_task_status_offset = 0x3c,
 	.bw_enable = 1,
-	.irqs = rv110x_npu_irqs,
-	.resets = rv110x_npu_resets,
-	.num_irqs = ARRAY_SIZE(rv110x_npu_irqs),
-	.num_resets = ARRAY_SIZE(rv110x_npu_resets)
+	.irqs = rknpu_irqs,
+	.resets = rknpu_resets,
+	.num_irqs = ARRAY_SIZE(rknpu_irqs),
+	.num_resets = ARRAY_SIZE(rknpu_resets)
+};
+
+static const struct rknpu_config rk3562_rknpu_config = {
+	.bw_priority_addr = 0x0,
+	.bw_priority_length = 0x0,
+	.dma_mask = DMA_BIT_MASK(40),
+	.pc_data_amount_scale = 2,
+	.pc_task_number_bits = 16,
+	.pc_task_number_mask = 0xffff,
+	.pc_task_status_offset = 0x48,
+	.bw_enable = 1,
+	.irqs = rknpu_irqs,
+	.resets = rknpu_resets,
+	.num_irqs = ARRAY_SIZE(rknpu_irqs),
+	.num_resets = ARRAY_SIZE(rknpu_resets)
 };
 
 /* driver probe and init */
@@ -169,6 +180,10 @@ static const struct of_device_id rknpu_of_match[] = {
 	{
 		.compatible = "rockchip,rv1106-rknpu",
 		.data = &rv1106_rknpu_config,
+	},
+	{
+		.compatible = "rockchip,rk3562-rknpu",
+		.data = &rk3562_rknpu_config,
 	},
 	{},
 };
@@ -245,13 +260,17 @@ static int rknpu_action(struct rknpu_device *rknpu_dev,
 		ret = rknpu_get_drv_version(&args->value);
 		break;
 	case RKNPU_GET_FREQ:
+#ifndef FPGA_PLATFORM
 		args->value = clk_get_rate(rknpu_dev->clks[0].clk);
+#endif
 		ret = 0;
 		break;
 	case RKNPU_SET_FREQ:
 		break;
 	case RKNPU_GET_VOLT:
+#ifndef FPGA_PLATFORM
 		args->value = regulator_get_voltage(rknpu_dev->vdd);
+#endif
 		ret = 0;
 		break;
 	case RKNPU_SET_VOLT:
