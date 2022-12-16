@@ -1202,6 +1202,13 @@
 			compatible = "fsl,imx8mp-pcie";
 			reg = <0x33800000 0x400000>, <0x1ff00000 0x80000>;
 			reg-names = "dbi", "config";
+			clocks = <&clk IMX8MP_CLK_HSIO_ROOT>,
+				 <&clk IMX8MP_CLK_PCIE_ROOT>,
+				 <&clk IMX8MP_CLK_HSIO_AXI>;
+			clock-names = "pcie", "pcie_aux", "pcie_bus";
+			assigned-clocks = <&clk IMX8MP_CLK_PCIE_AUX>;
+			assigned-clock-rates = <10000000>;
+			assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_50M>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
