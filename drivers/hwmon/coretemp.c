@@ -27,6 +27,7 @@
 #include <asm/msr.h>
 #include <asm/processor.h>
 #include <asm/cpu_device_id.h>
+#include <linux/sched/isolation.h>
 
 #define DRVNAME	"coretemp"
 
@@ -501,6 +502,9 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	u32 eax, edx;
 	int err, index, attr_no;
+
+	if (!housekeeping_cpu(cpu, HK_TYPE_MISC))
+		return 0;
 
 	/*
 	 * Find attr number for sysfs:
