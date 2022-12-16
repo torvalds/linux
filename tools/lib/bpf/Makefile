@@ -287,3 +287,20 @@ tags:
 
 # Delete partially updated (corrupted) files on error
 .DELETE_ON_ERROR:
+
+help:
+	@echo 'libbpf common targets:'
+	@echo '  HINT: use "V=1" to enable verbose build'
+	@echo '  all     - build libraries and pkgconfig'
+	@echo '  clean   - remove all generated files'
+	@echo '  check   - check abi and version info'
+	@echo ''
+	@echo 'libbpf install targets:'
+	@echo '  HINT: use "prefix"(defaults to "/usr/local") or "DESTDIR" (defaults to "/")'
+	@echo '        to adjust target desitantion, e.g. "make prefix=/usr/local install"'
+	@echo '  install          - build and install all headers, libraries and pkgconfig'
+	@echo '  install_headers  - install only headers to include/bpf'
+	@echo ''
+	@echo 'libbpf make targets:'
+	@echo '  tags    - use ctags to make tag information for source code browsing'
+	@echo '  cscope  - use cscope to make interactive source code browsing database'

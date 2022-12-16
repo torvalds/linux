@@ -9,6 +9,9 @@ title: CS42L51 audio codec DT bindings
 maintainers:
   - Olivier Moysan <olivier.moysan@foss.st.com>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     const: cirrus,cs42l51
@@ -46,7 +49,7 @@ required:
   - reg
   - "#sound-dai-cells"
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

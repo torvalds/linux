@@ -430,7 +430,7 @@ static int orangefs_rename(struct user_namespace *mnt_userns,
 /* ORANGEFS implementation of VFS inode operations for directories */
 const struct inode_operations orangefs_dir_inode_operations = {
 	.lookup = orangefs_lookup,
-	.get_acl = orangefs_get_acl,
+	.get_inode_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,
 	.create = orangefs_create,
 	.unlink = orangefs_unlink,

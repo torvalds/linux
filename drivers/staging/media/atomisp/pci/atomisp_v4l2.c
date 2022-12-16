@@ -573,11 +573,7 @@ static int atomisp_mrfld_pre_power_down(struct atomisp_device *isp)
 	unsigned long flags;
 
 	spin_lock_irqsave(&isp->lock, flags);
-	if (isp->sw_contex.power_state == ATOM_ISP_POWER_DOWN) {
-		spin_unlock_irqrestore(&isp->lock, flags);
-		dev_dbg(isp->dev, "<%s %d.\n", __func__, __LINE__);
-		return 0;
-	}
+
 	/*
 	 * MRFLD HAS requirement: cannot power off i-unit if
 	 * ISP has IRQ not serviced.
@@ -724,62 +720,51 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 	return -EBUSY;
 }
 
-/* Workaround for pmu_nc_set_power_state not ready in MRFLD */
-int atomisp_mrfld_power_down(struct atomisp_device *isp)
+int atomisp_power_off(struct device *dev)
 {
-	return atomisp_mrfld_power(isp, false);
-}
-
-/* Workaround for pmu_nc_set_power_state not ready in MRFLD */
-int atomisp_mrfld_power_up(struct atomisp_device *isp)
-{
-	return atomisp_mrfld_power(isp, true);
-}
-
-int atomisp_runtime_suspend(struct device *dev)
-{
-	struct atomisp_device *isp = (struct atomisp_device *)
-				     dev_get_drvdata(dev);
+	struct atomisp_device *isp = dev_get_drvdata(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret;
+	u32 reg;
+
+	atomisp_css_uninit(isp);
 
 	ret = atomisp_mrfld_pre_power_down(isp);
 	if (ret)
 		return ret;
 
-	/*Turn off the ISP d-phy*/
-	ret = atomisp_ospm_dphy_down(isp);
-	if (ret)
-		return ret;
+	/*
+	 * MRFLD IUNIT DPHY is located in an always-power-on island
+	 * MRFLD HW design need all CSI ports are disabled before
+	 * powering down the IUNIT.
+	 */
+	pci_read_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, &reg);
+	reg |= MRFLD_ALL_CSI_PORTS_OFF_MASK;
+	pci_write_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, reg);
+
 	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
-	return atomisp_mrfld_power_down(isp);
+	return atomisp_mrfld_power(isp, false);
 }
 
-int atomisp_runtime_resume(struct device *dev)
+int atomisp_power_on(struct device *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
 				     dev_get_drvdata(dev);
 	int ret;
 
-	ret = atomisp_mrfld_power_up(isp);
+	ret = atomisp_mrfld_power(isp, true);
 	if (ret)
 		return ret;
 
 	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
-	if (isp->sw_contex.power_state == ATOM_ISP_POWER_DOWN) {
-		/*Turn on ISP d-phy */
-		ret = atomisp_ospm_dphy_up(isp);
-		if (ret) {
-			dev_err(isp->dev, "Failed to power up ISP!.\n");
-			return -EINVAL;
-		}
-	}
 
 	/*restore register values for iUnit and iUnitPHY registers*/
 	if (isp->saved_regs.pcicmdsts)
 		atomisp_restore_iunit_reg(isp);
 
 	atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_LOW, true);
-	return 0;
+
+	return atomisp_css_init(isp);
 }
 
 static int __maybe_unused atomisp_suspend(struct device *dev)
@@ -789,7 +774,6 @@ static int __maybe_unused atomisp_suspend(struct device *dev)
 	/* FIXME: only has one isp_subdev at present */
 	struct atomisp_sub_device *asd = &isp->asd[0];
 	unsigned long flags;
-	int ret;
 
 	/*
 	 * FIXME: Suspend is not supported by sensors. Abort if any video
@@ -806,45 +790,12 @@ static int __maybe_unused atomisp_suspend(struct device *dev)
 	}
 	spin_unlock_irqrestore(&isp->lock, flags);
 
-	ret = atomisp_mrfld_pre_power_down(isp);
-	if (ret)
-		return ret;
-
-	/*Turn off the ISP d-phy */
-	ret = atomisp_ospm_dphy_down(isp);
-	if (ret) {
-		dev_err(isp->dev, "fail to power off ISP\n");
-		return ret;
-	}
-	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
-	return atomisp_mrfld_power_down(isp);
+	return atomisp_power_off(dev);
 }
 
 static int __maybe_unused atomisp_resume(struct device *dev)
 {
-	struct atomisp_device *isp = (struct atomisp_device *)
-				     dev_get_drvdata(dev);
-	int ret;
-
-	ret = atomisp_mrfld_power_up(isp);
-	if (ret)
-		return ret;
-
-	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
-
-	/*Turn on ISP d-phy */
-	ret = atomisp_ospm_dphy_up(isp);
-	if (ret) {
-		dev_err(isp->dev, "Failed to power up ISP!.\n");
-		return -EINVAL;
-	}
-
-	/*restore register values for iUnit and iUnitPHY registers*/
-	if (isp->saved_regs.pcicmdsts)
-		atomisp_restore_iunit_reg(isp);
-
-	atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_LOW, true);
-	return 0;
+	return atomisp_power_on(dev);
 }
 
 int atomisp_csi_lane_config(struct atomisp_device *isp)
@@ -1459,7 +1410,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	isp->dev = &pdev->dev;
 	isp->base = pcim_iomap_table(pdev)[ATOM_ISP_PCI_BAR];
-	isp->sw_contex.power_state = ATOM_ISP_POWER_UP;
 	isp->saved_regs.ispmmadr = start;
 
 	dev_dbg(&pdev->dev, "atomisp mmio base: %p\n", isp->base);
@@ -1723,10 +1673,8 @@ load_fw_fail:
 
 	atomisp_msi_irq_uninit(isp);
 
-	atomisp_ospm_dphy_down(isp);
-
 	/* Address later when we worry about the ...field chips */
-	if (IS_ENABLED(CONFIG_PM) && atomisp_mrfld_power_down(isp))
+	if (IS_ENABLED(CONFIG_PM) && atomisp_mrfld_power(isp, false))
 		dev_err(&pdev->dev, "Failed to switch off ISP\n");
 
 atomisp_dev_alloc_fail:
@@ -1774,8 +1722,8 @@ static const struct pci_device_id atomisp_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, atomisp_pci_tbl);
 
 static const struct dev_pm_ops atomisp_pm_ops = {
-	.runtime_suspend = atomisp_runtime_suspend,
-	.runtime_resume = atomisp_runtime_resume,
+	.runtime_suspend = atomisp_power_off,
+	.runtime_resume = atomisp_power_on,
 	.suspend = atomisp_suspend,
 	.resume = atomisp_resume,
 };

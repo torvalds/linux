@@ -23,7 +23,7 @@ config CAN_CTUCANFD_PCI
 
 config CAN_CTUCANFD_PLATFORM
 	tristate "CTU CAN-FD IP core platform (FPGA, SoC) driver"
-	depends on HAS_IOMEM && (OF || COMPILE_TEST)
+	depends on HAS_IOMEM && OF
 	select CAN_CTUCANFD
 	help
 	  The core has been tested together with OpenCores SJA1000

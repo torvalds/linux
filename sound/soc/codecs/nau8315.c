@@ -137,6 +137,7 @@ static int nau8315_platform_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id nau8315_device_id[] = {
 	{ .compatible = "nuvoton,nau8315" },
+	{ .compatible = "nuvoton,nau8318" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, nau8315_device_id);
@@ -145,6 +146,7 @@ MODULE_DEVICE_TABLE(of, nau8315_device_id);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id nau8315_acpi_match[] = {
 	{ "NVTN2010", 0 },
+	{ "NVTN2012", 0},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, nau8315_acpi_match);

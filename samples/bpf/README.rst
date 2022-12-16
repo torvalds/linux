@@ -37,8 +37,8 @@ user, simply call::
 
  make headers_install
 
-This will creates a local "usr/include" directory in the git/build top
-level directory, that the make system automatically pickup first.
+This will create a local "usr/include" directory in the git/build top
+level directory, that the make system will automatically pick up first.
 
 Compiling
 =========
@@ -87,7 +87,7 @@ Cross compiling samples
 -----------------------
 In order to cross-compile, say for arm64 targets, export CROSS_COMPILE and ARCH
 environment variables before calling make. But do this before clean,
-cofiguration and header install steps described above. This will direct make to
+configuration and header install steps described above. This will direct make to
 build samples for the cross target::
 
  export ARCH=arm64

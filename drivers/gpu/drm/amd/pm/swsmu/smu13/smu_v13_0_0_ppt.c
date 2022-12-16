@@ -70,6 +70,26 @@
 
 #define MP0_MP1_DATA_REGION_SIZE_COMBOPPTABLE	0x4000
 
+#define mmMP1_SMN_C2PMSG_66                                                                            0x0282
+#define mmMP1_SMN_C2PMSG_66_BASE_IDX                                                                   0
+
+#define mmMP1_SMN_C2PMSG_82                                                                            0x0292
+#define mmMP1_SMN_C2PMSG_82_BASE_IDX                                                                   0
+
+#define mmMP1_SMN_C2PMSG_90                                                                            0x029a
+#define mmMP1_SMN_C2PMSG_90_BASE_IDX                                                                   0
+
+#define mmMP1_SMN_C2PMSG_75                                                                            0x028b
+#define mmMP1_SMN_C2PMSG_75_BASE_IDX                                                                   0
+
+#define mmMP1_SMN_C2PMSG_53                                                                            0x0275
+#define mmMP1_SMN_C2PMSG_53_BASE_IDX                                                                   0
+
+#define mmMP1_SMN_C2PMSG_54                                                                            0x0276
+#define mmMP1_SMN_C2PMSG_54_BASE_IDX                                                                   0
+
+#define DEBUGSMC_MSG_Mode1Reset	2
+
 static struct cmn2asic_msg_mapping smu_v13_0_0_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			PPSMC_MSG_TestMessage,                 1),
 	MSG_MAP(GetSmuVersion,			PPSMC_MSG_GetSmuVersion,               1),
@@ -121,6 +141,9 @@ static struct cmn2asic_msg_mapping smu_v13_0_0_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(PrepareMp1ForUnload,		PPSMC_MSG_PrepareMp1ForUnload,         0),
 	MSG_MAP(DFCstateControl,		PPSMC_MSG_SetExternalClientDfCstateAllow, 0),
 	MSG_MAP(ArmD3,				PPSMC_MSG_ArmD3,                       0),
+	MSG_MAP(SetNumBadMemoryPagesRetired,	PPSMC_MSG_SetNumBadMemoryPagesRetired,   0),
+	MSG_MAP(SetBadMemoryPagesRetiredFlagsPerChannel,
+			    PPSMC_MSG_SetBadMemoryPagesRetiredFlagsPerChannel,   0),
 };
 
 static struct cmn2asic_mapping smu_v13_0_0_clk_map[SMU_CLK_COUNT] = {
@@ -1789,6 +1812,69 @@ static int smu_v13_0_0_set_df_cstate(struct smu_context *smu,
 					       NULL);
 }
 
+static int smu_v13_0_0_mode1_reset(struct smu_context *smu)
+{
+	int ret;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 10))
+		ret = smu_cmn_send_debug_smc_msg(smu, DEBUGSMC_MSG_Mode1Reset);
+	else
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
+
+	if (!ret)
+		msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);
+
+	return ret;
+}
+
+static void smu_v13_0_0_set_smu_mailbox_registers(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_82);
+	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_66);
+	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_90);
+
+	smu->debug_param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_53);
+	smu->debug_msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_75);
+	smu->debug_resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_54);
+}
+
+static int smu_v13_0_0_smu_send_bad_mem_page_num(struct smu_context *smu,
+		uint32_t size)
+{
+	int ret = 0;
+
+	/* message SMU to update the bad page number on SMUBUS */
+	ret = smu_cmn_send_smc_msg_with_param(smu,
+					  SMU_MSG_SetNumBadMemoryPagesRetired,
+					  size, NULL);
+	if (ret)
+		dev_err(smu->adev->dev,
+			  "[%s] failed to message SMU to update bad memory pages number\n",
+			  __func__);
+
+	return ret;
+}
+
+static int smu_v13_0_0_send_bad_mem_channel_flag(struct smu_context *smu,
+		uint32_t size)
+{
+	int ret = 0;
+
+	/* message SMU to update the bad channel info on SMUBUS */
+	ret = smu_cmn_send_smc_msg_with_param(smu,
+				  SMU_MSG_SetBadMemoryPagesRetiredFlagsPerChannel,
+				  size, NULL);
+	if (ret)
+		dev_err(smu->adev->dev,
+			  "[%s] failed to message SMU to update bad memory pages channel info\n",
+			  __func__);
+
+	return ret;
+}
+
 static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.get_allowed_feature_mask = smu_v13_0_0_get_allowed_feature_mask,
 	.set_default_dpm_table = smu_v13_0_0_set_default_dpm_table,
@@ -1856,9 +1942,11 @@ static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.baco_enter = smu_v13_0_0_baco_enter,
 	.baco_exit = smu_v13_0_0_baco_exit,
 	.mode1_reset_is_support = smu_v13_0_0_is_mode1_reset_supported,
-	.mode1_reset = smu_v13_0_mode1_reset,
+	.mode1_reset = smu_v13_0_0_mode1_reset,
 	.set_mp1_state = smu_v13_0_0_set_mp1_state,
 	.set_df_cstate = smu_v13_0_0_set_df_cstate,
+	.send_hbm_bad_pages_num = smu_v13_0_0_smu_send_bad_mem_page_num,
+	.send_hbm_bad_channel_flag = smu_v13_0_0_send_bad_mem_channel_flag,
 };
 
 void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)
@@ -1870,5 +1958,5 @@ void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)
 	smu->table_map = smu_v13_0_0_table_map;
 	smu->pwr_src_map = smu_v13_0_0_pwr_src_map;
 	smu->workload_map = smu_v13_0_0_workload_map;
-	smu_v13_0_set_smu_mailbox_registers(smu);
+	smu_v13_0_0_set_smu_mailbox_registers(smu);
 }

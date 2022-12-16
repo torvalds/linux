@@ -924,7 +924,7 @@ static int nxp_fspi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 
 static void erratum_err050568(struct nxp_fspi *f)
 {
-	const struct soc_device_attribute ls1028a_soc_attr[] = {
+	static const struct soc_device_attribute ls1028a_soc_attr[] = {
 		{ .family = "QorIQ LS1028A" },
 		{ /* sentinel */ }
 	};

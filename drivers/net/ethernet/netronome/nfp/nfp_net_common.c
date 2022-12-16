@@ -27,7 +27,6 @@
 #include <linux/page_ref.h>
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
-#include <linux/msi.h>
 #include <linux/ethtool.h>
 #include <linux/log2.h>
 #include <linux/if_vlan.h>
@@ -735,8 +734,9 @@ static unsigned int nfp_net_calc_fl_bufsz_xsk(struct nfp_net_dp *dp)
  */
 static void nfp_net_vecs_init(struct nfp_net *nn)
 {
+	int numa_node = dev_to_node(&nn->pdev->dev);
 	struct nfp_net_r_vector *r_vec;
-	int r;
+	unsigned int r;
 
 	nn->lsc_handler = nfp_net_irq_lsc;
 	nn->exn_handler = nfp_net_irq_exn;
@@ -762,7 +762,7 @@ static void nfp_net_vecs_init(struct nfp_net *nn)
 			tasklet_disable(&r_vec->tasklet);
 		}
 
-		cpumask_set_cpu(r, &r_vec->affinity_mask);
+		cpumask_set_cpu(cpumask_local_spread(r, numa_node), &r_vec->affinity_mask);
 	}
 }
 
@@ -1007,6 +1007,7 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 		new_ctrl |= NFP_NET_CFG_CTRL_RINGCFG;
 
 	nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
+	nn_writel(nn, NFP_NET_CFG_CTRL_WORD1, nn->dp.ctrl_w1);
 	err = nfp_net_reconfig(nn, update);
 	if (err) {
 		nfp_net_clear_config_and_disable(nn);
@@ -1333,17 +1334,58 @@ err_unlock:
 	return err;
 }
 
+static int nfp_net_mc_cfg(struct net_device *netdev, const unsigned char *addr, const u32 cmd)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	int ret;
+
+	ret = nfp_net_mbox_lock(nn, NFP_NET_CFG_MULTICAST_SZ);
+	if (ret)
+		return ret;
+
+	nn_writel(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_MULTICAST_MAC_HI,
+		  get_unaligned_be32(addr));
+	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_MULTICAST_MAC_LO,
+		  get_unaligned_be16(addr + 4));
+
+	return nfp_net_mbox_reconfig_and_unlock(nn, cmd);
+}
+
+static int nfp_net_mc_sync(struct net_device *netdev, const unsigned char *addr)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	if (netdev_mc_count(netdev) > NFP_NET_CFG_MAC_MC_MAX) {
+		nn_err(nn, "Requested number of MC addresses (%d) exceeds maximum (%d).\n",
+		       netdev_mc_count(netdev), NFP_NET_CFG_MAC_MC_MAX);
+		return -EINVAL;
+	}
+
+	return nfp_net_mc_cfg(netdev, addr, NFP_NET_CFG_MBOX_CMD_MULTICAST_ADD);
+}
+
+static int nfp_net_mc_unsync(struct net_device *netdev, const unsigned char *addr)
+{
+	return nfp_net_mc_cfg(netdev, addr, NFP_NET_CFG_MBOX_CMD_MULTICAST_DEL);
+}
+
 static void nfp_net_set_rx_mode(struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
-	u32 new_ctrl;
+	u32 new_ctrl, new_ctrl_w1;
 
 	new_ctrl = nn->dp.ctrl;
+	new_ctrl_w1 = nn->dp.ctrl_w1;
 
 	if (!netdev_mc_empty(netdev) || netdev->flags & IFF_ALLMULTI)
 		new_ctrl |= nn->cap & NFP_NET_CFG_CTRL_L2MC;
 	else
 		new_ctrl &= ~NFP_NET_CFG_CTRL_L2MC;
+
+	if (netdev->flags & IFF_ALLMULTI)
+		new_ctrl_w1 &= ~NFP_NET_CFG_CTRL_MCAST_FILTER;
+	else
+		new_ctrl_w1 |= nn->cap_w1 & NFP_NET_CFG_CTRL_MCAST_FILTER;
 
 	if (netdev->flags & IFF_PROMISC) {
 		if (nn->cap & NFP_NET_CFG_CTRL_PROMISC)
@@ -1354,13 +1396,21 @@ static void nfp_net_set_rx_mode(struct net_device *netdev)
 		new_ctrl &= ~NFP_NET_CFG_CTRL_PROMISC;
 	}
 
-	if (new_ctrl == nn->dp.ctrl)
+	if ((nn->cap_w1 & NFP_NET_CFG_CTRL_MCAST_FILTER) &&
+	    __dev_mc_sync(netdev, nfp_net_mc_sync, nfp_net_mc_unsync))
+		netdev_err(netdev, "Sync mc address failed\n");
+
+	if (new_ctrl == nn->dp.ctrl && new_ctrl_w1 == nn->dp.ctrl_w1)
 		return;
 
-	nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
+	if (new_ctrl != nn->dp.ctrl)
+		nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
+	if (new_ctrl_w1 != nn->dp.ctrl_w1)
+		nn_writel(nn, NFP_NET_CFG_CTRL_WORD1, new_ctrl_w1);
 	nfp_net_reconfig_post(nn, NFP_NET_CFG_UPDATE_GEN);
 
 	nn->dp.ctrl = new_ctrl;
+	nn->dp.ctrl_w1 = new_ctrl_w1;
 }
 
 static void nfp_net_rss_init_itbl(struct nfp_net *nn)
@@ -1631,21 +1681,21 @@ static void nfp_net_stat64(struct net_device *netdev,
 		unsigned int start;
 
 		do {
-			start = u64_stats_fetch_begin_irq(&r_vec->rx_sync);
+			start = u64_stats_fetch_begin(&r_vec->rx_sync);
 			data[0] = r_vec->rx_pkts;
 			data[1] = r_vec->rx_bytes;
 			data[2] = r_vec->rx_drops;
-		} while (u64_stats_fetch_retry_irq(&r_vec->rx_sync, start));
+		} while (u64_stats_fetch_retry(&r_vec->rx_sync, start));
 		stats->rx_packets += data[0];
 		stats->rx_bytes += data[1];
 		stats->rx_dropped += data[2];
 
 		do {
-			start = u64_stats_fetch_begin_irq(&r_vec->tx_sync);
+			start = u64_stats_fetch_begin(&r_vec->tx_sync);
 			data[0] = r_vec->tx_pkts;
 			data[1] = r_vec->tx_bytes;
 			data[2] = r_vec->tx_errors;
-		} while (u64_stats_fetch_retry_irq(&r_vec->tx_sync, start));
+		} while (u64_stats_fetch_retry(&r_vec->tx_sync, start));
 		stats->tx_packets += data[0];
 		stats->tx_bytes += data[1];
 		stats->tx_errors += data[2];
@@ -2013,7 +2063,6 @@ const struct net_device_ops nfp_nfd3_netdev_ops = {
 	.ndo_get_phys_port_name	= nfp_net_get_phys_port_name,
 	.ndo_bpf		= nfp_net_xdp,
 	.ndo_xsk_wakeup		= nfp_net_xsk_wakeup,
-	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
 	.ndo_bridge_getlink     = nfp_net_bridge_getlink,
 	.ndo_bridge_setlink     = nfp_net_bridge_setlink,
 };
@@ -2044,7 +2093,6 @@ const struct net_device_ops nfp_nfdk_netdev_ops = {
 	.ndo_features_check	= nfp_net_features_check,
 	.ndo_get_phys_port_name	= nfp_net_get_phys_port_name,
 	.ndo_bpf		= nfp_net_xdp,
-	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
 	.ndo_bridge_getlink     = nfp_net_bridge_getlink,
 	.ndo_bridge_setlink     = nfp_net_bridge_setlink,
 };
@@ -2094,7 +2142,7 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->fw_ver.extend, nn->fw_ver.class,
 		nn->fw_ver.major, nn->fw_ver.minor,
 		nn->max_mtu);
-	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		nn->cap,
 		nn->cap & NFP_NET_CFG_CTRL_PROMISC  ? "PROMISC "  : "",
 		nn->cap & NFP_NET_CFG_CTRL_L2BC     ? "L2BCFILT " : "",
@@ -2122,6 +2170,7 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->cap & NFP_NET_CFG_CTRL_CSUM_COMPLETE ?
 						      "RXCSUM_COMPLETE " : "",
 		nn->cap & NFP_NET_CFG_CTRL_LIVE_ADDR ? "LIVE_ADDR " : "",
+		nn->cap_w1 & NFP_NET_CFG_CTRL_MCAST_FILTER ? "MULTICAST_FILTER " : "",
 		nfp_app_extra_cap(nn->app, nn));
 }
 
@@ -2373,6 +2422,12 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	}
 	if (nn->cap & NFP_NET_CFG_CTRL_RSS_ANY)
 		netdev->hw_features |= NETIF_F_RXHASH;
+
+#ifdef CONFIG_NFP_NET_IPSEC
+	if (nn->cap_w1 & NFP_NET_CFG_CTRL_IPSEC)
+		netdev->hw_features |= NETIF_F_HW_ESP | NETIF_F_HW_ESP_TX_CSUM;
+#endif
+
 	if (nn->cap & NFP_NET_CFG_CTRL_VXLAN) {
 		if (nn->cap & NFP_NET_CFG_CTRL_LSO) {
 			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL |
@@ -2454,6 +2509,7 @@ static int nfp_net_read_caps(struct nfp_net *nn)
 {
 	/* Get some of the read-only fields from the BAR */
 	nn->cap = nn_readl(nn, NFP_NET_CFG_CAP);
+	nn->cap_w1 = nn_readq(nn, NFP_NET_CFG_CAP_WORD1);
 	nn->max_mtu = nn_readl(nn, NFP_NET_CFG_MAX_MTU);
 
 	/* ABI 4.x and ctrl vNIC always use chained metadata, in other cases
@@ -2543,6 +2599,9 @@ int nfp_net_init(struct nfp_net *nn)
 	if (nn->cap & NFP_NET_CFG_CTRL_TXRWB)
 		nn->dp.ctrl |= NFP_NET_CFG_CTRL_TXRWB;
 
+	if (nn->cap_w1 & NFP_NET_CFG_CTRL_MCAST_FILTER)
+		nn->dp.ctrl_w1 |= NFP_NET_CFG_CTRL_MCAST_FILTER;
+
 	/* Stash the re-configuration queue away.  First odd queue in TX Bar */
 	nn->qcp_cfg = nn->tx_bar + NFP_QCP_QUEUE_ADDR_SZ;
 
@@ -2550,6 +2609,7 @@ int nfp_net_init(struct nfp_net *nn)
 	nn_writel(nn, NFP_NET_CFG_CTRL, 0);
 	nn_writeq(nn, NFP_NET_CFG_TXRS_ENABLE, 0);
 	nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, 0);
+	nn_writel(nn, NFP_NET_CFG_CTRL_WORD1, 0);
 	err = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_RING |
 				   NFP_NET_CFG_UPDATE_GEN);
 	if (err)
@@ -2565,6 +2625,8 @@ int nfp_net_init(struct nfp_net *nn)
 		err = nfp_net_tls_init(nn);
 		if (err)
 			goto err_clean_mbox;
+
+		nfp_net_ipsec_init(nn);
 	}
 
 	nfp_net_vecs_init(nn);
@@ -2588,6 +2650,7 @@ void nfp_net_clean(struct nfp_net *nn)
 		return;
 
 	unregister_netdev(nn->dp.netdev);
+	nfp_net_ipsec_clean(nn);
 	nfp_ccm_mbox_clean(nn);
 	nfp_net_reconfig_wait_posted(nn);
 }

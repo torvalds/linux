@@ -58,6 +58,7 @@
 
 		L2_0: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 
@@ -82,6 +83,11 @@
 			     <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spe-pmu {
+		compatible = "arm,statistical-profiling-extension-v1";
+		interrupts = <GIC_PPI 5 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	watchdog@2a440000 {

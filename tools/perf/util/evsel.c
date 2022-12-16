@@ -3123,7 +3123,7 @@ void evsel__zero_per_pkg(struct evsel *evsel)
 
 	if (evsel->per_pkg_mask) {
 		hashmap__for_each_entry(evsel->per_pkg_mask, cur, bkt)
-			free((char *)cur->key);
+			free((void *)cur->pkey);
 
 		hashmap__clear(evsel->per_pkg_mask);
 	}

@@ -289,7 +289,6 @@ config_item_type::
 						 const char *name);
 		struct config_group *(*make_group)(struct config_group *group,
 						   const char *name);
-		int (*commit_item)(struct config_item *item);
 		void (*disconnect_notify)(struct config_group *group,
 					  struct config_item *item);
 		void (*drop_item)(struct config_group *group,
@@ -486,50 +485,3 @@ up.  Here, the heartbeat code calls configfs_depend_item().  If it
 succeeds, then heartbeat knows the region is safe to give to ocfs2.
 If it fails, it was being torn down anyway, and heartbeat can gracefully
 pass up an error.
-
-Committable Items
-=================
-
-Note:
-     Committable items are currently unimplemented.
-
-Some config_items cannot have a valid initial state.  That is, no
-default values can be specified for the item's attributes such that the
-item can do its work.  Userspace must configure one or more attributes,
-after which the subsystem can start whatever entity this item
-represents.
-
-Consider the FakeNBD device from above.  Without a target address *and*
-a target device, the subsystem has no idea what block device to import.
-The simple example assumes that the subsystem merely waits until all the
-appropriate attributes are configured, and then connects.  This will,
-indeed, work, but now every attribute store must check if the attributes
-are initialized.  Every attribute store must fire off the connection if
-that condition is met.
-
-Far better would be an explicit action notifying the subsystem that the
-config_item is ready to go.  More importantly, an explicit action allows
-the subsystem to provide feedback as to whether the attributes are
-initialized in a way that makes sense.  configfs provides this as
-committable items.
-
-configfs still uses only normal filesystem operations.  An item is
-committed via rename(2).  The item is moved from a directory where it
-can be modified to a directory where it cannot.
-
-Any group that provides the ct_group_ops->commit_item() method has
-committable items.  When this group appears in configfs, mkdir(2) will
-not work directly in the group.  Instead, the group will have two
-subdirectories: "live" and "pending".  The "live" directory does not
-support mkdir(2) or rmdir(2) either.  It only allows rename(2).  The
-"pending" directory does allow mkdir(2) and rmdir(2).  An item is
-created in the "pending" directory.  Its attributes can be modified at
-will.  Userspace commits the item by renaming it into the "live"
-directory.  At this point, the subsystem receives the ->commit_item()
-callback.  If all required attributes are filled to satisfaction, the
-method returns zero and the item is moved to the "live" directory.
-
-As rmdir(2) does not work in the "live" directory, an item must be
-shutdown, or "uncommitted".  Again, this is done via rename(2), this
-time from the "live" directory back to the "pending" one.  The subsystem
-is notified by the ct_group_ops->uncommit_object() method.

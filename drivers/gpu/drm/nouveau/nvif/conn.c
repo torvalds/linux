@@ -27,6 +27,25 @@
 #include <nvif/if0011.h>
 
 int
+nvif_conn_event_ctor(struct nvif_conn *conn, const char *name, nvif_event_func func, u8 types,
+		     struct nvif_event *event)
+{
+	struct {
+		struct nvif_event_v0 base;
+		struct nvif_conn_event_v0 conn;
+	} args;
+	int ret;
+
+	args.conn.version = 0;
+	args.conn.types = types;
+
+	ret = nvif_event_ctor_(&conn->object, name ?: "nvifConnHpd", nvif_conn_id(conn),
+			       func, true, &args.base, sizeof(args), false, event);
+	NVIF_DEBUG(&conn->object, "[NEW EVENT:HPD types:%02x]", types);
+	return ret;
+}
+
+int
 nvif_conn_hpd_status(struct nvif_conn *conn)
 {
 	struct nvif_conn_hpd_status_v0 args;

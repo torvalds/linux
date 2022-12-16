@@ -774,14 +774,6 @@ ia_css_pipeline_configure_inout_port(struct ia_css_pipeline *me,
 					    (uint8_t)SH_CSS_PORT_OUTPUT,
 					    (uint8_t)SH_CSS_HOST_TYPE, 1);
 		break;
-	case IA_CSS_PIPE_ID_ACC:
-		SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
-					    (uint8_t)SH_CSS_PORT_INPUT,
-					    (uint8_t)SH_CSS_HOST_TYPE, 1);
-		SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
-					    (uint8_t)SH_CSS_PORT_OUTPUT,
-					    (uint8_t)SH_CSS_HOST_TYPE, 1);
-		break;
 	default:
 		break;
 	}

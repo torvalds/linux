@@ -150,7 +150,7 @@ static int fscache_fallback_read_page(struct inode *inode, struct page *page)
 	bvec[0].bv_page		= page;
 	bvec[0].bv_offset	= 0;
 	bvec[0].bv_len		= PAGE_SIZE;
-	iov_iter_bvec(&iter, READ, bvec, ARRAY_SIZE(bvec), PAGE_SIZE);
+	iov_iter_bvec(&iter, ITER_DEST, bvec, ARRAY_SIZE(bvec), PAGE_SIZE);
 
 	ret = fscache_begin_read_operation(&cres, cookie);
 	if (ret < 0)
@@ -180,7 +180,7 @@ static int fscache_fallback_write_page(struct inode *inode, struct page *page,
 	bvec[0].bv_page		= page;
 	bvec[0].bv_offset	= 0;
 	bvec[0].bv_len		= PAGE_SIZE;
-	iov_iter_bvec(&iter, WRITE, bvec, ARRAY_SIZE(bvec), PAGE_SIZE);
+	iov_iter_bvec(&iter, ITER_SOURCE, bvec, ARRAY_SIZE(bvec), PAGE_SIZE);
 
 	ret = fscache_begin_write_operation(&cres, cookie);
 	if (ret < 0)

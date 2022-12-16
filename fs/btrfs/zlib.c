@@ -155,8 +155,8 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 					in_page = find_get_page(mapping,
 								start >> PAGE_SHIFT);
 					data_in = kmap_local_page(in_page);
-					memcpy(workspace->buf + i * PAGE_SIZE,
-					       data_in, PAGE_SIZE);
+					copy_page(workspace->buf + i * PAGE_SIZE,
+						  data_in);
 					start += PAGE_SIZE;
 				}
 				workspace->strm.next_in = workspace->buf;
@@ -355,7 +355,7 @@ done:
 	return ret;
 }
 
-int zlib_decompress(struct list_head *ws, unsigned char *data_in,
+int zlib_decompress(struct list_head *ws, const u8 *data_in,
 		struct page *dest_page, unsigned long start_byte, size_t srclen,
 		size_t destlen)
 {

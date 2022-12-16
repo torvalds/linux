@@ -214,26 +214,17 @@ static void dwmac4_map_mtl_dma(struct mac_device_info *hw, u32 queue, u32 chan)
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value;
 
-	if (queue < 4)
+	if (queue < 4) {
 		value = readl(ioaddr + MTL_RXQ_DMA_MAP0);
-	else
-		value = readl(ioaddr + MTL_RXQ_DMA_MAP1);
-
-	if (queue == 0 || queue == 4) {
-		value &= ~MTL_RXQ_DMA_Q04MDMACH_MASK;
-		value |= MTL_RXQ_DMA_Q04MDMACH(chan);
-	} else if (queue > 4) {
-		value &= ~MTL_RXQ_DMA_QXMDMACH_MASK(queue - 4);
-		value |= MTL_RXQ_DMA_QXMDMACH(chan, queue - 4);
-	} else {
 		value &= ~MTL_RXQ_DMA_QXMDMACH_MASK(queue);
 		value |= MTL_RXQ_DMA_QXMDMACH(chan, queue);
-	}
-
-	if (queue < 4)
 		writel(value, ioaddr + MTL_RXQ_DMA_MAP0);
-	else
+	} else {
+		value = readl(ioaddr + MTL_RXQ_DMA_MAP1);
+		value &= ~MTL_RXQ_DMA_QXMDMACH_MASK(queue - 4);
+		value |= MTL_RXQ_DMA_QXMDMACH(chan, queue - 4);
 		writel(value, ioaddr + MTL_RXQ_DMA_MAP1);
+	}
 }
 
 static void dwmac4_config_cbs(struct mac_device_info *hw,
@@ -748,6 +739,8 @@ static void dwmac4_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 	if (fc & FLOW_RX) {
 		pr_debug("\tReceive Flow-Control ON\n");
 		flow |= GMAC_RX_FLOW_CTRL_RFE;
+	} else {
+		pr_debug("\tReceive Flow-Control OFF\n");
 	}
 	writel(flow, ioaddr + GMAC_RX_FLOW_CTRL);
 

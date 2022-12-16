@@ -12,6 +12,10 @@
 #include "pm.h"
 #include "pm_data-offsets.h"
 
+#ifdef CONFIG_CPU_V7
+.arch armv7-a
+#endif
+
 #define	SRAMC_SELF_FRESH_ACTIVE		0x01
 #define	SRAMC_SELF_FRESH_EXIT		0x00
 

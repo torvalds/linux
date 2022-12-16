@@ -2,6 +2,8 @@
 /* Copyright(c) 2014 - 2021 Intel Corporation */
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
+#include <adf_gen2_config.h>
+#include <adf_gen2_dc.h>
 #include <adf_gen2_hw_data.h>
 #include <adf_gen2_pfvf.h>
 #include "adf_c62x_hw_data.h"
@@ -126,9 +128,11 @@ void adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->reset_device = adf_reset_flr;
 	hw_data->set_ssm_wdtimer = adf_gen2_set_ssm_wdtimer;
 	hw_data->disable_iov = adf_disable_sriov;
+	hw_data->dev_config = adf_gen2_dev_config;
 
 	adf_gen2_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen2_init_hw_csr_ops(&hw_data->csr_ops);
+	adf_gen2_init_dc_ops(&hw_data->dc_ops);
 }
 
 void adf_clean_hw_data_c62x(struct adf_hw_device_data *hw_data)

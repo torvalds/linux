@@ -524,7 +524,7 @@ xfs_getfsmap_rtdev_rtbitmap_query(
 	struct xfs_mount		*mp = tp->t_mountp;
 	int				error;
 
-	xfs_ilock(mp->m_rbmip, XFS_ILOCK_SHARED);
+	xfs_ilock(mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 
 	/*
 	 * Set up query parameters to return free rtextents covering the range
@@ -551,7 +551,7 @@ xfs_getfsmap_rtdev_rtbitmap_query(
 	if (error)
 		goto err;
 err:
-	xfs_iunlock(mp->m_rbmip, XFS_ILOCK_SHARED);
+	xfs_iunlock(mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 	return error;
 }
 

@@ -109,9 +109,10 @@ required:
   - interrupt-names
   - '#sound-dai-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:

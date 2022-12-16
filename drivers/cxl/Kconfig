@@ -111,4 +111,22 @@ config CXL_REGION
 	select MEMREGION
 	select GET_FREE_REGION
 
+config CXL_REGION_INVALIDATION_TEST
+	bool "CXL: Region Cache Management Bypass (TEST)"
+	depends on CXL_REGION
+	help
+	  CXL Region management and security operations potentially invalidate
+	  the content of CPU caches without notifiying those caches to
+	  invalidate the affected cachelines. The CXL Region driver attempts
+	  to invalidate caches when those events occur.  If that invalidation
+	  fails the region will fail to enable.  Reasons for cache
+	  invalidation failure are due to the CPU not providing a cache
+	  invalidation mechanism. For example usage of wbinvd is restricted to
+	  bare metal x86. However, for testing purposes toggling this option
+	  can disable that data integrity safety and proceed with enabling
+	  regions when there might be conflicting contents in the CPU cache.
+
+	  If unsure, or if this kernel is meant for production environments,
+	  say N.
+
 endif

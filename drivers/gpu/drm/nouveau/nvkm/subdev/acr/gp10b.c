@@ -28,7 +28,7 @@ MODULE_FIRMWARE("nvidia/gp10b/acr/ucode_load.bin");
 
 static const struct nvkm_acr_hsf_fwif
 gp10b_acr_load_fwif[] = {
-	{ 0, nvkm_acr_hsfw_load, &gm20b_acr_load_0 },
+	{ 0, gm200_acr_hsfw_ctor, &gm20b_acr_load_0, NVKM_ACR_HSF_PMU, 0, 0x00000010 },
 	{}
 };
 

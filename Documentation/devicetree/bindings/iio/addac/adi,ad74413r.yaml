@@ -114,7 +114,6 @@ examples:
       #size-cells = <0>;
 
       cs-gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
-      status = "okay";
 
       ad74413r@0 {
         compatible = "adi,ad74413r";

@@ -91,9 +91,9 @@
 			};
 
 			ethernet@70000 {
-			       status = "okay";
-			       phy = <&phy1>;
-			       phy-mode = "sgmii";
+				status = "okay";
+				phy = <&phy1>;
+				phy-mode = "sgmii";
 			};
 
 			sata@a0000 {

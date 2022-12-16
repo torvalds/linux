@@ -326,6 +326,8 @@ static int rmi_input_event(struct hid_device *hdev, u8 *data, int size)
 	if (!(test_bit(RMI_STARTED, &hdata->flags)))
 		return 0;
 
+	pm_wakeup_event(hdev->dev.parent, 0);
+
 	local_irq_save(flags);
 
 	rmi_set_attn_data(rmi_dev, data[1], &data[2], size - 2);

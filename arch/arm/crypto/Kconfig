@@ -18,7 +18,7 @@ config CRYPTO_GHASH_ARM_CE
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_HASH
 	select CRYPTO_CRYPTD
-	select CRYPTO_GF128MUL
+	select CRYPTO_LIB_GF128MUL
 	help
 	  GCM GHASH function (NIST SP800-38D)
 

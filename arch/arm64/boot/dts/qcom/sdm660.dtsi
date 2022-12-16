@@ -190,7 +190,6 @@
 					"core";
 
 		phys = <&dsi1_phy>;
-		phy-names = "dsi";
 
 		status = "disabled";
 
@@ -213,7 +212,7 @@
 		};
 	};
 
-	dsi1_phy: dsi-phy@c996400 {
+	dsi1_phy: phy@c996400 {
 		compatible = "qcom,dsi-phy-14nm-660";
 		reg = <0x0c996400 0x100>,
 				<0x0c996500 0x300>,

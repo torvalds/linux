@@ -10,26 +10,28 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/export.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
-#include <linux/irqdomain.h>
+#include <linux/io.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/export.h>
+#include <linux/irqdomain.h>
 #include <linux/of.h>
-#include <linux/of_clk.h>
 #include <linux/of_address.h>
+#include <linux/of_clk.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
+#include <linux/slab.h>
+
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/machine.h>
-#include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/regulator/consumer.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
 
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 

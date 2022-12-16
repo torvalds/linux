@@ -23,12 +23,15 @@ config VIDEO_IMX_CSI
 	default y
 	help
 	  A video4linux camera sensor interface driver for i.MX5/6.
-
-config VIDEO_IMX7_CSI
-	tristate "i.MX6UL/L / i.MX7 / i.MX8M Camera Sensor Interface driver"
-	default y
-	help
-	  Enable support for video4linux camera sensor interface driver for
-	  i.MX6UL/L, i.MX7 or i.MX8M.
 endmenu
 endif
+
+config VIDEO_IMX8MQ_MIPI_CSI2
+	tristate "NXP i.MX8MQ MIPI CSI-2 receiver"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  V4L2 driver for the MIPI CSI-2 receiver found in the i.MX8MQ SoC.

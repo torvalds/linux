@@ -2,6 +2,8 @@
 #ifndef _XEN_XEN_H
 #define _XEN_XEN_H
 
+#include <linux/types.h>
+
 enum xen_domain_type {
 	XEN_NATIVE,		/* running on bare hardware    */
 	XEN_PV_DOMAIN,		/* running in a PV domain      */
@@ -24,8 +26,6 @@ extern bool xen_pvh;
 #define xen_pv_domain()		(xen_domain_type == XEN_PV_DOMAIN)
 #define xen_hvm_domain()	(xen_domain_type == XEN_HVM_DOMAIN)
 #define xen_pvh_domain()	(xen_pvh)
-
-#include <linux/types.h>
 
 extern uint32_t xen_start_flags;
 

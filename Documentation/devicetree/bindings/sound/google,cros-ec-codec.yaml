@@ -17,6 +17,9 @@ description: |
   subnode of a cros-ec node.
   (see Documentation/devicetree/bindings/mfd/google,cros-ec.yaml).
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     const: google,cros-ec-codec
@@ -42,7 +45,7 @@ required:
   - compatible
   - '#sound-dai-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
@@ -57,6 +60,7 @@ examples:
         cros-ec@0 {
             compatible = "google,cros-ec-spi";
             reg = <0>;
+            interrupts = <93 0>;
 
             codecs {
                 #address-cells = <2>;

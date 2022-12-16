@@ -21,8 +21,6 @@
 #define pgd_none(pgd)		(0)
 #define pgd_bad(pgd)		(0)
 #define pgd_clear(pgdp)
-#define kern_addr_valid(addr)	(1)
-/* FIXME */
 /*
  * PMD_SHIFT determines the size of the area a second-level page table can map
  * PGDIR_SHIFT determines what a third-level page table entry can map
@@ -43,12 +41,6 @@
 
 
 typedef pte_t *pte_addr_t;
-
-/*
- * ZERO_PAGE is a global shared page that is always zero: used
- * for zero-mapped memory areas etc..
- */
-#define ZERO_PAGE(vaddr)	(virt_to_page(0))
 
 /*
  * Mark the prot value as uncacheable and unbufferable.

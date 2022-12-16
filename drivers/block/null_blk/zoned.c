@@ -384,8 +384,10 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 
 	null_lock_zone(dev, zone);
 
-	if (zone->cond == BLK_ZONE_COND_FULL) {
-		/* Cannot write to a full zone */
+	if (zone->cond == BLK_ZONE_COND_FULL ||
+	    zone->cond == BLK_ZONE_COND_READONLY ||
+	    zone->cond == BLK_ZONE_COND_OFFLINE) {
+		/* Cannot write to the zone */
 		ret = BLK_STS_IOERR;
 		goto unlock;
 	}
@@ -613,7 +615,9 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_op op,
 		for (i = dev->zone_nr_conv; i < dev->nr_zones; i++) {
 			zone = &dev->zones[i];
 			null_lock_zone(dev, zone);
-			if (zone->cond != BLK_ZONE_COND_EMPTY) {
+			if (zone->cond != BLK_ZONE_COND_EMPTY &&
+			    zone->cond != BLK_ZONE_COND_READONLY &&
+			    zone->cond != BLK_ZONE_COND_OFFLINE) {
 				null_reset_zone(dev, zone);
 				trace_nullb_zone_op(cmd, i, zone->cond);
 			}
@@ -626,6 +630,12 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_op op,
 	zone = &dev->zones[zone_no];
 
 	null_lock_zone(dev, zone);
+
+	if (zone->cond == BLK_ZONE_COND_READONLY ||
+	    zone->cond == BLK_ZONE_COND_OFFLINE) {
+		ret = BLK_STS_IOERR;
+		goto unlock;
+	}
 
 	switch (op) {
 	case REQ_OP_ZONE_RESET:
@@ -648,6 +658,7 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_op op,
 	if (ret == BLK_STS_OK)
 		trace_nullb_zone_op(cmd, zone_no, zone->cond);
 
+unlock:
 	null_unlock_zone(dev, zone);
 
 	return ret;
@@ -674,10 +685,88 @@ blk_status_t null_process_zoned_cmd(struct nullb_cmd *cmd, enum req_op op,
 	default:
 		dev = cmd->nq->dev;
 		zone = &dev->zones[null_zone_no(dev, sector)];
+		if (zone->cond == BLK_ZONE_COND_OFFLINE)
+			return BLK_STS_IOERR;
 
 		null_lock_zone(dev, zone);
 		sts = null_process_cmd(cmd, op, sector, nr_sectors);
 		null_unlock_zone(dev, zone);
 		return sts;
 	}
+}
+
+/*
+ * Set a zone in the read-only or offline condition.
+ */
+static void null_set_zone_cond(struct nullb_device *dev,
+			       struct nullb_zone *zone, enum blk_zone_cond cond)
+{
+	if (WARN_ON_ONCE(cond != BLK_ZONE_COND_READONLY &&
+			 cond != BLK_ZONE_COND_OFFLINE))
+		return;
+
+	null_lock_zone(dev, zone);
+
+	/*
+	 * If the read-only condition is requested again to zones already in
+	 * read-only condition, restore back normal empty condition. Do the same
+	 * if the offline condition is requested for offline zones. Otherwise,
+	 * set the specified zone condition to the zones. Finish the zones
+	 * beforehand to free up zone resources.
+	 */
+	if (zone->cond == cond) {
+		zone->cond = BLK_ZONE_COND_EMPTY;
+		zone->wp = zone->start;
+		if (dev->memory_backed)
+			null_handle_discard(dev, zone->start, zone->len);
+	} else {
+		if (zone->cond != BLK_ZONE_COND_READONLY &&
+		    zone->cond != BLK_ZONE_COND_OFFLINE)
+			null_finish_zone(dev, zone);
+		zone->cond = cond;
+		zone->wp = (sector_t)-1;
+	}
+
+	null_unlock_zone(dev, zone);
+}
+
+/*
+ * Identify a zone from the sector written to configfs file. Then set zone
+ * condition to the zone.
+ */
+ssize_t zone_cond_store(struct nullb_device *dev, const char *page,
+			size_t count, enum blk_zone_cond cond)
+{
+	unsigned long long sector;
+	unsigned int zone_no;
+	int ret;
+
+	if (!dev->zoned) {
+		pr_err("null_blk device is not zoned\n");
+		return -EINVAL;
+	}
+
+	if (!dev->zones) {
+		pr_err("null_blk device is not yet powered\n");
+		return -EINVAL;
+	}
+
+	ret = kstrtoull(page, 0, &sector);
+	if (ret < 0)
+		return ret;
+
+	zone_no = null_zone_no(dev, sector);
+	if (zone_no >= dev->nr_zones) {
+		pr_err("Sector out of range\n");
+		return -EINVAL;
+	}
+
+	if (dev->zones[zone_no].type == BLK_ZONE_TYPE_CONVENTIONAL) {
+		pr_err("Can not change condition of conventional zones\n");
+		return -EINVAL;
+	}
+
+	null_set_zone_cond(dev, &dev->zones[zone_no], cond);
+
+	return count;
 }

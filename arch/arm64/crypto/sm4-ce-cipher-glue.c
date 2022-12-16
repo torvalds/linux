@@ -2,11 +2,11 @@
 
 #include <asm/neon.h>
 #include <asm/simd.h>
+#include <crypto/algapi.h>
 #include <crypto/sm4.h>
 #include <crypto/internal/simd.h>
 #include <linux/module.h>
 #include <linux/cpufeature.h>
-#include <linux/crypto.h>
 #include <linux/types.h>
 
 MODULE_ALIAS_CRYPTO("sm4");

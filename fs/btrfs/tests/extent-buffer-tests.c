@@ -8,6 +8,7 @@
 #include "../ctree.h"
 #include "../extent_io.h"
 #include "../disk-io.h"
+#include "../accessors.h"
 
 static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 {

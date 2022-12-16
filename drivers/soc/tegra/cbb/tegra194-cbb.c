@@ -102,8 +102,6 @@
 #define CLUSTER_NOC_VQC GENMASK(17, 16)
 #define CLUSTER_NOC_MSTR_ID GENMASK(21, 18)
 
-#define USRBITS_MSTR_ID GENMASK(21, 18)
-
 #define CBB_ERR_OPC GENMASK(4, 1)
 #define CBB_ERR_ERRCODE GENMASK(10, 8)
 #define CBB_ERR_LEN1 GENMASK(27, 16)
@@ -2038,15 +2036,17 @@ static irqreturn_t tegra194_cbb_err_isr(int irq, void *data)
 					    smp_processor_id(), priv->noc->name, priv->res->start,
 					    irq);
 
-			mstr_id =  FIELD_GET(USRBITS_MSTR_ID, priv->errlog5) - 1;
 			is_fatal = print_errlog(NULL, priv, status);
 
 			/*
-			 * If illegal request is from CCPLEX(0x1)
-			 * initiator then call BUG() to crash system.
+			 * If illegal request is from CCPLEX(0x1) initiator
+			 * and error is fatal then call BUG() to crash system.
 			 */
-			if ((mstr_id == 0x1) && priv->noc->erd_mask_inband_err)
-				is_inband_err = 1;
+			if (priv->noc->erd_mask_inband_err) {
+				mstr_id =  FIELD_GET(CBB_NOC_MSTR_ID, priv->errlog5);
+				if (mstr_id == 0x1)
+					is_inband_err = 1;
+			}
 		}
 	}
 
@@ -2226,10 +2226,8 @@ static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_node
 
 			cbb->bridges[i].base = devm_ioremap_resource(cbb->base.dev,
 								     &cbb->bridges[i].res);
-			if (IS_ERR(cbb->bridges[i].base)) {
-				dev_err(cbb->base.dev, "failed to map AXI2APB range\n");
+			if (IS_ERR(cbb->bridges[i].base))
 				return PTR_ERR(cbb->bridges[i].base);
-			}
 		}
 	}
 

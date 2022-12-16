@@ -16,14 +16,13 @@
  * range.
  * Other architectures, such as ppc64, i386 or x86_64 are not so constrained.
  */
-
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#define FILE_NAME "huge/hugepagefile"
 #define LENGTH (256UL*1024*1024)
 #define PROTECTION (PROT_READ | PROT_WRITE)
 
@@ -67,16 +66,16 @@ int main(void)
 	void *addr;
 	int fd, ret;
 
-	fd = open(FILE_NAME, O_CREAT | O_RDWR, 0755);
+	fd = memfd_create("hugepage-mmap", MFD_HUGETLB);
 	if (fd < 0) {
-		perror("Open failed");
+		perror("memfd_create() failed");
 		exit(1);
 	}
 
 	addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, fd, 0);
 	if (addr == MAP_FAILED) {
 		perror("mmap");
-		unlink(FILE_NAME);
+		close(fd);
 		exit(1);
 	}
 
@@ -87,7 +86,6 @@ int main(void)
 
 	munmap(addr, LENGTH);
 	close(fd);
-	unlink(FILE_NAME);
 
 	return ret;
 }

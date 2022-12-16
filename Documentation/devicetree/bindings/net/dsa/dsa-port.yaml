@@ -19,7 +19,8 @@ allOf:
 
 properties:
   reg:
-    description: Port number
+    items:
+      - description: Port number
 
   label:
     description:

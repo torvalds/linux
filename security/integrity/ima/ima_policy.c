@@ -85,8 +85,8 @@ struct ima_rule_entry {
 	kgid_t fgroup;
 	bool (*uid_op)(kuid_t cred_uid, kuid_t rule_uid);    /* Handlers for operators       */
 	bool (*gid_op)(kgid_t cred_gid, kgid_t rule_gid);
-	bool (*fowner_op)(kuid_t cred_uid, kuid_t rule_uid); /* uid_eq(), uid_gt(), uid_lt() */
-	bool (*fgroup_op)(kgid_t cred_gid, kgid_t rule_gid); /* gid_eq(), gid_gt(), gid_lt() */
+	bool (*fowner_op)(vfsuid_t vfsuid, kuid_t rule_uid); /* vfsuid_eq_kuid(), vfsuid_gt_kuid(), vfsuid_lt_kuid() */
+	bool (*fgroup_op)(vfsgid_t vfsgid, kgid_t rule_gid); /* vfsgid_eq_kgid(), vfsgid_gt_kgid(), vfsgid_lt_kgid() */
 	int pcr;
 	unsigned int allowed_algos; /* bitfield of allowed hash algorithms */
 	struct {
@@ -186,11 +186,11 @@ static struct ima_rule_entry default_appraise_rules[] __ro_after_init = {
 	.flags = IMA_FUNC | IMA_DIGSIG_REQUIRED},
 #endif
 #ifndef CONFIG_IMA_APPRAISE_SIGNED_INIT
-	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID, .fowner_op = &uid_eq,
+	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID, .fowner_op = &vfsuid_eq_kuid,
 	 .flags = IMA_FOWNER},
 #else
 	/* force signature */
-	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID, .fowner_op = &uid_eq,
+	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID, .fowner_op = &vfsuid_eq_kuid,
 	 .flags = IMA_FOWNER | IMA_DIGSIG_REQUIRED},
 #endif
 };
@@ -398,12 +398,6 @@ static struct ima_rule_entry *ima_lsm_copy_rule(struct ima_rule_entry *entry)
 
 		nentry->lsm[i].type = entry->lsm[i].type;
 		nentry->lsm[i].args_p = entry->lsm[i].args_p;
-		/*
-		 * Remove the reference from entry so that the associated
-		 * memory will not be freed during a later call to
-		 * ima_lsm_free_rule(entry).
-		 */
-		entry->lsm[i].args_p = NULL;
 
 		ima_filter_rule_init(nentry->lsm[i].type, Audit_equal,
 				     nentry->lsm[i].args_p,
@@ -417,6 +411,7 @@ static struct ima_rule_entry *ima_lsm_copy_rule(struct ima_rule_entry *entry)
 
 static int ima_lsm_update_rule(struct ima_rule_entry *entry)
 {
+	int i;
 	struct ima_rule_entry *nentry;
 
 	nentry = ima_lsm_copy_rule(entry);
@@ -431,7 +426,8 @@ static int ima_lsm_update_rule(struct ima_rule_entry *entry)
 	 * references and the entry itself. All other memory references will now
 	 * be owned by nentry.
 	 */
-	ima_lsm_free_rule(entry);
+	for (i = 0; i < MAX_LSM_RULES; i++)
+		ima_filter_rule_free(entry->lsm[i].rule);
 	kfree(entry);
 
 	return 0;
@@ -549,6 +545,9 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 			    const char *func_data)
 {
 	int i;
+	bool result = false;
+	struct ima_rule_entry *lsm_rule = rule;
+	bool rule_reinitialized = false;
 
 	if ((rule->flags & IMA_FUNC) &&
 	    (rule->func != func && func != POST_SETATTR))
@@ -601,44 +600,66 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 			return false;
 	}
 	if ((rule->flags & IMA_FOWNER) &&
-	    !rule->fowner_op(i_uid_into_mnt(mnt_userns, inode), rule->fowner))
+	    !rule->fowner_op(i_uid_into_vfsuid(mnt_userns, inode),
+			     rule->fowner))
 		return false;
 	if ((rule->flags & IMA_FGROUP) &&
-	    !rule->fgroup_op(i_gid_into_mnt(mnt_userns, inode), rule->fgroup))
+	    !rule->fgroup_op(i_gid_into_vfsgid(mnt_userns, inode),
+			     rule->fgroup))
 		return false;
 	for (i = 0; i < MAX_LSM_RULES; i++) {
 		int rc = 0;
 		u32 osid;
 
-		if (!rule->lsm[i].rule) {
-			if (!rule->lsm[i].args_p)
+		if (!lsm_rule->lsm[i].rule) {
+			if (!lsm_rule->lsm[i].args_p)
 				continue;
 			else
 				return false;
 		}
+
+retry:
 		switch (i) {
 		case LSM_OBJ_USER:
 		case LSM_OBJ_ROLE:
 		case LSM_OBJ_TYPE:
 			security_inode_getsecid(inode, &osid);
-			rc = ima_filter_rule_match(osid, rule->lsm[i].type,
+			rc = ima_filter_rule_match(osid, lsm_rule->lsm[i].type,
 						   Audit_equal,
-						   rule->lsm[i].rule);
+						   lsm_rule->lsm[i].rule);
 			break;
 		case LSM_SUBJ_USER:
 		case LSM_SUBJ_ROLE:
 		case LSM_SUBJ_TYPE:
-			rc = ima_filter_rule_match(secid, rule->lsm[i].type,
+			rc = ima_filter_rule_match(secid, lsm_rule->lsm[i].type,
 						   Audit_equal,
-						   rule->lsm[i].rule);
+						   lsm_rule->lsm[i].rule);
 			break;
 		default:
 			break;
 		}
-		if (!rc)
-			return false;
+
+		if (rc == -ESTALE && !rule_reinitialized) {
+			lsm_rule = ima_lsm_copy_rule(rule);
+			if (lsm_rule) {
+				rule_reinitialized = true;
+				goto retry;
+			}
+		}
+		if (!rc) {
+			result = false;
+			goto out;
+		}
 	}
-	return true;
+	result = true;
+
+out:
+	if (rule_reinitialized) {
+		for (i = 0; i < MAX_LSM_RULES; i++)
+			ima_filter_rule_free(lsm_rule->lsm[i].rule);
+		kfree(lsm_rule);
+	}
+	return result;
 }
 
 /*
@@ -1371,8 +1392,8 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 	entry->fgroup = INVALID_GID;
 	entry->uid_op = &uid_eq;
 	entry->gid_op = &gid_eq;
-	entry->fowner_op = &uid_eq;
-	entry->fgroup_op = &gid_eq;
+	entry->fowner_op = &vfsuid_eq_kuid;
+	entry->fgroup_op = &vfsgid_eq_kgid;
 	entry->action = UNKNOWN;
 	while ((p = strsep(&rule, " \t")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
@@ -1650,11 +1671,11 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			}
 			break;
 		case Opt_fowner_gt:
-			entry->fowner_op = &uid_gt;
+			entry->fowner_op = &vfsuid_gt_kuid;
 			fallthrough;
 		case Opt_fowner_lt:
 			if (token == Opt_fowner_lt)
-				entry->fowner_op = &uid_lt;
+				entry->fowner_op = &vfsuid_lt_kuid;
 			fallthrough;
 		case Opt_fowner_eq:
 			ima_log_string_op(ab, "fowner", args[0].from, token);
@@ -1676,11 +1697,11 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			}
 			break;
 		case Opt_fgroup_gt:
-			entry->fgroup_op = &gid_gt;
+			entry->fgroup_op = &vfsgid_gt_kgid;
 			fallthrough;
 		case Opt_fgroup_lt:
 			if (token == Opt_fgroup_lt)
-				entry->fgroup_op = &gid_lt;
+				entry->fgroup_op = &vfsgid_lt_kgid;
 			fallthrough;
 		case Opt_fgroup_eq:
 			ima_log_string_op(ab, "fgroup", args[0].from, token);
@@ -2151,9 +2172,9 @@ int ima_policy_show(struct seq_file *m, void *v)
 
 	if (entry->flags & IMA_FOWNER) {
 		snprintf(tbuf, sizeof(tbuf), "%d", __kuid_val(entry->fowner));
-		if (entry->fowner_op == &uid_gt)
+		if (entry->fowner_op == &vfsuid_gt_kuid)
 			seq_printf(m, pt(Opt_fowner_gt), tbuf);
-		else if (entry->fowner_op == &uid_lt)
+		else if (entry->fowner_op == &vfsuid_lt_kuid)
 			seq_printf(m, pt(Opt_fowner_lt), tbuf);
 		else
 			seq_printf(m, pt(Opt_fowner_eq), tbuf);
@@ -2162,9 +2183,9 @@ int ima_policy_show(struct seq_file *m, void *v)
 
 	if (entry->flags & IMA_FGROUP) {
 		snprintf(tbuf, sizeof(tbuf), "%d", __kgid_val(entry->fgroup));
-		if (entry->fgroup_op == &gid_gt)
+		if (entry->fgroup_op == &vfsgid_gt_kgid)
 			seq_printf(m, pt(Opt_fgroup_gt), tbuf);
-		else if (entry->fgroup_op == &gid_lt)
+		else if (entry->fgroup_op == &vfsgid_lt_kgid)
 			seq_printf(m, pt(Opt_fgroup_lt), tbuf);
 		else
 			seq_printf(m, pt(Opt_fgroup_eq), tbuf);

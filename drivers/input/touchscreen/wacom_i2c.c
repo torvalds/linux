@@ -162,8 +162,7 @@ static void wacom_i2c_close(struct input_dev *dev)
 	disable_irq(client->irq);
 }
 
-static int wacom_i2c_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int wacom_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct wacom_i2c *wac_i2c;
@@ -265,7 +264,7 @@ static struct i2c_driver wacom_i2c_driver = {
 		.pm	= &wacom_i2c_pm,
 	},
 
-	.probe		= wacom_i2c_probe,
+	.probe_new	= wacom_i2c_probe,
 	.id_table	= wacom_i2c_id,
 };
 module_i2c_driver(wacom_i2c_driver);

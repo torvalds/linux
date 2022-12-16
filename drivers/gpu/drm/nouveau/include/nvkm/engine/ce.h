@@ -12,4 +12,6 @@ int gp100_ce_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct n
 int gp102_ce_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_engine **);
 int gv100_ce_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_engine **);
 int tu102_ce_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_engine **);
+int ga100_ce_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_engine **);
+int ga102_ce_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_engine **);
 #endif

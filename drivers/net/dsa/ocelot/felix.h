@@ -28,7 +28,6 @@ struct felix_info {
 	const struct ocelot_ops		*ops;
 	const u32			*port_modes;
 	int				num_mact_rows;
-	const struct ocelot_stat_layout	*stats_layout;
 	int				num_ports;
 	int				num_tx_queues;
 	struct vcap_props		*vcap;
@@ -52,9 +51,6 @@ struct felix_info {
 
 	int	(*mdio_bus_alloc)(struct ocelot *ocelot);
 	void	(*mdio_bus_free)(struct ocelot *ocelot);
-	void	(*phylink_validate)(struct ocelot *ocelot, int port,
-				    unsigned long *supported,
-				    struct phylink_link_state *state);
 	int	(*port_setup_tc)(struct dsa_switch *ds, int port,
 				 enum tc_setup_type type, void *type_data);
 	void	(*tas_guard_bands_update)(struct ocelot *ocelot, int port);

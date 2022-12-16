@@ -157,9 +157,11 @@ static unsigned long read_obj(const char *name)
 {
 	FILE *f = fopen(name, "r");
 
-	if (!f)
+	if (!f) {
 		buffer[0] = 0;
-	else {
+		if (errno == EACCES)
+			fatal("%s, Try using superuser\n", strerror(errno));
+	} else {
 		if (!fgets(buffer, sizeof(buffer), f))
 			buffer[0] = 0;
 		fclose(f);

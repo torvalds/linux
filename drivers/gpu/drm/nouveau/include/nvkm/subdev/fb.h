@@ -35,6 +35,11 @@ struct nvkm_fb {
 
 	struct nvkm_blob vpr_scrubber;
 
+	struct {
+		struct page *flush_page;
+		dma_addr_t flush_page_addr;
+	} sysmem;
+
 	struct nvkm_ram *ram;
 
 	struct {
@@ -52,6 +57,8 @@ struct nvkm_fb {
 	struct nvkm_memory *mmu_rd;
 	struct nvkm_memory *mmu_wr;
 };
+
+int nvkm_fb_mem_unlock(struct nvkm_fb *);
 
 void nvkm_fb_tile_init(struct nvkm_fb *, int region, u32 addr, u32 size,
 		       u32 pitch, u32 flags, struct nvkm_fb_tile *);

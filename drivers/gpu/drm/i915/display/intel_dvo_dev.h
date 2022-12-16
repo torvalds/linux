@@ -23,11 +23,11 @@
 #ifndef __INTEL_DVO_DEV_H__
 #define __INTEL_DVO_DEV_H__
 
-#include <linux/i2c.h>
-
-#include <drm/drm_crtc.h>
-
 #include "i915_reg_defs.h"
+
+enum drm_connector_status;
+struct drm_display_mode;
+struct i2c_adapter;
 
 struct intel_dvo_device {
 	const char *name;

@@ -27,6 +27,7 @@ properties:
       - nvidia,tegra234-pcie
 
   reg:
+    minItems: 4
     items:
       - description: controller's application logic registers
       - description: configuration registers
@@ -35,13 +36,16 @@ properties:
           available for software access.
       - description: aperture where the Root Port's own configuration
           registers are available.
+      - description: aperture to access the configuration space through ECAM.
 
   reg-names:
+    minItems: 4
     items:
       - const: appl
       - const: config
       - const: atu_dma
       - const: dbi
+      - const: ecam
 
   interrupts:
     items:
@@ -202,6 +206,31 @@ properties:
 
 allOf:
   - $ref: /schemas/pci/snps,dw-pcie.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra194-pcie
+    then:
+      properties:
+        reg:
+          maxItems: 4
+        reg-names:
+          maxItems: 4
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra234-pcie
+    then:
+      properties:
+        reg:
+          minItems: 5
+        reg-names:
+          minItems: 5
 
 unevaluatedProperties: false
 
@@ -305,8 +334,9 @@ examples:
             reg = <0x00 0x14160000 0x0 0x00020000>, /* appl registers (128K)      */
                   <0x00 0x36000000 0x0 0x00040000>, /* configuration space (256K) */
                   <0x00 0x36040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
-                  <0x00 0x36080000 0x0 0x00040000>; /* DBI reg space (256K)       */
-            reg-names = "appl", "config", "atu_dma", "dbi";
+                  <0x00 0x36080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+                  <0x24 0x30000000 0x0 0x10000000>; /* ECAM (256MB)               */
+            reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
 
             #address-cells = <3>;
             #size-cells = <2>;

@@ -9,10 +9,48 @@
 #include <linux/memblock.h>
 #include <asm/kvm_pgtable.h>
 
+/* Maximum number of VMs that can co-exist under pKVM. */
+#define KVM_MAX_PVMS 255
+
 #define HYP_MEMBLOCK_REGIONS 128
+
+int pkvm_init_host_vm(struct kvm *kvm);
+int pkvm_create_hyp_vm(struct kvm *kvm);
+void pkvm_destroy_hyp_vm(struct kvm *kvm);
 
 extern struct memblock_region kvm_nvhe_sym(hyp_memory)[];
 extern unsigned int kvm_nvhe_sym(hyp_memblock_nr);
+
+static inline unsigned long
+hyp_vmemmap_memblock_size(struct memblock_region *reg, size_t vmemmap_entry_size)
+{
+	unsigned long nr_pages = reg->size >> PAGE_SHIFT;
+	unsigned long start, end;
+
+	start = (reg->base >> PAGE_SHIFT) * vmemmap_entry_size;
+	end = start + nr_pages * vmemmap_entry_size;
+	start = ALIGN_DOWN(start, PAGE_SIZE);
+	end = ALIGN(end, PAGE_SIZE);
+
+	return end - start;
+}
+
+static inline unsigned long hyp_vmemmap_pages(size_t vmemmap_entry_size)
+{
+	unsigned long res = 0, i;
+
+	for (i = 0; i < kvm_nvhe_sym(hyp_memblock_nr); i++) {
+		res += hyp_vmemmap_memblock_size(&kvm_nvhe_sym(hyp_memory)[i],
+						 vmemmap_entry_size);
+	}
+
+	return res >> PAGE_SHIFT;
+}
+
+static inline unsigned long hyp_vm_table_pages(void)
+{
+	return PAGE_ALIGN(KVM_MAX_PVMS * sizeof(void *)) >> PAGE_SHIFT;
+}
 
 static inline unsigned long __hyp_pgtable_max_pages(unsigned long nr_pages)
 {

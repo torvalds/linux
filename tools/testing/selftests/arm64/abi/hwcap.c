@@ -33,6 +33,12 @@
  */
 typedef void (*sigill_fn)(void);
 
+static void cssc_sigill(void)
+{
+	/* CNT x0, x0 */
+	asm volatile(".inst 0xdac01c00" : : : "x0");
+}
+
 static void rng_sigill(void)
 {
 	asm volatile("mrs x0, S3_3_C2_C4_0" : : : "x0");
@@ -54,6 +60,12 @@ static void sve2_sigill(void)
 {
 	/* SQABS Z0.b, P0/M, Z0.B */
 	asm volatile(".inst 0x4408A000" : : : "z0");
+}
+
+static void sve2p1_sigill(void)
+{
+	/* BFADD Z0.H, Z0.H, Z0.H */
+	asm volatile(".inst 0x65000000" : : : "z0");
 }
 
 static void sveaes_sigill(void)
@@ -119,11 +131,24 @@ static const struct hwcap_data {
 	bool sigill_reliable;
 } hwcaps[] = {
 	{
+		.name = "CSSC",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_CSSC,
+		.cpuinfo = "cssc",
+		.sigill_fn = cssc_sigill,
+	},
+	{
 		.name = "RNG",
 		.at_hwcap = AT_HWCAP2,
 		.hwcap_bit = HWCAP2_RNG,
 		.cpuinfo = "rng",
 		.sigill_fn = rng_sigill,
+	},
+	{
+		.name = "RPRFM",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_RPRFM,
+		.cpuinfo = "rprfm",
 	},
 	{
 		.name = "SME",
@@ -147,6 +172,13 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_SVE2,
 		.cpuinfo = "sve2",
 		.sigill_fn = sve2_sigill,
+	},
+	{
+		.name = "SVE 2.1",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVE2P1,
+		.cpuinfo = "sve2p1",
+		.sigill_fn = sve2p1_sigill,
 	},
 	{
 		.name = "SVE AES",

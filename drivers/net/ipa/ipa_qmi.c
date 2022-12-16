@@ -284,6 +284,7 @@ static const struct ipa_init_modem_driver_req *
 init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 {
 	struct ipa *ipa = container_of(ipa_qmi, struct ipa, qmi);
+	u32 modem_route_count = ipa->modem_route_count;
 	static struct ipa_init_modem_driver_req req;
 	const struct ipa_mem *mem;
 
@@ -308,12 +309,12 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 	mem = ipa_mem_find(ipa, IPA_MEM_V4_ROUTE);
 	req.v4_route_tbl_info_valid = 1;
 	req.v4_route_tbl_info.start = ipa->mem_offset + mem->offset;
-	req.v4_route_tbl_info.end = IPA_ROUTE_MODEM_COUNT - 1;
+	req.v4_route_tbl_info.end = modem_route_count - 1;
 
 	mem = ipa_mem_find(ipa, IPA_MEM_V6_ROUTE);
 	req.v6_route_tbl_info_valid = 1;
 	req.v6_route_tbl_info.start = ipa->mem_offset + mem->offset;
-	req.v6_route_tbl_info.end = IPA_ROUTE_MODEM_COUNT - 1;
+	req.v6_route_tbl_info.end = modem_route_count - 1;
 
 	mem = ipa_mem_find(ipa, IPA_MEM_V4_FILTER);
 	req.v4_filter_tbl_start_valid = 1;
@@ -352,7 +353,7 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 		req.v4_hash_route_tbl_info_valid = 1;
 		req.v4_hash_route_tbl_info.start =
 				ipa->mem_offset + mem->offset;
-		req.v4_hash_route_tbl_info.end = IPA_ROUTE_MODEM_COUNT - 1;
+		req.v4_hash_route_tbl_info.end = modem_route_count - 1;
 	}
 
 	mem = ipa_mem_find(ipa, IPA_MEM_V6_ROUTE_HASHED);
@@ -360,7 +361,7 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 		req.v6_hash_route_tbl_info_valid = 1;
 		req.v6_hash_route_tbl_info.start =
 			ipa->mem_offset + mem->offset;
-		req.v6_hash_route_tbl_info.end = IPA_ROUTE_MODEM_COUNT - 1;
+		req.v6_hash_route_tbl_info.end = modem_route_count - 1;
 	}
 
 	mem = ipa_mem_find(ipa, IPA_MEM_V4_FILTER_HASHED);

@@ -370,6 +370,7 @@ SYM_CODE_END(secondary_startup_64)
  * start_secondary() via .Ljump_to_C_code.
  */
 SYM_CODE_START(start_cpu0)
+	ANNOTATE_NOENDBR
 	UNWIND_HINT_EMPTY
 	movq	initial_stack(%rip), %rsp
 	jmp	.Ljump_to_C_code

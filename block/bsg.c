@@ -175,8 +175,10 @@ static void bsg_device_release(struct device *dev)
 
 void bsg_unregister_queue(struct bsg_device *bd)
 {
-	if (bd->queue->kobj.sd)
-		sysfs_remove_link(&bd->queue->kobj, "bsg");
+	struct gendisk *disk = bd->queue->disk;
+
+	if (disk && disk->queue_kobj.sd)
+		sysfs_remove_link(&disk->queue_kobj, "bsg");
 	cdev_device_del(&bd->cdev, &bd->device);
 	put_device(&bd->device);
 }
@@ -216,8 +218,9 @@ struct bsg_device *bsg_register_queue(struct request_queue *q,
 	if (ret)
 		goto out_put_device;
 
-	if (q->kobj.sd) {
-		ret = sysfs_create_link(&q->kobj, &bd->device.kobj, "bsg");
+	if (q->disk && q->disk->queue_kobj.sd) {
+		ret = sysfs_create_link(&q->disk->queue_kobj, &bd->device.kobj,
+					"bsg");
 		if (ret)
 			goto out_device_del;
 	}

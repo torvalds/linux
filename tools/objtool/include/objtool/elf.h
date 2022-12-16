@@ -30,7 +30,7 @@ struct section {
 	struct hlist_node hash;
 	struct hlist_node name_hash;
 	GElf_Shdr sh;
-	struct rb_root symbol_tree;
+	struct rb_root_cached symbol_tree;
 	struct list_head symbol_list;
 	struct list_head reloc_list;
 	struct section *base, *reloc;
@@ -38,7 +38,7 @@ struct section {
 	Elf_Data *data;
 	char *name;
 	int idx;
-	bool changed, text, rodata, noinstr;
+	bool changed, text, rodata, noinstr, init, truncate;
 };
 
 struct symbol {
@@ -53,6 +53,7 @@ struct symbol {
 	unsigned char bind, type;
 	unsigned long offset;
 	unsigned int len;
+	unsigned long __subtree_last;
 	struct symbol *pfunc, *cfunc, *alias;
 	u8 uaccess_safe      : 1;
 	u8 static_call_tramp : 1;
@@ -61,6 +62,7 @@ struct symbol {
 	u8 fentry            : 1;
 	u8 profiling_func    : 1;
 	struct list_head pv_target;
+	struct list_head reloc_list;
 };
 
 struct reloc {
@@ -72,6 +74,7 @@ struct reloc {
 	};
 	struct section *sec;
 	struct symbol *sym;
+	struct list_head sym_reloc_entry;
 	unsigned long offset;
 	unsigned int type;
 	s64 addend;
@@ -144,6 +147,8 @@ static inline bool has_multiple_files(struct elf *elf)
 
 struct elf *elf_open_read(const char *name, int flags);
 struct section *elf_create_section(struct elf *elf, const char *name, unsigned int sh_flags, size_t entsize, int nr);
+
+struct symbol *elf_create_prefix_symbol(struct elf *elf, struct symbol *orig, long size);
 
 int elf_add_reloc(struct elf *elf, struct section *sec, unsigned long offset,
 		  unsigned int type, struct symbol *sym, s64 addend);

@@ -192,28 +192,30 @@ def _map_to_overall_status(test_status: kunit_parser.TestStatus) -> KunitStatus:
 def parse_tests(request: KunitParseRequest, metadata: kunit_json.Metadata, input_data: Iterable[str]) -> Tuple[KunitResult, kunit_parser.Test]:
 	parse_start = time.time()
 
-	test_result = kunit_parser.Test()
-
 	if request.raw_output:
 		# Treat unparsed results as one passing test.
-		test_result.status = kunit_parser.TestStatus.SUCCESS
-		test_result.counts.passed = 1
+		fake_test = kunit_parser.Test()
+		fake_test.status = kunit_parser.TestStatus.SUCCESS
+		fake_test.counts.passed = 1
 
 		output: Iterable[str] = input_data
 		if request.raw_output == 'all':
 			pass
 		elif request.raw_output == 'kunit':
-			output = kunit_parser.extract_tap_lines(output, lstrip=False)
+			output = kunit_parser.extract_tap_lines(output)
 		for line in output:
 			print(line.rstrip())
+		parse_time = time.time() - parse_start
+		return KunitResult(KunitStatus.SUCCESS, parse_time), fake_test
 
-	else:
-		test_result = kunit_parser.parse_run_tests(input_data)
-	parse_end = time.time()
+
+	# Actually parse the test results.
+	test = kunit_parser.parse_run_tests(input_data)
+	parse_time = time.time() - parse_start
 
 	if request.json:
 		json_str = kunit_json.get_json_result(
-					test=test_result,
+					test=test,
 					metadata=metadata)
 		if request.json == 'stdout':
 			print(json_str)
@@ -223,10 +225,10 @@ def parse_tests(request: KunitParseRequest, metadata: kunit_json.Metadata, input
 			stdout.print_with_timestamp("Test results stored in %s" %
 				os.path.abspath(request.json))
 
-	if test_result.status != kunit_parser.TestStatus.SUCCESS:
-		return KunitResult(KunitStatus.TEST_FAILURE, parse_end - parse_start), test_result
+	if test.status != kunit_parser.TestStatus.SUCCESS:
+		return KunitResult(KunitStatus.TEST_FAILURE, parse_time), test
 
-	return KunitResult(KunitStatus.SUCCESS, parse_end - parse_start), test_result
+	return KunitResult(KunitStatus.SUCCESS, parse_time), test
 
 def run_tests(linux: kunit_kernel.LinuxSourceTree,
 	      request: KunitRequest) -> KunitResult:
@@ -359,14 +361,14 @@ def add_exec_opts(parser) -> None:
 			    choices=['suite', 'test'])
 
 def add_parse_opts(parser) -> None:
-	parser.add_argument('--raw_output', help='If set don\'t format output from kernel. '
-			    'If set to --raw_output=kunit, filters to just KUnit output.',
+	parser.add_argument('--raw_output', help='If set don\'t parse output from kernel. '
+			    'By default, filters to just KUnit output. Use '
+			    '--raw_output=all to show everything',
 			     type=str, nargs='?', const='all', default=None, choices=['all', 'kunit'])
 	parser.add_argument('--json',
 			    nargs='?',
-			    help='Stores test results in a JSON, and either '
-			    'prints to stdout or saves to file if a '
-			    'filename is specified',
+			    help='Prints parsed test results as JSON to stdout or a file if '
+			    'a filename is specified. Does nothing if --raw_output is set.',
 			    type=str, const='stdout', default=None, metavar='FILE')
 
 

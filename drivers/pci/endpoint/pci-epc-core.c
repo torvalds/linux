@@ -724,7 +724,6 @@ void pci_epc_destroy(struct pci_epc *epc)
 {
 	pci_ep_cfs_remove_epc_group(epc->group);
 	device_unregister(&epc->dev);
-	kfree(epc);
 }
 EXPORT_SYMBOL_GPL(pci_epc_destroy);
 
@@ -745,6 +744,11 @@ void devm_pci_epc_destroy(struct device *dev, struct pci_epc *epc)
 	dev_WARN_ONCE(dev, r, "couldn't find PCI EPC resource\n");
 }
 EXPORT_SYMBOL_GPL(devm_pci_epc_destroy);
+
+static void pci_epc_release(struct device *dev)
+{
+	kfree(to_pci_epc(dev));
+}
 
 /**
  * __pci_epc_create() - create a new endpoint controller (EPC) device
@@ -779,6 +783,7 @@ __pci_epc_create(struct device *dev, const struct pci_epc_ops *ops,
 	device_initialize(&epc->dev);
 	epc->dev.class = pci_epc_class;
 	epc->dev.parent = dev;
+	epc->dev.release = pci_epc_release;
 	epc->ops = ops;
 
 	ret = dev_set_name(&epc->dev, "%s", dev_name(dev));

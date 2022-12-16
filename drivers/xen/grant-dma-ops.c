@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/dma-map-ops.h>
 #include <linux/of.h>
+#include <linux/pci.h>
 #include <linux/pfn.h>
 #include <linux/xarray.h>
 #include <linux/virtio_anchor.h>
@@ -292,50 +293,48 @@ static const struct dma_map_ops xen_grant_dma_ops = {
 	.dma_supported = xen_grant_dma_supported,
 };
 
-static bool xen_is_dt_grant_dma_device(struct device *dev)
+static struct device_node *xen_dt_get_node(struct device *dev)
 {
-	struct device_node *iommu_np;
-	bool has_iommu;
+	if (dev_is_pci(dev)) {
+		struct pci_dev *pdev = to_pci_dev(dev);
+		struct pci_bus *bus = pdev->bus;
 
-	iommu_np = of_parse_phandle(dev->of_node, "iommus", 0);
-	has_iommu = iommu_np &&
-		    of_device_is_compatible(iommu_np, "xen,grant-dma");
-	of_node_put(iommu_np);
+		/* Walk up to the root bus to look for PCI Host controller */
+		while (!pci_is_root_bus(bus))
+			bus = bus->parent;
 
-	return has_iommu;
-}
+		return of_node_get(bus->bridge->parent->of_node);
+	}
 
-bool xen_is_grant_dma_device(struct device *dev)
-{
-	/* XXX Handle only DT devices for now */
-	if (dev->of_node)
-		return xen_is_dt_grant_dma_device(dev);
-
-	return false;
-}
-
-bool xen_virtio_mem_acc(struct virtio_device *dev)
-{
-	if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT) || xen_pv_domain())
-		return true;
-
-	return xen_is_grant_dma_device(dev->dev.parent);
+	return of_node_get(dev->of_node);
 }
 
 static int xen_dt_grant_init_backend_domid(struct device *dev,
-					   struct xen_grant_dma_data *data)
+					   struct device_node *np,
+					   domid_t *backend_domid)
 {
-	struct of_phandle_args iommu_spec;
+	struct of_phandle_args iommu_spec = { .args_count = 1 };
 
-	if (of_parse_phandle_with_args(dev->of_node, "iommus", "#iommu-cells",
-			0, &iommu_spec)) {
-		dev_err(dev, "Cannot parse iommus property\n");
-		return -ESRCH;
+	if (dev_is_pci(dev)) {
+		struct pci_dev *pdev = to_pci_dev(dev);
+		u32 rid = PCI_DEVID(pdev->bus->number, pdev->devfn);
+
+		if (of_map_id(np, rid, "iommu-map", "iommu-map-mask", &iommu_spec.np,
+				iommu_spec.args)) {
+			dev_dbg(dev, "Cannot translate ID\n");
+			return -ESRCH;
+		}
+	} else {
+		if (of_parse_phandle_with_args(np, "iommus", "#iommu-cells",
+				0, &iommu_spec)) {
+			dev_dbg(dev, "Cannot parse iommus property\n");
+			return -ESRCH;
+		}
 	}
 
 	if (!of_device_is_compatible(iommu_spec.np, "xen,grant-dma") ||
 			iommu_spec.args_count != 1) {
-		dev_err(dev, "Incompatible IOMMU node\n");
+		dev_dbg(dev, "Incompatible IOMMU node\n");
 		of_node_put(iommu_spec.np);
 		return -ESRCH;
 	}
@@ -346,12 +345,31 @@ static int xen_dt_grant_init_backend_domid(struct device *dev,
 	 * The endpoint ID here means the ID of the domain where the
 	 * corresponding backend is running
 	 */
-	data->backend_domid = iommu_spec.args[0];
+	*backend_domid = iommu_spec.args[0];
 
 	return 0;
 }
 
-void xen_grant_setup_dma_ops(struct device *dev)
+static int xen_grant_init_backend_domid(struct device *dev,
+					domid_t *backend_domid)
+{
+	struct device_node *np;
+	int ret = -ENODEV;
+
+	np = xen_dt_get_node(dev);
+	if (np) {
+		ret = xen_dt_grant_init_backend_domid(dev, np, backend_domid);
+		of_node_put(np);
+	} else if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT) || xen_pv_domain()) {
+		dev_info(dev, "Using dom0 as backend\n");
+		*backend_domid = 0;
+		ret = 0;
+	}
+
+	return ret;
+}
+
+static void xen_grant_setup_dma_ops(struct device *dev, domid_t backend_domid)
 {
 	struct xen_grant_dma_data *data;
 
@@ -365,16 +383,7 @@ void xen_grant_setup_dma_ops(struct device *dev)
 	if (!data)
 		goto err;
 
-	if (dev->of_node) {
-		if (xen_dt_grant_init_backend_domid(dev, data))
-			goto err;
-	} else if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT)) {
-		dev_info(dev, "Using dom0 as backend\n");
-		data->backend_domid = 0;
-	} else {
-		/* XXX ACPI device unsupported for now */
-		goto err;
-	}
+	data->backend_domid = backend_domid;
 
 	if (store_xen_grant_dma_data(dev, data)) {
 		dev_err(dev, "Cannot store Xen grant DMA data\n");
@@ -392,12 +401,14 @@ err:
 
 bool xen_virtio_restricted_mem_acc(struct virtio_device *dev)
 {
-	bool ret = xen_virtio_mem_acc(dev);
+	domid_t backend_domid;
 
-	if (ret)
-		xen_grant_setup_dma_ops(dev->dev.parent);
+	if (!xen_grant_init_backend_domid(dev->dev.parent, &backend_domid)) {
+		xen_grant_setup_dma_ops(dev->dev.parent, backend_domid);
+		return true;
+	}
 
-	return ret;
+	return false;
 }
 
 MODULE_DESCRIPTION("Xen grant DMA-mapping layer");

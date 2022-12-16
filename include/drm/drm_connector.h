@@ -656,6 +656,12 @@ struct drm_display_info {
 	 * @mso_pixel_overlap: eDP MSO segment pixel overlap, 0-8 pixels.
 	 */
 	u8 mso_pixel_overlap;
+
+	/**
+	 * @max_dsc_bpp: Maximum DSC target bitrate, if it is set to 0 the
+	 * monitor's default value is used instead.
+	 */
+	u32 max_dsc_bpp;
 };
 
 int drm_display_info_set_bus_formats(struct drm_display_info *info,
@@ -692,7 +698,8 @@ struct drm_connector_tv_margins {
 
 /**
  * struct drm_tv_connector_state - TV connector related states
- * @subconnector: selected subconnector
+ * @select_subconnector: selected subconnector
+ * @subconnector: detected subconnector
  * @margins: TV margins
  * @mode: TV mode
  * @brightness: brightness in percent
@@ -703,6 +710,7 @@ struct drm_connector_tv_margins {
  * @hue: hue in percent
  */
 struct drm_tv_connector_state {
+	enum drm_mode_subconnector select_subconnector;
 	enum drm_mode_subconnector subconnector;
 	struct drm_connector_tv_margins margins;
 	unsigned int mode;
@@ -1211,6 +1219,13 @@ struct drm_cmdline_mode {
 	bool bpp_specified;
 
 	/**
+	 * @pixel_clock:
+	 *
+	 * Pixel Clock in kHz. Optional.
+	 */
+	unsigned int pixel_clock;
+
+	/**
 	 * @xres:
 	 *
 	 * Active resolution on the X axis, in pixels.
@@ -1548,12 +1563,20 @@ struct drm_connector {
 	struct drm_cmdline_mode cmdline_mode;
 	/** @force: a DRM_FORCE_<foo> state for forced mode sets */
 	enum drm_connector_force force;
+
 	/**
-	 * @override_edid: has the EDID been overwritten through debugfs for
-	 * testing? Do not modify outside of drm_edid_override_set() and
-	 * drm_edid_override_reset().
+	 * @edid_override: Override EDID set via debugfs.
+	 *
+	 * Do not modify or access outside of the drm_edid_override_* family of
+	 * functions.
 	 */
-	bool override_edid;
+	const struct drm_edid *edid_override;
+
+	/**
+	 * @edid_override_mutex: Protect access to edid_override.
+	 */
+	struct mutex edid_override_mutex;
+
 	/** @epoch_counter: used to detect any other changes in connector, besides status */
 	u64 epoch_counter;
 

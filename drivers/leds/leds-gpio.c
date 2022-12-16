@@ -151,9 +151,8 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		 * will be updated after LED class device is registered,
 		 * Only then the final LED name is known.
 		 */
-		led.gpiod = devm_fwnode_get_gpiod_from_child(dev, NULL, child,
-							     GPIOD_ASIS,
-							     NULL);
+		led.gpiod = devm_fwnode_gpiod_get(dev, child, NULL, GPIOD_ASIS,
+						  NULL);
 		if (IS_ERR(led.gpiod)) {
 			fwnode_handle_put(child);
 			return ERR_CAST(led.gpiod);

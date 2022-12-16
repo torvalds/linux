@@ -155,7 +155,7 @@ static ssize_t dpcm_show_state(struct snd_soc_pcm_runtime *fe,
 
 	for_each_dpcm_be(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
-		params = &dpcm->hw_params;
+		params = &be->dpcm[stream].hw_params;
 
 		offset += scnprintf(buf + offset, size - offset,
 				   "- %s\n", be->dai_link->name);
@@ -822,11 +822,6 @@ static int __soc_pcm_open(struct snd_soc_pcm_runtime *rtd,
 		ret = snd_soc_dai_startup(dai, substream);
 		if (ret < 0)
 			goto err;
-
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			dai->tx_mask = 0;
-		else
-			dai->rx_mask = 0;
 	}
 
 	/* Dynamic PCM DAI links compat checks use dynamic capabilities */
@@ -1252,6 +1247,8 @@ static void dpcm_be_reparent(struct snd_soc_pcm_runtime *fe,
 		return;
 
 	be_substream = snd_soc_dpcm_get_substream(be, stream);
+	if (!be_substream)
+		return;
 
 	for_each_dpcm_fe(be, stream, dpcm) {
 		if (dpcm->fe == fe)
@@ -1980,6 +1977,8 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 	int ret;
 
 	for_each_dpcm_be(fe, stream, dpcm) {
+		struct snd_pcm_hw_params hw_params;
+
 		be = dpcm->be;
 		be_substream = snd_soc_dpcm_get_substream(be, stream);
 
@@ -1988,16 +1987,16 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 			continue;
 
 		/* copy params for each dpcm */
-		memcpy(&dpcm->hw_params, &fe->dpcm[stream].hw_params,
+		memcpy(&hw_params, &fe->dpcm[stream].hw_params,
 				sizeof(struct snd_pcm_hw_params));
 
 		/* perform any hw_params fixups */
-		ret = snd_soc_link_be_hw_params_fixup(be, &dpcm->hw_params);
+		ret = snd_soc_link_be_hw_params_fixup(be, &hw_params);
 		if (ret < 0)
 			goto unwind;
 
 		/* copy the fixed-up hw params for BE dai */
-		memcpy(&be->dpcm[stream].hw_params, &dpcm->hw_params,
+		memcpy(&be->dpcm[stream].hw_params, &hw_params,
 		       sizeof(struct snd_pcm_hw_params));
 
 		/* only allow hw_params() if no connected FEs are running */
@@ -2012,7 +2011,7 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 		dev_dbg(be->dev, "ASoC: hw_params BE %s\n",
 			be->dai_link->name);
 
-		ret = __soc_pcm_hw_params(be, be_substream, &dpcm->hw_params);
+		ret = __soc_pcm_hw_params(be, be_substream, &hw_params);
 		if (ret < 0)
 			goto unwind;
 

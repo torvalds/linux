@@ -572,9 +572,9 @@ int cmd_freq_info(int argc, char **argv)
 
 	ret = 0;
 
-	/* Default is: show output of CPU 0 only */
+	/* Default is: show output of base_cpu only */
 	if (bitmask_isallclear(cpus_chosen))
-		bitmask_setbit(cpus_chosen, 0);
+		bitmask_setbit(cpus_chosen, base_cpu);
 
 	switch (output_param) {
 	case -1:

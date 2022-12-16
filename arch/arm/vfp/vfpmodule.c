@@ -774,6 +774,7 @@ static int __init vfp_init(void)
 {
 	unsigned int vfpsid;
 	unsigned int cpu_arch = cpu_architecture();
+	unsigned int isar6;
 
 	/*
 	 * Enable the access to the VFP on all online CPUs so the
@@ -831,7 +832,38 @@ static int __init vfp_init(void)
 
 			if ((fmrx(MVFR1) & 0xf0000000) == 0x10000000)
 				elf_hwcap |= HWCAP_VFPv4;
+			if (((fmrx(MVFR1) & MVFR1_ASIMDHP_MASK) >> MVFR1_ASIMDHP_BIT) == 0x2)
+				elf_hwcap |= HWCAP_ASIMDHP;
+			if (((fmrx(MVFR1) & MVFR1_FPHP_MASK) >> MVFR1_FPHP_BIT) == 0x3)
+				elf_hwcap |= HWCAP_FPHP;
 		}
+
+		/*
+		 * Check for the presence of Advanced SIMD Dot Product
+		 * instructions.
+		 */
+		isar6 = read_cpuid_ext(CPUID_EXT_ISAR6);
+		if (cpuid_feature_extract_field(isar6, 4) == 0x1)
+			elf_hwcap |= HWCAP_ASIMDDP;
+		/*
+		 * Check for the presence of Advanced SIMD Floating point
+		 * half-precision multiplication instructions.
+		 */
+		if (cpuid_feature_extract_field(isar6, 8) == 0x1)
+			elf_hwcap |= HWCAP_ASIMDFHM;
+		/*
+		 * Check for the presence of Advanced SIMD Bfloat16
+		 * floating point instructions.
+		 */
+		if (cpuid_feature_extract_field(isar6, 20) == 0x1)
+			elf_hwcap |= HWCAP_ASIMDBF16;
+		/*
+		 * Check for the presence of Advanced SIMD and floating point
+		 * Int8 matrix multiplication instructions instructions.
+		 */
+		if (cpuid_feature_extract_field(isar6, 24) == 0x1)
+			elf_hwcap |= HWCAP_I8MM;
+
 	/* Extract the architecture version on pre-cpuid scheme */
 	} else {
 		if (vfpsid & FPSID_NODOUBLE) {

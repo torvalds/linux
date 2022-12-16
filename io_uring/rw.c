@@ -286,6 +286,12 @@ static inline int io_fixup_rw_res(struct io_kiocb *req, long res)
 static void io_req_rw_complete(struct io_kiocb *req, bool *locked)
 {
 	io_req_io_end(req);
+
+	if (req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)) {
+		unsigned issue_flags = *locked ? 0 : IO_URING_F_UNLOCKED;
+
+		req->cqe.flags |= io_put_kbuf(req, issue_flags);
+	}
 	io_req_task_complete(req, locked);
 }
 
@@ -548,12 +554,12 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw)
 
 int io_readv_prep_async(struct io_kiocb *req)
 {
-	return io_rw_prep_async(req, READ);
+	return io_rw_prep_async(req, ITER_DEST);
 }
 
 int io_writev_prep_async(struct io_kiocb *req)
 {
-	return io_rw_prep_async(req, WRITE);
+	return io_rw_prep_async(req, ITER_SOURCE);
 }
 
 /*
@@ -665,6 +671,7 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 	ret = kiocb_set_rw_flags(kiocb, rw->flags);
 	if (unlikely(ret))
 		return ret;
+	kiocb->ki_flags |= IOCB_ALLOC_CACHE;
 
 	/*
 	 * If the file is marked O_NONBLOCK, still allow retry for it if it
@@ -680,7 +687,7 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 			return -EOPNOTSUPP;
 
 		kiocb->private = NULL;
-		kiocb->ki_flags |= IOCB_HIPRI | IOCB_ALLOC_CACHE;
+		kiocb->ki_flags |= IOCB_HIPRI;
 		kiocb->ki_complete = io_complete_rw_iopoll;
 		req->iopoll_completed = 0;
 	} else {
@@ -704,7 +711,7 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 	loff_t *ppos;
 
 	if (!req_has_async_data(req)) {
-		ret = io_import_iovec(READ, req, &iovec, s, issue_flags);
+		ret = io_import_iovec(ITER_DEST, req, &iovec, s, issue_flags);
 		if (unlikely(ret < 0))
 			return ret;
 	} else {
@@ -716,7 +723,7 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		 * buffers, as we dropped the selected one before retry.
 		 */
 		if (io_do_buffer_select(req)) {
-			ret = io_import_iovec(READ, req, &iovec, s, issue_flags);
+			ret = io_import_iovec(ITER_DEST, req, &iovec, s, issue_flags);
 			if (unlikely(ret < 0))
 				return ret;
 		}
@@ -851,7 +858,7 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	loff_t *ppos;
 
 	if (!req_has_async_data(req)) {
-		ret = io_import_iovec(WRITE, req, &iovec, s, issue_flags);
+		ret = io_import_iovec(ITER_SOURCE, req, &iovec, s, issue_flags);
 		if (unlikely(ret < 0))
 			return ret;
 	} else {

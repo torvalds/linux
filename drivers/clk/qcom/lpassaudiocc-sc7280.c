@@ -722,33 +722,17 @@ static const struct of_device_id lpass_audio_cc_sc7280_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, lpass_audio_cc_sc7280_match_table);
 
-static void lpassaudio_pm_runtime_disable(void *data)
-{
-	pm_runtime_disable(data);
-}
-
-static void lpassaudio_pm_clk_destroy(void *data)
-{
-	pm_clk_destroy(data);
-}
-
-static int lpassaudio_create_pm_clks(struct platform_device *pdev)
+static int lpass_audio_setup_runtime_pm(struct platform_device *pdev)
 {
 	int ret;
 
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
-	pm_runtime_enable(&pdev->dev);
-
-	ret = devm_add_action_or_reset(&pdev->dev, lpassaudio_pm_runtime_disable, &pdev->dev);
+	ret = devm_pm_runtime_enable(&pdev->dev);
 	if (ret)
 		return ret;
 
-	ret = pm_clk_create(&pdev->dev);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(&pdev->dev, lpassaudio_pm_clk_destroy, &pdev->dev);
+	ret = devm_pm_clk_create(&pdev->dev);
 	if (ret)
 		return ret;
 
@@ -756,7 +740,7 @@ static int lpassaudio_create_pm_clks(struct platform_device *pdev)
 	if (ret < 0)
 		dev_err(&pdev->dev, "failed to acquire iface clock\n");
 
-	return ret;
+	return pm_runtime_resume_and_get(&pdev->dev);
 }
 
 static int lpass_audio_cc_sc7280_probe(struct platform_device *pdev)
@@ -765,7 +749,7 @@ static int lpass_audio_cc_sc7280_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	int ret;
 
-	ret = lpassaudio_create_pm_clks(pdev);
+	ret = lpass_audio_setup_runtime_pm(pdev);
 	if (ret)
 		return ret;
 
@@ -775,8 +759,8 @@ static int lpass_audio_cc_sc7280_probe(struct platform_device *pdev)
 
 	regmap = qcom_cc_map(pdev, desc);
 	if (IS_ERR(regmap)) {
-		pm_runtime_disable(&pdev->dev);
-		return PTR_ERR(regmap);
+		ret = PTR_ERR(regmap);
+		goto exit;
 	}
 
 	clk_zonda_pll_configure(&lpass_audio_cc_pll, regmap, &lpass_audio_cc_pll_config);
@@ -788,20 +772,18 @@ static int lpass_audio_cc_sc7280_probe(struct platform_device *pdev)
 	ret = qcom_cc_really_probe(pdev, &lpass_audio_cc_sc7280_desc, regmap);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register LPASS AUDIO CC clocks\n");
-		pm_runtime_disable(&pdev->dev);
-		return ret;
+		goto exit;
 	}
 
 	ret = qcom_cc_probe_by_index(pdev, 1, &lpass_audio_cc_reset_sc7280_desc);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register LPASS AUDIO CC Resets\n");
-		pm_runtime_disable(&pdev->dev);
-		return ret;
+		goto exit;
 	}
 
 	pm_runtime_mark_last_busy(&pdev->dev);
+exit:
 	pm_runtime_put_autosuspend(&pdev->dev);
-	pm_runtime_put_sync(&pdev->dev);
 
 	return ret;
 }
@@ -839,14 +821,15 @@ static int lpass_aon_cc_sc7280_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	int ret;
 
-	ret = lpassaudio_create_pm_clks(pdev);
+	ret = lpass_audio_setup_runtime_pm(pdev);
 	if (ret)
 		return ret;
 
 	if (of_property_read_bool(pdev->dev.of_node, "qcom,adsp-pil-mode")) {
 		lpass_audio_cc_sc7280_regmap_config.name = "cc";
 		desc = &lpass_cc_sc7280_desc;
-		return qcom_cc_probe(pdev, desc);
+		ret = qcom_cc_probe(pdev, desc);
+		goto exit;
 	}
 
 	lpass_audio_cc_sc7280_regmap_config.name = "lpasscc_aon";
@@ -854,18 +837,22 @@ static int lpass_aon_cc_sc7280_probe(struct platform_device *pdev)
 	desc = &lpass_aon_cc_sc7280_desc;
 
 	regmap = qcom_cc_map(pdev, desc);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
+	if (IS_ERR(regmap)) {
+		ret = PTR_ERR(regmap);
+		goto exit;
+	}
 
 	clk_lucid_pll_configure(&lpass_aon_cc_pll, regmap, &lpass_aon_cc_pll_config);
 
 	ret = qcom_cc_really_probe(pdev, &lpass_aon_cc_sc7280_desc, regmap);
-	if (ret)
+	if (ret) {
 		dev_err(&pdev->dev, "Failed to register LPASS AON CC clocks\n");
+		goto exit;
+	}
 
 	pm_runtime_mark_last_busy(&pdev->dev);
+exit:
 	pm_runtime_put_autosuspend(&pdev->dev);
-	pm_runtime_put_sync(&pdev->dev);
 
 	return ret;
 }

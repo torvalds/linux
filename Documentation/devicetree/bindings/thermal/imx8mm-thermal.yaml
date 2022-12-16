@@ -32,6 +32,13 @@ properties:
   clocks:
     maxItems: 1
 
+  nvmem-cells:
+    maxItems: 1
+    description: Phandle to the calibration data provided by ocotp
+
+  nvmem-cell-names:
+    const: calib
+
   "#thermal-sensor-cells":
     description: |
       Number of cells required to uniquely identify the thermal

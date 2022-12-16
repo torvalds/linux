@@ -236,34 +236,6 @@ static void psp_v12_0_reroute_ih(struct psp_context *psp)
 		     0x80000000, 0x8000FFFF, false);
 }
 
-static int psp_v12_0_ring_init(struct psp_context *psp,
-			      enum psp_ring_type ring_type)
-{
-	int ret = 0;
-	struct psp_ring *ring;
-	struct amdgpu_device *adev = psp->adev;
-
-	psp_v12_0_reroute_ih(psp);
-
-	ring = &psp->km_ring;
-
-	ring->ring_type = ring_type;
-
-	/* allocate 4k Page of Local Frame Buffer memory for ring */
-	ring->ring_size = 0x1000;
-	ret = amdgpu_bo_create_kernel(adev, ring->ring_size, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
-				      &adev->firmware.rbuf,
-				      &ring->ring_mem_mc_addr,
-				      (void **)&ring->ring_mem);
-	if (ret) {
-		ring->ring_size = 0;
-		return ret;
-	}
-
-	return 0;
-}
-
 static int psp_v12_0_ring_create(struct psp_context *psp,
 				enum psp_ring_type ring_type)
 {
@@ -271,6 +243,8 @@ static int psp_v12_0_ring_create(struct psp_context *psp,
 	unsigned int psp_ring_reg = 0;
 	struct psp_ring *ring = &psp->km_ring;
 	struct amdgpu_device *adev = psp->adev;
+
+	psp_v12_0_reroute_ih(psp);
 
 	if (amdgpu_sriov_vf(psp->adev)) {
 		/* Write low address of the ring to C2PMSG_102 */
@@ -425,7 +399,6 @@ static const struct psp_funcs psp_v12_0_funcs = {
 	.init_microcode = psp_v12_0_init_microcode,
 	.bootloader_load_sysdrv = psp_v12_0_bootloader_load_sysdrv,
 	.bootloader_load_sos = psp_v12_0_bootloader_load_sos,
-	.ring_init = psp_v12_0_ring_init,
 	.ring_create = psp_v12_0_ring_create,
 	.ring_stop = psp_v12_0_ring_stop,
 	.ring_destroy = psp_v12_0_ring_destroy,

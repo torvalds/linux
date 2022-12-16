@@ -11,11 +11,15 @@
 #include <cxlmem.h>
 #include "mock.h"
 
+static int interleave_arithmetic;
+
 #define NR_CXL_HOST_BRIDGES 2
 #define NR_CXL_SINGLE_HOST 1
+#define NR_CXL_RCH 1
 #define NR_CXL_ROOT_PORTS 2
 #define NR_CXL_SWITCH_PORTS 2
 #define NR_CXL_PORT_DECODERS 8
+#define NR_BRIDGES (NR_CXL_HOST_BRIDGES + NR_CXL_SINGLE_HOST + NR_CXL_RCH)
 
 static struct platform_device *cxl_acpi;
 static struct platform_device *cxl_host_bridge[NR_CXL_HOST_BRIDGES];
@@ -35,6 +39,8 @@ static struct platform_device *cxl_swd_single[NR_MEM_SINGLE];
 struct platform_device *cxl_mem[NR_MEM_MULTI];
 struct platform_device *cxl_mem_single[NR_MEM_SINGLE];
 
+static struct platform_device *cxl_rch[NR_CXL_RCH];
+static struct platform_device *cxl_rcd[NR_CXL_RCH];
 
 static inline bool is_multi_bridge(struct device *dev)
 {
@@ -57,7 +63,7 @@ static inline bool is_single_bridge(struct device *dev)
 }
 
 static struct acpi_device acpi0017_mock;
-static struct acpi_device host_bridge[NR_CXL_HOST_BRIDGES + NR_CXL_SINGLE_HOST] = {
+static struct acpi_device host_bridge[NR_BRIDGES] = {
 	[0] = {
 		.handle = &host_bridge[0],
 	},
@@ -67,7 +73,9 @@ static struct acpi_device host_bridge[NR_CXL_HOST_BRIDGES + NR_CXL_SINGLE_HOST] 
 	[2] = {
 		.handle = &host_bridge[2],
 	},
-
+	[3] = {
+		.handle = &host_bridge[3],
+	},
 };
 
 static bool is_mock_dev(struct device *dev)
@@ -79,6 +87,9 @@ static bool is_mock_dev(struct device *dev)
 			return true;
 	for (i = 0; i < ARRAY_SIZE(cxl_mem_single); i++)
 		if (dev == &cxl_mem_single[i]->dev)
+			return true;
+	for (i = 0; i < ARRAY_SIZE(cxl_rcd); i++)
+		if (dev == &cxl_rcd[i]->dev)
 			return true;
 	if (dev == &cxl_acpi->dev)
 		return true;
@@ -101,7 +112,7 @@ static bool is_mock_adev(struct acpi_device *adev)
 
 static struct {
 	struct acpi_table_cedt cedt;
-	struct acpi_cedt_chbs chbs[NR_CXL_HOST_BRIDGES + NR_CXL_SINGLE_HOST];
+	struct acpi_cedt_chbs chbs[NR_BRIDGES];
 	struct {
 		struct acpi_cedt_cfmws cfmws;
 		u32 target[1];
@@ -122,6 +133,26 @@ static struct {
 		struct acpi_cedt_cfmws cfmws;
 		u32 target[1];
 	} cfmws4;
+	struct {
+		struct acpi_cedt_cfmws cfmws;
+		u32 target[1];
+	} cfmws5;
+	struct {
+		struct acpi_cedt_cfmws cfmws;
+		u32 target[1];
+	} cfmws6;
+	struct {
+		struct acpi_cedt_cfmws cfmws;
+		u32 target[2];
+	} cfmws7;
+	struct {
+		struct acpi_cedt_cfmws cfmws;
+		u32 target[4];
+	} cfmws8;
+	struct {
+		struct acpi_cedt_cxims cxims;
+		u64 xormap_list[2];
+	} cxims0;
 } __packed mock_cedt = {
 	.cedt = {
 		.header = {
@@ -153,6 +184,14 @@ static struct {
 		},
 		.uid = 2,
 		.cxl_version = ACPI_CEDT_CHBS_VERSION_CXL20,
+	},
+	.chbs[3] = {
+		.header = {
+			.type = ACPI_CEDT_TYPE_CHBS,
+			.length = sizeof(mock_cedt.chbs[0]),
+		},
+		.uid = 3,
+		.cxl_version = ACPI_CEDT_CHBS_VERSION_CXL11,
 	},
 	.cfmws0 = {
 		.cfmws = {
@@ -229,6 +268,81 @@ static struct {
 		},
 		.target = { 2 },
 	},
+	.cfmws5 = {
+		.cfmws = {
+			.header = {
+				.type = ACPI_CEDT_TYPE_CFMWS,
+				.length = sizeof(mock_cedt.cfmws5),
+			},
+			.interleave_ways = 0,
+			.granularity = 4,
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+					ACPI_CEDT_CFMWS_RESTRICT_VOLATILE,
+			.qtg_id = 5,
+			.window_size = SZ_256M,
+		},
+		.target = { 3 },
+	},
+	/* .cfmws6,7,8 use ACPI_CEDT_CFMWS_ARITHMETIC_XOR */
+	.cfmws6 = {
+		.cfmws = {
+			.header = {
+				.type = ACPI_CEDT_TYPE_CFMWS,
+				.length = sizeof(mock_cedt.cfmws6),
+			},
+			.interleave_arithmetic = ACPI_CEDT_CFMWS_ARITHMETIC_XOR,
+			.interleave_ways = 0,
+			.granularity = 4,
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
+			.qtg_id = 0,
+			.window_size = SZ_256M * 8UL,
+		},
+		.target = { 0, },
+	},
+	.cfmws7 = {
+		.cfmws = {
+			.header = {
+				.type = ACPI_CEDT_TYPE_CFMWS,
+				.length = sizeof(mock_cedt.cfmws7),
+			},
+			.interleave_arithmetic = ACPI_CEDT_CFMWS_ARITHMETIC_XOR,
+			.interleave_ways = 1,
+			.granularity = 0,
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
+			.qtg_id = 1,
+			.window_size = SZ_256M * 8UL,
+		},
+		.target = { 0, 1, },
+	},
+	.cfmws8 = {
+		.cfmws = {
+			.header = {
+				.type = ACPI_CEDT_TYPE_CFMWS,
+				.length = sizeof(mock_cedt.cfmws8),
+			},
+			.interleave_arithmetic = ACPI_CEDT_CFMWS_ARITHMETIC_XOR,
+			.interleave_ways = 2,
+			.granularity = 0,
+			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
+					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
+			.qtg_id = 0,
+			.window_size = SZ_256M * 16UL,
+		},
+		.target = { 0, 1, 0, 1, },
+	},
+	.cxims0 = {
+		.cxims = {
+			.header = {
+				.type = ACPI_CEDT_TYPE_CXIMS,
+				.length = sizeof(mock_cedt.cxims0),
+			},
+			.hbig = 0,
+			.nr_xormaps = 2,
+		},
+		.xormap_list = { 0x404100, 0x808200, },
+	},
 };
 
 struct acpi_cedt_cfmws *mock_cfmws[] = {
@@ -237,6 +351,22 @@ struct acpi_cedt_cfmws *mock_cfmws[] = {
 	[2] = &mock_cedt.cfmws2.cfmws,
 	[3] = &mock_cedt.cfmws3.cfmws,
 	[4] = &mock_cedt.cfmws4.cfmws,
+	[5] = &mock_cedt.cfmws5.cfmws,
+	/* Modulo Math above, XOR Math below */
+	[6] = &mock_cedt.cfmws6.cfmws,
+	[7] = &mock_cedt.cfmws7.cfmws,
+	[8] = &mock_cedt.cfmws8.cfmws,
+};
+
+static int cfmws_start;
+static int cfmws_end;
+#define CFMWS_MOD_ARRAY_START 0
+#define CFMWS_MOD_ARRAY_END   5
+#define CFMWS_XOR_ARRAY_START 6
+#define CFMWS_XOR_ARRAY_END   8
+
+struct acpi_cedt_cxims *mock_cxims[1] = {
+	[0] = &mock_cedt.cxims0.cxims,
 };
 
 struct cxl_mock_res {
@@ -262,11 +392,11 @@ static void depopulate_all_mock_resources(void)
 	mutex_unlock(&mock_res_lock);
 }
 
-static struct cxl_mock_res *alloc_mock_res(resource_size_t size)
+static struct cxl_mock_res *alloc_mock_res(resource_size_t size, int align)
 {
 	struct cxl_mock_res *res = kzalloc(sizeof(*res), GFP_KERNEL);
 	struct genpool_data_align data = {
-		.align = SZ_256M,
+		.align = align,
 	};
 	unsigned long phys;
 
@@ -301,17 +431,17 @@ static int populate_cedt(void)
 		else
 			size = ACPI_CEDT_CHBS_LENGTH_CXL11;
 
-		res = alloc_mock_res(size);
+		res = alloc_mock_res(size, size);
 		if (!res)
 			return -ENOMEM;
 		chbs->base = res->range.start;
 		chbs->length = size;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(mock_cfmws); i++) {
+	for (i = cfmws_start; i <= cfmws_end; i++) {
 		struct acpi_cedt_cfmws *window = mock_cfmws[i];
 
-		res = alloc_mock_res(window->window_size);
+		res = alloc_mock_res(window->window_size, SZ_256M);
 		if (!res)
 			return -ENOMEM;
 		window->base_hpa = res->range.start;
@@ -320,10 +450,12 @@ static int populate_cedt(void)
 	return 0;
 }
 
+static bool is_mock_port(struct device *dev);
+
 /*
- * WARNING, this hack assumes the format of 'struct
- * cxl_cfmws_context' and 'struct cxl_chbs_context' share the property that
- * the first struct member is the device being probed by the cxl_acpi
+ * WARNING, this hack assumes the format of 'struct cxl_cfmws_context'
+ * and 'struct cxl_chbs_context' share the property that the first
+ * struct member is a cxl_test device being probed by the cxl_acpi
  * driver.
  */
 struct cxl_cedt_context {
@@ -340,7 +472,7 @@ static int mock_acpi_table_parse_cedt(enum acpi_cedt_type id,
 	unsigned long end;
 	int i;
 
-	if (dev != &cxl_acpi->dev)
+	if (!is_mock_port(dev) && !is_mock_dev(dev))
 		return acpi_table_parse_cedt(id, handler_arg, arg);
 
 	if (id == ACPI_CEDT_TYPE_CHBS)
@@ -351,9 +483,16 @@ static int mock_acpi_table_parse_cedt(enum acpi_cedt_type id,
 		}
 
 	if (id == ACPI_CEDT_TYPE_CFMWS)
-		for (i = 0; i < ARRAY_SIZE(mock_cfmws); i++) {
+		for (i = cfmws_start; i <= cfmws_end; i++) {
 			h = (union acpi_subtable_headers *) mock_cfmws[i];
 			end = (unsigned long) h + mock_cfmws[i]->header.length;
+			handler_arg(h, arg, end);
+		}
+
+	if (id == ACPI_CEDT_TYPE_CXIMS)
+		for (i = 0; i < ARRAY_SIZE(mock_cxims); i++) {
+			h = (union acpi_subtable_headers *)mock_cxims[i];
+			end = (unsigned long)h + mock_cxims[i]->header.length;
 			handler_arg(h, arg, end);
 		}
 
@@ -370,6 +509,10 @@ static bool is_mock_bridge(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(cxl_hb_single); i++)
 		if (dev == &cxl_hb_single[i]->dev)
 			return true;
+	for (i = 0; i < ARRAY_SIZE(cxl_rch); i++)
+		if (dev == &cxl_rch[i]->dev)
+			return true;
+
 	return false;
 }
 
@@ -439,14 +582,21 @@ mock_acpi_evaluate_integer(acpi_handle handle, acpi_string pathname,
 	return AE_OK;
 }
 
-static struct pci_bus mock_pci_bus[NR_CXL_HOST_BRIDGES];
-static struct acpi_pci_root mock_pci_root[NR_CXL_HOST_BRIDGES] = {
+static struct pci_bus mock_pci_bus[NR_BRIDGES];
+static struct acpi_pci_root mock_pci_root[ARRAY_SIZE(mock_pci_bus)] = {
 	[0] = {
 		.bus = &mock_pci_bus[0],
 	},
 	[1] = {
 		.bus = &mock_pci_bus[1],
 	},
+	[2] = {
+		.bus = &mock_pci_bus[2],
+	},
+	[3] = {
+		.bus = &mock_pci_bus[3],
+	},
+
 };
 
 static bool is_mock_bus(struct pci_bus *bus)
@@ -634,7 +784,6 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 
 static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 {
-	struct device *dev = &port->dev;
 	struct platform_device **array;
 	int i, array_size;
 
@@ -684,17 +833,20 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 		dport = devm_cxl_add_dport(port, &pdev->dev, pdev->id,
 					   CXL_RESOURCE_NONE);
 
-		if (IS_ERR(dport)) {
-			dev_err(dev, "failed to add dport: %s (%ld)\n",
-				dev_name(&pdev->dev), PTR_ERR(dport));
+		if (IS_ERR(dport))
 			return PTR_ERR(dport);
-		}
-
-		dev_dbg(dev, "add dport%d: %s\n", pdev->id,
-			dev_name(&pdev->dev));
 	}
 
 	return 0;
+}
+
+resource_size_t mock_cxl_rcrb_to_component(struct device *dev,
+					   resource_size_t rcrb,
+					   enum cxl_rcrb which)
+{
+	dev_dbg(dev, "rcrb: %pa which: %d\n", &rcrb, which);
+
+	return (resource_size_t) which + 1;
 }
 
 static struct cxl_mock_ops cxl_mock_ops = {
@@ -705,6 +857,7 @@ static struct cxl_mock_ops cxl_mock_ops = {
 	.is_mock_dev = is_mock_dev,
 	.acpi_table_parse_cedt = mock_acpi_table_parse_cedt,
 	.acpi_evaluate_integer = mock_acpi_evaluate_integer,
+	.cxl_rcrb_to_component = mock_cxl_rcrb_to_component,
 	.acpi_pci_find_root = mock_acpi_pci_find_root,
 	.devm_cxl_port_enumerate_dports = mock_cxl_port_enumerate_dports,
 	.devm_cxl_setup_hdm = mock_cxl_setup_hdm,
@@ -729,6 +882,87 @@ static void mock_companion(struct acpi_device *adev, struct device *dev)
 #define SZ_512G (SZ_64G * 8)
 #endif
 
+static __init int cxl_rch_init(void)
+{
+	int rc, i;
+
+	for (i = 0; i < ARRAY_SIZE(cxl_rch); i++) {
+		int idx = NR_CXL_HOST_BRIDGES + NR_CXL_SINGLE_HOST + i;
+		struct acpi_device *adev = &host_bridge[idx];
+		struct platform_device *pdev;
+
+		pdev = platform_device_alloc("cxl_host_bridge", idx);
+		if (!pdev)
+			goto err_bridge;
+
+		mock_companion(adev, &pdev->dev);
+		rc = platform_device_add(pdev);
+		if (rc) {
+			platform_device_put(pdev);
+			goto err_bridge;
+		}
+
+		cxl_rch[i] = pdev;
+		mock_pci_bus[idx].bridge = &pdev->dev;
+		rc = sysfs_create_link(&pdev->dev.kobj, &pdev->dev.kobj,
+				       "firmware_node");
+		if (rc)
+			goto err_bridge;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cxl_rcd); i++) {
+		int idx = NR_MEM_MULTI + NR_MEM_SINGLE + i;
+		struct platform_device *rch = cxl_rch[i];
+		struct platform_device *pdev;
+
+		pdev = platform_device_alloc("cxl_rcd", idx);
+		if (!pdev)
+			goto err_mem;
+		pdev->dev.parent = &rch->dev;
+		set_dev_node(&pdev->dev, i % 2);
+
+		rc = platform_device_add(pdev);
+		if (rc) {
+			platform_device_put(pdev);
+			goto err_mem;
+		}
+		cxl_rcd[i] = pdev;
+	}
+
+	return 0;
+
+err_mem:
+	for (i = ARRAY_SIZE(cxl_rcd) - 1; i >= 0; i--)
+		platform_device_unregister(cxl_rcd[i]);
+err_bridge:
+	for (i = ARRAY_SIZE(cxl_rch) - 1; i >= 0; i--) {
+		struct platform_device *pdev = cxl_rch[i];
+
+		if (!pdev)
+			continue;
+		sysfs_remove_link(&pdev->dev.kobj, "firmware_node");
+		platform_device_unregister(cxl_rch[i]);
+	}
+
+	return rc;
+}
+
+static void cxl_rch_exit(void)
+{
+	int i;
+
+	for (i = ARRAY_SIZE(cxl_rcd) - 1; i >= 0; i--)
+		platform_device_unregister(cxl_rcd[i]);
+	for (i = ARRAY_SIZE(cxl_rch) - 1; i >= 0; i--) {
+		struct platform_device *pdev = cxl_rch[i];
+
+		if (!pdev)
+			continue;
+		sysfs_remove_link(&pdev->dev.kobj, "firmware_node");
+		platform_device_unregister(cxl_rch[i]);
+	}
+}
+
 static __init int cxl_single_init(void)
 {
 	int i, rc;
@@ -751,6 +985,7 @@ static __init int cxl_single_init(void)
 		}
 
 		cxl_hb_single[i] = pdev;
+		mock_pci_bus[i + NR_CXL_HOST_BRIDGES].bridge = &pdev->dev;
 		rc = sysfs_create_link(&pdev->dev.kobj, &pdev->dev.kobj,
 				       "physical_node");
 		if (rc)
@@ -897,6 +1132,16 @@ static __init int cxl_test_init(void)
 	if (rc)
 		goto err_gen_pool_add;
 
+	if (interleave_arithmetic == 1) {
+		cfmws_start = CFMWS_XOR_ARRAY_START;
+		cfmws_end = CFMWS_XOR_ARRAY_END;
+		dev_dbg(NULL, "cxl_test loading xor math option\n");
+	} else {
+		cfmws_start = CFMWS_MOD_ARRAY_START;
+		cfmws_end = CFMWS_MOD_ARRAY_END;
+		dev_dbg(NULL, "cxl_test loading modulo math option\n");
+	}
+
 	rc = populate_cedt();
 	if (rc)
 		goto err_populate;
@@ -917,6 +1162,7 @@ static __init int cxl_test_init(void)
 		}
 
 		cxl_host_bridge[i] = pdev;
+		mock_pci_bus[i].bridge = &pdev->dev;
 		rc = sysfs_create_link(&pdev->dev.kobj, &pdev->dev.kobj,
 				       "physical_node");
 		if (rc)
@@ -999,9 +1245,13 @@ static __init int cxl_test_init(void)
 	if (rc)
 		goto err_mem;
 
+	rc = cxl_rch_init();
+	if (rc)
+		goto err_single;
+
 	cxl_acpi = platform_device_alloc("cxl_acpi", 0);
 	if (!cxl_acpi)
-		goto err_single;
+		goto err_rch;
 
 	mock_companion(&acpi0017_mock, &cxl_acpi->dev);
 	acpi0017_mock.dev.bus = &platform_bus_type;
@@ -1014,6 +1264,8 @@ static __init int cxl_test_init(void)
 
 err_add:
 	platform_device_put(cxl_acpi);
+err_rch:
+	cxl_rch_exit();
 err_single:
 	cxl_single_exit();
 err_mem:
@@ -1051,6 +1303,7 @@ static __exit void cxl_test_exit(void)
 	int i;
 
 	platform_device_unregister(cxl_acpi);
+	cxl_rch_exit();
 	cxl_single_exit();
 	for (i = ARRAY_SIZE(cxl_mem) - 1; i >= 0; i--)
 		platform_device_unregister(cxl_mem[i]);
@@ -1073,6 +1326,8 @@ static __exit void cxl_test_exit(void)
 	unregister_cxl_mock_ops(&cxl_mock_ops);
 }
 
+module_param(interleave_arithmetic, int, 0000);
+MODULE_PARM_DESC(interleave_arithmetic, "Modulo:0, XOR:1");
 module_init(cxl_test_init);
 module_exit(cxl_test_exit);
 MODULE_LICENSE("GPL v2");

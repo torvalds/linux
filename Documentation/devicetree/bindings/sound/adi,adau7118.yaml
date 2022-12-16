@@ -15,6 +15,9 @@ description: |
   standalone mode.
   https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU7118.pdf
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     enum:
@@ -57,7 +60,7 @@ required:
   - iovdd-supply
   - dvdd-supply
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -46,6 +46,7 @@
 #include "g4x_dp.h"
 #include "i915_debugfs.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_backlight.h"
@@ -2306,6 +2307,7 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	bool fastset = true;
 
 	/*
 	 * If BIOS has set an unsupported or non-standard link rate for some
@@ -2313,9 +2315,10 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 	 */
 	if (intel_dp_rate_index(intel_dp->source_rates, intel_dp->num_source_rates,
 				crtc_state->port_clock) < 0) {
-		drm_dbg_kms(&i915->drm, "Forcing full modeset due to unsupported link rate\n");
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] Forcing full modeset due to unsupported link rate\n",
+			    encoder->base.base.id, encoder->base.name);
 		crtc_state->uapi.connectors_changed = true;
-		return false;
+		fastset = false;
 	}
 
 	/*
@@ -2326,18 +2329,20 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 	 * Remove once we have readout for DSC.
 	 */
 	if (crtc_state->dsc.compression_enable) {
-		drm_dbg_kms(&i915->drm, "Forcing full modeset due to DSC being enabled\n");
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] Forcing full modeset due to DSC being enabled\n",
+			    encoder->base.base.id, encoder->base.name);
 		crtc_state->uapi.mode_changed = true;
-		return false;
+		fastset = false;
 	}
 
 	if (CAN_PSR(intel_dp)) {
-		drm_dbg_kms(&i915->drm, "Forcing full modeset to compute PSR state\n");
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] Forcing full modeset to compute PSR state\n",
+			    encoder->base.base.id, encoder->base.name);
 		crtc_state->uapi.mode_changed = true;
-		return false;
+		fastset = false;
 	}
 
-	return true;
+	return fastset;
 }
 
 static void intel_dp_get_pcon_dsc_cap(struct intel_dp *intel_dp)
@@ -2685,7 +2690,6 @@ void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp,
 			   "Failed to %s protocol converter RGB->YCbCr conversion mode\n",
 			   str_enable_disable(tmp));
 }
-
 
 bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 {
@@ -4873,6 +4877,12 @@ void intel_dp_encoder_flush_work(struct drm_encoder *encoder)
 
 	intel_pps_vdd_off_sync(intel_dp);
 
+	/*
+	 * Ensure power off delay is respected on module remove, so that we can
+	 * reduce delays at driver probe. See pps_init_timestamps().
+	 */
+	intel_pps_wait_power_cycle(intel_dp);
+
 	intel_dp_aux_fini(intel_dp);
 }
 
@@ -5174,19 +5184,6 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 	if (has_gamut_metadata_dip(dev_priv, port))
 		drm_connector_attach_hdr_output_metadata_property(connector);
 
-	if (intel_dp_is_edp(intel_dp)) {
-		u32 allowed_scalers;
-
-		allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
-		if (!HAS_GMCH(dev_priv))
-			allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
-
-		drm_connector_attach_scaling_mode_property(connector, allowed_scalers);
-
-		connector->state->scaling_mode = DRM_MODE_SCALE_ASPECT;
-
-	}
-
 	if (HAS_VRR(dev_priv))
 		drm_connector_attach_vrr_capable_property(connector);
 }
@@ -5199,8 +5196,7 @@ intel_edp_add_properties(struct intel_dp *intel_dp)
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_preferred_fixed_mode(connector);
 
-	if (!fixed_mode)
-		return;
+	intel_attach_scaling_mode_property(&connector->base);
 
 	drm_connector_set_panel_orientation_with_quirk(&connector->base,
 						       i915->display.vbt.orientation,
@@ -5208,16 +5204,43 @@ intel_edp_add_properties(struct intel_dp *intel_dp)
 						       fixed_mode->vdisplay);
 }
 
+static void intel_edp_backlight_setup(struct intel_dp *intel_dp,
+				      struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	enum pipe pipe = INVALID_PIPE;
+
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+		/*
+		 * Figure out the current pipe for the initial backlight setup.
+		 * If the current pipe isn't valid, try the PPS pipe, and if that
+		 * fails just assume pipe A.
+		 */
+		pipe = vlv_active_pipe(intel_dp);
+
+		if (pipe != PIPE_A && pipe != PIPE_B)
+			pipe = intel_dp->pps.pps_pipe;
+
+		if (pipe != PIPE_A && pipe != PIPE_B)
+			pipe = PIPE_A;
+
+		drm_dbg_kms(&i915->drm,
+			    "[CONNECTOR:%d:%s] using pipe %c for initial backlight setup\n",
+			    connector->base.base.id, connector->base.name,
+			    pipe_name(pipe));
+	}
+
+	intel_backlight_setup(connector, pipe);
+}
+
 static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 				     struct intel_connector *intel_connector)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector = &intel_connector->base;
 	struct drm_display_mode *fixed_mode;
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	bool has_dpcd;
-	enum pipe pipe = INVALID_PIPE;
 	struct edid *edid;
 
 	if (!intel_dp_is_edp(intel_dp))
@@ -5230,7 +5253,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	 * with an already powered-on LVDS power sequencer.
 	 */
 	if (intel_get_lvds_encoder(dev_priv)) {
-		drm_WARN_ON(dev,
+		drm_WARN_ON(&dev_priv->drm,
 			    !(HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)));
 		drm_info(&dev_priv->drm,
 			 "LVDS was detected, not registering eDP\n");
@@ -5246,11 +5269,12 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (!has_dpcd) {
 		/* if this fails, presume the device is a ghost */
 		drm_info(&dev_priv->drm,
-			 "failed to retrieve link info, disabling eDP\n");
+			 "[ENCODER:%d:%s] failed to retrieve link info, disabling eDP\n",
+			 encoder->base.base.id, encoder->base.name);
 		goto out_vdd_off;
 	}
 
-	mutex_lock(&dev->mode_config.mutex);
+	mutex_lock(&dev_priv->drm.mode_config.mutex);
 	edid = drm_get_edid(connector, &intel_dp->aux.ddc);
 	if (!edid) {
 		/* Fallback to EDID from ACPI OpRegion, if any */
@@ -5275,9 +5299,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_bios_init_panel(dev_priv, &intel_connector->panel,
 			      encoder->devdata, IS_ERR(edid) ? NULL : edid);
 
-	intel_panel_add_edid_fixed_modes(intel_connector,
-					 intel_connector->panel.vbt.drrs_type != DRRS_TYPE_NONE ||
-					 intel_vrr_is_capable(intel_connector));
+	intel_panel_add_edid_fixed_modes(intel_connector, true);
 
 	/* MSO requires information from the EDID */
 	intel_edp_mso_init(intel_dp);
@@ -5290,30 +5312,18 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (!intel_panel_preferred_fixed_mode(intel_connector))
 		intel_panel_add_vbt_lfp_fixed_mode(intel_connector);
 
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev_priv->drm.mode_config.mutex);
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		/*
-		 * Figure out the current pipe for the initial backlight setup.
-		 * If the current pipe isn't valid, try the PPS pipe, and if that
-		 * fails just assume pipe A.
-		 */
-		pipe = vlv_active_pipe(intel_dp);
-
-		if (pipe != PIPE_A && pipe != PIPE_B)
-			pipe = intel_dp->pps.pps_pipe;
-
-		if (pipe != PIPE_A && pipe != PIPE_B)
-			pipe = PIPE_A;
-
-		drm_dbg_kms(&dev_priv->drm,
-			    "using pipe %c for initial backlight setup\n",
-			    pipe_name(pipe));
+	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
+		drm_info(&dev_priv->drm,
+			 "[ENCODER:%d:%s] failed to find fixed mode for the panel, disabling eDP\n",
+			 encoder->base.base.id, encoder->base.name);
+		goto out_vdd_off;
 	}
 
 	intel_panel_init(intel_connector);
 
-	intel_backlight_setup(intel_connector, pipe);
+	intel_edp_backlight_setup(intel_dp, intel_connector);
 
 	intel_edp_add_properties(intel_dp);
 
@@ -5415,7 +5425,6 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 
 	if (!HAS_GMCH(dev_priv))
 		connector->interlace_allowed = true;
-	connector->doublescan_allowed = 0;
 
 	intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
 

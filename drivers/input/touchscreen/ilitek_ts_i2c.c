@@ -542,8 +542,7 @@ static struct attribute_group ilitek_attrs_group = {
 	.attrs = ilitek_sysfs_attrs,
 };
 
-static int ilitek_ts_i2c_probe(struct i2c_client *client,
-			       const struct i2c_device_id *id)
+static int ilitek_ts_i2c_probe(struct i2c_client *client)
 {
 	struct ilitek_ts_data *ts;
 	struct device *dev = &client->dev;
@@ -680,7 +679,7 @@ static struct i2c_driver ilitek_ts_i2c_driver = {
 		.of_match_table = of_match_ptr(ilitek_ts_i2c_match),
 		.acpi_match_table = ACPI_PTR(ilitekts_acpi_id),
 	},
-	.probe = ilitek_ts_i2c_probe,
+	.probe_new = ilitek_ts_i2c_probe,
 	.id_table = ilitek_ts_i2c_id,
 };
 module_i2c_driver(ilitek_ts_i2c_driver);

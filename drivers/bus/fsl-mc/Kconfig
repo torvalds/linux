@@ -8,7 +8,7 @@
 config FSL_MC_BUS
 	bool "QorIQ DPAA2 fsl-mc bus driver"
 	depends on OF && (ARCH_LAYERSCAPE || (COMPILE_TEST && (ARM || ARM64 || X86_LOCAL_APIC || PPC)))
-	select GENERIC_MSI_IRQ_DOMAIN
+	select GENERIC_MSI_IRQ
 	help
 	  Driver to enable the bus infrastructure for the QorIQ DPAA2
 	  architecture.  The fsl-mc bus driver handles discovery of

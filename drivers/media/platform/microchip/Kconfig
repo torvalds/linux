@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+comment "Microchip Technology, Inc. media platform drivers"
+
+config VIDEO_MICROCHIP_ISC
+	tristate "Microchip Image Sensor Controller (ISC) support"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && COMMON_CLK
+	depends on ARCH_AT91 || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_DMA_CONTIG
+	select REGMAP_MMIO
+	select V4L2_FWNODE
+	select VIDEO_MICROCHIP_ISC_BASE
+	help
+	   This module makes the Microchip Image Sensor Controller available
+	   as a v4l2 device.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called microchip-isc.
+
+config VIDEO_MICROCHIP_XISC
+	tristate "Microchip eXtended Image Sensor Controller (XISC) support"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && COMMON_CLK
+	depends on ARCH_AT91 || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	select REGMAP_MMIO
+	select V4L2_FWNODE
+	select VIDEO_MICROCHIP_ISC_BASE
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	   This module makes the Microchip eXtended Image Sensor Controller
+	   available as a v4l2 device.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called microchip-xisc.
+
+config VIDEO_MICROCHIP_ISC_BASE
+	tristate
+	default n
+	help
+	  Microchip ISC and XISC common code base.
+
+config VIDEO_MICROCHIP_CSI2DC
+	tristate "Microchip CSI2 Demux Controller"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && COMMON_CLK && OF
+	depends on ARCH_AT91 || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  CSI2 Demux Controller driver. CSI2DC is a helper chip
+	  that converts IDI interface byte stream to a parallel pixel stream.
+	  It supports various RAW formats as input.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called microchip-csi2dc.

@@ -2,6 +2,7 @@
 #ifndef __NVKM_DEVICE_H__
 #define __NVKM_DEVICE_H__
 #include <core/oclass.h>
+#include <core/intr.h>
 enum nvkm_subdev_type;
 
 enum nvkm_device_type {
@@ -60,6 +61,16 @@ struct nvkm_device {
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
 	struct list_head subdev;
+
+	struct {
+		struct list_head intr;
+		struct list_head prio[NVKM_INTR_PRIO_NR];
+		spinlock_t lock;
+		int irq;
+		bool alloc;
+		bool armed;
+		bool legacy_done;
+	} intr;
 };
 
 struct nvkm_subdev *nvkm_device_subdev(struct nvkm_device *, int type, int inst);
@@ -72,6 +83,7 @@ struct nvkm_device_func {
 	int (*preinit)(struct nvkm_device *);
 	int (*init)(struct nvkm_device *);
 	void (*fini)(struct nvkm_device *, bool suspend);
+	int (*irq)(struct nvkm_device *);
 	resource_size_t (*resource_addr)(struct nvkm_device *, unsigned bar);
 	resource_size_t (*resource_size)(struct nvkm_device *, unsigned bar);
 	bool cpu_coherent;

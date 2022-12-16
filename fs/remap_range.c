@@ -304,7 +304,7 @@ __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	/* Check that we don't violate system file offset limits. */
 	ret = generic_remap_checks(file_in, pos_in, file_out, pos_out, len,
 			remap_flags);
-	if (ret)
+	if (ret || *len == 0)
 		return ret;
 
 	/* Wait for the completion of any pending IOs on both files */
@@ -328,9 +328,6 @@ __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	if (remap_flags & REMAP_FILE_DEDUP) {
 		bool		is_same = false;
 
-		if (*len == 0)
-			return 0;
-
 		if (!IS_DAX(inode_in))
 			ret = vfs_dedupe_file_range_compare(file_in, pos_in,
 					file_out, pos_out, *len, &is_same);
@@ -348,7 +345,7 @@ __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 
 	ret = generic_remap_check_len(inode_in, inode_out, pos_out, len,
 			remap_flags);
-	if (ret)
+	if (ret || *len == 0)
 		return ret;
 
 	/* If can't alter the file contents, we're done. */
@@ -429,7 +426,7 @@ static bool allow_file_dedupe(struct file *file)
 		return true;
 	if (file->f_mode & FMODE_WRITE)
 		return true;
-	if (uid_eq(current_fsuid(), i_uid_into_mnt(mnt_userns, inode)))
+	if (vfsuid_eq_kuid(i_uid_into_vfsuid(mnt_userns, inode), current_fsuid()))
 		return true;
 	if (!inode_permission(mnt_userns, inode, MAY_WRITE))
 		return true;

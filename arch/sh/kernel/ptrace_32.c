@@ -157,8 +157,8 @@ static int genregs_set(struct task_struct *target,
 					 offsetof(struct pt_regs, pc),
 					 sizeof(struct pt_regs));
 	if (!ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-						sizeof(struct pt_regs), -1);
+		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					  sizeof(struct pt_regs), -1);
 
 	return ret;
 }
@@ -229,8 +229,8 @@ static int dspregs_set(struct task_struct *target,
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, regs,
 				 0, sizeof(struct pt_dspregs));
 	if (!ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-						sizeof(struct pt_dspregs), -1);
+		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					  sizeof(struct pt_dspregs), -1);
 
 	return ret;
 }

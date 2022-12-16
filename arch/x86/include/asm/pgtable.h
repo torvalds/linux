@@ -139,6 +139,7 @@ static inline int pmd_dirty(pmd_t pmd)
 	return pmd_flags(pmd) & _PAGE_DIRTY;
 }
 
+#define pmd_young pmd_young
 static inline int pmd_young(pmd_t pmd)
 {
 	return pmd_flags(pmd) & _PAGE_ACCESSED;
@@ -291,7 +292,23 @@ static inline pte_t pte_clear_flags(pte_t pte, pteval_t clear)
 #ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
 static inline int pte_uffd_wp(pte_t pte)
 {
-	return pte_flags(pte) & _PAGE_UFFD_WP;
+	bool wp = pte_flags(pte) & _PAGE_UFFD_WP;
+
+#ifdef CONFIG_DEBUG_VM
+	/*
+	 * Having write bit for wr-protect-marked present ptes is fatal,
+	 * because it means the uffd-wp bit will be ignored and write will
+	 * just go through.
+	 *
+	 * Use any chance of pgtable walking to verify this (e.g., when
+	 * page swapped out or being migrated for all purposes). It means
+	 * something is already wrong.  Tell the admin even before the
+	 * process crashes. We also nail it with wrong pgtable setup.
+	 */
+	WARN_ON_ONCE(wp && pte_write(pte));
+#endif
+
+	return wp;
 }
 
 static inline pte_t pte_mkuffd_wp(pte_t pte)
@@ -1437,6 +1454,14 @@ static inline bool arch_has_hw_pte_young(void)
 {
 	return true;
 }
+
+#ifdef CONFIG_XEN_PV
+#define arch_has_hw_nonleaf_pmd_young arch_has_hw_nonleaf_pmd_young
+static inline bool arch_has_hw_nonleaf_pmd_young(void)
+{
+	return !cpu_feature_enabled(X86_FEATURE_XENPV);
+}
+#endif
 
 #ifdef CONFIG_PAGE_TABLE_CHECK
 static inline bool pte_user_accessible_page(pte_t pte)

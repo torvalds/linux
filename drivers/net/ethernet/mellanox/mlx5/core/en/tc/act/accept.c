@@ -28,4 +28,5 @@ tc_act_parse_accept(struct mlx5e_tc_act_parse_state *parse_state,
 struct mlx5e_tc_act mlx5e_tc_act_accept = {
 	.can_offload = tc_act_can_offload_accept,
 	.parse_action = tc_act_parse_accept,
+	.is_terminating_action = true,
 };

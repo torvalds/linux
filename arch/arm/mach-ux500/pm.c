@@ -16,8 +16,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-#include "db8500-regs.h"
-
 /* ARM WFI Standby signal register */
 #define PRCM_ARM_WFI_STANDBY    (prcmu_base + 0x130)
 #define PRCM_ARM_WFI_STANDBY_WFI0		0x08
@@ -124,7 +122,7 @@ bool prcmu_pending_irq(void)
 }
 
 /*
- * This function checks if the specified cpu is in in WFI. It's usage
+ * This function checks if the specified cpu is in WFI. It's usage
  * makes sense only if the gic is decoupled with the db8500_prcmu_gic_decouple
  * function. Of course passing smp_processor_id() to this function will
  * always return false...

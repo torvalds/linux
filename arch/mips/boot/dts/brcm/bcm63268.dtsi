@@ -110,6 +110,11 @@
 			reg = <0x10000080 0x30>;
 			ranges = <0x0 0x10000080 0x30>;
 
+			timer@0 {
+				compatible = "brcm,bcm6345-timer";
+				reg = <0x0 0x1c>;
+			};
+
 			wdt: watchdog@1c {
 				compatible = "brcm,bcm7038-wdt";
 				reg = <0x1c 0xc>;

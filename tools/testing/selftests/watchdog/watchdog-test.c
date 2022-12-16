@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Watchdog Driver Test Program
+* Watchdog Driver Test Program
+* - Tests all ioctls
+* - Tests Magic Close - CONFIG_WATCHDOG_NOWAYOUT
+* - Could be tested against softdog driver on systems that
+*   don't have watchdog hardware.
+* - TODO:
+* - Enhance test to add coverage for WDIOC_GETTEMP.
+*
+* Reference: Documentation/watchdog/watchdog-api.rst
  */
 
 #include <errno.h>
@@ -19,13 +27,14 @@
 
 int fd;
 const char v = 'V';
-static const char sopts[] = "bdehp:t:Tn:NLf:i";
+static const char sopts[] = "bdehp:st:Tn:NLf:i";
 static const struct option lopts[] = {
 	{"bootstatus",          no_argument, NULL, 'b'},
 	{"disable",             no_argument, NULL, 'd'},
 	{"enable",              no_argument, NULL, 'e'},
 	{"help",                no_argument, NULL, 'h'},
 	{"pingrate",      required_argument, NULL, 'p'},
+	{"status",              no_argument, NULL, 's'},
 	{"timeout",       required_argument, NULL, 't'},
 	{"gettimeout",          no_argument, NULL, 'T'},
 	{"pretimeout",    required_argument, NULL, 'n'},
@@ -74,6 +83,7 @@ static void usage(char *progname)
 	printf(" -f, --file\t\tOpen watchdog device file\n");
 	printf("\t\t\tDefault is /dev/watchdog\n");
 	printf(" -i, --info\t\tShow watchdog_info\n");
+	printf(" -s, --status\t\tGet status & supported features\n");
 	printf(" -b, --bootstatus\tGet last boot status (Watchdog/POR)\n");
 	printf(" -d, --disable\t\tTurn off the watchdog timer\n");
 	printf(" -e, --enable\t\tTurn on the watchdog timer\n");
@@ -91,6 +101,73 @@ static void usage(char *progname)
 	printf("Example: %s -t 12 -T -n 7 -N\n", progname);
 }
 
+struct wdiof_status {
+	int flag;
+	const char *status_str;
+};
+
+#define WDIOF_NUM_STATUS 8
+
+static const struct wdiof_status wdiof_status[WDIOF_NUM_STATUS] = {
+	{WDIOF_SETTIMEOUT,  "Set timeout (in seconds)"},
+	{WDIOF_MAGICCLOSE,  "Supports magic close char"},
+	{WDIOF_PRETIMEOUT,  "Pretimeout (in seconds), get/set"},
+	{WDIOF_ALARMONLY,  "Watchdog triggers a management or other external alarm not a reboot"},
+	{WDIOF_KEEPALIVEPING,  "Keep alive ping reply"},
+	{WDIOS_DISABLECARD,  "Turn off the watchdog timer"},
+	{WDIOS_ENABLECARD,  "Turn on the watchdog timer"},
+	{WDIOS_TEMPPANIC,  "Kernel panic on temperature trip"},
+};
+
+static void print_status(int flags)
+{
+	int wdiof = 0;
+
+	if (flags == WDIOS_UNKNOWN) {
+		printf("Unknown status error from WDIOC_GETSTATUS\n");
+		return;
+	}
+
+	for (wdiof = 0; wdiof < WDIOF_NUM_STATUS; wdiof++) {
+		if (flags & wdiof_status[wdiof].flag)
+			printf("Support/Status: %s\n",
+				wdiof_status[wdiof].status_str);
+	}
+}
+
+#define WDIOF_NUM_BOOTSTATUS 7
+
+static const struct wdiof_status wdiof_bootstatus[WDIOF_NUM_BOOTSTATUS] = {
+	{WDIOF_OVERHEAT, "Reset due to CPU overheat"},
+	{WDIOF_FANFAULT, "Fan failed"},
+	{WDIOF_EXTERN1, "External relay 1"},
+	{WDIOF_EXTERN2, "External relay 2"},
+	{WDIOF_POWERUNDER, "Power bad/power fault"},
+	{WDIOF_CARDRESET, "Card previously reset the CPU"},
+	{WDIOF_POWEROVER,  "Power over voltage"},
+};
+
+static void print_boot_status(int flags)
+{
+	int wdiof = 0;
+
+	if (flags == WDIOF_UNKNOWN) {
+		printf("Unknown flag error from WDIOC_GETBOOTSTATUS\n");
+		return;
+	}
+
+	if (flags == 0) {
+		printf("Last boot is caused by: Power-On-Reset\n");
+		return;
+	}
+
+	for (wdiof = 0; wdiof < WDIOF_NUM_BOOTSTATUS; wdiof++) {
+		if (flags & wdiof_bootstatus[wdiof].flag)
+			printf("Last boot is caused by: %s\n",
+				wdiof_bootstatus[wdiof].status_str);
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	int flags;
@@ -100,6 +177,7 @@ int main(int argc, char *argv[])
 	int oneshot = 0;
 	char *file = "/dev/watchdog";
 	struct watchdog_info info;
+	int temperature;
 
 	setbuf(stdout, NULL);
 
@@ -140,8 +218,7 @@ int main(int argc, char *argv[])
 			oneshot = 1;
 			ret = ioctl(fd, WDIOC_GETBOOTSTATUS, &flags);
 			if (!ret)
-				printf("Last boot is caused by: %s.\n", (flags != 0) ?
-					"Watchdog" : "Power-On-Reset");
+				print_boot_status(flags);
 			else
 				printf("WDIOC_GETBOOTSTATUS error '%s'\n", strerror(errno));
 			break;
@@ -170,6 +247,21 @@ int main(int argc, char *argv[])
 			if (!ping_rate)
 				ping_rate = DEFAULT_PING_RATE;
 			printf("Watchdog ping rate set to %u seconds.\n", ping_rate);
+			break;
+		case 's':
+			flags = 0;
+			oneshot = 1;
+			ret = ioctl(fd, WDIOC_GETSTATUS, &flags);
+			if (!ret)
+				print_status(flags);
+			else
+				printf("WDIOC_GETSTATUS error '%s'\n", strerror(errno));
+			ret = ioctl(fd, WDIOC_GETTEMP, &temperature);
+			if (ret)
+				printf("WDIOC_GETTEMP: '%s'\n", strerror(errno));
+			else
+				printf("Temperature %d\n", temperature);
+
 			break;
 		case 't':
 			flags = strtoul(optarg, NULL, 0);
@@ -228,7 +320,7 @@ int main(int argc, char *argv[])
 			printf(" identity:\t\t%s\n", info.identity);
 			printf(" firmware_version:\t%u\n",
 			       info.firmware_version);
-			printf(" options:\t\t%08x\n", info.options);
+			print_status(info.options);
 			break;
 
 		default:
@@ -249,6 +341,10 @@ int main(int argc, char *argv[])
 		sleep(ping_rate);
 	}
 end:
+	/*
+	 * Send specific magic character 'V' just in case Magic Close is
+	 * enabled to ensure watchdog gets disabled on close.
+	 */
 	ret = write(fd, &v, 1);
 	if (ret < 0)
 		printf("Stopping watchdog ticks failed (%d)...\n", errno);

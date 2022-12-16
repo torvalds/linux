@@ -293,7 +293,6 @@ properties:
     description:
       SDIO only. Preserves card power during a suspend/resume cycle.
 
-  # Deprecated: enable-sdio-wakeup
   wakeup-source:
     $ref: /schemas/types.yaml#/definitions/flag
     description:

@@ -14,7 +14,9 @@ allOf:
 
 properties:
   compatible:
-    const: mstar,msg2638
+    enum:
+      - mstar,msg2138
+      - mstar,msg2638
 
   reg:
     const: 0x26
@@ -33,6 +35,10 @@ properties:
 
   touchscreen-size-x: true
   touchscreen-size-y: true
+
+  linux,keycodes:
+    minItems: 1
+    maxItems: 4
 
 additionalProperties: false
 

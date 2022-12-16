@@ -19,6 +19,9 @@ struct intel_guc_slpc {
 	bool supported;
 	bool selected;
 
+	/* Indicates this is a server part */
+	bool min_is_rpmax;
+
 	/* platform frequency limits */
 	u32 min_freq;
 	u32 rp0_freq;

@@ -6,4 +6,4 @@
 
 obj-$(CONFIG_NGBE) += ngbe.o
 
-ngbe-objs := ngbe_main.o
+ngbe-objs := ngbe_main.o ngbe_hw.o

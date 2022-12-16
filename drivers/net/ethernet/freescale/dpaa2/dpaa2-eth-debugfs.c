@@ -98,14 +98,14 @@ static int dpaa2_dbg_ch_show(struct seq_file *file, void *offset)
 	int i;
 
 	seq_printf(file, "Channel stats for %s:\n", priv->net_dev->name);
-	seq_printf(file, "%s%16s%16s%16s%16s%16s%16s\n",
-		   "CHID", "CPU", "Deq busy", "Frames", "CDANs",
+	seq_printf(file, "%s  %5s%16s%16s%16s%16s%16s%16s\n",
+		   "IDX", "CHID", "CPU", "Deq busy", "Frames", "CDANs",
 		   "Avg Frm/CDAN", "Buf count");
 
 	for (i = 0; i < priv->num_channels; i++) {
 		ch = priv->channel[i];
-		seq_printf(file, "%4d%16d%16llu%16llu%16llu%16llu%16d\n",
-			   ch->ch_id,
+		seq_printf(file, "%3s%d%6d%16d%16llu%16llu%16llu%16llu%16d\n",
+			   "CH#", i, ch->ch_id,
 			   ch->nctx.desired_cpu,
 			   ch->stats.dequeue_portal_busy,
 			   ch->stats.frames,
@@ -118,6 +118,51 @@ static int dpaa2_dbg_ch_show(struct seq_file *file, void *offset)
 }
 
 DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_ch);
+
+static int dpaa2_dbg_bp_show(struct seq_file *file, void *offset)
+{
+	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)file->private;
+	int i, j, num_queues, buf_cnt;
+	struct dpaa2_eth_bp *bp;
+	char ch_name[10];
+	int err;
+
+	/* Print out the header */
+	seq_printf(file, "Buffer pool info for %s:\n", priv->net_dev->name);
+	seq_printf(file, "%s  %10s%15s", "IDX", "BPID", "Buf count");
+	num_queues = dpaa2_eth_queue_count(priv);
+	for (i = 0; i < num_queues; i++) {
+		snprintf(ch_name, sizeof(ch_name), "CH#%d", i);
+		seq_printf(file, "%10s", ch_name);
+	}
+	seq_printf(file, "\n");
+
+	/* For each buffer pool, print out its BPID, the number of buffers in
+	 * that buffer pool and the channels which are using it.
+	 */
+	for (i = 0; i < priv->num_bps; i++) {
+		bp = priv->bp[i];
+
+		err = dpaa2_io_query_bp_count(NULL, bp->bpid, &buf_cnt);
+		if (err) {
+			netdev_warn(priv->net_dev, "Buffer count query error %d\n", err);
+			return err;
+		}
+
+		seq_printf(file, "%3s%d%10d%15d", "BP#", i, bp->bpid, buf_cnt);
+		for (j = 0; j < num_queues; j++) {
+			if (priv->channel[j]->bp == bp)
+				seq_printf(file, "%10s", "x");
+			else
+				seq_printf(file, "%10s", "");
+		}
+		seq_printf(file, "\n");
+	}
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_bp);
 
 void dpaa2_dbg_add(struct dpaa2_eth_priv *priv)
 {
@@ -139,6 +184,10 @@ void dpaa2_dbg_add(struct dpaa2_eth_priv *priv)
 
 	/* per-fq stats file */
 	debugfs_create_file("ch_stats", 0444, dir, priv, &dpaa2_dbg_ch_fops);
+
+	/* per buffer pool stats file */
+	debugfs_create_file("bp_stats", 0444, dir, priv, &dpaa2_dbg_bp_fops);
+
 }
 
 void dpaa2_dbg_remove(struct dpaa2_eth_priv *priv)

@@ -312,12 +312,12 @@ static inline __u64 get_time_ns(void)
 	return (__u64) t.tv_sec * 1000000000 + t.tv_nsec;
 }
 
-static size_t symbol_hash(const void *key, void *ctx __maybe_unused)
+static size_t symbol_hash(long key, void *ctx __maybe_unused)
 {
 	return str_hash((const char *) key);
 }
 
-static bool symbol_equal(const void *key1, const void *key2, void *ctx __maybe_unused)
+static bool symbol_equal(long key1, long key2, void *ctx __maybe_unused)
 {
 	return strcmp((const char *) key1, (const char *) key2) == 0;
 }
@@ -325,7 +325,7 @@ static bool symbol_equal(const void *key1, const void *key2, void *ctx __maybe_u
 static int get_syms(char ***symsp, size_t *cntp)
 {
 	size_t cap = 0, cnt = 0, i;
-	char *name, **syms = NULL;
+	char *name = NULL, **syms = NULL;
 	struct hashmap *map;
 	char buf[256];
 	FILE *f;
@@ -352,15 +352,19 @@ static int get_syms(char ***symsp, size_t *cntp)
 		/* skip modules */
 		if (strchr(buf, '['))
 			continue;
+
+		free(name);
 		if (sscanf(buf, "%ms$*[^\n]\n", &name) != 1)
 			continue;
 		/*
 		 * We attach to almost all kernel functions and some of them
 		 * will cause 'suspicious RCU usage' when fprobe is attached
 		 * to them. Filter out the current culprits - arch_cpu_idle
-		 * and rcu_* functions.
+		 * default_idle and rcu_* functions.
 		 */
 		if (!strcmp(name, "arch_cpu_idle"))
+			continue;
+		if (!strcmp(name, "default_idle"))
 			continue;
 		if (!strncmp(name, "rcu_", 4))
 			continue;
@@ -369,38 +373,38 @@ static int get_syms(char ***symsp, size_t *cntp)
 		if (!strncmp(name, "__ftrace_invalid_address__",
 			     sizeof("__ftrace_invalid_address__") - 1))
 			continue;
-		err = hashmap__add(map, name, NULL);
-		if (err) {
-			free(name);
-			if (err == -EEXIST)
-				continue;
+
+		err = hashmap__add(map, name, 0);
+		if (err == -EEXIST)
+			continue;
+		if (err)
 			goto error;
-		}
+
 		err = libbpf_ensure_mem((void **) &syms, &cap,
 					sizeof(*syms), cnt + 1);
-		if (err) {
-			free(name);
+		if (err)
 			goto error;
-		}
-		syms[cnt] = name;
-		cnt++;
+
+		syms[cnt++] = name;
+		name = NULL;
 	}
 
 	*symsp = syms;
 	*cntp = cnt;
 
 error:
+	free(name);
 	fclose(f);
 	hashmap__free(map);
 	if (err) {
 		for (i = 0; i < cnt; i++)
-			free(syms[cnt]);
+			free(syms[i]);
 		free(syms);
 	}
 	return err;
 }
 
-static void test_bench_attach(void)
+void serial_test_kprobe_multi_bench_attach(void)
 {
 	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
 	struct kprobe_multi_empty *skel = NULL;
@@ -468,6 +472,4 @@ void test_kprobe_multi_test(void)
 		test_attach_api_syms();
 	if (test__start_subtest("attach_api_fails"))
 		test_attach_api_fails();
-	if (test__start_subtest("bench_attach"))
-		test_bench_attach();
 }

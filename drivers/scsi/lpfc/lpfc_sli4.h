@@ -556,6 +556,7 @@ struct lpfc_pc_sli4_params {
 #define LPFC_MIB3_SUPPORT	3
 	uint16_t mi_value;
 #define LPFC_DFLT_MIB_VAL	2
+	uint8_t mi_cap;
 	uint8_t mib_bde_cnt;
 	uint8_t cmf;
 	uint8_t cqv;

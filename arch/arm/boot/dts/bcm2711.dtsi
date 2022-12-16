@@ -48,7 +48,7 @@
 		 * This node is the provider for the enable-method for
 		 * bringing up secondary cores.
 		 */
-		local_intc: local_intc@40000000 {
+		local_intc: interrupt-controller@40000000 {
 			compatible = "brcm,bcm2836-l1-intc";
 			reg = <0x40000000 0x100>;
 		};
@@ -536,6 +536,7 @@
 		 */
 		l2: l2-cache0 {
 			compatible = "cache";
+			cache-unified;
 			cache-size = <0x100000>;
 			cache-line-size = <64>;
 			cache-sets = <1024>; // 1MiB(size)/64(line-size)=16384ways/16-way set
@@ -647,21 +648,21 @@
 
 	gpio-ranges = <&gpio 0 0 58>;
 
-	gpclk0_gpio49: gpclk0_gpio49 {
+	gpclk0_gpio49: gpclk0-gpio49 {
 		pin-gpclk {
 			pins = "gpio49";
 			function = "alt1";
 			bias-disable;
 		};
 	};
-	gpclk1_gpio50: gpclk1_gpio50 {
+	gpclk1_gpio50: gpclk1-gpio50 {
 		pin-gpclk {
 			pins = "gpio50";
 			function = "alt1";
 			bias-disable;
 		};
 	};
-	gpclk2_gpio51: gpclk2_gpio51 {
+	gpclk2_gpio51: gpclk2-gpio51 {
 		pin-gpclk {
 			pins = "gpio51";
 			function = "alt1";
@@ -669,7 +670,7 @@
 		};
 	};
 
-	i2c0_gpio46: i2c0_gpio46 {
+	i2c0_gpio46: i2c0-gpio46 {
 		pin-sda {
 			function = "alt0";
 			pins = "gpio46";
@@ -681,7 +682,7 @@
 			bias-disable;
 		};
 	};
-	i2c1_gpio46: i2c1_gpio46 {
+	i2c1_gpio46: i2c1-gpio46 {
 		pin-sda {
 			function = "alt1";
 			pins = "gpio46";
@@ -693,7 +694,7 @@
 			bias-disable;
 		};
 	};
-	i2c3_gpio2: i2c3_gpio2 {
+	i2c3_gpio2: i2c3-gpio2 {
 		pin-sda {
 			function = "alt5";
 			pins = "gpio2";
@@ -705,7 +706,7 @@
 			bias-disable;
 		};
 	};
-	i2c3_gpio4: i2c3_gpio4 {
+	i2c3_gpio4: i2c3-gpio4 {
 		pin-sda {
 			function = "alt5";
 			pins = "gpio4";
@@ -717,7 +718,7 @@
 			bias-disable;
 		};
 	};
-	i2c4_gpio6: i2c4_gpio6 {
+	i2c4_gpio6: i2c4-gpio6 {
 		pin-sda {
 			function = "alt5";
 			pins = "gpio6";
@@ -729,7 +730,7 @@
 			bias-disable;
 		};
 	};
-	i2c4_gpio8: i2c4_gpio8 {
+	i2c4_gpio8: i2c4-gpio8 {
 		pin-sda {
 			function = "alt5";
 			pins = "gpio8";
@@ -741,7 +742,7 @@
 			bias-disable;
 		};
 	};
-	i2c5_gpio10: i2c5_gpio10 {
+	i2c5_gpio10: i2c5-gpio10 {
 		pin-sda {
 			function = "alt5";
 			pins = "gpio10";
@@ -753,7 +754,7 @@
 			bias-disable;
 		};
 	};
-	i2c5_gpio12: i2c5_gpio12 {
+	i2c5_gpio12: i2c5-gpio12 {
 		pin-sda {
 			function = "alt5";
 			pins = "gpio12";
@@ -765,7 +766,7 @@
 			bias-disable;
 		};
 	};
-	i2c6_gpio0: i2c6_gpio0 {
+	i2c6_gpio0: i2c6-gpio0 {
 		pin-sda {
 			function = "alt5";
 			pins = "gpio0";
@@ -777,7 +778,7 @@
 			bias-disable;
 		};
 	};
-	i2c6_gpio22: i2c6_gpio22 {
+	i2c6_gpio22: i2c6-gpio22 {
 		pin-sda {
 			function = "alt5";
 			pins = "gpio22";
@@ -789,7 +790,7 @@
 			bias-disable;
 		};
 	};
-	i2c_slave_gpio8: i2c_slave_gpio8 {
+	i2c_slave_gpio8: i2c-slave-gpio8 {
 		pins-i2c-slave {
 			pins = "gpio8",
 			       "gpio9",
@@ -799,7 +800,7 @@
 		};
 	};
 
-	jtag_gpio48: jtag_gpio48 {
+	jtag_gpio48: jtag-gpio48 {
 		pins-jtag {
 			pins = "gpio48",
 			       "gpio49",
@@ -811,7 +812,7 @@
 		};
 	};
 
-	mii_gpio28: mii_gpio28 {
+	mii_gpio28: mii-gpio28 {
 		pins-mii {
 			pins = "gpio28",
 			       "gpio29",
@@ -820,7 +821,7 @@
 			function = "alt4";
 		};
 	};
-	mii_gpio36: mii_gpio36 {
+	mii_gpio36: mii-gpio36 {
 		pins-mii {
 			pins = "gpio36",
 			       "gpio37",
@@ -830,7 +831,7 @@
 		};
 	};
 
-	pcm_gpio50: pcm_gpio50 {
+	pcm_gpio50: pcm-gpio50 {
 		pins-pcm {
 			pins = "gpio50",
 			       "gpio51",
@@ -840,63 +841,63 @@
 		};
 	};
 
-	pwm0_0_gpio12: pwm0_0_gpio12 {
+	pwm0_0_gpio12: pwm0-0-gpio12 {
 		pin-pwm {
 			pins = "gpio12";
 			function = "alt0";
 			bias-disable;
 		};
 	};
-	pwm0_0_gpio18: pwm0_0_gpio18 {
+	pwm0_0_gpio18: pwm0-0-gpio18 {
 		pin-pwm {
 			pins = "gpio18";
 			function = "alt5";
 			bias-disable;
 		};
 	};
-	pwm1_0_gpio40: pwm1_0_gpio40 {
+	pwm1_0_gpio40: pwm1-0-gpio40 {
 		pin-pwm {
 			pins = "gpio40";
 			function = "alt0";
 			bias-disable;
 		};
 	};
-	pwm0_1_gpio13: pwm0_1_gpio13 {
+	pwm0_1_gpio13: pwm0-1-gpio13 {
 		pin-pwm {
 			pins = "gpio13";
 			function = "alt0";
 			bias-disable;
 		};
 	};
-	pwm0_1_gpio19: pwm0_1_gpio19 {
+	pwm0_1_gpio19: pwm0-1-gpio19 {
 		pin-pwm {
 			pins = "gpio19";
 			function = "alt5";
 			bias-disable;
 		};
 	};
-	pwm1_1_gpio41: pwm1_1_gpio41 {
+	pwm1_1_gpio41: pwm1-1-gpio41 {
 		pin-pwm {
 			pins = "gpio41";
 			function = "alt0";
 			bias-disable;
 		};
 	};
-	pwm0_1_gpio45: pwm0_1_gpio45 {
+	pwm0_1_gpio45: pwm0-1-gpio45 {
 		pin-pwm {
 			pins = "gpio45";
 			function = "alt0";
 			bias-disable;
 		};
 	};
-	pwm0_0_gpio52: pwm0_0_gpio52 {
+	pwm0_0_gpio52: pwm0-0-gpio52 {
 		pin-pwm {
 			pins = "gpio52";
 			function = "alt1";
 			bias-disable;
 		};
 	};
-	pwm0_1_gpio53: pwm0_1_gpio53 {
+	pwm0_1_gpio53: pwm0-1-gpio53 {
 		pin-pwm {
 			pins = "gpio53";
 			function = "alt1";
@@ -904,7 +905,7 @@
 		};
 	};
 
-	rgmii_gpio35: rgmii_gpio35 {
+	rgmii_gpio35: rgmii-gpio35 {
 		pin-start-stop {
 			pins = "gpio35";
 			function = "alt4";
@@ -914,26 +915,26 @@
 			function = "alt4";
 		};
 	};
-	rgmii_irq_gpio34: rgmii_irq_gpio34 {
+	rgmii_irq_gpio34: rgmii-irq-gpio34 {
 		pin-irq {
 			pins = "gpio34";
 			function = "alt5";
 		};
 	};
-	rgmii_irq_gpio39: rgmii_irq_gpio39 {
+	rgmii_irq_gpio39: rgmii-irq-gpio39 {
 		pin-irq {
 			pins = "gpio39";
 			function = "alt4";
 		};
 	};
-	rgmii_mdio_gpio28: rgmii_mdio_gpio28 {
+	rgmii_mdio_gpio28: rgmii-mdio-gpio28 {
 		pins-mdio {
 			pins = "gpio28",
 			       "gpio29";
 			function = "alt5";
 		};
 	};
-	rgmii_mdio_gpio37: rgmii_mdio_gpio37 {
+	rgmii_mdio_gpio37: rgmii-mdio-gpio37 {
 		pins-mdio {
 			pins = "gpio37",
 			       "gpio38";
@@ -941,7 +942,7 @@
 		};
 	};
 
-	spi0_gpio46: spi0_gpio46 {
+	spi0_gpio46: spi0-gpio46 {
 		pins-spi {
 			pins = "gpio46",
 			       "gpio47",
@@ -950,7 +951,7 @@
 			function = "alt2";
 		};
 	};
-	spi2_gpio46: spi2_gpio46 {
+	spi2_gpio46: spi2-gpio46 {
 		pins-spi {
 			pins = "gpio46",
 			       "gpio47",
@@ -960,7 +961,7 @@
 			function = "alt5";
 		};
 	};
-	spi3_gpio0: spi3_gpio0 {
+	spi3_gpio0: spi3-gpio0 {
 		pins-spi {
 			pins = "gpio0",
 			       "gpio1",
@@ -969,7 +970,7 @@
 			function = "alt3";
 		};
 	};
-	spi4_gpio4: spi4_gpio4 {
+	spi4_gpio4: spi4-gpio4 {
 		pins-spi {
 			pins = "gpio4",
 			       "gpio5",
@@ -978,7 +979,7 @@
 			function = "alt3";
 		};
 	};
-	spi5_gpio12: spi5_gpio12 {
+	spi5_gpio12: spi5-gpio12 {
 		pins-spi {
 			pins = "gpio12",
 			       "gpio13",
@@ -987,7 +988,7 @@
 			function = "alt3";
 		};
 	};
-	spi6_gpio18: spi6_gpio18 {
+	spi6_gpio18: spi6-gpio18 {
 		pins-spi {
 			pins = "gpio18",
 			       "gpio19",
@@ -997,7 +998,7 @@
 		};
 	};
 
-	uart2_gpio0: uart2_gpio0 {
+	uart2_gpio0: uart2-gpio0 {
 		pin-tx {
 			pins = "gpio0";
 			function = "alt4";
@@ -1009,7 +1010,7 @@
 			bias-pull-up;
 		};
 	};
-	uart2_ctsrts_gpio2: uart2_ctsrts_gpio2 {
+	uart2_ctsrts_gpio2: uart2-ctsrts-gpio2 {
 		pin-cts {
 			pins = "gpio2";
 			function = "alt4";
@@ -1021,7 +1022,7 @@
 			bias-disable;
 		};
 	};
-	uart3_gpio4: uart3_gpio4 {
+	uart3_gpio4: uart3-gpio4 {
 		pin-tx {
 			pins = "gpio4";
 			function = "alt4";
@@ -1033,7 +1034,7 @@
 			bias-pull-up;
 		};
 	};
-	uart3_ctsrts_gpio6: uart3_ctsrts_gpio6 {
+	uart3_ctsrts_gpio6: uart3-ctsrts-gpio6 {
 		pin-cts {
 			pins = "gpio6";
 			function = "alt4";
@@ -1045,7 +1046,7 @@
 			bias-disable;
 		};
 	};
-	uart4_gpio8: uart4_gpio8 {
+	uart4_gpio8: uart4-gpio8 {
 		pin-tx {
 			pins = "gpio8";
 			function = "alt4";
@@ -1057,7 +1058,7 @@
 			bias-pull-up;
 		};
 	};
-	uart4_ctsrts_gpio10: uart4_ctsrts_gpio10 {
+	uart4_ctsrts_gpio10: uart4-ctsrts-gpio10 {
 		pin-cts {
 			pins = "gpio10";
 			function = "alt4";
@@ -1069,7 +1070,7 @@
 			bias-disable;
 		};
 	};
-	uart5_gpio12: uart5_gpio12 {
+	uart5_gpio12: uart5-gpio12 {
 		pin-tx {
 			pins = "gpio12";
 			function = "alt4";
@@ -1081,7 +1082,7 @@
 			bias-pull-up;
 		};
 	};
-	uart5_ctsrts_gpio14: uart5_ctsrts_gpio14 {
+	uart5_ctsrts_gpio14: uart5-ctsrts-gpio14 {
 		pin-cts {
 			pins = "gpio14";
 			function = "alt4";

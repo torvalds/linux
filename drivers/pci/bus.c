@@ -197,6 +197,10 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 
 		max = avail.end;
 
+		/* Don't bother if available space isn't large enough */
+		if (size > max - min_used + 1)
+			continue;
+
 		/* Ok, try it out.. */
 		ret = allocate_resource(r, res, size, min_used, max,
 					align, alignf, alignf_data);
