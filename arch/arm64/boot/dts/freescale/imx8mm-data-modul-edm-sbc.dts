@@ -88,6 +88,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_watchdog_gpio>;
 		compatible = "linux,wdt-gpio";
+		always-running;
 		gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		hw_algo = "level";
 		/* Reset triggers in 2..3 seconds */
