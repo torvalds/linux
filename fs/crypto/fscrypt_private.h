@@ -363,16 +363,15 @@ fscrypt_using_inline_encryption(const struct fscrypt_info *ci)
 }
 
 int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
-				     const u8 *raw_key,
-				     unsigned int raw_key_size,
+				     const u8 *raw_key, size_t raw_key_size,
 				     bool is_hw_wrapped,
 				     const struct fscrypt_info *ci);
 
 void fscrypt_destroy_inline_crypt_key(struct super_block *sb,
 				      struct fscrypt_prepared_key *prep_key);
 
-int fscrypt_derive_sw_secret(struct super_block *sb, const u8 *wrapped_key,
-			     unsigned int wrapped_key_size,
+int fscrypt_derive_sw_secret(struct super_block *sb,
+			     const u8 *wrapped_key, size_t wrapped_key_size,
 			     u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE]);
 
 /*
@@ -385,7 +384,7 @@ fscrypt_is_key_prepared(struct fscrypt_prepared_key *prep_key,
 {
 	/*
 	 * The two smp_load_acquire()'s here pair with the smp_store_release()'s
-	 * in fscrypt_prepare_inline_crypt_key() and __fscrypt_prepare_key().
+	 * in fscrypt_prepare_inline_crypt_key() and fscrypt_prepare_key().
 	 * I.e., in some cases (namely, if this prep_key is a per-mode
 	 * encryption key) another task can publish blk_key or tfm concurrently,
 	 * executing a RELEASE barrier.  We need to use smp_load_acquire() here
@@ -412,7 +411,7 @@ fscrypt_using_inline_encryption(const struct fscrypt_info *ci)
 
 static inline int
 fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
-				 const u8 *raw_key, unsigned int raw_key_size,
+				 const u8 *raw_key, size_t raw_key_size,
 				 bool is_hw_wrapped,
 				 const struct fscrypt_info *ci)
 {
@@ -427,8 +426,8 @@ fscrypt_destroy_inline_crypt_key(struct super_block *sb,
 }
 
 static inline int
-fscrypt_derive_sw_secret(struct super_block *sb, const u8 *wrapped_key,
-			 unsigned int wrapped_key_size,
+fscrypt_derive_sw_secret(struct super_block *sb,
+			 const u8 *wrapped_key, size_t wrapped_key_size,
 			 u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE])
 {
 	fscrypt_warn(NULL, "kernel doesn't support hardware-wrapped keys");

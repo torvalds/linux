@@ -782,11 +782,11 @@ fscrypt_get_test_dummy_secret(struct fscrypt_master_key_secret *secret)
 {
 	static u8 test_key[FSCRYPT_MAX_STANDARD_KEY_SIZE];
 
-	get_random_once(test_key, FSCRYPT_MAX_STANDARD_KEY_SIZE);
+	get_random_once(test_key, sizeof(test_key));
 
 	memset(secret, 0, sizeof(*secret));
-	secret->size = FSCRYPT_MAX_STANDARD_KEY_SIZE;
-	memcpy(secret->raw, test_key, FSCRYPT_MAX_STANDARD_KEY_SIZE);
+	secret->size = sizeof(test_key);
+	memcpy(secret->raw, test_key, sizeof(test_key));
 }
 
 int fscrypt_get_test_dummy_key_identifier(

@@ -155,8 +155,7 @@ out_free_devs:
 }
 
 int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
-				     const u8 *raw_key,
-				     unsigned int raw_key_size,
+				     const u8 *raw_key, size_t raw_key_size,
 				     bool is_hw_wrapped,
 				     const struct fscrypt_info *ci)
 {
@@ -240,19 +239,22 @@ void fscrypt_destroy_inline_crypt_key(struct super_block *sb,
  * hardware-wrapped key.  Returns -EOPNOTSUPP if hardware-wrapped keys aren't
  * supported on this filesystem or hardware.
  */
-int fscrypt_derive_sw_secret(struct super_block *sb, const u8 *wrapped_key,
-			     unsigned int wrapped_key_size,
+int fscrypt_derive_sw_secret(struct super_block *sb,
+			     const u8 *wrapped_key, size_t wrapped_key_size,
 			     u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE])
 {
-	struct blk_crypto_profile *profile;
 	struct block_device **devs;
 	unsigned int num_devs;
 	unsigned int i;
 	int err;
 
-	/* The filesystem must be mounted with -o inlinecrypt */
-	if (!(sb->s_flags & SB_INLINECRYPT))
+	/* The filesystem must be mounted with -o inlinecrypt. */
+	if (!(sb->s_flags & SB_INLINECRYPT)) {
+		fscrypt_warn(NULL,
+			     "%s: filesystem not mounted with inlinecrypt\n",
+			     sb->s_id);
 		return -EOPNOTSUPP;
+	}
 
 	/*
 	 * Hardware-wrapped keys might be specific to a particular storage
@@ -263,17 +265,21 @@ int fscrypt_derive_sw_secret(struct super_block *sb, const u8 *wrapped_key,
 	devs = fscrypt_get_devices(sb, &num_devs);
 	if (IS_ERR(devs))
 		return PTR_ERR(devs);
-	profile = bdev_get_queue(devs[0])->crypto_profile;
 	for (i = 1; i < num_devs; i++) {
-		if (bdev_get_queue(devs[i])->crypto_profile != profile) {
+		if (!blk_crypto_hw_wrapped_keys_compatible(devs[0], devs[i])) {
 			fscrypt_warn(NULL,
-				     "unsupported multi-device configuration for hardware-wrapped keys");
+				     "%s: unsupported multi-device configuration for hardware-wrapped keys",
+				     sb->s_id);
 			kfree(devs);
 			return -EOPNOTSUPP;
 		}
 	}
-	err = blk_crypto_derive_sw_secret(profile, wrapped_key,
+	err = blk_crypto_derive_sw_secret(devs[0], wrapped_key,
 					  wrapped_key_size, sw_secret);
+	if (err == -EOPNOTSUPP)
+		fscrypt_warn(NULL,
+			     "%s: block device doesn't support hardware-wrapped keys\n",
+			     sb->s_id);
 	kfree(devs);
 	return err;
 }

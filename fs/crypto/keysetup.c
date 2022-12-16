@@ -130,23 +130,17 @@ err_free_tfm:
  * Prepare the crypto transform object or blk-crypto key in @prep_key, given the
  * raw key, encryption mode (@ci->ci_mode), flag indicating which encryption
  * implementation (fs-layer or blk-crypto) will be used (@ci->ci_inlinecrypt),
- * and IV generation method (@ci->ci_policy.flags).  The raw key can be either a
- * standard key or a hardware-wrapped key, as indicated by @is_hw_wrapped; it
- * can only be a hardware-wrapped key if blk-crypto will be used.
+ * and IV generation method (@ci->ci_policy.flags).
  */
-static int __fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
-				 const u8 *raw_key, unsigned int raw_key_size,
-				 bool is_hw_wrapped,
-				 const struct fscrypt_info *ci)
+int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
+			const u8 *raw_key, const struct fscrypt_info *ci)
 {
 	struct crypto_skcipher *tfm;
 
 	if (fscrypt_using_inline_encryption(ci))
-		return fscrypt_prepare_inline_crypt_key(prep_key,
-				raw_key, raw_key_size, is_hw_wrapped, ci);
-
-	if (WARN_ON(is_hw_wrapped || raw_key_size != ci->ci_mode->keysize))
-		return -EINVAL;
+		return fscrypt_prepare_inline_crypt_key(prep_key, raw_key,
+							ci->ci_mode->keysize,
+							false, ci);
 
 	tfm = fscrypt_allocate_skcipher(ci->ci_mode, raw_key, ci->ci_inode);
 	if (IS_ERR(tfm))
@@ -159,13 +153,6 @@ static int __fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
 	 */
 	smp_store_release(&prep_key->tfm, tfm);
 	return 0;
-}
-
-int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
-			const u8 *raw_key, const struct fscrypt_info *ci)
-{
-	return __fscrypt_prepare_key(prep_key, raw_key, ci->ci_mode->keysize,
-				     false, ci);
 }
 
 /* Destroy a crypto transform object and/or blk-crypto key. */
@@ -208,7 +195,7 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 		if (!fscrypt_using_inline_encryption(ci)) {
 			if (sb->s_flags & SB_INLINECRYPT)
 				fscrypt_warn(ci->ci_inode,
-					     "Hardware-wrapped key required, but no suitable inline encryption hardware is available");
+					     "Hardware-wrapped key required, but no suitable inline encryption capabilities are available");
 			else
 				fscrypt_warn(ci->ci_inode,
 					     "Hardware-wrapped keys require inline encryption (-o inlinecrypt)");
@@ -229,8 +216,10 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 		goto done_unlock;
 
 	if (use_hw_wrapped_key) {
-		err = __fscrypt_prepare_key(prep_key, mk->mk_secret.raw,
-					    mk->mk_secret.size, true, ci);
+		err = fscrypt_prepare_inline_crypt_key(prep_key,
+						       mk->mk_secret.raw,
+						       mk->mk_secret.size, true,
+						       ci);
 		if (err)
 			goto out_unlock;
 		goto done_unlock;
