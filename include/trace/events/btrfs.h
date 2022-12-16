@@ -1349,28 +1349,33 @@ DECLARE_EVENT_CLASS(btrfs__reserve_extent,
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,	bg_objectid		)
 		__field(	u64,	flags			)
+		__field(	int,	bg_size_class		)
 		__field(	u64,	start			)
 		__field(	u64,	len			)
 		__field(	u64,	loop			)
 		__field(	bool,	hinted			)
+		__field(	int,	size_class		)
 	),
 
 	TP_fast_assign_btrfs(block_group->fs_info,
 		__entry->bg_objectid	= block_group->start;
 		__entry->flags		= block_group->flags;
+		__entry->bg_size_class	= block_group->size_class;
 		__entry->start		= ffe_ctl->search_start;
 		__entry->len		= ffe_ctl->num_bytes;
 		__entry->loop		= ffe_ctl->loop;
 		__entry->hinted		= ffe_ctl->hinted;
+		__entry->size_class	= ffe_ctl->size_class;
 	),
 
 	TP_printk_btrfs(
-"root=%llu(%s) block_group=%llu flags=%llu(%s) start=%llu len=%llu loop=%llu hinted=%d",
+"root=%llu(%s) block_group=%llu flags=%llu(%s) bg_size_class=%d start=%llu len=%llu loop=%llu hinted=%d size_class=%d",
 		  show_root_type(BTRFS_EXTENT_TREE_OBJECTID),
 		  __entry->bg_objectid,
 		  __entry->flags, __print_flags((unsigned long)__entry->flags,
 						"|", BTRFS_GROUP_FLAGS),
-		  __entry->start, __entry->len, __entry->loop, __entry->hinted)
+		  __entry->bg_size_class, __entry->start, __entry->len,
+		  __entry->loop, __entry->hinted, __entry->size_class)
 );
 
 DEFINE_EVENT(btrfs__reserve_extent, btrfs_reserve_extent,

@@ -79,6 +79,9 @@ struct find_free_extent_ctl {
 
 	/* Whether or not the allocator is currently following a hint */
 	bool hinted;
+
+	/* Size class of block groups to prefer in early loops */
+	enum btrfs_block_group_size_class size_class;
 };
 
 enum btrfs_inline_ref_type {
