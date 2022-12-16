@@ -1569,7 +1569,7 @@ static int __i915_ggtt_pin(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 			 * locked objects when called from execbuf when pinning
 			 * is removed. This would probably regress badly.
 			 */
-			i915_gem_evict_vm(vm, NULL);
+			i915_gem_evict_vm(vm, NULL, NULL);
 			mutex_unlock(&vm->mutex);
 		}
 	} while (1);
