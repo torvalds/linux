@@ -1195,6 +1195,7 @@
 						<&noc IMX8MP_ICM_PCIE &noc IMX8MP_ICN_HSIO>;
 				interconnect-names = "noc-pcie", "usb1", "usb2", "pcie";
 				#power-domain-cells = <1>;
+				#clock-cells = <0>;
 			};
 		};
 
