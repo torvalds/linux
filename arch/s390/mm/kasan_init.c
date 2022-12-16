@@ -75,7 +75,6 @@ static pte_t * __init kasan_early_pte_alloc(void)
 }
 
 enum populate_mode {
-	POPULATE_ONE2ONE,
 	POPULATE_MAP,
 	POPULATE_ZERO_SHADOW,
 	POPULATE_SHALLOW
@@ -101,16 +100,12 @@ static void __init kasan_early_pgtable_populate(unsigned long address,
 	pmd_t pmd;
 	pte_t pte;
 
-	if (!has_nx)
+	if (!has_nx) {
 		pgt_prot_zero = pgprot_clear_bit(pgt_prot_zero, _PAGE_NOEXEC);
-	if (!has_nx || mode == POPULATE_ONE2ONE) {
 		pgt_prot = pgprot_clear_bit(pgt_prot, _PAGE_NOEXEC);
 		sgt_prot = pgprot_clear_bit(sgt_prot, _SEGMENT_ENTRY_NOEXEC);
 	}
 
-	/*
-	 * The first 1MB of 1:1 mapping is mapped with 4KB pages
-	 */
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
@@ -167,15 +162,10 @@ static void __init kasan_early_pgtable_populate(unsigned long address,
 					pmd_populate(&init_mm, pm_dir, kasan_early_shadow_pte);
 					address = (address + PMD_SIZE) & PMD_MASK;
 					continue;
-				} else if (has_edat && address) {
-					void *page;
+				} else if (has_edat) {
+					void *page = kasan_early_alloc_segment();
 
-					if (mode == POPULATE_ONE2ONE) {
-						page = (void *)address;
-					} else {
-						page = kasan_early_alloc_segment();
-						memset(page, 0, _SEGMENT_SIZE);
-					}
+					memset(page, 0, _SEGMENT_SIZE);
 					pmd = __pmd(__pa(page));
 					pmd = set_pmd_bit(pmd, sgt_prot);
 					set_pmd(pm_dir, pmd);
@@ -195,12 +185,6 @@ static void __init kasan_early_pgtable_populate(unsigned long address,
 			void *page;
 
 			switch (mode) {
-			case POPULATE_ONE2ONE:
-				page = (void *)address;
-				pte = __pte(__pa(page));
-				pte = set_pte_bit(pte, pgt_prot);
-				set_pte(pt_dir, pte);
-				break;
 			case POPULATE_MAP:
 				page = kasan_early_alloc_pages(0);
 				memset(page, 0, PAGE_SIZE);
@@ -259,7 +243,6 @@ void __init kasan_early_init(void)
 	 * - ident_map_size represents online + standby and memory limits
 	 *   accounted.
 	 * Kasan maps "memsize" right away.
-	 * [0, memsize]			- as identity mapping
 	 * [__sha(0), __sha(memsize)]	- shadow memory for identity mapping
 	 * The rest [memsize, ident_map_size] if memsize < ident_map_size
 	 * could be mapped/unmapped dynamically later during memory hotplug.
