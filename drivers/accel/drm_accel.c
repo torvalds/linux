@@ -27,7 +27,7 @@ static struct device_type accel_sysfs_device_minor = {
 	.name = "accel_minor"
 };
 
-static char *accel_devnode(struct device *dev, umode_t *mode)
+static char *accel_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "accel/%s", dev_name(dev));
 }
