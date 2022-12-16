@@ -2756,6 +2756,20 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 	return p;
 }
 
+static noinline void bch2_trans_reset_srcu_lock(struct btree_trans *trans)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_path *path;
+
+	trans_for_each_path(trans, path)
+		if (path->cached && !btree_node_locked(path, 0))
+			path->l[0].b = ERR_PTR(-BCH_ERR_no_btree_node_srcu_reset);
+
+	srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
+	trans->srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
+	trans->srcu_lock_time	= jiffies;
+}
+
 /**
  * bch2_trans_begin() - reset a transaction after a interrupted attempt
  * @trans: transaction to reset
@@ -2810,6 +2824,9 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 		cond_resched();
 		bch2_trans_relock(trans);
 	}
+
+	if (unlikely(time_after(jiffies, trans->srcu_lock_time + HZ)))
+		bch2_trans_reset_srcu_lock(trans);
 
 	trans->last_restarted_ip = _RET_IP_;
 	if (trans->restarted)
@@ -2897,6 +2914,7 @@ void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c, unsigned fn_
 		trans->nr_max_paths = s->nr_max_paths;
 
 	trans->srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
+	trans->srcu_lock_time	= jiffies;
 
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG_TRANSACTIONS)) {
 		struct btree_trans *pos;

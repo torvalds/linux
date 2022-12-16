@@ -411,6 +411,7 @@ struct btree_trans {
 	enum bch_errcode	restarted:16;
 	u32			restart_count;
 	unsigned long		last_restarted_ip;
+	unsigned long		srcu_lock_time;
 
 	/*
 	 * For when bch2_trans_update notices we'll be splitting a compressed

@@ -53,6 +53,7 @@
 	x(BCH_ERR_no_btree_node,	no_btree_node_down)			\
 	x(BCH_ERR_no_btree_node,	no_btree_node_init)			\
 	x(BCH_ERR_no_btree_node,	no_btree_node_cached)			\
+	x(BCH_ERR_no_btree_node,	no_btree_node_srcu_reset)		\
 	x(0,				btree_insert_fail)			\
 	x(BCH_ERR_btree_insert_fail,	btree_insert_btree_node_full)		\
 	x(BCH_ERR_btree_insert_fail,	btree_insert_need_mark_replicas)	\
