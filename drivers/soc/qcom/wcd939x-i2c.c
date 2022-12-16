@@ -161,6 +161,10 @@ static int wcd_usbss_switch_update_defaults(struct wcd_usbss_ctxt *priv)
 	regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SELECT1, 0x01, 0x00);
 	/* Select GSBU1 and MG1 for MIC_SWITCHES */
 	regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SELECT0, 0x03, 0x00);
+	/* Enable OVP_MG1_BIAS PCOMP_DYN_BST_EN */
+	regmap_update_bits(priv->regmap, WCD_USBSS_MG1_BIAS, 0x08, 0x08);
+	/* Enable OVP_MG2_BIAS PCOMP_DYN_BST_EN */
+	regmap_update_bits(priv->regmap, WCD_USBSS_MG2_BIAS, 0x08, 0x08);
 	regmap_update_bits_base(priv->regmap, WCD_USBSS_AUDIO_FSM_START, 0x01,
 			0x01, NULL, false, true);
 	/* Select DN for DNL_SWITHCES and DP for DPR_SWITCHES */
@@ -312,6 +316,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Select L, R, GSBU2, MG1 */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SELECT0, 0x3F, 0x02);
+			/* Disable OVP_MG2_BIAS PCOMP_DYN_BST_EN */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_MG2_BIAS, 0x08, 0x00);
 			/* Enable SENSE, MIC switches */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x06, 0x06);
@@ -349,9 +356,12 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Disable all switches */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x7F, 0x00);
-			/* Select L, R, GSBU2, MG1 */
+			/* Select L, R, GSBU1, MG2 */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SELECT0, 0x3F, 0x01);
+			/* Disable OVP_MG1_BIAS PCOMP_DYN_BST_EN */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_MG1_BIAS, 0x08, 0x00);
 			/* Enable SENSE, MIC switches */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x06, 0x06);
@@ -371,6 +381,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Select MG2, GSBU1 */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SELECT0, 0x03, 0x1);
+			/* Disable OVP_MG1_BIAS PCOMP_DYN_BST_EN */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_MG1_BIAS, 0x08, 0x00);
 			/* Enable SENSE, MIC, AGND switches */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x07, 0x07);
@@ -378,6 +391,11 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 		case WCD_USBSS_DP_AUX_CC1:
 			fallthrough;
 		case WCD_USBSS_DP_AUX_CC2:
+			/* Update Leakage Canceller Coefficient for AUXP pins */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_DISP_AUXP_CTL, 0x07, 0x05);
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_DISP_AUXP_THRESH, 0xE0, 0xE0);
 			return wcd_usbss_display_port_switch_update(wcd_usbss_ctxt_, ctype);
 		}
 	}
