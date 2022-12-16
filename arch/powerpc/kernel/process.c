@@ -2117,6 +2117,9 @@ static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
 	unsigned long stack_page;
 	unsigned long cpu = task_cpu(p);
 
+	if (!hardirq_ctx[cpu] || !softirq_ctx[cpu])
+		return 0;
+
 	stack_page = (unsigned long)hardirq_ctx[cpu];
 	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
 		return 1;
@@ -2137,6 +2140,14 @@ static inline int valid_emergency_stack(unsigned long sp, struct task_struct *p,
 
 	if (!paca_ptrs)
 		return 0;
+
+	if (!paca_ptrs[cpu]->emergency_sp)
+		return 0;
+
+# ifdef CONFIG_PPC_BOOK3S_64
+	if (!paca_ptrs[cpu]->nmi_emergency_sp || !paca_ptrs[cpu]->mc_emergency_sp)
+		return 0;
+#endif
 
 	stack_page = (unsigned long)paca_ptrs[cpu]->emergency_sp - THREAD_SIZE;
 	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
