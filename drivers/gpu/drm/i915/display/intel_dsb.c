@@ -172,6 +172,9 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 		return;
 	}
 
+	/* Every instruction should be 8 byte aligned. */
+	dsb->free_pos = ALIGN(dsb->free_pos, 2);
+
 	dsb->ins_start_offset = dsb->free_pos;
 	buf[dsb->free_pos++] = val;
 	buf[dsb->free_pos++] = (DSB_OPCODE_MMIO_WRITE  << DSB_OPCODE_SHIFT) |
