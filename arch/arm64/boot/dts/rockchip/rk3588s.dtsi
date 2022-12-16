@@ -2299,7 +2299,8 @@
 			<&cru ACLK_LOW_TOP_ROOT>, <&cru PCLK_PMU0_ROOT>,
 			<&cru HCLK_PMU_CM0_ROOT>,
 			<&cru ACLK_BUS_ROOT>, <&cru CLK_150M_SRC>,
-			<&cru CLK_GPU>;
+			<&cru CLK_GPU>, <&cru CLK_SPDIF2_DP0>,
+			<&cru CLK_SPDIF5_DP1>;
 		assigned-clock-rates =
 			<1100000000>, <786432000>,
 			<850000000>, <1188000000>,
@@ -2309,7 +2310,8 @@
 			<400000000>, <100000000>,
 			<200000000>,
 			<375000000>, <150000000>,
-			<200000000>;
+			<200000000>, <12000000>,
+			<12000000>;
 	};
 
 	i2c0: i2c@fd880000 {
