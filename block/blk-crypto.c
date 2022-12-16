@@ -72,7 +72,10 @@ static int __init bio_crypt_ctx_init(void)
 	/* This is assumed in various places. */
 	BUILD_BUG_ON(BLK_ENCRYPTION_MODE_INVALID != 0);
 
-	/* Sanity check that no algorithm exceeds the defined limits. */
+	/*
+	 * Validate the crypto mode properties.  This ideally would be done with
+	 * static assertions, but boot-time checks are the next best thing.
+	 */
 	for (i = 0; i < BLK_ENCRYPTION_MODE_MAX; i++) {
 		BUG_ON(blk_crypto_modes[i].keysize >
 		       BLK_CRYPTO_MAX_STANDARD_KEY_SIZE);
@@ -327,7 +330,7 @@ int __blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
  *	   zeroizing both blk_key and raw_key when done with them.
  */
 int blk_crypto_init_key(struct blk_crypto_key *blk_key,
-			const u8 *raw_key, unsigned int raw_key_size,
+			const u8 *raw_key, size_t raw_key_size,
 			enum blk_crypto_key_type key_type,
 			enum blk_crypto_mode_num crypto_mode,
 			unsigned int dun_bytes,

@@ -17,7 +17,7 @@ enum blk_crypto_mode_num {
 };
 
 /*
- * Supported types of keys.  Must be bit-flags due to their use in
+ * Supported types of keys.  Must be bitflags due to their use in
  * blk_crypto_profile::key_types_supported.
  */
 enum blk_crypto_key_type {
@@ -141,7 +141,7 @@ bool bio_crypt_dun_is_contiguous(const struct bio_crypt_ctx *bc,
 				 const u64 next_dun[BLK_CRYPTO_DUN_ARRAY_SIZE]);
 
 int blk_crypto_init_key(struct blk_crypto_key *blk_key,
-			const u8 *raw_key, unsigned int raw_key_size,
+			const u8 *raw_key, size_t raw_key_size,
 			enum blk_crypto_key_type key_type,
 			enum blk_crypto_mode_num crypto_mode,
 			unsigned int dun_bytes,
@@ -157,6 +157,13 @@ bool blk_crypto_config_supported_natively(struct block_device *bdev,
 					  const struct blk_crypto_config *cfg);
 bool blk_crypto_config_supported(struct block_device *bdev,
 				 const struct blk_crypto_config *cfg);
+
+int blk_crypto_derive_sw_secret(struct block_device *bdev,
+				const u8 *eph_key, size_t eph_key_size,
+				u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE]);
+
+bool blk_crypto_hw_wrapped_keys_compatible(struct block_device *bdev1,
+					   struct block_device *bdev2);
 
 #else /* CONFIG_BLK_INLINE_ENCRYPTION */
 

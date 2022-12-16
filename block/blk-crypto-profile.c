@@ -467,41 +467,59 @@ bool blk_crypto_register(struct blk_crypto_profile *profile,
 EXPORT_SYMBOL_GPL(blk_crypto_register);
 
 /**
- * blk_crypto_derive_sw_secret() - Derive software secret from hardware-wrapped
- *				   key
- * @profile: the crypto profile of the device the key will be used on
- * @wrapped_key: the hardware-wrapped key
- * @wrapped_key_size: size of @wrapped_key in bytes
+ * blk_crypto_derive_sw_secret() - Derive software secret from wrapped key
+ * @bdev: a block device whose hardware-wrapped keys implementation is
+ *	  compatible (blk_crypto_hw_wrapped_keys_compatible()) with all block
+ *	  devices on which the key will be used.
+ * @eph_key: the hardware-wrapped key in ephemerally-wrapped form
+ * @eph_key_size: size of @eph_key in bytes
  * @sw_secret: (output) the software secret
  *
- * Given a hardware-wrapped key, ask the hardware to derive the secret which
- * software can use for cryptographic tasks other than inline encryption.  This
- * secret is guaranteed to be cryptographically isolated from the inline
- * encryption key, i.e. derived with a different KDF context.
+ * Given a hardware-wrapped key in ephemerally-wrapped form (the same form that
+ * it is used for I/O), ask the hardware to derive the secret which software can
+ * use for cryptographic tasks other than inline encryption.  This secret is
+ * guaranteed to be cryptographically isolated from the inline encryption key,
+ * i.e. derived with a different KDF context.
  *
- * Return: 0 on success, -EOPNOTSUPP if the given @profile doesn't support
- *	   hardware-wrapped keys (or is NULL), -EBADMSG if the key isn't a valid
+ * Return: 0 on success, -EOPNOTSUPP if the block device doesn't support
+ *	   hardware-wrapped keys, -EBADMSG if the key isn't a valid
  *	   hardware-wrapped key, or another -errno code.
  */
-int blk_crypto_derive_sw_secret(struct blk_crypto_profile *profile,
-				const u8 *wrapped_key,
-				unsigned int wrapped_key_size,
+int blk_crypto_derive_sw_secret(struct block_device *bdev,
+				const u8 *eph_key, size_t eph_key_size,
 				u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE])
 {
-	int err = -EOPNOTSUPP;
+	struct blk_crypto_profile *profile =
+		bdev_get_queue(bdev)->crypto_profile;
+	int err;
 
-	if (profile &&
-	    (profile->key_types_supported & BLK_CRYPTO_KEY_TYPE_HW_WRAPPED) &&
-	    profile->ll_ops.derive_sw_secret) {
-		blk_crypto_hw_enter(profile);
-		err = profile->ll_ops.derive_sw_secret(profile, wrapped_key,
-						       wrapped_key_size,
-						       sw_secret);
-		blk_crypto_hw_exit(profile);
-	}
+	if (!profile)
+		return -EOPNOTSUPP;
+	if (!(profile->key_types_supported & BLK_CRYPTO_KEY_TYPE_HW_WRAPPED))
+		return -EOPNOTSUPP;
+	if (!profile->ll_ops.derive_sw_secret)
+		return -EOPNOTSUPP;
+	blk_crypto_hw_enter(profile);
+	err = profile->ll_ops.derive_sw_secret(profile, eph_key, eph_key_size,
+					       sw_secret);
+	blk_crypto_hw_exit(profile);
 	return err;
 }
 EXPORT_SYMBOL_GPL(blk_crypto_derive_sw_secret);
+
+/**
+ * blk_crypto_hw_wrapped_keys_compatible() - Check HW-wrapped key compatibility
+ * @bdev1: the first block device
+ * @bdev2: the second block device
+ *
+ * Return: true if HW-wrapped keys used on @bdev1 can also be used on @bdev2.
+ */
+bool blk_crypto_hw_wrapped_keys_compatible(struct block_device *bdev1,
+					   struct block_device *bdev2)
+{
+	return bdev_get_queue(bdev1)->crypto_profile ==
+		bdev_get_queue(bdev2)->crypto_profile;
+}
 
 /**
  * blk_crypto_intersect_capabilities() - restrict supported crypto capabilities

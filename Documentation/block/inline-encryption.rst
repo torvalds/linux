@@ -388,8 +388,8 @@ such as in file-based encryption.  Key wrapping is a commonly used technique.)
 The key which wraps (encrypts) hardware-wrapped keys is a hardware-internal key
 that is never exposed to software; it is either a persistent key (a "long-term
 wrapping key") or a per-boot key (an "ephemeral wrapping key").  The long-term
-wrapped form of the key is what is initially unlocked, but it is discarded as
-soon as it is converted into an ephemerally-wrapped key.  In-use
+wrapped form of the key is what is initially unlocked, but it is erased from
+memory as soon as it is converted into an ephemerally-wrapped key.  In-use
 hardware-wrapped keys are always ephemerally-wrapped, not long-term wrapped.
 
 As inline encryption hardware can only be used to encrypt/decrypt data on-disk,
@@ -442,8 +442,8 @@ The components are:
   for cryptographic applications that require up to a 256-bit security strength.
   Some use cases (e.g. full-disk encryption) won't require the software secret.
 
-Example: in the case of fscrypt, the fscrypt master key (the key used to unlock
-a particular set of encrypted directories) is made hardware-wrapped.  The inline
+Example: in the case of fscrypt, the fscrypt master key (the key that protects a
+particular set of encrypted directories) is made hardware-wrapped.  The inline
 encryption key is used as the file contents encryption key, while the software
 secret (rather than the master key directly) is used to key fscrypt's KDF
 (HKDF-SHA512) to derive other subkeys such as filenames encryption keys.
@@ -512,5 +512,6 @@ the hardware RNG and its use to generate the key, as well as the testing of the
 "import" mode as that should cover all parts other than the key generation.
 
 For an example of a test that verifies the ciphertext written to disk in the
-"import" mode, see `Android's vts_kernel_encryption_test
+"import" mode, see the fscrypt hardware-wrapped key tests in xfstests, or
+`Android's vts_kernel_encryption_test
 <https://android.googlesource.com/platform/test/vts-testcase/kernel/+/refs/heads/master/encryption/>`_.
