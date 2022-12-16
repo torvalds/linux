@@ -3160,7 +3160,7 @@ static int __get_segment_type_4(struct f2fs_io_info *fio)
 static int __get_age_segment_type(struct inode *inode, pgoff_t pgofs)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct extent_info ei;
+	struct extent_info ei = {};
 
 	if (f2fs_lookup_age_extent_cache(inode, pgofs, &ei)) {
 		if (!ei.age)
