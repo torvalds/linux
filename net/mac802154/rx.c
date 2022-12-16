@@ -213,7 +213,6 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 	ret = ieee802154_parse_frame_start(skb, &hdr);
 	if (ret) {
 		pr_debug("got invalid frame\n");
-		kfree_skb(skb);
 		return;
 	}
 
