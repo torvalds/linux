@@ -888,6 +888,7 @@ static int __get_new_block_age(struct inode *inode, struct extent_info *ei,
 	loff_t f_size = i_size_read(inode);
 	unsigned long long cur_blocks =
 				atomic64_read(&sbi->allocated_data_blocks);
+	struct extent_info tei = *ei;	/* only fofs and len are valid */
 
 	/*
 	 * When I/O is not aligned to a PAGE_SIZE, update will happen to the last
@@ -898,17 +899,17 @@ static int __get_new_block_age(struct inode *inode, struct extent_info *ei,
 			blkaddr == NEW_ADDR)
 		return -EINVAL;
 
-	if (__lookup_extent_tree(inode, ei->fofs, ei, EX_BLOCK_AGE)) {
+	if (__lookup_extent_tree(inode, ei->fofs, &tei, EX_BLOCK_AGE)) {
 		unsigned long long cur_age;
 
-		if (cur_blocks >= ei->last_blocks)
-			cur_age = cur_blocks - ei->last_blocks;
+		if (cur_blocks >= tei.last_blocks)
+			cur_age = cur_blocks - tei.last_blocks;
 		else
 			/* allocated_data_blocks overflow */
-			cur_age = ULLONG_MAX - ei->last_blocks + cur_blocks;
+			cur_age = ULLONG_MAX - tei.last_blocks + cur_blocks;
 
-		if (ei->age)
-			ei->age = __calculate_block_age(cur_age, ei->age);
+		if (tei.age)
+			ei->age = __calculate_block_age(cur_age, tei.age);
 		else
 			ei->age = cur_age;
 		ei->last_blocks = cur_blocks;
