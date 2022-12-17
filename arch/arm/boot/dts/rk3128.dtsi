@@ -694,31 +694,31 @@
 		};
 
 		nfc {
-			flash_ale:flash-ale {
+			flash_ale: flash-ale {
 				rockchip,pins = <2 RK_PA0 1 &pcfg_pull_none>;
 			};
 
-			flash_cle:flash-cle {
+			flash_cle: flash-cle {
 				rockchip,pins = <2 RK_PA1 1 &pcfg_pull_none>;
 			};
 
-			flash_wrn:flash-wrn {
+			flash_wrn: flash-wrn {
 				rockchip,pins = <2 RK_PA2 1 &pcfg_pull_none>;
 			};
 
-			flash_rdn:flash-rdn {
+			flash_rdn: flash-rdn {
 				rockchip,pins = <2 RK_PA3 1 &pcfg_pull_none>;
 			};
 
-			flash_rdy:flash-rdy {
+			flash_rdy: flash-rdy {
 				rockchip,pins = <2 RK_PA4 1 &pcfg_pull_none>;
 			};
 
-			flash_cs0:flash-cs0 {
+			flash_cs0: flash-cs0 {
 				rockchip,pins = <2 RK_PA6 1 &pcfg_pull_none>;
 			};
 
-			flash_dqs:flash-dqs {
+			flash_dqs: flash-dqs {
 				rockchip,pins = <2 RK_PA7 1 &pcfg_pull_none>;
 			};
 
