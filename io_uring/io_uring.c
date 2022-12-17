@@ -2481,7 +2481,14 @@ static inline int io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 	}
 	if (!schedule_hrtimeout(&timeout, HRTIMER_MODE_ABS))
 		return -ETIME;
-	return 1;
+
+	/*
+	 * Run task_work after scheduling. If we got woken because of
+	 * task_work being processed, run it now rather than let the caller
+	 * do another wait loop.
+	 */
+	ret = io_run_task_work_sig(ctx);
+	return ret < 0 ? ret : 1;
 }
 
 /*
@@ -2546,6 +2553,8 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		prepare_to_wait_exclusive(&ctx->cq_wait, &iowq.wq,
 						TASK_INTERRUPTIBLE);
 		ret = io_cqring_wait_schedule(ctx, &iowq, timeout);
+		if (__io_cqring_events_user(ctx) >= min_events)
+			break;
 		cond_resched();
 	} while (ret > 0);
 
