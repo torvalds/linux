@@ -46,6 +46,7 @@ MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("rtlwifi/rtl8723aufw_A.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723aufw_B.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723aufw_B_NoBT.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8188eufw.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192cufw_A.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192cufw_B.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192cufw_TMSC.bin");
@@ -2010,6 +2011,7 @@ int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, const char *fw_name)
 	switch (signature & 0xfff0) {
 	case 0x92e0:
 	case 0x92c0:
+	case 0x88e0:
 	case 0x88c0:
 	case 0x5300:
 	case 0x2300:
@@ -2081,10 +2083,20 @@ rtl8xxxu_init_mac(struct rtl8xxxu_priv *priv)
 		}
 	}
 
-	if (priv->rtl_chip != RTL8723B &&
-	    priv->rtl_chip != RTL8192E &&
-	    priv->rtl_chip != RTL8188F)
+	switch (priv->rtl_chip) {
+	case RTL8188C:
+	case RTL8188R:
+	case RTL8191C:
+	case RTL8192C:
+	case RTL8723A:
 		rtl8xxxu_write8(priv, REG_MAX_AGGR_NUM, 0x0a);
+		break;
+	case RTL8188E:
+		rtl8xxxu_write16(priv, REG_MAX_AGGR_NUM, 0x0707);
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }
@@ -2383,10 +2395,15 @@ static int rtl8xxxu_llt_write(struct rtl8xxxu_priv *priv, u8 address, u8 data)
 int rtl8xxxu_init_llt_table(struct rtl8xxxu_priv *priv)
 {
 	int ret;
-	int i;
+	int i, last_entry;
 	u8 last_tx_page;
 
 	last_tx_page = priv->fops->total_page_num;
+
+	if (priv->fops->last_llt_entry)
+		last_entry = priv->fops->last_llt_entry;
+	else
+		last_entry = 255;
 
 	for (i = 0; i < last_tx_page; i++) {
 		ret = rtl8xxxu_llt_write(priv, i, i + 1);
@@ -2399,14 +2416,14 @@ int rtl8xxxu_init_llt_table(struct rtl8xxxu_priv *priv)
 		goto exit;
 
 	/* Mark remaining pages as a ring buffer */
-	for (i = last_tx_page + 1; i < 0xff; i++) {
+	for (i = last_tx_page + 1; i < last_entry; i++) {
 		ret = rtl8xxxu_llt_write(priv, i, (i + 1));
 		if (ret)
 			goto exit;
 	}
 
 	/*  Let last entry point to the start entry of ring buffer */
-	ret = rtl8xxxu_llt_write(priv, 0xff, last_tx_page + 1);
+	ret = rtl8xxxu_llt_write(priv, last_entry, last_tx_page + 1);
 	if (ret)
 		goto exit;
 
@@ -2714,8 +2731,8 @@ void rtl8xxxu_fill_iqk_matrix_b(struct rtl8xxxu_priv *priv, bool iqk_ok,
 
 #define MAX_TOLERANCE		5
 
-static bool rtl8xxxu_simularity_compare(struct rtl8xxxu_priv *priv,
-					int result[][8], int c1, int c2)
+bool rtl8xxxu_simularity_compare(struct rtl8xxxu_priv *priv,
+				 int result[][8], int c1, int c2)
 {
 	u32 i, j, diff, simubitmap, bound = 0;
 	int candidate[2] = {-1, -1};	/* for path A and path B */
@@ -3908,7 +3925,8 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		goto exit;
 
 	/* RFSW Control - clear bit 14 ?? */
-	if (priv->rtl_chip != RTL8723B && priv->rtl_chip != RTL8192E)
+	if (priv->rtl_chip != RTL8723B && priv->rtl_chip != RTL8192E &&
+	    priv->rtl_chip != RTL8188E)
 		rtl8xxxu_write32(priv, REG_FPGA0_TX_INFO, 0x00000003);
 
 	val32 = FPGA0_RF_TRSW | FPGA0_RF_TRSWB | FPGA0_RF_ANTSW |
@@ -3921,7 +3939,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	rtl8xxxu_write32(priv, REG_FPGA0_XAB_RF_SW_CTRL, val32);
 
 	/* 0x860[6:5]= 00 - why? - this sets antenna B */
-	if (priv->rtl_chip != RTL8192E)
+	if (priv->rtl_chip != RTL8192E && priv->rtl_chip != RTL8188E)
 		rtl8xxxu_write32(priv, REG_FPGA0_XA_RF_INT_OE, 0x66f60210);
 
 	if (!macpower) {
@@ -3989,6 +4007,15 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	} else if (priv->rtl_chip == RTL8188F) {
 		rtl8xxxu_write32(priv, REG_HISR0, 0xffffffff);
 		rtl8xxxu_write32(priv, REG_HISR1, 0xffffffff);
+	} else if (priv->rtl_chip == RTL8188E) {
+		rtl8xxxu_write32(priv, REG_HISR0, 0xffffffff);
+		val32 = IMR0_PSTIMEOUT | IMR0_TBDER | IMR0_CPWM | IMR0_CPWM2;
+		rtl8xxxu_write32(priv, REG_HIMR0, val32);
+		val32 = IMR1_TXERR | IMR1_RXERR | IMR1_TXFOVW | IMR1_RXFOVW;
+		rtl8xxxu_write32(priv, REG_HIMR1, val32);
+		val8 = rtl8xxxu_read8(priv, REG_USB_SPECIAL_OPTION);
+		val8 |= USB_SPEC_INT_BULK_SELECT;
+		rtl8xxxu_write8(priv, REG_USB_SPECIAL_OPTION, val8);
 	} else {
 		/*
 		 * Enable all interrupts - not obvious USB needs to do this
@@ -4094,7 +4121,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	if (fops->init_aggregation)
 		fops->init_aggregation(priv);
 
-	if (priv->rtl_chip == RTL8188F) {
+	if (priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8188E) {
 		rtl8xxxu_write16(priv, REG_PKT_VO_VI_LIFE_TIME, 0x0400); /* unit: 256us. 256ms */
 		rtl8xxxu_write16(priv, REG_PKT_BE_BK_LIFE_TIME, 0x0400); /* unit: 256us. 256ms */
 	}
@@ -4128,7 +4155,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/* Disable BAR - not sure if this has any effect on USB */
 	rtl8xxxu_write32(priv, REG_BAR_MODE_CTRL, 0x0201ffff);
 
-	if (priv->rtl_chip != RTL8188F)
+	if (priv->rtl_chip != RTL8188F && priv->rtl_chip != RTL8188E)
 		rtl8xxxu_write16(priv, REG_FAST_EDCA_CTRL, 0);
 
 	if (fops->init_statistics)
@@ -4146,9 +4173,9 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		 * Reset USB mode switch setting
 		 */
 		rtl8xxxu_write8(priv, REG_ACLK_MON, 0x00);
-	} else if (priv->rtl_chip == RTL8188F) {
+	} else if (priv->rtl_chip == RTL8188F || priv->rtl_chip == RTL8188E) {
 		/*
-		 * Init GPIO settings for 8188f
+		 * Init GPIO settings for 8188f, 8188e
 		 */
 		val8 = rtl8xxxu_read8(priv, REG_GPIO_MUXCFG);
 		val8 &= ~GPIO_MUXCFG_IO_SEL_ENBT;
@@ -4194,7 +4221,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 			val32 |= FPGA_RF_MODE_CCK;
 			rtl8xxxu_write32(priv, REG_FPGA0_RF_MODE, val32);
 		}
-	} else if (priv->rtl_chip == RTL8192E) {
+	} else if (priv->rtl_chip == RTL8192E || priv->rtl_chip == RTL8188E) {
 		rtl8xxxu_write8(priv, REG_USB_HRPWM, 0x00);
 	}
 
@@ -5079,6 +5106,96 @@ rtl8xxxu_fill_txdesc_v2(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 		 */
 		tx_desc40->txdw3 |= cpu_to_le32(TXDESC40_CTS_SELF_ENABLE);
 	}
+}
+
+/*
+ * Fill in v3 (gen1) specific TX descriptor bits.
+ * This format is a hybrid between the v1 and v2 formats, only seen
+ * on 8188eu devices so far.
+ */
+void
+rtl8xxxu_fill_txdesc_v3(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
+			struct ieee80211_tx_info *tx_info,
+			struct rtl8xxxu_txdesc32 *tx_desc, bool sgi,
+			bool short_preamble, bool ampdu_enable, u32 rts_rate)
+{
+	struct ieee80211_rate *tx_rate = ieee80211_get_tx_rate(hw, tx_info);
+	struct rtl8xxxu_priv *priv = hw->priv;
+	struct device *dev = &priv->udev->dev;
+	u8 *qc = ieee80211_get_qos_ctl(hdr);
+	u8 tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
+	u32 rate;
+	u16 rate_flags = tx_info->control.rates[0].flags;
+	u16 seq_number;
+
+	if (rate_flags & IEEE80211_TX_RC_MCS &&
+	    !ieee80211_is_mgmt(hdr->frame_control))
+		rate = tx_info->control.rates[0].idx + DESC_RATE_MCS0;
+	else
+		rate = tx_rate->hw_value;
+
+	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+
+	if (ieee80211_is_data(hdr->frame_control)) {
+		rate = DESC_RATE_MCS7; /* TODO: software rate control */
+		tx_desc->txdw5 = cpu_to_le32(rate);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_USE_DRIVER_RATE);
+		/* Data/RTS rate FB limit */
+		tx_desc->txdw5 |= cpu_to_le32(0x0001ff00);
+	}
+
+	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_TX)
+		dev_info(dev, "%s: TX rate: %d, pkt size %d\n",
+			 __func__, rate, le16_to_cpu(tx_desc->pkt_size));
+
+	tx_desc->txdw3 = cpu_to_le32((u32)seq_number << TXDESC32_SEQ_SHIFT);
+
+	if (ampdu_enable && test_bit(tid, priv->tid_tx_operational))
+		tx_desc->txdw2 |= cpu_to_le32(TXDESC40_AGG_ENABLE);
+	else
+		tx_desc->txdw2 |= cpu_to_le32(TXDESC40_AGG_BREAK);
+
+	if (ieee80211_is_mgmt(hdr->frame_control)) {
+		tx_desc->txdw5 = cpu_to_le32(rate);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_USE_DRIVER_RATE);
+		tx_desc->txdw5 |= cpu_to_le32(6 << TXDESC32_RETRY_LIMIT_SHIFT);
+		tx_desc->txdw5 |= cpu_to_le32(TXDESC32_RETRY_LIMIT_ENABLE);
+	}
+
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_QOS);
+
+		if (conf_is_ht40(&hw->conf)) {
+			tx_desc->txdw4 |= cpu_to_le32(TXDESC_DATA_BW);
+
+			if (conf_is_ht40_minus(&hw->conf))
+				tx_desc->txdw4 |= cpu_to_le32(TXDESC_PRIME_CH_OFF_UPPER);
+			else
+				tx_desc->txdw4 |= cpu_to_le32(TXDESC_PRIME_CH_OFF_LOWER);
+		}
+	}
+
+	if (short_preamble)
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_SHORT_PREAMBLE);
+
+	if (sgi)
+		tx_desc->txdw5 |= cpu_to_le32(TXDESC32_SHORT_GI);
+
+	/*
+	 * rts_rate is zero if RTS/CTS or CTS to SELF are not enabled
+	 */
+	tx_desc->txdw4 |= cpu_to_le32(rts_rate << TXDESC32_RTS_RATE_SHIFT);
+	if (ampdu_enable || (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS)) {
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_RTS_CTS_ENABLE);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_HW_RTS_ENABLE);
+	} else if (rate_flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_CTS_SELF_ENABLE);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_HW_RTS_ENABLE);
+	}
+
+	tx_desc->txdw2 |= cpu_to_le32(TXDESC_ANTENNA_SELECT_A |
+				      TXDESC_ANTENNA_SELECT_B);
+	tx_desc->txdw7 |= cpu_to_le32(TXDESC_ANTENNA_SELECT_C);
 }
 
 static void rtl8xxxu_tx(struct ieee80211_hw *hw,
@@ -6599,7 +6716,10 @@ exit:
 	rtl8xxxu_write16(priv, REG_RXFLTMAP2, 0xffff);
 	rtl8xxxu_write16(priv, REG_RXFLTMAP0, 0xffff);
 
-	rtl8xxxu_write32(priv, REG_OFDM0_XA_AGC_CORE1, 0x6954341e);
+	if (priv->rtl_chip == RTL8188E)
+		rtl8xxxu_write32(priv, REG_OFDM0_XA_AGC_CORE1, 0x6955341e);
+	else
+		rtl8xxxu_write32(priv, REG_OFDM0_XA_AGC_CORE1, 0x6954341e);
 
 	return ret;
 
@@ -6766,6 +6886,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		case 0x817f:
 		case 0x818b:
 		case 0xf179:
+		case 0x8179:
 			untested = 0;
 			break;
 		}
@@ -6902,8 +7023,10 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 
 	hw->extra_tx_headroom = priv->fops->tx_desc_size;
 	ieee80211_hw_set(hw, SIGNAL_DBM);
+
 	/*
-	 * The firmware handles rate control
+	 * The firmware handles rate control, except for RTL8188EU,
+	 * where we handle the rate control in the driver.
 	 */
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
 	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
@@ -6988,6 +7111,50 @@ static const struct usb_device_id dev_table[] = {
 /* RTL8188FU */
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0xf179, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8188fu_fops},
+{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x8179, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* Tested by Hans de Goede - rtl8188etv */
+{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x0179, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* Sitecom rtl8188eus */
+{USB_DEVICE_AND_INTERFACE_INFO(0x0df6, 0x0076, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* D-Link USB-GO-N150 */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x3311, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* D-Link DWA-125 REV D1 */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x330f, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* D-Link DWA-123 REV D1 */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x3310, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* D-Link DWA-121 rev B1 */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x331b, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* Abocom - Abocom */
+{USB_DEVICE_AND_INTERFACE_INFO(0x07b8, 0x8179, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* Elecom WDC-150SU2M */
+{USB_DEVICE_AND_INTERFACE_INFO(0x056e, 0x4008, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* TP-Link TL-WN722N v2 */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x010c, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* TP-Link TL-WN727N v5.21 */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x0111, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* MERCUSYS MW150US v2 */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2c4e, 0x0102, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* ASUS USB-N10 Nano B1 */
+{USB_DEVICE_AND_INTERFACE_INFO(0x0b05, 0x18f0, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+ /* Edimax EW-7811Un V2 */
+{USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xb811, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
+/* Rosewill USB-N150 Nano */
+{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0xffef, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
 #ifdef CONFIG_RTL8XXXU_UNTESTED
 /* Still supported by rtlwifi */
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x8176, 0xff, 0xff, 0xff),

@@ -370,7 +370,7 @@ static void rtl8188f_channel_to_group(int channel, int *group, int *cck_group)
 		*cck_group = *group;
 }
 
-static void
+void
 rtl8188f_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 {
 	u32 val32, ofdm, mcs;
@@ -1651,7 +1651,7 @@ static void rtl8188f_usb_quirks(struct rtl8xxxu_priv *priv)
 #define XTAL1	GENMASK(22, 17)
 #define XTAL0	GENMASK(16, 11)
 
-static void rtl8188f_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap)
+void rtl8188f_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap)
 {
 	struct rtl8xxxu_cfo_tracking *cfo = &priv->cfo_tracking;
 	u32 val32;

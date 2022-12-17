@@ -36,6 +36,7 @@
 
 #define TX_TOTAL_PAGE_NUM		0xf8
 #define TX_TOTAL_PAGE_NUM_8188F		0xf7
+#define TX_TOTAL_PAGE_NUM_8188E		0xa9
 #define TX_TOTAL_PAGE_NUM_8192E		0xf3
 #define TX_TOTAL_PAGE_NUM_8723B		0xf7
 /* (HPQ + LPQ + NPQ + PUBQ) = TX_TOTAL_PAGE_NUM */
@@ -48,6 +49,11 @@
 #define TX_PAGE_NUM_HI_PQ_8188F		0x0c
 #define TX_PAGE_NUM_LO_PQ_8188F		0x02
 #define TX_PAGE_NUM_NORM_PQ_8188F	0x02
+
+#define TX_PAGE_NUM_PUBQ_8188E		0x47
+#define TX_PAGE_NUM_HI_PQ_8188E		0x29
+#define TX_PAGE_NUM_LO_PQ_8188E		0x1c
+#define TX_PAGE_NUM_NORM_PQ_8188E	0x1c
 
 #define TX_PAGE_NUM_PUBQ_8192E		0xe7
 #define TX_PAGE_NUM_HI_PQ_8192E		0x08
@@ -153,7 +159,8 @@ struct rtl8xxxu_rxdesc16 {
 	u32 htc:1;
 	u32 eosp:1;
 	u32 bssidfit:2;
-	u32 reserved1:16;
+	u32 rpt_sel:2;		/* 8188e */
+	u32 reserved1:14;
 	u32 unicastwake:1;
 	u32 magicwake:1;
 
@@ -211,7 +218,8 @@ struct rtl8xxxu_rxdesc16 {
 
 	u32 magicwake:1;
 	u32 unicastwake:1;
-	u32 reserved1:16;
+	u32 reserved1:14;
+	u32 rpt_sel:2;		/* 8188e */
 	u32 bssidfit:2;
 	u32 eosp:1;
 	u32 htc:1;
@@ -502,6 +510,8 @@ struct rtl8xxxu_txdesc40 {
 #define TXDESC_AMPDU_DENSITY_SHIFT	20
 #define TXDESC40_BT_INT			BIT(23)
 #define TXDESC40_GID_SHIFT		24
+#define TXDESC_ANTENNA_SELECT_A		BIT(24)
+#define TXDESC_ANTENNA_SELECT_B		BIT(25)
 
 /* Word 3 */
 #define TXDESC40_USE_DRIVER_RATE	BIT(8)
@@ -546,6 +556,10 @@ struct rtl8xxxu_txdesc40 {
 
 /* Word 6 */
 #define TXDESC_MAX_AGG_SHIFT		11
+#define TXDESC_USB_TX_AGG_SHIT		24
+
+/* Word 7 */
+#define TXDESC_ANTENNA_SELECT_C		BIT(29)
 
 /* Word 8 */
 #define TXDESC40_HW_SEQ_ENABLE		BIT(15)
@@ -911,6 +925,42 @@ struct rtl8188fu_efuse {
 	u8 unknown[0x0d];		/* 0x130 */
 	u8 res11[0xc3];
 };
+
+struct rtl8188eu_efuse {
+	__le16 rtl_id;
+	u8 res0[0x0e];
+	struct rtl8192eu_efuse_tx_power tx_power_index_A;	/* 0x10 */
+	u8 res1[0x7e];			/* 0x3a */
+	u8 channel_plan;		/* 0xb8 */
+	u8 xtal_k;
+	u8 thermal_meter;
+	u8 iqk_lck;
+	u8 res2[5];
+	u8 rf_board_option;
+	u8 rf_feature_option;
+	u8 rf_bt_setting;
+	u8 eeprom_version;
+	u8 eeprom_customer_id;
+	u8 res3[3];
+	u8 rf_antenna_option;		/* 0xc9 */
+	u8 res4[6];
+	u8 vid;				/* 0xd0 */
+	u8 res5[1];
+	u8 pid;				/* 0xd2 */
+	u8 res6[1];
+	u8 usb_optional_function;
+	u8 res7[2];
+	u8 mac_addr[ETH_ALEN];		/* 0xd7 */
+	u8 res8[2];
+	u8 vendor_name[7];
+	u8 res9[2];
+	u8 device_name[0x0b];		/* 0xe8 */
+	u8 res10[2];
+	u8 serial[0x0b];		/* 0xf5 */
+	u8 res11[0x30];
+	u8 unknown[0x0d];		/* 0x130 */
+	u8 res12[0xc3];
+} __packed;
 
 struct rtl8xxxu_reg8val {
 	u16 reg;
@@ -1435,6 +1485,7 @@ struct rtl8xxxu_priv {
 		struct rtl8192cu_efuse efuse8192;
 		struct rtl8192eu_efuse efuse8192eu;
 		struct rtl8188fu_efuse efuse8188fu;
+		struct rtl8188eu_efuse efuse8188eu;
 	} efuse_wifi;
 	u32 adda_backup[RTL8XXXU_ADDA_REGS];
 	u32 mac_backup[RTL8XXXU_MAC_REGS];
@@ -1526,6 +1577,7 @@ struct rtl8xxxu_fileops {
 	u8 page_num_hi;
 	u8 page_num_lo;
 	u8 page_num_norm;
+	u8 last_llt_entry;
 };
 
 extern int rtl8xxxu_debug;
@@ -1585,6 +1637,8 @@ void rtl8xxxu_gen1_phy_iq_calibrate(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen1_init_phy_bb(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen1_set_tx_power(struct rtl8xxxu_priv *priv,
 				int channel, bool ht40);
+void rtl8188f_set_tx_power(struct rtl8xxxu_priv *priv,
+			   int channel, bool ht40);
 void rtl8xxxu_gen1_config_channel(struct ieee80211_hw *hw);
 void rtl8xxxu_gen2_config_channel(struct ieee80211_hw *hw);
 void rtl8xxxu_gen1_usb_quirks(struct rtl8xxxu_priv *priv);
@@ -1605,6 +1659,8 @@ void rtl8xxxu_init_burst(struct rtl8xxxu_priv *priv);
 int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb);
 int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb);
 int rtl8xxxu_gen2_channel_to_group(int channel);
+bool rtl8xxxu_simularity_compare(struct rtl8xxxu_priv *priv,
+				 int result[][8], int c1, int c2);
 bool rtl8xxxu_gen2_simularity_compare(struct rtl8xxxu_priv *priv,
 				      int result[][8], int c1, int c2);
 void rtl8xxxu_fill_txdesc_v1(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
@@ -1617,13 +1673,20 @@ void rtl8xxxu_fill_txdesc_v2(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 			     struct rtl8xxxu_txdesc32 *tx_desc32, bool sgi,
 			     bool short_preamble, bool ampdu_enable,
 			     u32 rts_rate);
+void rtl8xxxu_fill_txdesc_v3(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
+			     struct ieee80211_tx_info *tx_info,
+			     struct rtl8xxxu_txdesc32 *tx_desc32, bool sgi,
+			     bool short_preamble, bool ampdu_enable,
+			     u32 rts_rate);
 void rtl8723bu_set_ps_tdma(struct rtl8xxxu_priv *priv,
 			   u8 arg1, u8 arg2, u8 arg3, u8 arg4, u8 arg5);
 void rtl8723bu_phy_init_antenna_selection(struct rtl8xxxu_priv *priv);
 void rtl8723a_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap);
+void rtl8188f_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap);
 s8 rtl8723a_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt);
 
 extern struct rtl8xxxu_fileops rtl8188fu_fops;
+extern struct rtl8xxxu_fileops rtl8188eu_fops;
 extern struct rtl8xxxu_fileops rtl8192cu_fops;
 extern struct rtl8xxxu_fileops rtl8192eu_fops;
 extern struct rtl8xxxu_fileops rtl8723au_fops;
