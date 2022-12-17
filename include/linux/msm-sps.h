@@ -1409,6 +1409,26 @@ int sps_pipe_pending_desc(unsigned long dev, u32 pipe, bool *pending);
 int sps_bam_process_irq(unsigned long dev);
 
 /*
+ * sps_bam_enable_irqs - enable IRQs of a BAM.
+ * @dev:	BAM device handle
+ *
+ * This function enables all IRQs of a BAM.
+ *
+ * Return: 0 on success, negative value on error
+ */
+int sps_bam_enable_irqs(unsigned long dev);
+
+/*
+ * sps_bam_disable_irqs - disable IRQs of a BAM.
+ * @dev:	BAM device handle
+ *
+ * This function disables all IRQs of a BAM.
+ *
+ * Return: 0 on success, negative value on error
+ */
+int sps_bam_disable_irqs(unsigned long dev);
+
+/*
  * sps_get_bam_addr - get address info of a BAM.
  * @dev:	BAM device handle
  * @base:	beginning address
@@ -1616,6 +1636,16 @@ static inline int sps_pipe_pending_desc(unsigned long dev, u32 pipe,
 }
 
 static inline int sps_bam_process_irq(unsigned long dev)
+{
+	return -EPERM;
+}
+
+static inline int sps_bam_enable_irqs(unsigned long dev)
+{
+	return -EPERM;
+}
+
+static inline int sps_bam_disable_irqs(unsigned long dev)
 {
 	return -EPERM;
 }

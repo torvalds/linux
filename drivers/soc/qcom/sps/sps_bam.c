@@ -125,6 +125,13 @@ int sps_bam_check_irq(struct sps_bam *dev)
 
 	spin_lock_irqsave(&dev->isr_lock, flags);
 
+	if (dev->no_serve_irq) {
+		SPS_ERR(dev, "sps:IRQ from BAM %pa can't be currently served\n",
+			BAM_ID(dev));
+		spin_unlock_irqrestore(&dev->isr_lock, flags);
+		return ret;
+	}
+
 polling:
 	/* Get BAM interrupt source(s) */
 	if ((dev->state & BAM_STATE_MTI) == 0) {
@@ -581,6 +588,7 @@ int sps_bam_device_init(struct sps_bam *dev)
 	dev->state = 0;
 	dev->pipe_active_mask = 0;
 	dev->pipe_remote_mask = 0;
+	dev->no_serve_irq = false;
 	INIT_LIST_HEAD(&dev->pipes_q);
 
 	spin_lock_init(&dev->isr_lock);
@@ -1322,6 +1330,73 @@ int sps_bam_pipe_set_params(struct sps_bam *dev, u32 pipe_index, u32 options)
 	pipe->sys.ack_xfers = ack_xfers;
 
 	return 0;
+}
+
+/**
+ * Enable all IRQs of a BAM and its pipes.
+ *
+ */
+void sps_bam_enable_all_irqs(struct sps_bam *dev)
+{
+	struct sps_pipe *pipe;
+	u32 irq_mask;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&dev->isr_lock, flags);
+	/* Enable global interrupt */
+	irq_mask = BAM_IRQ_ALL;
+	bam_set_global_irq(&dev->base, dev->props.ee, irq_mask, true);
+
+	/* Enable all pipe interrupts */
+	pipe = list_first_entry(&dev->pipes_q, struct sps_pipe, list);
+
+	list_for_each_entry(pipe, &dev->pipes_q, list) {
+		/* Check this pipe's bit in the source mask */
+		if (BAM_PIPE_IS_ASSIGNED(pipe)
+				&& (!pipe->disconnecting)) {
+			bam_pipe_set_irq(&dev->base, pipe->pipe_index, BAM_ENABLE,
+							pipe->irq_mask, dev->props.ee);
+		}
+	}
+
+	// Write memory barrier
+	wmb();
+	dev->no_serve_irq = false;
+
+	spin_unlock_irqrestore(&dev->isr_lock, flags);
+}
+
+/**
+ * Disable all IRQs of a BAM and its pipes.
+ *
+ */
+void sps_bam_disable_all_irqs(struct sps_bam *dev)
+{
+	struct sps_pipe *pipe;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&dev->isr_lock, flags);
+
+	/* Disable global interrupt */
+	bam_set_global_irq(&dev->base, dev->props.ee, 0, false);
+
+	/* Disable all pipe interrupts */
+	pipe = list_first_entry(&dev->pipes_q, struct sps_pipe, list);
+
+	list_for_each_entry(pipe, &dev->pipes_q, list) {
+		/* Check this pipe's bit in the source mask */
+		if (BAM_PIPE_IS_ASSIGNED(pipe)
+				&& (!pipe->disconnecting)) {
+			bam_pipe_set_irq(&dev->base, pipe->pipe_index, BAM_DISABLE,
+							0, dev->props.ee);
+		}
+	}
+
+	// Write memory barrier
+	wmb();
+	dev->no_serve_irq = true;
+
+	spin_unlock_irqrestore(&dev->isr_lock, flags);
 }
 
 /**

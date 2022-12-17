@@ -949,6 +949,17 @@ int bam_init(void *base, u32 ee,
 }
 
 /**
+ * Set BAM global interrupt
+ */
+void bam_set_global_irq(void *base, u32 ee, u32 irq_mask, bool en)
+{
+	if (en)
+		bam_write_reg_field(base, IRQ_SRCS_MSK_EE, ee, BAM_IRQ, 1);
+	else
+		bam_write_reg_field(base, IRQ_SRCS_MSK_EE, ee, BAM_IRQ, 0);
+}
+
+/**
  * Set BAM global execution environment
  *
  * @base - BAM virtual base address
