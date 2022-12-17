@@ -24,3 +24,7 @@ BUILD_GKI_BOOT_IMG_LZ4_SIZE=53477376
 
 PRE_DEFCONFIG_CMDS="mkdir -p \${OUT_DIR}/arch/riscv/configs/ && cat ${ROOT_DIR}/${KERNEL_DIR}/arch/riscv/configs/gki_defconfig ${ROOT_DIR}/${KERNEL_DIR}/arch/riscv/configs/64-bit.config ${ROOT_DIR}/${KERNEL_DIR}/arch/riscv/configs/gki.config > \${OUT_DIR}/arch/riscv/configs/${DEFCONFIG};"
 POST_DEFCONFIG_CMDS=""
+
+if [ -n "${GKI_BUILD_CONFIG_FRAGMENT}" ]; then
+source ${GKI_BUILD_CONFIG_FRAGMENT}
+fi
