@@ -266,7 +266,7 @@ static inline int llcc_slice_deactivate(struct llcc_slice_desc *desc)
 {
 	return -EINVAL;
 }
-static int llcc_configure_staling_mode(struct llcc_slice_desc *desc,
+static inline int llcc_configure_staling_mode(struct llcc_slice_desc *desc,
 				       struct llcc_staling_mode_params *p)
 {
 	return -EINVAL;
