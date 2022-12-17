@@ -1082,26 +1082,23 @@ out_free_path:
  *
  * Return zero if the target hint was updated successfully, otherwise non-zero.
  */
-int dfs_cache_noreq_update_tgthint(const char *path, const struct dfs_cache_tgt_iterator *it)
+void dfs_cache_noreq_update_tgthint(const char *path, const struct dfs_cache_tgt_iterator *it)
 {
-	int rc;
-	struct cache_entry *ce;
 	struct cache_dfs_tgt *t;
+	struct cache_entry *ce;
 
-	if (!it)
-		return -EINVAL;
+	if (!path || !it)
+		return;
 
 	cifs_dbg(FYI, "%s: path: %s\n", __func__, path);
 
-	down_write(&htable_rw_lock);
+	if (!down_write_trylock(&htable_rw_lock))
+		return;
 
 	ce = lookup_cache_entry(path);
-	if (IS_ERR(ce)) {
-		rc = PTR_ERR(ce);
+	if (IS_ERR(ce))
 		goto out_unlock;
-	}
 
-	rc = 0;
 	t = ce->tgthint;
 
 	if (unlikely(!strcasecmp(it->it_name, t->name)))
@@ -1118,7 +1115,6 @@ int dfs_cache_noreq_update_tgthint(const char *path, const struct dfs_cache_tgt_
 
 out_unlock:
 	up_write(&htable_rw_lock);
-	return rc;
 }
 
 /**
