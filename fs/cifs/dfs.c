@@ -451,6 +451,7 @@ static int tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *tco
 	int rc;
 	int num_links = 0;
 	struct TCP_Server_Info *server = tcon->ses->server;
+	char *old_fullpath = server->leaf_fullpath;
 
 	do {
 		rc = __tree_connect_dfs_target(xid, tcon, cifs_sb, tree, islink, tl);
@@ -458,13 +459,11 @@ static int tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *tco
 			break;
 	} while (rc = -ELOOP, ++num_links < MAX_NESTED_LINKS);
 	/*
-	 * If we couldn't tree connect to any targets from last referral path, then retry from
-	 * original referral path.
+	 * If we couldn't tree connect to any targets from last referral path, then
+	 * retry it from newly resolved dfs referral.
 	 */
-	if (rc && server->current_fullpath != server->origin_fullpath) {
-		server->current_fullpath = server->origin_fullpath;
+	if (rc && server->leaf_fullpath != old_fullpath)
 		cifs_signal_cifsd_for_reconnect(server, true);
-	}
 
 	dfs_cache_free_tgts(tl);
 	return rc;
