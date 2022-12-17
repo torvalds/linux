@@ -13,6 +13,8 @@ description: |
 maintainers:
   - Dmitry Osipenko <digetx@gmail.com>
 
+$ref: /schemas/power/supply/power-supply.yaml
+
 properties:
   compatible:
     items:
@@ -22,15 +24,13 @@ properties:
   reg:
     maxItems: 1
 
-  monitored-battery: true
-  power-supplies: true
   system-power-controller: true
 
 required:
   - compatible
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

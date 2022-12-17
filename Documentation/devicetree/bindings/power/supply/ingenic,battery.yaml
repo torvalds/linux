@@ -10,6 +10,8 @@ title: Ingenic JZ47xx battery bindings
 maintainers:
   - Artur Rojek <contact@artur-rojek.eu>
 
+$ref: power-supply.yaml#
+
 properties:
   compatible:
     oneOf:
@@ -28,8 +30,6 @@ properties:
 
   monitored-battery:
     description: >
-      phandle to a "simple-battery" compatible node.
-
       This property must be a phandle to a node using the format described
       in battery.yaml, with the following properties being required:
       - voltage-min-design-microvolt: drained battery voltage,
