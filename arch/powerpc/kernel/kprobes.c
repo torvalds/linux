@@ -20,12 +20,12 @@
 #include <linux/kdebug.h>
 #include <linux/slab.h>
 #include <linux/moduleloader.h>
+#include <linux/set_memory.h>
 #include <asm/code-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/sstep.h>
 #include <asm/sections.h>
 #include <asm/inst.h>
-#include <asm/set_memory.h>
 #include <linux/uaccess.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
@@ -134,10 +134,9 @@ void *alloc_insn_page(void)
 	if (!page)
 		return NULL;
 
-	if (strict_module_rwx_enabled()) {
-		set_memory_ro((unsigned long)page, 1);
-		set_memory_x((unsigned long)page, 1);
-	}
+	if (strict_module_rwx_enabled())
+		set_memory_rox((unsigned long)page, 1);
+
 	return page;
 }
 

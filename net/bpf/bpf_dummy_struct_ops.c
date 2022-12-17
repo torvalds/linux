@@ -124,8 +124,7 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 	if (err < 0)
 		goto out;
 
-	set_memory_ro((long)image, 1);
-	set_memory_x((long)image, 1);
+	set_memory_rox((long)image, 1);
 	prog_ret = dummy_ops_call_op(image, args);
 
 	err = dummy_ops_copy_args(args);
