@@ -1412,6 +1412,20 @@ match_security(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 	return true;
 }
 
+static bool dfs_src_pathname_equal(const char *s1, const char *s2)
+{
+	if (strlen(s1) != strlen(s2))
+		return false;
+	for (; *s1; s1++, s2++) {
+		if (*s1 == '/' || *s1 == '\\') {
+			if (*s2 != '/' && *s2 != '\\')
+				return false;
+		} else if (tolower(*s1) != tolower(*s2))
+			return false;
+	}
+	return true;
+}
+
 /* this function must be called with srv_lock held */
 static int match_server(struct TCP_Server_Info *server, struct smb3_fs_context *ctx,
 			bool dfs_super_cmp)
@@ -1449,7 +1463,7 @@ static int match_server(struct TCP_Server_Info *server, struct smb3_fs_context *
 	 */
 	if (dfs_super_cmp) {
 		if (!ctx->source || !server->origin_fullpath ||
-		    strcasecmp(server->origin_fullpath, ctx->source))
+		    !dfs_src_pathname_equal(server->origin_fullpath, ctx->source))
 			return 0;
 	} else {
 		/* Skip addr, hostname and port matching for DFS connections */
