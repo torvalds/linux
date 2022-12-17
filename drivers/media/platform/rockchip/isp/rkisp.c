@@ -615,7 +615,7 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 	if (!hw->is_single && !is_try) {
 		rkisp_update_regs(dev, CTRL_VI_ISP_PATH, SUPER_IMP_COLOR_CR);
 		rkisp_update_regs(dev, DUAL_CROP_M_H_OFFS, ISP3X_DUAL_CROP_FBC_V_SIZE);
-		rkisp_update_regs(dev, ISP_ACQ_PROP, DUAL_CROP_CTRL);
+		rkisp_update_regs(dev, ISP_ACQ_H_OFFS, DUAL_CROP_CTRL);
 		rkisp_update_regs(dev, SELF_RESIZE_SCALE_HY, MI_WR_CTRL);
 		rkisp_update_regs(dev, ISP32_BP_RESIZE_SCALE_HY, SELF_RESIZE_CTRL);
 		rkisp_update_regs(dev, MAIN_RESIZE_SCALE_HY, ISP32_BP_RESIZE_CTRL);
@@ -693,6 +693,8 @@ run_next:
 		val = rkisp_read(dev, ISP_CTRL, false);
 		val |= CIF_ISP_CTRL_ISP_CFG_UPD;
 		rkisp_unite_write(dev, ISP_CTRL, val, true, hw->is_unite);
+		/* bayer pat after ISP_CFG_UPD for multi sensor to read lsc r/g/b table */
+		rkisp_update_regs(dev, ISP_ACQ_PROP, ISP_ACQ_PROP);
 	}
 	if (is_3dlut_upd)
 		rkisp_unite_write(dev, ISP_3DLUT_UPDATE, 1, true, hw->is_unite);

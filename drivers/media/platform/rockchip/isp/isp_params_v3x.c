@@ -655,6 +655,8 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 		lsc_ctrl |= ISP3X_LSC_SECTOR_16X16;
 	else
 		lsc_ctrl &= ~ISP3X_LSC_SECTOR_16X16;
+	if (!dev->hw_dev->is_single)
+		lsc_ctrl |= ISP3X_LSC_PRE_RD_ST_MODE;
 	isp3_param_write(params_vdev, lsc_ctrl, ISP3X_LSC_CTRL, id);
 }
 
