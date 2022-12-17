@@ -8776,21 +8776,22 @@ static int process_kf_arg_ptr_to_list_node(struct bpf_verifier_env *env,
 
 	field = meta->arg_list_head.field;
 
-	et = btf_type_by_id(field->list_head.btf, field->list_head.value_btf_id);
+	et = btf_type_by_id(field->graph_root.btf, field->graph_root.value_btf_id);
 	t = btf_type_by_id(reg->btf, reg->btf_id);
-	if (!btf_struct_ids_match(&env->log, reg->btf, reg->btf_id, 0, field->list_head.btf,
-				  field->list_head.value_btf_id, true)) {
+	if (!btf_struct_ids_match(&env->log, reg->btf, reg->btf_id, 0, field->graph_root.btf,
+				  field->graph_root.value_btf_id, true)) {
 		verbose(env, "operation on bpf_list_head expects arg#1 bpf_list_node at offset=%d "
 			"in struct %s, but arg is at offset=%d in struct %s\n",
-			field->list_head.node_offset, btf_name_by_offset(field->list_head.btf, et->name_off),
+			field->graph_root.node_offset,
+			btf_name_by_offset(field->graph_root.btf, et->name_off),
 			list_node_off, btf_name_by_offset(reg->btf, t->name_off));
 		return -EINVAL;
 	}
 
-	if (list_node_off != field->list_head.node_offset) {
+	if (list_node_off != field->graph_root.node_offset) {
 		verbose(env, "arg#1 offset=%d, but expected bpf_list_node at offset=%d in struct %s\n",
-			list_node_off, field->list_head.node_offset,
-			btf_name_by_offset(field->list_head.btf, et->name_off));
+			list_node_off, field->graph_root.node_offset,
+			btf_name_by_offset(field->graph_root.btf, et->name_off));
 		return -EINVAL;
 	}
 	/* Set arg#1 for expiration after unlock */
@@ -9232,9 +9233,9 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 
 				mark_reg_known_zero(env, regs, BPF_REG_0);
 				regs[BPF_REG_0].type = PTR_TO_BTF_ID | MEM_ALLOC;
-				regs[BPF_REG_0].btf = field->list_head.btf;
-				regs[BPF_REG_0].btf_id = field->list_head.value_btf_id;
-				regs[BPF_REG_0].off = field->list_head.node_offset;
+				regs[BPF_REG_0].btf = field->graph_root.btf;
+				regs[BPF_REG_0].btf_id = field->graph_root.value_btf_id;
+				regs[BPF_REG_0].off = field->graph_root.node_offset;
 			} else if (meta.func_id == special_kfunc_list[KF_bpf_cast_to_kern_ctx]) {
 				mark_reg_known_zero(env, regs, BPF_REG_0);
 				regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_TRUSTED;

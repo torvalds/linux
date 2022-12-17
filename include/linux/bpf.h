@@ -189,7 +189,7 @@ struct btf_field_kptr {
 	u32 btf_id;
 };
 
-struct btf_field_list_head {
+struct btf_field_graph_root {
 	struct btf *btf;
 	u32 value_btf_id;
 	u32 node_offset;
@@ -201,7 +201,7 @@ struct btf_field {
 	enum btf_field_type type;
 	union {
 		struct btf_field_kptr kptr;
-		struct btf_field_list_head list_head;
+		struct btf_field_graph_root graph_root;
 	};
 };
 
