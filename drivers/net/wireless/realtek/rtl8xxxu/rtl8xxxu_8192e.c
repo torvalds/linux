@@ -704,15 +704,6 @@ static int rtl8192eu_parse_efuse(struct rtl8xxxu_priv *priv)
 	rtl8192eu_log_next_device_info(priv, "Product", efuse->device_info, &record_offset);
 	rtl8192eu_log_next_device_info(priv, "Serial", efuse->device_info, &record_offset);
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
-		unsigned char *raw = priv->efuse_wifi.raw;
-
-		dev_info(&priv->udev->dev,
-			 "%s: dumping efuse (0x%02zx bytes):\n",
-			 __func__, sizeof(struct rtl8192eu_efuse));
-		for (i = 0; i < sizeof(struct rtl8192eu_efuse); i += 8)
-			dev_info(&priv->udev->dev, "%02x: %8ph\n", i, &raw[i]);
-	}
 	return 0;
 }
 
