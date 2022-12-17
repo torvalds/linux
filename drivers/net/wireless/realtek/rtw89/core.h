@@ -2019,9 +2019,35 @@ struct rtw89_btc_btf_fwinfo {
 	struct rtw89_btc_rpt_fbtc_btdev rpt_fbtc_btdev;
 };
 
+struct rtw89_btc_ver {
+	enum rtw89_core_chip_id chip_id;
+	u32 fw_ver_code;
+
+	u8 fcxbtcrpt;
+	u8 fcxtdma;
+	u8 fcxslots;
+	u8 fcxcysta;
+	u8 fcxstep;
+	u8 fcxnullsta;
+	u8 fcxmreg;
+	u8 fcxgpiodbg;
+	u8 fcxbtver;
+	u8 fcxbtscan;
+	u8 fcxbtafh;
+	u8 fcxbtdevinfo;
+	u8 fwlrole;
+	u8 frptmap;
+	u8 fcxctrl;
+
+	u16 info_buf;
+	u8 max_role_num;
+};
+
 #define RTW89_BTC_POLICY_MAXLEN 512
 
 struct rtw89_btc {
+	const struct rtw89_btc_ver *ver;
+
 	struct rtw89_btc_cx cx;
 	struct rtw89_btc_dm dm;
 	struct rtw89_btc_ctrl ctrl;

@@ -352,6 +352,8 @@ int rtw89_fw_recognize(struct rtw89_dev *rtwdev)
 
 	rtw89_fw_recognize_features(rtwdev);
 
+	rtw89_coex_recognize_ver(rtwdev);
+
 	return 0;
 }
 
