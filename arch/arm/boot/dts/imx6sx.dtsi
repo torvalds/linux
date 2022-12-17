@@ -216,7 +216,6 @@
 				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "gpmi0", "gpmi1", "gpmi2", "gpmi3";
 			#dma-cells = <1>;
 			dma-channels = <4>;
 			clocks = <&clks IMX6SX_CLK_APBH_DMA>;
