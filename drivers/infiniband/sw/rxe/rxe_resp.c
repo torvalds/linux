@@ -785,53 +785,61 @@ out:
 	return ret;
 }
 
-static enum resp_states atomic_write_reply(struct rxe_qp *qp,
-						struct rxe_pkt_info *pkt)
+#ifdef CONFIG_64BIT
+static enum resp_states do_atomic_write(struct rxe_qp *qp,
+					struct rxe_pkt_info *pkt)
 {
-	u64 src, *dst;
-	struct resp_res *res = qp->resp.res;
 	struct rxe_mr *mr = qp->resp.mr;
 	int payload = payload_size(pkt);
+	u64 src, *dst;
+
+	if (mr->state != RXE_MR_STATE_VALID)
+		return RESPST_ERR_RKEY_VIOLATION;
+
+	memcpy(&src, payload_addr(pkt), payload);
+
+	dst = iova_to_vaddr(mr, qp->resp.va + qp->resp.offset, payload);
+	/* check vaddr is 8 bytes aligned. */
+	if (!dst || (uintptr_t)dst & 7)
+		return RESPST_ERR_MISALIGNED_ATOMIC;
+
+	/* Do atomic write after all prior operations have completed */
+	smp_store_release(dst, src);
+
+	/* decrease resp.resid to zero */
+	qp->resp.resid -= sizeof(payload);
+
+	qp->resp.msn++;
+
+	/* next expected psn, read handles this separately */
+	qp->resp.psn = (pkt->psn + 1) & BTH_PSN_MASK;
+	qp->resp.ack_psn = qp->resp.psn;
+
+	qp->resp.opcode = pkt->opcode;
+	qp->resp.status = IB_WC_SUCCESS;
+	return RESPST_ACKNOWLEDGE;
+}
+#else
+static enum resp_states do_atomic_write(struct rxe_qp *qp,
+					struct rxe_pkt_info *pkt)
+{
+	return RESPST_ERR_UNSUPPORTED_OPCODE;
+}
+#endif /* CONFIG_64BIT */
+
+static enum resp_states atomic_write_reply(struct rxe_qp *qp,
+					   struct rxe_pkt_info *pkt)
+{
+	struct resp_res *res = qp->resp.res;
 
 	if (!res) {
 		res = rxe_prepare_res(qp, pkt, RXE_ATOMIC_WRITE_MASK);
 		qp->resp.res = res;
 	}
 
-	if (!res->replay) {
-#ifdef CONFIG_64BIT
-		if (mr->state != RXE_MR_STATE_VALID)
-			return RESPST_ERR_RKEY_VIOLATION;
-
-		memcpy(&src, payload_addr(pkt), payload);
-
-		dst = iova_to_vaddr(mr, qp->resp.va + qp->resp.offset, payload);
-		/* check vaddr is 8 bytes aligned. */
-		if (!dst || (uintptr_t)dst & 7)
-			return RESPST_ERR_MISALIGNED_ATOMIC;
-
-		/* Do atomic write after all prior operations have completed */
-		smp_store_release(dst, src);
-
-		/* decrease resp.resid to zero */
-		qp->resp.resid -= sizeof(payload);
-
-		qp->resp.msn++;
-
-		/* next expected psn, read handles this separately */
-		qp->resp.psn = (pkt->psn + 1) & BTH_PSN_MASK;
-		qp->resp.ack_psn = qp->resp.psn;
-
-		qp->resp.opcode = pkt->opcode;
-		qp->resp.status = IB_WC_SUCCESS;
-
+	if (res->replay)
 		return RESPST_ACKNOWLEDGE;
-#else
-		return RESPST_ERR_UNSUPPORTED_OPCODE;
-#endif /* CONFIG_64BIT */
-	}
-
-	return RESPST_ACKNOWLEDGE;
+	return do_atomic_write(qp, pkt);
 }
 
 static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
