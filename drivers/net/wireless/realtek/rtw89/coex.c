@@ -854,17 +854,18 @@ static void _chk_btc_err(struct rtw89_dev *rtwdev, u8 type, u32 cnt)
 static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
 	struct rtw89_btc_bt_a2dp_desc *a2dp = &bt_linfo->a2dp_desc;
 	struct rtw89_btc_fbtc_btver *pver = NULL;
 	struct rtw89_btc_fbtc_btscan *pscan = NULL;
-	struct rtw89_btc_fbtc_btafh *pafh = NULL;
+	struct rtw89_btc_fbtc_btafh *pafh_v1 = NULL;
+	struct rtw89_btc_fbtc_btafh_v2 *pafh_v2 = NULL;
 	struct rtw89_btc_fbtc_btdevinfo *pdev = NULL;
 
 	pver = (struct rtw89_btc_fbtc_btver *)pfinfo;
 	pscan = (struct rtw89_btc_fbtc_btscan *)pfinfo;
-	pafh = (struct rtw89_btc_fbtc_btafh *)pfinfo;
 	pdev = (struct rtw89_btc_fbtc_btdevinfo *)pfinfo;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
@@ -881,9 +882,23 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 		memcpy(bt->scan_info, pscan->scan, BTC_SCAN_MAX1);
 		break;
 	case BTC_RPT_TYPE_BT_AFH:
-		memcpy(&bt_linfo->afh_map[0], pafh->afh_l, 4);
-		memcpy(&bt_linfo->afh_map[4], pafh->afh_m, 4);
-		memcpy(&bt_linfo->afh_map[8], pafh->afh_h, 2);
+		if (ver->fcxbtafh == 2) {
+			pafh_v2 = (struct rtw89_btc_fbtc_btafh_v2 *)pfinfo;
+			if (pafh_v2->map_type & RPT_BT_AFH_SEQ_LEGACY) {
+				memcpy(&bt_linfo->afh_map[0], pafh_v2->afh_l, 4);
+				memcpy(&bt_linfo->afh_map[4], pafh_v2->afh_m, 4);
+				memcpy(&bt_linfo->afh_map[8], pafh_v2->afh_h, 2);
+			}
+			if (pafh_v2->map_type & RPT_BT_AFH_SEQ_LE) {
+				memcpy(&bt_linfo->afh_map_le[0], pafh_v2->afh_le_a, 4);
+				memcpy(&bt_linfo->afh_map_le[4], pafh_v2->afh_le_b, 1);
+			}
+		} else if (ver->fcxbtafh == 1) {
+			pafh_v1 = (struct rtw89_btc_fbtc_btafh *)pfinfo;
+			memcpy(&bt_linfo->afh_map[0], pafh_v1->afh_l, 4);
+			memcpy(&bt_linfo->afh_map[4], pafh_v1->afh_m, 4);
+			memcpy(&bt_linfo->afh_map[8], pafh_v1->afh_h, 2);
+		}
 		break;
 	case BTC_RPT_TYPE_BT_DEVICE:
 		a2dp->device_name = le32_to_cpu(pdev->dev_name);
@@ -1132,8 +1147,15 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		break;
 	case BTC_RPT_TYPE_BT_AFH:
 		pcinfo = &pfwinfo->rpt_fbtc_btafh.cinfo;
-		pfinfo = &pfwinfo->rpt_fbtc_btafh.finfo;
-		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btafh.finfo);
+		if (ver->fcxbtafh == 1) {
+			pfinfo = &pfwinfo->rpt_fbtc_btafh.finfo.v1;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btafh.finfo.v1);
+		} else if (ver->fcxbtafh == 2) {
+			pfinfo = &pfwinfo->rpt_fbtc_btafh.finfo.v2;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btafh.finfo.v2);
+		} else {
+			goto err;
+		}
 		pcinfo->req_fver = ver->fcxbtafh;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
@@ -1393,6 +1415,11 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		_update_bt_report(rtwdev, rpt_type, pfinfo);
 
 	return (rpt_len + BTC_RPT_HDR_SIZE);
+
+err:
+	rtw89_debug(rtwdev, RTW89_DBG_BTC,
+		    "[BTC], %s(): Undefined version for type=%d\n", __func__, rpt_type);
+	return 0;
 }
 
 static void _parse_btc_report(struct rtw89_dev *rtwdev,
@@ -5919,12 +5946,14 @@ static void _show_bt_profile_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_bt_info *bt = &cx->bt;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
 	struct rtw89_btc_module *module = &btc->mdinfo;
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
 	u8 *afh = bt_linfo->afh_map;
+	u8 *afh_le = bt_linfo->afh_map_le;
 
 	if (!(btc->dm.coex_info_map & BTC_COEX_INFO_BT))
 		return;
@@ -5974,6 +6003,12 @@ static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 		   afh[0], afh[1], afh[2], afh[3], afh[4],
 		   afh[5], afh[6], afh[7], afh[8], afh[9]);
 
+	if (ver->fcxbtafh == 2 && bt_linfo->status.map.ble_connect)
+		seq_printf(m,
+			   "LE[%02x%02x_%02x_%02x%02x]",
+			   afh_le[0], afh_le[1], afh_le[2],
+			   afh_le[3], afh_le[4]);
+
 	seq_printf(m, "wl_ch_map[en:%d/ch:%d/bw:%d]\n",
 		   wl->afh_info.en, wl->afh_info.ch, wl->afh_info.bw);
 
@@ -6015,6 +6050,11 @@ static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_AFH_MAP, true);
 	else
 		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_AFH_MAP, false);
+
+	if (ver->fcxbtafh == 2 && bt_linfo->status.map.ble_connect)
+		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_AFH_MAP_LE, true);
+	else
+		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_AFH_MAP_LE, false);
 
 	if (bt_linfo->a2dp_desc.exist &&
 	    (bt_linfo->a2dp_desc.flush_time == 0 ||

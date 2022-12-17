@@ -1264,6 +1264,7 @@ union rtw89_btc_bt_state_map {
 
 #define BTC_BT_RSSI_THMAX 4
 #define BTC_BT_AFH_GROUP 12
+#define BTC_BT_AFH_LE_GROUP 5
 
 struct rtw89_btc_bt_link_info {
 	struct rtw89_btc_u8_sta_chg profile_cnt;
@@ -1279,6 +1280,7 @@ struct rtw89_btc_bt_link_info {
 	u8 golden_rx_shift[BTC_PROFILE_MAX];
 	u8 rssi_state[BTC_BT_RSSI_THMAX];
 	u8 afh_map[BTC_BT_AFH_GROUP];
+	u8 afh_map_le[BTC_BT_AFH_LE_GROUP];
 
 	u32 role_sw: 1;
 	u32 slave_role: 1;
@@ -1605,6 +1607,11 @@ enum { /* STEP TYPE */
 	CXSTEP_MAX,
 };
 
+enum rtw89_btc_afh_map_type { /*AFH MAP TYPE */
+	RPT_BT_AFH_SEQ_LEGACY = 0x10,
+	RPT_BT_AFH_SEQ_LE = 0x20
+};
+
 #define BTC_DBG_MAX1  32
 struct rtw89_btc_fbtc_gpio_dbg {
 	u8 fver; /* btc_ver::fcxgpiodbg */
@@ -1792,6 +1799,18 @@ struct rtw89_btc_fbtc_btafh {
 	u8 afh_h[4]; /*bit0:2466, bit1:2467......bit14:2480 */
 } __packed;
 
+struct rtw89_btc_fbtc_btafh_v2 {
+	u8 fver; /* btc_ver::fcxbtafh */
+	u8 rsvd;
+	u8 rsvd2;
+	u8 map_type;
+	u8 afh_l[4];
+	u8 afh_m[4];
+	u8 afh_h[4];
+	u8 afh_le_a[4];
+	u8 afh_le_b[4];
+} __packed;
+
 struct rtw89_btc_fbtc_btdevinfo {
 	u8 fver; /* btc_ver::fcxbtdevinfo */
 	u8 rsvd;
@@ -1912,6 +1931,11 @@ struct rtw89_btc_rpt_cmn_info {
 	u8 valid;
 } __packed;
 
+union rtw89_btc_fbtc_btafh_info {
+	struct rtw89_btc_fbtc_btafh v1;
+	struct rtw89_btc_fbtc_btafh_v2 v2;
+};
+
 struct rtw89_btc_report_ctrl_state {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
 	union {
@@ -1979,7 +2003,7 @@ struct rtw89_btc_rpt_fbtc_btscan {
 
 struct rtw89_btc_rpt_fbtc_btafh {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	struct rtw89_btc_fbtc_btafh finfo; /* info from fw */
+	union rtw89_btc_fbtc_btafh_info finfo;
 };
 
 struct rtw89_btc_rpt_fbtc_btdev {
