@@ -1438,7 +1438,7 @@ struct rtw89_btc_cx {
 };
 
 struct rtw89_btc_fbtc_tdma {
-	u8 type; /* chip_info::fcxtdma_ver */
+	u8 type; /* btc_ver::fcxtdma */
 	u8 rxflctrl;
 	u8 txpause;
 	u8 wtgle_n;
@@ -1449,7 +1449,7 @@ struct rtw89_btc_fbtc_tdma {
 } __packed;
 
 struct rtw89_btc_fbtc_tdma_v1 {
-	u8 fver; /* chip_info::fcxtdma_ver */
+	u8 fver; /* btc_ver::fcxtdma */
 	u8 rsvd;
 	__le16 rsvd1;
 	struct rtw89_btc_fbtc_tdma tdma;
@@ -1474,7 +1474,7 @@ enum rtw89_btc_bt_sta_counter {
 };
 
 struct rtw89_btc_fbtc_rpt_ctrl {
-	u16 fver; /* chip_info::fcxbtcrpt_ver */
+	u16 fver; /* btc_ver::fcxbtcrpt */
 	u16 rpt_cnt; /* tmr counters */
 	u32 wl_fw_coex_ver; /* match which driver's coex version */
 	u32 wl_fw_cx_offload;
@@ -1607,7 +1607,7 @@ enum { /* STEP TYPE */
 
 #define BTC_DBG_MAX1  32
 struct rtw89_btc_fbtc_gpio_dbg {
-	u8 fver; /* chip_info::fcxgpiodbg_ver */
+	u8 fver; /* btc_ver::fcxgpiodbg */
 	u8 rsvd;
 	u16 rsvd2;
 	u32 en_map; /* which debug signal (see btc_wl_gpio_debug) is enable */
@@ -1616,7 +1616,7 @@ struct rtw89_btc_fbtc_gpio_dbg {
 } __packed;
 
 struct rtw89_btc_fbtc_mreg_val {
-	u8 fver; /* chip_info::fcxmreg_ver */
+	u8 fver; /* btc_ver::fcxmreg */
 	u8 reg_num;
 	__le16 rsvd;
 	__le32 mreg_val[CXMREG_MAX];
@@ -1639,7 +1639,7 @@ struct rtw89_btc_fbtc_slot {
 } __packed;
 
 struct rtw89_btc_fbtc_slots {
-	u8 fver; /* chip_info::fcxslots_ver */
+	u8 fver; /* btc_ver::fcxslots */
 	u8 tbl_num;
 	__le16 rsvd;
 	__le32 update_map;
@@ -1653,7 +1653,7 @@ struct rtw89_btc_fbtc_step {
 } __packed;
 
 struct rtw89_btc_fbtc_steps {
-	u8 fver; /* chip_info::fcxstep_ver */
+	u8 fver; /* btc_ver::fcxstep */
 	u8 rsvd;
 	__le16 cnt;
 	__le16 pos_old;
@@ -1670,7 +1670,7 @@ struct rtw89_btc_fbtc_steps_v1 {
 } __packed;
 
 struct rtw89_btc_fbtc_cysta { /* statistics for cycles */
-	u8 fver; /* chip_info::fcxcysta_ver */
+	u8 fver; /* btc_ver::fcxcysta */
 	u8 rsvd;
 	__le16 cycles; /* total cycle number */
 	__le16 cycles_a2dp[CXT_FLCTRL_MAX];
@@ -1750,7 +1750,7 @@ struct rtw89_btc_fbtc_cysta_v1 { /* statistics for cycles */
 } __packed;
 
 struct rtw89_btc_fbtc_cynullsta { /* cycle null statistics */
-	u8 fver; /* chip_info::fcxnullsta_ver */
+	u8 fver; /* btc_ver::fcxnullsta */
 	u8 rsvd;
 	__le16 rsvd2;
 	__le32 max_t[2]; /* max_t for 0:null0/1:null1 */
@@ -1759,7 +1759,7 @@ struct rtw89_btc_fbtc_cynullsta { /* cycle null statistics */
 } __packed;
 
 struct rtw89_btc_fbtc_cynullsta_v1 { /* cycle null statistics */
-	u8 fver; /* chip_info::fcxnullsta_ver */
+	u8 fver; /* btc_ver::fcxnullsta */
 	u8 rsvd;
 	__le16 rsvd2;
 	__le32 max_t[2]; /* max_t for 0:null0/1:null1 */
@@ -1768,7 +1768,7 @@ struct rtw89_btc_fbtc_cynullsta_v1 { /* cycle null statistics */
 } __packed;
 
 struct rtw89_btc_fbtc_btver {
-	u8 fver; /* chip_info::fcxbtver_ver */
+	u8 fver; /* btc_ver::fcxbtver */
 	u8 rsvd;
 	__le16 rsvd2;
 	__le32 coex_ver; /*bit[15:8]->shared, bit[7:0]->non-shared */
@@ -1777,14 +1777,14 @@ struct rtw89_btc_fbtc_btver {
 } __packed;
 
 struct rtw89_btc_fbtc_btscan {
-	u8 fver; /* chip_info::fcxbtscan_ver */
+	u8 fver; /* btc_ver::fcxbtscan */
 	u8 rsvd;
 	__le16 rsvd2;
 	u8 scan[6];
 } __packed;
 
 struct rtw89_btc_fbtc_btafh {
-	u8 fver; /* chip_info::fcxbtafh_ver */
+	u8 fver; /* btc_ver::fcxbtafh */
 	u8 rsvd;
 	__le16 rsvd2;
 	u8 afh_l[4]; /*bit0:2402, bit1: 2403.... bit31:2433 */
@@ -1793,7 +1793,7 @@ struct rtw89_btc_fbtc_btafh {
 } __packed;
 
 struct rtw89_btc_fbtc_btdevinfo {
-	u8 fver; /* chip_info::fcxbtdevinfo_ver */
+	u8 fver; /* btc_ver::fcxbtdevinfo */
 	u8 rsvd;
 	__le16 vendor_id;
 	__le32 dev_name; /* only 24 bits valid */
@@ -2756,20 +2756,6 @@ struct rtw89_chip_info {
 	u8 btcx_desired;
 	u8 scbd;
 	u8 mailbox;
-	u16 btc_fwinfo_buf;
-
-	u8 fcxbtcrpt_ver;
-	u8 fcxtdma_ver;
-	u8 fcxslots_ver;
-	u8 fcxcysta_ver;
-	u8 fcxstep_ver;
-	u8 fcxnullsta_ver;
-	u8 fcxmreg_ver;
-	u8 fcxgpiodbg_ver;
-	u8 fcxbtver_ver;
-	u8 fcxbtscan_ver;
-	u8 fcxbtafh_ver;
-	u8 fcxbtdevinfo_ver;
 
 	u8 afh_guard_ch;
 	const u8 *wl_rssi_thres;
