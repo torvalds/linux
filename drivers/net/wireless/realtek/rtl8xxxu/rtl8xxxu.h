@@ -531,6 +531,7 @@ struct rtl8xxxu_txdesc40 {
 #define TXDESC32_CTS_SELF_ENABLE	BIT(11)
 #define TXDESC32_RTS_CTS_ENABLE		BIT(12)
 #define TXDESC32_HW_RTS_ENABLE		BIT(13)
+#define TXDESC32_PT_STAGE_MASK		GENMASK(17, 15)
 #define TXDESC_PRIME_CH_OFF_LOWER	BIT(20)
 #define TXDESC_PRIME_CH_OFF_UPPER	BIT(21)
 #define TXDESC32_SHORT_PREAMBLE		BIT(24)
@@ -1376,6 +1377,39 @@ struct rtl8xxxu_ra_report {
 	u8 desc_rate;
 };
 
+struct rtl8xxxu_ra_info {
+	u8 rate_id;
+	u32 rate_mask;
+	u32 ra_use_rate;
+	u8 rate_sgi;
+	u8 rssi_sta_ra;		/* Percentage */
+	u8 pre_rssi_sta_ra;
+	u8 sgi_enable;
+	u8 decision_rate;
+	u8 pre_rate;
+	u8 highest_rate;
+	u8 lowest_rate;
+	u32 nsc_up;
+	u32 nsc_down;
+	u32 total;
+	u16 retry[5];
+	u16 drop;
+	u16 rpt_time;
+	u16 pre_min_rpt_time;
+	u8 dynamic_tx_rpt_timing_counter;
+	u8 ra_waiting_counter;
+	u8 ra_pending_counter;
+	u8 ra_drop_after_down;
+	u8 pt_try_state;	/* 0 trying state, 1 for decision state */
+	u8 pt_stage;		/* 0~6 */
+	u8 pt_stop_count;	/* Stop PT counter */
+	u8 pt_pre_rate;		/* if rate change do PT */
+	u8 pt_pre_rssi;		/* if RSSI change 5% do PT */
+	u8 pt_mode_ss;		/* decide which rate should do PT */
+	u8 ra_stage;		/* StageRA, decide how many times RA will be done between PT */
+	u8 pt_smooth_factor;
+};
+
 #define CFO_TH_XTAL_HIGH	20 /* kHz */
 #define CFO_TH_XTAL_LOW	10 /* kHz */
 #define CFO_TH_ATC		80 /* kHz */
@@ -1509,6 +1543,7 @@ struct rtl8xxxu_priv {
 	struct rtl8xxxu_btcoex bt_coex;
 	struct rtl8xxxu_ra_report ra_report;
 	struct rtl8xxxu_cfo_tracking cfo_tracking;
+	struct rtl8xxxu_ra_info ra_info;
 };
 
 struct rtl8xxxu_rx_urb {
@@ -1684,6 +1719,10 @@ void rtl8723bu_phy_init_antenna_selection(struct rtl8xxxu_priv *priv);
 void rtl8723a_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap);
 void rtl8188f_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap);
 s8 rtl8723a_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt);
+void rtl8xxxu_update_ra_report(struct rtl8xxxu_ra_report *rarpt,
+			       u8 rate, u8 sgi, u8 bw);
+void rtl8188e_ra_info_init_all(struct rtl8xxxu_ra_info *ra);
+void rtl8188e_handle_ra_tx_report2(struct rtl8xxxu_priv *priv, struct sk_buff *skb);
 
 extern struct rtl8xxxu_fileops rtl8188fu_fops;
 extern struct rtl8xxxu_fileops rtl8188eu_fops;

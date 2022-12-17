@@ -280,6 +280,123 @@ static const struct rtl8xxxu_rfregval rtl8188eu_radioa_init_table[] = {
 	{0xff, 0xffffffff}
 };
 
+#define PERENTRY		23
+#define RETRYSIZE		5
+#define RATESIZE		28
+#define TX_RPT2_ITEM_SIZE	8
+
+static const u8 retry_penalty[PERENTRY][RETRYSIZE + 1] = {
+	{5, 4, 3, 2, 0, 3}, /* 92 , idx=0 */
+	{6, 5, 4, 3, 0, 4}, /* 86 , idx=1 */
+	{6, 5, 4, 2, 0, 4}, /* 81 , idx=2 */
+	{8, 7, 6, 4, 0, 6}, /* 75 , idx=3 */
+	{10, 9, 8, 6, 0, 8}, /* 71 , idx=4 */
+	{10, 9, 8, 4, 0, 8}, /* 66 , idx=5 */
+	{10, 9, 8, 2, 0, 8}, /* 62 , idx=6 */
+	{10, 9, 8, 0, 0, 8}, /* 59 , idx=7 */
+	{18, 17, 16, 8, 0, 16}, /* 53 , idx=8 */
+	{26, 25, 24, 16, 0, 24}, /* 50 , idx=9 */
+	{34, 33, 32, 24, 0, 32}, /* 47 , idx=0x0a */
+	{34, 31, 28, 20, 0, 32}, /* 43 , idx=0x0b */
+	{34, 31, 27, 18, 0, 32}, /* 40 , idx=0x0c */
+	{34, 31, 26, 16, 0, 32}, /* 37 , idx=0x0d */
+	{34, 30, 22, 16, 0, 32}, /* 32 , idx=0x0e */
+	{34, 30, 24, 16, 0, 32}, /* 26 , idx=0x0f */
+	{49, 46, 40, 16, 0, 48}, /* 20 , idx=0x10 */
+	{49, 45, 32, 0, 0, 48}, /* 17 , idx=0x11 */
+	{49, 45, 22, 18, 0, 48}, /* 15 , idx=0x12 */
+	{49, 40, 24, 16, 0, 48}, /* 12 , idx=0x13 */
+	{49, 32, 18, 12, 0, 48}, /* 9 , idx=0x14 */
+	{49, 22, 18, 14, 0, 48}, /* 6 , idx=0x15 */
+	{49, 16, 16, 0, 0, 48} /* 3, idx=0x16 */
+};
+
+static const u8 pt_penalty[RETRYSIZE + 1] = {34, 31, 30, 24, 0, 32};
+
+static const u8 retry_penalty_idx_normal[2][RATESIZE] = {
+	{ /* RSSI>TH */
+		4, 4, 4, 5,
+		4, 4, 5, 7, 7, 7, 8, 0x0a,
+		4, 4, 4, 4, 6, 0x0a, 0x0b, 0x0d,
+		5, 5, 7, 7, 8, 0x0b, 0x0d, 0x0f
+	},
+	{ /* RSSI<TH */
+		0x0a, 0x0a, 0x0b, 0x0c,
+		0x0a, 0x0a, 0x0b, 0x0c, 0x0d, 0x10, 0x13, 0x13,
+		0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x11, 0x13, 0x13,
+		9, 9, 9, 9, 0x0c, 0x0e, 0x11, 0x13
+	}
+};
+
+static const u8 retry_penalty_idx_cut_i[2][RATESIZE] = {
+	{ /* RSSI>TH */
+		4, 4, 4, 5,
+		4, 4, 5, 7, 7, 7, 8, 0x0a,
+		4, 4, 4, 4, 6, 0x0a, 0x0b, 0x0d,
+		5, 5, 7, 7, 8, 0x0b, 0x0d, 0x0f
+	},
+	{ /* RSSI<TH */
+		0x0a, 0x0a, 0x0b, 0x0c,
+		0x0a, 0x0a, 0x0b, 0x0c, 0x0d, 0x10, 0x13, 0x13,
+		0x06, 0x07, 0x08, 0x0d, 0x0e, 0x11, 0x11, 0x11,
+		9, 9, 9, 9, 0x0c, 0x0e, 0x11, 0x13
+	}
+};
+
+static const u8 retry_penalty_up_idx_normal[RATESIZE] = {
+	0x0c, 0x0d, 0x0d, 0x0f,
+	0x0d, 0x0e, 0x0f, 0x0f, 0x10, 0x12, 0x13, 0x14,
+	0x0f, 0x10, 0x10, 0x12, 0x12, 0x13, 0x14, 0x15,
+	0x11, 0x11, 0x12, 0x13, 0x13, 0x13, 0x14, 0x15
+};
+
+static const u8 retry_penalty_up_idx_cut_i[RATESIZE] = {
+	0x0c, 0x0d, 0x0d, 0x0f,
+	0x0d, 0x0e, 0x0f, 0x0f, 0x10, 0x12, 0x13, 0x14,
+	0x0b, 0x0b, 0x11, 0x11, 0x12, 0x12, 0x12, 0x12,
+	0x11, 0x11, 0x12, 0x13, 0x13, 0x13, 0x14, 0x15
+};
+
+static const u8 rssi_threshold[RATESIZE] = {
+	0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0x24, 0x26, 0x2a,
+	0x18, 0x1a, 0x1d, 0x1f, 0x21, 0x27, 0x29, 0x2a,
+	0, 0, 0, 0x1f, 0x23, 0x28, 0x2a, 0x2c
+};
+
+static const u16 n_threshold_high[RATESIZE] = {
+	4, 4, 8, 16,
+	24, 36, 48, 72, 96, 144, 192, 216,
+	60, 80, 100, 160, 240, 400, 600, 800,
+	300, 320, 480, 720, 1000, 1200, 1600, 2000
+};
+
+static const u16 n_threshold_low[RATESIZE] = {
+	2, 2, 4, 8,
+	12, 18, 24, 36, 48, 72, 96, 108,
+	30, 40, 50, 80, 120, 200, 300, 400,
+	150, 160, 240, 360, 500, 600, 800, 1000
+};
+
+static const u8 dropping_necessary[RATESIZE] = {
+	1, 1, 1, 1,
+	1, 2, 3, 4, 5, 6, 7, 8,
+	1, 2, 3, 4, 5, 6, 7, 8,
+	5, 6, 7, 8, 9, 10, 11, 12
+};
+
+static const u8 pending_for_rate_up_fail[5] = {2, 10, 24, 40, 60};
+
+static const u16 dynamic_tx_rpt_timing[6] = {
+	0x186a, 0x30d4, 0x493e, 0x61a8, 0x7a12, 0x927c /* 200ms-1200ms */
+};
+
+enum rtl8188e_tx_rpt_timing {
+	DEFAULT_TIMING = 0,
+	INCREASE_TIMING,
+	DECREASE_TIMING
+};
+
 static int rtl8188eu_identify_chip(struct rtl8xxxu_priv *priv)
 {
 	struct device *dev = &priv->udev->dev;
@@ -1233,6 +1350,477 @@ static s8 rtl8188e_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
 	return rx_pwr_all;
 }
 
+static void rtl8188e_set_tx_rpt_timing(struct rtl8xxxu_ra_info *ra, u8 timing)
+{
+	u8 idx;
+
+	for (idx = 0; idx < 5; idx++)
+		if (dynamic_tx_rpt_timing[idx] == ra->rpt_time)
+			break;
+
+	if (timing == DEFAULT_TIMING) {
+		idx = 0; /* 200ms */
+	} else if (timing == INCREASE_TIMING) {
+		if (idx < 5)
+			idx++;
+	} else if (timing == DECREASE_TIMING) {
+		if (idx > 0)
+			idx--;
+	}
+
+	ra->rpt_time = dynamic_tx_rpt_timing[idx];
+}
+
+static void rtl8188e_rate_down(struct rtl8xxxu_ra_info *ra)
+{
+	u8 rate_id = ra->pre_rate;
+	u8 lowest_rate = ra->lowest_rate;
+	u8 highest_rate = ra->highest_rate;
+	s8 i;
+
+	if (rate_id > highest_rate) {
+		rate_id = highest_rate;
+	} else if (ra->rate_sgi) {
+		ra->rate_sgi = 0;
+	} else if (rate_id > lowest_rate) {
+		if (rate_id > 0) {
+			for (i = rate_id - 1; i >= lowest_rate; i--) {
+				if (ra->ra_use_rate & BIT(i)) {
+					rate_id = i;
+					goto rate_down_finish;
+				}
+			}
+		}
+	} else if (rate_id <= lowest_rate) {
+		rate_id = lowest_rate;
+	}
+
+rate_down_finish:
+	if (ra->ra_waiting_counter == 1) {
+		ra->ra_waiting_counter++;
+		ra->ra_pending_counter++;
+	} else if (ra->ra_waiting_counter > 1) {
+		ra->ra_waiting_counter = 0;
+		ra->ra_pending_counter = 0;
+	}
+
+	if (ra->ra_pending_counter >= 4)
+		ra->ra_pending_counter = 4;
+
+	ra->ra_drop_after_down = 1;
+
+	ra->decision_rate = rate_id;
+
+	rtl8188e_set_tx_rpt_timing(ra, DECREASE_TIMING);
+}
+
+static void rtl8188e_rate_up(struct rtl8xxxu_ra_info *ra)
+{
+	u8 rate_id = ra->pre_rate;
+	u8 highest_rate = ra->highest_rate;
+	u8 i;
+
+	if (ra->ra_waiting_counter == 1) {
+		ra->ra_waiting_counter = 0;
+		ra->ra_pending_counter = 0;
+	} else if (ra->ra_waiting_counter > 1) {
+		ra->pre_rssi_sta_ra = ra->rssi_sta_ra;
+		goto rate_up_finish;
+	}
+
+	rtl8188e_set_tx_rpt_timing(ra, DEFAULT_TIMING);
+
+	if (rate_id < highest_rate) {
+		for (i = rate_id + 1; i <= highest_rate; i++) {
+			if (ra->ra_use_rate & BIT(i)) {
+				rate_id = i;
+				goto rate_up_finish;
+			}
+		}
+	} else if (rate_id == highest_rate) {
+		if (ra->sgi_enable && !ra->rate_sgi)
+			ra->rate_sgi = 1;
+		else if (!ra->sgi_enable)
+			ra->rate_sgi = 0;
+	} else { /* rate_id > ra->highest_rate */
+		rate_id = highest_rate;
+	}
+
+rate_up_finish:
+	if (ra->ra_waiting_counter == (4 + pending_for_rate_up_fail[ra->ra_pending_counter]))
+		ra->ra_waiting_counter = 0;
+	else
+		ra->ra_waiting_counter++;
+
+	ra->decision_rate = rate_id;
+}
+
+static void rtl8188e_reset_ra_counter(struct rtl8xxxu_ra_info *ra)
+{
+	u8 rate_id = ra->decision_rate;
+
+	ra->nsc_up = (n_threshold_high[rate_id] + n_threshold_low[rate_id]) >> 1;
+	ra->nsc_down = (n_threshold_high[rate_id] + n_threshold_low[rate_id]) >> 1;
+}
+
+static void rtl8188e_rate_decision(struct rtl8xxxu_ra_info *ra)
+{
+	struct rtl8xxxu_priv *priv = container_of(ra, struct rtl8xxxu_priv, ra_info);
+	const u8 *retry_penalty_idx_0;
+	const u8 *retry_penalty_idx_1;
+	const u8 *retry_penalty_up_idx;
+	u8 rate_id, penalty_id1, penalty_id2;
+	int i;
+
+	if (ra->total == 0)
+		return;
+
+	if (ra->ra_drop_after_down) {
+		ra->ra_drop_after_down--;
+
+		rtl8188e_reset_ra_counter(ra);
+
+		return;
+	}
+
+	if (priv->chip_cut == 8) { /* cut I */
+		retry_penalty_idx_0 = retry_penalty_idx_cut_i[0];
+		retry_penalty_idx_1 = retry_penalty_idx_cut_i[1];
+		retry_penalty_up_idx = retry_penalty_up_idx_cut_i;
+	} else {
+		retry_penalty_idx_0 = retry_penalty_idx_normal[0];
+		retry_penalty_idx_1 = retry_penalty_idx_normal[1];
+		retry_penalty_up_idx = retry_penalty_up_idx_normal;
+	}
+
+	if (ra->rssi_sta_ra < (ra->pre_rssi_sta_ra - 3) ||
+	    ra->rssi_sta_ra > (ra->pre_rssi_sta_ra + 3)) {
+		ra->pre_rssi_sta_ra = ra->rssi_sta_ra;
+		ra->ra_waiting_counter = 0;
+		ra->ra_pending_counter = 0;
+	}
+
+	/* Start RA decision */
+	if (ra->pre_rate > ra->highest_rate)
+		rate_id = ra->highest_rate;
+	else
+		rate_id = ra->pre_rate;
+
+	/* rate down */
+	if (ra->rssi_sta_ra > rssi_threshold[rate_id])
+		penalty_id1 = retry_penalty_idx_0[rate_id];
+	else
+		penalty_id1 = retry_penalty_idx_1[rate_id];
+
+	for (i = 0; i < 5; i++)
+		ra->nsc_down += ra->retry[i] * retry_penalty[penalty_id1][i];
+
+	if (ra->nsc_down > (ra->total * retry_penalty[penalty_id1][5]))
+		ra->nsc_down -= ra->total * retry_penalty[penalty_id1][5];
+	else
+		ra->nsc_down = 0;
+
+	/* rate up */
+	penalty_id2 = retry_penalty_up_idx[rate_id];
+
+	for (i = 0; i < 5; i++)
+		ra->nsc_up += ra->retry[i] * retry_penalty[penalty_id2][i];
+
+	if (ra->nsc_up > (ra->total * retry_penalty[penalty_id2][5]))
+		ra->nsc_up -= ra->total * retry_penalty[penalty_id2][5];
+	else
+		ra->nsc_up = 0;
+
+	if (ra->nsc_down < n_threshold_low[rate_id] ||
+	    ra->drop > dropping_necessary[rate_id]) {
+		rtl8188e_rate_down(ra);
+
+		rtl8xxxu_update_ra_report(&priv->ra_report, ra->decision_rate,
+					  ra->rate_sgi, priv->ra_report.txrate.bw);
+	} else if (ra->nsc_up > n_threshold_high[rate_id]) {
+		rtl8188e_rate_up(ra);
+
+		rtl8xxxu_update_ra_report(&priv->ra_report, ra->decision_rate,
+					  ra->rate_sgi, priv->ra_report.txrate.bw);
+	}
+
+	if (ra->decision_rate == ra->pre_rate)
+		ra->dynamic_tx_rpt_timing_counter++;
+	else
+		ra->dynamic_tx_rpt_timing_counter = 0;
+
+	if (ra->dynamic_tx_rpt_timing_counter >= 4) {
+		/* Rate didn't change 4 times, extend RPT timing */
+		rtl8188e_set_tx_rpt_timing(ra, INCREASE_TIMING);
+		ra->dynamic_tx_rpt_timing_counter = 0;
+	}
+
+	ra->pre_rate = ra->decision_rate;
+
+	rtl8188e_reset_ra_counter(ra);
+}
+
+static void rtl8188e_power_training_try_state(struct rtl8xxxu_ra_info *ra)
+{
+	ra->pt_try_state = 0;
+	switch (ra->pt_mode_ss) {
+	case 3:
+		if (ra->decision_rate >= DESC_RATE_MCS13)
+			ra->pt_try_state = 1;
+		break;
+	case 2:
+		if (ra->decision_rate >= DESC_RATE_MCS5)
+			ra->pt_try_state = 1;
+		break;
+	case 1:
+		if (ra->decision_rate >= DESC_RATE_48M)
+			ra->pt_try_state = 1;
+		break;
+	case 0:
+		if (ra->decision_rate >= DESC_RATE_11M)
+			ra->pt_try_state = 1;
+		break;
+	default:
+		break;
+	}
+
+	if (ra->rssi_sta_ra < 48) {
+		ra->pt_stage = 0;
+	} else if (ra->pt_try_state == 1) {
+		if ((ra->pt_stop_count >= 10) ||
+		    (ra->pt_pre_rssi > ra->rssi_sta_ra + 5) ||
+		    (ra->pt_pre_rssi < ra->rssi_sta_ra - 5) ||
+		    (ra->decision_rate != ra->pt_pre_rate)) {
+			if (ra->pt_stage == 0)
+				ra->pt_stage = 1;
+			else if (ra->pt_stage == 1)
+				ra->pt_stage = 3;
+			else
+				ra->pt_stage = 5;
+
+			ra->pt_pre_rssi = ra->rssi_sta_ra;
+			ra->pt_stop_count = 0;
+		} else {
+			ra->ra_stage = 0;
+			ra->pt_stop_count++;
+		}
+	} else {
+		ra->pt_stage = 0;
+		ra->ra_stage = 0;
+	}
+
+	ra->pt_pre_rate = ra->decision_rate;
+
+	/* TODO: implement the "false alarm" statistics for this */
+	/* Disable power training when noisy environment */
+	/* if (p_dm_odm->is_disable_power_training) { */
+	if (1) {
+		ra->pt_stage = 0;
+		ra->ra_stage = 0;
+		ra->pt_stop_count = 0;
+	}
+}
+
+static void rtl8188e_power_training_decision(struct rtl8xxxu_ra_info *ra)
+{
+	u8 temp_stage;
+	u32 numsc;
+	u32 num_total;
+	u8 stage_id;
+	u8 j;
+
+	numsc = 0;
+	num_total = ra->total * pt_penalty[5];
+	for (j = 0; j <= 4; j++) {
+		numsc += ra->retry[j] * pt_penalty[j];
+
+		if (numsc > num_total)
+			break;
+	}
+
+	j >>= 1;
+	temp_stage = (ra->pt_stage + 1) >> 1;
+	if (temp_stage > j)
+		stage_id = temp_stage - j;
+	else
+		stage_id = 0;
+
+	ra->pt_smooth_factor = (ra->pt_smooth_factor >> 1) +
+			       (ra->pt_smooth_factor >> 2) +
+			       stage_id * 16 + 2;
+	if (ra->pt_smooth_factor > 192)
+		ra->pt_smooth_factor = 192;
+	stage_id = ra->pt_smooth_factor >> 6;
+	temp_stage = stage_id * 2;
+	if (temp_stage != 0)
+		temp_stage--;
+	if (ra->drop > 3)
+		temp_stage = 0;
+	ra->pt_stage = temp_stage;
+}
+
+void rtl8188e_handle_ra_tx_report2(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
+{
+	u32 *_rx_desc = (u32 *)(skb->data - sizeof(struct rtl8xxxu_rxdesc16));
+	struct rtl8xxxu_rxdesc16 *rx_desc = (struct rtl8xxxu_rxdesc16 *)_rx_desc;
+	struct device *dev = &priv->udev->dev;
+	struct rtl8xxxu_ra_info *ra = &priv->ra_info;
+	u32 tx_rpt_len = rx_desc->pktlen & 0x3ff;
+	u32 items = tx_rpt_len / TX_RPT2_ITEM_SIZE;
+	u64 macid_valid = ((u64)_rx_desc[5] << 32) | _rx_desc[4];
+	u32 macid;
+	u8 *rpt = skb->data;
+	bool valid;
+	u16 min_rpt_time = 0x927c;
+
+	dev_dbg(dev, "%s: len: %d items: %d\n", __func__, tx_rpt_len, items);
+
+	for (macid = 0; macid < items; macid++) {
+		valid = false;
+
+		if (macid < 64)
+			valid = macid_valid & BIT(macid);
+
+		if (valid) {
+			ra->retry[0] = le16_to_cpu(*(__le16 *)rpt);
+			ra->retry[1] = rpt[2];
+			ra->retry[2] = rpt[3];
+			ra->retry[3] = rpt[4];
+			ra->retry[4] = rpt[5];
+			ra->drop = rpt[6];
+			ra->total = ra->retry[0] + ra->retry[1] + ra->retry[2] +
+				    ra->retry[3] + ra->retry[4] + ra->drop;
+
+			if (ra->total > 0) {
+				if (ra->ra_stage < 5)
+					rtl8188e_rate_decision(ra);
+				else if (ra->ra_stage == 5)
+					rtl8188e_power_training_try_state(ra);
+				else /* ra->ra_stage == 6 */
+					rtl8188e_power_training_decision(ra);
+
+				if (ra->ra_stage <= 5)
+					ra->ra_stage++;
+				else
+					ra->ra_stage = 0;
+			}
+		} else if (macid == 0) {
+			dev_warn(dev, "%s: TX report item 0 not valid\n", __func__);
+		}
+
+		dev_dbg(dev, "%s:  valid: %d retry: %d %d %d %d %d drop: %d\n",
+			__func__, valid,
+			ra->retry[0], ra->retry[1], ra->retry[2],
+			ra->retry[3], ra->retry[4], ra->drop);
+
+		if (min_rpt_time > ra->rpt_time)
+			min_rpt_time = ra->rpt_time;
+
+		rpt += TX_RPT2_ITEM_SIZE;
+
+		/*
+		 * We only use macid 0, so only the first item is relevant.
+		 * AP mode will use more of them if it's ever implemented.
+		 */
+		break;
+	}
+
+	if (min_rpt_time != ra->pre_min_rpt_time) {
+		rtl8xxxu_write16(priv, REG_TX_REPORT_TIME, min_rpt_time);
+		ra->pre_min_rpt_time = min_rpt_time;
+	}
+}
+
+static void rtl8188e_arfb_refresh(struct rtl8xxxu_ra_info *ra)
+{
+	s8 i;
+
+	ra->ra_use_rate = ra->rate_mask;
+
+	/* Highest rate */
+	if (ra->ra_use_rate) {
+		for (i = RATESIZE; i >= 0; i--) {
+			if (ra->ra_use_rate & BIT(i)) {
+				ra->highest_rate = i;
+				break;
+			}
+		}
+	} else {
+		ra->highest_rate = 0;
+	}
+
+	/* Lowest rate */
+	if (ra->ra_use_rate) {
+		for (i = 0; i < RATESIZE; i++) {
+			if (ra->ra_use_rate & BIT(i)) {
+				ra->lowest_rate = i;
+				break;
+			}
+		}
+	} else {
+		ra->lowest_rate = 0;
+	}
+
+	if (ra->highest_rate > DESC_RATE_MCS7)
+		ra->pt_mode_ss = 3;
+	else if (ra->highest_rate > DESC_RATE_54M)
+		ra->pt_mode_ss = 2;
+	else if (ra->highest_rate > DESC_RATE_11M)
+		ra->pt_mode_ss = 1;
+	else
+		ra->pt_mode_ss = 0;
+}
+
+static void
+rtl8188e_update_rate_mask(struct rtl8xxxu_priv *priv,
+			  u32 ramask, u8 rateid, int sgi, int txbw_40mhz)
+{
+	struct rtl8xxxu_ra_info *ra = &priv->ra_info;
+
+	ra->rate_id = rateid;
+	ra->rate_mask = ramask;
+	ra->sgi_enable = sgi;
+
+	rtl8188e_arfb_refresh(ra);
+}
+
+void rtl8188e_ra_info_init_all(struct rtl8xxxu_ra_info *ra)
+{
+	ra->decision_rate = DESC_RATE_MCS7;
+	ra->pre_rate = DESC_RATE_MCS7;
+	ra->highest_rate = DESC_RATE_MCS7;
+	ra->lowest_rate = 0;
+	ra->rate_id = 0;
+	ra->rate_mask = 0xfffff;
+	ra->rssi_sta_ra = 0;
+	ra->pre_rssi_sta_ra = 0;
+	ra->sgi_enable = 0;
+	ra->ra_use_rate = 0xfffff;
+	ra->nsc_down = (n_threshold_high[DESC_RATE_MCS7] + n_threshold_low[DESC_RATE_MCS7]) / 2;
+	ra->nsc_up = (n_threshold_high[DESC_RATE_MCS7] + n_threshold_low[DESC_RATE_MCS7]) / 2;
+	ra->rate_sgi = 0;
+	ra->rpt_time = 0x927c;
+	ra->drop = 0;
+	ra->retry[0] = 0;
+	ra->retry[1] = 0;
+	ra->retry[2] = 0;
+	ra->retry[3] = 0;
+	ra->retry[4] = 0;
+	ra->total = 0;
+	ra->ra_waiting_counter = 0;
+	ra->ra_pending_counter = 0;
+	ra->ra_drop_after_down = 0;
+
+	ra->pt_try_state = 0;
+	ra->pt_stage = 5;
+	ra->pt_smooth_factor = 192;
+	ra->pt_stop_count = 0;
+	ra->pt_pre_rate = 0;
+	ra->pt_pre_rssi = 0;
+	ra->pt_mode_ss = 0;
+	ra->ra_stage = 0;
+}
+
 struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.identify_chip = rtl8188eu_identify_chip,
 	.parse_efuse = rtl8188eu_parse_efuse,
@@ -1252,7 +1840,7 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.disable_rf = rtl8188e_disable_rf,
 	.usb_quirks = rtl8188e_usb_quirks,
 	.set_tx_power = rtl8188f_set_tx_power,
-	.update_rate_mask = rtl8xxxu_gen2_update_rate_mask,
+	.update_rate_mask = rtl8188e_update_rate_mask,
 	.report_connect = rtl8xxxu_gen2_report_connect,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v3,
 	.set_crystal_cap = rtl8188f_set_crystal_cap,
