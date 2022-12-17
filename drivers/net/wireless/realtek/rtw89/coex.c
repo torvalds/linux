@@ -191,16 +191,20 @@ struct rtw89_btc_btf_tlv {
 } __packed;
 
 enum btc_btf_set_report_en {
-	RPT_EN_TDMA = BIT(0),
-	RPT_EN_CYCLE = BIT(1),
-	RPT_EN_MREG = BIT(2),
-	RPT_EN_BT_VER_INFO = BIT(3),
-	RPT_EN_BT_SCAN_INFO = BIT(4),
-	RPT_EN_BT_AFH_MAP = BIT(5),
-	RPT_EN_BT_DEVICE_INFO = BIT(6),
-	RPT_EN_WL_ALL = GENMASK(2, 0),
-	RPT_EN_BT_ALL = GENMASK(6, 3),
-	RPT_EN_ALL = GENMASK(6, 0),
+	RPT_EN_TDMA,
+	RPT_EN_CYCLE,
+	RPT_EN_MREG,
+	RPT_EN_BT_VER_INFO,
+	RPT_EN_BT_SCAN_INFO,
+	RPT_EN_BT_DEVICE_INFO,
+	RPT_EN_BT_AFH_MAP,
+	RPT_EN_BT_AFH_MAP_LE,
+	RPT_EN_FW_STEP_INFO,
+	RPT_EN_TEST,
+	RPT_EN_WL_ALL,
+	RPT_EN_BT_ALL,
+	RPT_EN_ALL,
+	RPT_EN_MONITER,
 };
 
 #define BTF_SET_REPORT_VER 1
@@ -1507,22 +1511,169 @@ static void _append_slot(struct rtw89_dev *rtwdev)
 			    __func__, cnt);
 }
 
+static u32 rtw89_btc_fw_rpt_ver(struct rtw89_dev *rtwdev, u32 rpt_map)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
+	u32 bit_map = 0;
+
+	switch (rpt_map) {
+	case RPT_EN_TDMA:
+		bit_map = BIT(0);
+		break;
+	case RPT_EN_CYCLE:
+		bit_map = BIT(1);
+		break;
+	case RPT_EN_MREG:
+		bit_map = BIT(2);
+		break;
+	case RPT_EN_BT_VER_INFO:
+		bit_map = BIT(3);
+		break;
+	case RPT_EN_BT_SCAN_INFO:
+		bit_map = BIT(4);
+		break;
+	case RPT_EN_BT_DEVICE_INFO:
+		switch (ver->frptmap) {
+		case 0:
+		case 1:
+		case 2:
+			bit_map = BIT(6);
+			break;
+		case 3:
+			bit_map = BIT(5);
+			break;
+		default:
+			break;
+		}
+		break;
+	case RPT_EN_BT_AFH_MAP:
+		switch (ver->frptmap) {
+		case 0:
+		case 1:
+		case 2:
+			bit_map = BIT(5);
+			break;
+		case 3:
+			bit_map = BIT(6);
+			break;
+		default:
+			break;
+		}
+		break;
+	case RPT_EN_BT_AFH_MAP_LE:
+		switch (ver->frptmap) {
+		case 2:
+			bit_map = BIT(8);
+			break;
+		case 3:
+			bit_map = BIT(7);
+			break;
+		default:
+			break;
+		}
+		break;
+	case RPT_EN_FW_STEP_INFO:
+		switch (ver->frptmap) {
+		case 1:
+		case 2:
+			bit_map = BIT(7);
+			break;
+		case 3:
+			bit_map = BIT(8);
+			break;
+		default:
+			break;
+		}
+		break;
+	case RPT_EN_TEST:
+		bit_map = BIT(31);
+		break;
+	case RPT_EN_WL_ALL:
+		switch (ver->frptmap) {
+		case 0:
+		case 1:
+		case 2:
+			bit_map = GENMASK(2, 0);
+			break;
+		case 3:
+			bit_map = GENMASK(2, 0) | BIT(8);
+			break;
+		default:
+			break;
+		}
+		break;
+	case RPT_EN_BT_ALL:
+		switch (ver->frptmap) {
+		case 0:
+		case 1:
+			bit_map = GENMASK(6, 3);
+			break;
+		case 2:
+			bit_map = GENMASK(6, 3) | BIT(8);
+			break;
+		case 3:
+			bit_map = GENMASK(7, 3);
+			break;
+		default:
+			break;
+		}
+		break;
+	case RPT_EN_ALL:
+		switch (ver->frptmap) {
+		case 0:
+			bit_map = GENMASK(6, 0);
+			break;
+		case 1:
+			bit_map = GENMASK(7, 0);
+			break;
+		case 2:
+		case 3:
+			bit_map = GENMASK(8, 0);
+			break;
+		default:
+			break;
+		}
+		break;
+	case RPT_EN_MONITER:
+		switch (ver->frptmap) {
+		case 0:
+		case 1:
+			bit_map = GENMASK(6, 2);
+			break;
+		case 2:
+			bit_map = GENMASK(6, 2) | BIT(8);
+			break;
+		case 3:
+			bit_map = GENMASK(8, 2);
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+
+	return bit_map;
+}
+
 static void rtw89_btc_fw_en_rpt(struct rtw89_dev *rtwdev,
 				u32 rpt_map, bool rpt_state)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_btf_fwinfo *fwinfo = &btc->fwinfo;
 	struct rtw89_btc_btf_set_report r = {0};
-	u32 val = 0;
+	u32 val, bit_map;
+
+	bit_map = rtw89_btc_fw_rpt_ver(rtwdev, rpt_map);
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): rpt_map=%x, rpt_state=%x\n",
 		    __func__, rpt_map, rpt_state);
 
 	if (rpt_state)
-		val = fwinfo->rpt_en_map | rpt_map;
+		val = fwinfo->rpt_en_map | bit_map;
 	else
-		val = fwinfo->rpt_en_map & ~rpt_map;
+		val = fwinfo->rpt_en_map & ~bit_map;
 
 	if (val == fwinfo->rpt_en_map)
 		return;
