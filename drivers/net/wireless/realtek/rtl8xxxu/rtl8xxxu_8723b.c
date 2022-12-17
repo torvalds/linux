@@ -502,7 +502,7 @@ static int rtl8723bu_parse_efuse(struct rtl8xxxu_priv *priv)
 
 static int rtl8723bu_load_firmware(struct rtl8xxxu_priv *priv)
 {
-	char *fw_name;
+	const char *fw_name;
 	int ret;
 
 	if (priv->enable_bluetooth)

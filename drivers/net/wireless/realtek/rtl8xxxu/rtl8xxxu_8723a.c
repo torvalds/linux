@@ -231,7 +231,7 @@ static int rtl8723au_parse_efuse(struct rtl8xxxu_priv *priv)
 
 static int rtl8723au_load_firmware(struct rtl8xxxu_priv *priv)
 {
-	char *fw_name;
+	const char *fw_name;
 	int ret;
 
 	switch (priv->chip_cut) {

@@ -1560,7 +1560,7 @@ int rtl8xxxu_init_phy_rf(struct rtl8xxxu_priv *priv,
 			 enum rtl8xxxu_rfpath path);
 int rtl8xxxu_init_phy_regs(struct rtl8xxxu_priv *priv,
 			   const struct rtl8xxxu_reg32val *array);
-int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, char *fw_name);
+int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, const char *fw_name);
 void rtl8xxxu_firmware_self_reset(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_identify_vendor_1bit(struct rtl8xxxu_priv *priv, u32 vendor);

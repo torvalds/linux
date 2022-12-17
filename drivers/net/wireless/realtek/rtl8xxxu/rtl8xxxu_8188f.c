@@ -742,7 +742,7 @@ static int rtl8188fu_parse_efuse(struct rtl8xxxu_priv *priv)
 
 static int rtl8188fu_load_firmware(struct rtl8xxxu_priv *priv)
 {
-	char *fw_name;
+	const char *fw_name;
 	int ret;
 
 	fw_name = "rtlwifi/rtl8188fufw.bin";

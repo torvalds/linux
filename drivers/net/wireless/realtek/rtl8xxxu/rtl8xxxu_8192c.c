@@ -386,7 +386,7 @@ out:
 
 static int rtl8192cu_load_firmware(struct rtl8xxxu_priv *priv)
 {
-	char *fw_name;
+	const char *fw_name;
 	int ret;
 
 	if (!priv->vendor_umc)

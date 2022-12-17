@@ -1980,7 +1980,7 @@ fw_abort:
 	return ret;
 }
 
-int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, char *fw_name)
+int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, const char *fw_name)
 {
 	struct device *dev = &priv->udev->dev;
 	const struct firmware *fw;
