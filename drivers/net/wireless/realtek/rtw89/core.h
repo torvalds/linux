@@ -1450,12 +1450,17 @@ struct rtw89_btc_fbtc_tdma {
 	u8 option_ctrl;
 } __packed;
 
-struct rtw89_btc_fbtc_tdma_v1 {
+struct rtw89_btc_fbtc_tdma_v3 {
 	u8 fver; /* btc_ver::fcxtdma */
 	u8 rsvd;
 	__le16 rsvd1;
 	struct rtw89_btc_fbtc_tdma tdma;
 } __packed;
+
+union rtw89_btc_fbtc_tdma_le32 {
+	struct rtw89_btc_fbtc_tdma v1;
+	struct rtw89_btc_fbtc_tdma_v3 v3;
+};
 
 #define CXMREG_MAX 30
 #define FCXMAX_STEP 255 /*STEP trace record cnt, Max:65535, default:255*/
@@ -1946,10 +1951,7 @@ struct rtw89_btc_report_ctrl_state {
 
 struct rtw89_btc_rpt_fbtc_tdma {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	union {
-		struct rtw89_btc_fbtc_tdma finfo; /* info from fw */
-		struct rtw89_btc_fbtc_tdma_v1 finfo_v1; /* info from fw for 52C*/
-	};
+	union rtw89_btc_fbtc_tdma_le32 finfo;
 };
 
 struct rtw89_btc_rpt_fbtc_slots {
