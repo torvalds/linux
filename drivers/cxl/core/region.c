@@ -156,6 +156,22 @@ static int cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 	return 0;
 }
 
+static int commit_decoder(struct cxl_decoder *cxld)
+{
+	struct cxl_switch_decoder *cxlsd = NULL;
+
+	if (cxld->commit)
+		return cxld->commit(cxld);
+
+	if (is_switch_decoder(&cxld->dev))
+		cxlsd = to_cxl_switch_decoder(&cxld->dev);
+
+	if (dev_WARN_ONCE(&cxld->dev, !cxlsd || cxlsd->nr_targets > 1,
+			  "->commit() is required\n"))
+		return -ENXIO;
+	return 0;
+}
+
 static int cxl_region_decode_commit(struct cxl_region *cxlr)
 {
 	struct cxl_region_params *p = &cxlr->params;
@@ -174,8 +190,7 @@ static int cxl_region_decode_commit(struct cxl_region *cxlr)
 		     iter = to_cxl_port(iter->dev.parent)) {
 			cxl_rr = cxl_rr_load(iter, cxlr);
 			cxld = cxl_rr->decoder;
-			if (cxld->commit)
-				rc = cxld->commit(cxld);
+			rc = commit_decoder(cxld);
 			if (rc)
 				break;
 		}
