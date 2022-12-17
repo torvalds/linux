@@ -5066,11 +5066,6 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 
 	a2dp->sink = btinfo.hb3.a2dp_sink;
 
-	if (b->profile_cnt.now || b->status.map.ble_connect)
-		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_AFH_MAP, 1);
-	else
-		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_AFH_MAP, 0);
-
 	if (!a2dp->exist_last && a2dp->exist) {
 		a2dp->vendor_id = 0;
 		a2dp->flush_time = 0;
@@ -5079,12 +5074,6 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 					     &rtwdev->coex_bt_devinfo_work,
 					     RTW89_COEX_BT_DEVINFO_WORK_PERIOD);
 	}
-
-	if (a2dp->exist && (a2dp->flush_time == 0 || a2dp->vendor_id == 0 ||
-			    a2dp->play_latency == 1))
-		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_DEVICE_INFO, 1);
-	else
-		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_DEVICE_INFO, 0);
 
 	_run_coex(rtwdev, BTC_RSN_UPDATE_BT_INFO);
 }
@@ -5218,8 +5207,7 @@ void rtw89_btc_ntfy_radio_state(struct rtw89_dev *rtwdev, enum btc_rfctrl rf_sta
 
 	if (rf_state == BTC_RFCTRL_WL_ON) {
 		btc->dm.cnt_dm[BTC_DCNT_BTCNT_FREEZE] = 0;
-		rtw89_btc_fw_en_rpt(rtwdev,
-				    RPT_EN_MREG | RPT_EN_BT_VER_INFO, true);
+		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_MREG, true);
 		val = BTC_WSCB_ACTIVE | BTC_WSCB_ON | BTC_WSCB_BTLOG;
 		_write_scbd(rtwdev, val, true);
 		_update_bt_scbd(rtwdev, true);
@@ -5866,6 +5854,24 @@ static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 		   "[trx_req_cnt]", cx->cnt_bt[BTC_BCNT_HIPRI_RX],
 		   cx->cnt_bt[BTC_BCNT_HIPRI_TX], cx->cnt_bt[BTC_BCNT_LOPRI_RX],
 		   cx->cnt_bt[BTC_BCNT_LOPRI_TX], cx->cnt_bt[BTC_BCNT_POLUT]);
+
+	if (bt->enable.now && bt->ver_info.fw == 0)
+		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_VER_INFO, true);
+	else
+		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_VER_INFO, false);
+
+	if (bt_linfo->profile_cnt.now || bt_linfo->status.map.ble_connect)
+		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_AFH_MAP, true);
+	else
+		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_AFH_MAP, false);
+
+	if (bt_linfo->a2dp_desc.exist &&
+	    (bt_linfo->a2dp_desc.flush_time == 0 ||
+	     bt_linfo->a2dp_desc.vendor_id == 0 ||
+	     bt_linfo->a2dp_desc.play_latency == 1))
+		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_DEVICE_INFO, true);
+	else
+		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_DEVICE_INFO, false);
 }
 
 #define CASE_BTC_RSN_STR(e) case BTC_RSN_ ## e: return #e
