@@ -1004,11 +1004,14 @@ error:
 
 int amdgpu_vcn_unified_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
+	struct amdgpu_device *adev = ring->adev;
 	long r;
 
-	r = amdgpu_vcn_enc_ring_test_ib(ring, timeout);
-	if (r)
-		goto error;
+	if (adev->ip_versions[UVD_HWIP][0] != IP_VERSION(4, 0, 3)) {
+		r = amdgpu_vcn_enc_ring_test_ib(ring, timeout);
+		if (r)
+			goto error;
+	}
 
 	r =  amdgpu_vcn_dec_sw_ring_test_ib(ring, timeout);
 
