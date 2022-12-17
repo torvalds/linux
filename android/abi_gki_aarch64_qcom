@@ -31,6 +31,7 @@
   __alloc_percpu_gfp
   __alloc_skb
   alloc_skb_with_frags
+  alloc_swapdev_block
   alloc_workqueue
   alt_cb_patch_nops
   amba_bustype
@@ -2969,6 +2970,7 @@
   smp_call_function
   smp_call_function_single
   smp_call_function_single_async
+  snapshot_get_image_size
   snd_ctl_remove
   snd_hwdep_new
   snd_info_create_card_entry
@@ -3347,6 +3349,7 @@
   __traceiter_android_vh_do_wake_up_sync
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_free_task
+  __traceiter_android_vh_encrypt_page
   __traceiter_android_vh_ftrace_dump_buffer
   __traceiter_android_vh_ftrace_format_check
   __traceiter_android_vh_ftrace_oops_enter
@@ -3358,6 +3361,8 @@
   __traceiter_android_vh_jiffies_update
   __traceiter_android_vh_kswapd_per_node
   __traceiter_android_vh_mpam_set
+  __traceiter_android_vh_init_aes_encrypt
+  __traceiter_android_vh_post_image_save
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_rproc_recovery
   __traceiter_android_vh_rproc_recovery_set
@@ -3367,6 +3372,7 @@
   __traceiter_android_vh_setscheduler_uclamp
   __traceiter_android_vh_show_resume_epoch_val
   __traceiter_android_vh_show_suspend_epoch_val
+  __traceiter_android_vh_skip_swap_map_write
   __traceiter_android_vh_timer_calc_index
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
@@ -3486,6 +3492,7 @@
   __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_free_task
+  __tracepoint_android_vh_encrypt_page
   __tracepoint_android_vh_ftrace_dump_buffer
   __tracepoint_android_vh_ftrace_format_check
   __tracepoint_android_vh_ftrace_oops_enter
@@ -3497,6 +3504,8 @@
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_kswapd_per_node
   __tracepoint_android_vh_mpam_set
+  __tracepoint_android_vh_init_aes_encrypt
+  __tracepoint_android_vh_post_image_save
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_rproc_recovery
   __tracepoint_android_vh_rproc_recovery_set
@@ -3506,6 +3515,7 @@
   __tracepoint_android_vh_setscheduler_uclamp
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
+  __tracepoint_android_vh_skip_swap_map_write
   __tracepoint_android_vh_timer_calc_index
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_compl_command
