@@ -9,6 +9,9 @@
 #include "qcom-msm8226.dtsi"
 #include "qcom-pm8226.dtsi"
 
+/delete-node/ &adsp_region;
+/delete-node/ &smem_region;
+
 / {
 	model = "Samsung Galaxy Tab 4 10.1";
 	compatible = "samsung,matisse-wifi", "qcom,apq8026";
@@ -133,7 +136,7 @@
 			no-map;
 		};
 
-		adsp@d900000 {
+		adsp_region: adsp@d900000 {
 			reg = <0x0d900000 0x1800000>;
 			no-map;
 		};
@@ -143,7 +146,6 @@
 			no-map;
 		};
 
-		/delete-node/ smem@3000000;
 		smem_region: smem@fa00000 {
 			reg = <0x0fa00000 0x100000>;
 			no-map;
@@ -167,6 +169,10 @@
 			qcom,client-id = <1>;
 		};
 	};
+};
+
+&adsp {
+	status = "okay";
 };
 
 &blsp1_i2c2 {
