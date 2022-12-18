@@ -375,7 +375,8 @@ enum hl_cs_type {
 	CS_TYPE_COLLECTIVE_WAIT,
 	CS_RESERVE_SIGNALS,
 	CS_UNRESERVE_SIGNALS,
-	CS_TYPE_ENGINE_CORE
+	CS_TYPE_ENGINE_CORE,
+	CS_TYPE_FLUSH_PCI_HBW_WRITES,
 };
 
 /*
@@ -644,6 +645,8 @@ struct hl_hints_range {
  *                                      (i.e. the DRAM supports multiple page sizes), otherwise
  *                                      it will shall  be equal to dram_page_size.
  * @num_engine_cores: number of engine cpu cores
+ * @hbw_flush_reg: register to read to generate HBW flush. value of 0 means HBW flush is
+ *                 not supported.
  * @collective_first_sob: first sync object available for collective use
  * @collective_first_mon: first monitor available for collective use
  * @sync_stream_first_sob: first sync object available for sync stream use
@@ -764,6 +767,7 @@ struct asic_fixed_properties {
 	u32				xbar_edge_enabled_mask;
 	u32				device_mem_alloc_default_page_size;
 	u32				num_engine_cores;
+	u32				hbw_flush_reg;
 	u16				collective_first_sob;
 	u16				collective_first_mon;
 	u16				sync_stream_first_sob;

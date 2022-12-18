@@ -13,7 +13,8 @@
 
 #define HL_CS_FLAGS_TYPE_MASK	(HL_CS_FLAGS_SIGNAL | HL_CS_FLAGS_WAIT | \
 			HL_CS_FLAGS_COLLECTIVE_WAIT | HL_CS_FLAGS_RESERVE_SIGNALS_ONLY | \
-			HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY | HL_CS_FLAGS_ENGINE_CORE_COMMAND)
+			HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY | HL_CS_FLAGS_ENGINE_CORE_COMMAND | \
+			HL_CS_FLAGS_FLUSH_PCI_HBW_WRITES)
 
 
 #define MAX_TS_ITER_NUM 10
@@ -1295,6 +1296,8 @@ static enum hl_cs_type hl_cs_get_cs_type(u32 cs_type_flags)
 		return CS_UNRESERVE_SIGNALS;
 	else if (cs_type_flags & HL_CS_FLAGS_ENGINE_CORE_COMMAND)
 		return CS_TYPE_ENGINE_CORE;
+	else if (cs_type_flags & HL_CS_FLAGS_FLUSH_PCI_HBW_WRITES)
+		return CS_TYPE_FLUSH_PCI_HBW_WRITES;
 	else
 		return CS_TYPE_DEFAULT;
 }
@@ -2443,6 +2446,21 @@ static int cs_ioctl_engine_cores(struct hl_fpriv *hpriv, u64 engine_cores,
 	return rc;
 }
 
+static int cs_ioctl_flush_pci_hbw_writes(struct hl_fpriv *hpriv)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+
+	if (!prop->hbw_flush_reg) {
+		dev_dbg(hdev->dev, "HBW flush is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	RREG32(prop->hbw_flush_reg);
+
+	return 0;
+}
+
 int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	union hl_cs_args *args = data;
@@ -2498,6 +2516,9 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	case CS_TYPE_ENGINE_CORE:
 		rc = cs_ioctl_engine_cores(hpriv, args->in.engine_cores,
 				args->in.num_engine_cores, args->in.core_command);
+		break;
+	case CS_TYPE_FLUSH_PCI_HBW_WRITES:
+		rc = cs_ioctl_flush_pci_hbw_writes(hpriv);
 		break;
 	default:
 		rc = cs_ioctl_default(hpriv, chunks, num_chunks, &cs_seq,

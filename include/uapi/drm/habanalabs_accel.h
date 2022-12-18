@@ -1478,6 +1478,14 @@ struct hl_cs_chunk {
  */
 #define HL_CS_FLAGS_ENGINE_CORE_COMMAND		0x4000
 
+/*
+ * The flush HBW PCI writes is merged into the existing CS ioctls.
+ * Used to flush all HBW PCI writes.
+ * This is a blocking operation and for this reason the user shall not use
+ * the return sequence number (which will be invalid anyway)
+ */
+#define HL_CS_FLAGS_FLUSH_PCI_HBW_WRITES	0x8000
+
 #define HL_CS_STATUS_SUCCESS		0
 
 #define HL_MAX_JOBS_PER_CS		512

@@ -320,4 +320,6 @@
 #define mmPSOC_TPC_PLL_NR                                            0xC73100
 #define mmIF_W_PLL_NR                                                0x488100
 
+#define mmPCIE_WRAP_RR_ELBI_RD_SEC_REG_CTRL                          0xC01208
+
 #endif /* ASIC_REG_GAUDI_REGS_H_ */

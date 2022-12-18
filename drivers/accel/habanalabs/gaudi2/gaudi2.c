@@ -2071,6 +2071,8 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 
 	prop->dma_mask = 64;
 
+	prop->hbw_flush_reg = mmPCIE_WRAP_SPECIAL_GLBL_SPARE_0;
+
 	return 0;
 }
 
