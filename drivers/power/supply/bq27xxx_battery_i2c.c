@@ -136,9 +136,9 @@ static int bq27xxx_battery_i2c_bulk_write(struct bq27xxx_device_info *di,
 	return 0;
 }
 
-static int bq27xxx_battery_i2c_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+static int bq27xxx_battery_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct bq27xxx_device_info *di;
 	int ret;
 	char *name;
@@ -295,7 +295,7 @@ static struct i2c_driver bq27xxx_battery_i2c_driver = {
 		.name = "bq27xxx-battery",
 		.of_match_table = of_match_ptr(bq27xxx_battery_i2c_of_match_table),
 	},
-	.probe = bq27xxx_battery_i2c_probe,
+	.probe_new = bq27xxx_battery_i2c_probe,
 	.remove = bq27xxx_battery_i2c_remove,
 	.id_table = bq27xxx_i2c_id_table,
 };
