@@ -92,9 +92,10 @@ struct subsystem_data {
 	const char *name;
 	u32 smem_item;
 	u32 pid;
+	bool not_present;
 };
 
-static const struct subsystem_data subsystems[] = {
+static struct subsystem_data subsystems[] = {
 	{ "modem", 605, 1 },
 	{ "wpss", 605, 13 },
 	{ "adsp", 606, 2 },
@@ -150,6 +151,58 @@ struct appended_stats {
 	u32 client_votes;
 	u32 reserved[3];
 };
+
+static bool subsystem_stats_debug_on;
+/* Subsystem stats before and after suspend */
+static struct sleep_stats *b_subsystem_stats;
+static struct sleep_stats *a_subsystem_stats;
+/* System sleep stats before and after suspend */
+static struct sleep_stats *b_system_stats;
+static struct sleep_stats *a_system_stats;
+static DEFINE_MUTEX(sleep_stats_mutex);
+
+bool has_system_slept(void)
+{
+	int i;
+	bool sleep_flag = true;
+
+	for (i = 0; i < drv->config->num_records; i++) {
+		if (b_system_stats[i].count == a_system_stats[i].count) {
+			pr_warn("System %s has not entered sleep\n", a_system_stats[i].stat_type);
+			sleep_flag = false;
+		}
+	}
+
+	return sleep_flag;
+}
+EXPORT_SYMBOL(has_system_slept);
+
+bool has_subsystem_slept(void)
+{
+	int i;
+	bool sleep_flag = true;
+
+	for (i = 0; i < ARRAY_SIZE(subsystems); i++) {
+		if (subsystems[i].not_present)
+			continue;
+
+		if ((b_subsystem_stats[i].count == a_subsystem_stats[i].count) &&
+			(a_subsystem_stats[i].last_exited_at >
+				a_subsystem_stats[i].last_entered_at)) {
+			pr_warn("Subsystem %s has not entered sleep\n", subsystems[i].name);
+			sleep_flag = false;
+		}
+	}
+
+	return sleep_flag;
+}
+EXPORT_SYMBOL(has_subsystem_slept);
+
+void subsystem_sleep_debug_enable(bool enable)
+{
+	subsystem_stats_debug_on = enable;
+}
+EXPORT_SYMBOL(subsystem_sleep_debug_enable);
 
 static inline int qcom_stats_copy_to_user(unsigned long arg, struct sleep_stats *stats,
 					  unsigned long size)
@@ -808,9 +861,46 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	subsystem_stats_debug_on = false;
+	b_subsystem_stats = devm_kcalloc(&pdev->dev, ARRAY_SIZE(subsystems),
+					sizeof(struct sleep_stats), GFP_KERNEL);
+	if (!b_subsystem_stats) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	a_subsystem_stats = devm_kcalloc(&pdev->dev, ARRAY_SIZE(subsystems),
+					sizeof(struct sleep_stats), GFP_KERNEL);
+	if (!a_subsystem_stats) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	b_system_stats = devm_kcalloc(&pdev->dev, drv->config->num_records,
+					sizeof(struct sleep_stats), GFP_KERNEL);
+	if (!b_system_stats) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	a_system_stats = devm_kcalloc(&pdev->dev, drv->config->num_records,
+					sizeof(struct sleep_stats), GFP_KERNEL);
+	if (!a_system_stats) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
 	platform_set_drvdata(pdev, drv);
 
 	return 0;
+
+fail:
+	device_destroy(drv->stats_class, drv->dev_no);
+	class_destroy(drv->stats_class);
+	cdev_del(&drv->stats_cdev);
+	unregister_chrdev_region(drv->dev_no, 1);
+	debugfs_remove_recursive(drv->root);
+	return ret;
 }
 
 static int qcom_stats_remove(struct platform_device *pdev)
@@ -823,6 +913,66 @@ static int qcom_stats_remove(struct platform_device *pdev)
 	unregister_chrdev_region(drv->dev_no, 1);
 
 	debugfs_remove_recursive(drv->root);
+
+	return 0;
+}
+
+static int qcom_stats_suspend(struct device *dev)
+{
+	struct stats_drvdata *drv = dev_get_drvdata(dev);
+	struct sleep_stats *tmp;
+	void __iomem *reg = NULL;
+	int i;
+	u32 stats_id = 0;
+
+	if (!subsystem_stats_debug_on)
+		return 0;
+
+	mutex_lock(&sleep_stats_mutex);
+	for (i = 0; i < ARRAY_SIZE(subsystems); i++) {
+		tmp = qcom_smem_get(subsystems[i].pid, subsystems[i].smem_item, NULL);
+		if (IS_ERR(b_subsystem_stats + i))
+			subsystems[i].not_present = true;
+		else
+			subsystems[i].not_present = false;
+		qcom_stats_copy(tmp, b_subsystem_stats + i);
+	}
+
+	for (i = 0; i < drv->config->num_records; i++, stats_id++) {
+		if (drv->config->num_records > stats_id)
+			reg = drv->d[stats_id].base;
+		if (reg)
+			memcpy_fromio(b_system_stats + i, reg, sizeof(struct sleep_stats));
+	}
+	mutex_unlock(&sleep_stats_mutex);
+
+	return 0;
+}
+
+static int qcom_stats_resume(struct device *dev)
+{
+	struct stats_drvdata *drv = dev_get_drvdata(dev);
+	struct sleep_stats *tmp;
+	void __iomem *reg = NULL;
+	int i;
+	u32 stats_id = 0;
+
+	if (!subsystem_stats_debug_on)
+		return 0;
+
+	mutex_lock(&sleep_stats_mutex);
+	for (i = 0; i < ARRAY_SIZE(subsystems); i++) {
+		tmp = qcom_smem_get(subsystems[i].pid, subsystems[i].smem_item, NULL);
+		qcom_stats_copy(tmp, a_subsystem_stats + i);
+	}
+
+	for (i = 0; i < drv->config->num_records; i++, stats_id++) {
+		if (drv->config->num_records > stats_id)
+			reg = drv->d[stats_id].base;
+		if (reg)
+			memcpy_fromio(a_system_stats + i, reg, sizeof(struct sleep_stats));
+	}
+	mutex_unlock(&sleep_stats_mutex);
 
 	return 0;
 }
@@ -884,12 +1034,18 @@ static const struct of_device_id qcom_stats_table[] = {
 };
 MODULE_DEVICE_TABLE(of, qcom_stats_table);
 
+static const struct dev_pm_ops qcom_stats_pm_ops = {
+	.suspend_late = qcom_stats_suspend,
+	.resume_early = qcom_stats_resume,
+};
+
 static struct platform_driver qcom_stats = {
 	.probe = qcom_stats_probe,
 	.remove = qcom_stats_remove,
 	.driver = {
 		.name = "qcom_stats",
 		.of_match_table = qcom_stats_table,
+		.pm = &qcom_stats_pm_ops,
 	},
 };
 
