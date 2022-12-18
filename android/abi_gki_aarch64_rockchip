@@ -98,6 +98,7 @@
   clk_hw_get_flags
   clk_hw_get_name
   clk_hw_get_parent
+  clk_hw_get_parent_by_index
   clk_hw_get_rate
   __clk_mux_determine_rate
   clk_notifier_register
@@ -1596,7 +1597,6 @@
 
 # required by clk-rockchip-regmap.ko
   clk_hw_get_num_parents
-  clk_hw_get_parent_by_index
   divider_recalc_rate
   divider_round_rate_parent
 
@@ -1608,6 +1608,7 @@
   __clk_get_hw
   clk_hw_register_composite
   clk_hw_round_rate
+  clk_hw_set_parent
   clk_mux_ops
   clk_mux_ro_ops
   clk_register_divider_table
