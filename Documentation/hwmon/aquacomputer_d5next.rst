@@ -5,6 +5,7 @@ Kernel driver aquacomputer-d5next
 
 Supported devices:
 
+* Aquacomputer Aquaero 5/6 fan controllers
 * Aquacomputer D5 Next watercooling pump
 * Aquacomputer Farbwerk RGB controller
 * Aquacomputer Farbwerk 360 RGB controller
@@ -19,6 +20,10 @@ Description
 
 This driver exposes hardware sensors of listed Aquacomputer devices, which
 communicate through proprietary USB HID protocols.
+
+The Aquaero devices expose eight temperature sensors, eight virtual temperature
+sensors and two flow senors. The fans expose their speed (in RPM), power,
+voltage and current.
 
 For the D5 Next pump, available sensors are pump and fan speed, power, voltage
 and current, as well as coolant temperature and eight virtual temp sensors. Also

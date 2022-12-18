@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * hwmon driver for Aquacomputer devices (D5 Next, Farbwerk, Farbwerk 360, Octo,
- * Quadro, High Flow Next)
+ * Quadro, High Flow Next, Aquaero)
  *
  * Aquacomputer devices send HID reports (with ID 0x01) every second to report
  * sensor values.
@@ -21,6 +21,7 @@
 #include <asm/unaligned.h>
 
 #define USB_VENDOR_ID_AQUACOMPUTER	0x0c70
+#define USB_PRODUCT_ID_AQUAERO		0xf001
 #define USB_PRODUCT_ID_FARBWERK		0xf00a
 #define USB_PRODUCT_ID_QUADRO		0xf00d
 #define USB_PRODUCT_ID_D5NEXT		0xf00e
@@ -28,7 +29,7 @@
 #define USB_PRODUCT_ID_OCTO		0xf011
 #define USB_PRODUCT_ID_HIGHFLOWNEXT	0xf012
 
-enum kinds { d5next, farbwerk, farbwerk360, octo, quadro, highflownext };
+enum kinds { d5next, farbwerk, farbwerk360, octo, quadro, highflownext, aquaero };
 
 static const char *const aqc_device_names[] = {
 	[d5next] = "d5next",
@@ -36,7 +37,8 @@ static const char *const aqc_device_names[] = {
 	[farbwerk360] = "farbwerk360",
 	[octo] = "octo",
 	[quadro] = "quadro",
-	[highflownext] = "highflownext"
+	[highflownext] = "highflownext",
+	[aquaero] = "aquaero"
 };
 
 #define DRIVER_NAME			"aquacomputer_d5next"
@@ -57,7 +59,7 @@ static u8 secondary_ctrl_report[] = {
 	0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x34, 0xC6
 };
 
-/* Info, sensor sizes and offsets for all Aquacomputer devices */
+/* Info, sensor sizes and offsets for most Aquacomputer devices */
 #define AQC_SERIAL_START		0x3
 #define AQC_FIRMWARE_VERSION		0xD
 
@@ -68,6 +70,24 @@ static u8 secondary_ctrl_report[] = {
 #define AQC_FAN_CURRENT_OFFSET		0x04
 #define AQC_FAN_POWER_OFFSET		0x06
 #define AQC_FAN_SPEED_OFFSET		0x08
+
+/* Specs of the Aquaero fan controllers */
+#define AQUAERO_SERIAL_START			0x07
+#define AQUAERO_FIRMWARE_VERSION		0x0B
+#define AQUAERO_NUM_FANS			4
+#define AQUAERO_NUM_SENSORS			8
+#define AQUAERO_NUM_VIRTUAL_SENSORS		8
+#define AQUAERO_NUM_FLOW_SENSORS		2
+
+/* Sensor report offsets for Aquaero fan controllers */
+#define AQUAERO_SENSOR_START			0x65
+#define AQUAERO_VIRTUAL_SENSOR_START		0x85
+#define AQUAERO_FLOW_SENSORS_START		0xF9
+#define AQUAERO_FAN_VOLTAGE_OFFSET		0x04
+#define AQUAERO_FAN_CURRENT_OFFSET		0x06
+#define AQUAERO_FAN_POWER_OFFSET		0x08
+#define AQUAERO_FAN_SPEED_OFFSET		0x00
+static u16 aquaero_sensor_fan_offsets[] = { 0x167, 0x173, 0x17f, 0x18B };
 
 /* Specs of the D5 Next pump */
 #define D5NEXT_NUM_FANS			2
@@ -181,12 +201,16 @@ static const char *const label_d5next_current[] = {
 	"Fan current"
 };
 
-/* Labels for Farbwerk, Farbwerk 360 and Octo and Quadro temperature sensors */
+/* Labels for Aquaero, Farbwerk, Farbwerk 360 and Octo and Quadro temperature sensors */
 static const char *const label_temp_sensors[] = {
 	"Sensor 1",
 	"Sensor 2",
 	"Sensor 3",
-	"Sensor 4"
+	"Sensor 4",
+	"Sensor 5",
+	"Sensor 6",
+	"Sensor 7",
+	"Sensor 8"
 };
 
 static const char *const label_virtual_temp_sensors[] = {
@@ -262,6 +286,16 @@ static const char *const label_quadro_speeds[] = {
 	"Flow speed [dL/h]"
 };
 
+/* Labels for Aquaero fan speeds */
+static const char *const label_aquaero_speeds[] = {
+	"Fan 1 speed",
+	"Fan 2 speed",
+	"Fan 3 speed",
+	"Fan 4 speed",
+	"Flow sensor 1 [dL/h]",
+	"Flow sensor 2 [dL/h]"
+};
+
 /* Labels for High Flow Next */
 static const char *const label_highflownext_temp_sensors[] = {
 	"Coolant temp",
@@ -288,6 +322,14 @@ struct aqc_fan_structure_offsets {
 	u8 curr;
 	u8 power;
 	u8 speed;
+};
+
+/* Fan structure offsets for Aquaero */
+static struct aqc_fan_structure_offsets aqc_aquaero_fan_structure = {
+	.voltage = AQUAERO_FAN_VOLTAGE_OFFSET,
+	.curr = AQUAERO_FAN_CURRENT_OFFSET,
+	.power = AQUAERO_FAN_POWER_OFFSET,
+	.speed = AQUAERO_FAN_SPEED_OFFSET
 };
 
 /* Fan structure offsets for all devices except Aquaero */
@@ -496,6 +538,7 @@ static umode_t aqc_is_visible(const void *data, enum hwmon_sensor_types type, u3
 				if (channel < 3)
 					return 0444;
 				break;
+			case aquaero:
 			case quadro:
 				/* Special case to support flow sensors */
 				if (channel < priv->num_fans + priv->num_flow_sensors)
@@ -977,6 +1020,42 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto fail_and_stop;
 
 	switch (hdev->product) {
+	case USB_PRODUCT_ID_AQUAERO:
+		/*
+		 * Aquaero presents itself as three HID devices under the same product ID:
+		 * "aquaero keyboard/mouse", "aquaero System Control" and "aquaero Device",
+		 * which is the one we want to communicate with. Unlike most other Aquacomputer
+		 * devices, Aquaero does not return meaningful data when explicitly requested
+		 * using GET_FEATURE_REPORT.
+		 *
+		 * The difference between "aquaero Device" and the other two is in the collections
+		 * they present. The two other devices have the type of the second element in
+		 * their respective collections set to 1, while the real device has it set to 0.
+		 */
+		if (hdev->collection[1].type != 0) {
+			ret = -ENODEV;
+			goto fail_and_close;
+		}
+
+		priv->kind = aquaero;
+
+		priv->num_fans = AQUAERO_NUM_FANS;
+		priv->fan_sensor_offsets = aquaero_sensor_fan_offsets;
+
+		priv->num_temp_sensors = AQUAERO_NUM_SENSORS;
+		priv->temp_sensor_start_offset = AQUAERO_SENSOR_START;
+		priv->num_virtual_temp_sensors = AQUAERO_NUM_VIRTUAL_SENSORS;
+		priv->virtual_temp_sensor_start_offset = AQUAERO_VIRTUAL_SENSOR_START;
+		priv->num_flow_sensors = AQUAERO_NUM_FLOW_SENSORS;
+		priv->flow_sensors_start_offset = AQUAERO_FLOW_SENSORS_START;
+
+		priv->temp_label = label_temp_sensors;
+		priv->virtual_temp_label = label_virtual_temp_sensors;
+		priv->speed_label = label_aquaero_speeds;
+		priv->power_label = label_fan_power;
+		priv->voltage_label = label_fan_voltage;
+		priv->current_label = label_fan_current;
+		break;
 	case USB_PRODUCT_ID_D5NEXT:
 		priv->kind = d5next;
 
@@ -1100,10 +1179,20 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		break;
 	}
 
-	priv->serial_number_start_offset = AQC_SERIAL_START;
-	priv->firmware_version_offset = AQC_FIRMWARE_VERSION;
+	switch (priv->kind) {
+	case aquaero:
+		priv->serial_number_start_offset = AQUAERO_SERIAL_START;
+		priv->firmware_version_offset = AQUAERO_FIRMWARE_VERSION;
 
-	priv->fan_structure = &aqc_general_fan_structure;
+		priv->fan_structure = &aqc_aquaero_fan_structure;
+		break;
+	default:
+		priv->serial_number_start_offset = AQC_SERIAL_START;
+		priv->firmware_version_offset = AQC_FIRMWARE_VERSION;
+
+		priv->fan_structure = &aqc_general_fan_structure;
+		break;
+	}
 
 	if (priv->buffer_size != 0) {
 		priv->checksum_start = 0x01;
@@ -1152,6 +1241,7 @@ static void aqc_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id aqc_table[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_AQUAERO) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_D5NEXT) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_FARBWERK) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_FARBWERK360) },
