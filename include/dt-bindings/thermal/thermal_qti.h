@@ -88,6 +88,12 @@
 #define QMI_EPM7		71
 #define QMI_SDR0_PA		72
 #define QMI_SDR1_PA		73
+#define QMI_SUB0_SDR0_PA	74
+#define QMI_SUB1_SDR0_PA	75
+#define QMI_SYS_THERM_3		76
+#define QMI_SYS_THERM_4		77
+#define QMI_SYS_THERM_5		78
+#define QMI_SYS_THERM_6		79
 
 #define QMI_MODEM_INST_ID	0x0
 #define QMI_ADSP_INST_ID	0x1

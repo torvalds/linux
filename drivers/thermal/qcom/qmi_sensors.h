@@ -84,6 +84,12 @@ enum qmi_ts_sensor {
 	QMI_TS_EPM7,
 	QMI_TS_SDR0_PA,
 	QMI_TS_SDR1_PA,
+	QMI_TS_SUB0_SDR0_PA,
+	QMI_TS_SUB1_SDR0_PA,
+	QMI_SYS_THERM3,
+	QMI_SYS_THERM4,
+	QMI_SYS_THERM5,
+	QMI_SYS_THERM6,
 	QMI_TS_MAX_NR
 };
 
@@ -162,6 +168,12 @@ static char sensor_clients[QMI_TS_MAX_NR][QMI_CLIENT_NAME_LENGTH] = {
 	{"epm7"},
 	{"sdr0_pa"},
 	{"sdr1_pa"},
+	{"sub0_sdr0_pa"},
+	{"sub1_sdr0_pa"},
+	{"sys_therm3"},
+	{"sys_therm4"},
+	{"sys_therm5"},
+	{"sys_therm6"},
 };
 
 #endif /* __QMI_SENSORS_H__ */
