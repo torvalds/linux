@@ -15,11 +15,15 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - ti,bq25890
-      - ti,bq25892
-      - ti,bq25895
-      - ti,bq25896
+    oneOf:
+      - enum:
+          - ti,bq25890
+      - items:
+          - enum:
+              - ti,bq25892
+              - ti,bq25895
+              - ti,bq25896
+          - const: ti,bq25890
 
   reg:
     maxItems: 1
@@ -93,7 +97,7 @@ required:
   - ti,boost-voltage
   - ti,boost-max-current
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
