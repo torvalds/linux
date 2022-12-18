@@ -282,6 +282,21 @@ static const char *const label_highflownext_voltage[] = {
 	"+5V USB voltage"
 };
 
+struct aqc_fan_structure_offsets {
+	u8 voltage;
+	u8 curr;
+	u8 power;
+	u8 speed;
+};
+
+/* Fan structure offsets for all devices except Aquaero */
+static struct aqc_fan_structure_offsets aqc_general_fan_structure = {
+	.voltage = AQC_FAN_VOLTAGE_OFFSET,
+	.curr = AQC_FAN_CURRENT_OFFSET,
+	.power = AQC_FAN_POWER_OFFSET,
+	.speed = AQC_FAN_SPEED_OFFSET
+};
+
 struct aqc_data {
 	struct hid_device *hdev;
 	struct device *hwmon_dev;
@@ -308,6 +323,7 @@ struct aqc_data {
 	int num_flow_sensors;
 	u8 flow_sensors_start_offset;
 	u8 flow_pulses_ctrl_offset;
+	struct aqc_fan_structure_offsets *fan_structure;
 
 	/* General info, same across all devices */
 	u32 serial_number[2];
@@ -822,15 +838,17 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 	/* Fan speed and related readings */
 	for (i = 0; i < priv->num_fans; i++) {
 		priv->speed_input[i] =
-		    get_unaligned_be16(data + priv->fan_sensor_offsets[i] + AQC_FAN_SPEED_OFFSET);
+		    get_unaligned_be16(data + priv->fan_sensor_offsets[i] +
+				       priv->fan_structure->speed);
 		priv->power_input[i] =
 		    get_unaligned_be16(data + priv->fan_sensor_offsets[i] +
-				       AQC_FAN_POWER_OFFSET) * 10000;
+				       priv->fan_structure->power) * 10000;
 		priv->voltage_input[i] =
 		    get_unaligned_be16(data + priv->fan_sensor_offsets[i] +
-				       AQC_FAN_VOLTAGE_OFFSET) * 10;
+				       priv->fan_structure->voltage) * 10;
 		priv->current_input[i] =
-		    get_unaligned_be16(data + priv->fan_sensor_offsets[i] + AQC_FAN_CURRENT_OFFSET);
+		    get_unaligned_be16(data + priv->fan_sensor_offsets[i] +
+				       priv->fan_structure->curr);
 	}
 
 	/* Flow sensor readings */
@@ -1077,6 +1095,8 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	default:
 		break;
 	}
+
+	priv->fan_structure = &aqc_general_fan_structure;
 
 	if (priv->buffer_size != 0) {
 		priv->checksum_start = 0x01;
