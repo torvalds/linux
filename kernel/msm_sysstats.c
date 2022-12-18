@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -15,6 +16,9 @@
 #include <linux/sched/cputime.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
+#include <linux/fdtable.h>
+#include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
 
 struct tgid_iter {
 	unsigned int tgid;
@@ -23,11 +27,34 @@ struct tgid_iter {
 
 static struct genl_family family;
 
+static u64 (*sysstats_kgsl_get_stats)(pid_t pid);
+
 static DEFINE_PER_CPU(__u32, sysstats_seqnum);
-#define SYSSTATS_CMD_ATTR_MAX 2
+#define SYSSTATS_CMD_ATTR_MAX 3
 static const struct nla_policy sysstats_cmd_get_policy[SYSSTATS_CMD_ATTR_MAX + 1] = {
 	[SYSSTATS_TASK_CMD_ATTR_PID]  = { .type = NLA_U32 },
-	[SYSSTATS_TASK_CMD_ATTR_FOREACH]  = { .type = NLA_U32 },};
+	[SYSSTATS_TASK_CMD_ATTR_FOREACH]  = { .type = NLA_U32 },
+	[SYSSTATS_TASK_CMD_ATTR_PIDS_OF_NAME] = { .type = NLA_NUL_STRING}};
+/*
+ * The below dummy function is a means to get rid of calling
+ * callbacks with out any external sync.
+ */
+static u64 sysstats_kgsl_stats(pid_t pid)
+{
+	return 0;
+}
+
+void sysstats_register_kgsl_stats_cb(u64 (*cb)(pid_t pid))
+{
+	sysstats_kgsl_get_stats = cb;
+}
+EXPORT_SYMBOL(sysstats_register_kgsl_stats_cb);
+
+void sysstats_unregister_kgsl_stats_cb(void)
+{
+	sysstats_kgsl_get_stats = sysstats_kgsl_stats;
+}
+EXPORT_SYMBOL(sysstats_unregister_kgsl_stats_cb);
 
 static int sysstats_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 			      struct genl_info *info)
@@ -36,6 +63,7 @@ static int sysstats_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 
 	switch (ops->cmd) {
 	case SYSSTATS_TASK_CMD_GET:
+	case SYSSTATS_PIDS_CMD_GET:
 		policy = sysstats_cmd_get_policy;
 		break;
 	case SYSSTATS_MEMINFO_CMD_GET:
@@ -124,6 +152,88 @@ static struct sighand_struct *sysstats_lock_task_sighand(struct task_struct *tsk
 	return sighand;
 }
 
+static bool is_system_dmabufheap(struct dma_buf *dmabuf)
+{
+	if (!strcmp(dmabuf->exp_name, "qcom,system") ||
+		!strcmp(dmabuf->exp_name, "qcom,system-uncached") ||
+		!strcmp(dmabuf->exp_name, "system-secure") ||
+		!strcmp(dmabuf->exp_name, "qcom,secure-pixel") ||
+		!strcmp(dmabuf->exp_name, "qcom,secure-non-pixel"))
+		return true;
+	return false;
+}
+
+static int get_dma_info(const void *data, struct file *file, unsigned int n)
+{
+	struct dma_buf *dmabuf;
+	unsigned long *size = (unsigned long *)data;
+
+	if (!is_dma_buf_file(file))
+		return 0;
+
+	dmabuf = (struct dma_buf *)file->private_data;
+	if (is_system_dmabufheap(dmabuf))
+		*size += dmabuf->size;
+
+	return 0;
+}
+
+static unsigned long get_task_unreclaimable_info(struct task_struct *task)
+{
+	struct task_struct *thread;
+	struct files_struct *files;
+	struct files_struct *group_leader_files = NULL;
+	unsigned long size = 0;
+	int ret = 0;
+
+	for_each_thread(task, thread) {
+		if (unlikely(!group_leader_files))
+			group_leader_files = task->group_leader->files;
+		files = thread->files;
+		if (files && (group_leader_files != files ||
+			thread == task->group_leader))
+			ret = iterate_fd(files, 0, get_dma_info, &size);
+		if (ret)
+			break;
+	}
+
+	return size >> PAGE_SHIFT;
+}
+
+static unsigned long get_system_unreclaimble_info(void)
+{
+	struct task_struct *task;
+	unsigned long size = 0;
+
+	rcu_read_lock();
+	for_each_process(task) {
+		task_lock(task);
+		size += get_task_unreclaimable_info(task);
+		task_unlock(task);
+	}
+	rcu_read_unlock();
+
+	/* Account the kgsl information. */
+	size += sysstats_kgsl_get_stats(-1) >> PAGE_SHIFT;
+
+	return size;
+}
+static char *nla_strdup_cust(const struct nlattr *nla, gfp_t flags)
+{
+	size_t srclen = nla_len(nla);
+	char *src = nla_data(nla), *dst;
+
+	if (srclen > 0 && src[srclen - 1] == '\0')
+		srclen--;
+
+	dst = kmalloc(srclen + 1, flags);
+	if (dst != NULL) {
+		memcpy(dst, src, srclen);
+		dst[srclen] = '\0';
+	}
+	return dst;
+}
+
 static int sysstats_task_cmd_attr_pid(struct genl_info *info)
 {
 	struct sysstats_task *stats;
@@ -177,9 +287,12 @@ static int sysstats_task_cmd_attr_pid(struct genl_info *info)
 		stats->file_rss = K(get_mm_counter(p->mm, MM_FILEPAGES));
 		stats->shmem_rss = K(get_mm_counter(p->mm, MM_SHMEMPAGES));
 		stats->swap_rss = K(get_mm_counter(p->mm, MM_SWAPENTS));
+		stats->unreclaimable = K(get_task_unreclaimable_info(p));
 #undef K
 		task_unlock(p);
 	}
+
+	stats->unreclaimable += sysstats_kgsl_get_stats(stats->pid) >> 10;
 
 	task_cputime(tsk, &utime, &stime);
 	stats->utime = div_u64(utime, NSEC_PER_USEC);
@@ -246,6 +359,58 @@ retry:
 	}
 	rcu_read_unlock();
 	return iter;
+}
+
+static int sysstats_all_pids_of_name(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct pid_namespace *ns = task_active_pid_ns(current);
+	struct tgid_iter iter;
+	void *reply;
+	struct nlattr *attr;
+	struct nlattr *nla;
+	struct sysstats_pid *stats;
+	char *comm;
+
+	nla = nla_find(nlmsg_attrdata(cb->nlh, GENL_HDRLEN),
+			nlmsg_attrlen(cb->nlh, GENL_HDRLEN),
+			SYSSTATS_TASK_CMD_ATTR_PIDS_OF_NAME);
+	if (!nla)
+		goto out;
+
+	comm = nla_strdup_cust(nla, GFP_KERNEL);
+
+	iter.tgid = cb->args[0];
+	iter.task = NULL;
+	for (iter = next_tgid(ns, iter); iter.task;
+			iter.tgid += 1, iter = next_tgid(ns, iter)) {
+
+		if (strcmp(iter.task->comm, comm))
+			continue;
+		reply = genlmsg_put(skb, NETLINK_CB(cb->skb).portid,
+			cb->nlh->nlmsg_seq, &family, 0, SYSSTATS_PIDS_CMD_GET);
+		if (reply == NULL) {
+			put_task_struct(iter.task);
+			break;
+		}
+		attr = nla_reserve(skb, SYSSTATS_PID_TYPE_STATS,
+				sizeof(struct sysstats_pid));
+		if (!attr) {
+			put_task_struct(iter.task);
+			genlmsg_cancel(skb, reply);
+			break;
+		}
+		stats = nla_data(attr);
+		memset(stats, 0, sizeof(struct sysstats_pid));
+		rcu_read_lock();
+		stats->pid = task_pid_nr_ns(iter.task,
+						task_active_pid_ns(current));
+		rcu_read_unlock();
+		genlmsg_end(skb, reply);
+	}
+	cb->args[0] = iter.tgid;
+	kfree(comm);
+out:
+	return skb->len;
 }
 
 static int sysstats_task_foreach(struct sk_buff *skb, struct netlink_callback *cb)
@@ -318,6 +483,8 @@ static int sysstats_task_foreach(struct sk_buff *skb, struct netlink_callback *c
 				K(get_mm_counter(p->mm, MM_SHMEMPAGES));
 			stats->swap_rss =
 				K(get_mm_counter(p->mm, MM_SWAPENTS));
+			stats->unreclaimable =
+				K(get_task_unreclaimable_info(p));
 			task_unlock(p);
 #undef K
 		}
@@ -410,6 +577,7 @@ static void sysstats_build(struct sysstats_mem *stats)
 	stats->memtotal = K(i.totalram);
 	stats->misc_reclaimable =
 		K(global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE));
+	stats->unreclaimable = K(get_system_unreclaimble_info());
 	stats->buffer = K(i.bufferram);
 	stats->swap_used = K(i.totalswap - i.freeswap);
 	stats->swap_total = K(i.totalswap);
@@ -473,6 +641,11 @@ static const struct genl_ops sysstats_ops[] = {
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit		= sysstats_meminfo_user_cmd,
 	},
+	{
+		.cmd		= SYSSTATS_PIDS_CMD_GET,
+		.validate	= GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.dumpit		= sysstats_all_pids_of_name,
+	}
 };
 
 static struct genl_family family __ro_after_init = {
@@ -493,6 +666,7 @@ static int __init sysstats_init(void)
 	if (rc)
 		return rc;
 
+	sysstats_register_kgsl_stats_cb(sysstats_kgsl_stats);
 	pr_info("registered sysstats version %d\n", SYSSTATS_GENL_VERSION);
 	return 0;
 }
