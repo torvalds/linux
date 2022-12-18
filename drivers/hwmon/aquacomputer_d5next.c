@@ -43,9 +43,7 @@ static const char *const aqc_device_names[] = {
 
 #define STATUS_REPORT_ID		0x01
 #define STATUS_UPDATE_INTERVAL		(2 * HZ)	/* In seconds */
-#define SERIAL_FIRST_PART		3
-#define SERIAL_SECOND_PART		5
-#define FIRMWARE_VERSION		13
+#define SERIAL_PART_OFFSET		2
 
 #define CTRL_REPORT_ID			0x03
 
@@ -59,7 +57,10 @@ static u8 secondary_ctrl_report[] = {
 	0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x34, 0xC6
 };
 
-/* Sensor sizes and offsets for all Aquacomputer devices */
+/* Info, sensor sizes and offsets for all Aquacomputer devices */
+#define AQC_SERIAL_START		0x3
+#define AQC_FIRMWARE_VERSION		0xD
+
 #define AQC_SENSOR_SIZE			0x02
 #define AQC_TEMP_SENSOR_DISCONNECTED	0x7FFF
 #define AQC_FAN_PERCENT_OFFSET		0x00
@@ -326,7 +327,9 @@ struct aqc_data {
 	struct aqc_fan_structure_offsets *fan_structure;
 
 	/* General info, same across all devices */
+	u8 serial_number_start_offset;
 	u32 serial_number[2];
+	u8 firmware_version_offset;
 	u16 firmware_version;
 
 	/* How many times the device was powered on, if available */
@@ -808,9 +811,10 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 	priv = hid_get_drvdata(hdev);
 
 	/* Info provided with every report */
-	priv->serial_number[0] = get_unaligned_be16(data + SERIAL_FIRST_PART);
-	priv->serial_number[1] = get_unaligned_be16(data + SERIAL_SECOND_PART);
-	priv->firmware_version = get_unaligned_be16(data + FIRMWARE_VERSION);
+	priv->serial_number[0] = get_unaligned_be16(data + priv->serial_number_start_offset);
+	priv->serial_number[1] = get_unaligned_be16(data + priv->serial_number_start_offset +
+						    SERIAL_PART_OFFSET);
+	priv->firmware_version = get_unaligned_be16(data + priv->firmware_version_offset);
 
 	/* Physical temperature sensor readings */
 	for (i = 0; i < priv->num_temp_sensors; i++) {
@@ -1095,6 +1099,9 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	default:
 		break;
 	}
+
+	priv->serial_number_start_offset = AQC_SERIAL_START;
+	priv->firmware_version_offset = AQC_FIRMWARE_VERSION;
 
 	priv->fan_structure = &aqc_general_fan_structure;
 
