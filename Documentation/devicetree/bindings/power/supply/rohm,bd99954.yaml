@@ -18,6 +18,7 @@ description: |
   provides a Dual-source Battery Charger, two port BC1.2 detection and a
   Battery Monitor.
 
+$ref: power-supply.yaml#
 
 properties:
   compatible:
