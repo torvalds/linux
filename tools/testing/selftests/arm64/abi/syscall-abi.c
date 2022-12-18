@@ -300,8 +300,8 @@ static int check_svcr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 	return errors;
 }
 
-uint8_t za_in[SVE_NUM_PREGS * __SVE_ZREG_SIZE(SVE_VQ_MAX)];
-uint8_t za_out[SVE_NUM_PREGS * __SVE_ZREG_SIZE(SVE_VQ_MAX)];
+uint8_t za_in[ZA_SIG_REGS_SIZE(SVE_VQ_MAX)];
+uint8_t za_out[ZA_SIG_REGS_SIZE(SVE_VQ_MAX)];
 
 static void setup_za(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 		     uint64_t svcr)
