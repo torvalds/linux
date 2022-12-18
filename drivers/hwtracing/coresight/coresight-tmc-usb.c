@@ -52,6 +52,7 @@ static int usb_bypass_start(struct byte_cntr *byte_cntr_data)
 		return offset;
 	}
 	byte_cntr_data->offset = offset;
+	byte_cntr_data->total_irq = 0;
 	tmcdrvdata->usb_data->drop_data_size = 0;
 	tmcdrvdata->usb_data->data_overwritten = false;
 
@@ -105,14 +106,15 @@ static void usb_bypass_stop(struct byte_cntr *byte_cntr_data)
 	}
 	wake_up(&byte_cntr_data->usb_wait_wq);
 	pr_info("coresight: stop usb bypass\n");
+	byte_cntr_data->rwp_offset = tmc_get_rwp_offset(byte_cntr_data->tmcdrvdata);
 	coresight_csr_set_byte_cntr(byte_cntr_data->csr, byte_cntr_data->irqctrl_offset, 0);
 	dev_dbg(&byte_cntr_data->tmcdrvdata->csdev->dev,
-		"write to usb data total size: %lld bytes, total irq_cnt: %lld, current irq cnt: %d, offset: %ld, drop_data: %lld\n",
+		"USB total size: %lld, total irq: %lld,current irq:%d, offset: %ld, rwp_offset: %ld, drop_data: %lld\n",
 		byte_cntr_data->total_size, byte_cntr_data->total_irq,
 		atomic_read(&byte_cntr_data->irq_cnt),
 		byte_cntr_data->offset,
+		byte_cntr_data->rwp_offset,
 		byte_cntr_data->tmcdrvdata->usb_data->drop_data_size);
-	byte_cntr_data->total_irq = 0;
 	mutex_unlock(&byte_cntr_data->usb_bypass_lock);
 
 }
