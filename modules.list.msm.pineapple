@@ -5,6 +5,7 @@ cmd-db.ko
 qcom_rpmh.ko
 qcom-pdc.ko
 qcom_iommu_util.ko
+iommu-logger.ko
 arm_smmu.ko
 secure_buffer.ko
 qcom_dma_heaps.ko
