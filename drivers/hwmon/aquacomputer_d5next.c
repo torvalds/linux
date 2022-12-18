@@ -125,6 +125,7 @@ static u16 octo_ctrl_fan_offsets[] = { 0x5B, 0xB0, 0x105, 0x15A, 0x1AF, 0x204, 0
 #define QUADRO_NUM_FANS			4
 #define QUADRO_NUM_SENSORS		4
 #define QUADRO_NUM_VIRTUAL_SENSORS	16
+#define QUADRO_NUM_FLOW_SENSORS		1
 #define QUADRO_CTRL_REPORT_SIZE		0x3c1
 
 /* Sensor report offsets for the Quadro */
@@ -141,6 +142,7 @@ static u16 quadro_ctrl_fan_offsets[] = { 0x37, 0x8c, 0xe1, 0x136 }; /* Fan speed
 
 /* Specs of High Flow Next flow sensor */
 #define HIGHFLOWNEXT_NUM_SENSORS	2
+#define HIGHFLOWNEXT_NUM_FLOW_SENSORS	1
 
 /* Sensor report offsets for the High Flow Next */
 #define HIGHFLOWNEXT_SENSOR_START	85
@@ -303,7 +305,8 @@ struct aqc_data {
 	int virtual_temp_sensor_start_offset;
 	u16 temp_ctrl_offset;
 	u16 power_cycle_count_offset;
-	u8 flow_sensor_offset;
+	int num_flow_sensors;
+	u8 flow_sensors_start_offset;
 	u8 flow_pulses_ctrl_offset;
 
 	/* General info, same across all devices */
@@ -475,8 +478,8 @@ static umode_t aqc_is_visible(const void *data, enum hwmon_sensor_types type, u3
 					return 0444;
 				break;
 			case quadro:
-				/* Special case to support flow sensor */
-				if (channel < priv->num_fans + 1)
+				/* Special case to support flow sensors */
+				if (channel < priv->num_fans + priv->num_flow_sensors)
 					return 0444;
 				break;
 			default:
@@ -830,6 +833,13 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 		    get_unaligned_be16(data + priv->fan_sensor_offsets[i] + AQC_FAN_CURRENT_OFFSET);
 	}
 
+	/* Flow sensor readings */
+	for (j = 0; j < priv->num_flow_sensors; j++) {
+		priv->speed_input[i] = get_unaligned_be16(data + priv->flow_sensors_start_offset +
+							  j * AQC_SENSOR_SIZE);
+		i++;
+	}
+
 	if (priv->power_cycle_count_offset != 0)
 		priv->power_cycles = get_unaligned_be32(data + priv->power_cycle_count_offset);
 
@@ -838,9 +848,6 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 	case d5next:
 		priv->voltage_input[2] = get_unaligned_be16(data + D5NEXT_5V_VOLTAGE) * 10;
 		priv->voltage_input[3] = get_unaligned_be16(data + D5NEXT_12V_VOLTAGE) * 10;
-		break;
-	case quadro:
-		priv->speed_input[4] = get_unaligned_be16(data + priv->flow_sensor_offset);
 		break;
 	case highflownext:
 		/* If external temp sensor is not connected, its power reading is also N/A */
@@ -854,7 +861,6 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 		priv->voltage_input[1] =
 		    get_unaligned_be16(data + HIGHFLOWNEXT_5V_VOLTAGE_USB) * 10;
 
-		priv->speed_input[0] = get_unaligned_be16(data + HIGHFLOWNEXT_FLOW);
 		priv->speed_input[1] = get_unaligned_be16(data + HIGHFLOWNEXT_WATER_QUALITY);
 		priv->speed_input[2] = get_unaligned_be16(data + HIGHFLOWNEXT_CONDUCTIVITY);
 		break;
@@ -1034,11 +1040,13 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->temp_sensor_start_offset = QUADRO_SENSOR_START;
 		priv->num_virtual_temp_sensors = QUADRO_NUM_VIRTUAL_SENSORS;
 		priv->virtual_temp_sensor_start_offset = QUADRO_VIRTUAL_SENSORS_START;
+		priv->num_flow_sensors = QUADRO_NUM_FLOW_SENSORS;
+		priv->flow_sensors_start_offset = QUADRO_FLOW_SENSOR_OFFSET;
+
 		priv->temp_ctrl_offset = QUADRO_TEMP_CTRL_OFFSET;
 
 		priv->buffer_size = QUADRO_CTRL_REPORT_SIZE;
 
-		priv->flow_sensor_offset = QUADRO_FLOW_SENSOR_OFFSET;
 		priv->flow_pulses_ctrl_offset = QUADRO_FLOW_PULSES_CTRL_OFFSET;
 		priv->power_cycle_count_offset = QUADRO_POWER_CYCLES;
 
@@ -1056,6 +1064,8 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 		priv->num_temp_sensors = HIGHFLOWNEXT_NUM_SENSORS;
 		priv->temp_sensor_start_offset = HIGHFLOWNEXT_SENSOR_START;
+		priv->num_flow_sensors = HIGHFLOWNEXT_NUM_FLOW_SENSORS;
+		priv->flow_sensors_start_offset = HIGHFLOWNEXT_FLOW;
 
 		priv->power_cycle_count_offset = QUADRO_POWER_CYCLES;
 
