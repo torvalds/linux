@@ -60,7 +60,7 @@ static u8 secondary_ctrl_report[] = {
 };
 
 /* Sensor sizes and offsets for all Aquacomputer devices */
-#define AQC_TEMP_SENSOR_SIZE		0x02
+#define AQC_SENSOR_SIZE			0x02
 #define AQC_TEMP_SENSOR_DISCONNECTED	0x7FFF
 #define AQC_FAN_PERCENT_OFFSET		0x00
 #define AQC_FAN_VOLTAGE_OFFSET		0x02
@@ -557,7 +557,7 @@ static int aqc_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		case hwmon_temp_offset:
 			ret =
 			    aqc_get_ctrl_val(priv, priv->temp_ctrl_offset +
-					     channel * AQC_TEMP_SENSOR_SIZE, val);
+					     channel * AQC_SENSOR_SIZE, val);
 			if (ret < 0)
 				return ret;
 
@@ -651,7 +651,7 @@ static int aqc_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			val = clamp_val(val, -15000, 15000) / 10;
 			ret =
 			    aqc_set_ctrl_val(priv, priv->temp_ctrl_offset +
-					     channel * AQC_TEMP_SENSOR_SIZE, val);
+					     channel * AQC_SENSOR_SIZE, val);
 			if (ret < 0)
 				return ret;
 			break;
@@ -797,7 +797,7 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 	for (i = 0; i < priv->num_temp_sensors; i++) {
 		sensor_value = get_unaligned_be16(data +
 						  priv->temp_sensor_start_offset +
-						  i * AQC_TEMP_SENSOR_SIZE);
+						  i * AQC_SENSOR_SIZE);
 		if (sensor_value == AQC_TEMP_SENSOR_DISCONNECTED)
 			priv->temp_input[i] = -ENODATA;
 		else
@@ -808,7 +808,7 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 	for (j = 0; j < priv->num_virtual_temp_sensors; j++) {
 		sensor_value = get_unaligned_be16(data +
 						  priv->virtual_temp_sensor_start_offset +
-						  j * AQC_TEMP_SENSOR_SIZE);
+						  j * AQC_SENSOR_SIZE);
 		if (sensor_value == AQC_TEMP_SENSOR_DISCONNECTED)
 			priv->temp_input[i] = -ENODATA;
 		else
