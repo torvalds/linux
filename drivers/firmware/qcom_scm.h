@@ -207,6 +207,10 @@ extern int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 #define QCOM_SCM_SVC_OEM_POWER			0x09
 #define QCOM_SCM_OEM_POWER_REBOOT		0x22
 
+/* GPU Service IDs */
+#define QCOM_SCM_SVC_GPU		0x28
+#define QCOM_SCM_SVC_GPU_INIT_REGS		0x1
+
 /* TOS Services and Function IDs */
 #define QCOM_SCM_SVC_QSEELOG			0x01
 #define QCOM_SCM_QSEELOG_REGISTER		0x06
