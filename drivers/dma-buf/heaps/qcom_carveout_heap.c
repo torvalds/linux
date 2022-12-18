@@ -7,6 +7,7 @@
  *
  * Copyright (C) 2011 Google, Inc.
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/dma-mapping.h>
@@ -50,10 +51,6 @@ struct carveout_heap {
 	bool is_secure;
 	bool is_nomap;
 	phys_addr_t base;
-
-	void *pool_refcount_priv;
-	int (*pool_refcount_get)(void *priv);
-	void (*pool_refcount_put)(void *priv);
 };
 
 struct secure_carveout_heap {
@@ -79,22 +76,6 @@ void pages_sync_for_device(struct device *dev, struct page *page,
 	dma_sync_sg_for_device(dev, &sg, 1, dir);
 }
 
-static int carveout_pool_refcount_get(struct carveout_heap *carveout_heap)
-{
-	if (!carveout_heap->pool_refcount_get)
-		return 0;
-
-	return carveout_heap->pool_refcount_get(carveout_heap->pool_refcount_priv);
-}
-
-static void carveout_pool_refcount_put(struct carveout_heap *carveout_heap)
-{
-	if (!carveout_heap->pool_refcount_put)
-		return;
-
-	carveout_heap->pool_refcount_put(carveout_heap->pool_refcount_priv);
-}
-
 static phys_addr_t carveout_allocate(struct carveout_heap *carveout_heap,
 				     unsigned long size)
 {
@@ -102,13 +83,9 @@ static phys_addr_t carveout_allocate(struct carveout_heap *carveout_heap,
 
 	down_read(&carveout_heap->mem_sem);
 	if (carveout_heap->pool) {
-		if (carveout_pool_refcount_get(carveout_heap))
-			goto unlock;
-
 		offset = gen_pool_alloc(carveout_heap->pool, size);
 		if (!offset) {
 			offset = CARVEOUT_ALLOCATE_FAIL;
-			carveout_pool_refcount_put(carveout_heap);
 			goto unlock;
 		}
 	}
@@ -127,7 +104,6 @@ static void carveout_free(struct carveout_heap *carveout_heap,
 	down_read(&carveout_heap->mem_sem);
 	if (carveout_heap->pool)
 		gen_pool_free(carveout_heap->pool, addr, size);
-	carveout_pool_refcount_put(carveout_heap);
 	up_read(&carveout_heap->mem_sem);
 }
 
@@ -344,111 +320,17 @@ static int carveout_init_heap_memory(struct carveout_heap *co_heap,
 	return 0;
 }
 
-int carveout_heap_add_memory(char *heap_name, struct sg_table *sgt, void *cookie,
-			int (*get)(void *), void (*put)(void *))
-{
-	struct dma_heap *heap;
-	struct carveout_heap *carveout_heap;
-	int ret;
-
-	if (!sgt || sgt->nents != 1)
-		return -EINVAL;
-
-	heap = dma_heap_find(heap_name);
-	if (!heap) {
-		pr_err_ratelimited("%s: No heap named %s\n", __func__, heap_name);
-		return -EINVAL;
-	}
-
-	if (!get || !put || !cookie) {
-		pr_err_ratelimited("%s: Missing refcount callbacks\n", __func__);
-		return -EINVAL;
-	}
-
-	carveout_heap = dma_heap_get_drvdata(heap);
-
-	down_write(&carveout_heap->mem_sem);
-	if (carveout_heap->pool) {
-		ret = -EBUSY;
-		goto unlock;
-	}
-
-	ret = carveout_init_heap_memory(carveout_heap,
-					page_to_phys(sg_page(sgt->sgl)),
-					sgt->sgl->length, true);
-	if (ret)
-		goto unlock;
-
-	carveout_heap->pool_refcount_priv = cookie;
-	carveout_heap->pool_refcount_get = get;
-	carveout_heap->pool_refcount_put = put;
-
-unlock:
-	up_write(&carveout_heap->mem_sem);
-	return ret;
-}
-EXPORT_SYMBOL(carveout_heap_add_memory);
-
-int carveout_heap_remove_memory(char *heap_name,
-				struct sg_table *sgt)
-{
-	struct dma_heap *heap;
-	struct carveout_heap *carveout_heap;
-	phys_addr_t base;
-	int ret = 0;
-
-	if (!sgt || sgt->nents != 1)
-		return -EINVAL;
-
-	heap = dma_heap_find(heap_name);
-	if (!heap)
-		return -EINVAL;
-
-	carveout_heap = dma_heap_get_drvdata(heap);
-
-	down_write(&carveout_heap->mem_sem);
-	if (!carveout_heap->pool) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	base = page_to_phys(sg_page(sgt->sgl));
-	if (carveout_heap->base != base) {
-		ret = 0;
-		goto unlock;
-	}
-
-	if (gen_pool_size(carveout_heap->pool) !=
-	    gen_pool_avail(carveout_heap->pool)) {
-		ret = -EBUSY;
-		goto unlock;
-	}
-
-	gen_pool_destroy(carveout_heap->pool);
-	carveout_heap->pool = NULL;
-	carveout_heap->base = 0;
-	carveout_heap->pool_refcount_priv = NULL;
-	carveout_heap->pool_refcount_get = NULL;
-	carveout_heap->pool_refcount_put = NULL;
-unlock:
-	up_write(&carveout_heap->mem_sem);
-	return ret;
-}
-EXPORT_SYMBOL(carveout_heap_remove_memory);
-
 static int __carveout_heap_init(struct platform_heap *heap_data,
 				struct carveout_heap *carveout_heap,
 				bool sync)
 {
 	struct device *dev = heap_data->dev;
-	bool dynamic_heap = heap_data->is_dynamic;
 	int ret = 0;
 
 	carveout_heap->dev = dev;
-	if (!dynamic_heap)
-		ret = carveout_init_heap_memory(carveout_heap,
-						heap_data->base,
-						heap_data->size, sync);
+	ret = carveout_init_heap_memory(carveout_heap,
+					heap_data->base,
+					heap_data->size, sync);
 
 	init_rwsem(&carveout_heap->mem_sem);
 

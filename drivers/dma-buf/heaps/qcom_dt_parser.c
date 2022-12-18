@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/of.h>
@@ -37,8 +38,6 @@ static int populate_heap(struct device_node *node,
 	}
 
 	/* Optional properties */
-	heap->is_dynamic = of_property_read_bool(node, "qcom,dynamic-heap");
-
 	heap->is_uncached = of_property_read_bool(node, "qcom,uncached-heap");
 
 	ret = of_property_read_u32(node, "qcom,token", &heap->token);
