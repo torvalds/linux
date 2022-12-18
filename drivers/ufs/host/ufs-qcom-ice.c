@@ -196,6 +196,21 @@ void ufs_qcom_ice_disable(struct ufs_qcom_host *host)
 		return crypto_qti_disable();
 }
 
+void ufs_qcom_ice_debug(struct ufs_qcom_host *host)
+{
+	struct ice_mmio_data mmio_data;
+
+	if (!host)
+		return;
+
+	mmio_data.ice_base_mmio = host->ice_mmio;
+#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+	mmio_data.ice_hwkm_mmio = host->ice_hwkm_mmio;
+#endif
+
+	crypto_qti_debug(&mmio_data);
+}
+
 /* Poll until all BIST bits are reset */
 static int qcom_ice_wait_bist_status(struct ufs_qcom_host *host)
 {

@@ -53,7 +53,7 @@ static inline int crypto_qti_enable(void *mmio_data)
 }
 static inline void crypto_qti_disable(void)
 {}
-static inline int crypto_qti_debug(void)
+static inline int crypto_qti_debug(const struct ice_mmio_data *mmio_data)
 {
 	return -EOPNOTSUPP;
 }
