@@ -20,8 +20,6 @@
 
 #include "syscall-abi.h"
 
-#define NUM_VL ((SVE_VQ_MAX - SVE_VQ_MIN) + 1)
-
 static int default_sme_vl;
 
 static int sve_vl_count;
