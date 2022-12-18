@@ -21,8 +21,7 @@
 #include "cifsfs.h"
 #include "dns_resolve.h"
 #include "cifs_debug.h"
-#include "cifs_unicode.h"
-#include "dfs_cache.h"
+#include "dfs.h"
 #include "fs_context.h"
 
 static LIST_HEAD(cifs_dfs_automount_list);
@@ -119,6 +118,17 @@ cifs_build_devname(char *nodename, const char *prepath)
 	return dev;
 }
 
+static int set_dest_addr(struct smb3_fs_context *ctx, const char *full_path)
+{
+	struct sockaddr *addr = (struct sockaddr *)&ctx->dstaddr;
+	int rc;
+
+	rc = dns_resolve_server_name_to_ip(full_path, addr, NULL);
+	if (!rc)
+		cifs_set_port(addr, ctx->port);
+	return rc;
+}
+
 /*
  * Create a vfsmount that we can automount
  */
@@ -156,8 +166,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct path *path)
 	ctx = smb3_fc2context(fc);
 
 	page = alloc_dentry_path();
-	/* always use tree name prefix */
-	full_path = build_path_from_dentry_optional_prefix(mntpt, page, true);
+	full_path = dfs_get_automount_devname(mntpt, page);
 	if (IS_ERR(full_path)) {
 		mnt = ERR_CAST(full_path);
 		goto out;
@@ -168,9 +177,16 @@ static struct vfsmount *cifs_dfs_do_automount(struct path *path)
 
 	tmp = *cur_ctx;
 	tmp.source = full_path;
+	tmp.leaf_fullpath = NULL;
 	tmp.UNC = tmp.prepath = NULL;
 
 	rc = smb3_fs_context_dup(ctx, &tmp);
+	if (rc) {
+		mnt = ERR_PTR(rc);
+		goto out;
+	}
+
+	rc = set_dest_addr(ctx, full_path);
 	if (rc) {
 		mnt = ERR_PTR(rc);
 		goto out;
