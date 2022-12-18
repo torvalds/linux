@@ -35,3 +35,7 @@ obj-$(CONFIG_SND_USB_US122L) += snd-usbmidi-lib.o
 
 obj-$(CONFIG_SND) += misc/ usx2y/ caiaq/ 6fire/ hiface/ bcd2000/
 obj-$(CONFIG_SND_USB_LINE6)	+= line6/
+
+CFLAGS_xhci-sec.o := -I$(srctree)/drivers/usb/host
+snd-usb-audio-qmi-objs := usb_audio_qmi_v01.o usb_audio_qmi_svc.o xhci-sec.o
+obj-$(CONFIG_SND_USB_AUDIO_QMI) += snd-usb-audio-qmi.o
