@@ -6,6 +6,7 @@
 #include <asm/sections.h>
 #include <asm/mem_detect.h>
 #include <asm/maccess.h>
+#include <asm/abs_lowcore.h>
 #include "decompressor.h"
 #include "boot.h"
 
@@ -29,6 +30,7 @@ unsigned long __bootdata(pgalloc_low);
 enum populate_mode {
 	POPULATE_NONE,
 	POPULATE_ONE2ONE,
+	POPULATE_ABS_LOWCORE,
 };
 
 static void boot_check_oom(void)
@@ -102,6 +104,8 @@ static unsigned long _pa(unsigned long addr, enum populate_mode mode)
 		return -1;
 	case POPULATE_ONE2ONE:
 		return addr;
+	case POPULATE_ABS_LOWCORE:
+		return __abs_lowcore_pa(addr);
 	default:
 		return -1;
 	}
@@ -271,6 +275,8 @@ void setup_vmem(unsigned long online_end, unsigned long asce_limit)
 	pgtable_populate_begin(online_end);
 	pgtable_populate(0, sizeof(struct lowcore), POPULATE_ONE2ONE);
 	pgtable_populate(0, online_end, POPULATE_ONE2ONE);
+	pgtable_populate(__abs_lowcore, __abs_lowcore + sizeof(struct lowcore),
+			 POPULATE_ABS_LOWCORE);
 	pgtable_populate(__memcpy_real_area, __memcpy_real_area + PAGE_SIZE,
 			 POPULATE_NONE);
 	memcpy_real_ptep = __virt_to_kpte(__memcpy_real_area);

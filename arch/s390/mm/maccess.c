@@ -151,7 +151,6 @@ void *xlate_dev_mem_ptr(phys_addr_t addr)
 	void *ptr = phys_to_virt(addr);
 	void *bounce = ptr;
 	struct lowcore *abs_lc;
-	unsigned long flags;
 	unsigned long size;
 	int this_cpu, cpu;
 
@@ -167,10 +166,10 @@ void *xlate_dev_mem_ptr(phys_addr_t addr)
 		goto out;
 	size = PAGE_SIZE - (addr & ~PAGE_MASK);
 	if (addr < sizeof(struct lowcore)) {
-		abs_lc = get_abs_lowcore(&flags);
+		abs_lc = get_abs_lowcore();
 		ptr = (void *)abs_lc + addr;
 		memcpy(bounce, ptr, size);
-		put_abs_lowcore(abs_lc, flags);
+		put_abs_lowcore(abs_lc);
 	} else if (cpu == this_cpu) {
 		ptr = (void *)(addr - virt_to_phys(lowcore_ptr[cpu]));
 		memcpy(bounce, ptr, size);

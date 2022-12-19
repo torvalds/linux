@@ -66,5 +66,7 @@ extern unsigned char _compressed_end[];
 extern struct vmlinux_info _vmlinux_info;
 #define vmlinux _vmlinux_info
 
+#define __abs_lowcore_pa(x)	(((unsigned long)(x) - __abs_lowcore) % sizeof(struct lowcore))
+
 #endif /* __ASSEMBLY__ */
 #endif /* BOOT_BOOT_H */

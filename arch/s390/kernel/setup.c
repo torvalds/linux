@@ -418,7 +418,6 @@ static void __init setup_lowcore(void)
 {
 	struct lowcore *lc, *abs_lc;
 	unsigned long mcck_stack;
-	unsigned long flags;
 
 	/*
 	 * Setup lowcore for boot cpu
@@ -493,7 +492,7 @@ static void __init setup_lowcore(void)
 	lc->kernel_asce = S390_lowcore.kernel_asce;
 	lc->user_asce = S390_lowcore.user_asce;
 
-	abs_lc = get_abs_lowcore(&flags);
+	abs_lc = get_abs_lowcore();
 	abs_lc->restart_stack = lc->restart_stack;
 	abs_lc->restart_fn = lc->restart_fn;
 	abs_lc->restart_data = lc->restart_data;
@@ -503,13 +502,12 @@ static void __init setup_lowcore(void)
 	memcpy(abs_lc->cregs_save_area, lc->cregs_save_area, sizeof(abs_lc->cregs_save_area));
 	abs_lc->program_new_psw = lc->program_new_psw;
 	abs_lc->mcesad = lc->mcesad;
-	put_abs_lowcore(abs_lc, flags);
+	put_abs_lowcore(abs_lc);
 
 	set_prefix(__pa(lc));
 	lowcore_ptr[0] = lc;
-	if (abs_lowcore_map(0, lowcore_ptr[0], true))
+	if (abs_lowcore_map(0, lowcore_ptr[0], false))
 		panic("Couldn't setup absolute lowcore");
-	abs_lowcore_mapped = true;
 }
 
 static struct resource code_resource = {
