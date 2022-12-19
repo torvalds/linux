@@ -669,6 +669,10 @@
 	status = "okay";
 };
 
+&leds {
+	status = "disabled";
+};
+
 &mdio1 {
 	rgmii_phy: phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
