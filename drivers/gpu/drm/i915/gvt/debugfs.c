@@ -175,8 +175,13 @@ void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
  */
 void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu)
 {
-	debugfs_remove_recursive(vgpu->debugfs);
-	vgpu->debugfs = NULL;
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct drm_minor *minor = gvt->gt->i915->drm.primary;
+
+	if (minor->debugfs_root && gvt->debugfs_root) {
+		debugfs_remove_recursive(vgpu->debugfs);
+		vgpu->debugfs = NULL;
+	}
 }
 
 /**
