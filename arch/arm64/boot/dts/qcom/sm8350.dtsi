@@ -415,8 +415,10 @@
 			no-map;
 		};
 
-		smem_mem: memory@80900000 {
+		smem@80900000 {
+			compatible = "qcom,smem";
 			reg = <0x0 0x80900000 0x0 0x200000>;
+			hwlocks = <&tcsr_mutex 3>;
 			no-map;
 		};
 
@@ -523,12 +525,6 @@
 			reg = <0x0 0xd8800000 0x0 0x6800000>;
 			no-map;
 		};
-	};
-
-	smem: qcom,smem {
-		compatible = "qcom,smem";
-		memory-region = <&smem_mem>;
-		hwlocks = <&tcsr_mutex 3>;
 	};
 
 	smp2p-adsp {
