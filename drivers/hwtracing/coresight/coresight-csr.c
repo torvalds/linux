@@ -350,7 +350,39 @@ void coresight_csr_set_byte_cntr(struct coresight_csr *csr, int irqctrl_offset, 
 }
 EXPORT_SYMBOL(coresight_csr_set_byte_cntr);
 
-int coresight_csr_set_etr_atid(struct coresight_csr *csr,
+struct coresight_csr *coresight_csr_get(const char *name)
+{
+	struct coresight_csr *csr;
+
+	mutex_lock(&csr_lock);
+	list_for_each_entry(csr, &csr_list, link) {
+		if (!strcmp(csr->name, name)) {
+			mutex_unlock(&csr_lock);
+			return csr;
+		}
+	}
+
+	mutex_unlock(&csr_lock);
+	return ERR_PTR(-EINVAL);
+}
+EXPORT_SYMBOL(coresight_csr_get);
+
+int of_get_coresight_csr_name(struct device_node *node, const char **csr_name)
+{
+	int ret;
+	struct device_node *csr_node;
+
+	csr_node = of_parse_phandle(node, "coresight-csr", 0);
+	if (!csr_node)
+		return -EINVAL;
+
+	ret = of_property_read_string(csr_node, "coresight-name", csr_name);
+	of_node_put(csr_node);
+	return ret;
+}
+EXPORT_SYMBOL(of_get_coresight_csr_name);
+
+static int coresight_csr_set_etr_atid(struct coresight_device *csdev,
 			uint32_t atid_offset, uint32_t atid,
 			bool enable)
 {
@@ -359,7 +391,15 @@ int coresight_csr_set_etr_atid(struct coresight_csr *csr,
 	uint32_t reg_offset;
 	int bit;
 	uint32_t val;
+	const char *csr_name;
+	struct coresight_csr *csr;
+	int ret;
 
+	ret = of_get_coresight_csr_name(csdev->dev.parent->of_node, &csr_name);
+	if (ret)
+		return ret;
+
+	csr = coresight_csr_get(csr_name);
 	if (csr == NULL)
 		return -EINVAL;
 
@@ -394,39 +434,6 @@ int coresight_csr_set_etr_atid(struct coresight_csr *csr,
 
 	return 0;
 }
-EXPORT_SYMBOL(coresight_csr_set_etr_atid);
-
-struct coresight_csr *coresight_csr_get(const char *name)
-{
-	struct coresight_csr *csr;
-
-	mutex_lock(&csr_lock);
-	list_for_each_entry(csr, &csr_list, link) {
-		if (!strcmp(csr->name, name)) {
-			mutex_unlock(&csr_lock);
-			return csr;
-		}
-	}
-
-	mutex_unlock(&csr_lock);
-	return ERR_PTR(-EINVAL);
-}
-EXPORT_SYMBOL(coresight_csr_get);
-
-int of_get_coresight_csr_name(struct device_node *node, const char **csr_name)
-{
-	int ret;
-	struct device_node *csr_node;
-
-	csr_node = of_parse_phandle(node, "coresight-csr", 0);
-	if (!csr_node)
-		return -EINVAL;
-
-	ret = of_property_read_string(csr_node, "coresight-name", csr_name);
-	of_node_put(csr_node);
-	return ret;
-}
-EXPORT_SYMBOL(of_get_coresight_csr_name);
 
 static ssize_t timestamp_show(struct device *dev,
 				struct device_attribute *attr,
@@ -762,6 +769,7 @@ static int csr_probe(struct platform_device *pdev)
 	if (IS_ERR(drvdata->csdev))
 		return PTR_ERR(drvdata->csdev);
 
+	coresight_set_csr_ops(&csr_atid_ops);
 	/* Store the driver data pointer for use in exported functions */
 	spin_lock_init(&drvdata->spin_lock);
 	drvdata->csr.name = desc.name;
@@ -782,9 +790,14 @@ static int csr_remove(struct platform_device *pdev)
 	list_del(&drvdata->csr.link);
 	mutex_unlock(&csr_lock);
 
+	coresight_remove_csr_ops();
 	coresight_unregister(drvdata->csdev);
 	return 0;
 }
+
+const struct csr_set_atid_op csr_atid_ops = {
+	.set_atid = coresight_csr_set_etr_atid,
+};
 
 static const struct of_device_id csr_match[] = {
 	{.compatible = "qcom,coresight-csr"},

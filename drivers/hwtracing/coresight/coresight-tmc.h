@@ -306,7 +306,6 @@ struct byte_cntr *byte_cntr_init(struct amba_device *adev,
 					struct tmc_drvdata *drvdata);
 void byte_cntr_remove(struct byte_cntr *byte_cntr);
 extern const struct coresight_ops tmc_etr_cs_ops;
-extern const struct csr_set_atid_op csr_atid_ops;
 ssize_t tmc_etr_get_sysfs_trace(struct tmc_drvdata *drvdata,
 				loff_t pos, size_t len, char **bufpp);
 long tmc_get_rwp_offset(struct tmc_drvdata *drvdata);

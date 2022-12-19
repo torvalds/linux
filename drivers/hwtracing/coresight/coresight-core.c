@@ -25,7 +25,7 @@
 #include "coresight-common.h"
 #include "coresight-syscfg.h"
 
-#define MAX_SINK_NAME 20
+#define MAX_SINK_NAME 25
 
 static DEFINE_MUTEX(coresight_mutex);
 static DEFINE_PER_CPU(struct coresight_device *, csdev_sink);
@@ -592,6 +592,7 @@ static int coresight_set_csr_atid(struct list_head *path,
 	int i, num, ret = 0;
 	struct coresight_device *src_csdev;
 	u32 *atid;
+	u32 atid_offset;
 
 	src_csdev = coresight_get_source(path);
 	if (!src_csdev) {
@@ -614,11 +615,15 @@ static int coresight_set_csr_atid(struct list_head *path,
 	}
 
 	if (csr_set_atid_ops) {
-		for (i = 0; i < num; i++) {
-			ret = csr_set_atid_ops->set_atid(sink_csdev, atid[i], enable);
-			if (ret < 0) {
-				kfree(atid);
-				return ret;
+		ret = of_coresight_get_csr_atid_offset(sink_csdev, &atid_offset);
+		if (!ret) {
+			for (i = 0; i < num; i++) {
+				ret = csr_set_atid_ops->set_atid(sink_csdev, atid_offset,
+							atid[i], enable);
+				if (ret < 0) {
+					kfree(atid);
+					return ret;
+				}
 			}
 		}
 	} else
@@ -659,7 +664,9 @@ static void coresight_disable_path_from(struct list_head *path,
 
 		switch (type) {
 		case CORESIGHT_DEV_TYPE_SINK:
-			if (csdev->type == CORESIGHT_DEV_TYPE_SINK)
+			if (csdev->type == CORESIGHT_DEV_TYPE_SINK &&
+			csdev->subtype.sink_subtype ==
+				CORESIGHT_DEV_SUBTYPE_SINK_SYSMEM)
 				coresight_set_csr_atid(path, csdev, false);
 
 			coresight_disable_sink(csdev);
@@ -1301,6 +1308,20 @@ static int coresight_validate_source(struct coresight_device *csdev,
 	return 0;
 }
 
+static int coresight_validate_sink(struct coresight_device *source,
+					struct coresight_device *sink)
+{
+
+
+	if (of_coresight_secure_node(sink) && !of_coresight_secure_node(source)) {
+		dev_err(&sink->dev, "dont support this source: %s\n",
+				dev_name(&source->dev));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int coresight_store_path(struct list_head *path)
 {
 	struct coresight_path *node;
@@ -1351,6 +1372,10 @@ int coresight_enable(struct coresight_device *csdev)
 		ret = -EINVAL;
 		goto out;
 	}
+
+	ret = coresight_validate_sink(csdev, sink);
+	if (ret)
+		goto out;
 
 	path = coresight_build_path(csdev, sink);
 	if (IS_ERR(path)) {

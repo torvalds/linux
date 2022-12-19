@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2012, 2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/acpi.h>
@@ -202,6 +203,30 @@ static int of_coresight_get_cpu(struct device *dev)
 	of_node_put(dn);
 
 	return cpu;
+}
+
+/*
+ * of_coresight_secure: Check whether the device is a secure node
+ *
+ * Return true, it means this is a secure node.
+ */
+bool of_coresight_secure_node(struct coresight_device *csdev)
+{
+	return of_property_read_bool(csdev->dev.parent->of_node,
+					"qcom,secure-component");
+}
+
+/*
+ * of_coresight_get_csr_atid_offset: Get the csr atid register offset of a sink device.
+ *
+ * Returns the csr atid offset. If the result is less than zero, it means
+ * failure.
+ */
+int of_coresight_get_csr_atid_offset(struct coresight_device *csdev,
+				u32 *atid_offset)
+{
+	return of_property_read_u32(csdev->dev.parent->of_node,
+					"csr-atid-offset", atid_offset);
 }
 
 /*
