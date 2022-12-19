@@ -37,15 +37,9 @@ struct intel_pingroup {
 /**
  * struct intel_function - Description about a function
  * @func: Generic data of the pin function (name and groups of pins)
- * @name: Name of the function
- * @groups: An array of groups for this function
- * @ngroups: Number of groups in @groups
  */
 struct intel_function {
 	struct pinfunction func;
-	const char *name;
-	const char * const *groups;
-	size_t ngroups;
 };
 
 #define INTEL_PINCTRL_MAX_GPP_SIZE	32
@@ -188,9 +182,6 @@ struct intel_community {
 #define FUNCTION(n, g)							\
 	{								\
 		.func = PINCTRL_PINFUNCTION((n), (g), ARRAY_SIZE(g)),	\
-		.name = (n),						\
-		.groups = (g),						\
-		.ngroups = ARRAY_SIZE((g)),				\
 	}
 
 /**
