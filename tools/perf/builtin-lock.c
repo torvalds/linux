@@ -1689,6 +1689,7 @@ static int __cmd_contention(int argc, const char **argv)
 		.map_nr_entries = bpf_map_entries,
 		.max_stack = max_stack_depth,
 		.stack_skip = stack_skip,
+		.filters = &filters,
 	};
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);

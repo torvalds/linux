@@ -62,10 +62,18 @@ struct {
 	__uint(max_entries, 1);
 } task_filter SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(__u8));
+	__uint(max_entries, 1);
+} type_filter SEC(".maps");
+
 /* control flags */
 int enabled;
 int has_cpu;
 int has_task;
+int has_type;
 int stack_skip;
 
 /* determine the key of lock stat */
@@ -74,7 +82,7 @@ int aggr_mode;
 /* error stat */
 int lost;
 
-static inline int can_record(void)
+static inline int can_record(u64 *ctx)
 {
 	if (has_cpu) {
 		__u32 cpu = bpf_get_smp_processor_id();
@@ -90,6 +98,15 @@ static inline int can_record(void)
 		__u32 pid = bpf_get_current_pid_tgid();
 
 		ok = bpf_map_lookup_elem(&task_filter, &pid);
+		if (!ok)
+			return 0;
+	}
+
+	if (has_type) {
+		__u8 *ok;
+		__u32 flags = (__u32)ctx[1];
+
+		ok = bpf_map_lookup_elem(&type_filter, &flags);
 		if (!ok)
 			return 0;
 	}
@@ -116,7 +133,7 @@ int contention_begin(u64 *ctx)
 	__u32 pid;
 	struct tstamp_data *pelem;
 
-	if (!enabled || !can_record())
+	if (!enabled || !can_record(ctx))
 		return 0;
 
 	pid = bpf_get_current_pid_tgid();

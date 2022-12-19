@@ -118,6 +118,7 @@ struct lock_contention {
 	struct target *target;
 	struct machine *machine;
 	struct hlist_head *result;
+	struct lock_filter *filters;
 	unsigned long map_nr_entries;
 	int lost;
 	int max_stack;
