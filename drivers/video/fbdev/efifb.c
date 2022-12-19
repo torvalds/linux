@@ -7,6 +7,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/kernel.h>
 #include <linux/efi.h>
 #include <linux/efi-bgrt.h>
@@ -51,6 +52,8 @@ static struct pci_dev *efifb_pci_dev;	/* dev with BAR covering the efifb */
 
 struct efifb_par {
 	u32 pseudo_palette[16];
+	resource_size_t base;
+	resource_size_t size;
 };
 
 static struct fb_var_screeninfo efifb_defined = {
@@ -253,6 +256,8 @@ static inline void efifb_show_boot_graphics(struct fb_info *info) {}
  */
 static void efifb_destroy(struct fb_info *info)
 {
+	struct efifb_par *par = info->par;
+
 	if (efifb_pci_dev)
 		pm_runtime_put(&efifb_pci_dev->dev);
 
@@ -264,8 +269,7 @@ static void efifb_destroy(struct fb_info *info)
 	}
 
 	if (request_mem_succeeded)
-		release_mem_region(info->apertures->ranges[0].base,
-				   info->apertures->ranges[0].size);
+		release_mem_region(par->base, par->size);
 	fb_dealloc_cmap(&info->cmap);
 
 	framebuffer_release(info);
@@ -461,13 +465,8 @@ static int efifb_probe(struct platform_device *dev)
 	par = info->par;
 	info->pseudo_palette = par->pseudo_palette;
 
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		err = -ENOMEM;
-		goto err_release_fb;
-	}
-	info->apertures->ranges[0].base = efifb_fix.smem_start;
-	info->apertures->ranges[0].size = size_remap;
+	par->base = efifb_fix.smem_start;
+	par->size = size_remap;
 
 	if (efi_enabled(EFI_MEMMAP) &&
 	    !efi_mem_desc_lookup(efifb_fix.smem_start, &md)) {
@@ -556,7 +555,7 @@ static int efifb_probe(struct platform_device *dev)
 	info->fbops = &efifb_ops;
 	info->var = efifb_defined;
 	info->fix = efifb_fix;
-	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_MISC_FIRMWARE;
+	info->flags = FBINFO_FLAG_DEFAULT;
 
 	orientation = drm_get_panel_orientation_quirk(efifb_defined.xres,
 						      efifb_defined.yres);
@@ -589,6 +588,11 @@ static int efifb_probe(struct platform_device *dev)
 	if (efifb_pci_dev)
 		WARN_ON(pm_runtime_get_sync(&efifb_pci_dev->dev) < 0);
 
+	err = devm_aperture_acquire_for_platform_device(dev, par->base, par->size);
+	if (err) {
+		pr_err("efifb: cannot acquire aperture\n");
+		goto err_put_rpm_ref;
+	}
 	err = register_framebuffer(info);
 	if (err < 0) {
 		pr_err("efifb: cannot register framebuffer\n");
