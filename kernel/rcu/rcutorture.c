@@ -119,6 +119,7 @@ torture_param(int, stutter, 5, "Number of seconds to run/halt test");
 torture_param(int, test_boost, 1, "Test RCU prio boost: 0=no, 1=maybe, 2=yes.");
 torture_param(int, test_boost_duration, 4, "Duration of each boost test, seconds.");
 torture_param(int, test_boost_interval, 7, "Interval between boost tests, seconds.");
+torture_param(int, test_nmis, 0, "End-test NMI tests, 0 to disable.");
 torture_param(bool, test_no_idle_hz, true, "Test support for tickless idle CPUs");
 torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
 
@@ -2358,7 +2359,8 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 "n_barrier_cbs=%d "
 		 "onoff_interval=%d onoff_holdoff=%d "
 		 "read_exit_delay=%d read_exit_burst=%d "
-		 "nocbs_nthreads=%d nocbs_toggle=%d\n",
+		 "nocbs_nthreads=%d nocbs_toggle=%d "
+		 "test_nmis=%d\n",
 		 torture_type, tag, nrealreaders, nfakewriters,
 		 stat_interval, verbose, test_no_idle_hz, shuffle_interval,
 		 stutter, irqreader, fqs_duration, fqs_holdoff, fqs_stutter,
@@ -2369,7 +2371,8 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 n_barrier_cbs,
 		 onoff_interval, onoff_holdoff,
 		 read_exit_delay, read_exit_burst,
-		 nocbs_nthreads, nocbs_toggle);
+		 nocbs_nthreads, nocbs_toggle,
+		 test_nmis);
 }
 
 static int rcutorture_booster_cleanup(unsigned int cpu)
@@ -3273,6 +3276,29 @@ static void rcu_torture_read_exit_cleanup(void)
 	torture_stop_kthread(rcutorture_read_exit, read_exit_task);
 }
 
+static void rcutorture_test_nmis(int n)
+{
+#if IS_BUILTIN(CONFIG_RCU_TORTURE_TEST)
+	int cpu;
+	int dumpcpu;
+	int i;
+
+	for (i = 0; i < n; i++) {
+		preempt_disable();
+		cpu = smp_processor_id();
+		dumpcpu = cpu + 1;
+		if (dumpcpu >= nr_cpu_ids)
+			dumpcpu = 0;
+		pr_alert("%s: CPU %d invoking dump_cpu_task(%d)\n", __func__, cpu, dumpcpu);
+		dump_cpu_task(dumpcpu);
+		preempt_enable();
+		schedule_timeout_uninterruptible(15 * HZ);
+	}
+#else // #if IS_BUILTIN(CONFIG_RCU_TORTURE_TEST)
+	WARN_ONCE(n, "Non-zero rcutorture.test_nmis=%d permitted only when rcutorture is built in.\n", test_nmis);
+#endif // #else // #if IS_BUILTIN(CONFIG_RCU_TORTURE_TEST)
+}
+
 static enum cpuhp_state rcutor_hp;
 
 static void
@@ -3296,6 +3322,8 @@ rcu_torture_cleanup(void)
 		rcu_gp_slow_unregister(NULL);
 		return;
 	}
+
+	rcutorture_test_nmis(test_nmis);
 
 	if (cur_ops->gp_kthread_dbg)
 		cur_ops->gp_kthread_dbg();
