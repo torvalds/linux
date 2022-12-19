@@ -144,10 +144,12 @@ static int psci_cpuidle_domain_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	bool use_osi = psci_has_osi_support();
+	bool force_psci_domains;
 	int ret = 0, pd_count = 0;
 
 	if (!np)
 		return -ENODEV;
+
 
 	/*
 	 * Parse child nodes for the "#power-domain-cells" property and
@@ -173,13 +175,18 @@ static int psci_cpuidle_domain_probe(struct platform_device *pdev)
 	if (ret)
 		goto remove_pd;
 
-	/* let's try to enable OSI. */
-	ret = psci_set_osi_mode(use_osi);
-	if (ret)
-		goto remove_pd;
+	force_psci_domains = of_property_read_bool(np, "force-psci-domains");
 
-	pr_info("Initialized CPU PM domain topology using %s mode\n",
-		use_osi ? "OSI" : "PC");
+	if (!force_psci_domains) {
+		/* let's try to enable OSI. */
+		ret = psci_set_osi_mode(use_osi);
+		if (ret)
+			goto remove_pd;
+
+		pr_info("Initialized CPU PM domain topology using %s mode\n",
+			use_osi ? "OSI" : "PC");
+	}
+
 	return 0;
 
 remove_pd:

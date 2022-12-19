@@ -98,6 +98,13 @@ properties:
       [1] Kernel documentation - ARM idle states bindings
         Documentation/devicetree/bindings/cpu/idle-states.yaml
 
+  force-psci-domains:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      Force using PSCI power domains. This skips setting OSI mode because it's
+      already enabled by the firmware and cannot be changed.
+      Relevant for some legacy Qualcomm SoCs.
+
 patternProperties:
   "^power-domain-":
     $ref: /schemas/power/power-domain.yaml#
