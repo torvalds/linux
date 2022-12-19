@@ -12,6 +12,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -54,6 +55,8 @@ struct offb_par {
 	int cmap_type;
 	int blanked;
 	u32 pseudo_palette[16];
+	resource_size_t base;
+	resource_size_t size;
 };
 
 #ifdef CONFIG_PPC32
@@ -279,9 +282,11 @@ static int offb_set_par(struct fb_info *info)
 
 static void offb_destroy(struct fb_info *info)
 {
+	struct offb_par *par = info->par;
+
 	if (info->screen_base)
 		iounmap(info->screen_base);
-	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
+	release_mem_region(par->base, par->size);
 	fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
 }
@@ -503,20 +508,18 @@ static void offb_init_fb(struct platform_device *parent, const char *name,
 	var->sync = 0;
 	var->vmode = FB_VMODE_NONINTERLACED;
 
-	/* set offb aperture size for generic probing */
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures)
-		goto out_aper;
-	info->apertures->ranges[0].base = address;
-	info->apertures->ranges[0].size = fix->smem_len;
+	par->base = address;
+	par->size = fix->smem_len;
 
 	info->fbops = &offb_ops;
 	info->screen_base = ioremap(address, fix->smem_len);
 	info->pseudo_palette = par->pseudo_palette;
-	info->flags = FBINFO_DEFAULT | FBINFO_MISC_FIRMWARE | foreign_endian;
+	info->flags = FBINFO_DEFAULT | foreign_endian;
 
 	fb_alloc_cmap(&info->cmap, 256, 0);
 
+	if (devm_aperture_acquire_for_platform_device(parent, par->base, par->size) < 0)
+		goto out_err;
 	if (register_framebuffer(info) < 0)
 		goto out_err;
 
@@ -526,7 +529,6 @@ static void offb_init_fb(struct platform_device *parent, const char *name,
 out_err:
 	fb_dealloc_cmap(&info->cmap);
 	iounmap(info->screen_base);
-out_aper:
 	iounmap(par->cmap_adr);
 	par->cmap_adr = NULL;
 	framebuffer_release(info);
