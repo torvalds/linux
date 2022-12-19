@@ -82,6 +82,13 @@ config HAVE_OBJTOOL_MCOUNT
 	help
 	  Arch supports objtool --mcount
 
+config HAVE_OBJTOOL_NOP_MCOUNT
+	bool
+	help
+	  Arch supports the objtool options --mcount with --mnop.
+	  An architecture can select this if it wants to enable nop'ing
+	  of ftrace locations.
+
 config HAVE_C_RECORDMCOUNT
 	bool
 	help

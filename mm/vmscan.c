@@ -4084,10 +4084,7 @@ restart:
 	/* walk_pte_range() may call get_next_vma() */
 	vma = args->vma;
 	for (i = pmd_index(start), addr = start; addr != end; i++, addr = next) {
-		pmd_t val = pmd_read_atomic(pmd + i);
-
-		/* for pmd_read_atomic() */
-		barrier();
+		pmd_t val = pmdp_get_lockless(pmd + i);
 
 		next = pmd_addr_end(addr, end);
 

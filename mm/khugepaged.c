@@ -857,7 +857,7 @@ static int find_pmd_or_thp_or_none(struct mm_struct *mm,
 	if (!*pmd)
 		return SCAN_PMD_NULL;
 
-	pmde = pmd_read_atomic(*pmd);
+	pmde = pmdp_get_lockless(*pmd);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	/* See comments in pmd_none_or_trans_huge_or_clear_bad() */

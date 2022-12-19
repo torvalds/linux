@@ -767,7 +767,7 @@ EXPORT_SYMBOL(amd_iommu_register_ga_log_notifier);
 
 static void iommu_poll_ga_log(struct amd_iommu *iommu)
 {
-	u32 head, tail, cnt = 0;
+	u32 head, tail;
 
 	if (iommu->ga_log == NULL)
 		return;
@@ -780,7 +780,6 @@ static void iommu_poll_ga_log(struct amd_iommu *iommu)
 		u64 log_entry;
 
 		raw = (u64 *)(iommu->ga_log + head);
-		cnt++;
 
 		/* Avoid memcpy function-call overhead */
 		log_entry = *raw;

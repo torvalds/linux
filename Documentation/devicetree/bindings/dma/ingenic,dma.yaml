@@ -18,6 +18,7 @@ properties:
       - enum:
           - ingenic,jz4740-dma
           - ingenic,jz4725b-dma
+          - ingenic,jz4755-dma
           - ingenic,jz4760-dma
           - ingenic,jz4760-bdma
           - ingenic,jz4760-mdma
