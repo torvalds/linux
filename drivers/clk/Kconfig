@@ -436,6 +436,16 @@ config COMMON_CLK_K210
 	help
 	  Support for the Canaan Kendryte K210 RISC-V SoC clocks.
 
+config COMMON_CLK_SP7021
+	tristate "Clock driver for Sunplus SP7021 SoC"
+	depends on SOC_SP7021 || COMPILE_TEST
+	default SOC_SP7021
+	help
+	  This driver supports the Sunplus SP7021 SoC clocks.
+	  It implements SP7021 PLLs/gate.
+	  Not all features of the PLL are currently supported
+	  by the driver.
+
 source "drivers/clk/actions/Kconfig"
 source "drivers/clk/analogbits/Kconfig"
 source "drivers/clk/baikal-t1/Kconfig"
