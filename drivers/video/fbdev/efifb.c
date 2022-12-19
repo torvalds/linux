@@ -49,6 +49,10 @@ static u64 mem_flags = EFI_MEMORY_WC | EFI_MEMORY_UC;
 
 static struct pci_dev *efifb_pci_dev;	/* dev with BAR covering the efifb */
 
+struct efifb_par {
+	u32 pseudo_palette[16];
+};
+
 static struct fb_var_screeninfo efifb_defined = {
 	.activate		= FB_ACTIVATE_NOW,
 	.height			= -1,
@@ -351,6 +355,7 @@ static u64 bar_offset;
 static int efifb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
+	struct efifb_par *par;
 	int err, orientation;
 	unsigned int size_vmode;
 	unsigned int size_remap;
@@ -447,14 +452,14 @@ static int efifb_probe(struct platform_device *dev)
 			efifb_fix.smem_start);
 	}
 
-	info = framebuffer_alloc(sizeof(u32) * 16, &dev->dev);
+	info = framebuffer_alloc(sizeof(*par), &dev->dev);
 	if (!info) {
 		err = -ENOMEM;
 		goto err_release_mem;
 	}
 	platform_set_drvdata(dev, info);
-	info->pseudo_palette = info->par;
-	info->par = NULL;
+	par = info->par;
+	info->pseudo_palette = par->pseudo_palette;
 
 	info->apertures = alloc_apertures(1);
 	if (!info->apertures) {
