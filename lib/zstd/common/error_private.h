@@ -18,8 +18,10 @@
 /* ****************************************
 *  Dependencies
 ******************************************/
-#include "zstd_deps.h"    /* size_t */
 #include <linux/zstd_errors.h>  /* enum list */
+#include "compiler.h"
+#include "debug.h"
+#include "zstd_deps.h"       /* size_t */
 
 
 /* ****************************************
@@ -61,6 +63,83 @@ ERR_STATIC const char* ERR_getErrorName(size_t code)
 {
     return ERR_getErrorString(ERR_getErrorCode(code));
 }
+
+/*
+ * Ignore: this is an internal helper.
+ *
+ * This is a helper function to help force C99-correctness during compilation.
+ * Under strict compilation modes, variadic macro arguments can't be empty.
+ * However, variadic function arguments can be. Using a function therefore lets
+ * us statically check that at least one (string) argument was passed,
+ * independent of the compilation flags.
+ */
+static INLINE_KEYWORD UNUSED_ATTR
+void _force_has_format_string(const char *format, ...) {
+  (void)format;
+}
+
+/*
+ * Ignore: this is an internal helper.
+ *
+ * We want to force this function invocation to be syntactically correct, but
+ * we don't want to force runtime evaluation of its arguments.
+ */
+#define _FORCE_HAS_FORMAT_STRING(...) \
+  if (0) { \
+    _force_has_format_string(__VA_ARGS__); \
+  }
+
+#define ERR_QUOTE(str) #str
+
+/*
+ * Return the specified error if the condition evaluates to true.
+ *
+ * In debug modes, prints additional information.
+ * In order to do that (particularly, printing the conditional that failed),
+ * this can't just wrap RETURN_ERROR().
+ */
+#define RETURN_ERROR_IF(cond, err, ...) \
+  if (cond) { \
+    RAWLOG(3, "%s:%d: ERROR!: check %s failed, returning %s", \
+           __FILE__, __LINE__, ERR_QUOTE(cond), ERR_QUOTE(ERROR(err))); \
+    _FORCE_HAS_FORMAT_STRING(__VA_ARGS__); \
+    RAWLOG(3, ": " __VA_ARGS__); \
+    RAWLOG(3, "\n"); \
+    return ERROR(err); \
+  }
+
+/*
+ * Unconditionally return the specified error.
+ *
+ * In debug modes, prints additional information.
+ */
+#define RETURN_ERROR(err, ...) \
+  do { \
+    RAWLOG(3, "%s:%d: ERROR!: unconditional check failed, returning %s", \
+           __FILE__, __LINE__, ERR_QUOTE(ERROR(err))); \
+    _FORCE_HAS_FORMAT_STRING(__VA_ARGS__); \
+    RAWLOG(3, ": " __VA_ARGS__); \
+    RAWLOG(3, "\n"); \
+    return ERROR(err); \
+  } while(0);
+
+/*
+ * If the provided expression evaluates to an error code, returns that error code.
+ *
+ * In debug modes, prints additional information.
+ */
+#define FORWARD_IF_ERROR(err, ...) \
+  do { \
+    size_t const err_code = (err); \
+    if (ERR_isError(err_code)) { \
+      RAWLOG(3, "%s:%d: ERROR!: forwarding error in %s: %s", \
+             __FILE__, __LINE__, ERR_QUOTE(err), ERR_getErrorName(err_code)); \
+      _FORCE_HAS_FORMAT_STRING(__VA_ARGS__); \
+      RAWLOG(3, ": " __VA_ARGS__); \
+      RAWLOG(3, "\n"); \
+      return err_code; \
+    } \
+  } while(0);
 
 
 #endif /* ERROR_H_MODULE */
