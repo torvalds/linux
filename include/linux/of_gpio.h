@@ -105,17 +105,6 @@ static inline int of_gpio_named_count(const struct device_node *np,
 	return of_count_phandle_with_args(np, propname, "#gpio-cells");
 }
 
-/**
- * of_gpio_count() - Count GPIOs for a device
- * @np:		device node to count GPIOs for
- *
- * Same as of_gpio_named_count, but hard coded to use the 'gpios' property
- */
-static inline int of_gpio_count(const struct device_node *np)
-{
-	return of_gpio_named_count(np, "gpios");
-}
-
 static inline int of_get_gpio_flags(const struct device_node *np, int index,
 		      enum of_gpio_flags *flags)
 {
