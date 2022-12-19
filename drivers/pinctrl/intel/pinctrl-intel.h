@@ -96,8 +96,7 @@ enum {
  * @gpp_size: Maximum number of pads in each group, such as PADCFGLOCK,
  *            HOSTSW_OWN, GPI_IS, GPI_IE. Used when @gpps is %NULL.
  * @gpp_num_padown_regs: Number of pad registers each pad group consumes at
- *			 minimum. Use %0 if the number of registers can be
- *			 determined by the size of the group.
+ *			 minimum. Used when @gpps is %NULL.
  * @gpps: Pad groups if the controller has variable size pad groups
  * @ngpps: Number of pad groups in this community
  * @pad_map: Optional non-linear mapping of the pads
@@ -106,11 +105,13 @@ enum {
  * @regs: Community specific common registers (reserved for core driver)
  * @pad_regs: Community specific pad registers (reserved for core driver)
  *
- * In some of Intel GPIO host controllers this driver supports each pad group
+ * In older Intel GPIO host controllers, this driver supports, each pad group
  * is of equal size (except the last one). In that case the driver can just
- * fill in @gpp_size field and let the core driver to handle the rest. If
- * the controller has pad groups of variable size the client driver can
- * pass custom @gpps and @ngpps instead.
+ * fill in @gpp_size and @gpp_num_padown_regs fields and let the core driver
+ * to handle the rest.
+ *
+ * In newer Intel GPIO host controllers each pad group is of variable size,
+ * so the client driver can pass custom @gpps and @ngpps instead.
  */
 struct intel_community {
 	unsigned int barno;

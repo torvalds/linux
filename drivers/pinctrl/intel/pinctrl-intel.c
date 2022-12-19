@@ -1451,14 +1451,7 @@ static int intel_pinctrl_add_padgroups_by_size(struct intel_pinctrl *pctrl,
 		gpps[i].gpio_base = gpps[i].base;
 		gpps[i].padown_num = padown_num;
 
-		/*
-		 * In older hardware the number of padown registers per
-		 * group is fixed regardless of the group size.
-		 */
-		if (community->gpp_num_padown_regs)
-			padown_num += community->gpp_num_padown_regs;
-		else
-			padown_num += DIV_ROUND_UP(gpps[i].size * 4, 32);
+		padown_num += community->gpp_num_padown_regs;
 	}
 
 	community->ngpps = ngpps;
