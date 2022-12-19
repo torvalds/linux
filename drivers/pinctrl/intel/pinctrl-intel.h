@@ -143,6 +143,28 @@ struct intel_community {
 #define PINCTRL_FEATURE_BLINK		BIT(4)
 #define PINCTRL_FEATURE_EXP		BIT(5)
 
+#define __INTEL_COMMUNITY(b, s, e, g, n, gs, gn, soc)		\
+	{							\
+		.barno = (b),					\
+		.padown_offset = soc ## _PAD_OWN,		\
+		.padcfglock_offset = soc ## _PADCFGLOCK,	\
+		.hostown_offset = soc ## _HOSTSW_OWN,		\
+		.is_offset = soc ## _GPI_IS,			\
+		.ie_offset = soc ## _GPI_IE,			\
+		.gpp_size = (gs),				\
+		.gpp_num_padown_regs = (gn),			\
+		.pin_base = (s),				\
+		.npins = ((e) - (s) + 1),			\
+		.gpps = (g),					\
+		.ngpps = (n),					\
+	}
+
+#define INTEL_COMMUNITY_GPPS(b, s, e, g, soc)			\
+	__INTEL_COMMUNITY(b, s, e, g, ARRAY_SIZE(g), 0, 0, soc)
+
+#define INTEL_COMMUNITY_SIZE(b, s, e, gs, gn, soc)		\
+	__INTEL_COMMUNITY(b, s, e, NULL, 0, gs, gn, soc)
+
 /**
  * PIN_GROUP - Declare a pin group
  * @n: Name of the group
