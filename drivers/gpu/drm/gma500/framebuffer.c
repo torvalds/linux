@@ -297,11 +297,6 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 	info->screen_base = dev_priv->vram_addr + backing->offset;
 	info->screen_size = size;
 
-	if (dev_priv->gtt.stolen_size) {
-		info->apertures->ranges[0].base = dev_priv->fb_base;
-		info->apertures->ranges[0].size = dev_priv->gtt.stolen_size;
-	}
-
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
 	info->fix.mmio_start = pci_resource_start(pdev, 0);
