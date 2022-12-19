@@ -4414,18 +4414,38 @@ static int hci_le_set_write_def_data_len_sync(struct hci_dev *hdev)
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
 }
 
-/* Set Default PHY parameters if command is supported */
+/* Set Default PHY parameters if command is supported, enables all supported
+ * PHYs according to the LE Features bits.
+ */
 static int hci_le_set_default_phy_sync(struct hci_dev *hdev)
 {
 	struct hci_cp_le_set_default_phy cp;
 
-	if (!(hdev->commands[35] & 0x20))
+	if (!(hdev->commands[35] & 0x20)) {
+		/* If the command is not supported it means only 1M PHY is
+		 * supported.
+		 */
+		hdev->le_tx_def_phys = HCI_LE_SET_PHY_1M;
+		hdev->le_rx_def_phys = HCI_LE_SET_PHY_1M;
 		return 0;
+	}
 
 	memset(&cp, 0, sizeof(cp));
 	cp.all_phys = 0x00;
-	cp.tx_phys = hdev->le_tx_def_phys;
-	cp.rx_phys = hdev->le_rx_def_phys;
+	cp.tx_phys = HCI_LE_SET_PHY_1M;
+	cp.rx_phys = HCI_LE_SET_PHY_1M;
+
+	/* Enables 2M PHY if supported */
+	if (le_2m_capable(hdev)) {
+		cp.tx_phys |= HCI_LE_SET_PHY_2M;
+		cp.rx_phys |= HCI_LE_SET_PHY_2M;
+	}
+
+	/* Enables Coded PHY if supported */
+	if (le_coded_capable(hdev)) {
+		cp.tx_phys |= HCI_LE_SET_PHY_CODED;
+		cp.rx_phys |= HCI_LE_SET_PHY_CODED;
+	}
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_DEFAULT_PHY,
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
