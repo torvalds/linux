@@ -330,8 +330,9 @@ static size_t parse_container(u8 *ucode, size_t size, struct cont_desc *desc)
 		ret = verify_patch(x86_family(desc->cpuid_1_eax), buf, size, &patch_size, true);
 		if (ret < 0) {
 			/*
-			 * Patch verification failed, skip to the next
-			 * container, if there's one:
+			 * Patch verification failed, skip to the next container, if
+			 * there is one. Before exit, check whether that container has
+			 * found a patch already. If so, use it.
 			 */
 			goto out;
 		} else if (ret > 0) {
@@ -350,6 +351,7 @@ skip:
 		size -= patch_size + SECTION_HDR_SIZE;
 	}
 
+out:
 	/*
 	 * If we have found a patch (desc->mc), it means we're looking at the
 	 * container which has a patch for this CPU so return 0 to mean, @ucode
@@ -364,7 +366,6 @@ skip:
 		return 0;
 	}
 
-out:
 	return orig_size - size;
 }
 
