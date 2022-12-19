@@ -577,6 +577,9 @@ static int intel_config_get_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 		case PADCFG1_TERM_1K:
 			*arg = 1000;
 			break;
+		case PADCFG1_TERM_4K:
+			*arg = 4000;
+			break;
 		case PADCFG1_TERM_5K:
 			*arg = 5000;
 			break;
@@ -601,6 +604,9 @@ static int intel_config_get_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 			if (!(community->features & PINCTRL_FEATURE_1K_PD))
 				return -EINVAL;
 			*arg = 1000;
+			break;
+		case PADCFG1_TERM_4K:
+			*arg = 4000;
 			break;
 		case PADCFG1_TERM_5K:
 			*arg = 5000;
@@ -712,6 +718,9 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 		case 5000:
 			value |= PADCFG1_TERM_5K << PADCFG1_TERM_SHIFT;
 			break;
+		case 4000:
+			value |= PADCFG1_TERM_4K << PADCFG1_TERM_SHIFT;
+			break;
 		case 1000:
 			value |= PADCFG1_TERM_1K << PADCFG1_TERM_SHIFT;
 			break;
@@ -733,6 +742,9 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 			break;
 		case 5000:
 			value |= PADCFG1_TERM_5K << PADCFG1_TERM_SHIFT;
+			break;
+		case 4000:
+			value |= PADCFG1_TERM_4K << PADCFG1_TERM_SHIFT;
 			break;
 		case 1000:
 			if (!(community->features & PINCTRL_FEATURE_1K_PD)) {
