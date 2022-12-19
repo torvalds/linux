@@ -390,6 +390,12 @@ done_free_sp:
 	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
 	fcport->flags &= ~FCF_ASYNC_ACTIVE;
+
+	/*
+	 * async login failed. Could be due to iocb/exchange resource
+	 * being low. Set state DELETED for re-login process to start again.
+	 */
+	qla2x00_set_fcport_disc_state(fcport, DSC_DELETED);
 	return rval;
 }
 
