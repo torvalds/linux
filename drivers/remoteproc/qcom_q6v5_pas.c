@@ -965,7 +965,7 @@ static int setup_mpss_dsm_mem(struct platform_device *pdev)
 	struct device_node *node;
 	struct resource res;
 	phys_addr_t mem_phys;
-	int curr_perm;
+	u64 curr_perm;
 	u64 mem_size;
 	int ret;
 	newvm[0].vmid = QCOM_SCM_VMID_MSS_MSA;

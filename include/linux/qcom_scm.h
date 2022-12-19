@@ -166,7 +166,7 @@ qcom_scm_assign_mem_regions(struct qcom_scm_mem_map_info *mem_regions,
 			    struct qcom_scm_current_perm_info *newvms,
 			    size_t newvms_sz);
 extern int qcom_scm_assign_mem(phys_addr_t mem_addr, size_t mem_sz,
-			       unsigned int *src,
+			       u64 *src,
 			       const struct qcom_scm_vmperm *newvm,
 			       unsigned int dest_cnt);
 extern int qcom_scm_mem_protect_sd_ctrl(u32 devid, phys_addr_t mem_addr,
