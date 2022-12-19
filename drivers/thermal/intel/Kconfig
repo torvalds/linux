@@ -32,6 +32,7 @@ config INTEL_SOC_DTS_IOSF_CORE
 	tristate
 	depends on X86 && PCI
 	select IOSF_MBI
+	select INTEL_TCC
 	help
 	  This is becoming a common feature for Intel SoCs to expose the additional
 	  digital temperature sensors (DTSs) using side band interface (IOSF). This
