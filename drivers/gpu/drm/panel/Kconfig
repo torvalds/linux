@@ -400,6 +400,15 @@ config DRM_PANEL_OLIMEX_LCD_OLINUXINO
 	  Say Y here if you want to enable support for Olimex Ltd.
 	  LCD-OLinuXino panel.
 
+config DRM_PANEL_ORISETECH_OTA5601A
+        tristate "Orise Technology ota5601a RGB/SPI panel"
+        depends on SPI
+        depends on BACKLIGHT_CLASS_DEVICE
+        select REGMAP_SPI
+        help
+          Say Y here if you want to enable support for the panels built
+          around the Orise Technology OTA9601A display controller.
+
 config DRM_PANEL_ORISETECH_OTM8009A
 	tristate "Orise Technology otm8009a 480x800 dsi 2dl panel"
 	depends on OF
