@@ -53,9 +53,8 @@ struct offb_par {
 	volatile void __iomem *cmap_data;
 	int cmap_type;
 	int blanked;
+	u32 pseudo_palette[16];
 };
-
-struct offb_par default_par;
 
 #ifdef CONFIG_PPC32
 extern boot_infos_t *boot_infos;
@@ -393,11 +392,11 @@ static void offb_init_fb(struct platform_device *parent, const char *name,
 			 int foreign_endian, struct device_node *dp)
 {
 	unsigned long res_size = pitch * height;
-	struct offb_par *par = &default_par;
 	unsigned long res_start = address;
 	struct fb_fix_screeninfo *fix;
 	struct fb_var_screeninfo *var;
 	struct fb_info *info;
+	struct offb_par *par;
 
 	if (!request_mem_region(res_start, res_size, "offb"))
 		return;
@@ -411,17 +410,15 @@ static void offb_init_fb(struct platform_device *parent, const char *name,
 		return;
 	}
 
-	info = framebuffer_alloc(sizeof(u32) * 16, &parent->dev);
-
+	info = framebuffer_alloc(sizeof(*par), &parent->dev);
 	if (!info) {
 		release_mem_region(res_start, res_size);
 		return;
 	}
 	platform_set_drvdata(parent, info);
-
+	par = info->par;
 	fix = &info->fix;
 	var = &info->var;
-	info->par = par;
 
 	if (name) {
 		strcpy(fix->id, "OFfb ");
@@ -515,7 +512,7 @@ static void offb_init_fb(struct platform_device *parent, const char *name,
 
 	info->fbops = &offb_ops;
 	info->screen_base = ioremap(address, fix->smem_len);
-	info->pseudo_palette = (void *) (info + 1);
+	info->pseudo_palette = par->pseudo_palette;
 	info->flags = FBINFO_DEFAULT | FBINFO_MISC_FIRMWARE | foreign_endian;
 
 	fb_alloc_cmap(&info->cmap, 256, 0);
