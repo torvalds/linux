@@ -1427,12 +1427,8 @@ static int vc4_dsi_late_register(struct drm_encoder *encoder)
 {
 	struct drm_device *drm = encoder->dev;
 	struct vc4_dsi *dsi = to_vc4_dsi(encoder);
-	int ret;
 
-	ret = vc4_debugfs_add_regset32(drm->primary, dsi->variant->debugfs_name,
-				       &dsi->regset);
-	if (ret)
-		return ret;
+	vc4_debugfs_add_regset32(drm, dsi->variant->debugfs_name, &dsi->regset);
 
 	return 0;
 }

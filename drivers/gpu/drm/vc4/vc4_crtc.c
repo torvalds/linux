@@ -1090,12 +1090,9 @@ int vc4_crtc_late_register(struct drm_crtc *crtc)
 	struct drm_device *drm = crtc->dev;
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	const struct vc4_crtc_data *crtc_data = vc4_crtc_to_vc4_crtc_data(vc4_crtc);
-	int ret;
 
-	ret = vc4_debugfs_add_regset32(drm->primary, crtc_data->debugfs_name,
-				       &vc4_crtc->regset);
-	if (ret)
-		return ret;
+	vc4_debugfs_add_regset32(drm, crtc_data->debugfs_name,
+				 &vc4_crtc->regset);
 
 	return 0;
 }

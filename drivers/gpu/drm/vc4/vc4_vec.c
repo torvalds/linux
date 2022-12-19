@@ -716,12 +716,8 @@ static int vc4_vec_late_register(struct drm_encoder *encoder)
 {
 	struct drm_device *drm = encoder->dev;
 	struct vc4_vec *vec = encoder_to_vc4_vec(encoder);
-	int ret;
 
-	ret = vc4_debugfs_add_regset32(drm->primary, "vec_regs",
-				       &vec->regset);
-	if (ret)
-		return ret;
+	vc4_debugfs_add_regset32(drm, "vec_regs", &vec->regset);
 
 	return 0;
 }
