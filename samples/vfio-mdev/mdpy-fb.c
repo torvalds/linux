@@ -161,14 +161,6 @@ static int mdpy_fb_probe(struct pci_dev *pdev,
 		goto err_release_fb;
 	}
 
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto err_unmap;
-	}
-	info->apertures->ranges[0].base = info->fix.smem_start;
-	info->apertures->ranges[0].size = info->fix.smem_len;
-
 	info->fbops = &mdpy_fb_ops;
 	info->flags = FBINFO_DEFAULT;
 	info->pseudo_palette = par->palette;
