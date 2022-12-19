@@ -351,7 +351,10 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	printbuf_indent_add(out, 2);
 
 	prt_printf(out, "gen %u oldest_gen %u data_type %s",
-	       a->gen, a->oldest_gen, bch2_data_types[a->data_type]);
+	       a->gen, a->oldest_gen,
+	       a->data_type < BCH_DATA_NR
+	       ? bch2_data_types[a->data_type]
+	       : "(invalid data type)");
 	prt_newline(out);
 	prt_printf(out, "journal_seq       %llu",	a->journal_seq);
 	prt_newline(out);
