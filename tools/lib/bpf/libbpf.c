@@ -9903,7 +9903,7 @@ static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
 	char errmsg[STRERR_BUFSIZE];
 	int type, pfd;
 
-	if (ref_ctr_off >= (1ULL << PERF_UPROBE_REF_CTR_OFFSET_BITS))
+	if ((__u64)ref_ctr_off >= (1ULL << PERF_UPROBE_REF_CTR_OFFSET_BITS))
 		return -EINVAL;
 
 	memset(&attr, 0, attr_sz);
