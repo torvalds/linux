@@ -2353,6 +2353,7 @@ static void msm_geni_serial_set_manual_flow(bool enable,
 		UART_LOG_DBG(port->ipc_log_misc, port->uport.dev,
 			"%s: Manual Flow Enabled, HW Flow OFF rfr = 0x%x\n",
 			__func__, uart_manual_rfr);
+		msm_geni_update_uart_error_code(port, UART_ERROR_FLOW_OFF);
 	} else {
 		geni_write_reg(0, port->uport.membase,
 						SE_UART_MANUAL_RFR);
@@ -2363,6 +2364,8 @@ static void msm_geni_serial_set_manual_flow(bool enable,
 		UART_LOG_DBG(port->ipc_log_misc, port->uport.dev,
 			"%s: Manual Flow Disabled, HW Flow ON rfr = 0x%x\n",
 						__func__, uart_manual_rfr);
+		if (port->uart_error == UART_ERROR_FLOW_OFF)
+			msm_geni_update_uart_error_code(port, UART_ERROR_DEFAULT);
 	}
 }
 
