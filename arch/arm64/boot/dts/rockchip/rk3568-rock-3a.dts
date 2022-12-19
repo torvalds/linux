@@ -737,7 +737,6 @@
 };
 
 &sdmmc2 {
-	supports-sdio;
 	bus-width = <4>;
 	disable-wp;
 	cap-sd-highspeed;
