@@ -505,7 +505,7 @@ static const struct dev_pm_ops rmi_spi_pm = {
 };
 
 static const struct spi_device_id rmi_id[] = {
-	{ "rmi4_spi", 0 },
+	{ "rmi4-spi", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, rmi_id);
