@@ -88,6 +88,7 @@ config INTEL_PCH_THERMAL
 config INTEL_TCC_COOLING
 	tristate "Intel TCC offset cooling Driver"
 	depends on X86
+	select INTEL_TCC
 	help
 	  Enable this to support system cooling by adjusting the effective TCC
 	  activation temperature via the TCC Offset register, which is widely
