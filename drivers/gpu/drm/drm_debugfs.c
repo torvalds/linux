@@ -254,6 +254,20 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 	return 0;
 }
 
+void drm_debugfs_late_register(struct drm_device *dev)
+{
+	struct drm_minor *minor = dev->primary;
+	struct drm_debugfs_entry *entry, *tmp;
+
+	if (!minor)
+		return;
+
+	list_for_each_entry_safe(entry, tmp, &dev->debugfs_list, list) {
+		debugfs_create_file(entry->file.name, S_IFREG | S_IRUGO,
+				    minor->debugfs_root, entry, &drm_debugfs_entry_fops);
+		list_del(&entry->list);
+	}
+}
 
 int drm_debugfs_remove_files(const struct drm_info_list *files, int count,
 			     struct drm_minor *minor)
