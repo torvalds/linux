@@ -1705,11 +1705,6 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		outb_p(inb_p(SMBAUXCTL(priv)) &
 		       ~(SMBAUXCTL_CRC | SMBAUXCTL_E32B), SMBAUXCTL(priv));
 
-	/* Remember original Interrupt and Host Notify settings */
-	priv->original_hstcnt = inb_p(SMBHSTCNT(priv)) & ~SMBHSTCNT_KILL;
-	if (priv->features & FEATURE_HOST_NOTIFY)
-		priv->original_slvcmd = inb_p(SMBSLVCMD(priv));
-
 	/* Default timeout in interrupt mode: 200 ms */
 	priv->adapter.timeout = HZ / 5;
 
@@ -1738,6 +1733,15 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 	dev_info(&dev->dev, "SMBus using %s\n",
 		 priv->features & FEATURE_IRQ ? "PCI interrupt" : "polling");
+
+	/* Host notification uses an interrupt */
+	if (!(priv->features & FEATURE_IRQ))
+		priv->features &= ~FEATURE_HOST_NOTIFY;
+
+	/* Remember original Interrupt and Host Notify settings */
+	priv->original_hstcnt = inb_p(SMBHSTCNT(priv)) & ~SMBHSTCNT_KILL;
+	if (priv->features & FEATURE_HOST_NOTIFY)
+		priv->original_slvcmd = inb_p(SMBSLVCMD(priv));
 
 	i801_add_tco(priv);
 
