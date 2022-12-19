@@ -538,6 +538,17 @@ config HW_RANDOM_ARM_SMCCC_TRNG
 	  To compile this driver as a module, choose M here: the
 	  module will be called arm_smccc_trng.
 
+config HW_RANDOM_STARFIVE
+	tristate "Starfive True Random Number Generator support"
+	depends on SOC_STARFIVE
+	depends on HW_RANDOM
+	help
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Starfive SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called starfive-trng.
+
 endif # HW_RANDOM
 
 config UML_RANDOM
@@ -552,18 +563,5 @@ config UML_RANDOM
 	  a device which is usually called /dev/hwrng. This hardware random
 	  number generator does feed into the kernel's random number generator
 	  entropy pool.
-
-	  If unsure, say Y.
-
-config HW_RANDOM_STARFIVE_TRNG
-	tristate "Starfive True Random Number Generator support"
-	depends on SOC_STARFIVE
-	depends on HW_RANDOM
-	help
-	  This driver provides kernel-side support for the Random Number
-	  Generator hardware found on Starfive JH7110 SoC.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called starfive-trng.
 
 	  If unsure, say Y.
