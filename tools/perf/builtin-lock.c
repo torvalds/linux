@@ -32,6 +32,7 @@
 #include <semaphore.h>
 #include <math.h>
 #include <limits.h>
+#include <ctype.h>
 
 #include <linux/list.h>
 #include <linux/hash.h>
@@ -995,24 +996,52 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	unsigned int flags = evsel__intval(evsel, sample, "flags");
 	u64 key;
 	int i, ret;
+	static bool kmap_loaded;
+	struct machine *machine = &session->machines.host;
+	struct map *kmap;
+	struct symbol *sym;
 
 	ret = get_key_by_aggr_mode(&key, addr, evsel, sample);
 	if (ret < 0)
 		return ret;
 
+	if (!kmap_loaded) {
+		unsigned long *addrs;
+
+		/* make sure it loads the kernel map to find lock symbols */
+		map__load(machine__kernel_map(machine));
+		kmap_loaded = true;
+
+		/* convert (kernel) symbols to addresses */
+		for (i = 0; i < filters.nr_syms; i++) {
+			sym = machine__find_kernel_symbol_by_name(machine,
+								  filters.syms[i],
+								  &kmap);
+			if (sym == NULL) {
+				pr_warning("ignore unknown symbol: %s\n",
+					   filters.syms[i]);
+				continue;
+			}
+
+			addrs = realloc(filters.addrs,
+					(filters.nr_addrs + 1) * sizeof(*addrs));
+			if (addrs == NULL) {
+				pr_warning("memory allocation failure\n");
+				return -ENOMEM;
+			}
+
+			addrs[filters.nr_addrs++] = kmap->unmap_ip(kmap, sym->start);
+			filters.addrs = addrs;
+		}
+	}
+
 	ls = lock_stat_find(key);
 	if (!ls) {
 		char buf[128];
 		const char *name = "";
-		struct machine *machine = &session->machines.host;
-		struct map *kmap;
-		struct symbol *sym;
 
 		switch (aggr_mode) {
 		case LOCK_AGGR_ADDR:
-			/* make sure it loads the kernel map to find lock symbols */
-			map__load(machine__kernel_map(machine));
-
 			sym = machine__find_kernel_symbol(machine, key, &kmap);
 			if (sym)
 				name = sym->name;
@@ -1043,6 +1072,20 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 
 		for (i = 0; i < filters.nr_types; i++) {
 			if (flags == filters.types[i]) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			return 0;
+	}
+
+	if (filters.nr_addrs) {
+		bool found = false;
+
+		for (i = 0; i < filters.nr_addrs; i++) {
+			if (addr == filters.addrs[i]) {
 				found = true;
 				break;
 			}
@@ -1496,6 +1539,15 @@ static void lock_filter_finish(void)
 {
 	zfree(&filters.types);
 	filters.nr_types = 0;
+
+	zfree(&filters.addrs);
+	filters.nr_addrs = 0;
+
+	for (int i = 0; i < filters.nr_syms; i++)
+		free(filters.syms[i]);
+
+	zfree(&filters.syms);
+	filters.nr_syms = 0;
 }
 
 static void sort_contention_result(void)
@@ -1995,6 +2047,80 @@ static int parse_lock_type(const struct option *opt __maybe_unused, const char *
 	return ret;
 }
 
+static bool add_lock_addr(unsigned long addr)
+{
+	unsigned long *tmp;
+
+	tmp = realloc(filters.addrs, (filters.nr_addrs + 1) * sizeof(*filters.addrs));
+	if (tmp == NULL) {
+		pr_err("Memory allocation failure\n");
+		return false;
+	}
+
+	tmp[filters.nr_addrs++] = addr;
+	filters.addrs = tmp;
+	return true;
+}
+
+static bool add_lock_sym(char *name)
+{
+	char **tmp;
+	char *sym = strdup(name);
+
+	if (sym == NULL) {
+		pr_err("Memory allocation failure\n");
+		return false;
+	}
+
+	tmp = realloc(filters.syms, (filters.nr_syms + 1) * sizeof(*filters.syms));
+	if (tmp == NULL) {
+		pr_err("Memory allocation failure\n");
+		free(sym);
+		return false;
+	}
+
+	tmp[filters.nr_syms++] = sym;
+	filters.syms = tmp;
+	return true;
+}
+
+static int parse_lock_addr(const struct option *opt __maybe_unused, const char *str,
+			   int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+	u64 addr;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		char *end;
+
+		addr = strtoul(tok, &end, 16);
+		if (*end == '\0') {
+			if (!add_lock_addr(addr)) {
+				ret = -1;
+				break;
+			}
+			continue;
+		}
+
+		/*
+		 * At this moment, we don't have kernel symbols.  Save the symbols
+		 * in a separate list and resolve them to addresses later.
+		 */
+		if (!add_lock_sym(tok)) {
+			ret = -1;
+			break;
+		}
+	}
+
+	free(s);
+	return ret;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
@@ -2060,6 +2186,8 @@ int cmd_lock(int argc, const char **argv)
 	OPT_BOOLEAN('l', "lock-addr", &show_lock_addrs, "show lock stats by address"),
 	OPT_CALLBACK('Y', "type-filter", NULL, "FLAGS",
 		     "Filter specific type of locks", parse_lock_type),
+	OPT_CALLBACK('L', "lock-filter", NULL, "ADDRS/NAMES",
+		     "Filter specific address/symbol of locks", parse_lock_addr),
 	OPT_PARENT(lock_options)
 	};
 

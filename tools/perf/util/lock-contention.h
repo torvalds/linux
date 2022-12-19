@@ -7,7 +7,11 @@
 
 struct lock_filter {
 	int			nr_types;
+	int			nr_addrs;
+	int			nr_syms;
 	unsigned int		*types;
+	unsigned long		*addrs;
+	char			**syms;
 };
 
 struct lock_stat {
