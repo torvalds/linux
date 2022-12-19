@@ -6,6 +6,7 @@ load(
     "kernel_modules_install",
 )
 load("//build/kernel/kleaf:constants.bzl", "aarch64_outs")
+load(":modules.bzl", "COMMON_GKI_MODULES_LIST")
 
 rule_base = "kernel_aarch64_consolidate"
 
@@ -42,10 +43,7 @@ def define_consolidate():
             "certs/signing_key.pem",
             "certs/signing_key.x509",
         ],
-        module_implicit_outs = [
-            "drivers/block/zram/zram.ko",
-            "mm/zsmalloc.ko",
-        ],
+        module_implicit_outs = COMMON_GKI_MODULES_LIST,
         build_config = rule_base + "_build_config",
     )
 
