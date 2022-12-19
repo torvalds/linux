@@ -12671,7 +12671,8 @@ SYSCALL_DEFINE5(perf_event_open,
 	return event_fd;
 
 err_context:
-	/* event->pmu_ctx freed by free_event() */
+	put_pmu_ctx(event->pmu_ctx);
+	event->pmu_ctx = NULL; /* _free_event() */
 err_locked:
 	mutex_unlock(&ctx->mutex);
 	perf_unpin_context(ctx);
@@ -12784,6 +12785,7 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 
 err_pmu_ctx:
 	put_pmu_ctx(pmu_ctx);
+	event->pmu_ctx = NULL; /* _free_event() */
 err_unlock:
 	mutex_unlock(&ctx->mutex);
 	perf_unpin_context(ctx);
