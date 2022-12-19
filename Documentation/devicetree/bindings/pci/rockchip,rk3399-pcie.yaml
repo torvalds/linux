@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/rockchip,rk3399-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip AXI PCIe Root Port Bridge Host
+
+maintainers:
+  - Shawn Lin <shawn.lin@rock-chips.com>
+
+allOf:
+  - $ref: /schemas/pci/pci-bus.yaml#
+  - $ref: rockchip,rk3399-pcie-common.yaml#
+
+properties:
+  compatible:
+    const: rockchip,rk3399-pcie
+
+  reg: true
+
+  reg-names:
+    items:
+      - const: axi-base
+      - const: apb-base
+
+  interrupts:
+    maxItems: 3
+
+  interrupt-names:
+    items:
+      - const: sys
+      - const: legacy
+      - const: client
+
+  aspm-no-l0s:
+    description: This property is needed if using 24MHz OSC for RC's PHY.
+
+  ep-gpios:
+    description: pre-reset GPIO
+
+  vpcie12v-supply:
+    description: The 12v regulator to use for PCIe.
+
+  vpcie3v3-supply:
+    description: The 3.3v regulator to use for PCIe.
+
+  vpcie1v8-supply:
+    description: The 1.8v regulator to use for PCIe.
+
+  vpcie0v9-supply:
+    description: The 0.9v regulator to use for PCIe.
+
+  interrupt-controller:
+    type: object
+    additionalProperties: false
+
+    properties:
+      '#address-cells':
+        const: 0
+
+      '#interrupt-cells':
+        const: 1
+
+      interrupt-controller: true
+
+required:
+  - ranges
+  - "#interrupt-cells"
+  - interrupts
+  - interrupt-controller
+  - interrupt-map
+  - interrupt-map-mask
+  - msi-map
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/clock/rk3399-cru.h>
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        pcie@f8000000 {
+            compatible = "rockchip,rk3399-pcie";
+            device_type = "pci";
+            #address-cells = <3>;
+            #size-cells = <2>;
+            clocks = <&cru ACLK_PCIE>, <&cru ACLK_PERF_PCIE>,
+              <&cru PCLK_PCIE>, <&cru SCLK_PCIE_PM>;
+            clock-names = "aclk", "aclk-perf",
+                    "hclk", "pm";
+            interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH 0>,
+                  <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH 0>,
+                  <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH 0>;
+            interrupt-names = "sys", "legacy", "client";
+            ep-gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
+            ranges = <0x83000000 0x0 0xfa000000 0x0 0xfa000000 0x0 0x600000
+                0x81000000 0x0 0xfa600000 0x0 0xfa600000 0x0 0x100000>;
+            num-lanes = <4>;
+            msi-map = <0x0 &its 0x0 0x1000>;
+            reg = <0x0 0xf8000000 0x0 0x2000000>, <0x0 0xfd000000 0x0 0x1000000>;
+            reg-names = "axi-base", "apb-base";
+            resets = <&cru SRST_PCIE_CORE>, <&cru SRST_PCIE_MGMT>,
+              <&cru SRST_PCIE_MGMT_STICKY>, <&cru SRST_PCIE_PIPE> ,
+              <&cru SRST_PCIE_PM>, <&cru SRST_P_PCIE>, <&cru SRST_A_PCIE>;
+            reset-names = "core", "mgmt", "mgmt-sticky", "pipe",
+                    "pm", "pclk", "aclk";
+            /* deprecated legacy PHY model */
+            phys = <&pcie_phy>;
+            phy-names = "pcie-phy";
+            pinctrl-names = "default";
+            pinctrl-0 = <&pcie_clkreq>;
+            #interrupt-cells = <1>;
+            interrupt-map-mask = <0 0 0 7>;
+            interrupt-map = <0 0 0 1 &pcie0_intc 0>,
+                <0 0 0 2 &pcie0_intc 1>,
+                <0 0 0 3 &pcie0_intc 2>,
+                <0 0 0 4 &pcie0_intc 3>;
+
+            pcie0_intc: interrupt-controller {
+                interrupt-controller;
+                #address-cells = <0>;
+                #interrupt-cells = <1>;
+            };
+        };
+    };
+...

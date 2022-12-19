@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/rockchip,rk3399-pcie-ep.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip AXI PCIe Endpoint
+
+maintainers:
+  - Shawn Lin <shawn.lin@rock-chips.com>
+
+allOf:
+  - $ref: /schemas/pci/pci-ep.yaml#
+  - $ref: rockchip,rk3399-pcie-common.yaml#
+
+properties:
+  compatible:
+    const: rockchip,rk3399-pcie-ep
+
+  reg: true
+
+  reg-names:
+    items:
+      - const: apb-base
+      - const: mem-base
+
+  rockchip,max-outbound-regions:
+    description: Maximum number of outbound regions
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 32
+    default: 32
+
+required:
+  - rockchip,max-outbound-regions
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/clock/rk3399-cru.h>
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        pcie-ep@f8000000 {
+            compatible = "rockchip,rk3399-pcie-ep";
+            reg = <0x0 0xfd000000 0x0 0x1000000>, <0x0 0x80000000 0x0 0x20000>;
+            reg-names = "apb-base", "mem-base";
+            clocks = <&cru ACLK_PCIE>, <&cru ACLK_PERF_PCIE>,
+              <&cru PCLK_PCIE>, <&cru SCLK_PCIE_PM>;
+            clock-names = "aclk", "aclk-perf",
+                    "hclk", "pm";
+            max-functions = /bits/ 8 <8>;
+            num-lanes = <4>;
+            resets = <&cru SRST_PCIE_CORE>, <&cru SRST_PCIE_MGMT>,
+              <&cru SRST_PCIE_MGMT_STICKY>, <&cru SRST_PCIE_PIPE> ,
+              <&cru SRST_PCIE_PM>, <&cru SRST_P_PCIE>, <&cru SRST_A_PCIE>;
+            reset-names = "core", "mgmt", "mgmt-sticky", "pipe",
+                    "pm", "pclk", "aclk";
+            phys = <&pcie_phy 0>, <&pcie_phy 1>, <&pcie_phy 2>, <&pcie_phy 3>;
+            phy-names = "pcie-phy-0", "pcie-phy-1", "pcie-phy-2", "pcie-phy-3";
+            rockchip,max-outbound-regions = <16>;
+        };
+    };
+...
