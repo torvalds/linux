@@ -382,6 +382,19 @@ badframe:
 }
 #endif /* CONFIG_X86_X32_ABI */
 
+#ifdef CONFIG_COMPAT
+void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oact)
+{
+	if (!act)
+		return;
+
+	if (in_ia32_syscall())
+		act->sa.sa_flags |= SA_IA32_ABI;
+	if (in_x32_syscall())
+		act->sa.sa_flags |= SA_X32_ABI;
+}
+#endif /* CONFIG_COMPAT */
+
 /*
 * If adding a new si_code, there is probably new data in
 * the siginfo.  Make sure folks bumping the si_code
