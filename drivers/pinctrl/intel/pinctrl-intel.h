@@ -46,11 +46,13 @@ struct intel_function {
 	size_t ngroups;
 };
 
+#define INTEL_PINCTRL_MAX_GPP_SIZE	32
+
 /**
  * struct intel_padgroup - Hardware pad group information
  * @reg_num: GPI_IS register number
  * @base: Starting pin of this group
- * @size: Size of this group (maximum is 32).
+ * @size: Size of this group (maximum is %INTEL_PINCTRL_MAX_GPP_SIZE).
  * @gpio_base: Starting GPIO base of this group
  * @padown_num: PAD_OWN register number (assigned by the core driver)
  *
