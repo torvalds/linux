@@ -42,6 +42,7 @@ const unsigned int amdgpu_ctx_num_entities[AMDGPU_HW_IP_NUM] = {
 	[AMDGPU_HW_IP_VCN_DEC]	=	1,
 	[AMDGPU_HW_IP_VCN_ENC]	=	1,
 	[AMDGPU_HW_IP_VCN_JPEG]	=	1,
+	[AMDGPU_HW_IP_VPE]	=	1,
 };
 
 bool amdgpu_ctx_priority_is_valid(int32_t ctx_prio)
