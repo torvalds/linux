@@ -303,6 +303,7 @@
   clk_notifier_unregister
   clk_prepare
   clk_put
+  clk_register
   clk_round_rate
   clk_set_parent
   clk_set_rate
@@ -449,6 +450,7 @@
   debugfs_create_dir
   debugfs_create_file
   debugfs_create_file_unsafe
+  debugfs_create_symlink
   debugfs_create_u16
   debugfs_create_u32
   debugfs_create_u64
@@ -620,6 +622,7 @@
   devm_thermal_of_cooling_device_register
   devm_thermal_of_zone_register
   devm_usb_get_phy_by_node
+  devm_usb_get_phy_by_phandle
   _dev_notice
   dev_pm_clear_wake_irq
   dev_pm_domain_attach
@@ -875,6 +878,7 @@
   drm_gem_put_pages
   drm_gem_vm_close
   drm_gem_vm_open
+  drm_get_connector_status_name
   drm_get_edid
   drm_get_format_info
   drm_helper_hpd_irq_event
@@ -897,9 +901,11 @@
   drm_mode_convert_umode
   drm_mode_copy
   drm_mode_create
+  drm_mode_create_dp_colorspace_property
   drm_mode_debug_printmodeline
   drm_mode_duplicate
   drm_mode_equal
+  drm_mode_is_420_only
   drm_mode_match
   drm_mode_object_find
   drm_mode_object_get
@@ -911,9 +917,12 @@
   drm_mode_set_crtcinfo
   drm_modeset_drop_locks
   drm_modeset_lock
+  drm_modeset_lock_all
   drm_modeset_lock_all_ctx
   drm_modeset_lock_single_interruptible
+  drm_mode_set_name
   drm_modeset_unlock
+  drm_modeset_unlock_all
   drm_mode_vrefresh
   drm_object_attach_property
   drm_object_property_set_value
