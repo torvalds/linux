@@ -706,7 +706,6 @@ static int dc_init(struct device *dev)
 
 	dc->init_finished = false;
 
-	ret = clk_set_parent(dc->vout_top_lcd, dc->dc8200_clk_pix1_out);
 /*
 	ret = clk_prepare_enable(dc->vout_top_lcd);
 	if (ret) {
