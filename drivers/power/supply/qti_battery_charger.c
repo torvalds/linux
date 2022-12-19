@@ -981,6 +981,8 @@ static const char *get_usb_type_name(u32 usb_type)
 	return "Unknown";
 }
 
+#define CDP_MAX_ICL_UA 1500000
+
 static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 {
 	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_USB];
@@ -993,10 +995,18 @@ static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 		return rc;
 	}
 
-	/* Allow this only for SDP or USB_PD and not for other charger types */
-	if (pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_SDP &&
-	    pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_PD)
+	/* Allow this only for SDP, CDP or USB_PD and not for other charger types */
+	switch (pst->prop[USB_ADAP_TYPE]) {
+	case POWER_SUPPLY_USB_TYPE_SDP:
+	case POWER_SUPPLY_USB_TYPE_PD:
+		break;
+	case POWER_SUPPLY_USB_TYPE_CDP:
+		if (val == 0 || val == CDP_MAX_ICL_UA)
+			break;
+		fallthrough;
+	default:
 		return -EINVAL;
+	}
 
 	/*
 	 * Input current limit (ICL) can be set by different clients. E.g. USB
