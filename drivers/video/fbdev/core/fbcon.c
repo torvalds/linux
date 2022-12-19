@@ -26,7 +26,7 @@
  *
  *  Hardware cursor support added by Emmanuel Marty (core@ggi-project.org)
  *  Smart redraw scrolling, arbitrary font width support, 512char font support
- *  and software scrollback added by 
+ *  and software scrollback added by
  *                         Jakub Jelinek (jj@ultra.linux.cz)
  *
  *  Random hacking by Martin Mares <mj@ucw.cz>
@@ -127,7 +127,7 @@ static int logo_shown = FBCON_LOGO_CANSHOW;
 /* console mappings */
 static unsigned int first_fb_vc;
 static unsigned int last_fb_vc = MAX_NR_CONSOLES - 1;
-static int fbcon_is_default = 1; 
+static int fbcon_is_default = 1;
 static int primary_device = -1;
 static int fbcon_has_console_bind;
 
@@ -415,12 +415,12 @@ static int __init fb_console_setup(char *this_opt)
 			strscpy(fontname, options + 5, sizeof(fontname));
 			continue;
 		}
-		
+
 		if (!strncmp(options, "scrollback:", 11)) {
 			pr_warn("Ignoring scrollback size option\n");
 			continue;
 		}
-		
+
 		if (!strncmp(options, "map:", 4)) {
 			options += 4;
 			if (*options) {
@@ -446,7 +446,7 @@ static int __init fb_console_setup(char *this_opt)
 				last_fb_vc = simple_strtoul(options, &options, 10) - 1;
 			if (last_fb_vc < first_fb_vc || last_fb_vc >= MAX_NR_CONSOLES)
 				last_fb_vc = MAX_NR_CONSOLES - 1;
-			fbcon_is_default = 0; 
+			fbcon_is_default = 0;
 			continue;
 		}
 
@@ -940,7 +940,7 @@ static const char *fbcon_startup(void)
 	info = fbcon_registered_fb[info_idx];
 	if (!info)
 		return NULL;
-	
+
 	if (fbcon_open(info))
 		return NULL;
 
@@ -1999,7 +1999,7 @@ static void updatescrollmode(struct fbcon_display *p,
 #define PITCH(w) (((w) + 7) >> 3)
 #define CALC_FONTSZ(h, p, c) ((h) * (p) * (c)) /* size = height * pitch * charcount */
 
-static int fbcon_resize(struct vc_data *vc, unsigned int width, 
+static int fbcon_resize(struct vc_data *vc, unsigned int width,
 			unsigned int height, unsigned int user)
 {
 	struct fb_info *info = fbcon_info_from_console(vc->vc_num);
@@ -2174,7 +2174,7 @@ static int fbcon_switch(struct vc_data *vc)
 	    ops->update_start(info);
 	}
 
-	fbcon_set_palette(vc, color_table); 	
+	fbcon_set_palette(vc, color_table);
 	fbcon_clear_margins(vc, 0);
 
 	if (logo_shown == FBCON_LOGO_DRAW) {
@@ -2343,7 +2343,7 @@ static void set_vc_hi_font(struct vc_data *vc, bool set)
 			vc->vc_complement_mask >>= 1;
 			vc->vc_s_complement_mask >>= 1;
 		}
-			
+
 		/* ++Edmund: reorder the attribute bits */
 		if (vc->vc_can_do_color) {
 			unsigned short *cp =
@@ -2366,7 +2366,7 @@ static void set_vc_hi_font(struct vc_data *vc, bool set)
 			vc->vc_complement_mask <<= 1;
 			vc->vc_s_complement_mask <<= 1;
 		}
-			
+
 		/* ++Edmund: reorder the attribute bits */
 		{
 			unsigned short *cp =
@@ -2527,7 +2527,7 @@ static int fbcon_set_font(struct vc_data *vc, struct console_font *font,
 	/* Check if the same font is on some other console already */
 	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		struct vc_data *tmp = vc_cons[i].d;
-		
+
 		if (fb_display[i].userfont &&
 		    fb_display[i].fontdata &&
 		    FNTSUM(fb_display[i].fontdata) == csum &&
@@ -3435,5 +3435,5 @@ void __exit fb_console_exit(void)
 
 	do_unregister_con_driver(&fb_con);
 	console_unlock();
-}	
+}
 #endif
