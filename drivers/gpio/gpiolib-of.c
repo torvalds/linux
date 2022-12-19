@@ -418,52 +418,6 @@ static unsigned long of_convert_gpio_flags(enum of_gpio_flags flags)
 	return lflags;
 }
 
-/**
- * gpiod_get_from_of_node() - obtain a GPIO from an OF node
- * @node:	handle of the OF node
- * @propname:	name of the DT property representing the GPIO
- * @index:	index of the GPIO to obtain for the consumer
- * @dflags:	GPIO initialization flags
- * @label:	label to attach to the requested GPIO
- *
- * Returns:
- * On successful request the GPIO pin is configured in accordance with
- * provided @dflags.
- *
- * In case of error an ERR_PTR() is returned.
- */
-struct gpio_desc *gpiod_get_from_of_node(const struct device_node *node,
-					 const char *propname, int index,
-					 enum gpiod_flags dflags,
-					 const char *label)
-{
-	unsigned long lflags;
-	struct gpio_desc *desc;
-	enum of_gpio_flags of_flags;
-	int ret;
-
-	desc = of_get_named_gpiod_flags(node, propname, index, &of_flags);
-	if (!desc || IS_ERR(desc))
-		return desc;
-
-	ret = gpiod_request(desc, label);
-	if (ret == -EBUSY && (dflags & GPIOD_FLAGS_BIT_NONEXCLUSIVE))
-		return desc;
-	if (ret)
-		return ERR_PTR(ret);
-
-	lflags = of_convert_gpio_flags(of_flags);
-
-	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
-	if (ret < 0) {
-		gpiod_put(desc);
-		return ERR_PTR(ret);
-	}
-
-	return desc;
-}
-EXPORT_SYMBOL_GPL(gpiod_get_from_of_node);
-
 static struct gpio_desc *of_find_gpio_rename(struct device_node *np,
 					     const char *con_id,
 					     unsigned int idx,
