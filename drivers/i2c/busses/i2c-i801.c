@@ -727,6 +727,11 @@ exit:
 	return i801_check_post(priv, status);
 }
 
+static void i801_set_hstadd(struct i801_priv *priv, u8 addr, char read_write)
+{
+	outb_p((addr << 1) | (read_write & 0x01), SMBHSTADD(priv));
+}
+
 /* Block transaction function */
 static int i801_block_transaction(struct i801_priv *priv, union i2c_smbus_data *data,
 				  char read_write, int command)
@@ -797,28 +802,24 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 
 	switch (size) {
 	case I2C_SMBUS_QUICK:
-		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
-		       SMBHSTADD(priv));
+		i801_set_hstadd(priv, addr, read_write);
 		xact = I801_QUICK;
 		break;
 	case I2C_SMBUS_BYTE:
-		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
-		       SMBHSTADD(priv));
+		i801_set_hstadd(priv, addr, read_write);
 		if (read_write == I2C_SMBUS_WRITE)
 			outb_p(command, SMBHSTCMD(priv));
 		xact = I801_BYTE;
 		break;
 	case I2C_SMBUS_BYTE_DATA:
-		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
-		       SMBHSTADD(priv));
+		i801_set_hstadd(priv, addr, read_write);
 		outb_p(command, SMBHSTCMD(priv));
 		if (read_write == I2C_SMBUS_WRITE)
 			outb_p(data->byte, SMBHSTDAT0(priv));
 		xact = I801_BYTE_DATA;
 		break;
 	case I2C_SMBUS_WORD_DATA:
-		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
-		       SMBHSTADD(priv));
+		i801_set_hstadd(priv, addr, read_write);
 		outb_p(command, SMBHSTCMD(priv));
 		if (read_write == I2C_SMBUS_WRITE) {
 			outb_p(data->word & 0xff, SMBHSTDAT0(priv));
@@ -827,7 +828,7 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		xact = I801_WORD_DATA;
 		break;
 	case I2C_SMBUS_PROC_CALL:
-		outb_p((addr & 0x7f) << 1, SMBHSTADD(priv));
+		i801_set_hstadd(priv, addr, I2C_SMBUS_WRITE);
 		outb_p(command, SMBHSTCMD(priv));
 		outb_p(data->word & 0xff, SMBHSTDAT0(priv));
 		outb_p((data->word & 0xff00) >> 8, SMBHSTDAT1(priv));
@@ -835,8 +836,7 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		read_write = I2C_SMBUS_READ;
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
-		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
-		       SMBHSTADD(priv));
+		i801_set_hstadd(priv, addr, read_write);
 		outb_p(command, SMBHSTCMD(priv));
 		block = 1;
 		break;
@@ -847,10 +847,9 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		 * However if SPD Write Disable is set (Lynx Point and later),
 		 * the read will fail if we don't set the R/#W bit.
 		 */
-		outb_p(((addr & 0x7f) << 1) |
-		       ((priv->original_hstcfg & SMBHSTCFG_SPD_WD) ?
-			(read_write & 0x01) : 0),
-		       SMBHSTADD(priv));
+		i801_set_hstadd(priv, addr,
+				priv->original_hstcfg & SMBHSTCFG_SPD_WD ?
+				read_write : I2C_SMBUS_WRITE);
 		if (read_write == I2C_SMBUS_READ) {
 			/* NB: page 240 of ICH5 datasheet also shows
 			 * that DATA1 is the cmd field when reading */
@@ -860,11 +859,8 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		block = 1;
 		break;
 	case I2C_SMBUS_BLOCK_PROC_CALL:
-		/*
-		 * Bit 0 of the slave address register always indicate a write
-		 * command.
-		 */
-		outb_p((addr & 0x7f) << 1, SMBHSTADD(priv));
+		/* Needs to be flagged as write transaction */
+		i801_set_hstadd(priv, addr, I2C_SMBUS_WRITE);
 		outb_p(command, SMBHSTCMD(priv));
 		block = 1;
 		break;
