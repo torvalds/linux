@@ -1437,30 +1437,30 @@ static void sort_result(void)
 	}
 }
 
-static const char *get_type_str(struct lock_stat *st)
-{
-	static const struct {
-		unsigned int flags;
-		const char *name;
-	} table[] = {
-		{ 0,				"semaphore" },
-		{ LCB_F_SPIN,			"spinlock" },
-		{ LCB_F_SPIN | LCB_F_READ,	"rwlock:R" },
-		{ LCB_F_SPIN | LCB_F_WRITE,	"rwlock:W"},
-		{ LCB_F_READ,			"rwsem:R" },
-		{ LCB_F_WRITE,			"rwsem:W" },
-		{ LCB_F_RT,			"rtmutex" },
-		{ LCB_F_RT | LCB_F_READ,	"rwlock-rt:R" },
-		{ LCB_F_RT | LCB_F_WRITE,	"rwlock-rt:W"},
-		{ LCB_F_PERCPU | LCB_F_READ,	"pcpu-sem:R" },
-		{ LCB_F_PERCPU | LCB_F_WRITE,	"pcpu-sem:W" },
-		{ LCB_F_MUTEX,			"mutex" },
-		{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex" },
-	};
+static const struct {
+	unsigned int flags;
+	const char *name;
+} lock_type_table[] = {
+	{ 0,				"semaphore" },
+	{ LCB_F_SPIN,			"spinlock" },
+	{ LCB_F_SPIN | LCB_F_READ,	"rwlock:R" },
+	{ LCB_F_SPIN | LCB_F_WRITE,	"rwlock:W"},
+	{ LCB_F_READ,			"rwsem:R" },
+	{ LCB_F_WRITE,			"rwsem:W" },
+	{ LCB_F_RT,			"rtmutex" },
+	{ LCB_F_RT | LCB_F_READ,	"rwlock-rt:R" },
+	{ LCB_F_RT | LCB_F_WRITE,	"rwlock-rt:W"},
+	{ LCB_F_PERCPU | LCB_F_READ,	"pcpu-sem:R" },
+	{ LCB_F_PERCPU | LCB_F_WRITE,	"pcpu-sem:W" },
+	{ LCB_F_MUTEX,			"mutex" },
+	{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex" },
+};
 
-	for (unsigned int i = 0; i < ARRAY_SIZE(table); i++) {
-		if (table[i].flags == st->flags)
-			return table[i].name;
+static const char *get_type_str(unsigned int flags)
+{
+	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
+		if (lock_type_table[i].flags == flags)
+			return lock_type_table[i].name;
 	}
 	return "unknown";
 }
@@ -1514,7 +1514,7 @@ static void print_contention_result(struct lock_contention *con)
 
 		switch (aggr_mode) {
 		case LOCK_AGGR_CALLER:
-			pr_info("  %10s   %s\n", get_type_str(st), st->name);
+			pr_info("  %10s   %s\n", get_type_str(st->flags), st->name);
 			break;
 		case LOCK_AGGR_TASK:
 			pid = st->addr;
