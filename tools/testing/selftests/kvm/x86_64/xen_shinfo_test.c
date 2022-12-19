@@ -426,7 +426,7 @@ static void *juggle_shinfo_state(void *arg)
 		__vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &cache_init);
 		__vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &cache_destroy);
 		pthread_testcancel();
-	};
+	}
 
 	return NULL;
 }
