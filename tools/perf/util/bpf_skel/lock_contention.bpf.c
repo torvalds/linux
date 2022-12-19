@@ -69,11 +69,19 @@ struct {
 	__uint(max_entries, 1);
 } type_filter SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(__u64));
+	__uint(value_size, sizeof(__u8));
+	__uint(max_entries, 1);
+} addr_filter SEC(".maps");
+
 /* control flags */
 int enabled;
 int has_cpu;
 int has_task;
 int has_type;
+int has_addr;
 int stack_skip;
 
 /* determine the key of lock stat */
@@ -107,6 +115,15 @@ static inline int can_record(u64 *ctx)
 		__u32 flags = (__u32)ctx[1];
 
 		ok = bpf_map_lookup_elem(&type_filter, &flags);
+		if (!ok)
+			return 0;
+	}
+
+	if (has_addr) {
+		__u8 *ok;
+		__u64 addr = ctx[0];
+
+		ok = bpf_map_lookup_elem(&addr_filter, &addr);
 		if (!ok)
 			return 0;
 	}
