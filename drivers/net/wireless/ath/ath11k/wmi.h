@@ -2311,6 +2311,7 @@ struct wmi_init_cmd {
 } __packed;
 
 #define WMI_RSRC_CFG_FLAG1_BSS_CHANNEL_INFO_64 BIT(5)
+#define WMI_RSRC_CFG_FLAG1_ACK_RSSI BIT(18)
 
 struct wmi_resource_config {
 	u32 tlv_header;
@@ -4550,6 +4551,8 @@ struct wmi_mgmt_tx_compl_event {
 	u32 desc_id;
 	u32 status;
 	u32 pdev_id;
+	u32 ppdu_id;
+	u32 ack_rssi;
 } __packed;
 
 struct wmi_scan_event {
