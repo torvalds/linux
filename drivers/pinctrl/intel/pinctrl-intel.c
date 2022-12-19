@@ -81,8 +81,11 @@
 #define PADCFG1_TERM_MASK		GENMASK(12, 10)
 #define PADCFG1_TERM_20K		BIT(2)
 #define PADCFG1_TERM_5K			BIT(1)
+#define PADCFG1_TERM_4K			(BIT(2) | BIT(1))
 #define PADCFG1_TERM_1K			BIT(0)
+#define PADCFG1_TERM_952		(BIT(2) | BIT(0))
 #define PADCFG1_TERM_833		(BIT(1) | BIT(0))
+#define PADCFG1_TERM_800		(BIT(2) | BIT(1) | BIT(0))
 
 #define PADCFG2				0x008
 #define PADCFG2_DEBEN			BIT(0)
