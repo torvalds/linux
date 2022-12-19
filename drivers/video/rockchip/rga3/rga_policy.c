@@ -118,6 +118,12 @@ static bool rga_check_src0(const struct rga_hw_data *data,
 	if (!rga_check_resolution(&data->input_range, src0->act_w, src0->act_h))
 		return false;
 
+	if (data == &rga3_data &&
+	    !rga_check_resolution(&data->input_range,
+				  src0->act_w + src0->x_offset,
+				  src0->act_h + src0->y_offset))
+		return false;
+
 	if (!rga_check_format(data, src0->rd_mode, src0->format, 0))
 		return false;
 
@@ -133,6 +139,12 @@ static bool rga_check_src1(const struct rga_hw_data *data,
 	if (!rga_check_resolution(&data->input_range, src1->act_w, src1->act_h))
 		return false;
 
+	if (data == &rga3_data &&
+	    !rga_check_resolution(&data->input_range,
+				  src1->act_w + src1->x_offset,
+				  src1->act_h + src1->y_offset))
+		return false;
+
 	if (!rga_check_format(data, src1->rd_mode, src1->format, 1))
 		return false;
 
@@ -146,6 +158,12 @@ static bool rga_check_dst(const struct rga_hw_data *data,
 			 struct rga_img_info_t *dst)
 {
 	if (!rga_check_resolution(&data->output_range, dst->act_w, dst->act_h))
+		return false;
+
+	if (data == &rga3_data &&
+	    !rga_check_resolution(&data->output_range,
+				  dst->act_w + dst->x_offset,
+				  dst->act_h + dst->y_offset))
 		return false;
 
 	if (!rga_check_format(data, dst->rd_mode, dst->format, 2))
