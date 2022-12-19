@@ -40,6 +40,7 @@
 #include <linux/bits.h>
 #include <linux/sched/prio.h>
 #include <linux/seq_buf.h>
+#include <linux/debugfs.h>
 
 #include <asm/memory.h>
 
@@ -96,6 +97,7 @@ static bool is_vmap_stack __read_mostly;
 #ifdef CONFIG_QCOM_MINIDUMP_FTRACE
 #include <trace/hooks/ftrace_dump.h>
 #include <linux/ring_buffer.h>
+#include <linux/trace_seq.h>
 
 #define MD_FTRACE_BUF_SIZE	SZ_2M
 
@@ -116,7 +118,7 @@ static bool minidump_ftrace_dump = true;
 static bool md_in_oops_handler;
 static atomic_t md_handle_done;
 static struct seq_buf *md_runq_seq_buf;
-static md_align_offset;
+static int md_align_offset;
 
 /* CPU context information */
 #ifdef CONFIG_QCOM_MINIDUMP_PANIC_CPU_CONTEXT
@@ -390,7 +392,8 @@ static void update_md_cpu_stack(struct task_struct *tsk, u32 cpu, u64 sp)
 }
 
 void md_current_stack_notifer(void *ignore, bool preempt,
-		struct task_struct *prev, struct task_struct *next)
+		struct task_struct *prev, struct task_struct *next,
+		unsigned int prev_state)
 {
 	u32 cpu = task_cpu(next);
 	u64 sp = (u64)next->stack;
