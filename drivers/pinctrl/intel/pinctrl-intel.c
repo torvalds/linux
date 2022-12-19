@@ -1215,13 +1215,8 @@ static int intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
 		/* Only interrupts that are enabled */
 		pending &= enabled;
 
-		for_each_set_bit(gpp_offset, &pending, padgrp->size) {
-			unsigned int irq;
-
-			irq = irq_find_mapping(gc->irq.domain,
-					       padgrp->gpio_base + gpp_offset);
-			generic_handle_irq(irq);
-		}
+		for_each_set_bit(gpp_offset, &pending, padgrp->size)
+			generic_handle_domain_irq(gc->irq.domain, padgrp->gpio_base + gpp_offset);
 
 		ret += pending ? 1 : 0;
 	}
