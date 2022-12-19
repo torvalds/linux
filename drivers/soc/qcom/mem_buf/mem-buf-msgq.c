@@ -69,6 +69,7 @@ static size_t mem_buf_get_mem_type_alloc_req_size(enum mem_buf_mem_type type)
 {
 	if (type == MEM_BUF_DMAHEAP_MEM_TYPE)
 		return MEM_BUF_MAX_DMAHEAP_NAME_LEN;
+	/* Do nothing for MEM_BUF_BUDDY_MEM_TYPE */
 
 	return 0;
 }
@@ -78,6 +79,7 @@ static void mem_buf_populate_alloc_req_arb_payload(void *dst, void *src,
 {
 	if (type == MEM_BUF_DMAHEAP_MEM_TYPE)
 		strscpy(dst, src, MEM_BUF_MAX_DMAHEAP_NAME_LEN);
+	/* Do nothing for MEM_BUF_BUDDY_MEM_TYPE */
 }
 
 /*
