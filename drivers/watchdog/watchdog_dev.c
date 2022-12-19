@@ -547,6 +547,15 @@ static ssize_t pretimeout_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(pretimeout);
 
+static ssize_t fw_version_show(struct device *dev, struct device_attribute *attr,
+			       char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", wdd->info->firmware_version);
+}
+static DEVICE_ATTR_RO(fw_version);
+
 static ssize_t identity_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {
@@ -618,6 +627,7 @@ static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
 }
 static struct attribute *wdt_attrs[] = {
 	&dev_attr_state.attr,
+	&dev_attr_fw_version.attr,
 	&dev_attr_identity.attr,
 	&dev_attr_timeout.attr,
 	&dev_attr_min_timeout.attr,
