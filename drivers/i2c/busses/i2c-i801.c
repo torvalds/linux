@@ -558,9 +558,6 @@ static void i801_isr_byte_done(struct i801_priv *priv)
 		/* Write next byte, except for IRQ after last byte */
 		outb_p(priv->data[++priv->count], SMBBLKDAT(priv));
 	}
-
-	/* Clear BYTE_DONE to continue with next byte */
-	outb_p(SMBHSTSTS_BYTE_DONE, SMBHSTSTS(priv));
 }
 
 static irqreturn_t i801_host_notify_isr(struct i801_priv *priv)
@@ -590,7 +587,6 @@ static irqreturn_t i801_host_notify_isr(struct i801_priv *priv)
  *      BUS_ERR - SMI# transaction collision
  *      FAILED - transaction was canceled due to a KILL request
  *    When any of these occur, update ->status and signal completion.
- *    ->status must be cleared before kicking off the next transaction.
  *
  * 2) For byte-by-byte (I2C read/write) transactions, one BYTE_DONE interrupt
  *    occurs for each byte of a byte-by-byte to prepare the next byte.
@@ -615,23 +611,18 @@ static irqreturn_t i801_isr(int irq, void *dev_id)
 	}
 
 	status = inb_p(SMBHSTSTS(priv));
-	if (status & SMBHSTSTS_BYTE_DONE)
+	if ((status & (SMBHSTSTS_BYTE_DONE | STATUS_ERROR_FLAGS)) == SMBHSTSTS_BYTE_DONE)
 		i801_isr_byte_done(priv);
 
 	/*
-	 * Clear remaining IRQ sources: Completion of last command, errors
-	 * and the SMB_ALERT signal. SMB_ALERT status is set after signal
-	 * assertion independently of the interrupt generation being blocked
-	 * or not so clear it always when the status is set.
+	 * Clear IRQ sources: SMB_ALERT status is set after signal assertion
+	 * independently of the interrupt generation being blocked or not
+	 * so clear it always when the status is set.
 	 */
-	status &= SMBHSTSTS_INTR | STATUS_ERROR_FLAGS | SMBHSTSTS_SMBALERT_STS;
-	if (status)
-		outb_p(status, SMBHSTSTS(priv));
-	status &= ~SMBHSTSTS_SMBALERT_STS; /* SMB_ALERT not reported */
-	/*
-	 * Report transaction result.
-	 * ->status must be cleared before the next transaction is started.
-	 */
+	status &= STATUS_FLAGS | SMBHSTSTS_SMBALERT_STS;
+	outb_p(status, SMBHSTSTS(priv));
+
+	status &= STATUS_ERROR_FLAGS | SMBHSTSTS_INTR;
 	if (status) {
 		priv->status = status;
 		complete(&priv->done);
