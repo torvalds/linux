@@ -318,7 +318,7 @@ static int vop2_clk_init(struct vop2 *vop2)
 
 	INIT_LIST_HEAD(&vop2->clk_list_head);
 
-	if (vop2->version < VOP_VERSION_RK3588)
+	if (vop2->version != VOP_VERSION_RK3588)
 		return 0;
 
 	list_for_each_entry_safe(clk, n, &vop2->clk_list_head, list) {
