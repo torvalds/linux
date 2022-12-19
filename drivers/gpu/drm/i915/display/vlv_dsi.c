@@ -649,23 +649,17 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder,
 	enum port port;
 
 	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
-		u32 temp;
+		u32 temp = intel_dsi->pixel_overlap;
+
 		if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
-			for_each_dsi_port(port, intel_dsi->ports) {
-				temp = intel_de_read(dev_priv,
-						     MIPI_CTRL(port));
-				temp &= ~BXT_PIXEL_OVERLAP_CNT_MASK |
-					intel_dsi->pixel_overlap <<
-					BXT_PIXEL_OVERLAP_CNT_SHIFT;
-				intel_de_write(dev_priv, MIPI_CTRL(port),
-					       temp);
-			}
+			for_each_dsi_port(port, intel_dsi->ports)
+				intel_de_rmw(dev_priv, MIPI_CTRL(port),
+					     BXT_PIXEL_OVERLAP_CNT_MASK,
+					     temp << BXT_PIXEL_OVERLAP_CNT_SHIFT);
 		} else {
-			temp = intel_de_read(dev_priv, VLV_CHICKEN_3);
-			temp &= ~PIXEL_OVERLAP_CNT_MASK |
-					intel_dsi->pixel_overlap <<
-					PIXEL_OVERLAP_CNT_SHIFT;
-			intel_de_write(dev_priv, VLV_CHICKEN_3, temp);
+			intel_de_rmw(dev_priv, VLV_CHICKEN_3,
+				     PIXEL_OVERLAP_CNT_MASK,
+				     temp << PIXEL_OVERLAP_CNT_SHIFT);
 		}
 	}
 
