@@ -14,11 +14,11 @@
 
 #include "pinctrl-intel.h"
 
-#define MTL_PAD_OWN	0x0b0
-#define MTL_PADCFGLOCK	0x110
-#define MTL_HOSTSW_OWN	0x140
-#define MTL_GPI_IS	0x200
-#define MTL_GPI_IE	0x210
+#define MTL_P_PAD_OWN		0x0b0
+#define MTL_P_PADCFGLOCK	0x110
+#define MTL_P_HOSTSW_OWN	0x140
+#define MTL_P_GPI_IS		0x200
+#define MTL_P_GPI_IE		0x210
 
 #define MTL_GPP(r, s, e, g)				\
 	{						\
@@ -29,18 +29,7 @@
 	}
 
 #define MTL_COMMUNITY(b, s, e, g)			\
-	{						\
-		.barno = (b),				\
-		.padown_offset = MTL_PAD_OWN,		\
-		.padcfglock_offset = MTL_PADCFGLOCK,	\
-		.hostown_offset = MTL_HOSTSW_OWN,	\
-		.is_offset = MTL_GPI_IS,		\
-		.ie_offset = MTL_GPI_IE,		\
-		.pin_base = (s),			\
-		.npins = ((e) - (s) + 1),		\
-		.gpps = (g),				\
-		.ngpps = ARRAY_SIZE(g),			\
-	}
+	INTEL_COMMUNITY_GPPS(b, s, e, g, MTL_P)
 
 /* Meteor Lake-P */
 static const struct pinctrl_pin_desc mtlp_pins[] = {
