@@ -455,7 +455,8 @@ static int gfx_v9_4_3_mec_init(struct amdgpu_device *adev)
 
 	/* take ownership of the relevant compute queues */
 	amdgpu_gfx_compute_queue_acquire(adev);
-	mec_hpd_size = adev->gfx.num_compute_rings * GFX9_MEC_HPD_SIZE;
+	mec_hpd_size =
+		adev->gfx.num_compute_rings * num_xcc * GFX9_MEC_HPD_SIZE;
 	if (mec_hpd_size) {
 		r = amdgpu_bo_create_reserved(adev, mec_hpd_size, PAGE_SIZE,
 					      AMDGPU_GEM_DOMAIN_VRAM,
