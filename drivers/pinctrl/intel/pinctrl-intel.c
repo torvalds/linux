@@ -758,6 +758,10 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 		}
 
 		break;
+
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
 	if (!ret)
