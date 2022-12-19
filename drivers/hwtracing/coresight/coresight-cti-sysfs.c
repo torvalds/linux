@@ -2,6 +2,8 @@
 /*
  * Copyright (c) 2019 Linaro Limited, All rights reserved.
  * Author: Mike Leach <mike.leach@linaro.org>
+ *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/atomic.h>
@@ -108,10 +110,17 @@ static ssize_t enable_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (val)
+	if (val) {
+		ret = pm_runtime_get_sync(dev->parent);
+		if (ret) {
+			pm_runtime_put_noidle(dev->parent);
+			return ret;
+		}
 		ret = cti_enable(drvdata->csdev);
-	else
+	} else {
 		ret = cti_disable(drvdata->csdev);
+		pm_runtime_put(dev->parent);
+	}
 	if (ret)
 		return ret;
 	return size;
