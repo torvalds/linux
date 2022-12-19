@@ -207,6 +207,18 @@ field name::
 As the kernel will have to know how to retrieve the memory that the pointer
 is at from user space.
 
+You can convert any long type to a function address and search by function name::
+
+  call_site.function == security_prepare_creds
+
+The above will filter when the field "call_site" falls on the address within
+"security_prepare_creds". That is, it will compare the value of "call_site" and
+the filter will return true if it is greater than or equal to the start of
+the function "security_prepare_creds" and less than the end of that function.
+
+The ".function" postfix can only be attached to values of size long, and can only
+be compared with "==" or "!=".
+
 5.2 Setting filters
 -------------------
 
