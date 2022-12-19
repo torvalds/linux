@@ -1523,6 +1523,14 @@ static int addend_mips_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
 #define R_RISCV_SUB32		39
 #endif
 
+#ifndef EM_LOONGARCH
+#define EM_LOONGARCH		258
+#endif
+
+#ifndef R_LARCH_SUB32
+#define R_LARCH_SUB32		55
+#endif
+
 static void section_rela(const char *modname, struct elf_info *elf,
 			 Elf_Shdr *sechdr)
 {
@@ -1562,6 +1570,11 @@ static void section_rela(const char *modname, struct elf_info *elf,
 		case EM_RISCV:
 			if (!strcmp("__ex_table", fromsec) &&
 			    ELF_R_TYPE(r.r_info) == R_RISCV_SUB32)
+				continue;
+			break;
+		case EM_LOONGARCH:
+			if (!strcmp("__ex_table", fromsec) &&
+			    ELF_R_TYPE(r.r_info) == R_LARCH_SUB32)
 				continue;
 			break;
 		}

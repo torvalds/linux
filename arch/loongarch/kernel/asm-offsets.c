@@ -68,6 +68,9 @@ void output_task_defines(void)
 	OFFSET(TASK_FLAGS, task_struct, flags);
 	OFFSET(TASK_MM, task_struct, mm);
 	OFFSET(TASK_PID, task_struct, pid);
+#if defined(CONFIG_STACKPROTECTOR)
+	OFFSET(TASK_STACK_CANARY, task_struct, stack_canary);
+#endif
 	DEFINE(TASK_STRUCT_SIZE, sizeof(struct task_struct));
 	BLANK();
 }
@@ -254,6 +257,18 @@ void output_smpboot_defines(void)
 	COMMENT("Linux smp cpu boot offsets.");
 	OFFSET(CPU_BOOT_STACK, secondary_data, stack);
 	OFFSET(CPU_BOOT_TINFO, secondary_data, thread_info);
+	BLANK();
+}
+#endif
+
+#ifdef CONFIG_HIBERNATION
+void output_pbe_defines(void)
+{
+	COMMENT(" Linux struct pbe offsets. ");
+	OFFSET(PBE_ADDRESS, pbe, address);
+	OFFSET(PBE_ORIG_ADDRESS, pbe, orig_address);
+	OFFSET(PBE_NEXT, pbe, next);
+	DEFINE(PBE_SIZE, sizeof(struct pbe));
 	BLANK();
 }
 #endif
