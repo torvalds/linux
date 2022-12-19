@@ -3817,7 +3817,7 @@ qla24xx_prlo_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 	logio->vp_index = sp->fcport->vha->vp_idx;
 }
 
-int qla_get_iocbs_resource(struct srb *sp)
+static int qla_get_iocbs_resource(struct srb *sp)
 {
 	bool get_exch;
 	bool push_it_through = false;
