@@ -21,6 +21,7 @@ config X86_PKG_TEMP_THERMAL
 	depends on X86_THERMAL_VECTOR
 	select THERMAL_GOV_USER_SPACE
 	select THERMAL_WRITABLE_TRIPS
+	select INTEL_TCC
 	default m
 	help
 	  Enable this to register CPU digital sensor for package temperature as
