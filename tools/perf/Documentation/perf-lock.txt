@@ -143,25 +143,25 @@ CONTENTION OPTIONS
         System-wide collection from all CPUs.
 
 -C::
---cpu::
+--cpu=<value>::
 	Collect samples only on the list of CPUs provided. Multiple CPUs can be
 	provided as a comma-separated list with no space: 0,1. Ranges of CPUs
 	are specified with -: 0-2.  Default is to monitor all CPUs.
 
 -p::
---pid=::
+--pid=<value>::
 	Record events on existing process ID (comma separated list).
 
---tid=::
+--tid=<value>::
         Record events on existing thread ID (comma separated list).
 
---map-nr-entries::
+--map-nr-entries=<value>::
 	Maximum number of BPF map entries (default: 10240).
 
---max-stack::
+--max-stack=<value>::
 	Maximum stack depth when collecting lock contention (default: 8).
 
---stack-skip
+--stack-skip=<value>::
 	Number of stack depth to skip when finding a lock caller (default: 3).
 
 -E::
@@ -171,6 +171,17 @@ CONTENTION OPTIONS
 -l::
 --lock-addr::
 	Show lock contention stat by address
+
+-Y::
+--type-filter=<value>::
+	Show lock contention only for given lock types (comma separated list).
+	Available values are:
+	  semaphore, spinlock, rwlock, rwlock:R, rwlock:W, rwsem, rwsem:R, rwsem:W,
+	  rtmutex, rwlock-rt, rwlock-rt:R, rwlock-rt:W, pcpu-sem, pcpu-sem:R, pcpu-sem:W,
+	  mutex
+
+	Note that RW-variant of locks have :R and :W suffix.  Names without the
+	suffix are shortcuts for the both variants.  Ex) rwsem = rwsem:R + rwsem:W.
 
 
 SEE ALSO

@@ -5,6 +5,11 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 
+struct lock_filter {
+	int			nr_types;
+	unsigned int		*types;
+};
+
 struct lock_stat {
 	struct hlist_node	hash_entry;
 	struct rb_node		rb;		/* used for sorting */

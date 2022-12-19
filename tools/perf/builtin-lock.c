@@ -63,6 +63,8 @@ static int max_stack_depth = CONTENTION_STACK_DEPTH;
 static int stack_skip = CONTENTION_STACK_SKIP;
 static int print_nr_entries = INT_MAX / 2;
 
+static struct lock_filter filters;
+
 static enum lock_aggr_mode aggr_mode = LOCK_AGGR_ADDR;
 
 static struct thread_stat *thread_stat_find(u32 tid)
@@ -990,8 +992,9 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
 	u64 addr = evsel__intval(evsel, sample, "lock_addr");
+	unsigned int flags = evsel__intval(evsel, sample, "flags");
 	u64 key;
-	int ret;
+	int i, ret;
 
 	ret = get_key_by_aggr_mode(&key, addr, evsel, sample);
 	if (ret < 0)
@@ -1001,7 +1004,6 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	if (!ls) {
 		char buf[128];
 		const char *name = "";
-		unsigned int flags = evsel__intval(evsel, sample, "flags");
 		struct machine *machine = &session->machines.host;
 		struct map *kmap;
 		struct symbol *sym;
@@ -1034,6 +1036,20 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 			if (ls->callstack == NULL)
 				return -ENOMEM;
 		}
+	}
+
+	if (filters.nr_types) {
+		bool found = false;
+
+		for (i = 0; i < filters.nr_types; i++) {
+			if (flags == filters.types[i]) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			return 0;
 	}
 
 	ts = thread_stat_findnew(sample->tid);
@@ -1454,6 +1470,8 @@ static const struct {
 	{ LCB_F_PERCPU | LCB_F_WRITE,	"pcpu-sem:W" },
 	{ LCB_F_MUTEX,			"mutex" },
 	{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex" },
+	/* alias for get_type_flag() */
+	{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex-spin" },
 };
 
 static const char *get_type_str(unsigned int flags)
@@ -1463,6 +1481,21 @@ static const char *get_type_str(unsigned int flags)
 			return lock_type_table[i].name;
 	}
 	return "unknown";
+}
+
+static unsigned int get_type_flag(const char *str)
+{
+	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
+		if (!strcmp(lock_type_table[i].name, str))
+			return lock_type_table[i].flags;
+	}
+	return UINT_MAX;
+}
+
+static void lock_filter_finish(void)
+{
+	zfree(&filters.types);
+	filters.nr_types = 0;
 }
 
 static void sort_contention_result(void)
@@ -1506,6 +1539,9 @@ static void print_contention_result(struct lock_contention *con)
 		total += use_bpf ? st->nr_contended : 1;
 		if (st->broken)
 			bad++;
+
+		if (!st->wait_time_total)
+			continue;
 
 		list_for_each_entry(key, &lock_keys, list) {
 			key->print(key, st);
@@ -1753,6 +1789,7 @@ static int __cmd_contention(int argc, const char **argv)
 	print_contention_result(&con);
 
 out_delete:
+	lock_filter_finish();
 	evlist__delete(con.evlist);
 	lock_contention_finish();
 	perf_session__delete(session);
@@ -1884,6 +1921,79 @@ static int parse_max_stack(const struct option *opt, const char *str,
 	return 0;
 }
 
+static bool add_lock_type(unsigned int flags)
+{
+	unsigned int *tmp;
+
+	tmp = realloc(filters.types, (filters.nr_types + 1) * sizeof(*filters.types));
+	if (tmp == NULL)
+		return false;
+
+	tmp[filters.nr_types++] = flags;
+	filters.types = tmp;
+	return true;
+}
+
+static int parse_lock_type(const struct option *opt __maybe_unused, const char *str,
+			   int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		unsigned int flags = get_type_flag(tok);
+
+		if (flags == -1U) {
+			char buf[32];
+
+			if (strchr(tok, ':'))
+			    continue;
+
+			/* try :R and :W suffixes for rwlock, rwsem, ... */
+			scnprintf(buf, sizeof(buf), "%s:R", tok);
+			flags = get_type_flag(buf);
+			if (flags != UINT_MAX) {
+				if (!add_lock_type(flags)) {
+					ret = -1;
+					break;
+				}
+			}
+
+			scnprintf(buf, sizeof(buf), "%s:W", tok);
+			flags = get_type_flag(buf);
+			if (flags != UINT_MAX) {
+				if (!add_lock_type(flags)) {
+					ret = -1;
+					break;
+				}
+			}
+			continue;
+		}
+
+		if (!add_lock_type(flags)) {
+			ret = -1;
+			break;
+		}
+
+		if (!strcmp(tok, "mutex")) {
+			flags = get_type_flag("mutex-spin");
+			if (flags != UINT_MAX) {
+				if (!add_lock_type(flags)) {
+					ret = -1;
+					break;
+				}
+			}
+		}
+	}
+
+	free(s);
+	return ret;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
@@ -1947,6 +2057,8 @@ int cmd_lock(int argc, const char **argv)
 		    "Default: " __stringify(CONTENTION_STACK_SKIP)),
 	OPT_INTEGER('E', "entries", &print_nr_entries, "display this many functions"),
 	OPT_BOOLEAN('l', "lock-addr", &show_lock_addrs, "show lock stats by address"),
+	OPT_CALLBACK('Y', "type-filter", NULL, "FLAGS",
+		     "Filter specific type of locks", parse_lock_type),
 	OPT_PARENT(lock_options)
 	};
 
