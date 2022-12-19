@@ -19,7 +19,8 @@ bool __rxrpc_set_call_completion(struct rxrpc_call *call,
 		call->abort_code = abort_code;
 		call->error = error;
 		call->completion = compl;
-		call->state = RXRPC_CALL_COMPLETE;
+		/* Allow reader of completion state to operate locklessly */
+		smp_store_release(&call->state, RXRPC_CALL_COMPLETE);
 		trace_rxrpc_call_complete(call);
 		wake_up(&call->waitq);
 		rxrpc_notify_socket(call);

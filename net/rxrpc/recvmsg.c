@@ -89,7 +89,7 @@ static int rxrpc_recvmsg_term(struct rxrpc_call *call, struct msghdr *msg)
 		ret = put_cmsg(msg, SOL_RXRPC, RXRPC_LOCAL_ERROR, 4, &tmp);
 		break;
 	default:
-		pr_err("Invalid terminal call state %u\n", call->state);
+		pr_err("Invalid terminal call state %u\n", call->completion);
 		BUG();
 		break;
 	}
@@ -111,7 +111,7 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 
 	trace_rxrpc_receive(call, rxrpc_receive_end, 0, whigh);
 
-	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY)
+	if (rxrpc_call_state(call) == RXRPC_CALL_CLIENT_RECV_REPLY)
 		rxrpc_propose_delay_ACK(call, serial, rxrpc_propose_ack_terminal_ack);
 
 	write_lock(&call->state_lock);
@@ -210,7 +210,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	rx_pkt_offset = call->rx_pkt_offset;
 	rx_pkt_len = call->rx_pkt_len;
 
-	if (call->state >= RXRPC_CALL_SERVER_ACK_REQUEST) {
+	if (rxrpc_call_state(call) >= RXRPC_CALL_SERVER_ACK_REQUEST) {
 		seq = lower_32_bits(atomic64_read(&call->ackr_window)) - 1;
 		ret = 1;
 		goto done;
@@ -416,7 +416,7 @@ try_again:
 		msg->msg_namelen = len;
 	}
 
-	switch (READ_ONCE(call->state)) {
+	switch (rxrpc_call_state(call)) {
 	case RXRPC_CALL_CLIENT_RECV_REPLY:
 	case RXRPC_CALL_SERVER_RECV_REQUEST:
 	case RXRPC_CALL_SERVER_ACK_REQUEST:
@@ -436,7 +436,7 @@ try_again:
 	if (ret < 0)
 		goto error_unlock_call;
 
-	if (call->state == RXRPC_CALL_COMPLETE) {
+	if (rxrpc_call_is_complete(call)) {
 		ret = rxrpc_recvmsg_term(call, msg);
 		if (ret < 0)
 			goto error_unlock_call;
@@ -516,7 +516,7 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 
 	mutex_lock(&call->user_mutex);
 
-	switch (READ_ONCE(call->state)) {
+	switch (rxrpc_call_state(call)) {
 	case RXRPC_CALL_CLIENT_RECV_REPLY:
 	case RXRPC_CALL_SERVER_RECV_REQUEST:
 	case RXRPC_CALL_SERVER_ACK_REQUEST:

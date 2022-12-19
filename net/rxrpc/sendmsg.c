@@ -25,7 +25,7 @@ bool rxrpc_propose_abort(struct rxrpc_call *call, s32 abort_code, int error,
 {
 	_enter("{%d},%d,%d,%u", call->debug_id, abort_code, error, why);
 
-	if (!call->send_abort && call->state < RXRPC_CALL_COMPLETE) {
+	if (!call->send_abort && !rxrpc_call_is_complete(call)) {
 		call->send_abort_why = why;
 		call->send_abort_err = error;
 		call->send_abort_seq = 0;
@@ -60,7 +60,7 @@ static int rxrpc_wait_for_tx_window_intr(struct rxrpc_sock *rx,
 		if (rxrpc_check_tx_space(call, NULL))
 			return 0;
 
-		if (call->state >= RXRPC_CALL_COMPLETE)
+		if (rxrpc_call_is_complete(call))
 			return call->error;
 
 		if (signal_pending(current))
@@ -95,7 +95,7 @@ static int rxrpc_wait_for_tx_window_waitall(struct rxrpc_sock *rx,
 		if (rxrpc_check_tx_space(call, &tx_win))
 			return 0;
 
-		if (call->state >= RXRPC_CALL_COMPLETE)
+		if (rxrpc_call_is_complete(call))
 			return call->error;
 
 		if (timeout == 0 &&
@@ -124,7 +124,7 @@ static int rxrpc_wait_for_tx_window_nonintr(struct rxrpc_sock *rx,
 		if (rxrpc_check_tx_space(call, NULL))
 			return 0;
 
-		if (call->state >= RXRPC_CALL_COMPLETE)
+		if (rxrpc_call_is_complete(call))
 			return call->error;
 
 		trace_rxrpc_txqueue(call, rxrpc_txqueue_wait);
@@ -273,7 +273,7 @@ reload:
 	ret = -EPIPE;
 	if (sk->sk_shutdown & SEND_SHUTDOWN)
 		goto maybe_error;
-	state = READ_ONCE(call->state);
+	state = rxrpc_call_state(call);
 	ret = -ESHUTDOWN;
 	if (state >= RXRPC_CALL_COMPLETE)
 		goto maybe_error;
@@ -350,7 +350,7 @@ reload:
 
 		/* check for the far side aborting the call or a network error
 		 * occurring */
-		if (call->state == RXRPC_CALL_COMPLETE)
+		if (rxrpc_call_is_complete(call))
 			goto call_terminated;
 
 		/* add the packet to the send queue if it's now full */
@@ -375,12 +375,9 @@ reload:
 
 success:
 	ret = copied;
-	if (READ_ONCE(call->state) == RXRPC_CALL_COMPLETE) {
-		read_lock(&call->state_lock);
-		if (call->error < 0)
-			ret = call->error;
-		read_unlock(&call->state_lock);
-	}
+	if (rxrpc_call_is_complete(call) &&
+	    call->error < 0)
+		ret = call->error;
 out:
 	call->tx_pending = txb;
 	_leave(" = %d", ret);
@@ -618,10 +615,10 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 			return PTR_ERR(call);
 		/* ... and we have the call lock. */
 		ret = 0;
-		if (READ_ONCE(call->state) == RXRPC_CALL_COMPLETE)
+		if (rxrpc_call_is_complete(call))
 			goto out_put_unlock;
 	} else {
-		switch (READ_ONCE(call->state)) {
+		switch (rxrpc_call_state(call)) {
 		case RXRPC_CALL_UNINITIALISED:
 		case RXRPC_CALL_CLIENT_AWAIT_CONN:
 		case RXRPC_CALL_SERVER_PREALLOC:
@@ -675,7 +672,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		break;
 	}
 
-	state = READ_ONCE(call->state);
+	state = rxrpc_call_state(call);
 	_debug("CALL %d USR %lx ST %d on CONN %p",
 	       call->debug_id, call->user_call_ID, state, call->conn);
 
@@ -735,7 +732,7 @@ int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 	_debug("CALL %d USR %lx ST %d on CONN %p",
 	       call->debug_id, call->user_call_ID, call->state, call->conn);
 
-	switch (READ_ONCE(call->state)) {
+	switch (rxrpc_call_state(call)) {
 	case RXRPC_CALL_CLIENT_SEND_REQUEST:
 	case RXRPC_CALL_SERVER_ACK_REQUEST:
 	case RXRPC_CALL_SERVER_SEND_REPLY:
