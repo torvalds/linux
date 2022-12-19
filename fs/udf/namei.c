@@ -613,8 +613,12 @@ static int udf_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 				iinfo->i_location.partitionReferenceNum;
 		bsize = sb->s_blocksize;
 		iinfo->i_lenExtents = bsize;
-		udf_add_aext(inode, &epos, &eloc, bsize, 0);
+		err = udf_add_aext(inode, &epos, &eloc, bsize, 0);
 		brelse(epos.bh);
+		if (err < 0) {
+			udf_free_blocks(sb, inode, &eloc, 0, 1);
+			goto out_no_entry;
+		}
 
 		block = udf_get_pblock(sb, block,
 				iinfo->i_location.partitionReferenceNum,
@@ -622,6 +626,7 @@ static int udf_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 		epos.bh = udf_tgetblk(sb, block);
 		if (unlikely(!epos.bh)) {
 			err = -ENOMEM;
+			udf_free_blocks(sb, inode, &eloc, 0, 1);
 			goto out_no_entry;
 		}
 		lock_buffer(epos.bh);
