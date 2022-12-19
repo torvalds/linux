@@ -24,6 +24,32 @@
 #include "gpiolib-of.h"
 
 /**
+ * of_gpio_named_count() - Count GPIOs for a device
+ * @np:		device node to count GPIOs for
+ * @propname:	property name containing gpio specifier(s)
+ *
+ * The function returns the count of GPIOs specified for a node.
+ * Note that the empty GPIO specifiers count too. Returns either
+ *   Number of gpios defined in property,
+ *   -EINVAL for an incorrectly formed gpios property, or
+ *   -ENOENT for a missing gpios property
+ *
+ * Example:
+ * gpios = <0
+ *          &gpio1 1 2
+ *          0
+ *          &gpio2 3 4>;
+ *
+ * The above example defines four GPIOs, two of which are not specified.
+ * This function will return '4'
+ */
+static int of_gpio_named_count(const struct device_node *np,
+			       const char *propname)
+{
+	return of_count_phandle_with_args(np, propname, "#gpio-cells");
+}
+
+/**
  * of_gpio_spi_cs_get_count() - special GPIO counting for SPI
  * @dev:    Consuming device
  * @con_id: Function within the GPIO consumer
