@@ -163,7 +163,7 @@
 	EM(rxrpc_local_put_for_use,		"PUT for-use ") \
 	EM(rxrpc_local_put_kill_conn,		"PUT conn-kil") \
 	EM(rxrpc_local_put_peer,		"PUT peer    ") \
-	EM(rxrpc_local_put_prealloc_conn,	"PUT conn-pre") \
+	EM(rxrpc_local_put_prealloc_peer,	"PUT peer-pre") \
 	EM(rxrpc_local_put_release_sock,	"PUT rel-sock") \
 	EM(rxrpc_local_stop,			"STOP        ") \
 	EM(rxrpc_local_stopped,			"STOPPED     ") \
