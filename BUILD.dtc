@@ -47,6 +47,7 @@ cc_library(
         ":parser",
     ] + glob(["*.h"]),
     includes = ["."],
+    deps = [":libfdt"],
     visibility = ["//visibility:public"],
 )
 
