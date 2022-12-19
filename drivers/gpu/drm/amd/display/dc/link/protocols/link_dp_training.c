@@ -40,6 +40,7 @@
 #include "link/accessories/link_dp_trace.h"
 #include "link_dp_phy.h"
 #include "link_dp_capability.h"
+#include "link_edp_panel_control.h"
 #include "dc_link_dp.h"
 #include "atomfirmware.h"
 #include "link_enc_cfg.h"

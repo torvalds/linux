@@ -39,6 +39,7 @@
 #include "link_dpcd.h"
 #include "link_dp_dpia.h"
 #include "link_dp_phy.h"
+#include "link_edp_panel_control.h"
 #include "link/accessories/link_dp_trace.h"
 #include "link_dp_training.h"
 #include "atomfirmware.h"
@@ -1925,7 +1926,7 @@ void detect_edp_sink_caps(struct dc_link *link)
 	link->dpcd_caps.set_power_state_capable_edp =
 				(general_edp_cap & DP_EDP_SET_POWER_CAP) ? true:false;
 
-	dc_link_set_default_brightness_aux(link);
+	set_default_brightness_aux(link);
 
 	core_link_read_dpcd(link, DP_EDP_DPCD_REV,
 		&link->dpcd_caps.edp_rev,

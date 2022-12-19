@@ -370,11 +370,6 @@ bool dc_link_get_backlight_level_nits(struct dc_link *link,
 		uint32_t *backlight_millinits,
 		uint32_t *backlight_millinits_peak);
 
-bool dc_link_backlight_enable_aux(struct dc_link *link, bool enable);
-
-bool dc_link_read_default_bl_aux(struct dc_link *link, uint32_t *backlight_millinits);
-bool dc_link_set_default_brightness_aux(struct dc_link *link);
-
 int dc_link_get_backlight_level(const struct dc_link *dc_link);
 
 int dc_link_get_target_backlight_pwm(const struct dc_link *link);
@@ -388,16 +383,10 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context);
 
-bool dc_power_alpm_dpcd_enable(struct dc_link *link, bool enable);
-
-void dc_link_get_psr_residency(const struct dc_link *link, uint32_t *residency);
-
 void dc_link_blank_all_dp_displays(struct dc *dc);
 void dc_link_blank_all_edp_displays(struct dc *dc);
 
 void dc_link_blank_dp_stream(struct dc_link *link, bool hw_init);
-bool dc_link_set_sink_vtotal_in_psr_active(const struct dc_link *link,
-		uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su);
 
 /* Request DC to detect if there is a Panel connected.
  * boot - If this call is during initial boot.
@@ -584,4 +573,6 @@ void dc_link_dp_receiver_power_ctrl(struct dc_link *link, bool on);
 bool dc_link_decide_edp_link_settings(struct dc_link *link,
 		struct dc_link_settings *link_setting,
 		uint32_t req_bw);
+void dc_link_edp_panel_backlight_power_on(struct dc_link *link,
+		bool wait_for_hpd);
 #endif /* DC_LINK_H_ */

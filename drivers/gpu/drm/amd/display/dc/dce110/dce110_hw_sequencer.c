@@ -1015,7 +1015,7 @@ void dce110_edp_backlight_control(
 		 * we shouldn't be doing power-sequencing, hence we can skip
 		 * waiting for T7-ready.
 		 */
-			edp_receiver_ready_T7(link);
+			link_edp_receiver_ready_T7(link);
 		else
 			DC_LOG_DC("edp_receiver_ready_T7 skipped\n");
 	}
@@ -1046,7 +1046,7 @@ void dce110_edp_backlight_control(
 	if (link->dpcd_sink_ext_caps.bits.oled ||
 		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
 		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1)
-		dc_link_backlight_enable_aux(link, enable);
+		link_backlight_enable_aux(link, enable);
 
 	/*edp 1.2*/
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF) {
@@ -1058,7 +1058,7 @@ void dce110_edp_backlight_control(
 		 * we shouldn't be doing power-sequencing, hence we can skip
 		 * waiting for T9-ready.
 		 */
-			edp_add_delay_for_T9(link);
+			link_edp_add_delay_for_T9(link);
 		else
 			DC_LOG_DC("edp_receiver_ready_T9 skipped\n");
 	}
@@ -1242,7 +1242,7 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 				 * we shouldn't be doing power-sequencing, hence we can skip
 				 * waiting for T9-ready.
 				 */
-				edp_receiver_ready_T9(link);
+				link_edp_receiver_ready_T9(link);
 			}
 		}
 	}

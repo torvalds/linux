@@ -57,12 +57,7 @@ enum dc_status read_hpd_rx_irq_data(
 	struct dc_link *link,
 	union hpd_irq_data *irq_data);
 
-bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timing *crtc_timing);
-
 void dp_enable_mst_on_sink(struct dc_link *link, bool enable);
-
-enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
-void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
 
 enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource *link_res, bool ready);
 void dp_set_fec_enable(struct dc_link *link, bool enable);
@@ -84,12 +79,7 @@ struct fixed31_32 calculate_sst_avg_time_slots_per_mtp(
 		const struct dc_stream_state *stream,
 		const struct dc_link *link);
 void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable);
-void edp_panel_backlight_power_on(struct dc_link *link, bool wait_for_hpd);
 void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode);
-void edp_add_delay_for_T9(struct dc_link *link);
-bool edp_receiver_ready_T9(struct dc_link *link);
-bool edp_receiver_ready_T7(struct dc_link *link);
-
 void dp_retrain_link_dp_test(struct dc_link *link,
 		struct dc_link_settings *link_setting,
 		bool skip_video_pattern);

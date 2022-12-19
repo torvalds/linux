@@ -1659,7 +1659,7 @@ bool dc_validate_boot_timing(const struct dc *dc,
 		return false;
 	}
 
-	if (is_edp_ilr_optimization_required(link, crtc_timing)) {
+	if (link_is_edp_ilr_optimization_required(link, crtc_timing)) {
 		DC_LOG_EVENT_LINK_TRAINING("Seamless boot disabled to optimize eDP link rate\n");
 		return false;
 	}
