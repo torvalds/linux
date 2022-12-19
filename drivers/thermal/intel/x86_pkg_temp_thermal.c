@@ -49,7 +49,6 @@ MODULE_PARM_DESC(notify_delay_ms,
 struct zone_device {
 	int				cpu;
 	bool				work_scheduled;
-	u32				tj_max;
 	u32				msr_pkg_therm_low;
 	u32				msr_pkg_therm_high;
 	struct delayed_work		work;
@@ -125,7 +124,7 @@ static int sys_get_trip_temp(struct thermal_zone_device *tzd,
 	struct zone_device *zonedev = tzd->devdata;
 	unsigned long thres_reg_value;
 	u32 mask, shift, eax, edx;
-	int ret;
+	int tj_max, ret;
 
 	if (trip >= MAX_NUMBER_OF_TRIPS)
 		return -EINVAL;
@@ -138,6 +137,11 @@ static int sys_get_trip_temp(struct thermal_zone_device *tzd,
 		shift = THERM_SHIFT_THRESHOLD0;
 	}
 
+	tj_max = intel_tcc_get_tjmax(zonedev->cpu);
+	if (tj_max < 0)
+		return tj_max;
+	tj_max *= 1000;
+
 	ret = rdmsr_on_cpu(zonedev->cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
 			   &eax, &edx);
 	if (ret < 0)
@@ -145,7 +149,7 @@ static int sys_get_trip_temp(struct thermal_zone_device *tzd,
 
 	thres_reg_value = (eax & mask) >> shift;
 	if (thres_reg_value)
-		*temp = zonedev->tj_max - thres_reg_value * 1000;
+		*temp = tj_max - thres_reg_value * 1000;
 	else
 		*temp = THERMAL_TEMP_INVALID;
 	pr_debug("sys_get_trip_temp %d\n", *temp);
@@ -158,9 +162,14 @@ sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
 {
 	struct zone_device *zonedev = tzd->devdata;
 	u32 l, h, mask, shift, intr;
-	int ret;
+	int tj_max, ret;
 
-	if (trip >= MAX_NUMBER_OF_TRIPS || temp >= zonedev->tj_max)
+	tj_max = intel_tcc_get_tjmax(zonedev->cpu);
+	if (tj_max < 0)
+		return tj_max;
+	tj_max *= 1000;
+
+	if (trip >= MAX_NUMBER_OF_TRIPS || temp >= tj_max)
 		return -EINVAL;
 
 	ret = rdmsr_on_cpu(zonedev->cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
@@ -185,7 +194,7 @@ sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
 	if (!temp) {
 		l &= ~intr;
 	} else {
-		l |= (zonedev->tj_max - temp)/1000 << shift;
+		l |= (tj_max - temp)/1000 << shift;
 		l |= intr;
 	}
 
@@ -307,7 +316,7 @@ static int pkg_thermal_notify(u64 msr_val)
 static int pkg_temp_thermal_device_add(unsigned int cpu)
 {
 	int id = topology_logical_die_id(cpu);
-	u32 tj_max, eax, ebx, ecx, edx;
+	u32 eax, ebx, ecx, edx;
 	struct zone_device *zonedev;
 	int thres_count, err;
 
@@ -321,9 +330,9 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 
 	thres_count = clamp_val(thres_count, 0, MAX_NUMBER_OF_TRIPS);
 
-	tj_max = intel_tcc_get_tjmax(cpu);
-	if (tj_max < 0)
-		return tj_max;
+	err = intel_tcc_get_tjmax(cpu);
+	if (err < 0)
+		return err;
 
 	zonedev = kzalloc(sizeof(*zonedev), GFP_KERNEL);
 	if (!zonedev)
@@ -331,7 +340,6 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 
 	INIT_DELAYED_WORK(&zonedev->work, pkg_temp_thermal_threshold_work_fn);
 	zonedev->cpu = cpu;
-	zonedev->tj_max = tj_max;
 	zonedev->tzone = thermal_zone_device_register("x86_pkg_temp",
 			thres_count,
 			(thres_count == MAX_NUMBER_OF_TRIPS) ? 0x03 : 0x01,
