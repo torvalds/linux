@@ -256,8 +256,14 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 
 	num = number_of_cells_per_pte(pmd, new, huge);
 
-	for (i = 0; i < num; i++, entry++, new += SZ_4K)
-		*entry = new;
+	for (i = 0; i < num; i += PAGE_SIZE / SZ_4K, new += PAGE_SIZE) {
+		*entry++ = new;
+		if (IS_ENABLED(CONFIG_PPC_16K_PAGES) && num != 1) {
+			*entry++ = new;
+			*entry++ = new;
+			*entry++ = new;
+		}
+	}
 
 	return old;
 }

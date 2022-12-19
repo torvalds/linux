@@ -1050,6 +1050,11 @@
 			them frequently to increase the rate of SLB faults
 			on kernel addresses.
 
+	stress_hpt	[PPC]
+			Limits the number of kernel HPT entries in the hash
+			page table to increase the rate of hash page table
+			faults on kernel addresses.
+
 	disable=	[IPV6]
 			See Documentation/networking/ipv6.rst.
 

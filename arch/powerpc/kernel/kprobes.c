@@ -157,9 +157,7 @@ int arch_prepare_kprobe(struct kprobe *p)
 		printk("Cannot register a kprobe on the second word of prefixed instruction\n");
 		ret = -EINVAL;
 	}
-	preempt_disable();
 	prev = get_kprobe(p->addr - 1);
-	preempt_enable_no_resched();
 
 	/*
 	 * When prev is a ftrace-based kprobe, we don't have an insn, and it
@@ -370,7 +368,7 @@ int kprobe_handler(struct pt_regs *regs)
 
 			if (ret > 0) {
 				restore_previous_kprobe(kcb);
-				preempt_enable_no_resched();
+				preempt_enable();
 				return 1;
 			}
 		}
@@ -383,7 +381,7 @@ int kprobe_handler(struct pt_regs *regs)
 	if (p->pre_handler && p->pre_handler(p, regs)) {
 		/* handler changed execution path, so skip ss setup */
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable();
 		return 1;
 	}
 
@@ -396,7 +394,7 @@ int kprobe_handler(struct pt_regs *regs)
 
 			kcb->kprobe_status = KPROBE_HIT_SSDONE;
 			reset_current_kprobe();
-			preempt_enable_no_resched();
+			preempt_enable();
 			return 1;
 		}
 	}
@@ -405,7 +403,7 @@ int kprobe_handler(struct pt_regs *regs)
 	return 1;
 
 no_kprobe:
-	preempt_enable_no_resched();
+	preempt_enable();
 	return ret;
 }
 NOKPROBE_SYMBOL(kprobe_handler);
@@ -491,7 +489,7 @@ int kprobe_post_handler(struct pt_regs *regs)
 	}
 	reset_current_kprobe();
 out:
-	preempt_enable_no_resched();
+	preempt_enable();
 
 	/*
 	 * if somebody else is singlestepping across a probe point, msr
@@ -530,7 +528,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 			restore_previous_kprobe(kcb);
 		else
 			reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable();
 		break;
 	case KPROBE_HIT_ACTIVE:
 	case KPROBE_HIT_SSDONE:

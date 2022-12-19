@@ -1671,6 +1671,11 @@ static int elf_validity_check(struct load_info *info)
 		       info->hdr->e_machine);
 		goto no_exec;
 	}
+	if (!module_elf_check_arch(info->hdr)) {
+		pr_err("Invalid module architecture in ELF header: %u\n",
+		       info->hdr->e_machine);
+		goto no_exec;
+	}
 	if (info->hdr->e_shentsize != sizeof(Elf_Shdr)) {
 		pr_err("Invalid ELF section header size\n");
 		goto no_exec;
@@ -2242,6 +2247,11 @@ static void flush_module_icache(const struct module *mod)
 				   + mod->init_layout.size);
 	flush_icache_range((unsigned long)mod->core_layout.base,
 			   (unsigned long)mod->core_layout.base + mod->core_layout.size);
+}
+
+bool __weak module_elf_check_arch(Elf_Ehdr *hdr)
+{
+	return true;
 }
 
 int __weak module_frob_arch_sections(Elf_Ehdr *hdr,
