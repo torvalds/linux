@@ -40,6 +40,8 @@ struct kvm_pmu_ops {
 	void (*reset)(struct kvm_vcpu *vcpu);
 	void (*deliver_pmi)(struct kvm_vcpu *vcpu);
 	void (*cleanup)(struct kvm_vcpu *vcpu);
+
+	const u64 EVENTSEL_EVENT;
 };
 
 void kvm_pmu_ops_update(const struct kvm_pmu_ops *pmu_ops);
