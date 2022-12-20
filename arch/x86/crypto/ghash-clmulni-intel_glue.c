@@ -60,16 +60,35 @@ static int ghash_setkey(struct crypto_shash *tfm,
 	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
 
-	/* perform multiplication by 'x' in GF(2^128) */
+	/*
+	 * GHASH maps bits to polynomial coefficients backwards, which makes it
+	 * hard to implement.  But it can be shown that the GHASH multiplication
+	 *
+	 *	D * K (mod x^128 + x^7 + x^2 + x + 1)
+	 *
+	 * (where D is a data block and K is the key) is equivalent to:
+	 *
+	 *	bitreflect(D) * bitreflect(K) * x^(-127)
+	 *		(mod x^128 + x^127 + x^126 + x^121 + 1)
+	 *
+	 * So, the code below precomputes:
+	 *
+	 *	bitreflect(K) * x^(-127) (mod x^128 + x^127 + x^126 + x^121 + 1)
+	 *
+	 * ... but in Montgomery form (so that Montgomery multiplication can be
+	 * used), i.e. with an extra x^128 factor, which means actually:
+	 *
+	 *	bitreflect(K) * x (mod x^128 + x^127 + x^126 + x^121 + 1)
+	 *
+	 * The within-a-byte part of bitreflect() cancels out GHASH's built-in
+	 * reflection, and thus bitreflect() is actually a byteswap.
+	 */
 	a = get_unaligned_be64(key);
 	b = get_unaligned_be64(key + 8);
-
 	ctx->shash.a = cpu_to_le64((a << 1) | (b >> 63));
 	ctx->shash.b = cpu_to_le64((b << 1) | (a >> 63));
-
 	if (a >> 63)
 		ctx->shash.a ^= cpu_to_le64((u64)0xc2 << 56);
-
 	return 0;
 }
 
