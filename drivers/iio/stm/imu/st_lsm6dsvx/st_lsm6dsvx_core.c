@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pm.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/version.h>
 
@@ -1706,12 +1707,8 @@ int st_lsm6dsvx_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
-#if defined(CONFIG_IIO_ST_LSM6DSVX_MAY_WAKEUP)
-	if (hw->enable_mask & ST_LSM6DSVX_WAKE_UP_SENSORS) {
-		if (device_may_wakeup(dev))
-			enable_irq_wake(hw->irq);
-	}
-#endif /* CONFIG_IIO_ST_LSM6DSVX_MAY_WAKEUP */
+	device_init_wakeup(dev,
+			   device_property_read_bool(dev, "wakeup-source"));
 
 	return 0;
 }
@@ -1750,10 +1747,8 @@ static int __maybe_unused st_lsm6dsvx_suspend(struct device *dev)
 	if (st_lsm6dsvx_is_fifo_enabled(hw))
 		err = st_lsm6dsvx_suspend_fifo(hw);
 
-#ifdef CONFIG_IIO_ST_LSM6DSVX_MAY_WAKEUP
 	if (device_may_wakeup(dev))
 		enable_irq_wake(hw->irq);
-#endif /* CONFIG_IIO_ST_LSM6DSVX_MAY_WAKEUP */
 
 	dev_info(dev, "Suspending device\n");
 
@@ -1768,10 +1763,8 @@ static int __maybe_unused st_lsm6dsvx_resume(struct device *dev)
 
 	dev_info(dev, "Resuming device\n");
 
-#ifdef CONFIG_IIO_ST_LSM6DSVX_MAY_WAKEUP
 	if (device_may_wakeup(dev))
 		disable_irq_wake(hw->irq);
-#endif /* CONFIG_IIO_ST_LSM6DSVX_MAY_WAKEUP */
 
 	for (i = 0; i < ST_LSM6DSVX_ID_MAX; i++) {
 		if (!hw->iio_devs[i])

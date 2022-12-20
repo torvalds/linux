@@ -28,12 +28,6 @@ config IIO_ST_LSM6DSVX_I3C
 	depends on IIO_ST_LSM6DSVX
 	select REGMAP_I3C
 
-config IIO_ST_LSM6DSVX_MAY_WAKEUP
-	bool "Enable wake-up irq"
-	depends on IIO_ST_LSM6DSVX
-	help
-	  Enable wake-up irq on interrupt line
-
 config IIO_ST_LSM6DSVX_QVAR_IN_FIFO
 	bool "use FIFO for QVAR"
 	depends on IIO_ST_LSM6DSVX
