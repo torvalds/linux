@@ -4849,6 +4849,8 @@ void __init rcu_init(void)
 	// Kick-start any polled grace periods that started early.
 	if (!(per_cpu_ptr(&rcu_data, cpu)->mynode->exp_seq_poll_rq & 0x1))
 		(void)start_poll_synchronize_rcu_expedited();
+
+	rcu_test_sync_prims();
 }
 
 #include "tree_stall.h"

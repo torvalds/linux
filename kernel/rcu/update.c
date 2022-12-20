@@ -220,6 +220,7 @@ void rcu_test_sync_prims(void)
 {
 	if (!IS_ENABLED(CONFIG_PROVE_RCU))
 		return;
+	pr_info("Running RCU synchronous self tests\n");
 	synchronize_rcu();
 	synchronize_rcu_expedited();
 }
