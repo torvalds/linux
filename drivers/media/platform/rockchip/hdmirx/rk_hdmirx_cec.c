@@ -253,7 +253,8 @@ struct hdmirx_cec *rk_hdmirx_cec_register(struct hdmirx_cec_data *data)
 		return NULL;
 	}
 
-	cec_s_phys_addr_from_edid(cec->adap, cec->edid);
+	/* The TV functionality can only map to physical address 0 */
+	cec_s_phys_addr(cec->adap, 0, false);
 
 	ret = devm_request_threaded_irq(cec->dev, cec->irq,
 					hdmirx_cec_hardirq,
