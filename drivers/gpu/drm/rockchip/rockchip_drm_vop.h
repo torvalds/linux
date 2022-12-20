@@ -597,37 +597,6 @@ enum vop_hdr_format {
 	HDR_FORMAT_MAX,
 };
 
-#define ACM_GAIN_LUT_HY_LENGTH		(9*17)
-#define ACM_GAIN_LUT_HY_TOTAL_LENGTH	(ACM_GAIN_LUT_HY_LENGTH * 3)
-#define ACM_GAIN_LUT_HS_LENGTH		(13*17)
-#define ACM_GAIN_LUT_HS_TOTAL_LENGTH (ACM_GAIN_LUT_HS_LENGTH * 3)
-#define ACM_DELTA_LUT_H_LENGTH		65
-#define ACM_DELTA_LUT_H_TOTAL_LENGTH	(ACM_DELTA_LUT_H_LENGTH * 3)
-
-struct post_acm {
-	s16 delta_lut_h[ACM_DELTA_LUT_H_TOTAL_LENGTH];
-	s16 gain_lut_hy[ACM_GAIN_LUT_HY_TOTAL_LENGTH];
-	s16 gain_lut_hs[ACM_GAIN_LUT_HS_TOTAL_LENGTH];
-	u16 y_gain;
-	u16 h_gain;
-	u16 s_gain;
-	u16 acm_enable;
-};
-
-struct post_csc {
-	u16 hue;
-	u16 saturation;
-	u16 contrast;
-	u16 brightness;
-	u16 r_gain;
-	u16 g_gain;
-	u16 b_gain;
-	u16 r_offset;
-	u16 g_offset;
-	u16 b_offset;
-	u16 csc_enable;
-};
-
 struct post_csc_coef {
 	s32 csc_coef00;
 	s32 csc_coef01;

@@ -5,7 +5,6 @@
  */
 
 #include "rockchip_post_csc.h"
-#include "rockchip_drm_drv.h"
 
 #define PQ_CSC_HUE_TABLE_NUM			256
 #define PQ_CSC_MODE_COEF_COMMENT_LEN		32

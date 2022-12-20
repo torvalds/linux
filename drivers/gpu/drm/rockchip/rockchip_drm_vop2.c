@@ -770,6 +770,9 @@ struct vop2_video_port {
 	 */
 	enum vop2_layer_phy_id primary_plane_phy_id;
 
+	struct post_acm acm_info;
+	struct post_csc csc_info;
+
 	/**
 	 * @refresh_rate_change: indicate whether refresh rate change
 	 */
@@ -9505,18 +9508,25 @@ static void vop3_post_acm_config(struct drm_crtc *crtc, struct post_acm *acm)
 	u32 value;
 	int i;
 
-	if (!acm) {
-		writel(0x2, vop2->acm_regs + RK3528_ACM_CTRL);
-		VOP_MODULE_SET(vop2, vp, acm_bypass_en, 1);
+	writel(0, vop2->acm_regs + RK3528_ACM_CTRL);
+	VOP_MODULE_SET(vop2, vp, acm_bypass_en, 0);
+
+	if (!acm || !acm->acm_enable)
 		return;
-	}
 
-	writel(1, vop2->acm_regs + RK3528_ACM_FETCH_START);
+	/*
+	 * If acm update parameters, it need disable acm in the first frame,
+	 * then update parameters and enable acm in second frame.
+	 */
+	vop2_cfg_done(crtc);
+	readx_poll_timeout(readl, vop2->acm_regs + RK3528_ACM_CTRL, value, !value, 200, 50000);
 
-	value = (acm->acm_enable & 0x1) + ((adjusted_mode->hdisplay & 0xfff) << 8) +
+	value = RK3528_ACM_ENABLE + ((adjusted_mode->hdisplay & 0xfff) << 8) +
 		((adjusted_mode->vdisplay & 0xfff) << 20);
 	writel(value, vop2->acm_regs + RK3528_ACM_CTRL);
-	VOP_MODULE_SET(vop2, vp, acm_bypass_en, acm->acm_enable ? 0 : 1);
+
+
+	writel(1, vop2->acm_regs + RK3528_ACM_FETCH_START);
 
 	value = (acm->y_gain & 0x3ff) + ((acm->h_gain << 10) & 0xffc00) +
 		((acm->s_gain << 20) & 0x3ff00000);
@@ -9555,14 +9565,23 @@ static void vop3_post_acm_config(struct drm_crtc *crtc, struct post_acm *acm)
 static void vop3_post_config(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct post_acm *acm;
 	struct post_csc *csc;
 
-	acm = vcstate->acm_lut_data ? (struct post_acm *)vcstate->acm_lut_data->data : NULL;
-	vop3_post_acm_config(crtc, acm);
-
 	csc = vcstate->post_csc_data ? (struct post_csc *)vcstate->post_csc_data->data : NULL;
-	vop3_post_csc_config(crtc, acm, csc);
+	if (csc && memcmp(&vp->csc_info, csc, sizeof(struct post_csc)))
+		memcpy(&vp->csc_info, csc, sizeof(struct post_csc));
+	vop3_post_csc_config(crtc, &vp->acm_info, &vp->csc_info);
+
+	acm = vcstate->acm_lut_data ? (struct post_acm *)vcstate->acm_lut_data->data : NULL;
+
+	if (acm && memcmp(&vp->acm_info, acm, sizeof(struct post_acm))) {
+		memcpy(&vp->acm_info, acm, sizeof(struct post_acm));
+		vop3_post_acm_config(crtc, &vp->acm_info);
+	} else if (crtc->state->active_changed) {
+		vop3_post_acm_config(crtc, &vp->acm_info);
+	}
 }
 
 static void vop2_cfg_update(struct drm_crtc *crtc,
@@ -9623,10 +9642,10 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
 		vop2_post_config(crtc);
 
+	spin_unlock(&vop2->reg_lock);
+
 	if (vp_data->feature & (VOP_FEATURE_POST_ACM | VOP_FEATURE_POST_CSC))
 		vop3_post_config(crtc);
-
-	spin_unlock(&vop2->reg_lock);
 }
 
 static void vop2_sleep_scan_line_time(struct vop2_video_port *vp, int scan_line)
