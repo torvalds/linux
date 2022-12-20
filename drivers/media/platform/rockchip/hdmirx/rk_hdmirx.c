@@ -193,6 +193,7 @@ struct rk_hdmirx_dev {
 	struct delayed_work delayed_work_res_change;
 	struct delayed_work delayed_work_audio;
 	struct delayed_work delayed_work_heartbeat;
+	struct delayed_work delayed_work_cec;
 	struct dentry *debugfs_dir;
 	struct freq_qos_request min_sta_freq_req;
 	struct hdmirx_audiostate audio_state;
@@ -990,6 +991,17 @@ static void hdmirx_cec_state_reconfiguration(struct rk_hdmirx_dev *hdmirx_dev, b
 		hdmirx_writel(hdmirx_dev, CEC_INT_MASK_N, irqs);
 	}
 	cec_queue_pin_hpd_event(hdmirx_dev->cec->adap, en, ktime_get());
+}
+
+static void hdmirx_delayed_work_cec(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct rk_hdmirx_dev *hdmirx_dev = container_of(dwork,
+			struct rk_hdmirx_dev, delayed_work_cec);
+
+	cec_queue_pin_hpd_event(hdmirx_dev->cec->adap,
+				tx_5v_power_present(hdmirx_dev),
+				ktime_get());
 }
 
 static void hdmirx_hpd_config(struct rk_hdmirx_dev *hdmirx_dev, bool en)
@@ -3324,6 +3336,7 @@ static int hdmirx_runtime_suspend(struct device *dev)
 	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_res_change);
 	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_audio);
 	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_heartbeat);
+	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_cec);
 	flush_work(&hdmirx_dev->work_wdt_config);
 	sip_wdt_config(WDT_STOP, 0, 0, 0);
 
@@ -4026,6 +4039,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 			hdmirx_delayed_work_audio);
 	INIT_DELAYED_WORK(&hdmirx_dev->delayed_work_heartbeat,
 			hdmirx_delayed_work_heartbeat);
+	INIT_DELAYED_WORK(&hdmirx_dev->delayed_work_cec,
+			hdmirx_delayed_work_cec);
 	hdmirx_dev->power_on = false;
 
 	ret = hdmirx_power_on(hdmirx_dev);
@@ -4180,10 +4195,10 @@ static int hdmirx_probe(struct platform_device *pdev)
 		cec_data.irq = irq;
 		cec_data.edid = edid_init_data_340M;
 		hdmirx_dev->cec = rk_hdmirx_cec_register(&cec_data);
-		if (hdmirx_dev->cec && hdmirx_dev->cec->adap &&
-		    tx_5v_power_present(hdmirx_dev))
-			cec_queue_pin_hpd_event(hdmirx_dev->cec->adap, true,
-						ktime_get());
+		if (hdmirx_dev->cec && hdmirx_dev->cec->adap)
+			schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+					 &hdmirx_dev->delayed_work_cec,
+					 msecs_to_jiffies(4000));
 	}
 	hdmirx_register_hdcp(dev, hdmirx_dev, hdmirx_dev->hdcp_enable);
 
@@ -4224,6 +4239,7 @@ static int hdmirx_remove(struct platform_device *pdev)
 	cancel_delayed_work(&hdmirx_dev->delayed_work_hotplug);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_audio);
+	cancel_delayed_work(&hdmirx_dev->delayed_work_cec);
 	clk_bulk_disable_unprepare(hdmirx_dev->num_clks, hdmirx_dev->clks);
 	reset_control_assert(hdmirx_dev->rst_a);
 	reset_control_assert(hdmirx_dev->rst_p);
