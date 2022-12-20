@@ -1405,7 +1405,7 @@ static void garmin_port_remove(struct usb_serial_port *port)
 
 	usb_kill_anchored_urbs(&garmin_data_p->write_urbs);
 	usb_kill_urb(port->interrupt_in_urb);
-	del_timer_sync(&garmin_data_p->timer);
+	timer_shutdown_sync(&garmin_data_p->timer);
 	kfree(garmin_data_p);
 }
 

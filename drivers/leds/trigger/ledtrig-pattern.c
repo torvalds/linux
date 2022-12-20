@@ -430,7 +430,7 @@ static void pattern_trig_deactivate(struct led_classdev *led_cdev)
 	if (led_cdev->pattern_clear)
 		led_cdev->pattern_clear(led_cdev);
 
-	del_timer_sync(&data->timer);
+	timer_shutdown_sync(&data->timer);
 
 	led_set_brightness(led_cdev, LED_OFF);
 	kfree(data);

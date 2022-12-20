@@ -1531,10 +1531,10 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	mutex_lock(&vif->wilc->deinit_lock);
 
-	del_timer_sync(&hif_drv->scan_timer);
-	del_timer_sync(&hif_drv->connect_timer);
+	timer_shutdown_sync(&hif_drv->scan_timer);
+	timer_shutdown_sync(&hif_drv->connect_timer);
 	del_timer_sync(&vif->periodic_rssi);
-	del_timer_sync(&hif_drv->remain_on_ch_timer);
+	timer_shutdown_sync(&hif_drv->remain_on_ch_timer);
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED, NULL,

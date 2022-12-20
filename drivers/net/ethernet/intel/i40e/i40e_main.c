@@ -15586,7 +15586,7 @@ static int i40e_init_recovery_mode(struct i40e_pf *pf, struct i40e_hw *hw)
 
 err_switch_setup:
 	i40e_reset_interrupt_capability(pf);
-	del_timer_sync(&pf->service_timer);
+	timer_shutdown_sync(&pf->service_timer);
 	i40e_shutdown_adminq(hw);
 	iounmap(hw->hw_addr);
 	pci_disable_pcie_error_reporting(pf->pdev);
@@ -16205,7 +16205,7 @@ err_vsis:
 	kfree(pf->vsi);
 err_switch_setup:
 	i40e_reset_interrupt_capability(pf);
-	del_timer_sync(&pf->service_timer);
+	timer_shutdown_sync(&pf->service_timer);
 err_mac_addr:
 err_configure_lan_hmc:
 	(void)i40e_shutdown_lan_hmc(hw);
@@ -16267,7 +16267,7 @@ static void i40e_remove(struct pci_dev *pdev)
 	set_bit(__I40E_SUSPENDED, pf->state);
 	set_bit(__I40E_DOWN, pf->state);
 	if (pf->service_timer.function)
-		del_timer_sync(&pf->service_timer);
+		timer_shutdown_sync(&pf->service_timer);
 	if (pf->service_task.func)
 		cancel_work_sync(&pf->service_task);
 

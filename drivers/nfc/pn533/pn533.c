@@ -2792,7 +2792,7 @@ void pn53x_common_clean(struct pn533 *priv)
 	struct pn533_cmd *cmd, *n;
 
 	/* delete the timer before cleanup the worker */
-	del_timer_sync(&priv->listen_timer);
+	timer_shutdown_sync(&priv->listen_timer);
 
 	flush_delayed_work(&priv->poll_work);
 	destroy_workqueue(priv->wq);
