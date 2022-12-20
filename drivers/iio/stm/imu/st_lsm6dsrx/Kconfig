@@ -41,18 +41,6 @@ config IIO_ST_LSM6DSRX_MLC_PRELOAD
 	  The examples code is a 6D position recognition and is hardcoded in the
 	  driver in the mlcdata structure.
 
-config IIO_ST_LSM6DSRX_MAY_WAKEUP
-	bool "Enable wake-up irq"
-	depends on IIO_ST_LSM6DSRX
-	help
-	  Select yes if you want to enable wake-up feature embedded into the driver.
-	  Enabling this option the driver can wake-up the application processor by
-	  using the irq line.
-
-	  By default during suspend mode all enabled sensors are set in power down
-	  mode to reduce the power consumption.
-
-
 config IIO_ST_LSM6DSRX_ASYNC_HW_TIMESTAMP
 	bool "Enable async hw timestamp read"
 	depends on IIO_ST_LSM6DSRX
