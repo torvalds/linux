@@ -24,6 +24,22 @@
 #include <linux/prefetch.h>
 #include <linux/sort.h>
 
+/*
+ * bch2_btree_path_peek_slot() for a cached iterator might return a key in a
+ * different snapshot:
+ */
+struct bkey_s_c bch2_btree_path_peek_slot_exact(struct btree_path *path, struct bkey *u)
+{
+	struct bkey_s_c k = bch2_btree_path_peek_slot(path, u);
+
+	if (k.k && bpos_eq(path->pos, k.k->p))
+		return k;
+
+	bkey_init(u);
+	u->p = path->pos;
+	return (struct bkey_s_c) { u, NULL };
+}
+
 static int __must_check
 bch2_trans_update_by_path(struct btree_trans *, struct btree_path *,
 			  struct bkey_i *, enum btree_update_flags);
@@ -1505,7 +1521,7 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 		array_insert_item(trans->updates, trans->nr_updates,
 				  i - trans->updates, n);
 
-		i->old_v = bch2_btree_path_peek_slot(path, &i->old_k).v;
+		i->old_v = bch2_btree_path_peek_slot_exact(path, &i->old_k).v;
 		i->old_btree_u64s = !bkey_deleted(&i->old_k) ? i->old_k.u64s : 0;
 
 		if (unlikely(trans->journal_replay_not_finished)) {
