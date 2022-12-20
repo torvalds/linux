@@ -25,12 +25,6 @@ config IIO_ST_ASM330LHHX_SPI
 	select REGMAP_SPI
 	depends on IIO_ST_ASM330LHHX
 
-config IIO_ST_ASM330LHHX_MAY_WAKEUP
-	bool "Enable wake-up irq"
-	depends on IIO_ST_ASM330LHHX
-	help
-	  Enable wake-up irq on interrupt line
-
 config IIO_ST_ASM330LHHX_EN_BASIC_FEATURES
 	bool "Enable internal basic features event detection"
 	depends on IIO_ST_ASM330LHHX

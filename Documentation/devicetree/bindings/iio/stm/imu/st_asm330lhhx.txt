@@ -42,6 +42,8 @@ Optional properties for all bus drivers:
                   are part of the same module (particularly important for
                   supporting multiple sensors of the same type).
 
+- wakeup-source:  https://www.kernel.org/doc/Documentation/devicetree/bindings/power/wakeup-source.txt
+
 Example for an spi asm330lhh device node:
 
 asm330lhh-imu@0 {
