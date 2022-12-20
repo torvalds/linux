@@ -560,6 +560,8 @@ static struct page *__dma_alloc_pages(struct device *dev, size_t size,
 		return NULL;
 	if (WARN_ON_ONCE(gfp & (__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM)))
 		return NULL;
+	if (WARN_ON_ONCE(gfp & __GFP_COMP))
+		return NULL;
 
 	size = PAGE_ALIGN(size);
 	if (dma_alloc_direct(dev, ops))
@@ -644,6 +646,8 @@ struct sg_table *dma_alloc_noncontiguous(struct device *dev, size_t size,
 	struct sg_table *sgt;
 
 	if (WARN_ON_ONCE(attrs & ~DMA_ATTR_ALLOC_SINGLE_PAGES))
+		return NULL;
+	if (WARN_ON_ONCE(gfp & __GFP_COMP))
 		return NULL;
 
 	if (ops && ops->alloc_noncontiguous)
