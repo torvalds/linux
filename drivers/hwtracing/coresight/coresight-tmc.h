@@ -2,6 +2,7 @@
 /*
  * Copyright(C) 2015 Linaro Limited. All rights reserved.
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CORESIGHT_TMC_H
@@ -236,6 +237,7 @@ struct tmc_drvdata {
 	u32			atid_offset;
 	enum tmc_etr_out_mode	out_mode;
 	struct tmc_usb_data	*usb_data;
+	bool			stop_on_flush;
 };
 
 struct etr_buf_operations {
@@ -282,6 +284,7 @@ struct tmc_sg_table {
 /* Generic functions */
 void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata);
 void tmc_flush_and_stop(struct tmc_drvdata *drvdata);
+void tmc_disable_stop_on_flush(struct tmc_drvdata *drvdata);
 void tmc_enable_hw(struct tmc_drvdata *drvdata);
 extern int tmc_etr_usb_init(struct amba_device *adev,
 		struct tmc_drvdata *drvdata);
