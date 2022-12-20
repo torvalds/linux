@@ -975,6 +975,26 @@ static bool gfs2_try_evict(struct gfs2_glock *gl)
 	return evicted;
 }
 
+bool gfs2_queue_try_to_evict(struct gfs2_glock *gl)
+{
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+
+	if (test_and_set_bit(GLF_TRY_TO_EVICT, &gl->gl_flags))
+		return false;
+	return queue_delayed_work(sdp->sd_delete_wq,
+				  &gl->gl_delete, 0);
+}
+
+static bool gfs2_queue_verify_evict(struct gfs2_glock *gl)
+{
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+
+	if (test_and_set_bit(GLF_VERIFY_EVICT, &gl->gl_flags))
+		return false;
+	return queue_delayed_work(sdp->sd_delete_wq,
+				  &gl->gl_delete, 5 * HZ);
+}
+
 static void delete_work_func(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -983,7 +1003,7 @@ static void delete_work_func(struct work_struct *work)
 	struct inode *inode;
 	u64 no_addr = gl->gl_name.ln_number;
 
-	if (test_bit(GLF_DEMOTE, &gl->gl_flags)) {
+	if (test_and_clear_bit(GLF_TRY_TO_EVICT, &gl->gl_flags)) {
 		/*
 		 * If we can evict the inode, give the remote node trying to
 		 * delete the inode some time before verifying that the delete
@@ -1002,22 +1022,25 @@ static void delete_work_func(struct work_struct *work)
 		 * step entirely.
 		 */
 		if (gfs2_try_evict(gl)) {
-			if (gfs2_queue_delete_work(gl, 5 * HZ))
+			if (gfs2_queue_verify_evict(gl))
 				return;
 		}
 		goto out;
 	}
 
-	inode = gfs2_lookup_by_inum(sdp, no_addr, gl->gl_no_formal_ino,
-				    GFS2_BLKST_UNLINKED);
-	if (IS_ERR(inode)) {
-		if (PTR_ERR(inode) == -EAGAIN &&
-			(gfs2_queue_delete_work(gl, 5 * HZ)))
+	if (test_and_clear_bit(GLF_VERIFY_EVICT, &gl->gl_flags)) {
+		inode = gfs2_lookup_by_inum(sdp, no_addr, gl->gl_no_formal_ino,
+					    GFS2_BLKST_UNLINKED);
+		if (IS_ERR(inode)) {
+			if (PTR_ERR(inode) == -EAGAIN &&
+			    gfs2_queue_verify_evict(gl))
 				return;
-	} else {
-		d_prune_aliases(inode);
-		iput(inode);
+		} else {
+			d_prune_aliases(inode);
+			iput(inode);
+		}
 	}
+
 out:
 	gfs2_glock_put(gl);
 }
@@ -2057,16 +2080,10 @@ static void glock_hash_walk(glock_examiner examiner, const struct gfs2_sbd *sdp)
 	rhashtable_walk_exit(&iter);
 }
 
-bool gfs2_queue_delete_work(struct gfs2_glock *gl, unsigned long delay)
-{
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-
-	return queue_delayed_work(sdp->sd_delete_wq,
-				  &gl->gl_delete, delay);
-}
-
 void gfs2_cancel_delete_work(struct gfs2_glock *gl)
 {
+	clear_bit(GLF_TRY_TO_EVICT, &gl->gl_flags);
+	clear_bit(GLF_VERIFY_EVICT, &gl->gl_flags);
 	if (cancel_delayed_work(&gl->gl_delete))
 		gfs2_glock_put(gl);
 }
@@ -2298,6 +2315,10 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'n';
 	if (test_bit(GLF_INSTANTIATE_IN_PROG, gflags))
 		*p++ = 'N';
+	if (test_bit(GLF_TRY_TO_EVICT, gflags))
+		*p++ = 'e';
+	if (test_bit(GLF_VERIFY_EVICT, gflags))
+		*p++ = 'E';
 	*p = 0;
 	return buf;
 }

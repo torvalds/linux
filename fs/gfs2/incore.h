@@ -330,6 +330,8 @@ enum {
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
 	GLF_FREEING			= 16, /* Wait for glock to be freed */
+	GLF_TRY_TO_EVICT		= 17, /* iopen glocks only */
+	GLF_VERIFY_EVICT		= 18, /* iopen glocks only */
 };
 
 struct gfs2_glock {
