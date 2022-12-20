@@ -42,10 +42,16 @@
 /* External clock frequency is 24.0M */
 #define IMX219_XCLK_FREQ		24000000
 
-/* Pixel rate is fixed at 182.4M for all the modes */
+/* Pixel rate is fixed for all the modes */
 #define IMX219_PIXEL_RATE		182400000
+#define IMX219_PIXEL_RATE_4LANE		280800000
 
 #define IMX219_DEFAULT_LINK_FREQ	456000000
+#define IMX219_DEFAULT_LINK_FREQ_4LANE	363000000
+
+#define IMX219_REG_CSI_LANE_MODE	0x0114
+#define IMX219_CSI_2_LANE_MODE		0x01
+#define IMX219_CSI_4_LANE_MODE		0x03
 
 /* V_TIMING internal */
 #define IMX219_REG_VTS			0x0160
@@ -299,6 +305,10 @@ static const s64 imx219_link_freq_menu[] = {
 	IMX219_DEFAULT_LINK_FREQ,
 };
 
+static const s64 imx219_link_freq_4lane_menu[] = {
+	IMX219_DEFAULT_LINK_FREQ_4LANE,
+};
+
 static const char * const imx219_test_pattern_menu[] = {
 	"Disabled",
 	"Color Bars",
@@ -474,6 +484,9 @@ struct imx219 {
 
 	/* Streaming on/off */
 	bool streaming;
+
+	/* Two or Four lanes */
+	u8 lanes;
 };
 
 static inline struct imx219 *to_imx219(struct v4l2_subdev *_sd)
@@ -936,6 +949,13 @@ static int imx219_get_selection(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
+static int imx219_configure_lanes(struct imx219 *imx219)
+{
+	return imx219_write_reg(imx219, IMX219_REG_CSI_LANE_MODE,
+				IMX219_REG_VALUE_08BIT, (imx219->lanes == 2) ?
+				IMX219_CSI_2_LANE_MODE : IMX219_CSI_4_LANE_MODE);
+};
+
 static int imx219_start_streaming(struct imx219 *imx219)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&imx219->sd);
@@ -950,6 +970,13 @@ static int imx219_start_streaming(struct imx219 *imx219)
 	ret = imx219_write_regs(imx219, imx219_common_regs, ARRAY_SIZE(imx219_common_regs));
 	if (ret) {
 		dev_err(&client->dev, "%s failed to send mfg header\n", __func__);
+		goto err_rpm_put;
+	}
+
+	/* Configure two or four Lane mode */
+	ret = imx219_configure_lanes(imx219);
+	if (ret) {
+		dev_err(&client->dev, "%s failed to configure lanes\n", __func__);
 		goto err_rpm_put;
 	}
 
@@ -1184,6 +1211,11 @@ static const struct v4l2_subdev_internal_ops imx219_internal_ops = {
 	.open = imx219_open,
 };
 
+static unsigned long imx219_get_pixel_rate(struct imx219 *imx219)
+{
+	return (imx219->lanes == 2) ? IMX219_PIXEL_RATE : IMX219_PIXEL_RATE_4LANE;
+}
+
 /* Initialize control handlers */
 static int imx219_init_controls(struct imx219 *imx219)
 {
@@ -1205,15 +1237,16 @@ static int imx219_init_controls(struct imx219 *imx219)
 	/* By default, PIXEL_RATE is read only */
 	imx219->pixel_rate = v4l2_ctrl_new_std(ctrl_hdlr, &imx219_ctrl_ops,
 					       V4L2_CID_PIXEL_RATE,
-					       IMX219_PIXEL_RATE,
-					       IMX219_PIXEL_RATE, 1,
-					       IMX219_PIXEL_RATE);
+					       imx219_get_pixel_rate(imx219),
+					       imx219_get_pixel_rate(imx219), 1,
+					       imx219_get_pixel_rate(imx219));
 
 	imx219->link_freq =
 		v4l2_ctrl_new_int_menu(ctrl_hdlr, &imx219_ctrl_ops,
 				       V4L2_CID_LINK_FREQ,
 				       ARRAY_SIZE(imx219_link_freq_menu) - 1, 0,
-				       imx219_link_freq_menu);
+				       (imx219->lanes == 2) ? imx219_link_freq_menu :
+				       imx219_link_freq_4lane_menu);
 	if (imx219->link_freq)
 		imx219->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
@@ -1308,7 +1341,7 @@ static void imx219_free_controls(struct imx219 *imx219)
 	mutex_destroy(&imx219->mutex);
 }
 
-static int imx219_check_hwcfg(struct device *dev)
+static int imx219_check_hwcfg(struct device *dev, struct imx219 *imx219)
 {
 	struct fwnode_handle *endpoint;
 	struct v4l2_fwnode_endpoint ep_cfg = {
@@ -1328,10 +1361,12 @@ static int imx219_check_hwcfg(struct device *dev)
 	}
 
 	/* Check the number of MIPI CSI2 data lanes */
-	if (ep_cfg.bus.mipi_csi2.num_data_lanes != 2) {
-		dev_err(dev, "only 2 data lanes are currently supported\n");
+	if (ep_cfg.bus.mipi_csi2.num_data_lanes != 2 &&
+	    ep_cfg.bus.mipi_csi2.num_data_lanes != 4) {
+		dev_err(dev, "only 2 or 4 data lanes are currently supported\n");
 		goto error_out;
 	}
+	imx219->lanes = ep_cfg.bus.mipi_csi2.num_data_lanes;
 
 	/* Check the link frequency set in device tree */
 	if (!ep_cfg.nr_of_link_frequencies) {
@@ -1340,7 +1375,8 @@ static int imx219_check_hwcfg(struct device *dev)
 	}
 
 	if (ep_cfg.nr_of_link_frequencies != 1 ||
-	    ep_cfg.link_frequencies[0] != IMX219_DEFAULT_LINK_FREQ) {
+	   (ep_cfg.link_frequencies[0] != ((imx219->lanes == 2) ?
+	    IMX219_DEFAULT_LINK_FREQ : IMX219_DEFAULT_LINK_FREQ_4LANE))) {
 		dev_err(dev, "Link frequency not supported: %lld\n",
 			ep_cfg.link_frequencies[0]);
 		goto error_out;
@@ -1368,7 +1404,7 @@ static int imx219_probe(struct i2c_client *client)
 	v4l2_i2c_subdev_init(&imx219->sd, client, &imx219_subdev_ops);
 
 	/* Check the hardware configuration in device tree */
-	if (imx219_check_hwcfg(dev))
+	if (imx219_check_hwcfg(dev, imx219))
 		return -EINVAL;
 
 	/* Get system clock (xclk) */
