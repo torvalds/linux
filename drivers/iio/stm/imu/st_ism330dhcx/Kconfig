@@ -20,9 +20,3 @@ config IIO_ST_ISM330DHCX_I2C
 config IIO_ST_ISM330DHCX_SPI
 	tristate
 	depends on IIO_ST_ISM330DHCX
-
-config IIO_ST_ISM330DHCX_MAY_WAKEUP
-	bool "Enable wake-up irq"
-	depends on IIO_ST_ISM330DHCX
-	help
-	  Enable wake-up irq on interrupt line

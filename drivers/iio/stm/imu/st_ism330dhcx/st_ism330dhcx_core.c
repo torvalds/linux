@@ -13,6 +13,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/interrupt.h>
 #include <linux/pm.h>
+#include <linux/property.h>
 
 #include <linux/platform_data/st_sensors_pdata.h>
 
@@ -1746,11 +1747,8 @@ int st_ism330dhcx_probe(struct device *dev, int irq,
 			return err;
 	}
 
-#if defined(CONFIG_PM) && defined(CONFIG_IIO_ST_ISM330DHCX_MAY_WAKEUP)
-	err = device_init_wakeup(dev, 1);
-	if (err)
-		return err;
-#endif /* CONFIG_PM && CONFIG_IIO_ST_ISM330DHCX_MAY_WAKEUP */
+	device_init_wakeup(dev,
+			   device_property_read_bool(dev, "wakeup-source"));
 
 	dev_info(dev, "Device probed\n");
 
@@ -1849,10 +1847,8 @@ static int __maybe_unused st_ism330dhcx_suspend(struct device *dev)
 
 	err = st_ism330dhcx_bk_regs(hw);
 
-#ifdef CONFIG_IIO_ST_ISM330DHCX_MAY_WAKEUP
 	if (device_may_wakeup(dev))
 		enable_irq_wake(hw->irq);
-#endif /* CONFIG_IIO_ST_ISM330DHCX_MAY_WAKEUP */
 
 	return err < 0 ? err : 0;
 }
@@ -1872,10 +1868,8 @@ static int __maybe_unused st_ism330dhcx_resume(struct device *dev)
 
 	dev_info(dev, "Resuming device\n");
 
-#ifdef CONFIG_IIO_ST_ISM330DHCX_MAY_WAKEUP
 	if (device_may_wakeup(dev))
 		disable_irq_wake(hw->irq);
-#endif /* CONFIG_IIO_ST_ISM330DHCX_MAY_WAKEUP */
 
 	err = st_ism330dhcx_restore_regs(hw);
 	if (err < 0)
