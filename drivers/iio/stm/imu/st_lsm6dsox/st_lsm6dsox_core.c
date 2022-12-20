@@ -16,6 +16,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/events.h>
 #include <linux/pm.h>
+#include <linux/property.h>
 #include <linux/interrupt.h>
 #include <linux/version.h>
 #include <linux/of.h>
@@ -2204,11 +2205,8 @@ int st_lsm6dsox_probe(struct device *dev, int irq, int hw_id,
 	if (err)
 		return err;
 
-#if defined(CONFIG_PM) && defined(CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP)
-	err = device_init_wakeup(dev, 1);
-	if (err)
-		return err;
-#endif /* CONFIG_PM && CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP */
+	device_init_wakeup(dev,
+			   device_property_read_bool(dev, "wakeup-source"));
 
 	dev_info(dev, "Device probed\n");
 
@@ -2230,26 +2228,20 @@ static int __maybe_unused st_lsm6dsox_suspend(struct device *dev)
 		if (!(hw->enable_mask & BIT(sensor->id)))
 			continue;
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP
-		/* do not disable sensors if requested by wake-up */
-		if (!((hw->enable_mask & BIT(sensor->id)) &
-		      ST_LSM6DSOX_WAKE_UP_SENSORS)) {
-			err = st_lsm6dsox_set_odr(sensor, 0, 0);
-			if (err < 0)
-				return err;
-		} else {
+		if (device_may_wakeup(dev) &&
+		    ((hw->enable_mask & BIT_ULL(sensor->id)) &
+		     ST_LSM6DSOX_WAKE_UP_SENSORS)) {
+			/* do not disable sensors if requested by wake-up */
 			err = st_lsm6dsox_set_odr(sensor,
 						  ST_LSM6DSOX_MIN_ODR_IN_WAKEUP,
 						  0);
 			if (err < 0)
 				return err;
+		} else {
+			err = st_lsm6dsox_set_odr(sensor, 0, 0);
+			if (err < 0)
+				return err;
 		}
-#else /* CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP */
-		/* do not disable sensors if requested by wake-up */
-		err = st_lsm6dsox_set_odr(sensor, 0, 0);
-		if (err < 0)
-			return err;
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP */
 	}
 
 	if (st_lsm6dsox_is_fifo_enabled(hw)) {
@@ -2260,12 +2252,9 @@ static int __maybe_unused st_lsm6dsox_suspend(struct device *dev)
 
 	err = st_lsm6dsox_bk_regs(hw);
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP
-	if (hw->enable_mask & ST_LSM6DSOX_WAKE_UP_SENSORS) {
-		if (device_may_wakeup(dev))
-			enable_irq_wake(hw->irq);
-	}
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP */
+	if (device_may_wakeup(dev) &&
+	    (hw->enable_mask & ST_LSM6DSOX_WAKE_UP_SENSORS))
+		enable_irq_wake(hw->irq);
 
 	dev_info(dev, "Suspending device\n");
 
@@ -2280,12 +2269,8 @@ static int __maybe_unused st_lsm6dsox_resume(struct device *dev)
 
 	dev_info(dev, "Resuming device\n");
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP
-	if (hw->enable_mask & ST_LSM6DSOX_WAKE_UP_SENSORS) {
-		if (device_may_wakeup(dev))
-			disable_irq_wake(hw->irq);
-	}
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP */
+	if (device_may_wakeup(dev))
+		disable_irq_wake(hw->irq);
 
 	err = st_lsm6dsox_restore_regs(hw);
 	if (err < 0)
@@ -2299,13 +2284,12 @@ static int __maybe_unused st_lsm6dsox_resume(struct device *dev)
 		if (!(hw->enable_mask & BIT(sensor->id)))
 			continue;
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP
-
-#else /* CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP */
-		err = st_lsm6dsox_set_odr(sensor, sensor->odr, sensor->uodr);
-		if (err < 0)
-			return err;
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP */
+		if (hw->enable_mask & BIT_ULL(sensor->id)) {
+			err = st_lsm6dsox_set_odr(sensor, sensor->odr,
+						  sensor->uodr);
+			if (err < 0)
+				return err;
+		}
 	}
 
 	if (st_lsm6dsox_is_fifo_enabled(hw))
