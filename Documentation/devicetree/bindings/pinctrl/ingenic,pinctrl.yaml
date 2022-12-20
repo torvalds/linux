@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/ingenic,pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs pin controller devicetree bindings
+title: Ingenic SoCs pin controller
 
 description: >
   Please refer to pinctrl-bindings.txt in this directory for details of the

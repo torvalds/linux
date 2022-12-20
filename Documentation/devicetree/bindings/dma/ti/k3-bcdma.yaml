@@ -6,7 +6,7 @@
 $id: http://devicetree.org/schemas/dma/ti/k3-bcdma.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Texas Instruments K3 DMSS BCDMA Device Tree Bindings
+title: Texas Instruments K3 DMSS BCDMA
 
 maintainers:
   - Peter Ujfalusi <peter.ujfalusi@gmail.com>

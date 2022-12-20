@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/mrvl/mrvl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Marvell Platforms Device Tree Bindings
+title: Marvell Platforms
 
 maintainers:
   - Lubomir Rintel <lkundrak@v3.sk>

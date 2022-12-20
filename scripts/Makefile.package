@@ -62,6 +62,16 @@ rpm-pkg:
 	+rpmbuild $(RPMOPTS) --target $(UTS_MACHINE)-linux -ta $(KERNELPATH).tar.gz \
 	--define='_smp_mflags %{nil}'
 
+# srcrpm-pkg
+# ---------------------------------------------------------------------------
+PHONY += srcrpm-pkg
+srcrpm-pkg:
+	$(MAKE) clean
+	$(CONFIG_SHELL) $(MKSPEC) >$(objtree)/kernel.spec
+	$(call cmd,src_tar,$(KERNELPATH),kernel.spec)
+	+rpmbuild $(RPMOPTS) --target $(UTS_MACHINE)-linux -ts $(KERNELPATH).tar.gz \
+	--define='_smp_mflags %{nil}' --define='_srcrpmdir $(srctree)'
+
 # binrpm-pkg
 # ---------------------------------------------------------------------------
 PHONY += binrpm-pkg

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/interrupt-controller/realtek,rtl-intc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Realtek RTL SoC interrupt controller devicetree bindings
+title: Realtek RTL SoC interrupt controller
 
 description:
   Interrupt controller and router for Realtek MIPS SoCs, allowing each SoC

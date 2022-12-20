@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/regulator/pwm-regulator.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for the Generic PWM Regulator
+title: Generic PWM Regulator
 
 maintainers:
   - Brian Norris <briannorris@chromium.org>

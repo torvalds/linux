@@ -24,10 +24,10 @@
 #include <linux/module.h>
 #include <linux/memory.h>
 #include <linux/vmalloc.h>
+#include <linux/set_memory.h>
 
 #include <trace/syscall.h>
 
-#include <asm/set_memory.h>
 #include <asm/kprobes.h>
 #include <asm/ftrace.h>
 #include <asm/nops.h>
@@ -423,9 +423,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	/* ALLOC_TRAMP flags lets us know we created it */
 	ops->flags |= FTRACE_OPS_FL_ALLOC_TRAMP;
 
-	if (likely(system_state != SYSTEM_BOOTING))
-		set_memory_ro((unsigned long)trampoline, npages);
-	set_memory_x((unsigned long)trampoline, npages);
+	set_memory_rox((unsigned long)trampoline, npages);
 	return (unsigned long)trampoline;
 fail:
 	tramp_free(trampoline);

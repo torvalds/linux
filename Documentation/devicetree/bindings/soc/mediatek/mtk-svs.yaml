@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/soc/mediatek/mtk-svs.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek Smart Voltage Scaling (SVS) Device Tree Bindings
+title: MediaTek Smart Voltage Scaling (SVS)
 
 maintainers:
   - Roger Lu <roger.lu@mediatek.com>

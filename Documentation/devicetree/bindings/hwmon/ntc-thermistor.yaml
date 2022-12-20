@@ -6,7 +6,6 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: NTC thermistor temperature sensors
 
 maintainers:
-  - Naveen Krishna Chatradhi <ch.naveen@samsung.com>
   - Linus Walleij <linus.walleij@linaro.org>
 
 description: |

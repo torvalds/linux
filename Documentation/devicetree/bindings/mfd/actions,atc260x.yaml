@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/actions,atc260x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Actions Semi ATC260x Power Management IC bindings
+title: Actions Semi ATC260x Power Management IC
 
 maintainers:
   - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
