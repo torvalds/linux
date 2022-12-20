@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/thermal/thermal-cooling-devices.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Thermal cooling device binding
+title: Thermal cooling device
 
 maintainers:
   - Amit Kucheria <amitk@kernel.org>

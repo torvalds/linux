@@ -876,8 +876,8 @@ DEFINE_CLID_EVENT(confirmed_r);
 	__print_flags(val, "|",						\
 		{ 1 << NFSD_FILE_HASHED,	"HASHED" },		\
 		{ 1 << NFSD_FILE_PENDING,	"PENDING" },		\
-		{ 1 << NFSD_FILE_REFERENCED,	"REFERENCED"},		\
-		{ 1 << NFSD_FILE_GC,		"GC"})
+		{ 1 << NFSD_FILE_REFERENCED,	"REFERENCED" },		\
+		{ 1 << NFSD_FILE_GC,		"GC" })
 
 DECLARE_EVENT_CLASS(nfsd_file_class,
 	TP_PROTO(struct nfsd_file *nf),
@@ -912,6 +912,7 @@ DEFINE_EVENT(nfsd_file_class, name, \
 DEFINE_NFSD_FILE_EVENT(nfsd_file_free);
 DEFINE_NFSD_FILE_EVENT(nfsd_file_unhash);
 DEFINE_NFSD_FILE_EVENT(nfsd_file_put);
+DEFINE_NFSD_FILE_EVENT(nfsd_file_closing);
 DEFINE_NFSD_FILE_EVENT(nfsd_file_unhash_and_queue);
 
 TRACE_EVENT(nfsd_file_alloc,
@@ -1103,35 +1104,6 @@ TRACE_EVENT(nfsd_file_open,
 		__entry->nf_file)
 )
 
-DECLARE_EVENT_CLASS(nfsd_file_search_class,
-	TP_PROTO(
-		const struct inode *inode,
-		unsigned int count
-	),
-	TP_ARGS(inode, count),
-	TP_STRUCT__entry(
-		__field(const struct inode *, inode)
-		__field(unsigned int, count)
-	),
-	TP_fast_assign(
-		__entry->inode = inode;
-		__entry->count = count;
-	),
-	TP_printk("inode=%p count=%u",
-		__entry->inode, __entry->count)
-);
-
-#define DEFINE_NFSD_FILE_SEARCH_EVENT(name)				\
-DEFINE_EVENT(nfsd_file_search_class, name,				\
-	TP_PROTO(							\
-		const struct inode *inode,				\
-		unsigned int count					\
-	),								\
-	TP_ARGS(inode, count))
-
-DEFINE_NFSD_FILE_SEARCH_EVENT(nfsd_file_close_inode_sync);
-DEFINE_NFSD_FILE_SEARCH_EVENT(nfsd_file_close_inode);
-
 TRACE_EVENT(nfsd_file_is_cached,
 	TP_PROTO(
 		const struct inode *inode,
@@ -1209,7 +1181,6 @@ DEFINE_NFSD_FILE_GC_EVENT(nfsd_file_lru_del_disposed);
 DEFINE_NFSD_FILE_GC_EVENT(nfsd_file_gc_in_use);
 DEFINE_NFSD_FILE_GC_EVENT(nfsd_file_gc_writeback);
 DEFINE_NFSD_FILE_GC_EVENT(nfsd_file_gc_referenced);
-DEFINE_NFSD_FILE_GC_EVENT(nfsd_file_gc_hashed);
 DEFINE_NFSD_FILE_GC_EVENT(nfsd_file_gc_disposed);
 
 DECLARE_EVENT_CLASS(nfsd_file_lruwalk_class,
@@ -1240,6 +1211,22 @@ DEFINE_EVENT(nfsd_file_lruwalk_class, name,				\
 
 DEFINE_NFSD_FILE_LRUWALK_EVENT(nfsd_file_gc_removed);
 DEFINE_NFSD_FILE_LRUWALK_EVENT(nfsd_file_shrinker_removed);
+
+TRACE_EVENT(nfsd_file_close,
+	TP_PROTO(
+		const struct inode *inode
+	),
+	TP_ARGS(inode),
+	TP_STRUCT__entry(
+		__field(const void *, inode)
+	),
+	TP_fast_assign(
+		__entry->inode = inode;
+	),
+	TP_printk("inode=%p",
+		__entry->inode
+	)
+);
 
 TRACE_EVENT(nfsd_file_fsync,
 	TP_PROTO(

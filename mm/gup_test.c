@@ -214,7 +214,7 @@ static inline void pin_longterm_test_stop(void)
 		if (pin_longterm_test_nr_pages)
 			unpin_user_pages(pin_longterm_test_pages,
 					 pin_longterm_test_nr_pages);
-		kfree(pin_longterm_test_pages);
+		kvfree(pin_longterm_test_pages);
 		pin_longterm_test_pages = NULL;
 		pin_longterm_test_nr_pages = 0;
 	}
@@ -255,7 +255,7 @@ static inline int pin_longterm_test_start(unsigned long arg)
 	fast = !!(args.flags & PIN_LONGTERM_TEST_FLAG_USE_FAST);
 
 	if (!fast && mmap_read_lock_killable(current->mm)) {
-		kfree(pages);
+		kvfree(pages);
 		return -EINTR;
 	}
 

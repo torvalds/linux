@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/power/supply/bq24735.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding for TI BQ24735 Li-Ion Battery Charger
+title: TI BQ24735 Li-Ion Battery Charger
 
 maintainers:
   - Sebastian Reichel <sre@kernel.org>

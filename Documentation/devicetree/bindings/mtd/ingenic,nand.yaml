@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/ingenic,nand.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs NAND controller devicetree bindings
+title: Ingenic SoCs NAND controller
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>

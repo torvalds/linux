@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/cpus.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ARM CPUs bindings
+title: ARM CPUs
 
 maintainers:
   - Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>

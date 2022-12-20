@@ -97,6 +97,7 @@ config AT_HDMAC
 	tristate "Atmel AHB DMA support"
 	depends on ARCH_AT91
 	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
 	help
 	  Support the Atmel AHB DMA controller.
 
@@ -356,14 +357,6 @@ config INTEL_IOATDMA
 	  Say Y here if you have such a chipset.
 
 	  If unsure, say N.
-
-config INTEL_IOP_ADMA
-	tristate "Intel IOP32x ADMA support"
-	depends on ARCH_IOP32X || COMPILE_TEST
-	select DMA_ENGINE
-	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
-	help
-	  Enable support for the Intel(R) IOP Series RAID engines.
 
 config K3_DMA
 	tristate "Hisilicon K3 DMA support"

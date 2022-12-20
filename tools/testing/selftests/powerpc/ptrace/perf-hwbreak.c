@@ -17,8 +17,11 @@
  * Copyright (C) 2018 Michael Neuling, IBM Corporation.
  */
 
+#define _GNU_SOURCE
+
 #include <unistd.h>
 #include <assert.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -26,6 +29,7 @@
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
+#include <sys/resource.h>
 #include <sys/sysinfo.h>
 #include <asm/ptrace.h>
 #include <elf.h>
@@ -140,17 +144,59 @@ static void disable_fds(int *fd, int n)
 
 static int perf_systemwide_event_open(int *fd, __u32 type, __u64 addr, __u64 len)
 {
-	int i = 0;
+	int i, ncpus, cpu, ret = 0;
+	struct rlimit rlim;
+	cpu_set_t *mask;
+	size_t size;
 
-	/* Assume online processors are 0 to nprocs for simplisity */
-	for (i = 0; i < nprocs; i++) {
-		fd[i] = perf_cpu_event_open(i, type, addr, len);
-		if (fd[i] < 0) {
-			close_fds(fd, i);
-			return fd[i];
-		}
+	if (getrlimit(RLIMIT_NOFILE, &rlim)) {
+		perror("getrlimit");
+		return -1;
 	}
-	return 0;
+	rlim.rlim_cur = 65536;
+	if (setrlimit(RLIMIT_NOFILE, &rlim)) {
+		perror("setrlimit");
+		return -1;
+	}
+
+	ncpus = get_nprocs_conf();
+	size = CPU_ALLOC_SIZE(ncpus);
+	mask = CPU_ALLOC(ncpus);
+	if (!mask) {
+		perror("malloc");
+		return -1;
+	}
+
+	CPU_ZERO_S(size, mask);
+
+	if (sched_getaffinity(0, size, mask)) {
+		perror("sched_getaffinity");
+		ret = -1;
+		goto done;
+	}
+
+	for (i = 0, cpu = 0; i < nprocs && cpu < ncpus; cpu++) {
+		if (!CPU_ISSET_S(cpu, size, mask))
+			continue;
+		fd[i] = perf_cpu_event_open(cpu, type, addr, len);
+		if (fd[i] < 0) {
+			perror("perf_systemwide_event_open");
+			close_fds(fd, i);
+			ret = fd[i];
+			goto done;
+		}
+		i++;
+	}
+
+	if (i < nprocs) {
+		printf("Error: Number of online cpus reduced since start of test: %d < %d\n", i, nprocs);
+		close_fds(fd, i);
+		ret = -1;
+	}
+
+done:
+	CPU_FREE(mask);
+	return ret;
 }
 
 static inline bool breakpoint_test(int len)
@@ -543,15 +589,12 @@ static int test_syswide_multi_diff_addr(void)
 	int ret;
 
 	ret = perf_systemwide_event_open(fd1, HW_BREAKPOINT_RW, (__u64)&a, (__u64)sizeof(a));
-	if (ret) {
-		perror("perf_systemwide_event_open");
+	if (ret)
 		exit(EXIT_FAILURE);
-	}
 
 	ret = perf_systemwide_event_open(fd2, HW_BREAKPOINT_RW, (__u64)&b, (__u64)sizeof(b));
 	if (ret) {
 		close_fds(fd1, nprocs);
-		perror("perf_systemwide_event_open");
 		exit(EXIT_FAILURE);
 	}
 
@@ -590,15 +633,12 @@ static int test_syswide_multi_same_addr(void)
 	int ret;
 
 	ret = perf_systemwide_event_open(fd1, HW_BREAKPOINT_RW, (__u64)&a, (__u64)sizeof(a));
-	if (ret) {
-		perror("perf_systemwide_event_open");
+	if (ret)
 		exit(EXIT_FAILURE);
-	}
 
 	ret = perf_systemwide_event_open(fd2, HW_BREAKPOINT_RW, (__u64)&a, (__u64)sizeof(a));
 	if (ret) {
 		close_fds(fd1, nprocs);
-		perror("perf_systemwide_event_open");
 		exit(EXIT_FAILURE);
 	}
 
@@ -637,15 +677,12 @@ static int test_syswide_multi_diff_addr_ro_wo(void)
 	int ret;
 
 	ret = perf_systemwide_event_open(fd1, HW_BREAKPOINT_W, (__u64)&a, (__u64)sizeof(a));
-	if (ret) {
-		perror("perf_systemwide_event_open");
+	if (ret)
 		exit(EXIT_FAILURE);
-	}
 
 	ret = perf_systemwide_event_open(fd2, HW_BREAKPOINT_R, (__u64)&b, (__u64)sizeof(b));
 	if (ret) {
 		close_fds(fd1, nprocs);
-		perror("perf_systemwide_event_open");
 		exit(EXIT_FAILURE);
 	}
 
@@ -684,15 +721,12 @@ static int test_syswide_multi_same_addr_ro_wo(void)
 	int ret;
 
 	ret = perf_systemwide_event_open(fd1, HW_BREAKPOINT_W, (__u64)&a, (__u64)sizeof(a));
-	if (ret) {
-		perror("perf_systemwide_event_open");
+	if (ret)
 		exit(EXIT_FAILURE);
-	}
 
 	ret = perf_systemwide_event_open(fd2, HW_BREAKPOINT_R, (__u64)&a, (__u64)sizeof(a));
 	if (ret) {
 		close_fds(fd1, nprocs);
-		perror("perf_systemwide_event_open");
 		exit(EXIT_FAILURE);
 	}
 

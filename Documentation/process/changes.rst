@@ -35,7 +35,7 @@ Rust (optional)        1.62.0           rustc --version
 bindgen (optional)     0.56.0           bindgen --version
 GNU make               3.82             make --version
 bash                   4.2              bash --version
-binutils               2.23             ld -v
+binutils               2.25             ld -v
 flex                   2.5.35           flex --version
 bison                  2.0              bison --version
 pahole                 1.16             pahole --version
@@ -119,7 +119,7 @@ Bash 4.2 or newer is needed.
 Binutils
 --------
 
-Binutils 2.23 or newer is needed to build the kernel.
+Binutils 2.25 or newer is needed to build the kernel.
 
 pkg-config
 ----------

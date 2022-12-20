@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/st,stpmic1.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectonics STPMIC1 Power Management IC bindings
+title: STMicroelectonics STPMIC1 Power Management IC
 
 description: STMicroelectronics STPMIC1 Power Management IC
 

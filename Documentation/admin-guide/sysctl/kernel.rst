@@ -436,8 +436,8 @@ ignore-unaligned-usertrap
 
 On architectures where unaligned accesses cause traps, and where this
 feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN``;
-currently, ``arc`` and ``ia64``), controls whether all unaligned traps
-are logged.
+currently, ``arc``, ``ia64`` and ``loongarch``), controls whether all
+unaligned traps are logged.
 
 = =============================================================
 0 Log all unaligned accesses.
@@ -1492,8 +1492,8 @@ unaligned-trap
 
 On architectures where unaligned accesses cause traps, and where this
 feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_ALLOW``; currently,
-``arc`` and ``parisc``), controls whether unaligned traps are caught
-and emulated (instead of failing).
+``arc``, ``parisc`` and ``loongarch``), controls whether unaligned traps
+are caught and emulated (instead of failing).
 
 = ========================================================
 0 Do not emulate unaligned accesses.
