@@ -135,7 +135,7 @@ References
 _`[1]` Virtio Spec v1.2:
 https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.html
 
-Check for later versions of the spec as well.
+.. Check for later versions of the spec as well.
 
 _`[2]` Virtqueues and virtio ring: How the data travels
 https://www.redhat.com/en/blog/virtqueues-and-virtio-ring-how-data-travels
