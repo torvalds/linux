@@ -11,7 +11,7 @@ Introduction
 
 Virtio is an open standard that defines a protocol for communication
 between drivers and devices of different types, see Chapter 5 ("Device
-Types") of the virtio spec `[1]`_. Originally developed as a standard
+Types") of the virtio spec (`[1]`_). Originally developed as a standard
 for paravirtualized devices implemented by a hypervisor, it can be used
 to interface any compliant device (real or emulated) with a driver.
 
@@ -43,9 +43,10 @@ similar to the ones used in a network device:
 All the buffers the descriptors point to are allocated by the guest and
 used by the host either for reading or for writing but not for both.
 
-Refer to Chapter 2.5 ("Virtqueues") of the virtio spec `[1]`_ for the
-reference definitions of virtqueues and to `[2]`_ for an illustrated
-overview of how the host device and the guest driver communicate.
+Refer to Chapter 2.5 ("Virtqueues") of the virtio spec (`[1]`_) for the
+reference definitions of virtqueues and "Virtqueues and virtio ring: How
+the data travels" blog post (`[2]`_) for an illustrated overview of how
+the host device and the guest driver communicate.
 
 The :c:type:`vring_virtqueue` struct models a virtqueue, including the
 ring buffers and management data. Embedded in this struct is the
