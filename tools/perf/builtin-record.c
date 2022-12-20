@@ -3629,7 +3629,7 @@ static int record__init_thread_cpu_masks(struct record *rec, struct perf_cpu_map
 	for (t = 0; t < rec->nr_threads; t++) {
 		__set_bit(perf_cpu_map__cpu(cpus, t).cpu, rec->thread_masks[t].maps.bits);
 		__set_bit(perf_cpu_map__cpu(cpus, t).cpu, rec->thread_masks[t].affinity.bits);
-		if (verbose) {
+		if (verbose > 0) {
 			pr_debug("thread_masks[%d]: ", t);
 			mmap_cpu_mask__scnprintf(&rec->thread_masks[t].maps, "maps");
 			pr_debug("thread_masks[%d]: ", t);
@@ -3726,7 +3726,7 @@ static int record__init_thread_masks_spec(struct record *rec, struct perf_cpu_ma
 		}
 		rec->thread_masks = thread_masks;
 		rec->thread_masks[t] = thread_mask;
-		if (verbose) {
+		if (verbose > 0) {
 			pr_debug("thread_masks[%d]: ", t);
 			mmap_cpu_mask__scnprintf(&rec->thread_masks[t].maps, "maps");
 			pr_debug("thread_masks[%d]: ", t);

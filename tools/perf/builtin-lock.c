@@ -1029,7 +1029,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 		if (!ls)
 			return -ENOMEM;
 
-		if (aggr_mode == LOCK_AGGR_CALLER && verbose) {
+		if (aggr_mode == LOCK_AGGR_CALLER && verbose > 0) {
 			ls->callstack = get_callstack(sample, max_stack_depth);
 			if (ls->callstack == NULL)
 				return -ENOMEM;
@@ -1214,7 +1214,7 @@ static void print_bad_events(int bad, int total)
 	for (i = 0; i < BROKEN_MAX; i++)
 		broken += bad_hist[i];
 
-	if (quiet || (broken == 0 && !verbose))
+	if (quiet || (broken == 0 && verbose <= 0))
 		return;
 
 	pr_info("\n=== output for debug===\n\n");
@@ -1529,7 +1529,7 @@ static void print_contention_result(struct lock_contention *con)
 			break;
 		}
 
-		if (aggr_mode == LOCK_AGGR_CALLER && verbose) {
+		if (aggr_mode == LOCK_AGGR_CALLER && verbose > 0) {
 			struct map *kmap;
 			struct symbol *sym;
 			char buf[128];

@@ -215,7 +215,7 @@ int lock_contention_read(struct lock_contention *con)
 			break;
 		}
 
-		if (verbose) {
+		if (verbose > 0) {
 			st->callstack = memdup(stack_trace, stack_size);
 			if (st->callstack == NULL)
 				break;
