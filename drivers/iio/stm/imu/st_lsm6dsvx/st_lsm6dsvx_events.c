@@ -101,9 +101,9 @@ static int st_lsm6dsvx_set_wake_up_thershold(struct st_lsm6dsvx_hw *hw,
 	int tmp, err;
 
 	err = st_lsm6dsvx_read_with_mask(hw,
-			    hw->fs_table[ST_LSM6DSVX_ID_ACC].fs_avl[0].reg.addr,
-			    hw->fs_table[ST_LSM6DSVX_ID_ACC].fs_avl[0].reg.mask,
-			    &fs_xl);
+				hw->fs_table[ST_LSM6DSVX_ID_ACC].reg.addr,
+				hw->fs_table[ST_LSM6DSVX_ID_ACC].reg.mask,
+				&fs_xl);
 	if (err < 0)
 		return err;
 

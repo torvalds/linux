@@ -56,16 +56,76 @@ static const struct st_lsm6dsvx_settings st_lsm6dsvx_sensor_settings[] = {
 			.name = ST_LSM6DSV_DEV_NAME,
 		},
 		.st_fsm_probe = true,
+		.fs_table = {
+			[ST_LSM6DSVX_ID_ACC] = {
+				.size = 4,
+				.reg = {
+					.addr = ST_LSM6DSVX_REG_CTRL8_ADDR,
+					.mask = GENMASK(1, 0),
+				},
+				.fs_avl[0] = { ST_LSM6DSVX_ACC_FS_2G_GAIN, 0x0 },
+				.fs_avl[1] = { ST_LSM6DSVX_ACC_FS_4G_GAIN, 0x1 },
+				.fs_avl[2] = { ST_LSM6DSVX_ACC_FS_8G_GAIN, 0x2 },
+				.fs_avl[3] = { ST_LSM6DSVX_ACC_FS_16G_GAIN, 0x3 },
+			},
+			[ST_LSM6DSVX_ID_GYRO] = {
+				.size = 6,
+				.reg = {
+					.addr = ST_LSM6DSVX_REG_CTRL6_ADDR,
+					.mask = GENMASK(3, 0),
+				},
+				.fs_avl[0] = { ST_LSM6DSVX_GYRO_FS_125_GAIN, 0x0 },
+				.fs_avl[1] = { ST_LSM6DSVX_GYRO_FS_250_GAIN, 0x1 },
+				.fs_avl[2] = { ST_LSM6DSVX_GYRO_FS_500_GAIN, 0x2 },
+				.fs_avl[3] = { ST_LSM6DSVX_GYRO_FS_1000_GAIN, 0x3 },
+				.fs_avl[4] = { ST_LSM6DSVX_GYRO_FS_2000_GAIN, 0x4 },
+				.fs_avl[5] = { ST_LSM6DSVX_GYRO_FS_4000_GAIN, 0x6 },
+			},
+			[ST_LSM6DSVX_ID_TEMP] = {
+				.size = 1,
+				.fs_avl[0] = { (1000000 / ST_LSM6DSVX_TEMP_GAIN), 0x0 },
+			},
+		},
 	},
 	{
 		.id = {
-			.hw_id = ST_LSM6DSVX_ID,
+			.hw_id = ST_LSM6DSV16X_ID,
 			.name = ST_LSM6DSV16X_DEV_NAME,
 		},
 		.st_qvar_probe = true,
 		.st_mlc_probe = true,
 		.st_fsm_probe = true,
 		.st_sflp_probe = true,
+		.fs_table = {
+			[ST_LSM6DSVX_ID_ACC] = {
+				.size = 4,
+				.reg = {
+					.addr = ST_LSM6DSVX_REG_CTRL8_ADDR,
+					.mask = GENMASK(1, 0),
+				},
+				.fs_avl[0] = { ST_LSM6DSVX_ACC_FS_2G_GAIN, 0x0 },
+				.fs_avl[1] = { ST_LSM6DSVX_ACC_FS_4G_GAIN, 0x1 },
+				.fs_avl[2] = { ST_LSM6DSVX_ACC_FS_8G_GAIN, 0x2 },
+				.fs_avl[3] = { ST_LSM6DSVX_ACC_FS_16G_GAIN, 0x3 },
+			},
+			[ST_LSM6DSVX_ID_GYRO] = {
+				.size = 6,
+				.reg = {
+					.addr = ST_LSM6DSVX_REG_CTRL6_ADDR,
+					.mask = GENMASK(3, 0),
+				},
+				.fs_avl[0] = { ST_LSM6DSVX_GYRO_FS_125_GAIN, 0x0 },
+				.fs_avl[1] = { ST_LSM6DSVX_GYRO_FS_250_GAIN, 0x1 },
+				.fs_avl[2] = { ST_LSM6DSVX_GYRO_FS_500_GAIN, 0x2 },
+				.fs_avl[3] = { ST_LSM6DSVX_GYRO_FS_1000_GAIN, 0x3 },
+				.fs_avl[4] = { ST_LSM6DSVX_GYRO_FS_2000_GAIN, 0x4 },
+				.fs_avl[5] = { ST_LSM6DSVX_GYRO_FS_4000_GAIN, 0x6 },
+			},
+			[ST_LSM6DSVX_ID_TEMP] = {
+				.size = 1,
+				.fs_avl[0] = { (1000000 / ST_LSM6DSVX_TEMP_GAIN), 0x0 },
+			},
+		},
 	},
 };
 
@@ -117,103 +177,6 @@ st_lsm6dsvx_odr_table[] = {
 		.odr_avl[3] = { 120, 0, 0x00, 0x03 },
 		.odr_avl[4] = { 240, 0, 0x00, 0x04 },
 		.odr_avl[5] = { 480, 0, 0x00, 0x05 },
-	},
-};
-
-static const struct st_lsm6dsvx_fs_table_entry st_lsm6dsvx_fs_table[] = {
-	[ST_LSM6DSVX_ID_ACC] = {
-		.size = 4,
-		.fs_avl[0] = {
-			.reg = {
-				.addr = ST_LSM6DSVX_REG_CTRL8_ADDR,
-				.mask = GENMASK(1, 0),
-			},
-			.gain = ST_LSM6DSVX_ACC_FS_2G_GAIN,
-			.val = 0x0,
-		},
-		.fs_avl[1] = {
-			.reg = {
-				.addr = ST_LSM6DSVX_REG_CTRL8_ADDR,
-				.mask = GENMASK(1, 0),
-			},
-			.gain = ST_LSM6DSVX_ACC_FS_4G_GAIN,
-			.val = 0x1,
-		},
-		.fs_avl[2] = {
-			.reg = {
-				.addr = ST_LSM6DSVX_REG_CTRL8_ADDR,
-				.mask = GENMASK(1, 0),
-			},
-			.gain = ST_LSM6DSVX_ACC_FS_8G_GAIN,
-			.val = 0x2,
-		},
-		.fs_avl[3] = {
-			.reg = {
-				.addr = ST_LSM6DSVX_REG_CTRL8_ADDR,
-				.mask = GENMASK(1, 0),
-			},
-			.gain = ST_LSM6DSVX_ACC_FS_16G_GAIN,
-			.val = 0x3,
-		},
-	},
-	[ST_LSM6DSVX_ID_GYRO] = {
-		.size = 6,
-		.fs_avl[0] = {
-			.reg = {
-				.addr = ST_LSM6DSVX_REG_CTRL6_ADDR,
-				.mask = GENMASK(3, 0),
-			},
-			.gain = ST_LSM6DSVX_GYRO_FS_125_GAIN,
-			.val = 0x0,
-		},
-		.fs_avl[1] = {
-			.reg = {
-				.addr = ST_LSM6DSVX_REG_CTRL6_ADDR,
-				.mask = GENMASK(3, 0),
-			},
-			.gain = ST_LSM6DSVX_GYRO_FS_250_GAIN,
-			.val = 0x1,
-		},
-		.fs_avl[2] = {
-			.reg = {
-				.addr = ST_LSM6DSVX_REG_CTRL6_ADDR,
-				.mask = GENMASK(3, 0),
-			},
-			.gain = ST_LSM6DSVX_GYRO_FS_500_GAIN,
-			.val = 0x2,
-		},
-		.fs_avl[3] = {
-			.reg = {
-				.addr = ST_LSM6DSVX_REG_CTRL6_ADDR,
-				.mask = GENMASK(3, 0),
-			},
-			.gain = ST_LSM6DSVX_GYRO_FS_1000_GAIN,
-			.val = 0x3,
-		},
-		.fs_avl[4] = {
-			.reg = {
-				.addr = ST_LSM6DSVX_REG_CTRL6_ADDR,
-				.mask = GENMASK(3, 0),
-			},
-			.gain = ST_LSM6DSVX_GYRO_FS_2000_GAIN,
-			.val = 0x4,
-		},
-		.fs_avl[5] = {
-			.reg = {
-				.addr = ST_LSM6DSVX_REG_CTRL6_ADDR,
-				.mask = GENMASK(3, 0),
-			},
-			.gain = ST_LSM6DSVX_GYRO_FS_4000_GAIN,
-			.val = 0x6,
-		},
-	},
-	[ST_LSM6DSVX_ID_TEMP] = {
-		.size = 1,
-		.fs_avl[0] = {
-			.reg = { 0 },
-			.gain = (1000000 / ST_LSM6DSVX_TEMP_GAIN),
-			.val = 0x0
-		},
 	},
 };
 
@@ -342,7 +305,7 @@ static int st_lsm6dsvx_check_whoami(struct st_lsm6dsvx_hw *hw, int id)
 	}
 
 	hw->settings = &st_lsm6dsvx_sensor_settings[i];
-	hw->fs_table = st_lsm6dsvx_fs_table;
+	hw->fs_table = hw->settings->fs_table;
 	hw->odr_table = st_lsm6dsvx_odr_table;
 
 	return 0;
@@ -376,21 +339,22 @@ static int
 st_lsm6dsvx_set_full_scale(struct st_lsm6dsvx_sensor *sensor, u32 gain)
 {
 	enum st_lsm6dsvx_sensor_id id = sensor->id;
+	struct st_lsm6dsvx_hw *hw = sensor->hw;
 	int i, err;
 	u8 val;
 
-	for (i = 0; i < st_lsm6dsvx_fs_table[id].size; i++)
-		if (st_lsm6dsvx_fs_table[id].fs_avl[i].gain == gain)
+	for (i = 0; i < hw->fs_table[id].size; i++)
+		if (hw->fs_table[id].fs_avl[i].gain == gain)
 			break;
 
-	if (i == st_lsm6dsvx_fs_table[id].size)
+	if (i == hw->fs_table[id].size)
 		return -EINVAL;
 
-	val = st_lsm6dsvx_fs_table[id].fs_avl[i].val;
+	val = hw->fs_table[id].fs_avl[i].val;
 	err = st_lsm6dsvx_write_with_mask(sensor->hw,
-			    st_lsm6dsvx_fs_table[id].fs_avl[i].reg.addr,
-			    st_lsm6dsvx_fs_table[id].fs_avl[i].reg.mask,
-			    val);
+					  hw->fs_table[id].reg.addr,
+					  hw->fs_table[id].reg.mask,
+					  val);
 	if (err < 0)
 		return err;
 
@@ -874,11 +838,12 @@ st_lsm6dsvx_sysfs_scale_avail(struct device *dev, struct device_attribute *attr,
 {
 	struct st_lsm6dsvx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_lsm6dsvx_sensor_id id = sensor->id;
+	struct st_lsm6dsvx_hw *hw = sensor->hw;
 	int i, len = 0;
 
-	for (i = 0; i < st_lsm6dsvx_fs_table[id].size; i++)
+	for (i = 0; i < hw->fs_table[id].size; i++)
 		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09u ",
-				 st_lsm6dsvx_fs_table[id].fs_avl[i].gain);
+				 hw->fs_table[id].fs_avl[i].gain);
 	buf[len - 1] = '\n';
 
 	return len;
@@ -1512,7 +1477,7 @@ st_lsm6dsvx_alloc_iiodev(struct st_lsm6dsvx_hw *hw,
 		sensor->max_watermark = ST_LSM6DSVX_MAX_FIFO_DEPTH;
 		sensor->odr = st_lsm6dsvx_odr_table[id].odr_avl[1].hz;
 		sensor->uodr = st_lsm6dsvx_odr_table[id].odr_avl[1].uhz;
-		sensor->gain = st_lsm6dsvx_fs_table[id].fs_avl[0].gain;
+		sensor->gain = hw->fs_table[id].fs_avl[0].gain;
 		sensor->min_st = ST_LSM6DSVX_SELFTEST_ACCEL_MIN;
 		sensor->max_st = ST_LSM6DSVX_SELFTEST_ACCEL_MAX;
 		break;
@@ -1529,7 +1494,7 @@ st_lsm6dsvx_alloc_iiodev(struct st_lsm6dsvx_hw *hw,
 		sensor->max_watermark = ST_LSM6DSVX_MAX_FIFO_DEPTH;
 		sensor->odr = st_lsm6dsvx_odr_table[id].odr_avl[1].hz;
 		sensor->uodr = st_lsm6dsvx_odr_table[id].odr_avl[1].uhz;
-		sensor->gain = st_lsm6dsvx_fs_table[id].fs_avl[1].gain;
+		sensor->gain = hw->fs_table[id].fs_avl[1].gain;
 		sensor->min_st = ST_LSM6DSVX_SELFTEST_GYRO_MIN;
 		sensor->max_st = ST_LSM6DSVX_SELFTEST_GYRO_MAX;
 		break;
@@ -1547,7 +1512,7 @@ st_lsm6dsvx_alloc_iiodev(struct st_lsm6dsvx_hw *hw,
 		sensor->max_watermark = ST_LSM6DSVX_MAX_FIFO_DEPTH;
 		sensor->odr = st_lsm6dsvx_odr_table[id].odr_avl[1].hz;
 		sensor->uodr = st_lsm6dsvx_odr_table[id].odr_avl[1].uhz;
-		sensor->gain = st_lsm6dsvx_fs_table[id].fs_avl[1].gain;
+		sensor->gain = hw->fs_table[id].fs_avl[1].gain;
 		sensor->offset = ST_LSM6DSVX_TEMP_OFFSET;
 		break;
 	case ST_LSM6DSVX_ID_6X_GAME:

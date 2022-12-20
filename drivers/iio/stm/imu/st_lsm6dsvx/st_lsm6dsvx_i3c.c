@@ -16,7 +16,7 @@
 #include "st_lsm6dsvx.h"
 
 static const struct i3c_device_id st_lsm6dsvx_i3c_ids[] = {
-	I3C_DEVICE(0x0104, ST_LSM6DSVX_WHOAMI_VAL, (void *)ST_LSM6DSVX_ID),
+	I3C_DEVICE(0x0104, ST_LSM6DSVX_WHOAMI_VAL, (void *)ST_LSM6DSV16X_ID),
 	{},
 };
 MODULE_DEVICE_TABLE(i3c, st_lsm6dsvx_i3c_ids);

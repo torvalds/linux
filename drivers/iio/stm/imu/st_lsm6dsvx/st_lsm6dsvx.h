@@ -371,7 +371,6 @@ struct st_lsm6dsvx_odr_table_entry {
 };
 
 struct st_lsm6dsvx_fs {
-	struct st_lsm6dsvx_reg reg;
 	u32 gain;
 	u8 val;
 };
@@ -381,6 +380,7 @@ struct st_lsm6dsvx_fs {
 #define ST_LSM6DSVX_FS_GYRO_LIST_SIZE		6
 struct st_lsm6dsvx_fs_table_entry {
 	u8 size;
+	struct st_lsm6dsvx_reg reg;
 	struct st_lsm6dsvx_fs fs_avl[ST_LSM6DSVX_FS_LIST_SIZE];
 };
 
@@ -407,7 +407,7 @@ struct st_lsm6dsvx_ext_dev_info {
  */
 enum st_lsm6dsvx_hw_id {
 	ST_LSM6DSV_ID,
-	ST_LSM6DSVX_ID,
+	ST_LSM6DSV16X_ID,
 	ST_LSM6DSVX_MAX_ID,
 };
 
@@ -449,7 +449,13 @@ struct st_lsm6dsvx_mlc_config_t {
  * @st_mlc_probe: MLC probe flag, indicate if MLC feature is supported.
  * @st_fsm_probe: FSM probe flag, indicate if FSM feature is supported.
  * @st_sflp_probe: SFLP probe flag, indicate if SFLP feature is supported.
+ * @fs_table: full scale table for main sensors.
+ *
+ * main sensors are ST_LSM6DSVX_ID_GYRO, ST_LSM6DSVX_ID_ACC and
+ * ST_LSM6DSVX_ID_TEMP
  */
+#define ST_LSM6DSVX_MAIN_SENSOR_NUM	3
+
 struct st_lsm6dsvx_settings {
 	struct {
 		enum st_lsm6dsvx_hw_id hw_id;
@@ -460,6 +466,7 @@ struct st_lsm6dsvx_settings {
 	bool st_mlc_probe;
 	bool st_fsm_probe;
 	bool st_sflp_probe;
+	struct st_lsm6dsvx_fs_table_entry fs_table[ST_LSM6DSVX_MAIN_SENSOR_NUM];
 };
 
 enum st_lsm6dsvx_sensor_id {
