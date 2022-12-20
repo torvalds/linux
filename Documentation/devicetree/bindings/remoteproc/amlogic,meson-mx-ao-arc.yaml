@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/remoteproc/amlogic,meson-mx-ao-arc.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Amlogic Meson AO ARC Remote Processor bindings
+title: Amlogic Meson AO ARC Remote Processor
 
 description:
   Amlogic Meson6, Meson8, Meson8b and Meson8m2 SoCs embed an ARC core

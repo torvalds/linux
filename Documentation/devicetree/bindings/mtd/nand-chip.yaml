@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/nand-chip.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NAND Chip and NAND Controller Generic Binding
+title: NAND Chip Common Properties
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>

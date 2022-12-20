@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/soc/qcom/qcom,aoss-qmp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Always-On Subsystem side channel binding
+title: Qualcomm Always-On Subsystem side channel
 
 maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>

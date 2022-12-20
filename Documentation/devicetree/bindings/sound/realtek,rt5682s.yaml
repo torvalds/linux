@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/realtek,rt5682s.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Realtek rt5682s codec devicetree bindings
+title: Realtek rt5682s codec
 
 maintainers:
   - Derek Fang <derek.fang@realtek.com>

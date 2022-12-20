@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/pwm/microchip,corepwm.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip IP corePWM controller bindings
+title: Microchip IP corePWM controller
 
 maintainers:
   - Conor Dooley <conor.dooley@microchip.com>

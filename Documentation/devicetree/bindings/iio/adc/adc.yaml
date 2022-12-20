@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/adc/adc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Generic IIO bindings for ADC channels
+title: IIO Common Properties for ADC Channels
 
 maintainers:
   - Jonathan Cameron <jic23@kernel.org>

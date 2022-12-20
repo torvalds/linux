@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/serial/serial.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Serial Interface Generic DT Bindings
+title: Serial Interface Generic
 
 maintainers:
   - Rob Herring <robh@kernel.org>
