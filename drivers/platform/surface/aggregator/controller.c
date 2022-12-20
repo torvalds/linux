@@ -1674,7 +1674,7 @@ int ssam_request_sync_submit(struct ssam_controller *ctrl,
 EXPORT_SYMBOL_GPL(ssam_request_sync_submit);
 
 /**
- * ssam_request_sync() - Execute a synchronous request.
+ * ssam_request_do_sync() - Execute a synchronous request.
  * @ctrl: The controller via which the request will be submitted.
  * @spec: The request specification and payload.
  * @rsp:  The response buffer.
@@ -1686,9 +1686,9 @@ EXPORT_SYMBOL_GPL(ssam_request_sync_submit);
  *
  * Return: Returns the status of the request or any failure during setup.
  */
-int ssam_request_sync(struct ssam_controller *ctrl,
-		      const struct ssam_request *spec,
-		      struct ssam_response *rsp)
+int ssam_request_do_sync(struct ssam_controller *ctrl,
+			 const struct ssam_request *spec,
+			 struct ssam_response *rsp)
 {
 	struct ssam_request_sync *rqst;
 	struct ssam_span buf;
@@ -1722,10 +1722,10 @@ int ssam_request_sync(struct ssam_controller *ctrl,
 	ssam_request_sync_free(rqst);
 	return status;
 }
-EXPORT_SYMBOL_GPL(ssam_request_sync);
+EXPORT_SYMBOL_GPL(ssam_request_do_sync);
 
 /**
- * ssam_request_sync_with_buffer() - Execute a synchronous request with the
+ * ssam_request_do_sync_with_buffer() - Execute a synchronous request with the
  * provided buffer as back-end for the message buffer.
  * @ctrl: The controller via which the request will be submitted.
  * @spec: The request specification and payload.
@@ -1738,17 +1738,17 @@ EXPORT_SYMBOL_GPL(ssam_request_sync);
  * SSH_COMMAND_MESSAGE_LENGTH() macro can be used to compute the required
  * message buffer size.
  *
- * This function does essentially the same as ssam_request_sync(), but instead
- * of dynamically allocating the request and message data buffer, it uses the
- * provided message data buffer and stores the (small) request struct on the
- * heap.
+ * This function does essentially the same as ssam_request_do_sync(), but
+ * instead of dynamically allocating the request and message data buffer, it
+ * uses the provided message data buffer and stores the (small) request struct
+ * on the heap.
  *
  * Return: Returns the status of the request or any failure during setup.
  */
-int ssam_request_sync_with_buffer(struct ssam_controller *ctrl,
-				  const struct ssam_request *spec,
-				  struct ssam_response *rsp,
-				  struct ssam_span *buf)
+int ssam_request_do_sync_with_buffer(struct ssam_controller *ctrl,
+				     const struct ssam_request *spec,
+				     struct ssam_response *rsp,
+				     struct ssam_span *buf)
 {
 	struct ssam_request_sync rqst;
 	ssize_t len;
@@ -1772,7 +1772,7 @@ int ssam_request_sync_with_buffer(struct ssam_controller *ctrl,
 
 	return status;
 }
-EXPORT_SYMBOL_GPL(ssam_request_sync_with_buffer);
+EXPORT_SYMBOL_GPL(ssam_request_do_sync_with_buffer);
 
 
 /* -- Internal SAM requests. ------------------------------------------------ */
@@ -1864,7 +1864,7 @@ static int __ssam_ssh_event_request(struct ssam_controller *ctrl,
 	result.length = 0;
 	result.pointer = &buf;
 
-	status = ssam_retry(ssam_request_sync_onstack, ctrl, &rqst, &result,
+	status = ssam_retry(ssam_request_do_sync_onstack, ctrl, &rqst, &result,
 			    sizeof(params));
 
 	return status < 0 ? status : buf;

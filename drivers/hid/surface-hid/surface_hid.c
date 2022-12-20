@@ -80,7 +80,7 @@ static int ssam_hid_get_descriptor(struct surface_hid_device *shid, u8 entry, u8
 
 		rsp.length = 0;
 
-		status = ssam_retry(ssam_request_sync_onstack, shid->ctrl, &rqst, &rsp,
+		status = ssam_retry(ssam_request_do_sync_onstack, shid->ctrl, &rqst, &rsp,
 				    sizeof(*slice));
 		if (status)
 			return status;
@@ -131,7 +131,7 @@ static int ssam_hid_set_raw_report(struct surface_hid_device *shid, u8 rprt_id, 
 
 	buf[0] = rprt_id;
 
-	return ssam_retry(ssam_request_sync, shid->ctrl, &rqst, NULL);
+	return ssam_retry(ssam_request_do_sync, shid->ctrl, &rqst, NULL);
 }
 
 static int ssam_hid_get_raw_report(struct surface_hid_device *shid, u8 rprt_id, u8 *buf, size_t len)
@@ -151,7 +151,7 @@ static int ssam_hid_get_raw_report(struct surface_hid_device *shid, u8 rprt_id, 
 	rsp.length = 0;
 	rsp.pointer = buf;
 
-	return ssam_retry(ssam_request_sync_onstack, shid->ctrl, &rqst, &rsp, sizeof(rprt_id));
+	return ssam_retry(ssam_request_do_sync_onstack, shid->ctrl, &rqst, &rsp, sizeof(rprt_id));
 }
 
 static u32 ssam_hid_event_fn(struct ssam_event_notifier *nf, const struct ssam_event *event)

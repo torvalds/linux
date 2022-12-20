@@ -49,7 +49,7 @@ static int ssam_kbd_get_descriptor(struct surface_hid_device *shid, u8 entry, u8
 	rsp.length = 0;
 	rsp.pointer = buf;
 
-	status = ssam_retry(ssam_request_sync_onstack, shid->ctrl, &rqst, &rsp, sizeof(entry));
+	status = ssam_retry(ssam_request_do_sync_onstack, shid->ctrl, &rqst, &rsp, sizeof(entry));
 	if (status)
 		return status;
 
@@ -75,7 +75,7 @@ static int ssam_kbd_set_caps_led(struct surface_hid_device *shid, bool value)
 	rqst.length = sizeof(value_u8);
 	rqst.payload = &value_u8;
 
-	return ssam_retry(ssam_request_sync_onstack, shid->ctrl, &rqst, NULL, sizeof(value_u8));
+	return ssam_retry(ssam_request_do_sync_onstack, shid->ctrl, &rqst, NULL, sizeof(value_u8));
 }
 
 static int ssam_kbd_get_feature_report(struct surface_hid_device *shid, u8 *buf, size_t len)
@@ -97,7 +97,7 @@ static int ssam_kbd_get_feature_report(struct surface_hid_device *shid, u8 *buf,
 	rsp.length = 0;
 	rsp.pointer = buf;
 
-	status = ssam_retry(ssam_request_sync_onstack, shid->ctrl, &rqst, &rsp, sizeof(payload));
+	status = ssam_retry(ssam_request_do_sync_onstack, shid->ctrl, &rqst, &rsp, sizeof(payload));
 	if (status)
 		return status;
 

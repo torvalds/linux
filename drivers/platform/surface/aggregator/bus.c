@@ -136,9 +136,9 @@ int ssam_device_add(struct ssam_device *sdev)
 	 * is always valid and can be used for requests as long as the client
 	 * device we add here is registered as child under it. This essentially
 	 * guarantees that the client driver can always expect the preconditions
-	 * for functions like ssam_request_sync (controller has to be started
-	 * and is not suspended) to hold and thus does not have to check for
-	 * them.
+	 * for functions like ssam_request_do_sync() (controller has to be
+	 * started and is not suspended) to hold and thus does not have to check
+	 * for them.
 	 *
 	 * Note that for this to work, the controller has to be a parent device.
 	 * If it is not a direct parent, care has to be taken that the device is

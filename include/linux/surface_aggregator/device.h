@@ -456,7 +456,7 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
  * device of the request and by association the controller via which the
  * request is sent.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_CL_N(name, spec...)			\
@@ -490,7 +490,7 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
  * which the request is sent. The request's argument is specified via the
  * ``arg`` pointer.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_CL_W(name, atype, spec...)		\
@@ -524,7 +524,7 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
  * the request is sent. The request's return value is written to the memory
  * pointed to by the ``ret`` parameter.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_CL_R(name, rtype, spec...)		\
@@ -560,7 +560,7 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
  * specified via the ``arg`` pointer. The request's return value is written to
  * the memory pointed to by the ``ret`` parameter.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_CL_WR(name, atype, rtype, spec...)		\

@@ -382,7 +382,7 @@ static int ssam_pos_get_sources_list(struct ssam_tablet_sw *sw, struct ssam_sour
 	rsp.length = 0;
 	rsp.pointer = (u8 *)sources;
 
-	status = ssam_retry(ssam_request_sync_onstack, sw->sdev->ctrl, &rqst, &rsp, 0);
+	status = ssam_retry(ssam_request_do_sync_onstack, sw->sdev->ctrl, &rqst, &rsp, 0);
 	if (status)
 		return status;
 
