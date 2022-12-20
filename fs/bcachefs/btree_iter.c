@@ -1846,7 +1846,7 @@ struct bkey_s_c btree_trans_peek_journal(struct btree_trans *trans,
  * bkey_s_c_null:
  */
 static noinline
-struct bkey_s_c __btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos pos)
+struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos pos)
 {
 	struct btree_trans *trans = iter->trans;
 	struct bch_fs *c = trans->c;
@@ -1865,7 +1865,9 @@ struct bkey_s_c __btree_trans_peek_key_cache(struct btree_iter *iter, struct bpo
 	iter->key_cache_path = bch2_btree_path_set_pos(trans, iter->key_cache_path, pos,
 					iter->flags & BTREE_ITER_INTENT);
 
-	ret = bch2_btree_path_traverse(trans, iter->key_cache_path, iter->flags|BTREE_ITER_CACHED);
+	ret =   bch2_btree_path_traverse(trans, iter->key_cache_path,
+					 iter->flags|BTREE_ITER_CACHED) ?:
+		bch2_btree_path_relock(trans, iter->path, _THIS_IP_);
 	if (unlikely(ret))
 		return bkey_s_c_err(ret);
 
@@ -1877,15 +1879,6 @@ struct bkey_s_c __btree_trans_peek_key_cache(struct btree_iter *iter, struct bpo
 		k.k = &iter->k;
 	}
 	return k;
-}
-
-static noinline
-struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos pos)
-{
-	struct bkey_s_c ret = __btree_trans_peek_key_cache(iter, pos);
-	int err = bkey_err(ret) ?: bch2_btree_path_relock(iter->trans, iter->path, _THIS_IP_);
-
-	return err ? bkey_s_c_err(err) : ret;
 }
 
 static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bpos search_key)
@@ -2394,7 +2387,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 			goto out;
 
 		if (unlikely(iter->flags & BTREE_ITER_WITH_KEY_CACHE) &&
-		    (k = __btree_trans_peek_key_cache(iter, iter->pos)).k) {
+		    (k = btree_trans_peek_key_cache(iter, iter->pos)).k) {
 			if (!bkey_err(k))
 				iter->k = *k.k;
 			/* We're not returning a key from iter->path: */
