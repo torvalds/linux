@@ -2594,6 +2594,7 @@
   snd_soc_get_pcm_runtime
   snd_soc_get_volsw
   snd_soc_info_enum_double
+  snd_soc_info_multi_ext
   snd_soc_info_volsw
   snd_soc_jack_report
   snd_soc_lookup_component
