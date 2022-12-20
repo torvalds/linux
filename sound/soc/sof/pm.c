@@ -192,6 +192,9 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	if (runtime_suspend && !sof_ops(sdev)->runtime_suspend)
 		return 0;
 
+	if (tplg_ops && tplg_ops->tear_down_all_pipelines)
+		tplg_ops->tear_down_all_pipelines(sdev, false);
+
 	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE)
 		goto suspend;
 
@@ -215,9 +218,6 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 		sof_suspend_clients(sdev, pm_state);
 		goto suspend;
 	}
-
-	if (tplg_ops->tear_down_all_pipelines)
-		tplg_ops->tear_down_all_pipelines(sdev, false);
 
 	/* suspend DMA trace */
 	sof_fw_trace_suspend(sdev, pm_state);
