@@ -7,12 +7,15 @@
 #ifndef ROCKCHIP_DRM_LOGO_H
 #define ROCKCHIP_DRM_LOGO_H
 
+#include "rockchip_drm_vop.h"
+
 struct rockchip_drm_mode_set {
 	struct list_head head;
 	struct drm_framebuffer *fb;
 	struct rockchip_drm_sub_dev *sub_dev;
 	struct drm_crtc *crtc;
 	struct drm_display_mode *mode;
+	struct post_csc csc;
 	int clock;
 	int hdisplay;
 	int vdisplay;

@@ -5878,6 +5878,57 @@ static void vop2_crtc_disable_line_flag_event(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&vop2->irq_lock, flags);
 }
 
+static int vop2_crtc_get_inital_acm_info(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct post_acm *acm = &vp->acm_info;
+	s16 *lut_y;
+	s16 *lut_h;
+	s16 *lut_s;
+	u32 value;
+	int i;
+
+	value = readl(vop2->acm_regs + RK3528_ACM_CTRL);
+	acm->acm_enable = value & 0x1;
+	value = readl(vop2->acm_regs + RK3528_ACM_DELTA_RANGE);
+	acm->y_gain = value & 0x3ff;
+	acm->h_gain = (value >> 10) & 0x3ff;
+	acm->s_gain = (value >> 20) & 0x3ff;
+
+	lut_y = &acm->gain_lut_hy[0];
+	lut_h = &acm->gain_lut_hy[ACM_GAIN_LUT_HY_LENGTH];
+	lut_s = &acm->gain_lut_hy[ACM_GAIN_LUT_HY_LENGTH * 2];
+	for (i = 0; i < ACM_GAIN_LUT_HY_LENGTH; i++) {
+		value = readl(vop2->acm_regs + RK3528_ACM_YHS_DEL_HY_SEG0 + (i << 2));
+		lut_y[i] = value & 0xff;
+		lut_h[i] = (value >> 8) & 0xff;
+		lut_s[i] = (value >> 16) & 0xff;
+	}
+
+	lut_y = &acm->gain_lut_hs[0];
+	lut_h = &acm->gain_lut_hs[ACM_GAIN_LUT_HS_LENGTH];
+	lut_s = &acm->gain_lut_hs[ACM_GAIN_LUT_HS_LENGTH * 2];
+	for (i = 0; i < ACM_GAIN_LUT_HS_LENGTH; i++) {
+		value = readl(vop2->acm_regs + RK3528_ACM_YHS_DEL_HS_SEG0 + (i << 2));
+		lut_y[i] = value & 0xff;
+		lut_h[i] = (value >> 8) & 0xff;
+		lut_s[i] = (value >> 16) & 0xff;
+	}
+
+	lut_y = &acm->delta_lut_h[0];
+	lut_h = &acm->delta_lut_h[ACM_DELTA_LUT_H_LENGTH];
+	lut_s = &acm->delta_lut_h[ACM_DELTA_LUT_H_LENGTH * 2];
+	for (i = 0; i < ACM_DELTA_LUT_H_LENGTH; i++) {
+		value = readl(vop2->acm_regs + RK3528_ACM_YHS_DEL_HGAIN_SEG0 + (i << 2));
+		lut_y[i] = value & 0x3ff;
+		lut_h[i] = (value >> 12) & 0xff;
+		lut_s[i] = (value >> 20) & 0x3ff;
+	}
+
+	return 0;
+}
+
 static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -5942,6 +5993,12 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 				ext_pll->vp_mask |= BIT(vp->id);
 		}
 		drm_crtc_vblank_on(crtc);
+		if (is_vop3(vop2)) {
+			if (vp_data->feature & (VOP_FEATURE_POST_ACM))
+				vop2_crtc_get_inital_acm_info(crtc);
+			if (data && (vp_data->feature & VOP_FEATURE_POST_CSC))
+				memcpy(&vp->csc_info, data, sizeof(struct post_csc));
+		}
 		if (private->cubic_lut[vp->id].enable) {
 			dma_addr_t cubic_lut_mst;
 			struct loader_cubic_lut *cubic_lut = &private->cubic_lut[vp->id];

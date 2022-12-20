@@ -376,6 +376,69 @@ get_framebuffer_by_node(struct drm_device *drm_dev, struct device_node *node)
 	return rockchip_drm_logo_fb_alloc(drm_dev, &mode_cmd, private->logo);
 }
 
+static void of_parse_post_csc_info(struct device_node *route, struct rockchip_drm_mode_set *set)
+{
+	int val;
+
+	if (!of_property_read_u32(route, "post-csc,enable", &val))
+		set->csc.csc_enable = val;
+	else
+		set->csc.csc_enable = 0;
+
+	if (!set->csc.csc_enable)
+		return;
+
+	if (!of_property_read_u32(route, "post-csc,hue", &val))
+		set->csc.hue = val;
+	else
+		set->csc.hue = 256;
+
+	if (!of_property_read_u32(route, "post-csc,saturation", &val))
+		set->csc.saturation = val;
+	else
+		set->csc.saturation = 256;
+
+	if (!of_property_read_u32(route, "post-csc,contrast", &val))
+		set->csc.contrast = val;
+	else
+		set->csc.contrast = 256;
+
+	if (!of_property_read_u32(route, "post-csc,brightness", &val))
+		set->csc.brightness = val;
+	else
+		set->csc.brightness = 256;
+
+	if (!of_property_read_u32(route, "post-csc,r-gain", &val))
+		set->csc.r_gain = val;
+	else
+		set->csc.r_gain = 256;
+
+	if (!of_property_read_u32(route, "post-csc,g-gain", &val))
+		set->csc.g_gain = val;
+	else
+		set->csc.g_gain = 256;
+
+	if (!of_property_read_u32(route, "post-csc,b-gain", &val))
+		set->csc.b_gain = val;
+	else
+		set->csc.b_gain = 256;
+
+	if (!of_property_read_u32(route, "post-csc,r-offset", &val))
+		set->csc.r_offset = val;
+	else
+		set->csc.r_offset = 256;
+
+	if (!of_property_read_u32(route, "post-csc,g-offset", &val))
+		set->csc.g_offset = val;
+	else
+		set->csc.g_offset = 256;
+
+	if (!of_property_read_u32(route, "post-csc,b-offset", &val))
+		set->csc.b_offset = val;
+	else
+		set->csc.b_offset = 256;
+}
+
 static struct rockchip_drm_mode_set *
 of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 {
@@ -469,6 +532,8 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 		set->hue = val;
 	else
 		set->hue = 50;
+
+	of_parse_post_csc_info(route, set);
 
 	set->force_output = of_property_read_bool(route, "force-output");
 
@@ -746,7 +811,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 
 		if (priv->crtc_funcs[pipe] &&
 		    priv->crtc_funcs[pipe]->loader_protect)
-			priv->crtc_funcs[pipe]->loader_protect(crtc, true, NULL);
+			priv->crtc_funcs[pipe]->loader_protect(crtc, true, &set->csc);
 	}
 
 	if (!set->fb) {
@@ -994,7 +1059,8 @@ void rockchip_drm_show_logo(struct drm_device *drm_dev)
 									     unset);
 				if (priv->crtc_funcs[pipe] &&
 				    priv->crtc_funcs[pipe]->loader_protect)
-					priv->crtc_funcs[pipe]->loader_protect(crtc, true, NULL);
+					priv->crtc_funcs[pipe]->loader_protect(crtc, true,
+									       &set->csc);
 				priv->crtc_funcs[pipe]->crtc_close(crtc);
 				if (priv->crtc_funcs[pipe] &&
 				    priv->crtc_funcs[pipe]->loader_protect)
