@@ -612,6 +612,15 @@ __cmd_probe(int argc, const char **argv)
 
 	argc = parse_options(argc, argv, options, probe_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
+
+	if (quiet) {
+		if (verbose != 0) {
+			pr_err("  Error: -v and -q are exclusive.\n");
+			return -EINVAL;
+		}
+		verbose = -1;
+	}
+
 	if (argc > 0) {
 		if (strcmp(argv[0], "-") == 0) {
 			usage_with_options_msg(probe_usage, options,
@@ -632,14 +641,6 @@ __cmd_probe(int argc, const char **argv)
 	ret = symbol__validate_sym_arguments();
 	if (ret)
 		return ret;
-
-	if (quiet) {
-		if (verbose != 0) {
-			pr_err("  Error: -v and -q are exclusive.\n");
-			return -EINVAL;
-		}
-		verbose = -1;
-	}
 
 	if (probe_conf.max_probes == 0)
 		probe_conf.max_probes = MAX_PROBES;
