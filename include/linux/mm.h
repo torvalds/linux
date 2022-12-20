@@ -1758,6 +1758,9 @@ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 			void *buf, int len, int write);
 
 #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+extern wait_queue_head_t vma_users_wait;
+extern atomic_t vma_user_waiters;
+
 static inline void vm_write_begin(struct vm_area_struct *vma)
 {
         /*

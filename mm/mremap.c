@@ -210,17 +210,74 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		drop_rmap_locks(vma);
 }
 
+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+DECLARE_WAIT_QUEUE_HEAD(vma_users_wait);
+atomic_t vma_user_waiters = ATOMIC_INIT(0);
+
+static inline void wait_for_vma_users(struct vm_area_struct *vma)
+{
+	/*
+	 * If we have the only reference, swap the refcount to -1. This
+	 * will prevent other concurrent references by get_vma() for SPFs.
+	 */
+	if (likely(atomic_cmpxchg(&vma->vm_ref_count, 1, -1) == 1))
+		return;
+
+	/* Indicate we are waiting for other users of the VMA to finish. */
+	atomic_inc(&vma_user_waiters);
+
+	/* Failed atomic_cmpxchg; no implicit barrier, use an explicit one. */
+	smp_mb();
+
+	/*
+	 * Callers cannot handle failure, sleep uninterruptibly until there
+	 * are no other users of this VMA.
+	 *
+	 * We don't need to worry about references from concurrent waiters,
+	 * since this is only used in the context of fast mremaps, with
+	 * exclusive mmap write lock held.
+	 */
+	wait_event(vma_users_wait, atomic_cmpxchg(&vma->vm_ref_count, 1, -1) == 1);
+
+	atomic_dec(&vma_user_waiters);
+}
+
+
 /*
- * Speculative page fault handlers will not detect page table changes done
- * without ptl locking.
+ * Restore the VMA reference count to 1 after a fast mremap.
  */
-#if defined(CONFIG_HAVE_MOVE_PMD) && !defined(CONFIG_SPECULATIVE_PAGE_FAULT)
+static inline void restore_vma_ref_count(struct vm_area_struct *vma)
+{
+	/*
+	 * This should only be called after a corresponding,
+	 * wait_for_vma_users()
+	 */
+	VM_BUG_ON_VMA(atomic_cmpxchg(&vma->vm_ref_count, -1, 1) != -1,
+		      vma);
+}
+#else	/* !CONFIG_SPECULATIVE_PAGE_FAULT */
+static inline void wait_for_vma_users(struct vm_area_struct *vma)
+{
+}
+static inline void restore_vma_ref_count(struct vm_area_struct *vma)
+{
+}
+#endif	/* CONFIG_SPECULATIVE_PAGE_FAULT */
+
+#ifdef CONFIG_HAVE_MOVE_PMD
 static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 		  unsigned long new_addr, pmd_t *old_pmd, pmd_t *new_pmd)
 {
 	spinlock_t *old_ptl, *new_ptl;
 	struct mm_struct *mm = vma->vm_mm;
 	pmd_t pmd;
+	bool ret;
+
+	/*
+	 * Wait for concurrent users, since these can potentially be
+	 * speculative page faults.
+	 */
+	wait_for_vma_users(vma);
 
 	/*
 	 * The destination pmd shouldn't be established, free_pgtables()
@@ -245,8 +302,10 @@ static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 	 * One alternative might be to just unmap the target pmd at
 	 * this point, and verify that it really is empty. We'll see.
 	 */
-	if (WARN_ON_ONCE(!pmd_none(*new_pmd)))
-		return false;
+	if (WARN_ON_ONCE(!pmd_none(*new_pmd))) {
+		ret = false;
+		goto out;
+	}
 
 	/*
 	 * We don't have to worry about the ordering of src and dst
@@ -270,7 +329,11 @@ static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 		spin_unlock(new_ptl);
 	spin_unlock(old_ptl);
 
-	return true;
+	ret = true;
+
+out:
+	restore_vma_ref_count(vma);
+	return ret;
 }
 #else
 static inline bool move_normal_pmd(struct vm_area_struct *vma,
@@ -281,24 +344,29 @@ static inline bool move_normal_pmd(struct vm_area_struct *vma,
 }
 #endif
 
-/*
- * Speculative page fault handlers will not detect page table changes done
- * without ptl locking.
- */
-#if defined(CONFIG_HAVE_MOVE_PUD) && !defined(CONFIG_SPECULATIVE_PAGE_FAULT)
+#ifdef CONFIG_HAVE_MOVE_PUD
 static bool move_normal_pud(struct vm_area_struct *vma, unsigned long old_addr,
 		  unsigned long new_addr, pud_t *old_pud, pud_t *new_pud)
 {
 	spinlock_t *old_ptl, *new_ptl;
 	struct mm_struct *mm = vma->vm_mm;
 	pud_t pud;
+	bool ret;
+
+	/*
+	 * Wait for concurrent users, since these can potentially be
+	 * speculative page faults.
+	 */
+	wait_for_vma_users(vma);
 
 	/*
 	 * The destination pud shouldn't be established, free_pgtables()
 	 * should have released it.
 	 */
-	if (WARN_ON_ONCE(!pud_none(*new_pud)))
-		return false;
+	if (WARN_ON_ONCE(!pud_none(*new_pud))) {
+		ret = false;
+		goto out;
+	}
 
 	/*
 	 * We don't have to worry about the ordering of src and dst
@@ -322,7 +390,11 @@ static bool move_normal_pud(struct vm_area_struct *vma, unsigned long old_addr,
 		spin_unlock(new_ptl);
 	spin_unlock(old_ptl);
 
-	return true;
+	ret = true;
+
+out:
+	restore_vma_ref_count(vma);
+	return ret;
 }
 #else
 static inline bool move_normal_pud(struct vm_area_struct *vma,
