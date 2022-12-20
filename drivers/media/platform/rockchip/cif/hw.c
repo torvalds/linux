@@ -1233,10 +1233,11 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 		if (data->rsts[i])
 			rst = devm_reset_control_get(dev, data->rsts[i]);
 		if (IS_ERR(rst)) {
+			cif_hw->cif_rst[i] = NULL;
 			dev_err(dev, "failed to get %s\n", data->rsts[i]);
-			return PTR_ERR(rst);
+		} else {
+			cif_hw->cif_rst[i] = rst;
 		}
-		cif_hw->cif_rst[i] = rst;
 	}
 
 	cif_hw->cif_regs = data->cif_regs;
