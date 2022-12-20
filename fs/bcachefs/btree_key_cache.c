@@ -487,7 +487,7 @@ retry:
 	path->l[0].lock_seq	= ck->c.lock.state.seq;
 	path->l[0].b		= (void *) ck;
 fill:
-	if (!ck->valid) {
+	if (!ck->valid && !(flags & BTREE_ITER_CACHED_NOFILL)) {
 		/*
 		 * Using the underscore version because we haven't set
 		 * path->uptodate yet:
@@ -508,7 +508,6 @@ fill:
 		set_bit(BKEY_CACHED_ACCESSED, &ck->flags);
 
 	path->uptodate = BTREE_ITER_UPTODATE;
-	BUG_ON(!ck->valid);
 	BUG_ON(btree_node_locked_type(path, 0) != btree_lock_want(path, 0));
 
 	return ret;

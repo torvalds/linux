@@ -207,6 +207,7 @@ struct btree_node_iter {
 #define BTREE_ITER_ALL_SNAPSHOTS	(1 << 11)
 #define BTREE_ITER_FILTER_SNAPSHOTS	(1 << 12)
 #define BTREE_ITER_NOPRESERVE		(1 << 13)
+#define BTREE_ITER_CACHED_NOFILL	(1 << 14)
 
 enum btree_path_uptodate {
 	BTREE_ITER_UPTODATE		= 0,

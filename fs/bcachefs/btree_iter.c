@@ -1581,7 +1581,8 @@ struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *path, struct bkey *
 		EBUG_ON(ck &&
 			(path->btree_id != ck->key.btree_id ||
 			 !bkey_eq(path->pos, ck->key.pos)));
-		EBUG_ON(!ck || !ck->valid);
+		if (!ck || !ck->valid)
+			return bkey_s_c_null;
 
 		*u = ck->k->k;
 		k = bkey_i_to_s_c(ck->k);
@@ -1860,7 +1861,8 @@ struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos 
 	if (!iter->key_cache_path)
 		iter->key_cache_path = bch2_path_get(trans, iter->btree_id, pos,
 						     iter->flags & BTREE_ITER_INTENT, 0,
-						     iter->flags|BTREE_ITER_CACHED);
+						     iter->flags|BTREE_ITER_CACHED|
+						     BTREE_ITER_CACHED_NOFILL);
 
 	iter->key_cache_path = bch2_btree_path_set_pos(trans, iter->key_cache_path, pos,
 					iter->flags & BTREE_ITER_INTENT);
