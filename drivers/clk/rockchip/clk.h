@@ -646,6 +646,7 @@ enum rockchip_clk_branch_type {
 	branch_divider,
 	branch_fraction_divider,
 	branch_gate,
+	branch_gate_no_set_rate,
 	branch_mmc,
 	branch_inverter,
 	branch_factor,
@@ -999,6 +1000,19 @@ struct rockchip_clk_branch {
 	{							\
 		.id		= _id,				\
 		.branch_type	= branch_gate,			\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.gate_offset	= o,				\
+		.gate_shift	= b,				\
+		.gate_flags	= gf,				\
+	}
+
+#define GATE_NO_SET_RATE(_id, cname, pname, f, o, b, gf)	\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_gate_no_set_rate,	\
 		.name		= cname,			\
 		.parent_names	= (const char *[]){ pname },	\
 		.num_parents	= 1,				\
