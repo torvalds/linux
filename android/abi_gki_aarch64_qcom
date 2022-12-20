@@ -1189,6 +1189,7 @@
   get_net_ns_by_fd
   get_net_ns_by_pid
   get_option
+  get_pfnblock_flags_mask
   get_pid_task
   get_random_bytes
   get_random_u16
@@ -1696,6 +1697,8 @@
   irq_work_queue
   irq_work_queue_on
   irq_work_sync
+  isolate_and_split_free_page
+  isolate_anon_lru_page
   is_vmalloc_addr
   iterate_fd
   jiffies
@@ -1945,6 +1948,7 @@
   __memset_io
   memstart_addr
   memunmap
+  migrate_pages
   migrate_swap
   __migrate_task
   mipi_dsi_create_packet
@@ -2451,6 +2455,7 @@
   ptp_clock_index
   ptp_clock_register
   ptp_clock_unregister
+  putback_movable_pages
   put_cmsg
   put_device
   put_disk
