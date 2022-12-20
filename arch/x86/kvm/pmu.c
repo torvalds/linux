@@ -255,30 +255,99 @@ static bool pmc_resume_counter(struct kvm_pmc *pmc)
 	return true;
 }
 
-static int cmp_u64(const void *pa, const void *pb)
+static int filter_cmp(const void *pa, const void *pb, u64 mask)
 {
-	u64 a = *(u64 *)pa;
-	u64 b = *(u64 *)pb;
+	u64 a = *(u64 *)pa & mask;
+	u64 b = *(u64 *)pb & mask;
 
 	return (a > b) - (a < b);
 }
 
-static u64 *find_filter_entry(struct kvm_pmu_event_filter *filter, u64 key)
+
+static int filter_sort_cmp(const void *pa, const void *pb)
 {
-	return bsearch(&key, filter->events, filter->nevents,
-		       sizeof(filter->events[0]), cmp_u64);
+	return filter_cmp(pa, pb, (KVM_PMU_MASKED_ENTRY_EVENT_SELECT |
+				   KVM_PMU_MASKED_ENTRY_EXCLUDE));
 }
 
-static bool is_gp_event_allowed(struct kvm_pmu_event_filter *filter, u64 eventsel)
+/*
+ * For the event filter, searching is done on the 'includes' list and
+ * 'excludes' list separately rather than on the 'events' list (which
+ * has both).  As a result the exclude bit can be ignored.
+ */
+static int filter_event_cmp(const void *pa, const void *pb)
 {
-	if (find_filter_entry(filter, eventsel & (kvm_pmu_ops.EVENTSEL_EVENT |
-						  ARCH_PERFMON_EVENTSEL_UMASK)))
-		return filter->action == KVM_PMU_EVENT_ALLOW;
-
-	return filter->action == KVM_PMU_EVENT_DENY;
+	return filter_cmp(pa, pb, (KVM_PMU_MASKED_ENTRY_EVENT_SELECT));
 }
 
-static bool is_fixed_event_allowed(struct kvm_pmu_event_filter *filter, int idx)
+static int find_filter_index(u64 *events, u64 nevents, u64 key)
+{
+	u64 *fe = bsearch(&key, events, nevents, sizeof(events[0]),
+			  filter_event_cmp);
+
+	if (!fe)
+		return -1;
+
+	return fe - events;
+}
+
+static bool is_filter_entry_match(u64 filter_event, u64 umask)
+{
+	u64 mask = filter_event >> (KVM_PMU_MASKED_ENTRY_UMASK_MASK_SHIFT - 8);
+	u64 match = filter_event & KVM_PMU_MASKED_ENTRY_UMASK_MATCH;
+
+	BUILD_BUG_ON((KVM_PMU_ENCODE_MASKED_ENTRY(0, 0xff, 0, false) >>
+		     (KVM_PMU_MASKED_ENTRY_UMASK_MASK_SHIFT - 8)) !=
+		     ARCH_PERFMON_EVENTSEL_UMASK);
+
+	return (umask & mask) == match;
+}
+
+static bool filter_contains_match(u64 *events, u64 nevents, u64 eventsel)
+{
+	u64 event_select = eventsel & kvm_pmu_ops.EVENTSEL_EVENT;
+	u64 umask = eventsel & ARCH_PERFMON_EVENTSEL_UMASK;
+	int i, index;
+
+	index = find_filter_index(events, nevents, event_select);
+	if (index < 0)
+		return false;
+
+	/*
+	 * Entries are sorted by the event select.  Walk the list in both
+	 * directions to process all entries with the targeted event select.
+	 */
+	for (i = index; i < nevents; i++) {
+		if (filter_event_cmp(&events[i], &event_select))
+			break;
+
+		if (is_filter_entry_match(events[i], umask))
+			return true;
+	}
+
+	for (i = index - 1; i >= 0; i--) {
+		if (filter_event_cmp(&events[i], &event_select))
+			break;
+
+		if (is_filter_entry_match(events[i], umask))
+			return true;
+	}
+
+	return false;
+}
+
+static bool is_gp_event_allowed(struct kvm_x86_pmu_event_filter *f,
+				u64 eventsel)
+{
+	if (filter_contains_match(f->includes, f->nr_includes, eventsel) &&
+	    !filter_contains_match(f->excludes, f->nr_excludes, eventsel))
+		return f->action == KVM_PMU_EVENT_ALLOW;
+
+	return f->action == KVM_PMU_EVENT_DENY;
+}
+
+static bool is_fixed_event_allowed(struct kvm_x86_pmu_event_filter *filter,
+				   int idx)
 {
 	int fixed_idx = idx - INTEL_PMC_IDX_FIXED;
 
@@ -294,7 +363,7 @@ static bool is_fixed_event_allowed(struct kvm_pmu_event_filter *filter, int idx)
 
 static bool check_pmu_event_filter(struct kvm_pmc *pmc)
 {
-	struct kvm_pmu_event_filter *filter;
+	struct kvm_x86_pmu_event_filter *filter;
 	struct kvm *kvm = pmc->vcpu->kvm;
 
 	if (!static_call(kvm_x86_pmu_hw_event_available)(pmc))
@@ -604,60 +673,128 @@ void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 perf_hw_id)
 }
 EXPORT_SYMBOL_GPL(kvm_pmu_trigger_event);
 
-static void remove_impossible_events(struct kvm_pmu_event_filter *filter)
+static bool is_masked_filter_valid(const struct kvm_x86_pmu_event_filter *filter)
+{
+	u64 mask = kvm_pmu_ops.EVENTSEL_EVENT |
+		   KVM_PMU_MASKED_ENTRY_UMASK_MASK |
+		   KVM_PMU_MASKED_ENTRY_UMASK_MATCH |
+		   KVM_PMU_MASKED_ENTRY_EXCLUDE;
+	int i;
+
+	for (i = 0; i < filter->nevents; i++) {
+		if (filter->events[i] & ~mask)
+			return false;
+	}
+
+	return true;
+}
+
+static void convert_to_masked_filter(struct kvm_x86_pmu_event_filter *filter)
 {
 	int i, j;
 
 	for (i = 0, j = 0; i < filter->nevents; i++) {
+		/*
+		 * Skip events that are impossible to match against a guest
+		 * event.  When filtering, only the event select + unit mask
+		 * of the guest event is used.  To maintain backwards
+		 * compatibility, impossible filters can't be rejected :-(
+		 */
 		if (filter->events[i] & ~(kvm_pmu_ops.EVENTSEL_EVENT |
 					  ARCH_PERFMON_EVENTSEL_UMASK))
 			continue;
-
-		filter->events[j++] = filter->events[i];
+		/*
+		 * Convert userspace events to a common in-kernel event so
+		 * only one code path is needed to support both events.  For
+		 * the in-kernel events use masked events because they are
+		 * flexible enough to handle both cases.  To convert to masked
+		 * events all that's needed is to add an "all ones" umask_mask,
+		 * (unmasked filter events don't support EXCLUDE).
+		 */
+		filter->events[j++] = filter->events[i] |
+				      (0xFFULL << KVM_PMU_MASKED_ENTRY_UMASK_MASK_SHIFT);
 	}
 
 	filter->nevents = j;
 }
 
+static int prepare_filter_lists(struct kvm_x86_pmu_event_filter *filter)
+{
+	int i;
+
+	if (!(filter->flags & KVM_PMU_EVENT_FLAG_MASKED_EVENTS))
+		convert_to_masked_filter(filter);
+	else if (!is_masked_filter_valid(filter))
+		return -EINVAL;
+
+	/*
+	 * Sort entries by event select and includes vs. excludes so that all
+	 * entries for a given event select can be processed efficiently during
+	 * filtering.  The EXCLUDE flag uses a more significant bit than the
+	 * event select, and so the sorted list is also effectively split into
+	 * includes and excludes sub-lists.
+	 */
+	sort(&filter->events, filter->nevents, sizeof(filter->events[0]),
+	     filter_sort_cmp, NULL);
+
+	i = filter->nevents;
+	/* Find the first EXCLUDE event (only supported for masked events). */
+	if (filter->flags & KVM_PMU_EVENT_FLAG_MASKED_EVENTS) {
+		for (i = 0; i < filter->nevents; i++) {
+			if (filter->events[i] & KVM_PMU_MASKED_ENTRY_EXCLUDE)
+				break;
+		}
+	}
+
+	filter->nr_includes = i;
+	filter->nr_excludes = filter->nevents - filter->nr_includes;
+	filter->includes = filter->events;
+	filter->excludes = filter->events + filter->nr_includes;
+
+	return 0;
+}
+
 int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 {
-	struct kvm_pmu_event_filter tmp, *filter;
+	struct kvm_pmu_event_filter __user *user_filter = argp;
+	struct kvm_x86_pmu_event_filter *filter;
+	struct kvm_pmu_event_filter tmp;
 	struct kvm_vcpu *vcpu;
 	unsigned long i;
 	size_t size;
 	int r;
 
-	if (copy_from_user(&tmp, argp, sizeof(tmp)))
+	if (copy_from_user(&tmp, user_filter, sizeof(tmp)))
 		return -EFAULT;
 
 	if (tmp.action != KVM_PMU_EVENT_ALLOW &&
 	    tmp.action != KVM_PMU_EVENT_DENY)
 		return -EINVAL;
 
-	if (tmp.flags != 0)
+	if (tmp.flags & ~KVM_PMU_EVENT_FLAGS_VALID_MASK)
 		return -EINVAL;
 
 	if (tmp.nevents > KVM_PMU_EVENT_FILTER_MAX_EVENTS)
 		return -E2BIG;
 
 	size = struct_size(filter, events, tmp.nevents);
-	filter = kmalloc(size, GFP_KERNEL_ACCOUNT);
+	filter = kzalloc(size, GFP_KERNEL_ACCOUNT);
 	if (!filter)
 		return -ENOMEM;
 
+	filter->action = tmp.action;
+	filter->nevents = tmp.nevents;
+	filter->fixed_counter_bitmap = tmp.fixed_counter_bitmap;
+	filter->flags = tmp.flags;
+
 	r = -EFAULT;
-	if (copy_from_user(filter, argp, size))
+	if (copy_from_user(filter->events, user_filter->events,
+			   sizeof(filter->events[0]) * filter->nevents))
 		goto cleanup;
 
-	/* Restore the verified state to guard against TOCTOU attacks. */
-	*filter = tmp;
-
-	remove_impossible_events(filter);
-
-	/*
-	 * Sort the in-kernel list so that we can search it with bsearch.
-	 */
-	sort(&filter->events, filter->nevents, sizeof(__u64), cmp_u64, NULL);
+	r = prepare_filter_lists(filter);
+	if (r)
+		goto cleanup;
 
 	mutex_lock(&kvm->lock);
 	filter = rcu_replace_pointer(kvm->arch.pmu_event_filter, filter,
