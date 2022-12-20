@@ -5,7 +5,7 @@
  * All Rights Reserved.
  */
 
-#include <uapi/misc/habanalabs.h>
+#include <uapi/drm/habanalabs_accel.h>
 #include "habanalabs.h"
 
 #include <linux/mm.h>

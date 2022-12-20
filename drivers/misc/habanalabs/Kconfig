@@ -19,7 +19,7 @@ config HABANA_AI
 	  the user to submit workloads to the devices.
 
 	  The user-space interface is described in
-	  include/uapi/misc/habanalabs.h
+	  include/uapi/drm/habanalabs_accel.h
 
 	  If unsure, say N.
 

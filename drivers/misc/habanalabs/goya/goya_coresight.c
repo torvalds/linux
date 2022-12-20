@@ -10,7 +10,7 @@
 #include "../include/goya/asic_reg/goya_regs.h"
 #include "../include/goya/asic_reg/goya_masks.h"
 
-#include <uapi/misc/habanalabs.h>
+#include <uapi/drm/habanalabs_accel.h>
 
 #define GOYA_PLDM_CORESIGHT_TIMEOUT_USEC	(CORESIGHT_TIMEOUT_USEC * 100)
 

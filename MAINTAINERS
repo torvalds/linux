@@ -9038,7 +9038,7 @@ F:	Documentation/ABI/testing/debugfs-driver-habanalabs
 F:	Documentation/ABI/testing/sysfs-driver-habanalabs
 F:	drivers/misc/habanalabs/
 F:	include/trace/events/habanalabs.h
-F:	include/uapi/misc/habanalabs.h
+F:	include/uapi/drm/habanalabs_accel.h
 
 HACKRF MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>

@@ -8,7 +8,7 @@
 #ifndef GOYAP_H_
 #define GOYAP_H_
 
-#include <uapi/misc/habanalabs.h>
+#include <uapi/drm/habanalabs_accel.h>
 #include "../common/habanalabs.h"
 #include "../include/common/hl_boot_if.h"
 #include "../include/goya/goya_packets.h"

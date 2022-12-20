@@ -11,7 +11,8 @@
 #include "../include/gaudi/gaudi_masks.h"
 #include "../include/gaudi/gaudi_reg_map.h"
 
-#include <uapi/misc/habanalabs.h>
+#include <uapi/drm/habanalabs_accel.h>
+
 #define SPMU_SECTION_SIZE		MME0_ACC_SPMU_MAX_OFFSET
 #define SPMU_EVENT_TYPES_OFFSET		0x400
 #define SPMU_MAX_COUNTERS		6

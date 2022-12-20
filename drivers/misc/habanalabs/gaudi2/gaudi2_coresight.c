@@ -5,7 +5,7 @@
  * All Rights Reserved.
  */
 #include "gaudi2_coresight_regs.h"
-#include <uapi/misc/habanalabs.h>
+#include <uapi/drm/habanalabs_accel.h>
 
 #define GAUDI2_PLDM_CORESIGHT_TIMEOUT_USEC	(CORESIGHT_TIMEOUT_USEC * 2000)
 #define SPMU_MAX_COUNTERS			6

@@ -7,7 +7,7 @@
 
 #define pr_fmt(fmt)			"habanalabs: " fmt
 
-#include <uapi/misc/habanalabs.h>
+#include <uapi/drm/habanalabs_accel.h>
 #include "habanalabs.h"
 
 #include <linux/pci.h>
