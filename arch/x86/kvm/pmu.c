@@ -594,6 +594,21 @@ void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 perf_hw_id)
 }
 EXPORT_SYMBOL_GPL(kvm_pmu_trigger_event);
 
+static void remove_impossible_events(struct kvm_pmu_event_filter *filter)
+{
+	int i, j;
+
+	for (i = 0, j = 0; i < filter->nevents; i++) {
+		if (filter->events[i] & ~(kvm_pmu_ops.EVENTSEL_EVENT |
+					  ARCH_PERFMON_EVENTSEL_UMASK))
+			continue;
+
+		filter->events[j++] = filter->events[i];
+	}
+
+	filter->nevents = j;
+}
+
 int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_pmu_event_filter tmp, *filter;
@@ -624,8 +639,10 @@ int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 	if (copy_from_user(filter, argp, size))
 		goto cleanup;
 
-	/* Ensure nevents can't be changed between the user copies. */
+	/* Restore the verified state to guard against TOCTOU attacks. */
 	*filter = tmp;
+
+	remove_impossible_events(filter);
 
 	/*
 	 * Sort the in-kernel list so that we can search it with bsearch.
