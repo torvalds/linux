@@ -99,7 +99,6 @@ allOf:
           maxItems: 3
       required:
         - clock-names
-        - power-domains
   - if:
       not:
         properties:
@@ -114,6 +113,19 @@ allOf:
           maxItems: 1
         clock-names:
           maxItems: 1
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx6sl-lcdif
+              - fsl,imx6sx-lcdif
+              - fsl,imx8mm-lcdif
+              - fsl,imx8mn-lcdif
+              - fsl,imx8mp-lcdif
+    then:
+      required:
+        - power-domains
 
 examples:
   - |
@@ -128,6 +140,7 @@ examples:
                  <&clks IMX6SX_CLK_LCDIF_APB>,
                  <&clks IMX6SX_CLK_DISPLAY_AXI>;
         clock-names = "pix", "axi", "disp_axi";
+        power-domains = <&pd_disp>;
 
         port {
             endpoint {

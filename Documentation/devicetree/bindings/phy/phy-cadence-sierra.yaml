@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/phy/phy-cadence-sierra.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Cadence Sierra PHY binding
+title: Cadence Sierra PHY
 
 description:
   This binding describes the Cadence Sierra PHY. Sierra PHY supports multilink

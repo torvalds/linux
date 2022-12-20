@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/bluetooth/bluetooth-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bluetooth Controller Generic Binding
+title: Bluetooth Controller Common Properties
 
 maintainers:
   - Marcel Holtmann <marcel@holtmann.org>

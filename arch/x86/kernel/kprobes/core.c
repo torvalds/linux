@@ -43,6 +43,7 @@
 #include <linux/objtool.h>
 #include <linux/vmalloc.h>
 #include <linux/pgtable.h>
+#include <linux/set_memory.h>
 
 #include <asm/text-patching.h>
 #include <asm/cacheflush.h>
@@ -51,7 +52,6 @@
 #include <asm/alternative.h>
 #include <asm/insn.h>
 #include <asm/debugreg.h>
-#include <asm/set_memory.h>
 #include <asm/ibt.h>
 
 #include "common.h"
@@ -415,16 +415,10 @@ void *alloc_insn_page(void)
 		return NULL;
 
 	/*
-	 * First make the page read-only, and only then make it executable to
-	 * prevent it from being W+X in between.
-	 */
-	set_memory_ro((unsigned long)page, 1);
-
-	/*
 	 * TODO: Once additional kernel code protection mechanisms are set, ensure
 	 * that the page was not maliciously altered and it is still zeroed.
 	 */
-	set_memory_x((unsigned long)page, 1);
+	set_memory_rox((unsigned long)page, 1);
 
 	return page;
 }

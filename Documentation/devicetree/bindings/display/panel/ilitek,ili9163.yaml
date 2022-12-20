@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/panel/ilitek,ili9163.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ilitek ILI9163 display panels device tree bindings
+title: Ilitek ILI9163 display panels
 
 maintainers:
   - Daniel Mack <daniel@zonque.org>

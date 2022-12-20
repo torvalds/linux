@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/npcm/npcm.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NPCM Platforms Device Tree Bindings
+title: NPCM Platforms
 
 maintainers:
   - Jonathan Neuschäfer <j.neuschaefer@gmx.net>

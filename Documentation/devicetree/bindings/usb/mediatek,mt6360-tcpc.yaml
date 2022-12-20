@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/usb/mediatek,mt6360-tcpc.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Mediatek MT6360 Type-C Port Switch and Power Delivery controller DT bindings
+title: Mediatek MT6360 Type-C Port Switch and Power Delivery controller
 
 maintainers:
   - ChiYuan Huang <cy_huang@richtek.com>

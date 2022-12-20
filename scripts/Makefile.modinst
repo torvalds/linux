@@ -9,7 +9,7 @@ __modinst:
 include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
 
-modules := $(sort $(shell cat $(MODORDER)))
+modules := $(call read-file, $(MODORDER))
 
 ifeq ($(KBUILD_EXTMOD),)
 dst := $(MODLIB)/kernel
@@ -26,7 +26,7 @@ suffix-$(CONFIG_MODULE_COMPRESS_GZIP)	:= .gz
 suffix-$(CONFIG_MODULE_COMPRESS_XZ)	:= .xz
 suffix-$(CONFIG_MODULE_COMPRESS_ZSTD)	:= .zst
 
-modules := $(patsubst $(extmod_prefix)%, $(dst)/%$(suffix-y), $(modules))
+modules := $(patsubst $(extmod_prefix)%.o, $(dst)/%.ko$(suffix-y), $(modules))
 
 __modinst: $(modules)
 	@:

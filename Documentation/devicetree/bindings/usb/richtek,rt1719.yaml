@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/usb/richtek,rt1719.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Richtek RT1719 sink-only Type-C PD controller bindings
+title: Richtek RT1719 sink-only Type-C PD controller
 
 maintainers:
   - ChiYuan Huang <cy_huang@richtek.com>

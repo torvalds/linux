@@ -38,6 +38,8 @@ __modpost:
 include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
 
+MODPOST = scripts/mod/modpost
+
 modpost-args =										\
 	$(if $(CONFIG_MODVERSIONS),-m)							\
 	$(if $(CONFIG_MODULE_SRCVERSION_ALL),-a)					\
@@ -45,6 +47,8 @@ modpost-args =										\
 	$(if $(KBUILD_NSDEPS),-d $(MODULES_NSDEPS))					\
 	$(if $(CONFIG_MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS)$(KBUILD_NSDEPS),-N)	\
 	-o $@
+
+modpost-deps := $(MODPOST)
 
 # 'make -i -k' ignores compile errors, and builds as many modules as possible.
 ifneq ($(findstring i,$(filter-out --%,$(MAKEFLAGS))),)
@@ -78,12 +82,13 @@ targets += .vmlinux.objs
 .vmlinux.objs: vmlinux.a $(KBUILD_VMLINUX_LIBS) FORCE
 	$(call if_changed,vmlinux_objs)
 
-vmlinux.o-if-present := $(wildcard vmlinux.o)
-output-symdump := vmlinux.symvers
-
-ifdef KBUILD_MODULES
-output-symdump := $(if $(vmlinux.o-if-present), Module.symvers, modules-only.symvers)
-missing-input := $(filter-out $(vmlinux.o-if-present),vmlinux.o)
+ifeq ($(wildcard vmlinux.o),)
+missing-input := vmlinux.o
+output-symdump := modules-only.symvers
+else
+modpost-args += vmlinux.o
+modpost-deps += vmlinux.o
+output-symdump := $(if $(KBUILD_MODULES), Module.symvers, vmlinux.symvers)
 endif
 
 else
@@ -93,13 +98,18 @@ obj := $(KBUILD_EXTMOD)
 src := $(obj)
 
 # Include the module's Makefile to find KBUILD_EXTRA_SYMBOLS
-include $(or $(wildcard $(src)/Kbuild), $(src)/Makefile)
+include $(kbuild-file)
 
-module.symvers-if-present := $(wildcard Module.symvers)
 output-symdump := $(KBUILD_EXTMOD)/Module.symvers
-missing-input := $(filter-out $(module.symvers-if-present), Module.symvers)
 
-modpost-args += -e $(addprefix -i ,$(module.symvers-if-present) $(KBUILD_EXTRA_SYMBOLS))
+ifeq ($(wildcard Module.symvers),)
+missing-input := Module.symvers
+else
+modpost-args += -i Module.symvers
+modpost-deps += Module.symvers
+endif
+
+modpost-args += -e $(addprefix -i , $(KBUILD_EXTRA_SYMBOLS))
 
 endif # ($(KBUILD_EXTMOD),)
 
@@ -107,9 +117,10 @@ ifneq ($(KBUILD_MODPOST_WARN)$(missing-input),)
 modpost-args += -w
 endif
 
-modorder-if-needed := $(if $(KBUILD_MODULES), $(MODORDER))
-
-MODPOST = scripts/mod/modpost
+ifdef KBUILD_MODULES
+modpost-args += -T $(MODORDER)
+modpost-deps += $(MODORDER)
+endif
 
 # Read out modules.order to pass in modpost.
 # Otherwise, allmodconfig would fail with "Argument list too long".
@@ -119,10 +130,10 @@ quiet_cmd_modpost = MODPOST $@
 		echo >&2 "WARNING: $(missing-input) is missing."; \
 		echo >&2 "         Modules may not have dependencies or modversions."; \
 		echo >&2 "         You may get many unresolved symbol warnings.";) \
-	sed 's/ko$$/o/' $(or $(modorder-if-needed), /dev/null) | $(MODPOST) $(modpost-args) -T - $(vmlinux.o-if-present)
+	$(MODPOST) $(modpost-args)
 
 targets += $(output-symdump)
-$(output-symdump): $(modorder-if-needed) $(vmlinux.o-if-present) $(module.symvers-if-present) $(MODPOST) FORCE
+$(output-symdump): $(modpost-deps) FORCE
 	$(call if_changed,modpost)
 
 __modpost: $(output-symdump)

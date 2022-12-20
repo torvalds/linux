@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/iio/adc/st,stm32-adc.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: STMicroelectronics STM32 ADC bindings
+title: STMicroelectronics STM32 ADC
 
 description: |
   STM32 ADC is a successive approximation analog-to-digital converter.
