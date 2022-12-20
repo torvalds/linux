@@ -123,10 +123,10 @@ When the device is registered to the virtio bus the kernel will look
 for a driver in the bus that can handle the device and call that
 driver's ``probe`` method.
 
-It's at this stage that the virtqueues will be allocated and configured
-by calling the appropriate ``virtio_find`` helper function, such as
-virtio_find_single_vq() or virtio_find_vqs(), which will end up
-calling a transport-specific ``find_vqs`` method.
+At this point, the virtqueues will be allocated and configured by
+calling the appropriate ``virtio_find`` helper function, such as
+virtio_find_single_vq() or virtio_find_vqs(), which will end up calling
+a transport-specific ``find_vqs`` method.
 
 
 References
