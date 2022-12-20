@@ -1851,6 +1851,7 @@ struct bkey_s_c __btree_trans_peek_key_cache(struct btree_iter *iter, struct bpo
 	struct btree_trans *trans = iter->trans;
 	struct bch_fs *c = trans->c;
 	struct bkey u;
+	struct bkey_s_c k;
 	int ret;
 
 	if (!bch2_btree_key_cache_find(c, iter->btree_id, pos))
@@ -1870,7 +1871,12 @@ struct bkey_s_c __btree_trans_peek_key_cache(struct btree_iter *iter, struct bpo
 
 	btree_path_set_should_be_locked(iter->key_cache_path);
 
-	return bch2_btree_path_peek_slot(iter->key_cache_path, &u);
+	k = bch2_btree_path_peek_slot(iter->key_cache_path, &u);
+	if (k.k && !bkey_err(k)) {
+		iter->k = u;
+		k.k = &iter->k;
+	}
+	return k;
 }
 
 static noinline
