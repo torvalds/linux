@@ -8,18 +8,17 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger.h>
-#include <linux/iio/buffer.h>
-#include <linux/iio/events.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/property.h>
-#include <linux/interrupt.h>
-#include <linux/version.h>
-#include <linux/of.h>
 #include <linux/regulator/consumer.h>
 #include <linux/version.h>
 
