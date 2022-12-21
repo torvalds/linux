@@ -12,7 +12,6 @@
 #include <linux/rcupdate.h>
 #include <linux/spinlock.h>
 /* #define CONFIG_MAPLE_RCU_DISABLED */
-/* #define CONFIG_DEBUG_MAPLE_TREE_VERBOSE */
 
 /*
  * Allocated nodes are mutable until they have been inserted into the tree,
@@ -482,9 +481,6 @@ static inline bool mas_is_paused(struct ma_state *mas)
 {
 	return mas->node == MAS_PAUSE;
 }
-
-void mas_dup_tree(struct ma_state *oldmas, struct ma_state *mas);
-void mas_dup_store(struct ma_state *mas, void *entry);
 
 /*
  * This finds an empty area from the highest address to the lowest.
