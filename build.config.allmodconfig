@@ -7,6 +7,9 @@ function update_config() {
          -d WERROR \
          -d SAMPLES \
          -d BPFILTER \
+         -e RANDSTRUCT_NONE \
+         -d RANDSTRUCT_FULL \
+         -d RANDSTRUCT \
 
     (cd ${OUT_DIR} && \
      make O=${OUT_DIR} $archsubarch CROSS_COMPILE=${CROSS_COMPILE} ${TOOL_ARGS} ${MAKE_ARGS} olddefconfig)

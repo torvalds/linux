@@ -390,7 +390,6 @@ arch/arm64/lib/copy_to_user.S
 arch/arm64/lib/crc32.S
 arch/arm64/lib/csum.c
 arch/arm64/lib/delay.c
-arch/arm64/lib/error-inject.c
 arch/arm64/lib/insn.c
 arch/arm64/lib/memchr.S
 arch/arm64/lib/memcmp.S
@@ -1668,6 +1667,8 @@ drivers/usb/gadget/function/f_midi.c
 drivers/usb/gadget/function/f_ncm.c
 drivers/usb/gadget/function/f_serial.c
 drivers/usb/gadget/function/f_uac2.c
+drivers/usb/gadget/function/f_uvc.c
+drivers/usb/gadget/function/f_uvc.h
 drivers/usb/gadget/functions.c
 drivers/usb/gadget/function/storage_common.c
 drivers/usb/gadget/function/storage_common.h
@@ -1686,6 +1687,16 @@ drivers/usb/gadget/function/u_ncm.h
 drivers/usb/gadget/function/u_serial.c
 drivers/usb/gadget/function/u_serial.h
 drivers/usb/gadget/function/u_uac2.h
+drivers/usb/gadget/function/u_uvc.h
+drivers/usb/gadget/function/uvc_configfs.c
+drivers/usb/gadget/function/uvc_configfs.h
+drivers/usb/gadget/function/uvc.h
+drivers/usb/gadget/function/uvc_queue.c
+drivers/usb/gadget/function/uvc_queue.h
+drivers/usb/gadget/function/uvc_v4l2.c
+drivers/usb/gadget/function/uvc_v4l2.h
+drivers/usb/gadget/function/uvc_video.c
+drivers/usb/gadget/function/uvc_video.h
 drivers/usb/gadget/udc/core.c
 drivers/usb/gadget/udc/trace.c
 drivers/usb/gadget/udc/trace.h
@@ -4572,6 +4583,7 @@ include/uapi/linux/usb/charger.h
 include/uapi/linux/usbdevice_fs.h
 include/uapi/linux/usb/f_accessory.h
 include/uapi/linux/usb/functionfs.h
+include/uapi/linux/usb/g_uvc.h
 include/uapi/linux/usb/midi.h
 include/uapi/linux/usb/video.h
 include/uapi/linux/userfaultfd.h
@@ -5116,7 +5128,6 @@ lib/dynamic_debug.c
 lib/dynamic_queue_limits.c
 lib/earlycpio.c
 lib/errname.c
-lib/error-inject.c
 lib/errseq.c
 lib/extable.c
 lib/fdt_addresses.c

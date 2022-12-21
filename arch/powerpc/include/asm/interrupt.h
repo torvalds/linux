@@ -602,6 +602,7 @@ ____##func(struct pt_regs *regs)
 /* kernel/traps.c */
 DECLARE_INTERRUPT_HANDLER_NMI(system_reset_exception);
 #ifdef CONFIG_PPC_BOOK3S_64
+DECLARE_INTERRUPT_HANDLER_RAW(machine_check_early_boot);
 DECLARE_INTERRUPT_HANDLER_ASYNC(machine_check_exception_async);
 #endif
 DECLARE_INTERRUPT_HANDLER_NMI(machine_check_exception);
