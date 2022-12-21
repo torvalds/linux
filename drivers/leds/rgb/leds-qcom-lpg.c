@@ -972,8 +972,8 @@ out_unlock:
 	return ret;
 }
 
-static void lpg_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
-			      struct pwm_state *state)
+static int lpg_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
+			     struct pwm_state *state)
 {
 	struct lpg *lpg = container_of(chip, struct lpg, pwm);
 	struct lpg_channel *chan = &lpg->channels[pwm->hwpwm];
@@ -986,20 +986,20 @@ static void lpg_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	ret = regmap_read(lpg->map, chan->base + LPG_SIZE_CLK_REG, &val);
 	if (ret)
-		return;
+		return ret;
 
 	refclk = lpg_clk_rates[val & PWM_CLK_SELECT_MASK];
 	if (refclk) {
 		ret = regmap_read(lpg->map, chan->base + LPG_PREDIV_CLK_REG, &val);
 		if (ret)
-			return;
+			return ret;
 
 		pre_div = lpg_pre_divs[FIELD_GET(PWM_FREQ_PRE_DIV_MASK, val)];
 		m = FIELD_GET(PWM_FREQ_EXP_MASK, val);
 
 		ret = regmap_bulk_read(lpg->map, chan->base + PWM_VALUE_REG, &pwm_value, sizeof(pwm_value));
 		if (ret)
-			return;
+			return ret;
 
 		state->period = DIV_ROUND_UP_ULL((u64)NSEC_PER_SEC * LPG_RESOLUTION * pre_div * (1 << m), refclk);
 		state->duty_cycle = DIV_ROUND_UP_ULL((u64)NSEC_PER_SEC * pwm_value * pre_div * (1 << m), refclk);
@@ -1010,13 +1010,15 @@ static void lpg_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	ret = regmap_read(lpg->map, chan->base + PWM_ENABLE_CONTROL_REG, &val);
 	if (ret)
-		return;
+		return ret;
 
 	state->enabled = FIELD_GET(LPG_ENABLE_CONTROL_OUTPUT, val);
 	state->polarity = PWM_POLARITY_NORMAL;
 
 	if (state->duty_cycle > state->period)
 		state->duty_cycle = state->period;
+
+	return 0;
 }
 
 static const struct pwm_ops lpg_pwm_ops = {
