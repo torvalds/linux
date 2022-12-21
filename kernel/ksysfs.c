@@ -51,6 +51,14 @@ static ssize_t cpu_byteorder_show(struct kobject *kobj,
 }
 KERNEL_ATTR_RO(cpu_byteorder);
 
+/* address bits */
+static ssize_t address_bits_show(struct kobject *kobj,
+				 struct kobj_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%zu\n", sizeof(void *) * 8 /* CHAR_BIT */);
+}
+KERNEL_ATTR_RO(address_bits);
+
 #ifdef CONFIG_UEVENT_HELPER
 /* uevent helper program, used during early boot */
 static ssize_t uevent_helper_show(struct kobject *kobj,
@@ -233,6 +241,7 @@ static struct attribute * kernel_attrs[] = {
 	&fscaps_attr.attr,
 	&uevent_seqnum_attr.attr,
 	&cpu_byteorder_attr.attr,
+	&address_bits_attr.attr,
 #ifdef CONFIG_UEVENT_HELPER
 	&uevent_helper_attr.attr,
 #endif
