@@ -20,21 +20,24 @@
 
 #define GAUDI2_NUM_MME			4
 
+#define NUM_OF_GPIOS_PER_PORT		16
+#define GAUDI2_WD_GPIO			(62 % NUM_OF_GPIOS_PER_PORT)
+
 #define GAUDI2_ARCPID_TX_MB_SIZE	0x1000
 #define GAUDI2_ARCPID_RX_MB_SIZE	0x400
 #define GAUDI2_ARM_TX_MB_SIZE		0x400
 #define GAUDI2_ARM_RX_MB_SIZE		0x1800
 
 #define GAUDI2_DCCM_BASE_ADDR		0x27020000
-#define GAUDI2_ARCPID_TX_MB_ADDR	GAUDI2_DCCM_BASE_ADDR
-
-#define GAUDI2_ARCPID_RX_MB_ADDR	(GAUDI2_ARCPID_TX_MB_ADDR +	\
-					GAUDI2_ARCPID_TX_MB_SIZE)
 
 #define GAUDI2_ARM_TX_MB_ADDR		GAUDI2_MAILBOX_BASE_ADDR
 
 #define GAUDI2_ARM_RX_MB_ADDR		(GAUDI2_ARM_TX_MB_ADDR + \
 					GAUDI2_ARM_TX_MB_SIZE)
+
+#define GAUDI2_ARCPID_TX_MB_ADDR	(GAUDI2_ARM_RX_MB_ADDR + GAUDI2_ARM_RX_MB_SIZE)
+
+#define GAUDI2_ARCPID_RX_MB_ADDR	(GAUDI2_ARCPID_TX_MB_ADDR + GAUDI2_ARCPID_TX_MB_SIZE)
 
 #define GAUDI2_ARM_TX_MB_OFFSET		(GAUDI2_ARM_TX_MB_ADDR - \
 					GAUDI2_SP_SRAM_BASE_ADDR)
@@ -58,7 +61,9 @@ struct gaudi2_cold_rst_data {
 			u32 spsram_init_done : 1;
 			u32 fake_security_enable : 1;
 			u32 fake_sig_validation_en : 1;
-			u32 reserved : 26;
+			u32 bist_skip_enable : 1;
+			u32 bist_need_iatu_config : 1;
+			u32 reserved : 24;
 		};
 		__le32 data;
 	};
@@ -77,10 +82,10 @@ enum gaudi2_rst_src {
 };
 
 struct gaudi2_redundancy_ctx {
-	int redundant_hbm;
-	int redundant_edma;
-	int redundant_tpc;
-	int redundant_vdec;
+	__le32 redundant_hbm;
+	__le32 redundant_edma;
+	__le32 redundant_tpc;
+	__le32 redundant_vdec;
 	__le64 hbm_mask;
 	__le64 edma_mask;
 	__le64 tpc_mask;
