@@ -911,12 +911,13 @@
 		mmc0: mmc@11230000 {
 			compatible = "mediatek,mt8186-mmc",
 				     "mediatek,mt8183-mmc";
-			reg = <0 0x11230000 0 0x1000>,
+			reg = <0 0x11230000 0 0x10000>,
 			      <0 0x11cd0000 0 0x1000>;
 			clocks = <&topckgen CLK_TOP_MSDC50_0>,
 				 <&infracfg_ao CLK_INFRA_AO_MSDC0>,
-				 <&infracfg_ao CLK_INFRA_AO_MSDC0_SRC>;
-			clock-names = "source", "hclk", "source_cg";
+				 <&infracfg_ao CLK_INFRA_AO_MSDC0_SRC>,
+				 <&infracfg_ao CLK_INFRA_AO_MSDCFDE>;
+			clock-names = "source", "hclk", "source_cg", "crypto";
 			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH 0>;
 			assigned-clocks = <&topckgen CLK_TOP_MSDC50_0>;
 			assigned-clock-parents = <&apmixedsys CLK_APMIXED_MSDCPLL>;
