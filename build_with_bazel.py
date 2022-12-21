@@ -34,6 +34,12 @@ class BazelBuilder:
         self.kernel_dir = os.path.basename(
             (os.path.dirname(os.path.realpath(__file__)))
         )
+
+        for t, v in target_list:
+            if not t or not v:
+                logging.error("invalid target_variant combo \"%s_%s\"", t, v)
+                sys.exit(1)
+
         self.target_list = target_list
         self.skip_list = skip_list
         self.out_dir = out_dir
