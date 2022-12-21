@@ -116,6 +116,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	struct acp63_dev_data *adata;
 	struct pdm_dev_data *ps_pdm_data;
 	u32 val;
+	u16 pdev_index;
 
 	adata = dev_id;
 	if (!adata)
@@ -123,7 +124,8 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 
 	val = acp63_readl(adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
 	if (val & BIT(PDM_DMA_STAT)) {
-		ps_pdm_data = dev_get_drvdata(&adata->pdev[0]->dev);
+		pdev_index = adata->pdm_dev_index;
+		ps_pdm_data = dev_get_drvdata(&adata->pdev[pdev_index]->dev);
 		acp63_writel(BIT(PDM_DMA_STAT), adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
 		if (ps_pdm_data->capture_stream)
 			snd_pcm_period_elapsed(ps_pdm_data->capture_stream);
