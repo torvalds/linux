@@ -496,6 +496,11 @@ static int _dpu_rm_reserve_dsc(struct dpu_rm *rm,
 
 	/* check if DSC required are allocated or not */
 	for (i = 0; i < num_dsc; i++) {
+		if (!rm->dsc_blks[i]) {
+			DPU_ERROR("DSC %d does not exist\n", i);
+			return -EIO;
+		}
+
 		if (global_state->dsc_to_enc_id[i]) {
 			DPU_ERROR("DSC %d is already allocated\n", i);
 			return -EIO;
