@@ -122,6 +122,7 @@
   __const_udelay
   consume_skb
   cpu_bit_bitmap
+  cpufreq_cpu_get
   __cpufreq_driver_target
   cpufreq_generic_suspend
   cpufreq_register_governor
@@ -219,6 +220,7 @@
   device_remove_file
   device_set_wakeup_capable
   device_set_wakeup_enable
+  device_unregister
   device_wakeup_enable
   _dev_info
   __dev_kfree_skb_any
@@ -1187,6 +1189,7 @@
   sysfs_remove_link
   sysfs_streq
   system_freezable_wq
+  system_highpri_wq
   system_long_wq
   system_power_efficient_wq
   system_state
@@ -1528,7 +1531,6 @@
   simple_open
   strcspn
   system_freezing_cnt
-  system_highpri_wq
   _totalram_pages
   __traceiter_gpu_mem_total
   trace_output_call
@@ -2069,7 +2071,6 @@
   __arm_smccc_hvc
   bus_for_each_dev
   device_register
-  device_unregister
   free_pages_exact
   memremap
   memunmap
@@ -2320,6 +2321,18 @@
   dev_pm_opp_put_prop_name
   dev_pm_opp_set_supported_hw
 
+# required by rockchip-hdmirx.ko
+  cec_s_phys_addr_from_edid
+  cpu_latency_qos_remove_request
+  device_create_with_groups
+  of_reserved_mem_device_release
+  v4l2_ctrl_log_status
+  v4l2_ctrl_subscribe_event
+  v4l2_find_dv_timings_cap
+  v4l2_src_change_event_subscribe
+  vb2_dma_contig_memops
+  vb2_fop_read
+
 # required by rockchip-rng.ko
   devm_hwrng_register
   devm_of_iomap
@@ -2328,7 +2341,6 @@
   cpu_topology
 
 # required by rockchip_dmc.ko
-  cpufreq_cpu_get
   cpufreq_cpu_put
   cpufreq_quick_get
   devfreq_event_disable_edev
@@ -2574,7 +2586,6 @@
   sdhci_setup_host
 
 # required by sdhci-of-dwcmshc.ko
-  device_get_match_data
   devm_clk_bulk_get_optional
   dma_get_required_mask
   sdhci_adma_write_desc
