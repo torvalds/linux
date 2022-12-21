@@ -274,6 +274,15 @@ enum {
 };
 
 /**
+ * DSC features
+ * @DPU_DSC_OUTPUT_CTRL       Configure which PINGPONG block gets
+ *                            the pixel output from this DSC.
+ */
+enum {
+	DPU_DSC_OUTPUT_CTRL = 0x1,
+};
+
+/**
  * MACRO DPU_HW_BLK_INFO - information of HW blocks inside DPU
  * @name:              string name for debug purposes
  * @id:                enum identifying this block
