@@ -963,6 +963,43 @@ __media_pipeline_pad_iter_next(struct media_pipeline *pipe,
 }
 EXPORT_SYMBOL_GPL(__media_pipeline_pad_iter_next);
 
+int media_pipeline_entity_iter_init(struct media_pipeline *pipe,
+				    struct media_pipeline_entity_iter *iter)
+{
+	return media_entity_enum_init(&iter->ent_enum, pipe->mdev);
+}
+EXPORT_SYMBOL_GPL(media_pipeline_entity_iter_init);
+
+void media_pipeline_entity_iter_cleanup(struct media_pipeline_entity_iter *iter)
+{
+	media_entity_enum_cleanup(&iter->ent_enum);
+}
+EXPORT_SYMBOL_GPL(media_pipeline_entity_iter_cleanup);
+
+struct media_entity *
+__media_pipeline_entity_iter_next(struct media_pipeline *pipe,
+				  struct media_pipeline_entity_iter *iter,
+				  struct media_entity *entity)
+{
+	if (!entity)
+		iter->cursor = pipe->pads.next;
+
+	while (iter->cursor != &pipe->pads) {
+		struct media_pipeline_pad *ppad;
+		struct media_entity *entity;
+
+		ppad = list_entry(iter->cursor, struct media_pipeline_pad, list);
+		entity = ppad->pad->entity;
+		iter->cursor = iter->cursor->next;
+
+		if (!media_entity_enum_test_and_set(&iter->ent_enum, entity))
+			return entity;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(__media_pipeline_entity_iter_next);
+
 /* -----------------------------------------------------------------------------
  * Links management
  */
