@@ -129,6 +129,8 @@ struct rkvdec_link_info rkvdec_link_rk356x_hw_info = {
 	.hack_setup = 1,
 };
 
+static void rkvdec2_link_free_task(struct kref *ref);
+
 static void rkvdec_link_status_update(struct rkvdec_link_dev *dev)
 {
 	void __iomem *reg_base = dev->reg_base;
@@ -641,6 +643,7 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 		set_bit(TASK_STATE_PROC_DONE, &mpp_task->state);
 		/* Wake up the GET thread */
 		wake_up(&task->wait);
+		kref_put(&mpp_task->ref, rkvdec2_link_free_task);
 	}
 
 	return 0;
@@ -1282,7 +1285,6 @@ static int mpp_session_pop_done(struct mpp_session *session,
 				struct mpp_task *task)
 {
 	set_bit(TASK_STATE_DONE, &task->state);
-	kref_put(&task->ref, rkvdec2_link_free_task);
 
 	return 0;
 }
