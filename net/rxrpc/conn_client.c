@@ -551,8 +551,6 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	call->conn	= rxrpc_get_connection(conn, rxrpc_conn_get_activate_call);
 	call->cid	= conn->proto.cid | channel;
 	call->call_id	= call_id;
-	call->security	= conn->security;
-	call->security_ix = conn->security_ix;
 	call->dest_srx.srx_service = conn->service_id;
 
 	trace_rxrpc_connect_call(call);
