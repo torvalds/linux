@@ -322,6 +322,42 @@
 		};
 	};
 
+	dmc: dmc {
+		compatible = "rockchip,rk3562-dmc";
+		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "complete";
+		devfreq-events = <&dfi>;
+		clocks = <&scmi_clk CLK_DDR>;
+		clock-names = "dmc_clk";
+		operating-points-v2 = <&dmc_opp_table>;
+		upthreshold = <40>;
+		downdifferential = <20>;
+		system-status-level = <
+			/*system status		freq level*/
+			SYS_STATUS_NORMAL	DMC_FREQ_LEVEL_MID_HIGH
+			SYS_STATUS_REBOOT	DMC_FREQ_LEVEL_HIGH
+			SYS_STATUS_SUSPEND	DMC_FREQ_LEVEL_LOW
+			SYS_STATUS_VIDEO_4K	DMC_FREQ_LEVEL_MID_HIGH
+			SYS_STATUS_VIDEO_4K_10B	DMC_FREQ_LEVEL_MID_HIGH
+			SYS_STATUS_BOOST	DMC_FREQ_LEVEL_HIGH
+			SYS_STATUS_ISP		DMC_FREQ_LEVEL_HIGH
+			SYS_STATUS_PERFORMANCE	DMC_FREQ_LEVEL_HIGH
+			SYS_STATUS_DUALVIEW	DMC_FREQ_LEVEL_HIGH
+		>;
+		auto-min-freq = <324000>;
+		auto-freq-en = <1>;
+		#cooling-cells = <2>;
+		status = "disabled";
+	};
+
+	dmc_opp_table: dmc-opp-table {
+		compatible = "operating-points-v2";
+		opp-1560000000 {
+			opp-hz = /bits/ 64 <1560000000>;
+			opp-microvolt = <900000>;
+		};
+	};
+
 	firmware {
 		scmi: scmi {
 			compatible = "arm,scmi-smc";
@@ -1531,6 +1567,13 @@
 		clocks = <&cru ACLK_JDEC>, <&cru HCLK_JDEC>;
 		power-domains = <&power RK3562_PD_RGA>;
 		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	dfi: dfi@ff4c0000 {
+		reg = <0x00 0xff4c0000 0x00 0x400>;
+		compatible = "rockchip,rk3562-dfi";
+		rockchip,pmugrf = <&pmu_grf>;
 		status = "disabled";
 	};
 
