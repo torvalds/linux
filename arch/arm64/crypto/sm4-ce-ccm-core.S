@@ -8,6 +8,7 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 #include <asm/assembler.h>
 #include "sm4-ce-asm.h"
 
@@ -104,7 +105,7 @@ SYM_FUNC_START(sm4_ce_ccm_final)
 SYM_FUNC_END(sm4_ce_ccm_final)
 
 .align 3
-SYM_FUNC_START(sm4_ce_ccm_enc)
+SYM_TYPED_FUNC_START(sm4_ce_ccm_enc)
 	/* input:
 	 *   x0: round key array, CTX
 	 *   x1: dst
@@ -216,7 +217,7 @@ SYM_FUNC_START(sm4_ce_ccm_enc)
 SYM_FUNC_END(sm4_ce_ccm_enc)
 
 .align 3
-SYM_FUNC_START(sm4_ce_ccm_dec)
+SYM_TYPED_FUNC_START(sm4_ce_ccm_dec)
 	/* input:
 	 *   x0: round key array, CTX
 	 *   x1: dst
