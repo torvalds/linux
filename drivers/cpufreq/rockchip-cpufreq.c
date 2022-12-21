@@ -48,6 +48,9 @@ struct cluster_info {
 	int scale;
 	bool is_idle_disabled;
 	bool is_opp_shared_dsu;
+	unsigned int regulator_count;
+	unsigned long rate;
+	unsigned long volt, mem_volt;
 };
 static LIST_HEAD(cluster_info_list);
 
@@ -515,6 +518,9 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 			goto restore_freq;
 	}
 
+	cluster->volt = new_supply_vdd->u_volt;
+	cluster->mem_volt = new_supply_mem->u_volt;
+
 	return 0;
 
 restore_freq:
@@ -607,6 +613,7 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 
 	if (of_find_property(dev->of_node, "cpu-supply", NULL) &&
 	    of_find_property(dev->of_node, "mem-supply", NULL)) {
+		cluster->regulator_count = 2;
 		reg_table = dev_pm_opp_set_regulators(dev, reg_names,
 						      ARRAY_SIZE(reg_names));
 		if (IS_ERR(reg_table)) {
@@ -619,6 +626,8 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 			ret = PTR_ERR(opp_table);
 			goto reg_opp_table;
 		}
+	} else {
+		cluster->regulator_count = 1;
 	}
 
 	of_node_put(np);
@@ -654,6 +663,8 @@ EXPORT_SYMBOL_GPL(rockchip_cpufreq_adjust_power_scale);
 int rockchip_cpufreq_opp_set_rate(struct device *dev, unsigned long target_freq)
 {
 	struct cluster_info *cluster;
+	struct dev_pm_opp *opp;
+	unsigned long freq;
 	int ret = 0;
 
 	cluster = rockchip_cluster_info_lookup(dev->id);
@@ -662,6 +673,17 @@ int rockchip_cpufreq_opp_set_rate(struct device *dev, unsigned long target_freq)
 
 	rockchip_monitor_volt_adjust_lock(cluster->mdev_info);
 	ret = dev_pm_opp_set_rate(dev, target_freq);
+	if (!ret) {
+		cluster->rate = target_freq;
+		if (cluster->regulator_count == 1) {
+			freq = target_freq;
+			opp = dev_pm_opp_find_freq_ceil(cluster->opp_info.dev, &freq);
+			if (!IS_ERR(opp)) {
+				cluster->volt = dev_pm_opp_get_voltage(opp);
+				dev_pm_opp_put(opp);
+			}
+		}
+	}
 	rockchip_monitor_volt_adjust_unlock(cluster->mdev_info);
 
 	return ret;
@@ -903,6 +925,30 @@ static struct notifier_block rockchip_cpufreq_transition_notifier_block = {
 	.notifier_call = rockchip_cpufreq_transition_notifier,
 };
 
+static int rockchip_cpufreq_panic_notifier(struct notifier_block *nb,
+					   unsigned long v, void *p)
+{
+	struct cluster_info *ci;
+	struct device *dev;
+
+	list_for_each_entry(ci, &cluster_info_list, list_head) {
+		dev = ci->opp_info.dev;
+
+		if (ci->regulator_count == 1)
+			dev_info(dev, "cur_freq: %lu Hz, volt: %lu uV\n",
+				 ci->rate, ci->volt);
+		else
+			dev_info(dev, "cur_freq: %lu Hz, volt_vdd: %lu uV, volt_mem: %lu uV\n",
+				 ci->rate, ci->volt, ci->mem_volt);
+	}
+
+	return 0;
+}
+
+static struct notifier_block rockchip_cpufreq_panic_notifier_block = {
+	.notifier_call = rockchip_cpufreq_panic_notifier,
+};
+
 static int __init rockchip_cpufreq_driver_init(void)
 {
 	struct cluster_info *cluster, *pos;
@@ -951,6 +997,11 @@ static int __init rockchip_cpufreq_driver_init(void)
 		cpu_latency_qos_add_request(&idle_pm_qos, PM_QOS_DEFAULT_VALUE);
 #endif
 	}
+
+	ret = atomic_notifier_chain_register(&panic_notifier_list,
+					     &rockchip_cpufreq_panic_notifier_block);
+	if (ret)
+		pr_err("failed to register cpufreq panic notifier\n");
 
 	return PTR_ERR_OR_ZERO(platform_device_register_data(NULL, "cpufreq-dt",
 			       -1, (void *)&pdata,
