@@ -94,13 +94,6 @@ def define_kalama():
         # keep sorted
     ]
 
-    # Modules built but not copied to dist directory
-    _kalama_module_implicit_outs = [
-        # keep sorted
-        "drivers/block/zram/zram.ko",
-        "mm/zsmalloc.ko",
-    ]
-
     for variant in la_variants:
         if variant == "consolidate":
             mod_list = _kalama_consolidate_in_tree_modules
@@ -111,5 +104,4 @@ def define_kalama():
             msm_target = target_name,
             variant = variant,
             in_tree_module_list = mod_list,
-            implicit_out_list = _kalama_module_implicit_outs,
         )

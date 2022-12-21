@@ -26,6 +26,7 @@ load(":super_image.bzl", "super_image")
 load(":uapi_library.bzl", "define_uapi_library")
 load(":image_opts.bzl", "boot_image_opts")
 load(":target_variants.bzl", "la_variants")
+load(":modules.bzl", "COMMON_GKI_MODULES_LIST")
 
 
 def _define_build_config(
@@ -110,7 +111,6 @@ def _define_kernel_build(
         target,
         base_kernel,
         in_tree_module_list,
-        implicit_out_list,
         dtb_list,
         dtbo_list,
         dtstree,
@@ -141,7 +141,7 @@ def _define_kernel_build(
     kernel_build_abi(
         name = target,
         module_outs = in_tree_module_list,
-        module_implicit_outs = implicit_out_list,
+        module_implicit_outs = COMMON_GKI_MODULES_LIST,
         outs = out_list,
         build_config = ":{}_build_config".format(target),
         dtstree = dtstree,
@@ -321,7 +321,6 @@ def define_msm_la(
         msm_target,
         variant,
         in_tree_module_list,
-        implicit_out_list = [],
         define_compile_commands = False,
         kmi_enforced = True,
         boot_image_opts = boot_image_opts()):
@@ -331,7 +330,6 @@ def define_msm_la(
       msm_target: name of target platform (e.g. "kalama")
       variant: variant of kernel to build (e.g. "gki")
       in_tree_module_list: list of in-tree modules
-      implicit_out_list: list of in-tree modules which are not copied to the dist directory
       define_compile_commands: boolean determining if `compile_commands.json` should be generated
       kmi_enforced: boolean determining if the KMI contract should be enforced
       boot_image_header_version: boot image header version (for `boot.img`)
@@ -373,7 +371,6 @@ def define_msm_la(
         target,
         base_kernel,
         in_tree_module_list,
-        implicit_out_list,
         dtb_list,
         dtbo_list,
         dtstree,

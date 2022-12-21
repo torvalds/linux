@@ -231,13 +231,6 @@ def define_pineapple():
         "lib/test_user_copy.ko",
     ]
 
-    # Modules built but not copied to dist directory
-    _pineapple_module_implicit_outs = [
-        # keep sorted
-        "drivers/block/zram/zram.ko",
-        "mm/zsmalloc.ko",
-    ]
-
     for variant in la_variants:
         if variant == "consolidate":
             mod_list = _pineapple_consolidate_in_tree_modules
@@ -248,5 +241,4 @@ def define_pineapple():
             msm_target = target_name,
             variant = variant,
             in_tree_module_list = mod_list,
-            implicit_out_list = _pineapple_module_implicit_outs,
         )
