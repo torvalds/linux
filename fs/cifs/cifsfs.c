@@ -896,12 +896,6 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		goto out;
 	}
 
-	rc = cifs_setup_volume_info(cifs_sb->ctx, NULL, NULL);
-	if (rc) {
-		root = ERR_PTR(rc);
-		goto out;
-	}
-
 	rc = cifs_setup_cifs_sb(cifs_sb);
 	if (rc) {
 		root = ERR_PTR(rc);

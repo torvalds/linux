@@ -107,6 +107,8 @@
 
 #define CIFS_MAX_WORKSTATION_LEN  (__NEW_UTS_LEN + 1)  /* reasonable max for client */
 
+#define CIFS_DFS_ROOT_SES(ses) ((ses)->dfs_root_ses ?: (ses))
+
 /*
  * CIFS vfs client Status information (based on what we know.)
  */
@@ -738,8 +740,6 @@ struct TCP_Server_Info {
 	bool use_swn_dstaddr;
 	struct sockaddr_storage swn_dstaddr;
 #endif
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	bool is_dfs_conn; /* if a dfs connection */
 	struct mutex refpath_lock; /* protects leaf_fullpath */
 	/*
 	 * Canonical DFS full paths that were used to chase referrals in mount and reconnect.
@@ -753,7 +753,6 @@ struct TCP_Server_Info {
 	 * format: \\HOST\SHARE\[OPTIONAL PATH]
 	 */
 	char *origin_fullpath, *leaf_fullpath, *current_fullpath;
-#endif
 };
 
 static inline bool is_smb1(struct TCP_Server_Info *server)
@@ -1102,6 +1101,7 @@ struct cifs_ses {
 	 */
 	unsigned long chans_need_reconnect;
 	/* ========= end: protected by chan_lock ======== */
+	struct cifs_ses *dfs_root_ses;
 };
 
 static inline bool
@@ -1758,6 +1758,18 @@ struct dfs_info3_param {
 struct file_list {
 	struct list_head list;
 	struct cifsFileInfo *cfile;
+};
+
+struct cifs_mount_ctx {
+	struct cifs_sb_info *cifs_sb;
+	struct smb3_fs_context *fs_ctx;
+	unsigned int xid;
+	struct TCP_Server_Info *server;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
+	struct cifs_ses *root_ses;
+	uuid_t mount_id;
+	char *origin_fullpath, *leaf_fullpath;
 };
 
 static inline void free_dfs_info_param(struct dfs_info3_param *param)
