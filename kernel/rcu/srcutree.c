@@ -1098,10 +1098,11 @@ static void srcu_flip(struct srcu_struct *ssp)
 
 	/*
 	 * Ensure that if the updater misses an __srcu_read_unlock()
-	 * increment, that task's next __srcu_read_lock() will see the
-	 * above counter update.  Note that both this memory barrier
-	 * and the one in srcu_readers_active_idx_check() provide the
-	 * guarantee for __srcu_read_lock().
+	 * increment, that task's __srcu_read_lock() following its next
+	 * __srcu_read_lock() or __srcu_read_unlock() will see the above
+	 * counter update.  Note that both this memory barrier and the
+	 * one in srcu_readers_active_idx_check() provide the guarantee
+	 * for __srcu_read_lock().
 	 */
 	smp_mb(); /* D */  /* Pairs with C. */
 }
