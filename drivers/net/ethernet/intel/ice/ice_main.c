@@ -4220,13 +4220,13 @@ int ice_vsi_recfg_qs(struct ice_vsi *vsi, int new_rx, int new_tx, bool locked)
 
 	/* set for the next time the netdev is started */
 	if (!netif_running(vsi->netdev)) {
-		ice_vsi_rebuild(vsi, false);
+		ice_vsi_rebuild(vsi, ICE_VSI_FLAG_NO_INIT);
 		dev_dbg(ice_pf_to_dev(pf), "Link is down, queue count change happens when link is brought up\n");
 		goto done;
 	}
 
 	ice_vsi_close(vsi);
-	ice_vsi_rebuild(vsi, false);
+	ice_vsi_rebuild(vsi, ICE_VSI_FLAG_NO_INIT);
 	ice_pf_dcb_recfg(pf, locked);
 	ice_vsi_open(vsi);
 done:
@@ -7056,7 +7056,7 @@ static int ice_vsi_rebuild_by_type(struct ice_pf *pf, enum ice_vsi_type type)
 			continue;
 
 		/* rebuild the VSI */
-		err = ice_vsi_rebuild(vsi, true);
+		err = ice_vsi_rebuild(vsi, ICE_VSI_FLAG_INIT);
 		if (err) {
 			dev_err(dev, "rebuild VSI failed, err %d, VSI index %d, type %s\n",
 				err, vsi->idx, ice_vsi_type_str(type));
@@ -8465,7 +8465,7 @@ static int ice_rebuild_channels(struct ice_pf *pf)
 		type = vsi->type;
 
 		/* rebuild ADQ VSI */
-		err = ice_vsi_rebuild(vsi, true);
+		err = ice_vsi_rebuild(vsi, ICE_VSI_FLAG_INIT);
 		if (err) {
 			dev_err(dev, "VSI (type:%s) at index %d rebuild failed, err %d\n",
 				ice_vsi_type_str(type), vsi->idx, err);
@@ -8697,14 +8697,14 @@ config_tcf:
 	cur_rxq = vsi->num_rxq;
 
 	/* proceed with rebuild main VSI using correct number of queues */
-	ret = ice_vsi_rebuild(vsi, false);
+	ret = ice_vsi_rebuild(vsi, ICE_VSI_FLAG_NO_INIT);
 	if (ret) {
 		/* fallback to current number of queues */
 		dev_info(dev, "Rebuild failed with new queues, try with current number of queues\n");
 		vsi->req_txq = cur_txq;
 		vsi->req_rxq = cur_rxq;
 		clear_bit(ICE_RESET_FAILED, pf->state);
-		if (ice_vsi_rebuild(vsi, false)) {
+		if (ice_vsi_rebuild(vsi, ICE_VSI_FLAG_NO_INIT)) {
 			dev_err(dev, "Rebuild of main VSI failed again\n");
 			return ret;
 		}
