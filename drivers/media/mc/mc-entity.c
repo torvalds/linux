@@ -945,6 +945,24 @@ out:
 }
 EXPORT_SYMBOL_GPL(media_pipeline_alloc_start);
 
+struct media_pad *
+__media_pipeline_pad_iter_next(struct media_pipeline *pipe,
+			       struct media_pipeline_pad_iter *iter,
+			       struct media_pad *pad)
+{
+	if (!pad)
+		iter->cursor = pipe->pads.next;
+
+	if (iter->cursor == &pipe->pads)
+		return NULL;
+
+	pad = list_entry(iter->cursor, struct media_pipeline_pad, list)->pad;
+	iter->cursor = iter->cursor->next;
+
+	return pad;
+}
+EXPORT_SYMBOL_GPL(__media_pipeline_pad_iter_next);
+
 /* -----------------------------------------------------------------------------
  * Links management
  */
