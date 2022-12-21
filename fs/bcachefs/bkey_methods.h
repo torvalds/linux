@@ -38,6 +38,8 @@ struct bkey_ops {
 
 extern const struct bkey_ops bch2_bkey_ops[];
 
+#define BKEY_INVALID_FROM_JOURNAL		(1 << 1)
+
 int bch2_bkey_val_invalid(struct bch_fs *, struct bkey_s_c, unsigned, struct printbuf *);
 int __bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c,
 			enum btree_node_type, unsigned, struct printbuf *);
