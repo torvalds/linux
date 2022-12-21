@@ -1202,9 +1202,10 @@ static int virtblk_poll(struct blk_mq_hw_ctx *hctx, struct io_comp_batch *iob)
 		struct request *req = blk_mq_rq_from_pdu(vbr);
 
 		found++;
-		if (!blk_mq_add_to_batch(req, iob, vbr->status,
+		if (!blk_mq_complete_request_remote(req) &&
+		    !blk_mq_add_to_batch(req, iob, vbr->status,
 						virtblk_complete_batch))
-			blk_mq_complete_request(req);
+			virtblk_request_done(req);
 	}
 
 	if (found)
