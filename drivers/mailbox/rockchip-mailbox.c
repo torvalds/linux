@@ -164,7 +164,6 @@ MODULE_DEVICE_TABLE(of, rockchp_mbox_of_match);
 static int rockchip_mbox_probe(struct platform_device *pdev)
 {
 	struct rockchip_mbox *mb;
-	const struct of_device_id *match;
 	const struct rockchip_mbox_data *drv_data;
 	struct resource *res;
 	int ret, irq, i;
@@ -172,8 +171,7 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	match = of_match_node(rockchip_mbox_of_match, pdev->dev.of_node);
-	drv_data = (const struct rockchip_mbox_data *)match->data;
+	drv_data = (const struct rockchip_mbox_data *) device_get_match_data(&pdev->dev);
 
 	mb = devm_kzalloc(&pdev->dev, sizeof(*mb), GFP_KERNEL);
 	if (!mb)

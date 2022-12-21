@@ -24,12 +24,14 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,sc7280-ipcc
+          - qcom,sc8280xp-ipcc
           - qcom,sm6350-ipcc
           - qcom,sm6375-ipcc
           - qcom,sm8250-ipcc
           - qcom,sm8350-ipcc
           - qcom,sm8450-ipcc
-          - qcom,sc7280-ipcc
+          - qcom,sm8550-ipcc
       - const: qcom,ipcc
 
   reg:
