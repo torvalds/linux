@@ -1972,7 +1972,7 @@ TRACE_EVENT(f2fs_iostat,
 		__entry->fs_cdrio	= iostat[FS_CDATA_READ_IO];
 		__entry->fs_nrio	= iostat[FS_NODE_READ_IO];
 		__entry->fs_mrio	= iostat[FS_META_READ_IO];
-		__entry->fs_discard	= iostat[FS_DISCARD];
+		__entry->fs_discard	= iostat[FS_DISCARD_IO];
 	),
 
 	TP_printk("dev = (%d,%d), "
