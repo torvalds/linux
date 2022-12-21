@@ -419,6 +419,7 @@ static int udf_do_extend_file(struct inode *inode,
 			~(sb->s_blocksize - 1);
 	}
 
+	add = 0;
 	/* Can we merge with the previous extent? */
 	if ((last_ext->extLength & UDF_EXTENT_FLAG_MASK) ==
 					EXT_NOT_RECORDED_NOT_ALLOCATED) {
@@ -451,6 +452,7 @@ static int udf_do_extend_file(struct inode *inode,
 		if (new_block_bytes)
 			udf_next_aext(inode, last_pos, &tmploc, &tmplen, 0);
 	}
+	iinfo->i_lenExtents += add;
 
 	/* Managed to do everything necessary? */
 	if (!new_block_bytes)
@@ -469,6 +471,7 @@ static int udf_do_extend_file(struct inode *inode,
 				   last_ext->extLength, 1);
 		if (err)
 			goto out_err;
+		iinfo->i_lenExtents += add;
 		count++;
 	}
 	if (new_block_bytes) {
@@ -478,6 +481,7 @@ static int udf_do_extend_file(struct inode *inode,
 				   last_ext->extLength, 1);
 		if (err)
 			goto out_err;
+		iinfo->i_lenExtents += new_block_bytes;
 		count++;
 	}
 
@@ -585,7 +589,6 @@ static int udf_extend_file(struct inode *inode, loff_t newsize)
 	if (err < 0)
 		goto out;
 	err = 0;
-	iinfo->i_lenExtents = newsize;
 out:
 	brelse(epos.bh);
 	return err;
