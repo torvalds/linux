@@ -540,12 +540,6 @@ config RTC_DRV_BQ32K
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-bq32k.
 
-config RTC_DRV_DM355EVM
-	tristate "TI DaVinci DM355 EVM RTC"
-	depends on MFD_DM355EVM_MSP
-	help
-	  Supports the RTC firmware in the MSP430 on the DM355 EVM.
-
 config RTC_DRV_TWL92330
 	bool "TI TWL92330/Menelaus"
 	depends on MENELAUS

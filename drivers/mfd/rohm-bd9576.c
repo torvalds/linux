@@ -88,8 +88,7 @@ static struct regmap_irq_chip bd9576_irq_chip = {
 	.irq_reg_stride = 1,
 };
 
-static int bd957x_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int bd957x_i2c_probe(struct i2c_client *i2c)
 {
 	int ret;
 	struct regmap *regmap;
@@ -122,10 +121,9 @@ static int bd957x_i2c_probe(struct i2c_client *i2c,
 	}
 
 	regmap = devm_regmap_init_i2c(i2c, &bd957x_regmap);
-	if (IS_ERR(regmap)) {
-		dev_err(&i2c->dev, "Failed to initialize Regmap\n");
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(&i2c->dev, PTR_ERR(regmap),
+				     "Failed to initialize Regmap\n");
 
 	/*
 	 * BD9576 behaves badly. It kepts IRQ line asserted for the whole
@@ -146,10 +144,10 @@ static int bd957x_i2c_probe(struct i2c_client *i2c,
 		ret = devm_regmap_add_irq_chip(&i2c->dev, regmap, i2c->irq,
 					       IRQF_ONESHOT, 0,
 					       &bd9576_irq_chip, &irq_data);
-		if (ret) {
-			dev_err(&i2c->dev, "Failed to add IRQ chip\n");
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(&i2c->dev, ret,
+					     "Failed to add IRQ chip\n");
+
 		domain = regmap_irq_get_domain(irq_data);
 	} else {
 		ret = regmap_update_bits(regmap, BD957X_REG_INT_MAIN_MASK,
@@ -163,7 +161,7 @@ static int bd957x_i2c_probe(struct i2c_client *i2c,
 	ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_AUTO, cells,
 				   num_cells, NULL, 0, domain);
 	if (ret)
-		dev_err(&i2c->dev, "Failed to create subdevices\n");
+		dev_err_probe(&i2c->dev, ret, "Failed to create subdevices\n");
 
 	return ret;
 }
@@ -180,7 +178,7 @@ static struct i2c_driver bd957x_drv = {
 		.name = "rohm-bd957x",
 		.of_match_table = bd957x_of_match,
 	},
-	.probe = &bd957x_i2c_probe,
+	.probe_new = &bd957x_i2c_probe,
 };
 module_i2c_driver(bd957x_drv);
 

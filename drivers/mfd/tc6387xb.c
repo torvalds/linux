@@ -40,7 +40,6 @@ static const struct resource tc6387xb_mmc_resources[] = {
 
 /*--------------------------------------------------------------------------*/
 
-#ifdef CONFIG_PM
 static int tc6387xb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct tc6387xb *tc6387xb = platform_get_drvdata(dev);
@@ -67,10 +66,6 @@ static int tc6387xb_resume(struct platform_device *dev)
 
 	return 0;
 }
-#else
-#define tc6387xb_suspend  NULL
-#define tc6387xb_resume   NULL
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -220,8 +215,8 @@ static struct platform_driver tc6387xb_platform_driver = {
 	},
 	.probe		= tc6387xb_probe,
 	.remove		= tc6387xb_remove,
-	.suspend        = tc6387xb_suspend,
-	.resume         = tc6387xb_resume,
+	.suspend        = pm_sleep_ptr(tc6387xb_suspend),
+	.resume         = pm_sleep_ptr(tc6387xb_resume),
 };
 
 module_platform_driver(tc6387xb_platform_driver);
