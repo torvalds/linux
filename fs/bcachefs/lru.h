@@ -22,7 +22,7 @@ static inline u64 lru_pos_time(struct bpos pos)
 	return pos.inode & ~(~0ULL << LRU_TIME_BITS);
 }
 
-int bch2_lru_invalid(const struct bch_fs *, struct bkey_s_c, int, struct printbuf *);
+int bch2_lru_invalid(const struct bch_fs *, struct bkey_s_c, unsigned, struct printbuf *);
 void bch2_lru_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_lru ((struct bkey_ops) {	\

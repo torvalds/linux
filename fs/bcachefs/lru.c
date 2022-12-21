@@ -10,7 +10,7 @@
 
 /* KEY_TYPE_lru is obsolete: */
 int bch2_lru_invalid(const struct bch_fs *c, struct bkey_s_c k,
-		     int rw, struct printbuf *err)
+		     unsigned flags, struct printbuf *err)
 {
 	const struct bch_lru *lru = bkey_s_c_to_lru(k).v;
 

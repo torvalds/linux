@@ -25,7 +25,7 @@ void bch2_snapshot_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			  int rw, struct printbuf *err)
+			  unsigned flags, struct printbuf *err)
 {
 	struct bkey_s_c_snapshot s;
 	u32 i, id;
@@ -733,7 +733,7 @@ static int bch2_delete_dead_snapshots_hook(struct btree_trans *trans,
 /* Subvolumes: */
 
 int bch2_subvolume_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			   int rw, struct printbuf *err)
+			   unsigned flags, struct printbuf *err)
 {
 	if (bkey_lt(k.k->p, SUBVOL_POS_MIN) ||
 	    bkey_gt(k.k->p, SUBVOL_POS_MAX)) {

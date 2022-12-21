@@ -165,7 +165,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 /* KEY_TYPE_btree_ptr: */
 
 int bch2_btree_ptr_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			   int rw, struct printbuf *err)
+			   unsigned flags, struct printbuf *err)
 {
 	if (bkey_val_u64s(k.k) > BCH_REPLICAS_MAX) {
 		prt_printf(err, "value too big (%zu > %u)",
@@ -173,7 +173,7 @@ int bch2_btree_ptr_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	return bch2_bkey_ptrs_invalid(c, k, rw, err);
+	return bch2_bkey_ptrs_invalid(c, k, flags, err);
 }
 
 void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
@@ -183,7 +183,7 @@ void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 int bch2_btree_ptr_v2_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			      int rw, struct printbuf *err)
+			      unsigned flags, struct printbuf *err)
 {
 	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
 
@@ -206,7 +206,7 @@ int bch2_btree_ptr_v2_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	return bch2_bkey_ptrs_invalid(c, k, rw, err);
+	return bch2_bkey_ptrs_invalid(c, k, flags, err);
 }
 
 void bch2_btree_ptr_v2_to_text(struct printbuf *out, struct bch_fs *c,
@@ -388,7 +388,7 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 /* KEY_TYPE_reservation: */
 
 int bch2_reservation_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			     int rw, struct printbuf *err)
+			     unsigned flags, struct printbuf *err)
 {
 	struct bkey_s_c_reservation r = bkey_s_c_to_reservation(k);
 
@@ -1085,7 +1085,7 @@ static int extent_ptr_invalid(const struct bch_fs *c,
 }
 
 int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			   int rw, struct printbuf *err)
+			   unsigned flags, struct printbuf *err)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;

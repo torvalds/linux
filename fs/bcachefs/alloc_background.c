@@ -222,7 +222,7 @@ static unsigned bch_alloc_v1_val_u64s(const struct bch_alloc *a)
 }
 
 int bch2_alloc_v1_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			  int rw, struct printbuf *err)
+			  unsigned flags, struct printbuf *err)
 {
 	struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
 
@@ -237,7 +237,7 @@ int bch2_alloc_v1_invalid(const struct bch_fs *c, struct bkey_s_c k,
 }
 
 int bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			  int rw, struct printbuf *err)
+			  unsigned flags, struct printbuf *err)
 {
 	struct bkey_alloc_unpacked u;
 
@@ -250,7 +250,7 @@ int bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k,
 }
 
 int bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			  int rw, struct printbuf *err)
+			  unsigned flags, struct printbuf *err)
 {
 	struct bkey_alloc_unpacked u;
 
@@ -263,9 +263,10 @@ int bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k,
 }
 
 int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			  int rw, struct printbuf *err)
+			  unsigned flags, struct printbuf *err)
 {
 	struct bkey_s_c_alloc_v4 a = bkey_s_c_to_alloc_v4(k);
+	int rw = flags & WRITE;
 
 	if (alloc_v4_u64s(a.v) != bkey_val_u64s(k.k)) {
 		prt_printf(err, "bad val size (%lu != %u)",
@@ -620,7 +621,7 @@ static unsigned alloc_gen(struct bkey_s_c k, unsigned offset)
 }
 
 int bch2_bucket_gens_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			     int rw, struct printbuf *err)
+			     unsigned flags, struct printbuf *err)
 {
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_bucket_gens)) {
 		prt_printf(err, "bad val size (%lu != %zu)",

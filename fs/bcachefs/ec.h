@@ -7,7 +7,7 @@
 #include "extents_types.h"
 
 int bch2_stripe_invalid(const struct bch_fs *, struct bkey_s_c,
-			int rw, struct printbuf *);
+			unsigned, struct printbuf *);
 void bch2_stripe_to_text(struct printbuf *, struct bch_fs *,
 			 struct bkey_s_c);
 

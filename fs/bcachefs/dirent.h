@@ -6,7 +6,7 @@
 
 extern const struct bch_hash_desc bch2_dirent_hash_desc;
 
-int bch2_dirent_invalid(const struct bch_fs *, struct bkey_s_c, int, struct printbuf *);
+int bch2_dirent_invalid(const struct bch_fs *, struct bkey_s_c, unsigned, struct printbuf *);
 void bch2_dirent_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_dirent ((struct bkey_ops) {	\

@@ -105,7 +105,7 @@ struct ec_bio {
 /* Stripes btree keys: */
 
 int bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			int rw, struct printbuf *err)
+			unsigned flags, struct printbuf *err)
 {
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 
@@ -131,7 +131,7 @@ int bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	return bch2_bkey_ptrs_invalid(c, k, rw, err);
+	return bch2_bkey_ptrs_invalid(c, k, flags, err);
 }
 
 void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
