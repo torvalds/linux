@@ -1348,6 +1348,7 @@ static void rkisp_config_cmsk_single(struct rkisp_device *dev,
 				      dev->isp_sdev.out_crop.height);
 		rkisp_write(dev, ISP3X_CMSK_PIC_SIZE, val, false);
 		ctrl |= ISP3X_SW_CMSK_EN | ISP3X_SW_CMSK_ORDER_MODE;
+		ctrl |= ISP3X_SW_CMSK_BLKSIZE(cfg->mosaic_block);
 	}
 	rkisp_write(dev, ISP3X_CMSK_CTRL0, ctrl, false);
 

@@ -1039,6 +1039,7 @@ static int rkisp_set_cmsk(struct rkisp_stream *stream, struct rkisp_cmsk_cfg *cf
 		dev->cmsk_cfg.win[2].mode = mode;
 		break;
 	}
+	dev->cmsk_cfg.mosaic_block = cfg->mosaic_block;
 	spin_unlock_irqrestore(&dev->cmsk_lock, lock_flags);
 	return 0;
 

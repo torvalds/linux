@@ -353,11 +353,13 @@ struct rkisp_cmsk_win {
 
 /* struct rkisp_cmsk_cfg
  * win: priacy mask window
+ * mosaic_block: Mosaic block size, 0:8x8 1:16x16 2:32x32 3:64x64, share for all windows
  * width_ro: isp full resolution, h_offs + h_size <= width_ro.
  * height_ro: isp full resolution, v_offs + v_size <= height_ro.
  */
 struct rkisp_cmsk_cfg {
 	struct rkisp_cmsk_win win[RKISP_CMSK_WIN_MAX];
+	unsigned int mosaic_block;
 	unsigned int width_ro;
 	unsigned int height_ro;
 } __attribute__ ((packed));
