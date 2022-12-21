@@ -132,6 +132,39 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
+static void get_acp63_device_config(u32 config, struct pci_dev *pci,
+				    struct acp63_dev_data *acp_data)
+{
+	struct acpi_device *dmic_dev;
+	const union acpi_object *obj;
+	bool is_dmic_dev = false;
+
+	dmic_dev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), ACP63_DMIC_ADDR, 0);
+	if (dmic_dev) {
+		if (!acpi_dev_get_property(dmic_dev, "acp-audio-device-type",
+					   ACPI_TYPE_INTEGER, &obj) &&
+					   obj->integer.value == ACP_DMIC_DEV)
+			is_dmic_dev = true;
+	}
+
+	switch (config) {
+	case ACP_CONFIG_0:
+	case ACP_CONFIG_1:
+	case ACP_CONFIG_2:
+	case ACP_CONFIG_3:
+	case ACP_CONFIG_9:
+	case ACP_CONFIG_15:
+		dev_dbg(&pci->dev, "Audio Mode %d\n", config);
+		break;
+	default:
+		if (is_dmic_dev) {
+			acp_data->pdev_mask = ACP63_PDM_DEV_MASK;
+			acp_data->pdev_count = ACP63_PDM_MODE_DEVS;
+		}
+		break;
+	}
+}
+
 static int snd_acp63_probe(struct pci_dev *pci,
 			   const struct pci_device_id *pci_id)
 {
@@ -183,6 +216,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	if (ret)
 		goto release_regions;
 	val = acp63_readl(adata->acp63_base + ACP_PIN_CONFIG);
+	get_acp63_device_config(val, pci, adata);
 	switch (val) {
 	case ACP_CONFIG_0:
 	case ACP_CONFIG_1:
@@ -195,14 +229,14 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	default:
 
 		/* Checking DMIC hardware*/
-		adev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), 0x02, 0);
+		adev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), ACP63_DMIC_ADDR, 0);
 
 		if (!adev)
 			break;
 
 		if (!acpi_dev_get_property(adev, "acp-audio-device-type",
 					   ACPI_TYPE_INTEGER, &obj) &&
-					   obj->integer.value == 2) {
+					   obj->integer.value == ACP_DMIC_DEV) {
 			adata->res = devm_kzalloc(&pci->dev, sizeof(struct resource), GFP_KERNEL);
 			if (!adata->res) {
 				ret = -ENOMEM;
