@@ -411,6 +411,8 @@ static int aspeed_jtag_status_set(struct jtag *jtag,
 
 	if (tapstate->from == JTAG_STATE_CURRENT)
 		tapstate->from = aspeed_jtag->sts;
+	if (tapstate->endstate == JTAG_STATE_CURRENT)
+		tapstate->endstate = aspeed_jtag->sts;
 	JTAG_DBUG("reset:%d from:%s end:%s tck:%d", tapstate->reset,
 		  end_status_str[tapstate->from],
 		  end_status_str[tapstate->endstate], tapstate->tck);
