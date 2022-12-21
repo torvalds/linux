@@ -661,7 +661,7 @@ static int journal_entry_overwrite_validate(struct bch_fs *c,
 				      struct jset_entry *entry,
 				      unsigned version, int big_endian, int write)
 {
-	return journal_entry_btree_keys_validate(c, jset, entry, version, big_endian, write);
+	return journal_entry_btree_keys_validate(c, jset, entry, version, big_endian, READ);
 }
 
 static void journal_entry_overwrite_to_text(struct printbuf *out, struct bch_fs *c,
