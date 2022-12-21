@@ -706,13 +706,23 @@ static int __amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int amdgpu_ras_check_feature_allowed(struct amdgpu_device *adev,
+		struct ras_common_if *head)
+{
+	if (amdgpu_ras_is_feature_allowed(adev, head) ||
+		amdgpu_ras_is_poison_mode_supported(adev))
+		return 1;
+	else
+		return 0;
+}
+
 /* wrapper of psp_ras_enable_features */
 int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 		struct ras_common_if *head, bool enable)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	union ta_ras_cmd_input *info;
-	int ret;
+	int ret = 0;
 
 	if (!con)
 		return -EINVAL;
@@ -736,7 +746,8 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	}
 
 	/* Do not enable if it is not allowed. */
-	WARN_ON(enable && !amdgpu_ras_is_feature_allowed(adev, head));
+	if (enable && !amdgpu_ras_check_feature_allowed(adev, head))
+		goto out;
 
 	/* Only enable ras feature operation handle on host side */
 	if (head->block == AMDGPU_RAS_BLOCK__GFX &&
@@ -754,7 +765,6 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 
 	/* setup the obj */
 	__amdgpu_ras_feature_enable(adev, head, enable);
-	ret = 0;
 out:
 	if (head->block == AMDGPU_RAS_BLOCK__GFX)
 		kfree(info);
