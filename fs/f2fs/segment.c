@@ -506,6 +506,8 @@ static int __submit_flush_wait(struct f2fs_sb_info *sbi,
 
 	trace_f2fs_issue_flush(bdev, test_opt(sbi, NOBARRIER),
 				test_opt(sbi, FLUSH_MERGE), ret);
+	if (!ret)
+		f2fs_update_iostat(sbi, NULL, FS_FLUSH_IO, 0);
 	return ret;
 }
 
