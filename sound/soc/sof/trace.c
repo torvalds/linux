@@ -20,7 +20,7 @@ int sof_fw_trace_init(struct snd_sof_dev *sdev)
 
 void sof_fw_trace_free(struct snd_sof_dev *sdev)
 {
-	if (!sdev->fw_trace_is_supported || !sdev->ipc->ops->fw_tracing)
+	if (!sdev->fw_trace_is_supported)
 		return;
 
 	if (sdev->ipc->ops->fw_tracing->free)
