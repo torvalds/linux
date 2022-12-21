@@ -422,15 +422,15 @@ void mt7921_roc_timer(struct timer_list *timer)
 
 static int mt7921_abort_roc(struct mt7921_phy *phy, struct mt7921_vif *vif)
 {
-	int err;
-
-	if (!test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
-		return 0;
+	int err = 0;
 
 	del_timer_sync(&phy->roc_timer);
 	cancel_work_sync(&phy->roc_work);
-	err = mt7921_mcu_abort_roc(phy, vif, phy->roc_token_id);
-	clear_bit(MT76_STATE_ROC, &phy->mt76->state);
+
+	mt7921_mutex_acquire(phy->dev);
+	if (test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
+		err = mt7921_mcu_abort_roc(phy, vif, phy->roc_token_id);
+	mt7921_mutex_release(phy->dev);
 
 	return err;
 }
@@ -487,13 +487,8 @@ static int mt7921_cancel_remain_on_channel(struct ieee80211_hw *hw,
 {
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
-	int err;
 
-	mt7921_mutex_acquire(phy->dev);
-	err = mt7921_abort_roc(phy, mvif);
-	mt7921_mutex_release(phy->dev);
-
-	return err;
+	return mt7921_abort_roc(phy, mvif);
 }
 
 static int mt7921_set_channel(struct mt7921_phy *phy)
@@ -1778,11 +1773,8 @@ static void mt7921_mgd_complete_tx(struct ieee80211_hw *hw,
 				   struct ieee80211_prep_tx_info *info)
 {
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
-	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 
-	mt7921_mutex_acquire(dev);
 	mt7921_abort_roc(mvif->phy, mvif);
-	mt7921_mutex_release(dev);
 }
 
 const struct ieee80211_ops mt7921_ops = {
