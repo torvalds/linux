@@ -248,9 +248,9 @@ struct hmac_ctx {
 
 struct __crypto_ctx {
 	union {
-		DECLARE_FLEX_ARRAY(struct hmac_ctx, hmacctx);
-		DECLARE_FLEX_ARRAY(struct ablk_ctx, ablkctx);
-		DECLARE_FLEX_ARRAY(struct chcr_aead_ctx, aeadctx);
+		struct hmac_ctx hmacctx;
+		struct ablk_ctx ablkctx;
+		struct chcr_aead_ctx aeadctx;
 	};
 };
 

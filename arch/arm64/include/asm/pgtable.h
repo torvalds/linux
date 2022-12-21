@@ -1020,8 +1020,6 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
  */
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
 
-extern int kern_addr_valid(unsigned long addr);
-
 #ifdef CONFIG_ARM64_MTE
 
 #define __HAVE_ARCH_PREPARE_TO_SWAP
@@ -1048,8 +1046,8 @@ static inline void arch_swap_invalidate_area(int type)
 #define __HAVE_ARCH_SWAP_RESTORE
 static inline void arch_swap_restore(swp_entry_t entry, struct folio *folio)
 {
-	if (system_supports_mte() && mte_restore_tags(entry, &folio->page))
-		set_bit(PG_mte_tagged, &folio->flags);
+	if (system_supports_mte())
+		mte_restore_tags(entry, &folio->page);
 }
 
 #endif /* CONFIG_ARM64_MTE */
@@ -1095,15 +1093,6 @@ static inline bool pud_sect_supported(void)
 }
 
 
-#define __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
-#define ptep_modify_prot_start ptep_modify_prot_start
-extern pte_t ptep_modify_prot_start(struct vm_area_struct *vma,
-				    unsigned long addr, pte_t *ptep);
-
-#define ptep_modify_prot_commit ptep_modify_prot_commit
-extern void ptep_modify_prot_commit(struct vm_area_struct *vma,
-				    unsigned long addr, pte_t *ptep,
-				    pte_t old_pte, pte_t new_pte);
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_PGTABLE_H */

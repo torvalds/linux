@@ -884,16 +884,21 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		ctx->nodfs = 1;
 		break;
 	case Opt_hard:
-		if (result.negated)
+		if (result.negated) {
+			if (ctx->retry == 1)
+				cifs_dbg(VFS, "conflicting hard vs. soft mount options\n");
 			ctx->retry = 0;
-		else
+		} else
 			ctx->retry = 1;
 		break;
 	case Opt_soft:
 		if (result.negated)
 			ctx->retry = 1;
-		else
+		else {
+			if (ctx->retry == 1)
+				cifs_dbg(VFS, "conflicting hard vs soft mount options\n");
 			ctx->retry = 0;
+		}
 		break;
 	case Opt_mapposix:
 		if (result.negated)

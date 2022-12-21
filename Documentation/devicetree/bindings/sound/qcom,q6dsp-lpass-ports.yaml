@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/sound/qcom,q6dsp-lpass-ports.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Qualcomm DSP LPASS(Low Power Audio SubSystem) Audio Ports binding
+title: Qualcomm DSP LPASS(Low Power Audio SubSystem) Audio Ports
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>

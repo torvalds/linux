@@ -16,7 +16,6 @@
 #include <linux/pci_regs.h>
 #include <linux/platform_device.h>
 
-#include "../../pci.h"
 #include "pcie-designware.h"
 
 static struct pci_ops dw_pcie_ops;
@@ -395,6 +394,10 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 
 	raw_spin_lock_init(&pp->lock);
 
+	ret = dw_pcie_get_resources(pci);
+	if (ret)
+		return ret;
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
 	if (res) {
 		pp->cfg0_size = resource_size(res);
@@ -406,13 +409,6 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 	} else {
 		dev_err(dev, "Missing *config* reg space\n");
 		return -ENODEV;
-	}
-
-	if (!pci->dbi_base) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-		pci->dbi_base = devm_pci_remap_cfg_resource(dev, res);
-		if (IS_ERR(pci->dbi_base))
-			return PTR_ERR(pci->dbi_base);
 	}
 
 	bridge = devm_pci_alloc_host_bridge(dev, 0);
@@ -428,9 +424,6 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 		pp->io_bus_addr = win->res->start - win->offset;
 		pp->io_base = pci_pio_to_address(win->res->start);
 	}
-
-	if (pci->link_gen < 1)
-		pci->link_gen = of_pci_get_max_link_speed(np);
 
 	/* Set default bus ops */
 	bridge->ops = &dw_pcie_ops;
@@ -643,11 +636,14 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 	}
 
 	/*
-	 * Ensure all outbound windows are disabled before proceeding with
-	 * the MEM/IO ranges setups.
+	 * Ensure all out/inbound windows are disabled before proceeding with
+	 * the MEM/IO (dma-)ranges setups.
 	 */
 	for (i = 0; i < pci->num_ob_windows; i++)
 		dw_pcie_disable_atu(pci, PCIE_ATU_REGION_DIR_OB, i);
+
+	for (i = 0; i < pci->num_ib_windows; i++)
+		dw_pcie_disable_atu(pci, PCIE_ATU_REGION_DIR_IB, i);
 
 	i = 0;
 	resource_list_for_each_entry(entry, &pp->bridge->windows) {
@@ -685,8 +681,31 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 	}
 
 	if (pci->num_ob_windows <= i)
-		dev_warn(pci->dev, "Resources exceed number of ATU entries (%d)\n",
+		dev_warn(pci->dev, "Ranges exceed outbound iATU size (%d)\n",
 			 pci->num_ob_windows);
+
+	i = 0;
+	resource_list_for_each_entry(entry, &pp->bridge->dma_ranges) {
+		if (resource_type(entry->res) != IORESOURCE_MEM)
+			continue;
+
+		if (pci->num_ib_windows <= i)
+			break;
+
+		ret = dw_pcie_prog_inbound_atu(pci, i++, PCIE_ATU_TYPE_MEM,
+					       entry->res->start,
+					       entry->res->start - entry->offset,
+					       resource_size(entry->res));
+		if (ret) {
+			dev_err(pci->dev, "Failed to set DMA range %pr\n",
+				entry->res);
+			return ret;
+		}
+	}
+
+	if (pci->num_ib_windows <= i)
+		dev_warn(pci->dev, "Dma-ranges exceed inbound iATU size (%u)\n",
+			 pci->num_ib_windows);
 
 	return 0;
 }

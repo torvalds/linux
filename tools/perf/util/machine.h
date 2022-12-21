@@ -56,6 +56,10 @@ struct machine {
 	struct maps	  *kmaps;
 	struct map	  *vmlinux_map;
 	u64		  kernel_start;
+	struct {
+		u64	  text_start;
+		u64	  text_end;
+	} sched, lock;
 	pid_t		  *current_tid;
 	size_t		  current_tid_sz;
 	union { /* Tool specific area */
@@ -212,6 +216,7 @@ static inline bool machine__is_host(struct machine *machine)
 	return machine ? machine->pid == HOST_KERNEL_ID : false;
 }
 
+bool machine__is_lock_function(struct machine *machine, u64 addr);
 bool machine__is(struct machine *machine, const char *arch);
 bool machine__normalized_is(struct machine *machine, const char *arch);
 int machine__nr_cpus_avail(struct machine *machine);
@@ -304,5 +309,8 @@ int machine__create_extra_kernel_map(struct machine *machine,
 
 int machine__map_x86_64_entry_trampolines(struct machine *machine,
 					  struct dso *kernel);
+
+int machine__resolve(struct machine *machine, struct addr_location *al,
+		     struct perf_sample *sample);
 
 #endif /* __PERF_MACHINE_H */

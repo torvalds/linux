@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/qcom,lpass-va-macro.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: LPASS(Low Power Audio Subsystem) VA Macro audio codec DT bindings
+title: LPASS(Low Power Audio Subsystem) VA Macro audio codec
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>

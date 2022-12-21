@@ -1181,10 +1181,7 @@ static void sci_dma_tx_complete(void *arg)
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	xmit->tail += s->tx_dma_len;
-	xmit->tail &= UART_XMIT_SIZE - 1;
-
-	port->icount.tx += s->tx_dma_len;
+	uart_xmit_advance(port, s->tx_dma_len);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);

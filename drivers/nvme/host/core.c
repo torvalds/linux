@@ -4599,9 +4599,9 @@ void nvme_remove_namespaces(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_remove_namespaces);
 
-static int nvme_class_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int nvme_class_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct nvme_ctrl *ctrl =
+	const struct nvme_ctrl *ctrl =
 		container_of(dev, struct nvme_ctrl, ctrl_device);
 	struct nvmf_ctrl_options *opts = ctrl->opts;
 	int ret;

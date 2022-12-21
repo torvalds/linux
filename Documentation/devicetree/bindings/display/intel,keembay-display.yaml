@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/intel,keembay-display.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Devicetree bindings for Intel Keem Bay display controller
+title: Intel Keem Bay display controller
 
 maintainers:
   - Anitha Chrisanthus <anitha.chrisanthus@intel.com>

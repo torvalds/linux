@@ -62,6 +62,16 @@ properties:
     minItems: 3
     maxItems: 13
 
+  dma-coherent: true
+
+  interconnects:
+    maxItems: 2
+
+  interconnect-names:
+    items:
+      - const: pcie-mem
+      - const: cpu-pcie
+
   resets:
     minItems: 1
     maxItems: 12
@@ -630,6 +640,18 @@ allOf:
         reset-names:
           items:
             - const: pci # PCIe core reset
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pcie-sa8540p
+              - qcom,pcie-sc8280xp
+    then:
+      required:
+        - interconnects
+        - interconnect-names
 
   - if:
       not:

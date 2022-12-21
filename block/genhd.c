@@ -1189,9 +1189,9 @@ static void disk_release(struct device *dev)
 	iput(disk->part0->bd_inode);	/* frees the disk */
 }
 
-static int block_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int block_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct gendisk *disk = dev_to_disk(dev);
+	const struct gendisk *disk = dev_to_disk(dev);
 
 	return add_uevent_var(env, "DISKSEQ=%llu", disk->diskseq);
 }

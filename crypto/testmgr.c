@@ -4713,6 +4713,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 		.fips_allowed = 1,
 	}, {
+		.alg = "cts(cbc(sm4))",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(sm4_cts_tv_template)
+		}
+	}, {
 		.alg = "curve25519",
 		.test = alg_test_kpp,
 		.suite = {
@@ -5587,6 +5593,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(aes_xcbc128_tv_template)
 		}
 	}, {
+		.alg = "xcbc(sm4)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(sm4_xcbc128_tv_template)
+		}
+	}, {
 		.alg = "xchacha12",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -5639,6 +5651,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = __VECS(serpent_xts_tv_template)
+		}
+	}, {
+		.alg = "xts(sm4)",
+		.generic_driver = "xts(ecb(sm4-generic))",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(sm4_xts_tv_template)
 		}
 	}, {
 		.alg = "xts(twofish)",

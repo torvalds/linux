@@ -28,6 +28,7 @@
 #include "sample-raw.h"
 #include "s390-cpumcf-kernel.h"
 #include "pmu-events/pmu-events.h"
+#include "util/sample.h"
 
 static size_t ctrset_size(struct cf_ctrset_entry *set)
 {

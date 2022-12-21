@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/cypress,cy8ctma140.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Cypress CY8CTMA140 series touchscreen controller bindings
+title: Cypress CY8CTMA140 series touchscreen controller
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>

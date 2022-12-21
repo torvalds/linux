@@ -1,4 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-TRACEEVENT-CFLAGS
-libtraceevent-dynamic-list
-libtraceevent.so.*

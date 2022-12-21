@@ -1338,8 +1338,7 @@ static struct attribute *ucsi_ccg_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ucsi_ccg);
 
-static int ucsi_ccg_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int ucsi_ccg_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ucsi_ccg *uc;
@@ -1482,7 +1481,7 @@ static struct i2c_driver ucsi_ccg_driver = {
 		.dev_groups = ucsi_ccg_groups,
 		.acpi_match_table = amd_i2c_ucsi_match,
 	},
-	.probe = ucsi_ccg_probe,
+	.probe_new = ucsi_ccg_probe,
 	.remove = ucsi_ccg_remove,
 	.id_table = ucsi_ccg_device_id,
 };

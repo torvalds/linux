@@ -58,7 +58,7 @@ SYM_CODE_START(entry_SYSENTER_compat)
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
 	popq	%rax
 
-	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsp
 
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER_DS		/* pt_regs->ss */
@@ -128,7 +128,6 @@ SYM_INNER_LABEL(entry_SYSENTER_compat_after_hwframe, SYM_L_GLOBAL)
 	popfq
 	jmp	.Lsysenter_flags_fixed
 SYM_INNER_LABEL(__end_entry_SYSENTER_compat, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR // is_sysenter_singlestep
 SYM_CODE_END(entry_SYSENTER_compat)
 
 /*
@@ -191,7 +190,7 @@ SYM_CODE_START(entry_SYSCALL_compat)
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
 
 	/* Switch to the kernel stack */
-	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsp
 
 SYM_INNER_LABEL(entry_SYSCALL_compat_safe_stack, SYM_L_GLOBAL)
 	ANNOTATE_NOENDBR
@@ -332,7 +331,7 @@ SYM_CODE_START(entry_INT80_compat)
 	ALTERNATIVE "", "jmp .Lint80_keep_stack", X86_FEATURE_XENPV
 
 	movq	%rsp, %rax
-	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsp
 
 	pushq	5*8(%rax)		/* regs->ss */
 	pushq	4*8(%rax)		/* regs->rsp */

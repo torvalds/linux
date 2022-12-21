@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/qcom,sc8280xp-qmp-usb3-uni-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm QMP PHY controller (USB, SC8280XP)
+
+maintainers:
+  - Vinod Koul <vkoul@kernel.org>
+
+description:
+  The QMP PHY controller supports physical layer functionality for a number of
+  controllers on Qualcomm chipsets, such as, PCIe, UFS, and USB.
+
+properties:
+  compatible:
+    enum:
+      - qcom,sc8280xp-qmp-usb3-uni-phy
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 4
+
+  clock-names:
+    items:
+      - const: aux
+      - const: ref
+      - const: com_aux
+      - const: pipe
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 2
+
+  reset-names:
+    items:
+      - const: phy
+      - const: phy_phy
+
+  vdda-phy-supply: true
+
+  vdda-pll-supply: true
+
+  "#clock-cells":
+    const: 0
+
+  clock-output-names:
+    maxItems: 1
+
+  "#phy-cells":
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - power-domains
+  - resets
+  - reset-names
+  - vdda-phy-supply
+  - vdda-pll-supply
+  - "#clock-cells"
+  - clock-output-names
+  - "#phy-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,gcc-sc8280xp.h>
+    #include <dt-bindings/clock/qcom,rpmh.h>
+
+    phy@88ef000 {
+      compatible = "qcom,sc8280xp-qmp-usb3-uni-phy";
+      reg = <0x088ef000 0x2000>;
+
+      clocks = <&gcc GCC_USB3_MP_PHY_AUX_CLK>,
+               <&gcc GCC_USB3_MP0_CLKREF_CLK>,
+               <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>,
+               <&gcc GCC_USB3_MP_PHY_PIPE_0_CLK>;
+      clock-names = "aux", "ref", "com_aux", "pipe";
+
+      power-domains = <&gcc USB30_MP_GDSC>;
+
+      resets = <&gcc GCC_USB3_UNIPHY_MP0_BCR>,
+               <&gcc GCC_USB3UNIPHY_PHY_MP0_BCR>;
+      reset-names = "phy", "phy_phy";
+
+      vdda-phy-supply = <&vreg_l3a>;
+      vdda-pll-supply = <&vreg_l5a>;
+
+      #clock-cells = <0>;
+      clock-output-names = "usb2_phy0_pipe_clk";
+
+      #phy-cells = <0>;
+    };

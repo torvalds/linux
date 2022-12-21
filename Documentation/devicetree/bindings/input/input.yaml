@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/input.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Common input schema binding
+title: Input Devices Common Properties
 
 maintainers:
   - Dmitry Torokhov <dmitry.torokhov@gmail.com>

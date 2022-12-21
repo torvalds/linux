@@ -9,12 +9,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <traceevent/event-parse.h>
 
 #include "debug.h"
 #include "trace-event.h"
-#include "event.h"
 #include "evsel.h"
 #include <linux/zalloc.h>
+#include "util/sample.h"
 
 struct scripting_context *scripting_context;
 

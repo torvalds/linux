@@ -345,12 +345,14 @@ comment "CPU Core family selection"
 config ARCH_MULTI_V4
 	bool "ARMv4 based platforms (FA526, StrongARM)"
 	depends on !ARCH_MULTI_V6_V7
+	depends on !LD_IS_LLD
 	select ARCH_MULTI_V4_V5
 	select CPU_FA526 if !(CPU_SA110 || CPU_SA1100)
 
 config ARCH_MULTI_V4T
 	bool "ARMv4T based platforms (ARM720T, ARM920T, ...)"
 	depends on !ARCH_MULTI_V6_V7
+	depends on !LD_IS_LLD
 	select ARCH_MULTI_V4_V5
 	select CPU_ARM920T if !(CPU_ARM7TDMI || CPU_ARM720T || \
 		CPU_ARM740T || CPU_ARM9TDMI || CPU_ARM922T || \
@@ -1157,27 +1159,6 @@ config ARM_PSCI
 	  management operations described in ARM document number ARM DEN
 	  0022A ("Power State Coordination Interface System Software on
 	  ARM processors").
-
-# The GPIO number here must be sorted by descending number. In case of
-# a multiplatform kernel, we just want the highest value required by the
-# selected platforms.
-config ARCH_NR_GPIO
-	int
-	default 2048 if ARCH_INTEL_SOCFPGA
-	default 1024 if ARCH_BRCMSTB || ARCH_RENESAS || ARCH_TEGRA || \
-		ARCH_ZYNQ || ARCH_ASPEED
-	default 512 if ARCH_EXYNOS || ARCH_KEYSTONE || SOC_OMAP5 || \
-		SOC_DRA7XX || ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210
-	default 416 if ARCH_SUNXI
-	default 392 if ARCH_U8500
-	default 352 if ARCH_VT8500
-	default 288 if ARCH_ROCKCHIP
-	default 264 if MACH_H4700
-	default 0
-	help
-	  Maximum number of GPIOs in the system.
-
-	  If unsure, leave the default value.
 
 config HZ_FIXED
 	int

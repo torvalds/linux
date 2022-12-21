@@ -972,22 +972,6 @@ config ARM64_ERRATUM_2457168
 
 	  If unsure, say Y.
 
-config ARM64_ERRATUM_2645198
-	bool "Cortex-A715: 2645198: Workaround possible [ESR|FAR]_ELx corruption"
-	default y
-	help
-	  This option adds the workaround for ARM Cortex-A715 erratum 2645198.
-
-	  If a Cortex-A715 cpu sees a page mapping permissions change from executable
-	  to non-executable, it may corrupt the ESR_ELx and FAR_ELx registers on the
-	  next instruction abort caused by permission fault.
-
-	  Only user-space does executable to non-executable permission transition via
-	  mprotect() system call. Workaround the problem by doing a break-before-make
-	  TLB invalidation, for all changes to executable user space mappings.
-
-	  If unsure, say Y.
-
 config CAVIUM_ERRATUM_22375
 	bool "Cavium erratum 22375, 24313"
 	default y
@@ -1988,6 +1972,7 @@ config ARM64_MTE
 	depends on ARM64_PAN
 	select ARCH_HAS_SUBPAGE_FAULTS
 	select ARCH_USES_HIGH_VMA_FLAGS
+	select ARCH_USES_PG_ARCH_X
 	help
 	  Memory Tagging (part of the ARMv8.5 Extensions) provides
 	  architectural support for run-time, always-on detection of
@@ -2167,18 +2152,6 @@ config CC_HAVE_STACKPROTECTOR_SYSREG
 config STACKPROTECTOR_PER_TASK
 	def_bool y
 	depends on STACKPROTECTOR && CC_HAVE_STACKPROTECTOR_SYSREG
-
-# The GPIO number here must be sorted by descending number. In case of
-# a multiplatform kernel, we just want the highest value required by the
-# selected platforms.
-config ARCH_NR_GPIO
-        int
-        default 2048 if ARCH_APPLE
-        default 0
-        help
-          Maximum number of GPIOs in the system.
-
-          If unsure, leave the default value.
 
 config UNWIND_PATCH_PAC_INTO_SCS
 	bool "Enable shadow call stack dynamically using code patching"

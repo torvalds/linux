@@ -218,7 +218,7 @@ static int crypto_ccm_auth(struct aead_request *req, struct scatterlist *plain,
 		cryptlen += ilen;
 	}
 
-	ahash_request_set_crypt(ahreq, plain, pctx->odata, cryptlen);
+	ahash_request_set_crypt(ahreq, plain, odata, cryptlen);
 	err = crypto_ahash_finup(ahreq);
 out:
 	return err;

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/st,stm32-romem.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 Factory-programmed data bindings
+title: STMicroelectronics STM32 Factory-programmed data
 
 description: |
   This represents STM32 Factory-programmed read only non-volatile area: locked
@@ -22,6 +22,7 @@ properties:
   compatible:
     enum:
       - st,stm32f4-otp
+      - st,stm32mp13-bsec
       - st,stm32mp15-bsec
 
   reg:

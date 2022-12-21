@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/arm/tegra/nvidia,tegra-ccplex-cluster.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: NVIDIA Tegra CPU COMPLEX CLUSTER area device tree bindings
+title: NVIDIA Tegra CPU COMPLEX CLUSTER area
 
 maintainers:
   - Sumit Gupta <sumitg@nvidia.com>

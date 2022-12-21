@@ -16,6 +16,7 @@
 #include <linux/dcache.h>
 #include <linux/workqueue.h>
 
+
 struct aa_load_ent {
 	struct list_head list;
 	struct aa_profile *new;
@@ -35,6 +36,7 @@ struct aa_load_ent *aa_load_ent_alloc(void);
 #define PACKED_MODE_COMPLAIN	1
 #define PACKED_MODE_KILL	2
 #define PACKED_MODE_UNCONFINED	3
+#define PACKED_MODE_USER	4
 
 struct aa_ns;
 
@@ -170,7 +172,7 @@ bool aa_unpack_X(struct aa_ext *e, enum aa_code code);
 bool aa_unpack_nameX(struct aa_ext *e, enum aa_code code, const char *name);
 bool aa_unpack_u32(struct aa_ext *e, u32 *data, const char *name);
 bool aa_unpack_u64(struct aa_ext *e, u64 *data, const char *name);
-size_t aa_unpack_array(struct aa_ext *e, const char *name);
+bool aa_unpack_array(struct aa_ext *e, const char *name, u16 *size);
 size_t aa_unpack_blob(struct aa_ext *e, char **blob, const char *name);
 int aa_unpack_str(struct aa_ext *e, const char **string, const char *name);
 int aa_unpack_strdup(struct aa_ext *e, char **string, const char *name);

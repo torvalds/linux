@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
@@ -276,6 +277,8 @@ struct meson_sar_adc_priv {
 	struct clk				*adc_div_clk;
 	struct clk_divider			clk_div;
 	struct completion			done;
+	/* lock to protect against multiple access to the device */
+	struct mutex				lock;
 	int					calibbias;
 	int					calibscale;
 	struct regmap				*tsc_regmap;
@@ -486,7 +489,7 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 	int val, ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&priv->lock);
 
 	if (priv->param->has_bl30_integration) {
 		/* prevent BL30 from using the SAR ADC while we are using it */
@@ -504,7 +507,7 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 						      !(val & MESON_SAR_ADC_DELAY_BL30_BUSY),
 						      1, 10000);
 		if (ret) {
-			mutex_unlock(&indio_dev->mlock);
+			mutex_unlock(&priv->lock);
 			return ret;
 		}
 	}
@@ -521,7 +524,7 @@ static void meson_sar_adc_unlock(struct iio_dev *indio_dev)
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
 				   MESON_SAR_ADC_DELAY_KERNEL_BUSY, 0);
 
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&priv->lock);
 }
 
 static void meson_sar_adc_clear_fifo(struct iio_dev *indio_dev)
@@ -1249,6 +1252,8 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	ret = meson_sar_adc_init(indio_dev);
 	if (ret)
 		goto err;
+
+	mutex_init(&priv->lock);
 
 	ret = meson_sar_adc_hw_enable(indio_dev);
 	if (ret)

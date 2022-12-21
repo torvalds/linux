@@ -1489,23 +1489,6 @@ static void enetc_xdp_drop(struct enetc_bdr *rx_ring, int rx_ring_first,
 	rx_ring->stats.xdp_drops++;
 }
 
-static void enetc_xdp_free(struct enetc_bdr *rx_ring, int rx_ring_first,
-			   int rx_ring_last)
-{
-	while (rx_ring_first != rx_ring_last) {
-		struct enetc_rx_swbd *rx_swbd = &rx_ring->rx_swbd[rx_ring_first];
-
-		if (rx_swbd->page) {
-			dma_unmap_page(rx_ring->dev, rx_swbd->dma, PAGE_SIZE,
-				       rx_swbd->dir);
-			__free_page(rx_swbd->page);
-			rx_swbd->page = NULL;
-		}
-		enetc_bdr_idx_inc(rx_ring, &rx_ring_first);
-	}
-	rx_ring->stats.xdp_redirect_failures++;
-}
-
 static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 				   struct napi_struct *napi, int work_limit,
 				   struct bpf_prog *prog)
@@ -1527,8 +1510,8 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 		int orig_i, orig_cleaned_cnt;
 		struct xdp_buff xdp_buff;
 		struct sk_buff *skb;
-		int tmp_orig_i, err;
 		u32 bd_status;
+		int err;
 
 		rxbd = enetc_rxbd(rx_ring, i);
 		bd_status = le32_to_cpu(rxbd->r.lstatus);
@@ -1615,18 +1598,16 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 				break;
 			}
 
-			tmp_orig_i = orig_i;
-
-			while (orig_i != i) {
-				enetc_flip_rx_buff(rx_ring,
-						   &rx_ring->rx_swbd[orig_i]);
-				enetc_bdr_idx_inc(rx_ring, &orig_i);
-			}
-
 			err = xdp_do_redirect(rx_ring->ndev, &xdp_buff, prog);
 			if (unlikely(err)) {
-				enetc_xdp_free(rx_ring, tmp_orig_i, i);
+				enetc_xdp_drop(rx_ring, orig_i, i);
+				rx_ring->stats.xdp_redirect_failures++;
 			} else {
+				while (orig_i != i) {
+					enetc_flip_rx_buff(rx_ring,
+							   &rx_ring->rx_swbd[orig_i]);
+					enetc_bdr_idx_inc(rx_ring, &orig_i);
+				}
 				xdp_redirect_frm_cnt++;
 				rx_ring->stats.xdp_redirect++;
 			}

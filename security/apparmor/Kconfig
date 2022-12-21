@@ -85,8 +85,8 @@ config SECURITY_APPARMOR_HASH_DEFAULT
 config SECURITY_APPARMOR_EXPORT_BINARY
 	bool "Allow exporting the raw binary policy"
 	depends on SECURITY_APPARMOR_INTROSPECT_POLICY
-	select ZLIB_INFLATE
-	select ZLIB_DEFLATE
+	select ZSTD_COMPRESS
+	select ZSTD_DECOMPRESS
 	default y
 	help
 	  This option allows reading back binary policy as it was loaded.

@@ -61,12 +61,6 @@ struct musb_hw_ep;
 #define musb_dma_cppi41(musb)		0
 #endif
 
-#ifdef CONFIG_USB_TI_CPPI_DMA
-#define musb_dma_cppi(musb)		(musb->ops->quirks & MUSB_DMA_CPPI)
-#else
-#define musb_dma_cppi(musb)		0
-#endif
-
 #ifdef CONFIG_USB_TUSB_OMAP_DMA
 #define tusb_dma_omap(musb)		(musb->ops->quirks & MUSB_DMA_TUSB_OMAP)
 #else
@@ -79,11 +73,10 @@ struct musb_hw_ep;
 #define musb_dma_inventra(musb)		0
 #endif
 
-#if defined(CONFIG_USB_TI_CPPI_DMA) || defined(CONFIG_USB_TI_CPPI41_DMA)
-#define	is_cppi_enabled(musb)		\
-	(musb_dma_cppi(musb) || musb_dma_cppi41(musb))
+#if defined(CONFIG_USB_TI_CPPI41_DMA)
+#define	is_cppi_enabled(musb)		musb_dma_cppi41(musb)
 #else
-#define	is_cppi_enabled(musb)	0
+#define	is_cppi_enabled(musb)		0
 #endif
 
 /*

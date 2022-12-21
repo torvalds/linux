@@ -19,6 +19,7 @@
 #include "record.h"
 #include "tests.h"
 #include "util/mmap.h"
+#include "util/sample.h"
 #include "pmu.h"
 
 static int spin_sleep(void)

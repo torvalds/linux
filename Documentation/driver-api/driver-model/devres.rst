@@ -365,6 +365,7 @@ MEM
   devm_kmemdup()
   devm_krealloc()
   devm_kstrdup()
+  devm_kstrdup_const()
   devm_kvasprintf()
   devm_kzalloc()
 
@@ -395,6 +396,8 @@ PCI
 
 PHY
   devm_usb_get_phy()
+  devm_usb_get_phy_by_node()
+  devm_usb_get_phy_by_phandle()
   devm_usb_put_phy()
 
 PINCTRL
@@ -447,6 +450,7 @@ SERDEV
 
 SLAVE DMA ENGINE
   devm_acpi_dma_controller_register()
+  devm_acpi_dma_controller_free()
 
 SPI
   devm_spi_alloc_master()

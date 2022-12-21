@@ -46,7 +46,7 @@ static int pmsg_major;
 #undef pr_fmt
 #define pr_fmt(fmt) PMSG_NAME ": " fmt
 
-static char *pmsg_devnode(struct device *dev, umode_t *mode)
+static char *pmsg_devnode(const struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0220;

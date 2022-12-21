@@ -201,7 +201,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err_disable_aer;
 	}
 
-	ret = qat_crypto_dev_config(accel_dev);
+	ret = hw_data->dev_config(accel_dev);
 	if (ret)
 		goto out_err_disable_aer;
 

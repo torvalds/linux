@@ -436,8 +436,8 @@ ignore-unaligned-usertrap
 
 On architectures where unaligned accesses cause traps, and where this
 feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN``;
-currently, ``arc`` and ``ia64``), controls whether all unaligned traps
-are logged.
+currently, ``arc``, ``ia64`` and ``loongarch``), controls whether all
+unaligned traps are logged.
 
 = =============================================================
 0 Log all unaligned accesses.
@@ -668,6 +668,15 @@ This is the default behavior.
 
 1: Will non-maskably interrupt all CPUs and dump their backtraces when
 an oops event is detected.
+
+
+oops_limit
+==========
+
+Number of kernel oopses after which the kernel should panic when
+``panic_on_oops`` is not set. Setting this to 0 disables checking
+the count. Setting this to  1 has the same effect as setting
+``panic_on_oops=1``. The default value is 10000.
 
 
 osrelease, ostype & version
@@ -1483,8 +1492,8 @@ unaligned-trap
 
 On architectures where unaligned accesses cause traps, and where this
 feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_ALLOW``; currently,
-``arc`` and ``parisc``), controls whether unaligned traps are caught
-and emulated (instead of failing).
+``arc``, ``parisc`` and ``loongarch``), controls whether unaligned traps
+are caught and emulated (instead of failing).
 
 = ========================================================
 0 Do not emulate unaligned accesses.
@@ -1525,6 +1534,16 @@ entry will default to 2 instead of 0.
 1 Unprivileged calls to ``bpf()`` are disabled without recovery
 2 Unprivileged calls to ``bpf()`` are disabled
 = =============================================================
+
+
+warn_limit
+==========
+
+Number of kernel warnings after which the kernel should panic when
+``panic_on_warn`` is not set. Setting this to 0 disables checking
+the warning count. Setting this to 1 has the same effect as setting
+``panic_on_warn=1``. The default value is 0.
+
 
 watchdog
 ========

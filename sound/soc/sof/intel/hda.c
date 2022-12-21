@@ -206,6 +206,7 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 
 	memset(&res, 0, sizeof(res));
 
+	res.hw_ops = &sdw_intel_cnl_hw_ops;
 	res.mmio_base = sdev->bar[HDA_DSP_BAR];
 	res.shim_base = hdev->desc->sdw_shim_base;
 	res.alh_base = hdev->desc->sdw_alh_base;
@@ -1727,3 +1728,4 @@ MODULE_IMPORT_NS(SND_SOC_SOF_HDA_AUDIO_CODEC_I915);
 MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_IMPORT_NS(SND_INTEL_SOUNDWIRE_ACPI);
 MODULE_IMPORT_NS(SOUNDWIRE_INTEL_INIT);
+MODULE_IMPORT_NS(SOUNDWIRE_INTEL);

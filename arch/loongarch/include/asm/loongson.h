@@ -136,4 +136,7 @@ typedef enum {
 #define ls7a_writel(val, addr)	*(volatile unsigned int   *)TO_UNCACHE(addr) = (val)
 #define ls7a_writeq(val, addr)	*(volatile unsigned long  *)TO_UNCACHE(addr) = (val)
 
+void enable_gpe_wakeup(void);
+void enable_pci_wakeup(void);
+
 #endif /* __ASM_LOONGSON_H */

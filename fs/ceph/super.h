@@ -593,6 +593,8 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_ASYNC_CREATE_BIT	(12)	  /* async create in flight for this */
 #define CEPH_I_ASYNC_CREATE	(1 << CEPH_ASYNC_CREATE_BIT)
 #define CEPH_I_SHUTDOWN		(1 << 13) /* inode is no longer usable */
+#define CEPH_I_ASYNC_CHECK_CAPS	(1 << 14) /* check caps immediately after async
+					     creating finishes */
 
 /*
  * Masks of ceph inode work.
@@ -1200,8 +1202,7 @@ extern void ceph_remove_capsnap(struct inode *inode,
 extern void ceph_flush_snaps(struct ceph_inode_info *ci,
 			     struct ceph_mds_session **psession);
 extern bool __ceph_should_report_size(struct ceph_inode_info *ci);
-extern void ceph_check_caps(struct ceph_inode_info *ci, int flags,
-			    struct ceph_mds_session *session);
+extern void ceph_check_caps(struct ceph_inode_info *ci, int flags);
 extern unsigned long ceph_check_delayed_caps(struct ceph_mds_client *mdsc);
 extern void ceph_flush_dirty_caps(struct ceph_mds_client *mdsc);
 extern int  ceph_drop_caps_for_unlink(struct inode *inode);

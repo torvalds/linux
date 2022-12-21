@@ -839,7 +839,7 @@ static int __init fsl_hypervisor_init(void)
 
 		handle = of_get_property(np, "interrupts", NULL);
 		irq = irq_of_parse_and_map(np, 0);
-		if (!handle || (irq == NO_IRQ)) {
+		if (!handle || !irq) {
 			pr_err("fsl-hv: no 'interrupts' property in %pOF node\n",
 				np);
 			continue;

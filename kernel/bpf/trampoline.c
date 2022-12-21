@@ -468,8 +468,7 @@ again:
 	if (err < 0)
 		goto out;
 
-	set_memory_ro((long)im->image, 1);
-	set_memory_x((long)im->image, 1);
+	set_memory_rox((long)im->image, 1);
 
 	WARN_ON(tr->cur_image && tr->selector == 0);
 	WARN_ON(!tr->cur_image && tr->selector);

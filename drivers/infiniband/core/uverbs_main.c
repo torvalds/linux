@@ -1237,7 +1237,7 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 	put_device(&uverbs_dev->dev);
 }
 
-static char *uverbs_devnode(struct device *dev, umode_t *mode)
+static char *uverbs_devnode(const struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0666;

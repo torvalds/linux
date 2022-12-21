@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/mailbox/sprd-mailbox.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Spreadtrum mailbox controller bindings
+title: Spreadtrum mailbox controller
 
 maintainers:
   - Orson Zhai <orsonzhai@gmail.com>

@@ -3,7 +3,6 @@ menu "SoC selection"
 config SOC_MICROCHIP_POLARFIRE
 	bool "Microchip PolarFire SoCs"
 	select MCHP_CLK_MPFS
-	select SIFIVE_PLIC
 	help
 	  This enables support for Microchip PolarFire SoC platforms.
 
@@ -18,7 +17,6 @@ config SOC_SIFIVE
 	select SERIAL_SIFIVE_CONSOLE if TTY
 	select CLK_SIFIVE
 	select CLK_SIFIVE_PRCI
-	select SIFIVE_PLIC
 	select ERRATA_SIFIVE if !XIP_KERNEL
 	help
 	  This enables support for SiFive SoC platform hardware.
@@ -27,7 +25,6 @@ config SOC_STARFIVE
 	bool "StarFive SoCs"
 	select PINCTRL
 	select RESET_CONTROLLER
-	select SIFIVE_PLIC
 	help
 	  This enables support for StarFive SoC platform hardware.
 
@@ -39,7 +36,6 @@ config SOC_VIRT
 	select POWER_RESET_SYSCON_POWEROFF
 	select GOLDFISH
 	select RTC_DRV_GOLDFISH if RTC_CLASS
-	select SIFIVE_PLIC
 	select PM_GENERIC_DOMAINS if PM
 	select PM_GENERIC_DOMAINS_OF if PM && OF
 	select RISCV_SBI_CPUIDLE if CPU_IDLE && RISCV_SBI
@@ -52,7 +48,6 @@ config SOC_CANAAN
 	select CLINT_TIMER if RISCV_M_MODE
 	select SERIAL_SIFIVE if TTY
 	select SERIAL_SIFIVE_CONSOLE if TTY
-	select SIFIVE_PLIC
 	select ARCH_HAS_RESET_CONTROLLER
 	select PINCTRL
 	select COMMON_CLK

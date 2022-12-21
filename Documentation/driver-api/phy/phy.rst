@@ -94,7 +94,8 @@ Inorder to dereference the private data (in phy_ops), the phy provider driver
 can use phy_set_drvdata() after creating the PHY and use phy_get_drvdata() in
 phy_ops to get back the private data.
 
-4. Getting a reference to the PHY
+Getting a reference to the PHY
+==============================
 
 Before the controller can make use of the PHY, it has to get a reference to
 it. This framework provides the following APIs to get a reference to the PHY.
@@ -129,6 +130,28 @@ consumer calls on the NULL phy become NOPs. That is the release calls,
 the phy_init() and phy_exit() calls, and phy_power_on() and
 phy_power_off() calls are all NOP when applied to a NULL phy. The NULL
 phy is useful in devices for handling optional phy devices.
+
+Order of API calls
+==================
+
+The general order of calls should be::
+
+    [devm_][of_]phy_get()
+    phy_init()
+    phy_power_on()
+    [phy_set_mode[_ext]()]
+    ...
+    phy_power_off()
+    phy_exit()
+    [[of_]phy_put()]
+
+Some PHY drivers may not implement :c:func:`phy_init` or :c:func:`phy_power_on`,
+but controllers should always call these functions to be compatible with other
+PHYs. Some PHYs may require :c:func:`phy_set_mode <phy_set_mode_ext>`, while
+others may use a default mode (typically configured via devicetree or other
+firmware). For compatibility, you should always call this function if you know
+what mode you will be using. Generally, this function should be called after
+:c:func:`phy_power_on`, although some PHY drivers may allow it at any time.
 
 Releasing a reference to the PHY
 ================================

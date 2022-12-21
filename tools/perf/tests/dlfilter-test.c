@@ -33,6 +33,7 @@
 #include "archinsn.h"
 #include "dlfilter.h"
 #include "tests.h"
+#include "util/sample.h"
 
 #define MAP_START 0x400000
 

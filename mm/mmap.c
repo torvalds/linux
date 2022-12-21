@@ -2950,7 +2950,7 @@ static int do_brk_flags(struct ma_state *mas, struct vm_area_struct *vma,
 				addr >> PAGE_SHIFT, NULL_VM_UFFD_CTX, NULL)) {
 		mas_set_range(mas, vma->vm_start, addr + len - 1);
 		if (mas_preallocate(mas, vma, GFP_KERNEL))
-			return -ENOMEM;
+			goto unacct_fail;
 
 		vma_adjust_trans_huge(vma, vma->vm_start, addr + len, 0);
 		if (vma->anon_vma) {
@@ -2972,7 +2972,7 @@ static int do_brk_flags(struct ma_state *mas, struct vm_area_struct *vma,
 	/* create a vma struct for an anonymous mapping */
 	vma = vm_area_alloc(mm);
 	if (!vma)
-		goto vma_alloc_fail;
+		goto unacct_fail;
 
 	vma_set_anonymous(vma);
 	vma->vm_start = addr;
@@ -2997,7 +2997,7 @@ out:
 
 mas_store_fail:
 	vm_area_free(vma);
-vma_alloc_fail:
+unacct_fail:
 	vm_unacct_memory(len >> PAGE_SHIFT);
 	return -ENOMEM;
 }
@@ -3744,13 +3744,9 @@ static int reserve_mem_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block reserve_mem_nb = {
-	.notifier_call = reserve_mem_notifier,
-};
-
 static int __meminit init_reserve_notifier(void)
 {
-	if (register_hotmemory_notifier(&reserve_mem_nb))
+	if (hotplug_memory_notifier(reserve_mem_notifier, DEFAULT_CALLBACK_PRI))
 		pr_err("Failed registering memory add/remove notifier for admin reserve\n");
 
 	return 0;

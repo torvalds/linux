@@ -1287,14 +1287,14 @@
     },
     {
         "BriefDescription": "Average CPU Utilization",
-        "MetricExpr": "CPU_CLK_UNHALTED.REF_TSC / msr@tsc@",
+        "MetricExpr": "CPU_CLK_UNHALTED.REF_TSC / TSC",
         "MetricGroup": "HPC;Summary",
         "MetricName": "CPU_Utilization",
         "Unit": "cpu_core"
     },
     {
         "BriefDescription": "Measured Average Frequency for unhalted processors [GHz]",
-        "MetricExpr": "Turbo_Utilization * msr@tsc@ / 1000000000 / duration_time",
+        "MetricExpr": "Turbo_Utilization * TSC / 1000000000 / duration_time",
         "MetricGroup": "Power;Summary",
         "MetricName": "Average_Frequency",
         "Unit": "cpu_core"
@@ -1337,16 +1337,23 @@
     },
     {
         "BriefDescription": "Average external Memory Bandwidth Use for reads and writes [GB / sec]",
-        "MetricExpr": "64 * (arb@event\\=0x81\\,umask\\=0x1@ + arb@event\\=0x84\\,umask\\=0x1@) / 1000000 / duration_time / 1000",
+        "MetricExpr": "64 * (UNC_ARB_TRK_REQUESTS.ALL + UNC_ARB_COH_TRK_REQUESTS.ALL) / 1000000 / duration_time / 1000",
         "MetricGroup": "HPC;Mem;MemoryBW;SoC",
         "MetricName": "DRAM_BW_Use",
         "Unit": "cpu_core"
     },
     {
         "BriefDescription": "Average number of parallel requests to external memory. Accounts for all requests",
-        "MetricExpr": "UNC_ARB_TRK_OCCUPANCY.ALL / arb@event\\=0x81\\,umask\\=0x1@",
+        "MetricExpr": "UNC_ARB_TRK_OCCUPANCY.ALL / UNC_ARB_TRK_REQUESTS.ALL",
         "MetricGroup": "Mem;SoC",
         "MetricName": "MEM_Parallel_Requests",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Socket actual clocks when any core is active on that socket",
+        "MetricExpr": "UNC_CLOCK.SOCKET",
+        "MetricGroup": "SoC",
+        "MetricName": "Socket_CLKS",
         "Unit": "cpu_core"
     },
     {
@@ -1355,6 +1362,12 @@
         "MetricGroup": "Branches;OS",
         "MetricName": "IpFarBranch",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Uncore frequency per die [GHZ]",
+        "MetricExpr": "Socket_CLKS / #num_dies / duration_time / 1000000000",
+        "MetricGroup": "SoC",
+        "MetricName": "UNCORE_FREQ"
     },
     {
         "BriefDescription": "Counts the number of issue slots  that were not consumed by the backend due to frontend stalls.",
@@ -1902,7 +1915,7 @@
     },
     {
         "BriefDescription": "Average CPU Utilization",
-        "MetricExpr": "CPU_CLK_UNHALTED.REF_TSC / msr@tsc@",
+        "MetricExpr": "CPU_CLK_UNHALTED.REF_TSC / TSC",
         "MetricName": "CPU_Utilization",
         "Unit": "cpu_atom"
     },
@@ -1950,62 +1963,72 @@
     },
     {
         "BriefDescription": "C1 residency percent per core",
-        "MetricExpr": "(cstate_core@c1\\-residency@ / msr@tsc@) * 100",
+        "MetricExpr": "cstate_core@c1\\-residency@ / TSC",
         "MetricGroup": "Power",
-        "MetricName": "C1_Core_Residency"
+        "MetricName": "C1_Core_Residency",
+        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "C6 residency percent per core",
-        "MetricExpr": "(cstate_core@c6\\-residency@ / msr@tsc@) * 100",
+        "MetricExpr": "cstate_core@c6\\-residency@ / TSC",
         "MetricGroup": "Power",
-        "MetricName": "C6_Core_Residency"
+        "MetricName": "C6_Core_Residency",
+        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "C7 residency percent per core",
-        "MetricExpr": "(cstate_core@c7\\-residency@ / msr@tsc@) * 100",
+        "MetricExpr": "cstate_core@c7\\-residency@ / TSC",
         "MetricGroup": "Power",
-        "MetricName": "C7_Core_Residency"
+        "MetricName": "C7_Core_Residency",
+        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "C2 residency percent per package",
-        "MetricExpr": "(cstate_pkg@c2\\-residency@ / msr@tsc@) * 100",
+        "MetricExpr": "cstate_pkg@c2\\-residency@ / TSC",
         "MetricGroup": "Power",
-        "MetricName": "C2_Pkg_Residency"
+        "MetricName": "C2_Pkg_Residency",
+        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "C3 residency percent per package",
-        "MetricExpr": "(cstate_pkg@c3\\-residency@ / msr@tsc@) * 100",
+        "MetricExpr": "cstate_pkg@c3\\-residency@ / TSC",
         "MetricGroup": "Power",
-        "MetricName": "C3_Pkg_Residency"
+        "MetricName": "C3_Pkg_Residency",
+        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "C6 residency percent per package",
-        "MetricExpr": "(cstate_pkg@c6\\-residency@ / msr@tsc@) * 100",
+        "MetricExpr": "cstate_pkg@c6\\-residency@ / TSC",
         "MetricGroup": "Power",
-        "MetricName": "C6_Pkg_Residency"
+        "MetricName": "C6_Pkg_Residency",
+        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "C7 residency percent per package",
-        "MetricExpr": "(cstate_pkg@c7\\-residency@ / msr@tsc@) * 100",
+        "MetricExpr": "cstate_pkg@c7\\-residency@ / TSC",
         "MetricGroup": "Power",
-        "MetricName": "C7_Pkg_Residency"
+        "MetricName": "C7_Pkg_Residency",
+        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "C8 residency percent per package",
-        "MetricExpr": "(cstate_pkg@c8\\-residency@ / msr@tsc@) * 100",
+        "MetricExpr": "cstate_pkg@c8\\-residency@ / TSC",
         "MetricGroup": "Power",
-        "MetricName": "C8_Pkg_Residency"
+        "MetricName": "C8_Pkg_Residency",
+        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "C9 residency percent per package",
-        "MetricExpr": "(cstate_pkg@c9\\-residency@ / msr@tsc@) * 100",
+        "MetricExpr": "cstate_pkg@c9\\-residency@ / TSC",
         "MetricGroup": "Power",
-        "MetricName": "C9_Pkg_Residency"
+        "MetricName": "C9_Pkg_Residency",
+        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "C10 residency percent per package",
-        "MetricExpr": "(cstate_pkg@c10\\-residency@ / msr@tsc@) * 100",
+        "MetricExpr": "cstate_pkg@c10\\-residency@ / TSC",
         "MetricGroup": "Power",
-        "MetricName": "C10_Pkg_Residency"
+        "MetricName": "C10_Pkg_Residency",
+        "ScaleUnit": "100%"
     }
 ]

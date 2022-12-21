@@ -8,7 +8,9 @@
  */
 #ifndef _CRYPTO_ACOMP_INT_H
 #define _CRYPTO_ACOMP_INT_H
+
 #include <crypto/acompress.h>
+#include <crypto/algapi.h>
 
 /*
  * Transform internal helpers.
