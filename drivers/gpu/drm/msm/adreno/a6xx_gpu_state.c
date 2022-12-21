@@ -942,15 +942,24 @@ static void a6xx_get_registers(struct msm_gpu *gpu,
 			dumper);
 }
 
+static u32 a6xx_get_cp_roq_size(struct msm_gpu *gpu)
+{
+	/* The value at [16:31] is in 4dword units. Convert it to dwords */
+	return gpu_read(gpu, REG_A6XX_CP_ROQ_THRESHOLDS_2) >> 14;
+}
+
 /* Read a block of data from an indexed register pair */
 static void a6xx_get_indexed_regs(struct msm_gpu *gpu,
 		struct a6xx_gpu_state *a6xx_state,
-		const struct a6xx_indexed_registers *indexed,
+		struct a6xx_indexed_registers *indexed,
 		struct a6xx_gpu_state_obj *obj)
 {
 	int i;
 
 	obj->handle = (const void *) indexed;
+	if (indexed->count_fn)
+		indexed->count = indexed->count_fn(gpu);
+
 	obj->data = state_kcalloc(a6xx_state, indexed->count, sizeof(u32));
 	if (!obj->data)
 		return;
