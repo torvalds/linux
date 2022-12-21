@@ -161,15 +161,6 @@ VISIBLE_IF_KUNIT bool aa_inbounds(struct aa_ext *e, size_t size)
 }
 EXPORT_SYMBOL_IF_KUNIT(aa_inbounds);
 
-static void *kvmemdup(const void *src, size_t len)
-{
-	void *p = kvmalloc(len, GFP_KERNEL);
-
-	if (p)
-		memcpy(p, src, len);
-	return p;
-}
-
 /**
  * aa_unpack_u16_chunk - test and do bounds checking for a u16 size based chunk
  * @e: serialized data read head (NOT NULL)
@@ -1027,7 +1018,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 
 			data->key = key;
 			data->size = aa_unpack_blob(e, &data->data, NULL);
-			data->data = kvmemdup(data->data, data->size);
+			data->data = kvmemdup(data->data, data->size, GFP_KERNEL);
 			if (data->size && !data->data) {
 				kfree_sensitive(data->key);
 				kfree_sensitive(data);
