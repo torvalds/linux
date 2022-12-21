@@ -444,7 +444,7 @@ struct sof_ipc_pcm_ops;
  * @pm:		Pointer to PM ops
  * @pcm:	Pointer to PCM ops
  * @fw_loader:	Pointer to Firmware Loader ops
- * @fw_tracing:	Pointer to Firmware tracing ops
+ * @fw_tracing:	Optional pointer to Firmware tracing ops
  *
  * @init:	Optional pointer for IPC related initialization
  * @exit:	Optional pointer for IPC related cleanup
