@@ -241,7 +241,7 @@ static void arcxcnn_parse_dt(struct arcxcnn *lp)
 	}
 }
 
-static int arcxcnn_probe(struct i2c_client *cl, const struct i2c_device_id *id)
+static int arcxcnn_probe(struct i2c_client *cl)
 {
 	struct arcxcnn *lp;
 	int ret;
@@ -395,7 +395,7 @@ static struct i2c_driver arcxcnn_driver = {
 		.name = "arcxcnn_bl",
 		.of_match_table = of_match_ptr(arcxcnn_dt_ids),
 	},
-	.probe = arcxcnn_probe,
+	.probe_new = arcxcnn_probe,
 	.remove = arcxcnn_remove,
 	.id_table = arcxcnn_ids,
 };
