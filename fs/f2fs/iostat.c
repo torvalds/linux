@@ -18,79 +18,68 @@
 static struct kmem_cache *bio_iostat_ctx_cache;
 static mempool_t *bio_iostat_ctx_pool;
 
+static inline unsigned long long iostat_get_avg_bytes(struct f2fs_sb_info *sbi,
+	enum iostat_type type)
+{
+	return sbi->iostat_count[type] ? div64_u64(sbi->iostat_bytes[type],
+		sbi->iostat_count[type]) : 0;
+}
+
+#define IOSTAT_INFO_SHOW(name, type)					\
+	seq_printf(seq, "%-23s %-16llu %-16llu %-16llu\n",		\
+			name":", sbi->iostat_bytes[type],		\
+			sbi->iostat_count[type],			\
+			iostat_get_avg_bytes(sbi, type))
+
 int __maybe_unused iostat_info_seq_show(struct seq_file *seq, void *offset)
 {
 	struct super_block *sb = seq->private;
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
-	time64_t now = ktime_get_real_seconds();
 
 	if (!sbi->iostat_enable)
 		return 0;
 
-	seq_printf(seq, "time:		%-16llu\n", now);
+	seq_printf(seq, "time:		%-16llu\n", ktime_get_real_seconds());
+	seq_printf(seq, "\t\t\t%-16s %-16s %-16s\n",
+				"io_bytes", "count", "avg_bytes");
 
 	/* print app write IOs */
 	seq_puts(seq, "[WRITE]\n");
-	seq_printf(seq, "app buffered data:	%-16llu\n",
-				sbi->rw_iostat[APP_BUFFERED_IO]);
-	seq_printf(seq, "app direct data:	%-16llu\n",
-				sbi->rw_iostat[APP_DIRECT_IO]);
-	seq_printf(seq, "app mapped data:	%-16llu\n",
-				sbi->rw_iostat[APP_MAPPED_IO]);
-	seq_printf(seq, "app buffered cdata:	%-16llu\n",
-				sbi->rw_iostat[APP_BUFFERED_CDATA_IO]);
-	seq_printf(seq, "app mapped cdata:	%-16llu\n",
-				sbi->rw_iostat[APP_MAPPED_CDATA_IO]);
+	IOSTAT_INFO_SHOW("app buffered data", APP_BUFFERED_IO);
+	IOSTAT_INFO_SHOW("app direct data", APP_DIRECT_IO);
+	IOSTAT_INFO_SHOW("app mapped data", APP_MAPPED_IO);
+	IOSTAT_INFO_SHOW("app buffered cdata", APP_BUFFERED_CDATA_IO);
+	IOSTAT_INFO_SHOW("app mapped cdata", APP_MAPPED_CDATA_IO);
 
 	/* print fs write IOs */
-	seq_printf(seq, "fs data:		%-16llu\n",
-				sbi->rw_iostat[FS_DATA_IO]);
-	seq_printf(seq, "fs cdata:		%-16llu\n",
-				sbi->rw_iostat[FS_CDATA_IO]);
-	seq_printf(seq, "fs node:		%-16llu\n",
-				sbi->rw_iostat[FS_NODE_IO]);
-	seq_printf(seq, "fs meta:		%-16llu\n",
-				sbi->rw_iostat[FS_META_IO]);
-	seq_printf(seq, "fs gc data:		%-16llu\n",
-				sbi->rw_iostat[FS_GC_DATA_IO]);
-	seq_printf(seq, "fs gc node:		%-16llu\n",
-				sbi->rw_iostat[FS_GC_NODE_IO]);
-	seq_printf(seq, "fs cp data:		%-16llu\n",
-				sbi->rw_iostat[FS_CP_DATA_IO]);
-	seq_printf(seq, "fs cp node:		%-16llu\n",
-				sbi->rw_iostat[FS_CP_NODE_IO]);
-	seq_printf(seq, "fs cp meta:		%-16llu\n",
-				sbi->rw_iostat[FS_CP_META_IO]);
+	IOSTAT_INFO_SHOW("fs data", FS_DATA_IO);
+	IOSTAT_INFO_SHOW("fs cdata", FS_CDATA_IO);
+	IOSTAT_INFO_SHOW("fs node", FS_NODE_IO);
+	IOSTAT_INFO_SHOW("fs meta", FS_META_IO);
+	IOSTAT_INFO_SHOW("fs gc data", FS_GC_DATA_IO);
+	IOSTAT_INFO_SHOW("fs gc node", FS_GC_NODE_IO);
+	IOSTAT_INFO_SHOW("fs cp data", FS_CP_DATA_IO);
+	IOSTAT_INFO_SHOW("fs cp node", FS_CP_NODE_IO);
+	IOSTAT_INFO_SHOW("fs cp meta", FS_CP_META_IO);
 
 	/* print app read IOs */
 	seq_puts(seq, "[READ]\n");
-	seq_printf(seq, "app buffered data:	%-16llu\n",
-				sbi->rw_iostat[APP_BUFFERED_READ_IO]);
-	seq_printf(seq, "app direct data:	%-16llu\n",
-				sbi->rw_iostat[APP_DIRECT_READ_IO]);
-	seq_printf(seq, "app mapped data:	%-16llu\n",
-				sbi->rw_iostat[APP_MAPPED_READ_IO]);
-	seq_printf(seq, "app buffered cdata:	%-16llu\n",
-				sbi->rw_iostat[APP_BUFFERED_CDATA_READ_IO]);
-	seq_printf(seq, "app mapped cdata:	%-16llu\n",
-				sbi->rw_iostat[APP_MAPPED_CDATA_READ_IO]);
+	IOSTAT_INFO_SHOW("app buffered data", APP_BUFFERED_READ_IO);
+	IOSTAT_INFO_SHOW("app direct data", APP_DIRECT_READ_IO);
+	IOSTAT_INFO_SHOW("app mapped data", APP_MAPPED_READ_IO);
+	IOSTAT_INFO_SHOW("app buffered cdata", APP_BUFFERED_CDATA_READ_IO);
+	IOSTAT_INFO_SHOW("app mapped cdata", APP_MAPPED_CDATA_READ_IO);
 
 	/* print fs read IOs */
-	seq_printf(seq, "fs data:		%-16llu\n",
-				sbi->rw_iostat[FS_DATA_READ_IO]);
-	seq_printf(seq, "fs gc data:		%-16llu\n",
-				sbi->rw_iostat[FS_GDATA_READ_IO]);
-	seq_printf(seq, "fs cdata:		%-16llu\n",
-				sbi->rw_iostat[FS_CDATA_READ_IO]);
-	seq_printf(seq, "fs node:		%-16llu\n",
-				sbi->rw_iostat[FS_NODE_READ_IO]);
-	seq_printf(seq, "fs meta:		%-16llu\n",
-				sbi->rw_iostat[FS_META_READ_IO]);
+	IOSTAT_INFO_SHOW("fs data", FS_DATA_READ_IO);
+	IOSTAT_INFO_SHOW("fs gc data", FS_GDATA_READ_IO);
+	IOSTAT_INFO_SHOW("fs cdata", FS_CDATA_READ_IO);
+	IOSTAT_INFO_SHOW("fs node", FS_NODE_READ_IO);
+	IOSTAT_INFO_SHOW("fs meta", FS_META_READ_IO);
 
 	/* print other IOs */
 	seq_puts(seq, "[OTHER]\n");
-	seq_printf(seq, "fs discard:		%-16llu\n",
-				sbi->rw_iostat[FS_DISCARD]);
+	IOSTAT_INFO_SHOW("fs discard", FS_DISCARD_IO);
 
 	return 0;
 }
@@ -141,9 +130,9 @@ static inline void f2fs_record_iostat(struct f2fs_sb_info *sbi)
 				msecs_to_jiffies(sbi->iostat_period_ms);
 
 	for (i = 0; i < NR_IO_TYPE; i++) {
-		iostat_diff[i] = sbi->rw_iostat[i] -
-				sbi->prev_rw_iostat[i];
-		sbi->prev_rw_iostat[i] = sbi->rw_iostat[i];
+		iostat_diff[i] = sbi->iostat_bytes[i] -
+				sbi->prev_iostat_bytes[i];
+		sbi->prev_iostat_bytes[i] = sbi->iostat_bytes[i];
 	}
 	spin_unlock_irqrestore(&sbi->iostat_lock, flags);
 
@@ -159,14 +148,22 @@ void f2fs_reset_iostat(struct f2fs_sb_info *sbi)
 
 	spin_lock_irq(&sbi->iostat_lock);
 	for (i = 0; i < NR_IO_TYPE; i++) {
-		sbi->rw_iostat[i] = 0;
-		sbi->prev_rw_iostat[i] = 0;
+		sbi->iostat_count[i] = 0;
+		sbi->iostat_bytes[i] = 0;
+		sbi->prev_iostat_bytes[i] = 0;
 	}
 	spin_unlock_irq(&sbi->iostat_lock);
 
 	spin_lock_irq(&sbi->iostat_lat_lock);
 	memset(io_lat, 0, sizeof(struct iostat_lat_info));
 	spin_unlock_irq(&sbi->iostat_lat_lock);
+}
+
+static inline void __f2fs_update_iostat(struct f2fs_sb_info *sbi,
+			enum iostat_type type, unsigned long long io_bytes)
+{
+	sbi->iostat_bytes[type] += io_bytes;
+	sbi->iostat_count[type]++;
 }
 
 void f2fs_update_iostat(struct f2fs_sb_info *sbi, struct inode *inode,
@@ -178,33 +175,33 @@ void f2fs_update_iostat(struct f2fs_sb_info *sbi, struct inode *inode,
 		return;
 
 	spin_lock_irqsave(&sbi->iostat_lock, flags);
-	sbi->rw_iostat[type] += io_bytes;
+	__f2fs_update_iostat(sbi, type, io_bytes);
 
 	if (type == APP_BUFFERED_IO || type == APP_DIRECT_IO)
-		sbi->rw_iostat[APP_WRITE_IO] += io_bytes;
+		__f2fs_update_iostat(sbi, APP_WRITE_IO, io_bytes);
 
 	if (type == APP_BUFFERED_READ_IO || type == APP_DIRECT_READ_IO)
-		sbi->rw_iostat[APP_READ_IO] += io_bytes;
+		__f2fs_update_iostat(sbi, APP_READ_IO, io_bytes);
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	if (inode && f2fs_compressed_file(inode)) {
 		if (type == APP_BUFFERED_IO)
-			sbi->rw_iostat[APP_BUFFERED_CDATA_IO] += io_bytes;
+			__f2fs_update_iostat(sbi, APP_BUFFERED_CDATA_IO, io_bytes);
 
 		if (type == APP_BUFFERED_READ_IO)
-			sbi->rw_iostat[APP_BUFFERED_CDATA_READ_IO] += io_bytes;
+			__f2fs_update_iostat(sbi, APP_BUFFERED_CDATA_READ_IO, io_bytes);
 
 		if (type == APP_MAPPED_READ_IO)
-			sbi->rw_iostat[APP_MAPPED_CDATA_READ_IO] += io_bytes;
+			__f2fs_update_iostat(sbi, APP_MAPPED_CDATA_READ_IO, io_bytes);
 
 		if (type == APP_MAPPED_IO)
-			sbi->rw_iostat[APP_MAPPED_CDATA_IO] += io_bytes;
+			__f2fs_update_iostat(sbi, APP_MAPPED_CDATA_IO, io_bytes);
 
 		if (type == FS_DATA_READ_IO)
-			sbi->rw_iostat[FS_CDATA_READ_IO] += io_bytes;
+			__f2fs_update_iostat(sbi, FS_CDATA_READ_IO, io_bytes);
 
 		if (type == FS_DATA_IO)
-			sbi->rw_iostat[FS_CDATA_IO] += io_bytes;
+			__f2fs_update_iostat(sbi, FS_CDATA_IO, io_bytes);
 	}
 #endif
 
