@@ -677,6 +677,9 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 			elen = EXT_RECORDED_ALLOCATED |
 				((elen + inode->i_sb->s_blocksize - 1) &
 				 ~(inode->i_sb->s_blocksize - 1));
+			iinfo->i_lenExtents =
+				ALIGN(iinfo->i_lenExtents,
+				      inode->i_sb->s_blocksize);
 			udf_write_aext(inode, &cur_epos, &eloc, elen, 1);
 		}
 		newblock = udf_get_lb_pblock(inode->i_sb, &eloc, offset);
