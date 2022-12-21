@@ -3698,6 +3698,7 @@ void f2fs_invalidate_folio(struct folio *folio, size_t offset, size_t length)
 		}
 	}
 
+	clear_page_private_reference(&folio->page);
 	clear_page_private_gcing(&folio->page);
 
 	if (test_opt(sbi, COMPRESS_CACHE) &&
@@ -3723,6 +3724,7 @@ bool f2fs_release_folio(struct folio *folio, gfp_t wait)
 			clear_page_private_data(&folio->page);
 	}
 
+	clear_page_private_reference(&folio->page);
 	clear_page_private_gcing(&folio->page);
 
 	folio_detach_private(folio);
