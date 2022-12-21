@@ -846,9 +846,12 @@ static void print_mount_opts(struct bch_fs *c)
 	struct printbuf p = PRINTBUF;
 	bool first = true;
 
+	prt_printf(&p, "mounted version=%s", bch2_metadata_versions[c->sb.version]);
+
 	if (c->opts.read_only) {
-		prt_printf(&p, "ro");
+		prt_str(&p, " opts=");
 		first = false;
+		prt_printf(&p, "ro");
 	}
 
 	for (i = 0; i < bch2_opts_nr; i++) {
@@ -861,16 +864,12 @@ static void print_mount_opts(struct bch_fs *c)
 		if (v == bch2_opt_get_by_id(&bch2_opts_default, i))
 			continue;
 
-		if (!first)
-			prt_printf(&p, ",");
+		prt_str(&p, first ? " opts=" : ",");
 		first = false;
 		bch2_opt_to_text(&p, c, c->disk_sb.sb, opt, v, OPT_SHOW_MOUNT_STYLE);
 	}
 
-	if (!p.pos)
-		prt_printf(&p, "(null)");
-
-	bch_info(c, "mounted version=%s opts=%s", bch2_metadata_versions[c->sb.version], p.buf);
+	bch_info(c, "%s", p.buf);
 	printbuf_exit(&p);
 }
 
