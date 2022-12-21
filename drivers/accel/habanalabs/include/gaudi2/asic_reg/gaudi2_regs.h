@@ -31,6 +31,7 @@
 #include "dcore0_sync_mngr_objs_regs.h"
 #include "dcore0_sync_mngr_glbl_regs.h"
 #include "dcore0_sync_mngr_mstr_if_axuser_regs.h"
+#include "dcore1_sync_mngr_glbl_regs.h"
 #include "pdma0_qm_arc_aux_regs.h"
 #include "pdma0_core_ctx_regs.h"
 #include "pdma0_core_regs.h"

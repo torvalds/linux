@@ -1666,6 +1666,10 @@ static const u32 gaudi2_pb_dcr0_sm_glbl[] = {
 	mmDCORE0_SYNC_MNGR_GLBL_BASE,
 };
 
+static const u32 gaudi2_pb_dcr1_sm_glbl[] = {
+	mmDCORE1_SYNC_MNGR_GLBL_BASE,
+};
+
 static const struct range gaudi2_pb_dcr0_sm_glbl_unsecured_regs[] = {
 	{mmDCORE0_SYNC_MNGR_GLBL_CQ_BASE_ADDR_L_1, mmDCORE0_SYNC_MNGR_GLBL_CQ_BASE_ADDR_L_63},
 	{mmDCORE0_SYNC_MNGR_GLBL_CQ_BASE_ADDR_H_1, mmDCORE0_SYNC_MNGR_GLBL_CQ_BASE_ADDR_H_63},
@@ -1678,14 +1682,14 @@ static const struct range gaudi2_pb_dcr0_sm_glbl_unsecured_regs[] = {
 };
 
 static const struct range gaudi2_pb_dcr_x_sm_glbl_unsecured_regs[] = {
-	{mmDCORE0_SYNC_MNGR_GLBL_CQ_BASE_ADDR_L_0, mmDCORE0_SYNC_MNGR_GLBL_CQ_BASE_ADDR_L_63},
-	{mmDCORE0_SYNC_MNGR_GLBL_CQ_BASE_ADDR_H_0, mmDCORE0_SYNC_MNGR_GLBL_CQ_BASE_ADDR_H_63},
-	{mmDCORE0_SYNC_MNGR_GLBL_CQ_SIZE_LOG2_0, mmDCORE0_SYNC_MNGR_GLBL_CQ_SIZE_LOG2_63},
-	{mmDCORE0_SYNC_MNGR_GLBL_CQ_PI_0, mmDCORE0_SYNC_MNGR_GLBL_CQ_PI_63},
-	{mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_L_0, mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_L_63},
-	{mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_H_0, mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_H_63},
-	{mmDCORE0_SYNC_MNGR_GLBL_LBW_DATA_0, mmDCORE0_SYNC_MNGR_GLBL_LBW_DATA_63},
-	{mmDCORE0_SYNC_MNGR_GLBL_CQ_INC_MODE_0, mmDCORE0_SYNC_MNGR_GLBL_CQ_INC_MODE_63},
+	{mmDCORE1_SYNC_MNGR_GLBL_CQ_BASE_ADDR_L_0, mmDCORE1_SYNC_MNGR_GLBL_CQ_BASE_ADDR_L_63},
+	{mmDCORE1_SYNC_MNGR_GLBL_CQ_BASE_ADDR_H_0, mmDCORE1_SYNC_MNGR_GLBL_CQ_BASE_ADDR_H_63},
+	{mmDCORE1_SYNC_MNGR_GLBL_CQ_SIZE_LOG2_0, mmDCORE1_SYNC_MNGR_GLBL_CQ_SIZE_LOG2_63},
+	{mmDCORE1_SYNC_MNGR_GLBL_CQ_PI_0, mmDCORE1_SYNC_MNGR_GLBL_CQ_PI_63},
+	{mmDCORE1_SYNC_MNGR_GLBL_LBW_ADDR_L_0, mmDCORE1_SYNC_MNGR_GLBL_LBW_ADDR_L_63},
+	{mmDCORE1_SYNC_MNGR_GLBL_LBW_ADDR_H_0, mmDCORE1_SYNC_MNGR_GLBL_LBW_ADDR_H_63},
+	{mmDCORE1_SYNC_MNGR_GLBL_LBW_DATA_0, mmDCORE1_SYNC_MNGR_GLBL_LBW_DATA_63},
+	{mmDCORE1_SYNC_MNGR_GLBL_CQ_INC_MODE_0, mmDCORE1_SYNC_MNGR_GLBL_CQ_INC_MODE_63},
 };
 
 static const u32 gaudi2_pb_arc_sched[] = {
@@ -3358,14 +3362,6 @@ static int gaudi2_init_protection_bits(struct hl_device *hdev)
 
 	/* Sync Manager GLBL */
 
-	/* Unsecure all CQ registers */
-	rc |= hl_init_pb_ranges(hdev, NUM_OF_DCORES, DCORE_OFFSET,
-			HL_PB_SINGLE_INSTANCE, HL_PB_NA,
-			gaudi2_pb_dcr0_sm_glbl,
-			ARRAY_SIZE(gaudi2_pb_dcr0_sm_glbl),
-			gaudi2_pb_dcr_x_sm_glbl_unsecured_regs,
-			ARRAY_SIZE(gaudi2_pb_dcr_x_sm_glbl_unsecured_regs));
-
 	/* Secure Dcore0 CQ0 registers */
 	rc |= hl_init_pb_ranges(hdev, HL_PB_SHARED, HL_PB_NA,
 			HL_PB_SINGLE_INSTANCE, HL_PB_NA,
@@ -3373,6 +3369,14 @@ static int gaudi2_init_protection_bits(struct hl_device *hdev)
 			ARRAY_SIZE(gaudi2_pb_dcr0_sm_glbl),
 			gaudi2_pb_dcr0_sm_glbl_unsecured_regs,
 			ARRAY_SIZE(gaudi2_pb_dcr0_sm_glbl_unsecured_regs));
+
+	/* Unsecure all other CQ registers */
+	rc |= hl_init_pb_ranges(hdev, NUM_OF_DCORES - 1, DCORE_OFFSET,
+			HL_PB_SINGLE_INSTANCE, HL_PB_NA,
+			gaudi2_pb_dcr1_sm_glbl,
+			ARRAY_SIZE(gaudi2_pb_dcr1_sm_glbl),
+			gaudi2_pb_dcr_x_sm_glbl_unsecured_regs,
+			ARRAY_SIZE(gaudi2_pb_dcr_x_sm_glbl_unsecured_regs));
 
 	/* PSOC.
 	 * Except for PSOC_GLOBAL_CONF, skip when security is enabled in F/W, because the blocks are
