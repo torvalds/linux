@@ -4602,11 +4602,6 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 	if (!amdgpu_ras_is_poison_mode_supported(adev))
 		return true;
 
-	if (!amdgpu_device_ip_check_soft_reset(adev)) {
-		dev_info(adev->dev,"Timeout, but no hardware hang detected.\n");
-		return false;
-	}
-
 	if (amdgpu_sriov_vf(adev))
 		return true;
 
@@ -4731,7 +4726,8 @@ int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 		if (!need_full_reset)
 			need_full_reset = amdgpu_device_ip_need_full_reset(adev);
 
-		if (!need_full_reset && amdgpu_gpu_recovery) {
+		if (!need_full_reset && amdgpu_gpu_recovery &&
+		    amdgpu_device_ip_check_soft_reset(adev)) {
 			amdgpu_device_ip_pre_soft_reset(adev);
 			r = amdgpu_device_ip_soft_reset(adev);
 			amdgpu_device_ip_post_soft_reset(adev);
