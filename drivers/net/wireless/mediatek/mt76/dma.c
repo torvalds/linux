@@ -212,14 +212,14 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
 {
 	struct mt76_queue_entry *entry;
 	struct mt76_desc *desc;
-	u32 ctrl;
 	int i, idx = -1;
+	u32 ctrl, next;
 
 	for (i = 0; i < nbufs; i += 2, buf += 2) {
 		u32 buf0 = buf[0].addr, buf1 = 0;
 
 		idx = q->head;
-		q->head = (q->head + 1) % q->ndesc;
+		next = (q->head + 1) % q->ndesc;
 
 		desc = &q->desc[idx];
 		entry = &q->entry[idx];
@@ -234,13 +234,16 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
 
 			rx_token = mt76_rx_token_consume(dev, (void *)skb, t,
 							 buf[0].addr);
+			if (rx_token < 0)
+				return -ENOMEM;
+
 			buf1 |= FIELD_PREP(MT_DMA_CTL_TOKEN, rx_token);
 			ctrl = FIELD_PREP(MT_DMA_CTL_SD_LEN0, buf[0].len) |
 			       MT_DMA_CTL_TO_HOST;
 		} else {
 			if (txwi) {
-				q->entry[q->head].txwi = DMA_DUMMY_DATA;
-				q->entry[q->head].skip_buf0 = true;
+				q->entry[next].txwi = DMA_DUMMY_DATA;
+				q->entry[next].skip_buf0 = true;
 			}
 
 			if (buf[0].skip_unmap)
@@ -271,6 +274,7 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
 		WRITE_ONCE(desc->info, cpu_to_le32(info));
 		WRITE_ONCE(desc->ctrl, cpu_to_le32(ctrl));
 
+		q->head = next;
 		q->queued++;
 	}
 
@@ -550,23 +554,9 @@ free_skb:
 	return ret;
 }
 
-static struct page_frag_cache *
-mt76_dma_rx_get_frag_cache(struct mt76_dev *dev, struct mt76_queue *q)
-{
-	struct page_frag_cache *rx_page = &q->rx_page;
-
-#ifdef CONFIG_NET_MEDIATEK_SOC_WED
-	if ((q->flags & MT_QFLAG_WED) &&
-	    FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX)
-		rx_page = &dev->mmio.wed.rx_buf_ring.rx_page;
-#endif
-	return rx_page;
-}
-
 static int
 mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	struct page_frag_cache *rx_page = mt76_dma_rx_get_frag_cache(dev, q);
 	int len = SKB_WITH_OVERHEAD(q->buf_size);
 	int frames = 0, offset = q->buf_offset;
 	dma_addr_t addr;
@@ -588,7 +578,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
 				break;
 		}
 
-		buf = page_frag_alloc(rx_page, q->buf_size, GFP_ATOMIC);
+		buf = page_frag_alloc(&q->rx_page, q->buf_size, GFP_ATOMIC);
 		if (!buf)
 			break;
 
@@ -601,7 +591,12 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
 		qbuf.addr = addr + offset;
 		qbuf.len = len - offset;
 		qbuf.skip_unmap = false;
-		mt76_dma_add_buf(dev, q, &qbuf, 1, 0, buf, t);
+		if (mt76_dma_add_buf(dev, q, &qbuf, 1, 0, buf, t) < 0) {
+			dma_unmap_single(dev->dma_dev, addr, len,
+					 DMA_FROM_DEVICE);
+			skb_free_frag(buf);
+			break;
+		}
 		frames++;
 	}
 

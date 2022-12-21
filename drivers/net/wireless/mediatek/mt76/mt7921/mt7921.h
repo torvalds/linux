@@ -554,6 +554,7 @@ int mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 #ifdef CONFIG_ACPI
 int mt7921_init_acpi_sar(struct mt7921_dev *dev);
 int mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default);
+u8 mt7921_acpi_get_flags(struct mt7921_phy *phy);
 #else
 static inline int
 mt7921_init_acpi_sar(struct mt7921_dev *dev)
@@ -563,6 +564,12 @@ mt7921_init_acpi_sar(struct mt7921_dev *dev)
 
 static inline int
 mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default)
+{
+	return 0;
+}
+
+static inline u8
+mt7921_acpi_get_flags(struct mt7921_phy *phy)
 {
 	return 0;
 }

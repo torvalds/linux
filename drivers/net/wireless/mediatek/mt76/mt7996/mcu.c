@@ -335,6 +335,9 @@ mt7996_mcu_rx_radar_detected(struct mt7996_dev *dev, struct sk_buff *skb)
 
 	r = (struct mt7996_mcu_rdd_report *)skb->data;
 
+	if (r->band_idx >= ARRAY_SIZE(dev->mt76.phys))
+		return;
+
 	mphy = dev->mt76.phys[r->band_idx];
 	if (!mphy)
 		return;
@@ -411,6 +414,9 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)
 	const char *data = (char *)&rxd[1], *tail;
 	struct header *hdr = (struct header *)data;
 	struct tlv *tlv = (struct tlv *)(data + 4);
+
+	if (hdr->band >= ARRAY_SIZE(dev->mt76.phys))
+		return;
 
 	if (hdr->band && dev->mt76.phys[hdr->band])
 		mphy = dev->mt76.phys[hdr->band];
@@ -903,8 +909,8 @@ mt7996_mcu_sta_he_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 	he = (struct sta_rec_he_v2 *)tlv;
 	for (i = 0; i < 11; i++) {
 		if (i < 6)
-			he->he_mac_cap[i] = cpu_to_le16(elem->mac_cap_info[i]);
-		he->he_phy_cap[i] = cpu_to_le16(elem->phy_cap_info[i]);
+			he->he_mac_cap[i] = elem->mac_cap_info[i];
+		he->he_phy_cap[i] = elem->phy_cap_info[i];
 	}
 
 	mcs_map = sta->deflink.he_cap.he_mcs_nss_supp;
@@ -2921,8 +2927,9 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
 	bool valid;
 	int ret;
 
-	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_WM_UNI_CMD_QUERY(EFUSE_CTRL), &req,
-					sizeof(req), true, &skb);
+	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
+					MCU_WM_UNI_CMD_QUERY(EFUSE_CTRL),
+					&req, sizeof(req), true, &skb);
 	if (ret)
 		return ret;
 
