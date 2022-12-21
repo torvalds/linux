@@ -174,7 +174,7 @@ if [[ "${PREPARE_SYSTEM_DLKM}" == "1"  && ! -z "${SYSTEM_DLKM_MODULES_LIST}" ]];
   {
     awk -F'/' '{print $NF}' ${SYSTEM_DLKM_MODULES_LIST}
     [ -f "${MODULES_LIST}" ] && cat "${MODULES_LIST}"
-  } > ${COMBINED_MODULE_LIST}
+  } | sed -e '/^$/d' > ${COMBINED_MODULE_LIST}
 fi
 
 function prepare_vendor_dlkm() {
