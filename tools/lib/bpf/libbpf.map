@@ -382,3 +382,6 @@ LIBBPF_1.1.0 {
 		user_ring_buffer__reserve_blocking;
 		user_ring_buffer__submit;
 } LIBBPF_1.0.0;
+
+LIBBPF_1.2.0 {
+} LIBBPF_1.1.0;
