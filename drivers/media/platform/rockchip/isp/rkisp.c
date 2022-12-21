@@ -502,6 +502,7 @@ static void rkisp_multi_overflow_hdl(struct rkisp_device *dev, bool on)
 			rkisp_update_regs(dev, ISP3X_MPFBC_CTRL, ISP3X_MPFBC_CTRL);
 			rkisp_update_regs(dev, ISP3X_MI_BP_WR_CTRL, ISP3X_MI_BP_WR_CTRL);
 			rkisp_update_regs(dev, ISP3X_BAY3D_CTRL, ISP3X_BAY3D_CTRL);
+			rkisp_update_regs(dev, ISP3X_SWS_CFG, ISP3X_SWS_CFG);
 		} else if (dev->isp_ver == ISP_V32) {
 			rkisp_update_regs(dev, ISP3X_MI_BP_WR_CTRL, ISP3X_MI_BP_WR_CTRL);
 			rkisp_update_regs(dev, ISP32_MI_BPDS_WR_CTRL, ISP32_MI_BPDS_WR_CTRL);
@@ -517,11 +518,13 @@ static void rkisp_multi_overflow_hdl(struct rkisp_device *dev, bool on)
 			writel(0, hw->base_addr + ISP3X_MPFBC_CTRL);
 			writel(0, hw->base_addr + ISP3X_MI_BP_WR_CTRL);
 			writel(0, hw->base_addr + ISP3X_BAY3D_CTRL);
+			writel(0xc, hw->base_addr + ISP3X_SWS_CFG);
 			if (hw->is_unite) {
 				writel(0, hw->base_next_addr + ISP3X_MI_WR_CTRL);
 				writel(0, hw->base_next_addr + ISP3X_MPFBC_CTRL);
 				writel(0, hw->base_next_addr + ISP3X_MI_BP_WR_CTRL);
 				writel(0, hw->base_next_addr + ISP3X_BAY3D_CTRL);
+				writel(0xc, hw->base_next_addr + ISP3X_SWS_CFG);
 			}
 		} else if (dev->isp_ver == ISP_V32) {
 			writel(0, hw->base_addr + ISP3X_MI_BP_WR_CTRL);
