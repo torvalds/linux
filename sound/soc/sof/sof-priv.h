@@ -502,6 +502,10 @@ struct snd_sof_ipc {
 	const struct sof_ipc_ops *ops;
 };
 
+/* Helper to retrieve the IPC ops */
+#define sof_ipc_get_ops(sdev, ops_name)		\
+		(((sdev)->ipc && (sdev)->ipc->ops) ? (sdev)->ipc->ops->ops_name : NULL)
+
 /*
  * SOF Device Level.
  */
