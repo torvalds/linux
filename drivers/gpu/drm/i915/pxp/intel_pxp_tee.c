@@ -298,6 +298,10 @@ int intel_pxp_tee_cmd_create_arb_session(struct intel_pxp *pxp,
 
 	if (ret)
 		drm_err(&i915->drm, "Failed to send tee msg ret=[%d]\n", ret);
+	else if (msg_out.header.status == PXP_STATUS_ERROR_API_VERSION)
+		drm_dbg(&i915->drm, "PXP firmware version unsupported, requested: "
+			"CMD-ID-[0x%08x] on API-Ver-[0x%08x]\n",
+			msg_in.header.command_id, msg_in.header.api_version);
 	else if (msg_out.header.status != 0x0)
 		drm_warn(&i915->drm, "PXP firmware failed arb session init request ret=[0x%08x]\n",
 			 msg_out.header.status);
