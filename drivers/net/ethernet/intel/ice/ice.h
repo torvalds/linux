@@ -931,6 +931,8 @@ int ice_open(struct net_device *netdev);
 int ice_open_internal(struct net_device *netdev);
 int ice_stop(struct net_device *netdev);
 void ice_service_task_schedule(struct ice_pf *pf);
+int ice_load(struct ice_pf *pf);
+void ice_unload(struct ice_pf *pf);
 
 /**
  * ice_set_rdma_cap - enable RDMA support
