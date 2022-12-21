@@ -798,6 +798,7 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 	rc = wcd_usbss_sysfs_init(priv);
 	if (rc == 0) {
 		priv->surge_timer_period_ms = DEFAULT_SURGE_TIMER_PERIOD_MS;
+		priv->surge_enable = true;
 		wcd_usbss_enable_surge_kthread();
 	}
 
