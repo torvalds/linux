@@ -1998,6 +1998,17 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->csi_host_idx = of_alias_get_id(node, "rkcif_mipi_lvds");
 	if (cif_dev->csi_host_idx < 0 || cif_dev->csi_host_idx > 5)
 		cif_dev->csi_host_idx = 0;
+	if (cif_dev->hw_dev->is_rk3588s2) {
+		if (cif_dev->csi_host_idx == 0)
+			cif_dev->csi_host_idx = 2;
+		else if (cif_dev->csi_host_idx == 2)
+			cif_dev->csi_host_idx = 4;
+		else if (cif_dev->csi_host_idx == 3)
+			cif_dev->csi_host_idx = 5;
+		v4l2_info(&cif_dev->v4l2_dev, "rk3588s2 attach to mipi%d\n",
+			  cif_dev->csi_host_idx);
+	}
+	cif_dev->csi_host_idx_def = cif_dev->csi_host_idx;
 	cif_dev->media_dev.dev = dev;
 	v4l2_dev = &cif_dev->v4l2_dev;
 	v4l2_dev->mdev = &cif_dev->media_dev;
@@ -2160,7 +2171,9 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	if (sysfs_create_group(&pdev->dev.kobj, &dev_attr_grp))
 		return -ENODEV;
 
-	rkcif_attach_hw(cif_dev);
+	ret = rkcif_attach_hw(cif_dev);
+	if (ret)
+		return ret;
 
 	rkcif_parse_dts(cif_dev);
 

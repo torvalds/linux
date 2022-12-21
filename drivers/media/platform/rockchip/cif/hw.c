@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_graph.h>
@@ -1252,6 +1253,51 @@ void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu)
 		rkcif_iommu_enable(cif_hw);
 }
 
+static int rkcif_get_efuse_value(struct device_node *np, char *porp_name,
+				    u8 *value)
+{
+	struct nvmem_cell *cell;
+	unsigned char *buf;
+	size_t len;
+
+	cell = of_nvmem_cell_get(np, porp_name);
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
+
+	buf = (unsigned char *)nvmem_cell_read(cell, &len);
+
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	*value = buf[0];
+
+	kfree(buf);
+
+	return 0;
+}
+
+static int rkcif_get_speciand_package_number(struct device_node *np)
+{
+	u8 spec = 0, package = 0, low = 0, high = 0;
+
+	if (rkcif_get_efuse_value(np, "specification", &spec))
+		return -EINVAL;
+	if (rkcif_get_efuse_value(np, "package_low", &low))
+		return -EINVAL;
+	if (rkcif_get_efuse_value(np, "package_high", &high))
+		return -EINVAL;
+
+	package = ((high & 0x1) << 3) | low;
+
+	/* RK3588S */
+	if (spec == 0x13)
+		return package;
+
+	return -EINVAL;
+}
+
 static int rkcif_plat_hw_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -1265,6 +1311,7 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 	int i, ret, irq;
 	bool is_mem_reserved = false;
 	struct notifier_block *notifier;
+	int package = 0;
 
 	match = of_match_node(rkcif_plat_of_match, node);
 	if (IS_ERR(match))
@@ -1278,6 +1325,13 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, cif_hw);
 	cif_hw->dev = dev;
 
+	package = rkcif_get_speciand_package_number(node);
+	if (package == 0x2) {
+		cif_hw->is_rk3588s2 = true;
+		dev_info(dev, "attach rk3588s2\n");
+	} else {
+		cif_hw->is_rk3588s2 = false;
+	}
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;

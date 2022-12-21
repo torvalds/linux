@@ -300,8 +300,8 @@ static int rkcif_tools_enum_framesizes(struct file *file, void *prov,
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
 	if (terminal_sensor && terminal_sensor->sd)
-		get_input_fmt(terminal_sensor->sd,
-			      &input_rect, 0, &csi_info);
+		rkcif_get_input_fmt(dev,
+				    &input_rect, 0, &csi_info);
 
 	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 	s->width = input_rect.width;

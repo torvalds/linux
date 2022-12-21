@@ -847,10 +847,11 @@ static int get_csi_crop_align(const struct cif_input_fmt *fmt_in)
 }
 
 const struct
-cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect,
+cif_input_fmt *rkcif_get_input_fmt(struct rkcif_device *dev, struct v4l2_rect *rect,
 			     u32 pad_id, struct csi_channel_info *csi_info)
 {
 	struct v4l2_subdev_format fmt;
+	struct v4l2_subdev *sd = dev->terminal_sensor.sd;
 	struct rkmodule_channel_info ch_info = {0};
 	struct rkmodule_capture_info capture_info;
 	int ret;
@@ -914,8 +915,22 @@ cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect,
 			       core, ioctl,
 			       RKMODULE_GET_CAPTURE_MODE,
 			       &capture_info);
-	if (!ret)
+	if (!ret) {
+		if (capture_info.mode == RKMODULE_MULTI_DEV_COMBINE_ONE &&
+		    dev->hw_dev->is_rk3588s2) {
+			for (i = 0; i < capture_info.multi_dev.dev_num; i++) {
+				if (capture_info.multi_dev.dev_idx[i] == 0)
+					capture_info.multi_dev.dev_idx[i] = 2;
+				else if (capture_info.multi_dev.dev_idx[i] == 2)
+					capture_info.multi_dev.dev_idx[i] = 4;
+				else if (capture_info.multi_dev.dev_idx[i] == 3)
+					capture_info.multi_dev.dev_idx[i] = 5;
+			}
+		}
 		csi_info->capture_info = capture_info;
+	} else {
+		csi_info->capture_info.mode = RKMODULE_CAPTURE_MODE_NONE;
+	}
 	for (i = 0; i < ARRAY_SIZE(in_fmts); i++)
 		if (fmt.format.code == in_fmts[i].mbus_code &&
 		    fmt.format.field == in_fmts[i].field)
@@ -5362,9 +5377,9 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 	struct v4l2_rect input, *crop;
 
 	if (dev->terminal_sensor.sd) {
-		stream->cif_fmt_in = get_input_fmt(dev->terminal_sensor.sd,
-						   &input, stream->id,
-						   &dev->channels[stream->id]);
+		stream->cif_fmt_in = rkcif_get_input_fmt(dev,
+							 &input, stream->id,
+							 &dev->channels[stream->id]);
 		if (!stream->cif_fmt_in) {
 			v4l2_err(v4l2_dev, "Input fmt is invalid\n");
 			return -EINVAL;
@@ -6146,10 +6161,15 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 					 csi_info.csi_num, RKCIF_MAX_CSI_NUM);
 				goto out;
 			}
-			for (i = 0; i < csi_info.csi_num; i++)
+			for (i = 0; i < csi_info.csi_num; i++) {
 				csi_info.csi_idx[i] = dev->channels[0].capture_info.multi_dev.dev_idx[i];
+				if (dev->hw_dev->is_rk3588s2)
+					v4l2_info(v4l2_dev, "rk3588s2 combine mode attach to mipi%d\n",
+						  csi_info.csi_idx[i]);
+			}
 		} else {
 			csi_info.csi_num = 1;
+			dev->csi_host_idx = dev->csi_host_idx_def;
 			csi_info.csi_idx[0] = dev->csi_host_idx;
 		}
 		ret = v4l2_subdev_call(dev->active_sensor->sd,
@@ -6350,9 +6370,9 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
 	if (dev->terminal_sensor.sd) {
-		cif_fmt_in = get_input_fmt(dev->terminal_sensor.sd,
-					   &input_rect, stream->id,
-					   channel_info);
+		cif_fmt_in = rkcif_get_input_fmt(dev,
+						 &input_rect, stream->id,
+						 channel_info);
 		stream->cif_fmt_in = cif_fmt_in;
 	} else {
 		v4l2_err(&stream->cifdev->v4l2_dev,
@@ -6720,9 +6740,9 @@ static int rkcif_enum_framesizes(struct file *file, void *prov,
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
 	if (dev->terminal_sensor.sd)
-		get_input_fmt(dev->terminal_sensor.sd,
-			      &input_rect, stream->id,
-			      &csi_info);
+		rkcif_get_input_fmt(dev,
+				    &input_rect, stream->id,
+				    &csi_info);
 
 	if (dev->hw_dev->adapt_to_usbcamerahal) {
 		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
@@ -6801,7 +6821,7 @@ static int rkcif_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 		return -EINVAL;
 
 	if (dev->terminal_sensor.sd) {
-		cif_fmt_in = get_input_fmt(dev->terminal_sensor.sd,
+		cif_fmt_in = rkcif_get_input_fmt(dev,
 					   &input_rect, stream->id,
 					   &dev->channels[stream->id]);
 		stream->cif_fmt_in = cif_fmt_in;
@@ -7187,8 +7207,8 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKCIF_CMD_SET_CSI_MEMORY_MODE:
 		if (dev->terminal_sensor.sd) {
-			in_fmt = get_input_fmt(dev->terminal_sensor.sd,
-					       &rect, 0, &csi_info);
+			in_fmt = rkcif_get_input_fmt(dev,
+						     &rect, 0, &csi_info);
 			if (in_fmt == NULL) {
 				v4l2_err(&dev->v4l2_dev, "can't get sensor input format\n");
 				return -EINVAL;
