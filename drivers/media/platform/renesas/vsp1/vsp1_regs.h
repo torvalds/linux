@@ -228,6 +228,28 @@
 #define VI6_RPF_MULT_ALPHA_RATIO_MASK	(0xff << 0)
 #define VI6_RPF_MULT_ALPHA_RATIO_SHIFT	0
 
+#define VI6_RPF_EXT_INFMT0		0x0370
+#define VI6_RPF_EXT_INFMT0_F2B		BIT(12)
+#define VI6_RPF_EXT_INFMT0_IPBD_Y_8	(0 << 8)
+#define VI6_RPF_EXT_INFMT0_IPBD_Y_10	(1 << 8)
+#define VI6_RPF_EXT_INFMT0_IPBD_Y_12	(2 << 8)
+#define VI6_RPF_EXT_INFMT0_IPBD_C_8	(0 << 4)
+#define VI6_RPF_EXT_INFMT0_IPBD_C_10	(1 << 4)
+#define VI6_RPF_EXT_INFMT0_IPBD_C_12	(2 << 4)
+#define VI6_RPF_EXT_INFMT0_BYPP_M1_RGB10	(3 << 0)
+
+#define VI6_RPF_EXT_INFMT1		0x0374
+#define VI6_RPF_EXT_INFMT1_PACK_CPOS(a, b, c, d) \
+	(((a) << 24) | ((b) << 16) | ((c) << 8) | ((d) << 0))
+
+#define VI6_RPF_EXT_INFMT2		0x0378
+#define VI6_RPF_EXT_INFMT2_PACK_CLEN(a, b, c, d) \
+	(((a) << 24) | ((b) << 16) | ((c) << 8) | ((d) << 0))
+
+#define VI6_RPF_BRDITH_CTRL		0x03e0
+#define VI6_RPF_BRDITH_CTRL_ODE		BIT(8)
+#define VI6_RPF_BRDITH_CTRL_CBRM	BIT(0)
+
 /* -----------------------------------------------------------------------------
  * WPF Control Registers
  */
@@ -846,6 +868,7 @@
 #define VI6_FMT_XBXGXR_262626		0x21
 #define VI6_FMT_ABGR_8888		0x22
 #define VI6_FMT_XXRGB_88565		0x23
+#define VI6_FMT_RGB10_RGB10A2_A2RGB10	0x30
 
 #define VI6_FMT_Y_UV_444		0x40
 #define VI6_FMT_Y_UV_422		0x41
