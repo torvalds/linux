@@ -48,7 +48,6 @@ mask_err:
 	return err;
 }
 
-#ifdef CONFIG_64BIT
 static int
 _resize_bar(struct xe_device *xe, int resno, resource_size_t size)
 {
@@ -132,9 +131,6 @@ static int xe_resize_lmem_bar(struct xe_device *xe, resource_size_t lmem_size)
 	pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd);
 	return ret;
 }
-#else
-static int xe_resize_lmem_bar(struct xe_device *xe, resource_size_t lmem_size) { return 0; }
-#endif
 
 static bool xe_pci_resource_valid(struct pci_dev *pdev, int bar)
 {
@@ -236,10 +232,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 		drm_warn(&xe->drm, "Restricting VRAM size to PCI resource size (0x%llx->0x%llx)\n",
 			 lmem_size, (u64)xe->mem.vram.size);
 
-#ifdef CONFIG_64BIT
 	xe->mem.vram.mapping = ioremap_wc(xe->mem.vram.io_start, xe->mem.vram.size);
-#endif
-
 	xe->mem.vram.size = min_t(u64, xe->mem.vram.size, usable_size);
 
 	drm_info(&xe->drm, "TOTAL VRAM: %pa, %pa\n", &xe->mem.vram.io_start, &xe->mem.vram.size);

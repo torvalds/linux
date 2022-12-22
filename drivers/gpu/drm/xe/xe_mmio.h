@@ -7,6 +7,7 @@
 #define _XE_MMIO_H_
 
 #include <linux/delay.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #include "xe_gt_types.h"
 
