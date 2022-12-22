@@ -1236,22 +1236,6 @@ int ac101_audio_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#if _MASTER_MULTI_CODEC == _MASTER_AC101
-static int ac101_set_clock(int y_start_n_stop) {
-	int r;
-
-	if (y_start_n_stop) {
-		/* enable global clock */
-		r = ac101_aif1clk(static_ac10x->codec, SND_SOC_DAPM_PRE_PMU, 1);
-	} else {
-		/* disable global clock */
-		static_ac10x->aif1_clken = 1;
-		r = ac101_aif1clk(static_ac10x->codec, SND_SOC_DAPM_POST_PMD, 0);
-	}
-	return r;
-}
-#endif
-
 int ac101_trigger(struct snd_pcm_substream *substream, int cmd,
 	 	  struct snd_soc_dai *dai)
 {
@@ -1404,10 +1388,6 @@ int ac101_codec_probe(struct snd_soc_codec *codec)
 	ac10x->dac_enable = 0;
 	ac10x->aif1_clken = 0;
 	mutex_init(&ac10x->dac_mutex);
-
-	#if _MASTER_MULTI_CODEC == _MASTER_AC101
-	//seeed_voice_card_register_set_clock(SNDRV_PCM_STREAM_PLAYBACK, ac101_set_clock);
-	#endif
 
 	set_configuration(ac10x->codec);
 
