@@ -125,15 +125,15 @@ dtbinst := -f $(srctree)/scripts/Makefile.dtbinst obj
 # $(Q)$(MAKE) $(clean)=dir
 clean := -f $(srctree)/scripts/Makefile.clean obj
 
-# echo command.
-# Short version is used, if $(quiet) equals `quiet_', otherwise full one.
-echo-cmd = $(if $($(quiet)cmd_$(1)),\
-	echo '  $(call escsq,$($(quiet)cmd_$(1)))$(echo-why)';)
-
-# sink stdout for 'make -s'
-       redirect :=
- quiet_redirect :=
-silent_redirect := exec >/dev/null;
+# pring log
+#
+# If quiet is "silent_", print nothing and sink stdout
+# If quiet is "quiet_", print short log
+# If quiet is empty, print short log and whole command
+silent_log_print = exec >/dev/null;
+ quiet_log_print = $(if $(quiet_cmd_$1), echo '  $(call escsq,$(quiet_cmd_$1)$(why))';)
+       log_print = echo '$(pound) $(call escsq,$(or $(quiet_cmd_$1),cmd_$1 $@))'; \
+                   echo '  $(call escsq,$(cmd_$1))';
 
 # Delete the target on interruption
 #
@@ -156,8 +156,8 @@ delete-on-interrupt = \
 		$(foreach sig, HUP INT QUIT TERM PIPE, \
 			trap 'rm -f $@; trap - $(sig); kill -s $(sig) $$$$' $(sig);))
 
-# printing commands
-cmd = @set -e; $(echo-cmd) $($(quiet)redirect) $(delete-on-interrupt) $(cmd_$(1))
+# print and execute commands
+cmd = @$(if $(cmd_$(1)),set -e; $($(quiet)log_print) $(delete-on-interrupt) $(cmd_$(1)),:)
 
 ###
 # if_changed      - execute command if any prerequisite is newer than
@@ -234,7 +234,7 @@ if_changed_rule = $(if $(if-changed-cond),$(rule_$(1)),@:)
 # (6) No dir/.target.cmd file and target not listed in $(targets)
 #     This is a good hint that there is a bug in the kbuild file
 ifeq ($(KBUILD_VERBOSE),2)
-why =                                                                        \
+_why =                                                                        \
     $(if $(filter $@, $(PHONY)),- due to target is PHONY,                    \
         $(if $(wildcard $@),                                                 \
             $(if $(newer-prereqs),- due to: $(newer-prereqs),                \
@@ -251,7 +251,7 @@ why =                                                                        \
          )                                                                   \
      )
 
-echo-why = $(call escsq, $(strip $(why)))
+why = $(space)$(strip $(_why))
 endif
 
 ###############################################################################
