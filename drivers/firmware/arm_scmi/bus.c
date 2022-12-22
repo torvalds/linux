@@ -476,18 +476,21 @@ static void scmi_devices_unregister(void)
 	bus_for_each_dev(&scmi_bus_type, NULL, NULL, __scmi_devices_unregister);
 }
 
-int __init scmi_bus_init(void)
+static int __init scmi_bus_init(void)
 {
 	int retval;
 
 	retval = bus_register(&scmi_bus_type);
 	if (retval)
-		pr_err("scmi protocol bus register failed (%d)\n", retval);
+		pr_err("SCMI protocol bus register failed (%d)\n", retval);
+
+	pr_info("SCMI protocol bus registered\n");
 
 	return retval;
 }
+subsys_initcall(scmi_bus_init);
 
-void __exit scmi_bus_exit(void)
+static void __exit scmi_bus_exit(void)
 {
 	/*
 	 * Destroy all remaining devices: just in case the drivers were
@@ -497,3 +500,9 @@ void __exit scmi_bus_exit(void)
 	bus_unregister(&scmi_bus_type);
 	ida_destroy(&scmi_bus_id);
 }
+module_exit(scmi_bus_exit);
+
+MODULE_ALIAS("scmi-core");
+MODULE_AUTHOR("Sudeep Holla <sudeep.holla@arm.com>");
+MODULE_DESCRIPTION("ARM SCMI protocol bus");
+MODULE_LICENSE("GPL");

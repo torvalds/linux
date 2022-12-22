@@ -2638,8 +2638,6 @@ static int __init scmi_driver_init(void)
 	if (WARN_ON(!IS_ENABLED(CONFIG_ARM_SCMI_HAVE_TRANSPORT)))
 		return -EINVAL;
 
-	scmi_bus_init();
-
 	/* Initialize any compiled-in transport which provided an init/exit */
 	ret = scmi_transports_init();
 	if (ret)
@@ -2658,7 +2656,7 @@ static int __init scmi_driver_init(void)
 
 	return platform_driver_register(&scmi_driver);
 }
-subsys_initcall(scmi_driver_init);
+module_init(scmi_driver_init);
 
 static void __exit scmi_driver_exit(void)
 {
@@ -2672,8 +2670,6 @@ static void __exit scmi_driver_exit(void)
 	scmi_voltage_unregister();
 	scmi_system_unregister();
 	scmi_powercap_unregister();
-
-	scmi_bus_exit();
 
 	scmi_transports_exit();
 
