@@ -288,7 +288,8 @@
 
 		pm6125_l5: l5 {
 			regulator-min-microvolt = <1648000>;
-			regulator-max-microvolt = <3104000>;
+			regulator-max-microvolt = <2950000>;
+			regulator-allow-set-load;
 		};
 
 		pm6125_l6: l6 {
@@ -374,7 +375,8 @@
 
 		pm6125_l22: l22 {
 			regulator-min-microvolt = <2944000>;
-			regulator-max-microvolt = <3304000>;
+			regulator-max-microvolt = <2950000>;
+			regulator-allow-set-load;
 		};
 
 		pm6125_l23: l23 {
@@ -411,6 +413,15 @@
 &sdhc_1 {
 	vmmc-supply = <&pm6125_l24>;
 	vqmmc-supply = <&pm6125_l11>;
+	status = "okay";
+};
+
+&sdhc_2 {
+	cd-gpios = <&tlmm 98 GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&pm6125_l22>;
+	vqmmc-supply = <&pm6125_l5>;
+	no-sdio;
+	no-mmc;
 	status = "okay";
 };
 
