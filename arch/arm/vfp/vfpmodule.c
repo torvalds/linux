@@ -416,7 +416,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	if (exceptions)
 		vfp_raise_exceptions(exceptions, trigger, orig_fpscr, regs);
  exit:
-	preempt_enable();
+	local_bh_enable();
 }
 
 static void vfp_enable(void *unused)
@@ -517,6 +517,8 @@ void vfp_sync_hwstate(struct thread_info *thread)
 {
 	unsigned int cpu = get_cpu();
 
+	local_bh_disable();
+
 	if (vfp_state_in_hw(cpu, thread)) {
 		u32 fpexc = fmrx(FPEXC);
 
@@ -528,6 +530,7 @@ void vfp_sync_hwstate(struct thread_info *thread)
 		fmxr(FPEXC, fpexc);
 	}
 
+	local_bh_enable();
 	put_cpu();
 }
 
@@ -717,6 +720,8 @@ void kernel_neon_begin(void)
 	unsigned int cpu;
 	u32 fpexc;
 
+	local_bh_disable();
+
 	/*
 	 * Kernel mode NEON is only allowed outside of interrupt context
 	 * with preemption disabled. This will make sure that the kernel
@@ -739,6 +744,7 @@ void kernel_neon_begin(void)
 		vfp_save_state(vfp_current_hw_state[cpu], fpexc);
 #endif
 	vfp_current_hw_state[cpu] = NULL;
+	local_bh_enable();
 }
 EXPORT_SYMBOL(kernel_neon_begin);
 
