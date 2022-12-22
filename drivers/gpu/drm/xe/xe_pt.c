@@ -333,14 +333,16 @@ int xe_pt_create_scratch(struct xe_device *xe, struct xe_gt *gt,
 	u8 id = gt->info.id;
 	int i;
 
-	vm->scratch_bo[id] = xe_bo_create(xe, gt, vm, SZ_4K,
-					  ttm_bo_type_kernel,
-					  XE_BO_CREATE_VRAM_IF_DGFX(gt) |
-					  XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT |
-					  XE_BO_CREATE_PINNED_BIT);
+	vm->scratch_bo[id] = xe_bo_create_pin_map(xe, gt, vm, SZ_4K,
+						  ttm_bo_type_kernel,
+						  XE_BO_CREATE_VRAM_IF_DGFX(gt) |
+						  XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT |
+						  XE_BO_CREATE_PINNED_BIT);
 	if (IS_ERR(vm->scratch_bo[id]))
 		return PTR_ERR(vm->scratch_bo[id]);
-	xe_bo_pin(vm->scratch_bo[id]);
+
+	xe_map_memset(vm->xe, &vm->scratch_bo[id]->vmap, 0, 0,
+		      vm->scratch_bo[id]->size);
 
 	for (i = 0; i < vm->pt_root[id]->level; i++) {
 		vm->scratch_pt[id][i] = xe_pt_create(vm, gt, i);
