@@ -183,7 +183,7 @@ static int gt_ttm_mgr_init(struct xe_gt *gt)
 		if (err)
 			return err;
 		gtt_size = min(max((XE_DEFAULT_GTT_SIZE_MB << 20),
-				   gt->mem.vram.size),
+				   (u64)gt->mem.vram.size),
 			       gtt_size);
 		xe->info.mem_region_mask |= BIT(gt->info.vram_id) << 1;
 	}
