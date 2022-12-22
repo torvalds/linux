@@ -344,25 +344,8 @@ put_dev:
 void scmi_device_destroy(struct scmi_device *scmi_dev)
 {
 	kfree_const(scmi_dev->name);
-	scmi_handle_put(scmi_dev->handle);
 	ida_free(&scmi_bus_id, scmi_dev->id);
 	device_unregister(&scmi_dev->dev);
-}
-
-void scmi_device_link_add(struct device *consumer, struct device *supplier)
-{
-	struct device_link *link;
-
-	link = device_link_add(consumer, supplier, DL_FLAG_AUTOREMOVE_CONSUMER);
-
-	WARN_ON(!link);
-}
-
-void scmi_set_handle(struct scmi_device *scmi_dev)
-{
-	scmi_dev->handle = scmi_handle_get(&scmi_dev->dev);
-	if (scmi_dev->handle)
-		scmi_device_link_add(&scmi_dev->dev, scmi_dev->handle->dev);
 }
 
 static int __scmi_devices_unregister(struct device *dev, void *data)

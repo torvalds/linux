@@ -1890,13 +1890,6 @@ static bool scmi_is_transport_atomic(const struct scmi_handle *handle,
 	return ret;
 }
 
-static inline
-struct scmi_handle *scmi_handle_get_from_info_unlocked(struct scmi_info *info)
-{
-	info->users++;
-	return &info->handle;
-}
-
 /**
  * scmi_handle_get() - Get the SCMI handle for a device
  *
@@ -1908,7 +1901,7 @@ struct scmi_handle *scmi_handle_get_from_info_unlocked(struct scmi_info *info)
  *
  * Return: pointer to handle if successful, NULL on error
  */
-struct scmi_handle *scmi_handle_get(struct device *dev)
+static struct scmi_handle *scmi_handle_get(struct device *dev)
 {
 	struct list_head *p;
 	struct scmi_info *info;
@@ -1918,7 +1911,8 @@ struct scmi_handle *scmi_handle_get(struct device *dev)
 	list_for_each(p, &scmi_list) {
 		info = list_entry(p, struct scmi_info, node);
 		if (dev->parent == info->dev) {
-			handle = scmi_handle_get_from_info_unlocked(info);
+			info->users++;
+			handle = &info->handle;
 			break;
 		}
 	}
@@ -1939,7 +1933,7 @@ struct scmi_handle *scmi_handle_get(struct device *dev)
  * Return: 0 is successfully released
  *	if null was passed, it returns -EINVAL;
  */
-int scmi_handle_put(const struct scmi_handle *handle)
+static int scmi_handle_put(const struct scmi_handle *handle)
 {
 	struct scmi_info *info;
 
@@ -1953,6 +1947,23 @@ int scmi_handle_put(const struct scmi_handle *handle)
 	mutex_unlock(&scmi_list_mutex);
 
 	return 0;
+}
+
+static void scmi_device_link_add(struct device *consumer,
+				 struct device *supplier)
+{
+	struct device_link *link;
+
+	link = device_link_add(consumer, supplier, DL_FLAG_AUTOREMOVE_CONSUMER);
+
+	WARN_ON(!link);
+}
+
+static void scmi_set_handle(struct scmi_device *scmi_dev)
+{
+	scmi_dev->handle = scmi_handle_get(&scmi_dev->dev);
+	if (scmi_dev->handle)
+		scmi_device_link_add(&scmi_dev->dev, scmi_dev->handle->dev);
 }
 
 static int __scmi_xfer_info_init(struct scmi_info *sinfo,
@@ -2234,8 +2245,12 @@ static int scmi_bus_notifier(struct notifier_block *nb,
 
 	switch (action) {
 	case BUS_NOTIFY_BIND_DRIVER:
+		/* setup handle now as the transport is ready */
+		scmi_set_handle(sdev);
 		break;
 	case BUS_NOTIFY_UNBOUND_DRIVER:
+		scmi_handle_put(sdev->handle);
+		sdev->handle = NULL;
 		break;
 	default:
 		return NOTIFY_DONE;
