@@ -544,6 +544,7 @@
 				compatible = "snps,dwc3";
 				reg = <0x04e00000 0xcd00>;
 				interrupts = <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>;
+				iommus = <&apps_smmu 0x100 0x0>;
 				phys = <&hsusb_phy1>;
 				phy-names = "usb2-phy";
 				snps,dis_u2_susphy_quirk;
