@@ -36,6 +36,7 @@ test_cpp
 *.lskel.h
 /no_alu32
 /bpf_gcc
+/host-tools
 /tools
 /runqslower
 /bench
