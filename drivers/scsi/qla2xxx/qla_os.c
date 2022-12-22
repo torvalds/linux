@@ -7522,6 +7522,7 @@ qla2x00_timer(struct timer_list *t)
 		set_bit(SET_ZIO_THRESHOLD_NEEDED, &vha->dpc_flags);
 		start_dpc++;
 	}
+	qla_adjust_buf(vha);
 
 	/* borrowing w to signify dpc will run */
 	w = 0;

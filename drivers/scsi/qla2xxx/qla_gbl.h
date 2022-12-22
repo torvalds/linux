@@ -293,6 +293,7 @@ extern void qla2x00_alert_all_vps(struct rsp_que *, uint16_t *);
 extern void qla2x00_async_event(scsi_qla_host_t *, struct rsp_que *,
 	uint16_t *);
 extern int  qla2x00_vp_abort_isp(scsi_qla_host_t *);
+void qla_adjust_buf(struct scsi_qla_host *);
 
 /*
  * Global Function Prototypes in qla_iocb.c source file.

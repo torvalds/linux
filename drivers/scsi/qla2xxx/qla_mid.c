@@ -1170,6 +1170,7 @@ again:
 
 		dsc->buf = qp->buf_pool.buf_array[tag] = buf;
 		dsc->buf_dma = qp->buf_pool.dma_array[tag] = buf_dma;
+		qp->buf_pool.num_alloc++;
 	} else {
 		dsc->buf = qp->buf_pool.buf_array[tag];
 		dsc->buf_dma = qp->buf_pool.dma_array[tag];
@@ -1185,14 +1186,107 @@ again:
 	return 0;
 }
 
+void qla_trim_buf(struct qla_qpair *qp, u16 trim)
+{
+	int i, j;
+	struct qla_hw_data *ha = qp->vha->hw;
+
+	if (!trim)
+		return;
+
+	for (i = 0; i < trim; i++) {
+		j = qp->buf_pool.num_alloc - 1;
+		if (test_bit(j, qp->buf_pool.buf_map)) {
+			ql_dbg(ql_dbg_io + ql_dbg_verbose, qp->vha, 0x300b,
+			       "QP id(%d): trim active buf[%d]. Remain %d bufs\n",
+			       qp->id, j, qp->buf_pool.num_alloc);
+			return;
+		}
+
+		if (qp->buf_pool.buf_array[j]) {
+			dma_pool_free(ha->fcp_cmnd_dma_pool, qp->buf_pool.buf_array[j],
+				      qp->buf_pool.dma_array[j]);
+			qp->buf_pool.buf_array[j] = NULL;
+			qp->buf_pool.dma_array[j] = 0;
+		}
+		qp->buf_pool.num_alloc--;
+		if (!qp->buf_pool.num_alloc)
+			break;
+	}
+	ql_dbg(ql_dbg_io + ql_dbg_verbose, qp->vha, 0x3010,
+	       "QP id(%d): trimmed %d bufs. Remain %d bufs\n",
+	       qp->id, trim, qp->buf_pool.num_alloc);
+}
+
+void __qla_adjust_buf(struct qla_qpair *qp)
+{
+	u32 trim;
+
+	qp->buf_pool.take_snapshot = 0;
+	qp->buf_pool.prev_max = qp->buf_pool.max_used;
+	qp->buf_pool.max_used = qp->buf_pool.num_active;
+
+	if (qp->buf_pool.prev_max > qp->buf_pool.max_used &&
+	    qp->buf_pool.num_alloc > qp->buf_pool.max_used) {
+		/* down trend */
+		trim = qp->buf_pool.num_alloc - qp->buf_pool.max_used;
+		trim  = (trim * 10) / 100;
+		trim = trim ? trim : 1;
+		qla_trim_buf(qp, trim);
+	} else if (!qp->buf_pool.prev_max  && !qp->buf_pool.max_used) {
+		/* 2 periods of no io */
+		qla_trim_buf(qp, qp->buf_pool.num_alloc);
+	}
+}
 
 /* it is assume qp->qp_lock is held at this point */
 void qla_put_buf(struct qla_qpair *qp, struct qla_buf_dsc *dsc)
 {
 	if (dsc->tag == TAG_FREED)
 		return;
+	lockdep_assert_held(qp->qp_lock_ptr);
 
 	clear_bit(dsc->tag, qp->buf_pool.buf_map);
 	qp->buf_pool.num_active--;
 	dsc->tag = TAG_FREED;
+
+	if (qp->buf_pool.take_snapshot)
+		__qla_adjust_buf(qp);
+}
+
+#define EXPIRE (60 * HZ)
+void qla_adjust_buf(struct scsi_qla_host *vha)
+{
+	unsigned long flags;
+	int i;
+	struct qla_qpair *qp;
+
+	if (vha->vp_idx)
+		return;
+
+	if (!vha->buf_expired) {
+		vha->buf_expired = jiffies + EXPIRE;
+		return;
+	}
+	if (time_before(jiffies, vha->buf_expired))
+		return;
+
+	vha->buf_expired = jiffies + EXPIRE;
+
+	for (i = 0; i < vha->hw->num_qpairs; i++) {
+		qp = vha->hw->queue_pair_map[i];
+		if (!qp)
+			continue;
+		if (!qp->buf_pool.num_alloc)
+			continue;
+
+		if (qp->buf_pool.take_snapshot) {
+			/* no io has gone through in the last EXPIRE period */
+			spin_lock_irqsave(qp->qp_lock_ptr, flags);
+			__qla_adjust_buf(qp);
+			spin_unlock_irqrestore(qp->qp_lock_ptr, flags);
+		} else {
+			qp->buf_pool.take_snapshot = 1;
+		}
+	}
 }
