@@ -974,6 +974,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1103g-38x38-ipc-v10.dtb \
 	rv1103g-battery-ipc-v10.dtb \
 	rv1103g-battery-ipc-v11.dtb \
+	rv1103g-evb-mcu-display-v11.dtb \
 	rv1103g-evb-v10.dtb \
 	rv1103g-evb-v11.dtb \
 	rv1103g-rmsl311-dloc-sl-v10.dtb \
