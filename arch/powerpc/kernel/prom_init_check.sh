@@ -51,11 +51,10 @@ do
 	# a leading . on the name, so strip it off here.
 	UNDEF="${UNDEF#.}"
 
-	if [ $KBUILD_VERBOSE ]; then
-		if [ $KBUILD_VERBOSE -ne 0 ]; then
-			echo "Checking prom_init.o symbol '$UNDEF'"
-		fi
-	fi
+	case "$KBUILD_VERBOSE" in
+	*1*)
+		echo "Checking prom_init.o symbol '$UNDEF'" ;;
+	esac
 
 	OK=0
 	for WHITE in $WHITELIST
