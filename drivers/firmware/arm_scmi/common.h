@@ -107,6 +107,11 @@ extern struct bus_type scmi_bus_type;
 #define SCMI_BUS_NOTIFY_DEVICE_UNREQUEST	1
 extern struct blocking_notifier_head scmi_requested_devices_nh;
 
+struct scmi_device *scmi_device_create(struct device_node *np,
+				       struct device *parent, int protocol,
+				       const char *name);
+void scmi_device_destroy(struct device *parent, int protocol, const char *name);
+
 int scmi_protocol_acquire(const struct scmi_handle *handle, u8 protocol_id);
 void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);
 
@@ -167,9 +172,6 @@ struct scmi_transport_ops {
 	void (*clear_channel)(struct scmi_chan_info *cinfo);
 	bool (*poll_done)(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer);
 };
-
-struct scmi_device *scmi_child_dev_find(struct device *parent,
-					int prot_id, const char *name);
 
 /**
  * struct scmi_desc - Description of SoC integration
