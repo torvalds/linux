@@ -318,7 +318,8 @@
 
 		pm6125_l11: l11 {
 			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1952000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-allow-set-load;
 		};
 
 		pm6125_l12: l12 {
@@ -383,7 +384,8 @@
 
 		pm6125_l24: l24 {
 			regulator-min-microvolt = <2944000>;
-			regulator-max-microvolt = <3304000>;
+			regulator-max-microvolt = <2950000>;
+			regulator-allow-set-load;
 		};
 	};
 };
@@ -407,6 +409,8 @@
 };
 
 &sdhc_1 {
+	vmmc-supply = <&pm6125_l24>;
+	vqmmc-supply = <&pm6125_l11>;
 	status = "okay";
 };
 
