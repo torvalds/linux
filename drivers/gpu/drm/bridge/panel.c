@@ -404,6 +404,8 @@ struct drm_bridge *drmm_panel_bridge_add(struct drm_device *drm,
 	if (ret)
 		return ERR_PTR(ret);
 
+	bridge->pre_enable_prev_first = panel->prepare_prev_first;
+
 	return bridge;
 }
 EXPORT_SYMBOL(drmm_panel_bridge_add);
