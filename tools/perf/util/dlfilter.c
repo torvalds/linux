@@ -579,7 +579,7 @@ static void list_filters(const char *dirname)
 		if (!get_filter_desc(dirname, entry->d_name, &desc, &long_desc))
 			continue;
 		printf("  %-36s %s\n", entry->d_name, desc ? desc : "");
-		if (verbose) {
+		if (verbose > 0) {
 			char *p = long_desc;
 			char *line;
 

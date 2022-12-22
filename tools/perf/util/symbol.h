@@ -165,6 +165,7 @@ int modules__parse(const char *filename, void *arg,
 					 u64 start, u64 size));
 int filename__read_debuglink(const char *filename, char *debuglink,
 			     size_t size);
+bool filename__has_section(const char *filename, const char *sec);
 
 struct perf_env;
 int symbol__init(struct perf_env *env);

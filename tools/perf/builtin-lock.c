@@ -32,6 +32,7 @@
 #include <semaphore.h>
 #include <math.h>
 #include <limits.h>
+#include <ctype.h>
 
 #include <linux/list.h>
 #include <linux/hash.h>
@@ -62,6 +63,8 @@ static unsigned long bpf_map_entries = 10240;
 static int max_stack_depth = CONTENTION_STACK_DEPTH;
 static int stack_skip = CONTENTION_STACK_SKIP;
 static int print_nr_entries = INT_MAX / 2;
+
+static struct lock_filter filters;
 
 static enum lock_aggr_mode aggr_mode = LOCK_AGGR_ADDR;
 
@@ -990,27 +993,55 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
 	u64 addr = evsel__intval(evsel, sample, "lock_addr");
+	unsigned int flags = evsel__intval(evsel, sample, "flags");
 	u64 key;
-	int ret;
+	int i, ret;
+	static bool kmap_loaded;
+	struct machine *machine = &session->machines.host;
+	struct map *kmap;
+	struct symbol *sym;
 
 	ret = get_key_by_aggr_mode(&key, addr, evsel, sample);
 	if (ret < 0)
 		return ret;
 
+	if (!kmap_loaded) {
+		unsigned long *addrs;
+
+		/* make sure it loads the kernel map to find lock symbols */
+		map__load(machine__kernel_map(machine));
+		kmap_loaded = true;
+
+		/* convert (kernel) symbols to addresses */
+		for (i = 0; i < filters.nr_syms; i++) {
+			sym = machine__find_kernel_symbol_by_name(machine,
+								  filters.syms[i],
+								  &kmap);
+			if (sym == NULL) {
+				pr_warning("ignore unknown symbol: %s\n",
+					   filters.syms[i]);
+				continue;
+			}
+
+			addrs = realloc(filters.addrs,
+					(filters.nr_addrs + 1) * sizeof(*addrs));
+			if (addrs == NULL) {
+				pr_warning("memory allocation failure\n");
+				return -ENOMEM;
+			}
+
+			addrs[filters.nr_addrs++] = kmap->unmap_ip(kmap, sym->start);
+			filters.addrs = addrs;
+		}
+	}
+
 	ls = lock_stat_find(key);
 	if (!ls) {
 		char buf[128];
 		const char *name = "";
-		unsigned int flags = evsel__intval(evsel, sample, "flags");
-		struct machine *machine = &session->machines.host;
-		struct map *kmap;
-		struct symbol *sym;
 
 		switch (aggr_mode) {
 		case LOCK_AGGR_ADDR:
-			/* make sure it loads the kernel map to find lock symbols */
-			map__load(machine__kernel_map(machine));
-
 			sym = machine__find_kernel_symbol(machine, key, &kmap);
 			if (sym)
 				name = sym->name;
@@ -1029,11 +1060,39 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 		if (!ls)
 			return -ENOMEM;
 
-		if (aggr_mode == LOCK_AGGR_CALLER && verbose) {
+		if (aggr_mode == LOCK_AGGR_CALLER && verbose > 0) {
 			ls->callstack = get_callstack(sample, max_stack_depth);
 			if (ls->callstack == NULL)
 				return -ENOMEM;
 		}
+	}
+
+	if (filters.nr_types) {
+		bool found = false;
+
+		for (i = 0; i < filters.nr_types; i++) {
+			if (flags == filters.types[i]) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			return 0;
+	}
+
+	if (filters.nr_addrs) {
+		bool found = false;
+
+		for (i = 0; i < filters.nr_addrs; i++) {
+			if (addr == filters.addrs[i]) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			return 0;
 	}
 
 	ts = thread_stat_findnew(sample->tid);
@@ -1214,7 +1273,7 @@ static void print_bad_events(int bad, int total)
 	for (i = 0; i < BROKEN_MAX; i++)
 		broken += bad_hist[i];
 
-	if (quiet || (broken == 0 && !verbose))
+	if (quiet || (broken == 0 && verbose <= 0))
 		return;
 
 	pr_info("\n=== output for debug===\n\n");
@@ -1437,32 +1496,58 @@ static void sort_result(void)
 	}
 }
 
-static const char *get_type_str(struct lock_stat *st)
-{
-	static const struct {
-		unsigned int flags;
-		const char *name;
-	} table[] = {
-		{ 0,				"semaphore" },
-		{ LCB_F_SPIN,			"spinlock" },
-		{ LCB_F_SPIN | LCB_F_READ,	"rwlock:R" },
-		{ LCB_F_SPIN | LCB_F_WRITE,	"rwlock:W"},
-		{ LCB_F_READ,			"rwsem:R" },
-		{ LCB_F_WRITE,			"rwsem:W" },
-		{ LCB_F_RT,			"rtmutex" },
-		{ LCB_F_RT | LCB_F_READ,	"rwlock-rt:R" },
-		{ LCB_F_RT | LCB_F_WRITE,	"rwlock-rt:W"},
-		{ LCB_F_PERCPU | LCB_F_READ,	"pcpu-sem:R" },
-		{ LCB_F_PERCPU | LCB_F_WRITE,	"pcpu-sem:W" },
-		{ LCB_F_MUTEX,			"mutex" },
-		{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex" },
-	};
+static const struct {
+	unsigned int flags;
+	const char *name;
+} lock_type_table[] = {
+	{ 0,				"semaphore" },
+	{ LCB_F_SPIN,			"spinlock" },
+	{ LCB_F_SPIN | LCB_F_READ,	"rwlock:R" },
+	{ LCB_F_SPIN | LCB_F_WRITE,	"rwlock:W"},
+	{ LCB_F_READ,			"rwsem:R" },
+	{ LCB_F_WRITE,			"rwsem:W" },
+	{ LCB_F_RT,			"rtmutex" },
+	{ LCB_F_RT | LCB_F_READ,	"rwlock-rt:R" },
+	{ LCB_F_RT | LCB_F_WRITE,	"rwlock-rt:W"},
+	{ LCB_F_PERCPU | LCB_F_READ,	"pcpu-sem:R" },
+	{ LCB_F_PERCPU | LCB_F_WRITE,	"pcpu-sem:W" },
+	{ LCB_F_MUTEX,			"mutex" },
+	{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex" },
+	/* alias for get_type_flag() */
+	{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex-spin" },
+};
 
-	for (unsigned int i = 0; i < ARRAY_SIZE(table); i++) {
-		if (table[i].flags == st->flags)
-			return table[i].name;
+static const char *get_type_str(unsigned int flags)
+{
+	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
+		if (lock_type_table[i].flags == flags)
+			return lock_type_table[i].name;
 	}
 	return "unknown";
+}
+
+static unsigned int get_type_flag(const char *str)
+{
+	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
+		if (!strcmp(lock_type_table[i].name, str))
+			return lock_type_table[i].flags;
+	}
+	return UINT_MAX;
+}
+
+static void lock_filter_finish(void)
+{
+	zfree(&filters.types);
+	filters.nr_types = 0;
+
+	zfree(&filters.addrs);
+	filters.nr_addrs = 0;
+
+	for (int i = 0; i < filters.nr_syms; i++)
+		free(filters.syms[i]);
+
+	zfree(&filters.syms);
+	filters.nr_syms = 0;
 }
 
 static void sort_contention_result(void)
@@ -1507,6 +1592,9 @@ static void print_contention_result(struct lock_contention *con)
 		if (st->broken)
 			bad++;
 
+		if (!st->wait_time_total)
+			continue;
+
 		list_for_each_entry(key, &lock_keys, list) {
 			key->print(key, st);
 			pr_info(" ");
@@ -1514,7 +1602,7 @@ static void print_contention_result(struct lock_contention *con)
 
 		switch (aggr_mode) {
 		case LOCK_AGGR_CALLER:
-			pr_info("  %10s   %s\n", get_type_str(st), st->name);
+			pr_info("  %10s   %s\n", get_type_str(st->flags), st->name);
 			break;
 		case LOCK_AGGR_TASK:
 			pid = st->addr;
@@ -1529,7 +1617,7 @@ static void print_contention_result(struct lock_contention *con)
 			break;
 		}
 
-		if (aggr_mode == LOCK_AGGR_CALLER && verbose) {
+		if (aggr_mode == LOCK_AGGR_CALLER && verbose > 0) {
 			struct map *kmap;
 			struct symbol *sym;
 			char buf[128];
@@ -1653,6 +1741,7 @@ static int __cmd_contention(int argc, const char **argv)
 		.map_nr_entries = bpf_map_entries,
 		.max_stack = max_stack_depth,
 		.stack_skip = stack_skip,
+		.filters = &filters,
 	};
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
@@ -1753,6 +1842,7 @@ static int __cmd_contention(int argc, const char **argv)
 	print_contention_result(&con);
 
 out_delete:
+	lock_filter_finish();
 	evlist__delete(con.evlist);
 	lock_contention_finish();
 	perf_session__delete(session);
@@ -1884,6 +1974,153 @@ static int parse_max_stack(const struct option *opt, const char *str,
 	return 0;
 }
 
+static bool add_lock_type(unsigned int flags)
+{
+	unsigned int *tmp;
+
+	tmp = realloc(filters.types, (filters.nr_types + 1) * sizeof(*filters.types));
+	if (tmp == NULL)
+		return false;
+
+	tmp[filters.nr_types++] = flags;
+	filters.types = tmp;
+	return true;
+}
+
+static int parse_lock_type(const struct option *opt __maybe_unused, const char *str,
+			   int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		unsigned int flags = get_type_flag(tok);
+
+		if (flags == -1U) {
+			char buf[32];
+
+			if (strchr(tok, ':'))
+			    continue;
+
+			/* try :R and :W suffixes for rwlock, rwsem, ... */
+			scnprintf(buf, sizeof(buf), "%s:R", tok);
+			flags = get_type_flag(buf);
+			if (flags != UINT_MAX) {
+				if (!add_lock_type(flags)) {
+					ret = -1;
+					break;
+				}
+			}
+
+			scnprintf(buf, sizeof(buf), "%s:W", tok);
+			flags = get_type_flag(buf);
+			if (flags != UINT_MAX) {
+				if (!add_lock_type(flags)) {
+					ret = -1;
+					break;
+				}
+			}
+			continue;
+		}
+
+		if (!add_lock_type(flags)) {
+			ret = -1;
+			break;
+		}
+
+		if (!strcmp(tok, "mutex")) {
+			flags = get_type_flag("mutex-spin");
+			if (flags != UINT_MAX) {
+				if (!add_lock_type(flags)) {
+					ret = -1;
+					break;
+				}
+			}
+		}
+	}
+
+	free(s);
+	return ret;
+}
+
+static bool add_lock_addr(unsigned long addr)
+{
+	unsigned long *tmp;
+
+	tmp = realloc(filters.addrs, (filters.nr_addrs + 1) * sizeof(*filters.addrs));
+	if (tmp == NULL) {
+		pr_err("Memory allocation failure\n");
+		return false;
+	}
+
+	tmp[filters.nr_addrs++] = addr;
+	filters.addrs = tmp;
+	return true;
+}
+
+static bool add_lock_sym(char *name)
+{
+	char **tmp;
+	char *sym = strdup(name);
+
+	if (sym == NULL) {
+		pr_err("Memory allocation failure\n");
+		return false;
+	}
+
+	tmp = realloc(filters.syms, (filters.nr_syms + 1) * sizeof(*filters.syms));
+	if (tmp == NULL) {
+		pr_err("Memory allocation failure\n");
+		free(sym);
+		return false;
+	}
+
+	tmp[filters.nr_syms++] = sym;
+	filters.syms = tmp;
+	return true;
+}
+
+static int parse_lock_addr(const struct option *opt __maybe_unused, const char *str,
+			   int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+	u64 addr;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		char *end;
+
+		addr = strtoul(tok, &end, 16);
+		if (*end == '\0') {
+			if (!add_lock_addr(addr)) {
+				ret = -1;
+				break;
+			}
+			continue;
+		}
+
+		/*
+		 * At this moment, we don't have kernel symbols.  Save the symbols
+		 * in a separate list and resolve them to addresses later.
+		 */
+		if (!add_lock_sym(tok)) {
+			ret = -1;
+			break;
+		}
+	}
+
+	free(s);
+	return ret;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
@@ -1947,6 +2184,10 @@ int cmd_lock(int argc, const char **argv)
 		    "Default: " __stringify(CONTENTION_STACK_SKIP)),
 	OPT_INTEGER('E', "entries", &print_nr_entries, "display this many functions"),
 	OPT_BOOLEAN('l', "lock-addr", &show_lock_addrs, "show lock stats by address"),
+	OPT_CALLBACK('Y', "type-filter", NULL, "FLAGS",
+		     "Filter specific type of locks", parse_lock_type),
+	OPT_CALLBACK('L', "lock-filter", NULL, "ADDRS/NAMES",
+		     "Filter specific address/symbol of locks", parse_lock_addr),
 	OPT_PARENT(lock_options)
 	};
 
