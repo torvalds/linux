@@ -186,7 +186,7 @@
 			};
 		};
 
-		smmu: mmu@3000000 {
+		smmu: iommu@3000000 {
 			compatible = "arm,mmu-500";
 			reg = <0x03000000 0x80000>;
 			#global-interrupts = <1>;
