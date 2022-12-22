@@ -282,27 +282,25 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 	 */
 	for (a = start; a < end; a++) {
 		int insn_buff_sz = 0;
-		/* Mask away "NOT" flag bit for feature to test. */
-		u16 feature = a->cpuid & ~ALTINSTR_FLAG_INV;
 
 		instr = (u8 *)&a->instr_offset + a->instr_offset;
 		replacement = (u8 *)&a->repl_offset + a->repl_offset;
 		BUG_ON(a->instrlen > sizeof(insn_buff));
-		BUG_ON(feature >= (NCAPINTS + NBUGINTS) * 32);
+		BUG_ON(a->cpuid >= (NCAPINTS + NBUGINTS) * 32);
 
 		/*
 		 * Patch if either:
 		 * - feature is present
-		 * - feature not present but ALTINSTR_FLAG_INV is set to mean,
+		 * - feature not present but ALT_FLAG_NOT is set to mean,
 		 *   patch if feature is *NOT* present.
 		 */
-		if (!boot_cpu_has(feature) == !(a->cpuid & ALTINSTR_FLAG_INV))
+		if (!boot_cpu_has(a->cpuid) == !(a->flags & ALT_FLAG_NOT))
 			goto next;
 
 		DPRINTK("feat: %s%d*32+%d, old: (%pS (%px) len: %d), repl: (%px, len: %d)",
-			(a->cpuid & ALTINSTR_FLAG_INV) ? "!" : "",
-			feature >> 5,
-			feature & 0x1f,
+			(a->flags & ALT_FLAG_NOT) ? "!" : "",
+			a->cpuid >> 5,
+			a->cpuid & 0x1f,
 			instr, instr, a->instrlen,
 			replacement, a->replacementlen);
 
