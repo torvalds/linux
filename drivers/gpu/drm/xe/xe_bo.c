@@ -971,6 +971,9 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	/* Only kernel objects should set GT */
 	XE_BUG_ON(gt && type != ttm_bo_type_kernel);
 
+	if (XE_WARN_ON(!size))
+		return ERR_PTR(-EINVAL);
+
 	if (!bo) {
 		bo = xe_bo_alloc();
 		if (IS_ERR(bo))
@@ -1522,6 +1525,9 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (XE_IOCTL_ERR(xe, args->handle))
+		return -EINVAL;
+
+	if (XE_IOCTL_ERR(xe, !args->size))
 		return -EINVAL;
 
 	if (XE_IOCTL_ERR(xe, args->size > SIZE_MAX))
