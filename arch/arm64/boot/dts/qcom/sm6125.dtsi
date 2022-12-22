@@ -470,6 +470,7 @@
 				 <&gcc GCC_SDCC1_APPS_CLK>,
 				 <&xo_board>;
 			clock-names = "iface", "core", "xo";
+			iommus = <&apps_smmu 0x160 0x0>;
 
 			power-domains = <&rpmpd SM6125_VDDCX>;
 
@@ -496,6 +497,7 @@
 				 <&gcc GCC_SDCC2_APPS_CLK>,
 				 <&xo_board>;
 			clock-names = "iface", "core", "xo";
+			iommus = <&apps_smmu 0x180 0x0>;
 
 			pinctrl-0 = <&sdc2_on_state>;
 			pinctrl-1 = <&sdc2_off_state>;
