@@ -84,10 +84,10 @@ struct tinker_ft5406_data {
 	int is_polling;
 	int known_ids;
 	int retry_count;
+	bool finish_work;
 };
 
 struct tinker_ft5406_data *g_ts_data;
-int g_mcu_ready;
 
 static int fts_i2c_read(struct i2c_client *client, char *writebuf,
 			   int writelen, char *readbuf, int readlen)
@@ -287,7 +287,7 @@ static void tinker_ft5406_work(struct work_struct *work)
 	}
 
 	/* polling 60fps */
-	while (1) {
+	while (!g_ts_data->finish_work) {
 		td_status = fts_read_td_status(g_ts_data);
 		if (td_status < 0) {
 			ret = fts_retry_wait(g_ts_data);
@@ -309,27 +309,24 @@ static void tinker_ft5406_work(struct work_struct *work)
 	}
 }
 
-void tinker_ft5406_start_polling(void)
+static int tinker_ft5406_open(struct input_dev *dev)
 {
-	if (g_ts_data == NULL) {
-		LOG_ERR("touch is not ready\n");
-	} else if (g_ts_data->is_polling == 1) {
-		LOG_ERR("touch is busy\n");
-	} else {
-		g_ts_data->is_polling = 1;
-		schedule_work(&g_ts_data->ft5406_work);
-	}
-	g_mcu_ready = 1;
+	schedule_work(&g_ts_data->ft5406_work);
+	return 0;
 }
-EXPORT_SYMBOL_GPL(tinker_ft5406_start_polling);
+
+static void tinker_ft5406_close(struct input_dev *dev)
+{
+	g_ts_data->finish_work = true;
+	cancel_work_sync(&g_ts_data->ft5406_work);
+	g_ts_data->finish_work = false;
+}
 
 static int tinker_ft5406_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct input_dev *input_dev;
 	int ret = 0;
-
-	g_mcu_ready = 1;
 
 	LOG_INFO("address = 0x%x\n", client->addr);
 
@@ -357,6 +354,8 @@ static int tinker_ft5406_probe(struct i2c_client *client,
 	input_dev->name = "fts_ts";
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &g_ts_data->client->dev;
+	input_dev->open = tinker_ft5406_open;
+	input_dev->close = tinker_ft5406_close;
 
 	g_ts_data->input_dev = input_dev;
 	input_set_drvdata(input_dev, g_ts_data);
@@ -377,8 +376,6 @@ static int tinker_ft5406_probe(struct i2c_client *client,
 	}
 
 	INIT_WORK(&g_ts_data->ft5406_work, tinker_ft5406_work);
-	if (g_mcu_ready == 1)
-		schedule_work(&g_ts_data->ft5406_work);
 
 	return 0;
 
@@ -399,7 +396,6 @@ static int tinker_ft5406_remove(struct i2c_client *client)
 	}
 	kfree(g_ts_data);
 	g_ts_data = NULL;
-	g_mcu_ready = 0;
 	return 0;
 }
 
