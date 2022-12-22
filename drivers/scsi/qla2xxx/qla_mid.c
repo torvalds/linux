@@ -384,15 +384,6 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 		}
 	}
 
-	if (test_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags)) {
-		ql_dbg(ql_dbg_dpc, vha, 0x4016,
-		    "FCPort update scheduled.\n");
-		qla2x00_update_fcports(vha);
-		clear_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags);
-		ql_dbg(ql_dbg_dpc, vha, 0x4017,
-		    "FCPort update end.\n");
-	}
-
 	if (test_bit(RELOGIN_NEEDED, &vha->dpc_flags) &&
 	    !test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags) &&
 	    atomic_read(&vha->loop_state) != LOOP_DOWN) {

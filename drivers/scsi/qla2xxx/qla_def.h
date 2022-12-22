@@ -2596,7 +2596,7 @@ typedef struct fc_port {
 
 	int login_retry;
 
-	struct fc_rport *rport, *drport;
+	struct fc_rport *rport;
 	u32 supported_classes;
 
 	uint8_t fc4_type;
@@ -4876,7 +4876,6 @@ typedef struct scsi_qla_host {
 #define ISP_ABORT_RETRY		10	/* ISP aborted. */
 #define BEACON_BLINK_NEEDED	11
 #define REGISTER_FDMI_NEEDED	12
-#define FCPORT_UPDATE_NEEDED	13
 #define VP_DPC_NEEDED		14	/* wake up for VP dpc handling */
 #define UNLOADING		15
 #define NPIV_CONFIG_NEEDED	16

@@ -5224,27 +5224,6 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	return (rval);
 }
 
-static void
-qla2x00_rport_del(void *data)
-{
-	fc_port_t *fcport = data;
-	struct fc_rport *rport;
-	unsigned long flags;
-
-	spin_lock_irqsave(fcport->vha->host->host_lock, flags);
-	rport = fcport->drport ? fcport->drport : fcport->rport;
-	fcport->drport = NULL;
-	spin_unlock_irqrestore(fcport->vha->host->host_lock, flags);
-	if (rport) {
-		ql_dbg(ql_dbg_disc, fcport->vha, 0x210b,
-		    "%s %8phN. rport %p roles %x\n",
-		    __func__, fcport->port_name, rport,
-		    rport->roles);
-
-		fc_remote_port_delete(rport);
-	}
-}
-
 void qla2x00_set_fcport_state(fc_port_t *fcport, int state)
 {
 	int old_state;
@@ -6759,33 +6738,6 @@ int qla2x00_perform_loop_resync(scsi_qla_host_t *ha)
 	}
 
 	return rval;
-}
-
-void
-qla2x00_update_fcports(scsi_qla_host_t *base_vha)
-{
-	fc_port_t *fcport;
-	struct scsi_qla_host *vha, *tvp;
-	struct qla_hw_data *ha = base_vha->hw;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ha->vport_slock, flags);
-	/* Go with deferred removal of rport references. */
-	list_for_each_entry_safe(vha, tvp, &base_vha->hw->vp_list, list) {
-		atomic_inc(&vha->vref_count);
-		list_for_each_entry(fcport, &vha->vp_fcports, list) {
-			if (fcport->drport &&
-			    atomic_read(&fcport->state) != FCS_UNCONFIGURED) {
-				spin_unlock_irqrestore(&ha->vport_slock, flags);
-				qla2x00_rport_del(fcport);
-
-				spin_lock_irqsave(&ha->vport_slock, flags);
-			}
-		}
-		atomic_dec(&vha->vref_count);
-		wake_up(&vha->vref_waitq);
-	}
-	spin_unlock_irqrestore(&ha->vport_slock, flags);
 }
 
 /* Assumes idc_lock always held on entry */
