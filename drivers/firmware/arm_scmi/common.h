@@ -106,9 +106,6 @@ void scmi_setup_protocol_implemented(const struct scmi_protocol_handle *ph,
 int __init scmi_bus_init(void);
 void __exit scmi_bus_exit(void);
 
-const struct scmi_protocol *scmi_protocol_get(int protocol_id);
-void scmi_protocol_put(int protocol_id);
-
 int scmi_protocol_acquire(const struct scmi_handle *handle, u8 protocol_id);
 void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);
 

@@ -16,8 +16,6 @@
 #include "common.h"
 
 static DEFINE_IDA(scmi_bus_id);
-static DEFINE_IDR(scmi_protocols);
-static DEFINE_SPINLOCK(protocol_lock);
 
 static const struct scmi_device_id *
 scmi_dev_match_id(struct scmi_device *scmi_dev, struct scmi_driver *scmi_drv)
@@ -74,30 +72,6 @@ struct scmi_device *scmi_child_dev_find(struct device *parent,
 		return NULL;
 
 	return to_scmi_dev(dev);
-}
-
-const struct scmi_protocol *scmi_protocol_get(int protocol_id)
-{
-	const struct scmi_protocol *proto;
-
-	proto = idr_find(&scmi_protocols, protocol_id);
-	if (!proto || !try_module_get(proto->owner)) {
-		pr_warn("SCMI Protocol 0x%x not found!\n", protocol_id);
-		return NULL;
-	}
-
-	pr_debug("Found SCMI Protocol 0x%x\n", protocol_id);
-
-	return proto;
-}
-
-void scmi_protocol_put(int protocol_id)
-{
-	const struct scmi_protocol *proto;
-
-	proto = idr_find(&scmi_protocols, protocol_id);
-	if (proto)
-		module_put(proto->owner);
 }
 
 static int scmi_dev_probe(struct device *dev)
@@ -231,48 +205,6 @@ void scmi_set_handle(struct scmi_device *scmi_dev)
 	if (scmi_dev->handle)
 		scmi_device_link_add(&scmi_dev->dev, scmi_dev->handle->dev);
 }
-
-int scmi_protocol_register(const struct scmi_protocol *proto)
-{
-	int ret;
-
-	if (!proto) {
-		pr_err("invalid protocol\n");
-		return -EINVAL;
-	}
-
-	if (!proto->instance_init) {
-		pr_err("missing init for protocol 0x%x\n", proto->id);
-		return -EINVAL;
-	}
-
-	spin_lock(&protocol_lock);
-	ret = idr_alloc(&scmi_protocols, (void *)proto,
-			proto->id, proto->id + 1, GFP_ATOMIC);
-	spin_unlock(&protocol_lock);
-	if (ret != proto->id) {
-		pr_err("unable to allocate SCMI idr slot for 0x%x - err %d\n",
-		       proto->id, ret);
-		return ret;
-	}
-
-	pr_debug("Registered SCMI Protocol 0x%x\n", proto->id);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(scmi_protocol_register);
-
-void scmi_protocol_unregister(const struct scmi_protocol *proto)
-{
-	spin_lock(&protocol_lock);
-	idr_remove(&scmi_protocols, proto->id);
-	spin_unlock(&protocol_lock);
-
-	pr_debug("Unregistered SCMI Protocol 0x%x\n", proto->id);
-
-	return;
-}
-EXPORT_SYMBOL_GPL(scmi_protocol_unregister);
 
 static int __scmi_devices_unregister(struct device *dev, void *data)
 {
