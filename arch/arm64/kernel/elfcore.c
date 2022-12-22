@@ -76,7 +76,7 @@ static int mte_dump_tag_range(struct coredump_params *cprm,
 	return ret;
 }
 
-Elf_Half elf_core_extra_phdrs(void)
+Elf_Half elf_core_extra_phdrs(struct coredump_params *cprm)
 {
 	struct vm_area_struct *vma;
 	int vma_count = 0;
@@ -113,7 +113,7 @@ int elf_core_write_extra_phdrs(struct coredump_params *cprm, loff_t offset)
 	return 1;
 }
 
-size_t elf_core_extra_data_size(void)
+size_t elf_core_extra_data_size(struct coredump_params *cprm)
 {
 	struct vm_area_struct *vma;
 	size_t data_size = 0;
