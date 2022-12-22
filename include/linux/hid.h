@@ -856,7 +856,6 @@ struct hid_ll_driver {
 };
 
 extern struct hid_ll_driver i2c_hid_ll_driver;
-extern struct hid_ll_driver hidp_hid_driver;
 
 extern bool hid_is_usb(const struct hid_device *hdev);
 
