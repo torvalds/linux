@@ -925,7 +925,9 @@ qla_edif_app_getfcinfo(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 			if (!(fcport->flags & FCF_FCSP_DEVICE))
 				continue;
 
-			tdid = app_req.remote_pid;
+			tdid.b.domain = app_req.remote_pid.domain;
+			tdid.b.area = app_req.remote_pid.area;
+			tdid.b.al_pa = app_req.remote_pid.al_pa;
 
 			ql_dbg(ql_dbg_edif, vha, 0x2058,
 			    "APP request entry - portid=%06x.\n", tdid.b24);
