@@ -14,6 +14,8 @@
  * Copyright (C) 2018-2021 ARM Ltd.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/bitmap.h>
 #include <linux/device.h>
 #include <linux/export.h>
@@ -140,6 +142,7 @@ struct scmi_protocol_instance {
  * @bus_nb: A notifier to listen for device bind/unbind on the scmi bus
  * @dev_req_nb: A notifier to listen for device request/unrequest on the scmi
  *		bus
+ * @devreq_mtx: A mutex to serialize device creation for this SCMI instance
  */
 struct scmi_info {
 	struct device *dev;
@@ -161,6 +164,8 @@ struct scmi_info {
 	int users;
 	struct notifier_block bus_nb;
 	struct notifier_block dev_req_nb;
+	/* Serialize device creation process for this instance */
+	struct mutex devreq_mtx;
 };
 
 #define handle_to_scmi_info(h)	container_of(h, struct scmi_info, handle)
@@ -254,6 +259,40 @@ void scmi_protocol_unregister(const struct scmi_protocol *proto)
 	pr_debug("Unregistered SCMI Protocol 0x%x\n", proto->id);
 }
 EXPORT_SYMBOL_GPL(scmi_protocol_unregister);
+
+/**
+ * scmi_create_protocol_devices  - Create devices for all pending requests for
+ * this SCMI instance.
+ *
+ * @np: The device node describing the protocol
+ * @info: The SCMI instance descriptor
+ * @prot_id: The protocol ID
+ * @name: The optional name of the device to be created: if not provided this
+ *	  call will lead to the creation of all the devices currently requested
+ *	  for the specified protocol.
+ */
+static void scmi_create_protocol_devices(struct device_node *np,
+					 struct scmi_info *info,
+					 int prot_id, const char *name)
+{
+	struct scmi_device *sdev;
+
+	mutex_lock(&info->devreq_mtx);
+	sdev = scmi_device_create(np, info->dev, prot_id, name);
+	if (name && !sdev)
+		dev_err(info->dev,
+			"failed to create device for protocol 0x%X (%s)\n",
+			prot_id, name);
+	mutex_unlock(&info->devreq_mtx);
+}
+
+static void scmi_destroy_protocol_devices(struct scmi_info *info,
+					  int prot_id, const char *name)
+{
+	mutex_lock(&info->devreq_mtx);
+	scmi_device_destroy(info->dev, prot_id, name);
+	mutex_unlock(&info->devreq_mtx);
+}
 
 void scmi_notification_instance_data_set(const struct scmi_handle *handle,
 					 void *priv)
@@ -2283,8 +2322,12 @@ static int scmi_device_request_notifier(struct notifier_block *nb,
 
 	switch (action) {
 	case SCMI_BUS_NOTIFY_DEVICE_REQUEST:
+		scmi_create_protocol_devices(np, info, id_table->protocol_id,
+					     id_table->name);
 		break;
 	case SCMI_BUS_NOTIFY_DEVICE_UNREQUEST:
+		scmi_destroy_protocol_devices(info, id_table->protocol_id,
+					      id_table->name);
 		break;
 	default:
 		return NOTIFY_DONE;
@@ -2318,6 +2361,7 @@ static int scmi_probe(struct platform_device *pdev)
 	idr_init(&info->protocols);
 	mutex_init(&info->protocols_mtx);
 	idr_init(&info->active_protocols);
+	mutex_init(&info->devreq_mtx);
 
 	platform_set_drvdata(pdev, info);
 	idr_init(&info->tx_idr);
@@ -2412,6 +2456,7 @@ static int scmi_probe(struct platform_device *pdev)
 		}
 
 		of_node_get(child);
+		scmi_create_protocol_devices(child, info, prot_id, NULL);
 	}
 
 	return 0;
