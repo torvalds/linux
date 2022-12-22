@@ -1038,8 +1038,7 @@ int svm_migrate_init(struct amdgpu_device *adev)
 		/* Disable SVM support capability */
 		pgmap->type = 0;
 		if (pgmap->type == MEMORY_DEVICE_PRIVATE)
-			devm_release_mem_region(adev->dev, res->start,
-						res->end - res->start + 1);
+			devm_release_mem_region(adev->dev, res->start, resource_size(res));
 		return PTR_ERR(r);
 	}
 
