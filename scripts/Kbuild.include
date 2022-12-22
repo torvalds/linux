@@ -132,7 +132,7 @@ clean := -f $(srctree)/scripts/Makefile.clean obj
 # If quiet is empty, print short log and whole command
 silent_log_print = exec >/dev/null;
  quiet_log_print = $(if $(quiet_cmd_$1), echo '  $(call escsq,$(quiet_cmd_$1)$(why))';)
-       log_print = echo '$(pound) $(call escsq,$(or $(quiet_cmd_$1),cmd_$1 $@))'; \
+       log_print = echo '$(pound) $(call escsq,$(or $(quiet_cmd_$1),cmd_$1 $@)$(why))'; \
                    echo '  $(call escsq,$(cmd_$1))';
 
 # Delete the target on interruption
@@ -233,7 +233,7 @@ if_changed_rule = $(if $(if-changed-cond),$(rule_$(1)),@:)
 # (5) No dir/.target.cmd file (used to store command line)
 # (6) No dir/.target.cmd file and target not listed in $(targets)
 #     This is a good hint that there is a bug in the kbuild file
-ifeq ($(KBUILD_VERBOSE),2)
+ifneq ($(findstring 2, $(KBUILD_VERBOSE)),)
 _why =                                                                        \
     $(if $(filter $@, $(PHONY)),- due to target is PHONY,                    \
         $(if $(wildcard $@),                                                 \

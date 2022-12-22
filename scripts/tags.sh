@@ -8,7 +8,7 @@
 # Uses the following environment variables:
 # SUBARCH, SRCARCH, srctree
 
-if [ "$KBUILD_VERBOSE" = "1" ]; then
+if [[ "$KBUILD_VERBOSE" =~ 1 ]]; then
 	set -x
 fi
 
