@@ -1356,9 +1356,10 @@ static void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context,
 		context->res_ctx.pipe_ctx[i].surface_size_in_mall_bytes = get_surface_size_in_mall(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
 
 		/* MALL Allocation Sizes */
-		/* count from active, top pipes only */
+		/* count from active, top pipes per plane only */
 		if (context->res_ctx.pipe_ctx[i].stream && context->res_ctx.pipe_ctx[i].plane_state &&
-				context->res_ctx.pipe_ctx[i].top_pipe == NULL &&
+				(context->res_ctx.pipe_ctx[i].top_pipe == NULL ||
+				context->res_ctx.pipe_ctx[i].plane_state != context->res_ctx.pipe_ctx[i].top_pipe->plane_state) &&
 				context->res_ctx.pipe_ctx[i].prev_odm_pipe == NULL) {
 			/* SS: all active surfaces stored in MALL */
 			if (context->res_ctx.pipe_ctx[i].stream->mall_stream_config.type != SUBVP_PHANTOM) {
