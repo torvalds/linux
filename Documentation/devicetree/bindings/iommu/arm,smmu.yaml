@@ -368,6 +368,34 @@ allOf:
             - description: interface clock required to access smmu's registers
                 through the TCU's programming interface.
 
+  # Disallow clocks for all other platforms with specific compatibles
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - cavium,smmu-v2
+              - marvell,ap806-smmu-500
+              - nvidia,smmu-500
+              - qcom,qcm2290-smmu-500
+              - qcom,qdu1000-smmu-500
+              - qcom,sc7180-smmu-500
+              - qcom,sc8180x-smmu-500
+              - qcom,sc8280xp-smmu-500
+              - qcom,sdm670-smmu-500
+              - qcom,sdm845-smmu-500
+              - qcom,sdx55-smmu-500
+              - qcom,sdx65-smmu-500
+              - qcom,sm6115-smmu-500
+              - qcom,sm6350-smmu-500
+              - qcom,sm6375-smmu-500
+              - qcom,sm8350-smmu-500
+              - qcom,sm8450-smmu-500
+    then:
+      properties:
+        clock-names: false
+        clocks: false
+
   - if:
       properties:
         compatible:
