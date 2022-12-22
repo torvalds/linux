@@ -1289,6 +1289,35 @@
 		};
 
 		/omit-if-no-ref/
+		rgb3x8_pins: rgb3x8-pins {
+			rockchip,pins =
+				/* lcd_clk */
+				<1 RK_PD3 1 &pcfg_pull_none_drv_level_4>,
+				/* lcd_d0 */
+				<1 RK_PC7 1 &pcfg_pull_none_drv_level_3>,
+				/* lcd_d1 */
+				<1 RK_PC6 1 &pcfg_pull_none_drv_level_3>,
+				/* lcd_d2 */
+				<1 RK_PC5 1 &pcfg_pull_none_drv_level_3>,
+				/* lcd_d3 */
+				<1 RK_PC4 1 &pcfg_pull_none_drv_level_3>,
+				/* lcd_d4 */
+				<1 RK_PC3 1 &pcfg_pull_none_drv_level_3>,
+				/* lcd_d5 */
+				<1 RK_PC2 1 &pcfg_pull_none_drv_level_3>,
+				/* lcd_d6 */
+				<1 RK_PC1 1 &pcfg_pull_none_drv_level_3>,
+				/* lcd_d7 */
+				<1 RK_PC0 1 &pcfg_pull_none_drv_level_3>,
+				/* lcd_den */
+				<1 RK_PD0 1 &pcfg_pull_none_drv_level_3>,
+				/* lcd_hsync */
+				<1 RK_PD1 1 &pcfg_pull_none_drv_level_3>,
+				/* lcd_vsync */
+				<1 RK_PD2 1 &pcfg_pull_none_drv_level_3>;
+		};
+
+		/omit-if-no-ref/
 		rgb565_pins: rgb565-pins {
 			rockchip,pins =
 				/* lcd_clk */
