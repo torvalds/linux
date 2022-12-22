@@ -1544,6 +1544,7 @@ static const struct of_device_id mt8195_mt6359_dt_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, mt8195_mt6359_dt_match);
 
 static struct platform_driver mt8195_mt6359_driver = {
 	.driver = {

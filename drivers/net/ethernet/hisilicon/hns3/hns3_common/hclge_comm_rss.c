@@ -191,23 +191,6 @@ u32 hclge_comm_get_rss_key_size(struct hnae3_handle *handle)
 	return HCLGE_COMM_RSS_KEY_SIZE;
 }
 
-void hclge_comm_get_rss_type(struct hnae3_handle *nic,
-			     struct hclge_comm_rss_tuple_cfg *rss_tuple_sets)
-{
-	if (rss_tuple_sets->ipv4_tcp_en ||
-	    rss_tuple_sets->ipv4_udp_en ||
-	    rss_tuple_sets->ipv4_sctp_en ||
-	    rss_tuple_sets->ipv6_tcp_en ||
-	    rss_tuple_sets->ipv6_udp_en ||
-	    rss_tuple_sets->ipv6_sctp_en)
-		nic->kinfo.rss_type = PKT_HASH_TYPE_L4;
-	else if (rss_tuple_sets->ipv4_fragment_en ||
-		 rss_tuple_sets->ipv6_fragment_en)
-		nic->kinfo.rss_type = PKT_HASH_TYPE_L3;
-	else
-		nic->kinfo.rss_type = PKT_HASH_TYPE_NONE;
-}
-
 int hclge_comm_parse_rss_hfunc(struct hclge_comm_rss_cfg *rss_cfg,
 			       const u8 hfunc, u8 *hash_algo)
 {
@@ -343,9 +326,6 @@ int hclge_comm_set_rss_input_tuple(struct hnae3_handle *nic,
 	req->ipv6_udp_en = rss_cfg->rss_tuple_sets.ipv6_udp_en;
 	req->ipv6_sctp_en = rss_cfg->rss_tuple_sets.ipv6_sctp_en;
 	req->ipv6_fragment_en = rss_cfg->rss_tuple_sets.ipv6_fragment_en;
-
-	if (is_pf)
-		hclge_comm_get_rss_type(nic, &rss_cfg->rss_tuple_sets);
 
 	ret = hclge_comm_cmd_send(hw, &desc, 1);
 	if (ret)

@@ -13,6 +13,9 @@ maintainers:
 description: |
  Intel KeemBay I2S
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     enum:
@@ -64,7 +67,7 @@ required:
   - clock-names
   - interrupts
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -274,6 +274,7 @@ required:
   - "#sound-dai-cells"
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:
@@ -304,7 +305,7 @@ allOf:
               - ssi
               - audmapp
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

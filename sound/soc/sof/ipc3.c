@@ -329,6 +329,8 @@ static int ipc3_tx_msg_unlocked(struct snd_sof_ipc *ipc,
 	struct snd_sof_dev *sdev = ipc->sdev;
 	int ret;
 
+	ipc3_log_header(sdev->dev, "ipc tx", hdr->cmd);
+
 	ret = sof_ipc_send_msg(sdev, msg_data, msg_bytes, reply_bytes);
 
 	if (ret) {
@@ -337,8 +339,6 @@ static int ipc3_tx_msg_unlocked(struct snd_sof_ipc *ipc,
 				    __func__, hdr->cmd, ret);
 		return ret;
 	}
-
-	ipc3_log_header(sdev->dev, "ipc tx", hdr->cmd);
 
 	/* now wait for completion */
 	return ipc3_wait_tx_done(ipc, reply_data);

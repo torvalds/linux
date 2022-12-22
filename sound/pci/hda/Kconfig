@@ -98,7 +98,7 @@ config SND_HDA_SCODEC_CS35L41
 
 config SND_HDA_CS_DSP_CONTROLS
 	tristate
-	select CS_DSP
+	select FW_CS_DSP
 
 config SND_HDA_SCODEC_CS35L41_I2C
 	tristate "Build CS35L41 HD-audio side codec support for I2C Bus"

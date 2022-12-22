@@ -397,12 +397,6 @@ int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 	return 0;
 }
 
-static inline bool mtk_foe_entry_usable(struct mtk_foe_entry *entry)
-{
-	return !(entry->ib1 & MTK_FOE_IB1_STATIC) &&
-	       FIELD_GET(MTK_FOE_IB1_STATE, entry->ib1) != MTK_FOE_STATE_BIND;
-}
-
 static bool
 mtk_flow_entry_match(struct mtk_eth *eth, struct mtk_flow_entry *entry,
 		     struct mtk_foe_entry *data)

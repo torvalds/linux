@@ -102,8 +102,10 @@ parse_branch_stack(const struct option *opt, const char *str, int unset)
 	/*
 	 * cannot set it twice, -b + --branch-filter for instance
 	 */
-	if (*mode)
+	if (*mode) {
+		pr_err("Error: Can't use --branch-any (-b) with --branch-filter (-j).\n");
 		return -1;
+	}
 
 	return parse_branch_str(str, mode);
 }

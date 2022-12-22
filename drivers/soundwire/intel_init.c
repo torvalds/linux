@@ -125,30 +125,6 @@ static int sdw_intel_cleanup(struct sdw_intel_ctx *ctx)
 	return 0;
 }
 
-#define HDA_DSP_REG_ADSPIC2             (0x10)
-#define HDA_DSP_REG_ADSPIS2             (0x14)
-#define HDA_DSP_REG_ADSPIC2_SNDW        BIT(5)
-
-/**
- * sdw_intel_enable_irq() - enable/disable Intel SoundWire IRQ
- * @mmio_base: The mmio base of the control register
- * @enable: true if enable
- */
-void sdw_intel_enable_irq(void __iomem *mmio_base, bool enable)
-{
-	u32 val;
-
-	val = readl(mmio_base + HDA_DSP_REG_ADSPIC2);
-
-	if (enable)
-		val |= HDA_DSP_REG_ADSPIC2_SNDW;
-	else
-		val &= ~HDA_DSP_REG_ADSPIC2_SNDW;
-
-	writel(val, mmio_base + HDA_DSP_REG_ADSPIC2);
-}
-EXPORT_SYMBOL_NS(sdw_intel_enable_irq, SOUNDWIRE_INTEL_INIT);
-
 irqreturn_t sdw_intel_thread(int irq, void *dev_id)
 {
 	struct sdw_intel_ctx *ctx = dev_id;
@@ -157,7 +133,6 @@ irqreturn_t sdw_intel_thread(int irq, void *dev_id)
 	list_for_each_entry(link, &ctx->link_list, list)
 		sdw_cdns_irq(irq, link->cdns);
 
-	sdw_intel_enable_irq(ctx->mmio_base, true);
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_NS(sdw_intel_thread, SOUNDWIRE_INTEL_INIT);
@@ -297,23 +272,11 @@ sdw_intel_startup_controller(struct sdw_intel_ctx *ctx)
 {
 	struct acpi_device *adev = acpi_fetch_acpi_dev(ctx->handle);
 	struct sdw_intel_link_dev *ldev;
-	u32 caps;
 	u32 link_mask;
 	int i;
 
 	if (!adev)
 		return -EINVAL;
-
-	/* Check SNDWLCAP.LCOUNT */
-	caps = ioread32(ctx->mmio_base + ctx->shim_base + SDW_SHIM_LCAP);
-	caps &= SDW_SHIM_LCAP_LCOUNT_MASK;
-
-	/* Check HW supported vs property value */
-	if (caps < ctx->count) {
-		dev_err(&adev->dev,
-			"BIOS master count is larger than hardware capabilities\n");
-		return -EINVAL;
-	}
 
 	if (!ctx->ldev)
 		return -EINVAL;
