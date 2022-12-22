@@ -5691,6 +5691,7 @@ static int dwc3_msm_parse_params(struct dwc3_msm *mdwc, struct device_node *node
 		pr_warn("diag: failed to find diag_dload imem node\n");
 
 	diag_dload  = diag_node ? of_iomap(diag_node, 0) : NULL;
+	of_node_put(diag_node);
 
 	return 0;
 }
@@ -5879,6 +5880,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	}
 
 	ret = dwc3_msm_parse_core_params(mdwc, dwc3_node);
+	of_node_put(dwc3_node);
 	if (ret < 0)
 		goto err;
 
