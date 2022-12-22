@@ -2853,8 +2853,6 @@
 			qup_spi0_default: qup-spi0-default-state {
 				pins = "gpio0", "gpio1", "gpio2", "gpio3";
 				function = "qup0";
-				drive-strength = <6>;
-				bias-disable;
 			};
 
 			qup_spi1_default: qup-spi1-default-state {
