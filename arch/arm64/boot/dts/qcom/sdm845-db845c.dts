@@ -825,8 +825,8 @@
 };
 
 &tlmm {
-	cam0_default: cam0_default {
-		rst {
+	cam0_default: cam0-default-state {
+		rst-pins {
 			pins = "gpio9";
 			function = "gpio";
 
@@ -834,7 +834,7 @@
 			bias-disable;
 		};
 
-		mclk0 {
+		mclk0-pins {
 			pins = "gpio13";
 			function = "cam_mclk";
 
@@ -843,8 +843,8 @@
 		};
 	};
 
-	cam3_default: cam3_default {
-		rst {
+	cam3_default: cam3-default-state {
+		rst-pins {
 			function = "gpio";
 			pins = "gpio21";
 
@@ -852,7 +852,7 @@
 			bias-disable;
 		};
 
-		mclk3 {
+		mclk3-pins {
 			function = "cam_mclk";
 			pins = "gpio16";
 
@@ -861,7 +861,7 @@
 		};
 	};
 
-	dsi_sw_sel: dsi-sw-sel {
+	dsi_sw_sel: dsi-sw-sel-state {
 		pins = "gpio120";
 		function = "gpio";
 
@@ -870,20 +870,20 @@
 		output-high;
 	};
 
-	lt9611_irq_pin: lt9611-irq {
+	lt9611_irq_pin: lt9611-irq-state {
 		pins = "gpio84";
 		function = "gpio";
 		bias-disable;
 	};
 
-	pcie0_default_state: pcie0-default {
-		clkreq {
+	pcie0_default_state: pcie0-default-state {
+		clkreq-pins {
 			pins = "gpio36";
 			function = "pci_e0";
 			bias-pull-up;
 		};
 
-		reset-n {
+		reset-n-pins {
 			pins = "gpio35";
 			function = "gpio";
 
@@ -892,7 +892,7 @@
 			bias-pull-down;
 		};
 
-		wake-n {
+		wake-n-pins {
 			pins = "gpio37";
 			function = "gpio";
 
@@ -901,7 +901,7 @@
 		};
 	};
 
-	pcie0_pwren_state: pcie0-pwren {
+	pcie0_pwren_state: pcie0-pwren-state {
 		pins = "gpio90";
 		function = "gpio";
 
@@ -909,8 +909,8 @@
 		bias-disable;
 	};
 
-	pcie1_default_state: pcie1-default {
-		perst-n {
+	pcie1_default_state: pcie1-default-state {
+		perst-n-pins {
 			pins = "gpio102";
 			function = "gpio";
 
@@ -918,13 +918,13 @@
 			bias-disable;
 		};
 
-		clkreq {
+		clkreq-pins {
 			pins = "gpio103";
 			function = "pci_e1";
 			bias-pull-up;
 		};
 
-		wake-n {
+		wake-n-pins {
 			pins = "gpio11";
 			function = "gpio";
 
@@ -932,7 +932,7 @@
 			bias-pull-up;
 		};
 
-		reset-n {
+		reset-n-pins {
 			pins = "gpio75";
 			function = "gpio";
 
@@ -942,8 +942,8 @@
 		};
 	};
 
-	sdc2_default_state: sdc2-default {
-		clk {
+	sdc2_default_state: sdc2-default-state {
+		clk-pins {
 			pins = "sdc2_clk";
 			bias-disable;
 
@@ -954,26 +954,26 @@
 			drive-strength = <16>;
 		};
 
-		cmd {
+		cmd-pins {
 			pins = "sdc2_cmd";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 
-		data {
+		data-pins {
 			pins = "sdc2_data";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 	};
 
-	sdc2_card_det_n: sd-card-det-n {
+	sdc2_card_det_n: sd-card-det-n-state {
 		pins = "gpio126";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	wcd_intr_default: wcd_intr_default {
+	wcd_intr_default: wcd-intr-default-state {
 		pins = "gpio54";
 		function = "gpio";
 
@@ -985,6 +985,8 @@
 
 &uart3 {
 	label = "LS-UART0";
+	pinctrl-0 = <&qup_uart3_4pin>;
+
 	status = "disabled";
 };
 
@@ -1130,39 +1132,22 @@
 
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
 &qup_spi2_default {
-	pinconf {
-		pins = "gpio27", "gpio28", "gpio29", "gpio30";
-		drive-strength = <16>;
-	};
-};
-
-&qup_uart3_default {
-	pinmux {
-		pins = "gpio41", "gpio42", "gpio43", "gpio44";
-		function = "qup3";
-	};
+	drive-strength = <16>;
 };
 
 &qup_i2c10_default {
-	pinconf {
-		pins = "gpio55", "gpio56";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
-&qup_uart9_default {
-	pinconf-tx {
-		pins = "gpio4";
-		drive-strength = <2>;
-		bias-disable;
-	};
+&qup_uart9_rx {
+	drive-strength = <2>;
+	bias-pull-up;
+};
 
-	pinconf-rx {
-		pins = "gpio5";
-		drive-strength = <2>;
-		bias-pull-up;
-	};
+&qup_uart9_tx {
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &pm8998_gpios {
@@ -1171,8 +1156,6 @@
 
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
 &qup_spi0_default {
-	config {
-		drive-strength = <6>;
-		bias-disable;
-	};
+	drive-strength = <6>;
+	bias-disable;
 };

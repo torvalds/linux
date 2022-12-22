@@ -565,24 +565,21 @@
 };
 
 &qup_i2c14_default {
-	pinconf {
-		pins = "gpio33", "gpio34";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <81 4>;
 
-	ts_reset_default: ts-reset-default {
+	ts_reset_default: ts-reset-default-state {
 		pins = "gpio99";
 		function = "gpio";
 		drive-strength = <16>;
 		output-high;
 	};
 
-	ts_int_default: ts-int-default {
+	ts_int_default: ts-int-default-state {
 		pins = "gpio125";
 		function = "gpio";
 		bias-pull-down;
@@ -590,14 +587,14 @@
 		input-enable;
 	};
 
-	ts_reset_sleep: ts-reset-sleep {
+	ts_reset_sleep: ts-reset-sleep-state {
 		pins = "gpio99";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	ts_int_sleep: ts-int-sleep {
+	ts_int_sleep: ts-int-sleep-state {
 		pins = "gpio125";
 		function = "gpio";
 		bias-pull-down;
@@ -605,21 +602,21 @@
 		input-enable;
 	};
 
-	sde_dsi_active: sde-dsi-active {
+	sde_dsi_active: sde-dsi-active-state {
 		pins = "gpio6", "gpio10";
 		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;
 	};
 
-	sde_dsi_suspend: sde-dsi-suspend {
+	sde_dsi_suspend: sde-dsi-suspend-state {
 		pins = "gpio6", "gpio10";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	wcd_intr_default: wcd-intr-default {
+	wcd_intr_default: wcd-intr-default-state {
 		pins = "gpio54";
 		function = "gpio";
 		input-enable;
