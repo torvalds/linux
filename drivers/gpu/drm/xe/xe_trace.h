@@ -33,10 +33,10 @@ DECLARE_EVENT_CLASS(xe_bo,
 		    TP_fast_assign(
 			   __entry->size = bo->size;
 			   __entry->flags = bo->flags;
-			   __entry->vm = (u64)bo->vm;
+			   __entry->vm = (unsigned long)bo->vm;
 			   ),
 
-		    TP_printk("size=%ld, flags=0x%02x, vm=0x%016llx",
+		    TP_printk("size=%zu, flags=0x%02x, vm=0x%016llx",
 			      __entry->size, __entry->flags, __entry->vm)
 );
 
@@ -186,7 +186,7 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			   atomic_read(&job->engine->guc->state);
 			   __entry->flags = job->engine->flags;
 			   __entry->error = job->fence->error;
-			   __entry->fence = (u64)job->fence;
+			   __entry->fence = (unsigned long)job->fence;
 			   __entry->batch_addr = (u64)job->batch_addr[0];
 			   ),
 
@@ -273,7 +273,7 @@ DECLARE_EVENT_CLASS(xe_hw_fence,
 		    TP_fast_assign(
 			   __entry->ctx = fence->dma.context;
 			   __entry->seqno = fence->dma.seqno;
-			   __entry->fence = (u64)fence;
+			   __entry->fence = (unsigned long)fence;
 			   ),
 
 		    TP_printk("ctx=0x%016llx, fence=0x%016llx, seqno=%u",
@@ -313,7 +313,7 @@ DECLARE_EVENT_CLASS(xe_vma,
 			     ),
 
 		    TP_fast_assign(
-			   __entry->vma = (u64)vma;
+			   __entry->vma = (unsigned long)vma;
 			   __entry->asid = vma->vm->usm.asid;
 			   __entry->start = vma->start;
 			   __entry->end = vma->end;
@@ -410,7 +410,7 @@ DECLARE_EVENT_CLASS(xe_vm,
 			     ),
 
 		    TP_fast_assign(
-			   __entry->vm = (u64)vm;
+			   __entry->vm = (unsigned long)vm;
 			   __entry->asid = vm->usm.asid;
 			   ),
 
