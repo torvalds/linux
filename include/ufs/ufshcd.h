@@ -598,6 +598,12 @@ enum ufshcd_quirks {
 	UFSHCD_QUIRK_HIBERN_FASTAUTO			= 1 << 18,
 
 	/*
+	 * This quirk needs to be enabled if the host controller needs
+	 * to reinit the device after switching to maximum gear.
+	 */
+	UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH       = 1 << 19,
+
+	/*
 	 * This quirk needs to be enabled if the host controller supports inline
 	 * encryption, but it needs to initialize the crypto capabilities in a
 	 * nonstandard way and/or it needs to override blk_crypto_ll_ops.  If
