@@ -78,9 +78,6 @@ unexport GREP_OPTIONS
 ifeq ("$(origin V)", "command line")
   KBUILD_VERBOSE = $(V)
 endif
-ifndef KBUILD_VERBOSE
-  KBUILD_VERBOSE = 0
-endif
 
 quiet = quiet_
 Q = @
@@ -102,7 +99,7 @@ endif
 
 ifneq ($(findstring s,$(short-opts)),)
 quiet=silent_
-KBUILD_VERBOSE = 0
+override KBUILD_VERBOSE :=
 endif
 
 export quiet Q KBUILD_VERBOSE
@@ -1774,7 +1771,7 @@ help:
 		printf "  %-16s - Show all of the above\\n" help-boards; \
 		echo '')
 
-	@echo  '  make V=n   [targets] 0: quiet build (default), 1: verbose build'
+	@echo  '  make V=n   [targets] 1: verbose build'
 	@echo  '                       2: give reason for rebuild of target'
 	@echo  '                       V=1 and V=2 can be combined with V=12'
 	@echo  '  make O=dir [targets] Locate all output files in "dir", including .config'

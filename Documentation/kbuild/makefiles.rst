@@ -523,7 +523,7 @@ more details, with real examples.
 			$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
 			@$(kecho) '  Kernel: $(boot)/$@ is ready'
 
-	When kbuild is executing with KBUILD_VERBOSE=0, then only a shorthand
+	When kbuild is executing with KBUILD_VERBOSE unset, then only a shorthand
 	of a command is normally displayed.
 	To enable this behaviour for custom commands kbuild requires
 	two variables to be set::
@@ -544,7 +544,7 @@ more details, with real examples.
 
 		  GEN     lib/crc32table.h
 
-	will be displayed with "make KBUILD_VERBOSE=0".
+	will be displayed with "make KBUILD_VERBOSE=".
 
 3.12 Command change detection
 -----------------------------
