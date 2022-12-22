@@ -310,23 +310,13 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	xe_reg_sr_apply_mmio(&hwe->reg_sr, gt);
 	xe_reg_sr_apply_whitelist(&hwe->reg_whitelist, hwe->mmio_base, gt);
 
-	hwe->hwsp = xe_bo_create_locked(xe, gt, NULL, SZ_4K, ttm_bo_type_kernel,
-					XE_BO_CREATE_VRAM_IF_DGFX(gt) |
-					XE_BO_CREATE_GGTT_BIT);
+	hwe->hwsp = xe_bo_create_pin_map(xe, gt, NULL, SZ_4K, ttm_bo_type_kernel,
+					 XE_BO_CREATE_VRAM_IF_DGFX(gt) |
+					 XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(hwe->hwsp)) {
 		err = PTR_ERR(hwe->hwsp);
 		goto err_name;
 	}
-
-	err = xe_bo_pin(hwe->hwsp);
-	if (err)
-		goto err_unlock_put_hwsp;
-
-	err = xe_bo_vmap(hwe->hwsp);
-	if (err)
-		goto err_unpin_hwsp;
-
-	xe_bo_unlock_no_vm(hwe->hwsp);
 
 	err = xe_lrc_init(&hwe->kernel_lrc, hwe, NULL, NULL, SZ_16K);
 	if (err)
@@ -353,15 +343,10 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 
 	return 0;
 
-err_unpin_hwsp:
-	xe_bo_unpin(hwe->hwsp);
-err_unlock_put_hwsp:
-	xe_bo_unlock_no_vm(hwe->hwsp);
-	xe_bo_put(hwe->hwsp);
 err_kernel_lrc:
 	xe_lrc_finish(&hwe->kernel_lrc);
 err_hwsp:
-	xe_bo_put(hwe->hwsp);
+	xe_bo_unpin_map_no_vm(hwe->hwsp);
 err_name:
 	hwe->name = NULL;
 

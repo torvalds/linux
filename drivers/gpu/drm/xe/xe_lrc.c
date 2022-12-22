@@ -615,7 +615,11 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 
 	lrc->flags = 0;
 
-	lrc->bo = xe_bo_create_locked(xe, hwe->gt, vm,
+	/*
+	 * FIXME: Perma-pinning LRC as we don't yet support moving GGTT address
+	 * via VM bind calls.
+	 */
+	lrc->bo = xe_bo_create_pin_map(xe, hwe->gt, vm,
 				      ring_size + xe_lrc_size(xe, hwe->class),
 				      ttm_bo_type_kernel,
 				      XE_BO_CREATE_VRAM_IF_DGFX(hwe->gt) |
@@ -628,21 +632,6 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	else
 		lrc->full_gt = hwe->gt;
 
-	/*
-	 * FIXME: Perma-pinning LRC as we don't yet support moving GGTT address
-	 * via VM bind calls.
-	 */
-	err = xe_bo_pin(lrc->bo);
-	if (err)
-		goto err_unlock_put_bo;
-	lrc->flags |= XE_LRC_PINNED;
-
-	err = xe_bo_vmap(lrc->bo);
-	if (err)
-		goto err_unpin_bo;
-
-	xe_bo_unlock_vm_held(lrc->bo);
-
 	lrc->ring.size = ring_size;
 	lrc->ring.tail = 0;
 
@@ -652,8 +641,8 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	if (!gt->default_lrc[hwe->class]) {
 		init_data = empty_lrc_data(hwe);
 		if (!init_data) {
-			xe_lrc_finish(lrc);
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto err_lrc_finish;
 		}
 	}
 
@@ -710,12 +699,8 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 
 	return 0;
 
-err_unpin_bo:
-	if (lrc->flags & XE_LRC_PINNED)
-		xe_bo_unpin(lrc->bo);
-err_unlock_put_bo:
-	xe_bo_unlock_vm_held(lrc->bo);
-	xe_bo_put(lrc->bo);
+err_lrc_finish:
+	xe_lrc_finish(lrc);
 	return err;
 }
 
@@ -724,17 +709,15 @@ void xe_lrc_finish(struct xe_lrc *lrc)
 	struct ww_acquire_ctx ww;
 
 	xe_hw_fence_ctx_finish(&lrc->fence_ctx);
-	if (lrc->flags & XE_LRC_PINNED) {
-		if (lrc->bo->vm)
-			xe_vm_lock(lrc->bo->vm, &ww, 0, false);
-		else
-			xe_bo_lock_no_vm(lrc->bo, NULL);
-		xe_bo_unpin(lrc->bo);
-		if (lrc->bo->vm)
-			xe_vm_unlock(lrc->bo->vm, &ww);
-		else
-			xe_bo_unlock_no_vm(lrc->bo);
-	}
+	if (lrc->bo->vm)
+		xe_vm_lock(lrc->bo->vm, &ww, 0, false);
+	else
+		xe_bo_lock_no_vm(lrc->bo, NULL);
+	xe_bo_unpin(lrc->bo);
+	if (lrc->bo->vm)
+		xe_vm_unlock(lrc->bo->vm, &ww);
+	else
+		xe_bo_unlock_no_vm(lrc->bo);
 	xe_bo_put(lrc->bo);
 }
 

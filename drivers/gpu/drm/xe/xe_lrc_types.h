@@ -25,7 +25,6 @@ struct xe_lrc {
 
 	/** @flags: LRC flags */
 	u32 flags;
-#define XE_LRC_PINNED BIT(1)
 
 	/** @ring: submission ring state */
 	struct {
