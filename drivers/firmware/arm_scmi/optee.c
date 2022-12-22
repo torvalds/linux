@@ -481,8 +481,6 @@ static int scmi_optee_chan_free(int id, void *p, void *data)
 	cinfo->transport_info = NULL;
 	channel->cinfo = NULL;
 
-	scmi_free_channel(cinfo, data, id);
-
 	return 0;
 }
 

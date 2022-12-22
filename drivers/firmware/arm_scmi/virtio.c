@@ -489,8 +489,6 @@ static int virtio_chan_free(int id, void *p, void *data)
 	virtio_break_device(vioch->vqueue->vdev);
 	scmi_vio_channel_cleanup_sync(vioch);
 
-	scmi_free_channel(cinfo, data, id);
-
 	return 0;
 }
 

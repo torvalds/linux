@@ -120,8 +120,6 @@ static int mailbox_chan_free(int id, void *p, void *data)
 		smbox->cinfo = NULL;
 	}
 
-	scmi_free_channel(cinfo, data, id);
-
 	return 0;
 }
 

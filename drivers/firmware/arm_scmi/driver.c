@@ -1987,23 +1987,20 @@ static int scmi_xfer_info_init(struct scmi_info *sinfo)
 	return ret;
 }
 
-static int scmi_chan_setup(struct scmi_info *info, struct device *dev,
+static int scmi_chan_setup(struct scmi_info *info, struct device_node *of_node,
 			   int prot_id, bool tx)
 {
 	int ret, idx;
+	char name[32];
 	struct scmi_chan_info *cinfo;
 	struct idr *idr;
+	struct scmi_device *tdev = NULL;
 
 	/* Transmit channel is first entry i.e. index 0 */
 	idx = tx ? 0 : 1;
 	idr = tx ? &info->tx_idr : &info->rx_idr;
 
-	/* check if already allocated, used for multiple device per protocol */
-	cinfo = idr_find(idr, prot_id);
-	if (cinfo)
-		return 0;
-
-	if (!info->desc->ops->chan_available(dev->of_node, idx)) {
+	if (!info->desc->ops->chan_available(of_node, idx)) {
 		cinfo = idr_find(idr, SCMI_PROTOCOL_BASE);
 		if (unlikely(!cinfo)) /* Possible only if platform has no Rx */
 			return -EINVAL;
@@ -2014,27 +2011,49 @@ static int scmi_chan_setup(struct scmi_info *info, struct device *dev,
 	if (!cinfo)
 		return -ENOMEM;
 
-	cinfo->dev = dev;
 	cinfo->rx_timeout_ms = info->desc->max_rx_timeout_ms;
 
+	/* Create a unique name for this transport device */
+	snprintf(name, 32, "__scmi_transport_device_%s_%02X",
+		 idx ? "rx" : "tx", prot_id);
+	/* Create a uniquely named, dedicated transport device for this chan */
+	tdev = scmi_device_create(of_node, info->dev, prot_id, name);
+	if (!tdev) {
+		devm_kfree(info->dev, cinfo);
+		return -EINVAL;
+	}
+	of_node_get(of_node);
+
+	cinfo->dev = &tdev->dev;
 	ret = info->desc->ops->chan_setup(cinfo, info->dev, tx);
-	if (ret)
+	if (ret) {
+		of_node_put(of_node);
+		scmi_device_destroy(tdev);
+		devm_kfree(info->dev, cinfo);
 		return ret;
+	}
 
 	if (tx && is_polling_required(cinfo, info)) {
 		if (is_transport_polling_capable(info))
-			dev_info(dev,
+			dev_info(&tdev->dev,
 				 "Enabled polling mode TX channel - prot_id:%d\n",
 				 prot_id);
 		else
-			dev_warn(dev,
+			dev_warn(&tdev->dev,
 				 "Polling mode NOT supported by transport.\n");
 	}
 
 idr_alloc:
 	ret = idr_alloc(idr, cinfo, prot_id, prot_id + 1, GFP_KERNEL);
 	if (ret != prot_id) {
-		dev_err(dev, "unable to allocate SCMI idr slot err %d\n", ret);
+		dev_err(info->dev,
+			"unable to allocate SCMI idr slot err %d\n", ret);
+		/* Destroy channel and device only if created by this call. */
+		if (tdev) {
+			of_node_put(of_node);
+			scmi_device_destroy(tdev);
+			devm_kfree(info->dev, cinfo);
+		}
 		return ret;
 	}
 
@@ -2043,18 +2062,67 @@ idr_alloc:
 }
 
 static inline int
-scmi_txrx_setup(struct scmi_info *info, struct device *dev, int prot_id)
+scmi_txrx_setup(struct scmi_info *info, struct device_node *of_node,
+		int prot_id)
 {
-	int ret = scmi_chan_setup(info, dev, prot_id, true);
+	int ret = scmi_chan_setup(info, of_node, prot_id, true);
 
 	if (!ret) {
 		/* Rx is optional, report only memory errors */
-		ret = scmi_chan_setup(info, dev, prot_id, false);
+		ret = scmi_chan_setup(info, of_node, prot_id, false);
 		if (ret && ret != -ENOMEM)
 			ret = 0;
 	}
 
 	return ret;
+}
+
+/**
+ * scmi_channels_setup  - Helper to initialize all required channels
+ *
+ * @info: The SCMI instance descriptor.
+ *
+ * Initialize all the channels found described in the DT against the underlying
+ * configured transport using custom defined dedicated devices instead of
+ * borrowing devices from the SCMI drivers; this way channels are initialized
+ * upfront during core SCMI stack probing and are no more coupled with SCMI
+ * devices used by SCMI drivers.
+ *
+ * Note that, even though a pair of TX/RX channels is associated to each
+ * protocol defined in the DT, a distinct freshly initialized channel is
+ * created only if the DT node for the protocol at hand describes a dedicated
+ * channel: in all the other cases the common BASE protocol channel is reused.
+ *
+ * Return: 0 on Success
+ */
+static int scmi_channels_setup(struct scmi_info *info)
+{
+	int ret;
+	struct device_node *child, *top_np = info->dev->of_node;
+
+	/* Initialize a common generic channel at first */
+	ret = scmi_txrx_setup(info, top_np, SCMI_PROTOCOL_BASE);
+	if (ret)
+		return ret;
+
+	for_each_available_child_of_node(top_np, child) {
+		u32 prot_id;
+
+		if (of_property_read_u32(child, "reg", &prot_id))
+			continue;
+
+		if (!FIELD_FIT(MSG_PROTOCOL_ID_MASK, prot_id))
+			dev_err(info->dev,
+				"Out of range protocol %d\n", prot_id);
+
+		ret = scmi_txrx_setup(info, child, prot_id);
+		if (ret) {
+			of_node_put(child);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -2101,14 +2169,6 @@ scmi_get_protocol_device(struct device_node *np, struct scmi_info *info,
 	if (!sdev) {
 		dev_err(info->dev, "failed to create %d protocol device\n",
 			prot_id);
-		mutex_unlock(&scmi_syspower_mtx);
-
-		return NULL;
-	}
-
-	if (scmi_txrx_setup(info, &sdev->dev, prot_id)) {
-		dev_err(&sdev->dev, "failed to setup transport\n");
-		scmi_device_destroy(sdev);
 		mutex_unlock(&scmi_syspower_mtx);
 
 		return NULL;
@@ -2347,19 +2407,39 @@ void scmi_protocol_device_unrequest(const struct scmi_device_id *id_table)
 	mutex_unlock(&scmi_requested_devices_mtx);
 }
 
-static int scmi_cleanup_txrx_channels(struct scmi_info *info)
+static int scmi_chan_destroy(int id, void *p, void *idr)
 {
-	int ret;
-	struct idr *idr = &info->tx_idr;
+	struct scmi_chan_info *cinfo = p;
 
-	ret = idr_for_each(idr, info->desc->ops->chan_free, idr);
-	idr_destroy(&info->tx_idr);
+	if (cinfo->dev) {
+		struct scmi_device *sdev = to_scmi_dev(cinfo->dev);
 
-	idr = &info->rx_idr;
-	ret = idr_for_each(idr, info->desc->ops->chan_free, idr);
-	idr_destroy(&info->rx_idr);
+		of_node_put(cinfo->dev->of_node);
+		scmi_device_destroy(sdev);
+		cinfo->dev = NULL;
+	}
 
-	return ret;
+	idr_remove(idr, id);
+
+	return 0;
+}
+
+static void scmi_cleanup_channels(struct scmi_info *info, struct idr *idr)
+{
+	/* At first free all channels at the transport layer ... */
+	idr_for_each(idr, info->desc->ops->chan_free, idr);
+
+	/* ...then destroy all underlying devices */
+	idr_for_each(idr, scmi_chan_destroy, idr);
+
+	idr_destroy(idr);
+}
+
+static void scmi_cleanup_txrx_channels(struct scmi_info *info)
+{
+	scmi_cleanup_channels(info, &info->tx_idr);
+
+	scmi_cleanup_channels(info, &info->rx_idr);
 }
 
 static int scmi_probe(struct platform_device *pdev)
@@ -2411,7 +2491,8 @@ static int scmi_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	ret = scmi_txrx_setup(info, dev, SCMI_PROTOCOL_BASE);
+	/* Setup all channels described in the DT at first */
+	ret = scmi_channels_setup(info);
 	if (ret)
 		return ret;
 
@@ -2481,14 +2562,9 @@ clear_txrx_setup:
 	return ret;
 }
 
-void scmi_free_channel(struct scmi_chan_info *cinfo, struct idr *idr, int id)
-{
-	idr_remove(idr, id);
-}
-
 static int scmi_remove(struct platform_device *pdev)
 {
-	int ret, id;
+	int id;
 	struct scmi_info *info = platform_get_drvdata(pdev);
 	struct device_node *child;
 
@@ -2510,9 +2586,7 @@ static int scmi_remove(struct platform_device *pdev)
 	idr_destroy(&info->active_protocols);
 
 	/* Safe to free channels since no more users */
-	ret = scmi_cleanup_txrx_channels(info);
-	if (ret)
-		dev_warn(&pdev->dev, "Failed to cleanup SCMI channels.\n");
+	scmi_cleanup_txrx_channels(info);
 
 	return 0;
 }

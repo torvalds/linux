@@ -229,7 +229,6 @@ extern const struct scmi_desc scmi_optee_desc;
 #endif
 
 void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr, void *priv);
-void scmi_free_channel(struct scmi_chan_info *cinfo, struct idr *idr, int id);
 
 /* shmem related declarations */
 struct scmi_shared_mem;
