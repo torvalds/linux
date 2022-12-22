@@ -855,8 +855,6 @@ struct hid_ll_driver {
 	bool (*may_wakeup)(struct hid_device *hdev);
 };
 
-extern struct hid_ll_driver i2c_hid_ll_driver;
-
 extern bool hid_is_usb(const struct hid_device *hdev);
 
 #define	PM_HINT_FULLON	1<<5
