@@ -2727,7 +2727,7 @@ static int ieee80211_scan(struct wiphy *wiphy,
 		 * If the scan has been forced (and the driver supports
 		 * forcing), don't care about being beaconing already.
 		 * This will create problems to the attached stations (e.g. all
-		 * the  frames sent while scanning on other channel will be
+		 * the frames sent while scanning on other channel will be
 		 * lost)
 		 */
 		if (sdata->deflink.u.ap.beacon &&
