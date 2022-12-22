@@ -56,7 +56,7 @@
 				##__VA_ARGS__); \
 } while (0)
 
-const char * const mhi_log_level_str[MHI_MSG_LVL_MAX] = {
+static const char * const mhi_log_level_str[MHI_MSG_LVL_MAX] = {
 	[MHI_MSG_LVL_VERBOSE] = "Verbose",
 	[MHI_MSG_LVL_INFO] = "Info",
 	[MHI_MSG_LVL_ERROR] = "Error",
