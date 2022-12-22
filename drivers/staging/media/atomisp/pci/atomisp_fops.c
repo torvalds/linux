@@ -80,7 +80,7 @@ static int atomisp_queue_setup(struct vb2_queue *vq,
 
 out:
 	mutex_unlock(&pipe->asd->isp->mutex);
-	return 0;
+	return ret;
 }
 
 static int atomisp_buf_init(struct vb2_buffer *vb)
