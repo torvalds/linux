@@ -2240,6 +2240,25 @@ static bool intel_hdmi_is_cloned(const struct intel_crtc_state *crtc_state)
 		!is_power_of_2(crtc_state->uapi.encoder_mask);
 }
 
+static bool source_supports_scrambling(struct intel_encoder *encoder)
+{
+	/*
+	 * Gen 10+ support HDMI 2.0 : the max tmds clock is 594MHz, and
+	 * scrambling is supported.
+	 * But there seem to be cases where certain platforms that support
+	 * HDMI 2.0, have an HDMI1.4 retimer chip, and the max tmds clock is
+	 * capped by VBT to less than 340MHz.
+	 *
+	 * In such cases when an HDMI2.0 sink is connected, it creates a
+	 * problem : the platform and the sink both support scrambling but the
+	 * HDMI 1.4 retimer chip doesn't.
+	 *
+	 * So go for scrambling, based on the max tmds clock taking into account,
+	 * restrictions coming from VBT.
+	 */
+	return intel_hdmi_source_max_tmds_clock(encoder) > 340000;
+}
+
 int intel_hdmi_compute_config(struct intel_encoder *encoder,
 			      struct intel_crtc_state *pipe_config,
 			      struct drm_connector_state *conn_state)
@@ -2302,7 +2321,7 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->lane_count = 4;
 
-	if (scdc->scrambling.supported && DISPLAY_VER(dev_priv) >= 10) {
+	if (scdc->scrambling.supported && source_supports_scrambling(encoder)) {
 		if (scdc->scrambling.low_rates)
 			pipe_config->hdmi_scrambling = true;
 
