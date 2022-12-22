@@ -123,10 +123,10 @@ enum vop2_win_dly_mode {
 };
 
 enum vop3_esmart_lb_mode {
-	VOP3_ESMART_ONE_8K_MODE,
-	VOP3_ESMART_TWO_4K_MODE,
-	VOP3_ESMART_ONE_4K_AND_TWO_2K_MODE,
-	VOP3_ESMART_FOUR_2K_MODE,
+	VOP3_ESMART_8K_MODE,
+	VOP3_ESMART_4K_4K_MODE,
+	VOP3_ESMART_4K_2K_2K_MODE,
+	VOP3_ESMART_2K_2K_2K_2K_MODE,
 };
 
 /*
@@ -559,7 +559,7 @@ struct hdr_extend {
 };
 
 enum _vop_hdrvivid_mode {
-	PQHDR2HDR_WITH_DYNAMIC,
+	PQHDR2HDR_WITH_DYNAMIC = 0,
 	PQHDR2SDR_WITH_DYNAMIC,
 	HLG2PQHDR_WITH_DYNAMIC,
 	HLG2SDR_WITH_DYNAMIC,
@@ -567,14 +567,16 @@ enum _vop_hdrvivid_mode {
 	HLG2SDR_WITHOUT_DYNAMIC,
 	HDR_BYPASS,
 	HDR102SDR,
-	SDR2PQ,
+	SDR2HDR10,
 	SDR2HLG,
+	SDR2HDR10_USERSPACE = 100,
+	SDR2HLG_USERSPACE = 101,
 };
 
 enum vop_hdr_format {
 	HDR_NONE = 0,
 	HDR_HDR10 = 1,
-	HDR_HGGSTATIC = 2,
+	HDR_HLGSTATIC = 2,
 	RESERVED3 = 3,		/* reserved for more future static hdr format */
 	RESERVED4 = 4,		/* reserved for more future static hdr format */
 	HDR_HDRVIVID = 5,
@@ -720,6 +722,7 @@ struct vop2_cluster_regs {
 	struct vop_reg enable;
 	struct vop_reg afbc_enable;
 	struct vop_reg lb_mode;
+	struct vop_reg scl_lb_mode;
 
 	struct vop_reg src_color_ctrl;
 	struct vop_reg dst_color_ctrl;
@@ -1039,7 +1042,6 @@ struct vop2_win_data {
 	uint8_t axi_id;
 	uint8_t axi_yrgb_id;
 	uint8_t axi_uv_id;
-	uint8_t scale_engine_num;
 	uint8_t possible_crtcs;
 
 	uint32_t base;
@@ -1211,6 +1213,7 @@ struct vop2_ctrl {
 	struct vop_reg version;
 	struct vop_reg standby;
 	struct vop_reg dma_stop;
+	struct vop_reg dsp_vs_t_sel;
 	struct vop_reg lut_dma_en;
 	struct vop_reg axi_outstanding_max_num;
 	struct vop_reg axi_max_outstanding_en;
@@ -1307,6 +1310,8 @@ struct vop2_ctrl {
 struct vop_dump_regs {
 	uint32_t offset;
 	const char *name;
+	struct vop_reg state;
+	bool enable_state;
 };
 
 /**

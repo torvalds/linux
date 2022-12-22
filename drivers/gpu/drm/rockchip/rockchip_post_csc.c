@@ -670,7 +670,7 @@ static const struct rk_csc_mode_coef g_mode_csc_coef[] = {
 		&rk_csc_table_rgb_to_xv_yccsdy_cb_cr_full,
 		&rk_dc_csc_table_rgb_to_xv_yccsdy_cb_cr_full,
 		{
-			OPTM_CS_E_XV_YCC_601, OPTM_CS_E_RGB, true, true
+			OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, true, true
 		}
 	},
 	{
@@ -782,7 +782,7 @@ static const struct rk_csc_mode_coef g_mode_csc_coef[] = {
 		&rk_csc_table_rgb_limit_to_hdy_cb_cr,
 		&rk_dc_csc_table_rgb_limit_to_hdy_cb_cr,
 		{
-			OPTM_CS_E_RGB, OPTM_CS_E_XV_YCC_601, false, false
+			OPTM_CS_E_RGB, OPTM_CS_E_ITU_R_BT_709, false, false
 		}
 	},
 	{
@@ -991,8 +991,8 @@ struct csc_mapping {
 	enum vop_csc_format csc_format;
 	enum color_space_type rgb_color_space;
 	enum color_space_type yuv_color_space;
-	bool yuv_full_range;
 	bool rgb_full_range;
+	bool yuv_full_range;
 };
 
 static const struct csc_mapping csc_mapping_table[] = {
@@ -1000,14 +1000,14 @@ static const struct csc_mapping csc_mapping_table[] = {
 		CSC_BT601L,
 		OPTM_CS_E_RGB,
 		OPTM_CS_E_XV_YCC_601,
-		false,
+		true,
 		false,
 	},
 	{
 		CSC_BT709L,
 		OPTM_CS_E_RGB,
 		OPTM_CS_E_XV_YCC_709,
-		false,
+		true,
 		false,
 	},
 	{
@@ -1028,7 +1028,7 @@ static const struct csc_mapping csc_mapping_table[] = {
 		CSC_BT709L_13BIT,
 		OPTM_CS_E_RGB,
 		OPTM_CS_E_XV_YCC_709,
-		false,
+		true,
 		false,
 	},
 	{
@@ -1042,7 +1042,7 @@ static const struct csc_mapping csc_mapping_table[] = {
 		CSC_BT2020L_13BIT,
 		OPTM_CS_E_RGB_2020,
 		OPTM_CS_E_XV_YCC_2020,
-		false,
+		true,
 		false,
 	},
 	{
@@ -1052,6 +1052,30 @@ static const struct csc_mapping csc_mapping_table[] = {
 		true,
 		true,
 	},
+};
+
+static const struct rk_pq_csc_coef r2y_for_y2y = {
+	306, 601, 117,
+	-151, -296, 446,
+	630, -527, -102,
+};
+
+static const struct rk_pq_csc_coef y2r_for_y2y = {
+	1024, -0, 1167,
+	1024, -404, -594,
+	1024, 2081, -1,
+};
+
+static const struct rk_pq_csc_coef rgb_input_swap_matrix = {
+	0, 0, 1,
+	1, 0, 0,
+	0, 1, 0,
+};
+
+static const struct rk_pq_csc_coef yuv_output_swap_matrix = {
+	0, 0, 1,
+	1, 0, 0,
+	0, 1, 0,
 };
 
 static int csc_get_mode_index(int post_csc_mode, bool is_input_yuv, bool is_output_yuv)
@@ -1244,35 +1268,17 @@ static struct rk_pq_csc_coef create_saturation_matrix(s32 saturation)
 	return m;
 }
 
-static const struct rk_pq_csc_coef r2y_for_y2y = {
-	306, 601, 117,
-	-151, -296, 446,
-	630, -527, -102,
-};
-
-static const struct rk_pq_csc_coef y2r_for_y2y = {
-	1024, -0, 1167,
-	1024, -404, -594,
-	1024, 2081, -1,
-};
-
-static const struct rk_pq_csc_coef rgb_swap_matrix = {
-	0, 0, 1,
-	1, 0, 0,
-	0, 1, 0,
-};
-
 static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 				       struct post_csc *csc_input_cfg,
 				       const struct rk_csc_mode_coef *csc_mode_cfg,
-				       struct post_csc_coef *csc_output)
+				       struct rk_pq_csc_coef *out_matrix,
+				       struct rk_pq_csc_ventor *out_dc)
 {
 	struct rk_pq_csc_coef gain_matrix;
 	struct rk_pq_csc_coef contrast_matrix;
 	struct rk_pq_csc_coef hue_matrix;
 	struct rk_pq_csc_coef saturation_matrix;
 	struct rk_pq_csc_coef temp0, temp1;
-	struct rk_pq_csc_coef output;
 	const struct rk_pq_csc_coef *r2y_matrix;
 	const struct rk_pq_csc_coef *y2r_matrix;
 	struct rk_pq_csc_ventor dc_in_ventor;
@@ -1336,8 +1342,8 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 		csc_matrix_element_left_shift(&temp1, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH);
 		csc_matrix_multiply(&temp0, &temp1, &contrast_matrix);
 		csc_matrix_element_left_shift(&temp0, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH);
-		csc_matrix_multiply(&output, &temp0, y2r_matrix);
-		csc_matrix_element_left_shift(&output, PQ_CSC_PARAM_FIX_BIT_WIDTH +
+		csc_matrix_multiply(out_matrix, &temp0, y2r_matrix);
+		csc_matrix_element_left_shift(out_matrix, PQ_CSC_PARAM_FIX_BIT_WIDTH +
 					      PQ_CALC_ENHANCE_BIT);
 
 		dc_in_ventor.csc_offset0 = dc_in_offset;
@@ -1359,8 +1365,8 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 		csc_matrix_element_left_shift(&temp1, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH);
 		csc_matrix_multiply(&temp0, &contrast_matrix, &temp1);
 		csc_matrix_element_left_shift(&temp0, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH);
-		csc_matrix_multiply(&output, &gain_matrix, &temp0);
-		csc_matrix_element_left_shift(&output, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH +
+		csc_matrix_multiply(out_matrix, &gain_matrix, &temp0);
+		csc_matrix_element_left_shift(out_matrix, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH +
 					      PQ_CALC_ENHANCE_BIT);
 
 		dc_in_ventor.csc_offset0 = dc_in_offset;
@@ -1382,14 +1388,9 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 		csc_matrix_element_left_shift(&temp1, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH);
 		csc_matrix_multiply(&temp0, &saturation_matrix, &temp1);
 		csc_matrix_element_left_shift(&temp0, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH);
-		csc_matrix_multiply(&temp1, &hue_matrix, &temp0);
-		csc_matrix_element_left_shift(&temp1, PQ_CSC_PARAM_FIX_BIT_WIDTH +
+		csc_matrix_multiply(out_matrix, &hue_matrix, &temp0);
+		csc_matrix_element_left_shift(out_matrix, PQ_CSC_PARAM_FIX_BIT_WIDTH +
 					      PQ_CALC_ENHANCE_BIT);
-		/*
-		 * In rgb2yuv case, the rgb channel need swap, but vop post rgb swap
-		 * function can't config the correct swap, do this work in csc.
-		 */
-		csc_matrix_multiply(&output, &temp1, &rgb_swap_matrix);
 
 		dc_in_ventor.csc_offset0 = dc_in_offset;
 		dc_in_ventor.csc_offset1 = dc_in_offset;
@@ -1426,12 +1427,12 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 		csc_matrix_element_left_shift(&temp0, PQ_CSC_PARAM_FIX_BIT_WIDTH);
 		csc_matrix_multiply(&temp1, &temp0, &saturation_matrix);
 		csc_matrix_element_left_shift(&temp1, PQ_CSC_PARAM_HALF_FIX_BIT_WIDTH);
-		csc_matrix_multiply(&output, &temp1, r2y_matrix);
-		csc_matrix_element_left_shift(&output, PQ_CSC_PARAM_FIX_BIT_WIDTH +
+		csc_matrix_multiply(out_matrix, &temp1, r2y_matrix);
+		csc_matrix_element_left_shift(out_matrix, PQ_CSC_PARAM_FIX_BIT_WIDTH +
 					      PQ_CALC_ENHANCE_BIT);
 
 		if (color_info->in_full_range && color_info->out_full_range)
-			output.csc_coef00 += 1;
+			out_matrix->csc_coef00 += 1;
 
 		dc_in_ventor.csc_offset0 = dc_in_offset;
 		dc_in_ventor.csc_offset1 = dc_in_offset;
@@ -1441,29 +1442,20 @@ static int csc_calc_adjust_output_coef(bool is_input_yuv, bool is_output_yuv,
 		dc_out_ventor.csc_offset2 = brightness + dc_out_offset + b_offset;
 	}
 
-	csc_output->csc_coef00 = output.csc_coef00;
-	csc_output->csc_coef01 = output.csc_coef01;
-	csc_output->csc_coef02 = output.csc_coef02;
-	csc_output->csc_coef10 = output.csc_coef10;
-	csc_output->csc_coef11 = output.csc_coef11;
-	csc_output->csc_coef12 = output.csc_coef12;
-	csc_output->csc_coef20 = output.csc_coef20;
-	csc_output->csc_coef21 = output.csc_coef21;
-	csc_output->csc_coef22 = output.csc_coef22;
-
-	csc_matrix_ventor_multiply(&v, &output, &dc_in_ventor);
-	csc_output->csc_dc0 = v.csc_offset0 + dc_out_ventor.csc_offset0 *
-			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	csc_output->csc_dc1 = v.csc_offset1 + dc_out_ventor.csc_offset1 *
-			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	csc_output->csc_dc2 = v.csc_offset2 + dc_out_ventor.csc_offset2 *
-			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
+	csc_matrix_ventor_multiply(&v, out_matrix, &dc_in_ventor);
+	out_dc->csc_offset0 = v.csc_offset0 + dc_out_ventor.csc_offset0 *
+			  PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
+	out_dc->csc_offset1 = v.csc_offset1 + dc_out_ventor.csc_offset1 *
+			  PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
+	out_dc->csc_offset2 = v.csc_offset2 + dc_out_ventor.csc_offset2 *
+			  PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
 
 	return 0;
 }
 
 static int csc_calc_default_output_coef(const struct rk_csc_mode_coef *csc_mode_cfg,
-					struct post_csc_coef *csc_output)
+					struct rk_pq_csc_coef *out_matrix,
+					struct rk_pq_csc_ventor *out_dc)
 {
 	const struct rk_pq_csc_coef *csc_coef;
 	const struct rk_pq_csc_dc_coef *csc_dc_coef;
@@ -1474,15 +1466,15 @@ static int csc_calc_default_output_coef(const struct rk_csc_mode_coef *csc_mode_
 	csc_coef = csc_mode_cfg->pst_csc_coef;
 	csc_dc_coef = csc_mode_cfg->pst_csc_dc_coef;
 
-	csc_output->csc_coef00 = csc_coef->csc_coef00;
-	csc_output->csc_coef01 = csc_coef->csc_coef01;
-	csc_output->csc_coef02 = csc_coef->csc_coef02;
-	csc_output->csc_coef10 = csc_coef->csc_coef10;
-	csc_output->csc_coef11 = csc_coef->csc_coef11;
-	csc_output->csc_coef12 = csc_coef->csc_coef12;
-	csc_output->csc_coef20 = csc_coef->csc_coef20;
-	csc_output->csc_coef21 = csc_coef->csc_coef21;
-	csc_output->csc_coef22 = csc_coef->csc_coef22;
+	out_matrix->csc_coef00 = csc_coef->csc_coef00;
+	out_matrix->csc_coef01 = csc_coef->csc_coef01;
+	out_matrix->csc_coef02 = csc_coef->csc_coef02;
+	out_matrix->csc_coef10 = csc_coef->csc_coef10;
+	out_matrix->csc_coef11 = csc_coef->csc_coef11;
+	out_matrix->csc_coef12 = csc_coef->csc_coef12;
+	out_matrix->csc_coef20 = csc_coef->csc_coef20;
+	out_matrix->csc_coef21 = csc_coef->csc_coef21;
+	out_matrix->csc_coef22 = csc_coef->csc_coef22;
 
 	dc_in_ventor.csc_offset0 = csc_dc_coef->csc_in_dc0;
 	dc_in_ventor.csc_offset1 = csc_dc_coef->csc_in_dc1;
@@ -1492,11 +1484,11 @@ static int csc_calc_default_output_coef(const struct rk_csc_mode_coef *csc_mode_
 	dc_out_ventor.csc_offset2 = csc_dc_coef->csc_out_dc2;
 
 	csc_matrix_ventor_multiply(&v, csc_coef, &dc_in_ventor);
-	csc_output->csc_dc0 = v.csc_offset0 + dc_out_ventor.csc_offset0 *
+	out_dc->csc_offset0 = v.csc_offset0 + dc_out_ventor.csc_offset0 *
 			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	csc_output->csc_dc1 = v.csc_offset1 + dc_out_ventor.csc_offset1 *
+	out_dc->csc_offset1 = v.csc_offset1 + dc_out_ventor.csc_offset1 *
 			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
-	csc_output->csc_dc2 = v.csc_offset2 + dc_out_ventor.csc_offset2 *
+	out_dc->csc_offset2 = v.csc_offset2 + dc_out_ventor.csc_offset2 *
 			      PQ_CSC_SIMPLE_MAT_PARAM_FIX_NUM;
 
 	return 0;
@@ -1513,10 +1505,46 @@ static inline s32 pq_csc_simple_round(s32 x, s32 n)
 	return (((x) >= 0) ? value : -value);
 }
 
+static void rockchip_swap_color_channel(bool is_input_yuv, bool is_output_yuv,
+					struct post_csc_coef *csc_simple_coef,
+					struct rk_pq_csc_coef *out_matrix,
+					struct rk_pq_csc_ventor *out_dc)
+{
+	struct rk_pq_csc_coef tmp_matrix;
+	struct rk_pq_csc_ventor tmp_v;
+
+	if (!is_input_yuv) {
+		memcpy(&tmp_matrix, out_matrix, sizeof(struct rk_pq_csc_coef));
+		csc_matrix_multiply(out_matrix, &tmp_matrix, &rgb_input_swap_matrix);
+	}
+
+	if (is_output_yuv) {
+		memcpy(&tmp_matrix, out_matrix, sizeof(struct rk_pq_csc_coef));
+		memcpy(&tmp_v, out_dc, sizeof(struct rk_pq_csc_ventor));
+		csc_matrix_multiply(out_matrix, &yuv_output_swap_matrix, &tmp_matrix);
+		csc_matrix_ventor_multiply(out_dc, &yuv_output_swap_matrix, &tmp_v);
+	}
+
+	csc_simple_coef->csc_coef00 = out_matrix->csc_coef00;
+	csc_simple_coef->csc_coef01 = out_matrix->csc_coef01;
+	csc_simple_coef->csc_coef02 = out_matrix->csc_coef02;
+	csc_simple_coef->csc_coef10 = out_matrix->csc_coef10;
+	csc_simple_coef->csc_coef11 = out_matrix->csc_coef11;
+	csc_simple_coef->csc_coef12 = out_matrix->csc_coef12;
+	csc_simple_coef->csc_coef20 = out_matrix->csc_coef20;
+	csc_simple_coef->csc_coef21 = out_matrix->csc_coef21;
+	csc_simple_coef->csc_coef22 = out_matrix->csc_coef22;
+	csc_simple_coef->csc_dc0 = out_dc->csc_offset0;
+	csc_simple_coef->csc_dc1 = out_dc->csc_offset1;
+	csc_simple_coef->csc_dc2 = out_dc->csc_offset2;
+}
+
 int rockchip_calc_post_csc(struct post_csc *csc_cfg, struct post_csc_coef *csc_simple_coef,
 			   int csc_mode, bool is_input_yuv, bool is_output_yuv)
 {
 	int ret = 0;
+	struct rk_pq_csc_coef out_matrix;
+	struct rk_pq_csc_ventor out_dc;
 	const struct rk_csc_mode_coef *csc_mode_cfg;
 	int bit_num = PQ_CSC_SIMPLE_MAT_PARAM_FIX_BIT_WIDTH;
 
@@ -1530,9 +1558,12 @@ int rockchip_calc_post_csc(struct post_csc *csc_cfg, struct post_csc_coef *csc_s
 
 	if (csc_cfg)
 		ret = csc_calc_adjust_output_coef(is_input_yuv, is_output_yuv, csc_cfg,
-						  csc_mode_cfg, csc_simple_coef);
+						  csc_mode_cfg, &out_matrix, &out_dc);
 	else
-		ret = csc_calc_default_output_coef(csc_mode_cfg, csc_simple_coef);
+		ret = csc_calc_default_output_coef(csc_mode_cfg, &out_matrix, &out_dc);
+
+	rockchip_swap_color_channel(is_input_yuv, is_output_yuv, csc_simple_coef, &out_matrix,
+				    &out_dc);
 
 	csc_simple_coef->csc_dc0 = pq_csc_simple_round(csc_simple_coef->csc_dc0, bit_num);
 	csc_simple_coef->csc_dc1 = pq_csc_simple_round(csc_simple_coef->csc_dc1, bit_num);

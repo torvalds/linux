@@ -1125,7 +1125,47 @@ static int rockchip_drm_summary_show(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int rockchip_drm_regs_dump(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct drm_minor *minor = node->minor;
+	struct drm_device *drm_dev = minor->dev;
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		int pipe = drm_crtc_index(crtc);
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->regs_dump)
+			priv->crtc_funcs[pipe]->regs_dump(crtc, s);
+	}
+
+	return 0;
+}
+
+static int rockchip_drm_active_regs_dump(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct drm_minor *minor = node->minor;
+	struct drm_device *drm_dev = minor->dev;
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		int pipe = drm_crtc_index(crtc);
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->active_regs_dump)
+			priv->crtc_funcs[pipe]->active_regs_dump(crtc, s);
+	}
+
+	return 0;
+}
+
 static struct drm_info_list rockchip_debugfs_files[] = {
+	{ "active_regs", rockchip_drm_active_regs_dump, 0, NULL },
+	{ "regs", rockchip_drm_regs_dump, 0, NULL },
 	{ "summary", rockchip_drm_summary_show, 0, NULL },
 	{ "mm_dump", rockchip_drm_mm_dump, 0, NULL },
 };
