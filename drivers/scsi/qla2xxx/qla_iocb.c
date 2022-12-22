@@ -2920,7 +2920,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 					conflict_fcport->conflict = fcport;
 					fcport->login_pause = 1;
 					ql_dbg(ql_dbg_disc, vha, 0x20ed,
-					    "%s %d %8phC pid %06x inuse with lid %#x post gidpn\n",
+					    "%s %d %8phC pid %06x inuse with lid %#x.\n",
 					    __func__, __LINE__,
 					    fcport->port_name,
 					    fcport->d_id.b24, lid);

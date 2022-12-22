@@ -5016,7 +5016,6 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	INIT_LIST_HEAD(&vha->plogi_ack_list);
 	INIT_LIST_HEAD(&vha->qp_list);
 	INIT_LIST_HEAD(&vha->gnl.fcports);
-	INIT_LIST_HEAD(&vha->gpnid_list);
 	INIT_WORK(&vha->iocb_work, qla2x00_iocb_work_fn);
 
 	INIT_LIST_HEAD(&vha->purex_list.head);
@@ -5460,9 +5459,6 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			break;
 		case QLA_EVT_AENFX:
 			qlafx00_process_aen(vha, e);
-			break;
-		case QLA_EVT_GPNID:
-			qla24xx_async_gpnid(vha, &e->u.gpnid.id);
 			break;
 		case QLA_EVT_UNMAP:
 			qla24xx_sp_unmap(vha, e->u.iosb.sp);

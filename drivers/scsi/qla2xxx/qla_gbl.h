@@ -721,10 +721,6 @@ extern int qla2x00_chk_ms_status(scsi_qla_host_t *, ms_iocb_entry_t *,
 	struct ct_sns_rsp *, const char *);
 extern void qla2x00_async_iocb_timeout(void *data);
 
-extern int qla24xx_post_gpnid_work(struct scsi_qla_host *, port_id_t *);
-extern int qla24xx_async_gpnid(scsi_qla_host_t *, port_id_t *);
-void qla24xx_handle_gpnid_event(scsi_qla_host_t *, struct event_arg *);
-
 int qla24xx_post_gpsc_work(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_async_gpsc(scsi_qla_host_t *, fc_port_t *);
 void qla24xx_handle_gpsc_event(scsi_qla_host_t *, struct event_arg *);

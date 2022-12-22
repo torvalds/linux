@@ -3479,7 +3479,6 @@ enum qla_work_type {
 	QLA_EVT_ASYNC_ADISC,
 	QLA_EVT_UEVENT,
 	QLA_EVT_AENFX,
-	QLA_EVT_GPNID,
 	QLA_EVT_UNMAP,
 	QLA_EVT_NEW_SESS,
 	QLA_EVT_GPDB,
@@ -3536,15 +3535,12 @@ struct qla_work_evt {
 		} iosb;
 		struct {
 			port_id_t id;
-		} gpnid;
-		struct {
-			port_id_t id;
 			u8 port_name[8];
 			u8 node_name[8];
 			void *pla;
 			u8 fc4_type;
 		} new_sess;
-		struct { /*Get PDB, Get Speed, update fcport, gnl, gidpn */
+		struct { /*Get PDB, Get Speed, update fcport, gnl */
 			fc_port_t *fcport;
 			u8 opt;
 		} fcport;
@@ -5025,7 +5021,6 @@ typedef struct scsi_qla_host {
 	uint8_t n2n_port_name[WWN_SIZE];
 	uint16_t	n2n_id;
 	__le16 dport_data[4];
-	struct list_head gpnid_list;
 	struct fab_scan scan;
 	uint8_t	scm_fabric_connection_flags;
 

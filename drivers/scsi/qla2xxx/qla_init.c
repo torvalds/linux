@@ -2323,7 +2323,7 @@ qla24xx_handle_plogi_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 			ea->fcport->login_pause = 1;
 
 			ql_dbg(ql_dbg_disc, vha, 0x20ed,
-			    "%s %d %8phC NPortId %06x inuse with loopid 0x%x. post gidpn\n",
+			    "%s %d %8phC NPortId %06x inuse with loopid 0x%x.\n",
 			    __func__, __LINE__, ea->fcport->port_name,
 			    ea->fcport->d_id.b24, lid);
 		} else {
