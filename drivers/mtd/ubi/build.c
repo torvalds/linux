@@ -915,6 +915,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	ubi->dev.release = dev_release;
 	ubi->dev.class = &ubi_class;
 	ubi->dev.groups = ubi_dev_groups;
+	ubi->dev.parent = &mtd->dev;
 
 	ubi->mtd = mtd;
 	ubi->ubi_num = ubi_num;
