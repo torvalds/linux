@@ -449,6 +449,11 @@ static bool cgroup_reclaim(struct scan_control *sc)
 	return sc->target_mem_cgroup;
 }
 
+static bool global_reclaim(struct scan_control *sc)
+{
+	return !sc->target_mem_cgroup || mem_cgroup_is_root(sc->target_mem_cgroup);
+}
+
 /**
  * writeback_throttling_sane - is the usual dirty throttling mechanism available?
  * @sc: scan_control in question
@@ -497,6 +502,11 @@ static long add_nr_deferred_memcg(long nr, int nid, struct shrinker *shrinker,
 static bool cgroup_reclaim(struct scan_control *sc)
 {
 	return false;
+}
+
+static bool global_reclaim(struct scan_control *sc)
+{
+	return true;
 }
 
 static bool writeback_throttling_sane(struct scan_control *sc)
@@ -5006,8 +5016,7 @@ static int isolate_folios(struct lruvec *lruvec, struct scan_control *sc, int sw
 	return scanned;
 }
 
-static int evict_folios(struct lruvec *lruvec, struct scan_control *sc, int swappiness,
-			bool *need_swapping)
+static int evict_folios(struct lruvec *lruvec, struct scan_control *sc, int swappiness)
 {
 	int type;
 	int scanned;
@@ -5096,9 +5105,6 @@ retry:
 		goto retry;
 	}
 
-	if (need_swapping && type == LRU_GEN_ANON)
-		*need_swapping = true;
-
 	return scanned;
 }
 
@@ -5138,67 +5144,26 @@ done:
 	return min_seq[!can_swap] + MIN_NR_GENS <= max_seq ? nr_to_scan : 0;
 }
 
-static bool should_abort_scan(struct lruvec *lruvec, unsigned long seq,
-			      struct scan_control *sc, bool need_swapping)
+static unsigned long get_nr_to_reclaim(struct scan_control *sc)
 {
-	int i;
-	DEFINE_MAX_SEQ(lruvec);
+	/* don't abort memcg reclaim to ensure fairness */
+	if (!global_reclaim(sc))
+		return -1;
 
-	if (!current_is_kswapd()) {
-		/* age each memcg at most once to ensure fairness */
-		if (max_seq - seq > 1)
-			return true;
+	/* discount the previous progress for kswapd */
+	if (current_is_kswapd())
+		return sc->nr_to_reclaim + sc->last_reclaimed;
 
-		/* over-swapping can increase allocation latency */
-		if (sc->nr_reclaimed >= sc->nr_to_reclaim && need_swapping)
-			return true;
-
-		/* give this thread a chance to exit and free its memory */
-		if (fatal_signal_pending(current)) {
-			sc->nr_reclaimed += MIN_LRU_BATCH;
-			return true;
-		}
-
-		if (cgroup_reclaim(sc))
-			return false;
-	} else if (sc->nr_reclaimed - sc->last_reclaimed < sc->nr_to_reclaim)
-		return false;
-
-	/* keep scanning at low priorities to ensure fairness */
-	if (sc->priority > DEF_PRIORITY - 2)
-		return false;
-
-	/*
-	 * A minimum amount of work was done under global memory pressure. For
-	 * kswapd, it may be overshooting. For direct reclaim, the allocation
-	 * may succeed if all suitable zones are somewhat safe. In either case,
-	 * it's better to stop now, and restart later if necessary.
-	 */
-	for (i = 0; i <= sc->reclaim_idx; i++) {
-		unsigned long wmark;
-		struct zone *zone = lruvec_pgdat(lruvec)->node_zones + i;
-
-		if (!managed_zone(zone))
-			continue;
-
-		wmark = current_is_kswapd() ? high_wmark_pages(zone) : low_wmark_pages(zone);
-		if (wmark > zone_page_state(zone, NR_FREE_PAGES))
-			return false;
-	}
-
-	sc->nr_reclaimed += MIN_LRU_BATCH;
-
-	return true;
+	return max(sc->nr_to_reclaim, compact_gap(sc->order));
 }
 
 static void lru_gen_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 {
 	struct blk_plug plug;
 	bool need_aging = false;
-	bool need_swapping = false;
 	unsigned long scanned = 0;
 	unsigned long reclaimed = sc->nr_reclaimed;
-	DEFINE_MAX_SEQ(lruvec);
+	unsigned long nr_to_reclaim = get_nr_to_reclaim(sc);
 
 	lru_add_drain();
 
@@ -5222,7 +5187,7 @@ static void lru_gen_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc
 		if (!nr_to_scan)
 			goto done;
 
-		delta = evict_folios(lruvec, sc, swappiness, &need_swapping);
+		delta = evict_folios(lruvec, sc, swappiness);
 		if (!delta)
 			goto done;
 
@@ -5230,7 +5195,7 @@ static void lru_gen_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc
 		if (scanned >= nr_to_scan)
 			break;
 
-		if (should_abort_scan(lruvec, max_seq, sc, need_swapping))
+		if (sc->nr_reclaimed >= nr_to_reclaim)
 			break;
 
 		cond_resched();
@@ -5677,7 +5642,7 @@ static int run_eviction(struct lruvec *lruvec, unsigned long seq, struct scan_co
 		if (sc->nr_reclaimed >= nr_to_reclaim)
 			return 0;
 
-		if (!evict_folios(lruvec, sc, swappiness, NULL))
+		if (!evict_folios(lruvec, sc, swappiness))
 			return 0;
 
 		cond_resched();
