@@ -30,7 +30,7 @@ int wcd_usbss_reg_notifier(struct notifier_block *nb,
 			 struct device_node *node);
 int wcd_usbss_unreg_notifier(struct notifier_block *nb,
 			   struct device_node *node);
-int wcd_usbss_dpdm_switch_update(bool enable);
+int wcd_usbss_dpdm_switch_update(bool enable, bool eq_en);
 #else
 static inline int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 		enum wcd_usbss_cable_status status)
@@ -50,7 +50,7 @@ static inline int wcd_usbss_unreg_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-static inline int wcd_usbss_dpdm_switch_update(bool enable)
+static inline int wcd_usbss_dpdm_switch_update(bool enable, bool eq_en)
 {
 	return 0;
 }
