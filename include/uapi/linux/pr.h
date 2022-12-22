@@ -4,6 +4,23 @@
 
 #include <linux/types.h>
 
+enum pr_status {
+	PR_STS_SUCCESS			= 0x0,
+	/*
+	 * The following error codes are based on SCSI, because the interface
+	 * was originally created for it and has existing users.
+	 */
+	/* Generic device failure. */
+	PR_STS_IOERR			= 0x2,
+	PR_STS_RESERVATION_CONFLICT	= 0x18,
+	/* Temporary path failure that can be retried. */
+	PR_STS_RETRY_PATH_FAILURE	= 0xe0000,
+	/* The request was failed due to a fast failure timer. */
+	PR_STS_PATH_FAST_FAILED		= 0xf0000,
+	/* The path cannot be reached and has been marked as failed. */
+	PR_STS_PATH_FAILED		= 0x10000,
+};
+
 enum pr_type {
 	PR_WRITE_EXCLUSIVE		= 1,
 	PR_EXCLUSIVE_ACCESS		= 2,
