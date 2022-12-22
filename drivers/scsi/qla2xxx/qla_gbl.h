@@ -1015,5 +1015,8 @@ int qla2xxx_enable_port(struct Scsi_Host *shost);
 
 uint64_t qla2x00_get_num_tgts(scsi_qla_host_t *vha);
 uint64_t qla2x00_count_set_bits(u32 num);
-
+int qla_create_buf_pool(struct scsi_qla_host *, struct qla_qpair *);
+void qla_free_buf_pool(struct qla_qpair *);
+int qla_get_buf(struct scsi_qla_host *, struct qla_qpair *, struct qla_buf_dsc *);
+void qla_put_buf(struct qla_qpair *, struct qla_buf_dsc *);
 #endif /* _QLA_GBL_H */

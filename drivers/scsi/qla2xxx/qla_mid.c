@@ -1080,3 +1080,119 @@ void qla_update_host_map(struct scsi_qla_host *vha, port_id_t id)
 		qla_update_vp_map(vha, SET_AL_PA);
 	}
 }
+
+int qla_create_buf_pool(struct scsi_qla_host *vha, struct qla_qpair *qp)
+{
+	int sz;
+
+	qp->buf_pool.num_bufs = qp->req->length;
+
+	sz = BITS_TO_LONGS(qp->req->length);
+	qp->buf_pool.buf_map   = kcalloc(sz, sizeof(long), GFP_KERNEL);
+	if (!qp->buf_pool.buf_map) {
+		ql_log(ql_log_warn, vha, 0x0186,
+		    "Failed to allocate buf_map(%ld).\n", sz * sizeof(unsigned long));
+		return -ENOMEM;
+	}
+	sz = qp->req->length * sizeof(void *);
+	qp->buf_pool.buf_array = kcalloc(qp->req->length, sizeof(void *), GFP_KERNEL);
+	if (!qp->buf_pool.buf_array) {
+		ql_log(ql_log_warn, vha, 0x0186,
+		    "Failed to allocate buf_array(%d).\n", sz);
+		kfree(qp->buf_pool.buf_map);
+		return -ENOMEM;
+	}
+	sz = qp->req->length * sizeof(dma_addr_t);
+	qp->buf_pool.dma_array = kcalloc(qp->req->length, sizeof(dma_addr_t), GFP_KERNEL);
+	if (!qp->buf_pool.dma_array) {
+		ql_log(ql_log_warn, vha, 0x0186,
+		    "Failed to allocate dma_array(%d).\n", sz);
+		kfree(qp->buf_pool.buf_map);
+		kfree(qp->buf_pool.buf_array);
+		return -ENOMEM;
+	}
+	set_bit(0, qp->buf_pool.buf_map);
+	return 0;
+}
+
+void qla_free_buf_pool(struct qla_qpair *qp)
+{
+	int i;
+	struct qla_hw_data *ha = qp->vha->hw;
+
+	for (i = 0; i < qp->buf_pool.num_bufs; i++) {
+		if (qp->buf_pool.buf_array[i] && qp->buf_pool.dma_array[i])
+			dma_pool_free(ha->fcp_cmnd_dma_pool, qp->buf_pool.buf_array[i],
+			    qp->buf_pool.dma_array[i]);
+		qp->buf_pool.buf_array[i] = NULL;
+		qp->buf_pool.dma_array[i] = 0;
+	}
+
+	kfree(qp->buf_pool.dma_array);
+	kfree(qp->buf_pool.buf_array);
+	kfree(qp->buf_pool.buf_map);
+}
+
+/* it is assume qp->qp_lock is held at this point */
+int qla_get_buf(struct scsi_qla_host *vha, struct qla_qpair *qp, struct qla_buf_dsc *dsc)
+{
+	u16 tag, i = 0;
+	void *buf;
+	dma_addr_t buf_dma;
+	struct qla_hw_data *ha = vha->hw;
+
+	dsc->tag = TAG_FREED;
+again:
+	tag = find_first_zero_bit(qp->buf_pool.buf_map, qp->buf_pool.num_bufs);
+	if (tag >= qp->buf_pool.num_bufs) {
+		ql_dbg(ql_dbg_io, vha, 0x00e2,
+		    "qp(%d) ran out of buf resource.\n", qp->id);
+		return  -EIO;
+	}
+	if (tag == 0) {
+		set_bit(0, qp->buf_pool.buf_map);
+		i++;
+		if (i == 5) {
+			ql_dbg(ql_dbg_io, vha, 0x00e3,
+			    "qp(%d) unable to get tag.\n", qp->id);
+			return -EIO;
+		}
+		goto again;
+	}
+
+	if (!qp->buf_pool.buf_array[tag]) {
+		buf = dma_pool_zalloc(ha->fcp_cmnd_dma_pool, GFP_ATOMIC, &buf_dma);
+		if (!buf) {
+			ql_log(ql_log_fatal, vha, 0x13b1,
+			    "Failed to allocate buf.\n");
+			return -ENOMEM;
+		}
+
+		dsc->buf = qp->buf_pool.buf_array[tag] = buf;
+		dsc->buf_dma = qp->buf_pool.dma_array[tag] = buf_dma;
+	} else {
+		dsc->buf = qp->buf_pool.buf_array[tag];
+		dsc->buf_dma = qp->buf_pool.dma_array[tag];
+		memset(dsc->buf, 0, FCP_CMND_DMA_POOL_SIZE);
+	}
+
+	qp->buf_pool.num_active++;
+	if (qp->buf_pool.num_active > qp->buf_pool.max_used)
+		qp->buf_pool.max_used = qp->buf_pool.num_active;
+
+	dsc->tag = tag;
+	set_bit(tag, qp->buf_pool.buf_map);
+	return 0;
+}
+
+
+/* it is assume qp->qp_lock is held at this point */
+void qla_put_buf(struct qla_qpair *qp, struct qla_buf_dsc *dsc)
+{
+	if (dsc->tag == TAG_FREED)
+		return;
+
+	clear_bit(dsc->tag, qp->buf_pool.buf_map);
+	qp->buf_pool.num_active--;
+	dsc->tag = TAG_FREED;
+}

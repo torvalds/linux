@@ -384,6 +384,13 @@ struct els_reject {
 struct req_que;
 struct qla_tgt_sess;
 
+struct qla_buf_dsc {
+	u16 tag;
+#define TAG_FREED 0xffff
+	void *buf;
+	dma_addr_t buf_dma;
+};
+
 /*
  * SCSI Request Block
  */
@@ -392,14 +399,16 @@ struct srb_cmd {
 	uint32_t request_sense_length;
 	uint32_t fw_sense_length;
 	uint8_t *request_sense_ptr;
-	struct ct6_dsd *ct6_ctx;
 	struct crc_context *crc_ctx;
+	struct ct6_dsd ct6_ctx;
+	struct qla_buf_dsc buf_dsc;
 };
 
 /*
  * SRB flag definitions
  */
 #define SRB_DMA_VALID			BIT_0	/* Command sent to ISP */
+#define SRB_GOT_BUF			BIT_1
 #define SRB_FCP_CMND_DMA_VALID		BIT_12	/* DIF: DSD List valid */
 #define SRB_CRC_CTX_DMA_VALID		BIT_2	/* DIF: context DMA valid */
 #define SRB_CRC_PROT_DMA_VALID		BIT_4	/* DIF: prot DMA valid */
@@ -3722,6 +3731,16 @@ struct qla_fw_resources {
 
 #define QLA_IOCB_PCT_LIMIT 95
 
+struct  qla_buf_pool {
+	u16 num_bufs;
+	u16 num_active;
+	u16 max_used;
+	u16 reserved;
+	unsigned long *buf_map;
+	void **buf_array;
+	dma_addr_t *dma_array;
+};
+
 /*Queue pair data structure */
 struct qla_qpair {
 	spinlock_t qp_lock;
@@ -3775,6 +3794,7 @@ struct qla_qpair {
 	struct qla_tgt_counters tgt_counters;
 	uint16_t cpuid;
 	struct qla_fw_resources fwres ____cacheline_aligned;
+	struct  qla_buf_pool buf_pool;
 	u32	cmd_cnt;
 	u32	cmd_completion_cnt;
 	u32	prev_completion_cnt;

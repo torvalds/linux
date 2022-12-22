@@ -3007,26 +3007,16 @@ qla28xx_start_scsi_edif(srb_t *sp)
 			goto queuing_error;
 	}
 
-	ctx = sp->u.scmd.ct6_ctx =
-	    mempool_alloc(ha->ctx_mempool, GFP_ATOMIC);
-	if (!ctx) {
-		ql_log(ql_log_fatal, vha, 0x3010,
-		    "Failed to allocate ctx for cmd=%p.\n", cmd);
-		goto queuing_error;
-	}
-
-	memset(ctx, 0, sizeof(struct ct6_dsd));
-	ctx->fcp_cmnd = dma_pool_zalloc(ha->fcp_cmnd_dma_pool,
-	    GFP_ATOMIC, &ctx->fcp_cmnd_dma);
-	if (!ctx->fcp_cmnd) {
+	if (qla_get_buf(vha, sp->qpair, &sp->u.scmd.buf_dsc)) {
 		ql_log(ql_log_fatal, vha, 0x3011,
-		    "Failed to allocate fcp_cmnd for cmd=%p.\n", cmd);
+		    "Failed to allocate buf for fcp_cmnd for cmd=%p.\n", cmd);
 		goto queuing_error;
 	}
 
-	/* Initialize the DSD list and dma handle */
-	INIT_LIST_HEAD(&ctx->dsd_list);
-	ctx->dsd_use_cnt = 0;
+	sp->flags |= SRB_GOT_BUF;
+	ctx = &sp->u.scmd.ct6_ctx;
+	ctx->fcp_cmnd = sp->u.scmd.buf_dsc.buf;
+	ctx->fcp_cmnd_dma = sp->u.scmd.buf_dsc.buf_dma;
 
 	if (cmd->cmd_len > 16) {
 		additional_cdb_len = cmd->cmd_len - 16;
@@ -3145,7 +3135,6 @@ no_dsds:
 	cmd_pkt->fcp_cmnd_dseg_len = cpu_to_le16(ctx->fcp_cmnd_len);
 	put_unaligned_le64(ctx->fcp_cmnd_dma, &cmd_pkt->fcp_cmnd_dseg_address);
 
-	sp->flags |= SRB_FCP_CMND_DMA_VALID;
 	cmd_pkt->byte_count = cpu_to_le32((uint32_t)scsi_bufflen(cmd));
 	/* Set total data segment count. */
 	cmd_pkt->entry_count = (uint8_t)req_cnt;
@@ -3177,15 +3166,11 @@ no_dsds:
 	return QLA_SUCCESS;
 
 queuing_error_fcp_cmnd:
-	dma_pool_free(ha->fcp_cmnd_dma_pool, ctx->fcp_cmnd, ctx->fcp_cmnd_dma);
 queuing_error:
 	if (tot_dsds)
 		scsi_dma_unmap(cmd);
 
-	if (sp->u.scmd.ct6_ctx) {
-		mempool_free(sp->u.scmd.ct6_ctx, ha->ctx_mempool);
-		sp->u.scmd.ct6_ctx = NULL;
-	}
+	qla_put_buf(sp->qpair, &sp->u.scmd.buf_dsc);
 	qla_put_fw_resources(sp->qpair, &sp->iores);
 	spin_unlock_irqrestore(lock, flags);
 
