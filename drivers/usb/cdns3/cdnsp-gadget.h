@@ -1532,8 +1532,8 @@ void cdnsp_queue_stop_endpoint(struct cdnsp_device *pdev,
 			       unsigned int ep_index);
 int cdnsp_queue_ctrl_tx(struct cdnsp_device *pdev, struct cdnsp_request *preq);
 int cdnsp_queue_bulk_tx(struct cdnsp_device *pdev, struct cdnsp_request *preq);
-int cdnsp_queue_isoc_tx_prepare(struct cdnsp_device *pdev,
-				struct cdnsp_request *preq);
+int cdnsp_queue_isoc_tx(struct cdnsp_device *pdev,
+			struct cdnsp_request *preq);
 void cdnsp_queue_configure_endpoint(struct cdnsp_device *pdev,
 				    dma_addr_t in_ctx_ptr);
 void cdnsp_queue_reset_ep(struct cdnsp_device *pdev, unsigned int ep_index);
