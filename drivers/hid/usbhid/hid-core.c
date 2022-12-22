@@ -1318,7 +1318,7 @@ static bool usbhid_may_wakeup(struct hid_device *hid)
 	return device_may_wakeup(&dev->dev);
 }
 
-static struct hid_ll_driver usb_hid_driver = {
+static const struct hid_ll_driver usb_hid_driver = {
 	.parse = usbhid_parse,
 	.start = usbhid_start,
 	.stop = usbhid_stop,

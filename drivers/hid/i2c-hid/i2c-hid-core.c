@@ -842,7 +842,7 @@ static void i2c_hid_close(struct hid_device *hid)
 	clear_bit(I2C_HID_STARTED, &ihid->flags);
 }
 
-static struct hid_ll_driver i2c_hid_ll_driver = {
+static const struct hid_ll_driver i2c_hid_ll_driver = {
 	.parse = i2c_hid_parse,
 	.start = i2c_hid_start,
 	.stop = i2c_hid_stop,

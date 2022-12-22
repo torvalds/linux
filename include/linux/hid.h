@@ -596,7 +596,7 @@ struct hid_device {							/* device report descriptor */
 	struct device dev;						/* device */
 	struct hid_driver *driver;
 
-	struct hid_ll_driver *ll_driver;
+	const struct hid_ll_driver *ll_driver;
 	struct mutex ll_open_lock;
 	unsigned int ll_open_count;
 
