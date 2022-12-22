@@ -15,6 +15,9 @@
 
 #include "common.h"
 
+BLOCKING_NOTIFIER_HEAD(scmi_requested_devices_nh);
+EXPORT_SYMBOL_GPL(scmi_requested_devices_nh);
+
 static DEFINE_IDA(scmi_bus_id);
 
 static const struct scmi_device_id *
@@ -94,12 +97,13 @@ static void scmi_dev_remove(struct device *dev)
 		scmi_drv->remove(scmi_dev);
 }
 
-static struct bus_type scmi_bus_type = {
+struct bus_type scmi_bus_type = {
 	.name =	"scmi_protocol",
 	.match = scmi_dev_match,
 	.probe = scmi_dev_probe,
 	.remove = scmi_dev_remove,
 };
+EXPORT_SYMBOL_GPL(scmi_bus_type);
 
 int scmi_driver_register(struct scmi_driver *driver, struct module *owner,
 			 const char *mod_name)

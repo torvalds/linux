@@ -105,6 +105,11 @@ void scmi_setup_protocol_implemented(const struct scmi_protocol_handle *ph,
 
 int __init scmi_bus_init(void);
 void __exit scmi_bus_exit(void);
+extern struct bus_type scmi_bus_type;
+
+#define SCMI_BUS_NOTIFY_DEVICE_REQUEST		0
+#define SCMI_BUS_NOTIFY_DEVICE_UNREQUEST	1
+extern struct blocking_notifier_head scmi_requested_devices_nh;
 
 int scmi_protocol_acquire(const struct scmi_handle *handle, u8 protocol_id);
 void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);

@@ -150,6 +150,9 @@ struct scmi_protocol_instance {
  * @notify_priv: Pointer to private data structure specific to notifications.
  * @node: List head
  * @users: Number of users of this instance
+ * @bus_nb: A notifier to listen for device bind/unbind on the scmi bus
+ * @dev_req_nb: A notifier to listen for device request/unrequest on the scmi
+ *		bus
  */
 struct scmi_info {
 	struct device *dev;
@@ -169,9 +172,13 @@ struct scmi_info {
 	void *notify_priv;
 	struct list_head node;
 	int users;
+	struct notifier_block bus_nb;
+	struct notifier_block dev_req_nb;
 };
 
 #define handle_to_scmi_info(h)	container_of(h, struct scmi_info, handle)
+#define bus_nb_to_scmi_info(nb)	container_of(nb, struct scmi_info, bus_nb)
+#define req_nb_to_scmi_info(nb)	container_of(nb, struct scmi_info, dev_req_nb)
 
 static const int scmi_linux_errmap[] = {
 	/* better than switch case as long as return value is continuous */
@@ -2509,6 +2516,60 @@ static void scmi_cleanup_txrx_channels(struct scmi_info *info)
 	scmi_cleanup_channels(info, &info->rx_idr);
 }
 
+static int scmi_bus_notifier(struct notifier_block *nb,
+			     unsigned long action, void *data)
+{
+	struct scmi_info *info = bus_nb_to_scmi_info(nb);
+	struct scmi_device *sdev = to_scmi_dev(data);
+
+	/* Skip transport devices and devices of different SCMI instances */
+	if (!strncmp(sdev->name, "__scmi_transport_device", 23) ||
+	    sdev->dev.parent != info->dev)
+		return NOTIFY_DONE;
+
+	switch (action) {
+	case BUS_NOTIFY_BIND_DRIVER:
+		break;
+	case BUS_NOTIFY_UNBOUND_DRIVER:
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	dev_dbg(info->dev, "Device %s (%s) is now %s\n", dev_name(&sdev->dev),
+		sdev->name, action == BUS_NOTIFY_BIND_DRIVER ?
+		"about to be BOUND." : "UNBOUND.");
+
+	return NOTIFY_OK;
+}
+
+static int scmi_device_request_notifier(struct notifier_block *nb,
+					unsigned long action, void *data)
+{
+	struct device_node *np;
+	struct scmi_device_id *id_table = data;
+	struct scmi_info *info = req_nb_to_scmi_info(nb);
+
+	np = idr_find(&info->active_protocols, id_table->protocol_id);
+	if (!np)
+		return NOTIFY_DONE;
+
+	dev_dbg(info->dev, "%sRequested device (%s) for protocol 0x%x\n",
+		action == SCMI_BUS_NOTIFY_DEVICE_REQUEST ? "" : "UN-",
+		id_table->name, id_table->protocol_id);
+
+	switch (action) {
+	case SCMI_BUS_NOTIFY_DEVICE_REQUEST:
+		break;
+	case SCMI_BUS_NOTIFY_DEVICE_UNREQUEST:
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
 static int scmi_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -2528,6 +2589,8 @@ static int scmi_probe(struct platform_device *pdev)
 
 	info->dev = dev;
 	info->desc = desc;
+	info->bus_nb.notifier_call = scmi_bus_notifier;
+	info->dev_req_nb.notifier_call = scmi_device_request_notifier;
 	INIT_LIST_HEAD(&info->node);
 	idr_init(&info->protocols);
 	mutex_init(&info->protocols_mtx);
@@ -2563,9 +2626,18 @@ static int scmi_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = scmi_xfer_info_init(info);
+	ret = bus_register_notifier(&scmi_bus_type, &info->bus_nb);
 	if (ret)
 		goto clear_txrx_setup;
+
+	ret = blocking_notifier_chain_register(&scmi_requested_devices_nh,
+					       &info->dev_req_nb);
+	if (ret)
+		goto clear_bus_notifier;
+
+	ret = scmi_xfer_info_init(info);
+	if (ret)
+		goto clear_dev_req_notifier;
 
 	if (scmi_notification_init(handle))
 		dev_err(dev, "SCMI Notifications NOT available.\n");
@@ -2624,6 +2696,11 @@ static int scmi_probe(struct platform_device *pdev)
 
 notification_exit:
 	scmi_notification_exit(&info->handle);
+clear_dev_req_notifier:
+	blocking_notifier_chain_unregister(&scmi_requested_devices_nh,
+					   &info->dev_req_nb);
+clear_bus_notifier:
+	bus_unregister_notifier(&scmi_bus_type, &info->bus_nb);
 clear_txrx_setup:
 	scmi_cleanup_txrx_channels(info);
 	return ret;
@@ -2651,6 +2728,10 @@ static int scmi_remove(struct platform_device *pdev)
 	idr_for_each_entry(&info->active_protocols, child, id)
 		of_node_put(child);
 	idr_destroy(&info->active_protocols);
+
+	blocking_notifier_chain_unregister(&scmi_requested_devices_nh,
+					   &info->dev_req_nb);
+	bus_unregister_notifier(&scmi_bus_type, &info->bus_nb);
 
 	/* Safe to free channels since no more users */
 	scmi_cleanup_txrx_channels(info);
