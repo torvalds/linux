@@ -2261,7 +2261,7 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 	int rc, dmabuf_fd = -EBADF;
 
 	if (!hl_device_operational(hdev, &status)) {
-		dev_warn_ratelimited(hdev->dev,
+		dev_dbg_ratelimited(hdev->dev,
 			"Device is %s. Can't execute MEMORY IOCTL\n",
 			hdev->status[status]);
 		return -EBUSY;

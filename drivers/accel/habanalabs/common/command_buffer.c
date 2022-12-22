@@ -368,7 +368,7 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 	int rc;
 
 	if (!hl_device_operational(hdev, &status)) {
-		dev_warn_ratelimited(hdev->dev,
+		dev_dbg_ratelimited(hdev->dev,
 			"Device is %s. Can't execute CB IOCTL\n",
 			hdev->status[status]);
 		return -EBUSY;

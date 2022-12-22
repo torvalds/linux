@@ -941,7 +941,7 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	}
 
 	if (!hl_device_operational(hdev, &status)) {
-		dev_warn_ratelimited(dev,
+		dev_dbg_ratelimited(dev,
 			"Device is %s. Can't execute INFO IOCTL\n",
 			hdev->status[status]);
 		return -EBUSY;
@@ -1026,7 +1026,7 @@ static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
 	int rc = 0;
 
 	if (!hl_device_operational(hdev, &status)) {
-		dev_warn_ratelimited(hdev->dev,
+		dev_dbg_ratelimited(hdev->dev,
 			"Device is %s. Can't execute DEBUG IOCTL\n",
 			hdev->status[status]);
 		return -EBUSY;
