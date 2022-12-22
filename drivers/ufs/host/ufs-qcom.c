@@ -4276,7 +4276,7 @@ static int ufs_cpufreq_status(void)
 
 	policy = cpufreq_cpu_get(0);
 	if (!policy) {
-		dev_warn(dev, "cpufreq not probed yet, defer once\n");
+		pr_warn("cpufreq not probed yet, defer once\n");
 		return -EPROBE_DEFER;
 	}
 
