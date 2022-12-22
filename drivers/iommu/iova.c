@@ -11,6 +11,7 @@
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/cpu.h>
+#include <trace/hooks/iommu.h>
 
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
@@ -317,14 +318,18 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 	bool size_aligned)
 {
 	struct iova *new_iova;
-	int ret;
+	int ret = -1;
 
 	new_iova = alloc_iova_mem();
 	if (!new_iova)
 		return NULL;
 
-	ret = __alloc_and_insert_iova_range(iovad, size, limit_pfn + 1,
-			new_iova, size_aligned);
+	trace_android_rvh_iommu_alloc_insert_iova(iovad, size, limit_pfn + 1,
+			new_iova, size_aligned, &ret);
+	if (ret) {
+		ret = __alloc_and_insert_iova_range(iovad, size,
+			limit_pfn + 1, new_iova, size_aligned);
+	}
 
 	if (ret) {
 		free_iova_mem(new_iova);
