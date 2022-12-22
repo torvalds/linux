@@ -65,7 +65,6 @@ static int mte_dump_tag_range(struct coredump_params *cprm,
 		mte_save_page_tags(page_address(page), tags);
 		put_page(page);
 		if (!dump_emit(cprm, tags, MTE_PAGE_TAG_STORAGE)) {
-			mte_free_tag_storage(tags);
 			ret = 0;
 			break;
 		}
