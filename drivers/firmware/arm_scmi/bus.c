@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/device.h>
@@ -19,6 +20,160 @@ BLOCKING_NOTIFIER_HEAD(scmi_requested_devices_nh);
 EXPORT_SYMBOL_GPL(scmi_requested_devices_nh);
 
 static DEFINE_IDA(scmi_bus_id);
+
+static DEFINE_IDR(scmi_requested_devices);
+/* Protect access to scmi_requested_devices */
+static DEFINE_MUTEX(scmi_requested_devices_mtx);
+
+struct scmi_requested_dev {
+	const struct scmi_device_id *id_table;
+	struct list_head node;
+};
+
+/**
+ * scmi_protocol_device_request  - Helper to request a device
+ *
+ * @id_table: A protocol/name pair descriptor for the device to be created.
+ *
+ * This helper let an SCMI driver request specific devices identified by the
+ * @id_table to be created for each active SCMI instance.
+ *
+ * The requested device name MUST NOT be already existent for any protocol;
+ * at first the freshly requested @id_table is annotated in the IDR table
+ * @scmi_requested_devices and then the requested device is advertised to any
+ * registered party via the @scmi_requested_devices_nh notification chain.
+ *
+ * Return: 0 on Success
+ */
+static int scmi_protocol_device_request(const struct scmi_device_id *id_table)
+{
+	int ret = 0;
+	unsigned int id = 0;
+	struct list_head *head, *phead = NULL;
+	struct scmi_requested_dev *rdev;
+
+	pr_debug("Requesting SCMI device (%s) for protocol %x\n",
+		 id_table->name, id_table->protocol_id);
+
+	/*
+	 * Search for the matching protocol rdev list and then search
+	 * of any existent equally named device...fails if any duplicate found.
+	 */
+	mutex_lock(&scmi_requested_devices_mtx);
+	idr_for_each_entry(&scmi_requested_devices, head, id) {
+		if (!phead) {
+			/* A list found registered in the IDR is never empty */
+			rdev = list_first_entry(head, struct scmi_requested_dev,
+						node);
+			if (rdev->id_table->protocol_id ==
+			    id_table->protocol_id)
+				phead = head;
+		}
+		list_for_each_entry(rdev, head, node) {
+			if (!strcmp(rdev->id_table->name, id_table->name)) {
+				pr_err("Ignoring duplicate request [%d] %s\n",
+				       rdev->id_table->protocol_id,
+				       rdev->id_table->name);
+				ret = -EINVAL;
+				goto out;
+			}
+		}
+	}
+
+	/*
+	 * No duplicate found for requested id_table, so let's create a new
+	 * requested device entry for this new valid request.
+	 */
+	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	if (!rdev) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	rdev->id_table = id_table;
+
+	/*
+	 * Append the new requested device table descriptor to the head of the
+	 * related protocol list, eventually creating such head if not already
+	 * there.
+	 */
+	if (!phead) {
+		phead = kzalloc(sizeof(*phead), GFP_KERNEL);
+		if (!phead) {
+			kfree(rdev);
+			ret = -ENOMEM;
+			goto out;
+		}
+		INIT_LIST_HEAD(phead);
+
+		ret = idr_alloc(&scmi_requested_devices, (void *)phead,
+				id_table->protocol_id,
+				id_table->protocol_id + 1, GFP_KERNEL);
+		if (ret != id_table->protocol_id) {
+			pr_err("Failed to save SCMI device - ret:%d\n", ret);
+			kfree(rdev);
+			kfree(phead);
+			ret = -EINVAL;
+			goto out;
+		}
+		ret = 0;
+	}
+	list_add(&rdev->node, phead);
+
+out:
+	mutex_unlock(&scmi_requested_devices_mtx);
+
+	if (!ret)
+		blocking_notifier_call_chain(&scmi_requested_devices_nh,
+					     SCMI_BUS_NOTIFY_DEVICE_REQUEST,
+					     (void *)rdev->id_table);
+
+	return ret;
+}
+
+/**
+ * scmi_protocol_device_unrequest  - Helper to unrequest a device
+ *
+ * @id_table: A protocol/name pair descriptor for the device to be unrequested.
+ *
+ * The unrequested device, described by the provided id_table, is at first
+ * removed from the IDR @scmi_requested_devices and then the removal is
+ * advertised to any registered party via the @scmi_requested_devices_nh
+ * notification chain.
+ */
+static void scmi_protocol_device_unrequest(const struct scmi_device_id *id_table)
+{
+	struct list_head *phead;
+
+	pr_debug("Unrequesting SCMI device (%s) for protocol %x\n",
+		 id_table->name, id_table->protocol_id);
+
+	mutex_lock(&scmi_requested_devices_mtx);
+	phead = idr_find(&scmi_requested_devices, id_table->protocol_id);
+	if (phead) {
+		struct scmi_requested_dev *victim, *tmp;
+
+		list_for_each_entry_safe(victim, tmp, phead, node) {
+			if (!strcmp(victim->id_table->name, id_table->name)) {
+				list_del(&victim->node);
+
+				mutex_unlock(&scmi_requested_devices_mtx);
+				blocking_notifier_call_chain(&scmi_requested_devices_nh,
+							     SCMI_BUS_NOTIFY_DEVICE_UNREQUEST,
+							     (void *)victim->id_table);
+				kfree(victim);
+				mutex_lock(&scmi_requested_devices_mtx);
+				break;
+			}
+		}
+
+		if (list_empty(phead)) {
+			idr_remove(&scmi_requested_devices,
+				   id_table->protocol_id);
+			kfree(phead);
+		}
+	}
+	mutex_unlock(&scmi_requested_devices_mtx);
+}
 
 static const struct scmi_device_id *
 scmi_dev_match_id(struct scmi_device *scmi_dev, struct scmi_driver *scmi_drv)
@@ -124,7 +279,7 @@ int scmi_driver_register(struct scmi_driver *driver, struct module *owner,
 
 	retval = driver_register(&driver->driver);
 	if (!retval)
-		pr_debug("registered new scmi driver %s\n", driver->name);
+		pr_debug("Registered new scmi driver %s\n", driver->name);
 
 	return retval;
 }
