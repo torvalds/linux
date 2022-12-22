@@ -197,8 +197,10 @@ struct bfq_entity {
 	/* flag, set to request a weight, ioprio or ioprio_class change  */
 	int prio_changed;
 
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	/* flag, set if the entity is counted in groups_with_pending_reqs */
 	bool in_groups_with_pending_reqs;
+#endif
 
 	/* last child queue of entity created (for non-leaf entities) */
 	struct bfq_queue *last_bfqq_created;
@@ -491,6 +493,7 @@ struct bfq_data {
 	 */
 	struct rb_root_cached queue_weights_tree;
 
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	/*
 	 * Number of groups with at least one process that
 	 * has at least one request waiting for completion. Note that
@@ -538,6 +541,7 @@ struct bfq_data {
 	 * with no request waiting for completion.
 	 */
 	unsigned int num_groups_with_pending_reqs;
+#endif
 
 	/*
 	 * Per-class (RT, BE, IDLE) number of bfq_queues containing
