@@ -20,6 +20,11 @@
 	compatible = "sony,pdx201", "qcom,sm6125";
 	chassis-type = "handset";
 
+	aliases {
+		mmc0 = &sdhc_1; /* SDC1 eMMC slot */
+		mmc1 = &sdhc_2; /* SDC2 SD card slot */
+	};
+
 	chosen {
 		#address-cells = <2>;
 		#size-cells = <2>;
