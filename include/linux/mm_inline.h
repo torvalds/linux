@@ -122,6 +122,18 @@ static inline bool lru_gen_in_fault(void)
 	return current->in_lru_fault;
 }
 
+#ifdef CONFIG_MEMCG
+static inline int lru_gen_memcg_seg(struct lruvec *lruvec)
+{
+	return READ_ONCE(lruvec->lrugen.seg);
+}
+#else
+static inline int lru_gen_memcg_seg(struct lruvec *lruvec)
+{
+	return 0;
+}
+#endif
+
 static inline int lru_gen_from_seq(unsigned long seq)
 {
 	return seq % MAX_NR_GENS;
@@ -295,6 +307,11 @@ static inline bool lru_gen_enabled(void)
 static inline bool lru_gen_in_fault(void)
 {
 	return false;
+}
+
+static inline int lru_gen_memcg_seg(struct lruvec *lruvec)
+{
+	return 0;
 }
 
 static inline bool lru_gen_add_folio(struct lruvec *lruvec, struct folio *folio, bool reclaiming)
