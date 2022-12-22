@@ -81,7 +81,6 @@ struct tinker_ft5406_data {
 	int screen_width;
 	int screen_height;
 	int xy_reverse;
-	int is_polling;
 	int known_ids;
 	int retry_count;
 	bool finish_work;
@@ -270,21 +269,7 @@ static int fts_retry_wait(struct tinker_ft5406_data *ts_data)
 static void tinker_ft5406_work(struct work_struct *work)
 {
 	struct ts_event *event = &g_ts_data->event;
-	int ret = 0, count = 5, td_status;
-
-	while (count > 0) {
-		ret = fts_check_fw_ver(g_ts_data->client);
-		if (ret == 0)
-			break;
-		LOG_INFO("checking touch ic, countdown: %d\n", count);
-		msleep(1000);
-		count--;
-	}
-	if (!count) {
-		LOG_ERR("checking touch ic timeout, %d\n", ret);
-		g_ts_data->is_polling = 0;
-		return;
-	}
+	int ret = 0, td_status;
 
 	/* polling 60fps */
 	while (!g_ts_data->finish_work) {
@@ -293,7 +278,6 @@ static void tinker_ft5406_work(struct work_struct *work)
 			ret = fts_retry_wait(g_ts_data);
 			if (ret == 0) {
 				LOG_ERR("stop touch polling\n");
-				g_ts_data->is_polling = 0;
 				break;
 			}
 		} else if (td_status < VALID_TD_STATUS_VAL + 1 &&
@@ -346,6 +330,12 @@ static int tinker_ft5406_probe(struct i2c_client *client,
 	LOG_INFO("width = %d, height = %d, reverse = %d\n",
 			g_ts_data->screen_width, g_ts_data->screen_height, g_ts_data->xy_reverse);
 
+	ret = fts_check_fw_ver(g_ts_data->client);
+	if (ret) {
+		LOG_ERR("checking touch ic failed\n");
+		goto check_fw_err;
+	}
+
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		LOG_ERR("failed to allocate input device\n");
@@ -375,13 +365,18 @@ static int tinker_ft5406_probe(struct i2c_client *client,
 		goto input_register_failed;
 	}
 
+	msleep(1000);
+
 	INIT_WORK(&g_ts_data->ft5406_work, tinker_ft5406_work);
 
 	return 0;
 
+check_fw_failed:
+	input_unregister_device(g_ts_data->input_dev);
 input_register_failed:
 	input_free_device(input_dev);
 input_allocate_failed:
+check_fw_err:
 	kfree(g_ts_data);
 	g_ts_data = NULL;
 	return ret;
