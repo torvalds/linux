@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 09 Nov 2022
+Release Date: 22 Dec 2022
 
-Release Version: V_01-00-57 : Limited-tested version
+Release Version: V_01-00-58 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -282,6 +282,17 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 	Example:
 	cat /sys/kernel/debug/tc956x_port0_debug/config_stats
 
+18. Use the below command to insert the kernel module for SW reset during link down.
+
+	#insmod tc956x_pcie_eth.ko mac0_link_down_macrst=x mac1_link_down_macrst=x
+
+	argument info:
+		mac0_link_down_macrst: For PORT0
+		mac1_link_down_macrst: For PORT1
+		x = [0: DISABLE (default), 1: ENABLE]
+
+	If invalid values are passed as kernel module parameter, the default value will be selected.
+
 # Release Versions:
 
 ## TC956X_Host_Driver_20210326_V_01-00:
@@ -546,3 +557,7 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 ## TC956X_Host_Driver_20221109_V_01-00-57:
 1. Update of fix for configuring Rx Parser when EEE is enabled
+
+## TC956X_Host_Driver_20221222_V_01-00-58:
+1. Support for SW reset during link down.
+2. Module parameters introduced for the control of SW reset and by default SW reset is disabled.

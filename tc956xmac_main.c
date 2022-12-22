@@ -137,6 +137,9 @@
  *  VERSION     : 01-00-55
  *  09 Nov 2022 : 1. Update of fix for configuring Rx Parser when EEE is enabled
  *  VERSION     : 01-00-57
+ *  22 Dec 2022 : 1. Support for SW reset during link down.
+                  2. Module parameters introduced for the control of SW reset and by default SW reset is disabled.
+ *  VERSION     : 01-00-58
  */
 
 #include <linux/clk.h>
@@ -304,6 +307,9 @@ extern unsigned int mac_power_save_at_link_down;
 
 extern unsigned int mac0_force_speed_mode;
 extern unsigned int mac1_force_speed_mode;
+
+extern unsigned int mac0_link_down_macrst;
+extern unsigned int mac1_link_down_macrst;
 
 extern int phy_ethtool_set_eee_2p5(struct phy_device *phydev, struct ethtool_eee *data);
 
@@ -3238,13 +3244,15 @@ static void tc956xmac_mac_an_restart(struct phylink_config *config)
 #endif
 }
 
+static int tc956xmac_open(struct net_device *dev);
+static int tc956xmac_release(struct net_device *dev);
 static void tc956xmac_mac_link_down(struct phylink_config *config,
 				 unsigned int mode, phy_interface_t interface)
 {
 	u32 ch;
 	u32 offload_release_sts = true;
 	struct tc956xmac_priv *priv = netdev_priv(to_net_dev(config->dev));
-
+	struct net_device *ndev = to_net_dev(config->dev);
 	tc956xmac_mac_set_rx(priv, priv->ioaddr, false);
 #ifdef EEE
 	priv->eee_active = false;
@@ -3256,6 +3264,21 @@ static void tc956xmac_mac_link_down(struct phylink_config *config,
 	pm_generic_suspend(priv->device);
 #endif
 
+	if (((mac0_link_down_macrst == ENABLE && priv->port_num == RM_PF0_ID) ||
+		(mac1_link_down_macrst == ENABLE && priv->port_num == RM_PF1_ID)) &&
+		netif_running(ndev))
+		priv->link_down_rst = true;
+	else
+		priv->link_down_rst = false;
+
+	KPRINT_INFO("link down1 priv->link_down_rst = %d \n", priv->link_down_rst);
+	if (priv->link_down_rst == true) {
+		tc956xmac_release(ndev);
+		tc956xmac_open(ndev);
+		priv->link_down_rst = false;
+	}
+
+	KPRINT_INFO("link down2 priv->link_down_rst = %d \n", priv->link_down_rst);
 	mutex_lock(&priv->port_ld_release_lock);
 	/* Checking whether all offload Tx channels released or not*/
 	for (ch = 0; ch < MAX_TX_QUEUES_TO_USE; ch++) {
@@ -5544,6 +5567,10 @@ static int tc956xmac_hw_setup(struct net_device *dev, bool init_ptp)
 	u32 chan;
 	int ret;
 
+	/* Back up MMC registers into internal SW MMC counters */
+	if (priv->link_down_rst == true)
+		tc956xmac_mmc_read(priv, priv->mmcaddr, &priv->mmc);
+
 	/* DMA initialization and SW reset */
 	ret = tc956xmac_init_dma_engine(priv);
 	if (ret < 0) {
@@ -5600,7 +5627,9 @@ static int tc956xmac_hw_setup(struct net_device *dev, bool init_ptp)
 	/* Set the HW DMA mode and the COE */
 	tc956xmac_dma_operation_mode(priv);
 
-	tc956xmac_mmc_setup(priv);
+	/* Avoid SW MMC counters reset during link down MAC reset */
+	if (priv->link_down_rst == false)
+		tc956xmac_mmc_setup(priv);
 
 	/* CRC & Padding Configuration */
 
@@ -5717,10 +5746,12 @@ static int tc956xmac_open(struct net_device *dev)
 	struct phy_device *phydev;
 	int addr = priv->plat->phy_addr;
 
-	KPRINT_INFO("---> %s : Port %d", __func__, priv->port_num);
+	KPRINT_INFO("---> light weight = %d %s : Port %d", priv->link_down_rst, __func__, priv->port_num);
 	phydev = mdiobus_get_phy(priv->mii, addr);
+	KPRINT_INFO("Open priv->link_down_rst = %d priv->tc956x_port_pm_suspend = %d\n", priv->link_down_rst, priv->tc956x_port_pm_suspend);
 #ifdef CONFIG_DEBUG_FS
-	tc956xmac_create_debugfs(priv->dev);/*Creating Debugfs*/
+	if (priv->link_down_rst == false)
+		tc956xmac_create_debugfs(priv->dev);/*Creating Debugfs*/
 #endif
 
 	mutex_lock(&priv->port_ld_release_lock);
@@ -5735,16 +5766,18 @@ static int tc956xmac_open(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	if (priv->hw->pcs != TC956XMAC_PCS_RGMII &&
-	    priv->hw->pcs != TC956XMAC_PCS_TBI &&
-	    priv->hw->pcs != TC956XMAC_PCS_RTBI) {
-		ret = tc956xmac_init_phy(dev);
-		if (ret) {
-			netdev_err(priv->dev,
-				   "%s: Cannot attach to PHY (error: %d)\n",
-				   __func__, ret);
-			KPRINT_INFO("<--- %s(1) : Port %d", __func__, priv->port_num);
-			return ret;
+	if (priv->link_down_rst == false) {
+		if (priv->hw->pcs != TC956XMAC_PCS_RGMII &&
+		    priv->hw->pcs != TC956XMAC_PCS_TBI &&
+		    priv->hw->pcs != TC956XMAC_PCS_RTBI) {
+			ret = tc956xmac_init_phy(dev);
+			if (ret) {
+				netdev_err(priv->dev,
+					   "%s: Cannot attach to PHY (error: %d)\n",
+					   __func__, ret);
+				KPRINT_INFO("<--- %s(1) : Port %d", __func__, priv->port_num);
+				return ret;
+			}
 		}
 	}
 
@@ -5900,48 +5933,53 @@ static int tc956xmac_open(struct net_device *dev)
 
 	tc956xmac_init_coalesce(priv);
 
-	if (priv->phylink)
-		phylink_start(priv->phylink);
+	if (priv->link_down_rst == false)  {
+		if (priv->phylink)
+			phylink_start(priv->phylink);
+	}
 
 	KPRINT_INFO("%s phylink started", __func__);
 
-	/* Request the IRQ lines */
-	ret = request_irq(dev->irq, tc956xmac_interrupt,
-			  IRQF_NO_SUSPEND, IRQ_DEV_NAME(priv->port_num), dev);
-	if (unlikely(ret < 0)) {
-		netdev_err(priv->dev,
-			   "%s: ERROR: allocating the IRQ %d (error: %d)\n",
-			   __func__, dev->irq, ret);
-		goto irq_error;
-	}
 
-	/* Do not re-request WOL irq resources during resume sequence. */
-	if (priv->tc956x_port_pm_suspend == false) {
-		/* Request the Wake IRQ in case of another line is used for WoL */
-		if (priv->wol_irq != dev->irq) {
-			ret = request_irq(priv->wol_irq, tc956xmac_wol_interrupt,
-					  IRQF_NO_SUSPEND, WOL_IRQ_DEV_NAME(priv->port_num), dev);
-			if (unlikely(ret < 0)) {
-				netdev_err(priv->dev,
-					   "%s: ERROR: allocating the WoL IRQ %d (%d)\n",
-					   __func__, priv->wol_irq, ret);
-				goto wolirq_error;
-			}
-		}
-#ifndef TC956X
+	if (priv->link_down_rst == false) {
 		/* Request the IRQ lines */
-		if (priv->lpi_irq > 0) {
-			ret = request_irq(priv->lpi_irq, tc956xmac_interrupt, IRQF_SHARED,
-					  dev->name, dev);
-			if (unlikely(ret < 0)) {
-				netdev_err(priv->dev,
-					   "%s: ERROR: allocating the LPI IRQ %d (%d)\n",
-					   __func__, priv->lpi_irq, ret);
-				goto lpiirq_error;
-			}
+		ret = request_irq(dev->irq, tc956xmac_interrupt,
+				  IRQF_NO_SUSPEND, IRQ_DEV_NAME(priv->port_num), dev);
+		if (unlikely(ret < 0)) {
+			netdev_err(priv->dev,
+				   "%s: ERROR: allocating the IRQ %d (error: %d)\n",
+				   __func__, dev->irq, ret);
+			goto irq_error;
 		}
-#endif
-		priv->tc956xmac_pm_wol_interrupt = false; /* Initialize flag for PHY Work queue */
+
+		/* Do not re-request WOL irq resources during resume sequence. */
+		if (priv->tc956x_port_pm_suspend == false) {
+			/* Request the Wake IRQ in case of another line is used for WoL */
+			if (priv->wol_irq != dev->irq) {
+				ret = request_irq(priv->wol_irq, tc956xmac_wol_interrupt,
+						  IRQF_NO_SUSPEND, WOL_IRQ_DEV_NAME(priv->port_num), dev);
+				if (unlikely(ret < 0)) {
+					netdev_err(priv->dev,
+						   "%s: ERROR: allocating the WoL IRQ %d (%d)\n",
+						   __func__, priv->wol_irq, ret);
+					goto wolirq_error;
+				}
+			}
+	#ifndef TC956X
+			/* Request the IRQ lines */
+			if (priv->lpi_irq > 0) {
+				ret = request_irq(priv->lpi_irq, tc956xmac_interrupt, IRQF_SHARED,
+						  dev->name, dev);
+				if (unlikely(ret < 0)) {
+					netdev_err(priv->dev,
+						   "%s: ERROR: allocating the LPI IRQ %d (%d)\n",
+						   __func__, priv->lpi_irq, ret);
+					goto lpiirq_error;
+				}
+			}
+	#endif
+			priv->tc956xmac_pm_wol_interrupt = false; /* Initialize flag for PHY Work queue */
+		}
 	}
 	tc956xmac_enable_all_queues(priv);
 	tc956xmac_start_all_queues(priv);
@@ -5964,7 +6002,7 @@ static int tc956xmac_open(struct net_device *dev)
 #endif
 
 #endif
-	KPRINT_INFO("<--- %s(2) : Port %d", __func__, priv->port_num);
+	KPRINT_INFO("<--- light weight = %d %s(2) : Port %d", priv->link_down_rst,__func__, priv->port_num);
 	return 0;
 #ifndef TC956X
 lpiirq_error:
@@ -5986,7 +6024,8 @@ init_error:
 	free_dma_desc_resources(priv);
 dma_desc_error:
 	phylink_disconnect_phy(priv->phylink);
-	KPRINT_INFO("<--- %s(3) : Port %d", __func__, priv->port_num);
+	KPRINT_INFO("<--- light weight = %d %s(3) : Port %d", priv->link_down_rst,__func__, priv->port_num);
+
 	return ret;
 }
 
@@ -6006,19 +6045,23 @@ static int tc956xmac_release(struct net_device *dev)
 #ifdef ENABLE_TX_TIMER
 	u32 chan;
 #endif
-	KPRINT_INFO("---> %s : Port %d", __func__, priv->port_num);
+	KPRINT_INFO(" ---> light weight = %d %s : Port %d", priv->link_down_rst, __func__, priv->port_num);
 #ifdef TX_COMPLETION_WITHOUT_TIMERS
 		writel(0, priv->tc956x_SRAM_pci_base_addr
 				+ TX_TIMER_SRAM_OFFSET(priv->port_num));
 
 #endif
+	KPRINT_INFO("Release priv->link_down_rst = %d priv->tc956x_port_pm_suspend = %d\n", priv->link_down_rst, priv->tc956x_port_pm_suspend);
 #ifdef CONFIG_DEBUG_FS
-	tc956xmac_cleanup_debugfs(priv->dev);
+	if (priv->link_down_rst == false)
+		tc956xmac_cleanup_debugfs(priv->dev);
 #endif
 	/* Stop and disconnect the PHY */
-	if (priv->phylink) {
-		phylink_stop(priv->phylink);
-		phylink_disconnect_phy(priv->phylink);
+	if (priv->link_down_rst == false) {
+		if (priv->phylink) {
+			phylink_stop(priv->phylink);
+			phylink_disconnect_phy(priv->phylink);
+		}
 	}
 
 	mutex_lock(&priv->port_ld_release_lock);
@@ -6031,7 +6074,8 @@ static int tc956xmac_release(struct net_device *dev)
 	tc956xmac_disable_all_queues(priv);
 
 	/* MSI_OUT_EN: Disable all MSI*/
-	writel(0x00000000, priv->ioaddr + TC956X_MSI_OUT_EN_OFFSET(priv->port_num));
+	if (priv->link_down_rst == false)
+		writel(0x00000000, priv->ioaddr + TC956X_MSI_OUT_EN_OFFSET(priv->port_num));
 
 #ifdef ENABLE_TX_TIMER
 	for (chan = 0; chan < priv->plat->tx_queues_to_use; chan++) {
@@ -6040,15 +6084,17 @@ static int tc956xmac_release(struct net_device *dev)
 	}
 #endif
 	/* Free the IRQ lines */
-	free_irq(dev->irq, dev);
-	/* Do not Free Host Irq resources during suspend sequence */
-	if (priv->tc956x_port_pm_suspend == false) {
-		if (priv->wol_irq != dev->irq)
-			free_irq(priv->wol_irq, dev);
-#ifndef TC956X
-		if (priv->lpi_irq > 0)
-			free_irq(priv->lpi_irq, dev);
-#endif
+	if (priv->link_down_rst == false) {
+		free_irq(dev->irq, dev);
+		/* Do not Free Host Irq resources during suspend sequence */
+		if (priv->tc956x_port_pm_suspend == false) {
+			if (priv->wol_irq != dev->irq)
+				free_irq(priv->wol_irq, dev);
+	#ifndef TC956X
+			if (priv->lpi_irq > 0)
+				free_irq(priv->lpi_irq, dev);
+	#endif
+		}
 	}
 	phydev = mdiobus_get_phy(priv->mii, addr);
 
@@ -6068,7 +6114,8 @@ static int tc956xmac_release(struct net_device *dev)
 	/* Disable the MAC Rx/Tx */
 	tc956xmac_mac_set(priv, priv->ioaddr, false);
 
-	netif_carrier_off(dev);
+	if (priv->link_down_rst == false)
+		netif_carrier_off(dev);
 
 	tc956xmac_release_ptp(priv);
 
@@ -6096,7 +6143,8 @@ static int tc956xmac_release(struct net_device *dev)
 	}
 	priv->port_release = true; /* setting port release to true as release invoked, and clear from open or link-up */
 	mutex_unlock(&priv->port_ld_release_lock);
-	KPRINT_INFO("<--- %s : Port %d", __func__, priv->port_num);
+	KPRINT_INFO("<--- light weight = %d %s : Port %d", priv->link_down_rst, __func__, priv->port_num);
+
 	return 0;
 }
 
@@ -12025,6 +12073,7 @@ int tc956xmac_dvr_probe(struct device *device,
 	priv->mac_loopback_mode = 0; /* Disable MAC loopback by default */
 	priv->phy_loopback_mode = 0; /* Disable PHY loopback by default */
 	priv->tc956x_port_pm_suspend = false; /* By Default Port suspend state set to false */
+	priv->link_down_rst= false; /* Disable MAC reset during link down by default */
 #endif
 	/* ToDo : Firwmware load code here */
 
