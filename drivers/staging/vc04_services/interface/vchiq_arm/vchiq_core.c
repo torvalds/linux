@@ -498,6 +498,7 @@ vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newstate)
 	vchiq_platform_conn_state_changed(state, oldstate, newstate);
 }
 
+/* This initialises a single remote_event, and the associated wait_queue. */
 static inline void
 remote_event_create(wait_queue_head_t *wq, struct remote_event *event)
 {
@@ -536,6 +537,10 @@ remote_event_wait(wait_queue_head_t *wq, struct remote_event *event)
 	return 1;
 }
 
+/*
+ * Acknowledge that the event has been signalled, and wake any waiters. Usually
+ * called as a result of the doorbell being rung.
+ */
 static inline void
 remote_event_signal_local(wait_queue_head_t *wq, struct remote_event *event)
 {
@@ -544,6 +549,7 @@ remote_event_signal_local(wait_queue_head_t *wq, struct remote_event *event)
 	wake_up_all(wq);
 }
 
+/* Check if a single event has been signalled, waking the waiters if it has. */
 static inline void
 remote_event_poll(wait_queue_head_t *wq, struct remote_event *event)
 {
@@ -551,6 +557,10 @@ remote_event_poll(wait_queue_head_t *wq, struct remote_event *event)
 		remote_event_signal_local(wq, event);
 }
 
+/*
+ * VCHIQ used a small, fixed number of remote events. It is simplest to
+ * enumerate them here for polling.
+ */
 void
 remote_event_pollall(struct vchiq_state *state)
 {

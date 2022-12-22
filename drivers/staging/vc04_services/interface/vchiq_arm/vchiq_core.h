@@ -166,6 +166,24 @@ struct vchiq_bulk_queue {
 	struct vchiq_bulk bulks[VCHIQ_NUM_SERVICE_BULKS];
 };
 
+/*
+ * Remote events provide a way of presenting several virtual doorbells to a
+ * peer (ARM host to VPU) using only one physical doorbell. They can be thought
+ * of as a way for the peer to signal a semaphore, in this case implemented as
+ * a workqueue.
+ *
+ * Remote events remain signalled until acknowledged by the receiver, and they
+ * are non-counting. They are designed in such a way as to minimise the number
+ * of interrupts and avoid unnecessary waiting.
+ *
+ * A remote_event is as small data structures that live in shared memory. It
+ * comprises two booleans - armed and fired:
+ *
+ * The sender sets fired when they signal the receiver.
+ * If fired is set, the receiver has been signalled and need not wait.
+ * The receiver sets the armed field before they begin to wait.
+ * If armed is set, the receiver is waiting and wishes to be woken by interrupt.
+ */
 struct remote_event {
 	int armed;
 	int fired;
