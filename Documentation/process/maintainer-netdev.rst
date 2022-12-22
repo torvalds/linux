@@ -44,17 +44,6 @@ for the future release.  You can find the trees here:
 - https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
 - https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
 
-How do I indicate which tree (net vs. net-next) my patch should be in?
-----------------------------------------------------------------------
-To help maintainers and CI bots you should explicitly mark which tree
-your patch is targeting. Assuming that you use git, use the prefix
-flag::
-
-  git format-patch --subject-prefix='PATCH net-next' start..finish
-
-Use ``net`` instead of ``net-next`` (always lower case) in the above for
-bug-fix ``net`` content.
-
 How often do changes from these trees make it to the mainline Linus tree?
 -------------------------------------------------------------------------
 To understand this, you need to know a bit of background information on
@@ -127,15 +116,6 @@ patch. Patches are indexed by the ``Message-ID`` header of the emails
 which carried them so if you have trouble finding your patch append
 the value of ``Message-ID`` to the URL above.
 
-How long before my patch is accepted?
--------------------------------------
-Generally speaking, the patches get triaged quickly (in less than
-48h). But be patient, if your patch is active in patchwork (i.e. it's
-listed on the project's patch list) the chances it was missed are close to zero.
-Asking the maintainer for status updates on your
-patch is a good way to ensure your patch is ignored or pushed to the
-bottom of the priority list.
-
 Should I directly update patchwork state of my own patches?
 -----------------------------------------------------------
 It may be tempting to help the maintainers and update the state of your
@@ -145,36 +125,20 @@ it to the maintainer to figure out what is the most recent and current
 version that should be applied. If there is any doubt, the maintainer
 will reply and ask what should be done.
 
-How do I divide my work into patches?
+How long before my patch is accepted?
 -------------------------------------
-
-Put yourself in the shoes of the reviewer. Each patch is read separately
-and therefore should constitute a comprehensible step towards your stated
-goal.
-
-Avoid sending series longer than 15 patches. Larger series takes longer
-to review as reviewers will defer looking at it until they find a large
-chunk of time. A small series can be reviewed in a short time, so Maintainers
-just do it. As a result, a sequence of smaller series gets merged quicker and
-with better review coverage. Re-posting large series also increases the mailing
-list traffic.
+Generally speaking, the patches get triaged quickly (in less than
+48h). But be patient, if your patch is active in patchwork (i.e. it's
+listed on the project's patch list) the chances it was missed are close to zero.
+Asking the maintainer for status updates on your
+patch is a good way to ensure your patch is ignored or pushed to the
+bottom of the priority list.
 
 I made changes to only a few patches in a patch series should I resend only those changed?
 ------------------------------------------------------------------------------------------
 No, please resend the entire patch series and make sure you do number your
 patches such that it is clear this is the latest and greatest set of patches
 that can be applied.
-
-I have received review feedback, when should I post a revised version of the patches?
--------------------------------------------------------------------------------------
-Allow at least 24 hours to pass between postings. This will ensure reviewers
-from all geographical locations have a chance to chime in. Do not wait
-too long (weeks) between postings either as it will make it harder for reviewers
-to recall all the context.
-
-Make sure you address all the feedback in your new posting. Do not post a new
-version of the code if the discussion about the previous version is still
-ongoing, unless directly instructed by a reviewer.
 
 I submitted multiple versions of a patch series and it looks like a version other than the last one has been accepted, what should I do?
 ----------------------------------------------------------------------------------------------------------------------------------------
@@ -190,6 +154,82 @@ to carry explicit ``CC: stable@vger.kernel.org`` tags that is no longer
 the case today. Please follow the standard stable rules in
 :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`,
 and make sure you include appropriate Fixes tags!
+
+I found a bug that might have possible security implications or similar. Should I mail the main netdev maintainer off-list?
+---------------------------------------------------------------------------------------------------------------------------
+No. The current netdev maintainer has consistently requested that
+people use the mailing lists and not reach out directly.  If you aren't
+OK with that, then perhaps consider mailing security@kernel.org or
+reading about http://oss-security.openwall.org/wiki/mailing-lists/distros
+as possible alternative mechanisms.
+
+How do I post corresponding changes to user space components?
+-------------------------------------------------------------
+User space code exercising kernel features should be posted
+alongside kernel patches. This gives reviewers a chance to see
+how any new interface is used and how well it works.
+
+When user space tools reside in the kernel repo itself all changes
+should generally come as one series. If series becomes too large
+or the user space project is not reviewed on netdev include a link
+to a public repo where user space patches can be seen.
+
+In case user space tooling lives in a separate repository but is
+reviewed on netdev  (e.g. patches to ``iproute2`` tools) kernel and
+user space patches should form separate series (threads) when posted
+to the mailing list, e.g.::
+
+  [PATCH net-next 0/3] net: some feature cover letter
+   └─ [PATCH net-next 1/3] net: some feature prep
+   └─ [PATCH net-next 2/3] net: some feature do it
+   └─ [PATCH net-next 3/3] selftest: net: some feature
+
+  [PATCH iproute2-next] ip: add support for some feature
+
+Posting as one thread is discouraged because it confuses patchwork
+(as of patchwork 2.2.2).
+
+Any other tips to help ensure my net/net-next patch gets OK'd?
+--------------------------------------------------------------
+Attention to detail.  Re-read your own work as if you were the
+reviewer.  You can start with using ``checkpatch.pl``, perhaps even with
+the ``--strict`` flag.  But do not be mindlessly robotic in doing so.
+If your change is a bug fix, make sure your commit log indicates the
+end-user visible symptom, the underlying reason as to why it happens,
+and then if necessary, explain why the fix proposed is the best way to
+get things done.  Don't mangle whitespace, and as is common, don't
+mis-indent function arguments that span multiple lines.  If it is your
+first patch, mail it to yourself so you can test apply it to an
+unpatched tree to confirm infrastructure didn't mangle it.
+
+Finally, go back and read
+:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
+to be sure you are not repeating some common mistake documented there.
+
+How do I indicate which tree (net vs. net-next) my patch should be in?
+----------------------------------------------------------------------
+To help maintainers and CI bots you should explicitly mark which tree
+your patch is targeting. Assuming that you use git, use the prefix
+flag::
+
+  git format-patch --subject-prefix='PATCH net-next' start..finish
+
+Use ``net`` instead of ``net-next`` (always lower case) in the above for
+bug-fix ``net`` content.
+
+How do I divide my work into patches?
+-------------------------------------
+
+Put yourself in the shoes of the reviewer. Each patch is read separately
+and therefore should constitute a comprehensible step towards your stated
+goal.
+
+Avoid sending series longer than 15 patches. Larger series takes longer
+to review as reviewers will defer looking at it until they find a large
+chunk of time. A small series can be reviewed in a short time, so Maintainers
+just do it. As a result, a sequence of smaller series gets merged quicker and
+with better review coverage. Re-posting large series also increases the mailing
+list traffic.
 
 Is the comment style convention different for the networking content?
 ---------------------------------------------------------------------
@@ -224,13 +264,16 @@ I am working in existing code which uses non-standard formatting. Which formatti
 Make your code follow the most recent guidelines, so that eventually all code
 in the domain of netdev is in the preferred format.
 
-I found a bug that might have possible security implications or similar. Should I mail the main netdev maintainer off-list?
----------------------------------------------------------------------------------------------------------------------------
-No. The current netdev maintainer has consistently requested that
-people use the mailing lists and not reach out directly.  If you aren't
-OK with that, then perhaps consider mailing security@kernel.org or
-reading about http://oss-security.openwall.org/wiki/mailing-lists/distros
-as possible alternative mechanisms.
+I have received review feedback, when should I post a revised version of the patches?
+-------------------------------------------------------------------------------------
+Allow at least 24 hours to pass between postings. This will ensure reviewers
+from all geographical locations have a chance to chime in. Do not wait
+too long (weeks) between postings either as it will make it harder for reviewers
+to recall all the context.
+
+Make sure you address all the feedback in your new posting. Do not post a new
+version of the code if the discussion about the previous version is still
+ongoing, unless directly instructed by a reviewer.
 
 What level of testing is expected before I submit my change?
 ------------------------------------------------------------
@@ -243,32 +286,6 @@ and the patch series contains a set of kernel selftest for
 
 You are expected to test your changes on top of the relevant networking
 tree (``net`` or ``net-next``) and not e.g. a stable tree or ``linux-next``.
-
-How do I post corresponding changes to user space components?
--------------------------------------------------------------
-User space code exercising kernel features should be posted
-alongside kernel patches. This gives reviewers a chance to see
-how any new interface is used and how well it works.
-
-When user space tools reside in the kernel repo itself all changes
-should generally come as one series. If series becomes too large
-or the user space project is not reviewed on netdev include a link
-to a public repo where user space patches can be seen.
-
-In case user space tooling lives in a separate repository but is
-reviewed on netdev  (e.g. patches to ``iproute2`` tools) kernel and
-user space patches should form separate series (threads) when posted
-to the mailing list, e.g.::
-
-  [PATCH net-next 0/3] net: some feature cover letter
-   └─ [PATCH net-next 1/3] net: some feature prep
-   └─ [PATCH net-next 2/3] net: some feature do it
-   └─ [PATCH net-next 3/3] selftest: net: some feature
-
-  [PATCH iproute2-next] ip: add support for some feature
-
-Posting as one thread is discouraged because it confuses patchwork
-(as of patchwork 2.2.2).
 
 Can I reproduce the checks from patchwork on my local machine?
 --------------------------------------------------------------
@@ -302,23 +319,6 @@ Linux kernel has a long standing rule that no API should be added unless
 it has a real, in-tree user. Mock-ups and tests based on ``netdevsim`` are
 strongly encouraged when adding new APIs, but ``netdevsim`` in itself
 is **not** considered a use case/user.
-
-Any other tips to help ensure my net/net-next patch gets OK'd?
---------------------------------------------------------------
-Attention to detail.  Re-read your own work as if you were the
-reviewer.  You can start with using ``checkpatch.pl``, perhaps even with
-the ``--strict`` flag.  But do not be mindlessly robotic in doing so.
-If your change is a bug fix, make sure your commit log indicates the
-end-user visible symptom, the underlying reason as to why it happens,
-and then if necessary, explain why the fix proposed is the best way to
-get things done.  Don't mangle whitespace, and as is common, don't
-mis-indent function arguments that span multiple lines.  If it is your
-first patch, mail it to yourself so you can test apply it to an
-unpatched tree to confirm infrastructure didn't mangle it.
-
-Finally, go back and read
-:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
-to be sure you are not repeating some common mistake documented there.
 
 My company uses peer feedback in employee performance reviews. Can I ask netdev maintainers for feedback?
 ---------------------------------------------------------------------------------------------------------
