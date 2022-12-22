@@ -5719,6 +5719,7 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	return true;
 
 fail:
+	intel_display_power_flush_work(dev_priv);
 	drm_connector_cleanup(connector);
 
 	return false;
