@@ -491,12 +491,16 @@ int wave5_vpu_dec_get_output_info(struct vpu_instance *inst, struct dec_output_i
 		p_dec_info->dec_out_info[decoded_index].rc_decoded = rect_info;
 	}
 	info->rc_decoded = rect_info;
+	dev_dbg(inst->dev->dev, "%s %d %u %u %u %u\n", __func__, __LINE__,
+		rect_info.left, rect_info.right, rect_info.top, rect_info.bottom);
 
 	disp_idx = info->index_frame_display;
 	disp_info = &p_dec_info->dec_out_info[disp_idx];
 	if (info->index_frame_display >= 0 && info->index_frame_display < WAVE5_MAX_FBS) {
 		u32 width = info->dec_pic_width;
 		u32 height = info->dec_pic_height;
+		dev_dbg(inst->dev->dev, "%s %d dec_pic_width %u dec_pic_height %u\n",
+				__func__, __LINE__, info->dec_pic_width, info->dec_pic_height);
 
 		if (info->index_frame_display != info->index_frame_decoded) {
 			/*
@@ -573,6 +577,8 @@ int wave5_vpu_dec_get_output_info(struct vpu_instance *inst, struct dec_output_i
 			info->disp_pic_height = 0;
 		}
 	}
+	dev_dbg(inst->dev->dev, "%s %d disp_pic_width %u disp_pic_height %u\n",
+				__func__, __LINE__, info->disp_pic_width, info->disp_pic_height);
 
 	p_dec_info->stream_rd_ptr = wave5_vpu_dec_get_rd_ptr(inst);
 	p_dec_info->frame_display_flag = vpu_read_reg(vpu_dev, W5_RET_DEC_DISP_IDC);

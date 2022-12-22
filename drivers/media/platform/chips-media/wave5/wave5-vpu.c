@@ -8,6 +8,9 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/of_address.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
@@ -22,10 +25,39 @@
 #define WAVE5_IS_ENC BIT(0)
 #define WAVE5_IS_DEC BIT(1)
 
+struct clk_bulk_data vpu_clks[] = {
+               { .id = "apb_clk" },
+               { .id = "axi_clk" },
+               { .id = "bpu_clk" },
+               { .id = "vce_clk" },
+               { .id = "noc_bus" },
+};
+
 struct wave5_match_data {
 	int flags;
 	const char *fw_name;
 };
+
+static int vpu_clk_get(struct platform_device *pdev, struct vpu_device *vpu)
+{
+	struct device *dev = &pdev->dev;
+	int ret;
+
+	vpu->clks = vpu_clks;
+	vpu->num_clks = ARRAY_SIZE(vpu_clks);
+
+	vpu->resets = devm_reset_control_array_get_exclusive(dev);
+	if (IS_ERR(vpu->resets)) {
+		ret = PTR_ERR(vpu->resets);
+		dev_err(dev, "faied to get vpu reset controls\n");
+	}
+
+	ret = devm_clk_bulk_get(dev, vpu->num_clks, vpu->clks);
+	if (ret)
+		dev_err(dev, "faied to get vpu clk controls\n");
+
+	return 0;
+}
 
 int wave5_vpu_wait_interrupt(struct vpu_instance *inst, unsigned int timeout)
 {
@@ -170,9 +202,7 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct vpu_device *dev;
-	struct device_node *np;
 	const struct wave5_match_data *match_data;
-	struct resource sram;
 
 	match_data = device_get_match_data(&pdev->dev);
 	if (!match_data) {
@@ -191,6 +221,7 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 	dev->vdb_register = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->vdb_register))
 		return PTR_ERR(dev->vdb_register);
+	dev_dbg(&pdev->dev, "vdb_register %p\n",dev->vdb_register);
 	ida_init(&dev->inst_ida);
 
 	mutex_init(&dev->dev_lock);
@@ -198,14 +229,16 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, dev);
 	dev->dev = &pdev->dev;
 
-	ret = devm_clk_bulk_get_all(&pdev->dev, &dev->clks);
+	ret = vpu_clk_get(pdev, dev);
 
 	/* continue without clock, assume externally managed */
 	if (ret < 0) {
-		dev_warn(&pdev->dev, "Getting clocks, fail: %d\n", ret);
-		ret = 0;
+		dev_err(&pdev->dev, "Getting clocks, fail: %d\n", ret);
+		return ret;
 	}
-	dev->num_clks = ret;
+
+	dev->sram_buf.daddr = VDI_SRAM_BASE_ADDR;
+	dev->sram_buf.size = VDI_WAVE511_SRAM_SIZE;
 
 	ret = clk_bulk_prepare_enable(dev->num_clks, dev->clks);
 	if (ret) {
@@ -213,28 +246,21 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	np = of_parse_phandle(pdev->dev.of_node, "sram", 0);
-	if (!np) {
-		dev_warn(&pdev->dev, "sram node not found\n");
-	} else {
-		ret = of_address_to_resource(np, 0, &sram);
-		if (ret) {
-			dev_err(&pdev->dev, "sram resource not available\n");
-			goto err_put_node;
-		}
-		dev->sram_buf.daddr = sram.start;
-		dev->sram_buf.size = resource_size(&sram);
-		dev_dbg(&pdev->dev, "%s: sram daddr: %pad, size: 0x%lx\n",
-			__func__, &dev->sram_buf.daddr, dev->sram_buf.size);
+	ret = reset_control_deassert(dev->resets);
+	if (ret) {
+		dev_err(&pdev->dev, "Reset deassert, fail: %d\n", ret);
+		goto  err_clk_dis;
 	}
 
 	dev->product_code = wave5_vdi_readl(dev, VPU_PRODUCT_CODE_REGISTER);
+	dev_dbg(&pdev->dev, "product_code %d\n",dev->product_code);
 	ret = wave5_vdi_init(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "wave5_vdi_init, fail: %d\n", ret);
-		goto err_clk_dis;
+		goto err_rst_dis;
 	}
 	dev->product = wave5_vpu_get_product_id(dev);
+	dev_dbg(&pdev->dev, "product %d\n",dev->product);
 
 	INIT_LIST_HEAD(&dev->instances);
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
@@ -264,6 +290,7 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err_enc_unreg;
 	}
+	dev_dbg(&pdev->dev, "irq %d\n",dev->irq);
 
 	ret = devm_request_threaded_irq(&pdev->dev, dev->irq, wave5_vpu_irq,
 					wave5_vpu_irq_thread, 0, "vpu_irq", dev);
@@ -294,10 +321,10 @@ err_v4l2_unregister:
 	v4l2_device_unregister(&dev->v4l2_dev);
 err_vdi_release:
 	wave5_vdi_release(&pdev->dev);
+err_rst_dis:
+	reset_control_assert(dev->resets);
 err_clk_dis:
 	clk_bulk_disable_unprepare(dev->num_clks, dev->clks);
-err_put_node:
-	of_node_put(np);
 
 	return ret;
 }
@@ -306,6 +333,7 @@ static int wave5_vpu_remove(struct platform_device *pdev)
 {
 	struct vpu_device *dev = dev_get_drvdata(&pdev->dev);
 
+	reset_control_assert(dev->resets);
 	clk_bulk_disable_unprepare(dev->num_clks, dev->clks);
 	wave5_vpu_enc_unregister_device(dev);
 	wave5_vpu_dec_unregister_device(dev);
@@ -336,6 +364,11 @@ static const struct wave5_match_data default_match_data = {
 	.fw_name = "chagall.bin",
 };
 
+static const struct wave5_match_data sfdec_match_data = {
+	.flags = WAVE5_IS_DEC,
+	.fw_name = "chagall.bin",
+};
+
 static const struct of_device_id wave5_dt_ids[] = {
 	{ .compatible = "cnm,cm511-vpu", .data = &wave511_data },
 	{ .compatible = "cnm,cm517-vpu", .data = &default_match_data },
@@ -344,6 +377,7 @@ static const struct of_device_id wave5_dt_ids[] = {
 	{ .compatible = "cnm,cm521c-dual-vpu", .data = &wave521c_data },
 	{ .compatible = "cnm,cm521e1-vpu", .data = &default_match_data },
 	{ .compatible = "cnm,cm537-vpu", .data = &default_match_data },
+	{ .compatible = "starfive,vdec", .data = &sfdec_match_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, wave5_dt_ids);

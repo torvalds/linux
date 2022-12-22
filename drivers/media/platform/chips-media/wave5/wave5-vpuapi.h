@@ -1024,6 +1024,7 @@ struct vpu_device {
 	u32 product_code;
 	struct ida inst_ida;
 	struct clk_bulk_data *clks;
+	struct reset_control *resets;
 	int num_clks;
 };
 
@@ -1046,6 +1047,7 @@ struct vpu_instance {
 
 	struct v4l2_pix_format_mplane src_fmt;
 	struct v4l2_pix_format_mplane dst_fmt;
+	struct v4l2_pix_format_mplane display_fmt;
 	enum v4l2_colorspace colorspace;
 	enum v4l2_xfer_func xfer_func;
 	enum v4l2_ycbcr_encoding ycbcr_enc;

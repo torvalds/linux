@@ -568,6 +568,7 @@ static void wave5_get_dec_seq_result(struct vpu_instance *inst, struct dec_initi
 	reg_val = vpu_read_reg(inst->dev, W5_RET_DEC_PIC_SIZE);
 	info->pic_width = ((reg_val >> 16) & 0xffff);
 	info->pic_height = (reg_val & 0xffff);
+	dev_dbg(inst->dev->dev,  "%s info->pic_width %d info->pic_height %d\n",__func__, info->pic_width, info->pic_height);
 	info->min_frame_buffer_count = vpu_read_reg(inst->dev, W5_RET_DEC_NUM_REQUIRED_FB);
 	info->frame_buf_delay = vpu_read_reg(inst->dev, W5_RET_DEC_NUM_REORDER_DELAY);
 
@@ -577,6 +578,8 @@ static void wave5_get_dec_seq_result(struct vpu_instance *inst, struct dec_initi
 	reg_val = vpu_read_reg(inst->dev, W5_RET_DEC_CROP_TOP_BOTTOM);
 	info->pic_crop_rect.top = (reg_val >> 16) & 0xffff;
 	info->pic_crop_rect.bottom = reg_val & 0xffff;
+	dev_dbg(inst->dev->dev, "%s pic_crop_rect.left %d pic_crop_rect.right %d pic_crop_rect.top %d pic_crop_rect.bottom %d\n",__func__,
+				info->pic_crop_rect.left, info->pic_crop_rect.right, info->pic_crop_rect.top, info->pic_crop_rect.bottom);
 
 	info->f_rate_numerator = vpu_read_reg(inst->dev, W5_RET_DEC_FRAME_RATE_NR);
 	info->f_rate_denominator = vpu_read_reg(inst->dev, W5_RET_DEC_FRAME_RATE_DR);
@@ -715,6 +718,7 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 	struct vpu_buf vb_buf;
 	u32 color_format = 0;
 	u32 pixel_order = 1;
+	u32 scale_en = 0;
 	u32 bwb_flag = (map_type == LINEAR_FRAME_MAP) ? 1 : 0;
 
 	cbcr_interleave = inst->cbcr_interleave;
@@ -816,7 +820,10 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 				p_dec_info->vb_fbc_c_tbl[i] = vb_buf;
 			}
 		}
-		pic_size = (init_info->pic_width << 16) | (init_info->pic_height);
+		pic_size = (inst->display_fmt.width << 16) | (inst->display_fmt.height);
+		if (init_info->pic_width != inst->display_fmt.width ||
+				init_info->pic_height != inst->display_fmt.height)
+			scale_en = 1;
 
 		// allocate task_buffer
 		vb_buf.size = (p_dec_info->vlc_buf_size * VLC_BUF_NUM) +
@@ -832,8 +839,12 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 			      p_dec_info->vb_task.daddr);
 		vpu_write_reg(inst->dev, W5_CMD_SET_FB_TASK_BUF_SIZE, vb_buf.size);
 	} else {
-		pic_size = (init_info->pic_width << 16) | (init_info->pic_height);
+		pic_size = (inst->display_fmt.width << 16) | (inst->display_fmt.height);
+		if (init_info->pic_width != inst->display_fmt.width ||
+				init_info->pic_height != inst->display_fmt.height)
+			scale_en = 1;
 	}
+	dev_dbg(inst->dev->dev, "set pic_size 0x%x\n", pic_size);
 	endian = wave5_vdi_convert_endian(inst->dev, fb_arr[0].endian);
 	vpu_write_reg(inst->dev, W5_PIC_SIZE, pic_size);
 
@@ -841,13 +852,15 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 	color_format = 0;
 
 	reg_val =
+		(scale_en << 29) |
 		(bwb_flag << 28) |
 		(pixel_order << 23) | /* PIXEL ORDER in 128bit. first pixel in low address */
 		(yuv_format << 20) |
 		(color_format << 19) |
 		(nv21 << 17) |
 		(cbcr_interleave << 16) |
-		(fb_arr[0].stride);
+		inst->display_fmt.width;
+	dev_dbg(inst->dev->dev, "set W5_COMMON_PIC_INFO 0x%x\n",reg_val);
 	vpu_write_reg(inst->dev, W5_COMMON_PIC_INFO, reg_val);
 
 	remain = count;

@@ -20,6 +20,9 @@
 #define VPU_BUF_SYNC_TO_DEVICE 0
 #define VPU_BUF_SYNC_FROM_DEVICE 1
 
+#define VDI_SRAM_BASE_ADDR          0x00000000
+#define VDI_WAVE511_SRAM_SIZE       0x2D000
+
 struct vpu_buffer {
 	struct v4l2_m2m_buffer v4l2_m2m_buf;
 	bool                   consumed;

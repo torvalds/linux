@@ -106,6 +106,7 @@ int wave5_vpu_subscribe_event(struct v4l2_fh *fh, const struct v4l2_event_subscr
 {
 	struct vpu_instance *inst = wave5_to_vpu_inst(fh);
 	bool is_decoder = inst->type == VPU_INST_TYPE_DEC;
+	printk("wave5 subscribe event type: %d id: %d | flags: %d\n",sub->type, sub->id, sub->flags);
 
 	dev_dbg(inst->dev->dev, "%s: [%s] type: %u id: %u | flags: %u\n", __func__,
 		is_decoder ? "decoder" : "encoder", sub->type, sub->id, sub->flags);

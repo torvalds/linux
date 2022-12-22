@@ -10,6 +10,7 @@
 #include "wave5-vpu.h"
 #include "wave5-regdefine.h"
 #include <linux/delay.h>
+#include <soc/sifive/sifive_l2_cache.h>
 
 #define VDI_SRAM_BASE_ADDR		0x00
 
@@ -94,6 +95,7 @@ int wave5_vdi_clear_memory(struct vpu_device *vpu_dev, struct vpu_buf *vb)
 	}
 
 	memset(vb->vaddr, 0, vb->size);
+	sifive_l2_flush64_range(vb->daddr, vb->size);
 	return vb->size;
 }
 
@@ -115,6 +117,7 @@ int wave5_vdi_write_memory(struct vpu_device *vpu_dev, struct vpu_buf *vb, size_
 
 	wave5_swap_endian(vpu_dev, data, len, endian);
 	memcpy(vb->vaddr + offset, data, len);
+	sifive_l2_flush64_range(vb->daddr + offset, len);
 
 	return len;
 }
@@ -134,6 +137,8 @@ int wave5_vdi_allocate_dma_memory(struct vpu_device *vpu_dev, struct vpu_buf *vb
 		return -ENOMEM;
 	vb->vaddr = vaddr;
 	vb->daddr = daddr;
+
+	sifive_l2_flush64_range(daddr, vb->size);
 
 	return 0;
 }
