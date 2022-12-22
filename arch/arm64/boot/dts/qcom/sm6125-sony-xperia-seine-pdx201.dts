@@ -142,6 +142,9 @@
 };
 
 &hsusb_phy1 {
+	vdd-supply = <&pm6125_l7>;
+	vdda-pll-supply = <&pm6125_l10>;
+	vdda-phy-dpdm-supply = <&pm6125_l15>;
 	status = "okay";
 };
 
