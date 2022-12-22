@@ -480,6 +480,49 @@ void qla2x00_release_all_sadb(struct scsi_qla_host *vha, struct fc_port *fcport)
 }
 
 /**
+ * qla_delete_n2n_sess_and_wait: search for N2N session, tear it down and
+ *    wait for tear down to complete.  In N2N topology, there is only one
+ *    session being active in tracking the remote device.
+ * @vha: host adapter pointer
+ * return code:  0 - found the session and completed the tear down.
+ *	1 - timeout occurred.  Caller to use link bounce to reset.
+ */
+static int qla_delete_n2n_sess_and_wait(scsi_qla_host_t *vha)
+{
+	struct fc_port *fcport;
+	int rc = -EIO;
+	ulong expire = jiffies + 23 * HZ;
+
+	if (!N2N_TOPO(vha->hw))
+		return 0;
+
+	fcport = NULL;
+	list_for_each_entry(fcport, &vha->vp_fcports, list) {
+		if (!fcport->n2n_flag)
+			continue;
+
+		ql_dbg(ql_dbg_disc, fcport->vha, 0x2016,
+		       "%s reset sess at app start \n", __func__);
+
+		qla_edif_sa_ctl_init(vha, fcport);
+		qlt_schedule_sess_for_deletion(fcport);
+
+		while (time_before_eq(jiffies, expire)) {
+			if (fcport->disc_state != DSC_DELETE_PEND) {
+				rc = 0;
+				break;
+			}
+			msleep(1);
+		}
+
+		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+		break;
+	}
+
+	return rc;
+}
+
+/**
  * qla_edif_app_start:  application has announce its present
  * @vha: host adapter pointer
  * @bsg_job: user request
@@ -518,18 +561,17 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 			fcport->n2n_link_reset_cnt = 0;
 
 		if (vha->hw->flags.n2n_fw_acc_sec) {
-			list_for_each_entry_safe(fcport, tf, &vha->vp_fcports, list)
-				qla_edif_sa_ctl_init(vha, fcport);
-
+			bool link_bounce = false;
 			/*
 			 * While authentication app was not running, remote device
 			 * could still try to login with this local port.  Let's
-			 * clear the state and try again.
+			 * reset the session, reconnect and re-authenticate.
 			 */
-			qla2x00_wait_for_sess_deletion(vha);
+			if (qla_delete_n2n_sess_and_wait(vha))
+				link_bounce = true;
 
-			/* bounce the link to get the other guy to relogin */
-			if (!vha->hw->flags.n2n_bigger) {
+			/* bounce the link to start login */
+			if (!vha->hw->flags.n2n_bigger || link_bounce) {
 				set_bit(N2N_LINK_RESET, &vha->dpc_flags);
 				qla2xxx_wake_dpc(vha);
 			}
