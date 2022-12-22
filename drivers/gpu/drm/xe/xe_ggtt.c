@@ -20,8 +20,8 @@
 #include "gt/intel_gt_regs.h"
 
 /* FIXME: Common file, preferably auto-gen */
-#define MTL_GGTT_PTE_PAT0	BIT(52)
-#define MTL_GGTT_PTE_PAT1	BIT(53)
+#define MTL_GGTT_PTE_PAT0	BIT_ULL(52)
+#define MTL_GGTT_PTE_PAT1	BIT_ULL(53)
 
 u64 xe_ggtt_pte_encode(struct xe_bo *bo, u64 bo_offset)
 {
