@@ -3469,6 +3469,7 @@ struct qla_msix_entry {
 	int have_irq;
 	int in_use;
 	uint32_t vector;
+	uint32_t vector_base0;
 	uint16_t entry;
 	char name[30];
 	void *handle;
@@ -4125,6 +4126,7 @@ struct qla_hw_data {
 	struct req_que **req_q_map;
 	struct rsp_que **rsp_q_map;
 	struct qla_qpair **queue_pair_map;
+	struct qla_qpair **qp_cpu_map;
 	unsigned long req_qid_map[(QLA_MAX_QUEUES / 8) / sizeof(unsigned long)];
 	unsigned long rsp_qid_map[(QLA_MAX_QUEUES / 8) / sizeof(unsigned long)];
 	unsigned long qpair_qid_map[(QLA_MAX_QUEUES / 8)
