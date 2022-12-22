@@ -234,7 +234,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 			 (u64)xe->mem.vram.size >> 20);
 	if (xe->mem.vram.size < lmem_size)
 		drm_warn(&xe->drm, "Restricting VRAM size to PCI resource size (0x%llx->0x%llx)\n",
-			 lmem_size, xe->mem.vram.size);
+			 lmem_size, (u64)xe->mem.vram.size);
 
 #ifdef CONFIG_64BIT
 	xe->mem.vram.mapping = ioremap_wc(xe->mem.vram.io_start, xe->mem.vram.size);

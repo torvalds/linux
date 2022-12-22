@@ -263,9 +263,9 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		goto free_tiny;
 	}
 
-	kunit_info(test, "Starting tests, top level PT addr: %llx, special pagetable base addr: %llx\n",
-		   xe_bo_main_addr(m->eng->vm->pt_root[id]->bo, GEN8_PAGE_SIZE),
-		   xe_bo_main_addr(m->pt_bo, GEN8_PAGE_SIZE));
+	kunit_info(test, "Starting tests, top level PT addr: %lx, special pagetable base addr: %lx\n",
+		   (unsigned long)xe_bo_main_addr(m->eng->vm->pt_root[id]->bo, GEN8_PAGE_SIZE),
+		   (unsigned long)xe_bo_main_addr(m->pt_bo, GEN8_PAGE_SIZE));
 
 	/* First part of the test, are we updating our pagetable bo with a new entry? */
 	xe_map_wr(xe, &bo->vmap, GEN8_PAGE_SIZE * (NUM_KERNEL_PDE - 1), u64, 0xdeaddeadbeefbeef);

@@ -1630,7 +1630,7 @@ static void guc_engine_wq_print(struct xe_engine *e, struct drm_printer *p)
 		for (i = parallel_read(xe, map, wq_desc.head);
 		     i != parallel_read(xe, map, wq_desc.tail);
 		     i = (i + sizeof(u32)) % WQ_SIZE)
-			drm_printf(p, "\tWQ[%ld]: 0x%08x\n", i / sizeof(u32),
+			drm_printf(p, "\tWQ[%zu]: 0x%08x\n", i / sizeof(u32),
 				   parallel_read(xe, map, wq[i / sizeof(u32)]));
 	}
 }
