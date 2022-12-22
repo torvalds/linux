@@ -723,12 +723,12 @@ void kernel_neon_begin(void)
 	local_bh_disable();
 
 	/*
-	 * Kernel mode NEON is only allowed outside of interrupt context
-	 * with preemption disabled. This will make sure that the kernel
-	 * mode NEON register contents never need to be preserved.
+	 * Kernel mode NEON is only allowed outside of hardirq context with
+	 * preemption and softirq processing disabled. This will make sure that
+	 * the kernel mode NEON register contents never need to be preserved.
 	 */
-	BUG_ON(in_interrupt());
-	cpu = get_cpu();
+	BUG_ON(in_hardirq());
+	cpu = __smp_processor_id();
 
 	fpexc = fmrx(FPEXC) | FPEXC_EN;
 	fmxr(FPEXC, fpexc);
@@ -744,7 +744,6 @@ void kernel_neon_begin(void)
 		vfp_save_state(vfp_current_hw_state[cpu], fpexc);
 #endif
 	vfp_current_hw_state[cpu] = NULL;
-	local_bh_enable();
 }
 EXPORT_SYMBOL(kernel_neon_begin);
 
@@ -752,7 +751,7 @@ void kernel_neon_end(void)
 {
 	/* Disable the NEON/VFP unit. */
 	fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
-	put_cpu();
+	local_bh_enable();
 }
 EXPORT_SYMBOL(kernel_neon_end);
 
