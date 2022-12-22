@@ -215,6 +215,7 @@ def _define_image_build(
         build_vendor_dlkm = build_vendor_dlkm,
         build_system_dlkm = build_system_dlkm,
         modules_list = "modules.list.msm.{}".format(msm_target),
+        system_dlkm_modules_list = "android/gki_system_dlkm_modules",
         vendor_dlkm_modules_blocklist = "modules.vendor_blocklist.msm.{}".format(msm_target),
         dtbo_srcs = [":{}/".format(target) + d for d in dtbo_list] if dtbo_list else None,
         vendor_ramdisk_binaries = vendor_ramdisk_binaries,
@@ -222,6 +223,7 @@ def _define_image_build(
         deps = [
             "modules.list.msm.{}".format(msm_target),
             "modules.vendor_blocklist.msm.{}".format(msm_target),
+            "android/gki_system_dlkm_modules",
         ],
     )
 
