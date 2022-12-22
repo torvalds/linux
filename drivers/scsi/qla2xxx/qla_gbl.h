@@ -257,6 +257,7 @@ struct edif_sa_ctl *qla_edif_find_sa_ctl_by_index(fc_port_t *fcport,
 /*
  * Global Functions in qla_mid.c source file.
  */
+extern void qla_update_vp_map(struct scsi_qla_host *, int);
 extern struct scsi_host_template qla2xxx_driver_template;
 extern struct scsi_transport_template *qla2xxx_transport_vport_template;
 extern void qla2x00_timer(struct timer_list *);
@@ -955,7 +956,7 @@ extern struct fc_port *qlt_find_sess_invalidate_other(scsi_qla_host_t *,
 	uint64_t wwn, port_id_t port_id, uint16_t loop_id, struct fc_port **);
 void qla24xx_delete_sess_fn(struct work_struct *);
 void qlt_unknown_atio_work_fn(struct work_struct *);
-void qlt_update_host_map(struct scsi_qla_host *, port_id_t);
+void qla_update_host_map(struct scsi_qla_host *, port_id_t);
 void qla_remove_hostmap(struct qla_hw_data *ha);
 void qlt_clr_qp_table(struct scsi_qla_host *vha);
 void qlt_set_mode(struct scsi_qla_host *);
@@ -968,6 +969,8 @@ extern void qla_nvme_abort_set_option
 		(struct abort_entry_24xx *abt, srb_t *sp);
 extern void qla_nvme_abort_process_comp_status
 		(struct abort_entry_24xx *abt, srb_t *sp);
+struct scsi_qla_host *qla_find_host_by_vp_idx(struct scsi_qla_host *vha,
+	uint16_t vp_idx);
 
 /* nvme.c */
 void qla_nvme_unregister_remote_port(struct fc_port *fcport);

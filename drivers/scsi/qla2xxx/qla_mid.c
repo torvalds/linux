@@ -52,7 +52,7 @@ qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 	spin_unlock_irqrestore(&ha->vport_slock, flags);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	qlt_update_vp_map(vha, SET_VP_IDX);
+	qla_update_vp_map(vha, SET_VP_IDX);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	mutex_unlock(&ha->vport_lock);
@@ -80,7 +80,7 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 		spin_lock_irqsave(&ha->vport_slock, flags);
 		if (atomic_read(&vha->vref_count) == 0) {
 			list_del(&vha->list);
-			qlt_update_vp_map(vha, RESET_VP_IDX);
+			qla_update_vp_map(vha, RESET_VP_IDX);
 			bailout = 1;
 		}
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
@@ -95,7 +95,7 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 			"vha->vref_count=%u timeout\n", vha->vref_count.counter);
 		spin_lock_irqsave(&ha->vport_slock, flags);
 		list_del(&vha->list);
-		qlt_update_vp_map(vha, RESET_VP_IDX);
+		qla_update_vp_map(vha, RESET_VP_IDX);
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
 	}
 
@@ -187,7 +187,7 @@ qla24xx_disable_vp(scsi_qla_host_t *vha)
 
 	/* Remove port id from vp target map */
 	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
-	qlt_update_vp_map(vha, RESET_AL_PA);
+	qla_update_vp_map(vha, RESET_AL_PA);
 	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 
 	qla2x00_mark_vp_devices_dead(vha);
@@ -1004,4 +1004,79 @@ done:
 	/* ref: INIT */
 	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	return rval;
+}
+
+struct scsi_qla_host *qla_find_host_by_vp_idx(struct scsi_qla_host *vha, uint16_t vp_idx)
+{
+	struct qla_hw_data *ha = vha->hw;
+
+	if (vha->vp_idx == vp_idx)
+		return vha;
+
+	BUG_ON(ha->vp_map == NULL);
+	if (likely(test_bit(vp_idx, ha->vp_idx_map)))
+		return ha->vp_map[vp_idx].vha;
+
+	return NULL;
+}
+
+/* vport_slock to be held by the caller */
+void
+qla_update_vp_map(struct scsi_qla_host *vha, int cmd)
+{
+	void *slot;
+	u32 key;
+	int rc;
+
+	if (!vha->hw->vp_map)
+		return;
+
+	key = vha->d_id.b24;
+
+	switch (cmd) {
+	case SET_VP_IDX:
+		vha->hw->vp_map[vha->vp_idx].vha = vha;
+		break;
+	case SET_AL_PA:
+		slot = btree_lookup32(&vha->hw->host_map, key);
+		if (!slot) {
+			ql_dbg(ql_dbg_disc, vha, 0xf018,
+			    "Save vha in host_map %p %06x\n", vha, key);
+			rc = btree_insert32(&vha->hw->host_map,
+			    key, vha, GFP_ATOMIC);
+			if (rc)
+				ql_log(ql_log_info, vha, 0xd03e,
+				    "Unable to insert s_id into host_map: %06x\n",
+				    key);
+			return;
+		}
+		ql_dbg(ql_dbg_disc, vha, 0xf019,
+		    "replace existing vha in host_map %p %06x\n", vha, key);
+		btree_update32(&vha->hw->host_map, key, vha);
+		break;
+	case RESET_VP_IDX:
+		vha->hw->vp_map[vha->vp_idx].vha = NULL;
+		break;
+	case RESET_AL_PA:
+		ql_dbg(ql_dbg_disc, vha, 0xf01a,
+		    "clear vha in host_map %p %06x\n", vha, key);
+		slot = btree_lookup32(&vha->hw->host_map, key);
+		if (slot)
+			btree_remove32(&vha->hw->host_map, key);
+		vha->d_id.b24 = 0;
+		break;
+	}
+}
+
+void qla_update_host_map(struct scsi_qla_host *vha, port_id_t id)
+{
+
+	if (!vha->d_id.b24) {
+		vha->d_id = id;
+		qla_update_vp_map(vha, SET_AL_PA);
+	} else if (vha->d_id.b24 != id.b24) {
+		qla_update_vp_map(vha, RESET_AL_PA);
+		vha->d_id = id;
+		qla_update_vp_map(vha, SET_AL_PA);
+	}
 }
