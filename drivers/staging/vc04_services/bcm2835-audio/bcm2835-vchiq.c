@@ -101,7 +101,7 @@ static int audio_vchi_callback(struct vchiq_instance *vchiq_instance,
 	struct vc_audio_msg *m;
 
 	if (reason != VCHIQ_MESSAGE_AVAILABLE)
-		return VCHIQ_SUCCESS;
+		return 0;
 
 	m = (void *)header->data;
 	if (m->type == VC_AUDIO_MSG_TYPE_RESULT) {
@@ -119,7 +119,7 @@ static int audio_vchi_callback(struct vchiq_instance *vchiq_instance,
 	}
 
 	vchiq_release_message(vchiq_instance, instance->service_handle, header);
-	return VCHIQ_SUCCESS;
+	return 0;
 }
 
 static int
