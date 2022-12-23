@@ -90,7 +90,7 @@ int __pkvm_register_el2_call(dyn_hcall_t hfn, unsigned long token,
 	extern char __kvm_nvhe___hypmod_text_start[];			\
 	unsigned long hyp_text_kern_va = 				\
 		(unsigned long)__kvm_nvhe___hypmod_text_start;		\
-	__pkvm_register_el2_call(function_nocfi(hfn), token,		\
+	__pkvm_register_el2_call(hfn, token,				\
 				 hyp_text_kern_va);			\
 })
 
