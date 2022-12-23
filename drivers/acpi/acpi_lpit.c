@@ -10,6 +10,7 @@
 #include <linux/acpi.h>
 #include <asm/msr.h>
 #include <asm/tsc.h>
+#include "internal.h"
 
 struct lpit_residency_info {
 	struct acpi_generic_address gaddr;
