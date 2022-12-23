@@ -13075,18 +13075,28 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 	if (rcur->type == NOT_INIT)
 		return false;
 
-	/* Register types that are *not* MAYBE_NULL could technically be safe
-	 * to use as their MAYBE_NULL variants (e.g., PTR_TO_MAP_VALUE  is
-	 * safe to be used as PTR_TO_MAP_VALUE_OR_NULL, provided both point to
-	 * the same map).
+	/* Enforce that register types have to match exactly, including their
+	 * modifiers (like PTR_MAYBE_NULL, MEM_RDONLY, etc), as a general
+	 * rule.
+	 *
+	 * One can make a point that using a pointer register as unbounded
+	 * SCALAR would be technically acceptable, but this could lead to
+	 * pointer leaks because scalars are allowed to leak while pointers
+	 * are not. We could make this safe in special cases if root is
+	 * calling us, but it's probably not worth the hassle.
+	 *
+	 * Also, register types that are *not* MAYBE_NULL could technically be
+	 * safe to use as their MAYBE_NULL variants (e.g., PTR_TO_MAP_VALUE
+	 * is safe to be used as PTR_TO_MAP_VALUE_OR_NULL, provided both point
+	 * to the same map).
 	 * However, if the old MAYBE_NULL register then got NULL checked,
 	 * doing so could have affected others with the same id, and we can't
 	 * check for that because we lost the id when we converted to
 	 * a non-MAYBE_NULL variant.
 	 * So, as a general rule we don't allow mixing MAYBE_NULL and
-	 * non-MAYBE_NULL registers.
+	 * non-MAYBE_NULL registers as well.
 	 */
-	if (type_may_be_null(rold->type) != type_may_be_null(rcur->type))
+	if (rold->type != rcur->type)
 		return false;
 
 	switch (base_type(rold->type)) {
@@ -13095,22 +13105,11 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 			return true;
 		if (env->explore_alu_limits)
 			return false;
-		if (rcur->type == SCALAR_VALUE) {
-			if (!rold->precise)
-				return true;
-			/* new val must satisfy old val knowledge */
-			return range_within(rold, rcur) &&
-			       tnum_in(rold->var_off, rcur->var_off);
-		} else {
-			/* We're trying to use a pointer in place of a scalar.
-			 * Even if the scalar was unbounded, this could lead to
-			 * pointer leaks because scalars are allowed to leak
-			 * while pointers are not. We could make this safe in
-			 * special cases if root is calling us, but it's
-			 * probably not worth the hassle.
-			 */
-			return false;
-		}
+		if (!rold->precise)
+			return true;
+		/* new val must satisfy old val knowledge */
+		return range_within(rold, rcur) &&
+		       tnum_in(rold->var_off, rcur->var_off);
 	case PTR_TO_MAP_KEY:
 	case PTR_TO_MAP_VALUE:
 		/* If the new min/max/var_off satisfy the old ones and
@@ -13122,8 +13121,6 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 		       check_ids(rold->id, rcur->id, idmap);
 	case PTR_TO_PACKET_META:
 	case PTR_TO_PACKET:
-		if (rcur->type != rold->type)
-			return false;
 		/* We must have at least as much range as the old ptr
 		 * did, so that any accesses which were safe before are
 		 * still safe.  This is true even if old range < old off,
