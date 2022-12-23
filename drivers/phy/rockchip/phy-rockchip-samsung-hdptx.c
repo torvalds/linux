@@ -595,9 +595,21 @@ static int rockchip_hdptx_phy_set_voltages(struct rockchip_hdptx_phy *hdptx,
 					   struct phy_configure_opts_dp *dp)
 {
 	u8 lane;
+	u32 status;
+	int ret;
 
 	for (lane = 0; lane < dp->lanes; lane++)
 		rockchip_hdptx_phy_set_voltage(hdptx, dp, lane);
+
+	reset_control_deassert(hdptx->lane_reset);
+
+	ret = regmap_read_poll_timeout(hdptx->grf, HDPTXPHY_GRF_STATUS0,
+				       status, FIELD_GET(PHY_RDY, status),
+				       50, 5000);
+	if (ret) {
+		dev_err(hdptx->dev, "timeout waiting for phy_rdy\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -623,9 +635,6 @@ static void rockchip_hdptx_phy_lane_disable(struct rockchip_hdptx_phy *hdptx)
 static int rockchip_hdptx_phy_set_lanes(struct rockchip_hdptx_phy *hdptx,
 					struct phy_configure_opts_dp *dp)
 {
-	u32 status;
-	int ret;
-
 	if (!dp->lanes) {
 		rockchip_hdptx_phy_lane_disable(hdptx);
 		return 0;
@@ -633,16 +642,6 @@ static int rockchip_hdptx_phy_set_lanes(struct rockchip_hdptx_phy *hdptx,
 
 	regmap_update_bits(hdptx->regmap, 0x081c, LANE_EN,
 			   FIELD_PREP(LANE_EN, GENMASK(dp->lanes - 1, 0)));
-
-	reset_control_deassert(hdptx->lane_reset);
-
-	ret = regmap_read_poll_timeout(hdptx->grf, HDPTXPHY_GRF_STATUS0,
-				       status, FIELD_GET(PHY_RDY, status),
-				       50, 5000);
-	if (ret) {
-		dev_err(hdptx->dev, "timeout waiting for phy_rdy\n");
-		return ret;
-	}
 
 	return 0;
 }
