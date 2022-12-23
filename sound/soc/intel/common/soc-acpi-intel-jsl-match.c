@@ -79,6 +79,11 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_jsl_machines[] = {
 		.sof_tplg_filename = "sof-jsl-rt5682-mx98360a.tplg",
 	},
 	{
+		.comp_ids = &rt5682_rt5682s_hp,
+		.drv_name = "jsl_rt5682",
+		.sof_tplg_filename = "sof-jsl-rt5682.tplg",
+	},
+	{
 		.id = "10134242",
 		.drv_name = "jsl_cs4242_mx98360a",
 		.machine_quirk = snd_soc_acpi_codec_list,

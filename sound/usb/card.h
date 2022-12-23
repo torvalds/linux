@@ -131,6 +131,7 @@ struct snd_usb_endpoint {
 	bool lowlatency_playback;	/* low-latency playback mode */
 	bool need_setup;		/* (re-)need for hw_params? */
 	bool need_prepare;		/* (re-)need for prepare? */
+	bool fixed_rate;		/* skip rate setup */
 
 	/* for hw constraints */
 	const struct audioformat *cur_audiofmt;
