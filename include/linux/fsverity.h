@@ -93,8 +93,7 @@ struct fsverity_operations {
 	 *		  isn't already cached.  Implementations may ignore this
 	 *		  argument; it's only a performance optimization.
 	 *
-	 * This can be called at any time on an open verity file, as well as
-	 * between ->begin_enable_verity() and ->end_enable_verity().  It may be
+	 * This can be called at any time on an open verity file.  It may be
 	 * called by multiple processes concurrently, even with the same page.
 	 *
 	 * Note that this must retrieve a *page*, not necessarily a *block*.

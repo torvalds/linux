@@ -118,10 +118,11 @@ as follows:
 - ``hash_algorithm`` must be the identifier for the hash algorithm to
   use for the Merkle tree, such as FS_VERITY_HASH_ALG_SHA256.  See
   ``include/uapi/linux/fsverity.h`` for the list of possible values.
-- ``block_size`` must be the Merkle tree block size.  Currently, this
-  must be equal to the system page size, which is usually 4096 bytes.
-  Other sizes may be supported in the future.  This value is not
-  necessarily the same as the filesystem block size.
+- ``block_size`` is the Merkle tree block size, in bytes.  In Linux
+  v6.3 and later, this can be any power of 2 between (inclusively)
+  1024 and the minimum of the system page size and the filesystem
+  block size.  In earlier versions, the page size was the only allowed
+  value.
 - ``salt_size`` is the size of the salt in bytes, or 0 if no salt is
   provided.  The salt is a value that is prepended to every hashed
   block; it can be used to personalize the hashing for a particular
@@ -519,9 +520,7 @@ support paging multi-gigabyte xattrs into memory, and to support
 encrypting xattrs.  Note that the verity metadata *must* be encrypted
 when the file is, since it contains hashes of the plaintext data.
 
-Currently, ext4 verity only supports the case where the Merkle tree
-block size, filesystem block size, and page size are all the same.  It
-also only supports extent-based files.
+ext4 only allows verity on extent-based files.
 
 f2fs
 ----
@@ -539,11 +538,10 @@ Like ext4, f2fs stores the verity metadata (Merkle tree and
 fsverity_descriptor) past the end of the file, starting at the first
 64K boundary beyond i_size.  See explanation for ext4 above.
 Moreover, f2fs supports at most 4096 bytes of xattr entries per inode
-which wouldn't be enough for even a single Merkle tree block.
+which usually wouldn't be enough for even a single Merkle tree block.
 
-Currently, f2fs verity only supports a Merkle tree block size of 4096.
-Also, f2fs doesn't support enabling verity on files that currently
-have atomic or volatile writes pending.
+f2fs doesn't support enabling verity on files that currently have
+atomic or volatile writes pending.
 
 btrfs
 -----
