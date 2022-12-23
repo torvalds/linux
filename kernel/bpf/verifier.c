@@ -1402,9 +1402,11 @@ static void ___mark_reg_known(struct bpf_reg_state *reg, u64 imm)
  */
 static void __mark_reg_known(struct bpf_reg_state *reg, u64 imm)
 {
-	/* Clear id, off, and union(map_ptr, range) */
+	/* Clear off and union(map_ptr, range) */
 	memset(((u8 *)reg) + sizeof(reg->type), 0,
 	       offsetof(struct bpf_reg_state, var_off) - sizeof(reg->type));
+	reg->id = 0;
+	reg->ref_obj_id = 0;
 	___mark_reg_known(reg, imm);
 }
 
@@ -1750,11 +1752,13 @@ static void __mark_reg_unknown(const struct bpf_verifier_env *env,
 			       struct bpf_reg_state *reg)
 {
 	/*
-	 * Clear type, id, off, and union(map_ptr, range) and
+	 * Clear type, off, and union(map_ptr, range) and
 	 * padding between 'type' and union
 	 */
 	memset(reg, 0, offsetof(struct bpf_reg_state, var_off));
 	reg->type = SCALAR_VALUE;
+	reg->id = 0;
+	reg->ref_obj_id = 0;
 	reg->var_off = tnum_unknown;
 	reg->frameno = 0;
 	reg->precise = !env->bpf_capable;
@@ -13104,7 +13108,7 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 		if (type_may_be_null(rold->type)) {
 			if (!type_may_be_null(rcur->type))
 				return false;
-			if (memcmp(rold, rcur, offsetof(struct bpf_reg_state, id)))
+			if (memcmp(rold, rcur, offsetof(struct bpf_reg_state, var_off)))
 				return false;
 			/* Check our ids match any regs they're supposed to */
 			return check_ids(rold->id, rcur->id, idmap);
@@ -13112,13 +13116,8 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 
 		/* If the new min/max/var_off satisfy the old ones and
 		 * everything else matches, we are OK.
-		 * 'id' is not compared, since it's only used for maps with
-		 * bpf_spin_lock inside map element and in such cases if
-		 * the rest of the prog is valid for one map element then
-		 * it's valid for all map elements regardless of the key
-		 * used in bpf_map_lookup()
 		 */
-		return memcmp(rold, rcur, offsetof(struct bpf_reg_state, id)) == 0 &&
+		return memcmp(rold, rcur, offsetof(struct bpf_reg_state, var_off)) == 0 &&
 		       range_within(rold, rcur) &&
 		       tnum_in(rold->var_off, rcur->var_off) &&
 		       check_ids(rold->id, rcur->id, idmap);
