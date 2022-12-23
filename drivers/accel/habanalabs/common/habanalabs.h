@@ -2984,12 +2984,14 @@ struct undefined_opcode_info {
  *                       Since we're looking for the page-fault's root cause,
  *                       we don't care of the others that might follow it-
  *                       so once changed to 1, it will remain that way.
+ * @page_fault_info_available: indicates that a page fault info is now available.
  */
 struct page_fault_info {
 	struct hl_page_fault_info	page_fault;
 	struct hl_user_mapping		*user_mappings;
 	u64				num_of_user_mappings;
 	atomic_t			page_fault_detected;
+	bool				page_fault_info_available;
 };
 
 /**
@@ -3000,10 +3002,12 @@ struct page_fault_info {
  *                  Since we're looking for the RAZWI's root cause,
  *                  we don't care of the others that might follow it-
  *                  so once changed to 1, it will remain that way.
+ * @razwi_info_available: indicates that a RAZWI info is now available.
  */
 struct razwi_info {
 	struct hl_info_razwi_event	razwi;
 	atomic_t			razwi_detected;
+	bool				razwi_info_available;
 };
 
 /**

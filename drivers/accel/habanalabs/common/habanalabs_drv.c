@@ -225,6 +225,8 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	atomic_set(&hdev->captured_err_info.razwi_info.razwi_detected, 0);
 	atomic_set(&hdev->captured_err_info.page_fault_info.page_fault_detected, 0);
 	hdev->captured_err_info.undef_opcode.write_enable = true;
+	hdev->captured_err_info.razwi_info.razwi_info_available = false;
+	hdev->captured_err_info.page_fault_info.page_fault_info_available = false;
 
 	hdev->open_counter++;
 	hdev->last_successful_open_jif = jiffies;

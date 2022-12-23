@@ -2441,6 +2441,8 @@ void hl_capture_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_
 	memcpy(&razwi_info->razwi.engine_id[0], &engine_id[0],
 			num_of_engines * sizeof(u16));
 	razwi_info->razwi.flags = flags;
+
+	razwi_info->razwi_info_available = true;
 }
 
 void hl_handle_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_of_engines,
@@ -2526,6 +2528,8 @@ void hl_capture_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is
 	pgf_info->page_fault.addr = addr;
 	pgf_info->page_fault.engine_id = eng_id;
 	hl_capture_user_mappings(hdev, is_pmmu);
+
+	pgf_info->page_fault_info_available = true;
 }
 
 void hl_handle_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_pmmu,
