@@ -751,7 +751,7 @@ static int vchiq_is_connected(struct vchiq_instance *instance)
 
 int vchiq_connect(struct vchiq_instance *instance)
 {
-	enum vchiq_status status;
+	int status;
 	struct vchiq_state *state = instance->state;
 
 	if (mutex_lock_killable(&state->mutex)) {
@@ -778,7 +778,7 @@ vchiq_add_service(struct vchiq_instance *instance,
 		  const struct vchiq_service_params_kernel *params,
 		  unsigned int *phandle)
 {
-	enum vchiq_status status;
+	int status;
 	struct vchiq_state *state = instance->state;
 	struct vchiq_service *service = NULL;
 	int srvstate;
@@ -839,7 +839,7 @@ int
 vchiq_bulk_transmit(struct vchiq_instance *instance, unsigned int handle, const void *data,
 		    unsigned int size, void *userdata, enum vchiq_bulk_mode mode)
 {
-	enum vchiq_status status;
+	int status;
 
 	while (1) {
 		switch (mode) {
@@ -877,7 +877,7 @@ int vchiq_bulk_receive(struct vchiq_instance *instance, unsigned int handle,
 		       void *data, unsigned int size, void *userdata,
 		       enum vchiq_bulk_mode mode)
 {
-	enum vchiq_status status;
+	int status;
 
 	while (1) {
 		switch (mode) {
@@ -915,7 +915,7 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 			     unsigned int size, enum vchiq_bulk_dir dir)
 {
 	struct vchiq_service *service;
-	enum vchiq_status status;
+	int status;
 	struct bulk_waiter_node *waiter = NULL, *iter;
 
 	service = find_service_by_handle(instance, handle);
@@ -1103,7 +1103,7 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 			 */
 			if ((user_service->message_available_pos -
 				instance->completion_remove) < 0) {
-				enum vchiq_status status;
+				int status;
 
 				vchiq_log_info(vchiq_arm_log_level,
 					       "Inserting extra MESSAGE_AVAILABLE");
@@ -1330,7 +1330,7 @@ vchiq_keepalive_thread_func(void *v)
 	struct vchiq_state *state = (struct vchiq_state *)v;
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 
-	enum vchiq_status status;
+	int status;
 	struct vchiq_instance *instance;
 	unsigned int ka_handle;
 	int ret;
