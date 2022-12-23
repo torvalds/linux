@@ -92,7 +92,7 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	while (blocks > 1) {
 		if (params->num_levels >= FS_VERITY_MAX_LEVELS) {
 			fsverity_err(inode, "Too many levels in Merkle tree");
-			err = -EINVAL;
+			err = -EFBIG;
 			goto out_err;
 		}
 		blocks = (blocks + params->hashes_per_block - 1) >>
