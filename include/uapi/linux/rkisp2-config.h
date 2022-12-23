@@ -80,10 +80,10 @@
 	_IOW('V', BASE_VIDIOC_PRIVATE + 106, struct rkisp_mirror_flip)
 
 #define RKISP_CMD_GET_WRAP_LINE \
-	_IOR('V', BASE_VIDIOC_PRIVATE + 107, int)
+	_IOR('V', BASE_VIDIOC_PRIVATE + 107, struct rkisp_wrap_info)
 /* set wrap line before VIDIOC_S_FMT */
 #define RKISP_CMD_SET_WRAP_LINE \
-	_IOW('V', BASE_VIDIOC_PRIVATE + 108, int)
+	_IOW('V', BASE_VIDIOC_PRIVATE + 108, struct rkisp_wrap_info)
 
 #define RKISP_CMD_SET_FPS \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 109, int)
@@ -385,6 +385,11 @@ struct rkisp_mirror_flip {
 	unsigned char mirror;
 	unsigned char flip;
 } __attribute__ ((packed));
+
+struct rkisp_wrap_info {
+	int width;
+	int height;
+};
 
 #define RKISP_TB_STREAM_BUF_MAX 5
 struct rkisp_tb_stream_buf {

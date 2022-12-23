@@ -310,6 +310,7 @@ struct rkisp_capture_device {
 	struct tasklet_struct rd_tasklet;
 	atomic_t refcnt;
 	u32 wait_line;
+	u32 wrap_width;
 	u32 wrap_line;
 	bool is_done_early;
 	bool is_mirror;

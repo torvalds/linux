@@ -1092,18 +1092,19 @@ static int rkisp_set_mirror_flip(struct rkisp_stream *stream,
 	return 0;
 }
 
-static int rkisp_get_wrap_line(struct rkisp_stream *stream, int *line)
+static int rkisp_get_wrap_line(struct rkisp_stream *stream, struct rkisp_wrap_info *arg)
 {
 	struct rkisp_device *dev = stream->ispdev;
 
 	if (dev->isp_ver != ISP_V32 && stream->id != RKISP_STREAM_MP)
 		return -EINVAL;
 
-	*line = dev->cap_dev.wrap_line;
+	arg->width = dev->cap_dev.wrap_width;
+	arg->height = dev->cap_dev.wrap_line;
 	return 0;
 }
 
-static int rkisp_set_wrap_line(struct rkisp_stream *stream, int *line)
+static int rkisp_set_wrap_line(struct rkisp_stream *stream, struct rkisp_wrap_info *arg)
 {
 	struct rkisp_device *dev = stream->ispdev;
 
@@ -1114,7 +1115,8 @@ static int rkisp_set_wrap_line(struct rkisp_stream *stream, int *line)
 			 "wrap only support for single sensor and mainpath\n");
 		return -EINVAL;
 	}
-	return stream->ops->set_wrap(stream, *line);
+	dev->cap_dev.wrap_width = arg->width;
+	return stream->ops->set_wrap(stream, arg->height);
 }
 
 static int rkisp_set_fps(struct rkisp_stream *stream, int *fps)
