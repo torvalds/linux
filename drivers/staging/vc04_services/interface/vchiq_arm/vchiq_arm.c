@@ -151,7 +151,7 @@ static struct semaphore g_free_fragments_sema;
 
 static DEFINE_SEMAPHORE(g_free_fragments_mutex);
 
-static enum vchiq_status
+static int
 vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handle, void *data,
 			     unsigned int size, enum vchiq_bulk_dir dir);
 
@@ -722,7 +722,7 @@ void free_bulk_waiter(struct vchiq_instance *instance)
 	}
 }
 
-enum vchiq_status vchiq_shutdown(struct vchiq_instance *instance)
+int vchiq_shutdown(struct vchiq_instance *instance)
 {
 	enum vchiq_status status = VCHIQ_SUCCESS;
 	struct vchiq_state *state = instance->state;
@@ -749,7 +749,7 @@ static int vchiq_is_connected(struct vchiq_instance *instance)
 	return instance->connected;
 }
 
-enum vchiq_status vchiq_connect(struct vchiq_instance *instance)
+int vchiq_connect(struct vchiq_instance *instance)
 {
 	enum vchiq_status status;
 	struct vchiq_state *state = instance->state;
@@ -773,7 +773,7 @@ failed:
 }
 EXPORT_SYMBOL(vchiq_connect);
 
-static enum vchiq_status
+static int
 vchiq_add_service(struct vchiq_instance *instance,
 		  const struct vchiq_service_params_kernel *params,
 		  unsigned int *phandle)
@@ -803,7 +803,7 @@ vchiq_add_service(struct vchiq_instance *instance,
 	return status;
 }
 
-enum vchiq_status
+int
 vchiq_open_service(struct vchiq_instance *instance,
 		   const struct vchiq_service_params_kernel *params,
 		   unsigned int *phandle)
@@ -835,7 +835,7 @@ failed:
 }
 EXPORT_SYMBOL(vchiq_open_service);
 
-enum vchiq_status
+int
 vchiq_bulk_transmit(struct vchiq_instance *instance, unsigned int handle, const void *data,
 		    unsigned int size, void *userdata, enum vchiq_bulk_mode mode)
 {
@@ -873,9 +873,9 @@ vchiq_bulk_transmit(struct vchiq_instance *instance, unsigned int handle, const 
 }
 EXPORT_SYMBOL(vchiq_bulk_transmit);
 
-enum vchiq_status vchiq_bulk_receive(struct vchiq_instance *instance, unsigned int handle,
-				     void *data, unsigned int size, void *userdata,
-				     enum vchiq_bulk_mode mode)
+int vchiq_bulk_receive(struct vchiq_instance *instance, unsigned int handle,
+		       void *data, unsigned int size, void *userdata,
+		       enum vchiq_bulk_mode mode)
 {
 	enum vchiq_status status;
 
@@ -910,7 +910,7 @@ enum vchiq_status vchiq_bulk_receive(struct vchiq_instance *instance, unsigned i
 }
 EXPORT_SYMBOL(vchiq_bulk_receive);
 
-static enum vchiq_status
+static int
 vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handle, void *data,
 			     unsigned int size, enum vchiq_bulk_dir dir)
 {
@@ -983,7 +983,7 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 	return status;
 }
 
-static enum vchiq_status
+static int
 add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 	       struct vchiq_header *header, struct user_service *user_service,
 	       void *bulk_userdata)
@@ -1044,7 +1044,7 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 	return VCHIQ_SUCCESS;
 }
 
-enum vchiq_status
+int
 service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 		 struct vchiq_header *header, unsigned int handle, void *bulk_userdata)
 {
@@ -1314,7 +1314,7 @@ vchiq_get_state(void)
  * Autosuspend related functionality
  */
 
-static enum vchiq_status
+static int
 vchiq_keepalive_vchiq_callback(struct vchiq_instance *instance,
 			       enum vchiq_reason reason,
 			       struct vchiq_header *header,
@@ -1587,7 +1587,7 @@ vchiq_instance_set_trace(struct vchiq_instance *instance, int trace)
 	instance->trace = (trace != 0);
 }
 
-enum vchiq_status
+int
 vchiq_use_service(struct vchiq_instance *instance, unsigned int handle)
 {
 	enum vchiq_status ret = VCHIQ_ERROR;
@@ -1601,7 +1601,7 @@ vchiq_use_service(struct vchiq_instance *instance, unsigned int handle)
 }
 EXPORT_SYMBOL(vchiq_use_service);
 
-enum vchiq_status
+int
 vchiq_release_service(struct vchiq_instance *instance, unsigned int handle)
 {
 	enum vchiq_status ret = VCHIQ_ERROR;
@@ -1695,7 +1695,7 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 	kfree(service_data);
 }
 
-enum vchiq_status
+int
 vchiq_check_service(struct vchiq_service *service)
 {
 	struct vchiq_arm_state *arm_state;

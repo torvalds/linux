@@ -12,10 +12,10 @@
 
 struct vchiq_service_params {
 	int fourcc;
-	enum vchiq_status __user (*callback)(enum vchiq_reason reason,
-				      struct vchiq_header *header,
-				      unsigned int handle,
-				      void *bulk_userdata);
+	int __user (*callback)(enum vchiq_reason reason,
+			       struct vchiq_header *header,
+			       unsigned int handle,
+			       void *bulk_userdata);
 	void __user *userdata;
 	short version;       /* Increment for non-trivial changes */
 	short version_min;   /* Update for incompatible changes */
