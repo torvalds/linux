@@ -264,6 +264,52 @@ static void rk_gmac_integrated_ephy_powerdown(struct rk_priv_data *priv)
 		reset_control_assert(priv->phy_reset);
 }
 
+/* Integrated FEPHY */
+#define RK_FEPHY_SHUTDOWN		GRF_BIT(1)
+#define RK_FEPHY_POWERUP		GRF_CLR_BIT(1)
+#define RK_FEPHY_INTERNAL_RMII_SEL	GRF_BIT(6)
+#define RK_FEPHY_24M_CLK_SEL		(GRF_BIT(8) | GRF_BIT(9))
+#define RK_FEPHY_PHY_ID			GRF_BIT(11)
+
+#define RK_FEPHY_BGS			HIWORD_UPDATE(0x0, 0xf, 0)
+
+static void rk_gmac_integrated_fephy_power(struct rk_priv_data *priv,
+					   unsigned int ctrl_offset,
+					   unsigned int bgs_offset,
+					   bool up)
+{
+	struct device *dev = &priv->pdev->dev;
+
+	if (IS_ERR(priv->grf) || !priv->phy_reset) {
+		dev_err(dev, "%s: Missing rockchip,grf or phy_reset property\n",
+			__func__);
+		return;
+	}
+
+	if (up) {
+		unsigned int bgs = RK_FEPHY_BGS;
+
+		reset_control_assert(priv->phy_reset);
+		udelay(20);
+		regmap_write(priv->grf, ctrl_offset,
+			     RK_FEPHY_POWERUP |
+			     RK_FEPHY_INTERNAL_RMII_SEL |
+			     RK_FEPHY_24M_CLK_SEL |
+			     RK_FEPHY_PHY_ID);
+
+		if (priv->otp_data[0] > 0)
+			bgs = HIWORD_UPDATE(priv->otp_data[0], 0xf, 0);
+
+		regmap_write(priv->grf, bgs_offset, bgs);
+		usleep_range(10 * 1000, 12 * 1000);
+		reset_control_deassert(priv->phy_reset);
+		usleep_range(50 * 1000, 60 * 1000);
+	} else {
+		regmap_write(priv->grf, ctrl_offset,
+			     RK_FEPHY_SHUTDOWN);
+	}
+}
+
 #define PX30_GRF_GMAC_CON1		0x0904
 
 /* PX30_GRF_GMAC_CON1 */
@@ -1604,16 +1650,7 @@ static const struct rk_gmac_ops rk3588_ops = {
 #define RV1106_VOGRF_GMAC_CLK_RMII_DIV20	GRF_CLR_BIT(2)
 
 #define RV1106_VOGRF_MACPHY_CON0		0X60028
-
-#define RV1106_VOGRF_MACPHY_SHUTDOWN		GRF_BIT(1)
-#define RV1106_VOGRF_MACPHY_POWERUP		GRF_CLR_BIT(1)
-#define RV1106_VOGRF_MACPHY_INTERNAL_RMII_SEL	GRF_BIT(6)
-#define RV1106_VOGRF_MACPHY_24M_CLK_SEL		(GRF_BIT(8) | GRF_BIT(9))
-#define RV1106_VOGRF_MACPHY_PHY_ID		GRF_BIT(11)
-
 #define RV1106_VOGRF_MACPHY_CON1		0X6002C
-
-#define RV1106_VOGRF_MACPHY_BGS			HIWORD_UPDATE(0x0, 0xf, 0)
 
 static void rv1106_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
@@ -1652,36 +1689,8 @@ static void rv1106_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 
 static void rv1106_integrated_sphy_power(struct rk_priv_data *priv, bool up)
 {
-	struct device *dev = &priv->pdev->dev;
-
-	if (IS_ERR(priv->grf) || !priv->phy_reset) {
-		dev_err(dev, "%s: Missing rockchip,grf or phy_reset property\n",
-			__func__);
-		return;
-	}
-
-	if (up) {
-		unsigned int bgs = RV1106_VOGRF_MACPHY_BGS;
-
-		reset_control_assert(priv->phy_reset);
-		udelay(20);
-		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON0,
-			     RV1106_VOGRF_MACPHY_POWERUP |
-			     RV1106_VOGRF_MACPHY_INTERNAL_RMII_SEL |
-			     RV1106_VOGRF_MACPHY_24M_CLK_SEL |
-			     RV1106_VOGRF_MACPHY_PHY_ID);
-
-		if (priv->otp_data[0] > 0)
-			bgs = HIWORD_UPDATE(priv->otp_data[0], 0xf, 0);
-
-		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON1, bgs);
-		usleep_range(10 * 1000, 12 * 1000);
-		reset_control_deassert(priv->phy_reset);
-		usleep_range(50 * 1000, 60 * 1000);
-	} else {
-		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON0,
-			     RV1106_VOGRF_MACPHY_SHUTDOWN);
-	}
+	rk_gmac_integrated_fephy_power(priv, RV1106_VOGRF_MACPHY_CON0,
+				       RV1106_VOGRF_MACPHY_CON1, up);
 }
 
 static const struct rk_gmac_ops rv1106_ops = {
