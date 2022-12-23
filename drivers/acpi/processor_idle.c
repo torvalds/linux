@@ -147,7 +147,7 @@ static void lapic_timer_check_state(int state, struct acpi_processor *pr,
 
 static void __lapic_timer_propagate_broadcast(void *arg)
 {
-	struct acpi_processor *pr = (struct acpi_processor *) arg;
+	struct acpi_processor *pr = arg;
 
 	if (pr->power.timer_broadcast_on_state < INT_MAX)
 		tick_broadcast_enable();
