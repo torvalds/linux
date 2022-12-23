@@ -1952,17 +1952,26 @@ static void tb_queue_dp_bandwidth_request(struct tb *tb, u64 route, u8 port)
 static void tb_handle_notification(struct tb *tb, u64 route,
 				   const struct cfg_error_pkg *error)
 {
-	if (tb_cfg_ack_notification(tb->ctl, route, error))
-		tb_warn(tb, "could not ack notification on %llx\n", route);
 
 	switch (error->error) {
+	case TB_CFG_ERROR_PCIE_WAKE:
+	case TB_CFG_ERROR_DP_CON_CHANGE:
+	case TB_CFG_ERROR_DPTX_DISCOVERY:
+		if (tb_cfg_ack_notification(tb->ctl, route, error))
+			tb_warn(tb, "could not ack notification on %llx\n",
+				route);
+		break;
+
 	case TB_CFG_ERROR_DP_BW:
+		if (tb_cfg_ack_notification(tb->ctl, route, error))
+			tb_warn(tb, "could not ack notification on %llx\n",
+				route);
 		tb_queue_dp_bandwidth_request(tb, route, error->port);
 		break;
 
 	default:
-		/* Ack is enough */
-		return;
+		/* Ignore for now */
+		break;
 	}
 }
 
