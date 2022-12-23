@@ -713,17 +713,25 @@ ssize_t mcopy_continue(struct mm_struct *dst_mm, unsigned long start,
 void uffd_wp_range(struct mm_struct *dst_mm, struct vm_area_struct *dst_vma,
 		   unsigned long start, unsigned long len, bool enable_wp)
 {
+	unsigned int mm_cp_flags;
 	struct mmu_gather tlb;
-	pgprot_t newprot;
 
 	if (enable_wp)
-		newprot = vm_get_page_prot(dst_vma->vm_flags & ~(VM_WRITE));
+		mm_cp_flags = MM_CP_UFFD_WP;
 	else
-		newprot = vm_get_page_prot(dst_vma->vm_flags);
+		mm_cp_flags = MM_CP_UFFD_WP_RESOLVE;
 
+	/*
+	 * vma->vm_page_prot already reflects that uffd-wp is enabled for this
+	 * VMA (see userfaultfd_set_vm_flags()) and that all PTEs are supposed
+	 * to be write-protected as default whenever protection changes.
+	 * Try upgrading write permissions manually.
+	 */
+	if (!enable_wp && vma_wants_manual_pte_write_upgrade(dst_vma))
+		mm_cp_flags |= MM_CP_TRY_CHANGE_WRITABLE;
 	tlb_gather_mmu(&tlb, dst_mm);
-	change_protection(&tlb, dst_vma, start, start + len, newprot,
-			  enable_wp ? MM_CP_UFFD_WP : MM_CP_UFFD_WP_RESOLVE);
+	change_protection(&tlb, dst_vma, start, start + len, vma->vm_page_prot,
+			  mm_cp_flags);
 	tlb_finish_mmu(&tlb);
 }
 
