@@ -38,6 +38,12 @@ properties:
           - fsl,imxrt1050-usdhc
           - nxp,s32g2-usdhc
       - items:
+          - const: fsl,imx50-esdhc
+          - const: fsl,imx53-esdhc
+      - items:
+          - const: fsl,imx7d-usdhc
+          - const: fsl,imx6sl-usdhc
+      - items:
           - enum:
               - fsl,imx8mq-usdhc
           - const: fsl,imx7d-usdhc
