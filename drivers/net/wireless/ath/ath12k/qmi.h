@@ -54,6 +54,7 @@ enum ath12k_qmi_bdf_type {
 	ATH12K_QMI_BDF_TYPE_BIN			= 0,
 	ATH12K_QMI_BDF_TYPE_ELF			= 1,
 	ATH12K_QMI_BDF_TYPE_REGDB		= 4,
+	ATH12K_QMI_BDF_TYPE_CALIBRATION		= 5,
 };
 
 enum ath12k_qmi_event_type {

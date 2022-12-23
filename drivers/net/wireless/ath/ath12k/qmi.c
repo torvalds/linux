@@ -2419,6 +2419,50 @@ static int ath12k_qmi_load_bdf_qmi(struct ath12k_base *ab,
 			goto out;
 		}
 		break;
+	case ATH12K_QMI_BDF_TYPE_CALIBRATION:
+
+		if (ab->qmi.target.eeprom_caldata) {
+			file_type = ATH12K_QMI_FILE_TYPE_CALDATA;
+			tmp = filename;
+			fw_size = ATH12K_QMI_MAX_BDF_FILE_NAME_SIZE;
+		} else {
+			file_type = ATH12K_QMI_FILE_TYPE_CALDATA;
+
+			/* cal-<bus>-<id>.bin */
+			snprintf(filename, sizeof(filename), "cal-%s-%s.bin",
+				 ath12k_bus_str(ab->hif.bus), dev_name(dev));
+			fw_entry = ath12k_core_firmware_request(ab, filename);
+			if (!IS_ERR(fw_entry))
+				goto success;
+
+			fw_entry = ath12k_core_firmware_request(ab,
+								ATH12K_DEFAULT_CAL_FILE);
+			if (IS_ERR(fw_entry)) {
+				ret = PTR_ERR(fw_entry);
+				ath12k_warn(ab,
+					    "qmi failed to load CAL data file:%s\n",
+					    filename);
+				goto out;
+			}
+
+success:
+			fw_size = min_t(u32, ab->hw_params->fw.board_size,
+					fw_entry->size);
+			tmp = fw_entry->data;
+		}
+		ret = ath12k_qmi_load_file_target_mem(ab, tmp, fw_size, file_type);
+		if (ret < 0) {
+			ath12k_warn(ab, "qmi failed to load caldata\n");
+			goto out_qmi_cal;
+		}
+
+		ath12k_dbg(ab, ATH12K_DBG_QMI, "qmi caldata downloaded: type: %u\n",
+			   file_type);
+
+out_qmi_cal:
+		if (!ab->qmi.target.eeprom_caldata)
+			release_firmware(fw_entry);
+		return ret;
 	default:
 		ath12k_warn(ab, "unknown file type for load %d", type);
 		goto out;
@@ -2429,72 +2473,9 @@ static int ath12k_qmi_load_bdf_qmi(struct ath12k_base *ab,
 	fw_size = min_t(u32, ab->hw_params->fw.board_size, bd.len);
 
 	ret = ath12k_qmi_load_file_target_mem(ab, bd.data, fw_size, type);
-	if (ret < 0) {
+	if (ret < 0)
 		ath12k_warn(ab, "qmi failed to load bdf file\n");
-		goto out;
-	}
 
-	if (!ab->hw_params->download_calib)
-		goto out;
-
-	file_type = ATH12K_QMI_FILE_TYPE_CALDATA;
-
-	/* cal-<bus>-<id>.bin */
-	snprintf(filename, sizeof(filename), "cal-%s-%s.bin",
-		 ath12k_bus_str(ab->hif.bus), dev_name(dev));
-	fw_entry = ath12k_core_firmware_request(ab, filename);
-	if (!IS_ERR(fw_entry))
-		goto success;
-
-	fw_entry = ath12k_core_firmware_request(ab, ATH12K_DEFAULT_CAL_FILE);
-	if (IS_ERR(fw_entry)) {
-		ret = PTR_ERR(fw_entry);
-		ath12k_warn(ab,
-			    "qmi failed to load CAL data file:%s\n",
-			    filename);
-		goto out;
-	}
-
-	if (ab->qmi.target.eeprom_caldata) {
-		file_type = ATH12K_QMI_FILE_TYPE_CALDATA;
-		tmp = filename;
-		fw_size = ATH12K_QMI_MAX_BDF_FILE_NAME_SIZE;
-	} else {
-		file_type = ATH12K_QMI_FILE_TYPE_CALDATA;
-
-		/* cal-<bus>-<id>.bin */
-		snprintf(filename, sizeof(filename), "cal-%s-%s.bin",
-			 ath12k_bus_str(ab->hif.bus), dev_name(dev));
-		fw_entry = ath12k_core_firmware_request(ab, filename);
-		if (!IS_ERR(fw_entry))
-			goto success;
-
-		fw_entry = ath12k_core_firmware_request(ab, ATH12K_DEFAULT_CAL_FILE);
-		if (IS_ERR(fw_entry)) {
-			ret = PTR_ERR(fw_entry);
-			ath12k_warn(ab,
-				    "qmi failed to load CAL data file:%s\n",
-				    filename);
-			goto out;
-		}
-
-success:
-		fw_size = min_t(u32, ab->hw_params->fw.board_size, fw_entry->size);
-		tmp = fw_entry->data;
-	}
-
-	ret = ath12k_qmi_load_file_target_mem(ab, tmp, fw_size, file_type);
-	if (ret < 0) {
-		ath12k_warn(ab, "qmi failed to load caldata\n");
-		goto out_qmi_cal;
-	}
-
-	ath12k_dbg(ab, ATH12K_DBG_QMI, "qmi caldata downloaded: type: %u\n",
-		   file_type);
-
-out_qmi_cal:
-	if (!ab->qmi.target.eeprom_caldata)
-		release_firmware(fw_entry);
 out:
 	ath12k_core_free_bdf(ab, &bd);
 	ath12k_dbg(ab, ATH12K_DBG_QMI, "qmi BDF download sequence completed\n");
@@ -2849,6 +2830,12 @@ static int ath12k_qmi_event_load_bdf(struct ath12k_qmi *qmi)
 	if (ret < 0) {
 		ath12k_warn(ab, "qmi failed to load board data file:%d\n", ret);
 		return ret;
+	}
+
+	if (ab->hw_params->download_calib) {
+		ret = ath12k_qmi_load_bdf_qmi(ab, ATH12K_QMI_BDF_TYPE_CALIBRATION);
+		if (ret < 0)
+			ath12k_warn(ab, "qmi failed to load calibrated data :%d\n", ret);
 	}
 
 	ret = ath12k_qmi_wlanfw_m3_info_send(ab);
