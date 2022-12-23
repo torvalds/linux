@@ -290,3 +290,51 @@ static __always_inline bool riscv_insn_is_branch(u32 code)
 	(RVC_X(x_, RVC_B_IMM_5_OPOFF, RVC_B_IMM_5_MASK) << RVC_B_IMM_5_OFF) | \
 	(RVC_X(x_, RVC_B_IMM_7_6_OPOFF, RVC_B_IMM_7_6_MASK) << RVC_B_IMM_7_6_OFF) | \
 	(RVC_IMM_SIGN(x_) << RVC_B_IMM_SIGN_OFF); })
+
+/*
+ * Put together one immediate from a U-type and I-type instruction pair.
+ *
+ * The U-type contains an upper immediate, meaning bits[31:12] with [11:0]
+ * being zero, while the I-type contains a 12bit immediate.
+ * Combined these can encode larger 32bit values and are used for example
+ * in auipc + jalr pairs to allow larger jumps.
+ *
+ * @utype_insn: instruction containing the upper immediate
+ * @itype_insn: instruction
+ * Return: combined immediate
+ */
+static inline s32 riscv_insn_extract_utype_itype_imm(u32 utype_insn, u32 itype_insn)
+{
+	s32 imm;
+
+	imm = RV_EXTRACT_UTYPE_IMM(utype_insn);
+	imm += RV_EXTRACT_ITYPE_IMM(itype_insn);
+
+	return imm;
+}
+
+/*
+ * Update a set of two instructions (U-type + I-type) with an immediate value.
+ *
+ * Used for example in auipc+jalrs pairs the U-type instructions contains
+ * a 20bit upper immediate representing bits[31:12], while the I-type
+ * instruction contains a 12bit immediate representing bits[11:0].
+ *
+ * This also takes into account that both separate immediates are
+ * considered as signed values, so if the I-type immediate becomes
+ * negative (BIT(11) set) the U-type part gets adjusted.
+ *
+ * @utype_insn: pointer to the utype instruction of the pair
+ * @itype_insn: pointer to the itype instruction of the pair
+ * @imm: the immediate to insert into the two instructions
+ */
+static inline void riscv_insn_insert_utype_itype_imm(u32 *utype_insn, u32 *itype_insn, s32 imm)
+{
+	/* drop possible old IMM values */
+	*utype_insn &= ~(RV_U_IMM_31_12_MASK);
+	*itype_insn &= ~(RV_I_IMM_11_0_MASK << RV_I_IMM_11_0_OPOFF);
+
+	/* add the adapted IMMs */
+	*utype_insn |= (imm & RV_U_IMM_31_12_MASK) + ((imm & BIT(11)) << 1);
+	*itype_insn |= ((imm & RV_I_IMM_11_0_MASK) << RV_I_IMM_11_0_OPOFF);
+}
