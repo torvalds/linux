@@ -36,11 +36,51 @@ bool pkvm_modules_enabled(void)
 	return __pkvm_modules_enabled;
 }
 
+static u64 early_lm_pages;
+static void *__pkvm_linear_map_early(phys_addr_t phys, size_t size, enum kvm_pgtable_prot prot)
+{
+	void *addr = NULL;
+	int ret;
+
+	if (!PAGE_ALIGNED(phys) || !PAGE_ALIGNED(size))
+		return NULL;
+
+	pkvm_modules_lock();
+	if (!__pkvm_modules_enabled)
+		goto out;
+
+	addr = __hyp_va(phys);
+	ret = pkvm_create_mappings(addr, addr + size, prot);
+	if (ret)
+		addr = NULL;
+	else
+		early_lm_pages += size >> PAGE_SHIFT;
+out:
+	pkvm_modules_unlock();
+
+	return addr;
+}
+
+static void __pkvm_linear_unmap_early(void *addr, size_t size)
+{
+	pkvm_modules_lock();
+	pkvm_remove_mappings(addr, addr + size);
+	early_lm_pages -= size >> PAGE_SHIFT;
+	pkvm_modules_unlock();
+}
+
 int __pkvm_close_module_registration(void)
 {
 	int ret;
 
 	pkvm_modules_lock();
+	/*
+	 * Page ownership tracking might go out of sync if there are stale
+	 * entries in pKVM's linear map range, so they must really be gone by
+	 * now.
+	 */
+	WARN_ON(early_lm_pages);
+
 	ret = __pkvm_modules_enabled ? 0 : -EACCES;
 	if (!ret) {
 		void *addr = hyp_fixmap_map(__hyp_pa(&__pkvm_modules_enabled));
@@ -60,6 +100,8 @@ const struct pkvm_module_ops module_ops = {
 	.putx64 = hyp_putx64,
 	.fixmap_map = hyp_fixmap_map,
 	.fixmap_unmap = hyp_fixmap_unmap,
+	.linear_map_early = __pkvm_linear_map_early,
+	.linear_unmap_early = __pkvm_linear_unmap_early,
 	.flush_dcache_to_poc = __kvm_flush_dcache_to_poc,
 	.register_host_perm_fault_handler = hyp_register_host_perm_fault_handler,
 	.protect_host_page = hyp_protect_host_page,
