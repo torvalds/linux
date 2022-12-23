@@ -99,8 +99,8 @@ static int build_merkle_tree_level(struct file *filp, unsigned int level,
 			}
 		}
 
-		err = fsverity_hash_page(params, inode, req, src_page,
-					 &pending_hashes[pending_size]);
+		err = fsverity_hash_block(params, inode, req, src_page, 0,
+					  &pending_hashes[pending_size]);
 		put_page(src_page);
 		if (err)
 			return err;

@@ -125,12 +125,13 @@ static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
 
 	want_hash = vi->root_hash;
 descend:
-	/* Descend the tree verifying hash pages */
+	/* Descend the tree verifying hash blocks. */
 	for (; level > 0; level--) {
 		struct page *hpage = hpages[level - 1];
 		unsigned int hoffset = hoffsets[level - 1];
 
-		err = fsverity_hash_page(params, inode, req, hpage, real_hash);
+		err = fsverity_hash_block(params, inode, req, hpage, 0,
+					  real_hash);
 		if (err)
 			goto out;
 		err = cmp_hashes(vi, want_hash, real_hash, index, level - 1);
@@ -142,8 +143,8 @@ descend:
 		put_page(hpage);
 	}
 
-	/* Finally, verify the data page */
-	err = fsverity_hash_page(params, inode, req, data_page, real_hash);
+	/* Finally, verify the data block. */
+	err = fsverity_hash_block(params, inode, req, data_page, 0, real_hash);
 	if (err)
 		goto out;
 	err = cmp_hashes(vi, want_hash, real_hash, index, -1);
