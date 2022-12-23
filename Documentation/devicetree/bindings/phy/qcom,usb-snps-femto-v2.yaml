@@ -14,18 +14,25 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - qcom,usb-snps-hs-5nm-phy
-      - qcom,usb-snps-hs-7nm-phy
-      - qcom,sc7280-usb-hs-phy
-      - qcom,sc8180x-usb-hs-phy
-      - qcom,sc8280xp-usb-hs-phy
-      - qcom,sm6375-usb-hs-phy
-      - qcom,sm8150-usb-hs-phy
-      - qcom,sm8250-usb-hs-phy
-      - qcom,sm8350-usb-hs-phy
-      - qcom,sm8450-usb-hs-phy
-      - qcom,usb-snps-femto-v2-phy
+    oneOf:
+      - enum:
+          - qcom,sc8180x-usb-hs-phy
+          - qcom,usb-snps-femto-v2-phy
+      - items:
+          - enum:
+              - qcom,sc8280xp-usb-hs-phy
+          - const: qcom,usb-snps-hs-5nm-phy
+      - items:
+          - enum:
+              - qcom,sc7280-usb-hs-phy
+              - qcom,sdx55-usb-hs-phy
+              - qcom,sdx65-usb-hs-phy
+              - qcom,sm6375-usb-hs-phy
+              - qcom,sm8150-usb-hs-phy
+              - qcom,sm8250-usb-hs-phy
+              - qcom,sm8350-usb-hs-phy
+              - qcom,sm8450-usb-hs-phy
+          - const: qcom,usb-snps-hs-7nm-phy
 
   reg:
     maxItems: 1
@@ -160,7 +167,7 @@ examples:
     #include <dt-bindings/clock/qcom,rpmh.h>
     #include <dt-bindings/clock/qcom,gcc-sm8150.h>
     phy@88e2000 {
-        compatible = "qcom,sm8150-usb-hs-phy";
+        compatible = "qcom,sm8150-usb-hs-phy", "qcom,usb-snps-hs-7nm-phy";
         reg = <0x088e2000 0x400>;
         #phy-cells = <0>;
 
