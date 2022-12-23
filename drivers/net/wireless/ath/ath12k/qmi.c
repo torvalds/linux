@@ -2371,12 +2371,16 @@ static int ath12k_qmi_load_file_target_mem(struct ath12k_base *ab,
 			goto out;
 		}
 
-		remaining -= req->data_len;
-		temp += req->data_len;
-		req->seg_id++;
-		ath12k_dbg(ab, ATH12K_DBG_QMI,
-			   "qmi bdf download request remaining %i\n",
-			   remaining);
+		if (type == ATH12K_QMI_FILE_TYPE_EEPROM) {
+			remaining = 0;
+		} else {
+			remaining -= req->data_len;
+			temp += req->data_len;
+			req->seg_id++;
+			ath12k_dbg(ab, ATH12K_DBG_QMI,
+				   "qmi bdf download request remaining %i\n",
+				   remaining);
+		}
 	}
 
 out:
@@ -2422,7 +2426,7 @@ static int ath12k_qmi_load_bdf_qmi(struct ath12k_base *ab,
 	case ATH12K_QMI_BDF_TYPE_CALIBRATION:
 
 		if (ab->qmi.target.eeprom_caldata) {
-			file_type = ATH12K_QMI_FILE_TYPE_CALDATA;
+			file_type = ATH12K_QMI_FILE_TYPE_EEPROM;
 			tmp = filename;
 			fw_size = ATH12K_QMI_MAX_BDF_FILE_NAME_SIZE;
 		} else {
