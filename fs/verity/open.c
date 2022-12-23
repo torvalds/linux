@@ -7,6 +7,7 @@
 
 #include "fsverity_private.h"
 
+#include <linux/mm.h>
 #include <linux/slab.h>
 
 static struct kmem_cache *fsverity_info_cachep;
@@ -97,7 +98,6 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 			 params->log_arity;
 		blocks_in_level[params->num_levels++] = blocks;
 	}
-	params->level0_blocks = blocks_in_level[0];
 
 	/* Compute the starting block of each level */
 	offset = 0;
@@ -118,6 +118,7 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	}
 
 	params->tree_size = offset << log_blocksize;
+	params->tree_pages = PAGE_ALIGN(params->tree_size) >> PAGE_SHIFT;
 	return 0;
 
 out_err:

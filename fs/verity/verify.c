@@ -74,7 +74,7 @@ static inline int cmp_hashes(const struct fsverity_info *vi,
  */
 static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
 			struct ahash_request *req, struct page *data_page,
-			unsigned long level0_ra_pages)
+			unsigned long max_ra_pages)
 {
 	const struct merkle_tree_params *params = &vi->tree_params;
 	const unsigned int hsize = params->digest_size;
@@ -103,7 +103,8 @@ static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
 		hash_at_level(params, index, level, &hindex, &hoffset);
 
 		hpage = inode->i_sb->s_vop->read_merkle_tree_page(inode, hindex,
-				level == 0 ? level0_ra_pages : 0);
+				level == 0 ? min(max_ra_pages,
+					params->tree_pages - hindex) : 0);
 		if (IS_ERR(hpage)) {
 			err = PTR_ERR(hpage);
 			fsverity_err(inode,
@@ -199,14 +200,13 @@ void fsverity_verify_bio(struct bio *bio)
 {
 	struct inode *inode = bio_first_page_all(bio)->mapping->host;
 	const struct fsverity_info *vi = inode->i_verity_info;
-	const struct merkle_tree_params *params = &vi->tree_params;
 	struct ahash_request *req;
 	struct bio_vec *bv;
 	struct bvec_iter_all iter_all;
 	unsigned long max_ra_pages = 0;
 
 	/* This allocation never fails, since it's mempool-backed. */
-	req = fsverity_alloc_hash_request(params->hash_alg, GFP_NOFS);
+	req = fsverity_alloc_hash_request(vi->tree_params.hash_alg, GFP_NOFS);
 
 	if (bio->bi_opf & REQ_RAHEAD) {
 		/*
@@ -218,24 +218,17 @@ void fsverity_verify_bio(struct bio *bio)
 		 * This improves sequential read performance, as it greatly
 		 * reduces the number of I/O requests made to the Merkle tree.
 		 */
-		bio_for_each_segment_all(bv, bio, iter_all)
-			max_ra_pages++;
-		max_ra_pages /= 4;
+		max_ra_pages = bio->bi_iter.bi_size >> (PAGE_SHIFT + 2);
 	}
 
 	bio_for_each_segment_all(bv, bio, iter_all) {
-		struct page *page = bv->bv_page;
-		unsigned long level0_index = page->index >> params->log_arity;
-		unsigned long level0_ra_pages =
-			min(max_ra_pages, params->level0_blocks - level0_index);
-
-		if (!verify_page(inode, vi, req, page, level0_ra_pages)) {
+		if (!verify_page(inode, vi, req, bv->bv_page, max_ra_pages)) {
 			bio->bi_status = BLK_STS_IOERR;
 			break;
 		}
 	}
 
-	fsverity_free_hash_request(params->hash_alg, req);
+	fsverity_free_hash_request(vi->tree_params.hash_alg, req);
 }
 EXPORT_SYMBOL_GPL(fsverity_verify_bio);
 #endif /* CONFIG_BLOCK */
