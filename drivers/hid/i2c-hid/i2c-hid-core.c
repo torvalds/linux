@@ -67,16 +67,7 @@
 #define I2C_HID_PWR_ON		0x00
 #define I2C_HID_PWR_SLEEP	0x01
 
-/* debug option */
-static bool debug;
-module_param(debug, bool, 0444);
-MODULE_PARM_DESC(debug, "print a lot of debug information");
-
-#define i2c_hid_dbg(ihid, fmt, arg...)					  \
-do {									  \
-	if (debug)							  \
-		dev_printk(KERN_DEBUG, &(ihid)->client->dev, fmt, ##arg); \
-} while (0)
+#define i2c_hid_dbg(ihid, ...) dev_dbg(&(ihid)->client->dev, __VA_ARGS__)
 
 struct i2c_hid_desc {
 	__le16 wHIDDescLength;
