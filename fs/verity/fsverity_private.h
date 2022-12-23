@@ -46,7 +46,7 @@ struct merkle_tree_params {
 	unsigned int log_arity;		/* log2(hashes_per_block) */
 	unsigned int num_levels;	/* number of levels in Merkle tree */
 	u64 tree_size;			/* Merkle tree size in bytes */
-	unsigned long level0_blocks;	/* number of blocks in tree level 0 */
+	unsigned long tree_pages;	/* Merkle tree size in pages */
 
 	/*
 	 * Starting block index for each tree level, ordered from leaf level (0)
