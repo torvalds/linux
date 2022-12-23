@@ -52,7 +52,7 @@ struct merkle_tree_params {
 	 * Starting block index for each tree level, ordered from leaf level (0)
 	 * to root level ('num_levels - 1')
 	 */
-	u64 level_start[FS_VERITY_MAX_LEVELS];
+	unsigned long level_start[FS_VERITY_MAX_LEVELS];
 };
 
 /*

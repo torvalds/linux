@@ -34,6 +34,7 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	struct fsverity_hash_alg *hash_alg;
 	int err;
 	u64 blocks;
+	u64 blocks_in_level[FS_VERITY_MAX_LEVELS];
 	u64 offset;
 	int level;
 
@@ -94,17 +95,26 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 		}
 		blocks = (blocks + params->hashes_per_block - 1) >>
 			 params->log_arity;
-		/* temporarily using level_start[] to store blocks in level */
-		params->level_start[params->num_levels++] = blocks;
+		blocks_in_level[params->num_levels++] = blocks;
 	}
-	params->level0_blocks = params->level_start[0];
+	params->level0_blocks = blocks_in_level[0];
 
 	/* Compute the starting block of each level */
 	offset = 0;
 	for (level = (int)params->num_levels - 1; level >= 0; level--) {
-		blocks = params->level_start[level];
 		params->level_start[level] = offset;
-		offset += blocks;
+		offset += blocks_in_level[level];
+	}
+
+	/*
+	 * Since the data, and thus also the Merkle tree, cannot have more than
+	 * ULONG_MAX pages, hash block indices can always fit in an
+	 * 'unsigned long'.  To be safe, explicitly check for it too.
+	 */
+	if (offset > ULONG_MAX) {
+		fsverity_err(inode, "Too many blocks in Merkle tree");
+		err = -EFBIG;
+		goto out_err;
 	}
 
 	params->tree_size = offset << log_blocksize;
