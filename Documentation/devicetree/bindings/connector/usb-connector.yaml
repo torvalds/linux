@@ -93,6 +93,12 @@ properties:
       - device
       - dual
 
+  pd-revision:
+    description: Set the maximum PD revision of Type-C controller can support,
+      the descriptors are compliant in binary-coded decimal (i.e. 2.0 is 0200H
+      and 3.1 is 0310H).
+    $ref: /schemas/types.yaml#/definitions/uint32
+
   # The following are optional properties for "usb-c-connector" with power
   # delivery support.
   source-pdos:
