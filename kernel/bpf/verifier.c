@@ -13057,18 +13057,19 @@ next:
 	}
 }
 
+static bool regs_exact(const struct bpf_reg_state *rold,
+		       const struct bpf_reg_state *rcur)
+{
+	return memcmp(rold, rcur, offsetof(struct bpf_reg_state, parent)) == 0;
+}
+
 /* Returns true if (rold safe implies rcur safe) */
 static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 		    struct bpf_reg_state *rcur, struct bpf_id_pair *idmap)
 {
-	bool equal;
-
 	if (!(rold->live & REG_LIVE_READ))
 		/* explored state didn't use this */
 		return true;
-
-	equal = memcmp(rold, rcur, offsetof(struct bpf_reg_state, parent)) == 0;
-
 	if (rold->type == NOT_INIT)
 		/* explored state can't have used this */
 		return true;
@@ -13101,7 +13102,7 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 
 	switch (base_type(rold->type)) {
 	case SCALAR_VALUE:
-		if (equal)
+		if (regs_exact(rold, rcur))
 			return true;
 		if (env->explore_alu_limits)
 			return false;
@@ -13144,15 +13145,11 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 		/* two stack pointers are equal only if they're pointing to
 		 * the same stack frame, since fp-8 in foo != fp-8 in bar
 		 */
-		return equal && rold->frameno == rcur->frameno;
+		return regs_exact(rold, rcur) && rold->frameno == rcur->frameno;
 	default:
 		/* Only valid matches are exact, which memcmp() */
-		return equal;
+		return regs_exact(rold, rcur);
 	}
-
-	/* Shouldn't get here; if we do, say it's not safe */
-	WARN_ON_ONCE(1);
-	return false;
 }
 
 static bool stacksafe(struct bpf_verifier_env *env, struct bpf_func_state *old,
