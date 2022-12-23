@@ -22,7 +22,7 @@ properties:
     required:
       - qcom,glink-channels
     description:
-      Qualcomm APR/GPR (Asynchronous/Generic Packet Router)
+      Qualcomm APR (Asynchronous Packet Router)
 
   fastrpc:
     $ref: /schemas/misc/qcom,fastrpc.yaml#
@@ -30,6 +30,13 @@ properties:
       - qcom,glink-channels
     description:
       Qualcomm FastRPC
+
+  gpr:
+    $ref: /schemas/soc/qcom/qcom,apr.yaml#
+    required:
+      - qcom,glink-channels
+    description:
+      Qualcomm GPR (Generic Packet Router)
 
   interrupts:
     maxItems: 1
@@ -51,6 +58,21 @@ required:
   - label
   - mboxes
   - qcom,remote-pid
+
+allOf:
+  - if:
+      required:
+        - apr
+    then:
+      properties:
+        gpr: false
+
+  - if:
+      required:
+        - gpr
+    then:
+      properties:
+        apr: false
 
 additionalProperties: false
 
