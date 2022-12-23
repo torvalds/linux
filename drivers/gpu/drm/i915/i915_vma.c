@@ -2114,7 +2114,7 @@ int i915_vma_unbind_async(struct i915_vma *vma, bool trylock_vm)
 	if (!obj->mm.rsgt)
 		return -EBUSY;
 
-	err = dma_resv_reserve_fences(obj->base.resv, 1);
+	err = dma_resv_reserve_fences(obj->base.resv, 2);
 	if (err)
 		return -EBUSY;
 
