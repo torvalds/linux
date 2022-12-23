@@ -880,7 +880,10 @@ mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	phy->mt76->antenna_mask = tx_ant;
 
 	/* restore to the origin chainmask which might have auxiliary path */
-	if (hweight8(tx_ant) == max_nss)
+	if (hweight8(tx_ant) == max_nss && band_idx < MT_BAND2)
+		phy->mt76->chainmask = ((dev->chainmask >> shift) &
+					(BIT(dev->chainshift[band_idx + 1] - shift) - 1)) << shift;
+	else if (hweight8(tx_ant) == max_nss)
 		phy->mt76->chainmask = (dev->chainmask >> shift) << shift;
 	else
 		phy->mt76->chainmask = tx_ant << shift;
