@@ -3,7 +3,7 @@
 #ifndef _RISCV_KERNEL_PROBES_SIMULATE_INSN_H
 #define _RISCV_KERNEL_PROBES_SIMULATE_INSN_H
 
-#include <asm/parse_asm.h>
+#include <asm/insn.h>
 
 #define RISCV_INSN_REJECTED(name, code)					\
 	do {								\

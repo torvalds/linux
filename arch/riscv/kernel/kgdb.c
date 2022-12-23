@@ -11,7 +11,7 @@
 #include <linux/string.h>
 #include <asm/cacheflush.h>
 #include <asm/gdb_xml.h>
-#include <asm/parse_asm.h>
+#include <asm/insn.h>
 
 enum {
 	NOT_KGDB_BREAK = 0,
