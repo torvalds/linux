@@ -35,7 +35,7 @@ static void hash_at_level(const struct merkle_tree_params *params,
 
 	/* Offset of the wanted hash (in bytes) within the hash block */
 	*hoffset = (position & ((1 << params->log_arity) - 1)) <<
-		   (params->log_blocksize - params->log_arity);
+		   params->log_digestsize;
 }
 
 static inline int cmp_hashes(const struct fsverity_info *vi,

@@ -42,8 +42,9 @@ struct merkle_tree_params {
 	unsigned int digest_size;	/* same as hash_alg->digest_size */
 	unsigned int block_size;	/* size of data and tree blocks */
 	unsigned int hashes_per_block;	/* number of hashes per tree block */
-	unsigned int log_blocksize;	/* log2(block_size) */
-	unsigned int log_arity;		/* log2(hashes_per_block) */
+	u8 log_digestsize;		/* log2(digest_size) */
+	u8 log_blocksize;		/* log2(block_size) */
+	u8 log_arity;			/* log2(hashes_per_block) */
 	unsigned int num_levels;	/* number of levels in Merkle tree */
 	u64 tree_size;			/* Merkle tree size in bytes */
 	unsigned long tree_pages;	/* Merkle tree size in pages */

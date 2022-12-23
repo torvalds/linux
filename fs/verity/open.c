@@ -76,7 +76,8 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 		err = -EINVAL;
 		goto out_err;
 	}
-	params->log_arity = params->log_blocksize - ilog2(params->digest_size);
+	params->log_digestsize = ilog2(params->digest_size);
+	params->log_arity = log_blocksize - params->log_digestsize;
 	params->hashes_per_block = 1 << params->log_arity;
 
 	/*
