@@ -56,7 +56,23 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 		goto out_err;
 	}
 
-	if (log_blocksize != PAGE_SHIFT) {
+	/*
+	 * fs/verity/ directly assumes that the Merkle tree block size is a
+	 * power of 2 less than or equal to PAGE_SIZE.  Another restriction
+	 * arises from the interaction between fs/verity/ and the filesystems
+	 * themselves: filesystems expect to be able to verify a single
+	 * filesystem block of data at a time.  Therefore, the Merkle tree block
+	 * size must also be less than or equal to the filesystem block size.
+	 *
+	 * The above are the only hard limitations, so in theory the Merkle tree
+	 * block size could be as small as twice the digest size.  However,
+	 * that's not useful, and it would result in some unusually deep and
+	 * large Merkle trees.  So we currently require that the Merkle tree
+	 * block size be at least 1024 bytes.  That's small enough to test the
+	 * sub-page block case on systems with 4K pages, but not too small.
+	 */
+	if (log_blocksize < 10 || log_blocksize > PAGE_SHIFT ||
+	    log_blocksize > inode->i_blkbits) {
 		fsverity_warn(inode, "Unsupported log_blocksize: %u",
 			      log_blocksize);
 		err = -EINVAL;
@@ -64,6 +80,8 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	}
 	params->log_blocksize = log_blocksize;
 	params->block_size = 1 << log_blocksize;
+	params->log_blocks_per_page = PAGE_SHIFT - log_blocksize;
+	params->blocks_per_page = 1 << params->log_blocks_per_page;
 
 	if (WARN_ON(!is_power_of_2(params->digest_size))) {
 		err = -EINVAL;
@@ -108,11 +126,19 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	}
 
 	/*
-	 * Since the data, and thus also the Merkle tree, cannot have more than
-	 * ULONG_MAX pages, hash block indices can always fit in an
-	 * 'unsigned long'.  To be safe, explicitly check for it too.
+	 * With block_size != PAGE_SIZE, an in-memory bitmap will need to be
+	 * allocated to track the "verified" status of hash blocks.  Don't allow
+	 * this bitmap to get too large.  For now, limit it to 1 MiB, which
+	 * limits the file size to about 4.4 TB with SHA-256 and 4K blocks.
+	 *
+	 * Together with the fact that the data, and thus also the Merkle tree,
+	 * cannot have more than ULONG_MAX pages, this implies that hash block
+	 * indices can always fit in an 'unsigned long'.  But to be safe, we
+	 * explicitly check for that too.  Note, this is only for hash block
+	 * indices; data block indices might not fit in an 'unsigned long'.
 	 */
-	if (offset > ULONG_MAX) {
+	if ((params->block_size != PAGE_SIZE && offset > 1 << 23) ||
+	    offset > ULONG_MAX) {
 		fsverity_err(inode, "Too many blocks in Merkle tree");
 		err = -EFBIG;
 		goto out_err;
@@ -170,7 +196,7 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 		fsverity_err(inode,
 			     "Error %d initializing Merkle tree parameters",
 			     err);
-		goto out;
+		goto fail;
 	}
 
 	memcpy(vi->root_hash, desc->root_hash, vi->tree_params.digest_size);
@@ -179,17 +205,48 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 				  vi->file_digest);
 	if (err) {
 		fsverity_err(inode, "Error %d computing file digest", err);
-		goto out;
+		goto fail;
 	}
 
 	err = fsverity_verify_signature(vi, desc->signature,
 					le32_to_cpu(desc->sig_size));
-out:
-	if (err) {
-		fsverity_free_info(vi);
-		vi = ERR_PTR(err);
+	if (err)
+		goto fail;
+
+	if (vi->tree_params.block_size != PAGE_SIZE) {
+		/*
+		 * When the Merkle tree block size and page size differ, we use
+		 * a bitmap to keep track of which hash blocks have been
+		 * verified.  This bitmap must contain one bit per hash block,
+		 * including alignment to a page boundary at the end.
+		 *
+		 * Eventually, to support extremely large files in an efficient
+		 * way, it might be necessary to make pages of this bitmap
+		 * reclaimable.  But for now, simply allocating the whole bitmap
+		 * is a simple solution that works well on the files on which
+		 * fsverity is realistically used.  E.g., with SHA-256 and 4K
+		 * blocks, a 100MB file only needs a 24-byte bitmap, and the
+		 * bitmap for any file under 17GB fits in a 4K page.
+		 */
+		unsigned long num_bits =
+			vi->tree_params.tree_pages <<
+			vi->tree_params.log_blocks_per_page;
+
+		vi->hash_block_verified = kvcalloc(BITS_TO_LONGS(num_bits),
+						   sizeof(unsigned long),
+						   GFP_KERNEL);
+		if (!vi->hash_block_verified) {
+			err = -ENOMEM;
+			goto fail;
+		}
+		spin_lock_init(&vi->hash_page_init_lock);
 	}
+
 	return vi;
+
+fail:
+	fsverity_free_info(vi);
+	return ERR_PTR(err);
 }
 
 void fsverity_set_info(struct inode *inode, struct fsverity_info *vi)
@@ -216,6 +273,7 @@ void fsverity_free_info(struct fsverity_info *vi)
 	if (!vi)
 		return;
 	kfree(vi->tree_params.hashstate);
+	kvfree(vi->hash_block_verified);
 	kmem_cache_free(fsverity_info_cachep, vi);
 }
 

@@ -170,7 +170,8 @@ int fsverity_ioctl_read_metadata(struct file *filp, const void __user *uarg);
 
 /* verify.c */
 
-bool fsverity_verify_page(struct page *page);
+bool fsverity_verify_blocks(struct page *page, unsigned int len,
+			    unsigned int offset);
 void fsverity_verify_bio(struct bio *bio);
 void fsverity_enqueue_verify_work(struct work_struct *work);
 
@@ -230,7 +231,8 @@ static inline int fsverity_ioctl_read_metadata(struct file *filp,
 
 /* verify.c */
 
-static inline bool fsverity_verify_page(struct page *page)
+static inline bool fsverity_verify_blocks(struct page *page, unsigned int len,
+					  unsigned int offset)
 {
 	WARN_ON(1);
 	return false;
@@ -247,6 +249,11 @@ static inline void fsverity_enqueue_verify_work(struct work_struct *work)
 }
 
 #endif	/* !CONFIG_FS_VERITY */
+
+static inline bool fsverity_verify_page(struct page *page)
+{
+	return fsverity_verify_blocks(page, PAGE_SIZE, 0);
+}
 
 /**
  * fsverity_active() - do reads from the inode need to go through fs-verity?
