@@ -6,37 +6,37 @@
 #include <linux/bits.h>
 
 /* The bit field of immediate value in I-type instruction */
-#define I_IMM_SIGN_OPOFF	31
-#define I_IMM_11_0_OPOFF	20
-#define I_IMM_SIGN_OFF		12
-#define I_IMM_11_0_OFF		0
-#define I_IMM_11_0_MASK		GENMASK(11, 0)
+#define RV_I_IMM_SIGN_OPOFF	31
+#define RV_I_IMM_11_0_OPOFF	20
+#define RV_I_IMM_SIGN_OFF	12
+#define RV_I_IMM_11_0_OFF	0
+#define RV_I_IMM_11_0_MASK	GENMASK(11, 0)
 
 /* The bit field of immediate value in J-type instruction */
-#define J_IMM_SIGN_OPOFF	31
-#define J_IMM_10_1_OPOFF	21
-#define J_IMM_11_OPOFF		20
-#define J_IMM_19_12_OPOFF	12
-#define J_IMM_SIGN_OFF		20
-#define J_IMM_10_1_OFF		1
-#define J_IMM_11_OFF		11
-#define J_IMM_19_12_OFF		12
-#define J_IMM_10_1_MASK		GENMASK(9, 0)
-#define J_IMM_11_MASK		GENMASK(0, 0)
-#define J_IMM_19_12_MASK	GENMASK(7, 0)
+#define RV_J_IMM_SIGN_OPOFF	31
+#define RV_J_IMM_10_1_OPOFF	21
+#define RV_J_IMM_11_OPOFF	20
+#define RV_J_IMM_19_12_OPOFF	12
+#define RV_J_IMM_SIGN_OFF	20
+#define RV_J_IMM_10_1_OFF	1
+#define RV_J_IMM_11_OFF		11
+#define RV_J_IMM_19_12_OFF	12
+#define RV_J_IMM_10_1_MASK	GENMASK(9, 0)
+#define RV_J_IMM_11_MASK	GENMASK(0, 0)
+#define RV_J_IMM_19_12_MASK	GENMASK(7, 0)
 
 /* The bit field of immediate value in B-type instruction */
-#define B_IMM_SIGN_OPOFF	31
-#define B_IMM_10_5_OPOFF	25
-#define B_IMM_4_1_OPOFF		8
-#define B_IMM_11_OPOFF		7
-#define B_IMM_SIGN_OFF		12
-#define B_IMM_10_5_OFF		5
-#define B_IMM_4_1_OFF		1
-#define B_IMM_11_OFF		11
-#define B_IMM_10_5_MASK		GENMASK(5, 0)
-#define B_IMM_4_1_MASK		GENMASK(3, 0)
-#define B_IMM_11_MASK		GENMASK(0, 0)
+#define RV_B_IMM_SIGN_OPOFF	31
+#define RV_B_IMM_10_5_OPOFF	25
+#define RV_B_IMM_4_1_OPOFF	8
+#define RV_B_IMM_11_OPOFF	7
+#define RV_B_IMM_SIGN_OFF	12
+#define RV_B_IMM_10_5_OFF	5
+#define RV_B_IMM_4_1_OFF	1
+#define RV_B_IMM_11_OFF		11
+#define RV_B_IMM_10_5_MASK	GENMASK(5, 0)
+#define RV_B_IMM_4_1_MASK	GENMASK(3, 0)
+#define RV_B_IMM_11_MASK	GENMASK(0, 0)
 
 /* The register offset in RVG instruction */
 #define RVG_RS1_OPOFF		15
@@ -100,71 +100,71 @@
 #define RVC_C2_RD_OPOFF		7
 
 /* parts of opcode for RVG*/
-#define OPCODE_BRANCH		0x63
-#define OPCODE_JALR		0x67
-#define OPCODE_JAL		0x6f
-#define OPCODE_SYSTEM		0x73
+#define RVG_OPCODE_BRANCH	0x63
+#define RVG_OPCODE_JALR		0x67
+#define RVG_OPCODE_JAL		0x6f
+#define RVG_OPCODE_SYSTEM	0x73
 
 /* parts of opcode for RVC*/
-#define OPCODE_C_0		0x0
-#define OPCODE_C_1		0x1
-#define OPCODE_C_2		0x2
+#define RVC_OPCODE_C0		0x0
+#define RVC_OPCODE_C1		0x1
+#define RVC_OPCODE_C2		0x2
 
 /* parts of funct3 code for I, M, A extension*/
-#define FUNCT3_JALR		0x0
-#define FUNCT3_BEQ		0x0
-#define FUNCT3_BNE		0x1000
-#define FUNCT3_BLT		0x4000
-#define FUNCT3_BGE		0x5000
-#define FUNCT3_BLTU		0x6000
-#define FUNCT3_BGEU		0x7000
+#define RVG_FUNCT3_JALR		0x0
+#define RVG_FUNCT3_BEQ		0x0
+#define RVG_FUNCT3_BNE		0x1000
+#define RVG_FUNCT3_BLT		0x4000
+#define RVG_FUNCT3_BGE		0x5000
+#define RVG_FUNCT3_BLTU		0x6000
+#define RVG_FUNCT3_BGEU		0x7000
 
 /* parts of funct3 code for C extension*/
-#define FUNCT3_C_BEQZ		0xc000
-#define FUNCT3_C_BNEZ		0xe000
-#define FUNCT3_C_J		0xa000
-#define FUNCT3_C_JAL		0x2000
-#define FUNCT4_C_JR		0x8000
-#define FUNCT4_C_JALR		0x9000
+#define RVC_FUNCT3_C_BEQZ	0xc000
+#define RVC_FUNCT3_C_BNEZ	0xe000
+#define RVC_FUNCT3_C_J		0xa000
+#define RVC_FUNCT3_C_JAL	0x2000
+#define RVC_FUNCT4_C_JR		0x8000
+#define RVC_FUNCT4_C_JALR	0x9000
 
-#define FUNCT12_SRET		0x10200000
+#define RVG_FUNCT12_SRET	0x10200000
 
-#define MATCH_JALR		(FUNCT3_JALR | OPCODE_JALR)
-#define MATCH_JAL		(OPCODE_JAL)
-#define MATCH_BEQ		(FUNCT3_BEQ | OPCODE_BRANCH)
-#define MATCH_BNE		(FUNCT3_BNE | OPCODE_BRANCH)
-#define MATCH_BLT		(FUNCT3_BLT | OPCODE_BRANCH)
-#define MATCH_BGE		(FUNCT3_BGE | OPCODE_BRANCH)
-#define MATCH_BLTU		(FUNCT3_BLTU | OPCODE_BRANCH)
-#define MATCH_BGEU		(FUNCT3_BGEU | OPCODE_BRANCH)
-#define MATCH_SRET		(FUNCT12_SRET | OPCODE_SYSTEM)
-#define MATCH_C_BEQZ		(FUNCT3_C_BEQZ | OPCODE_C_1)
-#define MATCH_C_BNEZ		(FUNCT3_C_BNEZ | OPCODE_C_1)
-#define MATCH_C_J		(FUNCT3_C_J | OPCODE_C_1)
-#define MATCH_C_JAL		(FUNCT3_C_JAL | OPCODE_C_1)
-#define MATCH_C_JR		(FUNCT4_C_JR | OPCODE_C_2)
-#define MATCH_C_JALR		(FUNCT4_C_JALR | OPCODE_C_2)
+#define RVG_MATCH_JALR		(RVG_FUNCT3_JALR | RVG_OPCODE_JALR)
+#define RVG_MATCH_JAL		(RVG_OPCODE_JAL)
+#define RVG_MATCH_BEQ		(RVG_FUNCT3_BEQ | RVG_OPCODE_BRANCH)
+#define RVG_MATCH_BNE		(RVG_FUNCT3_BNE | RVG_OPCODE_BRANCH)
+#define RVG_MATCH_BLT		(RVG_FUNCT3_BLT | RVG_OPCODE_BRANCH)
+#define RVG_MATCH_BGE		(RVG_FUNCT3_BGE | RVG_OPCODE_BRANCH)
+#define RVG_MATCH_BLTU		(RVG_FUNCT3_BLTU | RVG_OPCODE_BRANCH)
+#define RVG_MATCH_BGEU		(RVG_FUNCT3_BGEU | RVG_OPCODE_BRANCH)
+#define RVG_MATCH_SRET		(RVG_FUNCT12_SRET | RVG_OPCODE_SYSTEM)
+#define RVC_MATCH_C_BEQZ	(RVC_FUNCT3_C_BEQZ | RVC_OPCODE_C1)
+#define RVC_MATCH_C_BNEZ	(RVC_FUNCT3_C_BNEZ | RVC_OPCODE_C1)
+#define RVC_MATCH_C_J		(RVC_FUNCT3_C_J | RVC_OPCODE_C1)
+#define RVC_MATCH_C_JAL		(RVC_FUNCT3_C_JAL | RVC_OPCODE_C1)
+#define RVC_MATCH_C_JR		(RVC_FUNCT4_C_JR | RVC_OPCODE_C2)
+#define RVC_MATCH_C_JALR	(RVC_FUNCT4_C_JALR | RVC_OPCODE_C2)
 
-#define MASK_JALR		0x707f
-#define MASK_JAL		0x7f
-#define MASK_C_JALR		0xf07f
-#define MASK_C_JR		0xf07f
-#define MASK_C_JAL		0xe003
-#define MASK_C_J		0xe003
-#define MASK_BEQ		0x707f
-#define MASK_BNE		0x707f
-#define MASK_BLT		0x707f
-#define MASK_BGE		0x707f
-#define MASK_BLTU		0x707f
-#define MASK_BGEU		0x707f
-#define MASK_C_BEQZ		0xe003
-#define MASK_C_BNEZ		0xe003
-#define MASK_SRET		0xffffffff
+#define RVG_MASK_JALR		0x707f
+#define RVG_MASK_JAL		0x7f
+#define RVC_MASK_C_JALR		0xf07f
+#define RVC_MASK_C_JR		0xf07f
+#define RVC_MASK_C_JAL		0xe003
+#define RVC_MASK_C_J		0xe003
+#define RVG_MASK_BEQ		0x707f
+#define RVG_MASK_BNE		0x707f
+#define RVG_MASK_BLT		0x707f
+#define RVG_MASK_BGE		0x707f
+#define RVG_MASK_BLTU		0x707f
+#define RVG_MASK_BGEU		0x707f
+#define RVC_MASK_C_BEQZ		0xe003
+#define RVC_MASK_C_BNEZ		0xe003
+#define RVG_MASK_SRET		0xffffffff
 
 #define __INSN_LENGTH_MASK	_UL(0x3)
 #define __INSN_LENGTH_GE_32	_UL(0x3)
 #define __INSN_OPCODE_MASK	_UL(0x7F)
-#define __INSN_BRANCH_OPCODE	_UL(OPCODE_BRANCH)
+#define __INSN_BRANCH_OPCODE	_UL(RVG_OPCODE_BRANCH)
 
 /* Define a series of is_XXX_insn functions to check if the value INSN
  * is an instance of instruction XXX.
@@ -180,26 +180,26 @@ static inline bool is_ ## INSN_NAME ## _insn(long insn) \
 #define RV_X(X, s, mask)  (((X) >> (s)) & (mask))
 #define RVC_X(X, s, mask) RV_X(X, s, mask)
 
-#define EXTRACT_JTYPE_IMM(x) \
+#define RV_EXTRACT_JTYPE_IMM(x) \
 	({typeof(x) x_ = (x); \
-	(RV_X(x_, J_IMM_10_1_OPOFF, J_IMM_10_1_MASK) << J_IMM_10_1_OFF) | \
-	(RV_X(x_, J_IMM_11_OPOFF, J_IMM_11_MASK) << J_IMM_11_OFF) | \
-	(RV_X(x_, J_IMM_19_12_OPOFF, J_IMM_19_12_MASK) << J_IMM_19_12_OFF) | \
-	(RV_IMM_SIGN(x_) << J_IMM_SIGN_OFF); })
+	(RV_X(x_, RV_J_IMM_10_1_OPOFF, RV_J_IMM_10_1_MASK) << RV_J_IMM_10_1_OFF) | \
+	(RV_X(x_, RV_J_IMM_11_OPOFF, RV_J_IMM_11_MASK) << RV_J_IMM_11_OFF) | \
+	(RV_X(x_, RV_J_IMM_19_12_OPOFF, RV_J_IMM_19_12_MASK) << RV_J_IMM_19_12_OFF) | \
+	(RV_IMM_SIGN(x_) << RV_J_IMM_SIGN_OFF); })
 
-#define EXTRACT_ITYPE_IMM(x) \
+#define RV_EXTRACT_ITYPE_IMM(x) \
 	({typeof(x) x_ = (x); \
-	(RV_X(x_, I_IMM_11_0_OPOFF, I_IMM_11_0_MASK)) | \
-	(RV_IMM_SIGN(x_) << I_IMM_SIGN_OFF); })
+	(RV_X(x_, RV_I_IMM_11_0_OPOFF, RV_I_IMM_11_0_MASK)) | \
+	(RV_IMM_SIGN(x_) << RV_I_IMM_SIGN_OFF); })
 
-#define EXTRACT_BTYPE_IMM(x) \
+#define RV_EXTRACT_BTYPE_IMM(x) \
 	({typeof(x) x_ = (x); \
-	(RV_X(x_, B_IMM_4_1_OPOFF, B_IMM_4_1_MASK) << B_IMM_4_1_OFF) | \
-	(RV_X(x_, B_IMM_10_5_OPOFF, B_IMM_10_5_MASK) << B_IMM_10_5_OFF) | \
-	(RV_X(x_, B_IMM_11_OPOFF, B_IMM_11_MASK) << B_IMM_11_OFF) | \
-	(RV_IMM_SIGN(x_) << B_IMM_SIGN_OFF); })
+	(RV_X(x_, RV_B_IMM_4_1_OPOFF, RV_B_IMM_4_1_MASK) << RV_B_IMM_4_1_OFF) | \
+	(RV_X(x_, RV_B_IMM_10_5_OPOFF, RV_B_IMM_10_5_MASK) << RV_B_IMM_10_5_OFF) | \
+	(RV_X(x_, RV_B_IMM_11_OPOFF, RV_B_IMM_11_MASK) << RV_B_IMM_11_OFF) | \
+	(RV_IMM_SIGN(x_) << RV_B_IMM_SIGN_OFF); })
 
-#define EXTRACT_RVC_J_IMM(x) \
+#define RVC_EXTRACT_JTYPE_IMM(x) \
 	({typeof(x) x_ = (x); \
 	(RVC_X(x_, RVC_J_IMM_3_1_OPOFF, RVC_J_IMM_3_1_MASK) << RVC_J_IMM_3_1_OFF) | \
 	(RVC_X(x_, RVC_J_IMM_4_OPOFF, RVC_J_IMM_4_MASK) << RVC_J_IMM_4_OFF) | \
@@ -210,7 +210,7 @@ static inline bool is_ ## INSN_NAME ## _insn(long insn) \
 	(RVC_X(x_, RVC_J_IMM_10_OPOFF, RVC_J_IMM_10_MASK) << RVC_J_IMM_10_OFF) | \
 	(RVC_IMM_SIGN(x_) << RVC_J_IMM_SIGN_OFF); })
 
-#define EXTRACT_RVC_B_IMM(x) \
+#define RVC_EXTRACT_BTYPE_IMM(x) \
 	({typeof(x) x_ = (x); \
 	(RVC_X(x_, RVC_B_IMM_2_1_OPOFF, RVC_B_IMM_2_1_MASK) << RVC_B_IMM_2_1_OFF) | \
 	(RVC_X(x_, RVC_B_IMM_4_3_OPOFF, RVC_B_IMM_4_3_MASK) << RVC_B_IMM_4_3_OFF) | \
