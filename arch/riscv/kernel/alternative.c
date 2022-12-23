@@ -15,6 +15,8 @@
 #include <asm/vendorid_list.h>
 #include <asm/sbi.h>
 #include <asm/csr.h>
+#include <asm/insn.h>
+#include <asm/patch.h>
 
 struct cpu_manufacturer_info_t {
 	unsigned long vendor_id;
@@ -50,6 +52,60 @@ static void __init_or_module riscv_fill_cpu_mfr_info(struct cpu_manufacturer_inf
 #endif
 	default:
 		cpu_mfr_info->patch_func = NULL;
+	}
+}
+
+static u32 riscv_instruction_at(void *p)
+{
+	u16 *parcel = p;
+
+	return (u32)parcel[0] | (u32)parcel[1] << 16;
+}
+
+static void riscv_alternative_fix_auipc_jalr(void *ptr, u32 auipc_insn,
+					     u32 jalr_insn, int patch_offset)
+{
+	u32 call[2] = { auipc_insn, jalr_insn };
+	s32 imm;
+
+	/* get and adjust new target address */
+	imm = riscv_insn_extract_utype_itype_imm(auipc_insn, jalr_insn);
+	imm -= patch_offset;
+
+	/* update instructions */
+	riscv_insn_insert_utype_itype_imm(&call[0], &call[1], imm);
+
+	/* patch the call place again */
+	patch_text_nosync(ptr, call, sizeof(u32) * 2);
+}
+
+void riscv_alternative_fix_offsets(void *alt_ptr, unsigned int len,
+				      int patch_offset)
+{
+	int num_insn = len / sizeof(u32);
+	int i;
+
+	for (i = 0; i < num_insn; i++) {
+		u32 insn = riscv_instruction_at(alt_ptr + i * sizeof(u32));
+
+		/*
+		 * May be the start of an auipc + jalr pair
+		 * Needs to check that at least one more instruction
+		 * is in the list.
+		 */
+		if (riscv_insn_is_auipc(insn) && i < num_insn - 1) {
+			u32 insn2 = riscv_instruction_at(alt_ptr + (i + 1) * sizeof(u32));
+
+			if (!riscv_insn_is_jalr(insn2))
+				continue;
+
+			/* if instruction pair is a call, it will use the ra register */
+			if (RV_EXTRACT_RD_REG(insn) != 1)
+				continue;
+
+			riscv_alternative_fix_auipc_jalr(alt_ptr + i * sizeof(u32),
+							 insn, insn2, patch_offset);
+		}
 	}
 }
 
