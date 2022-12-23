@@ -1564,6 +1564,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	return 0;
 err:
-	pr_err("Error initializing new filesystem: %s (%i)", err, ret);
+	pr_err("Error initializing new filesystem: %s (%s)", err, bch2_err_str(ret));
 	return ret;
 }
