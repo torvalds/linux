@@ -18,7 +18,6 @@ enum vchiq_reason {
 };
 
 enum vchiq_status {
-	VCHIQ_ERROR   = -1,
 	VCHIQ_RETRY   = 1
 };
 

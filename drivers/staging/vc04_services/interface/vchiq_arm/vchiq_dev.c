@@ -130,7 +130,7 @@ vchiq_ioc_queue_message(struct vchiq_instance *instance, unsigned int handle,
 	status = vchiq_queue_message(instance, handle, vchiq_ioc_copy_element_data,
 				     &context, total_size);
 
-	if (status == VCHIQ_ERROR)
+	if (status == -EINVAL)
 		return -EIO;
 	else if (status == VCHIQ_RETRY)
 		return -EINTR;
@@ -364,7 +364,7 @@ out:
 	vchiq_service_put(service);
 	if (ret)
 		return ret;
-	else if (status == VCHIQ_ERROR)
+	else if (status == -EINVAL)
 		return -EIO;
 	else if (status == VCHIQ_RETRY)
 		return -EINTR;
@@ -862,7 +862,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		vchiq_service_put(service);
 
 	if (ret == 0) {
-		if (status == VCHIQ_ERROR)
+		if (status == -EINVAL)
 			ret = -EIO;
 		else if (status == VCHIQ_RETRY)
 			ret = -EINTR;
