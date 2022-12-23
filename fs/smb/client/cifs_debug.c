@@ -457,8 +457,10 @@ skip_rdma:
 
 			spin_lock(&ses->iface_lock);
 			if (ses->iface_count)
-				seq_printf(m, "\n\n\tServer interfaces: %zu",
-					   ses->iface_count);
+				seq_printf(m, "\n\n\tServer interfaces: %zu"
+					   "\tLast updated: %lu seconds ago",
+					   ses->iface_count,
+					   (jiffies - ses->iface_last_update) / HZ);
 			j = 0;
 			list_for_each_entry(iface, &ses->iface_list,
 						 iface_head) {
