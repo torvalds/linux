@@ -463,6 +463,21 @@ static void rt711_sdca_jack_init(struct rt711_sdca_priv *rt711)
 				RT711_HP_JD_FINAL_RESULT_CTL_JD12,
 				RT711_HP_JD_FINAL_RESULT_CTL_JD12);
 			break;
+		case RT711_JD2_100K:
+			rt711_sdca_index_write(rt711, RT711_VENDOR_REG,
+				RT711_COMBO_JACK_AUTO_CTL3, 0xa47e);
+			rt711_sdca_index_update_bits(rt711, RT711_VENDOR_REG,
+				RT711_JD_CTL1, RT711_JD2_DIGITAL_MODE_SEL,
+				RT711_JD2_DIGITAL_MODE_SEL);
+			rt711_sdca_index_update_bits(rt711, RT711_VENDOR_REG,
+				RT711_JD_CTL2, RT711_JD2_2PORT_200K_DECODE_HP |
+				RT711_JD2_2PORT_100K_DECODE_MASK | RT711_HP_JD_SEL_JD2,
+				RT711_JD2_2PORT_100K_DECODE_HP | RT711_HP_JD_SEL_JD2);
+			rt711_sdca_index_update_bits(rt711, RT711_VENDOR_REG,
+				RT711_CC_DET1,
+				RT711_HP_JD_FINAL_RESULT_CTL_JD12 | RT711_POW_CC1_AGPI,
+				RT711_HP_JD_FINAL_RESULT_CTL_JD12 | RT711_POW_CC1_AGPI_OFF);
+			break;
 		default:
 			dev_warn(rt711->component->dev, "Wrong JD source\n");
 			break;
