@@ -13074,6 +13074,21 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 		return true;
 	if (rcur->type == NOT_INIT)
 		return false;
+
+	/* Register types that are *not* MAYBE_NULL could technically be safe
+	 * to use as their MAYBE_NULL variants (e.g., PTR_TO_MAP_VALUE  is
+	 * safe to be used as PTR_TO_MAP_VALUE_OR_NULL, provided both point to
+	 * the same map).
+	 * However, if the old MAYBE_NULL register then got NULL checked,
+	 * doing so could have affected others with the same id, and we can't
+	 * check for that because we lost the id when we converted to
+	 * a non-MAYBE_NULL variant.
+	 * So, as a general rule we don't allow mixing MAYBE_NULL and
+	 * non-MAYBE_NULL registers.
+	 */
+	if (type_may_be_null(rold->type) != type_may_be_null(rcur->type))
+		return false;
+
 	switch (base_type(rold->type)) {
 	case SCALAR_VALUE:
 		if (equal)
@@ -13098,22 +13113,6 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 		}
 	case PTR_TO_MAP_KEY:
 	case PTR_TO_MAP_VALUE:
-		/* a PTR_TO_MAP_VALUE could be safe to use as a
-		 * PTR_TO_MAP_VALUE_OR_NULL into the same map.
-		 * However, if the old PTR_TO_MAP_VALUE_OR_NULL then got NULL-
-		 * checked, doing so could have affected others with the same
-		 * id, and we can't check for that because we lost the id when
-		 * we converted to a PTR_TO_MAP_VALUE.
-		 */
-		if (type_may_be_null(rold->type)) {
-			if (!type_may_be_null(rcur->type))
-				return false;
-			if (memcmp(rold, rcur, offsetof(struct bpf_reg_state, var_off)))
-				return false;
-			/* Check our ids match any regs they're supposed to */
-			return check_ids(rold->id, rcur->id, idmap);
-		}
-
 		/* If the new min/max/var_off satisfy the old ones and
 		 * everything else matches, we are OK.
 		 */
