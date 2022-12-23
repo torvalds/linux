@@ -32,6 +32,7 @@ struct pkvm_module_ops {
 	int (*register_default_trap_handler)(bool (*cb)(struct kvm_cpu_context *));
 	int (*register_illegal_abt_notifier)(void (*cb)(struct kvm_cpu_context *));
 	int (*register_psci_notifier)(void (*cb)(enum pkvm_psci_notification, struct kvm_cpu_context *));
+	int (*register_hyp_panic_notifier)(void (*cb)(struct kvm_cpu_context *host_ctxt));
 };
 
 struct pkvm_module_section {

@@ -6,6 +6,7 @@
 int __pkvm_register_host_smc_handler(bool (*cb)(struct kvm_cpu_context *));
 int __pkvm_register_default_trap_handler(bool (*cb)(struct kvm_cpu_context *));
 int __pkvm_register_illegal_abt_notifier(void (*cb)(struct kvm_cpu_context *));
+int __pkvm_register_hyp_panic_notifier(void (*cb)(struct kvm_cpu_context *));
 
 enum pkvm_psci_notification;
 int __pkvm_register_psci_notifier(void (*cb)(enum pkvm_psci_notification, struct kvm_cpu_context *));

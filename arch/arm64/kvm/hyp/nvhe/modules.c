@@ -109,6 +109,7 @@ const struct pkvm_module_ops module_ops = {
 	.register_default_trap_handler = __pkvm_register_default_trap_handler,
 	.register_illegal_abt_notifier = __pkvm_register_illegal_abt_notifier,
 	.register_psci_notifier = __pkvm_register_psci_notifier,
+	.register_hyp_panic_notifier = __pkvm_register_hyp_panic_notifier,
 };
 
 int __pkvm_init_module(void *module_init)
