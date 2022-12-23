@@ -132,7 +132,7 @@ vchiq_ioc_queue_message(struct vchiq_instance *instance, unsigned int handle,
 
 	if (status == -EINVAL)
 		return -EIO;
-	else if (status == VCHIQ_RETRY)
+	else if (status == -EAGAIN)
 		return -EINTR;
 	return 0;
 }
@@ -192,7 +192,7 @@ static int vchiq_ioc_create_service(struct vchiq_instance *instance,
 		status = vchiq_open_service_internal(service, instance->pid);
 		if (status) {
 			vchiq_remove_service(instance, service->handle);
-			return (status == VCHIQ_RETRY) ?
+			return (status == -EAGAIN) ?
 				-EINTR : -EIO;
 		}
 	}
@@ -338,7 +338,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		goto out;
 	}
 
-	if ((status != VCHIQ_RETRY) || fatal_signal_pending(current) ||
+	if ((status != -EAGAIN) || fatal_signal_pending(current) ||
 	    !waiter->bulk_waiter.bulk) {
 		if (waiter->bulk_waiter.bulk) {
 			/* Cancel the signal when the transfer completes. */
@@ -366,7 +366,7 @@ out:
 		return ret;
 	else if (status == -EINVAL)
 		return -EIO;
-	else if (status == VCHIQ_RETRY)
+	else if (status == -EAGAIN)
 		return -EINTR;
 	return 0;
 }
@@ -686,7 +686,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		 */
 		if (user_service->close_pending &&
 		    wait_for_completion_interruptible(&user_service->close_event))
-			status = VCHIQ_RETRY;
+			status = -EAGAIN;
 		break;
 	}
 
@@ -864,7 +864,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (ret == 0) {
 		if (status == -EINVAL)
 			ret = -EIO;
-		else if (status == VCHIQ_RETRY)
+		else if (status == -EAGAIN)
 			ret = -EINTR;
 	}
 
