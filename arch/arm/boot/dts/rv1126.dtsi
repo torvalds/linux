@@ -2548,6 +2548,7 @@
 			snps,tx-ipgap-linecheck-dis-quirk;
 			snps,tx-fifo-resize;
 			snps,xhci-trb-ent-quirk;
+			snps,usb2-lpm-disable;
 			status = "disabled";
 		};
 	};
