@@ -64,7 +64,7 @@ struct vdpasim {
 	/* virtio config according to device type */
 	void *config;
 	struct vhost_iotlb *iommu;
-	struct iova_domain iova;
+	bool *iommu_pt;
 	void *buffer;
 	u32 status;
 	u32 generation;
