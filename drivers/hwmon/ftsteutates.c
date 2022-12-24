@@ -337,7 +337,7 @@ static int fts_watchdog_init(struct fts_data *data)
 	/* max timeout 255 minutes. */
 	data->wdd.max_hw_heartbeat_ms = 0xFF * 60 * MSEC_PER_SEC;
 
-	return watchdog_register_device(&data->wdd);
+	return devm_watchdog_register_device(&data->client->dev, &data->wdd);
 }
 
 /*****************************************************************************/
@@ -751,13 +751,6 @@ static int fts_detect(struct i2c_client *client,
 	return 0;
 }
 
-static void fts_remove(struct i2c_client *client)
-{
-	struct fts_data *data = dev_get_drvdata(&client->dev);
-
-	watchdog_unregister_device(&data->wdd);
-}
-
 static int fts_probe(struct i2c_client *client)
 {
 	u8 revision;
@@ -826,7 +819,6 @@ static struct i2c_driver fts_driver = {
 	},
 	.id_table = fts_id,
 	.probe_new = fts_probe,
-	.remove = fts_remove,
 	.detect = fts_detect,
 	.address_list = normal_i2c,
 };
