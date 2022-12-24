@@ -11,7 +11,6 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
-#include "trace_common.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -28,7 +27,7 @@ struct {
  * This example sits on a syscall, and the syscall ABI is relatively stable
  * of course, across platforms, and over time, the ABI may change.
  */
-SEC("kprobe/" SYSCALL(sys_connect))
+SEC("ksyscall/connect")
 int bpf_prog1(struct pt_regs *ctx)
 {
 	struct pt_regs *real_regs = (struct pt_regs *)PT_REGS_PARM1_CORE(ctx);

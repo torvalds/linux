@@ -11,7 +11,6 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
-#include "trace_common.h"
 
 #define MAX_ENTRIES 1000
 #define MAX_NR_CPUS 1024
@@ -102,7 +101,7 @@ struct {
 	__uint(max_entries, MAX_ENTRIES);
 } lru_hash_lookup_map SEC(".maps");
 
-SEC("kprobe/" SYSCALL(sys_getuid))
+SEC("ksyscall/getuid")
 int stress_hmap(struct pt_regs *ctx)
 {
 	u32 key = bpf_get_current_pid_tgid();
@@ -120,7 +119,7 @@ int stress_hmap(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_geteuid))
+SEC("ksyscall/geteuid")
 int stress_percpu_hmap(struct pt_regs *ctx)
 {
 	u32 key = bpf_get_current_pid_tgid();
@@ -137,7 +136,7 @@ int stress_percpu_hmap(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_getgid))
+SEC("ksyscall/getgid")
 int stress_hmap_alloc(struct pt_regs *ctx)
 {
 	u32 key = bpf_get_current_pid_tgid();
@@ -154,7 +153,7 @@ int stress_hmap_alloc(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_getegid))
+SEC("ksyscall/getegid")
 int stress_percpu_hmap_alloc(struct pt_regs *ctx)
 {
 	u32 key = bpf_get_current_pid_tgid();
@@ -171,7 +170,7 @@ int stress_percpu_hmap_alloc(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_connect))
+SEC("ksyscall/connect")
 int stress_lru_hmap_alloc(struct pt_regs *ctx)
 {
 	struct pt_regs *real_regs = (struct pt_regs *)PT_REGS_PARM1_CORE(ctx);
@@ -251,7 +250,7 @@ done:
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_gettid))
+SEC("ksyscall/gettid")
 int stress_lpm_trie_map_alloc(struct pt_regs *ctx)
 {
 	union {
@@ -273,7 +272,7 @@ int stress_lpm_trie_map_alloc(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_getpgid))
+SEC("ksyscall/getpgid")
 int stress_hash_map_lookup(struct pt_regs *ctx)
 {
 	u32 key = 1, i;
@@ -286,7 +285,7 @@ int stress_hash_map_lookup(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_getppid))
+SEC("ksyscall/getppid")
 int stress_array_map_lookup(struct pt_regs *ctx)
 {
 	u32 key = 1, i;
