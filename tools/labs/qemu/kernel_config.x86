@@ -97,3 +97,18 @@ CONFIG_UPROBE_EVENTS=y
 CONFIG_LOCKDEP=y
 # kernel lock tracing:
 CONFIG_LOCK_STAT=y
+
+# for qemu serial console ttyS0:
+CONFIG_SERIAL_8250=y
+CONFIG_SERIAL_8250_CONSOLE=y
+
+# for qemu default netdev:
+CONFIG_E1000=y
+
+# for CIFS/SMB/samba rootfs and share
+CONFIG_IP_PNP=y
+CONFIG_IP_PNP_DHCP=y
+CONFIG_CIFS=y
+CONFIG_CIFS_XATTR=y
+CONFIG_CIFS_POSIX=y
+CONFIG_CIFS_ROOT=y

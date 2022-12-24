@@ -95,4 +95,41 @@ clean::
 	-rm -f disk1.img disk2.img
 	-rm -f pipe1.in pipe1.out pipe2.in pipe2.out
 
-.PHONY: boot gdb clean tap0 tap1
+# Run with one of the following:
+#     make -j$(nproc) console
+#     make -j$(nproc) gui
+
+# Attach debugger with
+#     make gdb
+
+# Stop with
+#     sync # make sure all filesystem changes are propagated
+#     CTRL-A X # kill qemu, faster and more reliable than poweroff etc.
+
+# Compile in skel directories with something like:
+#     alias kmake='make -C "$HOME/src/linux/" M="$(pwd)"'
+#     kmake
+
+YOCTO_ROOTFS = core-image-minimal-qemu$(ARCH).tar.bz2
+
+console: $(ZIMAGE) rootfs
+	MODE=console qemu/run-qemu.sh
+
+gui:
+	MODE=gui qemu/run-qemu.sh
+
+rootfs: $(YOCTO_ROOTFS)
+	mkdir -p rootfs
+	tar -xf core-image-minimal-qemux86.tar.bz2 -C rootfs
+	sed -i 's@/sbin/getty@& -n -l "/sbin/rootlogin"@' rootfs/bin/start_getty
+	printf '%s\n' '#!/bin/sh' '/bin/login -f root' > rootfs/sbin/rootlogin
+	chmod +x rootfs/sbin/rootlogin
+	mkdir -p rootfs/home/root/skels
+	echo "//10.0.2.2/skels /home/root/skels cifs port=4450,guest,user=dummy 0 0" >> rootfs/etc/fstab
+
+$(YOCTO_ROOTFS):
+	wget $(YOCTO_URL)/$(YOCTO_ROOTFS)
+
+
+
+.PHONY: console gui boot gdb clean tap0 tap1
