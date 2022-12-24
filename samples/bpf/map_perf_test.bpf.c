@@ -101,7 +101,7 @@ struct {
 } lru_hash_lookup_map SEC(".maps");
 
 SEC("ksyscall/getuid")
-int stress_hmap(struct pt_regs *ctx)
+int BPF_KSYSCALL(stress_hmap)
 {
 	u32 key = bpf_get_current_pid_tgid();
 	long init_val = 1;
@@ -119,7 +119,7 @@ int stress_hmap(struct pt_regs *ctx)
 }
 
 SEC("ksyscall/geteuid")
-int stress_percpu_hmap(struct pt_regs *ctx)
+int BPF_KSYSCALL(stress_percpu_hmap)
 {
 	u32 key = bpf_get_current_pid_tgid();
 	long init_val = 1;
@@ -136,7 +136,7 @@ int stress_percpu_hmap(struct pt_regs *ctx)
 }
 
 SEC("ksyscall/getgid")
-int stress_hmap_alloc(struct pt_regs *ctx)
+int BPF_KSYSCALL(stress_hmap_alloc)
 {
 	u32 key = bpf_get_current_pid_tgid();
 	long init_val = 1;
@@ -153,7 +153,7 @@ int stress_hmap_alloc(struct pt_regs *ctx)
 }
 
 SEC("ksyscall/getegid")
-int stress_percpu_hmap_alloc(struct pt_regs *ctx)
+int BPF_KSYSCALL(stress_percpu_hmap_alloc)
 {
 	u32 key = bpf_get_current_pid_tgid();
 	long init_val = 1;
@@ -168,11 +168,10 @@ int stress_percpu_hmap_alloc(struct pt_regs *ctx)
 	}
 	return 0;
 }
-
 SEC("ksyscall/connect")
-int stress_lru_hmap_alloc(struct pt_regs *ctx)
+int BPF_KSYSCALL(stress_lru_hmap_alloc, int fd, struct sockaddr_in *uservaddr,
+		 int addrlen)
 {
-	struct pt_regs *real_regs = (struct pt_regs *)PT_REGS_PARM1_CORE(ctx);
 	char fmt[] = "Failed at stress_lru_hmap_alloc. ret:%dn";
 	union {
 		u16 dst6[8];
@@ -185,14 +184,11 @@ int stress_lru_hmap_alloc(struct pt_regs *ctx)
 			u32 key;
 		};
 	} test_params;
-	struct sockaddr_in6 *in6;
+	struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)uservaddr;
 	u16 test_case;
-	int addrlen, ret;
 	long val = 1;
 	u32 key = 0;
-
-	in6 = (struct sockaddr_in6 *)PT_REGS_PARM2_CORE(real_regs);
-	addrlen = (int)PT_REGS_PARM3_CORE(real_regs);
+	int ret;
 
 	if (addrlen != sizeof(*in6))
 		return 0;
@@ -250,7 +246,7 @@ done:
 }
 
 SEC("ksyscall/gettid")
-int stress_lpm_trie_map_alloc(struct pt_regs *ctx)
+int BPF_KSYSCALL(stress_lpm_trie_map_alloc)
 {
 	union {
 		u32 b32[2];
@@ -272,7 +268,7 @@ int stress_lpm_trie_map_alloc(struct pt_regs *ctx)
 }
 
 SEC("ksyscall/getpgid")
-int stress_hash_map_lookup(struct pt_regs *ctx)
+int BPF_KSYSCALL(stress_hash_map_lookup)
 {
 	u32 key = 1, i;
 	long *value;
@@ -285,7 +281,7 @@ int stress_hash_map_lookup(struct pt_regs *ctx)
 }
 
 SEC("ksyscall/getppid")
-int stress_array_map_lookup(struct pt_regs *ctx)
+int BPF_KSYSCALL(stress_array_map_lookup)
 {
 	u32 key = 1, i;
 	long *value;
