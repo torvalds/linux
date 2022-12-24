@@ -567,21 +567,6 @@ struct hns_roce_mbox_msg {
 
 struct hns_roce_dev;
 
-struct hns_roce_rinl_sge {
-	void			*addr;
-	u32			len;
-};
-
-struct hns_roce_rinl_wqe {
-	struct hns_roce_rinl_sge *sg_list;
-	u32			 sge_cnt;
-};
-
-struct hns_roce_rinl_buf {
-	struct hns_roce_rinl_wqe *wqe_list;
-	u32			 wqe_cnt;
-};
-
 enum {
 	HNS_ROCE_FLUSH_FLAG = 0,
 };
@@ -632,7 +617,6 @@ struct hns_roce_qp {
 	/* 0: flush needed, 1: unneeded */
 	unsigned long		flush_flag;
 	struct hns_roce_work	flush_work;
-	struct hns_roce_rinl_buf rq_inl_buf;
 	struct list_head	node; /* all qps are on a list */
 	struct list_head	rq_node; /* all recv qps are on a list */
 	struct list_head	sq_node; /* all send qps are on a list */
