@@ -40,6 +40,7 @@ TEMPDIR := $(shell mktemp -u)
 $(KCONFIG): qemu/kernel_config.x86
 	cp $^ $@
 	$(MAKE) -C $(KDIR) olddefconfig
+	$(MAKE) -C $(KDIR) mod2yesconfig
 
 zImage: $(ZIMAGE)
 
