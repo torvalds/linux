@@ -336,11 +336,6 @@
 
 /* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
 
-&ipa {
-	status = "okay";
-	modem-init;
-};
-
 &lpass_va_macro {
 	vdd-micb-supply = <&vreg_bob>;
 };

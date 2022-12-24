@@ -20,6 +20,11 @@
 	};
 };
 
+&ipa {
+	modem-init;
+	status = "okay";
+};
+
 &remoteproc_mpss {
 	compatible = "qcom,sc7280-mss-pil";
 

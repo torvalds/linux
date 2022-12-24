@@ -377,11 +377,6 @@
 	status = "okay";
 };
 
-&ipa {
-	status = "okay";
-	modem-init;
-};
-
 &lpass_cpu {
 	status = "okay";
 
