@@ -557,7 +557,7 @@ enum btree_validate_ret {
 									\
 	if (type == BTREE_ERR_FIXABLE &&				\
 	    write == READ &&						\
-	    !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags)) {		\
+	    !test_bit(BCH_FS_FSCK_DONE, &c->flags)) {			\
 		mustfix_fsck_err(c, "%s", out.buf);			\
 		goto out;						\
 	}								\
