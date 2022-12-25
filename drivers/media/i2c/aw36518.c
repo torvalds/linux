@@ -6,6 +6,7 @@
  *
  * V0.0X01.0X00 init version.
  * V0.0X01.0X01 fix power off torch not off issue.
+ * V0.0X01.0X02 fix get wrong time info issue.
  */
 
 #include <linux/delay.h>
@@ -22,7 +23,7 @@
 #include <media/v4l2-device.h>
 #include <linux/compat.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 #define AW36518_NAME			"aw36518"
 
 #define AW36518_REG_ID			0x00
@@ -526,14 +527,16 @@ static int aw36518_init_controls(struct aw36518_flash *flash,
 }
 
 static void aw36518_get_time_info(struct v4l2_subdev *sd,
-				  struct old_timeval32 *compat_ti)
+				  struct __kernel_old_timeval *ti)
 {
 	struct aw36518_led *led =
 		container_of(sd, struct aw36518_led, sd);
 
-	memset(compat_ti, 0, sizeof(*compat_ti));
-	compat_ti->tv_sec = led->timestamp.tv_sec;
-	compat_ti->tv_usec = led->timestamp.tv_usec;
+	memset(ti, 0, sizeof(*ti));
+	ti->tv_sec = led->timestamp.tv_sec;
+	ti->tv_usec = led->timestamp.tv_usec;
+	v4l2_dbg(1, debug, sd,
+		 "%s: tv_sec:%ld, tv_usec:%ld\n", __func__, ti->tv_sec, ti->tv_usec);
 }
 
 static long aw36518_ioctl(struct v4l2_subdev *sd,
@@ -543,7 +546,7 @@ static long aw36518_ioctl(struct v4l2_subdev *sd,
 
 	switch (cmd) {
 	case RK_VIDIOC_FLASH_TIMEINFO:
-		aw36518_get_time_info(sd, (struct old_timeval32 *)arg);
+		aw36518_get_time_info(sd, (struct __kernel_old_timeval *)arg);
 		break;
 
 	default:
@@ -564,6 +567,7 @@ static long aw36518_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct old_timeval32 *compat_t;
 	long ret;
+	struct __kernel_old_timeval t;
 
 	switch (cmd) {
 	case RK_VIDIOC_COMPAT_FLASH_TIMEINFO:
@@ -572,8 +576,10 @@ static long aw36518_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = -ENOMEM;
 			return ret;
 		}
-		ret = aw36518_ioctl(sd, RK_VIDIOC_FLASH_TIMEINFO, compat_t);
+		ret = aw36518_ioctl(sd, RK_VIDIOC_FLASH_TIMEINFO, &t);
 		if (!ret) {
+			compat_t->tv_sec = t.tv_sec;
+			compat_t->tv_usec = t.tv_usec;
 			ret = copy_to_user(up, compat_t, sizeof(*compat_t));
 			if (ret)
 				ret = -EFAULT;
