@@ -736,9 +736,6 @@ out:
 
 void bch2_invalidate_folio(struct folio *folio, size_t offset, size_t length)
 {
-	EBUG_ON(!PageLocked(&folio->page));
-	EBUG_ON(folio_test_writeback(folio));
-
 	if (offset || length < folio_size(folio))
 		return;
 
@@ -751,7 +748,7 @@ bool bch2_release_folio(struct folio *folio, gfp_t gfp_mask)
 	EBUG_ON(!PageLocked(&folio->page));
 	EBUG_ON(folio_test_writeback(folio));
 
-	if (folio_test_dirty(folio))
+	if (folio_test_dirty(folio) || folio_test_writeback(folio))
 		return false;
 
 	bch2_clear_page_bits(&folio->page);
