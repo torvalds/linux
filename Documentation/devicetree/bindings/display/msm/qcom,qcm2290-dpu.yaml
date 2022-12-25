@@ -13,8 +13,7 @@ $ref: /schemas/display/msm/dpu-common.yaml#
 
 properties:
   compatible:
-    items:
-      - const: qcom,qcm2290-dpu
+    const: qcom,qcm2290-dpu
 
   reg:
     items:

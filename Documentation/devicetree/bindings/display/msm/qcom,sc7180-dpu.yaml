@@ -13,8 +13,7 @@ $ref: /schemas/display/msm/dpu-common.yaml#
 
 properties:
   compatible:
-    items:
-      - const: qcom,sc7180-dpu
+    const: qcom,sc7180-dpu
 
   reg:
     items:

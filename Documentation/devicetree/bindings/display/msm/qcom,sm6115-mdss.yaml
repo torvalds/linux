@@ -18,8 +18,7 @@ $ref: /schemas/display/msm/mdss-common.yaml#
 
 properties:
   compatible:
-    items:
-      - const: qcom,sm6115-mdss
+    const: qcom,sm6115-mdss
 
   clocks:
     items:
