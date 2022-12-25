@@ -6434,12 +6434,6 @@ static int gaudi_send_job_on_qman0(struct hl_device *hdev,
 	else
 		timeout = HL_DEVICE_TIMEOUT_USEC;
 
-	if (!hdev->asic_funcs->is_device_idle(hdev, NULL, 0, NULL)) {
-		dev_err_ratelimited(hdev->dev,
-			"Can't send driver job on QMAN0 because the device is not idle\n");
-		return -EBUSY;
-	}
-
 	fence_ptr = hl_asic_dma_pool_zalloc(hdev, 4, GFP_KERNEL, &fence_dma_addr);
 	if (!fence_ptr) {
 		dev_err(hdev->dev,
