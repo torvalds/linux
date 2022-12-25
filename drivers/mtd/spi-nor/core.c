@@ -2863,6 +2863,8 @@ static void spi_nor_soft_reset(struct spi_nor *nor)
 		return;
 	}
 
+	usleep_range(50, 80);
+
 	op = (struct spi_mem_op)SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_SRST, 0),
 			SPI_MEM_OP_NO_DUMMY,
 			SPI_MEM_OP_NO_ADDR,
@@ -2876,12 +2878,7 @@ static void spi_nor_soft_reset(struct spi_nor *nor)
 		return;
 	}
 
-	/*
-	 * Software Reset is not instant, and the delay varies from flash to
-	 * flash. Looking at a few flashes, most range somewhere below 100
-	 * microseconds. So, sleep for a range of 200-400 us.
-	 */
-	usleep_range(SPI_NOR_SRST_SLEEP_MIN, SPI_NOR_SRST_SLEEP_MAX);
+	mdelay(50);
 }
 
 /* mtd suspend handler */
