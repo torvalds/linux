@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright (c) 2022, The Linux Foundation. All rights reserved. */
 
+#include <dt-bindings/clock/qcom,apcs-msm8953.h>
 #include <dt-bindings/clock/qcom,gcc-msm8953.h>
 #include <dt-bindings/clock/qcom,rpmcc.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -47,7 +48,10 @@
 			reg = <0x0>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
+			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>,
+					<&apcscc APCS_MAS_CCI &apcscc APCS_SLV_BIMC>;
+			clocks = <&apcscc APCS_CPU0_CLK>;
+			clock-names = "cpu";
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd0>, <&cpr 0>;
 			power-domain-names = "psci", "perf";
@@ -60,7 +64,10 @@
 			reg = <0x1>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
+			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>,
+					<&apcscc APCS_MAS_CCI &apcscc APCS_SLV_BIMC>;
+			clocks = <&apcscc APCS_CPU0_CLK>;
+			clock-names = "cpu";
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd1>, <&cpr 0>;
 			power-domain-names = "psci", "perf";
@@ -73,7 +80,10 @@
 			reg = <0x2>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
+			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>,
+					<&apcscc APCS_MAS_CCI &apcscc APCS_SLV_BIMC>;
+			clocks = <&apcscc APCS_CPU0_CLK>;
+			clock-names = "cpu";
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd2>, <&cpr 0>;
 			power-domain-names = "psci", "perf";
@@ -86,7 +96,10 @@
 			reg = <0x3>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
+			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>,
+					<&apcscc APCS_MAS_CCI &apcscc APCS_SLV_BIMC>;
+			clocks = <&apcscc APCS_CPU0_CLK>;
+			clock-names = "cpu";
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd3>, <&cpr 0>;
 			power-domain-names = "psci", "perf";
@@ -99,7 +112,10 @@
 			reg = <0x100>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
+			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>,
+					<&apcscc APCS_MAS_CCI &apcscc APCS_SLV_BIMC>;
+			clocks = <&apcscc APCS_CPU4_CLK>;
+			clock-names = "cpu";
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd4>, <&cpr 1>;
 			power-domain-names = "psci", "perf";
@@ -112,7 +128,10 @@
 			reg = <0x101>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
+			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>,
+					<&apcscc APCS_MAS_CCI &apcscc APCS_SLV_BIMC>;
+			clocks = <&apcscc APCS_CPU4_CLK>;
+			clock-names = "cpu";
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd5>, <&cpr 1>;
 			power-domain-names = "psci", "perf";
@@ -125,7 +144,10 @@
 			reg = <0x102>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
+			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>,
+					<&apcscc APCS_MAS_CCI &apcscc APCS_SLV_BIMC>;
+			clocks = <&apcscc APCS_CPU4_CLK>;
+			clock-names = "cpu";
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd6>, <&cpr 1>;
 			power-domain-names = "psci", "perf";
@@ -138,7 +160,10 @@
 			reg = <0x103>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>;
+			interconnects = <&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &bimc SLV_EBI RPM_ACTIVE_TAG>,
+					<&apcscc APCS_MAS_CCI &apcscc APCS_SLV_BIMC>;
+			clocks = <&apcscc APCS_CPU4_CLK>;
+			clock-names = "cpu";
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd7>, <&cpr 1>;
 			power-domain-names = "psci", "perf";
@@ -2364,8 +2389,45 @@
 
 		apcs: mailbox@b011000 {
 			compatible = "qcom,msm8953-apcs-kpss-global", "syscon";
-			reg = <0x0b011000 0x1000>;
+			reg = <0x0b011000 0x50>;
 			#mbox-cells = <1>;
+		};
+
+		apcscc: clock-controller@b011050 {
+			compatible = "qcom,apcs-cc-msm8953";
+			reg = <0x0b011050 0x10>,
+			      <0x0b016000 0x50>,
+			      <0x0b111050 0x10>,
+			      <0x0b116000 0x50>,
+			      <0x0b1d0000 0x50>,
+			      <0x0b1d1050 0x10>;
+			reg-names = "cpu4_rcg_cbr",
+				    "cpu4_pll",
+				    "cpu0_rcg_cbr",
+				    "cpu0_pll",
+				    "cci_pll",
+				    "cci_rcg_cbr";
+
+			assigned-clocks = <&apcscc APCS_CPU0_CLK_SRC>,
+					  <&apcscc APCS_CPU4_CLK_SRC>,
+					  <&apcscc APCS_CCI_CLK_SRC>;
+			assigned-clock-rates = <748800000>, <748800000>, <299520000>;
+
+			clocks = <&xo_board>,
+				 <&gcc GPLL0_EARLY>,
+				 <&gcc GPLL2_EARLY>,
+				 <&gcc GPLL4_EARLY>,
+				 <&apcscc APCS_CCI_CLK>;
+			clock-names = "osc",
+				      "gpll0",
+				      "gpll2",
+				      "gpll4",
+				      "cci-icc";
+
+			power-domains = <&cpr 0>;
+
+			#clock-cells = <1>;
+			#interconnect-cells = <1>;
 		};
 
 		cpr: power-controller@b018000 {
