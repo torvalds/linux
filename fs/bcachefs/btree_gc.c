@@ -354,8 +354,6 @@ void bch2_mark_dev_superblock(struct bch_fs *c, struct bch_dev *ca,
 	if (c) {
 		lockdep_assert_held(&c->sb_lock);
 		percpu_down_read(&c->mark_lock);
-	} else {
-		preempt_disable();
 	}
 
 	for (i = 0; i < layout->nr_superblocks; i++) {
@@ -377,11 +375,8 @@ void bch2_mark_dev_superblock(struct bch_fs *c, struct bch_dev *ca,
 					  gc_phase(GC_PHASE_SB), flags);
 	}
 
-	if (c) {
+	if (c)
 		percpu_up_read(&c->mark_lock);
-	} else {
-		preempt_enable();
-	}
 }
 
 static void bch2_mark_superblocks(struct bch_fs *c)

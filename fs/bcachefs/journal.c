@@ -835,8 +835,6 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		if (c) {
 			percpu_down_read(&c->mark_lock);
 			spin_lock(&c->journal.lock);
-		} else {
-			preempt_disable();
 		}
 
 		pos = ja->nr ? (ja->cur_idx + 1) % ja->nr : 0;
@@ -866,8 +864,6 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		if (c) {
 			spin_unlock(&c->journal.lock);
 			percpu_up_read(&c->mark_lock);
-		} else {
-			preempt_enable();
 		}
 
 		if (!new_fs)

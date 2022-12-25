@@ -393,14 +393,19 @@ void bch2_dev_usage_from_buckets(struct bch_fs *c, struct bch_dev *ca)
 	struct bucket_array *buckets;
 	struct bucket *g;
 
-	percpu_down_read(&c->mark_lock);
+	/*
+	 * This is only called during startup, before there's any multithreaded
+	 * access to c->usage:
+	 */
+	preempt_disable();
 	fs_usage = this_cpu_ptr(c->usage[0]);
+	preempt_enable();
+
 	buckets = bucket_array(ca);
 
 	for_each_bucket(g, buckets)
 		if (g->mark.data_type)
 			bch2_dev_usage_update(c, ca, fs_usage, old, g->mark, false);
-	percpu_up_read(&c->mark_lock);
 }
 
 #define bucket_data_cmpxchg(c, ca, fs_usage, g, new, expr)	\
@@ -513,8 +518,12 @@ void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 			    size_t b, bool owned_by_allocator,
 			    struct gc_pos pos, unsigned flags)
 {
+	preempt_disable();
+
 	do_mark_fn(__bch2_mark_alloc_bucket, c, pos, flags,
 		   ca, b, owned_by_allocator);
+
+	preempt_enable();
 }
 
 static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
