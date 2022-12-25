@@ -222,8 +222,8 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	hl_debugfs_add_file(hpriv);
 
 	atomic_set(&hdev->captured_err_info.cs_timeout.write_enable, 1);
-	atomic_set(&hdev->captured_err_info.razwi_info_recorded, 0);
-	atomic_set(&hdev->captured_err_info.pgf_info_recorded, 0);
+	atomic_set(&hdev->captured_err_info.razwi_info.razwi_detected, 0);
+	atomic_set(&hdev->captured_err_info.page_fault_info.page_fault_detected, 0);
 	hdev->captured_err_info.undef_opcode.write_enable = true;
 
 	hdev->open_counter++;

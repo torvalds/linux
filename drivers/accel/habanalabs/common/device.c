@@ -2362,7 +2362,7 @@ void hl_device_fini(struct hl_device *hdev)
 
 	hl_mmu_fini(hdev);
 
-	vfree(hdev->captured_err_info.pgf_info.user_mappings);
+	vfree(hdev->captured_err_info.page_fault_info.user_mappings);
 
 	hl_eq_fini(hdev, &hdev->event_queue);
 
@@ -2422,6 +2422,8 @@ inline void hl_wreg(struct hl_device *hdev, u32 reg, u32 val)
 void hl_capture_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_of_engines,
 			u8 flags)
 {
+	struct razwi_info *razwi_info = &hdev->captured_err_info.razwi_info;
+
 	if (num_of_engines > HL_RAZWI_MAX_NUM_OF_ENGINES_PER_RTR) {
 		dev_err(hdev->dev,
 				"Number of possible razwi initiators (%u) exceeded limit (%u)\n",
@@ -2430,15 +2432,15 @@ void hl_capture_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_
 	}
 
 	/* In case it's the first razwi since the device was opened, capture its parameters */
-	if (atomic_cmpxchg(&hdev->captured_err_info.razwi_info_recorded, 0, 1))
+	if (atomic_cmpxchg(&hdev->captured_err_info.razwi_info.razwi_detected, 0, 1))
 		return;
 
-	hdev->captured_err_info.razwi.timestamp = ktime_to_ns(ktime_get());
-	hdev->captured_err_info.razwi.addr = addr;
-	hdev->captured_err_info.razwi.num_of_possible_engines = num_of_engines;
-	memcpy(&hdev->captured_err_info.razwi.engine_id[0], &engine_id[0],
+	razwi_info->razwi.timestamp = ktime_to_ns(ktime_get());
+	razwi_info->razwi.addr = addr;
+	razwi_info->razwi.num_of_possible_engines = num_of_engines;
+	memcpy(&razwi_info->razwi.engine_id[0], &engine_id[0],
 			num_of_engines * sizeof(u16));
-	hdev->captured_err_info.razwi.flags = flags;
+	razwi_info->razwi.flags = flags;
 }
 
 void hl_handle_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_of_engines,
@@ -2452,7 +2454,7 @@ void hl_handle_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_o
 
 static void hl_capture_user_mappings(struct hl_device *hdev, bool is_pmmu)
 {
-	struct page_fault_info *pgf_info = &hdev->captured_err_info.pgf_info;
+	struct page_fault_info *pgf_info = &hdev->captured_err_info.page_fault_info;
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
 	struct hl_vm_hash_node *hnode;
 	struct hl_userptr *userptr;
@@ -2514,13 +2516,15 @@ finish:
 
 void hl_capture_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_pmmu)
 {
+	struct page_fault_info *pgf_info = &hdev->captured_err_info.page_fault_info;
+
 	/* Capture only the first page fault */
-	if (atomic_cmpxchg(&hdev->captured_err_info.pgf_info_recorded, 0, 1))
+	if (atomic_cmpxchg(&pgf_info->page_fault_detected, 0, 1))
 		return;
 
-	hdev->captured_err_info.pgf_info.pgf.timestamp = ktime_to_ns(ktime_get());
-	hdev->captured_err_info.pgf_info.pgf.addr = addr;
-	hdev->captured_err_info.pgf_info.pgf.engine_id = eng_id;
+	pgf_info->page_fault.timestamp = ktime_to_ns(ktime_get());
+	pgf_info->page_fault.addr = addr;
+	pgf_info->page_fault.engine_id = eng_id;
 	hl_capture_user_mappings(hdev, is_pmmu);
 }
 

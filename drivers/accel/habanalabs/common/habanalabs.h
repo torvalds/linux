@@ -2975,37 +2975,49 @@ struct undefined_opcode_info {
 };
 
 /**
- * struct page_fault_info - info about page fault
- * @pgf_info: page fault information.
+ * struct page_fault_info - page fault information.
+ * @page_fault: holds information collected during a page fault.
  * @user_mappings: buffer containing user mappings.
  * @num_of_user_mappings: number of user mappings.
+ * @page_fault_detected: if set as 1, then a page-fault was discovered for the
+ *                       first time after the driver has finished booting-up.
+ *                       Since we're looking for the page-fault's root cause,
+ *                       we don't care of the others that might follow it-
+ *                       so once changed to 1, it will remain that way.
  */
 struct page_fault_info {
-	struct hl_page_fault_info	pgf;
+	struct hl_page_fault_info	page_fault;
 	struct hl_user_mapping		*user_mappings;
 	u64				num_of_user_mappings;
+	atomic_t			page_fault_detected;
+};
+
+/**
+ * struct razwi_info - RAZWI information.
+ * @razwi: holds information collected during a RAZWI
+ * @razwi_detected: if set as 1, then a RAZWI was discovered for the
+ *                  first time after the driver has finished booting-up.
+ *                  Since we're looking for the RAZWI's root cause,
+ *                  we don't care of the others that might follow it-
+ *                  so once changed to 1, it will remain that way.
+ */
+struct razwi_info {
+	struct hl_info_razwi_event	razwi;
+	atomic_t			razwi_detected;
 };
 
 /**
  * struct hl_error_info - holds information collected during an error.
  * @cs_timeout: CS timeout error information.
- * @razwi: razwi information.
- * @razwi_info_recorded: if set writing to razwi information is enabled.
- *                       otherwise - disabled, so the first (root cause) razwi will not be
- *                       overwritten.
- * @undef_opcode: undefined opcode information
- * @pgf_info: page fault information.
- * @pgf_info_recorded: if set writing to page fault information is enabled.
- *                     otherwise - disabled, so the first (root cause) page fault will not be
- *                     overwritten.
+ * @razwi_info: RAZWI information.
+ * @undef_opcode: undefined opcode information.
+ * @page_fault_info: page fault information.
  */
 struct hl_error_info {
 	struct cs_timeout_info		cs_timeout;
-	struct hl_info_razwi_event	razwi;
-	atomic_t			razwi_info_recorded;
+	struct razwi_info		razwi_info;
 	struct undefined_opcode_info	undef_opcode;
-	struct page_fault_info		pgf_info;
-	atomic_t			pgf_info_recorded;
+	struct page_fault_info		page_fault_info;
 };
 
 /**
