@@ -181,3 +181,7 @@
 		};
 	};
 };
+
+&cpr {
+	apc-supply = <&vreg_apc>;
+};

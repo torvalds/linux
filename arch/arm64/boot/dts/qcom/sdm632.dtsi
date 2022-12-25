@@ -63,21 +63,25 @@
 &cpu4 {
 	compatible = "qcom,kryo250";
 	capacity-dmips-mhz = <1980>;
+	operating-points-v2 = <&cpu_perf_opp>;
 };
 
 &cpu5 {
 	compatible = "qcom,kryo250";
 	capacity-dmips-mhz = <1980>;
+	operating-points-v2 = <&cpu_perf_opp>;
 };
 
 &cpu6 {
 	compatible = "qcom,kryo250";
 	capacity-dmips-mhz = <1980>;
+	operating-points-v2 = <&cpu_perf_opp>;
 };
 
 &cpu7 {
 	compatible = "qcom,kryo250";
 	capacity-dmips-mhz = <1980>;
+	operating-points-v2 = <&cpu_perf_opp>;
 };
 
 &gpu_opp_table {
