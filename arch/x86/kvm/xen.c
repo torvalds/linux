@@ -1184,22 +1184,14 @@ static bool wait_pending_event(struct kvm_vcpu *vcpu, int nr_ports,
 static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 				 u64 param, u64 *r)
 {
-	int idx, i;
 	struct sched_poll sched_poll;
 	evtchn_port_t port, *ports;
-	gpa_t gpa;
+	struct x86_exception e;
+	int i;
 
 	if (!lapic_in_kernel(vcpu) ||
 	    !(vcpu->kvm->arch.xen_hvm_config.flags & KVM_XEN_HVM_CONFIG_EVTCHN_SEND))
 		return false;
-
-	idx = srcu_read_lock(&vcpu->kvm->srcu);
-	gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
-	srcu_read_unlock(&vcpu->kvm->srcu, idx);
-	if (!gpa) {
-		*r = -EFAULT;
-		return true;
-	}
 
 	if (IS_ENABLED(CONFIG_64BIT) && !longmode) {
 		struct compat_sched_poll sp32;
@@ -1207,7 +1199,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 		/* Sanity check that the compat struct definition is correct */
 		BUILD_BUG_ON(sizeof(sp32) != 16);
 
-		if (kvm_vcpu_read_guest(vcpu, gpa, &sp32, sizeof(sp32))) {
+		if (kvm_read_guest_virt(vcpu, param, &sp32, sizeof(sp32), &e)) {
 			*r = -EFAULT;
 			return true;
 		}
@@ -1221,8 +1213,8 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 		sched_poll.nr_ports = sp32.nr_ports;
 		sched_poll.timeout = sp32.timeout;
 	} else {
-		if (kvm_vcpu_read_guest(vcpu, gpa, &sched_poll,
-					sizeof(sched_poll))) {
+		if (kvm_read_guest_virt(vcpu, param, &sched_poll,
+					sizeof(sched_poll), &e)) {
 			*r = -EFAULT;
 			return true;
 		}
@@ -1244,18 +1236,13 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	} else
 		ports = &port;
 
-	for (i = 0; i < sched_poll.nr_ports; i++) {
-		idx = srcu_read_lock(&vcpu->kvm->srcu);
-		gpa = kvm_mmu_gva_to_gpa_system(vcpu,
-						(gva_t)(sched_poll.ports + i),
-						NULL);
-		srcu_read_unlock(&vcpu->kvm->srcu, idx);
+	if (kvm_read_guest_virt(vcpu, (gva_t)sched_poll.ports, ports,
+				sched_poll.nr_ports * sizeof(*ports), &e)) {
+		*r = -EFAULT;
+		return true;
+	}
 
-		if (!gpa || kvm_vcpu_read_guest(vcpu, gpa,
-						&ports[i], sizeof(port))) {
-			*r = -EFAULT;
-			goto out;
-		}
+	for (i = 0; i < sched_poll.nr_ports; i++) {
 		if (ports[i] >= max_evtchn_port(vcpu->kvm)) {
 			*r = -EINVAL;
 			goto out;
@@ -1331,9 +1318,8 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 				  int vcpu_id, u64 param, u64 *r)
 {
 	struct vcpu_set_singleshot_timer oneshot;
+	struct x86_exception e;
 	s64 delta;
-	gpa_t gpa;
-	int idx;
 
 	if (!kvm_xen_timer_enabled(vcpu))
 		return false;
@@ -1344,9 +1330,6 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 			*r = -EINVAL;
 			return true;
 		}
-		idx = srcu_read_lock(&vcpu->kvm->srcu);
-		gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
-		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
 		/*
 		 * The only difference for 32-bit compat is the 4 bytes of
@@ -1364,9 +1347,8 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 		BUILD_BUG_ON(sizeof_field(struct compat_vcpu_set_singleshot_timer, flags) !=
 			     sizeof_field(struct vcpu_set_singleshot_timer, flags));
 
-		if (!gpa ||
-		    kvm_vcpu_read_guest(vcpu, gpa, &oneshot, longmode ? sizeof(oneshot) :
-					sizeof(struct compat_vcpu_set_singleshot_timer))) {
+		if (kvm_read_guest_virt(vcpu, param, &oneshot, longmode ? sizeof(oneshot) :
+					sizeof(struct compat_vcpu_set_singleshot_timer), &e)) {
 			*r = -EFAULT;
 			return true;
 		}
@@ -2003,14 +1985,12 @@ static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r)
 {
 	struct evtchnfd *evtchnfd;
 	struct evtchn_send send;
-	gpa_t gpa;
-	int idx;
+	struct x86_exception e;
 
-	idx = srcu_read_lock(&vcpu->kvm->srcu);
-	gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
-	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+	/* Sanity check: this structure is the same for 32-bit and 64-bit */
+	BUILD_BUG_ON(sizeof(send) != 4);
 
-	if (!gpa || kvm_vcpu_read_guest(vcpu, gpa, &send, sizeof(send))) {
+	if (kvm_read_guest_virt(vcpu, param, &send, sizeof(send), &e)) {
 		*r = -EFAULT;
 		return true;
 	}
