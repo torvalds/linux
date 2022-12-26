@@ -23,7 +23,7 @@
 			csi_dphy_input0: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&sc530ai_out>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 			csi_dphy_input1: endpoint@1 {
 				reg = <1>;
@@ -83,7 +83,7 @@
 		port {
 			sc530ai_out: endpoint {
 				remote-endpoint = <&csi_dphy_input0>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
