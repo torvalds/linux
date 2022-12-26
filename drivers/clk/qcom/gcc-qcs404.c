@@ -35,6 +35,155 @@ enum {
 	P_XO,
 };
 
+static struct clk_fixed_factor cxo = {
+	.mult = 1,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "cxo",
+		.parent_names = (const char *[]){ "xo-board" },
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+	},
+};
+
+static struct clk_alpha_pll gpll0_sleep_clk_src = {
+	.offset = 0x21000,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
+	.clkr = {
+		.enable_reg = 0x45008,
+		.enable_mask = BIT(23),
+		.enable_is_inverted = true,
+		.hw.init = &(struct clk_init_data){
+			.name = "gpll0_sleep_clk_src",
+			.parent_names = (const char *[]){ "cxo" },
+			.num_parents = 1,
+			.ops = &clk_alpha_pll_ops,
+		},
+	},
+};
+
+static struct clk_alpha_pll gpll0_out_main = {
+	.offset = 0x21000,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
+	.flags = SUPPORTS_FSM_MODE,
+	.clkr = {
+		.enable_reg = 0x45000,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gpll0_out_main",
+			.parent_names = (const char *[])
+					{ "cxo" },
+			.num_parents = 1,
+			.ops = &clk_alpha_pll_ops,
+		},
+	},
+};
+
+static struct clk_alpha_pll gpll0_ao_out_main = {
+	.offset = 0x21000,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
+	.flags = SUPPORTS_FSM_MODE,
+	.clkr = {
+		.enable_reg = 0x45000,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gpll0_ao_out_main",
+			.parent_names = (const char *[]){ "cxo" },
+			.num_parents = 1,
+			.flags = CLK_IS_CRITICAL,
+			.ops = &clk_alpha_pll_fixed_ops,
+		},
+	},
+};
+
+static struct clk_alpha_pll gpll1_out_main = {
+	.offset = 0x20000,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
+	.clkr = {
+		.enable_reg = 0x45000,
+		.enable_mask = BIT(1),
+		.hw.init = &(struct clk_init_data){
+			.name = "gpll1_out_main",
+			.parent_names = (const char *[]){ "cxo" },
+			.num_parents = 1,
+			.ops = &clk_alpha_pll_ops,
+		},
+	},
+};
+
+/* 930MHz configuration */
+static const struct alpha_pll_config gpll3_config = {
+	.l = 48,
+	.alpha = 0x0,
+	.alpha_en_mask = BIT(24),
+	.post_div_mask = 0xf << 8,
+	.post_div_val = 0x1 << 8,
+	.vco_mask = 0x3 << 20,
+	.main_output_mask = 0x1,
+	.config_ctl_val = 0x4001055b,
+};
+
+static const struct pll_vco gpll3_vco[] = {
+	{ 700000000, 1400000000, 0 },
+};
+
+static struct clk_alpha_pll gpll3_out_main = {
+	.offset = 0x22000,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
+	.vco_table = gpll3_vco,
+	.num_vco = ARRAY_SIZE(gpll3_vco),
+	.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "gpll3_out_main",
+			.parent_names = (const char *[]){ "cxo" },
+			.num_parents = 1,
+			.ops = &clk_alpha_pll_ops,
+		},
+	},
+};
+
+static struct clk_alpha_pll gpll4_out_main = {
+	.offset = 0x24000,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
+	.clkr = {
+		.enable_reg = 0x45000,
+		.enable_mask = BIT(5),
+		.hw.init = &(struct clk_init_data){
+			.name = "gpll4_out_main",
+			.parent_names = (const char *[]){ "cxo" },
+			.num_parents = 1,
+			.ops = &clk_alpha_pll_ops,
+		},
+	},
+};
+
+static struct clk_pll gpll6 = {
+	.l_reg = 0x37004,
+	.m_reg = 0x37008,
+	.n_reg = 0x3700C,
+	.config_reg = 0x37014,
+	.mode_reg = 0x37000,
+	.status_reg = 0x3701C,
+	.status_bit = 17,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "gpll6",
+		.parent_names = (const char *[]){ "cxo" },
+		.num_parents = 1,
+		.ops = &clk_pll_ops,
+	},
+};
+
+static struct clk_regmap gpll6_out_aux = {
+	.enable_reg = 0x45000,
+	.enable_mask = BIT(7),
+	.hw.init = &(struct clk_init_data){
+		.name = "gpll6_out_aux",
+		.parent_names = (const char *[]){ "gpll6" },
+		.num_parents = 1,
+		.ops = &clk_pll_vote_ops,
+	},
+};
+
 static const struct parent_map gcc_parent_map_0[] = {
 	{ P_XO, 0 },
 	{ P_GPLL0_OUT_MAIN, 1 },
@@ -222,155 +371,6 @@ static const struct parent_map gcc_parent_map_16[] = {
 static const char * const gcc_parent_names_16[] = {
 	"cxo",
 	"gpll0_out_main",
-};
-
-static struct clk_fixed_factor cxo = {
-	.mult = 1,
-	.div = 1,
-	.hw.init = &(struct clk_init_data){
-		.name = "cxo",
-		.parent_names = (const char *[]){ "xo-board" },
-		.num_parents = 1,
-		.ops = &clk_fixed_factor_ops,
-	},
-};
-
-static struct clk_alpha_pll gpll0_sleep_clk_src = {
-	.offset = 0x21000,
-	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
-	.clkr = {
-		.enable_reg = 0x45008,
-		.enable_mask = BIT(23),
-		.enable_is_inverted = true,
-		.hw.init = &(struct clk_init_data){
-			.name = "gpll0_sleep_clk_src",
-			.parent_names = (const char *[]){ "cxo" },
-			.num_parents = 1,
-			.ops = &clk_alpha_pll_ops,
-		},
-	},
-};
-
-static struct clk_alpha_pll gpll0_out_main = {
-	.offset = 0x21000,
-	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
-	.flags = SUPPORTS_FSM_MODE,
-	.clkr = {
-		.enable_reg = 0x45000,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "gpll0_out_main",
-			.parent_names = (const char *[])
-					{ "cxo" },
-			.num_parents = 1,
-			.ops = &clk_alpha_pll_ops,
-		},
-	},
-};
-
-static struct clk_alpha_pll gpll0_ao_out_main = {
-	.offset = 0x21000,
-	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
-	.flags = SUPPORTS_FSM_MODE,
-	.clkr = {
-		.enable_reg = 0x45000,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "gpll0_ao_out_main",
-			.parent_names = (const char *[]){ "cxo" },
-			.num_parents = 1,
-			.flags = CLK_IS_CRITICAL,
-			.ops = &clk_alpha_pll_fixed_ops,
-		},
-	},
-};
-
-static struct clk_alpha_pll gpll1_out_main = {
-	.offset = 0x20000,
-	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
-	.clkr = {
-		.enable_reg = 0x45000,
-		.enable_mask = BIT(1),
-		.hw.init = &(struct clk_init_data){
-			.name = "gpll1_out_main",
-			.parent_names = (const char *[]){ "cxo" },
-			.num_parents = 1,
-			.ops = &clk_alpha_pll_ops,
-		},
-	},
-};
-
-/* 930MHz configuration */
-static const struct alpha_pll_config gpll3_config = {
-	.l = 48,
-	.alpha = 0x0,
-	.alpha_en_mask = BIT(24),
-	.post_div_mask = 0xf << 8,
-	.post_div_val = 0x1 << 8,
-	.vco_mask = 0x3 << 20,
-	.main_output_mask = 0x1,
-	.config_ctl_val = 0x4001055b,
-};
-
-static const struct pll_vco gpll3_vco[] = {
-	{ 700000000, 1400000000, 0 },
-};
-
-static struct clk_alpha_pll gpll3_out_main = {
-	.offset = 0x22000,
-	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
-	.vco_table = gpll3_vco,
-	.num_vco = ARRAY_SIZE(gpll3_vco),
-	.clkr = {
-		.hw.init = &(struct clk_init_data){
-			.name = "gpll3_out_main",
-			.parent_names = (const char *[]){ "cxo" },
-			.num_parents = 1,
-			.ops = &clk_alpha_pll_ops,
-		},
-	},
-};
-
-static struct clk_alpha_pll gpll4_out_main = {
-	.offset = 0x24000,
-	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
-	.clkr = {
-		.enable_reg = 0x45000,
-		.enable_mask = BIT(5),
-		.hw.init = &(struct clk_init_data){
-			.name = "gpll4_out_main",
-			.parent_names = (const char *[]){ "cxo" },
-			.num_parents = 1,
-			.ops = &clk_alpha_pll_ops,
-		},
-	},
-};
-
-static struct clk_pll gpll6 = {
-	.l_reg = 0x37004,
-	.m_reg = 0x37008,
-	.n_reg = 0x3700C,
-	.config_reg = 0x37014,
-	.mode_reg = 0x37000,
-	.status_reg = 0x3701C,
-	.status_bit = 17,
-	.clkr.hw.init = &(struct clk_init_data){
-		.name = "gpll6",
-		.parent_names = (const char *[]){ "cxo" },
-		.num_parents = 1,
-		.ops = &clk_pll_ops,
-	},
-};
-
-static struct clk_regmap gpll6_out_aux = {
-	.enable_reg = 0x45000,
-	.enable_mask = BIT(7),
-	.hw.init = &(struct clk_init_data){
-		.name = "gpll6_out_aux",
-		.parent_names = (const char *[]){ "gpll6" },
-		.num_parents = 1,
-		.ops = &clk_pll_vote_ops,
-	},
 };
 
 static const struct freq_tbl ftbl_apss_ahb_clk_src[] = {
