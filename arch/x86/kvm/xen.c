@@ -1810,9 +1810,6 @@ static int kvm_xen_eventfd_update(struct kvm *kvm,
 	struct evtchnfd *evtchnfd;
 	int ret;
 
-	if (!port || port >= max_evtchn_port(kvm))
-		return -EINVAL;
-
 	/* Protect writes to evtchnfd as well as the idr lookup.  */
 	mutex_lock(&kvm->lock);
 	evtchnfd = idr_find(&kvm->arch.xen.evtchn_ports, port);
@@ -1858,11 +1855,8 @@ static int kvm_xen_eventfd_assign(struct kvm *kvm,
 {
 	u32 port = data->u.evtchn.send_port;
 	struct eventfd_ctx *eventfd = NULL;
-	struct evtchnfd *evtchnfd = NULL;
+	struct evtchnfd *evtchnfd;
 	int ret = -EINVAL;
-
-	if (!port || port >= max_evtchn_port(kvm))
-		return -EINVAL;
 
 	evtchnfd = kzalloc(sizeof(struct evtchnfd), GFP_KERNEL);
 	if (!evtchnfd)
