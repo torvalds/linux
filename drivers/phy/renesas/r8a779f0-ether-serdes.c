@@ -18,7 +18,6 @@
 #define R8A779F0_ETH_SERDES_BANK_SELECT		0x03fc
 #define R8A779F0_ETH_SERDES_TIMEOUT_US		100000
 #define R8A779F0_ETH_SERDES_NUM_RETRY_LINKUP	3
-#define R8A779F0_ETH_SERDES_NUM_RETRY_INIT	3
 
 struct r8a779f0_eth_serdes_drv_data;
 struct r8a779f0_eth_serdes_channel {
@@ -248,16 +247,11 @@ static int r8a779f0_eth_serdes_hw_init(struct r8a779f0_eth_serdes_channel *chann
 static int r8a779f0_eth_serdes_init(struct phy *p)
 {
 	struct r8a779f0_eth_serdes_channel *channel = phy_get_drvdata(p);
-	int i, ret;
+	int ret;
 
-	for (i = 0; i < R8A779F0_ETH_SERDES_NUM_RETRY_INIT; i++) {
-		ret = r8a779f0_eth_serdes_hw_init(channel);
-		if (!ret) {
-			channel->dd->initialized = true;
-			break;
-		}
-		usleep_range(1000, 2000);
-	}
+	ret = r8a779f0_eth_serdes_hw_init(channel);
+	if (!ret)
+		channel->dd->initialized = true;
 
 	return ret;
 }
