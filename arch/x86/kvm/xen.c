@@ -1808,20 +1808,23 @@ static int kvm_xen_eventfd_update(struct kvm *kvm,
 {
 	u32 port = data->u.evtchn.send_port;
 	struct evtchnfd *evtchnfd;
+	int ret;
 
 	if (!port || port >= max_evtchn_port(kvm))
 		return -EINVAL;
 
+	/* Protect writes to evtchnfd as well as the idr lookup.  */
 	mutex_lock(&kvm->lock);
 	evtchnfd = idr_find(&kvm->arch.xen.evtchn_ports, port);
-	mutex_unlock(&kvm->lock);
 
+	ret = -ENOENT;
 	if (!evtchnfd)
-		return -ENOENT;
+		goto out_unlock;
 
 	/* For an UPDATE, nothing may change except the priority/vcpu */
+	ret = -EINVAL;
 	if (evtchnfd->type != data->u.evtchn.type)
-		return -EINVAL;
+		goto out_unlock;
 
 	/*
 	 * Port cannot change, and if it's zero that was an eventfd
@@ -1829,20 +1832,21 @@ static int kvm_xen_eventfd_update(struct kvm *kvm,
 	 */
 	if (!evtchnfd->deliver.port.port ||
 	    evtchnfd->deliver.port.port != data->u.evtchn.deliver.port.port)
-		return -EINVAL;
+		goto out_unlock;
 
 	/* We only support 2 level event channels for now */
 	if (data->u.evtchn.deliver.port.priority != KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL)
-		return -EINVAL;
+		goto out_unlock;
 
-	mutex_lock(&kvm->lock);
 	evtchnfd->deliver.port.priority = data->u.evtchn.deliver.port.priority;
 	if (evtchnfd->deliver.port.vcpu_id != data->u.evtchn.deliver.port.vcpu) {
 		evtchnfd->deliver.port.vcpu_id = data->u.evtchn.deliver.port.vcpu;
 		evtchnfd->deliver.port.vcpu_idx = -1;
 	}
+	ret = 0;
+out_unlock:
 	mutex_unlock(&kvm->lock);
-	return 0;
+	return ret;
 }
 
 /*
@@ -1935,8 +1939,7 @@ static int kvm_xen_eventfd_deassign(struct kvm *kvm, u32 port)
 	if (!evtchnfd)
 		return -ENOENT;
 
-	if (kvm)
-		synchronize_srcu(&kvm->srcu);
+	synchronize_srcu(&kvm->srcu);
 	if (!evtchnfd->deliver.port.port)
 		eventfd_ctx_put(evtchnfd->deliver.eventfd.ctx);
 	kfree(evtchnfd);
@@ -1989,14 +1992,18 @@ static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r)
 
 	/* Sanity check: this structure is the same for 32-bit and 64-bit */
 	BUILD_BUG_ON(sizeof(send) != 4);
-
 	if (kvm_read_guest_virt(vcpu, param, &send, sizeof(send), &e)) {
 		*r = -EFAULT;
 		return true;
 	}
 
-	/* The evtchn_ports idr is protected by vcpu->kvm->srcu */
+	/*
+	 * evtchnfd is protected by kvm->srcu; the idr lookup instead
+	 * is protected by RCU.
+	 */
+	rcu_read_lock();
 	evtchnfd = idr_find(&vcpu->kvm->arch.xen.evtchn_ports, send.port);
+	rcu_read_unlock();
 	if (!evtchnfd)
 		return false;
 
