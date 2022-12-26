@@ -242,64 +242,64 @@ static const struct sfdp_bfpt_read sfdp_bfpt_reads[] = {
 	/* Fast Read 1-1-2 */
 	{
 		SNOR_HWCAPS_READ_1_1_2,
-		BFPT_DWORD(1), BIT(16),	/* Supported bit */
-		BFPT_DWORD(4), 0,	/* Settings */
+		SFDP_DWORD(1), BIT(16),	/* Supported bit */
+		SFDP_DWORD(4), 0,	/* Settings */
 		SNOR_PROTO_1_1_2,
 	},
 
 	/* Fast Read 1-2-2 */
 	{
 		SNOR_HWCAPS_READ_1_2_2,
-		BFPT_DWORD(1), BIT(20),	/* Supported bit */
-		BFPT_DWORD(4), 16,	/* Settings */
+		SFDP_DWORD(1), BIT(20),	/* Supported bit */
+		SFDP_DWORD(4), 16,	/* Settings */
 		SNOR_PROTO_1_2_2,
 	},
 
 	/* Fast Read 2-2-2 */
 	{
 		SNOR_HWCAPS_READ_2_2_2,
-		BFPT_DWORD(5),  BIT(0),	/* Supported bit */
-		BFPT_DWORD(6), 16,	/* Settings */
+		SFDP_DWORD(5),  BIT(0),	/* Supported bit */
+		SFDP_DWORD(6), 16,	/* Settings */
 		SNOR_PROTO_2_2_2,
 	},
 
 	/* Fast Read 1-1-4 */
 	{
 		SNOR_HWCAPS_READ_1_1_4,
-		BFPT_DWORD(1), BIT(22),	/* Supported bit */
-		BFPT_DWORD(3), 16,	/* Settings */
+		SFDP_DWORD(1), BIT(22),	/* Supported bit */
+		SFDP_DWORD(3), 16,	/* Settings */
 		SNOR_PROTO_1_1_4,
 	},
 
 	/* Fast Read 1-4-4 */
 	{
 		SNOR_HWCAPS_READ_1_4_4,
-		BFPT_DWORD(1), BIT(21),	/* Supported bit */
-		BFPT_DWORD(3), 0,	/* Settings */
+		SFDP_DWORD(1), BIT(21),	/* Supported bit */
+		SFDP_DWORD(3), 0,	/* Settings */
 		SNOR_PROTO_1_4_4,
 	},
 
 	/* Fast Read 4-4-4 */
 	{
 		SNOR_HWCAPS_READ_4_4_4,
-		BFPT_DWORD(5), BIT(4),	/* Supported bit */
-		BFPT_DWORD(7), 16,	/* Settings */
+		SFDP_DWORD(5), BIT(4),	/* Supported bit */
+		SFDP_DWORD(7), 16,	/* Settings */
 		SNOR_PROTO_4_4_4,
 	},
 };
 
 static const struct sfdp_bfpt_erase sfdp_bfpt_erases[] = {
 	/* Erase Type 1 in DWORD8 bits[15:0] */
-	{BFPT_DWORD(8), 0},
+	{SFDP_DWORD(8), 0},
 
 	/* Erase Type 2 in DWORD8 bits[31:16] */
-	{BFPT_DWORD(8), 16},
+	{SFDP_DWORD(8), 16},
 
 	/* Erase Type 3 in DWORD9 bits[15:0] */
-	{BFPT_DWORD(9), 0},
+	{SFDP_DWORD(9), 0},
 
 	/* Erase Type 4 in DWORD9 bits[31:16] */
-	{BFPT_DWORD(9), 16},
+	{SFDP_DWORD(9), 16},
 };
 
 /**
@@ -458,7 +458,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	le32_to_cpu_array(bfpt.dwords, BFPT_DWORD_MAX);
 
 	/* Number of address bytes. */
-	switch (bfpt.dwords[BFPT_DWORD(1)] & BFPT_DWORD1_ADDRESS_BYTES_MASK) {
+	switch (bfpt.dwords[SFDP_DWORD(1)] & BFPT_DWORD1_ADDRESS_BYTES_MASK) {
 	case BFPT_DWORD1_ADDRESS_BYTES_3_ONLY:
 	case BFPT_DWORD1_ADDRESS_BYTES_3_OR_4:
 		params->addr_nbytes = 3;
@@ -475,7 +475,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	}
 
 	/* Flash Memory Density (in bits). */
-	val = bfpt.dwords[BFPT_DWORD(2)];
+	val = bfpt.dwords[SFDP_DWORD(2)];
 	if (val & BIT(31)) {
 		val &= ~BIT(31);
 
@@ -555,13 +555,13 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt);
 
 	/* Page size: this field specifies 'N' so the page size = 2^N bytes. */
-	val = bfpt.dwords[BFPT_DWORD(11)];
+	val = bfpt.dwords[SFDP_DWORD(11)];
 	val &= BFPT_DWORD11_PAGE_SIZE_MASK;
 	val >>= BFPT_DWORD11_PAGE_SIZE_SHIFT;
 	params->page_size = 1U << val;
 
 	/* Quad Enable Requirements. */
-	switch (bfpt.dwords[BFPT_DWORD(15)] & BFPT_DWORD15_QER_MASK) {
+	switch (bfpt.dwords[SFDP_DWORD(15)] & BFPT_DWORD15_QER_MASK) {
 	case BFPT_DWORD15_QER_NONE:
 		params->quad_enable = NULL;
 		break;
@@ -608,7 +608,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	}
 
 	/* Soft Reset support. */
-	if (bfpt.dwords[BFPT_DWORD(16)] & BFPT_DWORD16_SWRST_EN_RST)
+	if (bfpt.dwords[SFDP_DWORD(16)] & BFPT_DWORD16_SWRST_EN_RST)
 		nor->flags |= SNOR_F_SOFT_RESET;
 
 	/* Stop here if not JESD216 rev C or later. */
@@ -616,7 +616,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt);
 
 	/* 8D-8D-8D command extension. */
-	switch (bfpt.dwords[BFPT_DWORD(18)] & BFPT_DWORD18_CMD_EXT_MASK) {
+	switch (bfpt.dwords[SFDP_DWORD(18)] & BFPT_DWORD18_CMD_EXT_MASK) {
 	case BFPT_DWORD18_CMD_EXT_REP:
 		nor->cmd_ext_type = SPI_NOR_EXT_REPEAT;
 		break;
