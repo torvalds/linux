@@ -3,7 +3,7 @@
 # Makefile for HabanaLabs AI accelerators driver
 #
 
-obj-$(CONFIG_HABANA_AI) := habanalabs.o
+obj-$(CONFIG_DRM_ACCEL_HABANALABS) := habanalabs.o
 
 include $(src)/common/Makefile
 habanalabs-y += $(HL_COMMON_FILES)

@@ -3,8 +3,10 @@
 # HabanaLabs AI accelerators driver
 #
 
-config HABANA_AI
-	tristate "HabanaAI accelerators (habanalabs)"
+config DRM_ACCEL_HABANALABS
+	tristate "HabanaLabs AI accelerators"
+	depends on DRM_ACCEL
+	depends on X86_64
 	depends on PCI && HAS_IOMEM
 	select GENERIC_ALLOCATOR
 	select HWMON
