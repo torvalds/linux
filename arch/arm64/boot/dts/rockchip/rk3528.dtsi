@@ -1131,6 +1131,9 @@
 		clocks = <&cru ACLK_RGA2E>, <&cru HCLK_RGA2E>, <&cru CLK_CORE_RGA2E>;
 		clock-names = "aclk_rga2", "hclk_rga2", "clk_rga2";
 		iommus = <&rga2_mmu>;
+		rockchip,grf = <&grf>;
+		rockchip,grf-offset = <0x600e0>;
+		rockchip,grf-values = <0x0ff10000>, <0x0ff10ff1>;
 		status = "disabled";
 	};
 
