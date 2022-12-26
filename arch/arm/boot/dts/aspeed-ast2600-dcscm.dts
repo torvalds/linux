@@ -382,9 +382,9 @@
 	status = "okay";
 
 	/delete-property/ jdec-spd;
-	/delete-node/ imx3102_1;
-	/delete-node/ spd5118_1_0;
-	/delete-node/ spd5118_1_1;
+	/delete-node/ i3cmux@0f,4cc31020000;
+	/delete-node/ spd@50,4cc51180000;
+	/delete-node/ spd@51,4cc51181000;
 };
 
 &i3c2 {
