@@ -307,7 +307,7 @@
 	flash@1 {
 		status = "okay";
 		m25p,fast-read;
-		label = "flash1";
+		label = "alt-bmc";
 		spi-max-frequency = <50000000>;
 	};
 };
