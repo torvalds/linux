@@ -616,6 +616,31 @@ cleanup:
 }
 
 /**
+ * uclogic_params_cleanup_event_hooks - free resources used by the list of raw
+ * event hooks.
+ * Can be called repeatedly.
+ *
+ * @params: Input parameters to cleanup. Cannot be NULL.
+ */
+static void uclogic_params_cleanup_event_hooks(struct uclogic_params *params)
+{
+	struct uclogic_raw_event_hook *curr, *n;
+
+	if (!params || !params->event_hooks)
+		return;
+
+	list_for_each_entry_safe(curr, n, &params->event_hooks->list, list) {
+		cancel_work_sync(&curr->work);
+		list_del(&curr->list);
+		kfree(curr->event);
+		kfree(curr);
+	}
+
+	kfree(params->event_hooks);
+	params->event_hooks = NULL;
+}
+
+/**
  * uclogic_params_cleanup - free resources used by struct uclogic_params
  * (tablet interface's parameters).
  * Can be called repeatedly.
@@ -631,6 +656,7 @@ void uclogic_params_cleanup(struct uclogic_params *params)
 		for (i = 0; i < ARRAY_SIZE(params->frame_list); i++)
 			uclogic_params_frame_cleanup(&params->frame_list[i]);
 
+		uclogic_params_cleanup_event_hooks(params);
 		memset(params, 0, sizeof(*params));
 	}
 }
@@ -1281,6 +1307,72 @@ static int uclogic_params_ugee_v2_init_battery(struct hid_device *hdev,
 }
 
 /**
+ * uclogic_params_ugee_v2_reconnect_work() - When a wireless tablet looses
+ * connection to the USB dongle and reconnects, either because of its physical
+ * distance or because it was switches off and on using the frame's switch,
+ * uclogic_probe_interface() needs to be called again to enable the tablet.
+ *
+ * @work: The work that triggered this function.
+ */
+static void uclogic_params_ugee_v2_reconnect_work(struct work_struct *work)
+{
+	struct uclogic_raw_event_hook *event_hook;
+
+	event_hook = container_of(work, struct uclogic_raw_event_hook, work);
+	uclogic_probe_interface(event_hook->hdev, uclogic_ugee_v2_probe_arr,
+				uclogic_ugee_v2_probe_size,
+				uclogic_ugee_v2_probe_endpoint);
+}
+
+/**
+ * uclogic_params_ugee_v2_init_event_hooks() - initialize the list of events
+ * to be hooked for UGEE v2 devices.
+ * @hdev:	The HID device of the tablet interface to initialize and get
+ *		parameters from.
+ * @p:		Parameters to fill in, cannot be NULL.
+ *
+ * Returns:
+ *	Zero, if successful. A negative errno code on error.
+ */
+static int uclogic_params_ugee_v2_init_event_hooks(struct hid_device *hdev,
+						   struct uclogic_params *p)
+{
+	struct uclogic_raw_event_hook *event_hook;
+	__u8 reconnect_event[] = {
+		/* Event received on wireless tablet reconnection */
+		0x02, 0xF8, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+
+	if (!p)
+		return -EINVAL;
+
+	/* The reconnection event is only received if the tablet has battery */
+	if (!uclogic_params_ugee_v2_has_battery(hdev))
+		return 0;
+
+	p->event_hooks = kzalloc(sizeof(*p->event_hooks), GFP_KERNEL);
+	if (!p->event_hooks)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&p->event_hooks->list);
+
+	event_hook = kzalloc(sizeof(*event_hook), GFP_KERNEL);
+	if (!event_hook)
+		return -ENOMEM;
+
+	INIT_WORK(&event_hook->work, uclogic_params_ugee_v2_reconnect_work);
+	event_hook->hdev = hdev;
+	event_hook->size = ARRAY_SIZE(reconnect_event);
+	event_hook->event = kmemdup(reconnect_event, event_hook->size, GFP_KERNEL);
+	if (!event_hook->event)
+		return -ENOMEM;
+
+	list_add_tail(&event_hook->list, &p->event_hooks->list);
+
+	return 0;
+}
+
+/**
  * uclogic_params_ugee_v2_init() - initialize a UGEE graphics tablets by
  * discovering their parameters.
  *
@@ -1414,6 +1506,13 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 			hid_err(hdev, "error initializing battery: %d\n", rc);
 			goto cleanup;
 		}
+	}
+
+	/* Create a list of raw events to be ignored */
+	rc = uclogic_params_ugee_v2_init_event_hooks(hdev, &p);
+	if (rc) {
+		hid_err(hdev, "error initializing event hook list: %d\n", rc);
+		goto cleanup;
 	}
 
 output:

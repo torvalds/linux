@@ -18,6 +18,7 @@
 
 #include <linux/usb.h>
 #include <linux/hid.h>
+#include <linux/list.h>
 
 #define UCLOGIC_MOUSE_FRAME_QUIRK	BIT(0)
 #define UCLOGIC_BATTERY_QUIRK		BIT(1)
@@ -177,6 +178,17 @@ struct uclogic_params_frame {
 };
 
 /*
+ * List of works to be performed when a certain raw event is received.
+ */
+struct uclogic_raw_event_hook {
+	struct hid_device *hdev;
+	__u8 *event;
+	size_t size;
+	struct work_struct work;
+	struct list_head list;
+};
+
+/*
  * Tablet interface report parameters.
  *
  * Must use declarative (descriptive) language, not imperative, to simplify
@@ -216,6 +228,10 @@ struct uclogic_params {
 	 * parts. Only valid, if "invalid" is false.
 	 */
 	struct uclogic_params_frame frame_list[3];
+	/*
+	 * List of event hooks.
+	 */
+	struct uclogic_raw_event_hook *event_hooks;
 };
 
 /* Driver data */
