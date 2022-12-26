@@ -220,6 +220,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	struct cifs_server_iface *iface;
+	size_t iface_weight = 0, iface_min_speed = 0;
+	struct cifs_server_iface *last_iface = NULL;
 	int c, i, j;
 
 	seq_puts(m,
@@ -461,11 +463,25 @@ skip_rdma:
 					   "\tLast updated: %lu seconds ago",
 					   ses->iface_count,
 					   (jiffies - ses->iface_last_update) / HZ);
+
+			last_iface = list_last_entry(&ses->iface_list,
+						     struct cifs_server_iface,
+						     iface_head);
+			iface_min_speed = last_iface->speed;
+
 			j = 0;
 			list_for_each_entry(iface, &ses->iface_list,
 						 iface_head) {
 				seq_printf(m, "\n\t%d)", ++j);
 				cifs_dump_iface(m, iface);
+
+				iface_weight = iface->speed / iface_min_speed;
+				seq_printf(m, "\t\tWeight (cur,total): (%zu,%zu)"
+					   "\n\t\tAllocated channels: %u\n",
+					   iface->weight_fulfilled,
+					   iface_weight,
+					   iface->num_channels);
+
 				if (is_ses_using_iface(ses, iface))
 					seq_puts(m, "\t\t[CONNECTED]\n");
 			}

@@ -956,6 +956,8 @@ struct cifs_server_iface {
 	struct list_head iface_head;
 	struct kref refcount;
 	size_t speed;
+	size_t weight_fulfilled;
+	unsigned int num_channels;
 	unsigned int rdma_capable : 1;
 	unsigned int rss_capable : 1;
 	unsigned int is_active : 1; /* unset if non existent */
