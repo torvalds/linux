@@ -41,7 +41,7 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	int ret = 0;
 	int idx = srcu_read_lock(&kvm->srcu);
 
-	if (gfn == GPA_INVALID) {
+	if (gfn == KVM_XEN_INVALID_GFN) {
 		kvm_gpc_deactivate(gpc);
 		goto out;
 	}
@@ -659,7 +659,7 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		if (kvm->arch.xen.shinfo_cache.active)
 			data->u.shared_info.gfn = gpa_to_gfn(kvm->arch.xen.shinfo_cache.gpa);
 		else
-			data->u.shared_info.gfn = GPA_INVALID;
+			data->u.shared_info.gfn = KVM_XEN_INVALID_GFN;
 		r = 0;
 		break;
 
@@ -705,7 +705,7 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		BUILD_BUG_ON(offsetof(struct vcpu_info, time) !=
 			     offsetof(struct compat_vcpu_info, time));
 
-		if (data->u.gpa == GPA_INVALID) {
+		if (data->u.gpa == KVM_XEN_INVALID_GPA) {
 			kvm_gpc_deactivate(&vcpu->arch.xen.vcpu_info_cache);
 			r = 0;
 			break;
@@ -719,7 +719,7 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		break;
 
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO:
-		if (data->u.gpa == GPA_INVALID) {
+		if (data->u.gpa == KVM_XEN_INVALID_GPA) {
 			kvm_gpc_deactivate(&vcpu->arch.xen.vcpu_time_info_cache);
 			r = 0;
 			break;
@@ -739,7 +739,7 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 			r = -EOPNOTSUPP;
 			break;
 		}
-		if (data->u.gpa == GPA_INVALID) {
+		if (data->u.gpa == KVM_XEN_INVALID_GPA) {
 			r = 0;
 		deactivate_out:
 			kvm_gpc_deactivate(&vcpu->arch.xen.runstate_cache);
@@ -937,7 +937,7 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		if (vcpu->arch.xen.vcpu_info_cache.active)
 			data->u.gpa = vcpu->arch.xen.vcpu_info_cache.gpa;
 		else
-			data->u.gpa = GPA_INVALID;
+			data->u.gpa = KVM_XEN_INVALID_GPA;
 		r = 0;
 		break;
 
@@ -945,7 +945,7 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		if (vcpu->arch.xen.vcpu_time_info_cache.active)
 			data->u.gpa = vcpu->arch.xen.vcpu_time_info_cache.gpa;
 		else
-			data->u.gpa = GPA_INVALID;
+			data->u.gpa = KVM_XEN_INVALID_GPA;
 		r = 0;
 		break;
 
