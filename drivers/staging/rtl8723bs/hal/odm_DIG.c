@@ -598,10 +598,7 @@ void odm_DIGbyRSSI_LPS(void *pDM_VOID)
 	/* Lower bound checking */
 
 	/* RSSI Lower bound check */
-	if ((pDM_Odm->RSSI_Min-10) > DM_DIG_MIN_NIC)
-		RSSI_Lower = pDM_Odm->RSSI_Min-10;
-	else
-		RSSI_Lower = DM_DIG_MIN_NIC;
+	RSSI_Lower = max(pDM_Odm->RSSI_Min - 10, DM_DIG_MIN_NIC);
 
 	/* Upper and Lower Bound checking */
 	if (CurrentIGI > DM_DIG_MAX_NIC)

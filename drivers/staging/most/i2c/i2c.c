@@ -284,7 +284,7 @@ static irqreturn_t most_irq_handler(int irq, void *_dev)
  *
  * Register the i2c client device as a MOST interface
  */
-static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int i2c_probe(struct i2c_client *client)
 {
 	struct hdm_i2c *dev;
 	int ret, i;
@@ -359,7 +359,7 @@ static struct i2c_driver i2c_driver = {
 	.driver = {
 		.name = "hdm_i2c",
 	},
-	.probe = i2c_probe,
+	.probe_new = i2c_probe,
 	.remove = i2c_remove,
 	.id_table = i2c_id,
 };

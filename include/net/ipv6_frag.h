@@ -76,6 +76,7 @@ ip6frag_expire_frag_queue(struct net *net, struct frag_queue *fq)
 	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto out;
 
+	fq->q.flags |= INET_FRAG_DROP;
 	inet_frag_kill(&fq->q);
 
 	dev = dev_get_by_index_rcu(net, fq->iif);
@@ -101,7 +102,7 @@ ip6frag_expire_frag_queue(struct net *net, struct frag_queue *fq)
 	spin_unlock(&fq->q.lock);
 
 	icmpv6_send(head, ICMPV6_TIME_EXCEED, ICMPV6_EXC_FRAGTIME, 0);
-	kfree_skb(head);
+	kfree_skb_reason(head, SKB_DROP_REASON_FRAG_REASM_TIMEOUT);
 	goto out_rcu_unlock;
 
 out:

@@ -2437,9 +2437,9 @@ struct opa_port_data_counters_msg {
 			__be64 port_vl_xmit_wait_data;
 			__be64 port_vl_rcv_bubble;
 			__be64 port_vl_mark_fecn;
-		} vls[0];
+		} vls[];
 		/* array size defined by #bits set in vl_select_mask*/
-	} port[1]; /* array size defined by  #ports in attribute modifier */
+	} port;
 };
 
 struct opa_port_error_counters64_msg {
@@ -2470,9 +2470,9 @@ struct opa_port_error_counters64_msg {
 		u8 reserved3[7];
 		struct _vls_ectrs {
 			__be64 port_vl_xmit_discards;
-		} vls[0];
+		} vls[];
 		/* array size defined by #bits set in vl_select_mask */
-	} port[1]; /* array size defined by #ports in attribute modifier */
+	} port;
 };
 
 struct opa_port_error_info_msg {
@@ -2543,7 +2543,7 @@ struct opa_port_error_info_msg {
 			u8 error_info;
 		} __packed fm_config_ei;
 		__u32 reserved9;
-	} port[1]; /* actual array size defined by #ports in attr modifier */
+	} port;
 };
 
 /* opa_port_error_info_msg error_info_select_mask bit definitions */
@@ -2966,7 +2966,7 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	}
 
 	/* Sanity check */
-	response_data_size = struct_size(req, port[0].vls, num_vls);
+	response_data_size = struct_size(req, port.vls, num_vls);
 
 	if (response_data_size > sizeof(pmp->data)) {
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
@@ -2986,7 +2986,7 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 		return reply((struct ib_mad_hdr *)pmp);
 	}
 
-	rsp = &req->port[0];
+	rsp = &req->port;
 	memset(rsp, 0, sizeof(*rsp));
 
 	rsp->port_number = port;
@@ -3182,7 +3182,7 @@ static int pma_get_opa_porterrors(struct opa_pma_mad *pmp,
 		return reply((struct ib_mad_hdr *)pmp);
 	}
 
-	response_data_size = struct_size(req, port[0].vls, num_vls);
+	response_data_size = struct_size(req, port.vls, num_vls);
 
 	if (response_data_size > sizeof(pmp->data)) {
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
@@ -3201,7 +3201,7 @@ static int pma_get_opa_porterrors(struct opa_pma_mad *pmp,
 		return reply((struct ib_mad_hdr *)pmp);
 	}
 
-	rsp = &req->port[0];
+	rsp = &req->port;
 
 	ibp = to_iport(ibdev, port_num);
 	ppd = ppd_from_ibp(ibp);
@@ -3340,7 +3340,7 @@ static int pma_get_opa_errorinfo(struct opa_pma_mad *pmp,
 	u64 reg;
 
 	req = (struct opa_port_error_info_msg *)pmp->data;
-	rsp = &req->port[0];
+	rsp = &req->port;
 
 	num_ports = OPA_AM_NPORT(be32_to_cpu(pmp->mad_hdr.attr_mod));
 	num_pslm = hweight64(be64_to_cpu(req->port_select_mask[3]));
@@ -3590,7 +3590,7 @@ static int pma_set_opa_errorinfo(struct opa_pma_mad *pmp,
 	u32 error_info_select;
 
 	req = (struct opa_port_error_info_msg *)pmp->data;
-	rsp = &req->port[0];
+	rsp = &req->port;
 
 	num_ports = OPA_AM_NPORT(be32_to_cpu(pmp->mad_hdr.attr_mod));
 	num_pslm = hweight64(be64_to_cpu(req->port_select_mask[3]));

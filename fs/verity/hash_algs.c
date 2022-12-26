@@ -16,11 +16,13 @@ struct fsverity_hash_alg fsverity_hash_algs[] = {
 		.name = "sha256",
 		.digest_size = SHA256_DIGEST_SIZE,
 		.block_size = SHA256_BLOCK_SIZE,
+		.algo_id = HASH_ALGO_SHA256,
 	},
 	[FS_VERITY_HASH_ALG_SHA512] = {
 		.name = "sha512",
 		.digest_size = SHA512_DIGEST_SIZE,
 		.block_size = SHA512_BLOCK_SIZE,
+		.algo_id = HASH_ALGO_SHA512,
 	},
 };
 
@@ -324,5 +326,9 @@ void __init fsverity_check_hash_algs(void)
 		 */
 		BUG_ON(!is_power_of_2(alg->digest_size));
 		BUG_ON(!is_power_of_2(alg->block_size));
+
+		/* Verify that there is a valid mapping to HASH_ALGO_*. */
+		BUG_ON(alg->algo_id == 0);
+		BUG_ON(alg->digest_size != hash_digest_size[alg->algo_id]);
 	}
 }

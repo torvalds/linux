@@ -718,8 +718,7 @@ static void adp5588_disable_regulator(void *reg)
 	regulator_disable(reg);
 }
 
-static int adp5588_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int adp5588_probe(struct i2c_client *client)
 {
 	struct adp5588_kpad *kpad;
 	struct input_dev *input;
@@ -867,7 +866,7 @@ static struct i2c_driver adp5588_driver = {
 		.of_match_table = adp5588_of_match,
 		.pm   = pm_sleep_ptr(&adp5588_dev_pm_ops),
 	},
-	.probe    = adp5588_probe,
+	.probe_new = adp5588_probe,
 	.remove   = adp5588_remove,
 	.id_table = adp5588_id,
 };

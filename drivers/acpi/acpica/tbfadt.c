@@ -298,7 +298,7 @@ void acpi_tb_parse_fadt(void)
 	 * Validate the FADT checksum before we copy the table. Ignore
 	 * checksum error as we want to try to get the DSDT and FACS.
 	 */
-	(void)acpi_tb_verify_checksum(table, length);
+	(void)acpi_ut_verify_checksum(table, length);
 
 	/* Create a local copy of the FADT in common ACPI 2.0+ format */
 

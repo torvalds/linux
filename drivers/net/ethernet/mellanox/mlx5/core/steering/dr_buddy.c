@@ -15,8 +15,6 @@ int mlx5dr_buddy_init(struct mlx5dr_icm_buddy_mem *buddy,
 	buddy->max_order = max_order;
 
 	INIT_LIST_HEAD(&buddy->list_node);
-	INIT_LIST_HEAD(&buddy->used_list);
-	INIT_LIST_HEAD(&buddy->hot_list);
 
 	buddy->bitmap = kcalloc(buddy->max_order + 1,
 				sizeof(*buddy->bitmap),

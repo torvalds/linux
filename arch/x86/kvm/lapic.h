@@ -7,7 +7,7 @@
 #include <linux/kvm_host.h>
 
 #include "hyperv.h"
-#include "kvm_cache_regs.h"
+#include "smm.h"
 
 #define KVM_APIC_INIT		0
 #define KVM_APIC_SIPI		1

@@ -356,7 +356,6 @@ static int __fake_master_get(struct vme_master_resource *image, int *enabled,
 	return 0;
 }
 
-
 static int fake_master_get(struct vme_master_resource *image, int *enabled,
 		unsigned long long *vme_base, unsigned long long *size,
 		u32 *aspace, u32 *cycle, u32 *dwidth)
@@ -372,7 +371,6 @@ static int fake_master_get(struct vme_master_resource *image, int *enabled,
 
 	return retval;
 }
-
 
 static void fake_lm_check(struct fake_driver *bridge, unsigned long long addr,
 			  u32 aspace, u32 cycle)
@@ -1060,7 +1058,6 @@ static void fake_crcsr_exit(struct vme_bridge *fake_bridge)
 	kfree(bridge->crcsr_kernel);
 }
 
-
 static int __init fake_init(void)
 {
 	int retval, i;
@@ -1072,7 +1069,9 @@ static int __init fake_init(void)
 	struct vme_lm_resource *lm;
 
 	/* We need a fake parent device */
-	vme_root = __root_device_register("vme", THIS_MODULE);
+	vme_root = root_device_register("vme");
+	if (IS_ERR(vme_root))
+		return PTR_ERR(vme_root);
 
 	/* If we want to support more than one bridge at some point, we need to
 	 * dynamically allocate this so we get one per device.
@@ -1238,7 +1237,6 @@ err_struct:
 
 }
 
-
 static void __exit fake_exit(void)
 {
 	struct list_head *pos = NULL;
@@ -1293,7 +1291,6 @@ static void __exit fake_exit(void)
 
 	root_device_unregister(vme_root);
 }
-
 
 MODULE_PARM_DESC(geoid, "Set geographical addressing");
 module_param(geoid, int, 0);

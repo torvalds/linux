@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/arm/tegra/nvidia,tegra-ccplex-cluster.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: NVIDIA Tegra CPU COMPLEX CLUSTER area device tree bindings
+title: NVIDIA Tegra CPU COMPLEX CLUSTER area
 
 maintainers:
   - Sumit Gupta <sumitg@nvidia.com>
@@ -47,5 +47,4 @@ examples:
       compatible = "nvidia,tegra234-ccplex-cluster";
       reg = <0x0e000000 0x5ffff>;
       nvidia,bpmp = <&bpmp>;
-      status = "okay";
     };

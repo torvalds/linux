@@ -153,7 +153,7 @@ do_syscall:
 	// Only set a non-zero FFR, test patterns must be zero since the
 	// syscall should clear it - this lets us handle FA64.
 	ldr	x2, =ffr_in
-	ldr	p0, [x2, #0]
+	ldr	p0, [x2]
 	ldr	x2, [x2, #0]
 	cbz	x2, 2f
 	wrffr	p0.b
@@ -298,7 +298,7 @@ do_syscall:
 	cbz	x2, 1f
 	ldr	x2, =ffr_out
 	rdffr	p0.b
-	str	p0, [x2, #0]
+	str	p0, [x2]
 1:
 
 	// Restore callee saved registers x19-x30

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/ingenic,codec.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic JZ47xx internal codec DT bindings
+title: Ingenic JZ47xx internal codec
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>

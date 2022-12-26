@@ -132,21 +132,21 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		white-power {
+		led-white-power {
 			label = "dart:white:power";
 			gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "timer";
 
 		};
-		red-power {
+		led-red-power {
 			label = "dart:red:power";
 			gpios = <&gpio1 31 GPIO_ACTIVE_HIGH>;
 		};
-		red-sata0 {
+		led-red-sata0 {
 			label = "dart:red:sata0";
 			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
-		red-sata1 {
+		led-red-sata1 {
 			label = "dart:red:sata1";
 			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
 		};

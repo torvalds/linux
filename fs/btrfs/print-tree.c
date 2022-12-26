@@ -3,9 +3,12 @@
  * Copyright (C) 2007 Oracle.  All rights reserved.
  */
 
+#include "messages.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "print-tree.h"
+#include "accessors.h"
+#include "tree-checker.h"
 
 struct root_name_map {
 	u64 id;
@@ -240,9 +243,9 @@ void btrfs_print_leaf(struct extent_buffer *l)
 		case BTRFS_DIR_ITEM_KEY:
 			di = btrfs_item_ptr(l, i, struct btrfs_dir_item);
 			btrfs_dir_item_key_to_cpu(l, di, &found_key);
-			pr_info("\t\tdir oid %llu type %u\n",
+			pr_info("\t\tdir oid %llu flags %u\n",
 				found_key.objectid,
-				btrfs_dir_type(l, di));
+				btrfs_dir_flags(l, di));
 			break;
 		case BTRFS_ROOT_ITEM_KEY:
 			ri = btrfs_item_ptr(l, i, struct btrfs_root_item);
@@ -384,14 +387,16 @@ void btrfs_print_tree(struct extent_buffer *c, bool follow)
 	if (!follow)
 		return;
 	for (i = 0; i < nr; i++) {
-		struct btrfs_key first_key;
+		struct btrfs_tree_parent_check check = {
+			.level = level - 1,
+			.transid = btrfs_node_ptr_generation(c, i),
+			.owner_root = btrfs_header_owner(c),
+			.has_first_key = true
+		};
 		struct extent_buffer *next;
 
-		btrfs_node_key_to_cpu(c, &first_key, i);
-		next = read_tree_block(fs_info, btrfs_node_blockptr(c, i),
-				       btrfs_header_owner(c),
-				       btrfs_node_ptr_generation(c, i),
-				       level - 1, &first_key);
+		btrfs_node_key_to_cpu(c, &check.first_key, i);
+		next = read_tree_block(fs_info, btrfs_node_blockptr(c, i), &check);
 		if (IS_ERR(next))
 			continue;
 		if (!extent_buffer_uptodate(next)) {

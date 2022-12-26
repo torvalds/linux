@@ -30,6 +30,8 @@ void mlx5_devlink_trap_report(struct mlx5_core_dev *dev, int trap_id, struct sk_
 int mlx5_devlink_trap_get_num_active(struct mlx5_core_dev *dev);
 int mlx5_devlink_traps_get_action(struct mlx5_core_dev *dev, int trap_id,
 				  enum devlink_trap_action *action);
+int mlx5_devlink_traps_register(struct devlink *devlink);
+void mlx5_devlink_traps_unregister(struct devlink *devlink);
 
 struct devlink *mlx5_devlink_alloc(struct device *dev);
 void mlx5_devlink_free(struct devlink *devlink);

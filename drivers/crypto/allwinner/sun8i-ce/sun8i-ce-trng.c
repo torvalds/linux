@@ -108,7 +108,6 @@ int sun8i_ce_hwrng_register(struct sun8i_ce_dev *ce)
 	}
 	ce->trng.name = "sun8i Crypto Engine TRNG";
 	ce->trng.read = sun8i_ce_trng_read;
-	ce->trng.quality = 1000;
 
 	ret = hwrng_register(&ce->trng);
 	if (ret)

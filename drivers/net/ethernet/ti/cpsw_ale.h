@@ -127,6 +127,7 @@ int cpsw_ale_control_get(struct cpsw_ale *ale, int port, int control);
 int cpsw_ale_control_set(struct cpsw_ale *ale, int port,
 			 int control, int value);
 void cpsw_ale_dump(struct cpsw_ale *ale, u32 *data);
+void cpsw_ale_restore(struct cpsw_ale *ale, u32 *data);
 u32 cpsw_ale_get_num_entries(struct cpsw_ale *ale);
 
 static inline int cpsw_ale_get_vlan_p0_untag(struct cpsw_ale *ale, u16 vid)

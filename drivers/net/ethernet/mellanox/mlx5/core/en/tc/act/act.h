@@ -32,6 +32,11 @@ struct mlx5e_tc_act_parse_state {
 	struct mlx5_tc_ct_priv *ct_priv;
 };
 
+struct mlx5e_tc_act_branch_ctrl {
+	enum flow_action_id act_id;
+	u32 extval;
+};
+
 struct mlx5e_tc_act {
 	bool (*can_offload)(struct mlx5e_tc_act_parse_state *parse_state,
 			    const struct flow_action_entry *act,
@@ -60,6 +65,12 @@ struct mlx5e_tc_act {
 
 	int (*stats_action)(struct mlx5e_priv *priv,
 			    struct flow_offload_action *fl_act);
+
+	bool (*get_branch_ctrl)(const struct flow_action_entry *act,
+				struct mlx5e_tc_act_branch_ctrl *cond_true,
+				struct mlx5e_tc_act_branch_ctrl *cond_false);
+
+	bool is_terminating_action;
 };
 
 struct mlx5e_tc_flow_action {
@@ -81,6 +92,7 @@ extern struct mlx5e_tc_act mlx5e_tc_act_vlan_mangle;
 extern struct mlx5e_tc_act mlx5e_tc_act_mpls_push;
 extern struct mlx5e_tc_act mlx5e_tc_act_mpls_pop;
 extern struct mlx5e_tc_act mlx5e_tc_act_mirred;
+extern struct mlx5e_tc_act mlx5e_tc_act_redirect;
 extern struct mlx5e_tc_act mlx5e_tc_act_mirred_nic;
 extern struct mlx5e_tc_act mlx5e_tc_act_ct;
 extern struct mlx5e_tc_act mlx5e_tc_act_sample;

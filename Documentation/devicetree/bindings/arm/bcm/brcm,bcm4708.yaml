@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/bcm/brcm,bcm4708.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom BCM4708 device tree bindings
+title: Broadcom BCM4708
 
 description:
   Broadcom BCM4708/47081/4709/47094/53012 Wi-Fi/network SoCs based
@@ -66,6 +66,7 @@ properties:
           - enum:
               - asus,rt-ac88u
               - dlink,dir-885l
+              - dlink,dir-890l
               - linksys,panamera
               - luxul,abr-4500-v1
               - luxul,xap-1610-v1
@@ -97,6 +98,7 @@ properties:
       - description: BCM53016 based boards
         items:
           - enum:
+              - dlink,dwl-8610ap
               - meraki,mr32
           - const: brcm,bcm53016
           - const: brcm,bcm4708

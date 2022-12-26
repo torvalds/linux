@@ -77,7 +77,6 @@ struct spi_imx_devtype_data {
 	void (*reset)(struct spi_imx_data *spi_imx);
 	void (*setup_wml)(struct spi_imx_data *spi_imx);
 	void (*disable)(struct spi_imx_data *spi_imx);
-	void (*disable_dma)(struct spi_imx_data *spi_imx);
 	bool has_dmamode;
 	bool has_slavemode;
 	unsigned int fifo_size;
@@ -444,8 +443,7 @@ static unsigned int mx51_ecspi_clkdiv(struct spi_imx_data *spi_imx,
 	unsigned int pre, post;
 	unsigned int fin = spi_imx->spi_clk;
 
-	if (unlikely(fspi > fin))
-		return 0;
+	fspi = min(fspi, fin);
 
 	post = fls(fin) - fls(fspi);
 	if (fin > fspi << post)
@@ -495,11 +493,6 @@ static void mx51_ecspi_trigger(struct spi_imx_data *spi_imx)
 	reg = readl(spi_imx->base + MX51_ECSPI_CTRL);
 	reg |= MX51_ECSPI_CTRL_XCH;
 	writel(reg, spi_imx->base + MX51_ECSPI_CTRL);
-}
-
-static void mx51_disable_dma(struct spi_imx_data *spi_imx)
-{
-	writel(0, spi_imx->base + MX51_ECSPI_DMA);
 }
 
 static void mx51_ecspi_disable(struct spi_imx_data *spi_imx)
@@ -1043,7 +1036,6 @@ static struct spi_imx_devtype_data imx51_ecspi_devtype_data = {
 	.rx_available = mx51_ecspi_rx_available,
 	.reset = mx51_ecspi_reset,
 	.setup_wml = mx51_setup_wml,
-	.disable_dma = mx51_disable_dma,
 	.fifo_size = 64,
 	.has_dmamode = true,
 	.dynamic_burst = true,
@@ -1058,7 +1050,6 @@ static struct spi_imx_devtype_data imx53_ecspi_devtype_data = {
 	.prepare_transfer = mx51_ecspi_prepare_transfer,
 	.trigger = mx51_ecspi_trigger,
 	.rx_available = mx51_ecspi_rx_available,
-	.disable_dma = mx51_disable_dma,
 	.reset = mx51_ecspi_reset,
 	.fifo_size = 64,
 	.has_dmamode = true,
@@ -1608,6 +1599,13 @@ static int spi_imx_transfer_one(struct spi_controller *controller,
 		return spi_imx_pio_transfer_slave(spi, transfer);
 
 	/*
+	 * If we decided in spi_imx_can_dma() that we want to do a DMA
+	 * transfer, the SPI transfer has already been mapped, so we
+	 * have to do the DMA transfer here.
+	 */
+	if (spi_imx->usedma)
+		return spi_imx_dma_transfer(spi_imx, transfer);
+	/*
 	 * Calculate the estimated time in us the transfer runs. Find
 	 * the number of Hz per byte per polling limit.
 	 */
@@ -1617,9 +1615,6 @@ static int spi_imx_transfer_one(struct spi_controller *controller,
 	/* run in polling mode for short transfers */
 	if (transfer->len < byte_limit)
 		return spi_imx_poll_transfer(spi, transfer);
-
-	if (spi_imx->usedma)
-		return spi_imx_dma_transfer(spi_imx, transfer);
 
 	return spi_imx_pio_transfer(spi, transfer);
 }

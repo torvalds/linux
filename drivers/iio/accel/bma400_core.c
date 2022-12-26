@@ -805,8 +805,10 @@ static int bma400_get_steps_reg(struct bma400_data *data, int *val)
 
 	ret = regmap_bulk_read(data->regmap, BMA400_STEP_CNT0_REG,
 			       steps_raw, BMA400_STEP_RAW_LEN);
-	if (ret)
+	if (ret) {
+		kfree(steps_raw);
 		return ret;
+	}
 	*val = get_unaligned_le24(steps_raw);
 	kfree(steps_raw);
 	return IIO_VAL_INT;
@@ -874,14 +876,10 @@ static int bma400_init(struct bma400_data *data)
 	ret = devm_regulator_bulk_get(data->dev,
 				      ARRAY_SIZE(data->regulators),
 				      data->regulators);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(data->dev,
-				"Failed to get regulators: %d\n",
-				ret);
+	if (ret)
+		return dev_err_probe(data->dev, ret, "Failed to get regulators: %d\n",
+				     ret);
 
-		return ret;
-	}
 	ret = regulator_bulk_enable(ARRAY_SIZE(data->regulators),
 				    data->regulators);
 	if (ret) {

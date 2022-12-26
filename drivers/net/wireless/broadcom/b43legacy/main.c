@@ -3532,6 +3532,7 @@ static int b43legacy_op_get_survey(struct ieee80211_hw *hw, int idx,
 
 static const struct ieee80211_ops b43legacy_hw_ops = {
 	.tx			= b43legacy_op_tx,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.conf_tx		= b43legacy_op_conf_tx,
 	.add_interface		= b43legacy_op_add_interface,
 	.remove_interface	= b43legacy_op_remove_interface,

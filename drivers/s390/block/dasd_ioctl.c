@@ -401,7 +401,7 @@ dasd_ioctl_copy_pair_swap(struct block_device *bdev, void __user *argp)
 		return -EFAULT;
 	}
 	if (memchr_inv(data.reserved, 0, sizeof(data.reserved))) {
-		pr_warn("%s: Ivalid swap data specified.\n",
+		pr_warn("%s: Invalid swap data specified\n",
 			dev_name(&device->cdev->dev));
 		dasd_put_device(device);
 		return DASD_COPYPAIRSWAP_INVALID;

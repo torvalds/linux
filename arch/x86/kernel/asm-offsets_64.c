@@ -57,7 +57,7 @@ int main(void)
 	BLANK();
 
 #ifdef CONFIG_STACKPROTECTOR
-	DEFINE(stack_canary_offset, offsetof(struct fixed_percpu_data, stack_canary));
+	OFFSET(FIXED_stack_canary, fixed_percpu_data, stack_canary);
 	BLANK();
 #endif
 	return 0;

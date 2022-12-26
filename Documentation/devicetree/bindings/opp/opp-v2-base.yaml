@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/opp/opp-v2-base.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Generic OPP (Operating Performance Points) Common Binding
+title: Generic OPP (Operating Performance Points) Common Properties
 
 maintainers:
   - Viresh Kumar <viresh.kumar@linaro.org>
@@ -108,7 +108,7 @@ patternProperties:
           The power for the OPP in micro-Watts.
 
           Entries for multiple regulators shall be provided in the same field
-          separated by angular brackets <>. If current values aren't required
+          separated by angular brackets <>. If power values aren't required
           for a regulator, then it shall be filled with 0. If power values
           aren't required for any of the regulators, then this field is not
           required. The OPP binding doesn't provide any provisions to relate the
@@ -230,9 +230,9 @@ patternProperties:
         minItems: 1
         maxItems: 8   # Should be enough regulators
 
-      '^opp-microwatt':
+      '^opp-microwatt-':
         description:
-          Named opp-microwatt property. Similar to opp-microamp property,
+          Named opp-microwatt property. Similar to opp-microamp-<name> property,
           but for microwatt instead.
         $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1

@@ -9,6 +9,17 @@
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
+
+#include <linux/types.h>
+
+struct dentry;
+struct seq_file;
+
+struct pinctrl_dev;
+struct pinctrl_gpio_range;
+struct pinctrl_map;
+struct pinctrl_setting;
+
 #ifdef CONFIG_PINMUX
 
 int pinmux_check_ops(struct pinctrl_dev *pctldev);

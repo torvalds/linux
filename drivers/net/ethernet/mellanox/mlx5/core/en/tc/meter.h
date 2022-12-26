@@ -20,6 +20,7 @@ struct mlx5e_flow_meter_params {
 	u32 index;
 	u64 rate;
 	u64 burst;
+	u32 mtu;
 };
 
 struct mlx5e_flow_meter_handle {
@@ -32,8 +33,8 @@ struct mlx5e_flow_meter_handle {
 	struct hlist_node hlist;
 	struct mlx5e_flow_meter_params params;
 
-	struct mlx5_fc *green_counter;
-	struct mlx5_fc *red_counter;
+	struct mlx5_fc *act_counter;
+	struct mlx5_fc *drop_counter;
 };
 
 struct mlx5e_meter_attr {

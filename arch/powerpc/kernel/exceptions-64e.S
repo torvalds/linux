@@ -358,7 +358,6 @@ ret_from_mc_except:
 	std	r14,PACA_EXMC+EX_R14(r13);				    \
 	std	r15,PACA_EXMC+EX_R15(r13)
 
-
 /* Core exception code for all exceptions except TLB misses. */
 #define EXCEPTION_COMMON_LVL(n, scratch, excf)				    \
 exc_##n##_common:							    \
@@ -391,10 +390,11 @@ exc_##n##_common:							    \
 	std	r10,_CCR(r1);		/* store orig CR in stackframe */   \
 	std	r9,GPR1(r1);		/* store stack frame back link */   \
 	std	r11,SOFTE(r1);		/* and save it to stackframe */     \
-	std	r12,STACK_FRAME_OVERHEAD-16(r1); /* mark the frame */	    \
+	std	r12,STACK_INT_FRAME_MARKER(r1); /* mark the frame */	    \
 	std	r3,_TRAP(r1);		/* set trap number		*/  \
 	std	r0,RESULT(r1);		/* clear regs->result */	    \
-	SAVE_NVGPRS(r1);
+	SAVE_NVGPRS(r1);						    \
+	SANITIZE_NVGPRS();		/* minimise speculation influence */
 
 #define EXCEPTION_COMMON(n) \
 	EXCEPTION_COMMON_LVL(n, SPRN_SPRG_GEN_SCRATCH, PACA_EXGEN)
@@ -455,7 +455,7 @@ exc_##n##_bad_stack:							    \
 	EXCEPTION_COMMON(trapnum)					\
 	ack(r8);							\
 	CHECK_NAPPING();						\
-	addi	r3,r1,STACK_FRAME_OVERHEAD;				\
+	addi	r3,r1,STACK_INT_FRAME_REGS;				\
 	bl	hdlr;							\
 	b	interrupt_return
 
@@ -504,7 +504,7 @@ __end_interrupts:
 	EXCEPTION_COMMON_CRIT(0x100)
 	bl	special_reg_save
 	CHECK_NAPPING();
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	unknown_nmi_exception
 	b	ret_from_crit_except
 
@@ -515,7 +515,7 @@ __end_interrupts:
 	EXCEPTION_COMMON_MC(0x000)
 	bl	special_reg_save
 	CHECK_NAPPING();
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	machine_check_exception
 	b	ret_from_mc_except
 
@@ -570,7 +570,7 @@ __end_interrupts:
 	std	r14,_ESR(r1)
 	ld	r14,PACA_EXGEN+EX_R14(r13)
 	EXCEPTION_COMMON(0x700)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	program_check_exception
 	REST_NVGPRS(r1)
 	b	interrupt_return
@@ -586,7 +586,7 @@ __end_interrupts:
 	beq-	1f
 	bl	load_up_fpu
 	b	fast_interrupt_return
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
+1:	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	kernel_fp_unavailable_exception
 	b	interrupt_return
 
@@ -606,7 +606,7 @@ BEGIN_FTR_SECTION
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	altivec_unavailable_exception
 	b	interrupt_return
 
@@ -616,7 +616,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 				BOOKE_INTERRUPT_ALTIVEC_ASSIST,
 				PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x220)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
 	bl	altivec_assist_exception
@@ -643,7 +643,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	EXCEPTION_COMMON_CRIT(0x9f0)
 	bl	special_reg_save
 	CHECK_NAPPING();
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 #ifdef CONFIG_BOOKE_WDT
 	bl	WatchdogException
 #else
@@ -664,7 +664,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	NORMAL_EXCEPTION_PROLOG(0xf20, BOOKE_INTERRUPT_AP_UNAVAIL,
 				PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0xf20)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	unknown_exception
 	b	interrupt_return
 
@@ -731,7 +731,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	ld	r14,PACA_EXCRIT+EX_R14(r13)
 	ld	r15,PACA_EXCRIT+EX_R15(r13)
 	EXCEPTION_COMMON_CRIT(0xd00)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	DebugException
 	REST_NVGPRS(r1)
 	b	interrupt_return
@@ -802,7 +802,7 @@ kernel_dbg_exc:
 	ld	r14,PACA_EXDBG+EX_R14(r13)
 	ld	r15,PACA_EXDBG+EX_R15(r13)
 	EXCEPTION_COMMON_DBG(0xd08)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	DebugException
 	REST_NVGPRS(r1)
 	b	interrupt_return
@@ -812,7 +812,7 @@ kernel_dbg_exc:
 				PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x260)
 	CHECK_NAPPING()
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	/*
 	 * XXX: Returning from performance_monitor_exception taken as a
 	 * soft-NMI (Linux irqs disabled) may be risky to use interrupt_return
@@ -834,7 +834,7 @@ kernel_dbg_exc:
 	EXCEPTION_COMMON_CRIT(0x2a0)
 	bl	special_reg_save
 	CHECK_NAPPING();
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	unknown_nmi_exception
 	b	ret_from_crit_except
 
@@ -846,7 +846,7 @@ kernel_dbg_exc:
 	GDBELL_EXCEPTION_PROLOG(0x2c0, BOOKE_INTERRUPT_GUEST_DBELL,
 			        PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x2c0)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	unknown_exception
 	b	interrupt_return
 
@@ -857,7 +857,7 @@ kernel_dbg_exc:
 	EXCEPTION_COMMON_CRIT(0x2e0)
 	bl	special_reg_save
 	CHECK_NAPPING();
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	unknown_nmi_exception
 	b	ret_from_crit_except
 
@@ -866,7 +866,7 @@ kernel_dbg_exc:
 	NORMAL_EXCEPTION_PROLOG(0x310, BOOKE_INTERRUPT_HV_SYSCALL,
 			        PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x310)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	unknown_exception
 	b	interrupt_return
 
@@ -875,7 +875,7 @@ kernel_dbg_exc:
 	NORMAL_EXCEPTION_PROLOG(0x320, BOOKE_INTERRUPT_HV_PRIV,
 			        PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x320)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	unknown_exception
 	b	interrupt_return
 
@@ -884,7 +884,7 @@ kernel_dbg_exc:
 	NORMAL_EXCEPTION_PROLOG(0x340, BOOKE_INTERRUPT_LRAT_ERROR,
 			        PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x340)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	unknown_exception
 	b	interrupt_return
 
@@ -979,7 +979,7 @@ masked_interrupt_book3e_0x2c0:
  * original values stashed away in the PACA
  */
 storage_fault_common:
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	do_page_fault
 	b	interrupt_return
 
@@ -988,7 +988,7 @@ storage_fault_common:
  * continues here.
  */
 alignment_more:
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	alignment_exception
 	REST_NVGPRS(r1)
 	b	interrupt_return
@@ -1069,7 +1069,7 @@ bad_stack_book3e:
 	ZEROIZE_GPR(12)
 	std	r12,0(r11)
 	LOAD_PACA_TOC()
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
+1:	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	kernel_bad_stack
 	b	1b
 

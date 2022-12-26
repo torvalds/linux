@@ -1,7 +1,6 @@
 [
     {
         "BriefDescription": "Address Match (Conflict) Count; Conflict Merges",
-        "Counter": "0,1",
         "EventCode": "0x17",
         "EventName": "UNC_I_ADDRESS_MATCH.MERGE_COUNT",
         "PerPkg": "1",
@@ -11,7 +10,6 @@
     },
     {
         "BriefDescription": "Address Match (Conflict) Count; Conflict Stalls",
-        "Counter": "0,1",
         "EventCode": "0x17",
         "EventName": "UNC_I_ADDRESS_MATCH.STALL_COUNT",
         "PerPkg": "1",
@@ -21,7 +19,6 @@
     },
     {
         "BriefDescription": "Write Ack Pending Occupancy; Any Source",
-        "Counter": "0,1",
         "EventCode": "0x14",
         "EventName": "UNC_I_CACHE_ACK_PENDING_OCCUPANCY.ANY",
         "PerPkg": "1",
@@ -31,7 +28,6 @@
     },
     {
         "BriefDescription": "Write Ack Pending Occupancy; Select Source",
-        "Counter": "0,1",
         "EventCode": "0x14",
         "EventName": "UNC_I_CACHE_ACK_PENDING_OCCUPANCY.SOURCE",
         "PerPkg": "1",
@@ -41,7 +37,6 @@
     },
     {
         "BriefDescription": "Outstanding Write Ownership Occupancy; Any Source",
-        "Counter": "0,1",
         "EventCode": "0x13",
         "EventName": "UNC_I_CACHE_OWN_OCCUPANCY.ANY",
         "PerPkg": "1",
@@ -51,7 +46,6 @@
     },
     {
         "BriefDescription": "Outstanding Write Ownership Occupancy; Select Source",
-        "Counter": "0,1",
         "EventCode": "0x13",
         "EventName": "UNC_I_CACHE_OWN_OCCUPANCY.SOURCE",
         "PerPkg": "1",
@@ -61,7 +55,6 @@
     },
     {
         "BriefDescription": "Outstanding Read Occupancy; Any Source",
-        "Counter": "0,1",
         "EventCode": "0x10",
         "EventName": "UNC_I_CACHE_READ_OCCUPANCY.ANY",
         "PerPkg": "1",
@@ -71,7 +64,6 @@
     },
     {
         "BriefDescription": "Outstanding Read Occupancy; Select Source",
-        "Counter": "0,1",
         "EventCode": "0x10",
         "EventName": "UNC_I_CACHE_READ_OCCUPANCY.SOURCE",
         "PerPkg": "1",
@@ -81,7 +73,6 @@
     },
     {
         "BriefDescription": "Total Write Cache Occupancy; Any Source",
-        "Counter": "0,1",
         "EventCode": "0x12",
         "EventName": "UNC_I_CACHE_TOTAL_OCCUPANCY.ANY",
         "PerPkg": "1",
@@ -91,7 +82,6 @@
     },
     {
         "BriefDescription": "Total Write Cache Occupancy; Select Source",
-        "Counter": "0,1",
         "EventCode": "0x12",
         "EventName": "UNC_I_CACHE_TOTAL_OCCUPANCY.SOURCE",
         "PerPkg": "1",
@@ -101,7 +91,6 @@
     },
     {
         "BriefDescription": "Outstanding Write Occupancy; Any Source",
-        "Counter": "0,1",
         "EventCode": "0x11",
         "EventName": "UNC_I_CACHE_WRITE_OCCUPANCY.ANY",
         "PerPkg": "1",
@@ -111,7 +100,6 @@
     },
     {
         "BriefDescription": "Outstanding Write Occupancy; Select Source",
-        "Counter": "0,1",
         "EventCode": "0x11",
         "EventName": "UNC_I_CACHE_WRITE_OCCUPANCY.SOURCE",
         "PerPkg": "1",
@@ -121,14 +109,12 @@
     },
     {
         "BriefDescription": "Clocks in the IRP",
-        "Counter": "0,1",
         "EventName": "UNC_I_CLOCKTICKS",
         "PerPkg": "1",
         "PublicDescription": "Number of clocks in the IRP.",
         "Unit": "IRP"
     },
     {
-        "Counter": "0,1",
         "EventCode": "0xb",
         "EventName": "UNC_I_RxR_AK_CYCLES_FULL",
         "PerPkg": "1",
@@ -137,7 +123,6 @@
     },
     {
         "BriefDescription": "AK Ingress Occupancy",
-        "Counter": "0,1",
         "EventCode": "0xa",
         "EventName": "UNC_I_RxR_AK_INSERTS",
         "PerPkg": "1",
@@ -145,7 +130,6 @@
         "Unit": "IRP"
     },
     {
-        "Counter": "0,1",
         "EventCode": "0xc",
         "EventName": "UNC_I_RxR_AK_OCCUPANCY",
         "PerPkg": "1",
@@ -153,7 +137,6 @@
         "Unit": "IRP"
     },
     {
-        "Counter": "0,1",
         "EventCode": "0x4",
         "EventName": "UNC_I_RxR_BL_DRS_CYCLES_FULL",
         "PerPkg": "1",
@@ -162,7 +145,6 @@
     },
     {
         "BriefDescription": "BL Ingress Occupancy - DRS",
-        "Counter": "0,1",
         "EventCode": "0x1",
         "EventName": "UNC_I_RxR_BL_DRS_INSERTS",
         "PerPkg": "1",
@@ -170,7 +152,6 @@
         "Unit": "IRP"
     },
     {
-        "Counter": "0,1",
         "EventCode": "0x7",
         "EventName": "UNC_I_RxR_BL_DRS_OCCUPANCY",
         "PerPkg": "1",
@@ -178,7 +159,6 @@
         "Unit": "IRP"
     },
     {
-        "Counter": "0,1",
         "EventCode": "0x5",
         "EventName": "UNC_I_RxR_BL_NCB_CYCLES_FULL",
         "PerPkg": "1",
@@ -187,7 +167,6 @@
     },
     {
         "BriefDescription": "BL Ingress Occupancy - NCB",
-        "Counter": "0,1",
         "EventCode": "0x2",
         "EventName": "UNC_I_RxR_BL_NCB_INSERTS",
         "PerPkg": "1",
@@ -195,7 +174,6 @@
         "Unit": "IRP"
     },
     {
-        "Counter": "0,1",
         "EventCode": "0x8",
         "EventName": "UNC_I_RxR_BL_NCB_OCCUPANCY",
         "PerPkg": "1",
@@ -203,7 +181,6 @@
         "Unit": "IRP"
     },
     {
-        "Counter": "0,1",
         "EventCode": "0x6",
         "EventName": "UNC_I_RxR_BL_NCS_CYCLES_FULL",
         "PerPkg": "1",
@@ -212,7 +189,6 @@
     },
     {
         "BriefDescription": "BL Ingress Occupancy - NCS",
-        "Counter": "0,1",
         "EventCode": "0x3",
         "EventName": "UNC_I_RxR_BL_NCS_INSERTS",
         "PerPkg": "1",
@@ -220,7 +196,6 @@
         "Unit": "IRP"
     },
     {
-        "Counter": "0,1",
         "EventCode": "0x9",
         "EventName": "UNC_I_RxR_BL_NCS_OCCUPANCY",
         "PerPkg": "1",
@@ -229,7 +204,6 @@
     },
     {
         "BriefDescription": "Tickle Count; Ownership Lost",
-        "Counter": "0,1",
         "EventCode": "0x16",
         "EventName": "UNC_I_TICKLES.LOST_OWNERSHIP",
         "PerPkg": "1",
@@ -239,7 +213,6 @@
     },
     {
         "BriefDescription": "Tickle Count; Data Returned",
-        "Counter": "0,1",
         "EventCode": "0x16",
         "EventName": "UNC_I_TICKLES.TOP_OF_QUEUE",
         "PerPkg": "1",
@@ -249,7 +222,6 @@
     },
     {
         "BriefDescription": "Inbound Transaction Count: Read Prefetches",
-        "Counter": "0,1",
         "EventCode": "0x15",
         "EventName": "UNC_I_TRANSACTIONS.PD_PREFETCHES",
         "PerPkg": "1",
@@ -259,7 +231,6 @@
     },
     {
         "BriefDescription": "Inbound Transaction Count; Read Prefetches",
-        "Counter": "0,1",
         "EventCode": "0x15",
         "EventName": "UNC_I_TRANSACTIONS.RD_PREFETCHES",
         "PerPkg": "1",
@@ -269,7 +240,6 @@
     },
     {
         "BriefDescription": "Inbound Transaction Count; Reads",
-        "Counter": "0,1",
         "EventCode": "0x15",
         "EventName": "UNC_I_TRANSACTIONS.READS",
         "PerPkg": "1",
@@ -279,7 +249,6 @@
     },
     {
         "BriefDescription": "Inbound Transaction Count; Writes",
-        "Counter": "0,1",
         "EventCode": "0x15",
         "EventName": "UNC_I_TRANSACTIONS.WRITES",
         "PerPkg": "1",
@@ -289,7 +258,6 @@
     },
     {
         "BriefDescription": "No AD Egress Credit Stalls",
-        "Counter": "0,1",
         "EventCode": "0x18",
         "EventName": "UNC_I_TxR_AD_STALL_CREDIT_CYCLES",
         "PerPkg": "1",
@@ -298,7 +266,6 @@
     },
     {
         "BriefDescription": "No BL Egress Credit Stalls",
-        "Counter": "0,1",
         "EventCode": "0x19",
         "EventName": "UNC_I_TxR_BL_STALL_CREDIT_CYCLES",
         "PerPkg": "1",
@@ -307,7 +274,6 @@
     },
     {
         "BriefDescription": "Outbound Read Requests",
-        "Counter": "0,1",
         "EventCode": "0xe",
         "EventName": "UNC_I_TxR_DATA_INSERTS_NCB",
         "PerPkg": "1",
@@ -316,7 +282,6 @@
     },
     {
         "BriefDescription": "Outbound Read Requests",
-        "Counter": "0,1",
         "EventCode": "0xf",
         "EventName": "UNC_I_TxR_DATA_INSERTS_NCS",
         "PerPkg": "1",
@@ -325,7 +290,6 @@
     },
     {
         "BriefDescription": "Outbound Request Queue Occupancy",
-        "Counter": "0,1",
         "EventCode": "0xd",
         "EventName": "UNC_I_TxR_REQUEST_OCCUPANCY",
         "PerPkg": "1",
@@ -334,7 +298,6 @@
     },
     {
         "BriefDescription": "Write Ordering Stalls",
-        "Counter": "0,1",
         "EventCode": "0x1a",
         "EventName": "UNC_I_WRITE_ORDERING_STALL_CYCLES",
         "PerPkg": "1",
@@ -343,7 +306,6 @@
     },
     {
         "BriefDescription": "Number of uclks in domain",
-        "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_R2_CLOCKTICKS",
         "PerPkg": "1",
@@ -352,7 +314,6 @@
     },
     {
         "BriefDescription": "R2PCIe IIO Credit Acquired; DRS",
-        "Counter": "0,1",
         "EventCode": "0x33",
         "EventName": "UNC_R2_IIO_CREDITS_ACQUIRED.DRS",
         "PerPkg": "1",
@@ -362,7 +323,6 @@
     },
     {
         "BriefDescription": "R2PCIe IIO Credit Acquired; NCB",
-        "Counter": "0,1",
         "EventCode": "0x33",
         "EventName": "UNC_R2_IIO_CREDITS_ACQUIRED.NCB",
         "PerPkg": "1",
@@ -372,7 +332,6 @@
     },
     {
         "BriefDescription": "R2PCIe IIO Credit Acquired; NCS",
-        "Counter": "0,1",
         "EventCode": "0x33",
         "EventName": "UNC_R2_IIO_CREDITS_ACQUIRED.NCS",
         "PerPkg": "1",
@@ -382,7 +341,6 @@
     },
     {
         "BriefDescription": "R2PCIe IIO Failed to Acquire a Credit; DRS",
-        "Counter": "0,1",
         "EventCode": "0x34",
         "EventName": "UNC_R2_IIO_CREDITS_REJECT.DRS",
         "PerPkg": "1",
@@ -392,7 +350,6 @@
     },
     {
         "BriefDescription": "R2PCIe IIO Credits in Use; DRS",
-        "Counter": "0,1",
         "EventCode": "0x32",
         "EventName": "UNC_R2_IIO_CREDITS_USED.DRS",
         "PerPkg": "1",
@@ -402,7 +359,6 @@
     },
     {
         "BriefDescription": "R2PCIe IIO Credits in Use; NCB",
-        "Counter": "0,1",
         "EventCode": "0x32",
         "EventName": "UNC_R2_IIO_CREDITS_USED.NCB",
         "PerPkg": "1",
@@ -412,7 +368,6 @@
     },
     {
         "BriefDescription": "R2PCIe IIO Credits in Use; NCS",
-        "Counter": "0,1",
         "EventCode": "0x32",
         "EventName": "UNC_R2_IIO_CREDITS_USED.NCS",
         "PerPkg": "1",
@@ -422,17 +377,15 @@
     },
     {
         "BriefDescription": "R2 AD Ring in Use; Counterclockwise",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CCW",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
-        "UMask": "0xCC",
+        "UMask": "0xcc",
         "Unit": "R2PCIe"
     },
     {
         "BriefDescription": "R2 AD Ring in Use; Counterclockwise and Even on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CCW_VR0_EVEN",
         "PerPkg": "1",
@@ -442,7 +395,6 @@
     },
     {
         "BriefDescription": "R2 AD Ring in Use; Counterclockwise and Odd on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CCW_VR0_ODD",
         "PerPkg": "1",
@@ -452,7 +404,6 @@
     },
     {
         "BriefDescription": "R2 AD Ring in Use; Counterclockwise and Even on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CCW_VR1_EVEN",
         "PerPkg": "1",
@@ -462,7 +413,6 @@
     },
     {
         "BriefDescription": "R2 AD Ring in Use; Counterclockwise and Odd on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CCW_VR1_ODD",
         "PerPkg": "1",
@@ -472,7 +422,6 @@
     },
     {
         "BriefDescription": "R2 AD Ring in Use; Clockwise",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CW",
         "PerPkg": "1",
@@ -482,7 +431,6 @@
     },
     {
         "BriefDescription": "R2 AD Ring in Use; Clockwise and Even on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CW_VR0_EVEN",
         "PerPkg": "1",
@@ -492,7 +440,6 @@
     },
     {
         "BriefDescription": "R2 AD Ring in Use; Clockwise and Odd on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CW_VR0_ODD",
         "PerPkg": "1",
@@ -502,7 +449,6 @@
     },
     {
         "BriefDescription": "R2 AD Ring in Use; Clockwise and Even on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CW_VR1_EVEN",
         "PerPkg": "1",
@@ -512,7 +458,6 @@
     },
     {
         "BriefDescription": "R2 AD Ring in Use; Clockwise and Odd on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CW_VR1_ODD",
         "PerPkg": "1",
@@ -522,17 +467,15 @@
     },
     {
         "BriefDescription": "R2 AK Ring in Use; Counterclockwise",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CCW",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
-        "UMask": "0xCC",
+        "UMask": "0xcc",
         "Unit": "R2PCIe"
     },
     {
         "BriefDescription": "R2 AK Ring in Use; Counterclockwise and Even on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CCW_VR0_EVEN",
         "PerPkg": "1",
@@ -542,7 +485,6 @@
     },
     {
         "BriefDescription": "R2 AK Ring in Use; Counterclockwise and Odd on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CCW_VR0_ODD",
         "PerPkg": "1",
@@ -552,7 +494,6 @@
     },
     {
         "BriefDescription": "R2 AK Ring in Use; Counterclockwise and Even on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CCW_VR1_EVEN",
         "PerPkg": "1",
@@ -562,7 +503,6 @@
     },
     {
         "BriefDescription": "R2 AK Ring in Use; Counterclockwise and Odd on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CCW_VR1_ODD",
         "PerPkg": "1",
@@ -572,7 +512,6 @@
     },
     {
         "BriefDescription": "R2 AK Ring in Use; Clockwise",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CW",
         "PerPkg": "1",
@@ -582,7 +521,6 @@
     },
     {
         "BriefDescription": "R2 AK Ring in Use; Clockwise and Even on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CW_VR0_EVEN",
         "PerPkg": "1",
@@ -592,7 +530,6 @@
     },
     {
         "BriefDescription": "R2 AK Ring in Use; Clockwise and Odd on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CW_VR0_ODD",
         "PerPkg": "1",
@@ -602,7 +539,6 @@
     },
     {
         "BriefDescription": "R2 AK Ring in Use; Clockwise and Even on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CW_VR1_EVEN",
         "PerPkg": "1",
@@ -612,7 +548,6 @@
     },
     {
         "BriefDescription": "R2 AK Ring in Use; Clockwise and Odd on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CW_VR1_ODD",
         "PerPkg": "1",
@@ -622,17 +557,15 @@
     },
     {
         "BriefDescription": "R2 BL Ring in Use; Counterclockwise",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CCW",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
-        "UMask": "0xCC",
+        "UMask": "0xcc",
         "Unit": "R2PCIe"
     },
     {
         "BriefDescription": "R2 BL Ring in Use; Counterclockwise and Even on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CCW_VR0_EVEN",
         "PerPkg": "1",
@@ -642,7 +575,6 @@
     },
     {
         "BriefDescription": "R2 BL Ring in Use; Counterclockwise and Odd on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CCW_VR0_ODD",
         "PerPkg": "1",
@@ -652,7 +584,6 @@
     },
     {
         "BriefDescription": "R2 BL Ring in Use; Counterclockwise and Even on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CCW_VR1_EVEN",
         "PerPkg": "1",
@@ -662,7 +593,6 @@
     },
     {
         "BriefDescription": "R2 BL Ring in Use; Counterclockwise and Odd on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CCW_VR1_ODD",
         "PerPkg": "1",
@@ -672,7 +602,6 @@
     },
     {
         "BriefDescription": "R2 BL Ring in Use; Clockwise",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CW",
         "PerPkg": "1",
@@ -682,7 +611,6 @@
     },
     {
         "BriefDescription": "R2 BL Ring in Use; Clockwise and Even on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CW_VR0_EVEN",
         "PerPkg": "1",
@@ -692,7 +620,6 @@
     },
     {
         "BriefDescription": "R2 BL Ring in Use; Clockwise and Odd on VRing 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CW_VR0_ODD",
         "PerPkg": "1",
@@ -702,7 +629,6 @@
     },
     {
         "BriefDescription": "R2 BL Ring in Use; Clockwise and Even on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CW_VR1_EVEN",
         "PerPkg": "1",
@@ -712,7 +638,6 @@
     },
     {
         "BriefDescription": "R2 BL Ring in Use; Clockwise and Odd on VRing 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CW_VR1_ODD",
         "PerPkg": "1",
@@ -722,27 +647,24 @@
     },
     {
         "BriefDescription": "R2 IV Ring in Use; Any",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA",
         "EventName": "UNC_R2_RING_IV_USED.ANY",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the IV ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sent, but does not include when packets are being sunk into the ring stop.  The IV ring is unidirectional.  Whether UP or DN is used is dependent on the system programming.  Thereofore, one should generally set both the UP and DN bits for a given polarity (or both) at a given time.; Filters any polarity",
-        "UMask": "0xFF",
+        "UMask": "0xff",
         "Unit": "R2PCIe"
     },
     {
         "BriefDescription": "R2 IV Ring in Use; Counterclockwise",
-        "Counter": "0,1,2,3",
         "EventCode": "0xa",
         "EventName": "UNC_R2_RING_IV_USED.CCW",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the IV ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sent, but does not include when packets are being sunk into the ring stop.  The IV ring is unidirectional.  Whether UP or DN is used is dependent on the system programming.  Thereofore, one should generally set both the UP and DN bits for a given polarity (or both) at a given time.; Filters for Counterclockwise polarity",
-        "UMask": "0xCC",
+        "UMask": "0xcc",
         "Unit": "R2PCIe"
     },
     {
         "BriefDescription": "R2 IV Ring in Use; Clockwise",
-        "Counter": "0,1,2,3",
         "EventCode": "0xa",
         "EventName": "UNC_R2_RING_IV_USED.CW",
         "PerPkg": "1",
@@ -778,7 +700,6 @@
     },
     {
         "BriefDescription": "Ingress Cycles Not Empty; NCB",
-        "Counter": "0,1",
         "EventCode": "0x10",
         "EventName": "UNC_R2_RxR_CYCLES_NE.NCB",
         "PerPkg": "1",
@@ -788,7 +709,6 @@
     },
     {
         "BriefDescription": "Ingress Cycles Not Empty; NCS",
-        "Counter": "0,1",
         "EventCode": "0x10",
         "EventName": "UNC_R2_RxR_CYCLES_NE.NCS",
         "PerPkg": "1",
@@ -798,7 +718,6 @@
     },
     {
         "BriefDescription": "Ingress Allocations; NCB",
-        "Counter": "0,1",
         "EventCode": "0x11",
         "EventName": "UNC_R2_RxR_INSERTS.NCB",
         "PerPkg": "1",
@@ -808,7 +727,6 @@
     },
     {
         "BriefDescription": "Ingress Allocations; NCS",
-        "Counter": "0,1",
         "EventCode": "0x11",
         "EventName": "UNC_R2_RxR_INSERTS.NCS",
         "PerPkg": "1",
@@ -881,7 +799,6 @@
     },
     {
         "BriefDescription": "Egress CCW NACK; AD CCW",
-        "Counter": "0,1",
         "EventCode": "0x28",
         "EventName": "UNC_R2_TxR_NACK_CCW.AD",
         "PerPkg": "1",
@@ -891,7 +808,6 @@
     },
     {
         "BriefDescription": "Egress CCW NACK; AK CCW",
-        "Counter": "0,1",
         "EventCode": "0x28",
         "EventName": "UNC_R2_TxR_NACK_CCW.AK",
         "PerPkg": "1",
@@ -901,7 +817,6 @@
     },
     {
         "BriefDescription": "Egress CCW NACK; BL CCW",
-        "Counter": "0,1",
         "EventCode": "0x28",
         "EventName": "UNC_R2_TxR_NACK_CCW.BL",
         "PerPkg": "1",
@@ -911,7 +826,6 @@
     },
     {
         "BriefDescription": "Egress CW NACK; AD CW",
-        "Counter": "0,1",
         "EventCode": "0x26",
         "EventName": "UNC_R2_TxR_NACK_CW.AD",
         "PerPkg": "1",
@@ -921,7 +835,6 @@
     },
     {
         "BriefDescription": "Egress CW NACK; AK CW",
-        "Counter": "0,1",
         "EventCode": "0x26",
         "EventName": "UNC_R2_TxR_NACK_CW.AK",
         "PerPkg": "1",
@@ -931,7 +844,6 @@
     },
     {
         "BriefDescription": "Egress CW NACK; BL CW",
-        "Counter": "0,1",
         "EventCode": "0x26",
         "EventName": "UNC_R2_TxR_NACK_CW.BL",
         "PerPkg": "1",
@@ -941,7 +853,6 @@
     },
     {
         "BriefDescription": "Number of uclks in domain",
-        "Counter": "0,1,2",
         "EventCode": "0x1",
         "EventName": "UNC_R3_CLOCKTICKS",
         "PerPkg": "1",
@@ -950,7 +861,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2c",
         "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO10",
         "PerPkg": "1",
@@ -960,7 +870,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2c",
         "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO11",
         "PerPkg": "1",
@@ -970,7 +879,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2c",
         "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO12",
         "PerPkg": "1",
@@ -980,7 +888,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2c",
         "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO13",
         "PerPkg": "1",
@@ -990,7 +897,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2c",
         "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO14",
         "PerPkg": "1",
@@ -1000,7 +906,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2c",
         "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO8",
         "PerPkg": "1",
@@ -1010,7 +915,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2c",
         "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO9",
         "PerPkg": "1",
@@ -1020,7 +924,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2b",
         "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO0",
         "PerPkg": "1",
@@ -1030,7 +933,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2b",
         "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO1",
         "PerPkg": "1",
@@ -1040,7 +942,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2b",
         "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO2",
         "PerPkg": "1",
@@ -1050,7 +951,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2b",
         "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO3",
         "PerPkg": "1",
@@ -1060,7 +960,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2b",
         "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO4",
         "PerPkg": "1",
@@ -1070,7 +969,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2b",
         "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO5",
         "PerPkg": "1",
@@ -1080,7 +978,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2b",
         "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO6",
         "PerPkg": "1",
@@ -1090,7 +987,6 @@
     },
     {
         "BriefDescription": "CBox AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2b",
         "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO7",
         "PerPkg": "1",
@@ -1100,7 +996,6 @@
     },
     {
         "BriefDescription": "HA/R2 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2f",
         "EventName": "UNC_R3_HA_R2_BL_CREDITS_EMPTY.HA0",
         "PerPkg": "1",
@@ -1110,7 +1005,6 @@
     },
     {
         "BriefDescription": "HA/R2 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2f",
         "EventName": "UNC_R3_HA_R2_BL_CREDITS_EMPTY.HA1",
         "PerPkg": "1",
@@ -1120,7 +1014,6 @@
     },
     {
         "BriefDescription": "HA/R2 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2f",
         "EventName": "UNC_R3_HA_R2_BL_CREDITS_EMPTY.R2_NCB",
         "PerPkg": "1",
@@ -1130,7 +1023,6 @@
     },
     {
         "BriefDescription": "HA/R2 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2f",
         "EventName": "UNC_R3_HA_R2_BL_CREDITS_EMPTY.R2_NCS",
         "PerPkg": "1",
@@ -1140,7 +1032,6 @@
     },
     {
         "BriefDescription": "QPI0 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x29",
         "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN0_HOM",
         "PerPkg": "1",
@@ -1150,7 +1041,6 @@
     },
     {
         "BriefDescription": "QPI0 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x29",
         "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN0_NDR",
         "PerPkg": "1",
@@ -1160,7 +1050,6 @@
     },
     {
         "BriefDescription": "QPI0 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x29",
         "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN0_SNP",
         "PerPkg": "1",
@@ -1170,7 +1059,6 @@
     },
     {
         "BriefDescription": "QPI0 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x29",
         "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN1_HOM",
         "PerPkg": "1",
@@ -1180,7 +1068,6 @@
     },
     {
         "BriefDescription": "QPI0 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x29",
         "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN1_NDR",
         "PerPkg": "1",
@@ -1190,7 +1077,6 @@
     },
     {
         "BriefDescription": "QPI0 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x29",
         "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN1_SNP",
         "PerPkg": "1",
@@ -1200,7 +1086,6 @@
     },
     {
         "BriefDescription": "QPI0 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x29",
         "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VNA",
         "PerPkg": "1",
@@ -1210,7 +1095,6 @@
     },
     {
         "BriefDescription": "QPI0 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2d",
         "EventName": "UNC_R3_QPI0_BL_CREDITS_EMPTY.VN0_HOM",
         "PerPkg": "1",
@@ -1220,7 +1104,6 @@
     },
     {
         "BriefDescription": "QPI0 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2d",
         "EventName": "UNC_R3_QPI0_BL_CREDITS_EMPTY.VN0_NDR",
         "PerPkg": "1",
@@ -1230,7 +1113,6 @@
     },
     {
         "BriefDescription": "QPI0 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2d",
         "EventName": "UNC_R3_QPI0_BL_CREDITS_EMPTY.VN0_SNP",
         "PerPkg": "1",
@@ -1240,7 +1122,6 @@
     },
     {
         "BriefDescription": "QPI0 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2d",
         "EventName": "UNC_R3_QPI0_BL_CREDITS_EMPTY.VN1_HOM",
         "PerPkg": "1",
@@ -1250,7 +1131,6 @@
     },
     {
         "BriefDescription": "QPI0 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2d",
         "EventName": "UNC_R3_QPI0_BL_CREDITS_EMPTY.VN1_NDR",
         "PerPkg": "1",
@@ -1260,7 +1140,6 @@
     },
     {
         "BriefDescription": "QPI0 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2d",
         "EventName": "UNC_R3_QPI0_BL_CREDITS_EMPTY.VN1_SNP",
         "PerPkg": "1",
@@ -1270,7 +1149,6 @@
     },
     {
         "BriefDescription": "QPI0 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2d",
         "EventName": "UNC_R3_QPI0_BL_CREDITS_EMPTY.VNA",
         "PerPkg": "1",
@@ -1280,7 +1158,6 @@
     },
     {
         "BriefDescription": "QPI1 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2a",
         "EventName": "UNC_R3_QPI1_AD_CREDITS_EMPTY.VN0_HOM",
         "PerPkg": "1",
@@ -1290,7 +1167,6 @@
     },
     {
         "BriefDescription": "QPI1 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2a",
         "EventName": "UNC_R3_QPI1_AD_CREDITS_EMPTY.VN0_NDR",
         "PerPkg": "1",
@@ -1300,7 +1176,6 @@
     },
     {
         "BriefDescription": "QPI1 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2a",
         "EventName": "UNC_R3_QPI1_AD_CREDITS_EMPTY.VN0_SNP",
         "PerPkg": "1",
@@ -1310,7 +1185,6 @@
     },
     {
         "BriefDescription": "QPI1 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2a",
         "EventName": "UNC_R3_QPI1_AD_CREDITS_EMPTY.VN1_HOM",
         "PerPkg": "1",
@@ -1320,7 +1194,6 @@
     },
     {
         "BriefDescription": "QPI1 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2a",
         "EventName": "UNC_R3_QPI1_AD_CREDITS_EMPTY.VN1_NDR",
         "PerPkg": "1",
@@ -1330,7 +1203,6 @@
     },
     {
         "BriefDescription": "QPI1 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2a",
         "EventName": "UNC_R3_QPI1_AD_CREDITS_EMPTY.VN1_SNP",
         "PerPkg": "1",
@@ -1340,7 +1212,6 @@
     },
     {
         "BriefDescription": "QPI1 AD Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2a",
         "EventName": "UNC_R3_QPI1_AD_CREDITS_EMPTY.VNA",
         "PerPkg": "1",
@@ -1350,7 +1221,6 @@
     },
     {
         "BriefDescription": "QPI1 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2e",
         "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN0_HOM",
         "PerPkg": "1",
@@ -1360,7 +1230,6 @@
     },
     {
         "BriefDescription": "QPI1 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2e",
         "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN0_NDR",
         "PerPkg": "1",
@@ -1370,7 +1239,6 @@
     },
     {
         "BriefDescription": "QPI1 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2e",
         "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN0_SNP",
         "PerPkg": "1",
@@ -1380,7 +1248,6 @@
     },
     {
         "BriefDescription": "QPI1 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2e",
         "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN1_HOM",
         "PerPkg": "1",
@@ -1390,7 +1257,6 @@
     },
     {
         "BriefDescription": "QPI1 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2e",
         "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN1_NDR",
         "PerPkg": "1",
@@ -1400,7 +1266,6 @@
     },
     {
         "BriefDescription": "QPI1 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2e",
         "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN1_SNP",
         "PerPkg": "1",
@@ -1410,7 +1275,6 @@
     },
     {
         "BriefDescription": "QPI1 BL Credits Empty",
-        "Counter": "0,1",
         "EventCode": "0x2e",
         "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VNA",
         "PerPkg": "1",
@@ -1420,17 +1284,15 @@
     },
     {
         "BriefDescription": "R3 AD Ring in Use; Counterclockwise",
-        "Counter": "0,1,2",
         "EventCode": "0x7",
         "EventName": "UNC_R3_RING_AD_USED.CCW",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
-        "UMask": "0xCC",
+        "UMask": "0xcc",
         "Unit": "R3QPI"
     },
     {
         "BriefDescription": "R3 AD Ring in Use; Counterclockwise and Even on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x7",
         "EventName": "UNC_R3_RING_AD_USED.CCW_VR0_EVEN",
         "PerPkg": "1",
@@ -1440,7 +1302,6 @@
     },
     {
         "BriefDescription": "R3 AD Ring in Use; Counterclockwise and Odd on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x7",
         "EventName": "UNC_R3_RING_AD_USED.CCW_VR0_ODD",
         "PerPkg": "1",
@@ -1450,7 +1311,6 @@
     },
     {
         "BriefDescription": "R3 AD Ring in Use; Clockwise",
-        "Counter": "0,1,2",
         "EventCode": "0x7",
         "EventName": "UNC_R3_RING_AD_USED.CW",
         "PerPkg": "1",
@@ -1460,7 +1320,6 @@
     },
     {
         "BriefDescription": "R3 AD Ring in Use; Clockwise and Even on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x7",
         "EventName": "UNC_R3_RING_AD_USED.CW_VR0_EVEN",
         "PerPkg": "1",
@@ -1470,7 +1329,6 @@
     },
     {
         "BriefDescription": "R3 AD Ring in Use; Clockwise and Odd on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x7",
         "EventName": "UNC_R3_RING_AD_USED.CW_VR0_ODD",
         "PerPkg": "1",
@@ -1480,17 +1338,15 @@
     },
     {
         "BriefDescription": "R3 AK Ring in Use; Counterclockwise",
-        "Counter": "0,1,2",
         "EventCode": "0x8",
         "EventName": "UNC_R3_RING_AK_USED.CCW",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
-        "UMask": "0xCC",
+        "UMask": "0xcc",
         "Unit": "R3QPI"
     },
     {
         "BriefDescription": "R3 AK Ring in Use; Counterclockwise and Even on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x8",
         "EventName": "UNC_R3_RING_AK_USED.CCW_VR0_EVEN",
         "PerPkg": "1",
@@ -1500,7 +1356,6 @@
     },
     {
         "BriefDescription": "R3 AK Ring in Use; Counterclockwise and Odd on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x8",
         "EventName": "UNC_R3_RING_AK_USED.CCW_VR0_ODD",
         "PerPkg": "1",
@@ -1510,7 +1365,6 @@
     },
     {
         "BriefDescription": "R3 AK Ring in Use; Clockwise",
-        "Counter": "0,1,2",
         "EventCode": "0x8",
         "EventName": "UNC_R3_RING_AK_USED.CW",
         "PerPkg": "1",
@@ -1520,7 +1374,6 @@
     },
     {
         "BriefDescription": "R3 AK Ring in Use; Clockwise and Even on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x8",
         "EventName": "UNC_R3_RING_AK_USED.CW_VR0_EVEN",
         "PerPkg": "1",
@@ -1530,7 +1383,6 @@
     },
     {
         "BriefDescription": "R3 AK Ring in Use; Clockwise and Odd on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x8",
         "EventName": "UNC_R3_RING_AK_USED.CW_VR0_ODD",
         "PerPkg": "1",
@@ -1540,17 +1392,15 @@
     },
     {
         "BriefDescription": "R3 BL Ring in Use; Counterclockwise",
-        "Counter": "0,1,2",
         "EventCode": "0x9",
         "EventName": "UNC_R3_RING_BL_USED.CCW",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
-        "UMask": "0xCC",
+        "UMask": "0xcc",
         "Unit": "R3QPI"
     },
     {
         "BriefDescription": "R3 BL Ring in Use; Counterclockwise and Even on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x9",
         "EventName": "UNC_R3_RING_BL_USED.CCW_VR0_EVEN",
         "PerPkg": "1",
@@ -1560,7 +1410,6 @@
     },
     {
         "BriefDescription": "R3 BL Ring in Use; Counterclockwise and Odd on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x9",
         "EventName": "UNC_R3_RING_BL_USED.CCW_VR0_ODD",
         "PerPkg": "1",
@@ -1570,7 +1419,6 @@
     },
     {
         "BriefDescription": "R3 BL Ring in Use; Clockwise",
-        "Counter": "0,1,2",
         "EventCode": "0x9",
         "EventName": "UNC_R3_RING_BL_USED.CW",
         "PerPkg": "1",
@@ -1580,7 +1428,6 @@
     },
     {
         "BriefDescription": "R3 BL Ring in Use; Clockwise and Even on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x9",
         "EventName": "UNC_R3_RING_BL_USED.CW_VR0_EVEN",
         "PerPkg": "1",
@@ -1590,7 +1437,6 @@
     },
     {
         "BriefDescription": "R3 BL Ring in Use; Clockwise and Odd on VRing 0",
-        "Counter": "0,1,2",
         "EventCode": "0x9",
         "EventName": "UNC_R3_RING_BL_USED.CW_VR0_ODD",
         "PerPkg": "1",
@@ -1600,27 +1446,24 @@
     },
     {
         "BriefDescription": "R2 IV Ring in Use; Any",
-        "Counter": "0,1,2",
         "EventCode": "0xA",
         "EventName": "UNC_R3_RING_IV_USED.ANY",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the IV ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sent, but does not include when packets are being sunk into the ring stop.  The IV ring is unidirectional.  Whether UP or DN is used is dependent on the system programming.  Thereofore, one should generally set both the UP and DN bits for a given polarity (or both) at a given time.; Filters any polarity",
-        "UMask": "0xFF",
+        "UMask": "0xff",
         "Unit": "R3QPI"
     },
     {
         "BriefDescription": "R2 IV Ring in Use; Counterclockwise",
-        "Counter": "0,1,2",
         "EventCode": "0xa",
         "EventName": "UNC_R3_RING_IV_USED.CCW",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the IV ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sent, but does not include when packets are being sunk into the ring stop.  The IV ring is unidirectional.  Whether UP or DN is used is dependent on the system programming.  Thereofore, one should generally set both the UP and DN bits for a given polarity (or both) at a given time.; Filters for Counterclockwise polarity",
-        "UMask": "0xCC",
+        "UMask": "0xcc",
         "Unit": "R3QPI"
     },
     {
         "BriefDescription": "R2 IV Ring in Use; Clockwise",
-        "Counter": "0,1,2",
         "EventCode": "0xa",
         "EventName": "UNC_R3_RING_IV_USED.CW",
         "PerPkg": "1",
@@ -1630,7 +1473,6 @@
     },
     {
         "BriefDescription": "AD Ingress Bypassed",
-        "Counter": "0,1",
         "EventCode": "0x12",
         "EventName": "UNC_R3_RxR_AD_BYPASSED",
         "PerPkg": "1",
@@ -1639,7 +1481,6 @@
     },
     {
         "BriefDescription": "Ingress Bypassed",
-        "Counter": "0,1",
         "EventCode": "0x12",
         "EventName": "UNC_R3_RxR_BYPASSED.AD",
         "PerPkg": "1",
@@ -1649,7 +1490,6 @@
     },
     {
         "BriefDescription": "Ingress Cycles Not Empty; HOM",
-        "Counter": "0,1",
         "EventCode": "0x10",
         "EventName": "UNC_R3_RxR_CYCLES_NE.HOM",
         "PerPkg": "1",
@@ -1659,7 +1499,6 @@
     },
     {
         "BriefDescription": "Ingress Cycles Not Empty; NDR",
-        "Counter": "0,1",
         "EventCode": "0x10",
         "EventName": "UNC_R3_RxR_CYCLES_NE.NDR",
         "PerPkg": "1",
@@ -1669,7 +1508,6 @@
     },
     {
         "BriefDescription": "Ingress Cycles Not Empty; SNP",
-        "Counter": "0,1",
         "EventCode": "0x10",
         "EventName": "UNC_R3_RxR_CYCLES_NE.SNP",
         "PerPkg": "1",
@@ -1679,7 +1517,6 @@
     },
     {
         "BriefDescription": "Ingress Allocations; DRS",
-        "Counter": "0,1",
         "EventCode": "0x11",
         "EventName": "UNC_R3_RxR_INSERTS.DRS",
         "PerPkg": "1",
@@ -1689,7 +1526,6 @@
     },
     {
         "BriefDescription": "Ingress Allocations; HOM",
-        "Counter": "0,1",
         "EventCode": "0x11",
         "EventName": "UNC_R3_RxR_INSERTS.HOM",
         "PerPkg": "1",
@@ -1699,7 +1535,6 @@
     },
     {
         "BriefDescription": "Ingress Allocations; NCB",
-        "Counter": "0,1",
         "EventCode": "0x11",
         "EventName": "UNC_R3_RxR_INSERTS.NCB",
         "PerPkg": "1",
@@ -1709,7 +1544,6 @@
     },
     {
         "BriefDescription": "Ingress Allocations; NCS",
-        "Counter": "0,1",
         "EventCode": "0x11",
         "EventName": "UNC_R3_RxR_INSERTS.NCS",
         "PerPkg": "1",
@@ -1719,7 +1553,6 @@
     },
     {
         "BriefDescription": "Ingress Allocations; NDR",
-        "Counter": "0,1",
         "EventCode": "0x11",
         "EventName": "UNC_R3_RxR_INSERTS.NDR",
         "PerPkg": "1",
@@ -1729,7 +1562,6 @@
     },
     {
         "BriefDescription": "Ingress Allocations; SNP",
-        "Counter": "0,1",
         "EventCode": "0x11",
         "EventName": "UNC_R3_RxR_INSERTS.SNP",
         "PerPkg": "1",
@@ -1793,7 +1625,6 @@
     },
     {
         "BriefDescription": "Egress NACK; AK CCW",
-        "Counter": "0,1",
         "EventCode": "0x28",
         "EventName": "UNC_R3_TxR_NACK_CCW.AD",
         "PerPkg": "1",
@@ -1803,7 +1634,6 @@
     },
     {
         "BriefDescription": "Egress NACK; BL CW",
-        "Counter": "0,1",
         "EventCode": "0x28",
         "EventName": "UNC_R3_TxR_NACK_CCW.AK",
         "PerPkg": "1",
@@ -1813,7 +1643,6 @@
     },
     {
         "BriefDescription": "Egress NACK; BL CCW",
-        "Counter": "0,1",
         "EventCode": "0x28",
         "EventName": "UNC_R3_TxR_NACK_CCW.BL",
         "PerPkg": "1",
@@ -1823,7 +1652,6 @@
     },
     {
         "BriefDescription": "Egress NACK; AD CW",
-        "Counter": "0,1",
         "EventCode": "0x26",
         "EventName": "UNC_R3_TxR_NACK_CW.AD",
         "PerPkg": "1",
@@ -1833,7 +1661,6 @@
     },
     {
         "BriefDescription": "Egress NACK; AD CCW",
-        "Counter": "0,1",
         "EventCode": "0x26",
         "EventName": "UNC_R3_TxR_NACK_CW.AK",
         "PerPkg": "1",
@@ -1843,7 +1670,6 @@
     },
     {
         "BriefDescription": "Egress NACK; AK CW",
-        "Counter": "0,1",
         "EventCode": "0x26",
         "EventName": "UNC_R3_TxR_NACK_CW.BL",
         "PerPkg": "1",
@@ -1853,7 +1679,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Acquisition Failed on DRS; DRS Message Class",
-        "Counter": "0,1",
         "EventCode": "0x37",
         "EventName": "UNC_R3_VN0_CREDITS_REJECT.DRS",
         "PerPkg": "1",
@@ -1863,7 +1688,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Acquisition Failed on DRS; HOM Message Class",
-        "Counter": "0,1",
         "EventCode": "0x37",
         "EventName": "UNC_R3_VN0_CREDITS_REJECT.HOM",
         "PerPkg": "1",
@@ -1873,7 +1697,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Acquisition Failed on DRS; NCB Message Class",
-        "Counter": "0,1",
         "EventCode": "0x37",
         "EventName": "UNC_R3_VN0_CREDITS_REJECT.NCB",
         "PerPkg": "1",
@@ -1883,7 +1706,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Acquisition Failed on DRS; NCS Message Class",
-        "Counter": "0,1",
         "EventCode": "0x37",
         "EventName": "UNC_R3_VN0_CREDITS_REJECT.NCS",
         "PerPkg": "1",
@@ -1893,7 +1715,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Acquisition Failed on DRS; NDR Message Class",
-        "Counter": "0,1",
         "EventCode": "0x37",
         "EventName": "UNC_R3_VN0_CREDITS_REJECT.NDR",
         "PerPkg": "1",
@@ -1903,7 +1724,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Acquisition Failed on DRS; SNP Message Class",
-        "Counter": "0,1",
         "EventCode": "0x37",
         "EventName": "UNC_R3_VN0_CREDITS_REJECT.SNP",
         "PerPkg": "1",
@@ -1913,7 +1733,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Used; DRS Message Class",
-        "Counter": "0,1",
         "EventCode": "0x36",
         "EventName": "UNC_R3_VN0_CREDITS_USED.DRS",
         "PerPkg": "1",
@@ -1923,7 +1742,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Used; HOM Message Class",
-        "Counter": "0,1",
         "EventCode": "0x36",
         "EventName": "UNC_R3_VN0_CREDITS_USED.HOM",
         "PerPkg": "1",
@@ -1933,7 +1751,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Used; NCB Message Class",
-        "Counter": "0,1",
         "EventCode": "0x36",
         "EventName": "UNC_R3_VN0_CREDITS_USED.NCB",
         "PerPkg": "1",
@@ -1943,7 +1760,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Used; NCS Message Class",
-        "Counter": "0,1",
         "EventCode": "0x36",
         "EventName": "UNC_R3_VN0_CREDITS_USED.NCS",
         "PerPkg": "1",
@@ -1953,7 +1769,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Used; NDR Message Class",
-        "Counter": "0,1",
         "EventCode": "0x36",
         "EventName": "UNC_R3_VN0_CREDITS_USED.NDR",
         "PerPkg": "1",
@@ -1963,7 +1778,6 @@
     },
     {
         "BriefDescription": "VN0 Credit Used; SNP Message Class",
-        "Counter": "0,1",
         "EventCode": "0x36",
         "EventName": "UNC_R3_VN0_CREDITS_USED.SNP",
         "PerPkg": "1",
@@ -1973,7 +1787,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Acquisition Failed on DRS; DRS Message Class",
-        "Counter": "0,1",
         "EventCode": "0x39",
         "EventName": "UNC_R3_VN1_CREDITS_REJECT.DRS",
         "PerPkg": "1",
@@ -1983,7 +1796,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Acquisition Failed on DRS; HOM Message Class",
-        "Counter": "0,1",
         "EventCode": "0x39",
         "EventName": "UNC_R3_VN1_CREDITS_REJECT.HOM",
         "PerPkg": "1",
@@ -1993,7 +1805,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Acquisition Failed on DRS; NCB Message Class",
-        "Counter": "0,1",
         "EventCode": "0x39",
         "EventName": "UNC_R3_VN1_CREDITS_REJECT.NCB",
         "PerPkg": "1",
@@ -2003,7 +1814,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Acquisition Failed on DRS; NCS Message Class",
-        "Counter": "0,1",
         "EventCode": "0x39",
         "EventName": "UNC_R3_VN1_CREDITS_REJECT.NCS",
         "PerPkg": "1",
@@ -2013,7 +1823,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Acquisition Failed on DRS; NDR Message Class",
-        "Counter": "0,1",
         "EventCode": "0x39",
         "EventName": "UNC_R3_VN1_CREDITS_REJECT.NDR",
         "PerPkg": "1",
@@ -2023,7 +1832,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Acquisition Failed on DRS; SNP Message Class",
-        "Counter": "0,1",
         "EventCode": "0x39",
         "EventName": "UNC_R3_VN1_CREDITS_REJECT.SNP",
         "PerPkg": "1",
@@ -2033,7 +1841,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Used; DRS Message Class",
-        "Counter": "0,1",
         "EventCode": "0x38",
         "EventName": "UNC_R3_VN1_CREDITS_USED.DRS",
         "PerPkg": "1",
@@ -2043,7 +1850,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Used; HOM Message Class",
-        "Counter": "0,1",
         "EventCode": "0x38",
         "EventName": "UNC_R3_VN1_CREDITS_USED.HOM",
         "PerPkg": "1",
@@ -2053,7 +1859,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Used; NCB Message Class",
-        "Counter": "0,1",
         "EventCode": "0x38",
         "EventName": "UNC_R3_VN1_CREDITS_USED.NCB",
         "PerPkg": "1",
@@ -2063,7 +1868,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Used; NCS Message Class",
-        "Counter": "0,1",
         "EventCode": "0x38",
         "EventName": "UNC_R3_VN1_CREDITS_USED.NCS",
         "PerPkg": "1",
@@ -2073,7 +1877,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Used; NDR Message Class",
-        "Counter": "0,1",
         "EventCode": "0x38",
         "EventName": "UNC_R3_VN1_CREDITS_USED.NDR",
         "PerPkg": "1",
@@ -2083,7 +1886,6 @@
     },
     {
         "BriefDescription": "VN1 Credit Used; SNP Message Class",
-        "Counter": "0,1",
         "EventCode": "0x38",
         "EventName": "UNC_R3_VN1_CREDITS_USED.SNP",
         "PerPkg": "1",
@@ -2093,7 +1895,6 @@
     },
     {
         "BriefDescription": "VNA credit Acquisitions",
-        "Counter": "0,1",
         "EventCode": "0x33",
         "EventName": "UNC_R3_VNA_CREDITS_ACQUIRED",
         "PerPkg": "1",
@@ -2102,7 +1903,6 @@
     },
     {
         "BriefDescription": "VNA credit Acquisitions; HOM Message Class",
-        "Counter": "0,1",
         "EventCode": "0x33",
         "EventName": "UNC_R3_VNA_CREDITS_ACQUIRED.AD",
         "PerPkg": "1",
@@ -2112,7 +1912,6 @@
     },
     {
         "BriefDescription": "VNA credit Acquisitions; HOM Message Class",
-        "Counter": "0,1",
         "EventCode": "0x33",
         "EventName": "UNC_R3_VNA_CREDITS_ACQUIRED.BL",
         "PerPkg": "1",
@@ -2122,7 +1921,6 @@
     },
     {
         "BriefDescription": "VNA Credit Reject; DRS Message Class",
-        "Counter": "0,1",
         "EventCode": "0x34",
         "EventName": "UNC_R3_VNA_CREDITS_REJECT.DRS",
         "PerPkg": "1",
@@ -2132,7 +1930,6 @@
     },
     {
         "BriefDescription": "VNA Credit Reject; HOM Message Class",
-        "Counter": "0,1",
         "EventCode": "0x34",
         "EventName": "UNC_R3_VNA_CREDITS_REJECT.HOM",
         "PerPkg": "1",
@@ -2142,7 +1939,6 @@
     },
     {
         "BriefDescription": "VNA Credit Reject; NCB Message Class",
-        "Counter": "0,1",
         "EventCode": "0x34",
         "EventName": "UNC_R3_VNA_CREDITS_REJECT.NCB",
         "PerPkg": "1",
@@ -2152,7 +1948,6 @@
     },
     {
         "BriefDescription": "VNA Credit Reject; NCS Message Class",
-        "Counter": "0,1",
         "EventCode": "0x34",
         "EventName": "UNC_R3_VNA_CREDITS_REJECT.NCS",
         "PerPkg": "1",
@@ -2162,7 +1957,6 @@
     },
     {
         "BriefDescription": "VNA Credit Reject; NDR Message Class",
-        "Counter": "0,1",
         "EventCode": "0x34",
         "EventName": "UNC_R3_VNA_CREDITS_REJECT.NDR",
         "PerPkg": "1",
@@ -2172,7 +1966,6 @@
     },
     {
         "BriefDescription": "VNA Credit Reject; SNP Message Class",
-        "Counter": "0,1",
         "EventCode": "0x34",
         "EventName": "UNC_R3_VNA_CREDITS_REJECT.SNP",
         "PerPkg": "1",
@@ -2182,7 +1975,6 @@
     },
     {
         "BriefDescription": "Cycles with no VNA credits available",
-        "Counter": "0,1",
         "EventCode": "0x31",
         "EventName": "UNC_R3_VNA_CREDIT_CYCLES_OUT",
         "PerPkg": "1",
@@ -2191,7 +1983,6 @@
     },
     {
         "BriefDescription": "Cycles with 1 or more VNA credits in use",
-        "Counter": "0,1",
         "EventCode": "0x32",
         "EventName": "UNC_R3_VNA_CREDIT_CYCLES_USED",
         "PerPkg": "1",
@@ -2199,8 +1990,12 @@
         "Unit": "R3QPI"
     },
     {
+        "EventName": "UNC_U_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "UBOX"
+    },
+    {
         "BriefDescription": "VLW Received",
-        "Counter": "0,1",
         "EventCode": "0x42",
         "EventName": "UNC_U_EVENT_MSG.DOORBELL_RCVD",
         "PerPkg": "1",
@@ -2210,7 +2005,6 @@
     },
     {
         "BriefDescription": "VLW Received",
-        "Counter": "0,1",
         "EventCode": "0x42",
         "EventName": "UNC_U_EVENT_MSG.INT_PRIO",
         "PerPkg": "1",
@@ -2220,7 +2014,6 @@
     },
     {
         "BriefDescription": "VLW Received",
-        "Counter": "0,1",
         "EventCode": "0x42",
         "EventName": "UNC_U_EVENT_MSG.IPI_RCVD",
         "PerPkg": "1",
@@ -2230,7 +2023,6 @@
     },
     {
         "BriefDescription": "VLW Received",
-        "Counter": "0,1",
         "EventCode": "0x42",
         "EventName": "UNC_U_EVENT_MSG.MSI_RCVD",
         "PerPkg": "1",
@@ -2240,7 +2032,6 @@
     },
     {
         "BriefDescription": "VLW Received",
-        "Counter": "0,1",
         "EventCode": "0x42",
         "EventName": "UNC_U_EVENT_MSG.VLW_RCVD",
         "PerPkg": "1",
@@ -2250,7 +2041,6 @@
     },
     {
         "BriefDescription": "Filter Match",
-        "Counter": "0,1",
         "EventCode": "0x41",
         "EventName": "UNC_U_FILTER_MATCH.DISABLE",
         "PerPkg": "1",
@@ -2260,7 +2050,6 @@
     },
     {
         "BriefDescription": "Filter Match",
-        "Counter": "0,1",
         "EventCode": "0x41",
         "EventName": "UNC_U_FILTER_MATCH.ENABLE",
         "PerPkg": "1",
@@ -2270,7 +2059,6 @@
     },
     {
         "BriefDescription": "Filter Match",
-        "Counter": "0,1",
         "EventCode": "0x41",
         "EventName": "UNC_U_FILTER_MATCH.U2C_DISABLE",
         "PerPkg": "1",
@@ -2280,7 +2068,6 @@
     },
     {
         "BriefDescription": "Filter Match",
-        "Counter": "0,1",
         "EventCode": "0x41",
         "EventName": "UNC_U_FILTER_MATCH.U2C_ENABLE",
         "PerPkg": "1",
@@ -2290,7 +2077,6 @@
     },
     {
         "BriefDescription": "IDI Lock/SplitLock Cycles",
-        "Counter": "0,1",
         "EventCode": "0x44",
         "EventName": "UNC_U_LOCK_CYCLES",
         "PerPkg": "1",
@@ -2299,7 +2085,6 @@
     },
     {
         "BriefDescription": "Cycles PHOLD Assert to Ack; Assert to ACK",
-        "Counter": "0,1",
         "EventCode": "0x45",
         "EventName": "UNC_U_PHOLD_CYCLES.ASSERT_TO_ACK",
         "PerPkg": "1",
@@ -2309,7 +2094,6 @@
     },
     {
         "BriefDescription": "RACU Request",
-        "Counter": "0,1",
         "EventCode": "0x46",
         "EventName": "UNC_U_RACU_REQUESTS",
         "PerPkg": "1",
@@ -2317,7 +2101,6 @@
     },
     {
         "BriefDescription": "Monitor Sent to T0; Correctable Machine Check",
-        "Counter": "0,1",
         "EventCode": "0x43",
         "EventName": "UNC_U_U2C_EVENTS.CMC",
         "PerPkg": "1",
@@ -2327,7 +2110,6 @@
     },
     {
         "BriefDescription": "Monitor Sent to T0; Livelock",
-        "Counter": "0,1",
         "EventCode": "0x43",
         "EventName": "UNC_U_U2C_EVENTS.LIVELOCK",
         "PerPkg": "1",
@@ -2337,7 +2119,6 @@
     },
     {
         "BriefDescription": "Monitor Sent to T0; LTError",
-        "Counter": "0,1",
         "EventCode": "0x43",
         "EventName": "UNC_U_U2C_EVENTS.LTERROR",
         "PerPkg": "1",
@@ -2347,7 +2128,6 @@
     },
     {
         "BriefDescription": "Monitor Sent to T0; Monitor T0",
-        "Counter": "0,1",
         "EventCode": "0x43",
         "EventName": "UNC_U_U2C_EVENTS.MONITOR_T0",
         "PerPkg": "1",
@@ -2357,7 +2137,6 @@
     },
     {
         "BriefDescription": "Monitor Sent to T0; Monitor T1",
-        "Counter": "0,1",
         "EventCode": "0x43",
         "EventName": "UNC_U_U2C_EVENTS.MONITOR_T1",
         "PerPkg": "1",
@@ -2367,7 +2146,6 @@
     },
     {
         "BriefDescription": "Monitor Sent to T0; Other",
-        "Counter": "0,1",
         "EventCode": "0x43",
         "EventName": "UNC_U_U2C_EVENTS.OTHER",
         "PerPkg": "1",
@@ -2377,7 +2155,6 @@
     },
     {
         "BriefDescription": "Monitor Sent to T0; Trap",
-        "Counter": "0,1",
         "EventCode": "0x43",
         "EventName": "UNC_U_U2C_EVENTS.TRAP",
         "PerPkg": "1",
@@ -2387,7 +2164,6 @@
     },
     {
         "BriefDescription": "Monitor Sent to T0; Uncorrectable Machine Check",
-        "Counter": "0,1",
         "EventCode": "0x43",
         "EventName": "UNC_U_U2C_EVENTS.UMC",
         "PerPkg": "1",

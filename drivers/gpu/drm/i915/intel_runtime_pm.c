@@ -633,6 +633,8 @@ void intel_runtime_pm_driver_release(struct intel_runtime_pm *rpm)
 						     runtime_pm);
 	int count = atomic_read(&rpm->wakeref_count);
 
+	intel_wakeref_auto_fini(&rpm->userfault_wakeref);
+
 	drm_WARN(&i915->drm, count,
 		 "i915 raw-wakerefs=%d wakelocks=%d on cleanup\n",
 		 intel_rpm_raw_wakeref_count(count),
@@ -652,4 +654,7 @@ void intel_runtime_pm_init_early(struct intel_runtime_pm *rpm)
 	rpm->available = HAS_RUNTIME_PM(i915);
 
 	init_intel_runtime_pm_wakeref(rpm);
+	INIT_LIST_HEAD(&rpm->lmem_userfault_list);
+	spin_lock_init(&rpm->lmem_userfault_lock);
+	intel_wakeref_auto_init(&rpm->userfault_wakeref, rpm);
 }

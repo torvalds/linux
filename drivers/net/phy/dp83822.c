@@ -524,6 +524,8 @@ static int dp83822_read_straps(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
+	phydev_dbg(phydev, "SOR1 strap register: 0x%04x\n", val);
+
 	fx_enabled = (val & DP83822_COL_STRAP_MASK) >> DP83822_COL_SHIFT;
 	if (fx_enabled == DP83822_STRAP_MODE2 ||
 	    fx_enabled == DP83822_STRAP_MODE3)

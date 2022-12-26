@@ -6,18 +6,59 @@ General instructions on running selftests can be found in
 
 __ /Documentation/bpf/bpf_devel_QA.rst#q-how-to-run-bpf-selftests
 
+=============
+BPF CI System
+=============
+
+BPF employs a continuous integration (CI) system to check patch submission in an
+automated fashion. The system runs selftests for each patch in a series. Results
+are propagated to patchwork, where failures are highlighted similar to
+violations of other checks (such as additional warnings being emitted or a
+``scripts/checkpatch.pl`` reported deficiency):
+
+  https://patchwork.kernel.org/project/netdevbpf/list/?delegate=121173
+
+The CI system executes tests on multiple architectures. It uses a kernel
+configuration derived from both the generic and architecture specific config
+file fragments below ``tools/testing/selftests/bpf/`` (e.g., ``config`` and
+``config.x86_64``).
+
+Denylisting Tests
+=================
+
+It is possible for some architectures to not have support for all BPF features.
+In such a case tests in CI may fail. An example of such a shortcoming is BPF
+trampoline support on IBM's s390x architecture. For cases like this, an in-tree
+deny list file, located at ``tools/testing/selftests/bpf/DENYLIST.<arch>``, can
+be used to prevent the test from running on such an architecture.
+
+In addition to that, the generic ``tools/testing/selftests/bpf/DENYLIST`` is
+honored on every architecture running tests.
+
+These files are organized in three columns. The first column lists the test in
+question. This can be the name of a test suite or of an individual test. The
+remaining two columns provide additional meta data that helps identify and
+classify the entry: column two is a copy and paste of the error being reported
+when running the test in the setting in question. The third column, if
+available, summarizes the underlying problem. A value of ``trampoline``, for
+example, indicates that lack of trampoline support is causing the test to fail.
+This last entry helps identify tests that can be re-enabled once such support is
+added.
+
 =========================
 Running Selftests in a VM
 =========================
 
 It's now possible to run the selftests using ``tools/testing/selftests/bpf/vmtest.sh``.
 The script tries to ensure that the tests are run with the same environment as they
-would be run post-submit in the CI used by the Maintainers.
+would be run post-submit in the CI used by the Maintainers, with the exception
+that deny lists are not automatically honored.
 
-This script downloads a suitable Kconfig and VM userspace image from the system used by
-the CI. It builds the kernel (without overwriting your existing Kconfig), recompiles the
-bpf selftests, runs them (by default ``tools/testing/selftests/bpf/test_progs``) and
-saves the resulting output (by default in ``~/.bpf_selftests``).
+This script uses the in-tree kernel configuration and downloads a VM userspace
+image from the system used by the CI. It builds the kernel (without overwriting
+your existing Kconfig), recompiles the bpf selftests, runs them (by default
+``tools/testing/selftests/bpf/test_progs``) and saves the resulting output (by
+default in ``~/.bpf_selftests``).
 
 Script dependencies:
 - clang (preferably built from sources, https://github.com/llvm/llvm-project);
@@ -26,7 +67,7 @@ Script dependencies:
 - docutils (for ``rst2man``);
 - libcap-devel.
 
-For more information on about using the script, run:
+For more information about using the script, run:
 
 .. code-block:: console
 

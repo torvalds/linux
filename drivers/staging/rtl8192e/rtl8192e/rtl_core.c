@@ -307,7 +307,7 @@ static void _rtl92e_update_cap(struct net_device *dev, u16 cap)
 		u8	cur_slot_time = priv->slot_time;
 
 		if ((cap & WLAN_CAPABILITY_SHORT_SLOT_TIME) &&
-		   (!priv->rtllib->pHTInfo->current_rt2rt_long_slot_time)) {
+		   (!priv->rtllib->ht_info->current_rt2rt_long_slot_time)) {
 			if (cur_slot_time != SHORT_SLOT_TIME) {
 				slot_time_val = SHORT_SLOT_TIME;
 				priv->rtllib->SetHwRegHandler(dev,
@@ -339,10 +339,10 @@ static void _rtl92e_update_beacon(void *data)
 	struct rtllib_device *ieee = priv->rtllib;
 	struct rtllib_network *net = &ieee->current_network;
 
-	if (ieee->pHTInfo->bCurrentHTSupport)
+	if (ieee->ht_info->bCurrentHTSupport)
 		HT_update_self_and_peer_setting(ieee, net);
-	ieee->pHTInfo->current_rt2rt_long_slot_time = net->bssht.bd_rt2rt_long_slot_time;
-	ieee->pHTInfo->RT2RT_HT_Mode = net->bssht.rt2rt_ht_mode;
+	ieee->ht_info->current_rt2rt_long_slot_time = net->bssht.bd_rt2rt_long_slot_time;
+	ieee->ht_info->RT2RT_HT_Mode = net->bssht.rt2rt_ht_mode;
 	_rtl92e_update_cap(dev, net->capability);
 }
 
@@ -494,8 +494,8 @@ static void _rtl92e_prepare_beacon(struct tasklet_struct *t)
 	tcb_desc->queue_index = BEACON_QUEUE;
 	tcb_desc->data_rate = 2;
 	tcb_desc->RATRIndex = 7;
-	tcb_desc->bTxDisableRateFallBack = 1;
-	tcb_desc->bTxUseDriverAssingedRate = 1;
+	tcb_desc->tx_dis_rate_fallback = 1;
+	tcb_desc->tx_use_drv_assinged_rate = 1;
 	skb_push(pnewskb, priv->rtllib->tx_headroom);
 
 	pdesc = &ring->desc[0];
@@ -607,13 +607,13 @@ static void _rtl92e_refresh_support_rate(struct r8192_priv *priv)
 
 	if (ieee->mode == WIRELESS_MODE_N_24G ||
 	    ieee->mode == WIRELESS_MODE_N_5G) {
-		memcpy(ieee->Regdot11HTOperationalRateSet,
-		       ieee->RegHTSuppRateSet, 16);
-		memcpy(ieee->Regdot11TxHTOperationalRateSet,
-		       ieee->RegHTSuppRateSet, 16);
+		memcpy(ieee->reg_dot11ht_oper_rate_set,
+		       ieee->reg_ht_supp_rate_set, 16);
+		memcpy(ieee->reg_dot11tx_ht_oper_rate_set,
+		       ieee->reg_ht_supp_rate_set, 16);
 
 	} else {
-		memset(ieee->Regdot11HTOperationalRateSet, 0, 16);
+		memset(ieee->reg_dot11ht_oper_rate_set, 0, 16);
 	}
 }
 
@@ -642,19 +642,19 @@ static u8 _rtl92e_get_supported_wireless_mode(struct net_device *dev)
 void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u8 bSupportMode = _rtl92e_get_supported_wireless_mode(dev);
+	u8 support_mode = _rtl92e_get_supported_wireless_mode(dev);
 
 	if ((wireless_mode == WIRELESS_MODE_AUTO) ||
-	    ((wireless_mode & bSupportMode) == 0)) {
-		if (bSupportMode & WIRELESS_MODE_N_24G) {
+	    ((wireless_mode & support_mode) == 0)) {
+		if (support_mode & WIRELESS_MODE_N_24G) {
 			wireless_mode = WIRELESS_MODE_N_24G;
-		} else if (bSupportMode & WIRELESS_MODE_N_5G) {
+		} else if (support_mode & WIRELESS_MODE_N_5G) {
 			wireless_mode = WIRELESS_MODE_N_5G;
-		} else if ((bSupportMode & WIRELESS_MODE_A)) {
+		} else if ((support_mode & WIRELESS_MODE_A)) {
 			wireless_mode = WIRELESS_MODE_A;
-		} else if ((bSupportMode & WIRELESS_MODE_G)) {
+		} else if ((support_mode & WIRELESS_MODE_G)) {
 			wireless_mode = WIRELESS_MODE_G;
-		} else if ((bSupportMode & WIRELESS_MODE_B)) {
+		} else if ((support_mode & WIRELESS_MODE_B)) {
 			wireless_mode = WIRELESS_MODE_B;
 		} else {
 			netdev_info(dev,
@@ -672,9 +672,9 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 
 	if ((wireless_mode == WIRELESS_MODE_N_24G) ||
 	    (wireless_mode == WIRELESS_MODE_N_5G)) {
-		priv->rtllib->pHTInfo->bEnableHT = 1;
+		priv->rtllib->ht_info->enable_ht = 1;
 	} else {
-		priv->rtllib->pHTInfo->bEnableHT = 0;
+		priv->rtllib->ht_info->enable_ht = 0;
 	}
 	_rtl92e_refresh_support_rate(priv);
 }
@@ -682,11 +682,10 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&priv->rtllib->PowerSaveControl);
+	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
+					(&priv->rtllib->pwr_save_ctrl);
 	bool init_status;
 
-	priv->bDriverIsGoingToUnload = false;
 	priv->bdisable_nic = false;
 
 	priv->up = 1;
@@ -701,7 +700,7 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 		return -1;
 	}
 
-	RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
+	RT_CLEAR_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
 	priv->bfirst_init = false;
 
 	if (priv->polling_timer_on == 0)
@@ -724,7 +723,7 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags = 0;
-	u8 RFInProgressTimeOut = 0;
+	u8 rf_in_progress_timeout = 0;
 
 	if (priv->up == 0)
 		return -1;
@@ -735,7 +734,6 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 	if (priv->rtllib->state == RTLLIB_LINKED)
 		rtl92e_leisure_ps_leave(dev);
 
-	priv->bDriverIsGoingToUnload = true;
 	priv->up = 0;
 	priv->rtllib->ieee_up = 0;
 	priv->bfirst_after_down = true;
@@ -757,12 +755,12 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	while (priv->rf_change_in_progress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
-		if (RFInProgressTimeOut > 100) {
+		if (rf_in_progress_timeout > 100) {
 			spin_lock_irqsave(&priv->rf_ps_lock, flags);
 			break;
 		}
 		mdelay(1);
-		RFInProgressTimeOut++;
+		rf_in_progress_timeout++;
 		spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	}
 	priv->rf_change_in_progress = true;
@@ -821,10 +819,10 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 static void _rtl92e_init_priv_constant(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					&priv->rtllib->PowerSaveControl;
+	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
+					&priv->rtllib->pwr_save_ctrl;
 
-	pPSC->RegMaxLPSAwakeIntvl = 5;
+	psc->reg_max_lps_awake_intvl = 5;
 }
 
 static void _rtl92e_init_priv_variable(struct net_device *dev)
@@ -832,15 +830,12 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 i;
 
-	priv->AcmMethod = eAcmWay2_SW;
 	priv->dot11_current_preamble_mode = PREAMBLE_AUTO;
 	priv->rtllib->status = 0;
 	priv->polling_timer_on = 0;
 	priv->up_first_time = 1;
 	priv->blinked_ingpio = false;
-	priv->bDriverIsGoingToUnload = false;
 	priv->being_init_adapter = false;
-	priv->initialized_at_probe = false;
 	priv->bdisable_nic = false;
 	priv->bfirst_init = false;
 	priv->txringcount = 64;
@@ -848,12 +843,12 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->rxringcount = MAX_RX_COUNT;
 	priv->irq_enabled = 0;
 	priv->chan = 1;
-	priv->RegChannelPlan = 0xf;
+	priv->reg_chnl_plan = 0xf;
 	priv->rtllib->mode = WIRELESS_MODE_AUTO;
 	priv->rtllib->iw_mode = IW_MODE_INFRA;
-	priv->rtllib->bNetPromiscuousMode = false;
-	priv->rtllib->IntelPromiscuousModeInfo.bPromiscuousOn = false;
-	priv->rtllib->IntelPromiscuousModeInfo.bFilterSourceStationFrame =
+	priv->rtllib->net_promiscuous_md = false;
+	priv->rtllib->intel_promiscuous_md_info.promiscuous_on = false;
+	priv->rtllib->intel_promiscuous_md_info.fltr_src_sta_frame =
 								 false;
 	priv->rtllib->ieee_up = 0;
 	priv->retry_rts = DEFAULT_RETRY_RTS;
@@ -864,32 +859,21 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->promisc = (dev->flags & IFF_PROMISC) ? 1 : 0;
 	priv->bcck_in_ch14 = false;
 	priv->bfsync_processing  = false;
-	priv->CCKPresentAttentuation = 0;
+	priv->cck_present_attn = 0;
 	priv->rfa_txpowertrackingindex = 0;
 	priv->rfc_txpowertrackingindex = 0;
 	priv->CckPwEnl = 6;
-	priv->ScanDelay = 50;
-	priv->ResetProgress = RESET_TYPE_NORESET;
-	priv->bForcedSilentReset = false;
-	priv->bDisableNormalResetCheck = false;
+	priv->rst_progress = RESET_TYPE_NORESET;
 	priv->force_reset = false;
 	memset(priv->rtllib->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
-
-	memset(&priv->InterruptLog, 0, sizeof(struct log_int_8190));
-	priv->RxCounter = 0;
+	priv->rx_ctr = 0;
 	priv->rtllib->wx_set_enc = 0;
 	priv->hw_radio_off = false;
-	priv->RegRfOff = false;
-	priv->isRFOff = false;
-	priv->bInPowerSaveMode = false;
 	priv->rtllib->rf_off_reason = 0;
 	priv->rf_change_in_progress = false;
-	priv->bHwRfOffAction = 0;
+	priv->hw_rf_off_action = 0;
 	priv->SetRFPowerStateInProgress = false;
-	priv->rtllib->PowerSaveControl.bInactivePs = true;
-	priv->rtllib->PowerSaveControl.bIPSModeBackup = false;
-	priv->rtllib->PowerSaveControl.bLeisurePs = true;
-	priv->rtllib->PowerSaveControl.bFwCtrlLPS = false;
+	priv->rtllib->pwr_save_ctrl.bLeisurePs = true;
 	priv->rtllib->LPSDelayCnt = 0;
 	priv->rtllib->sta_sleep = LPS_IS_WAKE;
 	priv->rtllib->rf_power_state = rf_on;
@@ -916,8 +900,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
 		skb_queue_head_init(&priv->rtllib->skb_waitQ[i]);
-	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_head_init(&priv->rtllib->skb_aggQ[i]);
 }
 
 static void _rtl92e_init_priv_lock(struct r8192_priv *priv)
@@ -1147,8 +1129,8 @@ static void _rtl92e_if_silent_reset(struct net_device *dev)
 	struct rtllib_device *ieee = priv->rtllib;
 	unsigned long flag;
 
-	if (priv->ResetProgress == RESET_TYPE_NORESET) {
-		priv->ResetProgress = RESET_TYPE_SILENT;
+	if (priv->rst_progress == RESET_TYPE_NORESET) {
+		priv->rst_progress = RESET_TYPE_SILENT;
 
 		spin_lock_irqsave(&priv->rf_ps_lock, flag);
 		if (priv->rf_change_in_progress) {
@@ -1245,10 +1227,8 @@ RESET_START:
 		rtl92e_cam_restore(dev);
 		rtl92e_dm_restore_state(dev);
 END:
-		priv->ResetProgress = RESET_TYPE_NORESET;
+		priv->rst_progress = RESET_TYPE_NORESET;
 		priv->reset_count++;
-
-		priv->bForcedSilentReset = false;
 		priv->bResetInProgress = false;
 
 		rtl92e_writeb(dev, UFWP, 1);
@@ -1264,15 +1244,15 @@ static void _rtl92e_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 	*TotalRxBcnNum = 0;
 	*TotalRxDataNum = 0;
 
-	SlotIndex = (priv->rtllib->LinkDetectInfo.SlotIndex++) %
-			(priv->rtllib->LinkDetectInfo.SlotNum);
-	priv->rtllib->LinkDetectInfo.RxBcnNum[SlotIndex] =
-			priv->rtllib->LinkDetectInfo.NumRecvBcnInPeriod;
-	priv->rtllib->LinkDetectInfo.RxDataNum[SlotIndex] =
-			priv->rtllib->LinkDetectInfo.NumRecvDataInPeriod;
-	for (i = 0; i < priv->rtllib->LinkDetectInfo.SlotNum; i++) {
-		*TotalRxBcnNum += priv->rtllib->LinkDetectInfo.RxBcnNum[i];
-		*TotalRxDataNum += priv->rtllib->LinkDetectInfo.RxDataNum[i];
+	SlotIndex = (priv->rtllib->link_detect_info.SlotIndex++) %
+			(priv->rtllib->link_detect_info.SlotNum);
+	priv->rtllib->link_detect_info.RxBcnNum[SlotIndex] =
+			priv->rtllib->link_detect_info.NumRecvBcnInPeriod;
+	priv->rtllib->link_detect_info.RxDataNum[SlotIndex] =
+			priv->rtllib->link_detect_info.NumRecvDataInPeriod;
+	for (i = 0; i < priv->rtllib->link_detect_info.SlotNum; i++) {
+		*TotalRxBcnNum += priv->rtllib->link_detect_info.RxBcnNum[i];
+		*TotalRxDataNum += priv->rtllib->link_detect_info.RxDataNum[i];
 	}
 }
 
@@ -1285,8 +1265,8 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	enum reset_type ResetType = RESET_TYPE_NORESET;
 	static u8 check_reset_cnt;
 	unsigned long flags;
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&priv->rtllib->PowerSaveControl);
+	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
+					(&priv->rtllib->pwr_save_ctrl);
 	bool bBusyTraffic = false;
 	bool	bHigherBusyTraffic = false;
 	bool	bHigherBusyRxTraffic = false;
@@ -1309,31 +1289,31 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		     RTLLIB_NOLINK) &&
 		     (ieee->rf_power_state == rf_on) && !ieee->is_set_key &&
 		     (!ieee->proto_stoppping) && !ieee->wx_set_enc) {
-			if ((ieee->PowerSaveControl.ReturnPoint ==
+			if ((ieee->pwr_save_ctrl.ReturnPoint ==
 			     IPS_CALLBACK_NONE) &&
-			     (!ieee->bNetPromiscuousMode)) {
+			     (!ieee->net_promiscuous_md)) {
 				rtl92e_ips_enter(dev);
 			}
 		}
 	}
 	if ((ieee->state == RTLLIB_LINKED) && (ieee->iw_mode ==
-	     IW_MODE_INFRA) && (!ieee->bNetPromiscuousMode)) {
-		if (ieee->LinkDetectInfo.NumRxOkInPeriod > 100 ||
-		ieee->LinkDetectInfo.NumTxOkInPeriod > 100)
+	     IW_MODE_INFRA) && (!ieee->net_promiscuous_md)) {
+		if (ieee->link_detect_info.NumRxOkInPeriod > 100 ||
+		ieee->link_detect_info.NumTxOkInPeriod > 100)
 			bBusyTraffic = true;
 
-		if (ieee->LinkDetectInfo.NumRxOkInPeriod > 4000 ||
-		    ieee->LinkDetectInfo.NumTxOkInPeriod > 4000) {
+		if (ieee->link_detect_info.NumRxOkInPeriod > 4000 ||
+		    ieee->link_detect_info.NumTxOkInPeriod > 4000) {
 			bHigherBusyTraffic = true;
-			if (ieee->LinkDetectInfo.NumRxOkInPeriod > 5000)
+			if (ieee->link_detect_info.NumRxOkInPeriod > 5000)
 				bHigherBusyRxTraffic = true;
 			else
 				bHigherBusyRxTraffic = false;
 		}
 
-		if (((ieee->LinkDetectInfo.NumRxUnicastOkInPeriod +
-		    ieee->LinkDetectInfo.NumTxOkInPeriod) > 8) ||
-		    (ieee->LinkDetectInfo.NumRxUnicastOkInPeriod > 2))
+		if (((ieee->link_detect_info.NumRxUnicastOkInPeriod +
+		    ieee->link_detect_info.NumTxOkInPeriod) > 8) ||
+		    (ieee->link_detect_info.NumRxUnicastOkInPeriod > 2))
 			bEnterPS = false;
 		else
 			bEnterPS = true;
@@ -1350,13 +1330,13 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		rtl92e_leisure_ps_leave(dev);
 	}
 
-	ieee->LinkDetectInfo.NumRxOkInPeriod = 0;
-	ieee->LinkDetectInfo.NumTxOkInPeriod = 0;
-	ieee->LinkDetectInfo.NumRxUnicastOkInPeriod = 0;
-	ieee->LinkDetectInfo.bBusyTraffic = bBusyTraffic;
+	ieee->link_detect_info.NumRxOkInPeriod = 0;
+	ieee->link_detect_info.NumTxOkInPeriod = 0;
+	ieee->link_detect_info.NumRxUnicastOkInPeriod = 0;
+	ieee->link_detect_info.bBusyTraffic = bBusyTraffic;
 
-	ieee->LinkDetectInfo.bHigherBusyTraffic = bHigherBusyTraffic;
-	ieee->LinkDetectInfo.bHigherBusyRxTraffic = bHigherBusyRxTraffic;
+	ieee->link_detect_info.bHigherBusyTraffic = bHigherBusyTraffic;
+	ieee->link_detect_info.bHigherBusyRxTraffic = bHigherBusyRxTraffic;
 
 	if (ieee->state == RTLLIB_LINKED && ieee->iw_mode == IW_MODE_INFRA) {
 		u32	TotalRxBcnNum = 0;
@@ -1397,28 +1377,26 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 
 			priv->check_roaming_cnt = 0;
 		}
-		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 0;
-		ieee->LinkDetectInfo.NumRecvDataInPeriod = 0;
+		ieee->link_detect_info.NumRecvBcnInPeriod = 0;
+		ieee->link_detect_info.NumRecvDataInPeriod = 0;
 	}
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	if ((check_reset_cnt++ >= 3) && (!ieee->is_roaming) &&
-	    (!priv->rf_change_in_progress) && (!pPSC->bSwRfProcessing)) {
+	    (!priv->rf_change_in_progress) && (!psc->bSwRfProcessing)) {
 		ResetType = _rtl92e_if_check_reset(dev);
 		check_reset_cnt = 3;
 	}
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
-	if (!priv->bDisableNormalResetCheck && ResetType == RESET_TYPE_NORMAL) {
-		priv->ResetProgress = RESET_TYPE_NORMAL;
+	if (ResetType == RESET_TYPE_NORMAL) {
+		priv->rst_progress = RESET_TYPE_NORMAL;
 		return;
 	}
 
-	if (((priv->force_reset) || (!priv->bDisableNormalResetCheck &&
-	      ResetType == RESET_TYPE_SILENT)))
+	if ((priv->force_reset || ResetType == RESET_TYPE_SILENT))
 		_rtl92e_if_silent_reset(dev);
 	priv->force_reset = false;
-	priv->bForcedSilentReset = false;
 	priv->bResetInProgress = false;
 }
 
@@ -1554,8 +1532,8 @@ static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	tcb_desc->RATRIndex = 7;
-	tcb_desc->bTxDisableRateFallBack = 1;
-	tcb_desc->bTxUseDriverAssingedRate = 1;
+	tcb_desc->tx_dis_rate_fallback = 1;
+	tcb_desc->tx_use_drv_assinged_rate = 1;
 	tcb_desc->bTxEnableFwCalcDur = 1;
 	skb_push(skb, priv->rtllib->tx_headroom);
 	ret = _rtl92e_tx(dev, skb);
@@ -2205,7 +2183,6 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 
 	if (inta & IMR_ROK) {
 		priv->stats.rxint++;
-		priv->InterruptLog.nIMR_ROK++;
 		tasklet_schedule(&priv->irq_rx_tasklet);
 	}
 
@@ -2229,25 +2206,25 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 
 	if (inta & IMR_BKDOK) {
 		priv->stats.txbkokint++;
-		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
 		_rtl92e_tx_isr(dev, BK_QUEUE);
 	}
 
 	if (inta & IMR_BEDOK) {
 		priv->stats.txbeokint++;
-		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
 		_rtl92e_tx_isr(dev, BE_QUEUE);
 	}
 
 	if (inta & IMR_VIDOK) {
 		priv->stats.txviokint++;
-		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
 		_rtl92e_tx_isr(dev, VI_QUEUE);
 	}
 
 	if (inta & IMR_VODOK) {
 		priv->stats.txvookint++;
-		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
 		_rtl92e_tx_isr(dev, VO_QUEUE);
 	}
 
@@ -2437,8 +2414,8 @@ bool rtl92e_enable_nic(struct net_device *dev)
 {
 	bool init_status = true;
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&priv->rtllib->PowerSaveControl);
+	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
+					(&priv->rtllib->pwr_save_ctrl);
 
 	if (!priv->up) {
 		netdev_warn(dev, "%s(): Driver is already down!\n", __func__);
@@ -2453,7 +2430,7 @@ bool rtl92e_enable_nic(struct net_device *dev)
 		priv->bdisable_nic = false;
 		return false;
 	}
-	RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
+	RT_CLEAR_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
 	priv->bfirst_init = false;
 
 	rtl92e_irq_enable(dev);

@@ -10,8 +10,8 @@
  *     Martin Bugge <marbugge@cisco.com>
  */
 
-#ifndef THS7353_H
-#define THS7353_H
+#ifndef THS7303_H
+#define THS7303_H
 
 /**
  * struct ths7303_platform_data - Platform dependent data

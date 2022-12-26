@@ -456,19 +456,19 @@ static void mhi_mbim_ndo_get_stats64(struct net_device *ndev,
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin_irq(&link->rx_syncp);
+		start = u64_stats_fetch_begin(&link->rx_syncp);
 		stats->rx_packets = u64_stats_read(&link->rx_packets);
 		stats->rx_bytes = u64_stats_read(&link->rx_bytes);
 		stats->rx_errors = u64_stats_read(&link->rx_errors);
-	} while (u64_stats_fetch_retry_irq(&link->rx_syncp, start));
+	} while (u64_stats_fetch_retry(&link->rx_syncp, start));
 
 	do {
-		start = u64_stats_fetch_begin_irq(&link->tx_syncp);
+		start = u64_stats_fetch_begin(&link->tx_syncp);
 		stats->tx_packets = u64_stats_read(&link->tx_packets);
 		stats->tx_bytes = u64_stats_read(&link->tx_bytes);
 		stats->tx_errors = u64_stats_read(&link->tx_errors);
 		stats->tx_dropped = u64_stats_read(&link->tx_dropped);
-	} while (u64_stats_fetch_retry_irq(&link->tx_syncp, start));
+	} while (u64_stats_fetch_retry(&link->tx_syncp, start));
 }
 
 static void mhi_mbim_ul_callback(struct mhi_device *mhi_dev,

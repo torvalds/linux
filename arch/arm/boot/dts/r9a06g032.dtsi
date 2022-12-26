@@ -199,7 +199,7 @@
 			reg-io-width = <4>;
 			clocks = <&sysctrl R9A06G032_CLK_UART3>, <&sysctrl R9A06G032_HCLK_UART3>;
 			clock-names = "baudclk", "apb_pclk";
-			dmas =  <&dmamux 0 0 0 0 0 1>, <&dmamux 1 0 0 0 1 1>;
+			dmas = <&dmamux 0 0 0 0 0 1>, <&dmamux 1 0 0 0 1 1>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 		};
@@ -212,7 +212,7 @@
 			reg-io-width = <4>;
 			clocks = <&sysctrl R9A06G032_CLK_UART4>, <&sysctrl R9A06G032_HCLK_UART4>;
 			clock-names = "baudclk", "apb_pclk";
-			dmas =  <&dmamux 2 0 0 0 2 1>, <&dmamux 3 0 0 0 3 1>;
+			dmas = <&dmamux 2 0 0 0 2 1>, <&dmamux 3 0 0 0 3 1>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 		};
@@ -225,7 +225,7 @@
 			reg-io-width = <4>;
 			clocks = <&sysctrl R9A06G032_CLK_UART5>, <&sysctrl R9A06G032_HCLK_UART5>;
 			clock-names = "baudclk", "apb_pclk";
-			dmas =  <&dmamux 4 0 0 0 4 1>, <&dmamux 5 0 0 0 5 1>;
+			dmas = <&dmamux 4 0 0 0 4 1>, <&dmamux 5 0 0 0 5 1>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 		};
@@ -238,7 +238,7 @@
 			reg-io-width = <4>;
 			clocks = <&sysctrl R9A06G032_CLK_UART6>, <&sysctrl R9A06G032_HCLK_UART6>;
 			clock-names = "baudclk", "apb_pclk";
-			dmas =  <&dmamux 6 0 0 0 6 1>, <&dmamux 7 0 0 0 7 1>;
+			dmas = <&dmamux 6 0 0 0 6 1>, <&dmamux 7 0 0 0 7 1>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 		};
@@ -251,7 +251,7 @@
 			reg-io-width = <4>;
 			clocks = <&sysctrl R9A06G032_CLK_UART7>, <&sysctrl R9A06G032_HCLK_UART7>;
 			clock-names = "baudclk", "apb_pclk";
-			dmas =  <&dmamux 4 0 0 0 20 1>, <&dmamux 5 0 0 0 21 1>;
+			dmas = <&dmamux 4 0 0 0 20 1>, <&dmamux 5 0 0 0 21 1>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 		};

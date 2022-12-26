@@ -87,8 +87,8 @@ static inline bool aa_strneq(const char *str, const char *sub, int len)
  * character which is not used in standard matching and is only
  * used to separate pairs.
  */
-static inline unsigned int aa_dfa_null_transition(struct aa_dfa *dfa,
-						  unsigned int start)
+static inline aa_state_t aa_dfa_null_transition(struct aa_dfa *dfa,
+						aa_state_t start)
 {
 	/* the null transition only needs the string's null terminator byte */
 	return aa_dfa_next(dfa, start, 0);
@@ -99,6 +99,12 @@ static inline bool path_mediated_fs(struct dentry *dentry)
 	return !(dentry->d_sb->s_flags & SB_NOUSER);
 }
 
+struct aa_str_table {
+	int size;
+	char **table;
+};
+
+void aa_free_str_table(struct aa_str_table *table);
 
 struct counted_str {
 	struct kref count;

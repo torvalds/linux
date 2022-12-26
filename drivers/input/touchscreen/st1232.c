@@ -220,9 +220,9 @@ static const struct st_chip_info st1633_chip_info = {
 	.max_fingers	= 5,
 };
 
-static int st1232_ts_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int st1232_ts_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	const struct st_chip_info *match;
 	struct st1232_ts_data *ts;
 	struct input_dev *input_dev;
@@ -384,7 +384,7 @@ static const struct of_device_id st1232_ts_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, st1232_ts_dt_ids);
 
 static struct i2c_driver st1232_ts_driver = {
-	.probe		= st1232_ts_probe,
+	.probe_new	= st1232_ts_probe,
 	.id_table	= st1232_ts_id,
 	.driver = {
 		.name	= ST1232_TS_NAME,

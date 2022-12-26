@@ -60,13 +60,11 @@ properties:
 
   monitored-battery:
     description: |
-       phandle of battery characteristics node.
        The fuel gauge uses the following battery properties:
        - energy-full-design-microwatt-hours
        - charge-full-design-microamp-hours
        - voltage-min-design-microvolt
        Both or neither of the *-full-design-*-hours properties must be set.
-       See Documentation/devicetree/bindings/power/supply/battery.yaml
 
   power-supplies: true
 

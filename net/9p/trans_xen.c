@@ -157,7 +157,7 @@ again:
 			      &masked_prod, masked_cons,
 			      XEN_9PFS_RING_SIZE(ring));
 
-	p9_req->status = REQ_STATUS_SENT;
+	WRITE_ONCE(p9_req->status, REQ_STATUS_SENT);
 	virt_wmb();			/* write ring before updating pointer */
 	prod += size;
 	ring->intf->out_prod = prod;
@@ -208,7 +208,17 @@ static void p9_xen_response(struct work_struct *work)
 			continue;
 		}
 
-		memcpy(&req->rc, &h, sizeof(h));
+		if (h.size > req->rc.capacity) {
+			dev_warn(&priv->dev->dev,
+				 "requested packet size too big: %d for tag %d with capacity %zd\n",
+				 h.size, h.tag, req->rc.capacity);
+			WRITE_ONCE(req->status, REQ_STATUS_ERROR);
+			goto recv_error;
+		}
+
+		req->rc.size = h.size;
+		req->rc.id = h.id;
+		req->rc.tag = h.tag;
 		req->rc.offset = 0;
 
 		masked_cons = xen_9pfs_mask(cons, XEN_9PFS_RING_SIZE(ring));
@@ -217,6 +227,7 @@ static void p9_xen_response(struct work_struct *work)
 				     masked_prod, &masked_cons,
 				     XEN_9PFS_RING_SIZE(ring));
 
+recv_error:
 		virt_mb();
 		cons += h.size;
 		ring->intf->in_cons = cons;

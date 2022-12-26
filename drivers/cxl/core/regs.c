@@ -7,6 +7,8 @@
 #include <cxlmem.h>
 #include <cxlpci.h>
 
+#include "core.h"
+
 /**
  * DOC: cxl registers
  *
@@ -59,36 +61,48 @@ void cxl_probe_component_regs(struct device *dev, void __iomem *base,
 
 	for (cap = 1; cap <= cap_count; cap++) {
 		void __iomem *register_block;
-		u32 hdr;
-		int decoder_cnt;
+		struct cxl_reg_map *rmap;
 		u16 cap_id, offset;
-		u32 length;
+		u32 length, hdr;
 
 		hdr = readl(base + cap * 0x4);
 
 		cap_id = FIELD_GET(CXL_CM_CAP_HDR_ID_MASK, hdr);
 		offset = FIELD_GET(CXL_CM_CAP_PTR_MASK, hdr);
 		register_block = base + offset;
+		hdr = readl(register_block);
 
+		rmap = NULL;
 		switch (cap_id) {
-		case CXL_CM_CAP_CAP_ID_HDM:
+		case CXL_CM_CAP_CAP_ID_HDM: {
+			int decoder_cnt;
+
 			dev_dbg(dev, "found HDM decoder capability (0x%x)\n",
 				offset);
 
-			hdr = readl(register_block);
-
 			decoder_cnt = cxl_hdm_decoder_count(hdr);
 			length = 0x20 * decoder_cnt + 0x10;
-
-			map->hdm_decoder.valid = true;
-			map->hdm_decoder.offset = CXL_CM_OFFSET + offset;
-			map->hdm_decoder.size = length;
+			rmap = &map->hdm_decoder;
+			break;
+		}
+		case CXL_CM_CAP_CAP_ID_RAS:
+			dev_dbg(dev, "found RAS capability (0x%x)\n",
+				offset);
+			length = CXL_RAS_CAPABILITY_LENGTH;
+			rmap = &map->ras;
 			break;
 		default:
 			dev_dbg(dev, "Unknown CM cap ID: %d (0x%x)\n", cap_id,
 				offset);
 			break;
 		}
+
+		if (!rmap)
+			continue;
+		rmap->valid = true;
+		rmap->id = cap_id;
+		rmap->offset = CXL_CM_OFFSET + offset;
+		rmap->size = length;
 	}
 }
 EXPORT_SYMBOL_NS_GPL(cxl_probe_component_regs, CXL);
@@ -117,6 +131,7 @@ void cxl_probe_device_regs(struct device *dev, void __iomem *base,
 	cap_count = FIELD_GET(CXLDEV_CAP_ARRAY_COUNT_MASK, cap_array);
 
 	for (cap = 1; cap <= cap_count; cap++) {
+		struct cxl_reg_map *rmap;
 		u32 offset, length;
 		u16 cap_id;
 
@@ -125,28 +140,22 @@ void cxl_probe_device_regs(struct device *dev, void __iomem *base,
 		offset = readl(base + cap * 0x10 + 0x4);
 		length = readl(base + cap * 0x10 + 0x8);
 
+		rmap = NULL;
 		switch (cap_id) {
 		case CXLDEV_CAP_CAP_ID_DEVICE_STATUS:
 			dev_dbg(dev, "found Status capability (0x%x)\n", offset);
-
-			map->status.valid = true;
-			map->status.offset = offset;
-			map->status.size = length;
+			rmap = &map->status;
 			break;
 		case CXLDEV_CAP_CAP_ID_PRIMARY_MAILBOX:
 			dev_dbg(dev, "found Mailbox capability (0x%x)\n", offset);
-			map->mbox.valid = true;
-			map->mbox.offset = offset;
-			map->mbox.size = length;
+			rmap = &map->mbox;
 			break;
 		case CXLDEV_CAP_CAP_ID_SECONDARY_MAILBOX:
 			dev_dbg(dev, "found Secondary Mailbox capability (0x%x)\n", offset);
 			break;
 		case CXLDEV_CAP_CAP_ID_MEMDEV:
 			dev_dbg(dev, "found Memory Device capability (0x%x)\n", offset);
-			map->memdev.valid = true;
-			map->memdev.offset = offset;
-			map->memdev.size = length;
+			rmap = &map->memdev;
 			break;
 		default:
 			if (cap_id >= 0x8000)
@@ -155,6 +164,13 @@ void cxl_probe_device_regs(struct device *dev, void __iomem *base,
 				dev_dbg(dev, "Unknown cap ID: %#x offset: %#x\n", cap_id, offset);
 			break;
 		}
+
+		if (!rmap)
+			continue;
+		rmap->valid = true;
+		rmap->id = cap_id;
+		rmap->offset = offset;
+		rmap->size = length;
 	}
 }
 EXPORT_SYMBOL_NS_GPL(cxl_probe_device_regs, CXL);
@@ -164,6 +180,9 @@ void __iomem *devm_cxl_iomap_block(struct device *dev, resource_size_t addr,
 {
 	void __iomem *ret_val;
 	struct resource *res;
+
+	if (WARN_ON_ONCE(addr == CXL_RESOURCE_NONE))
+		return NULL;
 
 	res = devm_request_mem_region(dev, addr, length, dev_name(dev));
 	if (!res) {
@@ -180,67 +199,65 @@ void __iomem *devm_cxl_iomap_block(struct device *dev, resource_size_t addr,
 	return ret_val;
 }
 
-int cxl_map_component_regs(struct pci_dev *pdev,
-			   struct cxl_component_regs *regs,
-			   struct cxl_register_map *map)
+int cxl_map_component_regs(struct device *dev, struct cxl_component_regs *regs,
+			   struct cxl_register_map *map, unsigned long map_mask)
 {
-	struct device *dev = &pdev->dev;
-	resource_size_t phys_addr;
-	resource_size_t length;
+	struct mapinfo {
+		struct cxl_reg_map *rmap;
+		void __iomem **addr;
+	} mapinfo[] = {
+		{ &map->component_map.hdm_decoder, &regs->hdm_decoder },
+		{ &map->component_map.ras, &regs->ras },
+	};
+	int i;
 
-	phys_addr = pci_resource_start(pdev, map->barno);
-	phys_addr += map->block_offset;
+	for (i = 0; i < ARRAY_SIZE(mapinfo); i++) {
+		struct mapinfo *mi = &mapinfo[i];
+		resource_size_t phys_addr;
+		resource_size_t length;
 
-	phys_addr += map->component_map.hdm_decoder.offset;
-	length = map->component_map.hdm_decoder.size;
-	regs->hdm_decoder = devm_cxl_iomap_block(dev, phys_addr, length);
-	if (!regs->hdm_decoder)
-		return -ENOMEM;
+		if (!mi->rmap->valid)
+			continue;
+		if (!test_bit(mi->rmap->id, &map_mask))
+			continue;
+		phys_addr = map->resource + mi->rmap->offset;
+		length = mi->rmap->size;
+		*(mi->addr) = devm_cxl_iomap_block(dev, phys_addr, length);
+		if (!*(mi->addr))
+			return -ENOMEM;
+	}
 
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_map_component_regs, CXL);
 
-int cxl_map_device_regs(struct pci_dev *pdev,
+int cxl_map_device_regs(struct device *dev,
 			struct cxl_device_regs *regs,
 			struct cxl_register_map *map)
 {
-	struct device *dev = &pdev->dev;
-	resource_size_t phys_addr;
+	resource_size_t phys_addr = map->resource;
+	struct mapinfo {
+		struct cxl_reg_map *rmap;
+		void __iomem **addr;
+	} mapinfo[] = {
+		{ &map->device_map.status, &regs->status, },
+		{ &map->device_map.mbox, &regs->mbox, },
+		{ &map->device_map.memdev, &regs->memdev, },
+	};
+	int i;
 
-	phys_addr = pci_resource_start(pdev, map->barno);
-	phys_addr += map->block_offset;
-
-	if (map->device_map.status.valid) {
-		resource_size_t addr;
+	for (i = 0; i < ARRAY_SIZE(mapinfo); i++) {
+		struct mapinfo *mi = &mapinfo[i];
 		resource_size_t length;
-
-		addr = phys_addr + map->device_map.status.offset;
-		length = map->device_map.status.size;
-		regs->status = devm_cxl_iomap_block(dev, addr, length);
-		if (!regs->status)
-			return -ENOMEM;
-	}
-
-	if (map->device_map.mbox.valid) {
 		resource_size_t addr;
-		resource_size_t length;
 
-		addr = phys_addr + map->device_map.mbox.offset;
-		length = map->device_map.mbox.size;
-		regs->mbox = devm_cxl_iomap_block(dev, addr, length);
-		if (!regs->mbox)
-			return -ENOMEM;
-	}
+		if (!mi->rmap->valid)
+			continue;
 
-	if (map->device_map.memdev.valid) {
-		resource_size_t addr;
-		resource_size_t length;
-
-		addr = phys_addr + map->device_map.memdev.offset;
-		length = map->device_map.memdev.size;
-		regs->memdev = devm_cxl_iomap_block(dev, addr, length);
-		if (!regs->memdev)
+		addr = phys_addr + mi->rmap->offset;
+		length = mi->rmap->size;
+		*(mi->addr) = devm_cxl_iomap_block(dev, addr, length);
+		if (!*(mi->addr))
 			return -ENOMEM;
 	}
 
@@ -248,13 +265,24 @@ int cxl_map_device_regs(struct pci_dev *pdev,
 }
 EXPORT_SYMBOL_NS_GPL(cxl_map_device_regs, CXL);
 
-static void cxl_decode_regblock(u32 reg_lo, u32 reg_hi,
+static bool cxl_decode_regblock(struct pci_dev *pdev, u32 reg_lo, u32 reg_hi,
 				struct cxl_register_map *map)
 {
-	map->block_offset = ((u64)reg_hi << 32) |
-			    (reg_lo & CXL_DVSEC_REG_LOCATOR_BLOCK_OFF_LOW_MASK);
-	map->barno = FIELD_GET(CXL_DVSEC_REG_LOCATOR_BIR_MASK, reg_lo);
+	int bar = FIELD_GET(CXL_DVSEC_REG_LOCATOR_BIR_MASK, reg_lo);
+	u64 offset = ((u64)reg_hi << 32) |
+		     (reg_lo & CXL_DVSEC_REG_LOCATOR_BLOCK_OFF_LOW_MASK);
+
+	if (offset > pci_resource_len(pdev, bar)) {
+		dev_warn(&pdev->dev,
+			 "BAR%d: %pr: too small (offset: %pa, type: %d)\n", bar,
+			 &pdev->resource[bar], &offset, map->reg_type);
+		return false;
+	}
+
 	map->reg_type = FIELD_GET(CXL_DVSEC_REG_LOCATOR_BLOCK_ID_MASK, reg_lo);
+	map->resource = pci_resource_start(pdev, bar) + offset;
+	map->max_size = pci_resource_len(pdev, bar) - offset;
+	return true;
 }
 
 /**
@@ -274,7 +302,7 @@ int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
 	u32 regloc_size, regblocks;
 	int regloc, i;
 
-	map->block_offset = U64_MAX;
+	map->resource = CXL_RESOURCE_NONE;
 	regloc = pci_find_dvsec_capability(pdev, PCI_DVSEC_VENDOR_ID_CXL,
 					   CXL_DVSEC_REG_LOCATOR);
 	if (!regloc)
@@ -292,13 +320,79 @@ int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
 		pci_read_config_dword(pdev, regloc, &reg_lo);
 		pci_read_config_dword(pdev, regloc + 4, &reg_hi);
 
-		cxl_decode_regblock(reg_lo, reg_hi, map);
+		if (!cxl_decode_regblock(pdev, reg_lo, reg_hi, map))
+			continue;
 
 		if (map->reg_type == type)
 			return 0;
 	}
 
-	map->block_offset = U64_MAX;
+	map->resource = CXL_RESOURCE_NONE;
 	return -ENODEV;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_find_regblock, CXL);
+
+resource_size_t cxl_rcrb_to_component(struct device *dev,
+				      resource_size_t rcrb,
+				      enum cxl_rcrb which)
+{
+	resource_size_t component_reg_phys;
+	void __iomem *addr;
+	u32 bar0, bar1;
+	u16 cmd;
+	u32 id;
+
+	if (which == CXL_RCRB_UPSTREAM)
+		rcrb += SZ_4K;
+
+	/*
+	 * RCRB's BAR[0..1] point to component block containing CXL
+	 * subsystem component registers. MEMBAR extraction follows
+	 * the PCI Base spec here, esp. 64 bit extraction and memory
+	 * ranges alignment (6.0, 7.5.1.2.1).
+	 */
+	if (!request_mem_region(rcrb, SZ_4K, "CXL RCRB"))
+		return CXL_RESOURCE_NONE;
+	addr = ioremap(rcrb, SZ_4K);
+	if (!addr) {
+		dev_err(dev, "Failed to map region %pr\n", addr);
+		release_mem_region(rcrb, SZ_4K);
+		return CXL_RESOURCE_NONE;
+	}
+
+	id = readl(addr + PCI_VENDOR_ID);
+	cmd = readw(addr + PCI_COMMAND);
+	bar0 = readl(addr + PCI_BASE_ADDRESS_0);
+	bar1 = readl(addr + PCI_BASE_ADDRESS_1);
+	iounmap(addr);
+	release_mem_region(rcrb, SZ_4K);
+
+	/*
+	 * Sanity check, see CXL 3.0 Figure 9-8 CXL Device that Does Not
+	 * Remap Upstream Port and Component Registers
+	 */
+	if (id == U32_MAX) {
+		if (which == CXL_RCRB_DOWNSTREAM)
+			dev_err(dev, "Failed to access Downstream Port RCRB\n");
+		return CXL_RESOURCE_NONE;
+	}
+	if (!(cmd & PCI_COMMAND_MEMORY))
+		return CXL_RESOURCE_NONE;
+	/* The RCRB is a Memory Window, and the MEM_TYPE_1M bit is obsolete */
+	if (bar0 & (PCI_BASE_ADDRESS_MEM_TYPE_1M | PCI_BASE_ADDRESS_SPACE_IO))
+		return CXL_RESOURCE_NONE;
+
+	component_reg_phys = bar0 & PCI_BASE_ADDRESS_MEM_MASK;
+	if (bar0 & PCI_BASE_ADDRESS_MEM_TYPE_64)
+		component_reg_phys |= ((u64)bar1) << 32;
+
+	if (!component_reg_phys)
+		return CXL_RESOURCE_NONE;
+
+	/* MEMBAR is block size (64k) aligned. */
+	if (!IS_ALIGNED(component_reg_phys, CXL_COMPONENT_REG_BLOCK_SIZE))
+		return CXL_RESOURCE_NONE;
+
+	return component_reg_phys;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_rcrb_to_component, CXL);

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/thermal/st,stm32-thermal.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 digital thermal sensor (DTS) binding
+title: STMicroelectronics STM32 digital thermal sensor (DTS)
 
 maintainers:
   - Pascal Paillet <p.paillet@foss.st.com>

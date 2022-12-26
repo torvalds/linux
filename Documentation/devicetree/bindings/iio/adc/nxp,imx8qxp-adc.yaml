@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/adc/nxp,imx8qxp-adc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NXP IMX8QXP ADC bindings
+title: NXP IMX8QXP ADC
 
 maintainers:
   - Cai Huoqing <caihuoqing@baidu.com>

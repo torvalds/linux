@@ -270,14 +270,6 @@ static inline unsigned long long transport_lba_64(unsigned char *cdb)
 	return get_unaligned_be64(&cdb[2]);
 }
 
-/*
- * For VARIABLE_LENGTH_CDB w/ 32 byte extended CDBs
- */
-static inline unsigned long long transport_lba_64_ext(unsigned char *cdb)
-{
-	return get_unaligned_be64(&cdb[12]);
-}
-
 static sense_reason_t
 sbc_setup_write_same(struct se_cmd *cmd, unsigned char flags, struct sbc_ops *ops)
 {
@@ -454,12 +446,22 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 	sense_reason_t ret = TCM_NO_SENSE;
 	int i;
 
-	/*
-	 * Handle early failure in transport_generic_request_failure(),
-	 * which will not have taken ->caw_sem yet..
-	 */
-	if (!success && (!cmd->t_data_sg || !cmd->t_bidi_data_sg))
-		return TCM_NO_SENSE;
+	if (!success) {
+		/*
+		 * Handle early failure in transport_generic_request_failure(),
+		 * which will not have taken ->caw_sem yet..
+		 */
+		if (!cmd->t_data_sg || !cmd->t_bidi_data_sg)
+			return TCM_NO_SENSE;
+
+		/*
+		 * The command has been stopped or aborted so
+		 * we don't have to perform the write operation.
+		 */
+		WARN_ON(!(cmd->transport_state &
+			(CMD_T_ABORTED | CMD_T_STOP)));
+		goto out;
+	}
 	/*
 	 * Handle special case for zero-length COMPARE_AND_WRITE
 	 */

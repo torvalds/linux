@@ -202,8 +202,9 @@ static const struct iio_info ds1803_info = {
 	.read_avail = ds1803_read_avail,
 };
 
-static int ds1803_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int ds1803_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct ds1803_data *data;
 	struct iio_dev *indio_dev;
@@ -251,7 +252,7 @@ static struct i2c_driver ds1803_driver = {
 		.name	= "ds1803",
 		.of_match_table = ds1803_dt_ids,
 	},
-	.probe		= ds1803_probe,
+	.probe_new	= ds1803_probe,
 	.id_table	= ds1803_id,
 };
 

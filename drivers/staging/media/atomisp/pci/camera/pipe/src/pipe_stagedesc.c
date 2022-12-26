@@ -74,27 +74,6 @@ void ia_css_pipe_get_firmwares_stage_desc(
 	stage_desc->vf_frame = vf_frame;
 }
 
-void ia_css_pipe_get_acc_stage_desc(
-    struct ia_css_pipeline_stage_desc *stage_desc,
-    struct ia_css_binary *binary,
-    struct ia_css_fw_info *fw)
-{
-	unsigned int i;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
-			    "ia_css_pipe_get_acc_stage_desc() enter:\n");
-	stage_desc->binary = binary;
-	stage_desc->firmware = fw;
-	stage_desc->sp_func = IA_CSS_PIPELINE_NO_FUNC;
-	stage_desc->max_input_width = 0;
-	stage_desc->mode = IA_CSS_BINARY_MODE_VF_PP;
-	stage_desc->in_frame = NULL;
-	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
-		stage_desc->out_frame[i] = NULL;
-	}
-	stage_desc->vf_frame = NULL;
-}
-
 void ia_css_pipe_get_sp_func_stage_desc(
     struct ia_css_pipeline_stage_desc *stage_desc,
     struct ia_css_frame *out_frame,

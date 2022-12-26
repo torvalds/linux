@@ -181,8 +181,7 @@ static const struct v4l2_subdev_ops bt856_ops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int bt856_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int bt856_probe(struct i2c_client *client)
 {
 	struct bt856 *encoder;
 	struct v4l2_subdev *sd;
@@ -240,7 +239,7 @@ static struct i2c_driver bt856_driver = {
 	.driver = {
 		.name	= "bt856",
 	},
-	.probe		= bt856_probe,
+	.probe_new	= bt856_probe,
 	.remove		= bt856_remove,
 	.id_table	= bt856_id,
 };

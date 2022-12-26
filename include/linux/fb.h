@@ -803,6 +803,15 @@ extern int fb_find_mode(struct fb_var_screeninfo *var,
 			const struct fb_videomode *default_mode,
 			unsigned int default_bpp);
 
+#if defined(CONFIG_VIDEO_NOMODESET)
+bool fb_modesetting_disabled(const char *drvname);
+#else
+static inline bool fb_modesetting_disabled(const char *drvname)
+{
+	return false;
+}
+#endif
+
 /* Convenience logging macros */
 #define fb_err(fb_info, fmt, ...)					\
 	pr_err("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)

@@ -151,8 +151,8 @@ static inline void mm_context_remove_copro(struct mm_struct *mm)
 	 * nMMU and/or PSL need to be cleaned up.
 	 *
 	 * Both the 'copros' and 'active_cpus' counts are looked at in
-	 * flush_all_mm() to determine the scope (local/global) of the
-	 * TLBIs, so we need to flush first before decrementing
+	 * radix__flush_all_mm() to determine the scope (local/global)
+	 * of the TLBIs, so we need to flush first before decrementing
 	 * 'copros'. If this API is used by several callers for the
 	 * same context, it can lead to over-flushing. It's hopefully
 	 * not common enough to be a problem.
@@ -164,7 +164,7 @@ static inline void mm_context_remove_copro(struct mm_struct *mm)
 	 * in-between.
 	 */
 	if (radix_enabled()) {
-		flush_all_mm(mm);
+		radix__flush_all_mm(mm);
 
 		c = atomic_dec_if_positive(&mm->context.copros);
 		/* Detect imbalance between add and remove */

@@ -32,9 +32,9 @@ static int mpu3050_i2c_bypass_deselect(struct i2c_mux_core *mux, u32 chan_id)
 	return 0;
 }
 
-static int mpu3050_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int mpu3050_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct regmap *regmap;
 	const char *name;
 	struct mpu3050 *mpu3050;
@@ -108,7 +108,7 @@ static const struct of_device_id mpu3050_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, mpu3050_i2c_of_match);
 
 static struct i2c_driver mpu3050_i2c_driver = {
-	.probe = mpu3050_i2c_probe,
+	.probe_new = mpu3050_i2c_probe,
 	.remove = mpu3050_i2c_remove,
 	.id_table = mpu3050_i2c_id,
 	.driver = {

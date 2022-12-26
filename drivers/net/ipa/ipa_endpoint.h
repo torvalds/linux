@@ -195,7 +195,7 @@ void ipa_endpoint_deconfig(struct ipa *ipa);
 void ipa_endpoint_default_route_set(struct ipa *ipa, u32 endpoint_id);
 void ipa_endpoint_default_route_clear(struct ipa *ipa);
 
-u32 ipa_endpoint_init(struct ipa *ipa, u32 count,
+int ipa_endpoint_init(struct ipa *ipa, u32 count,
 		      const struct ipa_gsi_endpoint_data *data);
 void ipa_endpoint_exit(struct ipa *ipa);
 

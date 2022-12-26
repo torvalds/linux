@@ -73,8 +73,30 @@ properties:
           - const: 0xb00f
       - items:
           - const: 0xb010
+      - items:
+          - const: 0xb013
 
   msi-map: true
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    items:
+      - const: link_state
+
+  interrupt-controller:
+    type: object
+    additionalProperties: false
+
+    properties:
+      interrupt-controller: true
+
+      '#interrupt-cells':
+        const: 1
+
+      interrupts:
+        maxItems: 1
 
 required:
   - compatible

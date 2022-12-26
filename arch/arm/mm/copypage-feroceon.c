@@ -15,6 +15,7 @@ static void feroceon_copy_user_page(void *kto, const void *kfrom)
 	int tmp;
 
 	asm volatile ("\
+.arch	armv5te					\n\
 1:	ldmia	%1!, {r2 - r7, ip, lr}		\n\
 	pld	[%1, #0]			\n\
 	pld	[%1, #32]			\n\

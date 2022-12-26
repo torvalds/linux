@@ -17,6 +17,7 @@
 #include <linux/soundwire/sdw_intel.h>
 #include "cadence_master.h"
 #include "intel.h"
+#include "intel_auxdevice.h"
 
 static void intel_link_dev_release(struct device *dev)
 {
@@ -60,6 +61,7 @@ static struct sdw_intel_link_dev *intel_link_dev_register(struct sdw_intel_res *
 
 	/* Add link information used in the driver probe */
 	link = &ldev->link_res;
+	link->hw_ops = res->hw_ops;
 	link->mmio_base = res->mmio_base;
 	link->registers = res->mmio_base + SDW_LINK_BASE
 		+ (SDW_LINK_SIZE * link_id);

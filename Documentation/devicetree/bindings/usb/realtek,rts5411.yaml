@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/realtek,rts5411.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding for the Realtek RTS5411 USB 3.0 hub controller
+title: Realtek RTS5411 USB 3.0 hub controller
 
 maintainers:
   - Matthias Kaehlcke <mka@chromium.org>

@@ -152,9 +152,9 @@ static inline unsigned long max8997_i2c_get_driver_data(struct i2c_client *i2c,
 	return id->driver_data;
 }
 
-static int max8997_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int max8997_i2c_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct max8997_dev *max8997;
 	struct max8997_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret = 0;
@@ -478,7 +478,7 @@ static struct i2c_driver max8997_i2c_driver = {
 		   .suppress_bind_attrs = true,
 		   .of_match_table = of_match_ptr(max8997_pmic_dt_match),
 	},
-	.probe = max8997_i2c_probe,
+	.probe_new = max8997_i2c_probe,
 	.id_table = max8997_i2c_id,
 };
 

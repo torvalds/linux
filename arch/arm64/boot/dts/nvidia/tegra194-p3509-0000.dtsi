@@ -2117,8 +2117,8 @@
 							"usb-b-connector";
 						label = "micro-USB";
 						type = "micro";
-						vbus-gpio = <&gpio TEGRA194_MAIN_GPIO(Z, 1)
-								GPIO_ACTIVE_LOW>;
+						vbus-gpios = <&gpio TEGRA194_MAIN_GPIO(Z, 1)
+								    GPIO_ACTIVE_LOW>;
 					};
 				};
 

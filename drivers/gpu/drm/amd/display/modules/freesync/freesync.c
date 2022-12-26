@@ -688,10 +688,10 @@ static void build_vrr_infopacket_fs2_data(enum color_transfer_func app_tf,
 	if (app_tf != TRANSFER_FUNC_UNKNOWN) {
 		infopacket->valid = true;
 
-		infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
-
-		if (app_tf == TRANSFER_FUNC_GAMMA_22) {
-			infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
+		if (app_tf != TRANSFER_FUNC_PQ2084) {
+			infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
+			if (app_tf == TRANSFER_FUNC_GAMMA_22)
+				infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
 		}
 	}
 }

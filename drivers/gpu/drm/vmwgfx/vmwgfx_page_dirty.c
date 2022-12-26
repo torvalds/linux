@@ -230,7 +230,7 @@ void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
 int vmw_bo_dirty_add(struct vmw_buffer_object *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	pgoff_t num_pages = vbo->base.resource->num_pages;
+	pgoff_t num_pages = PFN_UP(vbo->base.resource->size);
 	size_t size;
 	int ret;
 
@@ -395,7 +395,7 @@ vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf)
 		return ret;
 
 	page_offset = vmf->pgoff - drm_vma_node_start(&bo->base.vma_node);
-	if (unlikely(page_offset >= bo->resource->num_pages)) {
+	if (unlikely(page_offset >= PFN_UP(bo->resource->size))) {
 		ret = VM_FAULT_SIGBUS;
 		goto out_unlock;
 	}
@@ -438,7 +438,7 @@ vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf)
 
 		page_offset = vmf->pgoff -
 			drm_vma_node_start(&bo->base.vma_node);
-		if (page_offset >= bo->resource->num_pages ||
+		if (page_offset >= PFN_UP(bo->resource->size) ||
 		    vmw_resources_clean(vbo, page_offset,
 					page_offset + PAGE_SIZE,
 					&allowed_prefault)) {

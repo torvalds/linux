@@ -32,6 +32,7 @@
 #include <drm/drm_crtc.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -491,8 +492,8 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		intel_encoder->pipe_mask = ~0;
 
 		if (dvo->type != INTEL_DVO_CHIP_LVDS)
-			intel_encoder->cloneable = (1 << INTEL_OUTPUT_ANALOG) |
-				(1 << INTEL_OUTPUT_DVO);
+			intel_encoder->cloneable = BIT(INTEL_OUTPUT_ANALOG) |
+				BIT(INTEL_OUTPUT_DVO);
 
 		switch (dvo->type) {
 		case INTEL_DVO_CHIP_TMDS:
@@ -515,8 +516,6 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		drm_connector_helper_add(connector,
 					 &intel_dvo_connector_helper_funcs);
 		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
-		connector->interlace_allowed = false;
-		connector->doublescan_allowed = false;
 
 		intel_connector_attach_encoder(intel_connector, intel_encoder);
 		if (dvo->type == INTEL_DVO_CHIP_LVDS) {

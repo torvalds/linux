@@ -316,7 +316,7 @@ static int iwl_mvm_invalidate_sta_queue(struct iwl_mvm *mvm, int queue,
 }
 
 static int iwl_mvm_disable_txq(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			       u16 *queueptr, u8 tid)
+			       int sta_id, u16 *queueptr, u8 tid)
 {
 	int queue = *queueptr;
 	struct iwl_scd_txq_cfg_cmd cmd = {
@@ -333,7 +333,8 @@ static int iwl_mvm_disable_txq(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 					     SCD_QUEUE_CONFIG_CMD);
 			struct iwl_scd_queue_cfg_cmd remove_cmd = {
 				.operation = cpu_to_le32(IWL_SCD_QUEUE_REMOVE),
-				.u.remove.queue = cpu_to_le32(queue),
+				.u.remove.tid = cpu_to_le32(tid),
+				.u.remove.sta_mask = cpu_to_le32(BIT(sta_id)),
 			};
 
 			ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0,
@@ -531,7 +532,7 @@ static int iwl_mvm_free_inactive_queue(struct iwl_mvm *mvm, int queue,
 		iwl_mvm_invalidate_sta_queue(mvm, queue,
 					     disable_agg_tids, false);
 
-	ret = iwl_mvm_disable_txq(mvm, old_sta, &queue_tmp, tid);
+	ret = iwl_mvm_disable_txq(mvm, old_sta, sta_id, &queue_tmp, tid);
 	if (ret) {
 		IWL_ERR(mvm,
 			"Failed to free inactive queue %d (ret=%d)\n",
@@ -1408,7 +1409,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 
 out_err:
 	queue_tmp = queue;
-	iwl_mvm_disable_txq(mvm, sta, &queue_tmp, tid);
+	iwl_mvm_disable_txq(mvm, sta, mvmsta->sta_id, &queue_tmp, tid);
 
 	return ret;
 }
@@ -1854,7 +1855,8 @@ static void iwl_mvm_disable_sta_queues(struct iwl_mvm *mvm,
 		if (mvm_sta->tid_data[i].txq_id == IWL_MVM_INVALID_QUEUE)
 			continue;
 
-		iwl_mvm_disable_txq(mvm, sta, &mvm_sta->tid_data[i].txq_id, i);
+		iwl_mvm_disable_txq(mvm, sta, mvm_sta->sta_id,
+				    &mvm_sta->tid_data[i].txq_id, i);
 		mvm_sta->tid_data[i].txq_id = IWL_MVM_INVALID_QUEUE;
 	}
 
@@ -1953,6 +1955,9 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		/* if associated - we can't remove the AP STA now */
 		if (vif->cfg.assoc)
 			return ret;
+
+		/* first remove remaining keys */
+		iwl_mvm_sec_key_remove_ap(mvm, vif);
 
 		/* unassoc - go ahead - remove the AP STA now */
 		mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
@@ -2062,7 +2067,7 @@ static int iwl_mvm_add_int_sta_with_queue(struct iwl_mvm *mvm, int macidx,
 	ret = iwl_mvm_add_int_sta_common(mvm, sta, addr, macidx, maccolor);
 	if (ret) {
 		if (!iwl_mvm_has_new_tx_api(mvm))
-			iwl_mvm_disable_txq(mvm, NULL, queue,
+			iwl_mvm_disable_txq(mvm, NULL, sta->sta_id, queue,
 					    IWL_MAX_TID_COUNT);
 		return ret;
 	}
@@ -2135,7 +2140,8 @@ int iwl_mvm_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (WARN_ON_ONCE(mvm->snif_sta.sta_id == IWL_MVM_INVALID_STA))
 		return -EINVAL;
 
-	iwl_mvm_disable_txq(mvm, NULL, &mvm->snif_queue, IWL_MAX_TID_COUNT);
+	iwl_mvm_disable_txq(mvm, NULL, mvm->snif_sta.sta_id,
+			    &mvm->snif_queue, IWL_MAX_TID_COUNT);
 	ret = iwl_mvm_rm_sta_common(mvm, mvm->snif_sta.sta_id);
 	if (ret)
 		IWL_WARN(mvm, "Failed sending remove station\n");
@@ -2152,7 +2158,8 @@ int iwl_mvm_rm_aux_sta(struct iwl_mvm *mvm)
 	if (WARN_ON_ONCE(mvm->aux_sta.sta_id == IWL_MVM_INVALID_STA))
 		return -EINVAL;
 
-	iwl_mvm_disable_txq(mvm, NULL, &mvm->aux_queue, IWL_MAX_TID_COUNT);
+	iwl_mvm_disable_txq(mvm, NULL, mvm->aux_sta.sta_id,
+			    &mvm->aux_queue, IWL_MAX_TID_COUNT);
 	ret = iwl_mvm_rm_sta_common(mvm, mvm->aux_sta.sta_id);
 	if (ret)
 		IWL_WARN(mvm, "Failed sending remove station\n");
@@ -2269,7 +2276,8 @@ static void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
 	}
 
 	queue = *queueptr;
-	iwl_mvm_disable_txq(mvm, NULL, queueptr, IWL_MAX_TID_COUNT);
+	iwl_mvm_disable_txq(mvm, NULL, mvmvif->bcast_sta.sta_id,
+			    queueptr, IWL_MAX_TID_COUNT);
 	if (iwl_mvm_has_new_tx_api(mvm))
 		return;
 
@@ -2504,7 +2512,8 @@ int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	iwl_mvm_flush_sta(mvm, &mvmvif->mcast_sta, true);
 
-	iwl_mvm_disable_txq(mvm, NULL, &mvmvif->cab_queue, 0);
+	iwl_mvm_disable_txq(mvm, NULL, mvmvif->mcast_sta.sta_id,
+			    &mvmvif->cab_queue, 0);
 
 	ret = iwl_mvm_rm_sta_common(mvm, mvmvif->mcast_sta.sta_id);
 	if (ret)
@@ -2826,7 +2835,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 		/* synchronize all rx queues so we can safely delete */
 		iwl_mvm_free_reorder(mvm, baid_data);
-		del_timer_sync(&baid_data->session_timer);
+		timer_shutdown_sync(&baid_data->session_timer);
 		RCU_INIT_POINTER(mvm->baid_map[baid], NULL);
 		kfree_rcu(baid_data, rcu_head);
 		IWL_DEBUG_HT(mvm, "BAID %d is free\n", baid);

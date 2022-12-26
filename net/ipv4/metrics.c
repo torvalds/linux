@@ -14,9 +14,6 @@ static int ip_metrics_convert(struct net *net, struct nlattr *fc_mx,
 	struct nlattr *nla;
 	int remaining;
 
-	if (!fc_mx)
-		return 0;
-
 	nla_for_each_attr(nla, fc_mx, fc_mx_len, remaining) {
 		int type = nla_type(nla);
 		u32 val;

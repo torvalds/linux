@@ -8,14 +8,17 @@
 #include <linux/types.h>
 #include <asm/asm.h>
 
+#define INSN_NOP		0x03400000
 #define INSN_BREAK		0x002a0000
 
 #define ADDR_IMMMASK_LU52ID	0xFFF0000000000000
 #define ADDR_IMMMASK_LU32ID	0x000FFFFF00000000
+#define ADDR_IMMMASK_LU12IW	0x00000000FFFFF000
 #define ADDR_IMMMASK_ADDU16ID	0x00000000FFFF0000
 
 #define ADDR_IMMSHIFT_LU52ID	52
 #define ADDR_IMMSHIFT_LU32ID	32
+#define ADDR_IMMSHIFT_LU12IW	12
 #define ADDR_IMMSHIFT_ADDU16ID	16
 
 #define ADDR_IMM(addr, INSN)	((addr & ADDR_IMMMASK_##INSN) >> ADDR_IMMSHIFT_##INSN)
@@ -28,6 +31,7 @@ enum reg0i26_op {
 enum reg1i20_op {
 	lu12iw_op	= 0x0a,
 	lu32id_op	= 0x0b,
+	pcaddi_op	= 0x0c,
 	pcaddu12i_op	= 0x0e,
 	pcaddu18i_op	= 0x0f,
 };
@@ -35,6 +39,8 @@ enum reg1i20_op {
 enum reg1i21_op {
 	beqz_op		= 0x10,
 	bnez_op		= 0x11,
+	bceqz_op	= 0x12, /* bits[9:8] = 0x00 */
+	bcnez_op	= 0x12, /* bits[9:8] = 0x01 */
 };
 
 enum reg2_op {
@@ -76,6 +82,10 @@ enum reg2i12_op {
 	ldbu_op		= 0xa8,
 	ldhu_op		= 0xa9,
 	ldwu_op		= 0xaa,
+	flds_op		= 0xac,
+	fsts_op		= 0xad,
+	fldd_op		= 0xae,
+	fstd_op		= 0xaf,
 };
 
 enum reg2i14_op {
@@ -146,6 +156,10 @@ enum reg3_op {
 	ldxbu_op	= 0x7040,
 	ldxhu_op	= 0x7048,
 	ldxwu_op	= 0x7050,
+	fldxs_op	= 0x7060,
+	fldxd_op	= 0x7068,
+	fstxs_op	= 0x7070,
+	fstxd_op	= 0x7078,
 	amswapw_op	= 0x70c0,
 	amswapd_op	= 0x70c1,
 	amaddw_op	= 0x70c2,
@@ -307,6 +321,12 @@ static inline bool is_imm_negative(unsigned long val, unsigned int bit)
 	return val & (1UL << (bit - 1));
 }
 
+static inline bool is_pc_ins(union loongarch_instruction *ip)
+{
+	return ip->reg1i20_format.opcode >= pcaddi_op &&
+			ip->reg1i20_format.opcode <= pcaddu18i_op;
+}
+
 static inline bool is_branch_ins(union loongarch_instruction *ip)
 {
 	return ip->reg1i21_format.opcode >= beqz_op &&
@@ -331,6 +351,18 @@ static inline bool is_stack_alloc_ins(union loongarch_instruction *ip)
 		is_imm12_negative(ip->reg2i12_format.immediate);
 }
 
+int larch_insn_read(void *addr, u32 *insnp);
+int larch_insn_write(void *addr, u32 insn);
+int larch_insn_patch_text(void *addr, u32 insn);
+
+u32 larch_insn_gen_nop(void);
+u32 larch_insn_gen_b(unsigned long pc, unsigned long dest);
+u32 larch_insn_gen_bl(unsigned long pc, unsigned long dest);
+
+u32 larch_insn_gen_or(enum loongarch_gpr rd, enum loongarch_gpr rj, enum loongarch_gpr rk);
+u32 larch_insn_gen_move(enum loongarch_gpr rd, enum loongarch_gpr rj);
+
+u32 larch_insn_gen_lu12iw(enum loongarch_gpr rd, int imm);
 u32 larch_insn_gen_lu32id(enum loongarch_gpr rd, int imm);
 u32 larch_insn_gen_lu52id(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm);
 u32 larch_insn_gen_jirl(enum loongarch_gpr rd, enum loongarch_gpr rj, unsigned long pc, unsigned long dest);
@@ -343,6 +375,14 @@ static inline bool signed_imm_check(long val, unsigned int bit)
 static inline bool unsigned_imm_check(unsigned long val, unsigned int bit)
 {
 	return val < (1UL << bit);
+}
+
+static inline unsigned long sign_extend(unsigned long val, unsigned int idx)
+{
+	if (!is_imm_negative(val, idx + 1))
+		return ((1UL << idx) - 1) & val;
+	else
+		return ~((1UL << idx) - 1) | val;
 }
 
 #define DEF_EMIT_REG0I26_FORMAT(NAME, OP)				\
@@ -565,5 +605,11 @@ static inline void emit_##NAME(union loongarch_instruction *insn,	\
 }
 
 DEF_EMIT_REG3SA2_FORMAT(alsld, alsld_op)
+
+struct pt_regs;
+
+void emulate_load_store_insn(struct pt_regs *regs, void __user *addr, unsigned int *pc);
+unsigned long unaligned_read(void __user *addr, void *value, unsigned long n, bool sign);
+unsigned long unaligned_write(void __user *addr, unsigned long value, unsigned long n);
 
 #endif /* _ASM_INST_H */

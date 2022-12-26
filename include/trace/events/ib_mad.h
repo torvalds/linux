@@ -49,7 +49,6 @@ DECLARE_EVENT_CLASS(ib_mad_send_template,
 		__field(int,            retries_left)
 		__field(int,            max_retries)
 		__field(int,            retry)
-		__field(u16,            pkey)
 	),
 
 	TP_fast_assign(
@@ -89,7 +88,7 @@ DECLARE_EVENT_CLASS(ib_mad_send_template,
 		  "hdr : base_ver 0x%x class 0x%x class_ver 0x%x " \
 		  "method 0x%x status 0x%x class_specific 0x%x tid 0x%llx " \
 		  "attr_id 0x%x attr_mod 0x%x  => dlid 0x%08x sl %d "\
-		  "pkey 0x%x rpqn 0x%x rqpkey 0x%x",
+		  "rpqn 0x%x rqpkey 0x%x",
 		__entry->dev_index, __entry->port_num, __entry->qp_num,
 		__entry->agent_priv, be64_to_cpu(__entry->wrtid),
 		__entry->retries_left, __entry->max_retries,
@@ -100,7 +99,7 @@ DECLARE_EVENT_CLASS(ib_mad_send_template,
 		be16_to_cpu(__entry->class_specific),
 		be64_to_cpu(__entry->tid), be16_to_cpu(__entry->attr_id),
 		be32_to_cpu(__entry->attr_mod),
-		be32_to_cpu(__entry->dlid), __entry->sl, __entry->pkey,
+		be32_to_cpu(__entry->dlid), __entry->sl,
 		__entry->rqpn, __entry->rqkey
 	)
 );
@@ -204,7 +203,6 @@ TRACE_EVENT(ib_mad_recv_done_handler,
 		__field(u16,            wc_status)
 		__field(u32,            slid)
 		__field(u32,            dev_index)
-		__field(u16,            pkey)
 	),
 
 	TP_fast_assign(
@@ -224,9 +222,6 @@ TRACE_EVENT(ib_mad_recv_done_handler,
 		__entry->slid = wc->slid;
 		__entry->src_qp = wc->src_qp;
 		__entry->sl = wc->sl;
-		ib_query_pkey(qp_info->port_priv->device,
-			      qp_info->port_priv->port_num,
-			      wc->pkey_index, &__entry->pkey);
 		__entry->wc_status = wc->status;
 	),
 
@@ -234,7 +229,7 @@ TRACE_EVENT(ib_mad_recv_done_handler,
 		  "base_ver 0x%02x class 0x%02x class_ver 0x%02x " \
 		  "method 0x%02x status 0x%04x class_specific 0x%04x " \
 		  "tid 0x%016llx attr_id 0x%04x attr_mod 0x%08x " \
-		  "slid 0x%08x src QP%d, sl %d pkey 0x%04x",
+		  "slid 0x%08x src QP%d, sl %d",
 		__entry->dev_index, __entry->port_num, __entry->qp_num,
 		__entry->wc_status,
 		__entry->length,
@@ -244,7 +239,7 @@ TRACE_EVENT(ib_mad_recv_done_handler,
 		be16_to_cpu(__entry->class_specific),
 		be64_to_cpu(__entry->tid), be16_to_cpu(__entry->attr_id),
 		be32_to_cpu(__entry->attr_mod),
-		__entry->slid, __entry->src_qp, __entry->sl, __entry->pkey
+		__entry->slid, __entry->src_qp, __entry->sl
 	)
 );
 

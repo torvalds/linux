@@ -125,9 +125,13 @@ static const struct kdf_testvec kdf_ctr_hmac_sha256_tv_template[] = {
 
 static int __init crypto_kdf108_init(void)
 {
-	int ret = kdf_test(&kdf_ctr_hmac_sha256_tv_template[0], "hmac(sha256)",
-			   crypto_kdf108_setkey, crypto_kdf108_ctr_generate);
+	int ret;
 
+	if (IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))
+		return 0;
+
+	ret = kdf_test(&kdf_ctr_hmac_sha256_tv_template[0], "hmac(sha256)",
+		       crypto_kdf108_setkey, crypto_kdf108_ctr_generate);
 	if (ret) {
 		if (fips_enabled)
 			panic("alg: self-tests for CTR-KDF (hmac(sha256)) failed (rc=%d)\n",
@@ -136,7 +140,7 @@ static int __init crypto_kdf108_init(void)
 		WARN(1,
 		     "alg: self-tests for CTR-KDF (hmac(sha256)) failed (rc=%d)\n",
 		     ret);
-	} else {
+	} else if (fips_enabled) {
 		pr_info("alg: self-tests for CTR-KDF (hmac(sha256)) passed\n");
 	}
 

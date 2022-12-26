@@ -40,12 +40,32 @@ static inline size_t str_hash(const char *s)
 	return h;
 }
 
-typedef size_t (*hashmap_hash_fn)(const void *key, void *ctx);
-typedef bool (*hashmap_equal_fn)(const void *key1, const void *key2, void *ctx);
+typedef size_t (*hashmap_hash_fn)(long key, void *ctx);
+typedef bool (*hashmap_equal_fn)(long key1, long key2, void *ctx);
 
+/*
+ * Hashmap interface is polymorphic, keys and values could be either
+ * long-sized integers or pointers, this is achieved as follows:
+ * - interface functions that operate on keys and values are hidden
+ *   behind auxiliary macros, e.g. hashmap_insert <-> hashmap__insert;
+ * - these auxiliary macros cast the key and value parameters as
+ *   long or long *, so the user does not have to specify the casts explicitly;
+ * - for pointer parameters (e.g. old_key) the size of the pointed
+ *   type is verified by hashmap_cast_ptr using _Static_assert;
+ * - when iterating using hashmap__for_each_* forms
+ *   hasmap_entry->key should be used for integer keys and
+ *   hasmap_entry->pkey should be used for pointer keys,
+ *   same goes for values.
+ */
 struct hashmap_entry {
-	const void *key;
-	void *value;
+	union {
+		long key;
+		const void *pkey;
+	};
+	union {
+		long value;
+		void *pvalue;
+	};
 	struct hashmap_entry *next;
 };
 
@@ -102,6 +122,13 @@ enum hashmap_insert_strategy {
 	HASHMAP_APPEND,
 };
 
+#define hashmap_cast_ptr(p) ({								\
+	_Static_assert((__builtin_constant_p((p)) ? (p) == NULL : 0) ||			\
+				sizeof(*(p)) == sizeof(long),				\
+		       #p " pointee should be a long-sized integer or a pointer");	\
+	(long *)(p);									\
+})
+
 /*
  * hashmap__insert() adds key/value entry w/ various semantics, depending on
  * provided strategy value. If a given key/value pair replaced already
@@ -109,42 +136,38 @@ enum hashmap_insert_strategy {
  * through old_key and old_value to allow calling code do proper memory
  * management.
  */
-int hashmap__insert(struct hashmap *map, const void *key, void *value,
-		    enum hashmap_insert_strategy strategy,
-		    const void **old_key, void **old_value);
+int hashmap_insert(struct hashmap *map, long key, long value,
+		   enum hashmap_insert_strategy strategy,
+		   long *old_key, long *old_value);
 
-static inline int hashmap__add(struct hashmap *map,
-			       const void *key, void *value)
-{
-	return hashmap__insert(map, key, value, HASHMAP_ADD, NULL, NULL);
-}
+#define hashmap__insert(map, key, value, strategy, old_key, old_value) \
+	hashmap_insert((map), (long)(key), (long)(value), (strategy),  \
+		       hashmap_cast_ptr(old_key),		       \
+		       hashmap_cast_ptr(old_value))
 
-static inline int hashmap__set(struct hashmap *map,
-			       const void *key, void *value,
-			       const void **old_key, void **old_value)
-{
-	return hashmap__insert(map, key, value, HASHMAP_SET,
-			       old_key, old_value);
-}
+#define hashmap__add(map, key, value) \
+	hashmap__insert((map), (key), (value), HASHMAP_ADD, NULL, NULL)
 
-static inline int hashmap__update(struct hashmap *map,
-				  const void *key, void *value,
-				  const void **old_key, void **old_value)
-{
-	return hashmap__insert(map, key, value, HASHMAP_UPDATE,
-			       old_key, old_value);
-}
+#define hashmap__set(map, key, value, old_key, old_value) \
+	hashmap__insert((map), (key), (value), HASHMAP_SET, (old_key), (old_value))
 
-static inline int hashmap__append(struct hashmap *map,
-				  const void *key, void *value)
-{
-	return hashmap__insert(map, key, value, HASHMAP_APPEND, NULL, NULL);
-}
+#define hashmap__update(map, key, value, old_key, old_value) \
+	hashmap__insert((map), (key), (value), HASHMAP_UPDATE, (old_key), (old_value))
 
-bool hashmap__delete(struct hashmap *map, const void *key,
-		     const void **old_key, void **old_value);
+#define hashmap__append(map, key, value) \
+	hashmap__insert((map), (key), (value), HASHMAP_APPEND, NULL, NULL)
 
-bool hashmap__find(const struct hashmap *map, const void *key, void **value);
+bool hashmap_delete(struct hashmap *map, long key, long *old_key, long *old_value);
+
+#define hashmap__delete(map, key, old_key, old_value)		       \
+	hashmap_delete((map), (long)(key),			       \
+		       hashmap_cast_ptr(old_key),		       \
+		       hashmap_cast_ptr(old_value))
+
+bool hashmap_find(const struct hashmap *map, long key, long *value);
+
+#define hashmap__find(map, key, value) \
+	hashmap_find((map), (long)(key), hashmap_cast_ptr(value))
 
 /*
  * hashmap__for_each_entry - iterate over all entries in hashmap

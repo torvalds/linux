@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/bridge/intel,keembay-dsi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Devicetree bindings for Intel Keem Bay mipi dsi controller
+title: Intel Keem Bay mipi dsi controller
 
 maintainers:
   - Anitha Chrisanthus <anitha.chrisanthus@intel.com>

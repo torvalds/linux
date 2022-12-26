@@ -169,3 +169,52 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = ACCEPT,
 },
+{
+	"MAP_VALUE_OR_NULL check_ids() in regsafe()",
+	.insns = {
+	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+	/* r9 = map_lookup_elem(...) */
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+	BPF_LD_MAP_FD(BPF_REG_1,
+		      0),
+	BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+	BPF_MOV64_REG(BPF_REG_9, BPF_REG_0),
+	/* r8 = map_lookup_elem(...) */
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+	BPF_LD_MAP_FD(BPF_REG_1,
+		      0),
+	BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+	BPF_MOV64_REG(BPF_REG_8, BPF_REG_0),
+	/* r7 = ktime_get_ns() */
+	BPF_EMIT_CALL(BPF_FUNC_ktime_get_ns),
+	BPF_MOV64_REG(BPF_REG_7, BPF_REG_0),
+	/* r6 = ktime_get_ns() */
+	BPF_EMIT_CALL(BPF_FUNC_ktime_get_ns),
+	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
+	/* if r6 > r7 goto +1    ; no new information about the state is derived from
+	 *                       ; this check, thus produced verifier states differ
+	 *                       ; only in 'insn_idx'
+	 * r9 = r8               ; optionally share ID between r9 and r8
+	 */
+	BPF_JMP_REG(BPF_JGT, BPF_REG_6, BPF_REG_7, 1),
+	BPF_MOV64_REG(BPF_REG_9, BPF_REG_8),
+	/* if r9 == 0 goto <exit> */
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_9, 0, 1),
+	/* read map value via r8, this is not always
+	 * safe because r8 might be not equal to r9.
+	 */
+	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_8, 0),
+	/* exit 0 */
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.flags = BPF_F_TEST_STATE_FREQ,
+	.fixup_map_hash_8b = { 3, 9 },
+	.result = REJECT,
+	.errstr = "R8 invalid mem access 'map_value_or_null'",
+	.result_unpriv = REJECT,
+	.errstr_unpriv = "",
+	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+},

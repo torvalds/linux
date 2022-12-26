@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/qcom,wcd938x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for Qualcomm WCD9380/WCD9385 Audio Codec
+title: Qualcomm WCD9380/WCD9385 Audio Codec
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>

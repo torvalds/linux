@@ -6,6 +6,7 @@
 
 #include <dt-bindings/clock/qcom,gcc-sc8280xp.h>
 #include <dt-bindings/clock/qcom,rpmh.h>
+#include <dt-bindings/interconnect/qcom,osm-l3.h>
 #include <dt-bindings/interconnect/qcom,sc8280xp.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/mailbox/qcom-ipcc.h>
@@ -38,66 +39,87 @@
 
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
+			opp-peak-kBps = <(300000 * 32)>;
 		};
 		opp-403200000 {
 			opp-hz = /bits/ 64 <403200000>;
+			opp-peak-kBps = <(384000 * 32)>;
 		};
 		opp-499200000 {
 			opp-hz = /bits/ 64 <499200000>;
+			opp-peak-kBps = <(480000 * 32)>;
 		};
 		opp-595200000 {
 			opp-hz = /bits/ 64 <595200000>;
+			opp-peak-kBps = <(576000 * 32)>;
 		};
 		opp-691200000 {
 			opp-hz = /bits/ 64 <691200000>;
+			opp-peak-kBps = <(672000 * 32)>;
 		};
 		opp-806400000 {
 			opp-hz = /bits/ 64 <806400000>;
+			opp-peak-kBps = <(768000 * 32)>;
 		};
 		opp-902400000 {
 			opp-hz = /bits/ 64 <902400000>;
+			opp-peak-kBps = <(864000 * 32)>;
 		};
 		opp-1017600000 {
 			opp-hz = /bits/ 64 <1017600000>;
+			opp-peak-kBps = <(960000 * 32)>;
 		};
 		opp-1113600000 {
 			opp-hz = /bits/ 64 <1113600000>;
+			opp-peak-kBps = <(1075200 * 32)>;
 		};
 		opp-1209600000 {
 			opp-hz = /bits/ 64 <1209600000>;
+			opp-peak-kBps = <(1171200 * 32)>;
 		};
 		opp-1324800000 {
 			opp-hz = /bits/ 64 <1324800000>;
+			opp-peak-kBps = <(1267200 * 32)>;
 		};
 		opp-1440000000 {
 			opp-hz = /bits/ 64 <1440000000>;
+			opp-peak-kBps = <(1363200 * 32)>;
 		};
 		opp-1555200000 {
 			opp-hz = /bits/ 64 <1555200000>;
+			opp-peak-kBps = <(1536000 * 32)>;
 		};
 		opp-1670400000 {
 			opp-hz = /bits/ 64 <1670400000>;
+			opp-peak-kBps = <(1612800 * 32)>;
 		};
 		opp-1785600000 {
 			opp-hz = /bits/ 64 <1785600000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-1881600000 {
 			opp-hz = /bits/ 64 <1881600000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-1996800000 {
 			opp-hz = /bits/ 64 <1996800000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2112000000 {
 			opp-hz = /bits/ 64 <2112000000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2227200000 {
 			opp-hz = /bits/ 64 <2227200000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2342400000 {
 			opp-hz = /bits/ 64 <2342400000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2438400000 {
 			opp-hz = /bits/ 64 <2438400000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 	};
 
@@ -107,66 +129,87 @@
 
 		opp-825600000 {
 			opp-hz = /bits/ 64 <825600000>;
+			opp-peak-kBps = <(768000 * 32)>;
 		};
 		opp-940800000 {
 			opp-hz = /bits/ 64 <940800000>;
+			opp-peak-kBps = <(864000 * 32)>;
 		};
 		opp-1056000000 {
 			opp-hz = /bits/ 64 <1056000000>;
+			opp-peak-kBps = <(960000 * 32)>;
 		};
 		opp-1171200000 {
 			opp-hz = /bits/ 64 <1171200000>;
+			opp-peak-kBps = <(1171200 * 32)>;
 		};
 		opp-1286400000 {
 			opp-hz = /bits/ 64 <1286400000>;
+			opp-peak-kBps = <(1267200 * 32)>;
 		};
 		opp-1401600000 {
 			opp-hz = /bits/ 64 <1401600000>;
+			opp-peak-kBps = <(1363200 * 32)>;
 		};
 		opp-1516800000 {
 			opp-hz = /bits/ 64 <1516800000>;
+			opp-peak-kBps = <(1459200 * 32)>;
 		};
 		opp-1632000000 {
 			opp-hz = /bits/ 64 <1632000000>;
+			opp-peak-kBps = <(1612800 * 32)>;
 		};
 		opp-1747200000 {
 			opp-hz = /bits/ 64 <1747200000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-1862400000 {
 			opp-hz = /bits/ 64 <1862400000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-1977600000 {
 			opp-hz = /bits/ 64 <1977600000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2073600000 {
 			opp-hz = /bits/ 64 <2073600000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2169600000 {
 			opp-hz = /bits/ 64 <2169600000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2284800000 {
 			opp-hz = /bits/ 64 <2284800000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2400000000 {
 			opp-hz = /bits/ 64 <2400000000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2496000000 {
 			opp-hz = /bits/ 64 <2496000000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2592000000 {
 			opp-hz = /bits/ 64 <2592000000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2688000000 {
 			opp-hz = /bits/ 64 <2688000000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2803200000 {
 			opp-hz = /bits/ 64 <2803200000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2899200000 {
 			opp-hz = /bits/ 64 <2899200000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2995200000 {
 			opp-hz = /bits/ 64 <2995200000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 	};
 
@@ -185,6 +228,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_0: l2-cache {
 				compatible = "cache";
@@ -206,6 +250,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_100: l2-cache {
 				compatible = "cache";
@@ -224,6 +269,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_200: l2-cache {
 				compatible = "cache";
@@ -242,6 +288,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_300: l2-cache {
 				compatible = "cache";
@@ -260,6 +307,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_400: l2-cache {
 				compatible = "cache";
@@ -278,6 +326,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_500: l2-cache {
 				compatible = "cache";
@@ -296,6 +345,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_600: l2-cache {
 				compatible = "cache";
@@ -314,6 +364,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_700: l2-cache {
 				compatible = "cache";
@@ -729,11 +780,11 @@
 				 <0>,
 				 <0>,
 				 <0>,
-				 <0>,
-				 <0>,
-				 <0>,
-				 <0>,
-				 <0>,
+				 <&pcie2a_phy>,
+				 <&pcie2b_phy>,
+				 <&pcie3a_phy>,
+				 <&pcie3b_phy>,
+				 <&pcie4_phy>,
 				 <0>,
 				 <0>;
 			power-domains = <&rpmhpd SC8280XP_CX>;
@@ -839,12 +890,505 @@
 			status = "disabled";
 		};
 
+		pcie4: pcie@1c00000 {
+			device_type = "pci";
+			compatible = "qcom,pcie-sc8280xp";
+			reg = <0x0 0x01c00000 0x0 0x3000>,
+			      <0x0 0x30000000 0x0 0xf1d>,
+			      <0x0 0x30000f20 0x0 0xa8>,
+			      <0x0 0x30001000 0x0 0x1000>,
+			      <0x0 0x30100000 0x0 0x100000>;
+			reg-names = "parf", "dbi", "elbi", "atu", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x30200000 0x0 0x30200000 0x0 0x100000>,
+				 <0x02000000 0x0 0x30300000 0x0 0x30300000 0x0 0x1d00000>;
+			bus-range = <0x00 0xff>;
+
+			dma-coherent;
+
+			linux,pci-domain = <6>;
+			num-lanes = <1>;
+
+			interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 0 GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 0 GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 0 GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_PCIE_4_AUX_CLK>,
+				 <&gcc GCC_PCIE_4_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_4_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_4_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_4_SLV_Q2A_AXI_CLK>,
+				 <&gcc GCC_DDRSS_PCIE_SF_TBU_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_4_AXI_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_SOUTH_SF_AXI_CLK>,
+				 <&gcc GCC_CNOC_PCIE4_QX_CLK>;
+			clock-names = "aux",
+				      "cfg",
+				      "bus_master",
+				      "bus_slave",
+				      "slave_q2a",
+				      "ddrss_sf_tbu",
+				      "noc_aggr_4",
+				      "noc_aggr_south_sf",
+				      "cnoc_qx";
+
+			assigned-clocks = <&gcc GCC_PCIE_4_AUX_CLK>;
+			assigned-clock-rates = <19200000>;
+
+			interconnects = <&aggre2_noc MASTER_PCIE_4 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_4 0>;
+			interconnect-names = "pcie-mem", "cpu-pcie";
+
+			resets = <&gcc GCC_PCIE_4_BCR>;
+			reset-names = "pci";
+
+			power-domains = <&gcc PCIE_4_GDSC>;
+
+			phys = <&pcie4_phy>;
+			phy-names = "pciephy";
+
+			status = "disabled";
+		};
+
+		pcie4_phy: phy@1c06000 {
+			compatible = "qcom,sc8280xp-qmp-gen3x1-pcie-phy";
+			reg = <0x0 0x01c06000 0x0 0x2000>;
+
+			clocks = <&gcc GCC_PCIE_4_AUX_CLK>,
+				 <&gcc GCC_PCIE_4_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_4_CLKREF_CLK>,
+				 <&gcc GCC_PCIE4_PHY_RCHNG_CLK>,
+				 <&gcc GCC_PCIE_4_PIPE_CLK>,
+				 <&gcc GCC_PCIE_4_PIPEDIV2_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref", "rchng",
+				      "pipe", "pipediv2";
+
+			assigned-clocks = <&gcc GCC_PCIE4_PHY_RCHNG_CLK>;
+			assigned-clock-rates = <100000000>;
+
+			power-domains = <&gcc PCIE_4_GDSC>;
+
+			resets = <&gcc GCC_PCIE_4_PHY_BCR>;
+			reset-names = "phy";
+
+			#clock-cells = <0>;
+			clock-output-names = "pcie_4_pipe_clk";
+
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		pcie3b: pcie@1c08000 {
+			device_type = "pci";
+			compatible = "qcom,pcie-sc8280xp";
+			reg = <0x0 0x01c08000 0x0 0x3000>,
+			      <0x0 0x32000000 0x0 0xf1d>,
+			      <0x0 0x32000f20 0x0 0xa8>,
+			      <0x0 0x32001000 0x0 0x1000>,
+			      <0x0 0x32100000 0x0 0x100000>;
+			reg-names = "parf", "dbi", "elbi", "atu", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x32200000 0x0 0x32200000 0x0 0x100000>,
+				 <0x02000000 0x0 0x32300000 0x0 0x32300000 0x0 0x1d00000>;
+			bus-range = <0x00 0xff>;
+
+			dma-coherent;
+
+			linux,pci-domain = <5>;
+			num-lanes = <2>;
+
+			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 526 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 0 GIC_SPI 527 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 0 GIC_SPI 528 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 0 GIC_SPI 529 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_PCIE_3B_AUX_CLK>,
+				 <&gcc GCC_PCIE_3B_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_3B_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_3B_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_3B_SLV_Q2A_AXI_CLK>,
+				 <&gcc GCC_DDRSS_PCIE_SF_TBU_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_4_AXI_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_SOUTH_SF_AXI_CLK>;
+			clock-names = "aux",
+				      "cfg",
+				      "bus_master",
+				      "bus_slave",
+				      "slave_q2a",
+				      "ddrss_sf_tbu",
+				      "noc_aggr_4",
+				      "noc_aggr_south_sf";
+
+			assigned-clocks = <&gcc GCC_PCIE_3B_AUX_CLK>;
+			assigned-clock-rates = <19200000>;
+
+			interconnects = <&aggre2_noc MASTER_PCIE_3B 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_3B 0>;
+			interconnect-names = "pcie-mem", "cpu-pcie";
+
+			resets = <&gcc GCC_PCIE_3B_BCR>;
+			reset-names = "pci";
+
+			power-domains = <&gcc PCIE_3B_GDSC>;
+
+			phys = <&pcie3b_phy>;
+			phy-names = "pciephy";
+
+			status = "disabled";
+		};
+
+		pcie3b_phy: phy@1c0e000 {
+			compatible = "qcom,sc8280xp-qmp-gen3x2-pcie-phy";
+			reg = <0x0 0x01c0e000 0x0 0x2000>;
+
+			clocks = <&gcc GCC_PCIE_3B_AUX_CLK>,
+				 <&gcc GCC_PCIE_3B_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_3A3B_CLKREF_CLK>,
+				 <&gcc GCC_PCIE3B_PHY_RCHNG_CLK>,
+				 <&gcc GCC_PCIE_3B_PIPE_CLK>,
+				 <&gcc GCC_PCIE_3B_PIPEDIV2_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref", "rchng",
+				      "pipe", "pipediv2";
+
+			assigned-clocks = <&gcc GCC_PCIE3B_PHY_RCHNG_CLK>;
+			assigned-clock-rates = <100000000>;
+
+			power-domains = <&gcc PCIE_3B_GDSC>;
+
+			resets = <&gcc GCC_PCIE_3B_PHY_BCR>;
+			reset-names = "phy";
+
+			#clock-cells = <0>;
+			clock-output-names = "pcie_3b_pipe_clk";
+
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		pcie3a: pcie@1c10000 {
+			device_type = "pci";
+			compatible = "qcom,pcie-sc8280xp";
+			reg = <0x0 0x01c10000 0x0 0x3000>,
+			      <0x0 0x34000000 0x0 0xf1d>,
+			      <0x0 0x34000f20 0x0 0xa8>,
+			      <0x0 0x34001000 0x0 0x1000>,
+			      <0x0 0x34100000 0x0 0x100000>;
+			reg-names = "parf", "dbi", "elbi", "atu", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x34200000 0x0 0x34200000 0x0 0x100000>,
+				 <0x02000000 0x0 0x34300000 0x0 0x34300000 0x0 0x1d00000>;
+			bus-range = <0x00 0xff>;
+
+			dma-coherent;
+
+			linux,pci-domain = <4>;
+			num-lanes = <4>;
+
+			interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 499 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 0 GIC_SPI 542 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 0 GIC_SPI 543 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 0 GIC_SPI 544 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_PCIE_3A_AUX_CLK>,
+				 <&gcc GCC_PCIE_3A_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_3A_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_3A_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_3A_SLV_Q2A_AXI_CLK>,
+				 <&gcc GCC_DDRSS_PCIE_SF_TBU_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_4_AXI_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_SOUTH_SF_AXI_CLK>;
+			clock-names = "aux",
+				      "cfg",
+				      "bus_master",
+				      "bus_slave",
+				      "slave_q2a",
+				      "ddrss_sf_tbu",
+				      "noc_aggr_4",
+				      "noc_aggr_south_sf";
+
+			assigned-clocks = <&gcc GCC_PCIE_3A_AUX_CLK>;
+			assigned-clock-rates = <19200000>;
+
+			interconnects = <&aggre2_noc MASTER_PCIE_3A 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_3A 0>;
+			interconnect-names = "pcie-mem", "cpu-pcie";
+
+			resets = <&gcc GCC_PCIE_3A_BCR>;
+			reset-names = "pci";
+
+			power-domains = <&gcc PCIE_3A_GDSC>;
+
+			phys = <&pcie3a_phy>;
+			phy-names = "pciephy";
+
+			status = "disabled";
+		};
+
+		pcie3a_phy: phy@1c14000 {
+			compatible = "qcom,sc8280xp-qmp-gen3x4-pcie-phy";
+			reg = <0x0 0x01c14000 0x0 0x2000>,
+			      <0x0 0x01c16000 0x0 0x2000>;
+
+			clocks = <&gcc GCC_PCIE_3A_AUX_CLK>,
+				 <&gcc GCC_PCIE_3A_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_3A3B_CLKREF_CLK>,
+				 <&gcc GCC_PCIE3A_PHY_RCHNG_CLK>,
+				 <&gcc GCC_PCIE_3A_PIPE_CLK>,
+				 <&gcc GCC_PCIE_3A_PIPEDIV2_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref", "rchng",
+				      "pipe", "pipediv2";
+
+			assigned-clocks = <&gcc GCC_PCIE3A_PHY_RCHNG_CLK>;
+			assigned-clock-rates = <100000000>;
+
+			power-domains = <&gcc PCIE_3A_GDSC>;
+
+			resets = <&gcc GCC_PCIE_3A_PHY_BCR>;
+			reset-names = "phy";
+
+			qcom,4ln-config-sel = <&tcsr 0xa044 1>;
+
+			#clock-cells = <0>;
+			clock-output-names = "pcie_3a_pipe_clk";
+
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		pcie2b: pcie@1c18000 {
+			device_type = "pci";
+			compatible = "qcom,pcie-sc8280xp";
+			reg = <0x0 0x01c18000 0x0 0x3000>,
+			      <0x0 0x38000000 0x0 0xf1d>,
+			      <0x0 0x38000f20 0x0 0xa8>,
+			      <0x0 0x38001000 0x0 0x1000>,
+			      <0x0 0x38100000 0x0 0x100000>;
+			reg-names = "parf", "dbi", "elbi", "atu", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x38200000 0x0 0x38200000 0x0 0x100000>,
+				 <0x02000000 0x0 0x38300000 0x0 0x38300000 0x0 0x1d00000>;
+			bus-range = <0x00 0xff>;
+
+			dma-coherent;
+
+			linux,pci-domain = <3>;
+			num-lanes = <2>;
+
+			interrupts = <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 0 GIC_SPI 434 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 0 GIC_SPI 435 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 0 GIC_SPI 438 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_PCIE_2B_AUX_CLK>,
+				 <&gcc GCC_PCIE_2B_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_2B_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_2B_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_2B_SLV_Q2A_AXI_CLK>,
+				 <&gcc GCC_DDRSS_PCIE_SF_TBU_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_4_AXI_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_SOUTH_SF_AXI_CLK>;
+			clock-names = "aux",
+				      "cfg",
+				      "bus_master",
+				      "bus_slave",
+				      "slave_q2a",
+				      "ddrss_sf_tbu",
+				      "noc_aggr_4",
+				      "noc_aggr_south_sf";
+
+			assigned-clocks = <&gcc GCC_PCIE_2B_AUX_CLK>;
+			assigned-clock-rates = <19200000>;
+
+			interconnects = <&aggre2_noc MASTER_PCIE_2B 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_2B 0>;
+			interconnect-names = "pcie-mem", "cpu-pcie";
+
+			resets = <&gcc GCC_PCIE_2B_BCR>;
+			reset-names = "pci";
+
+			power-domains = <&gcc PCIE_2B_GDSC>;
+
+			phys = <&pcie2b_phy>;
+			phy-names = "pciephy";
+
+			status = "disabled";
+		};
+
+		pcie2b_phy: phy@1c1e000 {
+			compatible = "qcom,sc8280xp-qmp-gen3x2-pcie-phy";
+			reg = <0x0 0x01c1e000 0x0 0x2000>;
+
+			clocks = <&gcc GCC_PCIE_2B_AUX_CLK>,
+				 <&gcc GCC_PCIE_2B_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_2A2B_CLKREF_CLK>,
+				 <&gcc GCC_PCIE2B_PHY_RCHNG_CLK>,
+				 <&gcc GCC_PCIE_2B_PIPE_CLK>,
+				 <&gcc GCC_PCIE_2B_PIPEDIV2_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref", "rchng",
+				      "pipe", "pipediv2";
+
+			assigned-clocks = <&gcc GCC_PCIE2B_PHY_RCHNG_CLK>;
+			assigned-clock-rates = <100000000>;
+
+			power-domains = <&gcc PCIE_2B_GDSC>;
+
+			resets = <&gcc GCC_PCIE_2B_PHY_BCR>;
+			reset-names = "phy";
+
+			#clock-cells = <0>;
+			clock-output-names = "pcie_2b_pipe_clk";
+
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		pcie2a: pcie@1c20000 {
+			device_type = "pci";
+			compatible = "qcom,pcie-sc8280xp";
+			reg = <0x0 0x01c20000 0x0 0x3000>,
+			      <0x0 0x3c000000 0x0 0xf1d>,
+			      <0x0 0x3c000f20 0x0 0xa8>,
+			      <0x0 0x3c001000 0x0 0x1000>,
+			      <0x0 0x3c100000 0x0 0x100000>;
+			reg-names = "parf", "dbi", "elbi", "atu", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x3c200000 0x0 0x3c200000 0x0 0x100000>,
+				 <0x02000000 0x0 0x3c300000 0x0 0x3c300000 0x0 0x1d00000>;
+			bus-range = <0x00 0xff>;
+
+			dma-coherent;
+
+			linux,pci-domain = <2>;
+			num-lanes = <4>;
+
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 523 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 524 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 525 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 530 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 0 GIC_SPI 531 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 0 GIC_SPI 532 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 0 GIC_SPI 533 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_PCIE_2A_AUX_CLK>,
+				 <&gcc GCC_PCIE_2A_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_2A_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_2A_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_2A_SLV_Q2A_AXI_CLK>,
+				 <&gcc GCC_DDRSS_PCIE_SF_TBU_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_4_AXI_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_SOUTH_SF_AXI_CLK>;
+			clock-names = "aux",
+				      "cfg",
+				      "bus_master",
+				      "bus_slave",
+				      "slave_q2a",
+				      "ddrss_sf_tbu",
+				      "noc_aggr_4",
+				      "noc_aggr_south_sf";
+
+			assigned-clocks = <&gcc GCC_PCIE_2A_AUX_CLK>;
+			assigned-clock-rates = <19200000>;
+
+			interconnects = <&aggre2_noc MASTER_PCIE_2A 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_2A 0>;
+			interconnect-names = "pcie-mem", "cpu-pcie";
+
+			resets = <&gcc GCC_PCIE_2A_BCR>;
+			reset-names = "pci";
+
+			power-domains = <&gcc PCIE_2A_GDSC>;
+
+			phys = <&pcie2a_phy>;
+			phy-names = "pciephy";
+
+			status = "disabled";
+		};
+
+		pcie2a_phy: phy@1c24000 {
+			compatible = "qcom,sc8280xp-qmp-gen3x4-pcie-phy";
+			reg = <0x0 0x01c24000 0x0 0x2000>,
+			      <0x0 0x01c26000 0x0 0x2000>;
+
+			clocks = <&gcc GCC_PCIE_2A_AUX_CLK>,
+				 <&gcc GCC_PCIE_2A_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_2A2B_CLKREF_CLK>,
+				 <&gcc GCC_PCIE2A_PHY_RCHNG_CLK>,
+				 <&gcc GCC_PCIE_2A_PIPE_CLK>,
+				 <&gcc GCC_PCIE_2A_PIPEDIV2_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref", "rchng",
+				      "pipe", "pipediv2";
+
+			assigned-clocks = <&gcc GCC_PCIE2A_PHY_RCHNG_CLK>;
+			assigned-clock-rates = <100000000>;
+
+			power-domains = <&gcc PCIE_2A_GDSC>;
+
+			resets = <&gcc GCC_PCIE_2A_PHY_BCR>;
+			reset-names = "phy";
+
+			qcom,4ln-config-sel = <&tcsr 0xa044 0>;
+
+			#clock-cells = <0>;
+			clock-output-names = "pcie_2a_pipe_clk";
+
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
 		ufs_mem_hc: ufs@1d84000 {
 			compatible = "qcom,sc8280xp-ufshc", "qcom,ufshc",
 				     "jedec,ufs-2.0";
 			reg = <0 0x01d84000 0 0x3000>;
 			interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>;
-			phys = <&ufs_mem_phy_lanes>;
+			phys = <&ufs_mem_phy>;
 			phy-names = "ufsphy";
 			lanes-per-direction = <2>;
 			#reset-cells = <1>;
@@ -855,12 +1399,13 @@
 			required-opps = <&rpmhpd_opp_nom>;
 
 			iommus = <&apps_smmu 0xe0 0x0>;
+			dma-coherent;
 
 			clocks = <&gcc GCC_UFS_PHY_AXI_CLK>,
 				 <&gcc GCC_AGGRE_UFS_PHY_AXI_CLK>,
 				 <&gcc GCC_UFS_PHY_AHB_CLK>,
 				 <&gcc GCC_UFS_PHY_UNIPRO_CORE_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_UFS_REF_CLKREF_CLK>,
 				 <&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK>,
 				 <&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK>,
 				 <&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK>;
@@ -885,27 +1430,20 @@
 
 		ufs_mem_phy: phy@1d87000 {
 			compatible = "qcom,sc8280xp-qmp-ufs-phy";
-			reg = <0 0x01d87000 0 0x1c8>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
-			clock-names = "ref",
-				      "ref_aux";
-			clocks = <&gcc GCC_UFS_REF_CLKREF_CLK>,
+			reg = <0 0x01d87000 0 0x1000>;
+
+			clocks = <&gcc GCC_UFS_CARD_CLKREF_CLK>,
 				 <&gcc GCC_UFS_PHY_PHY_AUX_CLK>;
+			clock-names = "ref", "ref_aux";
+
+			power-domains = <&gcc UFS_PHY_GDSC>;
 
 			resets = <&ufs_mem_hc 0>;
 			reset-names = "ufsphy";
-			status = "disabled";
 
-			ufs_mem_phy_lanes: phy@1d87400 {
-				reg = <0 0x01d87400 0 0x108>,
-				      <0 0x01d87600 0 0x1e0>,
-				      <0 0x01d87c00 0 0x1dc>,
-				      <0 0x01d87800 0 0x108>,
-				      <0 0x01d87a00 0 0x1e0>;
-				#phy-cells = <0>;
-			};
+			#phy-cells = <0>;
+
+			status = "disabled";
 		};
 
 		ufs_card_hc: ufs@1da4000 {
@@ -913,7 +1451,7 @@
 				     "jedec,ufs-2.0";
 			reg = <0 0x01da4000 0 0x3000>;
 			interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
-			phys = <&ufs_card_phy_lanes>;
+			phys = <&ufs_card_phy>;
 			phy-names = "ufsphy";
 			lanes-per-direction = <2>;
 			#reset-cells = <1>;
@@ -923,12 +1461,13 @@
 			power-domains = <&gcc UFS_CARD_GDSC>;
 
 			iommus = <&apps_smmu 0x4a0 0x0>;
+			dma-coherent;
 
 			clocks = <&gcc GCC_UFS_CARD_AXI_CLK>,
 				 <&gcc GCC_AGGRE_UFS_CARD_AXI_CLK>,
 				 <&gcc GCC_UFS_CARD_AHB_CLK>,
 				 <&gcc GCC_UFS_CARD_UNIPRO_CORE_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_UFS_REF_CLKREF_CLK>,
 				 <&gcc GCC_UFS_CARD_TX_SYMBOL_0_CLK>,
 				 <&gcc GCC_UFS_CARD_RX_SYMBOL_0_CLK>,
 				 <&gcc GCC_UFS_CARD_RX_SYMBOL_1_CLK>;
@@ -953,34 +1492,31 @@
 
 		ufs_card_phy: phy@1da7000 {
 			compatible = "qcom,sc8280xp-qmp-ufs-phy";
-			reg = <0 0x01da7000 0 0x1c8>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
-			clock-names = "ref",
-				      "ref_aux";
-			clocks = <&gcc GCC_UFS_REF_CLKREF_CLK>,
+			reg = <0 0x01da7000 0 0x1000>;
+
+			clocks = <&gcc GCC_UFS_1_CARD_CLKREF_CLK>,
 				 <&gcc GCC_UFS_CARD_PHY_AUX_CLK>;
+			clock-names = "ref", "ref_aux";
+
+			power-domains = <&gcc UFS_CARD_GDSC>;
 
 			resets = <&ufs_card_hc 0>;
 			reset-names = "ufsphy";
 
-			status = "disabled";
+			#phy-cells = <0>;
 
-			ufs_card_phy_lanes: phy@1da7400 {
-				reg = <0 0x01da7400 0 0x108>,
-				      <0 0x01da7600 0 0x1e0>,
-				      <0 0x01da7c00 0 0x1dc>,
-				      <0 0x01da7800 0 0x108>,
-				      <0 0x01da7a00 0 0x1e0>;
-				#phy-cells = <0>;
-			};
+			status = "disabled";
 		};
 
 		tcsr_mutex: hwlock@1f40000 {
 			compatible = "qcom,tcsr-mutex";
 			reg = <0x0 0x01f40000 0x0 0x20000>;
 			#hwlock-cells = <1>;
+		};
+
+		tcsr: syscon@1fc0000 {
+			compatible = "qcom,sc8280xp-tcsr", "syscon";
+			reg = <0x0 0x01fc0000 0x0 0x30000>;
 		};
 
 		usb_0_hsphy: phy@88e5000 {
@@ -1048,70 +1584,52 @@
 			status = "disabled";
 		};
 
-		usb_2_qmpphy0: phy-wrapper@88ef000 {
+		usb_2_qmpphy0: phy@88ef000 {
 			compatible = "qcom,sc8280xp-qmp-usb3-uni-phy";
-			reg = <0 0x088ef000 0 0x1c8>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			reg = <0 0x088ef000 0 0x2000>;
 
 			clocks = <&gcc GCC_USB3_MP_PHY_AUX_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_USB3_MP0_CLKREF_CLK>,
-				 <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>;
-			clock-names = "aux", "ref_clk_src", "ref", "com_aux";
+				 <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>,
+				 <&gcc GCC_USB3_MP_PHY_PIPE_0_CLK>;
+			clock-names = "aux", "ref", "com_aux", "pipe";
 
 			resets = <&gcc GCC_USB3_UNIPHY_MP0_BCR>,
 				 <&gcc GCC_USB3UNIPHY_PHY_MP0_BCR>;
-			reset-names = "phy", "common";
+			reset-names = "phy", "phy_phy";
 
 			power-domains = <&gcc USB30_MP_GDSC>;
 
-			status = "disabled";
+			#clock-cells = <0>;
+			clock-output-names = "usb2_phy0_pipe_clk";
 
-			usb_2_ssphy0: phy@88efe00 {
-				reg = <0 0x088efe00 0 0x160>,
-				      <0 0x088f0000 0 0x1ec>,
-				      <0 0x088ef200 0 0x1f0>;
-				#phy-cells = <0>;
-				#clock-cells = <0>;
-				clocks = <&gcc GCC_USB3_MP_PHY_PIPE_0_CLK>;
-				clock-names = "pipe0";
-				clock-output-names = "usb2_phy0_pipe_clk";
-			};
+			#phy-cells = <0>;
+
+			status = "disabled";
 		};
 
-		usb_2_qmpphy1: phy-wrapper@88f1000 {
+		usb_2_qmpphy1: phy@88f1000 {
 			compatible = "qcom,sc8280xp-qmp-usb3-uni-phy";
-			reg = <0 0x088f1000 0 0x1c8>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			reg = <0 0x088f1000 0 0x2000>;
 
 			clocks = <&gcc GCC_USB3_MP_PHY_AUX_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_USB3_MP1_CLKREF_CLK>,
-				 <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>;
-			clock-names = "aux", "ref_clk_src", "ref", "com_aux";
+				 <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>,
+				 <&gcc GCC_USB3_MP_PHY_PIPE_1_CLK>;
+			clock-names = "aux", "ref", "com_aux", "pipe";
 
 			resets = <&gcc GCC_USB3_UNIPHY_MP1_BCR>,
 				 <&gcc GCC_USB3UNIPHY_PHY_MP1_BCR>;
-			reset-names = "phy", "common";
+			reset-names = "phy", "phy_phy";
 
 			power-domains = <&gcc USB30_MP_GDSC>;
 
-			status = "disabled";
+			#clock-cells = <0>;
+			clock-output-names = "usb2_phy1_pipe_clk";
 
-			usb_2_ssphy1: phy@88f1e00 {
-				reg = <0 0x088f1e00 0 0x160>,
-				      <0 0x088f2000 0 0x1ec>,
-				      <0 0x088f1200 0 0x1f0>;
-				#phy-cells = <0>;
-				#clock-cells = <0>;
-				clocks = <&gcc GCC_USB3_MP_PHY_PIPE_1_CLK>;
-				clock-names = "pipe0";
-				clock-output-names = "usb2_phy1_pipe_clk";
-			};
+			#phy-cells = <0>;
+
+			status = "disabled";
 		};
 
 		remoteproc_adsp: remoteproc@3000000 {
@@ -1242,6 +1760,97 @@
 				clocks = <&gcc GCC_USB3_SEC_PHY_PIPE_CLK>;
 				clock-names = "pipe0";
 				clock-output-names = "usb1_phy_pipe_clk_src";
+			};
+		};
+
+		pmu@9091000 {
+			compatible = "qcom,sc8280xp-llcc-bwmon", "qcom,sc7280-llcc-bwmon";
+			reg = <0 0x9091000 0 0x1000>;
+
+			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&mc_virt MASTER_LLCC 3 &mc_virt SLAVE_EBI1 3>;
+
+			operating-points-v2 = <&llcc_bwmon_opp_table>;
+
+			llcc_bwmon_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-0 {
+					opp-peak-kBps = <762000>;
+				};
+				opp-1 {
+					opp-peak-kBps = <1720000>;
+				};
+				opp-2 {
+					opp-peak-kBps = <2086000>;
+				};
+				opp-3 {
+					opp-peak-kBps = <2597000>;
+				};
+				opp-4 {
+					opp-peak-kBps = <2929000>;
+				};
+				opp-5 {
+					opp-peak-kBps = <3879000>;
+				};
+				opp-6 {
+					opp-peak-kBps = <5161000>;
+				};
+				opp-7 {
+					opp-peak-kBps = <5931000>;
+				};
+				opp-8 {
+					opp-peak-kBps = <6515000>;
+				};
+				opp-9 {
+					opp-peak-kBps = <7980000>;
+				};
+				opp-10 {
+					opp-peak-kBps = <8136000>;
+				};
+				opp-11 {
+					opp-peak-kBps = <10437000>;
+				};
+				opp-12 {
+					opp-peak-kBps = <12191000>;
+				};
+			};
+		};
+
+		pmu@90b6400 {
+			compatible = "qcom,sc8280xp-cpu-bwmon", "qcom,msm8998-bwmon";
+			reg = <0 0x090b6400 0 0x600>;
+
+			interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&gem_noc MASTER_APPSS_PROC 3 &gem_noc SLAVE_LLCC 3>;
+			operating-points-v2 = <&cpu_bwmon_opp_table>;
+
+			cpu_bwmon_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-0 {
+					opp-peak-kBps = <2288000>;
+				};
+				opp-1 {
+					opp-peak-kBps = <4577000>;
+				};
+				opp-2 {
+					opp-peak-kBps = <7110000>;
+				};
+				opp-3 {
+					opp-peak-kBps = <9155000>;
+				};
+				opp-4 {
+					opp-peak-kBps = <12298000>;
+				};
+				opp-5 {
+					opp-peak-kBps = <14236000>;
+				};
+				opp-6 {
+					opp-peak-kBps = <15258001>;
+				};
 			};
 		};
 
@@ -1454,6 +2063,11 @@
 			mboxes = <&ipcc IPCC_CLIENT_AOP IPCC_MPROC_SIGNAL_GLINK_QMP>;
 
 			#clock-cells = <0>;
+		};
+
+		sram@c3f0000 {
+			compatible = "qcom,rpmh-stats";
+			reg = <0 0x0c3f0000 0 0x400>;
 		};
 
 		spmi_bus: spmi@c440000 {
@@ -1784,6 +2398,16 @@
 					};
 				};
 			};
+		};
+
+		epss_l3: interconnect@18590000 {
+			compatible = "qcom,sc8280xp-epss-l3", "qcom,epss-l3";
+			reg = <0 0x18590000 0 0x1000>;
+
+			clocks = <&rpmhcc RPMH_CXO_CLK>, <&gcc GCC_GPLL0>;
+			clock-names = "xo", "alternate";
+
+			#interconnect-cells = <1>;
 		};
 
 		cpufreq_hw: cpufreq@18591000 {

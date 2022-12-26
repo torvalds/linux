@@ -105,14 +105,28 @@ static inline bool is_write_fault(unsigned int fsr)
 	return (fsr & FSR_WRITE) && !(fsr & FSR_CM);
 }
 
+static inline bool is_translation_fault(unsigned int fsr)
+{
+	int fs = fsr_fs(fsr);
+#ifdef CONFIG_ARM_LPAE
+	if ((fs & FS_MMU_NOLL_MASK) == FS_TRANS_NOLL)
+		return true;
+#else
+	if (fs == FS_L1_TRANS || fs == FS_L2_TRANS)
+		return true;
+#endif
+	return false;
+}
+
 static void die_kernel_fault(const char *msg, struct mm_struct *mm,
 			     unsigned long addr, unsigned int fsr,
 			     struct pt_regs *regs)
 {
 	bust_spinlocks(1);
 	pr_alert("8<--- cut here ---\n");
-	pr_alert("Unable to handle kernel %s at virtual address %08lx\n",
-		 msg, addr);
+	pr_alert("Unable to handle kernel %s at virtual address %08lx when %s\n",
+		 msg, addr, fsr & FSR_LNX_PF ? "execute" :
+		 fsr & FSR_WRITE ? "write" : "read");
 
 	show_pte(KERN_ALERT, mm, addr);
 	die("Oops", regs, fsr);
@@ -140,7 +154,8 @@ __do_kernel_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 	if (addr < PAGE_SIZE) {
 		msg = "NULL pointer dereference";
 	} else {
-		if (kfence_handle_page_fault(addr, is_write_fault(fsr), regs))
+		if (is_translation_fault(fsr) &&
+		    kfence_handle_page_fault(addr, is_write_fault(fsr), regs))
 			return;
 
 		msg = "paging request";
@@ -208,7 +223,7 @@ static inline bool is_permission_fault(unsigned int fsr)
 {
 	int fs = fsr_fs(fsr);
 #ifdef CONFIG_ARM_LPAE
-	if ((fs & FS_PERM_NOLL_MASK) == FS_PERM_NOLL)
+	if ((fs & FS_MMU_NOLL_MASK) == FS_PERM_NOLL)
 		return true;
 #else
 	if (fs == FS_L1_PERM || fs == FS_L2_PERM)

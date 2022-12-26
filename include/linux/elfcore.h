@@ -88,22 +88,13 @@ static inline int elf_core_copy_task_regs(struct task_struct *t, elf_gregset_t* 
 {
 #if defined (ELF_CORE_COPY_TASK_REGS)
 	return ELF_CORE_COPY_TASK_REGS(t, elfregs);
-#elif defined (task_pt_regs)
+#else
 	elf_core_copy_regs(elfregs, task_pt_regs(t));
 #endif
 	return 0;
 }
 
-extern int dump_fpu (struct pt_regs *, elf_fpregset_t *);
-
-static inline int elf_core_copy_task_fpregs(struct task_struct *t, struct pt_regs *regs, elf_fpregset_t *fpu)
-{
-#ifdef ELF_CORE_COPY_FPREGS
-	return ELF_CORE_COPY_FPREGS(t, fpu);
-#else
-	return dump_fpu(regs, fpu);
-#endif
-}
+int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu);
 
 #ifdef CONFIG_ARCH_BINFMT_ELF_EXTRA_PHDRS
 /*

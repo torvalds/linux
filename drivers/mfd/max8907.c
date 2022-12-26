@@ -181,8 +181,7 @@ static void max8907_power_off(void)
 			MAX8907_MASK_POWER_OFF, MAX8907_MASK_POWER_OFF);
 }
 
-static int max8907_i2c_probe(struct i2c_client *i2c,
-				       const struct i2c_device_id *id)
+static int max8907_i2c_probe(struct i2c_client *i2c)
 {
 	struct max8907 *max8907;
 	int ret;
@@ -314,7 +313,7 @@ static struct i2c_driver max8907_i2c_driver = {
 		.name = "max8907",
 		.of_match_table = of_match_ptr(max8907_of_match),
 	},
-	.probe = max8907_i2c_probe,
+	.probe_new = max8907_i2c_probe,
 	.remove = max8907_i2c_remove,
 	.id_table = max8907_i2c_id,
 };

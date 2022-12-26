@@ -122,7 +122,7 @@ static int vfio_ap_matrix_dev_create(void)
 	return 0;
 
 matrix_drv_err:
-	device_unregister(&matrix_dev->device);
+	device_del(&matrix_dev->device);
 matrix_reg_err:
 	put_device(&matrix_dev->device);
 matrix_alloc_err:

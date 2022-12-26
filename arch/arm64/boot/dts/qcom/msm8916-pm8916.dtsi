@@ -47,7 +47,7 @@
 };
 
 &rpm_requests {
-	smd_rpm_regulators: pm8916-regulators {
+	smd_rpm_regulators: regulators {
 		compatible = "qcom,rpm-pm8916-regulators";
 
 		/* pm8916_s1 is managed by rpmpd (MSM8916_VDDCX) */

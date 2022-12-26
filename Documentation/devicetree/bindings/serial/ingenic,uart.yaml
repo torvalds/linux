@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serial/ingenic,uart.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs UART controller devicetree bindings
+title: Ingenic SoCs UART controller
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>
@@ -20,6 +20,7 @@ properties:
     oneOf:
       - enum:
           - ingenic,jz4740-uart
+          - ingenic,jz4750-uart
           - ingenic,jz4760-uart
           - ingenic,jz4780-uart
           - ingenic,x1000-uart
@@ -31,6 +32,9 @@ properties:
       - items:
           - const: ingenic,jz4725b-uart
           - const: ingenic,jz4740-uart
+      - items:
+          - const: ingenic,jz4755-uart
+          - const: ingenic,jz4750-uart
 
   reg:
     maxItems: 1

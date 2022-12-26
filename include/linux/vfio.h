@@ -17,6 +17,9 @@
 #include <linux/iova_bitmap.h>
 
 struct kvm;
+struct iommufd_ctx;
+struct iommufd_device;
+struct iommufd_access;
 
 /*
  * VFIO devices can be placed in a set, this allows all devices to share this
@@ -54,6 +57,12 @@ struct vfio_device {
 	struct completion comp;
 	struct list_head group_next;
 	struct list_head iommu_entry;
+	struct iommufd_access *iommufd_access;
+#if IS_ENABLED(CONFIG_IOMMUFD)
+	struct iommufd_device *iommufd_device;
+	struct iommufd_ctx *iommufd_ictx;
+	bool iommufd_attached;
+#endif
 };
 
 /**
@@ -80,6 +89,10 @@ struct vfio_device_ops {
 	char	*name;
 	int	(*init)(struct vfio_device *vdev);
 	void	(*release)(struct vfio_device *vdev);
+	int	(*bind_iommufd)(struct vfio_device *vdev,
+				struct iommufd_ctx *ictx, u32 *out_device_id);
+	void	(*unbind_iommufd)(struct vfio_device *vdev);
+	int	(*attach_ioas)(struct vfio_device *vdev, u32 *pt_id);
 	int	(*open_device)(struct vfio_device *vdev);
 	void	(*close_device)(struct vfio_device *vdev);
 	ssize_t	(*read)(struct vfio_device *vdev, char __user *buf,
@@ -96,6 +109,32 @@ struct vfio_device_ops {
 				  void __user *arg, size_t argsz);
 };
 
+#if IS_ENABLED(CONFIG_IOMMUFD)
+int vfio_iommufd_physical_bind(struct vfio_device *vdev,
+			       struct iommufd_ctx *ictx, u32 *out_device_id);
+void vfio_iommufd_physical_unbind(struct vfio_device *vdev);
+int vfio_iommufd_physical_attach_ioas(struct vfio_device *vdev, u32 *pt_id);
+int vfio_iommufd_emulated_bind(struct vfio_device *vdev,
+			       struct iommufd_ctx *ictx, u32 *out_device_id);
+void vfio_iommufd_emulated_unbind(struct vfio_device *vdev);
+int vfio_iommufd_emulated_attach_ioas(struct vfio_device *vdev, u32 *pt_id);
+#else
+#define vfio_iommufd_physical_bind                                      \
+	((int (*)(struct vfio_device *vdev, struct iommufd_ctx *ictx,   \
+		  u32 *out_device_id)) NULL)
+#define vfio_iommufd_physical_unbind \
+	((void (*)(struct vfio_device *vdev)) NULL)
+#define vfio_iommufd_physical_attach_ioas \
+	((int (*)(struct vfio_device *vdev, u32 *pt_id)) NULL)
+#define vfio_iommufd_emulated_bind                                      \
+	((int (*)(struct vfio_device *vdev, struct iommufd_ctx *ictx,   \
+		  u32 *out_device_id)) NULL)
+#define vfio_iommufd_emulated_unbind \
+	((void (*)(struct vfio_device *vdev)) NULL)
+#define vfio_iommufd_emulated_attach_ioas \
+	((int (*)(struct vfio_device *vdev, u32 *pt_id)) NULL)
+#endif
+
 /**
  * @migration_set_state: Optional callback to change the migration state for
  *         devices that support migration. It's mandatory for
@@ -107,6 +146,9 @@ struct vfio_device_ops {
  * @migration_get_state: Optional callback to get the migration state for
  *         devices that support migration. It's mandatory for
  *         VFIO_DEVICE_FEATURE_MIGRATION migration support.
+ * @migration_get_data_size: Optional callback to get the estimated data
+ *          length that will be required to complete stop copy. It's mandatory for
+ *          VFIO_DEVICE_FEATURE_MIGRATION migration support.
  */
 struct vfio_migration_ops {
 	struct file *(*migration_set_state)(
@@ -114,6 +156,8 @@ struct vfio_migration_ops {
 		enum vfio_device_mig_state new_state);
 	int (*migration_get_state)(struct vfio_device *device,
 				   enum vfio_device_mig_state *curr_state);
+	int (*migration_get_data_size)(struct vfio_device *device,
+				       unsigned long *stop_copy_length);
 };
 
 /**
@@ -176,9 +220,6 @@ struct vfio_device *_vfio_alloc_device(size_t size, struct device *dev,
 					dev, ops),				\
 		     struct dev_struct, member)
 
-int vfio_init_device(struct vfio_device *device, struct device *dev,
-		     const struct vfio_device_ops *ops);
-void vfio_free_device(struct vfio_device *device);
 static inline void vfio_put_device(struct vfio_device *device)
 {
 	put_device(&device->device);
@@ -231,29 +272,6 @@ int vfio_info_add_capability(struct vfio_info_cap *caps,
 int vfio_set_irqs_validate_and_prepare(struct vfio_irq_set *hdr,
 				       int num_irqs, int max_irq_type,
 				       size_t *data_size);
-
-struct pci_dev;
-#if IS_ENABLED(CONFIG_VFIO_SPAPR_EEH)
-void vfio_spapr_pci_eeh_open(struct pci_dev *pdev);
-void vfio_spapr_pci_eeh_release(struct pci_dev *pdev);
-long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group, unsigned int cmd,
-				unsigned long arg);
-#else
-static inline void vfio_spapr_pci_eeh_open(struct pci_dev *pdev)
-{
-}
-
-static inline void vfio_spapr_pci_eeh_release(struct pci_dev *pdev)
-{
-}
-
-static inline long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
-					      unsigned int cmd,
-					      unsigned long arg)
-{
-	return -ENOTTY;
-}
-#endif /* CONFIG_VFIO_SPAPR_EEH */
 
 /*
  * IRQfd - generic

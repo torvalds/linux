@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/keystone/ti,k3-sci-common.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Common K3 TI-SCI bindings
+title: Common K3 TI-SCI
 
 maintainers:
   - Nishanth Menon <nm@ti.com>

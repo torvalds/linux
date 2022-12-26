@@ -286,7 +286,7 @@ void __fscache_write_to_cache(struct fscache_cookie *cookie,
 	 * taken into account.
 	 */
 
-	iov_iter_xarray(&iter, WRITE, &mapping->i_pages, start, len);
+	iov_iter_xarray(&iter, ITER_SOURCE, &mapping->i_pages, start, len);
 	fscache_write(cres, start, &iter, fscache_wreq_done, wreq);
 	return;
 

@@ -97,8 +97,10 @@ nvkm_ltc_init(struct nvkm_subdev *subdev)
 	struct nvkm_ltc *ltc = nvkm_ltc(subdev);
 	int i;
 
-	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
+	for (i = ltc->zbc_color_min; i <= ltc->zbc_color_max; i++)
 		ltc->func->zbc_clear_color(ltc, i, ltc->zbc_color[i]);
+
+	for (i = ltc->zbc_depth_min; i <= ltc->zbc_depth_max; i++) {
 		ltc->func->zbc_clear_depth(ltc, i, ltc->zbc_depth[i]);
 		if (ltc->func->zbc_clear_stencil)
 			ltc->func->zbc_clear_stencil(ltc, i, ltc->zbc_stencil[i]);
@@ -137,7 +139,9 @@ nvkm_ltc_new_(const struct nvkm_ltc_func *func, struct nvkm_device *device,
 	nvkm_subdev_ctor(&nvkm_ltc, device, type, inst, &ltc->subdev);
 	ltc->func = func;
 	mutex_init(&ltc->mutex);
-	ltc->zbc_min = 1; /* reserve 0 for disabled */
-	ltc->zbc_max = min(func->zbc, NVKM_LTC_MAX_ZBC_CNT) - 1;
+	ltc->zbc_color_min = 1; /* reserve 0 for disabled */
+	ltc->zbc_color_max = min(func->zbc_color, NVKM_LTC_MAX_ZBC_COLOR_CNT) - 1;
+	ltc->zbc_depth_min = 1; /* reserve 0 for disabled */
+	ltc->zbc_depth_max = min(func->zbc_depth, NVKM_LTC_MAX_ZBC_DEPTH_CNT) - 1;
 	return 0;
 }

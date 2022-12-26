@@ -52,6 +52,7 @@ model features for SVE is included in Appendix A.
 	HWCAP2_SVEBITPERM
 	HWCAP2_SVESHA3
 	HWCAP2_SVESM4
+	HWCAP2_SVE2P1
 
   This list may be extended over time as the SVE architecture evolves.
 

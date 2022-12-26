@@ -215,6 +215,7 @@
 		compatible = "nxp,se97b", "atmel,24c02";
 		reg = <0x57>;
 		pagesize = <16>;
+		vcc-supply = <&reg_vcc_3v3>;
 	};
 };
 
