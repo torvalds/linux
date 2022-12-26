@@ -156,7 +156,7 @@
 #define AST_EP_DMA_DESC_PID_DATA1	(2 << 14)
 #define AST_EP_DMA_DESC_PID_MDATA	(3 << 14)
 #define EP_DESC1_IN_LEN(x)		((x) & 0x1fff)
-#define AST_EP_DMA_DESC_MAX_LEN		(7680) /* Max packet length for trasmit in 1 desc */
+#define AST_EP_DMA_DESC_MAX_LEN		(4096) /* Max packet length for trasmit in 1 desc */
 
 struct ast_udc_request {
 	struct usb_request	req;
