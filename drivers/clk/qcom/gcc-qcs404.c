@@ -44,14 +44,21 @@ enum {
 	P_XO,
 };
 
+static const struct parent_map gcc_parent_map_1[] = {
+	{ P_XO, 0 },
+};
+
+static const struct clk_parent_data gcc_parent_data_1[] = {
+	{ .index = DT_XO, .name = "xo-board" },
+};
+
 static struct clk_fixed_factor cxo = {
 	.mult = 1,
 	.div = 1,
 	.hw.init = &(struct clk_init_data){
 		.name = "cxo",
-		.parent_data = &(const struct clk_parent_data) {
-			.name = "xo-board",
-		},
+		.parent_data = gcc_parent_data_1,
+		.num_parents = ARRAY_SIZE(gcc_parent_data_1),
 		.num_parents = 1,
 		.ops = &clk_fixed_factor_ops,
 	},
@@ -66,10 +73,8 @@ static struct clk_alpha_pll gpll0_sleep_clk_src = {
 		.enable_is_inverted = true,
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll0_sleep_clk_src",
-			.parent_data = &(const struct clk_parent_data) {
-				.hw = &cxo.hw,
-			},
-			.num_parents = 1,
+			.parent_data = gcc_parent_data_1,
+			.num_parents = ARRAY_SIZE(gcc_parent_data_1),
 			.ops = &clk_alpha_pll_ops,
 		},
 	},
@@ -84,10 +89,8 @@ static struct clk_alpha_pll gpll0_out_main = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll0_out_main",
-			.parent_data = &(const struct clk_parent_data) {
-				.hw = &cxo.hw,
-			},
-			.num_parents = 1,
+			.parent_data = gcc_parent_data_1,
+			.num_parents = ARRAY_SIZE(gcc_parent_data_1),
 			.ops = &clk_alpha_pll_ops,
 		},
 	},
@@ -102,10 +105,8 @@ static struct clk_alpha_pll gpll0_ao_out_main = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll0_ao_out_main",
-			.parent_data = &(const struct clk_parent_data) {
-				.hw = &cxo.hw,
-			},
-			.num_parents = 1,
+			.parent_data = gcc_parent_data_1,
+			.num_parents = ARRAY_SIZE(gcc_parent_data_1),
 			.flags = CLK_IS_CRITICAL,
 			.ops = &clk_alpha_pll_fixed_ops,
 		},
@@ -120,10 +121,8 @@ static struct clk_alpha_pll gpll1_out_main = {
 		.enable_mask = BIT(1),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll1_out_main",
-			.parent_data = &(const struct clk_parent_data) {
-				.hw = &cxo.hw,
-			},
-			.num_parents = 1,
+			.parent_data = gcc_parent_data_1,
+			.num_parents = ARRAY_SIZE(gcc_parent_data_1),
 			.ops = &clk_alpha_pll_ops,
 		},
 	},
@@ -153,10 +152,8 @@ static struct clk_alpha_pll gpll3_out_main = {
 	.clkr = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll3_out_main",
-			.parent_data = &(const struct clk_parent_data) {
-				.hw = &cxo.hw,
-			},
-			.num_parents = 1,
+			.parent_data = gcc_parent_data_1,
+			.num_parents = ARRAY_SIZE(gcc_parent_data_1),
 			.ops = &clk_alpha_pll_ops,
 		},
 	},
@@ -170,10 +167,8 @@ static struct clk_alpha_pll gpll4_out_main = {
 		.enable_mask = BIT(5),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll4_out_main",
-			.parent_data = &(const struct clk_parent_data) {
-				.hw = &cxo.hw,
-			},
-			.num_parents = 1,
+			.parent_data = gcc_parent_data_1,
+			.num_parents = ARRAY_SIZE(gcc_parent_data_1),
 			.ops = &clk_alpha_pll_ops,
 		},
 	},
@@ -189,10 +184,8 @@ static struct clk_pll gpll6 = {
 	.status_bit = 17,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gpll6",
-		.parent_data = &(const struct clk_parent_data) {
-			.hw = &cxo.hw,
-		},
-		.num_parents = 1,
+		.parent_data = gcc_parent_data_1,
+		.num_parents = ARRAY_SIZE(gcc_parent_data_1),
 		.ops = &clk_pll_ops,
 	},
 };
@@ -216,21 +209,13 @@ static const struct parent_map gcc_parent_map_0[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_0[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .hw = &gpll0_out_main.clkr.hw },
 };
 
 static const struct clk_parent_data gcc_parent_data_ao_0[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .hw = &gpll0_ao_out_main.clkr.hw },
-};
-
-static const struct parent_map gcc_parent_map_1[] = {
-	{ P_XO, 0 },
-};
-
-static const struct clk_parent_data gcc_parent_data_1[] = {
-	{ .hw = &cxo.hw },
 };
 
 static const struct parent_map gcc_parent_map_2[] = {
@@ -241,7 +226,7 @@ static const struct parent_map gcc_parent_map_2[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_2[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .hw = &gpll0_out_main.clkr.hw },
 	{ .hw = &gpll6_out_aux.hw },
 	{ .index = DT_SLEEP_CLK, .name = "sleep_clk" },
@@ -254,7 +239,7 @@ static const struct parent_map gcc_parent_map_3[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_3[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .hw = &gpll0_out_main.clkr.hw },
 	{ .hw = &gpll6_out_aux.hw },
 };
@@ -265,7 +250,7 @@ static const struct parent_map gcc_parent_map_4[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_4[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .hw = &gpll1_out_main.clkr.hw },
 };
 
@@ -275,7 +260,7 @@ static const struct parent_map gcc_parent_map_5[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_5[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .index = DT_DSI0_PHY_PLL_OUT_BYTECLK, .name = "dsi0pllbyte" },
 };
 
@@ -285,7 +270,7 @@ static const struct parent_map gcc_parent_map_6[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_6[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .index = DT_DSI0_PHY_PLL_OUT_BYTECLK, .name = "dsi0pllbyte" },
 };
 
@@ -297,7 +282,7 @@ static const struct parent_map gcc_parent_map_7[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_7[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .hw = &gpll0_out_main.clkr.hw },
 	{ .hw = &gpll3_out_main.clkr.hw },
 	{ .hw = &gpll6_out_aux.hw },
@@ -309,7 +294,7 @@ static const struct parent_map gcc_parent_map_8[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_8[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .index = DT_HDMI_PHY_PLL_CLK, .name = "hdmi_pll" },
 };
 
@@ -321,7 +306,7 @@ static const struct parent_map gcc_parent_map_9[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_9[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .hw = &gpll0_out_main.clkr.hw },
 	{ .index = DT_DSI0_PHY_PLL_OUT_DSICLK, .name = "dsi0pll" },
 	{ .hw = &gpll6_out_aux.hw },
@@ -333,7 +318,7 @@ static const struct parent_map gcc_parent_map_10[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_10[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .index = DT_SLEEP_CLK, .name = "sleep_clk" },
 };
 
@@ -343,7 +328,7 @@ static const struct parent_map gcc_parent_map_11[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_11[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .fw_name = "pcie_0_pipe_clk", .name = "pcie_0_pipe_clk" },
 };
 
@@ -353,7 +338,7 @@ static const struct parent_map gcc_parent_map_12[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_12[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .index = DT_DSI0_PHY_PLL_OUT_DSICLK, .name = "dsi0pll" },
 };
 
@@ -365,7 +350,7 @@ static const struct parent_map gcc_parent_map_13[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_13[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .hw = &gpll0_out_main.clkr.hw },
 	{ .hw = &gpll4_out_main.clkr.hw },
 	{ .hw = &gpll6_out_aux.hw },
@@ -377,7 +362,7 @@ static const struct parent_map gcc_parent_map_14[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_14[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .hw = &gpll0_out_main.clkr.hw },
 };
 
@@ -386,7 +371,7 @@ static const struct parent_map gcc_parent_map_15[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_15[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 };
 
 static const struct parent_map gcc_parent_map_16[] = {
@@ -395,7 +380,7 @@ static const struct parent_map gcc_parent_map_16[] = {
 };
 
 static const struct clk_parent_data gcc_parent_data_16[] = {
-	{ .hw = &cxo.hw },
+	{ .index = DT_XO, .name = "xo-board" },
 	{ .hw = &gpll0_out_main.clkr.hw },
 };
 
