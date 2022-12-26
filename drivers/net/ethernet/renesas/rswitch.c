@@ -1786,6 +1786,11 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	ret = rswitch_init(priv);
+	if (ret < 0) {
+		pm_runtime_put(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
+		return ret;
+	}
 
 	device_set_wakeup_capable(&pdev->dev, 1);
 
