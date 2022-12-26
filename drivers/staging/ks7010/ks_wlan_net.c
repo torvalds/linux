@@ -382,8 +382,7 @@ static int ks_wlan_get_nick(struct net_device *dev,
 		return -EPERM;
 
 	/* for SLEEP MODE */
-	strncpy(extra, priv->nick, 16);
-	extra[16] = '\0';
+	strscpy(extra, priv->nick, 17);
 	dwrq->data.length = strlen(extra) + 1;
 
 	return 0;
