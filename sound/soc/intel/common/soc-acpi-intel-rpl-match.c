@@ -203,6 +203,25 @@ static const struct snd_soc_acpi_link_adr rpl_sdw_rt711_link2_rt1316_link01_rt71
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr rpl_sdw_rt711_link2_rt1316_link01[] = {
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(rt711_sdca_2_adr),
+		.adr_d = rt711_sdca_2_adr,
+	},
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt1316_0_group2_adr),
+		.adr_d = rt1316_0_group2_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt1316_1_group2_adr),
+		.adr_d = rt1316_1_group2_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr rpl_sdw_rt711_link0_rt1318_link12_rt714_link3[] = {
 	{
 		.mask = BIT(0),
@@ -276,6 +295,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_sdw_machines[] = {
 		.links = rpl_sdw_rt1316_link12_rt714_link0,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-rpl-rt1316-l12-rt714-l0.tplg",
+	},
+	{
+		.link_mask = 0x7, /* rt711 on link2 & two rt1316s on link0 and link1 */
+		.links = rpl_sdw_rt711_link2_rt1316_link01,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-rpl-rt711-l2-rt1316-l01.tplg",
 	},
 	{
 		.link_mask = 0x1, /* link0 required */
