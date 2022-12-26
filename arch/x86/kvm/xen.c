@@ -1069,6 +1069,7 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 		u8 blob_size = lm ? kvm->arch.xen_hvm_config.blob_size_64
 				  : kvm->arch.xen_hvm_config.blob_size_32;
 		u8 *page;
+		int ret;
 
 		if (page_num >= blob_size)
 			return 1;
@@ -1079,10 +1080,10 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
-		if (kvm_vcpu_write_guest(vcpu, page_addr, page, PAGE_SIZE)) {
-			kfree(page);
+		ret = kvm_vcpu_write_guest(vcpu, page_addr, page, PAGE_SIZE);
+		kfree(page);
+		if (ret)
 			return 1;
-		}
 	}
 	return 0;
 }
