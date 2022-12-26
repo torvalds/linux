@@ -22,25 +22,6 @@
 
 #include "hid-ids.h"
 
-/* Driver data */
-struct uclogic_drvdata {
-	/* Interface parameters */
-	struct uclogic_params params;
-	/* Pointer to the replacement report descriptor. NULL if none. */
-	__u8 *desc_ptr;
-	/*
-	 * Size of the replacement report descriptor.
-	 * Only valid if desc_ptr is not NULL
-	 */
-	unsigned int desc_size;
-	/* Pen input device */
-	struct input_dev *pen_input;
-	/* In-range timer */
-	struct timer_list inrange_timer;
-	/* Last rotary encoder state, or U8_MAX for none */
-	u8 re_state;
-};
-
 /**
  * uclogic_inrange_timeout - handle pen in-range state timeout.
  * Emulate input events normally generated when pen goes out of range for
@@ -202,6 +183,7 @@ static int uclogic_probe(struct hid_device *hdev,
 	}
 	timer_setup(&drvdata->inrange_timer, uclogic_inrange_timeout, 0);
 	drvdata->re_state = U8_MAX;
+	drvdata->quirks = id->driver_data;
 	hid_set_drvdata(hdev, drvdata);
 
 	/* Initialize the device and retrieve interface parameters */
