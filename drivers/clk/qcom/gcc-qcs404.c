@@ -440,7 +440,7 @@ static struct clk_rcg2 apss_ahb_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "apss_ahb_clk_src",
 		.parent_names = gcc_parent_names_ao_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_ao_0),
 		.flags = CLK_IS_CRITICAL,
 		.ops = &clk_rcg2_ops,
 	},
@@ -461,7 +461,7 @@ static struct clk_rcg2 blsp1_qup0_i2c_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_qup0_i2c_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -486,7 +486,7 @@ static struct clk_rcg2 blsp1_qup0_spi_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_qup0_spi_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -500,7 +500,7 @@ static struct clk_rcg2 blsp1_qup1_i2c_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_qup1_i2c_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -525,7 +525,7 @@ static struct clk_rcg2 blsp1_qup1_spi_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_qup1_spi_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -539,7 +539,7 @@ static struct clk_rcg2 blsp1_qup2_i2c_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_qup2_i2c_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -565,7 +565,7 @@ static struct clk_rcg2 blsp1_qup2_spi_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_qup2_spi_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -579,7 +579,7 @@ static struct clk_rcg2 blsp1_qup3_i2c_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_qup3_i2c_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -593,7 +593,7 @@ static struct clk_rcg2 blsp1_qup3_spi_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_qup3_spi_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -607,7 +607,7 @@ static struct clk_rcg2 blsp1_qup4_i2c_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_qup4_i2c_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -621,7 +621,7 @@ static struct clk_rcg2 blsp1_qup4_spi_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_qup4_spi_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -655,7 +655,7 @@ static struct clk_rcg2 blsp1_uart0_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_uart0_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -669,7 +669,7 @@ static struct clk_rcg2 blsp1_uart1_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_uart1_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -683,7 +683,7 @@ static struct clk_rcg2 blsp1_uart2_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_uart2_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -698,7 +698,7 @@ static struct clk_rcg2 blsp1_uart3_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp1_uart3_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -712,7 +712,7 @@ static struct clk_rcg2 blsp2_qup0_i2c_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp2_qup0_i2c_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -726,7 +726,7 @@ static struct clk_rcg2 blsp2_qup0_spi_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp2_qup0_spi_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -740,7 +740,7 @@ static struct clk_rcg2 blsp2_uart0_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "blsp2_uart0_apps_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -753,7 +753,7 @@ static struct clk_rcg2 byte0_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "byte0_clk_src",
 		.parent_names = gcc_parent_names_5,
-		.num_parents = 4,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_5),
 		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_byte2_ops,
 	},
@@ -776,7 +776,7 @@ static struct clk_rcg2 emac_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "emac_clk_src",
 		.parent_names = gcc_parent_names_4,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_4),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -797,7 +797,7 @@ static struct clk_rcg2 emac_ptp_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "emac_ptp_clk_src",
 		.parent_names = gcc_parent_names_4,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_4),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -816,7 +816,7 @@ static struct clk_rcg2 esc0_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "esc0_clk_src",
 		.parent_names = gcc_parent_names_6,
-		.num_parents = 4,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_6),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -850,7 +850,7 @@ static struct clk_rcg2 gfx3d_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gfx3d_clk_src",
 		.parent_names = gcc_parent_names_7,
-		.num_parents = 6,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_7),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -871,7 +871,7 @@ static struct clk_rcg2 gp1_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gp1_clk_src",
 		.parent_names = gcc_parent_names_2,
-		.num_parents = 4,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_2),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -885,7 +885,7 @@ static struct clk_rcg2 gp2_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gp2_clk_src",
 		.parent_names = gcc_parent_names_2,
-		.num_parents = 4,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_2),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -899,7 +899,7 @@ static struct clk_rcg2 gp3_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gp3_clk_src",
 		.parent_names = gcc_parent_names_2,
-		.num_parents = 4,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_2),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -913,7 +913,7 @@ static struct clk_rcg2 hdmi_app_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "hdmi_app_clk_src",
 		.parent_names = gcc_parent_names_1,
-		.num_parents = 2,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_1),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -927,7 +927,7 @@ static struct clk_rcg2 hdmi_pclk_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "hdmi_pclk_clk_src",
 		.parent_names = gcc_parent_names_8,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_8),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -954,7 +954,7 @@ static struct clk_rcg2 mdp_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "mdp_clk_src",
 		.parent_names = gcc_parent_names_9,
-		.num_parents = 5,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_9),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -973,7 +973,7 @@ static struct clk_rcg2 pcie_0_aux_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pcie_0_aux_clk_src",
 		.parent_names = gcc_parent_names_10,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_10),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -994,7 +994,7 @@ static struct clk_rcg2 pcie_0_pipe_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pcie_0_pipe_clk_src",
 		.parent_names = gcc_parent_names_11,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_11),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1007,7 +1007,7 @@ static struct clk_rcg2 pclk0_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pclk0_clk_src",
 		.parent_names = gcc_parent_names_12,
-		.num_parents = 4,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_12),
 		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_pixel_ops,
 	},
@@ -1028,7 +1028,7 @@ static struct clk_rcg2 pdm2_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pdm2_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1056,7 +1056,7 @@ static struct clk_rcg2 sdcc1_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "sdcc1_apps_clk_src",
 		.parent_names = gcc_parent_names_13,
-		.num_parents = 5,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_13),
 		.ops = &clk_rcg2_floor_ops,
 	},
 };
@@ -1076,7 +1076,7 @@ static struct clk_rcg2 sdcc1_ice_core_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "sdcc1_ice_core_clk_src",
 		.parent_names = gcc_parent_names_3,
-		.num_parents = 4,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_3),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1102,7 +1102,7 @@ static struct clk_rcg2 sdcc2_apps_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "sdcc2_apps_clk_src",
 		.parent_names = gcc_parent_names_14,
-		.num_parents = 4,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_14),
 		.ops = &clk_rcg2_floor_ops,
 	},
 };
@@ -1116,7 +1116,7 @@ static struct clk_rcg2 usb20_mock_utmi_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "usb20_mock_utmi_clk_src",
 		.parent_names = gcc_parent_names_1,
-		.num_parents = 2,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_1),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1138,7 +1138,7 @@ static struct clk_rcg2 usb30_master_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "usb30_master_clk_src",
 		.parent_names = gcc_parent_names_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1152,7 +1152,7 @@ static struct clk_rcg2 usb30_mock_utmi_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "usb30_mock_utmi_clk_src",
 		.parent_names = gcc_parent_names_1,
-		.num_parents = 2,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_1),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1166,7 +1166,7 @@ static struct clk_rcg2 usb3_phy_aux_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "usb3_phy_aux_clk_src",
 		.parent_names = gcc_parent_names_1,
-		.num_parents = 2,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_1),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1189,7 +1189,7 @@ static struct clk_rcg2 usb_hs_system_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "usb_hs_system_clk_src",
 		.parent_names = gcc_parent_names_3,
-		.num_parents = 4,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_3),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1203,7 +1203,7 @@ static struct clk_rcg2 vsync_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "vsync_clk_src",
 		.parent_names = gcc_parent_names_15,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_15),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1225,7 +1225,7 @@ static struct clk_rcg2 cdsp_bimc_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "cdsp_bimc_clk_src",
 		.parent_names = gcc_parent_names_16,
-		.num_parents = 4,
+		.num_parents = ARRAY_SIZE(gcc_parent_names_16),
 		.ops = &clk_rcg2_ops,
 	},
 };
