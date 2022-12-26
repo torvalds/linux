@@ -1237,6 +1237,16 @@ static const struct spi_controller_mem_ops aspeed_spi_ops_user_read_write = {
 	.dirmap_create = aspeed_spi_dirmap_create,
 };
 
+/* If CRTM feature is enabled on AST2600-A3, please use the following settings.
+ * static const struct spi_controller_mem_ops aspeed_spi_ops_user_read_write = {
+ *	.exec_op = aspeed_spi_exec_op_cmd_mode,
+ *	.get_name = aspeed_spi_get_name,
+ *	.supports_op = aspeed_spi_support_op,
+ *	.dirmap_create = aspeed_spi_dirmap_create,
+ *	.dirmap_read = aspeed_spi_dirmap_cmd_read,
+ * };
+ */
+
 /* AST2600-A1/A2 */
 static const struct spi_controller_mem_ops aspeed_spi_ops_cmd_read_dma_write = {
 	.exec_op = aspeed_spi_exec_op_cmd_mode,
