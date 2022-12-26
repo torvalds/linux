@@ -653,6 +653,22 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 				 dev->multi_mode, dev->multi_index, val);
 		}
 		is_upd = true;
+		/* if output stream enable, wait it end */
+		val = rkisp_read(dev, CIF_MI_CTRL_SHD, true);
+		if (val & CIF_MI_CTRL_SHD_MP_OUT_ENABLED &&
+		    !(dev->irq_ends_mask & ISP_FRAME_MP))
+			dev->irq_ends_mask |= ISP_FRAME_MP;
+		if (val & CIF_MI_CTRL_SHD_SP_OUT_ENABLED &&
+		    !(dev->irq_ends_mask & ISP_FRAME_SP))
+			dev->irq_ends_mask |= ISP_FRAME_SP;
+		if (dev->isp_ver == ISP_V30 &&
+		    !(dev->irq_ends_mask & ISP_FRAME_MPFBC) &&
+		    rkisp_read(dev, ISP3X_MPFBC_CTRL, true) & ISP3X_MPFBC_EN_SHD)
+			dev->irq_ends_mask |= ISP_FRAME_MPFBC;
+		if (dev->isp_ver == ISP_V32 &&
+		    !(dev->irq_ends_mask & ISP_FRAME_BP) &&
+		    rkisp_read(dev, ISP32_MI_WR_CTRL2_SHD, true) & ISP32_BP_EN_OUT_SHD)
+			dev->irq_ends_mask |= ISP_FRAME_BP;
 	}
 
 	if (dev->isp_ver == ISP_V21 ||
