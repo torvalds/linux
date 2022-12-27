@@ -938,6 +938,7 @@ int hist_entry__tui_annotate(struct hist_entry *he, struct evsel *evsel,
 	/* reset abort key so that it can get Ctrl-C as a key */
 	SLang_reset_tty();
 	SLang_init_tty(0, 0, 0);
+	SLtty_set_suspend_state(true);
 
 	return map_symbol__tui_annotate(&he->ms, evsel, hbt);
 }
