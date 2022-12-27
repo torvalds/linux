@@ -33,6 +33,14 @@ properties:
       - const: bus
       - const: mbus
 
+  interconnects:
+    maxItems: 2
+
+  interconnect-names:
+    items:
+      - const: video-mem
+      - const: cpu-cfg
+
   iommus:
     maxItems: 20
 
