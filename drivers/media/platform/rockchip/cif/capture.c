@@ -4199,13 +4199,14 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		} else {
 			dev->can_be_reset = true;
 		}
-
+		mutex_lock(&hw_dev->dev_lock);
 		for (i = 0; i < hw_dev->dev_num; i++) {
 			if (atomic_read(&hw_dev->cif_dev[i]->pipe.stream_cnt) != 0) {
 				can_reset = false;
 				break;
 			}
 		}
+		mutex_unlock(&hw_dev->dev_lock);
 		if (dev->can_be_reset && dev->chip_id >= CHIP_RK3588_CIF)
 			rkcif_do_soft_reset(dev);
 		if (dev->can_be_reset && can_reset) {
@@ -5129,6 +5130,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 {
 	struct rkcif_vdev_node *node = &stream->vnode;
 	struct rkcif_device *dev = stream->cifdev;
+	struct rkcif_hw *hw_dev = dev->hw_dev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct rkcif_sensor_info *sensor_info = dev->active_sensor;
 	struct rkcif_sensor_info *terminal_sensor = &dev->terminal_sensor;
@@ -5191,16 +5193,19 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 	if (ret < 0)
 		goto destroy_buf;
 
+	mutex_lock(&hw_dev->dev_lock);
 	if (((dev->active_sensor && dev->active_sensor->mbus.type == V4L2_MBUS_BT656) ||
 	     dev->is_use_dummybuf) &&
 	    (!dev->hw_dev->dummy_buf.vaddr) &&
 	    mode == RKCIF_STREAM_MODE_CAPTURE) {
 		ret = rkcif_create_dummy_buf(stream);
 		if (ret < 0) {
+			mutex_unlock(&hw_dev->dev_lock);
 			v4l2_err(v4l2_dev, "Failed to create dummy_buf, %d\n", ret);
 			goto destroy_buf;
 		}
 	}
+	mutex_unlock(&hw_dev->dev_lock);
 
 	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE) {
 		ret = dev->pipe.open(&dev->pipe, &node->vdev.entity, true);
