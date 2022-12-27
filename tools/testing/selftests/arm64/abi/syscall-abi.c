@@ -88,6 +88,7 @@ static int check_gpr(struct syscall_cfg *cfg, int sve_vl, int sme_vl, uint64_t s
 #define NUM_FPR 32
 uint64_t fpr_in[NUM_FPR * 2];
 uint64_t fpr_out[NUM_FPR * 2];
+uint64_t fpr_zero[NUM_FPR * 2];
 
 static void setup_fpr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 		      uint64_t svcr)
@@ -102,7 +103,7 @@ static int check_fpr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 	int errors = 0;
 	int i;
 
-	if (!sve_vl) {
+	if (!sve_vl && !(svcr & SVCR_SM_MASK)) {
 		for (i = 0; i < ARRAY_SIZE(fpr_in); i++) {
 			if (fpr_in[i] != fpr_out[i]) {
 				ksft_print_msg("%s Q%d/%d mismatch %llx != %llx\n",
@@ -111,6 +112,18 @@ static int check_fpr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 					       fpr_in[i], fpr_out[i]);
 				errors++;
 			}
+		}
+	}
+
+	/*
+	 * In streaming mode the whole register set should be cleared
+	 * by the transition out of streaming mode.
+	 */
+	if (svcr & SVCR_SM_MASK) {
+		if (memcmp(fpr_zero, fpr_out, sizeof(fpr_out)) != 0) {
+			ksft_print_msg("%s FPSIMD registers non-zero exiting SM\n",
+				       cfg->name);
+			errors++;
 		}
 	}
 
@@ -400,6 +413,24 @@ static void test_one_syscall(struct syscall_cfg *cfg)
 					 sme_vls[sme]);
 		}
 	}
+
+	for (sme = 0; sme < sme_vl_count; sme++) {
+		ret = prctl(PR_SME_SET_VL, sme_vls[sme]);
+		if (ret == -1)
+			ksft_exit_fail_msg("PR_SME_SET_VL failed: %s (%d)\n",
+						   strerror(errno), errno);
+
+		ksft_test_result(do_test(cfg, 0, sme_vls[sme],
+					 SVCR_ZA_MASK | SVCR_SM_MASK),
+				 "%s SME VL %d SM+ZA\n",
+				 cfg->name, sme_vls[sme]);
+		ksft_test_result(do_test(cfg, 0, sme_vls[sme], SVCR_SM_MASK),
+				 "%s SME VL %d SM\n",
+				 cfg->name, sme_vls[sme]);
+		ksft_test_result(do_test(cfg, 0, sme_vls[sme], SVCR_ZA_MASK),
+				 "%s SME VL %d ZA\n",
+				 cfg->name, sme_vls[sme]);
+	}
 }
 
 void sve_count_vls(void)
@@ -474,6 +505,7 @@ int main(void)
 	sme_count_vls();
 
 	tests += sve_vl_count;
+	tests += sme_vl_count * 3;
 	tests += (sve_vl_count * sme_vl_count) * 3;
 	ksft_set_plan(ARRAY_SIZE(syscalls) * tests);
 

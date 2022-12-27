@@ -92,8 +92,11 @@ do_syscall:
 	str	x29, [x2], #8		// FP
 	str	x30, [x2], #8		// LR
 
-	// Load FPRs if we're not doing SVE
+	// Load FPRs if we're not doing neither SVE nor streaming SVE
 	cbnz	x0, 1f
+	ldr	x2, =svcr_in
+	tbnz	x2, #SVCR_SM_SHIFT, 1f
+
 	ldr	x2, =fpr_in
 	ldp	q0, q1, [x2]
 	ldp	q2, q3, [x2, #16 * 2]
@@ -111,10 +114,11 @@ do_syscall:
 	ldp	q26, q27, [x2, #16 * 26]
 	ldp	q28, q29, [x2, #16 * 28]
 	ldp	q30, q31, [x2, #16 * 30]
+
+	b	2f
 1:
 
 	// Load the SVE registers if we're doing SVE/SME
-	cbz	x0, 1f
 
 	ldr	x2, =z_in
 	ldr	z0, [x2, #0, MUL VL]
@@ -155,9 +159,9 @@ do_syscall:
 	ldr	x2, =ffr_in
 	ldr	p0, [x2]
 	ldr	x2, [x2, #0]
-	cbz	x2, 2f
+	cbz	x2, 1f
 	wrffr	p0.b
-2:
+1:
 
 	ldr	x2, =p_in
 	ldr	p0, [x2, #0, MUL VL]
@@ -176,7 +180,7 @@ do_syscall:
 	ldr	p13, [x2, #13, MUL VL]
 	ldr	p14, [x2, #14, MUL VL]
 	ldr	p15, [x2, #15, MUL VL]
-1:
+2:
 
 	// Do the syscall
 	svc	#0
