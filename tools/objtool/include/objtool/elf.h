@@ -50,12 +50,11 @@ struct symbol {
 	GElf_Sym sym;
 	struct section *sec;
 	char *name;
-	unsigned int idx;
-	unsigned char bind, type;
+	unsigned int idx, len;
 	unsigned long offset;
-	unsigned int len;
 	unsigned long __subtree_last;
 	struct symbol *pfunc, *cfunc, *alias;
+	unsigned char bind, type;
 	u8 uaccess_safe      : 1;
 	u8 static_call_tramp : 1;
 	u8 retpoline_thunk   : 1;
