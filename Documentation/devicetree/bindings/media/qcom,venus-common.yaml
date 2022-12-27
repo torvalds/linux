@@ -26,6 +26,9 @@ properties:
     minItems: 3
     maxItems: 7
 
+  firmware-name:
+    maxItems: 1
+
   interrupts:
     maxItems: 1
 
