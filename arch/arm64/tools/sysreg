@@ -1842,3 +1842,8 @@ Field	23:16	LD
 Res0	15:8
 Field	7:0	LR
 EndSysreg
+
+Sysreg	ICC_NMIAR1_EL1	3	0	12	9	5
+Res0	63:24
+Field	23:0	INTID
+EndSysreg
