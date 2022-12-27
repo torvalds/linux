@@ -702,6 +702,35 @@ int avs_ipc_copier_set_sink_format(struct avs_dev *adev, u16 module_id,
 					(u8 *)&cpr_fmt, sizeof(cpr_fmt));
 }
 
+int avs_ipc_peakvol_set_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			       struct avs_volume_cfg *vol)
+{
+	return avs_ipc_set_large_config(adev, module_id, instance_id, AVS_PEAKVOL_VOLUME, (u8 *)vol,
+					sizeof(*vol));
+}
+
+int avs_ipc_peakvol_get_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			       struct avs_volume_cfg **vols, size_t *num_vols)
+{
+	size_t payload_size;
+	u8 *payload;
+	int ret;
+
+	ret = avs_ipc_get_large_config(adev, module_id, instance_id, AVS_PEAKVOL_VOLUME, NULL, 0,
+				       &payload, &payload_size);
+	if (ret)
+		return ret;
+
+	/* Non-zero payload expected for PEAKVOL_VOLUME. */
+	if (!payload_size)
+		return -EREMOTEIO;
+
+	*vols = (struct avs_volume_cfg *)payload;
+	*num_vols = payload_size / sizeof(**vols);
+
+	return 0;
+}
+
 #ifdef CONFIG_DEBUG_FS
 int avs_ipc_set_enable_logs(struct avs_dev *adev, u8 *log_info, size_t size)
 {
