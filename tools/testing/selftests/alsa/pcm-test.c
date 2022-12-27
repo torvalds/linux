@@ -36,6 +36,11 @@ struct pcm_data *pcm_list = NULL;
 int num_missing = 0;
 struct pcm_data *pcm_missing = NULL;
 
+enum test_class {
+	TEST_CLASS_DEFAULT,
+	TEST_CLASS_SYSTEM,
+};
+
 void timestamp_now(timestamp_t *tstamp)
 {
 	if (clock_gettime(CLOCK_MONOTONIC_RAW, tstamp))
@@ -217,7 +222,8 @@ static void find_pcms(void)
 	snd_config_delete(config);
 }
 
-static void test_pcm_time(struct pcm_data *data, const char *test_name, snd_config_t *pcm_cfg)
+static void test_pcm_time(struct pcm_data *data, enum test_class class,
+			  const char *test_name, snd_config_t *pcm_cfg)
 {
 	char name[64], key[128], msg[256];
 	const char *cs;
@@ -236,6 +242,19 @@ static void test_pcm_time(struct pcm_data *data, const char *test_name, snd_conf
 	bool pass = false;
 	snd_pcm_hw_params_t *hw_params;
 	snd_pcm_sw_params_t *sw_params;
+	const char *test_class_name;
+
+	switch (class) {
+	case TEST_CLASS_DEFAULT:
+		test_class_name = "default";
+		break;
+	case TEST_CLASS_SYSTEM:
+		test_class_name = "system";
+		break;
+	default:
+		ksft_exit_fail_msg("Unknown test class %d\n", class);
+		break;
+	}
 
 	snd_pcm_hw_params_alloca(&hw_params);
 	snd_pcm_sw_params_alloca(&sw_params);
@@ -366,8 +385,8 @@ __format:
 		goto __close;
 	}
 
-	ksft_print_msg("%s.%d.%d.%d.%s hw_params.%s.%s.%ld.%ld.%ld.%ld sw_params.%ld\n",
-			 test_name,
+	ksft_print_msg("%s.%s.%d.%d.%d.%s hw_params.%s.%s.%ld.%ld.%ld.%ld sw_params.%ld\n",
+		         test_class_name, test_name,
 			 data->card, data->device, data->subdevice,
 			 snd_pcm_stream_name(data->stream),
 			 snd_pcm_access_name(access),
@@ -415,8 +434,9 @@ __format:
 	msg[0] = '\0';
 	pass = true;
 __close:
-	ksft_test_result(pass, "%s.%d.%d.%d.%s%s%s\n",
-			 test_name,
+
+	ksft_test_result(pass, "%s.%s.%d.%d.%d.%s%s%s\n",
+			 test_class_name, test_name,
 			 data->card, data->device, data->subdevice,
 			 snd_pcm_stream_name(data->stream),
 			 msg[0] ? " " : "", msg);
@@ -425,13 +445,37 @@ __close:
 		snd_pcm_close(handle);
 }
 
+void run_time_tests(struct pcm_data *pcm, enum test_class class,
+		    snd_config_t *cfg)
+{
+	const char *test_name, *test_type;
+	snd_config_t *pcm_cfg;
+	snd_config_iterator_t i, next;
+
+	if (!cfg)
+		return;
+
+	cfg = conf_get_subtree(cfg, "test", NULL);
+	if (cfg == NULL)
+		return;
+
+	snd_config_for_each(i, next, cfg) {
+		pcm_cfg = snd_config_iterator_entry(i);
+		if (snd_config_get_id(pcm_cfg, &test_name) < 0)
+			ksft_exit_fail_msg("snd_config_get_id\n");
+		test_type = conf_get_string(pcm_cfg, "type", NULL, "time");
+		if (strcmp(test_type, "time") == 0)
+			test_pcm_time(pcm, class, test_name, pcm_cfg);
+		else
+			ksft_exit_fail_msg("unknown test type '%s'\n", test_type);
+	}
+}
+
 int main(void)
 {
 	struct pcm_data *pcm;
 	snd_config_t *global_config, *default_pcm_config, *cfg, *pcm_cfg;
-	snd_config_iterator_t i, next;
-	int num_pcm_tests = 0, num_tests;
-	const char *test_name, *test_type;
+	int num_pcm_tests = 0, num_tests, num_std_pcm_tests;
 
 	ksft_print_header();
 
@@ -444,10 +488,13 @@ int main(void)
 
 	find_pcms();
 
+	num_std_pcm_tests = conf_get_count(default_pcm_config, "test", NULL);
+
 	for (pcm = pcm_list; pcm != NULL; pcm = pcm->next) {
+		num_pcm_tests += num_std_pcm_tests;
 		cfg = pcm->pcm_config;
 		if (cfg == NULL)
-			cfg = default_pcm_config;
+			continue;
 		num_tests = conf_get_count(cfg, "test", NULL);
 		if (num_tests > 0)
 			num_pcm_tests += num_tests;
@@ -462,22 +509,8 @@ int main(void)
 	}
 
 	for (pcm = pcm_list; pcm != NULL; pcm = pcm->next) {
-		cfg = pcm->pcm_config;
-		if (cfg == NULL)
-			cfg = default_pcm_config;
-		cfg = conf_get_subtree(cfg, "test", NULL);
-		if (cfg == NULL)
-			continue;
-		snd_config_for_each(i, next, cfg) {
-			pcm_cfg = snd_config_iterator_entry(i);
-			if (snd_config_get_id(pcm_cfg, &test_name) < 0)
-				ksft_exit_fail_msg("snd_config_get_id\n");
-			test_type = conf_get_string(pcm_cfg, "type", NULL, "time");
-			if (strcmp(test_type, "time") == 0)
-				test_pcm_time(pcm, test_name, pcm_cfg);
-			else
-				ksft_exit_fail_msg("unknown test type '%s'\n", test_type);
-		}
+		run_time_tests(pcm, TEST_CLASS_DEFAULT, default_pcm_config);
+		run_time_tests(pcm, TEST_CLASS_SYSTEM, pcm->pcm_config);
 	}
 
 	snd_config_delete(global_config);
