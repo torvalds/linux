@@ -736,7 +736,7 @@ Blocking the current thread
 
 Blocking the current thread is an important operation we need to
 perform to implement efficient task scheduling - we want to run other
-treads while I/O operations complete.
+threads while I/O operations complete.
 
 In order to accomplish this the following operations take place:
 
