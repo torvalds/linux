@@ -39,6 +39,7 @@ struct section {
 	char *name;
 	int idx;
 	bool changed, text, rodata, noinstr, init, truncate;
+	struct reloc *reloc_data;
 };
 
 struct symbol {
@@ -104,6 +105,9 @@ struct elf {
 	struct hlist_head *section_hash;
 	struct hlist_head *section_name_hash;
 	struct hlist_head *reloc_hash;
+
+	struct section *section_data;
+	struct symbol *symbol_data;
 };
 
 #define OFFSET_STRIDE_BITS	4
