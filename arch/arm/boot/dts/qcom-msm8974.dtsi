@@ -307,6 +307,8 @@
 				rpmcc: clock-controller {
 					compatible = "qcom,rpmcc-msm8974", "qcom,rpmcc";
 					#clock-cells = <1>;
+					clocks = <&xo_board>;
+					clock-names = "xo";
 				};
 			};
 		};
