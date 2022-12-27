@@ -444,7 +444,7 @@ void sve_count_vls(void)
 	/*
 	 * Enumerate up to SVE_VQ_MAX vector lengths
 	 */
-	for (vq = SVE_VQ_MAX; vq > 0; --vq) {
+	for (vq = SVE_VQ_MAX; vq > 0; vq /= 2) {
 		vl = prctl(PR_SVE_SET_VL, vq * 16);
 		if (vl == -1)
 			ksft_exit_fail_msg("PR_SVE_SET_VL failed: %s (%d)\n",
@@ -470,7 +470,7 @@ void sme_count_vls(void)
 	/*
 	 * Enumerate up to SVE_VQ_MAX vector lengths
 	 */
-	for (vq = SVE_VQ_MAX; vq > 0; --vq) {
+	for (vq = SVE_VQ_MAX; vq > 0; vq /= 2) {
 		vl = prctl(PR_SME_SET_VL, vq * 16);
 		if (vl == -1)
 			ksft_exit_fail_msg("PR_SME_SET_VL failed: %s (%d)\n",
