@@ -124,18 +124,12 @@ static int e800_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int e800_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver e800_driver = {
 	.driver		= {
 		.name	= "e800-audio",
 		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= e800_probe,
-	.remove		= e800_remove,
 };
 
 module_platform_driver(e800_driver);

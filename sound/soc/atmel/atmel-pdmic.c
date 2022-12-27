@@ -692,11 +692,6 @@ unregister_codec:
 	return ret;
 }
 
-static int atmel_pdmic_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver atmel_pdmic_driver = {
 	.driver	= {
 		.name		= "atmel-pdmic",
@@ -704,7 +699,6 @@ static struct platform_driver atmel_pdmic_driver = {
 		.pm		= &snd_soc_pm_ops,
 	},
 	.probe	= atmel_pdmic_probe,
-	.remove	= atmel_pdmic_remove,
 };
 module_platform_driver(atmel_pdmic_driver);
 
