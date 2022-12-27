@@ -241,8 +241,8 @@ Small allocations
      geometric distribution of caches with fixed-size can be used
 
    * Reduces the memory allocation foot-print since we are searching a
-     much smaller memory area - object caches are, compared to buddy
-     which can span over a larger area
+     much smaller memory area, compared to buddy which can span over a
+     larger area
 
    * Employs cache optimization techniques (slab coloring)
 
