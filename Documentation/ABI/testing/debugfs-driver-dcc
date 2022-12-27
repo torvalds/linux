@@ -1,0 +1,98 @@
+What:           /sys/kernel/debug/dcc/.../ready
+Date:           December 2022
+Contact:        Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+Description:
+		This file is used to check the status of the dcc
+		hardware if it's ready to take the inputs. A 'Y'
+		here indicates dcc is in a ready condition.
+		Example:
+		cat /sys/kernel/debug/dcc/.../ready
+
+What:           /sys/kernel/debug/dcc/.../trigger
+Date:           December 2022
+Contact:        Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+Description:
+		This is the debugfs interface for manual software
+		triggers. The user can simply enter a 1 against
+		the debugfs file and enable a manual trigger.
+		Example:
+		echo  1 > /sys/kernel/debug/dcc/.../trigger
+
+What:           /sys/kernel/debug/dcc/.../config_reset
+Date:           December 2022
+Contact:        Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+Description:
+		This file is used to reset the configuration of
+		a dcc driver to the default configuration. This
+		means that all the previous addresses stored in
+		the driver gets removed and user needs to enter
+		the address values from the start.
+		Example:
+		echo  1 > /sys/kernel/debug/dcc/../config_reset
+
+What:           /sys/kernel/debug/dcc/.../[list-number]/config
+Date:		 December 2022
+Contact:        Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+Description:
+		This stores the addresses of the registers which
+		should be read in case of a hardware crash or
+		manual software triggers. The addresses entered here
+		are considered under all the 4 types of dcc
+		instructions Read type, Write type, Read Modify Write
+		type and Loop type. The lists need to be configured
+		sequentially and not in a overlapping manner. As an
+		example user can jump to list x only after list y is
+		configured and enabled. The format for entering all
+		types of instructions are explained in examples as
+		follows.
+		Example:
+	         i)Read Type Instruction
+		   echo R <1> <2> <3> >/sys/kernel/debug/dcc/../[list-number]/config
+		   1->Address to be considered for reading the value.
+		   2->The word count of the addresses, read n words
+		      starting from address <1>. Each word is of 32 bits.
+		      If not entered 1 is considered.
+		   3->Can be 'apb' or 'ahb' which indicates if it is apb or ahb
+		      bus respectively. If not entered ahb is considered.
+		ii)Write Type Instruction
+		   echo W <1> <2> <3> > /sys/kernel/debug/dcc/../[list-number]/config
+		   1->Address to be considered for writing the value.
+		   2->The value that needs to be written at the location.
+		   3->Can be a 'apb' or 'ahb' which indicates if it is apb or ahb
+		      but respectively.
+	       iii)Read Modify Write type instruction
+		   echo RW <1> <2> <3> > /sys/kernel/debug/dcc/../[list-number]/config
+		   1->The address which needs to be considered for read then write.
+		   2->The value that needs to be written on the address.
+		   3->The mask of the value to be written.
+		iv)Loop Type Instruction
+		   echo L <1> <2> <3> > /sys/kernel/debug/dcc/../[list-number]/config
+		   1->The loop count, the number of times the value of the addresses will be
+		      captured.
+		   2->The address count, total number of addresses to be entered in this
+		      instruction.
+		   3->The series of addresses to be entered separated by a space like <addr1>
+		      <addr2>... and so on.
+
+What:           /sys/kernel/debug/dcc/.../[list-number]/enable
+Date:           December 2022
+Contact:        Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+Description:
+		This debugfs interface is used for enabling the
+		the dcc hardware. Enable file is kept under the
+		directory list number for which the user wants
+		to enable it. For example if the user wants to
+		enable list 1, then he should go for
+		echo 1 > /sys/kernel/debug/dcc/.../1/enable.
+		On enabling the dcc, all the addresses entered
+		by the user for the corresponding list is written
+		into dcc sram which is read by the dcc hardware
+		on manual or crash induced triggers. Lists should
+		be enabled sequentially.For example after configuring
+		addresses for list 1 and enabling it, a user can
+		proceed to enable list 2 or vice versa.
+		Example:
+		echo  0 > /sys/kernel/debug/dcc/.../[list-number]/enable
+		(disable dcc for the corresponding list number)
+		echo  1 > /sys/kernel/debug/dcc/.../[list-number]/enable
+		(enable dcc for the corresponding list number)
