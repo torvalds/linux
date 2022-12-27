@@ -244,6 +244,11 @@ static void test_pcm_time(struct pcm_data *data, enum test_class class,
 	snd_pcm_sw_params_t *sw_params;
 	const char *test_class_name;
 	bool skip = true;
+	const char *desc;
+
+	desc = conf_get_string(pcm_cfg, "description", NULL, NULL);
+	if (desc)
+		ksft_print_msg("%s\n", desc);
 
 	switch (class) {
 	case TEST_CLASS_DEFAULT:
