@@ -262,23 +262,12 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			f2g = &gfx_v8_kfd2kgd;
 		break;
 	case CHIP_FIJI:
-		gfx_target_version = 80003;
-		f2g = &gfx_v8_kfd2kgd;
-		break;
 	case CHIP_POLARIS10:
 		gfx_target_version = 80003;
 		f2g = &gfx_v8_kfd2kgd;
 		break;
 	case CHIP_POLARIS11:
-		gfx_target_version = 80003;
-		if (!vf)
-			f2g = &gfx_v8_kfd2kgd;
-		break;
 	case CHIP_POLARIS12:
-		gfx_target_version = 80003;
-		if (!vf)
-			f2g = &gfx_v8_kfd2kgd;
-		break;
 	case CHIP_VEGAM:
 		gfx_target_version = 80003;
 		if (!vf)
