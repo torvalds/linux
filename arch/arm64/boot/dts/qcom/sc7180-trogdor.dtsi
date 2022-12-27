@@ -788,18 +788,18 @@ hp_i2c: &i2c9 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	mi2s@0 {
+	dai-link@0 {
 		reg = <MI2S_PRIMARY>;
 		qcom,playback-sd-lines = <1>;
 		qcom,capture-sd-lines = <0>;
 	};
 
-	secondary_mi2s: mi2s@1 {
+	secondary_mi2s: dai-link@1 {
 		reg = <MI2S_SECONDARY>;
 		qcom,playback-sd-lines = <0>;
 	};
 
-	hdmi@5 {
+	dai-link@5 {
 		reg = <LPASS_DP_RX>;
 	};
 };
