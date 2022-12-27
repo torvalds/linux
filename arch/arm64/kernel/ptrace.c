@@ -683,7 +683,7 @@ static int tls_set(struct task_struct *target, const struct user_regset *regset,
 	unsigned long tls[2];
 
 	tls[0] = target->thread.uw.tp_value;
-	if (system_supports_sme())
+	if (system_supports_tpidr2())
 		tls[1] = target->thread.tpidr2_el0;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, tls, 0, count);
@@ -691,7 +691,7 @@ static int tls_set(struct task_struct *target, const struct user_regset *regset,
 		return ret;
 
 	target->thread.uw.tp_value = tls[0];
-	if (system_supports_sme())
+	if (system_supports_tpidr2())
 		target->thread.tpidr2_el0 = tls[1];
 
 	return ret;
