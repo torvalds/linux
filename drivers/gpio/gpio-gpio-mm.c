@@ -8,13 +8,13 @@
  */
 #include <linux/device.h>
 #include <linux/errno.h>
-#include <linux/gpio/driver.h>
-#include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/isa.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/regmap.h>
+#include <linux/types.h>
 
 #include "gpio-i8255.h"
 
@@ -30,83 +30,22 @@ MODULE_PARM_DESC(base, "Diamond Systems GPIO-MM base addresses");
 
 #define GPIOMM_NUM_PPI 2
 
-/**
- * struct gpiomm_gpio - GPIO device private data structure
- * @chip:		instance of the gpio_chip
- * @ppi_state:		Programmable Peripheral Interface group states
- * @ppi:		Programmable Peripheral Interface groups
- */
-struct gpiomm_gpio {
-	struct gpio_chip chip;
-	struct i8255_state ppi_state[GPIOMM_NUM_PPI];
-	struct i8255 __iomem *ppi;
+static const struct regmap_range gpiomm_volatile_ranges[] = {
+	i8255_volatile_regmap_range(0x0), i8255_volatile_regmap_range(0x4),
 };
-
-static int gpiomm_gpio_get_direction(struct gpio_chip *chip,
-	unsigned int offset)
-{
-	struct gpiomm_gpio *const gpiommgpio = gpiochip_get_data(chip);
-
-	if (i8255_get_direction(gpiommgpio->ppi_state, offset))
-		return GPIO_LINE_DIRECTION_IN;
-
-	return GPIO_LINE_DIRECTION_OUT;
-}
-
-static int gpiomm_gpio_direction_input(struct gpio_chip *chip,
-	unsigned int offset)
-{
-	struct gpiomm_gpio *const gpiommgpio = gpiochip_get_data(chip);
-
-	i8255_direction_input(gpiommgpio->ppi, gpiommgpio->ppi_state, offset);
-
-	return 0;
-}
-
-static int gpiomm_gpio_direction_output(struct gpio_chip *chip,
-	unsigned int offset, int value)
-{
-	struct gpiomm_gpio *const gpiommgpio = gpiochip_get_data(chip);
-
-	i8255_direction_output(gpiommgpio->ppi, gpiommgpio->ppi_state, offset,
-			       value);
-
-	return 0;
-}
-
-static int gpiomm_gpio_get(struct gpio_chip *chip, unsigned int offset)
-{
-	struct gpiomm_gpio *const gpiommgpio = gpiochip_get_data(chip);
-
-	return i8255_get(gpiommgpio->ppi, offset);
-}
-
-static int gpiomm_gpio_get_multiple(struct gpio_chip *chip, unsigned long *mask,
-	unsigned long *bits)
-{
-	struct gpiomm_gpio *const gpiommgpio = gpiochip_get_data(chip);
-
-	i8255_get_multiple(gpiommgpio->ppi, mask, bits, chip->ngpio);
-
-	return 0;
-}
-
-static void gpiomm_gpio_set(struct gpio_chip *chip, unsigned int offset,
-	int value)
-{
-	struct gpiomm_gpio *const gpiommgpio = gpiochip_get_data(chip);
-
-	i8255_set(gpiommgpio->ppi, gpiommgpio->ppi_state, offset, value);
-}
-
-static void gpiomm_gpio_set_multiple(struct gpio_chip *chip,
-	unsigned long *mask, unsigned long *bits)
-{
-	struct gpiomm_gpio *const gpiommgpio = gpiochip_get_data(chip);
-
-	i8255_set_multiple(gpiommgpio->ppi, gpiommgpio->ppi_state, mask, bits,
-			   chip->ngpio);
-}
+static const struct regmap_access_table gpiomm_volatile_table = {
+	.yes_ranges = gpiomm_volatile_ranges,
+	.n_yes_ranges = ARRAY_SIZE(gpiomm_volatile_ranges),
+};
+static const struct regmap_config gpiomm_regmap_config = {
+	.reg_bits = 8,
+	.reg_stride = 1,
+	.val_bits = 8,
+	.io_port = true,
+	.max_register = 0x7,
+	.volatile_table = &gpiomm_volatile_table,
+	.cache_type = REGCACHE_FLAT,
+};
 
 #define GPIOMM_NGPIO 48
 static const char *gpiomm_names[GPIOMM_NGPIO] = {
@@ -120,30 +59,11 @@ static const char *gpiomm_names[GPIOMM_NGPIO] = {
 	"Port 2C2", "Port 2C3", "Port 2C4", "Port 2C5", "Port 2C6", "Port 2C7",
 };
 
-static void gpiomm_init_dio(struct i8255 __iomem *const ppi,
-			    struct i8255_state *const ppi_state)
-{
-	const unsigned long ngpio = 24;
-	const unsigned long mask = GENMASK(ngpio - 1, 0);
-	const unsigned long bits = 0;
-	unsigned long i;
-
-	/* Initialize all GPIO to output 0 */
-	for (i = 0; i < GPIOMM_NUM_PPI; i++) {
-		i8255_mode0_output(&ppi[i]);
-		i8255_set_multiple(&ppi[i], &ppi_state[i], &mask, &bits, ngpio);
-	}
-}
-
 static int gpiomm_probe(struct device *dev, unsigned int id)
 {
-	struct gpiomm_gpio *gpiommgpio;
 	const char *const name = dev_name(dev);
-	int err;
-
-	gpiommgpio = devm_kzalloc(dev, sizeof(*gpiommgpio), GFP_KERNEL);
-	if (!gpiommgpio)
-		return -ENOMEM;
+	struct i8255_regmap_config config = {};
+	void __iomem *regs;
 
 	if (!devm_request_region(dev, base[id], GPIOMM_EXTENT, name)) {
 		dev_err(dev, "Unable to lock port addresses (0x%X-0x%X)\n",
@@ -151,34 +71,20 @@ static int gpiomm_probe(struct device *dev, unsigned int id)
 		return -EBUSY;
 	}
 
-	gpiommgpio->ppi = devm_ioport_map(dev, base[id], GPIOMM_EXTENT);
-	if (!gpiommgpio->ppi)
+	regs = devm_ioport_map(dev, base[id], GPIOMM_EXTENT);
+	if (!regs)
 		return -ENOMEM;
 
-	gpiommgpio->chip.label = name;
-	gpiommgpio->chip.parent = dev;
-	gpiommgpio->chip.owner = THIS_MODULE;
-	gpiommgpio->chip.base = -1;
-	gpiommgpio->chip.ngpio = GPIOMM_NGPIO;
-	gpiommgpio->chip.names = gpiomm_names;
-	gpiommgpio->chip.get_direction = gpiomm_gpio_get_direction;
-	gpiommgpio->chip.direction_input = gpiomm_gpio_direction_input;
-	gpiommgpio->chip.direction_output = gpiomm_gpio_direction_output;
-	gpiommgpio->chip.get = gpiomm_gpio_get;
-	gpiommgpio->chip.get_multiple = gpiomm_gpio_get_multiple;
-	gpiommgpio->chip.set = gpiomm_gpio_set;
-	gpiommgpio->chip.set_multiple = gpiomm_gpio_set_multiple;
+	config.map = devm_regmap_init_mmio(dev, regs, &gpiomm_regmap_config);
+	if (IS_ERR(config.map))
+		return dev_err_probe(dev, PTR_ERR(config.map),
+				     "Unable to initialize register map\n");
 
-	i8255_state_init(gpiommgpio->ppi_state, GPIOMM_NUM_PPI);
-	gpiomm_init_dio(gpiommgpio->ppi, gpiommgpio->ppi_state);
+	config.parent = dev;
+	config.num_ppi = GPIOMM_NUM_PPI;
+	config.names = gpiomm_names;
 
-	err = devm_gpiochip_add_data(dev, &gpiommgpio->chip, gpiommgpio);
-	if (err) {
-		dev_err(dev, "GPIO registering failed (%d)\n", err);
-		return err;
-	}
-
-	return 0;
+	return devm_i8255_regmap_register(dev, &config);
 }
 
 static struct isa_driver gpiomm_driver = {
