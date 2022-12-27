@@ -111,6 +111,9 @@ be zeroed.
 
 * Signal handlers are invoked with streaming mode and ZA disabled.
 
+* A new signal frame record TPIDR2_MAGIC is added formatted as a struct
+  tpidr2_context to allow access to TPIDR2_EL0 from signal handlers.
+
 * A new signal frame record za_context encodes the ZA register contents on
   signal delivery. [1]
 
