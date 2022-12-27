@@ -819,7 +819,7 @@ checks are not put into place. Currently, the Linux kernel does not allow
 running soft irqs for more than :c:macro:`MAX_SOFTIRQ_TIME` or rescheduling for
 more than :c:macro:`MAX_SOFTIRQ_RESTART` consecutive times.
 
-Once these limits are reached a special kernel thread, **ksoftirqd** is wake-up
+Once these limits are reached a special kernel thread, **ksoftirqd** is woken up
 and all of the rest of pending soft irqs will be run from the context of this
 kernel thread.
 
