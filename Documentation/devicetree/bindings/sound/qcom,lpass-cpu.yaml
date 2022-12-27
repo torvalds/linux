@@ -78,7 +78,7 @@ properties:
     const: 0
 
 patternProperties:
-  "^dai-link@[0-9a-f]$":
+  "^dai-link@[0-9a-f]+$":
     type: object
     description: |
       LPASS CPU dai node for each I2S device or Soundwire device. Bindings of each node
