@@ -1158,7 +1158,7 @@ needed the scheduler is called to select a new task.
 Process context
 ===============
 
-Now that we have examined the implementation on processed and threads
+Now that we have examined the implementation of processes and threads
 (tasks), how context switching occurs, how we can block, wake-up and
 preempt tasks, we can finally define what the process context is what
 are its properties:
