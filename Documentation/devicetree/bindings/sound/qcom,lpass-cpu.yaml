@@ -65,6 +65,9 @@ properties:
   power-domain-names:
     maxItems: 1
 
+  required-opps:
+    maxItems: 1
+
   '#sound-dai-cells':
     const: 1
 
