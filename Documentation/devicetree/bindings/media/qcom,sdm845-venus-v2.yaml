@@ -13,15 +13,12 @@ description: |
   The Venus IP is a video encode and decode accelerator present
   on Qualcomm platforms
 
+allOf:
+  - $ref: qcom,venus-common.yaml#
+
 properties:
   compatible:
     const: qcom,sdm845-venus-v2
-
-  reg:
-    maxItems: 1
-
-  interrupts:
-    maxItems: 1
 
   power-domains:
     minItems: 3
@@ -51,9 +48,6 @@ properties:
   iommus:
     maxItems: 2
 
-  memory-region:
-    maxItems: 1
-
   video-core0:
     type: object
 
@@ -78,35 +72,14 @@ properties:
 
     additionalProperties: false
 
-  video-firmware:
-    type: object
-    additionalProperties: false
-
-    description: |
-      Firmware subnode is needed when the platform does not
-      have TrustZone.
-
-    properties:
-      iommus:
-        maxItems: 1
-
-    required:
-      - iommus
-
 required:
   - compatible
-  - reg
-  - interrupts
-  - power-domains
   - power-domain-names
-  - clocks
-  - clock-names
   - iommus
-  - memory-region
   - video-core0
   - video-core1
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

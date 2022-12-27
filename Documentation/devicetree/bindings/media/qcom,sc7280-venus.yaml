@@ -13,15 +13,12 @@ description: |
   The Venus Iris2 IP is a video encode and decode accelerator present
   on Qualcomm platforms
 
+allOf:
+  - $ref: qcom,venus-common.yaml#
+
 properties:
   compatible:
     const: qcom,sc7280-venus
-
-  reg:
-    maxItems: 1
-
-  interrupts:
-    maxItems: 1
 
   power-domains:
     minItems: 2
@@ -47,9 +44,6 @@ properties:
 
   iommus:
     maxItems: 2
-
-  memory-region:
-    maxItems: 1
 
   interconnects:
     maxItems: 2
@@ -83,35 +77,14 @@ properties:
 
     additionalProperties: false
 
-  video-firmware:
-    type: object
-    additionalProperties: false
-
-    description: |
-      Firmware subnode is needed when the platform does not
-      have TrustZone.
-
-    properties:
-      iommus:
-        maxItems: 1
-
-    required:
-      - iommus
-
 required:
   - compatible
-  - reg
-  - interrupts
-  - power-domains
   - power-domain-names
-  - clocks
-  - clock-names
   - iommus
-  - memory-region
   - video-decoder
   - video-encoder
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
