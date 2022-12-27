@@ -166,7 +166,7 @@ struct sof_ipc_tplg_widget_ops {
  *	    initialized to 0.
  * @control: Pointer to the IPC-specific ops for topology kcontrol IO
  * @route_setup: Function pointer for setting up pipeline connections
- * @route_free: Optional op for freeing pipeline connections.
+ * @route_free: Function pointer for freeing pipeline connections.
  * @token_list: List of all tokens supported by the IPC version. The size of the token_list
  *		array should be SOF_TOKEN_COUNT. The unused elements in the array will be
  *		initialized to 0.
@@ -179,7 +179,9 @@ struct sof_ipc_tplg_widget_ops {
  * @dai_get_clk: Function pointer for getting the DAI clock setting
  * @set_up_all_pipelines: Function pointer for setting up all topology pipelines
  * @tear_down_all_pipelines: Function pointer for tearing down all topology pipelines
- * @parse_manifest: Optional function pointer for ipc4 specific parsing of topology manifest
+ * @parse_manifest: Function pointer for ipc4 specific parsing of topology manifest
+ *
+ * Note: function pointers (ops) are optional
  */
 struct sof_ipc_tplg_ops {
 	const struct sof_ipc_tplg_widget_ops *widget;

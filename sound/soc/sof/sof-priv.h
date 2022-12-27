@@ -444,7 +444,7 @@ struct sof_ipc_pcm_ops;
  * @pm:		Pointer to PM ops
  * @pcm:	Pointer to PCM ops
  * @fw_loader:	Pointer to Firmware Loader ops
- * @fw_tracing:	Pointer to Firmware tracing ops
+ * @fw_tracing:	Optional pointer to Firmware tracing ops
  *
  * @init:	Optional pointer for IPC related initialization
  * @exit:	Optional pointer for IPC related cleanup
@@ -501,6 +501,10 @@ struct snd_sof_ipc {
 	/* IPC ops based on version */
 	const struct sof_ipc_ops *ops;
 };
+
+/* Helper to retrieve the IPC ops */
+#define sof_ipc_get_ops(sdev, ops_name)		\
+		(((sdev)->ipc && (sdev)->ipc->ops) ? (sdev)->ipc->ops->ops_name : NULL)
 
 /*
  * SOF Device Level.
