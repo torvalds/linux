@@ -1104,7 +1104,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	 * to benefit from it right away.
 	 */
 	if (kvm_apicv_activated(vcpu->kvm))
-		kvm_vcpu_update_apicv(vcpu);
+		__kvm_vcpu_update_apicv(vcpu);
 
 	return 0;
 }
