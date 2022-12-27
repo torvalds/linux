@@ -110,8 +110,8 @@ abstractions are depicted.
 Multiple file descriptors can point to the same *file* because we can
 use the :c:func:`dup` system call to duplicate a file descriptor.
 
-Multiple *file* abstractions can point to the same *dentry* if we the
-same path multiple times.
+Multiple *file* abstractions can point to the same *dentry* if we open
+the same path multiple times.
 
 Multiple *dentries* can point to the same *inode* when hard links are
 used.
