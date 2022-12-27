@@ -809,8 +809,8 @@
 
 #define ARM64_FEATURE_FIELD_BITS	4
 
-/* Create a mask for the feature bits of the specified feature. */
-#define ARM64_FEATURE_MASK(x)	(GENMASK_ULL(x##_SHIFT + ARM64_FEATURE_FIELD_BITS - 1, x##_SHIFT))
+/* Defined for compatibility only, do not add new users. */
+#define ARM64_FEATURE_MASK(x)	(x##_MASK)
 
 #ifdef __ASSEMBLY__
 
