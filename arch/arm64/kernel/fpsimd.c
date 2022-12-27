@@ -1322,7 +1322,6 @@ u64 read_smcr_features(void)
 	unsigned int vq_max;
 
 	sme_kernel_enable(NULL);
-	sme_smstart_sm();
 
 	/*
 	 * Set the maximum possible VL.
@@ -1332,10 +1331,8 @@ u64 read_smcr_features(void)
 
 	smcr = read_sysreg_s(SYS_SMCR_EL1);
 	smcr &= ~(u64)SMCR_ELx_LEN_MASK; /* Only the LEN field */
-	vq_max = sve_vq_from_vl(sve_get_vl());
+	vq_max = sve_vq_from_vl(sme_get_vl());
 	smcr |= vq_max - 1; /* set LEN field to maximum effective value */
-
-	sme_smstop_sm();
 
 	return smcr;
 }
