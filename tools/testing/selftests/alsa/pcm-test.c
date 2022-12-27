@@ -243,6 +243,7 @@ static void test_pcm_time(struct pcm_data *data, enum test_class class,
 	snd_pcm_hw_params_t *hw_params;
 	snd_pcm_sw_params_t *sw_params;
 	const char *test_class_name;
+	bool skip = true;
 
 	switch (class) {
 	case TEST_CLASS_DEFAULT:
@@ -395,6 +396,9 @@ __format:
 			 (long)rperiod_size, (long)rbuffer_size,
 			 (long)start_threshold);
 
+	/* Set all the params, actually run the test */
+	skip = false;
+
 	timestamp_now(&tstamp);
 	for (i = 0; i < 4; i++) {
 		if (data->stream == SND_PCM_STREAM_PLAYBACK) {
@@ -434,12 +438,34 @@ __format:
 	msg[0] = '\0';
 	pass = true;
 __close:
+	switch (class) {
+	case TEST_CLASS_SYSTEM:
+		test_class_name = "system";
+		/*
+		 * Anything specified as specific to this system
+		 * should always be supported.
+		 */
+		ksft_test_result(!skip, "%s.%s.%d.%d.%d.%s.params\n",
+				 test_class_name, test_name,
+				 data->card, data->device, data->subdevice,
+				 snd_pcm_stream_name(data->stream));
+		break;
+	default:
+		break;
+	}
 
-	ksft_test_result(pass, "%s.%s.%d.%d.%d.%s%s%s\n",
-			 test_class_name, test_name,
-			 data->card, data->device, data->subdevice,
-			 snd_pcm_stream_name(data->stream),
-			 msg[0] ? " " : "", msg);
+	if (!skip)
+		ksft_test_result(pass, "%s.%s.%d.%d.%d.%s%s%s\n",
+				 test_class_name, test_name,
+				 data->card, data->device, data->subdevice,
+				 snd_pcm_stream_name(data->stream),
+				 msg[0] ? " " : "", msg);
+	else
+		ksft_test_result_skip("%s.%s.%d.%d.%d.%s%s%s\n",
+				 test_class_name, test_name,
+				 data->card, data->device, data->subdevice,
+				 snd_pcm_stream_name(data->stream),
+				 msg[0] ? " " : "", msg);
 	free(samples);
 	if (handle)
 		snd_pcm_close(handle);
@@ -495,7 +521,8 @@ int main(void)
 		cfg = pcm->pcm_config;
 		if (cfg == NULL)
 			continue;
-		num_tests = conf_get_count(cfg, "test", NULL);
+		/* Setting params is reported as a separate test */
+		num_tests = conf_get_count(cfg, "test", NULL) * 2;
 		if (num_tests > 0)
 			num_pcm_tests += num_tests;
 	}
