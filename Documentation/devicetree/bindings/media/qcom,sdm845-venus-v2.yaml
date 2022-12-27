@@ -48,6 +48,10 @@ properties:
   iommus:
     maxItems: 2
 
+  operating-points-v2: true
+  opp-table:
+    type: object
+
   video-core0:
     type: object
 
