@@ -141,7 +141,7 @@ struct rkvdec_link_info rkvdec_link_rk356x_hw_info = {
 
 /* vdpu382 link hw info */
 struct rkvdec_link_info rkvdec_link_vdpu382_hw_info = {
-	.tb_reg_num = 218,
+	.tb_reg_num = 222,
 	.tb_reg_next = 0,
 	.tb_reg_r = 1,
 	.tb_reg_second_en = 8,
@@ -181,12 +181,12 @@ struct rkvdec_link_info rkvdec_link_vdpu382_hw_info = {
 	.part_r[0] = {
 		.tb_reg_off = 180,
 		.reg_start = 224,
-		.reg_num = 10,
+		.reg_num = 12,
 	},
 	.part_r[1] = {
-		.tb_reg_off = 190,
+		.tb_reg_off = 192,
 		.reg_start = 258,
-		.reg_num = 28,
+		.reg_num = 30,
 	},
 	.tb_reg_int = 180,
 	.hack_setup = 0,
