@@ -9,7 +9,7 @@
 #include <linux/bits.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/gpio/driver.h>
+#include <linux/gpio/regmap.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
@@ -19,10 +19,6 @@
 #include <linux/moduleparam.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
-
-#include "gpio-i8255.h"
-
-MODULE_IMPORT_NS(I8255);
 
 #define IDI_48_EXTENT 8
 #define MAX_NUM_IDI_48 max_num_isa_dev(IDI_48_EXTENT)
@@ -40,56 +36,17 @@ MODULE_PARM_DESC(irq, "ACCES 104-IDI-48 interrupt line numbers");
 #define IDI48_IRQ_STATUS 0x7
 #define IDI48_IRQ_ENABLE IDI48_IRQ_STATUS
 
-/**
- * struct idi_48_reg - device register structure
- * @port0:	Port 0 Inputs
- * @unused:	Unused
- * @port1:	Port 1 Inputs
- * @irq:	Read: IRQ Status Register/IRQ Clear
- *		Write: IRQ Enable/Disable
- */
-struct idi_48_reg {
-	u8 port0[3];
-	u8 unused;
-	u8 port1[3];
-	u8 irq;
-};
-
-/**
- * struct idi_48_gpio - GPIO device private data structure
- * @chip:	instance of the gpio_chip
- * @reg:	I/O address offset for the device registers
- */
-struct idi_48_gpio {
-	struct gpio_chip chip;
-	struct idi_48_reg __iomem *reg;
-};
-
-static int idi_48_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
+static int idi_48_reg_mask_xlate(struct gpio_regmap *gpio, unsigned int base,
+				 unsigned int offset, unsigned int *reg,
+				 unsigned int *mask)
 {
-	return GPIO_LINE_DIRECTION_IN;
-}
+	const unsigned int line = offset % 8;
+	const unsigned int stride = offset / 8;
+	const unsigned int port = (stride / 3) * 4;
+	const unsigned int port_stride = stride % 3;
 
-static int idi_48_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
-{
-	return 0;
-}
-
-static int idi_48_gpio_get(struct gpio_chip *chip, unsigned int offset)
-{
-	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
-	void __iomem *const ppi = idi48gpio->reg;
-
-	return i8255_get(ppi, offset);
-}
-
-static int idi_48_gpio_get_multiple(struct gpio_chip *chip, unsigned long *mask,
-	unsigned long *bits)
-{
-	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
-	void __iomem *const ppi = idi48gpio->reg;
-
-	i8255_get_multiple(ppi, mask, bits, chip->ngpio);
+	*reg = base + port + port_stride;
+	*mask = BIT(line);
 
 	return 0;
 }
@@ -166,17 +123,13 @@ static const char *idi48_names[IDI48_NGPIO] = {
 
 static int idi_48_probe(struct device *dev, unsigned int id)
 {
-	struct idi_48_gpio *idi48gpio;
 	const char *const name = dev_name(dev);
+	struct gpio_regmap_config config = {};
 	void __iomem *regs;
 	struct regmap *map;
 	struct regmap_irq_chip *chip;
 	struct regmap_irq_chip_data *chip_data;
 	int err;
-
-	idi48gpio = devm_kzalloc(dev, sizeof(*idi48gpio), GFP_KERNEL);
-	if (!idi48gpio)
-		return -ENOMEM;
 
 	if (!devm_request_region(dev, base[id], IDI_48_EXTENT, name)) {
 		dev_err(dev, "Unable to lock port addresses (0x%X-0x%X)\n",
@@ -187,7 +140,6 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 	regs = devm_ioport_map(dev, base[id], IDI_48_EXTENT);
 	if (!regs)
 		return -ENOMEM;
-	idi48gpio->reg = regs;
 
 	map = devm_regmap_init_mmio(dev, regs, &idi48_regmap_config);
 	if (IS_ERR(map))
@@ -211,25 +163,16 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 	if (err)
 		return dev_err_probe(dev, err, "IRQ registration failed\n");
 
-	idi48gpio->chip.label = name;
-	idi48gpio->chip.parent = dev;
-	idi48gpio->chip.owner = THIS_MODULE;
-	idi48gpio->chip.base = -1;
-	idi48gpio->chip.ngpio = IDI48_NGPIO;
-	idi48gpio->chip.names = idi48_names;
-	idi48gpio->chip.get_direction = idi_48_gpio_get_direction;
-	idi48gpio->chip.direction_input = idi_48_gpio_direction_input;
-	idi48gpio->chip.get = idi_48_gpio_get;
-	idi48gpio->chip.get_multiple = idi_48_gpio_get_multiple;
+	config.parent = dev;
+	config.regmap = map;
+	config.ngpio = IDI48_NGPIO;
+	config.names = idi48_names;
+	config.reg_dat_base = GPIO_REGMAP_ADDR(0x0);
+	config.ngpio_per_reg = 8;
+	config.reg_mask_xlate = idi_48_reg_mask_xlate;
+	config.irq_domain = regmap_irq_get_domain(chip_data);
 
-	err = devm_gpiochip_add_data(dev, &idi48gpio->chip, idi48gpio);
-	if (err) {
-		dev_err(dev, "GPIO registering failed (%d)\n", err);
-		return err;
-	}
-
-	return gpiochip_irqchip_add_domain(&idi48gpio->chip,
-					   regmap_irq_get_domain(chip_data));
+	return PTR_ERR_OR_ZERO(devm_gpio_regmap_register(dev, &config));
 }
 
 static struct isa_driver idi_48_driver = {
