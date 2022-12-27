@@ -56,6 +56,7 @@ struct rt_sigframe_user_layout {
 	unsigned long fpsimd_offset;
 	unsigned long esr_offset;
 	unsigned long sve_offset;
+	unsigned long tpidr2_offset;
 	unsigned long za_offset;
 	unsigned long extra_offset;
 	unsigned long end_offset;
@@ -220,6 +221,7 @@ static int restore_fpsimd_context(struct fpsimd_context __user *ctx)
 struct user_ctxs {
 	struct fpsimd_context __user *fpsimd;
 	struct sve_context __user *sve;
+	struct tpidr2_context __user *tpidr2;
 	struct za_context __user *za;
 };
 
@@ -361,6 +363,32 @@ extern int preserve_sve_context(void __user *ctx);
 
 #ifdef CONFIG_ARM64_SME
 
+static int preserve_tpidr2_context(struct tpidr2_context __user *ctx)
+{
+	int err = 0;
+
+	current->thread.tpidr2_el0 = read_sysreg_s(SYS_TPIDR2_EL0);
+
+	__put_user_error(TPIDR2_MAGIC, &ctx->head.magic, err);
+	__put_user_error(sizeof(*ctx), &ctx->head.size, err);
+	__put_user_error(current->thread.tpidr2_el0, &ctx->tpidr2, err);
+
+	return err;
+}
+
+static int restore_tpidr2_context(struct user_ctxs *user)
+{
+	u64 tpidr2_el0;
+	int err = 0;
+
+	/* Magic and size were validated deciding to call this function */
+	__get_user_error(tpidr2_el0, &user->tpidr2->tpidr2, err);
+	if (!err)
+		current->thread.tpidr2_el0 = tpidr2_el0;
+
+	return err;
+}
+
 static int preserve_za_context(struct za_context __user *ctx)
 {
 	int err = 0;
@@ -450,6 +478,8 @@ static int restore_za_context(struct user_ctxs *user)
 #else /* ! CONFIG_ARM64_SME */
 
 /* Turn any non-optimised out attempts to use these into a link error: */
+extern int preserve_tpidr2_context(void __user *ctx);
+extern int restore_tpidr2_context(struct user_ctxs *user);
 extern int preserve_za_context(void __user *ctx);
 extern int restore_za_context(struct user_ctxs *user);
 
@@ -468,6 +498,7 @@ static int parse_user_sigframe(struct user_ctxs *user,
 
 	user->fpsimd = NULL;
 	user->sve = NULL;
+	user->tpidr2 = NULL;
 	user->za = NULL;
 
 	if (!IS_ALIGNED((unsigned long)base, 16))
@@ -532,6 +563,19 @@ static int parse_user_sigframe(struct user_ctxs *user,
 				goto invalid;
 
 			user->sve = (struct sve_context __user *)head;
+			break;
+
+		case TPIDR2_MAGIC:
+			if (!system_supports_sme())
+				goto invalid;
+
+			if (user->tpidr2)
+				goto invalid;
+
+			if (size != sizeof(*user->tpidr2))
+				goto invalid;
+
+			user->tpidr2 = (struct tpidr2_context __user *)head;
 			break;
 
 		case ZA_MAGIC:
@@ -666,6 +710,9 @@ static int restore_sigframe(struct pt_regs *regs,
 			err = restore_fpsimd_context(user.fpsimd);
 	}
 
+	if (err == 0 && system_supports_sme() && user.tpidr2)
+		err = restore_tpidr2_context(&user);
+
 	if (err == 0 && system_supports_sme() && user.za)
 		err = restore_za_context(&user);
 
@@ -760,6 +807,11 @@ static int setup_sigframe_layout(struct rt_sigframe_user_layout *user,
 		else
 			vl = task_get_sme_vl(current);
 
+		err = sigframe_alloc(user, &user->tpidr2_offset,
+				     sizeof(struct tpidr2_context));
+		if (err)
+			return err;
+
 		if (thread_za_enabled(&current->thread))
 			vq = sve_vq_from_vl(vl);
 
@@ -815,6 +867,13 @@ static int setup_sigframe(struct rt_sigframe_user_layout *user,
 		struct sve_context __user *sve_ctx =
 			apply_user_offset(user, user->sve_offset);
 		err |= preserve_sve_context(sve_ctx);
+	}
+
+	/* TPIDR2 if supported */
+	if (system_supports_sme() && err == 0) {
+		struct tpidr2_context __user *tpidr2_ctx =
+			apply_user_offset(user, user->tpidr2_offset);
+		err |= preserve_tpidr2_context(tpidr2_ctx);
 	}
 
 	/* ZA state if present */

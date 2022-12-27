@@ -144,6 +144,14 @@ struct sve_context {
 
 #define SVE_SIG_FLAG_SM	0x1	/* Context describes streaming mode */
 
+/* TPIDR2_EL0 context */
+#define TPIDR2_MAGIC	0x54504902
+
+struct tpidr2_context {
+	struct _aarch64_ctx head;
+	__u64 tpidr2;
+};
+
 #define ZA_MAGIC	0x54366345
 
 struct za_context {
