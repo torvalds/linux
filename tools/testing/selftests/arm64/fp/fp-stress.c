@@ -377,13 +377,16 @@ static void probe_vls(int vls[], int *vl_count, int set_vl)
 
 	*vl_count = 0;
 
-	for (vq = SVE_VQ_MAX; vq > 0; --vq) {
+	for (vq = SVE_VQ_MAX; vq > 0; vq /= 2) {
 		vl = prctl(set_vl, vq * 16);
 		if (vl == -1)
 			ksft_exit_fail_msg("SET_VL failed: %s (%d)\n",
 					   strerror(errno), errno);
 
 		vl &= PR_SVE_VL_LEN_MASK;
+
+		if (*vl_count && (vl == vls[*vl_count - 1]))
+			break;
 
 		vq = sve_vq_from_vl(vl);
 
