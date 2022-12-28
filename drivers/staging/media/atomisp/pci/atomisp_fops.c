@@ -624,7 +624,7 @@ static void atomisp_buf_cleanup(struct vb2_buffer *vb)
 	hmm_free(frame->data);
 }
 
-static const struct vb2_ops atomisp_vb2_ops = {
+const struct vb2_ops atomisp_vb2_ops = {
 	.queue_setup		= atomisp_queue_setup,
 	.buf_init		= atomisp_buf_init,
 	.buf_cleanup		= atomisp_buf_cleanup,
@@ -632,40 +632,6 @@ static const struct vb2_ops atomisp_vb2_ops = {
 	.start_streaming	= atomisp_start_streaming,
 	.stop_streaming		= atomisp_stop_streaming,
 };
-
-static int atomisp_init_pipe(struct atomisp_video_pipe *pipe)
-{
-	int ret;
-
-	/* init locks */
-	spin_lock_init(&pipe->irq_lock);
-	mutex_init(&pipe->vb_queue_mutex);
-
-	/* Init videobuf2 queue structure */
-	pipe->vb_queue.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	pipe->vb_queue.io_modes = VB2_MMAP | VB2_USERPTR;
-	pipe->vb_queue.buf_struct_size = sizeof(struct ia_css_frame);
-	pipe->vb_queue.ops = &atomisp_vb2_ops;
-	pipe->vb_queue.mem_ops = &vb2_vmalloc_memops;
-	pipe->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	ret = vb2_queue_init(&pipe->vb_queue);
-	if (ret)
-		return ret;
-
-	pipe->vdev.queue = &pipe->vb_queue;
-	pipe->vdev.queue->lock = &pipe->vb_queue_mutex;
-
-	INIT_LIST_HEAD(&pipe->activeq);
-	INIT_LIST_HEAD(&pipe->buffers_waiting_for_param);
-	INIT_LIST_HEAD(&pipe->per_frame_params);
-	memset(pipe->frame_request_config_id, 0,
-	       VIDEO_MAX_FRAME * sizeof(unsigned int));
-	memset(pipe->frame_params, 0,
-	       VIDEO_MAX_FRAME *
-	       sizeof(struct atomisp_css_params_with_list *));
-
-	return 0;
-}
 
 static void atomisp_dev_init_struct(struct atomisp_device *isp)
 {
@@ -772,10 +738,6 @@ static int atomisp_open(struct file *file)
 		mutex_unlock(&isp->mutex);
 		return -EBUSY;
 	}
-
-	ret = atomisp_init_pipe(pipe);
-	if (ret)
-		goto error;
 
 	if (atomisp_dev_users(isp)) {
 		dev_dbg(isp->dev, "skip init isp in open\n");

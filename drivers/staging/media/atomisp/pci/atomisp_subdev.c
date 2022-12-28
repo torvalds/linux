@@ -25,9 +25,11 @@
 
 #include <media/v4l2-event.h>
 #include <media/v4l2-mediabus.h>
+#include <media/videobuf2-vmalloc.h>
 #include "atomisp_cmd.h"
 #include "atomisp_common.h"
 #include "atomisp_compat.h"
+#include "atomisp_fops.h"
 #include "atomisp_internal.h"
 
 const struct atomisp_in_fmt_conv atomisp_in_fmt_conv[] = {
@@ -1023,14 +1025,31 @@ static const struct v4l2_ctrl_config ctrl_depth_mode = {
 	.def = 0,
 };
 
-static void atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
-				     struct atomisp_video_pipe *pipe, enum v4l2_buf_type buf_type)
+static int atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
+				    struct atomisp_video_pipe *pipe, enum v4l2_buf_type buf_type)
 {
+	int ret;
+
 	pipe->type = buf_type;
 	pipe->asd = asd;
 	pipe->isp = asd->isp;
 	spin_lock_init(&pipe->irq_lock);
 	mutex_init(&pipe->vb_queue_mutex);
+
+	/* Init videobuf2 queue structure */
+	pipe->vb_queue.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	pipe->vb_queue.io_modes = VB2_MMAP | VB2_USERPTR;
+	pipe->vb_queue.buf_struct_size = sizeof(struct ia_css_frame);
+	pipe->vb_queue.ops = &atomisp_vb2_ops;
+	pipe->vb_queue.mem_ops = &vb2_vmalloc_memops;
+	pipe->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	ret = vb2_queue_init(&pipe->vb_queue);
+	if (ret)
+		return ret;
+
+	pipe->vdev.queue = &pipe->vb_queue;
+	pipe->vdev.queue->lock = &pipe->vb_queue_mutex;
+
 	INIT_LIST_HEAD(&pipe->buffers_in_css);
 	INIT_LIST_HEAD(&pipe->activeq);
 	INIT_LIST_HEAD(&pipe->buffers_waiting_for_param);
@@ -1040,6 +1059,8 @@ static void atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 	memset(pipe->frame_params,
 	       0, VIDEO_MAX_FRAME *
 	       sizeof(struct atomisp_css_params_with_list *));
+
+	return 0;
 }
 
 /*
@@ -1085,17 +1106,25 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	if (ret < 0)
 		return ret;
 
-	atomisp_init_subdev_pipe(asd, &asd->video_out_preview,
-				 V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	ret = atomisp_init_subdev_pipe(asd, &asd->video_out_preview,
+				       V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (ret)
+		return ret;
 
-	atomisp_init_subdev_pipe(asd, &asd->video_out_vf,
-				 V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	ret = atomisp_init_subdev_pipe(asd, &asd->video_out_vf,
+				       V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (ret)
+		return ret;
 
-	atomisp_init_subdev_pipe(asd, &asd->video_out_capture,
-				 V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	ret = atomisp_init_subdev_pipe(asd, &asd->video_out_capture,
+				       V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (ret)
+		return ret;
 
-	atomisp_init_subdev_pipe(asd, &asd->video_out_video_capture,
-				 V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	ret = atomisp_init_subdev_pipe(asd, &asd->video_out_video_capture,
+				       V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (ret)
+		return ret;
 
 	ret = atomisp_video_init(&asd->video_out_capture, "CAPTURE",
 				 ATOMISP_RUN_MODE_STILL_CAPTURE);
