@@ -260,6 +260,7 @@ struct dw_hdmi {
 
 	struct hdmi_data_info hdmi_data;
 	const struct dw_hdmi_plat_data *plat_data;
+	const struct dw_hdmi_cec_wake_ops *cec_ops;
 	struct dw_hdcp *hdcp;
 
 	int vic;
@@ -3244,7 +3245,11 @@ void dw_hdmi_set_hpd_wake(struct dw_hdmi *hdmi)
 	if (!hdmi->cec)
 		return;
 
-	dw_hdmi_hpd_wake_up(hdmi->cec);
+	if (!hdmi->cec_ops)
+		return;
+
+	if (hdmi->cec_ops->hpd_wake_up)
+		hdmi->cec_ops->hpd_wake_up(hdmi->cec);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_set_hpd_wake);
 
@@ -4475,6 +4480,17 @@ static int get_force_logo_property(struct dw_hdmi *hdmi)
 
 	return 0;
 }
+
+void
+dw_hdmi_cec_wake_ops_register(struct dw_hdmi *hdmi, const struct dw_hdmi_cec_wake_ops *cec_ops)
+{
+	if (!cec_ops || !hdmi)
+		return;
+
+	hdmi->cec_ops = cec_ops;
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_cec_wake_ops_register);
+
 
 /* -----------------------------------------------------------------------------
  * Probe/remove API, used from platforms based on the DRM bridge API.

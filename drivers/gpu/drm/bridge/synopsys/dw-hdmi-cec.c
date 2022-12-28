@@ -395,7 +395,7 @@ static const struct file_operations dw_hdmi_cec_file_operations = {
 	.owner = THIS_MODULE,
 };
 
-void dw_hdmi_hpd_wake_up(struct platform_device *pdev)
+static void dw_hdmi_cec_hpd_wake_up(struct platform_device *pdev)
 {
 	struct dw_hdmi_cec *cec = platform_get_drvdata(pdev);
 
@@ -415,7 +415,10 @@ void dw_hdmi_hpd_wake_up(struct platform_device *pdev)
 	input_sync(cec->devinput);
 	mutex_unlock(&cec->wake_lock);
 }
-EXPORT_SYMBOL_GPL(dw_hdmi_hpd_wake_up);
+
+static const struct dw_hdmi_cec_wake_ops cec_ops = {
+	.hpd_wake_up = dw_hdmi_cec_hpd_wake_up,
+};
 
 static int dw_hdmi_cec_probe(struct platform_device *pdev)
 {
@@ -518,6 +521,8 @@ static int dw_hdmi_cec_probe(struct platform_device *pdev)
 	cec->misc_dev.mode = 0666;
 
 	ret = misc_register(&cec->misc_dev);
+
+	dw_hdmi_cec_wake_ops_register(cec->hdmi, &cec_ops);
 
 	return ret;
 }
