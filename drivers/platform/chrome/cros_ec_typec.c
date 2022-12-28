@@ -1000,6 +1000,13 @@ static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num
 					 "Failed SOP Disc event clear, port: %d\n", port_num);
 		}
 	}
+
+	if (resp.events & PD_STATUS_EVENT_VDM_REQ_REPLY) {
+		cros_typec_handle_vdm_response(typec, port_num);
+		ret = cros_typec_send_clear_event(typec, port_num, PD_STATUS_EVENT_VDM_REQ_REPLY);
+		if (ret < 0)
+			dev_warn(typec->dev, "Failed VDM Reply event clear, port: %d\n", port_num);
+	}
 }
 
 static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)

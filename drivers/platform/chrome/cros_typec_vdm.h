@@ -7,4 +7,6 @@
 
 extern struct typec_altmode_ops port_amode_ops;
 
+void cros_typec_handle_vdm_response(struct cros_typec_data *typec, int port_num);
+
 #endif /*  __CROS_TYPEC_VDM__ */
