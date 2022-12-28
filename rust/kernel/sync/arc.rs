@@ -19,6 +19,7 @@ use crate::{bindings, error::Result, types::Opaque};
 use alloc::boxed::Box;
 use core::{
     marker::{PhantomData, Unsize},
+    mem::ManuallyDrop,
     ops::Deref,
     ptr::NonNull,
 };
@@ -164,6 +165,18 @@ impl<T: ?Sized> Arc<T> {
             _p: PhantomData,
         }
     }
+
+    /// Returns an [`ArcBorrow`] from the given [`Arc`].
+    ///
+    /// This is useful when the argument of a function call is an [`ArcBorrow`] (e.g., in a method
+    /// receiver), but we have an [`Arc`] instead. Getting an [`ArcBorrow`] is free when optimised.
+    #[inline]
+    pub fn as_arc_borrow(&self) -> ArcBorrow<'_, T> {
+        // SAFETY: The constraint that the lifetime of the shared reference must outlive that of
+        // the returned `ArcBorrow` ensures that the object remains alive and that no mutable
+        // reference can be created.
+        unsafe { ArcBorrow::new(self.ptr) }
+    }
 }
 
 impl<T: ?Sized> Deref for Arc<T> {
@@ -206,5 +219,89 @@ impl<T: ?Sized> Drop for Arc<T> {
             // SAFETY: The pointer was initialised from the result of `Box::leak`.
             unsafe { Box::from_raw(self.ptr.as_ptr()) };
         }
+    }
+}
+
+/// A borrowed reference to an [`Arc`] instance.
+///
+/// For cases when one doesn't ever need to increment the refcount on the allocation, it is simpler
+/// to use just `&T`, which we can trivially get from an `Arc<T>` instance.
+///
+/// However, when one may need to increment the refcount, it is preferable to use an `ArcBorrow<T>`
+/// over `&Arc<T>` because the latter results in a double-indirection: a pointer (shared reference)
+/// to a pointer (`Arc<T>`) to the object (`T`). An [`ArcBorrow`] eliminates this double
+/// indirection while still allowing one to increment the refcount and getting an `Arc<T>` when/if
+/// needed.
+///
+/// # Invariants
+///
+/// There are no mutable references to the underlying [`Arc`], and it remains valid for the
+/// lifetime of the [`ArcBorrow`] instance.
+///
+/// # Example
+///
+/// ```
+/// use crate::sync::{Arc, ArcBorrow};
+///
+/// struct Example;
+///
+/// fn do_something(e: ArcBorrow<'_, Example>) -> Arc<Example> {
+///     e.into()
+/// }
+///
+/// let obj = Arc::try_new(Example)?;
+/// let cloned = do_something(obj.as_arc_borrow());
+///
+/// // Assert that both `obj` and `cloned` point to the same underlying object.
+/// assert!(core::ptr::eq(&*obj, &*cloned));
+/// ```
+pub struct ArcBorrow<'a, T: ?Sized + 'a> {
+    inner: NonNull<ArcInner<T>>,
+    _p: PhantomData<&'a ()>,
+}
+
+impl<T: ?Sized> Clone for ArcBorrow<'_, T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: ?Sized> Copy for ArcBorrow<'_, T> {}
+
+impl<T: ?Sized> ArcBorrow<'_, T> {
+    /// Creates a new [`ArcBorrow`] instance.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure the following for the lifetime of the returned [`ArcBorrow`] instance:
+    /// 1. That `inner` remains valid;
+    /// 2. That no mutable references to `inner` are created.
+    unsafe fn new(inner: NonNull<ArcInner<T>>) -> Self {
+        // INVARIANT: The safety requirements guarantee the invariants.
+        Self {
+            inner,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<T: ?Sized> From<ArcBorrow<'_, T>> for Arc<T> {
+    fn from(b: ArcBorrow<'_, T>) -> Self {
+        // SAFETY: The existence of `b` guarantees that the refcount is non-zero. `ManuallyDrop`
+        // guarantees that `drop` isn't called, so it's ok that the temporary `Arc` doesn't own the
+        // increment.
+        ManuallyDrop::new(unsafe { Arc::from_inner(b.inner) })
+            .deref()
+            .clone()
+    }
+}
+
+impl<T: ?Sized> Deref for ArcBorrow<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: By the type invariant, the underlying object is still alive with no mutable
+        // references to it, so it is safe to create a shared reference.
+        unsafe { &self.inner.as_ref().data }
     }
 }
