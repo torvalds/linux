@@ -255,10 +255,33 @@ impl<T: ?Sized> Drop for Arc<T> {
 /// // Assert that both `obj` and `cloned` point to the same underlying object.
 /// assert!(core::ptr::eq(&*obj, &*cloned));
 /// ```
+///
+/// Using `ArcBorrow<T>` as the type of `self`:
+///
+/// ```
+/// use crate::sync::{Arc, ArcBorrow};
+///
+/// struct Example {
+///     a: u32,
+///     b: u32,
+/// }
+///
+/// impl Example {
+///     fn use_reference(self: ArcBorrow<'_, Self>) {
+///         // ...
+///     }
+/// }
+///
+/// let obj = Arc::try_new(Example { a: 10, b: 20 })?;
+/// obj.as_arc_borrow().use_reference();
+/// ```
 pub struct ArcBorrow<'a, T: ?Sized + 'a> {
     inner: NonNull<ArcInner<T>>,
     _p: PhantomData<&'a ()>,
 }
+
+// This is to allow [`ArcBorrow`] (and variants) to be used as the type of `self`.
+impl<T: ?Sized> core::ops::Receiver for ArcBorrow<'_, T> {}
 
 impl<T: ?Sized> Clone for ArcBorrow<'_, T> {
     fn clone(&self) -> Self {
