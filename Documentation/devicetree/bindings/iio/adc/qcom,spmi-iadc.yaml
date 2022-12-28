@@ -20,6 +20,7 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,pm8226-iadc
           - qcom,pm8941-iadc
       - const: qcom,spmi-iadc
 
