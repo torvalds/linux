@@ -511,7 +511,7 @@ static void aspeed_smc_chip_check_config(struct aspeed_smc_chip *chip)
 	writel(reg, controller->regs + CONFIG_REG);
 }
 
-static void aspeed_smc_start_user(struct spi_nor *nor, uint32_t frequency_config)
+static void aspeed_smc_start_user(struct spi_nor *nor)
 {
 	struct aspeed_smc_chip *chip = nor->priv;
 	u32 ctl = chip->ctl_val[smc_base];
@@ -523,7 +523,7 @@ static void aspeed_smc_start_user(struct spi_nor *nor, uint32_t frequency_config
 	aspeed_smc_chip_check_config(chip);
 
 	ctl |= CONTROL_COMMAND_MODE_USER |
-		CONTROL_CE_STOP_ACTIVE_CONTROL | frequency_config;
+		CONTROL_CE_STOP_ACTIVE_CONTROL;
 	writel(ctl, chip->ctl);
 
 	ctl &= ~CONTROL_CE_STOP_ACTIVE_CONTROL;
@@ -562,7 +562,7 @@ static int aspeed_smc_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 {
 	struct aspeed_smc_chip *chip = nor->priv;
 
-	aspeed_smc_start_user(nor, 0);
+	aspeed_smc_start_user(nor);
 	aspeed_smc_write_to_ahb(chip->ahb_base, &opcode, 1);
 	aspeed_smc_read_from_ahb(buf, chip->ahb_base, len);
 	aspeed_smc_stop_user(nor);
@@ -574,7 +574,7 @@ static int aspeed_smc_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
 {
 	struct aspeed_smc_chip *chip = nor->priv;
 
-	aspeed_smc_start_user(nor, 0);
+	aspeed_smc_start_user(nor);
 	aspeed_smc_write_to_ahb(chip->ahb_base, &opcode, 1);
 	aspeed_smc_write_to_ahb(chip->ahb_base, buf, len);
 	aspeed_smc_stop_user(nor);
@@ -659,7 +659,7 @@ static ssize_t aspeed_smc_read_user(struct spi_nor *nor, loff_t from,
 	u8 dummy = 0xFF;
 	int io_mode = aspeed_smc_get_io_mode(chip);
 
-	aspeed_smc_start_user(nor, (chip->ctl_val[smc_read] & 0x00000f00));
+	aspeed_smc_start_user(nor);
 	aspeed_smc_send_cmd_addr(nor, nor->read_opcode, from);
 	for (i = 0; i < chip->nor.read_dummy / 8; i++)
 		aspeed_smc_write_to_ahb(chip->ahb_base, &dummy, sizeof(dummy));
@@ -678,7 +678,7 @@ static ssize_t aspeed_smc_write_user(struct spi_nor *nor, loff_t to,
 {
 	struct aspeed_smc_chip *chip = nor->priv;
 
-	aspeed_smc_start_user(nor, (chip->ctl_val[smc_write] & 0x00000f00));
+	aspeed_smc_start_user(nor);
 	aspeed_smc_send_cmd_addr(nor, nor->program_opcode, to);
 	aspeed_smc_write_to_ahb(chip->ahb_base, write_buf, len);
 	aspeed_smc_stop_user(nor);
@@ -1266,6 +1266,52 @@ static const uint32_t aspeed_smc_hclk_divs[] = {
 #define ASPEED_SMC_HCLK_DIV(i) \
 	(aspeed_smc_hclk_divs[(i) - 1] << CONTROL_CLOCK_FREQ_SEL_SHIFT)
 
+static u32 ast2500_get_clk_setting(struct aspeed_smc_chip *chip, u32 max_hz)
+{
+	u32 hclk_clk = chip->controller->clk_frequency;
+	u32 hclk_div = 0x0000; /* default value */
+	u32 i;
+	bool found = false;
+	/* HCLK/1 ..	HCLK/16 */
+	u32 hclk_masks[] = {15, 7, 14, 6, 13, 5, 12, 4,
+			    11, 3, 10, 2, 9,  1, 8,  0};
+
+	/* FMC/SPIR10[11:8] */
+	for (i = 0; i < ARRAY_SIZE(hclk_masks); i++) {
+		if (hclk_clk / (i + 1) <= max_hz) {
+			found = true;
+			break;
+		}
+	}
+
+	if (found) {
+		hclk_div = hclk_masks[i] << 8;
+		goto end;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(hclk_masks); i++) {
+		if (hclk_clk / ((i + 1) * 4) <= max_hz) {
+			found = true;
+			break;
+		}
+	}
+
+	if (found)
+		hclk_div = BIT(13) | (hclk_masks[i] << 8);
+
+end:
+	dev_dbg(chip->nor.dev,
+		"found: %s, hclk: %d, max_clk: %d\n", found ? "yes" : "no",
+		hclk_clk, max_hz);
+
+	if (found) {
+		dev_dbg(chip->nor.dev, "h_div: %d (mask %x)\n",
+			i + 1, hclk_masks[i]);
+	}
+
+	return hclk_div;
+}
+
 static u32 aspeed_smc_default_read(struct aspeed_smc_chip *chip)
 {
 	/*
@@ -1299,7 +1345,6 @@ static int aspeed_smc_optimize_read(struct aspeed_smc_chip *chip,
 	const struct aspeed_smc_info *info = controller->info;
 	u8 *golden_buf, *test_buf;
 	int i, rc, best_div = -1;
-	u32 save_read_val = chip->ctl_val[smc_read];
 	u32 ahb_freq = chip->controller->clk_frequency;
 
 	dev_dbg(chip->nor.dev, "AHB frequency: %d MHz", ahb_freq / 1000000);
@@ -1316,13 +1361,19 @@ static int aspeed_smc_optimize_read(struct aspeed_smc_chip *chip,
 
 	memcpy_fromio(golden_buf, chip->ahb_base, CALIBRATE_BUF_SIZE);
 
-	/* Establish our read mode with freq field set to 0 (HCLK/16) */
-	chip->ctl_val[smc_read] = save_read_val & info->hclk_mask;
+	/* Establish our io mode with freq field set to 0 (HCLK/16) */
+	chip->ctl_val[smc_read] &= info->hclk_mask;
+	chip->ctl_val[smc_write] &= info->hclk_mask;
+	chip->ctl_val[smc_base] &= info->hclk_mask;
 
 	/* Check if calibration data is suitable */
 	if (!aspeed_smc_check_calib_data(golden_buf, CALIBRATE_BUF_SIZE)) {
 		dev_info(chip->nor.dev,
-			 "Calibration area too uniform, using low speed");
+			 "Calibration area too uniform, using clock frequency in dts.\n");
+		best_div = ast2500_get_clk_setting(chip, max_freq);
+		chip->ctl_val[smc_read] |= best_div;
+		chip->ctl_val[smc_write] |= best_div;
+		chip->ctl_val[smc_base] |= best_div;
 		writel(chip->ctl_val[smc_read], chip->ctl);
 		kfree(test_buf);
 		return 0;
@@ -1348,13 +1399,19 @@ static int aspeed_smc_optimize_read(struct aspeed_smc_chip *chip,
 	kfree(test_buf);
 
 	/* Nothing found ? */
-	if (best_div < 0)
-		dev_warn(chip->nor.dev, "No good frequency, using dumb slow");
-	else {
+	if (best_div < 0) {
+		best_div = ast2500_get_clk_setting(chip, max_freq);
+		chip->ctl_val[smc_read] |= best_div;
+		chip->ctl_val[smc_write] |= best_div;
+		chip->ctl_val[smc_base] |= best_div;
+		dev_warn(chip->nor.dev,
+			 "No good frequency, using clock frequency in dts.\n");
+	} else {
 		dev_dbg(chip->nor.dev, "Found good read timings at HCLK/%d",
 			best_div);
 		chip->ctl_val[smc_read] |= ASPEED_SMC_HCLK_DIV(best_div);
 		chip->ctl_val[smc_write] |= ASPEED_SMC_HCLK_DIV(best_div);
+		chip->ctl_val[smc_base] |= ASPEED_SMC_HCLK_DIV(best_div);
 	}
 
 	writel(chip->ctl_val[smc_read], chip->ctl);
