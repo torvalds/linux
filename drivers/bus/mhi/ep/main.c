@@ -123,6 +123,13 @@ static int mhi_ep_process_cmd_ring(struct mhi_ep_ring *ring, struct mhi_ring_ele
 	int ret;
 
 	ch_id = MHI_TRE_GET_CMD_CHID(el);
+
+	/* Check if the channel is supported by the controller */
+	if ((ch_id > mhi_cntrl->max_chan) || !mhi_cntrl->mhi_chan[ch_id].name) {
+		dev_err(dev, "Channel (%u) not supported!\n", ch_id);
+		return -ENODEV;
+	}
+
 	mhi_chan = &mhi_cntrl->mhi_chan[ch_id];
 	ch_ring = &mhi_cntrl->mhi_chan[ch_id].ring;
 
