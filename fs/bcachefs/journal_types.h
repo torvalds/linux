@@ -156,14 +156,23 @@ enum {
 /* Embedded in struct bch_fs */
 struct journal {
 	/* Fastpath stuff up front: */
-
-	unsigned long		flags;
+	struct {
 
 	union journal_res_state reservations;
+
+	union journal_preres_state prereserved;
+
+	} __aligned(SMP_CACHE_BYTES);
+
+	unsigned long		flags;
 
 	/* Max size of current journal entry */
 	unsigned		cur_entry_u64s;
 	unsigned		cur_entry_sectors;
+
+	/* Reserved space in journal entry to be used just prior to write */
+	unsigned		entry_u64s_reserved;
+
 
 	/*
 	 * 0, or -ENOSPC if waiting on journal reclaim, or -EROFS if
@@ -178,13 +187,7 @@ struct journal {
 		cur_entry_insufficient_devices,
 	}			cur_entry_error;
 
-	union journal_preres_state prereserved;
-
-	/* Reserved space in journal entry to be used just prior to write */
-	unsigned		entry_u64s_reserved;
-
 	unsigned		buf_size_want;
-
 	/*
 	 * Two journal entries -- one is currently open for new entries, the
 	 * other is possibly being written out.
@@ -277,7 +280,7 @@ struct journal {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	res_map;
 #endif
-};
+} __aligned(SMP_CACHE_BYTES);
 
 /*
  * Embedded in struct bch_dev. First three fields refer to the array of journal
