@@ -15,6 +15,7 @@
 #![feature(allocator_api)]
 #![feature(coerce_unsized)]
 #![feature(core_ffi_c)]
+#![feature(dispatch_from_dyn)]
 #![feature(receiver_trait)]
 #![feature(unsize)]
 
