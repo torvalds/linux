@@ -14,6 +14,7 @@
 #![no_std]
 #![feature(allocator_api)]
 #![feature(core_ffi_c)]
+#![feature(receiver_trait)]
 
 // Ensure conditional compilation based on the kernel configuration works;
 // otherwise we may silently break things like initcall handling.

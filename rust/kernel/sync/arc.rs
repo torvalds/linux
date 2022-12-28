@@ -57,6 +57,31 @@ use core::{marker::PhantomData, ops::Deref, ptr::NonNull};
 ///
 /// // The refcount drops to zero when `cloned` goes out of scope, and the memory is freed.
 /// ```
+///
+/// Using `Arc<T>` as the type of `self`:
+///
+/// ```
+/// use kernel::sync::Arc;
+///
+/// struct Example {
+///     a: u32,
+///     b: u32,
+/// }
+///
+/// impl Example {
+///     fn take_over(self: Arc<Self>) {
+///         // ...
+///     }
+///
+///     fn use_reference(self: &Arc<Self>) {
+///         // ...
+///     }
+/// }
+///
+/// let obj = Arc::try_new(Example { a: 10, b: 20 })?;
+/// obj.use_reference();
+/// obj.take_over();
+/// ```
 pub struct Arc<T: ?Sized> {
     ptr: NonNull<ArcInner<T>>,
     _p: PhantomData<ArcInner<T>>,
@@ -67,6 +92,9 @@ struct ArcInner<T: ?Sized> {
     refcount: Opaque<bindings::refcount_t>,
     data: T,
 }
+
+// This is to allow [`Arc`] (and variants) to be used as the type of `self`.
+impl<T: ?Sized> core::ops::Receiver for Arc<T> {}
 
 // SAFETY: It is safe to send `Arc<T>` to another thread when the underlying `T` is `Sync` because
 // it effectively means sharing `&T` (which is safe because `T` is `Sync`); additionally, it needs
