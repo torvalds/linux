@@ -31,6 +31,7 @@ mod static_assert;
 #[doc(hidden)]
 pub mod std_vendor;
 pub mod str;
+pub mod sync;
 pub mod types;
 
 #[doc(hidden)]
