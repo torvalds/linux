@@ -220,6 +220,10 @@ static int alloc_table(struct pfn_table *pt,
 	struct scatterlist *sg;
 	unsigned long n, pfn;
 
+	/* restricted by sg_alloc_table */
+	if (overflows_type(max, unsigned int))
+		return -E2BIG;
+
 	if (sg_alloc_table(&pt->st, max,
 			   GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN))
 		return alloc_error;
