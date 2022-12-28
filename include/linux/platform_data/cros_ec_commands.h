@@ -1300,6 +1300,18 @@ enum ec_feature_code {
 	 * mux.
 	 */
 	EC_FEATURE_TYPEC_MUX_REQUIRE_AP_ACK = 43,
+	/*
+	 * The EC supports entering and residing in S4.
+	 */
+	EC_FEATURE_S4_RESIDENCY = 44,
+	/*
+	 * The EC supports the AP directing mux sets for the board.
+	 */
+	EC_FEATURE_TYPEC_AP_MUX_SET = 45,
+	/*
+	 * The EC supports the AP composing VDMs for us to send.
+	 */
+	EC_FEATURE_TYPEC_AP_VDM_SEND = 46,
 };
 
 #define EC_FEATURE_MASK_0(event_code) BIT(event_code % 32)
@@ -5724,6 +5736,8 @@ enum typec_control_command {
 	TYPEC_CONTROL_COMMAND_ENTER_MODE,
 	TYPEC_CONTROL_COMMAND_TBT_UFP_REPLY,
 	TYPEC_CONTROL_COMMAND_USB_MUX_SET,
+	TYPEC_CONTROL_COMMAND_BIST_SHARE_MODE,
+	TYPEC_CONTROL_COMMAND_SEND_VDM_REQ,
 };
 
 /* Replies the AP may specify to the TBT EnterMode command as a UFP */
@@ -5735,6 +5749,17 @@ enum typec_tbt_ufp_reply {
 struct typec_usb_mux_set {
 	uint8_t mux_index;	/* Index of the mux to set in the chain */
 	uint8_t mux_flags;	/* USB_PD_MUX_*-encoded USB mux state to set */
+} __ec_align1;
+
+#define VDO_MAX_SIZE 7
+
+struct typec_vdm_req {
+	/* VDM data, including VDM header */
+	uint32_t vdm_data[VDO_MAX_SIZE];
+	/* Number of 32-bit fields filled in */
+	uint8_t vdm_data_objects;
+	/* Partner to address - see enum typec_partner_type */
+	uint8_t partner_type;
 } __ec_align1;
 
 struct ec_params_typec_control {
@@ -5752,6 +5777,8 @@ struct ec_params_typec_control {
 		uint8_t mode_to_enter;      /* enum typec_mode */
 		uint8_t tbt_ufp_reply;      /* enum typec_tbt_ufp_reply */
 		struct typec_usb_mux_set mux_params;
+		/* Used for VMD_REQ */
+		struct typec_vdm_req vdm_req_params;
 		uint8_t placeholder[128];
 	};
 } __ec_align1;
@@ -5833,6 +5860,8 @@ enum tcpc_cc_polarity {
 #define PD_STATUS_EVENT_DISCONNECTED		BIT(3)
 #define PD_STATUS_EVENT_MUX_0_SET_DONE		BIT(4)
 #define PD_STATUS_EVENT_MUX_1_SET_DONE		BIT(5)
+#define PD_STATUS_EVENT_VDM_REQ_REPLY		BIT(6)
+#define PD_STATUS_EVENT_VDM_REQ_FAILED		BIT(7)
 
 struct ec_params_typec_status {
 	uint8_t port;
@@ -5875,6 +5904,28 @@ struct ec_response_typec_status {
 
 	uint32_t sink_cap_pdos[7];	/* Max 7 PDOs can be present */
 } __ec_align1;
+
+/*
+ * Gather the response to the most recent VDM REQ from the AP
+ */
+#define EC_CMD_TYPEC_VDM_RESPONSE 0x013C
+
+struct ec_params_typec_vdm_response {
+	uint8_t port;
+} __ec_align1;
+
+struct ec_response_typec_vdm_response {
+	/* Number of 32-bit fields filled in */
+	uint8_t vdm_data_objects;
+	/* Partner to address - see enum typec_partner_type */
+	uint8_t partner_type;
+	/* Reserved */
+	uint16_t reserved;
+	/* VDM data, including VDM header */
+	uint32_t vdm_response[VDO_MAX_SIZE];
+} __ec_align1;
+
+#undef VDO_MAX_SIZE
 
 /*****************************************************************************/
 /* The command range 0x200-0x2FF is reserved for Rotor. */
