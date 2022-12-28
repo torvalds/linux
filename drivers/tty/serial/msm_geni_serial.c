@@ -4527,8 +4527,10 @@ static int msm_geni_serial_remove(struct platform_device *pdev)
 	 */
 	if (port->is_console && !con_enabled)
 		return 0;
-	if (!uart_console(&port->uport))
+	if (!uart_console(&port->uport)) {
 		wakeup_source_unregister(port->geni_wake);
+		port->geni_wake = NULL;
+	}
 	if (port->pm_auto_suspend_disable)
 		pm_runtime_allow(&pdev->dev);
 	uart_remove_one_port(drv, &port->uport);
