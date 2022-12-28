@@ -198,14 +198,14 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	 * that blocks before commit guaranteeing that the state
 	 * is not gonna be swapped while still in use in commit tail */
 
-	if (!aconnector || !aconnector->mst_port)
+	if (!aconnector || !aconnector->mst_root)
 		return false;
 
-	mst_mgr = &aconnector->mst_port->mst_mgr;
+	mst_mgr = &aconnector->mst_root->mst_mgr;
 	mst_state = to_drm_dp_mst_topology_state(mst_mgr->base.state);
 
 	/* It's OK for this to fail */
-	payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->port);
+	payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->mst_output_port);
 	if (enable)
 		drm_dp_add_payload_part1(mst_mgr, mst_state, payload);
 	else
@@ -250,10 +250,10 @@ enum act_return_status dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
-	if (!aconnector || !aconnector->mst_port)
+	if (!aconnector || !aconnector->mst_root)
 		return ACT_FAILED;
 
-	mst_mgr = &aconnector->mst_port->mst_mgr;
+	mst_mgr = &aconnector->mst_root->mst_mgr;
 
 	if (!mst_mgr->mst_state)
 		return ACT_FAILED;
@@ -280,13 +280,14 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
-	if (!aconnector || !aconnector->mst_port)
+	if (!aconnector || !aconnector->mst_root)
 		return false;
 
-	mst_mgr = &aconnector->mst_port->mst_mgr;
+	mst_mgr = &aconnector->mst_root->mst_mgr;
 	mst_state = to_drm_dp_mst_topology_state(mst_mgr->base.state);
 
-	payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->port);
+	payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->mst_output_port);
+
 	if (!enable) {
 		set_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
 		clr_flag = MST_ALLOCATE_NEW_PAYLOAD;
@@ -713,7 +714,7 @@ bool dm_helpers_dp_write_dsc_enable(
 				aconnector->dsc_aux, stream, enable_dsc);
 #endif
 
-		port = aconnector->port;
+		port = aconnector->mst_output_port;
 
 		if (enable) {
 			if (port->passthrough_aux) {

@@ -134,7 +134,7 @@ dm_dp_mst_connector_destroy(struct drm_connector *connector)
 	kfree(aconnector->edid);
 
 	drm_connector_cleanup(connector);
-	drm_dp_mst_put_port_malloc(aconnector->port);
+	drm_dp_mst_put_port_malloc(aconnector->mst_output_port);
 	kfree(aconnector);
 }
 
@@ -146,7 +146,7 @@ amdgpu_dm_mst_connector_late_register(struct drm_connector *connector)
 	int r;
 
 	r = drm_dp_mst_connector_late_register(connector,
-					       amdgpu_dm_connector->port);
+					       amdgpu_dm_connector->mst_output_port);
 	if (r < 0)
 		return r;
 
@@ -162,8 +162,8 @@ amdgpu_dm_mst_connector_early_unregister(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *aconnector =
 		to_amdgpu_dm_connector(connector);
-	struct drm_dp_mst_port *port = aconnector->port;
-	struct amdgpu_dm_connector *root = aconnector->mst_port;
+	struct drm_dp_mst_port *port = aconnector->mst_output_port;
+	struct amdgpu_dm_connector *root = aconnector->mst_root;
 	struct dc_link *dc_link = aconnector->dc_link;
 	struct dc_sink *dc_sink = aconnector->dc_sink;
 
@@ -213,7 +213,7 @@ bool needs_dsc_aux_workaround(struct dc_link *link)
 static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnector)
 {
 	struct dc_sink *dc_sink = aconnector->dc_sink;
-	struct drm_dp_mst_port *port = aconnector->port;
+	struct drm_dp_mst_port *port = aconnector->mst_output_port;
 	u8 dsc_caps[16] = { 0 };
 	u8 dsc_branch_dec_caps_raw[3] = { 0 };	// DSC branch decoder caps 0xA0 ~ 0xA2
 	u8 *dsc_branch_dec_caps = NULL;
@@ -231,7 +231,7 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 	 */
 	if (!aconnector->dsc_aux && !port->parent->port_parent &&
 	    needs_dsc_aux_workaround(aconnector->dc_link))
-		aconnector->dsc_aux = &aconnector->mst_port->dm_dp_aux.aux;
+		aconnector->dsc_aux = &aconnector->mst_root->dm_dp_aux.aux;
 
 	if (!aconnector->dsc_aux)
 		return false;
@@ -281,7 +281,7 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 
 	if (!aconnector->edid) {
 		struct edid *edid;
-		edid = drm_dp_mst_get_edid(connector, &aconnector->mst_port->mst_mgr, aconnector->port);
+		edid = drm_dp_mst_get_edid(connector, &aconnector->mst_root->mst_mgr, aconnector->mst_output_port);
 
 		if (!edid) {
 			amdgpu_dm_set_mst_status(&aconnector->mst_status,
@@ -410,15 +410,15 @@ dm_dp_mst_detect(struct drm_connector *connector,
 		 struct drm_modeset_acquire_ctx *ctx, bool force)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-	struct amdgpu_dm_connector *master = aconnector->mst_port;
-	struct drm_dp_mst_port *port = aconnector->port;
+	struct amdgpu_dm_connector *master = aconnector->mst_root;
+	struct drm_dp_mst_port *port = aconnector->mst_output_port;
 	int connection_status;
 
 	if (drm_connector_is_unregistered(connector))
 		return connector_status_disconnected;
 
 	connection_status = drm_dp_mst_detect_port(connector, ctx, &master->mst_mgr,
-							aconnector->port);
+							aconnector->mst_output_port);
 
 	if (port->pdt != DP_PEER_DEVICE_NONE && !port->dpcd_rev) {
 		uint8_t dpcd_rev;
@@ -475,8 +475,8 @@ static int dm_dp_mst_atomic_check(struct drm_connector *connector,
 				  struct drm_atomic_state *state)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-	struct drm_dp_mst_topology_mgr *mst_mgr = &aconnector->mst_port->mst_mgr;
-	struct drm_dp_mst_port *mst_port = aconnector->port;
+	struct drm_dp_mst_topology_mgr *mst_mgr = &aconnector->mst_root->mst_mgr;
+	struct drm_dp_mst_port *mst_port = aconnector->mst_output_port;
 
 	return drm_dp_atomic_release_time_slots(state, mst_mgr, mst_port);
 }
@@ -538,8 +538,8 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 		return NULL;
 
 	connector = &aconnector->base;
-	aconnector->port = port;
-	aconnector->mst_port = master;
+	aconnector->mst_output_port = port;
+	aconnector->mst_root = master;
 	amdgpu_dm_set_mst_status(&aconnector->mst_status,
 			MST_PROBE, true);
 
@@ -940,7 +940,7 @@ static int compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		if (!aconnector)
 			continue;
 
-		if (!aconnector->port)
+		if (!aconnector->mst_output_port)
 			continue;
 
 		stream->timing.flags.DSC = 0;
@@ -948,7 +948,7 @@ static int compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		params[count].timing = &stream->timing;
 		params[count].sink = stream->sink;
 		params[count].aconnector = aconnector;
-		params[count].port = aconnector->port;
+		params[count].port = aconnector->mst_output_port;
 		params[count].clock_force_enable = aconnector->dsc_settings.dsc_force_enable;
 		if (params[count].clock_force_enable == DSC_CLK_FORCE_ENABLE)
 			debugfs_overwrite = true;
@@ -1157,7 +1157,7 @@ int compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 
 		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
-		if (!aconnector || !aconnector->dc_sink || !aconnector->port)
+		if (!aconnector || !aconnector->dc_sink || !aconnector->mst_output_port)
 			continue;
 
 		if (!aconnector->dc_sink->dsc_caps.dsc_dec_caps.is_dsc_supported)
@@ -1172,7 +1172,7 @@ int compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 		if (!is_dsc_need_re_compute(state, dc_state, stream->link))
 			continue;
 
-		mst_mgr = aconnector->port->mgr;
+		mst_mgr = aconnector->mst_output_port->mgr;
 		ret = compute_mst_dsc_configs_for_link(state, dc_state, stream->link, vars, mst_mgr,
 						       &link_vars_start_index);
 		if (ret != 0)
@@ -1218,7 +1218,7 @@ static int pre_compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 
 		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
-		if (!aconnector || !aconnector->dc_sink || !aconnector->port)
+		if (!aconnector || !aconnector->dc_sink || !aconnector->mst_output_port)
 			continue;
 
 		if (!aconnector->dc_sink->dsc_caps.dsc_dec_caps.is_dsc_supported)
@@ -1230,7 +1230,7 @@ static int pre_compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 		if (!is_dsc_need_re_compute(state, dc_state, stream->link))
 			continue;
 
-		mst_mgr = aconnector->port->mgr;
+		mst_mgr = aconnector->mst_output_port->mgr;
 		ret = compute_mst_dsc_configs_for_link(state, dc_state, stream->link, vars, mst_mgr,
 						       &link_vars_start_index);
 		if (ret != 0)
@@ -1445,8 +1445,8 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 	 * with DSC enabled.
 	 */
 	if (is_dsc_common_config_possible(stream, &bw_range) &&
-	    aconnector->port->passthrough_aux) {
-		mst_mgr = aconnector->port->mgr;
+	    aconnector->mst_output_port->passthrough_aux) {
+		mst_mgr = aconnector->mst_output_port->mgr;
 		mutex_lock(&mst_mgr->lock);
 
 		cur_link_settings = stream->link->verified_link_cap;
@@ -1454,7 +1454,7 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 		upper_link_bw_in_kbps = dc_link_bandwidth_kbps(aconnector->dc_link,
 							       &cur_link_settings
 							       );
-		down_link_bw_in_kbps = kbps_from_pbn(aconnector->port->full_pbn);
+		down_link_bw_in_kbps = kbps_from_pbn(aconnector->mst_output_port->full_pbn);
 
 		/* pick the bottleneck */
 		end_to_end_bw_in_kbps = min(upper_link_bw_in_kbps,
@@ -1478,7 +1478,7 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 		bpp = convert_dc_color_depth_into_bpc(stream->timing.display_color_depth) * 3;
 		pbn = drm_dp_calc_pbn_mode(stream->timing.pix_clk_100hz / 10, bpp, false);
 
-		if (pbn > aconnector->port->full_pbn)
+		if (pbn > aconnector->mst_output_port->full_pbn)
 			return DC_FAIL_BANDWIDTH_VALIDATE;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	}
