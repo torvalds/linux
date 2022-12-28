@@ -1067,13 +1067,23 @@ error:
 	return -ENOMEM;
 }
 
+/*
+ * FIXME the abuse of buf->reserved2 in the qbuf and dqbuf wrappers comes from
+ * the original atomisp buffer handling and should be replaced with proper V4L2
+ * per frame parameters use.
+ *
+ * Once this is fixed these wrappers can be removed, replacing them with direct
+ * calls to vb2_ioctl_[d]qbuf().
+ */
 static int atomisp_qbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 
-	/* FIXME this abuse of buf->reserved2 comes from the original atomisp buffer handling */
+	if (buf->index >= vdev->queue->num_buffers)
+		return -EINVAL;
+
 	if (!atomisp_is_vf_pipe(pipe) &&
 	    (buf->reserved2 & ATOMISP_BUFFER_HAS_PER_FRAME_SETTING)) {
 		/* this buffer will have a per-frame parameter */
@@ -1106,7 +1116,6 @@ static int atomisp_dqbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer
 	vb = pipe->vb_queue.bufs[buf->index];
 	frame = vb_to_frame(vb);
 
-	/* FIXME this abuse of buf->reserved* comes from the original atomisp buffer handling */
 	buf->reserved = asd->frame_status[buf->index];
 
 	/*
