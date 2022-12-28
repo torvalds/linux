@@ -530,6 +530,9 @@ static int validate_extent_buffer(struct extent_buffer *eb,
 	}
 
 	if (found_level != check->level) {
+		btrfs_err(fs_info,
+		"level verify failed on logical %llu mirror %u wanted %u found %u",
+			  eb->start, eb->read_mirror, check->level, found_level);
 		ret = -EIO;
 		goto out;
 	}
