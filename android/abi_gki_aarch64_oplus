@@ -2297,6 +2297,7 @@
   rtc_update_irq
   rtc_valid_tm
   rtnl_is_locked
+  __rtnl_link_register
   __rtnl_link_unregister
   rtnl_lock
   rtnl_unlock
