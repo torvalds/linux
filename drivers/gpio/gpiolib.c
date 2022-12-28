@@ -1,34 +1,35 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/acpi.h>
 #include <linux/bitmap.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
+#include <linux/compat.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
+#include <linux/file.h>
+#include <linux/fs.h>
 #include <linux/gpio.h>
-#include <linux/idr.h>
-#include <linux/slab.h>
-#include <linux/acpi.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
+#include <linux/idr.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/fs.h>
-#include <linux/compat.h>
-#include <linux/file.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+
 #include <uapi/linux/gpio.h>
 
-#include "gpiolib.h"
-#include "gpiolib-of.h"
 #include "gpiolib-acpi.h"
-#include "gpiolib-swnode.h"
 #include "gpiolib-cdev.h"
+#include "gpiolib-of.h"
+#include "gpiolib-swnode.h"
 #include "gpiolib-sysfs.h"
+#include "gpiolib.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>
