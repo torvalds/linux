@@ -19,8 +19,9 @@ use crate::{bindings, error::Result, types::Opaque};
 use alloc::boxed::Box;
 use core::{
     marker::{PhantomData, Unsize},
-    mem::ManuallyDrop,
-    ops::Deref,
+    mem::{ManuallyDrop, MaybeUninit},
+    ops::{Deref, DerefMut},
+    pin::Pin,
     ptr::NonNull,
 };
 
@@ -222,6 +223,19 @@ impl<T: ?Sized> Drop for Arc<T> {
     }
 }
 
+impl<T: ?Sized> From<UniqueArc<T>> for Arc<T> {
+    fn from(item: UniqueArc<T>) -> Self {
+        item.inner
+    }
+}
+
+impl<T: ?Sized> From<Pin<UniqueArc<T>>> for Arc<T> {
+    fn from(item: Pin<UniqueArc<T>>) -> Self {
+        // SAFETY: The type invariants of `Arc` guarantee that the data is pinned.
+        unsafe { Pin::into_inner_unchecked(item).inner }
+    }
+}
+
 /// A borrowed reference to an [`Arc`] instance.
 ///
 /// For cases when one doesn't ever need to increment the refcount on the allocation, it is simpler
@@ -326,5 +340,139 @@ impl<T: ?Sized> Deref for ArcBorrow<'_, T> {
         // SAFETY: By the type invariant, the underlying object is still alive with no mutable
         // references to it, so it is safe to create a shared reference.
         unsafe { &self.inner.as_ref().data }
+    }
+}
+
+/// A refcounted object that is known to have a refcount of 1.
+///
+/// It is mutable and can be converted to an [`Arc`] so that it can be shared.
+///
+/// # Invariants
+///
+/// `inner` always has a reference count of 1.
+///
+/// # Examples
+///
+/// In the following example, we make changes to the inner object before turning it into an
+/// `Arc<Test>` object (after which point, it cannot be mutated directly). Note that `x.into()`
+/// cannot fail.
+///
+/// ```
+/// use kernel::sync::{Arc, UniqueArc};
+///
+/// struct Example {
+///     a: u32,
+///     b: u32,
+/// }
+///
+/// fn test() -> Result<Arc<Example>> {
+///     let mut x = UniqueArc::try_new(Example { a: 10, b: 20 })?;
+///     x.a += 1;
+///     x.b += 1;
+///     Ok(x.into())
+/// }
+///
+/// # test().unwrap();
+/// ```
+///
+/// In the following example we first allocate memory for a ref-counted `Example` but we don't
+/// initialise it on allocation. We do initialise it later with a call to [`UniqueArc::write`],
+/// followed by a conversion to `Arc<Example>`. This is particularly useful when allocation happens
+/// in one context (e.g., sleepable) and initialisation in another (e.g., atomic):
+///
+/// ```
+/// use kernel::sync::{Arc, UniqueArc};
+///
+/// struct Example {
+///     a: u32,
+///     b: u32,
+/// }
+///
+/// fn test() -> Result<Arc<Example>> {
+///     let x = UniqueArc::try_new_uninit()?;
+///     Ok(x.write(Example { a: 10, b: 20 }).into())
+/// }
+///
+/// # test().unwrap();
+/// ```
+///
+/// In the last example below, the caller gets a pinned instance of `Example` while converting to
+/// `Arc<Example>`; this is useful in scenarios where one needs a pinned reference during
+/// initialisation, for example, when initialising fields that are wrapped in locks.
+///
+/// ```
+/// use kernel::sync::{Arc, UniqueArc};
+///
+/// struct Example {
+///     a: u32,
+///     b: u32,
+/// }
+///
+/// fn test() -> Result<Arc<Example>> {
+///     let mut pinned = Pin::from(UniqueArc::try_new(Example { a: 10, b: 20 })?);
+///     // We can modify `pinned` because it is `Unpin`.
+///     pinned.as_mut().a += 1;
+///     Ok(pinned.into())
+/// }
+///
+/// # test().unwrap();
+/// ```
+pub struct UniqueArc<T: ?Sized> {
+    inner: Arc<T>,
+}
+
+impl<T> UniqueArc<T> {
+    /// Tries to allocate a new [`UniqueArc`] instance.
+    pub fn try_new(value: T) -> Result<Self> {
+        Ok(Self {
+            // INVARIANT: The newly-created object has a ref-count of 1.
+            inner: Arc::try_new(value)?,
+        })
+    }
+
+    /// Tries to allocate a new [`UniqueArc`] instance whose contents are not initialised yet.
+    pub fn try_new_uninit() -> Result<UniqueArc<MaybeUninit<T>>> {
+        Ok(UniqueArc::<MaybeUninit<T>> {
+            // INVARIANT: The newly-created object has a ref-count of 1.
+            inner: Arc::try_new(MaybeUninit::uninit())?,
+        })
+    }
+}
+
+impl<T> UniqueArc<MaybeUninit<T>> {
+    /// Converts a `UniqueArc<MaybeUninit<T>>` into a `UniqueArc<T>` by writing a value into it.
+    pub fn write(mut self, value: T) -> UniqueArc<T> {
+        self.deref_mut().write(value);
+        let inner = ManuallyDrop::new(self).inner.ptr;
+        UniqueArc {
+            // SAFETY: The new `Arc` is taking over `ptr` from `self.inner` (which won't be
+            // dropped). The types are compatible because `MaybeUninit<T>` is compatible with `T`.
+            inner: unsafe { Arc::from_inner(inner.cast()) },
+        }
+    }
+}
+
+impl<T: ?Sized> From<UniqueArc<T>> for Pin<UniqueArc<T>> {
+    fn from(obj: UniqueArc<T>) -> Self {
+        // SAFETY: It is not possible to move/replace `T` inside a `Pin<UniqueArc<T>>` (unless `T`
+        // is `Unpin`), so it is ok to convert it to `Pin<UniqueArc<T>>`.
+        unsafe { Pin::new_unchecked(obj) }
+    }
+}
+
+impl<T: ?Sized> Deref for UniqueArc<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.deref()
+    }
+}
+
+impl<T: ?Sized> DerefMut for UniqueArc<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        // SAFETY: By the `Arc` type invariant, there is necessarily a reference to the object, so
+        // it is safe to dereference it. Additionally, we know there is only one reference when
+        // it's inside a `UniqueArc`, so it is safe to get a mutable reference.
+        unsafe { &mut self.inner.ptr.as_mut().data }
     }
 }

@@ -7,4 +7,4 @@
 
 mod arc;
 
-pub use arc::{Arc, ArcBorrow};
+pub use arc::{Arc, ArcBorrow, UniqueArc};
