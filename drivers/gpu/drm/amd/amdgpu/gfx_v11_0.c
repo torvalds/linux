@@ -439,14 +439,12 @@ static void gfx_v11_0_free_microcode(struct amdgpu_device *adev)
 	kfree(adev->gfx.rlc.register_list_format);
 }
 
-static int gfx_v11_0_init_toc_microcode(struct amdgpu_device *adev)
+static int gfx_v11_0_init_toc_microcode(struct amdgpu_device *adev, const char *ucode_prefix)
 {
 	const struct psp_firmware_header_v1_0 *toc_hdr;
 	int err = 0;
 	char fw_name[40];
-	char ucode_prefix[30];
 
-	amdgpu_ucode_ip_version_decode(adev, GC_HWIP, ucode_prefix, sizeof(ucode_prefix));
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_toc.bin", ucode_prefix);
 	err = amdgpu_ucode_request(adev, &adev->psp.toc_fw, fw_name);
 	if (err)
@@ -533,6 +531,9 @@ static int gfx_v11_0_init_microcode(struct amdgpu_device *adev)
 		amdgpu_gfx_cp_init_microcode(adev, AMDGPU_UCODE_ID_CP_MEC1);
 		amdgpu_gfx_cp_init_microcode(adev, AMDGPU_UCODE_ID_CP_MEC1_JT);
 	}
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO)
+		err = gfx_v11_0_init_toc_microcode(adev, ucode_prefix);
 
 	/* only one MEC for gfx 11.0.0. */
 	adev->gfx.mec2_fw = NULL;
@@ -684,19 +685,11 @@ static void gfx_v11_0_mec_fini(struct amdgpu_device *adev)
 	amdgpu_bo_free_kernel(&adev->gfx.mec.mec_fw_data_obj, NULL, NULL);
 }
 
-static int gfx_v11_0_me_init(struct amdgpu_device *adev)
+static void gfx_v11_0_me_init(struct amdgpu_device *adev)
 {
-	int r;
-
 	bitmap_zero(adev->gfx.me.queue_bitmap, AMDGPU_MAX_GFX_QUEUES);
 
 	amdgpu_gfx_graphics_queue_acquire(adev);
-
-	r = gfx_v11_0_init_microcode(adev);
-	if (r)
-		DRM_ERROR("Failed to load gfx firmware!\n");
-
-	return r;
 }
 
 static int gfx_v11_0_mec_init(struct amdgpu_device *adev)
@@ -1310,9 +1303,7 @@ static int gfx_v11_0_sw_init(void *handle)
 		}
 	}
 
-	r = gfx_v11_0_me_init(adev);
-	if (r)
-		return r;
+	gfx_v11_0_me_init(adev);
 
 	r = gfx_v11_0_rlc_init(adev);
 	if (r) {
@@ -1380,9 +1371,6 @@ static int gfx_v11_0_sw_init(void *handle)
 
 	/* allocate visible FB for rlc auto-loading fw */
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO) {
-		r = gfx_v11_0_init_toc_microcode(adev);
-		if (r)
-			dev_err(adev->dev, "Failed to load toc firmware!\n");
 		r = gfx_v11_0_rlc_autoload_buffer_init(adev);
 		if (r)
 			return r;
@@ -4663,7 +4651,7 @@ static int gfx_v11_0_early_init(void *handle)
 
 	gfx_v11_0_init_rlcg_reg_access_ctrl(adev);
 
-	return 0;
+	return gfx_v11_0_init_microcode(adev);
 }
 
 static int gfx_v11_0_ras_late_init(void *handle)
