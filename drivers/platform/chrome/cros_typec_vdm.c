@@ -77,6 +77,30 @@ static int cros_typec_port_amode_enter(struct typec_altmode *amode, u32 *vdo)
 			   sizeof(req), NULL, 0);
 }
 
+static int cros_typec_port_amode_vdm(struct typec_altmode *amode, const u32 hdr,
+				     const u32 *vdo, int cnt)
+{
+	struct cros_typec_port *port = typec_altmode_get_drvdata(amode);
+	struct ec_params_typec_control req = {
+		.port = port->port_num,
+		.command = TYPEC_CONTROL_COMMAND_SEND_VDM_REQ,
+	};
+	struct typec_vdm_req vdm_req = {};
+
+	vdm_req.vdm_data[0] = hdr;
+	vdm_req.vdm_data_objects = cnt;
+	memcpy(&vdm_req.vdm_data[1], vdo, cnt - 1);
+	vdm_req.partner_type = TYPEC_PARTNER_SOP;
+	req.vdm_req_params = vdm_req;
+
+	dev_dbg(port->typec_data->dev, "Sending VDM, hdr: %x, num_objects: %d, port: %d\n",
+		hdr, cnt, port->port_num);
+
+	return cros_ec_cmd(port->typec_data->ec, 0, EC_CMD_TYPEC_CONTROL, &req,
+			   sizeof(req), NULL, 0);
+}
+
 struct typec_altmode_ops port_amode_ops = {
 	.enter = cros_typec_port_amode_enter,
+	.vdm = cros_typec_port_amode_vdm,
 };
