@@ -17,6 +17,7 @@
 #include <linux/usb/typec_tbt.h>
 
 #include "cros_ec_typec.h"
+#include "cros_typec_vdm.h"
 
 #define DRV_NAME "cros-ec-typec"
 
@@ -272,6 +273,7 @@ static int cros_typec_register_port_altmodes(struct cros_typec_data *typec,
 		return PTR_ERR(amode);
 	port->port_altmode[CROS_EC_ALTMODE_DP] = amode;
 	typec_altmode_set_drvdata(amode, port);
+	amode->ops = &port_amode_ops;
 
 	/*
 	 * Register TBT compatibility alt mode. The EC will not enter the mode
@@ -286,6 +288,7 @@ static int cros_typec_register_port_altmodes(struct cros_typec_data *typec,
 		return PTR_ERR(amode);
 	port->port_altmode[CROS_EC_ALTMODE_TBT] = amode;
 	typec_altmode_set_drvdata(amode, port);
+	amode->ops = &port_amode_ops;
 
 	port->state.alt = NULL;
 	port->state.mode = TYPEC_STATE_USB;
