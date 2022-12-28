@@ -156,7 +156,8 @@ retry:
 
 	do {
 		seq = read_seqcount_begin(&c->usage_lock);
-		memcpy(&ret->u, c->usage_base, u64s * sizeof(u64));
+		unsafe_memcpy(&ret->u, c->usage_base, u64s * sizeof(u64),
+			      "embedded variable length struct");
 		for (i = 0; i < ARRAY_SIZE(c->usage); i++)
 			acc_u64s_percpu((u64 *) &ret->u, (u64 __percpu *) c->usage[i], u64s);
 	} while (read_seqcount_retry(&c->usage_lock, seq));
