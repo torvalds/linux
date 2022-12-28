@@ -58,12 +58,6 @@ static uint skip_fwload;
 module_param(skip_fwload, uint, 0644);
 MODULE_PARM_DESC(skip_fwload, "Skip atomisp firmware load");
 
-/* memory optimization: deferred firmware loading */
-bool defer_fw_load;
-module_param(defer_fw_load, bool, 0644);
-MODULE_PARM_DESC(defer_fw_load,
-		 "Defer FW loading until device is opened (default:disable)");
-
 /* cross componnet debug message flag */
 int dbg_level;
 module_param(dbg_level, int, 0644);
@@ -1514,21 +1508,17 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	isp->max_isr_latency = ATOMISP_MAX_ISR_LATENCY;
 
 	/* Load isp firmware from user space */
-	if (!defer_fw_load) {
-		isp->firmware = atomisp_load_firmware(isp);
-		if (!isp->firmware) {
-			err = -ENOENT;
-			dev_dbg(&pdev->dev, "Firmware load failed\n");
-			goto load_fw_fail;
-		}
+	isp->firmware = atomisp_load_firmware(isp);
+	if (!isp->firmware) {
+		err = -ENOENT;
+		dev_dbg(&pdev->dev, "Firmware load failed\n");
+		goto load_fw_fail;
+	}
 
-		err = sh_css_check_firmware_version(isp->dev, isp->firmware->data);
-		if (err) {
-			dev_dbg(&pdev->dev, "Firmware version check failed\n");
-			goto fw_validation_fail;
-		}
-	} else {
-		dev_info(&pdev->dev, "Firmware load will be deferred\n");
+	err = sh_css_check_firmware_version(isp->dev, isp->firmware->data);
+	if (err) {
+		dev_dbg(&pdev->dev, "Firmware version check failed\n");
+		goto fw_validation_fail;
 	}
 
 	pci_set_master(pdev);
@@ -1628,14 +1618,10 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	}
 
 	/* Load firmware into ISP memory */
-	if (!defer_fw_load) {
-		err = atomisp_css_load_firmware(isp);
-		if (err) {
-			dev_err(&pdev->dev, "Failed to init css.\n");
-			goto css_init_fail;
-		}
-	} else {
-		dev_dbg(&pdev->dev, "Skip css init.\n");
+	err = atomisp_css_load_firmware(isp);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init css.\n");
+		goto css_init_fail;
 	}
 	/* Clear FW image from memory */
 	release_firmware(isp->firmware);

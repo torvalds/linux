@@ -33,6 +33,4 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd);
 
 extern const struct v4l2_file_operations atomisp_fops;
 
-extern bool defer_fw_load;
-
 #endif /* __ATOMISP_FOPS_H__ */

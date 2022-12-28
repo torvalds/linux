@@ -757,25 +757,6 @@ static int atomisp_open(struct file *file)
 	mutex_lock(&isp->mutex);
 
 	asd->subdev.devnode = vdev;
-	/* Deferred firmware loading case. */
-	if (isp->css_env.isp_css_fw.bytes == 0) {
-		dev_err(isp->dev, "Deferred firmware load.\n");
-		isp->firmware = atomisp_load_firmware(isp);
-		if (!isp->firmware) {
-			dev_err(isp->dev, "Failed to load ISP firmware.\n");
-			ret = -ENOENT;
-			goto error;
-		}
-		ret = atomisp_css_load_firmware(isp);
-		if (ret) {
-			dev_err(isp->dev, "Failed to init css.\n");
-			goto error;
-		}
-		/* No need to keep FW in memory anymore. */
-		release_firmware(isp->firmware);
-		isp->firmware = NULL;
-		isp->css_env.isp_css_fw.data = NULL;
-	}
 
 	if (!isp->input_cnt) {
 		dev_err(isp->dev, "no camera attached\n");
@@ -900,12 +881,6 @@ static int atomisp_release(struct file *file)
 		goto done;
 
 	atomisp_destroy_pipes_stream_force(asd);
-
-	if (defer_fw_load) {
-		ia_css_unload_firmware();
-		isp->css_env.isp_css_fw.data = NULL;
-		isp->css_env.isp_css_fw.bytes = 0;
-	}
 
 	ret = v4l2_subdev_call(isp->flash, core, s_power, 0);
 	if (ret < 0 && ret != -ENODEV && ret != -ENOIOCTLCMD)
