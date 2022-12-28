@@ -84,9 +84,9 @@
 				label = "pfr-stg";
 			};
 
-			afm-act@d2e0000 {
+			afm-stg@d2e0000 {
 				reg = <0xd2e0000 0x20000>; // 128KB
-				label = "afm-act";
+				label = "afm-stg";
 			};
 
 			afm-rc@d300000 {
