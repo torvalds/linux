@@ -17,7 +17,11 @@
 
 use crate::{bindings, error::Result, types::Opaque};
 use alloc::boxed::Box;
-use core::{marker::PhantomData, ops::Deref, ptr::NonNull};
+use core::{
+    marker::{PhantomData, Unsize},
+    ops::Deref,
+    ptr::NonNull,
+};
 
 /// A reference-counted pointer to an instance of `T`.
 ///
@@ -82,6 +86,23 @@ use core::{marker::PhantomData, ops::Deref, ptr::NonNull};
 /// obj.use_reference();
 /// obj.take_over();
 /// ```
+///
+/// Coercion from `Arc<Example>` to `Arc<dyn MyTrait>`:
+///
+/// ```
+/// use kernel::sync::Arc;
+///
+/// trait MyTrait {}
+///
+/// struct Example;
+/// impl MyTrait for Example {}
+///
+/// // `obj` has type `Arc<Example>`.
+/// let obj: Arc<Example> = Arc::try_new(Example)?;
+///
+/// // `coerced` has type `Arc<dyn MyTrait>`.
+/// let coerced: Arc<dyn MyTrait> = obj;
+/// ```
 pub struct Arc<T: ?Sized> {
     ptr: NonNull<ArcInner<T>>,
     _p: PhantomData<ArcInner<T>>,
@@ -95,6 +116,10 @@ struct ArcInner<T: ?Sized> {
 
 // This is to allow [`Arc`] (and variants) to be used as the type of `self`.
 impl<T: ?Sized> core::ops::Receiver for Arc<T> {}
+
+// This is to allow coercion from `Arc<T>` to `Arc<U>` if `T` can be converted to the
+// dynamically-sized type (DST) `U`.
+impl<T: ?Sized + Unsize<U>, U: ?Sized> core::ops::CoerceUnsized<Arc<U>> for Arc<T> {}
 
 // SAFETY: It is safe to send `Arc<T>` to another thread when the underlying `T` is `Sync` because
 // it effectively means sharing `&T` (which is safe because `T` is `Sync`); additionally, it needs
