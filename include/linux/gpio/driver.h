@@ -504,13 +504,6 @@ struct gpio_chip {
 	 */
 
 	/**
-	 * @of_node:
-	 *
-	 * Pointer to a device tree node representing this GPIO controller.
-	 */
-	struct device_node *of_node;
-
-	/**
 	 * @of_gpio_n_cells:
 	 *
 	 * Number of cells used to form the GPIO specifier.
