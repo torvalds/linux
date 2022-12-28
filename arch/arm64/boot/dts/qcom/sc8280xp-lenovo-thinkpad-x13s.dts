@@ -95,6 +95,16 @@
 		regulator-boot-on;
 	};
 
+	vreg_vph_pwr: regulator-vph-pwr {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VPH_VCC3R9";
+		regulator-min-microvolt = <3900000>;
+		regulator-max-microvolt = <3900000>;
+
+		regulator-always-on;
+	};
+
 	vreg_wlan: regulator-wlan {
 		compatible = "regulator-fixed";
 
@@ -125,14 +135,6 @@
 		pinctrl-0 = <&wwan_sw_en>;
 
 		regulator-boot-on;
-	};
-
-	vreg_vph_pwr: regulator-vph-pwr {
-		compatible = "regulator-fixed";
-		regulator-name = "VPH_VCC3R9";
-		regulator-min-microvolt = <3900000>;
-		regulator-max-microvolt = <3900000>;
-		regulator-always-on;
 	};
 
 	thermal-zones {
