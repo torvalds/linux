@@ -9234,6 +9234,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 						stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
 					else if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
 						stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+					stream->is_stop_capture = true;
 				}
 				if (stream->to_stop_dma) {
 					ret = rkcif_stop_dma_capture(stream);
