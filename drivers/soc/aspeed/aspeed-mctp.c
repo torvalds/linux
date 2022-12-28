@@ -765,7 +765,7 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 		 */
 		rx_buf = (struct mctp_pcie_packet_data *)rx->data.vaddr;
 		hdr = (u32 *)&rx_buf[rx->wr_ptr];
-		if ((priv->rx_warmup || priv->rx_runaway_wa.first_loop) && !*hdr) {
+		if (!*hdr) {
 			u32 tmp_wr_ptr = rx->wr_ptr;
 
 			/*
@@ -791,6 +791,8 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 						     rx->buffer_count - residual_cmds);
 				priv->rx_warmup = false;
 			}
+		} else {
+			priv->rx_warmup = false;
 		}
 
 		if (priv->rx_runaway_wa.packet_counter > priv->rx_packet_count &&
