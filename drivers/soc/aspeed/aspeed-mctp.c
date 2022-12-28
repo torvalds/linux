@@ -821,6 +821,14 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 		}
 
 		while (*hdr != 0) {
+			if (FIELD_GET(MCTP_HDR_DW_LE_PACKET_SIZE, hdr[0]) * 4 >
+			    ASPEED_MCTP_MTU)
+				dev_warn(priv->dev,
+					 "Rx length %ld > MTU size %d\n",
+					 FIELD_GET(MCTP_HDR_DW_LE_PACKET_SIZE,
+						   hdr[0]) *
+						 4,
+					 ASPEED_MCTP_MTU);
 			rx_packet = aspeed_mctp_packet_alloc(GFP_ATOMIC);
 			if (rx_packet) {
 				memcpy(&rx_packet->data, hdr, sizeof(rx_packet->data));
