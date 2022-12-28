@@ -637,6 +637,7 @@ static u16 async_eq_depth_devlink_param_get(struct mlx5_core_dev *dev)
 	mlx5_core_dbg(dev, "Failed to get param. using default. err = %d\n", err);
 	return MLX5_NUM_ASYNC_EQE;
 }
+
 static int create_async_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
