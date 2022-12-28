@@ -19,6 +19,7 @@
 	aliases {
 		bluetooth0 = &bluetooth;
 		serial1 = &uart7;
+		wifi0 = &wifi;
 	};
 
 	max98360a: audio-codec-0 {
