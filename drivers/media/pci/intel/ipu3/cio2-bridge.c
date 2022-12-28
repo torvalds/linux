@@ -263,7 +263,7 @@ static int cio2_bridge_connect_sensor(const struct cio2_sensor_config *cfg,
 				      struct cio2_bridge *bridge,
 				      struct pci_dev *cio2)
 {
-	struct fwnode_handle *fwnode;
+	struct fwnode_handle *fwnode, *primary;
 	struct cio2_sensor *sensor;
 	struct acpi_device *adev;
 	acpi_status status;
@@ -322,7 +322,9 @@ static int cio2_bridge_connect_sensor(const struct cio2_sensor_config *cfg,
 		}
 
 		sensor->adev = acpi_dev_get(adev);
-		adev->fwnode.secondary = fwnode;
+
+		primary = acpi_fwnode_handle(adev);
+		primary->secondary = fwnode;
 
 		cio2_bridge_instantiate_vcm_i2c_client(sensor);
 
