@@ -1009,7 +1009,7 @@ static struct batadv_nc_path *batadv_nc_get_path(struct batadv_priv *bat_priv,
 static u8 batadv_nc_random_weight_tq(u8 tq)
 {
 	/* randomize the estimated packet loss (max TQ - estimated TQ) */
-	u8 rand_tq = prandom_u32_max(BATADV_TQ_MAX_VALUE + 1 - tq);
+	u8 rand_tq = get_random_u32_below(BATADV_TQ_MAX_VALUE + 1 - tq);
 
 	/* convert to (randomized) estimated tq again */
 	return BATADV_TQ_MAX_VALUE - rand_tq;

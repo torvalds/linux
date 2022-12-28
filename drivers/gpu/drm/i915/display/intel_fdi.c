@@ -5,6 +5,7 @@
 
 #include <linux/string_helpers.h>
 
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_crtc.h"
 #include "intel_ddi.h"

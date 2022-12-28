@@ -140,6 +140,7 @@ const char *intel_engine_class_repr(u8 class)
 		[COPY_ENGINE_CLASS] = "bcs",
 		[VIDEO_DECODE_CLASS] = "vcs",
 		[VIDEO_ENHANCEMENT_CLASS] = "vecs",
+		[OTHER_CLASS] = "other",
 		[COMPUTE_CLASS] = "ccs",
 	};
 
@@ -190,6 +191,15 @@ static void add_legacy_ring(struct legacy_ring *ring,
 		ring->instance++;
 }
 
+static void engine_rename(struct intel_engine_cs *engine, const char *name, u16 instance)
+{
+	char old[sizeof(engine->name)];
+
+	memcpy(old, engine->name, sizeof(engine->name));
+	scnprintf(engine->name, sizeof(engine->name), "%s%u", name, instance);
+	drm_dbg(&engine->i915->drm, "renamed %s to %s\n", old, engine->name);
+}
+
 void intel_engines_driver_register(struct drm_i915_private *i915)
 {
 	struct legacy_ring ring = {};
@@ -205,10 +215,18 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 		struct intel_engine_cs *engine =
 			container_of((struct rb_node *)it, typeof(*engine),
 				     uabi_node);
-		char old[sizeof(engine->name)];
 
 		if (intel_gt_has_unrecoverable_error(engine->gt))
 			continue; /* ignore incomplete engines */
+
+		/*
+		 * We don't want to expose the GSC engine to the users, but we
+		 * still rename it so it is easier to identify in the debug logs
+		 */
+		if (engine->id == GSC0) {
+			engine_rename(engine, "gsc", 0);
+			continue;
+		}
 
 		GEM_BUG_ON(engine->class >= ARRAY_SIZE(uabi_classes));
 		engine->uabi_class = uabi_classes[engine->class];
@@ -219,11 +237,9 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 			i915->engine_uabi_class_count[engine->uabi_class]++;
 
 		/* Replace the internal name with the final user facing name */
-		memcpy(old, engine->name, sizeof(engine->name));
-		scnprintf(engine->name, sizeof(engine->name), "%s%u",
-			  intel_engine_class_repr(engine->class),
-			  engine->uabi_instance);
-		DRM_DEBUG_DRIVER("renamed %s to %s\n", old, engine->name);
+		engine_rename(engine,
+			      intel_engine_class_repr(engine->class),
+			      engine->uabi_instance);
 
 		rb_link_node(&engine->uabi_node, prev, p);
 		rb_insert_color(&engine->uabi_node, &i915->uabi_engines);

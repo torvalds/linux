@@ -312,6 +312,8 @@ static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 	int r = 0;
 	struct device *dev = &ndev->nfc_dev->dev;
 	struct nfc_evt_transaction *transaction;
+	u32 aid_len;
+	u8 params_len;
 
 	pr_debug("connectivity gate event: %x\n", event);
 
@@ -325,26 +327,47 @@ static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 		 * Description  Tag     Length
 		 * AID          81      5 to 16
 		 * PARAMETERS   82      0 to 255
+		 *
+		 * The key differences are aid storage length is variably sized
+		 * in the packet, but fixed in nfc_evt_transaction, and that
+		 * the aid_len is u8 in the packet, but u32 in the structure,
+		 * and the tags in the packet are not included in
+		 * nfc_evt_transaction.
+		 *
+		 * size(b):  1          1       5-16 1             1           0-255
+		 * offset:   0          1       2    aid_len + 2   aid_len + 3 aid_len + 4
+		 * mem name: aid_tag(M) aid_len aid  params_tag(M) params_len  params
+		 * example:  0x81       5-16    X    0x82          0-255       X
 		 */
-		if (skb->len < NFC_MIN_AID_LENGTH + 2 &&
-		    skb->data[0] != NFC_EVT_TRANSACTION_AID_TAG)
+		if (skb->len < 2 || skb->data[0] != NFC_EVT_TRANSACTION_AID_TAG)
 			return -EPROTO;
 
-		transaction = devm_kzalloc(dev, skb->len - 2, GFP_KERNEL);
+		aid_len = skb->data[1];
+
+		if (skb->len < aid_len + 4 ||
+		    aid_len > sizeof(transaction->aid))
+			return -EPROTO;
+
+		params_len = skb->data[aid_len + 3];
+
+		/* Verify PARAMETERS tag is (82), and final check that there is
+		 * enough space in the packet to read everything.
+		 */
+		if (skb->data[aid_len + 2] != NFC_EVT_TRANSACTION_PARAMS_TAG ||
+		    skb->len < aid_len + 4 + params_len)
+			return -EPROTO;
+
+		transaction = devm_kzalloc(dev, sizeof(*transaction) +
+					   params_len, GFP_KERNEL);
 		if (!transaction)
 			return -ENOMEM;
 
-		transaction->aid_len = skb->data[1];
-		memcpy(transaction->aid, &skb->data[2], transaction->aid_len);
+		transaction->aid_len = aid_len;
+		transaction->params_len = params_len;
 
-		/* Check next byte is PARAMETERS tag (82) */
-		if (skb->data[transaction->aid_len + 2] !=
-		    NFC_EVT_TRANSACTION_PARAMS_TAG)
-			return -EPROTO;
-
-		transaction->params_len = skb->data[transaction->aid_len + 3];
-		memcpy(transaction->params, skb->data +
-		       transaction->aid_len + 4, transaction->params_len);
+		memcpy(transaction->aid, &skb->data[2], aid_len);
+		memcpy(transaction->params, &skb->data[aid_len + 4],
+		       params_len);
 
 		r = nfc_se_transaction(ndev->nfc_dev, host, transaction);
 		break;

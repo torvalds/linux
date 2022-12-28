@@ -121,8 +121,9 @@ Header notes:
 			  to the base of DRAM, since memory below it is not
 			  accessible via the linear mapping
 			1
-			  2MB aligned base may be anywhere in physical
-			  memory
+			  2MB aligned base such that all image_size bytes
+			  counted from the start of the image are within
+			  the 48-bit addressable range of physical memory
   Bits 4-63	Reserved.
   ============= ===============================================================
 
@@ -348,7 +349,7 @@ Before jumping into the kernel, the following conditions must be met:
 
     - HWFGWTR_EL2.nSMPRI_EL1 (bit 54) must be initialised to 0b01.
 
-  For CPUs with the Scalable Matrix Extension FA64 feature (FEAT_SME_FA64)
+  For CPUs with the Scalable Matrix Extension FA64 feature (FEAT_SME_FA64):
 
   - If EL3 is present:
 

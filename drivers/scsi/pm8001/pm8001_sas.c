@@ -65,8 +65,11 @@ static int pm8001_find_tag(struct sas_task *task, u32 *tag)
   */
 void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
 {
-	void *bitmap = pm8001_ha->tags;
+	void *bitmap = pm8001_ha->rsvd_tags;
 	unsigned long flags;
+
+	if (tag >= PM8001_RESERVE_SLOT)
+		return;
 
 	spin_lock_irqsave(&pm8001_ha->bitmap_lock, flags);
 	__clear_bit(tag, bitmap);
@@ -80,27 +83,22 @@ void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
   */
 int pm8001_tag_alloc(struct pm8001_hba_info *pm8001_ha, u32 *tag_out)
 {
-	void *bitmap = pm8001_ha->tags;
+	void *bitmap = pm8001_ha->rsvd_tags;
 	unsigned long flags;
 	unsigned int tag;
 
 	spin_lock_irqsave(&pm8001_ha->bitmap_lock, flags);
-	tag = find_first_zero_bit(bitmap, pm8001_ha->tags_num);
-	if (tag >= pm8001_ha->tags_num) {
+	tag = find_first_zero_bit(bitmap, PM8001_RESERVE_SLOT);
+	if (tag >= PM8001_RESERVE_SLOT) {
 		spin_unlock_irqrestore(&pm8001_ha->bitmap_lock, flags);
 		return -SAS_QUEUE_FULL;
 	}
 	__set_bit(tag, bitmap);
 	spin_unlock_irqrestore(&pm8001_ha->bitmap_lock, flags);
+
+	/* reserved tags are in the lower region of the tagset */
 	*tag_out = tag;
 	return 0;
-}
-
-void pm8001_tag_init(struct pm8001_hba_info *pm8001_ha)
-{
-	int i;
-	for (i = 0; i < pm8001_ha->tags_num; ++i)
-		pm8001_tag_free(pm8001_ha, i);
 }
 
 /**
@@ -645,22 +643,16 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 	pm8001_device->dcompletion = &completion;
 	if (parent_dev && dev_is_expander(parent_dev->dev_type)) {
 		int phy_id;
-		struct ex_phy *phy;
-		for (phy_id = 0; phy_id < parent_dev->ex_dev.num_phys;
-		phy_id++) {
-			phy = &parent_dev->ex_dev.ex_phy[phy_id];
-			if (SAS_ADDR(phy->attached_sas_addr)
-				== SAS_ADDR(dev->sas_addr)) {
-				pm8001_device->attached_phy = phy_id;
-				break;
-			}
-		}
-		if (phy_id == parent_dev->ex_dev.num_phys) {
+
+		phy_id = sas_find_attached_phy_id(&parent_dev->ex_dev, dev);
+		if (phy_id < 0) {
 			pm8001_dbg(pm8001_ha, FAIL,
 				   "Error: no attached dev:%016llx at ex:%016llx.\n",
 				   SAS_ADDR(dev->sas_addr),
 				   SAS_ADDR(parent_dev->sas_addr));
-			res = -1;
+			res = phy_id;
+		} else {
+			pm8001_device->attached_phy = phy_id;
 		}
 	} else {
 		if (dev->dev_type == SAS_SATA_DEV) {
@@ -685,12 +677,6 @@ found_out:
 int pm8001_dev_found(struct domain_device *dev)
 {
 	return pm8001_dev_found_notify(dev);
-}
-
-void pm8001_task_done(struct sas_task *task)
-{
-	del_timer(&task->slow_task->timer);
-	complete(&task->slow_task->completion);
 }
 
 #define PM8001_TASK_TIMEOUT 20
@@ -983,6 +969,7 @@ int pm8001_query_task(struct sas_task *task)
 /*  mandatory SAM-3, still need free task/ccb info, abort the specified task */
 int pm8001_abort_task(struct sas_task *task)
 {
+	struct pm8001_ccb_info *ccb = task->lldd_task;
 	unsigned long flags;
 	u32 tag;
 	struct domain_device *dev ;
@@ -992,7 +979,7 @@ int pm8001_abort_task(struct sas_task *task)
 	u32 phy_id, port_id;
 	struct sas_task_slow slow_task;
 
-	if (unlikely(!task || !task->lldd_task || !task->dev))
+	if (!task->lldd_task || !task->dev)
 		return TMF_RESP_FUNC_FAILED;
 
 	dev = task->dev;
@@ -1113,6 +1100,13 @@ int pm8001_abort_task(struct sas_task *task)
 				pm8001_dev, DS_OPERATIONAL);
 			wait_for_completion(&completion);
 		} else {
+			/*
+			 * Ensure that if we see a completion for the ccb
+			 * associated with the task which we are trying to
+			 * abort then we should not touch the sas_task as it
+			 * may race with libsas freeing it when return here.
+			 */
+			ccb->task = NULL;
 			ret = sas_execute_internal_abort_single(dev, tag, 0, NULL);
 		}
 		rc = TMF_RESP_FUNC_COMPLETE;

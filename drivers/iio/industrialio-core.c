@@ -285,16 +285,16 @@ int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	const struct iio_event_interface *ev_int = iio_dev_opaque->event_interface;
 
-	ret = mutex_lock_interruptible(&indio_dev->mlock);
+	ret = mutex_lock_interruptible(&iio_dev_opaque->mlock);
 	if (ret)
 		return ret;
 	if ((ev_int && iio_event_enabled(ev_int)) ||
 	    iio_buffer_enabled(indio_dev)) {
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&iio_dev_opaque->mlock);
 		return -EBUSY;
 	}
 	iio_dev_opaque->clock_id = clock_id;
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&iio_dev_opaque->mlock);
 
 	return 0;
 }
@@ -1674,7 +1674,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	indio_dev->dev.type = &iio_device_type;
 	indio_dev->dev.bus = &iio_bus_type;
 	device_initialize(&indio_dev->dev);
-	mutex_init(&indio_dev->mlock);
+	mutex_init(&iio_dev_opaque->mlock);
 	mutex_init(&iio_dev_opaque->info_exist_lock);
 	INIT_LIST_HEAD(&iio_dev_opaque->channel_attr_list);
 
@@ -1696,7 +1696,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	INIT_LIST_HEAD(&iio_dev_opaque->ioctl_handlers);
 
 	lockdep_register_key(&iio_dev_opaque->mlock_key);
-	lockdep_set_class(&indio_dev->mlock, &iio_dev_opaque->mlock_key);
+	lockdep_set_class(&iio_dev_opaque->mlock, &iio_dev_opaque->mlock_key);
 
 	return indio_dev;
 }
@@ -2058,10 +2058,12 @@ EXPORT_SYMBOL_GPL(__devm_iio_device_register);
  */
 int iio_device_claim_direct_mode(struct iio_dev *indio_dev)
 {
-	mutex_lock(&indio_dev->mlock);
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	mutex_lock(&iio_dev_opaque->mlock);
 
 	if (iio_buffer_enabled(indio_dev)) {
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&iio_dev_opaque->mlock);
 		return -EBUSY;
 	}
 	return 0;
@@ -2079,9 +2081,49 @@ EXPORT_SYMBOL_GPL(iio_device_claim_direct_mode);
  */
 void iio_device_release_direct_mode(struct iio_dev *indio_dev)
 {
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&to_iio_dev_opaque(indio_dev)->mlock);
 }
 EXPORT_SYMBOL_GPL(iio_device_release_direct_mode);
+
+/**
+ * iio_device_claim_buffer_mode - Keep device in buffer mode
+ * @indio_dev:	the iio_dev associated with the device
+ *
+ * If the device is in buffer mode it is guaranteed to stay
+ * that way until iio_device_release_buffer_mode() is called.
+ *
+ * Use with iio_device_release_buffer_mode().
+ *
+ * Returns: 0 on success, -EBUSY on failure.
+ */
+int iio_device_claim_buffer_mode(struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	mutex_lock(&iio_dev_opaque->mlock);
+
+	if (iio_buffer_enabled(indio_dev))
+		return 0;
+
+	mutex_unlock(&iio_dev_opaque->mlock);
+	return -EBUSY;
+}
+EXPORT_SYMBOL_GPL(iio_device_claim_buffer_mode);
+
+/**
+ * iio_device_release_buffer_mode - releases claim on buffer mode
+ * @indio_dev:	the iio_dev associated with the device
+ *
+ * Release the claim. Device is no longer guaranteed to stay
+ * in buffer mode.
+ *
+ * Use with iio_device_claim_buffer_mode().
+ */
+void iio_device_release_buffer_mode(struct iio_dev *indio_dev)
+{
+	mutex_unlock(&to_iio_dev_opaque(indio_dev)->mlock);
+}
+EXPORT_SYMBOL_GPL(iio_device_release_buffer_mode);
 
 /**
  * iio_device_get_current_mode() - helper function providing read-only access to

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * IBM Accelerator Family 'GenWQE'
  *
  * (C) Copyright IBM Corp. 2013
@@ -1349,7 +1349,7 @@ static struct pci_driver genwqe_driver = {
  * Default mode should be rw for everybody. Do not change default
  * device name.
  */
-static char *genwqe_devnode(struct device *dev, umode_t *mode)
+static char *genwqe_devnode(const struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0666;

@@ -25,7 +25,9 @@ properties:
           - const: allwinner,sun8i-a83t-pwm
           - const: allwinner,sun8i-h3-pwm
       - items:
-          - const: allwinner,sun8i-v3s-pwm
+          - enum:
+              - allwinner,suniv-f1c100s-pwm
+              - allwinner,sun8i-v3s-pwm
           - const: allwinner,sun7i-a20-pwm
       - items:
           - const: allwinner,sun50i-a64-pwm

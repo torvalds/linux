@@ -35,7 +35,7 @@ properties:
   gpio-line-names:
     description: strings describing the names of each gpio line.
     minItems: 1
-    maxItems: 100
+    maxItems: 144
 
   "#gpio-cells":
     const: 2

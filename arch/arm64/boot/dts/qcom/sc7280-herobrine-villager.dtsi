@@ -78,16 +78,6 @@ ts_i2c: &i2c13 {
 	status = "okay";
 };
 
-/* For nvme */
-&pcie1 {
-	status = "okay";
-};
-
-/* For nvme */
-&pcie1_phy {
-	status = "okay";
-};
-
 &pwmleds {
 	status = "okay";
 };
@@ -320,7 +310,6 @@ ts_i2c: &i2c13 {
 			  "",				/* 170 */
 			  "MOS_BLE_UART_TX",
 			  "MOS_BLE_UART_RX",
-			  "",
 			  "",
 			  "";
 };

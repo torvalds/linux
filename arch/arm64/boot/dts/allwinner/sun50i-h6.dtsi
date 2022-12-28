@@ -161,6 +161,7 @@
 			clocks = <&ccu CLK_BUS_VP9>, <&ccu CLK_VP9>;
 			clock-names = "bus", "mod";
 			resets = <&ccu RST_BUS_VP9>;
+			iommus = <&iommu 5>;
 		};
 
 		video-codec@1c0e000 {

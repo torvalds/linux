@@ -556,7 +556,6 @@ xfs_btree_islastblock(
 	struct xfs_buf		*bp;
 
 	block = xfs_btree_get_block(cur, level, &bp);
-	ASSERT(block && xfs_btree_check_block(cur, block, level, bp) == 0);
 
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
 		return block->bb_u.l.bb_rightsib == cpu_to_be64(NULLFSBLOCK);

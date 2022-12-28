@@ -952,6 +952,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	uint16_t fcf_index;
 	int rc;
 	u32 ulp_status, ulp_word4, tmo;
+	bool flogi_in_retry = false;
 
 	/* Check to see if link went down during discovery */
 	if (lpfc_els_chk_latt(vport)) {
@@ -1022,8 +1023,23 @@ stop_rr_fcf_flogi:
 					 phba->hba_flag, phba->fcf.fcf_flag);
 
 		/* Check for retry */
-		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
+		if (lpfc_els_retry(phba, cmdiocb, rspiocb)) {
+			/* Address a timing race with dev_loss.  If dev_loss
+			 * is active on this FPort node, put the initial ref
+			 * count back to stop premature node release actions.
+			 */
+			lpfc_check_nlp_post_devloss(vport, ndlp);
+			flogi_in_retry = true;
 			goto out;
+		}
+
+		/* The FLOGI will not be retried.  If the FPort node is not
+		 * registered with the SCSI transport, remove the initial
+		 * reference to trigger node release.
+		 */
+		if (!(ndlp->nlp_flag & NLP_IN_DEV_LOSS) &&
+		    !(ndlp->fc4_xpt_flags & SCSI_XPT_REGD))
+			lpfc_nlp_put(ndlp);
 
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_TRACE_EVENT,
 				 "0150 FLOGI failure Status:x%x/x%x "
@@ -1086,7 +1102,7 @@ stop_rr_fcf_flogi:
 	spin_unlock_irq(shost->host_lock);
 
 	/*
-	 * The FLogI succeeded.  Sync the data for the CPU before
+	 * The FLOGI succeeded.  Sync the data for the CPU before
 	 * accessing it.
 	 */
 	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
@@ -1108,6 +1124,12 @@ stop_rr_fcf_flogi:
 		vport->phba->pport->vmid_flag |= (LPFC_VMID_ISSUE_QFPA |
 						  LPFC_VMID_TYPE_PRIO);
 
+	/*
+	 * Address a timing race with dev_loss.  If dev_loss is active on
+	 * this FPort node, put the initial ref count back to stop premature
+	 * node release actions.
+	 */
+	lpfc_check_nlp_post_devloss(vport, ndlp);
 	if (vport->port_state == LPFC_FLOGI) {
 		/*
 		 * If Common Service Parameters indicate Nport
@@ -1198,7 +1220,9 @@ flogifail:
 		lpfc_issue_clear_la(phba, vport);
 	}
 out:
-	phba->hba_flag &= ~HBA_FLOGI_OUTSTANDING;
+	if (!flogi_in_retry)
+		phba->hba_flag &= ~HBA_FLOGI_OUTSTANDING;
+
 	lpfc_els_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
 }
@@ -1365,14 +1389,16 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		return 1;
 	}
 
+	/* Avoid race with FLOGI completion and hba_flags. */
+	phba->hba_flag |= (HBA_FLOGI_ISSUED | HBA_FLOGI_OUTSTANDING);
+
 	rc = lpfc_issue_fabric_iocb(phba, elsiocb);
 	if (rc == IOCB_ERROR) {
+		phba->hba_flag &= ~(HBA_FLOGI_ISSUED | HBA_FLOGI_OUTSTANDING);
 		lpfc_els_free_iocb(phba, elsiocb);
 		lpfc_nlp_put(ndlp);
 		return 1;
 	}
-
-	phba->hba_flag |= (HBA_FLOGI_ISSUED | HBA_FLOGI_OUTSTANDING);
 
 	/* Clear external loopback plug detected flag */
 	phba->link_flag &= ~LS_EXTERNAL_LOOPBACK;
@@ -7190,6 +7216,134 @@ rdp_fail:
 	return 1;
 }
 
+int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
+			   struct lpfc_rdp_context *rdp_context)
+{
+	LPFC_MBOXQ_t *mbox = NULL;
+	int rc;
+	struct lpfc_dmabuf *mp;
+	struct lpfc_dmabuf *mpsave;
+	void *virt;
+	MAILBOX_t *mb;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_ELS,
+				"7205 failed to allocate mailbox memory");
+		return 1;
+	}
+
+	if (lpfc_sli4_dump_page_a0(phba, mbox))
+		goto sfp_fail;
+	mp = mbox->ctx_buf;
+	mpsave = mp;
+	virt = mp->virt;
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		mb = &mbox->u.mb;
+		mb->un.varDmp.cv = 1;
+		mb->un.varDmp.co = 1;
+		mb->un.varWords[2] = 0;
+		mb->un.varWords[3] = DMP_SFF_PAGE_A0_SIZE / 4;
+		mb->un.varWords[4] = 0;
+		mb->un.varWords[5] = 0;
+		mb->un.varWords[6] = 0;
+		mb->un.varWords[7] = 0;
+		mb->un.varWords[8] = 0;
+		mb->un.varWords[9] = 0;
+		mb->un.varWords[10] = 0;
+		mbox->in_ext_byte_len = DMP_SFF_PAGE_A0_SIZE;
+		mbox->out_ext_byte_len = DMP_SFF_PAGE_A0_SIZE;
+		mbox->mbox_offset_word = 5;
+		mbox->ctx_buf = virt;
+	} else {
+		bf_set(lpfc_mbx_memory_dump_type3_length,
+		       &mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A0_SIZE);
+		mbox->u.mqe.un.mem_dump_type3.addr_lo = putPaddrLow(mp->phys);
+		mbox->u.mqe.un.mem_dump_type3.addr_hi = putPaddrHigh(mp->phys);
+	}
+	mbox->vport = phba->pport;
+	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
+
+	rc = lpfc_sli_issue_mbox_wait(phba, mbox, 30);
+	if (rc == MBX_NOT_FINISHED) {
+		rc = 1;
+		goto error;
+	}
+
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
+	else
+		mp = mpsave;
+
+	if (bf_get(lpfc_mqe_status, &mbox->u.mqe)) {
+		rc = 1;
+		goto error;
+	}
+
+	lpfc_sli_bemem_bcopy(mp->virt, &rdp_context->page_a0,
+			     DMP_SFF_PAGE_A0_SIZE);
+
+	memset(mbox, 0, sizeof(*mbox));
+	memset(mp->virt, 0, DMP_SFF_PAGE_A2_SIZE);
+	INIT_LIST_HEAD(&mp->list);
+
+	/* save address for completion */
+	mbox->ctx_buf = mp;
+	mbox->vport = phba->pport;
+
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_DUMP_MEMORY);
+	bf_set(lpfc_mbx_memory_dump_type3_type,
+	       &mbox->u.mqe.un.mem_dump_type3, DMP_LMSD);
+	bf_set(lpfc_mbx_memory_dump_type3_link,
+	       &mbox->u.mqe.un.mem_dump_type3, phba->sli4_hba.physical_port);
+	bf_set(lpfc_mbx_memory_dump_type3_page_no,
+	       &mbox->u.mqe.un.mem_dump_type3, DMP_PAGE_A2);
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		mb = &mbox->u.mb;
+		mb->un.varDmp.cv = 1;
+		mb->un.varDmp.co = 1;
+		mb->un.varWords[2] = 0;
+		mb->un.varWords[3] = DMP_SFF_PAGE_A2_SIZE / 4;
+		mb->un.varWords[4] = 0;
+		mb->un.varWords[5] = 0;
+		mb->un.varWords[6] = 0;
+		mb->un.varWords[7] = 0;
+		mb->un.varWords[8] = 0;
+		mb->un.varWords[9] = 0;
+		mb->un.varWords[10] = 0;
+		mbox->in_ext_byte_len = DMP_SFF_PAGE_A2_SIZE;
+		mbox->out_ext_byte_len = DMP_SFF_PAGE_A2_SIZE;
+		mbox->mbox_offset_word = 5;
+		mbox->ctx_buf = virt;
+	} else {
+		bf_set(lpfc_mbx_memory_dump_type3_length,
+		       &mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A2_SIZE);
+		mbox->u.mqe.un.mem_dump_type3.addr_lo = putPaddrLow(mp->phys);
+		mbox->u.mqe.un.mem_dump_type3.addr_hi = putPaddrHigh(mp->phys);
+	}
+
+	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
+	rc = lpfc_sli_issue_mbox_wait(phba, mbox, 30);
+	if (bf_get(lpfc_mqe_status, &mbox->u.mqe)) {
+		rc = 1;
+		goto error;
+	}
+	rc = 0;
+
+	lpfc_sli_bemem_bcopy(mp->virt, &rdp_context->page_a2,
+			     DMP_SFF_PAGE_A2_SIZE);
+
+error:
+	mbox->ctx_buf = mpsave;
+	lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
+
+	return rc;
+
+sfp_fail:
+	mempool_free(mbox, phba->mbox_mem_pool);
+	return 1;
+}
+
 /*
  * lpfc_els_rcv_rdp - Process an unsolicited RDP ELS.
  * @vport: pointer to a host virtual N_Port data structure.
@@ -9044,15 +9198,10 @@ static int
 lpfc_els_rcv_farpr(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		   struct lpfc_nodelist  *ndlp)
 {
-	struct lpfc_dmabuf *pcmd;
-	uint32_t *lp;
 	uint32_t did;
 
 	did = get_job_els_rsp64_did(vport->phba, cmdiocb);
-	pcmd = cmdiocb->cmd_dmabuf;
-	lp = (uint32_t *)pcmd->virt;
 
-	lp++;
 	/* FARP-RSP received from DID <did> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0600 FARP-RSP received from DID x%x\n", did);

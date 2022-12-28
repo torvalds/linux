@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/dsa/dsa-port.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ethernet Switch port Device Tree Bindings
+title: Ethernet Switch port
 
 maintainers:
   - Andrew Lunn <andrew@lunn.ch>
@@ -19,7 +19,8 @@ allOf:
 
 properties:
   reg:
-    description: Port number
+    items:
+      - description: Port number
 
   label:
     description:

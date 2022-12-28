@@ -127,7 +127,7 @@ TRACE_EVENT(amdgpu_bo_create,
 
 	    TP_fast_assign(
 			   __entry->bo = bo;
-			   __entry->pages = bo->tbo.resource->num_pages;
+			   __entry->pages = PFN_UP(bo->tbo.resource->size);
 			   __entry->type = bo->tbo.resource->mem_type;
 			   __entry->prefer = bo->preferred_domains;
 			   __entry->allow = bo->allowed_domains;

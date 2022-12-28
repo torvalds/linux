@@ -204,8 +204,7 @@ static int bd957x_identify(struct device *dev, struct regmap *regmap)
 	return 0;
 }
 
-static int bd9571mwv_probe(struct i2c_client *client,
-			   const struct i2c_device_id *ids)
+static int bd9571mwv_probe(struct i2c_client *client)
 {
 	const struct regmap_config *regmap_config;
 	const struct regmap_irq_chip *irq_chip;
@@ -279,7 +278,7 @@ static struct i2c_driver bd9571mwv_driver = {
 		.name	= "bd9571mwv",
 		.of_match_table = bd9571mwv_of_match_table,
 	},
-	.probe		= bd9571mwv_probe,
+	.probe_new	= bd9571mwv_probe,
 	.id_table       = bd9571mwv_id_table,
 };
 module_i2c_driver(bd9571mwv_driver);

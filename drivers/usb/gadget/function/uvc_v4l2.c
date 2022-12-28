@@ -199,16 +199,6 @@ uvc_send_response(struct uvc_device *uvc, struct uvc_request_data *data)
  * V4L2 ioctls
  */
 
-struct uvc_format {
-	u8 bpp;
-	u32 fcc;
-};
-
-static struct uvc_format uvc_formats[] = {
-	{ 16, V4L2_PIX_FMT_YUYV  },
-	{ 0,  V4L2_PIX_FMT_MJPEG },
-};
-
 static int
 uvc_v4l2_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 {
@@ -236,47 +226,6 @@ uvc_v4l2_get_format(struct file *file, void *fh, struct v4l2_format *fmt)
 	fmt->fmt.pix.field = V4L2_FIELD_NONE;
 	fmt->fmt.pix.bytesperline = video->bpp * video->width / 8;
 	fmt->fmt.pix.sizeimage = video->imagesize;
-	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
-	fmt->fmt.pix.priv = 0;
-
-	return 0;
-}
-
-static int
-uvc_v4l2_set_format(struct file *file, void *fh, struct v4l2_format *fmt)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct uvc_device *uvc = video_get_drvdata(vdev);
-	struct uvc_video *video = &uvc->video;
-	struct uvc_format *format;
-	unsigned int imagesize;
-	unsigned int bpl;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(uvc_formats); ++i) {
-		format = &uvc_formats[i];
-		if (format->fcc == fmt->fmt.pix.pixelformat)
-			break;
-	}
-
-	if (i == ARRAY_SIZE(uvc_formats)) {
-		uvcg_info(&uvc->func, "Unsupported format 0x%08x.\n",
-			  fmt->fmt.pix.pixelformat);
-		return -EINVAL;
-	}
-
-	bpl = format->bpp * fmt->fmt.pix.width / 8;
-	imagesize = bpl ? bpl * fmt->fmt.pix.height : fmt->fmt.pix.sizeimage;
-
-	video->fcc = format->fcc;
-	video->bpp = format->bpp;
-	video->width = fmt->fmt.pix.width;
-	video->height = fmt->fmt.pix.height;
-	video->imagesize = imagesize;
-
-	fmt->fmt.pix.field = V4L2_FIELD_NONE;
-	fmt->fmt.pix.bytesperline = bpl;
-	fmt->fmt.pix.sizeimage = imagesize;
 	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->fmt.pix.priv = 0;
 
@@ -321,6 +270,27 @@ uvc_v4l2_try_format(struct file *file, void *fh, struct v4l2_format *fmt)
 	fmt->fmt.pix.priv = 0;
 
 	return 0;
+}
+
+static int
+uvc_v4l2_set_format(struct file *file, void *fh, struct v4l2_format *fmt)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct uvc_device *uvc = video_get_drvdata(vdev);
+	struct uvc_video *video = &uvc->video;
+	int ret;
+
+	ret = uvc_v4l2_try_format(file, fh, fmt);
+	if (ret)
+		return ret;
+
+	video->fcc = fmt->fmt.pix.pixelformat;
+	video->bpp = fmt->fmt.pix.bytesperline * 8 / video->width;
+	video->width = fmt->fmt.pix.width;
+	video->height = fmt->fmt.pix.height;
+	video->imagesize = fmt->fmt.pix.sizeimage;
+
+	return ret;
 }
 
 static int

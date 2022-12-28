@@ -31,10 +31,10 @@
 			pinctrl-0 = <&pmx_usb_power>;
 			pinctrl-names = "default";
 
-                        pmx_usb_power: pmx-usb-power {
-                                marvell,pins = "mpp10";
-                                marvell,function = "gpo";
-                        };
+			pmx_usb_power: pmx-usb-power {
+				marvell,pins = "mpp10";
+				marvell,function = "gpo";
+			};
 		};
 
 		serial@12000 {
@@ -62,43 +62,43 @@
 	};
 
 	regulators {
-                compatible = "simple-bus";
-                #address-cells = <1>;
-                #size-cells = <0>;
-                pinctrl-0 = <&pmx_usb_power>;
-                pinctrl-names = "default";
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_usb_power>;
+		pinctrl-names = "default";
 
-                usb_power: regulator@0 {
-                        compatible = "regulator-fixed";
-                        reg = <0>;
-                        regulator-name = "USB VBUS";
-                        regulator-min-microvolt = <5000000>;
-                        regulator-max-microvolt = <5000000>;
-                        enable-active-high;
-                        regulator-always-on;
-                        regulator-boot-on;
-                        gpio = <&gpio0 10 GPIO_ACTIVE_HIGH>;
-                };
+		usb_power: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "USB VBUS";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 10 GPIO_ACTIVE_HIGH>;
+		};
 	};
 };
 
 &mdio {
-        status = "okay";
+	status = "okay";
 
-        ethphy0: ethernet-phy@8 {
-                reg = <8>;
-        };
+	ethphy0: ethernet-phy@8 {
+		reg = <8>;
+	};
 };
 
 &eth0 {
-        status = "okay";
-        ethernet0-port@0 {
-                phy-handle = <&ethphy0>;
-        };
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
 };
 
 &pciec {
-        status = "okay";
+	status = "okay";
 };
 
 &pcie0 {

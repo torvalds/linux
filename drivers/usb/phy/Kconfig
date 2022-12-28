@@ -93,12 +93,16 @@ config USB_GPIO_VBUS
 	tristate "GPIO based peripheral-only VBUS sensing 'transceiver'"
 	depends on GPIOLIB || COMPILE_TEST
 	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
+	depends on !USB_CONN_GPIO
 	select USB_PHY
 	help
 	  Provides simple GPIO VBUS sensing for controllers with an
 	  internal transceiver via the usb_phy interface, and
 	  optionally control of a D+ pullup GPIO as well as a VBUS
-	  current limit regulator.
+	  current limit regulator. This driver is for devices that do
+	  NOT support role switch. OTG devices that can do role switch
+	  (master/peripheral) shall use the USB based connection
+	  detection driver USB_CONN_GPIO.
 
 config OMAP_OTG
 	tristate "OMAP USB OTG controller driver"
@@ -184,13 +188,5 @@ config USB_ULPI_VIEWPORT
 	help
 	  Provides read/write operations to the ULPI phy register set for
 	  controllers with a viewport register (e.g. Chipidea/ARC controllers).
-
-config JZ4770_PHY
-	tristate "Ingenic SoCs Transceiver Driver"
-	depends on MIPS || COMPILE_TEST
-	select USB_PHY
-	help
-	  This driver provides PHY support for the USB controller found
-	  on the JZ-series and X-series SoCs from Ingenic.
 
 endmenu

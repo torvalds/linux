@@ -45,6 +45,8 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  * @profile: profile being enforced  (NOT NULL)
  * @resource: rlimit being auditing
  * @value: value being set
+ * @peer: aa_albel of the task being set
+ * @info: info being auditing
  * @error: error value
  *
  * Returns: 0 or sa->error else other error code on failure
@@ -53,7 +55,8 @@ static int audit_resource(struct aa_profile *profile, unsigned int resource,
 			  unsigned long value, struct aa_label *peer,
 			  const char *info, int error)
 {
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, OP_SETRLIMIT);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_RLIMITS,
+			  OP_SETRLIMIT);
 
 	aad(&sa)->rlim.rlim = resource;
 	aad(&sa)->rlim.max = value;
@@ -65,7 +68,7 @@ static int audit_resource(struct aa_profile *profile, unsigned int resource,
 }
 
 /**
- * aa_map_resouce - map compiled policy resource to internal #
+ * aa_map_resource - map compiled policy resource to internal #
  * @resource: flattened policy resource number
  *
  * Returns: resource # for the current architecture.
@@ -81,10 +84,12 @@ int aa_map_resource(int resource)
 static int profile_setrlimit(struct aa_profile *profile, unsigned int resource,
 			     struct rlimit *new_rlim)
 {
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	int e = 0;
 
-	if (profile->rlimits.mask & (1 << resource) && new_rlim->rlim_max >
-	    profile->rlimits.limits[resource].rlim_max)
+	if (rules->rlimits.mask & (1 << resource) && new_rlim->rlim_max >
+	    rules->rlimits.limits[resource].rlim_max)
 		e = -EACCES;
 	return audit_resource(profile, resource, new_rlim->rlim_max, NULL, NULL,
 			      e);
@@ -152,12 +157,15 @@ void __aa_transition_rlimits(struct aa_label *old_l, struct aa_label *new_l)
 	 * to the lesser of the tasks hard limit and the init tasks soft limit
 	 */
 	label_for_each_confined(i, old_l, old) {
-		if (old->rlimits.mask) {
+		struct aa_ruleset *rules = list_first_entry(&old->rules,
+							    typeof(*rules),
+							    list);
+		if (rules->rlimits.mask) {
 			int j;
 
 			for (j = 0, mask = 1; j < RLIM_NLIMITS; j++,
 				     mask <<= 1) {
-				if (old->rlimits.mask & mask) {
+				if (rules->rlimits.mask & mask) {
 					rlim = current->signal->rlim + j;
 					initrlim = init_task.signal->rlim + j;
 					rlim->rlim_cur = min(rlim->rlim_max,
@@ -169,17 +177,20 @@ void __aa_transition_rlimits(struct aa_label *old_l, struct aa_label *new_l)
 
 	/* set any new hard limits as dictated by the new profile */
 	label_for_each_confined(i, new_l, new) {
+		struct aa_ruleset *rules = list_first_entry(&new->rules,
+							    typeof(*rules),
+							    list);
 		int j;
 
-		if (!new->rlimits.mask)
+		if (!rules->rlimits.mask)
 			continue;
 		for (j = 0, mask = 1; j < RLIM_NLIMITS; j++, mask <<= 1) {
-			if (!(new->rlimits.mask & mask))
+			if (!(rules->rlimits.mask & mask))
 				continue;
 
 			rlim = current->signal->rlim + j;
 			rlim->rlim_max = min(rlim->rlim_max,
-					     new->rlimits.limits[j].rlim_max);
+					     rules->rlimits.limits[j].rlim_max);
 			/* soft limit should not exceed hard limit */
 			rlim->rlim_cur = min(rlim->rlim_cur, rlim->rlim_max);
 		}

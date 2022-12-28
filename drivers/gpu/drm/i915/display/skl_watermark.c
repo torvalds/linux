@@ -1706,26 +1706,10 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 		return -EINVAL;
 	}
 
-	wp->y_tiled = modifier == I915_FORMAT_MOD_Y_TILED ||
-		      modifier == I915_FORMAT_MOD_4_TILED ||
-		      modifier == I915_FORMAT_MOD_Yf_TILED ||
-		      modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
-		      modifier == I915_FORMAT_MOD_Yf_TILED_CCS ||
-		      modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
-		      modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS ||
-		      modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
-		      modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS ||
-		      modifier == I915_FORMAT_MOD_4_TILED_DG2_MC_CCS ||
-		      modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC;
 	wp->x_tiled = modifier == I915_FORMAT_MOD_X_TILED;
-	wp->rc_surface = modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
-			 modifier == I915_FORMAT_MOD_Yf_TILED_CCS ||
-			 modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
-			 modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS ||
-			 modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
-			 modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS ||
-			 modifier == I915_FORMAT_MOD_4_TILED_DG2_MC_CCS ||
-			 modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC;
+	wp->y_tiled = modifier != I915_FORMAT_MOD_X_TILED &&
+		intel_fb_is_tiled_modifier(modifier);
+	wp->rc_surface = intel_fb_is_ccs_modifier(modifier);
 	wp->is_planar = intel_format_info_is_yuv_semiplanar(format, modifier);
 
 	wp->width = width;
@@ -2498,7 +2482,7 @@ skl_compute_ddb(struct intel_atomic_state *state)
 
 		if (old_dbuf_state->joined_mbus != new_dbuf_state->joined_mbus) {
 			/* TODO: Implement vblank synchronized MBUS joining changes */
-			ret = intel_modeset_all_pipes(state);
+			ret = intel_modeset_all_pipes(state, "MBUS joining change");
 			if (ret)
 				return ret;
 		}
@@ -2760,7 +2744,7 @@ static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 		 * power well the hardware state will go out of sync
 		 * with the software state.
 		 */
-		if (!drm_atomic_crtc_needs_modeset(&new_crtc_state->uapi) &&
+		if (!intel_crtc_needs_modeset(new_crtc_state) &&
 		    skl_plane_selected_wm_equals(plane,
 						 &old_crtc_state->wm.skl.optimal,
 						 &new_crtc_state->wm.skl.optimal))

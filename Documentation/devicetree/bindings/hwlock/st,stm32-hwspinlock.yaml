@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/hwlock/st,stm32-hwspinlock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 Hardware Spinlock bindings
+title: STMicroelectronics STM32 Hardware Spinlock
 
 maintainers:
   - Fabien Dessenne <fabien.dessenne@foss.st.com>

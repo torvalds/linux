@@ -1713,7 +1713,7 @@ static int rt6_insert_exception(struct rt6_info *nrt,
 	net->ipv6.rt6_stats->fib_rt_cache++;
 
 	/* Randomize max depth to avoid some side channels attacks. */
-	max_depth = FIB6_MAX_DEPTH + prandom_u32_max(FIB6_MAX_DEPTH);
+	max_depth = FIB6_MAX_DEPTH + get_random_u32_below(FIB6_MAX_DEPTH);
 	while (bucket->depth > max_depth)
 		rt6_exception_remove_oldest(bucket);
 

@@ -247,7 +247,7 @@ rebuild_st:
 	if (i915_gem_object_can_bypass_llc(obj))
 		obj->cache_dirty = true;
 
-	__i915_gem_object_set_pages(obj, st, i915_sg_dma_sizes(st->sgl));
+	__i915_gem_object_set_pages(obj, st);
 
 	return 0;
 
@@ -369,14 +369,14 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 
 	__start_cpu_write(obj);
 	/*
-	 * On non-LLC platforms, force the flush-on-acquire if this is ever
+	 * On non-LLC igfx platforms, force the flush-on-acquire if this is ever
 	 * swapped-in. Our async flush path is not trust worthy enough yet(and
 	 * happens in the wrong order), and with some tricks it's conceivable
 	 * for userspace to change the cache-level to I915_CACHE_NONE after the
 	 * pages are swapped-in, and since execbuf binds the object before doing
 	 * the async flush, we have a race window.
 	 */
-	if (!HAS_LLC(i915))
+	if (!HAS_LLC(i915) && !IS_DGFX(i915))
 		obj->cache_dirty = true;
 }
 

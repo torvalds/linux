@@ -103,7 +103,7 @@ static int __compute_metric(const char *name, struct value *vals,
 	if (err)
 		goto out;
 
-	err = evlist__alloc_stats(evlist, false);
+	err = evlist__alloc_stats(/*config=*/NULL, evlist, /*alloc_raw=*/false);
 	if (err)
 		goto out;
 

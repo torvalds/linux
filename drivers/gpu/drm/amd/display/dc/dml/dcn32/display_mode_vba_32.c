@@ -670,6 +670,25 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		v->cursor_bw[k] = mode_lib->vba.NumberOfCursors[k] * mode_lib->vba.CursorWidth[k][0] * mode_lib->vba.CursorBPP[k][0] / 8 / (mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k]) * mode_lib->vba.VRatio[k];
 	}
 
+	v->NotEnoughDETSwathFillLatencyHiding = dml32_CalculateDETSwathFillLatencyHiding(
+						mode_lib->vba.NumberOfActiveSurfaces,
+						mode_lib->vba.ReturnBW,
+						v->UrgentLatency,
+						mode_lib->vba.SwathHeightY,
+						mode_lib->vba.SwathHeightC,
+						v->swath_width_luma_ub,
+						v->swath_width_chroma_ub,
+						v->BytePerPixelDETY,
+						v->BytePerPixelDETC,
+						mode_lib->vba.DETBufferSizeY,
+						mode_lib->vba.DETBufferSizeC,
+						mode_lib->vba.DPPPerPlane,
+						mode_lib->vba.HTotal,
+						mode_lib->vba.PixelClock,
+						mode_lib->vba.VRatio,
+						mode_lib->vba.VRatioChroma,
+						mode_lib->vba.UsesMALLForPStateChange);
+
 	for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
 		v->MaxVStartupLines[k] = ((mode_lib->vba.Interlace[k] &&
 				!mode_lib->vba.ProgressiveToInterlaceUnitInOPP) ?
@@ -718,6 +737,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 
 	do {
 		MaxTotalRDBandwidth = 0;
+		DestinationLineTimesForPrefetchLessThan2 = false;
+		VRatioPrefetchMoreThanMax = false;
 #ifdef __DML_VBA_DEBUG__
 		dml_print("DML::%s: Start loop: VStartup = %d\n", __func__, mode_lib->vba.VStartupLines);
 #endif
@@ -786,6 +807,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					v->SwathHeightY[k],
 					v->SwathHeightC[k],
 					TWait,
+					v->DRAMSpeedPerState[mode_lib->vba.VoltageLevel] <= MEM_STROBE_FREQ_MHZ ?
+							mode_lib->vba.ip.min_prefetch_in_strobe_us : 0,
 					/* Output */
 					&v->DSTXAfterScaler[k],
 					&v->DSTYAfterScaler[k],
@@ -1661,6 +1684,8 @@ static void mode_support_configuration(struct vba_vars_st *v,
 				&& mode_lib->vba.DCCMetaBufferSizeNotExceeded[i][j] == true
 				&& mode_lib->vba.NonsupportedDSCInputBPC == false
 				&& !mode_lib->vba.ExceededMALLSize
+				&& (mode_lib->vba.NotEnoughDETSwathFillLatencyHidingPerState[i][j] == false
+				|| i == v->soc.num_states - 1)
 				&& ((mode_lib->vba.HostVMEnable == false
 				&& !mode_lib->vba.ImmediateFlipRequiredFinal)
 				|| mode_lib->vba.ImmediateFlipSupportedForState[i][j])
@@ -3154,6 +3179,25 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.UrgentBurstFactorChroma,
 					mode_lib->vba.UrgentBurstFactorCursor);
 
+			mode_lib->vba.NotEnoughDETSwathFillLatencyHidingPerState[i][j] = dml32_CalculateDETSwathFillLatencyHiding(
+					mode_lib->vba.NumberOfActiveSurfaces,
+					mode_lib->vba.ReturnBWPerState[i][j],
+					mode_lib->vba.UrgLatency[i],
+					mode_lib->vba.SwathHeightYThisState,
+					mode_lib->vba.SwathHeightCThisState,
+					mode_lib->vba.swath_width_luma_ub_this_state,
+					mode_lib->vba.swath_width_chroma_ub_this_state,
+					mode_lib->vba.BytePerPixelInDETY,
+					mode_lib->vba.BytePerPixelInDETC,
+					mode_lib->vba.DETBufferSizeYThisState,
+					mode_lib->vba.DETBufferSizeCThisState,
+					mode_lib->vba.NoOfDPPThisState,
+					mode_lib->vba.HTotal,
+					mode_lib->vba.PixelClock,
+					mode_lib->vba.VRatio,
+					mode_lib->vba.VRatioChroma,
+					mode_lib->vba.UsesMALLForPStateChange);
+
 			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.VMDataOnlyReturnBWPerState = dml32_get_return_bw_mbps_vm_only(&mode_lib->vba.soc, i,
 					mode_lib->vba.DCFCLKState[i][j], mode_lib->vba.FabricClockPerState[i],
 					mode_lib->vba.DRAMSpeedPerState[i]);
@@ -3192,6 +3236,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.FCLKChangeLatency, mode_lib->vba.UrgLatency[i],
 							mode_lib->vba.SREnterPlusExitTime);
 
+					memset(&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull, 0, sizeof(DmlPipe));
 					v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.myPipe.Dppclk = mode_lib->vba.RequiredDPPCLK[i][j][k];
 					v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.myPipe.Dispclk = mode_lib->vba.RequiredDISPCLK[i][j];
 					v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.myPipe.PixelClock = mode_lib->vba.PixelClock[k];
@@ -3244,6 +3289,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							v->swath_width_chroma_ub_this_state[k],
 							v->SwathHeightYThisState[k],
 							v->SwathHeightCThisState[k], v->TWait,
+							v->DRAMSpeedPerState[i] <= MEM_STROBE_FREQ_MHZ ?
+									mode_lib->vba.ip.min_prefetch_in_strobe_us : 0,
 
 							/* Output */
 							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.DSTXAfterScaler[k],

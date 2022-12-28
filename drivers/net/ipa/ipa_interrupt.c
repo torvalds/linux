@@ -132,24 +132,28 @@ static void ipa_interrupt_suspend_control(struct ipa_interrupt *interrupt,
 					  u32 endpoint_id, bool enable)
 {
 	struct ipa *ipa = interrupt->ipa;
-	u32 mask = BIT(endpoint_id);
+	u32 unit = endpoint_id / 32;
 	const struct ipa_reg *reg;
 	u32 offset;
+	u32 mask;
 	u32 val;
 
-	WARN_ON(!(mask & ipa->available));
+	WARN_ON(!test_bit(endpoint_id, ipa->available));
 
 	/* IPA version 3.0 does not support TX_SUSPEND interrupt control */
 	if (ipa->version == IPA_VERSION_3_0)
 		return;
 
 	reg = ipa_reg(ipa, IRQ_SUSPEND_EN);
-	offset = ipa_reg_offset(reg);
+	offset = ipa_reg_n_offset(reg, unit);
 	val = ioread32(ipa->reg_virt + offset);
+
+	mask = BIT(endpoint_id);
 	if (enable)
 		val |= mask;
 	else
 		val &= ~mask;
+
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
@@ -171,18 +175,24 @@ ipa_interrupt_suspend_disable(struct ipa_interrupt *interrupt, u32 endpoint_id)
 void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt)
 {
 	struct ipa *ipa = interrupt->ipa;
-	const struct ipa_reg *reg;
-	u32 val;
+	u32 unit_count;
+	u32 unit;
 
-	reg = ipa_reg(ipa, IRQ_SUSPEND_INFO);
-	val = ioread32(ipa->reg_virt + ipa_reg_offset(reg));
+	unit_count = roundup(ipa->endpoint_count, 32);
+	for (unit = 0; unit < unit_count; unit++) {
+		const struct ipa_reg *reg;
+		u32 val;
 
-	/* SUSPEND interrupt status isn't cleared on IPA version 3.0 */
-	if (ipa->version == IPA_VERSION_3_0)
-		return;
+		reg = ipa_reg(ipa, IRQ_SUSPEND_INFO);
+		val = ioread32(ipa->reg_virt + ipa_reg_n_offset(reg, unit));
 
-	reg = ipa_reg(ipa, IRQ_SUSPEND_CLR);
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+		/* SUSPEND interrupt status isn't cleared on IPA version 3.0 */
+		if (ipa->version == IPA_VERSION_3_0)
+			continue;
+
+		reg = ipa_reg(ipa, IRQ_SUSPEND_CLR);
+		iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, unit));
+	}
 }
 
 /* Simulate arrival of an IPA TX_SUSPEND interrupt */

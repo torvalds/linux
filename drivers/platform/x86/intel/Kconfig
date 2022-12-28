@@ -157,13 +157,13 @@ config INTEL_RST
 	  as usual.
 
 config INTEL_SDSI
-	tristate "Intel Software Defined Silicon Driver"
+	tristate "Intel On Demand (Software Defined Silicon) Driver"
 	depends on INTEL_VSEC
 	depends on X86_64
 	help
-	  This driver enables access to the Intel Software Defined Silicon
-	  interface used to provision silicon features with an authentication
-	  certificate and capability license.
+	  This driver enables access to the Intel On Demand (formerly Software
+	  Defined Silicon) interface used to provision silicon features with an
+	  authentication certificate and capability license.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called intel_sdsi.

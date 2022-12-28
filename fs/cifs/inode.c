@@ -632,6 +632,8 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 
 /* Fill a cifs_fattr struct with info from POSIX info struct */
 static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr, struct cifs_open_info_data *data,
+				       struct cifs_sid *owner,
+				       struct cifs_sid *group,
 				       struct super_block *sb, bool adjust_tz, bool symlink)
 {
 	struct smb311_posix_qinfo *info = &data->posix_fi;
@@ -680,8 +682,8 @@ static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr, struct cifs_ope
 	}
 	/* else if reparse point ... TODO: add support for FIFO and blk dev; special file types */
 
-	fattr->cf_uid = cifs_sb->ctx->linux_uid; /* TODO: map uid and gid from SID */
-	fattr->cf_gid = cifs_sb->ctx->linux_gid;
+	sid_to_id(cifs_sb, owner, fattr, SIDOWNER);
+	sid_to_id(cifs_sb, group, fattr, SIDGROUP);
 
 	cifs_dbg(FYI, "POSIX query info: mode 0x%x uniqueid 0x%llx nlink %d\n",
 		fattr->cf_mode, fattr->cf_uniqueid, fattr->cf_nlink);
@@ -991,12 +993,6 @@ int cifs_get_inode_info(struct inode **inode, const char *full_path,
 		}
 		rc = server->ops->query_path_info(xid, tcon, cifs_sb, full_path, &tmp_data,
 						  &adjust_tz, &is_reparse_point);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-		if (rc == -ENOENT && is_tcon_dfs(tcon))
-			rc = cifs_dfs_query_info_nonascii_quirk(xid, tcon,
-								cifs_sb,
-								full_path);
-#endif
 		data = &tmp_data;
 	}
 
@@ -1175,6 +1171,7 @@ smb311_posix_get_inode_info(struct inode **inode,
 	struct cifs_fattr fattr = {0};
 	bool symlink = false;
 	struct cifs_open_info_data data = {};
+	struct cifs_sid owner, group;
 	int rc = 0;
 	int tmprc = 0;
 
@@ -1192,7 +1189,8 @@ smb311_posix_get_inode_info(struct inode **inode,
 		goto out;
 	}
 
-	rc = smb311_posix_query_path_info(xid, tcon, cifs_sb, full_path, &data, &adjust_tz,
+	rc = smb311_posix_query_path_info(xid, tcon, cifs_sb, full_path, &data,
+					  &owner, &group, &adjust_tz,
 					  &symlink);
 
 	/*
@@ -1201,7 +1199,8 @@ smb311_posix_get_inode_info(struct inode **inode,
 
 	switch (rc) {
 	case 0:
-		smb311_posix_info_to_fattr(&fattr, &data, sb, adjust_tz, symlink);
+		smb311_posix_info_to_fattr(&fattr, &data, &owner, &group,
+					   sb, adjust_tz, symlink);
 		break;
 	case -EREMOTE:
 		/* DFS link, no metadata available on this server */

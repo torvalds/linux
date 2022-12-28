@@ -6,6 +6,13 @@
  *
  * 2008-02-13	initial version
  *		eric miao <eric.miao@marvell.com>
+ *
+ * Links to reference manuals for some of the supported PWM chips can be found
+ * in Documentation/arm/marvell.rst.
+ *
+ * Limitations:
+ * - When PWM is stopped, the current PWM period stops abruptly at the next
+ *   input clock (PWMCR_SD is set) and the output is driven to inactive.
  */
 
 #include <linux/module.h>
@@ -64,7 +71,6 @@ static int pxa_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long long c;
 	unsigned long period_cycles, prescale, pv, dc;
 	unsigned long offset;
-	int rc;
 
 	offset = pwm->hwpwm ? 0x10 : 0;
 
@@ -86,56 +92,42 @@ static int pxa_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	else
 		dc = mul_u64_u64_div_u64(pv + 1, duty_ns, period_ns);
 
-	/* NOTE: the clock to PWM has to be enabled first
-	 * before writing to the registers
-	 */
-	rc = clk_prepare_enable(pc->clk);
-	if (rc < 0)
-		return rc;
-
-	writel(prescale, pc->mmio_base + offset + PWMCR);
+	writel(prescale | PWMCR_SD, pc->mmio_base + offset + PWMCR);
 	writel(dc, pc->mmio_base + offset + PWMDCR);
 	writel(pv, pc->mmio_base + offset + PWMPCR);
 
-	clk_disable_unprepare(pc->clk);
 	return 0;
-}
-
-static int pxa_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct pxa_pwm_chip *pc = to_pxa_pwm_chip(chip);
-
-	return clk_prepare_enable(pc->clk);
-}
-
-static void pxa_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct pxa_pwm_chip *pc = to_pxa_pwm_chip(chip);
-
-	clk_disable_unprepare(pc->clk);
 }
 
 static int pxa_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			 const struct pwm_state *state)
 {
+	struct pxa_pwm_chip *pc = to_pxa_pwm_chip(chip);
+	u64 duty_cycle;
 	int err;
 
 	if (state->polarity != PWM_POLARITY_NORMAL)
 		return -EINVAL;
 
-	if (!state->enabled) {
-		if (pwm->state.enabled)
-			pxa_pwm_disable(chip, pwm);
-
-		return 0;
-	}
-
-	err = pxa_pwm_config(chip, pwm, state->duty_cycle, state->period);
+	err = clk_prepare_enable(pc->clk);
 	if (err)
 		return err;
 
-	if (!pwm->state.enabled)
-		return pxa_pwm_enable(chip, pwm);
+	duty_cycle = state->enabled ? state->duty_cycle : 0;
+
+	err = pxa_pwm_config(chip, pwm, duty_cycle, state->period);
+	if (err) {
+		clk_disable_unprepare(pc->clk);
+		return err;
+	}
+
+	if (state->enabled && !pwm->state.enabled)
+		return 0;
+
+	clk_disable_unprepare(pc->clk);
+
+	if (!state->enabled && pwm->state.enabled)
+		clk_disable_unprepare(pc->clk);
 
 	return 0;
 }

@@ -705,6 +705,7 @@ static void p54_set_coverage_class(struct ieee80211_hw *dev,
 
 static const struct ieee80211_ops p54_ops = {
 	.tx			= p54_tx_80211,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.start			= p54_start,
 	.stop			= p54_stop,
 	.add_interface		= p54_add_interface,

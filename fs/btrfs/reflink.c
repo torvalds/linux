@@ -2,13 +2,19 @@
 
 #include <linux/blkdev.h>
 #include <linux/iversion.h>
-#include "compression.h"
 #include "ctree.h"
+#include "fs.h"
+#include "messages.h"
+#include "compression.h"
 #include "delalloc-space.h"
 #include "disk-io.h"
 #include "reflink.h"
 #include "transaction.h"
 #include "subpage.h"
+#include "accessors.h"
+#include "file-item.h"
+#include "file.h"
+#include "super.h"
 
 #define BTRFS_MAX_DEDUPE_LEN	SZ_16M
 
@@ -318,16 +324,16 @@ copy_to_page:
 	goto out;
 }
 
-/**
- * btrfs_clone() - clone a range from inode file to another
+/*
+ * Clone a range from inode file to another.
  *
- * @src: Inode to clone from
- * @inode: Inode to clone to
- * @off: Offset within source to start clone from
- * @olen: Original length, passed by user, of range to clone
- * @olen_aligned: Block-aligned value of olen
- * @destoff: Offset within @inode to start clone
- * @no_time_update: Whether to update mtime/ctime on the target inode
+ * @src:             Inode to clone from
+ * @inode:           Inode to clone to
+ * @off:             Offset within source to start clone from
+ * @olen:            Original length, passed by user, of range to clone
+ * @olen_aligned:    Block-aligned value of olen
+ * @destoff:         Offset within @inode to start clone
+ * @no_time_update:  Whether to update mtime/ctime on the target inode
  */
 static int btrfs_clone(struct inode *src, struct inode *inode,
 		       const u64 off, const u64 olen, const u64 olen_aligned,
@@ -887,7 +893,7 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 		return -EINVAL;
 
 	if (same_inode) {
-		btrfs_inode_lock(src_inode, BTRFS_ILOCK_MMAP);
+		btrfs_inode_lock(BTRFS_I(src_inode), BTRFS_ILOCK_MMAP);
 	} else {
 		lock_two_nondirectories(src_inode, dst_inode);
 		btrfs_double_mmap_lock(src_inode, dst_inode);
@@ -905,7 +911,7 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 
 out_unlock:
 	if (same_inode) {
-		btrfs_inode_unlock(src_inode, BTRFS_ILOCK_MMAP);
+		btrfs_inode_unlock(BTRFS_I(src_inode), BTRFS_ILOCK_MMAP);
 	} else {
 		btrfs_double_mmap_unlock(src_inode, dst_inode);
 		unlock_two_nondirectories(src_inode, dst_inode);

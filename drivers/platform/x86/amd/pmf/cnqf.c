@@ -158,100 +158,100 @@ int amd_pmf_trans_cnqf(struct amd_pmf_dev *dev, int socket_power, ktime_t time_l
 	return 0;
 }
 
-static void amd_pmf_update_trans_data(int idx, struct apmf_dyn_slider_output out)
+static void amd_pmf_update_trans_data(int idx, struct apmf_dyn_slider_output *out)
 {
 	struct cnqf_tran_params *tp;
 
 	tp = &config_store.trans_param[idx][CNQF_TRANSITION_TO_QUIET];
-	tp->time_constant = out.t_balanced_to_quiet;
+	tp->time_constant = out->t_balanced_to_quiet;
 	tp->target_mode = CNQF_MODE_QUIET;
 	tp->shifting_up = false;
 
 	tp = &config_store.trans_param[idx][CNQF_TRANSITION_FROM_BALANCE_TO_PERFORMANCE];
-	tp->time_constant = out.t_balanced_to_perf;
+	tp->time_constant = out->t_balanced_to_perf;
 	tp->target_mode = CNQF_MODE_PERFORMANCE;
 	tp->shifting_up = true;
 
 	tp = &config_store.trans_param[idx][CNQF_TRANSITION_FROM_QUIET_TO_BALANCE];
-	tp->time_constant = out.t_quiet_to_balanced;
+	tp->time_constant = out->t_quiet_to_balanced;
 	tp->target_mode = CNQF_MODE_BALANCE;
 	tp->shifting_up = true;
 
 	tp = &config_store.trans_param[idx][CNQF_TRANSITION_FROM_PERFORMANCE_TO_BALANCE];
-	tp->time_constant = out.t_perf_to_balanced;
+	tp->time_constant = out->t_perf_to_balanced;
 	tp->target_mode = CNQF_MODE_BALANCE;
 	tp->shifting_up = false;
 
 	tp = &config_store.trans_param[idx][CNQF_TRANSITION_FROM_TURBO_TO_PERFORMANCE];
-	tp->time_constant = out.t_turbo_to_perf;
+	tp->time_constant = out->t_turbo_to_perf;
 	tp->target_mode = CNQF_MODE_PERFORMANCE;
 	tp->shifting_up = false;
 
 	tp = &config_store.trans_param[idx][CNQF_TRANSITION_TO_TURBO];
-	tp->time_constant = out.t_perf_to_turbo;
+	tp->time_constant = out->t_perf_to_turbo;
 	tp->target_mode = CNQF_MODE_TURBO;
 	tp->shifting_up = true;
 }
 
-static void amd_pmf_update_mode_set(int idx, struct apmf_dyn_slider_output out)
+static void amd_pmf_update_mode_set(int idx, struct apmf_dyn_slider_output *out)
 {
 	struct cnqf_mode_settings *ms;
 
 	/* Quiet Mode */
 	ms = &config_store.mode_set[idx][CNQF_MODE_QUIET];
-	ms->power_floor = out.ps[APMF_CNQF_QUIET].pfloor;
-	ms->power_control.fppt = out.ps[APMF_CNQF_QUIET].fppt;
-	ms->power_control.sppt = out.ps[APMF_CNQF_QUIET].sppt;
-	ms->power_control.sppt_apu_only = out.ps[APMF_CNQF_QUIET].sppt_apu_only;
-	ms->power_control.spl = out.ps[APMF_CNQF_QUIET].spl;
-	ms->power_control.stt_min = out.ps[APMF_CNQF_QUIET].stt_min_limit;
+	ms->power_floor = out->ps[APMF_CNQF_QUIET].pfloor;
+	ms->power_control.fppt = out->ps[APMF_CNQF_QUIET].fppt;
+	ms->power_control.sppt = out->ps[APMF_CNQF_QUIET].sppt;
+	ms->power_control.sppt_apu_only = out->ps[APMF_CNQF_QUIET].sppt_apu_only;
+	ms->power_control.spl = out->ps[APMF_CNQF_QUIET].spl;
+	ms->power_control.stt_min = out->ps[APMF_CNQF_QUIET].stt_min_limit;
 	ms->power_control.stt_skin_temp[STT_TEMP_APU] =
-		out.ps[APMF_CNQF_QUIET].stt_skintemp[STT_TEMP_APU];
+		out->ps[APMF_CNQF_QUIET].stt_skintemp[STT_TEMP_APU];
 	ms->power_control.stt_skin_temp[STT_TEMP_HS2] =
-		out.ps[APMF_CNQF_QUIET].stt_skintemp[STT_TEMP_HS2];
-	ms->fan_control.fan_id = out.ps[APMF_CNQF_QUIET].fan_id;
+		out->ps[APMF_CNQF_QUIET].stt_skintemp[STT_TEMP_HS2];
+	ms->fan_control.fan_id = out->ps[APMF_CNQF_QUIET].fan_id;
 
 	/* Balance Mode */
 	ms = &config_store.mode_set[idx][CNQF_MODE_BALANCE];
-	ms->power_floor = out.ps[APMF_CNQF_BALANCE].pfloor;
-	ms->power_control.fppt = out.ps[APMF_CNQF_BALANCE].fppt;
-	ms->power_control.sppt = out.ps[APMF_CNQF_BALANCE].sppt;
-	ms->power_control.sppt_apu_only = out.ps[APMF_CNQF_BALANCE].sppt_apu_only;
-	ms->power_control.spl = out.ps[APMF_CNQF_BALANCE].spl;
-	ms->power_control.stt_min = out.ps[APMF_CNQF_BALANCE].stt_min_limit;
+	ms->power_floor = out->ps[APMF_CNQF_BALANCE].pfloor;
+	ms->power_control.fppt = out->ps[APMF_CNQF_BALANCE].fppt;
+	ms->power_control.sppt = out->ps[APMF_CNQF_BALANCE].sppt;
+	ms->power_control.sppt_apu_only = out->ps[APMF_CNQF_BALANCE].sppt_apu_only;
+	ms->power_control.spl = out->ps[APMF_CNQF_BALANCE].spl;
+	ms->power_control.stt_min = out->ps[APMF_CNQF_BALANCE].stt_min_limit;
 	ms->power_control.stt_skin_temp[STT_TEMP_APU] =
-		out.ps[APMF_CNQF_BALANCE].stt_skintemp[STT_TEMP_APU];
+		out->ps[APMF_CNQF_BALANCE].stt_skintemp[STT_TEMP_APU];
 	ms->power_control.stt_skin_temp[STT_TEMP_HS2] =
-		out.ps[APMF_CNQF_BALANCE].stt_skintemp[STT_TEMP_HS2];
-	ms->fan_control.fan_id = out.ps[APMF_CNQF_BALANCE].fan_id;
+		out->ps[APMF_CNQF_BALANCE].stt_skintemp[STT_TEMP_HS2];
+	ms->fan_control.fan_id = out->ps[APMF_CNQF_BALANCE].fan_id;
 
 	/* Performance Mode */
 	ms = &config_store.mode_set[idx][CNQF_MODE_PERFORMANCE];
-	ms->power_floor = out.ps[APMF_CNQF_PERFORMANCE].pfloor;
-	ms->power_control.fppt = out.ps[APMF_CNQF_PERFORMANCE].fppt;
-	ms->power_control.sppt = out.ps[APMF_CNQF_PERFORMANCE].sppt;
-	ms->power_control.sppt_apu_only = out.ps[APMF_CNQF_PERFORMANCE].sppt_apu_only;
-	ms->power_control.spl = out.ps[APMF_CNQF_PERFORMANCE].spl;
-	ms->power_control.stt_min = out.ps[APMF_CNQF_PERFORMANCE].stt_min_limit;
+	ms->power_floor = out->ps[APMF_CNQF_PERFORMANCE].pfloor;
+	ms->power_control.fppt = out->ps[APMF_CNQF_PERFORMANCE].fppt;
+	ms->power_control.sppt = out->ps[APMF_CNQF_PERFORMANCE].sppt;
+	ms->power_control.sppt_apu_only = out->ps[APMF_CNQF_PERFORMANCE].sppt_apu_only;
+	ms->power_control.spl = out->ps[APMF_CNQF_PERFORMANCE].spl;
+	ms->power_control.stt_min = out->ps[APMF_CNQF_PERFORMANCE].stt_min_limit;
 	ms->power_control.stt_skin_temp[STT_TEMP_APU] =
-		out.ps[APMF_CNQF_PERFORMANCE].stt_skintemp[STT_TEMP_APU];
+		out->ps[APMF_CNQF_PERFORMANCE].stt_skintemp[STT_TEMP_APU];
 	ms->power_control.stt_skin_temp[STT_TEMP_HS2] =
-		out.ps[APMF_CNQF_PERFORMANCE].stt_skintemp[STT_TEMP_HS2];
-	ms->fan_control.fan_id = out.ps[APMF_CNQF_PERFORMANCE].fan_id;
+		out->ps[APMF_CNQF_PERFORMANCE].stt_skintemp[STT_TEMP_HS2];
+	ms->fan_control.fan_id = out->ps[APMF_CNQF_PERFORMANCE].fan_id;
 
 	/* Turbo Mode */
 	ms = &config_store.mode_set[idx][CNQF_MODE_TURBO];
-	ms->power_floor = out.ps[APMF_CNQF_TURBO].pfloor;
-	ms->power_control.fppt = out.ps[APMF_CNQF_TURBO].fppt;
-	ms->power_control.sppt = out.ps[APMF_CNQF_TURBO].sppt;
-	ms->power_control.sppt_apu_only = out.ps[APMF_CNQF_TURBO].sppt_apu_only;
-	ms->power_control.spl = out.ps[APMF_CNQF_TURBO].spl;
-	ms->power_control.stt_min = out.ps[APMF_CNQF_TURBO].stt_min_limit;
+	ms->power_floor = out->ps[APMF_CNQF_TURBO].pfloor;
+	ms->power_control.fppt = out->ps[APMF_CNQF_TURBO].fppt;
+	ms->power_control.sppt = out->ps[APMF_CNQF_TURBO].sppt;
+	ms->power_control.sppt_apu_only = out->ps[APMF_CNQF_TURBO].sppt_apu_only;
+	ms->power_control.spl = out->ps[APMF_CNQF_TURBO].spl;
+	ms->power_control.stt_min = out->ps[APMF_CNQF_TURBO].stt_min_limit;
 	ms->power_control.stt_skin_temp[STT_TEMP_APU] =
-		out.ps[APMF_CNQF_TURBO].stt_skintemp[STT_TEMP_APU];
+		out->ps[APMF_CNQF_TURBO].stt_skintemp[STT_TEMP_APU];
 	ms->power_control.stt_skin_temp[STT_TEMP_HS2] =
-		out.ps[APMF_CNQF_TURBO].stt_skintemp[STT_TEMP_HS2];
-	ms->fan_control.fan_id = out.ps[APMF_CNQF_TURBO].fan_id;
+		out->ps[APMF_CNQF_TURBO].stt_skintemp[STT_TEMP_HS2];
+	ms->fan_control.fan_id = out->ps[APMF_CNQF_TURBO].fan_id;
 }
 
 static int amd_pmf_check_flags(struct amd_pmf_dev *dev)
@@ -284,8 +284,8 @@ static int amd_pmf_load_defaults_cnqf(struct amd_pmf_dev *dev)
 			return ret;
 		}
 
-		amd_pmf_update_mode_set(i, out);
-		amd_pmf_update_trans_data(i, out);
+		amd_pmf_update_mode_set(i, &out);
+		amd_pmf_update_trans_data(i, &out);
 		amd_pmf_update_power_threshold(i);
 
 		for (j = 0; j < CNQF_MODE_MAX; j++) {

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/gpio-keys.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Device-Tree bindings for GPIO attached keys
+title: GPIO attached keys
 
 maintainers:
   - Rob Herring <robh@kernel.org>

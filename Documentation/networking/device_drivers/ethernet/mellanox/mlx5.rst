@@ -25,7 +25,7 @@ Enabling the driver and kconfig options
 | at build time via kernel Kconfig flags.
 | Basic features, ethernet net device rx/tx offloads and XDP, are available with the most basic flags
 | CONFIG_MLX5_CORE=y/m and CONFIG_MLX5_CORE_EN=y.
-| For the list of advanced features please see below.
+| For the list of advanced features, please see below.
 
 **CONFIG_MLX5_CORE=(y/m/n)** (module mlx5_core.ko)
 
@@ -89,11 +89,11 @@ Enabling the driver and kconfig options
 
 **CONFIG_MLX5_EN_IPSEC=(y/n)**
 
-|    Enables `IPSec XFRM cryptography-offload accelaration <http://www.mellanox.com/related-docs/prod_software/Mellanox_Innova_IPsec_Ethernet_Adapter_Card_User_Manual.pdf>`_.
+|    Enables `IPSec XFRM cryptography-offload acceleration <http://www.mellanox.com/related-docs/prod_software/Mellanox_Innova_IPsec_Ethernet_Adapter_Card_User_Manual.pdf>`_.
 
 **CONFIG_MLX5_EN_TLS=(y/n)**
 
-|   TLS cryptography-offload accelaration.
+|   TLS cryptography-offload acceleration.
 
 
 **CONFIG_MLX5_INFINIBAND=(y/n/m)** (module mlx5_ib.ko)
@@ -139,14 +139,14 @@ flow_steering_mode: Device flow steering mode
 The flow steering mode parameter controls the flow steering mode of the driver.
 Two modes are supported:
 1. 'dmfs' - Device managed flow steering.
-2. 'smfs  - Software/Driver managed flow steering.
+2. 'smfs' - Software/Driver managed flow steering.
 
 In DMFS mode, the HW steering entities are created and managed through the
 Firmware.
 In SMFS mode, the HW steering entities are created and managed though by
-the driver directly into Hardware without firmware intervention.
+the driver directly into hardware without firmware intervention.
 
-SMFS mode is faster and provides better rule inserstion rate compared to default DMFS mode.
+SMFS mode is faster and provides better rule insertion rate compared to default DMFS mode.
 
 User command examples:
 
@@ -165,9 +165,9 @@ User command examples:
 enable_roce: RoCE enablement state
 ----------------------------------
 RoCE enablement state controls driver support for RoCE traffic.
-When RoCE is disabled, there is no gid table, only raw ethernet QPs are supported and traffic on the well known UDP RoCE port is handled as raw ethernet traffic.
+When RoCE is disabled, there is no gid table, only raw ethernet QPs are supported and traffic on the well-known UDP RoCE port is handled as raw ethernet traffic.
 
-To change RoCE enablement state a user must change the driverinit cmode value and run devlink reload.
+To change RoCE enablement state, a user must change the driverinit cmode value and run devlink reload.
 
 User command examples:
 
@@ -186,7 +186,7 @@ User command examples:
 
 esw_port_metadata: Eswitch port metadata state
 ----------------------------------------------
-When applicable, disabling Eswitch metadata can increase packet rate
+When applicable, disabling eswitch metadata can increase packet rate
 up to 20% depending on the use case and packet sizes.
 
 Eswitch port metadata state controls whether to internally tag packets with
@@ -253,26 +253,26 @@ mlx5 subfunction
 ================
 mlx5 supports subfunction management using devlink port (see :ref:`Documentation/networking/devlink/devlink-port.rst <devlink_port>`) interface.
 
-A Subfunction has its own function capabilities and its own resources. This
+A subfunction has its own function capabilities and its own resources. This
 means a subfunction has its own dedicated queues (txq, rxq, cq, eq). These
 queues are neither shared nor stolen from the parent PCI function.
 
-When a subfunction is RDMA capable, it has its own QP1, GID table and rdma
+When a subfunction is RDMA capable, it has its own QP1, GID table, and RDMA
 resources neither shared nor stolen from the parent PCI function.
 
 A subfunction has a dedicated window in PCI BAR space that is not shared
-with ther other subfunctions or the parent PCI function. This ensures that all
-devices (netdev, rdma, vdpa etc.) of the subfunction accesses only assigned
+with the other subfunctions or the parent PCI function. This ensures that all
+devices (netdev, rdma, vdpa, etc.) of the subfunction accesses only assigned
 PCI BAR space.
 
-A Subfunction supports eswitch representation through which it supports tc
+A subfunction supports eswitch representation through which it supports tc
 offloads. The user configures eswitch to send/receive packets from/to
 the subfunction port.
 
 Subfunctions share PCI level resources such as PCI MSI-X IRQs with
 other subfunctions and/or with its parent PCI function.
 
-Example mlx5 software, system and device view::
+Example mlx5 software, system, and device view::
 
        _______
       | admin |
@@ -310,7 +310,7 @@ Example mlx5 software, system and device view::
            |                                      (device add/del)
       _____|____                                    ____|________
      |          |                                  | subfunction |
-     |  PCI NIC |---- activate/deactive events---->| host driver |
+     |  PCI NIC |--- activate/deactivate events--->| host driver |
      |__________|                                  | (mlx5_core) |
                                                    |_____________|
 
@@ -320,7 +320,7 @@ Subfunction is created using devlink port interface.
 
     $ devlink dev eswitch set pci/0000:06:00.0 mode switchdev
 
-- Add a devlink port of subfunction flaovur::
+- Add a devlink port of subfunction flavour::
 
     $ devlink port add pci/0000:06:00.0 flavour pcisf pfnum 0 sfnum 88
     pci/0000:06:00.0/32768: type eth netdev eth6 flavour pcisf controller 0 pfnum 0 sfnum 88 external false splittable false
@@ -351,46 +351,30 @@ driver.
 
 MAC address setup
 -----------------
-mlx5 driver provides mechanism to setup the MAC address of the PCI VF/SF.
+mlx5 driver support devlink port function attr mechanism to setup MAC
+address. (refer to Documentation/networking/devlink/devlink-port.rst)
 
-The configured MAC address of the PCI VF/SF will be used by netdevice and rdma
-device created for the PCI VF/SF.
+RoCE capability setup
+---------------------
+Not all mlx5 PCI devices/SFs require RoCE capability.
 
-- Get the MAC address of the VF identified by its unique devlink port index::
+When RoCE capability is disabled, it saves 1 Mbytes worth of system memory per
+PCI devices/SF.
 
-    $ devlink port show pci/0000:06:00.0/2
-    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
-      function:
-        hw_addr 00:00:00:00:00:00
+mlx5 driver support devlink port function attr mechanism to setup RoCE
+capability. (refer to Documentation/networking/devlink/devlink-port.rst)
 
-- Set the MAC address of the VF identified by its unique devlink port index::
+migratable capability setup
+---------------------------
+User who wants mlx5 PCI VFs to be able to perform live migration need to
+explicitly enable the VF migratable capability.
 
-    $ devlink port function set pci/0000:06:00.0/2 hw_addr 00:11:22:33:44:55
-
-    $ devlink port show pci/0000:06:00.0/2
-    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
-      function:
-        hw_addr 00:11:22:33:44:55
-
-- Get the MAC address of the SF identified by its unique devlink port index::
-
-    $ devlink port show pci/0000:06:00.0/32768
-    pci/0000:06:00.0/32768: type eth netdev enp6s0pf0sf88 flavour pcisf pfnum 0 sfnum 88
-      function:
-        hw_addr 00:00:00:00:00:00
-
-- Set the MAC address of the VF identified by its unique devlink port index::
-
-    $ devlink port function set pci/0000:06:00.0/32768 hw_addr 00:00:00:00:88:88
-
-    $ devlink port show pci/0000:06:00.0/32768
-    pci/0000:06:00.0/32768: type eth netdev enp6s0pf0sf88 flavour pcivf pfnum 0 sfnum 88
-      function:
-        hw_addr 00:00:00:00:88:88
+mlx5 driver support devlink port function attr mechanism to setup migratable
+capability. (refer to Documentation/networking/devlink/devlink-port.rst)
 
 SF state setup
 --------------
-To use the SF, the user must active the SF using the SF function state
+To use the SF, the user must activate the SF using the SF function state
 attribute.
 
 - Get the state of the SF identified by its unique devlink port index::
@@ -447,7 +431,7 @@ for it.
 
 Additionally, the SF port also gets the event when the driver attaches to the
 auxiliary device of the subfunction. This results in changing the operational
-state of the function. This provides visiblity to the user to decide when is it
+state of the function. This provides visibility to the user to decide when is it
 safe to delete the SF port for graceful termination of the subfunction.
 
 - Show the SF port operational state::
@@ -464,14 +448,14 @@ tx reporter
 -----------
 The tx reporter is responsible for reporting and recovering of the following two error scenarios:
 
-- TX timeout
+- tx timeout
     Report on kernel tx timeout detection.
     Recover by searching lost interrupts.
-- TX error completion
+- tx error completion
     Report on error tx completion.
-    Recover by flushing the TX queue and reset it.
+    Recover by flushing the tx queue and reset it.
 
-TX reporter also support on demand diagnose callback, on which it provides
+tx reporter also support on demand diagnose callback, on which it provides
 real time information of its send queues status.
 
 User commands examples:
@@ -491,32 +475,32 @@ rx reporter
 -----------
 The rx reporter is responsible for reporting and recovering of the following two error scenarios:
 
-- RX queues initialization (population) timeout
-    RX queues descriptors population on ring initialization is done in
-    napi context via triggering an irq, in case of a failure to get
-    the minimum amount of descriptors, a timeout would occur and it
-    could be recoverable by polling the EQ (Event Queue).
-- RX completions with errors (reported by HW on interrupt context)
+- rx queues' initialization (population) timeout
+    Population of rx queues' descriptors on ring initialization is done
+    in napi context via triggering an irq. In case of a failure to get
+    the minimum amount of descriptors, a timeout would occur, and
+    descriptors could be recovered by polling the EQ (Event Queue).
+- rx completions with errors (reported by HW on interrupt context)
     Report on rx completion error.
     Recover (if needed) by flushing the related queue and reset it.
 
-RX reporter also supports on demand diagnose callback, on which it
-provides real time information of its receive queues status.
+rx reporter also supports on demand diagnose callback, on which it
+provides real time information of its receive queues' status.
 
-- Diagnose rx queues status, and corresponding completion queue::
+- Diagnose rx queues' status and corresponding completion queue::
 
     $ devlink health diagnose pci/0000:82:00.0 reporter rx
 
-NOTE: This command has valid output only when interface is up, otherwise the command has empty output.
+NOTE: This command has valid output only when interface is up. Otherwise, the command has empty output.
 
 - Show number of rx errors indicated, number of recover flows ended successfully,
-  is autorecover enabled and graceful period from last recover::
+  is autorecover enabled, and graceful period from last recover::
 
     $ devlink health show pci/0000:82:00.0 reporter rx
 
 fw reporter
 -----------
-The fw reporter implements diagnose and dump callbacks.
+The fw reporter implements `diagnose` and `dump` callbacks.
 It follows symptoms of fw error such as fw syndrome by triggering
 fw core dump and storing it into the dump buffer.
 The fw reporter diagnose command can be triggered any time by the user to check
@@ -537,7 +521,7 @@ running it on other PF or any VF will return "Operation not permitted".
 
 fw fatal reporter
 -----------------
-The fw fatal reporter implements dump and recover callbacks.
+The fw fatal reporter implements `dump` and `recover` callbacks.
 It follows fatal errors indications by CR-space dump and recover flow.
 The CR-space dump uses vsc interface which is valid even if the FW command
 interface is not functional, which is the case in most FW fatal errors.
@@ -552,7 +536,7 @@ User commands examples:
 
     $ devlink health recover pci/0000:82:00.0 reporter fw_fatal
 
-- Read FW CR-space dump if already strored or trigger new one::
+- Read FW CR-space dump if already stored or trigger new one::
 
     $ devlink health dump show pci/0000:82:00.1 reporter fw_fatal
 
@@ -561,10 +545,10 @@ NOTE: This command can run only on PF.
 mlx5 tracepoints
 ================
 
-mlx5 driver provides internal trace points for tracking and debugging using
+mlx5 driver provides internal tracepoints for tracking and debugging using
 kernel tracepoints interfaces (refer to Documentation/trace/ftrace.rst).
 
-For the list of support mlx5 events check /sys/kernel/debug/tracing/events/mlx5/
+For the list of support mlx5 events, check `/sys/kernel/debug/tracing/events/mlx5/`.
 
 tc and eswitch offloads tracepoints:
 

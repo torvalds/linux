@@ -7,6 +7,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/kstrtox.h>
 #include <linux/workqueue.h>
 #include <linux/greybus.h>
 
@@ -83,7 +84,7 @@ static ssize_t watchdog_store(struct device *dev,
 	int retval;
 	bool user_request;
 
-	retval = strtobool(buf, &user_request);
+	retval = kstrtobool(buf, &user_request);
 	if (retval)
 		return retval;
 

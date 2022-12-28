@@ -34,6 +34,9 @@ static const struct sof_dev_desc mtl_desc = {
 	.default_fw_path = {
 		[SOF_INTEL_IPC4] = "intel/sof-ipc4/mtl",
 	},
+	.default_lib_path = {
+		[SOF_INTEL_IPC4] = "intel/sof-ipc4-lib/mtl",
+	},
 	.default_tplg_path = {
 		[SOF_INTEL_IPC4] = "intel/sof-ace-tplg",
 	},

@@ -481,6 +481,20 @@ int ionic_dev_cmd_vf_getattr(struct ionic *ionic, int vf, u8 attr,
 	return err;
 }
 
+void ionic_vf_start(struct ionic *ionic)
+{
+	union ionic_dev_cmd cmd = {
+		.vf_ctrl.opcode = IONIC_CMD_VF_CTRL,
+		.vf_ctrl.ctrl_opcode = IONIC_VF_CTRL_START_ALL,
+	};
+
+	if (!(ionic->ident.dev.capabilities & cpu_to_le64(IONIC_DEV_CAP_VF_CTRL)))
+		return;
+
+	ionic_dev_cmd_go(&ionic->idev, &cmd);
+	ionic_dev_cmd_wait(ionic, DEVCMD_TIMEOUT);
+}
+
 /* LIF commands */
 void ionic_dev_cmd_queue_identify(struct ionic_dev *idev,
 				  u16 lif_type, u8 qtype, u8 qver)

@@ -74,7 +74,6 @@
 
 struct minstrel_priv {
 	struct ieee80211_hw *hw;
-	bool has_mrr;
 	unsigned int cw_min;
 	unsigned int cw_max;
 	unsigned int max_retry;

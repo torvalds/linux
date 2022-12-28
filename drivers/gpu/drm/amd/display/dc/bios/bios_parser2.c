@@ -462,6 +462,7 @@ static enum bp_result get_gpio_i2c_info(
 	uint32_t count = 0;
 	unsigned int table_index = 0;
 	bool find_valid = false;
+	struct atom_gpio_pin_assignment *pin;
 
 	if (!info)
 		return BP_RESULT_BADINPUT;
@@ -489,20 +490,17 @@ static enum bp_result get_gpio_i2c_info(
 			- sizeof(struct atom_common_table_header))
 				/ sizeof(struct atom_gpio_pin_assignment);
 
+	pin = (struct atom_gpio_pin_assignment *) header->gpio_pin;
+
 	for (table_index = 0; table_index < count; table_index++) {
-		if (((record->i2c_id & I2C_HW_CAP) == (
-		header->gpio_pin[table_index].gpio_id &
-						I2C_HW_CAP)) &&
-		((record->i2c_id & I2C_HW_ENGINE_ID_MASK)  ==
-		(header->gpio_pin[table_index].gpio_id &
-					I2C_HW_ENGINE_ID_MASK)) &&
-		((record->i2c_id & I2C_HW_LANE_MUX) ==
-		(header->gpio_pin[table_index].gpio_id &
-						I2C_HW_LANE_MUX))) {
+		if (((record->i2c_id & I2C_HW_CAP) 				== (pin->gpio_id & I2C_HW_CAP)) &&
+		    ((record->i2c_id & I2C_HW_ENGINE_ID_MASK)	== (pin->gpio_id & I2C_HW_ENGINE_ID_MASK)) &&
+		    ((record->i2c_id & I2C_HW_LANE_MUX) 		== (pin->gpio_id & I2C_HW_LANE_MUX))) {
 			/* still valid */
 			find_valid = true;
 			break;
 		}
+		pin = (struct atom_gpio_pin_assignment *)((uint8_t *)pin + sizeof(struct atom_gpio_pin_assignment));
 	}
 
 	/* If we don't find the entry that we are looking for then
@@ -2393,6 +2391,26 @@ static enum bp_result get_vram_info_v25(
 	return result;
 }
 
+static enum bp_result get_vram_info_v30(
+	struct bios_parser *bp,
+	struct dc_vram_info *info)
+{
+	struct atom_vram_info_header_v3_0 *info_v30;
+	enum bp_result result = BP_RESULT_OK;
+
+	info_v30 = GET_IMAGE(struct atom_vram_info_header_v3_0,
+						DATA_TABLES(vram_info));
+
+	if (info_v30 == NULL)
+		return BP_RESULT_BADBIOSTABLE;
+
+	info->num_chans = info_v30->channel_num;
+	info->dram_channel_width_bytes = (1 << info_v30->channel_width) / 8;
+
+	return result;
+}
+
+
 /*
  * get_integrated_info_v11
  *
@@ -3054,6 +3072,16 @@ static enum bp_result bios_parser_get_vram_info(
 				break;
 			case 5:
 				result = get_vram_info_v25(bp, info);
+				break;
+			default:
+				break;
+			}
+			break;
+
+		case 3:
+			switch (revision.minor) {
+			case 0:
+				result = get_vram_info_v30(bp, info);
 				break;
 			default:
 				break;

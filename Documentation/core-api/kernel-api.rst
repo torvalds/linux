@@ -36,6 +36,9 @@ String Conversions
 String Manipulation
 -------------------
 
+.. kernel-doc:: include/linux/fortify-string.h
+   :internal:
+
 .. kernel-doc:: lib/string.c
    :export:
 
@@ -170,9 +173,6 @@ Division Functions
 
 .. kernel-doc:: include/linux/math64.h
    :internal:
-
-.. kernel-doc:: lib/math/div64.c
-   :functions: div_s64_rem div64_u64_rem div64_u64 div64_s64
 
 .. kernel-doc:: lib/math/gcd.c
    :export:

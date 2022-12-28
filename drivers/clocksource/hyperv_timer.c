@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/acpi.h>
+#include <linux/hyperv.h>
 #include <clocksource/hyperv_timer.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
@@ -366,9 +367,18 @@ static union {
 	u8 reserved[PAGE_SIZE];
 } tsc_pg __aligned(PAGE_SIZE);
 
+static struct ms_hyperv_tsc_page *tsc_page = &tsc_pg.page;
+static unsigned long tsc_pfn;
+
+unsigned long hv_get_tsc_pfn(void)
+{
+	return tsc_pfn;
+}
+EXPORT_SYMBOL_GPL(hv_get_tsc_pfn);
+
 struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 {
-	return &tsc_pg.page;
+	return tsc_page;
 }
 EXPORT_SYMBOL_GPL(hv_get_tsc_page);
 
@@ -395,25 +405,24 @@ static u64 notrace read_hv_sched_clock_tsc(void)
 
 static void suspend_hv_clock_tsc(struct clocksource *arg)
 {
-	u64 tsc_msr;
+	union hv_reference_tsc_msr tsc_msr;
 
 	/* Disable the TSC page */
-	tsc_msr = hv_get_register(HV_REGISTER_REFERENCE_TSC);
-	tsc_msr &= ~BIT_ULL(0);
-	hv_set_register(HV_REGISTER_REFERENCE_TSC, tsc_msr);
+	tsc_msr.as_uint64 = hv_get_register(HV_REGISTER_REFERENCE_TSC);
+	tsc_msr.enable = 0;
+	hv_set_register(HV_REGISTER_REFERENCE_TSC, tsc_msr.as_uint64);
 }
 
 
 static void resume_hv_clock_tsc(struct clocksource *arg)
 {
-	phys_addr_t phys_addr = virt_to_phys(&tsc_pg);
-	u64 tsc_msr;
+	union hv_reference_tsc_msr tsc_msr;
 
 	/* Re-enable the TSC page */
-	tsc_msr = hv_get_register(HV_REGISTER_REFERENCE_TSC);
-	tsc_msr &= GENMASK_ULL(11, 0);
-	tsc_msr |= BIT_ULL(0) | (u64)phys_addr;
-	hv_set_register(HV_REGISTER_REFERENCE_TSC, tsc_msr);
+	tsc_msr.as_uint64 = hv_get_register(HV_REGISTER_REFERENCE_TSC);
+	tsc_msr.enable = 1;
+	tsc_msr.pfn = tsc_pfn;
+	hv_set_register(HV_REGISTER_REFERENCE_TSC, tsc_msr.as_uint64);
 }
 
 #ifdef HAVE_VDSO_CLOCKMODE_HVCLOCK
@@ -495,13 +504,9 @@ static __always_inline void hv_setup_sched_clock(void *sched_clock) {}
 
 static bool __init hv_init_tsc_clocksource(void)
 {
-	u64		tsc_msr;
-	phys_addr_t	phys_addr;
+	union hv_reference_tsc_msr tsc_msr;
 
 	if (!(ms_hyperv.features & HV_MSR_REFERENCE_TSC_AVAILABLE))
-		return false;
-
-	if (hv_root_partition)
 		return false;
 
 	/*
@@ -521,19 +526,31 @@ static bool __init hv_init_tsc_clocksource(void)
 	}
 
 	hv_read_reference_counter = read_hv_clock_tsc;
-	phys_addr = virt_to_phys(hv_get_tsc_page());
 
 	/*
-	 * The Hyper-V TLFS specifies to preserve the value of reserved
-	 * bits in registers. So read the existing value, preserve the
-	 * low order 12 bits, and add in the guest physical address
-	 * (which already has at least the low 12 bits set to zero since
-	 * it is page aligned). Also set the "enable" bit, which is bit 0.
+	 * TSC page mapping works differently in root compared to guest.
+	 * - In guest partition the guest PFN has to be passed to the
+	 *   hypervisor.
+	 * - In root partition it's other way around: it has to map the PFN
+	 *   provided by the hypervisor.
+	 *   But it can't be mapped right here as it's too early and MMU isn't
+	 *   ready yet. So, we only set the enable bit here and will remap the
+	 *   page later in hv_remap_tsc_clocksource().
+	 *
+	 * It worth mentioning, that TSC clocksource read function
+	 * (read_hv_clock_tsc) has a MSR-based fallback mechanism, used when
+	 * TSC page is zeroed (which is the case until the PFN is remapped) and
+	 * thus TSC clocksource will work even without the real TSC page
+	 * mapped.
 	 */
-	tsc_msr = hv_get_register(HV_REGISTER_REFERENCE_TSC);
-	tsc_msr &= GENMASK_ULL(11, 0);
-	tsc_msr = tsc_msr | 0x1 | (u64)phys_addr;
-	hv_set_register(HV_REGISTER_REFERENCE_TSC, tsc_msr);
+	tsc_msr.as_uint64 = hv_get_register(HV_REGISTER_REFERENCE_TSC);
+	if (hv_root_partition)
+		tsc_pfn = tsc_msr.pfn;
+	else
+		tsc_pfn = HVPFN_DOWN(virt_to_phys(tsc_page));
+	tsc_msr.enable = 1;
+	tsc_msr.pfn = tsc_pfn;
+	hv_set_register(HV_REGISTER_REFERENCE_TSC, tsc_msr.as_uint64);
 
 	clocksource_register_hz(&hyperv_cs_tsc, NSEC_PER_SEC/100);
 
@@ -564,4 +581,21 @@ void __init hv_init_clocksource(void)
 
 	hv_sched_clock_offset = hv_read_reference_counter();
 	hv_setup_sched_clock(read_hv_sched_clock_msr);
+}
+
+void __init hv_remap_tsc_clocksource(void)
+{
+	if (!(ms_hyperv.features & HV_MSR_REFERENCE_TSC_AVAILABLE))
+		return;
+
+	if (!hv_root_partition) {
+		WARN(1, "%s: attempt to remap TSC page in guest partition\n",
+		     __func__);
+		return;
+	}
+
+	tsc_page = memremap(tsc_pfn << HV_HYP_PAGE_SHIFT, sizeof(tsc_pg),
+			    MEMREMAP_WB);
+	if (!tsc_page)
+		pr_err("Failed to remap Hyper-V TSC page.\n");
 }

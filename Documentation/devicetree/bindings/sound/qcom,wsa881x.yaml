@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/qcom,wsa881x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for Qualcomm WSA8810/WSA8815 Class-D Smart Speaker Amplifier
+title: Qualcomm WSA8810/WSA8815 Class-D Smart Speaker Amplifier
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>

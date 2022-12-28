@@ -209,8 +209,6 @@ static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 	__skb_pull(skb, hdr_len);
 	memmove(ipv6_hdr(skb), iph, hdr_len);
 
-	x->lastused = ktime_get_real_seconds();
-
 	return 0;
 #else
 	WARN_ON_ONCE(1);
@@ -494,7 +492,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 	struct xfrm_state *x = dst->xfrm;
 	struct net *net = xs_net(x);
 
-	if (err <= 0)
+	if (err <= 0 || x->xso.type == XFRM_DEV_OFFLOAD_PACKET)
 		goto resume;
 
 	do {
@@ -534,6 +532,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 
 		x->curlft.bytes += skb->len;
 		x->curlft.packets++;
+		x->lastused = ktime_get_real_seconds();
 
 		spin_unlock_bh(&x->lock);
 
@@ -716,6 +715,16 @@ int xfrm_output(struct sock *sk, struct sk_buff *skb)
 
 		IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
 		break;
+	}
+
+	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
+		if (!xfrm_dev_offload_ok(skb, x)) {
+			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
+			kfree_skb(skb);
+			return -EHOSTUNREACH;
+		}
+
+		return xfrm_output_resume(sk, skb, 0);
 	}
 
 	secpath_reset(skb);

@@ -1005,10 +1005,8 @@ unlock:
 	return retv;
 
 e_inval:
-	sockopt_release_sock(sk);
-	if (needs_rtnl)
-		rtnl_unlock();
-	return -EINVAL;
+	retv = -EINVAL;
+	goto unlock;
 }
 
 int ipv6_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,

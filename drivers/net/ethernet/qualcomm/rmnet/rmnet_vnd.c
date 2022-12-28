@@ -135,9 +135,9 @@ static void rmnet_get_stats64(struct net_device *dev,
 		pcpu_ptr = per_cpu_ptr(priv->pcpu_stats, cpu);
 
 		do {
-			start = u64_stats_fetch_begin_irq(&pcpu_ptr->syncp);
+			start = u64_stats_fetch_begin(&pcpu_ptr->syncp);
 			snapshot = pcpu_ptr->stats;	/* struct assignment */
-		} while (u64_stats_fetch_retry_irq(&pcpu_ptr->syncp, start));
+		} while (u64_stats_fetch_retry(&pcpu_ptr->syncp, start));
 
 		total_stats.rx_pkts += snapshot.rx_pkts;
 		total_stats.rx_bytes += snapshot.rx_bytes;

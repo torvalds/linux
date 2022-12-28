@@ -895,7 +895,7 @@ static int hidpp_root_get_protocol_version(struct hidpp_device *hidpp)
 	ret = hidpp_send_rap_command_sync(hidpp,
 			REPORT_ID_HIDPP_SHORT,
 			HIDPP_PAGE_ROOT_IDX,
-			CMD_ROOT_GET_PROTOCOL_VERSION,
+			CMD_ROOT_GET_PROTOCOL_VERSION | LINUX_KERNEL_SW_ID,
 			ping_data, sizeof(ping_data), &response);
 
 	if (ret == HIDPP_ERROR_INVALID_SUBID) {
@@ -2548,11 +2548,16 @@ static int hidpp_ff_init(struct hidpp_device *hidpp,
 	struct hid_device *hid = hidpp->hid_dev;
 	struct hid_input *hidinput;
 	struct input_dev *dev;
-	const struct usb_device_descriptor *udesc = &(hid_to_usb_dev(hid)->descriptor);
-	const u16 bcdDevice = le16_to_cpu(udesc->bcdDevice);
+	struct usb_device_descriptor *udesc;
+	u16 bcdDevice;
 	struct ff_device *ff;
 	int error, j, num_slots = data->num_effects;
 	u8 version;
+
+	if (!hid_is_usb(hid)) {
+		hid_err(hid, "device is not USB\n");
+		return -ENODEV;
+	}
 
 	if (list_empty(&hid->inputs)) {
 		hid_err(hid, "no inputs found\n");
@@ -2567,6 +2572,8 @@ static int hidpp_ff_init(struct hidpp_device *hidpp,
 	}
 
 	/* Get firmware release */
+	udesc = &(hid_to_usb_dev(hid)->descriptor);
+	bcdDevice = le16_to_cpu(udesc->bcdDevice);
 	version = bcdDevice & 255;
 
 	/* Set supported force feedback capabilities */
@@ -4269,21 +4276,6 @@ static void hidpp_remove(struct hid_device *hdev)
 	mutex_destroy(&hidpp->send_mutex);
 }
 
-static const struct hid_device_id unhandled_hidpp_devices[] = {
-	/* Logitech Harmony Adapter for PS3, handled in hid-sony */
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_HARMONY_PS3) },
-	/* Handled in hid-generic */
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_DINOVO_EDGE_KBD) },
-	{}
-};
-
-static bool hidpp_match(struct hid_device *hdev,
-			bool ignore_special_driver)
-{
-	/* Refuse to handle devices handled by other HID drivers */
-	return !hid_match_id(hdev, unhandled_hidpp_devices);
-}
-
 #define LDJ_DEVICE(product) \
 	HID_DEVICE(BUS_USB, HID_GROUP_LOGITECH_DJ_DEVICE, \
 		   USB_VENDOR_ID_LOGITECH, (product))
@@ -4367,9 +4359,15 @@ static const struct hid_device_id hidpp_devices[] = {
 	{ /* MX5500 keyboard over Bluetooth */
 	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb30b),
 	  .driver_data = HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS },
-
-	{ /* And try to enable HID++ for all the Logitech Bluetooth devices */
-	  HID_DEVICE(BUS_BLUETOOTH, HID_GROUP_ANY, USB_VENDOR_ID_LOGITECH, HID_ANY_ID) },
+	{ /* M-RCQ142 V470 Cordless Laser Mouse over Bluetooth */
+	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb008) },
+	{ /* MX Master mouse over Bluetooth */
+	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb012) },
+	{ /* MX Ergo trackball over Bluetooth */
+	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb01d) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb01e) },
+	{ /* MX Master 3 mouse over Bluetooth */
+	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb023) },
 	{}
 };
 
@@ -4383,7 +4381,6 @@ static const struct hid_usage_id hidpp_usages[] = {
 static struct hid_driver hidpp_driver = {
 	.name = "logitech-hidpp-device",
 	.id_table = hidpp_devices,
-	.match = hidpp_match,
 	.report_fixup = hidpp_report_fixup,
 	.probe = hidpp_probe,
 	.remove = hidpp_remove,

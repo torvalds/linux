@@ -57,10 +57,8 @@
 #define UBLK_PARAM_TYPE_ALL (UBLK_PARAM_TYPE_BASIC | UBLK_PARAM_TYPE_DISCARD)
 
 struct ublk_rq_data {
-	union {
-		struct callback_head work;
-		struct llist_node node;
-	};
+	struct llist_node node;
+	struct callback_head work;
 };
 
 struct ublk_uring_cmd_pdu {
@@ -766,15 +764,31 @@ static inline void __ublk_rq_task_work(struct request *req)
 	ubq_complete_io_cmd(io, UBLK_IO_RES_OK);
 }
 
+static inline void ublk_forward_io_cmds(struct ublk_queue *ubq)
+{
+	struct llist_node *io_cmds = llist_del_all(&ubq->io_cmds);
+	struct ublk_rq_data *data, *tmp;
+
+	io_cmds = llist_reverse_order(io_cmds);
+	llist_for_each_entry_safe(data, tmp, io_cmds, node)
+		__ublk_rq_task_work(blk_mq_rq_from_pdu(data));
+}
+
+static inline void ublk_abort_io_cmds(struct ublk_queue *ubq)
+{
+	struct llist_node *io_cmds = llist_del_all(&ubq->io_cmds);
+	struct ublk_rq_data *data, *tmp;
+
+	llist_for_each_entry_safe(data, tmp, io_cmds, node)
+		__ublk_abort_rq(ubq, blk_mq_rq_from_pdu(data));
+}
+
 static void ublk_rq_task_work_cb(struct io_uring_cmd *cmd)
 {
 	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
 	struct ublk_queue *ubq = pdu->ubq;
-	struct llist_node *io_cmds = llist_del_all(&ubq->io_cmds);
-	struct ublk_rq_data *data;
 
-	llist_for_each_entry(data, io_cmds, node)
-		__ublk_rq_task_work(blk_mq_rq_from_pdu(data));
+	ublk_forward_io_cmds(ubq);
 }
 
 static void ublk_rq_task_work_fn(struct callback_head *work)
@@ -782,14 +796,20 @@ static void ublk_rq_task_work_fn(struct callback_head *work)
 	struct ublk_rq_data *data = container_of(work,
 			struct ublk_rq_data, work);
 	struct request *req = blk_mq_rq_from_pdu(data);
+	struct ublk_queue *ubq = req->mq_hctx->driver_data;
 
-	__ublk_rq_task_work(req);
+	ublk_forward_io_cmds(ubq);
 }
 
-static void ublk_submit_cmd(struct ublk_queue *ubq, const struct request *rq)
+static void ublk_queue_cmd(struct ublk_queue *ubq, struct request *rq)
 {
-	struct ublk_io *io = &ubq->ios[rq->tag];
+	struct ublk_rq_data *data = blk_mq_rq_to_pdu(rq);
+	struct ublk_io *io;
 
+	if (!llist_add(&data->node, &ubq->io_cmds))
+		return;
+
+	io = &ubq->ios[rq->tag];
 	/*
 	 * If the check pass, we know that this is a re-issued request aborted
 	 * previously in monitor_work because the ubq_daemon(cmd's task) is
@@ -803,34 +823,17 @@ static void ublk_submit_cmd(struct ublk_queue *ubq, const struct request *rq)
 	 * guarantees that here is a re-issued request aborted previously.
 	 */
 	if (unlikely(io->flags & UBLK_IO_FLAG_ABORTED)) {
-		struct llist_node *io_cmds = llist_del_all(&ubq->io_cmds);
-		struct ublk_rq_data *data;
-
-		llist_for_each_entry(data, io_cmds, node)
-			__ublk_abort_rq(ubq, blk_mq_rq_from_pdu(data));
+		ublk_abort_io_cmds(ubq);
+	} else if (ublk_can_use_task_work(ubq)) {
+		if (task_work_add(ubq->ubq_daemon, &data->work,
+					TWA_SIGNAL_NO_IPI))
+			ublk_abort_io_cmds(ubq);
 	} else {
 		struct io_uring_cmd *cmd = io->cmd;
 		struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
 
 		pdu->ubq = ubq;
 		io_uring_cmd_complete_in_task(cmd, ublk_rq_task_work_cb);
-	}
-}
-
-static void ublk_queue_cmd(struct ublk_queue *ubq, struct request *rq,
-		bool last)
-{
-	struct ublk_rq_data *data = blk_mq_rq_to_pdu(rq);
-
-	if (ublk_can_use_task_work(ubq)) {
-		enum task_work_notify_mode notify_mode = last ?
-			TWA_SIGNAL_NO_IPI : TWA_NONE;
-
-		if (task_work_add(ubq->ubq_daemon, &data->work, notify_mode))
-			__ublk_abort_rq(ubq, rq);
-	} else {
-		if (llist_add(&data->node, &ubq->io_cmds))
-			ublk_submit_cmd(ubq, rq);
 	}
 }
 
@@ -865,17 +868,9 @@ static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_OK;
 	}
 
-	ublk_queue_cmd(ubq, rq, bd->last);
+	ublk_queue_cmd(ubq, rq);
 
 	return BLK_STS_OK;
-}
-
-static void ublk_commit_rqs(struct blk_mq_hw_ctx *hctx)
-{
-	struct ublk_queue *ubq = hctx->driver_data;
-
-	if (ublk_can_use_task_work(ubq))
-		__set_notify_signal(ubq->ubq_daemon);
 }
 
 static int ublk_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
@@ -899,7 +894,6 @@ static int ublk_init_rq(struct blk_mq_tag_set *set, struct request *req,
 
 static const struct blk_mq_ops ublk_mq_ops = {
 	.queue_rq       = ublk_queue_rq,
-	.commit_rqs     = ublk_commit_rqs,
 	.init_hctx	= ublk_init_hctx,
 	.init_request   = ublk_init_rq,
 };
@@ -1197,7 +1191,7 @@ static void ublk_handle_need_get_data(struct ublk_device *ub, int q_id,
 	struct ublk_queue *ubq = ublk_get_queue(ub, q_id);
 	struct request *req = blk_mq_tag_to_rq(ub->tag_set.tags[q_id], tag);
 
-	ublk_queue_cmd(ubq, req, true);
+	ublk_queue_cmd(ubq, req);
 }
 
 static int ublk_ch_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)

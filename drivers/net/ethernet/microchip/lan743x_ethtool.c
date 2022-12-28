@@ -1190,14 +1190,12 @@ static int lan743x_ethtool_set_wol(struct net_device *netdev,
 }
 #endif /* CONFIG_PM */
 
-static void lan743x_common_regs(struct net_device *dev,
-				struct ethtool_regs *regs, void *p)
-
+static void lan743x_common_regs(struct net_device *dev, void *p)
 {
 	struct lan743x_adapter *adapter = netdev_priv(dev);
 	u32 *rb = p;
 
-	memset(p, 0, (MAX_LAN743X_ETH_REGS * sizeof(u32)));
+	memset(p, 0, (MAX_LAN743X_ETH_COMMON_REGS * sizeof(u32)));
 
 	rb[ETH_PRIV_FLAGS] = adapter->flags;
 	rb[ETH_ID_REV]     = lan743x_csr_read(adapter, ID_REV);
@@ -1220,17 +1218,164 @@ static void lan743x_common_regs(struct net_device *dev,
 	rb[ETH_WK_SRC]     = lan743x_csr_read(adapter, MAC_WK_SRC);
 }
 
+static void lan743x_sgmii_regs(struct net_device *dev, void *p)
+{
+	struct lan743x_adapter *adp = netdev_priv(dev);
+	u32 *rb = p;
+	u16 idx;
+	int val;
+	struct {
+		u8 id;
+		u8 dev;
+		u16 addr;
+	} regs[] = {
+		{ ETH_SR_VSMMD_DEV_ID1,                MDIO_MMD_VEND1, 0x0002},
+		{ ETH_SR_VSMMD_DEV_ID2,                MDIO_MMD_VEND1, 0x0003},
+		{ ETH_SR_VSMMD_PCS_ID1,                MDIO_MMD_VEND1, 0x0004},
+		{ ETH_SR_VSMMD_PCS_ID2,                MDIO_MMD_VEND1, 0x0005},
+		{ ETH_SR_VSMMD_STS,                    MDIO_MMD_VEND1, 0x0008},
+		{ ETH_SR_VSMMD_CTRL,                   MDIO_MMD_VEND1, 0x0009},
+		{ ETH_SR_MII_CTRL,                     MDIO_MMD_VEND2, 0x0000},
+		{ ETH_SR_MII_STS,                      MDIO_MMD_VEND2, 0x0001},
+		{ ETH_SR_MII_DEV_ID1,                  MDIO_MMD_VEND2, 0x0002},
+		{ ETH_SR_MII_DEV_ID2,                  MDIO_MMD_VEND2, 0x0003},
+		{ ETH_SR_MII_AN_ADV,                   MDIO_MMD_VEND2, 0x0004},
+		{ ETH_SR_MII_LP_BABL,                  MDIO_MMD_VEND2, 0x0005},
+		{ ETH_SR_MII_EXPN,                     MDIO_MMD_VEND2, 0x0006},
+		{ ETH_SR_MII_EXT_STS,                  MDIO_MMD_VEND2, 0x000F},
+		{ ETH_SR_MII_TIME_SYNC_ABL,            MDIO_MMD_VEND2, 0x0708},
+		{ ETH_SR_MII_TIME_SYNC_TX_MAX_DLY_LWR, MDIO_MMD_VEND2, 0x0709},
+		{ ETH_SR_MII_TIME_SYNC_TX_MAX_DLY_UPR, MDIO_MMD_VEND2, 0x070A},
+		{ ETH_SR_MII_TIME_SYNC_TX_MIN_DLY_LWR, MDIO_MMD_VEND2, 0x070B},
+		{ ETH_SR_MII_TIME_SYNC_TX_MIN_DLY_UPR, MDIO_MMD_VEND2, 0x070C},
+		{ ETH_SR_MII_TIME_SYNC_RX_MAX_DLY_LWR, MDIO_MMD_VEND2, 0x070D},
+		{ ETH_SR_MII_TIME_SYNC_RX_MAX_DLY_UPR, MDIO_MMD_VEND2, 0x070E},
+		{ ETH_SR_MII_TIME_SYNC_RX_MIN_DLY_LWR, MDIO_MMD_VEND2, 0x070F},
+		{ ETH_SR_MII_TIME_SYNC_RX_MIN_DLY_UPR, MDIO_MMD_VEND2, 0x0710},
+		{ ETH_VR_MII_DIG_CTRL1,                MDIO_MMD_VEND2, 0x8000},
+		{ ETH_VR_MII_AN_CTRL,                  MDIO_MMD_VEND2, 0x8001},
+		{ ETH_VR_MII_AN_INTR_STS,              MDIO_MMD_VEND2, 0x8002},
+		{ ETH_VR_MII_TC,                       MDIO_MMD_VEND2, 0x8003},
+		{ ETH_VR_MII_DBG_CTRL,                 MDIO_MMD_VEND2, 0x8005},
+		{ ETH_VR_MII_EEE_MCTRL0,               MDIO_MMD_VEND2, 0x8006},
+		{ ETH_VR_MII_EEE_TXTIMER,              MDIO_MMD_VEND2, 0x8008},
+		{ ETH_VR_MII_EEE_RXTIMER,              MDIO_MMD_VEND2, 0x8009},
+		{ ETH_VR_MII_LINK_TIMER_CTRL,          MDIO_MMD_VEND2, 0x800A},
+		{ ETH_VR_MII_EEE_MCTRL1,               MDIO_MMD_VEND2, 0x800B},
+		{ ETH_VR_MII_DIG_STS,                  MDIO_MMD_VEND2, 0x8010},
+		{ ETH_VR_MII_ICG_ERRCNT1,              MDIO_MMD_VEND2, 0x8011},
+		{ ETH_VR_MII_GPIO,                     MDIO_MMD_VEND2, 0x8015},
+		{ ETH_VR_MII_EEE_LPI_STATUS,           MDIO_MMD_VEND2, 0x8016},
+		{ ETH_VR_MII_EEE_WKERR,                MDIO_MMD_VEND2, 0x8017},
+		{ ETH_VR_MII_MISC_STS,                 MDIO_MMD_VEND2, 0x8018},
+		{ ETH_VR_MII_RX_LSTS,                  MDIO_MMD_VEND2, 0x8020},
+		{ ETH_VR_MII_GEN2_GEN4_TX_BSTCTRL0,    MDIO_MMD_VEND2, 0x8038},
+		{ ETH_VR_MII_GEN2_GEN4_TX_LVLCTRL0,    MDIO_MMD_VEND2, 0x803A},
+		{ ETH_VR_MII_GEN2_GEN4_TXGENCTRL0,     MDIO_MMD_VEND2, 0x803C},
+		{ ETH_VR_MII_GEN2_GEN4_TXGENCTRL1,     MDIO_MMD_VEND2, 0x803D},
+		{ ETH_VR_MII_GEN4_TXGENCTRL2,          MDIO_MMD_VEND2, 0x803E},
+		{ ETH_VR_MII_GEN2_GEN4_TX_STS,         MDIO_MMD_VEND2, 0x8048},
+		{ ETH_VR_MII_GEN2_GEN4_RXGENCTRL0,     MDIO_MMD_VEND2, 0x8058},
+		{ ETH_VR_MII_GEN2_GEN4_RXGENCTRL1,     MDIO_MMD_VEND2, 0x8059},
+		{ ETH_VR_MII_GEN4_RXEQ_CTRL,           MDIO_MMD_VEND2, 0x805B},
+		{ ETH_VR_MII_GEN4_RXLOS_CTRL0,         MDIO_MMD_VEND2, 0x805D},
+		{ ETH_VR_MII_GEN2_GEN4_MPLL_CTRL0,     MDIO_MMD_VEND2, 0x8078},
+		{ ETH_VR_MII_GEN2_GEN4_MPLL_CTRL1,     MDIO_MMD_VEND2, 0x8079},
+		{ ETH_VR_MII_GEN2_GEN4_MPLL_STS,       MDIO_MMD_VEND2, 0x8088},
+		{ ETH_VR_MII_GEN2_GEN4_LVL_CTRL,       MDIO_MMD_VEND2, 0x8090},
+		{ ETH_VR_MII_GEN4_MISC_CTRL2,          MDIO_MMD_VEND2, 0x8093},
+		{ ETH_VR_MII_GEN2_GEN4_MISC_CTRL0,     MDIO_MMD_VEND2, 0x8099},
+		{ ETH_VR_MII_GEN2_GEN4_MISC_CTRL1,     MDIO_MMD_VEND2, 0x809A},
+		{ ETH_VR_MII_SNPS_CR_CTRL,             MDIO_MMD_VEND2, 0x80A0},
+		{ ETH_VR_MII_SNPS_CR_ADDR,             MDIO_MMD_VEND2, 0x80A1},
+		{ ETH_VR_MII_SNPS_CR_DATA,             MDIO_MMD_VEND2, 0x80A2},
+		{ ETH_VR_MII_DIG_CTRL2,                MDIO_MMD_VEND2, 0x80E1},
+		{ ETH_VR_MII_DIG_ERRCNT,               MDIO_MMD_VEND2, 0x80E2},
+	};
+
+	for (idx = 0; idx < ARRAY_SIZE(regs); idx++) {
+		val = lan743x_sgmii_read(adp, regs[idx].dev, regs[idx].addr);
+		if (val < 0)
+			rb[regs[idx].id] = 0xFFFF;
+		else
+			rb[regs[idx].id] = val;
+	}
+}
+
 static int lan743x_get_regs_len(struct net_device *dev)
 {
-	return MAX_LAN743X_ETH_REGS * sizeof(u32);
+	struct lan743x_adapter *adapter = netdev_priv(dev);
+	u32 num_regs = MAX_LAN743X_ETH_COMMON_REGS;
+
+	if (adapter->is_sgmii_en)
+		num_regs += MAX_LAN743X_ETH_SGMII_REGS;
+
+	return num_regs * sizeof(u32);
 }
 
 static void lan743x_get_regs(struct net_device *dev,
 			     struct ethtool_regs *regs, void *p)
 {
-	regs->version = LAN743X_ETH_REG_VERSION;
+	struct lan743x_adapter *adapter = netdev_priv(dev);
+	int regs_len;
 
-	lan743x_common_regs(dev, regs, p);
+	regs_len = lan743x_get_regs_len(dev);
+	memset(p, 0, regs_len);
+
+	regs->version = LAN743X_ETH_REG_VERSION;
+	regs->len = regs_len;
+
+	lan743x_common_regs(dev, p);
+	p = (u32 *)p + MAX_LAN743X_ETH_COMMON_REGS;
+
+	if (adapter->is_sgmii_en) {
+		lan743x_sgmii_regs(dev, p);
+		p = (u32 *)p + MAX_LAN743X_ETH_SGMII_REGS;
+	}
+}
+
+static void lan743x_get_pauseparam(struct net_device *dev,
+				   struct ethtool_pauseparam *pause)
+{
+	struct lan743x_adapter *adapter = netdev_priv(dev);
+	struct lan743x_phy *phy = &adapter->phy;
+
+	if (phy->fc_request_control & FLOW_CTRL_TX)
+		pause->tx_pause = 1;
+	if (phy->fc_request_control & FLOW_CTRL_RX)
+		pause->rx_pause = 1;
+	pause->autoneg = phy->fc_autoneg;
+}
+
+static int lan743x_set_pauseparam(struct net_device *dev,
+				  struct ethtool_pauseparam *pause)
+{
+	struct lan743x_adapter *adapter = netdev_priv(dev);
+	struct phy_device *phydev = dev->phydev;
+	struct lan743x_phy *phy = &adapter->phy;
+
+	if (!phydev)
+		return -ENODEV;
+
+	if (!phy_validate_pause(phydev, pause))
+		return -EINVAL;
+
+	phy->fc_request_control = 0;
+	if (pause->rx_pause)
+		phy->fc_request_control |= FLOW_CTRL_RX;
+
+	if (pause->tx_pause)
+		phy->fc_request_control |= FLOW_CTRL_TX;
+
+	phy->fc_autoneg = pause->autoneg;
+
+	if (pause->autoneg == AUTONEG_DISABLE)
+		lan743x_mac_flow_ctrl_set_enables(adapter, pause->tx_pause,
+						  pause->rx_pause);
+	else
+		phy_set_asym_pause(phydev, pause->rx_pause,  pause->tx_pause);
+
+	return 0;
 }
 
 const struct ethtool_ops lan743x_ethtool_ops = {
@@ -1259,6 +1404,8 @@ const struct ethtool_ops lan743x_ethtool_ops = {
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 	.get_regs_len = lan743x_get_regs_len,
 	.get_regs = lan743x_get_regs,
+	.get_pauseparam = lan743x_get_pauseparam,
+	.set_pauseparam = lan743x_set_pauseparam,
 #ifdef CONFIG_PM
 	.get_wol = lan743x_ethtool_get_wol,
 	.set_wol = lan743x_ethtool_set_wol,

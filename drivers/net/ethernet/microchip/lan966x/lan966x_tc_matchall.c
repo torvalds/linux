@@ -23,6 +23,9 @@ static int lan966x_tc_matchall_add(struct lan966x_port *port,
 	case FLOW_ACTION_MIRRED:
 		return lan966x_mirror_port_add(port, act, f->cookie,
 					       ingress, f->common.extack);
+	case FLOW_ACTION_GOTO:
+		return lan966x_goto_port_add(port, act, f->cookie,
+					     f->common.extack);
 	default:
 		NL_SET_ERR_MSG_MOD(f->common.extack,
 				   "Unsupported action");
@@ -43,6 +46,9 @@ static int lan966x_tc_matchall_del(struct lan966x_port *port,
 		   f->cookie == port->tc.egress_mirror_id) {
 		return lan966x_mirror_port_del(port, ingress,
 					       f->common.extack);
+	} else if (f->cookie == port->tc.goto_id) {
+		return lan966x_goto_port_del(port, f->cookie,
+					     f->common.extack);
 	} else {
 		NL_SET_ERR_MSG_MOD(f->common.extack,
 				   "Unsupported action");

@@ -360,32 +360,6 @@ static int psp_v11_0_bootloader_load_sos(struct psp_context *psp)
 	return ret;
 }
 
-static int psp_v11_0_ring_init(struct psp_context *psp,
-			      enum psp_ring_type ring_type)
-{
-	int ret = 0;
-	struct psp_ring *ring;
-	struct amdgpu_device *adev = psp->adev;
-
-	ring = &psp->km_ring;
-
-	ring->ring_type = ring_type;
-
-	/* allocate 4k Page of Local Frame Buffer memory for ring */
-	ring->ring_size = 0x1000;
-	ret = amdgpu_bo_create_kernel(adev, ring->ring_size, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
-				      &adev->firmware.rbuf,
-				      &ring->ring_mem_mc_addr,
-				      (void **)&ring->ring_mem);
-	if (ret) {
-		ring->ring_size = 0;
-		return ret;
-	}
-
-	return 0;
-}
-
 static int psp_v11_0_ring_stop(struct psp_context *psp,
 			      enum psp_ring_type ring_type)
 {
@@ -779,7 +753,6 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.bootloader_load_spl = psp_v11_0_bootloader_load_spl,
 	.bootloader_load_sysdrv = psp_v11_0_bootloader_load_sysdrv,
 	.bootloader_load_sos = psp_v11_0_bootloader_load_sos,
-	.ring_init = psp_v11_0_ring_init,
 	.ring_create = psp_v11_0_ring_create,
 	.ring_stop = psp_v11_0_ring_stop,
 	.ring_destroy = psp_v11_0_ring_destroy,

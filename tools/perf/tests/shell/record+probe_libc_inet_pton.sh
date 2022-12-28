@@ -64,7 +64,7 @@ trace_libc_inet_pton_backtrace() {
 	while read line <&3 && read -r pattern <&4; do
 		[ -z "$pattern" ] && break
 		echo $line
-		echo "$line" | egrep -q "$pattern"
+		echo "$line" | grep -E -q "$pattern"
 		if [ $? -ne 0 ] ; then
 			printf "FAIL: expected backtrace entry \"%s\" got \"%s\"\n" "$pattern" "$line"
 			return 1

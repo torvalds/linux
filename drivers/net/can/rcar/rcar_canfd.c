@@ -41,12 +41,6 @@
 
 #define RCANFD_DRV_NAME			"rcar_canfd"
 
-enum rcanfd_chip_id {
-	RENESAS_RCAR_GEN3 = 0,
-	RENESAS_RZG2L,
-	RENESAS_R8A779A0,
-};
-
 /* Global register bits */
 
 /* RSCFDnCFDGRMCFG */
@@ -81,8 +75,7 @@ enum rcanfd_chip_id {
 
 /* RSCFDnCFDGERFL / RSCFDnGERFL */
 #define RCANFD_GERFL_EEF0_7		GENMASK(23, 16)
-#define RCANFD_GERFL_EEF1		BIT(17)
-#define RCANFD_GERFL_EEF0		BIT(16)
+#define RCANFD_GERFL_EEF(ch)		BIT(16 + (ch))
 #define RCANFD_GERFL_CMPOF		BIT(3)	/* CAN FD only */
 #define RCANFD_GERFL_THLES		BIT(2)
 #define RCANFD_GERFL_MES		BIT(1)
@@ -90,7 +83,7 @@ enum rcanfd_chip_id {
 
 #define RCANFD_GERFL_ERR(gpriv, x) \
 	((x) & (reg_v3u(gpriv, RCANFD_GERFL_EEF0_7, \
-			RCANFD_GERFL_EEF0 | RCANFD_GERFL_EEF1) | \
+			RCANFD_GERFL_EEF(0) | RCANFD_GERFL_EEF(1)) | \
 		RCANFD_GERFL_MES | \
 		((gpriv)->fdmode ? RCANFD_GERFL_CMPOF : 0)))
 
@@ -523,6 +516,14 @@ enum rcar_canfd_fcanclk {
 
 struct rcar_canfd_global;
 
+struct rcar_canfd_hw_info {
+	u8 max_channels;
+	u8 postdiv;
+	/* hardware features */
+	unsigned shared_global_irqs:1;	/* Has shared global irqs */
+	unsigned multi_channel_irqs:1;	/* Has multiple channel irqs */
+};
+
 /* Channel priv data */
 struct rcar_canfd_channel {
 	struct can_priv can;			/* Must be the first member */
@@ -548,8 +549,7 @@ struct rcar_canfd_global {
 	bool fdmode;			/* CAN FD or Classical CAN only mode */
 	struct reset_control *rstc1;
 	struct reset_control *rstc2;
-	enum rcanfd_chip_id chip_id;
-	u32 max_channels;
+	const struct rcar_canfd_hw_info *info;
 };
 
 /* CAN FD mode nominal rate constants */
@@ -591,10 +591,28 @@ static const struct can_bittiming_const rcar_canfd_bittiming_const = {
 	.brp_inc = 1,
 };
 
+static const struct rcar_canfd_hw_info rcar_gen3_hw_info = {
+	.max_channels = 2,
+	.postdiv = 2,
+	.shared_global_irqs = 1,
+};
+
+static const struct rcar_canfd_hw_info rzg2l_hw_info = {
+	.max_channels = 2,
+	.postdiv = 1,
+	.multi_channel_irqs = 1,
+};
+
+static const struct rcar_canfd_hw_info r8a779a0_hw_info = {
+	.max_channels = 8,
+	.postdiv = 2,
+	.shared_global_irqs = 1,
+};
+
 /* Helper functions */
 static inline bool is_v3u(struct rcar_canfd_global *gpriv)
 {
-	return gpriv->chip_id == RENESAS_R8A779A0;
+	return gpriv->info == &r8a779a0_hw_info;
 }
 
 static inline u32 reg_v3u(struct rcar_canfd_global *gpriv,
@@ -722,7 +740,7 @@ static int rcar_canfd_reset_controller(struct rcar_canfd_global *gpriv)
 	rcar_canfd_set_mode(gpriv);
 
 	/* Transition all Channels to reset mode */
-	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->max_channels) {
+	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->info->max_channels) {
 		rcar_canfd_clear_bit(gpriv->base,
 				     RCANFD_CCTR(ch), RCANFD_CCTR_CSLPR);
 
@@ -763,7 +781,7 @@ static void rcar_canfd_configure_controller(struct rcar_canfd_global *gpriv)
 	rcar_canfd_set_bit(gpriv->base, RCANFD_GCFG, cfg);
 
 	/* Channel configuration settings */
-	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->max_channels) {
+	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->info->max_channels) {
 		rcar_canfd_set_bit(gpriv->base, RCANFD_CCTR(ch),
 				   RCANFD_CCTR_ERRD);
 		rcar_canfd_update_bit(gpriv->base, RCANFD_CCTR(ch),
@@ -936,12 +954,8 @@ static void rcar_canfd_global_error(struct net_device *ndev)
 	u32 ridx = ch + RCANFD_RFFIFO_IDX;
 
 	gerfl = rcar_canfd_read(priv->base, RCANFD_GERFL);
-	if ((gerfl & RCANFD_GERFL_EEF0) && (ch == 0)) {
-		netdev_dbg(ndev, "Ch0: ECC Error flag\n");
-		stats->tx_dropped++;
-	}
-	if ((gerfl & RCANFD_GERFL_EEF1) && (ch == 1)) {
-		netdev_dbg(ndev, "Ch1: ECC Error flag\n");
+	if (gerfl & RCANFD_GERFL_EEF(ch)) {
+		netdev_dbg(ndev, "Ch%u: ECC Error flag\n", ch);
 		stats->tx_dropped++;
 	}
 	if (gerfl & RCANFD_GERFL_MES) {
@@ -1147,7 +1161,7 @@ static irqreturn_t rcar_canfd_global_err_interrupt(int irq, void *dev_id)
 	struct rcar_canfd_global *gpriv = dev_id;
 	u32 ch;
 
-	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->max_channels)
+	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->info->max_channels)
 		rcar_canfd_handle_global_err(gpriv, ch);
 
 	return IRQ_HANDLED;
@@ -1179,7 +1193,7 @@ static irqreturn_t rcar_canfd_global_receive_fifo_interrupt(int irq, void *dev_i
 	struct rcar_canfd_global *gpriv = dev_id;
 	u32 ch;
 
-	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->max_channels)
+	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->info->max_channels)
 		rcar_canfd_handle_global_receive(gpriv, ch);
 
 	return IRQ_HANDLED;
@@ -1193,7 +1207,7 @@ static irqreturn_t rcar_canfd_global_interrupt(int irq, void *dev_id)
 	/* Global error interrupts still indicate a condition specific
 	 * to a channel. RxFIFO interrupt is a global interrupt.
 	 */
-	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->max_channels) {
+	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->info->max_channels) {
 		rcar_canfd_handle_global_err(gpriv, ch);
 		rcar_canfd_handle_global_receive(gpriv, ch);
 	}
@@ -1289,7 +1303,7 @@ static irqreturn_t rcar_canfd_channel_interrupt(int irq, void *dev_id)
 	u32 ch;
 
 	/* Common FIFO is a per channel resource */
-	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->max_channels) {
+	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->info->max_channels) {
 		rcar_canfd_handle_channel_err(gpriv, ch);
 		rcar_canfd_handle_channel_tx(gpriv, ch);
 	}
@@ -1481,7 +1495,7 @@ static netdev_tx_t rcar_canfd_start_xmit(struct sk_buff *skb,
 	unsigned long flags;
 	u32 ch = priv->channel;
 
-	if (can_dropped_invalid_skb(ndev, skb))
+	if (can_dev_dropped_skb(ndev, skb))
 		return NETDEV_TX_OK;
 
 	if (cf->can_id & CAN_EFF_FLAG) {
@@ -1701,6 +1715,7 @@ static const struct ethtool_ops rcar_canfd_ethtool_ops = {
 static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 				    u32 fcan_freq)
 {
+	const struct rcar_canfd_hw_info *info = gpriv->info;
 	struct platform_device *pdev = gpriv->pdev;
 	struct rcar_canfd_channel *priv;
 	struct net_device *ndev;
@@ -1723,7 +1738,7 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 	priv->can.clock.freq = fcan_freq;
 	dev_info(&pdev->dev, "can_clk rate is %u\n", priv->can.clock.freq);
 
-	if (gpriv->chip_id == RENESAS_RZG2L) {
+	if (info->multi_channel_irqs) {
 		char *irq_name;
 		int err_irq;
 		int tx_irq;
@@ -1823,6 +1838,7 @@ static void rcar_canfd_channel_remove(struct rcar_canfd_global *gpriv, u32 ch)
 
 static int rcar_canfd_probe(struct platform_device *pdev)
 {
+	const struct rcar_canfd_hw_info *info;
 	void __iomem *addr;
 	u32 sts, ch, fcan_freq;
 	struct rcar_canfd_global *gpriv;
@@ -1831,18 +1847,15 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	int err, ch_irq, g_irq;
 	int g_err_irq, g_recc_irq;
 	bool fdmode = true;			/* CAN FD only mode - default */
-	enum rcanfd_chip_id chip_id;
-	int max_channels;
 	char name[9] = "channelX";
 	int i;
 
-	chip_id = (uintptr_t)of_device_get_match_data(&pdev->dev);
-	max_channels = chip_id == RENESAS_R8A779A0 ? 8 : 2;
+	info = of_device_get_match_data(&pdev->dev);
 
 	if (of_property_read_bool(pdev->dev.of_node, "renesas,no-can-fd"))
 		fdmode = false;			/* Classical CAN only mode */
 
-	for (i = 0; i < max_channels; ++i) {
+	for (i = 0; i < info->max_channels; ++i) {
 		name[7] = '0' + i;
 		of_child = of_get_child_by_name(pdev->dev.of_node, name);
 		if (of_child && of_device_is_available(of_child))
@@ -1850,7 +1863,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 		of_node_put(of_child);
 	}
 
-	if (chip_id != RENESAS_RZG2L) {
+	if (info->shared_global_irqs) {
 		ch_irq = platform_get_irq_byname_optional(pdev, "ch_int");
 		if (ch_irq < 0) {
 			/* For backward compatibility get irq by index */
@@ -1884,20 +1897,19 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	gpriv->pdev = pdev;
 	gpriv->channels_mask = channels_mask;
 	gpriv->fdmode = fdmode;
-	gpriv->chip_id = chip_id;
-	gpriv->max_channels = max_channels;
+	gpriv->info = info;
 
-	if (gpriv->chip_id == RENESAS_RZG2L) {
-		gpriv->rstc1 = devm_reset_control_get_exclusive(&pdev->dev, "rstp_n");
-		if (IS_ERR(gpriv->rstc1))
-			return dev_err_probe(&pdev->dev, PTR_ERR(gpriv->rstc1),
-					     "failed to get rstp_n\n");
+	gpriv->rstc1 = devm_reset_control_get_optional_exclusive(&pdev->dev,
+								 "rstp_n");
+	if (IS_ERR(gpriv->rstc1))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpriv->rstc1),
+				     "failed to get rstp_n\n");
 
-		gpriv->rstc2 = devm_reset_control_get_exclusive(&pdev->dev, "rstc_n");
-		if (IS_ERR(gpriv->rstc2))
-			return dev_err_probe(&pdev->dev, PTR_ERR(gpriv->rstc2),
-					     "failed to get rstc_n\n");
-	}
+	gpriv->rstc2 = devm_reset_control_get_optional_exclusive(&pdev->dev,
+								 "rstc_n");
+	if (IS_ERR(gpriv->rstc2))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpriv->rstc2),
+				     "failed to get rstc_n\n");
 
 	/* Peripheral clock */
 	gpriv->clkp = devm_clk_get(&pdev->dev, "fck");
@@ -1922,9 +1934,9 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	}
 	fcan_freq = clk_get_rate(gpriv->can_clk);
 
-	if (gpriv->fcan == RCANFD_CANFDCLK && gpriv->chip_id != RENESAS_RZG2L)
+	if (gpriv->fcan == RCANFD_CANFDCLK)
 		/* CANFD clock is further divided by (1/2) within the IP */
-		fcan_freq /= 2;
+		fcan_freq /= info->postdiv;
 
 	addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(addr)) {
@@ -1934,7 +1946,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	gpriv->base = addr;
 
 	/* Request IRQ that's common for both channels */
-	if (gpriv->chip_id != RENESAS_RZG2L) {
+	if (info->shared_global_irqs) {
 		err = devm_request_irq(&pdev->dev, ch_irq,
 				       rcar_canfd_channel_interrupt, 0,
 				       "canfd.ch_int", gpriv);
@@ -2000,7 +2012,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	rcar_canfd_configure_controller(gpriv);
 
 	/* Configure per channel attributes */
-	for_each_set_bit(ch, &gpriv->channels_mask, max_channels) {
+	for_each_set_bit(ch, &gpriv->channels_mask, info->max_channels) {
 		/* Configure Channel's Rx fifo */
 		rcar_canfd_configure_rx(gpriv, ch);
 
@@ -2026,7 +2038,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 		goto fail_mode;
 	}
 
-	for_each_set_bit(ch, &gpriv->channels_mask, max_channels) {
+	for_each_set_bit(ch, &gpriv->channels_mask, info->max_channels) {
 		err = rcar_canfd_channel_probe(gpriv, ch, fcan_freq);
 		if (err)
 			goto fail_channel;
@@ -2038,7 +2050,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	return 0;
 
 fail_channel:
-	for_each_set_bit(ch, &gpriv->channels_mask, max_channels)
+	for_each_set_bit(ch, &gpriv->channels_mask, info->max_channels)
 		rcar_canfd_channel_remove(gpriv, ch);
 fail_mode:
 	rcar_canfd_disable_global_interrupts(gpriv);
@@ -2059,7 +2071,7 @@ static int rcar_canfd_remove(struct platform_device *pdev)
 	rcar_canfd_reset_controller(gpriv);
 	rcar_canfd_disable_global_interrupts(gpriv);
 
-	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->max_channels) {
+	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->info->max_channels) {
 		rcar_canfd_disable_channel_interrupts(gpriv->ch[ch]);
 		rcar_canfd_channel_remove(gpriv, ch);
 	}
@@ -2087,9 +2099,9 @@ static SIMPLE_DEV_PM_OPS(rcar_canfd_pm_ops, rcar_canfd_suspend,
 			 rcar_canfd_resume);
 
 static const __maybe_unused struct of_device_id rcar_canfd_of_table[] = {
-	{ .compatible = "renesas,rcar-gen3-canfd", .data = (void *)RENESAS_RCAR_GEN3 },
-	{ .compatible = "renesas,rzg2l-canfd", .data = (void *)RENESAS_RZG2L },
-	{ .compatible = "renesas,r8a779a0-canfd", .data = (void *)RENESAS_R8A779A0 },
+	{ .compatible = "renesas,rcar-gen3-canfd", .data = &rcar_gen3_hw_info },
+	{ .compatible = "renesas,rzg2l-canfd", .data = &rzg2l_hw_info },
+	{ .compatible = "renesas,r8a779a0-canfd", .data = &r8a779a0_hw_info },
 	{ }
 };
 

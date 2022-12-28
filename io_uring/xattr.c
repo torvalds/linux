@@ -112,7 +112,7 @@ int io_fgetxattr(struct io_kiocb *req, unsigned int issue_flags)
 	if (issue_flags & IO_URING_F_NONBLOCK)
 		return -EAGAIN;
 
-	ret = do_getxattr(mnt_user_ns(req->file->f_path.mnt),
+	ret = do_getxattr(mnt_idmap(req->file->f_path.mnt),
 			req->file->f_path.dentry,
 			&ix->ctx);
 
@@ -133,9 +133,7 @@ int io_getxattr(struct io_kiocb *req, unsigned int issue_flags)
 retry:
 	ret = filename_lookup(AT_FDCWD, ix->filename, lookup_flags, &path, NULL);
 	if (!ret) {
-		ret = do_getxattr(mnt_user_ns(path.mnt),
-				path.dentry,
-				&ix->ctx);
+		ret = do_getxattr(mnt_idmap(path.mnt), path.dentry, &ix->ctx);
 
 		path_put(&path);
 		if (retry_estale(ret, lookup_flags)) {
@@ -213,7 +211,7 @@ static int __io_setxattr(struct io_kiocb *req, unsigned int issue_flags,
 
 	ret = mnt_want_write(path->mnt);
 	if (!ret) {
-		ret = do_setxattr(mnt_user_ns(path->mnt), path->dentry, &ix->ctx);
+		ret = do_setxattr(mnt_idmap(path->mnt), path->dentry, &ix->ctx);
 		mnt_drop_write(path->mnt);
 	}
 

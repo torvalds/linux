@@ -41,6 +41,11 @@ struct uio_dmem_genirq_platdata {
 	unsigned int refcnt;
 };
 
+/* Bits in uio_dmem_genirq_platdata.flags */
+enum {
+	UIO_IRQ_DISABLED = 0,
+};
+
 static int uio_dmem_genirq_open(struct uio_info *info, struct inode *inode)
 {
 	struct uio_dmem_genirq_platdata *priv = info->priv;
@@ -110,8 +115,10 @@ static irqreturn_t uio_dmem_genirq_handler(int irq, struct uio_info *dev_info)
 	 * remember the state so we can allow user space to enable it later.
 	 */
 
-	if (!test_and_set_bit(0, &priv->flags))
+	spin_lock(&priv->lock);
+	if (!__test_and_set_bit(UIO_IRQ_DISABLED, &priv->flags))
 		disable_irq_nosync(irq);
+	spin_unlock(&priv->lock);
 
 	return IRQ_HANDLED;
 }
@@ -125,20 +132,19 @@ static int uio_dmem_genirq_irqcontrol(struct uio_info *dev_info, s32 irq_on)
 	 * in the interrupt controller, but keep track of the
 	 * state to prevent per-irq depth damage.
 	 *
-	 * Serialize this operation to support multiple tasks.
+	 * Serialize this operation to support multiple tasks and concurrency
+	 * with irq handler on SMP systems.
 	 */
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (irq_on) {
-		if (test_and_clear_bit(0, &priv->flags))
+		if (__test_and_clear_bit(UIO_IRQ_DISABLED, &priv->flags))
 			enable_irq(dev_info->irq);
-		spin_unlock_irqrestore(&priv->lock, flags);
 	} else {
-		if (!test_and_set_bit(0, &priv->flags)) {
-			spin_unlock_irqrestore(&priv->lock, flags);
-			disable_irq(dev_info->irq);
-		}
+		if (!__test_and_set_bit(UIO_IRQ_DISABLED, &priv->flags))
+			disable_irq_nosync(dev_info->irq);
 	}
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }

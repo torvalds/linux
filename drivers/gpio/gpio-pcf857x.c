@@ -247,9 +247,9 @@ static const struct irq_chip pcf857x_irq_chip = {
 
 /*-------------------------------------------------------------------------*/
 
-static int pcf857x_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int pcf857x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct pcf857x_platform_data	*pdata = dev_get_platdata(&client->dev);
 	struct device_node		*np = client->dev.of_node;
 	struct pcf857x			*gpio;
@@ -422,7 +422,7 @@ static struct i2c_driver pcf857x_driver = {
 		.name	= "pcf857x",
 		.of_match_table = of_match_ptr(pcf857x_of_table),
 	},
-	.probe	= pcf857x_probe,
+	.probe_new = pcf857x_probe,
 	.remove	= pcf857x_remove,
 	.shutdown = pcf857x_shutdown,
 	.id_table = pcf857x_id,

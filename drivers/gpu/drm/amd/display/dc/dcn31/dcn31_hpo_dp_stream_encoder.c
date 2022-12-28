@@ -600,14 +600,6 @@ static void dcn31_hpo_dp_stream_enc_map_stream_to_link(
 	}
 }
 
-static void dcn31_hpo_dp_stream_enc_mute_control(
-	struct hpo_dp_stream_encoder *enc,
-	bool mute)
-{
-	ASSERT(enc->apg);
-	enc->apg->funcs->audio_mute_control(enc->apg, mute);
-}
-
 static void dcn31_hpo_dp_stream_enc_audio_setup(
 	struct hpo_dp_stream_encoder *enc,
 	unsigned int az_inst,
@@ -726,7 +718,6 @@ static const struct hpo_dp_stream_encoder_funcs dcn30_str_enc_funcs = {
 	.stop_dp_info_packets = dcn31_hpo_dp_stream_enc_stop_dp_info_packets,
 	.dp_set_dsc_pps_info_packet = dcn31_hpo_dp_stream_enc_set_dsc_pps_info_packet,
 	.map_stream_to_link = dcn31_hpo_dp_stream_enc_map_stream_to_link,
-	.audio_mute_control = dcn31_hpo_dp_stream_enc_mute_control,
 	.dp_audio_setup = dcn31_hpo_dp_stream_enc_audio_setup,
 	.dp_audio_enable = dcn31_hpo_dp_stream_enc_audio_enable,
 	.dp_audio_disable = dcn31_hpo_dp_stream_enc_audio_disable,

@@ -272,6 +272,14 @@ struct vmw_crtc_state {
 	struct drm_crtc_state base;
 };
 
+struct vmw_cursor_plane_state {
+	struct ttm_buffer_object *bo;
+	struct ttm_bo_kmap_obj map;
+	bool mapped;
+	s32 hotspot_x;
+	s32 hotspot_y;
+};
+
 /**
  * Derived class for plane state object
  *
@@ -295,13 +303,8 @@ struct vmw_plane_state {
 	/* For CPU Blit */
 	unsigned int cpp;
 
-	/* CursorMob flipping index; -1 if cursor mobs not used */
-	unsigned int cursor_mob_idx;
-	/* Currently-active CursorMob */
-	struct ttm_buffer_object *cm_bo;
-	/* CursorMob kmap_obj; expected valid at cursor_plane_atomic_update
-	   IFF currently-active CursorMob above is valid */
-	struct ttm_bo_kmap_obj cm_map;
+	bool surf_mapped;
+	struct vmw_cursor_plane_state cursor;
 };
 
 
@@ -338,11 +341,12 @@ struct vmw_connector_state {
  * Derived class for cursor plane object
  *
  * @base DRM plane object
- * @cursor_mob array of two MOBs for CursorMob flipping
+ * @cursor.cursor_mobs Cursor mobs available for re-use
  */
 struct vmw_cursor_plane {
 	struct drm_plane base;
-	struct ttm_buffer_object *cursor_mob[2];
+
+	struct ttm_buffer_object *cursor_mobs[3];
 };
 
 /**
@@ -458,13 +462,6 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 			struct vmw_surface *surface,
 			bool only_2d,
 			const struct drm_mode_fb_cmd2 *mode_cmd);
-int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
-			    unsigned unit,
-			    u32 max_width,
-			    u32 max_height,
-			    struct drm_connector **p_con,
-			    struct drm_crtc **p_crtc,
-			    struct drm_display_mode **p_mode);
 void vmw_guess_mode_timing(struct drm_display_mode *mode);
 void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv);
 void vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv);
@@ -472,8 +469,6 @@ void vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv);
 /* Universal Plane Helpers */
 void vmw_du_primary_plane_destroy(struct drm_plane *plane);
 void vmw_du_cursor_plane_destroy(struct drm_plane *plane);
-int vmw_du_create_cursor_mob_array(struct vmw_cursor_plane *vcp);
-void vmw_du_destroy_cursor_mob_array(struct vmw_cursor_plane *vcp);
 
 /* Atomic Helpers */
 int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,

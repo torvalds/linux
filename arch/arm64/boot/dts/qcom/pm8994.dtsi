@@ -108,7 +108,7 @@
 			};
 		};
 
-		pm8994_gpios: gpios@c000 {
+		pm8994_gpios: gpio@c000 {
 			compatible = "qcom,pm8994-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;

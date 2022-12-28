@@ -4044,7 +4044,7 @@ enum sctp_disposition sctp_sf_do_asconf_ack(struct net *net,
 			   (void *)err_param, commands);
 
 	if (last_asconf) {
-		addip_hdr = (struct sctp_addiphdr *)last_asconf->subh.addip_hdr;
+		addip_hdr = last_asconf->subh.addip_hdr;
 		sent_serial = ntohl(addip_hdr->serial);
 	} else {
 		sent_serial = asoc->addip_serial - 1;

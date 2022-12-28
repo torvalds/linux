@@ -553,6 +553,7 @@ static void uncore_clean_online(void)
 
 	hlist_for_each_entry_safe(uncore, n, &uncore_unused_list, node) {
 		hlist_del(&uncore->node);
+		kfree(uncore->events);
 		kfree(uncore);
 	}
 }

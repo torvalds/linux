@@ -370,7 +370,9 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	memcpy_and_pad(id->mn, sizeof(id->mn), subsys->model_number,
 		       strlen(subsys->model_number), ' ');
 	memcpy_and_pad(id->fr, sizeof(id->fr),
-		       UTS_RELEASE, strlen(UTS_RELEASE), ' ');
+		       subsys->firmware_rev, strlen(subsys->firmware_rev), ' ');
+
+	put_unaligned_le24(subsys->ieee_oui, id->ieee);
 
 	id->rab = 6;
 
@@ -378,11 +380,6 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 		id->cntrltype = NVME_CTRL_DISC;
 	else
 		id->cntrltype = NVME_CTRL_IO;
-
-	/*
-	 * XXX: figure out how we can assign a IEEE OUI, but until then
-	 * the safest is to leave it as zeroes.
-	 */
 
 	/* we support multiple ports, multiples hosts and ANA: */
 	id->cmic = NVME_CTRL_CMIC_MULTI_PORT | NVME_CTRL_CMIC_MULTI_CTRL |
@@ -564,7 +561,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	}
 
 	if (req->ns->readonly)
-		id->nsattr |= (1 << 0);
+		id->nsattr |= NVME_NS_ATTR_RO;
 done:
 	if (!status)
 		status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));

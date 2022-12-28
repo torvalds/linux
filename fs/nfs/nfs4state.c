@@ -1230,6 +1230,8 @@ void nfs4_schedule_state_manager(struct nfs_client *clp)
 	if (IS_ERR(task)) {
 		printk(KERN_ERR "%s: kthread_run: %ld\n",
 			__func__, PTR_ERR(task));
+		if (!nfs_client_init_is_complete(clp))
+			nfs_mark_client_ready(clp, PTR_ERR(task));
 		nfs4_clear_state_manager_bit(clp);
 		clear_bit(NFS4CLNT_MANAGER_AVAILABLE, &clp->cl_state);
 		nfs_put_client(clp);
@@ -1501,7 +1503,7 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 	struct file_lock *fl;
 	struct nfs4_lock_state *lsp;
 	int status = 0;
-	struct file_lock_context *flctx = inode->i_flctx;
+	struct file_lock_context *flctx = locks_inode_context(inode);
 	struct list_head *list;
 
 	if (flctx == NULL)
@@ -1619,7 +1621,8 @@ static int __nfs4_reclaim_open_state(struct nfs4_state_owner *sp, struct nfs4_st
 		spin_lock(&state->state_lock);
 		list_for_each_entry(lock, &state->lock_states, ls_locks) {
 			trace_nfs4_state_lock_reclaim(state, lock);
-			if (!test_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags))
+			if (!test_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags) &&
+			    !test_bit(NFS_LOCK_UNLOCKING, &lock->ls_flags))
 				*lost_locks += 1;
 		}
 		spin_unlock(&state->state_lock);

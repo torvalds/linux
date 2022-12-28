@@ -646,7 +646,7 @@ int hw_breakpoint_handler(struct die_args *args)
 	ppc_inst_t instr = ppc_inst(0);
 	int type = 0;
 	int size = 0;
-	unsigned long ea;
+	unsigned long ea = 0;
 
 	/* Disable breakpoints during exception handling */
 	hw_breakpoint_disable();

@@ -713,7 +713,6 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static void tegra_kbc_set_keypress_interrupt(struct tegra_kbc *kbc, bool enable)
 {
 	u32 val;
@@ -802,15 +801,15 @@ static int tegra_kbc_resume(struct device *dev)
 
 	return err;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(tegra_kbc_pm_ops, tegra_kbc_suspend, tegra_kbc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tegra_kbc_pm_ops,
+				tegra_kbc_suspend, tegra_kbc_resume);
 
 static struct platform_driver tegra_kbc_driver = {
 	.probe		= tegra_kbc_probe,
 	.driver	= {
 		.name	= "tegra-kbc",
-		.pm	= &tegra_kbc_pm_ops,
+		.pm	= pm_sleep_ptr(&tegra_kbc_pm_ops),
 		.of_match_table = tegra_kbc_of_match,
 	},
 };

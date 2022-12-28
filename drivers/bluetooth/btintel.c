@@ -26,7 +26,7 @@
 
 #define CMD_WRITE_BOOT_PARAMS	0xfc0e
 struct cmd_write_boot_params {
-	u32 boot_addr;
+	__le32 boot_addr;
 	u8  fw_build_num;
 	u8  fw_build_ww;
 	u8  fw_build_yy;
@@ -1783,19 +1783,19 @@ static int btintel_get_fw_name(struct intel_version *ver,
 	case 0x0b:	/* SfP */
 	case 0x0c:	/* WsP */
 		snprintf(fw_name, len, "intel/ibt-%u-%u.%s",
-			le16_to_cpu(ver->hw_variant),
-			le16_to_cpu(params->dev_revid),
-			suffix);
+			 ver->hw_variant,
+			 le16_to_cpu(params->dev_revid),
+			 suffix);
 		break;
 	case 0x11:	/* JfP */
 	case 0x12:	/* ThP */
 	case 0x13:	/* HrP */
 	case 0x14:	/* CcP */
 		snprintf(fw_name, len, "intel/ibt-%u-%u-%u.%s",
-			le16_to_cpu(ver->hw_variant),
-			le16_to_cpu(ver->hw_revision),
-			le16_to_cpu(ver->fw_revision),
-			suffix);
+			 ver->hw_variant,
+			 ver->hw_revision,
+			 ver->fw_revision,
+			 suffix);
 		break;
 	default:
 		return -EINVAL;
@@ -2524,7 +2524,7 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 		 */
 		err = btintel_read_version(hdev, &ver);
 		if (err)
-			return err;
+			break;
 
 		/* Apply the device specific HCI quirks
 		 *
@@ -2566,7 +2566,8 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 	default:
 		bt_dev_err(hdev, "Unsupported Intel hw variant (%u)",
 			   INTEL_HW_VARIANT(ver_tlv.cnvi_bt));
-		return -EINVAL;
+		err = -EINVAL;
+		break;
 	}
 
 exit_error:

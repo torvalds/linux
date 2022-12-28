@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/irled/gpio-ir-tx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: IR LED connected through GPIO pin
+
+maintainers:
+  - Sean Young <sean@mess.org>
+
+description:
+  IR LED connected through GPIO pin which is used as remote controller
+  transmitter.
+
+properties:
+  compatible:
+    const: gpio-ir-tx
+
+  gpios:
+    maxItems: 1
+
+required:
+  - compatible
+  - gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    irled {
+        compatible = "gpio-ir-tx";
+        gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+    };

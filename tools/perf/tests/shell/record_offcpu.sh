@@ -51,7 +51,7 @@ test_offcpu_basic() {
     err=1
     return
   fi
-  if ! perf report -i ${perfdata} -q --percent-limit=90 | egrep -q sleep
+  if ! perf report -i ${perfdata} -q --percent-limit=90 | grep -E -q sleep
   then
     echo "Basic off-cpu test [Failed missing output]"
     err=1

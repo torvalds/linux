@@ -515,6 +515,16 @@ ip_set_init_skbinfo(struct ip_set_skbinfo *skbinfo,
 	*skbinfo = ext->skbinfo;
 }
 
+static inline void
+nf_inet_addr_mask_inplace(union nf_inet_addr *a1,
+			  const union nf_inet_addr *mask)
+{
+	a1->all[0] &= mask->all[0];
+	a1->all[1] &= mask->all[1];
+	a1->all[2] &= mask->all[2];
+	a1->all[3] &= mask->all[3];
+}
+
 #define IP_SET_INIT_KEXT(skb, opt, set)			\
 	{ .bytes = (skb)->len, .packets = 1, .target = true,\
 	  .timeout = ip_set_adt_opt_timeout(opt, set) }

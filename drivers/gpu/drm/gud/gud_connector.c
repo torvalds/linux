@@ -355,7 +355,7 @@ static void gud_connector_reset(struct drm_connector *connector)
 	drm_atomic_helper_connector_reset(connector);
 	connector->state->tv = gconn->initial_tv_state;
 	/* Set margins from command line */
-	drm_atomic_helper_connector_tv_reset(connector);
+	drm_atomic_helper_connector_tv_margins_reset(connector);
 	if (gconn->initial_brightness >= 0)
 		connector->state->tv.brightness = gconn->initial_brightness;
 }

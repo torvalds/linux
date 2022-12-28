@@ -177,9 +177,9 @@ static const struct iio_info htu21_info = {
 	.attrs = &htu21_attribute_group,
 };
 
-static int htu21_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int htu21_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct ms_ht_dev *dev_data;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -244,7 +244,7 @@ static const struct of_device_id htu21_of_match[] = {
 MODULE_DEVICE_TABLE(of, htu21_of_match);
 
 static struct i2c_driver htu21_driver = {
-	.probe = htu21_probe,
+	.probe_new = htu21_probe,
 	.id_table = htu21_id,
 	.driver = {
 		   .name = "htu21",

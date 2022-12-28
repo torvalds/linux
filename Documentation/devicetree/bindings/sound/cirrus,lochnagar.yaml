@@ -24,6 +24,9 @@ description: |
   This binding must be part of the Lochnagar MFD binding:
     [1] ../mfd/cirrus,lochnagar.yaml
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     enum:
@@ -49,4 +52,4 @@ required:
   - clocks
   - clock-names
 
-additionalProperties: false
+unevaluatedProperties: false

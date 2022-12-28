@@ -80,6 +80,12 @@ test_range()
 	ensure_file "$range_dir/max" "exist" 600
 }
 
+test_tried_regions()
+{
+	tried_regions_dir=$1
+	ensure_dir "$tried_regions_dir" "exist"
+}
+
 test_stats()
 {
 	stats_dir=$1
@@ -138,6 +144,7 @@ test_scheme()
 	test_quotas "$scheme_dir/quotas"
 	test_watermarks "$scheme_dir/watermarks"
 	test_stats "$scheme_dir/stats"
+	test_tried_regions "$scheme_dir/tried_regions"
 }
 
 test_schemes()

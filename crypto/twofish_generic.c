@@ -25,12 +25,12 @@
  */
 
 #include <asm/unaligned.h>
+#include <crypto/algapi.h>
 #include <crypto/twofish.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/crypto.h>
 #include <linux/bitops.h>
 
 /* Macros to compute the g() function in the encryption and decryption

@@ -447,7 +447,7 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	 */
 	rtd = devm_kzalloc(dev,
 			   sizeof(*rtd) +
-			   sizeof(*component) * (dai_link->num_cpus +
+			   sizeof(component) * (dai_link->num_cpus +
 						 dai_link->num_codecs +
 						 dai_link->num_platforms),
 			   GFP_KERNEL);
@@ -938,9 +938,6 @@ void snd_soc_remove_pcm_runtime(struct snd_soc_card *card,
 				struct snd_soc_pcm_runtime *rtd)
 {
 	lockdep_assert_held(&client_mutex);
-
-	/* release machine specific resources */
-	snd_soc_link_exit(rtd);
 
 	/*
 	 * Notify the machine driver for extra destruction
@@ -1890,6 +1887,9 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 
 	snd_soc_dapm_shutdown(card);
 
+	/* release machine specific resources */
+	for_each_card_rtds(card, rtd)
+		snd_soc_link_exit(rtd);
 	/* remove and free each DAI */
 	soc_remove_link_dais(card);
 	soc_remove_link_components(card);
@@ -3477,10 +3477,23 @@ EXPORT_SYMBOL_GPL(snd_soc_of_get_dai_link_cpus);
 
 static int __init snd_soc_init(void)
 {
-	snd_soc_debugfs_init();
-	snd_soc_util_init();
+	int ret;
 
-	return platform_driver_register(&soc_driver);
+	snd_soc_debugfs_init();
+	ret = snd_soc_util_init();
+	if (ret)
+		goto err_util_init;
+
+	ret = platform_driver_register(&soc_driver);
+	if (ret)
+		goto err_register;
+	return 0;
+
+err_register:
+	snd_soc_util_exit();
+err_util_init:
+	snd_soc_debugfs_exit();
+	return ret;
 }
 module_init(snd_soc_init);
 

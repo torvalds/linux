@@ -52,14 +52,14 @@ static int rxe_check_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 {
 	if (mw->ibmw.type == IB_MW_TYPE_1) {
 		if (unlikely(mw->state != RXE_MW_STATE_VALID)) {
-			pr_err_once(
+			rxe_dbg_mw(mw,
 				"attempt to bind a type 1 MW not in the valid state\n");
 			return -EINVAL;
 		}
 
 		/* o10-36.2.2 */
 		if (unlikely((mw->access & IB_ZERO_BASED))) {
-			pr_err_once("attempt to bind a zero based type 1 MW\n");
+			rxe_dbg_mw(mw, "attempt to bind a zero based type 1 MW\n");
 			return -EINVAL;
 		}
 	}
@@ -67,21 +67,21 @@ static int rxe_check_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	if (mw->ibmw.type == IB_MW_TYPE_2) {
 		/* o10-37.2.30 */
 		if (unlikely(mw->state != RXE_MW_STATE_FREE)) {
-			pr_err_once(
+			rxe_dbg_mw(mw,
 				"attempt to bind a type 2 MW not in the free state\n");
 			return -EINVAL;
 		}
 
 		/* C10-72 */
 		if (unlikely(qp->pd != to_rpd(mw->ibmw.pd))) {
-			pr_err_once(
+			rxe_dbg_mw(mw,
 				"attempt to bind type 2 MW with qp with different PD\n");
 			return -EINVAL;
 		}
 
 		/* o10-37.2.40 */
 		if (unlikely(!mr || wqe->wr.wr.mw.length == 0)) {
-			pr_err_once(
+			rxe_dbg_mw(mw,
 				"attempt to invalidate type 2 MW by binding with NULL or zero length MR\n");
 			return -EINVAL;
 		}
@@ -92,13 +92,13 @@ static int rxe_check_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		return 0;
 
 	if (unlikely(mr->access & IB_ZERO_BASED)) {
-		pr_err_once("attempt to bind MW to zero based MR\n");
+		rxe_dbg_mw(mw, "attempt to bind MW to zero based MR\n");
 		return -EINVAL;
 	}
 
 	/* C10-73 */
 	if (unlikely(!(mr->access & IB_ACCESS_MW_BIND))) {
-		pr_err_once(
+		rxe_dbg_mw(mw,
 			"attempt to bind an MW to an MR without bind access\n");
 		return -EINVAL;
 	}
@@ -107,7 +107,7 @@ static int rxe_check_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	if (unlikely((mw->access &
 		      (IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_ATOMIC)) &&
 		     !(mr->access & IB_ACCESS_LOCAL_WRITE))) {
-		pr_err_once(
+		rxe_dbg_mw(mw,
 			"attempt to bind an Writable MW to an MR without local write access\n");
 		return -EINVAL;
 	}
@@ -115,7 +115,7 @@ static int rxe_check_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	/* C10-75 */
 	if (mw->access & IB_ZERO_BASED) {
 		if (unlikely(wqe->wr.wr.mw.length > mr->ibmr.length)) {
-			pr_err_once(
+			rxe_dbg_mw(mw,
 				"attempt to bind a ZB MW outside of the MR\n");
 			return -EINVAL;
 		}
@@ -123,7 +123,7 @@ static int rxe_check_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		if (unlikely((wqe->wr.wr.mw.addr < mr->ibmr.iova) ||
 			     ((wqe->wr.wr.mw.addr + wqe->wr.wr.mw.length) >
 			      (mr->ibmr.iova + mr->ibmr.length)))) {
-			pr_err_once(
+			rxe_dbg_mw(mw,
 				"attempt to bind a VA MW outside of the MR\n");
 			return -EINVAL;
 		}
@@ -293,8 +293,7 @@ struct rxe_mw *rxe_lookup_mw(struct rxe_qp *qp, int access, u32 rkey)
 
 	if (unlikely((mw->rkey != rkey) || rxe_mw_pd(mw) != pd ||
 		     (mw->ibmw.type == IB_MW_TYPE_2 && mw->qp != qp) ||
-		     (mw->length == 0) ||
-		     (access && !(access & mw->access)) ||
+		     (mw->length == 0) || ((access & mw->access) != access) ||
 		     mw->state != RXE_MW_STATE_VALID)) {
 		rxe_put(mw);
 		return NULL;

@@ -64,6 +64,7 @@
 #include <linux/io_uring.h>
 #include <linux/syscall_user_dispatch.h>
 #include <linux/coredump.h>
+#include <linux/time_namespace.h>
 
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
@@ -171,7 +172,7 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 exit:
 	fput(file);
 out:
-  	return error;
+	return error;
 }
 #endif /* #ifdef CONFIG_USELIB */
 
@@ -199,7 +200,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 {
 	struct page *page;
 	int ret;
-	unsigned int gup_flags = FOLL_FORCE;
+	unsigned int gup_flags = 0;
 
 #ifdef CONFIG_STACK_GROWSUP
 	if (write) {
@@ -842,16 +843,13 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	 * will align it up.
 	 */
 	rlim_stack = bprm->rlim_stack.rlim_cur & PAGE_MASK;
+
+	stack_expand = min(rlim_stack, stack_size + stack_expand);
+
 #ifdef CONFIG_STACK_GROWSUP
-	if (stack_size + stack_expand > rlim_stack)
-		stack_base = vma->vm_start + rlim_stack;
-	else
-		stack_base = vma->vm_end + stack_expand;
+	stack_base = vma->vm_start + stack_expand;
 #else
-	if (stack_size + stack_expand > rlim_stack)
-		stack_base = vma->vm_end - rlim_stack;
-	else
-		stack_base = vma->vm_start - stack_expand;
+	stack_base = vma->vm_end - stack_expand;
 #endif
 	current->mm->start_stack = bprm->p;
 	ret = expand_stack(vma, stack_base);
@@ -1297,6 +1295,10 @@ int begin_new_exec(struct linux_binprm * bprm)
 
 	bprm->mm = NULL;
 
+	retval = exec_task_namespaces();
+	if (retval)
+		goto out_unlock;
+
 #ifdef CONFIG_POSIX_TIMERS
 	spin_lock_irq(&me->sighand->siglock);
 	posix_cpu_timers_exit(me);
@@ -1568,6 +1570,12 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 	if (task_no_new_privs(current))
 		bprm->unsafe |= LSM_UNSAFE_NO_NEW_PRIVS;
 
+	/*
+	 * If another task is sharing our fs, we cannot safely
+	 * suid exec because the differently privileged task
+	 * will be able to manipulate the current directory, etc.
+	 * It would be nice to force an unshare instead...
+	 */
 	t = p;
 	n_fs = 1;
 	spin_lock(&p->fs->lock);
@@ -1591,8 +1599,8 @@ static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 	struct user_namespace *mnt_userns;
 	struct inode *inode = file_inode(file);
 	unsigned int mode;
-	kuid_t uid;
-	kgid_t gid;
+	vfsuid_t vfsuid;
+	vfsgid_t vfsgid;
 
 	if (!mnt_may_suid(file->f_path.mnt))
 		return;
@@ -1611,23 +1619,23 @@ static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 
 	/* reload atomically mode/uid/gid now that lock held */
 	mode = inode->i_mode;
-	uid = i_uid_into_mnt(mnt_userns, inode);
-	gid = i_gid_into_mnt(mnt_userns, inode);
+	vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+	vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
 	inode_unlock(inode);
 
 	/* We ignore suid/sgid if there are no mappings for them in the ns */
-	if (!kuid_has_mapping(bprm->cred->user_ns, uid) ||
-		 !kgid_has_mapping(bprm->cred->user_ns, gid))
+	if (!vfsuid_has_mapping(bprm->cred->user_ns, vfsuid) ||
+	    !vfsgid_has_mapping(bprm->cred->user_ns, vfsgid))
 		return;
 
 	if (mode & S_ISUID) {
 		bprm->per_clear |= PER_CLEAR_ON_SETID;
-		bprm->cred->euid = uid;
+		bprm->cred->euid = vfsuid_into_kuid(vfsuid);
 	}
 
 	if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
 		bprm->per_clear |= PER_CLEAR_ON_SETID;
-		bprm->cred->egid = gid;
+		bprm->cred->egid = vfsgid_into_kgid(vfsgid);
 	}
 }
 
@@ -1748,6 +1756,7 @@ static int search_binary_handler(struct linux_binprm *bprm)
 	return retval;
 }
 
+/* binfmt handlers will call back into begin_new_exec() on success. */
 static int exec_binprm(struct linux_binprm *bprm)
 {
 	pid_t old_pid, old_vpid;
@@ -1806,6 +1815,11 @@ static int bprm_execve(struct linux_binprm *bprm,
 	if (retval)
 		return retval;
 
+	/*
+	 * Check for unsafe execution states before exec_binprm(), which
+	 * will call back into begin_new_exec(), into bprm_creds_from_file(),
+	 * where setuid-ness is evaluated.
+	 */
 	check_unsafe_exec(bprm);
 	current->in_execve = 1;
 

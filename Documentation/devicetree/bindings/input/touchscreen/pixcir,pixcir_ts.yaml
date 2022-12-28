@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/pixcir,pixcir_ts.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Pixcir Touchscreen Controller Device Tree Bindings
+title: Pixcir Touchscreen Controller
 
 maintainers:
   - Dmitry Torokhov <dmitry.torokhov@gmail.com>

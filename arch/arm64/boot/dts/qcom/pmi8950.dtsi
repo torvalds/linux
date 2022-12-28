@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2019, AngeloGioacchino Del Regno <kholk11@gmail.com>
+
+#include <dt-bindings/iio/qcom,spmi-vadc.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/spmi/spmi.h>
+
+&spmi_bus {
+	pmic@2 {
+		compatible = "qcom,pmi8950", "qcom,spmi-pmic";
+		reg = <0x2 SPMI_USID>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pmi8950_vadc: adc@3100 {
+			compatible = "qcom,spmi-vadc";
+			reg = <0x3100>;
+			interrupts = <0x2 0x31 0x0 IRQ_TYPE_EDGE_RISING>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#io-channel-cells = <1>;
+
+			adc-chan@0 {
+				reg = <VADC_USBIN>;
+				qcom,pre-scaling = <1 4>;
+				label = "usbin";
+			};
+
+			adc-chan@1 {
+				reg = <VADC_DCIN>;
+				qcom,pre-scaling = <1 4>;
+				label = "dcin";
+			};
+
+			adc-chan@2 {
+				reg = <VADC_VCHG_SNS>;
+				qcom,pre-scaling = <1 1>;
+				label = "vchg_sns";
+			};
+
+			adc-chan@9 {
+				reg = <VADC_REF_625MV>;
+				qcom,pre-scaling = <1 1>;
+				label = "ref_625mv";
+			};
+
+			adc-chan@a {
+				reg = <VADC_REF_1250MV>;
+				qcom,pre-scaling = <1 1>;
+				label = "ref_1250v";
+			};
+
+			adc-chan@d {
+				reg = <VADC_SPARE2>;
+				qcom,pre-scaling = <1 1>;
+				label = "chg_temp";
+			};
+		};
+
+		pmi8950_mpps: mpps@a000 {
+			compatible = "qcom,pmi8950-mpp", "qcom,spmi-mpp";
+			reg = <0xa000>;
+			gpio-controller;
+			gpio-ranges = <&pmi8950_mpps 0 0 4>;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		pmi8950_gpio: gpio@c000 {
+			compatible = "qcom,pmi8950-gpio", "qcom,spmi-gpio";
+			reg = <0xc000>;
+			gpio-controller;
+			gpio-ranges = <&pmi8950_gpio 0 0 2>;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	pmic@3 {
+		compatible = "qcom,pmi8950", "qcom,spmi-pmic";
+		reg = <0x3 SPMI_USID>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pmi8950_wled: leds@d800 {
+			compatible = "qcom,pmi8950-wled";
+			reg = <0xd800>, <0xd900>;
+			interrupts = <0x3 0xd8 0x02 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "short";
+			label = "backlight";
+
+			status = "disabled";
+		};
+	};
+};

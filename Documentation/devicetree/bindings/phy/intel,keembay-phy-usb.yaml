@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/intel,keembay-phy-usb.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Intel Keem Bay USB PHY bindings
+title: Intel Keem Bay USB PHY
 
 maintainers:
   - Wan Ahmad Zainie <wan.ahmad.zainie.wan.mohamad@intel.com>

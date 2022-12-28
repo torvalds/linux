@@ -712,13 +712,13 @@ static void vlan_dev_get_stats64(struct net_device *dev,
 
 		p = per_cpu_ptr(vlan_dev_priv(dev)->vlan_pcpu_stats, i);
 		do {
-			start = u64_stats_fetch_begin_irq(&p->syncp);
+			start = u64_stats_fetch_begin(&p->syncp);
 			rxpackets	= u64_stats_read(&p->rx_packets);
 			rxbytes		= u64_stats_read(&p->rx_bytes);
 			rxmulticast	= u64_stats_read(&p->rx_multicast);
 			txpackets	= u64_stats_read(&p->tx_packets);
 			txbytes		= u64_stats_read(&p->tx_bytes);
-		} while (u64_stats_fetch_retry_irq(&p->syncp, start));
+		} while (u64_stats_fetch_retry(&p->syncp, start));
 
 		stats->rx_packets	+= rxpackets;
 		stats->rx_bytes		+= rxbytes;

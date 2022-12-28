@@ -67,10 +67,20 @@ struct instruction {
 	struct reloc *jump_table;
 	struct reloc *reloc;
 	struct list_head alts;
-	struct symbol *func;
+	struct symbol *sym;
 	struct list_head stack_ops;
 	struct cfi_state *cfi;
 };
+
+static inline struct symbol *insn_func(struct instruction *insn)
+{
+	struct symbol *sym = insn->sym;
+
+	if (sym && sym->type != STT_FUNC)
+		sym = NULL;
+
+	return sym;
+}
 
 #define VISITED_BRANCH		0x01
 #define VISITED_BRANCH_UACCESS	0x02

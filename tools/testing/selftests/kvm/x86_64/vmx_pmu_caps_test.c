@@ -20,16 +20,6 @@
 #define PMU_CAP_FW_WRITES	(1ULL << 13)
 #define PMU_CAP_LBR_FMT		0x3f
 
-union cpuid10_eax {
-	struct {
-		unsigned int version_id:8;
-		unsigned int num_counters:8;
-		unsigned int bit_width:8;
-		unsigned int mask_length:8;
-	} split;
-	unsigned int full;
-};
-
 union perf_capabilities {
 	struct {
 		u64	lbr_format:6;
@@ -53,11 +43,9 @@ static void guest_code(void)
 
 int main(int argc, char *argv[])
 {
-	const struct kvm_cpuid_entry2 *entry_a_0;
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
 	int ret;
-	union cpuid10_eax eax;
 	union perf_capabilities host_cap;
 	uint64_t val;
 
@@ -69,11 +57,8 @@ int main(int argc, char *argv[])
 
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_PDCM));
 
-	TEST_REQUIRE(kvm_get_cpuid_max_basic() >= 0xa);
-	entry_a_0 = kvm_get_supported_cpuid_entry(0xa);
-
-	eax.full = entry_a_0->eax;
-	__TEST_REQUIRE(eax.split.version_id, "PMU is not supported by the vCPU");
+	TEST_REQUIRE(kvm_cpu_has_p(X86_PROPERTY_PMU_VERSION));
+	TEST_REQUIRE(kvm_cpu_property(X86_PROPERTY_PMU_VERSION) > 0);
 
 	/* testcase 1, set capabilities when we have PDCM bit */
 	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, PMU_CAP_FW_WRITES);

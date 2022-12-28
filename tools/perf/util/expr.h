@@ -2,12 +2,7 @@
 #ifndef PARSE_CTX_H
 #define PARSE_CTX_H 1
 
-#ifdef HAVE_LIBBPF_SUPPORT
-#include <bpf/hashmap.h>
-#else
-#include "util/hashmap.h"
-#endif
-
+struct hashmap;
 struct metric_ref;
 
 struct expr_scanner_ctx {

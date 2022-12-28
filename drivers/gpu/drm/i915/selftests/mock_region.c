@@ -41,7 +41,7 @@ static int mock_region_get_pages(struct drm_i915_gem_object *obj)
 	}
 
 	pages = &obj->mm.rsgt->table;
-	__i915_gem_object_set_pages(obj, pages, i915_sg_dma_sizes(pages->sgl));
+	__i915_gem_object_set_pages(obj, pages);
 
 	return 0;
 

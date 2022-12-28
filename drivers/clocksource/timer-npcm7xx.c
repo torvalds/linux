@@ -188,6 +188,7 @@ static void __init npcm7xx_clocksource_init(void)
 
 static int __init npcm7xx_timer_init(struct device_node *np)
 {
+	struct clk *clk;
 	int ret;
 
 	ret = timer_of_init(np, &npcm7xx_to);
@@ -198,6 +199,15 @@ static int __init npcm7xx_timer_init(struct device_node *np)
 	/* to the counter */
 	npcm7xx_to.of_clk.rate = npcm7xx_to.of_clk.rate /
 		(NPCM7XX_Tx_MIN_PRESCALE + 1);
+
+	/* Enable the clock for timer1, if it exists */
+	clk = of_clk_get(np, 1);
+	if (clk) {
+		if (!IS_ERR(clk))
+			clk_prepare_enable(clk);
+		else
+			pr_warn("%pOF: Failed to get clock for timer1: %pe", np, clk);
+	}
 
 	npcm7xx_clocksource_init();
 	npcm7xx_clockevents_init();

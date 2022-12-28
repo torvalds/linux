@@ -51,7 +51,14 @@ enum rxe_device_param {
 					| IB_DEVICE_SRQ_RESIZE
 					| IB_DEVICE_MEM_MGT_EXTENSIONS
 					| IB_DEVICE_MEM_WINDOW
+					| IB_DEVICE_FLUSH_GLOBAL
+					| IB_DEVICE_FLUSH_PERSISTENT
+#ifdef CONFIG_64BIT
+					| IB_DEVICE_MEM_WINDOW_TYPE_2B
+					| IB_DEVICE_ATOMIC_WRITE,
+#else
 					| IB_DEVICE_MEM_WINDOW_TYPE_2B,
+#endif /* CONFIG_64BIT */
 	RXE_MAX_SGE			= 32,
 	RXE_MAX_WQE_SIZE		= sizeof(struct rxe_send_wqe) +
 					  sizeof(struct ib_sge) * RXE_MAX_SGE,

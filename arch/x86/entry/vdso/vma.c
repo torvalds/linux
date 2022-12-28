@@ -98,24 +98,6 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
 }
 
 #ifdef CONFIG_TIME_NS
-static struct page *find_timens_vvar_page(struct vm_area_struct *vma)
-{
-	if (likely(vma->vm_mm == current->mm))
-		return current->nsproxy->time_ns->vvar_page;
-
-	/*
-	 * VM_PFNMAP | VM_IO protect .fault() handler from being called
-	 * through interfaces like /proc/$pid/mem or
-	 * process_vm_{readv,writev}() as long as there's no .access()
-	 * in special_mapping_vmops().
-	 * For more details check_vma_flags() and __access_remote_vm()
-	 */
-
-	WARN(1, "vvar_page accessed remotely");
-
-	return NULL;
-}
-
 /*
  * The vvar page layout depends on whether a task belongs to the root or
  * non-root time namespace. Whenever a task changes its namespace, the VVAR
@@ -139,11 +121,6 @@ int vdso_join_timens(struct task_struct *task, struct time_namespace *ns)
 	mmap_read_unlock(mm);
 
 	return 0;
-}
-#else
-static inline struct page *find_timens_vvar_page(struct vm_area_struct *vma)
-{
-	return NULL;
 }
 #endif
 
@@ -210,11 +187,10 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 					pgprot_decrypted(vma->vm_page_prot));
 		}
 	} else if (sym_offset == image->sym_hvclock_page) {
-		struct ms_hyperv_tsc_page *tsc_pg = hv_get_tsc_page();
+		pfn = hv_get_tsc_pfn();
 
-		if (tsc_pg && vclock_was_used(VDSO_CLOCKMODE_HVCLOCK))
-			return vmf_insert_pfn(vma, vmf->address,
-					virt_to_phys(tsc_pg) >> PAGE_SHIFT);
+		if (pfn && vclock_was_used(VDSO_CLOCKMODE_HVCLOCK))
+			return vmf_insert_pfn(vma, vmf->address, pfn);
 	} else if (sym_offset == image->sym_timens_page) {
 		struct page *timens_page = find_timens_vvar_page(vma);
 
@@ -327,7 +303,7 @@ static unsigned long vdso_addr(unsigned long start, unsigned len)
 	end -= len;
 
 	if (end > start) {
-		offset = prandom_u32_max(((end - start) >> PAGE_SHIFT) + 1);
+		offset = get_random_u32_below(((end - start) >> PAGE_SHIFT) + 1);
 		addr = start + (offset << PAGE_SHIFT);
 	} else {
 		addr = start;

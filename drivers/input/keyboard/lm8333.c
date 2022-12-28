@@ -125,8 +125,7 @@ static irqreturn_t lm8333_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int lm8333_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int lm8333_probe(struct i2c_client *client)
 {
 	const struct lm8333_platform_data *pdata =
 			dev_get_platdata(&client->dev);
@@ -219,7 +218,7 @@ static struct i2c_driver lm8333_driver = {
 	.driver = {
 		.name		= "lm8333",
 	},
-	.probe		= lm8333_probe,
+	.probe_new	= lm8333_probe,
 	.remove		= lm8333_remove,
 	.id_table	= lm8333_id,
 };

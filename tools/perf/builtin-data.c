@@ -78,12 +78,13 @@ static int cmd_data_convert(int argc, const char **argv)
 		return bt_convert__perf2json(input_name, to_json, &opts);
 
 	if (to_ctf) {
-#ifdef HAVE_LIBBABELTRACE_SUPPORT
+#if defined(HAVE_LIBBABELTRACE_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
 		return bt_convert__perf2ctf(input_name, to_ctf, &opts);
 #else
 		pr_err("The libbabeltrace support is not compiled in. perf should be "
 		       "compiled with environment variables LIBBABELTRACE=1 and "
-		       "LIBBABELTRACE_DIR=/path/to/libbabeltrace/\n");
+		       "LIBBABELTRACE_DIR=/path/to/libbabeltrace/.\n"
+		       "Check also if libbtraceevent devel files are available.\n");
 		return -1;
 #endif
 	}

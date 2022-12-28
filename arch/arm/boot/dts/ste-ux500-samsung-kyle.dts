@@ -315,6 +315,21 @@
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&u1rxtx_a_1_default &u1ctsrts_a_1_default>;
 			pinctrl-1 = <&u1rxtx_a_1_sleep &u1ctsrts_a_1_sleep>;
+
+			gnss {
+				/* The CSRG05TA03-ICJE-R is a SirfStarV 5t chip */
+				compatible = "csr,csrg05ta03-icje-r";
+				/* GPS_RSTN on GPIO21 */
+				reset-gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
+				/* GPS_ON_OFF on GPIO86 */
+				sirf,onoff-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
+				/* GPS_1V8 (VSMPS2) */
+				vcc-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&g05ta03_kyle_default>;
+				/* According to /etc/sirfgps.conf */
+				current-speed = <460800>;
+			};
 		};
 
 		/* Debugging console UART connected to AB8505 USB */
@@ -671,6 +686,20 @@
 			kyle_cfg1 {
 				pins = "GPIO218_AH11";
 				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+	g05ta03 {
+		g05ta03_kyle_default: g05ta03 {
+			/* Reset line, start out de-asserted */
+			kyle_cfg1 {
+				pins = "GPIO21_AB3";
+				ste,config = <&gpio_out_hi>;
+			};
+			/* GPS_ON_OFF, start out deasserted (off) */
+			kyle_cfg2 {
+				pins = "GPIO86_C6";
+				ste,config = <&gpio_out_lo>;
 			};
 		};
 	};

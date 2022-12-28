@@ -562,6 +562,34 @@ unsigned long phylink_get_capabilities(phy_interface_t interface,
 EXPORT_SYMBOL_GPL(phylink_get_capabilities);
 
 /**
+ * phylink_validate_mask_caps() - Restrict link modes based on caps
+ * @supported: ethtool bitmask for supported link modes.
+ * @state: pointer to a &struct phylink_link_state.
+ * @mac_capabilities: bitmask of MAC capabilities
+ *
+ * Calculate the supported link modes based on @mac_capabilities, and restrict
+ * @supported and @state based on that. Use this function if your capabiliies
+ * aren't constant, such as if they vary depending on the interface.
+ */
+void phylink_validate_mask_caps(unsigned long *supported,
+				struct phylink_link_state *state,
+				unsigned long mac_capabilities)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+	unsigned long caps;
+
+	phylink_set_port_modes(mask);
+	phylink_set(mask, Autoneg);
+	caps = phylink_get_capabilities(state->interface, mac_capabilities,
+					state->rate_matching);
+	phylink_caps_to_linkmodes(mask, caps);
+
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
+}
+EXPORT_SYMBOL_GPL(phylink_validate_mask_caps);
+
+/**
  * phylink_generic_validate() - generic validate() callback implementation
  * @config: a pointer to a &struct phylink_config.
  * @supported: ethtool bitmask for supported link modes.
@@ -569,24 +597,12 @@ EXPORT_SYMBOL_GPL(phylink_get_capabilities);
  *
  * Generic implementation of the validate() callback that MAC drivers can
  * use when they pass the range of supported interfaces and MAC capabilities.
- * This makes use of phylink_get_linkmodes().
  */
 void phylink_generic_validate(struct phylink_config *config,
 			      unsigned long *supported,
 			      struct phylink_link_state *state)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-	unsigned long caps;
-
-	phylink_set_port_modes(mask);
-	phylink_set(mask, Autoneg);
-	caps = phylink_get_capabilities(state->interface,
-					config->mac_capabilities,
-					state->rate_matching);
-	phylink_caps_to_linkmodes(mask, caps);
-
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
+	phylink_validate_mask_caps(supported, state, config->mac_capabilities);
 }
 EXPORT_SYMBOL_GPL(phylink_generic_validate);
 
@@ -633,7 +649,10 @@ static int phylink_validate_mac_and_pcs(struct phylink *pl,
 	}
 
 	/* Then validate the link parameters with the MAC */
-	pl->mac_ops->validate(pl->config, supported, state);
+	if (pl->mac_ops->validate)
+		pl->mac_ops->validate(pl->config, supported, state);
+	else
+		phylink_generic_validate(pl->config, supported, state);
 
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
 }
@@ -1603,19 +1622,29 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 	linkmode_copy(supported, phy->supported);
 	linkmode_copy(config.advertising, phy->advertising);
 
-	/* Clause 45 PHYs switch their Serdes lane between several different
-	 * modes, normally 10GBASE-R, SGMII. Some use 2500BASE-X for 2.5G
-	 * speeds. We really need to know which interface modes the PHY and
-	 * MAC supports to properly work out which linkmodes can be supported.
+	/* Check whether we would use rate matching for the proposed interface
+	 * mode.
 	 */
-	if (phy->is_c45 &&
+	config.rate_matching = phy_get_rate_matching(phy, interface);
+
+	/* Clause 45 PHYs may switch their Serdes lane between, e.g. 10GBASE-R,
+	 * 5GBASE-R, 2500BASE-X and SGMII if they are not using rate matching.
+	 * For some interface modes (e.g. RXAUI, XAUI and USXGMII) switching
+	 * their Serdes is either unnecessary or not reasonable.
+	 *
+	 * For these which switch interface modes, we really need to know which
+	 * interface modes the PHY supports to properly work out which ethtool
+	 * linkmodes can be supported. For now, as a work-around, we validate
+	 * against all interface modes, which may lead to more ethtool link
+	 * modes being advertised than are actually supported.
+	 */
+	if (phy->is_c45 && config.rate_matching == RATE_MATCH_NONE &&
 	    interface != PHY_INTERFACE_MODE_RXAUI &&
 	    interface != PHY_INTERFACE_MODE_XAUI &&
 	    interface != PHY_INTERFACE_MODE_USXGMII)
 		config.interface = PHY_INTERFACE_MODE_NA;
 	else
 		config.interface = interface;
-	config.rate_matching = phy_get_rate_matching(phy, config.interface);
 
 	ret = phylink_validate(pl, supported, &config);
 	if (ret) {

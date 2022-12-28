@@ -265,9 +265,6 @@ enum tpacpi_hkey_event_t {
 
 #define FAN_NOT_PRESENT		65535
 
-#define strlencmp(a, b) (strncmp((a), (b), strlen(b)))
-
-
 /****************************************************************************
  * Driver-wide structs and misc. variables
  */
@@ -1335,9 +1332,9 @@ static int tpacpi_rfk_procfs_write(const enum tpacpi_rfk_id id, char *buf)
 		return -ENODEV;
 
 	while ((cmd = strsep(&buf, ","))) {
-		if (strlencmp(cmd, "enable") == 0)
+		if (strstarts(cmd, "enable"))
 			status = TPACPI_RFK_RADIO_ON;
-		else if (strlencmp(cmd, "disable") == 0)
+		else if (strstarts(cmd, "disable"))
 			status = TPACPI_RFK_RADIO_OFF;
 		else
 			return -EINVAL;
@@ -4198,12 +4195,12 @@ static int hotkey_write(char *buf)
 
 	res = 0;
 	while ((cmd = strsep(&buf, ","))) {
-		if (strlencmp(cmd, "enable") == 0) {
+		if (strstarts(cmd, "enable")) {
 			hotkey_enabledisable_warn(1);
-		} else if (strlencmp(cmd, "disable") == 0) {
+		} else if (strstarts(cmd, "disable")) {
 			hotkey_enabledisable_warn(0);
 			res = -EPERM;
-		} else if (strlencmp(cmd, "reset") == 0) {
+		} else if (strstarts(cmd, "reset")) {
 			mask = (hotkey_all_mask | hotkey_source_mask)
 				& ~hotkey_reserved_mask;
 		} else if (sscanf(cmd, "0x%x", &mask) == 1) {
@@ -4495,6 +4492,14 @@ static const struct dmi_system_id fwbug_list[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21A0"),
+		}
+	},
+	{
+		.ident = "P14s Gen2 AMD",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "21A1"),
 		}
 	},
 	{}
@@ -5225,33 +5230,33 @@ static int video_write(char *buf)
 	disable = 0;
 
 	while ((cmd = strsep(&buf, ","))) {
-		if (strlencmp(cmd, "lcd_enable") == 0) {
+		if (strstarts(cmd, "lcd_enable")) {
 			enable |= TP_ACPI_VIDEO_S_LCD;
-		} else if (strlencmp(cmd, "lcd_disable") == 0) {
+		} else if (strstarts(cmd, "lcd_disable")) {
 			disable |= TP_ACPI_VIDEO_S_LCD;
-		} else if (strlencmp(cmd, "crt_enable") == 0) {
+		} else if (strstarts(cmd, "crt_enable")) {
 			enable |= TP_ACPI_VIDEO_S_CRT;
-		} else if (strlencmp(cmd, "crt_disable") == 0) {
+		} else if (strstarts(cmd, "crt_disable")) {
 			disable |= TP_ACPI_VIDEO_S_CRT;
 		} else if (video_supported == TPACPI_VIDEO_NEW &&
-			   strlencmp(cmd, "dvi_enable") == 0) {
+			   strstarts(cmd, "dvi_enable")) {
 			enable |= TP_ACPI_VIDEO_S_DVI;
 		} else if (video_supported == TPACPI_VIDEO_NEW &&
-			   strlencmp(cmd, "dvi_disable") == 0) {
+			   strstarts(cmd, "dvi_disable")) {
 			disable |= TP_ACPI_VIDEO_S_DVI;
-		} else if (strlencmp(cmd, "auto_enable") == 0) {
+		} else if (strstarts(cmd, "auto_enable")) {
 			res = video_autosw_set(1);
 			if (res)
 				return res;
-		} else if (strlencmp(cmd, "auto_disable") == 0) {
+		} else if (strstarts(cmd, "auto_disable")) {
 			res = video_autosw_set(0);
 			if (res)
 				return res;
-		} else if (strlencmp(cmd, "video_switch") == 0) {
+		} else if (strstarts(cmd, "video_switch")) {
 			res = video_outputsw_cycle();
 			if (res)
 				return res;
-		} else if (strlencmp(cmd, "expand_toggle") == 0) {
+		} else if (strstarts(cmd, "expand_toggle")) {
 			res = video_expand_toggle();
 			if (res)
 				return res;
@@ -5564,6 +5569,7 @@ static enum led_brightness light_sysfs_get(struct led_classdev *led_cdev)
 static struct tpacpi_led_classdev tpacpi_led_thinklight = {
 	.led_classdev = {
 		.name		= "tpacpi::thinklight",
+		.max_brightness	= 1,
 		.brightness_set_blocking = &light_sysfs_set,
 		.brightness_get	= &light_sysfs_get,
 	}
@@ -5644,9 +5650,9 @@ static int light_write(char *buf)
 		return -ENODEV;
 
 	while ((cmd = strsep(&buf, ","))) {
-		if (strlencmp(cmd, "on") == 0) {
+		if (strstarts(cmd, "on")) {
 			newstatus = 1;
-		} else if (strlencmp(cmd, "off") == 0) {
+		} else if (strstarts(cmd, "off")) {
 			newstatus = 0;
 		} else
 			return -EINVAL;
@@ -7117,10 +7123,10 @@ static int brightness_write(char *buf)
 		return level;
 
 	while ((cmd = strsep(&buf, ","))) {
-		if (strlencmp(cmd, "up") == 0) {
+		if (strstarts(cmd, "up")) {
 			if (level < bright_maxlvl)
 				level++;
-		} else if (strlencmp(cmd, "down") == 0) {
+		} else if (strstarts(cmd, "down")) {
 			if (level > 0)
 				level--;
 		} else if (sscanf(cmd, "level %d", &level) == 1 &&
@@ -7869,13 +7875,13 @@ static int volume_write(char *buf)
 
 	while ((cmd = strsep(&buf, ","))) {
 		if (!tp_features.mixer_no_level_control) {
-			if (strlencmp(cmd, "up") == 0) {
+			if (strstarts(cmd, "up")) {
 				if (new_mute)
 					new_mute = 0;
 				else if (new_level < TP_EC_VOLUME_MAX)
 					new_level++;
 				continue;
-			} else if (strlencmp(cmd, "down") == 0) {
+			} else if (strstarts(cmd, "down")) {
 				if (new_mute)
 					new_mute = 0;
 				else if (new_level > 0)
@@ -7887,9 +7893,9 @@ static int volume_write(char *buf)
 				continue;
 			}
 		}
-		if (strlencmp(cmd, "mute") == 0)
+		if (strstarts(cmd, "mute"))
 			new_mute = TP_EC_AUDIO_MUTESW_MSK;
-		else if (strlencmp(cmd, "unmute") == 0)
+		else if (strstarts(cmd, "unmute"))
 			new_mute = 0;
 		else
 			return -EINVAL;
@@ -9112,10 +9118,9 @@ static int fan_write_cmd_level(const char *cmd, int *rc)
 {
 	int level;
 
-	if (strlencmp(cmd, "level auto") == 0)
+	if (strstarts(cmd, "level auto"))
 		level = TP_EC_FAN_AUTO;
-	else if ((strlencmp(cmd, "level disengaged") == 0) ||
-			(strlencmp(cmd, "level full-speed") == 0))
+	else if (strstarts(cmd, "level disengaged") || strstarts(cmd, "level full-speed"))
 		level = TP_EC_FAN_FULLSPEED;
 	else if (sscanf(cmd, "level %d", &level) != 1)
 		return 0;
@@ -9133,7 +9138,7 @@ static int fan_write_cmd_level(const char *cmd, int *rc)
 
 static int fan_write_cmd_enable(const char *cmd, int *rc)
 {
-	if (strlencmp(cmd, "enable") != 0)
+	if (!strstarts(cmd, "enable"))
 		return 0;
 
 	*rc = fan_set_enable();
@@ -9148,7 +9153,7 @@ static int fan_write_cmd_enable(const char *cmd, int *rc)
 
 static int fan_write_cmd_disable(const char *cmd, int *rc)
 {
-	if (strlencmp(cmd, "disable") != 0)
+	if (!strstarts(cmd, "disable"))
 		return 0;
 
 	*rc = fan_set_disable();
@@ -9899,7 +9904,7 @@ ATTRIBUTE_GROUPS(tpacpi_battery);
 
 /* ACPI battery hooking */
 
-static int tpacpi_battery_add(struct power_supply *battery)
+static int tpacpi_battery_add(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	int batteryid = tpacpi_battery_get_id(battery->desc->name);
 
@@ -9910,7 +9915,7 @@ static int tpacpi_battery_add(struct power_supply *battery)
 	return 0;
 }
 
-static int tpacpi_battery_remove(struct power_supply *battery)
+static int tpacpi_battery_remove(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	device_remove_groups(&battery->dev, tpacpi_battery_groups);
 	return 0;

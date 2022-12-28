@@ -11,8 +11,8 @@
 #include <linux/bpf.h>
 #include <linux/memory.h>
 #include <linux/sort.h>
-#include <linux/init.h>
 #include <asm/extable.h>
+#include <asm/ftrace.h>
 #include <asm/set_memory.h>
 #include <asm/nospec-branch.h>
 #include <asm/text-patching.h>
@@ -341,6 +341,13 @@ static int emit_call(u8 **pprog, void *func, void *ip)
 	return emit_patch(pprog, func, ip, 0xE8);
 }
 
+static int emit_rsb_call(u8 **pprog, void *func, void *ip)
+{
+	OPTIMIZER_HIDE_VAR(func);
+	x86_call_depth_emit_accounting(pprog, func);
+	return emit_patch(pprog, func, ip, 0xE8);
+}
+
 static int emit_jump(u8 **pprog, void *func, void *ip)
 {
 	return emit_patch(pprog, func, ip, 0xE9);
@@ -389,18 +396,6 @@ out:
 	return ret;
 }
 
-int __init bpf_arch_init_dispatcher_early(void *ip)
-{
-	const u8 *nop_insn = x86_nops[5];
-
-	if (is_endbr(*(u32 *)ip))
-		ip += ENDBR_INSN_SIZE;
-
-	if (memcmp(ip, nop_insn, X86_PATCH_SIZE))
-		text_poke_early(ip, nop_insn, X86_PATCH_SIZE);
-	return 0;
-}
-
 int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 		       void *old_addr, void *new_addr)
 {
@@ -430,7 +425,10 @@ static void emit_indirect_jump(u8 **pprog, int reg, u8 *ip)
 		EMIT2(0xFF, 0xE0 + reg);
 	} else if (cpu_feature_enabled(X86_FEATURE_RETPOLINE)) {
 		OPTIMIZER_HIDE_VAR(reg);
-		emit_jump(&prog, &__x86_indirect_thunk_array[reg], ip);
+		if (cpu_feature_enabled(X86_FEATURE_CALL_DEPTH))
+			emit_jump(&prog, &__x86_indirect_jump_thunk_array[reg], ip);
+		else
+			emit_jump(&prog, &__x86_indirect_thunk_array[reg], ip);
 	} else {
 		EMIT2(0xFF, 0xE0 + reg);	/* jmp *%\reg */
 		if (IS_ENABLED(CONFIG_RETPOLINE) || IS_ENABLED(CONFIG_SLS))
@@ -445,7 +443,7 @@ static void emit_return(u8 **pprog, u8 *ip)
 	u8 *prog = *pprog;
 
 	if (cpu_feature_enabled(X86_FEATURE_RETHUNK)) {
-		emit_jump(&prog, &__x86_return_thunk, ip);
+		emit_jump(&prog, x86_return_thunk, ip);
 	} else {
 		EMIT1(0xC3);		/* ret */
 		if (IS_ENABLED(CONFIG_SLS))
@@ -904,6 +902,65 @@ static void emit_nops(u8 **pprog, int len)
 	*pprog = prog;
 }
 
+/* emit the 3-byte VEX prefix
+ *
+ * r: same as rex.r, extra bit for ModRM reg field
+ * x: same as rex.x, extra bit for SIB index field
+ * b: same as rex.b, extra bit for ModRM r/m, or SIB base
+ * m: opcode map select, encoding escape bytes e.g. 0x0f38
+ * w: same as rex.w (32 bit or 64 bit) or opcode specific
+ * src_reg2: additional source reg (encoded as BPF reg)
+ * l: vector length (128 bit or 256 bit) or reserved
+ * pp: opcode prefix (none, 0x66, 0xf2 or 0xf3)
+ */
+static void emit_3vex(u8 **pprog, bool r, bool x, bool b, u8 m,
+		      bool w, u8 src_reg2, bool l, u8 pp)
+{
+	u8 *prog = *pprog;
+	const u8 b0 = 0xc4; /* first byte of 3-byte VEX prefix */
+	u8 b1, b2;
+	u8 vvvv = reg2hex[src_reg2];
+
+	/* reg2hex gives only the lower 3 bit of vvvv */
+	if (is_ereg(src_reg2))
+		vvvv |= 1 << 3;
+
+	/*
+	 * 2nd byte of 3-byte VEX prefix
+	 * ~ means bit inverted encoding
+	 *
+	 *    7                           0
+	 *  +---+---+---+---+---+---+---+---+
+	 *  |~R |~X |~B |         m         |
+	 *  +---+---+---+---+---+---+---+---+
+	 */
+	b1 = (!r << 7) | (!x << 6) | (!b << 5) | (m & 0x1f);
+	/*
+	 * 3rd byte of 3-byte VEX prefix
+	 *
+	 *    7                           0
+	 *  +---+---+---+---+---+---+---+---+
+	 *  | W |     ~vvvv     | L |   pp  |
+	 *  +---+---+---+---+---+---+---+---+
+	 */
+	b2 = (w << 7) | ((~vvvv & 0xf) << 3) | (l << 2) | (pp & 3);
+
+	EMIT3(b0, b1, b2);
+	*pprog = prog;
+}
+
+/* emit BMI2 shift instruction */
+static void emit_shiftx(u8 **pprog, u32 dst_reg, u8 src_reg, bool is64, u8 op)
+{
+	u8 *prog = *pprog;
+	bool r = is_ereg(dst_reg);
+	u8 m = 2; /* escape code 0f38 */
+
+	emit_3vex(&prog, r, false, r, m, is64, src_reg, false, op);
+	EMIT2(0xf7, add_2reg(0xC0, dst_reg, dst_reg));
+	*pprog = prog;
+}
+
 #define INSN_SZ_DIFF (((addrs[i] - addrs[i - 1]) - (prog - temp)))
 
 static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image,
@@ -1150,17 +1207,38 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 		case BPF_ALU64 | BPF_LSH | BPF_X:
 		case BPF_ALU64 | BPF_RSH | BPF_X:
 		case BPF_ALU64 | BPF_ARSH | BPF_X:
+			/* BMI2 shifts aren't better when shift count is already in rcx */
+			if (boot_cpu_has(X86_FEATURE_BMI2) && src_reg != BPF_REG_4) {
+				/* shrx/sarx/shlx dst_reg, dst_reg, src_reg */
+				bool w = (BPF_CLASS(insn->code) == BPF_ALU64);
+				u8 op;
 
-			/* Check for bad case when dst_reg == rcx */
-			if (dst_reg == BPF_REG_4) {
-				/* mov r11, dst_reg */
-				EMIT_mov(AUX_REG, dst_reg);
-				dst_reg = AUX_REG;
+				switch (BPF_OP(insn->code)) {
+				case BPF_LSH:
+					op = 1; /* prefix 0x66 */
+					break;
+				case BPF_RSH:
+					op = 3; /* prefix 0xf2 */
+					break;
+				case BPF_ARSH:
+					op = 2; /* prefix 0xf3 */
+					break;
+				}
+
+				emit_shiftx(&prog, dst_reg, src_reg, w, op);
+
+				break;
 			}
 
 			if (src_reg != BPF_REG_4) { /* common case */
-				EMIT1(0x51); /* push rcx */
-
+				/* Check for bad case when dst_reg == rcx */
+				if (dst_reg == BPF_REG_4) {
+					/* mov r11, dst_reg */
+					EMIT_mov(AUX_REG, dst_reg);
+					dst_reg = AUX_REG;
+				} else {
+					EMIT1(0x51); /* push rcx */
+				}
 				/* mov rcx, src_reg */
 				EMIT_mov(BPF_REG_4, src_reg);
 			}
@@ -1172,12 +1250,14 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 			b3 = simple_alu_opcodes[BPF_OP(insn->code)];
 			EMIT2(0xD3, add_1reg(b3, dst_reg));
 
-			if (src_reg != BPF_REG_4)
-				EMIT1(0x59); /* pop rcx */
+			if (src_reg != BPF_REG_4) {
+				if (insn->dst_reg == BPF_REG_4)
+					/* mov dst_reg, r11 */
+					EMIT_mov(insn->dst_reg, AUX_REG);
+				else
+					EMIT1(0x59); /* pop rcx */
+			}
 
-			if (insn->dst_reg == BPF_REG_4)
-				/* mov dst_reg, r11 */
-				EMIT_mov(insn->dst_reg, AUX_REG);
 			break;
 
 		case BPF_ALU | BPF_END | BPF_FROM_BE:
@@ -1239,8 +1319,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 
 			/* speculation barrier */
 		case BPF_ST | BPF_NOSPEC:
-			if (boot_cpu_has(X86_FEATURE_XMM2))
-				EMIT_LFENCE();
+			EMIT_LFENCE();
 			break;
 
 			/* ST: *(u8*)(dst_reg + off) = imm */
@@ -1446,19 +1525,26 @@ st:			if (is_imm8(insn->off))
 			break;
 
 			/* call */
-		case BPF_JMP | BPF_CALL:
+		case BPF_JMP | BPF_CALL: {
+			int offs;
+
 			func = (u8 *) __bpf_call_base + imm32;
 			if (tail_call_reachable) {
 				/* mov rax, qword ptr [rbp - rounded_stack_depth - 8] */
 				EMIT3_off32(0x48, 0x8B, 0x85,
 					    -round_up(bpf_prog->aux->stack_depth, 8) - 8);
-				if (!imm32 || emit_call(&prog, func, image + addrs[i - 1] + 7))
+				if (!imm32)
 					return -EINVAL;
+				offs = 7 + x86_call_depth_emit_accounting(&prog, func);
 			} else {
-				if (!imm32 || emit_call(&prog, func, image + addrs[i - 1]))
+				if (!imm32)
 					return -EINVAL;
+				offs = x86_call_depth_emit_accounting(&prog, func);
 			}
+			if (emit_call(&prog, func, image + addrs[i - 1] + offs))
+				return -EINVAL;
 			break;
+		}
 
 		case BPF_JMP | BPF_TAIL_CALL:
 			if (imm32)
@@ -1826,10 +1912,6 @@ static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 			   struct bpf_tramp_link *l, int stack_size,
 			   int run_ctx_off, bool save_ret)
 {
-	void (*exit)(struct bpf_prog *prog, u64 start,
-		     struct bpf_tramp_run_ctx *run_ctx) = __bpf_prog_exit;
-	u64 (*enter)(struct bpf_prog *prog,
-		     struct bpf_tramp_run_ctx *run_ctx) = __bpf_prog_enter;
 	u8 *prog = *pprog;
 	u8 *jmp_insn;
 	int ctx_cookie_off = offsetof(struct bpf_tramp_run_ctx, bpf_cookie);
@@ -1848,23 +1930,12 @@ static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 	 */
 	emit_stx(&prog, BPF_DW, BPF_REG_FP, BPF_REG_1, -run_ctx_off + ctx_cookie_off);
 
-	if (p->aux->sleepable) {
-		enter = __bpf_prog_enter_sleepable;
-		exit = __bpf_prog_exit_sleepable;
-	} else if (p->type == BPF_PROG_TYPE_STRUCT_OPS) {
-		enter = __bpf_prog_enter_struct_ops;
-		exit = __bpf_prog_exit_struct_ops;
-	} else if (p->expected_attach_type == BPF_LSM_CGROUP) {
-		enter = __bpf_prog_enter_lsm_cgroup;
-		exit = __bpf_prog_exit_lsm_cgroup;
-	}
-
 	/* arg1: mov rdi, progs[i] */
 	emit_mov_imm64(&prog, BPF_REG_1, (long) p >> 32, (u32) (long) p);
 	/* arg2: lea rsi, [rbp - ctx_cookie_off] */
 	EMIT4(0x48, 0x8D, 0x75, -run_ctx_off);
 
-	if (emit_call(&prog, enter, prog))
+	if (emit_rsb_call(&prog, bpf_trampoline_enter(p), prog))
 		return -EINVAL;
 	/* remember prog start time returned by __bpf_prog_enter */
 	emit_mov_reg(&prog, true, BPF_REG_6, BPF_REG_0);
@@ -1885,7 +1956,7 @@ static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 			       (long) p->insnsi >> 32,
 			       (u32) (long) p->insnsi);
 	/* call JITed bpf program or interpreter */
-	if (emit_call(&prog, p->bpf_func, prog))
+	if (emit_rsb_call(&prog, p->bpf_func, prog))
 		return -EINVAL;
 
 	/*
@@ -1909,7 +1980,7 @@ static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 	emit_mov_reg(&prog, true, BPF_REG_2, BPF_REG_6);
 	/* arg3: lea rdx, [rbp - run_ctx_off] */
 	EMIT4(0x48, 0x8D, 0x55, -run_ctx_off);
-	if (emit_call(&prog, exit, prog))
+	if (emit_rsb_call(&prog, bpf_trampoline_exit(p), prog))
 		return -EINVAL;
 
 	*pprog = prog;
@@ -2131,6 +2202,11 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 	prog = image;
 
 	EMIT_ENDBR();
+	/*
+	 * This is the direct-call trampoline, as such it needs accounting
+	 * for the __fentry__ call.
+	 */
+	x86_call_depth_emit_accounting(&prog, NULL);
 	EMIT1(0x55);		 /* push rbp */
 	EMIT3(0x48, 0x89, 0xE5); /* mov rbp, rsp */
 	EMIT4(0x48, 0x83, 0xEC, stack_size); /* sub rsp, stack_size */
@@ -2157,7 +2233,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 	if (flags & BPF_TRAMP_F_CALL_ORIG) {
 		/* arg1: mov rdi, im */
 		emit_mov_imm64(&prog, BPF_REG_1, (long) im >> 32, (u32) (long) im);
-		if (emit_call(&prog, __bpf_tramp_enter, prog)) {
+		if (emit_rsb_call(&prog, __bpf_tramp_enter, prog)) {
 			ret = -EINVAL;
 			goto cleanup;
 		}
@@ -2189,7 +2265,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 			EMIT2(0xff, 0xd0); /* call *rax */
 		} else {
 			/* call original function */
-			if (emit_call(&prog, orig_call, prog)) {
+			if (emit_rsb_call(&prog, orig_call, prog)) {
 				ret = -EINVAL;
 				goto cleanup;
 			}
@@ -2233,7 +2309,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 		im->ip_epilogue = prog;
 		/* arg1: mov rdi, im */
 		emit_mov_imm64(&prog, BPF_REG_1, (long) im >> 32, (u32) (long) im);
-		if (emit_call(&prog, __bpf_tramp_exit, prog)) {
+		if (emit_rsb_call(&prog, __bpf_tramp_exit, prog)) {
 			ret = -EINVAL;
 			goto cleanup;
 		}

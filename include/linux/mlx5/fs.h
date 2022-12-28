@@ -50,6 +50,7 @@ enum mlx5_flow_destination_type {
 	MLX5_FLOW_DESTINATION_TYPE_PORT,
 	MLX5_FLOW_DESTINATION_TYPE_COUNTER,
 	MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM,
+	MLX5_FLOW_DESTINATION_TYPE_RANGE,
 };
 
 enum {
@@ -143,6 +144,10 @@ enum {
 	MLX5_FLOW_DEST_VPORT_REFORMAT_ID  = BIT(1),
 };
 
+enum mlx5_flow_dest_range_field {
+	MLX5_FLOW_DEST_RANGE_FIELD_PKT_LEN = 0,
+};
+
 struct mlx5_flow_destination {
 	enum mlx5_flow_destination_type	type;
 	union {
@@ -156,6 +161,13 @@ struct mlx5_flow_destination {
 			struct mlx5_pkt_reformat *pkt_reformat;
 			u8		flags;
 		} vport;
+		struct {
+			struct mlx5_flow_table         *hit_ft;
+			struct mlx5_flow_table         *miss_ft;
+			enum mlx5_flow_dest_range_field field;
+			u32                             min;
+			u32                             max;
+		} range;
 		u32			sampler_id;
 	};
 };

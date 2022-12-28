@@ -44,4 +44,15 @@ static inline s32 s32_div_u32_round_closest(s32 dividend, u32 divisor)
 	return s32_div_u32_round_down(dividend + divisor / 2, divisor, NULL);
 }
 
+static inline void ether_addr_copy_mask(u8 *dst, const u8 *src, u8 mask)
+{
+	int i;
+
+	eth_zero_addr(dst);
+	for (i = 0; i < ETH_ALEN; i++) {
+		if (mask & BIT(i))
+			dst[i] = src[i];
+	}
+}
+
 #endif

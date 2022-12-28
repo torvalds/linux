@@ -28,7 +28,7 @@ enum iostat_mode_t {
 
 extern enum iostat_mode_t iostat_mode;
 
-typedef void (*iostat_print_counter_t)(struct perf_stat_config *, struct evsel *, char *);
+typedef void (*iostat_print_counter_t)(struct perf_stat_config *, struct evsel *, void *);
 
 int iostat_prepare(struct evlist *evlist, struct perf_stat_config *config);
 int iostat_parse(const struct option *opt, const char *str,
@@ -42,6 +42,6 @@ void iostat_print_metric(struct perf_stat_config *config, struct evsel *evsel,
 			 struct perf_stat_output_ctx *out);
 void iostat_print_counters(struct evlist *evlist,
 			   struct perf_stat_config *config, struct timespec *ts,
-			   char *prefix, iostat_print_counter_t print_cnt_cb);
+			   char *prefix, iostat_print_counter_t print_cnt_cb, void *arg);
 
 #endif /* _IOSTAT_H */

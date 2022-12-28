@@ -1254,7 +1254,7 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 	read_bio->bi_iter.bi_sector = r10_bio->devs[slot].addr +
 		choose_data_offset(r10_bio, rdev);
 	read_bio->bi_end_io = raid10_end_read_request;
-	bio_set_op_attrs(read_bio, op, do_sync);
+	read_bio->bi_opf = op | do_sync;
 	if (test_bit(FailFast, &rdev->flags) &&
 	    test_bit(R10BIO_FailFast, &r10_bio->state))
 	        read_bio->bi_opf |= MD_FAILFAST;
@@ -1301,7 +1301,7 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 	mbio->bi_iter.bi_sector	= (r10_bio->devs[n_copy].addr +
 				   choose_data_offset(r10_bio, rdev));
 	mbio->bi_end_io	= raid10_end_write_request;
-	bio_set_op_attrs(mbio, op, do_sync | do_fua);
+	mbio->bi_opf = op | do_sync | do_fua;
 	if (!replacement && test_bit(FailFast,
 				     &conf->mirrors[devnum].rdev->flags)
 			 && enough(conf, devnum))
@@ -2933,7 +2933,7 @@ static int narrow_write_error(struct r10bio *r10_bio, int i)
 		wsector = r10_bio->devs[i].addr + (sector - r10_bio->sector);
 		wbio->bi_iter.bi_sector = wsector +
 				   choose_data_offset(r10_bio, rdev);
-		bio_set_op_attrs(wbio, REQ_OP_WRITE, 0);
+		wbio->bi_opf = REQ_OP_WRITE;
 
 		if (submit_bio_wait(wbio) < 0)
 			/* Failure! */
@@ -3542,7 +3542,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 				bio->bi_next = biolist;
 				biolist = bio;
 				bio->bi_end_io = end_sync_read;
-				bio_set_op_attrs(bio, REQ_OP_READ, 0);
+				bio->bi_opf = REQ_OP_READ;
 				if (test_bit(FailFast, &rdev->flags))
 					bio->bi_opf |= MD_FAILFAST;
 				from_addr = r10_bio->devs[j].addr;
@@ -3567,7 +3567,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 					bio->bi_next = biolist;
 					biolist = bio;
 					bio->bi_end_io = end_sync_write;
-					bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+					bio->bi_opf = REQ_OP_WRITE;
 					bio->bi_iter.bi_sector = to_addr
 						+ mrdev->data_offset;
 					bio_set_dev(bio, mrdev->bdev);
@@ -3588,7 +3588,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 				bio->bi_next = biolist;
 				biolist = bio;
 				bio->bi_end_io = end_sync_write;
-				bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+				bio->bi_opf = REQ_OP_WRITE;
 				bio->bi_iter.bi_sector = to_addr +
 					mreplace->data_offset;
 				bio_set_dev(bio, mreplace->bdev);
@@ -3742,7 +3742,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			bio->bi_next = biolist;
 			biolist = bio;
 			bio->bi_end_io = end_sync_read;
-			bio_set_op_attrs(bio, REQ_OP_READ, 0);
+			bio->bi_opf = REQ_OP_READ;
 			if (test_bit(FailFast, &rdev->flags))
 				bio->bi_opf |= MD_FAILFAST;
 			bio->bi_iter.bi_sector = sector + rdev->data_offset;
@@ -3764,7 +3764,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			bio->bi_next = biolist;
 			biolist = bio;
 			bio->bi_end_io = end_sync_write;
-			bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+			bio->bi_opf = REQ_OP_WRITE;
 			if (test_bit(FailFast, &rdev->flags))
 				bio->bi_opf |= MD_FAILFAST;
 			bio->bi_iter.bi_sector = sector + rdev->data_offset;
@@ -4145,8 +4145,6 @@ static int raid10_run(struct mddev *mddev)
 	conf->thread = NULL;
 
 	if (mddev->queue) {
-		blk_queue_max_discard_sectors(mddev->queue,
-					      UINT_MAX);
 		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
 		blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
 		raid10_set_io_opt(conf);
@@ -4972,7 +4970,7 @@ read_more:
 		b->bi_iter.bi_sector = r10_bio->devs[s/2].addr +
 			rdev2->new_data_offset;
 		b->bi_end_io = end_reshape_write;
-		bio_set_op_attrs(b, REQ_OP_WRITE, 0);
+		b->bi_opf = REQ_OP_WRITE;
 		b->bi_next = blist;
 		blist = b;
 	}

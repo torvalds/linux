@@ -31,6 +31,16 @@
    this, and makes other things simpler.  Anton?
    --RR.  */
 
+bool module_elf_check_arch(Elf_Ehdr *hdr)
+{
+	unsigned long abi_level = hdr->e_flags & 0x3;
+
+	if (IS_ENABLED(CONFIG_PPC64_ELF_ABI_V2))
+		return abi_level == 2;
+	else
+		return abi_level < 2;
+}
+
 #ifdef CONFIG_PPC64_ELF_ABI_V2
 
 static func_desc_t func_desc(unsigned long addr)

@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/usb/maxim,max33359.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Maxim TCPCI Type-C PD controller DT bindings
+title: Maxim TCPCI Type-C PD controller
 
 maintainers:
   - Badhri Jagan Sridharan <badhri@google.com>

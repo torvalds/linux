@@ -1162,8 +1162,7 @@ static const struct attribute_group bh1770_attribute_group = {
 	.attrs = sysfs_attrs
 };
 
-static int bh1770_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int bh1770_probe(struct i2c_client *client)
 {
 	struct bh1770_chip *chip;
 	int err;
@@ -1379,7 +1378,7 @@ static struct i2c_driver bh1770_driver = {
 		.name	= "bh1770glc",
 		.pm	= &bh1770_pm_ops,
 	},
-	.probe	  = bh1770_probe,
+	.probe_new = bh1770_probe,
 	.remove	  = bh1770_remove,
 	.id_table = bh1770_id,
 };

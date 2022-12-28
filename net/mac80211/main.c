@@ -630,7 +630,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 
 	if (WARN_ON(!ops->tx || !ops->start || !ops->stop || !ops->config ||
 		    !ops->add_interface || !ops->remove_interface ||
-		    !ops->configure_filter))
+		    !ops->configure_filter || !ops->wake_tx_queue))
 		return NULL;
 
 	if (WARN_ON(ops->sta_state && (ops->sta_add || ops->sta_remove)))
@@ -719,9 +719,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	if (!ops->set_key)
 		wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
-	if (ops->wake_tx_queue)
-		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_TXQS);
-
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_TXQS);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_RRM);
 
 	wiphy->bss_priv_size = sizeof(struct ieee80211_bss);
@@ -834,10 +832,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 		atomic_set(&local->agg_queue_stop[i], 0);
 	}
 	tasklet_setup(&local->tx_pending_tasklet, ieee80211_tx_pending);
-
-	if (ops->wake_tx_queue)
-		tasklet_setup(&local->wake_txqs_tasklet, ieee80211_wake_txqs);
-
+	tasklet_setup(&local->wake_txqs_tasklet, ieee80211_wake_txqs);
 	tasklet_setup(&local->tasklet, ieee80211_tasklet_handler);
 
 	skb_queue_head_init(&local->skb_queue);
@@ -1087,6 +1082,16 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 		channels += sband->n_channels;
 
+		/*
+		 * Due to the way the aggregation code handles this and it
+		 * being an HT capability, we can't really support delayed
+		 * BA in MLO (yet).
+		 */
+		if (WARN_ON(sband->ht_cap.ht_supported &&
+			    (sband->ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA) &&
+			    hw->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO))
+			return -EINVAL;
+
 		if (max_bitrates < sband->n_bitrates)
 			max_bitrates = sband->n_bitrates;
 		supp_ht = supp_ht || sband->ht_cap.ht_supported;
@@ -1154,6 +1159,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 				      sizeof(void *) * channels, GFP_KERNEL);
 	if (!local->int_scan_req)
 		return -ENOMEM;
+
+	eth_broadcast_addr(local->int_scan_req->bssid);
 
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		if (!local->hw.wiphy->bands[band])
@@ -1439,8 +1446,10 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	ieee80211_led_exit(local);
 	destroy_workqueue(local->workqueue);
  fail_workqueue:
-	if (local->wiphy_ciphers_allocated)
+	if (local->wiphy_ciphers_allocated) {
 		kfree(local->hw.wiphy->cipher_suites);
+		local->wiphy_ciphers_allocated = false;
+	}
 	kfree(local->int_scan_req);
 	return result;
 }
@@ -1508,8 +1517,10 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	mutex_destroy(&local->iflist_mtx);
 	mutex_destroy(&local->mtx);
 
-	if (local->wiphy_ciphers_allocated)
+	if (local->wiphy_ciphers_allocated) {
 		kfree(local->hw.wiphy->cipher_suites);
+		local->wiphy_ciphers_allocated = false;
+	}
 
 	idr_for_each(&local->ack_status_frames,
 		     ieee80211_free_ack_frame, NULL);

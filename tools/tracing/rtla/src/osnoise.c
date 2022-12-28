@@ -903,7 +903,7 @@ out_err:
 	return NULL;
 }
 
-static void osnoise_usage(void)
+static void osnoise_usage(int err)
 {
 	int i;
 
@@ -923,7 +923,7 @@ static void osnoise_usage(void)
 
 	for (i = 0; msg[i]; i++)
 		fprintf(stderr, "%s\n", msg[i]);
-	exit(1);
+	exit(err);
 }
 
 int osnoise_main(int argc, char *argv[])
@@ -941,8 +941,7 @@ int osnoise_main(int argc, char *argv[])
 	}
 
 	if ((strcmp(argv[1], "-h") == 0) || (strcmp(argv[1], "--help") == 0)) {
-		osnoise_usage();
-		exit(0);
+		osnoise_usage(0);
 	} else if (strncmp(argv[1], "-", 1) == 0) {
 		/* the user skipped the tool, call the default one */
 		osnoise_top_main(argc, argv);
@@ -956,6 +955,6 @@ int osnoise_main(int argc, char *argv[])
 	}
 
 usage:
-	osnoise_usage();
+	osnoise_usage(1);
 	exit(1);
 }

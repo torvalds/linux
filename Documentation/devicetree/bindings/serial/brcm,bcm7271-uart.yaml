@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serial/brcm,bcm7271-uart.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom 8250 based serial port devicetree bindings
+title: Broadcom 8250 based serial port
 
 maintainers:
   - Al Cooper <alcooperx@gmail.com>

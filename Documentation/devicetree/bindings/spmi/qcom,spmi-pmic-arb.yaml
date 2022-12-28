@@ -85,6 +85,14 @@ properties:
     description: >
       which of the PMIC Arb provided channels to use for accesses
 
+  qcom,bus-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 1
+    description: >
+      SPMI bus instance. only applicable to PMIC arbiter version 7 and beyond.
+      Supported values, 0 = primary bus, 1 = secondary bus
+
 required:
   - compatible
   - reg-names
@@ -113,5 +121,7 @@ examples:
 
         interrupt-controller;
         #interrupt-cells = <4>;
+
+        qcom,bus-id = <0>;
     };
 

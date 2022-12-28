@@ -48,7 +48,7 @@ cat > "$output_file" << EOT
 EOT
 
 {
-	[ -n "${read_modorder}" ] && sed 's/ko$/usyms/' modules.order | xargs cat
+	[ -n "${read_modorder}" ] && sed 's/o$/usyms/' modules.order | xargs cat
 	echo "$needed_symbols"
 	[ -n "$ksym_wl" ] && cat "$ksym_wl"
 } | sed -e 's/ /\n/g' | sed -n -e '/^$/!p' |

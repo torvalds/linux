@@ -27,6 +27,9 @@ Now the TODOs:
 - fix the 'card removal' event when card is inserted when booting
 - check what other upstream wireless mechanisms can be used instead of the
   custom ones here
+- Switch to use LIB80211.
+- Switch to use MAC80211.
+- Switch to use CFG80211.
 
 Please send any patches to:
 Greg Kroah-Hartman <gregkh@linuxfoundation.org>

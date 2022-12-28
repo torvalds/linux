@@ -184,7 +184,7 @@ enum SCAN_STATE {
 	SCAN_STATE_MAX,
 };
 
-typedef unsigned int (*mlme_handler)(struct adapter *adapt, struct recv_frame *frame);
+typedef void (*mlme_handler)(struct adapter *adapt, struct recv_frame *frame);
 
 struct	ss_res {
 	int	state;
@@ -285,7 +285,6 @@ struct mlme_ext_info {
 	u8	bwmode_updated;
 	u8	hidden_ssid_mode;
 
-	struct ADDBA_request	ADDBA_req;
 	struct WMM_para_element	WMM_param;
 	struct HT_caps_element	HT_caps;
 	struct HT_info_element	HT_info;
@@ -388,7 +387,7 @@ struct mlme_ext_priv {
 void init_mlme_ext_priv(struct adapter *adapter);
 int init_hw_mlme_ext(struct adapter *padapter);
 void free_mlme_ext_priv (struct mlme_ext_priv *pmlmeext);
-extern struct xmit_frame *alloc_mgtxmitframe(struct xmit_priv *pxmitpriv);
+struct xmit_frame *alloc_mgtxmitframe(struct xmit_priv *pxmitpriv);
 
 unsigned char networktype_to_raid(unsigned char network_type);
 u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int len);
@@ -432,9 +431,9 @@ void update_network(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 u8 *get_my_bssid(struct wlan_bssid_ex *pnetwork);
 u16 get_beacon_interval(struct wlan_bssid_ex *bss);
 
-int is_client_associated_to_ap(struct adapter *padapter);
-int is_client_associated_to_ibss(struct adapter *padapter);
-int is_IBSS_empty(struct adapter *padapter);
+bool r8188eu_is_client_associated_to_ap(struct adapter *padapter);
+bool r8188eu_is_client_associated_to_ibss(struct adapter *padapter);
+bool r8188eu_is_ibss_empty(struct adapter *padapter);
 
 unsigned char check_assoc_AP(u8 *pframe, uint len);
 
@@ -448,8 +447,7 @@ void HTOnAssocRsp(struct adapter *padapter);
 void ERP_IE_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE);
 void VCS_update(struct adapter *padapter, struct sta_info *psta);
 
-void update_beacon_info(struct adapter *padapter, u8 *pframe, uint len,
-		        struct sta_info *psta);
+void update_beacon_info(struct adapter *padapter, u8 *ie_ptr, uint ie_len, struct sta_info *psta);
 int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len);
 void update_IOT_info(struct adapter *padapter);
 void update_capinfo(struct adapter *adapter, u16 updatecap);
@@ -479,11 +477,11 @@ void report_survey_event(struct adapter *padapter, struct recv_frame *precv_fram
 void report_surveydone_event(struct adapter *padapter);
 void report_del_sta_event(struct adapter *padapter,
 			  unsigned char *addr, unsigned short reason);
-void report_add_sta_event(struct adapter *padapter, unsigned char* addr,
+void report_add_sta_event(struct adapter *padapter, unsigned char *addr,
 			  int cam_idx);
 
 void beacon_timing_control(struct adapter *padapter);
-extern u8 set_tx_beacon_cmd(struct adapter*padapter);
+u8 set_tx_beacon_cmd(struct adapter *padapter);
 unsigned int setup_beacon_frame(struct adapter *padapter,
 				unsigned char *beacon_frame);
 void update_mgnt_tx_rate(struct adapter *padapter, u8 rate);
@@ -499,10 +497,10 @@ void issue_probersp_p2p(struct adapter *padapter, unsigned char *da);
 void issue_p2p_provision_request(struct adapter *padapter, u8 *pssid,
 				 u8 ussidlen, u8 *pdev_raddr);
 void issue_p2p_GO_request(struct adapter *padapter, u8 *raddr);
-void issue_probereq_p2p(struct adapter *padapter, u8 *da);
+void issue_probereq_p2p(struct adapter *padapter);
 void issue_p2p_invitation_response(struct adapter *padapter, u8 *raddr,
 				   u8 dialogToken, u8 success);
-void issue_p2p_invitation_request(struct adapter *padapter, u8* raddr);
+void issue_p2p_invitation_request(struct adapter *padapter, u8 *raddr);
 void issue_beacon(struct adapter *padapter, int timeout_ms);
 void issue_probersp(struct adapter *padapter, unsigned char *da,
 		    u8 is_valid_p2p_probereq);
@@ -513,8 +511,7 @@ void issue_auth(struct adapter *padapter, struct sta_info *psta,
 		unsigned short status);
 void issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *pssid,
 		    u8 *da);
-s32 issue_probereq_ex(struct adapter *adapter, struct ndis_802_11_ssid *pssid,
-		      u8* da, int try_cnt, int wait_ms);
+void issue_probereq_ex(struct adapter *padapter, struct ndis_802_11_ssid *pssid, u8 *da);
 int issue_nulldata(struct adapter *padapter, unsigned char *da,
 		   unsigned int power_mode, int try_cnt, int wait_ms);
 int issue_qos_nulldata(struct adapter *padapter, unsigned char *da,
@@ -523,7 +520,8 @@ int issue_deauth(struct adapter *padapter, unsigned char *da,
 		 unsigned short reason);
 int issue_deauth_ex(struct adapter *padapter, u8 *da, unsigned short reason,
 		    int try_cnt, int wait_ms);
-void issue_action_BA(struct adapter *padapter, unsigned char *raddr, u8 action, u16 status);
+void issue_action_BA(struct adapter *padapter, unsigned char *raddr, u8 action,
+		     u16 status, struct ieee80211_mgmt *mgmt_req);
 unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr);
 unsigned int send_beacon(struct adapter *padapter);
 bool get_beacon_valid_bit(struct adapter *adapter);
@@ -535,34 +533,6 @@ void start_clnt_assoc(struct adapter *padapter);
 void start_clnt_auth(struct adapter *padapter);
 void start_clnt_join(struct adapter *padapter);
 void start_create_ibss(struct adapter *padapter);
-
-unsigned int OnAssocReq(struct adapter *padapter,
-			struct recv_frame *precv_frame);
-unsigned int OnAssocRsp(struct adapter *padapter,
-			struct recv_frame *precv_frame);
-unsigned int OnProbeReq(struct adapter *padapter,
-			struct recv_frame *precv_frame);
-unsigned int OnProbeRsp(struct adapter *padapter,
-			struct recv_frame *precv_frame);
-unsigned int OnBeacon(struct adapter *padapter,
-		      struct recv_frame *precv_frame);
-unsigned int OnDisassoc(struct adapter *padapter,
-			struct recv_frame *precv_frame);
-unsigned int OnAuth(struct adapter *padapter,
-		    struct recv_frame *precv_frame);
-unsigned int OnAuthClient(struct adapter *padapter,
-			  struct recv_frame *precv_frame);
-unsigned int OnDeAuth(struct adapter *padapter,
-		      struct recv_frame *precv_frame);
-unsigned int OnAction(struct adapter *padapter,
-		      struct recv_frame *precv_frame);
-
-unsigned int OnAction_back(struct adapter *padapter,
-			   struct recv_frame *precv_frame);
-unsigned int on_action_public(struct adapter *padapter,
-			      struct recv_frame *precv_frame);
-unsigned int OnAction_p2p(struct adapter *padapter,
-			  struct recv_frame *precv_frame);
 
 void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res);
 void mlmeext_sta_del_event_callback(struct adapter *padapter);
@@ -729,7 +699,7 @@ enum rtw_c2h_event {
 	GEN_EVT_CODE(_Survey),	 /*8*/
 	GEN_EVT_CODE(_SurveyDone),	 /*9*/
 
-	GEN_EVT_CODE(_JoinBss) , /*10*/
+	GEN_EVT_CODE(_JoinBss), /*10*/
 	GEN_EVT_CODE(_AddSTA),
 	GEN_EVT_CODE(_DelSTA),
 	GEN_EVT_CODE(_AtimDone),

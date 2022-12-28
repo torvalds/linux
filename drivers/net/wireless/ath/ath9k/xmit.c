@@ -1678,7 +1678,6 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info;
 	struct list_head bf_q;
 	struct ath_buf *bf_tail = NULL, *bf = NULL;
-	int sent = 0;
 	int i, ret;
 
 	INIT_LIST_HEAD(&bf_q);
@@ -1707,7 +1706,6 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 
 			bf_tail = bf;
 			nframes--;
-			sent++;
 			TX_STAT_INC(sc, txq->axq_qnum, a_queued_hw);
 
 			if (an->sta && skb_queue_empty(&tid->retry_q))

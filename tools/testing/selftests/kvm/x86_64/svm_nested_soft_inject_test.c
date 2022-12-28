@@ -194,9 +194,6 @@ done:
 
 int main(int argc, char *argv[])
 {
-	/* Tell stdout not to buffer its content */
-	setbuf(stdout, NULL);
-
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM));
 
 	TEST_ASSERT(kvm_cpu_has(X86_FEATURE_NRIPS),

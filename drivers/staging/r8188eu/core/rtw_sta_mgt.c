@@ -45,7 +45,7 @@ static void _rtw_init_stainfo(struct sta_info *psta)
 	psta->keep_alive_trycnt = 0;
 }
 
-u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
+int _rtw_init_sta_priv(struct sta_priv *pstapriv)
 {
 	struct sta_info *psta;
 	s32 i;
@@ -53,7 +53,7 @@ u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
 	pstapriv->pallocated_stainfo_buf = vzalloc(sizeof(struct sta_info) * NUM_STA + 4);
 
 	if (!pstapriv->pallocated_stainfo_buf)
-		return _FAIL;
+		return -ENOMEM;
 
 	pstapriv->pstainfo_buf = pstapriv->pallocated_stainfo_buf + 4 -
 		((size_t)(pstapriv->pallocated_stainfo_buf) & 3);
@@ -93,7 +93,7 @@ u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
 	pstapriv->expire_to = 3; /*  3*2 = 6 sec */
 	pstapriv->max_num_sta = NUM_STA;
 
-	return _SUCCESS;
+	return 0;
 }
 
 inline int rtw_stainfo_offset(struct sta_priv *stapriv, struct sta_info *sta)
@@ -242,7 +242,7 @@ exit:
 }
 
 /*  using pstapriv->sta_hash_lock to protect */
-u32	rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
+void rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 {
 	int i;
 	struct __queue *pfree_sta_queue;
@@ -252,7 +252,7 @@ u32	rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 
 	if (!psta)
-		goto exit;
+		return;
 
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 
@@ -356,10 +356,6 @@ u32	rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 	spin_lock_bh(&pfree_sta_queue->lock);
 	list_add_tail(&psta->list, get_list_head(pfree_sta_queue));
 	spin_unlock_bh(&pfree_sta_queue->lock);
-
-exit:
-
-	return _SUCCESS;
 }
 
 /*  free all stainfo which in sta_hash[all] */
@@ -404,7 +400,7 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	if (!hwaddr)
 		return NULL;
 
-	if (IS_MCAST(hwaddr))
+	if (is_multicast_ether_addr(hwaddr))
 		addr = bc_addr;
 	else
 		addr = hwaddr;

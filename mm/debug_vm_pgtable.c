@@ -38,11 +38,7 @@
  * Please refer Documentation/mm/arch_pgtable_helpers.rst for the semantics
  * expectations that are being validated here. All future changes in here
  * or the documentation need to be in sync.
- */
-
-#define VMFLAGS	(VM_READ|VM_WRITE|VM_EXEC)
-
-/*
+ *
  * On s390 platform, the lower 4 bits are used to identify given page table
  * entry type. But these bits might affect the ability to clear entries with
  * pxx_clear() because of how dynamic page table folding works on s390. So
@@ -175,18 +171,6 @@ static void __init pte_advanced_tests(struct pgtable_debug_args *args)
 	ptep_get_and_clear_full(args->mm, args->vaddr, args->ptep, 1);
 }
 
-static void __init pte_savedwrite_tests(struct pgtable_debug_args *args)
-{
-	pte_t pte = pfn_pte(args->fixed_pte_pfn, args->page_prot_none);
-
-	if (!IS_ENABLED(CONFIG_NUMA_BALANCING))
-		return;
-
-	pr_debug("Validating PTE saved write\n");
-	WARN_ON(!pte_savedwrite(pte_mk_savedwrite(pte_clear_savedwrite(pte))));
-	WARN_ON(pte_savedwrite(pte_clear_savedwrite(pte_mk_savedwrite(pte))));
-}
-
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static void __init pmd_basic_tests(struct pgtable_debug_args *args, int idx)
 {
@@ -304,22 +288,6 @@ static void __init pmd_leaf_tests(struct pgtable_debug_args *args)
 	 */
 	pmd = pmd_mkhuge(pmd);
 	WARN_ON(!pmd_leaf(pmd));
-}
-
-static void __init pmd_savedwrite_tests(struct pgtable_debug_args *args)
-{
-	pmd_t pmd;
-
-	if (!IS_ENABLED(CONFIG_NUMA_BALANCING))
-		return;
-
-	if (!has_transparent_hugepage())
-		return;
-
-	pr_debug("Validating PMD saved write\n");
-	pmd = pfn_pmd(args->fixed_pmd_pfn, args->page_prot_none);
-	WARN_ON(!pmd_savedwrite(pmd_mk_savedwrite(pmd_clear_savedwrite(pmd))));
-	WARN_ON(pmd_savedwrite(pmd_clear_savedwrite(pmd_mk_savedwrite(pmd))));
 }
 
 #ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
@@ -455,7 +423,6 @@ static void __init pmd_advanced_tests(struct pgtable_debug_args *args) { }
 static void __init pud_advanced_tests(struct pgtable_debug_args *args) { }
 static void __init pmd_leaf_tests(struct pgtable_debug_args *args) { }
 static void __init pud_leaf_tests(struct pgtable_debug_args *args) { }
-static void __init pmd_savedwrite_tests(struct pgtable_debug_args *args) { }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
@@ -1125,7 +1092,7 @@ static int __init init_args(struct pgtable_debug_args *args)
 	 */
 	memset(args, 0, sizeof(*args));
 	args->vaddr              = get_random_vaddr();
-	args->page_prot          = vm_get_page_prot(VMFLAGS);
+	args->page_prot          = vm_get_page_prot(VM_ACCESS_FLAGS);
 	args->page_prot_none     = vm_get_page_prot(VM_NONE);
 	args->is_contiguous_page = false;
 	args->pud_pfn            = ULONG_MAX;
@@ -1291,9 +1258,6 @@ static int __init debug_vm_pgtable(void)
 
 	pmd_leaf_tests(&args);
 	pud_leaf_tests(&args);
-
-	pte_savedwrite_tests(&args);
-	pmd_savedwrite_tests(&args);
 
 	pte_special_tests(&args);
 	pte_protnone_tests(&args);

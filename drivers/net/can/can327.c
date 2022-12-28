@@ -263,8 +263,10 @@ static void can327_feed_frame_to_netdev(struct can327 *elm, struct sk_buff *skb)
 {
 	lockdep_assert_held(&elm->lock);
 
-	if (!netif_running(elm->dev))
+	if (!netif_running(elm->dev)) {
+		kfree_skb(skb);
 		return;
+	}
 
 	/* Queue for NAPI pickup.
 	 * rx-offload will update stats and LEDs for us.
@@ -794,9 +796,9 @@ static int can327_netdev_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	/* Give UART one final chance to flush. */
-	clear_bit(TTY_DO_WRITE_WAKEUP, &elm->tty->flags);
-	flush_work(&elm->tx_work);
+	/* We don't flush the UART TX queue here, as we want final stop
+	 * commands (like the above dummy char) to be flushed out.
+	 */
 
 	can_rx_offload_disable(&elm->offload);
 	elm->can.state = CAN_STATE_STOPPED;
@@ -813,7 +815,7 @@ static netdev_tx_t can327_netdev_start_xmit(struct sk_buff *skb,
 	struct can327 *elm = netdev_priv(dev);
 	struct can_frame *frame = (struct can_frame *)skb->data;
 
-	if (can_dropped_invalid_skb(dev, skb))
+	if (can_dev_dropped_skb(dev, skb))
 		return NETDEV_TX_OK;
 
 	/* We shouldn't get here after a hardware fault:
@@ -1067,11 +1069,14 @@ static void can327_ldisc_close(struct tty_struct *tty)
 {
 	struct can327 *elm = (struct can327 *)tty->disc_data;
 
-	/* unregister_netdev() calls .ndo_stop() so we don't have to.
-	 * Our .ndo_stop() also flushes the TTY write wakeup handler,
-	 * so we can safely set elm->tty = NULL after this.
-	 */
+	/* unregister_netdev() calls .ndo_stop() so we don't have to. */
 	unregister_candev(elm->dev);
+
+	/* Give UART one final chance to flush.
+	 * No need to clear TTY_DO_WRITE_WAKEUP since .write_wakeup() is
+	 * serialised against .close() and will not be called once we return.
+	 */
+	flush_work(&elm->tx_work);
 
 	/* Mark channel as dead */
 	spin_lock_bh(&elm->lock);

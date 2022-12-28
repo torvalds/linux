@@ -22,21 +22,24 @@
 #include "priv.h"
 #include <subdev/acr.h>
 
+#include <nvfw/sec2.h>
+
 static const struct nvkm_falcon_func
 tu102_sec2_flcn = {
+	.disable = gm200_flcn_disable,
+	.enable = gm200_flcn_enable,
+	.reset_pmc = true,
+	.reset_eng = gp102_flcn_reset_eng,
+	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
 	.debug = 0x408,
-	.fbif = 0x600,
-	.load_imem = nvkm_falcon_v1_load_imem,
-	.load_dmem = nvkm_falcon_v1_load_dmem,
-	.read_dmem = nvkm_falcon_v1_read_dmem,
+	.bind_inst = gm200_flcn_bind_inst,
+	.bind_stat = gm200_flcn_bind_stat,
+	.bind_intr = true,
+	.imem_pio = &gm200_flcn_imem_pio,
+	.dmem_pio = &gm200_flcn_dmem_pio,
 	.emem_addr = 0x01000000,
-	.bind_context = gp102_sec2_flcn_bind_context,
-	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
-	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
-	.set_start_addr = nvkm_falcon_v1_set_start_addr,
+	.emem_pio = &gp102_flcn_emem_pio,
 	.start = nvkm_falcon_v1_start,
-	.enable = nvkm_falcon_v1_enable,
-	.disable = nvkm_falcon_v1_disable,
 	.cmdq = { 0xc00, 0xc04, 8 },
 	.msgq = { 0xc80, 0xc84, 8 },
 };
@@ -44,7 +47,8 @@ tu102_sec2_flcn = {
 static const struct nvkm_sec2_func
 tu102_sec2 = {
 	.flcn = &tu102_sec2_flcn,
-	.unit_acr = 0x07,
+	.unit_unload = NV_SEC2_UNIT_V2_UNLOAD,
+	.unit_acr = NV_SEC2_UNIT_V2_ACR,
 	.intr = gp102_sec2_intr,
 	.initmsg = gp102_sec2_initmsg,
 };

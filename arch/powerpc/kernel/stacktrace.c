@@ -43,7 +43,7 @@ void __no_sanitize_address arch_stack_walk(stack_trace_consume_fn consume_entry,
 		unsigned long *stack = (unsigned long *) sp;
 		unsigned long newsp, ip;
 
-		if (!validate_sp(sp, task, STACK_FRAME_OVERHEAD))
+		if (!validate_sp(sp, task))
 			return;
 
 		newsp = stack[0];
@@ -77,7 +77,7 @@ int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consum
 		/*
 		 * For user tasks, this is the SP value loaded on
 		 * kernel entry, see "PACAKSAVE(r13)" in _switch() and
-		 * system_call_common()/EXCEPTION_PROLOG_COMMON().
+		 * system_call_common().
 		 *
 		 * Likewise for non-swapper kernel threads,
 		 * this also happens to be the top of the stack
@@ -88,13 +88,13 @@ int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consum
 		 * an unreliable stack trace until it's been
 		 * _switch()'ed to for the first time.
 		 */
-		stack_end -= STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
+		stack_end -= STACK_USER_INT_FRAME_SIZE;
 	} else {
 		/*
 		 * idle tasks have a custom stack layout,
 		 * c.f. cpu_idle_thread_init().
 		 */
-		stack_end -= STACK_FRAME_OVERHEAD;
+		stack_end -= STACK_FRAME_MIN_SIZE;
 	}
 
 	if (task == current)
@@ -136,7 +136,7 @@ int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consum
 
 		/* Mark stacktraces with exception frames as unreliable. */
 		if (sp <= stack_end - STACK_INT_FRAME_SIZE &&
-		    stack[STACK_FRAME_MARKER] == STACK_FRAME_REGS_MARKER) {
+		    stack[STACK_INT_FRAME_MARKER_LONGS] == STACK_FRAME_REGS_MARKER) {
 			return -EINVAL;
 		}
 

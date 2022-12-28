@@ -1062,4 +1062,9 @@ format.::
 7. Testing
 ==========
 
-Kernel bpf selftest `test_btf.c` provides extensive set of BTF-related tests.
+The kernel BPF selftest `tools/testing/selftests/bpf/prog_tests/btf.c`_
+provides an extensive set of BTF-related tests.
+
+.. Links
+.. _tools/testing/selftests/bpf/prog_tests/btf.c:
+   https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/tools/testing/selftests/bpf/prog_tests/btf.c

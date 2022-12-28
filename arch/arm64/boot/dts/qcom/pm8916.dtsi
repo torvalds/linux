@@ -107,7 +107,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		pm8916_gpios: gpios@c000 {
+		pm8916_gpios: gpio@c000 {
 			compatible = "qcom,pm8916-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;

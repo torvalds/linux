@@ -3,6 +3,7 @@
  * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  */
 
+#include <crypto/internal/hash.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/types.h>
@@ -147,7 +148,7 @@ static int qce_setup_regs_ahash(struct crypto_async_request *async_req)
 {
 	struct ahash_request *req = ahash_request_cast(async_req);
 	struct crypto_ahash *ahash = __crypto_ahash_cast(async_req->tfm);
-	struct qce_sha_reqctx *rctx = ahash_request_ctx(req);
+	struct qce_sha_reqctx *rctx = ahash_request_ctx_dma(req);
 	struct qce_alg_template *tmpl = to_ahash_tmpl(async_req->tfm);
 	struct qce_device *qce = tmpl->qce;
 	unsigned int digestsize = crypto_ahash_digestsize(ahash);
@@ -419,7 +420,7 @@ static unsigned int qce_be32_to_cpu_array(u32 *dst, const u8 *src, unsigned int 
 static int qce_setup_regs_aead(struct crypto_async_request *async_req)
 {
 	struct aead_request *req = aead_request_cast(async_req);
-	struct qce_aead_reqctx *rctx = aead_request_ctx(req);
+	struct qce_aead_reqctx *rctx = aead_request_ctx_dma(req);
 	struct qce_aead_ctx *ctx = crypto_tfm_ctx(async_req->tfm);
 	struct qce_alg_template *tmpl = to_aead_tmpl(crypto_aead_reqtfm(req));
 	struct qce_device *qce = tmpl->qce;

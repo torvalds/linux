@@ -37,6 +37,7 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_atomic.h>
+#include "dcn10/dcn10_optc.h"
 
 #include "dc/inc/core_types.h"
 
@@ -659,6 +660,69 @@ TRACE_EVENT(dcn_fpu,
 		      __entry->recursion_depth,
 		      __entry->function,
 		      __entry->line
+	    )
+);
+
+TRACE_EVENT(dcn_optc_lock_unlock_state,
+	    TP_PROTO(const struct optc *optc_state, int instance, bool lock, const char *function, const int line),
+	    TP_ARGS(optc_state, instance, lock, function, line),
+
+	    TP_STRUCT__entry(
+			     __field(const char *, function)
+			     __field(int, instance)
+			     __field(bool, lock)
+			     __field(int, line)
+			     __field(int, opp_count)
+			     __field(int, max_h_total)
+			     __field(int, max_v_total)
+			     __field(int, min_h_blank)
+			     __field(int, min_h_sync_width)
+			     __field(int, min_v_sync_width)
+			     __field(int, min_v_blank)
+			     __field(int, min_v_blank_interlace)
+			     __field(int, vstartup_start)
+			     __field(int, vupdate_offset)
+			     __field(int, vupdate_width)
+			     __field(int, vready_offset)
+	    ),
+	    TP_fast_assign(
+			   __entry->function = function;
+			   __entry->instance = instance;
+			   __entry->lock = lock;
+			   __entry->line = line;
+			   __entry->opp_count = optc_state->opp_count;
+			   __entry->max_h_total = optc_state->max_h_total;
+			   __entry->max_v_total = optc_state->max_v_total;
+			   __entry->min_h_blank = optc_state->min_h_blank;
+			   __entry->min_h_sync_width = optc_state->min_h_sync_width;
+			   __entry->min_v_sync_width = optc_state->min_v_sync_width;
+			   __entry->min_v_blank = optc_state->min_v_blank;
+			   __entry->min_v_blank_interlace = optc_state->min_v_blank_interlace;
+			   __entry->vstartup_start = optc_state->vstartup_start;
+			   __entry->vupdate_offset = optc_state->vupdate_offset;
+			   __entry->vupdate_width = optc_state->vupdate_width;
+			   __entry->vready_offset = optc_state->vupdate_offset;
+	    ),
+	    TP_printk("%s: %s()+%d: optc_instance=%d opp_count=%d max_h_total=%d max_v_total=%d "
+		      "min_h_blank=%d min_h_sync_width=%d min_v_sync_width=%d min_v_blank=%d "
+		      "min_v_blank_interlace=%d vstartup_start=%d vupdate_offset=%d vupdate_width=%d "
+		      "vready_offset=%d",
+		      __entry->lock ? "Lock" : "Unlock",
+		      __entry->function,
+		      __entry->line,
+		      __entry->instance,
+		      __entry->opp_count,
+		      __entry->max_h_total,
+		      __entry->max_v_total,
+		      __entry->min_h_blank,
+		      __entry->min_h_sync_width,
+		      __entry->min_v_sync_width,
+		      __entry->min_v_blank,
+		      __entry->min_v_blank_interlace,
+		      __entry->vstartup_start,
+		      __entry->vupdate_offset,
+		      __entry->vupdate_width,
+		      __entry->vready_offset
 	    )
 );
 

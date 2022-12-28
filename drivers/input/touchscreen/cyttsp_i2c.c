@@ -28,8 +28,7 @@ static const struct cyttsp_bus_ops cyttsp_i2c_bus_ops = {
 	.read           = cyttsp_i2c_read_block_data,
 };
 
-static int cyttsp_i2c_probe(struct i2c_client *client,
-				      const struct i2c_device_id *id)
+static int cyttsp_i2c_probe(struct i2c_client *client)
 {
 	struct cyttsp *ts;
 
@@ -67,7 +66,7 @@ static struct i2c_driver cyttsp_i2c_driver = {
 		.pm	= &cyttsp_pm_ops,
 		.of_match_table = cyttsp_of_i2c_match,
 	},
-	.probe		= cyttsp_i2c_probe,
+	.probe_new	= cyttsp_i2c_probe,
 	.id_table	= cyttsp_i2c_id,
 };
 

@@ -8,7 +8,9 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
+
+#define TRAILER_NAME "trailer"
 
 static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -50,7 +52,7 @@ static struct sk_buff *trailer_rcv(struct sk_buff *skb, struct net_device *dev)
 }
 
 static const struct dsa_device_ops trailer_netdev_ops = {
-	.name	= "trailer",
+	.name	= TRAILER_NAME,
 	.proto	= DSA_TAG_PROTO_TRAILER,
 	.xmit	= trailer_xmit,
 	.rcv	= trailer_rcv,
@@ -58,6 +60,6 @@ static const struct dsa_device_ops trailer_netdev_ops = {
 };
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_TRAILER);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_TRAILER, TRAILER_NAME);
 
 module_dsa_tag_driver(trailer_netdev_ops);

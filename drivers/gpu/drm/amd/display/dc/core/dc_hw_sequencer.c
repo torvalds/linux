@@ -366,6 +366,7 @@ void get_hdr_visual_confirm_color(
 		struct tg_color *color)
 {
 	uint32_t color_value = MAX_TG_COLOR_VALUE;
+	bool is_sdr = false;
 
 	/* Determine the overscan color based on the top-most (desktop) plane's context */
 	struct pipe_ctx *top_pipe_ctx  = pipe_ctx;
@@ -382,7 +383,8 @@ void get_hdr_visual_confirm_color(
 			/* FreeSync 2 ARGB2101010 - set border color to pink */
 			color->color_r_cr = color_value;
 			color->color_b_cb = color_value;
-		}
+		} else
+			is_sdr = true;
 		break;
 	case PIXEL_FORMAT_FP16:
 		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
@@ -391,14 +393,19 @@ void get_hdr_visual_confirm_color(
 		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
 			/* FreeSync 2 HDR - set border color to green */
 			color->color_g_y = color_value;
-		}
+		} else
+			is_sdr = true;
 		break;
 	default:
+		is_sdr = true;
+		break;
+	}
+
+	if (is_sdr) {
 		/* SDR - set border color to Gray */
 		color->color_r_cr = color_value/2;
 		color->color_b_cb = color_value/2;
 		color->color_g_y = color_value/2;
-		break;
 	}
 }
 

@@ -79,6 +79,7 @@ struct sg_list {
 struct otx2_snd_queue {
 	u8			aura_id;
 	u16			head;
+	u16			cons_head;
 	u16			sqe_size;
 	u32			sqe_cnt;
 	u16			num_sqbs;

@@ -5,6 +5,7 @@
 
 #include "gem/i915_gem_domain.h"
 #include "gem/i915_gem_internal.h"
+#include "gem/i915_gem_lmem.h"
 #include "gt/gen8_ppgtt.h"
 
 #include "i915_drv.h"

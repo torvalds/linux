@@ -24,11 +24,13 @@ that goes into great technical depth about the BPF Architecture.
    maps
    bpf_prog_run
    classic_vs_extended.rst
+   bpf_iterators
    bpf_licensing
    test_debug
    clang-notes
    linux-notes
    other
+   redirect
 
 .. only::  subproject and html
 

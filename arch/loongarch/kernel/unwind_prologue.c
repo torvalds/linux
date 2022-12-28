@@ -2,11 +2,22 @@
 /*
  * Copyright (C) 2022 Loongson Technology Corporation Limited
  */
+#include <linux/ftrace.h>
 #include <linux/kallsyms.h>
 
 #include <asm/inst.h>
 #include <asm/ptrace.h>
 #include <asm/unwind.h>
+
+static inline void unwind_state_fixup(struct unwind_state *state)
+{
+#ifdef CONFIG_DYNAMIC_FTRACE
+	static unsigned long ftrace = (unsigned long)ftrace_call + 4;
+
+	if (state->pc == ftrace)
+		state->is_ftrace = true;
+#endif
+}
 
 unsigned long unwind_get_return_address(struct unwind_state *state)
 {
@@ -32,6 +43,8 @@ static bool unwind_by_guess(struct unwind_state *state)
 	     state->sp < info->end;
 	     state->sp += sizeof(unsigned long)) {
 		addr = *(unsigned long *)(state->sp);
+		state->pc = ftrace_graph_ret_addr(state->task, &state->graph_idx,
+				addr, (unsigned long *)(state->sp - GRAPH_FAKE_OFFSET));
 		if (__kernel_text_address(addr))
 			return true;
 	}
@@ -41,13 +54,29 @@ static bool unwind_by_guess(struct unwind_state *state)
 
 static bool unwind_by_prologue(struct unwind_state *state)
 {
+	long frame_ra = -1;
+	unsigned long frame_size = 0;
+	unsigned long size, offset, pc = state->pc;
+	struct pt_regs *regs;
 	struct stack_info *info = &state->stack_info;
 	union loongarch_instruction *ip, *ip_end;
-	unsigned long frame_size = 0, frame_ra = -1;
-	unsigned long size, offset, pc = state->pc;
 
 	if (state->sp >= info->end || state->sp < info->begin)
 		return false;
+
+	if (state->is_ftrace) {
+		/*
+		 * As we meet ftrace_regs_entry, reset first flag like first doing
+		 * tracing. Prologue analysis will stop soon because PC is at entry.
+		 */
+		regs = (struct pt_regs *)state->sp;
+		state->first = true;
+		state->is_ftrace = false;
+		state->pc = regs->csr_era;
+		state->ra = regs->regs[1];
+		state->sp = regs->regs[3];
+		return true;
+	}
 
 	if (!kallsyms_lookup_size_offset(pc, &size, &offset))
 		return false;
@@ -94,7 +123,7 @@ static bool unwind_by_prologue(struct unwind_state *state)
 
 	state->pc = *(unsigned long *)(state->sp + frame_ra);
 	state->sp = state->sp + frame_size;
-	return !!__kernel_text_address(state->pc);
+	goto out;
 
 first:
 	state->first = false;
@@ -103,7 +132,9 @@ first:
 
 	state->pc = state->ra;
 
-	return !!__kernel_text_address(state->ra);
+out:
+	unwind_state_fixup(state);
+	return !!__kernel_text_address(state->pc);
 }
 
 void unwind_start(struct unwind_state *state, struct task_struct *task,
@@ -146,8 +177,11 @@ bool unwind_next_frame(struct unwind_state *state)
 			break;
 
 		case UNWINDER_PROLOGUE:
-			if (unwind_by_prologue(state))
+			if (unwind_by_prologue(state)) {
+				state->pc = ftrace_graph_ret_addr(state->task, &state->graph_idx,
+						state->pc, (unsigned long *)(state->sp - GRAPH_FAKE_OFFSET));
 				return true;
+			}
 
 			if (info->type == STACK_TYPE_IRQ &&
 				info->end == state->sp) {
@@ -157,10 +191,11 @@ bool unwind_next_frame(struct unwind_state *state)
 				if (user_mode(regs) || !__kernel_text_address(pc))
 					return false;
 
-				state->pc = pc;
-				state->sp = regs->regs[3];
-				state->ra = regs->regs[1];
 				state->first = true;
+				state->ra = regs->regs[1];
+				state->sp = regs->regs[3];
+				state->pc = ftrace_graph_ret_addr(state->task, &state->graph_idx,
+						pc, (unsigned long *)(state->sp - GRAPH_FAKE_OFFSET));
 				get_stack_info(state->sp, state->task, info);
 
 				return true;

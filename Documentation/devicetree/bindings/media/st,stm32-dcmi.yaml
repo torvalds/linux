@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/st,stm32-dcmi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 Digital Camera Memory Interface (DCMI) binding
+title: STMicroelectronics STM32 Digital Camera Memory Interface (DCMI)
 
 maintainers:
   - Hugues Fruchet <hugues.fruchet@foss.st.com>

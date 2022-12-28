@@ -288,13 +288,13 @@ do {						\
 	u64_stats_update_end(&(st)->syncp);	\
 } while (0)
 
-#define SLIC_GET_STATS_COUNTER(newst, st, counter)			\
-{									\
-	unsigned int start;						\
+#define SLIC_GET_STATS_COUNTER(newst, st, counter)		\
+{								\
+	unsigned int start;					\
 	do {							\
-		start = u64_stats_fetch_begin_irq(&(st)->syncp);	\
-		newst = (st)->counter;					\
-	} while (u64_stats_fetch_retry_irq(&(st)->syncp, start));	\
+		start = u64_stats_fetch_begin(&(st)->syncp);	\
+		newst = (st)->counter;				\
+	} while (u64_stats_fetch_retry(&(st)->syncp, start));	\
 }
 
 struct slic_upr {

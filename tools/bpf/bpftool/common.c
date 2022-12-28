@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -300,6 +302,9 @@ int do_pin_any(int argc, char **argv, int (*get_fd)(int *, char ***))
 	int err;
 	int fd;
 
+	if (!REQ_ARGS(3))
+		return -EINVAL;
+
 	fd = get_fd(&argc, &argv);
 	if (fd < 0)
 		return fd;
@@ -492,10 +497,11 @@ static int do_build_table_cb(const char *fpath, const struct stat *sb,
 		goto out_close;
 	}
 
-	err = hashmap__append(build_fn_table, u32_as_hash_field(pinned_info.id), path);
+	err = hashmap__append(build_fn_table, pinned_info.id, path);
 	if (err) {
 		p_err("failed to append entry to hashmap for ID %u, path '%s': %s",
 		      pinned_info.id, path, strerror(errno));
+		free(path);
 		goto out_close;
 	}
 
@@ -543,7 +549,7 @@ void delete_pinned_obj_table(struct hashmap *map)
 		return;
 
 	hashmap__for_each_entry(map, entry, bkt)
-		free(entry->value);
+		free(entry->pvalue);
 
 	hashmap__free(map);
 }
@@ -625,12 +631,11 @@ static int read_sysfs_netdev_hex_int(char *devname, const char *entry_name)
 }
 
 const char *
-ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
-		      const char **opt)
+ifindex_to_arch(__u32 ifindex, __u64 ns_dev, __u64 ns_ino, const char **opt)
 {
+	__maybe_unused int device_id;
 	char devname[IF_NAMESIZE];
 	int vendor_id;
-	int device_id;
 
 	if (!ifindex_to_name_ns(ifindex, ns_dev, ns_ino, devname)) {
 		p_err("Can't get net device name for ifindex %d: %s", ifindex,
@@ -645,6 +650,7 @@ ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
 	}
 
 	switch (vendor_id) {
+#ifdef HAVE_LIBBFD_SUPPORT
 	case 0x19ee:
 		device_id = read_sysfs_netdev_hex_int(devname, "device");
 		if (device_id != 0x4000 &&
@@ -653,8 +659,10 @@ ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
 			p_info("Unknown NFP device ID, assuming it is NFP-6xxx arch");
 		*opt = "ctx4";
 		return "NFP-6xxx";
+#endif /* HAVE_LIBBFD_SUPPORT */
+	/* No NFP support in LLVM, we have no valid triple to return. */
 	default:
-		p_err("Can't get bfd arch name for device vendor id 0x%04x",
+		p_err("Can't get arch name for device vendor id 0x%04x",
 		      vendor_id);
 		return NULL;
 	}
@@ -1037,12 +1045,12 @@ int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
 	return fd;
 }
 
-size_t hash_fn_for_key_as_id(const void *key, void *ctx)
+size_t hash_fn_for_key_as_id(long key, void *ctx)
 {
-	return (size_t)key;
+	return key;
 }
 
-bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx)
+bool equal_fn_for_key_as_id(long k1, long k2, void *ctx)
 {
 	return k1 == k2;
 }

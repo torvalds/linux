@@ -462,8 +462,8 @@ ERR_PTR(...).
 argument; instead of passing IPERM_FLAG_RCU we add MAY_NOT_BLOCK into mask.
 
 generic_permission() has also lost the check_acl argument; ACL checking
-has been taken to VFS and filesystems need to provide a non-NULL ->i_op->get_acl
-to read an ACL from disk.
+has been taken to VFS and filesystems need to provide a non-NULL
+->i_op->get_inode_acl to read an ACL from disk.
 
 ---
 

@@ -87,8 +87,7 @@ static int ihid_goodix_vdd_notify(struct notifier_block *nb,
 	return ret;
 }
 
-static int i2c_hid_of_goodix_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int i2c_hid_of_goodix_probe(struct i2c_client *client)
 {
 	struct i2c_hid_of_goodix *ihid_goodix;
 	int ret;
@@ -167,7 +166,7 @@ static struct i2c_driver goodix_i2c_hid_ts_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(goodix_i2c_hid_of_match),
 	},
-	.probe		= i2c_hid_of_goodix_probe,
+	.probe_new	= i2c_hid_of_goodix_probe,
 	.remove		= i2c_hid_core_remove,
 	.shutdown	= i2c_hid_core_shutdown,
 };

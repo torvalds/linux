@@ -703,6 +703,17 @@
 	condev=		[HW,S390] console device
 	conmode=
 
+	con3215_drop=	[S390] 3215 console drop mode.
+			Format: y|n|Y|N|1|0
+			When set to true, drop data on the 3215 console when
+			the console buffer is full. In this case the
+			operator using a 3270 terminal emulator (for example
+			x3270) does not have to enter the clear key for the
+			console output to advance and the kernel to continue.
+			This leads to a much faster boot time when a 3270
+			terminal emulator is active. If no 3270 terminal
+			emulator is used, this parameter has no effect.
+
 	console=	[KNL] Output console device and options.
 
 		tty<n>	Use the virtual console device <n>.
@@ -831,7 +842,7 @@
 			memory region [offset, offset + size] for that kernel
 			image. If '@offset' is omitted, then a suitable offset
 			is selected automatically.
-			[KNL, X86-64] Select a region under 4G first, and
+			[KNL, X86-64, ARM64] Select a region under 4G first, and
 			fall back to reserve region above 4G when '@offset'
 			hasn't been specified.
 			See Documentation/admin-guide/kdump/kdump.rst for further details.
@@ -851,25 +862,22 @@
 			available.
 			It will be ignored if crashkernel=X is specified.
 	crashkernel=size[KMG],low
-			[KNL, X86-64] range under 4G. When crashkernel=X,high
+			[KNL, X86-64, ARM64] range under 4G. When crashkernel=X,high
 			is passed, kernel could allocate physical memory region
 			above 4G, that cause second kernel crash on system
 			that require some amount of low memory, e.g. swiotlb
 			requires at least 64M+32K low memory, also enough extra
 			low memory is needed to make sure DMA buffers for 32-bit
 			devices won't run out. Kernel would try to allocate
-			at least 256M below 4G automatically.
+			default	size of memory below 4G automatically. The default
+			size is	platform dependent.
+			  --> x86: max(swiotlb_size_or_default() + 8MiB, 256MiB)
+			  --> arm64: 128MiB
 			This one lets the user specify own low range under 4G
 			for second kernel instead.
 			0: to disable low allocation.
 			It will be ignored when crashkernel=X,high is not used
 			or memory reserved is below 4G.
-
-			[KNL, ARM64] range in low memory.
-			This one lets the user specify a low range in the
-			DMA zone for the crash dump kernel.
-			It will be ignored when crashkernel=X,high is not used
-			or memory reserved is located in the DMA zones.
 
 	cryptomgr.notests
 			[KNL] Disable crypto self-tests
@@ -1041,6 +1049,11 @@
 			Limits the number of kernel SLB entries, and flushes
 			them frequently to increase the rate of SLB faults
 			on kernel addresses.
+
+	stress_hpt	[PPC]
+			Limits the number of kernel HPT entries in the hash
+			page table to increase the rate of hash page table
+			faults on kernel addresses.
 
 	disable=	[IPV6]
 			See Documentation/networking/ipv6.rst.
@@ -2300,7 +2313,13 @@
 			Provide an override to the IOAPIC-ID<->DEVICE-ID
 			mapping provided in the IVRS ACPI table.
 			By default, PCI segment is 0, and can be omitted.
-			For example:
+
+			For example, to map IOAPIC-ID decimal 10 to
+			PCI segment 0x1 and PCI device 00:14.0,
+			write the parameter as:
+				ivrs_ioapic=10@0001:00:14.0
+
+			Deprecated formats:
 			* To map IOAPIC-ID decimal 10 to PCI device 00:14.0
 			  write the parameter as:
 				ivrs_ioapic[10]=00:14.0
@@ -2312,7 +2331,13 @@
 			Provide an override to the HPET-ID<->DEVICE-ID
 			mapping provided in the IVRS ACPI table.
 			By default, PCI segment is 0, and can be omitted.
-			For example:
+
+			For example, to map HPET-ID decimal 10 to
+			PCI segment 0x1 and PCI device 00:14.0,
+			write the parameter as:
+				ivrs_hpet=10@0001:00:14.0
+
+			Deprecated formats:
 			* To map HPET-ID decimal 0 to PCI device 00:14.0
 			  write the parameter as:
 				ivrs_hpet[0]=00:14.0
@@ -2323,15 +2348,20 @@
 	ivrs_acpihid	[HW,X86-64]
 			Provide an override to the ACPI-HID:UID<->DEVICE-ID
 			mapping provided in the IVRS ACPI table.
+			By default, PCI segment is 0, and can be omitted.
 
 			For example, to map UART-HID:UID AMD0020:0 to
 			PCI segment 0x1 and PCI device ID 00:14.5,
 			write the parameter as:
-				ivrs_acpihid[0001:00:14.5]=AMD0020:0
+				ivrs_acpihid=AMD0020:0@0001:00:14.5
 
-			By default, PCI segment is 0, and can be omitted.
-			For example, PCI device 00:14.5 write the parameter as:
+			Deprecated formats:
+			* To map UART-HID:UID AMD0020:0 to PCI segment is 0,
+			  PCI device ID 00:14.5, write the parameter as:
 				ivrs_acpihid[00:14.5]=AMD0020:0
+			* To map UART-HID:UID AMD0020:0 to PCI segment 0x1 and
+			  PCI device ID 00:14.5, write the parameter as:
+				ivrs_acpihid[0001:00:14.5]=AMD0020:0
 
 	js=		[HW,JOY] Analog joystick
 			See Documentation/input/joydev/joystick.rst.
@@ -3777,12 +3807,15 @@
 			shutdown the other cpus.  Instead use the REBOOT_VECTOR
 			irq.
 
-	nomodeset	Disable kernel modesetting. DRM drivers will not perform
-			display-mode changes or accelerated rendering. Only the
-			system framebuffer will be available for use if this was
-			set-up by the firmware or boot loader.
+	nomodeset	Disable kernel modesetting. Most systems' firmware
+			sets up a display mode and provides framebuffer memory
+			for output. With nomodeset, DRM and fbdev drivers will
+			not load if they could possibly displace the pre-
+			initialized output. Only the system framebuffer will
+			be available for use. The respective drivers will not
+			perform display-mode changes or accelerated rendering.
 
-			Useful as fallback, or for testing and debugging.
+			Useful as error fallback, or for testing and debugging.
 
 	nomodule	Disable module load
 
@@ -4566,17 +4599,15 @@
 
 	ramdisk_start=	[RAM] RAM disk image start address
 
-	random.trust_cpu={on,off}
-			[KNL] Enable or disable trusting the use of the
-			CPU's random number generator (if available) to
-			fully seed the kernel's CRNG. Default is controlled
-			by CONFIG_RANDOM_TRUST_CPU.
+	random.trust_cpu=off
+			[KNL] Disable trusting the use of the CPU's
+			random number generator (if available) to
+			initialize the kernel's RNG.
 
-	random.trust_bootloader={on,off}
-			[KNL] Enable or disable trusting the use of a
-			seed passed by the bootloader (if available) to
-			fully seed the kernel's CRNG. Default is controlled
-			by CONFIG_RANDOM_TRUST_BOOTLOADER.
+	random.trust_bootloader=off
+			[KNL] Disable trusting the use of the a seed
+			passed by the bootloader (if available) to
+			initialize the kernel's RNG.
 
 	randomize_kstack_offset=
 			[KNL] Enable or disable kernel stack offset
@@ -6257,6 +6288,25 @@
 			See also Documentation/trace/ftrace.rst "trace options"
 			section.
 
+	trace_trigger=[trigger-list]
+			[FTRACE] Add a event trigger on specific events.
+			Set a trigger on top of a specific event, with an optional
+			filter.
+
+			The format is is "trace_trigger=<event>.<trigger>[ if <filter>],..."
+			Where more than one trigger may be specified that are comma deliminated.
+
+			For example:
+
+			  trace_trigger="sched_switch.stacktrace if prev_state == 2"
+
+			The above will enable the "stacktrace" trigger on the "sched_switch"
+			event but only trigger it if the "prev_state" of the "sched_switch"
+			event is "2" (TASK_UNINTERUPTIBLE).
+
+			See also "Event triggers" in Documentation/trace/events.rst
+
+
 	traceoff_on_warning
 			[FTRACE] enable this option to disable tracing when a
 			warning is hit. This turns off "tracing_on". Tracing can
@@ -6959,3 +7009,14 @@
 				memory, and other data can't be written using
 				xmon commands.
 			off	xmon is disabled.
+
+	amd_pstate=	[X86]
+			disable
+			  Do not enable amd_pstate as the default
+			  scaling driver for the supported processors
+			passive
+			  Use amd_pstate as a scaling driver, driver requests a
+			  desired performance on this abstract scale and the power
+			  management firmware translates the requests into actual
+			  hardware states (core frequency, data fabric and memory
+			  clocks etc.)

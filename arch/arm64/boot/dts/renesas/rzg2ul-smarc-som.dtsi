@@ -221,13 +221,6 @@
 			pinmux = <RZG2L_PORT_PINMUX(0, 0, 1)>; /* SD0_CD */
 		};
 	};
-
-	spi1_pins: rspi1 {
-		pinmux = <RZG2L_PORT_PINMUX(4, 0, 2)>, /* CK */
-			 <RZG2L_PORT_PINMUX(4, 1, 2)>, /* MOSI */
-			 <RZG2L_PORT_PINMUX(4, 2, 2)>, /* MISO */
-			 <RZG2L_PORT_PINMUX(4, 3, 2)>; /* SSL */
-	};
 };
 
 #if (SW_SW0_DEV_SEL)

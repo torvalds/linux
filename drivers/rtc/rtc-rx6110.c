@@ -376,7 +376,7 @@ static const struct spi_device_id rx6110_spi_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, rx6110_spi_id);
 
-static const struct of_device_id rx6110_spi_of_match[] = {
+static const __maybe_unused struct of_device_id rx6110_spi_of_match[] = {
 	{ .compatible = "epson,rx6110" },
 	{ },
 };

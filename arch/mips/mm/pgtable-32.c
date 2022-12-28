@@ -13,9 +13,9 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
-void pgd_init(unsigned long page)
+void pgd_init(void *addr)
 {
-	unsigned long *p = (unsigned long *) page;
+	unsigned long *p = (unsigned long *)addr;
 	int i;
 
 	for (i = 0; i < USER_PTRS_PER_PGD; i+=8) {
@@ -61,9 +61,8 @@ void __init pagetable_init(void)
 #endif
 
 	/* Initialize the entire pgd.  */
-	pgd_init((unsigned long)swapper_pg_dir);
-	pgd_init((unsigned long)swapper_pg_dir
-		 + sizeof(pgd_t) * USER_PTRS_PER_PGD);
+	pgd_init(swapper_pg_dir);
+	pgd_init(&swapper_pg_dir[USER_PTRS_PER_PGD]);
 
 	pgd_base = swapper_pg_dir;
 

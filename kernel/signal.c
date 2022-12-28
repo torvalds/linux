@@ -1255,7 +1255,7 @@ int send_signal_locked(int sig, struct kernel_siginfo *info,
 
 static void print_fatal_signal(int signr)
 {
-	struct pt_regs *regs = signal_pt_regs();
+	struct pt_regs *regs = task_pt_regs(current);
 	pr_info("potentially unexpected fatal signal %d.\n", signr);
 
 #if defined(__i386__) && !defined(__arch_um__)
@@ -2693,6 +2693,7 @@ relock:
 		/* Has this task already been marked for death? */
 		if ((signal->flags & SIGNAL_GROUP_EXIT) ||
 		     signal->group_exec_task) {
+			clear_siginfo(&ksig->info);
 			ksig->info.si_signo = signr = SIGKILL;
 			sigdelset(&current->pending.signal, SIGKILL);
 			trace_signal_deliver(SIGKILL, SEND_SIG_NOINFO,

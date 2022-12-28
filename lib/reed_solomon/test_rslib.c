@@ -183,7 +183,7 @@ static int get_rcw_we(struct rs_control *rs, struct wspace *ws,
 
 		do {
 			/* Must not choose the same location twice */
-			errloc = prandom_u32_max(len);
+			errloc = get_random_u32_below(len);
 		} while (errlocs[errloc] != 0);
 
 		errlocs[errloc] = 1;
@@ -194,12 +194,12 @@ static int get_rcw_we(struct rs_control *rs, struct wspace *ws,
 	for (i = 0; i < eras; i++) {
 		do {
 			/* Must not choose the same location twice */
-			errloc = prandom_u32_max(len);
+			errloc = get_random_u32_below(len);
 		} while (errlocs[errloc] != 0);
 
 		derrlocs[i] = errloc;
 
-		if (ewsc && prandom_u32_max(2)) {
+		if (ewsc && get_random_u32_below(2)) {
 			/* Erasure with the symbol intact */
 			errlocs[errloc] = 2;
 		} else {

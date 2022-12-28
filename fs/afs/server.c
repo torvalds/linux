@@ -406,7 +406,7 @@ void afs_put_server(struct afs_net *net, struct afs_server *server,
 	if (!server)
 		return;
 
-	a = atomic_inc_return(&server->active);
+	a = atomic_read(&server->active);
 	zero = __refcount_dec_and_test(&server->ref, &r);
 	trace_afs_server(debug_id, r - 1, a, reason);
 	if (unlikely(zero))

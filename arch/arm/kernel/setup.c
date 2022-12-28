@@ -450,6 +450,8 @@ static void __init cpuid_init_hwcaps(void)
 {
 	int block;
 	u32 isar5;
+	u32 isar6;
+	u32 pfr2;
 
 	if (cpu_architecture() < CPU_ARCH_ARMv7)
 		return;
@@ -485,6 +487,18 @@ static void __init cpuid_init_hwcaps(void)
 	block = cpuid_feature_extract_field(isar5, 16);
 	if (block >= 1)
 		elf_hwcap2 |= HWCAP2_CRC32;
+
+	/* Check for Speculation barrier instruction */
+	isar6 = read_cpuid_ext(CPUID_EXT_ISAR6);
+	block = cpuid_feature_extract_field(isar6, 12);
+	if (block >= 1)
+		elf_hwcap2 |= HWCAP2_SB;
+
+	/* Check for Speculative Store Bypassing control */
+	pfr2 = read_cpuid_ext(CPUID_EXT_PFR2);
+	block = cpuid_feature_extract_field(pfr2, 4);
+	if (block >= 1)
+		elf_hwcap2 |= HWCAP2_SSBS;
 }
 
 static void __init elf_hwcap_fixup(void)
@@ -1249,6 +1263,12 @@ static const char *hwcap_str[] = {
 	"vfpd32",
 	"lpae",
 	"evtstrm",
+	"fphp",
+	"asimdhp",
+	"asimddp",
+	"asimdfhm",
+	"asimdbf16",
+	"i8mm",
 	NULL
 };
 
@@ -1258,6 +1278,8 @@ static const char *hwcap2_str[] = {
 	"sha1",
 	"sha2",
 	"crc32",
+	"sb",
+	"ssbs",
 	NULL
 };
 

@@ -560,8 +560,8 @@ struct posix_acl;
 #define ACL_NOT_CACHED ((void *)(-1))
 /*
  * ACL_DONT_CACHE is for stacked filesystems, that rely on underlying fs to
- * cache the ACL.  This also means that ->get_acl() can be called in RCU mode
- * with the LOOKUP_RCU flag.
+ * cache the ACL.  This also means that ->get_inode_acl() can be called in RCU
+ * mode with the LOOKUP_RCU flag.
  */
 #define ACL_DONT_CACHE ((void *)(-3))
 
@@ -1131,9 +1131,8 @@ struct file_lock_context {
 
 /* The following constant reflects the upper bound of the file/locking space */
 #ifndef OFFSET_MAX
-#define INT_LIMIT(x)	(~((x)1 << (sizeof(x)*8 - 1)))
-#define OFFSET_MAX	INT_LIMIT(loff_t)
-#define OFFT_OFFSET_MAX	INT_LIMIT(off_t)
+#define OFFSET_MAX	type_max(loff_t)
+#define OFFT_OFFSET_MAX	type_max(off_t)
 #endif
 
 extern void send_sigio(struct fown_struct *fown, int fd, int band);
@@ -1170,6 +1169,7 @@ extern int locks_delete_block(struct file_lock *);
 extern int vfs_test_lock(struct file *, struct file_lock *);
 extern int vfs_lock_file(struct file *, unsigned int, struct file_lock *, struct file_lock *);
 extern int vfs_cancel_lock(struct file *filp, struct file_lock *fl);
+bool vfs_inode_has_locks(struct inode *inode);
 extern int locks_lock_inode_wait(struct inode *inode, struct file_lock *fl);
 extern int __break_lease(struct inode *inode, unsigned int flags, unsigned int type);
 extern void lease_get_mtime(struct inode *, struct timespec64 *time);
@@ -1186,6 +1186,13 @@ extern void show_fd_locks(struct seq_file *f,
 			 struct file *filp, struct files_struct *files);
 extern bool locks_owner_has_blockers(struct file_lock_context *flctx,
 			fl_owner_t owner);
+
+static inline struct file_lock_context *
+locks_inode_context(const struct inode *inode)
+{
+	return smp_load_acquire(&inode->i_flctx);
+}
+
 #else /* !CONFIG_FILE_LOCKING */
 static inline int fcntl_getlk(struct file *file, unsigned int cmd,
 			      struct flock __user *user)
@@ -1284,6 +1291,11 @@ static inline int vfs_cancel_lock(struct file *filp, struct file_lock *fl)
 	return 0;
 }
 
+static inline bool vfs_inode_has_locks(struct inode *inode)
+{
+	return false;
+}
+
 static inline int locks_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 {
 	return -ENOLCK;
@@ -1326,6 +1338,13 @@ static inline bool locks_owner_has_blockers(struct file_lock_context *flctx,
 {
 	return false;
 }
+
+static inline struct file_lock_context *
+locks_inode_context(const struct inode *inode)
+{
+	return NULL;
+}
+
 #endif /* !CONFIG_FILE_LOCKING */
 
 static inline struct inode *file_inode(const struct file *f)
@@ -1613,23 +1632,6 @@ static inline void i_gid_write(struct inode *inode, gid_t gid)
 }
 
 /**
- * i_uid_into_mnt - map an inode's i_uid down into a mnt_userns
- * @mnt_userns: user namespace of the mount the inode was found from
- * @inode: inode to map
- *
- * Note, this will eventually be removed completely in favor of the type-safe
- * i_uid_into_vfsuid().
- *
- * Return: the inode's i_uid mapped down according to @mnt_userns.
- * If the inode's i_uid has no mapping INVALID_UID is returned.
- */
-static inline kuid_t i_uid_into_mnt(struct user_namespace *mnt_userns,
-				    const struct inode *inode)
-{
-	return AS_KUIDT(make_vfsuid(mnt_userns, i_user_ns(inode), inode->i_uid));
-}
-
-/**
  * i_uid_into_vfsuid - map an inode's i_uid down into a mnt_userns
  * @mnt_userns: user namespace of the mount the inode was found from
  * @inode: inode to map
@@ -1679,23 +1681,6 @@ static inline void i_uid_update(struct user_namespace *mnt_userns,
 	if (attr->ia_valid & ATTR_UID)
 		inode->i_uid = from_vfsuid(mnt_userns, i_user_ns(inode),
 					   attr->ia_vfsuid);
-}
-
-/**
- * i_gid_into_mnt - map an inode's i_gid down into a mnt_userns
- * @mnt_userns: user namespace of the mount the inode was found from
- * @inode: inode to map
- *
- * Note, this will eventually be removed completely in favor of the type-safe
- * i_gid_into_vfsgid().
- *
- * Return: the inode's i_gid mapped down according to @mnt_userns.
- * If the inode's i_gid has no mapping INVALID_GID is returned.
- */
-static inline kgid_t i_gid_into_mnt(struct user_namespace *mnt_userns,
-				    const struct inode *inode)
-{
-	return AS_KGIDT(make_vfsgid(mnt_userns, i_user_ns(inode), inode->i_gid));
 }
 
 /**
@@ -2089,6 +2074,14 @@ struct dir_context {
  */
 #define REMAP_FILE_ADVISORY		(REMAP_FILE_CAN_SHORTEN)
 
+/*
+ * These flags control the behavior of vfs_copy_file_range().
+ * They are not available to the user via syscall.
+ *
+ * COPY_FILE_SPLICE: call splice direct instead of fs clone/copy ops
+ */
+#define COPY_FILE_SPLICE		(1 << 0)
+
 struct iov_iter;
 struct io_uring_cmd;
 
@@ -2142,7 +2135,7 @@ struct inode_operations {
 	struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 	const char * (*get_link) (struct dentry *, struct inode *, struct delayed_call *);
 	int (*permission) (struct user_namespace *, struct inode *, int);
-	struct posix_acl * (*get_acl)(struct inode *, int, bool);
+	struct posix_acl * (*get_inode_acl)(struct inode *, int, bool);
 
 	int (*readlink) (struct dentry *, char __user *,int);
 
@@ -2172,7 +2165,9 @@ struct inode_operations {
 			   umode_t create_mode);
 	int (*tmpfile) (struct user_namespace *, struct inode *,
 			struct file *, umode_t);
-	int (*set_acl)(struct user_namespace *, struct inode *,
+	struct posix_acl *(*get_acl)(struct user_namespace *, struct dentry *,
+				     int);
+	int (*set_acl)(struct user_namespace *, struct dentry *,
 		       struct posix_acl *, int);
 	int (*fileattr_set)(struct user_namespace *mnt_userns,
 			    struct dentry *dentry, struct fileattr *fa);
@@ -2732,18 +2727,22 @@ static inline struct user_namespace *file_mnt_user_ns(struct file *file)
 	return mnt_user_ns(file->f_path.mnt);
 }
 
+static inline struct mnt_idmap *file_mnt_idmap(struct file *file)
+{
+	return mnt_idmap(file->f_path.mnt);
+}
+
 /**
  * is_idmapped_mnt - check whether a mount is mapped
  * @mnt: the mount to check
  *
- * If @mnt has an idmapping attached different from the
- * filesystem's idmapping then @mnt is mapped.
+ * If @mnt has an non @nop_mnt_idmap attached to it then @mnt is mapped.
  *
  * Return: true if mount is mapped, false if not.
  */
 static inline bool is_idmapped_mnt(const struct vfsmount *mnt)
 {
-	return mnt_user_ns(mnt) != mnt->mnt_sb->s_user_ns;
+	return mnt_idmap(mnt) != &nop_mnt_idmap;
 }
 
 extern long vfs_truncate(const struct path *, loff_t);
@@ -3104,7 +3103,7 @@ extern void __destroy_inode(struct inode *);
 extern struct inode *new_inode_pseudo(struct super_block *sb);
 extern struct inode *new_inode(struct super_block *sb);
 extern void free_inode_nonrcu(struct inode *inode);
-extern int should_remove_suid(struct dentry *);
+extern int setattr_should_drop_suidgid(struct user_namespace *, struct inode *);
 extern int file_remove_privs(struct file *);
 
 /*
@@ -3485,7 +3484,7 @@ void simple_transaction_set(struct file *file, size_t n);
  * All attributes contain a text representation of a numeric value
  * that are accessed with the get() and set() functions.
  */
-#define DEFINE_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt)		\
+#define DEFINE_SIMPLE_ATTRIBUTE_XSIGNED(__fops, __get, __set, __fmt, __is_signed)	\
 static int __fops ## _open(struct inode *inode, struct file *file)	\
 {									\
 	__simple_attr_check_format(__fmt, 0ull);			\
@@ -3496,9 +3495,15 @@ static const struct file_operations __fops = {				\
 	.open	 = __fops ## _open,					\
 	.release = simple_attr_release,					\
 	.read	 = simple_attr_read,					\
-	.write	 = simple_attr_write,					\
+	.write	 = (__is_signed) ? simple_attr_write_signed : simple_attr_write,	\
 	.llseek	 = generic_file_llseek,					\
 }
+
+#define DEFINE_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt)		\
+	DEFINE_SIMPLE_ATTRIBUTE_XSIGNED(__fops, __get, __set, __fmt, false)
+
+#define DEFINE_SIMPLE_ATTRIBUTE_SIGNED(__fops, __get, __set, __fmt)	\
+	DEFINE_SIMPLE_ATTRIBUTE_XSIGNED(__fops, __get, __set, __fmt, true)
 
 static inline __printf(1, 2)
 void __simple_attr_check_format(const char *fmt, ...)
@@ -3514,6 +3519,8 @@ ssize_t simple_attr_read(struct file *file, char __user *buf,
 			 size_t len, loff_t *ppos);
 ssize_t simple_attr_write(struct file *file, const char __user *buf,
 			  size_t len, loff_t *ppos);
+ssize_t simple_attr_write_signed(struct file *file, const char __user *buf,
+				 size_t len, loff_t *ppos);
 
 struct ctl_table;
 int __init list_bdev_fs_names(char *buf, size_t size);
@@ -3527,7 +3534,7 @@ int __init list_bdev_fs_names(char *buf, size_t size);
 
 static inline bool is_sxid(umode_t mode)
 {
-	return (mode & S_ISUID) || ((mode & S_ISGID) && (mode & S_IXGRP));
+	return mode & (S_ISUID | S_ISGID);
 }
 
 static inline int check_sticky(struct user_namespace *mnt_userns,

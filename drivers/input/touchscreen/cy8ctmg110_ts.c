@@ -168,8 +168,7 @@ static void cy8ctmg110_shut_off(void *_ts)
 	cy8ctmg110_power(ts, false);
 }
 
-static int cy8ctmg110_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int cy8ctmg110_probe(struct i2c_client *client)
 {
 	struct cy8ctmg110 *ts;
 	struct input_dev *input_dev;
@@ -279,7 +278,7 @@ static struct i2c_driver cy8ctmg110_driver = {
 		.pm	= &cy8ctmg110_pm,
 	},
 	.id_table	= cy8ctmg110_idtable,
-	.probe		= cy8ctmg110_probe,
+	.probe_new	= cy8ctmg110_probe,
 };
 
 module_i2c_driver(cy8ctmg110_driver);

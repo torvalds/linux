@@ -15,11 +15,13 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+
 #include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/slab.h>
 
 #include "../core.h"
 #include "../pinctrl-utils.h"
@@ -668,19 +670,6 @@ static const struct pinconf_ops tegra_pinconf_ops = {
 #endif
 };
 
-static struct pinctrl_gpio_range tegra_pinctrl_gpio_range = {
-	.name = "Tegra GPIOs",
-	.id = 0,
-	.base = 0,
-};
-
-static struct pinctrl_desc tegra_pinctrl_desc = {
-	.pctlops = &tegra_pinctrl_ops,
-	.pmxops = &tegra_pinmux_ops,
-	.confops = &tegra_pinconf_ops,
-	.owner = THIS_MODULE,
-};
-
 static void tegra_pinctrl_clear_parked_bits(struct tegra_pmx *pmx)
 {
 	int i = 0;
@@ -831,10 +820,18 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 		}
 	}
 
-	tegra_pinctrl_gpio_range.npins = pmx->soc->ngpios;
-	tegra_pinctrl_desc.name = dev_name(&pdev->dev);
-	tegra_pinctrl_desc.pins = pmx->soc->pins;
-	tegra_pinctrl_desc.npins = pmx->soc->npins;
+	pmx->gpio_range.name = "Tegra GPIOs";
+	pmx->gpio_range.id = 0;
+	pmx->gpio_range.base = 0;
+	pmx->gpio_range.npins = pmx->soc->ngpios;
+
+	pmx->desc.pctlops = &tegra_pinctrl_ops;
+	pmx->desc.pmxops = &tegra_pinmux_ops;
+	pmx->desc.confops = &tegra_pinconf_ops;
+	pmx->desc.owner = THIS_MODULE;
+	pmx->desc.name = dev_name(&pdev->dev);
+	pmx->desc.pins = pmx->soc->pins;
+	pmx->desc.npins = pmx->soc->npins;
 
 	for (i = 0; ; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
@@ -860,7 +857,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 			return PTR_ERR(pmx->regs[i]);
 	}
 
-	pmx->pctl = devm_pinctrl_register(&pdev->dev, &tegra_pinctrl_desc, pmx);
+	pmx->pctl = devm_pinctrl_register(&pdev->dev, &pmx->desc, pmx);
 	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
 		return PTR_ERR(pmx->pctl);
@@ -869,7 +866,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	tegra_pinctrl_clear_parked_bits(pmx);
 
 	if (pmx->soc->ngpios > 0 && !tegra_pinctrl_gpio_node_has_range(pmx))
-		pinctrl_add_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
+		pinctrl_add_gpio_range(pmx->pctl, &pmx->gpio_range);
 
 	platform_set_drvdata(pdev, pmx);
 

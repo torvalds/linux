@@ -442,6 +442,12 @@ void gfs2_journal_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 	struct buffer_head *bh;
 	int ty;
 
+	if (!ip->i_gl) {
+		/* This can only happen during incomplete inode creation. */
+		BUG_ON(!test_bit(GIF_ALLOC_FAILED, &ip->i_flags));
+		return;
+	}
+
 	gfs2_ail1_wipe(sdp, bstart, blen);
 	while (blen) {
 		ty = REMOVE_META;

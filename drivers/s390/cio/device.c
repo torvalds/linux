@@ -936,7 +936,7 @@ static int ccw_device_move_to_sch(struct ccw_device *cdev,
 		if (old_enabled) {
 			/* Try to reenable the old subchannel. */
 			spin_lock_irq(old_sch->lock);
-			cio_enable_subchannel(old_sch, (u32)(addr_t)old_sch);
+			cio_enable_subchannel(old_sch, (u32)virt_to_phys(old_sch));
 			spin_unlock_irq(old_sch->lock);
 		}
 		/* Release child reference for new parent. */

@@ -188,6 +188,22 @@ DEVICE_ATTR(unload_heads, S_IRUGO | S_IWUSR,
 	    ata_scsi_park_show, ata_scsi_park_store);
 EXPORT_SYMBOL_GPL(dev_attr_unload_heads);
 
+bool ata_scsi_sense_is_valid(u8 sk, u8 asc, u8 ascq)
+{
+	/*
+	 * If sk == NO_SENSE, and asc + ascq == NO ADDITIONAL SENSE INFORMATION,
+	 * then there is no sense data to add.
+	 */
+	if (sk == 0 && asc == 0 && ascq == 0)
+		return false;
+
+	/* If sk > COMPLETED, sense data is bogus. */
+	if (sk > COMPLETED)
+		return false;
+
+	return true;
+}
+
 void ata_scsi_set_sense(struct ata_device *dev, struct scsi_cmnd *cmd,
 			u8 sk, u8 asc, u8 ascq)
 {
@@ -642,7 +658,7 @@ static struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 	struct ata_queued_cmd *qc;
 	int tag;
 
-	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN))
+	if (unlikely(ata_port_is_frozen(ap)))
 		goto fail;
 
 	if (ap->flags & ATA_FLAG_SAS_HOST) {
@@ -3264,6 +3280,7 @@ static unsigned int ata_scsiop_maint_in(struct ata_scsi_args *args, u8 *rbuf)
 	case REPORT_LUNS:
 	case REQUEST_SENSE:
 	case SYNCHRONIZE_CACHE:
+	case SYNCHRONIZE_CACHE_16:
 	case REZERO_UNIT:
 	case SEEK_6:
 	case SEEK_10:
@@ -3922,6 +3939,7 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 		return ata_scsi_write_same_xlat;
 
 	case SYNCHRONIZE_CACHE:
+	case SYNCHRONIZE_CACHE_16:
 		if (ata_try_flush_cache(dev))
 			return ata_scsi_flush_xlat;
 		break;
@@ -3962,8 +3980,18 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 
 int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 {
+	struct ata_port *ap = dev->link->ap;
 	u8 scsi_op = scmd->cmnd[0];
 	ata_xlat_func_t xlat_func;
+
+	/*
+	 * scsi_queue_rq() will defer commands if scsi_host_in_recovery().
+	 * However, this check is done without holding the ap->lock (a libata
+	 * specific lock), so we can have received an error irq since then,
+	 * therefore we must check if EH is pending, while holding ap->lock.
+	 */
+	if (ap->pflags & (ATA_PFLAG_EH_PENDING | ATA_PFLAG_EH_IN_PROGRESS))
+		return SCSI_MLQUEUE_DEVICE_BUSY;
 
 	if (unlikely(!scmd->cmd_len))
 		goto bad_cdb_len;
@@ -4145,6 +4173,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 	 * turning this into a no-op.
 	 */
 	case SYNCHRONIZE_CACHE:
+	case SYNCHRONIZE_CACHE_16:
 		fallthrough;
 
 	/* no-op's, complete with success */

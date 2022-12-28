@@ -8,10 +8,10 @@
 	model = "MPL CEC4";
 	compatible = "mpl,cec4-10", "mpl,cec4", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
-        memory {
-                device_type = "memory";
-                reg = <0x00000000 0x20000000>;
-        };
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
@@ -66,8 +66,8 @@
 			};
 		};
 
-                i2c@11000 {
-                        status = "okay";
+		i2c@11000 {
+			status = "okay";
 
 			rtc@51 {
 				compatible = "nxp,pcf8563";
@@ -79,7 +79,7 @@
 				reg = <0x57>;
 			};
 
-                };
+		};
 
 		serial@12000 {
 			status = "okay";
@@ -208,7 +208,7 @@
 };
 
 &pciec {
-        status = "okay";
+	status = "okay";
 };
 
 &pcie0 {

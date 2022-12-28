@@ -2105,6 +2105,7 @@ struct mpath_info {
  *
  * Used to change BSS parameters (mainly for AP mode).
  *
+ * @link_id: link_id or -1 for non-MLD
  * @use_cts_prot: Whether to use CTS protection
  *	(0 = no, 1 = yes, -1 = do not change)
  * @use_short_preamble: Whether the use of short preambles is allowed
@@ -2122,6 +2123,7 @@ struct mpath_info {
  * @p2p_opp_ps: P2P opportunistic PS (-1 = no change)
  */
 struct bss_parameters {
+	int link_id;
 	int use_cts_prot;
 	int use_short_preamble;
 	int use_short_slot_time;
@@ -4740,7 +4742,7 @@ struct ieee80211_iface_limit {
  *
  *	struct ieee80211_iface_limit limits1[] = {
  *		{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
- *		{ .max = 1, .types = BIT(NL80211_IFTYPE_AP}, },
+ *		{ .max = 1, .types = BIT(NL80211_IFTYPE_AP), },
  *	};
  *	struct ieee80211_iface_combination combination1 = {
  *		.limits = limits1,
@@ -6933,6 +6935,8 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
  * @ap_mld_addr: AP MLD address (in case of MLO)
  * @links: per-link information indexed by link ID, use links[0] for
  *	non-MLO connections
+ * @links.status: Set this (along with a BSS pointer) for links that
+ *	were rejected by the AP.
  */
 struct cfg80211_rx_assoc_resp {
 	const u8 *buf;
@@ -6944,6 +6948,7 @@ struct cfg80211_rx_assoc_resp {
 	struct {
 		const u8 *addr;
 		struct cfg80211_bss *bss;
+		u16 status;
 	} links[IEEE80211_MLD_MAX_NUM_LINKS];
 };
 
@@ -7454,6 +7459,9 @@ struct cfg80211_fils_resp_params {
  *	if the bss is expired during the connection, esp. for those drivers
  *	implementing connect op. Only one parameter among @bssid and @bss needs
  *	to be specified.
+ * @links.status: per-link status code, to report a status code that's not
+ *	%WLAN_STATUS_SUCCESS for a given link, it must also be in the
+ *	@valid_links bitmap and may have a BSS pointer (which is then released)
  */
 struct cfg80211_connect_resp_params {
 	int status;
@@ -7470,6 +7478,7 @@ struct cfg80211_connect_resp_params {
 		const u8 *addr;
 		const u8 *bssid;
 		struct cfg80211_bss *bss;
+		u16 status;
 	} links[IEEE80211_MLD_MAX_NUM_LINKS];
 };
 
@@ -7674,6 +7683,8 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
  *
  * @dev: network device
  * @bssid: the BSSID of the AP
+ * @td_bitmap: transition disable policy
+ * @td_bitmap_len: Length of transition disable policy
  * @gfp: allocation flags
  *
  * This function should be called by a driver that supports 4 way handshake
@@ -7684,7 +7695,7 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
  * indicate the 802.11 association.
  */
 void cfg80211_port_authorized(struct net_device *dev, const u8 *bssid,
-			      gfp_t gfp);
+			      const u8* td_bitmap, u8 td_bitmap_len, gfp_t gfp);
 
 /**
  * cfg80211_disconnected - notify cfg80211 that connection was dropped

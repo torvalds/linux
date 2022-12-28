@@ -153,6 +153,7 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 3):
+	case IP_VERSION(11, 0, 4):
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v11;
 		break;
 	default:
@@ -227,7 +228,6 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 {
 	struct kfd_dev *kfd = NULL;
 	const struct kfd2kgd_calls *f2g = NULL;
-	struct pci_dev *pdev = adev->pdev;
 	uint32_t gfx_target_version = 0;
 
 	switch (adev->asic_type) {
@@ -395,6 +395,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			f2g = &gfx_v11_kfd2kgd;
 			break;
 		case IP_VERSION(11, 0, 1):
+		case IP_VERSION(11, 0, 4):
 			gfx_target_version = 110003;
 			f2g = &gfx_v11_kfd2kgd;
 			break;
@@ -429,7 +430,6 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 
 	kfd->adev = adev;
 	kfd_device_info_init(kfd, vf, gfx_target_version);
-	kfd->pdev = pdev;
 	kfd->init_complete = false;
 	kfd->kfd2kgd = f2g;
 	atomic_set(&kfd->compute_profile, 0);
@@ -497,7 +497,10 @@ static int kfd_gws_init(struct kfd_dev *kfd)
 		(KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 1)
 			&& kfd->mec2_fw_version >= 0x30)   ||
 		(KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 2)
-			&& kfd->mec2_fw_version >= 0x28))))
+			&& kfd->mec2_fw_version >= 0x28) ||
+		(KFD_GC_VERSION(kfd) >= IP_VERSION(10, 3, 0)
+			&& KFD_GC_VERSION(kfd) < IP_VERSION(11, 0, 0)
+			&& kfd->mec2_fw_version >= 0x6b))))
 		ret = amdgpu_amdkfd_alloc_gws(kfd->adev,
 				kfd->adev->gds.gws_size, &kfd->gws);
 
@@ -511,12 +514,10 @@ static void kfd_smi_init(struct kfd_dev *dev)
 }
 
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
-			 struct drm_device *ddev,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
 {
 	unsigned int size, map_process_packet_size;
 
-	kfd->ddev = ddev;
 	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_MEC1);
 	kfd->mec2_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
@@ -541,7 +542,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	     kfd->mec_fw_version < kfd->device_info.no_atomic_fw_version)) {
 		dev_info(kfd_device,
 			 "skipped device %x:%x, PCI rejects atomics %d<%d\n",
-			 kfd->pdev->vendor, kfd->pdev->device,
+			 kfd->adev->pdev->vendor, kfd->adev->pdev->device,
 			 kfd->mec_fw_version,
 			 kfd->device_info.no_atomic_fw_version);
 		return false;
@@ -650,8 +651,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	kfd_smi_init(kfd);
 
 	kfd->init_complete = true;
-	dev_info(kfd_device, "added device %x:%x\n", kfd->pdev->vendor,
-		 kfd->pdev->device);
+	dev_info(kfd_device, "added device %x:%x\n", kfd->adev->pdev->vendor,
+		 kfd->adev->pdev->device);
 
 	pr_debug("Starting kfd with the following scheduling policy %d\n",
 		kfd->dqm->sched_policy);
@@ -676,7 +677,7 @@ alloc_gtt_mem_failure:
 		amdgpu_amdkfd_free_gws(kfd->adev, kfd->gws);
 	dev_err(kfd_device,
 		"device %x:%x NOT added due to errors\n",
-		kfd->pdev->vendor, kfd->pdev->device);
+		kfd->adev->pdev->vendor, kfd->adev->pdev->device);
 out:
 	return kfd->init_complete;
 }
@@ -789,7 +790,7 @@ int kgd2kfd_resume_iommu(struct kfd_dev *kfd)
 	if (err)
 		dev_err(kfd_device,
 			"Failed to resume IOMMU for device %x:%x\n",
-			kfd->pdev->vendor, kfd->pdev->device);
+			kfd->adev->pdev->vendor, kfd->adev->pdev->device);
 	return err;
 }
 
@@ -801,7 +802,7 @@ static int kfd_resume(struct kfd_dev *kfd)
 	if (err)
 		dev_err(kfd_device,
 			"Error starting queue manager for device %x:%x\n",
-			kfd->pdev->vendor, kfd->pdev->device);
+			kfd->adev->pdev->vendor, kfd->adev->pdev->device);
 
 	return err;
 }

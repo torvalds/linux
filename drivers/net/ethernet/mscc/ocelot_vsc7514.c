@@ -100,10 +100,6 @@ static const struct reg_field ocelot_regfields[REGFIELD_MAX] = {
 	[SYS_PAUSE_CFG_PAUSE_ENA] = REG_FIELD_ID(SYS_PAUSE_CFG, 0, 1, 12, 4),
 };
 
-static const struct ocelot_stat_layout ocelot_stats_layout[OCELOT_NUM_STATS] = {
-	OCELOT_COMMON_STATS,
-};
-
 static void ocelot_pll5_init(struct ocelot *ocelot)
 {
 	/* Configure PLL5. This will need a proper CCF driver
@@ -138,7 +134,6 @@ static int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops)
 	int ret;
 
 	ocelot->map = ocelot_regmap;
-	ocelot->stats_layout = ocelot_stats_layout;
 	ocelot->num_mact_rows = 1024;
 	ocelot->ops = ops;
 
@@ -377,9 +372,6 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 		return -ENOMEM;
 
 	for_each_available_child_of_node(ports, portnp) {
-		struct ocelot_port_private *priv;
-		struct ocelot_port *ocelot_port;
-		struct devlink_port *dlp;
 		struct regmap *target;
 		struct resource *res;
 		char res_name[8];
@@ -420,12 +412,6 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 		}
 
 		devlink_ports_registered |= BIT(port);
-
-		ocelot_port = ocelot->ports[port];
-		priv = container_of(ocelot_port, struct ocelot_port_private,
-				    port);
-		dlp = &ocelot->devlink_ports[port];
-		devlink_port_type_eth_set(dlp, priv->dev);
 	}
 
 	/* Initialize unused devlink ports at the end */

@@ -1178,13 +1178,6 @@ static int fun_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
-static struct devlink_port *fun_get_devlink_port(struct net_device *netdev)
-{
-	struct funeth_priv *fp = netdev_priv(netdev);
-
-	return &fp->dl_port;
-}
-
 static int fun_init_vports(struct fun_ethdev *ed, unsigned int n)
 {
 	if (ed->num_vports)
@@ -1350,7 +1343,6 @@ static const struct net_device_ops fun_netdev_ops = {
 	.ndo_set_vf_vlan	= fun_set_vf_vlan,
 	.ndo_set_vf_rate	= fun_set_vf_rate,
 	.ndo_get_vf_config	= fun_get_vf_config,
-	.ndo_get_devlink_port	= fun_get_devlink_port,
 };
 
 #define GSO_ENCAP_FLAGS (NETIF_F_GSO_GRE | NETIF_F_GSO_IPXIP4 | \
@@ -1760,6 +1752,7 @@ static int fun_create_netdev(struct fun_ethdev *ed, unsigned int portid)
 		goto free_rss;
 
 	SET_NETDEV_DEV(netdev, fdev->dev);
+	SET_NETDEV_DEVLINK_PORT(netdev, &fp->dl_port);
 	netdev->netdev_ops = &fun_netdev_ops;
 
 	netdev->hw_features = NETIF_F_SG | NETIF_F_RXHASH | NETIF_F_RXCSUM;
@@ -1800,9 +1793,6 @@ static int fun_create_netdev(struct fun_ethdev *ed, unsigned int portid)
 	rc = register_netdev(netdev);
 	if (rc)
 		goto unreg_devlink;
-
-	devlink_port_type_eth_set(&fp->dl_port, netdev);
-
 	return 0;
 
 unreg_devlink:
@@ -1827,7 +1817,6 @@ static void fun_destroy_netdev(struct net_device *netdev)
 	struct funeth_priv *fp;
 
 	fp = netdev_priv(netdev);
-	devlink_port_type_clear(&fp->dl_port);
 	unregister_netdev(netdev);
 	devlink_port_unregister(&fp->dl_port);
 	fun_ktls_cleanup(fp);

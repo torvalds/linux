@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/qcom,lpass-cpu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies Inc. LPASS CPU dai driver bindings
+title: Qualcomm Technologies Inc. LPASS CPU dai driver
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
@@ -109,9 +109,10 @@ required:
   - interrupt-names
   - '#sound-dai-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:

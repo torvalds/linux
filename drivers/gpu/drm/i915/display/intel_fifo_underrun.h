@@ -8,9 +8,8 @@
 
 #include <linux/types.h>
 
-#include "intel_display.h"
-
 struct drm_i915_private;
+enum pipe;
 
 bool intel_set_cpu_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 					   enum pipe pipe, bool enable);

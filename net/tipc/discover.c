@@ -211,7 +211,10 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 	u32 self;
 	int err;
 
-	skb_linearize(skb);
+	if (skb_linearize(skb)) {
+		kfree_skb(skb);
+		return;
+	}
 	hdr = buf_msg(skb);
 
 	if (caps & TIPC_NODE_ID128)
@@ -385,7 +388,7 @@ int tipc_disc_create(struct net *net, struct tipc_bearer *b,
  */
 void tipc_disc_delete(struct tipc_discoverer *d)
 {
-	del_timer_sync(&d->timer);
+	timer_shutdown_sync(&d->timer);
 	kfree_skb(d->skb);
 	kfree(d);
 }

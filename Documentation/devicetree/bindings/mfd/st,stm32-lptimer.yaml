@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/st,stm32-lptimer.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 Low-Power Timers bindings
+title: STMicroelectronics STM32 Low-Power Timers
 
 description: |
   The STM32 Low-Power Timer (LPTIM) is a 16-bit timer that provides several

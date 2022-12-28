@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/generic-adc-thermal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: General Purpose Analog To Digital Converter (ADC) based thermal sensor
+
+maintainers:
+  - Laxman Dewangan <ldewangan@nvidia.com>
+
+description:
+  On some of platforms, thermal sensor like thermistors are connected to
+  one of ADC channel and sensor resistance is read via voltage across the
+  sensor resistor. The voltage read across the sensor is mapped to
+  temperature using voltage-temperature lookup table.
+
+properties:
+  compatible:
+    const: generic-adc-thermal
+
+  '#thermal-sensor-cells':
+    const: 0
+
+  io-channels:
+    maxItems: 1
+
+  io-channel-names:
+    const: sensor-channel
+
+  temperature-lookup-table:
+    description: |
+      Lookup table to map the relation between ADC value and temperature.
+      When ADC is read, the value is looked up on the table to get the
+      equivalent temperature.
+
+      If not specified, driver assumes the ADC channel gives milliCelsius
+      directly.
+    $ref: /schemas/types.yaml#/definitions/int32-matrix
+    items:
+      items:
+        - description: Temperature in milliCelsius
+        - description: ADC read value
+
+required:
+  - compatible
+  - '#thermal-sensor-cells'
+  - io-channels
+  - io-channel-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/thermal/thermal.h>
+
+    thermal-sensor {
+        compatible = "generic-adc-thermal";
+        #thermal-sensor-cells = <0>;
+        io-channels = <&ads1015 1>;
+        io-channel-names = "sensor-channel";
+        temperature-lookup-table = <
+              (-40000) 2578
+              (-39000) 2577
+              (-38000) 2576
+              (-37000) 2575
+              (-36000) 2574
+              (-35000) 2573
+              (-34000) 2572
+              (-33000) 2571
+              (-32000) 2569
+              (-31000) 2568
+              (-30000) 2567
+              /* skip */
+              118000 254
+              119000 247
+              120000 240
+              121000 233
+              122000 226
+              123000 220
+              124000 214
+              125000 208>;
+    };
+...

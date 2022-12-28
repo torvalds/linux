@@ -142,7 +142,7 @@ SECTIONS
 #endif
 
 	.data.rel.ro : AT(ADDR(.data.rel.ro) - LOAD_OFFSET) {
-		*(.data.rel.ro*)
+		*(.data.rel.ro .data.rel.ro.*)
 	}
 
 	.branch_lt : AT(ADDR(.branch_lt) - LOAD_OFFSET) {

@@ -242,7 +242,7 @@ static ssize_t usbip_status_show(struct device *dev,
 	status = udc->ud.status;
 	spin_unlock_irq(&udc->ud.lock);
 
-	return snprintf(out, PAGE_SIZE, "%d\n", status);
+	return sysfs_emit(out, "%d\n", status);
 }
 static DEVICE_ATTR_RO(usbip_status);
 

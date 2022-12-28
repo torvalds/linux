@@ -55,6 +55,7 @@
 #include "i915_drv.h"
 #include "i915_gpu_error.h"
 #include "i915_memcpy.h"
+#include "i915_reg.h"
 #include "i915_scatterlist.h"
 #include "i915_utils.h"
 
@@ -1221,7 +1222,10 @@ static void engine_record_registers(struct intel_engine_coredump *ee)
 	if (GRAPHICS_VER(i915) >= 6) {
 		ee->rc_psmi = ENGINE_READ(engine, RING_PSMI_CTL);
 
-		if (GRAPHICS_VER(i915) >= 12)
+		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+			ee->fault_reg = intel_gt_mcr_read_any(engine->gt,
+							      XEHP_RING_FAULT_REG);
+		else if (GRAPHICS_VER(i915) >= 12)
 			ee->fault_reg = intel_uncore_read(engine->uncore,
 							  GEN12_RING_FAULT_REG);
 		else if (GRAPHICS_VER(i915) >= 8)
@@ -1820,7 +1824,12 @@ static void gt_record_global_regs(struct intel_gt_coredump *gt)
 	if (GRAPHICS_VER(i915) == 7)
 		gt->err_int = intel_uncore_read(uncore, GEN7_ERR_INT);
 
-	if (GRAPHICS_VER(i915) >= 12) {
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+		gt->fault_data0 = intel_gt_mcr_read_any((struct intel_gt *)gt->_gt,
+							XEHP_FAULT_TLB_DATA0);
+		gt->fault_data1 = intel_gt_mcr_read_any((struct intel_gt *)gt->_gt,
+							XEHP_FAULT_TLB_DATA1);
+	} else if (GRAPHICS_VER(i915) >= 12) {
 		gt->fault_data0 = intel_uncore_read(uncore,
 						    GEN12_FAULT_TLB_DATA0);
 		gt->fault_data1 = intel_uncore_read(uncore,

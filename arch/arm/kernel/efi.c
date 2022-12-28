@@ -75,37 +75,12 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 	return 0;
 }
 
-static unsigned long __initdata screen_info_table = EFI_INVALID_TABLE_ADDR;
 static unsigned long __initdata cpu_state_table = EFI_INVALID_TABLE_ADDR;
 
 const efi_config_table_type_t efi_arch_tables[] __initconst = {
-	{LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID, &screen_info_table},
 	{LINUX_EFI_ARM_CPU_STATE_TABLE_GUID, &cpu_state_table},
 	{}
 };
-
-static void __init load_screen_info_table(void)
-{
-	struct screen_info *si;
-
-	if (screen_info_table != EFI_INVALID_TABLE_ADDR) {
-		si = early_memremap_ro(screen_info_table, sizeof(*si));
-		if (!si) {
-			pr_err("Could not map screen_info config table\n");
-			return;
-		}
-		screen_info = *si;
-		early_memunmap(si, sizeof(*si));
-
-		/* dummycon on ARM needs non-zero values for columns/lines */
-		screen_info.orig_video_cols = 80;
-		screen_info.orig_video_lines = 25;
-
-		if (memblock_is_map_memory(screen_info.lfb_base))
-			memblock_mark_nomap(screen_info.lfb_base,
-					    screen_info.lfb_size);
-	}
-}
 
 static void __init load_cpu_state_table(void)
 {
@@ -145,7 +120,11 @@ void __init arm_efi_init(void)
 {
 	efi_init();
 
-	load_screen_info_table();
+	if (screen_info.orig_video_isVGA == VIDEO_TYPE_EFI) {
+		/* dummycon on ARM needs non-zero values for columns/lines */
+		screen_info.orig_video_cols = 80;
+		screen_info.orig_video_lines = 25;
+	}
 
 	/* ARM does not permit early mappings to persist across paging_init() */
 	efi_memmap_unmap();

@@ -6,6 +6,7 @@
 #ifndef _INTEL_UC_FW_H_
 #define _INTEL_UC_FW_H_
 
+#include <linux/sizes.h>
 #include <linux/types.h>
 #include "intel_uc_fw_abi.h"
 #include "intel_device_info.h"
@@ -113,6 +114,19 @@ struct intel_uc_fw {
 #define GET_UC_VER(uc)			(MAKE_UC_VER((uc)->fw.file_selected.major_ver, \
 						     (uc)->fw.file_selected.minor_ver, \
 						     (uc)->fw.file_selected.patch_ver))
+
+/*
+ * When we load the uC binaries, we pin them in a reserved section at the top of
+ * the GGTT, which is ~18 MBs. On multi-GT systems where the GTs share the GGTT,
+ * we also need to make sure that each binary is pinned to a unique location
+ * during load, because the different GT can go through the FW load at the same
+ * time (see uc_fw_ggtt_offset() for details).
+ * Given that the available space is much greater than what is required by the
+ * binaries, to keep things simple instead of dynamically partitioning the
+ * reserved section to make space for all the blobs we can just reserve a static
+ * chunk for each binary.
+ */
+#define INTEL_UC_RSVD_GGTT_PER_FW SZ_2M
 
 #ifdef CONFIG_DRM_I915_DEBUG_GUC
 void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,

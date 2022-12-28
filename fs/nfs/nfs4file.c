@@ -32,7 +32,6 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	struct dentry *parent = NULL;
 	struct inode *dir;
 	unsigned openflags = filp->f_flags;
-	fmode_t f_mode;
 	struct iattr attr;
 	int err;
 
@@ -51,17 +50,14 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	if (err)
 		return err;
 
-	f_mode = filp->f_mode;
-	if ((openflags & O_ACCMODE) == 3)
-		f_mode |= flags_to_mode(openflags);
-
 	/* We can't create new files here */
 	openflags &= ~(O_CREAT|O_EXCL);
 
 	parent = dget_parent(dentry);
 	dir = d_inode(parent);
 
-	ctx = alloc_nfs_open_context(file_dentry(filp), f_mode, filp);
+	ctx = alloc_nfs_open_context(file_dentry(filp),
+				     flags_to_mode(openflags), filp);
 	err = PTR_ERR(ctx);
 	if (IS_ERR(ctx))
 		goto out;
@@ -366,8 +362,8 @@ static struct file *__nfs42_ssc_open(struct vfsmount *ss_mnt,
 		goto out_free_name;
 	}
 
-	ctx = alloc_nfs_open_context(filep->f_path.dentry, filep->f_mode,
-					filep);
+	ctx = alloc_nfs_open_context(filep->f_path.dentry,
+				     flags_to_mode(filep->f_flags), filep);
 	if (IS_ERR(ctx)) {
 		res = ERR_CAST(ctx);
 		goto out_filep;

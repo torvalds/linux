@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/panel/visionox,rm69299.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Visionox model RM69299 Panels Device Tree Bindings.
+title: Visionox model RM69299 Panels
 
 maintainers:
   - Harigovindan P <harigovi@codeaurora.org>

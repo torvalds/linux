@@ -229,7 +229,7 @@ In addition to the kernel command line, the boot config can be used for
 passing the kernel parameters. All the key-value pairs under ``kernel``
 key will be passed to kernel cmdline directly. Moreover, the key-value
 pairs under ``init`` will be passed to init process via the cmdline.
-The parameters are concatinated with user-given kernel cmdline string
+The parameters are concatenated with user-given kernel cmdline string
 as the following order, so that the command line parameter can override
 bootconfig parameters (this depends on how the subsystem handles parameters
 but in general, earlier parameter will be overwritten by later one.)::

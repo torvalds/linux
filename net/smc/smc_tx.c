@@ -308,7 +308,7 @@ int smc_tx_sendpage(struct smc_sock *smc, struct page *page, int offset,
 
 	iov.iov_base = kaddr + offset;
 	iov.iov_len = size;
-	iov_iter_kvec(&msg.msg_iter, WRITE, &iov, 1, size);
+	iov_iter_kvec(&msg.msg_iter, ITER_SOURCE, &iov, 1, size);
 	rc = smc_tx_sendmsg(smc, &msg, size);
 	kunmap(page);
 	return rc;

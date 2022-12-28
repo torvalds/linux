@@ -39,7 +39,7 @@ current.
 
 The Quadro exposes four physical and sixteen virtual temperature sensors, a flow
 sensor and four PWM controllable fans, along with their speed (in RPM), power,
-voltage and current.
+voltage and current. Flow sensor pulses are also available.
 
 The Farbwerk and Farbwerk 360 expose four temperature sensors. Additionally,
 sixteen virtual temperature sensors of the Farbwerk 360 are exposed.
@@ -62,7 +62,9 @@ Sysfs entries
 
 ================ ==============================================================
 temp[1-20]_input Physical/virtual temperature sensors (in millidegrees Celsius)
+temp[1-4]_offset Temperature sensor correction offset (in millidegrees Celsius)
 fan[1-8]_input   Pump/fan speed (in RPM) / Flow speed (in dL/h)
+fan5_pulses      Quadro flow sensor pulses
 power[1-8]_input Pump/fan power (in micro Watts)
 in[0-7]_input    Pump/fan voltage (in milli Volts)
 curr[1-8]_input  Pump/fan current (in milli Amperes)

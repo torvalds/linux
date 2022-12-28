@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/i2c/ovti,ov5645.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: OmniVision OV5645 Image Sensor Device Tree Bindings
+title: OmniVision OV5645 Image Sensor
 
 maintainers:
   - Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>

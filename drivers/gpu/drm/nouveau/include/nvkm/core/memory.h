@@ -37,6 +37,7 @@ struct nvkm_memory_func {
 	void (*release)(struct nvkm_memory *);
 	int (*map)(struct nvkm_memory *, u64 offset, struct nvkm_vmm *,
 		   struct nvkm_vma *, void *argv, u32 argc);
+	int (*kmap)(struct nvkm_memory *, struct nvkm_memory **);
 };
 
 struct nvkm_memory_ptrs {
@@ -63,6 +64,7 @@ void nvkm_memory_tags_put(struct nvkm_memory *, struct nvkm_device *,
 #define nvkm_memory_boot(p,v) (p)->func->boot((p),(v))
 #define nvkm_memory_map(p,o,vm,va,av,ac)                                       \
 	(p)->func->map((p),(o),(vm),(va),(av),(ac))
+#define nvkm_memory_kmap(p,i) ((p)->func->kmap ? (p)->func->kmap((p), (i)) : -ENOSYS)
 
 /* accessor macros - kmap()/done() must bracket use of the other accessor
  * macros to guarantee correct behaviour across all chipsets

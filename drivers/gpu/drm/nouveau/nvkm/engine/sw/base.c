@@ -35,7 +35,7 @@ nvkm_sw_mthd(struct nvkm_sw *sw, int chid, int subc, u32 mthd, u32 data)
 
 	spin_lock_irqsave(&sw->engine.lock, flags);
 	list_for_each_entry(chan, &sw->chan, head) {
-		if (chan->fifo->chid == chid) {
+		if (chan->fifo->id == chid) {
 			handled = nvkm_sw_chan_mthd(chan, subc, mthd, data);
 			list_del(&chan->head);
 			list_add(&chan->head, &sw->chan);

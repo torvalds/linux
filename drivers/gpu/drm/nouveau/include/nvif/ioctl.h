@@ -15,10 +15,6 @@ struct nvif_ioctl_v0 {
 #define NVIF_IOCTL_V0_WR                                                   0x06
 #define NVIF_IOCTL_V0_MAP                                                  0x07
 #define NVIF_IOCTL_V0_UNMAP                                                0x08
-#define NVIF_IOCTL_V0_NTFY_NEW                                             0x09
-#define NVIF_IOCTL_V0_NTFY_DEL                                             0x0a
-#define NVIF_IOCTL_V0_NTFY_GET                                             0x0b
-#define NVIF_IOCTL_V0_NTFY_PUT                                             0x0c
 	__u8  type;
 	__u8  pad02[4];
 #define NVIF_IOCTL_V0_OWNER_NVIF                                           0x00
@@ -63,6 +59,14 @@ struct nvif_ioctl_new_v0 {
 struct nvif_ioctl_del {
 };
 
+struct nvif_ioctl_mthd_v0 {
+	/* nvif_ioctl ... */
+	__u8  version;
+	__u8  method;
+	__u8  pad02[6];
+	__u8  data[];		/* method data (class.h) */
+};
+
 struct nvif_ioctl_rd_v0 {
 	/* nvif_ioctl ... */
 	__u8  version;
@@ -95,43 +99,4 @@ struct nvif_ioctl_map_v0 {
 
 struct nvif_ioctl_unmap {
 };
-
-struct nvif_ioctl_ntfy_new_v0 {
-	/* nvif_ioctl ... */
-	__u8  version;
-	__u8  event;
-	__u8  index;
-	__u8  pad03[5];
-	__u8  data[];		/* event request data (event.h) */
-};
-
-struct nvif_ioctl_ntfy_del_v0 {
-	/* nvif_ioctl ... */
-	__u8  version;
-	__u8  index;
-	__u8  pad02[6];
-};
-
-struct nvif_ioctl_ntfy_get_v0 {
-	/* nvif_ioctl ... */
-	__u8  version;
-	__u8  index;
-	__u8  pad02[6];
-};
-
-struct nvif_ioctl_ntfy_put_v0 {
-	/* nvif_ioctl ... */
-	__u8  version;
-	__u8  index;
-	__u8  pad02[6];
-};
-
-struct nvif_ioctl_mthd_v0 {
-	/* nvif_ioctl ... */
-	__u8  version;
-	__u8  method;
-	__u8  pad02[6];
-	__u8  data[];		/* method data (class.h) */
-};
-
 #endif

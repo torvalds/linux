@@ -651,7 +651,7 @@ static netdev_tx_t peak_canfd_start_xmit(struct sk_buff *skb,
 	int room_left;
 	u8 len;
 
-	if (can_dropped_invalid_skb(ndev, skb))
+	if (can_dev_dropped_skb(ndev, skb))
 		return NETDEV_TX_OK;
 
 	msg_size = ALIGN(sizeof(*msg) + cf->len, 4);

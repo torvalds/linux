@@ -212,7 +212,7 @@ static void nft_xfrm_get_eval(const struct nft_expr *expr,
 }
 
 static int nft_xfrm_get_dump(struct sk_buff *skb,
-			     const struct nft_expr *expr)
+			     const struct nft_expr *expr, bool reset)
 {
 	const struct nft_xfrm *priv = nft_expr_priv(expr);
 

@@ -131,11 +131,6 @@ bool string_stream_is_empty(struct string_stream *stream)
 	return list_empty(&stream->fragments);
 }
 
-struct string_stream_alloc_context {
-	struct kunit *test;
-	gfp_t gfp;
-};
-
 struct string_stream *alloc_string_stream(struct kunit *test, gfp_t gfp)
 {
 	struct string_stream *stream;

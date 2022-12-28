@@ -58,7 +58,7 @@ nve0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 				PITCH_IN, PAGE_SIZE,
 				PITCH_OUT, PAGE_SIZE,
 				LINE_LENGTH_IN, PAGE_SIZE,
-				LINE_COUNT, new_reg->num_pages);
+				LINE_COUNT, PFN_UP(new_reg->size));
 
 	PUSH_IMMD(push, NVA0B5, LAUNCH_DMA,
 		  NVDEF(NVA0B5, LAUNCH_DMA, DATA_TRANSFER_TYPE, NON_PIPELINED) |

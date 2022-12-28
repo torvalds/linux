@@ -155,7 +155,7 @@ enum {
 
 /* helpers to define resources */
 #define DEFINE_RES_NAMED(_start, _size, _name, _flags)			\
-	{								\
+(struct resource) {							\
 		.start = (_start),					\
 		.end = (_start) + (_size) - 1,				\
 		.name = (_name),					\
@@ -318,6 +318,8 @@ extern void __devm_release_region(struct device *dev, struct resource *parent,
 				  resource_size_t start, resource_size_t n);
 extern int iomem_map_sanity_check(resource_size_t addr, unsigned long size);
 extern bool iomem_is_exclusive(u64 addr);
+extern bool resource_is_exclusive(struct resource *resource, u64 addr,
+				  resource_size_t size);
 
 extern int
 walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,

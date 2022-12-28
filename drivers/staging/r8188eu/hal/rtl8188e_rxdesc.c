@@ -66,28 +66,25 @@ void update_recvframe_attrib_88e(struct recv_frame *precvframe, struct recv_stat
 
 	if (pattrib->pkt_rpt_type == NORMAL_RX) {
 		pattrib->pkt_len = le32_to_cpu(prxstat->rxdw0) & 0x00003fff;
+		pattrib->icv_err = (le32_to_cpu(prxstat->rxdw0) >> 15) & 0x1;
 		pattrib->drvinfo_sz = ((le32_to_cpu(prxstat->rxdw0) >> 16) & 0xf) * 8;
-
-		pattrib->physt = (le32_to_cpu(prxstat->rxdw0) >> 26) & 0x1;
-
-		pattrib->bdecrypted = (le32_to_cpu(prxstat->rxdw0) & BIT(27)) ? 0 : 1;
-		pattrib->encrypt = (le32_to_cpu(prxstat->rxdw0) >> 20) & 0x7;
-
+		pattrib->encrypt = (u8)((le32_to_cpu(prxstat->rxdw0) >> 20) & 0x7);
 		pattrib->qos = (le32_to_cpu(prxstat->rxdw0) >> 23) & 0x1;
-		pattrib->priority = (le32_to_cpu(prxstat->rxdw1) >> 8) & 0xf;
+		pattrib->shift_sz = (le32_to_cpu(prxstat->rxdw0) >> 24) & 0x3;
+		pattrib->physt = (le32_to_cpu(prxstat->rxdw0) >> 26) & 0x1;
+		pattrib->bdecrypted = (le32_to_cpu(prxstat->rxdw0) & BIT(27)) ? 0 : 1;
 
+		pattrib->priority = (le32_to_cpu(prxstat->rxdw1) >> 8) & 0xf;
 		pattrib->amsdu = (le32_to_cpu(prxstat->rxdw1) >> 13) & 0x1;
+		pattrib->mdata = (le32_to_cpu(prxstat->rxdw1) >> 26) & 0x1;
+		pattrib->mfrag = (le32_to_cpu(prxstat->rxdw1) >> 27) & 0x1;
 
 		pattrib->seq_num = le32_to_cpu(prxstat->rxdw2) & 0x00000fff;
 		pattrib->frag_num = (le32_to_cpu(prxstat->rxdw2) >> 12) & 0xf;
-		pattrib->mfrag = (le32_to_cpu(prxstat->rxdw1) >> 27) & 0x1;
-		pattrib->mdata = (le32_to_cpu(prxstat->rxdw1) >> 26) & 0x1;
 
 		pattrib->mcs_rate = le32_to_cpu(prxstat->rxdw3) & 0x3f;
 		pattrib->rxht = (le32_to_cpu(prxstat->rxdw3) >> 6) & 0x1;
 
-		pattrib->icv_err = (le32_to_cpu(prxstat->rxdw0) >> 15) & 0x1;
-		pattrib->shift_sz = (le32_to_cpu(prxstat->rxdw0) >> 24) & 0x3;
 	} else if (pattrib->pkt_rpt_type == TX_REPORT1) { /* CCX */
 		pattrib->pkt_len = TX_RPT1_PKT_LEN;
 	} else if (pattrib->pkt_rpt_type == TX_REPORT2) {
@@ -108,33 +105,34 @@ void update_recvframe_attrib_88e(struct recv_frame *precvframe, struct recv_stat
  */
 void update_recvframe_phyinfo_88e(struct recv_frame *precvframe, struct phy_stat *pphy_status)
 {
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precvframe->rx_data;
 	struct adapter *padapter = precvframe->adapter;
 	struct rx_pkt_attrib *pattrib = &precvframe->attrib;
 	struct hal_data_8188e *pHalData = &padapter->haldata;
 	struct phy_info *pPHYInfo  = &pattrib->phy_info;
 	u8 *wlanhdr = precvframe->rx_data;
-	__le16 fc = *(__le16 *)wlanhdr;
 	struct odm_per_pkt_info	pkt_info;
 	u8 *sa = NULL;
 	struct sta_priv *pstapriv;
 	struct sta_info *psta;
 
-	pkt_info.bPacketMatchBSSID = ((!ieee80211_is_ctl(fc)) &&
+	pkt_info.bPacketMatchBSSID = ((!ieee80211_is_ctl(hdr->frame_control)) &&
 		!pattrib->icv_err && !pattrib->crc_err &&
 		!memcmp(get_hdr_bssid(wlanhdr),
 		 get_bssid(&padapter->mlmepriv), ETH_ALEN));
 
 	pkt_info.bPacketToSelf = pkt_info.bPacketMatchBSSID &&
-				 (!memcmp(get_da(wlanhdr),
-				  myid(&padapter->eeprompriv), ETH_ALEN));
+				 ether_addr_equal(ieee80211_get_DA(hdr),
+						  myid(&padapter->eeprompriv));
 
-	pkt_info.bPacketBeacon = pkt_info.bPacketMatchBSSID && ieee80211_is_beacon(fc);
+	pkt_info.bPacketBeacon = pkt_info.bPacketMatchBSSID &&
+				 ieee80211_is_beacon(hdr->frame_control);
 	if (pkt_info.bPacketBeacon) {
 		if (check_fwstate(&padapter->mlmepriv, WIFI_STATION_STATE))
 			sa = padapter->mlmepriv.cur_network.network.MacAddress;
 		/* to do Ad-hoc */
 	} else {
-		sa = get_sa(wlanhdr);
+		sa = ieee80211_get_SA(hdr);
 	}
 
 	pstapriv = &padapter->stapriv;

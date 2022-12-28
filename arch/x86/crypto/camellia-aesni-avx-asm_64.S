@@ -712,7 +712,6 @@ SYM_FUNC_END(roundsm16_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
 
 .text
 
-.align 8
 SYM_FUNC_START_LOCAL(__camellia_enc_blk16)
 	/* input:
 	 *	%rdi: ctx, CTX
@@ -799,7 +798,6 @@ SYM_FUNC_START_LOCAL(__camellia_enc_blk16)
 	jmp .Lenc_done;
 SYM_FUNC_END(__camellia_enc_blk16)
 
-.align 8
 SYM_FUNC_START_LOCAL(__camellia_dec_blk16)
 	/* input:
 	 *	%rdi: ctx, CTX

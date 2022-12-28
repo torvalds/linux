@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: GPL-2.0-only
 /*
    drbd_actlog.c
 
@@ -868,9 +868,9 @@ int __drbd_change_sync(struct drbd_device *device, sector_t sector, int size,
 	nr_sectors = get_capacity(device->vdisk);
 	esector = sector + (size >> 9) - 1;
 
-	if (!expect(sector < nr_sectors))
+	if (!expect(device, sector < nr_sectors))
 		goto out;
-	if (!expect(esector < nr_sectors))
+	if (!expect(device, esector < nr_sectors))
 		esector = nr_sectors - 1;
 
 	lbnr = BM_SECT_TO_BIT(nr_sectors-1);
@@ -1143,7 +1143,7 @@ void drbd_rs_complete_io(struct drbd_device *device, sector_t sector)
 	bm_ext = e ? lc_entry(e, struct bm_extent, lce) : NULL;
 	if (!bm_ext) {
 		spin_unlock_irqrestore(&device->al_lock, flags);
-		if (__ratelimit(&drbd_ratelimit_state))
+		if (drbd_ratelimit())
 			drbd_err(device, "drbd_rs_complete_io() called, but extent not found\n");
 		return;
 	}

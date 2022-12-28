@@ -2633,11 +2633,20 @@ static int da7219_resume(struct snd_soc_component *component)
 #define da7219_resume NULL
 #endif
 
+static int da7219_set_jack(struct snd_soc_component *component, struct snd_soc_jack *jack,
+			   void *data)
+{
+	da7219_aad_jack_det(component, jack);
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_component_dev_da7219 = {
 	.probe			= da7219_probe,
 	.remove			= da7219_remove,
 	.suspend		= da7219_suspend,
 	.resume			= da7219_resume,
+	.set_jack		= da7219_set_jack,
 	.set_bias_level		= da7219_set_bias_level,
 	.controls		= da7219_snd_controls,
 	.num_controls		= ARRAY_SIZE(da7219_snd_controls),

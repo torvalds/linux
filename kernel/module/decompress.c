@@ -50,7 +50,7 @@ static struct page *module_get_next_page(struct load_info *info)
 	return page;
 }
 
-#ifdef CONFIG_MODULE_COMPRESS_GZIP
+#if defined(CONFIG_MODULE_COMPRESS_GZIP)
 #include <linux/zlib.h>
 #define MODULE_COMPRESSION	gzip
 #define MODULE_DECOMPRESS_FN	module_gzip_decompress
@@ -114,8 +114,8 @@ static ssize_t module_gzip_decompress(struct load_info *info,
 	do {
 		struct page *page = module_get_next_page(info);
 
-		if (!page) {
-			retval = -ENOMEM;
+		if (IS_ERR(page)) {
+			retval = PTR_ERR(page);
 			goto out_inflate_end;
 		}
 
@@ -141,7 +141,7 @@ out:
 	kfree(s.workspace);
 	return retval;
 }
-#elif CONFIG_MODULE_COMPRESS_XZ
+#elif defined(CONFIG_MODULE_COMPRESS_XZ)
 #include <linux/xz.h>
 #define MODULE_COMPRESSION	xz
 #define MODULE_DECOMPRESS_FN	module_xz_decompress
@@ -173,8 +173,8 @@ static ssize_t module_xz_decompress(struct load_info *info,
 	do {
 		struct page *page = module_get_next_page(info);
 
-		if (!page) {
-			retval = -ENOMEM;
+		if (IS_ERR(page)) {
+			retval = PTR_ERR(page);
 			goto out;
 		}
 
@@ -197,6 +197,94 @@ static ssize_t module_xz_decompress(struct load_info *info,
 
  out:
 	xz_dec_end(xz_dec);
+	return retval;
+}
+#elif defined(CONFIG_MODULE_COMPRESS_ZSTD)
+#include <linux/zstd.h>
+#define MODULE_COMPRESSION	zstd
+#define MODULE_DECOMPRESS_FN	module_zstd_decompress
+
+static ssize_t module_zstd_decompress(struct load_info *info,
+				    const void *buf, size_t size)
+{
+	static const u8 signature[] = { 0x28, 0xb5, 0x2f, 0xfd };
+	ZSTD_outBuffer zstd_dec;
+	ZSTD_inBuffer zstd_buf;
+	zstd_frame_header header;
+	size_t wksp_size;
+	void *wksp = NULL;
+	ZSTD_DStream *dstream;
+	size_t ret;
+	size_t new_size = 0;
+	int retval;
+
+	if (size < sizeof(signature) ||
+	    memcmp(buf, signature, sizeof(signature))) {
+		pr_err("not a zstd compressed module\n");
+		return -EINVAL;
+	}
+
+	zstd_buf.src = buf;
+	zstd_buf.pos = 0;
+	zstd_buf.size = size;
+
+	ret = zstd_get_frame_header(&header, zstd_buf.src, zstd_buf.size);
+	if (ret != 0) {
+		pr_err("ZSTD-compressed data has an incomplete frame header\n");
+		retval = -EINVAL;
+		goto out;
+	}
+	if (header.windowSize > (1 << ZSTD_WINDOWLOG_MAX)) {
+		pr_err("ZSTD-compressed data has too large a window size\n");
+		retval = -EINVAL;
+		goto out;
+	}
+
+	wksp_size = zstd_dstream_workspace_bound(header.windowSize);
+	wksp = kmalloc(wksp_size, GFP_KERNEL);
+	if (!wksp) {
+		retval = -ENOMEM;
+		goto out;
+	}
+
+	dstream = zstd_init_dstream(header.windowSize, wksp, wksp_size);
+	if (!dstream) {
+		pr_err("Can't initialize ZSTD stream\n");
+		retval = -ENOMEM;
+		goto out;
+	}
+
+	do {
+		struct page *page = module_get_next_page(info);
+
+		if (!IS_ERR(page)) {
+			retval = PTR_ERR(page);
+			goto out;
+		}
+
+		zstd_dec.dst = kmap_local_page(page);
+		zstd_dec.pos = 0;
+		zstd_dec.size = PAGE_SIZE;
+
+		ret = zstd_decompress_stream(dstream, &zstd_dec, &zstd_buf);
+		kunmap(page);
+		retval = zstd_get_error_code(ret);
+		if (retval)
+			break;
+
+		new_size += zstd_dec.pos;
+	} while (zstd_dec.pos == PAGE_SIZE && ret != 0);
+
+	if (retval) {
+		pr_err("ZSTD-decompression failed with status %d\n", retval);
+		retval = -EINVAL;
+		goto out;
+	}
+
+	retval = new_size;
+
+ out:
+	kfree(wksp);
 	return retval;
 }
 #else

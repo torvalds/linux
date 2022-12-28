@@ -5,6 +5,7 @@
 
 #include <linux/bsearch.h>
 
+#include "gem/i915_gem_lmem.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_mcr.h"
@@ -277,24 +278,16 @@ __mmio_reg_add(struct temp_regset *regset, struct guc_mmio_reg *reg)
 	return slot;
 }
 
-#define GUC_REGSET_STEERING(group, instance) ( \
-	FIELD_PREP(GUC_REGSET_STEERING_GROUP, (group)) | \
-	FIELD_PREP(GUC_REGSET_STEERING_INSTANCE, (instance)) | \
-	GUC_REGSET_NEEDS_STEERING \
-)
-
 static long __must_check guc_mmio_reg_add(struct intel_gt *gt,
 					  struct temp_regset *regset,
-					  i915_reg_t reg, u32 flags)
+					  u32 offset, u32 flags)
 {
 	u32 count = regset->storage_used - (regset->registers - regset->storage);
-	u32 offset = i915_mmio_reg_offset(reg);
 	struct guc_mmio_reg entry = {
 		.offset = offset,
 		.flags = flags,
 	};
 	struct guc_mmio_reg *slot;
-	u8 group, inst;
 
 	/*
 	 * The mmio list is built using separate lists within the driver.
@@ -305,17 +298,6 @@ static long __must_check guc_mmio_reg_add(struct intel_gt *gt,
 	if (bsearch(&entry, regset->registers, count,
 		    sizeof(entry), guc_mmio_reg_cmp))
 		return 0;
-
-	/*
-	 * The GuC doesn't have a default steering, so we need to explicitly
-	 * steer all registers that need steering. However, we do not keep track
-	 * of all the steering ranges, only of those that have a chance of using
-	 * a non-default steering from the i915 pov. Instead of adding such
-	 * tracking, it is easier to just program the default steering for all
-	 * regs that don't need a non-default one.
-	 */
-	intel_gt_mcr_get_nonterminated_steering(gt, reg, &group, &inst);
-	entry.flags |= GUC_REGSET_STEERING(group, inst);
 
 	slot = __mmio_reg_add(regset, &entry);
 	if (IS_ERR(slot))
@@ -334,6 +316,38 @@ static long __must_check guc_mmio_reg_add(struct intel_gt *gt,
 
 #define GUC_MMIO_REG_ADD(gt, regset, reg, masked) \
 	guc_mmio_reg_add(gt, \
+			 regset, \
+			 i915_mmio_reg_offset(reg), \
+			 (masked) ? GUC_REGSET_MASKED : 0)
+
+#define GUC_REGSET_STEERING(group, instance) ( \
+	FIELD_PREP(GUC_REGSET_STEERING_GROUP, (group)) | \
+	FIELD_PREP(GUC_REGSET_STEERING_INSTANCE, (instance)) | \
+	GUC_REGSET_NEEDS_STEERING \
+)
+
+static long __must_check guc_mcr_reg_add(struct intel_gt *gt,
+					 struct temp_regset *regset,
+					 i915_mcr_reg_t reg, u32 flags)
+{
+	u8 group, inst;
+
+	/*
+	 * The GuC doesn't have a default steering, so we need to explicitly
+	 * steer all registers that need steering. However, we do not keep track
+	 * of all the steering ranges, only of those that have a chance of using
+	 * a non-default steering from the i915 pov. Instead of adding such
+	 * tracking, it is easier to just program the default steering for all
+	 * regs that don't need a non-default one.
+	 */
+	intel_gt_mcr_get_nonterminated_steering(gt, reg, &group, &inst);
+	flags |= GUC_REGSET_STEERING(group, inst);
+
+	return guc_mmio_reg_add(gt, regset, i915_mmio_reg_offset(reg), flags);
+}
+
+#define GUC_MCR_REG_ADD(gt, regset, reg, masked) \
+	guc_mcr_reg_add(gt, \
 			 regset, \
 			 (reg), \
 			 (masked) ? GUC_REGSET_MASKED : 0)
@@ -372,8 +386,21 @@ static int guc_mmio_regset_init(struct temp_regset *regset,
 					false);
 
 	/* add in local MOCS registers */
-	for (i = 0; i < GEN9_LNCFCMOCS_REG_COUNT; i++)
-		ret |= GUC_MMIO_REG_ADD(gt, regset, GEN9_LNCFCMOCS(i), false);
+	for (i = 0; i < LNCFCMOCS_REG_COUNT; i++)
+		if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+			ret |= GUC_MCR_REG_ADD(gt, regset, XEHP_LNCFCMOCS(i), false);
+		else
+			ret |= GUC_MMIO_REG_ADD(gt, regset, GEN9_LNCFCMOCS(i), false);
+
+	if (GRAPHICS_VER(engine->i915) >= 12) {
+		ret |= GUC_MMIO_REG_ADD(gt, regset, EU_PERF_CNTL0, false);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, EU_PERF_CNTL1, false);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, EU_PERF_CNTL2, false);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, EU_PERF_CNTL3, false);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, EU_PERF_CNTL4, false);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, EU_PERF_CNTL5, false);
+		ret |= GUC_MMIO_REG_ADD(gt, regset, EU_PERF_CNTL6, false);
+	}
 
 	return ret ? -1 : 0;
 }
@@ -461,6 +488,11 @@ static void fill_engine_enable_masks(struct intel_gt *gt,
 	info_map_write(info_map, engine_enabled_masks[GUC_BLITTER_CLASS], BCS_MASK(gt));
 	info_map_write(info_map, engine_enabled_masks[GUC_VIDEO_CLASS], VDBOX_MASK(gt));
 	info_map_write(info_map, engine_enabled_masks[GUC_VIDEOENHANCE_CLASS], VEBOX_MASK(gt));
+
+	/* The GSC engine is an instance (6) of OTHER_CLASS */
+	if (gt->engine[GSC0])
+		info_map_write(info_map, engine_enabled_masks[GUC_GSC_OTHER_CLASS],
+			       BIT(gt->engine[GSC0]->instance));
 }
 
 #define LR_HW_CONTEXT_SIZE (80 * sizeof(u32))
@@ -502,9 +534,6 @@ static int guc_prep_golden_context(struct intel_guc *guc)
 	}
 
 	for (engine_class = 0; engine_class <= MAX_ENGINE_CLASS; ++engine_class) {
-		if (engine_class == OTHER_CLASS)
-			continue;
-
 		guc_class = engine_class_to_guc_class(engine_class);
 
 		if (!info_map_read(&info_map, engine_enabled_masks[guc_class]))
@@ -582,9 +611,6 @@ static void guc_init_golden_context(struct intel_guc *guc)
 	addr_ggtt = intel_guc_ggtt_offset(guc, guc->ads_vma) + offset;
 
 	for (engine_class = 0; engine_class <= MAX_ENGINE_CLASS; ++engine_class) {
-		if (engine_class == OTHER_CLASS)
-			continue;
-
 		guc_class = engine_class_to_guc_class(engine_class);
 		if (!ads_blob_read(guc, system_info.engine_enabled_masks[guc_class]))
 			continue;

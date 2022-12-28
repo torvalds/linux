@@ -421,6 +421,10 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 		if (ret == NF_DROP)
 			flow_offload_teardown(flow);
 		break;
+	default:
+		WARN_ON_ONCE(1);
+		ret = NF_DROP;
+		break;
 	}
 
 	return ret;
@@ -681,6 +685,10 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 		ret = nf_flow_queue_xmit(state->net, skb, tuplehash, ETH_P_IPV6);
 		if (ret == NF_DROP)
 			flow_offload_teardown(flow);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		ret = NF_DROP;
 		break;
 	}
 

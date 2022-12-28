@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Device Tree Source for UniPhier Pro5 ProEX Board
+ *
+ * Copyright (C) 2021 Socionext Inc.
+ *   Author: Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+ */
+
+/dts-v1/;
+#include "uniphier-pro5.dtsi"
+
+/ {
+	model = "UniPhier Pro5 ProEX Board";
+	compatible = "socionext,uniphier-pro5-proex", "socionext,uniphier-pro5";
+
+	chosen {
+		stdout-path = "serial2:115200n8";
+	};
+
+	aliases {
+		serial1 = &serial1;
+		serial2 = &serial2;
+		i2c0 = &i2c0;
+		i2c1 = &i2c3;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>;
+	};
+};
+
+&serial1 {
+	status = "okay";
+};
+
+&serial2 {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
+
+&emmc {
+	status = "okay";
+};
+
+&pcie_ep {
+	status = "okay";
+};

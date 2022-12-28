@@ -603,9 +603,14 @@ int clk_mux_determine_rate_flags(struct clk_hw *hw,
 			}
 
 			clk_core_forward_rate_req(core, req, parent, &parent_req, req->rate);
+
+			trace_clk_rate_request_start(&parent_req);
+
 			ret = clk_core_round_rate_nolock(parent, &parent_req);
 			if (ret)
 				return ret;
+
+			trace_clk_rate_request_done(&parent_req);
 
 			best = parent_req.rate;
 		} else if (parent) {
@@ -630,9 +635,14 @@ int clk_mux_determine_rate_flags(struct clk_hw *hw,
 			struct clk_rate_request parent_req;
 
 			clk_core_forward_rate_req(core, req, parent, &parent_req, req->rate);
+
+			trace_clk_rate_request_start(&parent_req);
+
 			ret = clk_core_round_rate_nolock(parent, &parent_req);
 			if (ret)
 				continue;
+
+			trace_clk_rate_request_done(&parent_req);
 
 			parent_rate = parent_req.rate;
 		} else {
@@ -1468,6 +1478,7 @@ static void clk_core_init_rate_req(struct clk_core * const core,
 	if (!core)
 		return;
 
+	req->core = core;
 	req->rate = rate;
 	clk_core_get_boundaries(core, &req->min_rate, &req->max_rate);
 
@@ -1550,9 +1561,14 @@ static int clk_core_round_rate_nolock(struct clk_core *core,
 		struct clk_rate_request parent_req;
 
 		clk_core_forward_rate_req(core, req, core->parent, &parent_req, req->rate);
+
+		trace_clk_rate_request_start(&parent_req);
+
 		ret = clk_core_round_rate_nolock(core->parent, &parent_req);
 		if (ret)
 			return ret;
+
+		trace_clk_rate_request_done(&parent_req);
 
 		req->best_parent_rate = parent_req.rate;
 		req->rate = parent_req.rate;
@@ -1604,9 +1620,13 @@ unsigned long clk_hw_round_rate(struct clk_hw *hw, unsigned long rate)
 
 	clk_core_init_rate_req(hw->core, &req, rate);
 
+	trace_clk_rate_request_start(&req);
+
 	ret = clk_core_round_rate_nolock(hw->core, &req);
 	if (ret)
 		return 0;
+
+	trace_clk_rate_request_done(&req);
 
 	return req.rate;
 }
@@ -1636,7 +1656,11 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 
 	clk_core_init_rate_req(clk->core, &req, rate);
 
+	trace_clk_rate_request_start(&req);
+
 	ret = clk_core_round_rate_nolock(clk->core, &req);
+
+	trace_clk_rate_request_done(&req);
 
 	if (clk->exclusive_count)
 		clk_core_rate_protect(clk->core);
@@ -2129,9 +2153,13 @@ static struct clk_core *clk_calc_new_rates(struct clk_core *core,
 
 		clk_core_init_rate_req(core, &req, rate);
 
+		trace_clk_rate_request_start(&req);
+
 		ret = clk_core_determine_round_nolock(core, &req);
 		if (ret < 0)
 			return NULL;
+
+		trace_clk_rate_request_done(&req);
 
 		best_parent_rate = req.best_parent_rate;
 		new_rate = req.rate;
@@ -2328,7 +2356,11 @@ static unsigned long clk_core_req_round_rate_nolock(struct clk_core *core,
 
 	clk_core_init_rate_req(core, &req, req_rate);
 
+	trace_clk_rate_request_start(&req);
+
 	ret = clk_core_round_rate_nolock(core, &req);
+
+	trace_clk_rate_request_done(&req);
 
 	/* restore the protection */
 	clk_core_rate_restore_protect(core, cnt);

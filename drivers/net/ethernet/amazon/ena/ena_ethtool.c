@@ -118,9 +118,9 @@ static void ena_safe_update_stat(u64 *src, u64 *dst,
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin_irq(syncp);
+		start = u64_stats_fetch_begin(syncp);
 		*(dst) = *src;
-	} while (u64_stats_fetch_retry_irq(syncp, start));
+	} while (u64_stats_fetch_retry(syncp, start));
 }
 
 static void ena_queue_stats(struct ena_adapter *adapter, u64 **data)

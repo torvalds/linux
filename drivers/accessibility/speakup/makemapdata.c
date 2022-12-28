@@ -51,12 +51,15 @@ main(int argc, char *argv[])
 {
 	int value, i;
 	struct st_key *this;
-	const char *dir_name;
+	const char *dir_name, *spk_dir_name;
 	char *cp;
 
 	dir_name = getenv("TOPDIR");
 	if (!dir_name)
 		dir_name = ".";
+	spk_dir_name = getenv("SPKDIR");
+	if (!spk_dir_name)
+		spk_dir_name = "drivers/accessibility/speakup";
 	bzero(key_table, sizeof(key_table));
 	add_key("shift",	1, is_shift);
 	add_key("altgr",	2, is_shift);
@@ -83,7 +86,7 @@ main(int argc, char *argv[])
 			add_key(def_name, value, is_input);
 	}
 
-	open_input(dir_name, "drivers/accessibility/speakup/spk_priv_keyinfo.h");
+	open_input(spk_dir_name, "spk_priv_keyinfo.h");
 	while (get_define()) {
 		if (strlen(def_val) > 5) {
 			//if (def_val[0] == '(')

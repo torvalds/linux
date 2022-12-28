@@ -19,11 +19,11 @@ static u64 rc6_residency(struct intel_rc6 *rc6)
 
 	/* XXX VLV_GT_MEDIA_RC6? */
 
-	result = intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6);
+	result = intel_rc6_residency_ns(rc6, INTEL_RC6_RES_RC6);
 	if (HAS_RC6p(rc6_to_i915(rc6)))
-		result += intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6p);
+		result += intel_rc6_residency_ns(rc6, INTEL_RC6_RES_RC6p);
 	if (HAS_RC6pp(rc6_to_i915(rc6)))
-		result += intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6pp);
+		result += intel_rc6_residency_ns(rc6, INTEL_RC6_RES_RC6pp);
 
 	return result;
 }

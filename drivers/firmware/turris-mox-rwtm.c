@@ -528,7 +528,6 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 	rwtm->hwrng.name = DRIVER_NAME "_hwrng";
 	rwtm->hwrng.read = mox_hwrng_read;
 	rwtm->hwrng.priv = (unsigned long) rwtm;
-	rwtm->hwrng.quality = 1024;
 
 	ret = devm_hwrng_register(dev, &rwtm->hwrng);
 	if (ret < 0) {

@@ -38,6 +38,7 @@
 #define IS31FL3190_CURRENT_uA_MIN	5000
 #define IS31FL3190_CURRENT_uA_DEFAULT	42000
 #define IS31FL3190_CURRENT_uA_MAX	42000
+#define IS31FL3190_CURRENT_SHIFT	2
 #define IS31FL3190_CURRENT_MASK		GENMASK(4, 2)
 #define IS31FL3190_CURRENT_5_mA		0x02
 #define IS31FL3190_CURRENT_10_mA	0x01
@@ -553,7 +554,7 @@ static int is31fl319x_probe(struct i2c_client *client)
 			     is31fl3196_db_to_gain(is31->audio_gain_db));
 	else
 		regmap_update_bits(is31->regmap, IS31FL3190_CURRENT, IS31FL3190_CURRENT_MASK,
-				   is31fl3190_microamp_to_cs(dev, aggregated_led_microamp));
+				   is31fl3190_microamp_to_cs(dev, aggregated_led_microamp) << IS31FL3190_CURRENT_SHIFT);
 
 	for (i = 0; i < is31->cdef->num_leds; i++) {
 		struct is31fl319x_led *led = &is31->leds[i];

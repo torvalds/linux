@@ -104,6 +104,7 @@ void host1x_memory_context_list_free(struct host1x_memory_context_list *cdl)
 }
 
 struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
+							  struct device *dev,
 							  struct pid *pid)
 {
 	struct host1x_memory_context_list *cdl = &host1x->context_list;
@@ -117,6 +118,9 @@ struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
 
 	for (i = 0; i < cdl->len; i++) {
 		struct host1x_memory_context *cd = &cdl->devs[i];
+
+		if (cd->dev.iommu->iommu_dev != dev->iommu->iommu_dev)
+			continue;
 
 		if (cd->owner == pid) {
 			refcount_inc(&cd->ref);

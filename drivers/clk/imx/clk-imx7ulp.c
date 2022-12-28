@@ -59,11 +59,11 @@ static void __init imx7ulp_clk_scg1_init(struct device_node *np)
 
 	hws[IMX7ULP_CLK_DUMMY]		= imx_clk_hw_fixed("dummy", 0);
 
-	hws[IMX7ULP_CLK_ROSC]		= imx_obtain_fixed_clk_hw(np, "rosc");
-	hws[IMX7ULP_CLK_SOSC]		= imx_obtain_fixed_clk_hw(np, "sosc");
-	hws[IMX7ULP_CLK_SIRC]		= imx_obtain_fixed_clk_hw(np, "sirc");
-	hws[IMX7ULP_CLK_FIRC]		= imx_obtain_fixed_clk_hw(np, "firc");
-	hws[IMX7ULP_CLK_UPLL]		= imx_obtain_fixed_clk_hw(np, "upll");
+	hws[IMX7ULP_CLK_ROSC]		= imx_get_clk_hw_by_name(np, "rosc");
+	hws[IMX7ULP_CLK_SOSC]		= imx_get_clk_hw_by_name(np, "sosc");
+	hws[IMX7ULP_CLK_SIRC]		= imx_get_clk_hw_by_name(np, "sirc");
+	hws[IMX7ULP_CLK_FIRC]		= imx_get_clk_hw_by_name(np, "firc");
+	hws[IMX7ULP_CLK_UPLL]		= imx_get_clk_hw_by_name(np, "upll");
 
 	/* SCG1 */
 	base = of_iomap(np, 0);

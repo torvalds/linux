@@ -136,6 +136,7 @@ enum intel_engine_id {
 	CCS2,
 	CCS3,
 #define _CCS(n) (CCS0 + (n))
+	GSC0,
 	I915_NUM_ENGINES
 #define INVALID_ENGINE ((enum intel_engine_id)-1)
 };
