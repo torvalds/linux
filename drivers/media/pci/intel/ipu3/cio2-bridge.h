@@ -117,8 +117,9 @@ struct cio2_sensor {
 	struct acpi_device *adev;
 	struct i2c_client *vcm_i2c_client;
 
-	/* SWNODE_COUNT + 1 for terminating empty node */
-	struct software_node swnodes[SWNODE_COUNT + 1];
+	/* SWNODE_COUNT + 1 for terminating NULL */
+	const struct software_node *group[SWNODE_COUNT + 1];
+	struct software_node swnodes[SWNODE_COUNT];
 	struct cio2_node_names node_names;
 
 	struct cio2_sensor_ssdb ssdb;
