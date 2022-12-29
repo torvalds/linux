@@ -1823,7 +1823,7 @@ struct ieee80211_device {
 	struct work_struct associate_procedure_wq;
 	struct delayed_work softmac_scan_wq;
 	struct delayed_work associate_retry_wq;
-	 struct delayed_work start_ibss_wq;
+	struct delayed_work start_ibss_wq;
 	struct work_struct wx_sync_scan_wq;
 	struct workqueue_struct *wq;
 	// Qos related. Added by Annie, 2005-11-01.
