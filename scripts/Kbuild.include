@@ -170,10 +170,10 @@ cmd = @$(if $(cmd_$(1)),set -e; $($(quiet)log_print) $(delete-on-interrupt) $(cm
 ifneq ($(KBUILD_NOCMDDEP),1)
 # Check if both commands are the same including their order. Result is empty
 # string if equal. User may override this check using make KBUILD_NOCMDDEP=1
-cmd-check = $(filter-out $(subst $(space),$(space_escape),$(strip $(cmd_$@))), \
+cmd-check = $(filter-out $(subst $(space),$(space_escape),$(strip $(savedcmd_$@))), \
                          $(subst $(space),$(space_escape),$(strip $(cmd_$1))))
 else
-cmd-check = $(if $(strip $(cmd_$@)),,1)
+cmd-check = $(if $(strip $(savedcmd_$@)),,1)
 endif
 
 # Replace >$< with >$$< to preserve $ when reloading the .cmd file
@@ -199,7 +199,7 @@ if_changed = $(if $(if-changed-cond),$(cmd_and_savecmd),@:)
 
 cmd_and_savecmd =                                                            \
 	$(cmd);                                                              \
-	printf '%s\n' 'cmd_$@ := $(make-cmd)' > $(dot-target).cmd
+	printf '%s\n' 'savedcmd_$@ := $(make-cmd)' > $(dot-target).cmd
 
 # Execute the command and also postprocess generated .d dependencies file.
 if_changed_dep = $(if $(if-changed-cond),$(cmd_and_fixdep),@:)
@@ -239,7 +239,7 @@ _why =                                                                        \
         $(if $(wildcard $@),                                                 \
             $(if $(newer-prereqs),- due to: $(newer-prereqs),                \
                 $(if $(cmd-check),                                           \
-                    $(if $(cmd_$@),- due to command line change,             \
+                    $(if $(savedcmd_$@),- due to command line change,        \
                         $(if $(filter $@, $(targets)),                       \
                             - due to missing .cmd file,                      \
                             - due to $(notdir $@) not in $$(targets)         \

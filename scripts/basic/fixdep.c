@@ -70,7 +70,7 @@
  *
  * It first generates a line
  *
- *   cmd_<target> = <cmdline>
+ *   savedcmd_<target> = <cmdline>
  *
  * and then basically copies the .<target>.d file to stdout, in the
  * process filtering out the dependency on autoconf.h and adding
@@ -343,7 +343,7 @@ int main(int argc, char *argv[])
 	target = argv[2];
 	cmdline = argv[3];
 
-	printf("cmd_%s := %s\n\n", target, cmdline);
+	printf("savedcmd_%s := %s\n\n", target, cmdline);
 
 	buf = read_file(depfile);
 	parse_dep_file(buf, target);
