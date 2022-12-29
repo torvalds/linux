@@ -655,6 +655,9 @@ int ata_qc_complete_multiple(struct ata_port *ap, u64 qc_active)
 		return -EINVAL;
 	}
 
+	if (ap->ops->qc_ncq_fill_rtf)
+		ap->ops->qc_ncq_fill_rtf(ap, done_mask);
+
 	while (done_mask) {
 		struct ata_queued_cmd *qc;
 		unsigned int tag = __ffs64(done_mask);

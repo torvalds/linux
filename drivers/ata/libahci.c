@@ -56,6 +56,7 @@ static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 static int ahci_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
 static int ahci_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static void ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
+static void ahci_qc_ncq_fill_rtf(struct ata_port *ap, u64 done_mask);
 static int ahci_port_start(struct ata_port *ap);
 static void ahci_port_stop(struct ata_port *ap);
 static enum ata_completion_errors ahci_qc_prep(struct ata_queued_cmd *qc);
@@ -157,6 +158,7 @@ struct ata_port_operations ahci_ops = {
 	.qc_prep		= ahci_qc_prep,
 	.qc_issue		= ahci_qc_issue,
 	.qc_fill_rtf		= ahci_qc_fill_rtf,
+	.qc_ncq_fill_rtf	= ahci_qc_ncq_fill_rtf,
 
 	.freeze			= ahci_freeze,
 	.thaw			= ahci_thaw,
@@ -2058,6 +2060,13 @@ static void ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
 	struct ahci_port_priv *pp = qc->ap->private_data;
 	u8 *rx_fis = pp->rx_fis;
 
+	/*
+	 * rtf may already be filled (e.g. for successful NCQ commands).
+	 * If that is the case, we have nothing to do.
+	 */
+	if (qc->flags & ATA_QCFLAG_RTF_FILLED)
+		return;
+
 	if (pp->fbs_enabled)
 		rx_fis += qc->dev->link->pmp * AHCI_RX_FIS_SZ;
 
@@ -2071,6 +2080,9 @@ static void ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
 	    !(qc->flags & ATA_QCFLAG_EH)) {
 		ata_tf_from_fis(rx_fis + RX_FIS_PIO_SETUP, &qc->result_tf);
 		qc->result_tf.status = (rx_fis + RX_FIS_PIO_SETUP)[15];
+		qc->flags |= ATA_QCFLAG_RTF_FILLED;
+		return;
+	}
 
 	/*
 	 * For NCQ commands, we never get a D2H FIS, so reading the D2H Register
@@ -2080,13 +2092,85 @@ static void ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
 	 * instead. However, the SDB FIS does not contain the LBA, so we can't
 	 * use the ata_tf_from_fis() helper.
 	 */
-	} else if (ata_is_ncq(qc->tf.protocol)) {
+	if (ata_is_ncq(qc->tf.protocol)) {
 		const u8 *fis = rx_fis + RX_FIS_SDB;
 
+		/*
+		 * Successful NCQ commands have been filled already.
+		 * A failed NCQ command will read the status here.
+		 * (Note that a failed NCQ command will get a more specific
+		 * error when reading the NCQ Command Error log.)
+		 */
 		qc->result_tf.status = fis[2];
 		qc->result_tf.error = fis[3];
-	} else
-		ata_tf_from_fis(rx_fis + RX_FIS_D2H_REG, &qc->result_tf);
+		qc->flags |= ATA_QCFLAG_RTF_FILLED;
+		return;
+	}
+
+	ata_tf_from_fis(rx_fis + RX_FIS_D2H_REG, &qc->result_tf);
+	qc->flags |= ATA_QCFLAG_RTF_FILLED;
+}
+
+static void ahci_qc_ncq_fill_rtf(struct ata_port *ap, u64 done_mask)
+{
+	struct ahci_port_priv *pp = ap->private_data;
+	const u8 *fis;
+
+	/* No outstanding commands. */
+	if (!ap->qc_active)
+		return;
+
+	/*
+	 * FBS not enabled, so read status and error once, since they are shared
+	 * for all QCs.
+	 */
+	if (!pp->fbs_enabled) {
+		u8 status, error;
+
+		/* No outstanding NCQ commands. */
+		if (!pp->active_link->sactive)
+			return;
+
+		fis = pp->rx_fis + RX_FIS_SDB;
+		status = fis[2];
+		error = fis[3];
+
+		while (done_mask) {
+			struct ata_queued_cmd *qc;
+			unsigned int tag = __ffs64(done_mask);
+
+			qc = ata_qc_from_tag(ap, tag);
+			if (qc && ata_is_ncq(qc->tf.protocol)) {
+				qc->result_tf.status = status;
+				qc->result_tf.error = error;
+				qc->flags |= ATA_QCFLAG_RTF_FILLED;
+			}
+			done_mask &= ~(1ULL << tag);
+		}
+
+		return;
+	}
+
+	/*
+	 * FBS enabled, so read the status and error for each QC, since the QCs
+	 * can belong to different PMP links. (Each PMP link has its own FIS
+	 * Receive Area.)
+	 */
+	while (done_mask) {
+		struct ata_queued_cmd *qc;
+		unsigned int tag = __ffs64(done_mask);
+
+		qc = ata_qc_from_tag(ap, tag);
+		if (qc && ata_is_ncq(qc->tf.protocol)) {
+			fis = pp->rx_fis;
+			fis += qc->dev->link->pmp * AHCI_RX_FIS_SZ;
+			fis += RX_FIS_SDB;
+			qc->result_tf.status = fis[2];
+			qc->result_tf.error = fis[3];
+			qc->flags |= ATA_QCFLAG_RTF_FILLED;
+		}
+		done_mask &= ~(1ULL << tag);
+	}
 }
 
 static void ahci_freeze(struct ata_port *ap)
