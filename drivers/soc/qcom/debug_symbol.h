@@ -8,14 +8,21 @@
 #define _DEBUG_SYMBOL_H
 
 #include <linux/types.h>
+#include <linux/kallsyms.h>
 
 #if IS_ENABLED(CONFIG_QCOM_DEBUG_SYMBOL)
-extern int debug_symbol_available(void);
+#define DEBUG_SYMBOL_LOOKUP(symbol_name) \
+		((void *)debug_symbol_lookup_name(#symbol_name))
+
+extern bool debug_symbol_available(void);
 extern unsigned long debug_symbol_lookup_name(const char *name);
 #else
-static inline int debug_symbol_available(void)
+#define DEBUG_SYMBOL_LOOKUP(symbol_name) \
+		((void *)kallsyms_lookup_name(#symbol_name))
+
+static inline bool debug_symbol_available(void)
 {
-	return -EINVAL;
+	return true;
 }
 
 static inline unsigned long debug_symbol_lookup_name(const char *name)

@@ -70,18 +70,10 @@ static int logbuf_vh_driver_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct printk_ringbuffer *prb = NULL;
 
-	if (IS_BUILTIN(CONFIG_QCOM_LOGBUF_VENDOR_HOOKS)) {
-		prb = *(struct printk_ringbuffer **)kallsyms_lookup_name("prb");
-	} else {
-		ret = debug_symbol_available();
-		if (ret == 0) {
-			prb = *(struct printk_ringbuffer **)
-				      debug_symbol_lookup_name("prb");
-		} else if (ret == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
-			return ret;
-		}
-	}
+	if (!debug_symbol_available())
+		return -EPROBE_DEFER;
+
+	prb = *(struct printk_ringbuffer **)DEBUG_SYMBOL_LOOKUP(prb);
 	register_log_minidump(prb);
 	ret = boot_log_register(&pdev->dev);
 

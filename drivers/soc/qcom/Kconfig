@@ -754,7 +754,7 @@ config QCOM_WCD_USBSS_I2C
 
 config QCOM_MINIDUMP
 	tristate "QCOM Minidump Support"
-	depends on QCOM_SMEM || ARCH_QTI_VM
+	depends on (QCOM_SMEM || ARCH_QTI_VM) && KALLSYMS
 	help
 	  This enables minidump feature. It allows various clients to
 	  register to dump their state at system bad state (panic/WDT,etc.,).
@@ -894,6 +894,7 @@ config QCOM_ICC_BWMON
 
 config QCOM_DEBUG_SYMBOL
 	tristate "Enable Debug Symbol Support"
+	depends on ANDROID_DEBUG_KINFO
 	help
 	  This enables Debug Symbol Support. This driver is based on
 	  Google Debug Kinfo driver, according to the provided info, this
