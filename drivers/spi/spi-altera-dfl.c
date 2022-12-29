@@ -156,7 +156,7 @@ static int dfl_spi_altera_probe(struct dfl_device *dfl_dev)
 
 	hw->irq = -EINVAL;
 
-	altera_spi_init_master(master);
+	altera_spi_init_host(master);
 
 	err = devm_spi_register_master(dev, master);
 	if (err)

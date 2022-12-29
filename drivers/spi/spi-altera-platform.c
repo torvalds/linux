@@ -107,7 +107,7 @@ static int altera_spi_probe(struct platform_device *pdev)
 		}
 	}
 
-	altera_spi_init_master(master);
+	altera_spi_init_host(master);
 
 	/* irq is optional */
 	hw->irq = platform_get_irq(pdev, 0);
