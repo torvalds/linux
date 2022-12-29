@@ -565,74 +565,78 @@ int elan_ts_check_calibrate(struct i2c_client *client)
 
 static int elan_read_fw_from_sdcard(struct elan_ts_data *ts)
 {
-	struct elan_update_fw_info *update = &ts->update_info;
-	mm_segment_t oldfs;
-	struct file *firmware_fp;
-	int ret = 0;
-	int retry = 0;
-	int file_len;
-	static uint8_t *fw_data_user;
-
-	if ( fw_data_user != NULL)
-		kfree(fw_data_user);
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-
-	for (retry = 0; retry < 5; retry++) {
-		firmware_fp = filp_open(update->fw_local_path, O_RDONLY, 0);
-		if ( IS_ERR(firmware_fp) ) {
-			dev_err(&ts->client->dev, "[elan] retry to open user ekt file\n");
-			mdelay(100);
-		} else 
-			break;
-	}
-
-	if ( retry >= 5 ) {
-		dev_err(&ts->client->dev,
-				"[elan] open %s file error!!\n",update->fw_local_path);
-		ret = -1;
-		goto out_read_fw_from_user2;
-	} else 
-		dev_dbg(&ts->client->dev,
-				"[elan] open %s file sucess!!\n",update->fw_local_path);
-
-	file_len = firmware_fp->f_path.dentry->d_inode->i_size;
-	if (file_len == 0) {
-		dev_dbg(&ts->client->dev,
-				"[elan] Get File len err!!!!");
-		ret = -2;
-		goto out_read_fw_from_user1;
-	}
-
-	fw_data_user = kzalloc(file_len, GFP_KERNEL);
-	if (fw_data_user == NULL) {
-		dev_err(&ts->client->dev,
-				"[elan] malloc fw_data err\n");
-		ret = -3;
-		goto out_read_fw_from_user1;
-	}
-
-	ret = firmware_fp->f_op->read(firmware_fp, fw_data_user,
-			             file_len, &firmware_fp->f_pos);
-	if ( ret != file_len ) {
-		dev_err(&ts->client->dev,
-				"[elan] read EKT file size err, ret=%d!\n",ret);
-		ret = -4;
-		goto out_read_fw_from_user0;
-	} else {
-		update->FwData = fw_data_user;
-		update->FwSize = file_len;
-		update->PageNum = update->FwSize/132;
-		ret = 0;
-	}
-out_read_fw_from_user0:
-out_read_fw_from_user1:
-	filp_close(firmware_fp, NULL);
-out_read_fw_from_user2:
-	set_fs(oldfs);
-
-	return ret;
+	dev_err(&ts->client->dev, "[elan] can not pass Google GKI, return\n");
+	return -1;
+/*
+ *	struct elan_update_fw_info *update = &ts->update_info;
+ *	mm_segment_t oldfs;
+ *	struct file *firmware_fp;
+ *	int ret = 0;
+ *	int retry = 0;
+ *	int file_len;
+ *	static uint8_t *fw_data_user;
+ *
+ *	if ( fw_data_user != NULL)
+ *		kfree(fw_data_user);
+ *
+ *	oldfs = get_fs();
+ *	set_fs(KERNEL_DS);
+ *
+ *	for (retry = 0; retry < 5; retry++) {
+ *		firmware_fp = filp_open(update->fw_local_path, O_RDONLY, 0);
+ *		if ( IS_ERR(firmware_fp) ) {
+ *			dev_err(&ts->client->dev, "[elan] retry to open user ekt file\n");
+ *			mdelay(100);
+ *		} else 
+ *			break;
+ *	}
+ *
+ *	if ( retry >= 5 ) {
+ *		dev_err(&ts->client->dev,
+ *				"[elan] open %s file error!!\n",update->fw_local_path);
+ *		ret = -1;
+ *		goto out_read_fw_from_user2;
+ *	} else 
+ *		dev_dbg(&ts->client->dev,
+ *				"[elan] open %s file sucess!!\n",update->fw_local_path);
+ *
+ *	file_len = firmware_fp->f_path.dentry->d_inode->i_size;
+ *	if (file_len == 0) {
+ *		dev_dbg(&ts->client->dev,
+ *				"[elan] Get File len err!!!!");
+ *		ret = -2;
+ *		goto out_read_fw_from_user1;
+ *	}
+ *
+ *	fw_data_user = kzalloc(file_len, GFP_KERNEL);
+ *	if (fw_data_user == NULL) {
+ *		dev_err(&ts->client->dev,
+ *				"[elan] malloc fw_data err\n");
+ *		ret = -3;
+ *		goto out_read_fw_from_user1;
+ *	}
+ *
+ *	ret = firmware_fp->f_op->read(firmware_fp, fw_data_user,
+ *			             file_len, &firmware_fp->f_pos);
+ *	if ( ret != file_len ) {
+ *		dev_err(&ts->client->dev,
+ *				"[elan] read EKT file size err, ret=%d!\n",ret);
+ *		ret = -4;
+ *		goto out_read_fw_from_user0;
+ *	} else {
+ *		update->FwData = fw_data_user;
+ *		update->FwSize = file_len;
+ *		update->PageNum = update->FwSize/132;
+ *		ret = 0;
+ *	}
+ *out_read_fw_from_user0:
+ *out_read_fw_from_user1:
+ *	filp_close(firmware_fp, NULL);
+ *out_read_fw_from_user2:
+ *	set_fs(oldfs);
+ *
+ *	return ret;
+ */
 }
 
 static int get_driver_fw(struct elan_ts_data *ts)
@@ -685,6 +689,8 @@ int elan_get_vendor_fw(struct elan_ts_data *ts, int type)
 			update_info->FwData = p_fw_entry->data;
 			update_info->FwSize = p_fw_entry->size;
 			update_info->PageNum = update_info->FwSize/132;
+			dev_info(&ts->client->dev, "[elan] %d: FwSize %d, PageNum %d\n", __LINE__,
+				update_info->FwSize, update_info->PageNum );
 		}
 	} else if ( type == FROM_SDCARD_FIRMWARE ) {
 		update_info->FwName = kasprintf(GFP_KERNEL, "elants_i2c.ekt");
@@ -716,18 +722,28 @@ void elan_check_update_flage(struct elan_ts_data *ts)
 	int retry = 0;
 	struct elan_update_fw_info *update_info = &ts->update_info;
 	struct elan_fw_info *fw_info = &ts->fw_info;
-	
+	int try = 30;
+
 	/*
 	** support three methods to get fwdata.
 	 * FROM_SYS_ETC_FIRMWARE :/system/firmware/elants_i2c.ekt
 	 * FROM_SDCARD_FIRMWARE: /data/local/tmp/elants_i2c.ekt
 	 * FROM_DRIVER_FIRMWARE: in driver code directory *.i
 	 */
+RETRY:
 
 	err = elan_get_vendor_fw(ts,ts->fw_store_type);
-	if ( err ) {
+	if (err) {
+		if (try--) {
+			msleep(100);
+			goto RETRY;
+		}
 		dev_err(&ts->client->dev, "[elan] ***counld not get fw,exit update flow!!***\n");
 		goto exit_fw_upgrade;
+	} else {
+		dev_err(&ts->client->dev,
+			"[elan]%d ***get fw success,enter update flow!! try count %d***\n",
+			__LINE__, 30-try);
 	}
 
 	if ( ts->recover == FORCED_UPGRADE ) {
@@ -738,7 +754,7 @@ void elan_check_update_flage(struct elan_ts_data *ts)
 	/*
 	** id and version index maybe change.
 	*/
-	New_FW_ID = update_info->FwData[0X1D39D] << 8 | update_info->FwData[0X1D39C];
+	New_FW_ID = update_info->FwData[0xD5ED] << 8 | update_info->FwData[0XD5EC];
 	New_FW_VERSION = update_info->FwData[0x9F] << 8 | update_info->FwData[0x9E];
 
 	dev_info(&ts->client->dev, "[elan] FW_ID=0x%4x,New_FW_ID=0x%4x\n",fw_info->fw_id,New_FW_ID);

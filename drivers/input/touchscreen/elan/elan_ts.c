@@ -1259,8 +1259,8 @@ static void elan_ic_init_work(struct work_struct *work)
 
 	dev_err(&ts->client->dev, "[elan]Start IAP Flow!!!\n");
 	ts->power_lock = 1; //skip resume / suspend flow
-	check_update_flage(ts);
-	
+	elan_check_update_flage(ts);
+
 #endif
 
 	/*finget and pen input event register*/
@@ -1853,7 +1853,7 @@ static int elan_ts_hw_initial(struct elan_ts_data *ts)
 #endif		
 	
 
-	ts->fw_store_type = FROM_DRIVER_FIRMWARE; //define get fw solution
+	ts->fw_store_type = FROM_SYS_ETC_FIRMWARE; //define get fw solution
 	ts->user_handle_irq = 0;
 	//ts->irq_lock_flag = 0;
 
@@ -1902,7 +1902,6 @@ static int elan_ts_probe(struct i2c_client *client,
 	int retry = 0;
 
        	printk("elan %s() %d\n", __func__, __LINE__);
-
 	/*check i2c bus support fuction*/
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev,

@@ -230,7 +230,8 @@ static ssize_t store_fw_upgrade(struct device *dev,
 */
 	elan_switch_irq(ts, 0);
 //	elan_get_vendor_fw(ts,ts->fw_store_type);
-	elan_FW_Update(ts->client);
+	// elan_FW_Update(ts->client);
+	elan_check_update_flage(ts);
 /*
 	if (ts->irq_lock_flag == 1) {
 		enable_irq(ts->hw_info.irq_num);
