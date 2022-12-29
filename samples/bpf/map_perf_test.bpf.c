@@ -4,14 +4,12 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
+#include "vmlinux.h"
+#include <errno.h>
 #include <linux/version.h>
-#include <uapi/linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
-#include "trace_common.h"
 
 #define MAX_ENTRIES 1000
 #define MAX_NR_CPUS 1024
@@ -102,8 +100,8 @@ struct {
 	__uint(max_entries, MAX_ENTRIES);
 } lru_hash_lookup_map SEC(".maps");
 
-SEC("kprobe/" SYSCALL(sys_getuid))
-int stress_hmap(struct pt_regs *ctx)
+SEC("ksyscall/getuid")
+int BPF_KSYSCALL(stress_hmap)
 {
 	u32 key = bpf_get_current_pid_tgid();
 	long init_val = 1;
@@ -120,8 +118,8 @@ int stress_hmap(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_geteuid))
-int stress_percpu_hmap(struct pt_regs *ctx)
+SEC("ksyscall/geteuid")
+int BPF_KSYSCALL(stress_percpu_hmap)
 {
 	u32 key = bpf_get_current_pid_tgid();
 	long init_val = 1;
@@ -137,8 +135,8 @@ int stress_percpu_hmap(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_getgid))
-int stress_hmap_alloc(struct pt_regs *ctx)
+SEC("ksyscall/getgid")
+int BPF_KSYSCALL(stress_hmap_alloc)
 {
 	u32 key = bpf_get_current_pid_tgid();
 	long init_val = 1;
@@ -154,8 +152,8 @@ int stress_hmap_alloc(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_getegid))
-int stress_percpu_hmap_alloc(struct pt_regs *ctx)
+SEC("ksyscall/getegid")
+int BPF_KSYSCALL(stress_percpu_hmap_alloc)
 {
 	u32 key = bpf_get_current_pid_tgid();
 	long init_val = 1;
@@ -170,11 +168,10 @@ int stress_percpu_hmap_alloc(struct pt_regs *ctx)
 	}
 	return 0;
 }
-
-SEC("kprobe/" SYSCALL(sys_connect))
-int stress_lru_hmap_alloc(struct pt_regs *ctx)
+SEC("ksyscall/connect")
+int BPF_KSYSCALL(stress_lru_hmap_alloc, int fd, struct sockaddr_in *uservaddr,
+		 int addrlen)
 {
-	struct pt_regs *real_regs = (struct pt_regs *)PT_REGS_PARM1_CORE(ctx);
 	char fmt[] = "Failed at stress_lru_hmap_alloc. ret:%dn";
 	union {
 		u16 dst6[8];
@@ -187,14 +184,11 @@ int stress_lru_hmap_alloc(struct pt_regs *ctx)
 			u32 key;
 		};
 	} test_params;
-	struct sockaddr_in6 *in6;
+	struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)uservaddr;
 	u16 test_case;
-	int addrlen, ret;
 	long val = 1;
 	u32 key = 0;
-
-	in6 = (struct sockaddr_in6 *)PT_REGS_PARM2_CORE(real_regs);
-	addrlen = (int)PT_REGS_PARM3_CORE(real_regs);
+	int ret;
 
 	if (addrlen != sizeof(*in6))
 		return 0;
@@ -251,8 +245,8 @@ done:
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_gettid))
-int stress_lpm_trie_map_alloc(struct pt_regs *ctx)
+SEC("ksyscall/gettid")
+int BPF_KSYSCALL(stress_lpm_trie_map_alloc)
 {
 	union {
 		u32 b32[2];
@@ -273,8 +267,8 @@ int stress_lpm_trie_map_alloc(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_getpgid))
-int stress_hash_map_lookup(struct pt_regs *ctx)
+SEC("ksyscall/getpgid")
+int BPF_KSYSCALL(stress_hash_map_lookup)
 {
 	u32 key = 1, i;
 	long *value;
@@ -286,8 +280,8 @@ int stress_hash_map_lookup(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYSCALL(sys_getppid))
-int stress_array_map_lookup(struct pt_regs *ctx)
+SEC("ksyscall/getppid")
+int BPF_KSYSCALL(stress_array_map_lookup)
 {
 	u32 key = 1, i;
 	long *value;

@@ -1,8 +1,6 @@
-#include <linux/ptrace.h>
+#include "vmlinux.h"
 #include <linux/version.h>
-#include <uapi/linux/bpf.h>
 #include <bpf/bpf_helpers.h>
-#include "trace_common.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
@@ -11,7 +9,7 @@ struct {
 	__uint(max_entries, 2);
 } my_map SEC(".maps");
 
-SEC("kprobe/" SYSCALL(sys_write))
+SEC("ksyscall/write")
 int bpf_prog1(struct pt_regs *ctx)
 {
 	struct S {

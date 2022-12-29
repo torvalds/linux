@@ -4,13 +4,11 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
+#include "vmlinux.h"
 #include <linux/version.h>
-#include <uapi/linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include "trace_common.h"
+#include <bpf/bpf_core_read.h>
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -78,15 +76,14 @@ struct {
 	__uint(max_entries, 1024);
 } my_hist_map SEC(".maps");
 
-SEC("kprobe/" SYSCALL(sys_write))
-int bpf_prog3(struct pt_regs *ctx)
+SEC("ksyscall/write")
+int BPF_KSYSCALL(bpf_prog3, unsigned int fd, const char *buf, size_t count)
 {
-	long write_size = PT_REGS_PARM3(ctx);
 	long init_val = 1;
 	long *value;
 	struct hist_key key;
 
-	key.index = log2l(write_size);
+	key.index = log2l(count);
 	key.pid_tgid = bpf_get_current_pid_tgid();
 	key.uid_gid = bpf_get_current_uid_gid();
 	bpf_get_current_comm(&key.comm, sizeof(key.comm));
