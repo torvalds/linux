@@ -852,7 +852,7 @@ static int ocfs2_journal_submit_inode_data_buffers(struct jbd2_inode *jinode)
 		.range_end = jinode->i_dirty_end,
 	};
 
-	return generic_writepages(mapping, &wbc);
+	return filemap_fdatawrite_wbc(mapping, &wbc);
 }
 
 int ocfs2_journal_init(struct ocfs2_super *osb, int *dirty)
