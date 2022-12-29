@@ -705,53 +705,14 @@ static void qcom_geni_serial_start_rx(struct uart_port *uport)
 	writel(irq_en, uport->membase + SE_GENI_M_IRQ_EN);
 }
 
-static void qcom_geni_serial_handle_tx(struct uart_port *uport, bool done,
-		bool active)
+static int qcom_geni_serial_send_chunk_fifo(struct uart_port *uport,
+					    unsigned int chunk)
 {
 	struct qcom_geni_serial_port *port = to_dev_port(uport);
 	struct circ_buf *xmit = &uport->state->xmit;
-	size_t avail;
-	size_t remaining;
-	size_t pending;
-	int i;
-	u32 status;
-	u32 irq_en;
-	unsigned int chunk;
-	int tail;
+	size_t remaining = chunk;
+	int i, tail = xmit->tail;
 
-	status = readl(uport->membase + SE_GENI_TX_FIFO_STATUS);
-
-	/* Complete the current tx command before taking newly added data */
-	if (active)
-		pending = port->tx_remaining;
-	else
-		pending = uart_circ_chars_pending(xmit);
-
-	/* All data has been transmitted and acknowledged as received */
-	if (!pending && !status && done) {
-		qcom_geni_serial_stop_tx(uport);
-		goto out_write_wakeup;
-	}
-
-	avail = port->tx_fifo_depth - (status & TX_FIFO_WC);
-	avail *= BYTES_PER_FIFO_WORD;
-
-	tail = xmit->tail;
-	chunk = min(avail, pending);
-	if (!chunk)
-		goto out_write_wakeup;
-
-	if (!port->tx_remaining) {
-		qcom_geni_serial_setup_tx(uport, pending);
-		port->tx_remaining = pending;
-
-		irq_en = readl(uport->membase + SE_GENI_M_IRQ_EN);
-		if (!(irq_en & M_TX_FIFO_WATERMARK_EN))
-			writel(irq_en | M_TX_FIFO_WATERMARK_EN,
-					uport->membase + SE_GENI_M_IRQ_EN);
-	}
-
-	remaining = chunk;
 	for (i = 0; i < chunk; ) {
 		unsigned int tx_bytes;
 		u8 buf[sizeof(u32)];
@@ -773,7 +734,52 @@ static void qcom_geni_serial_handle_tx(struct uart_port *uport, bool done,
 		port->tx_remaining -= tx_bytes;
 	}
 
-	xmit->tail = tail;
+	return tail;
+}
+
+static void qcom_geni_serial_handle_tx(struct uart_port *uport, bool done,
+		bool active)
+{
+	struct qcom_geni_serial_port *port = to_dev_port(uport);
+	struct circ_buf *xmit = &uport->state->xmit;
+	size_t avail;
+	size_t pending;
+	u32 status;
+	u32 irq_en;
+	unsigned int chunk;
+
+	status = readl(uport->membase + SE_GENI_TX_FIFO_STATUS);
+
+	/* Complete the current tx command before taking newly added data */
+	if (active)
+		pending = port->tx_remaining;
+	else
+		pending = uart_circ_chars_pending(xmit);
+
+	/* All data has been transmitted and acknowledged as received */
+	if (!pending && !status && done) {
+		qcom_geni_serial_stop_tx(uport);
+		goto out_write_wakeup;
+	}
+
+	avail = port->tx_fifo_depth - (status & TX_FIFO_WC);
+	avail *= BYTES_PER_FIFO_WORD;
+
+	chunk = min(avail, pending);
+	if (!chunk)
+		goto out_write_wakeup;
+
+	if (!port->tx_remaining) {
+		qcom_geni_serial_setup_tx(uport, pending);
+		port->tx_remaining = pending;
+
+		irq_en = readl(uport->membase + SE_GENI_M_IRQ_EN);
+		if (!(irq_en & M_TX_FIFO_WATERMARK_EN))
+			writel(irq_en | M_TX_FIFO_WATERMARK_EN,
+					uport->membase + SE_GENI_M_IRQ_EN);
+	}
+
+	xmit->tail = qcom_geni_serial_send_chunk_fifo(uport, chunk);
 
 	/*
 	 * The tx fifo watermark is level triggered and latched. Though we had
