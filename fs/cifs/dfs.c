@@ -401,8 +401,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 		if (ipc->need_reconnect) {
 			scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$", server->hostname);
 			rc = ops->tree_connect(xid, ipc->ses, tree, ipc, cifs_sb->local_nls);
-			if (rc)
-				break;
+			cifs_dbg(FYI, "%s: reconnect ipc: %d\n", __func__, rc);
 		}
 
 		scnprintf(tree, MAX_TREE_SIZE, "\\%s", share);
