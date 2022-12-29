@@ -996,7 +996,7 @@ static void update_mi(struct rkisp_stream *stream)
 static int set_mirror_flip(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
-	u32 val = 0;
+	u32 tmp, val = 0;
 
 	if (!stream->is_mf_upd)
 		return 0;
@@ -1029,10 +1029,11 @@ static int set_mirror_flip(struct rkisp_stream *stream)
 		}
 	}
 
+	tmp = rkisp_read_reg_cache(dev, ISP32_MI_WR_VFLIP_CTRL);
 	if (stream->is_flip)
-		rkisp_set_bits(dev, ISP32_MI_WR_VFLIP_CTRL, 0, val, false);
+		rkisp_write(dev, ISP32_MI_WR_VFLIP_CTRL, tmp | val, false);
 	else
-		rkisp_clear_bits(dev, ISP32_MI_WR_VFLIP_CTRL, val, false);
+		rkisp_write(dev, ISP32_MI_WR_VFLIP_CTRL, tmp & ~val, false);
 	return 0;
 }
 
