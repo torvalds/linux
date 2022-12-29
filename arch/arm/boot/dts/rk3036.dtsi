@@ -208,11 +208,15 @@
 		compatible = "rockchip,mpp-service";
 		rockchip,taskqueue-count = <1>;
 		rockchip,resetgroup-count = <1>;
+		rockchip,grf = <&grf>;
+		rockchip,grf-offset = <0x0144>;
+		rockchip,grf-values = <0x0008000a>, <0x00080002>;
+		rockchip,grf-names = "grf_rkvdec", "grf_vdpu1";
 		status = "disabled";
 	};
 
 	vdpu: vdpu@10108400 {
-		compatible = "rockchip,vpu-decoder-v1";
+		compatible = "rockchip,vpu-decoder-rk3036";
 		reg = <0x10108400 0x400>;
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
@@ -245,7 +249,7 @@
 	};
 
 	hevc: hevc_service@1010c000 {
-		compatible = "rockchip,hevc-decoder";
+		compatible = "rockchip,hevc-decoder-rk3036";
 		reg = <0x1010c000 0x400>;
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
