@@ -566,7 +566,7 @@ static void inic_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	tf->status	= readb(port_base + PORT_TF_COMMAND);
 }
 
-static bool inic_qc_fill_rtf(struct ata_queued_cmd *qc)
+static void inic_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct ata_taskfile *rtf = &qc->result_tf;
 	struct ata_taskfile tf;
@@ -580,12 +580,10 @@ static bool inic_qc_fill_rtf(struct ata_queued_cmd *qc)
 	 */
 	inic_tf_read(qc->ap, &tf);
 
-	if (!(tf.status & ATA_ERR))
-		return false;
-
-	rtf->status = tf.status;
-	rtf->error = tf.error;
-	return true;
+	if (tf.status & ATA_ERR) {
+		rtf->status = tf.status;
+		rtf->error = tf.error;
+	}
 }
 
 static void inic_freeze(struct ata_port *ap)

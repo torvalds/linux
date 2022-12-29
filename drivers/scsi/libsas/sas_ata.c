@@ -226,12 +226,11 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	return ret;
 }
 
-static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
+static void sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct domain_device *dev = qc->ap->private_data;
 
 	ata_tf_from_fis(dev->sata_dev.fis, &qc->result_tf);
-	return true;
 }
 
 static struct sas_internal *dev_to_sas_internal(struct domain_device *dev)

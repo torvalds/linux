@@ -55,7 +55,7 @@ static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 
 static int ahci_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
 static int ahci_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
-static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
+static void ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
 static int ahci_port_start(struct ata_port *ap);
 static void ahci_port_stop(struct ata_port *ap);
 static enum ata_completion_errors ahci_qc_prep(struct ata_queued_cmd *qc);
@@ -2053,7 +2053,7 @@ unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
 }
 EXPORT_SYMBOL_GPL(ahci_qc_issue);
 
-static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
+static void ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct ahci_port_priv *pp = qc->ap->private_data;
 	u8 *rx_fis = pp->rx_fis;
@@ -2087,8 +2087,6 @@ static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
 		qc->result_tf.error = fis[3];
 	} else
 		ata_tf_from_fis(rx_fis + RX_FIS_D2H_REG, &qc->result_tf);
-
-	return true;
 }
 
 static void ahci_freeze(struct ata_port *ap)

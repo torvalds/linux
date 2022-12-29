@@ -876,7 +876,7 @@ struct ata_port_operations {
 	int (*check_atapi_dma)(struct ata_queued_cmd *qc);
 	enum ata_completion_errors (*qc_prep)(struct ata_queued_cmd *qc);
 	unsigned int (*qc_issue)(struct ata_queued_cmd *qc);
-	bool (*qc_fill_rtf)(struct ata_queued_cmd *qc);
+	void (*qc_fill_rtf)(struct ata_queued_cmd *qc);
 
 	/*
 	 * Configuration and exception handling
@@ -1936,7 +1936,7 @@ extern void ata_sff_queue_delayed_work(struct delayed_work *dwork,
 		unsigned long delay);
 extern void ata_sff_queue_pio_task(struct ata_link *link, unsigned long delay);
 extern unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc);
-extern bool ata_sff_qc_fill_rtf(struct ata_queued_cmd *qc);
+extern void ata_sff_qc_fill_rtf(struct ata_queued_cmd *qc);
 extern unsigned int ata_sff_port_intr(struct ata_port *ap,
 				      struct ata_queued_cmd *qc);
 extern irqreturn_t ata_sff_interrupt(int irq, void *dev_instance);

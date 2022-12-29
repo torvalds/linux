@@ -566,7 +566,7 @@ static unsigned int sata_fsl_qc_issue(struct ata_queued_cmd *qc)
 	return 0;
 }
 
-static bool sata_fsl_qc_fill_rtf(struct ata_queued_cmd *qc)
+static void sata_fsl_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct sata_fsl_port_priv *pp = qc->ap->private_data;
 	struct sata_fsl_host_priv *host_priv = qc->ap->host->private_data;
@@ -577,7 +577,6 @@ static bool sata_fsl_qc_fill_rtf(struct ata_queued_cmd *qc)
 	cd = pp->cmdentry + tag;
 
 	ata_tf_from_fis(cd->sfis, &qc->result_tf);
-	return true;
 }
 
 static int sata_fsl_scr_write(struct ata_link *link,

@@ -1377,14 +1377,10 @@ EXPORT_SYMBOL_GPL(ata_sff_qc_issue);
  *
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
- *
- *	RETURNS:
- *	true indicating that result TF is successfully filled.
  */
-bool ata_sff_qc_fill_rtf(struct ata_queued_cmd *qc)
+void ata_sff_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	qc->ap->ops->sff_tf_read(qc->ap, &qc->result_tf);
-	return true;
 }
 EXPORT_SYMBOL_GPL(ata_sff_qc_fill_rtf);
 
