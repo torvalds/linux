@@ -137,7 +137,13 @@ next_attr:
 	rsize = attr->non_res ? 0 : le32_to_cpu(attr->res.data_size);
 	asize = le32_to_cpu(attr->size);
 
-	if (le16_to_cpu(attr->name_off) + attr->name_len > asize)
+	/*
+	 * Really this check was done in 'ni_enum_attr_ex' -> ... 'mi_enum_attr'.
+	 * There not critical to check this case again
+	 */
+	if (attr->name_len &&
+	    sizeof(short) * attr->name_len + le16_to_cpu(attr->name_off) >
+		    asize)
 		goto out;
 
 	if (attr->non_res) {
