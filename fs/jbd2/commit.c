@@ -177,31 +177,6 @@ static int journal_wait_on_commit_record(journal_t *journal,
 	return ret;
 }
 
-/*
- * write the filemap data using writepage() address_space_operations.
- * We don't do block allocation here even for delalloc. We don't
- * use writepages() because with delayed allocation we may be doing
- * block allocation in writepages().
- */
-int jbd2_journal_submit_inode_data_buffers(struct jbd2_inode *jinode)
-{
-	struct address_space *mapping = jinode->i_vfs_inode->i_mapping;
-	struct writeback_control wbc = {
-		.sync_mode =  WB_SYNC_ALL,
-		.nr_to_write = mapping->nrpages * 2,
-		.range_start = jinode->i_dirty_start,
-		.range_end = jinode->i_dirty_end,
-	};
-
-	/*
-	 * submit the inode data buffers. We use writepage
-	 * instead of writepages. Because writepages can do
-	 * block allocation with delalloc. We need to write
-	 * only allocated blocks here.
-	 */
-	return generic_writepages(mapping, &wbc);
-}
-
 /* Send all the data buffers related to an inode */
 int jbd2_submit_inode_data(journal_t *journal, struct jbd2_inode *jinode)
 {
