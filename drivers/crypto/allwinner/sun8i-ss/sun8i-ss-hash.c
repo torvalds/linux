@@ -79,10 +79,10 @@ int sun8i_ss_hmac_setkey(struct crypto_ahash *ahash, const u8 *key,
 		memcpy(tfmctx->key, key, keylen);
 	}
 
-	tfmctx->ipad = kzalloc(bs, GFP_KERNEL | GFP_DMA);
+	tfmctx->ipad = kzalloc(bs, GFP_KERNEL);
 	if (!tfmctx->ipad)
 		return -ENOMEM;
-	tfmctx->opad = kzalloc(bs, GFP_KERNEL | GFP_DMA);
+	tfmctx->opad = kzalloc(bs, GFP_KERNEL);
 	if (!tfmctx->opad) {
 		ret = -ENOMEM;
 		goto err_opad;
