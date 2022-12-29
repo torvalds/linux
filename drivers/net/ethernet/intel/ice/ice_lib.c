@@ -1670,7 +1670,7 @@ static int ice_vsi_alloc_ring_stats(struct ice_vsi *vsi)
 			if (!ring_stats)
 				goto err_out;
 
-			 WRITE_ONCE(rx_ring_stats[i], ring_stats);
+			WRITE_ONCE(rx_ring_stats[i], ring_stats);
 		}
 
 		ring->ring_stats = ring_stats;
