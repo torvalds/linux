@@ -1029,6 +1029,7 @@ struct mpp_taskqueue *mpp_taskqueue_init(struct device *dev)
 	atomic_set(&queue->reset_request, 0);
 	atomic_set(&queue->detach_count, 0);
 	atomic_set(&queue->task_id, 0);
+	queue->dev_active_flags = 0;
 
 	return queue;
 }

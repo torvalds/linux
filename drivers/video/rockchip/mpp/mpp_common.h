@@ -540,6 +540,7 @@ struct mpp_taskqueue {
 	unsigned long core_idle;
 	u32 core_id_max;
 	u32 core_count;
+	unsigned long dev_active_flags;
 };
 
 struct mpp_reset_group {
