@@ -823,7 +823,9 @@ our %deprecated_apis = (
 	"get_state_synchronize_sched"		=> "get_state_synchronize_rcu",
 	"cond_synchronize_sched"		=> "cond_synchronize_rcu",
 	"kmap"					=> "kmap_local_page",
+	"kunmap"				=> "kunmap_local",
 	"kmap_atomic"				=> "kmap_local_page",
+	"kunmap_atomic"				=> "kunmap_local",
 );
 
 #Create a search pattern for all these strings to speed up a loop below
