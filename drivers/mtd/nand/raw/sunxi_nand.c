@@ -421,7 +421,7 @@ static void sunxi_nfc_select_chip(struct nand_chip *nand, unsigned int cs)
 	struct sunxi_nand_chip_sel *sel;
 	u32 ctl;
 
-	if (cs > 0 && cs >= sunxi_nand->nsels)
+	if (cs >= sunxi_nand->nsels)
 		return;
 
 	ctl = readl(nfc->regs + NFC_REG_CTL) &
