@@ -92,8 +92,9 @@ allOf:
     then:
       properties:
         edp-phy:
-          description:
-            Documentation/devicetree/bindings/phy/rockchip-dp-phy.txt
+          type: object
+          $ref: /schemas/phy/rockchip,rk3288-dp-phy.yaml#
+          unevaluatedProperties: false
 
   - if:
       properties:
