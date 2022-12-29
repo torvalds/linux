@@ -3,6 +3,7 @@
  * Copyright (c) 2022, Konrad Dybcio <konrad.dybcio@somainline.org>
  */
 
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sm8450.dtsi"
 #include "pm8350.dtsi"
@@ -93,11 +94,14 @@
 	};
 
 	/* Sadly, the voltages for these GPIO regulators are unknown. */
-	imx650_vana_vreg: imx650-vana-regulator {
+	imx650_vana_regulator: imx650-vana-regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "imx650_vana_vreg";
+		regulator-name = "imx650_vana_regulator";
 		gpio = <&tlmm 23 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&telec_pwr_en>;
 	};
 
 	vph_pwr: vph-pwr-regulator {
@@ -689,6 +693,14 @@
 		drive-strength = <2>;
 		bias-disable;
 		input-enable;
+	};
+
+	telec_pwr_en: telec-pwr-en-state {
+		pins = "gpio23";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
 	};
 
 	sdc2_card_det_n: sd-card-det-n-state {
