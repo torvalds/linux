@@ -1185,10 +1185,18 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto out;
 	}
 
-	if (inode->i_size < sizeof(struct ATTR_DEF_ENTRY)) {
+	/*
+	 * Typical $AttrDef contains up to 20 entries.
+	 * Check for extremely large size.
+	 */
+	if (inode->i_size < sizeof(struct ATTR_DEF_ENTRY) ||
+	    inode->i_size > 100 * sizeof(struct ATTR_DEF_ENTRY)) {
+		ntfs_err(sb, "Looks like $AttrDef is corrupted (size=%llu).",
+			 inode->i_size);
 		err = -EINVAL;
 		goto put_inode_out;
 	}
+
 	bytes = inode->i_size;
 	sbi->def_table = t = kmalloc(bytes, GFP_NOFS | __GFP_NOWARN);
 	if (!t) {
