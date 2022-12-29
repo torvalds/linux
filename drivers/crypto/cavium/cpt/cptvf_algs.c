@@ -232,13 +232,12 @@ static int cvm_decrypt(struct skcipher_request *req)
 static int cvm_xts_setkey(struct crypto_skcipher *cipher, const u8 *key,
 		   u32 keylen)
 {
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(cipher);
-	struct cvm_enc_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct cvm_enc_ctx *ctx = crypto_skcipher_ctx(cipher);
 	int err;
 	const u8 *key1 = key;
 	const u8 *key2 = key + (keylen / 2);
 
-	err = xts_check_key(tfm, key, keylen);
+	err = xts_verify_key(cipher, key, keylen);
 	if (err)
 		return err;
 	ctx->key_len = keylen;
@@ -289,8 +288,7 @@ static int cvm_validate_keylen(struct cvm_enc_ctx *ctx, u32 keylen)
 static int cvm_setkey(struct crypto_skcipher *cipher, const u8 *key,
 		      u32 keylen, u8 cipher_type)
 {
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(cipher);
-	struct cvm_enc_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct cvm_enc_ctx *ctx = crypto_skcipher_ctx(cipher);
 
 	ctx->cipher_type = cipher_type;
 	if (!cvm_validate_keylen(ctx, keylen)) {
