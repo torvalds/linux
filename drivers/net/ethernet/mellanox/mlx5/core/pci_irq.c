@@ -206,7 +206,7 @@ static void irq_set_name(struct mlx5_irq_pool *pool, char *name, int vecidx)
 }
 
 struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
-				const struct cpumask *affinity)
+				struct irq_affinity_desc *af_desc)
 {
 	struct mlx5_core_dev *dev = pool->dev;
 	char name[MLX5_MAX_IRQ_NAME];
@@ -235,8 +235,8 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 		err = -ENOMEM;
 		goto err_cpumask;
 	}
-	if (affinity) {
-		cpumask_copy(irq->mask, affinity);
+	if (af_desc) {
+		cpumask_copy(irq->mask, &af_desc->mask);
 		irq_set_affinity_and_hint(irq->map.virq, irq->mask);
 	}
 	irq->pool = pool;
@@ -250,7 +250,8 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 	}
 	return irq;
 err_xa:
-	irq_update_affinity_hint(irq->map.virq, NULL);
+	if (af_desc)
+		irq_update_affinity_hint(irq->map.virq, NULL);
 	free_cpumask_var(irq->mask);
 err_cpumask:
 	free_irq(irq->map.virq, &irq->nh);
@@ -299,7 +300,7 @@ int mlx5_irq_get_index(struct mlx5_irq *irq)
 /* requesting an irq from a given pool according to given index */
 static struct mlx5_irq *
 irq_pool_request_vector(struct mlx5_irq_pool *pool, int vecidx,
-			struct cpumask *affinity)
+			struct irq_affinity_desc *af_desc)
 {
 	struct mlx5_irq *irq;
 
@@ -309,7 +310,7 @@ irq_pool_request_vector(struct mlx5_irq_pool *pool, int vecidx,
 		mlx5_irq_get_locked(irq);
 		goto unlock;
 	}
-	irq = mlx5_irq_alloc(pool, vecidx, affinity);
+	irq = mlx5_irq_alloc(pool, vecidx, af_desc);
 unlock:
 	mutex_unlock(&pool->lock);
 	return irq;
@@ -386,28 +387,26 @@ void mlx5_ctrl_irq_release(struct mlx5_irq *ctrl_irq)
 struct mlx5_irq *mlx5_ctrl_irq_request(struct mlx5_core_dev *dev)
 {
 	struct mlx5_irq_pool *pool = ctrl_irq_pool_get(dev);
-	cpumask_var_t req_mask;
+	struct irq_affinity_desc af_desc;
 	struct mlx5_irq *irq;
 
-	if (!zalloc_cpumask_var(&req_mask, GFP_KERNEL))
-		return ERR_PTR(-ENOMEM);
-	cpumask_copy(req_mask, cpu_online_mask);
+	cpumask_copy(&af_desc.mask, cpu_online_mask);
+	af_desc.is_managed = false;
 	if (!mlx5_irq_pool_is_sf_pool(pool)) {
 		/* In case we are allocating a control IRQ from a pci device's pool.
 		 * This can happen also for a SF if the SFs pool is empty.
 		 */
 		if (!pool->xa_num_irqs.max) {
-			cpumask_clear(req_mask);
+			cpumask_clear(&af_desc.mask);
 			/* In case we only have a single IRQ for PF/VF */
-			cpumask_set_cpu(cpumask_first(cpu_online_mask), req_mask);
+			cpumask_set_cpu(cpumask_first(cpu_online_mask), &af_desc.mask);
 		}
 		/* Allocate the IRQ in the last index of the pool */
-		irq = irq_pool_request_vector(pool, pool->xa_num_irqs.max, req_mask);
+		irq = irq_pool_request_vector(pool, pool->xa_num_irqs.max, &af_desc);
 	} else {
-		irq = mlx5_irq_affinity_request(pool, req_mask);
+		irq = mlx5_irq_affinity_request(pool, &af_desc);
 	}
 
-	free_cpumask_var(req_mask);
 	return irq;
 }
 
@@ -416,23 +415,23 @@ struct mlx5_irq *mlx5_ctrl_irq_request(struct mlx5_core_dev *dev)
  * @dev: mlx5 device that requesting the IRQ.
  * @vecidx: vector index of the IRQ. This argument is ignore if affinity is
  * provided.
- * @affinity: cpumask requested for this IRQ.
+ * @af_desc: affinity descriptor for this IRQ.
  *
  * This function returns a pointer to IRQ, or ERR_PTR in case of error.
  */
 struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
-				  struct cpumask *affinity)
+				  struct irq_affinity_desc *af_desc)
 {
 	struct mlx5_irq_table *irq_table = mlx5_irq_table_get(dev);
 	struct mlx5_irq_pool *pool;
 	struct mlx5_irq *irq;
 
 	pool = irq_table->pf_pool;
-	irq = irq_pool_request_vector(pool, vecidx, affinity);
+	irq = irq_pool_request_vector(pool, vecidx, af_desc);
 	if (IS_ERR(irq))
 		return irq;
 	mlx5_core_dbg(dev, "irq %u mapped to cpu %*pbl, %u EQs on this irq\n",
-		      irq->map.virq, cpumask_pr_args(affinity),
+		      irq->map.virq, cpumask_pr_args(&af_desc->mask),
 		      irq->refcount / MLX5_EQ_REFS_PER_IRQ);
 	return irq;
 }
@@ -463,22 +462,20 @@ void mlx5_irqs_release_vectors(struct mlx5_irq **irqs, int nirqs)
 int mlx5_irqs_request_vectors(struct mlx5_core_dev *dev, u16 *cpus, int nirqs,
 			      struct mlx5_irq **irqs)
 {
-	cpumask_var_t req_mask;
+	struct irq_affinity_desc af_desc;
 	struct mlx5_irq *irq;
 	int i;
 
-	if (!zalloc_cpumask_var(&req_mask, GFP_KERNEL))
-		return -ENOMEM;
+	af_desc.is_managed = 1;
 	for (i = 0; i < nirqs; i++) {
-		cpumask_set_cpu(cpus[i], req_mask);
-		irq = mlx5_irq_request(dev, i, req_mask);
+		cpumask_set_cpu(cpus[i], &af_desc.mask);
+		irq = mlx5_irq_request(dev, i, &af_desc);
 		if (IS_ERR(irq))
 			break;
-		cpumask_clear(req_mask);
+		cpumask_clear(&af_desc.mask);
 		irqs[i] = irq;
 	}
 
-	free_cpumask_var(req_mask);
 	return i ? i : PTR_ERR(irq);
 }
 

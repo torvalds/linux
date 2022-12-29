@@ -31,7 +31,7 @@ static inline bool mlx5_irq_pool_is_sf_pool(struct mlx5_irq_pool *pool)
 }
 
 struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
-				const struct cpumask *affinity);
+				struct irq_affinity_desc *af_desc);
 int mlx5_irq_get_locked(struct mlx5_irq *irq);
 int mlx5_irq_read_locked(struct mlx5_irq *irq);
 int mlx5_irq_put(struct mlx5_irq *irq);

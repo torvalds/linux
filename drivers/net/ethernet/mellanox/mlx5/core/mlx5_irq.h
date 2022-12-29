@@ -25,7 +25,7 @@ int mlx5_get_default_msix_vec_count(struct mlx5_core_dev *dev, int num_vfs);
 struct mlx5_irq *mlx5_ctrl_irq_request(struct mlx5_core_dev *dev);
 void mlx5_ctrl_irq_release(struct mlx5_irq *ctrl_irq);
 struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
-				  struct cpumask *affinity);
+				  struct irq_affinity_desc *af_desc);
 int mlx5_irqs_request_vectors(struct mlx5_core_dev *dev, u16 *cpus, int nirqs,
 			      struct mlx5_irq **irqs);
 void mlx5_irqs_release_vectors(struct mlx5_irq **irqs, int nirqs);
@@ -39,7 +39,7 @@ struct mlx5_irq_pool;
 int mlx5_irq_affinity_irqs_request_auto(struct mlx5_core_dev *dev, int nirqs,
 					struct mlx5_irq **irqs);
 struct mlx5_irq *mlx5_irq_affinity_request(struct mlx5_irq_pool *pool,
-					   const struct cpumask *req_mask);
+					   struct irq_affinity_desc *af_desc);
 void mlx5_irq_affinity_irqs_release(struct mlx5_core_dev *dev, struct mlx5_irq **irqs,
 				    int num_irqs);
 #else
@@ -50,7 +50,7 @@ static inline int mlx5_irq_affinity_irqs_request_auto(struct mlx5_core_dev *dev,
 }
 
 static inline struct mlx5_irq *
-mlx5_irq_affinity_request(struct mlx5_irq_pool *pool, const struct cpumask *req_mask)
+mlx5_irq_affinity_request(struct mlx5_irq_pool *pool, struct irq_affinity_desc *af_desc)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
