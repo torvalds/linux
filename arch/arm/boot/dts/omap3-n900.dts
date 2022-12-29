@@ -768,7 +768,7 @@
 
 	clock-frequency = <400000>;
 
-	lis302dl: lis3lv02d@1d {
+	accelerometer@1d {
 		compatible = "st,lis3lv02d";
 		reg = <0x1d>;
 
