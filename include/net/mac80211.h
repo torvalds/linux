@@ -1827,8 +1827,6 @@ struct ieee80211_vif_cfg {
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void \*).
  * @txq: the multicast data TX queue (if driver uses the TXQ abstraction)
- * @txqs_stopped: per AC flag to indicate that intermediate TXQs are stopped,
- *	protected by fq->lock.
  * @offload_flags: 802.3 -> 802.11 enapsulation offload flags, see
  *	&enum ieee80211_offload_flags.
  * @mbssid_tx_vif: Pointer to the transmitting interface if MBSSID is enabled.
@@ -1856,8 +1854,6 @@ struct ieee80211_vif {
 
 	bool probe_req_reg;
 	bool rx_mcast_action_reg;
-
-	bool txqs_stopped[IEEE80211_NUM_ACS];
 
 	struct ieee80211_vif *mbssid_tx_vif;
 
