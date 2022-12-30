@@ -765,21 +765,22 @@ static void xmitframe_swencrypt(struct adapter *padapter, struct xmit_frame *pxm
 {
 	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 
-	if (pattrib->bswenc) {
-		switch (pattrib->encrypt) {
-		case _WEP40_:
-		case _WEP104_:
-			rtw_wep_encrypt(padapter, pxmitframe);
-			break;
-		case _TKIP_:
-			rtw_tkip_encrypt(padapter, pxmitframe);
-			break;
-		case _AES_:
-			rtw_aes_encrypt(padapter, pxmitframe);
-			break;
-		default:
-			break;
-		}
+	if (!pattrib->bswenc)
+		return;
+
+	switch (pattrib->encrypt) {
+	case _WEP40_:
+	case _WEP104_:
+		rtw_wep_encrypt(padapter, pxmitframe);
+		break;
+	case _TKIP_:
+		rtw_tkip_encrypt(padapter, pxmitframe);
+		break;
+	case _AES_:
+		rtw_aes_encrypt(padapter, pxmitframe);
+		break;
+	default:
+		break;
 	}
 }
 
