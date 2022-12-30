@@ -173,22 +173,40 @@ static bool inet_bind_conflict(const struct sock *sk, struct sock *sk2,
 	return false;
 }
 
+static bool __inet_bhash2_conflict(const struct sock *sk, struct sock *sk2,
+				   kuid_t sk_uid, bool relax,
+				   bool reuseport_cb_ok, bool reuseport_ok)
+{
+	if (sk->sk_family == AF_INET && ipv6_only_sock(sk2))
+		return false;
+
+	return inet_bind_conflict(sk, sk2, sk_uid, relax,
+				  reuseport_cb_ok, reuseport_ok);
+}
+
 static bool inet_bhash2_conflict(const struct sock *sk,
 				 const struct inet_bind2_bucket *tb2,
 				 kuid_t sk_uid,
 				 bool relax, bool reuseport_cb_ok,
 				 bool reuseport_ok)
 {
+	struct inet_timewait_sock *tw2;
 	struct sock *sk2;
 
 	sk_for_each_bound_bhash2(sk2, &tb2->owners) {
-		if (sk->sk_family == AF_INET && ipv6_only_sock(sk2))
-			continue;
-
-		if (inet_bind_conflict(sk, sk2, sk_uid, relax,
-				       reuseport_cb_ok, reuseport_ok))
+		if (__inet_bhash2_conflict(sk, sk2, sk_uid, relax,
+					   reuseport_cb_ok, reuseport_ok))
 			return true;
 	}
+
+	twsk_for_each_bound_bhash2(tw2, &tb2->deathrow) {
+		sk2 = (struct sock *)tw2;
+
+		if (__inet_bhash2_conflict(sk, sk2, sk_uid, relax,
+					   reuseport_cb_ok, reuseport_ok))
+			return true;
+	}
+
 	return false;
 }
 
