@@ -3735,15 +3735,6 @@ static unsigned int on_action_public_p2p(struct recv_frame *precv_frame)
 	return _SUCCESS;
 }
 
-static void on_action_public_vendor(struct recv_frame *precv_frame)
-{
-	u8 *pframe = precv_frame->rx_data;
-	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
-
-	if (!memcmp(frame_body + 2, P2P_OUI, 4))
-		on_action_public_p2p(precv_frame);
-}
-
 static void on_action_public_default(struct recv_frame *precv_frame)
 {
 	u8 *pframe = precv_frame->rx_data;
@@ -3758,12 +3749,16 @@ static void on_action_public_default(struct recv_frame *precv_frame)
 static void on_action_public(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
+	u8 *pframe = precv_frame->rx_data;
+	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
 
 	/* All members of the action enum start with action_code. */
-	if (mgmt->u.action.u.s1g.action_code == WLAN_PUB_ACTION_VENDOR_SPECIFIC)
-		on_action_public_vendor(precv_frame);
-	else
+	if (mgmt->u.action.u.s1g.action_code == WLAN_PUB_ACTION_VENDOR_SPECIFIC) {
+		if (!memcmp(frame_body + 2, P2P_OUI, 4))
+			on_action_public_p2p(precv_frame);
+	} else {
 		on_action_public_default(precv_frame);
+	}
 }
 
 static void OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_frame)
