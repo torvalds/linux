@@ -16,6 +16,8 @@
 #include "desc_constr.h"
 #include "sg_sw_sec4.h"
 #include "caampkc.h"
+#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
 
 #define DESC_RSA_PUB_LEN	(2 * CAAM_CMD_SZ + SIZEOF_RSA_PUB_PDB)
 #define DESC_RSA_PRIV_F1_LEN	(2 * CAAM_CMD_SZ + \
@@ -310,8 +312,7 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 	sec4_sg_bytes = sec4_sg_len * sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc, hw desc commands and link tables */
-	edesc = kzalloc(sizeof(*edesc) + desclen + sec4_sg_bytes,
-			GFP_DMA | flags);
+	edesc = kzalloc(sizeof(*edesc) + desclen + sec4_sg_bytes, flags);
 	if (!edesc)
 		goto dst_fail;
 
@@ -898,7 +899,7 @@ static u8 *caam_read_rsa_crt(const u8 *ptr, size_t nbytes, size_t dstlen)
 	if (!nbytes)
 		return NULL;
 
-	dst = kzalloc(dstlen, GFP_DMA | GFP_KERNEL);
+	dst = kzalloc(dstlen, GFP_KERNEL);
 	if (!dst)
 		return NULL;
 
@@ -910,7 +911,7 @@ static u8 *caam_read_rsa_crt(const u8 *ptr, size_t nbytes, size_t dstlen)
 /**
  * caam_read_raw_data - Read a raw byte stream as a positive integer.
  * The function skips buffer's leading zeros, copies the remained data
- * to a buffer allocated in the GFP_DMA | GFP_KERNEL zone and returns
+ * to a buffer allocated in the GFP_KERNEL zone and returns
  * the address of the new buffer.
  *
  * @buf   : The data to read
@@ -923,7 +924,7 @@ static inline u8 *caam_read_raw_data(const u8 *buf, size_t *nbytes)
 	if (!*nbytes)
 		return NULL;
 
-	return kmemdup(buf, *nbytes, GFP_DMA | GFP_KERNEL);
+	return kmemdup(buf, *nbytes, GFP_KERNEL);
 }
 
 static int caam_rsa_check_key_length(unsigned int len)
@@ -949,13 +950,13 @@ static int caam_rsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 		return ret;
 
 	/* Copy key in DMA zone */
-	rsa_key->e = kmemdup(raw_key.e, raw_key.e_sz, GFP_DMA | GFP_KERNEL);
+	rsa_key->e = kmemdup(raw_key.e, raw_key.e_sz, GFP_KERNEL);
 	if (!rsa_key->e)
 		goto err;
 
 	/*
 	 * Skip leading zeros and copy the positive integer to a buffer
-	 * allocated in the GFP_DMA | GFP_KERNEL zone. The decryption descriptor
+	 * allocated in the GFP_KERNEL zone. The decryption descriptor
 	 * expects a positive integer for the RSA modulus and uses its length as
 	 * decryption output length.
 	 */
@@ -983,6 +984,7 @@ static void caam_rsa_set_priv_key_form(struct caam_rsa_ctx *ctx,
 	struct caam_rsa_key *rsa_key = &ctx->key;
 	size_t p_sz = raw_key->p_sz;
 	size_t q_sz = raw_key->q_sz;
+	unsigned aligned_size;
 
 	rsa_key->p = caam_read_raw_data(raw_key->p, &p_sz);
 	if (!rsa_key->p)
@@ -994,11 +996,13 @@ static void caam_rsa_set_priv_key_form(struct caam_rsa_ctx *ctx,
 		goto free_p;
 	rsa_key->q_sz = q_sz;
 
-	rsa_key->tmp1 = kzalloc(raw_key->p_sz, GFP_DMA | GFP_KERNEL);
+	aligned_size = ALIGN(raw_key->p_sz, dma_get_cache_alignment());
+	rsa_key->tmp1 = kzalloc(aligned_size, GFP_KERNEL);
 	if (!rsa_key->tmp1)
 		goto free_q;
 
-	rsa_key->tmp2 = kzalloc(raw_key->q_sz, GFP_DMA | GFP_KERNEL);
+	aligned_size = ALIGN(raw_key->q_sz, dma_get_cache_alignment());
+	rsa_key->tmp2 = kzalloc(aligned_size, GFP_KERNEL);
 	if (!rsa_key->tmp2)
 		goto free_tmp1;
 
@@ -1051,17 +1055,17 @@ static int caam_rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 		return ret;
 
 	/* Copy key in DMA zone */
-	rsa_key->d = kmemdup(raw_key.d, raw_key.d_sz, GFP_DMA | GFP_KERNEL);
+	rsa_key->d = kmemdup(raw_key.d, raw_key.d_sz, GFP_KERNEL);
 	if (!rsa_key->d)
 		goto err;
 
-	rsa_key->e = kmemdup(raw_key.e, raw_key.e_sz, GFP_DMA | GFP_KERNEL);
+	rsa_key->e = kmemdup(raw_key.e, raw_key.e_sz, GFP_KERNEL);
 	if (!rsa_key->e)
 		goto err;
 
 	/*
 	 * Skip leading zeros and copy the positive integer to a buffer
-	 * allocated in the GFP_DMA | GFP_KERNEL zone. The decryption descriptor
+	 * allocated in the GFP_KERNEL zone. The decryption descriptor
 	 * expects a positive integer for the RSA modulus and uses its length as
 	 * decryption output length.
 	 */
@@ -1185,8 +1189,7 @@ int caam_pkc_init(struct device *ctrldev)
 		return 0;
 
 	/* allocate zero buffer, used for padding input */
-	zero_buffer = kzalloc(CAAM_RSA_MAX_INPUT_SIZE - 1, GFP_DMA |
-			      GFP_KERNEL);
+	zero_buffer = kzalloc(CAAM_RSA_MAX_INPUT_SIZE - 1, GFP_KERNEL);
 	if (!zero_buffer)
 		return -ENOMEM;
 

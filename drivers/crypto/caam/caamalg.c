@@ -59,6 +59,8 @@
 #include <crypto/engine.h>
 #include <crypto/xts.h>
 #include <asm/unaligned.h>
+#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
 
 /*
  * crypto alg
@@ -1379,8 +1381,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	sec4_sg_bytes = sec4_sg_len * sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = kzalloc(sizeof(*edesc) + desc_bytes + sec4_sg_bytes,
-			GFP_DMA | flags);
+	edesc = kzalloc(sizeof(*edesc) + desc_bytes + sec4_sg_bytes, flags);
 	if (!edesc) {
 		caam_unmap(jrdev, req->src, req->dst, src_nents, dst_nents, 0,
 			   0, 0, 0);
@@ -1608,6 +1609,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	u8 *iv;
 	int ivsize = crypto_skcipher_ivsize(skcipher);
 	int dst_sg_idx, sec4_sg_ents, sec4_sg_bytes;
+	unsigned int aligned_size;
 
 	src_nents = sg_nents_for_len(req->src, req->cryptlen);
 	if (unlikely(src_nents < 0)) {
@@ -1681,15 +1683,18 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	/*
 	 * allocate space for base edesc and hw desc commands, link tables, IV
 	 */
-	edesc = kzalloc(sizeof(*edesc) + desc_bytes + sec4_sg_bytes + ivsize,
-			GFP_DMA | flags);
-	if (!edesc) {
+	aligned_size = ALIGN(ivsize, __alignof__(*edesc));
+	aligned_size += sizeof(*edesc) + desc_bytes + sec4_sg_bytes;
+	aligned_size = ALIGN(aligned_size, dma_get_cache_alignment());
+	iv = kzalloc(aligned_size, flags);
+	if (!iv) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		caam_unmap(jrdev, req->src, req->dst, src_nents, dst_nents, 0,
 			   0, 0, 0);
 		return ERR_PTR(-ENOMEM);
 	}
 
+	edesc = (void *)(iv + ALIGN(ivsize, __alignof__(*edesc)));
 	edesc->src_nents = src_nents;
 	edesc->dst_nents = dst_nents;
 	edesc->mapped_src_nents = mapped_src_nents;
@@ -1701,7 +1706,6 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 
 	/* Make sure IV is located in a DMAable area */
 	if (ivsize) {
-		iv = (u8 *)edesc->sec4_sg + sec4_sg_bytes;
 		memcpy(iv, req->iv, ivsize);
 
 		iv_dma = dma_map_single(jrdev, iv, ivsize, DMA_BIDIRECTIONAL);

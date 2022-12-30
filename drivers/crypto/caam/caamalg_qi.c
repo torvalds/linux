@@ -20,6 +20,8 @@
 #include "caamalg_desc.h"
 #include <crypto/xts.h>
 #include <asm/unaligned.h>
+#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
 
 /*
  * crypto alg
@@ -959,7 +961,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		return (struct aead_edesc *)drv_ctx;
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = qi_cache_alloc(GFP_DMA | flags);
+	edesc = qi_cache_alloc(flags);
 	if (unlikely(!edesc)) {
 		dev_err(qidev, "could not allocate extended descriptor\n");
 		return ERR_PTR(-ENOMEM);
@@ -1317,8 +1319,9 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 		qm_sg_ents = 1 + pad_sg_nents(qm_sg_ents);
 
 	qm_sg_bytes = qm_sg_ents * sizeof(struct qm_sg_entry);
-	if (unlikely(offsetof(struct skcipher_edesc, sgt) + qm_sg_bytes +
-		     ivsize > CAAM_QI_MEMCACHE_SIZE)) {
+	if (unlikely(ALIGN(ivsize, __alignof__(*edesc)) +
+		     offsetof(struct skcipher_edesc, sgt) + qm_sg_bytes >
+		     CAAM_QI_MEMCACHE_SIZE)) {
 		dev_err(qidev, "No space for %d S/G entries and/or %dB IV\n",
 			qm_sg_ents, ivsize);
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents, 0,
@@ -1327,17 +1330,18 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	}
 
 	/* allocate space for base edesc, link tables and IV */
-	edesc = qi_cache_alloc(GFP_DMA | flags);
-	if (unlikely(!edesc)) {
+	iv = qi_cache_alloc(flags);
+	if (unlikely(!iv)) {
 		dev_err(qidev, "could not allocate extended descriptor\n");
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents, 0,
 			   0, DMA_NONE, 0, 0);
 		return ERR_PTR(-ENOMEM);
 	}
 
+	edesc = (void *)(iv + ALIGN(ivsize, __alignof__(*edesc)));
+
 	/* Make sure IV is located in a DMAable area */
 	sg_table = &edesc->sgt[0];
-	iv = (u8 *)(sg_table + qm_sg_ents);
 	memcpy(iv, req->iv, ivsize);
 
 	iv_dma = dma_map_single(qidev, iv, ivsize, DMA_BIDIRECTIONAL);
