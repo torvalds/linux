@@ -791,7 +791,7 @@ s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattr
 	struct ieee80211_hdr *pwlanhdr = (struct ieee80211_hdr *)hdr;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct qos_priv *pqospriv = &pmlmepriv->qospriv;
-	u8 qos_option = false;
+	bool qos_option;
 	__le16 *fctrl = &pwlanhdr->frame_control;
 
 	struct sta_info *psta;
@@ -817,26 +817,20 @@ s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattr
 		memcpy(pwlanhdr->addr1, get_bssid(pmlmepriv), ETH_ALEN);
 		memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
 		memcpy(pwlanhdr->addr3, pattrib->dst, ETH_ALEN);
-
-		if (pqospriv->qos_option)
-			qos_option = true;
+		qos_option = pqospriv->qos_option;
 	} else if (check_fwstate(pmlmepriv,  WIFI_AP_STATE)) {
 		/* to_ds = 0, fr_ds = 1; */
 		SetFrDs(fctrl);
 		memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
 		memcpy(pwlanhdr->addr2, get_bssid(pmlmepriv), ETH_ALEN);
 		memcpy(pwlanhdr->addr3, pattrib->src, ETH_ALEN);
-
-		if (psta->qos_option)
-			qos_option = true;
+		qos_option = psta->qos_option;
 	} else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) ||
 		   check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
 		memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
 		memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
 		memcpy(pwlanhdr->addr3, get_bssid(pmlmepriv), ETH_ALEN);
-
-		if (psta->qos_option)
-			qos_option = true;
+		qos_option = psta->qos_option;
 	} else {
 		return _FAIL;
 	}
