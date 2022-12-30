@@ -41,7 +41,7 @@ will need to add a 32-bit compat layer:
    structures to the kernel, or if the kernel checks the structure size, which
    e.g. the drm core does.
 
- * Pointers are __u64, cast from/to a uintprt_t on the userspace side and
+ * Pointers are __u64, cast from/to a uintptr_t on the userspace side and
    from/to a void __user * in the kernel. Try really hard not to delay this
    conversion or worse, fiddle the raw __u64 through your code since that
    diminishes the checking tools like sparse can provide. The macro
