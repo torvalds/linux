@@ -1366,4 +1366,10 @@ config TOUCHSCREEN_ZINITIX
 	  To compile this driver as a module, choose M here: the
 	  module will be called zinitix.
 
+config TOUCHSCREEN_TINKER_FT5406
+	tristate "tinker ft5406"
+	depends on I2C
+	help
+	  Control ft5406 touch ic.
+
 endif
