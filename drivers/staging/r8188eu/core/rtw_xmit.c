@@ -41,7 +41,6 @@ static int rtw_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *px
 		return -ENOMEM;
 
 	pxmitbuf->pbuf = (u8 *)ALIGN((size_t)(pxmitbuf->pallocated_buf), XMITBUF_ALIGN_SZ);
-	pxmitbuf->dma_transfer_addr = 0;
 
 	pxmitbuf->pxmit_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!pxmitbuf->pxmit_urb) {

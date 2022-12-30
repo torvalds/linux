@@ -202,7 +202,6 @@ struct xmit_buf {
 	struct submit_ctx *sctx;
 	u32	ff_hwaddr;
 	struct urb *pxmit_urb;
-	dma_addr_t dma_transfer_addr;	/* (in) dma addr for transfer_buffer */
 	int last[8];
 };
 
