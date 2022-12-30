@@ -90,11 +90,8 @@
 
 #define OV2680_GROUP_ACCESS							0x3208 /*Bit[7:4] Group control, Bit[3:0] Group ID*/
 
-#define OV2680_EXPOSURE_H							0x3500 /*Bit[3:0] Bit[19:16] of exposure, remaining 16 bits lies in Reg0x3501&Reg0x3502*/
-#define OV2680_EXPOSURE_M							0x3501
-#define OV2680_EXPOSURE_L							0x3502
-#define OV2680_AGC_H								0x350A /*Bit[1:0] means Bit[9:8] of gain*/
-#define OV2680_AGC_L								0x350B /*Bit[7:0] of gain*/
+#define OV2680_REG_EXPOSURE_PK_HIGH		0x3500
+#define OV2680_REG_GAIN_PK			0x350a
 
 #define OV2680_HORIZONTAL_START_H					0x3800 /*Bit[11:8]*/
 #define OV2680_HORIZONTAL_START_L					0x3801 /*Bit[7:0]*/
@@ -172,6 +169,8 @@ struct ov2680_device {
 		struct v4l2_ctrl_handler handler;
 		struct v4l2_ctrl *hflip;
 		struct v4l2_ctrl *vflip;
+		struct v4l2_ctrl *exposure;
+		struct v4l2_ctrl *gain;
 	} ctrls;
 };
 
