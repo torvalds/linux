@@ -57,6 +57,9 @@ extern void exit_cifs_idmap(void);
 extern int init_cifs_spnego(void);
 extern void exit_cifs_spnego(void);
 extern const char *build_path_from_dentry(struct dentry *, void *);
+char *__build_path_from_dentry_optional_prefix(struct dentry *direntry, void *page,
+					       const char *tree, int tree_len,
+					       bool prefix);
 extern char *build_path_from_dentry_optional_prefix(struct dentry *direntry,
 						    void *page, bool prefix);
 static inline void *alloc_dentry_path(void)
@@ -75,9 +78,7 @@ extern char *cifs_build_path_to_root(struct smb3_fs_context *ctx,
 				     struct cifs_tcon *tcon,
 				     int add_treename);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
-extern char *cifs_compose_mount_options(const char *sb_mountdata,
-		const char *fullpath, const struct dfs_info3_param *ref,
-		char **devname);
+char *cifs_build_devname(char *nodename, const char *prepath);
 extern void delete_mid(struct mid_q_entry *mid);
 extern void release_mid(struct mid_q_entry *mid);
 extern void cifs_wake_up_task(struct mid_q_entry *mid);
@@ -244,6 +245,10 @@ extern int cifs_read_page_from_socket(struct TCP_Server_Info *server,
 					unsigned int page_offset,
 					unsigned int to_read);
 extern int cifs_setup_cifs_sb(struct cifs_sb_info *cifs_sb);
+void cifs_mount_put_conns(struct cifs_mount_ctx *mnt_ctx);
+int cifs_mount_get_session(struct cifs_mount_ctx *mnt_ctx);
+int cifs_is_path_remote(struct cifs_mount_ctx *mnt_ctx);
+int cifs_mount_get_tcon(struct cifs_mount_ctx *mnt_ctx);
 extern int cifs_match_super(struct super_block *, void *);
 extern int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx);
 extern void cifs_umount(struct cifs_sb_info *);
@@ -560,9 +565,6 @@ extern int check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			      const unsigned char *path);
 extern int E_md4hash(const unsigned char *passwd, unsigned char *p16,
 			const struct nls_table *codepage);
-
-extern int
-cifs_setup_volume_info(struct smb3_fs_context *ctx, const char *mntopts, const char *devname);
 
 extern struct TCP_Server_Info *
 cifs_find_tcp_session(struct smb3_fs_context *ctx);

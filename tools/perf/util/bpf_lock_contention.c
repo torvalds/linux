@@ -20,7 +20,7 @@ static struct lock_contention_bpf *skel;
 int lock_contention_prepare(struct lock_contention *con)
 {
 	int i, fd;
-	int ncpus = 1, ntasks = 1;
+	int ncpus = 1, ntasks = 1, ntypes = 1, naddrs = 1;
 	struct evlist *evlist = con->evlist;
 	struct target *target = con->target;
 
@@ -46,9 +46,42 @@ int lock_contention_prepare(struct lock_contention *con)
 		ncpus = perf_cpu_map__nr(evlist->core.user_requested_cpus);
 	if (target__has_task(target))
 		ntasks = perf_thread_map__nr(evlist->core.threads);
+	if (con->filters->nr_types)
+		ntypes = con->filters->nr_types;
+
+	/* resolve lock name filters to addr */
+	if (con->filters->nr_syms) {
+		struct symbol *sym;
+		struct map *kmap;
+		unsigned long *addrs;
+
+		for (i = 0; i < con->filters->nr_syms; i++) {
+			sym = machine__find_kernel_symbol_by_name(con->machine,
+								  con->filters->syms[i],
+								  &kmap);
+			if (sym == NULL) {
+				pr_warning("ignore unknown symbol: %s\n",
+					   con->filters->syms[i]);
+				continue;
+			}
+
+			addrs = realloc(con->filters->addrs,
+					(con->filters->nr_addrs + 1) * sizeof(*addrs));
+			if (addrs == NULL) {
+				pr_warning("memory allocation failure\n");
+				continue;
+			}
+
+			addrs[con->filters->nr_addrs++] = kmap->unmap_ip(kmap, sym->start);
+			con->filters->addrs = addrs;
+		}
+		naddrs = con->filters->nr_addrs;
+	}
 
 	bpf_map__set_max_entries(skel->maps.cpu_filter, ncpus);
 	bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
+	bpf_map__set_max_entries(skel->maps.type_filter, ntypes);
+	bpf_map__set_max_entries(skel->maps.addr_filter, naddrs);
 
 	if (lock_contention_bpf__load(skel) < 0) {
 		pr_err("Failed to load lock-contention BPF skeleton\n");
@@ -88,6 +121,26 @@ int lock_contention_prepare(struct lock_contention *con)
 		skel->bss->has_task = 1;
 		fd = bpf_map__fd(skel->maps.task_filter);
 		bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
+	}
+
+	if (con->filters->nr_types) {
+		u8 val = 1;
+
+		skel->bss->has_type = 1;
+		fd = bpf_map__fd(skel->maps.type_filter);
+
+		for (i = 0; i < con->filters->nr_types; i++)
+			bpf_map_update_elem(fd, &con->filters->types[i], &val, BPF_ANY);
+	}
+
+	if (con->filters->nr_addrs) {
+		u8 val = 1;
+
+		skel->bss->has_addr = 1;
+		fd = bpf_map__fd(skel->maps.addr_filter);
+
+		for (i = 0; i < con->filters->nr_addrs; i++)
+			bpf_map_update_elem(fd, &con->filters->addrs[i], &val, BPF_ANY);
 	}
 
 	/* these don't work well if in the rodata section */
@@ -215,7 +268,7 @@ int lock_contention_read(struct lock_contention *con)
 			break;
 		}
 
-		if (verbose) {
+		if (verbose > 0) {
 			st->callstack = memdup(stack_trace, stack_size);
 			if (st->callstack == NULL)
 				break;

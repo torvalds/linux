@@ -4,6 +4,8 @@
 #include <network_helpers.h>
 #include <bpf/btf.h>
 #include "bind4_prog.skel.h"
+#include "freplace_progmap.skel.h"
+#include "xdp_dummy.skel.h"
 
 typedef int (*test_cb)(struct bpf_object *obj);
 
@@ -500,6 +502,50 @@ cleanup:
 	bind4_prog__destroy(skel);
 }
 
+static void test_func_replace_progmap(void)
+{
+	struct bpf_cpumap_val value = { .qsize = 1 };
+	struct freplace_progmap *skel = NULL;
+	struct xdp_dummy *tgt_skel = NULL;
+	__u32 key = 0;
+	int err;
+
+	skel = freplace_progmap__open();
+	if (!ASSERT_OK_PTR(skel, "prog_open"))
+		return;
+
+	tgt_skel = xdp_dummy__open_and_load();
+	if (!ASSERT_OK_PTR(tgt_skel, "tgt_prog_load"))
+		goto out;
+
+	err = bpf_program__set_attach_target(skel->progs.xdp_cpumap_prog,
+					     bpf_program__fd(tgt_skel->progs.xdp_dummy_prog),
+					     "xdp_dummy_prog");
+	if (!ASSERT_OK(err, "set_attach_target"))
+		goto out;
+
+	err = freplace_progmap__load(skel);
+	if (!ASSERT_OK(err, "obj_load"))
+		goto out;
+
+	/* Prior to fixing the kernel, loading the PROG_TYPE_EXT 'redirect'
+	 * program above will cause the map owner type of 'cpumap' to be set to
+	 * PROG_TYPE_EXT. This in turn will cause the bpf_map_update_elem()
+	 * below to fail, because the program we are inserting into the map is
+	 * of PROG_TYPE_XDP. After fixing the kernel, the initial ownership will
+	 * be correctly resolved to the *target* of the PROG_TYPE_EXT program
+	 * (i.e., PROG_TYPE_XDP) and the map update will succeed.
+	 */
+	value.bpf_prog.fd = bpf_program__fd(skel->progs.xdp_drop_prog);
+	err = bpf_map_update_elem(bpf_map__fd(skel->maps.cpu_map),
+				  &key, &value, 0);
+	ASSERT_OK(err, "map_update");
+
+out:
+	xdp_dummy__destroy(tgt_skel);
+	freplace_progmap__destroy(skel);
+}
+
 /* NOTE: affect other tests, must run in serial mode */
 void serial_test_fexit_bpf2bpf(void)
 {
@@ -525,4 +571,6 @@ void serial_test_fexit_bpf2bpf(void)
 		test_func_replace_global_func();
 	if (test__start_subtest("fentry_to_cgroup_bpf"))
 		test_fentry_to_cgroup_bpf();
+	if (test__start_subtest("func_replace_progmap"))
+		test_func_replace_progmap();
 }

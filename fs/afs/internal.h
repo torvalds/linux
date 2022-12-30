@@ -972,13 +972,6 @@ extern void afs_merge_fs_addr4(struct afs_addr_list *, __be32, u16);
 extern void afs_merge_fs_addr6(struct afs_addr_list *, __be32 *, u16);
 
 /*
- * cache.c
- */
-#ifdef CONFIG_AFS_FSCACHE
-extern struct fscache_netfs afs_cache_netfs;
-#endif
-
-/*
  * callback.c
  */
 extern void afs_invalidate_mmap_work(struct work_struct *);
@@ -1391,7 +1384,6 @@ extern void afs_put_permits(struct afs_permits *);
 extern void afs_clear_permits(struct afs_vnode *);
 extern void afs_cache_permit(struct afs_vnode *, struct key *, unsigned int,
 			     struct afs_status_cb *);
-extern void afs_zap_permits(struct rcu_head *);
 extern struct key *afs_request_key(struct afs_cell *);
 extern struct key *afs_request_key_rcu(struct afs_cell *);
 extern int afs_check_permit(struct afs_vnode *, struct key *, afs_access_t *);

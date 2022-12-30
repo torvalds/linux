@@ -645,6 +645,7 @@ static void add_sock(struct socket *sock, struct connection *con)
 	if (dlm_config.ci_protocol == DLM_PROTO_SCTP)
 		sk->sk_state_change = lowcomms_state_change;
 	sk->sk_allocation = GFP_NOFS;
+	sk->sk_use_task_frag = false;
 	sk->sk_error_report = lowcomms_error_report;
 	release_sock(sk);
 }
@@ -1769,6 +1770,7 @@ static int dlm_listen_for_all(void)
 	listen_con.sock = sock;
 
 	sock->sk->sk_allocation = GFP_NOFS;
+	sock->sk->sk_use_task_frag = false;
 	sock->sk->sk_data_ready = lowcomms_listen_data_ready;
 	release_sock(sock->sk);
 

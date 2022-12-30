@@ -4,12 +4,7 @@
 
 #include <linux/bits.h>
 
-/*
- * CPU model specific register (MSR) numbers.
- *
- * Do not add new entries to this file unless the definitions are shared
- * between multiple compilation units.
- */
+/* CPU model specific register (MSR) numbers. */
 
 /* x86-64 specific MSRs */
 #define MSR_EFER		0xc0000080 /* extended feature register */
@@ -537,7 +532,7 @@
 #define MSR_AMD64_DC_CFG		0xc0011022
 
 #define MSR_AMD64_DE_CFG		0xc0011029
-#define MSR_AMD64_DE_CFG_LFENCE_SERIALIZE_BIT	1
+#define MSR_AMD64_DE_CFG_LFENCE_SERIALIZE_BIT	 1
 #define MSR_AMD64_DE_CFG_LFENCE_SERIALIZE	BIT_ULL(MSR_AMD64_DE_CFG_LFENCE_SERIALIZE_BIT)
 
 #define MSR_AMD64_BU_CFG2		0xc001102a
@@ -798,6 +793,7 @@
 #define ENERGY_PERF_BIAS_PERFORMANCE		0
 #define ENERGY_PERF_BIAS_BALANCE_PERFORMANCE	4
 #define ENERGY_PERF_BIAS_NORMAL			6
+#define ENERGY_PERF_BIAS_NORMAL_POWERSAVE	7
 #define ENERGY_PERF_BIAS_BALANCE_POWERSAVE	8
 #define ENERGY_PERF_BIAS_POWERSAVE		15
 
@@ -1051,6 +1047,20 @@
 #define VMX_BASIC_MEM_TYPE_MASK	0x003c000000000000LLU
 #define VMX_BASIC_MEM_TYPE_WB	6LLU
 #define VMX_BASIC_INOUT		0x0040000000000000LLU
+
+/* Resctrl MSRs: */
+/* - Intel: */
+#define MSR_IA32_L3_QOS_CFG		0xc81
+#define MSR_IA32_L2_QOS_CFG		0xc82
+#define MSR_IA32_QM_EVTSEL		0xc8d
+#define MSR_IA32_QM_CTR			0xc8e
+#define MSR_IA32_PQR_ASSOC		0xc8f
+#define MSR_IA32_L3_CBM_BASE		0xc90
+#define MSR_IA32_L2_CBM_BASE		0xd10
+#define MSR_IA32_MBA_THRTL_BASE		0xd50
+
+/* - AMD: */
+#define MSR_IA32_MBA_BW_BASE		0xc0000200
 
 /* MSR_IA32_VMX_MISC bits */
 #define MSR_IA32_VMX_MISC_INTEL_PT                 (1ULL << 14)

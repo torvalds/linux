@@ -287,6 +287,7 @@ struct rxrpc_local {
 	struct hlist_node	link;
 	struct socket		*socket;	/* my UDP socket */
 	struct task_struct	*io_thread;
+	struct completion	io_thread_ready; /* Indication that the I/O thread started */
 	struct rxrpc_sock __rcu	*service;	/* Service(s) listening on this endpoint */
 	struct rw_semaphore	defrag_sem;	/* control re-enablement of IP DF bit */
 	struct sk_buff_head	rx_queue;	/* Received packets */
@@ -811,9 +812,9 @@ extern struct workqueue_struct *rxrpc_workqueue;
  */
 int rxrpc_service_prealloc(struct rxrpc_sock *, gfp_t);
 void rxrpc_discard_prealloc(struct rxrpc_sock *);
-bool rxrpc_new_incoming_call(struct rxrpc_local *, struct rxrpc_peer *,
-			     struct rxrpc_connection *, struct sockaddr_rxrpc *,
-			     struct sk_buff *);
+int rxrpc_new_incoming_call(struct rxrpc_local *, struct rxrpc_peer *,
+			    struct rxrpc_connection *, struct sockaddr_rxrpc *,
+			    struct sk_buff *);
 void rxrpc_accept_incoming_calls(struct rxrpc_local *);
 int rxrpc_user_charge_accept(struct rxrpc_sock *, unsigned long);
 
@@ -1072,7 +1073,6 @@ void rxrpc_destroy_all_peers(struct rxrpc_net *);
 struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *, enum rxrpc_peer_trace);
 struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *, enum rxrpc_peer_trace);
 void rxrpc_put_peer(struct rxrpc_peer *, enum rxrpc_peer_trace);
-void rxrpc_put_peer_locked(struct rxrpc_peer *, enum rxrpc_peer_trace);
 
 /*
  * proc.c

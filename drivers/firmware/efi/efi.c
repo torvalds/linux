@@ -429,7 +429,9 @@ static int __init efisubsys_init(void)
 		platform_device_register_simple("efi_secret", 0, NULL, 0);
 #endif
 
-	execute_with_initialized_rng(&refresh_nv_rng_seed_nb);
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_SET_VARIABLE))
+		execute_with_initialized_rng(&refresh_nv_rng_seed_nb);
+
 	return 0;
 
 err_remove_group:

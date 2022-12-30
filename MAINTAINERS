@@ -10878,6 +10878,7 @@ T:	git git://git.kernel.dk/liburing
 F:	io_uring/
 F:	include/linux/io_uring.h
 F:	include/linux/io_uring_types.h
+F:	include/trace/events/io_uring.h
 F:	include/uapi/linux/io_uring.h
 F:	tools/io_uring/
 
@@ -15336,6 +15337,7 @@ F:	drivers/mfd/menelaus.c
 F:	drivers/mfd/palmas.c
 F:	drivers/mfd/tps65217.c
 F:	drivers/mfd/tps65218.c
+F:	drivers/mfd/tps65219.c
 F:	drivers/mfd/tps65910.c
 F:	drivers/mfd/twl-core.[ch]
 F:	drivers/mfd/twl4030*.c

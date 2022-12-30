@@ -14,7 +14,6 @@
 #include <linux/string.h>
 #include <linux/inet.h>
 #include <linux/pagemap.h>
-#include <linux/idr.h>
 #include <linux/sched.h>
 #include <linux/swap.h>
 #include <linux/uio.h>

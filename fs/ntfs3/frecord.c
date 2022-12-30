@@ -557,7 +557,7 @@ static int ni_repack(struct ntfs_inode *ni)
 		}
 
 		if (!mi_p) {
-			/* Do not try if not enogh free space. */
+			/* Do not try if not enough free space. */
 			if (le32_to_cpu(mi->mrec->used) + 8 >= rs)
 				continue;
 
@@ -568,6 +568,12 @@ static int ni_repack(struct ntfs_inode *ni)
 		}
 
 		roff = le16_to_cpu(attr->nres.run_off);
+
+		if (roff > le32_to_cpu(attr->size)) {
+			err = -EINVAL;
+			break;
+		}
+
 		err = run_unpack(&run, sbi, ni->mi.rno, svcn, evcn, svcn,
 				 Add2Ptr(attr, roff),
 				 le32_to_cpu(attr->size) - roff);
@@ -1589,6 +1595,9 @@ int ni_delete_all(struct ntfs_inode *ni)
 		asize = le32_to_cpu(attr->size);
 		roff = le16_to_cpu(attr->nres.run_off);
 
+		if (roff > asize)
+			return -EINVAL;
+
 		/* run==1 means unpack and deallocate. */
 		run_unpack_ex(RUN_DEALLOCATE, sbi, ni->mi.rno, svcn, evcn, svcn,
 			      Add2Ptr(attr, roff), asize - roff);
@@ -1636,6 +1645,7 @@ struct ATTR_FILE_NAME *ni_fname_name(struct ntfs_inode *ni,
 {
 	struct ATTRIB *attr = NULL;
 	struct ATTR_FILE_NAME *fname;
+       struct le_str *fns;
 
 	if (le)
 		*le = NULL;
@@ -1659,8 +1669,8 @@ next:
 	if (uni->len != fname->name_len)
 		goto next;
 
-	if (ntfs_cmp_names_cpu(uni, (struct le_str *)&fname->name_len, NULL,
-			       false))
+	fns = (struct le_str *)&fname->name_len;
+	if (ntfs_cmp_names_cpu(uni, fns, NULL, false))
 		goto next;
 
 	return fname;
@@ -2214,7 +2224,7 @@ int ni_decompress_file(struct ntfs_inode *ni)
 
 		for (vcn = vbo >> sbi->cluster_bits; vcn < end; vcn += clen) {
 			err = attr_data_get_block(ni, vcn, cend - vcn, &lcn,
-						  &clen, &new);
+						  &clen, &new, false);
 			if (err)
 				goto out;
 		}
@@ -2290,6 +2300,11 @@ remove_wof:
 
 		asize = le32_to_cpu(attr->size);
 		roff = le16_to_cpu(attr->nres.run_off);
+
+		if (roff > asize) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		/*run==1  Means unpack and deallocate. */
 		run_unpack_ex(RUN_DEALLOCATE, sbi, ni->mi.rno, svcn, evcn, svcn,
@@ -2997,12 +3012,26 @@ int ni_add_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
 		struct NTFS_DE *de)
 {
 	int err;
+	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	struct ATTRIB *attr;
 	struct ATTR_LIST_ENTRY *le;
 	struct mft_inode *mi;
 	struct ATTR_FILE_NAME *fname;
 	struct ATTR_FILE_NAME *de_name = (struct ATTR_FILE_NAME *)(de + 1);
 	u16 de_key_size = le16_to_cpu(de->key_size);
+
+	if (sbi->options->windows_names &&
+	    !valid_windows_name(sbi, (struct le_str *)&de_name->name_len))
+		return -EINVAL;
+
+	/* If option "hide_dot_files" then set hidden attribute for dot files. */
+	if (ni->mi.sbi->options->hide_dot_files) {
+		if (de_name->name_len > 0 &&
+		    le16_to_cpu(de_name->name[0]) == '.')
+			ni->std_fa |= FILE_ATTRIBUTE_HIDDEN;
+		else
+			ni->std_fa &= ~FILE_ATTRIBUTE_HIDDEN;
+	}
 
 	mi_get_ref(&ni->mi, &de->ref);
 	mi_get_ref(&dir_ni->mi, &de_name->home);
@@ -3022,7 +3051,7 @@ int ni_add_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
 	memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), de_name, de_key_size);
 
 	/* Insert new name into directory. */
-	err = indx_insert_entry(&dir_ni->dir, dir_ni, de, ni->mi.sbi, NULL, 0);
+	err = indx_insert_entry(&dir_ni->dir, dir_ni, de, sbi, NULL, 0);
 	if (err)
 		ni_remove_attr_le(ni, attr, mi, le);
 
@@ -3265,6 +3294,7 @@ int ni_write_inode(struct inode *inode, int sync, const char *hint)
 			modified = true;
 		}
 
+		/* std attribute is always in primary MFT record. */
 		if (modified)
 			ni->mi.dirty = true;
 

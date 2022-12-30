@@ -292,7 +292,7 @@ protocol_error:
 	skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
 reject_packet:
 	rxrpc_reject_packet(local, skb);
-	return ret;
+	return 0;
 }
 
 /*
@@ -384,7 +384,7 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
 		if (rxrpc_to_client(sp))
 			goto bad_message;
 		if (rxrpc_new_incoming_call(conn->local, conn->peer, conn,
-					    peer_srx, skb))
+					    peer_srx, skb) == 0)
 			return 0;
 		goto reject_packet;
 	}
@@ -425,6 +425,9 @@ int rxrpc_io_thread(void *data)
 	struct rxrpc_local *local = data;
 	struct rxrpc_call *call;
 	struct sk_buff *skb;
+	bool should_stop;
+
+	complete(&local->io_thread_ready);
 
 	skb_queue_head_init(&rx_queue);
 
@@ -476,13 +479,14 @@ int rxrpc_io_thread(void *data)
 		}
 
 		set_current_state(TASK_INTERRUPTIBLE);
+		should_stop = kthread_should_stop();
 		if (!skb_queue_empty(&local->rx_queue) ||
 		    !list_empty(&local->call_attend_q)) {
 			__set_current_state(TASK_RUNNING);
 			continue;
 		}
 
-		if (kthread_should_stop())
+		if (should_stop)
 			break;
 		schedule();
 	}

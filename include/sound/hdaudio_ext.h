@@ -75,6 +75,8 @@ struct hdac_ext_stream *snd_hdac_ext_stream_assign(struct hdac_bus *bus,
 					   struct snd_pcm_substream *substream,
 					   int type);
 void snd_hdac_ext_stream_release(struct hdac_ext_stream *hext_stream, int type);
+struct hdac_ext_stream *snd_hdac_ext_cstream_assign(struct hdac_bus *bus,
+						    struct snd_compr_stream *cstream);
 void snd_hdac_ext_stream_decouple_locked(struct hdac_bus *bus,
 					 struct hdac_ext_stream *hext_stream, bool decouple);
 void snd_hdac_ext_stream_decouple(struct hdac_bus *bus,

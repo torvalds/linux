@@ -342,6 +342,16 @@ static int emit_no_arbitration(struct i915_request *rq)
 	return 0;
 }
 
+static int max_pte_pkt_size(struct i915_request *rq, int pkt)
+{
+	struct intel_ring *ring = rq->ring;
+
+	pkt = min_t(int, pkt, (ring->space - rq->reserved_space) / sizeof(u32) + 5);
+	pkt = min_t(int, pkt, (ring->size - ring->emit) / sizeof(u32) + 5);
+
+	return pkt;
+}
+
 static int emit_pte(struct i915_request *rq,
 		    struct sgt_dma *it,
 		    enum i915_cache_level cache_level,
@@ -388,8 +398,7 @@ static int emit_pte(struct i915_request *rq,
 		return PTR_ERR(cs);
 
 	/* Pack as many PTE updates as possible into a single MI command */
-	pkt = min_t(int, dword_length, ring->space / sizeof(u32) + 5);
-	pkt = min_t(int, pkt, (ring->size - ring->emit) / sizeof(u32) + 5);
+	pkt = max_pte_pkt_size(rq, dword_length);
 
 	hdr = cs;
 	*cs++ = MI_STORE_DATA_IMM | REG_BIT(21); /* as qword elements */
@@ -422,8 +431,7 @@ static int emit_pte(struct i915_request *rq,
 				}
 			}
 
-			pkt = min_t(int, dword_rem, ring->space / sizeof(u32) + 5);
-			pkt = min_t(int, pkt, (ring->size - ring->emit) / sizeof(u32) + 5);
+			pkt = max_pte_pkt_size(rq, dword_rem);
 
 			hdr = cs;
 			*cs++ = MI_STORE_DATA_IMM | REG_BIT(21);
@@ -829,14 +837,35 @@ intel_context_migrate_copy(struct intel_context *ce,
 			if (err)
 				goto out_rq;
 
-			/*
-			 * While we can't always restore/manage the CCS state,
-			 * we still need to ensure we don't leak the CCS state
-			 * from the previous user, so make sure we overwrite it
-			 * with something.
-			 */
-			err = emit_copy_ccs(rq, dst_offset, INDIRECT_ACCESS,
-					    dst_offset, DIRECT_ACCESS, len);
+			if (src_is_lmem) {
+				/*
+				 * If the src is already in lmem, then we must
+				 * be doing an lmem -> lmem transfer, and so
+				 * should be safe to directly copy the CCS
+				 * state. In this case we have either
+				 * initialised the CCS aux state when first
+				 * clearing the pages (since it is already
+				 * allocated in lmem), or the user has
+				 * potentially populated it, in which case we
+				 * need to copy the CCS state as-is.
+				 */
+				err = emit_copy_ccs(rq,
+						    dst_offset, INDIRECT_ACCESS,
+						    src_offset, INDIRECT_ACCESS,
+						    len);
+			} else {
+				/*
+				 * While we can't always restore/manage the CCS
+				 * state, we still need to ensure we don't leak
+				 * the CCS state from the previous user, so make
+				 * sure we overwrite it with something.
+				 */
+				err = emit_copy_ccs(rq,
+						    dst_offset, INDIRECT_ACCESS,
+						    dst_offset, DIRECT_ACCESS,
+						    len);
+			}
+
 			if (err)
 				goto out_rq;
 

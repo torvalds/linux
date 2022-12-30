@@ -1,7 +1,6 @@
 [
     {
         "BriefDescription": "Counts the number of branch instructions retired",
-        "Counter": "0,1",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
         "PEBS": "1",
@@ -9,7 +8,6 @@
     },
     {
         "BriefDescription": "Counts the number of near CALL branch instructions retired.",
-        "Counter": "0,1",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.CALL",
         "PEBS": "1",
@@ -18,7 +16,6 @@
     },
     {
         "BriefDescription": "Counts the number of far branch instructions retired.",
-        "Counter": "0,1",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.FAR_BRANCH",
         "PEBS": "1",
@@ -27,7 +24,6 @@
     },
     {
         "BriefDescription": "Counts the number of near indirect CALL branch instructions retired.",
-        "Counter": "0,1",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.IND_CALL",
         "PEBS": "1",
@@ -36,7 +32,6 @@
     },
     {
         "BriefDescription": "Counts the number of branch instructions retired that were conditional jumps.",
-        "Counter": "0,1",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.JCC",
         "PEBS": "1",
@@ -45,7 +40,6 @@
     },
     {
         "BriefDescription": "Counts the number of branch instructions retired that were near indirect CALL or near indirect JMP.",
-        "Counter": "0,1",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.NON_RETURN_IND",
         "PEBS": "1",
@@ -54,7 +48,6 @@
     },
     {
         "BriefDescription": "Counts the number of near relative CALL branch instructions retired.",
-        "Counter": "0,1",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.REL_CALL",
         "PEBS": "1",
@@ -63,7 +56,6 @@
     },
     {
         "BriefDescription": "Counts the number of near RET branch instructions retired.",
-        "Counter": "0,1",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.RETURN",
         "PEBS": "1",
@@ -72,7 +64,6 @@
     },
     {
         "BriefDescription": "Counts the number of branch instructions retired that were conditional jumps and predicted taken.",
-        "Counter": "0,1",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.TAKEN_JCC",
         "PEBS": "1",
@@ -81,7 +72,6 @@
     },
     {
         "BriefDescription": "Counts the number of mispredicted branch instructions retired",
-        "Counter": "0,1",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
         "PEBS": "1",
@@ -89,7 +79,6 @@
     },
     {
         "BriefDescription": "Counts the number of mispredicted near CALL branch instructions retired.",
-        "Counter": "0,1",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.CALL",
         "PEBS": "1",
@@ -98,7 +87,6 @@
     },
     {
         "BriefDescription": "Counts the number of mispredicted far branch instructions retired.",
-        "Counter": "0,1",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.FAR_BRANCH",
         "PEBS": "1",
@@ -107,7 +95,6 @@
     },
     {
         "BriefDescription": "Counts the number of mispredicted near indirect CALL branch instructions retired.",
-        "Counter": "0,1",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.IND_CALL",
         "PEBS": "1",
@@ -116,7 +103,6 @@
     },
     {
         "BriefDescription": "Counts the number of mispredicted branch instructions retired that were conditional jumps.",
-        "Counter": "0,1",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.JCC",
         "PEBS": "1",
@@ -125,7 +111,6 @@
     },
     {
         "BriefDescription": "Counts the number of mispredicted branch instructions retired that were near indirect CALL or near indirect JMP.",
-        "Counter": "0,1",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.NON_RETURN_IND",
         "PEBS": "1",
@@ -134,7 +119,6 @@
     },
     {
         "BriefDescription": "Counts the number of mispredicted near relative CALL branch instructions retired.",
-        "Counter": "0,1",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.REL_CALL",
         "PEBS": "1",
@@ -143,7 +127,6 @@
     },
     {
         "BriefDescription": "Counts the number of mispredicted near RET branch instructions retired.",
-        "Counter": "0,1",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.RETURN",
         "PEBS": "1",
@@ -152,7 +135,6 @@
     },
     {
         "BriefDescription": "Counts the number of mispredicted branch instructions retired that were conditional jumps and predicted taken.",
-        "Counter": "0,1",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.TAKEN_JCC",
         "PEBS": "1",
@@ -161,7 +143,6 @@
     },
     {
         "BriefDescription": "Counts the number of unhalted reference clock cycles",
-        "Counter": "0,1",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.REF",
         "SampleAfterValue": "2000003",
@@ -169,14 +150,12 @@
     },
     {
         "BriefDescription": "Fixed Counter: Counts the number of unhalted reference clock cycles",
-        "Counter": "Fixed counter 3",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
         "SampleAfterValue": "2000003",
         "UMask": "0x3"
     },
     {
         "BriefDescription": "Fixed Counter: Counts the number of unhalted core clock cycles",
-        "Counter": "Fixed counter 2",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "PublicDescription": "This event counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter",
         "SampleAfterValue": "2000003",
@@ -184,14 +163,12 @@
     },
     {
         "BriefDescription": "Counts the number of unhalted core clock cycles",
-        "Counter": "0,1",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "SampleAfterValue": "2000003"
     },
     {
         "BriefDescription": "Cycles the number of core cycles when divider is busy.  Does not imply a stall waiting for the divider.",
-        "Counter": "0,1",
         "EventCode": "0xCD",
         "EventName": "CYCLES_DIV_BUSY.ALL",
         "PublicDescription": "This event counts cycles when the divider is busy. More specifically cycles when the divide unit is unable to accept a new divide uop because it is busy processing a previously dispatched uop. The cycles will be counted irrespective of whether or not another divide uop is waiting to enter the divide unit (from the RS). This event counts integer divides, x87 divides, divss, divsd, sqrtss, sqrtsd event and does not count vector divides.",
@@ -200,7 +177,6 @@
     },
     {
         "BriefDescription": "Fixed Counter: Counts the number of instructions retired",
-        "Counter": "Fixed counter 1",
         "EventName": "INST_RETIRED.ANY",
         "PublicDescription": "This event counts the number of instructions that retire.  For instructions that consist of multiple micro-ops, this event counts exactly once, as the last micro-op of the instruction retires.  The event continues counting while instructions retire, including during interrupt service routines caused by hardware interrupts, faults or traps.",
         "SampleAfterValue": "2000003",
@@ -208,14 +184,12 @@
     },
     {
         "BriefDescription": "Counts the total number of instructions retired",
-        "Counter": "0,1",
         "EventCode": "0xC0",
         "EventName": "INST_RETIRED.ANY_P",
         "SampleAfterValue": "2000003"
     },
     {
         "BriefDescription": "Counts all nukes",
-        "Counter": "0,1",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.ALL",
         "SampleAfterValue": "200003",
@@ -223,7 +197,6 @@
     },
     {
         "BriefDescription": "Counts the number of times that the machine clears due to program modifying data within 1K of a recently fetched code page",
-        "Counter": "0,1",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.SMC",
         "SampleAfterValue": "200003",
@@ -231,7 +204,6 @@
     },
     {
         "BriefDescription": "Counts the total number of core cycles when no micro-ops are allocated for any reason.",
-        "Counter": "0,1",
         "EventCode": "0xCA",
         "EventName": "NO_ALLOC_CYCLES.ALL",
         "SampleAfterValue": "200003",
@@ -239,7 +211,6 @@
     },
     {
         "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated and the alloc pipe is stalled waiting for a mispredicted branch to retire.",
-        "Counter": "0,1",
         "EventCode": "0xCA",
         "EventName": "NO_ALLOC_CYCLES.MISPREDICTS",
         "PublicDescription": "This event counts the number of core cycles when no uops are allocated and the alloc pipe is stalled waiting for a mispredicted branch to retire.",
@@ -248,7 +219,6 @@
     },
     {
         "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated, the IQ is empty, and no other condition is blocking allocation.",
-        "Counter": "0,1",
         "EventCode": "0xCA",
         "EventName": "NO_ALLOC_CYCLES.NOT_DELIVERED",
         "PublicDescription": "This event counts the number of core cycles when no uops are allocated, the instruction queue is empty and the alloc pipe is stalled waiting for instructions to be fetched.",
@@ -257,7 +227,6 @@
     },
     {
         "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated and a RATstall (caused by reservation station full) is asserted.",
-        "Counter": "0,1",
         "EventCode": "0xCA",
         "EventName": "NO_ALLOC_CYCLES.RAT_STALL",
         "SampleAfterValue": "200003",
@@ -265,7 +234,6 @@
     },
     {
         "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated and the ROB is full",
-        "Counter": "0,1",
         "EventCode": "0xCA",
         "EventName": "NO_ALLOC_CYCLES.ROB_FULL",
         "SampleAfterValue": "200003",
@@ -273,7 +241,6 @@
     },
     {
         "BriefDescription": "Counts any retired load that was pushed into the recycle queue for any reason.",
-        "Counter": "0,1",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.ANY_LD",
         "SampleAfterValue": "200003",
@@ -281,7 +248,6 @@
     },
     {
         "BriefDescription": "Counts any retired store that was pushed into the recycle queue for any reason.",
-        "Counter": "0,1",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.ANY_ST",
         "SampleAfterValue": "200003",
@@ -289,7 +255,6 @@
     },
     {
         "BriefDescription": "Counts the number of occurences a retired load gets blocked because its address overlaps with a store whose data is not ready",
-        "Counter": "0,1",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.LD_BLOCK_STD_NOTREADY",
         "SampleAfterValue": "200003",
@@ -297,7 +262,6 @@
     },
     {
         "BriefDescription": "Counts the number of occurences a retired load gets blocked because its address partially overlaps with a store",
-        "Counter": "0,1",
         "Data_LA": "1",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.LD_BLOCK_ST_FORWARD",
@@ -307,7 +271,6 @@
     },
     {
         "BriefDescription": "Counts the number of occurences a retired load that is a cache line split. Each split should be counted only once.",
-        "Counter": "0,1",
         "Data_LA": "1",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.LD_SPLITS",
@@ -317,7 +280,6 @@
     },
     {
         "BriefDescription": "Counts all the retired locked loads. It does not include stores because we would double count if we count stores",
-        "Counter": "0,1",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.LOCK",
         "SampleAfterValue": "200003",
@@ -325,7 +287,6 @@
     },
     {
         "BriefDescription": "Counts the store micro-ops retired that were pushed in the rehad queue because the store address buffer is full",
-        "Counter": "0,1",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.STA_FULL",
         "SampleAfterValue": "200003",
@@ -333,7 +294,6 @@
     },
     {
         "BriefDescription": "Counts the number of occurences a retired store that is a cache line split. Each split should be counted only once.",
-        "Counter": "0,1",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.ST_SPLITS",
         "PublicDescription": "This event counts the number of retired store that experienced a cache line boundary split(Precise Event). Note that each spilt should be counted only once.",
@@ -342,7 +302,6 @@
     },
     {
         "BriefDescription": "Counts the total number of core cycles the Alloc pipeline is stalled when any one of the reservation stations is full.",
-        "Counter": "0,1",
         "EventCode": "0xCB",
         "EventName": "RS_FULL_STALL.ALL",
         "SampleAfterValue": "200003",
@@ -350,7 +309,6 @@
     },
     {
         "BriefDescription": "Counts the number of core cycles when allocation pipeline is stalled and is waiting for a free MEC reservation station entry.",
-        "Counter": "0,1",
         "EventCode": "0xCB",
         "EventName": "RS_FULL_STALL.MEC",
         "SampleAfterValue": "200003",
@@ -358,7 +316,6 @@
     },
     {
         "BriefDescription": "Counts the number of micro-ops retired",
-        "Counter": "0,1",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.ALL",
         "PublicDescription": "This event counts the number of micro-ops (uops) retired. The processor decodes complex macro instructions into a sequence of simpler uops. Most instructions are composed of one or two uops. Some instructions are decoded into longer sequences such as repeat instructions, floating point transcendental instructions, and assists.",
@@ -367,7 +324,6 @@
     },
     {
         "BriefDescription": "Counts the number of micro-ops retired that are from the complex flows issued by the micro-sequencer (MS).",
-        "Counter": "0,1",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.MS",
         "PublicDescription": "This event counts the number of micro-ops retired that were supplied from MSROM.",

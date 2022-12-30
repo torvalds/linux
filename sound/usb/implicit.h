@@ -9,6 +9,6 @@ const struct audioformat *
 snd_usb_find_implicit_fb_sync_format(struct snd_usb_audio *chip,
 				     const struct audioformat *target,
 				     const struct snd_pcm_hw_params *params,
-				     int stream);
+				     int stream, bool *fixed_rate);
 
 #endif /* __USBAUDIO_IMPLICIT_H */

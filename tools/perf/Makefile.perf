@@ -1151,3 +1151,6 @@ FORCE:
 .PHONY: archheaders
 
 endif # force_fixdep
+
+# Delete partially updated (corrupted) files on error
+.DELETE_ON_ERROR:

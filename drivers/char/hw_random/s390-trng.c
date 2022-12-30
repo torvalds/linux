@@ -23,6 +23,7 @@
 #include <linux/sched/signal.h>
 #include <asm/debug.h>
 #include <asm/cpacf.h>
+#include <asm/archrandom.h>
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("IBM Corporation");

@@ -97,6 +97,7 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 		local->rxnet = rxnet;
 		INIT_HLIST_NODE(&local->link);
 		init_rwsem(&local->defrag_sem);
+		init_completion(&local->io_thread_ready);
 		skb_queue_head_init(&local->rx_queue);
 		INIT_LIST_HEAD(&local->call_attend_q);
 		local->client_bundles = RB_ROOT;
@@ -189,6 +190,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		goto error_sock;
 	}
 
+	wait_for_completion(&local->io_thread_ready);
 	local->io_thread = io_thread;
 	_leave(" = 0");
 	return 0;
@@ -357,10 +359,11 @@ struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *local,
  */
 void rxrpc_unuse_local(struct rxrpc_local *local, enum rxrpc_local_trace why)
 {
-	unsigned int debug_id = local->debug_id;
+	unsigned int debug_id;
 	int r, u;
 
 	if (local) {
+		debug_id = local->debug_id;
 		r = refcount_read(&local->ref);
 		u = atomic_dec_return(&local->active_users);
 		trace_rxrpc_local(debug_id, why, r, u);

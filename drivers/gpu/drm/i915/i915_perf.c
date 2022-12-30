@@ -1383,6 +1383,9 @@ static u32 oa_context_image_offset(struct intel_context *ce, u32 reg)
 	u32 offset, len = (ce->engine->context_size - PAGE_SIZE) / 4;
 	u32 *state = ce->lrc_reg_state;
 
+	if (drm_WARN_ON(&ce->engine->i915->drm, !state))
+		return U32_MAX;
+
 	for (offset = 0; offset < len; ) {
 		if (IS_MI_LRI_CMD(state[offset])) {
 			/*
@@ -1447,7 +1450,8 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
-	if (engine_supports_mi_query(stream->engine)) {
+	if (engine_supports_mi_query(stream->engine) &&
+	    HAS_LOGICAL_RING_CONTEXTS(stream->perf->i915)) {
 		/*
 		 * We are enabling perf query here. If we don't find the context
 		 * offset here, just return an error.

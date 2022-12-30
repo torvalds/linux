@@ -21,6 +21,7 @@
 #include <asm/bootinfo.h>
 #include <asm/addrspace.h>
 #include <asm/prom.h>
+#include <asm/mach-ralink/ralink_regs.h>
 
 #include "common.h"
 
@@ -81,7 +82,8 @@ static int __init plat_of_setup(void)
 	__dt_register_buses(soc_info.compatible, "palmbus");
 
 	/* make sure that the reset controller is setup early */
-	ralink_rst_init();
+	if (ralink_soc != MT762X_SOC_MT7621AT)
+		ralink_rst_init();
 
 	return 0;
 }

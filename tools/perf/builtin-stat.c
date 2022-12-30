@@ -266,7 +266,7 @@ static void evlist__check_cpu_maps(struct evlist *evlist)
 		evsel__group_desc(leader, buf, sizeof(buf));
 		pr_warning("  %s\n", buf);
 
-		if (verbose) {
+		if (verbose > 0) {
 			cpu_map__snprint(leader->core.cpus, buf, sizeof(buf));
 			pr_warning("     %s: %s\n", leader->name, buf);
 			cpu_map__snprint(evsel->core.cpus, buf, sizeof(buf));
@@ -2493,7 +2493,7 @@ int cmd_stat(int argc, const char **argv)
 		if (iostat_mode == IOSTAT_LIST) {
 			iostat_list(evsel_list, &stat_config);
 			goto out;
-		} else if (verbose)
+		} else if (verbose > 0)
 			iostat_list(evsel_list, &stat_config);
 		if (iostat_mode == IOSTAT_RUN && !target__has_cpu(&target))
 			target.system_wide = true;

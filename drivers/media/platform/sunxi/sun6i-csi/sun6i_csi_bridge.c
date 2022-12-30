@@ -663,7 +663,7 @@ sun6i_csi_bridge_notifier_bound(struct v4l2_async_notifier *notifier,
 		enabled = !bridge->source_parallel.expected;
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	source->subdev = remote_subdev;

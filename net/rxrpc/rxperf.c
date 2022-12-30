@@ -275,7 +275,7 @@ static void rxperf_deliver_to_call(struct work_struct *work)
 	struct rxperf_call *call = container_of(work, struct rxperf_call, work);
 	enum rxperf_call_state state;
 	u32 abort_code, remote_abort = 0;
-	int ret;
+	int ret = 0;
 
 	if (call->state == RXPERF_CALL_COMPLETE)
 		return;

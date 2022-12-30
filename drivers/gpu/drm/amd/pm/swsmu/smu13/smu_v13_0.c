@@ -290,6 +290,8 @@ int smu_v13_0_check_fw_version(struct smu_context *smu)
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_ALDE;
 		break;
 	case IP_VERSION(13, 0, 0):
+		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_SMU_V13_0_0_0;
+		break;
 	case IP_VERSION(13, 0, 10):
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_SMU_V13_0_0_10;
 		break;
@@ -2176,6 +2178,21 @@ int smu_v13_0_run_btc(struct smu_context *smu)
 	res = smu_cmn_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL);
 	if (res)
 		dev_err(smu->adev->dev, "RunDcBtc failed!\n");
+
+	return res;
+}
+
+int smu_v13_0_gpo_control(struct smu_context *smu,
+			  bool enablement)
+{
+	int res;
+
+	res = smu_cmn_send_smc_msg_with_param(smu,
+					      SMU_MSG_AllowGpo,
+					      enablement ? 1 : 0,
+					      NULL);
+	if (res)
+		dev_err(smu->adev->dev, "SetGpoAllow %d failed!\n", enablement);
 
 	return res;
 }

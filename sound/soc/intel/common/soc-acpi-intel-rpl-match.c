@@ -112,7 +112,7 @@ static const struct snd_soc_acpi_adr_device rt1316_1_group2_adr[] = {
 
 static const struct snd_soc_acpi_adr_device rt1318_1_group1_adr[] = {
 	{
-		.adr = 0x000131025D131801ull,
+		.adr = 0x000132025D131801ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_l_endpoint,
 		.name_prefix = "rt1318-1"

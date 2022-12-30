@@ -512,6 +512,7 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send,
 	noreclaim_flag = memalloc_noreclaim_save();
 	do {
 		sock->sk->sk_allocation = GFP_NOIO | __GFP_MEMALLOC;
+		sock->sk->sk_use_task_frag = false;
 		msg.msg_name = NULL;
 		msg.msg_namelen = 0;
 		msg.msg_control = NULL;

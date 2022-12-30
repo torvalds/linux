@@ -824,9 +824,9 @@ void intel_uncore_forcewake_flush(struct intel_uncore *uncore,
 }
 
 /**
- * intel_uncore_forcewake_put__locked - grab forcewake domain references
+ * intel_uncore_forcewake_put__locked - release forcewake domain references
  * @uncore: the intel_uncore structure
- * @fw_domains: forcewake domains to get reference on
+ * @fw_domains: forcewake domains to put references
  *
  * See intel_uncore_forcewake_put(). This variant places the onus
  * on the caller to explicitly handle the dev_priv->uncore.lock spinlock.

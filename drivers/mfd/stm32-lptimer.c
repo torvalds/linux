@@ -52,7 +52,6 @@ static int stm32_lptimer_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct stm32_lptimer *ddata;
-	struct resource *res;
 	void __iomem *mmio;
 	int ret;
 
@@ -60,8 +59,7 @@ static int stm32_lptimer_probe(struct platform_device *pdev)
 	if (!ddata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mmio = devm_ioremap_resource(dev, res);
+	mmio = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(mmio))
 		return PTR_ERR(mmio);
 

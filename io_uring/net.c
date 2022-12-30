@@ -494,6 +494,7 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		compat_ssize_t clen;
 
+		iomsg->free_iov = NULL;
 		if (msg.msg_iovlen == 0) {
 			sr->len = 0;
 		} else if (msg.msg_iovlen > 1) {
@@ -819,10 +820,10 @@ retry_multishot:
 		goto retry_multishot;
 
 	if (mshot_finished) {
-		io_netmsg_recycle(req, issue_flags);
 		/* fast path, check for non-NULL to avoid function call */
 		if (kmsg->free_iov)
 			kfree(kmsg->free_iov);
+		io_netmsg_recycle(req, issue_flags);
 		req->flags &= ~REQ_F_NEED_CLEANUP;
 	}
 
