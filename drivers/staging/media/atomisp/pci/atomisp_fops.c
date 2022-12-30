@@ -828,13 +828,17 @@ static int atomisp_release(struct file *file)
 
 	atomisp_css_free_stat_buffers(asd);
 	atomisp_free_internal_buffers(asd);
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-			       core, s_power, 0);
-	if (ret)
-		dev_warn(isp->dev, "Failed to power-off sensor\n");
 
-	/* clear the asd field to show this camera is not used */
-	isp->inputs[asd->input_curr].asd = NULL;
+	if (isp->inputs[asd->input_curr].asd == asd) {
+		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+				       core, s_power, 0);
+		if (ret)
+			dev_warn(isp->dev, "Failed to power-off sensor\n");
+
+		/* clear the asd field to show this camera is not used */
+		isp->inputs[asd->input_curr].asd = NULL;
+	}
+
 	spin_lock_irqsave(&isp->lock, flags);
 	asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
 	spin_unlock_irqrestore(&isp->lock, flags);
