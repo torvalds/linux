@@ -1187,7 +1187,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/*
 	 * Typical $AttrDef contains up to 20 entries.
-	 * Check for extremely large size.
+	 * Check for extremely large/small size.
 	 */
 	if (inode->i_size < sizeof(struct ATTR_DEF_ENTRY) ||
 	    inode->i_size > 100 * sizeof(struct ATTR_DEF_ENTRY)) {
