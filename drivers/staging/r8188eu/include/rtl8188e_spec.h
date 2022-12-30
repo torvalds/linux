@@ -510,28 +510,7 @@ Default: 00b.
 /*        8192C BW_OPMODE bits		(Offset 0x203, 8bit) */
 #define	BW_OPMODE_20MHZ			BIT(2)
 
-/*        8192C CAM Config Setting (offset 0x250, 1 byte) */
-#define	CAM_VALID			BIT(15)
-#define	CAM_NOTVALID			0x0000
-#define	CAM_USEDK			BIT(5)
-
-#define	CAM_CONTENT_COUNT		8
-
-#define	CAM_NONE			0x0
-#define	CAM_WEP40			0x01
-#define	CAM_TKIP			0x02
-#define	CAM_AES				0x04
-#define	CAM_WEP104			0x05
-#define	CAM_SMS4			0x6
-
-#define	TOTAL_CAM_ENTRY			32
-#define	HALF_CAM_ENTRY			16
-
-#define	CAM_CONFIG_USEDK		true
-#define	CAM_CONFIG_NO_USEDK		false
-
 #define	CAM_WRITE			BIT(16)
-#define	CAM_READ			0x00000000
 #define	CAM_POLLINIG			BIT(31)
 
 #define	SCR_UseDK			0x01
