@@ -9,16 +9,6 @@
 #include "../include/usb_ops.h"
 #include "../include/rtl8188e_hal.h"
 
-s32	rtl8188eu_init_xmit_priv(struct adapter *adapt)
-{
-	struct xmit_priv	*pxmitpriv = &adapt->xmitpriv;
-
-	tasklet_init(&pxmitpriv->xmit_tasklet,
-		     rtl8188eu_xmit_tasklet,
-		     (unsigned long)adapt);
-	return _SUCCESS;
-}
-
 static void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 {
 	u16	*usptr = (u16 *)ptxdesc;
