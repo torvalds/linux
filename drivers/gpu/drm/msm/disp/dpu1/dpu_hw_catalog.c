@@ -117,8 +117,7 @@
 			 BIT(MDP_INTF0_7xxx_INTR) | \
 			 BIT(MDP_INTF1_7xxx_INTR) | \
 			 BIT(MDP_INTF2_7xxx_INTR) | \
-			 BIT(MDP_INTF3_7xxx_INTR) | \
-			 0)
+			 BIT(MDP_INTF3_7xxx_INTR))
 
 #define IRQ_SC8180X_MASK (BIT(MDP_SSPP_TOP0_INTR) | \
 			  BIT(MDP_SSPP_TOP0_INTR2) | \
