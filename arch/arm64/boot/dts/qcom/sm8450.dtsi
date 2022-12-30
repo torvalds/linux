@@ -3546,7 +3546,7 @@
 
 		};
 
-		lpass_tlmm: pinctrl@3440000{
+		lpass_tlmm: pinctrl@3440000 {
 			compatible = "qcom,sm8450-lpass-lpi-pinctrl";
 			reg = <0 0x3440000 0x0 0x20000>,
 			      <0 0x34d0000 0x0 0x10000>;

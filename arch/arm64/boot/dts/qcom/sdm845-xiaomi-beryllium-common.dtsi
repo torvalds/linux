@@ -541,7 +541,7 @@
 	firmware-name = "qcom/sdm845/beryllium/venus.mbn";
 };
 
-&wcd9340{
+&wcd9340 {
 	pinctrl-0 = <&wcd_intr_default>;
 	pinctrl-names = "default";
 	clock-names = "extclk";

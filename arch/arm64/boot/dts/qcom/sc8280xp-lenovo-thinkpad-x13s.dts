@@ -743,7 +743,7 @@
 		vdd-supply = <&vreg_s10b>;
 	};
 
-	right_spkr: wsa8830-right@0,2{
+	right_spkr: wsa8830-right@0,2 {
 		compatible = "sdw10217020200";
 		reg = <0 2>;
 		pinctrl-names = "default";

@@ -3419,7 +3419,7 @@
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		timer@17c20000{
+		timer@17c20000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0 0 0x20000000>;

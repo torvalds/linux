@@ -1594,7 +1594,7 @@
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		compute_noc: interconnect@a0c0000{
+		compute_noc: interconnect@a0c0000 {
 			compatible = "qcom,sm8350-compute-noc";
 			reg = <0 0x0a0c0000 0 0xa180>;
 			#interconnect-cells = <1>;

@@ -654,7 +654,7 @@
 	firmware-name = "qcom/sdm850/samsung/w737/qcvss850.mbn";
 };
 
-&wcd9340{
+&wcd9340 {
 	pinctrl-0 = <&wcd_intr_default>;
 	pinctrl-names = "default";
 	clock-names = "extclk";

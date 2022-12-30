@@ -2402,7 +2402,7 @@
 			clock-names = "core", "audio", "bus";
 		};
 
-		lpass_tlmm: pinctrl@33c0000{
+		lpass_tlmm: pinctrl@33c0000 {
 			compatible = "qcom,sm8250-lpass-lpi-pinctrl";
 			reg = <0 0x033c0000 0x0 0x20000>,
 			      <0 0x03550000 0x0 0x10000>;
