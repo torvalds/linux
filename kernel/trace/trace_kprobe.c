@@ -1225,6 +1225,7 @@ process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 {
 	struct pt_regs *regs = rec;
 	unsigned long val;
+	int ret;
 
 retry:
 	/* 1st stage: get value from context */
@@ -1241,15 +1242,6 @@ retry:
 	case FETCH_OP_RETVAL:
 		val = regs_return_value(regs);
 		break;
-	case FETCH_OP_IMM:
-		val = code->immediate;
-		break;
-	case FETCH_OP_COMM:
-		val = (unsigned long)current->comm;
-		break;
-	case FETCH_OP_DATA:
-		val = (unsigned long)code->data;
-		break;
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
 	case FETCH_OP_ARG:
 		val = regs_get_kernel_argument(regs, code->param);
@@ -1259,7 +1251,9 @@ retry:
 		code++;
 		goto retry;
 	default:
-		return -EILSEQ;
+		ret = process_common_fetch_insn(code, &val);
+		if (ret < 0)
+			return ret;
 	}
 	code++;
 

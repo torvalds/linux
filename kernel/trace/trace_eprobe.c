@@ -396,20 +396,12 @@ static int get_eprobe_size(struct trace_probe *tp, void *rec)
 			case FETCH_OP_TP_ARG:
 				val = get_event_field(code, rec);
 				break;
-			case FETCH_OP_IMM:
-				val = code->immediate;
-				break;
-			case FETCH_OP_COMM:
-				val = (unsigned long)current->comm;
-				break;
-			case FETCH_OP_DATA:
-				val = (unsigned long)code->data;
-				break;
 			case FETCH_NOP_SYMBOL:	/* Ignore a place holder */
 				code++;
 				goto retry;
 			default:
-				continue;
+				if (process_common_fetch_insn(code, &val) < 0)
+					continue;
 			}
 			code++;
 			len = process_fetch_insn_bottom(code, val, NULL, NULL);
@@ -429,26 +421,20 @@ process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 		   void *base)
 {
 	unsigned long val;
+	int ret;
 
  retry:
 	switch (code->op) {
 	case FETCH_OP_TP_ARG:
 		val = get_event_field(code, rec);
 		break;
-	case FETCH_OP_IMM:
-		val = code->immediate;
-		break;
-	case FETCH_OP_COMM:
-		val = (unsigned long)current->comm;
-		break;
-	case FETCH_OP_DATA:
-		val = (unsigned long)code->data;
-		break;
 	case FETCH_NOP_SYMBOL:	/* Ignore a place holder */
 		code++;
 		goto retry;
 	default:
-		return -EILSEQ;
+		ret = process_common_fetch_insn(code, &val);
+		if (ret < 0)
+			return ret;
 	}
 	code++;
 	return process_fetch_insn_bottom(code, val, dest, base);

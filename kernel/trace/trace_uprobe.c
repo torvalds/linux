@@ -220,6 +220,7 @@ process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 {
 	struct pt_regs *regs = rec;
 	unsigned long val;
+	int ret;
 
 	/* 1st stage: get value from context */
 	switch (code->op) {
@@ -235,20 +236,16 @@ process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 	case FETCH_OP_RETVAL:
 		val = regs_return_value(regs);
 		break;
-	case FETCH_OP_IMM:
-		val = code->immediate;
-		break;
 	case FETCH_OP_COMM:
 		val = FETCH_TOKEN_COMM;
-		break;
-	case FETCH_OP_DATA:
-		val = (unsigned long)code->data;
 		break;
 	case FETCH_OP_FOFFS:
 		val = translate_user_vaddr(code->immediate);
 		break;
 	default:
-		return -EILSEQ;
+		ret = process_common_fetch_insn(code, &val);
+		if (ret < 0)
+			return ret;
 	}
 	code++;
 

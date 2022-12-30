@@ -98,6 +98,26 @@ fetch_store_symstring(unsigned long addr, void *dest, void *base)
 	return sprint_symbol(__dest, addr);
 }
 
+/* common part of process_fetch_insn*/
+static nokprobe_inline int
+process_common_fetch_insn(struct fetch_insn *code, unsigned long *val)
+{
+	switch (code->op) {
+	case FETCH_OP_IMM:
+		*val = code->immediate;
+		break;
+	case FETCH_OP_COMM:
+		*val = (unsigned long)current->comm;
+		break;
+	case FETCH_OP_DATA:
+		*val = (unsigned long)code->data;
+		break;
+	default:
+		return -EILSEQ;
+	}
+	return 0;
+}
+
 /* From the 2nd stage, routine is same */
 static nokprobe_inline int
 process_fetch_insn_bottom(struct fetch_insn *code, unsigned long val,
