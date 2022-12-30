@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config USB_WIFI_ECR6600U
+	bool "USB WIFI ECR6600U"
+	help
+	  usb wifi ECR6600U.
+
