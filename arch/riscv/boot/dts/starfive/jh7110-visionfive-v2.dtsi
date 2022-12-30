@@ -406,6 +406,11 @@
 		};
 	};
 
+	tinker_ft5406: tinker_ft5406@38 {
+		compatible = "tinker_ft5406";
+		reg = <0x38>;
+	};
+
 	panel_radxa@19 {
 		compatible ="starfive_jadard";
 		reg = <0x19>;
