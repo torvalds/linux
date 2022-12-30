@@ -3739,15 +3739,13 @@ static void on_action_public(struct adapter *padapter, struct recv_frame *precv_
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 	u8 *frame_body = (u8 *)&mgmt->u;
-	u8 token;
 
 	/* All members of the action enum start with action_code. */
 	if (mgmt->u.action.u.s1g.action_code == WLAN_PUB_ACTION_VENDOR_SPECIFIC) {
 		if (!memcmp(frame_body + 2, P2P_OUI, 4))
 			on_action_public_p2p(precv_frame);
 	} else {
-		token = frame_body[2];
-		rtw_action_public_decache(precv_frame, token);
+		rtw_action_public_decache(precv_frame, frame_body[2]);
 	}
 }
 
