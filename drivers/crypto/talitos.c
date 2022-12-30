@@ -1393,7 +1393,7 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 		alloc_len += sizeof(struct talitos_desc);
 	alloc_len += ivsize;
 
-	edesc = kmalloc(alloc_len, GFP_DMA | flags);
+	edesc = kmalloc(ALIGN(alloc_len, dma_get_cache_alignment()), flags);
 	if (!edesc)
 		return ERR_PTR(-ENOMEM);
 	if (ivsize) {
