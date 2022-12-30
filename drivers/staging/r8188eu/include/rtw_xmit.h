@@ -262,7 +262,6 @@ struct	xmit_priv {
 	struct __queue bk_pending;
 	struct __queue vi_pending;
 	struct __queue vo_pending;
-	struct __queue bm_pending;
 	u8 *pallocated_frame_buf;
 	u8 *pxmit_frame_buf;
 	uint free_xmitframe_cnt;

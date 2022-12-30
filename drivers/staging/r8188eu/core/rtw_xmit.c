@@ -81,7 +81,6 @@ int _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 	rtw_init_queue(&pxmitpriv->bk_pending);
 	rtw_init_queue(&pxmitpriv->vi_pending);
 	rtw_init_queue(&pxmitpriv->vo_pending);
-	rtw_init_queue(&pxmitpriv->bm_pending);
 
 	rtw_init_queue(&pxmitpriv->free_xmit_queue);
 
