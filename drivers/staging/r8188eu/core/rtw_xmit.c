@@ -189,8 +189,6 @@ int _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 	if (rtw_alloc_hwxmits(padapter))
 		goto free_xmit_extbuf;
 
-	rtw_init_hwxmits(pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
-
 	for (i = 0; i < 4; i++)
 		pxmitpriv->wmm_para_seq[i] = i;
 
@@ -1568,14 +1566,6 @@ void rtw_free_hwxmits(struct adapter *padapter)
 
 	hwxmits = pxmitpriv->hwxmits;
 	kfree(hwxmits);
-}
-
-void rtw_init_hwxmits(struct hw_xmit *phwxmit, int entry)
-{
-	int i;
-
-	for (i = 0; i < entry; i++, phwxmit++)
-		phwxmit->accnt = 0;
 }
 
 static int rtw_br_client_tx(struct adapter *padapter, struct sk_buff **pskb)
