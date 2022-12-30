@@ -809,90 +809,91 @@ s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattr
 
 	SetFrameSubType(fctrl, pattrib->subtype);
 
-	if (pattrib->subtype & IEEE80211_FTYPE_DATA) {
-		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-			/* to_ds = 1, fr_ds = 0; */
-			/* Data transfer to AP */
-			SetToDs(fctrl);
-			memcpy(pwlanhdr->addr1, get_bssid(pmlmepriv), ETH_ALEN);
-			memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
-			memcpy(pwlanhdr->addr3, pattrib->dst, ETH_ALEN);
+	if (!(pattrib->subtype & IEEE80211_FTYPE_DATA))
+		return _SUCCESS;
 
-			if (pqospriv->qos_option)
-				qos_option = true;
-		} else if (check_fwstate(pmlmepriv,  WIFI_AP_STATE)) {
-			/* to_ds = 0, fr_ds = 1; */
-			SetFrDs(fctrl);
-			memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
-			memcpy(pwlanhdr->addr2, get_bssid(pmlmepriv), ETH_ALEN);
-			memcpy(pwlanhdr->addr3, pattrib->src, ETH_ALEN);
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
+		/* to_ds = 1, fr_ds = 0; */
+		/* Data transfer to AP */
+		SetToDs(fctrl);
+		memcpy(pwlanhdr->addr1, get_bssid(pmlmepriv), ETH_ALEN);
+		memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
+		memcpy(pwlanhdr->addr3, pattrib->dst, ETH_ALEN);
 
-			if (psta->qos_option)
-				qos_option = true;
-		} else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) ||
-			   check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
-			memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
-			memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
-			memcpy(pwlanhdr->addr3, get_bssid(pmlmepriv), ETH_ALEN);
+		if (pqospriv->qos_option)
+			qos_option = true;
+	} else if (check_fwstate(pmlmepriv,  WIFI_AP_STATE)) {
+		/* to_ds = 0, fr_ds = 1; */
+		SetFrDs(fctrl);
+		memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
+		memcpy(pwlanhdr->addr2, get_bssid(pmlmepriv), ETH_ALEN);
+		memcpy(pwlanhdr->addr3, pattrib->src, ETH_ALEN);
 
-			if (psta->qos_option)
-				qos_option = true;
-		} else {
-			res = _FAIL;
-			goto exit;
+		if (psta->qos_option)
+			qos_option = true;
+	} else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) ||
+		   check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
+		memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
+		memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
+		memcpy(pwlanhdr->addr3, get_bssid(pmlmepriv), ETH_ALEN);
+
+		if (psta->qos_option)
+			qos_option = true;
+	} else {
+		res = _FAIL;
+		goto exit;
+	}
+
+	if (pattrib->mdata)
+		SetMData(fctrl);
+
+	if (pattrib->encrypt)
+		SetPrivacy(fctrl);
+
+	if (qos_option) {
+		qc = (unsigned short *)(hdr + pattrib->hdrlen - 2);
+
+		if (pattrib->priority)
+			SetPriority(qc, pattrib->priority);
+
+		SetEOSP(qc, pattrib->eosp);
+
+		SetAckpolicy(qc, pattrib->ack_policy);
+	}
+
+	/* TODO: fill HT Control Field */
+
+	/* Update Seq Num will be handled by f/w */
+	if (psta) {
+		psta->sta_xmitpriv.txseq_tid[pattrib->priority]++;
+		psta->sta_xmitpriv.txseq_tid[pattrib->priority] &= 0xFFF;
+
+		pattrib->seqnum = psta->sta_xmitpriv.txseq_tid[pattrib->priority];
+
+		SetSeqNum(hdr, pattrib->seqnum);
+
+		/* check if enable ampdu */
+		if (pattrib->ht_en && psta->htpriv.ampdu_enable) {
+			if (psta->htpriv.agg_enable_bitmap & BIT(pattrib->priority))
+				pattrib->ampdu_en = true;
 		}
 
-		if (pattrib->mdata)
-			SetMData(fctrl);
+		/* re-check if enable ampdu by BA_starting_seqctrl */
+		if (pattrib->ampdu_en) {
+			u16 tx_seq;
 
-		if (pattrib->encrypt)
-			SetPrivacy(fctrl);
+			tx_seq = psta->BA_starting_seqctrl[pattrib->priority & 0x0f];
 
-		if (qos_option) {
-			qc = (unsigned short *)(hdr + pattrib->hdrlen - 2);
+			/* check BA_starting_seqctrl */
+			if (SN_LESS(pattrib->seqnum, tx_seq)) {
+				pattrib->ampdu_en = false;/* AGG BK */
+			} else if (SN_EQUAL(pattrib->seqnum, tx_seq)) {
+				psta->BA_starting_seqctrl[pattrib->priority & 0x0f] = (tx_seq + 1) & 0xfff;
 
-			if (pattrib->priority)
-				SetPriority(qc, pattrib->priority);
-
-			SetEOSP(qc, pattrib->eosp);
-
-			SetAckpolicy(qc, pattrib->ack_policy);
-		}
-
-		/* TODO: fill HT Control Field */
-
-		/* Update Seq Num will be handled by f/w */
-		if (psta) {
-			psta->sta_xmitpriv.txseq_tid[pattrib->priority]++;
-			psta->sta_xmitpriv.txseq_tid[pattrib->priority] &= 0xFFF;
-
-			pattrib->seqnum = psta->sta_xmitpriv.txseq_tid[pattrib->priority];
-
-			SetSeqNum(hdr, pattrib->seqnum);
-
-			/* check if enable ampdu */
-			if (pattrib->ht_en && psta->htpriv.ampdu_enable) {
-				if (psta->htpriv.agg_enable_bitmap & BIT(pattrib->priority))
-					pattrib->ampdu_en = true;
-			}
-
-			/* re-check if enable ampdu by BA_starting_seqctrl */
-			if (pattrib->ampdu_en) {
-				u16 tx_seq;
-
-				tx_seq = psta->BA_starting_seqctrl[pattrib->priority & 0x0f];
-
-				/* check BA_starting_seqctrl */
-				if (SN_LESS(pattrib->seqnum, tx_seq)) {
-					pattrib->ampdu_en = false;/* AGG BK */
-				} else if (SN_EQUAL(pattrib->seqnum, tx_seq)) {
-					psta->BA_starting_seqctrl[pattrib->priority & 0x0f] = (tx_seq + 1) & 0xfff;
-
-					pattrib->ampdu_en = true;/* AGG EN */
-				} else {
-					psta->BA_starting_seqctrl[pattrib->priority & 0x0f] = (pattrib->seqnum + 1) & 0xfff;
-					pattrib->ampdu_en = true;/* AGG EN */
-				}
+				pattrib->ampdu_en = true;/* AGG EN */
+			} else {
+				psta->BA_starting_seqctrl[pattrib->priority & 0x0f] = (pattrib->seqnum + 1) & 0xfff;
+				pattrib->ampdu_en = true;/* AGG EN */
 			}
 		}
 	}
