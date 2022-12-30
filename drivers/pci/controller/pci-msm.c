@@ -7656,10 +7656,10 @@ static void msm_pcie_irq_deinit(struct msm_pcie_dev_t *dev)
 		disable_irq(dev->wake_n);
 }
 
-static bool msm_pcie_check_l0s_support(struct pci_dev *pdev,
-					struct msm_pcie_dev_t *pcie_dev)
+static int msm_pcie_check_l0s_support(struct pci_dev *pdev, void *dev)
 {
 	struct pci_dev *parent = pdev->bus->self;
+	struct msm_pcie_dev_t *pcie_dev = (struct msm_pcie_dev_t *)dev;
 	u32 val;
 
 	/* check parent supports L0s */
@@ -7677,7 +7677,8 @@ static bool msm_pcie_check_l0s_support(struct pci_dev *pdev,
 				pcie_dev->rc_idx, parent->bus->number,
 				PCI_SLOT(parent->devfn),
 				PCI_FUNC(parent->devfn));
-			return false;
+			pcie_dev->l0s_supported = false;
+			return 0;
 		}
 	}
 
@@ -7687,10 +7688,10 @@ static bool msm_pcie_check_l0s_support(struct pci_dev *pdev,
 			"PCIe: RC%d: PCI device %02x:%02x.%01x does not support L0s\n",
 			pcie_dev->rc_idx, pdev->bus->number,
 			PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
-		return false;
+		pcie_dev->l0s_supported = false;
 	}
 
-	return true;
+	return 0;
 }
 
 static bool msm_pcie_check_l1_support(struct pci_dev *pdev,
@@ -7834,17 +7835,12 @@ static void msm_pcie_config_l0s(struct msm_pcie_dev_t *dev,
 				struct pci_dev *pdev, bool enable)
 {
 	u32 lnkctl_offset = pdev->pcie_cap + PCI_EXP_LNKCTL;
-	int ret;
 
 	PCIE_DBG(dev, "PCIe: RC%d: PCI device %02x:%02x.%01x %s\n",
 		dev->rc_idx, pdev->bus->number, PCI_SLOT(pdev->devfn),
 		PCI_FUNC(pdev->devfn), enable ? "enable" : "disable");
 
 	if (enable) {
-		ret = msm_pcie_check_l0s_support(pdev, dev);
-		if (!ret)
-			return;
-
 		msm_pcie_config_clear_set_dword(pdev, lnkctl_offset, 0,
 			PCI_EXP_LNKCTL_ASPM_L0S);
 	} else {
@@ -7875,12 +7871,18 @@ static int msm_pcie_config_l0s_enable(struct pci_dev *pdev, void *dev)
 {
 	struct msm_pcie_dev_t *pcie_dev = (struct msm_pcie_dev_t *)dev;
 
+	if (!pcie_dev->l0s_supported)
+		return 0;
+
 	msm_pcie_config_l0s(pcie_dev, pdev, true);
 	return 0;
 }
 
 static void msm_pcie_config_l0s_enable_all(struct msm_pcie_dev_t *dev)
 {
+	if (dev->l0s_supported)
+		pci_walk_bus(dev->dev->bus, msm_pcie_check_l0s_support, dev);
+
 	if (dev->l0s_supported)
 		pci_walk_bus(dev->dev->bus, msm_pcie_config_l0s_enable, dev);
 }
