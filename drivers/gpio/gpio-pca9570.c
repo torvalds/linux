@@ -18,11 +18,11 @@
 #define SLG7XL45106_GPO_REG	0xDB
 
 /**
- * struct pca9570_platform_data - GPIO platformdata
+ * struct pca9570_chip_data - GPIO platformdata
  * @ngpio: no of gpios
  * @command: Command to be sent
  */
-struct pca9570_platform_data {
+struct pca9570_chip_data {
 	u16 ngpio;
 	u32 command;
 };
@@ -36,7 +36,7 @@ struct pca9570_platform_data {
  */
 struct pca9570 {
 	struct gpio_chip chip;
-	const struct pca9570_platform_data *p_data;
+	const struct pca9570_chip_data *chip_data;
 	struct mutex lock;
 	u8 out;
 };
@@ -46,8 +46,8 @@ static int pca9570_read(struct pca9570 *gpio, u8 *value)
 	struct i2c_client *client = to_i2c_client(gpio->chip.parent);
 	int ret;
 
-	if (gpio->p_data->command != 0)
-		ret = i2c_smbus_read_byte_data(client, gpio->p_data->command);
+	if (gpio->chip_data->command != 0)
+		ret = i2c_smbus_read_byte_data(client, gpio->chip_data->command);
 	else
 		ret = i2c_smbus_read_byte(client);
 
@@ -62,8 +62,8 @@ static int pca9570_write(struct pca9570 *gpio, u8 value)
 {
 	struct i2c_client *client = to_i2c_client(gpio->chip.parent);
 
-	if (gpio->p_data->command != 0)
-		return i2c_smbus_write_byte_data(client, gpio->p_data->command, value);
+	if (gpio->chip_data->command != 0)
+		return i2c_smbus_write_byte_data(client, gpio->chip_data->command, value);
 
 	return i2c_smbus_write_byte(client, value);
 }
@@ -127,8 +127,8 @@ static int pca9570_probe(struct i2c_client *client)
 	gpio->chip.get = pca9570_get;
 	gpio->chip.set = pca9570_set;
 	gpio->chip.base = -1;
-	gpio->p_data = device_get_match_data(&client->dev);
-	gpio->chip.ngpio = gpio->p_data->ngpio;
+	gpio->chip_data = device_get_match_data(&client->dev);
+	gpio->chip.ngpio = gpio->chip_data->ngpio;
 	gpio->chip.can_sleep = true;
 
 	mutex_init(&gpio->lock);
@@ -141,15 +141,15 @@ static int pca9570_probe(struct i2c_client *client)
 	return devm_gpiochip_add_data(&client->dev, &gpio->chip, gpio);
 }
 
-static const struct pca9570_platform_data pca9570_gpio = {
+static const struct pca9570_chip_data pca9570_gpio = {
 	.ngpio = 4,
 };
 
-static const struct pca9570_platform_data pca9571_gpio = {
+static const struct pca9570_chip_data pca9571_gpio = {
 	.ngpio = 8,
 };
 
-static const struct pca9570_platform_data slg7xl45106_gpio = {
+static const struct pca9570_chip_data slg7xl45106_gpio = {
 	.ngpio = 8,
 	.command = SLG7XL45106_GPO_REG,
 };
