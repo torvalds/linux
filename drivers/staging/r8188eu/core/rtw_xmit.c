@@ -1009,25 +1009,23 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 
 		/* adding icv, if necessary... */
 		if (pattrib->iv_len) {
-			if (psta) {
-				switch (pattrib->encrypt) {
-				case _WEP40_:
-				case _WEP104_:
-					WEP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
-					break;
-				case _TKIP_:
-					if (bmcst)
-						TKIP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
-					else
-						TKIP_IV(pattrib->iv, psta->dot11txpn, 0);
-					break;
-				case _AES_:
-					if (bmcst)
-						AES_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
-					else
-						AES_IV(pattrib->iv, psta->dot11txpn, 0);
-					break;
-				}
+			switch (pattrib->encrypt) {
+			case _WEP40_:
+			case _WEP104_:
+				WEP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
+				break;
+			case _TKIP_:
+				if (bmcst)
+					TKIP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
+				else
+					TKIP_IV(pattrib->iv, psta->dot11txpn, 0);
+				break;
+			case _AES_:
+				if (bmcst)
+					AES_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
+				else
+					AES_IV(pattrib->iv, psta->dot11txpn, 0);
+				break;
 			}
 
 			memcpy(pframe, pattrib->iv, pattrib->iv_len);
