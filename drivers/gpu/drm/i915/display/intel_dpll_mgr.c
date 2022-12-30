@@ -23,6 +23,7 @@
 
 #include <linux/string_helpers.h>
 
+#include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dkl_phy.h"
@@ -30,6 +31,7 @@
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
+#include "intel_hti.h"
 #include "intel_mg_phy_regs.h"
 #include "intel_pch_refclk.h"
 #include "intel_tc.h"
@@ -3163,14 +3165,6 @@ static void icl_update_active_dpll(struct intel_atomic_state *state,
 	icl_set_active_port_dpll(crtc_state, port_dpll_id);
 }
 
-static u32 intel_get_hti_plls(struct drm_i915_private *i915)
-{
-	if (!(i915->hti_state & HDPORT_ENABLED))
-		return 0;
-
-	return REG_FIELD_GET(HDPORT_DPLL_USED_MASK, i915->hti_state);
-}
-
 static int icl_compute_combo_phy_dpll(struct intel_atomic_state *state,
 				      struct intel_crtc *crtc)
 {
@@ -3245,7 +3239,7 @@ static int icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 	}
 
 	/* Eliminate DPLLs from consideration if reserved by HTI */
-	dpll_mask &= ~intel_get_hti_plls(dev_priv);
+	dpll_mask &= ~intel_hti_dpll_mask(dev_priv);
 
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,

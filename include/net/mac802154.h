@@ -111,9 +111,6 @@ struct ieee802154_hw {
  *	promiscuous mode setting.
  *
  * @IEEE802154_HW_RX_OMIT_CKSUM: Indicates that receiver omits FCS.
- *
- * @IEEE802154_HW_RX_DROP_BAD_CKSUM: Indicates that receiver will not filter
- *	frames with bad checksum.
  */
 enum ieee802154_hw_flags {
 	IEEE802154_HW_TX_OMIT_CKSUM	= BIT(0),
@@ -123,7 +120,6 @@ enum ieee802154_hw_flags {
 	IEEE802154_HW_AFILT		= BIT(4),
 	IEEE802154_HW_PROMISCUOUS	= BIT(5),
 	IEEE802154_HW_RX_OMIT_CKSUM	= BIT(6),
-	IEEE802154_HW_RX_DROP_BAD_CKSUM	= BIT(7),
 };
 
 /* Indicates that receiver omits FCS and xmitter will add FCS on it's own. */
@@ -460,33 +456,6 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw);
  */
 void ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb,
 			   u8 lqi);
-/**
- * ieee802154_wake_queue - wake ieee802154 queue
- * @hw: pointer as obtained from ieee802154_alloc_hw().
- *
- * Tranceivers usually have either one transmit framebuffer or one framebuffer
- * for both transmitting and receiving. Hence, the core currently only handles
- * one frame at a time for each phy, which means we had to stop the queue to
- * avoid new skb to come during the transmission. The queue then needs to be
- * woken up after the operation.
- *
- * Drivers should use this function instead of netif_wake_queue.
- */
-void ieee802154_wake_queue(struct ieee802154_hw *hw);
-
-/**
- * ieee802154_stop_queue - stop ieee802154 queue
- * @hw: pointer as obtained from ieee802154_alloc_hw().
- *
- * Tranceivers usually have either one transmit framebuffer or one framebuffer
- * for both transmitting and receiving. Hence, the core currently only handles
- * one frame at a time for each phy, which means we need to tell upper layers to
- * stop giving us new skbs while we are busy with the transmitted one. The queue
- * must then be stopped before transmitting.
- *
- * Drivers should use this function instead of netif_stop_queue.
- */
-void ieee802154_stop_queue(struct ieee802154_hw *hw);
 
 /**
  * ieee802154_xmit_complete - frame transmission complete

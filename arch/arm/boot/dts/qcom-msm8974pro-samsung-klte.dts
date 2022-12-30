@@ -7,7 +7,8 @@
 
 / {
 	model = "Samsung Galaxy S5";
-	compatible = "samsung,klte", "qcom,msm8974";
+	compatible = "samsung,klte", "qcom,msm8974pro", "qcom,msm8974";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart1;
@@ -375,28 +376,6 @@
 	status = "okay";
 };
 
-&otg {
-	status = "okay";
-
-	phys = <&usb_hs1_phy>;
-	phy-select = <&tcsr 0xb000 0>;
-
-	hnp-disable;
-	srp-disable;
-	adp-disable;
-
-	ulpi {
-		phy@a {
-			status = "okay";
-
-			v1p8-supply = <&pma8084_l6>;
-			v3p3-supply = <&pma8084_l24>;
-
-			qcom,init-seq = /bits/ 8 <0x1 0x64>;
-		};
-	};
-};
-
 &pma8084_gpios {
 	gpio_keys_pin_a: gpio-keys-active-state {
 		pins = "gpio2", "gpio3", "gpio5";
@@ -470,7 +449,7 @@
 };
 
 &rpm_requests {
-	pma8084-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pma8084-regulators";
 
 		pma8084_s1: s1 {
@@ -706,57 +685,57 @@
 
 &tlmm {
 	/* This seems suspicious, but somebody with this device should look into it. */
-	blsp2_uart2_pins_active: blsp2-uart2-pins-active {
+	blsp2_uart2_pins_active: blsp2-uart2-pins-active-state {
 		pins = "gpio45", "gpio46", "gpio47", "gpio48";
 		function = "blsp_uart8";
 		drive-strength = <8>;
 		bias-disable;
 	};
 
-	blsp2_uart2_pins_sleep: blsp2-uart2-pins-sleep {
+	blsp2_uart2_pins_sleep: blsp2-uart2-pins-sleep-state {
 		pins = "gpio45", "gpio46", "gpio47", "gpio48";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	bt_pins: bt-pins {
-		hostwake {
+	bt_pins: bt-pins-state {
+		hostwake-pins {
 			pins = "gpio75";
 			function = "gpio";
 			drive-strength = <16>;
 			input-enable;
 		};
 
-		devwake {
+		devwake-pins {
 			pins = "gpio91";
 			function = "gpio";
 			drive-strength = <2>;
 		};
 	};
 
-	sdc1_on: sdhc1-on {
-		clk {
+	sdc1_on: sdhc1-on-state {
+		clk-pins {
 			pins = "sdc1_clk";
 			drive-strength = <4>;
 			bias-disable;
 		};
 
-		cmd-data {
+		cmd-data-pins {
 			pins = "sdc1_cmd", "sdc1_data";
 			drive-strength = <4>;
 			bias-pull-up;
 		};
 	};
 
-	sdc3_on: sdc3-on {
+	sdc3_on: sdc3-on-state {
 		pins = "gpio35", "gpio36", "gpio37", "gpio38", "gpio39", "gpio40";
 		function = "sdc3";
 		drive-strength = <8>;
 		bias-disable;
 	};
 
-	sdhc3_cd_pin: sdc3-cd-on {
+	sdhc3_cd_pin: sdc3-cd-on-state {
 		pins = "gpio62";
 		function = "gpio";
 
@@ -764,52 +743,72 @@
 		bias-disable;
 	};
 
-	sdc2_on: sdhc2-on {
-		clk {
+	sdc2_on: sdhc2-on-state {
+		clk-pins {
 			pins = "sdc2_clk";
 			drive-strength = <6>;
 			bias-disable;
 		};
 
-		cmd-data {
+		cmd-data-pins {
 			pins = "sdc2_cmd", "sdc2_data";
 			drive-strength = <6>;
 			bias-pull-up;
 		};
 	};
 
-	i2c_touchkey_pins: i2c-touchkey {
+	i2c_touchkey_pins: i2c-touchkey-state {
 		pins = "gpio95", "gpio96";
 		function = "gpio";
 		input-enable;
 		bias-pull-up;
 	};
 
-	i2c_led_gpioex_pins: i2c-led-gpioex {
+	i2c_led_gpioex_pins: i2c-led-gpioex-state {
 		pins = "gpio120", "gpio121";
 		function = "gpio";
 		input-enable;
 		bias-pull-down;
 	};
 
-	gpioex_pin: gpioex {
+	gpioex_pin: gpioex-state {
 		pins = "gpio145";
 		function = "gpio";
 		bias-pull-up;
 		drive-strength = <2>;
 	};
 
-	wifi_pin: wifi {
+	wifi_pin: wifi-state {
 		pins = "gpio92";
 		function = "gpio";
 		input-enable;
 		bias-pull-down;
 	};
 
-	panel_te_pin: panel {
+	panel_te_pin: panel-state {
 		pins = "gpio12";
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-disable;
 	};
+};
+
+&usb {
+	status = "okay";
+
+	phys = <&usb_hs1_phy>;
+	phy-select = <&tcsr 0xb000 0>;
+
+	hnp-disable;
+	srp-disable;
+	adp-disable;
+};
+
+&usb_hs1_phy {
+	status = "okay";
+
+	v1p8-supply = <&pma8084_l6>;
+	v3p3-supply = <&pma8084_l24>;
+
+	qcom,init-seq = /bits/ 8 <0x1 0x64>;
 };

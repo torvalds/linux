@@ -143,6 +143,10 @@ static void test_split_fwd_resolve() {
 	btf__add_struct(btf1, "s2", 4);			/* [5] struct s2 { */
 	btf__add_field(btf1, "f1", 1, 0, 0);		/*      int f1; */
 							/* } */
+	/* keep this not a part of type the graph to test btf_dedup_resolve_fwds */
+	btf__add_struct(btf1, "s3", 4);                 /* [6] struct s3 { */
+	btf__add_field(btf1, "f1", 1, 0, 0);		/*      int f1; */
+							/* } */
 
 	VALIDATE_RAW_BTF(
 		btf1,
@@ -153,20 +157,24 @@ static void test_split_fwd_resolve() {
 		"\t'f1' type_id=2 bits_offset=0\n"
 		"\t'f2' type_id=3 bits_offset=64",
 		"[5] STRUCT 's2' size=4 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0",
+		"[6] STRUCT 's3' size=4 vlen=1\n"
 		"\t'f1' type_id=1 bits_offset=0");
 
 	btf2 = btf__new_empty_split(btf1);
 	if (!ASSERT_OK_PTR(btf2, "empty_split_btf"))
 		goto cleanup;
 
-	btf__add_int(btf2, "int", 4, BTF_INT_SIGNED);	/* [6] int */
-	btf__add_ptr(btf2, 10);				/* [7] ptr to struct s1 */
-	btf__add_fwd(btf2, "s2", BTF_FWD_STRUCT);	/* [8] fwd for struct s2 */
-	btf__add_ptr(btf2, 8);				/* [9] ptr to fwd struct s2 */
-	btf__add_struct(btf2, "s1", 16);		/* [10] struct s1 { */
-	btf__add_field(btf2, "f1", 7, 0, 0);		/*      struct s1 *f1; */
-	btf__add_field(btf2, "f2", 9, 64, 0);		/*      struct s2 *f2; */
+	btf__add_int(btf2, "int", 4, BTF_INT_SIGNED);	/* [7] int */
+	btf__add_ptr(btf2, 11);				/* [8] ptr to struct s1 */
+	btf__add_fwd(btf2, "s2", BTF_FWD_STRUCT);	/* [9] fwd for struct s2 */
+	btf__add_ptr(btf2, 9);				/* [10] ptr to fwd struct s2 */
+	btf__add_struct(btf2, "s1", 16);		/* [11] struct s1 { */
+	btf__add_field(btf2, "f1", 8, 0, 0);		/*      struct s1 *f1; */
+	btf__add_field(btf2, "f2", 10, 64, 0);		/*      struct s2 *f2; */
 							/* } */
+	btf__add_fwd(btf2, "s3", BTF_FWD_STRUCT);	/* [12] fwd for struct s3 */
+	btf__add_ptr(btf2, 12);				/* [13] ptr to struct s1 */
 
 	VALIDATE_RAW_BTF(
 		btf2,
@@ -178,13 +186,17 @@ static void test_split_fwd_resolve() {
 		"\t'f2' type_id=3 bits_offset=64",
 		"[5] STRUCT 's2' size=4 vlen=1\n"
 		"\t'f1' type_id=1 bits_offset=0",
-		"[6] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[7] PTR '(anon)' type_id=10",
-		"[8] FWD 's2' fwd_kind=struct",
-		"[9] PTR '(anon)' type_id=8",
-		"[10] STRUCT 's1' size=16 vlen=2\n"
-		"\t'f1' type_id=7 bits_offset=0\n"
-		"\t'f2' type_id=9 bits_offset=64");
+		"[6] STRUCT 's3' size=4 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0",
+		"[7] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[8] PTR '(anon)' type_id=11",
+		"[9] FWD 's2' fwd_kind=struct",
+		"[10] PTR '(anon)' type_id=9",
+		"[11] STRUCT 's1' size=16 vlen=2\n"
+		"\t'f1' type_id=8 bits_offset=0\n"
+		"\t'f2' type_id=10 bits_offset=64",
+		"[12] FWD 's3' fwd_kind=struct",
+		"[13] PTR '(anon)' type_id=12");
 
 	err = btf__dedup(btf2, NULL);
 	if (!ASSERT_OK(err, "btf_dedup"))
@@ -199,7 +211,10 @@ static void test_split_fwd_resolve() {
 		"\t'f1' type_id=2 bits_offset=0\n"
 		"\t'f2' type_id=3 bits_offset=64",
 		"[5] STRUCT 's2' size=4 vlen=1\n"
-		"\t'f1' type_id=1 bits_offset=0");
+		"\t'f1' type_id=1 bits_offset=0",
+		"[6] STRUCT 's3' size=4 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0",
+		"[7] PTR '(anon)' type_id=6");
 
 cleanup:
 	btf__free(btf2);

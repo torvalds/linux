@@ -404,7 +404,8 @@ EXPORT_SYMBOL_GPL(hash__has_transparent_hugepage);
 
 struct change_memory_parms {
 	unsigned long start, end, newpp;
-	unsigned int step, nr_cpus, master_cpu;
+	unsigned int step, nr_cpus;
+	atomic_t master_cpu;
 	atomic_t cpu_counter;
 };
 
@@ -478,7 +479,8 @@ static int change_memory_range_fn(void *data)
 {
 	struct change_memory_parms *parms = data;
 
-	if (parms->master_cpu != smp_processor_id())
+	// First CPU goes through, all others wait.
+	if (atomic_xchg(&parms->master_cpu, 1) == 1)
 		return chmem_secondary_loop(parms);
 
 	// Wait for all but one CPU (this one) to call-in
@@ -516,7 +518,7 @@ static bool hash__change_memory_range(unsigned long start, unsigned long end,
 		chmem_parms.end = end;
 		chmem_parms.step = step;
 		chmem_parms.newpp = newpp;
-		chmem_parms.master_cpu = smp_processor_id();
+		atomic_set(&chmem_parms.master_cpu, 0);
 
 		cpus_read_lock();
 

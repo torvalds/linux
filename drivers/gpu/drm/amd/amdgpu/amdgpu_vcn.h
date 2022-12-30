@@ -399,5 +399,6 @@ void amdgpu_debugfs_vcn_fwlog_init(struct amdgpu_device *adev,
 int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
 			struct amdgpu_irq_src *source,
 			struct amdgpu_iv_entry *entry);
+void amdgpu_vcn_set_ras_funcs(struct amdgpu_device *adev);
 
 #endif

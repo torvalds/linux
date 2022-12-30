@@ -17,6 +17,7 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_migrate.h"
+#include "i915_reg.h"
 #include "i915_ttm_buddy_manager.h"
 
 #include "huge_gem_object.h"

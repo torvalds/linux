@@ -11,7 +11,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
@@ -231,7 +231,7 @@ static u64 display_get_address_of(struct drm_device *dev, struct device_node *of
 	return address;
 }
 
-static bool is_avivo(__be32 vendor, __be32 device)
+static bool is_avivo(u32 vendor, u32 device)
 {
 	/* This will match most R5xx */
 	return (vendor == PCI_VENDOR_ID_ATI) &&
@@ -265,8 +265,13 @@ static enum ofdrm_model display_get_model_of(struct drm_device *dev, struct devi
 		of_parent = of_get_parent(of_node);
 		vendor_p = of_get_property(of_parent, "vendor-id", NULL);
 		device_p = of_get_property(of_parent, "device-id", NULL);
-		if (vendor_p && device_p && is_avivo(*vendor_p, *device_p))
-			model = OFDRM_MODEL_AVIVO;
+		if (vendor_p && device_p) {
+			u32 vendor = be32_to_cpup(vendor_p);
+			u32 device = be32_to_cpup(device_p);
+
+			if (is_avivo(vendor, device))
+				model = OFDRM_MODEL_AVIVO;
+		}
 		of_node_put(of_parent);
 	} else if (of_device_is_compatible(of_node, "qemu,std-vga")) {
 		model = OFDRM_MODEL_QEMU;
@@ -433,21 +438,21 @@ static void __iomem *get_cmap_address_of(struct ofdrm_device *odev, struct devic
 	if (!addr_p)
 		addr_p = of_get_address(of_node, bar_no, &max_size, &flags);
 	if (!addr_p)
-		return ERR_PTR(-ENODEV);
+		return IOMEM_ERR_PTR(-ENODEV);
 
 	if ((flags & (IORESOURCE_IO | IORESOURCE_MEM)) == 0)
-		return ERR_PTR(-ENODEV);
+		return IOMEM_ERR_PTR(-ENODEV);
 
 	if ((offset + size) >= max_size)
-		return ERR_PTR(-ENODEV);
+		return IOMEM_ERR_PTR(-ENODEV);
 
 	address = of_translate_address(of_node, addr_p);
 	if (address == OF_BAD_ADDR)
-		return ERR_PTR(-ENODEV);
+		return IOMEM_ERR_PTR(-ENODEV);
 
 	mem = devm_ioremap(dev->dev, address + offset, size);
 	if (!mem)
-		return ERR_PTR(-ENOMEM);
+		return IOMEM_ERR_PTR(-ENOMEM);
 
 	return mem;
 }
@@ -465,7 +470,7 @@ static void __iomem *ofdrm_mach64_cmap_ioremap(struct ofdrm_device *odev,
 
 	cmap_base = devm_ioremap(dev->dev, address, 0x1000);
 	if (!cmap_base)
-		return ERR_PTR(-ENOMEM);
+		return IOMEM_ERR_PTR(-ENOMEM);
 
 	return cmap_base;
 }
@@ -624,11 +629,11 @@ static void __iomem *ofdrm_qemu_cmap_ioremap(struct ofdrm_device *odev,
 
 	address = of_translate_address(of_node, io_of_addr);
 	if (address == OF_BAD_ADDR)
-		return ERR_PTR(-ENODEV);
+		return IOMEM_ERR_PTR(-ENODEV);
 
 	cmap_base = devm_ioremap(dev->dev, address + 0x3c8, 2);
 	if (!cmap_base)
-		return ERR_PTR(-ENOMEM);
+		return IOMEM_ERR_PTR(-ENOMEM);
 
 	return cmap_base;
 }

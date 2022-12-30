@@ -71,6 +71,9 @@ properties:
       to control the clock phases, "ciu-sample" is required for tuning
       high speed modes.
 
+  power-domains:
+    maxItems: 1
+
   rockchip,default-sample-phase:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0

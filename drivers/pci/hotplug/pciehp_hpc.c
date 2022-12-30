@@ -811,7 +811,9 @@ static void pcie_enable_notification(struct controller *ctrl)
 	else
 		cmd |= PCI_EXP_SLTCTL_PDCE;
 	if (!pciehp_poll_mode)
-		cmd |= PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE;
+		cmd |= PCI_EXP_SLTCTL_HPIE;
+	if (!pciehp_poll_mode && !NO_CMD_CMPL(ctrl))
+		cmd |= PCI_EXP_SLTCTL_CCIE;
 
 	mask = (PCI_EXP_SLTCTL_PDCE | PCI_EXP_SLTCTL_ABPE |
 		PCI_EXP_SLTCTL_PFDE |

@@ -50,5 +50,9 @@ void set_dio_dp_lane_settings(struct dc_link *link,
 		const struct link_resource *link_res,
 		const struct dc_link_settings *link_settings,
 		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
+void setup_dio_audio_output(struct pipe_ctx *pipe_ctx,
+		struct audio_output *audio_output, uint32_t audio_inst);
+void enable_dio_audio_packet(struct pipe_ctx *pipe_ctx);
+void disable_dio_audio_packet(struct pipe_ctx *pipe_ctx);
 
 #endif /* __LINK_HWSS_DIO_H__ */

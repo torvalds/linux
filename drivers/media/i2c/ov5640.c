@@ -2715,20 +2715,20 @@ static int ov5640_sensor_resume(struct device *dev)
 
 static int ov5640_try_frame_interval(struct ov5640_dev *sensor,
 				     struct v4l2_fract *fi,
-				     u32 width, u32 height)
+				     const struct ov5640_mode_info *mode_info)
 {
-	const struct ov5640_mode_info *mode;
+	const struct ov5640_mode_info *mode = mode_info;
 	enum ov5640_frame_rate rate = OV5640_15_FPS;
 	int minfps, maxfps, best_fps, fps;
 	int i;
 
 	minfps = ov5640_framerates[OV5640_15_FPS];
-	maxfps = ov5640_framerates[OV5640_60_FPS];
+	maxfps = ov5640_framerates[mode->max_fps];
 
 	if (fi->numerator == 0) {
 		fi->denominator = maxfps;
 		fi->numerator = 1;
-		rate = OV5640_60_FPS;
+		rate = mode->max_fps;
 		goto find_mode;
 	}
 
@@ -2749,7 +2749,7 @@ static int ov5640_try_frame_interval(struct ov5640_dev *sensor,
 	fi->denominator = best_fps;
 
 find_mode:
-	mode = ov5640_find_mode(sensor, width, height, false);
+	mode = ov5640_find_mode(sensor, mode->width, mode->height, false);
 	return mode ? rate : -EINVAL;
 }
 
@@ -3554,6 +3554,7 @@ static int ov5640_enum_frame_interval(
 	struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
+	const struct ov5640_mode_info *mode;
 	struct v4l2_fract tpf;
 	int ret;
 
@@ -3562,11 +3563,14 @@ static int ov5640_enum_frame_interval(
 	if (fie->index >= OV5640_NUM_FRAMERATES)
 		return -EINVAL;
 
+	mode = ov5640_find_mode(sensor, fie->width, fie->height, false);
+	if (!mode)
+		return -EINVAL;
+
 	tpf.numerator = 1;
 	tpf.denominator = ov5640_framerates[fie->index];
 
-	ret = ov5640_try_frame_interval(sensor, &tpf,
-					fie->width, fie->height);
+	ret = ov5640_try_frame_interval(sensor, &tpf, mode);
 	if (ret < 0)
 		return -EINVAL;
 
@@ -3605,9 +3609,7 @@ static int ov5640_s_frame_interval(struct v4l2_subdev *sd,
 
 	mode = sensor->current_mode;
 
-	frame_rate = ov5640_try_frame_interval(sensor, &fi->interval,
-					       mode->width,
-					       mode->height);
+	frame_rate = ov5640_try_frame_interval(sensor, &fi->interval, mode);
 	if (frame_rate < 0) {
 		/* Always return a valid frame interval value */
 		fi->interval = sensor->frame_interval;
@@ -3817,7 +3819,8 @@ static int ov5640_probe(struct i2c_client *client)
 	sensor->current_mode =
 		&ov5640_mode_data[OV5640_MODE_VGA_640_480];
 	sensor->last_mode = sensor->current_mode;
-	sensor->current_link_freq = OV5640_DEFAULT_LINK_FREQ;
+	sensor->current_link_freq =
+		ov5640_csi2_link_freqs[OV5640_DEFAULT_LINK_FREQ];
 
 	sensor->ae_target = 52;
 

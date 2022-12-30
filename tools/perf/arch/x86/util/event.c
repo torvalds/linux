@@ -2,6 +2,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
+#include <stdlib.h>
 
 #include "../../../util/event.h"
 #include "../../../util/synthetic-events.h"
@@ -9,6 +10,7 @@
 #include "../../../util/tool.h"
 #include "../../../util/map.h"
 #include "../../../util/debug.h"
+#include "util/sample.h"
 
 #if defined(__x86_64__)
 

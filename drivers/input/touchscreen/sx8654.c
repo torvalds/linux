@@ -306,9 +306,9 @@ static void sx8654_close(struct input_dev *dev)
 	}
 }
 
-static int sx8654_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int sx8654_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct sx8654 *sx8654;
 	struct input_dev *input;
 	int error;
@@ -470,7 +470,7 @@ static struct i2c_driver sx8654_driver = {
 		.of_match_table = of_match_ptr(sx8654_of_match),
 	},
 	.id_table = sx8654_id_table,
-	.probe = sx8654_probe,
+	.probe_new = sx8654_probe,
 };
 module_i2c_driver(sx8654_driver);
 

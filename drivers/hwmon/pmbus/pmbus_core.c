@@ -2827,9 +2827,13 @@ static int pmbus_regulator_get_error_flags(struct regulator_dev *rdev, unsigned 
 	if (status < 0)
 		return status;
 
-	if (pmbus_regulator_is_enabled(rdev) && (status & PB_STATUS_OFF))
-		*flags |= REGULATOR_ERROR_FAIL;
+	if (pmbus_regulator_is_enabled(rdev)) {
+		if (status & PB_STATUS_OFF)
+			*flags |= REGULATOR_ERROR_FAIL;
 
+		if (status & PB_STATUS_POWER_GOOD_N)
+			*flags |= REGULATOR_ERROR_REGULATION_OUT;
+	}
 	/*
 	 * Unlike most other status bits, PB_STATUS_{IOUT_OC,VOUT_OV} are
 	 * defined strictly as fault indicators (not warnings).
@@ -2849,6 +2853,49 @@ static int pmbus_regulator_get_error_flags(struct regulator_dev *rdev, unsigned 
 		*flags |= REGULATOR_ERROR_OVER_TEMP_WARN;
 
 	return 0;
+}
+
+static int pmbus_regulator_get_status(struct regulator_dev *rdev)
+{
+	struct device *dev = rdev_get_dev(rdev);
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	u8 page = rdev_get_id(rdev);
+	int status, ret;
+
+	mutex_lock(&data->update_lock);
+	status = pmbus_get_status(client, page, PMBUS_STATUS_WORD);
+	if (status < 0) {
+		ret = status;
+		goto unlock;
+	}
+
+	if (status & PB_STATUS_OFF) {
+		ret = REGULATOR_STATUS_OFF;
+		goto unlock;
+	}
+
+	/* If regulator is ON & reports power good then return ON */
+	if (!(status & PB_STATUS_POWER_GOOD_N)) {
+		ret = REGULATOR_STATUS_ON;
+		goto unlock;
+	}
+
+	ret = pmbus_regulator_get_error_flags(rdev, &status);
+	if (ret)
+		goto unlock;
+
+	if (status & (REGULATOR_ERROR_UNDER_VOLTAGE | REGULATOR_ERROR_OVER_CURRENT |
+	   REGULATOR_ERROR_REGULATION_OUT | REGULATOR_ERROR_FAIL | REGULATOR_ERROR_OVER_TEMP)) {
+		ret = REGULATOR_STATUS_ERROR;
+		goto unlock;
+	}
+
+	ret = REGULATOR_STATUS_UNDEFINED;
+
+unlock:
+	mutex_unlock(&data->update_lock);
+	return ret;
 }
 
 static int pmbus_regulator_get_low_margin(struct i2c_client *client, int page)
@@ -2991,6 +3038,7 @@ const struct regulator_ops pmbus_regulator_ops = {
 	.disable = pmbus_regulator_disable,
 	.is_enabled = pmbus_regulator_is_enabled,
 	.get_error_flags = pmbus_regulator_get_error_flags,
+	.get_status = pmbus_regulator_get_status,
 	.get_voltage = pmbus_regulator_get_voltage,
 	.set_voltage = pmbus_regulator_set_voltage,
 	.list_voltage = pmbus_regulator_list_voltage,

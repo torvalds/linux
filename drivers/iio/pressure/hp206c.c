@@ -352,9 +352,9 @@ static const struct iio_info hp206c_info = {
 	.write_raw = hp206c_write_raw,
 };
 
-static int hp206c_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int hp206c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct iio_dev *indio_dev;
 	struct hp206c_data *data;
 	int ret;
@@ -409,7 +409,7 @@ MODULE_DEVICE_TABLE(acpi, hp206c_acpi_match);
 #endif
 
 static struct i2c_driver hp206c_driver = {
-	.probe = hp206c_probe,
+	.probe_new = hp206c_probe,
 	.id_table = hp206c_id,
 	.driver = {
 		.name = "hp206c",

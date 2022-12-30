@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2016-2022, AngeloGioacchino Del Regno
+ *                          <angelogioacchino.delregno@collabora.com>
+ * Copyright (c) 2022, Konrad Dybcio <konrad.dybcio@somainline.org>
+ * Copyright (c) 2022, Marijn Suijten <marijn.suijten@somainline.org>
+ */
+
+#include "msm8976.dtsi"
+
+&pmu {
+	interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_HIGH)>;
+};
+
+/*
+ * You might be wondering.. why is it so empty out there?
+ * Well, the SoCs are almost identical.
+ */

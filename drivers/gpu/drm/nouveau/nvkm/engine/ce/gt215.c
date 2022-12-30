@@ -40,7 +40,7 @@ gt215_ce_isr_error_name[] = {
 };
 
 void
-gt215_ce_intr(struct nvkm_falcon *ce, struct nvkm_fifo_chan *chan)
+gt215_ce_intr(struct nvkm_falcon *ce, struct nvkm_chan *chan)
 {
 	struct nvkm_subdev *subdev = &ce->engine.subdev;
 	struct nvkm_device *device = subdev->device;
@@ -55,9 +55,9 @@ gt215_ce_intr(struct nvkm_falcon *ce, struct nvkm_fifo_chan *chan)
 
 	nvkm_error(subdev, "DISPATCH_ERROR %04x [%s] ch %d [%010llx %s] "
 			   "subc %d mthd %04x data %08x\n", ssta,
-		   en ? en->name : "", chan ? chan->chid : -1,
+		   en ? en->name : "", chan ? chan->id : -1,
 		   chan ? chan->inst->addr : 0,
-		   chan ? chan->object.client->name : "unknown",
+		   chan ? chan->name : "unknown",
 		   subc, mthd, data);
 }
 

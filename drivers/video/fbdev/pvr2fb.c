@@ -1082,7 +1082,12 @@ static int __init pvr2fb_init(void)
 
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("pvr2fb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("pvr2fb", &option))
 		return -ENODEV;
 	pvr2fb_setup(option);

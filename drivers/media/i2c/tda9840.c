@@ -149,8 +149,7 @@ static const struct v4l2_subdev_ops tda9840_ops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int tda9840_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int tda9840_probe(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd;
 
@@ -192,7 +191,7 @@ static struct i2c_driver tda9840_driver = {
 	.driver = {
 		.name	= "tda9840",
 	},
-	.probe		= tda9840_probe,
+	.probe_new	= tda9840_probe,
 	.remove		= tda9840_remove,
 	.id_table	= tda9840_id,
 };

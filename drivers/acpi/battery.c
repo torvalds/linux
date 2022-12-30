@@ -696,7 +696,8 @@ static void __battery_hook_unregister(struct acpi_battery_hook *hook, int lock)
 	if (lock)
 		mutex_lock(&hook_mutex);
 	list_for_each_entry(battery, &acpi_battery_list, list) {
-		hook->remove_battery(battery->bat);
+		if (!hook->remove_battery(battery->bat, hook))
+			power_supply_changed(battery->bat);
 	}
 	list_del(&hook->list);
 	if (lock)
@@ -724,7 +725,7 @@ void battery_hook_register(struct acpi_battery_hook *hook)
 	 * its attributes.
 	 */
 	list_for_each_entry(battery, &acpi_battery_list, list) {
-		if (hook->add_battery(battery->bat)) {
+		if (hook->add_battery(battery->bat, hook)) {
 			/*
 			 * If a add-battery returns non-zero,
 			 * the registration of the extension has failed,
@@ -735,6 +736,8 @@ void battery_hook_register(struct acpi_battery_hook *hook)
 			__battery_hook_unregister(hook, 0);
 			goto end;
 		}
+
+		power_supply_changed(battery->bat);
 	}
 	pr_info("new extension: %s\n", hook->name);
 end:
@@ -762,7 +765,7 @@ static void battery_hook_add_battery(struct acpi_battery *battery)
 	 * during the battery module initialization.
 	 */
 	list_for_each_entry_safe(hook_node, tmp, &battery_hook_list, list) {
-		if (hook_node->add_battery(battery->bat)) {
+		if (hook_node->add_battery(battery->bat, hook_node)) {
 			/*
 			 * The notification of the extensions has failed, to
 			 * prevent further errors we will unload the extension.
@@ -785,7 +788,7 @@ static void battery_hook_remove_battery(struct acpi_battery *battery)
 	 * custom attributes from the battery.
 	 */
 	list_for_each_entry(hook, &battery_hook_list, list) {
-		hook->remove_battery(battery->bat);
+		hook->remove_battery(battery->bat, hook);
 	}
 	/* Then, just remove the battery from the list */
 	list_del(&battery->list);
@@ -1208,12 +1211,12 @@ fail:
 	return result;
 }
 
-static int acpi_battery_remove(struct acpi_device *device)
+static void acpi_battery_remove(struct acpi_device *device)
 {
 	struct acpi_battery *battery = NULL;
 
 	if (!device || !acpi_driver_data(device))
-		return -EINVAL;
+		return;
 	device_init_wakeup(&device->dev, 0);
 	battery = acpi_driver_data(device);
 	unregister_pm_notifier(&battery->pm_nb);
@@ -1221,7 +1224,6 @@ static int acpi_battery_remove(struct acpi_device *device)
 	mutex_destroy(&battery->lock);
 	mutex_destroy(&battery->sysfs_lock);
 	kfree(battery);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

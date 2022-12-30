@@ -1,38 +1,38 @@
 # SPDX-License-Identifier: GPL-2.0
-obj-y += testcases.dtb.o
+obj-y += testcases.dtbo.o
 
-obj-$(CONFIG_OF_OVERLAY) += overlay.dtb.o \
-			    overlay_0.dtb.o \
-			    overlay_1.dtb.o \
-			    overlay_2.dtb.o \
-			    overlay_3.dtb.o \
-			    overlay_4.dtb.o \
-			    overlay_5.dtb.o \
-			    overlay_6.dtb.o \
-			    overlay_7.dtb.o \
-			    overlay_8.dtb.o \
-			    overlay_9.dtb.o \
-			    overlay_10.dtb.o \
-			    overlay_11.dtb.o \
-			    overlay_12.dtb.o \
-			    overlay_13.dtb.o \
-			    overlay_15.dtb.o \
-			    overlay_16.dtb.o \
-			    overlay_17.dtb.o \
-			    overlay_18.dtb.o \
-			    overlay_19.dtb.o \
-			    overlay_20.dtb.o \
-			    overlay_bad_add_dup_node.dtb.o \
-			    overlay_bad_add_dup_prop.dtb.o \
-			    overlay_bad_phandle.dtb.o \
-			    overlay_bad_symbol.dtb.o \
-			    overlay_base.dtb.o \
-			    overlay_gpio_01.dtb.o \
-			    overlay_gpio_02a.dtb.o \
-			    overlay_gpio_02b.dtb.o \
-			    overlay_gpio_03.dtb.o \
-			    overlay_gpio_04a.dtb.o \
-			    overlay_gpio_04b.dtb.o
+obj-$(CONFIG_OF_OVERLAY) += overlay.dtbo.o \
+			    overlay_0.dtbo.o \
+			    overlay_1.dtbo.o \
+			    overlay_2.dtbo.o \
+			    overlay_3.dtbo.o \
+			    overlay_4.dtbo.o \
+			    overlay_5.dtbo.o \
+			    overlay_6.dtbo.o \
+			    overlay_7.dtbo.o \
+			    overlay_8.dtbo.o \
+			    overlay_9.dtbo.o \
+			    overlay_10.dtbo.o \
+			    overlay_11.dtbo.o \
+			    overlay_12.dtbo.o \
+			    overlay_13.dtbo.o \
+			    overlay_15.dtbo.o \
+			    overlay_16.dtbo.o \
+			    overlay_17.dtbo.o \
+			    overlay_18.dtbo.o \
+			    overlay_19.dtbo.o \
+			    overlay_20.dtbo.o \
+			    overlay_bad_add_dup_node.dtbo.o \
+			    overlay_bad_add_dup_prop.dtbo.o \
+			    overlay_bad_phandle.dtbo.o \
+			    overlay_bad_symbol.dtbo.o \
+			    overlay_base.dtbo.o \
+			    overlay_gpio_01.dtbo.o \
+			    overlay_gpio_02a.dtbo.o \
+			    overlay_gpio_02b.dtbo.o \
+			    overlay_gpio_03.dtbo.o \
+			    overlay_gpio_04a.dtbo.o \
+			    overlay_gpio_04b.dtbo.o
 
 # enable creation of __symbols__ node
 DTC_FLAGS_overlay += -@

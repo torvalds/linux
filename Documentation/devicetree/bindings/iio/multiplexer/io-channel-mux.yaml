@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/multiplexer/io-channel-mux.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: I/O channel multiplexer bindings
+title: I/O channel multiplexer
 
 maintainers:
   - Peter Rosin <peda@axentia.se>

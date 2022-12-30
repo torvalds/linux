@@ -138,10 +138,10 @@ def cmdfiles_for_modorder(modorder):
     """
     with open(modorder) as f:
         for line in f:
-            ko = line.rstrip()
-            base, ext = os.path.splitext(ko)
-            if ext != '.ko':
-                sys.exit('{}: module path must end with .ko'.format(ko))
+            obj = line.rstrip()
+            base, ext = os.path.splitext(obj)
+            if ext != '.o':
+                sys.exit('{}: module path must end with .o'.format(obj))
             mod = base + '.mod'
             # Read from *.mod, to get a list of objects that compose the module.
             with open(mod) as m:

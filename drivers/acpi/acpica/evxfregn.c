@@ -20,13 +20,14 @@ ACPI_MODULE_NAME("evxfregn")
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_install_address_space_handler
+ * FUNCTION:    acpi_install_address_space_handler_internal
  *
  * PARAMETERS:  device          - Handle for the device
  *              space_id        - The address space ID
  *              handler         - Address of the handler
  *              setup           - Address of the setup function
  *              context         - Value passed to the handler on each access
+ *              Run_reg         - Run _REG methods for this address space?
  *
  * RETURN:      Status
  *
@@ -37,13 +38,16 @@ ACPI_MODULE_NAME("evxfregn")
  * are executed here, and these methods can only be safely executed after
  * the default handlers have been installed and the hardware has been
  * initialized (via acpi_enable_subsystem.)
+ * To avoid this problem pass FALSE for Run_Reg and later on call
+ * acpi_execute_reg_methods() to execute _REG.
  *
  ******************************************************************************/
-acpi_status
-acpi_install_address_space_handler(acpi_handle device,
-				   acpi_adr_space_type space_id,
-				   acpi_adr_space_handler handler,
-				   acpi_adr_space_setup setup, void *context)
+static acpi_status
+acpi_install_address_space_handler_internal(acpi_handle device,
+					    acpi_adr_space_type space_id,
+					    acpi_adr_space_handler handler,
+					    acpi_adr_space_setup setup,
+					    void *context, u8 run_reg)
 {
 	struct acpi_namespace_node *node;
 	acpi_status status;
@@ -80,14 +84,40 @@ acpi_install_address_space_handler(acpi_handle device,
 
 	/* Run all _REG methods for this address space */
 
-	acpi_ev_execute_reg_methods(node, space_id, ACPI_REG_CONNECT);
+	if (run_reg) {
+		acpi_ev_execute_reg_methods(node, space_id, ACPI_REG_CONNECT);
+	}
 
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }
 
+acpi_status
+acpi_install_address_space_handler(acpi_handle device,
+				   acpi_adr_space_type space_id,
+				   acpi_adr_space_handler handler,
+				   acpi_adr_space_setup setup, void *context)
+{
+	return acpi_install_address_space_handler_internal(device, space_id,
+							   handler, setup,
+							   context, TRUE);
+}
+
 ACPI_EXPORT_SYMBOL(acpi_install_address_space_handler)
+acpi_status
+acpi_install_address_space_handler_no_reg(acpi_handle device,
+					  acpi_adr_space_type space_id,
+					  acpi_adr_space_handler handler,
+					  acpi_adr_space_setup setup,
+					  void *context)
+{
+	return acpi_install_address_space_handler_internal(device, space_id,
+							   handler, setup,
+							   context, FALSE);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_install_address_space_handler_no_reg)
 
 /*******************************************************************************
  *
@@ -228,3 +258,51 @@ unlock_and_exit:
 }
 
 ACPI_EXPORT_SYMBOL(acpi_remove_address_space_handler)
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_execute_reg_methods
+ *
+ * PARAMETERS:  device          - Handle for the device
+ *              space_id        - The address space ID
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Execute _REG for all op_regions of a given space_id.
+ *
+ ******************************************************************************/
+acpi_status
+acpi_execute_reg_methods(acpi_handle device, acpi_adr_space_type space_id)
+{
+	struct acpi_namespace_node *node;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_execute_reg_methods);
+
+	/* Parameter validation */
+
+	if (!device) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Convert and validate the device handle */
+
+	node = acpi_ns_validate_handle(device);
+	if (node) {
+
+		/* Run all _REG methods for this address space */
+
+		acpi_ev_execute_reg_methods(node, space_id, ACPI_REG_CONNECT);
+	} else {
+		status = AE_BAD_PARAMETER;
+	}
+
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_execute_reg_methods)

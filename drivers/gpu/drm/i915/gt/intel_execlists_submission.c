@@ -110,6 +110,7 @@
 #include <linux/string_helpers.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "gen8_engine_cs.h"
@@ -3689,7 +3690,7 @@ static void virtual_engine_initial_hint(struct virtual_engine *ve)
 	 * NB This does not force us to execute on this engine, it will just
 	 * typically be the first we inspect for submission.
 	 */
-	swp = prandom_u32_max(ve->num_siblings);
+	swp = get_random_u32_below(ve->num_siblings);
 	if (swp)
 		swap(ve->siblings[swp], ve->siblings[0]);
 }

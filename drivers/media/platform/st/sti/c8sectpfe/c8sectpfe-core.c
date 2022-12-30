@@ -24,16 +24,18 @@
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
-#include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/usb.h>
 #include <linux/wait.h>
-#include <linux/pinctrl/pinctrl.h>
 
-#include "c8sectpfe-core.h"
 #include "c8sectpfe-common.h"
+#include "c8sectpfe-core.h"
 #include "c8sectpfe-debugfs.h"
+
 #include <media/dmxdev.h>
 #include <media/dvb_demux.h>
 #include <media/dvb_frontend.h>
@@ -925,6 +927,7 @@ static int configure_channels(struct c8sectpfei *fei)
 		if (ret) {
 			dev_err(fei->dev,
 				"configure_memdma_and_inputblock failed\n");
+			of_node_put(child);
 			goto err_unmap;
 		}
 		index++;

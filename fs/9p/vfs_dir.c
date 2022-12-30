@@ -14,7 +14,6 @@
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/inet.h>
-#include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/uio.h>
 #include <linux/fscache.h>
@@ -109,7 +108,7 @@ static int v9fs_dir_readdir(struct file *file, struct dir_context *ctx)
 			struct iov_iter to;
 			int n;
 
-			iov_iter_kvec(&to, READ, &kvec, 1, buflen);
+			iov_iter_kvec(&to, ITER_DEST, &kvec, 1, buflen);
 			n = p9_client_read(file->private_data, ctx->pos, &to,
 					   &err);
 			if (err)

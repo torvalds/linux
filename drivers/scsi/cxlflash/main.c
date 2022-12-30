@@ -3857,7 +3857,7 @@ static void cxlflash_pci_resume(struct pci_dev *pdev)
  *
  * Return: Allocated string describing the devtmpfs structure.
  */
-static char *cxlflash_devnode(struct device *dev, umode_t *mode)
+static char *cxlflash_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "cxlflash/%s", dev_name(dev));
 }

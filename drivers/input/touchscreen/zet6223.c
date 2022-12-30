@@ -167,8 +167,7 @@ static int zet6223_query_device(struct zet6223_ts *ts)
 	return 0;
 }
 
-static int zet6223_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int zet6223_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct zet6223_ts *ts;
@@ -249,7 +248,7 @@ static struct i2c_driver zet6223_driver = {
 		.name = "zet6223",
 		.of_match_table = zet6223_of_match,
 	},
-	.probe = zet6223_probe,
+	.probe_new = zet6223_probe,
 	.id_table = zet6223_id
 };
 module_i2c_driver(zet6223_driver);

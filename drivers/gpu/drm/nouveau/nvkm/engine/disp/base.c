@@ -29,7 +29,6 @@
 #include "outp.h"
 
 #include <core/client.h>
-#include <core/notify.h>
 #include <core/ramht.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
@@ -57,32 +56,8 @@ nvkm_disp_vblank_init(struct nvkm_event *event, int type, int id)
 		head->func->vblank_get(head);
 }
 
-static int
-nvkm_disp_vblank_ctor(struct nvkm_object *object, void *data, u32 size,
-		      struct nvkm_notify *notify)
-{
-	struct nvkm_disp *disp =
-		container_of(notify->event, typeof(*disp), vblank);
-	union {
-		struct nvif_notify_head_req_v0 v0;
-	} *req = data;
-	int ret = -ENOSYS;
-
-	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, false))) {
-		notify->size = sizeof(struct nvif_notify_head_rep_v0);
-		if (ret = -ENXIO, req->v0.head <= disp->vblank.index_nr) {
-			notify->types = 1;
-			notify->index = req->v0.head;
-			return 0;
-		}
-	}
-
-	return ret;
-}
-
 static const struct nvkm_event_func
 nvkm_disp_vblank_func = {
-	.ctor = nvkm_disp_vblank_ctor,
 	.init = nvkm_disp_vblank_init,
 	.fini = nvkm_disp_vblank_fini,
 };
@@ -90,59 +65,7 @@ nvkm_disp_vblank_func = {
 void
 nvkm_disp_vblank(struct nvkm_disp *disp, int head)
 {
-	struct nvif_notify_head_rep_v0 rep = {};
-	nvkm_event_send(&disp->vblank, 1, head, &rep, sizeof(rep));
-}
-
-static int
-nvkm_disp_hpd_ctor(struct nvkm_object *object, void *data, u32 size,
-		   struct nvkm_notify *notify)
-{
-	struct nvkm_disp *disp =
-		container_of(notify->event, typeof(*disp), hpd);
-	union {
-		struct nvif_notify_conn_req_v0 v0;
-	} *req = data;
-	struct nvkm_outp *outp;
-	int ret = -ENOSYS;
-
-	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, false))) {
-		notify->size = sizeof(struct nvif_notify_conn_rep_v0);
-		list_for_each_entry(outp, &disp->outps, head) {
-			if (ret = -ENXIO, outp->conn->index == req->v0.conn) {
-				if (ret = -ENODEV, outp->conn->hpd.event) {
-					notify->types = req->v0.mask;
-					notify->index = req->v0.conn;
-					ret = 0;
-				}
-				break;
-			}
-		}
-	}
-
-	return ret;
-}
-
-static const struct nvkm_event_func
-nvkm_disp_hpd_func = {
-	.ctor = nvkm_disp_hpd_ctor
-};
-
-int
-nvkm_disp_ntfy(struct nvkm_object *object, u32 type, struct nvkm_event **event)
-{
-	struct nvkm_disp *disp = nvkm_disp(object->engine);
-	switch (type) {
-	case NV04_DISP_NTFY_VBLANK:
-		*event = &disp->vblank;
-		return 0;
-	case NV04_DISP_NTFY_CONN:
-		*event = &disp->hpd;
-		return 0;
-	default:
-		break;
-	}
-	return -EINVAL;
+	nvkm_event_ntfy(&disp->vblank, head, NVKM_DISP_HEAD_EVENT_VBLANK);
 }
 
 static int
@@ -343,9 +266,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 		/* Apparently we need to create a new one! */
 		ret = nvkm_conn_new(disp, i, &connE, &outp->conn);
 		if (ret) {
-			nvkm_error(&disp->engine.subdev,
-				   "failed to create outp %d conn: %d\n",
-				   outp->index, ret);
+			nvkm_error(subdev, "failed to create outp %d conn: %d\n", outp->index, ret);
 			nvkm_conn_del(&outp->conn);
 			list_del(&outp->head);
 			nvkm_outp_del(&outp);
@@ -354,10 +275,6 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 
 		list_add_tail(&outp->conn->head, &disp->conns);
 	}
-
-	ret = nvkm_event_init(&nvkm_disp_hpd_func, 3, hpd, &disp->hpd);
-	if (ret)
-		return ret;
 
 	if (disp->func->oneinit) {
 		ret = disp->func->oneinit(disp);
@@ -382,7 +299,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 	list_for_each_entry(head, &disp->heads, head)
 		i = max(i, head->id + 1);
 
-	return nvkm_event_init(&nvkm_disp_vblank_func, 1, i, &disp->vblank);
+	return nvkm_event_init(&nvkm_disp_vblank_func, subdev, 1, i, &disp->vblank);
 }
 
 static void *
@@ -406,7 +323,6 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 	}
 
 	nvkm_event_fini(&disp->vblank);
-	nvkm_event_fini(&disp->hpd);
 
 	while (!list_empty(&disp->conns)) {
 		conn = list_first_entry(&disp->conns, typeof(*conn), head);
@@ -473,5 +389,6 @@ nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 		mutex_init(&disp->super.mutex);
 	}
 
-	return nvkm_event_init(func->uevent, 1, ARRAY_SIZE(disp->chan), &disp->uevent);
+	return nvkm_event_init(func->uevent, &disp->engine.subdev, 1, ARRAY_SIZE(disp->chan),
+			       &disp->uevent);
 }

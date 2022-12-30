@@ -158,7 +158,7 @@ void intel_gvt_clean_vgpu_types(struct intel_gvt *gvt)
 }
 
 /**
- * intel_gvt_active_vgpu - activate a virtual GPU
+ * intel_gvt_activate_vgpu - activate a virtual GPU
  * @vgpu: virtual GPU
  *
  * This function is called when user wants to activate a virtual GPU.
@@ -172,7 +172,7 @@ void intel_gvt_activate_vgpu(struct intel_vgpu *vgpu)
 }
 
 /**
- * intel_gvt_deactive_vgpu - deactivate a virtual GPU
+ * intel_gvt_deactivate_vgpu - deactivate a virtual GPU
  * @vgpu: virtual GPU
  *
  * This function is called when user wants to deactivate a virtual GPU.
@@ -295,7 +295,7 @@ out_free_vgpu:
 }
 
 /**
- * intel_gvt_destroy_vgpu - destroy an idle virtual GPU
+ * intel_gvt_destroy_idle_vgpu - destroy an idle virtual GPU
  * @vgpu: virtual GPU
  *
  * This function is called when user wants to destroy an idle virtual GPU.

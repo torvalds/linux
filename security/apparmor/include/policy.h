@@ -44,6 +44,8 @@ extern const char *const aa_profile_mode_names[];
 
 #define COMPLAIN_MODE(_profile)	PROFILE_MODE((_profile), APPARMOR_COMPLAIN)
 
+#define USER_MODE(_profile)	PROFILE_MODE((_profile), APPARMOR_USER)
+
 #define KILL_MODE(_profile) PROFILE_MODE((_profile), APPARMOR_KILL)
 
 #define PROFILE_IS_HAT(_profile) ((_profile)->label.flags & FLAG_HAT)
@@ -67,19 +69,46 @@ enum profile_mode {
 	APPARMOR_COMPLAIN,	/* allow and log access violations */
 	APPARMOR_KILL,		/* kill task on access violation */
 	APPARMOR_UNCONFINED,	/* profile set to unconfined */
+	APPARMOR_USER,		/* modified complain mode to userspace */
 };
 
 
 /* struct aa_policydb - match engine for a policy
  * dfa: dfa pattern match
+ * perms: table of permissions
+ * strs: table of strings, index by x
  * start: set of start states for the different classes of data
  */
 struct aa_policydb {
-	/* Generic policy DFA specific rule types will be subsections of it */
 	struct aa_dfa *dfa;
-	unsigned int start[AA_CLASS_LAST + 1];
-
+	struct {
+		struct aa_perms *perms;
+		u32 size;
+	};
+	struct aa_str_table trans;
+	aa_state_t start[AA_CLASS_LAST + 1];
 };
+
+static inline void aa_destroy_policydb(struct aa_policydb *policy)
+{
+	aa_put_dfa(policy->dfa);
+	if (policy->perms)
+		kvfree(policy->perms);
+	aa_free_str_table(&policy->trans);
+
+}
+
+static inline struct aa_perms *aa_lookup_perms(struct aa_policydb *policy,
+					       aa_state_t state)
+{
+	unsigned int index = ACCEPT_TABLE(policy->dfa)[state];
+
+	if (!(policy->perms))
+		return &default_perms;
+
+	return &(policy->perms[index]);
+}
+
 
 /* struct aa_data - generic data structure
  * key: name for retrieving this data
@@ -94,6 +123,47 @@ struct aa_data {
 	struct rhash_head head;
 };
 
+/* struct aa_ruleset - data covering mediation rules
+ * @list: list the rule is on
+ * @size: the memory consumed by this ruleset
+ * @policy: general match rules governing policy
+ * @file: The set of rules governing basic file access and domain transitions
+ * @caps: capabilities for the profile
+ * @rlimits: rlimits for the profile
+ * @secmark_count: number of secmark entries
+ * @secmark: secmark label match info
+ */
+struct aa_ruleset {
+	struct list_head list;
+
+	int size;
+
+	/* TODO: merge policy and file */
+	struct aa_policydb policy;
+	struct aa_policydb file;
+	struct aa_caps caps;
+
+	struct aa_rlimit rlimits;
+
+	int secmark_count;
+	struct aa_secmark *secmark;
+};
+
+/* struct aa_attachment - data and rules for a profiles attachment
+ * @list:
+ * @xmatch_str: human readable attachment string
+ * @xmatch: optional extended matching for unconfined executables names
+ * @xmatch_len: xmatch prefix len, used to determine xmatch priority
+ * @xattr_count: number of xattrs in table
+ * @xattrs: table of xattrs
+ */
+struct aa_attachment {
+	const char *xmatch_str;
+	struct aa_policydb xmatch;
+	unsigned int xmatch_len;
+	int xattr_count;
+	char **xattrs;
+};
 
 /* struct aa_profile - basic confinement data
  * @base - base components of the profile (name, refcount, lists, lock ...)
@@ -101,18 +171,13 @@ struct aa_data {
  * @parent: parent of profile
  * @ns: namespace the profile is in
  * @rename: optional profile name that this profile renamed
- * @attach: human readable attachment string
- * @xmatch: optional extended matching for unconfined executables names
- * @xmatch_len: xmatch prefix len, used to determine xmatch priority
+ *
  * @audit: the auditing mode of the profile
  * @mode: the enforcement mode of the profile
  * @path_flags: flags controlling path generation behavior
  * @disconnected: what to prepend if attach_disconnected is specified
- * @size: the memory consumed by this profiles rules
- * @policy: general match rules governing policy
- * @file: The set of rules governing basic file access and domain transitions
- * @caps: capabilities for the profile
- * @rlimits: rlimits for the profile
+ * @attach: attachment rules for the profile
+ * @rules: rules to be enforced
  *
  * @dents: dentries for the profiles file entries in apparmorfs
  * @dirname: name of the profile dir in apparmorfs
@@ -137,26 +202,13 @@ struct aa_profile {
 	struct aa_ns *ns;
 	const char *rename;
 
-	const char *attach;
-	struct aa_dfa *xmatch;
-	unsigned int xmatch_len;
 	enum audit_mode audit;
 	long mode;
 	u32 path_flags;
 	const char *disconnected;
-	int size;
 
-	struct aa_policydb policy;
-	struct aa_file_rules file;
-	struct aa_caps caps;
-
-	int xattr_count;
-	char **xattrs;
-
-	struct aa_rlimit rlimits;
-
-	int secmark_count;
-	struct aa_secmark *secmark;
+	struct aa_attachment attach;
+	struct list_head rules;
 
 	struct aa_loaddata *rawdata;
 	unsigned char *hash;
@@ -179,10 +231,13 @@ void aa_add_profile(struct aa_policy *common, struct aa_profile *profile);
 
 
 void aa_free_proxy_kref(struct kref *kref);
+struct aa_ruleset *aa_alloc_ruleset(gfp_t gfp);
 struct aa_profile *aa_alloc_profile(const char *name, struct aa_proxy *proxy,
 				    gfp_t gfp);
-struct aa_profile *aa_new_null_profile(struct aa_profile *parent, bool hat,
-				       const char *base, gfp_t gfp);
+struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
+				 gfp_t gfp);
+struct aa_profile *aa_new_learning_profile(struct aa_profile *parent, bool hat,
+					   const char *base, gfp_t gfp);
 void aa_free_profile(struct aa_profile *profile);
 void aa_free_profile_kref(struct kref *kref);
 struct aa_profile *aa_find_child(struct aa_profile *parent, const char *name);
@@ -217,24 +272,34 @@ static inline struct aa_profile *aa_get_newest_profile(struct aa_profile *p)
 	return labels_profile(aa_get_newest_label(&p->label));
 }
 
-static inline unsigned int PROFILE_MEDIATES(struct aa_profile *profile,
-					    unsigned char class)
+static inline aa_state_t RULE_MEDIATES(struct aa_ruleset *rules,
+				       unsigned char class)
 {
 	if (class <= AA_CLASS_LAST)
-		return profile->policy.start[class];
+		return rules->policy.start[class];
 	else
-		return aa_dfa_match_len(profile->policy.dfa,
-					profile->policy.start[0], &class, 1);
+		return aa_dfa_match_len(rules->policy.dfa,
+					rules->policy.start[0], &class, 1);
 }
 
-static inline unsigned int PROFILE_MEDIATES_AF(struct aa_profile *profile,
-					       u16 AF) {
-	unsigned int state = PROFILE_MEDIATES(profile, AA_CLASS_NET);
+static inline aa_state_t RULE_MEDIATES_AF(struct aa_ruleset *rules, u16 AF)
+{
+	aa_state_t state = RULE_MEDIATES(rules, AA_CLASS_NET);
 	__be16 be_af = cpu_to_be16(AF);
 
 	if (!state)
-		return 0;
-	return aa_dfa_match_len(profile->policy.dfa, state, (char *) &be_af, 2);
+		return DFA_NOMATCH;
+	return aa_dfa_match_len(rules->policy.dfa, state, (char *) &be_af, 2);
+}
+
+static inline aa_state_t ANY_RULE_MEDIATES(struct list_head *head,
+					   unsigned char class)
+{
+	struct aa_ruleset *rule;
+
+	/* TODO: change to list walk */
+	rule = list_first_entry(head, typeof(*rule), list);
+	return RULE_MEDIATES(rule, class);
 }
 
 /**

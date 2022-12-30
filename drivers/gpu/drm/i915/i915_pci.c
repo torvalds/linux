@@ -1078,7 +1078,6 @@ static const struct intel_device_info dg2_info = {
 	XE_LPD_FEATURES,
 	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 			       BIT(TRANSCODER_C) | BIT(TRANSCODER_D),
-	.require_force_probe = 1,
 };
 
 static const struct intel_device_info ats_m_info = {

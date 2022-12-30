@@ -13671,19 +13671,20 @@ static int bnx2x_send_update_drift_ramrod(struct bnx2x *bp, int drift_dir,
 	return bnx2x_func_state_change(bp, &func_params);
 }
 
-static int bnx2x_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+static int bnx2x_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct bnx2x *bp = container_of(ptp, struct bnx2x, ptp_clock_info);
 	int rc;
 	int drift_dir = 1;
 	int val, period, period1, period2, dif, dif1, dif2;
 	int best_dif = BNX2X_MAX_PHC_DRIFT, best_period = 0, best_val = 0;
+	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
 
-	DP(BNX2X_MSG_PTP, "PTP adjfreq called, ppb = %d\n", ppb);
+	DP(BNX2X_MSG_PTP, "PTP adjfine called, ppb = %d\n", ppb);
 
 	if (!netif_running(bp->dev)) {
 		DP(BNX2X_MSG_PTP,
-		   "PTP adjfreq called while the interface is down\n");
+		   "PTP adjfine called while the interface is down\n");
 		return -ENETDOWN;
 	}
 
@@ -13818,7 +13819,7 @@ void bnx2x_register_phc(struct bnx2x *bp)
 	bp->ptp_clock_info.n_ext_ts = 0;
 	bp->ptp_clock_info.n_per_out = 0;
 	bp->ptp_clock_info.pps = 0;
-	bp->ptp_clock_info.adjfreq = bnx2x_ptp_adjfreq;
+	bp->ptp_clock_info.adjfine = bnx2x_ptp_adjfine;
 	bp->ptp_clock_info.adjtime = bnx2x_ptp_adjtime;
 	bp->ptp_clock_info.gettime64 = bnx2x_ptp_gettime;
 	bp->ptp_clock_info.settime64 = bnx2x_ptp_settime;

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/power/supply/ti,lp8727.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding for TI/National Semiconductor LP8727 Charger
+title: TI/National Semiconductor LP8727 Charger
 
 maintainers:
   - Sebastian Reichel <sre@kernel.org>

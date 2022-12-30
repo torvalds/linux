@@ -7,6 +7,7 @@
 /**
  * struct sdw_intel_link_res - Soundwire Intel link resource structure,
  * typically populated by the controller driver.
+ * @hw_ops: platform-specific ops
  * @mmio_base: mmio base of SoundWire registers
  * @registers: Link IO registers base
  * @shim: Audio shim pointer
@@ -22,6 +23,8 @@
  * @list: used to walk-through all masters exposed by the same controller
  */
 struct sdw_intel_link_res {
+	const struct sdw_intel_hw_ops *hw_ops;
+
 	void __iomem *mmio_base; /* not strictly needed, useful for debug */
 	void __iomem *registers;
 	void __iomem *shim;
@@ -47,15 +50,92 @@ struct sdw_intel {
 #endif
 };
 
-int intel_link_startup(struct auxiliary_device *auxdev);
-int intel_link_process_wakeen_event(struct auxiliary_device *auxdev);
+#define cdns_to_intel(_cdns) container_of(_cdns, struct sdw_intel, cdns)
 
-struct sdw_intel_link_dev {
-	struct auxiliary_device auxdev;
-	struct sdw_intel_link_res link_res;
-};
+#define INTEL_MASTER_RESET_ITERATIONS	10
 
-#define auxiliary_dev_to_sdw_intel_link_dev(auxiliary_dev) \
-	container_of(auxiliary_dev, struct sdw_intel_link_dev, auxdev)
+#define SDW_INTEL_CHECK_OPS(sdw, cb)	((sdw) && (sdw)->link_res && (sdw)->link_res->hw_ops && \
+					 (sdw)->link_res->hw_ops->cb)
+#define SDW_INTEL_OPS(sdw, cb)		((sdw)->link_res->hw_ops->cb)
+
+static inline void sdw_intel_debugfs_init(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, debugfs_init))
+		SDW_INTEL_OPS(sdw, debugfs_init)(sdw);
+}
+
+static inline void sdw_intel_debugfs_exit(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, debugfs_exit))
+		SDW_INTEL_OPS(sdw, debugfs_exit)(sdw);
+}
+
+static inline int sdw_intel_register_dai(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, register_dai))
+		return SDW_INTEL_OPS(sdw, register_dai)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline void sdw_intel_check_clock_stop(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, check_clock_stop))
+		SDW_INTEL_OPS(sdw, check_clock_stop)(sdw);
+}
+
+static inline int sdw_intel_start_bus(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, start_bus))
+		return SDW_INTEL_OPS(sdw, start_bus)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_start_bus_after_reset(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, start_bus_after_reset))
+		return SDW_INTEL_OPS(sdw, start_bus_after_reset)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_start_bus_after_clock_stop(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, start_bus_after_clock_stop))
+		return SDW_INTEL_OPS(sdw, start_bus_after_clock_stop)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, stop_bus))
+		return SDW_INTEL_OPS(sdw, stop_bus)(sdw, clock_stop);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_link_power_up(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, link_power_up))
+		return SDW_INTEL_OPS(sdw, link_power_up)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_link_power_down(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, link_power_down))
+		return SDW_INTEL_OPS(sdw, link_power_down)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_shim_check_wake(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, shim_check_wake))
+		return SDW_INTEL_OPS(sdw, shim_check_wake)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline void sdw_intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, shim_wake))
+		SDW_INTEL_OPS(sdw, shim_wake)(sdw, wake_enable);
+}
 
 #endif /* __SDW_INTEL_LOCAL_H */

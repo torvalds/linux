@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/ene-kb930.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ENE KB930 Embedded Controller bindings
+title: ENE KB930 Embedded Controller
 
 description: |
   This binding describes the ENE KB930 Embedded Controller attached to an
@@ -12,6 +12,8 @@ description: |
 
 maintainers:
   - Dmitry Osipenko <digetx@gmail.com>
+
+$ref: /schemas/power/supply/power-supply.yaml
 
 properties:
   compatible:
@@ -22,15 +24,13 @@ properties:
   reg:
     maxItems: 1
 
-  monitored-battery: true
-  power-supplies: true
   system-power-controller: true
 
 required:
   - compatible
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

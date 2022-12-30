@@ -883,7 +883,7 @@ static ssize_t charge_control_end_threshold_show(struct device *device,
 
 static DEVICE_ATTR_RW(charge_control_end_threshold);
 
-static int asus_wmi_battery_add(struct power_supply *battery)
+static int asus_wmi_battery_add(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	/* The WMI method does not provide a way to specific a battery, so we
 	 * just assume it is the first battery.
@@ -910,7 +910,7 @@ static int asus_wmi_battery_add(struct power_supply *battery)
 	return 0;
 }
 
-static int asus_wmi_battery_remove(struct power_supply *battery)
+static int asus_wmi_battery_remove(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	device_remove_file(&battery->dev,
 			   &dev_attr_charge_control_end_threshold);
@@ -1737,6 +1737,8 @@ static void asus_wmi_set_xusb2pr(struct asus_wmi *asus)
 
 	pci_write_config_dword(xhci_pdev, USB_INTEL_XUSB2PR,
 				cpu_to_le32(ports_available));
+
+	pci_dev_put(xhci_pdev);
 
 	pr_info("set USB_INTEL_XUSB2PR old: 0x%04x, new: 0x%04x\n",
 			orig_ports_available, ports_available);

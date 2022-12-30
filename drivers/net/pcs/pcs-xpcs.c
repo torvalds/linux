@@ -188,18 +188,12 @@ static bool __xpcs_linkmode_supported(const struct xpcs_compat *compat,
 
 int xpcs_read(struct dw_xpcs *xpcs, int dev, u32 reg)
 {
-	struct mii_bus *bus = xpcs->mdiodev->bus;
-	int addr = xpcs->mdiodev->addr;
-
-	return mdiobus_c45_read(bus, addr, dev, reg);
+	return mdiodev_c45_read(xpcs->mdiodev, dev, reg);
 }
 
 int xpcs_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val)
 {
-	struct mii_bus *bus = xpcs->mdiodev->bus;
-	int addr = xpcs->mdiodev->addr;
-
-	return mdiobus_c45_write(bus, addr, dev, reg, val);
+	return mdiodev_c45_write(xpcs->mdiodev, dev, reg, val);
 }
 
 static int xpcs_modify_changed(struct dw_xpcs *xpcs, int dev, u32 reg,

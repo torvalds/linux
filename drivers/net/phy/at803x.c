@@ -870,8 +870,10 @@ static int at803x_probe(struct phy_device *phydev)
 			.wolopts = 0,
 		};
 
-		if (ccr < 0)
+		if (ccr < 0) {
+			ret = ccr;
 			goto err;
+		}
 		mode_cfg = ccr & AT803X_MODE_CFG_MASK;
 
 		switch (mode_cfg) {
@@ -1758,7 +1760,7 @@ static int qca808x_phy_fast_retrain_config(struct phy_device *phydev)
 
 static int qca808x_phy_ms_random_seed_set(struct phy_device *phydev)
 {
-	u16 seed_value = prandom_u32_max(QCA808X_MASTER_SLAVE_SEED_RANGE);
+	u16 seed_value = get_random_u32_below(QCA808X_MASTER_SLAVE_SEED_RANGE);
 
 	return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_LOCAL_SEED,
 			QCA808X_MASTER_SLAVE_SEED_CFG,

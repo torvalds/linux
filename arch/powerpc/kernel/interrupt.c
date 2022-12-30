@@ -374,10 +374,18 @@ notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs)
 	if (regs_is_unrecoverable(regs))
 		unrecoverable_exception(regs);
 	/*
-	 * CT_WARN_ON comes here via program_check_exception,
-	 * so avoid recursion.
+	 * CT_WARN_ON comes here via program_check_exception, so avoid
+	 * recursion.
+	 *
+	 * Skip the assertion on PMIs on 64e to work around a problem caused
+	 * by NMI PMIs incorrectly taking this interrupt return path, it's
+	 * possible for this to hit after interrupt exit to user switches
+	 * context to user. See also the comment in the performance monitor
+	 * handler in exceptions-64e.S
 	 */
-	if (TRAP(regs) != INTERRUPT_PROGRAM)
+	if (!IS_ENABLED(CONFIG_PPC_BOOK3E_64) &&
+	    TRAP(regs) != INTERRUPT_PROGRAM &&
+	    TRAP(regs) != INTERRUPT_PERFMON)
 		CT_WARN_ON(ct_state() == CONTEXT_USER);
 
 	kuap = kuap_get_and_assert_locked();

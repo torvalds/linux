@@ -1686,6 +1686,9 @@ static void nau8825_setup_auto_irq(struct nau8825 *nau8825)
 
 	/* Enable internal VCO needed for interruptions */
 	nau8825_configure_sysclk(nau8825, NAU8825_CLK_INTERNAL, 0);
+	/* Raise up the internal clock for jack detection */
+	regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
+			   NAU8825_CLK_MCLK_SRC_MASK, 0);
 
 	/* Enable ADC needed for interruptions */
 	regmap_update_bits(regmap, NAU8825_REG_ENA_CTRL,
@@ -1731,6 +1734,121 @@ static int nau8825_button_decode(int value)
 		buttons |= SND_JACK_BTN_5;
 
 	return buttons;
+}
+
+static int nau8825_high_imped_detection(struct nau8825 *nau8825)
+{
+	struct regmap *regmap = nau8825->regmap;
+	struct snd_soc_dapm_context *dapm = nau8825->dapm;
+	unsigned int adc_mg1, adc_mg2;
+
+	/* Initial phase */
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 | NAU8825_SPKR_DWN1R |
+			   NAU8825_SPKR_DWN1L, NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2);
+	regmap_update_bits(regmap, NAU8825_REG_ANALOG_CONTROL_1,
+			   NAU8825_TESTDACIN_MASK, NAU8825_TESTDACIN_GND);
+	regmap_write(regmap, NAU8825_REG_TRIM_SETTINGS, 0x6);
+	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+			   NAU8825_MICBIAS_LOWNOISE_MASK | NAU8825_MICBIAS_VOLTAGE_MASK,
+			   NAU8825_MICBIAS_LOWNOISE_EN);
+	regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+			   NAU8825_SAR_INPUT_MASK | NAU8825_SAR_TRACKING_GAIN_MASK |
+			   NAU8825_SAR_HV_SEL_MASK | NAU8825_SAR_RES_SEL_MASK |
+			   NAU8825_SAR_COMPARE_TIME_MASK | NAU8825_SAR_SAMPLING_TIME_MASK,
+			   NAU8825_SAR_HV_SEL_VDDMIC | NAU8825_SAR_RES_SEL_70K);
+
+	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS");
+	snd_soc_dapm_force_enable_pin(dapm, "SAR");
+	snd_soc_dapm_sync(dapm);
+
+	/* Configure settings for first reading of SARADC */
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 | NAU8825_SPKR_DWN1R |
+			   NAU8825_SPKR_DWN1L, NAU8825_SPKR_ENGND2);
+	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+			   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2,
+			   NAU8825_MICBIAS_JKR2);
+	regmap_read(regmap, NAU8825_REG_SARDOUT_RAM_STATUS, &adc_mg1);
+
+	/* Configure settings for second reading of SARADC */
+	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+			   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2, 0);
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 | NAU8825_SPKR_DWN1R |
+			   NAU8825_SPKR_DWN1L, NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 |
+			   NAU8825_SPKR_DWN1R | NAU8825_SPKR_DWN1L);
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 | NAU8825_SPKR_DWN1R |
+			   NAU8825_SPKR_DWN1L, NAU8825_SPKR_ENGND1);
+	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+			   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2,
+			   NAU8825_MICBIAS_JKSLV);
+	regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+			   NAU8825_SAR_INPUT_MASK, NAU8825_SAR_INPUT_JKSLV);
+	regmap_read(regmap, NAU8825_REG_SARDOUT_RAM_STATUS, &adc_mg2);
+
+	/* Disable phase */
+	snd_soc_dapm_disable_pin(dapm, "SAR");
+	snd_soc_dapm_disable_pin(dapm, "MICBIAS");
+	snd_soc_dapm_sync(dapm);
+
+	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+			   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_LOWNOISE_MASK |
+			   NAU8825_MICBIAS_VOLTAGE_MASK, nau8825->micbias_voltage);
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 | NAU8825_SPKR_DWN1R |
+			   NAU8825_SPKR_DWN1L, NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 |
+			   NAU8825_SPKR_DWN1R | NAU8825_SPKR_DWN1L);
+	regmap_update_bits(regmap, NAU8825_REG_ANALOG_CONTROL_1,
+			   NAU8825_TESTDACIN_MASK, NAU8825_TESTDACIN_GND);
+	regmap_write(regmap, NAU8825_REG_TRIM_SETTINGS, 0);
+	regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+			   NAU8825_SAR_TRACKING_GAIN_MASK | NAU8825_SAR_HV_SEL_MASK,
+			   nau8825->sar_voltage << NAU8825_SAR_TRACKING_GAIN_SFT);
+	regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+			   NAU8825_SAR_COMPARE_TIME_MASK | NAU8825_SAR_SAMPLING_TIME_MASK,
+			   (nau8825->sar_compare_time << NAU8825_SAR_COMPARE_TIME_SFT) |
+			   (nau8825->sar_sampling_time << NAU8825_SAR_SAMPLING_TIME_SFT));
+	dev_dbg(nau8825->dev, "adc_mg1:%x, adc_mg2:%x\n", adc_mg1, adc_mg2);
+
+	/* Confirmation phase */
+	if (adc_mg1 > adc_mg2) {
+		dev_dbg(nau8825->dev, "OMTP (micgnd1) mic connected\n");
+
+		/* Unground MICGND1 */
+		regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+				   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2,
+				   NAU8825_SPKR_ENGND2);
+		/* Attach 2kOhm Resistor from MICBIAS to MICGND1 */
+		regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+				   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2,
+				   NAU8825_MICBIAS_JKR2);
+		/* Attach SARADC to MICGND1 */
+		regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+				   NAU8825_SAR_INPUT_MASK,
+				   NAU8825_SAR_INPUT_JKR2);
+	} else if (adc_mg1 < adc_mg2) {
+		dev_dbg(nau8825->dev, "CTIA (micgnd2) mic connected\n");
+
+		/* Unground MICGND2 */
+		regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+				   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2,
+				   NAU8825_SPKR_ENGND1);
+		/* Attach 2kOhm Resistor from MICBIAS to MICGND2 */
+		regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+				   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2,
+				   NAU8825_MICBIAS_JKSLV);
+		/* Attach SARADC to MICGND2 */
+		regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+				   NAU8825_SAR_INPUT_MASK,
+				   NAU8825_SAR_INPUT_JKSLV);
+	} else {
+		dev_err(nau8825->dev, "Jack broken.\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int nau8825_jack_insert(struct nau8825 *nau8825)
@@ -1794,11 +1912,22 @@ static int nau8825_jack_insert(struct nau8825 *nau8825)
 		snd_soc_dapm_sync(dapm);
 		break;
 	case 3:
-		/* detect error case */
-		dev_err(nau8825->dev, "detection error; disable mic function\n");
-		type = SND_JACK_HEADPHONE;
+		/* Detection failure case */
+		dev_warn(nau8825->dev,
+			 "Detection failure. Try the manually mechanism for jack type checking.\n");
+		if (!nau8825_high_imped_detection(nau8825)) {
+			type = SND_JACK_HEADSET;
+			snd_soc_dapm_force_enable_pin(dapm, "MICBIAS");
+			snd_soc_dapm_force_enable_pin(dapm, "SAR");
+			snd_soc_dapm_sync(dapm);
+		} else
+			type = SND_JACK_HEADPHONE;
 		break;
 	}
+
+	/* Update to the default divider of internal clock for power saving */
+	regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
+			   NAU8825_CLK_MCLK_SRC_MASK, 0xf);
 
 	/* Leaving HPOL/R grounded after jack insert by default. They will be
 	 * ungrounded as part of the widget power up sequence at the beginning

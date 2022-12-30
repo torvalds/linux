@@ -15,7 +15,18 @@ extern struct static_call_site __start_static_call_sites[],
 extern struct static_call_tramp_key __start_static_call_tramp_key[],
 				    __stop_static_call_tramp_key[];
 
-static bool static_call_initialized;
+static int static_call_initialized;
+
+/*
+ * Must be called before early_initcall() to be effective.
+ */
+void static_call_force_reinit(void)
+{
+	if (WARN_ON_ONCE(!static_call_initialized))
+		return;
+
+	static_call_initialized++;
+}
 
 /* mutex to protect key modules/sites */
 static DEFINE_MUTEX(static_call_mutex);
@@ -475,7 +486,8 @@ int __init static_call_init(void)
 {
 	int ret;
 
-	if (static_call_initialized)
+	/* See static_call_force_reinit(). */
+	if (static_call_initialized == 1)
 		return 0;
 
 	cpus_read_lock();
@@ -490,11 +502,12 @@ int __init static_call_init(void)
 		BUG();
 	}
 
-	static_call_initialized = true;
-
 #ifdef CONFIG_MODULES
-	register_module_notifier(&static_call_module_nb);
+	if (!static_call_initialized)
+		register_module_notifier(&static_call_module_nb);
 #endif
+
+	static_call_initialized = 1;
 	return 0;
 }
 early_initcall(static_call_init);

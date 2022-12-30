@@ -618,9 +618,9 @@ static const struct iio_info cm36651_info = {
 	.attrs			= &cm36651_attribute_group,
 };
 
-static int cm36651_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int cm36651_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct cm36651_data *cm36651;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -730,7 +730,7 @@ static struct i2c_driver cm36651_driver = {
 		.name	= "cm36651",
 		.of_match_table = cm36651_of_match,
 	},
-	.probe		= cm36651_probe,
+	.probe_new	= cm36651_probe,
 	.remove		= cm36651_remove,
 	.id_table	= cm36651_id,
 };

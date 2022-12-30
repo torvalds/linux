@@ -608,6 +608,52 @@ static inline void reth_set_len(struct rxe_pkt_info *pkt, u32 len)
 }
 
 /******************************************************************************
+ * FLUSH Extended Transport Header
+ ******************************************************************************/
+
+struct rxe_feth {
+	__be32 bits;
+};
+
+#define FETH_PLT_MASK		(0x0000000f) /* bits 3-0 */
+#define FETH_SEL_MASK		(0x00000030) /* bits 5-4 */
+#define FETH_SEL_SHIFT		(4U)
+
+static inline u32 __feth_plt(void *arg)
+{
+	struct rxe_feth *feth = arg;
+
+	return be32_to_cpu(feth->bits) & FETH_PLT_MASK;
+}
+
+static inline u32 __feth_sel(void *arg)
+{
+	struct rxe_feth *feth = arg;
+
+	return (be32_to_cpu(feth->bits) & FETH_SEL_MASK) >> FETH_SEL_SHIFT;
+}
+
+static inline u32 feth_plt(struct rxe_pkt_info *pkt)
+{
+	return __feth_plt(pkt->hdr + rxe_opcode[pkt->opcode].offset[RXE_FETH]);
+}
+
+static inline u32 feth_sel(struct rxe_pkt_info *pkt)
+{
+	return __feth_sel(pkt->hdr + rxe_opcode[pkt->opcode].offset[RXE_FETH]);
+}
+
+static inline void feth_init(struct rxe_pkt_info *pkt, u8 type, u8 level)
+{
+	struct rxe_feth *feth = (struct rxe_feth *)
+		    (pkt->hdr + rxe_opcode[pkt->opcode].offset[RXE_FETH]);
+	u32 bits = ((level << FETH_SEL_SHIFT) & FETH_SEL_MASK) |
+		   (type & FETH_PLT_MASK);
+
+	feth->bits = cpu_to_be32(bits);
+}
+
+/******************************************************************************
  * Atomic Extended Transport Header
  ******************************************************************************/
 struct rxe_atmeth {
@@ -742,7 +788,6 @@ enum aeth_syndrome {
 	AETH_NAK_INVALID_REQ	= 0x61,
 	AETH_NAK_REM_ACC_ERR	= 0x62,
 	AETH_NAK_REM_OP_ERR	= 0x63,
-	AETH_NAK_INV_RD_REQ	= 0x64,
 };
 
 static inline u8 __aeth_syn(void *arg)
@@ -910,6 +955,7 @@ enum rxe_hdr_length {
 	RXE_ATMETH_BYTES	= sizeof(struct rxe_atmeth),
 	RXE_IETH_BYTES		= sizeof(struct rxe_ieth),
 	RXE_RDETH_BYTES		= sizeof(struct rxe_rdeth),
+	RXE_FETH_BYTES		= sizeof(struct rxe_feth),
 };
 
 static inline size_t header_size(struct rxe_pkt_info *pkt)

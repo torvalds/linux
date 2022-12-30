@@ -286,32 +286,6 @@ static void drm_sched_job_done_cb(struct dma_fence *f, struct dma_fence_cb *cb)
 }
 
 /**
- * drm_sched_dependency_optimized - test if the dependency can be optimized
- *
- * @fence: the dependency fence
- * @entity: the entity which depends on the above fence
- *
- * Returns true if the dependency can be optimized and false otherwise
- */
-bool drm_sched_dependency_optimized(struct dma_fence* fence,
-				    struct drm_sched_entity *entity)
-{
-	struct drm_gpu_scheduler *sched = entity->rq->sched;
-	struct drm_sched_fence *s_fence;
-
-	if (!fence || dma_fence_is_signaled(fence))
-		return false;
-	if (fence->context == entity->fence_context)
-		return true;
-	s_fence = to_drm_sched_fence(fence);
-	if (s_fence && s_fence->sched == sched)
-		return true;
-
-	return false;
-}
-EXPORT_SYMBOL(drm_sched_dependency_optimized);
-
-/**
  * drm_sched_start_timeout - start timeout for reset worker
  *
  * @sched: scheduler instance to start the worker for
@@ -442,27 +416,6 @@ static void drm_sched_job_timedout(struct work_struct *work)
 		spin_unlock(&sched->job_list_lock);
 	}
 }
-
- /**
-  * drm_sched_increase_karma - Update sched_entity guilty flag
-  *
-  * @bad: The job guilty of time out
-  *
-  * Increment on every hang caused by the 'bad' job. If this exceeds the hang
-  * limit of the scheduler then the respective sched entity is marked guilty and
-  * jobs from it will not be scheduled further
-  */
-void drm_sched_increase_karma(struct drm_sched_job *bad)
-{
-	drm_sched_increase_karma_ext(bad, 1);
-}
-EXPORT_SYMBOL(drm_sched_increase_karma);
-
-void drm_sched_reset_karma(struct drm_sched_job *bad)
-{
-	drm_sched_increase_karma_ext(bad, 0);
-}
-EXPORT_SYMBOL(drm_sched_reset_karma);
 
 /**
  * drm_sched_stop - stop the scheduler
@@ -605,30 +558,13 @@ EXPORT_SYMBOL(drm_sched_start);
  */
 void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 {
-	drm_sched_resubmit_jobs_ext(sched, INT_MAX);
-}
-EXPORT_SYMBOL(drm_sched_resubmit_jobs);
-
-/**
- * drm_sched_resubmit_jobs_ext - helper to relunch certain number of jobs from mirror ring list
- *
- * @sched: scheduler instance
- * @max: job numbers to relaunch
- *
- */
-void drm_sched_resubmit_jobs_ext(struct drm_gpu_scheduler *sched, int max)
-{
 	struct drm_sched_job *s_job, *tmp;
 	uint64_t guilty_context;
 	bool found_guilty = false;
 	struct dma_fence *fence;
-	int i = 0;
 
 	list_for_each_entry_safe(s_job, tmp, &sched->pending_list, list) {
 		struct drm_sched_fence *s_fence = s_job->s_fence;
-
-		if (i >= max)
-			break;
 
 		if (!found_guilty && atomic_read(&s_job->karma) > sched->hang_limit) {
 			found_guilty = true;
@@ -639,7 +575,6 @@ void drm_sched_resubmit_jobs_ext(struct drm_gpu_scheduler *sched, int max)
 			dma_fence_set_error(&s_fence->finished, -ECANCELED);
 
 		fence = sched->ops->run_job(s_job);
-		i++;
 
 		if (IS_ERR_OR_NULL(fence)) {
 			if (IS_ERR(fence))
@@ -655,7 +590,7 @@ void drm_sched_resubmit_jobs_ext(struct drm_gpu_scheduler *sched, int max)
 		}
 	}
 }
-EXPORT_SYMBOL(drm_sched_resubmit_jobs_ext);
+EXPORT_SYMBOL(drm_sched_resubmit_jobs);
 
 /**
  * drm_sched_job_init - init a scheduler job
@@ -773,6 +708,41 @@ int drm_sched_job_add_dependency(struct drm_sched_job *job,
 EXPORT_SYMBOL(drm_sched_job_add_dependency);
 
 /**
+ * drm_sched_job_add_resv_dependencies - add all fences from the resv to the job
+ * @job: scheduler job to add the dependencies to
+ * @resv: the dma_resv object to get the fences from
+ * @usage: the dma_resv_usage to use to filter the fences
+ *
+ * This adds all fences matching the given usage from @resv to @job.
+ * Must be called with the @resv lock held.
+ *
+ * Returns:
+ * 0 on success, or an error on failing to expand the array.
+ */
+int drm_sched_job_add_resv_dependencies(struct drm_sched_job *job,
+					struct dma_resv *resv,
+					enum dma_resv_usage usage)
+{
+	struct dma_resv_iter cursor;
+	struct dma_fence *fence;
+	int ret;
+
+	dma_resv_assert_held(resv);
+
+	dma_resv_for_each_fence(&cursor, resv, usage, fence) {
+		/* Make sure to grab an additional ref on the added fence */
+		dma_fence_get(fence);
+		ret = drm_sched_job_add_dependency(job, fence);
+		if (ret) {
+			dma_fence_put(fence);
+			return ret;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(drm_sched_job_add_resv_dependencies);
+
+/**
  * drm_sched_job_add_implicit_dependencies - adds implicit dependencies as job
  *   dependencies
  * @job: scheduler job to add the dependencies to
@@ -791,26 +761,10 @@ int drm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 					    struct drm_gem_object *obj,
 					    bool write)
 {
-	struct dma_resv_iter cursor;
-	struct dma_fence *fence;
-	int ret;
-
-	dma_resv_assert_held(obj->resv);
-
-	dma_resv_for_each_fence(&cursor, obj->resv, dma_resv_usage_rw(write),
-				fence) {
-		/* Make sure to grab an additional ref on the added fence */
-		dma_fence_get(fence);
-		ret = drm_sched_job_add_dependency(job, fence);
-		if (ret) {
-			dma_fence_put(fence);
-			return ret;
-		}
-	}
-	return 0;
+	return drm_sched_job_add_resv_dependencies(job, obj->resv,
+						   dma_resv_usage_rw(write));
 }
 EXPORT_SYMBOL(drm_sched_job_add_implicit_dependencies);
-
 
 /**
  * drm_sched_job_cleanup - clean up scheduler job resources
@@ -1172,13 +1126,15 @@ void drm_sched_fini(struct drm_gpu_scheduler *sched)
 EXPORT_SYMBOL(drm_sched_fini);
 
 /**
- * drm_sched_increase_karma_ext - Update sched_entity guilty flag
+ * drm_sched_increase_karma - Update sched_entity guilty flag
  *
  * @bad: The job guilty of time out
- * @type: type for increase/reset karma
  *
+ * Increment on every hang caused by the 'bad' job. If this exceeds the hang
+ * limit of the scheduler then the respective sched entity is marked guilty and
+ * jobs from it will not be scheduled further
  */
-void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type)
+void drm_sched_increase_karma(struct drm_sched_job *bad)
 {
 	int i;
 	struct drm_sched_entity *tmp;
@@ -1190,10 +1146,7 @@ void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type)
 	 * corrupt but keep in mind that kernel jobs always considered good.
 	 */
 	if (bad->s_priority != DRM_SCHED_PRIORITY_KERNEL) {
-		if (type == 0)
-			atomic_set(&bad->karma, 0);
-		else if (type == 1)
-			atomic_inc(&bad->karma);
+		atomic_inc(&bad->karma);
 
 		for (i = DRM_SCHED_PRIORITY_MIN; i < DRM_SCHED_PRIORITY_KERNEL;
 		     i++) {
@@ -1204,7 +1157,7 @@ void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type)
 				if (bad->s_fence->scheduled.context ==
 				    entity->fence_context) {
 					if (entity->guilty)
-						atomic_set(entity->guilty, type);
+						atomic_set(entity->guilty, 1);
 					break;
 				}
 			}
@@ -1214,4 +1167,4 @@ void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type)
 		}
 	}
 }
-EXPORT_SYMBOL(drm_sched_increase_karma_ext);
+EXPORT_SYMBOL(drm_sched_increase_karma);

@@ -103,7 +103,7 @@ static const u32 ipa_reg_filt_rout_hash_flush_fmask[] = {
 IPA_REG_FIELDS(FILT_ROUT_HASH_FLUSH, filt_rout_hash_flush, 0x0000090);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(STATE_AGGR_ACTIVE, state_aggr_active, 0x0000010c);
+IPA_REG_STRIDE(STATE_AGGR_ACTIVE, state_aggr_active, 0x0000010c, 0x0004);
 
 IPA_REG(IPA_BCR, ipa_bcr, 0x000001d0);
 
@@ -116,7 +116,7 @@ static const u32 ipa_reg_local_pkt_proc_cntxt_fmask[] = {
 IPA_REG_FIELDS(LOCAL_PKT_PROC_CNTXT, local_pkt_proc_cntxt, 0x000001e8);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(AGGR_FORCE_CLOSE, aggr_force_close, 0x000001ec);
+IPA_REG_STRIDE(AGGR_FORCE_CLOSE, aggr_force_close, 0x000001ec, 0x0004);
 
 static const u32 ipa_reg_counter_cfg_fmask[] = {
 	[EOT_COAL_GRANULARITY]				= GENMASK(3, 0),
@@ -127,112 +127,80 @@ static const u32 ipa_reg_counter_cfg_fmask[] = {
 IPA_REG_FIELDS(COUNTER_CFG, counter_cfg, 0x000001f0);
 
 static const u32 ipa_reg_src_rsrc_grp_01_rsrc_type_fmask[] = {
-	[X_MIN_LIM]					= GENMASK(5, 0),
-						/* Bits 6-7 reserved */
-	[X_MAX_LIM]					= GENMASK(13, 8),
-						/* Bits 14-15 reserved */
-	[Y_MIN_LIM]					= GENMASK(21, 16),
-						/* Bits 22-23 reserved */
-	[Y_MAX_LIM]					= GENMASK(29, 24),
-						/* Bits 30-31 reserved */
+	[X_MIN_LIM]					= GENMASK(7, 0),
+	[X_MAX_LIM]					= GENMASK(15, 8),
+	[Y_MIN_LIM]					= GENMASK(23, 16),
+	[Y_MAX_LIM]					= GENMASK(31, 24),
 };
 
 IPA_REG_STRIDE_FIELDS(SRC_RSRC_GRP_01_RSRC_TYPE, src_rsrc_grp_01_rsrc_type,
 		      0x00000400, 0x0020);
 
 static const u32 ipa_reg_src_rsrc_grp_23_rsrc_type_fmask[] = {
-	[X_MIN_LIM]					= GENMASK(5, 0),
-						/* Bits 6-7 reserved */
-	[X_MAX_LIM]					= GENMASK(13, 8),
-						/* Bits 14-15 reserved */
-	[Y_MIN_LIM]					= GENMASK(21, 16),
-						/* Bits 22-23 reserved */
-	[Y_MAX_LIM]					= GENMASK(29, 24),
-						/* Bits 30-31 reserved */
+	[X_MIN_LIM]					= GENMASK(7, 0),
+	[X_MAX_LIM]					= GENMASK(15, 8),
+	[Y_MIN_LIM]					= GENMASK(23, 16),
+	[Y_MAX_LIM]					= GENMASK(31, 24),
 };
 
 IPA_REG_STRIDE_FIELDS(SRC_RSRC_GRP_23_RSRC_TYPE, src_rsrc_grp_23_rsrc_type,
 		      0x00000404, 0x0020);
 
 static const u32 ipa_reg_src_rsrc_grp_45_rsrc_type_fmask[] = {
-	[X_MIN_LIM]					= GENMASK(5, 0),
-						/* Bits 6-7 reserved */
-	[X_MAX_LIM]					= GENMASK(13, 8),
-						/* Bits 14-15 reserved */
-	[Y_MIN_LIM]					= GENMASK(21, 16),
-						/* Bits 22-23 reserved */
-	[Y_MAX_LIM]					= GENMASK(29, 24),
-						/* Bits 30-31 reserved */
+	[X_MIN_LIM]					= GENMASK(7, 0),
+	[X_MAX_LIM]					= GENMASK(15, 8),
+	[Y_MIN_LIM]					= GENMASK(23, 16),
+	[Y_MAX_LIM]					= GENMASK(31, 24),
 };
 
 IPA_REG_STRIDE_FIELDS(SRC_RSRC_GRP_45_RSRC_TYPE, src_rsrc_grp_45_rsrc_type,
 		      0x00000408, 0x0020);
 
 static const u32 ipa_reg_src_rsrc_grp_67_rsrc_type_fmask[] = {
-	[X_MIN_LIM]					= GENMASK(5, 0),
-						/* Bits 6-7 reserved */
-	[X_MAX_LIM]					= GENMASK(13, 8),
-						/* Bits 14-15 reserved */
-	[Y_MIN_LIM]					= GENMASK(21, 16),
-						/* Bits 22-23 reserved */
-	[Y_MAX_LIM]					= GENMASK(29, 24),
-						/* Bits 30-31 reserved */
+	[X_MIN_LIM]					= GENMASK(7, 0),
+	[X_MAX_LIM]					= GENMASK(15, 8),
+	[Y_MIN_LIM]					= GENMASK(23, 16),
+	[Y_MAX_LIM]					= GENMASK(31, 24),
 };
 
 IPA_REG_STRIDE_FIELDS(SRC_RSRC_GRP_67_RSRC_TYPE, src_rsrc_grp_67_rsrc_type,
 		      0x0000040c, 0x0020);
 
 static const u32 ipa_reg_dst_rsrc_grp_01_rsrc_type_fmask[] = {
-	[X_MIN_LIM]					= GENMASK(5, 0),
-						/* Bits 6-7 reserved */
-	[X_MAX_LIM]					= GENMASK(13, 8),
-						/* Bits 14-15 reserved */
-	[Y_MIN_LIM]					= GENMASK(21, 16),
-						/* Bits 22-23 reserved */
-	[Y_MAX_LIM]					= GENMASK(29, 24),
-						/* Bits 30-31 reserved */
+	[X_MIN_LIM]					= GENMASK(7, 0),
+	[X_MAX_LIM]					= GENMASK(15, 8),
+	[Y_MIN_LIM]					= GENMASK(23, 16),
+	[Y_MAX_LIM]					= GENMASK(31, 24),
 };
 
 IPA_REG_STRIDE_FIELDS(DST_RSRC_GRP_01_RSRC_TYPE, dst_rsrc_grp_01_rsrc_type,
 		      0x00000500, 0x0020);
 
 static const u32 ipa_reg_dst_rsrc_grp_23_rsrc_type_fmask[] = {
-	[X_MIN_LIM]					= GENMASK(5, 0),
-						/* Bits 6-7 reserved */
-	[X_MAX_LIM]					= GENMASK(13, 8),
-						/* Bits 14-15 reserved */
-	[Y_MIN_LIM]					= GENMASK(21, 16),
-						/* Bits 22-23 reserved */
-	[Y_MAX_LIM]					= GENMASK(29, 24),
-						/* Bits 30-31 reserved */
+	[X_MIN_LIM]					= GENMASK(7, 0),
+	[X_MAX_LIM]					= GENMASK(15, 8),
+	[Y_MIN_LIM]					= GENMASK(23, 16),
+	[Y_MAX_LIM]					= GENMASK(31, 24),
 };
 
 IPA_REG_STRIDE_FIELDS(DST_RSRC_GRP_23_RSRC_TYPE, dst_rsrc_grp_23_rsrc_type,
 		      0x00000504, 0x0020);
 
 static const u32 ipa_reg_dst_rsrc_grp_45_rsrc_type_fmask[] = {
-	[X_MIN_LIM]					= GENMASK(5, 0),
-						/* Bits 6-7 reserved */
-	[X_MAX_LIM]					= GENMASK(13, 8),
-						/* Bits 14-15 reserved */
-	[Y_MIN_LIM]					= GENMASK(21, 16),
-						/* Bits 22-23 reserved */
-	[Y_MAX_LIM]					= GENMASK(29, 24),
-						/* Bits 30-31 reserved */
+	[X_MIN_LIM]					= GENMASK(7, 0),
+	[X_MAX_LIM]					= GENMASK(15, 8),
+	[Y_MIN_LIM]					= GENMASK(23, 16),
+	[Y_MAX_LIM]					= GENMASK(31, 24),
 };
 
 IPA_REG_STRIDE_FIELDS(DST_RSRC_GRP_45_RSRC_TYPE, dst_rsrc_grp_45_rsrc_type,
 		      0x00000508, 0x0020);
 
 static const u32 ipa_reg_dst_rsrc_grp_67_rsrc_type_fmask[] = {
-	[X_MIN_LIM]					= GENMASK(5, 0),
-						/* Bits 6-7 reserved */
-	[X_MAX_LIM]					= GENMASK(13, 8),
-						/* Bits 14-15 reserved */
-	[Y_MIN_LIM]					= GENMASK(21, 16),
-						/* Bits 22-23 reserved */
-	[Y_MAX_LIM]					= GENMASK(29, 24),
-						/* Bits 30-31 reserved */
+	[X_MIN_LIM]					= GENMASK(7, 0),
+	[X_MAX_LIM]					= GENMASK(15, 8),
+	[Y_MIN_LIM]					= GENMASK(23, 16),
+	[Y_MAX_LIM]					= GENMASK(31, 24),
 };
 
 IPA_REG_STRIDE_FIELDS(DST_RSRC_GRP_67_RSRC_TYPE, dst_rsrc_grp_67_rsrc_type,
@@ -418,13 +386,16 @@ static const u32 ipa_reg_ipa_irq_uc_fmask[] = {
 IPA_REG_FIELDS(IPA_IRQ_UC, ipa_irq_uc, 0x0000301c + 0x1000 * GSI_EE_AP);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(IRQ_SUSPEND_INFO, irq_suspend_info, 0x00003030 + 0x1000 * GSI_EE_AP);
+IPA_REG_STRIDE(IRQ_SUSPEND_INFO, irq_suspend_info,
+	       0x00003030 + 0x1000 * GSI_EE_AP, 0x0004);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(IRQ_SUSPEND_EN, irq_suspend_en, 0x00003034 + 0x1000 * GSI_EE_AP);
+IPA_REG_STRIDE(IRQ_SUSPEND_EN, irq_suspend_en,
+	       0x00003034 + 0x1000 * GSI_EE_AP, 0x0004);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(IRQ_SUSPEND_CLR, irq_suspend_clr, 0x00003038 + 0x1000 * GSI_EE_AP);
+IPA_REG_STRIDE(IRQ_SUSPEND_CLR, irq_suspend_clr,
+	       0x00003038 + 0x1000 * GSI_EE_AP, 0x0004);
 
 static const struct ipa_reg *ipa_reg_array[] = {
 	[COMP_CFG]			= &ipa_reg_comp_cfg,

@@ -900,12 +900,31 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void dspi_assert_cs(struct spi_device *spi, bool *cs)
+{
+	if (!spi->cs_gpiod || *cs)
+		return;
+
+	gpiod_set_value_cansleep(spi->cs_gpiod, true);
+	*cs = true;
+}
+
+static void dspi_deassert_cs(struct spi_device *spi, bool *cs)
+{
+	if (!spi->cs_gpiod || !*cs)
+		return;
+
+	gpiod_set_value_cansleep(spi->cs_gpiod, false);
+	*cs = false;
+}
+
 static int dspi_transfer_one_message(struct spi_controller *ctlr,
 				     struct spi_message *message)
 {
 	struct fsl_dspi *dspi = spi_controller_get_devdata(ctlr);
 	struct spi_device *spi = message->spi;
 	struct spi_transfer *transfer;
+	bool cs = false;
 	int status = 0;
 
 	message->actual_length = 0;
@@ -914,9 +933,14 @@ static int dspi_transfer_one_message(struct spi_controller *ctlr,
 		dspi->cur_transfer = transfer;
 		dspi->cur_msg = message;
 		dspi->cur_chip = spi_get_ctldata(spi);
+
+		dspi_assert_cs(spi, &cs);
+
 		/* Prepare command word for CMD FIFO */
-		dspi->tx_cmd = SPI_PUSHR_CMD_CTAS(0) |
-			       SPI_PUSHR_CMD_PCS(spi->chip_select);
+		dspi->tx_cmd = SPI_PUSHR_CMD_CTAS(0);
+		if (!spi->cs_gpiod)
+			dspi->tx_cmd |= SPI_PUSHR_CMD_PCS(spi->chip_select);
+
 		if (list_is_last(&dspi->cur_transfer->transfer_list,
 				 &dspi->cur_msg->transfers)) {
 			/* Leave PCS activated after last transfer when
@@ -964,6 +988,9 @@ static int dspi_transfer_one_message(struct spi_controller *ctlr,
 			break;
 
 		spi_transfer_delay_exec(transfer);
+
+		if (!(dspi->tx_cmd & SPI_PUSHR_CMD_CONT))
+			dspi_deassert_cs(spi, &cs);
 	}
 
 	message->status = status;
@@ -981,6 +1008,7 @@ static int dspi_setup(struct spi_device *spi)
 	unsigned char pasc = 0, asc = 0;
 	struct chip_data *chip;
 	unsigned long clkrate;
+	bool cs = true;
 
 	/* Only alloc on first setup */
 	chip = spi_get_ctldata(spi);
@@ -1029,6 +1057,9 @@ static int dspi_setup(struct spi_device *spi)
 		if (spi->mode & SPI_LSB_FIRST)
 			chip->ctar_val |= SPI_CTAR_LSBFE;
 	}
+
+	gpiod_direction_output(spi->cs_gpiod, false);
+	dspi_deassert_cs(spi, &cs);
 
 	spi_set_ctldata(spi, chip);
 
@@ -1248,6 +1279,7 @@ static int dspi_probe(struct platform_device *pdev)
 	ctlr->cleanup = dspi_cleanup;
 	ctlr->slave_abort = dspi_slave_abort;
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
+	ctlr->use_gpio_descriptors = true;
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata) {

@@ -1268,6 +1268,39 @@ end:
 	return err;
 }
 
+static void otx2_get_fec_stats(struct net_device *netdev,
+			       struct ethtool_fec_stats *fec_stats)
+{
+	struct otx2_nic *pfvf = netdev_priv(netdev);
+	struct cgx_fw_data *rsp;
+
+	otx2_update_lmac_fec_stats(pfvf);
+
+	/* Report MAC FEC stats */
+	fec_stats->corrected_blocks.total     = pfvf->hw.cgx_fec_corr_blks;
+	fec_stats->uncorrectable_blocks.total = pfvf->hw.cgx_fec_uncorr_blks;
+
+	rsp = otx2_get_fwdata(pfvf);
+	if (!IS_ERR(rsp) && rsp->fwdata.phy.misc.has_fec_stats &&
+	    !otx2_get_phy_fec_stats(pfvf)) {
+		/* Fetch fwdata again because it's been recently populated with
+		 * latest PHY FEC stats.
+		 */
+		rsp = otx2_get_fwdata(pfvf);
+		if (!IS_ERR(rsp)) {
+			struct fec_stats_s *p = &rsp->fwdata.phy.fec_stats;
+
+			if (pfvf->linfo.fec == OTX2_FEC_BASER) {
+				fec_stats->corrected_blocks.total = p->brfec_corr_blks;
+				fec_stats->uncorrectable_blocks.total = p->brfec_uncorr_blks;
+			} else {
+				fec_stats->corrected_blocks.total = p->rsfec_corr_cws;
+				fec_stats->uncorrectable_blocks.total = p->rsfec_uncorr_cws;
+			}
+		}
+	}
+}
+
 static const struct ethtool_ops otx2_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
@@ -1298,6 +1331,7 @@ static const struct ethtool_ops otx2_ethtool_ops = {
 	.get_pauseparam		= otx2_get_pauseparam,
 	.set_pauseparam		= otx2_set_pauseparam,
 	.get_ts_info		= otx2_get_ts_info,
+	.get_fec_stats		= otx2_get_fec_stats,
 	.get_fecparam		= otx2_get_fecparam,
 	.set_fecparam		= otx2_set_fecparam,
 	.get_link_ksettings     = otx2_get_link_ksettings,

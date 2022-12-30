@@ -176,8 +176,7 @@ static int z2_batt_ps_init(struct z2_charger *charger, int props)
 	return 0;
 }
 
-static int z2_batt_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int z2_batt_probe(struct i2c_client *client)
 {
 	int ret = 0;
 	int props = 1;	/* POWER_SUPPLY_PROP_PRESENT */
@@ -206,10 +205,12 @@ static int z2_batt_probe(struct i2c_client *client,
 
 	charger->charge_gpiod = devm_gpiod_get_optional(&client->dev,
 							NULL, GPIOD_IN);
-	if (IS_ERR(charger->charge_gpiod))
-		return dev_err_probe(&client->dev,
+	if (IS_ERR(charger->charge_gpiod)) {
+		ret = dev_err_probe(&client->dev,
 				     PTR_ERR(charger->charge_gpiod),
 				     "failed to get charge GPIO\n");
+		goto err;
+	}
 
 	if (charger->charge_gpiod) {
 		gpiod_set_consumer_name(charger->charge_gpiod, "BATT CHRG");
@@ -306,7 +307,7 @@ static struct i2c_driver z2_batt_driver = {
 		.name	= "z2-battery",
 		.pm	= Z2_BATTERY_PM_OPS
 	},
-	.probe		= z2_batt_probe,
+	.probe_new	= z2_batt_probe,
 	.remove		= z2_batt_remove,
 	.id_table	= z2_batt_id,
 };

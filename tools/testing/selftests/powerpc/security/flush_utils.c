@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/utsname.h>
+#include "reg.h"
 #include "utils.h"
 #include "flush_utils.h"
 
@@ -79,5 +80,5 @@ void set_dscr(unsigned long val)
 		init = 1;
 	}
 
-	asm volatile("mtspr %1,%0" : : "r" (val), "i" (SPRN_DSCR));
+	mtspr(SPRN_DSCR, val);
 }

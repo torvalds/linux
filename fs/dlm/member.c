@@ -573,7 +573,10 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 		node = &rv->nodes[i];
 		if (dlm_is_member(ls, node->nodeid))
 			continue;
-		dlm_add_member(ls, node);
+		error = dlm_add_member(ls, node);
+		if (error)
+			return error;
+
 		log_rinfo(ls, "add member %d", node->nodeid);
 	}
 

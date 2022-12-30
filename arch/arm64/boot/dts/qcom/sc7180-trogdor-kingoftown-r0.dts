@@ -29,16 +29,10 @@
 };
 
 &tlmm {
-	en_fp_rails: en-fp-rails {
-		pinmux {
-			pins = "gpio74";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio74";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	en_fp_rails: en-fp-rails-state {
+		pins = "gpio74";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 };

@@ -2744,7 +2744,7 @@ static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 		 * power well the hardware state will go out of sync
 		 * with the software state.
 		 */
-		if (!drm_atomic_crtc_needs_modeset(&new_crtc_state->uapi) &&
+		if (!intel_crtc_needs_modeset(new_crtc_state) &&
 		    skl_plane_selected_wm_equals(plane,
 						 &old_crtc_state->wm.skl.optimal,
 						 &new_crtc_state->wm.skl.optimal))

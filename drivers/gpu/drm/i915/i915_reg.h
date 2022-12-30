@@ -26,6 +26,7 @@
 #define _I915_REG_H_
 
 #include "i915_reg_defs.h"
+#include "display/intel_display_reg_defs.h"
 
 /**
  * DOC: The i915 register macro definition style guide
@@ -114,75 +115,6 @@
  *  #define BAR                         _MMIO(0xb000)
  *  #define GEN8_BAR                    _MMIO(0xb888)
  */
-
-#define DISPLAY_MMIO_BASE(dev_priv)	(INTEL_INFO(dev_priv)->display.mmio_offset)
-
-/*
- * Given the first two numbers __a and __b of arbitrarily many evenly spaced
- * numbers, pick the 0-based __index'th value.
- *
- * Always prefer this over _PICK() if the numbers are evenly spaced.
- */
-#define _PICK_EVEN(__index, __a, __b) ((__a) + (__index) * ((__b) - (__a)))
-
-/*
- * Given the arbitrary numbers in varargs, pick the 0-based __index'th number.
- *
- * Always prefer _PICK_EVEN() over this if the numbers are evenly spaced.
- */
-#define _PICK(__index, ...) (((const u32 []){ __VA_ARGS__ })[__index])
-
-/*
- * Named helper wrappers around _PICK_EVEN() and _PICK().
- */
-#define _PIPE(pipe, a, b)		_PICK_EVEN(pipe, a, b)
-#define _PLANE(plane, a, b)		_PICK_EVEN(plane, a, b)
-#define _TRANS(tran, a, b)		_PICK_EVEN(tran, a, b)
-#define _PORT(port, a, b)		_PICK_EVEN(port, a, b)
-#define _PLL(pll, a, b)			_PICK_EVEN(pll, a, b)
-#define _PHY(phy, a, b)			_PICK_EVEN(phy, a, b)
-
-#define _MMIO_PIPE(pipe, a, b)		_MMIO(_PIPE(pipe, a, b))
-#define _MMIO_PLANE(plane, a, b)	_MMIO(_PLANE(plane, a, b))
-#define _MMIO_TRANS(tran, a, b)		_MMIO(_TRANS(tran, a, b))
-#define _MMIO_PORT(port, a, b)		_MMIO(_PORT(port, a, b))
-#define _MMIO_PLL(pll, a, b)		_MMIO(_PLL(pll, a, b))
-#define _MMIO_PHY(phy, a, b)		_MMIO(_PHY(phy, a, b))
-
-#define _PHY3(phy, ...)			_PICK(phy, __VA_ARGS__)
-
-#define _MMIO_PIPE3(pipe, a, b, c)	_MMIO(_PICK(pipe, a, b, c))
-#define _MMIO_PORT3(pipe, a, b, c)	_MMIO(_PICK(pipe, a, b, c))
-#define _MMIO_PHY3(phy, a, b, c)	_MMIO(_PHY3(phy, a, b, c))
-#define _MMIO_PLL3(pll, ...)		_MMIO(_PICK(pll, __VA_ARGS__))
-
-
-/*
- * Device info offset array based helpers for groups of registers with unevenly
- * spaced base offsets.
- */
-#define _MMIO_PIPE2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->display.pipe_offsets[(pipe)] - \
-					      INTEL_INFO(dev_priv)->display.pipe_offsets[PIPE_A] + \
-					      DISPLAY_MMIO_BASE(dev_priv) + (reg))
-#define _MMIO_TRANS2(tran, reg)		_MMIO(INTEL_INFO(dev_priv)->display.trans_offsets[(tran)] - \
-					      INTEL_INFO(dev_priv)->display.trans_offsets[TRANSCODER_A] + \
-					      DISPLAY_MMIO_BASE(dev_priv) + (reg))
-#define _MMIO_CURSOR2(pipe, reg)	_MMIO(INTEL_INFO(dev_priv)->display.cursor_offsets[(pipe)] - \
-					      INTEL_INFO(dev_priv)->display.cursor_offsets[PIPE_A] + \
-					      DISPLAY_MMIO_BASE(dev_priv) + (reg))
-
-#define __MASKED_FIELD(mask, value) ((mask) << 16 | (value))
-#define _MASKED_FIELD(mask, value) ({					   \
-	if (__builtin_constant_p(mask))					   \
-		BUILD_BUG_ON_MSG(((mask) & 0xffff0000), "Incorrect mask"); \
-	if (__builtin_constant_p(value))				   \
-		BUILD_BUG_ON_MSG((value) & 0xffff0000, "Incorrect value"); \
-	if (__builtin_constant_p(mask) && __builtin_constant_p(value))	   \
-		BUILD_BUG_ON_MSG((value) & ~(mask),			   \
-				 "Incorrect value for mask");		   \
-	__MASKED_FIELD(mask, value); })
-#define _MASKED_BIT_ENABLE(a)	({ typeof(a) _a = (a); _MASKED_FIELD(_a, _a); })
-#define _MASKED_BIT_DISABLE(a)	(_MASKED_FIELD((a), 0))
 
 #define GU_CNTL				_MMIO(0x101010)
 #define   LMEM_INIT			REG_BIT(7)
@@ -1151,11 +1083,6 @@
 #define MBUS_JOIN_PIPE_SELECT(pipe)	REG_FIELD_PREP(MBUS_JOIN_PIPE_SELECT_MASK, pipe)
 #define MBUS_JOIN_PIPE_SELECT_NONE	MBUS_JOIN_PIPE_SELECT(7)
 
-#define HDPORT_STATE			_MMIO(0x45050)
-#define   HDPORT_DPLL_USED_MASK		REG_GENMASK(15, 12)
-#define   HDPORT_DDI_USED(phy)		REG_BIT(2 * (phy) + 1)
-#define   HDPORT_ENABLED		REG_BIT(0)
-
 /* Make render/texture TLB fetches lower priorty than associated data
  *   fetches. This is not turned on by default
  */
@@ -1785,9 +1712,10 @@
 #define _PALETTE_A		0xa000
 #define _PALETTE_B		0xa800
 #define _CHV_PALETTE_C		0xc000
-#define PALETTE_RED_MASK        REG_GENMASK(23, 16)
-#define PALETTE_GREEN_MASK      REG_GENMASK(15, 8)
-#define PALETTE_BLUE_MASK       REG_GENMASK(7, 0)
+/* 8bit mode / i965+ 10.6 interpolated mode ldw/udw */
+#define   PALETTE_RED_MASK		REG_GENMASK(23, 16)
+#define   PALETTE_GREEN_MASK		REG_GENMASK(15, 8)
+#define   PALETTE_BLUE_MASK		REG_GENMASK(7, 0)
 #define PALETTE(pipe, i)	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + \
 				      _PICK((pipe), _PALETTE_A,		\
 					    _PALETTE_B, _CHV_PALETTE_C) + \
@@ -3762,9 +3690,10 @@
 
 /* Skylake+ pipe bottom (background) color */
 #define _SKL_BOTTOM_COLOR_A		0x70034
+#define _SKL_BOTTOM_COLOR_B		0x71034
 #define   SKL_BOTTOM_COLOR_GAMMA_ENABLE		REG_BIT(31)
 #define   SKL_BOTTOM_COLOR_CSC_ENABLE		REG_BIT(30)
-#define SKL_BOTTOM_COLOR(pipe)		_MMIO_PIPE2(pipe, _SKL_BOTTOM_COLOR_A)
+#define SKL_BOTTOM_COLOR(pipe)		_MMIO_PIPE(pipe, _SKL_BOTTOM_COLOR_A, _SKL_BOTTOM_COLOR_B)
 
 #define _ICL_PIPE_A_STATUS			0x70058
 #define ICL_PIPESTATUS(pipe)			_MMIO_PIPE2(pipe, _ICL_PIPE_A_STATUS)
@@ -5382,17 +5311,24 @@
 /* legacy palette */
 #define _LGC_PALETTE_A           0x4a000
 #define _LGC_PALETTE_B           0x4a800
-#define LGC_PALETTE_RED_MASK     REG_GENMASK(23, 16)
-#define LGC_PALETTE_GREEN_MASK   REG_GENMASK(15, 8)
-#define LGC_PALETTE_BLUE_MASK    REG_GENMASK(7, 0)
+/* see PALETTE_* for the bits */
 #define LGC_PALETTE(pipe, i) _MMIO(_PIPE(pipe, _LGC_PALETTE_A, _LGC_PALETTE_B) + (i) * 4)
 
 /* ilk/snb precision palette */
 #define _PREC_PALETTE_A           0x4b000
 #define _PREC_PALETTE_B           0x4c000
-#define   PREC_PALETTE_RED_MASK   REG_GENMASK(29, 20)
-#define   PREC_PALETTE_GREEN_MASK REG_GENMASK(19, 10)
-#define   PREC_PALETTE_BLUE_MASK  REG_GENMASK(9, 0)
+/* 10bit mode */
+#define   PREC_PALETTE_10_RED_MASK		REG_GENMASK(29, 20)
+#define   PREC_PALETTE_10_GREEN_MASK		REG_GENMASK(19, 10)
+#define   PREC_PALETTE_10_BLUE_MASK		REG_GENMASK(9, 0)
+/* 12.4 interpolated mode ldw */
+#define   PREC_PALETTE_12P4_RED_LDW_MASK	REG_GENMASK(29, 24)
+#define   PREC_PALETTE_12P4_GREEN_LDW_MASK	REG_GENMASK(19, 14)
+#define   PREC_PALETTE_12P4_BLUE_LDW_MASK	REG_GENMASK(9, 4)
+/* 12.4 interpolated mode udw */
+#define   PREC_PALETTE_12P4_RED_UDW_MASK	REG_GENMASK(29, 20)
+#define   PREC_PALETTE_12P4_GREEN_UDW_MASK	REG_GENMASK(19, 10)
+#define   PREC_PALETTE_12P4_BLUE_UDW_MASK	REG_GENMASK(9, 0)
 #define PREC_PALETTE(pipe, i) _MMIO(_PIPE(pipe, _PREC_PALETTE_A, _PREC_PALETTE_B) + (i) * 4)
 
 #define  _PREC_PIPEAGCMAX              0x4d000
@@ -7631,12 +7567,10 @@ enum skl_power_gate {
 #define _PAL_PREC_DATA_A	0x4A404
 #define _PAL_PREC_DATA_B	0x4AC04
 #define _PAL_PREC_DATA_C	0x4B404
+/* see PREC_PALETTE_* for the bits */
 #define _PAL_PREC_GC_MAX_A	0x4A410
 #define _PAL_PREC_GC_MAX_B	0x4AC10
 #define _PAL_PREC_GC_MAX_C	0x4B410
-#define   PREC_PAL_DATA_RED_MASK	REG_GENMASK(29, 20)
-#define   PREC_PAL_DATA_GREEN_MASK	REG_GENMASK(19, 10)
-#define   PREC_PAL_DATA_BLUE_MASK	REG_GENMASK(9, 0)
 #define _PAL_PREC_EXT_GC_MAX_A	0x4A420
 #define _PAL_PREC_EXT_GC_MAX_B	0x4AC20
 #define _PAL_PREC_EXT_GC_MAX_C	0x4B420
@@ -7669,12 +7603,7 @@ enum skl_power_gate {
 
 #define _PAL_PREC_MULTI_SEG_DATA_A	0x4A40C
 #define _PAL_PREC_MULTI_SEG_DATA_B	0x4AC0C
-#define  PAL_PREC_MULTI_SEG_RED_LDW_MASK   REG_GENMASK(29, 24)
-#define  PAL_PREC_MULTI_SEG_RED_UDW_MASK   REG_GENMASK(29, 20)
-#define  PAL_PREC_MULTI_SEG_GREEN_LDW_MASK REG_GENMASK(19, 14)
-#define  PAL_PREC_MULTI_SEG_GREEN_UDW_MASK REG_GENMASK(19, 10)
-#define  PAL_PREC_MULTI_SEG_BLUE_LDW_MASK  REG_GENMASK(9, 4)
-#define  PAL_PREC_MULTI_SEG_BLUE_UDW_MASK  REG_GENMASK(9, 0)
+/* see PREC_PALETTE_12P4_* for the bits */
 
 #define PREC_PAL_MULTI_SEG_INDEX(pipe)	_MMIO_PIPE(pipe, \
 					_PAL_PREC_MULTI_SEG_INDEX_A, \
@@ -7735,13 +7664,17 @@ enum skl_power_gate {
 #define _CGM_PIPE_A_CSC_COEFF67	(VLV_DISPLAY_BASE + 0x6790C)
 #define _CGM_PIPE_A_CSC_COEFF8	(VLV_DISPLAY_BASE + 0x67910)
 #define _CGM_PIPE_A_DEGAMMA	(VLV_DISPLAY_BASE + 0x66000)
-#define   CGM_PIPE_DEGAMMA_RED_MASK	REG_GENMASK(13, 0)
-#define   CGM_PIPE_DEGAMMA_GREEN_MASK	REG_GENMASK(29, 16)
-#define   CGM_PIPE_DEGAMMA_BLUE_MASK	REG_GENMASK(13, 0)
+/* cgm degamma ldw */
+#define   CGM_PIPE_DEGAMMA_GREEN_LDW_MASK	REG_GENMASK(29, 16)
+#define   CGM_PIPE_DEGAMMA_BLUE_LDW_MASK	REG_GENMASK(13, 0)
+/* cgm degamma udw */
+#define   CGM_PIPE_DEGAMMA_RED_UDW_MASK		REG_GENMASK(13, 0)
 #define _CGM_PIPE_A_GAMMA	(VLV_DISPLAY_BASE + 0x67000)
-#define   CGM_PIPE_GAMMA_RED_MASK	REG_GENMASK(9, 0)
-#define   CGM_PIPE_GAMMA_GREEN_MASK	REG_GENMASK(25, 16)
-#define   CGM_PIPE_GAMMA_BLUE_MASK	REG_GENMASK(9, 0)
+/* cgm gamma ldw */
+#define   CGM_PIPE_GAMMA_GREEN_LDW_MASK		REG_GENMASK(25, 16)
+#define   CGM_PIPE_GAMMA_BLUE_LDW_MASK		REG_GENMASK(9, 0)
+/* cgm gamma udw */
+#define   CGM_PIPE_GAMMA_RED_UDW_MASK		REG_GENMASK(9, 0)
 #define _CGM_PIPE_A_MODE	(VLV_DISPLAY_BASE + 0x67A00)
 #define   CGM_PIPE_MODE_GAMMA	(1 << 2)
 #define   CGM_PIPE_MODE_CSC	(1 << 1)

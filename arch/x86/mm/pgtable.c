@@ -299,9 +299,6 @@ static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
 	pud_t *pud;
 	int i;
 
-	if (PREALLOCATED_PMDS == 0) /* Work around gcc-3.4.x bug */
-		return;
-
 	p4d = p4d_offset(pgd, 0);
 	pud = pud_offset(p4d, 0);
 
@@ -434,10 +431,12 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	mm->pgd = pgd;
 
-	if (preallocate_pmds(mm, pmds, PREALLOCATED_PMDS) != 0)
+	if (sizeof(pmds) != 0 &&
+			preallocate_pmds(mm, pmds, PREALLOCATED_PMDS) != 0)
 		goto out_free_pgd;
 
-	if (preallocate_pmds(mm, u_pmds, PREALLOCATED_USER_PMDS) != 0)
+	if (sizeof(u_pmds) != 0 &&
+			preallocate_pmds(mm, u_pmds, PREALLOCATED_USER_PMDS) != 0)
 		goto out_free_pmds;
 
 	if (paravirt_pgd_alloc(mm) != 0)
@@ -451,17 +450,22 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	spin_lock(&pgd_lock);
 
 	pgd_ctor(mm, pgd);
-	pgd_prepopulate_pmd(mm, pgd, pmds);
-	pgd_prepopulate_user_pmd(mm, pgd, u_pmds);
+	if (sizeof(pmds) != 0)
+		pgd_prepopulate_pmd(mm, pgd, pmds);
+
+	if (sizeof(u_pmds) != 0)
+		pgd_prepopulate_user_pmd(mm, pgd, u_pmds);
 
 	spin_unlock(&pgd_lock);
 
 	return pgd;
 
 out_free_user_pmds:
-	free_pmds(mm, u_pmds, PREALLOCATED_USER_PMDS);
+	if (sizeof(u_pmds) != 0)
+		free_pmds(mm, u_pmds, PREALLOCATED_USER_PMDS);
 out_free_pmds:
-	free_pmds(mm, pmds, PREALLOCATED_PMDS);
+	if (sizeof(pmds) != 0)
+		free_pmds(mm, pmds, PREALLOCATED_PMDS);
 out_free_pgd:
 	_pgd_free(pgd);
 out:

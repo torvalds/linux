@@ -14,6 +14,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/timekeeping.h>
 #include <linux/ptp_classify.h>
+#include <linux/clocksource.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
@@ -204,24 +205,33 @@ static int bnxt_ptp_adjtime(struct ptp_clock_info *ptp_info, s64 delta)
 	return 0;
 }
 
-static int bnxt_ptp_adjfreq(struct ptp_clock_info *ptp_info, s32 ppb)
+static int bnxt_ptp_adjfine(struct ptp_clock_info *ptp_info, long scaled_ppm)
 {
 	struct bnxt_ptp_cfg *ptp = container_of(ptp_info, struct bnxt_ptp_cfg,
 						ptp_info);
 	struct hwrm_port_mac_cfg_input *req;
 	struct bnxt *bp = ptp->bp;
-	int rc;
+	int rc = 0;
 
-	rc = hwrm_req_init(bp, req, HWRM_PORT_MAC_CFG);
-	if (rc)
-		return rc;
+	if (!(ptp->bp->fw_cap & BNXT_FW_CAP_PTP_RTC)) {
+		spin_lock_bh(&ptp->ptp_lock);
+		timecounter_read(&ptp->tc);
+		ptp->cc.mult = adjust_by_scaled_ppm(ptp->cmult, scaled_ppm);
+		spin_unlock_bh(&ptp->ptp_lock);
+	} else {
+		s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
 
-	req->ptp_freq_adj_ppb = cpu_to_le32(ppb);
-	req->enables = cpu_to_le32(PORT_MAC_CFG_REQ_ENABLES_PTP_FREQ_ADJ_PPB);
-	rc = hwrm_req_send(ptp->bp, req);
-	if (rc)
-		netdev_err(ptp->bp->dev,
-			   "ptp adjfreq failed. rc = %d\n", rc);
+		rc = hwrm_req_init(bp, req, HWRM_PORT_MAC_CFG);
+		if (rc)
+			return rc;
+
+		req->ptp_freq_adj_ppb = cpu_to_le32(ppb);
+		req->enables = cpu_to_le32(PORT_MAC_CFG_REQ_ENABLES_PTP_FREQ_ADJ_PPB);
+		rc = hwrm_req_send(ptp->bp, req);
+		if (rc)
+			netdev_err(ptp->bp->dev,
+				   "ptp adjfine failed. rc = %d\n", rc);
+	}
 	return rc;
 }
 
@@ -749,7 +759,7 @@ static const struct ptp_clock_info bnxt_ptp_caps = {
 	.n_per_out	= 0,
 	.n_pins		= 0,
 	.pps		= 0,
-	.adjfreq	= bnxt_ptp_adjfreq,
+	.adjfine	= bnxt_ptp_adjfine,
 	.adjtime	= bnxt_ptp_adjtime,
 	.do_aux_work	= bnxt_ptp_ts_aux_work,
 	.gettimex64	= bnxt_ptp_gettimex,
@@ -846,8 +856,9 @@ static void bnxt_ptp_timecounter_init(struct bnxt *bp, bool init_tc)
 		memset(&ptp->cc, 0, sizeof(ptp->cc));
 		ptp->cc.read = bnxt_cc_read;
 		ptp->cc.mask = CYCLECOUNTER_MASK(48);
-		ptp->cc.shift = 0;
-		ptp->cc.mult = 1;
+		ptp->cc.shift = BNXT_CYCLES_SHIFT;
+		ptp->cc.mult = clocksource_khz2mult(BNXT_DEVCLK_FREQ, ptp->cc.shift);
+		ptp->cmult = ptp->cc.mult;
 		ptp->next_overflow_check = jiffies + BNXT_PHC_OVERFLOW_PERIOD;
 	}
 	if (init_tc)

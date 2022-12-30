@@ -58,41 +58,57 @@
 
 	ext_phy0: ethernet-phy@7 {
 		reg = <7>;
+		interrupts = <24 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio>;
 		coma-mode-gpios = <&gpio 60 GPIO_OPEN_DRAIN>;
 	};
 
 	ext_phy1: ethernet-phy@8 {
 		reg = <8>;
+		interrupts = <24 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio>;
 		coma-mode-gpios = <&gpio 60 GPIO_OPEN_DRAIN>;
 	};
 
 	ext_phy2: ethernet-phy@9 {
 		reg = <9>;
+		interrupts = <24 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio>;
 		coma-mode-gpios = <&gpio 60 GPIO_OPEN_DRAIN>;
 	};
 
 	ext_phy3: ethernet-phy@10 {
 		reg = <10>;
+		interrupts = <24 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio>;
 		coma-mode-gpios = <&gpio 60 GPIO_OPEN_DRAIN>;
 	};
 
 	ext_phy4: ethernet-phy@15 {
 		reg = <15>;
+		interrupts = <24 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio>;
 		coma-mode-gpios = <&gpio 60 GPIO_OPEN_DRAIN>;
 	};
 
 	ext_phy5: ethernet-phy@16 {
 		reg = <16>;
+		interrupts = <24 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio>;
 		coma-mode-gpios = <&gpio 60 GPIO_OPEN_DRAIN>;
 	};
 
 	ext_phy6: ethernet-phy@17 {
 		reg = <17>;
+		interrupts = <24 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio>;
 		coma-mode-gpios = <&gpio 60 GPIO_OPEN_DRAIN>;
 	};
 
 	ext_phy7: ethernet-phy@18 {
 		reg = <18>;
+		interrupts = <24 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio>;
 		coma-mode-gpios = <&gpio 60 GPIO_OPEN_DRAIN>;
 	};
 };

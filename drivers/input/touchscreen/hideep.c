@@ -997,8 +997,7 @@ static const struct regmap_config hideep_regmap_config = {
 	.max_register = 0xffff,
 };
 
-static int hideep_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int hideep_probe(struct i2c_client *client)
 {
 	struct hideep_ts *ts;
 	int error;
@@ -1112,7 +1111,7 @@ static struct i2c_driver hideep_driver = {
 		.pm			= &hideep_pm_ops,
 	},
 	.id_table	= hideep_i2c_id,
-	.probe		= hideep_probe,
+	.probe_new	= hideep_probe,
 };
 
 module_i2c_driver(hideep_driver);

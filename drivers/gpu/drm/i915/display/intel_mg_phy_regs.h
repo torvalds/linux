@@ -6,7 +6,7 @@
 #ifndef __INTEL_MG_PHY_REGS__
 #define __INTEL_MG_PHY_REGS__
 
-#include "i915_reg_defs.h"
+#include "intel_display_reg_defs.h"
 
 #define MG_PHY_PORT_LN(ln, tc_port, ln0p1, ln0p2, ln1p1) \
 	_MMIO(_PORT(tc_port, ln0p1, ln0p2) + (ln) * ((ln1p1) - (ln0p1)))

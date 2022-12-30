@@ -7,12 +7,26 @@ extra-y		:= vmlinux.lds
 
 obj-y		+= head.o cpu-probe.o cacheinfo.o env.o setup.o entry.o genex.o \
 		   traps.o irq.o idle.o process.o dma.o mem.o io.o reset.o switch.o \
-		   elf.o syscall.o signal.o time.o topology.o inst.o ptrace.o vdso.o
+		   elf.o syscall.o signal.o time.o topology.o inst.o ptrace.o vdso.o \
+		   alternative.o unaligned.o
 
 obj-$(CONFIG_ACPI)		+= acpi.o
 obj-$(CONFIG_EFI) 		+= efi.o
 
 obj-$(CONFIG_CPU_HAS_FPU)	+= fpu.o
+
+ifdef CONFIG_FUNCTION_TRACER
+  ifndef CONFIG_DYNAMIC_FTRACE
+    obj-y += mcount.o ftrace.o
+    CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
+  else
+    obj-y += mcount_dyn.o ftrace_dyn.o
+    CFLAGS_REMOVE_ftrace_dyn.o = $(CC_FLAGS_FTRACE)
+  endif
+  CFLAGS_REMOVE_inst.o = $(CC_FLAGS_FTRACE)
+  CFLAGS_REMOVE_time.o = $(CC_FLAGS_FTRACE)
+  CFLAGS_REMOVE_perf_event.o = $(CC_FLAGS_FTRACE)
+endif
 
 obj-$(CONFIG_MODULES)		+= module.o module-sections.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o

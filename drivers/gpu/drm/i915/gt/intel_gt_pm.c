@@ -7,6 +7,7 @@
 #include <linux/suspend.h>
 
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "i915_params.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"

@@ -51,7 +51,7 @@ static void poll_stats(int map_fd, int interval)
 
 		sleep(interval);
 
-		while (bpf_map_get_next_key(map_fd, &key, &key) != -1) {
+		while (bpf_map_get_next_key(map_fd, &key, &key) == 0) {
 			__u64 sum = 0;
 
 			assert(bpf_map_lookup_elem(map_fd, &key, values) == 0);

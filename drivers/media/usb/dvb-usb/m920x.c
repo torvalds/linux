@@ -485,14 +485,14 @@ static int m920x_identify_state(struct usb_device *udev,
 static int m920x_mt352_demod_init(struct dvb_frontend *fe)
 {
 	int ret;
-	u8 config[] = { CONFIG, 0x3d };
-	u8 clock[] = { CLOCK_CTL, 0x30 };
-	u8 reset[] = { RESET, 0x80 };
-	u8 adc_ctl[] = { ADC_CTL_1, 0x40 };
-	u8 agc[] = { AGC_TARGET, 0x1c, 0x20 };
-	u8 sec_agc[] = { 0x69, 0x00, 0xff, 0xff, 0x40, 0xff, 0x00, 0x40, 0x40 };
-	u8 unk1[] = { 0x93, 0x1a };
-	u8 unk2[] = { 0xb5, 0x7a };
+	static const u8 config[] = { CONFIG, 0x3d };
+	static const u8 clock[] = { CLOCK_CTL, 0x30 };
+	static const u8 reset[] = { RESET, 0x80 };
+	static const u8 adc_ctl[] = { ADC_CTL_1, 0x40 };
+	static const u8 agc[] = { AGC_TARGET, 0x1c, 0x20 };
+	static const u8 sec_agc[] = { 0x69, 0x00, 0xff, 0xff, 0x40, 0xff, 0x00, 0x40, 0x40 };
+	static const u8 unk1[] = { 0x93, 0x1a };
+	static const u8 unk2[] = { 0xb5, 0x7a };
 
 	deb("Demod init!\n");
 

@@ -9,10 +9,10 @@
 #define _TRACE_NFS4_H
 
 #include <linux/tracepoint.h>
-#include <trace/events/sunrpc_base.h>
+#include <trace/misc/sunrpc.h>
 
-#include <trace/events/fs.h>
-#include <trace/events/nfs.h>
+#include <trace/misc/fs.h>
+#include <trace/misc/nfs.h>
 
 #define show_nfs_fattr_flags(valid) \
 	__print_flags((unsigned long)valid, "|", \
@@ -1815,7 +1815,7 @@ TRACE_EVENT(pnfs_update_layout,
 			__entry->count = count;
 			__entry->iomode = iomode;
 			__entry->reason = reason;
-			if (lo != NULL) {
+			if (lo != NULL && pnfs_layout_is_valid(lo)) {
 				__entry->layoutstateid_seq =
 				be32_to_cpu(lo->plh_stateid.seqid);
 				__entry->layoutstateid_hash =
@@ -1869,7 +1869,7 @@ DECLARE_EVENT_CLASS(pnfs_layout_event,
 			__entry->pos = pos;
 			__entry->count = count;
 			__entry->iomode = iomode;
-			if (lo != NULL) {
+			if (lo != NULL && pnfs_layout_is_valid(lo)) {
 				__entry->layoutstateid_seq =
 				be32_to_cpu(lo->plh_stateid.seqid);
 				__entry->layoutstateid_hash =

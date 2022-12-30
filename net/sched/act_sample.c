@@ -20,6 +20,7 @@
 #include <net/tc_act/tc_sample.h>
 #include <net/psample.h>
 #include <net/pkt_cls.h>
+#include <net/tc_wrapper.h>
 
 #include <linux/if_arp.h>
 
@@ -153,8 +154,9 @@ static bool tcf_sample_dev_ok_push(struct net_device *dev)
 	}
 }
 
-static int tcf_sample_act(struct sk_buff *skb, const struct tc_action *a,
-			  struct tcf_result *res)
+TC_INDIRECT_SCOPE int tcf_sample_act(struct sk_buff *skb,
+				     const struct tc_action *a,
+				     struct tcf_result *res)
 {
 	struct tcf_sample *s = to_sample(a);
 	struct psample_group *psample_group;
@@ -168,7 +170,7 @@ static int tcf_sample_act(struct sk_buff *skb, const struct tc_action *a,
 	psample_group = rcu_dereference_bh(s->psample_group);
 
 	/* randomly sample packets according to rate */
-	if (psample_group && (prandom_u32_max(s->rate) == 0)) {
+	if (psample_group && (get_random_u32_below(s->rate) == 0)) {
 		if (!skb_at_tc_ingress(skb)) {
 			md.in_ifindex = skb->skb_iif;
 			md.out_ifindex = skb->dev->ifindex;

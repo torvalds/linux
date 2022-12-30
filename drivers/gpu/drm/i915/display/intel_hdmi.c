@@ -42,6 +42,7 @@
 
 #include "i915_debugfs.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
@@ -2057,13 +2058,6 @@ static bool hdmi_bpc_possible(const struct intel_crtc_state *crtc_state, int bpc
 	if (!intel_hdmi_source_bpc_possible(dev_priv, bpc))
 		return false;
 
-	/*
-	 * HDMI deep color affects the clocks, so it's only possible
-	 * when not cloning with other encoder types.
-	 */
-	if (bpc > 8 && crtc_state->output_types != BIT(INTEL_OUTPUT_HDMI))
-		return false;
-
 	/* Display Wa_1405510057:icl,ehl */
 	if (intel_hdmi_is_ycbcr420(crtc_state) &&
 	    bpc == 10 && DISPLAY_VER(dev_priv) == 11 &&
@@ -2190,9 +2184,13 @@ static bool intel_hdmi_has_audio(struct intel_encoder *encoder,
 }
 
 static enum intel_output_format
-intel_hdmi_output_format(struct intel_connector *connector,
+intel_hdmi_output_format(const struct intel_crtc_state *crtc_state,
+			 struct intel_connector *connector,
 			 bool ycbcr_420_output)
 {
+	if (!crtc_state->has_hdmi_sink)
+		return INTEL_OUTPUT_FORMAT_RGB;
+
 	if (connector->base.ycbcr_420_allowed && ycbcr_420_output)
 		return INTEL_OUTPUT_FORMAT_YCBCR420;
 	else
@@ -2211,7 +2209,8 @@ static int intel_hdmi_compute_output_format(struct intel_encoder *encoder,
 	bool ycbcr_420_only = drm_mode_is_420_only(info, adjusted_mode);
 	int ret;
 
-	crtc_state->output_format = intel_hdmi_output_format(connector, ycbcr_420_only);
+	crtc_state->output_format =
+		intel_hdmi_output_format(crtc_state, connector, ycbcr_420_only);
 
 	if (ycbcr_420_only && !intel_hdmi_is_ycbcr420(crtc_state)) {
 		drm_dbg_kms(&i915->drm,
@@ -2226,11 +2225,17 @@ static int intel_hdmi_compute_output_format(struct intel_encoder *encoder,
 		    !drm_mode_is_420_also(info, adjusted_mode))
 			return ret;
 
-		crtc_state->output_format = intel_hdmi_output_format(connector, true);
+		crtc_state->output_format = intel_hdmi_output_format(crtc_state, connector, true);
 		ret = intel_hdmi_compute_clock(encoder, crtc_state, respect_downstream_limits);
 	}
 
 	return ret;
+}
+
+static bool intel_hdmi_is_cloned(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->uapi.encoder_mask &&
+		!is_power_of_2(crtc_state->uapi.encoder_mask);
 }
 
 int intel_hdmi_compute_config(struct intel_encoder *encoder,
@@ -2248,17 +2253,15 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
-	pipe_config->has_hdmi_sink = intel_has_hdmi_sink(intel_hdmi,
-							 conn_state);
+	pipe_config->has_hdmi_sink =
+		intel_has_hdmi_sink(intel_hdmi, conn_state) &&
+		!intel_hdmi_is_cloned(pipe_config);
 
 	if (pipe_config->has_hdmi_sink)
 		pipe_config->has_infoframe = true;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		pipe_config->pixel_multiplier = 2;
-
-	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv))
-		pipe_config->has_pch_encoder = true;
 
 	pipe_config->has_audio =
 		intel_hdmi_has_audio(encoder, pipe_config, conn_state);

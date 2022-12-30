@@ -114,7 +114,9 @@ static void test_icr(struct xapic_vcpu *x)
 	 * vCPUs, not vcpu.id + 1.  Arbitrarily use vector 0xff.
 	 */
 	icr = APIC_INT_ASSERT | 0xff;
-	for (i = vcpu->id + 1; i < 0xff; i++) {
+	for (i = 0; i < 0xff; i++) {
+		if (i == vcpu->id)
+			continue;
 		for (j = 0; j < 8; j++)
 			__test_icr(x, i << (32 + 24) | icr | (j << 8));
 	}

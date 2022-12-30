@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/keystone/ti,sci.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: TI-SCI controller device node bindings
+title: TI-SCI controller
 
 maintainers:
   - Nishanth Menon <nm@ti.com>

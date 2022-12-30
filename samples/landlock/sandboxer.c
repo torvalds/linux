@@ -76,7 +76,8 @@ static int parse_path(char *env_path, const char ***const path_list)
 #define ACCESS_FILE ( \
 	LANDLOCK_ACCESS_FS_EXECUTE | \
 	LANDLOCK_ACCESS_FS_WRITE_FILE | \
-	LANDLOCK_ACCESS_FS_READ_FILE)
+	LANDLOCK_ACCESS_FS_READ_FILE | \
+	LANDLOCK_ACCESS_FS_TRUNCATE)
 
 /* clang-format on */
 
@@ -160,11 +161,12 @@ out_free_name:
 	LANDLOCK_ACCESS_FS_MAKE_FIFO | \
 	LANDLOCK_ACCESS_FS_MAKE_BLOCK | \
 	LANDLOCK_ACCESS_FS_MAKE_SYM | \
-	LANDLOCK_ACCESS_FS_REFER)
+	LANDLOCK_ACCESS_FS_REFER | \
+	LANDLOCK_ACCESS_FS_TRUNCATE)
 
 /* clang-format on */
 
-#define LANDLOCK_ABI_LAST 2
+#define LANDLOCK_ABI_LAST 3
 
 int main(const int argc, char *const argv[], char *const *const envp)
 {
@@ -232,8 +234,27 @@ int main(const int argc, char *const argv[], char *const *const envp)
 	/* Best-effort security. */
 	switch (abi) {
 	case 1:
-		/* Removes LANDLOCK_ACCESS_FS_REFER for ABI < 2 */
+		/*
+		 * Removes LANDLOCK_ACCESS_FS_REFER for ABI < 2
+		 *
+		 * Note: The "refer" operations (file renaming and linking
+		 * across different directories) are always forbidden when using
+		 * Landlock with ABI 1.
+		 *
+		 * If only ABI 1 is available, this sandboxer knowingly forbids
+		 * refer operations.
+		 *
+		 * If a program *needs* to do refer operations after enabling
+		 * Landlock, it can not use Landlock at ABI level 1.  To be
+		 * compatible with different kernel versions, such programs
+		 * should then fall back to not restrict themselves at all if
+		 * the running kernel only supports ABI 1.
+		 */
 		ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_REFER;
+		__attribute__((fallthrough));
+	case 2:
+		/* Removes LANDLOCK_ACCESS_FS_TRUNCATE for ABI < 3 */
+		ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_TRUNCATE;
 
 		fprintf(stderr,
 			"Hint: You should update the running kernel "

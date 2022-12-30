@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef BTRFS_TREE_MOD_LOG_H
 #define BTRFS_TREE_MOD_LOG_H
@@ -32,7 +32,7 @@ int btrfs_tree_mod_log_insert_root(struct extent_buffer *old_root,
 				   struct extent_buffer *new_root,
 				   bool log_removal);
 int btrfs_tree_mod_log_insert_key(struct extent_buffer *eb, int slot,
-				  enum btrfs_mod_log_op op, gfp_t flags);
+				  enum btrfs_mod_log_op op);
 int btrfs_tree_mod_log_free_eb(struct extent_buffer *eb);
 struct extent_buffer *btrfs_tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 						struct btrfs_path *path,

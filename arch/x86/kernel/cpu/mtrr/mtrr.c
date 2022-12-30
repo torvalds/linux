@@ -46,6 +46,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/rcupdate.h>
 
+#include <asm/cacheinfo.h>
 #include <asm/cpufeature.h>
 #include <asm/e820/api.h>
 #include <asm/mtrr.h>
@@ -58,31 +59,17 @@
 #define MTRR_TO_PHYS_WC_OFFSET 1000
 
 u32 num_var_ranges;
-static bool __mtrr_enabled;
-
 static bool mtrr_enabled(void)
 {
-	return __mtrr_enabled;
+	return !!mtrr_if;
 }
 
 unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 static DEFINE_MUTEX(mtrr_mutex);
 
 u64 size_or_mask, size_and_mask;
-static bool mtrr_aps_delayed_init;
-
-static const struct mtrr_ops *mtrr_ops[X86_VENDOR_NUM] __ro_after_init;
 
 const struct mtrr_ops *mtrr_if;
-
-static void set_mtrr(unsigned int reg, unsigned long base,
-		     unsigned long size, mtrr_type type);
-
-void __init set_mtrr_ops(const struct mtrr_ops *ops)
-{
-	if (ops->vendor && ops->vendor < X86_VENDOR_NUM)
-		mtrr_ops[ops->vendor] = ops;
-}
 
 /*  Returns non-zero if we have the write-combining memory type  */
 static int have_wrcomb(void)
@@ -119,11 +106,11 @@ static int have_wrcomb(void)
 }
 
 /*  This function returns the number of variable MTRRs  */
-static void __init set_num_var_ranges(void)
+static void __init set_num_var_ranges(bool use_generic)
 {
 	unsigned long config = 0, dummy;
 
-	if (use_intel())
+	if (use_generic)
 		rdmsr(MSR_MTRRcap, config, dummy);
 	else if (is_cpu(AMD) || is_cpu(HYGON))
 		config = 2;
@@ -160,25 +147,8 @@ static int mtrr_rendezvous_handler(void *info)
 {
 	struct set_mtrr_data *data = info;
 
-	/*
-	 * We use this same function to initialize the mtrrs during boot,
-	 * resume, runtime cpu online and on an explicit request to set a
-	 * specific MTRR.
-	 *
-	 * During boot or suspend, the state of the boot cpu's mtrrs has been
-	 * saved, and we want to replicate that across all the cpus that come
-	 * online (either at the end of boot or resume or during a runtime cpu
-	 * online). If we're doing that, @reg is set to something special and on
-	 * all the cpu's we do mtrr_if->set_all() (On the logical cpu that
-	 * started the boot/resume sequence, this might be a duplicate
-	 * set_all()).
-	 */
-	if (data->smp_reg != ~0U) {
-		mtrr_if->set(data->smp_reg, data->smp_base,
-			     data->smp_size, data->smp_type);
-	} else if (mtrr_aps_delayed_init || !cpu_online(smp_processor_id())) {
-		mtrr_if->set_all();
-	}
+	mtrr_if->set(data->smp_reg, data->smp_base,
+		     data->smp_size, data->smp_type);
 	return 0;
 }
 
@@ -246,19 +216,6 @@ static void set_mtrr_cpuslocked(unsigned int reg, unsigned long base,
 				    };
 
 	stop_machine_cpuslocked(mtrr_rendezvous_handler, &data, cpu_online_mask);
-}
-
-static void set_mtrr_from_inactive_cpu(unsigned int reg, unsigned long base,
-				      unsigned long size, mtrr_type type)
-{
-	struct set_mtrr_data data = { .smp_reg = reg,
-				      .smp_base = base,
-				      .smp_size = size,
-				      .smp_type = type
-				    };
-
-	stop_machine_from_inactive_cpu(mtrr_rendezvous_handler, &data,
-				       cpu_callout_mask);
 }
 
 /**
@@ -617,20 +574,6 @@ int arch_phys_wc_index(int handle)
 }
 EXPORT_SYMBOL_GPL(arch_phys_wc_index);
 
-/*
- * HACK ALERT!
- * These should be called implicitly, but we can't yet until all the initcall
- * stuff is done...
- */
-static void __init init_ifs(void)
-{
-#ifndef CONFIG_X86_64
-	amd_init_mtrr();
-	cyrix_init_mtrr();
-	centaur_init_mtrr();
-#endif
-}
-
 /* The suspend/resume methods are only for CPU without MTRR. CPU using generic
  * MTRR driver doesn't require this
  */
@@ -686,9 +629,8 @@ int __initdata changed_by_mtrr_cleanup;
  */
 void __init mtrr_bp_init(void)
 {
+	const char *why = "(not available)";
 	u32 phys_addr;
-
-	init_ifs();
 
 	phys_addr = 32;
 
@@ -730,21 +672,21 @@ void __init mtrr_bp_init(void)
 		case X86_VENDOR_AMD:
 			if (cpu_feature_enabled(X86_FEATURE_K6_MTRR)) {
 				/* Pre-Athlon (K6) AMD CPU MTRRs */
-				mtrr_if = mtrr_ops[X86_VENDOR_AMD];
+				mtrr_if = &amd_mtrr_ops;
 				size_or_mask = SIZE_OR_MASK_BITS(32);
 				size_and_mask = 0;
 			}
 			break;
 		case X86_VENDOR_CENTAUR:
 			if (cpu_feature_enabled(X86_FEATURE_CENTAUR_MCR)) {
-				mtrr_if = mtrr_ops[X86_VENDOR_CENTAUR];
+				mtrr_if = &centaur_mtrr_ops;
 				size_or_mask = SIZE_OR_MASK_BITS(32);
 				size_and_mask = 0;
 			}
 			break;
 		case X86_VENDOR_CYRIX:
 			if (cpu_feature_enabled(X86_FEATURE_CYRIX_ARR)) {
-				mtrr_if = mtrr_ops[X86_VENDOR_CYRIX];
+				mtrr_if = &cyrix_mtrr_ops;
 				size_or_mask = SIZE_OR_MASK_BITS(32);
 				size_and_mask = 0;
 			}
@@ -754,58 +696,23 @@ void __init mtrr_bp_init(void)
 		}
 	}
 
-	if (mtrr_if) {
-		__mtrr_enabled = true;
-		set_num_var_ranges();
+	if (mtrr_enabled()) {
+		set_num_var_ranges(mtrr_if == &generic_mtrr_ops);
 		init_table();
-		if (use_intel()) {
+		if (mtrr_if == &generic_mtrr_ops) {
 			/* BIOS may override */
-			__mtrr_enabled = get_mtrr_state();
-
-			if (mtrr_enabled())
-				mtrr_bp_pat_init();
-
-			if (mtrr_cleanup(phys_addr)) {
-				changed_by_mtrr_cleanup = 1;
-				mtrr_if->set_all();
+			if (get_mtrr_state()) {
+				memory_caching_control |= CACHE_MTRR;
+				changed_by_mtrr_cleanup = mtrr_cleanup(phys_addr);
+			} else {
+				mtrr_if = NULL;
+				why = "by BIOS";
 			}
 		}
 	}
 
-	if (!mtrr_enabled()) {
-		pr_info("Disabled\n");
-
-		/*
-		 * PAT initialization relies on MTRR's rendezvous handler.
-		 * Skip PAT init until the handler can initialize both
-		 * features independently.
-		 */
-		pat_disable("MTRRs disabled, skipping PAT initialization too.");
-	}
-}
-
-void mtrr_ap_init(void)
-{
 	if (!mtrr_enabled())
-		return;
-
-	if (!use_intel() || mtrr_aps_delayed_init)
-		return;
-
-	/*
-	 * Ideally we should hold mtrr_mutex here to avoid mtrr entries
-	 * changed, but this routine will be called in cpu boot time,
-	 * holding the lock breaks it.
-	 *
-	 * This routine is called in two cases:
-	 *
-	 *   1. very early time of software resume, when there absolutely
-	 *      isn't mtrr entry changes;
-	 *
-	 *   2. cpu hotadd time. We let mtrr_add/del_page hold cpuhotplug
-	 *      lock to prevent mtrr entry changes
-	 */
-	set_mtrr_from_inactive_cpu(~0U, 0, 0, 0);
+		pr_info("MTRRs disabled %s\n", why);
 }
 
 /**
@@ -823,50 +730,12 @@ void mtrr_save_state(void)
 	smp_call_function_single(first_cpu, mtrr_save_fixed_ranges, NULL, 1);
 }
 
-void set_mtrr_aps_delayed_init(void)
-{
-	if (!mtrr_enabled())
-		return;
-	if (!use_intel())
-		return;
-
-	mtrr_aps_delayed_init = true;
-}
-
-/*
- * Delayed MTRR initialization for all AP's
- */
-void mtrr_aps_init(void)
-{
-	if (!use_intel() || !mtrr_enabled())
-		return;
-
-	/*
-	 * Check if someone has requested the delay of AP MTRR initialization,
-	 * by doing set_mtrr_aps_delayed_init(), prior to this point. If not,
-	 * then we are done.
-	 */
-	if (!mtrr_aps_delayed_init)
-		return;
-
-	set_mtrr(~0U, 0, 0, 0);
-	mtrr_aps_delayed_init = false;
-}
-
-void mtrr_bp_restore(void)
-{
-	if (!use_intel() || !mtrr_enabled())
-		return;
-
-	mtrr_if->set_all();
-}
-
 static int __init mtrr_init_finialize(void)
 {
 	if (!mtrr_enabled())
 		return 0;
 
-	if (use_intel()) {
+	if (memory_caching_control & CACHE_MTRR) {
 		if (!changed_by_mtrr_cleanup)
 			mtrr_state_warn();
 		return 0;

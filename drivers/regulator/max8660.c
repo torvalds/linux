@@ -367,9 +367,9 @@ static inline int max8660_pdata_from_dt(struct device *dev,
 }
 #endif
 
-static int max8660_probe(struct i2c_client *client,
-				   const struct i2c_device_id *i2c_id)
+static int max8660_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *i2c_id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct max8660_platform_data pdata_of, *pdata = dev_get_platdata(dev);
 	struct regulator_config config = { };
@@ -503,7 +503,7 @@ static const struct i2c_device_id max8660_id[] = {
 MODULE_DEVICE_TABLE(i2c, max8660_id);
 
 static struct i2c_driver max8660_driver = {
-	.probe = max8660_probe,
+	.probe_new = max8660_probe,
 	.driver		= {
 		.name	= "max8660",
 	},

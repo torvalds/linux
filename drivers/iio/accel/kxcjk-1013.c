@@ -241,7 +241,6 @@ enum kxcjk1013_axis {
 };
 
 struct kxcjk1013_data {
-	struct regulator_bulk_data regulators[2];
 	struct i2c_client *client;
 	struct iio_trigger *dready_trig;
 	struct iio_trigger *motion_trig;
@@ -1425,16 +1424,10 @@ static const char *kxcjk1013_match_acpi_device(struct device *dev,
 	return dev_name(dev);
 }
 
-static void kxcjk1013_disable_regulators(void *d)
+static int kxcjk1013_probe(struct i2c_client *client)
 {
-	struct kxcjk1013_data *data = d;
-
-	regulator_bulk_disable(ARRAY_SIZE(data->regulators), data->regulators);
-}
-
-static int kxcjk1013_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
-{
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
+	static const char * const regulator_names[] = { "vdd", "vddio" };
 	struct kxcjk1013_data *data;
 	struct iio_dev *indio_dev;
 	struct kxcjk_1013_platform_data *pdata;
@@ -1461,21 +1454,11 @@ static int kxcjk1013_probe(struct i2c_client *client,
 			return ret;
 	}
 
-	data->regulators[0].supply = "vdd";
-	data->regulators[1].supply = "vddio";
-	ret = devm_regulator_bulk_get(&client->dev, ARRAY_SIZE(data->regulators),
-				      data->regulators);
+	ret = devm_regulator_bulk_get_enable(&client->dev,
+					     ARRAY_SIZE(regulator_names),
+					     regulator_names);
 	if (ret)
 		return dev_err_probe(&client->dev, ret, "Failed to get regulators\n");
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(data->regulators),
-				    data->regulators);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(&client->dev, kxcjk1013_disable_regulators, data);
-	if (ret)
-		return ret;
 
 	/*
 	 * A typical delay of 10ms is required for powering up
@@ -1749,7 +1732,7 @@ static struct i2c_driver kxcjk1013_driver = {
 		.of_match_table = kxcjk1013_of_match,
 		.pm	= &kxcjk1013_pm_ops,
 	},
-	.probe		= kxcjk1013_probe,
+	.probe_new	= kxcjk1013_probe,
 	.remove		= kxcjk1013_remove,
 	.id_table	= kxcjk1013_id,
 };

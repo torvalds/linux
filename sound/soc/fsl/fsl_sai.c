@@ -872,10 +872,10 @@ static int fsl_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 
 	regmap_update_bits(sai->regmap, FSL_SAI_TCR1(ofs),
 			   FSL_SAI_CR1_RFW_MASK(sai->soc_data->fifo_depth),
-			   sai->soc_data->fifo_depth - FSL_SAI_MAXBURST_TX);
+			   sai->soc_data->fifo_depth - sai->dma_params_tx.maxburst);
 	regmap_update_bits(sai->regmap, FSL_SAI_RCR1(ofs),
 			   FSL_SAI_CR1_RFW_MASK(sai->soc_data->fifo_depth),
-			   FSL_SAI_MAXBURST_RX - 1);
+			   sai->dma_params_rx.maxburst - 1);
 
 	snd_soc_dai_init_dma_data(cpu_dai, &sai->dma_params_tx,
 				&sai->dma_params_rx);
@@ -1416,8 +1416,10 @@ static int fsl_sai_probe(struct platform_device *pdev)
 
 	sai->dma_params_rx.addr = sai->res->start + FSL_SAI_RDR0;
 	sai->dma_params_tx.addr = sai->res->start + FSL_SAI_TDR0;
-	sai->dma_params_rx.maxburst = FSL_SAI_MAXBURST_RX;
-	sai->dma_params_tx.maxburst = FSL_SAI_MAXBURST_TX;
+	sai->dma_params_rx.maxburst =
+		sai->soc_data->max_burst[RX] ? sai->soc_data->max_burst[RX] : FSL_SAI_MAXBURST_RX;
+	sai->dma_params_tx.maxburst =
+		sai->soc_data->max_burst[TX] ? sai->soc_data->max_burst[TX] : FSL_SAI_MAXBURST_TX;
 
 	sai->pinctrl = devm_pinctrl_get(&pdev->dev);
 
@@ -1446,7 +1448,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	}
 
 	ret = pm_runtime_put_sync(dev);
-	if (ret < 0)
+	if (ret < 0 && ret != -ENOSYS)
 		goto err_pm_get_sync;
 
 	/*
@@ -1579,6 +1581,18 @@ static const struct fsl_sai_soc_data fsl_sai_imx8ulp_data = {
 	.max_register = FSL_SAI_RTCAP,
 };
 
+static const struct fsl_sai_soc_data fsl_sai_imx93_data = {
+	.use_imx_pcm = true,
+	.use_edma = true,
+	.fifo_depth = 128,
+	.reg_offset = 8,
+	.mclk0_is_mclk1 = false,
+	.pins = 4,
+	.flags = 0,
+	.max_register = FSL_SAI_MCTL,
+	.max_burst = {8, 8},
+};
+
 static const struct of_device_id fsl_sai_ids[] = {
 	{ .compatible = "fsl,vf610-sai", .data = &fsl_sai_vf610_data },
 	{ .compatible = "fsl,imx6sx-sai", .data = &fsl_sai_imx6sx_data },
@@ -1590,6 +1604,7 @@ static const struct of_device_id fsl_sai_ids[] = {
 	{ .compatible = "fsl,imx8mp-sai", .data = &fsl_sai_imx8mp_data },
 	{ .compatible = "fsl,imx8ulp-sai", .data = &fsl_sai_imx8ulp_data },
 	{ .compatible = "fsl,imx8mn-sai", .data = &fsl_sai_imx8mp_data },
+	{ .compatible = "fsl,imx93-sai", .data = &fsl_sai_imx93_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_sai_ids);

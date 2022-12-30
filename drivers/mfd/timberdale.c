@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/msi.h>
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
 

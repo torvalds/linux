@@ -35,6 +35,8 @@
 #include <drm/drm_edid.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
+#include "i915_irq.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_de.h"

@@ -18,6 +18,8 @@
 #define TSNEP "tsnep"
 
 #define TSNEP_RING_SIZE 256
+#define TSNEP_RING_RX_REFILL 16
+#define TSNEP_RING_RX_REUSE (TSNEP_RING_SIZE - TSNEP_RING_SIZE / 4)
 #define TSNEP_RING_ENTRIES_PER_PAGE (PAGE_SIZE / TSNEP_DESC_SIZE)
 #define TSNEP_RING_PAGE_COUNT (TSNEP_RING_SIZE / TSNEP_RING_ENTRIES_PER_PAGE)
 
@@ -110,6 +112,7 @@ struct tsnep_rx {
 	dma_addr_t page_dma[TSNEP_RING_PAGE_COUNT];
 
 	struct tsnep_rx_entry entry[TSNEP_RING_SIZE];
+	int write;
 	int read;
 	u32 owner_counter;
 	int increment_owner_counter;
@@ -119,6 +122,7 @@ struct tsnep_rx {
 	u32 bytes;
 	u32 dropped;
 	u32 multicast;
+	u32 alloc_failed;
 };
 
 struct tsnep_queue {
@@ -132,6 +136,8 @@ struct tsnep_queue {
 
 	int irq;
 	u32 irq_mask;
+	void __iomem *irq_delay_addr;
+	u8 irq_delay;
 };
 
 struct tsnep_adapter {
@@ -223,5 +229,7 @@ static inline void tsnep_ethtool_self_test(struct net_device *dev,
 #endif /* CONFIG_TSNEP_SELFTESTS */
 
 void tsnep_get_system_time(struct tsnep_adapter *adapter, u64 *time);
+int tsnep_set_irq_coalesce(struct tsnep_queue *queue, u32 usecs);
+u32 tsnep_get_irq_coalesce(struct tsnep_queue *queue);
 
 #endif /* _TSNEP_H */

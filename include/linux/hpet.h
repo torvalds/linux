@@ -30,7 +30,7 @@ struct hpet {
 			unsigned long _hpet_compare;
 		} _u1;
 		u64 hpet_fsb[2];	/* FSB route */
-	} hpet_timers[1];
+	} hpet_timers[];
 };
 
 #define	hpet_mc		_u0._hpet_mc

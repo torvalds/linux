@@ -34,6 +34,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"

@@ -4,8 +4,8 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <internal/cpumap.h>
 #include <perf/cpumap.h>
+#include <linux/refcount.h>
 
 /** Identify where counts are aggregated, -1 implies not to aggregate. */
 struct aggr_cpu_id {
@@ -97,7 +97,7 @@ typedef struct aggr_cpu_id (*aggr_cpu_id_get_t)(struct perf_cpu cpu, void *data)
  */
 struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
 				       aggr_cpu_id_get_t get_id,
-				       void *data);
+				       void *data, bool needs_sort);
 
 bool aggr_cpu_id__equal(const struct aggr_cpu_id *a, const struct aggr_cpu_id *b);
 bool aggr_cpu_id__is_empty(const struct aggr_cpu_id *a);
@@ -133,5 +133,9 @@ struct aggr_cpu_id aggr_cpu_id__cpu(struct perf_cpu cpu, void *data);
  * cpu. The function signature is compatible with aggr_cpu_id_get_t.
  */
 struct aggr_cpu_id aggr_cpu_id__node(struct perf_cpu cpu, void *data);
-
+/**
+ * aggr_cpu_id__global - Create an aggr_cpu_id for global aggregation.
+ * The function signature is compatible with aggr_cpu_id_get_t.
+ */
+struct aggr_cpu_id aggr_cpu_id__global(struct perf_cpu cpu, void *data);
 #endif /* __PERF_CPUMAP_H */

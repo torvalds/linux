@@ -246,7 +246,6 @@ int caam_rng_init(struct device *ctrldev)
 	ctx->rng.cleanup = caam_cleanup;
 	ctx->rng.read    = caam_read;
 	ctx->rng.priv    = (unsigned long)ctx;
-	ctx->rng.quality = 1024;
 
 	dev_info(ctrldev, "registering rng-caam\n");
 

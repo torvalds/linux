@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/microchip,mpfs-clkcfg.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip PolarFire Clock Control Module Binding
+title: Microchip PolarFire Clock Control Module
 
 maintainers:
   - Daire McNamara <daire.mcnamara@microchip.com>

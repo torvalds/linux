@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/fwnode.h>
 #include <linux/init.h>
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -1628,7 +1629,7 @@ early_param("fw_devlink", fw_devlink_setup);
 static bool fw_devlink_strict;
 static int __init fw_devlink_strict_setup(char *arg)
 {
-	return strtobool(arg, &fw_devlink_strict);
+	return kstrtobool(arg, &fw_devlink_strict);
 }
 early_param("fw_devlink.strict", fw_devlink_strict_setup);
 
@@ -2280,7 +2281,7 @@ ssize_t device_store_bool(struct device *dev, struct device_attribute *attr,
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
 
-	if (strtobool(buf, ea->var) < 0)
+	if (kstrtobool(buf, ea->var) < 0)
 		return -EINVAL;
 
 	return size;
@@ -2334,9 +2335,9 @@ static void device_release(struct kobject *kobj)
 	kfree(p);
 }
 
-static const void *device_namespace(struct kobject *kobj)
+static const void *device_namespace(const struct kobject *kobj)
 {
-	struct device *dev = kobj_to_dev(kobj);
+	const struct device *dev = kobj_to_dev(kobj);
 	const void *ns = NULL;
 
 	if (dev->class && dev->class->ns_type)
@@ -2345,9 +2346,9 @@ static const void *device_namespace(struct kobject *kobj)
 	return ns;
 }
 
-static void device_get_ownership(struct kobject *kobj, kuid_t *uid, kgid_t *gid)
+static void device_get_ownership(const struct kobject *kobj, kuid_t *uid, kgid_t *gid)
 {
-	struct device *dev = kobj_to_dev(kobj);
+	const struct device *dev = kobj_to_dev(kobj);
 
 	if (dev->class && dev->class->get_ownership)
 		dev->class->get_ownership(dev, uid, gid);
@@ -2361,12 +2362,12 @@ static struct kobj_type device_ktype = {
 };
 
 
-static int dev_uevent_filter(struct kobject *kobj)
+static int dev_uevent_filter(const struct kobject *kobj)
 {
 	const struct kobj_type *ktype = get_ktype(kobj);
 
 	if (ktype == &device_ktype) {
-		struct device *dev = kobj_to_dev(kobj);
+		const struct device *dev = kobj_to_dev(kobj);
 		if (dev->bus)
 			return 1;
 		if (dev->class)
@@ -2375,9 +2376,9 @@ static int dev_uevent_filter(struct kobject *kobj)
 	return 0;
 }
 
-static const char *dev_uevent_name(struct kobject *kobj)
+static const char *dev_uevent_name(const struct kobject *kobj)
 {
-	struct device *dev = kobj_to_dev(kobj);
+	const struct device *dev = kobj_to_dev(kobj);
 
 	if (dev->bus)
 		return dev->bus->name;
@@ -2534,7 +2535,7 @@ static ssize_t online_store(struct device *dev, struct device_attribute *attr,
 	bool val;
 	int ret;
 
-	ret = strtobool(buf, &val);
+	ret = kstrtobool(buf, &val);
 	if (ret < 0)
 		return ret;
 
@@ -2584,11 +2585,6 @@ union device_attr_group_devres {
 	const struct attribute_group *group;
 	const struct attribute_group **groups;
 };
-
-static int devm_attr_group_match(struct device *dev, void *res, void *data)
-{
-	return ((union device_attr_group_devres *)res)->group == data;
-}
 
 static void devm_attr_group_remove(struct device *dev, void *res)
 {
@@ -2641,23 +2637,6 @@ int devm_device_add_group(struct device *dev, const struct attribute_group *grp)
 EXPORT_SYMBOL_GPL(devm_device_add_group);
 
 /**
- * devm_device_remove_group: remove a managed group from a device
- * @dev:	device to remove the group from
- * @grp:	group to remove
- *
- * This function removes a group of attributes from a device. The attributes
- * previously have to have been created for this group, otherwise it will fail.
- */
-void devm_device_remove_group(struct device *dev,
-			      const struct attribute_group *grp)
-{
-	WARN_ON(devres_release(dev, devm_attr_group_remove,
-			       devm_attr_group_match,
-			       /* cast away const */ (void *)grp));
-}
-EXPORT_SYMBOL_GPL(devm_device_remove_group);
-
-/**
  * devm_device_add_groups - create a bunch of managed attribute groups
  * @dev:	The device to create the group for
  * @groups:	The attribute groups to create, NULL terminated
@@ -2692,23 +2671,6 @@ int devm_device_add_groups(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devm_device_add_groups);
-
-/**
- * devm_device_remove_groups - remove a list of managed groups
- *
- * @dev:	The device for the groups to be removed from
- * @groups:	NULL terminated list of groups to be removed
- *
- * If groups is not NULL, remove the specified groups from the device.
- */
-void devm_device_remove_groups(struct device *dev,
-			       const struct attribute_group **groups)
-{
-	WARN_ON(devres_release(dev, devm_attr_groups_remove,
-			       devm_attr_group_match,
-			       /* cast away const */ (void *)groups));
-}
-EXPORT_SYMBOL_GPL(devm_device_remove_groups);
 
 static int device_add_attrs(struct device *dev)
 {
@@ -3024,9 +2986,9 @@ static void class_dir_release(struct kobject *kobj)
 }
 
 static const
-struct kobj_ns_type_operations *class_dir_child_ns_type(struct kobject *kobj)
+struct kobj_ns_type_operations *class_dir_child_ns_type(const struct kobject *kobj)
 {
-	struct class_dir *dir = to_class_dir(kobj);
+	const struct class_dir *dir = to_class_dir(kobj);
 	return dir->class->ns_type;
 }
 

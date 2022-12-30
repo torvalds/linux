@@ -469,9 +469,9 @@ static const struct iio_info mag3110_info = {
 
 static const unsigned long mag3110_scan_masks[] = {0x7, 0xf, 0};
 
-static int mag3110_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int mag3110_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct mag3110_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -641,7 +641,7 @@ static struct i2c_driver mag3110_driver = {
 		.of_match_table = mag3110_of_match,
 		.pm	= pm_sleep_ptr(&mag3110_pm_ops),
 	},
-	.probe = mag3110_probe,
+	.probe_new = mag3110_probe,
 	.remove = mag3110_remove,
 	.id_table = mag3110_id,
 };

@@ -3,6 +3,7 @@
 #include <test_progs.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <task_local_storage_helpers.h>
 #include "bpf_iter_ipv6_route.skel.h"
 #include "bpf_iter_netlink.skel.h"
 #include "bpf_iter_bpf_map.skel.h"
@@ -175,11 +176,6 @@ static void test_bpf_map(void)
 	bpf_iter_bpf_map__destroy(skel);
 }
 
-static int pidfd_open(pid_t pid, unsigned int flags)
-{
-	return syscall(SYS_pidfd_open, pid, flags);
-}
-
 static void check_bpf_link_info(const struct bpf_program *prog)
 {
 	LIBBPF_OPTS(bpf_iter_attach_opts, opts);
@@ -295,8 +291,8 @@ static void test_task_pidfd(void)
 	union bpf_iter_link_info linfo;
 	int pidfd;
 
-	pidfd = pidfd_open(getpid(), 0);
-	if (!ASSERT_GT(pidfd, 0, "pidfd_open"))
+	pidfd = sys_pidfd_open(getpid(), 0);
+	if (!ASSERT_GT(pidfd, 0, "sys_pidfd_open"))
 		return;
 
 	memset(&linfo, 0, sizeof(linfo));
@@ -945,10 +941,10 @@ static void test_bpf_array_map(void)
 {
 	__u64 val, expected_val = 0, res_first_val, first_val = 0;
 	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
-	__u32 expected_key = 0, res_first_key;
+	__u32 key, expected_key = 0, res_first_key;
+	int err, i, map_fd, hash_fd, iter_fd;
 	struct bpf_iter_bpf_array_map *skel;
 	union bpf_iter_link_info linfo;
-	int err, i, map_fd, iter_fd;
 	struct bpf_link *link;
 	char buf[64] = {};
 	int len, start;
@@ -1005,12 +1001,20 @@ static void test_bpf_array_map(void)
 	if (!ASSERT_EQ(skel->bss->val_sum, expected_val, "val_sum"))
 		goto close_iter;
 
+	hash_fd = bpf_map__fd(skel->maps.hashmap1);
 	for (i = 0; i < bpf_map__max_entries(skel->maps.arraymap1); i++) {
 		err = bpf_map_lookup_elem(map_fd, &i, &val);
-		if (!ASSERT_OK(err, "map_lookup"))
-			goto out;
-		if (!ASSERT_EQ(i, val, "invalid_val"))
-			goto out;
+		if (!ASSERT_OK(err, "map_lookup arraymap1"))
+			goto close_iter;
+		if (!ASSERT_EQ(i, val, "invalid_val arraymap1"))
+			goto close_iter;
+
+		val = i + 4;
+		err = bpf_map_lookup_elem(hash_fd, &val, &key);
+		if (!ASSERT_OK(err, "map_lookup hashmap1"))
+			goto close_iter;
+		if (!ASSERT_EQ(key, val - 4, "invalid_val hashmap1"))
+			goto close_iter;
 	}
 
 close_iter:
@@ -1498,7 +1502,6 @@ static noinline int trigger_func(int arg)
 static void test_task_vma_offset_common(struct bpf_iter_attach_opts *opts, bool one_proc)
 {
 	struct bpf_iter_vma_offset *skel;
-	struct bpf_link *link;
 	char buf[16] = {};
 	int iter_fd, len;
 	int pgsz, shift;
@@ -1513,11 +1516,11 @@ static void test_task_vma_offset_common(struct bpf_iter_attach_opts *opts, bool 
 		;
 	skel->bss->page_shift = shift;
 
-	link = bpf_program__attach_iter(skel->progs.get_vma_offset, opts);
-	if (!ASSERT_OK_PTR(link, "attach_iter"))
-		return;
+	skel->links.get_vma_offset = bpf_program__attach_iter(skel->progs.get_vma_offset, opts);
+	if (!ASSERT_OK_PTR(skel->links.get_vma_offset, "attach_iter"))
+		goto exit;
 
-	iter_fd = bpf_iter_create(bpf_link__fd(link));
+	iter_fd = bpf_iter_create(bpf_link__fd(skel->links.get_vma_offset));
 	if (!ASSERT_GT(iter_fd, 0, "create_iter"))
 		goto exit;
 
@@ -1535,7 +1538,7 @@ static void test_task_vma_offset_common(struct bpf_iter_attach_opts *opts, bool 
 	close(iter_fd);
 
 exit:
-	bpf_link__destroy(link);
+	bpf_iter_vma_offset__destroy(skel);
 }
 
 static void test_task_vma_offset(void)

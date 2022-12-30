@@ -215,6 +215,7 @@
 #include "i915_file_private.h"
 #include "i915_perf.h"
 #include "i915_perf_oa_regs.h"
+#include "i915_reg.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such

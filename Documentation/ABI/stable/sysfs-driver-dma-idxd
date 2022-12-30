@@ -22,6 +22,7 @@ Date:           Oct 25, 2019
 KernelVersion:  5.6.0
 Contact:        dmaengine@vger.kernel.org
 Description:    The largest number of work descriptors in a batch.
+                It's not visible when the device does not support batch.
 
 What:           /sys/bus/dsa/devices/dsa<m>/max_work_queues_size
 Date:           Oct 25, 2019
@@ -49,6 +50,8 @@ Description:    The total number of read buffers supported by this device.
 		The read buffers represent resources within the DSA
 		implementation, and these resources are allocated by engines to
 		support operations. See DSA spec v1.2 9.2.4 Total Read Buffers.
+		It's not visible when the device does not support Read Buffer
+		allocation control.
 
 What:           /sys/bus/dsa/devices/dsa<m>/max_transfer_size
 Date:           Oct 25, 2019
@@ -122,6 +125,8 @@ Contact:        dmaengine@vger.kernel.org
 Description:    The maximum number of read buffers that may be in use at
 		one time by operations that access low bandwidth memory in the
 		device. See DSA spec v1.2 9.2.8 GENCFG on Global Read Buffer Limit.
+		It's not visible when the device does not support Read Buffer
+		allocation control.
 
 What:		/sys/bus/dsa/devices/dsa<m>/cmd_status
 Date:		Aug 28, 2020
@@ -205,6 +210,7 @@ KernelVersion:	5.10.0
 Contact:	dmaengine@vger.kernel.org
 Description:	The max batch size for this workqueue. Cannot exceed device
 		max batch size. Configurable parameter.
+		It's not visible when the device does not support batch.
 
 What:		/sys/bus/dsa/devices/wq<m>.<n>/ats_disable
 Date:		Nov 13, 2020
@@ -250,6 +256,8 @@ KernelVersion:	5.17.0
 Contact:	dmaengine@vger.kernel.org
 Description:	Enable the use of global read buffer limit for the group. See DSA
 		spec v1.2 9.2.18 GRPCFG Use Global Read Buffer Limit.
+		It's not visible when the device does not support Read Buffer
+		allocation control.
 
 What:		/sys/bus/dsa/devices/group<m>.<n>/read_buffers_allowed
 Date:		Dec 10, 2021
@@ -258,6 +266,8 @@ Contact:	dmaengine@vger.kernel.org
 Description:	Indicates max number of read buffers that may be in use at one time
 		by all engines in the group. See DSA spec v1.2 9.2.18 GRPCFG Read
 		Buffers Allowed.
+		It's not visible when the device does not support Read Buffer
+		allocation control.
 
 What:		/sys/bus/dsa/devices/group<m>.<n>/read_buffers_reserved
 Date:		Dec 10, 2021
@@ -266,6 +276,8 @@ Contact:	dmaengine@vger.kernel.org
 Description:	Indicates the number of Read Buffers reserved for the use of
 		engines in the group. See DSA spec v1.2 9.2.18 GRPCFG Read Buffers
 		Reserved.
+		It's not visible when the device does not support Read Buffer
+		allocation control.
 
 What:		/sys/bus/dsa/devices/group<m>.<n>/desc_progress_limit
 Date:		Sept 14, 2022

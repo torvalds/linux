@@ -53,6 +53,7 @@ struct intel_digital_port;
 struct intel_dp;
 struct intel_encoder;
 struct intel_initial_plane_config;
+struct intel_link_m_n;
 struct intel_load_detect_pipe;
 struct intel_plane;
 struct intel_plane_state;
@@ -60,24 +61,6 @@ struct intel_power_domain_mask;
 struct intel_remapped_info;
 struct intel_rotation_info;
 struct pci_dev;
-
-enum i915_gpio {
-	GPIOA,
-	GPIOB,
-	GPIOC,
-	GPIOD,
-	GPIOE,
-	GPIOF,
-	GPIOG,
-	GPIOH,
-	__GPIOI_UNUSED,
-	GPIOJ,
-	GPIOK,
-	GPIOL,
-	GPIOM,
-	GPION,
-	GPIOO,
-};
 
 /*
  * Keep the pipe enum values fixed: the code assumes that PIPE_A=0, the
@@ -279,17 +262,6 @@ enum tc_port_mode {
 	TC_PORT_LEGACY,
 };
 
-enum dpio_channel {
-	DPIO_CH0,
-	DPIO_CH1
-};
-
-enum dpio_phy {
-	DPIO_PHY0,
-	DPIO_PHY1,
-	DPIO_PHY2,
-};
-
 enum aux_ch {
 	AUX_CH_A,
 	AUX_CH_B,
@@ -315,15 +287,6 @@ enum aux_ch {
 };
 
 #define aux_ch_name(a) ((a) + 'A')
-
-/* Used by dp and fdi links */
-struct intel_link_m_n {
-	u32 tu;
-	u32 data_m;
-	u32 data_n;
-	u32 link_m;
-	u32 link_n;
-};
 
 enum phy {
 	PHY_NONE = -1,

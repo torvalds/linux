@@ -120,7 +120,7 @@ int intel_vgpu_enable_page_track(struct intel_vgpu *vgpu, unsigned long gfn)
 }
 
 /**
- * intel_vgpu_enable_page_track - cancel write-protection on guest page
+ * intel_vgpu_disable_page_track - cancel write-protection on guest page
  * @vgpu: a vGPU
  * @gfn: the gfn of guest page
  *

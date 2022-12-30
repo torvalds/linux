@@ -11,10 +11,10 @@
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
-
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "xattr.h"
+#include "acl.h"
 
 struct posix_acl *btrfs_get_acl(struct inode *inode, int type, bool rcu)
 {
@@ -110,10 +110,11 @@ out:
 	return ret;
 }
 
-int btrfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+int btrfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		  struct posix_acl *acl, int type)
 {
 	int ret;
+	struct inode *inode = d_inode(dentry);
 	umode_t old_mode = inode->i_mode;
 
 	if (type == ACL_TYPE_ACCESS && acl) {

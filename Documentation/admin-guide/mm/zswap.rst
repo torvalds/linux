@@ -14,13 +14,7 @@ for potentially reduced swap I/O.  This trade-off can also result in a
 significant performance improvement if reads from the compressed cache are
 faster than reads from a swap device.
 
-.. note::
-   Zswap is a new feature as of v3.11 and interacts heavily with memory
-   reclaim.  This interaction has not been fully explored on the large set of
-   potential configurations and workloads that exist.  For this reason, zswap
-   is a work in progress and should be considered experimental.
-
-   Some potential benefits:
+Some potential benefits:
 
 * Desktop/laptop users with limited RAM capacities can mitigate the
   performance impact of swapping.

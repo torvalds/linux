@@ -7,15 +7,7 @@
 
 #ifdef CONFIG_EFI_STUB
 
-__efistub_memcmp		= memcmp;
-__efistub_memchr		= memchr;
-__efistub_strcat		= strcat;
 __efistub_strcmp		= strcmp;
-__efistub_strlen		= strlen;
-__efistub_strncat		= strncat;
-__efistub_strnstr		= strnstr;
-__efistub_strnlen		= strnlen;
-__efistub_strrchr		= strrchr;
 __efistub_kernel_entry		= kernel_entry;
 __efistub_kernel_asize		= kernel_asize;
 __efistub_kernel_fsize		= kernel_fsize;

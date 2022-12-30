@@ -186,6 +186,12 @@ L_SKIP_RESTORE:
 	s_getreg_b32	s_save_trapsts, hwreg(HW_REG_TRAPSTS)
 
 #if SW_SA_TRAP
+	// If ttmp1[30] is set then issue s_barrier to unblock dependent waves.
+	s_bitcmp1_b32	s_save_pc_hi, 30
+	s_cbranch_scc0	L_TRAP_NO_BARRIER
+	s_barrier
+
+L_TRAP_NO_BARRIER:
 	// If ttmp1[31] is set then trap may occur early.
 	// Spin wait until SAVECTX exception is raised.
 	s_bitcmp1_b32	s_save_pc_hi, 31

@@ -5,11 +5,14 @@
 
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
+#include "messages.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "locking.h"
 #include "delayed-ref.h"
 #include "ref-verify.h"
+#include "fs.h"
+#include "accessors.h"
 
 /*
  * Used to keep track the roots and number of refs each root has for a given

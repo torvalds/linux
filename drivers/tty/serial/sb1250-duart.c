@@ -399,8 +399,7 @@ static void sbd_transmit_chars(struct sbd_port *sport)
 	/* Send char.  */
 	if (!stop_tx) {
 		write_sbdchn(sport, R_DUART_TX_HOLD, xmit->buf[xmit->tail]);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		sport->port.icount.tx++;
+		uart_xmit_advance(&sport->port, 1);
 
 		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 			uart_write_wakeup(&sport->port);

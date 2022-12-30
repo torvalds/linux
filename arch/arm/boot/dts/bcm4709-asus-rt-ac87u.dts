@@ -28,18 +28,18 @@
 	leds {
 		compatible = "gpio-leds";
 
-		wps {
+		led-wps {
 			label = "bcm53xx:blue:wps";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
 		};
 
-		power {
+		led-power {
 			label = "bcm53xx:blue:power";
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
 		};
 
-		wan {
+		led-wan {
 			label = "bcm53xx:red:wan";
 			gpios = <&chipcommon 5 GPIO_ACTIVE_LOW>;
 		};

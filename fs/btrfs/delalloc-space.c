@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "messages.h"
 #include "ctree.h"
 #include "delalloc-space.h"
 #include "block-rsv.h"
@@ -8,6 +9,7 @@
 #include "transaction.h"
 #include "qgroup.h"
 #include "block-group.h"
+#include "fs.h"
 
 /*
  * HOW DOES THIS WORK
@@ -200,8 +202,8 @@ void btrfs_free_reserved_data_space(struct btrfs_inode *inode,
 	btrfs_qgroup_free_data(inode, reserved, start, len);
 }
 
-/**
- * Release any excessive reservation
+/*
+ * Release any excessive reservations for an inode.
  *
  * @inode:       the inode we need to release from
  * @qgroup_free: free or convert qgroup meta. Unlike normal operation, qgroup
@@ -375,12 +377,12 @@ int btrfs_delalloc_reserve_metadata(struct btrfs_inode *inode, u64 num_bytes,
 	return 0;
 }
 
-/**
- * Release a metadata reservation for an inode
+/*
+ * Release a metadata reservation for an inode.
  *
- * @inode: the inode to release the reservation for.
- * @num_bytes: the number of bytes we are releasing.
- * @qgroup_free: free qgroup reservation or convert it to per-trans reservation
+ * @inode:        the inode to release the reservation for.
+ * @num_bytes:    the number of bytes we are releasing.
+ * @qgroup_free:  free qgroup reservation or convert it to per-trans reservation
  *
  * This will release the metadata reservation for an inode.  This can be called
  * once we complete IO for a given set of bytes to release their metadata
@@ -403,10 +405,11 @@ void btrfs_delalloc_release_metadata(struct btrfs_inode *inode, u64 num_bytes,
 	btrfs_inode_rsv_release(inode, qgroup_free);
 }
 
-/**
- * btrfs_delalloc_release_extents - release our outstanding_extents
- * @inode: the inode to balance the reservation for.
- * @num_bytes: the number of bytes we originally reserved with
+/*
+ * Release our outstanding_extents for an inode.
+ *
+ * @inode:      the inode to balance the reservation for.
+ * @num_bytes:  the number of bytes we originally reserved with
  *
  * When we reserve space we increase outstanding_extents for the extents we may
  * add.  Once we've set the range as delalloc or created our ordered extents we
@@ -431,30 +434,30 @@ void btrfs_delalloc_release_extents(struct btrfs_inode *inode, u64 num_bytes)
 	btrfs_inode_rsv_release(inode, true);
 }
 
-/**
- * btrfs_delalloc_reserve_space - reserve data and metadata space for
- * delalloc
- * @inode: inode we're writing to
- * @start: start range we are writing to
- * @len: how long the range we are writing to
- * @reserved: mandatory parameter, record actually reserved qgroup ranges of
- * 	      current reservation.
+/*
+ * Reserve data and metadata space for delalloc
+ *
+ * @inode:     inode we're writing to
+ * @start:     start range we are writing to
+ * @len:       how long the range we are writing to
+ * @reserved:  mandatory parameter, record actually reserved qgroup ranges of
+ * 	       current reservation.
  *
  * This will do the following things
  *
- * - reserve space in data space info for num bytes
- *   and reserve precious corresponding qgroup space
+ * - reserve space in data space info for num bytes and reserve precious
+ *   corresponding qgroup space
  *   (Done in check_data_free_space)
  *
  * - reserve space for metadata space, based on the number of outstanding
- *   extents and how much csums will be needed
- *   also reserve metadata space in a per root over-reserve method.
+ *   extents and how much csums will be needed also reserve metadata space in a
+ *   per root over-reserve method.
  * - add to the inodes->delalloc_bytes
  * - add it to the fs_info's delalloc inodes list.
  *   (Above 3 all done in delalloc_reserve_metadata)
  *
  * Return 0 for success
- * Return <0 for error(-ENOSPC or -EQUOT)
+ * Return <0 for error(-ENOSPC or -EDQUOT)
  */
 int btrfs_delalloc_reserve_space(struct btrfs_inode *inode,
 			struct extent_changeset **reserved, u64 start, u64 len)
@@ -473,7 +476,7 @@ int btrfs_delalloc_reserve_space(struct btrfs_inode *inode,
 	return ret;
 }
 
-/**
+/*
  * Release data and metadata space for delalloc
  *
  * @inode:       inode we're releasing space for
@@ -482,10 +485,10 @@ int btrfs_delalloc_reserve_space(struct btrfs_inode *inode,
  * @len:         length of the space already reserved
  * @qgroup_free: should qgroup reserved-space also be freed
  *
- * This function will release the metadata space that was not used and will
- * decrement ->delalloc_bytes and remove it from the fs_info delalloc_inodes
- * list if there are no delalloc bytes left.
- * Also it will handle the qgroup reserved space.
+ * Release the metadata space that was not used and will decrement
+ * ->delalloc_bytes and remove it from the fs_info->delalloc_inodes list if
+ * there are no delalloc bytes left.  Also it will handle the qgroup reserved
+ * space.
  */
 void btrfs_delalloc_release_space(struct btrfs_inode *inode,
 				  struct extent_changeset *reserved,

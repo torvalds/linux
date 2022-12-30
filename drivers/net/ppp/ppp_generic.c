@@ -480,7 +480,7 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 	ret = -EFAULT;
 	iov.iov_base = buf;
 	iov.iov_len = count;
-	iov_iter_init(&to, READ, &iov, 1, count);
+	iov_iter_init(&to, ITER_DEST, &iov, 1, count);
 	if (skb_copy_datagram_iter(skb, 0, &to, skb->len))
 		goto outf;
 	ret = skb->len;
@@ -1742,6 +1742,8 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 	struct sk_buff *new_skb;
 	int len;
 	unsigned char *cp;
+
+	skb->dev = ppp->dev;
 
 	if (proto < 0x8000) {
 #ifdef CONFIG_PPP_FILTER

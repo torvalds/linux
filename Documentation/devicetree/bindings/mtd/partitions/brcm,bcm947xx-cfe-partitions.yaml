@@ -35,6 +35,8 @@ description: |
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
 
+select: false
+
 properties:
   compatible:
     const: brcm,bcm947xx-cfe-partitions

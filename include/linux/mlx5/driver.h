@@ -606,8 +606,6 @@ struct mlx5_priv {
 	struct list_head        pgdir_list;
 	/* end: alloc staff */
 
-	struct list_head        ctx_list;
-	spinlock_t              ctx_lock;
 	struct mlx5_adev       **adev;
 	int			adev_idx;
 	int			sw_vhca_id;
@@ -970,7 +968,7 @@ void mlx5_cmd_allowed_opcode(struct mlx5_core_dev *dev, u16 opcode);
 struct mlx5_async_ctx {
 	struct mlx5_core_dev *dev;
 	atomic_t num_inflight;
-	struct wait_queue_head wait;
+	struct completion inflight_done;
 };
 
 struct mlx5_async_work;
@@ -981,6 +979,7 @@ struct mlx5_async_work {
 	struct mlx5_async_ctx *ctx;
 	mlx5_async_cbk_t user_callback;
 	u16 opcode; /* cmd opcode */
+	u16 op_mod; /* cmd op_mod */
 	void *out; /* pointer to the cmd output buffer */
 };
 

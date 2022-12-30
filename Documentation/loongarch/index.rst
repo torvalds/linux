@@ -9,6 +9,7 @@ LoongArch Architecture
    :numbered:
 
    introduction
+   booting
    irq-chip-model
 
    features

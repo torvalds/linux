@@ -543,7 +543,8 @@ inactive_anon	# of bytes of anonymous and swap cache memory on inactive
 		LRU list.
 active_anon	# of bytes of anonymous and swap cache memory on active
 		LRU list.
-inactive_file	# of bytes of file-backed memory on inactive LRU list.
+inactive_file	# of bytes of file-backed memory and MADV_FREE anonymous memory(
+                LazyFree pages) on inactive LRU list.
 active_file	# of bytes of file-backed memory on active LRU list.
 unevictable	# of bytes of memory that cannot be reclaimed (mlocked etc).
 =============== ===============================================================

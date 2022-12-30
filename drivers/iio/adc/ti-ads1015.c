@@ -974,9 +974,9 @@ static int ads1015_set_conv_mode(struct ads1015_data *data, int mode)
 				  mode << ADS1015_CFG_MOD_SHIFT);
 }
 
-static int ads1015_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ads1015_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	const struct ads1015_chip_data *chip;
 	struct iio_dev *indio_dev;
 	struct ads1015_data *data;
@@ -1195,7 +1195,7 @@ static struct i2c_driver ads1015_driver = {
 		.of_match_table = ads1015_of_match,
 		.pm = &ads1015_pm_ops,
 	},
-	.probe		= ads1015_probe,
+	.probe_new	= ads1015_probe,
 	.remove		= ads1015_remove,
 	.id_table	= ads1015_id,
 };

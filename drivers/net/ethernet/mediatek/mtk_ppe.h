@@ -68,7 +68,9 @@ enum {
 #define MTK_FOE_IB2_DSCP		GENMASK(31, 24)
 
 /* CONFIG_MEDIATEK_NETSYS_V2 */
+#define MTK_FOE_IB2_QID_V2			GENMASK(6, 0)
 #define MTK_FOE_IB2_PORT_MG_V2		BIT(7)
+#define MTK_FOE_IB2_PSE_QOS_V2		BIT(8)
 #define MTK_FOE_IB2_DEST_PORT_V2	GENMASK(12, 9)
 #define MTK_FOE_IB2_MULTICAST_V2	BIT(13)
 #define MTK_FOE_IB2_WDMA_WINFO_V2	BIT(19)
@@ -304,6 +306,7 @@ struct mtk_ppe {
 
 struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
 			     int version, int index);
+void mtk_ppe_deinit(struct mtk_eth *eth);
 void mtk_ppe_start(struct mtk_ppe *ppe);
 int mtk_ppe_stop(struct mtk_ppe *ppe);
 
@@ -350,6 +353,8 @@ int mtk_foe_entry_set_pppoe(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 			    int sid);
 int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 			   int wdma_idx, int txq, int bss, int wcid);
+int mtk_foe_entry_set_queue(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+			    unsigned int queue);
 int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
 void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
 int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);

@@ -16,6 +16,7 @@
 #include <sched.h>
 #include <stdio.h>
 #include <assert.h>
+#include <debug.h>
 #include <malloc.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -116,7 +117,6 @@ struct params {
 	long			bytes_thread;
 
 	int			nr_tasks;
-	bool			show_quiet;
 
 	bool			show_convergence;
 	bool			measure_convergence;
@@ -197,7 +197,8 @@ static const struct option options[] = {
 	OPT_BOOLEAN('c', "show_convergence", &p0.show_convergence, "show convergence details, "
 		    "convergence is reached when each process (all its threads) is running on a single NUMA node."),
 	OPT_BOOLEAN('m', "measure_convergence",	&p0.measure_convergence, "measure convergence latency"),
-	OPT_BOOLEAN('q', "quiet"	, &p0.show_quiet,	"quiet mode"),
+	OPT_BOOLEAN('q', "quiet"	, &quiet,
+		    "quiet mode (do not show any warnings or messages)"),
 	OPT_BOOLEAN('S', "serialize-startup", &p0.serialize_startup,"serialize thread startup"),
 
 	/* Special option string parsing callbacks: */
@@ -1474,7 +1475,7 @@ static int init(void)
 	/* char array in count_process_nodes(): */
 	BUG_ON(g->p.nr_nodes < 0);
 
-	if (g->p.show_quiet && !g->p.show_details)
+	if (quiet && !g->p.show_details)
 		g->p.show_details = -1;
 
 	/* Some memory should be specified: */
@@ -1553,7 +1554,7 @@ static void print_res(const char *name, double val,
 	if (!name)
 		name = "main,";
 
-	if (!g->p.show_quiet)
+	if (!quiet)
 		printf(" %-30s %15.3f, %-15s %s\n", name, val, txt_unit, txt_short);
 	else
 		printf(" %14.3f %s\n", val, txt_long);

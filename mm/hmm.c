@@ -361,8 +361,7 @@ again:
 		 * huge or device mapping one and compute corresponding pfn
 		 * values.
 		 */
-		pmd = pmd_read_atomic(pmdp);
-		barrier();
+		pmd = pmdp_get_lockless(pmdp);
 		if (!pmd_devmap(pmd) && !pmd_trans_huge(pmd))
 			goto again;
 

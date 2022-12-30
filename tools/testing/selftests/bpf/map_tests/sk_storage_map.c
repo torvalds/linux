@@ -458,7 +458,7 @@ static void test_sk_storage_map_basic(void)
 	struct {
 		int cnt;
 		int lock;
-	} value = { .cnt = 0xeB9f, .lock = 0, }, lookup_value;
+	} value = { .cnt = 0xeB9f, .lock = 1, }, lookup_value;
 	struct bpf_map_create_opts bad_xattr;
 	int btf_fd, map_fd, sk_fd, err;
 
@@ -483,38 +483,41 @@ static void test_sk_storage_map_basic(void)
 	      "err:%d errno:%d\n", err, errno);
 	err = bpf_map_lookup_elem_flags(map_fd, &sk_fd, &lookup_value,
 					BPF_F_LOCK);
-	CHECK(err || lookup_value.cnt != value.cnt,
+	CHECK(err || lookup_value.lock || lookup_value.cnt != value.cnt,
 	      "bpf_map_lookup_elem_flags(BPF_F_LOCK)",
-	      "err:%d errno:%d cnt:%x(%x)\n",
-	      err, errno, lookup_value.cnt, value.cnt);
+	      "err:%d errno:%d lock:%x cnt:%x(%x)\n",
+	      err, errno, lookup_value.lock, lookup_value.cnt, value.cnt);
 
 	/* Bump the cnt and update with BPF_EXIST | BPF_F_LOCK */
 	value.cnt += 1;
+	value.lock = 2;
 	err = bpf_map_update_elem(map_fd, &sk_fd, &value,
 				  BPF_EXIST | BPF_F_LOCK);
 	CHECK(err, "bpf_map_update_elem(BPF_EXIST|BPF_F_LOCK)",
 	      "err:%d errno:%d\n", err, errno);
 	err = bpf_map_lookup_elem_flags(map_fd, &sk_fd, &lookup_value,
 					BPF_F_LOCK);
-	CHECK(err || lookup_value.cnt != value.cnt,
+	CHECK(err || lookup_value.lock || lookup_value.cnt != value.cnt,
 	      "bpf_map_lookup_elem_flags(BPF_F_LOCK)",
-	      "err:%d errno:%d cnt:%x(%x)\n",
-	      err, errno, lookup_value.cnt, value.cnt);
+	      "err:%d errno:%d lock:%x cnt:%x(%x)\n",
+	      err, errno, lookup_value.lock, lookup_value.cnt, value.cnt);
 
 	/* Bump the cnt and update with BPF_EXIST */
 	value.cnt += 1;
+	value.lock = 2;
 	err = bpf_map_update_elem(map_fd, &sk_fd, &value, BPF_EXIST);
 	CHECK(err, "bpf_map_update_elem(BPF_EXIST)",
 	      "err:%d errno:%d\n", err, errno);
 	err = bpf_map_lookup_elem_flags(map_fd, &sk_fd, &lookup_value,
 					BPF_F_LOCK);
-	CHECK(err || lookup_value.cnt != value.cnt,
+	CHECK(err || lookup_value.lock || lookup_value.cnt != value.cnt,
 	      "bpf_map_lookup_elem_flags(BPF_F_LOCK)",
-	      "err:%d errno:%d cnt:%x(%x)\n",
-	      err, errno, lookup_value.cnt, value.cnt);
+	      "err:%d errno:%d lock:%x cnt:%x(%x)\n",
+	      err, errno, lookup_value.lock, lookup_value.cnt, value.cnt);
 
 	/* Update with BPF_NOEXIST */
 	value.cnt += 1;
+	value.lock = 2;
 	err = bpf_map_update_elem(map_fd, &sk_fd, &value,
 				  BPF_NOEXIST | BPF_F_LOCK);
 	CHECK(!err || errno != EEXIST,
@@ -526,22 +529,23 @@ static void test_sk_storage_map_basic(void)
 	value.cnt -= 1;
 	err = bpf_map_lookup_elem_flags(map_fd, &sk_fd, &lookup_value,
 					BPF_F_LOCK);
-	CHECK(err || lookup_value.cnt != value.cnt,
+	CHECK(err || lookup_value.lock || lookup_value.cnt != value.cnt,
 	      "bpf_map_lookup_elem_flags(BPF_F_LOCK)",
-	      "err:%d errno:%d cnt:%x(%x)\n",
-	      err, errno, lookup_value.cnt, value.cnt);
+	      "err:%d errno:%d lock:%x cnt:%x(%x)\n",
+	      err, errno, lookup_value.lock, lookup_value.cnt, value.cnt);
 
 	/* Bump the cnt again and update with map_flags == 0 */
 	value.cnt += 1;
+	value.lock = 2;
 	err = bpf_map_update_elem(map_fd, &sk_fd, &value, 0);
 	CHECK(err, "bpf_map_update_elem()", "err:%d errno:%d\n",
 	      err, errno);
 	err = bpf_map_lookup_elem_flags(map_fd, &sk_fd, &lookup_value,
 					BPF_F_LOCK);
-	CHECK(err || lookup_value.cnt != value.cnt,
+	CHECK(err || lookup_value.lock || lookup_value.cnt != value.cnt,
 	      "bpf_map_lookup_elem_flags(BPF_F_LOCK)",
-	      "err:%d errno:%d cnt:%x(%x)\n",
-	      err, errno, lookup_value.cnt, value.cnt);
+	      "err:%d errno:%d lock:%x cnt:%x(%x)\n",
+	      err, errno, lookup_value.lock, lookup_value.cnt, value.cnt);
 
 	/* Test delete elem */
 	err = bpf_map_delete_elem(map_fd, &sk_fd);

@@ -1781,8 +1781,8 @@ static void hierarchy_insert_output_entry(struct rb_root_cached *root,
 
 	/* update column width of dynamic entry */
 	perf_hpp_list__for_each_sort_list(he->hpp_list, fmt) {
-		if (perf_hpp__is_dynamic_entry(fmt))
-			fmt->sort(fmt, he, NULL);
+		if (fmt->init)
+			fmt->init(fmt, he);
 	}
 }
 
@@ -1879,10 +1879,10 @@ static void __hists__insert_output_entry(struct rb_root_cached *entries,
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color_cached(&he->rb_node, entries, leftmost);
 
+	/* update column width of dynamic entries */
 	perf_hpp_list__for_each_sort_list(&perf_hpp_list, fmt) {
-		if (perf_hpp__is_dynamic_entry(fmt) &&
-		    perf_hpp__defined_dynamic_entry(fmt, he->hists))
-			fmt->sort(fmt, he, NULL);  /* update column width */
+		if (fmt->init)
+			fmt->init(fmt, he);
 	}
 }
 

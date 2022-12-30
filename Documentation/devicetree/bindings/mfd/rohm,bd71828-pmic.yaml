@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/mfd/rohm,bd71828-pmic.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ROHM BD71828 Power Management Integrated Circuit bindings
+title: ROHM BD71828 Power Management Integrated Circuit
 
 maintainers:
-  - Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>
+  - Matti Vaittinen <mazziesaccount@gmail.com>
 
 description: |
   BD71828GW is a single-chip power management IC for battery-powered portable

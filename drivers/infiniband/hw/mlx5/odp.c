@@ -230,8 +230,7 @@ static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
 	struct ib_umem_odp *umem_odp =
 		container_of(mni, struct ib_umem_odp, notifier);
 	struct mlx5_ib_mr *mr;
-	const u64 umr_block_mask = (MLX5_UMR_MTT_ALIGNMENT /
-				    sizeof(struct mlx5_mtt)) - 1;
+	const u64 umr_block_mask = MLX5_UMR_MTT_NUM_ENTRIES_ALIGNMENT - 1;
 	u64 idx = 0, blk_start_idx = 0;
 	u64 invalidations = 0;
 	unsigned long start;

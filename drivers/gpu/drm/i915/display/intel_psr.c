@@ -27,6 +27,7 @@
 #include "display/intel_dp.h"
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -779,6 +780,7 @@ static bool psr2_granularity_check(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	const int crtc_hdisplay = crtc_state->hw.adjusted_mode.crtc_hdisplay;
 	const int crtc_vdisplay = crtc_state->hw.adjusted_mode.crtc_vdisplay;
 	u16 y_granularity = 0;
@@ -807,6 +809,10 @@ static bool psr2_granularity_check(struct intel_dp *intel_dp,
 		y_granularity = intel_dp->psr.su_y_granularity;
 
 	if (y_granularity == 0 || crtc_vdisplay % y_granularity)
+		return false;
+
+	if (crtc_state->dsc.compression_enable &&
+	    vdsc_cfg->slice_height % y_granularity)
 		return false;
 
 	crtc_state->su_y_granularity = y_granularity;
@@ -1470,7 +1476,8 @@ unlock:
 
 static u32 man_trk_ctl_enable_bit_get(struct drm_i915_private *dev_priv)
 {
-	return IS_ALDERLAKE_P(dev_priv) ? 0 : PSR2_MAN_TRK_CTL_ENABLE;
+	return IS_ALDERLAKE_P(dev_priv) || DISPLAY_VER(dev_priv) >= 14 ? 0 :
+		PSR2_MAN_TRK_CTL_ENABLE;
 }
 
 static u32 man_trk_ctl_single_full_frame_bit_get(struct drm_i915_private *dev_priv)
@@ -1482,14 +1489,14 @@ static u32 man_trk_ctl_single_full_frame_bit_get(struct drm_i915_private *dev_pr
 
 static u32 man_trk_ctl_partial_frame_bit_get(struct drm_i915_private *dev_priv)
 {
-	return IS_ALDERLAKE_P(dev_priv) ?
+	return IS_ALDERLAKE_P(dev_priv) || DISPLAY_VER(dev_priv) >= 14 ?
 	       ADLP_PSR2_MAN_TRK_CTL_SF_PARTIAL_FRAME_UPDATE :
 	       PSR2_MAN_TRK_CTL_SF_PARTIAL_FRAME_UPDATE;
 }
 
 static u32 man_trk_ctl_continuos_full_frame(struct drm_i915_private *dev_priv)
 {
-	return IS_ALDERLAKE_P(dev_priv) ?
+	return IS_ALDERLAKE_P(dev_priv) || DISPLAY_VER(dev_priv) >= 14 ?
 	       ADLP_PSR2_MAN_TRK_CTL_SF_CONTINUOS_FULL_FRAME :
 	       PSR2_MAN_TRK_CTL_SF_CONTINUOS_FULL_FRAME;
 }
@@ -1678,9 +1685,6 @@ static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *c
 	pipe_clip->y1 -= pipe_clip->y1 % y_alignment;
 	if (pipe_clip->y2 % y_alignment)
 		pipe_clip->y2 = ((pipe_clip->y2 / y_alignment) + 1) * y_alignment;
-
-	if (IS_ALDERLAKE_P(dev_priv) && crtc_state->dsc.compression_enable)
-		drm_warn(&dev_priv->drm, "Missing PSR2 sel fetch alignment with DSC\n");
 }
 
 /*
@@ -2209,8 +2213,11 @@ static void _psr_invalidate_handle(struct intel_dp *intel_dp)
 	if (intel_dp->psr.psr2_sel_fetch_enabled) {
 		u32 val;
 
-		if (intel_dp->psr.psr2_sel_fetch_cff_enabled)
+		if (intel_dp->psr.psr2_sel_fetch_cff_enabled) {
+			/* Send one update otherwise lag is observed in screen */
+			intel_de_write(dev_priv, CURSURFLIVE(intel_dp->psr.pipe), 0);
 			return;
+		}
 
 		val = man_trk_ctl_enable_bit_get(dev_priv) |
 		      man_trk_ctl_partial_frame_bit_get(dev_priv) |

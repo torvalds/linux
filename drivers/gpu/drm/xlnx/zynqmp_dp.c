@@ -1362,9 +1362,10 @@ static void zynqmp_dp_bridge_detach(struct drm_bridge *bridge)
 	zynqmp_dp_aux_cleanup(dp);
 }
 
-static int zynqmp_dp_bridge_mode_valid(struct drm_bridge *bridge,
-				       const struct drm_display_info *info,
-				       const struct drm_display_mode *mode)
+static enum drm_mode_status
+zynqmp_dp_bridge_mode_valid(struct drm_bridge *bridge,
+			    const struct drm_display_info *info,
+			    const struct drm_display_mode *mode)
 {
 	struct zynqmp_dp *dp = bridge_to_dp(bridge);
 	int rate;

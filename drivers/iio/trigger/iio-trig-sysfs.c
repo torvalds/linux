@@ -138,18 +138,18 @@ static int iio_sysfs_trigger_probe(int id)
 		}
 	if (foundit) {
 		ret = -EINVAL;
-		goto out1;
+		goto err_unlock;
 	}
 	t = kmalloc(sizeof(*t), GFP_KERNEL);
 	if (t == NULL) {
 		ret = -ENOMEM;
-		goto out1;
+		goto err_unlock;
 	}
 	t->id = id;
 	t->trig = iio_trigger_alloc(&iio_sysfs_trig_dev, "sysfstrig%d", id);
 	if (!t->trig) {
 		ret = -ENOMEM;
-		goto free_t;
+		goto err_free_sys_trig;
 	}
 
 	t->trig->dev.groups = iio_sysfs_trigger_attr_groups;
@@ -159,17 +159,17 @@ static int iio_sysfs_trigger_probe(int id)
 
 	ret = iio_trigger_register(t->trig);
 	if (ret)
-		goto out2;
+		goto err_free_trig;
 	list_add(&t->l, &iio_sysfs_trig_list);
 	__module_get(THIS_MODULE);
 	mutex_unlock(&iio_sysfs_trig_list_mut);
 	return 0;
 
-out2:
+err_free_trig:
 	iio_trigger_free(t->trig);
-free_t:
+err_free_sys_trig:
 	kfree(t);
-out1:
+err_unlock:
 	mutex_unlock(&iio_sysfs_trig_list_mut);
 	return ret;
 }
@@ -203,9 +203,13 @@ static int iio_sysfs_trigger_remove(int id)
 
 static int __init iio_sysfs_trig_init(void)
 {
+	int ret;
 	device_initialize(&iio_sysfs_trig_dev);
 	dev_set_name(&iio_sysfs_trig_dev, "iio_sysfs_trigger");
-	return device_add(&iio_sysfs_trig_dev);
+	ret = device_add(&iio_sysfs_trig_dev);
+	if (ret)
+		put_device(&iio_sysfs_trig_dev);
+	return ret;
 }
 module_init(iio_sysfs_trig_init);
 

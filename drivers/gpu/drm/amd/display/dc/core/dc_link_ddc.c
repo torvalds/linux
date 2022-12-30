@@ -82,6 +82,7 @@ struct dp_hdmi_dongle_signature_data {
 #define HDMI_SCDC_STATUS_FLAGS 0x40
 #define HDMI_SCDC_ERR_DETECT 0x50
 #define HDMI_SCDC_TEST_CONFIG 0xC0
+#define HDMI_SCDC_DEVICE_ID 0xD3
 
 union hdmi_scdc_update_read_data {
 	uint8_t byte[2];

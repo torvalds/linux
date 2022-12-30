@@ -33,11 +33,6 @@ Required properties:
     "dlg,da9061" for DA9061
 - reg : Specifies the I2C slave address (this defaults to 0x58 but it can be
   modified to match the chip's OTP settings).
-- interrupts : IRQ line information.
-- interrupt-controller
-
-See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt for
-further information on IRQ bindings.
 
 Optional properties:
 
@@ -47,6 +42,12 @@ Optional properties:
 
 See Documentation/devicetree/bindings/gpio/gpio.txt for further information on
 GPIO bindings.
+
+- interrupts : IRQ line information.
+- interrupt-controller
+
+See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt for
+further information on IRQ bindings.
 
 Sub-nodes:
 
@@ -85,7 +86,7 @@ Sub-nodes:
 
 - onkey : See ../input/da9062-onkey.txt
 
-- watchdog: See ../watchdog/da9062-watchdog.txt
+- watchdog: See ../watchdog/da9062-wdt.txt
 
 - thermal : See ../thermal/da9062-thermal.txt
 

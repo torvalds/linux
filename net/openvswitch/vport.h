@@ -32,6 +32,8 @@ struct vport *ovs_vport_locate(const struct net *net, const char *name);
 
 void ovs_vport_get_stats(struct vport *, struct ovs_vport_stats *);
 
+int ovs_vport_get_upcall_stats(struct vport *vport, struct sk_buff *skb);
+
 int ovs_vport_set_options(struct vport *, struct nlattr *options);
 int ovs_vport_get_options(const struct vport *, struct sk_buff *);
 
@@ -65,6 +67,7 @@ struct vport_portids {
  * @hash_node: Element in @dev_table hash table in vport.c.
  * @dp_hash_node: Element in @datapath->ports hash table in datapath.c.
  * @ops: Class structure.
+ * @upcall_stats: Upcall stats of every ports.
  * @detach_list: list used for detaching vport in net-exit call.
  * @rcu: RCU callback head for deferred destruction.
  */
@@ -78,6 +81,7 @@ struct vport {
 	struct hlist_node hash_node;
 	struct hlist_node dp_hash_node;
 	const struct vport_ops *ops;
+	struct vport_upcall_stats_percpu __percpu *upcall_stats;
 
 	struct list_head detach_list;
 	struct rcu_head rcu;
@@ -135,6 +139,18 @@ struct vport_ops {
 	int (*send)(struct sk_buff *skb);
 	struct module *owner;
 	struct list_head list;
+};
+
+/**
+ * struct vport_upcall_stats_percpu - per-cpu packet upcall statistics for
+ * a given vport.
+ * @n_success: Number of packets that upcall to userspace succeed.
+ * @n_fail:    Number of packets that upcall to userspace failed.
+ */
+struct vport_upcall_stats_percpu {
+	struct u64_stats_sync syncp;
+	u64_stats_t n_success;
+	u64_stats_t n_fail;
 };
 
 struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *,

@@ -914,6 +914,8 @@ static struct kobj_attribute say_word_ctl_attribute =
 	__ATTR(say_word_ctl, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute spell_delay_attribute =
 	__ATTR(spell_delay, 0644, spk_var_show, spk_var_store);
+static struct kobj_attribute cur_phonetic_attribute =
+	__ATTR(cur_phonetic, 0644, spk_var_show, spk_var_store);
 
 /*
  * These attributes are i18n related.
@@ -967,6 +969,7 @@ static struct attribute *main_attrs[] = {
 	&say_control_attribute.attr,
 	&say_word_ctl_attribute.attr,
 	&spell_delay_attribute.attr,
+	&cur_phonetic_attribute.attr,
 	NULL,
 };
 

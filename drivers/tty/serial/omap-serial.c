@@ -347,34 +347,12 @@ static void serial_omap_put_char(struct uart_omap_port *up, unsigned char ch)
 
 static void transmit_chars(struct uart_omap_port *up, unsigned int lsr)
 {
-	struct circ_buf *xmit = &up->port.state->xmit;
-	int count;
+	u8 ch;
 
-	if (up->port.x_char) {
-		serial_omap_put_char(up, up->port.x_char);
-		up->port.icount.tx++;
-		up->port.x_char = 0;
-		return;
-	}
-	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		serial_omap_stop_tx(&up->port);
-		return;
-	}
-	count = up->port.fifosize / 4;
-	do {
-		serial_omap_put_char(up, xmit->buf[xmit->tail]);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		up->port.icount.tx++;
-
-		if (uart_circ_empty(xmit))
-			break;
-	} while (--count > 0);
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(&up->port);
-
-	if (uart_circ_empty(xmit))
-		serial_omap_stop_tx(&up->port);
+	uart_port_tx_limited(&up->port, ch, up->port.fifosize / 4,
+		true,
+		serial_omap_put_char(up, ch),
+		({}));
 }
 
 static inline void serial_omap_enable_ier_thri(struct uart_omap_port *up)

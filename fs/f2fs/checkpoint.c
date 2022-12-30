@@ -171,6 +171,11 @@ static bool __is_bitmap_valid(struct f2fs_sb_info *sbi, block_t blkaddr,
 bool f2fs_is_valid_blkaddr(struct f2fs_sb_info *sbi,
 					block_t blkaddr, int type)
 {
+	if (time_to_inject(sbi, FAULT_BLKADDR)) {
+		f2fs_show_injection_info(sbi, FAULT_BLKADDR);
+		return false;
+	}
+
 	switch (type) {
 	case META_NAT:
 		break;
@@ -1897,8 +1902,10 @@ int f2fs_start_ckpt_thread(struct f2fs_sb_info *sbi)
 	cprc->f2fs_issue_ckpt = kthread_run(issue_checkpoint_thread, sbi,
 			"f2fs_ckpt-%u:%u", MAJOR(dev), MINOR(dev));
 	if (IS_ERR(cprc->f2fs_issue_ckpt)) {
+		int err = PTR_ERR(cprc->f2fs_issue_ckpt);
+
 		cprc->f2fs_issue_ckpt = NULL;
-		return -ENOMEM;
+		return err;
 	}
 
 	set_task_ioprio(cprc->f2fs_issue_ckpt, cprc->ckpt_thread_ioprio);

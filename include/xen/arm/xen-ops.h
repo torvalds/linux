@@ -8,9 +8,7 @@
 static inline void xen_setup_dma_ops(struct device *dev)
 {
 #ifdef CONFIG_XEN
-	if (xen_is_grant_dma_device(dev))
-		xen_grant_setup_dma_ops(dev);
-	else if (xen_swiotlb_detect())
+	if (xen_swiotlb_detect())
 		dev->dma_ops = &xen_swiotlb_dma_ops;
 #endif
 }

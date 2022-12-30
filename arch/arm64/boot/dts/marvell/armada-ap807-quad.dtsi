@@ -81,6 +81,7 @@
 			cache-size = <0x80000>;
 			cache-line-size = <64>;
 			cache-sets = <512>;
+			cache-level = <2>;
 		};
 
 		l2_1: l2-cache1 {
@@ -88,6 +89,7 @@
 			cache-size = <0x80000>;
 			cache-line-size = <64>;
 			cache-sets = <512>;
+			cache-level = <2>;
 		};
 	};
 };

@@ -78,6 +78,17 @@ config BT_LE
 	  Bluetooth Low Energy includes support low-energy physical
 	  layer available with Bluetooth version 4.0 or later.
 
+config BT_LE_L2CAP_ECRED
+	bool "Bluetooth L2CAP Enhanced Credit Flow Control"
+	depends on BT_LE
+	default y
+	help
+	  Bluetooth Low Energy L2CAP Enhanced Credit Flow Control available with
+	  Bluetooth version 5.2 or later.
+
+	  This can be overridden by passing bluetooth.enable_ecred=[1|0]
+	  on the kernel commandline.
+
 config BT_6LOWPAN
 	tristate "Bluetooth 6LoWPAN support"
 	depends on BT_LE && 6LOWPAN

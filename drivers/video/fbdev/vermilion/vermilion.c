@@ -278,8 +278,10 @@ static int vmlfb_get_gpu(struct vml_par *par)
 
 	mutex_unlock(&vml_mutex);
 
-	if (pci_enable_device(par->gpu) < 0)
+	if (pci_enable_device(par->gpu) < 0) {
+		pci_dev_put(par->gpu);
 		return -ENODEV;
+	}
 
 	return 0;
 }
@@ -1057,7 +1059,12 @@ static int __init vmlfb_init(void)
 
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("vmlfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options(MODULE_NAME, &option))
 		return -ENODEV;
 #endif

@@ -12,6 +12,7 @@
 
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
+#include "i915_reg.h"
 #include "i915_trace.h"
 #include "i915_utils.h"
 #include "intel_gt.h"

@@ -936,8 +936,8 @@ sh_css_set_black_frame(struct ia_css_stream *stream,
 	assert(raw_black_frame);
 
 	params = stream->isp_params_configs;
-	height = raw_black_frame->info.res.height;
-	width = raw_black_frame->info.padded_width;
+	height = raw_black_frame->frame_info.res.height;
+	width = raw_black_frame->frame_info.padded_width;
 
 	ptr = raw_black_frame->data
 	+ raw_black_frame->planes.raw.offset;
@@ -1187,16 +1187,15 @@ ia_css_process_zoom_and_motion(
 			const struct sh_css_binary_args *args = &stage->args;
 			const struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS] = {NULL};
 
-			if (args->out_frame[0])
-				out_infos[0] = &args->out_frame[0]->info;
+			out_infos[0] = ia_css_frame_get_info(args->out_frame[0]);
+
 			info = &stage->firmware->info.isp;
 			ia_css_binary_fill_info(info, false, false,
 						ATOMISP_INPUT_FORMAT_RAW_10,
-						args->in_frame  ? &args->in_frame->info  : NULL,
+						ia_css_frame_get_info(args->in_frame),
 						NULL,
 						out_infos,
-						args->out_vf_frame ? &args->out_vf_frame->info
-						: NULL,
+						ia_css_frame_get_info(args->out_vf_frame),
 						&tmp_binary,
 						NULL,
 						-1, true);
@@ -3461,10 +3460,10 @@ sh_css_params_write_to_ddr_internal(
 			if (stage->args.delay_frames[0]) {
 				/*When delay frames are present(as in case of video),
 				they are used for dvs. Configure DVS using those params*/
-				dvs_in_frame_info = &stage->args.delay_frames[0]->info;
+				dvs_in_frame_info = &stage->args.delay_frames[0]->frame_info;
 			} else {
 				/*Otherwise, use input frame to configure DVS*/
-				dvs_in_frame_info = &stage->args.in_frame->info;
+				dvs_in_frame_info = &stage->args.in_frame->frame_info;
 			}
 
 			/* Generate default DVS unity table on start up*/

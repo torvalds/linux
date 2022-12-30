@@ -9,6 +9,8 @@
 #ifndef SELFTEST_KVM_HYPERV_H
 #define SELFTEST_KVM_HYPERV_H
 
+#include "processor.h"
+
 #define HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS	0x40000000
 #define HYPERV_CPUID_INTERFACE			0x40000001
 #define HYPERV_CPUID_VERSION			0x40000002
@@ -184,5 +186,106 @@
 
 /* hypercall options */
 #define HV_HYPERCALL_FAST_BIT		BIT(16)
+#define HV_HYPERCALL_VARHEAD_OFFSET	17
+#define HV_HYPERCALL_REP_COMP_OFFSET	32
+
+/*
+ * Issue a Hyper-V hypercall. Returns exception vector raised or 0, 'hv_status'
+ * is set to the hypercall status (if no exception occurred).
+ */
+static inline uint8_t __hyperv_hypercall(u64 control, vm_vaddr_t input_address,
+					 vm_vaddr_t output_address,
+					 uint64_t *hv_status)
+{
+	uint64_t error_code;
+	uint8_t vector;
+
+	/* Note both the hypercall and the "asm safe" clobber r9-r11. */
+	asm volatile("mov %[output_address], %%r8\n\t"
+		     KVM_ASM_SAFE("vmcall")
+		     : "=a" (*hv_status),
+		       "+c" (control), "+d" (input_address),
+		       KVM_ASM_SAFE_OUTPUTS(vector, error_code)
+		     : [output_address] "r"(output_address),
+		       "a" (-EFAULT)
+		     : "cc", "memory", "r8", KVM_ASM_SAFE_CLOBBERS);
+	return vector;
+}
+
+/* Issue a Hyper-V hypercall and assert that it succeeded. */
+static inline void hyperv_hypercall(u64 control, vm_vaddr_t input_address,
+				    vm_vaddr_t output_address)
+{
+	uint64_t hv_status;
+	uint8_t vector;
+
+	vector = __hyperv_hypercall(control, input_address, output_address, &hv_status);
+
+	GUEST_ASSERT(!vector);
+	GUEST_ASSERT((hv_status & 0xffff) == 0);
+}
+
+/* Write 'Fast' hypercall input 'data' to the first 'n_sse_regs' SSE regs */
+static inline void hyperv_write_xmm_input(void *data, int n_sse_regs)
+{
+	int i;
+
+	for (i = 0; i < n_sse_regs; i++)
+		write_sse_reg(i, (sse128_t *)(data + sizeof(sse128_t) * i));
+}
+
+/* Proper HV_X64_MSR_GUEST_OS_ID value */
+#define HYPERV_LINUX_OS_ID ((u64)0x8100 << 48)
+
+#define HV_X64_MSR_VP_ASSIST_PAGE		0x40000073
+#define HV_X64_MSR_VP_ASSIST_PAGE_ENABLE	0x00000001
+#define HV_X64_MSR_VP_ASSIST_PAGE_ADDRESS_SHIFT	12
+#define HV_X64_MSR_VP_ASSIST_PAGE_ADDRESS_MASK	\
+		(~((1ull << HV_X64_MSR_VP_ASSIST_PAGE_ADDRESS_SHIFT) - 1))
+
+struct hv_nested_enlightenments_control {
+	struct {
+		__u32 directhypercall:1;
+		__u32 reserved:31;
+	} features;
+	struct {
+		__u32 reserved;
+	} hypercallControls;
+} __packed;
+
+/* Define virtual processor assist page structure. */
+struct hv_vp_assist_page {
+	__u32 apic_assist;
+	__u32 reserved1;
+	__u64 vtl_control[3];
+	struct hv_nested_enlightenments_control nested_control;
+	__u8 enlighten_vmentry;
+	__u8 reserved2[7];
+	__u64 current_nested_vmcs;
+} __packed;
+
+extern struct hv_vp_assist_page *current_vp_assist;
+
+int enable_vp_assist(uint64_t vp_assist_pa, void *vp_assist);
+
+struct hyperv_test_pages {
+	/* VP assist page */
+	void *vp_assist_hva;
+	uint64_t vp_assist_gpa;
+	void *vp_assist;
+
+	/* Partition assist page */
+	void *partition_assist_hva;
+	uint64_t partition_assist_gpa;
+	void *partition_assist;
+
+	/* Enlightened VMCS */
+	void *enlightened_vmcs_hva;
+	uint64_t enlightened_vmcs_gpa;
+	void *enlightened_vmcs;
+};
+
+struct hyperv_test_pages *vcpu_alloc_hyperv_test_pages(struct kvm_vm *vm,
+						       vm_vaddr_t *p_hv_pages_gva);
 
 #endif /* !SELFTEST_KVM_HYPERV_H */

@@ -111,7 +111,7 @@ centaur_validate_add_page(unsigned long base, unsigned long size, unsigned int t
 	return 0;
 }
 
-static const struct mtrr_ops centaur_mtrr_ops = {
+const struct mtrr_ops centaur_mtrr_ops = {
 	.vendor            = X86_VENDOR_CENTAUR,
 	.set               = centaur_set_mcr,
 	.get               = centaur_get_mcr,
@@ -119,9 +119,3 @@ static const struct mtrr_ops centaur_mtrr_ops = {
 	.validate_add_page = centaur_validate_add_page,
 	.have_wrcomb       = positive_have_wrcomb,
 };
-
-int __init centaur_init_mtrr(void)
-{
-	set_mtrr_ops(&centaur_mtrr_ops);
-	return 0;
-}

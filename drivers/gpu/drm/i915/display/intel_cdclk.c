@@ -24,6 +24,7 @@
 #include <linux/time.h>
 
 #include "hsw_ips.h"
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
 #include "intel_audio.h"
@@ -2755,7 +2756,7 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
 
-		if (drm_atomic_crtc_needs_modeset(&crtc_state->uapi))
+		if (intel_crtc_needs_modeset(crtc_state))
 			pipe = INVALID_PIPE;
 	}
 

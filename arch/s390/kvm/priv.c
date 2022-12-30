@@ -924,8 +924,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 		return -EREMOTE;
 	}
 	if (kvm_s390_pv_cpu_is_protected(vcpu)) {
-		memcpy((void *)sida_origin(vcpu->arch.sie_block), (void *)mem,
-		       PAGE_SIZE);
+		memcpy(sida_addr(vcpu->arch.sie_block), (void *)mem, PAGE_SIZE);
 		rc = 0;
 	} else {
 		rc = write_guest(vcpu, operand2, ar, (void *)mem, PAGE_SIZE);

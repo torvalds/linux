@@ -370,7 +370,7 @@ static int sdhci_omap_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	/*
 	 * Stage 1: Search for a maximum pass window ignoring any
-	 * any single point failures. If the tuning value ends up
+	 * single point failures. If the tuning value ends up
 	 * near it, move away from it in stage 2 below
 	 */
 	while (phase_delay <= MAX_PHASE_DELAY) {

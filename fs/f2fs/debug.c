@@ -72,15 +72,26 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->main_area_zones = si->main_area_sections /
 				le32_to_cpu(raw_super->secs_per_zone);
 
-	/* validation check of the segment numbers */
+	/* general extent cache stats */
+	for (i = 0; i < NR_EXTENT_CACHES; i++) {
+		struct extent_tree_info *eti = &sbi->extent_tree[i];
+
+		si->hit_cached[i] = atomic64_read(&sbi->read_hit_cached[i]);
+		si->hit_rbtree[i] = atomic64_read(&sbi->read_hit_rbtree[i]);
+		si->total_ext[i] = atomic64_read(&sbi->total_hit_ext[i]);
+		si->hit_total[i] = si->hit_cached[i] + si->hit_rbtree[i];
+		si->ext_tree[i] = atomic_read(&eti->total_ext_tree);
+		si->zombie_tree[i] = atomic_read(&eti->total_zombie_tree);
+		si->ext_node[i] = atomic_read(&eti->total_ext_node);
+	}
+	/* read extent_cache only */
 	si->hit_largest = atomic64_read(&sbi->read_hit_largest);
-	si->hit_cached = atomic64_read(&sbi->read_hit_cached);
-	si->hit_rbtree = atomic64_read(&sbi->read_hit_rbtree);
-	si->hit_total = si->hit_largest + si->hit_cached + si->hit_rbtree;
-	si->total_ext = atomic64_read(&sbi->total_hit_ext);
-	si->ext_tree = atomic_read(&sbi->total_ext_tree);
-	si->zombie_tree = atomic_read(&sbi->total_zombie_tree);
-	si->ext_node = atomic_read(&sbi->total_ext_node);
+	si->hit_total[EX_READ] += si->hit_largest;
+
+	/* block age extent_cache only */
+	si->allocated_data_blocks = atomic64_read(&sbi->allocated_data_blocks);
+
+	/* validation check of the segment numbers */
 	si->ndirty_node = get_pages(sbi, F2FS_DIRTY_NODES);
 	si->ndirty_dent = get_pages(sbi, F2FS_DIRTY_DENTS);
 	si->ndirty_meta = get_pages(sbi, F2FS_DIRTY_META);
@@ -294,25 +305,32 @@ get_cache:
 				sizeof(struct nat_entry_set);
 	for (i = 0; i < MAX_INO_ENTRY; i++)
 		si->cache_mem += sbi->im[i].ino_num * sizeof(struct ino_entry);
-	si->cache_mem += atomic_read(&sbi->total_ext_tree) *
+
+	for (i = 0; i < NR_EXTENT_CACHES; i++) {
+		struct extent_tree_info *eti = &sbi->extent_tree[i];
+
+		si->ext_mem[i] = atomic_read(&eti->total_ext_tree) *
 						sizeof(struct extent_tree);
-	si->cache_mem += atomic_read(&sbi->total_ext_node) *
+		si->ext_mem[i] += atomic_read(&eti->total_ext_node) *
 						sizeof(struct extent_node);
+		si->cache_mem += si->ext_mem[i];
+	}
 
 	si->page_mem = 0;
 	if (sbi->node_inode) {
-		unsigned npages = NODE_MAPPING(sbi)->nrpages;
+		unsigned long npages = NODE_MAPPING(sbi)->nrpages;
 
 		si->page_mem += (unsigned long long)npages << PAGE_SHIFT;
 	}
 	if (sbi->meta_inode) {
-		unsigned npages = META_MAPPING(sbi)->nrpages;
+		unsigned long npages = META_MAPPING(sbi)->nrpages;
 
 		si->page_mem += (unsigned long long)npages << PAGE_SHIFT;
 	}
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	if (sbi->compress_inode) {
-		unsigned npages = COMPRESS_MAPPING(sbi)->nrpages;
+		unsigned long npages = COMPRESS_MAPPING(sbi)->nrpages;
+
 		si->page_mem += (unsigned long long)npages << PAGE_SHIFT;
 	}
 #endif
@@ -460,28 +478,28 @@ static int stat_show(struct seq_file *s, void *v)
 				si->meta_count[META_NAT]);
 		seq_printf(s, "  - ssa blocks : %u\n",
 				si->meta_count[META_SSA]);
-		seq_printf(s, "CP merge (Queued: %4d, Issued: %4d, Total: %4d, "
-				"Cur time: %4d(ms), Peak time: %4d(ms))\n",
-				si->nr_queued_ckpt, si->nr_issued_ckpt,
-				si->nr_total_ckpt, si->cur_ckpt_time,
-				si->peak_ckpt_time);
+		seq_puts(s, "CP merge:\n");
+		seq_printf(s, "  - Queued : %4d\n", si->nr_queued_ckpt);
+		seq_printf(s, "  - Issued : %4d\n", si->nr_issued_ckpt);
+		seq_printf(s, "  - Total : %4d\n", si->nr_total_ckpt);
+		seq_printf(s, "  - Cur time : %4d(ms)\n", si->cur_ckpt_time);
+		seq_printf(s, "  - Peak time : %4d(ms)\n", si->peak_ckpt_time);
 		seq_printf(s, "GC calls: %d (BG: %d)\n",
 			   si->call_count, si->bg_gc);
 		seq_printf(s, "  - data segments : %d (%d)\n",
 				si->data_segs, si->bg_data_segs);
 		seq_printf(s, "  - node segments : %d (%d)\n",
 				si->node_segs, si->bg_node_segs);
-		seq_printf(s, "  - Reclaimed segs : Normal (%d), Idle CB (%d), "
-				"Idle Greedy (%d), Idle AT (%d), "
-				"Urgent High (%d), Urgent Mid (%d), "
-				"Urgent Low (%d)\n",
-				si->sbi->gc_reclaimed_segs[GC_NORMAL],
-				si->sbi->gc_reclaimed_segs[GC_IDLE_CB],
-				si->sbi->gc_reclaimed_segs[GC_IDLE_GREEDY],
-				si->sbi->gc_reclaimed_segs[GC_IDLE_AT],
-				si->sbi->gc_reclaimed_segs[GC_URGENT_HIGH],
-				si->sbi->gc_reclaimed_segs[GC_URGENT_MID],
-				si->sbi->gc_reclaimed_segs[GC_URGENT_LOW]);
+		seq_puts(s, "  - Reclaimed segs :\n");
+		seq_printf(s, "    - Normal : %d\n", si->sbi->gc_reclaimed_segs[GC_NORMAL]);
+		seq_printf(s, "    - Idle CB : %d\n", si->sbi->gc_reclaimed_segs[GC_IDLE_CB]);
+		seq_printf(s, "    - Idle Greedy : %d\n",
+				si->sbi->gc_reclaimed_segs[GC_IDLE_GREEDY]);
+		seq_printf(s, "    - Idle AT : %d\n", si->sbi->gc_reclaimed_segs[GC_IDLE_AT]);
+		seq_printf(s, "    - Urgent High : %d\n",
+				si->sbi->gc_reclaimed_segs[GC_URGENT_HIGH]);
+		seq_printf(s, "    - Urgent Mid : %d\n", si->sbi->gc_reclaimed_segs[GC_URGENT_MID]);
+		seq_printf(s, "    - Urgent Low : %d\n", si->sbi->gc_reclaimed_segs[GC_URGENT_LOW]);
 		seq_printf(s, "Try to move %d blocks (BG: %d)\n", si->tot_blks,
 				si->bg_data_blks + si->bg_node_blks);
 		seq_printf(s, "  - data blocks : %d (%d)\n", si->data_blks,
@@ -490,26 +508,44 @@ static int stat_show(struct seq_file *s, void *v)
 				si->bg_node_blks);
 		seq_printf(s, "BG skip : IO: %u, Other: %u\n",
 				si->io_skip_bggc, si->other_skip_bggc);
-		seq_puts(s, "\nExtent Cache:\n");
+		seq_puts(s, "\nExtent Cache (Read):\n");
 		seq_printf(s, "  - Hit Count: L1-1:%llu L1-2:%llu L2:%llu\n",
-				si->hit_largest, si->hit_cached,
-				si->hit_rbtree);
+				si->hit_largest, si->hit_cached[EX_READ],
+				si->hit_rbtree[EX_READ]);
 		seq_printf(s, "  - Hit Ratio: %llu%% (%llu / %llu)\n",
-				!si->total_ext ? 0 :
-				div64_u64(si->hit_total * 100, si->total_ext),
-				si->hit_total, si->total_ext);
+				!si->total_ext[EX_READ] ? 0 :
+				div64_u64(si->hit_total[EX_READ] * 100,
+				si->total_ext[EX_READ]),
+				si->hit_total[EX_READ], si->total_ext[EX_READ]);
 		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
-				si->ext_tree, si->zombie_tree, si->ext_node);
+				si->ext_tree[EX_READ], si->zombie_tree[EX_READ],
+				si->ext_node[EX_READ]);
+		seq_puts(s, "\nExtent Cache (Block Age):\n");
+		seq_printf(s, "  - Allocated Data Blocks: %llu\n",
+				si->allocated_data_blocks);
+		seq_printf(s, "  - Hit Count: L1:%llu L2:%llu\n",
+				si->hit_cached[EX_BLOCK_AGE],
+				si->hit_rbtree[EX_BLOCK_AGE]);
+		seq_printf(s, "  - Hit Ratio: %llu%% (%llu / %llu)\n",
+				!si->total_ext[EX_BLOCK_AGE] ? 0 :
+				div64_u64(si->hit_total[EX_BLOCK_AGE] * 100,
+				si->total_ext[EX_BLOCK_AGE]),
+				si->hit_total[EX_BLOCK_AGE],
+				si->total_ext[EX_BLOCK_AGE]);
+		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
+				si->ext_tree[EX_BLOCK_AGE],
+				si->zombie_tree[EX_BLOCK_AGE],
+				si->ext_node[EX_BLOCK_AGE]);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
 		seq_printf(s, "  - DIO (R: %4d, W: %4d)\n",
 			   si->nr_dio_read, si->nr_dio_write);
 		seq_printf(s, "  - IO_R (Data: %4d, Node: %4d, Meta: %4d\n",
 			   si->nr_rd_data, si->nr_rd_node, si->nr_rd_meta);
-		seq_printf(s, "  - IO_W (CP: %4d, Data: %4d, Flush: (%4d %4d %4d), "
-			"Discard: (%4d %4d)) cmd: %4d undiscard:%4u\n",
+		seq_printf(s, "  - IO_W (CP: %4d, Data: %4d, Flush: (%4d %4d %4d), ",
 			   si->nr_wb_cp_data, si->nr_wb_data,
 			   si->nr_flushing, si->nr_flushed,
-			   si->flush_list_empty,
+			   si->flush_list_empty);
+		seq_printf(s, "Discard: (%4d %4d)) cmd: %4d undiscard:%4u\n",
 			   si->nr_discarding, si->nr_discarded,
 			   si->nr_discard_cmd, si->undiscard_blks);
 		seq_printf(s, "  - atomic IO: %4d (Max. %4d)\n",
@@ -566,8 +602,12 @@ static int stat_show(struct seq_file *s, void *v)
 			(si->base_mem + si->cache_mem + si->page_mem) >> 10);
 		seq_printf(s, "  - static: %llu KB\n",
 				si->base_mem >> 10);
-		seq_printf(s, "  - cached: %llu KB\n",
+		seq_printf(s, "  - cached all: %llu KB\n",
 				si->cache_mem >> 10);
+		seq_printf(s, "  - read extent cache: %llu KB\n",
+				si->ext_mem[EX_READ] >> 10);
+		seq_printf(s, "  - block age extent cache: %llu KB\n",
+				si->ext_mem[EX_BLOCK_AGE] >> 10);
 		seq_printf(s, "  - paged : %llu KB\n",
 				si->page_mem >> 10);
 	}
@@ -600,10 +640,15 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 	si->sbi = sbi;
 	sbi->stat_info = si;
 
-	atomic64_set(&sbi->total_hit_ext, 0);
-	atomic64_set(&sbi->read_hit_rbtree, 0);
+	/* general extent cache stats */
+	for (i = 0; i < NR_EXTENT_CACHES; i++) {
+		atomic64_set(&sbi->total_hit_ext[i], 0);
+		atomic64_set(&sbi->read_hit_rbtree[i], 0);
+		atomic64_set(&sbi->read_hit_cached[i], 0);
+	}
+
+	/* read extent_cache only */
 	atomic64_set(&sbi->read_hit_largest, 0);
-	atomic64_set(&sbi->read_hit_cached, 0);
 
 	atomic_set(&sbi->inline_xattr, 0);
 	atomic_set(&sbi->inline_inode, 0);

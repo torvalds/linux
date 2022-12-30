@@ -67,8 +67,7 @@ static void gw_pld_set8(struct gpio_chip *gc, unsigned offset, int value)
 	gw_pld_output8(gc, offset, value);
 }
 
-static int gw_pld_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int gw_pld_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct gw_pld *gw;
@@ -126,7 +125,7 @@ static struct i2c_driver gw_pld_driver = {
 		.name = "gw_pld",
 		.of_match_table = gw_pld_dt_ids,
 	},
-	.probe = gw_pld_probe,
+	.probe_new = gw_pld_probe,
 	.id_table = gw_pld_id,
 };
 module_i2c_driver(gw_pld_driver);

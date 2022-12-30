@@ -104,65 +104,27 @@
 	status = "okay";
 };
 
-&tlmm {
-	sdc2_pins_default: sdc2-pins-default {
-		clk {
-			pins = "sdc2_clk";
-			bias-disable;
-			drive-strength = <16>;
-		};
+&sdc2_state_on {
+	cd-pins {
+		pins = "gpio38";
+		function = "gpio";
 
-		cmd {
-			pins = "sdc2_cmd";
-			bias-pull-up;
-			drive-strength = <10>;
-		};
-
-		data {
-			pins = "sdc2_data";
-			bias-pull-up;
-			drive-strength = <10>;
-		};
-
-		cd {
-			pins = "gpio38";
-			function = "gpio";
-
-			bias-pull-up;
-			drive-strength = <16>;
-		};
+		bias-pull-up;
+		drive-strength = <16>;
 	};
+};
 
-	sdc2_pins_sleep: sdc2-pins-sleep {
-		clk {
-			pins = "sdc2_clk";
-			bias-disable;
-			drive-strength = <2>;
-		};
-
-		cmd {
-			pins = "sdc2_cmd";
-			bias-pull-up;
-			drive-strength = <2>;
-		};
-
-		data {
-			pins = "sdc2_data";
-			bias-pull-up;
-			drive-strength = <2>;
-		};
-
-		cd {
-			pins = "gpio38";
-			function = "gpio";
-			bias-pull-up;
-			drive-strength = <2>;
-		};
+&sdc2_state_off {
+	cd-pins {
+		pins = "gpio38";
+		function = "gpio";
+		bias-pull-up;
+		drive-strength = <2>;
 	};
 };
 
 &rpm_requests {
-	pm8994-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm8994-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -372,10 +334,6 @@
 
 	vmmc-supply = <&vreg_l21a_2p95>;
 	vqmmc-supply = <&vreg_l13a_2p95>;
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_pins_default>;
-	pinctrl-1 = <&sdc2_pins_sleep>;
 };
 
 &ufshc {

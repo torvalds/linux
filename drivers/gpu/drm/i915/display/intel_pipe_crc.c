@@ -24,11 +24,12 @@
  *
  */
 
-#include <linux/circ_buf.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
+#include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_de.h"
 #include "intel_display_types.h"

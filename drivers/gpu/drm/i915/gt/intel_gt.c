@@ -11,6 +11,7 @@
 
 #include "i915_drv.h"
 #include "i915_perf_oa_regs.h"
+#include "i915_reg.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
 #include "intel_engine_regs.h"
@@ -1112,6 +1113,11 @@ static void mmio_invalidate_full(struct intel_gt *gt)
 			rb = get_reg_and_bit(engine, regs == gen8_regs, regs, num);
 			if (!i915_mmio_reg_offset(rb.reg))
 				continue;
+
+			if (GRAPHICS_VER(i915) == 12 && (engine->class == VIDEO_DECODE_CLASS ||
+			    engine->class == VIDEO_ENHANCEMENT_CLASS ||
+			    engine->class == COMPUTE_CLASS))
+				rb.bit = _MASKED_BIT_ENABLE(rb.bit);
 
 			intel_uncore_write_fw(uncore, rb.reg, rb.bit);
 		}

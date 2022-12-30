@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/ingenic,musb.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic JZ47xx USB IP DT bindings
+title: Ingenic JZ47xx USB IP
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>

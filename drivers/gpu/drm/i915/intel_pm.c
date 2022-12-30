@@ -1426,7 +1426,7 @@ static int g4x_compute_intermediate_wm(struct intel_atomic_state *state,
 	enum plane_id plane_id;
 
 	if (!new_crtc_state->hw.active ||
-	    drm_atomic_crtc_needs_modeset(&new_crtc_state->uapi)) {
+	    intel_crtc_needs_modeset(new_crtc_state)) {
 		*intermediate = *optimal;
 
 		intermediate->cxsr = false;
@@ -1914,7 +1914,6 @@ static int vlv_compute_pipe_wm(struct intel_atomic_state *state,
 {
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	bool needs_modeset = drm_atomic_crtc_needs_modeset(&crtc_state->uapi);
 	const struct intel_plane_state *old_plane_state;
 	const struct intel_plane_state *new_plane_state;
 	struct intel_plane *plane;
@@ -1941,7 +1940,7 @@ static int vlv_compute_pipe_wm(struct intel_atomic_state *state,
 	 * FIFO setting we took over from the BIOS even if there
 	 * are no active planes on the crtc.
 	 */
-	if (needs_modeset)
+	if (intel_crtc_needs_modeset(crtc_state))
 		dirty = ~0;
 
 	if (!dirty)
@@ -1961,7 +1960,7 @@ static int vlv_compute_pipe_wm(struct intel_atomic_state *state,
 		if (ret)
 			return ret;
 
-		if (needs_modeset ||
+		if (intel_crtc_needs_modeset(crtc_state) ||
 		    memcmp(old_fifo_state, new_fifo_state,
 			   sizeof(*new_fifo_state)) != 0)
 			crtc_state->fifo_changed = true;
@@ -2084,7 +2083,7 @@ static int vlv_compute_intermediate_wm(struct intel_atomic_state *state,
 	int level;
 
 	if (!new_crtc_state->hw.active ||
-	    drm_atomic_crtc_needs_modeset(&new_crtc_state->uapi)) {
+	    intel_crtc_needs_modeset(new_crtc_state)) {
 		*intermediate = *optimal;
 
 		intermediate->cxsr = false;
@@ -3142,7 +3141,7 @@ static int ilk_compute_intermediate_wm(struct intel_atomic_state *state,
 	 */
 	*a = new_crtc_state->wm.ilk.optimal;
 	if (!new_crtc_state->hw.active ||
-	    drm_atomic_crtc_needs_modeset(&new_crtc_state->uapi) ||
+	    intel_crtc_needs_modeset(new_crtc_state) ||
 	    state->skip_intermediate_wm)
 		return 0;
 

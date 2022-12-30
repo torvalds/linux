@@ -41,12 +41,14 @@ properties:
           - qcom,scm-sc7180
           - qcom,scm-sc7280
           - qcom,scm-sc8280xp
+          - qcom,scm-sdm670
           - qcom,scm-sdm845
           - qcom,scm-sdx55
           - qcom,scm-sdx65
           - qcom,scm-sm6115
           - qcom,scm-sm6125
           - qcom,scm-sm6350
+          - qcom,scm-sm6375
           - qcom,scm-sm8150
           - qcom,scm-sm8250
           - qcom,scm-sm8350
@@ -88,6 +90,7 @@ allOf:
               - qcom,scm-apq8064
               - qcom,scm-msm8660
               - qcom,scm-msm8960
+              - qcom,scm-sm6375
     then:
       properties:
         clock-names:

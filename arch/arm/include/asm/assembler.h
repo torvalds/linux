@@ -761,6 +761,12 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	.endif
 	.endm
 
+	.if		__LINUX_ARM_ARCH__ < 6
+	.set		.Lrev_l_uses_tmp, 1
+	.else
+	.set		.Lrev_l_uses_tmp, 0
+	.endif
+
 	/*
 	 * bl_r - branch and link to register
 	 *

@@ -179,7 +179,8 @@ SOF_TIMESTAMPING_OPT_ID:
   identifier and returns that along with the timestamp. The identifier
   is derived from a per-socket u32 counter (that wraps). For datagram
   sockets, the counter increments with each sent packet. For stream
-  sockets, it increments with every byte.
+  sockets, it increments with every byte. For stream sockets, also set
+  SOF_TIMESTAMPING_OPT_ID_TCP, see the section below.
 
   The counter starts at zero. It is initialized the first time that
   the socket option is enabled. It is reset each time the option is
@@ -192,6 +193,35 @@ SOF_TIMESTAMPING_OPT_ID:
   among all possibly concurrently outstanding timestamp requests for
   that socket.
 
+SOF_TIMESTAMPING_OPT_ID_TCP:
+  Pass this modifier along with SOF_TIMESTAMPING_OPT_ID for new TCP
+  timestamping applications. SOF_TIMESTAMPING_OPT_ID defines how the
+  counter increments for stream sockets, but its starting point is
+  not entirely trivial. This option fixes that.
+
+  For stream sockets, if SOF_TIMESTAMPING_OPT_ID is set, this should
+  always be set too. On datagram sockets the option has no effect.
+
+  A reasonable expectation is that the counter is reset to zero with
+  the system call, so that a subsequent write() of N bytes generates
+  a timestamp with counter N-1. SOF_TIMESTAMPING_OPT_ID_TCP
+  implements this behavior under all conditions.
+
+  SOF_TIMESTAMPING_OPT_ID without modifier often reports the same,
+  especially when the socket option is set when no data is in
+  transmission. If data is being transmitted, it may be off by the
+  length of the output queue (SIOCOUTQ).
+
+  The difference is due to being based on snd_una versus write_seq.
+  snd_una is the offset in the stream acknowledged by the peer. This
+  depends on factors outside of process control, such as network RTT.
+  write_seq is the last byte written by the process. This offset is
+  not affected by external inputs.
+
+  The difference is subtle and unlikely to be noticed when configured
+  at initial socket creation, when no data is queued or sent. But
+  SOF_TIMESTAMPING_OPT_ID_TCP behavior is more robust regardless of
+  when the socket option is set.
 
 SOF_TIMESTAMPING_OPT_CMSG:
   Support recv() cmsg for all timestamped packets. Control messages

@@ -11,6 +11,7 @@
  */
 
 #include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
 #include <linux/module.h>
 #include <linux/refcount.h>
 #include <linux/scatterlist.h>
@@ -455,6 +456,8 @@ static int vb2_dc_dmabuf_ops_vmap(struct dma_buf *dbuf, struct iosys_map *map)
 static int vb2_dc_dmabuf_ops_mmap(struct dma_buf *dbuf,
 	struct vm_area_struct *vma)
 {
+	dma_resv_assert_held(dbuf->resv);
+
 	return vb2_dc_mmap(dbuf->priv, vma);
 }
 
@@ -594,7 +597,8 @@ static void *vb2_dc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 	buf->vb = vb;
 
 	offset = lower_32_bits(offset_in_page(vaddr));
-	vec = vb2_create_framevec(vaddr, size);
+	vec = vb2_create_framevec(vaddr, size, buf->dma_dir == DMA_FROM_DEVICE ||
+					       buf->dma_dir == DMA_BIDIRECTIONAL);
 	if (IS_ERR(vec)) {
 		ret = PTR_ERR(vec);
 		goto fail_buf;

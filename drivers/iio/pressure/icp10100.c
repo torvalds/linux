@@ -530,8 +530,7 @@ static void icp10100_pm_disable(void *data)
 	pm_runtime_disable(dev);
 }
 
-static int icp10100_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int icp10100_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct icp10100_state *st;
@@ -649,7 +648,7 @@ static struct i2c_driver icp10100_driver = {
 		.pm = pm_ptr(&icp10100_pm),
 		.of_match_table = icp10100_of_match,
 	},
-	.probe = icp10100_probe,
+	.probe_new = icp10100_probe,
 	.id_table = icp10100_id,
 };
 module_i2c_driver(icp10100_driver);

@@ -969,6 +969,15 @@ struct intel_mpllb_state {
 	u32 mpllb_sscstep;
 };
 
+/* Used by dp and fdi links */
+struct intel_link_m_n {
+	u32 tu;
+	u32 data_m;
+	u32 data_n;
+	u32 link_m;
+	u32 link_n;
+};
+
 struct intel_crtc_state {
 	/*
 	 * uapi (drm) state. This is the software state shown to userspace.
@@ -1366,6 +1375,7 @@ struct intel_crtc {
 	u16 vmax_vblank_start;
 
 	struct intel_display_power_domain_set enabled_power_domains;
+	struct intel_display_power_domain_set hw_readout_power_domains;
 	struct intel_overlay *overlay;
 
 	struct intel_crtc_state *config;
@@ -1802,51 +1812,6 @@ struct intel_dp_mst_encoder {
 	struct intel_digital_port *primary;
 	struct intel_connector *connector;
 };
-
-static inline enum dpio_channel
-vlv_dig_port_to_channel(struct intel_digital_port *dig_port)
-{
-	switch (dig_port->base.port) {
-	default:
-		MISSING_CASE(dig_port->base.port);
-		fallthrough;
-	case PORT_B:
-	case PORT_D:
-		return DPIO_CH0;
-	case PORT_C:
-		return DPIO_CH1;
-	}
-}
-
-static inline enum dpio_phy
-vlv_dig_port_to_phy(struct intel_digital_port *dig_port)
-{
-	switch (dig_port->base.port) {
-	default:
-		MISSING_CASE(dig_port->base.port);
-		fallthrough;
-	case PORT_B:
-	case PORT_C:
-		return DPIO_PHY0;
-	case PORT_D:
-		return DPIO_PHY1;
-	}
-}
-
-static inline enum dpio_channel
-vlv_pipe_to_channel(enum pipe pipe)
-{
-	switch (pipe) {
-	default:
-		MISSING_CASE(pipe);
-		fallthrough;
-	case PIPE_A:
-	case PIPE_C:
-		return DPIO_CH0;
-	case PIPE_B:
-		return DPIO_CH1;
-	}
-}
 
 struct intel_load_detect_pipe {
 	struct drm_atomic_state *restore_state;

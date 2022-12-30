@@ -1809,13 +1809,18 @@ static void _set_rf_trx_para(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_bt_link_info *b = &bt->link_info;
 	struct rtw89_btc_rf_trx_para para;
 	u32 wl_stb_chg = 0;
 	u8 level_id = 0;
 
 	if (!dm->freerun) {
-		dm->trx_para_level = 0;
-		chip->ops->btc_bt_aci_imp(rtwdev);
+		/* fix LNA2 = level-5 for BT ACI issue at BTG */
+		if ((btc->dm.wl_btg_rx && b->profile_cnt.now != 0) ||
+		    dm->bt_only == 1)
+			dm->trx_para_level = 1;
+		else
+			dm->trx_para_level = 0;
 	}
 
 	level_id = (u8)dm->trx_para_level;

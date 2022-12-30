@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/qcom,wsa883x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for The Qualcomm WSA8830/WSA8832/WSA8835
+title: Qualcomm WSA8830/WSA8832/WSA8835
   smart speaker amplifier
 
 maintainers:
@@ -15,6 +15,9 @@ description: |
   Their primary operating mode uses a SoundWire digital audio
   interface. This binding is for SoundWire interface.
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     const: sdw10217020200
@@ -23,7 +26,7 @@ properties:
     maxItems: 1
 
   powerdown-gpios:
-    description: GPIO spec for Powerdown/Shutdown line to use
+    description: GPIO spec for Powerdown/Shutdown line to use (pin SD_N)
     maxItems: 1
 
   vdd-supply:
@@ -43,10 +46,12 @@ required:
   - "#thermal-sensor-cells"
   - "#sound-dai-cells"
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
+
     soundwire-controller@3250000 {
         #address-cells = <2>;
         #size-cells = <0>;
@@ -55,19 +60,21 @@ examples:
         speaker@0,1 {
             compatible = "sdw10217020200";
             reg = <0 1>;
-            powerdown-gpios = <&tlmm 1 0>;
+            powerdown-gpios = <&tlmm 1 GPIO_ACTIVE_LOW>;
             vdd-supply = <&vreg_s10b_1p8>;
             #thermal-sensor-cells = <0>;
             #sound-dai-cells = <0>;
+            sound-name-prefix = "SpkrLeft";
         };
 
         speaker@0,2 {
             compatible = "sdw10217020200";
             reg = <0 2>;
-            powerdown-gpios = <&tlmm 89 0>;
+            powerdown-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
             vdd-supply = <&vreg_s10b_1p8>;
             #thermal-sensor-cells = <0>;
             #sound-dai-cells = <0>;
+            sound-name-prefix = "SpkrRight";
         };
     };
 

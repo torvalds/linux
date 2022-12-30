@@ -1224,30 +1224,34 @@ EXPORT_SYMBOL(xdr_restrict_buflen);
 /**
  * xdr_write_pages - Insert a list of pages into an XDR buffer for sending
  * @xdr: pointer to xdr_stream
- * @pages: list of pages
- * @base: offset of first byte
- * @len: length of data in bytes
+ * @pages: array of pages to insert
+ * @base: starting offset of first data byte in @pages
+ * @len: number of data bytes in @pages to insert
  *
+ * After the @pages are added, the tail iovec is instantiated pointing to
+ * end of the head buffer, and the stream is set up to encode subsequent
+ * items into the tail.
  */
 void xdr_write_pages(struct xdr_stream *xdr, struct page **pages, unsigned int base,
 		 unsigned int len)
 {
 	struct xdr_buf *buf = xdr->buf;
-	struct kvec *iov = buf->tail;
+	struct kvec *tail = buf->tail;
+
 	buf->pages = pages;
 	buf->page_base = base;
 	buf->page_len = len;
 
-	iov->iov_base = (char *)xdr->p;
-	iov->iov_len  = 0;
-	xdr->iov = iov;
+	tail->iov_base = xdr->p;
+	tail->iov_len = 0;
+	xdr->iov = tail;
 
 	if (len & 3) {
 		unsigned int pad = 4 - (len & 3);
 
 		BUG_ON(xdr->p >= xdr->end);
-		iov->iov_base = (char *)xdr->p + (len & 3);
-		iov->iov_len  += pad;
+		tail->iov_base = (char *)xdr->p + (len & 3);
+		tail->iov_len += pad;
 		len += pad;
 		*xdr->p++ = 0;
 	}

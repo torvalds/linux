@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/leds/register-bit-led.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Device Tree Bindings for Register Bit LEDs
+title: Register Bit LEDs
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>

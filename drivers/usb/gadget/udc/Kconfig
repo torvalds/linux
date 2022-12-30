@@ -33,7 +33,7 @@ menu "USB Peripheral Controller"
 config USB_AT91
 	tristate "Atmel AT91 USB Device Port"
 	depends on ARCH_AT91
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	   Many Atmel AT91 processors (such as the AT91RM2000) have a
 	   full speed USB Device Port with support for five configurable
@@ -107,17 +107,6 @@ config USB_FUSB300
 	depends on !PHYS_ADDR_T_64BIT && HAS_DMA
 	help
 	   Faraday usb device controller FUSB300 driver
-
-config USB_FOTG210_UDC
-	depends on HAS_DMA
-	tristate "Faraday FOTG210 USB Peripheral Controller"
-	help
-	   Faraday USB2.0 OTG controller which can be configured as
-	   high speed or full speed USB device. This driver supppors
-	   Bulk Transfer so far.
-
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "fotg210_udc".
 
 config USB_GR_UDC
 	tristate "Aeroflex Gaisler GRUSBDC USB Peripheral Controller Driver"
@@ -430,7 +419,7 @@ config USB_EG20T
 config USB_GADGET_XILINX
 	tristate "Xilinx USB Driver"
 	depends on HAS_DMA
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  USB peripheral controller driver for Xilinx USB2 device.
 	  Xilinx USB2 device is a soft IP which supports both full

@@ -45,6 +45,18 @@ extern bool xfs_errortag_test(struct xfs_mount *mp, const char *expression,
 		const char *file, int line, unsigned int error_tag);
 #define XFS_TEST_ERROR(expr, mp, tag)		\
 	((expr) || xfs_errortag_test((mp), #expr, __FILE__, __LINE__, (tag)))
+bool xfs_errortag_enabled(struct xfs_mount *mp, unsigned int tag);
+#define XFS_ERRORTAG_DELAY(mp, tag)		\
+	do { \
+		might_sleep(); \
+		if (!xfs_errortag_enabled((mp), (tag))) \
+			break; \
+		xfs_warn_ratelimited((mp), \
+"Injecting %ums delay at file %s, line %d, on filesystem \"%s\"", \
+				(mp)->m_errortag[(tag)], __FILE__, __LINE__, \
+				(mp)->m_super->s_id); \
+		mdelay((mp)->m_errortag[(tag)]); \
+	} while (0)
 
 extern int xfs_errortag_get(struct xfs_mount *mp, unsigned int error_tag);
 extern int xfs_errortag_set(struct xfs_mount *mp, unsigned int error_tag,
@@ -55,6 +67,7 @@ extern int xfs_errortag_clearall(struct xfs_mount *mp);
 #define xfs_errortag_init(mp)			(0)
 #define xfs_errortag_del(mp)
 #define XFS_TEST_ERROR(expr, mp, tag)		(expr)
+#define XFS_ERRORTAG_DELAY(mp, tag)		((void)0)
 #define xfs_errortag_set(mp, tag, val)		(ENOSYS)
 #define xfs_errortag_add(mp, tag)		(ENOSYS)
 #define xfs_errortag_clearall(mp)		(ENOSYS)

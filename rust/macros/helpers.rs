@@ -18,10 +18,16 @@ pub(crate) fn try_literal(it: &mut token_stream::IntoIter) -> Option<String> {
     }
 }
 
-pub(crate) fn try_byte_string(it: &mut token_stream::IntoIter) -> Option<String> {
-    try_literal(it).and_then(|byte_string| {
-        if byte_string.starts_with("b\"") && byte_string.ends_with('\"') {
-            Some(byte_string[2..byte_string.len() - 1].to_string())
+pub(crate) fn try_string(it: &mut token_stream::IntoIter) -> Option<String> {
+    try_literal(it).and_then(|string| {
+        if string.starts_with('\"') && string.ends_with('\"') {
+            let content = &string[1..string.len() - 1];
+            if content.contains('\\') {
+                panic!("Escape sequences in string literals not yet handled");
+            }
+            Some(content.to_string())
+        } else if string.starts_with("r\"") {
+            panic!("Raw string literals are not yet handled");
         } else {
             None
         }
@@ -40,8 +46,14 @@ pub(crate) fn expect_punct(it: &mut token_stream::IntoIter) -> char {
     }
 }
 
-pub(crate) fn expect_byte_string(it: &mut token_stream::IntoIter) -> String {
-    try_byte_string(it).expect("Expected byte string")
+pub(crate) fn expect_string(it: &mut token_stream::IntoIter) -> String {
+    try_string(it).expect("Expected string")
+}
+
+pub(crate) fn expect_string_ascii(it: &mut token_stream::IntoIter) -> String {
+    let string = try_string(it).expect("Expected string");
+    assert!(string.is_ascii(), "Expected ASCII string");
+    string
 }
 
 pub(crate) fn expect_end(it: &mut token_stream::IntoIter) {

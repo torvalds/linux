@@ -6,7 +6,7 @@
 #ifndef __INTEL_AUDIO_REGS_H__
 #define __INTEL_AUDIO_REGS_H__
 
-#include "i915_reg_defs.h"
+#include "intel_display_reg_defs.h"
 
 #define G4X_AUD_CNTL_ST			_MMIO(0x620B4)
 #define   G4X_ELD_VALID			REG_BIT(14)

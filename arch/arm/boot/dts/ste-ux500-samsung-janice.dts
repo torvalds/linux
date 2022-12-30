@@ -30,6 +30,14 @@
 			polling-delay = <0>;
 			polling-delay-passive = <0>;
 			thermal-sensors = <&bat_therm>;
+
+			trips {
+				battery-crit-hi {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
 		};
 	};
 
@@ -263,7 +271,7 @@
 	 * this derivative is 3wire support, so it cannot be used to drive
 	 * this panel interface. We have to use GPIO bit-banging instead.
 	 */
-	spi-gpio-0 {
+	spi {
 		compatible = "spi-gpio";
 		/* Clock on GPIO220 */
 		sck-gpios = <&gpio6 28 GPIO_ACTIVE_HIGH>;
@@ -365,9 +373,13 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		nfc@30 {
-			compatible = "nxp,pn547", "nxp,nxp-nci-i2c";
-			reg = <0x30>;
+		/* This is only mounted on the GT-I9070P */
+		nfc@2b { /* 0x30? */
+			/* NXP NFC circuit PN544 C1 marked NXP 44501  */
+			compatible = "nxp,pn544-i2c";
+			/* IF0, IF1 high, gives I2C address 0x2B */
+			reg = <0x2b>;
+			clock-frequency = <400000>;
 			/* NFC IRQ on GPIO32 */
 			interrupt-parent = <&gpio1>;
 			interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
@@ -376,7 +388,7 @@
 			/* GPIO88 */
 			enable-gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&pn547_janice_default>;
+			pinctrl-0 = <&pn544_janice_default>;
 		};
 	};
 
@@ -951,7 +963,7 @@
 		};
 	};
 	nfc {
-		pn547_janice_default: pn547_janice {
+		pn544_janice_default: pn544_janice {
 			/* Interrupt line */
 			janice_cfg1 {
 				pins = "GPIO32_V2";

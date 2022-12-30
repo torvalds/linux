@@ -42,6 +42,12 @@ static const struct esdhc_clk_fixup ls1021a_esdhc_clk = {
 	.max_clk[MMC_TIMING_SD_HS] = 46500000,
 };
 
+static const struct esdhc_clk_fixup ls1043a_esdhc_clk = {
+	.sd_dflt_max_clk = 25000000,
+	.max_clk[MMC_TIMING_UHS_SDR104] = 116700000,
+	.max_clk[MMC_TIMING_MMC_HS200] = 116700000,
+};
+
 static const struct esdhc_clk_fixup ls1046a_esdhc_clk = {
 	.sd_dflt_max_clk = 25000000,
 	.max_clk[MMC_TIMING_UHS_SDR104] = 167000000,
@@ -63,6 +69,7 @@ static const struct esdhc_clk_fixup p1010_esdhc_clk = {
 
 static const struct of_device_id sdhci_esdhc_of_match[] = {
 	{ .compatible = "fsl,ls1021a-esdhc", .data = &ls1021a_esdhc_clk},
+	{ .compatible = "fsl,ls1043a-esdhc", .data = &ls1043a_esdhc_clk},
 	{ .compatible = "fsl,ls1046a-esdhc", .data = &ls1046a_esdhc_clk},
 	{ .compatible = "fsl,ls1012a-esdhc", .data = &ls1012a_esdhc_clk},
 	{ .compatible = "fsl,p1010-esdhc",   .data = &p1010_esdhc_clk},
@@ -91,7 +98,7 @@ struct sdhci_esdhc {
 };
 
 /**
- * esdhc_read*_fixup - Fixup the value read from incompatible eSDHC register
+ * esdhc_readl_fixup - Fixup the value read from incompatible eSDHC register
  *		       to make it compatible with SD spec.
  *
  * @host: pointer to sdhci_host
@@ -216,7 +223,7 @@ static u8 esdhc_readb_fixup(struct sdhci_host *host,
 }
 
 /**
- * esdhc_write*_fixup - Fixup the SD spec register value so that it could be
+ * esdhc_writel_fixup - Fixup the SD spec register value so that it could be
  *			written into eSDHC register.
  *
  * @host: pointer to sdhci_host

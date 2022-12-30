@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/phy/phy-cadence-torrent.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Cadence Torrent SD0801 PHY binding
+title: Cadence Torrent SD0801 PHY
 
 description:
   This binding describes the Cadence SD0801 PHY (also known as Torrent PHY)

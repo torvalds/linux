@@ -324,8 +324,9 @@ int cfg80211_mgd_wext_giwap(struct net_device *dev,
 
 int cfg80211_wext_siwgenie(struct net_device *dev,
 			   struct iw_request_info *info,
-			   struct iw_point *data, char *extra)
+			   union iwreq_data *wrqu, char *extra)
 {
+	struct iw_point *data = &wrqu->data;
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	u8 *ie = extra;
@@ -374,7 +375,7 @@ int cfg80211_wext_siwgenie(struct net_device *dev,
 
 int cfg80211_wext_siwmlme(struct net_device *dev,
 			  struct iw_request_info *info,
-			  struct iw_point *data, char *extra)
+			  union iwreq_data *wrqu, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;

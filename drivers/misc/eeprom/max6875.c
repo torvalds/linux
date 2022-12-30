@@ -130,8 +130,7 @@ static const struct bin_attribute user_eeprom_attr = {
 	.read = max6875_read,
 };
 
-static int max6875_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int max6875_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct max6875_data *data;
@@ -193,7 +192,7 @@ static struct i2c_driver max6875_driver = {
 	.driver = {
 		.name	= "max6875",
 	},
-	.probe		= max6875_probe,
+	.probe_new	= max6875_probe,
 	.remove		= max6875_remove,
 	.id_table	= max6875_id,
 };

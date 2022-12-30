@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for Kernel-based Virtual Machine module, HYP/nVHE part
+# Makefile for Kernel-based Virtual Machine module, HYP/VHE part
 #
 
 asflags-y := -D__KVM_VHE_HYPERVISOR__

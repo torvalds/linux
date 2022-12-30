@@ -31,6 +31,122 @@
 	(SNDRV_PCM_FMTBIT_S16_LE | \
 	 SNDRV_PCM_FMTBIT_S24_LE)
 
+/* These registers are relative to the second register region -
+ * audio pll configuration.
+ */
+#define A38X_PLL_CONF_REG0			0x0
+#define     A38X_PLL_FB_CLK_DIV_OFFSET		10
+#define     A38X_PLL_FB_CLK_DIV_MASK		0x7fc00
+#define A38X_PLL_CONF_REG1			0x4
+#define     A38X_PLL_FREQ_OFFSET_MASK		0xffff
+#define     A38X_PLL_FREQ_OFFSET_VALID		BIT(16)
+#define     A38X_PLL_SW_RESET			BIT(31)
+#define A38X_PLL_CONF_REG2			0x8
+#define     A38X_PLL_AUDIO_POSTDIV_MASK		0x7f
+
+/* Bit below belongs to SoC control register corresponding to the third
+ * register region.
+ */
+#define A38X_SPDIF_MODE_ENABLE			BIT(27)
+
+static int armada_38x_i2s_init_quirk(struct platform_device *pdev,
+				     struct kirkwood_dma_data *priv,
+				     struct snd_soc_dai_driver *dai_drv)
+{
+	struct device_node *np = pdev->dev.of_node;
+	u32 reg_val;
+	int i;
+
+	priv->pll_config = devm_platform_ioremap_resource_byname(pdev, "pll_regs");
+	if (IS_ERR(priv->pll_config))
+		return -ENOMEM;
+
+	priv->soc_control = devm_platform_ioremap_resource_byname(pdev, "soc_ctrl");
+	if (IS_ERR(priv->soc_control))
+		return -ENOMEM;
+
+	/* Select one of exceptive modes: I2S or S/PDIF */
+	reg_val = readl(priv->soc_control);
+	if (of_property_read_bool(np, "spdif-mode")) {
+		reg_val |= A38X_SPDIF_MODE_ENABLE;
+		dev_info(&pdev->dev, "using S/PDIF mode\n");
+	} else {
+		reg_val &= ~A38X_SPDIF_MODE_ENABLE;
+		dev_info(&pdev->dev, "using I2S mode\n");
+	}
+	writel(reg_val, priv->soc_control);
+
+	/* Update available rates of mclk's fs */
+	for (i = 0; i < 2; i++) {
+		dai_drv[i].playback.rates |= SNDRV_PCM_RATE_192000;
+		dai_drv[i].capture.rates |= SNDRV_PCM_RATE_192000;
+	}
+
+	return 0;
+}
+
+static inline void armada_38x_set_pll(void __iomem *base, unsigned long rate)
+{
+	u32 reg_val;
+	u16 freq_offset = 0x22b0;
+	u8 audio_postdiv, fb_clk_div = 0x1d;
+
+	/* Set frequency offset value to not valid and enable PLL reset */
+	reg_val = readl(base + A38X_PLL_CONF_REG1);
+	reg_val &= ~A38X_PLL_FREQ_OFFSET_VALID;
+	reg_val &= ~A38X_PLL_SW_RESET;
+	writel(reg_val, base + A38X_PLL_CONF_REG1);
+
+	udelay(1);
+
+	/* Update PLL parameters */
+	switch (rate) {
+	default:
+	case 44100:
+		freq_offset = 0x735;
+		fb_clk_div = 0x1b;
+		audio_postdiv = 0xc;
+		break;
+	case 48000:
+		audio_postdiv = 0xc;
+		break;
+	case 96000:
+		audio_postdiv = 0x6;
+		break;
+	case 192000:
+		audio_postdiv = 0x3;
+		break;
+	}
+
+	reg_val = readl(base + A38X_PLL_CONF_REG0);
+	reg_val &= ~A38X_PLL_FB_CLK_DIV_MASK;
+	reg_val |= (fb_clk_div << A38X_PLL_FB_CLK_DIV_OFFSET);
+	writel(reg_val, base + A38X_PLL_CONF_REG0);
+
+	reg_val = readl(base + A38X_PLL_CONF_REG2);
+	reg_val &= ~A38X_PLL_AUDIO_POSTDIV_MASK;
+	reg_val |= audio_postdiv;
+	writel(reg_val, base + A38X_PLL_CONF_REG2);
+
+	reg_val = readl(base + A38X_PLL_CONF_REG1);
+	reg_val &= ~A38X_PLL_FREQ_OFFSET_MASK;
+	reg_val |= freq_offset;
+	writel(reg_val, base + A38X_PLL_CONF_REG1);
+
+	udelay(1);
+
+	/* Disable reset */
+	reg_val |= A38X_PLL_SW_RESET;
+	writel(reg_val, base + A38X_PLL_CONF_REG1);
+
+	/* Wait 50us for PLL to lock */
+	udelay(50);
+
+	/* Restore frequency offset value validity */
+	reg_val |= A38X_PLL_FREQ_OFFSET_VALID;
+	writel(reg_val, base + A38X_PLL_CONF_REG1);
+}
+
 static int kirkwood_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
@@ -106,7 +222,10 @@ static void kirkwood_set_rate(struct snd_soc_dai *dai,
 		 * defined in kirkwood_i2s_dai */
 		dev_dbg(dai->dev, "%s: dco set rate = %lu\n",
 			__func__, rate);
-		kirkwood_set_dco(priv->io, rate);
+		if (priv->pll_config)
+			armada_38x_set_pll(priv->pll_config, rate);
+		else
+			kirkwood_set_dco(priv->io, rate);
 
 		clks_ctrl = KIRKWOOD_MCLK_SOURCE_DCO;
 	} else {
@@ -532,13 +651,24 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, priv);
 
-	priv->io = devm_platform_ioremap_resource(pdev, 0);
+	if (of_device_is_compatible(np, "marvell,armada-380-audio"))
+		priv->io = devm_platform_ioremap_resource_byname(pdev, "i2s_regs");
+	else
+		priv->io = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->io))
 		return PTR_ERR(priv->io);
 
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq < 0)
 		return priv->irq;
+
+	if (of_device_is_compatible(np, "marvell,armada-380-audio")) {
+		err = armada_38x_i2s_init_quirk(pdev, priv, soc_dai);
+		if (err < 0)
+			return err;
+		/* Set initial pll frequency */
+		armada_38x_set_pll(priv->pll_config, 44100);
+	}
 
 	if (np) {
 		priv->burst = 128;		/* might be 32 or 128 */
@@ -623,6 +753,7 @@ static const struct of_device_id mvebu_audio_of_match[] = {
 	{ .compatible = "marvell,kirkwood-audio" },
 	{ .compatible = "marvell,dove-audio" },
 	{ .compatible = "marvell,armada370-audio" },
+	{ .compatible = "marvell,armada-380-audio" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mvebu_audio_of_match);

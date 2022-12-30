@@ -3,7 +3,7 @@
 #include <linux/kernel.h>
 #include "../../../util/unwind-libdw.h"
 #include "../../../util/perf_regs.h"
-#include "../../../util/event.h"
+#include "../../../util/sample.h"
 
 /* See backends/ppc_initreg.c and backends/ppc_regs.c in elfutils.  */
 static const int special_regs[3][2] = {

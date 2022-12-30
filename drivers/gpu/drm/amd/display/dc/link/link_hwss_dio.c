@@ -170,11 +170,63 @@ static void update_dio_stream_allocation_table(struct dc_link *link,
 	link_enc->funcs->update_mst_stream_allocation_table(link_enc, table);
 }
 
+void setup_dio_audio_output(struct pipe_ctx *pipe_ctx,
+		struct audio_output *audio_output, uint32_t audio_inst)
+{
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->dp_audio_setup(
+				pipe_ctx->stream_res.stream_enc,
+				audio_inst,
+				&pipe_ctx->stream->audio_info);
+	else
+		pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_setup(
+				pipe_ctx->stream_res.stream_enc,
+				audio_inst,
+				&pipe_ctx->stream->audio_info,
+				&audio_output->crtc_info);
+}
+
+void enable_dio_audio_packet(struct pipe_ctx *pipe_ctx)
+{
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(
+				pipe_ctx->stream_res.stream_enc);
+
+	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+			pipe_ctx->stream_res.stream_enc, false);
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		dp_source_sequence_trace(pipe_ctx->stream->link,
+				DPCD_SOURCE_SEQ_AFTER_ENABLE_AUDIO_STREAM);
+}
+
+void disable_dio_audio_packet(struct pipe_ctx *pipe_ctx)
+{
+	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+			pipe_ctx->stream_res.stream_enc, true);
+
+	if (pipe_ctx->stream_res.audio) {
+		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
+					pipe_ctx->stream_res.stream_enc);
+		else
+			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_disable(
+					pipe_ctx->stream_res.stream_enc);
+	}
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		dp_source_sequence_trace(pipe_ctx->stream->link,
+				DPCD_SOURCE_SEQ_AFTER_DISABLE_AUDIO_STREAM);
+}
+
 static const struct link_hwss dio_link_hwss = {
 	.setup_stream_encoder = setup_dio_stream_encoder,
 	.reset_stream_encoder = reset_dio_stream_encoder,
 	.setup_stream_attribute = setup_dio_stream_attribute,
 	.disable_link_output = disable_dio_link_output,
+	.setup_audio_output = setup_dio_audio_output,
+	.enable_audio_packet = enable_dio_audio_packet,
+	.disable_audio_packet = disable_dio_audio_packet,
 	.ext = {
 		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
 		.enable_dp_link_output = enable_dio_dp_link_output,

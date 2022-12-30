@@ -33,7 +33,7 @@
 	.endif
 .endm
 
-.macro __ALTERNATIVE_CFG old_c, new_c, vendor_id, errata_id, enable
+.macro ALTERNATIVE_CFG old_c, new_c, vendor_id, errata_id, enable
 886 :
 	.option push
 	.option norvc
@@ -44,30 +44,14 @@
 	ALT_NEW_CONTENT \vendor_id, \errata_id, \enable, \new_c
 .endm
 
-#define _ALTERNATIVE_CFG(old_c, new_c, vendor_id, errata_id, CONFIG_k) \
-	__ALTERNATIVE_CFG old_c, new_c, vendor_id, errata_id, IS_ENABLED(CONFIG_k)
-
-.macro __ALTERNATIVE_CFG_2 old_c, new_c_1, vendor_id_1, errata_id_1, enable_1, \
-				  new_c_2, vendor_id_2, errata_id_2, enable_2
-886 :
-	.option push
-	.option norvc
-	.option norelax
-	\old_c
-	.option pop
-887 :
-	ALT_NEW_CONTENT \vendor_id_1, \errata_id_1, \enable_1, \new_c_1
+.macro ALTERNATIVE_CFG_2 old_c, new_c_1, vendor_id_1, errata_id_1, enable_1,	\
+				new_c_2, vendor_id_2, errata_id_2, enable_2
+	ALTERNATIVE_CFG \old_c, \new_c_1, \vendor_id_1, \errata_id_1, \enable_1
 	ALT_NEW_CONTENT \vendor_id_2, \errata_id_2, \enable_2, \new_c_2
 .endm
 
-#define _ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1,	\
-					CONFIG_k_1,			\
-				  new_c_2, vendor_id_2, errata_id_2,	\
-					CONFIG_k_2)			\
-	__ALTERNATIVE_CFG_2 old_c, new_c_1, vendor_id_1, errata_id_1,	\
-					IS_ENABLED(CONFIG_k_1),		\
-				   new_c_2, vendor_id_2, errata_id_2,	\
-					IS_ENABLED(CONFIG_k_2)
+#define __ALTERNATIVE_CFG(...)		ALTERNATIVE_CFG __VA_ARGS__
+#define __ALTERNATIVE_CFG_2(...)	ALTERNATIVE_CFG_2 __VA_ARGS__
 
 #else /* !__ASSEMBLY__ */
 
@@ -109,63 +93,44 @@
 	"887 :\n"							\
 	ALT_NEW_CONTENT(vendor_id, errata_id, enable, new_c)
 
+#define __ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1, enable_1,	\
+				   new_c_2, vendor_id_2, errata_id_2, enable_2)	\
+	__ALTERNATIVE_CFG(old_c, new_c_1, vendor_id_1, errata_id_1, enable_1)	\
+	ALT_NEW_CONTENT(vendor_id_2, errata_id_2, enable_2, new_c_2)
+
+#endif /* __ASSEMBLY__ */
+
 #define _ALTERNATIVE_CFG(old_c, new_c, vendor_id, errata_id, CONFIG_k)	\
 	__ALTERNATIVE_CFG(old_c, new_c, vendor_id, errata_id, IS_ENABLED(CONFIG_k))
 
-#define __ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1,	\
-					enable_1,			\
-				   new_c_2, vendor_id_2, errata_id_2,	\
-					enable_2)			\
-	"886 :\n"							\
-	".option push\n"						\
-	".option norvc\n"						\
-	".option norelax\n"						\
-	old_c "\n"							\
-	".option pop\n"							\
-	"887 :\n"							\
-	ALT_NEW_CONTENT(vendor_id_1, errata_id_1, enable_1, new_c_1)	\
-	ALT_NEW_CONTENT(vendor_id_2, errata_id_2, enable_2, new_c_2)
-
-#define _ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1,	\
-					CONFIG_k_1,			\
-				  new_c_2, vendor_id_2, errata_id_2,	\
-					CONFIG_k_2)			\
-	__ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1,	\
-					IS_ENABLED(CONFIG_k_1),		\
-				   new_c_2, vendor_id_2, errata_id_2,	\
-					IS_ENABLED(CONFIG_k_2))
-
-#endif /* __ASSEMBLY__ */
+#define _ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1, CONFIG_k_1,		\
+				  new_c_2, vendor_id_2, errata_id_2, CONFIG_k_2)		\
+	__ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1, IS_ENABLED(CONFIG_k_1),	\
+				   new_c_2, vendor_id_2, errata_id_2, IS_ENABLED(CONFIG_k_2))
 
 #else /* CONFIG_RISCV_ALTERNATIVE */
 #ifdef __ASSEMBLY__
 
-.macro __ALTERNATIVE_CFG old_c
+.macro ALTERNATIVE_CFG old_c
 	\old_c
 .endm
 
-#define _ALTERNATIVE_CFG(old_c, new_c, vendor_id, errata_id, CONFIG_k) \
-	__ALTERNATIVE_CFG old_c
+#define _ALTERNATIVE_CFG(old_c, ...)	\
+	ALTERNATIVE_CFG old_c
 
-#define _ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1,	\
-					CONFIG_k_1,			\
-				  new_c_2, vendor_id_2, errata_id_2,	\
-					CONFIG_k_2)			\
-       __ALTERNATIVE_CFG old_c
+#define _ALTERNATIVE_CFG_2(old_c, ...)	\
+	ALTERNATIVE_CFG old_c
 
 #else /* !__ASSEMBLY__ */
 
-#define __ALTERNATIVE_CFG(old_c)  \
+#define __ALTERNATIVE_CFG(old_c)	\
 	old_c "\n"
 
-#define _ALTERNATIVE_CFG(old_c, new_c, vendor_id, errata_id, CONFIG_k) \
+#define _ALTERNATIVE_CFG(old_c, ...)	\
 	__ALTERNATIVE_CFG(old_c)
 
-#define _ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, errata_id_1,	\
-					CONFIG_k_1,			\
-				  new_c_2, vendor_id_2, errata_id_2,	\
-					CONFIG_k_2) \
-       __ALTERNATIVE_CFG(old_c)
+#define _ALTERNATIVE_CFG_2(old_c, ...)	\
+	__ALTERNATIVE_CFG(old_c)
 
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_RISCV_ALTERNATIVE */
@@ -193,13 +158,9 @@
  * on the following sample code and then replace ALTERNATIVE() with
  * ALTERNATIVE_2() to append its customized content.
  */
-#define ALTERNATIVE_2(old_content, new_content_1, vendor_id_1,		\
-					errata_id_1, CONFIG_k_1,	\
-				   new_content_2, vendor_id_2,		\
-					errata_id_2, CONFIG_k_2)	\
-	_ALTERNATIVE_CFG_2(old_content, new_content_1, vendor_id_1,	\
-					    errata_id_1, CONFIG_k_1,	\
-					new_content_2, vendor_id_2,	\
-					    errata_id_2, CONFIG_k_2)
+#define ALTERNATIVE_2(old_content, new_content_1, vendor_id_1, errata_id_1, CONFIG_k_1,		\
+				   new_content_2, vendor_id_2, errata_id_2, CONFIG_k_2)		\
+	_ALTERNATIVE_CFG_2(old_content, new_content_1, vendor_id_1, errata_id_1, CONFIG_k_1,	\
+					new_content_2, vendor_id_2, errata_id_2, CONFIG_k_2)
 
 #endif

@@ -104,6 +104,7 @@ required:
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - $ref: /schemas/nvmem/nvmem.yaml
   - if:
       properties:
         compatible:

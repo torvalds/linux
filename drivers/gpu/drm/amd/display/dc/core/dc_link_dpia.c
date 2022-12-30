@@ -791,10 +791,14 @@ static enum link_training_result dpia_training_eq_transparent(
 		}
 
 		if (dp_is_ch_eq_done(lane_count, dpcd_lane_status) &&
-		    dp_is_symbol_locked(link->cur_link_settings.lane_count, dpcd_lane_status) &&
-		    dp_is_interlane_aligned(dpcd_lane_status_updated)) {
-			result =  LINK_TRAINING_SUCCESS;
-			break;
+				dp_is_symbol_locked(link->cur_link_settings.lane_count, dpcd_lane_status)) {
+			/* Take into consideration corner case for DP 1.4a LL Compliance CTS as USB4
+			 * has to share encoders unlike DP and USBC
+			 */
+			if (dp_is_interlane_aligned(dpcd_lane_status_updated) || (link->is_automated && retries_eq)) {
+				result =  LINK_TRAINING_SUCCESS;
+				break;
+			}
 		}
 
 		/* Update VS/PE. */
@@ -1008,7 +1012,8 @@ enum link_training_result dc_link_dpia_perform_link_training(
 	 */
 	if (result == LINK_TRAINING_SUCCESS) {
 		msleep(5);
-		result = dp_check_link_loss_status(link, &lt_settings);
+		if (!link->is_automated)
+			result = dp_check_link_loss_status(link, &lt_settings);
 	} else if (result == LINK_TRAINING_ABORT) {
 		dpia_training_abort(link, &lt_settings, repeater_id);
 	} else {

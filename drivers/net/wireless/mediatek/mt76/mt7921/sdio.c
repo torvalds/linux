@@ -17,7 +17,8 @@
 #include "mcu.h"
 
 static const struct sdio_device_id mt7921s_table[] = {
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, 0x7901) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, 0x7901),
+		.driver_data = (kernel_ulong_t)MT7921_FIRMWARE_WM },
 	{ }	/* Terminating entry */
 };
 
@@ -89,6 +90,7 @@ static int mt7921s_probe(struct sdio_func *func,
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = MT_SDIO_TXD_SIZE,
+		.drv_flags = MT_DRV_AMSDU_OFFLOAD,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
 				SURVEY_INFO_TIME_BSS_RX,
@@ -121,18 +123,39 @@ static int mt7921s_probe(struct sdio_func *func,
 		.fw_own = mt7921s_mcu_fw_pmctrl,
 	};
 
+	struct ieee80211_ops *ops;
 	struct mt7921_dev *dev;
 	struct mt76_dev *mdev;
+	u8 features;
 	int ret;
 
-	mdev = mt76_alloc_device(&func->dev, sizeof(*dev), &mt7921_ops,
-				 &drv_ops);
+	features = mt7921_check_offload_capability(&func->dev, (const char *)
+						   id->driver_data);
+
+	ops = devm_kmemdup(&func->dev, &mt7921_ops, sizeof(mt7921_ops),
+			   GFP_KERNEL);
+	if (!ops)
+		return -ENOMEM;
+
+	if (!(features & MT7921_FW_CAP_CNM)) {
+		ops->remain_on_channel = NULL;
+		ops->cancel_remain_on_channel = NULL;
+		ops->add_chanctx = NULL;
+		ops->remove_chanctx = NULL;
+		ops->change_chanctx = NULL;
+		ops->assign_vif_chanctx = NULL;
+		ops->unassign_vif_chanctx = NULL;
+		ops->mgd_prepare_tx = NULL;
+		ops->mgd_complete_tx = NULL;
+	}
+
+	mdev = mt76_alloc_device(&func->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
 		return -ENOMEM;
 
 	dev = container_of(mdev, struct mt7921_dev, mt76);
+	dev->fw_features = features;
 	dev->hif_ops = &mt7921_sdio_ops;
-
 	sdio_set_drvdata(func, dev);
 
 	ret = mt76s_init(mdev, func, &mt7921s_ops);

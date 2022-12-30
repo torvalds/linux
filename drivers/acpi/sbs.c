@@ -96,7 +96,7 @@ struct acpi_sbs {
 
 #define to_acpi_sbs(x) power_supply_get_drvdata(x)
 
-static int acpi_sbs_remove(struct acpi_device *device);
+static void acpi_sbs_remove(struct acpi_device *device);
 static int acpi_battery_get_state(struct acpi_battery *battery);
 
 static inline int battery_scale(int log)
@@ -664,16 +664,16 @@ end:
 	return result;
 }
 
-static int acpi_sbs_remove(struct acpi_device *device)
+static void acpi_sbs_remove(struct acpi_device *device)
 {
 	struct acpi_sbs *sbs;
 	int id;
 
 	if (!device)
-		return -EINVAL;
+		return;
 	sbs = acpi_driver_data(device);
 	if (!sbs)
-		return -EINVAL;
+		return;
 	mutex_lock(&sbs->lock);
 	acpi_smbus_unregister_callback(sbs->hc);
 	for (id = 0; id < MAX_SBS_BAT; ++id)
@@ -682,7 +682,6 @@ static int acpi_sbs_remove(struct acpi_device *device)
 	mutex_unlock(&sbs->lock);
 	mutex_destroy(&sbs->lock);
 	kfree(sbs);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -53,7 +53,7 @@ static inline struct list_head *get_list_head(struct __queue *queue)
 	return (&(queue->queue));
 }
 
-static inline void _set_timer(struct timer_list *ptimer,u32 delay_time)
+static inline void _set_timer(struct timer_list *ptimer, u32 delay_time)
 {
 	mod_timer(ptimer, jiffies + msecs_to_jiffies(delay_time));
 }
@@ -66,7 +66,7 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3));
 }
 
-extern int RTW_STATUS_CODE(int error_code);
+int RTW_STATUS_CODE(int error_code);
 
 void *rtw_malloc2d(int h, int w, int size);
 
@@ -108,7 +108,7 @@ void rtw_free_netdev(struct net_device *netdev);
 #define FUNC_ADPT_FMT "%s(%s)"
 #define FUNC_ADPT_ARG(adapter) __func__, adapter->pnetdev->name
 
-#define rtw_signal_process(pid, sig) kill_pid(find_vpid((pid)),(sig), 1)
+#define rtw_signal_process(pid, sig) kill_pid(find_vpid((pid)), (sig), 1)
 
 /* Macros for handling unaligned memory accesses */
 

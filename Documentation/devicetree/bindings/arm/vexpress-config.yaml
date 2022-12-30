@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/vexpress-config.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ARM Versatile Express configuration bus bindings
+title: ARM Versatile Express configuration bus
 
 maintainers:
   - Andre Przywara <andre.przywara@arm.com>

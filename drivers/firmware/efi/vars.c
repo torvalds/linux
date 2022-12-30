@@ -21,29 +21,22 @@ static struct efivars *__efivars;
 
 static DEFINE_SEMAPHORE(efivars_lock);
 
-static efi_status_t check_var_size(u32 attributes, unsigned long size)
+static efi_status_t check_var_size(bool nonblocking, u32 attributes,
+				   unsigned long size)
 {
 	const struct efivar_operations *fops;
+	efi_status_t status;
 
 	fops = __efivars->ops;
 
 	if (!fops->query_variable_store)
+		status = EFI_UNSUPPORTED;
+	else
+		status = fops->query_variable_store(attributes, size,
+						    nonblocking);
+	if (status == EFI_UNSUPPORTED)
 		return (size <= SZ_64K) ? EFI_SUCCESS : EFI_OUT_OF_RESOURCES;
-
-	return fops->query_variable_store(attributes, size, false);
-}
-
-static
-efi_status_t check_var_size_nonblocking(u32 attributes, unsigned long size)
-{
-	const struct efivar_operations *fops;
-
-	fops = __efivars->ops;
-
-	if (!fops->query_variable_store)
-		return (size <= SZ_64K) ? EFI_SUCCESS : EFI_OUT_OF_RESOURCES;
-
-	return fops->query_variable_store(attributes, size, true);
+	return status;
 }
 
 /**
@@ -196,26 +189,6 @@ efi_status_t efivar_get_next_variable(unsigned long *name_size,
 EXPORT_SYMBOL_NS_GPL(efivar_get_next_variable, EFIVAR);
 
 /*
- * efivar_set_variable_blocking() - local helper function for set_variable
- *
- * Must be called with efivars_lock held.
- */
-static efi_status_t
-efivar_set_variable_blocking(efi_char16_t *name, efi_guid_t *vendor,
-			     u32 attr, unsigned long data_size, void *data)
-{
-	efi_status_t status;
-
-	if (data_size > 0) {
-		status = check_var_size(attr, data_size +
-					      ucs2_strsize(name, 1024));
-		if (status != EFI_SUCCESS)
-			return status;
-	}
-	return __efivars->ops->set_variable(name, vendor, attr, data_size, data);
-}
-
-/*
  * efivar_set_variable_locked() - set a variable identified by name/vendor
  *
  * Must be called with efivars_lock held. If @nonblocking is set, it will use
@@ -228,23 +201,21 @@ efi_status_t efivar_set_variable_locked(efi_char16_t *name, efi_guid_t *vendor,
 	efi_set_variable_t *setvar;
 	efi_status_t status;
 
-	if (!nonblocking)
-		return efivar_set_variable_blocking(name, vendor, attr,
-						    data_size, data);
+	if (data_size > 0) {
+		status = check_var_size(nonblocking, attr,
+					data_size + ucs2_strsize(name, 1024));
+		if (status != EFI_SUCCESS)
+			return status;
+	}
 
 	/*
 	 * If no _nonblocking variant exists, the ordinary one
 	 * is assumed to be non-blocking.
 	 */
-	setvar = __efivars->ops->set_variable_nonblocking ?:
-		 __efivars->ops->set_variable;
+	setvar = __efivars->ops->set_variable_nonblocking;
+	if (!setvar || !nonblocking)
+		 setvar = __efivars->ops->set_variable;
 
-	if (data_size > 0) {
-		status = check_var_size_nonblocking(attr, data_size +
-							  ucs2_strsize(name, 1024));
-		if (status != EFI_SUCCESS)
-			return status;
-	}
 	return setvar(name, vendor, attr, data_size, data);
 }
 EXPORT_SYMBOL_NS_GPL(efivar_set_variable_locked, EFIVAR);
@@ -264,7 +235,8 @@ efi_status_t efivar_set_variable(efi_char16_t *name, efi_guid_t *vendor,
 	if (efivar_lock())
 		return EFI_ABORTED;
 
-	status = efivar_set_variable_blocking(name, vendor, attr, data_size, data);
+	status = efivar_set_variable_locked(name, vendor, attr, data_size,
+					    data, false);
 	efivar_unlock();
 	return status;
 }

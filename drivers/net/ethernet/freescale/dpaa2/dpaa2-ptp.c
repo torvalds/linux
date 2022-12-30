@@ -8,7 +8,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/msi.h>
 #include <linux/fsl/mc.h>
 
 #include "dpaa2-ptp.h"

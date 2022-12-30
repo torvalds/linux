@@ -13,12 +13,16 @@
 #include <linux/iversion.h>
 #include <linux/sched/mm.h>
 #include "ctree.h"
+#include "fs.h"
+#include "messages.h"
 #include "btrfs_inode.h"
 #include "transaction.h"
 #include "xattr.h"
 #include "disk-io.h"
 #include "props.h"
 #include "locking.h"
+#include "accessors.h"
+#include "dir-item.h"
 
 int btrfs_getxattr(struct inode *inode, const char *name,
 				void *buffer, size_t size)

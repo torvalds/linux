@@ -130,10 +130,8 @@ static void hda_codec_unregister_dais(struct hda_codec *codec,
 			if (strcmp(dai->driver->name, pcm->name))
 				continue;
 
-			if (dai->playback_widget)
-				snd_soc_dapm_free_widget(dai->playback_widget);
-			if (dai->capture_widget)
-				snd_soc_dapm_free_widget(dai->capture_widget);
+			snd_soc_dapm_free_widget(dai->playback_widget);
+			snd_soc_dapm_free_widget(dai->capture_widget);
 			snd_soc_unregister_dai(dai);
 			break;
 		}
@@ -181,7 +179,7 @@ static int hda_codec_probe(struct snd_soc_component *component)
 		!pm_runtime_status_suspended(&hdev->dev));
 #endif
 
-	hlink = snd_hdac_ext_bus_link_at(bus, hdev->addr);
+	hlink = snd_hdac_ext_bus_get_hlink_by_addr(bus, hdev->addr);
 	if (!hlink) {
 		dev_err(&hdev->dev, "hdac link not found\n");
 		return -EIO;
@@ -213,7 +211,7 @@ static int hda_codec_probe(struct snd_soc_component *component)
 
 	patch = (hda_codec_patch_t)codec->preset->driver_data;
 	if (!patch) {
-		dev_err(&hdev->dev, "no patch specified?\n");
+		dev_err(&hdev->dev, "no patch specified\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -289,7 +287,7 @@ static void hda_codec_remove(struct snd_soc_component *component)
 	if (hda_codec_is_display(codec))
 		snd_hdac_display_power(bus, hdev->addr, false);
 
-	hlink = snd_hdac_ext_bus_link_at(bus, hdev->addr);
+	hlink = snd_hdac_ext_bus_get_hlink_by_addr(bus, hdev->addr);
 	if (hlink)
 		snd_hdac_ext_bus_link_put(bus, hlink);
 	/*

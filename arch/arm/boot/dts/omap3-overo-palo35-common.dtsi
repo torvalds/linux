@@ -17,12 +17,12 @@
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins>;
-		heartbeat {
+		led-heartbeat {
 			label = "overo:red:gpio21";
 			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;		/* gpio_21 */
 			linux,default-trigger = "heartbeat";
 		};
-		gpio22 {
+		led-gpio22 {
 			label = "overo:blue:gpio22";
 			gpios = <&gpio1 22 GPIO_ACTIVE_LOW>;		/* gpio_22 */
 		};

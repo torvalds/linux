@@ -138,7 +138,6 @@ online_all_offline_memory()
 {
 	for memory in `hotpluggable_offline_memory`; do
 		if ! online_memory_expect_success $memory; then
-			echo "$FUNCNAME $memory: unexpected fail" >&2
 			retval=1
 		fi
 	done

@@ -30,9 +30,10 @@
 #include "display/intel_cdclk.h"
 #include "display/intel_de.h"
 #include "gt/intel_gt_regs.h"
-#include "intel_device_info.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i915_utils.h"
+#include "intel_device_info.h"
 
 #define PLATFORM_NAME(x) [INTEL_##x] = #x
 static const char * const platform_names[] = {
@@ -488,7 +489,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		if (DISPLAY_VER(dev_priv) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
 			runtime->has_dmc = 0;
 
-		if (DISPLAY_VER(dev_priv) >= 10 &&
+		if (IS_DISPLAY_VER(dev_priv, 10, 12) &&
 		    (dfsm & GLK_DFSM_DISPLAY_DSC_DISABLE))
 			runtime->has_dsc = 0;
 	}

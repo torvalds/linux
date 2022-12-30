@@ -13,83 +13,58 @@
 #include <asm/ftrace.h>
 #include <asm/insn.h>
 
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
 /*
  * Due to -fpatchable-function-entry=2, the compiler has placed two NOPs before
  * the regular function prologue. For an enabled callsite, ftrace_init_nop() and
  * ftrace_make_call() have patched those NOPs to:
  *
  * 	MOV	X9, LR
- * 	BL	<entry>
- *
- * ... where <entry> is either ftrace_caller or ftrace_regs_caller.
+ * 	BL	ftrace_caller
  *
  * Each instrumented function follows the AAPCS, so here x0-x8 and x18-x30 are
  * live (x18 holds the Shadow Call Stack pointer), and x9-x17 are safe to
  * clobber.
  *
- * We save the callsite's context into a pt_regs before invoking any ftrace
- * callbacks. So that we can get a sensible backtrace, we create a stack record
- * for the callsite and the ftrace entry assembly. This is not sufficient for
- * reliable stacktrace: until we create the callsite stack record, its caller
- * is missing from the LR and existing chain of frame records.
+ * We save the callsite's context into a struct ftrace_regs before invoking any
+ * ftrace callbacks. So that we can get a sensible backtrace, we create frame
+ * records for the callsite and the ftrace entry assembly. This is not
+ * sufficient for reliable stacktrace: until we create the callsite stack
+ * record, its caller is missing from the LR and existing chain of frame
+ * records.
  */
-	.macro  ftrace_regs_entry, allregs=0
-	/* Make room for pt_regs, plus a callee frame */
-	sub	sp, sp, #(PT_REGS_SIZE + 16)
-
-	/* Save function arguments (and x9 for simplicity) */
-	stp	x0, x1, [sp, #S_X0]
-	stp	x2, x3, [sp, #S_X2]
-	stp	x4, x5, [sp, #S_X4]
-	stp	x6, x7, [sp, #S_X6]
-	stp	x8, x9, [sp, #S_X8]
-
-	/* Optionally save the callee-saved registers, always save the FP */
-	.if \allregs == 1
-	stp	x10, x11, [sp, #S_X10]
-	stp	x12, x13, [sp, #S_X12]
-	stp	x14, x15, [sp, #S_X14]
-	stp	x16, x17, [sp, #S_X16]
-	stp	x18, x19, [sp, #S_X18]
-	stp	x20, x21, [sp, #S_X20]
-	stp	x22, x23, [sp, #S_X22]
-	stp	x24, x25, [sp, #S_X24]
-	stp	x26, x27, [sp, #S_X26]
-	stp	x28, x29, [sp, #S_X28]
-	.else
-	str	x29, [sp, #S_FP]
-	.endif
-
-	/* Save the callsite's SP and LR */
-	add	x10, sp, #(PT_REGS_SIZE + 16)
-	stp	x9, x10, [sp, #S_LR]
-
-	/* Save the PC after the ftrace callsite */
-	str	x30, [sp, #S_PC]
-
-	/* Create a frame record for the callsite above pt_regs */
-	stp	x29, x9, [sp, #PT_REGS_SIZE]
-	add	x29, sp, #PT_REGS_SIZE
-
-	/* Create our frame record within pt_regs. */
-	stp	x29, x30, [sp, #S_STACKFRAME]
-	add	x29, sp, #S_STACKFRAME
-	.endm
-
-SYM_CODE_START(ftrace_regs_caller)
-	bti	c
-	ftrace_regs_entry	1
-	b	ftrace_common
-SYM_CODE_END(ftrace_regs_caller)
-
 SYM_CODE_START(ftrace_caller)
 	bti	c
-	ftrace_regs_entry	0
-	b	ftrace_common
-SYM_CODE_END(ftrace_caller)
 
-SYM_CODE_START(ftrace_common)
+	/* Save original SP */
+	mov	x10, sp
+
+	/* Make room for ftrace regs, plus two frame records */
+	sub	sp, sp, #(FREGS_SIZE + 32)
+
+	/* Save function arguments */
+	stp	x0, x1, [sp, #FREGS_X0]
+	stp	x2, x3, [sp, #FREGS_X2]
+	stp	x4, x5, [sp, #FREGS_X4]
+	stp	x6, x7, [sp, #FREGS_X6]
+	str	x8,     [sp, #FREGS_X8]
+
+	/* Save the callsite's FP, LR, SP */
+	str	x29, [sp, #FREGS_FP]
+	str	x9,  [sp, #FREGS_LR]
+	str	x10, [sp, #FREGS_SP]
+
+	/* Save the PC after the ftrace callsite */
+	str	x30, [sp, #FREGS_PC]
+
+	/* Create a frame record for the callsite above the ftrace regs */
+	stp	x29, x9, [sp, #FREGS_SIZE + 16]
+	add	x29, sp, #FREGS_SIZE + 16
+
+	/* Create our frame record above the ftrace regs */
+	stp	x29, x30, [sp, #FREGS_SIZE]
+	add	x29, sp, #FREGS_SIZE
+
 	sub	x0, x30, #AARCH64_INSN_SIZE	// ip (callsite's BL insn)
 	mov	x1, x9				// parent_ip (callsite's LR)
 	ldr_l	x2, function_trace_op		// op
@@ -104,24 +79,24 @@ SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
  * to restore x0-x8, x29, and x30.
  */
 	/* Restore function arguments */
-	ldp	x0, x1, [sp]
-	ldp	x2, x3, [sp, #S_X2]
-	ldp	x4, x5, [sp, #S_X4]
-	ldp	x6, x7, [sp, #S_X6]
-	ldr	x8, [sp, #S_X8]
+	ldp	x0, x1, [sp, #FREGS_X0]
+	ldp	x2, x3, [sp, #FREGS_X2]
+	ldp	x4, x5, [sp, #FREGS_X4]
+	ldp	x6, x7, [sp, #FREGS_X6]
+	ldr	x8,     [sp, #FREGS_X8]
 
 	/* Restore the callsite's FP, LR, PC */
-	ldr	x29, [sp, #S_FP]
-	ldr	x30, [sp, #S_LR]
-	ldr	x9, [sp, #S_PC]
+	ldr	x29, [sp, #FREGS_FP]
+	ldr	x30, [sp, #FREGS_LR]
+	ldr	x9,  [sp, #FREGS_PC]
 
 	/* Restore the callsite's SP */
-	add	sp, sp, #PT_REGS_SIZE + 16
+	add	sp, sp, #FREGS_SIZE + 32
 
 	ret	x9
-SYM_CODE_END(ftrace_common)
+SYM_CODE_END(ftrace_caller)
 
-#else /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
+#else /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 
 /*
  * Gcc with -pg will put the following code in the beginning of each function:
@@ -195,44 +170,6 @@ SYM_CODE_END(ftrace_common)
 	add	\reg, \reg, #8
 	.endm
 
-#ifndef CONFIG_DYNAMIC_FTRACE
-/*
- * void _mcount(unsigned long return_address)
- * @return_address: return address to instrumented function
- *
- * This function makes calls, if enabled, to:
- *     - tracer function to probe instrumented function's entry,
- *     - ftrace_graph_caller to set up an exit hook
- */
-SYM_FUNC_START(_mcount)
-	mcount_enter
-
-	ldr_l	x2, ftrace_trace_function
-	adr	x0, ftrace_stub
-	cmp	x0, x2			// if (ftrace_trace_function
-	b.eq	skip_ftrace_call	//     != ftrace_stub) {
-
-	mcount_get_pc	x0		//       function's pc
-	mcount_get_lr	x1		//       function's lr (= parent's pc)
-	blr	x2			//   (*ftrace_trace_function)(pc, lr);
-
-skip_ftrace_call:			// }
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	ldr_l	x2, ftrace_graph_return
-	cmp	x0, x2			//   if ((ftrace_graph_return
-	b.ne	ftrace_graph_caller	//        != ftrace_stub)
-
-	ldr_l	x2, ftrace_graph_entry	//     || (ftrace_graph_entry
-	adr_l	x0, ftrace_graph_entry_stub //     != ftrace_graph_entry_stub))
-	cmp	x0, x2
-	b.ne	ftrace_graph_caller	//     ftrace_graph_caller();
-#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-	mcount_exit
-SYM_FUNC_END(_mcount)
-EXPORT_SYMBOL(_mcount)
-NOKPROBE(_mcount)
-
-#else /* CONFIG_DYNAMIC_FTRACE */
 /*
  * _mcount() is used to build the kernel with -pg option, but all the branch
  * instructions to _mcount() are replaced to NOP initially at kernel start up,
@@ -272,7 +209,6 @@ SYM_INNER_LABEL(ftrace_graph_call, SYM_L_GLOBAL) // ftrace_graph_caller();
 
 	mcount_exit
 SYM_FUNC_END(ftrace_caller)
-#endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*
@@ -293,17 +229,17 @@ SYM_FUNC_START(ftrace_graph_caller)
 	mcount_exit
 SYM_FUNC_END(ftrace_graph_caller)
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-#endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 
 SYM_TYPED_FUNC_START(ftrace_stub)
 	ret
 SYM_FUNC_END(ftrace_stub)
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 SYM_TYPED_FUNC_START(ftrace_stub_graph)
 	ret
 SYM_FUNC_END(ftrace_stub_graph)
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*
  * void return_to_handler(void)
  *

@@ -354,6 +354,9 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
+	cros_ec_lpc_mec_init(EC_HOST_CMD_REGION0,
+			     EC_LPC_ADDR_MEMMAP + EC_MEMMAP_SIZE);
+
 	/*
 	 * Read the mapped ID twice, the first one is assuming the
 	 * EC is a Microchip Embedded Controller (MEC) variant, if the
@@ -554,6 +557,12 @@ static struct platform_driver cros_ec_lpc_driver = {
 		.name = DRV_NAME,
 		.acpi_match_table = cros_ec_lpc_acpi_device_ids,
 		.pm = &cros_ec_lpc_pm_ops,
+		/*
+		 * ACPI child devices may probe before us, and they racily
+		 * check our drvdata pointer. Force synchronous probe until
+		 * those races are resolved.
+		 */
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe = cros_ec_lpc_probe,
 	.remove = cros_ec_lpc_remove,
@@ -586,14 +595,10 @@ static int __init cros_ec_lpc_init(void)
 		return -ENODEV;
 	}
 
-	cros_ec_lpc_mec_init(EC_HOST_CMD_REGION0,
-			     EC_LPC_ADDR_MEMMAP + EC_MEMMAP_SIZE);
-
 	/* Register the driver */
 	ret = platform_driver_register(&cros_ec_lpc_driver);
 	if (ret) {
 		pr_err(DRV_NAME ": can't register driver: %d\n", ret);
-		cros_ec_lpc_mec_destroy();
 		return ret;
 	}
 
@@ -603,7 +608,6 @@ static int __init cros_ec_lpc_init(void)
 		if (ret) {
 			pr_err(DRV_NAME ": can't register device: %d\n", ret);
 			platform_driver_unregister(&cros_ec_lpc_driver);
-			cros_ec_lpc_mec_destroy();
 		}
 	}
 
@@ -615,7 +619,6 @@ static void __exit cros_ec_lpc_exit(void)
 	if (!cros_ec_lpc_acpi_device_found)
 		platform_device_unregister(&cros_ec_lpc_device);
 	platform_driver_unregister(&cros_ec_lpc_driver);
-	cros_ec_lpc_mec_destroy();
 }
 
 module_init(cros_ec_lpc_init);

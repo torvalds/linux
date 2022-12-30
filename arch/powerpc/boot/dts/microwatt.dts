@@ -21,6 +21,14 @@
 		reg = <0x00000000 0x00000000 0x00000000 0x10000000>;
 	};
 
+	clocks {
+		sys_clk: litex_sys_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <100000000>;
+		};
+	};
+
 	cpus {
 		#size-cells = <0x00>;
 		#address-cells = <0x01>;
@@ -140,6 +148,20 @@
 			litex,tx-slots = <2>;
 			litex,slot-size = <0x800>;
 			interrupts = <0x11 0x1>;
+		};
+
+		mmc@8040000 {
+			compatible = "litex,mmc";
+			reg = <0x8042800 0x800
+				0x8041000 0x800
+				0x8040800 0x800
+				0x8042000 0x800
+				0x8041800 0x800>;
+			reg-names = "phy", "core", "reader", "writer", "irq";
+			bus-width = <4>;
+			interrupts = <0x13 1>;
+			cap-sd-highspeed;
+			clocks = <&sys_clk>;
 		};
 	};
 

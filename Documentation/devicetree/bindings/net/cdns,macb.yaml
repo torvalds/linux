@@ -203,7 +203,6 @@ examples:
                     power-domains = <&zynqmp_firmware PD_ETH_1>;
                     resets = <&zynqmp_reset ZYNQMP_RESET_GEM1>;
                     reset-names = "gem1_rst";
-                    status = "okay";
                     phy-mode = "sgmii";
                     phys = <&psgtr 1 PHY_TYPE_SGMII 1 1>;
                     fixed-link {

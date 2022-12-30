@@ -19,7 +19,6 @@
 #include <asm/cacheflush.h>
 #include <asm/kdump.h>
 #include <mm/mmu_decl.h>
-#include <generated/utsrelease.h>
 
 struct regions {
 	unsigned long pa_start;

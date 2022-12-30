@@ -118,8 +118,7 @@ void wm8400_reset_codec_reg_cache(struct wm8400 *wm8400)
 EXPORT_SYMBOL_GPL(wm8400_reset_codec_reg_cache);
 
 #if IS_ENABLED(CONFIG_I2C)
-static int wm8400_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8400_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8400 *wm8400;
 
@@ -146,7 +145,7 @@ static struct i2c_driver wm8400_i2c_driver = {
 	.driver = {
 		.name = "WM8400",
 	},
-	.probe    = wm8400_i2c_probe,
+	.probe_new = wm8400_i2c_probe,
 	.id_table = wm8400_i2c_id,
 };
 #endif

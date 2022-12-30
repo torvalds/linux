@@ -372,6 +372,14 @@ skip_rdma:
 		seq_printf(m, "\nIn Send: %d In MaxReq Wait: %d",
 				atomic_read(&server->in_send),
 				atomic_read(&server->num_waiters));
+		if (IS_ENABLED(CONFIG_CIFS_DFS_UPCALL)) {
+			if (server->origin_fullpath)
+				seq_printf(m, "\nDFS origin full path: %s",
+					   server->origin_fullpath);
+			if (server->leaf_fullpath)
+				seq_printf(m, "\nDFS leaf full path:   %s",
+					   server->leaf_fullpath);
+		}
 
 		seq_printf(m, "\n\n\tSessions: ");
 		i = 0;

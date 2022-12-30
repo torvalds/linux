@@ -1,7 +1,46 @@
 [
     {
+        "BriefDescription": "ASSISTS.HARDWARE",
+        "EventCode": "0xc1",
+        "EventName": "ASSISTS.HARDWARE",
+        "SampleAfterValue": "100003",
+        "UMask": "0x4",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "ASSISTS.PAGE_FAULT",
+        "EventCode": "0xc1",
+        "EventName": "ASSISTS.PAGE_FAULT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "CORE_POWER.LICENSE_1",
+        "EventCode": "0x28",
+        "EventName": "CORE_POWER.LICENSE_1",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "CORE_POWER.LICENSE_2",
+        "EventCode": "0x28",
+        "EventName": "CORE_POWER.LICENSE_2",
+        "SampleAfterValue": "200003",
+        "UMask": "0x4",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "CORE_POWER.LICENSE_3",
+        "EventCode": "0x28",
+        "EventName": "CORE_POWER.LICENSE_3",
+        "SampleAfterValue": "200003",
+        "UMask": "0x8",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "Counts modified writebacks from L1 cache and L2 cache that have any type of response.",
-        "Counter": "0,1,2,3,4,5",
         "EventCode": "0xB7",
         "EventName": "OCR.COREWB_M.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -12,7 +51,6 @@
     },
     {
         "BriefDescription": "Counts demand data reads that have any type of response.",
-        "Counter": "0,1,2,3,4,5",
         "EventCode": "0xB7",
         "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -22,90 +60,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
-        "Counter": "0,1,2,3,4,5",
-        "EventCode": "0xB7",
-        "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
-        "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x10002",
-        "SampleAfterValue": "100003",
-        "UMask": "0x1",
-        "Unit": "cpu_atom"
-    },
-    {
-        "BriefDescription": "Counts streaming stores that have any type of response.",
-        "Counter": "0,1,2,3,4,5",
-        "EventCode": "0xB7",
-        "EventName": "OCR.STREAMING_WR.ANY_RESPONSE",
-        "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x10800",
-        "SampleAfterValue": "100003",
-        "UMask": "0x1",
-        "Unit": "cpu_atom"
-    },
-    {
-        "BriefDescription": "ASSISTS.HARDWARE",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0xc1",
-        "EventName": "ASSISTS.HARDWARE",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
-        "SampleAfterValue": "100003",
-        "Speculative": "1",
-        "UMask": "0x4",
-        "Unit": "cpu_core"
-    },
-    {
-        "BriefDescription": "ASSISTS.PAGE_FAULT",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0xc1",
-        "EventName": "ASSISTS.PAGE_FAULT",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
-        "SampleAfterValue": "1000003",
-        "Speculative": "1",
-        "UMask": "0x8",
-        "Unit": "cpu_core"
-    },
-    {
-        "BriefDescription": "CORE_POWER.LICENSE_1",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x28",
-        "EventName": "CORE_POWER.LICENSE_1",
-        "PEBScounters": "0,1,2,3",
-        "SampleAfterValue": "200003",
-        "Speculative": "1",
-        "UMask": "0x2",
-        "Unit": "cpu_core"
-    },
-    {
-        "BriefDescription": "CORE_POWER.LICENSE_2",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x28",
-        "EventName": "CORE_POWER.LICENSE_2",
-        "PEBScounters": "0,1,2,3",
-        "SampleAfterValue": "200003",
-        "Speculative": "1",
-        "UMask": "0x4",
-        "Unit": "cpu_core"
-    },
-    {
-        "BriefDescription": "CORE_POWER.LICENSE_3",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x28",
-        "EventName": "CORE_POWER.LICENSE_3",
-        "PEBScounters": "0,1,2,3",
-        "SampleAfterValue": "200003",
-        "Speculative": "1",
-        "UMask": "0x8",
-        "Unit": "cpu_core"
-    },
-    {
         "BriefDescription": "Counts demand data reads that have any type of response.",
-        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -116,7 +71,6 @@
     },
     {
         "BriefDescription": "Counts demand data reads that were supplied by DRAM.",
-        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -126,8 +80,17 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
+        "EventCode": "0xB7",
+        "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10002",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
-        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -138,7 +101,16 @@
     },
     {
         "BriefDescription": "Counts streaming stores that have any type of response.",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xB7",
+        "EventName": "OCR.STREAMING_WR.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10800",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts streaming stores that have any type of response.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.STREAMING_WR.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -149,68 +121,52 @@
     },
     {
         "BriefDescription": "Cycles when Reservation Station (RS) is empty for the thread.",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa5",
         "EventName": "RS.EMPTY",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for this logical processor. This is usually caused when the front-end pipeline runs into starvation periods (e.g. branch mispredictions or i-cache misses)",
         "SampleAfterValue": "1000003",
-        "Speculative": "1",
         "UMask": "0x7",
         "Unit": "cpu_core"
     },
     {
         "BriefDescription": "Counts end of periods where the Reservation Station (RS) was empty.",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
         "CounterMask": "1",
         "EdgeDetect": "1",
         "EventCode": "0xa5",
         "EventName": "RS.EMPTY_COUNT",
         "Invert": "1",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Counts end of periods where the Reservation Station (RS) was empty. Could be useful to closely sample on front-end latency issues (see the FRONTEND_RETIRED event of designated precise events)",
         "SampleAfterValue": "100003",
-        "Speculative": "1",
         "UMask": "0x7",
         "Unit": "cpu_core"
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event RS.EMPTY_COUNT",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
         "CounterMask": "1",
+        "Deprecated": "1",
         "EdgeDetect": "1",
         "EventCode": "0xa5",
         "EventName": "RS_EMPTY.COUNT",
         "Invert": "1",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "100003",
-        "Speculative": "1",
         "UMask": "0x7",
         "Unit": "cpu_core"
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event RS.EMPTY",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "Deprecated": "1",
         "EventCode": "0xa5",
         "EventName": "RS_EMPTY.CYCLES",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
-        "Speculative": "1",
         "UMask": "0x7",
         "Unit": "cpu_core"
     },
     {
         "BriefDescription": "XQ.FULL_CYCLES",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x2d",
         "EventName": "XQ.FULL_CYCLES",
-        "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
-        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     }

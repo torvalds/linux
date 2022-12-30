@@ -81,6 +81,9 @@ properties:
 
           power-supply: true
 
+          power-domains:
+            maxItems: 1
+
           resets:
             description: |
               A number of phandles to resets that need to be asserted during

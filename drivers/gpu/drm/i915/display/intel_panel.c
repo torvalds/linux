@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/pwm.h>
 
+#include "i915_reg.h"
 #include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_de.h"

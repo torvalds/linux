@@ -46,7 +46,7 @@ static int rand_eb(void)
 
 again:
 	/* Read or write up 2 eraseblocks at a time - hence 'ebcnt - 1' */
-	eb = prandom_u32_max(ebcnt - 1);
+	eb = get_random_u32_below(ebcnt - 1);
 	if (bbt[eb])
 		goto again;
 	return eb;
@@ -54,12 +54,12 @@ again:
 
 static int rand_offs(void)
 {
-	return prandom_u32_max(bufsize);
+	return get_random_u32_below(bufsize);
 }
 
 static int rand_len(int offs)
 {
-	return prandom_u32_max(bufsize - offs);
+	return get_random_u32_below(bufsize - offs);
 }
 
 static int do_read(void)
@@ -118,7 +118,7 @@ static int do_write(void)
 
 static int do_operation(void)
 {
-	if (prandom_u32_max(2))
+	if (get_random_u32_below(2))
 		return do_read();
 	else
 		return do_write();

@@ -285,26 +285,11 @@ struct drm_i915_private {
 
 	unsigned long gem_quirks;
 
-	struct drm_atomic_state *modeset_restore_state;
-	struct drm_modeset_acquire_ctx reset_ctx;
-
 	struct i915_gem_mm mm;
-
-	/* Kernel Modesetting */
-
-	struct list_head global_obj_list;
 
 	bool mchbar_need_disable;
 
 	struct intel_l3_parity l3_parity;
-
-	/*
-	 * HTI (aka HDPORT) state read during initial hw readout.  Most
-	 * platforms don't have HTI, so this will just stay 0.  Those that do
-	 * will use this later to figure out which PLLs and PHYs are unavailable
-	 * for driver usage.
-	 */
-	u32 hti_state;
 
 	/*
 	 * edram size in MB.

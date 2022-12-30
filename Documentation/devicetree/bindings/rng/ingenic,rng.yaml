@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/rng/ingenic,rng.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for RNG in Ingenic SoCs
+title: RNG in Ingenic SoCs
 
 maintainers:
   - 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
