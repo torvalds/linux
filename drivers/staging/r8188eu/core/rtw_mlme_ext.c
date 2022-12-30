@@ -3738,8 +3738,7 @@ static unsigned int on_action_public_p2p(struct recv_frame *precv_frame)
 static void on_action_public(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
-	u8 *pframe = precv_frame->rx_data;
-	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
+	u8 *frame_body = (u8 *)&mgmt->u;
 	u8 token;
 
 	/* All members of the action enum start with action_code. */
