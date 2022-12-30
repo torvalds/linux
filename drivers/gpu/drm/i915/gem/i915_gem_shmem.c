@@ -238,7 +238,7 @@ rebuild_st:
 			goto rebuild_st;
 		} else {
 			dev_warn(i915->drm.dev,
-				 "Failed to DMA remap %lu pages\n",
+				 "Failed to DMA remap %zu pages\n",
 				 obj->base.size >> PAGE_SHIFT);
 			goto err_pages;
 		}
