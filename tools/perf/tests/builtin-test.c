@@ -305,7 +305,7 @@ static int shell_test__run(struct test_suite *test, int subdir __maybe_unused)
 
 	path__join(script, sizeof(script) - 3, st->dir, st->file);
 
-	if (verbose)
+	if (verbose > 0)
 		strncat(script, " -v", sizeof(script) - strlen(script) - 1);
 
 	err = system(script);

@@ -238,8 +238,10 @@ static int amdgpu_vm_sdma_update(struct amdgpu_vm_update_params *p,
 	/* Wait for PD/PT moves to be completed */
 	dma_resv_iter_begin(&cursor, bo->tbo.base.resv, DMA_RESV_USAGE_KERNEL);
 	dma_resv_for_each_fence_unlocked(&cursor, fence) {
+		dma_fence_get(fence);
 		r = drm_sched_job_add_dependency(&p->job->base, fence);
 		if (r) {
+			dma_fence_put(fence);
 			dma_resv_iter_end(&cursor);
 			return r;
 		}

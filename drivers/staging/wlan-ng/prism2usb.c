@@ -170,9 +170,9 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 		 */
 		prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
 
-		del_timer_sync(&hw->throttle);
-		del_timer_sync(&hw->reqtimer);
-		del_timer_sync(&hw->resptimer);
+		timer_shutdown_sync(&hw->throttle);
+		timer_shutdown_sync(&hw->reqtimer);
+		timer_shutdown_sync(&hw->resptimer);
 
 		/* Unlink all the URBs. This "removes the wheels"
 		 * from the entire CTLX handling mechanism.

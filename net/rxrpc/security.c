@@ -67,13 +67,13 @@ const struct rxrpc_security *rxrpc_security_lookup(u8 security_index)
  */
 int rxrpc_init_client_call_security(struct rxrpc_call *call)
 {
-	const struct rxrpc_security *sec;
+	const struct rxrpc_security *sec = &rxrpc_no_security;
 	struct rxrpc_key_token *token;
 	struct key *key = call->key;
 	int ret;
 
 	if (!key)
-		return 0;
+		goto found;
 
 	ret = key_validate(key);
 	if (ret < 0)
@@ -88,7 +88,7 @@ int rxrpc_init_client_call_security(struct rxrpc_call *call)
 
 found:
 	call->security = sec;
-	_leave(" = 0");
+	call->security_ix = sec->security_index;
 	return 0;
 }
 

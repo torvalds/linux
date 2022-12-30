@@ -73,7 +73,7 @@ int BPF_PROG(task_kfunc_acquire_trusted_walked, struct task_struct *task, u64 cl
 	struct task_struct *acquired;
 
 	/* Can't invoke bpf_task_acquire() on a trusted pointer obtained from walking a struct. */
-	acquired = bpf_task_acquire(task->last_wakee);
+	acquired = bpf_task_acquire(task->group_leader);
 	bpf_task_release(acquired);
 
 	return 0;

@@ -606,7 +606,7 @@ static void br_multicast_destroy_mdb_entry(struct net_bridge_mcast_gc *gc)
 	WARN_ON(!hlist_unhashed(&mp->mdb_node));
 	WARN_ON(mp->ports);
 
-	del_timer_sync(&mp->timer);
+	timer_shutdown_sync(&mp->timer);
 	kfree_rcu(mp, rcu);
 }
 
@@ -647,7 +647,7 @@ static void br_multicast_destroy_group_src(struct net_bridge_mcast_gc *gc)
 	src = container_of(gc, struct net_bridge_group_src, mcast_gc);
 	WARN_ON(!hlist_unhashed(&src->node));
 
-	del_timer_sync(&src->timer);
+	timer_shutdown_sync(&src->timer);
 	kfree_rcu(src, rcu);
 }
 
@@ -676,8 +676,8 @@ static void br_multicast_destroy_port_group(struct net_bridge_mcast_gc *gc)
 	WARN_ON(!hlist_unhashed(&pg->mglist));
 	WARN_ON(!hlist_empty(&pg->src_list));
 
-	del_timer_sync(&pg->rexmit_timer);
-	del_timer_sync(&pg->timer);
+	timer_shutdown_sync(&pg->rexmit_timer);
+	timer_shutdown_sync(&pg->timer);
 	kfree_rcu(pg, rcu);
 }
 

@@ -71,6 +71,30 @@ struct ima_rule_opt_list {
 	char *items[];
 };
 
+/*
+ * These comparators are needed nowhere outside of ima so just define them here.
+ * This pattern should hopefully never be needed outside of ima.
+ */
+static inline bool vfsuid_gt_kuid(vfsuid_t vfsuid, kuid_t kuid)
+{
+	return __vfsuid_val(vfsuid) > __kuid_val(kuid);
+}
+
+static inline bool vfsgid_gt_kgid(vfsgid_t vfsgid, kgid_t kgid)
+{
+	return __vfsgid_val(vfsgid) > __kgid_val(kgid);
+}
+
+static inline bool vfsuid_lt_kuid(vfsuid_t vfsuid, kuid_t kuid)
+{
+	return __vfsuid_val(vfsuid) < __kuid_val(kuid);
+}
+
+static inline bool vfsgid_lt_kgid(vfsgid_t vfsgid, kgid_t kgid)
+{
+	return __vfsgid_val(vfsgid) < __kgid_val(kgid);
+}
+
 struct ima_rule_entry {
 	struct list_head list;
 	int action;

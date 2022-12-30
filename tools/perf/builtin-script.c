@@ -2233,7 +2233,7 @@ static void process_event(struct perf_script *script,
 	if (PRINT_FIELD(METRIC))
 		perf_sample__fprint_metric(script, thread, evsel, sample, fp);
 
-	if (verbose)
+	if (verbose > 0)
 		fflush(fp);
 }
 

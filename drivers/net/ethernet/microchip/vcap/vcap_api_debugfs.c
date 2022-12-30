@@ -83,6 +83,8 @@ static void vcap_debugfs_show_rule_keyfield(struct vcap_control *vctrl,
 		hex = true;
 		break;
 	case VCAP_FIELD_U128:
+		value = data->u128.value;
+		mask = data->u128.mask;
 		if (key == VCAP_KF_L3_IP6_SIP || key == VCAP_KF_L3_IP6_DIP) {
 			u8 nvalue[16], nmask[16];
 

@@ -217,6 +217,7 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
 	call->tx_total_len	= p->tx_total_len;
 	call->key		= key_get(cp->key);
 	call->local		= rxrpc_get_local(cp->local, rxrpc_local_get_call);
+	call->security_level	= cp->security_level;
 	if (p->kernel)
 		__set_bit(RXRPC_CALL_KERNEL, &call->flags);
 	if (cp->upgrade)

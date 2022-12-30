@@ -67,7 +67,8 @@ struct amdgpu_vmid_mgr {
 	unsigned		num_ids;
 	struct list_head	ids_lru;
 	struct amdgpu_vmid	ids[AMDGPU_NUM_VMID];
-	atomic_t		reserved_vmid_num;
+	struct amdgpu_vmid	*reserved;
+	unsigned int		reserved_use_count;
 };
 
 int amdgpu_pasid_alloc(unsigned int bits);

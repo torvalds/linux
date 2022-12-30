@@ -159,6 +159,8 @@ uint64_t amdgpu_ttm_domain_start(struct amdgpu_device *adev, uint32_t type);
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
 int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages,
 				 struct hmm_range **range);
+void amdgpu_ttm_tt_discard_user_pages(struct ttm_tt *ttm,
+				      struct hmm_range *range);
 bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm,
 				       struct hmm_range *range);
 #else
@@ -167,6 +169,10 @@ static inline int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo,
 					       struct hmm_range **range)
 {
 	return -EPERM;
+}
+static inline void amdgpu_ttm_tt_discard_user_pages(struct ttm_tt *ttm,
+						    struct hmm_range *range)
+{
 }
 static inline bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm,
 						     struct hmm_range *range)

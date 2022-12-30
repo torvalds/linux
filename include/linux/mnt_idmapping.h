@@ -96,26 +96,6 @@ static inline bool vfsgid_eq_kgid(vfsgid_t vfsgid, kgid_t kgid)
 	return vfsgid_valid(vfsgid) && __vfsgid_val(vfsgid) == __kgid_val(kgid);
 }
 
-static inline bool vfsuid_gt_kuid(vfsuid_t vfsuid, kuid_t kuid)
-{
-	return __vfsuid_val(vfsuid) > __kuid_val(kuid);
-}
-
-static inline bool vfsgid_gt_kgid(vfsgid_t vfsgid, kgid_t kgid)
-{
-	return __vfsgid_val(vfsgid) > __kgid_val(kgid);
-}
-
-static inline bool vfsuid_lt_kuid(vfsuid_t vfsuid, kuid_t kuid)
-{
-	return __vfsuid_val(vfsuid) < __kuid_val(kuid);
-}
-
-static inline bool vfsgid_lt_kgid(vfsgid_t vfsgid, kgid_t kgid)
-{
-	return __vfsgid_val(vfsgid) < __kgid_val(kgid);
-}
-
 /*
  * vfs{g,u}ids are created from k{g,u}ids.
  * We don't allow them to be created from regular {u,g}id.

@@ -2498,6 +2498,25 @@ static noinline void check_dup(struct maple_tree *mt)
 	}
 }
 
+static noinline void check_bnode_min_spanning(struct maple_tree *mt)
+{
+	int i = 50;
+	MA_STATE(mas, mt, 0, 0);
+
+	mt_set_non_kernel(9999);
+	mas_lock(&mas);
+	do {
+		mas_set_range(&mas, i*10, i*10+9);
+		mas_store(&mas, check_bnode_min_spanning);
+	} while (i--);
+
+	mas_set_range(&mas, 240, 509);
+	mas_store(&mas, NULL);
+	mas_unlock(&mas);
+	mas_destroy(&mas);
+	mt_set_non_kernel(0);
+}
+
 static DEFINE_MTREE(tree);
 static int maple_tree_seed(void)
 {
@@ -2740,6 +2759,10 @@ static int maple_tree_seed(void)
 
 	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
 	check_dup(&tree);
+	mtree_destroy(&tree);
+
+	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
+	check_bnode_min_spanning(&tree);
 	mtree_destroy(&tree);
 
 #if defined(BENCH)

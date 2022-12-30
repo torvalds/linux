@@ -64,7 +64,8 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 			    sizeof(atom_ctx->vbios_version)) ||
 		    strnstr(atom_ctx->vbios_version, "D163",
 			    sizeof(atom_ctx->vbios_version))) {
-			*fru_addr = FRU_EEPROM_MADDR_6;
+			if (fru_addr)
+				*fru_addr = FRU_EEPROM_MADDR_6;
 			return true;
 		} else {
 			return false;
@@ -83,7 +84,8 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 				    sizeof(atom_ctx->vbios_version))) {
 				return false;
 			} else {
-				*fru_addr = FRU_EEPROM_MADDR_6;
+				if (fru_addr)
+					*fru_addr = FRU_EEPROM_MADDR_6;
 				return true;
 			}
 		} else {

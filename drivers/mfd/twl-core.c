@@ -754,8 +754,9 @@ static struct of_dev_auxdata twl_auxdata_lookup[] = {
 
 /* NOTE: This driver only handles a single twl4030/tps659x0 chip */
 static int
-twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
+twl_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device_node		*node = client->dev.of_node;
 	struct platform_device		*pdev;
 	const struct regmap_config	*twl_regmap_config;
@@ -955,7 +956,7 @@ static struct i2c_driver twl_driver = {
 	.driver.name	= DRIVER_NAME,
 	.driver.pm	= &twl_dev_pm_ops,
 	.id_table	= twl_ids,
-	.probe		= twl_probe,
+	.probe_new	= twl_probe,
 	.remove		= twl_remove,
 };
 builtin_i2c_driver(twl_driver);

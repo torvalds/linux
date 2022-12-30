@@ -326,11 +326,11 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
  * If we want to report an error, we mark the skb with the packet type and
  * abort code and return false.
  */
-bool rxrpc_new_incoming_call(struct rxrpc_local *local,
-			     struct rxrpc_peer *peer,
-			     struct rxrpc_connection *conn,
-			     struct sockaddr_rxrpc *peer_srx,
-			     struct sk_buff *skb)
+int rxrpc_new_incoming_call(struct rxrpc_local *local,
+			    struct rxrpc_peer *peer,
+			    struct rxrpc_connection *conn,
+			    struct sockaddr_rxrpc *peer_srx,
+			    struct sk_buff *skb)
 {
 	const struct rxrpc_security *sec = NULL;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -342,7 +342,7 @@ bool rxrpc_new_incoming_call(struct rxrpc_local *local,
 	/* Don't set up a call for anything other than the first DATA packet. */
 	if (sp->hdr.seq != 1 ||
 	    sp->hdr.type != RXRPC_PACKET_TYPE_DATA)
-		return true; /* Just discard */
+		return 0; /* Just discard */
 
 	rcu_read_lock();
 
@@ -413,7 +413,7 @@ bool rxrpc_new_incoming_call(struct rxrpc_local *local,
 	_leave(" = %p{%d}", call, call->debug_id);
 	rxrpc_input_call_event(call, skb);
 	rxrpc_put_call(call, rxrpc_call_put_input);
-	return true;
+	return 0;
 
 unsupported_service:
 	trace_rxrpc_abort(0, "INV", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
@@ -425,10 +425,10 @@ no_call:
 reject:
 	rcu_read_unlock();
 	_leave(" = f [%u]", skb->mark);
-	return false;
+	return -EPROTO;
 discard:
 	rcu_read_unlock();
-	return true;
+	return 0;
 }
 
 /*

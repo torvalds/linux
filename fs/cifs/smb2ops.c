@@ -796,7 +796,9 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	__le16 *utf16_path;
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	int err_buftype = CIFS_NO_BUFFER;
 	struct cifs_open_parms oparms;
+	struct kvec err_iov = {};
 	struct cifs_fid fid;
 	struct cached_fid *cfid;
 
@@ -820,14 +822,32 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL, NULL,
-		       NULL);
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL,
+		       &err_iov, &err_buftype);
 	if (rc) {
-		kfree(utf16_path);
-		return rc;
+		struct smb2_hdr *hdr = err_iov.iov_base;
+
+		if (unlikely(!hdr || err_buftype == CIFS_NO_BUFFER))
+			goto out;
+		/*
+		 * Handle weird Windows SMB server behaviour. It responds with
+		 * STATUS_OBJECT_NAME_INVALID code to SMB2 QUERY_INFO request
+		 * for "\<server>\<dfsname>\<linkpath>" DFS reference,
+		 * where <dfsname> contains non-ASCII unicode symbols.
+		 */
+		if (rc != -EREMOTE && IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) &&
+		    hdr->Status == STATUS_OBJECT_NAME_INVALID)
+			rc = -EREMOTE;
+		if (rc == -EREMOTE && IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) && cifs_sb &&
+		    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS))
+			rc = -EOPNOTSUPP;
+		goto out;
 	}
 
 	rc = SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+
+out:
+	free_rsp_buf(err_buftype, err_iov.iov_base);
 	kfree(utf16_path);
 	return rc;
 }

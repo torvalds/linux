@@ -14,6 +14,11 @@
 #include <linux/netfs.h>
 #include "internal.h"
 
+static int afs_writepages_region(struct address_space *mapping,
+				 struct writeback_control *wbc,
+				 loff_t start, loff_t end, loff_t *_next,
+				 bool max_one_loop);
+
 static void afs_write_to_cache(struct afs_vnode *vnode, loff_t start, size_t len,
 			       loff_t i_size, bool caching);
 
@@ -37,6 +42,25 @@ static void afs_folio_start_fscache(bool caching, struct folio *folio)
 {
 }
 #endif
+
+/*
+ * Flush out a conflicting write.  This may extend the write to the surrounding
+ * pages if also dirty and contiguous to the conflicting region..
+ */
+static int afs_flush_conflicting_write(struct address_space *mapping,
+				       struct folio *folio)
+{
+	struct writeback_control wbc = {
+		.sync_mode	= WB_SYNC_ALL,
+		.nr_to_write	= LONG_MAX,
+		.range_start	= folio_pos(folio),
+		.range_end	= LLONG_MAX,
+	};
+	loff_t next;
+
+	return afs_writepages_region(mapping, &wbc, folio_pos(folio), LLONG_MAX,
+				     &next, true);
+}
 
 /*
  * prepare to perform part of a write to a page
@@ -80,7 +104,8 @@ try_again:
 
 		if (folio_test_writeback(folio)) {
 			trace_afs_folio_dirty(vnode, tracepoint_string("alrdy"), folio);
-			goto flush_conflicting_write;
+			folio_unlock(folio);
+			goto wait_for_writeback;
 		}
 		/* If the file is being filled locally, allow inter-write
 		 * spaces to be merged into writes.  If it's not, only write
@@ -99,8 +124,15 @@ try_again:
 	 * flush the page out.
 	 */
 flush_conflicting_write:
-	_debug("flush conflict");
-	ret = folio_write_one(folio);
+	trace_afs_folio_dirty(vnode, tracepoint_string("confl"), folio);
+	folio_unlock(folio);
+
+	ret = afs_flush_conflicting_write(mapping, folio);
+	if (ret < 0)
+		goto error;
+
+wait_for_writeback:
+	ret = folio_wait_writeback_killable(folio);
 	if (ret < 0)
 		goto error;
 
@@ -664,39 +696,12 @@ static ssize_t afs_write_back_from_locked_folio(struct address_space *mapping,
 }
 
 /*
- * write a page back to the server
- * - the caller locked the page for us
- */
-int afs_writepage(struct page *subpage, struct writeback_control *wbc)
-{
-	struct folio *folio = page_folio(subpage);
-	ssize_t ret;
-	loff_t start;
-
-	_enter("{%lx},", folio_index(folio));
-
-#ifdef CONFIG_AFS_FSCACHE
-	folio_wait_fscache(folio);
-#endif
-
-	start = folio_index(folio) * PAGE_SIZE;
-	ret = afs_write_back_from_locked_folio(folio_mapping(folio), wbc,
-					       folio, start, LLONG_MAX - start);
-	if (ret < 0) {
-		_leave(" = %zd", ret);
-		return ret;
-	}
-
-	_leave(" = 0");
-	return 0;
-}
-
-/*
  * write a region of pages back to the server
  */
 static int afs_writepages_region(struct address_space *mapping,
 				 struct writeback_control *wbc,
-				 loff_t start, loff_t end, loff_t *_next)
+				 loff_t start, loff_t end, loff_t *_next,
+				 bool max_one_loop)
 {
 	struct folio *folio;
 	struct page *head_page;
@@ -775,6 +780,9 @@ static int afs_writepages_region(struct address_space *mapping,
 
 		start += ret;
 
+		if (max_one_loop)
+			break;
+
 		cond_resched();
 	} while (wbc->nr_to_write > 0);
 
@@ -806,24 +814,27 @@ int afs_writepages(struct address_space *mapping,
 
 	if (wbc->range_cyclic) {
 		start = mapping->writeback_index * PAGE_SIZE;
-		ret = afs_writepages_region(mapping, wbc, start, LLONG_MAX, &next);
+		ret = afs_writepages_region(mapping, wbc, start, LLONG_MAX,
+					    &next, false);
 		if (ret == 0) {
 			mapping->writeback_index = next / PAGE_SIZE;
 			if (start > 0 && wbc->nr_to_write > 0) {
 				ret = afs_writepages_region(mapping, wbc, 0,
-							    start, &next);
+							    start, &next, false);
 				if (ret == 0)
 					mapping->writeback_index =
 						next / PAGE_SIZE;
 			}
 		}
 	} else if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX) {
-		ret = afs_writepages_region(mapping, wbc, 0, LLONG_MAX, &next);
+		ret = afs_writepages_region(mapping, wbc, 0, LLONG_MAX,
+					    &next, false);
 		if (wbc->nr_to_write > 0 && ret == 0)
 			mapping->writeback_index = next / PAGE_SIZE;
 	} else {
 		ret = afs_writepages_region(mapping, wbc,
-					    wbc->range_start, wbc->range_end, &next);
+					    wbc->range_start, wbc->range_end,
+					    &next, false);
 	}
 
 	up_read(&vnode->validate_lock);

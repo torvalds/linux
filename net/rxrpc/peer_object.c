@@ -226,7 +226,7 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp,
 		rxrpc_peer_init_rtt(peer);
 
 		peer->cong_ssthresh = RXRPC_TX_MAX_WINDOW;
-		trace_rxrpc_peer(peer->debug_id, why, 1);
+		trace_rxrpc_peer(peer->debug_id, 1, why);
 	}
 
 	_leave(" = %p", peer);
@@ -382,7 +382,7 @@ struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *peer, enum rxrpc_peer_trace
 	int r;
 
 	__refcount_inc(&peer->ref, &r);
-	trace_rxrpc_peer(peer->debug_id, why, r + 1);
+	trace_rxrpc_peer(peer->debug_id, r + 1, why);
 	return peer;
 }
 
@@ -435,25 +435,6 @@ void rxrpc_put_peer(struct rxrpc_peer *peer, enum rxrpc_peer_trace why)
 		trace_rxrpc_peer(debug_id, r - 1, why);
 		if (dead)
 			__rxrpc_put_peer(peer);
-	}
-}
-
-/*
- * Drop a ref on a peer record where the caller already holds the
- * peer_hash_lock.
- */
-void rxrpc_put_peer_locked(struct rxrpc_peer *peer, enum rxrpc_peer_trace why)
-{
-	unsigned int debug_id = peer->debug_id;
-	bool dead;
-	int r;
-
-	dead = __refcount_dec_and_test(&peer->ref, &r);
-	trace_rxrpc_peer(debug_id, r - 1, why);
-	if (dead) {
-		hash_del_rcu(&peer->hash_link);
-		list_del_init(&peer->keepalive_link);
-		rxrpc_free_peer(peer);
 	}
 }
 

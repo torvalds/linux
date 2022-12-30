@@ -782,8 +782,7 @@ static inline void bio_set_polled(struct bio *bio, struct kiocb *kiocb)
 
 static inline void bio_clear_polled(struct bio *bio)
 {
-	/* can't support alloc cache if we turn off polling */
-	bio->bi_opf &= ~(REQ_POLLED | REQ_ALLOC_CACHE);
+	bio->bi_opf &= ~REQ_POLLED;
 }
 
 struct bio *blk_next_bio(struct bio *bio, struct block_device *bdev,

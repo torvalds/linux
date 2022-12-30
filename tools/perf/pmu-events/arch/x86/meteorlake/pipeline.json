@@ -1,254 +1,182 @@
 [
     {
         "BriefDescription": "Counts the total number of branch instructions retired for all branch types.",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
         "PEBS": "1",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "200003",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "All branch instructions retired.",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
+        "PEBS": "1",
+        "SampleAfterValue": "400009",
+        "Unit": "cpu_core"
     },
     {
         "BriefDescription": "Counts the total number of mispredicted branch instructions retired for all branch types.",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
         "PEBS": "1",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "200003",
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "All mispredicted branch instructions retired.",
+        "EventCode": "0xc5",
+        "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
+        "PEBS": "1",
+        "SampleAfterValue": "400009",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "Fixed Counter: Counts the number of unhalted core clock cycles",
-        "CollectPEBSRecord": "2",
-        "Counter": "33",
         "EventName": "CPU_CLK_UNHALTED.CORE",
-        "PEBScounters": "33",
         "SampleAfterValue": "2000003",
         "UMask": "0x2",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts the number of unhalted core clock cycles[This event is alias to CPU_CLK_UNHALTED.THREAD_P]",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.CORE_P",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Fixed Counter: Counts the number of unhalted reference clock cycles",
-        "CollectPEBSRecord": "2",
-        "Counter": "34",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
-        "PEBScounters": "34",
         "SampleAfterValue": "2000003",
         "UMask": "0x3",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Reference cycles when the core is not in halt state.",
+        "EventName": "CPU_CLK_UNHALTED.REF_TSC",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x3",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Reference cycles when the core is not in halt state.",
+        "EventCode": "0x3c",
+        "EventName": "CPU_CLK_UNHALTED.REF_TSC_P",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
     },
     {
         "BriefDescription": "Fixed Counter: Counts the number of unhalted core clock cycles",
-        "CollectPEBSRecord": "2",
-        "Counter": "33",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
-        "PEBScounters": "33",
         "SampleAfterValue": "2000003",
         "UMask": "0x2",
         "Unit": "cpu_atom"
-    },
-    {
-        "BriefDescription": "Counts the number of unhalted core clock cycles[This event is alias to CPU_CLK_UNHALTED.CORE_P]",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0x3c",
-        "EventName": "CPU_CLK_UNHALTED.THREAD_P",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
-        "SampleAfterValue": "2000003",
-        "Unit": "cpu_atom"
-    },
-    {
-        "BriefDescription": "Fixed Counter: Counts the number of instructions retired",
-        "CollectPEBSRecord": "2",
-        "Counter": "32",
-        "EventName": "INST_RETIRED.ANY",
-        "PEBS": "1",
-        "PEBScounters": "32",
-        "SampleAfterValue": "2000003",
-        "UMask": "0x1",
-        "Unit": "cpu_atom"
-    },
-    {
-        "BriefDescription": "Counts the number of instructions retired",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0xc0",
-        "EventName": "INST_RETIRED.ANY_P",
-        "PEBS": "1",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
-        "SampleAfterValue": "2000003",
-        "Unit": "cpu_atom"
-    },
-    {
-        "BriefDescription": "Counts the number of issue slots that were not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear.",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0x73",
-        "EventName": "TOPDOWN_BAD_SPECULATION.ALL",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
-        "SampleAfterValue": "1000003",
-        "Unit": "cpu_atom"
-    },
-    {
-        "BriefDescription": "Counts the number of retirement slots not consumed due to backend stalls",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0x74",
-        "EventName": "TOPDOWN_BE_BOUND.ALL",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
-        "SampleAfterValue": "1000003",
-        "Unit": "cpu_atom"
-    },
-    {
-        "BriefDescription": "Counts the number of retirement slots not consumed due to front end stalls",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0x71",
-        "EventName": "TOPDOWN_FE_BOUND.ALL",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
-        "SampleAfterValue": "1000003",
-        "Unit": "cpu_atom"
-    },
-    {
-        "BriefDescription": "Counts the number of consumed retirement slots.  Similar to UOPS_RETIRED.ALL",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0x72",
-        "EventName": "TOPDOWN_RETIRING.ALL",
-        "PEBS": "1",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
-        "SampleAfterValue": "1000003",
-        "Unit": "cpu_atom"
-    },
-    {
-        "BriefDescription": "All branch instructions retired.",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0xc4",
-        "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
-        "PEBS": "1",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
-        "SampleAfterValue": "400009",
-        "Unit": "cpu_core"
-    },
-    {
-        "BriefDescription": "All mispredicted branch instructions retired.",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0xc5",
-        "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
-        "PEBS": "1",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
-        "SampleAfterValue": "400009",
-        "Unit": "cpu_core"
-    },
-    {
-        "BriefDescription": "Reference cycles when the core is not in halt state.",
-        "CollectPEBSRecord": "2",
-        "Counter": "34",
-        "EventName": "CPU_CLK_UNHALTED.REF_TSC",
-        "PEBScounters": "34",
-        "SampleAfterValue": "2000003",
-        "UMask": "0x3",
-        "Unit": "cpu_core"
-    },
-    {
-        "BriefDescription": "Reference cycles when the core is not in halt state.",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0x3c",
-        "EventName": "CPU_CLK_UNHALTED.REF_TSC_P",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
-        "SampleAfterValue": "2000003",
-        "UMask": "0x1",
-        "Unit": "cpu_core"
     },
     {
         "BriefDescription": "Core cycles when the thread is not in halt state",
-        "CollectPEBSRecord": "2",
-        "Counter": "33",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
-        "PEBScounters": "33",
         "SampleAfterValue": "2000003",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Thread cycles when thread is not in halt state",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "BriefDescription": "Counts the number of unhalted core clock cycles[This event is alias to CPU_CLK_UNHALTED.CORE_P]",
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "SampleAfterValue": "2000003",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Thread cycles when thread is not in halt state",
+        "EventCode": "0x3c",
+        "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "SampleAfterValue": "2000003",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Number of instructions retired. Fixed Counter - architectural event",
-        "CollectPEBSRecord": "2",
-        "Counter": "32",
+        "BriefDescription": "Fixed Counter: Counts the number of instructions retired",
         "EventName": "INST_RETIRED.ANY",
         "PEBS": "1",
-        "PEBScounters": "32",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Number of instructions retired. Fixed Counter - architectural event",
+        "EventName": "INST_RETIRED.ANY",
+        "PEBS": "1",
         "SampleAfterValue": "2000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Number of instructions retired. General Counter - architectural event",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "BriefDescription": "Counts the number of instructions retired",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.ANY_P",
         "PEBS": "1",
-        "PEBScounters": "1,2,3,4,5,6,7",
+        "SampleAfterValue": "2000003",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Number of instructions retired. General Counter - architectural event",
+        "EventCode": "0xc0",
+        "EventName": "INST_RETIRED.ANY_P",
+        "PEBS": "1",
         "SampleAfterValue": "2000003",
         "Unit": "cpu_core"
     },
     {
         "BriefDescription": "Loads blocked due to overlapping with a preceding store that cannot be forwarded.",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
-        "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
         "UMask": "0x82",
         "Unit": "cpu_core"
     },
     {
         "BriefDescription": "TMA slots available for an unhalted logical processor. Fixed counter - architectural event",
-        "CollectPEBSRecord": "2",
-        "Counter": "35",
         "EventName": "TOPDOWN.SLOTS",
-        "PEBScounters": "35",
         "SampleAfterValue": "10000003",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
     {
         "BriefDescription": "TMA slots available for an unhalted logical processor. General counter - architectural event",
-        "CollectPEBSRecord": "2",
-        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa4",
         "EventName": "TOPDOWN.SLOTS_P",
-        "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "10000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of issue slots that were not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear.",
+        "EventCode": "0x73",
+        "EventName": "TOPDOWN_BAD_SPECULATION.ALL",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retirement slots not consumed due to backend stalls",
+        "EventCode": "0x74",
+        "EventName": "TOPDOWN_BE_BOUND.ALL",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retirement slots not consumed due to front end stalls",
+        "EventCode": "0x71",
+        "EventName": "TOPDOWN_FE_BOUND.ALL",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of consumed retirement slots.  Similar to UOPS_RETIRED.ALL",
+        "EventCode": "0x72",
+        "EventName": "TOPDOWN_RETIRING.ALL",
+        "PEBS": "1",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
     }
 ]

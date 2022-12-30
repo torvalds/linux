@@ -288,13 +288,13 @@ out:
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 int task_untrusted_non_rcuptr(void *ctx)
 {
-	struct task_struct *task, *last_wakee;
+	struct task_struct *task, *group_leader;
 
 	task = bpf_get_current_task_btf();
 	bpf_rcu_read_lock();
-	/* the pointer last_wakee marked as untrusted */
-	last_wakee = task->real_parent->last_wakee;
-	(void)bpf_task_storage_get(&map_a, last_wakee, 0, 0);
+	/* the pointer group_leader marked as untrusted */
+	group_leader = task->real_parent->group_leader;
+	(void)bpf_task_storage_get(&map_a, group_leader, 0, 0);
 	bpf_rcu_read_unlock();
 	return 0;
 }

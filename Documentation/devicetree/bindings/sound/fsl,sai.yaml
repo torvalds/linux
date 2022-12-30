@@ -38,6 +38,7 @@ properties:
               - fsl,imx8mq-sai
               - fsl,imx8qm-sai
               - fsl,imx8ulp-sai
+              - fsl,imx93-sai
               - fsl,vf610-sai
 
   reg:
