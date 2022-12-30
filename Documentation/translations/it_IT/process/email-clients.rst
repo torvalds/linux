@@ -106,7 +106,7 @@ Funziona. Alcune persone riescono ad usarlo con successo per inviare le patch.
 Per inserire una patch usate :menuselection:`Messaggio-->Inserisci file`
 (:kbd:`CTRL-I`) oppure un editor esterno.
 
-Se la patch che avete inserito dev'essere modificata usato la finestra di
+Se la patch che avete inserito dev'essere modificata usando la finestra di
 scrittura di Claws, allora assicuratevi che l'"auto-interruzione" sia
 disabilitata :menuselection:`Configurazione-->Preferenze-->Composizione-->Interruzione riga`.
 
