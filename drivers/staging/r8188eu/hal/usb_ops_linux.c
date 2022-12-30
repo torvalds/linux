@@ -494,7 +494,7 @@ void rtl8188eu_xmit_tasklet(unsigned long priv)
 		    (adapt->bWritePortCancel))
 			break;
 
-		ret = rtl8188eu_xmitframe_complete(adapt, pxmitpriv, NULL);
+		ret = rtl8188eu_xmitframe_complete(adapt, pxmitpriv);
 
 		if (!ret)
 			break;
