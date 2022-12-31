@@ -1004,7 +1004,7 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 
 	if (!btf_data) {
 		pr_warn("failed to find '%s' ELF section in %s\n", BTF_ELF_SEC, path);
-		err = -ENOENT;
+		err = -ENODATA;
 		goto done;
 	}
 	btf = btf_new(btf_data->d_buf, btf_data->d_size, base_btf);
