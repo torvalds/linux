@@ -189,14 +189,8 @@ static const struct watchdog_ops davinci_wdt_ops = {
 	.restart	= davinci_wdt_restart,
 };
 
-static void davinci_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static int davinci_wdt_probe(struct platform_device *pdev)
 {
-	int ret = 0;
 	struct device *dev = &pdev->dev;
 	struct watchdog_device *wdd;
 	struct davinci_wdt_device *davinci_wdt;
@@ -205,20 +199,10 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 	if (!davinci_wdt)
 		return -ENOMEM;
 
-	davinci_wdt->clk = devm_clk_get(dev, NULL);
+	davinci_wdt->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(davinci_wdt->clk))
 		return dev_err_probe(dev, PTR_ERR(davinci_wdt->clk),
 				     "failed to get clock node\n");
-
-	ret = clk_prepare_enable(davinci_wdt->clk);
-	if (ret) {
-		dev_err(dev, "failed to prepare clock\n");
-		return ret;
-	}
-	ret = devm_add_action_or_reset(dev, davinci_clk_disable_unprepare,
-				       davinci_wdt->clk);
-	if (ret)
-		return ret;
 
 	platform_set_drvdata(pdev, davinci_wdt);
 
