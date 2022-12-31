@@ -286,9 +286,7 @@ magari in una cassetta di sicurezza in banca.
     Probabilmente la vostra stampante non è più quello stupido dispositivo
     connesso alla porta parallela, ma dato che il suo output è comunque
     criptato con la passphrase, eseguire la stampa in un sistema "cloud"
-    moderno dovrebbe essere comunque relativamente sicuro. Un'opzione potrebbe
-    essere quella di cambiare la passphrase della vostra chiave primaria
-    subito dopo aver finito con paperkey.
+    moderno dovrebbe essere comunque relativamente sicuro.
 
 Copia di riserva di tutta la cartella GnuPG
 -------------------------------------------

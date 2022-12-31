@@ -6,8 +6,8 @@
 
 .. _it_kernel_docs:
 
-Indice di documenti per le persone interessate a capire e/o scrivere per il kernel Linux
-========================================================================================
+Ulteriore Documentazione Del Kernel Linux
+=========================================
 
 .. note::
    Questo documento contiene riferimenti a documenti in lingua inglese; inoltre

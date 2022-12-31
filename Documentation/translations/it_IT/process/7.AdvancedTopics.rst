@@ -35,9 +35,9 @@ git è parte del processo di sviluppo del kernel.  Gli sviluppatori che
 desiderassero diventare agili con git troveranno più informazioni ai
 seguenti indirizzi:
 
-	http://git-scm.com/
+	https://git-scm.com/
 
-	http://www.kernel.org/pub/software/scm/git/docs/user-manual.html
+	https://www.kernel.org/pub/software/scm/git/docs/user-manual.html
 
 e su varie guide che potrete trovare su internet.
 
@@ -63,7 +63,7 @@ eseguire git-daemon è relativamente semplice .  Altrimenti, iniziano a
 svilupparsi piattaforme che offrono spazi pubblici, e gratuiti (Github,
 per esempio).  Gli sviluppatori permanenti possono ottenere un account
 su kernel.org, ma non è proprio facile da ottenere; per maggiori informazioni
-consultate la pagina web http://kernel.org/faq/.
+consultate la pagina web https://kernel.org/faq/.
 
 In git è normale avere a che fare con tanti rami.  Ogni linea di sviluppo
 può essere separata in "rami per argomenti" e gestiti indipendentemente.
@@ -137,7 +137,7 @@ vostri rami.  Citando Linus
 	facendo, e ho bisogno di fidarmi *senza* dover passare tutte
 	le modifiche manualmente una per una.
 
-(http://lwn.net/Articles/224135/).
+(https://lwn.net/Articles/224135/).
 
 Per evitare queste situazioni, assicuratevi che tutte le patch in un ramo
 siano strettamente correlate al tema delle modifiche; un ramo "driver fixes"
