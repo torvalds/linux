@@ -1822,53 +1822,9 @@ struct bkey_s_c bch2_btree_iter_prev(struct btree_iter *iter)
 	return bch2_btree_iter_peek_prev(iter);
 }
 
-static inline struct bkey_s_c
-__bch2_btree_iter_peek_slot_extents(struct btree_iter *iter)
-{
-	struct bkey_s_c k;
-	struct bpos pos, next_start;
-
-	/* keys & holes can't span inode numbers: */
-	if (iter->pos.offset == KEY_OFFSET_MAX) {
-		if (iter->pos.inode == KEY_INODE_MAX)
-			return bkey_s_c_null;
-
-		bch2_btree_iter_set_pos(iter, bkey_successor(iter, iter->pos));
-	}
-
-	pos = iter->pos;
-	k = bch2_btree_iter_peek(iter);
-	iter->pos = pos;
-
-	if (bkey_err(k))
-		return k;
-
-	if (k.k && bkey_cmp(bkey_start_pos(k.k), iter->pos) <= 0)
-		return k;
-
-	next_start = k.k ? bkey_start_pos(k.k) : POS_MAX;
-
-	bkey_init(&iter->k);
-	iter->k.p = iter->pos;
-	bch2_key_resize(&iter->k,
-			min_t(u64, KEY_SIZE_MAX,
-			      (next_start.inode == iter->pos.inode
-			       ? next_start.offset
-			       : KEY_OFFSET_MAX) -
-			      iter->pos.offset));
-
-	EBUG_ON(!iter->k.size);
-
-	bch2_btree_iter_verify_entry_exit(iter);
-	bch2_btree_iter_verify(iter);
-
-	return (struct bkey_s_c) { &iter->k, NULL };
-}
-
 struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 {
-	struct btree_iter_level *l = &iter->l[0];
-	struct bkey_i *next_update;
+	struct bpos search_key = btree_iter_search_key(iter);
 	struct bkey_s_c k;
 	int ret;
 
@@ -1876,30 +1832,66 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 	bch2_btree_iter_verify(iter);
 	bch2_btree_iter_verify_entry_exit(iter);
 
-	btree_iter_set_search_pos(iter, btree_iter_search_key(iter));
+	btree_iter_set_search_pos(iter, search_key);
 
-	if (iter->flags & BTREE_ITER_IS_EXTENTS)
-		return __bch2_btree_iter_peek_slot_extents(iter);
+	/* extents can't span inode numbers: */
+	if ((iter->flags & BTREE_ITER_IS_EXTENTS) &&
+	    iter->pos.offset == KEY_OFFSET_MAX) {
+		if (iter->pos.inode == KEY_INODE_MAX)
+			return bkey_s_c_null;
+
+		bch2_btree_iter_set_pos(iter, bpos_nosnap_successor(iter->pos));
+	}
 
 	ret = btree_iter_traverse(iter);
 	if (unlikely(ret))
 		return bkey_s_c_err(ret);
 
-	k = btree_iter_level_peek_all(iter, l);
-	EBUG_ON(k.k && bkey_deleted(k.k) && bkey_cmp(k.k->p, iter->pos) == 0);
+	if (!(iter->flags & BTREE_ITER_IS_EXTENTS)) {
+		struct bkey_i *next_update = btree_trans_peek_updates(iter, search_key);
 
-	next_update = btree_trans_peek_updates(iter, iter->pos);
-	if (next_update &&
-	    (!k.k || bpos_cmp(next_update->k.p, k.k->p) <= 0)) {
-		iter->k = next_update->k;
-		k = bkey_i_to_s_c(next_update);
-	}
+		k = btree_iter_level_peek_all(iter, &iter->l[0]);
+		EBUG_ON(k.k && bkey_deleted(k.k) && bkey_cmp(k.k->p, iter->pos) == 0);
 
-	if (!k.k || bkey_cmp(iter->pos, k.k->p)) {
-		/* hole */
-		bkey_init(&iter->k);
-		iter->k.p = iter->pos;
-		k = (struct bkey_s_c) { &iter->k, NULL };
+		if (next_update &&
+		    (!k.k || bpos_cmp(next_update->k.p, k.k->p) <= 0)) {
+			iter->k = next_update->k;
+			k = bkey_i_to_s_c(next_update);
+		}
+
+		if (!k.k ||
+		    ((iter->flags & BTREE_ITER_ALL_SNAPSHOTS)
+		     ? bpos_cmp(iter->pos, k.k->p)
+		     : bkey_cmp(iter->pos, k.k->p))) {
+			bkey_init(&iter->k);
+			iter->k.p = iter->pos;
+			k = (struct bkey_s_c) { &iter->k, NULL };
+		}
+	} else {
+		struct bpos next;
+		struct bpos pos = iter->pos;
+
+		k = bch2_btree_iter_peek(iter);
+		iter->pos = pos;
+
+		if (unlikely(bkey_err(k)))
+			return k;
+
+		next = k.k ? bkey_start_pos(k.k) : POS_MAX;
+
+		if (bkey_cmp(iter->pos, next) < 0) {
+			bkey_init(&iter->k);
+			iter->k.p = iter->pos;
+			bch2_key_resize(&iter->k,
+					min_t(u64, KEY_SIZE_MAX,
+					      (next.inode == iter->pos.inode
+					       ? next.offset
+					       : KEY_OFFSET_MAX) -
+					      iter->pos.offset));
+
+			k = (struct bkey_s_c) { &iter->k, NULL };
+			EBUG_ON(!k.k->size);
+		}
 	}
 
 	bch2_btree_iter_verify_entry_exit(iter);
