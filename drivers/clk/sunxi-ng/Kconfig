@@ -13,14 +13,14 @@ config SUNIV_F1C100S_CCU
 	depends on MACH_SUNIV || COMPILE_TEST
 
 config SUN20I_D1_CCU
-	tristate "Support for the Allwinner D1 CCU"
+	tristate "Support for the Allwinner D1/R528/T113 CCU"
 	default y
-	depends on RISCV || COMPILE_TEST
+	depends on MACH_SUN8I || RISCV || COMPILE_TEST
 
 config SUN20I_D1_R_CCU
-	tristate "Support for the Allwinner D1 PRCM CCU"
+	tristate "Support for the Allwinner D1/R528/T113 PRCM CCU"
 	default y
-	depends on RISCV || COMPILE_TEST
+	depends on MACH_SUN8I || RISCV || COMPILE_TEST
 
 config SUN50I_A64_CCU
 	tristate "Support for the Allwinner A64 CCU"
