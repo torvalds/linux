@@ -1868,6 +1868,7 @@ __bch2_btree_iter_peek_slot_extents(struct btree_iter *iter)
 struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 {
 	struct btree_iter_level *l = &iter->l[0];
+	struct bkey_i *next_update;
 	struct bkey_s_c k;
 	int ret;
 
@@ -1885,8 +1886,14 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 		return bkey_s_c_err(ret);
 
 	k = btree_iter_level_peek_all(iter, l);
-
 	EBUG_ON(k.k && bkey_deleted(k.k) && bkey_cmp(k.k->p, iter->pos) == 0);
+
+	next_update = btree_trans_peek_updates(iter, iter->pos);
+	if (next_update &&
+	    (!k.k || bpos_cmp(next_update->k.p, k.k->p) <= 0)) {
+		iter->k = next_update->k;
+		k = bkey_i_to_s_c(next_update);
+	}
 
 	if (!k.k || bkey_cmp(iter->pos, k.k->p)) {
 		/* hole */
