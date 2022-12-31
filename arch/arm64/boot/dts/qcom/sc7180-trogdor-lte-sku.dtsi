@@ -19,12 +19,11 @@
 };
 
 &ipa {
-	status = "okay";
-
 	/*
 	 * Trogdor doesn't have QHEE (Qualcomm's EL2 blob), so the
 	 * modem needs to cover certain init steps (GSI init), and
 	 * the AP needs to wait for it.
 	 */
-	modem-init;
+	qcom,gsi-loader = "modem";
+	status = "okay";
 };

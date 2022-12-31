@@ -474,8 +474,8 @@
 };
 
 &ipa {
+	qcom,gsi-loader = "modem";
 	status = "okay";
-	modem-init;
 };
 
 &mss_pil {

@@ -21,7 +21,7 @@
 };
 
 &ipa {
-	modem-init;
+	qcom,gsi-loader = "modem";
 	status = "okay";
 };
 

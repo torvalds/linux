@@ -383,9 +383,10 @@
 };
 
 &ipa {
-	status = "okay";
+	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
 	firmware-name = "qcom/sdm850/samsung/w737/ipa_fws.elf";
+	status = "okay";
 };
 
 /* No idea why it causes an SError when enabled */

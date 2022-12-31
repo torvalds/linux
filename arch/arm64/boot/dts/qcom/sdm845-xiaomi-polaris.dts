@@ -449,6 +449,7 @@
 };
 
 &ipa {
+	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
 	firmware-name = "qcom/sdm845/polaris/ipa_fws.mbn";
 	status = "okay";

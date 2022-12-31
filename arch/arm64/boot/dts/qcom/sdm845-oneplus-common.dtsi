@@ -424,10 +424,10 @@
 };
 
 &ipa {
-	status = "okay";
-
+	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
 	firmware-name = "qcom/sdm845/oneplus6/ipa_fws.mbn";
+	status = "okay";
 };
 
 &mdss {
