@@ -240,7 +240,7 @@ static const struct clk_parent_data cpux_parents[] = {
 	{ .hw = &pll_periph0_800M_clk.common.hw },
 };
 static SUNXI_CCU_MUX_DATA(cpux_clk, "cpux", cpux_parents,
-			  0x500, 24, 3, CLK_SET_RATE_PARENT);
+			  0x500, 24, 3, CLK_SET_RATE_PARENT | CLK_IS_CRITICAL);
 
 static const struct clk_hw *cpux_hws[] = { &cpux_clk.common.hw };
 static SUNXI_CCU_M_HWS(cpux_axi_clk, "cpux-axi",
