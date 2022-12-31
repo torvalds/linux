@@ -853,7 +853,7 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
 		    !(dev->drv->rx_check(dev, data, len)))
 			goto free_frag;
 
-		skb = build_skb(data, q->buf_size);
+		skb = napi_build_skb(data, q->buf_size);
 		if (!skb)
 			goto free_frag;
 
