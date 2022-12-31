@@ -356,7 +356,8 @@ static inline void do_btree_insert_one(struct btree_trans *trans,
 	if (!did_work)
 		return;
 
-	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))) {
+	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)) &&
+	    !(i->flags & BTREE_UPDATE_NOJOURNAL)) {
 		bch2_journal_add_keys(j, &trans->journal_res,
 				      i->btree_id,
 				      i->level,
@@ -897,7 +898,9 @@ int __bch2_trans_commit(struct btree_trans *trans)
 		if (i->cached &&
 		    likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)))
 			trans->journal_preres_u64s += u64s;
-		trans->journal_u64s += u64s;
+
+		if (!(i->flags & BTREE_UPDATE_NOJOURNAL))
+			trans->journal_u64s += u64s;
 	}
 
 	if (trans->extra_journal_res) {

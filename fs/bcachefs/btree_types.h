@@ -630,6 +630,7 @@ static inline bool btree_type_has_snapshots(enum btree_id id)
 
 enum btree_update_flags {
 	__BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE,
+	__BTREE_UPDATE_NOJOURNAL,
 
 	__BTREE_TRIGGER_NORUN,		/* Don't run triggers at all */
 
@@ -642,6 +643,7 @@ enum btree_update_flags {
 };
 
 #define BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE (1U << __BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE)
+#define BTREE_UPDATE_NOJOURNAL		(1U << __BTREE_UPDATE_NOJOURNAL)
 
 #define BTREE_TRIGGER_NORUN		(1U << __BTREE_TRIGGER_NORUN)
 
