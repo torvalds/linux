@@ -153,13 +153,15 @@ dr_dump_rule_action_mem(struct seq_file *file, const u64 rule_id,
 			   DR_DUMP_REC_TYPE_ACTION_MODIFY_HDR, action_id,
 			   rule_id, action->rewrite->index,
 			   action->rewrite->single_action_opt,
-			   action->rewrite->num_of_actions,
+			   ptrn_arg ? action->rewrite->num_of_actions : 0,
 			   ptrn_arg ? ptrn->index : 0,
 			   ptrn_arg ? mlx5dr_arg_get_obj_id(arg) : 0);
 
-		for (i = 0; i < action->rewrite->num_of_actions; i++) {
-			seq_printf(file, ",0x%016llx",
-				   be64_to_cpu(((__be64 *)rewrite_data)[i]));
+		if (ptrn_arg) {
+			for (i = 0; i < action->rewrite->num_of_actions; i++) {
+				seq_printf(file, ",0x%016llx",
+					   be64_to_cpu(((__be64 *)rewrite_data)[i]));
+			}
 		}
 
 		seq_puts(file, "\n");
