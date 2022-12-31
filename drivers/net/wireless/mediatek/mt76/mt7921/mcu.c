@@ -174,7 +174,7 @@ mt7921_mcu_uni_roc_event(struct mt7921_dev *dev, struct sk_buff *skb)
 	wake_up(&dev->phy.roc_wait);
 	duration = le32_to_cpu(grant->max_interval);
 	mod_timer(&dev->phy.roc_timer,
-		  round_jiffies_up(jiffies + msecs_to_jiffies(duration)));
+		  jiffies + msecs_to_jiffies(duration));
 }
 
 static void
