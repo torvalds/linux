@@ -1869,10 +1869,22 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 		}
 	} else {
 		struct bpos next;
-		struct bpos pos = iter->pos;
 
-		k = bch2_btree_iter_peek(iter);
-		iter->pos = pos;
+		if (iter->flags & BTREE_ITER_INTENT) {
+			struct btree_iter *child =
+				btree_iter_child_alloc(iter, _THIS_IP_);
+
+			btree_iter_copy(child, iter);
+			k = bch2_btree_iter_peek(child);
+
+			if (k.k && !bkey_err(k))
+				iter->k = child->k;
+		} else {
+			struct bpos pos = iter->pos;
+
+			k = bch2_btree_iter_peek(iter);
+			iter->pos = pos;
+		}
 
 		if (unlikely(bkey_err(k)))
 			return k;
