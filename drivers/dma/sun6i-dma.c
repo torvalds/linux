@@ -9,6 +9,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/dmapool.h>
 #include <linux/interrupt.h>
@@ -1333,6 +1334,8 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sdc);
 	INIT_LIST_HEAD(&sdc->pending);
 	spin_lock_init(&sdc->lock);
+
+	dma_set_max_seg_size(&pdev->dev, SZ_32M - 1);
 
 	dma_cap_set(DMA_PRIVATE, sdc->slave.cap_mask);
 	dma_cap_set(DMA_MEMCPY, sdc->slave.cap_mask);
