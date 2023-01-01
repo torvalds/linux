@@ -21,9 +21,9 @@ Description
 This driver exposes hardware sensors of listed Aquacomputer devices, which
 communicate through proprietary USB HID protocols.
 
-The Aquaero devices expose eight temperature sensors, eight virtual temperature
-sensors and two flow senors. The fans expose their speed (in RPM), power,
-voltage and current.
+The Aquaero devices expose eight physical, eight virtual and four calculated
+virtual temperature sensors, as well as two flow sensors. The fans expose their
+speed (in RPM), power, voltage and current.
 
 For the D5 Next pump, available sensors are pump and fan speed, power, voltage
 and current, as well as coolant temperature and eight virtual temp sensors. Also

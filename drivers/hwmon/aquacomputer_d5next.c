@@ -77,11 +77,13 @@ static u8 secondary_ctrl_report[] = {
 #define AQUAERO_NUM_FANS			4
 #define AQUAERO_NUM_SENSORS			8
 #define AQUAERO_NUM_VIRTUAL_SENSORS		8
+#define AQUAERO_NUM_CALC_VIRTUAL_SENSORS	4
 #define AQUAERO_NUM_FLOW_SENSORS		2
 
 /* Sensor report offsets for Aquaero fan controllers */
 #define AQUAERO_SENSOR_START			0x65
 #define AQUAERO_VIRTUAL_SENSOR_START		0x85
+#define AQUAERO_CALC_VIRTUAL_SENSOR_START	0x95
 #define AQUAERO_FLOW_SENSORS_START		0xF9
 #define AQUAERO_FAN_VOLTAGE_OFFSET		0x04
 #define AQUAERO_FAN_CURRENT_OFFSET		0x06
@@ -232,6 +234,13 @@ static const char *const label_virtual_temp_sensors[] = {
 	"Virtual sensor 16",
 };
 
+static const char *const label_aquaero_calc_temp_sensors[] = {
+	"Calc. virtual sensor 1",
+	"Calc. virtual sensor 2",
+	"Calc. virtual sensor 3",
+	"Calc. virtual sensor 4"
+};
+
 /* Labels for Octo and Quadro (except speed) */
 static const char *const label_fan_speed[] = {
 	"Fan 1 speed",
@@ -361,6 +370,8 @@ struct aqc_data {
 	int temp_sensor_start_offset;
 	int num_virtual_temp_sensors;
 	int virtual_temp_sensor_start_offset;
+	int num_calc_virt_temp_sensors;
+	int calc_virt_temp_sensor_start_offset;
 	u16 temp_ctrl_offset;
 	u16 power_cycle_count_offset;
 	int num_flow_sensors;
@@ -378,7 +389,7 @@ struct aqc_data {
 	u32 power_cycles;
 
 	/* Sensor values */
-	s32 temp_input[20];	/* Max 4 physical and 16 virtual */
+	s32 temp_input[20];	/* Max 4 physical and 16 virtual or 8 physical and 12 virtual */
 	u16 speed_input[8];
 	u32 power_input[8];
 	u16 voltage_input[8];
@@ -387,6 +398,7 @@ struct aqc_data {
 	/* Label values */
 	const char *const *temp_label;
 	const char *const *virtual_temp_label;
+	const char *const *calc_virt_temp_label;	/* For Aquaero */
 	const char *const *speed_label;
 	const char *const *power_label;
 	const char *const *voltage_label;
@@ -507,7 +519,9 @@ static umode_t aqc_is_visible(const void *data, enum hwmon_sensor_types type, u3
 			}
 		}
 
-		if (channel < priv->num_temp_sensors + priv->num_virtual_temp_sensors)
+		if (channel <
+		    priv->num_temp_sensors + priv->num_virtual_temp_sensors +
+		    priv->num_calc_virt_temp_sensors)
 			switch (attr) {
 			case hwmon_temp_label:
 			case hwmon_temp_input:
@@ -676,12 +690,20 @@ static int aqc_read_string(struct device *dev, enum hwmon_sensor_types type, u32
 {
 	struct aqc_data *priv = dev_get_drvdata(dev);
 
+	/* Number of sensors that are not calculated */
+	int num_non_calc_sensors = priv->num_temp_sensors + priv->num_virtual_temp_sensors;
+
 	switch (type) {
 	case hwmon_temp:
-		if (channel < priv->num_temp_sensors)
+		if (channel < priv->num_temp_sensors) {
 			*str = priv->temp_label[channel];
-		else
-			*str = priv->virtual_temp_label[channel - priv->num_temp_sensors];
+		} else {
+			if (priv->kind == aquaero && channel >= num_non_calc_sensors)
+				*str =
+				    priv->calc_virt_temp_label[channel - num_non_calc_sensors];
+			else
+				*str = priv->virtual_temp_label[channel - priv->num_temp_sensors];
+		}
 		break;
 	case hwmon_fan:
 		*str = priv->speed_label[channel];
@@ -910,6 +932,20 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 
 	/* Special-case sensor readings */
 	switch (priv->kind) {
+	case aquaero:
+		/* Read calculated virtual temp sensors */
+		i = priv->num_temp_sensors + priv->num_virtual_temp_sensors;
+		for (j = 0; j < priv->num_calc_virt_temp_sensors; j++) {
+			sensor_value = get_unaligned_be16(data +
+					priv->calc_virt_temp_sensor_start_offset +
+					j * AQC_SENSOR_SIZE);
+			if (sensor_value == AQC_TEMP_SENSOR_DISCONNECTED)
+				priv->temp_input[i] = -ENODATA;
+			else
+				priv->temp_input[i] = sensor_value * 10;
+			i++;
+		}
+		break;
 	case d5next:
 		priv->voltage_input[2] = get_unaligned_be16(data + D5NEXT_5V_VOLTAGE) * 10;
 		priv->voltage_input[3] = get_unaligned_be16(data + D5NEXT_12V_VOLTAGE) * 10;
@@ -1046,11 +1082,14 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->temp_sensor_start_offset = AQUAERO_SENSOR_START;
 		priv->num_virtual_temp_sensors = AQUAERO_NUM_VIRTUAL_SENSORS;
 		priv->virtual_temp_sensor_start_offset = AQUAERO_VIRTUAL_SENSOR_START;
+		priv->num_calc_virt_temp_sensors = AQUAERO_NUM_CALC_VIRTUAL_SENSORS;
+		priv->calc_virt_temp_sensor_start_offset = AQUAERO_CALC_VIRTUAL_SENSOR_START;
 		priv->num_flow_sensors = AQUAERO_NUM_FLOW_SENSORS;
 		priv->flow_sensors_start_offset = AQUAERO_FLOW_SENSORS_START;
 
 		priv->temp_label = label_temp_sensors;
 		priv->virtual_temp_label = label_virtual_temp_sensors;
+		priv->calc_virt_temp_label = label_aquaero_calc_temp_sensors;
 		priv->speed_label = label_aquaero_speeds;
 		priv->power_label = label_fan_power;
 		priv->voltage_label = label_fan_voltage;
