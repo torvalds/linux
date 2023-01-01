@@ -35,6 +35,13 @@
 #define OV2680_NATIVE_WIDTH			1616
 #define OV2680_NATIVE_HEIGHT			1216
 
+/* 1704 * 1294 * 30fps = 66MHz pixel clock */
+#define OV2680_PIXELS_PER_LINE			1704
+#define OV2680_LINES_PER_FRAME			1294
+
+/* If possible send 16 extra rows / lines to the ISP as padding */
+#define OV2680_END_MARGIN			16
+
 #define OV2680_FOCAL_LENGTH_NUM	334	/*3.34mm*/
 
 #define OV2680_BIN_FACTOR_MAX 4
@@ -105,10 +112,13 @@
 #define OV2680_HORIZONTAL_OUTPUT_SIZE_L				0x3809 /*Bit[7:0]*/
 #define OV2680_VERTICAL_OUTPUT_SIZE_H				0x380a /*Bit[3:0]*/
 #define OV2680_VERTICAL_OUTPUT_SIZE_L				0x380b /*Bit[7:0]*/
-#define OV2680_TIMING_HTS_H							0x380C  /*High 8-bit, and low 8-bit HTS address is 0x380d*/
-#define OV2680_TIMING_HTS_L							0x380D  /*High 8-bit, and low 8-bit HTS address is 0x380d*/
-#define OV2680_TIMING_VTS_H							0x380e  /*High 8-bit, and low 8-bit HTS address is 0x380f*/
-#define OV2680_TIMING_VTS_L							0x380f  /*High 8-bit, and low 8-bit HTS address is 0x380f*/
+#define OV2680_HTS				0x380c
+#define OV2680_VTS				0x380e
+#define OV2680_ISP_X_WIN			0x3810
+#define OV2680_ISP_Y_WIN			0x3812
+#define OV2680_X_INC				0x3814
+#define OV2680_Y_INC				0x3815
+
 #define OV2680_FRAME_OFF_NUM						0x4202
 
 /*Flip/Mirror*/
@@ -121,6 +131,10 @@
 #define OV2680_MWB_GAIN_MAX				0x0fff
 
 #define OV2680_REG_ISP_CTRL00			0x5080
+
+#define OV2680_X_WIN				0x5704
+#define OV2680_Y_WIN				0x5706
+#define OV2680_WIN_CONTROL			0x5708
 
 #define OV2680_START_STREAMING			0x01
 #define OV2680_STOP_STREAMING			0x00
@@ -165,6 +179,15 @@ struct ov2680_device {
 
 	struct ov2680_mode {
 		struct v4l2_mbus_framefmt fmt;
+		bool binning;
+		u16 h_start;
+		u16 v_start;
+		u16 h_end;
+		u16 v_end;
+		u16 h_output_size;
+		u16 v_output_size;
+		u16 hts;
+		u16 vts;
 	} mode;
 
 	struct ov2680_ctrls {
@@ -248,6 +271,8 @@ static struct ov2680_reg const ov2680_global_setting[] = {
 	{0x3819, 0x04},
 	{0x4000, 0x81},
 	{0x4001, 0x40},
+	{0x4008, 0x00},
+	{0x4009, 0x03},
 	{0x4602, 0x02},
 	{0x481f, 0x36},
 	{0x4825, 0x36},
@@ -260,6 +285,8 @@ static struct ov2680_reg const ov2680_global_setting[] = {
 	{0x5008, 0x04},
 	{0x5009, 0x00},
 	{0x5080, 0x00},
+	{0x5081, 0x41},
+	{0x5708, 0x01},  /* add for full size flip off and mirror off 2014/09/11 */
 	{0x3701, 0x64},  //add on 14/05/13
 	{0x3784, 0x0c},  //based OV2680_R1A_AM10.ovt add on 14/06/13
 	{0x5780, 0x3e},  //based OV2680_R1A_AM10.ovt,Adjust DPC setting (57xx) on 14/06/13

@@ -378,6 +378,131 @@ static void ov2680_fill_format(struct ov2680_device *sensor,
 	ov2680_set_bayer_order(sensor, fmt);
 }
 
+static void ov2680_calc_mode(struct ov2680_device *sensor, int width, int height)
+{
+	int orig_width = width;
+	int orig_height = height;
+
+	if (width  <= (OV2680_NATIVE_WIDTH / 2) &&
+	    height <= (OV2680_NATIVE_HEIGHT / 2)) {
+		sensor->mode.binning = true;
+		width *= 2;
+		height *= 2;
+	} else {
+		sensor->mode.binning = false;
+	}
+
+	sensor->mode.h_start = ((OV2680_NATIVE_WIDTH - width) / 2) & ~1;
+	sensor->mode.v_start = ((OV2680_NATIVE_HEIGHT - height) / 2) & ~1;
+	sensor->mode.h_end = min(sensor->mode.h_start + width + OV2680_END_MARGIN - 1,
+				 OV2680_NATIVE_WIDTH - 1);
+	sensor->mode.v_end = min(sensor->mode.v_start + height + OV2680_END_MARGIN - 1,
+				 OV2680_NATIVE_HEIGHT - 1);
+	sensor->mode.h_output_size = orig_width;
+	sensor->mode.v_output_size = orig_height;
+	sensor->mode.hts = OV2680_PIXELS_PER_LINE;
+	sensor->mode.vts = OV2680_LINES_PER_FRAME;
+}
+
+static int ov2680_set_mode(struct ov2680_device *sensor, int width, int height)
+{
+	struct i2c_client *client = sensor->client;
+	u8 pll_div, unknown, inc, fmt1, fmt2;
+	int ret;
+
+	ov2680_calc_mode(sensor, width, height);
+
+	if (sensor->mode.binning) {
+		pll_div = 1;
+		unknown = 0x23;
+		inc = 0x31;
+		fmt1 = 0xc2;
+		fmt2 = 0x01;
+	} else {
+		pll_div = 0;
+		unknown = 0x21;
+		inc = 0x11;
+		fmt1 = 0xc0;
+		fmt2 = 0x00;
+	}
+
+	ret = ov_write_reg8(client, 0x3086, pll_div);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg8(client, 0x370a, unknown);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_HORIZONTAL_START_H, sensor->mode.h_start);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_VERTICAL_START_H, sensor->mode.v_start);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_HORIZONTAL_END_H, sensor->mode.h_end);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_VERTICAL_END_H, sensor->mode.v_end);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_HORIZONTAL_OUTPUT_SIZE_H,
+				 sensor->mode.h_output_size);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_VERTICAL_OUTPUT_SIZE_H,
+				 sensor->mode.v_output_size);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_HTS, sensor->mode.hts);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_VTS, sensor->mode.vts);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_ISP_X_WIN, 0);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_ISP_Y_WIN, 0);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg8(client, OV2680_X_INC, inc);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg8(client, OV2680_Y_INC, inc);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_X_WIN, sensor->mode.h_output_size);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg16(client, OV2680_Y_WIN, sensor->mode.v_output_size);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg8(client, OV2680_REG_FORMAT1, fmt1);
+	if (ret)
+		return ret;
+
+	ret = ov_write_reg8(client, OV2680_REG_FORMAT2, fmt2);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int ov2680_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
@@ -409,18 +534,10 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 
 	/* s_power has not been called yet for std v4l2 clients (camorama) */
 	power_up(sd);
-	ret = ov2680_write_reg_array(client, dev->res->regs);
-	if (ret) {
-		dev_err(&client->dev,
-			"ov2680 write resolution register err: %d\n", ret);
-		goto err;
-	}
 
-	ret = ov_write_reg16(client, OV2680_TIMING_VTS_H, dev->res->lines_per_frame);
-	if (ret) {
-		dev_err(&client->dev, "ov2680 write vts err: %d\n", ret);
+	ret = ov2680_set_mode(dev, fmt->width, fmt->height);
+	if (ret < 0)
 		goto err;
-	}
 
 	/* Restore value of all ctrls */
 	ret = __v4l2_ctrl_handler_setup(&dev->ctrls.handler);
