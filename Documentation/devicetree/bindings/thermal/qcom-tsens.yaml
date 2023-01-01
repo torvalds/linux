@@ -81,18 +81,62 @@ properties:
     maxItems: 2
 
   nvmem-cells:
-    minItems: 1
-    maxItems: 2
-    description:
-      Reference to an nvmem node for the calibration data
+    oneOf:
+      - minItems: 1
+        maxItems: 2
+        description:
+          Reference to an nvmem node for the calibration data
+      - minItems: 5
+        maxItems: 35
+        description: |
+          Reference to nvmem cells for the calibration mode, two calibration
+          bases and two cells per each sensor
 
   nvmem-cell-names:
-    minItems: 1
-    items:
-      - const: calib
-      - enum:
-          - calib_backup
-          - calib_sel
+    oneOf:
+      - minItems: 1
+        items:
+          - const: calib
+          - enum:
+              - calib_backup
+              - calib_sel
+      - minItems: 5
+        items:
+          - const: mode
+          - const: base1
+          - const: base2
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
 
   "#qcom,sensors":
     description:
@@ -219,6 +263,36 @@ examples:
                  #qcom,sensors = <11>;
                  #thermal-sensor-cells = <1>;
           };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    // Example 1 (new calbiration data: for pre v1 IP):
+    thermal-sensor@900000 {
+        compatible = "qcom,msm8916-tsens", "qcom,tsens-v0_1";
+        reg = <0x4a9000 0x1000>, /* TM */
+              <0x4a8000 0x1000>; /* SROT */
+
+        nvmem-cells = <&tsens_mode>,
+                      <&tsens_base1>, <&tsens_base2>,
+                      <&tsens_s0_p1>, <&tsens_s0_p2>,
+                      <&tsens_s1_p1>, <&tsens_s1_p2>,
+                      <&tsens_s2_p1>, <&tsens_s2_p2>,
+                      <&tsens_s4_p1>, <&tsens_s4_p2>,
+                      <&tsens_s5_p1>, <&tsens_s5_p2>;
+        nvmem-cell-names = "mode",
+                           "base1", "base2",
+                           "s0_p1", "s0_p2",
+                           "s1_p1", "s1_p2",
+                           "s2_p1", "s2_p2",
+                           "s4_p1", "s4_p2",
+                           "s5_p1", "s5_p2";
+
+        interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "uplow";
+
+        #qcom,sensors = <5>;
+        #thermal-sensor-cells = <1>;
     };
 
   - |
