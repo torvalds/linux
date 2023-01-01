@@ -163,7 +163,7 @@ chiave principale attraverso firme certificate. È quindi importante
 comprendere i seguenti punti:
 
 1. Non ci sono differenze tecniche tra la chiave principale e la sottochiave.
-2. In fesa di creazione, assegniamo limitazioni funzionali ad ogni chiave
+2. In fase di creazione, assegniamo limitazioni funzionali ad ogni chiave
    assegnando capacità specifiche.
 3. Una chiave PGP può avere 4 capacità:
 
