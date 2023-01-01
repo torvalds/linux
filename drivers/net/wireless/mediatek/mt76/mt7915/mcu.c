@@ -2117,7 +2117,7 @@ static int mt7915_load_firmware(struct mt7915_dev *dev)
 	/* make sure fw is download state */
 	if (mt7915_firmware_state(dev, false)) {
 		/* restart firmware once */
-		__mt76_mcu_restart(&dev->mt76);
+		mt76_connac_mcu_restart(&dev->mt76);
 		ret = mt7915_firmware_state(dev, false);
 		if (ret) {
 			dev_err(dev->mt76.dev,
@@ -2349,7 +2349,6 @@ int mt7915_mcu_init(struct mt7915_dev *dev)
 		.headroom = sizeof(struct mt76_connac2_mcu_txd),
 		.mcu_skb_send_msg = mt7915_mcu_send_message,
 		.mcu_parse_response = mt7915_mcu_parse_response,
-		.mcu_restart = mt76_connac_mcu_restart,
 	};
 
 	dev->mt76.mcu_ops = &mt7915_mcu_ops;
@@ -2359,7 +2358,7 @@ int mt7915_mcu_init(struct mt7915_dev *dev)
 
 void mt7915_mcu_exit(struct mt7915_dev *dev)
 {
-	__mt76_mcu_restart(&dev->mt76);
+	mt76_connac_mcu_restart(&dev->mt76);
 	if (mt7915_firmware_state(dev, false)) {
 		dev_err(dev->mt76.dev, "Failed to exit mcu\n");
 		goto out;
