@@ -133,7 +133,6 @@ static int mt7921u_mcu_init(struct mt7921_dev *dev)
 		.tailroom = MT_USB_TAIL_SIZE,
 		.mcu_skb_send_msg = mt7921u_mcu_send_message,
 		.mcu_parse_response = mt7921_mcu_parse_response,
-		.mcu_restart = mt76_connac_mcu_restart,
 	};
 	int ret;
 
