@@ -212,18 +212,11 @@ static int mlx5_create_indir_fwd_group(struct mlx5_eswitch *esw,
 	int err = 0, inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_act flow_act = {};
-	struct mlx5_flow_spec *spec;
 	u32 *in;
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
-
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
-	if (!spec) {
-		kvfree(in);
-		return -ENOMEM;
-	}
 
 	/* Hold one entry */
 	MLX5_SET(create_flow_group_in, in, start_flow_index, MLX5_ESW_INDIR_TABLE_FWD_IDX);
@@ -240,14 +233,13 @@ static int mlx5_create_indir_fwd_group(struct mlx5_eswitch *esw,
 	dest.vport.num = e->vport;
 	dest.vport.vhca_id = MLX5_CAP_GEN(esw->dev, vhca_id);
 	dest.vport.flags = MLX5_FLOW_DEST_VPORT_VHCA_ID;
-	e->fwd_rule = mlx5_add_flow_rules(e->ft, spec, &flow_act, &dest, 1);
+	e->fwd_rule = mlx5_add_flow_rules(e->ft, NULL, &flow_act, &dest, 1);
 	if (IS_ERR(e->fwd_rule)) {
 		mlx5_destroy_flow_group(e->fwd_grp);
 		err = PTR_ERR(e->fwd_rule);
 	}
 
 err_out:
-	kvfree(spec);
 	kvfree(in);
 	return err;
 }
