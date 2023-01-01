@@ -960,8 +960,7 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 		struct mt76_queue *q = &dev->q_rx[i];
 
 		netif_napi_del(&dev->napi[i]);
-		if (FIELD_GET(MT_QFLAG_WED_TYPE, q->flags))
-			mt76_dma_rx_cleanup(dev, q);
+		mt76_dma_rx_cleanup(dev, q);
 	}
 
 	mt76_free_pending_txwi(dev);
