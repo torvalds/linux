@@ -21,129 +21,54 @@
 #define TM_HIGH_LOW_INT_STATUS_OFF		0x0088
 #define TM_HIGH_LOW_Sn_INT_THRESHOLD_OFF	0x0090
 
-/* eeprom layout data for msm8956/76 (v1) */
-#define MSM8976_BASE0_MASK	0xff
-#define MSM8976_BASE1_MASK	0xff
-#define MSM8976_BASE1_SHIFT	8
+struct tsens_legacy_calibration_format tsens_qcs404_nvmem = {
+	.base_len = 8,
+	.base_shift = 2,
+	.sp_len = 6,
+	.mode = { 4, 0 },
+	.invalid = { 4, 2 },
+	.base = { { 4, 3 }, { 4, 11 } },
+	.sp = {
+		{ { 0, 0 }, { 0, 6 } },
+		{ { 0, 12 }, { 0, 18 } },
+		{ { 0, 24 }, { 0, 30 } },
+		{ { 1, 4 },  { 1, 10 } },
+		{ { 1, 16 }, { 1, 22 } },
+		{ { 2, 0 },  { 2, 6 } },
+		{ { 2, 12 }, { 2, 18 } },
+		{ { 2, 24 }, { 2, 30 } },
+		{ { 3, 4 },  { 3, 10 } },
+		{ { 3, 16 }, { 3, 22 } },
+	},
+};
 
-#define MSM8976_S0_P1_MASK	0x3f00
-#define MSM8976_S1_P1_MASK	0x3f00000
-#define MSM8976_S2_P1_MASK	0x3f
-#define MSM8976_S3_P1_MASK	0x3f000
-#define MSM8976_S4_P1_MASK	0x3f00
-#define MSM8976_S5_P1_MASK	0x3f00000
-#define MSM8976_S6_P1_MASK	0x3f
-#define MSM8976_S7_P1_MASK	0x3f000
-#define MSM8976_S8_P1_MASK	0x1f8
-#define MSM8976_S9_P1_MASK	0x1f8000
-#define MSM8976_S10_P1_MASK	0xf8000000
-#define MSM8976_S10_P1_MASK_1	0x1
-
-#define MSM8976_S0_P2_MASK	0xfc000
-#define MSM8976_S1_P2_MASK	0xfc000000
-#define MSM8976_S2_P2_MASK	0xfc0
-#define MSM8976_S3_P2_MASK	0xfc0000
-#define MSM8976_S4_P2_MASK	0xfc000
-#define MSM8976_S5_P2_MASK	0xfc000000
-#define MSM8976_S6_P2_MASK	0xfc0
-#define MSM8976_S7_P2_MASK	0xfc0000
-#define MSM8976_S8_P2_MASK	0x7e00
-#define MSM8976_S9_P2_MASK	0x7e00000
-#define MSM8976_S10_P2_MASK	0x7e
-
-#define MSM8976_S0_P1_SHIFT	8
-#define MSM8976_S1_P1_SHIFT	20
-#define MSM8976_S2_P1_SHIFT	0
-#define MSM8976_S3_P1_SHIFT	12
-#define MSM8976_S4_P1_SHIFT	8
-#define MSM8976_S5_P1_SHIFT	20
-#define MSM8976_S6_P1_SHIFT	0
-#define MSM8976_S7_P1_SHIFT	12
-#define MSM8976_S8_P1_SHIFT	3
-#define MSM8976_S9_P1_SHIFT	15
-#define MSM8976_S10_P1_SHIFT	27
-#define MSM8976_S10_P1_SHIFT_1	0
-
-#define MSM8976_S0_P2_SHIFT	14
-#define MSM8976_S1_P2_SHIFT	26
-#define MSM8976_S2_P2_SHIFT	6
-#define MSM8976_S3_P2_SHIFT	18
-#define MSM8976_S4_P2_SHIFT	14
-#define MSM8976_S5_P2_SHIFT	26
-#define MSM8976_S6_P2_SHIFT	6
-#define MSM8976_S7_P2_SHIFT	18
-#define MSM8976_S8_P2_SHIFT	9
-#define MSM8976_S9_P2_SHIFT	21
-#define MSM8976_S10_P2_SHIFT	1
-
-#define MSM8976_CAL_SEL_MASK	0x3
-
-/* eeprom layout data for qcs404/405 (v1) */
-#define BASE0_MASK	0x000007f8
-#define BASE1_MASK	0x0007f800
-#define BASE0_SHIFT	3
-#define BASE1_SHIFT	11
-
-#define S0_P1_MASK	0x0000003f
-#define S1_P1_MASK	0x0003f000
-#define S2_P1_MASK	0x3f000000
-#define S3_P1_MASK	0x000003f0
-#define S4_P1_MASK	0x003f0000
-#define S5_P1_MASK	0x0000003f
-#define S6_P1_MASK	0x0003f000
-#define S7_P1_MASK	0x3f000000
-#define S8_P1_MASK	0x000003f0
-#define S9_P1_MASK	0x003f0000
-
-#define S0_P2_MASK	0x00000fc0
-#define S1_P2_MASK	0x00fc0000
-#define S2_P2_MASK_1_0	0xc0000000
-#define S2_P2_MASK_5_2	0x0000000f
-#define S3_P2_MASK	0x0000fc00
-#define S4_P2_MASK	0x0fc00000
-#define S5_P2_MASK	0x00000fc0
-#define S6_P2_MASK	0x00fc0000
-#define S7_P2_MASK_1_0	0xc0000000
-#define S7_P2_MASK_5_2	0x0000000f
-#define S8_P2_MASK	0x0000fc00
-#define S9_P2_MASK	0x0fc00000
-
-#define S0_P1_SHIFT	0
-#define S0_P2_SHIFT	6
-#define S1_P1_SHIFT	12
-#define S1_P2_SHIFT	18
-#define S2_P1_SHIFT	24
-#define S2_P2_SHIFT_1_0	30
-
-#define S2_P2_SHIFT_5_2	0
-#define S3_P1_SHIFT	4
-#define S3_P2_SHIFT	10
-#define S4_P1_SHIFT	16
-#define S4_P2_SHIFT	22
-
-#define S5_P1_SHIFT	0
-#define S5_P2_SHIFT	6
-#define S6_P1_SHIFT	12
-#define S6_P2_SHIFT	18
-#define S7_P1_SHIFT	24
-#define S7_P2_SHIFT_1_0	30
-
-#define S7_P2_SHIFT_5_2	0
-#define S8_P1_SHIFT	4
-#define S8_P2_SHIFT	10
-#define S9_P1_SHIFT	16
-#define S9_P2_SHIFT	22
-
-#define CAL_SEL_MASK	7
-#define CAL_SEL_SHIFT	0
+struct tsens_legacy_calibration_format tsens_8976_nvmem = {
+	.base_len = 8,
+	.base_shift = 2,
+	.sp_len = 6,
+	.mode = { 4, 0 },
+	.invalid = { 4, 2 },
+	.base = { { 0, 0 }, { 2, 8 } },
+	.sp = {
+		{ { 0, 8 },  { 0, 14 } },
+		{ { 0, 20 }, { 0, 26 } },
+		{ { 1, 0 },  { 1, 6 } },
+		{ { 1, 12 }, { 1, 18 } },
+		{ { 2, 8 },  { 2, 14 } },
+		{ { 2, 20 }, { 2, 26 } },
+		{ { 3, 0 },  { 3, 6 } },
+		{ { 3, 12 }, { 3, 18 } },
+		{ { 4, 2 },  { 4, 9 } },
+		{ { 4, 14 }, { 4, 21 } },
+		{ { 4, 26 }, { 5, 1 } },
+	},
+};
 
 static int calibrate_v1(struct tsens_priv *priv)
 {
-	u32 base0 = 0, base1 = 0;
 	u32 p1[10], p2[10];
-	u32 mode = 0, lsb = 0, msb = 0;
 	u32 *qfprom_cdata;
-	int i, ret;
+	int mode, ret;
 
 	ret = tsens_calibrate_common(priv);
 	if (!ret)
@@ -153,53 +78,9 @@ static int calibrate_v1(struct tsens_priv *priv)
 	if (IS_ERR(qfprom_cdata))
 		return PTR_ERR(qfprom_cdata);
 
-	mode = (qfprom_cdata[4] & CAL_SEL_MASK) >> CAL_SEL_SHIFT;
-	dev_dbg(priv->dev, "calibration mode is %d\n", mode);
-
-	switch (mode) {
-	case TWO_PT_CALIB:
-		base1 = (qfprom_cdata[4] & BASE1_MASK) >> BASE1_SHIFT;
-		p2[0] = (qfprom_cdata[0] & S0_P2_MASK) >> S0_P2_SHIFT;
-		p2[1] = (qfprom_cdata[0] & S1_P2_MASK) >> S1_P2_SHIFT;
-		/* This value is split over two registers, 2 bits and 4 bits */
-		lsb   = (qfprom_cdata[0] & S2_P2_MASK_1_0) >> S2_P2_SHIFT_1_0;
-		msb   = (qfprom_cdata[1] & S2_P2_MASK_5_2) >> S2_P2_SHIFT_5_2;
-		p2[2] = msb << 2 | lsb;
-		p2[3] = (qfprom_cdata[1] & S3_P2_MASK) >> S3_P2_SHIFT;
-		p2[4] = (qfprom_cdata[1] & S4_P2_MASK) >> S4_P2_SHIFT;
-		p2[5] = (qfprom_cdata[2] & S5_P2_MASK) >> S5_P2_SHIFT;
-		p2[6] = (qfprom_cdata[2] & S6_P2_MASK) >> S6_P2_SHIFT;
-		/* This value is split over two registers, 2 bits and 4 bits */
-		lsb   = (qfprom_cdata[2] & S7_P2_MASK_1_0) >> S7_P2_SHIFT_1_0;
-		msb   = (qfprom_cdata[3] & S7_P2_MASK_5_2) >> S7_P2_SHIFT_5_2;
-		p2[7] = msb << 2 | lsb;
-		p2[8] = (qfprom_cdata[3] & S8_P2_MASK) >> S8_P2_SHIFT;
-		p2[9] = (qfprom_cdata[3] & S9_P2_MASK) >> S9_P2_SHIFT;
-		for (i = 0; i < priv->num_sensors; i++)
-			p2[i] = ((base1 + p2[i]) << 2);
-		fallthrough;
-	case ONE_PT_CALIB2:
-		base0 = (qfprom_cdata[4] & BASE0_MASK) >> BASE0_SHIFT;
-		p1[0] = (qfprom_cdata[0] & S0_P1_MASK) >> S0_P1_SHIFT;
-		p1[1] = (qfprom_cdata[0] & S1_P1_MASK) >> S1_P1_SHIFT;
-		p1[2] = (qfprom_cdata[0] & S2_P1_MASK) >> S2_P1_SHIFT;
-		p1[3] = (qfprom_cdata[1] & S3_P1_MASK) >> S3_P1_SHIFT;
-		p1[4] = (qfprom_cdata[1] & S4_P1_MASK) >> S4_P1_SHIFT;
-		p1[5] = (qfprom_cdata[2] & S5_P1_MASK) >> S5_P1_SHIFT;
-		p1[6] = (qfprom_cdata[2] & S6_P1_MASK) >> S6_P1_SHIFT;
-		p1[7] = (qfprom_cdata[2] & S7_P1_MASK) >> S7_P1_SHIFT;
-		p1[8] = (qfprom_cdata[3] & S8_P1_MASK) >> S8_P1_SHIFT;
-		p1[9] = (qfprom_cdata[3] & S9_P1_MASK) >> S9_P1_SHIFT;
-		for (i = 0; i < priv->num_sensors; i++)
-			p1[i] = (((base0) + p1[i]) << 2);
-		break;
-	default:
-		for (i = 0; i < priv->num_sensors; i++) {
-			p1[i] = 500;
-			p2[i] = 780;
-		}
-		break;
-	}
+	mode = tsens_read_calibration_legacy(priv, &tsens_qcs404_nvmem,
+					     p1, p2,
+					     qfprom_cdata, NULL);
 
 	compute_intercept_slope(priv, p1, p2, mode);
 	kfree(qfprom_cdata);
@@ -209,11 +90,9 @@ static int calibrate_v1(struct tsens_priv *priv)
 
 static int calibrate_8976(struct tsens_priv *priv)
 {
-	int base0 = 0, base1 = 0, i;
 	u32 p1[11], p2[11];
-	int mode = 0, tmp = 0;
 	u32 *qfprom_cdata;
-	int ret;
+	int mode, ret;
 
 	ret = tsens_calibrate_common(priv);
 	if (!ret)
@@ -223,53 +102,10 @@ static int calibrate_8976(struct tsens_priv *priv)
 	if (IS_ERR(qfprom_cdata))
 		return PTR_ERR(qfprom_cdata);
 
-	mode = (qfprom_cdata[4] & MSM8976_CAL_SEL_MASK);
-	dev_dbg(priv->dev, "calibration mode is %d\n", mode);
+	mode = tsens_read_calibration_legacy(priv, &tsens_8976_nvmem,
+					     p1, p2,
+					     qfprom_cdata, NULL);
 
-	switch (mode) {
-	case TWO_PT_CALIB:
-		base1 = (qfprom_cdata[2] & MSM8976_BASE1_MASK) >> MSM8976_BASE1_SHIFT;
-		p2[0] = (qfprom_cdata[0] & MSM8976_S0_P2_MASK) >> MSM8976_S0_P2_SHIFT;
-		p2[1] = (qfprom_cdata[0] & MSM8976_S1_P2_MASK) >> MSM8976_S1_P2_SHIFT;
-		p2[2] = (qfprom_cdata[1] & MSM8976_S2_P2_MASK) >> MSM8976_S2_P2_SHIFT;
-		p2[3] = (qfprom_cdata[1] & MSM8976_S3_P2_MASK) >> MSM8976_S3_P2_SHIFT;
-		p2[4] = (qfprom_cdata[2] & MSM8976_S4_P2_MASK) >> MSM8976_S4_P2_SHIFT;
-		p2[5] = (qfprom_cdata[2] & MSM8976_S5_P2_MASK) >> MSM8976_S5_P2_SHIFT;
-		p2[6] = (qfprom_cdata[3] & MSM8976_S6_P2_MASK) >> MSM8976_S6_P2_SHIFT;
-		p2[7] = (qfprom_cdata[3] & MSM8976_S7_P2_MASK) >> MSM8976_S7_P2_SHIFT;
-		p2[8] = (qfprom_cdata[4] & MSM8976_S8_P2_MASK) >> MSM8976_S8_P2_SHIFT;
-		p2[9] = (qfprom_cdata[4] & MSM8976_S9_P2_MASK) >> MSM8976_S9_P2_SHIFT;
-		p2[10] = (qfprom_cdata[5] & MSM8976_S10_P2_MASK) >> MSM8976_S10_P2_SHIFT;
-
-		for (i = 0; i < priv->num_sensors; i++)
-			p2[i] = ((base1 + p2[i]) << 2);
-		fallthrough;
-	case ONE_PT_CALIB2:
-		base0 = qfprom_cdata[0] & MSM8976_BASE0_MASK;
-		p1[0] = (qfprom_cdata[0] & MSM8976_S0_P1_MASK) >> MSM8976_S0_P1_SHIFT;
-		p1[1] = (qfprom_cdata[0] & MSM8976_S1_P1_MASK) >> MSM8976_S1_P1_SHIFT;
-		p1[2] = (qfprom_cdata[1] & MSM8976_S2_P1_MASK) >> MSM8976_S2_P1_SHIFT;
-		p1[3] = (qfprom_cdata[1] & MSM8976_S3_P1_MASK) >> MSM8976_S3_P1_SHIFT;
-		p1[4] = (qfprom_cdata[2] & MSM8976_S4_P1_MASK) >> MSM8976_S4_P1_SHIFT;
-		p1[5] = (qfprom_cdata[2] & MSM8976_S5_P1_MASK) >> MSM8976_S5_P1_SHIFT;
-		p1[6] = (qfprom_cdata[3] & MSM8976_S6_P1_MASK) >> MSM8976_S6_P1_SHIFT;
-		p1[7] = (qfprom_cdata[3] & MSM8976_S7_P1_MASK) >> MSM8976_S7_P1_SHIFT;
-		p1[8] = (qfprom_cdata[4] & MSM8976_S8_P1_MASK) >> MSM8976_S8_P1_SHIFT;
-		p1[9] = (qfprom_cdata[4] & MSM8976_S9_P1_MASK) >> MSM8976_S9_P1_SHIFT;
-		p1[10] = (qfprom_cdata[4] & MSM8976_S10_P1_MASK) >> MSM8976_S10_P1_SHIFT;
-		tmp = (qfprom_cdata[5] & MSM8976_S10_P1_MASK_1) << MSM8976_S10_P1_SHIFT_1;
-		p1[10] |= tmp;
-
-		for (i = 0; i < priv->num_sensors; i++)
-			p1[i] = (((base0) + p1[i]) << 2);
-		break;
-	default:
-		for (i = 0; i < priv->num_sensors; i++) {
-			p1[i] = 500;
-			p2[i] = 780;
-		}
-		break;
-	}
 
 	compute_intercept_slope(priv, p1, p2, mode);
 	kfree(qfprom_cdata);

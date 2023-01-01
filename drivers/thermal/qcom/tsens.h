@@ -584,7 +584,45 @@ struct tsens_priv {
 	struct tsens_sensor		sensor[];
 };
 
+/**
+ * struct tsens_single_value - internal representation of a single field inside nvmem calibration data
+ * @idx: index into the u32 data array
+ * @shift: the shift of the first bit in the value
+ * @blob: index of the data blob to use for this cell
+ */
+struct tsens_single_value {
+	u8 idx;
+	u8 shift;
+	u8 blob;
+};
+
+/**
+ * struct tsens_legacy_calibration_format - description of calibration data used when parsing the legacy nvmem blob
+ * @base_len: the length of the base fields inside calibration data
+ * @base_shift: the shift to be applied to base data
+ * @sp_len: the length of the sN_pM fields inside calibration data
+ * @mode: descriptor of the calibration mode field
+ * @invalid: descriptor of the calibration mode invalid field
+ * @base: descriptors of the base0 and base1 fields
+ * @sp: descriptors of the sN_pM fields
+ */
+struct tsens_legacy_calibration_format {
+	unsigned int base_len;
+	unsigned int base_shift;
+	unsigned int sp_len;
+	/* just two bits */
+	struct tsens_single_value mode;
+	/* on all platforms except 8974 invalid is the third bit of what downstream calls 'mode' */
+	struct tsens_single_value invalid;
+	struct tsens_single_value base[2];
+	struct tsens_single_value sp[][2];
+};
+
 char *qfprom_read(struct device *dev, const char *cname);
+int tsens_read_calibration_legacy(struct tsens_priv *priv,
+				  const struct tsens_legacy_calibration_format *format,
+				  u32 *p1, u32 *p2,
+				  u32 *cdata, u32 *csel);
 int tsens_read_calibration(struct tsens_priv *priv, int shift, u32 *p1, u32 *p2, bool backup);
 int tsens_calibrate_nvmem(struct tsens_priv *priv, int shift);
 int tsens_calibrate_common(struct tsens_priv *priv);

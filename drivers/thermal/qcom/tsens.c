@@ -171,6 +171,70 @@ int tsens_calibrate_common(struct tsens_priv *priv)
 	return tsens_calibrate_nvmem(priv, 2);
 }
 
+static u32 tsens_read_cell(const struct tsens_single_value *cell, u8 len, u32 *data0, u32 *data1)
+{
+	u32 val;
+	u32 *data = cell->blob ? data1 : data0;
+
+	if (cell->shift + len <= 32) {
+		val = data[cell->idx] >> cell->shift;
+	} else {
+		u8 part = 32 - cell->shift;
+
+		val = data[cell->idx] >> cell->shift;
+		val |= data[cell->idx + 1] << part;
+	}
+
+	return val & ((1 << len) - 1);
+}
+
+int tsens_read_calibration_legacy(struct tsens_priv *priv,
+				  const struct tsens_legacy_calibration_format *format,
+				  u32 *p1, u32 *p2,
+				  u32 *cdata0, u32 *cdata1)
+{
+	u32 mode, invalid;
+	u32 base1, base2;
+	int i;
+
+	mode = tsens_read_cell(&format->mode, 2, cdata0, cdata1);
+	invalid = tsens_read_cell(&format->invalid, 1, cdata0, cdata1);
+	if (invalid)
+		mode = NO_PT_CALIB;
+	dev_dbg(priv->dev, "calibration mode is %d\n", mode);
+
+	base1 = tsens_read_cell(&format->base[0], format->base_len, cdata0, cdata1);
+	base2 = tsens_read_cell(&format->base[1], format->base_len, cdata0, cdata1);
+
+	for (i = 0; i < priv->num_sensors; i++) {
+		p1[i] = tsens_read_cell(&format->sp[i][0], format->sp_len, cdata0, cdata1);
+		p2[i] = tsens_read_cell(&format->sp[i][1], format->sp_len, cdata0, cdata1);
+	}
+
+	switch (mode) {
+	case ONE_PT_CALIB:
+		for (i = 0; i < priv->num_sensors; i++)
+			p1[i] = p1[i] + (base1 << format->base_shift);
+		break;
+	case TWO_PT_CALIB:
+		for (i = 0; i < priv->num_sensors; i++)
+			p2[i] = (p2[i] + base2) << format->base_shift;
+		fallthrough;
+	case ONE_PT_CALIB2:
+		for (i = 0; i < priv->num_sensors; i++)
+			p1[i] = (p1[i] + base1) << format->base_shift;
+		break;
+	default:
+		dev_dbg(priv->dev, "calibrationless mode\n");
+		for (i = 0; i < priv->num_sensors; i++) {
+			p1[i] = 500;
+			p2[i] = 780;
+		}
+	}
+
+	return mode;
+}
+
 /*
  * Use this function on devices where slope and offset calculations
  * depend on calibration data read from qfprom. On others the slope
