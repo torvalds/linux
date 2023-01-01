@@ -256,8 +256,7 @@ mt7915_wed_check_ppe(struct mt7915_dev *dev, struct mt76_queue *q,
 	if (!msta || !msta->vif)
 		return;
 
-	if (!(q->flags & MT_QFLAG_WED) ||
-	    FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) != MT76_WED_Q_RX)
+	if (!mt76_queue_is_wed_rx(q))
 		return;
 
 	if (!(info & MT_DMA_INFO_PPE_VLD))

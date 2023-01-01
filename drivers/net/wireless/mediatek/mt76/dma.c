@@ -218,8 +218,7 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
 
 	ctrl = FIELD_PREP(MT_DMA_CTL_SD_LEN0, buf[0].len);
 
-	if ((q->flags & MT_QFLAG_WED) &&
-	    FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX) {
+	if (mt76_queue_is_wed_rx(q)) {
 		txwi = mt76_get_rxwi(dev);
 		if (!txwi)
 			return -ENOMEM;
@@ -401,8 +400,7 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 	if (info)
 		*info = le32_to_cpu(desc->info);
 
-	if ((q->flags & MT_QFLAG_WED) &&
-	    FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX) {
+	if (mt76_queue_is_wed_rx(q)) {
 		u32 token = FIELD_GET(MT_DMA_CTL_TOKEN,
 				      le32_to_cpu(desc->buf1));
 		struct mt76_txwi_cache *t = mt76_rx_token_release(dev, token);
