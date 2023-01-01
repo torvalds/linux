@@ -46,9 +46,6 @@
 #include <linux/kmod.h>
 #include <linux/mlx5/mlx5_ifc.h>
 #include <linux/mlx5/vport.h>
-#ifdef CONFIG_RFS_ACCEL
-#include <linux/cpu_rmap.h>
-#endif
 #include <linux/version.h>
 #include <net/devlink.h>
 #include "mlx5_core.h"

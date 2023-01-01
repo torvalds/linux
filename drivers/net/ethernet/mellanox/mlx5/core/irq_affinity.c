@@ -65,7 +65,8 @@ irq_pool_request_irq(struct mlx5_irq_pool *pool, struct irq_affinity_desc *af_de
 			cpu_get(pool, cpumask_first(&af_desc->mask));
 	}
 	return mlx5_irq_alloc(pool, irq_index,
-			      cpumask_empty(&auto_desc.mask) ? af_desc : &auto_desc);
+			      cpumask_empty(&auto_desc.mask) ? af_desc : &auto_desc,
+			      NULL);
 }
 
 /* Looking for the IRQ with the smallest refcount that fits req_mask.
@@ -205,7 +206,7 @@ int mlx5_irq_affinity_irqs_request_auto(struct mlx5_core_dev *dev, int nirqs,
 			 * The PF IRQs are already allocated and binded to CPU
 			 * at this point. Hence, only an index is needed.
 			 */
-			irq = mlx5_irq_request(dev, i, NULL);
+			irq = mlx5_irq_request(dev, i, NULL, NULL);
 		if (IS_ERR(irq))
 			break;
 		irqs[i] = irq;
