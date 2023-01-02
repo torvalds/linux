@@ -30,14 +30,6 @@
 	status = "disabled";
 };
 
-&ostm1 {
-	status = "disabled";
-};
-
-&ostm2 {
-	status = "disabled";
-};
-
 &sdhi0 {
 	status = "disabled";
 };
