@@ -621,6 +621,8 @@
 };
 
 &swr0 {
+	status = "okay";
+
 	left_spkr: speaker@0,1 {
 		compatible = "sdw10217020200";
 		reg = <0 1>;
@@ -739,6 +741,8 @@
 	pinctrl-names = "default";
 	vdd-micb-supply = <&vreg_s10b_1p8>;
 	qcom,dmic-sample-rate = <600000>;
+
+	status = "okay";
 };
 
 &tlmm {

@@ -2152,6 +2152,7 @@
 			#address-cells = <2>;
 			#size-cells = <0>;
 			#sound-dai-cells = <1>;
+			status = "disabled";
 		};
 
 		rxmacro: codec@3200000 {
@@ -2198,6 +2199,7 @@
 			#address-cells = <2>;
 			#size-cells = <0>;
 			#sound-dai-cells = <1>;
+			status = "disabled";
 		};
 
 		txmacro: codec@3220000 {
@@ -2265,6 +2267,7 @@
 			#address-cells = <2>;
 			#size-cells = <0>;
 			#sound-dai-cells = <1>;
+			status = "disabled";
 		};
 
 		swr2: soundwire-controller@33b0000 {
@@ -2293,6 +2296,7 @@
 			#address-cells = <2>;
 			#size-cells = <0>;
 			#sound-dai-cells = <1>;
+			status = "disabled";
 		};
 
 		vamacro: codec@33f0000 {
@@ -2309,6 +2313,7 @@
 			#clock-cells = <0>;
 			clock-output-names = "fsgen";
 			#sound-dai-cells = <1>;
+			status = "disabled";
 		};
 
 		remoteproc_adsp: remoteproc@30000000 {
