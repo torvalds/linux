@@ -1232,7 +1232,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	struct svc_serv		*serv = rqstp->rq_server;
 	struct svc_process_info process;
 	__be32			*statp;
-	u32			prog, vers;
+	u32			vers;
 	__be32			rpc_stat;
 	int			auth_res, rc;
 	__be32			*reply_statp;
@@ -1259,12 +1259,12 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 
 	svc_putnl(resv, 0);		/* ACCEPT */
 
-	rqstp->rq_prog = prog = svc_getnl(argv);	/* program number */
+	rqstp->rq_prog = svc_getnl(argv);	/* program number */
 	rqstp->rq_vers = svc_getnl(argv);	/* version number */
 	rqstp->rq_proc = svc_getnl(argv);	/* procedure number */
 
 	for (progp = serv->sv_program; progp; progp = progp->pg_next)
-		if (prog == progp->pg_prog)
+		if (rqstp->rq_prog == progp->pg_prog)
 			break;
 
 	/*
@@ -1389,7 +1389,7 @@ err_bad_auth:
 	goto sendit;
 
 err_bad_prog:
-	dprintk("svc: unknown program %d\n", prog);
+	dprintk("svc: unknown program %d\n", rqstp->rq_prog);
 	serv->sv_stats->rpcbadfmt++;
 	svc_putnl(resv, RPC_PROG_UNAVAIL);
 	goto sendit;
