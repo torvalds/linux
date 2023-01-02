@@ -1248,18 +1248,14 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
 	clear_bit(RQ_DROPME, &rqstp->rq_flags);
 
+	/* Construct the first words of the reply: */
 	svc_putu32(resv, rqstp->rq_xid);
+	svc_putnl(resv, RPC_REPLY);
+	reply_statp = resv->iov_base + resv->iov_len;
 
 	vers = svc_getnl(argv);
-
-	/* First words of reply: */
-	svc_putnl(resv, 1);		/* REPLY */
-
 	if (vers != 2)		/* RPC version number */
 		goto err_bad_rpc;
-
-	/* Save position in case we later decide to reject: */
-	reply_statp = resv->iov_base + resv->iov_len;
 
 	svc_putnl(resv, 0);		/* ACCEPT */
 
