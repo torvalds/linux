@@ -1712,7 +1712,7 @@ static int iqs626_probe(struct i2c_client *client)
 	return error;
 }
 
-static int __maybe_unused iqs626_suspend(struct device *dev)
+static int iqs626_suspend(struct device *dev)
 {
 	struct iqs626_private *iqs626 = dev_get_drvdata(dev);
 	struct i2c_client *client = iqs626->client;
@@ -1771,7 +1771,7 @@ err_irq:
 	return error;
 }
 
-static int __maybe_unused iqs626_resume(struct device *dev)
+static int iqs626_resume(struct device *dev)
 {
 	struct iqs626_private *iqs626 = dev_get_drvdata(dev);
 	struct i2c_client *client = iqs626->client;
@@ -1818,7 +1818,7 @@ err_irq:
 	return error;
 }
 
-static SIMPLE_DEV_PM_OPS(iqs626_pm, iqs626_suspend, iqs626_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(iqs626_pm, iqs626_suspend, iqs626_resume);
 
 static const struct of_device_id iqs626_of_match[] = {
 	{ .compatible = "azoteq,iqs626a" },
@@ -1830,7 +1830,7 @@ static struct i2c_driver iqs626_i2c_driver = {
 	.driver = {
 		.name = "iqs626a",
 		.of_match_table = iqs626_of_match,
-		.pm = &iqs626_pm,
+		.pm = pm_sleep_ptr(&iqs626_pm),
 	},
 	.probe_new = iqs626_probe,
 };
