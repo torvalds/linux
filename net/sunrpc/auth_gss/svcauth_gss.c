@@ -1444,6 +1444,14 @@ static bool use_gss_proxy(struct net *net)
 	return sn->use_gss_proxy;
 }
 
+static noinline_for_stack int
+svcauth_gss_proc_init(struct svc_rqst *rqstp, struct rpc_gss_wire_cred *gc)
+{
+	if (!use_gss_proxy(SVC_NET(rqstp)))
+		return svcauth_gss_legacy_init(rqstp, gc);
+	return svcauth_gss_proxy_init(rqstp, gc);
+}
+
 #ifdef CONFIG_PROC_FS
 
 static ssize_t write_gssp(struct file *file, const char __user *buf,
@@ -1600,10 +1608,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 	switch (gc->gc_proc) {
 	case RPC_GSS_PROC_INIT:
 	case RPC_GSS_PROC_CONTINUE_INIT:
-		if (use_gss_proxy(SVC_NET(rqstp)))
-			return svcauth_gss_proxy_init(rqstp, gc);
-		else
-			return svcauth_gss_legacy_init(rqstp, gc);
+		return svcauth_gss_proc_init(rqstp, gc);
 	case RPC_GSS_PROC_DATA:
 	case RPC_GSS_PROC_DESTROY:
 		/* Look up the context, and check the verifier: */
