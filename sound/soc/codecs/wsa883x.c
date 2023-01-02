@@ -1375,7 +1375,7 @@ static int wsa883x_probe(struct sdw_slave *pdev,
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	wsa883x = devm_kzalloc(&pdev->dev, sizeof(*wsa883x), GFP_KERNEL);
+	wsa883x = devm_kzalloc(dev, sizeof(*wsa883x), GFP_KERNEL);
 	if (!wsa883x)
 		return -ENOMEM;
 
@@ -1388,17 +1388,17 @@ static int wsa883x_probe(struct sdw_slave *pdev,
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to enable vdd regulator\n");
 
-	wsa883x->sd_n = devm_gpiod_get_optional(&pdev->dev, "powerdown",
+	wsa883x->sd_n = devm_gpiod_get_optional(dev, "powerdown",
 						GPIOD_FLAGS_BIT_NONEXCLUSIVE | GPIOD_OUT_HIGH);
 	if (IS_ERR(wsa883x->sd_n)) {
-		ret = dev_err_probe(&pdev->dev, PTR_ERR(wsa883x->sd_n),
+		ret = dev_err_probe(dev, PTR_ERR(wsa883x->sd_n),
 				    "Shutdown Control GPIO not found\n");
 		goto err;
 	}
 
-	dev_set_drvdata(&pdev->dev, wsa883x);
+	dev_set_drvdata(dev, wsa883x);
 	wsa883x->slave = pdev;
-	wsa883x->dev = &pdev->dev;
+	wsa883x->dev = dev;
 	wsa883x->sconfig.ch_count = 1;
 	wsa883x->sconfig.bps = 1;
 	wsa883x->sconfig.direction = SDW_DATA_DIR_RX;
@@ -1413,7 +1413,7 @@ static int wsa883x_probe(struct sdw_slave *pdev,
 	wsa883x->regmap = devm_regmap_init_sdw(pdev, &wsa883x_regmap_config);
 	if (IS_ERR(wsa883x->regmap)) {
 		gpiod_direction_output(wsa883x->sd_n, 1);
-		ret = dev_err_probe(&pdev->dev, PTR_ERR(wsa883x->regmap),
+		ret = dev_err_probe(dev, PTR_ERR(wsa883x->regmap),
 				    "regmap_init failed\n");
 		goto err;
 	}
@@ -1423,7 +1423,7 @@ static int wsa883x_probe(struct sdw_slave *pdev,
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
-	ret = devm_snd_soc_register_component(&pdev->dev,
+	ret = devm_snd_soc_register_component(dev,
 					      &wsa883x_component_drv,
 					       wsa883x_dais,
 					       ARRAY_SIZE(wsa883x_dais));
