@@ -891,18 +891,27 @@ out:
 }
 EXPORT_SYMBOL_GPL(svcauth_gss_register_pseudoflavor);
 
-/* It would be nice if this bit of code could be shared with the client.
- * Obstacles:
- *	The client shouldn't malloc(), would have to pass in own memory.
- *	The server uses base of head iovec as read pointer, while the
- *	client uses separate pointer. */
+/*
+ * RFC 2203, Section 5.3.2.2
+ *
+ *	struct rpc_gss_integ_data {
+ *		opaque databody_integ<>;
+ *		opaque checksum<>;
+ *	};
+ *
+ *	struct rpc_gss_data_t {
+ *		unsigned int seq_num;
+ *		proc_req_arg_t arg;
+ *	};
+ */
 static int
-unwrap_integ_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
+svcauth_gss_unwrap_integ(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq,
+			 struct gss_ctx *ctx)
 {
 	struct gss_svc_data *gsd = rqstp->rq_auth_data;
-	u32 integ_len, rseqno, maj_stat;
-	struct xdr_netobj mic;
-	struct xdr_buf integ_buf;
+	struct xdr_buf databody_integ;
+	u32 len, seq_num, maj_stat;
+	struct xdr_netobj checksum;
 
 	/* NFS READ normally uses splice to send data in-place. However
 	 * the data in cache can change after the reply's MIC is computed
@@ -916,36 +925,36 @@ unwrap_integ_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct g
 	if (rqstp->rq_deferred)
 		return 0;
 
-	integ_len = svc_getnl(&buf->head[0]);
-	if (integ_len & 3)
+	len = svc_getnl(&buf->head[0]);
+	if (len & 3)
 		goto unwrap_failed;
-	if (integ_len > buf->len)
+	if (len > buf->len)
 		goto unwrap_failed;
-	if (xdr_buf_subsegment(buf, &integ_buf, 0, integ_len))
+	if (xdr_buf_subsegment(buf, &databody_integ, 0, len))
 		goto unwrap_failed;
 
-	if (xdr_decode_word(buf, integ_len, &mic.len))
+	if (xdr_decode_word(buf, len, &checksum.len))
 		goto unwrap_failed;
-	if (mic.len > sizeof(gsd->gsd_scratch))
+	if (checksum.len > sizeof(gsd->gsd_scratch))
 		goto unwrap_failed;
-	mic.data = gsd->gsd_scratch;
-	if (read_bytes_from_xdr_buf(buf, integ_len + 4, mic.data, mic.len))
+	checksum.data = gsd->gsd_scratch;
+	if (read_bytes_from_xdr_buf(buf, len + 4, checksum.data, checksum.len))
 		goto unwrap_failed;
-	maj_stat = gss_verify_mic(ctx, &integ_buf, &mic);
+	maj_stat = gss_verify_mic(ctx, &databody_integ, &checksum);
 	if (maj_stat != GSS_S_COMPLETE)
 		goto bad_mic;
-	rseqno = svc_getnl(&buf->head[0]);
-	if (rseqno != seq)
+	seq_num = svc_getnl(&buf->head[0]);
+	if (seq_num != seq)
 		goto bad_seqno;
 	/* trim off the mic and padding at the end before returning */
-	xdr_buf_trim(buf, round_up_to_quad(mic.len) + 4);
+	xdr_buf_trim(buf, round_up_to_quad(checksum.len) + 4);
 	return 0;
 
 unwrap_failed:
 	trace_rpcgss_svc_unwrap_failed(rqstp);
 	return -EINVAL;
 bad_seqno:
-	trace_rpcgss_svc_seqno_bad(rqstp, seq, rseqno);
+	trace_rpcgss_svc_seqno_bad(rqstp, seq, seq_num);
 	return -EINVAL;
 bad_mic:
 	trace_rpcgss_svc_mic(rqstp, maj_stat);
@@ -1643,8 +1652,8 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 			/* placeholders for length and seq. number: */
 			svc_putnl(resv, 0);
 			svc_putnl(resv, 0);
-			if (unwrap_integ_data(rqstp, &rqstp->rq_arg,
-					gc->gc_seq, rsci->mechctx))
+			if (svcauth_gss_unwrap_integ(rqstp, &rqstp->rq_arg,
+						     gc->gc_seq, rsci->mechctx))
 				goto garbage_args;
 			rqstp->rq_auth_slack = RPC_MAX_AUTH_SIZE;
 			svcxdr_init_decode(rqstp);
