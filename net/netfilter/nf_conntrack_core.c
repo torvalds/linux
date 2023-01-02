@@ -1854,14 +1854,15 @@ resolve_normal_ct(struct nf_conn *tmpl,
 	if (NF_CT_DIRECTION(h) == IP_CT_DIR_REPLY) {
 		ctinfo = IP_CT_ESTABLISHED_REPLY;
 	} else {
+		unsigned long status = READ_ONCE(ct->status);
+
 		/* Once we've had two way comms, always ESTABLISHED. */
-		if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
+		if (likely(status & IPS_SEEN_REPLY))
 			ctinfo = IP_CT_ESTABLISHED;
-		} else if (test_bit(IPS_EXPECTED_BIT, &ct->status)) {
+		else if (status & IPS_EXPECTED)
 			ctinfo = IP_CT_RELATED;
-		} else {
+		else
 			ctinfo = IP_CT_NEW;
-		}
 	}
 	nf_ct_set(skb, ct, ctinfo);
 	return 0;
