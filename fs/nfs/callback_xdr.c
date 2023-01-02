@@ -984,7 +984,6 @@ nfs_callback_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
 	const struct svc_procedure *procp = rqstp->rq_procinfo;
 
-	svcxdr_init_decode(rqstp);
 	svcxdr_init_encode(rqstp);
 
 	*statp = procp->pc_func(rqstp);
