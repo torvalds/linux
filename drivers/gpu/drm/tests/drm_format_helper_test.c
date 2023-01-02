@@ -279,6 +279,21 @@ static u32 *le32buf_to_cpu(struct kunit *test, const u32 *buf, size_t buf_size)
 	return dst;
 }
 
+static __le32 *cpubuf_to_le32(struct kunit *test, const u32 *buf, size_t buf_size)
+{
+	__le32 *dst = NULL;
+	int n;
+
+	dst = kunit_kzalloc(test, sizeof(*dst) * buf_size, GFP_KERNEL);
+	if (!dst)
+		return NULL;
+
+	for (n = 0; n < buf_size; n++)
+		dst[n] = cpu_to_le32(buf[n]);
+
+	return dst;
+}
+
 static void convert_xrgb8888_case_desc(struct convert_xrgb8888_case *t,
 				       char *desc)
 {
@@ -294,7 +309,7 @@ static void drm_test_fb_xrgb8888_to_gray8(struct kunit *test)
 	const struct convert_to_gray8_result *result = &params->gray8_result;
 	size_t dst_size;
 	__u8 *buf = NULL;
-	__u32 *xrgb8888 = NULL;
+	__le32 *xrgb8888 = NULL;
 	struct iosys_map dst, src;
 
 	struct drm_framebuffer fb = {
@@ -310,7 +325,7 @@ static void drm_test_fb_xrgb8888_to_gray8(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
-	xrgb8888 = le32buf_to_cpu(test, params->xrgb8888, TEST_BUF_SIZE);
+	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
@@ -324,7 +339,7 @@ static void drm_test_fb_xrgb8888_to_rgb332(struct kunit *test)
 	const struct convert_to_rgb332_result *result = &params->rgb332_result;
 	size_t dst_size;
 	__u8 *buf = NULL;
-	__u32 *xrgb8888 = NULL;
+	__le32 *xrgb8888 = NULL;
 	struct iosys_map dst, src;
 
 	struct drm_framebuffer fb = {
@@ -340,7 +355,7 @@ static void drm_test_fb_xrgb8888_to_rgb332(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
-	xrgb8888 = le32buf_to_cpu(test, params->xrgb8888, TEST_BUF_SIZE);
+	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
@@ -354,7 +369,7 @@ static void drm_test_fb_xrgb8888_to_rgb565(struct kunit *test)
 	const struct convert_to_rgb565_result *result = &params->rgb565_result;
 	size_t dst_size;
 	__u16 *buf = NULL;
-	__u32 *xrgb8888 = NULL;
+	__le32 *xrgb8888 = NULL;
 	struct iosys_map dst, src;
 
 	struct drm_framebuffer fb = {
@@ -370,7 +385,7 @@ static void drm_test_fb_xrgb8888_to_rgb565(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
-	xrgb8888 = le32buf_to_cpu(test, params->xrgb8888, TEST_BUF_SIZE);
+	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
@@ -387,7 +402,7 @@ static void drm_test_fb_xrgb8888_to_rgb888(struct kunit *test)
 	const struct convert_to_rgb888_result *result = &params->rgb888_result;
 	size_t dst_size;
 	__u8 *buf = NULL;
-	__u32 *xrgb8888 = NULL;
+	__le32 *xrgb8888 = NULL;
 	struct iosys_map dst, src;
 
 	struct drm_framebuffer fb = {
@@ -403,7 +418,7 @@ static void drm_test_fb_xrgb8888_to_rgb888(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
-	xrgb8888 = le32buf_to_cpu(test, params->xrgb8888, TEST_BUF_SIZE);
+	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
@@ -421,7 +436,7 @@ static void drm_test_fb_xrgb8888_to_xrgb2101010(struct kunit *test)
 	const struct convert_to_xrgb2101010_result *result = &params->xrgb2101010_result;
 	size_t dst_size;
 	__u32 *buf = NULL;
-	__u32 *xrgb8888 = NULL;
+	__le32 *xrgb8888 = NULL;
 	struct iosys_map dst, src;
 
 	struct drm_framebuffer fb = {
@@ -437,7 +452,7 @@ static void drm_test_fb_xrgb8888_to_xrgb2101010(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
 	iosys_map_set_vaddr(&dst, buf);
 
-	xrgb8888 = le32buf_to_cpu(test, params->xrgb8888, TEST_BUF_SIZE);
+	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
 	iosys_map_set_vaddr(&src, xrgb8888);
 
