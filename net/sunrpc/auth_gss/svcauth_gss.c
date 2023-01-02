@@ -1095,18 +1095,6 @@ gss_read_common_verf(struct rpc_gss_wire_cred *gc,
 		     struct kvec *argv, __be32 *authp,
 		     struct xdr_netobj *in_handle)
 {
-	/* Read the verifier; should be NULL: */
-	*authp = rpc_autherr_badverf;
-	if (argv->iov_len < 2 * 4)
-		return SVC_DENIED;
-	if (svc_getnl(argv) != RPC_AUTH_NULL)
-		return SVC_DENIED;
-	if (svc_getnl(argv) != 0)
-		return SVC_DENIED;
-	/* Martial context handle and token for upcall: */
-	*authp = rpc_autherr_badcred;
-	if (gc->gc_proc == RPC_GSS_PROC_INIT && gc->gc_ctx.len != 0)
-		return SVC_DENIED;
 	if (dup_netobj(in_handle, &gc->gc_ctx))
 		return SVC_CLOSE;
 	*authp = rpc_autherr_badverf;
@@ -1447,6 +1435,20 @@ static bool use_gss_proxy(struct net *net)
 static noinline_for_stack int
 svcauth_gss_proc_init(struct svc_rqst *rqstp, struct rpc_gss_wire_cred *gc)
 {
+	struct kvec *argv = rqstp->rq_arg.head;
+
+	if (argv->iov_len < 2 * 4)
+		return SVC_DENIED;
+	if (svc_getnl(argv) != RPC_AUTH_NULL)
+		return SVC_DENIED;
+	if (svc_getnl(argv) != 0)
+		return SVC_DENIED;
+
+	if (gc->gc_proc == RPC_GSS_PROC_INIT && gc->gc_ctx.len != 0) {
+		rqstp->rq_auth_stat = rpc_autherr_badcred;
+		return SVC_DENIED;
+	}
+
 	if (!use_gss_proxy(SVC_NET(rqstp)))
 		return svcauth_gss_legacy_init(rqstp, gc);
 	return svcauth_gss_proxy_init(rqstp, gc);
