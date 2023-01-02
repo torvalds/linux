@@ -944,7 +944,7 @@ static irqreturn_t ads7846_irq(int irq, void *handle)
 	return IRQ_HANDLED;
 }
 
-static int __maybe_unused ads7846_suspend(struct device *dev)
+static int ads7846_suspend(struct device *dev)
 {
 	struct ads7846 *ts = dev_get_drvdata(dev);
 
@@ -966,7 +966,7 @@ static int __maybe_unused ads7846_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ads7846_resume(struct device *dev)
+static int ads7846_resume(struct device *dev)
 {
 	struct ads7846 *ts = dev_get_drvdata(dev);
 
@@ -988,7 +988,7 @@ static int __maybe_unused ads7846_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(ads7846_pm, ads7846_suspend, ads7846_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ads7846_pm, ads7846_suspend, ads7846_resume);
 
 static int ads7846_setup_pendown(struct spi_device *spi,
 				 struct ads7846 *ts,
@@ -1421,7 +1421,7 @@ static void ads7846_remove(struct spi_device *spi)
 static struct spi_driver ads7846_driver = {
 	.driver = {
 		.name	= "ads7846",
-		.pm	= &ads7846_pm,
+		.pm	= pm_sleep_ptr(&ads7846_pm),
 		.of_match_table = of_match_ptr(ads7846_dt_ids),
 	},
 	.probe		= ads7846_probe,
