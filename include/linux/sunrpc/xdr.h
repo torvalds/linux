@@ -188,7 +188,6 @@ xdr_adjust_iovec(struct kvec *iov, __be32 *p)
 /*
  * XDR buffer helper functions
  */
-extern void xdr_shift_buf(struct xdr_buf *, size_t);
 extern void xdr_buf_from_iov(const struct kvec *, struct xdr_buf *);
 extern int xdr_buf_subsegment(const struct xdr_buf *, struct xdr_buf *, unsigned int, unsigned int);
 extern void xdr_buf_trim(struct xdr_buf *, unsigned int);
