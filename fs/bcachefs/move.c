@@ -91,7 +91,7 @@ static void move_write(struct moving_io *io)
 	bch2_data_update_read_done(&io->write, io->rbio.pick.crc);
 }
 
-static inline struct moving_io *next_pending_write(struct moving_context *ctxt)
+struct moving_io *bch2_moving_ctxt_next_pending_write(struct moving_context *ctxt)
 {
 	struct moving_io *io =
 		list_first_entry_or_null(&ctxt->reads, struct moving_io, list);
@@ -111,28 +111,19 @@ static void move_read_endio(struct bio *bio)
 	closure_put(&ctxt->cl);
 }
 
-static void do_pending_writes(struct moving_context *ctxt, struct btree_trans *trans)
+void bch2_moving_ctxt_do_pending_writes(struct moving_context *ctxt,
+					struct btree_trans *trans)
 {
 	struct moving_io *io;
 
 	if (trans)
 		bch2_trans_unlock(trans);
 
-	while ((io = next_pending_write(ctxt))) {
+	while ((io = bch2_moving_ctxt_next_pending_write(ctxt))) {
 		list_del(&io->list);
 		move_write(io);
 	}
 }
-
-#define move_ctxt_wait_event(_ctxt, _trans, _cond)		\
-do {								\
-	do_pending_writes(_ctxt, _trans);			\
-								\
-	if (_cond)						\
-		break;						\
-	__wait_event((_ctxt)->wait,				\
-		     next_pending_write(_ctxt) || (_cond));	\
-} while (1)
 
 static void bch2_move_ctxt_wait_for_io(struct moving_context *ctxt,
 				       struct btree_trans *trans)
@@ -299,8 +290,8 @@ static int bch2_move_extent(struct btree_trans *trans,
 	io->rbio.bio.bi_iter.bi_sector	= bkey_start_offset(k.k);
 	io->rbio.bio.bi_end_io		= move_read_endio;
 
-	ret = bch2_data_update_init(c, &io->write, ctxt->wp, io_opts,
-				    data_opts, btree_id, k);
+	ret = bch2_data_update_init(trans, ctxt, &io->write, ctxt->wp,
+				    io_opts, data_opts, btree_id, k);
 	if (ret && ret != -BCH_ERR_unwritten_extent_update)
 		goto err_free_pages;
 

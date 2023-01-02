@@ -28,6 +28,16 @@ struct moving_context {
 	wait_queue_head_t	wait;
 };
 
+#define move_ctxt_wait_event(_ctxt, _trans, _cond)		\
+do {								\
+	bch2_moving_ctxt_do_pending_writes(_ctxt, _trans);	\
+								\
+	if (_cond)						\
+		break;						\
+	__wait_event((_ctxt)->wait,				\
+		     bch2_moving_ctxt_next_pending_write(_ctxt) || (_cond));\
+} while (1)
+
 typedef bool (*move_pred_fn)(struct bch_fs *, void *, struct bkey_s_c,
 			     struct bch_io_opts *, struct data_update_opts *);
 
@@ -35,6 +45,9 @@ void bch2_moving_ctxt_exit(struct moving_context *);
 void bch2_moving_ctxt_init(struct moving_context *, struct bch_fs *,
 			   struct bch_ratelimit *, struct bch_move_stats *,
 			   struct write_point_specifier, bool);
+struct moving_io *bch2_moving_ctxt_next_pending_write(struct moving_context *);
+void bch2_moving_ctxt_do_pending_writes(struct moving_context *,
+					struct btree_trans *);
 
 int bch2_scan_old_btree_nodes(struct bch_fs *, struct bch_move_stats *);
 

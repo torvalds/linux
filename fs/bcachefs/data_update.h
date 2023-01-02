@@ -33,7 +33,8 @@ void bch2_data_update_read_done(struct data_update *,
 
 void bch2_data_update_exit(struct data_update *);
 void bch2_update_unwritten_extent(struct btree_trans *, struct data_update *);
-int bch2_data_update_init(struct bch_fs *, struct data_update *,
+int bch2_data_update_init(struct btree_trans *, struct moving_context *,
+			  struct data_update *,
 			  struct write_point_specifier,
 			  struct bch_io_opts, struct data_update_opts,
 			  enum btree_id, struct bkey_s_c);

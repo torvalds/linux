@@ -397,13 +397,16 @@ void bch2_update_unwritten_extent(struct btree_trans *trans,
 	}
 }
 
-int bch2_data_update_init(struct bch_fs *c, struct data_update *m,
+int bch2_data_update_init(struct btree_trans *trans,
+			  struct moving_context *ctxt,
+			  struct data_update *m,
 			  struct write_point_specifier wp,
 			  struct bch_io_opts io_opts,
 			  struct data_update_opts data_opts,
 			  enum btree_id btree_id,
 			  struct bkey_s_c k)
 {
+	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
@@ -460,8 +463,21 @@ int bch2_data_update_init(struct bch_fs *c, struct data_update *m,
 
 		i++;
 
-		bch2_bucket_nocow_lock(&c->nocow_locks,
-				       PTR_BUCKET_POS(c, &p.ptr), 0);
+		if (ctxt) {
+			bool locked;
+
+			move_ctxt_wait_event(ctxt, trans,
+					(locked = bch2_bucket_nocow_trylock(&c->nocow_locks,
+								  PTR_BUCKET_POS(c, &p.ptr), 0)) ||
+					!atomic_read(&ctxt->read_sectors));
+
+			if (!locked)
+				bch2_bucket_nocow_lock(&c->nocow_locks,
+						       PTR_BUCKET_POS(c, &p.ptr), 0);
+		} else {
+			bch2_bucket_nocow_lock(&c->nocow_locks,
+					       PTR_BUCKET_POS(c, &p.ptr), 0);
+		}
 	}
 
 	if (reserve_sectors) {
