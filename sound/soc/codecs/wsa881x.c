@@ -1119,10 +1119,9 @@ static int wsa881x_probe(struct sdw_slave *pdev,
 
 	wsa881x->sd_n = devm_gpiod_get_optional(dev, "powerdown",
 						GPIOD_FLAGS_BIT_NONEXCLUSIVE);
-	if (IS_ERR(wsa881x->sd_n)) {
-		dev_err(&pdev->dev, "Shutdown Control GPIO not found\n");
-		return PTR_ERR(wsa881x->sd_n);
-	}
+	if (IS_ERR(wsa881x->sd_n))
+		return dev_err_probe(dev, PTR_ERR(wsa881x->sd_n),
+				     "Shutdown Control GPIO not found\n");
 
 	dev_set_drvdata(dev, wsa881x);
 	wsa881x->slave = pdev;
@@ -1138,10 +1137,8 @@ static int wsa881x_probe(struct sdw_slave *pdev,
 	gpiod_direction_output(wsa881x->sd_n, 1);
 
 	wsa881x->regmap = devm_regmap_init_sdw(pdev, &wsa881x_regmap_config);
-	if (IS_ERR(wsa881x->regmap)) {
-		dev_err(&pdev->dev, "regmap_init failed\n");
-		return PTR_ERR(wsa881x->regmap);
-	}
+	if (IS_ERR(wsa881x->regmap))
+		return dev_err_probe(dev, PTR_ERR(wsa881x->regmap), "regmap_init failed\n");
 
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
