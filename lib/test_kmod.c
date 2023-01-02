@@ -51,12 +51,11 @@ static int num_test_devs;
 
 /**
  * enum kmod_test_case - linker table test case
- *
- * If you add a  test case, please be sure to review if you need to se
- * @need_mod_put for your tests case.
- *
  * @TEST_KMOD_DRIVER: stress tests request_module()
  * @TEST_KMOD_FS_TYPE: stress tests get_fs_type()
+ *
+ * If you add a  test case, please be sure to review if you need to set
+ * @need_mod_put for your tests case.
  */
 enum kmod_test_case {
 	__TEST_KMOD_INVALID = 0,
@@ -78,7 +77,7 @@ struct test_config {
 struct kmod_test_device;
 
 /**
- * kmod_test_device_info - thread info
+ * struct kmod_test_device_info - thread info
  *
  * @ret_sync: return value if request_module() is used, sync request for
  * 	@TEST_KMOD_DRIVER
@@ -101,7 +100,7 @@ struct kmod_test_device_info {
 };
 
 /**
- * kmod_test_device - test device to help test kmod
+ * struct kmod_test_device - test device to help test kmod
  *
  * @dev_idx: unique ID for test device
  * @config: configuration for the test
