@@ -340,9 +340,7 @@ void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
 			phys_enc->intf_idx - INTF_0, phys_enc->wb_idx - WB_0,
 			phys_enc->hw_pp->idx - PINGPONG_0, intr_idx);
 
-	if (phys_enc->parent_ops->handle_frame_done)
-		phys_enc->parent_ops->handle_frame_done(
-				phys_enc->parent, phys_enc,
+	dpu_encoder_frame_done_callback(phys_enc->parent, phys_enc,
 				DPU_ENCODER_FRAME_EVENT_ERROR);
 }
 
@@ -1283,7 +1281,7 @@ static enum dpu_wb dpu_encoder_get_wb(const struct dpu_mdss_cfg *catalog,
 	return WB_MAX;
 }
 
-static void dpu_encoder_vblank_callback(struct drm_encoder *drm_enc,
+void dpu_encoder_vblank_callback(struct drm_encoder *drm_enc,
 		struct dpu_encoder_phys *phy_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = NULL;
@@ -1305,7 +1303,7 @@ static void dpu_encoder_vblank_callback(struct drm_encoder *drm_enc,
 	DPU_ATRACE_END("encoder_vblank_callback");
 }
 
-static void dpu_encoder_underrun_callback(struct drm_encoder *drm_enc,
+void dpu_encoder_underrun_callback(struct drm_encoder *drm_enc,
 		struct dpu_encoder_phys *phy_enc)
 {
 	if (!phy_enc)
@@ -1381,7 +1379,7 @@ void dpu_encoder_register_frame_event_callback(struct drm_encoder *drm_enc,
 	spin_unlock_irqrestore(&dpu_enc->enc_spinlock, lock_flags);
 }
 
-static void dpu_encoder_frame_done_callback(
+void dpu_encoder_frame_done_callback(
 		struct drm_encoder *drm_enc,
 		struct dpu_encoder_phys *ready_phys, u32 event)
 {
@@ -2235,12 +2233,6 @@ static int dpu_encoder_virt_add_phys_encs(
 	return 0;
 }
 
-static const struct dpu_encoder_virt_ops dpu_encoder_parent_ops = {
-	.handle_vblank_virt = dpu_encoder_vblank_callback,
-	.handle_underrun_virt = dpu_encoder_underrun_callback,
-	.handle_frame_done = dpu_encoder_frame_done_callback,
-};
-
 static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 				 struct dpu_kms *dpu_kms,
 				 struct msm_display_info *disp_info)
@@ -2260,7 +2252,6 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 	memset(&phys_params, 0, sizeof(phys_params));
 	phys_params.dpu_kms = dpu_kms;
 	phys_params.parent = &dpu_enc->base;
-	phys_params.parent_ops = &dpu_encoder_parent_ops;
 	phys_params.enc_spinlock = &dpu_enc->enc_spinlock;
 
 	switch (disp_info->intf_type) {

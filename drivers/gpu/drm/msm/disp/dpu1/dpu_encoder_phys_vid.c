@@ -308,9 +308,7 @@ static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 
 	DPU_ATRACE_BEGIN("vblank_irq");
 
-	if (phys_enc->parent_ops->handle_vblank_virt)
-		phys_enc->parent_ops->handle_vblank_virt(phys_enc->parent,
-				phys_enc);
+	dpu_encoder_vblank_callback(phys_enc->parent, phys_enc);
 
 	atomic_read(&phys_enc->pending_kickoff_cnt);
 
@@ -330,7 +328,7 @@ static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 	/* Signal any waiting atomic commit thread */
 	wake_up_all(&phys_enc->pending_kickoff_wq);
 
-	phys_enc->parent_ops->handle_frame_done(phys_enc->parent, phys_enc,
+	dpu_encoder_frame_done_callback(phys_enc->parent, phys_enc,
 			DPU_ENCODER_FRAME_EVENT_DONE);
 
 	DPU_ATRACE_END("vblank_irq");
@@ -340,9 +338,7 @@ static void dpu_encoder_phys_vid_underrun_irq(void *arg, int irq_idx)
 {
 	struct dpu_encoder_phys *phys_enc = arg;
 
-	if (phys_enc->parent_ops->handle_underrun_virt)
-		phys_enc->parent_ops->handle_underrun_virt(phys_enc->parent,
-			phys_enc);
+	dpu_encoder_underrun_callback(phys_enc->parent, phys_enc);
 }
 
 static bool dpu_encoder_phys_vid_needs_single_flush(
@@ -698,7 +694,6 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 
 	dpu_encoder_phys_vid_init_ops(&phys_enc->ops);
 	phys_enc->parent = p->parent;
-	phys_enc->parent_ops = p->parent_ops;
 	phys_enc->dpu_kms = p->dpu_kms;
 	phys_enc->split_role = p->split_role;
 	phys_enc->intf_mode = INTF_MODE_VIDEO;
