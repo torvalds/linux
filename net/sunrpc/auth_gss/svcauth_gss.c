@@ -904,13 +904,14 @@ EXPORT_SYMBOL_GPL(svcauth_gss_register_pseudoflavor);
  *		proc_req_arg_t arg;
  *	};
  */
-static int
-svcauth_gss_unwrap_integ(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq,
-			 struct gss_ctx *ctx)
+static noinline_for_stack int
+svcauth_gss_unwrap_integ(struct svc_rqst *rqstp, u32 seq, struct gss_ctx *ctx)
 {
 	struct gss_svc_data *gsd = rqstp->rq_auth_data;
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
+	u32 len, offset, seq_num, maj_stat;
+	struct xdr_buf *buf = xdr->buf;
 	struct xdr_buf databody_integ;
-	u32 len, seq_num, maj_stat;
 	struct xdr_netobj checksum;
 
 	/* NFS READ normally uses splice to send data in-place. However
@@ -925,29 +926,43 @@ svcauth_gss_unwrap_integ(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq,
 	if (rqstp->rq_deferred)
 		return 0;
 
-	len = svc_getnl(&buf->head[0]);
+	if (xdr_stream_decode_u32(xdr, &len) < 0)
+		goto unwrap_failed;
 	if (len & 3)
 		goto unwrap_failed;
-	if (len > buf->len)
-		goto unwrap_failed;
-	if (xdr_buf_subsegment(buf, &databody_integ, 0, len))
+	offset = xdr_stream_pos(xdr);
+	if (xdr_buf_subsegment(buf, &databody_integ, offset, len))
 		goto unwrap_failed;
 
-	if (xdr_decode_word(buf, len, &checksum.len))
+	/*
+	 * The xdr_stream now points to the @seq_num field. The next
+	 * XDR data item is the @arg field, which contains the clear
+	 * text RPC program payload. The checksum, which follows the
+	 * @arg field, is located and decoded without updating the
+	 * xdr_stream.
+	 */
+
+	offset += len;
+	if (xdr_decode_word(buf, offset, &checksum.len))
 		goto unwrap_failed;
 	if (checksum.len > sizeof(gsd->gsd_scratch))
 		goto unwrap_failed;
 	checksum.data = gsd->gsd_scratch;
-	if (read_bytes_from_xdr_buf(buf, len + 4, checksum.data, checksum.len))
+	if (read_bytes_from_xdr_buf(buf, offset + XDR_UNIT, checksum.data,
+				    checksum.len))
 		goto unwrap_failed;
+
 	maj_stat = gss_verify_mic(ctx, &databody_integ, &checksum);
 	if (maj_stat != GSS_S_COMPLETE)
 		goto bad_mic;
-	seq_num = svc_getnl(&buf->head[0]);
+
+	/* The received seqno is protected by the checksum. */
+	if (xdr_stream_decode_u32(xdr, &seq_num) < 0)
+		goto unwrap_failed;
 	if (seq_num != seq)
 		goto bad_seqno;
-	/* trim off the mic and padding at the end before returning */
-	xdr_buf_trim(buf, round_up_to_quad(checksum.len) + 4);
+
+	xdr_truncate_decode(xdr, XDR_UNIT + checksum.len);
 	return 0;
 
 unwrap_failed:
@@ -1652,11 +1667,11 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 			/* placeholders for length and seq. number: */
 			svc_putnl(resv, 0);
 			svc_putnl(resv, 0);
-			if (svcauth_gss_unwrap_integ(rqstp, &rqstp->rq_arg,
-						     gc->gc_seq, rsci->mechctx))
+			svcxdr_init_decode(rqstp);
+			if (svcauth_gss_unwrap_integ(rqstp, gc->gc_seq,
+						     rsci->mechctx))
 				goto garbage_args;
 			rqstp->rq_auth_slack = RPC_MAX_AUTH_SIZE;
-			svcxdr_init_decode(rqstp);
 			break;
 		case RPC_GSS_SVC_PRIVACY:
 			/* placeholders for length and seq. number: */

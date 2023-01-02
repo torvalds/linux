@@ -1193,6 +1193,21 @@ void xdr_truncate_encode(struct xdr_stream *xdr, size_t len)
 EXPORT_SYMBOL(xdr_truncate_encode);
 
 /**
+ * xdr_truncate_decode - Truncate a decoding stream
+ * @xdr: pointer to struct xdr_stream
+ * @len: Number of bytes to remove
+ *
+ */
+void xdr_truncate_decode(struct xdr_stream *xdr, size_t len)
+{
+	unsigned int nbytes = xdr_align_size(len);
+
+	xdr->buf->len -= nbytes;
+	xdr->nwords -= XDR_QUADLEN(nbytes);
+}
+EXPORT_SYMBOL_GPL(xdr_truncate_decode);
+
+/**
  * xdr_restrict_buflen - decrease available buffer space
  * @xdr: pointer to xdr_stream
  * @newbuflen: new maximum number of bytes available
