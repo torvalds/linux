@@ -97,6 +97,8 @@ MODULE_FIRMWARE(BXT_DMC_PATH);
 #define DMC_V3_MAX_MMIO_COUNT		20
 #define DMC_V1_MMIO_START_RANGE		0x80000
 
+#define PIPE_TO_DMC_ID(pipe)		 (DMC_FW_PIPEA + ((pipe) - PIPE_A))
+
 struct intel_css_header {
 	/* 0x09 for DMC */
 	u32 module_type;
@@ -394,6 +396,28 @@ static void pipedmc_clock_gating_wa(struct drm_i915_private *i915, bool enable)
 		for (pipe = PIPE_C; pipe <= PIPE_D; pipe++)
 			intel_de_rmw(i915, CLKGATE_DIS_PSL_EXT(pipe),
 				     PIPEDMC_GATING_DIS, 0);
+}
+
+void intel_dmc_enable_pipe(struct drm_i915_private *i915, enum pipe pipe)
+{
+	if (!has_dmc_id_fw(i915, PIPE_TO_DMC_ID(pipe)))
+		return;
+
+	if (DISPLAY_VER(i915) >= 14)
+		intel_de_rmw(i915, MTL_PIPEDMC_CONTROL, 0, PIPEDMC_ENABLE_MTL(pipe));
+	else
+		intel_de_rmw(i915, PIPEDMC_CONTROL(pipe), 0, PIPEDMC_ENABLE);
+}
+
+void intel_dmc_disable_pipe(struct drm_i915_private *i915, enum pipe pipe)
+{
+	if (!has_dmc_id_fw(i915, PIPE_TO_DMC_ID(pipe)))
+		return;
+
+	if (DISPLAY_VER(i915) >= 14)
+		intel_de_rmw(i915, MTL_PIPEDMC_CONTROL, PIPEDMC_ENABLE_MTL(pipe), 0);
+	else
+		intel_de_rmw(i915, PIPEDMC_CONTROL(pipe), PIPEDMC_ENABLE, 0);
 }
 
 /**
