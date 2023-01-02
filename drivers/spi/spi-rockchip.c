@@ -1034,7 +1034,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	case ROCKCHIP_SPI_VER2_TYPE2:
 		rs->cs_high_supported = true;
 		ctlr->mode_bits |= SPI_CS_HIGH;
-		if (ctlr->can_dma && slave_mode)
+		if (slave_mode)
 			rs->cs_inactive = true;
 		else
 			rs->cs_inactive = false;
