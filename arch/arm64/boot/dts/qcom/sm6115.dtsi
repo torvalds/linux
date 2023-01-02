@@ -764,9 +764,9 @@
 			status = "disabled";
 
 			ufs_mem_phy_lanes: phy@4807400 {
-				reg = <0x4807400 0x098>,
-				      <0x4807600 0x130>,
-				      <0x4807c00 0x16c>;
+				reg = <0x04807400 0x098>,
+				      <0x04807600 0x130>,
+				      <0x04807c00 0x16c>;
 				#phy-cells = <0>;
 			};
 		};
