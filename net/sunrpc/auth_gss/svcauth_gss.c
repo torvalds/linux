@@ -891,19 +891,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(svcauth_gss_register_pseudoflavor);
 
-static inline int
-read_u32_from_xdr_buf(struct xdr_buf *buf, int base, u32 *obj)
-{
-	__be32  raw;
-	int     status;
-
-	status = read_bytes_from_xdr_buf(buf, base, &raw, sizeof(*obj));
-	if (status)
-		return status;
-	*obj = ntohl(raw);
-	return 0;
-}
-
 /* It would be nice if this bit of code could be shared with the client.
  * Obstacles:
  *	The client shouldn't malloc(), would have to pass in own memory.
@@ -937,8 +924,7 @@ unwrap_integ_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct g
 	if (xdr_buf_subsegment(buf, &integ_buf, 0, integ_len))
 		goto unwrap_failed;
 
-	/* copy out mic... */
-	if (read_u32_from_xdr_buf(buf, integ_len, &mic.len))
+	if (xdr_decode_word(buf, integ_len, &mic.len))
 		goto unwrap_failed;
 	if (mic.len > sizeof(gsd->gsd_scratch))
 		goto unwrap_failed;
