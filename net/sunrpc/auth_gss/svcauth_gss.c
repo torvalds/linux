@@ -1091,30 +1091,15 @@ gss_write_init_verf(struct cache_detail *cd, struct svc_rqst *rqstp,
 }
 
 static inline int
-gss_read_common_verf(struct rpc_gss_wire_cred *gc,
-		     struct kvec *argv, __be32 *authp,
-		     struct xdr_netobj *in_handle)
-{
-	if (dup_netobj(in_handle, &gc->gc_ctx))
-		return SVC_CLOSE;
-	*authp = rpc_autherr_badverf;
-
-	return 0;
-}
-
-static inline int
 gss_read_verf(struct rpc_gss_wire_cred *gc,
 	      struct kvec *argv, __be32 *authp,
 	      struct xdr_netobj *in_handle,
 	      struct xdr_netobj *in_token)
 {
 	struct xdr_netobj tmpobj;
-	int res;
 
-	res = gss_read_common_verf(gc, argv, authp, in_handle);
-	if (res)
-		return res;
-
+	if (dup_netobj(in_handle, &gc->gc_ctx))
+		return SVC_CLOSE;
 	if (svc_safe_getnetobj(argv, &tmpobj)) {
 		kfree(in_handle->data);
 		return SVC_DENIED;
@@ -1151,12 +1136,11 @@ static int gss_read_proxy_verf(struct svc_rqst *rqstp,
 {
 	struct kvec *argv = &rqstp->rq_arg.head[0];
 	unsigned int length, pgto_offs, pgfrom_offs;
-	int pages, i, res, pgto, pgfrom;
 	size_t inlen, to_offs, from_offs;
+	int pages, i, pgto, pgfrom;
 
-	res = gss_read_common_verf(gc, argv, &rqstp->rq_auth_stat, in_handle);
-	if (res)
-		return res;
+	if (dup_netobj(in_handle, &gc->gc_ctx))
+		return SVC_CLOSE;
 
 	inlen = svc_getnl(argv);
 	if (inlen > (argv->iov_len + rqstp->rq_arg.page_len)) {
