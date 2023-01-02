@@ -9,7 +9,6 @@
  * https://www.ti.com/lit/ds/symlink/adc124s021.pdf
  */
 
-#include <linux/acpi.h>
 #include <linux/err.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
@@ -201,19 +200,17 @@ static const struct spi_device_id adc128_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, adc128_id);
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id adc128_acpi_match[] = {
 	{ "AANT1280", (kernel_ulong_t)&adc128_config[2] },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, adc128_acpi_match);
-#endif
 
 static struct spi_driver adc128_driver = {
 	.driver = {
 		.name = "adc128s052",
 		.of_match_table = adc128_of_match,
-		.acpi_match_table = ACPI_PTR(adc128_acpi_match),
+		.acpi_match_table = adc128_acpi_match,
 	},
 	.probe = adc128_probe,
 	.id_table = adc128_id,
