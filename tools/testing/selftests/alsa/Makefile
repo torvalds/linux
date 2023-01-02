@@ -14,7 +14,7 @@ TEST_GEN_PROGS := mixer-test pcm-test
 
 TEST_GEN_PROGS_EXTENDED := libatest.so
 
-TEST_FILES := conf.d
+TEST_FILES := conf.d pcm-test.conf
 
 include ../lib.mk
 

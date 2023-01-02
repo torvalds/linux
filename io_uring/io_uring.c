@@ -677,16 +677,20 @@ static void __io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 	io_cq_unlock_post(ctx);
 }
 
+static void io_cqring_do_overflow_flush(struct io_ring_ctx *ctx)
+{
+	/* iopoll syncs against uring_lock, not completion_lock */
+	if (ctx->flags & IORING_SETUP_IOPOLL)
+		mutex_lock(&ctx->uring_lock);
+	__io_cqring_overflow_flush(ctx);
+	if (ctx->flags & IORING_SETUP_IOPOLL)
+		mutex_unlock(&ctx->uring_lock);
+}
+
 static void io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 {
-	if (test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq)) {
-		/* iopoll syncs against uring_lock, not completion_lock */
-		if (ctx->flags & IORING_SETUP_IOPOLL)
-			mutex_lock(&ctx->uring_lock);
-		__io_cqring_overflow_flush(ctx);
-		if (ctx->flags & IORING_SETUP_IOPOLL)
-			mutex_unlock(&ctx->uring_lock);
-	}
+	if (test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq))
+		io_cqring_do_overflow_flush(ctx);
 }
 
 void __io_put_task(struct task_struct *task, int nr)
@@ -2549,7 +2553,10 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 	trace_io_uring_cqring_wait(ctx, min_events);
 	do {
-		io_cqring_overflow_flush(ctx);
+		if (test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq)) {
+			finish_wait(&ctx->cq_wait, &iowq.wq);
+			io_cqring_do_overflow_flush(ctx);
+		}
 		prepare_to_wait_exclusive(&ctx->cq_wait, &iowq.wq,
 						TASK_INTERRUPTIBLE);
 		ret = io_cqring_wait_schedule(ctx, &iowq, timeout);
@@ -4013,8 +4020,6 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		return -EEXIST;
 
 	if (ctx->restricted) {
-		if (opcode >= IORING_REGISTER_LAST)
-			return -EINVAL;
 		opcode = array_index_nospec(opcode, IORING_REGISTER_LAST);
 		if (!test_bit(opcode, ctx->restrictions.register_op))
 			return -EACCES;
@@ -4169,6 +4174,9 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 	struct io_ring_ctx *ctx;
 	long ret = -EBADF;
 	struct fd f;
+
+	if (opcode >= IORING_REGISTER_LAST)
+		return -EINVAL;
 
 	f = fdget(fd);
 	if (!f.file)
