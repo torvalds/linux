@@ -750,8 +750,6 @@ svcauth_null_accept(struct svc_rqst *rqstp)
 	u32 flavor, len;
 	void *body;
 
-	svcxdr_init_decode(rqstp);
-
 	/* Length of Call's credential body field: */
 	if (xdr_stream_decode_u32(xdr, &len) < 0)
 		return SVC_GARBAGE;
@@ -828,8 +826,6 @@ svcauth_tls_accept(struct svc_rqst *rqstp)
 	u32 flavor, len;
 	void *body;
 
-	svcxdr_init_decode(rqstp);
-
 	/* Length of Call's credential body field: */
 	if (xdr_stream_decode_u32(xdr, &len) < 0)
 		return SVC_GARBAGE;
@@ -904,8 +900,6 @@ svcauth_unix_accept(struct svc_rqst *rqstp)
 	u32 flavor, len, i;
 	void *body;
 	__be32 *p;
-
-	svcxdr_init_decode(rqstp);
 
 	/*
 	 * This implementation ignores the length of the Call's
