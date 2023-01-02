@@ -1112,39 +1112,43 @@ static int gss_read_proxy_verf(struct svc_rqst *rqstp,
 			       struct xdr_netobj *in_handle,
 			       struct gssp_in_token *in_token)
 {
-	struct kvec *argv = &rqstp->rq_arg.head[0];
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	unsigned int length, pgto_offs, pgfrom_offs;
-	size_t inlen, to_offs, from_offs;
 	int pages, i, pgto, pgfrom;
+	size_t to_offs, from_offs;
+	u32 inlen;
 
 	if (dup_netobj(in_handle, &gc->gc_ctx))
 		return SVC_CLOSE;
 
-	inlen = svc_getnl(argv);
-	if (inlen > (argv->iov_len + rqstp->rq_arg.page_len)) {
-		kfree(in_handle->data);
-		return SVC_DENIED;
-	}
+	/*
+	 *  RFC 2203 Section 5.2.2
+	 *
+	 *	struct rpc_gss_init_arg {
+	 *		opaque gss_token<>;
+	 *	};
+	 */
+	if (xdr_stream_decode_u32(xdr, &inlen) < 0)
+		goto out_denied_free;
+	if (inlen > xdr_stream_remaining(xdr))
+		goto out_denied_free;
 
 	pages = DIV_ROUND_UP(inlen, PAGE_SIZE);
 	in_token->pages = kcalloc(pages, sizeof(struct page *), GFP_KERNEL);
-	if (!in_token->pages) {
-		kfree(in_handle->data);
-		return SVC_DENIED;
-	}
+	if (!in_token->pages)
+		goto out_denied_free;
 	in_token->page_base = 0;
 	in_token->page_len = inlen;
 	for (i = 0; i < pages; i++) {
 		in_token->pages[i] = alloc_page(GFP_KERNEL);
 		if (!in_token->pages[i]) {
-			kfree(in_handle->data);
 			gss_free_in_token_pages(in_token);
-			return SVC_DENIED;
+			goto out_denied_free;
 		}
 	}
 
-	length = min_t(unsigned int, inlen, argv->iov_len);
-	memcpy(page_address(in_token->pages[0]), argv->iov_base, length);
+	length = min_t(unsigned int, inlen, (char *)xdr->end - (char *)xdr->p);
+	memcpy(page_address(in_token->pages[0]), xdr->p, length);
 	inlen -= length;
 
 	to_offs = length;
@@ -1167,6 +1171,10 @@ static int gss_read_proxy_verf(struct svc_rqst *rqstp,
 		inlen -= length;
 	}
 	return 0;
+
+out_denied_free:
+	kfree(in_handle->data);
+	return SVC_DENIED;
 }
 
 static inline int
@@ -1196,27 +1204,45 @@ gss_write_resv(struct kvec *resv, size_t size_limit,
  * the upcall results are available, write the verifier and result.
  * Otherwise, drop the request pending an answer to the upcall.
  */
-static int svcauth_gss_legacy_init(struct svc_rqst *rqstp,
-				   struct rpc_gss_wire_cred *gc)
+static int
+svcauth_gss_legacy_init(struct svc_rqst *rqstp,
+			struct rpc_gss_wire_cred *gc)
 {
-	struct kvec *argv = &rqstp->rq_arg.head[0];
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct kvec *resv = &rqstp->rq_res.head[0];
 	struct rsi *rsip, rsikey;
-	struct xdr_netobj tmpobj;
+	__be32 *p;
+	u32 len;
 	int ret;
 	struct sunrpc_net *sn = net_generic(SVC_NET(rqstp), sunrpc_net_id);
 
 	memset(&rsikey, 0, sizeof(rsikey));
 	if (dup_netobj(&rsikey.in_handle, &gc->gc_ctx))
 		return SVC_CLOSE;
-	if (svc_safe_getnetobj(argv, &tmpobj)) {
+
+	/*
+	 *  RFC 2203 Section 5.2.2
+	 *
+	 *	struct rpc_gss_init_arg {
+	 *		opaque gss_token<>;
+	 *	};
+	 */
+	if (xdr_stream_decode_u32(xdr, &len) < 0) {
 		kfree(rsikey.in_handle.data);
 		return SVC_DENIED;
 	}
-	if (dup_netobj(&rsikey.in_token, &tmpobj)) {
+	p = xdr_inline_decode(xdr, len);
+	if (!p) {
+		kfree(rsikey.in_handle.data);
+		return SVC_DENIED;
+	}
+	rsikey.in_token.data = kmalloc(len, GFP_KERNEL);
+	if (ZERO_OR_NULL_PTR(rsikey.in_token.data)) {
 		kfree(rsikey.in_handle.data);
 		return SVC_CLOSE;
 	}
+	memcpy(rsikey.in_token.data, p, len);
+	rsikey.in_token.len = len;
 
 	/* Perform upcall, or find upcall result: */
 	rsip = rsi_lookup(sn->rsi_cache, &rsikey);
@@ -1237,7 +1263,6 @@ static int svcauth_gss_legacy_init(struct svc_rqst *rqstp,
 			   rsip->major_status, rsip->minor_status))
 		goto out;
 
-	svcxdr_init_decode(rqstp);
 	ret = SVC_COMPLETE;
 out:
 	cache_put(&rsip->h, sn->rsi_cache);
@@ -1366,7 +1391,6 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 			   ud.major_status, ud.minor_status))
 		goto out;
 
-	svcxdr_init_decode(rqstp);
 	ret = SVC_COMPLETE;
 out:
 	gss_free_in_token_pages(&ud.in_token);
@@ -1404,14 +1428,19 @@ static bool use_gss_proxy(struct net *net)
 static noinline_for_stack int
 svcauth_gss_proc_init(struct svc_rqst *rqstp, struct rpc_gss_wire_cred *gc)
 {
-	struct kvec *argv = rqstp->rq_arg.head;
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
+	u32 flavor, len;
+	void *body;
 
-	if (argv->iov_len < 2 * 4)
+	svcxdr_init_decode(rqstp);
+
+	/* Call's verf field: */
+	if (xdr_stream_decode_opaque_auth(xdr, &flavor, &body, &len) < 0)
+		return SVC_GARBAGE;
+	if (flavor != RPC_AUTH_NULL || len != 0) {
+		rqstp->rq_auth_stat = rpc_autherr_badverf;
 		return SVC_DENIED;
-	if (svc_getnl(argv) != RPC_AUTH_NULL)
-		return SVC_DENIED;
-	if (svc_getnl(argv) != 0)
-		return SVC_DENIED;
+	}
 
 	if (gc->gc_proc == RPC_GSS_PROC_INIT && gc->gc_ctx.len != 0) {
 		rqstp->rq_auth_stat = rpc_autherr_badcred;
