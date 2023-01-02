@@ -228,6 +228,17 @@ enum hv_isolation_type {
 #define HV_REGISTER_SINT15			0x4000009F
 
 /*
+ * Define synthetic interrupt controller model specific registers for
+ * nested hypervisor.
+ */
+#define HV_REGISTER_NESTED_SCONTROL            0x40001080
+#define HV_REGISTER_NESTED_SVERSION            0x40001081
+#define HV_REGISTER_NESTED_SIEFP               0x40001082
+#define HV_REGISTER_NESTED_SIMP                0x40001083
+#define HV_REGISTER_NESTED_EOM                 0x40001084
+#define HV_REGISTER_NESTED_SINT0               0x40001090
+
+/*
  * Synthetic Timer MSRs. Four timers per vcpu.
  */
 #define HV_REGISTER_STIMER0_CONFIG		0x400000B0
