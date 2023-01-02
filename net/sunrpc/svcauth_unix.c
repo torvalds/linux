@@ -807,25 +807,41 @@ struct auth_ops svcauth_null = {
 };
 
 
+/**
+ * svcauth_tls_accept - Decode and validate incoming RPC_AUTH_TLS credential
+ * @rqstp: RPC transaction
+ *
+ * Return values:
+ *   %SVC_OK: Both credential and verifier are valid
+ *   %SVC_DENIED: Credential or verifier is not valid
+ *   %SVC_GARBAGE: Failed to decode credential or verifier
+ *   %SVC_CLOSE: Temporary failure
+ *
+ * rqstp->rq_auth_stat is set as mandated by RFC 5531.
+ */
 static int
 svcauth_tls_accept(struct svc_rqst *rqstp)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct svc_cred	*cred = &rqstp->rq_cred;
-	struct kvec *argv = rqstp->rq_arg.head;
 	struct kvec *resv = rqstp->rq_res.head;
+	u32 flavor, len;
+	void *body;
 
-	if (argv->iov_len < XDR_UNIT * 3)
+	svcxdr_init_decode(rqstp);
+
+	/* Length of Call's credential body field: */
+	if (xdr_stream_decode_u32(xdr, &len) < 0)
 		return SVC_GARBAGE;
-
-	/* Call's cred length */
-	if (svc_getu32(argv) != xdr_zero) {
+	if (len != 0) {
 		rqstp->rq_auth_stat = rpc_autherr_badcred;
 		return SVC_DENIED;
 	}
 
-	/* Call's verifier flavor and its length */
-	if (svc_getu32(argv) != rpc_auth_null ||
-	    svc_getu32(argv) != xdr_zero) {
+	/* Call's verf field: */
+	if (xdr_stream_decode_opaque_auth(xdr, &flavor, &body, &len) < 0)
+		return SVC_GARBAGE;
+	if (flavor != RPC_AUTH_NULL || len != 0) {
 		rqstp->rq_auth_stat = rpc_autherr_badverf;
 		return SVC_DENIED;
 	}
@@ -836,12 +852,12 @@ svcauth_tls_accept(struct svc_rqst *rqstp)
 		return SVC_DENIED;
 	}
 
-	/* Mapping to nobody uid/gid is required */
+	/* Signal that mapping to nobody uid/gid is required */
 	cred->cr_uid = INVALID_UID;
 	cred->cr_gid = INVALID_GID;
 	cred->cr_group_info = groups_alloc(0);
 	if (cred->cr_group_info == NULL)
-		return SVC_CLOSE; /* kmalloc failure - client must retry */
+		return SVC_CLOSE;
 
 	/* Reply's verifier */
 	svc_putnl(resv, RPC_AUTH_NULL);
@@ -853,7 +869,6 @@ svcauth_tls_accept(struct svc_rqst *rqstp)
 		svc_putnl(resv, 0);
 
 	rqstp->rq_cred.cr_flavor = RPC_AUTH_TLS;
-	svcxdr_init_decode(rqstp);
 	return SVC_OK;
 }
 
