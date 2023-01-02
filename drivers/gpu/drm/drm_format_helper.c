@@ -653,41 +653,37 @@ int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t d
 	if (dst_format == DRM_FORMAT_ARGB2101010)
 		dst_format = DRM_FORMAT_XRGB2101010;
 
-	if (dst_format == fb_format) {
+	if (fb_format == dst_format) {
 		drm_fb_memcpy(dst, dst_pitch, src, fb, clip);
 		return 0;
-
-	} else if (dst_format == DRM_FORMAT_RGB565) {
-		if (fb_format == DRM_FORMAT_XRGB8888) {
+	} else if (fb_format == (dst_format | DRM_FORMAT_BIG_ENDIAN)) {
+		drm_fb_swab(dst, dst_pitch, src, fb, clip, false);
+		return 0;
+	} else if (fb_format == (dst_format & ~DRM_FORMAT_BIG_ENDIAN)) {
+		drm_fb_swab(dst, dst_pitch, src, fb, clip, false);
+		return 0;
+	} else if (fb_format == DRM_FORMAT_XRGB8888) {
+		if (dst_format == DRM_FORMAT_RGB565) {
 			drm_fb_xrgb8888_to_rgb565(dst, dst_pitch, src, fb, clip, false);
 			return 0;
-		}
-	} else if (dst_format == (DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN)) {
-		if (fb_format == DRM_FORMAT_RGB565) {
-			drm_fb_swab(dst, dst_pitch, src, fb, clip, false);
-			return 0;
-		}
-	} else if (dst_format == DRM_FORMAT_RGB888) {
-		if (fb_format == DRM_FORMAT_XRGB8888) {
+		} else if (dst_format == DRM_FORMAT_RGB888) {
 			drm_fb_xrgb8888_to_rgb888(dst, dst_pitch, src, fb, clip);
 			return 0;
-		}
-	} else if (dst_format == DRM_FORMAT_XRGB8888) {
-		if (fb_format == DRM_FORMAT_RGB888) {
-			drm_fb_rgb888_to_xrgb8888(dst, dst_pitch, src, fb, clip);
-			return 0;
-		} else if (fb_format == DRM_FORMAT_RGB565) {
-			drm_fb_rgb565_to_xrgb8888(dst, dst_pitch, src, fb, clip);
-			return 0;
-		}
-	} else if (dst_format == DRM_FORMAT_XRGB2101010) {
-		if (fb_format == DRM_FORMAT_XRGB8888) {
+		} else if (dst_format == DRM_FORMAT_XRGB2101010) {
 			drm_fb_xrgb8888_to_xrgb2101010(dst, dst_pitch, src, fb, clip);
 			return 0;
-		}
-	} else if (dst_format == DRM_FORMAT_BGRX8888) {
-		if (fb_format == DRM_FORMAT_XRGB8888) {
+		} else if (dst_format == DRM_FORMAT_BGRX8888) {
 			drm_fb_swab(dst, dst_pitch, src, fb, clip, false);
+			return 0;
+		}
+	} else if (fb_format == DRM_FORMAT_RGB888) {
+		if (dst_format == DRM_FORMAT_XRGB8888) {
+			drm_fb_rgb888_to_xrgb8888(dst, dst_pitch, src, fb, clip);
+			return 0;
+		}
+	} else if (fb_format == DRM_FORMAT_RGB565) {
+		if (dst_format == DRM_FORMAT_XRGB8888) {
+			drm_fb_rgb565_to_xrgb8888(dst, dst_pitch, src, fb, clip);
 			return 0;
 		}
 	}
