@@ -698,23 +698,6 @@ static inline u32 round_up_to_quad(u32 i)
 }
 
 static inline int
-svc_safe_getnetobj(struct kvec *argv, struct xdr_netobj *o)
-{
-	int l;
-
-	if (argv->iov_len < 4)
-		return -1;
-	o->len = svc_getnl(argv);
-	l = round_up_to_quad(o->len);
-	if (argv->iov_len < l)
-		return -1;
-	o->data = argv->iov_base;
-	argv->iov_base += l;
-	argv->iov_len -= l;
-	return 0;
-}
-
-static inline int
 svc_safe_putnetobj(struct kvec *resv, struct xdr_netobj *o)
 {
 	u8 *p;
@@ -1553,26 +1536,90 @@ static void destroy_use_gss_proxy_proc_entry(struct net *net) {}
 #endif /* CONFIG_PROC_FS */
 
 /*
- * Accept an rpcsec packet.
- * If context establishment, punt to user space
- * If data exchange, verify/decrypt
- * If context destruction, handle here
- * In the context establishment and destruction case we encode
- * response here and return SVC_COMPLETE.
+ * The Call's credential body should contain a struct rpc_gss_cred_t.
+ *
+ * RFC 2203 Section 5
+ *
+ *	struct rpc_gss_cred_t {
+ *		union switch (unsigned int version) {
+ *		case RPCSEC_GSS_VERS_1:
+ *			struct {
+ *				rpc_gss_proc_t gss_proc;
+ *				unsigned int seq_num;
+ *				rpc_gss_service_t service;
+ *				opaque handle<>;
+ *			} rpc_gss_cred_vers_1_t;
+ *		}
+ *	};
+ */
+static bool
+svcauth_gss_decode_credbody(struct xdr_stream *xdr,
+			    struct rpc_gss_wire_cred *gc,
+			    __be32 **rpcstart)
+{
+	ssize_t handle_len;
+	u32 body_len;
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, XDR_UNIT);
+	if (!p)
+		return false;
+	/*
+	 * start of rpc packet is 7 u32's back from here:
+	 * xid direction rpcversion prog vers proc flavour
+	 */
+	*rpcstart = p - 7;
+	body_len = be32_to_cpup(p);
+	if (body_len > RPC_MAX_AUTH_SIZE)
+		return false;
+
+	/* struct rpc_gss_cred_t */
+	if (xdr_stream_decode_u32(xdr, &gc->gc_v) < 0)
+		return false;
+	if (xdr_stream_decode_u32(xdr, &gc->gc_proc) < 0)
+		return false;
+	if (xdr_stream_decode_u32(xdr, &gc->gc_seq) < 0)
+		return false;
+	if (xdr_stream_decode_u32(xdr, &gc->gc_svc) < 0)
+		return false;
+	handle_len = xdr_stream_decode_opaque_inline(xdr,
+						     (void **)&gc->gc_ctx.data,
+						     body_len);
+	if (handle_len < 0)
+		return false;
+	if (body_len != XDR_UNIT * 5 + xdr_align_size(handle_len))
+		return false;
+
+	gc->gc_ctx.len = handle_len;
+	return true;
+}
+
+/**
+ * svcauth_gss_accept - Decode and validate incoming RPC_AUTH_GSS credential
+ * @rqstp: RPC transaction
+ *
+ * Return values:
+ *   %SVC_OK: Success
+ *   %SVC_COMPLETE: GSS context lifetime event
+ *   %SVC_DENIED: Credential or verifier is not valid
+ *   %SVC_GARBAGE: Failed to decode credential or verifier
+ *   %SVC_CLOSE: Temporary failure
+ *
+ * The rqstp->rq_auth_stat field is also set (see RFCs 2203 and 5531).
  */
 static int
 svcauth_gss_accept(struct svc_rqst *rqstp)
 {
-	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
-	u32		crlen;
 	struct gss_svc_data *svcdata = rqstp->rq_auth_data;
+	__be32		*rpcstart;
 	struct rpc_gss_wire_cred *gc;
 	struct rsc	*rsci = NULL;
-	__be32		*rpcstart;
 	__be32		*reject_stat = resv->iov_base + resv->iov_len;
 	int		ret;
 	struct sunrpc_net *sn = net_generic(SVC_NET(rqstp), sunrpc_net_id);
+
+	svcxdr_init_decode(rqstp);
 
 	rqstp->rq_auth_stat = rpc_autherr_badcred;
 	if (!svcdata)
@@ -1584,31 +1631,10 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 	svcdata->rsci = NULL;
 	gc = &svcdata->clcred;
 
-	/* start of rpc packet is 7 u32's back from here:
-	 * xid direction rpcversion prog vers proc flavour
-	 */
-	rpcstart = argv->iov_base;
-	rpcstart -= 7;
-
-	/* credential is:
-	 *   version(==1), proc(0,1,2,3), seq, service (1,2,3), handle
-	 * at least 5 u32s, and is preceded by length, so that makes 6.
-	 */
-
-	if (argv->iov_len < 5 * 4)
+	if (!svcauth_gss_decode_credbody(&rqstp->rq_arg_stream, gc, &rpcstart))
 		goto auth_err;
-	crlen = svc_getnl(argv);
-	if (svc_getnl(argv) != RPC_GSS_VERSION)
+	if (gc->gc_v != RPC_GSS_VERSION)
 		goto auth_err;
-	gc->gc_proc = svc_getnl(argv);
-	gc->gc_seq = svc_getnl(argv);
-	gc->gc_svc = svc_getnl(argv);
-	if (svc_safe_getnetobj(argv, &gc->gc_ctx))
-		goto auth_err;
-	if (crlen != round_up_to_quad(gc->gc_ctx.len) + 5 * 4)
-		goto auth_err;
-
-	svcxdr_init_decode(rqstp);
 
 	switch (gc->gc_proc) {
 	case RPC_GSS_PROC_INIT:
@@ -1621,7 +1647,6 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 			goto auth_err;
 		fallthrough;
 	case RPC_GSS_PROC_DATA:
-		/* Look up the context, and check the verifier: */
 		rqstp->rq_auth_stat = rpcsec_gsserr_credproblem;
 		rsci = gss_svc_searchbyctx(sn->rsc_cache, &gc->gc_ctx);
 		if (!rsci)
