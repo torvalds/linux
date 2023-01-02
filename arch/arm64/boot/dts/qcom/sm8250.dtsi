@@ -1913,10 +1913,10 @@
 			status = "disabled";
 
 			pcie0_lane: phy@1c06200 {
-				reg = <0 0x1c06200 0 0x170>, /* tx */
-				      <0 0x1c06400 0 0x200>, /* rx */
-				      <0 0x1c06800 0 0x1f0>, /* pcs */
-				      <0 0x1c06c00 0 0xf4>; /* "pcs_lane" same as pcs_misc? */
+				reg = <0 0x01c06200 0 0x170>, /* tx */
+				      <0 0x01c06400 0 0x200>, /* rx */
+				      <0 0x01c06800 0 0x1f0>, /* pcs */
+				      <0 0x01c06c00 0 0xf4>; /* "pcs_lane" same as pcs_misc? */
 				clocks = <&gcc GCC_PCIE_0_PIPE_CLK>;
 				clock-names = "pipe0";
 
@@ -2019,12 +2019,12 @@
 			status = "disabled";
 
 			pcie1_lane: phy@1c0e200 {
-				reg = <0 0x1c0e200 0 0x170>, /* tx0 */
-				      <0 0x1c0e400 0 0x200>, /* rx0 */
-				      <0 0x1c0ea00 0 0x1f0>, /* pcs */
-				      <0 0x1c0e600 0 0x170>, /* tx1 */
-				      <0 0x1c0e800 0 0x200>, /* rx1 */
-				      <0 0x1c0ee00 0 0xf4>; /* "pcs_com" same as pcs_misc? */
+				reg = <0 0x01c0e200 0 0x170>, /* tx0 */
+				      <0 0x01c0e400 0 0x200>, /* rx0 */
+				      <0 0x01c0ea00 0 0x1f0>, /* pcs */
+				      <0 0x01c0e600 0 0x170>, /* tx1 */
+				      <0 0x01c0e800 0 0x200>, /* rx1 */
+				      <0 0x01c0ee00 0 0xf4>; /* "pcs_com" same as pcs_misc? */
 				clocks = <&gcc GCC_PCIE_1_PIPE_CLK>;
 				clock-names = "pipe0";
 
@@ -2108,7 +2108,7 @@
 
 		pcie2_phy: phy@1c16000 {
 			compatible = "qcom,sm8250-qmp-modem-pcie-phy";
-			reg = <0 0x1c16000 0 0x1c0>;
+			reg = <0 0x01c16000 0 0x1c0>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
@@ -2127,12 +2127,12 @@
 			status = "disabled";
 
 			pcie2_lane: phy@1c16200 {
-				reg = <0 0x1c16200 0 0x170>, /* tx0 */
-				      <0 0x1c16400 0 0x200>, /* rx0 */
-				      <0 0x1c16a00 0 0x1f0>, /* pcs */
-				      <0 0x1c16600 0 0x170>, /* tx1 */
-				      <0 0x1c16800 0 0x200>, /* rx1 */
-				      <0 0x1c16e00 0 0xf4>; /* "pcs_com" same as pcs_misc? */
+				reg = <0 0x01c16200 0 0x170>, /* tx0 */
+				      <0 0x01c16400 0 0x200>, /* rx0 */
+				      <0 0x01c16a00 0 0x1f0>, /* pcs */
+				      <0 0x01c16600 0 0x170>, /* tx1 */
+				      <0 0x01c16800 0 0x200>, /* rx1 */
+				      <0 0x01c16e00 0 0xf4>; /* "pcs_com" same as pcs_misc? */
 				clocks = <&gcc GCC_PCIE_2_PIPE_CLK>;
 				clock-names = "pipe0";
 
@@ -3775,16 +3775,16 @@
 			compatible = "qcom,sm8250-camss";
 			status = "disabled";
 
-			reg = <0 0xac6a000 0 0x2000>,
-			      <0 0xac6c000 0 0x2000>,
-			      <0 0xac6e000 0 0x1000>,
-			      <0 0xac70000 0 0x1000>,
-			      <0 0xac72000 0 0x1000>,
-			      <0 0xac74000 0 0x1000>,
-			      <0 0xacb4000 0 0xd000>,
-			      <0 0xacc3000 0 0xd000>,
-			      <0 0xacd9000 0 0x2200>,
-			      <0 0xacdb200 0 0x2200>;
+			reg = <0 0x0ac6a000 0 0x2000>,
+			      <0 0x0ac6c000 0 0x2000>,
+			      <0 0x0ac6e000 0 0x1000>,
+			      <0 0x0ac70000 0 0x1000>,
+			      <0 0x0ac72000 0 0x1000>,
+			      <0 0x0ac74000 0 0x1000>,
+			      <0 0x0acb4000 0 0xd000>,
+			      <0 0x0acc3000 0 0xd000>,
+			      <0 0x0acd9000 0 0x2200>,
+			      <0 0x0acdb200 0 0x2200>;
 			reg-names = "csiphy0",
 				    "csiphy1",
 				    "csiphy2",
