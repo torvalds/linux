@@ -1225,7 +1225,7 @@ EXPORT_SYMBOL_GPL(svc_generic_init_request);
  * Common routine for processing the RPC request.
  */
 static int
-svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
+svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 {
 	struct svc_program	*progp;
 	const struct svc_procedure *procp = NULL;
@@ -1363,8 +1363,8 @@ close_xprt:
 	return 0;
 
 err_short_len:
-	svc_printk(rqstp, "short len %zd, dropping request\n",
-			argv->iov_len);
+	svc_printk(rqstp, "short len %u, dropping request\n",
+		   rqstp->rq_arg.len);
 	goto close_xprt;
 
 err_bad_rpc:
@@ -1453,7 +1453,7 @@ svc_process(struct svc_rqst *rqstp)
 	dir = svc_getu32(argv);
 	if (dir != rpc_call)
 		goto out_baddir;
-	if (!svc_process_common(rqstp, argv, resv))
+	if (!svc_process_common(rqstp, resv))
 		goto out_drop;
 	return svc_send(rqstp);
 
@@ -1519,7 +1519,7 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 	svc_getnl(argv);	/* CALLDIR */
 
 	/* Parse and execute the bc call */
-	proc_error = svc_process_common(rqstp, argv, resv);
+	proc_error = svc_process_common(rqstp, resv);
 
 	atomic_dec(&req->rq_xprt->bc_slot_count);
 	if (!proc_error) {
