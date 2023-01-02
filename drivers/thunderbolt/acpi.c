@@ -36,16 +36,13 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 	 * We need to do this because the xHCI driver might not yet be
 	 * bound so the USB3 SuperSpeed ports are not yet created.
 	 */
-	dev = acpi_get_first_physical_node(adev);
-	while (!dev) {
-		adev = acpi_dev_parent(adev);
-		if (!adev)
-			break;
+	do {
 		dev = acpi_get_first_physical_node(adev);
-	}
+		if (dev)
+			break;
 
-	if (!dev)
-		goto out_put;
+		adev = acpi_dev_parent(adev);
+	} while (adev);
 
 	/*
 	 * Check that the device is PCIe. This is because USB3
