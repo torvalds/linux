@@ -24,10 +24,20 @@
 
 &eth0 {
 	status = "disabled";
+
+	phy0: ethernet-phy@7 {
+		/delete-property/ interrupt-parent;
+		/delete-property/ interrupts;
+	};
 };
 
 &eth1 {
 	status = "disabled";
+
+	phy1: ethernet-phy@7 {
+		/delete-property/ interrupt-parent;
+		/delete-property/ interrupts;
+	};
 };
 
 &sdhi0 {
