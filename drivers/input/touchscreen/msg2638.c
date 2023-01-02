@@ -441,7 +441,7 @@ static int msg2638_ts_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused msg2638_suspend(struct device *dev)
+static int msg2638_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct msg2638_ts_data *msg2638 = i2c_get_clientdata(client);
@@ -456,7 +456,7 @@ static int __maybe_unused msg2638_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused msg2638_resume(struct device *dev)
+static int msg2638_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct msg2638_ts_data *msg2638 = i2c_get_clientdata(client);
@@ -472,7 +472,7 @@ static int __maybe_unused msg2638_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(msg2638_pm_ops, msg2638_suspend, msg2638_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(msg2638_pm_ops, msg2638_suspend, msg2638_resume);
 
 static const struct msg_chip_data msg2138_data = {
 	.irq_handler = msg2138_ts_irq_handler,
@@ -495,7 +495,7 @@ static struct i2c_driver msg2638_ts_driver = {
 	.probe_new = msg2638_ts_probe,
 	.driver = {
 		.name = "MStar-TS",
-		.pm = &msg2638_pm_ops,
+		.pm = pm_sleep_ptr(&msg2638_pm_ops),
 		.of_match_table = msg2638_of_match,
 	},
 };
