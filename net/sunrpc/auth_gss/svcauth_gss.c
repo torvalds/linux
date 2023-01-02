@@ -1608,17 +1608,19 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 	if (crlen != round_up_to_quad(gc->gc_ctx.len) + 5 * 4)
 		goto auth_err;
 
-	if ((gc->gc_proc != RPC_GSS_PROC_DATA) && (rqstp->rq_proc != 0))
-		goto auth_err;
-
 	svcxdr_init_decode(rqstp);
-	rqstp->rq_auth_stat = rpc_autherr_badverf;
+
 	switch (gc->gc_proc) {
 	case RPC_GSS_PROC_INIT:
 	case RPC_GSS_PROC_CONTINUE_INIT:
+		if (rqstp->rq_proc != 0)
+			goto auth_err;
 		return svcauth_gss_proc_init(rqstp, gc);
-	case RPC_GSS_PROC_DATA:
 	case RPC_GSS_PROC_DESTROY:
+		if (rqstp->rq_proc != 0)
+			goto auth_err;
+		fallthrough;
+	case RPC_GSS_PROC_DATA:
 		/* Look up the context, and check the verifier: */
 		rqstp->rq_auth_stat = rpcsec_gsserr_credproblem;
 		rsci = gss_svc_searchbyctx(sn->rsc_cache, &gc->gc_ctx);
@@ -1634,6 +1636,8 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 		}
 		break;
 	default:
+		if (rqstp->rq_proc != 0)
+			goto auth_err;
 		rqstp->rq_auth_stat = rpc_autherr_rejectedcred;
 		goto auth_err;
 	}
