@@ -602,15 +602,14 @@ static int pmc_usb_probe_iom(struct pmc_usb *pmc)
 	int ret;
 
 	for (dev_id = &iom_acpi_ids[0]; dev_id->id[0]; dev_id++) {
-		if (acpi_dev_present(dev_id->id, NULL, -1)) {
-			pmc->iom_port_status_offset = (u32)dev_id->driver_data;
-			adev = acpi_dev_get_first_match_dev(dev_id->id, NULL, -1);
+		adev = acpi_dev_get_first_match_dev(dev_id->id, NULL, -1);
+		if (adev)
 			break;
-		}
 	}
-
 	if (!adev)
 		return -ENODEV;
+
+	pmc->iom_port_status_offset = (u32)dev_id->driver_data;
 
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_memory_resources(adev, &resource_list);
