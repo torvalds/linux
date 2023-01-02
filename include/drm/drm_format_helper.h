@@ -65,7 +65,6 @@ void drm_fb_xrgb8888_to_mono(struct iosys_map *dst, const unsigned int *dst_pitc
 
 size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 				const u32 *native_fourccs, size_t native_nfourccs,
-				const u32 *extra_fourccs, size_t extra_nfourccs,
 				u32 *fourccs_out, size_t nfourccs_out);
 
 #endif /* __LINUX_DRM_FORMAT_HELPER_H */
