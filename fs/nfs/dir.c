@@ -2957,12 +2957,14 @@ static u64 nfs_access_login_time(const struct task_struct *task,
 				 const struct cred *cred)
 {
 	const struct task_struct *parent;
+	const struct cred *pcred;
 	u64 ret;
 
 	rcu_read_lock();
 	for (;;) {
 		parent = rcu_dereference(task->real_parent);
-		if (parent == task || cred_fscmp(parent->cred, cred) != 0)
+		pcred = rcu_dereference(parent->cred);
+		if (parent == task || cred_fscmp(pcred, cred) != 0)
 			break;
 		task = parent;
 	}
