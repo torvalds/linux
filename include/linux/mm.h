@@ -276,7 +276,12 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_MAYSHARE	0x00000080
 
 #define VM_GROWSDOWN	0x00000100	/* general info on the segment */
+#ifdef CONFIG_MMU
 #define VM_UFFD_MISSING	0x00000200	/* missing pages tracking */
+#else /* CONFIG_MMU */
+#define VM_MAYOVERLAY	0x00000200	/* nommu: R/O MAP_PRIVATE mapping that might overlay a file mapping */
+#define VM_UFFD_MISSING	0
+#endif /* CONFIG_MMU */
 #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
 #define VM_UFFD_WP	0x00001000	/* wrprotect pages tracking */
 
@@ -1358,7 +1363,7 @@ static inline bool is_nommu_shared_mapping(vm_flags_t flags)
 	 * ptrace does not apply. Note that there is no mprotect() to upgrade
 	 * write permissions later.
 	 */
-	return flags & VM_MAYSHARE;
+	return flags & (VM_MAYSHARE | VM_MAYOVERLAY);
 }
 #endif
 
