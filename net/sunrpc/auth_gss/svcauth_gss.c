@@ -732,38 +732,48 @@ svc_safe_putnetobj(struct kvec *resv, struct xdr_netobj *o)
 }
 
 /*
- * Verify the checksum on the header and return SVC_OK on success.
- * Otherwise, return SVC_DROP (in the case of a bad sequence number)
- * or return SVC_DENIED and indicate error in rqstp->rq_auth_stat.
+ * Decode and verify a Call's verifier field. For RPC_AUTH_GSS Calls,
+ * the body of this field contains a variable length checksum.
+ *
+ * GSS-specific auth_stat values are mandated by RFC 2203 Section
+ * 5.3.3.3.
  */
 static int
-gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
-		  __be32 *rpcstart, struct rpc_gss_wire_cred *gc)
+svcauth_gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
+			  __be32 *rpcstart, struct rpc_gss_wire_cred *gc)
 {
+	struct xdr_stream	*xdr = &rqstp->rq_arg_stream;
 	struct gss_ctx		*ctx_id = rsci->mechctx;
+	u32			flavor, maj_stat;
 	struct xdr_buf		rpchdr;
 	struct xdr_netobj	checksum;
-	u32			flavor = 0;
-	struct kvec		*argv = &rqstp->rq_arg.head[0];
 	struct kvec		iov;
 
-	/* data to compute the checksum over: */
+	/*
+	 * Compute the checksum of the incoming Call from the
+	 * XID field to credential field:
+	 */
 	iov.iov_base = rpcstart;
-	iov.iov_len = (u8 *)argv->iov_base - (u8 *)rpcstart;
+	iov.iov_len = (u8 *)xdr->p - (u8 *)rpcstart;
 	xdr_buf_from_iov(&iov, &rpchdr);
 
-	rqstp->rq_auth_stat = rpc_autherr_badverf;
-	if (argv->iov_len < 4)
+	/* Call's verf field: */
+	if (xdr_stream_decode_opaque_auth(xdr, &flavor,
+					  (void **)&checksum.data,
+					  &checksum.len) < 0) {
+		rqstp->rq_auth_stat = rpc_autherr_badverf;
 		return SVC_DENIED;
-	flavor = svc_getnl(argv);
-	if (flavor != RPC_AUTH_GSS)
+	}
+	if (flavor != RPC_AUTH_GSS) {
+		rqstp->rq_auth_stat = rpc_autherr_badverf;
 		return SVC_DENIED;
-	if (svc_safe_getnetobj(argv, &checksum))
-		return SVC_DENIED;
+	}
 
-	if (rqstp->rq_deferred) /* skip verification of revisited request */
+	if (rqstp->rq_deferred)
 		return SVC_OK;
-	if (gss_verify_mic(ctx_id, &rpchdr, &checksum) != GSS_S_COMPLETE) {
+	maj_stat = gss_verify_mic(ctx_id, &rpchdr, &checksum);
+	if (maj_stat != GSS_S_COMPLETE) {
+		trace_rpcgss_svc_mic(rqstp, maj_stat);
 		rqstp->rq_auth_stat = rpcsec_gsserr_credproblem;
 		return SVC_DENIED;
 	}
@@ -1431,8 +1441,6 @@ svcauth_gss_proc_init(struct svc_rqst *rqstp, struct rpc_gss_wire_cred *gc)
 	u32 flavor, len;
 	void *body;
 
-	svcxdr_init_decode(rqstp);
-
 	/* Call's verf field: */
 	if (xdr_stream_decode_opaque_auth(xdr, &flavor, &body, &len) < 0)
 		return SVC_GARBAGE;
@@ -1603,6 +1611,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 	if ((gc->gc_proc != RPC_GSS_PROC_DATA) && (rqstp->rq_proc != 0))
 		goto auth_err;
 
+	svcxdr_init_decode(rqstp);
 	rqstp->rq_auth_stat = rpc_autherr_badverf;
 	switch (gc->gc_proc) {
 	case RPC_GSS_PROC_INIT:
@@ -1615,7 +1624,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 		rsci = gss_svc_searchbyctx(sn->rsc_cache, &gc->gc_ctx);
 		if (!rsci)
 			goto auth_err;
-		switch (gss_verify_header(rqstp, rsci, rpcstart, gc)) {
+		switch (svcauth_gss_verify_header(rqstp, rsci, rpcstart, gc)) {
 		case SVC_OK:
 			break;
 		case SVC_DENIED:
@@ -1650,13 +1659,11 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 		rqstp->rq_auth_stat = rpc_autherr_badcred;
 		switch (gc->gc_svc) {
 		case RPC_GSS_SVC_NONE:
-			svcxdr_init_decode(rqstp);
 			break;
 		case RPC_GSS_SVC_INTEGRITY:
 			/* placeholders for length and seq. number: */
 			svc_putnl(resv, 0);
 			svc_putnl(resv, 0);
-			svcxdr_init_decode(rqstp);
 			if (svcauth_gss_unwrap_integ(rqstp, gc->gc_seq,
 						     rsci->mechctx))
 				goto garbage_args;
@@ -1666,7 +1673,6 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 			/* placeholders for length and seq. number: */
 			svc_putnl(resv, 0);
 			svc_putnl(resv, 0);
-			svcxdr_init_decode(rqstp);
 			if (svcauth_gss_unwrap_priv(rqstp, gc->gc_seq,
 						    rsci->mechctx))
 				goto garbage_args;
