@@ -1549,6 +1549,7 @@ struct engines_data {
  * @set_engine_cores: set a config command to engine cores
  * @send_device_activity: indication to FW about device availability
  * @set_dram_properties: set DRAM related properties.
+ * @set_binning_masks: set binning/enable masks for all relevant components.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -1687,6 +1688,7 @@ struct hl_asic_funcs {
 					u32 num_cores, u32 core_command);
 	int (*send_device_activity)(struct hl_device *hdev, bool open);
 	int (*set_dram_properties)(struct hl_device *hdev);
+	int (*set_binning_masks)(struct hl_device *hdev);
 };
 
 

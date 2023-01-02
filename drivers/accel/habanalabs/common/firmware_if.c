@@ -2647,7 +2647,7 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 				fw_loader->dynamic_loader.comm_desc.cur_fw_ver);
 
 		if (rc)
-			goto out;
+			return rc;
 
 		/* read binning info from preboot */
 		if (hdev->support_preboot_binning) {
@@ -2660,15 +2660,19 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 
 			rc = hdev->asic_funcs->set_dram_properties(hdev);
 			if (rc)
-				goto out;
+				return rc;
+
+			rc = hdev->asic_funcs->set_binning_masks(hdev);
+			if (rc)
+				return rc;
 
 			dev_dbg(hdev->dev,
 				"Read binning masks: tpc: 0x%llx, dram: 0x%llx, edma: 0x%x, dec: 0x%x, rot:0x%x\n",
 				hdev->tpc_binning, hdev->dram_binning, hdev->edma_binning,
 				hdev->decoder_binning, hdev->rotator_binning);
 		}
-out:
-		return rc;
+
+		return 0;
 	}
 
 	/* load boot fit to FW */

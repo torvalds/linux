@@ -9135,6 +9135,11 @@ static int gaudi_set_dram_properties(struct hl_device *hdev)
 	return 0;
 }
 
+static int gaudi_set_binning_masks(struct hl_device *hdev)
+{
+	return 0;
+}
+
 static void gaudi_check_if_razwi_happened(struct hl_device *hdev)
 {
 }
@@ -9262,6 +9267,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.set_dram_bar_base = gaudi_set_hbm_bar_base,
 	.send_device_activity = gaudi_send_device_activity,
 	.set_dram_properties = gaudi_set_dram_properties,
+	.set_binning_masks = gaudi_set_binning_masks,
 };
 
 /**

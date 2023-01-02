@@ -5425,6 +5425,11 @@ static int goya_set_dram_properties(struct hl_device *hdev)
 	return 0;
 }
 
+static int goya_set_binning_masks(struct hl_device *hdev)
+{
+	return 0;
+}
+
 static int goya_send_device_activity(struct hl_device *hdev, bool open)
 {
 	return 0;
@@ -5524,6 +5529,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.set_dram_bar_base = goya_set_ddr_bar_base,
 	.send_device_activity = goya_send_device_activity,
 	.set_dram_properties = goya_set_dram_properties,
+	.set_binning_masks = goya_set_binning_masks,
 };
 
 /*
