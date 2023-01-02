@@ -1565,11 +1565,12 @@ void r5l_wake_reclaim(struct r5l_log *log, sector_t space)
 
 	if (!log)
 		return;
+
+	target = READ_ONCE(log->reclaim_target);
 	do {
-		target = log->reclaim_target;
 		if (new < target)
 			return;
-	} while (cmpxchg(&log->reclaim_target, target, new) != target);
+	} while (!try_cmpxchg(&log->reclaim_target, &target, new));
 	md_wakeup_thread(log->reclaim_thread);
 }
 
@@ -3061,7 +3062,6 @@ void r5c_update_on_rdev_error(struct mddev *mddev, struct md_rdev *rdev)
 
 int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 {
-	struct request_queue *q = bdev_get_queue(rdev->bdev);
 	struct r5l_log *log;
 	int ret;
 
@@ -3090,9 +3090,7 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	if (!log)
 		return -ENOMEM;
 	log->rdev = rdev;
-
-	log->need_cache_flush = test_bit(QUEUE_FLAG_WC, &q->queue_flags) != 0;
-
+	log->need_cache_flush = bdev_write_cache(rdev->bdev);
 	log->uuid_checksum = crc32c_le(~0, rdev->mddev->uuid,
 				       sizeof(rdev->mddev->uuid));
 

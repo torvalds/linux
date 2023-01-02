@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/cdns,usb3.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Cadence USBSS-DRD controller bindings
+title: Cadence USBSS-DRD controller
 
 maintainers:
   - Pawel Laszczak <pawell@cadence.com>

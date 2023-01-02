@@ -570,9 +570,8 @@ retry:
 			if (gmadr_bytes == 8)
 				bb->bb_start_cmd_va[2] = 0;
 
-			ret = i915_vma_move_to_active(bb->vma,
-						      workload->req,
-						      0);
+			ret = i915_vma_move_to_active(bb->vma, workload->req,
+						      __EXEC_OBJECT_NO_REQUEST_AWAIT);
 			if (ret)
 				goto err;
 

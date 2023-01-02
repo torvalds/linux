@@ -37,7 +37,14 @@
 			compatible = "arm,cortex-a53";
 			reg = <0>;
 			device_type = "cpu";
+			next-level-cache = <&L2_CA53>;
 			clocks = <&cpg CPG_MOD R9A09G011_CA53_CLK>;
+		};
+
+		L2_CA53: cache-controller-0 {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <2>;
 		};
 	};
 
@@ -48,7 +55,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		gic: interrupt-controller@82000000 {
+		gic: interrupt-controller@82010000 {
 			compatible = "arm,gic-400";
 			#interrupt-cells = <3>;
 			#address-cells = <0>;
@@ -123,10 +130,15 @@
 			#power-domain-cells = <0>;
 		};
 
+		sys: system-controller@a3f03000 {
+			compatible = "renesas,r9a09g011-sys";
+			reg = <0 0xa3f03000 0 0x400>;
+		};
+
 		i2c0: i2c@a4030000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "renesas,i2c-r9a09g011", "renesas,rzv2m-i2c";
+			compatible = "renesas,r9a09g011-i2c", "renesas,rzv2m-i2c";
 			reg = <0 0xa4030000 0 0x80>;
 			interrupts = <GIC_SPI 232 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 236 IRQ_TYPE_EDGE_RISING>;
@@ -140,7 +152,7 @@
 		i2c2: i2c@a4030100 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "renesas,i2c-r9a09g011", "renesas,rzv2m-i2c";
+			compatible = "renesas,r9a09g011-i2c", "renesas,rzv2m-i2c";
 			reg = <0 0xa4030100 0 0x80>;
 			interrupts = <GIC_SPI 234 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 238 IRQ_TYPE_EDGE_RISING>;
@@ -158,6 +170,19 @@
 			clocks = <&cpg CPG_MOD R9A09G011_URT0_CLK>,
 				 <&cpg CPG_MOD R9A09G011_URT_PCLK>;
 			clock-names = "sclk", "pclk";
+			status = "disabled";
+		};
+
+		wdt0: watchdog@a4050000 {
+			compatible = "renesas,r9a09g011-wdt",
+				     "renesas,rzv2m-wdt";
+			reg = <0 0xa4050000 0 0x80>;
+			clocks = <&cpg CPG_MOD R9A09G011_WDT0_PCLK>,
+				 <&cpg CPG_MOD R9A09G011_WDT0_CLK>;
+			clock-names = "pclk", "oscclk";
+			interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cpg R9A09G011_WDT0_PRESETN>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 

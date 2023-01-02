@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef DRBD_STATE_CHANGE_H
 #define DRBD_STATE_CHANGE_H
 

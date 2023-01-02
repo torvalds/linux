@@ -199,7 +199,7 @@ struct tegra210_mbdrc_config {
 	unsigned int mode;
 	unsigned int rms_off;
 	unsigned int peak_rms_mode;
-	unsigned int fliter_structure;
+	unsigned int filter_structure;
 	unsigned int shift_ctrl;
 	unsigned int frame_size;
 	unsigned int channel_mask;

@@ -123,6 +123,7 @@ enum mlx5_flow_steering_mode {
 enum mlx5_flow_steering_capabilty {
 	MLX5_FLOW_STEERING_CAP_VLAN_PUSH_ON_RX = 1UL << 0,
 	MLX5_FLOW_STEERING_CAP_VLAN_POP_ON_TX = 1UL << 1,
+	MLX5_FLOW_STEERING_CAP_MATCH_RANGES = 1UL << 2,
 };
 
 struct mlx5_flow_steering {

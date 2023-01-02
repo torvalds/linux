@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.210"
+#define DC_VER "3.2.215"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -261,11 +261,13 @@ struct dc_caps {
 	uint32_t cache_line_size;
 	uint32_t cache_num_ways;
 	uint16_t subvp_fw_processing_delay_us;
+	uint8_t subvp_drr_max_vblank_margin_us;
 	uint16_t subvp_prefetch_end_to_mall_start_us;
 	uint8_t subvp_swath_height_margin_lines; // subvp start line must be aligned to 2 x swath height
 	uint16_t subvp_pstate_allow_width_us;
 	uint16_t subvp_vertical_int_margin_us;
 	bool seamless_odm;
+	uint8_t subvp_drr_vblank_start_margin_us;
 };
 
 struct dc_bug_wa {
@@ -407,6 +409,7 @@ struct dc_config {
 	bool use_default_clock_table;
 	bool force_bios_enable_lttpr;
 	uint8_t force_bios_fixed_vs;
+	int sdpif_request_limit_words_per_umc;
 
 };
 
@@ -456,15 +459,15 @@ enum pipe_split_policy {
 	MPC_SPLIT_DYNAMIC = 0,
 
 	/**
-	 * @MPC_SPLIT_DYNAMIC: Avoid pipe split, which means that DC will not
+	 * @MPC_SPLIT_AVOID: Avoid pipe split, which means that DC will not
 	 * try any sort of split optimization.
 	 */
 	MPC_SPLIT_AVOID = 1,
 
 	/**
-	 * @MPC_SPLIT_DYNAMIC: With this option, DC will only try to optimize
-	 * the pipe utilization when using a single display; if the user
-	 * connects to a second display, DC will avoid pipe split.
+	 * @MPC_SPLIT_AVOID_MULT_DISP: With this option, DC will only try to
+	 * optimize the pipe utilization when using a single display; if the
+	 * user connects to a second display, DC will avoid pipe split.
 	 */
 	MPC_SPLIT_AVOID_MULT_DISP = 2,
 };
@@ -490,12 +493,14 @@ enum dcn_pwr_state {
 enum dcn_zstate_support_state {
 	DCN_ZSTATE_SUPPORT_UNKNOWN,
 	DCN_ZSTATE_SUPPORT_ALLOW,
+	DCN_ZSTATE_SUPPORT_ALLOW_Z8_ONLY,
+	DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY,
 	DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY,
 	DCN_ZSTATE_SUPPORT_DISALLOW,
 };
 
 /**
- * dc_clocks - DC pipe clocks
+ * struct dc_clocks - DC pipe clocks
  *
  * For any clocks that may differ per pipe only the max is stored in this
  * structure
@@ -526,7 +531,7 @@ struct dc_clocks {
 	bool fclk_prev_p_state_change_support;
 	int num_ways;
 
-	/**
+	/*
 	 * @fw_based_mclk_switching
 	 *
 	 * DC has a mechanism that leverage the variable refresh rate to switch
@@ -839,6 +844,7 @@ struct dc_debug_options {
 	int crb_alloc_policy_min_disp_count;
 	bool disable_z10;
 	bool enable_z9_disable_interface;
+	bool psr_skip_crtc_disable;
 	union dpia_debug_options dpia_debug;
 	bool disable_fixed_vs_aux_timeout_wa;
 	bool force_disable_subvp;
@@ -847,6 +853,7 @@ struct dc_debug_options {
 	unsigned int force_subvp_num_ways;
 	unsigned int force_mall_ss_num_ways;
 	bool alloc_extra_way_for_cursor;
+	uint32_t subvp_extra_lines;
 	bool force_usr_allow;
 	/* uses value at boot and disables switch */
 	bool disable_dtb_ref_clk_switch;
@@ -864,6 +871,7 @@ struct dc_debug_options {
 	bool enable_dp_dig_pixel_rate_div_policy;
 	enum lttpr_mode lttpr_mode_override;
 	unsigned int dsc_delay_factor_wa_x1000;
+	unsigned int min_prefetch_in_strobe_ns;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;

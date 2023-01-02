@@ -429,14 +429,9 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(info->base);
 
 	info->rtc_clk = devm_clk_get(&pdev->dev, "rtc");
-	if (IS_ERR(info->rtc_clk)) {
-		ret = PTR_ERR(info->rtc_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to find rtc clock\n");
-		else
-			dev_dbg(&pdev->dev, "probe deferred due to missing rtc clk\n");
-		return ret;
-	}
+	if (IS_ERR(info->rtc_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(info->rtc_clk),
+				     "failed to find rtc clock\n");
 	ret = clk_prepare_enable(info->rtc_clk);
 	if (ret)
 		return ret;

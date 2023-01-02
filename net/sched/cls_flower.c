@@ -27,6 +27,7 @@
 #include <net/vxlan.h>
 #include <net/erspan.h>
 #include <net/gtp.h>
+#include <net/tc_wrapper.h>
 
 #include <net/dst.h>
 #include <net/dst_metadata.h>
@@ -305,8 +306,9 @@ static u16 fl_ct_info_to_flower_map[] = {
 					TCA_FLOWER_KEY_CT_FLAGS_NEW,
 };
 
-static int fl_classify(struct sk_buff *skb, const struct tcf_proto *tp,
-		       struct tcf_result *res)
+TC_INDIRECT_SCOPE int fl_classify(struct sk_buff *skb,
+				  const struct tcf_proto *tp,
+				  struct tcf_result *res)
 {
 	struct cls_fl_head *head = rcu_dereference_bh(tp->root);
 	bool post_ct = tc_skb_cb(skb)->post_ct;

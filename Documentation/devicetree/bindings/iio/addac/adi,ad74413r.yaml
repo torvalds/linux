@@ -51,14 +51,15 @@ properties:
       Shunt (sense) resistor value in micro-Ohms.
     default: 100000000
 
+  reset-gpios:
+    maxItems: 1
+
 required:
   - compatible
   - reg
   - spi-max-frequency
   - spi-cpol
   - refin-supply
-
-additionalProperties: false
 
 patternProperties:
   "^channel@[0-3]$":
@@ -103,6 +104,11 @@ patternProperties:
     required:
       - reg
 
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
@@ -113,10 +119,7 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      cs-gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
-      status = "okay";
-
-      ad74413r@0 {
+      addac@0 {
         compatible = "adi,ad74413r";
         reg = <0>;
         spi-max-frequency = <1000000>;
@@ -129,6 +132,7 @@ examples:
         interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
 
         refin-supply = <&ad74413r_refin>;
+        reset-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
 
         channel@0 {
           reg = <0>;

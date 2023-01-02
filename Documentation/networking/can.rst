@@ -1148,6 +1148,39 @@ tuning on deep embedded systems'. The author is running a MPC603e
 load without any problems ...
 
 
+Switchable Termination Resistors
+--------------------------------
+
+CAN bus requires a specific impedance across the differential pair,
+typically provided by two 120Ohm resistors on the farthest nodes of
+the bus. Some CAN controllers support activating / deactivating a
+termination resistor(s) to provide the correct impedance.
+
+Query the available resistances::
+
+    $ ip -details link show can0
+    ...
+    termination 120 [ 0, 120 ]
+
+Activate the terminating resistor::
+
+    $ ip link set dev can0 type can termination 120
+
+Deactivate the terminating resistor::
+
+    $ ip link set dev can0 type can termination 0
+
+To enable termination resistor support to a can-controller, either
+implement in the controller's struct can-priv::
+
+    termination_const
+    termination_const_cnt
+    do_set_termination
+
+or add gpio control with the device tree entries from
+Documentation/devicetree/bindings/net/can/can-controller.yaml
+
+
 The Virtual CAN Driver (vcan)
 -----------------------------
 

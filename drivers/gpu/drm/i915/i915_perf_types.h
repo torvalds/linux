@@ -146,8 +146,8 @@ struct i915_perf_stream {
 	 */
 	struct intel_engine_cs *engine;
 
-	/*
-	 * Lock associated with operations on stream
+	/**
+	 * @lock: Lock associated with operations on stream
 	 */
 	struct mutex lock;
 

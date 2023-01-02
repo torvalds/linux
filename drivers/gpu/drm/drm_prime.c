@@ -781,6 +781,8 @@ int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct drm_device *dev = obj->dev;
 
+	dma_resv_assert_held(dma_buf->resv);
+
 	if (!dev->driver->gem_prime_mmap)
 		return -ENOSYS;
 

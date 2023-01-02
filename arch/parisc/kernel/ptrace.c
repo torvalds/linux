@@ -424,8 +424,9 @@ static int fpr_set(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-					 ELF_NFPREG * sizeof(reg), -1);
+	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+				  ELF_NFPREG * sizeof(reg), -1);
+	return 0;
 }
 
 #define RI(reg) (offsetof(struct user_regs_struct,reg) / sizeof(long))
@@ -543,8 +544,9 @@ static int gpr_set(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-					 ELF_NGREG * sizeof(reg), -1);
+	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+				  ELF_NGREG * sizeof(reg), -1);
+	return 0;
 }
 
 static const struct user_regset native_regsets[] = {
@@ -606,8 +608,9 @@ static int gpr32_set(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-					 ELF_NGREG * sizeof(reg), -1);
+	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+				  ELF_NGREG * sizeof(reg), -1);
+	return 0;
 }
 
 /*

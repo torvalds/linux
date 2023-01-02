@@ -21,7 +21,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/reboot.h>
-#include <linux/rational.h>
 
 #include "../clk-fractional-divider.h"
 #include "clk.h"
@@ -196,6 +195,12 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 	fd->flags |= CLK_FRAC_DIVIDER_POWER_OF_TWO_PS;
 
 	clk_fractional_divider_general_approximation(hw, rate, parent_rate, m, n);
+}
+
+static void rockchip_clk_add_lookup(struct rockchip_clk_provider *ctx,
+				    struct clk *clk, unsigned int id)
+{
+	ctx->clk_data.clks[id] = clk;
 }
 
 static struct clk *rockchip_clk_register_frac_branch(
@@ -400,14 +405,6 @@ void rockchip_clk_of_add_provider(struct device_node *np,
 		pr_err("%s: could not register clk provider\n", __func__);
 }
 EXPORT_SYMBOL_GPL(rockchip_clk_of_add_provider);
-
-void rockchip_clk_add_lookup(struct rockchip_clk_provider *ctx,
-			     struct clk *clk, unsigned int id)
-{
-	if (ctx->clk_data.clks && id)
-		ctx->clk_data.clks[id] = clk;
-}
-EXPORT_SYMBOL_GPL(rockchip_clk_add_lookup);
 
 void rockchip_clk_register_plls(struct rockchip_clk_provider *ctx,
 				struct rockchip_pll_clock *list,

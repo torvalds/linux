@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
 #include <asm/stacktrace.h>
 #include <asm/traps.h>
@@ -395,8 +396,18 @@ int unwind_frame(struct stackframe *frame)
 
 	idx = unwind_find_idx(frame->pc);
 	if (!idx) {
-		if (frame->pc && kernel_text_address(frame->pc))
+		if (frame->pc && kernel_text_address(frame->pc)) {
+			if (in_module_plt(frame->pc) && frame->pc != frame->lr) {
+				/*
+				 * Quoting Ard: Veneers only set PC using a
+				 * PC+immediate LDR, and so they don't affect
+				 * the state of the stack or the register file
+				 */
+				frame->pc = frame->lr;
+				return URC_OK;
+			}
 			pr_warn("unwind: Index not found %08lx\n", frame->pc);
+		}
 		return -URC_FAILURE;
 	}
 

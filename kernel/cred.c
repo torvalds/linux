@@ -701,9 +701,9 @@ void __init cred_init(void)
  * override a task's own credentials so that work can be done on behalf of that
  * task that requires a different subjective context.
  *
- * @daemon is used to provide a base for the security record, but can be NULL.
- * If @daemon is supplied, then the security data will be derived from that;
- * otherwise they'll be set to 0 and no groups, full capabilities and no keys.
+ * @daemon is used to provide a base cred, with the security data derived from
+ * that; if this is "&init_task", they'll be set to 0, no groups, full
+ * capabilities, and no keys.
  *
  * The caller may change these controls afterwards if desired.
  *
@@ -714,17 +714,16 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 	const struct cred *old;
 	struct cred *new;
 
+	if (WARN_ON_ONCE(!daemon))
+		return NULL;
+
 	new = kmem_cache_alloc(cred_jar, GFP_KERNEL);
 	if (!new)
 		return NULL;
 
 	kdebug("prepare_kernel_cred() alloc %p", new);
 
-	if (daemon)
-		old = get_task_cred(daemon);
-	else
-		old = get_cred(&init_cred);
-
+	old = get_task_cred(daemon);
 	validate_creds(old);
 
 	*new = *old;

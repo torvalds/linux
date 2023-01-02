@@ -25,6 +25,9 @@
 #define IPV6_TCLASS		67
 #define IPV6_AUTOFLOWLABEL	70
 
+#define TC_ACT_UNSPEC		(-1)
+#define TC_ACT_SHOT		2
+
 #define SOL_TCP			6
 #define TCP_NODELAY		1
 #define TCP_MAXSEG		2

@@ -51,13 +51,6 @@ properties:
       where the board has a button wired to the pin and triggers
       an interrupt on pressing it.
 
-patternProperties:
-  "^buck[1-3]-supply$":
-    description: Input supply phandle of one regulator.
-
-  "^ldo[1-4]-supply$":
-    description: Input supply phandle of one regulator.
-
   regulators:
     type: object
     description: |
@@ -81,6 +74,13 @@ patternProperties:
         unevaluatedProperties: false
 
     additionalProperties: false
+
+patternProperties:
+  "^buck[1-3]-supply$":
+    description: Input supply phandle of one regulator.
+
+  "^ldo[1-4]-supply$":
+    description: Input supply phandle of one regulator.
 
 required:
   - compatible

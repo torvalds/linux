@@ -1,2 +1,1 @@
 - Validate that register contents are saved and restored as expected.
-- Support and validate extra_context.

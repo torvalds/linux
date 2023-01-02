@@ -1898,8 +1898,7 @@ bool __ceph_should_report_size(struct ceph_inode_info *ci)
  *  CHECK_CAPS_FLUSH - we should flush any dirty caps immediately, without
  *    further delay.
  */
-void ceph_check_caps(struct ceph_inode_info *ci, int flags,
-		     struct ceph_mds_session *session)
+void ceph_check_caps(struct ceph_inode_info *ci, int flags)
 {
 	struct inode *inode = &ci->netfs.inode;
 	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
@@ -1913,15 +1912,14 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 	bool queue_invalidate = false;
 	bool tried_invalidate = false;
 	bool queue_writeback = false;
-
-	if (session)
-		ceph_get_mds_session(session);
+	struct ceph_mds_session *session = NULL;
 
 	spin_lock(&ci->i_ceph_lock);
 	if (ci->i_ceph_flags & CEPH_I_ASYNC_CREATE) {
+		ci->i_ceph_flags |= CEPH_I_ASYNC_CHECK_CAPS;
+
 		/* Don't send messages until we get async create reply */
 		spin_unlock(&ci->i_ceph_lock);
-		ceph_put_mds_session(session);
 		return;
 	}
 
@@ -2248,7 +2246,6 @@ static int flush_mdlog_and_wait_inode_unsafe_requests(struct inode *inode)
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_request *req1 = NULL, *req2 = NULL;
-	unsigned int max_sessions;
 	int ret, err = 0;
 
 	spin_lock(&ci->i_unsafe_lock);
@@ -2267,27 +2264,23 @@ static int flush_mdlog_and_wait_inode_unsafe_requests(struct inode *inode)
 	spin_unlock(&ci->i_unsafe_lock);
 
 	/*
-	 * The mdsc->max_sessions is unlikely to be changed
-	 * mostly, here we will retry it by reallocating the
-	 * sessions array memory to get rid of the mdsc->mutex
-	 * lock.
-	 */
-retry:
-	max_sessions = mdsc->max_sessions;
-
-	/*
 	 * Trigger to flush the journal logs in all the relevant MDSes
 	 * manually, or in the worst case we must wait at most 5 seconds
 	 * to wait the journal logs to be flushed by the MDSes periodically.
 	 */
-	if ((req1 || req2) && likely(max_sessions)) {
-		struct ceph_mds_session **sessions = NULL;
-		struct ceph_mds_session *s;
+	if (req1 || req2) {
 		struct ceph_mds_request *req;
+		struct ceph_mds_session **sessions;
+		struct ceph_mds_session *s;
+		unsigned int max_sessions;
 		int i;
+
+		mutex_lock(&mdsc->mutex);
+		max_sessions = mdsc->max_sessions;
 
 		sessions = kcalloc(max_sessions, sizeof(s), GFP_KERNEL);
 		if (!sessions) {
+			mutex_unlock(&mdsc->mutex);
 			err = -ENOMEM;
 			goto out;
 		}
@@ -2299,16 +2292,6 @@ retry:
 				s = req->r_session;
 				if (!s)
 					continue;
-				if (unlikely(s->s_mds >= max_sessions)) {
-					spin_unlock(&ci->i_unsafe_lock);
-					for (i = 0; i < max_sessions; i++) {
-						s = sessions[i];
-						if (s)
-							ceph_put_mds_session(s);
-					}
-					kfree(sessions);
-					goto retry;
-				}
 				if (!sessions[s->s_mds]) {
 					s = ceph_get_mds_session(s);
 					sessions[s->s_mds] = s;
@@ -2321,16 +2304,6 @@ retry:
 				s = req->r_session;
 				if (!s)
 					continue;
-				if (unlikely(s->s_mds >= max_sessions)) {
-					spin_unlock(&ci->i_unsafe_lock);
-					for (i = 0; i < max_sessions; i++) {
-						s = sessions[i];
-						if (s)
-							ceph_put_mds_session(s);
-					}
-					kfree(sessions);
-					goto retry;
-				}
 				if (!sessions[s->s_mds]) {
 					s = ceph_get_mds_session(s);
 					sessions[s->s_mds] = s;
@@ -2342,11 +2315,12 @@ retry:
 		/* the auth MDS */
 		spin_lock(&ci->i_ceph_lock);
 		if (ci->i_auth_cap) {
-		      s = ci->i_auth_cap->session;
-		      if (!sessions[s->s_mds])
-			      sessions[s->s_mds] = ceph_get_mds_session(s);
+			s = ci->i_auth_cap->session;
+			if (!sessions[s->s_mds])
+				sessions[s->s_mds] = ceph_get_mds_session(s);
 		}
 		spin_unlock(&ci->i_ceph_lock);
+		mutex_unlock(&mdsc->mutex);
 
 		/* send flush mdlog request to MDSes */
 		for (i = 0; i < max_sessions; i++) {
@@ -2875,7 +2849,7 @@ static void check_max_size(struct inode *inode, loff_t endoff)
 		check = 1;
 	spin_unlock(&ci->i_ceph_lock);
 	if (check)
-		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
+		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY);
 }
 
 static inline int get_used_fmode(int caps)
@@ -3164,7 +3138,7 @@ static void __ceph_put_cap_refs(struct ceph_inode_info *ci, int had,
 	switch (mode) {
 	case PUT_CAP_REFS_SYNC:
 		if (last)
-			ceph_check_caps(ci, 0, NULL);
+			ceph_check_caps(ci, 0);
 		else if (flushsnaps)
 			ceph_flush_snaps(ci, NULL);
 		break;
@@ -3279,7 +3253,7 @@ unlock:
 	spin_unlock(&ci->i_ceph_lock);
 
 	if (last) {
-		ceph_check_caps(ci, 0, NULL);
+		ceph_check_caps(ci, 0);
 	} else if (flush_snaps) {
 		ceph_flush_snaps(ci, NULL);
 	}
@@ -3628,10 +3602,9 @@ static void handle_cap_grant(struct inode *inode,
 
 	mutex_unlock(&session->s_mutex);
 	if (check_caps == 1)
-		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY | CHECK_CAPS_NOINVAL,
-				session);
+		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY | CHECK_CAPS_NOINVAL);
 	else if (check_caps == 2)
-		ceph_check_caps(ci, CHECK_CAPS_NOINVAL, session);
+		ceph_check_caps(ci, CHECK_CAPS_NOINVAL);
 }
 
 /*
@@ -4357,7 +4330,7 @@ unsigned long ceph_check_delayed_caps(struct ceph_mds_client *mdsc)
 		if (inode) {
 			spin_unlock(&mdsc->cap_delay_lock);
 			dout("check_delayed_caps on %p\n", inode);
-			ceph_check_caps(ci, 0, NULL);
+			ceph_check_caps(ci, 0);
 			iput(inode);
 			spin_lock(&mdsc->cap_delay_lock);
 		}
@@ -4386,7 +4359,7 @@ static void flush_dirty_session_caps(struct ceph_mds_session *s)
 		dout("flush_dirty_caps %llx.%llx\n", ceph_vinop(inode));
 		spin_unlock(&mdsc->cap_dirty_lock);
 		ceph_wait_on_async_create(inode);
-		ceph_check_caps(ci, CHECK_CAPS_FLUSH, NULL);
+		ceph_check_caps(ci, CHECK_CAPS_FLUSH);
 		iput(inode);
 		spin_lock(&mdsc->cap_dirty_lock);
 	}

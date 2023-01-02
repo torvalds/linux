@@ -7,43 +7,35 @@
  * Copyright (C) 2001 IBM.
  */
 
-#include <linux/stdarg.h>
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/spinlock.h>
-#include <linux/export.h>
-#include <linux/init.h>
+#define pr_fmt(fmt)	"rtas: " fmt
+
 #include <linux/capability.h>
 #include <linux/delay.h>
-#include <linux/cpu.h>
-#include <linux/sched.h>
-#include <linux/smp.h>
-#include <linux/completion.h>
-#include <linux/cpumask.h>
+#include <linux/export.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/memblock.h>
-#include <linux/slab.h>
-#include <linux/reboot.h>
-#include <linux/security.h>
-#include <linux/syscalls.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-
-#include <asm/interrupt.h>
-#include <asm/rtas.h>
-#include <asm/hvcall.h>
-#include <asm/machdep.h>
-#include <asm/firmware.h>
-#include <asm/page.h>
-#include <asm/param.h>
-#include <asm/delay.h>
+#include <linux/reboot.h>
+#include <linux/sched.h>
+#include <linux/security.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/stdarg.h>
+#include <linux/syscalls.h>
+#include <linux/types.h>
 #include <linux/uaccess.h>
-#include <asm/udbg.h>
-#include <asm/syscalls.h>
-#include <asm/smp.h>
-#include <linux/atomic.h>
-#include <asm/time.h>
+
+#include <asm/delay.h>
+#include <asm/firmware.h>
+#include <asm/interrupt.h>
+#include <asm/machdep.h>
 #include <asm/mmu.h>
-#include <asm/topology.h>
+#include <asm/page.h>
+#include <asm/rtas.h>
+#include <asm/time.h>
+#include <asm/udbg.h>
 
 /* This is here deliberately so it's only used in this file */
 void enter_rtas(unsigned long);
@@ -353,6 +345,9 @@ int rtas_service_present(const char *service)
 EXPORT_SYMBOL(rtas_service_present);
 
 #ifdef CONFIG_RTAS_ERROR_LOGGING
+
+static u32 rtas_error_log_max __ro_after_init = RTAS_ERROR_LOG_MAX;
+
 /*
  * Return the firmware-specified size of the error log buffer
  *  for all rtas calls that require an error buffer argument.
@@ -360,20 +355,29 @@ EXPORT_SYMBOL(rtas_service_present);
  */
 int rtas_get_error_log_max(void)
 {
-	static int rtas_error_log_max;
-	if (rtas_error_log_max)
-		return rtas_error_log_max;
-
-	rtas_error_log_max = rtas_token ("rtas-error-log-max");
-	if ((rtas_error_log_max == RTAS_UNKNOWN_SERVICE) ||
-	    (rtas_error_log_max > RTAS_ERROR_LOG_MAX)) {
-		printk (KERN_WARNING "RTAS: bad log buffer size %d\n",
-			rtas_error_log_max);
-		rtas_error_log_max = RTAS_ERROR_LOG_MAX;
-	}
 	return rtas_error_log_max;
 }
 EXPORT_SYMBOL(rtas_get_error_log_max);
+
+static void __init init_error_log_max(void)
+{
+	static const char propname[] __initconst = "rtas-error-log-max";
+	u32 max;
+
+	if (of_property_read_u32(rtas.dev, propname, &max)) {
+		pr_warn("%s not found, using default of %u\n",
+			propname, RTAS_ERROR_LOG_MAX);
+		max = RTAS_ERROR_LOG_MAX;
+	}
+
+	if (max > RTAS_ERROR_LOG_MAX) {
+		pr_warn("%s = %u, clamping max error log size to %u\n",
+			propname, max, RTAS_ERROR_LOG_MAX);
+		max = RTAS_ERROR_LOG_MAX;
+	}
+
+	rtas_error_log_max = max;
+}
 
 
 static char rtas_err_buf[RTAS_ERROR_LOG_MAX];
@@ -432,6 +436,7 @@ static char *__fetch_rtas_last_error(char *altbuf)
 #else /* CONFIG_RTAS_ERROR_LOGGING */
 #define __fetch_rtas_last_error(x)	NULL
 #define get_errorlog_buffer()		NULL
+static void __init init_error_log_max(void) {}
 #endif
 
 
@@ -467,6 +472,64 @@ void rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret, 
 static int ibm_open_errinjct_token;
 static int ibm_errinjct_token;
 
+/**
+ * rtas_call() - Invoke an RTAS firmware function.
+ * @token: Identifies the function being invoked.
+ * @nargs: Number of input parameters. Does not include token.
+ * @nret: Number of output parameters, including the call status.
+ * @outputs: Array of @nret output words.
+ * @....: List of @nargs input parameters.
+ *
+ * Invokes the RTAS function indicated by @token, which the caller
+ * should obtain via rtas_token().
+ *
+ * The @nargs and @nret arguments must match the number of input and
+ * output parameters specified for the RTAS function.
+ *
+ * rtas_call() returns RTAS status codes, not conventional Linux errno
+ * values. Callers must translate any failure to an appropriate errno
+ * in syscall context. Most callers of RTAS functions that can return
+ * -2 or 990x should use rtas_busy_delay() to correctly handle those
+ * statuses before calling again.
+ *
+ * The return value descriptions are adapted from 7.2.8 [RTAS] Return
+ * Codes of the PAPR and CHRP specifications.
+ *
+ * Context: Process context preferably, interrupt context if
+ *          necessary.  Acquires an internal spinlock and may perform
+ *          GFP_ATOMIC slab allocation in error path. Unsafe for NMI
+ *          context.
+ * Return:
+ * *                          0 - RTAS function call succeeded.
+ * *                         -1 - RTAS function encountered a hardware or
+ *                                platform error, or the token is invalid,
+ *                                or the function is restricted by kernel policy.
+ * *                         -2 - Specs say "A necessary hardware device was busy,
+ *                                and the requested function could not be
+ *                                performed. The operation should be retried at
+ *                                a later time." This is misleading, at least with
+ *                                respect to current RTAS implementations. What it
+ *                                usually means in practice is that the function
+ *                                could not be completed while meeting RTAS's
+ *                                deadline for returning control to the OS (250us
+ *                                for PAPR/PowerVM, typically), but the call may be
+ *                                immediately reattempted to resume work on it.
+ * *                         -3 - Parameter error.
+ * *                         -7 - Unexpected state change.
+ * *                9000...9899 - Vendor-specific success codes.
+ * *                9900...9905 - Advisory extended delay. Caller should try
+ *                                again after ~10^x ms has elapsed, where x is
+ *                                the last digit of the status [0-5]. Again going
+ *                                beyond the PAPR text, 990x on PowerVM indicates
+ *                                contention for RTAS-internal resources. Other
+ *                                RTAS call sequences in progress should be
+ *                                allowed to complete before reattempting the
+ *                                call.
+ * *                      -9000 - Multi-level isolation error.
+ * *              -9999...-9004 - Vendor-specific error codes.
+ * * Additional negative values - Function-specific error.
+ * * Additional positive values - Function-specific success.
+ */
 int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 {
 	va_list list;
@@ -657,8 +720,7 @@ static int rtas_error_rc(int rtas_rc)
 			rc = -ENODEV;
 			break;
 		default:
-			printk(KERN_ERR "%s: unexpected RTAS error %d\n",
-					__func__, rtas_rc);
+			pr_err("%s: unexpected error %d\n", __func__, rtas_rc);
 			rc = -ERANGE;
 			break;
 	}
@@ -862,8 +924,8 @@ void __noreturn rtas_restart(char *cmd)
 {
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_RESTART);
-	printk("RTAS system-reboot returned %d\n",
-	       rtas_call(rtas_token("system-reboot"), 0, 1, NULL));
+	pr_emerg("system-reboot returned %d\n",
+		 rtas_call(rtas_token("system-reboot"), 0, 1, NULL));
 	for (;;);
 }
 
@@ -872,8 +934,8 @@ void rtas_power_off(void)
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_POWER_OFF);
 	/* allow power on only with power button press */
-	printk("RTAS power-off returned %d\n",
-	       rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
+	pr_emerg("power-off returned %d\n",
+		 rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
 	for (;;);
 }
 
@@ -882,13 +944,14 @@ void __noreturn rtas_halt(void)
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_HALT);
 	/* allow power on only with power button press */
-	printk("RTAS power-off returned %d\n",
-	       rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
+	pr_emerg("power-off returned %d\n",
+		 rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
 	for (;;);
 }
 
 /* Must be in the RMO region, so we place it here */
 static char rtas_os_term_buf[2048];
+static s32 ibm_os_term_token = RTAS_UNKNOWN_SERVICE;
 
 void rtas_os_term(char *str)
 {
@@ -900,19 +963,23 @@ void rtas_os_term(char *str)
 	 * this property may terminate the partition which we want to avoid
 	 * since it interferes with panic_timeout.
 	 */
-	if (RTAS_UNKNOWN_SERVICE == rtas_token("ibm,os-term") ||
-	    RTAS_UNKNOWN_SERVICE == rtas_token("ibm,extended-os-term"))
+	if (ibm_os_term_token == RTAS_UNKNOWN_SERVICE)
 		return;
 
 	snprintf(rtas_os_term_buf, 2048, "OS panic: %s", str);
 
+	/*
+	 * Keep calling as long as RTAS returns a "try again" status,
+	 * but don't use rtas_busy_delay(), which potentially
+	 * schedules.
+	 */
 	do {
-		status = rtas_call(rtas_token("ibm,os-term"), 1, 1, NULL,
+		status = rtas_call(ibm_os_term_token, 1, 1, NULL,
 				   __pa(rtas_os_term_buf));
-	} while (rtas_busy_delay(status));
+	} while (rtas_busy_delay_time(status));
 
 	if (status != 0)
-		printk(KERN_EMERG "ibm,os-term call failed %d\n", status);
+		pr_emerg("ibm,os-term call failed %d\n", status);
 }
 
 /**
@@ -982,8 +1049,6 @@ noinstr struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log
 
 	return NULL;
 }
-
-#ifdef CONFIG_PPC_RTAS_FILTER
 
 /*
  * The sys_rtas syscall, as originally designed, allows root to pass
@@ -1133,20 +1198,6 @@ static void __init rtas_syscall_filter_init(void)
 		rtas_filters[i].token = rtas_token(rtas_filters[i].name);
 }
 
-#else
-
-static bool block_rtas_call(int token, int nargs,
-			    struct rtas_args *args)
-{
-	return false;
-}
-
-static void __init rtas_syscall_filter_init(void)
-{
-}
-
-#endif /* CONFIG_PPC_RTAS_FILTER */
-
 /* We assume to be passed big endian arguments */
 SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 {
@@ -1276,6 +1327,15 @@ void __init rtas_initialize(void)
 	rtas.size = size;
 	no_entry = of_property_read_u32(rtas.dev, "linux,rtas-entry", &entry);
 	rtas.entry = no_entry ? rtas.base : entry;
+
+	init_error_log_max();
+
+	/*
+	 * Discover these now to avoid device tree lookups in the
+	 * panic path.
+	 */
+	if (of_property_read_bool(rtas.dev, "ibm,extended-os-term"))
+		ibm_os_term_token = rtas_token("ibm,os-term");
 
 	/* If RTAS was found, allocate the RMO buffer for it and look for
 	 * the stop-self token if any

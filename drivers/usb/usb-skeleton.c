@@ -564,7 +564,6 @@ static void skel_disconnect(struct usb_interface *interface)
 	int minor = interface->minor;
 
 	dev = usb_get_intfdata(interface);
-	usb_set_intfdata(interface, NULL);
 
 	/* give back our minor */
 	usb_deregister_dev(interface, &skel_class);

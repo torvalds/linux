@@ -1119,6 +1119,14 @@ static void cqspi_config_baudrate_div(struct cqspi_st *cqspi)
 	/* Recalculate the baudrate divisor based on QSPI specification. */
 	div = DIV_ROUND_UP(ref_clk_hz, 2 * cqspi->sclk) - 1;
 
+	/* Maximum baud divisor */
+	if (div > CQSPI_REG_CONFIG_BAUD_MASK) {
+		div = CQSPI_REG_CONFIG_BAUD_MASK;
+		dev_warn(&cqspi->pdev->dev,
+			"Unable to adjust clock <= %d hz. Reduced to %d hz\n",
+			cqspi->sclk, ref_clk_hz/((div+1)*2));
+	}
+
 	reg = readl(reg_base + CQSPI_REG_CONFIG);
 	reg &= ~(CQSPI_REG_CONFIG_BAUD_MASK << CQSPI_REG_CONFIG_BAUD_LSB);
 	reg |= (div & CQSPI_REG_CONFIG_BAUD_MASK) << CQSPI_REG_CONFIG_BAUD_LSB;
@@ -1580,7 +1588,6 @@ static int cqspi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct resource *res_ahb;
 	struct cqspi_st *cqspi;
-	struct resource *res;
 	int ret;
 	int irq;
 
@@ -1616,8 +1623,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	}
 
 	/* Obtain and remap controller address. */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cqspi->iobase = devm_ioremap_resource(dev, res);
+	cqspi->iobase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cqspi->iobase)) {
 		dev_err(dev, "Cannot remap controller address.\n");
 		ret = PTR_ERR(cqspi->iobase);
@@ -1625,8 +1631,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	}
 
 	/* Obtain and remap AHB address. */
-	res_ahb = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	cqspi->ahb_base = devm_ioremap_resource(dev, res_ahb);
+	cqspi->ahb_base = devm_platform_get_and_ioremap_resource(pdev, 1, &res_ahb);
 	if (IS_ERR(cqspi->ahb_base)) {
 		dev_err(dev, "Cannot remap AHB address.\n");
 		ret = PTR_ERR(cqspi->ahb_base);

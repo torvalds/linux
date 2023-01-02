@@ -189,6 +189,80 @@ static void test_walk_self_only(struct cgroup_iter *skel)
 			      BPF_CGROUP_ITER_SELF_ONLY, "self_only");
 }
 
+static void test_walk_dead_self_only(struct cgroup_iter *skel)
+{
+	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
+	char expected_output[128], buf[128];
+	const char *cgrp_name = "/dead";
+	union bpf_iter_link_info linfo;
+	int len, cgrp_fd, iter_fd;
+	struct bpf_link *link;
+	size_t left;
+	char *p;
+
+	cgrp_fd = create_and_get_cgroup(cgrp_name);
+	if (!ASSERT_GE(cgrp_fd, 0, "create cgrp"))
+		return;
+
+	/* The cgroup will be dead during read() iteration, so it only has
+	 * epilogue in the output
+	 */
+	snprintf(expected_output, sizeof(expected_output), EPILOGUE);
+
+	memset(&linfo, 0, sizeof(linfo));
+	linfo.cgroup.cgroup_fd = cgrp_fd;
+	linfo.cgroup.order = BPF_CGROUP_ITER_SELF_ONLY;
+	opts.link_info = &linfo;
+	opts.link_info_len = sizeof(linfo);
+
+	link = bpf_program__attach_iter(skel->progs.cgroup_id_printer, &opts);
+	if (!ASSERT_OK_PTR(link, "attach_iter"))
+		goto close_cgrp;
+
+	iter_fd = bpf_iter_create(bpf_link__fd(link));
+	if (!ASSERT_GE(iter_fd, 0, "iter_create"))
+		goto free_link;
+
+	/* Close link fd and cgroup fd */
+	bpf_link__destroy(link);
+	close(cgrp_fd);
+
+	/* Remove cgroup to mark it as dead */
+	remove_cgroup(cgrp_name);
+
+	/* Two kern_sync_rcu() and usleep() pairs are used to wait for the
+	 * releases of cgroup css, and the last kern_sync_rcu() and usleep()
+	 * pair is used to wait for the free of cgroup itself.
+	 */
+	kern_sync_rcu();
+	usleep(8000);
+	kern_sync_rcu();
+	usleep(8000);
+	kern_sync_rcu();
+	usleep(1000);
+
+	memset(buf, 0, sizeof(buf));
+	left = ARRAY_SIZE(buf);
+	p = buf;
+	while ((len = read(iter_fd, p, left)) > 0) {
+		p += len;
+		left -= len;
+	}
+
+	ASSERT_STREQ(buf, expected_output, "dead cgroup output");
+
+	/* read() after iter finishes should be ok. */
+	if (len == 0)
+		ASSERT_OK(read(iter_fd, buf, sizeof(buf)), "second_read");
+
+	close(iter_fd);
+	return;
+free_link:
+	bpf_link__destroy(link);
+close_cgrp:
+	close(cgrp_fd);
+}
+
 void test_cgroup_iter(void)
 {
 	struct cgroup_iter *skel = NULL;
@@ -217,6 +291,8 @@ void test_cgroup_iter(void)
 		test_early_termination(skel);
 	if (test__start_subtest("cgroup_iter__self_only"))
 		test_walk_self_only(skel);
+	if (test__start_subtest("cgroup_iter__dead_self_only"))
+		test_walk_dead_self_only(skel);
 out:
 	cgroup_iter__destroy(skel);
 	cleanup_cgroups();

@@ -529,6 +529,8 @@ struct macsec_ops;
  *
  * @mdio: MDIO bus this PHY is on
  * @drv: Pointer to the driver for this PHY instance
+ * @devlink: Create a link between phy dev and mac dev, if the external phy
+ *           used by current mac interface is managed by another mac interface.
  * @phy_id: UID for this device found during discovery
  * @c45_ids: 802.3-c45 Device Identifiers if is_c45.
  * @is_c45:  Set to true if this PHY uses clause 45 addressing.
@@ -600,6 +602,7 @@ struct macsec_ops;
  * @psec: Pointer to Power Sourcing Equipment control struct
  * @lock:  Mutex for serialization access to PHY
  * @state_queue: Work queue for state machine
+ * @link_down_events: Number of times link was lost
  * @shared: Pointer to private data shared by phys in one package
  * @priv: Pointer to driver private data
  *
@@ -616,6 +619,8 @@ struct phy_device {
 	/* Information about the PHY type */
 	/* And management functions */
 	struct phy_driver *drv;
+
+	struct device_link *devlink;
 
 	u32 phy_id;
 
@@ -722,6 +727,8 @@ struct phy_device {
 	u8 mdix_ctrl;
 
 	int pma_extable;
+
+	unsigned int link_down_events;
 
 	void (*phy_link_change)(struct phy_device *phydev, bool up);
 	void (*adjust_link)(struct net_device *dev);

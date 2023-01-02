@@ -540,7 +540,7 @@ static struct lp8727_platform_data *lp8727_parse_dt(struct device *dev)
 }
 #endif
 
-static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
+static int lp8727_probe(struct i2c_client *cl)
 {
 	struct lp8727_chg *pchg;
 	struct lp8727_platform_data *pdata;
@@ -615,7 +615,7 @@ static struct i2c_driver lp8727_driver = {
 		   .name = "lp8727",
 		   .of_match_table = of_match_ptr(lp8727_dt_ids),
 		   },
-	.probe = lp8727_probe,
+	.probe_new = lp8727_probe,
 	.remove = lp8727_remove,
 	.id_table = lp8727_ids,
 };

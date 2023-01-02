@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/remoteproc/qcom,pil-info.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm peripheral image loader relocation info binding
+title: Qualcomm peripheral image loader relocation info
 
 maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>

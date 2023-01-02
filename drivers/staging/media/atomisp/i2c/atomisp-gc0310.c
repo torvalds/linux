@@ -786,8 +786,6 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	return ret;
 }
 
-static int power_down(struct v4l2_subdev *sd);
-
 static int power_up(struct v4l2_subdev *sd)
 {
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
@@ -799,6 +797,9 @@ static int power_up(struct v4l2_subdev *sd)
 			"no camera_sensor_platform_data");
 		return -ENODEV;
 	}
+
+	if (dev->power_on)
+		return 0; /* Already on */
 
 	/* power control */
 	ret = power_ctrl(sd, 1);
@@ -820,6 +821,7 @@ static int power_up(struct v4l2_subdev *sd)
 
 	msleep(100);
 
+	dev->power_on = true;
 	return 0;
 
 fail_gpio:
@@ -844,6 +846,9 @@ static int power_down(struct v4l2_subdev *sd)
 		return -ENODEV;
 	}
 
+	if (!dev->power_on)
+		return 0; /* Already off */
+
 	/* gpio ctrl */
 	ret = gpio_ctrl(sd, 0);
 	if (ret) {
@@ -861,6 +866,7 @@ static int power_down(struct v4l2_subdev *sd)
 	if (ret)
 		dev_err(&client->dev, "vprog failed.\n");
 
+	dev->power_on = false;
 	return ret;
 }
 
@@ -934,6 +940,9 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 		mutex_unlock(&dev->input_lock);
 		return 0;
 	}
+
+	/* s_power has not been called yet for std v4l2 clients (camorama) */
+	power_up(sd);
 
 	dev_dbg(&client->dev, "%s: before gc0310_write_reg_array %s\n",
 		__func__, dev->res->desc);
@@ -1073,6 +1082,7 @@ static int gc0310_s_config(struct v4l2_subdev *sd,
 	 * as first power on by board may not fulfill the
 	 * power on sequqence needed by the module
 	 */
+	dev->power_on = true; /* force power_down() to run */
 	ret = power_down(sd);
 	if (ret) {
 		dev_err(&client->dev, "gc0310 power-off err.\n");

@@ -136,6 +136,7 @@ config STI_MBOX
 config TI_MESSAGE_MANAGER
 	tristate "Texas Instruments Message Manager Driver"
 	depends on ARCH_KEYSTONE || ARCH_K3
+	default ARCH_K3
 	help
 	  An implementation of Message Manager slave driver for Keystone
 	  and K3 architecture SoCs from Texas Instruments. Message Manager
@@ -223,7 +224,7 @@ config BCM_FLEXRM_MBOX
 	tristate "Broadcom FlexRM Mailbox"
 	depends on ARM64
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
-	select GENERIC_MSI_IRQ_DOMAIN
+	select GENERIC_MSI_IRQ
 	default m if ARCH_BCM_IPROC
 	help
 	  Mailbox implementation of the Broadcom FlexRM ring manager,

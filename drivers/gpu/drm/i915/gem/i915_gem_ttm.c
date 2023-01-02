@@ -603,6 +603,10 @@ static int i915_ttm_truncate(struct drm_i915_gem_object *obj)
 
 	WARN_ON_ONCE(obj->mm.madv == I915_MADV_WILLNEED);
 
+	err = ttm_bo_wait(bo, true, false);
+	if (err)
+		return err;
+
 	err = i915_ttm_move_notify(bo);
 	if (err)
 		return err;
@@ -815,8 +819,7 @@ static int __i915_ttm_get_pages(struct drm_i915_gem_object *obj,
 
 		GEM_BUG_ON(obj->mm.rsgt);
 		obj->mm.rsgt = rsgt;
-		__i915_gem_object_set_pages(obj, &rsgt->table,
-					    i915_sg_dma_sizes(rsgt->table.sgl));
+		__i915_gem_object_set_pages(obj, &rsgt->table);
 	}
 
 	GEM_BUG_ON(bo->ttm && ((obj->base.size >> PAGE_SHIFT) < bo->ttm->num_pages));
@@ -1031,9 +1034,6 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 	vm_fault_t ret;
 	int idx;
 
-	if (i915_ttm_is_ghost_object(bo))
-		return VM_FAULT_SIGBUS;
-
 	/* Sanity check that we allow writing into this object */
 	if (unlikely(i915_gem_object_is_readonly(obj) &&
 		     area->vm_flags & VM_WRITE))
@@ -1047,9 +1047,6 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 		dma_resv_unlock(bo->base.resv);
 		return VM_FAULT_SIGBUS;
 	}
-
-	if (i915_ttm_cpu_maps_iomem(bo->resource))
-		wakeref = intel_runtime_pm_get(&to_i915(obj->base.dev)->runtime_pm);
 
 	if (!i915_ttm_resource_mappable(bo->resource)) {
 		int err = -ENODEV;
@@ -1078,6 +1075,9 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 		}
 	}
 
+	if (i915_ttm_cpu_maps_iomem(bo->resource))
+		wakeref = intel_runtime_pm_get(&to_i915(obj->base.dev)->runtime_pm);
+
 	if (drm_dev_enter(dev, &idx)) {
 		ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
 					       TTM_BO_VM_NUM_PREFAULT);
@@ -1098,6 +1098,8 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 		spin_lock(&to_i915(obj->base.dev)->runtime_pm.lmem_userfault_lock);
 		list_add(&obj->userfault_link, &to_i915(obj->base.dev)->runtime_pm.lmem_userfault_list);
 		spin_unlock(&to_i915(obj->base.dev)->runtime_pm.lmem_userfault_lock);
+
+		GEM_WARN_ON(!i915_ttm_cpu_maps_iomem(bo->resource));
 	}
 
 	if (wakeref & CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND)
@@ -1179,6 +1181,8 @@ static void i915_ttm_unmap_virtual(struct drm_i915_gem_object *obj)
 			obj->userfault_count = 0;
 		}
 	}
+
+	GEM_WARN_ON(obj->userfault_count);
 
 	ttm_bo_unmap_virtual(i915_gem_to_ttm(obj));
 

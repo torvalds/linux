@@ -325,7 +325,7 @@ static bool ice_clean_tx_irq(struct ice_tx_ring *tx_ring, int napi_budget)
 		if (netif_tx_queue_stopped(txring_txq(tx_ring)) &&
 		    !test_bit(ICE_VSI_DOWN, vsi->state)) {
 			netif_tx_wake_queue(txring_txq(tx_ring));
-			++tx_ring->tx_stats.restart_q;
+			++tx_ring->ring_stats->tx_stats.restart_q;
 		}
 	}
 
@@ -367,7 +367,7 @@ int ice_setup_tx_ring(struct ice_tx_ring *tx_ring)
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
-	tx_ring->tx_stats.prev_pkt = -1;
+	tx_ring->ring_stats->tx_stats.prev_pkt = -1;
 	return 0;
 
 err:
@@ -667,7 +667,7 @@ ice_alloc_mapped_page(struct ice_rx_ring *rx_ring, struct ice_rx_buf *bi)
 	/* alloc new page for storage */
 	page = dev_alloc_pages(ice_rx_pg_order(rx_ring));
 	if (unlikely(!page)) {
-		rx_ring->rx_stats.alloc_page_failed++;
+		rx_ring->ring_stats->rx_stats.alloc_page_failed++;
 		return false;
 	}
 
@@ -680,7 +680,7 @@ ice_alloc_mapped_page(struct ice_rx_ring *rx_ring, struct ice_rx_buf *bi)
 	 */
 	if (dma_mapping_error(rx_ring->dev, dma)) {
 		__free_pages(page, ice_rx_pg_order(rx_ring));
-		rx_ring->rx_stats.alloc_page_failed++;
+		rx_ring->ring_stats->rx_stats.alloc_page_failed++;
 		return false;
 	}
 
@@ -1091,7 +1091,7 @@ ice_is_non_eop(struct ice_rx_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc)
 	if (likely(ice_test_staterr(rx_desc->wb.status_error0, ICE_RXD_EOF)))
 		return false;
 
-	rx_ring->rx_stats.non_eop_descs++;
+	rx_ring->ring_stats->rx_stats.non_eop_descs++;
 
 	return true;
 }
@@ -1222,7 +1222,7 @@ construct_skb:
 		}
 		/* exit if we failed to retrieve a buffer */
 		if (!skb) {
-			rx_ring->rx_stats.alloc_buf_failed++;
+			rx_ring->ring_stats->rx_stats.alloc_buf_failed++;
 			if (rx_buf)
 				rx_buf->pagecnt_bias++;
 			break;
@@ -1275,7 +1275,9 @@ construct_skb:
 		ice_finalize_xdp_rx(xdp_ring, xdp_xmit);
 	rx_ring->skb = skb;
 
-	ice_update_rx_ring_stats(rx_ring, total_rx_pkts, total_rx_bytes);
+	if (rx_ring->ring_stats)
+		ice_update_rx_ring_stats(rx_ring, total_rx_pkts,
+					 total_rx_bytes);
 
 	/* guarantee a trip back through this routine if there was a failure */
 	return failure ? budget : (int)total_rx_pkts;
@@ -1292,15 +1294,25 @@ static void __ice_update_sample(struct ice_q_vector *q_vector,
 		struct ice_tx_ring *tx_ring;
 
 		ice_for_each_tx_ring(tx_ring, *rc) {
-			packets += tx_ring->stats.pkts;
-			bytes += tx_ring->stats.bytes;
+			struct ice_ring_stats *ring_stats;
+
+			ring_stats = tx_ring->ring_stats;
+			if (!ring_stats)
+				continue;
+			packets += ring_stats->stats.pkts;
+			bytes += ring_stats->stats.bytes;
 		}
 	} else {
 		struct ice_rx_ring *rx_ring;
 
 		ice_for_each_rx_ring(rx_ring, *rc) {
-			packets += rx_ring->stats.pkts;
-			bytes += rx_ring->stats.bytes;
+			struct ice_ring_stats *ring_stats;
+
+			ring_stats = rx_ring->ring_stats;
+			if (!ring_stats)
+				continue;
+			packets += ring_stats->stats.pkts;
+			bytes += ring_stats->stats.bytes;
 		}
 	}
 
@@ -1549,7 +1561,7 @@ static int __ice_maybe_stop_tx(struct ice_tx_ring *tx_ring, unsigned int size)
 
 	/* A reprieve! - use start_queue because it doesn't call schedule */
 	netif_tx_start_queue(txring_txq(tx_ring));
-	++tx_ring->tx_stats.restart_q;
+	++tx_ring->ring_stats->tx_stats.restart_q;
 	return 0;
 }
 
@@ -2293,7 +2305,7 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_tx_ring *tx_ring)
 		if (__skb_linearize(skb))
 			goto out_drop;
 		count = ice_txd_use_count(skb->len);
-		tx_ring->tx_stats.tx_linearize++;
+		tx_ring->ring_stats->tx_stats.tx_linearize++;
 	}
 
 	/* need: 1 descriptor per page * PAGE_SIZE/ICE_MAX_DATA_PER_TXD,
@@ -2304,7 +2316,7 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_tx_ring *tx_ring)
 	 */
 	if (ice_maybe_stop_tx(tx_ring, count + ICE_DESCS_PER_CACHE_LINE +
 			      ICE_DESCS_FOR_CTX_DESC)) {
-		tx_ring->tx_stats.tx_busy++;
+		tx_ring->ring_stats->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;
 	}
 

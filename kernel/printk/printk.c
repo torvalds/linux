@@ -79,13 +79,20 @@ int oops_in_progress;
 EXPORT_SYMBOL(oops_in_progress);
 
 /*
- * console_sem protects the console_drivers list, and also
- * provides serialisation for access to the entire console
- * driver system.
+ * console_mutex protects console_list updates and console->flags updates.
+ * The flags are synchronized only for consoles that are registered, i.e.
+ * accessible via the console list.
+ */
+static DEFINE_MUTEX(console_mutex);
+
+/*
+ * console_sem protects updates to console->seq and console_suspended,
+ * and also provides serialization for console printing.
  */
 static DEFINE_SEMAPHORE(console_sem);
-struct console *console_drivers;
-EXPORT_SYMBOL_GPL(console_drivers);
+HLIST_HEAD(console_list);
+EXPORT_SYMBOL_GPL(console_list);
+DEFINE_STATIC_SRCU(console_srcu);
 
 /*
  * System may need to suppress printk message under certain
@@ -103,6 +110,19 @@ static int __read_mostly suppress_panic_printk;
 static struct lockdep_map console_lock_dep_map = {
 	.name = "console_lock"
 };
+
+void lockdep_assert_console_list_lock_held(void)
+{
+	lockdep_assert_held(&console_mutex);
+}
+EXPORT_SYMBOL(lockdep_assert_console_list_lock_held);
+#endif
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+bool console_srcu_read_lock_is_held(void)
+{
+	return srcu_read_lock_held(&console_srcu);
+}
 #endif
 
 enum devkmsg_log_bits {
@@ -219,6 +239,69 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 	return 0;
 }
 #endif /* CONFIG_PRINTK && CONFIG_SYSCTL */
+
+/**
+ * console_list_lock - Lock the console list
+ *
+ * For console list or console->flags updates
+ */
+void console_list_lock(void)
+{
+	/*
+	 * In unregister_console() and console_force_preferred_locked(),
+	 * synchronize_srcu() is called with the console_list_lock held.
+	 * Therefore it is not allowed that the console_list_lock is taken
+	 * with the srcu_lock held.
+	 *
+	 * Detecting if this context is really in the read-side critical
+	 * section is only possible if the appropriate debug options are
+	 * enabled.
+	 */
+	WARN_ON_ONCE(debug_lockdep_rcu_enabled() &&
+		     srcu_read_lock_held(&console_srcu));
+
+	mutex_lock(&console_mutex);
+}
+EXPORT_SYMBOL(console_list_lock);
+
+/**
+ * console_list_unlock - Unlock the console list
+ *
+ * Counterpart to console_list_lock()
+ */
+void console_list_unlock(void)
+{
+	mutex_unlock(&console_mutex);
+}
+EXPORT_SYMBOL(console_list_unlock);
+
+/**
+ * console_srcu_read_lock - Register a new reader for the
+ *	SRCU-protected console list
+ *
+ * Use for_each_console_srcu() to iterate the console list
+ *
+ * Context: Any context.
+ * Return: A cookie to pass to console_srcu_read_unlock().
+ */
+int console_srcu_read_lock(void)
+{
+	return srcu_read_lock_nmisafe(&console_srcu);
+}
+EXPORT_SYMBOL(console_srcu_read_lock);
+
+/**
+ * console_srcu_read_unlock - Unregister an old reader from
+ *	the SRCU-protected console list
+ * @cookie: cookie returned from console_srcu_read_lock()
+ *
+ * Counterpart to console_srcu_read_lock()
+ */
+void console_srcu_read_unlock(int cookie)
+{
+	srcu_read_unlock_nmisafe(&console_srcu, cookie);
+}
+EXPORT_SYMBOL(console_srcu_read_unlock);
 
 /*
  * Helper macros to handle lockdep when locking/unlocking console_sem. We use
@@ -1814,13 +1897,13 @@ static void console_lock_spinning_enable(void)
  * safe to start busy waiting for the lock. Second, it checks if
  * there is a busy waiter and passes the lock rights to her.
  *
- * Important: Callers lose the lock if there was a busy waiter.
- *	They must not touch items synchronized by console_lock
- *	in this case.
+ * Important: Callers lose both the console_lock and the SRCU read lock if
+ *	there was a busy waiter. They must not touch items synchronized by
+ *	console_lock or SRCU read lock in this case.
  *
  * Return: 1 if the lock rights were passed, 0 otherwise.
  */
-static int console_lock_spinning_disable_and_check(void)
+static int console_lock_spinning_disable_and_check(int cookie)
 {
 	int waiter;
 
@@ -1838,6 +1921,12 @@ static int console_lock_spinning_disable_and_check(void)
 	WRITE_ONCE(console_waiter, false);
 
 	spin_release(&console_owner_dep_map, _THIS_IP_);
+
+	/*
+	 * Preserve lockdep lock ordering. Release the SRCU read lock before
+	 * releasing the console_lock.
+	 */
+	console_srcu_read_unlock(cookie);
 
 	/*
 	 * Hand off console_lock to waiter. The waiter will perform
@@ -2322,7 +2411,7 @@ static ssize_t msg_print_ext_body(char *buf, size_t size,
 				  char *text, size_t text_len,
 				  struct dev_printk_info *dev_info) { return 0; }
 static void console_lock_spinning_enable(void) { }
-static int console_lock_spinning_disable_and_check(void) { return 0; }
+static int console_lock_spinning_disable_and_check(int cookie) { return 0; }
 static void call_console_driver(struct console *con, const char *text, size_t len,
 				char *dropped_text)
 {
@@ -2391,7 +2480,7 @@ static int __add_preferred_console(char *name, int idx, char *options,
 		return -E2BIG;
 	if (!brl_options)
 		preferred_console = i;
-	strlcpy(c->name, name, sizeof(c->name));
+	strscpy(c->name, name, sizeof(c->name));
 	c->options = options;
 	set_user_specified(c, user_specified);
 	braille_set_options(c, brl_options);
@@ -2553,10 +2642,10 @@ static int console_cpu_notify(unsigned int cpu)
 }
 
 /**
- * console_lock - lock the console system for exclusive use.
+ * console_lock - block the console subsystem from printing
  *
- * Acquires a lock which guarantees that the caller has
- * exclusive access to the console system and the console_drivers list.
+ * Acquires a lock which guarantees that no consoles will
+ * be in or enter their write() callback.
  *
  * Can sleep, returns nothing.
  */
@@ -2573,10 +2662,10 @@ void console_lock(void)
 EXPORT_SYMBOL(console_lock);
 
 /**
- * console_trylock - try to lock the console system for exclusive use.
+ * console_trylock - try to block the console subsystem from printing
  *
- * Try to acquire a lock which guarantees that the caller has exclusive
- * access to the console system and the console_drivers list.
+ * Try to acquire a lock which guarantees that no consoles will
+ * be in or enter their write() callback.
  *
  * returns 1 on success, and 0 on failure to acquire the lock.
  */
@@ -2623,11 +2712,13 @@ static bool abandon_console_lock_in_panic(void)
  * Check if the given console is currently capable and allowed to print
  * records.
  *
- * Requires the console_lock.
+ * Requires the console_srcu_read_lock.
  */
 static inline bool console_is_usable(struct console *con)
 {
-	if (!(con->flags & CON_ENABLED))
+	short flags = console_srcu_read_flags(con);
+
+	if (!(flags & CON_ENABLED))
 		return false;
 
 	if (!con->write)
@@ -2638,8 +2729,7 @@ static inline bool console_is_usable(struct console *con)
 	 * allocated. So unless they're explicitly marked as being able to
 	 * cope (CON_ANYTIME) don't call them until this CPU is officially up.
 	 */
-	if (!cpu_online(raw_smp_processor_id()) &&
-	    !(con->flags & CON_ANYTIME))
+	if (!cpu_online(raw_smp_processor_id()) && !(flags & CON_ANYTIME))
 		return false;
 
 	return true;
@@ -2664,16 +2754,18 @@ static void __console_unlock(void)
  * DROPPED_TEXT_MAX. Otherwise @dropped_text must be NULL.
  *
  * @handover will be set to true if a printk waiter has taken over the
- * console_lock, in which case the caller is no longer holding the
- * console_lock. Otherwise it is set to false.
+ * console_lock, in which case the caller is no longer holding both the
+ * console_lock and the SRCU read lock. Otherwise it is set to false.
+ *
+ * @cookie is the cookie from the SRCU read lock.
  *
  * Returns false if the given console has no next record to print, otherwise
  * true.
  *
- * Requires the console_lock.
+ * Requires the console_lock and the SRCU read lock.
  */
 static bool console_emit_next_record(struct console *con, char *text, char *ext_text,
-				     char *dropped_text, bool *handover)
+				     char *dropped_text, bool *handover, int cookie)
 {
 	static int panic_console_dropped;
 	struct printk_info info;
@@ -2733,7 +2825,7 @@ static bool console_emit_next_record(struct console *con, char *text, char *ext_
 
 	con->seq++;
 
-	*handover = console_lock_spinning_disable_and_check();
+	*handover = console_lock_spinning_disable_and_check(cookie);
 	printk_safe_exit_irqrestore(flags);
 skip:
 	return true;
@@ -2770,6 +2862,7 @@ static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handove
 	bool any_usable = false;
 	struct console *con;
 	bool any_progress;
+	int cookie;
 
 	*next_seq = 0;
 	*handover = false;
@@ -2777,23 +2870,29 @@ static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handove
 	do {
 		any_progress = false;
 
-		for_each_console(con) {
+		cookie = console_srcu_read_lock();
+		for_each_console_srcu(con) {
 			bool progress;
 
 			if (!console_is_usable(con))
 				continue;
 			any_usable = true;
 
-			if (con->flags & CON_EXTENDED) {
+			if (console_srcu_read_flags(con) & CON_EXTENDED) {
 				/* Extended consoles do not print "dropped messages". */
 				progress = console_emit_next_record(con, &text[0],
 								    &ext_text[0], NULL,
-								    handover);
+								    handover, cookie);
 			} else {
 				progress = console_emit_next_record(con, &text[0],
 								    NULL, &dropped_text[0],
-								    handover);
+								    handover, cookie);
 			}
+
+			/*
+			 * If a handover has occurred, the SRCU read lock
+			 * is already released.
+			 */
 			if (*handover)
 				return false;
 
@@ -2807,21 +2906,26 @@ static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handove
 
 			/* Allow panic_cpu to take over the consoles safely. */
 			if (abandon_console_lock_in_panic())
-				return false;
+				goto abandon;
 
 			if (do_cond_resched)
 				cond_resched();
 		}
+		console_srcu_read_unlock(cookie);
 	} while (any_progress);
 
 	return any_usable;
+
+abandon:
+	console_srcu_read_unlock(cookie);
+	return false;
 }
 
 /**
- * console_unlock - unlock the console system
+ * console_unlock - unblock the console subsystem from printing
  *
- * Releases the console_lock which the caller holds on the console system
- * and the console driver list.
+ * Releases the console_lock which the caller holds to block printing of
+ * the console subsystem.
  *
  * While the console_lock was held, console output may have been buffered
  * by printk().  If this is the case, console_unlock(); emits
@@ -2899,10 +3003,14 @@ EXPORT_SYMBOL(console_conditional_schedule);
 void console_unblank(void)
 {
 	struct console *c;
+	int cookie;
 
 	/*
-	 * console_unblank can no longer be called in interrupt context unless
-	 * oops_in_progress is set to 1..
+	 * Stop console printing because the unblank() callback may
+	 * assume the console is not within its write() callback.
+	 *
+	 * If @oops_in_progress is set, this may be an atomic context.
+	 * In that case, attempt a trylock as best-effort.
 	 */
 	if (oops_in_progress) {
 		if (down_trylock_console_sem() != 0)
@@ -2912,9 +3020,14 @@ void console_unblank(void)
 
 	console_locked = 1;
 	console_may_schedule = 0;
-	for_each_console(c)
-		if ((c->flags & CON_ENABLED) && c->unblank)
+
+	cookie = console_srcu_read_lock();
+	for_each_console_srcu(c) {
+		if ((console_srcu_read_flags(c) & CON_ENABLED) && c->unblank)
 			c->unblank();
+	}
+	console_srcu_read_unlock(cookie);
+
 	console_unlock();
 
 	if (!oops_in_progress)
@@ -2941,11 +3054,21 @@ void console_flush_on_panic(enum con_flush_mode mode)
 
 	if (mode == CONSOLE_REPLAY_ALL) {
 		struct console *c;
+		int cookie;
 		u64 seq;
 
 		seq = prb_first_valid_seq(prb);
-		for_each_console(c)
+
+		cookie = console_srcu_read_lock();
+		for_each_console_srcu(c) {
+			/*
+			 * If the above console_trylock() failed, this is an
+			 * unsynchronized assignment. But in that case, the
+			 * kernel is in "hope and pray" mode anyway.
+			 */
 			c->seq = seq;
+		}
+		console_srcu_read_unlock(cookie);
 	}
 	console_unlock();
 }
@@ -2957,15 +3080,25 @@ struct tty_driver *console_device(int *index)
 {
 	struct console *c;
 	struct tty_driver *driver = NULL;
+	int cookie;
 
+	/*
+	 * Take console_lock to serialize device() callback with
+	 * other console operations. For example, fg_console is
+	 * modified under console_lock when switching vt.
+	 */
 	console_lock();
-	for_each_console(c) {
+
+	cookie = console_srcu_read_lock();
+	for_each_console_srcu(c) {
 		if (!c->device)
 			continue;
 		driver = c->device(c, index);
 		if (driver)
 			break;
 	}
+	console_srcu_read_unlock(cookie);
+
 	console_unlock();
 	return driver;
 }
@@ -2978,17 +3111,25 @@ struct tty_driver *console_device(int *index)
 void console_stop(struct console *console)
 {
 	__pr_flush(console, 1000, true);
-	console_lock();
-	console->flags &= ~CON_ENABLED;
-	console_unlock();
+	console_list_lock();
+	console_srcu_write_flags(console, console->flags & ~CON_ENABLED);
+	console_list_unlock();
+
+	/*
+	 * Ensure that all SRCU list walks have completed. All contexts must
+	 * be able to see that this console is disabled so that (for example)
+	 * the caller can suspend the port without risk of another context
+	 * using the port.
+	 */
+	synchronize_srcu(&console_srcu);
 }
 EXPORT_SYMBOL(console_stop);
 
 void console_start(struct console *console)
 {
-	console_lock();
-	console->flags |= CON_ENABLED;
-	console_unlock();
+	console_list_lock();
+	console_srcu_write_flags(console, console->flags | CON_ENABLED);
+	console_list_unlock();
 	__pr_flush(console, 1000, true);
 }
 EXPORT_SYMBOL(console_start);
@@ -3081,6 +3222,72 @@ static void try_enable_default_console(struct console *newcon)
 	       (con->flags & CON_BOOT) ? "boot" : "",	\
 	       con->name, con->index, ##__VA_ARGS__)
 
+static void console_init_seq(struct console *newcon, bool bootcon_registered)
+{
+	struct console *con;
+	bool handover;
+
+	if (newcon->flags & (CON_PRINTBUFFER | CON_BOOT)) {
+		/* Get a consistent copy of @syslog_seq. */
+		mutex_lock(&syslog_lock);
+		newcon->seq = syslog_seq;
+		mutex_unlock(&syslog_lock);
+	} else {
+		/* Begin with next message added to ringbuffer. */
+		newcon->seq = prb_next_seq(prb);
+
+		/*
+		 * If any enabled boot consoles are due to be unregistered
+		 * shortly, some may not be caught up and may be the same
+		 * device as @newcon. Since it is not known which boot console
+		 * is the same device, flush all consoles and, if necessary,
+		 * start with the message of the enabled boot console that is
+		 * the furthest behind.
+		 */
+		if (bootcon_registered && !keep_bootcon) {
+			/*
+			 * Hold the console_lock to stop console printing and
+			 * guarantee safe access to console->seq.
+			 */
+			console_lock();
+
+			/*
+			 * Flush all consoles and set the console to start at
+			 * the next unprinted sequence number.
+			 */
+			if (!console_flush_all(true, &newcon->seq, &handover)) {
+				/*
+				 * Flushing failed. Just choose the lowest
+				 * sequence of the enabled boot consoles.
+				 */
+
+				/*
+				 * If there was a handover, this context no
+				 * longer holds the console_lock.
+				 */
+				if (handover)
+					console_lock();
+
+				newcon->seq = prb_next_seq(prb);
+				for_each_console(con) {
+					if ((con->flags & CON_BOOT) &&
+					    (con->flags & CON_ENABLED) &&
+					    con->seq < newcon->seq) {
+						newcon->seq = con->seq;
+					}
+				}
+			}
+
+			console_unlock();
+		}
+	}
+}
+
+#define console_first()				\
+	hlist_entry(console_list.first, struct console, node)
+
+static int unregister_console_locked(struct console *console);
+
 /*
  * The console driver calls this routine during kernel initialization
  * to register the console printing procedure with printk() and to
@@ -3103,28 +3310,29 @@ static void try_enable_default_console(struct console *newcon)
 void register_console(struct console *newcon)
 {
 	struct console *con;
-	bool bootcon_enabled = false;
-	bool realcon_enabled = false;
+	bool bootcon_registered = false;
+	bool realcon_registered = false;
 	int err;
+
+	console_list_lock();
 
 	for_each_console(con) {
 		if (WARN(con == newcon, "console '%s%d' already registered\n",
-					 con->name, con->index))
-			return;
-	}
+					 con->name, con->index)) {
+			goto unlock;
+		}
 
-	for_each_console(con) {
 		if (con->flags & CON_BOOT)
-			bootcon_enabled = true;
+			bootcon_registered = true;
 		else
-			realcon_enabled = true;
+			realcon_registered = true;
 	}
 
 	/* Do not register boot consoles when there already is a real one. */
-	if (newcon->flags & CON_BOOT && realcon_enabled) {
+	if ((newcon->flags & CON_BOOT) && realcon_registered) {
 		pr_info("Too late to register bootconsole %s%d\n",
 			newcon->name, newcon->index);
-		return;
+		goto unlock;
 	}
 
 	/*
@@ -3140,8 +3348,8 @@ void register_console(struct console *newcon)
 	 * flag set and will be first in the list.
 	 */
 	if (preferred_console < 0) {
-		if (!console_drivers || !console_drivers->device ||
-		    console_drivers->flags & CON_BOOT) {
+		if (hlist_empty(&console_list) || !console_first()->device ||
+		    console_first()->flags & CON_BOOT) {
 			try_enable_default_console(newcon);
 		}
 	}
@@ -3155,7 +3363,7 @@ void register_console(struct console *newcon)
 
 	/* printk() messages are not printed to the Braille console. */
 	if (err || newcon->flags & CON_BRL)
-		return;
+		goto unlock;
 
 	/*
 	 * If we have a bootconsole, and are switching to a real console,
@@ -3163,39 +3371,38 @@ void register_console(struct console *newcon)
 	 * the real console are the same physical device, it's annoying to
 	 * see the beginning boot messages twice
 	 */
-	if (bootcon_enabled &&
+	if (bootcon_registered &&
 	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV)) {
 		newcon->flags &= ~CON_PRINTBUFFER;
 	}
 
+	newcon->dropped = 0;
+	console_init_seq(newcon, bootcon_registered);
+
 	/*
-	 *	Put this console in the list - keep the
-	 *	preferred driver at the head of the list.
+	 * Put this console in the list - keep the
+	 * preferred driver at the head of the list.
 	 */
-	console_lock();
-	if ((newcon->flags & CON_CONSDEV) || console_drivers == NULL) {
-		newcon->next = console_drivers;
-		console_drivers = newcon;
-		if (newcon->next)
-			newcon->next->flags &= ~CON_CONSDEV;
-		/* Ensure this flag is always set for the head of the list */
+	if (hlist_empty(&console_list)) {
+		/* Ensure CON_CONSDEV is always set for the head. */
 		newcon->flags |= CON_CONSDEV;
+		hlist_add_head_rcu(&newcon->node, &console_list);
+
+	} else if (newcon->flags & CON_CONSDEV) {
+		/* Only the new head can have CON_CONSDEV set. */
+		console_srcu_write_flags(console_first(), console_first()->flags & ~CON_CONSDEV);
+		hlist_add_head_rcu(&newcon->node, &console_list);
+
 	} else {
-		newcon->next = console_drivers->next;
-		console_drivers->next = newcon;
+		hlist_add_behind_rcu(&newcon->node, console_list.first);
 	}
 
-	newcon->dropped = 0;
-	if (newcon->flags & CON_PRINTBUFFER) {
-		/* Get a consistent copy of @syslog_seq. */
-		mutex_lock(&syslog_lock);
-		newcon->seq = syslog_seq;
-		mutex_unlock(&syslog_lock);
-	} else {
-		/* Begin with next message. */
-		newcon->seq = prb_next_seq(prb);
-	}
-	console_unlock();
+	/*
+	 * No need to synchronize SRCU here! The caller does not rely
+	 * on all contexts being able to see the new console before
+	 * register_console() completes.
+	 */
+
 	console_sysfs_notify();
 
 	/*
@@ -3206,20 +3413,27 @@ void register_console(struct console *newcon)
 	 * went to the bootconsole (that they do not see on the real console)
 	 */
 	con_printk(KERN_INFO, newcon, "enabled\n");
-	if (bootcon_enabled &&
+	if (bootcon_registered &&
 	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV) &&
 	    !keep_bootcon) {
-		for_each_console(con)
+		struct hlist_node *tmp;
+
+		hlist_for_each_entry_safe(con, tmp, &console_list, node) {
 			if (con->flags & CON_BOOT)
-				unregister_console(con);
+				unregister_console_locked(con);
+		}
 	}
+unlock:
+	console_list_unlock();
 }
 EXPORT_SYMBOL(register_console);
 
-int unregister_console(struct console *console)
+/* Must be called under console_list_lock(). */
+static int unregister_console_locked(struct console *console)
 {
-	struct console *con;
 	int res;
+
+	lockdep_assert_console_list_lock_held();
 
 	con_printk(KERN_INFO, console, "disabled\n");
 
@@ -3229,47 +3443,93 @@ int unregister_console(struct console *console)
 	if (res > 0)
 		return 0;
 
-	res = -ENODEV;
-	console_lock();
-	if (console_drivers == console) {
-		console_drivers=console->next;
-		res = 0;
-	} else {
-		for_each_console(con) {
-			if (con->next == console) {
-				con->next = console->next;
-				res = 0;
-				break;
-			}
-		}
-	}
+	/* Disable it unconditionally */
+	console_srcu_write_flags(console, console->flags & ~CON_ENABLED);
 
-	if (res)
-		goto out_disable_unlock;
+	if (!console_is_registered_locked(console))
+		return -ENODEV;
+
+	hlist_del_init_rcu(&console->node);
 
 	/*
+	 * <HISTORICAL>
 	 * If this isn't the last console and it has CON_CONSDEV set, we
 	 * need to set it on the next preferred console.
+	 * </HISTORICAL>
+	 *
+	 * The above makes no sense as there is no guarantee that the next
+	 * console has any device attached. Oh well....
 	 */
-	if (console_drivers != NULL && console->flags & CON_CONSDEV)
-		console_drivers->flags |= CON_CONSDEV;
+	if (!hlist_empty(&console_list) && console->flags & CON_CONSDEV)
+		console_srcu_write_flags(console_first(), console_first()->flags | CON_CONSDEV);
 
-	console->flags &= ~CON_ENABLED;
-	console_unlock();
+	/*
+	 * Ensure that all SRCU list walks have completed. All contexts
+	 * must not be able to see this console in the list so that any
+	 * exit/cleanup routines can be performed safely.
+	 */
+	synchronize_srcu(&console_srcu);
+
 	console_sysfs_notify();
 
 	if (console->exit)
 		res = console->exit(console);
 
 	return res;
+}
 
-out_disable_unlock:
-	console->flags &= ~CON_ENABLED;
-	console_unlock();
+int unregister_console(struct console *console)
+{
+	int res;
 
+	console_list_lock();
+	res = unregister_console_locked(console);
+	console_list_unlock();
 	return res;
 }
 EXPORT_SYMBOL(unregister_console);
+
+/**
+ * console_force_preferred_locked - force a registered console preferred
+ * @con: The registered console to force preferred.
+ *
+ * Must be called under console_list_lock().
+ */
+void console_force_preferred_locked(struct console *con)
+{
+	struct console *cur_pref_con;
+
+	if (!console_is_registered_locked(con))
+		return;
+
+	cur_pref_con = console_first();
+
+	/* Already preferred? */
+	if (cur_pref_con == con)
+		return;
+
+	/*
+	 * Delete, but do not re-initialize the entry. This allows the console
+	 * to continue to appear registered (via any hlist_unhashed_lockless()
+	 * checks), even though it was briefly removed from the console list.
+	 */
+	hlist_del_rcu(&con->node);
+
+	/*
+	 * Ensure that all SRCU list walks have completed so that the console
+	 * can be added to the beginning of the console list and its forward
+	 * list pointer can be re-initialized.
+	 */
+	synchronize_srcu(&console_srcu);
+
+	con->flags |= CON_CONSDEV;
+	WARN_ON(!con->device);
+
+	/* Only the new head can have CON_CONSDEV set. */
+	console_srcu_write_flags(cur_pref_con, cur_pref_con->flags & ~CON_CONSDEV);
+	hlist_add_head_rcu(&con->node, &console_list);
+}
+EXPORT_SYMBOL(console_force_preferred_locked);
 
 /*
  * Initialize the console device. This is called *early*, so
@@ -3317,10 +3577,12 @@ void __init console_init(void)
  */
 static int __init printk_late_init(void)
 {
+	struct hlist_node *tmp;
 	struct console *con;
 	int ret;
 
-	for_each_console(con) {
+	console_list_lock();
+	hlist_for_each_entry_safe(con, tmp, &console_list, node) {
 		if (!(con->flags & CON_BOOT))
 			continue;
 
@@ -3337,9 +3599,11 @@ static int __init printk_late_init(void)
 			 */
 			pr_warn("bootconsole [%s%d] uses init memory and must be disabled even before the real one is ready\n",
 				con->name, con->index);
-			unregister_console(con);
+			unregister_console_locked(con);
 		}
 	}
+	console_list_unlock();
+
 	ret = cpuhp_setup_state_nocalls(CPUHP_PRINTK_DEAD, "printk:dead", NULL,
 					console_cpu_notify);
 	WARN_ON(ret < 0);
@@ -3359,6 +3623,7 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 	struct console *c;
 	u64 last_diff = 0;
 	u64 printk_seq;
+	int cookie;
 	u64 diff;
 	u64 seq;
 
@@ -3369,9 +3634,15 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 	for (;;) {
 		diff = 0;
 
+		/*
+		 * Hold the console_lock to guarantee safe access to
+		 * console->seq and to prevent changes to @console_suspended
+		 * until all consoles have been processed.
+		 */
 		console_lock();
 
-		for_each_console(c) {
+		cookie = console_srcu_read_lock();
+		for_each_console_srcu(c) {
 			if (con && con != c)
 				continue;
 			if (!console_is_usable(c))
@@ -3380,6 +3651,7 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 			if (printk_seq < seq)
 				diff += seq - printk_seq;
 		}
+		console_srcu_read_unlock(cookie);
 
 		/*
 		 * If consoles are suspended, it cannot be expected that they

@@ -162,7 +162,7 @@ static void read_route(struct nlmsghdr *nh, int nll)
 				__be32 gw;
 			} *prefix_value;
 
-			prefix_key = alloca(sizeof(*prefix_key) + 3);
+			prefix_key = alloca(sizeof(*prefix_key) + 4);
 			prefix_value = alloca(sizeof(*prefix_value));
 
 			prefix_key->prefixlen = 32;

@@ -90,7 +90,7 @@ lpfc_ct_ignore_hbq_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 				get_job_ulpstatus(phba, piocbq));
 	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"0145 Ignoring unsolicted CT HBQ Size:%d "
+			"0145 Ignoring unsolicited CT HBQ Size:%d "
 			"status = x%x\n",
 			size, get_job_ulpstatus(phba, piocbq));
 }

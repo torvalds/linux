@@ -1750,9 +1750,9 @@ static const struct tsl2772_chip_info tsl2772_chip_info_tbl[] = {
 	},
 };
 
-static int tsl2772_probe(struct i2c_client *clientp,
-			 const struct i2c_device_id *id)
+static int tsl2772_probe(struct i2c_client *clientp)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(clientp);
 	struct iio_dev *indio_dev;
 	struct tsl2772_chip *chip;
 	int ret;
@@ -1931,7 +1931,7 @@ static struct i2c_driver tsl2772_driver = {
 		.pm = &tsl2772_pm_ops,
 	},
 	.id_table = tsl2772_idtable,
-	.probe = tsl2772_probe,
+	.probe_new = tsl2772_probe,
 };
 
 module_i2c_driver(tsl2772_driver);

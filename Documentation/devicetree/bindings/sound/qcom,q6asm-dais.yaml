@@ -73,40 +73,24 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/soc/qcom,apr.h>
-    #include <dt-bindings/sound/qcom,q6asm.h>
-
-    apr {
-        compatible = "qcom,apr-v2";
-        qcom,domain = <APR_DOMAIN_ADSP>;
+    dais {
+        compatible = "qcom,q6asm-dais";
+        iommus = <&apps_smmu 0x1821 0x0>;
         #address-cells = <1>;
         #size-cells = <0>;
+        #sound-dai-cells = <1>;
 
-        service@7 {
-            compatible = "qcom,q6asm";
-            reg = <APR_SVC_ASM>;
-            qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
+        dai@0 {
+            reg = <0>;
+        };
 
-            dais {
-                compatible = "qcom,q6asm-dais";
-                iommus = <&apps_smmu 0x1821 0x0>;
-                #address-cells = <1>;
-                #size-cells = <0>;
-                #sound-dai-cells = <1>;
+        dai@1 {
+            reg = <1>;
+        };
 
-                dai@0 {
-                    reg = <0>;
-                };
-
-                dai@1 {
-                    reg = <1>;
-                };
-
-                dai@2 {
-                    reg = <2>;
-                    is-compress-dai;
-                    direction = <1>;
-                };
-            };
+        dai@2 {
+            reg = <2>;
+            is-compress-dai;
+            direction = <1>;
         };
     };

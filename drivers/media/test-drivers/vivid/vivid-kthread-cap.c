@@ -693,7 +693,7 @@ static noinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
 
 	/* Drop a certain percentage of buffers. */
 	if (dev->perc_dropped_buffers &&
-	    prandom_u32_max(100) < dev->perc_dropped_buffers)
+	    get_random_u32_below(100) < dev->perc_dropped_buffers)
 		goto update_mv;
 
 	spin_lock(&dev->slock);

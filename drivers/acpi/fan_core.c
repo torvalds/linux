@@ -236,6 +236,7 @@ static int acpi_fan_get_fif(struct acpi_device *device)
 	if (ACPI_FAILURE(status)) {
 		dev_err(&device->dev, "Invalid _FIF element\n");
 		status = -EINVAL;
+		goto err;
 	}
 
 	fan->fif.revision = fields[0];

@@ -628,7 +628,7 @@ static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 		   sg_dma_len(pages->sgl),
 		   POISON_INUSE);
 
-	__i915_gem_object_set_pages(obj, pages, obj->stolen->size);
+	__i915_gem_object_set_pages(obj, pages);
 
 	return 0;
 }

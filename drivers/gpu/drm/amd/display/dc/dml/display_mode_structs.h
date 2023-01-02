@@ -367,6 +367,7 @@ struct _vcs_dpi_ip_params_st {
 
 	/* DM workarounds */
 	double dsc_delay_factor_wa; // TODO: Remove after implementing root cause fix
+	double min_prefetch_in_strobe_us;
 };
 
 struct _vcs_dpi_display_xfc_params_st {

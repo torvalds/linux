@@ -6741,6 +6741,9 @@ qlt_vport_create(struct scsi_qla_host *vha, struct qla_hw_data *ha)
 	mutex_init(&vha->vha_tgt.tgt_mutex);
 	mutex_init(&vha->vha_tgt.tgt_host_action_mutex);
 
+	INIT_LIST_HEAD(&vha->unknown_atio_list);
+	INIT_DELAYED_WORK(&vha->unknown_atio_work, qlt_unknown_atio_work_fn);
+
 	qlt_clear_mode(vha);
 
 	/*

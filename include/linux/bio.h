@@ -475,8 +475,6 @@ void __bio_release_pages(struct bio *bio, bool mark_dirty);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
 
-extern void bio_copy_data_iter(struct bio *dst, struct bvec_iter *dst_iter,
-			       struct bio *src, struct bvec_iter *src_iter);
 extern void bio_copy_data(struct bio *dst, struct bio *src);
 extern void bio_free_pages(struct bio *bio);
 void guard_bio_eod(struct bio *bio);
@@ -784,8 +782,7 @@ static inline void bio_set_polled(struct bio *bio, struct kiocb *kiocb)
 
 static inline void bio_clear_polled(struct bio *bio)
 {
-	/* can't support alloc cache if we turn off polling */
-	bio->bi_opf &= ~(REQ_POLLED | REQ_ALLOC_CACHE);
+	bio->bi_opf &= ~REQ_POLLED;
 }
 
 struct bio *blk_next_bio(struct bio *bio, struct block_device *bdev,

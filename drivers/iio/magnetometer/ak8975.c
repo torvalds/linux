@@ -876,9 +876,9 @@ static irqreturn_t ak8975_handle_trigger(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static int ak8975_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ak8975_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct ak8975_data *data;
 	struct iio_dev *indio_dev;
 	struct gpio_desc *eoc_gpiod;
@@ -1110,7 +1110,7 @@ static struct i2c_driver ak8975_driver = {
 		.of_match_table = ak8975_of_match,
 		.acpi_match_table = ak_acpi_match,
 	},
-	.probe		= ak8975_probe,
+	.probe_new	= ak8975_probe,
 	.remove		= ak8975_remove,
 	.id_table	= ak8975_id,
 };

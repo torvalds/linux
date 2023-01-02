@@ -600,7 +600,7 @@ static int idma64_probe(struct idma64_chip *chip)
 	return 0;
 }
 
-static int idma64_remove(struct idma64_chip *chip)
+static void idma64_remove(struct idma64_chip *chip)
 {
 	struct idma64 *idma64 = chip->idma64;
 	unsigned short i;
@@ -618,8 +618,6 @@ static int idma64_remove(struct idma64_chip *chip)
 
 		tasklet_kill(&idma64c->vchan.task);
 	}
-
-	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -664,7 +662,9 @@ static int idma64_platform_remove(struct platform_device *pdev)
 {
 	struct idma64_chip *chip = platform_get_drvdata(pdev);
 
-	return idma64_remove(chip);
+	idma64_remove(chip);
+
+	return 0;
 }
 
 static int __maybe_unused idma64_pm_suspend(struct device *dev)

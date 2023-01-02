@@ -51,7 +51,7 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 	struct device *dev = dai->component->dev;
 	struct acp_dev_data *adata = snd_soc_dai_get_drvdata(dai);
 	struct acp_stream *stream;
-	int slot_len;
+	int slot_len, no_of_slots;
 
 	switch (slot_width) {
 	case SLOT_WIDTH_8:
@@ -70,6 +70,20 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 		dev_err(dev, "Unsupported bitdepth %d\n", slot_width);
 		return -EINVAL;
 	}
+
+	switch (slots) {
+	case 1 ... 7:
+		no_of_slots = slots;
+		break;
+	case 8:
+		no_of_slots = 0;
+		break;
+	default:
+		dev_err(dev, "Unsupported slots %d\n", slots);
+		return -EINVAL;
+	}
+
+	slots = no_of_slots;
 
 	spin_lock_irq(&adata->acp_lock);
 	list_for_each_entry(stream, &adata->stream_list, list) {

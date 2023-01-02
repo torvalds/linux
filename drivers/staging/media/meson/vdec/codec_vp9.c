@@ -1459,7 +1459,7 @@ static void vp9_tree_merge_probs(unsigned int *prev_prob,
 	if (den == 0) {
 		new_prob = pre_prob;
 	} else {
-		m_count = den < MODE_MV_COUNT_SAT ? den : MODE_MV_COUNT_SAT;
+		m_count = min(den, MODE_MV_COUNT_SAT);
 		get_prob =
 			clip_prob(div_r32(((int64_t)tree_left * 256 +
 					   (den >> 1)),
@@ -1513,7 +1513,7 @@ static void adapt_coef_probs_cxt(unsigned int *prev_prob,
 			/* get binary prob */
 			num = branch_ct[node][0];
 			den = branch_ct[node][0] + branch_ct[node][1];
-			m_count = den < count_sat ? den : count_sat;
+			m_count = min(den, count_sat);
 
 			get_prob = (den == 0) ?
 					128u :
@@ -1649,8 +1649,7 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 			else if (coef_count_node_start ==
 					VP9_MV_BITS_1_COUNT_START)
 				coef_node_start = VP9_MV_BITS_1_START;
-			else if (coef_count_node_start ==
-					VP9_MV_CLASS0_HP_0_COUNT_START)
+			else /* node_start == VP9_MV_CLASS0_HP_0_COUNT_START */
 				coef_node_start = VP9_MV_CLASS0_HP_0_START;
 
 			den = count[coef_count_node_start] +
@@ -1664,8 +1663,7 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 			if (den == 0) {
 				new_prob = pre_prob;
 			} else {
-				m_count = den < MODE_MV_COUNT_SAT ?
-						den : MODE_MV_COUNT_SAT;
+				m_count = min(den, MODE_MV_COUNT_SAT);
 				get_prob =
 				clip_prob(div_r32(((int64_t)
 					count[coef_count_node_start] * 256 +

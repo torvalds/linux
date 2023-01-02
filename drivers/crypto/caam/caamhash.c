@@ -199,7 +199,7 @@ static inline int ctx_map_to_sec4_sg(struct device *jrdev,
 
 static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 {
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
 	int digestsize = crypto_ahash_digestsize(ahash);
 	struct device *jrdev = ctx->jrdev;
 	struct caam_drv_private *ctrlpriv = dev_get_drvdata(jrdev->parent);
@@ -255,7 +255,7 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 
 static int axcbc_set_sh_desc(struct crypto_ahash *ahash)
 {
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
 	int digestsize = crypto_ahash_digestsize(ahash);
 	struct device *jrdev = ctx->jrdev;
 	u32 *desc;
@@ -307,7 +307,7 @@ static int axcbc_set_sh_desc(struct crypto_ahash *ahash)
 
 static int acmac_set_sh_desc(struct crypto_ahash *ahash)
 {
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
 	int digestsize = crypto_ahash_digestsize(ahash);
 	struct device *jrdev = ctx->jrdev;
 	u32 *desc;
@@ -421,7 +421,7 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, u32 *keylen, u8 *key,
 static int ahash_setkey(struct crypto_ahash *ahash,
 			const u8 *key, unsigned int keylen)
 {
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
 	struct device *jrdev = ctx->jrdev;
 	int blocksize = crypto_tfm_alg_blocksize(&ahash->base);
 	int digestsize = crypto_ahash_digestsize(ahash);
@@ -484,7 +484,7 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 static int axcbc_setkey(struct crypto_ahash *ahash, const u8 *key,
 			unsigned int keylen)
 {
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
 	struct device *jrdev = ctx->jrdev;
 
 	if (keylen != AES_KEYSIZE_128)
@@ -504,7 +504,7 @@ static int axcbc_setkey(struct crypto_ahash *ahash, const u8 *key,
 static int acmac_setkey(struct crypto_ahash *ahash, const u8 *key,
 			unsigned int keylen)
 {
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
 	int err;
 
 	err = aes_check_keylen(keylen);
@@ -543,7 +543,7 @@ static inline void ahash_unmap(struct device *dev,
 			struct ahash_edesc *edesc,
 			struct ahash_request *req, int dst_len)
 {
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 
 	if (edesc->src_nents)
 		dma_unmap_sg(dev, req->src, edesc->src_nents, DMA_TO_DEVICE);
@@ -563,7 +563,7 @@ static inline void ahash_unmap_ctx(struct device *dev,
 			struct ahash_edesc *edesc,
 			struct ahash_request *req, int dst_len, u32 flag)
 {
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 
 	if (state->ctx_dma) {
 		dma_unmap_single(dev, state->ctx_dma, state->ctx_dma_len, flag);
@@ -580,8 +580,8 @@ static inline void ahash_done_cpy(struct device *jrdev, u32 *desc, u32 err,
 	struct ahash_edesc *edesc;
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	int digestsize = crypto_ahash_digestsize(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
 	int ecode = 0;
 	bool has_bklog;
 
@@ -630,8 +630,8 @@ static inline void ahash_done_switch(struct device *jrdev, u32 *desc, u32 err,
 	struct caam_drv_private_jr *jrp = dev_get_drvdata(jrdev);
 	struct ahash_edesc *edesc;
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	int digestsize = crypto_ahash_digestsize(ahash);
 	int ecode = 0;
 	bool has_bklog;
@@ -695,8 +695,8 @@ static struct ahash_edesc *ahash_edesc_alloc(struct ahash_request *req,
 					     dma_addr_t sh_desc_dma)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	gfp_t flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
 		       GFP_KERNEL : GFP_ATOMIC;
 	struct ahash_edesc *edesc;
@@ -755,8 +755,8 @@ static int ahash_edesc_add_src(struct caam_hash_ctx *ctx,
 static int ahash_do_one_req(struct crypto_engine *engine, void *areq)
 {
 	struct ahash_request *req = ahash_request_cast(areq);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(req));
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(crypto_ahash_reqtfm(req));
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	struct device *jrdev = ctx->jrdev;
 	u32 *desc = state->edesc->hw_desc;
 	int ret;
@@ -785,7 +785,7 @@ static int ahash_enqueue_req(struct device *jrdev,
 			     int dst_len, enum dma_data_direction dir)
 {
 	struct caam_drv_private_jr *jrpriv = dev_get_drvdata(jrdev);
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	struct ahash_edesc *edesc = state->edesc;
 	u32 *desc = edesc->hw_desc;
 	int ret;
@@ -815,8 +815,8 @@ static int ahash_enqueue_req(struct device *jrdev,
 static int ahash_update_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	struct device *jrdev = ctx->jrdev;
 	u8 *buf = state->buf;
 	int *buflen = &state->buflen;
@@ -940,8 +940,8 @@ unmap_ctx:
 static int ahash_final_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	struct device *jrdev = ctx->jrdev;
 	int buflen = state->buflen;
 	u32 *desc;
@@ -1001,8 +1001,8 @@ static int ahash_final_ctx(struct ahash_request *req)
 static int ahash_finup_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	struct device *jrdev = ctx->jrdev;
 	int buflen = state->buflen;
 	u32 *desc;
@@ -1075,8 +1075,8 @@ static int ahash_finup_ctx(struct ahash_request *req)
 static int ahash_digest(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	struct device *jrdev = ctx->jrdev;
 	u32 *desc;
 	int digestsize = crypto_ahash_digestsize(ahash);
@@ -1142,8 +1142,8 @@ static int ahash_digest(struct ahash_request *req)
 static int ahash_final_no_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	struct device *jrdev = ctx->jrdev;
 	u8 *buf = state->buf;
 	int buflen = state->buflen;
@@ -1191,8 +1191,8 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 static int ahash_update_no_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	struct device *jrdev = ctx->jrdev;
 	u8 *buf = state->buf;
 	int *buflen = &state->buflen;
@@ -1312,8 +1312,8 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 static int ahash_finup_no_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	struct device *jrdev = ctx->jrdev;
 	int buflen = state->buflen;
 	u32 *desc;
@@ -1388,8 +1388,8 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 static int ahash_update_first(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	struct device *jrdev = ctx->jrdev;
 	u8 *buf = state->buf;
 	int *buflen = &state->buflen;
@@ -1498,7 +1498,7 @@ static int ahash_finup_first(struct ahash_request *req)
 
 static int ahash_init(struct ahash_request *req)
 {
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 
 	state->update = ahash_update_first;
 	state->finup = ahash_finup_first;
@@ -1515,28 +1515,28 @@ static int ahash_init(struct ahash_request *req)
 
 static int ahash_update(struct ahash_request *req)
 {
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 
 	return state->update(req);
 }
 
 static int ahash_finup(struct ahash_request *req)
 {
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 
 	return state->finup(req);
 }
 
 static int ahash_final(struct ahash_request *req)
 {
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 
 	return state->final(req);
 }
 
 static int ahash_export(struct ahash_request *req, void *out)
 {
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	struct caam_export_state *export = out;
 	u8 *buf = state->buf;
 	int len = state->buflen;
@@ -1553,7 +1553,7 @@ static int ahash_export(struct ahash_request *req, void *out)
 
 static int ahash_import(struct ahash_request *req, const void *in)
 {
-	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_hash_state *state = ahash_request_ctx_dma(req);
 	const struct caam_export_state *export = in;
 
 	memset(state, 0, sizeof(*state));
@@ -1762,7 +1762,7 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 		 container_of(halg, struct ahash_alg, halg);
 	struct caam_hash_alg *caam_hash =
 		 container_of(alg, struct caam_hash_alg, ahash_alg);
-	struct caam_hash_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct caam_hash_ctx *ctx = crypto_ahash_ctx_dma(ahash);
 	/* Sizes for MDHA running digests: MD5, SHA1, 224, 256, 384, 512 */
 	static const u8 runninglen[] = { HASH_MSG_LEN + MD5_DIGEST_SIZE,
 					 HASH_MSG_LEN + SHA1_DIGEST_SIZE,
@@ -1854,8 +1854,7 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 
 	ctx->enginectx.op.do_one_request = ahash_do_one_req;
 
-	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
-				 sizeof(struct caam_hash_state));
+	crypto_ahash_set_reqsize_dma(ahash, sizeof(struct caam_hash_state));
 
 	/*
 	 * For keyed hash algorithms shared descriptors
@@ -1866,7 +1865,7 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 
 static void caam_hash_cra_exit(struct crypto_tfm *tfm)
 {
-	struct caam_hash_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct caam_hash_ctx *ctx = crypto_tfm_ctx_dma(tfm);
 
 	dma_unmap_single_attrs(ctx->jrdev, ctx->sh_desc_update_dma,
 			       offsetof(struct caam_hash_ctx, key) -
@@ -1926,7 +1925,7 @@ caam_hash_alloc(struct caam_hash_template *template,
 	alg->cra_module = THIS_MODULE;
 	alg->cra_init = caam_hash_cra_init;
 	alg->cra_exit = caam_hash_cra_exit;
-	alg->cra_ctxsize = sizeof(struct caam_hash_ctx);
+	alg->cra_ctxsize = sizeof(struct caam_hash_ctx) + crypto_dma_padding();
 	alg->cra_priority = CAAM_CRA_PRIORITY;
 	alg->cra_blocksize = template->blocksize;
 	alg->cra_alignmask = 0;

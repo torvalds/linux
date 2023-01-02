@@ -555,7 +555,7 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 
 #elif defined(__i386__) || defined(__alpha__) || defined(__x86_64__) ||	\
 	defined(__hppa__) || defined(__sh__) || defined(__powerpc__) ||	\
-	defined(__arm__) || defined(__aarch64__)
+	defined(__arm__) || defined(__aarch64__) || defined(__mips__)
 
 #define fb_readb __raw_readb
 #define fb_readw __raw_readw
@@ -802,6 +802,15 @@ extern int fb_find_mode(struct fb_var_screeninfo *var,
 			unsigned int dbsize,
 			const struct fb_videomode *default_mode,
 			unsigned int default_bpp);
+
+#if defined(CONFIG_VIDEO_NOMODESET)
+bool fb_modesetting_disabled(const char *drvname);
+#else
+static inline bool fb_modesetting_disabled(const char *drvname)
+{
+	return false;
+}
+#endif
 
 /* Convenience logging macros */
 #define fb_err(fb_info, fmt, ...)					\

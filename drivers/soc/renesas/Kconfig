@@ -2,6 +2,8 @@
 menuconfig SOC_RENESAS
 	bool "Renesas SoC driver support" if COMPILE_TEST && !ARCH_RENESAS
 	default y if ARCH_RENESAS
+	select GPIOLIB
+	select PINCTRL
 	select SOC_BUS
 
 if SOC_RENESAS

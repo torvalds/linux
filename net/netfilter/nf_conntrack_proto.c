@@ -121,40 +121,6 @@ const struct nf_conntrack_l4proto *nf_ct_l4proto_find(u8 l4proto)
 };
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_find);
 
-unsigned int nf_confirm(struct sk_buff *skb, unsigned int protoff,
-			struct nf_conn *ct, enum ip_conntrack_info ctinfo)
-{
-	const struct nf_conn_help *help;
-
-	help = nfct_help(ct);
-	if (help) {
-		const struct nf_conntrack_helper *helper;
-		int ret;
-
-		/* rcu_read_lock()ed by nf_hook_thresh */
-		helper = rcu_dereference(help->helper);
-		if (helper) {
-			ret = helper->help(skb,
-					   protoff,
-					   ct, ctinfo);
-			if (ret != NF_ACCEPT)
-				return ret;
-		}
-	}
-
-	if (test_bit(IPS_SEQ_ADJUST_BIT, &ct->status) &&
-	    !nf_is_loopback_packet(skb)) {
-		if (!nf_ct_seq_adjust(skb, ct, ctinfo, protoff)) {
-			NF_CT_STAT_INC_ATOMIC(nf_ct_net(ct), drop);
-			return NF_DROP;
-		}
-	}
-
-	/* We've seen it coming out the other side: confirm it */
-	return nf_conntrack_confirm(skb);
-}
-EXPORT_SYMBOL_GPL(nf_confirm);
-
 static bool in_vrf_postrouting(const struct nf_hook_state *state)
 {
 #if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
@@ -165,24 +131,71 @@ static bool in_vrf_postrouting(const struct nf_hook_state *state)
 	return false;
 }
 
-static unsigned int ipv4_confirm(void *priv,
-				 struct sk_buff *skb,
-				 const struct nf_hook_state *state)
+unsigned int nf_confirm(void *priv,
+			struct sk_buff *skb,
+			const struct nf_hook_state *state)
 {
+	const struct nf_conn_help *help;
 	enum ip_conntrack_info ctinfo;
+	unsigned int protoff;
 	struct nf_conn *ct;
+	bool seqadj_needed;
+	__be16 frag_off;
+	u8 pnum;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
-		return nf_conntrack_confirm(skb);
-
-	if (in_vrf_postrouting(state))
+	if (!ct || in_vrf_postrouting(state))
 		return NF_ACCEPT;
 
-	return nf_confirm(skb,
-			  skb_network_offset(skb) + ip_hdrlen(skb),
-			  ct, ctinfo);
+	help = nfct_help(ct);
+
+	seqadj_needed = test_bit(IPS_SEQ_ADJUST_BIT, &ct->status) && !nf_is_loopback_packet(skb);
+	if (!help && !seqadj_needed)
+		return nf_conntrack_confirm(skb);
+
+	/* helper->help() do not expect ICMP packets */
+	if (ctinfo == IP_CT_RELATED_REPLY)
+		return nf_conntrack_confirm(skb);
+
+	switch (nf_ct_l3num(ct)) {
+	case NFPROTO_IPV4:
+		protoff = skb_network_offset(skb) + ip_hdrlen(skb);
+		break;
+	case NFPROTO_IPV6:
+		pnum = ipv6_hdr(skb)->nexthdr;
+		protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &pnum, &frag_off);
+		if (protoff < 0 || (frag_off & htons(~0x7)) != 0)
+			return nf_conntrack_confirm(skb);
+		break;
+	default:
+		return nf_conntrack_confirm(skb);
+	}
+
+	if (help) {
+		const struct nf_conntrack_helper *helper;
+		int ret;
+
+		/* rcu_read_lock()ed by nf_hook */
+		helper = rcu_dereference(help->helper);
+		if (helper) {
+			ret = helper->help(skb,
+					   protoff,
+					   ct, ctinfo);
+			if (ret != NF_ACCEPT)
+				return ret;
+		}
+	}
+
+	if (seqadj_needed &&
+	    !nf_ct_seq_adjust(skb, ct, ctinfo, protoff)) {
+		NF_CT_STAT_INC_ATOMIC(nf_ct_net(ct), drop);
+		return NF_DROP;
+	}
+
+	/* We've seen it coming out the other side: confirm it */
+	return nf_conntrack_confirm(skb);
 }
+EXPORT_SYMBOL_GPL(nf_confirm);
 
 static unsigned int ipv4_conntrack_in(void *priv,
 				      struct sk_buff *skb,
@@ -230,13 +243,13 @@ static const struct nf_hook_ops ipv4_conntrack_ops[] = {
 		.priority	= NF_IP_PRI_CONNTRACK,
 	},
 	{
-		.hook		= ipv4_confirm,
+		.hook		= nf_confirm,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
 	},
 	{
-		.hook		= ipv4_confirm,
+		.hook		= nf_confirm,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
@@ -373,33 +386,6 @@ static struct nf_sockopt_ops so_getorigdst6 = {
 	.owner		= THIS_MODULE,
 };
 
-static unsigned int ipv6_confirm(void *priv,
-				 struct sk_buff *skb,
-				 const struct nf_hook_state *state)
-{
-	struct nf_conn *ct;
-	enum ip_conntrack_info ctinfo;
-	unsigned char pnum = ipv6_hdr(skb)->nexthdr;
-	__be16 frag_off;
-	int protoff;
-
-	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
-		return nf_conntrack_confirm(skb);
-
-	if (in_vrf_postrouting(state))
-		return NF_ACCEPT;
-
-	protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &pnum,
-				   &frag_off);
-	if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
-		pr_debug("proto header not found\n");
-		return nf_conntrack_confirm(skb);
-	}
-
-	return nf_confirm(skb, protoff, ct, ctinfo);
-}
-
 static unsigned int ipv6_conntrack_in(void *priv,
 				      struct sk_buff *skb,
 				      const struct nf_hook_state *state)
@@ -428,13 +414,13 @@ static const struct nf_hook_ops ipv6_conntrack_ops[] = {
 		.priority	= NF_IP6_PRI_CONNTRACK,
 	},
 	{
-		.hook		= ipv6_confirm,
+		.hook		= nf_confirm,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP6_PRI_LAST,
 	},
 	{
-		.hook		= ipv6_confirm,
+		.hook		= nf_confirm,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP6_PRI_LAST - 1,

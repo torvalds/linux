@@ -442,8 +442,7 @@ static const struct iio_info tcs3472_info = {
 	.attrs = &tcs3472_attribute_group,
 };
 
-static int tcs3472_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int tcs3472_probe(struct i2c_client *client)
 {
 	struct tcs3472_data *data;
 	struct iio_dev *indio_dev;
@@ -610,7 +609,7 @@ static struct i2c_driver tcs3472_driver = {
 		.name	= TCS3472_DRV_NAME,
 		.pm	= pm_sleep_ptr(&tcs3472_pm_ops),
 	},
-	.probe		= tcs3472_probe,
+	.probe_new	= tcs3472_probe,
 	.remove		= tcs3472_remove,
 	.id_table	= tcs3472_id,
 };

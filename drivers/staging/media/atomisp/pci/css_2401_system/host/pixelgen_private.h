@@ -161,7 +161,7 @@ STORAGE_CLASS_PIXELGEN_C void pixelgen_ctrl_dump_state(
 		     state->syng_stat_fcnt);
 	ia_css_print("Pixel Generator ID %d syng stat done  0x%x\n", ID,
 		     state->syng_stat_done);
-	ia_css_print("Pixel Generator ID %d tpg modee  0x%x\n", ID, state->tpg_mode);
+	ia_css_print("Pixel Generator ID %d tpg mode  0x%x\n", ID, state->tpg_mode);
 	ia_css_print("Pixel Generator ID %d tpg hcnt mask  0x%x\n", ID,
 		     state->tpg_hcnt_mask);
 	ia_css_print("Pixel Generator ID %d tpg hcnt mask  0x%x\n", ID,

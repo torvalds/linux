@@ -305,16 +305,27 @@ static int cc10001_adc_channel_init(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static void cc10001_reg_disable(void *priv)
+{
+	regulator_disable(priv);
+}
+
+static void cc10001_pd_cb(void *priv)
+{
+	cc10001_adc_power_down(priv);
+}
+
 static int cc10001_adc_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *node = dev->of_node;
 	struct cc10001_adc_device *adc_dev;
 	unsigned long adc_clk_rate;
 	struct iio_dev *indio_dev;
 	unsigned long channel_map;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc_dev));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc_dev));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -326,7 +337,7 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 		channel_map &= ~ret;
 	}
 
-	adc_dev->reg = devm_regulator_get(&pdev->dev, "vref");
+	adc_dev->reg = devm_regulator_get(dev, "vref");
 	if (IS_ERR(adc_dev->reg))
 		return PTR_ERR(adc_dev->reg);
 
@@ -334,34 +345,28 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	indio_dev->name = dev_name(&pdev->dev);
+	ret = devm_add_action_or_reset(dev, cc10001_reg_disable, adc_dev->reg);
+	if (ret)
+		return ret;
+
+	indio_dev->name = dev_name(dev);
 	indio_dev->info = &cc10001_adc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	adc_dev->reg_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(adc_dev->reg_base)) {
-		ret = PTR_ERR(adc_dev->reg_base);
-		goto err_disable_reg;
-	}
+	if (IS_ERR(adc_dev->reg_base))
+		return PTR_ERR(adc_dev->reg_base);
 
-	adc_dev->adc_clk = devm_clk_get(&pdev->dev, "adc");
+	adc_dev->adc_clk = devm_clk_get_enabled(dev, "adc");
 	if (IS_ERR(adc_dev->adc_clk)) {
-		dev_err(&pdev->dev, "failed to get the clock\n");
-		ret = PTR_ERR(adc_dev->adc_clk);
-		goto err_disable_reg;
-	}
-
-	ret = clk_prepare_enable(adc_dev->adc_clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable the clock\n");
-		goto err_disable_reg;
+		dev_err(dev, "failed to get/enable the clock\n");
+		return PTR_ERR(adc_dev->adc_clk);
 	}
 
 	adc_clk_rate = clk_get_rate(adc_dev->adc_clk);
 	if (!adc_clk_rate) {
-		ret = -EINVAL;
-		dev_err(&pdev->dev, "null clock rate!\n");
-		goto err_disable_clk;
+		dev_err(dev, "null clock rate!\n");
+		return -EINVAL;
 	}
 
 	adc_dev->eoc_delay_ns = NSEC_PER_SEC / adc_clk_rate;
@@ -375,47 +380,22 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 	if (adc_dev->shared)
 		cc10001_adc_power_up(adc_dev);
 
+	ret = devm_add_action_or_reset(dev, cc10001_pd_cb, adc_dev);
+	if (ret)
+		return ret;
 	/* Setup the ADC channels available on the device */
 	ret = cc10001_adc_channel_init(indio_dev, channel_map);
 	if (ret < 0)
-		goto err_disable_clk;
+		return ret;
 
 	mutex_init(&adc_dev->lock);
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-					 &cc10001_adc_trigger_h, NULL);
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
+					      &cc10001_adc_trigger_h, NULL);
 	if (ret < 0)
-		goto err_disable_clk;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		goto err_cleanup_buffer;
-
-	platform_set_drvdata(pdev, indio_dev);
-
-	return 0;
-
-err_cleanup_buffer:
-	iio_triggered_buffer_cleanup(indio_dev);
-err_disable_clk:
-	clk_disable_unprepare(adc_dev->adc_clk);
-err_disable_reg:
-	regulator_disable(adc_dev->reg);
-	return ret;
-}
-
-static int cc10001_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct cc10001_adc_device *adc_dev = iio_priv(indio_dev);
-
-	cc10001_adc_power_down(adc_dev);
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-	clk_disable_unprepare(adc_dev->adc_clk);
-	regulator_disable(adc_dev->reg);
-
-	return 0;
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct of_device_id cc10001_adc_dt_ids[] = {
@@ -430,7 +410,6 @@ static struct platform_driver cc10001_adc_driver = {
 		.of_match_table = cc10001_adc_dt_ids,
 	},
 	.probe	= cc10001_adc_probe,
-	.remove	= cc10001_adc_remove,
 };
 module_platform_driver(cc10001_adc_driver);
 

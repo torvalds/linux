@@ -224,7 +224,7 @@ alternative_endif
 #include <linux/types.h>
 
 static __always_inline bool
-alternative_has_feature_likely(unsigned long feature)
+alternative_has_feature_likely(const unsigned long feature)
 {
 	compiletime_assert(feature < ARM64_NCAPS,
 			   "feature must be < ARM64_NCAPS");
@@ -242,7 +242,7 @@ l_no:
 }
 
 static __always_inline bool
-alternative_has_feature_unlikely(unsigned long feature)
+alternative_has_feature_unlikely(const unsigned long feature)
 {
 	compiletime_assert(feature < ARM64_NCAPS,
 			   "feature must be < ARM64_NCAPS");

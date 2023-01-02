@@ -788,14 +788,40 @@ static u32 iwl_mvm_find_ie_offset(u8 *beacon, u8 eid, u32 frame_size)
 	return ie - beacon;
 }
 
-u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct ieee80211_tx_info *info,
-				    struct ieee80211_vif *vif)
+static u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
+					   struct ieee80211_tx_info *info,
+					   struct ieee80211_vif *vif)
 {
+	struct ieee80211_supported_band *sband;
+	unsigned long basic = vif->bss_conf.basic_rates;
+	u16 lowest_cck = IWL_RATE_COUNT, lowest_ofdm = IWL_RATE_COUNT;
 	u8 rate;
-	if (info->band == NL80211_BAND_2GHZ && !vif->p2p)
-		rate = IWL_FIRST_CCK_RATE;
-	else
-		rate = IWL_FIRST_OFDM_RATE;
+	u32 i;
+
+	sband = mvm->hw->wiphy->bands[info->band];
+	for_each_set_bit(i, &basic, BITS_PER_LONG) {
+		u16 hw = sband->bitrates[i].hw_value;
+
+		if (hw >= IWL_FIRST_OFDM_RATE) {
+			if (lowest_ofdm > hw)
+				lowest_ofdm = hw;
+		} else if (lowest_cck > hw) {
+			lowest_cck = hw;
+		}
+	}
+
+	if (info->band == NL80211_BAND_2GHZ && !vif->p2p) {
+		if (lowest_cck != IWL_RATE_COUNT)
+			rate = lowest_cck;
+		else if (lowest_ofdm != IWL_RATE_COUNT)
+			rate = lowest_ofdm;
+		else
+			rate = IWL_RATE_1M_INDEX;
+	} else if (lowest_ofdm != IWL_RATE_COUNT) {
+		rate = lowest_ofdm;
+	} else {
+		rate = IWL_RATE_6M_INDEX;
+	}
 
 	return rate;
 }
@@ -810,6 +836,24 @@ u16 iwl_mvm_mac_ctxt_get_beacon_flags(const struct iwl_fw *fw, u8 rate_idx)
 			  : IWL_MAC_BEACON_CCK_V1;
 
 	return flags;
+}
+
+u8 iwl_mvm_mac_ctxt_get_beacon_rate(struct iwl_mvm *mvm,
+				    struct ieee80211_tx_info *info,
+				    struct ieee80211_vif *vif)
+{
+	struct ieee80211_supported_band *sband =
+		mvm->hw->wiphy->bands[info->band];
+	u32 legacy = vif->bss_conf.beacon_tx_rate.control[info->band].legacy;
+
+	/* if beacon rate was configured try using it */
+	if (hweight32(legacy) == 1) {
+		u32 rate = ffs(legacy) - 1;
+
+		return sband->bitrates[rate].hw_value;
+	}
+
+	return iwl_mvm_mac_ctxt_get_lowest_rate(mvm, info, vif);
 }
 
 static void iwl_mvm_mac_ctxt_set_tx(struct iwl_mvm *mvm,
@@ -842,7 +886,7 @@ static void iwl_mvm_mac_ctxt_set_tx(struct iwl_mvm *mvm,
 		cpu_to_le32(BIT(mvm->mgmt_last_antenna_idx) <<
 			    RATE_MCS_ANT_POS);
 
-	rate = iwl_mvm_mac_ctxt_get_lowest_rate(info, vif);
+	rate = iwl_mvm_mac_ctxt_get_beacon_rate(mvm, info, vif);
 
 	tx->rate_n_flags |=
 		cpu_to_le32(iwl_mvm_mac80211_idx_to_hwrate(mvm->fw, rate));
@@ -926,7 +970,7 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(beacon);
 	struct iwl_mac_beacon_cmd beacon_cmd = {};
-	u8 rate = iwl_mvm_mac_ctxt_get_lowest_rate(info, vif);
+	u8 rate = iwl_mvm_mac_ctxt_get_beacon_rate(mvm, info, vif);
 	u16 flags;
 	struct ieee80211_chanctx_conf *ctx;
 	int channel;
@@ -1099,7 +1143,7 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 			iwl_mvm_mac_ap_iterator, &data);
 
 		if (data.beacon_device_ts) {
-			u32 rand = prandom_u32_max(64 - 36) + 36;
+			u32 rand = get_random_u32_inclusive(36, 63);
 			mvmvif->ap_beacon_time = data.beacon_device_ts +
 				ieee80211_tu_to_usec(data.beacon_int * rand /
 						     100);

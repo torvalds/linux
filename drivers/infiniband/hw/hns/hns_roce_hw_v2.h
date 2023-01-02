@@ -179,7 +179,6 @@ enum {
 	HNS_ROCE_V2_WQE_OP_ATOM_MSK_CMP_AND_SWAP	= 0x8,
 	HNS_ROCE_V2_WQE_OP_ATOM_MSK_FETCH_AND_ADD	= 0x9,
 	HNS_ROCE_V2_WQE_OP_FAST_REG_PMR			= 0xa,
-	HNS_ROCE_V2_WQE_OP_LOCAL_INV			= 0xb,
 	HNS_ROCE_V2_WQE_OP_BIND_MW			= 0xc,
 	HNS_ROCE_V2_WQE_OP_MASK				= 0x1f,
 };
@@ -271,6 +270,11 @@ enum hns_roce_cmd_return_status {
 	CMD_INVALID,
 	CMD_ROH_CHECK_FAIL,
 	CMD_OTHER_ERR = 0xff
+};
+
+struct hns_roce_cmd_errcode {
+	enum hns_roce_cmd_return_status return_status;
+	int errno;
 };
 
 enum hns_roce_sgid_type {
@@ -915,7 +919,6 @@ struct hns_roce_v2_rc_send_wqe {
 #define RC_SEND_WQE_OWNER RC_SEND_WQE_FIELD_LOC(7, 7)
 #define RC_SEND_WQE_CQE RC_SEND_WQE_FIELD_LOC(8, 8)
 #define RC_SEND_WQE_FENCE RC_SEND_WQE_FIELD_LOC(9, 9)
-#define RC_SEND_WQE_SO RC_SEND_WQE_FIELD_LOC(10, 10)
 #define RC_SEND_WQE_SE RC_SEND_WQE_FIELD_LOC(11, 11)
 #define RC_SEND_WQE_INLINE RC_SEND_WQE_FIELD_LOC(12, 12)
 #define RC_SEND_WQE_WQE_INDEX RC_SEND_WQE_FIELD_LOC(30, 15)
@@ -1329,9 +1332,9 @@ struct hns_roce_link_table {
 #define HNS_ROCE_EXT_LLM_MIN_PAGES(que_num) ((que_num) * 4 + 2)
 
 struct hns_roce_v2_free_mr {
-	struct ib_qp *rsv_qp[HNS_ROCE_FREE_MR_USED_QP_NUM];
-	struct ib_cq *rsv_cq;
-	struct ib_pd *rsv_pd;
+	struct hns_roce_qp *rsv_qp[HNS_ROCE_FREE_MR_USED_QP_NUM];
+	struct hns_roce_cq *rsv_cq;
+	struct hns_roce_pd *rsv_pd;
 	struct mutex mutex;
 };
 
@@ -1460,6 +1463,8 @@ struct hns_roce_sccc_clr_done {
 	__le32 clr_done;
 	__le32 rsv[5];
 };
+
+int hns_roce_v2_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 
 static inline void hns_roce_write64(struct hns_roce_dev *hr_dev, __le32 val[2],
 				    void __iomem *dest)

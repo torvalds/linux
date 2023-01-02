@@ -488,6 +488,11 @@ static void fill_engine_enable_masks(struct intel_gt *gt,
 	info_map_write(info_map, engine_enabled_masks[GUC_BLITTER_CLASS], BCS_MASK(gt));
 	info_map_write(info_map, engine_enabled_masks[GUC_VIDEO_CLASS], VDBOX_MASK(gt));
 	info_map_write(info_map, engine_enabled_masks[GUC_VIDEOENHANCE_CLASS], VEBOX_MASK(gt));
+
+	/* The GSC engine is an instance (6) of OTHER_CLASS */
+	if (gt->engine[GSC0])
+		info_map_write(info_map, engine_enabled_masks[GUC_GSC_OTHER_CLASS],
+			       BIT(gt->engine[GSC0]->instance));
 }
 
 #define LR_HW_CONTEXT_SIZE (80 * sizeof(u32))
@@ -529,9 +534,6 @@ static int guc_prep_golden_context(struct intel_guc *guc)
 	}
 
 	for (engine_class = 0; engine_class <= MAX_ENGINE_CLASS; ++engine_class) {
-		if (engine_class == OTHER_CLASS)
-			continue;
-
 		guc_class = engine_class_to_guc_class(engine_class);
 
 		if (!info_map_read(&info_map, engine_enabled_masks[guc_class]))
@@ -609,9 +611,6 @@ static void guc_init_golden_context(struct intel_guc *guc)
 	addr_ggtt = intel_guc_ggtt_offset(guc, guc->ads_vma) + offset;
 
 	for (engine_class = 0; engine_class <= MAX_ENGINE_CLASS; ++engine_class) {
-		if (engine_class == OTHER_CLASS)
-			continue;
-
 		guc_class = engine_class_to_guc_class(engine_class);
 		if (!ads_blob_read(guc, system_info.engine_enabled_masks[guc_class]))
 			continue;

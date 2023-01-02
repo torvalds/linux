@@ -261,9 +261,9 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 	__ext4_handle_dirty_metadata(__func__, __LINE__, (handle), (inode), \
 				     (bh))
 
-handle_t *__ext4_journal_start_sb(struct super_block *sb, unsigned int line,
-				  int type, int blocks, int rsv_blocks,
-				  int revoke_creds);
+handle_t *__ext4_journal_start_sb(struct inode *inode, struct super_block *sb,
+				  unsigned int line, int type, int blocks,
+				  int rsv_blocks, int revoke_creds);
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle);
 
 #define EXT4_NOJOURNAL_MAX_REF_COUNT ((unsigned long) 4096)
@@ -303,7 +303,7 @@ static inline int ext4_trans_default_revoke_credits(struct super_block *sb)
 }
 
 #define ext4_journal_start_sb(sb, type, nblocks)			\
-	__ext4_journal_start_sb((sb), __LINE__, (type), (nblocks), 0,	\
+	__ext4_journal_start_sb(NULL, (sb), __LINE__, (type), (nblocks), 0,\
 				ext4_trans_default_revoke_credits(sb))
 
 #define ext4_journal_start(inode, type, nblocks)			\
@@ -323,7 +323,7 @@ static inline handle_t *__ext4_journal_start(struct inode *inode,
 					     int blocks, int rsv_blocks,
 					     int revoke_creds)
 {
-	return __ext4_journal_start_sb(inode->i_sb, line, type, blocks,
+	return __ext4_journal_start_sb(inode, inode->i_sb, line, type, blocks,
 				       rsv_blocks, revoke_creds);
 }
 

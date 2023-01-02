@@ -1682,7 +1682,7 @@ qspi_probe_err:
 /* probe function to be called by SoC specific platform driver probe */
 EXPORT_SYMBOL_GPL(bcm_qspi_probe);
 
-int bcm_qspi_remove(struct platform_device *pdev)
+void bcm_qspi_remove(struct platform_device *pdev)
 {
 	struct bcm_qspi *qspi = platform_get_drvdata(pdev);
 
@@ -1690,9 +1690,8 @@ int bcm_qspi_remove(struct platform_device *pdev)
 	bcm_qspi_hw_uninit(qspi);
 	clk_disable_unprepare(qspi->clk);
 	kfree(qspi->dev_ids);
-
-	return 0;
 }
+
 /* function to be called by SoC specific platform driver remove() */
 EXPORT_SYMBOL_GPL(bcm_qspi_remove);
 

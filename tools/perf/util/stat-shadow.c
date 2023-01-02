@@ -14,6 +14,7 @@
 #include "units.h"
 #include <linux/zalloc.h>
 #include "iostat.h"
+#include "util/hashmap.h"
 
 /*
  * AGGR_GLOBAL: Use CPU 0
@@ -398,7 +399,7 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 
 		i = 0;
 		hashmap__for_each_entry(ctx->ids, cur, bkt) {
-			const char *metric_name = (const char *)cur->key;
+			const char *metric_name = cur->pkey;
 
 			found = false;
 			if (leader) {

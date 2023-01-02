@@ -69,9 +69,11 @@ static const uint32_t qcom_compressed_supported_formats[] = {
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XRGB2101010,
 	DRM_FORMAT_BGR565,
 
 	DRM_FORMAT_NV12,
+	DRM_FORMAT_P010,
 };
 
 /**

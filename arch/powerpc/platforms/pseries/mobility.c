@@ -635,10 +635,13 @@ retry:
 		prod_others();
 	}
 	/*
-	 * Execution may have been suspended for several seconds, so
-	 * reset the watchdog.
+	 * Execution may have been suspended for several seconds, so reset
+	 * the watchdogs. touch_nmi_watchdog() also touches the soft lockup
+	 * watchdog.
 	 */
+	rcu_cpu_stall_reset();
 	touch_nmi_watchdog();
+
 	return ret;
 }
 

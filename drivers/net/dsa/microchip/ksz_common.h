@@ -95,7 +95,6 @@ struct ksz_port {
 
 	struct ksz_port_mib mib;
 	phy_interface_t interface;
-	u16 max_frame;
 	u32 rgmii_tx_val;
 	u32 rgmii_rx_val;
 	struct ksz_device *ksz_dev;
@@ -154,6 +153,7 @@ enum ksz_model {
 	KSZ9896,
 	KSZ9897,
 	KSZ9893,
+	KSZ9563,
 	KSZ9567,
 	LAN9370,
 	LAN9371,
@@ -172,6 +172,7 @@ enum ksz_chip_id {
 	KSZ9896_CHIP_ID = 0x00989600,
 	KSZ9897_CHIP_ID = 0x00989700,
 	KSZ9893_CHIP_ID = 0x00989300,
+	KSZ9563_CHIP_ID = 0x00956300,
 	KSZ9567_CHIP_ID = 0x00956700,
 	LAN9370_CHIP_ID = 0x00937000,
 	LAN9371_CHIP_ID = 0x00937100,
@@ -320,7 +321,6 @@ struct ksz_dev_ops {
 	void (*get_caps)(struct ksz_device *dev, int port,
 			 struct phylink_config *config);
 	int (*change_mtu)(struct ksz_device *dev, int port, int mtu);
-	int (*max_mtu)(struct ksz_device *dev, int port);
 	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);
 	void (*port_init_cnt)(struct ksz_device *dev, int port);
 	void (*phylink_mac_config)(struct ksz_device *dev, int port,
@@ -345,6 +345,7 @@ void ksz_switch_remove(struct ksz_device *dev);
 
 void ksz_init_mib_timer(struct ksz_device *dev);
 void ksz_r_mib_stats64(struct ksz_device *dev, int port);
+void ksz88xx_r_mib_stats64(struct ksz_device *dev, int port);
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
 bool ksz_get_gbit(struct ksz_device *dev, int port);
 phy_interface_t ksz_get_xmii(struct ksz_device *dev, int port, bool gbit);
@@ -454,6 +455,11 @@ static inline int ksz_write64(struct ksz_device *dev, u32 reg, u64 value)
 	return regmap_bulk_write(dev->regmap[2], reg, val, 2);
 }
 
+static inline int ksz_rmw8(struct ksz_device *dev, int offset, u8 mask, u8 val)
+{
+	return regmap_update_bits(dev->regmap[0], offset, mask, val);
+}
+
 static inline int ksz_pread8(struct ksz_device *dev, int port, int offset,
 			     u8 *data)
 {
@@ -551,6 +557,7 @@ static inline int is_lan937x(struct ksz_device *dev)
 /* KSZ9893, KSZ9563, KSZ8563 specific register  */
 #define REG_CHIP_ID4			0x0f
 #define SKU_ID_KSZ8563			0x3c
+#define SKU_ID_KSZ9563			0x1c
 
 /* Driver set switch broadcast storm protection at 10% rate. */
 #define BROADCAST_STORM_PROT_RATE	10
@@ -584,6 +591,12 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define REG_PORT_INT_MASK		0x001F
 
 #define PORT_SRC_PHY_INT		1
+
+#define KSZ8795_HUGE_PACKET_SIZE	2000
+#define KSZ8863_HUGE_PACKET_SIZE	1916
+#define KSZ8863_NORMAL_PACKET_SIZE	1536
+#define KSZ8_LEGAL_PACKET_SIZE		1518
+#define KSZ9477_MAX_FRAME_SIZE		9000
 
 /* Regmap tables generation */
 #define KSZ_SPI_OP_RD		3

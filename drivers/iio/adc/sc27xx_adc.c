@@ -4,6 +4,7 @@
 #include <linux/hwspinlock.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -83,6 +84,8 @@ struct sc27xx_adc_data {
 	struct device *dev;
 	struct regulator *volref;
 	struct regmap *regmap;
+	/* lock to protect against multiple access to the device */
+	struct mutex lock;
 	/*
 	 * One hardware spinlock to synchronize between the multiple
 	 * subsystems which will access the unique ADC controller.
@@ -664,9 +667,9 @@ static int sc27xx_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&data->lock);
 		ret = sc27xx_adc_read(data, chan->channel, scale, &tmp);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&data->lock);
 
 		if (ret)
 			return ret;
@@ -675,10 +678,10 @@ static int sc27xx_adc_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_PROCESSED:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&data->lock);
 		ret = sc27xx_adc_read_processed(data, chan->channel, scale,
 						&tmp);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&data->lock);
 
 		if (ret)
 			return ret;
@@ -934,6 +937,9 @@ static int sc27xx_adc_probe(struct platform_device *pdev)
 	indio_dev->info = &sc27xx_info;
 	indio_dev->channels = sc27xx_channels;
 	indio_dev->num_channels = ARRAY_SIZE(sc27xx_channels);
+
+	mutex_init(&sc27xx_data->lock);
+
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
 		dev_err(dev, "could not register iio (ADC)");

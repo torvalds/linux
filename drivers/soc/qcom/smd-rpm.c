@@ -75,7 +75,7 @@ struct qcom_rpm_message {
 	__le32 length;
 	union {
 		__le32 msg_id;
-		u8 message[0];
+		DECLARE_FLEX_ARRAY(u8, message);
 	};
 };
 
@@ -246,6 +246,7 @@ static const struct of_device_id qcom_smd_rpm_of_match[] = {
 	{ .compatible = "qcom,rpm-sdm660" },
 	{ .compatible = "qcom,rpm-sm6115" },
 	{ .compatible = "qcom,rpm-sm6125" },
+	{ .compatible = "qcom,rpm-sm6375" },
 	{ .compatible = "qcom,rpm-qcm2290" },
 	{ .compatible = "qcom,rpm-qcs404" },
 	{}

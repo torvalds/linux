@@ -31,8 +31,10 @@ EXPORT_SYMBOL_GPL(crypto_alg_sem);
 BLOCKING_NOTIFIER_HEAD(crypto_chain);
 EXPORT_SYMBOL_GPL(crypto_chain);
 
-DEFINE_STATIC_KEY_FALSE(crypto_boot_test_finished);
-EXPORT_SYMBOL_GPL(crypto_boot_test_finished);
+#ifndef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+DEFINE_STATIC_KEY_FALSE(__crypto_boot_test_finished);
+EXPORT_SYMBOL_GPL(__crypto_boot_test_finished);
+#endif
 
 static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg);
 
@@ -172,9 +174,6 @@ void crypto_wait_for_test(struct crypto_larval *larval)
 
 	err = wait_for_completion_killable(&larval->completion);
 	WARN_ON(err);
-	if (!err)
-		crypto_notify(CRYPTO_MSG_ALG_LOADED, larval);
-
 out:
 	crypto_larval_kill(&larval->alg);
 }
@@ -205,7 +204,7 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 	struct crypto_larval *larval = (void *)alg;
 	long timeout;
 
-	if (!static_branch_likely(&crypto_boot_test_finished))
+	if (!crypto_boot_test_finished())
 		crypto_start_test(larval);
 
 	timeout = wait_for_completion_killable_timeout(

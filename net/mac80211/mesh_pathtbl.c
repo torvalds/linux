@@ -512,7 +512,7 @@ static void mesh_path_free_rcu(struct mesh_table *tbl,
 	mpath->flags |= MESH_PATH_RESOLVING | MESH_PATH_DELETED;
 	mesh_gate_del(tbl, mpath);
 	spin_unlock_bh(&mpath->state_lock);
-	del_timer_sync(&mpath->timer);
+	timer_shutdown_sync(&mpath->timer);
 	atomic_dec(&sdata->u.mesh.mpaths);
 	atomic_dec(&tbl->entries);
 	mesh_path_flush_pending(mpath);
@@ -710,7 +710,7 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
 			     struct sk_buff *skb)
 {
-	kfree_skb(skb);
+	ieee80211_free_txskb(&sdata->local->hw, skb);
 	sdata->u.mesh.mshstats.dropped_frames_no_route++;
 }
 

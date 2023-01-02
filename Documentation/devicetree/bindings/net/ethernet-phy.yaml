@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/ethernet-phy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ethernet PHY Generic Binding
+title: Ethernet PHY Common Properties
 
 maintainers:
   - Andrew Lunn <andrew@lunn.ch>

@@ -446,7 +446,12 @@ static int __init gx1fb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("gx1fb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("gx1fb", &option))
 		return -ENODEV;
 	gx1fb_setup(option);

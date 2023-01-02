@@ -109,38 +109,6 @@ properties:
       maximum: 7
     default: [0, 0, 0, 0]
 
-  ti,asi-tx-drive:
-    type: boolean
-    description: |
-      When set the device will set the Tx ASI output to a Hi-Z state for unused
-      data cycles. Default is to drive the output low on unused ASI cycles.
-
-patternProperties:
-  '^ti,gpo-config-[1-4]$':
-    $ref: /schemas/types.yaml#/definitions/uint32-array
-    description: |
-       Defines the configuration and output driver for the general purpose
-       output pins (GPO).  These values are pairs, the first value is for the
-       configuration type and the second value is for the output drive type.
-       The array is defined as <GPO_CFG GPO_DRV>
-
-       GPO output configuration can be one of the following:
-
-       0 - (default) disabled
-       1 - GPOX is configured as a general-purpose output (GPO)
-       2 - GPOX is configured as a device interrupt output (IRQ)
-       3 - GPOX is configured as a secondary ASI output (SDOUT2)
-       4 - GPOX is configured as a PDM clock output (PDMCLK)
-
-       GPO output drive configuration for the GPO pins can be one of the following:
-
-       0d - (default) Hi-Z output
-       1d - Drive active low and active high
-       2d - Drive active low and weak high
-       3d - Drive active low and Hi-Z
-       4d - Drive weak low and active high
-       5d - Drive Hi-Z and active high
-
   ti,gpio-config:
     description: |
        Defines the configuration and output drive for the General Purpose
@@ -182,6 +150,38 @@ patternProperties:
     items:
       maximum: 15
     default: [2, 2]
+
+  ti,asi-tx-drive:
+    type: boolean
+    description: |
+      When set the device will set the Tx ASI output to a Hi-Z state for unused
+      data cycles. Default is to drive the output low on unused ASI cycles.
+
+patternProperties:
+  '^ti,gpo-config-[1-4]$':
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: |
+       Defines the configuration and output driver for the general purpose
+       output pins (GPO).  These values are pairs, the first value is for the
+       configuration type and the second value is for the output drive type.
+       The array is defined as <GPO_CFG GPO_DRV>
+
+       GPO output configuration can be one of the following:
+
+       0 - (default) disabled
+       1 - GPOX is configured as a general-purpose output (GPO)
+       2 - GPOX is configured as a device interrupt output (IRQ)
+       3 - GPOX is configured as a secondary ASI output (SDOUT2)
+       4 - GPOX is configured as a PDM clock output (PDMCLK)
+
+       GPO output drive configuration for the GPO pins can be one of the following:
+
+       0d - (default) Hi-Z output
+       1d - Drive active low and active high
+       2d - Drive active low and weak high
+       3d - Drive active low and Hi-Z
+       4d - Drive weak low and active high
+       5d - Drive Hi-Z and active high
 
 required:
   - compatible

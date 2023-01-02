@@ -99,6 +99,9 @@ properties:
       - const: drv-2
       - const: drv-3
 
+  power-domains:
+    maxItems: 1
+
   bcm-voter:
     $ref: /schemas/interconnect/qcom,bcm-voter.yaml#
 
@@ -151,6 +154,7 @@ examples:
                           <SLEEP_TCS   3>,
                           <WAKE_TCS    3>,
                           <CONTROL_TCS 1>;
+        power-domains = <&CLUSTER_PD>;
       };
 
   - |
@@ -197,6 +201,7 @@ examples:
                           <SLEEP_TCS   3>,
                           <WAKE_TCS    3>,
                           <CONTROL_TCS 0>;
+        power-domains = <&CLUSTER_PD>;
 
         clock-controller {
             compatible = "qcom,sm8350-rpmh-clk";

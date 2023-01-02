@@ -53,6 +53,8 @@
 				compatible = "mrvl,mmp-timer";
 				reg = <0xd4014000 0x100>;
 				interrupts = <13>;
+				clocks = <&soc_clocks PXA168_CLK_TIMER>;
+				resets = <&soc_clocks PXA168_CLK_TIMER>;
 			};
 
 			uart1: serial@d4017000 {

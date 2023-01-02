@@ -11,9 +11,41 @@
 #include "page_reporting.h"
 #include "internal.h"
 
-unsigned int page_reporting_order = MAX_ORDER;
-module_param(page_reporting_order, uint, 0644);
+/* Initialize to an unsupported value */
+unsigned int page_reporting_order = -1;
+
+static int page_order_update_notify(const char *val, const struct kernel_param *kp)
+{
+	/*
+	 * If param is set beyond this limit, order is set to default
+	 * pageblock_order value
+	 */
+	return  param_set_uint_minmax(val, kp, 0, MAX_ORDER-1);
+}
+
+static const struct kernel_param_ops page_reporting_param_ops = {
+	.set = &page_order_update_notify,
+	/*
+	 * For the get op, use param_get_int instead of param_get_uint.
+	 * This is to make sure that when unset the initialized value of
+	 * -1 is shown correctly
+	 */
+	.get = &param_get_int,
+};
+
+module_param_cb(page_reporting_order, &page_reporting_param_ops,
+			&page_reporting_order, 0644);
 MODULE_PARM_DESC(page_reporting_order, "Set page reporting order");
+
+/*
+ * This symbol is also a kernel parameter. Export the page_reporting_order
+ * symbol so that other drivers can access it to control order values without
+ * having to introduce another configurable parameter. Only one driver can
+ * register with the page_reporting driver for the service, so we have just
+ * one control parameter for the use case(which can be accessed in both
+ * drivers)
+ */
+EXPORT_SYMBOL_GPL(page_reporting_order);
 
 #define PAGE_REPORTING_DELAY	(2 * HZ)
 static struct page_reporting_dev_info __rcu *pr_dev_info __read_mostly;
@@ -330,10 +362,18 @@ int page_reporting_register(struct page_reporting_dev_info *prdev)
 	}
 
 	/*
-	 * Update the page reporting order if it's specified by driver.
-	 * Otherwise, it falls back to @pageblock_order.
+	 * If the page_reporting_order value is not set, we check if
+	 * an order is provided from the driver that is performing the
+	 * registration. If that is not provided either, we default to
+	 * pageblock_order.
 	 */
-	page_reporting_order = prdev->order ? : pageblock_order;
+
+	if (page_reporting_order == -1) {
+		if (prdev->order > 0 && prdev->order <= MAX_ORDER)
+			page_reporting_order = prdev->order;
+		else
+			page_reporting_order = pageblock_order;
+	}
 
 	/* initialize state and work structures */
 	atomic_set(&prdev->state, PAGE_REPORTING_IDLE);

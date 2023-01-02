@@ -176,9 +176,9 @@ int cmd_idle_info(int argc, char **argv)
 		cpuidle_exit(EXIT_FAILURE);
 	}
 
-	/* Default is: show output of CPU 0 only */
+	/* Default is: show output of base_cpu only */
 	if (bitmask_isallclear(cpus_chosen))
-		bitmask_setbit(cpus_chosen, 0);
+		bitmask_setbit(cpus_chosen, base_cpu);
 
 	if (output_param == 0)
 		cpuidle_general_output();

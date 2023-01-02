@@ -26,6 +26,7 @@ properties:
 patternProperties:
   "^regulator-(ldo|sbb[0-2])$":
     $ref: "regulator.yaml#"
+    unevaluatedProperties: false
 
 required:
   - compatible

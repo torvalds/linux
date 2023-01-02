@@ -79,9 +79,9 @@ static int ms5611_i2c_read_adc_temp_and_pressure(struct ms5611_state *st,
 	return ms5611_i2c_read_adc(st, pressure);
 }
 
-static int ms5611_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int ms5611_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct ms5611_state *st;
 	struct iio_dev *indio_dev;
 
@@ -130,7 +130,7 @@ static struct i2c_driver ms5611_driver = {
 		.of_match_table = ms5611_i2c_matches,
 	},
 	.id_table = ms5611_id,
-	.probe = ms5611_i2c_probe,
+	.probe_new = ms5611_i2c_probe,
 	.remove = ms5611_i2c_remove,
 };
 module_i2c_driver(ms5611_driver);

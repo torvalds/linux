@@ -26,10 +26,12 @@ static struct genl_family nl802154_fam;
 /* multicast groups */
 enum nl802154_multicast_groups {
 	NL802154_MCGRP_CONFIG,
+	NL802154_MCGRP_SCAN,
 };
 
 static const struct genl_multicast_group nl802154_mcgrps[] = {
 	[NL802154_MCGRP_CONFIG] = { .name = "config", },
+	[NL802154_MCGRP_SCAN] = { .name = "scan", },
 };
 
 /* returns ERR_PTR values */
@@ -216,6 +218,9 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 
 	[NL802154_ATTR_PID] = { .type = NLA_U32 },
 	[NL802154_ATTR_NETNS_FD] = { .type = NLA_U32 },
+
+	[NL802154_ATTR_COORDINATOR] = { .type = NLA_NESTED },
+
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	[NL802154_ATTR_SEC_ENABLED] = { .type = NLA_U8, },
 	[NL802154_ATTR_SEC_OUT_LEVEL] = { .type = NLA_U32, },
@@ -1281,6 +1286,104 @@ static int nl802154_wpan_phy_netns(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+static int nl802154_prep_scan_event_msg(struct sk_buff *msg,
+					struct cfg802154_registered_device *rdev,
+					struct wpan_dev *wpan_dev,
+					u32 portid, u32 seq, int flags, u8 cmd,
+					struct ieee802154_coord_desc *desc)
+{
+	struct nlattr *nla;
+	void *hdr;
+
+	hdr = nl802154hdr_put(msg, portid, seq, flags, cmd);
+	if (!hdr)
+		return -ENOBUFS;
+
+	if (nla_put_u32(msg, NL802154_ATTR_WPAN_PHY, rdev->wpan_phy_idx))
+		goto nla_put_failure;
+
+	if (wpan_dev->netdev &&
+	    nla_put_u32(msg, NL802154_ATTR_IFINDEX, wpan_dev->netdev->ifindex))
+		goto nla_put_failure;
+
+	if (nla_put_u64_64bit(msg, NL802154_ATTR_WPAN_DEV,
+			      wpan_dev_id(wpan_dev), NL802154_ATTR_PAD))
+		goto nla_put_failure;
+
+	nla = nla_nest_start_noflag(msg, NL802154_ATTR_COORDINATOR);
+	if (!nla)
+		goto nla_put_failure;
+
+	if (nla_put(msg, NL802154_COORD_PANID, IEEE802154_PAN_ID_LEN,
+		    &desc->addr.pan_id))
+		goto nla_put_failure;
+
+	if (desc->addr.mode == IEEE802154_ADDR_SHORT) {
+		if (nla_put(msg, NL802154_COORD_ADDR,
+			    IEEE802154_SHORT_ADDR_LEN,
+			    &desc->addr.short_addr))
+			goto nla_put_failure;
+	} else {
+		if (nla_put(msg, NL802154_COORD_ADDR,
+			    IEEE802154_EXTENDED_ADDR_LEN,
+			    &desc->addr.extended_addr))
+			goto nla_put_failure;
+	}
+
+	if (nla_put_u8(msg, NL802154_COORD_CHANNEL, desc->channel))
+		goto nla_put_failure;
+
+	if (nla_put_u8(msg, NL802154_COORD_PAGE, desc->page))
+		goto nla_put_failure;
+
+	if (nla_put_u16(msg, NL802154_COORD_SUPERFRAME_SPEC,
+			desc->superframe_spec))
+		goto nla_put_failure;
+
+	if (nla_put_u8(msg, NL802154_COORD_LINK_QUALITY, desc->link_quality))
+		goto nla_put_failure;
+
+	if (desc->gts_permit && nla_put_flag(msg, NL802154_COORD_GTS_PERMIT))
+		goto nla_put_failure;
+
+	/* TODO: NL802154_COORD_PAYLOAD_DATA if any */
+
+	nla_nest_end(msg, nla);
+
+	genlmsg_end(msg, hdr);
+
+	return 0;
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+
+	return -EMSGSIZE;
+}
+
+int nl802154_scan_event(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
+			struct ieee802154_coord_desc *desc)
+{
+	struct cfg802154_registered_device *rdev = wpan_phy_to_rdev(wpan_phy);
+	struct sk_buff *msg;
+	int ret;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+	if (!msg)
+		return -ENOMEM;
+
+	ret = nl802154_prep_scan_event_msg(msg, rdev, wpan_dev, 0, 0, 0,
+					   NL802154_CMD_SCAN_EVENT,
+					   desc);
+	if (ret < 0) {
+		nlmsg_free(msg);
+		return ret;
+	}
+
+	return genlmsg_multicast_netns(&nl802154_fam, wpan_phy_net(wpan_phy),
+				       msg, 0, NL802154_MCGRP_SCAN, GFP_ATOMIC);
+}
+EXPORT_SYMBOL_GPL(nl802154_scan_event);
+
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 static const struct nla_policy nl802154_dev_addr_policy[NL802154_DEV_ADDR_ATTR_MAX + 1] = {
 	[NL802154_DEV_ADDR_ATTR_PAN_ID] = { .type = NLA_U16 },
@@ -2157,7 +2260,8 @@ static int nl802154_del_llsec_seclevel(struct sk_buff *skb,
 #define NL802154_FLAG_CHECK_NETDEV_UP	0x08
 #define NL802154_FLAG_NEED_WPAN_DEV	0x10
 
-static int nl802154_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
+static int nl802154_pre_doit(const struct genl_split_ops *ops,
+			     struct sk_buff *skb,
 			     struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev;
@@ -2219,7 +2323,8 @@ static int nl802154_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 	return 0;
 }
 
-static void nl802154_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
+static void nl802154_post_doit(const struct genl_split_ops *ops,
+			       struct sk_buff *skb,
 			       struct genl_info *info)
 {
 	if (info->user_ptr[1]) {

@@ -164,8 +164,7 @@ static const struct iio_info al3010_info = {
 	.attrs		= &al3010_attribute_group,
 };
 
-static int al3010_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int al3010_probe(struct i2c_client *client)
 {
 	struct al3010_data *data;
 	struct iio_dev *indio_dev;
@@ -230,7 +229,7 @@ static struct i2c_driver al3010_driver = {
 		.of_match_table = al3010_of_match,
 		.pm = pm_sleep_ptr(&al3010_pm_ops),
 	},
-	.probe		= al3010_probe,
+	.probe_new	= al3010_probe,
 	.id_table	= al3010_id,
 };
 module_i2c_driver(al3010_driver);

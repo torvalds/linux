@@ -86,19 +86,19 @@
 
 		pinctrl-names = "default";
 
-		sata-r-amber-pin {
+		led-sata-r-amber {
 			label = "dns327l:amber:sata-r";
 			gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
 			default-state = "keep";
 		};
 
-		sata-l-amber-pin {
+		led-sata-l-amber {
 			label = "dns327l:amber:sata-l";
 			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
 			default-state = "keep";
 		};
 
-		backup-led-pin {
+		led-backup {
 			label = "dns327l:white:usb";
 			gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
 			default-state = "keep";

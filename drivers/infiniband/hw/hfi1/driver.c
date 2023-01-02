@@ -112,7 +112,7 @@ static int hfi1_caps_get(char *buffer, const struct kernel_param *kp)
 	cap_mask &= ~HFI1_CAP_LOCKED_SMASK;
 	cap_mask |= ((cap_mask & HFI1_CAP_K2U) << HFI1_CAP_USER_SHIFT);
 
-	return scnprintf(buffer, PAGE_SIZE, "0x%lx", cap_mask);
+	return sysfs_emit(buffer, "0x%lx\n", cap_mask);
 }
 
 struct pci_dev *get_pci_dev(struct rvt_dev_info *rdi)

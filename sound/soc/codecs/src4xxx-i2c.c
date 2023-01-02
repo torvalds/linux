@@ -12,8 +12,7 @@
 
 #include "src4xxx.h"
 
-static int src4xxx_i2c_probe(struct i2c_client *i2c,
-			const struct i2c_device_id *id)
+static int src4xxx_i2c_probe(struct i2c_client *i2c)
 {
 	return src4xxx_probe(&i2c->dev,
 		devm_regmap_init_i2c(i2c, &src4xxx_regmap_config), NULL);
@@ -37,7 +36,7 @@ static struct i2c_driver src4xxx_i2c_driver = {
 		.name = "src4xxx",
 		.of_match_table = of_match_ptr(src4xxx_of_match),
 	},
-	.probe = src4xxx_i2c_probe,
+	.probe_new = src4xxx_i2c_probe,
 	.id_table = src4xxx_i2c_ids,
 };
 module_i2c_driver(src4xxx_i2c_driver);

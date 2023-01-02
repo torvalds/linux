@@ -284,6 +284,25 @@ void target_pr_kref_release(struct kref *kref)
 	complete(&deve->pr_comp);
 }
 
+/*
+ * Establish UA condition on SCSI device - all LUNs
+ */
+void target_dev_ua_allocate(struct se_device *dev, u8 asc, u8 ascq)
+{
+	struct se_dev_entry *se_deve;
+	struct se_lun *lun;
+
+	spin_lock(&dev->se_port_lock);
+	list_for_each_entry(lun, &dev->dev_sep_list, lun_dev_link) {
+
+		spin_lock(&lun->lun_deve_lock);
+		list_for_each_entry(se_deve, &lun->lun_deve_list, lun_link)
+			core_scsi3_ua_allocate(se_deve, asc, ascq);
+		spin_unlock(&lun->lun_deve_lock);
+	}
+	spin_unlock(&dev->se_port_lock);
+}
+
 static void
 target_luns_data_has_changed(struct se_node_acl *nacl, struct se_dev_entry *new,
 			     bool skip_new)
@@ -785,6 +804,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.emulate_caw = DA_EMULATE_CAW;
 	dev->dev_attrib.emulate_3pc = DA_EMULATE_3PC;
 	dev->dev_attrib.emulate_pr = DA_EMULATE_PR;
+	dev->dev_attrib.emulate_rsoc = DA_EMULATE_RSOC;
 	dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE0_PROT;
 	dev->dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
 	dev->dev_attrib.force_pr_aptpl = DA_FORCE_PR_APTPL;

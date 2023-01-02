@@ -74,7 +74,7 @@ MODULE_PARM_DESC(psv, "Disable or override all passive trip points.");
 static struct workqueue_struct *acpi_thermal_pm_queue;
 
 static int acpi_thermal_add(struct acpi_device *device);
-static int acpi_thermal_remove(struct acpi_device *device);
+static void acpi_thermal_remove(struct acpi_device *device);
 static void acpi_thermal_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id  thermal_device_ids[] = {
@@ -291,7 +291,7 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 					  "Found critical threshold [%lu]\n",
 					  tz->trips.critical.temperature);
 		}
-		if (tz->trips.critical.flags.valid == 1) {
+		if (tz->trips.critical.flags.valid) {
 			if (crt == -1) {
 				tz->trips.critical.flags.valid = 0;
 			} else if (crt > 0) {
@@ -1059,19 +1059,18 @@ end:
 	return result;
 }
 
-static int acpi_thermal_remove(struct acpi_device *device)
+static void acpi_thermal_remove(struct acpi_device *device)
 {
 	struct acpi_thermal *tz;
 
 	if (!device || !acpi_driver_data(device))
-		return -EINVAL;
+		return;
 
 	flush_workqueue(acpi_thermal_pm_queue);
 	tz = acpi_driver_data(device);
 
 	acpi_thermal_unregister_thermal_zone(tz);
 	kfree(tz);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

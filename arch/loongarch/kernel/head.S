@@ -25,7 +25,8 @@ _head:
 	.dword	kernel_entry		/* Kernel entry point */
 	.dword	_end - _text		/* Kernel image effective size */
 	.quad	0			/* Kernel image load offset from start of RAM */
-	.org	0x3c			/* 0x20 ~ 0x3b reserved */
+	.org	0x38			/* 0x20 ~ 0x37 reserved */
+	.long	LINUX_PE_MAGIC
 	.long	pe_header - _head	/* Offset to the PE header */
 
 pe_header:
@@ -84,10 +85,9 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 
 	la.pcrel	tp, init_thread_union
 	/* Set the SP after an empty pt_regs.  */
-	PTR_LI		sp, (_THREAD_SIZE - 32 - PT_SIZE)
+	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
 	PTR_ADD		sp, sp, tp
 	set_saved_sp	sp, t0, t1
-	PTR_ADDI	sp, sp, -4 * SZREG	# init stack pointer
 
 	bl		start_kernel
 	ASM_BUG()

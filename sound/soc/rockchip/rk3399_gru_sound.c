@@ -21,7 +21,6 @@
 #include <sound/soc.h>
 #include "rockchip_i2s.h"
 #include "../codecs/da7219.h"
-#include "../codecs/da7219-aad.h"
 #include "../codecs/rt5514.h"
 
 #define DRV_NAME "rk3399-gru-sound"
@@ -226,7 +225,7 @@ static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 	snd_jack_set_key(
 		rockchip_sound_jack.jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
 
-	da7219_aad_jack_det(component, &rockchip_sound_jack);
+	snd_soc_component_set_jack(component, &rockchip_sound_jack, NULL);
 
 	return 0;
 }

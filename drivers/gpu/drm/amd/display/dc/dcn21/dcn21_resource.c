@@ -94,8 +94,6 @@
  * macros to expend register list macro defined in HW object header file */
 
 /* DCN */
-/* TODO awful hack. fixup dcn20_dwb.h */
-#undef BASE_INNER
 #define BASE_INNER(seg) DMU_BASE__INST0_SEG ## seg
 
 #define BASE(seg) BASE_INNER(seg)

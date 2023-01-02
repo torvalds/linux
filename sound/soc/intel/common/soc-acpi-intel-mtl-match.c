@@ -39,6 +39,20 @@ static const struct snd_soc_acpi_endpoint single_endpoint = {
 	.group_id = 0,
 };
 
+static const struct snd_soc_acpi_endpoint spk_l_endpoint = {
+	.num = 0,
+	.aggregated = 1,
+	.group_position = 0,
+	.group_id = 1,
+};
+
+static const struct snd_soc_acpi_endpoint spk_r_endpoint = {
+	.num = 0,
+	.aggregated = 1,
+	.group_position = 1,
+	.group_id = 1,
+};
+
 static const struct snd_soc_acpi_adr_device rt711_sdca_0_adr[] = {
 	{
 		.adr = 0x000030025D071101ull,
@@ -46,6 +60,45 @@ static const struct snd_soc_acpi_adr_device rt711_sdca_0_adr[] = {
 		.endpoints = &single_endpoint,
 		.name_prefix = "rt711"
 	}
+};
+
+static const struct snd_soc_acpi_adr_device mx8373_0_adr[] = {
+	{
+		.adr = 0x000023019F837300ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_l_endpoint,
+		.name_prefix = "Left"
+	},
+	{
+		.adr = 0x000027019F837300ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_r_endpoint,
+		.name_prefix = "Right"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device rt5682_2_adr[] = {
+	{
+		.adr = 0x000221025D568200ull,
+		.num_endpoints = 1,
+		.endpoints = &single_endpoint,
+		.name_prefix = "rt5682"
+	}
+};
+
+static const struct snd_soc_acpi_link_adr rt5682_link2_max98373_link0[] = {
+	/* Expected order: jack -> amp */
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(rt5682_2_adr),
+		.adr_d = rt5682_2_adr,
+	},
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(mx8373_0_adr),
+		.adr_d = mx8373_0_adr,
+	},
+	{}
 };
 
 static const struct snd_soc_acpi_link_adr mtl_rvp[] = {
@@ -83,6 +136,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 		.links = mtl_rvp,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-mtl-rt711.tplg",
+	},
+	{
+		.link_mask = BIT(0) | BIT(2),
+		.links = rt5682_link2_max98373_link0,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-mtl-sdw-rt5682-l2-max98373-l0.tplg",
 	},
 	{},
 };

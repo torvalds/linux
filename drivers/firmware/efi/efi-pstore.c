@@ -10,7 +10,9 @@ MODULE_IMPORT_NS(EFIVAR);
 
 #define DUMP_NAME_LEN 66
 
-#define EFIVARS_DATA_SIZE_MAX 1024
+static unsigned int record_size = 1024;
+module_param(record_size, uint, 0444);
+MODULE_PARM_DESC(record_size, "size of each pstore UEFI var (in bytes, min/default=1024)");
 
 static bool efivars_pstore_disable =
 	IS_ENABLED(CONFIG_EFI_VARS_PSTORE_DEFAULT_DISABLE);
@@ -30,7 +32,7 @@ static int efi_pstore_open(struct pstore_info *psi)
 	if (err)
 		return err;
 
-	psi->data = kzalloc(EFIVARS_DATA_SIZE_MAX, GFP_KERNEL);
+	psi->data = kzalloc(record_size, GFP_KERNEL);
 	if (!psi->data)
 		return -ENOMEM;
 
@@ -52,7 +54,7 @@ static inline u64 generic_id(u64 timestamp, unsigned int part, int count)
 static int efi_pstore_read_func(struct pstore_record *record,
 				efi_char16_t *varname)
 {
-	unsigned long wlen, size = EFIVARS_DATA_SIZE_MAX;
+	unsigned long wlen, size = record_size;
 	char name[DUMP_NAME_LEN], data_type;
 	efi_status_t status;
 	int cnt;
@@ -133,7 +135,7 @@ static ssize_t efi_pstore_read(struct pstore_record *record)
 	efi_status_t status;
 
 	for (;;) {
-		varname_size = EFIVARS_DATA_SIZE_MAX;
+		varname_size = 1024;
 
 		/*
 		 * If this is the first read() call in the pstore enumeration,
@@ -207,7 +209,7 @@ static int efi_pstore_erase(struct pstore_record *record)
 
 static struct pstore_info efi_pstore_info = {
 	.owner		= THIS_MODULE,
-	.name		= "efi",
+	.name		= KBUILD_MODNAME,
 	.flags		= PSTORE_FLAGS_DMESG,
 	.open		= efi_pstore_open,
 	.close		= efi_pstore_close,
@@ -224,11 +226,20 @@ static __init int efivars_pstore_init(void)
 	if (efivars_pstore_disable)
 		return 0;
 
-	efi_pstore_info.buf = kmalloc(4096, GFP_KERNEL);
+	/*
+	 * Notice that 1024 is the minimum here to prevent issues with
+	 * decompression algorithms that were spotted during tests;
+	 * even in the case of not using compression, smaller values would
+	 * just pollute more the pstore FS with many small collected files.
+	 */
+	if (record_size < 1024)
+		record_size = 1024;
+
+	efi_pstore_info.buf = kmalloc(record_size, GFP_KERNEL);
 	if (!efi_pstore_info.buf)
 		return -ENOMEM;
 
-	efi_pstore_info.bufsize = 1024;
+	efi_pstore_info.bufsize = record_size;
 
 	if (pstore_register(&efi_pstore_info)) {
 		kfree(efi_pstore_info.buf);

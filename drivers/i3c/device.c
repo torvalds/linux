@@ -51,6 +51,26 @@ int i3c_device_do_priv_xfers(struct i3c_device *dev,
 EXPORT_SYMBOL_GPL(i3c_device_do_priv_xfers);
 
 /**
+ * i3c_device_do_setdasa() - do I3C dynamic address assignement with
+ *                           static address
+ *
+ * @dev: device with which the DAA should be done
+ *
+ * Return: 0 in case of success, a negative error core otherwise.
+ */
+int i3c_device_do_setdasa(struct i3c_device *dev)
+{
+	int ret;
+
+	i3c_bus_normaluse_lock(dev->bus);
+	ret = i3c_dev_setdasa_locked(dev->desc);
+	i3c_bus_normaluse_unlock(dev->bus);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_device_do_setdasa);
+
+/**
  * i3c_device_get_info() - get I3C device information
  *
  * @dev: device we want information on

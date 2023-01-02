@@ -154,7 +154,7 @@ static int pseries_eeh_get_pe_config_addr(struct pci_dn *pdn)
 /**
  * pseries_eeh_phb_reset - Reset the specified PHB
  * @phb: PCI controller
- * @config_adddr: the associated config address
+ * @config_addr: the associated config address
  * @option: reset option
  *
  * Reset the specified PHB/PE
@@ -188,7 +188,7 @@ static int pseries_eeh_phb_reset(struct pci_controller *phb, int config_addr, in
 /**
  * pseries_eeh_phb_configure_bridge - Configure PCI bridges in the indicated PE
  * @phb: PCI controller
- * @config_adddr: the associated config address
+ * @config_addr: the associated config address
  *
  * The function will be called to reconfigure the bridges included
  * in the specified PE so that the mulfunctional PE would be recovered
@@ -848,16 +848,7 @@ static int __init eeh_pseries_init(void)
 	}
 
 	/* Initialize error log size */
-	eeh_error_buf_size = rtas_token("rtas-error-log-max");
-	if (eeh_error_buf_size == RTAS_UNKNOWN_SERVICE) {
-		pr_info("%s: unknown EEH error log size\n",
-			__func__);
-		eeh_error_buf_size = 1024;
-	} else if (eeh_error_buf_size > RTAS_ERROR_LOG_MAX) {
-		pr_info("%s: EEH error log size %d exceeds the maximal %d\n",
-			__func__, eeh_error_buf_size, RTAS_ERROR_LOG_MAX);
-		eeh_error_buf_size = RTAS_ERROR_LOG_MAX;
-	}
+	eeh_error_buf_size = rtas_get_error_log_max();
 
 	/* Set EEH probe mode */
 	eeh_add_flag(EEH_PROBE_MODE_DEVTREE | EEH_ENABLE_IO_FOR_LOG);

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/renesas,versaclock7.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Renesas Versaclock7 Programmable Clock Device Tree Bindings
+title: Renesas Versaclock7 Programmable Clock
 
 maintainers:
   - Alex Helms <alexander.helms.jy@renesas.com>

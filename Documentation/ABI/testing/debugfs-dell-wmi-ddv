@@ -1,0 +1,21 @@
+What:		/sys/kernel/debug/dell-wmi-ddv-<wmi_device_name>/fan_sensor_information
+Date:		September 2022
+KernelVersion:	6.1
+Contact:	Armin Wolf <W_Armin@gmx.de>
+Description:
+		This file contains the contents of the fan sensor information buffer,
+		which contains fan sensor entries and a terminating character (0xFF).
+
+		Each fan sensor entry consists of three bytes with an unknown meaning,
+		interested people may use this file for reverse-engineering.
+
+What:		/sys/kernel/debug/dell-wmi-ddv-<wmi_device_name>/thermal_sensor_information
+Date:		September 2022
+KernelVersion:	6.1
+Contact:	Armin Wolf <W_Armin@gmx.de>
+Description:
+		This file contains the contents of the thermal sensor information buffer,
+		which contains thermal sensor entries and a terminating character (0xFF).
+
+		Each thermal sensor entry consists of five bytes with an unknown meaning,
+		interested people may use this file for reverse-engineering.

@@ -148,7 +148,7 @@ allOf:
           items:
             - const: oscclk
             - const: dout_clkcmu_fsys1_bus
-            - const: dout_clkcmu_fsys1_mmc_card
+            - const: gout_clkcmu_fsys1_mmc_card
             - const: dout_clkcmu_fsys1_usbdrd
 
   - if:

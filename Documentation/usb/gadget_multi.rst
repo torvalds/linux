@@ -9,7 +9,7 @@ The Multifunction Composite Gadget (or g_multi) is a composite gadget
 that makes extensive use of the composite framework to provide
 a... multifunction gadget.
 
-In it's standard configuration it provides a single USB configuration
+In its standard configuration it provides a single USB configuration
 with RNDIS[1] (that is Ethernet), USB CDC[2] ACM (that is serial) and
 USB Mass Storage functions.
 

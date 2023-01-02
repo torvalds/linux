@@ -632,9 +632,9 @@ static const struct mlxsw_bus mlxsw_i2c_bus = {
 	.cmd_exec		= mlxsw_i2c_cmd_exec,
 };
 
-static int mlxsw_i2c_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int mlxsw_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	const struct i2c_adapter_quirks *quirks = client->adapter->quirks;
 	struct mlxsw_i2c *mlxsw_i2c;
 	u8 status;
@@ -751,7 +751,7 @@ static void mlxsw_i2c_remove(struct i2c_client *client)
 
 int mlxsw_i2c_driver_register(struct i2c_driver *i2c_driver)
 {
-	i2c_driver->probe = mlxsw_i2c_probe;
+	i2c_driver->probe_new = mlxsw_i2c_probe;
 	i2c_driver->remove = mlxsw_i2c_remove;
 	return i2c_add_driver(i2c_driver);
 }

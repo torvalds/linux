@@ -1219,6 +1219,13 @@ struct drm_cmdline_mode {
 	bool bpp_specified;
 
 	/**
+	 * @pixel_clock:
+	 *
+	 * Pixel Clock in kHz. Optional.
+	 */
+	unsigned int pixel_clock;
+
+	/**
 	 * @xres:
 	 *
 	 * Active resolution on the X axis, in pixels.

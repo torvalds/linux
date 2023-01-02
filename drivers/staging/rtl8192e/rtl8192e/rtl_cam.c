@@ -17,7 +17,7 @@ void rtl92e_cam_reset(struct net_device *dev)
 {
 	u32 ulcommand = 0;
 
-	ulcommand |= BIT31|BIT30;
+	ulcommand |= BIT31 | BIT30;
 	rtl92e_writel(dev, RWCAM, ulcommand);
 }
 
@@ -40,9 +40,8 @@ void rtl92e_enable_hw_security_config(struct net_device *dev)
 		SECR_value |= SCR_TxUseDK;
 	}
 
-
 	ieee->hwsec_active = 1;
-	if ((ieee->pHTInfo->iot_action & HT_IOT_ACT_PURE_N_MODE) || !hwwep) {
+	if ((ieee->ht_info->iot_action & HT_IOT_ACT_PURE_N_MODE) || !hwwep) {
 		ieee->hwsec_active = 0;
 		SECR_value &= ~SCR_RxDecEnable;
 	}
@@ -81,17 +80,15 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 	enum rt_rf_power_state rt_state;
 
 	rt_state = priv->rtllib->rf_power_state;
-	if (priv->rtllib->PowerSaveControl.bInactivePs) {
-		if (rt_state == rf_off) {
-			if (priv->rtllib->rf_off_reason > RF_CHANGE_BY_IPS) {
-				netdev_warn(dev, "%s(): RF is OFF.\n",
-					    __func__);
-				return;
-			}
-			mutex_lock(&priv->rtllib->ips_mutex);
-			rtl92e_ips_leave(dev);
-			mutex_unlock(&priv->rtllib->ips_mutex);
+	if (rt_state == rf_off) {
+		if (priv->rtllib->rf_off_reason > RF_CHANGE_BY_IPS) {
+			netdev_warn(dev, "%s(): RF is OFF.\n",
+				    __func__);
+			return;
 		}
+		mutex_lock(&priv->rtllib->ips_mutex);
+		rtl92e_ips_leave(dev);
+		mutex_unlock(&priv->rtllib->ips_mutex);
 	}
 	priv->rtllib->is_set_key = true;
 	if (EntryNo >= TOTAL_CAM_ENTRY) {
@@ -100,33 +97,33 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 	}
 
 	if (DefaultKey)
-		usConfig |= BIT15 | (KeyType<<2);
+		usConfig |= BIT15 | (KeyType << 2);
 	else
-		usConfig |= BIT15 | (KeyType<<2) | KeyIndex;
+		usConfig |= BIT15 | (KeyType << 2) | KeyIndex;
 
 
 	for (i = 0; i < CAM_CONTENT_COUNT; i++) {
 		TargetCommand  = i + CAM_CONTENT_COUNT * EntryNo;
-		TargetCommand |= BIT31|BIT16;
+		TargetCommand |= BIT31 | BIT16;
 
 		if (i == 0) {
-			TargetContent = (u32)(*(MacAddr+0)) << 16 |
-				(u32)(*(MacAddr+1)) << 24 |
+			TargetContent = (u32)(*(MacAddr + 0)) << 16 |
+				(u32)(*(MacAddr + 1)) << 24 |
 				(u32)usConfig;
 
 			rtl92e_writel(dev, WCAMI, TargetContent);
 			rtl92e_writel(dev, RWCAM, TargetCommand);
 		} else if (i == 1) {
-			TargetContent = (u32)(*(MacAddr+2)) |
-				(u32)(*(MacAddr+3)) <<  8 |
-				(u32)(*(MacAddr+4)) << 16 |
-				(u32)(*(MacAddr+5)) << 24;
+			TargetContent = (u32)(*(MacAddr + 2)) |
+				(u32)(*(MacAddr + 3)) <<  8 |
+				(u32)(*(MacAddr + 4)) << 16 |
+				(u32)(*(MacAddr + 5)) << 24;
 			rtl92e_writel(dev, WCAMI, TargetContent);
 			rtl92e_writel(dev, RWCAM, TargetCommand);
 		} else {
 			if (KeyContent != NULL) {
 				rtl92e_writel(dev, WCAMI,
-					      (u32)(*(KeyContent+i-2)));
+					      (u32)(*(KeyContent + i - 2)));
 				rtl92e_writel(dev, RWCAM, TargetCommand);
 				udelay(100);
 			}

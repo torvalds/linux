@@ -1,0 +1,156 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/gpu/host1x/nvidia,tegra234-nvdec.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: NVIDIA Tegra234 NVDEC
+
+description: |
+  NVDEC is the hardware video decoder present on NVIDIA Tegra210
+  and newer chips. It is located on the Host1x bus and typically
+  programmed through Host1x channels.
+
+maintainers:
+  - Thierry Reding <treding@gmail.com>
+  - Mikko Perttunen <mperttunen@nvidia.com>
+
+properties:
+  $nodename:
+    pattern: "^nvdec@[0-9a-f]*$"
+
+  compatible:
+    enum:
+      - nvidia,tegra234-nvdec
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: nvdec
+      - const: fuse
+      - const: tsec_pka
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    items:
+      - const: nvdec
+
+  power-domains:
+    maxItems: 1
+
+  iommus:
+    maxItems: 1
+
+  dma-coherent: true
+
+  interconnects:
+    items:
+      - description: DMA read memory client
+      - description: DMA write memory client
+
+  interconnect-names:
+    items:
+      - const: dma-mem
+      - const: write
+
+  nvidia,memory-controller:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      phandle to the memory controller for determining information for the NVDEC
+      firmware secure carveout. This carveout is configured by the bootloader and
+      not accessible to CPU.
+
+  nvidia,bl-manifest-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Offset to bootloader manifest from beginning of firmware that was configured by
+      the bootloader.
+
+  nvidia,bl-code-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Offset to bootloader code section from beginning of firmware that was configured by
+      the bootloader.
+
+  nvidia,bl-data-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Offset to bootloader data section from beginning of firmware that was configured by
+      the bootloader.
+
+  nvidia,os-manifest-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Offset to operating system manifest from beginning of firmware that was configured by
+      the bootloader.
+
+  nvidia,os-code-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Offset to operating system code section from beginning of firmware that was configured by
+      the bootloader.
+
+  nvidia,os-data-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Offset to operating system data section from beginning of firmware that was configured
+      by the bootloader.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - power-domains
+  - nvidia,memory-controller
+  - nvidia,bl-manifest-offset
+  - nvidia,bl-code-offset
+  - nvidia,bl-data-offset
+  - nvidia,os-manifest-offset
+  - nvidia,os-code-offset
+  - nvidia,os-data-offset
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra234-clock.h>
+    #include <dt-bindings/memory/tegra234-mc.h>
+    #include <dt-bindings/power/tegra234-powergate.h>
+    #include <dt-bindings/reset/tegra234-reset.h>
+
+    nvdec@15480000 {
+            compatible = "nvidia,tegra234-nvdec";
+            reg = <0x15480000 0x00040000>;
+            clocks = <&bpmp TEGRA234_CLK_NVDEC>,
+                     <&bpmp TEGRA234_CLK_FUSE>,
+                     <&bpmp TEGRA234_CLK_TSEC_PKA>;
+            clock-names = "nvdec", "fuse", "tsec_pka";
+            resets = <&bpmp TEGRA234_RESET_NVDEC>;
+            reset-names = "nvdec";
+            power-domains = <&bpmp TEGRA234_POWER_DOMAIN_NVDEC>;
+            interconnects = <&mc TEGRA234_MEMORY_CLIENT_NVDECSRD &emc>,
+                            <&mc TEGRA234_MEMORY_CLIENT_NVDECSWR &emc>;
+            interconnect-names = "dma-mem", "write";
+            iommus = <&smmu_niso1 TEGRA234_SID_NVDEC>;
+            dma-coherent;
+
+            nvidia,memory-controller = <&mc>;
+
+            /* Placeholder values, to be replaced with values from overlay */
+            nvidia,bl-manifest-offset = <0>;
+            nvidia,bl-data-offset = <0>;
+            nvidia,bl-code-offset = <0>;
+            nvidia,os-manifest-offset = <0>;
+            nvidia,os-data-offset = <0>;
+            nvidia,os-code-offset = <0>;
+    };

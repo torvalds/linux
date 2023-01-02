@@ -26,12 +26,12 @@ struct trace_export {
 	int flags;
 };
 
+struct trace_array;
+
 #ifdef CONFIG_TRACING
 
 int register_ftrace_export(struct trace_export *export);
 int unregister_ftrace_export(struct trace_export *export);
-
-struct trace_array;
 
 void trace_printk_init_buffers(void);
 __printf(3, 4)

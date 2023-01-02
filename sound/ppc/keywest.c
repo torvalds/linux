@@ -16,8 +16,7 @@
 static struct pmac_keywest *keywest_ctx;
 static bool keywest_probed;
 
-static int keywest_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int keywest_probe(struct i2c_client *client)
 {
 	keywest_probed = true;
 	/* If instantiated via i2c-powermac, we still need to set the client */
@@ -91,7 +90,7 @@ static struct i2c_driver keywest_driver = {
 	.driver = {
 		.name = "PMac Keywest Audio",
 	},
-	.probe = keywest_probe,
+	.probe_new = keywest_probe,
 	.remove = keywest_remove,
 	.id_table = keywest_i2c_id,
 };

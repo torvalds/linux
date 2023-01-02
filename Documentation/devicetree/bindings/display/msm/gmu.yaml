@@ -6,7 +6,7 @@
 $id: "http://devicetree.org/schemas/display/msm/gmu.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Devicetree bindings for the GMU attached to certain Adreno GPUs
+title: GMU attached to certain Adreno GPUs
 
 maintainers:
   - Rob Clark <robdclark@gmail.com>

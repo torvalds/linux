@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/willsemi,wusb3801.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: WUSB3801 Type-C port controller DT bindings
+title: WUSB3801 Type-C port controller
 
 description:
   The Will Semiconductor WUSB3801 is a USB Type-C port controller which

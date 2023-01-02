@@ -14,7 +14,7 @@
 #include "intel_pxp.h"
 #include "intel_pxp_session.h"
 #include "intel_pxp_tee.h"
-#include "intel_pxp_tee_interface.h"
+#include "intel_pxp_cmd_interface_42.h"
 #include "intel_pxp_huc.h"
 
 static inline struct intel_pxp *i915_dev_to_pxp(struct device *i915_kdev)
@@ -286,14 +286,14 @@ int intel_pxp_tee_cmd_create_arb_session(struct intel_pxp *pxp,
 					 int arb_session_id)
 {
 	struct drm_i915_private *i915 = pxp_to_gt(pxp)->i915;
-	struct pxp_tee_create_arb_in msg_in = {0};
-	struct pxp_tee_create_arb_out msg_out = {0};
+	struct pxp42_create_arb_in msg_in = {0};
+	struct pxp42_create_arb_out msg_out = {0};
 	int ret;
 
-	msg_in.header.api_version = PXP_TEE_APIVER;
-	msg_in.header.command_id = PXP_TEE_ARB_CMDID;
+	msg_in.header.api_version = PXP_APIVER(4, 2);
+	msg_in.header.command_id = PXP42_CMDID_INIT_SESSION;
 	msg_in.header.buffer_len = sizeof(msg_in) - sizeof(msg_in.header);
-	msg_in.protection_mode = PXP_TEE_ARB_PROTECTION_MODE;
+	msg_in.protection_mode = PXP42_ARB_SESSION_MODE_HEAVY;
 	msg_in.session_id = arb_session_id;
 
 	ret = intel_pxp_tee_io_message(pxp,

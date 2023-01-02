@@ -37,6 +37,11 @@ struct mod_arch_specific {
 
 struct module;
 u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val);
+#ifdef CONFIG_ARM_MODULE_PLTS
+bool in_module_plt(unsigned long loc);
+#else
+static inline bool in_module_plt(unsigned long loc) { return false; }
+#endif
 
 #ifdef CONFIG_THUMB2_KERNEL
 #define HAVE_ARCH_KALLSYMS_SYMBOL_VALUE

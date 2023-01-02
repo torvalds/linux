@@ -14,9 +14,8 @@
 scriptname=$0
 args="$*"
 
-T=${TMPDIR-/tmp}/kvm.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/kvm.sh.XXXXXX`"
 trap 'rm -rf $T' 0
-mkdir $T
 
 cd `dirname $scriptname`/../../../../../
 

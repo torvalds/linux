@@ -561,12 +561,17 @@ static int mlx5i_open(struct net_device *netdev)
 	if (err)
 		goto err_remove_fs_underlay_qp;
 
-	epriv->profile->update_rx(epriv);
+	err = epriv->profile->update_rx(epriv);
+	if (err)
+		goto err_close_channels;
+
 	mlx5e_activate_priv_channels(epriv);
 
 	mutex_unlock(&epriv->state_lock);
 	return 0;
 
+err_close_channels:
+	mlx5e_close_channels(&epriv->channels);
 err_remove_fs_underlay_qp:
 	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qpn);
 err_reset_qp:

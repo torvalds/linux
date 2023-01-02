@@ -209,7 +209,7 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 	int err = 0;
 
 	u32 clk_rate = 0;
-	bool needs_vcc = false, needs_clk = false;
+	bool needs_clk = false;
 
 	if (dev->of_node) {
 		struct device_node *node = dev->of_node;
@@ -217,7 +217,6 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 		if (of_property_read_u32(node, "clock-frequency", &clk_rate))
 			clk_rate = 0;
 
-		needs_vcc = of_property_read_bool(node, "vcc-supply");
 		needs_clk = of_property_read_bool(node, "clocks");
 	}
 	nop->gpiod_reset = devm_gpiod_get_optional(dev, "reset",
@@ -257,13 +256,10 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 		}
 	}
 
-	nop->vcc = devm_regulator_get(dev, "vcc");
-	if (IS_ERR(nop->vcc)) {
-		dev_dbg(dev, "Error getting vcc regulator: %ld\n",
-					PTR_ERR(nop->vcc));
-		if (needs_vcc)
-			return -EPROBE_DEFER;
-	}
+	nop->vcc = devm_regulator_get_optional(dev, "vcc");
+	if (IS_ERR(nop->vcc) && PTR_ERR(nop->vcc) != -ENODEV)
+		return dev_err_probe(dev, PTR_ERR(nop->vcc),
+				     "could not get vcc regulator\n");
 
 	nop->vbus_draw = devm_regulator_get_exclusive(dev, "vbus");
 	if (PTR_ERR(nop->vbus_draw) == -ENODEV)
@@ -290,6 +286,7 @@ EXPORT_SYMBOL_GPL(usb_phy_gen_create_phy);
 static int usb_phy_generic_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *dn = dev->of_node;
 	struct usb_phy_generic	*nop;
 	int err;
 
@@ -326,6 +323,9 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, nop);
+
+	device_set_wakeup_capable(&pdev->dev,
+				  of_property_read_bool(dn, "wakeup-source"));
 
 	return 0;
 }

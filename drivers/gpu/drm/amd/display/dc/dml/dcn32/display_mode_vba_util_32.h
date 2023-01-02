@@ -30,7 +30,7 @@
 #include "os_types.h"
 #include "../dc_features.h"
 #include "../display_mode_structs.h"
-#include "dml/display_mode_vba.h"
+#include "../display_mode_vba.h"
 
 unsigned int dml32_dscceComputeDelay(
 		unsigned int bpc,
@@ -743,6 +743,7 @@ bool dml32_CalculatePrefetchSchedule(
 		unsigned int SwathHeightY,
 		unsigned int SwathHeightC,
 		double TWait,
+		double TPreReq,
 		/* Output */
 		double   *DSTXAfterScaler,
 		double   *DSTYAfterScaler,
@@ -1139,5 +1140,23 @@ void dml32_CalculateImmediateFlipBandwithSupport(unsigned int NumberOfActiveSurf
 		double  *TotalBandwidth,
 		double  *FractionOfUrgentBandwidth,
 		bool *ImmediateFlipBandwidthSupport);
+
+bool dml32_CalculateDETSwathFillLatencyHiding(unsigned int NumberOfActiveSurfaces,
+		double ReturnBW,
+		double UrgentLatency,
+		unsigned int SwathHeightY[],
+		unsigned int SwathHeightC[],
+		unsigned int SwathWidthY[],
+		unsigned int SwathWidthC[],
+		double  BytePerPixelInDETY[],
+		double  BytePerPixelInDETC[],
+		unsigned int    DETBufferSizeY[],
+		unsigned int    DETBufferSizeC[],
+		unsigned int	NumOfDPP[],
+		unsigned int	HTotal[],
+		double	PixelClock[],
+		double	VRatioY[],
+		double	VRatioC[],
+		enum dm_use_mall_for_pstate_change_mode UsesMALLForPStateChange[DC__NUM_DPP__MAX]);
 
 #endif

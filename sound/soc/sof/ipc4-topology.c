@@ -20,6 +20,7 @@
 #define SOF_IPC4_TPLG_ABI_SIZE 6
 
 static DEFINE_IDA(alh_group_ida);
+static DEFINE_IDA(pipeline_ida);
 
 static const struct sof_topology_token ipc4_sched_tokens[] = {
 	{SOF_TKN_SCHED_LP_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -280,7 +281,7 @@ static void sof_ipc4_free_audio_fmt(struct sof_ipc4_available_audio_format *avai
 	available_fmt->out_audio_fmt = NULL;
 }
 
-static void sof_ipc4_widget_free_comp(struct snd_sof_widget *swidget)
+static void sof_ipc4_widget_free_comp_pipeline(struct snd_sof_widget *swidget)
 {
 	kfree(swidget->private);
 }
@@ -289,22 +290,11 @@ static int sof_ipc4_widget_set_module_info(struct snd_sof_widget *swidget)
 {
 	struct snd_soc_component *scomp = swidget->scomp;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
-	struct sof_ipc4_fw_module *fw_modules = ipc4_data->fw_modules;
-	int i;
 
-	if (!fw_modules) {
-		dev_err(sdev->dev, "no fw_module information\n");
-		return -EINVAL;
-	}
+	swidget->module_info = sof_ipc4_find_module_by_uuid(sdev, &swidget->uuid);
 
-	/* set module info */
-	for (i = 0; i < ipc4_data->num_fw_modules; i++) {
-		if (guid_equal(&swidget->uuid, &fw_modules[i].man4_module_entry.uuid)) {
-			swidget->module_info = &fw_modules[i];
-			return 0;
-		}
-	}
+	if (swidget->module_info)
+		return 0;
 
 	dev_err(sdev->dev, "failed to find module info for widget %s with UUID %pUL\n",
 		swidget->widget->name, &swidget->uuid);
@@ -328,8 +318,7 @@ static int sof_ipc4_widget_setup_msg(struct snd_sof_widget *swidget, struct sof_
 	msg->primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
 	msg->primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
 
-	msg->extension = SOF_IPC4_MOD_EXT_PPL_ID(swidget->pipeline_id);
-	msg->extension |= SOF_IPC4_MOD_EXT_CORE_ID(swidget->core);
+	msg->extension = SOF_IPC4_MOD_EXT_CORE_ID(swidget->core);
 
 	type = (fw_module->man4_module_entry.type & SOF_IPC4_MODULE_DP) ? 1 : 0;
 	msg->extension |= SOF_IPC4_MOD_EXT_DOMAIN(type);
@@ -636,7 +625,6 @@ static int sof_ipc4_widget_setup_comp_pipeline(struct snd_sof_widget *swidget)
 	swidget->private = pipeline;
 
 	pipeline->msg.primary = SOF_IPC4_GLB_PIPE_PRIORITY(pipeline->priority);
-	pipeline->msg.primary |= SOF_IPC4_GLB_PIPE_INSTANCE_ID(swidget->pipeline_id);
 	pipeline->msg.primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_CREATE_PIPELINE);
 	pipeline->msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
 	pipeline->msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_FW_GEN_MSG);
@@ -1447,6 +1435,8 @@ static int sof_ipc4_control_setup(struct snd_sof_dev *sdev, struct snd_sof_contr
 
 static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
+	struct snd_sof_widget *pipe_widget = swidget->pipe_widget;
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct sof_ipc4_pipeline *pipeline;
 	struct sof_ipc4_msg *msg;
 	void *ipc_data = NULL;
@@ -1462,6 +1452,16 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 
 		msg = &pipeline->msg;
 		msg->primary |= pipeline->mem_usage;
+
+		swidget->instance_id = ida_alloc_max(&pipeline_ida, ipc4_data->max_num_pipelines,
+						     GFP_KERNEL);
+		if (swidget->instance_id < 0) {
+			dev_err(sdev->dev, "failed to assign pipeline id for %s: %d\n",
+				swidget->widget->name, swidget->instance_id);
+			return swidget->instance_id;
+		}
+		msg->primary &= ~SOF_IPC4_GLB_PIPE_INSTANCE_MASK;
+		msg->primary |= SOF_IPC4_GLB_PIPE_INSTANCE_ID(swidget->instance_id);
 		break;
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_aif_out:
@@ -1535,6 +1535,9 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 
 		msg->extension &= ~SOF_IPC4_MOD_EXT_PARAM_SIZE_MASK;
 		msg->extension |= ipc_size >> 2;
+
+		msg->extension &= ~SOF_IPC4_MOD_EXT_PPL_ID_MASK;
+		msg->extension |= SOF_IPC4_MOD_EXT_PPL_ID(pipe_widget->instance_id);
 	}
 	dev_dbg(sdev->dev, "Create widget %s instance %d - pipe %d - core %d\n",
 		swidget->widget->name, swidget->instance_id, swidget->pipeline_id, swidget->core);
@@ -1550,6 +1553,8 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 			struct sof_ipc4_fw_module *fw_module = swidget->module_info;
 
 			ida_free(&fw_module->m_ida, swidget->instance_id);
+		} else {
+			ida_free(&pipeline_ida, swidget->instance_id);
 		}
 	}
 
@@ -1567,7 +1572,7 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 		struct sof_ipc4_msg msg = {{ 0 }};
 		u32 header;
 
-		header = SOF_IPC4_GLB_PIPE_INSTANCE_ID(swidget->pipeline_id);
+		header = SOF_IPC4_GLB_PIPE_INSTANCE_ID(swidget->instance_id);
 		header |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_DELETE_PIPELINE);
 		header |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
 		header |= SOF_IPC4_MSG_TARGET(SOF_IPC4_FW_GEN_MSG);
@@ -1581,11 +1586,94 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 
 		pipeline->mem_usage = 0;
 		pipeline->state = SOF_IPC4_PIPE_UNINITIALIZED;
+		ida_free(&pipeline_ida, swidget->instance_id);
 	} else {
 		ida_free(&fw_module->m_ida, swidget->instance_id);
 	}
 
 	return ret;
+}
+
+static int sof_ipc4_get_queue_id(struct snd_sof_widget *src_widget,
+				 struct snd_sof_widget *sink_widget, bool pin_type)
+{
+	struct snd_sof_widget *current_swidget;
+	struct snd_soc_component *scomp;
+	struct ida *queue_ida;
+	const char *buddy_name;
+	char **pin_binding;
+	u32 num_pins;
+	int i;
+
+	if (pin_type == SOF_PIN_TYPE_SOURCE) {
+		current_swidget = src_widget;
+		pin_binding = src_widget->src_pin_binding;
+		queue_ida = &src_widget->src_queue_ida;
+		num_pins = src_widget->num_source_pins;
+		buddy_name = sink_widget->widget->name;
+	} else {
+		current_swidget = sink_widget;
+		pin_binding = sink_widget->sink_pin_binding;
+		queue_ida = &sink_widget->sink_queue_ida;
+		num_pins = sink_widget->num_sink_pins;
+		buddy_name = src_widget->widget->name;
+	}
+
+	scomp = current_swidget->scomp;
+
+	if (num_pins < 1) {
+		dev_err(scomp->dev, "invalid %s num_pins: %d for queue allocation for %s\n",
+			(pin_type == SOF_PIN_TYPE_SOURCE ? "source" : "sink"),
+			num_pins, current_swidget->widget->name);
+		return -EINVAL;
+	}
+
+	/* If there is only one sink/source pin, queue id must be 0 */
+	if (num_pins == 1)
+		return 0;
+
+	/* Allocate queue ID from pin binding array if it is defined in topology. */
+	if (pin_binding) {
+		for (i = 0; i < num_pins; i++) {
+			if (!strcmp(pin_binding[i], buddy_name))
+				return i;
+		}
+		/*
+		 * Fail if no queue ID found from pin binding array, so that we don't
+		 * mixed use pin binding array and ida for queue ID allocation.
+		 */
+		dev_err(scomp->dev, "no %s queue id found from pin binding array for %s\n",
+			(pin_type == SOF_PIN_TYPE_SOURCE ? "source" : "sink"),
+			current_swidget->widget->name);
+		return -EINVAL;
+	}
+
+	/* If no pin binding array specified in topology, use ida to allocate one */
+	return ida_alloc_max(queue_ida, num_pins, GFP_KERNEL);
+}
+
+static void sof_ipc4_put_queue_id(struct snd_sof_widget *swidget, int queue_id,
+				  bool pin_type)
+{
+	struct ida *queue_ida;
+	char **pin_binding;
+	int num_pins;
+
+	if (pin_type == SOF_PIN_TYPE_SOURCE) {
+		pin_binding = swidget->src_pin_binding;
+		queue_ida = &swidget->src_queue_ida;
+		num_pins = swidget->num_source_pins;
+	} else {
+		pin_binding = swidget->sink_pin_binding;
+		queue_ida = &swidget->sink_queue_ida;
+		num_pins = swidget->num_sink_pins;
+	}
+
+	/* Nothing to free if queue ID is not allocated with ida. */
+	if (num_pins == 1 || pin_binding)
+		return;
+
+	ida_free(queue_ida, queue_id);
 }
 
 static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *sroute)
@@ -1596,12 +1684,29 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 	struct sof_ipc4_fw_module *sink_fw_module = sink_widget->module_info;
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 header, extension;
-	int src_queue = 0;
-	int dst_queue = 0;
 	int ret;
 
-	dev_dbg(sdev->dev, "bind %s -> %s\n",
-		src_widget->widget->name, sink_widget->widget->name);
+	sroute->src_queue_id = sof_ipc4_get_queue_id(src_widget, sink_widget,
+						     SOF_PIN_TYPE_SOURCE);
+	if (sroute->src_queue_id < 0) {
+		dev_err(sdev->dev, "failed to get queue ID for source widget: %s\n",
+			src_widget->widget->name);
+		return sroute->src_queue_id;
+	}
+
+	sroute->dst_queue_id = sof_ipc4_get_queue_id(src_widget, sink_widget,
+						     SOF_PIN_TYPE_SINK);
+	if (sroute->dst_queue_id < 0) {
+		dev_err(sdev->dev, "failed to get queue ID for sink widget: %s\n",
+			sink_widget->widget->name);
+		sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id,
+				      SOF_PIN_TYPE_SOURCE);
+		return sroute->dst_queue_id;
+	}
+
+	dev_dbg(sdev->dev, "bind %s:%d -> %s:%d\n",
+		src_widget->widget->name, sroute->src_queue_id,
+		sink_widget->widget->name, sroute->dst_queue_id);
 
 	header = src_fw_module->man4_module_entry.id;
 	header |= SOF_IPC4_MOD_INSTANCE(src_widget->instance_id);
@@ -1611,16 +1716,22 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 
 	extension = sink_fw_module->man4_module_entry.id;
 	extension |= SOF_IPC4_MOD_EXT_DST_MOD_INSTANCE(sink_widget->instance_id);
-	extension |= SOF_IPC4_MOD_EXT_DST_MOD_QUEUE_ID(dst_queue);
-	extension |= SOF_IPC4_MOD_EXT_SRC_MOD_QUEUE_ID(src_queue);
+	extension |= SOF_IPC4_MOD_EXT_DST_MOD_QUEUE_ID(sroute->dst_queue_id);
+	extension |= SOF_IPC4_MOD_EXT_SRC_MOD_QUEUE_ID(sroute->src_queue_id);
 
 	msg.primary = header;
 	msg.extension = extension;
 
 	ret = sof_ipc_tx_message(sdev->ipc, &msg, 0, NULL, 0);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(sdev->dev, "%s: failed to bind modules %s -> %s\n",
 			__func__, src_widget->widget->name, sink_widget->widget->name);
+
+		sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id,
+				      SOF_PIN_TYPE_SOURCE);
+		sof_ipc4_put_queue_id(sink_widget, sroute->dst_queue_id,
+				      SOF_PIN_TYPE_SINK);
+	}
 
 	return ret;
 }
@@ -1633,12 +1744,11 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 	struct sof_ipc4_fw_module *sink_fw_module = sink_widget->module_info;
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 header, extension;
-	int src_queue = 0;
-	int dst_queue = 0;
 	int ret;
 
-	dev_dbg(sdev->dev, "unbind modules %s -> %s\n",
-		src_widget->widget->name, sink_widget->widget->name);
+	dev_dbg(sdev->dev, "unbind modules %s:%d -> %s:%d\n",
+		src_widget->widget->name, sroute->src_queue_id,
+		sink_widget->widget->name, sroute->dst_queue_id);
 
 	header = src_fw_module->man4_module_entry.id;
 	header |= SOF_IPC4_MOD_INSTANCE(src_widget->instance_id);
@@ -1648,8 +1758,8 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 
 	extension = sink_fw_module->man4_module_entry.id;
 	extension |= SOF_IPC4_MOD_EXT_DST_MOD_INSTANCE(sink_widget->instance_id);
-	extension |= SOF_IPC4_MOD_EXT_DST_MOD_QUEUE_ID(dst_queue);
-	extension |= SOF_IPC4_MOD_EXT_SRC_MOD_QUEUE_ID(src_queue);
+	extension |= SOF_IPC4_MOD_EXT_DST_MOD_QUEUE_ID(sroute->dst_queue_id);
+	extension |= SOF_IPC4_MOD_EXT_SRC_MOD_QUEUE_ID(sroute->src_queue_id);
 
 	msg.primary = header;
 	msg.extension = extension;
@@ -1658,6 +1768,9 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 	if (ret < 0)
 		dev_err(sdev->dev, "failed to unbind modules %s -> %s\n",
 			src_widget->widget->name, sink_widget->widget->name);
+
+	sof_ipc4_put_queue_id(sink_widget, sroute->dst_queue_id, SOF_PIN_TYPE_SINK);
+	sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id, SOF_PIN_TYPE_SOURCE);
 
 	return ret;
 }
@@ -1824,6 +1937,39 @@ static int sof_ipc4_dai_get_clk(struct snd_sof_dev *sdev, struct snd_sof_dai *da
 	return -EINVAL;
 }
 
+static int sof_ipc4_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verify)
+{
+	struct snd_sof_pcm *spcm;
+	int dir, ret;
+
+	/*
+	 * This function is called during system suspend, we need to make sure
+	 * that all streams have been freed up.
+	 * Freeing might have been skipped when xrun happened just at the start
+	 * of the suspend and it sent a SNDRV_PCM_TRIGGER_STOP to the active
+	 * stream. This will call sof_pcm_stream_free() with
+	 * free_widget_list = false which will leave the kernel and firmware out
+	 * of sync during suspend/resume.
+	 *
+	 * This will also make sure that paused streams handled correctly.
+	 */
+	list_for_each_entry(spcm, &sdev->pcm_list, list) {
+		for_each_pcm_streams(dir) {
+			struct snd_pcm_substream *substream = spcm->stream[dir].substream;
+
+			if (!substream || !substream->runtime)
+				continue;
+
+			if (spcm->stream[dir].list) {
+				ret = sof_pcm_stream_free(sdev, substream, spcm, dir, true);
+				if (ret < 0)
+					return ret;
+			}
+		}
+	}
+	return 0;
+}
+
 static enum sof_tokens host_token_list[] = {
 	SOF_COMP_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
@@ -1895,7 +2041,8 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TY
 				  dai_token_list, ARRAY_SIZE(dai_token_list), NULL,
 				  sof_ipc4_prepare_copier_module,
 				  sof_ipc4_unprepare_copier_module},
-	[snd_soc_dapm_scheduler] = {sof_ipc4_widget_setup_comp_pipeline, sof_ipc4_widget_free_comp,
+	[snd_soc_dapm_scheduler] = {sof_ipc4_widget_setup_comp_pipeline,
+				    sof_ipc4_widget_free_comp_pipeline,
 				    pipeline_token_list, ARRAY_SIZE(pipeline_token_list), NULL,
 				    NULL, NULL},
 	[snd_soc_dapm_pga] = {sof_ipc4_widget_setup_comp_pga, sof_ipc4_widget_free_comp_pga,
@@ -1924,4 +2071,5 @@ const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.dai_config = sof_ipc4_dai_config,
 	.parse_manifest = sof_ipc4_parse_manifest,
 	.dai_get_clk = sof_ipc4_dai_get_clk,
+	.tear_down_all_pipelines = sof_ipc4_tear_down_all_pipelines,
 };

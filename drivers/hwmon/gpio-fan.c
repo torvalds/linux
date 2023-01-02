@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
+#include <linux/kstrtox.h>
 #include <linux/mutex.h>
 #include <linux/hwmon.h>
 #include <linux/gpio/consumer.h>

@@ -427,6 +427,24 @@
 	pinctrl-0 = <&pinctrl_uart2>;
 	uart-has-rtscts;
 	status = "okay";
+
+	/*
+	 * PLL3 at 320 MHz supplies UART2 root with 64 MHz clock,
+	 * which with 16x oversampling yields 4 Mbdps baud base,
+	 * which is exactly the maximum rate supported by muRata
+	 * 2AE bluetooth UART.
+	 */
+	assigned-clocks = <&clk IMX8MP_SYS_PLL3>, <&clk IMX8MP_CLK_UART2>;
+	assigned-clock-parents = <0>, <&clk IMX8MP_SYS_PLL3_OUT>;
+	assigned-clock-rates = <320000000>, <64000000>;
+
+	bluetooth {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_uart2_bt>;
+		compatible = "cypress,cyw4373a0-bt";
+		shutdown-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		max-speed = <4000000>;
+	};
 };
 
 &uart3 {
@@ -849,6 +867,13 @@
 		>;
 	};
 
+	pinctrl_uart2_bt: dhcom-uart2-bt-grp {
+		fsl,pins = <
+			/* BT_REG_EN */
+			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
+		>;
+	};
+
 	pinctrl_uart3: dhcom-uart3-grp {
 		fsl,pins = <
 			MX8MP_IOMUXC_ECSPI1_SCLK__UART3_DCE_RX		0x49
@@ -886,8 +911,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d0
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d0
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d0
-			/* BT_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
 			/* WL_REG_EN */
 			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;
@@ -901,8 +924,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d4
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d4
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d4
-			/* BT_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
 			/* WL_REG_EN */
 			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;
@@ -916,8 +937,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d6
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d6
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d6
-			/* BT_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
 			/* WL_REG_EN */
 			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;

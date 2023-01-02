@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/adc/sprd,sc2720-adc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Spreadtrum SC27XX series PMICs ADC binding
+title: Spreadtrum SC27XX series PMICs ADC
 
 maintainers:
   - Baolin Wang <baolin.wang7@gmail.com>

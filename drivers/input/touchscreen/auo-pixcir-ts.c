@@ -482,8 +482,7 @@ static void auo_pixcir_reset(void *data)
 	gpiod_set_value_cansleep(ts->gpio_rst, 1);
 }
 
-static int auo_pixcir_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int auo_pixcir_probe(struct i2c_client *client)
 {
 	struct auo_pixcir_ts *ts;
 	struct input_dev *input_dev;
@@ -637,7 +636,7 @@ static struct i2c_driver auo_pixcir_driver = {
 		.pm	= &auo_pixcir_pm_ops,
 		.of_match_table	= of_match_ptr(auo_pixcir_ts_dt_idtable),
 	},
-	.probe		= auo_pixcir_probe,
+	.probe_new	= auo_pixcir_probe,
 	.id_table	= auo_pixcir_idtable,
 };
 

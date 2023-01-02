@@ -42,8 +42,16 @@ static void remove_e820_regions(struct resource *avail)
 
 		resource_clip(avail, e820_start, e820_end);
 		if (orig.start != avail->start || orig.end != avail->end) {
-			pr_info("clipped %pR to %pR for e820 entry [mem %#010Lx-%#010Lx]\n",
-				 &orig, avail, e820_start, e820_end);
+			pr_info("resource: avoiding allocation from e820 entry [mem %#010Lx-%#010Lx]\n",
+				e820_start, e820_end);
+			if (avail->end > avail->start)
+				/*
+				 * Use %pa instead of %pR because "avail"
+				 * is typically IORESOURCE_UNSET, so %pR
+				 * shows the size instead of addresses.
+				 */
+				pr_info("resource: remaining [mem %pa-%pa] available\n",
+					&avail->start, &avail->end);
 			orig = *avail;
 		}
 	}

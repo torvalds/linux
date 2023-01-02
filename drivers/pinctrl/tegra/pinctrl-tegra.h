@@ -15,6 +15,8 @@ struct tegra_pmx {
 	const struct tegra_pinctrl_soc_data *soc;
 	const char **group_pins;
 
+	struct pinctrl_gpio_range gpio_range;
+	struct pinctrl_desc desc;
 	int nbanks;
 	void __iomem **regs;
 	u32 *backup_regs;

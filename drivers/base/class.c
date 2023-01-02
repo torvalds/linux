@@ -62,7 +62,7 @@ static void class_release(struct kobject *kobj)
 	kfree(cp);
 }
 
-static const struct kobj_ns_type_operations *class_child_ns_type(struct kobject *kobj)
+static const struct kobj_ns_type_operations *class_child_ns_type(const struct kobject *kobj)
 {
 	struct subsys_private *cp = to_subsys_private(kobj);
 	struct class *class = cp->class;
@@ -192,6 +192,11 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 	}
 	error = class_add_groups(class_get(cls), cls->class_groups);
 	class_put(cls);
+	if (error) {
+		kobject_del(&cp->subsys.kobj);
+		kfree_const(cp->subsys.kobj.name);
+		kfree(cp);
+	}
 	return error;
 }
 EXPORT_SYMBOL_GPL(__class_register);

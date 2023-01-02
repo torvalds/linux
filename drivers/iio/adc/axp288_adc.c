@@ -9,6 +9,7 @@
 
 #include <linux/dmi.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/regmap.h>
@@ -50,6 +51,8 @@ enum axp288_adc_id {
 struct axp288_adc_info {
 	int irq;
 	struct regmap *regmap;
+	/* lock to protect against multiple access to the device */
+	struct mutex lock;
 	bool ts_enabled;
 };
 
@@ -161,7 +164,7 @@ static int axp288_adc_read_raw(struct iio_dev *indio_dev,
 	int ret;
 	struct axp288_adc_info *info = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&info->lock);
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		if (axp288_adc_set_ts(info, AXP288_ADC_TS_CURRENT_ON_ONDEMAND,
@@ -178,7 +181,7 @@ static int axp288_adc_read_raw(struct iio_dev *indio_dev,
 	default:
 		ret = -EINVAL;
 	}
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&info->lock);
 
 	return ret;
 }
@@ -288,6 +291,8 @@ static int axp288_adc_probe(struct platform_device *pdev)
 	ret = devm_iio_map_array_register(&pdev->dev, indio_dev, axp288_adc_default_maps);
 	if (ret < 0)
 		return ret;
+
+	mutex_init(&info->lock);
 
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }

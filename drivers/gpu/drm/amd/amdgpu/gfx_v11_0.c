@@ -77,6 +77,10 @@ MODULE_FIRMWARE("amdgpu/gc_11_0_3_pfp.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_3_me.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_3_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_3_rlc.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_4_pfp.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_4_me.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_4_mec.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_4_rlc.bin");
 
 static const struct soc15_reg_golden golden_settings_gc_11_0_1[] =
 {
@@ -262,6 +266,7 @@ static void gfx_v11_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 1):
+	case IP_VERSION(11, 0, 4):
 		soc15_program_register_sequence(adev,
 						golden_settings_gc_11_0_1,
 						(const u32)ARRAY_SIZE(golden_settings_gc_11_0_1));
@@ -855,6 +860,7 @@ static int gfx_v11_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
 		break;
 	case IP_VERSION(11, 0, 1):
+	case IP_VERSION(11, 0, 4):
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -1284,6 +1290,7 @@ static int gfx_v11_0_sw_init(void *handle)
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 3):
+	case IP_VERSION(11, 0, 4):
 		adev->gfx.me.num_me = 1;
 		adev->gfx.me.num_pipe_per_me = 1;
 		adev->gfx.me.num_queue_per_pipe = 1;
@@ -2486,7 +2493,8 @@ static int gfx_v11_0_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
 	for (i = 0; i < adev->usec_timeout; i++) {
 		cp_status = RREG32_SOC15(GC, 0, regCP_STAT);
 
-		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 1))
+		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 1) ||
+				adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 4))
 			bootload_status = RREG32_SOC15(GC, 0,
 					regRLC_RLCS_BOOTLOAD_STATUS_gc_11_0_1);
 		else
@@ -4392,7 +4400,6 @@ static int gfx_v11_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
-	uint32_t tmp;
 
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
@@ -4411,15 +4418,14 @@ static int gfx_v11_0_hw_fini(void *handle)
 		amdgpu_mes_kiq_hw_fini(adev);
 	}
 
-	if (amdgpu_sriov_vf(adev)) {
-		gfx_v11_0_cp_gfx_enable(adev, false);
-		/* Program KIQ position of RLC_CP_SCHEDULERS during destroy */
-		tmp = RREG32_SOC15(GC, 0, regRLC_CP_SCHEDULERS);
-		tmp &= 0xffffff00;
-		WREG32_SOC15(GC, 0, regRLC_CP_SCHEDULERS, tmp);
-
+	if (amdgpu_sriov_vf(adev))
+		/* Remove the steps disabling CPG and clearing KIQ position,
+		 * so that CP could perform IDLE-SAVE during switch. Those
+		 * steps are necessary to avoid a DMAR error in gfx9 but it is
+		 * not reproduced on gfx11.
+		 */
 		return 0;
-	}
+
 	gfx_v11_0_cp_enable(adev, false);
 	gfx_v11_0_enable_gui_idle_interrupt(adev, false);
 
@@ -5052,6 +5058,7 @@ static void gfx_v11_cntl_power_gating(struct amdgpu_device *adev, bool enable)
 	if (enable && (adev->pg_flags & AMD_PG_SUPPORT_GFX_PG)) {
 		switch (adev->ip_versions[GC_HWIP][0]) {
 		case IP_VERSION(11, 0, 1):
+		case IP_VERSION(11, 0, 4):
 			WREG32_SOC15(GC, 0, regRLC_PG_DELAY_3, RLC_PG_DELAY_3_DEFAULT_GC_11_0_1);
 			break;
 		default:
@@ -5085,6 +5092,7 @@ static int gfx_v11_0_set_powergating_state(void *handle,
 		amdgpu_gfx_off_ctrl(adev, enable);
 		break;
 	case IP_VERSION(11, 0, 1):
+	case IP_VERSION(11, 0, 4):
 		gfx_v11_cntl_pg(adev, enable);
 		amdgpu_gfx_off_ctrl(adev, enable);
 		break;
@@ -5108,6 +5116,7 @@ static int gfx_v11_0_set_clockgating_state(void *handle,
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 3):
+	case IP_VERSION(11, 0, 4):
 	        gfx_v11_0_update_gfx_clock_gating(adev,
 	                        state ==  AMD_CG_STATE_GATE);
 	        break;

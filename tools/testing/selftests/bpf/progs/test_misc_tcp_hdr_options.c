@@ -27,6 +27,7 @@ unsigned int nr_pure_ack = 0;
 unsigned int nr_data = 0;
 unsigned int nr_syn = 0;
 unsigned int nr_fin = 0;
+unsigned int nr_hwtstamp = 0;
 
 /* Check the header received from the active side */
 static int __check_active_hdr_in(struct bpf_sock_ops *skops, bool check_syn)
@@ -145,6 +146,9 @@ static int check_active_hdr_in(struct bpf_sock_ops *skops)
 
 	if (th->ack && !th->fin && tcp_hdrlen(th) == skops->skb_len)
 		nr_pure_ack++;
+
+	if (skops->skb_hwtstamp)
+		nr_hwtstamp++;
 
 	return CG_OK;
 }

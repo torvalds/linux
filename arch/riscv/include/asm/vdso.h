@@ -10,7 +10,7 @@
 
 /*
  * All systems with an MMU have a VDSO, but systems without an MMU don't
- * support shared libraries and therefor don't have one.
+ * support shared libraries and therefore don't have one.
  */
 #ifdef CONFIG_MMU
 

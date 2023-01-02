@@ -46,7 +46,7 @@
 };
 
 &msmgpio {
-	gpio_leds_default: gpio-led-default {
+	gpio_leds_default: gpio-led-default-state {
 		pins = "gpio60";
 		function = "gpio";
 

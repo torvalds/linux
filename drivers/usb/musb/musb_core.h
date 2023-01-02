@@ -339,6 +339,8 @@ struct musb {
 	struct usb_phy		*xceiv;
 	struct phy		*phy;
 
+	enum usb_otg_state	otg_state;
+
 	int nIrq;
 	unsigned		irq_wake:1;
 
@@ -590,6 +592,28 @@ static inline void musb_platform_clear_ep_rxintr(struct musb *musb, int epnum)
 {
 	if (musb->ops->clear_ep_rxintr)
 		musb->ops->clear_ep_rxintr(musb, epnum);
+}
+
+static inline void musb_set_state(struct musb *musb,
+				  enum usb_otg_state otg_state)
+{
+	if (musb->xceiv)
+		musb->xceiv->otg->state = otg_state;
+	else
+		musb->otg_state = otg_state;
+}
+
+static inline enum usb_otg_state musb_get_state(struct musb *musb)
+{
+	if (musb->xceiv)
+		return musb->xceiv->otg->state;
+
+	return musb->otg_state;
+}
+
+static inline const char *musb_otg_state_string(struct musb *musb)
+{
+	return usb_otg_state_string(musb_get_state(musb));
 }
 
 /*

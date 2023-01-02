@@ -88,7 +88,7 @@ static int vgpu_gem_get_pages(
 		sg_dma_address(sg) = dma_addr;
 	}
 
-	__i915_gem_object_set_pages(obj, st, PAGE_SIZE);
+	__i915_gem_object_set_pages(obj, st);
 out:
 	if (ret) {
 		dma_addr_t dma_addr;

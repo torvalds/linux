@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/media/i2c/ov8856.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Omnivision OV8856 CMOS Sensor Device Tree Bindings
+title: Omnivision OV8856 CMOS Sensor
 
 maintainers:
   - Dongchun Zhu <dongchun.zhu@mediatek.com>

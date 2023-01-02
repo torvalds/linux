@@ -48,13 +48,13 @@ For Raspbian users only
 =======================
 Since Raspbian supports device tree overlays, you may use an overlay instead
 of editing your boards device tree.
-To use the overlay, you need to compile the file pi433-overlay.dts which can
+To use the overlay, you need to compile the file pi433-overlay.dtso which can
 be found alongside this documentation.
 The file needs to be compiled - either manually or by integration in your kernel
 source tree. For a manual compile, you may use a command line like the following:
-'linux/scripts/dtc/dtc -@ -I dts -O dtb -o pi433.dtbo pi433-overlay.dts'
+'linux/scripts/dtc/dtc -@ -I dts -O dtb -o pi433.dtbo pi433-overlay.dtso'
 
-For compiling inside of the kernel tree, you need to copy pi433-overlay.dts to
+For compiling inside of the kernel tree, you need to copy pi433-overlay.dtso to
 arch/arm/boot/dts/overlays and you need to add the file to the list of files
 in the Makefile over there. Execute 'make dtbs' in kernel tree root to make the
 kernel make files compile the device tree overlay for you.

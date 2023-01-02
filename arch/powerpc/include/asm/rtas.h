@@ -33,21 +33,6 @@
 #define RTAS_THREADS_ACTIVE     -9005 /* Multiple processor threads active */
 #define RTAS_OUTSTANDING_COPROC -9006 /* Outstanding coprocessor operations */
 
-/*
- * In general to call RTAS use rtas_token("string") to lookup
- * an RTAS token for the given string (e.g. "event-scan").
- * To actually perform the call use
- *    ret = rtas_call(token, n_in, n_out, ...)
- * Where n_in is the number of input parameters and
- *       n_out is the number of output parameters
- *
- * If the "string" is invalid on this system, RTAS_UNKNOWN_SERVICE
- * will be returned as a token.  rtas_call() does look for this
- * token and error out gracefully so rtas_call(rtas_token("str"), ...)
- * may be safely used for one-shot calls to RTAS.
- *
- */
-
 /* RTAS event classes */
 #define RTAS_INTERNAL_ERROR		0x80000000 /* set bit 0 */
 #define RTAS_EPOW_WARNING		0x40000000 /* set bit 1 */

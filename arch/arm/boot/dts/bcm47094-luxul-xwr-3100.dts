@@ -30,38 +30,38 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power	{
+		led-power {
 			label = "bcm53xx:green:power";
 			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
 		};
 
-		lan3	{
+		led-lan3 {
 			label = "bcm53xx:green:lan3";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
 		};
 
-		lan4	{
+		led-lan4 {
 			label = "bcm53xx:green:lan4";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
 		};
 
-		wan	{
+		led-wan {
 			label = "bcm53xx:green:wan";
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
 		};
 
-		lan1	{
+		led-lan1 {
 			label = "bcm53xx:green:lan1";
 			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
 		};
 
-		lan2	{
+		led-lan2 {
 			label = "bcm53xx:green:lan2";
 			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
 		};
 
-		usb3	{
+		led-usb3 {
 			label = "bcm53xx:green:usb3";
 			gpios = <&chipcommon 8 GPIO_ACTIVE_LOW>;
 			trigger-sources = <&ohci_port1>, <&ehci_port1>,
@@ -69,18 +69,18 @@
 			linux,default-trigger = "usbport";
 		};
 
-		status	{
+		led-status {
 			label = "bcm53xx:green:status";
 			gpios = <&chipcommon 10 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "timer";
 		};
 
-		2ghz {
+		led-2ghz {
 			label = "bcm53xx:green:2ghz";
 			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
 		};
 
-		5ghz {
+		led-5ghz {
 			label = "bcm53xx:green:5ghz";
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
 		};

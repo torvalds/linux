@@ -475,6 +475,12 @@ static bool __init ms_hyperv_x2apic_available(void)
  * (logically) generates MSIs directly to the system APIC irq domain.
  * There is no HPET, and PCI MSI/MSI-X interrupts are remapped by the
  * pci-hyperv host bridge.
+ *
+ * Note: for a Hyper-V root partition, this will always return false.
+ * The hypervisor doesn't expose these HYPERV_CPUID_VIRT_STACK_* cpuids by
+ * default, they are implemented as intercepts by the Windows Hyper-V stack.
+ * Even a nested root partition (L2 root) will not get them because the
+ * nested (L1) hypervisor filters them out.
  */
 static bool __init ms_hyperv_msi_ext_dest_id(void)
 {

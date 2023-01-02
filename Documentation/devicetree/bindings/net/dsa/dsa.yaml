@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/dsa/dsa.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ethernet Switch Device Tree Bindings
+title: Ethernet Switch
 
 maintainers:
   - Andrew Lunn <andrew@lunn.ch>

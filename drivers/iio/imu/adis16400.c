@@ -445,7 +445,7 @@ static int adis16400_initial_setup(struct iio_dev *indio_dev)
 	st->adis.spi->mode = SPI_MODE_3;
 	spi_setup(st->adis.spi);
 
-	ret = adis_initial_startup(&st->adis);
+	ret = __adis_initial_startup(&st->adis);
 	if (ret)
 		return ret;
 

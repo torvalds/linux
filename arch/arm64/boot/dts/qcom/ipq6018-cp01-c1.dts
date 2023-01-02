@@ -19,7 +19,6 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
-		bootargs-append = " swiotlb=1";
 	};
 };
 
@@ -37,6 +36,8 @@
 
 &blsp1_spi1 {
 	cs-select = <0>;
+	pinctrl-0 = <&spi_0_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	flash@0 {
@@ -49,13 +50,13 @@
 };
 
 &tlmm {
-	i2c_1_pins: i2c-1-pins {
+	i2c_1_pins: i2c-1-state {
 		pins = "gpio42", "gpio43";
 		function = "blsp2_i2c";
 		drive-strength = <8>;
 	};
 
-	spi_0_pins: spi-0-pins {
+	spi_0_pins: spi-0-state {
 		pins = "gpio38", "gpio39", "gpio40", "gpio41";
 		function = "blsp0_spi";
 		drive-strength = <8>;
@@ -80,9 +81,9 @@
 };
 
 &qusb_phy_1 {
-	status = "ok";
+	status = "okay";
 };
 
 &usb2 {
-	status = "ok";
+	status = "okay";
 };

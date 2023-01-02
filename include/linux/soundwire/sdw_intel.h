@@ -233,6 +233,7 @@ struct sdw_intel_ctx {
  * struct sdw_intel_res - Soundwire Intel global resource structure,
  * typically populated by the DSP driver
  *
+ * @hw_ops: abstraction for platform ops
  * @count: link count
  * @mmio_base: mmio base of SoundWire registers
  * @irq: interrupt number
@@ -249,6 +250,7 @@ struct sdw_intel_ctx {
  * @alh_base: sdw alh base.
  */
 struct sdw_intel_res {
+	const struct sdw_intel_hw_ops *hw_ops;
 	int count;
 	void __iomem *mmio_base;
 	int irq;
@@ -286,10 +288,50 @@ int sdw_intel_startup(struct sdw_intel_ctx *ctx);
 
 void sdw_intel_exit(struct sdw_intel_ctx *ctx);
 
-void sdw_intel_enable_irq(void __iomem *mmio_base, bool enable);
-
 irqreturn_t sdw_intel_thread(int irq, void *dev_id);
 
 #define SDW_INTEL_QUIRK_MASK_BUS_DISABLE      BIT(1)
+
+struct sdw_intel;
+
+/* struct intel_sdw_hw_ops - SoundWire ops for Intel platforms.
+ * @debugfs_init: initialize all debugfs capabilities
+ * @debugfs_exit: close and cleanup debugfs capabilities
+ * @register_dai: read all PDI information and register DAIs
+ * @check_clock_stop: throw error message if clock is not stopped.
+ * @start_bus: normal start
+ * @start_bus_after_reset: start after reset
+ * @start_bus_after_clock_stop: start after mode0 clock stop
+ * @stop_bus: stop all bus
+ * @link_power_up: power-up using chip-specific helpers
+ * @link_power_down: power-down with chip-specific helpers
+ * @shim_check_wake: check if a wake was received
+ * @shim_wake: enable/disable in-band wake management
+ * @pre_bank_switch: helper for bus management
+ * @post_bank_switch: helper for bus management
+ */
+struct sdw_intel_hw_ops {
+	void (*debugfs_init)(struct sdw_intel *sdw);
+	void (*debugfs_exit)(struct sdw_intel *sdw);
+
+	int (*register_dai)(struct sdw_intel *sdw);
+
+	void (*check_clock_stop)(struct sdw_intel *sdw);
+	int (*start_bus)(struct sdw_intel *sdw);
+	int (*start_bus_after_reset)(struct sdw_intel *sdw);
+	int (*start_bus_after_clock_stop)(struct sdw_intel *sdw);
+	int (*stop_bus)(struct sdw_intel *sdw, bool clock_stop);
+
+	int (*link_power_up)(struct sdw_intel *sdw);
+	int (*link_power_down)(struct sdw_intel *sdw);
+
+	int  (*shim_check_wake)(struct sdw_intel *sdw);
+	void (*shim_wake)(struct sdw_intel *sdw, bool wake_enable);
+
+	int (*pre_bank_switch)(struct sdw_intel *sdw);
+	int (*post_bank_switch)(struct sdw_intel *sdw);
+};
+
+extern const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops;
 
 #endif

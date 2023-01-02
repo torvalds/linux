@@ -51,7 +51,7 @@ xor_arm4regs_2(unsigned long bytes, unsigned long * __restrict p1,
 	register unsigned int a1 __asm__("r4");
 	register unsigned int a2 __asm__("r5");
 	register unsigned int a3 __asm__("r6");
-	register unsigned int a4 __asm__("r7");
+	register unsigned int a4 __asm__("r10");
 	register unsigned int b1 __asm__("r8");
 	register unsigned int b2 __asm__("r9");
 	register unsigned int b3 __asm__("ip");
@@ -73,7 +73,7 @@ xor_arm4regs_3(unsigned long bytes, unsigned long * __restrict p1,
 	register unsigned int a1 __asm__("r4");
 	register unsigned int a2 __asm__("r5");
 	register unsigned int a3 __asm__("r6");
-	register unsigned int a4 __asm__("r7");
+	register unsigned int a4 __asm__("r10");
 	register unsigned int b1 __asm__("r8");
 	register unsigned int b2 __asm__("r9");
 	register unsigned int b3 __asm__("ip");

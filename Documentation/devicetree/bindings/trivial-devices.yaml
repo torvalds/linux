@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/trivial-devices.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Trivial I2C and SPI devices that have simple device tree bindings
+title: Trivial I2C and SPI devices
 
 maintainers:
   - Rob Herring <robh@kernel.org>

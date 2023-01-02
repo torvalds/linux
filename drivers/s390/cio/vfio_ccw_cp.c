@@ -394,7 +394,7 @@ static void ccwchain_cda_free(struct ccwchain *chain, int idx)
 	if (ccw_is_tic(ccw))
 		return;
 
-	kfree((void *)(u64)ccw->cda);
+	kfree(phys_to_virt(ccw->cda));
 }
 
 /**
@@ -845,7 +845,7 @@ union orb *cp_get_orb(struct channel_program *cp, u32 intparm, u8 lpm)
 
 	chain = list_first_entry(&cp->ccwchain_list, struct ccwchain, next);
 	cpa = chain->ch_ccw;
-	orb->cmd.cpa = (__u32) __pa(cpa);
+	orb->cmd.cpa = (__u32)virt_to_phys(cpa);
 
 	return orb;
 }

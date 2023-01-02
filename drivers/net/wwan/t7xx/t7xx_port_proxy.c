@@ -70,6 +70,18 @@ static const struct t7xx_port_conf t7xx_md_port_conf[] = {
 		.name = "MBIM",
 		.port_type = WWAN_PORT_MBIM,
 	}, {
+#ifdef CONFIG_WWAN_DEBUGFS
+		.tx_ch = PORT_CH_MD_LOG_TX,
+		.rx_ch = PORT_CH_MD_LOG_RX,
+		.txq_index = 7,
+		.rxq_index = 7,
+		.txq_exp_index = 7,
+		.rxq_exp_index = 7,
+		.path_id = CLDMA_ID_MD,
+		.ops = &t7xx_trace_port_ops,
+		.name = "mdlog",
+	}, {
+#endif
 		.tx_ch = PORT_CH_CONTROL_TX,
 		.rx_ch = PORT_CH_CONTROL_RX,
 		.txq_index = Q_IDX_CTRL,

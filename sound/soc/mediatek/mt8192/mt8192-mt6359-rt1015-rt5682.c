@@ -1261,6 +1261,7 @@ static const struct of_device_id mt8192_mt6359_dt_match[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, mt8192_mt6359_dt_match);
 #endif
 
 static const struct dev_pm_ops mt8192_mt6359_pm_ops = {

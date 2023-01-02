@@ -24,30 +24,13 @@
 
 /* PINCTRL - modifications to sc7180-trogdor-wormdingler.dtsi */
 &avdd_lcd_en {
-	pinmux {
-		pins = "gpio80";
-	};
-
-	pinconf {
-		pins = "gpio80";
-	};
+	pins = "gpio80";
 };
 
 &mipi_1800_en {
-	pinmux {
-		pins = "gpio81";
-	};
-
-	pinconf {
-		pins = "gpio81";
-	};
+	pins = "gpio81";
 };
-&vdd_reset_1800 {
-	pinmux {
-		pins = "gpio76";
-	};
 
-	pinconf {
-		pins = "gpio76";
-	};
+&vdd_reset_1800 {
+	pins = "gpio76";
 };

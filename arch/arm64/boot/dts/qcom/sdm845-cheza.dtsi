@@ -16,7 +16,7 @@
 / {
 	aliases {
 		bluetooth0 = &bluetooth;
-		hsuart0 = &uart6;
+		serial1 = &uart6;
 		serial0 = &uart9;
 		wifi0 = &wifi;
 	};
@@ -860,6 +860,8 @@ ap_ts_i2c: &i2c14 {
 &uart6 {
 	status = "okay";
 
+	pinctrl-0 = <&qup_uart6_4pin>;
+
 	bluetooth: wcn3990-bt {
 		compatible = "qcom,wcn3990-bt";
 		vddio-supply = <&src_pp1800_s4a>;
@@ -1076,41 +1078,6 @@ ap_ts_i2c: &i2c14 {
 		pins = "gpio53", "gpio54", "gpio55", "gpio56";
 		drive-strength = <2>;
 		bias-disable;
-	};
-};
-
-&qup_uart6_default {
-	/* Change pinmux to all 4 pins since CTS and RTS are connected */
-	pinmux {
-		pins = "gpio45", "gpio46",
-		       "gpio47", "gpio48";
-	};
-
-	pinconf-cts {
-		/*
-		 * Configure a pull-down on 45 (CTS) to match the pull of
-		 * the Bluetooth module.
-		 */
-		pins = "gpio45";
-		bias-pull-down;
-	};
-
-	pinconf-rts-tx {
-		/* We'll drive 46 (RTS) and 47 (TX), so no pull */
-		pins = "gpio46", "gpio47";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	pinconf-rx {
-		/*
-		 * Configure a pull-up on 48 (RX). This is needed to avoid
-		 * garbage data when the TX pin of the Bluetooth module is
-		 * in tri-state (module powered off or not driving the
-		 * signal yet).
-		 */
-		pins = "gpio48";
-		bias-pull-up;
 	};
 };
 
@@ -1341,7 +1308,7 @@ ap_ts_i2c: &i2c14 {
 	};
 
 	pen_rst_l: pen-rst-l {
-		pinmux  {
+		pinmux {
 			pins = "gpio23";
 			function = "gpio";
 		};
@@ -1408,7 +1375,7 @@ ap_ts_i2c: &i2c14 {
 	};
 
 	ts_int_l: ts-int-l {
-		pinmux  {
+		pinmux {
 			pins = "gpio125";
 			function = "gpio";
 		};
@@ -1420,7 +1387,7 @@ ap_ts_i2c: &i2c14 {
 	};
 
 	ts_reset_l: ts-reset-l {
-		pinmux  {
+		pinmux {
 			pins = "gpio118";
 			function = "gpio";
 		};
@@ -1436,7 +1403,7 @@ ap_ts_i2c: &i2c14 {
 		config {
 			pins = "gpio126";
 			function = "gpio";
-			bias-no-pull;
+			bias-disable;
 			drive-strength = <2>;
 			output-low;
 		};
@@ -1446,7 +1413,7 @@ ap_ts_i2c: &i2c14 {
 		config {
 			pins = "gpio126";
 			function = "gpio";
-			bias-no-pull;
+			bias-disable;
 			drive-strength = <2>;
 			output-high;
 		};

@@ -30,9 +30,24 @@ properties:
           - const: amarula,vyasa-rk3288
           - const: rockchip,rk3288
 
+      - description: Anbernic RG351M
+        items:
+          - const: anbernic,rg351m
+          - const: rockchip,rk3326
+
       - description: Anbernic RG353P
         items:
           - const: anbernic,rg353p
+          - const: rockchip,rk3566
+
+      - description: Anbernic RG353V
+        items:
+          - const: anbernic,rg353v
+          - const: rockchip,rk3566
+
+      - description: Anbernic RG353VS
+        items:
+          - const: anbernic,rg353vs
           - const: rockchip,rk3566
 
       - description: Anbernic RG503
@@ -468,6 +483,21 @@ properties:
           - const: hardkernel,rk3326-odroid-go2
           - const: rockchip,rk3326
 
+      - description: Hardkernel Odroid Go Advance Black Edition
+        items:
+          - const: hardkernel,rk3326-odroid-go2-v11
+          - const: rockchip,rk3326
+
+      - description: Hardkernel Odroid Go Super
+        items:
+          - const: hardkernel,rk3326-odroid-go3
+          - const: rockchip,rk3326
+
+      - description: Hardkernel Odroid M1
+        items:
+          - const: rockchip,rk3568-odroid-m1
+          - const: rockchip,rk3568
+
       - description: Hugsun X99 TV Box
         items:
           - const: hugsun,x99
@@ -563,7 +593,9 @@ properties:
       - description: Pine64 SoQuartz SoM
         items:
           - enum:
+              - pine64,soquartz-blade
               - pine64,soquartz-cm4io
+              - pine64,soquartz-model-a
           - const: pine64,soquartz
           - const: rockchip,rk3566
 
@@ -709,6 +741,11 @@ properties:
           - const: rockchip,rv1108-evb
           - const: rockchip,rv1108
 
+      - description: Theobroma Systems PX30-uQ7 with Haikou baseboard
+        items:
+          - const: tsd,px30-ringneck-haikou
+          - const: rockchip,px30
+
       - description: Theobroma Systems RK3368-uQ7 with Haikou baseboard
         items:
           - const: tsd,rk3368-lion-haikou
@@ -728,6 +765,11 @@ properties:
         items:
           - const: zkmagic,a95x-z2
           - const: rockchip,rk3318
+
+      - description: Rockchip RK3566 BOX Evaluation Demo board
+        items:
+          - const: rockchip,rk3566-box-demo
+          - const: rockchip,rk3566
 
       - description: Rockchip RK3568 Evaluation board
         items:

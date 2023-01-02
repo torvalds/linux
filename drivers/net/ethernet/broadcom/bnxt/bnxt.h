@@ -1621,6 +1621,7 @@ struct bnxt_fw_health {
 
 #define BNXT_FW_RETRY			5
 #define BNXT_FW_IF_RETRY		10
+#define BNXT_FW_SLOT_RESET_RETRY	4
 
 enum board_idx {
 	BCM57301,
@@ -1900,6 +1901,7 @@ struct bnxt {
 	u16			*rss_indir_tbl;
 	u16			rss_indir_tbl_entries;
 	u32			rss_hash_cfg;
+	u32			rss_hash_delta;
 
 	u16			max_mtu;
 	u8			max_tc;
@@ -1965,6 +1967,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2	0x00010000
 	#define BNXT_FW_CAP_PCIE_STATS_SUPPORTED	0x00020000
 	#define BNXT_FW_CAP_EXT_STATS_SUPPORTED		0x00040000
+	#define BNXT_FW_CAP_RSS_HASH_TYPE_DELTA		0x00080000
 	#define BNXT_FW_CAP_ERR_RECOVER_RELOAD		0x00100000
 	#define BNXT_FW_CAP_HOT_RESET			0x00200000
 	#define BNXT_FW_CAP_PTP_RTC			0x00400000
@@ -2116,6 +2119,7 @@ struct bnxt {
 #define BNXT_PHY_FL_NO_FCS		PORT_PHY_QCAPS_RESP_FLAGS_NO_FCS
 #define BNXT_PHY_FL_NO_PAUSE		(PORT_PHY_QCAPS_RESP_FLAGS2_PAUSE_UNSUPPORTED << 8)
 #define BNXT_PHY_FL_NO_PFC		(PORT_PHY_QCAPS_RESP_FLAGS2_PFC_UNSUPPORTED << 8)
+#define BNXT_PHY_FL_BANK_SEL		(PORT_PHY_QCAPS_RESP_FLAGS2_BANK_ADDR_SUPPORTED << 8)
 
 	u8			num_tests;
 	struct bnxt_test_info	*test_info;

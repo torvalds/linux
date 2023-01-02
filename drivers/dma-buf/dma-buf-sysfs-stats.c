@@ -132,7 +132,7 @@ void dma_buf_stats_teardown(struct dma_buf *dmabuf)
 
 
 /* Statistics files do not need to send uevents. */
-static int dmabuf_sysfs_uevent_filter(struct kobject *kobj)
+static int dmabuf_sysfs_uevent_filter(const struct kobject *kobj)
 {
 	return 0;
 }

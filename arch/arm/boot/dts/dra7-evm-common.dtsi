@@ -151,7 +151,7 @@
 		 */
 		partition@0 {
 			label = "QSPI.SPL";
-			reg = <0x00000000 0x000010000>;
+			reg = <0x00000000 0x00010000>;
 		};
 		partition@1 {
 			label = "QSPI.SPL.backup1";

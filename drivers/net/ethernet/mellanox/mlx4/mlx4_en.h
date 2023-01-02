@@ -89,9 +89,19 @@
 #define MLX4_EN_FILTER_HASH_SHIFT 4
 #define MLX4_EN_FILTER_EXPIRY_QUOTA 60
 
-/* Typical TSO descriptor with 16 gather entries is 352 bytes... */
-#define MAX_DESC_SIZE		512
-#define MAX_DESC_TXBBS		(MAX_DESC_SIZE / TXBB_SIZE)
+#define CTRL_SIZE	sizeof(struct mlx4_wqe_ctrl_seg)
+#define DS_SIZE		sizeof(struct mlx4_wqe_data_seg)
+
+/* Maximal size of the bounce buffer:
+ * 256 bytes for LSO headers.
+ * CTRL_SIZE for control desc.
+ * DS_SIZE if skb->head contains some payload.
+ * MAX_SKB_FRAGS frags.
+ */
+#define MLX4_TX_BOUNCE_BUFFER_SIZE \
+	ALIGN(256 + CTRL_SIZE + DS_SIZE + MAX_SKB_FRAGS * DS_SIZE, TXBB_SIZE)
+
+#define MLX4_MAX_DESC_TXBBS	   (MLX4_TX_BOUNCE_BUFFER_SIZE / TXBB_SIZE)
 
 /*
  * OS related constants and tunables
@@ -217,9 +227,7 @@ struct mlx4_en_tx_info {
 
 
 #define MLX4_EN_BIT_DESC_OWN	0x80000000
-#define CTRL_SIZE	sizeof(struct mlx4_wqe_ctrl_seg)
 #define MLX4_EN_MEMTYPE_PAD	0x100
-#define DS_SIZE		sizeof(struct mlx4_wqe_data_seg)
 
 
 struct mlx4_en_tx_desc {

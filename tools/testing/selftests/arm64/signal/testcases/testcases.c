@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2019 ARM Limited */
+
+#include <ctype.h>
+#include <string.h>
+
 #include "testcases.h"
 
 struct _aarch64_ctx *get_header(struct _aarch64_ctx *head, uint32_t magic,
@@ -109,7 +113,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 	bool terminated = false;
 	size_t offs = 0;
 	int flags = 0;
-	int new_flags;
+	int new_flags, i;
 	struct extra_context *extra = NULL;
 	struct sve_context *sve = NULL;
 	struct za_context *za = NULL;
@@ -117,6 +121,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 		(struct _aarch64_ctx *)uc->uc_mcontext.__reserved;
 	void *extra_data = NULL;
 	size_t extra_sz = 0;
+	char magic[4];
 
 	if (!err)
 		return false;
@@ -194,11 +199,19 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			/*
 			 * A still unknown Magic: potentially freshly added
 			 * to the Kernel code and still unknown to the
-			 * tests.
+			 * tests.  Magic numbers are supposed to be allocated
+			 * as somewhat meaningful ASCII strings so try to
+			 * print as such as well as the raw number.
 			 */
+			memcpy(magic, &head->magic, sizeof(magic));
+			for (i = 0; i < sizeof(magic); i++)
+				if (!isalnum(magic[i]))
+					magic[i] = '?';
+
 			fprintf(stdout,
-				"SKIP Unknown MAGIC: 0x%X - Is KSFT arm64/signal up to date ?\n",
-				head->magic);
+				"SKIP Unknown MAGIC: 0x%X (%c%c%c%c) - Is KSFT arm64/signal up to date ?\n",
+				head->magic,
+				magic[3], magic[2], magic[1], magic[0]);
 			break;
 		}
 

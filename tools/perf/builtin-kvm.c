@@ -63,7 +63,7 @@ static const char *get_filename_for_perf_kvm(void)
 	return filename;
 }
 
-#ifdef HAVE_KVM_STAT_SUPPORT
+#if defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
 
 void exit_event_get_key(struct evsel *evsel,
 			struct perf_sample *sample,
@@ -654,7 +654,7 @@ static void print_result(struct perf_kvm_stat *kvm)
 		pr_info("\nLost events: %" PRIu64 "\n\n", kvm->lost_events);
 }
 
-#ifdef HAVE_TIMERFD_SUPPORT
+#if defined(HAVE_TIMERFD_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
 static int process_lost_event(struct perf_tool *tool,
 			      union perf_event *event __maybe_unused,
 			      struct perf_sample *sample __maybe_unused,
@@ -742,7 +742,7 @@ static bool verify_vcpu(int vcpu)
 	return true;
 }
 
-#ifdef HAVE_TIMERFD_SUPPORT
+#if defined(HAVE_TIMERFD_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
 /* keeping the max events to a modest level to keep
  * the processing of samples per mmap smooth.
  */
@@ -1290,7 +1290,7 @@ kvm_events_report(struct perf_kvm_stat *kvm, int argc, const char **argv)
 	return kvm_events_report_vcpu(kvm);
 }
 
-#ifdef HAVE_TIMERFD_SUPPORT
+#if defined(HAVE_TIMERFD_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
 static struct evlist *kvm_live_event_list(void)
 {
 	struct evlist *evlist;
@@ -1507,7 +1507,7 @@ static int kvm_cmd_stat(const char *file_name, int argc, const char **argv)
 	if (strlen(argv[1]) > 2 && strstarts("report", argv[1]))
 		return kvm_events_report(&kvm, argc - 1 , argv + 1);
 
-#ifdef HAVE_TIMERFD_SUPPORT
+#if defined(HAVE_TIMERFD_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
 	if (!strncmp(argv[1], "live", 4))
 		return kvm_events_live(&kvm, argc - 1 , argv + 1);
 #endif
@@ -1644,7 +1644,7 @@ int cmd_kvm(int argc, const char **argv)
 		return cmd_top(argc, argv);
 	else if (strlen(argv[0]) > 2 && strstarts("buildid-list", argv[0]))
 		return __cmd_buildid_list(file_name, argc, argv);
-#ifdef HAVE_KVM_STAT_SUPPORT
+#if defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
 	else if (strlen(argv[0]) > 2 && strstarts("stat", argv[0]))
 		return kvm_cmd_stat(file_name, argc, argv);
 #endif

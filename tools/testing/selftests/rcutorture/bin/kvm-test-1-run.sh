@@ -25,9 +25,8 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
-T=${TMPDIR-/tmp}/kvm-test-1-run.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/kvm-test-1-run.sh.XXXXXX`"
 trap 'rm -rf $T' 0
-mkdir $T
 
 . functions.sh
 . $CONFIGFRAG/ver_functions.sh

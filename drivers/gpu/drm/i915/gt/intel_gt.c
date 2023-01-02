@@ -55,6 +55,7 @@ void intel_gt_common_init_early(struct intel_gt *gt)
 	seqcount_mutex_init(&gt->tlb.seqno, &gt->tlb.invalidate_lock);
 	intel_gt_pm_init_early(gt);
 
+	intel_wopcm_init_early(&gt->wopcm);
 	intel_uc_init_early(&gt->uc);
 	intel_rps_init_early(&gt->rps);
 }
@@ -191,7 +192,7 @@ int intel_gt_init_hw(struct intel_gt *gt)
 
 	ret = i915_ppgtt_init_hw(gt);
 	if (ret) {
-		DRM_ERROR("Enabling PPGTT failed (%d)\n", ret);
+		drm_err(&i915->drm, "Enabling PPGTT failed (%d)\n", ret);
 		goto out;
 	}
 
@@ -263,7 +264,7 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 		 * some errors might have become stuck,
 		 * mask them.
 		 */
-		DRM_DEBUG_DRIVER("EIR stuck: 0x%08x, masking\n", eir);
+		drm_dbg(&gt->i915->drm, "EIR stuck: 0x%08x, masking\n", eir);
 		rmw_set(uncore, EMR, eir);
 		intel_uncore_write(uncore, GEN2_IIR,
 				   I915_MASTER_ERROR_INTERRUPT);
@@ -676,8 +677,13 @@ int intel_gt_wait_for_idle(struct intel_gt *gt, long timeout)
 			return -EINTR;
 	}
 
-	return timeout ? timeout : intel_uc_wait_for_idle(&gt->uc,
-							  remaining_timeout);
+	if (timeout)
+		return timeout;
+
+	if (remaining_timeout < 0)
+		remaining_timeout = 0;
+
+	return intel_uc_wait_for_idle(&gt->uc, remaining_timeout);
 }
 
 int intel_gt_init(struct intel_gt *gt)
@@ -1034,9 +1040,9 @@ get_reg_and_bit(const struct intel_engine_cs *engine, const bool gen8,
 static int wait_for_invalidate(struct intel_gt *gt, struct reg_and_bit rb)
 {
 	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
-		return intel_gt_mcr_wait_for_reg_fw(gt, rb.mcr_reg, rb.bit, 0,
-						    TLB_INVAL_TIMEOUT_US,
-						    TLB_INVAL_TIMEOUT_MS);
+		return intel_gt_mcr_wait_for_reg(gt, rb.mcr_reg, rb.bit, 0,
+						 TLB_INVAL_TIMEOUT_US,
+						 TLB_INVAL_TIMEOUT_MS);
 	else
 		return __intel_wait_for_register_fw(gt->uncore, rb.reg, rb.bit, 0,
 						    TLB_INVAL_TIMEOUT_US,
@@ -1110,6 +1116,11 @@ static void mmio_invalidate_full(struct intel_gt *gt)
 			rb = get_reg_and_bit(engine, regs == gen8_regs, regs, num);
 			if (!i915_mmio_reg_offset(rb.reg))
 				continue;
+
+			if (GRAPHICS_VER(i915) == 12 && (engine->class == VIDEO_DECODE_CLASS ||
+			    engine->class == VIDEO_ENHANCEMENT_CLASS ||
+			    engine->class == COMPUTE_CLASS))
+				rb.bit = _MASKED_BIT_ENABLE(rb.bit);
 
 			intel_uncore_write_fw(uncore, rb.reg, rb.bit);
 		}

@@ -91,6 +91,13 @@ Description:    Enables the root user to set the device to specific state.
                 Valid values are "disable", "enable", "suspend", "resume".
                 User can read this property to see the valid values
 
+What:           /sys/kernel/debug/habanalabs/hl<n>/device_release_watchdog_timeout
+Date:           Oct 2022
+KernelVersion:  6.2
+Contact:        ttayar@habana.ai
+Description:    The watchdog timeout value in seconds for a device relese upon
+                certain error cases, after which the device is reset.
+
 What:           /sys/kernel/debug/habanalabs/hl<n>/dma_size
 Date:           Apr 2021
 KernelVersion:  5.13

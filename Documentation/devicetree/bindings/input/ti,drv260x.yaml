@@ -1,0 +1,109 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/ti,drv260x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments - drv260x Haptics driver family
+
+maintainers:
+  - Andrew Davis <afd@ti.com>
+
+properties:
+  compatible:
+    enum:
+      - ti,drv2604
+      - ti,drv2605
+      - ti,drv2605l
+
+  reg:
+    maxItems: 1
+
+  vbat-supply:
+    description: Power supply to the haptic motor
+
+  # TODO: Deprecate 'mode' in favor of differently named property
+  mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Power up mode of the chip
+      (defined in include/dt-bindings/input/ti-drv260x.h)
+
+      DRV260X_LRA_MODE
+        Linear Resonance Actuator mode (Piezoelectric)
+
+      DRV260X_LRA_NO_CAL_MODE
+        This is a LRA Mode but there is no calibration sequence during init.
+        And the device is configured for real time playback mode (RTP mode).
+
+      DRV260X_ERM_MODE
+        Eccentric Rotating Mass mode (Rotary vibrator)
+    enum: [ 0, 1, 2 ]
+
+  library-sel:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      These are ROM based waveforms pre-programmed into the IC.
+      This should be set to set the library to use at power up.
+      (defined in include/dt-bindings/input/ti-drv260x.h)
+
+      DRV260X_LIB_EMPTY - Do not use a pre-programmed library
+      DRV260X_ERM_LIB_A - Pre-programmed Library
+      DRV260X_ERM_LIB_B - Pre-programmed Library
+      DRV260X_ERM_LIB_C - Pre-programmed Library
+      DRV260X_ERM_LIB_D - Pre-programmed Library
+      DRV260X_ERM_LIB_E - Pre-programmed Library
+      DRV260X_ERM_LIB_F - Pre-programmed Library
+      DRV260X_LIB_LRA - Pre-programmed LRA Library
+    enum: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+
+  enable-gpio:
+    maxItems: 1
+    deprecated: true
+
+  enable-gpios:
+    maxItems: 1
+
+  vib-rated-mv:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      The rated voltage of the actuator in millivolts.
+      If this is not set then the value will be defaulted to 3200 mV.
+    default: 3200
+
+  vib-overdrive-mv:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      The overdrive voltage of the actuator in millivolts.
+      If this is not set then the value will be defaulted to 3200 mV.
+    default: 3200
+
+required:
+  - compatible
+  - reg
+  - enable-gpios
+  - mode
+  - library-sel
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/input/ti-drv260x.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        haptics@5a {
+            compatible = "ti,drv2605l";
+            reg = <0x5a>;
+            vbat-supply = <&vbat>;
+            enable-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+            mode = <DRV260X_LRA_MODE>;
+            library-sel = <DRV260X_LIB_LRA>;
+            vib-rated-mv = <3200>;
+            vib-overdrive-mv = <3200>;
+        };
+    };

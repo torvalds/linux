@@ -531,9 +531,9 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 
 		if (OA_TAKEN(hw_tail, tail) > report_size &&
 		    __ratelimit(&stream->perf->tail_pointer_race))
-			DRM_NOTE("unlanded report(s) head=0x%x "
-				 "tail=0x%x hw_tail=0x%x\n",
-				 head, tail, hw_tail);
+			drm_notice(&stream->uncore->i915->drm,
+				   "unlanded report(s) head=0x%x tail=0x%x hw_tail=0x%x\n",
+				   head, tail, hw_tail);
 
 		stream->oa_buffer.tail = gtt_offset + tail;
 		stream->oa_buffer.aging_tail = gtt_offset + hw_tail;
@@ -1016,7 +1016,8 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		 */
 		if (report32[0] == 0) {
 			if (__ratelimit(&stream->perf->spurious_report_rs))
-				DRM_NOTE("Skipping spurious, invalid OA report\n");
+				drm_notice(&uncore->i915->drm,
+					   "Skipping spurious, invalid OA report\n");
 			continue;
 		}
 
@@ -1382,6 +1383,9 @@ static u32 oa_context_image_offset(struct intel_context *ce, u32 reg)
 	u32 offset, len = (ce->engine->context_size - PAGE_SIZE) / 4;
 	u32 *state = ce->lrc_reg_state;
 
+	if (drm_WARN_ON(&ce->engine->i915->drm, !state))
+		return U32_MAX;
+
 	for (offset = 0; offset < len; ) {
 		if (IS_MI_LRI_CMD(state[offset])) {
 			/*
@@ -1446,7 +1450,8 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
-	if (engine_supports_mi_query(stream->engine)) {
+	if (engine_supports_mi_query(stream->engine) &&
+	    HAS_LOGICAL_RING_CONTEXTS(stream->perf->i915)) {
 		/*
 		 * We are enabling perf query here. If we don't find the context
 		 * offset here, just return an error.
@@ -1603,8 +1608,9 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	free_noa_wait(stream);
 
 	if (perf->spurious_report_rs.missed) {
-		DRM_NOTE("%d spurious OA report notices suppressed due to ratelimiting\n",
-			 perf->spurious_report_rs.missed);
+		drm_notice(&gt->i915->drm,
+			   "%d spurious OA report notices suppressed due to ratelimiting\n",
+			   perf->spurious_report_rs.missed);
 	}
 }
 
@@ -2252,9 +2258,7 @@ retry:
 			goto err_add_request;
 	}
 
-	err = i915_request_await_object(rq, vma->obj, 0);
-	if (!err)
-		err = i915_vma_move_to_active(vma, rq, 0);
+	err = i915_vma_move_to_active(vma, rq, 0);
 	if (err)
 		goto err_add_request;
 

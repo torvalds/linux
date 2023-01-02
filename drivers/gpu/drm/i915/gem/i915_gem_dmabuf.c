@@ -97,6 +97,8 @@ static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	int ret;
 
+	dma_resv_assert_held(dma_buf->resv);
+
 	if (obj->base.size < vma->vm_end - vma->vm_start)
 		return -EINVAL;
 
@@ -238,7 +240,6 @@ static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct sg_table *sgt;
-	unsigned int sg_page_sizes;
 
 	assert_object_held(obj);
 
@@ -262,8 +263,7 @@ static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
 	    (!HAS_LLC(i915) && !IS_DG1(i915)))
 		wbinvd_on_all_cpus();
 
-	sg_page_sizes = i915_sg_dma_sizes(sgt->sgl);
-	__i915_gem_object_set_pages(obj, sgt, sg_page_sizes);
+	__i915_gem_object_set_pages(obj, sgt);
 
 	return 0;
 }

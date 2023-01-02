@@ -1491,7 +1491,13 @@ static int ionic_init_nic_features(struct ionic_lif *lif)
 		   NETIF_F_RXCSUM |
 		   NETIF_F_TSO |
 		   NETIF_F_TSO6 |
-		   NETIF_F_TSO_ECN;
+		   NETIF_F_TSO_ECN |
+		   NETIF_F_GSO_GRE |
+		   NETIF_F_GSO_GRE_CSUM |
+		   NETIF_F_GSO_IPXIP4 |
+		   NETIF_F_GSO_IPXIP6 |
+		   NETIF_F_GSO_UDP_TUNNEL |
+		   NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
 	if (lif->nxqs > 1)
 		features |= NETIF_F_RXHASH;
@@ -2220,7 +2226,7 @@ static int ionic_eth_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd
 	}
 }
 
-static int ionic_update_cached_vf_config(struct ionic *ionic, int vf)
+static int ionic_get_fw_vf_config(struct ionic *ionic, int vf, struct ionic_vf *vfdata)
 {
 	struct ionic_vf_getattr_comp comp = { 0 };
 	int err;
@@ -2231,14 +2237,14 @@ static int ionic_update_cached_vf_config(struct ionic *ionic, int vf)
 	if (err && comp.status != IONIC_RC_ENOSUPP)
 		goto err_out;
 	if (!err)
-		ionic->vfs[vf].vlanid = comp.vlanid;
+		vfdata->vlanid = comp.vlanid;
 
 	attr = IONIC_VF_ATTR_SPOOFCHK;
 	err = ionic_dev_cmd_vf_getattr(ionic, vf, attr, &comp);
 	if (err && comp.status != IONIC_RC_ENOSUPP)
 		goto err_out;
 	if (!err)
-		ionic->vfs[vf].spoofchk = comp.spoofchk;
+		vfdata->spoofchk = comp.spoofchk;
 
 	attr = IONIC_VF_ATTR_LINKSTATE;
 	err = ionic_dev_cmd_vf_getattr(ionic, vf, attr, &comp);
@@ -2247,13 +2253,13 @@ static int ionic_update_cached_vf_config(struct ionic *ionic, int vf)
 	if (!err) {
 		switch (comp.linkstate) {
 		case IONIC_VF_LINK_STATUS_UP:
-			ionic->vfs[vf].linkstate = IFLA_VF_LINK_STATE_ENABLE;
+			vfdata->linkstate = IFLA_VF_LINK_STATE_ENABLE;
 			break;
 		case IONIC_VF_LINK_STATUS_DOWN:
-			ionic->vfs[vf].linkstate = IFLA_VF_LINK_STATE_DISABLE;
+			vfdata->linkstate = IFLA_VF_LINK_STATE_DISABLE;
 			break;
 		case IONIC_VF_LINK_STATUS_AUTO:
-			ionic->vfs[vf].linkstate = IFLA_VF_LINK_STATE_AUTO;
+			vfdata->linkstate = IFLA_VF_LINK_STATE_AUTO;
 			break;
 		default:
 			dev_warn(ionic->dev, "Unexpected link state %u\n", comp.linkstate);
@@ -2266,21 +2272,21 @@ static int ionic_update_cached_vf_config(struct ionic *ionic, int vf)
 	if (err && comp.status != IONIC_RC_ENOSUPP)
 		goto err_out;
 	if (!err)
-		ionic->vfs[vf].maxrate = comp.maxrate;
+		vfdata->maxrate = comp.maxrate;
 
 	attr = IONIC_VF_ATTR_TRUST;
 	err = ionic_dev_cmd_vf_getattr(ionic, vf, attr, &comp);
 	if (err && comp.status != IONIC_RC_ENOSUPP)
 		goto err_out;
 	if (!err)
-		ionic->vfs[vf].trusted = comp.trust;
+		vfdata->trusted = comp.trust;
 
 	attr = IONIC_VF_ATTR_MAC;
 	err = ionic_dev_cmd_vf_getattr(ionic, vf, attr, &comp);
 	if (err && comp.status != IONIC_RC_ENOSUPP)
 		goto err_out;
 	if (!err)
-		ether_addr_copy(ionic->vfs[vf].macaddr, comp.macaddr);
+		ether_addr_copy(vfdata->macaddr, comp.macaddr);
 
 err_out:
 	if (err)
@@ -2295,6 +2301,7 @@ static int ionic_get_vf_config(struct net_device *netdev,
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic *ionic = lif->ionic;
+	struct ionic_vf vfdata = { 0 };
 	int ret = 0;
 
 	if (!netif_device_present(netdev))
@@ -2308,14 +2315,14 @@ static int ionic_get_vf_config(struct net_device *netdev,
 		ivf->vf = vf;
 		ivf->qos = 0;
 
-		ret = ionic_update_cached_vf_config(ionic, vf);
+		ret = ionic_get_fw_vf_config(ionic, vf, &vfdata);
 		if (!ret) {
-			ivf->vlan         = le16_to_cpu(ionic->vfs[vf].vlanid);
-			ivf->spoofchk     = ionic->vfs[vf].spoofchk;
-			ivf->linkstate    = ionic->vfs[vf].linkstate;
-			ivf->max_tx_rate  = le32_to_cpu(ionic->vfs[vf].maxrate);
-			ivf->trusted      = ionic->vfs[vf].trusted;
-			ether_addr_copy(ivf->mac, ionic->vfs[vf].macaddr);
+			ivf->vlan         = le16_to_cpu(vfdata.vlanid);
+			ivf->spoofchk     = vfdata.spoofchk;
+			ivf->linkstate    = vfdata.linkstate;
+			ivf->max_tx_rate  = le32_to_cpu(vfdata.maxrate);
+			ivf->trusted      = vfdata.trusted;
+			ether_addr_copy(ivf->mac, vfdata.macaddr);
 		}
 	}
 
@@ -2560,6 +2567,76 @@ static int ionic_set_vf_link_state(struct net_device *netdev, int vf, int set)
 
 	up_write(&ionic->vf_op_lock);
 	return ret;
+}
+
+static void ionic_vf_attr_replay(struct ionic_lif *lif)
+{
+	struct ionic_vf_setattr_cmd vfc = { };
+	struct ionic *ionic = lif->ionic;
+	struct ionic_vf *v;
+	int i;
+
+	if (!ionic->vfs)
+		return;
+
+	down_read(&ionic->vf_op_lock);
+
+	for (i = 0; i < ionic->num_vfs; i++) {
+		v = &ionic->vfs[i];
+
+		if (v->stats_pa) {
+			vfc.attr = IONIC_VF_ATTR_STATSADDR;
+			vfc.stats_pa = cpu_to_le64(v->stats_pa);
+			ionic_set_vf_config(ionic, i, &vfc);
+			vfc.stats_pa = 0;
+		}
+
+		if (!is_zero_ether_addr(v->macaddr)) {
+			vfc.attr = IONIC_VF_ATTR_MAC;
+			ether_addr_copy(vfc.macaddr, v->macaddr);
+			ionic_set_vf_config(ionic, i, &vfc);
+			eth_zero_addr(vfc.macaddr);
+		}
+
+		if (v->vlanid) {
+			vfc.attr = IONIC_VF_ATTR_VLAN;
+			vfc.vlanid = v->vlanid;
+			ionic_set_vf_config(ionic, i, &vfc);
+			vfc.vlanid = 0;
+		}
+
+		if (v->maxrate) {
+			vfc.attr = IONIC_VF_ATTR_RATE;
+			vfc.maxrate = v->maxrate;
+			ionic_set_vf_config(ionic, i, &vfc);
+			vfc.maxrate = 0;
+		}
+
+		if (v->spoofchk) {
+			vfc.attr = IONIC_VF_ATTR_SPOOFCHK;
+			vfc.spoofchk = v->spoofchk;
+			ionic_set_vf_config(ionic, i, &vfc);
+			vfc.spoofchk = 0;
+		}
+
+		if (v->trusted) {
+			vfc.attr = IONIC_VF_ATTR_TRUST;
+			vfc.trust = v->trusted;
+			ionic_set_vf_config(ionic, i, &vfc);
+			vfc.trust = 0;
+		}
+
+		if (v->linkstate) {
+			vfc.attr = IONIC_VF_ATTR_LINKSTATE;
+			vfc.linkstate = v->linkstate;
+			ionic_set_vf_config(ionic, i, &vfc);
+			vfc.linkstate = 0;
+		}
+	}
+
+	up_read(&ionic->vf_op_lock);
+
+	ionic_vf_start(ionic);
 }
 
 static const struct net_device_ops ionic_netdev_ops = {
@@ -3041,6 +3118,8 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 	err = ionic_lif_init(lif);
 	if (err)
 		goto err_qcqs_free;
+
+	ionic_vf_attr_replay(lif);
 
 	if (lif->registered)
 		ionic_lif_set_netdev_info(lif);

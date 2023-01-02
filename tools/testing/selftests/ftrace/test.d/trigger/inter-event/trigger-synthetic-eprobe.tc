@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test inter-event histogram trigger eprobe on synthetic event
-# requires: dynamic_events synthetic_events events/syscalls/sys_enter_openat/hist "e[:[<group>/]<event>] <attached-group>.<attached-event> [<args>]":README
+# requires: dynamic_events synthetic_events events/syscalls/sys_enter_openat/hist "e[:[<group>/][<event>]] <attached-group>.<attached-event> [<args>]":README
 
 echo 0 > events/enable
 
@@ -14,7 +14,7 @@ FIELD="filename"
 SYNTH="synth_open"
 EPROBE="eprobe_open"
 
-echo "$SYNTH u64 filename; s64 ret;" > synthetic_events
+echo "$SYNTH unsigned long filename; long ret;" > synthetic_events
 echo "hist:keys=common_pid:__arg__1=$FIELD" > events/$SYSTEM/$START/trigger
 echo "hist:keys=common_pid:filename=\$__arg__1,ret=ret:onmatch($SYSTEM.$START).trace($SYNTH,\$filename,\$ret)" > events/$SYSTEM/$END/trigger
 

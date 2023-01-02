@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/fsl,imx8qxp-csr.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale i.MX8qm/qxp Control and Status Registers Module Bindings
+title: Freescale i.MX8qm/qxp Control and Status Registers Module
 
 maintainers:
   - Liu Ying <victor.liu@nxp.com>

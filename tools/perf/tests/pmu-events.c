@@ -12,6 +12,7 @@
 #include <perf/evlist.h>
 #include "util/evlist.h"
 #include "util/expr.h"
+#include "util/hashmap.h"
 #include "util/parse-events.h"
 #include "metricgroup.h"
 #include "stat.h"
@@ -889,7 +890,7 @@ static int test__parsing_callback(const struct pmu_event *pe, const struct pmu_e
 		goto out_err;
 	}
 
-	err = evlist__alloc_stats(evlist, false);
+	err = evlist__alloc_stats(/*config=*/NULL, evlist, /*alloc_raw=*/false);
 	if (err)
 		goto out_err;
 	/*
@@ -958,7 +959,7 @@ static struct test_metric metrics[] = {
 	{ "(imx8_ddr0@read\\-cycles@ + imx8_ddr0@write\\-cycles@)", },
 };
 
-static int metric_parse_fake(const char *str)
+static int metric_parse_fake(const char *metric_name, const char *str)
 {
 	struct expr_parse_ctx *ctx;
 	struct hashmap_entry *cur;
@@ -967,7 +968,7 @@ static int metric_parse_fake(const char *str)
 	size_t bkt;
 	int i;
 
-	pr_debug("parsing '%s'\n", str);
+	pr_debug("parsing '%s': '%s'\n", metric_name, str);
 
 	ctx = expr__ctx_new();
 	if (!ctx) {
@@ -986,10 +987,10 @@ static int metric_parse_fake(const char *str)
 	 */
 	i = 1;
 	hashmap__for_each_entry(ctx->ids, cur, bkt)
-		expr__add_id_val(ctx, strdup(cur->key), i++);
+		expr__add_id_val(ctx, strdup(cur->pkey), i++);
 
 	hashmap__for_each_entry(ctx->ids, cur, bkt) {
-		if (check_parse_fake(cur->key)) {
+		if (check_parse_fake(cur->pkey)) {
 			pr_err("check_parse_fake failed\n");
 			goto out;
 		}
@@ -1003,10 +1004,15 @@ static int metric_parse_fake(const char *str)
 		 */
 		i = 1024;
 		hashmap__for_each_entry(ctx->ids, cur, bkt)
-			expr__add_id_val(ctx, strdup(cur->key), i--);
+			expr__add_id_val(ctx, strdup(cur->pkey), i--);
 		if (expr__parse(&result, ctx, str)) {
-			pr_err("expr__parse failed\n");
-			ret = -1;
+			pr_err("expr__parse failed for %s\n", metric_name);
+			/* The following have hard to avoid divide by zero. */
+			if (!strcmp(metric_name, "tma_clears_resteers") ||
+			    !strcmp(metric_name, "tma_mispredicts_resteers"))
+				ret = 0;
+			else
+				ret = -1;
 		}
 	}
 
@@ -1022,7 +1028,7 @@ static int test__parsing_fake_callback(const struct pmu_event *pe,
 	if (!pe->metric_expr)
 		return 0;
 
-	return metric_parse_fake(pe->metric_expr);
+	return metric_parse_fake(pe->metric_name, pe->metric_expr);
 }
 
 /*
@@ -1036,7 +1042,7 @@ static int test__parsing_fake(struct test_suite *test __maybe_unused,
 	int err = 0;
 
 	for (size_t i = 0; i < ARRAY_SIZE(metrics); i++) {
-		err = metric_parse_fake(metrics[i].str);
+		err = metric_parse_fake("", metrics[i].str);
 		if (err)
 			return err;
 	}

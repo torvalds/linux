@@ -53,6 +53,7 @@ properties:
               - microchip,lan966x-cpu-syscon
               - microchip,sparx5-cpu-syscon
               - mstar,msc313-pmsleep
+              - nuvoton,wpcm450-shm
               - rockchip,px30-qos
               - rockchip,rk3036-qos
               - rockchip,rk3066-qos

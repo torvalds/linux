@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
+#include <linux/hwmon.h>
 
 /* ISL register offsets */
 #define ISL12022_REG_SC		0x00
@@ -30,6 +31,9 @@
 #define ISL12022_REG_SR		0x07
 #define ISL12022_REG_INT	0x08
 
+#define ISL12022_REG_BETA	0x0d
+#define ISL12022_REG_TEMP_L	0x28
+
 /* ISL register bits */
 #define ISL12022_HR_MIL		(1 << 7)	/* military or 24 hour time */
 
@@ -38,6 +42,7 @@
 
 #define ISL12022_INT_WRTC	(1 << 6)
 
+#define ISL12022_BETA_TSE	(1 << 7)
 
 static struct i2c_driver isl12022_driver;
 
@@ -45,6 +50,93 @@ struct isl12022 {
 	struct rtc_device *rtc;
 	struct regmap *regmap;
 };
+
+static umode_t isl12022_hwmon_is_visible(const void *data,
+					 enum hwmon_sensor_types type,
+					 u32 attr, int channel)
+{
+	if (type == hwmon_temp && attr == hwmon_temp_input)
+		return 0444;
+
+	return 0;
+}
+
+/*
+ * A user-initiated temperature conversion is not started by this function,
+ * so the temperature is updated once every ~60 seconds.
+ */
+static int isl12022_hwmon_read_temp(struct device *dev, long *mC)
+{
+	struct isl12022 *isl12022 = dev_get_drvdata(dev);
+	struct regmap *regmap = isl12022->regmap;
+	u8 temp_buf[2];
+	int temp, ret;
+
+	ret = regmap_bulk_read(regmap, ISL12022_REG_TEMP_L,
+			       temp_buf, sizeof(temp_buf));
+	if (ret)
+		return ret;
+	/*
+	 * Temperature is represented as a 10-bit number, unit half-Kelvins.
+	 */
+	temp = (temp_buf[1] << 8) | temp_buf[0];
+	temp *= 500;
+	temp -= 273000;
+
+	*mC = temp;
+
+	return 0;
+}
+
+static int isl12022_hwmon_read(struct device *dev,
+			       enum hwmon_sensor_types type,
+			       u32 attr, int channel, long *val)
+{
+	if (type == hwmon_temp && attr == hwmon_temp_input)
+		return isl12022_hwmon_read_temp(dev, val);
+
+	return -EOPNOTSUPP;
+}
+
+static const struct hwmon_channel_info *isl12022_hwmon_info[] = {
+	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
+	NULL
+};
+
+static const struct hwmon_ops isl12022_hwmon_ops = {
+	.is_visible = isl12022_hwmon_is_visible,
+	.read = isl12022_hwmon_read,
+};
+
+static const struct hwmon_chip_info isl12022_hwmon_chip_info = {
+	.ops = &isl12022_hwmon_ops,
+	.info = isl12022_hwmon_info,
+};
+
+static void isl12022_hwmon_register(struct device *dev)
+{
+	struct isl12022 *isl12022;
+	struct device *hwmon;
+	int ret;
+
+	if (!IS_REACHABLE(CONFIG_HWMON))
+		return;
+
+	isl12022 = dev_get_drvdata(dev);
+
+	ret = regmap_update_bits(isl12022->regmap, ISL12022_REG_BETA,
+				 ISL12022_BETA_TSE, ISL12022_BETA_TSE);
+	if (ret) {
+		dev_warn(dev, "unable to enable temperature sensor\n");
+		return;
+	}
+
+	hwmon = devm_hwmon_device_register_with_info(dev, "isl12022", isl12022,
+						     &isl12022_hwmon_chip_info,
+						     NULL);
+	if (IS_ERR(hwmon))
+		dev_warn(dev, "unable to register hwmon device: %pe\n", hwmon);
+}
 
 /*
  * In the routines that deal directly with the isl12022 hardware, we use
@@ -159,6 +251,8 @@ static int isl12022_probe(struct i2c_client *client)
 		dev_err(&client->dev, "regmap allocation failed\n");
 		return PTR_ERR(isl12022->regmap);
 	}
+
+	isl12022_hwmon_register(&client->dev);
 
 	isl12022->rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(isl12022->rtc))

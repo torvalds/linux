@@ -9,6 +9,9 @@ title: Wolfson WM8940 Codec
 maintainers:
   - patches@opensource.cirrus.com
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   '#sound-dai-cells':
     const: 0
@@ -27,7 +30,7 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

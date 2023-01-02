@@ -344,6 +344,10 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	if (IS_IWARP(dev)) {
 		xa_init(&dev->qps);
 		dev->iwarp_wq = create_singlethread_workqueue("qedr_iwarpq");
+		if (!dev->iwarp_wq) {
+			rc = -ENOMEM;
+			goto err1;
+		}
 	}
 
 	/* Allocate Status blocks for CNQ */
@@ -351,7 +355,7 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 				GFP_KERNEL);
 	if (!dev->sb_array) {
 		rc = -ENOMEM;
-		goto err1;
+		goto err_destroy_wq;
 	}
 
 	dev->cnq_array = kcalloc(dev->num_cnq,
@@ -402,6 +406,9 @@ err3:
 	kfree(dev->cnq_array);
 err2:
 	kfree(dev->sb_array);
+err_destroy_wq:
+	if (IS_IWARP(dev))
+		destroy_workqueue(dev->iwarp_wq);
 err1:
 	kfree(dev->sgid_tbl);
 	return rc;
@@ -472,7 +479,7 @@ static irqreturn_t qedr_irq_handler(int irq, void *handle)
 		/* The CQ's CNQ notification counter is checked before
 		 * destroying the CQ in a busy-wait loop that waits for all of
 		 * the CQ's CNQ interrupts to be processed. It is increased
-		 * here, only after the completion handler, to ensure that the
+		 * here, only after the completion handler, to ensure that
 		 * the handler is not running when the CQ is destroyed.
 		 */
 		cq->cnq_notif++;

@@ -987,7 +987,12 @@ static int __init xxxfb_init(void)
 	 */
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("xxxfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("xxxfb", &option))
 		return -ENODEV;
 	xxxfb_setup(option);

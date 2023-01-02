@@ -369,7 +369,7 @@ static const struct qcom_icc_desc sc7180_gem_noc = {
 	.num_bcms = ARRAY_SIZE(gem_noc_bcms),
 };
 
-static struct qcom_icc_bcm *mc_virt_bcms[] = {
+static struct qcom_icc_bcm * const mc_virt_bcms[] = {
 	&bcm_acv,
 	&bcm_mc0,
 };
@@ -443,7 +443,7 @@ static struct qcom_icc_node * const qup_virt_nodes[] = {
 	[SLAVE_QUP_CORE_1] = &qup_core_slave_2,
 };
 
-static const  struct qcom_icc_desc sc7180_qup_virt = {
+static const struct qcom_icc_desc sc7180_qup_virt = {
 	.nodes = qup_virt_nodes,
 	.num_nodes = ARRAY_SIZE(qup_virt_nodes),
 	.bcms = qup_virt_bcms,

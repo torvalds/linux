@@ -24,13 +24,24 @@ static struct xdp_buff **ice_xdp_buf(struct ice_rx_ring *rx_ring, u32 idx)
  */
 static void ice_qp_reset_stats(struct ice_vsi *vsi, u16 q_idx)
 {
-	memset(&vsi->rx_rings[q_idx]->rx_stats, 0,
-	       sizeof(vsi->rx_rings[q_idx]->rx_stats));
-	memset(&vsi->tx_rings[q_idx]->stats, 0,
-	       sizeof(vsi->tx_rings[q_idx]->stats));
+	struct ice_vsi_stats *vsi_stat;
+	struct ice_pf *pf;
+
+	pf = vsi->back;
+	if (!pf->vsi_stats)
+		return;
+
+	vsi_stat = pf->vsi_stats[vsi->idx];
+	if (!vsi_stat)
+		return;
+
+	memset(&vsi_stat->rx_ring_stats[q_idx]->rx_stats, 0,
+	       sizeof(vsi_stat->rx_ring_stats[q_idx]->rx_stats));
+	memset(&vsi_stat->tx_ring_stats[q_idx]->stats, 0,
+	       sizeof(vsi_stat->tx_ring_stats[q_idx]->stats));
 	if (ice_is_xdp_ena_vsi(vsi))
-		memset(&vsi->xdp_rings[q_idx]->stats, 0,
-		       sizeof(vsi->xdp_rings[q_idx]->stats));
+		memset(&vsi->xdp_rings[q_idx]->ring_stats->stats, 0,
+		       sizeof(vsi->xdp_rings[q_idx]->ring_stats->stats));
 }
 
 /**
@@ -722,7 +733,7 @@ construct_skb:
 		/* XDP_PASS path */
 		skb = ice_construct_skb_zc(rx_ring, xdp);
 		if (!skb) {
-			rx_ring->rx_stats.alloc_buf_failed++;
+			rx_ring->ring_stats->rx_stats.alloc_buf_failed++;
 			break;
 		}
 

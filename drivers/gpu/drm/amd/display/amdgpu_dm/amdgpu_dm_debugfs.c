@@ -2639,6 +2639,25 @@ static int dp_mst_progress_status_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
+/*
+ * Reports whether the connected display is a USB4 DPIA tunneled display
+ * Example usage: cat /sys/kernel/debug/dri/0/DP-8/is_dpia_link
+ */
+static int is_dpia_link_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct dc_link *link = aconnector->dc_link;
+
+	if (connector->status != connector_status_connected)
+		return -ENODEV;
+
+	seq_printf(m, "%s\n", (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) ? "yes" :
+				(link->ep_type == DISPLAY_ENDPOINT_PHY) ? "no" : "unknown");
+
+	return 0;
+}
+
 DEFINE_SHOW_ATTRIBUTE(dp_dsc_fec_support);
 DEFINE_SHOW_ATTRIBUTE(dmub_fw_state);
 DEFINE_SHOW_ATTRIBUTE(dmub_tracebuffer);
@@ -2650,6 +2669,7 @@ DEFINE_SHOW_ATTRIBUTE(internal_display);
 DEFINE_SHOW_ATTRIBUTE(psr_capability);
 DEFINE_SHOW_ATTRIBUTE(dp_is_mst_connector);
 DEFINE_SHOW_ATTRIBUTE(dp_mst_progress_status);
+DEFINE_SHOW_ATTRIBUTE(is_dpia_link);
 
 static const struct file_operations dp_dsc_clock_en_debugfs_fops = {
 	.owner = THIS_MODULE,
@@ -2794,7 +2814,8 @@ static const struct {
 		{"max_bpc", &dp_max_bpc_debugfs_fops},
 		{"dsc_disable_passthrough", &dp_dsc_disable_passthrough_debugfs_fops},
 		{"is_mst_connector", &dp_is_mst_connector_fops},
-		{"mst_progress_status", &dp_mst_progress_status_fops}
+		{"mst_progress_status", &dp_mst_progress_status_fops},
+		{"is_dpia_link", &is_dpia_link_fops}
 };
 
 #ifdef CONFIG_DRM_AMD_DC_HDCP

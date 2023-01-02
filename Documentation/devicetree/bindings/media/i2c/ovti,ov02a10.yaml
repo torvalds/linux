@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/media/i2c/ovti,ov02a10.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Omnivision OV02A10 CMOS Sensor Device Tree Bindings
+title: Omnivision OV02A10 CMOS Sensor
 
 maintainers:
   - Dongchun Zhu <dongchun.zhu@mediatek.com>

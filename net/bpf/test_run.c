@@ -489,7 +489,6 @@ int noinline bpf_fentry_test1(int a)
 	return a + 1;
 }
 EXPORT_SYMBOL_GPL(bpf_fentry_test1);
-ALLOW_ERROR_INJECTION(bpf_fentry_test1, ERRNO);
 
 int noinline bpf_fentry_test2(int a, u64 b)
 {
@@ -733,7 +732,15 @@ noinline void bpf_kfunc_call_test_destructive(void)
 
 __diag_pop();
 
-ALLOW_ERROR_INJECTION(bpf_modify_return_test, ERRNO);
+BTF_SET8_START(bpf_test_modify_return_ids)
+BTF_ID_FLAGS(func, bpf_modify_return_test)
+BTF_ID_FLAGS(func, bpf_fentry_test1, KF_SLEEPABLE)
+BTF_SET8_END(bpf_test_modify_return_ids)
+
+static const struct btf_kfunc_id_set bpf_test_modify_return_set = {
+	.owner = THIS_MODULE,
+	.set   = &bpf_test_modify_return_ids,
+};
 
 BTF_SET8_START(test_sk_check_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
@@ -774,6 +781,7 @@ static void *bpf_test_init(const union bpf_attr *kattr, u32 user_size,
 	if (user_size > size)
 		return ERR_PTR(-EMSGSIZE);
 
+	size = SKB_DATA_ALIGN(size);
 	data = kzalloc(size + headroom + tailroom, GFP_USER);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
@@ -979,9 +987,6 @@ static int convert___skb_to_skb(struct sk_buff *skb, struct __sk_buff *__skb)
 {
 	struct qdisc_skb_cb *cb = (struct qdisc_skb_cb *)skb->cb;
 
-	if (!skb->len)
-		return -EINVAL;
-
 	if (!__skb)
 		return 0;
 
@@ -1130,7 +1135,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 	}
 	sock_init_data(NULL, sk);
 
-	skb = build_skb(data, 0);
+	skb = slab_build_skb(data);
 	if (!skb) {
 		kfree(data);
 		kfree(ctx);
@@ -1668,7 +1673,8 @@ static int __init bpf_prog_test_run_init(void)
 	};
 	int ret;
 
-	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_prog_test_kfunc_set);
+	ret = register_btf_fmodret_id_set(&bpf_test_modify_return_set);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_prog_test_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &bpf_prog_test_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL, &bpf_prog_test_kfunc_set);
 	return ret ?: register_btf_id_dtor_kfuncs(bpf_prog_test_dtor_kfunc,

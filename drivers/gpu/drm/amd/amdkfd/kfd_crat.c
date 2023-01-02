@@ -1111,7 +1111,7 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 			props->cache_latency = cache->cache_latency;
 
 			memcpy(props->sibling_map, cache->sibling_map,
-					sizeof(props->sibling_map));
+					CRAT_SIBLINGMAP_SIZE);
 
 			/* set the sibling_map_size as 32 for CRAT from ACPI */
 			props->sibling_map_size = CRAT_SIBLINGMAP_SIZE;
@@ -1521,6 +1521,7 @@ int kfd_get_gpu_cache_info(struct kfd_dev *kdev, struct kfd_gpu_cache_info **pca
 		case IP_VERSION(11, 0, 1):
 		case IP_VERSION(11, 0, 2):
 		case IP_VERSION(11, 0, 3):
+		case IP_VERSION(11, 0, 4):
 			num_of_cache_types =
 				kfd_fill_gpu_cache_info_from_gfx_config(kdev, *pcache_info);
 			break;

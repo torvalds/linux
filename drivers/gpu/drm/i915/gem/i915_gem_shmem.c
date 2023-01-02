@@ -247,7 +247,7 @@ rebuild_st:
 	if (i915_gem_object_can_bypass_llc(obj))
 		obj->cache_dirty = true;
 
-	__i915_gem_object_set_pages(obj, st, i915_sg_dma_sizes(st->sgl));
+	__i915_gem_object_set_pages(obj, st);
 
 	return 0;
 

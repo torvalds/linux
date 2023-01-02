@@ -55,6 +55,7 @@ struct amdgpu_fence {
 
 	/* RB, DMA, etc. */
 	struct amdgpu_ring		*ring;
+	ktime_t				start_timestamp;
 };
 
 static struct kmem_cache *amdgpu_fence_slab;
@@ -198,6 +199,8 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f, struct amd
 				return r;
 		}
 	}
+
+	to_amdgpu_fence(fence)->start_timestamp = ktime_get();
 
 	/* This function can't be called concurrently anyway, otherwise
 	 * emitting the fence would mess up the hardware ring buffer.
@@ -404,6 +407,57 @@ unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring)
 	emitted -= atomic_read(&ring->fence_drv.last_seq);
 	emitted += READ_ONCE(ring->fence_drv.sync_seq);
 	return lower_32_bits(emitted);
+}
+
+/**
+ * amdgpu_fence_last_unsignaled_time_us - the time fence emitted until now
+ * @ring: ring the fence is associated with
+ *
+ * Find the earliest fence unsignaled until now, calculate the time delta
+ * between the time fence emitted and now.
+ */
+u64 amdgpu_fence_last_unsignaled_time_us(struct amdgpu_ring *ring)
+{
+	struct amdgpu_fence_driver *drv = &ring->fence_drv;
+	struct dma_fence *fence;
+	uint32_t last_seq, sync_seq;
+
+	last_seq = atomic_read(&ring->fence_drv.last_seq);
+	sync_seq = READ_ONCE(ring->fence_drv.sync_seq);
+	if (last_seq == sync_seq)
+		return 0;
+
+	++last_seq;
+	last_seq &= drv->num_fences_mask;
+	fence = drv->fences[last_seq];
+	if (!fence)
+		return 0;
+
+	return ktime_us_delta(ktime_get(),
+		to_amdgpu_fence(fence)->start_timestamp);
+}
+
+/**
+ * amdgpu_fence_update_start_timestamp - update the timestamp of the fence
+ * @ring: ring the fence is associated with
+ * @seq: the fence seq number to update.
+ * @timestamp: the start timestamp to update.
+ *
+ * The function called at the time the fence and related ib is about to
+ * resubmit to gpu in MCBP scenario. Thus we do not consider race condition
+ * with amdgpu_fence_process to modify the same fence.
+ */
+void amdgpu_fence_update_start_timestamp(struct amdgpu_ring *ring, uint32_t seq, ktime_t timestamp)
+{
+	struct amdgpu_fence_driver *drv = &ring->fence_drv;
+	struct dma_fence *fence;
+
+	seq &= drv->num_fences_mask;
+	fence = drv->fences[seq];
+	if (!fence)
+		return;
+
+	to_amdgpu_fence(fence)->start_timestamp = timestamp;
 }
 
 /**

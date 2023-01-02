@@ -192,6 +192,24 @@ static void timens_setup_vdso_data(struct vdso_data *vdata,
 	offset[CLOCK_BOOTTIME_ALARM]	= boottime;
 }
 
+struct page *find_timens_vvar_page(struct vm_area_struct *vma)
+{
+	if (likely(vma->vm_mm == current->mm))
+		return current->nsproxy->time_ns->vvar_page;
+
+	/*
+	 * VM_PFNMAP | VM_IO protect .fault() handler from being called
+	 * through interfaces like /proc/$pid/mem or
+	 * process_vm_{readv,writev}() as long as there's no .access()
+	 * in special_mapping_vmops().
+	 * For more details check_vma_flags() and __access_remote_vm()
+	 */
+
+	WARN(1, "vvar_page accessed remotely");
+
+	return NULL;
+}
+
 /*
  * Protects possibly multiple offsets writers racing each other
  * and tasks entering the namespace.
