@@ -1726,36 +1726,30 @@ unlock:
 }
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
 
-/*
- * Allocates the backing storage and sets up the fbdev info structure through
- * the ->fb_probe callback.
- */
-static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
-					 int preferred_bpp)
+
+static int __drm_fb_helper_find_sizes(struct drm_fb_helper *fb_helper, int preferred_bpp,
+				      struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_client_dev *client = &fb_helper->client;
 	struct drm_device *dev = fb_helper->dev;
-	struct drm_mode_config *config = &dev->mode_config;
-	int ret = 0;
 	int crtc_count = 0;
 	struct drm_connector_list_iter conn_iter;
-	struct drm_fb_helper_surface_size sizes;
 	struct drm_connector *connector;
 	struct drm_mode_set *mode_set;
 	int best_depth = 0;
 
-	memset(&sizes, 0, sizeof(struct drm_fb_helper_surface_size));
-	sizes.surface_depth = 24;
-	sizes.surface_bpp = 32;
-	sizes.fb_width = (u32)-1;
-	sizes.fb_height = (u32)-1;
+	memset(sizes, 0, sizeof(struct drm_fb_helper_surface_size));
+	sizes->surface_depth = 24;
+	sizes->surface_bpp = 32;
+	sizes->fb_width = (u32)-1;
+	sizes->fb_height = (u32)-1;
 
 	/*
 	 * If driver picks 8 or 16 by default use that for both depth/bpp
 	 * to begin with
 	 */
-	if (preferred_bpp != sizes.surface_bpp)
-		sizes.surface_depth = sizes.surface_bpp = preferred_bpp;
+	if (preferred_bpp != sizes->surface_bpp)
+		sizes->surface_depth = sizes->surface_bpp = preferred_bpp;
 
 	drm_connector_list_iter_begin(fb_helper->dev, &conn_iter);
 	drm_client_for_each_connector_iter(connector, &conn_iter) {
@@ -1766,21 +1760,21 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		if (cmdline_mode->bpp_specified) {
 			switch (cmdline_mode->bpp) {
 			case 8:
-				sizes.surface_depth = sizes.surface_bpp = 8;
+				sizes->surface_depth = sizes->surface_bpp = 8;
 				break;
 			case 15:
-				sizes.surface_depth = 15;
-				sizes.surface_bpp = 16;
+				sizes->surface_depth = 15;
+				sizes->surface_bpp = 16;
 				break;
 			case 16:
-				sizes.surface_depth = sizes.surface_bpp = 16;
+				sizes->surface_depth = sizes->surface_bpp = 16;
 				break;
 			case 24:
-				sizes.surface_depth = sizes.surface_bpp = 24;
+				sizes->surface_depth = sizes->surface_bpp = 24;
 				break;
 			case 32:
-				sizes.surface_depth = 24;
-				sizes.surface_bpp = 32;
+				sizes->surface_depth = 24;
+				sizes->surface_bpp = 32;
 				break;
 			}
 			break;
@@ -1793,7 +1787,6 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	 * supports RGBA5551 (16 bpp, depth 15) but not RGB565 (16 bpp, depth
 	 * 16) we need to scale down the depth of the sizes we request.
 	 */
-	mutex_lock(&client->modeset_mutex);
 	drm_client_for_each_modeset(mode_set, client) {
 		struct drm_crtc *crtc = mode_set->crtc;
 		struct drm_plane *plane = crtc->primary;
@@ -1817,13 +1810,13 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 				continue;
 
 			/* We found a perfect fit, great */
-			if (fmt->depth == sizes.surface_depth) {
+			if (fmt->depth == sizes->surface_depth) {
 				best_depth = fmt->depth;
 				break;
 			}
 
 			/* Skip depths above what we're looking for */
-			if (fmt->depth > sizes.surface_depth)
+			if (fmt->depth > sizes->surface_depth)
 				continue;
 
 			/* Best depth found so far */
@@ -1831,10 +1824,10 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 				best_depth = fmt->depth;
 		}
 	}
-	if (sizes.surface_depth != best_depth && best_depth) {
+	if (sizes->surface_depth != best_depth && best_depth) {
 		drm_info(dev, "requested bpp %d, scaled depth down to %d",
-			 sizes.surface_bpp, best_depth);
-		sizes.surface_depth = best_depth;
+			 sizes->surface_bpp, best_depth);
+		sizes->surface_depth = best_depth;
 	}
 
 	/* first up get a count of crtcs now in use and new min/maxes width/heights */
@@ -1858,8 +1851,10 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		x = mode_set->x;
 		y = mode_set->y;
 
-		sizes.surface_width  = max_t(u32, desired_mode->hdisplay + x, sizes.surface_width);
-		sizes.surface_height = max_t(u32, desired_mode->vdisplay + y, sizes.surface_height);
+		sizes->surface_width  =
+			max_t(u32, desired_mode->hdisplay + x, sizes->surface_width);
+		sizes->surface_height =
+			max_t(u32, desired_mode->vdisplay + y, sizes->surface_height);
 
 		for (j = 0; j < mode_set->num_connectors; j++) {
 			struct drm_connector *connector = mode_set->connectors[j];
@@ -1875,28 +1870,63 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		}
 
 		if (lasth)
-			sizes.fb_width  = min_t(u32, desired_mode->hdisplay + x, sizes.fb_width);
+			sizes->fb_width  = min_t(u32, desired_mode->hdisplay + x, sizes->fb_width);
 		if (lastv)
-			sizes.fb_height = min_t(u32, desired_mode->vdisplay + y, sizes.fb_height);
+			sizes->fb_height = min_t(u32, desired_mode->vdisplay + y, sizes->fb_height);
 	}
-	mutex_unlock(&client->modeset_mutex);
 
-	if (crtc_count == 0 || sizes.fb_width == -1 || sizes.fb_height == -1) {
+	if (crtc_count == 0 || sizes->fb_width == -1 || sizes->fb_height == -1) {
 		drm_info(dev, "Cannot find any crtc or sizes\n");
-
-		/* First time: disable all crtc's.. */
-		if (!fb_helper->deferred_setup)
-			drm_client_modeset_commit(client);
 		return -EAGAIN;
 	}
 
+	return 0;
+}
+
+static int drm_fb_helper_find_sizes(struct drm_fb_helper *fb_helper, int preferred_bpp,
+				    struct drm_fb_helper_surface_size *sizes)
+{
+	struct drm_client_dev *client = &fb_helper->client;
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+	int ret;
+
+	mutex_lock(&client->modeset_mutex);
+	ret = __drm_fb_helper_find_sizes(fb_helper, preferred_bpp, sizes);
+	mutex_unlock(&client->modeset_mutex);
+
+	if (ret)
+		return ret;
+
 	/* Handle our overallocation */
-	sizes.surface_height *= drm_fbdev_overalloc;
-	sizes.surface_height /= 100;
-	if (sizes.surface_height > config->max_height) {
+	sizes->surface_height *= drm_fbdev_overalloc;
+	sizes->surface_height /= 100;
+	if (sizes->surface_height > config->max_height) {
 		drm_dbg_kms(dev, "Fbdev over-allocation too large; clamping height to %d\n",
 			    config->max_height);
-		sizes.surface_height = config->max_height;
+		sizes->surface_height = config->max_height;
+	}
+
+	return 0;
+}
+
+/*
+ * Allocates the backing storage and sets up the fbdev info structure through
+ * the ->fb_probe callback.
+ */
+static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
+					 int preferred_bpp)
+{
+	struct drm_client_dev *client = &fb_helper->client;
+	struct drm_fb_helper_surface_size sizes;
+	int ret;
+
+	ret = drm_fb_helper_find_sizes(fb_helper, preferred_bpp, &sizes);
+	if (ret) {
+		/* First time: disable all crtc's.. */
+		if (!fb_helper->deferred_setup)
+			drm_client_modeset_commit(client);
+		return ret;
 	}
 
 #if IS_ENABLED(CONFIG_DRM_FBDEV_LEAK_PHYS_SMEM)
