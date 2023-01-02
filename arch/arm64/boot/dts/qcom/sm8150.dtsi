@@ -898,7 +898,7 @@
 
 		gpi_dma0: dma-controller@800000 {
 			compatible = "qcom,sm8150-gpi-dma", "qcom,sdm845-gpi-dma";
-			reg = <0 0x800000 0 0x60000>;
+			reg = <0 0x00800000 0 0x60000>;
 			interrupts = <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>,
@@ -976,7 +976,7 @@
 
 			spi0: spi@880000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0x880000 0 0x4000>;
+				reg = <0 0x00880000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S0_CLK>;
@@ -1010,7 +1010,7 @@
 
 			spi1: spi@884000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0x884000 0 0x4000>;
+				reg = <0 0x00884000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S1_CLK>;
@@ -1044,7 +1044,7 @@
 
 			spi2: spi@888000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0x888000 0 0x4000>;
+				reg = <0 0x00888000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S2_CLK>;
@@ -1078,7 +1078,7 @@
 
 			spi3: spi@88c000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0x88c000 0 0x4000>;
+				reg = <0 0x0088c000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S3_CLK>;
@@ -1112,7 +1112,7 @@
 
 			spi4: spi@890000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0x890000 0 0x4000>;
+				reg = <0 0x00890000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S4_CLK>;
@@ -1146,7 +1146,7 @@
 
 			spi5: spi@894000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0x894000 0 0x4000>;
+				reg = <0 0x00894000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S5_CLK>;
@@ -1180,7 +1180,7 @@
 
 			spi6: spi@898000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0x898000 0 0x4000>;
+				reg = <0 0x00898000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S6_CLK>;
@@ -1214,7 +1214,7 @@
 
 			spi7: spi@89c000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0x89c000 0 0x4000>;
+				reg = <0 0x0089c000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S7_CLK>;
@@ -1233,7 +1233,7 @@
 
 		gpi_dma1: dma-controller@a00000 {
 			compatible = "qcom,sm8150-gpi-dma", "qcom,sdm845-gpi-dma";
-			reg = <0 0xa00000 0 0x60000>;
+			reg = <0 0x00a00000 0 0x60000>;
 			interrupts = <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>,
@@ -1284,7 +1284,7 @@
 
 			spi8: spi@a80000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xa80000 0 0x4000>;
+				reg = <0 0x00a80000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S0_CLK>;
@@ -1318,7 +1318,7 @@
 
 			spi9: spi@a84000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xa84000 0 0x4000>;
+				reg = <0 0x00a84000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S1_CLK>;
@@ -1352,7 +1352,7 @@
 
 			spi10: spi@a88000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xa88000 0 0x4000>;
+				reg = <0 0x00a88000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S2_CLK>;
@@ -1386,7 +1386,7 @@
 
 			spi11: spi@a8c000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xa8c000 0 0x4000>;
+				reg = <0 0x00a8c000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S3_CLK>;
@@ -1429,7 +1429,7 @@
 
 			spi12: spi@a90000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xa90000 0 0x4000>;
+				reg = <0 0x00a90000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S4_CLK>;
@@ -1447,7 +1447,7 @@
 
 			i2c16: i2c@94000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0 0x0094000 0 0x4000>;
+				reg = <0 0x00094000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S5_CLK>;
 				dmas = <&gpi_dma2 0 5 QCOM_GPI_I2C>,
@@ -1463,7 +1463,7 @@
 
 			spi16: spi@a94000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xa94000 0 0x4000>;
+				reg = <0 0x00a94000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S5_CLK>;
@@ -1482,7 +1482,7 @@
 
 		gpi_dma2: dma-controller@c00000 {
 			compatible = "qcom,sm8150-gpi-dma", "qcom,sdm845-gpi-dma";
-			reg = <0 0xc00000 0 0x60000>;
+			reg = <0 0x00c00000 0 0x60000>;
 			interrupts = <GIC_SPI 588 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 589 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 590 IRQ_TYPE_LEVEL_HIGH>,
@@ -1534,7 +1534,7 @@
 
 			spi17: spi@c80000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xc80000 0 0x4000>;
+				reg = <0 0x00c80000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S0_CLK>;
@@ -1568,7 +1568,7 @@
 
 			spi18: spi@c84000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xc84000 0 0x4000>;
+				reg = <0 0x00c84000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S1_CLK>;
@@ -1602,7 +1602,7 @@
 
 			spi19: spi@c88000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xc88000 0 0x4000>;
+				reg = <0 0x00c88000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S2_CLK>;
@@ -1636,7 +1636,7 @@
 
 			spi13: spi@c8c000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xc8c000 0 0x4000>;
+				reg = <0 0x00c8c000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S3_CLK>;
@@ -1670,7 +1670,7 @@
 
 			spi14: spi@c90000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xc90000 0 0x4000>;
+				reg = <0 0x00c90000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S4_CLK>;
@@ -1704,7 +1704,7 @@
 
 			spi15: spi@c94000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xc94000 0 0x4000>;
+				reg = <0 0x00c94000 0 0x4000>;
 				reg-names = "se";
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S5_CLK>;
@@ -1867,10 +1867,10 @@
 			status = "disabled";
 
 			pcie0_lane: phy@1c06200 {
-				reg = <0 0x1c06200 0 0x170>, /* tx */
-				      <0 0x1c06400 0 0x200>, /* rx */
-				      <0 0x1c06800 0 0x1f0>, /* pcs */
-				      <0 0x1c06c00 0 0xf4>; /* "pcs_lane" same as pcs_misc? */
+				reg = <0 0x01c06200 0 0x170>, /* tx */
+				      <0 0x01c06400 0 0x200>, /* rx */
+				      <0 0x01c06800 0 0x1f0>, /* pcs */
+				      <0 0x01c06c00 0 0xf4>; /* "pcs_lane" same as pcs_misc? */
 				clocks = <&gcc GCC_PCIE_0_PIPE_CLK>;
 				clock-names = "pipe0";
 
@@ -1966,12 +1966,12 @@
 			status = "disabled";
 
 			pcie1_lane: phy@1c0e200 {
-				reg = <0 0x1c0e200 0 0x170>, /* tx0 */
-				      <0 0x1c0e400 0 0x200>, /* rx0 */
-				      <0 0x1c0ea00 0 0x1f0>, /* pcs */
-				      <0 0x1c0e600 0 0x170>, /* tx1 */
-				      <0 0x1c0e800 0 0x200>, /* rx1 */
-				      <0 0x1c0ee00 0 0xf4>; /* "pcs_com" same as pcs_misc? */
+				reg = <0 0x01c0e200 0 0x170>, /* tx0 */
+				      <0 0x01c0e400 0 0x200>, /* rx0 */
+				      <0 0x01c0ea00 0 0x1f0>, /* pcs */
+				      <0 0x01c0e600 0 0x170>, /* tx1 */
+				      <0 0x01c0e800 0 0x200>, /* rx1 */
+				      <0 0x01c0ee00 0 0xf4>; /* "pcs_com" same as pcs_misc? */
 				clocks = <&gcc GCC_PCIE_1_PIPE_CLK>;
 				clock-names = "pipe0";
 
