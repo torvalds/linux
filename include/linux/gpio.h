@@ -197,14 +197,6 @@ static inline int gpio_export(unsigned gpio, bool direction_may_change)
 	return -EINVAL;
 }
 
-static inline int gpio_export_link(struct device *dev, const char *name,
-				unsigned gpio)
-{
-	/* GPIO can never have been exported */
-	WARN_ON(1);
-	return -EINVAL;
-}
-
 static inline void gpio_unexport(unsigned gpio)
 {
 	/* GPIO can never have been exported */

@@ -672,20 +672,12 @@ GPIO 控制器的路径类似 /sys/class/gpio/gpiochip42/ (对于从#42 GPIO
 	/* gpio_export()的逆操作 */
 	void gpio_unexport();
 
-	/* 创建一个 sysfs 连接到已导出的 GPIO 节点 */
-	int gpio_export_link(struct device *dev, const char *name,
-		unsigned gpio)
-
 在一个内核驱动申请一个 GPIO 之后，它可以通过 gpio_export()使其在 sysfs
 接口中可见。该驱动可以控制信号方向是否可修改。这有助于防止用户空间代码无意间
 破坏重要的系统状态。
 
 这个明确的导出有助于(通过使某些实验更容易来)调试，也可以提供一个始终存在的接口，
 与文档配合作为板级支持包的一部分。
-
-在 GPIO 被导出之后，gpio_export_link()允许在 sysfs 文件系统的任何地方
-创建一个到这个 GPIO sysfs 节点的符号链接。这样驱动就可以通过一个描述性的
-名字，在 sysfs 中他们所拥有的设备下提供一个(到这个 GPIO sysfs 节点的)接口。
 
 
 API参考
