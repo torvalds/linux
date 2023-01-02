@@ -322,7 +322,7 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb332);
 
 static void drm_fb_xrgb8888_to_rgb565_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
-	u16 *dbuf16 = dbuf;
+	__le16 *dbuf16 = dbuf;
 	const __le32 *sbuf32 = sbuf;
 	unsigned int x;
 	u16 val16;
@@ -333,14 +333,15 @@ static void drm_fb_xrgb8888_to_rgb565_line(void *dbuf, const void *sbuf, unsigne
 		val16 = ((pix & 0x00F80000) >> 8) |
 			((pix & 0x0000FC00) >> 5) |
 			((pix & 0x000000F8) >> 3);
-		dbuf16[x] = val16;
+		dbuf16[x] = cpu_to_le16(val16);
 	}
 }
 
+/* TODO: implement this helper as conversion to RGB565|BIG_ENDIAN */
 static void drm_fb_xrgb8888_to_rgb565_swab_line(void *dbuf, const void *sbuf,
 						unsigned int pixels)
 {
-	u16 *dbuf16 = dbuf;
+	__le16 *dbuf16 = dbuf;
 	const __le32 *sbuf32 = sbuf;
 	unsigned int x;
 	u16 val16;
@@ -351,7 +352,7 @@ static void drm_fb_xrgb8888_to_rgb565_swab_line(void *dbuf, const void *sbuf,
 		val16 = ((pix & 0x00F80000) >> 8) |
 			((pix & 0x0000FC00) >> 5) |
 			((pix & 0x000000F8) >> 3);
-		dbuf16[x] = swab16(val16);
+		dbuf16[x] = cpu_to_le16(swab16(val16));
 	}
 }
 
