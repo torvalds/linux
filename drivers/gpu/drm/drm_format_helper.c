@@ -649,65 +649,6 @@ void drm_fb_xrgb8888_to_argb8888(struct iosys_map *dst, const unsigned int *dst_
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_argb8888);
 
-static void drm_fb_rgb565_to_xrgb8888_line(void *dbuf, const void *sbuf, unsigned int pixels)
-{
-	__le32 *dbuf32 = dbuf;
-	const __le16 *sbuf16 = sbuf;
-	unsigned int x;
-
-	for (x = 0; x < pixels; x++) {
-		u16 val16 = le16_to_cpu(sbuf16[x]);
-		u32 val32 = ((val16 & 0xf800) << 8) |
-			    ((val16 & 0x07e0) << 5) |
-			    ((val16 & 0x001f) << 3);
-		val32 = 0xff000000 | val32 |
-			((val32 >> 3) & 0x00070007) |
-			((val32 >> 2) & 0x00000300);
-		dbuf32[x] = cpu_to_le32(val32);
-	}
-}
-
-static void drm_fb_rgb565_to_xrgb8888(struct iosys_map *dst, const unsigned int *dst_pitch,
-				      const struct iosys_map *src,
-				      const struct drm_framebuffer *fb,
-				      const struct drm_rect *clip)
-{
-	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
-		4,
-	};
-
-	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false,
-		    drm_fb_rgb565_to_xrgb8888_line);
-}
-
-static void drm_fb_rgb888_to_xrgb8888_line(void *dbuf, const void *sbuf, unsigned int pixels)
-{
-	__le32 *dbuf32 = dbuf;
-	const u8 *sbuf8 = sbuf;
-	unsigned int x;
-
-	for (x = 0; x < pixels; x++) {
-		u8 r = *sbuf8++;
-		u8 g = *sbuf8++;
-		u8 b = *sbuf8++;
-		u32 pix = 0xff000000 | (r << 16) | (g << 8) | b;
-		dbuf32[x] = cpu_to_le32(pix);
-	}
-}
-
-static void drm_fb_rgb888_to_xrgb8888(struct iosys_map *dst, const unsigned int *dst_pitch,
-				      const struct iosys_map *src,
-				      const struct drm_framebuffer *fb,
-				      const struct drm_rect *clip)
-{
-	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
-		4,
-	};
-
-	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false,
-		    drm_fb_rgb888_to_xrgb8888_line);
-}
-
 static void drm_fb_xrgb8888_to_xrgb2101010_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
 	__le32 *dbuf32 = dbuf;
@@ -899,12 +840,6 @@ int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t d
 {
 	uint32_t fb_format = fb->format->format;
 
-	/* treat alpha channel like filler bits */
-	if (fb_format == DRM_FORMAT_ARGB8888)
-		fb_format = DRM_FORMAT_XRGB8888;
-	if (fb_format == DRM_FORMAT_ARGB2101010)
-		fb_format = DRM_FORMAT_XRGB2101010;
-
 	if (fb_format == dst_format) {
 		drm_fb_memcpy(dst, dst_pitch, src, fb, clip);
 		return 0;
@@ -941,16 +876,6 @@ int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t d
 			return 0;
 		} else if (dst_format == DRM_FORMAT_BGRX8888) {
 			drm_fb_swab(dst, dst_pitch, src, fb, clip, false);
-			return 0;
-		}
-	} else if (fb_format == DRM_FORMAT_RGB888) {
-		if (dst_format == DRM_FORMAT_XRGB8888) {
-			drm_fb_rgb888_to_xrgb8888(dst, dst_pitch, src, fb, clip);
-			return 0;
-		}
-	} else if (fb_format == DRM_FORMAT_RGB565) {
-		if (dst_format == DRM_FORMAT_XRGB8888) {
-			drm_fb_rgb565_to_xrgb8888(dst, dst_pitch, src, fb, clip);
 			return 0;
 		}
 	}
