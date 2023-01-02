@@ -1302,7 +1302,6 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	if (progp == NULL)
 		goto err_bad_prog;
 
-	svcxdr_init_decode(rqstp);
 	rpc_stat = progp->pg_init_request(rqstp, progp, &process);
 	switch (rpc_stat) {
 	case rpc_success:

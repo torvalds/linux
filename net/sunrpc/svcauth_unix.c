@@ -762,6 +762,7 @@ svcauth_null_accept(struct svc_rqst *rqstp)
 	svc_putnl(resv, 0);
 
 	rqstp->rq_cred.cr_flavor = RPC_AUTH_NULL;
+	svcxdr_init_decode(rqstp);
 	return SVC_OK;
 }
 
@@ -835,6 +836,7 @@ svcauth_tls_accept(struct svc_rqst *rqstp)
 		svc_putnl(resv, 0);
 
 	rqstp->rq_cred.cr_flavor = RPC_AUTH_TLS;
+	svcxdr_init_decode(rqstp);
 	return SVC_OK;
 }
 
@@ -900,6 +902,7 @@ svcauth_unix_accept(struct svc_rqst *rqstp)
 	svc_putnl(resv, 0);
 
 	rqstp->rq_cred.cr_flavor = RPC_AUTH_UNIX;
+	svcxdr_init_decode(rqstp);
 	return SVC_OK;
 
 badcred:
