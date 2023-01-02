@@ -2646,7 +2646,7 @@ static int recover_scrub_rbio(struct btrfs_raid_bio *rbio)
 	void **pointers = NULL;
 	void **unmap_array = NULL;
 	int sector_nr;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * @pointers array stores the pointer for each sector.
