@@ -404,6 +404,7 @@ static void drm_fb_xrgb8888_to_rgb888_line(void *dbuf, const void *sbuf, unsigne
 
 	for (x = 0; x < pixels; x++) {
 		pix = le32_to_cpu(sbuf32[x]);
+		/* write blue-green-red to output in little endianness */
 		*dbuf8++ = (pix & 0x000000FF) >>  0;
 		*dbuf8++ = (pix & 0x0000FF00) >>  8;
 		*dbuf8++ = (pix & 0x00FF0000) >> 16;
