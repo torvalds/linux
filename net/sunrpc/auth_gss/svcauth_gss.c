@@ -1090,28 +1090,6 @@ gss_write_init_verf(struct cache_detail *cd, struct svc_rqst *rqstp,
 	return rc;
 }
 
-static inline int
-gss_read_verf(struct rpc_gss_wire_cred *gc,
-	      struct kvec *argv, __be32 *authp,
-	      struct xdr_netobj *in_handle,
-	      struct xdr_netobj *in_token)
-{
-	struct xdr_netobj tmpobj;
-
-	if (dup_netobj(in_handle, &gc->gc_ctx))
-		return SVC_CLOSE;
-	if (svc_safe_getnetobj(argv, &tmpobj)) {
-		kfree(in_handle->data);
-		return SVC_DENIED;
-	}
-	if (dup_netobj(in_token, &tmpobj)) {
-		kfree(in_handle->data);
-		return SVC_CLOSE;
-	}
-
-	return 0;
-}
-
 static void gss_free_in_token_pages(struct gssp_in_token *in_token)
 {
 	u32 inlen;
@@ -1224,14 +1202,21 @@ static int svcauth_gss_legacy_init(struct svc_rqst *rqstp,
 	struct kvec *argv = &rqstp->rq_arg.head[0];
 	struct kvec *resv = &rqstp->rq_res.head[0];
 	struct rsi *rsip, rsikey;
+	struct xdr_netobj tmpobj;
 	int ret;
 	struct sunrpc_net *sn = net_generic(SVC_NET(rqstp), sunrpc_net_id);
 
 	memset(&rsikey, 0, sizeof(rsikey));
-	ret = gss_read_verf(gc, argv, &rqstp->rq_auth_stat,
-			    &rsikey.in_handle, &rsikey.in_token);
-	if (ret)
-		return ret;
+	if (dup_netobj(&rsikey.in_handle, &gc->gc_ctx))
+		return SVC_CLOSE;
+	if (svc_safe_getnetobj(argv, &tmpobj)) {
+		kfree(rsikey.in_handle.data);
+		return SVC_DENIED;
+	}
+	if (dup_netobj(&rsikey.in_token, &tmpobj)) {
+		kfree(rsikey.in_handle.data);
+		return SVC_CLOSE;
+	}
 
 	/* Perform upcall, or find upcall result: */
 	rsip = rsi_lookup(sn->rsi_cache, &rsikey);
