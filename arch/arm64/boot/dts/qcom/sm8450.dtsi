@@ -763,7 +763,7 @@
 		gpi_dma2: dma-controller@800000 {
 			compatible = "qcom,sm8450-gpi-dma", "qcom,sm6350-gpi-dma";
 			#dma-cells = <3>;
-			reg = <0 0x800000 0 0x60000>;
+			reg = <0 0x00800000 0 0x60000>;
 			interrupts = <GIC_SPI 588 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 589 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 590 IRQ_TYPE_LEVEL_HIGH>,
@@ -1084,7 +1084,7 @@
 		gpi_dma0: dma-controller@900000 {
 			compatible = "qcom,sm8450-gpi-dma", "qcom,sm6350-gpi-dma";
 			#dma-cells = <3>;
-			reg = <0 0x900000 0 0x60000>;
+			reg = <0 0x00900000 0 0x60000>;
 			interrupts = <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>,
@@ -1365,7 +1365,7 @@
 
 			i2c6: i2c@998000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0x0 0x998000 0x0 0x4000>;
+				reg = <0x0 0x00998000 0x0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S6_CLK>;
 				pinctrl-names = "default";
@@ -1385,7 +1385,7 @@
 
 			spi6: spi@998000 {
 				compatible = "qcom,geni-spi";
-				reg = <0x0 0x998000 0x0 0x4000>;
+				reg = <0x0 0x00998000 0x0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S6_CLK>;
 				interrupts = <GIC_SPI 607 IRQ_TYPE_LEVEL_HIGH>;
@@ -1420,7 +1420,7 @@
 		gpi_dma1: dma-controller@a00000 {
 			compatible = "qcom,sm8450-gpi-dma", "qcom,sm6350-gpi-dma";
 			#dma-cells = <3>;
-			reg = <0 0xa00000 0 0x60000>;
+			reg = <0 0x00a00000 0 0x60000>;
 			interrupts = <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>,
@@ -1834,10 +1834,10 @@
 			status = "disabled";
 
 			pcie0_lane: phy@1c06200 {
-				reg = <0 0x1c06e00 0 0x200>, /* tx */
-				      <0 0x1c07000 0 0x200>, /* rx */
-				      <0 0x1c06200 0 0x200>, /* pcs */
-				      <0 0x1c06600 0 0x200>; /* pcs_pcie */
+				reg = <0 0x01c06e00 0 0x200>, /* tx */
+				      <0 0x01c07000 0 0x200>, /* rx */
+				      <0 0x01c06200 0 0x200>, /* pcs */
+				      <0 0x01c06600 0 0x200>; /* pcs_pcie */
 				clocks = <&gcc GCC_PCIE_0_PIPE_CLK>;
 				clock-names = "pipe0";
 
@@ -1945,12 +1945,12 @@
 			status = "disabled";
 
 			pcie1_lane: phy@1c0e000 {
-				reg = <0 0x1c0e000 0 0x200>, /* tx */
-				      <0 0x1c0e200 0 0x300>, /* rx */
-				      <0 0x1c0f200 0 0x200>, /* pcs */
-				      <0 0x1c0e800 0 0x200>, /* tx */
-				      <0 0x1c0ea00 0 0x300>, /* rx */
-				      <0 0x1c0f400 0 0xc00>; /* pcs_pcie */
+				reg = <0 0x01c0e000 0 0x200>, /* tx */
+				      <0 0x01c0e200 0 0x300>, /* rx */
+				      <0 0x01c0f200 0 0x200>, /* pcs */
+				      <0 0x01c0e800 0 0x200>, /* tx */
+				      <0 0x01c0ea00 0 0x300>, /* rx */
+				      <0 0x01c0f400 0 0xc00>; /* pcs_pcie */
 				clocks = <&gcc GCC_PCIE_1_PIPE_CLK>;
 				clock-names = "pipe0";
 
@@ -2181,7 +2181,7 @@
 
 		rxmacro: codec@3200000 {
 			compatible = "qcom,sm8450-lpass-rx-macro";
-			reg = <0 0x3200000 0 0x1000>;
+			reg = <0 0x03200000 0 0x1000>;
 			clocks = <&q6prmcc LPASS_CLK_ID_RX_CORE_TX_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
 				 <&q6prmcc LPASS_CLK_ID_RX_CORE_MCLK2_2X_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
 				 <&q6prmcc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
@@ -2202,7 +2202,7 @@
 
 		swr1: soundwire-controller@3210000 {
 			compatible = "qcom,soundwire-v1.7.0";
-			reg = <0 0x3210000 0 0x2000>;
+			reg = <0 0x03210000 0 0x2000>;
 			interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rxmacro>;
 			clock-names = "iface";
@@ -2228,7 +2228,7 @@
 
 		txmacro: codec@3220000 {
 			compatible = "qcom,sm8450-lpass-tx-macro";
-			reg = <0 0x3220000 0 0x1000>;
+			reg = <0 0x03220000 0 0x1000>;
 			clocks = <&q6prmcc LPASS_CLK_ID_RX_CORE_TX_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
 				 <&q6prmcc LPASS_CLK_ID_RX_CORE_MCLK2_2X_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
 				 <&q6prmcc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
@@ -2296,7 +2296,7 @@
 
 		swr2: soundwire-controller@33b0000 {
 			compatible = "qcom,soundwire-v1.7.0";
-			reg = <0 0x33b0000 0 0x2000>;
+			reg = <0 0x033b0000 0 0x2000>;
 			interrupts-extended = <&intc GIC_SPI 496 IRQ_TYPE_LEVEL_HIGH>,
 					      <&intc GIC_SPI 520 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "core", "wakeup";
@@ -2593,7 +2593,7 @@
 
 		cci0: cci@ac15000 {
 			compatible = "qcom,sm8450-cci", "qcom,msm8996-cci";
-			reg = <0 0xac15000 0 0x1000>;
+			reg = <0 0x0ac15000 0 0x1000>;
 			interrupts = <GIC_SPI 460 IRQ_TYPE_EDGE_RISING>;
 			power-domains = <&camcc TITAN_TOP_GDSC>;
 
@@ -2632,7 +2632,7 @@
 
 		cci1: cci@ac16000 {
 			compatible = "qcom,sm8450-cci", "qcom,msm8996-cci";
-			reg = <0 0xac16000 0 0x1000>;
+			reg = <0 0x0ac16000 0 0x1000>;
 			interrupts = <GIC_SPI 271 IRQ_TYPE_EDGE_RISING>;
 			power-domains = <&camcc TITAN_TOP_GDSC>;
 
@@ -3572,8 +3572,8 @@
 
 		lpass_tlmm: pinctrl@3440000 {
 			compatible = "qcom,sm8450-lpass-lpi-pinctrl";
-			reg = <0 0x3440000 0x0 0x20000>,
-			      <0 0x34d0000 0x0 0x10000>;
+			reg = <0 0x03440000 0x0 0x20000>,
+			      <0 0x034d0000 0x0 0x10000>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-ranges = <&lpass_tlmm 0 0 23>;
@@ -4165,7 +4165,7 @@
 
 		lpass_ag_noc: interconnect@3c40000 {
 			compatible = "qcom,sm8450-lpass-ag-noc";
-			reg = <0 0x3c40000 0 0x17200>;
+			reg = <0 0x03c40000 0 0x17200>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
