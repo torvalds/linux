@@ -702,7 +702,7 @@
 
 		qupv3_id_0: geniqup@8c0000 {
 			compatible = "qcom,geni-se-qup";
-			reg = <0x0 0x8c0000 0x0 0x2000>;
+			reg = <0x0 0x008c0000 0x0 0x2000>;
 			clock-names = "m-ahb", "s-ahb";
 			clocks = <&gcc GCC_QUPV3_WRAP_0_M_AHB_CLK>,
 				 <&gcc GCC_QUPV3_WRAP_0_S_AHB_CLK>;
@@ -775,7 +775,7 @@
 
 		qupv3_id_1: geniqup@9c0000 {
 			compatible = "qcom,geni-se-qup";
-			reg = <0x0 0x9c0000 0x0 0x2000>;
+			reg = <0x0 0x009c0000 0x0 0x2000>;
 			clock-names = "m-ahb", "s-ahb";
 			clocks = <&gcc GCC_QUPV3_WRAP_1_M_AHB_CLK>,
 				 <&gcc GCC_QUPV3_WRAP_1_S_AHB_CLK>;
@@ -847,7 +847,7 @@
 
 			uart9: serial@98c000 {
 				compatible = "qcom,geni-debug-uart";
-				reg = <0 0x98c000 0 0x4000>;
+				reg = <0 0x0098c000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S3_CLK>;
 				pinctrl-names = "default";
@@ -1479,11 +1479,11 @@
 
 		spmi_bus: spmi@c440000 {
 			compatible = "qcom,spmi-pmic-arb";
-			reg = <0 0xc440000 0 0x1100>,
-			      <0 0xc600000 0 0x2000000>,
-			      <0 0xe600000 0 0x100000>,
-			      <0 0xe700000 0 0xa0000>,
-			      <0 0xc40a000 0 0x26000>;
+			reg = <0 0x0c440000 0 0x1100>,
+			      <0 0x0c600000 0 0x2000000>,
+			      <0 0x0e600000 0 0x100000>,
+			      <0 0x0e700000 0 0xa0000>,
+			      <0 0x0c40a000 0 0x26000>;
 			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
 			interrupt-names = "periph_irq";
 			interrupts-extended = <&pdc 1 IRQ_TYPE_LEVEL_HIGH>;
