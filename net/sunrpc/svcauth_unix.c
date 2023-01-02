@@ -729,23 +729,41 @@ out:
 
 EXPORT_SYMBOL_GPL(svcauth_unix_set_client);
 
+/**
+ * svcauth_null_accept - Decode and validate incoming RPC_AUTH_NULL credential
+ * @rqstp: RPC transaction
+ *
+ * Return values:
+ *   %SVC_OK: Both credential and verifier are valid
+ *   %SVC_DENIED: Credential or verifier is not valid
+ *   %SVC_GARBAGE: Failed to decode credential or verifier
+ *   %SVC_CLOSE: Temporary failure
+ *
+ * rqstp->rq_auth_stat is set as mandated by RFC 5531.
+ */
 static int
 svcauth_null_accept(struct svc_rqst *rqstp)
 {
-	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct svc_cred	*cred = &rqstp->rq_cred;
+	u32 flavor, len;
+	void *body;
 
-	if (argv->iov_len < 3*4)
+	svcxdr_init_decode(rqstp);
+
+	/* Length of Call's credential body field: */
+	if (xdr_stream_decode_u32(xdr, &len) < 0)
 		return SVC_GARBAGE;
-
-	if (svc_getu32(argv) != 0) {
-		dprintk("svc: bad null cred\n");
+	if (len != 0) {
 		rqstp->rq_auth_stat = rpc_autherr_badcred;
 		return SVC_DENIED;
 	}
-	if (svc_getu32(argv) != htonl(RPC_AUTH_NULL) || svc_getu32(argv) != 0) {
-		dprintk("svc: bad null verf\n");
+
+	/* Call's verf field: */
+	if (xdr_stream_decode_opaque_auth(xdr, &flavor, &body, &len) < 0)
+		return SVC_GARBAGE;
+	if (flavor != RPC_AUTH_NULL || len != 0) {
 		rqstp->rq_auth_stat = rpc_autherr_badverf;
 		return SVC_DENIED;
 	}
@@ -762,7 +780,6 @@ svcauth_null_accept(struct svc_rqst *rqstp)
 	svc_putnl(resv, 0);
 
 	rqstp->rq_cred.cr_flavor = RPC_AUTH_NULL;
-	svcxdr_init_decode(rqstp);
 	return SVC_OK;
 }
 
