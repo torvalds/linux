@@ -119,47 +119,109 @@ static unsigned long long get_mmap_min_addr(void)
 }
 
 /*
+ * Using /proc/self/maps, assert that the specified address range is contained
+ * within a single mapping.
+ */
+static bool is_range_mapped(FILE *maps_fp, void *start, void *end)
+{
+	char *line = NULL;
+	size_t len = 0;
+	bool success = false;
+
+	rewind(maps_fp);
+
+	while (getline(&line, &len, maps_fp) != -1) {
+		char *first = strtok(line, "- ");
+		void *first_val = (void *)strtol(first, NULL, 16);
+		char *second = strtok(NULL, "- ");
+		void *second_val = (void *) strtol(second, NULL, 16);
+
+		if (first_val <= start && second_val >= end) {
+			success = true;
+			break;
+		}
+	}
+
+	return success;
+}
+
+/*
  * This test validates that merge is called when expanding a mapping.
  * Mapping containing three pages is created, middle page is unmapped
  * and then the mapping containing the first page is expanded so that
  * it fills the created hole. The two parts should merge creating
  * single mapping with three pages.
  */
-static void mremap_expand_merge(unsigned long page_size)
+static void mremap_expand_merge(FILE *maps_fp, unsigned long page_size)
 {
 	char *test_name = "mremap expand merge";
-	FILE *fp;
-	char *line = NULL;
-	size_t len = 0;
 	bool success = false;
-	char *start = mmap(NULL, 3 * page_size, PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	char *remap, *start;
+
+	start = mmap(NULL, 3 * page_size, PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	if (start == MAP_FAILED) {
+		ksft_print_msg("mmap failed: %s\n", strerror(errno));
+		goto out;
+	}
 
 	munmap(start + page_size, page_size);
-	mremap(start, page_size, 2 * page_size, 0);
-
-	fp = fopen("/proc/self/maps", "r");
-	if (fp == NULL) {
-		ksft_test_result_fail("%s\n", test_name);
-		return;
+	remap = mremap(start, page_size, 2 * page_size, 0);
+	if (remap == MAP_FAILED) {
+		ksft_print_msg("mremap failed: %s\n", strerror(errno));
+		munmap(start, page_size);
+		munmap(start + 2 * page_size, page_size);
+		goto out;
 	}
 
-	while (getline(&line, &len, fp) != -1) {
-		char *first = strtok(line, "- ");
-		void *first_val = (void *)strtol(first, NULL, 16);
-		char *second = strtok(NULL, "- ");
-		void *second_val = (void *) strtol(second, NULL, 16);
+	success = is_range_mapped(maps_fp, start, start + 3 * page_size);
+	munmap(start, 3 * page_size);
 
-		if (first_val == start && second_val == start + 3 * page_size) {
-			success = true;
-			break;
-		}
-	}
+out:
 	if (success)
 		ksft_test_result_pass("%s\n", test_name);
 	else
 		ksft_test_result_fail("%s\n", test_name);
-	fclose(fp);
+}
+
+/*
+ * Similar to mremap_expand_merge() except instead of removing the middle page,
+ * we remove the last then attempt to remap offset from the second page. This
+ * should result in the mapping being restored to its former state.
+ */
+static void mremap_expand_merge_offset(FILE *maps_fp, unsigned long page_size)
+{
+
+	char *test_name = "mremap expand merge offset";
+	bool success = false;
+	char *remap, *start;
+
+	start = mmap(NULL, 3 * page_size, PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	if (start == MAP_FAILED) {
+		ksft_print_msg("mmap failed: %s\n", strerror(errno));
+		goto out;
+	}
+
+	/* Unmap final page to ensure we have space to expand. */
+	munmap(start + 2 * page_size, page_size);
+	remap = mremap(start + page_size, page_size, 2 * page_size, 0);
+	if (remap == MAP_FAILED) {
+		ksft_print_msg("mremap failed: %s\n", strerror(errno));
+		munmap(start, 2 * page_size);
+		goto out;
+	}
+
+	success = is_range_mapped(maps_fp, start, start + 3 * page_size);
+	munmap(start, 3 * page_size);
+
+out:
+	if (success)
+		ksft_test_result_pass("%s\n", test_name);
+	else
+		ksft_test_result_fail("%s\n", test_name);
 }
 
 /*
@@ -380,11 +442,12 @@ int main(int argc, char **argv)
 	int i, run_perf_tests;
 	unsigned int threshold_mb = VALIDATION_DEFAULT_THRESHOLD;
 	unsigned int pattern_seed;
-	int num_expand_tests = 1;
+	int num_expand_tests = 2;
 	struct test test_cases[MAX_TEST];
 	struct test perf_test_cases[MAX_PERF_TEST];
 	int page_size;
 	time_t t;
+	FILE *maps_fp;
 
 	pattern_seed = (unsigned int) time(&t);
 
@@ -458,7 +521,17 @@ int main(int argc, char **argv)
 		run_mremap_test_case(test_cases[i], &failures, threshold_mb,
 				     pattern_seed);
 
-	mremap_expand_merge(page_size);
+	maps_fp = fopen("/proc/self/maps", "r");
+
+	if (maps_fp == NULL) {
+		ksft_print_msg("Failed to read /proc/self/maps: %s\n", strerror(errno));
+		exit(KSFT_FAIL);
+	}
+
+	mremap_expand_merge(maps_fp, page_size);
+	mremap_expand_merge_offset(maps_fp, page_size);
+
+	fclose(maps_fp);
 
 	if (run_perf_tests) {
 		ksft_print_msg("\n%s\n",
