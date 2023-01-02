@@ -11343,8 +11343,8 @@ void sched_mm_cid_after_execve(struct task_struct *t)
 	struct mm_struct *mm = t->mm;
 	unsigned long flags;
 
-	WARN_ON_ONCE((t->flags & PF_KTHREAD) || !t->mm);
-
+	if (!mm)
+		return;
 	local_irq_save(flags);
 	t->mm_cid = mm_cid_get(mm);
 	t->mm_cid_active = 1;
@@ -11354,7 +11354,7 @@ void sched_mm_cid_after_execve(struct task_struct *t)
 
 void sched_mm_cid_fork(struct task_struct *t)
 {
-	WARN_ON_ONCE((t->flags & PF_KTHREAD) || !t->mm || t->mm_cid != -1);
+	WARN_ON_ONCE(!t->mm || t->mm_cid != -1);
 	t->mm_cid_active = 1;
 }
 #endif
