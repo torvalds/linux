@@ -32,6 +32,21 @@ struct convert_to_rgb565_result {
 	const u16 expected_swab[TEST_BUF_SIZE];
 };
 
+struct convert_to_xrgb1555_result {
+	unsigned int dst_pitch;
+	const u16 expected[TEST_BUF_SIZE];
+};
+
+struct convert_to_argb1555_result {
+	unsigned int dst_pitch;
+	const u16 expected[TEST_BUF_SIZE];
+};
+
+struct convert_to_rgba5551_result {
+	unsigned int dst_pitch;
+	const u16 expected[TEST_BUF_SIZE];
+};
+
 struct convert_to_rgb888_result {
 	unsigned int dst_pitch;
 	const u8 expected[TEST_BUF_SIZE];
@@ -60,6 +75,9 @@ struct convert_xrgb8888_case {
 	struct convert_to_gray8_result gray8_result;
 	struct convert_to_rgb332_result rgb332_result;
 	struct convert_to_rgb565_result rgb565_result;
+	struct convert_to_xrgb1555_result xrgb1555_result;
+	struct convert_to_argb1555_result argb1555_result;
+	struct convert_to_rgba5551_result rgba5551_result;
 	struct convert_to_rgb888_result rgb888_result;
 	struct convert_to_argb8888_result argb8888_result;
 	struct convert_to_xrgb2101010_result xrgb2101010_result;
@@ -84,6 +102,18 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 			.dst_pitch = 0,
 			.expected = { 0xF800 },
 			.expected_swab = { 0x00F8 },
+		},
+		.xrgb1555_result = {
+			.dst_pitch = 0,
+			.expected = { 0x7C00 },
+		},
+		.argb1555_result = {
+			.dst_pitch = 0,
+			.expected = { 0xFC00 },
+		},
+		.rgba5551_result = {
+			.dst_pitch = 0,
+			.expected = { 0xF801 },
 		},
 		.rgb888_result = {
 			.dst_pitch = 0,
@@ -122,6 +152,18 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 			.dst_pitch = 0,
 			.expected = { 0xF800 },
 			.expected_swab = { 0x00F8 },
+		},
+		.xrgb1555_result = {
+			.dst_pitch = 0,
+			.expected = { 0x7C00 },
+		},
+		.argb1555_result = {
+			.dst_pitch = 0,
+			.expected = { 0xFC00 },
+		},
+		.rgba5551_result = {
+			.dst_pitch = 0,
+			.expected = { 0xF801 },
 		},
 		.rgb888_result = {
 			.dst_pitch = 0,
@@ -186,6 +228,33 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 				0x00F8, 0xE007,
 				0x1F00, 0x1FF8,
 				0xE0FF, 0xFF07,
+			},
+		},
+		.xrgb1555_result = {
+			.dst_pitch = 0,
+			.expected = {
+				0x7FFF, 0x0000,
+				0x7C00, 0x03E0,
+				0x001F, 0x7C1F,
+				0x7FE0, 0x03FF,
+			},
+		},
+		.argb1555_result = {
+			.dst_pitch = 0,
+			.expected = {
+				0xFFFF, 0x8000,
+				0xFC00, 0x83E0,
+				0x801F, 0xFC1F,
+				0xFFE0, 0x83FF,
+			},
+		},
+		.rgba5551_result = {
+			.dst_pitch = 0,
+			.expected = {
+				0xFFFF, 0x0001,
+				0xF801, 0x07C1,
+				0x003F, 0xF83F,
+				0xFFC1, 0x07FF,
 			},
 		},
 		.rgb888_result = {
@@ -262,6 +331,30 @@ static struct convert_xrgb8888_case convert_xrgb8888_cases[] = {
 				0x330A, 0x6012, 0x00A8, 0x0000, 0x0000,
 				0x8E6B, 0x330A, 0x6012, 0x0000, 0x0000,
 				0x00A8, 0x8E6B, 0x330A, 0x0000, 0x0000,
+			},
+		},
+		.xrgb1555_result = {
+			.dst_pitch = 10,
+			.expected = {
+				0x0513, 0x0920, 0x5400, 0x0000, 0x0000,
+				0x35CE, 0x0513, 0x0920, 0x0000, 0x0000,
+				0x5400, 0x35CE, 0x0513, 0x0000, 0x0000,
+			},
+		},
+		.argb1555_result = {
+			.dst_pitch = 10,
+			.expected = {
+				0x8513, 0x8920, 0xD400, 0x0000, 0x0000,
+				0xB5CE, 0x8513, 0x8920, 0x0000, 0x0000,
+				0xD400, 0xB5CE, 0x8513, 0x0000, 0x0000,
+			},
+		},
+		.rgba5551_result = {
+			.dst_pitch = 10,
+			.expected = {
+				0x0A27, 0x1241, 0xA801, 0x0000, 0x0000,
+				0x6B9D, 0x0A27, 0x1241, 0x0000, 0x0000,
+				0xA801, 0x6B9D, 0x0A27, 0x0000, 0x0000,
 			},
 		},
 		.rgb888_result = {
@@ -476,6 +569,99 @@ static void drm_test_fb_xrgb8888_to_rgb565(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, memcmp(buf, result->expected_swab, dst_size), 0);
 }
 
+static void drm_test_fb_xrgb8888_to_xrgb1555(struct kunit *test)
+{
+	const struct convert_xrgb8888_case *params = test->param_value;
+	const struct convert_to_xrgb1555_result *result = &params->xrgb1555_result;
+	size_t dst_size;
+	u16 *buf = NULL;
+	__le32 *xrgb8888 = NULL;
+	struct iosys_map dst, src;
+
+	struct drm_framebuffer fb = {
+		.format = drm_format_info(DRM_FORMAT_XRGB8888),
+		.pitches = { params->pitch, 0, 0 },
+	};
+
+	dst_size = conversion_buf_size(DRM_FORMAT_XRGB1555, result->dst_pitch,
+				       &params->clip);
+	KUNIT_ASSERT_GT(test, dst_size, 0);
+
+	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	iosys_map_set_vaddr(&dst, buf);
+
+	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	iosys_map_set_vaddr(&src, xrgb8888);
+
+	drm_fb_xrgb8888_to_xrgb1555(&dst, &result->dst_pitch, &src, &fb, &params->clip);
+	buf = le16buf_to_cpu(test, (__force const __le16 *)buf, dst_size / sizeof(__le16));
+	KUNIT_EXPECT_EQ(test, memcmp(buf, result->expected, dst_size), 0);
+}
+
+static void drm_test_fb_xrgb8888_to_argb1555(struct kunit *test)
+{
+	const struct convert_xrgb8888_case *params = test->param_value;
+	const struct convert_to_argb1555_result *result = &params->argb1555_result;
+	size_t dst_size;
+	u16 *buf = NULL;
+	__le32 *xrgb8888 = NULL;
+	struct iosys_map dst, src;
+
+	struct drm_framebuffer fb = {
+		.format = drm_format_info(DRM_FORMAT_XRGB8888),
+		.pitches = { params->pitch, 0, 0 },
+	};
+
+	dst_size = conversion_buf_size(DRM_FORMAT_ARGB1555, result->dst_pitch,
+				       &params->clip);
+	KUNIT_ASSERT_GT(test, dst_size, 0);
+
+	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	iosys_map_set_vaddr(&dst, buf);
+
+	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	iosys_map_set_vaddr(&src, xrgb8888);
+
+	drm_fb_xrgb8888_to_argb1555(&dst, &result->dst_pitch, &src, &fb, &params->clip);
+	buf = le16buf_to_cpu(test, (__force const __le16 *)buf, dst_size / sizeof(__le16));
+	KUNIT_EXPECT_EQ(test, memcmp(buf, result->expected, dst_size), 0);
+}
+
+static void drm_test_fb_xrgb8888_to_rgba5551(struct kunit *test)
+{
+	const struct convert_xrgb8888_case *params = test->param_value;
+	const struct convert_to_rgba5551_result *result = &params->rgba5551_result;
+	size_t dst_size;
+	u16 *buf = NULL;
+	__le32 *xrgb8888 = NULL;
+	struct iosys_map dst, src;
+
+	struct drm_framebuffer fb = {
+		.format = drm_format_info(DRM_FORMAT_XRGB8888),
+		.pitches = { params->pitch, 0, 0 },
+	};
+
+	dst_size = conversion_buf_size(DRM_FORMAT_RGBA5551, result->dst_pitch,
+				       &params->clip);
+	KUNIT_ASSERT_GT(test, dst_size, 0);
+
+	buf = kunit_kzalloc(test, dst_size, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	iosys_map_set_vaddr(&dst, buf);
+
+	xrgb8888 = cpubuf_to_le32(test, params->xrgb8888, TEST_BUF_SIZE);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xrgb8888);
+	iosys_map_set_vaddr(&src, xrgb8888);
+
+	drm_fb_xrgb8888_to_rgba5551(&dst, &result->dst_pitch, &src, &fb, &params->clip);
+	buf = le16buf_to_cpu(test, (__force const __le16 *)buf, dst_size / sizeof(__le16));
+	KUNIT_EXPECT_EQ(test, memcmp(buf, result->expected, dst_size), 0);
+}
+
 static void drm_test_fb_xrgb8888_to_rgb888(struct kunit *test)
 {
 	const struct convert_xrgb8888_case *params = test->param_value;
@@ -607,6 +793,9 @@ static struct kunit_case drm_format_helper_test_cases[] = {
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_gray8, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_rgb332, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_rgb565, convert_xrgb8888_gen_params),
+	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_xrgb1555, convert_xrgb8888_gen_params),
+	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_argb1555, convert_xrgb8888_gen_params),
+	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_rgba5551, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_rgb888, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_argb8888, convert_xrgb8888_gen_params),
 	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_xrgb2101010, convert_xrgb8888_gen_params),
