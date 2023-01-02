@@ -173,6 +173,7 @@ properties:
               - kiebackpeter,imx53-ddc        # K+P imx53 DDC
               - kiebackpeter,imx53-hsc        # K+P imx53 HSC
               - menlo,m53menlo                # i.MX53 Menlo board
+              - starterkit,sk-imx53
               - voipac,imx53-dmm-668          # Voipac i.MX53 X53-DMM-668
           - const: fsl,imx53
 
