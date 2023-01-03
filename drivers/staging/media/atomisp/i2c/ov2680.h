@@ -120,6 +120,8 @@
 #define OV2680_MWB_BLUE_GAIN_H			0x5008/*0x3404*/
 #define OV2680_MWB_GAIN_MAX				0x0fff
 
+#define OV2680_REG_ISP_CTRL00			0x5080
+
 #define OV2680_START_STREAMING			0x01
 #define OV2680_STOP_STREAMING			0x00
 
@@ -171,6 +173,7 @@ struct ov2680_device {
 		struct v4l2_ctrl *vflip;
 		struct v4l2_ctrl *exposure;
 		struct v4l2_ctrl *gain;
+		struct v4l2_ctrl *test_pattern;
 	} ctrls;
 };
 

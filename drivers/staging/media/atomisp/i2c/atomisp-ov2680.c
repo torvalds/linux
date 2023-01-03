@@ -125,6 +125,24 @@ static int ov2680_gain_set(struct ov2680_device *sensor, u32 gain)
 	return ov_write_reg16(sensor->client, OV2680_REG_GAIN_PK, gain);
 }
 
+static int ov2680_test_pattern_set(struct ov2680_device *sensor, int value)
+{
+	int ret;
+
+	if (!value)
+		return ov_update_reg(sensor->client, OV2680_REG_ISP_CTRL00, BIT(7), 0);
+
+	ret = ov_update_reg(sensor->client, OV2680_REG_ISP_CTRL00, 0x03, value - 1);
+	if (ret < 0)
+		return ret;
+
+	ret = ov_update_reg(sensor->client, OV2680_REG_ISP_CTRL00, BIT(7), BIT(7));
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int ov2680_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
@@ -148,6 +166,9 @@ static int ov2680_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_GAIN:
 		ret = ov2680_gain_set(sensor, ctrl->val);
+		break;
+	case V4L2_CID_TEST_PATTERN:
+		ret = ov2680_test_pattern_set(sensor, ctrl->val);
 		break;
 	default:
 		ret = -EINVAL;
@@ -637,6 +658,13 @@ static const struct v4l2_subdev_ops ov2680_ops = {
 
 static int ov2680_init_controls(struct ov2680_device *sensor)
 {
+	static const char * const test_pattern_menu[] = {
+		"Disabled",
+		"Color Bars",
+		"Random Data",
+		"Square",
+		"Black Image",
+	};
 	const struct v4l2_ctrl_ops *ops = &ov2680_ctrl_ops;
 	struct ov2680_ctrls *ctrls = &sensor->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
@@ -651,6 +679,11 @@ static int ov2680_init_controls(struct ov2680_device *sensor)
 	ctrls->exposure = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE,
 					    0, exp_max, 1, exp_max);
 	ctrls->gain = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_GAIN, 0, 1023, 1, 250);
+	ctrls->test_pattern =
+		v4l2_ctrl_new_std_menu_items(hdl,
+					     &ov2680_ctrl_ops, V4L2_CID_TEST_PATTERN,
+					     ARRAY_SIZE(test_pattern_menu) - 1,
+					     0, 0, test_pattern_menu);
 
 	ctrls->hflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 	ctrls->vflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
