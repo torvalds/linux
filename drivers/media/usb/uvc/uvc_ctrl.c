@@ -2286,32 +2286,30 @@ static int __uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 	unsigned int i;
 
 	/*
-	 * Most mappings come from static kernel data and need to be duplicated.
+	 * Most mappings come from static kernel data, and need to be duplicated.
 	 * Mappings that come from userspace will be unnecessarily duplicated,
 	 * this could be optimized.
 	 */
 	map = kmemdup(mapping, sizeof(*mapping), GFP_KERNEL);
-	if (map == NULL)
+	if (!map)
 		return -ENOMEM;
+
+	map->name = NULL;
+	map->menu_info = NULL;
 
 	/* For UVCIOC_CTRL_MAP custom control */
 	if (mapping->name) {
 		map->name = kstrdup(mapping->name, GFP_KERNEL);
-		if (!map->name) {
-			kfree(map);
-			return -ENOMEM;
-		}
+		if (!map->name)
+			goto err_nomem;
 	}
 
 	INIT_LIST_HEAD(&map->ev_subs);
 
 	size = sizeof(*mapping->menu_info) * mapping->menu_count;
 	map->menu_info = kmemdup(mapping->menu_info, size, GFP_KERNEL);
-	if (map->menu_info == NULL) {
-		kfree(map->name);
-		kfree(map);
-		return -ENOMEM;
-	}
+	if (!map->menu_info)
+		goto err_nomem;
 
 	if (map->get == NULL)
 		map->get = uvc_get_le_value;
@@ -2332,6 +2330,12 @@ static int __uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 		ctrl->info.selector);
 
 	return 0;
+
+err_nomem:
+	kfree(map->menu_info);
+	kfree(map->name);
+	kfree(map);
+	return -ENOMEM;
 }
 
 int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
