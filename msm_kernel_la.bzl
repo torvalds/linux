@@ -184,7 +184,8 @@ def _define_image_build(
         build_system_dlkm = True,
         boot_image_outs = None,
         dtbo_list = [],
-        vendor_ramdisk_binaries = None):
+        vendor_ramdisk_binaries = None,
+        in_tree_module_list = []):
     """Creates a `kernel_images` target which will generate bootable device images
 
     Args:
@@ -202,6 +203,19 @@ def _define_image_build(
       dtbo_list: list of device tree overlay blobs to be built into `dtbo.img`
       vendor_ramdisk_binaries: ramdisk binaries (cpio archives)
     """
+
+    # Generate the vendor_dlkm list
+    native.genrule(
+        name = "{}_vendor_dlkm_modules_list_generated".format(target),
+        srcs = [],
+        outs = ["modules.list.vendor_dlkm.{}".format(target)],
+        cmd_bash = """
+          for module in {mod_list}; do
+            basename "$$module" >> "$@"
+          done
+        """.format(mod_list = " ".join(in_tree_module_list))
+    )
+
     kernel_images(
         name = "{}_images".format(target),
         kernel_modules_install = ":{}_modules_install".format(target),
@@ -216,6 +230,8 @@ def _define_image_build(
         build_system_dlkm = build_system_dlkm,
         modules_list = "modules.list.msm.{}".format(msm_target),
         system_dlkm_modules_list = "android/gki_system_dlkm_modules",
+        vendor_dlkm_modules_list = ":{}_vendor_dlkm_modules_list_generated".format(target),
+        system_dlkm_modules_blocklist = "modules.systemdlkm_blocklist.msm.{}".format(msm_target),
         vendor_dlkm_modules_blocklist = "modules.vendor_blocklist.msm.{}".format(msm_target),
         dtbo_srcs = [":{}/".format(target) + d for d in dtbo_list] if dtbo_list else None,
         vendor_ramdisk_binaries = vendor_ramdisk_binaries,
@@ -223,6 +239,7 @@ def _define_image_build(
         deps = [
             "modules.list.msm.{}".format(msm_target),
             "modules.vendor_blocklist.msm.{}".format(msm_target),
+            "modules.systemdlkm_blocklist.msm.{}".format(msm_target),
             "android/gki_system_dlkm_modules",
         ],
     )
@@ -376,6 +393,7 @@ def define_msm_la(
         dtbo_list = dtbo_list,
         vendor_ramdisk_binaries = vendor_ramdisk_binaries,
         boot_image_outs = None if dtb_list else ["boot.img"],
+        in_tree_module_list = in_tree_module_list,
     )
 
     _define_kernel_dist(target, base_kernel)
