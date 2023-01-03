@@ -44,4 +44,15 @@ void mlx5_devlink_free(struct devlink *devlink);
 int mlx5_devlink_params_register(struct devlink *devlink);
 void mlx5_devlink_params_unregister(struct devlink *devlink);
 
+static inline bool mlx5_core_is_eth_enabled(struct mlx5_core_dev *dev)
+{
+	union devlink_param_value val;
+	int err;
+
+	err = devl_param_driverinit_value_get(priv_to_devlink(dev),
+					      DEVLINK_PARAM_GENERIC_ID_ENABLE_ETH,
+					      &val);
+	return err ? false : val.vbool;
+}
+
 #endif /* __MLX5_DEVLINK_H__ */

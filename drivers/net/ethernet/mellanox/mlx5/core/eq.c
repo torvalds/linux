@@ -1120,6 +1120,13 @@ static int get_num_eqs(struct mlx5_core_dev *dev)
 	int max_eqs_sf;
 	int num_eqs;
 
+	/* If ethernet is disabled we use just a single completion vector to
+	 * have the other vectors available for other drivers using mlx5_core. For
+	 * example, mlx5_vdpa
+	 */
+	if (!mlx5_core_is_eth_enabled(dev) && mlx5_eth_supported(dev))
+		return 1;
+
 	max_dev_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
 		      MLX5_CAP_GEN(dev, max_num_eqs) :
 		      1 << MLX5_CAP_GEN(dev, log_max_eq);
