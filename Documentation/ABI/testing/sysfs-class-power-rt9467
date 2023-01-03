@@ -1,0 +1,19 @@
+What:		/sys/class/power_supply/rt9467-*/sysoff_enable
+Date:		Feb 2023
+KernelVersion:	6.3
+Contact:	ChiaEn Wu <chiaen_wu@richtek.com>
+Description:
+		This entry allows enabling the sysoff mode of rt9467 charger
+		devices.
+		If enabled and the input is removed, the internal battery FET
+		is turned off to reduce the leakage from the BAT pin. See
+		device datasheet for details. It's commonly used when the
+		product enter shipping stage. After entering shipping mode,
+		only 'VBUS' or 'Power key" pressed can make it leave this mode.
+		'Disable' also can help to leave it, but it's more like to
+		abort the action before the device really enter shipping mode.
+
+		Access: Read, Write
+		Valid values:
+		- 1: enabled
+		- 0: disabled
