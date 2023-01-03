@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-# Makefile for vm selftests
+# Makefile for mm selftests
 
-LOCAL_HDRS += $(selfdir)/vm/local_config.h $(top_srcdir)/mm/gup_test.h
+LOCAL_HDRS += $(selfdir)/mm/local_config.h $(top_srcdir)/mm/gup_test.h
 
 include local_config.mk
 

@@ -221,7 +221,7 @@ Unit testing
 ============
 This file::
 
- tools/testing/selftests/vm/gup_test.c
+ tools/testing/selftests/mm/gup_test.c
 
 has the following new calls to exercise the new pin*() wrapper functions:
 

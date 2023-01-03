@@ -461,13 +461,13 @@ Examples
 .. _map_hugetlb:
 
 ``map_hugetlb``
-	see tools/testing/selftests/vm/map_hugetlb.c
+	see tools/testing/selftests/mm/map_hugetlb.c
 
 ``hugepage-shm``
-	see tools/testing/selftests/vm/hugepage-shm.c
+	see tools/testing/selftests/mm/hugepage-shm.c
 
 ``hugepage-mmap``
-	see tools/testing/selftests/vm/hugepage-mmap.c
+	see tools/testing/selftests/mm/hugepage-mmap.c
 
 The `libhugetlbfs`_  library provides a wide range of userspace tools
 to help with huge page usability, environment setup, and control.
