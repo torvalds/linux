@@ -17,7 +17,7 @@
 	compatible = "qcom,sc8280xp-crd", "qcom,sc8280xp";
 
 	aliases {
-		serial0 = &qup2_uart17;
+		serial0 = &uart17;
 	};
 
 	backlight: backlight {
@@ -436,12 +436,6 @@
 	};
 };
 
-&qup2_uart17 {
-	compatible = "qcom,geni-debug-uart";
-
-	status = "okay";
-};
-
 &remoteproc_adsp {
 	firmware-name = "qcom/sc8280xp/qcadsp8280.mbn";
 
@@ -450,6 +444,12 @@
 
 &remoteproc_nsp0 {
 	firmware-name = "qcom/sc8280xp/qccdsp8280.mbn";
+
+	status = "okay";
+};
+
+&uart17 {
+	compatible = "qcom,geni-debug-uart";
 
 	status = "okay";
 };
