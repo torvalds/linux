@@ -506,6 +506,21 @@ static long vhost_vdpa_suspend(struct vhost_vdpa *v)
 	return ops->suspend(vdpa);
 }
 
+/* After a successful return of this ioctl the device resumes processing
+ * virtqueue descriptors. The device becomes fully operational the same way it
+ * was before it was suspended.
+ */
+static long vhost_vdpa_resume(struct vhost_vdpa *v)
+{
+	struct vdpa_device *vdpa = v->vdpa;
+	const struct vdpa_config_ops *ops = vdpa->config;
+
+	if (!ops->resume)
+		return -EOPNOTSUPP;
+
+	return ops->resume(vdpa);
+}
+
 static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 				   void __user *argp)
 {
@@ -690,6 +705,9 @@ static long vhost_vdpa_unlocked_ioctl(struct file *filep,
 		break;
 	case VHOST_VDPA_SUSPEND:
 		r = vhost_vdpa_suspend(v);
+		break;
+	case VHOST_VDPA_RESUME:
+		r = vhost_vdpa_resume(v);
 		break;
 	default:
 		r = vhost_dev_ioctl(&v->vdev, cmd, argp);
