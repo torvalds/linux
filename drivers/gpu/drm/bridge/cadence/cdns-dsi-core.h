@@ -45,9 +45,29 @@ struct cdns_dsi_input {
 	struct drm_bridge bridge;
 };
 
+struct cdns_dsi;
+
+/**
+ * struct cdns_dsi_platform_ops - CDNS DSI Platform operations
+ * @init: Called in the CDNS DSI probe
+ * @deinit: Called in the CDNS DSI remove
+ * @enable: Called at the beginning of CDNS DSI bridge enable
+ * @disable: Called at the end of CDNS DSI bridge disable
+ */
+struct cdns_dsi_platform_ops {
+	int (*init)(struct cdns_dsi *dsi);
+	void (*deinit)(struct cdns_dsi *dsi);
+	void (*enable)(struct cdns_dsi *dsi);
+	void (*disable)(struct cdns_dsi *dsi);
+};
+
 struct cdns_dsi {
 	struct mipi_dsi_host base;
 	void __iomem *regs;
+#ifdef CONFIG_DRM_CDNS_DSI_J721E
+	void __iomem *j721e_regs;
+#endif
+	const struct cdns_dsi_platform_ops *platform_ops;
 	struct cdns_dsi_input input;
 	struct cdns_dsi_output output;
 	unsigned int direct_cmd_fifo_depth;
