@@ -1681,7 +1681,7 @@ struct rtw89_btc_fbtc_steps_v1 {
 	struct rtw89_btc_fbtc_step step[FCXMAX_STEP];
 } __packed;
 
-struct rtw89_btc_fbtc_cysta { /* statistics for cycles */
+struct rtw89_btc_fbtc_cysta_v2 { /* statistics for cycles */
 	u8 fver; /* btc_ver::fcxcysta */
 	u8 rsvd;
 	__le16 cycles; /* total cycle number */
@@ -1743,7 +1743,7 @@ struct rtw89_btc_fbtc_cycle_leak_info {
 	__le16 tmax; /* max leak-slot time */
 } __packed;
 
-struct rtw89_btc_fbtc_cysta_v1 { /* statistics for cycles */
+struct rtw89_btc_fbtc_cysta_v3 { /* statistics for cycles */
 	u8 fver;
 	u8 rsvd;
 	__le16 cycles; /* total cycle number */
@@ -1760,6 +1760,11 @@ struct rtw89_btc_fbtc_cysta_v1 { /* statistics for cycles */
 	__le32 except_cnt;
 	__le32 except_map;
 } __packed;
+
+union rtw89_btc_fbtc_cysta_info {
+	struct rtw89_btc_fbtc_cysta_v2 v2;
+	struct rtw89_btc_fbtc_cysta_v3 v3;
+};
 
 struct rtw89_btc_fbtc_cynullsta { /* cycle null statistics */
 	u8 fver; /* btc_ver::fcxnullsta */
@@ -1961,10 +1966,7 @@ struct rtw89_btc_rpt_fbtc_slots {
 
 struct rtw89_btc_rpt_fbtc_cysta {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	union {
-		struct rtw89_btc_fbtc_cysta finfo; /* info from fw for 52A*/
-		struct rtw89_btc_fbtc_cysta_v1 finfo_v1; /* info from fw for 52C*/
-	};
+	union rtw89_btc_fbtc_cysta_info finfo;
 };
 
 struct rtw89_btc_rpt_fbtc_step {
