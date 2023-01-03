@@ -948,7 +948,6 @@ static const struct vop2_video_port_data rk3528_vop_video_ports[] = {
 	 .soc_id = { 0x3528, 0x3528 },
 	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN,
 	 .max_output = { 720, 576 },
-	 .pre_scan_max_dly = { 37, 40, 40, 40 },
 	 .hdrvivid_dly = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	 .sdr2hdr_dly = 0,
 	 .layer_mix_dly = 2,
