@@ -850,15 +850,6 @@
 	status = "okay";
 };
 
-&vamacro {
-	pinctrl-0 = <&dmic01_default>, <&dmic02_default>;
-	pinctrl-names = "default";
-	vdd-micb-supply = <&vreg_s10b>;
-	qcom,dmic-sample-rate = <600000>;
-
-	status = "okay";
-};
-
 &usb_0 {
 	status = "okay";
 };
@@ -903,6 +894,17 @@
 &usb_1_qmpphy {
 	vdda-phy-supply = <&vreg_l4b>;
 	vdda-pll-supply = <&vreg_l3b>;
+
+	status = "okay";
+};
+
+&vamacro {
+	pinctrl-0 = <&dmic01_default>, <&dmic02_default>;
+	pinctrl-names = "default";
+
+	vdd-micb-supply = <&vreg_s10b>;
+
+	qcom,dmic-sample-rate = <600000>;
 
 	status = "okay";
 };
