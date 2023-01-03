@@ -24,6 +24,7 @@ obj-$(CONFIG_SAMPLE_TRACE_CUSTOM_EVENTS) += trace_events/
 obj-$(CONFIG_SAMPLE_TRACE_PRINTK)	+= trace_printk/
 obj-$(CONFIG_SAMPLE_FTRACE_DIRECT)	+= ftrace/
 obj-$(CONFIG_SAMPLE_FTRACE_DIRECT_MULTI) += ftrace/
+obj-$(CONFIG_SAMPLE_FTRACE_OPS)		+= ftrace/
 obj-$(CONFIG_SAMPLE_TRACE_ARRAY)	+= ftrace/
 subdir-$(CONFIG_SAMPLE_UHID)		+= uhid
 obj-$(CONFIG_VIDEO_PCI_SKELETON)	+= v4l/

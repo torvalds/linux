@@ -46,6 +46,13 @@ config SAMPLE_FTRACE_DIRECT_MULTI
 	  that hooks to wake_up_process and schedule, and prints
 	  the function addresses.
 
+config SAMPLE_FTRACE_OPS
+	tristate "Build custom ftrace ops example"
+	depends on FUNCTION_TRACER
+	help
+	  This builds an ftrace ops example that hooks two functions and
+	  measures the time taken to invoke one function a number of times.
+
 config SAMPLE_TRACE_ARRAY
         tristate "Build sample module for kernel access to Ftrace instancess"
 	depends on EVENT_TRACING && m
