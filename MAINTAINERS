@@ -13484,6 +13484,7 @@ F:	include/linux/mmzone.h
 F:	include/linux/pagewalk.h
 F:	mm/
 F:	tools/testing/selftests/vm/
+F:	tools/vm/
 
 VMALLOC
 M:	Andrew Morton <akpm@linux-foundation.org>
