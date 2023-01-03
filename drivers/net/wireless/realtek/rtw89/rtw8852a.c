@@ -1878,8 +1878,12 @@ static
 void rtw8852a_btc_update_bt_cnt(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	u32 val;
+
+	if (ver->fcxbtcrpt != 1)
+		return;
 
 	val = rtw89_read32(rtwdev, R_AX_BT_STAST_HIGH);
 	cx->cnt_bt[BTC_BCNT_HIPRI_TX] = FIELD_GET(B_AX_STATIS_BT_HI_TX_MASK, val);
