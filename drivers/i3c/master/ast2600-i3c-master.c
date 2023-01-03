@@ -2022,7 +2022,8 @@ static irqreturn_t aspeed_i3c_master_irq_handler(int irq, void *dev_id)
 		if (status & INTR_CCC_UPDATED_STAT)
 			aspeed_i3c_slave_event_handler(master);
 	} else {
-		if (status & INTR_RESP_READY_STAT) {
+		if (status & INTR_RESP_READY_STAT ||
+		    status & INTR_TRANSFER_ERR_STAT) {
 			spin_lock(&master->xferqueue.lock);
 			aspeed_i3c_master_end_xfer_locked(master, status);
 			if (status & INTR_TRANSFER_ERR_STAT)
