@@ -10995,9 +10995,8 @@ static int btrfs_add_swap_extent(struct swap_info_struct *sis,
 		return 0;
 
 	max_pages = sis->max - bsi->nr_pages;
-	first_ppage = ALIGN(bsi->block_start, PAGE_SIZE) >> PAGE_SHIFT;
-	next_ppage = ALIGN_DOWN(bsi->block_start + bsi->block_len,
-				PAGE_SIZE) >> PAGE_SHIFT;
+	first_ppage = PAGE_ALIGN(bsi->block_start) >> PAGE_SHIFT;
+	next_ppage = PAGE_ALIGN_DOWN(bsi->block_start + bsi->block_len) >> PAGE_SHIFT;
 
 	if (first_ppage >= next_ppage)
 		return 0;

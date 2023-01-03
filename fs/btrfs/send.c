@@ -5633,7 +5633,7 @@ static int send_encoded_extent(struct send_ctx *sctx, struct btrfs_path *path,
 	 * boundary in the send buffer. This means that there may be a gap
 	 * between the beginning of the command and the file data.
 	 */
-	data_offset = ALIGN(sctx->send_size, PAGE_SIZE);
+	data_offset = PAGE_ALIGN(sctx->send_size);
 	if (data_offset > sctx->send_max_size ||
 	    sctx->send_max_size - data_offset < disk_num_bytes) {
 		ret = -EOVERFLOW;
@@ -5757,7 +5757,7 @@ static int send_extent_data(struct send_ctx *sctx, struct btrfs_path *path,
 		sent += size;
 	}
 
-	if (sctx->clean_page_cache && IS_ALIGNED(end, PAGE_SIZE)) {
+	if (sctx->clean_page_cache && PAGE_ALIGNED(end)) {
 		/*
 		 * Always operate only on ranges that are a multiple of the page
 		 * size. This is not only to prevent zeroing parts of a page in
