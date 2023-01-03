@@ -1310,6 +1310,13 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 	enum hl_device_status status;
 	enum hl_cs_type cs_type;
 	bool is_sync_stream;
+	int i;
+
+	for (i = 0 ; i < sizeof(args->in.pad) ; i++)
+		if (args->in.pad[i]) {
+			dev_dbg(hdev->dev, "Padding bytes must be 0\n");
+			return -EINVAL;
+		}
 
 	if (!hl_device_operational(hdev, &status)) {
 		return -EBUSY;
@@ -2918,7 +2925,13 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	u32 size_to_copy;
 	u64 *cs_seq_arr;
 	u8 seq_arr_len;
-	int rc;
+	int rc, i;
+
+	for (i = 0 ; i < sizeof(args->in.pad) ; i++)
+		if (args->in.pad[i]) {
+			dev_dbg(hdev->dev, "Padding bytes must be 0\n");
+			return -EINVAL;
+		}
 
 	if (!hdev->supports_wait_for_multi_cs) {
 		dev_err(hdev->dev, "Wait for multi CS is not supported\n");

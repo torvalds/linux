@@ -884,8 +884,12 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	enum hl_device_status status;
 	struct hl_info_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
-
 	int rc;
+
+	if (args->pad) {
+		dev_dbg(hdev->dev, "Padding bytes must be 0\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * Information is returned for the following opcodes even if the device
