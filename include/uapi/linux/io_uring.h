@@ -347,6 +347,8 @@ enum {
  *				applicable for IORING_MSG_DATA, obviously.
  */
 #define IORING_MSG_RING_CQE_SKIP	(1U << 0)
+/* Pass through the flags from sqe->file_index to cqe->flags */
+#define IORING_MSG_RING_FLAGS_PASS	(1U << 1)
 
 /*
  * IO completion data structure (Completion Queue Entry)
