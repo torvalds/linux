@@ -1163,18 +1163,32 @@ int __init early_init_dt_scan_chosen(char *cmdline)
 	if (node < 0)
 		node = fdt_path_offset(fdt, "/chosen@0");
 	if (node < 0)
-		return -ENOENT;
+		/* Handle the cmdline config options even if no /chosen node */
+		goto handle_cmdline;
 
 	chosen_node_offset = node;
 
 	early_init_dt_check_for_initrd(node);
 	early_init_dt_check_for_elfcorehdr(node);
 
+	rng_seed = of_get_flat_dt_prop(node, "rng-seed", &l);
+	if (rng_seed && l > 0) {
+		add_bootloader_randomness(rng_seed, l);
+
+		/* try to clear seed so it won't be found. */
+		fdt_nop_property(initial_boot_params, node, "rng-seed");
+
+		/* update CRC check value */
+		of_fdt_crc32 = crc32_be(~0, initial_boot_params,
+				fdt_totalsize(initial_boot_params));
+	}
+
 	/* Retrieve command line */
 	p = of_get_flat_dt_prop(node, "bootargs", &l);
 	if (p != NULL && l > 0)
 		strscpy(cmdline, p, min(l, COMMAND_LINE_SIZE));
 
+handle_cmdline:
 	/*
 	 * CONFIG_CMDLINE is meant to be a default in case nothing else
 	 * managed to set the command line, unless CONFIG_CMDLINE_FORCE
@@ -1194,18 +1208,6 @@ int __init early_init_dt_scan_chosen(char *cmdline)
 #endif /* CONFIG_CMDLINE */
 
 	pr_debug("Command line is: %s\n", (char *)cmdline);
-
-	rng_seed = of_get_flat_dt_prop(node, "rng-seed", &l);
-	if (rng_seed && l > 0) {
-		add_bootloader_randomness(rng_seed, l);
-
-		/* try to clear seed so it won't be found. */
-		fdt_nop_property(initial_boot_params, node, "rng-seed");
-
-		/* update CRC check value */
-		of_fdt_crc32 = crc32_be(~0, initial_boot_params,
-				fdt_totalsize(initial_boot_params));
-	}
 
 	return 0;
 }
