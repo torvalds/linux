@@ -1947,7 +1947,6 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	struct dmub_srv_fb_info *fb_info;
 	struct dmub_srv *dmub_srv;
 	const struct dmcub_firmware_header_v1_0 *hdr;
-	const char *fw_name_dmub;
 	enum dmub_asic dmub_asic;
 	enum dmub_status status;
 	int r;
@@ -1955,70 +1954,43 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	switch (adev->ip_versions[DCE_HWIP][0]) {
 	case IP_VERSION(2, 1, 0):
 		dmub_asic = DMUB_ASIC_DCN21;
-		fw_name_dmub = FIRMWARE_RENOIR_DMUB;
-		if (ASICREV_IS_GREEN_SARDINE(adev->external_rev_id))
-			fw_name_dmub = FIRMWARE_GREEN_SARDINE_DMUB;
 		break;
 	case IP_VERSION(3, 0, 0):
-		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 3, 0)) {
+		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 3, 0))
 			dmub_asic = DMUB_ASIC_DCN30;
-			fw_name_dmub = FIRMWARE_SIENNA_CICHLID_DMUB;
-		} else {
+		else
 			dmub_asic = DMUB_ASIC_DCN30;
-			fw_name_dmub = FIRMWARE_NAVY_FLOUNDER_DMUB;
-		}
 		break;
 	case IP_VERSION(3, 0, 1):
 		dmub_asic = DMUB_ASIC_DCN301;
-		fw_name_dmub = FIRMWARE_VANGOGH_DMUB;
 		break;
 	case IP_VERSION(3, 0, 2):
 		dmub_asic = DMUB_ASIC_DCN302;
-		fw_name_dmub = FIRMWARE_DIMGREY_CAVEFISH_DMUB;
 		break;
 	case IP_VERSION(3, 0, 3):
 		dmub_asic = DMUB_ASIC_DCN303;
-		fw_name_dmub = FIRMWARE_BEIGE_GOBY_DMUB;
 		break;
 	case IP_VERSION(3, 1, 2):
 	case IP_VERSION(3, 1, 3):
 		dmub_asic = (adev->external_rev_id == YELLOW_CARP_B0) ? DMUB_ASIC_DCN31B : DMUB_ASIC_DCN31;
-		fw_name_dmub = FIRMWARE_YELLOW_CARP_DMUB;
 		break;
 	case IP_VERSION(3, 1, 4):
 		dmub_asic = DMUB_ASIC_DCN314;
-		fw_name_dmub = FIRMWARE_DCN_314_DMUB;
 		break;
 	case IP_VERSION(3, 1, 5):
 		dmub_asic = DMUB_ASIC_DCN315;
-		fw_name_dmub = FIRMWARE_DCN_315_DMUB;
 		break;
 	case IP_VERSION(3, 1, 6):
 		dmub_asic = DMUB_ASIC_DCN316;
-		fw_name_dmub = FIRMWARE_DCN316_DMUB;
 		break;
 	case IP_VERSION(3, 2, 0):
 		dmub_asic = DMUB_ASIC_DCN32;
-		fw_name_dmub = FIRMWARE_DCN_V3_2_0_DMCUB;
 		break;
 	case IP_VERSION(3, 2, 1):
 		dmub_asic = DMUB_ASIC_DCN321;
-		fw_name_dmub = FIRMWARE_DCN_V3_2_1_DMCUB;
 		break;
 	default:
 		/* ASIC doesn't support DMUB. */
-		return 0;
-	}
-
-	r = request_firmware_direct(&adev->dm.dmub_fw, fw_name_dmub, adev->dev);
-	if (r) {
-		DRM_ERROR("DMUB firmware loading failed: %d\n", r);
-		return 0;
-	}
-
-	r = amdgpu_ucode_validate(adev->dm.dmub_fw);
-	if (r) {
-		DRM_ERROR("Couldn't validate DMUB firmware: %d\n", r);
 		return 0;
 	}
 
@@ -4514,6 +4486,61 @@ DEVICE_ATTR_WO(s3_debug);
 
 #endif
 
+static int dm_init_microcode(struct amdgpu_device *adev)
+{
+	char *fw_name_dmub;
+	int r;
+
+	switch (adev->ip_versions[DCE_HWIP][0]) {
+	case IP_VERSION(2, 1, 0):
+		fw_name_dmub = FIRMWARE_RENOIR_DMUB;
+		if (ASICREV_IS_GREEN_SARDINE(adev->external_rev_id))
+			fw_name_dmub = FIRMWARE_GREEN_SARDINE_DMUB;
+		break;
+	case IP_VERSION(3, 0, 0):
+		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 3, 0))
+			fw_name_dmub = FIRMWARE_SIENNA_CICHLID_DMUB;
+		else
+			fw_name_dmub = FIRMWARE_NAVY_FLOUNDER_DMUB;
+		break;
+	case IP_VERSION(3, 0, 1):
+		fw_name_dmub = FIRMWARE_VANGOGH_DMUB;
+		break;
+	case IP_VERSION(3, 0, 2):
+		fw_name_dmub = FIRMWARE_DIMGREY_CAVEFISH_DMUB;
+		break;
+	case IP_VERSION(3, 0, 3):
+		fw_name_dmub = FIRMWARE_BEIGE_GOBY_DMUB;
+		break;
+	case IP_VERSION(3, 1, 2):
+	case IP_VERSION(3, 1, 3):
+		fw_name_dmub = FIRMWARE_YELLOW_CARP_DMUB;
+		break;
+	case IP_VERSION(3, 1, 4):
+		fw_name_dmub = FIRMWARE_DCN_314_DMUB;
+		break;
+	case IP_VERSION(3, 1, 5):
+		fw_name_dmub = FIRMWARE_DCN_315_DMUB;
+		break;
+	case IP_VERSION(3, 1, 6):
+		fw_name_dmub = FIRMWARE_DCN316_DMUB;
+		break;
+	case IP_VERSION(3, 2, 0):
+		fw_name_dmub = FIRMWARE_DCN_V3_2_0_DMCUB;
+		break;
+	case IP_VERSION(3, 2, 1):
+		fw_name_dmub = FIRMWARE_DCN_V3_2_1_DMCUB;
+		break;
+	default:
+		/* ASIC doesn't support DMUB. */
+		return 0;
+	}
+	r = amdgpu_ucode_request(adev, &adev->dm.dmub_fw, fw_name_dmub);
+	if (r)
+		DRM_ERROR("DMUB firmware loading failed: %d\n", r);
+	return r;
+}
+
 static int dm_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -4646,7 +4673,7 @@ static int dm_early_init(void *handle)
 #endif
 	adev->dc_enabled = true;
 
-	return 0;
+	return dm_init_microcode(adev);
 }
 
 static bool modereset_required(struct drm_crtc_state *crtc_state)
