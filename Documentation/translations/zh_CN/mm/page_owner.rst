@@ -62,7 +62,7 @@ page owner在默认情况下是禁用的。所以，如果你想使用它，你�
 
 1) 构建用户空间的帮助::
 
-	cd tools/vm
+	cd tools/mm
 	make page_owner_sort
 
 2) 启用page owner: 添加 "page_owner=on" 到 boot cmdline.

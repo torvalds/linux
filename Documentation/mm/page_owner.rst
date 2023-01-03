@@ -61,7 +61,7 @@ Usage
 
 1) Build user-space helper::
 
-	cd tools/vm
+	cd tools/mm
 	make page_owner_sort
 
 2) Enable page owner: add "page_owner=on" to boot cmdline.

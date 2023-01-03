@@ -90,7 +90,7 @@ config PAGE_OWNER
 	  help to find bare alloc_page(s) leaks. Even if you include this
 	  feature on your build, it is disabled in default. You should pass
 	  "page_owner=on" to boot parameter in order to enable it. Eats
-	  a fair amount of memory if enabled. See tools/vm/page_owner_sort.c
+	  a fair amount of memory if enabled. See tools/mm/page_owner_sort.c
 	  for user-space helper.
 
 	  If unsure, say N.

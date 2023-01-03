@@ -46,7 +46,7 @@ There are four components to pagemap:
  * ``/proc/kpagecount``.  This file contains a 64-bit count of the number of
    times each page is mapped, indexed by PFN.
 
-The page-types tool in the tools/vm directory can be used to query the
+The page-types tool in the tools/mm directory can be used to query the
 number of times a page is mapped.
 
  * ``/proc/kpageflags``.  This file contains a 64-bit set of flags for each
@@ -173,7 +173,7 @@ LRU related page flags
 14 - SWAPBACKED
    The page is backed by swap/RAM.
 
-The page-types tool in the tools/vm directory can be used to query the
+The page-types tool in the tools/mm directory can be used to query the
 above flags.
 
 Using pagemap to do something useful
