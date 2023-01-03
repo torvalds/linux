@@ -1136,11 +1136,54 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_ras_query_error_count -- Get error counts of all IPs
+ * amdgpu_ras_query_error_count_helper -- Get error counter for specific IP
+ * @adev: pointer to AMD GPU device
+ * @ce_count: pointer to an integer to be set to the count of correctible errors.
+ * @ue_count: pointer to an integer to be set to the count of uncorrectible errors.
+ * @query_info: pointer to ras_query_if
+ *
+ * Return 0 for query success or do nothing, otherwise return an error
+ * on failures
+ */
+static int amdgpu_ras_query_error_count_helper(struct amdgpu_device *adev,
+					       unsigned long *ce_count,
+					       unsigned long *ue_count,
+					       struct ras_query_if *query_info)
+{
+	int ret;
+
+	if (!query_info)
+		/* do nothing if query_info is not specified */
+		return 0;
+
+	ret = amdgpu_ras_query_error_status(adev, query_info);
+	if (ret)
+		return ret;
+
+	*ce_count += query_info->ce_count;
+	*ue_count += query_info->ue_count;
+
+	/* some hardware/IP supports read to clear
+	 * no need to explictly reset the err status after the query call */
+	if (adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 2) &&
+	    adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 4)) {
+		if (amdgpu_ras_reset_error_status(adev, query_info->head.block))
+			dev_warn(adev->dev,
+				 "Failed to reset error counter and error status\n");
+	}
+
+	return 0;
+}
+
+/**
+ * amdgpu_ras_query_error_count -- Get error counts of all IPs or specific IP
  * @adev: pointer to AMD GPU device
  * @ce_count: pointer to an integer to be set to the count of correctible errors.
  * @ue_count: pointer to an integer to be set to the count of uncorrectible
  * errors.
+ * @query_info: pointer to ras_query_if if the query request is only for
+ * specific ip block; if info is NULL, then the qurey request is for
+ * all the ip blocks that support query ras error counters/status
  *
  * If set, @ce_count or @ue_count, count and return the corresponding
  * error counts in those integer pointers. Return 0 if the device
@@ -1148,11 +1191,13 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
  */
 int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 				 unsigned long *ce_count,
-				 unsigned long *ue_count)
+				 unsigned long *ue_count,
+				 struct ras_query_if *query_info)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj;
 	unsigned long ce, ue;
+	int ret;
 
 	if (!adev->ras_enabled || !con)
 		return -EOPNOTSUPP;
@@ -1164,25 +1209,22 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 
 	ce = 0;
 	ue = 0;
-	list_for_each_entry(obj, &con->head, node) {
-		struct ras_query_if info = {
-			.head = obj->head,
-		};
-		int res;
+	if (!query_info) {
+		/* query all the ip blocks that support ras query interface */
+		list_for_each_entry(obj, &con->head, node) {
+			struct ras_query_if info = {
+				.head = obj->head,
+			};
 
-		res = amdgpu_ras_query_error_status(adev, &info);
-		if (res)
-			return res;
-
-		if (adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 2) &&
-		    adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 4)) {
-			if (amdgpu_ras_reset_error_status(adev, info.head.block))
-				dev_warn(adev->dev, "Failed to reset error counter and error status");
+			ret = amdgpu_ras_query_error_count_helper(adev, &ce, &ue, &info);
 		}
-
-		ce += info.ce_count;
-		ue += info.ue_count;
+	} else {
+		/* query specific ip block */
+		ret = amdgpu_ras_query_error_count_helper(adev, &ce, &ue, query_info);
 	}
+
+	if (ret)
+		return ret;
 
 	if (ce_count)
 		*ce_count = ce;
@@ -2411,7 +2453,7 @@ static void amdgpu_ras_counte_dw(struct work_struct *work)
 
 	/* Cache new values.
 	 */
-	if (amdgpu_ras_query_error_count(adev, &ce_count, &ue_count) == 0) {
+	if (amdgpu_ras_query_error_count(adev, &ce_count, &ue_count, NULL) == 0) {
 		atomic_set(&con->ras_ce_count, ce_count);
 		atomic_set(&con->ras_ue_count, ue_count);
 	}
@@ -2592,6 +2634,7 @@ int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
 {
 	struct amdgpu_ras_block_object *ras_obj = NULL;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_query_if *query_info;
 	unsigned long ue_count, ce_count;
 	int r;
 
@@ -2633,11 +2676,17 @@ int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
 
 	/* Those are the cached values at init.
 	 */
-	if (amdgpu_ras_query_error_count(adev, &ce_count, &ue_count) == 0) {
+	query_info = kzalloc(sizeof(struct ras_query_if), GFP_KERNEL);
+	if (!query_info)
+		return -ENOMEM;
+	memcpy(&query_info->head, ras_block, sizeof(struct ras_common_if));
+
+	if (amdgpu_ras_query_error_count(adev, &ce_count, &ue_count, query_info) == 0) {
 		atomic_set(&con->ras_ce_count, ce_count);
 		atomic_set(&con->ras_ue_count, ue_count);
 	}
 
+	kfree(query_info);
 	return 0;
 
 interrupt:
