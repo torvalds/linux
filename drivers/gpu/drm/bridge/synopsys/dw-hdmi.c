@@ -3166,7 +3166,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 
 		if (hdmi->hdmi_data.video_mode.mpixelclock == (mode->clock * 1000) &&
 		    hdmi->hdmi_data.video_mode.mtmdsclock == (mtmdsclk * 1000) &&
-		    !hdmi->logo_plug_out) {
+		    !hdmi->logo_plug_out && !hdmi->disabled) {
 			hdmi->update = true;
 			hdmi_writeb(hdmi, HDMI_FC_GCP_SET_AVMUTE, HDMI_FC_GCP);
 			mdelay(50);
