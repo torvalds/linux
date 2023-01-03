@@ -1414,7 +1414,6 @@ again:
 		mutex_lock(&queue->pending_lock);
 		list_del_init(&task->queue_link);
 
-		kref_get(&task->ref);
 		set_bit(TASK_STATE_ABORT_READY, &task->state);
 		set_bit(TASK_STATE_PROC_DONE, &task->state);
 
@@ -2001,7 +2000,6 @@ get_task:
 		mutex_lock(&queue->pending_lock);
 		list_del_init(&mpp_task->queue_link);
 
-		kref_get(&mpp_task->ref);
 		set_bit(TASK_STATE_ABORT_READY, &mpp_task->state);
 		set_bit(TASK_STATE_PROC_DONE, &mpp_task->state);
 
