@@ -1113,26 +1113,34 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
 #define MLX5_MAX_ASYNC_EQS 3
 #endif
 
-int mlx5_eq_table_create(struct mlx5_core_dev *dev)
+static int get_num_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
-	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
+	int max_dev_eqs;
+	int max_eqs_sf;
+	int num_eqs;
+
+	max_dev_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
 		      MLX5_CAP_GEN(dev, max_num_eqs) :
 		      1 << MLX5_CAP_GEN(dev, log_max_eq);
-	int max_eqs_sf;
-	int err;
 
-	eq_table->num_comp_eqs =
-		min_t(int,
-		      mlx5_irq_table_get_num_comp(eq_table->irq_table),
-		      num_eqs - MLX5_MAX_ASYNC_EQS);
+	num_eqs = min_t(int, mlx5_irq_table_get_num_comp(eq_table->irq_table),
+			max_dev_eqs - MLX5_MAX_ASYNC_EQS);
 	if (mlx5_core_is_sf(dev)) {
 		max_eqs_sf = min_t(int, MLX5_COMP_EQS_PER_SF,
 				   mlx5_irq_table_get_sfs_vec(eq_table->irq_table));
-		eq_table->num_comp_eqs = min_t(int, eq_table->num_comp_eqs,
-					       max_eqs_sf);
+		num_eqs = min_t(int, num_eqs, max_eqs_sf);
 	}
 
+	return num_eqs;
+}
+
+int mlx5_eq_table_create(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
+	int err;
+
+	eq_table->num_comp_eqs = get_num_eqs(dev);
 	err = create_async_eqs(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to create async EQs\n");
