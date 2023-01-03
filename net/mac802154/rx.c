@@ -29,12 +29,31 @@ static int ieee802154_deliver_skb(struct sk_buff *skb)
 	return netif_receive_skb(skb);
 }
 
+void mac802154_rx_beacon_worker(struct work_struct *work)
+{
+	struct ieee802154_local *local =
+		container_of(work, struct ieee802154_local, rx_beacon_work);
+	struct cfg802154_mac_pkt *mac_pkt;
+
+	mac_pkt = list_first_entry_or_null(&local->rx_beacon_list,
+					   struct cfg802154_mac_pkt, node);
+	if (!mac_pkt)
+		return;
+
+	mac802154_process_beacon(local, mac_pkt->skb, mac_pkt->page, mac_pkt->channel);
+
+	list_del(&mac_pkt->node);
+	kfree_skb(mac_pkt->skb);
+	kfree(mac_pkt);
+}
+
 static int
 ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		       struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 {
-	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct wpan_phy *wpan_phy = sdata->local->hw.phy;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct cfg802154_mac_pkt *mac_pkt;
 	__le16 span, sshort;
 	int rc;
 
@@ -106,6 +125,21 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	switch (mac_cb(skb)->type) {
 	case IEEE802154_FC_TYPE_BEACON:
+		dev_dbg(&sdata->dev->dev, "BEACON received\n");
+		if (!mac802154_is_scanning(sdata->local))
+			goto fail;
+
+		mac_pkt = kzalloc(sizeof(*mac_pkt), GFP_ATOMIC);
+		if (!mac_pkt)
+			goto fail;
+
+		mac_pkt->skb = skb_get(skb);
+		mac_pkt->sdata = sdata;
+		mac_pkt->page = sdata->local->scan_page;
+		mac_pkt->channel = sdata->local->scan_channel;
+		list_add_tail(&mac_pkt->node, &sdata->local->rx_beacon_list);
+		queue_work(sdata->local->mac_wq, &sdata->local->rx_beacon_work);
+		return NET_RX_SUCCESS;
 	case IEEE802154_FC_TYPE_ACK:
 	case IEEE802154_FC_TYPE_MAC_CMD:
 		goto fail;

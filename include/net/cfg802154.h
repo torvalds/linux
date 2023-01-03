@@ -314,6 +314,22 @@ struct cfg802154_scan_request {
 	struct wpan_phy *wpan_phy;
 };
 
+/**
+ * struct cfg802154_mac_pkt - MAC packet descriptor (beacon/command)
+ * @node: MAC packets to process list member
+ * @skb: the received sk_buff
+ * @sdata: the interface on which @skb was received
+ * @page: page configuration when @skb was received
+ * @channel: channel configuration when @skb was received
+ */
+struct cfg802154_mac_pkt {
+	struct list_head node;
+	struct sk_buff *skb;
+	struct ieee802154_sub_if_data *sdata;
+	u8 page;
+	u8 channel;
+};
+
 struct ieee802154_llsec_key_id {
 	u8 mode;
 	u8 id;

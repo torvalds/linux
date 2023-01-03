@@ -89,6 +89,7 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 	local->ops = ops;
 
 	INIT_LIST_HEAD(&local->interfaces);
+	INIT_LIST_HEAD(&local->rx_beacon_list);
 	mutex_init(&local->iflist_mtx);
 
 	tasklet_setup(&local->tasklet, ieee802154_tasklet_handler);
@@ -96,6 +97,8 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 	skb_queue_head_init(&local->skb_queue);
 
 	INIT_WORK(&local->sync_tx_work, ieee802154_xmit_sync_worker);
+	INIT_DELAYED_WORK(&local->scan_work, mac802154_scan_worker);
+	INIT_WORK(&local->rx_beacon_work, mac802154_rx_beacon_worker);
 
 	/* init supported flags with 802.15.4 default ranges */
 	phy->supported.max_minbe = 8;
@@ -185,6 +188,7 @@ static void ieee802154_setup_wpan_phy_pib(struct wpan_phy *wpan_phy)
 int ieee802154_register_hw(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
+	char mac_wq_name[IFNAMSIZ + 10] = {};
 	struct net_device *dev;
 	int rc = -ENOSYS;
 
@@ -193,6 +197,13 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 	if (!local->workqueue) {
 		rc = -ENOMEM;
 		goto out;
+	}
+
+	snprintf(mac_wq_name, IFNAMSIZ + 10, "%s-mac-cmds", wpan_phy_name(local->phy));
+	local->mac_wq =	create_singlethread_workqueue(mac_wq_name);
+	if (!local->mac_wq) {
+		rc = -ENOMEM;
+		goto out_wq;
 	}
 
 	hrtimer_init(&local->ifs_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -224,7 +235,7 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 
 	rc = wpan_phy_register(local->phy);
 	if (rc < 0)
-		goto out_wq;
+		goto out_mac_wq;
 
 	rtnl_lock();
 
@@ -243,6 +254,8 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 
 out_phy:
 	wpan_phy_unregister(local->phy);
+out_mac_wq:
+	destroy_workqueue(local->mac_wq);
 out_wq:
 	destroy_workqueue(local->workqueue);
 out:
@@ -263,6 +276,7 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 
 	rtnl_unlock();
 
+	destroy_workqueue(local->mac_wq);
 	destroy_workqueue(local->workqueue);
 	wpan_phy_unregister(local->phy);
 }

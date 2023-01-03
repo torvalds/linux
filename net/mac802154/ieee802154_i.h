@@ -21,6 +21,10 @@
 
 #include "llsec.h"
 
+enum ieee802154_ongoing {
+	IEEE802154_IS_SCANNING = BIT(0),
+};
+
 /* mac802154 device private data */
 struct ieee802154_local {
 	struct ieee802154_hw hw;
@@ -43,15 +47,26 @@ struct ieee802154_local {
 	struct list_head	interfaces;
 	struct mutex		iflist_mtx;
 
-	/* This one is used for scanning and other jobs not to be interfered
-	 * with serial driver.
-	 */
+	/* Data related workqueue */
 	struct workqueue_struct	*workqueue;
+	/* MAC commands related workqueue */
+	struct workqueue_struct	*mac_wq;
 
 	struct hrtimer ifs_timer;
 
+	/* Scanning */
+	u8 scan_page;
+	u8 scan_channel;
+	struct cfg802154_scan_request __rcu *scan_req;
+	struct delayed_work scan_work;
+
+	/* Asynchronous tasks */
+	struct list_head rx_beacon_list;
+	struct work_struct rx_beacon_work;
+
 	bool started;
 	bool suspended;
+	unsigned long ongoing;
 
 	struct tasklet_struct tasklet;
 	struct sk_buff_head skb_queue;
@@ -225,6 +240,22 @@ void mac802154_get_table(struct net_device *dev,
 void mac802154_unlock_table(struct net_device *dev);
 
 int mac802154_wpan_update_llsec(struct net_device *dev);
+
+/* PAN management handling */
+void mac802154_scan_worker(struct work_struct *work);
+int mac802154_trigger_scan_locked(struct ieee802154_sub_if_data *sdata,
+				  struct cfg802154_scan_request *request);
+int mac802154_abort_scan_locked(struct ieee802154_local *local,
+				struct ieee802154_sub_if_data *sdata);
+int mac802154_process_beacon(struct ieee802154_local *local,
+			     struct sk_buff *skb,
+			     u8 page, u8 channel);
+void mac802154_rx_beacon_worker(struct work_struct *work);
+
+static inline bool mac802154_is_scanning(struct ieee802154_local *local)
+{
+	return test_bit(IEEE802154_IS_SCANNING, &local->ongoing);
+}
 
 /* interface handling */
 int ieee802154_iface_init(void);
