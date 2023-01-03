@@ -368,12 +368,11 @@ void imx_media_fim_eof_monitor(struct imx_media_fim *fim, ktime_t timestamp)
 }
 
 /* Called by the subdev in its s_stream callback */
-int imx_media_fim_set_stream(struct imx_media_fim *fim,
-			     const struct v4l2_fract *fi,
-			     bool on)
+void imx_media_fim_set_stream(struct imx_media_fim *fim,
+			      const struct v4l2_fract *fi,
+			      bool on)
 {
 	unsigned long flags;
-	int ret = 0;
 
 	v4l2_ctrl_lock(fim->ctrl[FIM_CL_ENABLE]);
 
@@ -393,7 +392,6 @@ int imx_media_fim_set_stream(struct imx_media_fim *fim,
 	fim->stream_on = on;
 out:
 	v4l2_ctrl_unlock(fim->ctrl[FIM_CL_ENABLE]);
-	return ret;
 }
 
 int imx_media_fim_add_controls(struct imx_media_fim *fim)
