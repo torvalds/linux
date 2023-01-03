@@ -1110,6 +1110,9 @@ static int rk_pcie_host_init(struct pcie_port *pp)
 
 	ret = rk_pcie_establish_link(pci);
 
+	if (pp->msi_irq > 0)
+		dw_pcie_msi_init(pp);
+
 	return ret;
 }
 
