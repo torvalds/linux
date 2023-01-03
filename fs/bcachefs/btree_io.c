@@ -520,11 +520,10 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 			  struct btree *b, struct bset *i,
 			  unsigned offset, int write)
 {
-	prt_printf(out, bch2_log_msg(c, ""));
-	if (!write)
-		prt_str(out, "error validating btree node ");
-	else
-		prt_str(out, "corrupt btree node before write ");
+	prt_printf(out, bch2_log_msg(c, "%s"),
+		   write == READ
+		   ? "error validating btree node "
+		   : "corrupt btree node before write ");
 	if (ca)
 		prt_printf(out, "on %s ", ca->name);
 	prt_printf(out, "at btree ");
@@ -547,52 +546,68 @@ enum btree_validate_ret {
 	BTREE_RETRY_READ = 64,
 };
 
+static int __btree_err(enum btree_err_type type,
+		       struct bch_fs *c,
+		       struct bch_dev *ca,
+		       struct btree *b,
+		       struct bset *i,
+		       int write,
+		       bool have_retry,
+		       const char *fmt, ...)
+{
+	struct printbuf out = PRINTBUF;
+	va_list args;
+	int ret = -BCH_ERR_fsck_fix;
+
+	btree_err_msg(&out, c, ca, b, i, b->written, write);
+
+	va_start(args, fmt);
+	prt_vprintf(&out, fmt, args);
+	va_end(args);
+
+	if (write == READ &&
+	    type == BTREE_ERR_FIXABLE &&
+	    !test_bit(BCH_FS_FSCK_DONE, &c->flags)) {
+		mustfix_fsck_err(c, "%s", out.buf);
+		goto out;
+	}
+
+	bch2_print_string_as_lines(KERN_ERR, out.buf);
+
+	if (write == WRITE) {
+		ret = c->opts.errors == BCH_ON_ERROR_continue
+			? 0
+			: -BCH_ERR_fsck_errors_not_fixed;
+		goto out;
+	}
+
+	switch (type) {
+	case BTREE_ERR_FIXABLE:
+		ret = -BCH_ERR_fsck_errors_not_fixed;
+		break;
+	case BTREE_ERR_WANT_RETRY:
+		if (have_retry)
+			ret = BTREE_RETRY_READ;
+		break;
+	case BTREE_ERR_MUST_RETRY:
+		ret = BTREE_RETRY_READ;
+		break;
+	case BTREE_ERR_FATAL:
+		ret = -BCH_ERR_fsck_errors_not_fixed;
+		break;
+	}
+out:
+fsck_err:
+	printbuf_exit(&out);
+	return ret;
+}
+
 #define btree_err(type, c, ca, b, i, msg, ...)				\
 ({									\
-	__label__ out;							\
-	struct printbuf out = PRINTBUF;					\
+	int _ret = __btree_err(type, c, ca, b, i, write, have_retry, msg, ##__VA_ARGS__);\
 									\
-	btree_err_msg(&out, c, ca, b, i, b->written, write);		\
-	prt_printf(&out, msg, ##__VA_ARGS__);				\
-									\
-	if (type == BTREE_ERR_FIXABLE &&				\
-	    write == READ &&						\
-	    !test_bit(BCH_FS_FSCK_DONE, &c->flags)) {			\
-		mustfix_fsck_err(c, "%s", out.buf);			\
-		goto out;						\
-	}								\
-									\
-	bch2_print_string_as_lines(KERN_ERR, out.buf);			\
-									\
-	switch (write) {						\
-	case READ:							\
-		switch (type) {						\
-		case BTREE_ERR_FIXABLE:					\
-			ret = -BCH_ERR_fsck_errors_not_fixed;		\
-			goto fsck_err;					\
-		case BTREE_ERR_WANT_RETRY:				\
-			if (have_retry) {				\
-				ret = BTREE_RETRY_READ;			\
-				goto fsck_err;				\
-			}						\
-			break;						\
-		case BTREE_ERR_MUST_RETRY:				\
-			ret = BTREE_RETRY_READ;				\
-			goto fsck_err;					\
-		case BTREE_ERR_FATAL:					\
-			ret = -BCH_ERR_fsck_errors_not_fixed;		\
-			goto fsck_err;					\
-		}							\
-		break;							\
-	case WRITE:							\
-		if (bch2_fs_inconsistent(c)) {				\
-			ret = -BCH_ERR_fsck_errors_not_fixed;		\
-			goto fsck_err;					\
-		}							\
-		break;							\
-	}								\
-out:									\
-	printbuf_exit(&out);						\
+	if (_ret != -BCH_ERR_fsck_fix)					\
+		goto fsck_err;						\
 	true;								\
 })
 
@@ -892,7 +907,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	unsigned blacklisted_written, nonblacklisted_written = 0;
 	unsigned ptr_written = btree_ptr_sectors_written(&b->key);
 	struct printbuf buf = PRINTBUF;
-	int ret, retry_read = 0, write = READ;
+	int ret = 0, retry_read = 0, write = READ;
 
 	b->version_ondisk = U16_MAX;
 	/* We might get called multiple times on read retry: */
