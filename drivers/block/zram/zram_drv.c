@@ -1140,7 +1140,7 @@ static ssize_t recomp_algorithm_store(struct device *dev,
 	while (*args) {
 		args = next_arg(args, &param, &val);
 
-		if (!*val)
+		if (!val || !*val)
 			return -EINVAL;
 
 		if (!strcmp(param, "algo")) {
@@ -1824,7 +1824,7 @@ static ssize_t recompress_store(struct device *dev,
 	while (*args) {
 		args = next_arg(args, &param, &val);
 
-		if (!*val)
+		if (!val || !*val)
 			return -EINVAL;
 
 		if (!strcmp(param, "type")) {
