@@ -129,7 +129,7 @@ void bch2_btree_build_aux_trees(struct btree *);
 void bch2_btree_init_next(struct btree_trans *, struct btree *);
 
 int bch2_btree_node_read_done(struct bch_fs *, struct bch_dev *,
-			      struct btree *, bool);
+			      struct btree *, bool, bool *);
 void bch2_btree_node_read(struct bch_fs *, struct btree *, bool);
 int bch2_btree_root_read(struct bch_fs *, enum btree_id,
 			 const struct bkey_i *, unsigned);

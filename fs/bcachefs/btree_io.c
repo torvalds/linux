@@ -608,7 +608,7 @@ fsck_err:
 									\
 	if (_ret != -BCH_ERR_fsck_fix)					\
 		goto fsck_err;						\
-	true;								\
+	*saw_error = true;						\
 })
 
 #define btree_err_on(cond, ...)	((cond) ? btree_err(__VA_ARGS__) : false)
@@ -668,7 +668,7 @@ void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			 struct btree *b, struct bset *i,
 			 unsigned offset, unsigned sectors,
-			 int write, bool have_retry)
+			 int write, bool have_retry, bool *saw_error)
 {
 	unsigned version = le16_to_cpu(i->version);
 	const char *err;
@@ -805,7 +805,8 @@ static int bset_key_invalid(struct bch_fs *c, struct btree *b,
 }
 
 static int validate_bset_keys(struct bch_fs *c, struct btree *b,
-			 struct bset *i, int write, bool have_retry)
+			 struct bset *i, int write,
+			 bool have_retry, bool *saw_error)
 {
 	unsigned version = le16_to_cpu(i->version);
 	struct bkey_packed *k, *prev = NULL;
@@ -892,7 +893,7 @@ fsck_err:
 }
 
 int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
-			      struct btree *b, bool have_retry)
+			      struct btree *b, bool have_retry, bool *saw_error)
 {
 	struct btree_node_entry *bne;
 	struct sort_iter *iter;
@@ -1003,14 +1004,14 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 					le16_to_cpu(i->version));
 
 		ret = validate_bset(c, ca, b, i, b->written, sectors,
-				    READ, have_retry);
+				    READ, have_retry, saw_error);
 		if (ret)
 			goto fsck_err;
 
 		if (!b->written)
 			btree_node_set_format(b, b->data->format);
 
-		ret = validate_bset_keys(c, b, i, READ, have_retry);
+		ret = validate_bset_keys(c, b, i, READ, have_retry, saw_error);
 		if (ret)
 			goto fsck_err;
 
@@ -1205,7 +1206,7 @@ start:
 				&failed, &rb->pick) > 0;
 
 		if (!bio->bi_status &&
-		    !bch2_btree_node_read_done(c, ca, b, can_retry)) {
+		    !bch2_btree_node_read_done(c, ca, b, can_retry, &saw_error)) {
 			if (retry)
 				bch_info(c, "retry success");
 			break;
@@ -1311,6 +1312,7 @@ static void btree_node_read_all_replicas_done(struct closure *cl)
 	unsigned i, written = 0, written2 = 0;
 	__le64 seq = b->key.k.type == KEY_TYPE_btree_ptr_v2
 		? bkey_i_to_btree_ptr_v2(&b->key)->v.seq : 0;
+	bool _saw_error = false, *saw_error = &_saw_error;
 
 	for (i = 0; i < ra->nr; i++) {
 		struct btree_node *bn = ra->buf[i];
@@ -1397,13 +1399,15 @@ fsck_err:
 
 	if (best >= 0) {
 		memcpy(b->data, ra->buf[best], btree_bytes(c));
-		ret = bch2_btree_node_read_done(c, NULL, b, false);
+		ret = bch2_btree_node_read_done(c, NULL, b, false, saw_error);
 	} else {
 		ret = -1;
 	}
 
 	if (ret)
 		set_btree_node_read_error(b);
+	else if (*saw_error)
+		bch2_btree_node_rewrite_async(c, b);
 
 	for (i = 0; i < ra->nr; i++) {
 		mempool_free(ra->buf[i], &c->btree_bounce_pool);
@@ -1780,6 +1784,7 @@ static int validate_bset_for_write(struct bch_fs *c, struct btree *b,
 				   struct bset *i, unsigned sectors)
 {
 	struct printbuf buf = PRINTBUF;
+	bool saw_error;
 	int ret;
 
 	ret = bch2_bkey_invalid(c, bkey_i_to_s_c(&b->key),
@@ -1791,8 +1796,8 @@ static int validate_bset_for_write(struct bch_fs *c, struct btree *b,
 	if (ret)
 		return ret;
 
-	ret = validate_bset_keys(c, b, i, WRITE, false) ?:
-		validate_bset(c, NULL, b, i, b->written, sectors, WRITE, false);
+	ret = validate_bset_keys(c, b, i, WRITE, false, &saw_error) ?:
+		validate_bset(c, NULL, b, i, b->written, sectors, WRITE, false, &saw_error);
 	if (ret) {
 		bch2_inconsistent_error(c);
 		dump_stack();
