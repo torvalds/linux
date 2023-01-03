@@ -57,7 +57,7 @@ trace_libc_inet_pton_backtrace() {
 	perf_data=`mktemp -u /tmp/perf.data.XXX`
 	perf_script=`mktemp -u /tmp/perf.script.XXX`
 	perf record -e $event_name/$eventattr/ -o $perf_data ping -6 -c 1 ::1 > /dev/null 2>&1
-	perf script -i $perf_data > $perf_script
+	perf script -i $perf_data | tac | grep -m1 ^ping -B9 | tac > $perf_script
 
 	exec 3<$perf_script
 	exec 4<$expected
