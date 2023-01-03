@@ -23,18 +23,16 @@
 		serial0 = &uart12;
 	};
 
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-
-	wcd938x: codec {
+	wcd938x: audio-codec {
 		compatible = "qcom,wcd9380-codec";
-		#sound-dai-cells = <1>;
+
 		reset-gpios = <&tlmm 32 GPIO_ACTIVE_LOW>;
+
 		vdd-buck-supply = <&vreg_s4a_1p8>;
 		vdd-rxtx-supply = <&vreg_s4a_1p8>;
 		vdd-io-supply = <&vreg_s4a_1p8>;
 		vdd-mic-bias-supply = <&vreg_bob>;
+
 		qcom,micbias1-microvolt = <1800000>;
 		qcom,micbias2-microvolt = <1800000>;
 		qcom,micbias3-microvolt = <1800000>;
@@ -44,6 +42,12 @@
 		qcom,mbhc-headphone-vthreshold-microvolt = <50000>;
 		qcom,rx-device = <&wcd_rx>;
 		qcom,tx-device = <&wcd_tx>;
+
+		#sound-dai-cells = <1>;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
 	};
 
 	thermal-zones {
