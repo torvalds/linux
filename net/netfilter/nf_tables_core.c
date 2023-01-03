@@ -228,6 +228,9 @@ static void expr_call_ops_eval(const struct nft_expr *expr,
 	X(e, nft_counter_eval);
 	X(e, nft_meta_get_eval);
 	X(e, nft_lookup_eval);
+#if IS_ENABLED(CONFIG_NFT_CT)
+	X(e, nft_ct_get_fast_eval);
+#endif
 	X(e, nft_range_eval);
 	X(e, nft_immediate_eval);
 	X(e, nft_byteorder_eval);
