@@ -714,6 +714,15 @@ config SENSORS_GPIO_FAN
 	  This driver can also be built as a module. If so, the module
 	  will be called gpio-fan.
 
+config SENSORS_GXP_FAN_CTRL
+	tristate "HPE GXP fan controller"
+	depends on ARCH_HPE_GXP || COMPILE_TEST
+	help
+	  If you say yes here you get support for GXP fan control functionality.
+
+	  The GXP controls fan function via the CPLD through the use of PWM
+	  registers. This driver reports status and pwm setting of the fans.
+
 config SENSORS_HIH6130
 	tristate "Honeywell Humidicon HIH-6130 humidity/temperature sensor"
 	depends on I2C
