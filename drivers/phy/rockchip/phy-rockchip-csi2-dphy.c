@@ -697,6 +697,11 @@ static struct dphy_drv_data rv1106_dphy_drv_data = {
 	.vendor = PHY_VENDOR_INNO,
 };
 
+static struct dphy_drv_data rk3562_dphy_drv_data = {
+	.dev_name = "csi2dphy",
+	.vendor = PHY_VENDOR_INNO,
+};
+
 static const struct of_device_id rockchip_csi2_dphy_match_id[] = {
 	{
 		.compatible = "rockchip,rk3568-csi2-dphy",
@@ -709,6 +714,10 @@ static const struct of_device_id rockchip_csi2_dphy_match_id[] = {
 	{
 		.compatible = "rockchip,rv1106-csi2-dphy",
 		.data = &rv1106_dphy_drv_data,
+	},
+	{
+		.compatible = "rockchip,rk3562-csi2-dphy",
+		.data = &rk3562_dphy_drv_data,
 	},
 	{}
 };
