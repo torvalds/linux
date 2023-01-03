@@ -335,7 +335,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 			dev_dbg(hdev->dev, "Device CPU packet timeout (0x%x) due to FW reset\n",
 					tmp);
 		else
-			dev_err(hdev->dev, "Device CPU packet timeout (0x%x)\n", tmp);
+			dev_err(hdev->dev, "Device CPU packet timeout (status = 0x%x)\n", tmp);
 		hdev->device_cpu_disabled = true;
 		goto out;
 	}
@@ -1346,8 +1346,7 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 		break;
 	default:
 		dev_err(hdev->dev,
-			"Device boot progress - Invalid status code %d\n",
-			status);
+			"Device boot progress - Invalid or unexpected status code %d\n", status);
 		break;
 	}
 }
@@ -1377,8 +1376,8 @@ int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 		pre_fw_load->wait_for_preboot_timeout);
 
 	if (rc) {
-		dev_err(hdev->dev, "CPU boot ready status timeout\n");
 		detect_cpu_boot_status(hdev, status);
+		dev_err(hdev->dev, "CPU boot ready timeout (status = %d)\n", status);
 
 		/* If we read all FF, then something is totally wrong, no point
 		 * of reading specific errors
@@ -2427,7 +2426,7 @@ static int hl_fw_dynamic_wait_for_boot_fit_active(struct hl_device *hdev,
 		hdev->fw_poll_interval_usec,
 		dyn_loader->wait_for_bl_timeout);
 	if (rc) {
-		dev_err(hdev->dev, "failed to wait for boot\n");
+		dev_err(hdev->dev, "failed to wait for boot (status = %d)\n", status);
 		return rc;
 	}
 
@@ -2454,7 +2453,7 @@ static int hl_fw_dynamic_wait_for_linux_active(struct hl_device *hdev,
 		hdev->fw_poll_interval_usec,
 		fw_loader->cpu_timeout);
 	if (rc) {
-		dev_err(hdev->dev, "failed to wait for Linux\n");
+		dev_err(hdev->dev, "failed to wait for Linux (status = %d)\n", status);
 		return rc;
 	}
 
@@ -2793,7 +2792,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 
 	if (rc) {
 		dev_dbg(hdev->dev,
-			"No boot fit request received, resuming boot\n");
+			"No boot fit request received (status = %d), resuming boot\n", status);
 	} else {
 		rc = hdev->asic_funcs->load_boot_fit_to_device(hdev);
 		if (rc)
@@ -2816,7 +2815,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 
 		if (rc) {
 			dev_err(hdev->dev,
-				"Timeout waiting for boot fit load ack\n");
+				"Timeout waiting for boot fit load ack (status = %d)\n", status);
 			goto out;
 		}
 
@@ -2894,7 +2893,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 
 		if (rc) {
 			dev_err(hdev->dev,
-				"Failed to get ACK on skipping BMC, %d\n",
+				"Failed to get ACK on skipping BMC (status = %d)\n",
 				status);
 			WREG32(msg_to_cpu_reg, KMD_MSG_NA);
 			rc = -EIO;
@@ -2921,7 +2920,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 				"Device reports FIT image is corrupted\n");
 		else
 			dev_err(hdev->dev,
-				"Failed to load firmware to device, %d\n",
+				"Failed to load firmware to device (status = %d)\n",
 				status);
 
 		rc = -EIO;
