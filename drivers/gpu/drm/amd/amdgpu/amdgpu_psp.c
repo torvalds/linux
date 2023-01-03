@@ -511,20 +511,11 @@ static int psp_sw_fini(void *handle)
 
 	psp_memory_training_fini(psp);
 
-	release_firmware(psp->sos_fw);
-	psp->sos_fw = NULL;
-
-	release_firmware(psp->asd_fw);
-	psp->asd_fw = NULL;
-
-	release_firmware(psp->ta_fw);
-	psp->ta_fw = NULL;
-
-	release_firmware(psp->cap_fw);
-	psp->cap_fw = NULL;
-
-	release_firmware(psp->toc_fw);
-	psp->toc_fw = NULL;
+	amdgpu_ucode_release(&psp->sos_fw);
+	amdgpu_ucode_release(&psp->asd_fw);
+	amdgpu_ucode_release(&psp->ta_fw);
+	amdgpu_ucode_release(&psp->cap_fw);
+	amdgpu_ucode_release(&psp->toc_fw);
 
 	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 0) ||
 	    adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 7))
@@ -2918,11 +2909,7 @@ int psp_init_asd_microcode(struct psp_context *psp, const char *chip_name)
 	int err = 0;
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_asd.bin", chip_name);
-	err = request_firmware(&adev->psp.asd_fw, fw_name, adev->dev);
-	if (err)
-		goto out;
-
-	err = amdgpu_ucode_validate(adev->psp.asd_fw);
+	err = amdgpu_ucode_request(adev, &adev->psp.asd_fw, fw_name);
 	if (err)
 		goto out;
 
@@ -2934,9 +2921,7 @@ int psp_init_asd_microcode(struct psp_context *psp, const char *chip_name)
 				le32_to_cpu(asd_hdr->header.ucode_array_offset_bytes);
 	return 0;
 out:
-	dev_err(adev->dev, "fail to initialize asd microcode\n");
-	release_firmware(adev->psp.asd_fw);
-	adev->psp.asd_fw = NULL;
+	amdgpu_ucode_release(&adev->psp.asd_fw);
 	return err;
 }
 
@@ -2948,11 +2933,7 @@ int psp_init_toc_microcode(struct psp_context *psp, const char *chip_name)
 	int err = 0;
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_toc.bin", chip_name);
-	err = request_firmware(&adev->psp.toc_fw, fw_name, adev->dev);
-	if (err)
-		goto out;
-
-	err = amdgpu_ucode_validate(adev->psp.toc_fw);
+	err = amdgpu_ucode_request(adev, &adev->psp.toc_fw, fw_name);
 	if (err)
 		goto out;
 
@@ -2964,9 +2945,7 @@ int psp_init_toc_microcode(struct psp_context *psp, const char *chip_name)
 				le32_to_cpu(toc_hdr->header.ucode_array_offset_bytes);
 	return 0;
 out:
-	dev_err(adev->dev, "fail to request/validate toc microcode\n");
-	release_firmware(adev->psp.toc_fw);
-	adev->psp.toc_fw = NULL;
+	amdgpu_ucode_release(&adev->psp.toc_fw);
 	return err;
 }
 
@@ -3111,11 +3090,7 @@ int psp_init_sos_microcode(struct psp_context *psp, const char *chip_name)
 	int fw_index = 0;
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sos.bin", chip_name);
-	err = request_firmware(&adev->psp.sos_fw, fw_name, adev->dev);
-	if (err)
-		goto out;
-
-	err = amdgpu_ucode_validate(adev->psp.sos_fw);
+	err = amdgpu_ucode_request(adev, &adev->psp.sos_fw, fw_name);
 	if (err)
 		goto out;
 
@@ -3187,10 +3162,7 @@ int psp_init_sos_microcode(struct psp_context *psp, const char *chip_name)
 
 	return 0;
 out:
-	dev_err(adev->dev,
-		"failed to init sos firmware\n");
-	release_firmware(adev->psp.sos_fw);
-	adev->psp.sos_fw = NULL;
+	amdgpu_ucode_release(&adev->psp.sos_fw);
 
 	return err;
 }
@@ -3347,10 +3319,7 @@ int psp_init_ta_microcode(struct psp_context *psp, const char *chip_name)
 	int err;
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
-	err = request_firmware(&adev->psp.ta_fw, fw_name, adev->dev);
-	if (err)
-		return err;
-	err = amdgpu_ucode_validate(adev->psp.ta_fw);
+	err = amdgpu_ucode_request(adev, &adev->psp.ta_fw, fw_name);
 	if (err)
 		return err;
 
@@ -3367,11 +3336,8 @@ int psp_init_ta_microcode(struct psp_context *psp, const char *chip_name)
 		err = -EINVAL;
 	}
 
-	if (err) {
-		dev_err(adev->dev, "fail to initialize ta microcode\n");
-		release_firmware(adev->psp.ta_fw);
-		adev->psp.ta_fw = NULL;
-	}
+	if (err)
+		amdgpu_ucode_release(&adev->psp.ta_fw);
 
 	return err;
 }
@@ -3390,17 +3356,14 @@ int psp_init_cap_microcode(struct psp_context *psp, const char *chip_name)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_cap.bin", chip_name);
-	err = request_firmware(&adev->psp.cap_fw, fw_name, adev->dev);
+	err = amdgpu_ucode_request(adev, &adev->psp.cap_fw, fw_name);
 	if (err) {
-		dev_warn(adev->dev, "cap microcode does not exist, skip\n");
-		err = 0;
-		goto out;
-	}
-
-	err = amdgpu_ucode_validate(adev->psp.cap_fw);
-	if (err) {
+		if (err == -ENODEV) {
+			dev_warn(adev->dev, "cap microcode does not exist, skip\n");
+			err = 0;
+			goto out;
+		}
 		dev_err(adev->dev, "fail to initialize cap microcode\n");
-		goto out;
 	}
 
 	info = &adev->firmware.ucode[AMDGPU_UCODE_ID_CAP];
@@ -3417,8 +3380,7 @@ int psp_init_cap_microcode(struct psp_context *psp, const char *chip_name)
 	return 0;
 
 out:
-	release_firmware(adev->psp.cap_fw);
-	adev->psp.cap_fw = NULL;
+	amdgpu_ucode_release(&adev->psp.cap_fw);
 	return err;
 }
 
