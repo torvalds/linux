@@ -164,4 +164,8 @@ void nft_payload_inner_eval(const struct nft_expr *expr, struct nft_regs *regs,
 			    const struct nft_pktinfo *pkt,
 			    struct nft_inner_tun_ctx *ctx);
 
+void nft_objref_eval(const struct nft_expr *expr, struct nft_regs *regs,
+		     const struct nft_pktinfo *pkt);
+void nft_objref_map_eval(const struct nft_expr *expr, struct nft_regs *regs,
+			 const struct nft_pktinfo *pkt);
 #endif /* _NET_NF_TABLES_CORE_H */
