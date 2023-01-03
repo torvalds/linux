@@ -32,6 +32,9 @@
 
 #include "../include/linux/atomisp_platform.h"
 
+#define OV2680_NATIVE_WIDTH			1616
+#define OV2680_NATIVE_HEIGHT			1216
+
 #define OV2680_FOCAL_LENGTH_NUM	334	/*3.34mm*/
 
 #define OV2680_BIN_FACTOR_MAX 4
@@ -112,11 +115,8 @@
 #define OV2680_FRAME_OFF_NUM						0x4202
 
 /*Flip/Mirror*/
-#define OV2680_FLIP_REG				0x3820
-#define OV2680_MIRROR_REG			0x3821
-#define OV2680_FLIP_BIT				1
-#define OV2680_MIRROR_BIT			2
-#define OV2680_FLIP_MIRROR_BIT_ENABLE		4
+#define OV2680_REG_FORMAT1			0x3820
+#define OV2680_REG_FORMAT2			0x3821
 
 #define OV2680_MWB_RED_GAIN_H			0x5004/*0x3400*/
 #define OV2680_MWB_GREEN_GAIN_H			0x5006/*0x3402*/
@@ -158,13 +158,24 @@ struct ov2680_device {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct mutex input_lock;
-	struct v4l2_ctrl_handler ctrl_handler;
+	struct i2c_client *client;
 	struct ov2680_resolution *res;
 	struct camera_sensor_platform_data *platform_data;
 	bool power_on;
+	bool is_streaming;
 	u16 exposure;
 	u16 gain;
 	u16 digitgain;
+
+	struct ov2680_mode {
+		struct v4l2_mbus_framefmt fmt;
+	} mode;
+
+	struct ov2680_ctrls {
+		struct v4l2_ctrl_handler handler;
+		struct v4l2_ctrl *hflip;
+		struct v4l2_ctrl *vflip;
+	} ctrls;
 };
 
 /**
@@ -181,6 +192,14 @@ struct ov2680_reg {
 };
 
 #define to_ov2680_sensor(x) container_of(x, struct ov2680_device, sd)
+
+static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
+{
+	struct ov2680_device *sensor =
+		container_of(ctrl->handler, struct ov2680_device, ctrls.handler);
+
+	return &sensor->sd;
+}
 
 #define OV2680_MAX_WRITE_BUF_SIZE	30
 

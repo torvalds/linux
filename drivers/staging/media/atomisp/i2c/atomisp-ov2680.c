@@ -38,8 +38,6 @@
 
 #include "ov2680.h"
 
-static int h_flag;
-static int v_flag;
 static enum atomisp_bayer_order ov2680_bayer_order_mapping[] = {
 	atomisp_bayer_order_bggr,
 	atomisp_bayer_order_grbg,
@@ -237,82 +235,78 @@ static int ov2680_q_exposure(struct v4l2_subdev *sd, s32 *value)
 	return 0;
 }
 
-static int ov2680_v_flip(struct v4l2_subdev *sd, s32 value)
+static void ov2680_set_bayer_order(struct ov2680_device *sensor, struct v4l2_mbus_framefmt *fmt)
 {
-	struct camera_mipi_info *ov2680_info = NULL;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-	u32 val;
-	u8 index;
+	static const int ov2680_hv_flip_bayer_order[] = {
+		MEDIA_BUS_FMT_SBGGR10_1X10,
+		MEDIA_BUS_FMT_SGRBG10_1X10,
+		MEDIA_BUS_FMT_SGBRG10_1X10,
+		MEDIA_BUS_FMT_SRGGB10_1X10,
+	};
+	struct camera_mipi_info *ov2680_info;
+	int hv_flip = 0;
 
-	dev_dbg(&client->dev, "@%s: value:%d\n", __func__, value);
-	ret = ov_read_reg8(client, OV2680_FLIP_REG, &val);
-	if (ret)
-		return ret;
-	if (value)
-		val |= OV2680_FLIP_MIRROR_BIT_ENABLE;
-	else
-		val &= ~OV2680_FLIP_MIRROR_BIT_ENABLE;
+	if (sensor->ctrls.vflip->val)
+		hv_flip += 1;
 
-	ret = ov_write_reg8(client, OV2680_FLIP_REG, val);
-	if (ret)
-		return ret;
-	index = (v_flag > 0 ? OV2680_FLIP_BIT : 0) | (h_flag > 0 ? OV2680_MIRROR_BIT :
-		0);
-	ov2680_info = v4l2_get_subdev_hostdata(sd);
-	if (ov2680_info) {
-		ov2680_info->raw_bayer_order = ov2680_bayer_order_mapping[index];
-	}
-	return ret;
+	if (sensor->ctrls.hflip->val)
+		hv_flip += 2;
+
+	fmt->code = ov2680_hv_flip_bayer_order[hv_flip];
+
+	/* TODO atomisp specific custom API, should be removed */
+	ov2680_info = v4l2_get_subdev_hostdata(&sensor->sd);
+	if (ov2680_info)
+		ov2680_info->raw_bayer_order = ov2680_bayer_order_mapping[hv_flip];
 }
 
-static int ov2680_h_flip(struct v4l2_subdev *sd, s32 value)
+static int ov2680_set_vflip(struct ov2680_device *sensor, s32 val)
 {
-	struct camera_mipi_info *ov2680_info = NULL;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
-	u32 val;
-	u8 index;
 
-	dev_dbg(&client->dev, "@%s: value:%d\n", __func__, value);
+	if (sensor->is_streaming)
+		return -EBUSY;
 
-	ret = ov_read_reg8(client, OV2680_MIRROR_REG, &val);
-	if (ret)
+	ret = ov_update_reg(sensor->client, OV2680_REG_FORMAT1, BIT(2), val ? BIT(2) : 0);
+	if (ret < 0)
 		return ret;
-	if (value)
-		val |= OV2680_FLIP_MIRROR_BIT_ENABLE;
-	else
-		val &= ~OV2680_FLIP_MIRROR_BIT_ENABLE;
 
-	ret = ov_write_reg8(client, OV2680_MIRROR_REG, val);
-	if (ret)
+	ov2680_set_bayer_order(sensor, &sensor->mode.fmt);
+	return 0;
+}
+
+static int ov2680_set_hflip(struct ov2680_device *sensor, s32 val)
+{
+	int ret;
+
+	if (sensor->is_streaming)
+		return -EBUSY;
+
+	ret = ov_update_reg(sensor->client, OV2680_REG_FORMAT2, BIT(2), val ? BIT(2) : 0);
+	if (ret < 0)
 		return ret;
-	index = (v_flag > 0 ? OV2680_FLIP_BIT : 0) | (h_flag > 0 ? OV2680_MIRROR_BIT :
-		0);
-	ov2680_info = v4l2_get_subdev_hostdata(sd);
-	if (ov2680_info) {
-		ov2680_info->raw_bayer_order = ov2680_bayer_order_mapping[index];
-	}
-	return ret;
+
+	ov2680_set_bayer_order(sensor, &sensor->mode.fmt);
+	return 0;
 }
 
 static int ov2680_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct ov2680_device *dev =
-	    container_of(ctrl->handler, struct ov2680_device, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&dev->sd);
-	int ret = 0;
+	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
+	struct ov2680_device *sensor = to_ov2680_sensor(sd);
+	int ret;
+
+	if (!sensor->power_on) {
+		ov2680_set_bayer_order(sensor, &sensor->mode.fmt);
+		return 0;
+	}
 
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
-		dev_dbg(&client->dev, "%s: CID_VFLIP:%d.\n",
-			__func__, ctrl->val);
-		ret = ov2680_v_flip(&dev->sd, ctrl->val);
+		ret = ov2680_set_vflip(sensor, ctrl->val);
 		break;
 	case V4L2_CID_HFLIP:
-		dev_dbg(&client->dev, "%s: CID_HFLIP:%d.\n",
-			__func__, ctrl->val);
-		ret = ov2680_h_flip(&dev->sd, ctrl->val);
+		ret = ov2680_set_hflip(sensor, ctrl->val);
 		break;
 	default:
 		ret = -EINVAL;
@@ -322,13 +316,12 @@ static int ov2680_s_ctrl(struct v4l2_ctrl *ctrl)
 
 static int ov2680_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct ov2680_device *dev =
-	    container_of(ctrl->handler, struct ov2680_device, ctrl_handler);
+	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
 	int ret = 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
-		ret = ov2680_q_exposure(&dev->sd, &ctrl->val);
+		ret = ov2680_q_exposure(sd, &ctrl->val);
 		break;
 	default:
 		ret = -EINVAL;
@@ -337,43 +330,9 @@ static int ov2680_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-static const struct v4l2_ctrl_ops ctrl_ops = {
+static const struct v4l2_ctrl_ops ov2680_ctrl_ops = {
 	.s_ctrl = ov2680_s_ctrl,
 	.g_volatile_ctrl = ov2680_g_volatile_ctrl
-};
-
-static const struct v4l2_ctrl_config ov2680_controls[] = {
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_EXPOSURE_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "exposure",
-		.min = 0x0,
-		.max = 0xffff,
-		.step = 0x01,
-		.def = 0x00,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_VFLIP,
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.name = "Flip",
-		.min = 0,
-		.max = 1,
-		.step = 1,
-		.def = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_HFLIP,
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.name = "Mirror",
-		.min = 0,
-		.max = 1,
-		.step = 1,
-		.def = 0,
-	},
 };
 
 static int ov2680_init_registers(struct v4l2_subdev *sd)
@@ -506,8 +465,6 @@ static int power_down(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	h_flag = 0;
-	v_flag = 0;
 	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
@@ -558,46 +515,51 @@ static int ov2680_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
+static struct v4l2_mbus_framefmt *
+__ov2680_get_pad_format(struct ov2680_device *sensor,
+			struct v4l2_subdev_state *state,
+			unsigned int pad, enum v4l2_subdev_format_whence which)
+{
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_get_try_format(&sensor->sd, state, pad);
+
+	return &sensor->mode.fmt;
+}
+
+static void ov2680_fill_format(struct ov2680_device *sensor,
+			       struct v4l2_mbus_framefmt *fmt,
+			       unsigned int width, unsigned int height)
+{
+	memset(fmt, 0, sizeof(*fmt));
+	fmt->width = width;
+	fmt->height = height;
+	fmt->field = V4L2_FIELD_NONE;
+	ov2680_set_bayer_order(sensor, fmt);
+}
+
 static int ov2680_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
-	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct camera_mipi_info *ov2680_info = NULL;
+	struct v4l2_mbus_framefmt *fmt;
 	struct ov2680_resolution *res;
 	int vts, ret = 0;
 
-	dev_dbg(&client->dev, "%s: %s: pad: %d, fmt: %p\n",
-		__func__,
-		(format->which == V4L2_SUBDEV_FORMAT_TRY) ? "try" : "set",
-		format->pad, fmt);
-
-	if (format->pad)
-		return -EINVAL;
-
-	if (!fmt)
-		return -EINVAL;
-
-	ov2680_info = v4l2_get_subdev_hostdata(sd);
-	if (!ov2680_info)
-		return -EINVAL;
-
-	res = v4l2_find_nearest_size(ov2680_res_preview,
-				     ARRAY_SIZE(ov2680_res_preview), width,
-				     height, fmt->width, fmt->height);
+	res = v4l2_find_nearest_size(ov2680_res_preview, ARRAY_SIZE(ov2680_res_preview),
+				     width, height,
+				     format->format.width, format->format.height);
 	if (!res)
 		res = &ov2680_res_preview[N_RES_PREVIEW - 1];
 
-	fmt->width = res->width;
-	fmt->height = res->height;
+	fmt = __ov2680_get_pad_format(dev, sd_state, format->pad, format->which);
+	ov2680_fill_format(dev, fmt, res->width, res->height);
 
-	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		sd_state->pads->try_fmt = *fmt;
+	format->format = *fmt;
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
-	}
 
 	dev_dbg(&client->dev, "%s: %dx%d\n",
 		__func__, fmt->width, fmt->height);
@@ -629,10 +591,9 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	 * recall flip functions to avoid flip registers
 	 * were overridden by default setting
 	 */
-	if (h_flag)
-		ov2680_h_flip(sd, h_flag);
-	if (v_flag)
-		ov2680_v_flip(sd, v_flag);
+	ret = __v4l2_ctrl_handler_setup(&dev->ctrls.handler);
+	if (ret < 0)
+		goto err;
 
 	dev->res = res;
 err:
@@ -644,19 +605,11 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
-	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
+	struct v4l2_mbus_framefmt *fmt;
 
-	if (format->pad)
-		return -EINVAL;
-
-	if (!fmt)
-		return -EINVAL;
-
-	fmt->width = dev->res->width;
-	fmt->height = dev->res->height;
-	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
-
+	fmt = __ov2680_get_pad_format(dev, sd_state, format->pad, format->which);
+	format->format = *fmt;
 	return 0;
 }
 
@@ -707,6 +660,11 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 
 	ret = ov_write_reg8(client, OV2680_SW_STREAM,
 				enable ? OV2680_START_STREAMING : OV2680_STOP_STREAMING);
+	if (ret == 0) {
+		dev->is_streaming = enable;
+		v4l2_ctrl_activate(dev->ctrls.vflip, !enable);
+		v4l2_ctrl_activate(dev->ctrls.hflip, !enable);
+	}
 
 	//otp valid at stream on state
 	//if(!dev->otp_data)
@@ -867,6 +825,29 @@ static const struct v4l2_subdev_ops ov2680_ops = {
 	.sensor = &ov2680_sensor_ops,
 };
 
+static int ov2680_init_controls(struct ov2680_device *sensor)
+{
+	const struct v4l2_ctrl_ops *ops = &ov2680_ctrl_ops;
+	struct ov2680_ctrls *ctrls = &sensor->ctrls;
+	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
+
+	v4l2_ctrl_handler_init(hdl, 2);
+
+	hdl->lock = &sensor->input_lock;
+
+	ctrls->hflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
+	ctrls->vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
+
+	ctrls->hflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
+	ctrls->vflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
+
+	if (hdl->error)
+		return hdl->error;
+
+	sensor->sd.ctrl_handler = hdl;
+	return 0;
+}
+
 static void ov2680_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -878,7 +859,7 @@ static void ov2680_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&dev->sd.entity);
-	v4l2_ctrl_handler_free(&dev->ctrl_handler);
+	v4l2_ctrl_handler_free(&dev->ctrls.handler);
 	kfree(dev);
 }
 
@@ -887,7 +868,6 @@ static int ov2680_probe(struct i2c_client *client)
 	struct ov2680_device *dev;
 	int ret;
 	void *pdata;
-	unsigned int i;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -895,6 +875,7 @@ static int ov2680_probe(struct i2c_client *client)
 
 	mutex_init(&dev->input_lock);
 
+	dev->client = client;
 	dev->res = &ov2680_res_preview[0];
 	dev->exposure = dev->res->lines_per_frame - OV2680_INTEGRATION_TIME_MARGIN;
 	dev->gain = 250; /* 0-2047 */
@@ -912,40 +893,31 @@ static int ov2680_probe(struct i2c_client *client)
 	if (ret)
 		goto out_free;
 
-	ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
-	if (ret)
-		goto out_free;
-
 	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	ret =
-	    v4l2_ctrl_handler_init(&dev->ctrl_handler,
-				   ARRAY_SIZE(ov2680_controls));
+
+	ret = ov2680_init_controls(dev);
 	if (ret) {
 		ov2680_remove(client);
 		return ret;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(ov2680_controls); i++)
-		v4l2_ctrl_new_custom(&dev->ctrl_handler, &ov2680_controls[i],
-				     NULL);
-
-	if (dev->ctrl_handler.error) {
-		ov2680_remove(client);
-		return dev->ctrl_handler.error;
-	}
-
-	/* Use same lock for controls as for everything else. */
-	dev->ctrl_handler.lock = &dev->input_lock;
-	dev->sd.ctrl_handler = &dev->ctrl_handler;
-
 	ret = media_entity_pads_init(&dev->sd.entity, 1, &dev->pad);
 	if (ret) {
 		ov2680_remove(client);
-		dev_dbg(&client->dev, "+++ remove ov2680\n");
+		return ret;
 	}
-	return ret;
+
+	ov2680_fill_format(dev, &dev->mode.fmt, OV2680_NATIVE_WIDTH, OV2680_NATIVE_HEIGHT);
+
+	ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
+	if (ret) {
+		ov2680_remove(client);
+		return ret;
+	}
+
+	return 0;
 out_free:
 	dev_dbg(&client->dev, "+++ out free\n");
 	v4l2_device_unregister_subdev(&dev->sd);
