@@ -9,6 +9,7 @@
 #include "dt-bindings/usb/pd.h"
 #include "rk3562.dtsi"
 #include "rk3562-evb.dtsi"
+#include "rk3562-evb1-cam.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/sensor-dev.h>
