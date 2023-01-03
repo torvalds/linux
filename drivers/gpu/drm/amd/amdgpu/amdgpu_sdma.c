@@ -154,15 +154,10 @@ int amdgpu_sdma_process_ecc_irq(struct amdgpu_device *adev,
 
 static int amdgpu_sdma_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
 {
-	int err = 0;
 	uint16_t version_major;
 	const struct common_firmware_header *header = NULL;
 	const struct sdma_firmware_header_v1_0 *hdr;
 	const struct sdma_firmware_header_v2_0 *hdr_v2;
-
-	err = amdgpu_ucode_validate(sdma_inst->fw);
-	if (err)
-		return err;
 
 	header = (const struct common_firmware_header *)
 		sdma_inst->fw->data;
@@ -195,7 +190,7 @@ void amdgpu_sdma_destroy_inst_ctx(struct amdgpu_device *adev,
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		release_firmware(adev->sdma.instance[i].fw);
+		amdgpu_ucode_release(&adev->sdma.instance[i].fw);
 		if (duplicate)
 			break;
 	}
@@ -214,7 +209,7 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 	const struct sdma_firmware_header_v2_0 *sdma_hdr;
 	uint16_t version_major;
 
-	err = request_firmware(&adev->sdma.instance[instance].fw, fw_name, adev->dev);
+	err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw, fw_name);
 	if (err)
 		goto out;
 
