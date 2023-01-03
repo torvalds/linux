@@ -20,37 +20,37 @@
 		reg = <0x00000000 0x08000000>;
 	};
 
-	leds {
+	leds-0 {
 		compatible = "gpio-leds";
 
-		usb {
+		led-usb {
 			label = "bcm53xx:blue:usb";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_HIGH>;
 			trigger-sources = <&ohci_port1>, <&ehci_port1>;
 			linux,default-trigger = "usbport";
 		};
 
-		wps {
+		led-wps {
 			label = "bcm53xx:blue:wps";
 			gpios = <&chipcommon 10 GPIO_ACTIVE_HIGH>;
 		};
 
-		5ghz {
+		led-5ghz {
 			label = "bcm53xx:blue:5ghz";
 			gpios = <&chipcommon 11 GPIO_ACTIVE_HIGH>;
 		};
 
-		system {
+		led-system {
 			label = "bcm53xx:blue:system";
 			gpios = <&chipcommon 15 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "timer";
 		};
 	};
 
-	pcie0_leds {
+	leds-1 {
 		compatible = "gpio-leds";
 
-		2ghz {
+		led-2ghz {
 			label = "bcm53xx:blue:2ghz";
 			gpios = <&pcie0_chipcommon 3 GPIO_ACTIVE_HIGH>;
 		};

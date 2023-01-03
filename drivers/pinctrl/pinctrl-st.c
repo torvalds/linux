@@ -5,21 +5,26 @@
  *	Srinivas Kandagatla <srinivas.kandagatla@st.com>
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_irq.h>
-#include <linux/of_address.h>
 #include <linux/gpio/driver.h>
-#include <linux/regmap.h>
+#include <linux/init.h>
+#include <linux/io.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/string_helpers.h>
+
+#include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/platform_device.h>
+
 #include "core.h"
 
 /* PIO Block registers */
@@ -1175,7 +1180,7 @@ static int st_pctl_dt_calculate_pin(struct st_pinctrl *info,
 
 	for (i = 0; i < info->nbanks; i++) {
 		chip = &info->banks[i].gpio_chip;
-		if (chip->of_node == np) {
+		if (chip->fwnode == of_fwnode_handle(np)) {
 			if (offset < chip->ngpio)
 				retval = chip->base + offset;
 			break;
@@ -1518,7 +1523,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	bank->gpio_chip = st_gpio_template;
 	bank->gpio_chip.base = bank_num * ST_GPIO_PINS_PER_BANK;
 	bank->gpio_chip.ngpio = ST_GPIO_PINS_PER_BANK;
-	bank->gpio_chip.of_node = np;
+	bank->gpio_chip.fwnode = of_fwnode_handle(np);
 	bank->gpio_chip.parent = dev;
 	spin_lock_init(&bank->lock);
 

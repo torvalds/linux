@@ -170,6 +170,10 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
 					ADF_NUM_CY, (void *)&val, ADF_DEC))
 		return -EFAULT;
+	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_DC,
+					  &val, ADF_DEC);
+	if (ret)
+		return ret;
 
 	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
 

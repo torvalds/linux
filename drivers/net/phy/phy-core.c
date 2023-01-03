@@ -13,7 +13,7 @@
  */
 const char *phy_speed_to_str(int speed)
 {
-	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 93,
+	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 99,
 		"Enum ethtool_link_mode_bit_indices and phylib are out of sync. "
 		"If a speed or mode has been added please update phy_speed_to_str "
 		"and the PHY settings array.\n");
@@ -49,6 +49,8 @@ const char *phy_speed_to_str(int speed)
 		return "200Gbps";
 	case SPEED_400000:
 		return "400Gbps";
+	case SPEED_800000:
+		return "800Gbps";
 	case SPEED_UNKNOWN:
 		return "Unknown";
 	default:
@@ -157,6 +159,13 @@ EXPORT_SYMBOL_GPL(phy_interface_num_ports);
 			       .bit = ETHTOOL_LINK_MODE_ ## b ## _BIT}
 
 static const struct phy_setting settings[] = {
+	/* 800G */
+	PHY_SETTING( 800000, FULL, 800000baseCR8_Full		),
+	PHY_SETTING( 800000, FULL, 800000baseKR8_Full		),
+	PHY_SETTING( 800000, FULL, 800000baseDR8_Full		),
+	PHY_SETTING( 800000, FULL, 800000baseDR8_2_Full		),
+	PHY_SETTING( 800000, FULL, 800000baseSR8_Full		),
+	PHY_SETTING( 800000, FULL, 800000baseVR8_Full		),
 	/* 400G */
 	PHY_SETTING( 400000, FULL, 400000baseCR8_Full		),
 	PHY_SETTING( 400000, FULL, 400000baseKR8_Full		),

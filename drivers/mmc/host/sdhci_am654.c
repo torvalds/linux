@@ -836,7 +836,7 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret) {
-		dev_err(dev, "parsing dt failed (%d)\n", ret);
+		dev_err_probe(dev, ret, "parsing dt failed\n");
 		goto pm_runtime_put;
 	}
 

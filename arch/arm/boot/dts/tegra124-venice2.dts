@@ -52,6 +52,7 @@
 			aux-bus {
 				panel: panel {
 					compatible = "lg,lp129qe";
+					power-supply = <&vdd_3v3_panel>;
 					backlight = <&backlight>;
 				};
 			};
@@ -70,7 +71,7 @@
 		pinctrl-names = "boot";
 		pinctrl-0 = <&pinmux_boot>;
 
-		pinmux_boot: common {
+		pinmux_boot: pinmux {
 			dap_mclk1_pw4 {
 				nvidia,pins = "dap_mclk1_pw4";
 				nvidia,function = "extperiph1";

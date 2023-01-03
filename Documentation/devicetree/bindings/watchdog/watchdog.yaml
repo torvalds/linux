@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/watchdog/watchdog.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Watchdog Generic Bindings
+title: Watchdog Common Properties
 
 maintainers:
   - Guenter Roeck <linux@roeck-us.net>

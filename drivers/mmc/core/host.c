@@ -269,7 +269,7 @@ EXPORT_SYMBOL(mmc_of_parse_clk_phase);
  * @host: host whose properties should be parsed.
  *
  * To keep the rest of the MMC subsystem unaware of whether DT has been
- * used to to instantiate and configure this host instance or not, we
+ * used to instantiate and configure this host instance or not, we
  * parse the properties and set respective generic mmc-host flags and
  * parameters.
  */
@@ -629,9 +629,7 @@ int mmc_add_host(struct mmc_host *host)
 
 	led_trigger_register_simple(dev_name(&host->class_dev), &host->led);
 
-#ifdef CONFIG_DEBUG_FS
 	mmc_add_host_debugfs(host);
-#endif
 
 	mmc_start_host(host);
 	return 0;
@@ -651,9 +649,7 @@ void mmc_remove_host(struct mmc_host *host)
 {
 	mmc_stop_host(host);
 
-#ifdef CONFIG_DEBUG_FS
 	mmc_remove_host_debugfs(host);
-#endif
 
 	device_del(&host->class_dev);
 

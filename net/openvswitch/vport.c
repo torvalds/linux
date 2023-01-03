@@ -285,6 +285,56 @@ void ovs_vport_get_stats(struct vport *vport, struct ovs_vport_stats *stats)
 }
 
 /**
+ *	ovs_vport_get_upcall_stats - retrieve upcall stats
+ *
+ * @vport: vport from which to retrieve the stats.
+ * @skb: sk_buff where upcall stats should be appended.
+ *
+ * Retrieves upcall stats for the given device.
+ *
+ * Must be called with ovs_mutex or rcu_read_lock.
+ */
+int ovs_vport_get_upcall_stats(struct vport *vport, struct sk_buff *skb)
+{
+	struct nlattr *nla;
+	int i;
+
+	__u64 tx_success = 0;
+	__u64 tx_fail = 0;
+
+	for_each_possible_cpu(i) {
+		const struct vport_upcall_stats_percpu *stats;
+		unsigned int start;
+
+		stats = per_cpu_ptr(vport->upcall_stats, i);
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			tx_success += u64_stats_read(&stats->n_success);
+			tx_fail += u64_stats_read(&stats->n_fail);
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+	}
+
+	nla = nla_nest_start_noflag(skb, OVS_VPORT_ATTR_UPCALL_STATS);
+	if (!nla)
+		return -EMSGSIZE;
+
+	if (nla_put_u64_64bit(skb, OVS_VPORT_UPCALL_ATTR_SUCCESS, tx_success,
+			      OVS_VPORT_ATTR_PAD)) {
+		nla_nest_cancel(skb, nla);
+		return -EMSGSIZE;
+	}
+
+	if (nla_put_u64_64bit(skb, OVS_VPORT_UPCALL_ATTR_FAIL, tx_fail,
+			      OVS_VPORT_ATTR_PAD)) {
+		nla_nest_cancel(skb, nla);
+		return -EMSGSIZE;
+	}
+	nla_nest_end(skb, nla);
+
+	return 0;
+}
+
+/**
  *	ovs_vport_get_options - retrieve device options
  *
  * @vport: vport from which to retrieve the options.

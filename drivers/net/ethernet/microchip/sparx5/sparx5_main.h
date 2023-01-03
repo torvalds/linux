@@ -17,6 +17,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/hrtimer.h>
+#include <linux/debugfs.h>
 
 #include "sparx5_main_regs.h"
 
@@ -288,8 +289,12 @@ struct sparx5 {
 	struct mutex ptp_lock; /* lock for ptp interface state */
 	u16 ptp_skbs;
 	int ptp_irq;
+	/* VCAP */
+	struct vcap_control *vcap_ctrl;
 	/* PGID allocation map */
 	u8 pgid_map[PGID_TABLE_SIZE];
+	/* Common root for debugfs */
+	struct dentry *debugfs_root;
 };
 
 /* sparx5_switchdev.c */
@@ -357,6 +362,16 @@ int sparx5_config_dsm_calendar(struct sparx5 *sparx5);
 void sparx5_get_stats64(struct net_device *ndev, struct rtnl_link_stats64 *stats);
 int sparx_stats_init(struct sparx5 *sparx5);
 
+/* sparx5_dcb.c */
+#ifdef CONFIG_SPARX5_DCB
+int sparx5_dcb_init(struct sparx5 *sparx5);
+#else
+static inline int sparx5_dcb_init(struct sparx5 *sparx5)
+{
+	return 0;
+}
+#endif
+
 /* sparx5_netdev.c */
 void sparx5_set_port_ifh_timestamp(void *ifh_hdr, u64 timestamp);
 void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op);
@@ -381,6 +396,10 @@ int sparx5_ptp_txtstamp_request(struct sparx5_port *port,
 void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
 				 struct sk_buff *skb);
 irqreturn_t sparx5_ptp_irq_handler(int irq, void *args);
+
+/* sparx5_vcap_impl.c */
+int sparx5_vcap_init(struct sparx5 *sparx5);
+void sparx5_vcap_destroy(struct sparx5 *sparx5);
 
 /* sparx5_pgid.c */
 enum sparx5_pgid_type {
@@ -418,6 +437,7 @@ static inline bool sparx5_is_baser(phy_interface_t interface)
 extern const struct phylink_mac_ops sparx5_phylink_mac_ops;
 extern const struct phylink_pcs_ops sparx5_phylink_pcs_ops;
 extern const struct ethtool_ops sparx5_ethtool_ops;
+extern const struct dcbnl_rtnl_ops sparx5_dcbnl_ops;
 
 /* Calculate raw offset */
 static inline __pure int spx5_offset(int id, int tinst, int tcnt,

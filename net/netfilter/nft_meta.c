@@ -669,7 +669,7 @@ int nft_meta_set_init(const struct nft_ctx *ctx,
 EXPORT_SYMBOL_GPL(nft_meta_set_init);
 
 int nft_meta_get_dump(struct sk_buff *skb,
-		      const struct nft_expr *expr)
+		      const struct nft_expr *expr, bool reset)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 
@@ -684,7 +684,8 @@ nla_put_failure:
 }
 EXPORT_SYMBOL_GPL(nft_meta_get_dump);
 
-int nft_meta_set_dump(struct sk_buff *skb, const struct nft_expr *expr)
+int nft_meta_set_dump(struct sk_buff *skb,
+		      const struct nft_expr *expr, bool reset)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 
@@ -831,9 +832,71 @@ nft_meta_select_ops(const struct nft_ctx *ctx,
 	return ERR_PTR(-EINVAL);
 }
 
+static int nft_meta_inner_init(const struct nft_ctx *ctx,
+			       const struct nft_expr *expr,
+			       const struct nlattr * const tb[])
+{
+	struct nft_meta *priv = nft_expr_priv(expr);
+	unsigned int len;
+
+	priv->key = ntohl(nla_get_be32(tb[NFTA_META_KEY]));
+	switch (priv->key) {
+	case NFT_META_PROTOCOL:
+		len = sizeof(u16);
+		break;
+	case NFT_META_L4PROTO:
+		len = sizeof(u32);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	priv->len = len;
+
+	return nft_parse_register_store(ctx, tb[NFTA_META_DREG], &priv->dreg,
+					NULL, NFT_DATA_VALUE, len);
+}
+
+void nft_meta_inner_eval(const struct nft_expr *expr,
+			 struct nft_regs *regs,
+			 const struct nft_pktinfo *pkt,
+			 struct nft_inner_tun_ctx *tun_ctx)
+{
+	const struct nft_meta *priv = nft_expr_priv(expr);
+	u32 *dest = &regs->data[priv->dreg];
+
+	switch (priv->key) {
+	case NFT_META_PROTOCOL:
+		nft_reg_store16(dest, (__force u16)tun_ctx->llproto);
+		break;
+	case NFT_META_L4PROTO:
+		if (!(tun_ctx->flags & NFT_PAYLOAD_CTX_INNER_TH))
+			goto err;
+
+		nft_reg_store8(dest, tun_ctx->l4proto);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		goto err;
+	}
+	return;
+
+err:
+	regs->verdict.code = NFT_BREAK;
+}
+EXPORT_SYMBOL_GPL(nft_meta_inner_eval);
+
+static const struct nft_expr_ops nft_meta_inner_ops = {
+	.type		= &nft_meta_type,
+	.size		= NFT_EXPR_SIZE(sizeof(struct nft_meta)),
+	.init		= nft_meta_inner_init,
+	.dump		= nft_meta_get_dump,
+	/* direct call to nft_meta_inner_eval(). */
+};
+
 struct nft_expr_type nft_meta_type __read_mostly = {
 	.name		= "meta",
 	.select_ops	= nft_meta_select_ops,
+	.inner_ops	= &nft_meta_inner_ops,
 	.policy		= nft_meta_policy,
 	.maxattr	= NFTA_META_MAX,
 	.owner		= THIS_MODULE,

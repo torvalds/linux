@@ -180,7 +180,6 @@ err_put_np:
 }
 EXPORT_SYMBOL_GPL(qcom_snd_parse_of);
 
-#if IS_ENABLED(CONFIG_SOUNDWIRE)
 int qcom_snd_sdw_prepare(struct snd_pcm_substream *substream,
 			 struct sdw_stream_runtime *sruntime,
 			 bool *stream_prepared)
@@ -294,7 +293,6 @@ int qcom_snd_sdw_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_snd_sdw_hw_free);
-#endif
 
 int qcom_snd_wcd_jack_setup(struct snd_soc_pcm_runtime *rtd,
 			    struct snd_soc_jack *jack, bool *jack_setup)

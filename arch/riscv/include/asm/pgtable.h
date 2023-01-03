@@ -415,8 +415,11 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 	 * Relying on flush_tlb_fix_spurious_fault would suffice, but
 	 * the extra traps reduce performance.  So, eagerly SFENCE.VMA.
 	 */
-	local_flush_tlb_page(address);
+	flush_tlb_page(vma, address);
 }
+
+#define __HAVE_ARCH_UPDATE_MMU_TLB
+#define update_mmu_tlb update_mmu_cache
 
 static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 		unsigned long address, pmd_t *pmdp)
@@ -801,8 +804,6 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 #define VMALLOC_END		TASK_SIZE
 
 #endif /* !CONFIG_MMU */
-
-#define kern_addr_valid(addr)   (1) /* FIXME */
 
 extern char _start[];
 extern void *_dtb_early_va;

@@ -152,41 +152,41 @@
 };
 
 &gpio {
-	i2c_slave_gpio18: i2c_slave_gpio18 {
+	i2c_slave_gpio18: i2c-slave-gpio18 {
 		brcm,pins = <18 19 20 21>;
 		brcm,function = <BCM2835_FSEL_ALT3>;
 	};
 
-	jtag_gpio4: jtag_gpio4 {
+	jtag_gpio4: jtag-gpio4 {
 		brcm,pins = <4 5 6 12 13>;
 		brcm,function = <BCM2835_FSEL_ALT5>;
 	};
 
-	pwm0_gpio12: pwm0_gpio12 {
+	pwm0_gpio12: pwm0-gpio12 {
 		brcm,pins = <12>;
 		brcm,function = <BCM2835_FSEL_ALT0>;
 	};
-	pwm0_gpio18: pwm0_gpio18 {
+	pwm0_gpio18: pwm0-gpio18 {
 		brcm,pins = <18>;
 		brcm,function = <BCM2835_FSEL_ALT5>;
 	};
-	pwm0_gpio40: pwm0_gpio40 {
+	pwm0_gpio40: pwm0-gpio40 {
 		brcm,pins = <40>;
 		brcm,function = <BCM2835_FSEL_ALT0>;
 	};
-	pwm1_gpio13: pwm1_gpio13 {
+	pwm1_gpio13: pwm1-gpio13 {
 		brcm,pins = <13>;
 		brcm,function = <BCM2835_FSEL_ALT0>;
 	};
-	pwm1_gpio19: pwm1_gpio19 {
+	pwm1_gpio19: pwm1-gpio19 {
 		brcm,pins = <19>;
 		brcm,function = <BCM2835_FSEL_ALT5>;
 	};
-	pwm1_gpio41: pwm1_gpio41 {
+	pwm1_gpio41: pwm1-gpio41 {
 		brcm,pins = <41>;
 		brcm,function = <BCM2835_FSEL_ALT0>;
 	};
-	pwm1_gpio45: pwm1_gpio45 {
+	pwm1_gpio45: pwm1-gpio45 {
 		brcm,pins = <45>;
 		brcm,function = <BCM2835_FSEL_ALT0>;
 	};

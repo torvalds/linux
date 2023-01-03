@@ -55,6 +55,8 @@ MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
 
 /*
  * Per-Core Temperature Data
+ * @tjmax: The static tjmax value when tjmax cannot be retrieved from
+ *		IA32_TEMPERATURE_TARGET MSR.
  * @last_updated: The time when the current temperature value was updated
  *		earlier (in jiffies).
  * @cpu_core_id: The CPU Core from which temperature values should be read
@@ -64,11 +66,9 @@ MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
  * @attr_size:  Total number of pre-core attrs displayed in the sysfs.
  * @is_pkg_data: If this is 1, the temp_data holds pkgtemp data.
  *		Otherwise, temp_data holds coretemp data.
- * @valid: If this is 1, the current temperature is valid.
  */
 struct temp_data {
 	int temp;
-	int ttarget;
 	int tjmax;
 	unsigned long last_updated;
 	unsigned int cpu;
@@ -76,7 +76,6 @@ struct temp_data {
 	u32 status_reg;
 	int attr_size;
 	bool is_pkg_data;
-	bool valid;
 	struct sensor_device_attribute sd_attrs[TOTAL_ATTRS];
 	char attr_name[TOTAL_ATTRS][CORETEMP_NAME_LENGTH];
 	struct attribute *attrs[TOTAL_ATTRS + 1];
@@ -94,85 +93,6 @@ struct platform_data {
 	struct temp_data	*core_data[MAX_CORE_DATA];
 	struct device_attribute name_attr;
 };
-
-/* Keep track of how many zone pointers we allocated in init() */
-static int max_zones __read_mostly;
-/* Array of zone pointers. Serialized by cpu hotplug lock */
-static struct platform_device **zone_devices;
-
-static ssize_t show_label(struct device *dev,
-				struct device_attribute *devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct platform_data *pdata = dev_get_drvdata(dev);
-	struct temp_data *tdata = pdata->core_data[attr->index];
-
-	if (tdata->is_pkg_data)
-		return sprintf(buf, "Package id %u\n", pdata->pkg_id);
-
-	return sprintf(buf, "Core %u\n", tdata->cpu_core_id);
-}
-
-static ssize_t show_crit_alarm(struct device *dev,
-				struct device_attribute *devattr, char *buf)
-{
-	u32 eax, edx;
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct platform_data *pdata = dev_get_drvdata(dev);
-	struct temp_data *tdata = pdata->core_data[attr->index];
-
-	mutex_lock(&tdata->update_lock);
-	rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
-	mutex_unlock(&tdata->update_lock);
-
-	return sprintf(buf, "%d\n", (eax >> 5) & 1);
-}
-
-static ssize_t show_tjmax(struct device *dev,
-			struct device_attribute *devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct platform_data *pdata = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", pdata->core_data[attr->index]->tjmax);
-}
-
-static ssize_t show_ttarget(struct device *dev,
-				struct device_attribute *devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct platform_data *pdata = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", pdata->core_data[attr->index]->ttarget);
-}
-
-static ssize_t show_temp(struct device *dev,
-			struct device_attribute *devattr, char *buf)
-{
-	u32 eax, edx;
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct platform_data *pdata = dev_get_drvdata(dev);
-	struct temp_data *tdata = pdata->core_data[attr->index];
-
-	mutex_lock(&tdata->update_lock);
-
-	/* Check whether the time interval has elapsed */
-	if (!tdata->valid || time_after(jiffies, tdata->last_updated + HZ)) {
-		rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
-		/*
-		 * Ignore the valid bit. In all observed cases the register
-		 * value is either low or zero if the valid bit is 0.
-		 * Return it instead of reporting an error which doesn't
-		 * really help at all.
-		 */
-		tdata->temp = tdata->tjmax - ((eax >> 16) & 0x7f) * 1000;
-		tdata->valid = true;
-		tdata->last_updated = jiffies;
-	}
-
-	mutex_unlock(&tdata->update_lock);
-	return sprintf(buf, "%d\n", tdata->temp);
-}
 
 struct tjmax_pci {
 	unsigned int device;
@@ -340,20 +260,25 @@ static bool cpu_has_tjmax(struct cpuinfo_x86 *c)
 	       model != 0x36;
 }
 
-static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
+static int get_tjmax(struct temp_data *tdata, struct device *dev)
 {
+	struct cpuinfo_x86 *c = &cpu_data(tdata->cpu);
 	int err;
 	u32 eax, edx;
 	u32 val;
+
+	/* use static tjmax once it is set */
+	if (tdata->tjmax)
+		return tdata->tjmax;
 
 	/*
 	 * A new feature of current Intel(R) processors, the
 	 * IA32_TEMPERATURE_TARGET contains the TjMax value
 	 */
-	err = rdmsr_safe_on_cpu(id, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
+	err = rdmsr_safe_on_cpu(tdata->cpu, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
 	if (err) {
 		if (cpu_has_tjmax(c))
-			dev_warn(dev, "Unable to read TjMax from CPU %u\n", id);
+			dev_warn(dev, "Unable to read TjMax from CPU %u\n", tdata->cpu);
 	} else {
 		val = (eax >> 16) & 0xff;
 		/*
@@ -369,14 +294,133 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	if (force_tjmax) {
 		dev_notice(dev, "TjMax forced to %d degrees C by user\n",
 			   force_tjmax);
-		return force_tjmax * 1000;
+		tdata->tjmax = force_tjmax * 1000;
+	} else {
+		/*
+		 * An assumption is made for early CPUs and unreadable MSR.
+		 * NOTE: the calculated value may not be correct.
+		 */
+		tdata->tjmax = adjust_tjmax(c, tdata->cpu, dev);
 	}
+	return tdata->tjmax;
+}
+
+static int get_ttarget(struct temp_data *tdata, struct device *dev)
+{
+	u32 eax, edx;
+	int tjmax, ttarget_offset, ret;
 
 	/*
-	 * An assumption is made for early CPUs and unreadable MSR.
-	 * NOTE: the calculated value may not be correct.
+	 * ttarget is valid only if tjmax can be retrieved from
+	 * MSR_IA32_TEMPERATURE_TARGET
 	 */
-	return adjust_tjmax(c, id, dev);
+	if (tdata->tjmax)
+		return -ENODEV;
+
+	ret = rdmsr_safe_on_cpu(tdata->cpu, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
+	if (ret)
+		return ret;
+
+	tjmax = (eax >> 16) & 0xff;
+
+	/* Read the still undocumented bits 8:15 of IA32_TEMPERATURE_TARGET. */
+	ttarget_offset = (eax >> 8) & 0xff;
+
+	return (tjmax - ttarget_offset) * 1000;
+}
+
+/* Keep track of how many zone pointers we allocated in init() */
+static int max_zones __read_mostly;
+/* Array of zone pointers. Serialized by cpu hotplug lock */
+static struct platform_device **zone_devices;
+
+static ssize_t show_label(struct device *dev,
+				struct device_attribute *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct platform_data *pdata = dev_get_drvdata(dev);
+	struct temp_data *tdata = pdata->core_data[attr->index];
+
+	if (tdata->is_pkg_data)
+		return sprintf(buf, "Package id %u\n", pdata->pkg_id);
+
+	return sprintf(buf, "Core %u\n", tdata->cpu_core_id);
+}
+
+static ssize_t show_crit_alarm(struct device *dev,
+				struct device_attribute *devattr, char *buf)
+{
+	u32 eax, edx;
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct platform_data *pdata = dev_get_drvdata(dev);
+	struct temp_data *tdata = pdata->core_data[attr->index];
+
+	mutex_lock(&tdata->update_lock);
+	rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
+	mutex_unlock(&tdata->update_lock);
+
+	return sprintf(buf, "%d\n", (eax >> 5) & 1);
+}
+
+static ssize_t show_tjmax(struct device *dev,
+			struct device_attribute *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct platform_data *pdata = dev_get_drvdata(dev);
+	struct temp_data *tdata = pdata->core_data[attr->index];
+	int tjmax;
+
+	mutex_lock(&tdata->update_lock);
+	tjmax = get_tjmax(tdata, dev);
+	mutex_unlock(&tdata->update_lock);
+
+	return sprintf(buf, "%d\n", tjmax);
+}
+
+static ssize_t show_ttarget(struct device *dev,
+				struct device_attribute *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct platform_data *pdata = dev_get_drvdata(dev);
+	struct temp_data *tdata = pdata->core_data[attr->index];
+	int ttarget;
+
+	mutex_lock(&tdata->update_lock);
+	ttarget = get_ttarget(tdata, dev);
+	mutex_unlock(&tdata->update_lock);
+
+	if (ttarget < 0)
+		return ttarget;
+	return sprintf(buf, "%d\n", ttarget);
+}
+
+static ssize_t show_temp(struct device *dev,
+			struct device_attribute *devattr, char *buf)
+{
+	u32 eax, edx;
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct platform_data *pdata = dev_get_drvdata(dev);
+	struct temp_data *tdata = pdata->core_data[attr->index];
+	int tjmax;
+
+	mutex_lock(&tdata->update_lock);
+
+	tjmax = get_tjmax(tdata, dev);
+	/* Check whether the time interval has elapsed */
+	if (time_after(jiffies, tdata->last_updated + HZ)) {
+		rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
+		/*
+		 * Ignore the valid bit. In all observed cases the register
+		 * value is either low or zero if the valid bit is 0.
+		 * Return it instead of reporting an error which doesn't
+		 * really help at all.
+		 */
+		tdata->temp = tjmax - ((eax >> 16) & 0x7f) * 1000;
+		tdata->last_updated = jiffies;
+	}
+
+	mutex_unlock(&tdata->update_lock);
+	return sprintf(buf, "%d\n", tdata->temp);
 }
 
 static int create_core_attrs(struct temp_data *tdata, struct device *dev,
@@ -490,23 +534,17 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	if (err)
 		goto exit_free;
 
-	/* We can access status register. Get Critical Temperature */
-	tdata->tjmax = get_tjmax(c, cpu, &pdev->dev);
+	/* Make sure tdata->tjmax is a valid indicator for dynamic/static tjmax */
+	get_tjmax(tdata, &pdev->dev);
 
 	/*
-	 * Read the still undocumented bits 8:15 of IA32_TEMPERATURE_TARGET.
-	 * The target temperature is available on older CPUs but not in this
-	 * register. Atoms don't have the register at all.
+	 * The target temperature is available on older CPUs but not in the
+	 * MSR_IA32_TEMPERATURE_TARGET register. Atoms don't have the register
+	 * at all.
 	 */
-	if (c->x86_model > 0xe && c->x86_model != 0x1c) {
-		err = rdmsr_safe_on_cpu(cpu, MSR_IA32_TEMPERATURE_TARGET,
-					&eax, &edx);
-		if (!err) {
-			tdata->ttarget
-			  = tdata->tjmax - ((eax >> 8) & 0xff) * 1000;
+	if (c->x86_model > 0xe && c->x86_model != 0x1c)
+		if (get_ttarget(tdata, &pdev->dev) >= 0)
 			tdata->attr_size++;
-		}
-	}
 
 	pdata->core_data[attr_no] = tdata;
 

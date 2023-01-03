@@ -28,30 +28,30 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power {
+		led-power {
 			label = "bcm53xx:blue:power";
 			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
 		};
 
-		usb2 {
+		led-usb2 {
 			label = "bcm53xx:blue:usb2";
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
 		};
 
-		wan {
+		led-wan {
 			label = "bcm53xx:blue:wan";
 			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
 		};
 
-		lan {
+		led-lan {
 			label = "bcm53xx:blue:lan";
 			gpios = <&chipcommon 9 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
 		};
 
-		usb3 {
+		led-usb3 {
 			label = "bcm53xx:blue:usb3";
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
 		};

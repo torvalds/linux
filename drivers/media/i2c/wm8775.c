@@ -190,8 +190,7 @@ static const struct v4l2_subdev_ops wm8775_ops = {
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
 
-static int wm8775_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int wm8775_probe(struct i2c_client *client)
 {
 	struct wm8775_state *state;
 	struct v4l2_subdev *sd;
@@ -299,7 +298,7 @@ static struct i2c_driver wm8775_driver = {
 	.driver = {
 		.name	= "wm8775",
 	},
-	.probe		= wm8775_probe,
+	.probe_new	= wm8775_probe,
 	.remove		= wm8775_remove,
 	.id_table	= wm8775_id,
 };

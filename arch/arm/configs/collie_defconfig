@@ -13,7 +13,8 @@ CONFIG_CMDLINE="noinitrd root=/dev/mtdblock2 rootfstype=jffs2 fbcon=rotate:1"
 CONFIG_FPE_NWFPE=y
 CONFIG_PM=y
 # CONFIG_SWAP is not set
-CONFIG_SLOB=y
+CONFIG_SLUB=y
+CONFIG_SLUB_TINY=y
 CONFIG_NET=y
 CONFIG_PACKET=y
 CONFIG_UNIX=y

@@ -36,6 +36,43 @@ static const char *const aa_audit_type[] = {
 	"AUTO"
 };
 
+static const char *const aa_class_names[] = {
+	"none",
+	"unknown",
+	"file",
+	"cap",
+	"net",
+	"rlimits",
+	"domain",
+	"mount",
+	"unknown",
+	"ptrace",
+	"signal",
+	"xmatch",
+	"unknown",
+	"unknown",
+	"net",
+	"unknown",
+	"label",
+	"posix_mqueue",
+	"io_uring",
+	"module",
+	"lsm",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+	"X",
+	"dbus",
+};
+
+
 /*
  * Currently AppArmor auditing is fed straight into the audit framework.
  *
@@ -46,7 +83,7 @@ static const char *const aa_audit_type[] = {
  */
 
 /**
- * audit_base - core AppArmor function.
+ * audit_pre() - core AppArmor function.
  * @ab: audit buffer to fill (NOT NULL)
  * @ca: audit structure containing data to audit (NOT NULL)
  *
@@ -64,6 +101,12 @@ static void audit_pre(struct audit_buffer *ab, void *ca)
 	if (aad(sa)->op) {
 		audit_log_format(ab, " operation=\"%s\"", aad(sa)->op);
 	}
+
+	if (aad(sa)->class)
+		audit_log_format(ab, " class=\"%s\"",
+				 aad(sa)->class <= AA_CLASS_LAST ?
+				 aa_class_names[aad(sa)->class] :
+				 "unknown");
 
 	if (aad(sa)->info) {
 		audit_log_format(ab, " info=\"%s\"", aad(sa)->info);

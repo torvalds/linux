@@ -424,10 +424,6 @@ xchk_ag_read_headers(
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGF))
 		return error;
 
-	error = xfs_alloc_read_agfl(sa->pag, sc->tp, &sa->agfl_bp);
-	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
-		return error;
-
 	return 0;
 }
 
@@ -515,10 +511,6 @@ xchk_ag_free(
 	struct xchk_ag		*sa)
 {
 	xchk_ag_btcur_free(sa);
-	if (sa->agfl_bp) {
-		xfs_trans_brelse(sc->tp, sa->agfl_bp);
-		sa->agfl_bp = NULL;
-	}
 	if (sa->agf_bp) {
 		xfs_trans_brelse(sc->tp, sa->agf_bp);
 		sa->agf_bp = NULL;
@@ -789,6 +781,33 @@ xchk_buffer_recheck(
 	trace_xchk_block_error(sc, xfs_buf_daddr(bp), fa);
 }
 
+static inline int
+xchk_metadata_inode_subtype(
+	struct xfs_scrub	*sc,
+	unsigned int		scrub_type)
+{
+	__u32			smtype = sc->sm->sm_type;
+	int			error;
+
+	sc->sm->sm_type = scrub_type;
+
+	switch (scrub_type) {
+	case XFS_SCRUB_TYPE_INODE:
+		error = xchk_inode(sc);
+		break;
+	case XFS_SCRUB_TYPE_BMBTD:
+		error = xchk_bmap_data(sc);
+		break;
+	default:
+		ASSERT(0);
+		error = -EFSCORRUPTED;
+		break;
+	}
+
+	sc->sm->sm_type = smtype;
+	return error;
+}
+
 /*
  * Scrub the attr/data forks of a metadata inode.  The metadata inode must be
  * pointed to by sc->ip and the ILOCK must be held.
@@ -797,12 +816,16 @@ int
 xchk_metadata_inode_forks(
 	struct xfs_scrub	*sc)
 {
-	__u32			smtype;
 	bool			shared;
 	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return 0;
+
+	/* Check the inode record. */
+	error = xchk_metadata_inode_subtype(sc, XFS_SCRUB_TYPE_INODE);
+	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+		return error;
 
 	/* Metadata inodes don't live on the rt device. */
 	if (sc->ip->i_diflags & XFS_DIFLAG_REALTIME) {
@@ -823,10 +846,7 @@ xchk_metadata_inode_forks(
 	}
 
 	/* Invoke the data fork scrubber. */
-	smtype = sc->sm->sm_type;
-	sc->sm->sm_type = XFS_SCRUB_TYPE_BMBTD;
-	error = xchk_bmap_data(sc);
-	sc->sm->sm_type = smtype;
+	error = xchk_metadata_inode_subtype(sc, XFS_SCRUB_TYPE_BMBTD);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
@@ -841,7 +861,7 @@ xchk_metadata_inode_forks(
 			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
 	}
 
-	return error;
+	return 0;
 }
 
 /*

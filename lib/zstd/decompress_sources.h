@@ -16,6 +16,12 @@
  * decompression.
  */
 
+/*
+ * Disable the ASM Huffman implementation because we need to
+ * include all the sources.
+ */
+#define ZSTD_DISABLE_ASM 1
+
 #include "common/debug.c"
 #include "common/entropy_common.c"
 #include "common/error_private.c"

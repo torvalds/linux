@@ -216,7 +216,7 @@ int squashfs_read_data(struct super_block *sb, u64 index, int length,
 			res = -EIO;
 			goto out_free_bio;
 		}
-		res = squashfs_decompress(msblk, bio, offset, length, output);
+		res = msblk->thread_ops->decompress(msblk, bio, offset, length, output);
 	} else {
 		res = copy_bio_to_actor(bio, output, offset, length);
 	}

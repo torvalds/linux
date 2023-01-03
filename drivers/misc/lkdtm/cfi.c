@@ -54,7 +54,11 @@ static void lkdtm_CFI_FORWARD_PROTO(void)
 # ifdef CONFIG_ARM64_BTI_KERNEL
 #  define __no_pac             "branch-protection=bti"
 # else
-#  define __no_pac             "branch-protection=none"
+#  ifdef CONFIG_CC_HAS_BRANCH_PROT_PAC_RET
+#   define __no_pac            "branch-protection=none"
+#  else
+#   define __no_pac            "sign-return-address=none"
+#  endif
 # endif
 # define __no_ret_protection   __noscs __attribute__((__target__(__no_pac)))
 #else

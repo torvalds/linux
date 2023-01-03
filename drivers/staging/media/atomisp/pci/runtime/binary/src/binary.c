@@ -13,6 +13,8 @@
  * more details.
  */
 
+#include <linux/math.h>
+
 #include <math_support.h>
 #include <gdc_device.h>	/* HR_GDC_N */
 
@@ -128,16 +130,8 @@ ia_css_binary_compute_shading_table_bayer_origin(
 {
 	int err;
 
-	/* Numerator and denominator of the fixed bayer downscaling factor.
-	(numerator >= denominator) */
-	unsigned int bds_num, bds_den;
-
-	/* Horizontal/Vertical ratio of bayer scaling
-	between input area and output area. */
-	unsigned int bs_hor_ratio_in;
-	unsigned int bs_hor_ratio_out;
-	unsigned int bs_ver_ratio_in;
-	unsigned int bs_ver_ratio_out;
+	/* Rational fraction of the fixed bayer downscaling factor. */
+	struct u32_fract bds;
 
 	/* Left padding set by InputFormatter. */
 	unsigned int left_padding_bqs;			/* in bqs */
@@ -158,18 +152,10 @@ ia_css_binary_compute_shading_table_bayer_origin(
 	unsigned int bad_bqs_on_top_before_bs;	/* in bqs */
 	unsigned int bad_bqs_on_top_after_bs;	/* in bqs */
 
-	/* Get the numerator and denominator of bayer downscaling factor. */
-	err = sh_css_bds_factor_get_numerator_denominator
-	(required_bds_factor, &bds_num, &bds_den);
+	/* Get the rational fraction of bayer downscaling factor. */
+	err = sh_css_bds_factor_get_fract(required_bds_factor, &bds);
 	if (err)
 		return err;
-
-	/* Set the horizontal/vertical ratio of bayer scaling
-	between input area and output area. */
-	bs_hor_ratio_in  = bds_num;
-	bs_hor_ratio_out = bds_den;
-	bs_ver_ratio_in  = bds_num;
-	bs_ver_ratio_out = bds_den;
 
 	/* Set the left padding set by InputFormatter. (ifmtr.c) */
 	if (stream_config->left_padding == -1)
@@ -228,18 +214,18 @@ ia_css_binary_compute_shading_table_bayer_origin(
 	located on the shading table during the shading correction. */
 	res->sc_bayer_origin_x_bqs_on_shading_table =
 		((left_padding_adjusted_bqs + bad_bqs_on_left_before_bs)
-		* bs_hor_ratio_out + bs_hor_ratio_in / 2) / bs_hor_ratio_in
+		* bds.denominator + bds.numerator / 2) / bds.numerator
 		+ bad_bqs_on_left_after_bs;
-	/* "+ bs_hor_ratio_in/2": rounding for division by bs_hor_ratio_in */
+	/* "+ bds.numerator / 2": rounding for division by bds.numerator */
 	res->sc_bayer_origin_y_bqs_on_shading_table =
-		(bad_bqs_on_top_before_bs * bs_ver_ratio_out + bs_ver_ratio_in / 2) / bs_ver_ratio_in
+		(bad_bqs_on_top_before_bs * bds.denominator + bds.numerator / 2) / bds.numerator
 		+ bad_bqs_on_top_after_bs;
-	/* "+ bs_ver_ratio_in/2": rounding for division by bs_ver_ratio_in */
+	/* "+ bds.numerator / 2": rounding for division by bds.numerator */
 
-	res->bayer_scale_hor_ratio_in  = (uint32_t)bs_hor_ratio_in;
-	res->bayer_scale_hor_ratio_out = (uint32_t)bs_hor_ratio_out;
-	res->bayer_scale_ver_ratio_in  = (uint32_t)bs_ver_ratio_in;
-	res->bayer_scale_ver_ratio_out = (uint32_t)bs_ver_ratio_out;
+	res->bayer_scale_hor_ratio_in  = bds.numerator;
+	res->bayer_scale_hor_ratio_out = bds.denominator;
+	res->bayer_scale_ver_ratio_in  = bds.numerator;
+	res->bayer_scale_ver_ratio_out = bds.denominator;
 
 	return err;
 }

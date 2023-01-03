@@ -469,11 +469,13 @@ struct host1x_memory_context {
 
 #ifdef CONFIG_IOMMU_API
 struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
+							  struct device *dev,
 							  struct pid *pid);
 void host1x_memory_context_get(struct host1x_memory_context *cd);
 void host1x_memory_context_put(struct host1x_memory_context *cd);
 #else
 static inline struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
+									struct device *dev,
 									struct pid *pid)
 {
 	return NULL;

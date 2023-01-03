@@ -130,12 +130,6 @@ static inline void wcd_enable_clsh_block(struct wcd_clsh_ctrl *ctrl,
 		ctrl->clsh_users = 0;
 }
 
-static inline bool wcd_clsh_enable_status(struct snd_soc_component *comp)
-{
-	return snd_soc_component_read(comp, WCD9XXX_A_CDC_CLSH_CRC) &
-					WCD9XXX_A_CDC_CLSH_CRC_CLK_EN_MASK;
-}
-
 static inline void wcd_clsh_set_buck_mode(struct snd_soc_component *comp,
 					  int mode)
 {

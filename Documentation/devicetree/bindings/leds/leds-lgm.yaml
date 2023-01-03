@@ -56,13 +56,17 @@ properties:
 
     patternProperties:
       "^led@[0-2]$":
-        type: object
+        $ref: common.yaml#
+        unevaluatedProperties: false
 
         properties:
           reg:
             description: Index of the LED.
             minimum: 0
             maximum: 2
+
+          led-gpios:
+            maxItems: 1
 
           intel,sso-hw-trigger:
             type: boolean
@@ -118,14 +122,14 @@ examples:
           reg = <0>;
           function = "gphy";
           color = <LED_COLOR_ID_GREEN>;
-          led-gpio = <&ssogpio 0 0>;
+          led-gpios = <&ssogpio 0 0>;
         };
 
         led@2 {
           reg = <2>;
           function = LED_FUNCTION_POWER;
           color = <LED_COLOR_ID_GREEN>;
-          led-gpio = <&ssogpio 23 0>;
+          led-gpios = <&ssogpio 23 0>;
         };
       };
     };

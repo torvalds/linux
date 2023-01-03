@@ -598,7 +598,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_vcpu *vcpu,
 		write_ok = true;
 	} else {
 		/* Call KVM generic code to do the slow-path check */
-		pfn = __gfn_to_pfn_memslot(memslot, gfn, false, NULL,
+		pfn = __gfn_to_pfn_memslot(memslot, gfn, false, false, NULL,
 					   writing, &write_ok, NULL);
 		if (is_error_noslot_pfn(pfn))
 			return -EFAULT;
@@ -1202,7 +1202,7 @@ static int resize_hpt_allocate(struct kvm_resize_hpt *resize)
 	if (rc < 0)
 		return rc;
 
-	resize_hpt_debug(resize, "resize_hpt_allocate(): HPT @ 0x%lx\n",
+	resize_hpt_debug(resize, "%s(): HPT @ 0x%lx\n", __func__,
 			 resize->hpt.virt);
 
 	return 0;
@@ -1443,7 +1443,7 @@ static void resize_hpt_prepare_work(struct work_struct *work)
 		 */
 		mutex_unlock(&kvm->arch.mmu_setup_lock);
 
-		resize_hpt_debug(resize, "resize_hpt_prepare_work(): order = %d\n",
+		resize_hpt_debug(resize, "%s(): order = %d\n", __func__,
 				 resize->order);
 
 		err = resize_hpt_allocate(resize);
@@ -1887,8 +1887,7 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 			ret = kvmppc_virtmode_do_h_enter(kvm, H_EXACT, i, v, r,
 							 tmp);
 			if (ret != H_SUCCESS) {
-				pr_err("kvm_htab_write ret %ld i=%ld v=%lx "
-				       "r=%lx\n", ret, i, v, r);
+				pr_err("%s ret %ld i=%ld v=%lx r=%lx\n", __func__, ret, i, v, r);
 				goto out;
 			}
 			if (!mmu_ready && is_vrma_hpte(v)) {

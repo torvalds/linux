@@ -10,6 +10,7 @@
 #include "btrfs_inode.h"
 #include "delayed-ref.h"
 #include "ctree.h"
+#include "misc.h"
 
 enum btrfs_trans_state {
 	TRANS_STATE_RUNNING,
@@ -98,14 +99,15 @@ struct btrfs_transaction {
 	struct list_head releasing_ebs;
 };
 
-#define __TRANS_FREEZABLE	(1U << 0)
-
-#define __TRANS_START		(1U << 9)
-#define __TRANS_ATTACH		(1U << 10)
-#define __TRANS_JOIN		(1U << 11)
-#define __TRANS_JOIN_NOLOCK	(1U << 12)
-#define __TRANS_DUMMY		(1U << 13)
-#define __TRANS_JOIN_NOSTART	(1U << 14)
+enum {
+	ENUM_BIT(__TRANS_FREEZABLE),
+	ENUM_BIT(__TRANS_START),
+	ENUM_BIT(__TRANS_ATTACH),
+	ENUM_BIT(__TRANS_JOIN),
+	ENUM_BIT(__TRANS_JOIN_NOLOCK),
+	ENUM_BIT(__TRANS_DUMMY),
+	ENUM_BIT(__TRANS_JOIN_NOSTART),
+};
 
 #define TRANS_START		(__TRANS_START | __TRANS_FREEZABLE)
 #define TRANS_ATTACH		(__TRANS_ATTACH)
@@ -231,9 +233,11 @@ int btrfs_wait_tree_log_extents(struct btrfs_root *root, int mark);
 int btrfs_transaction_blocked(struct btrfs_fs_info *info);
 int btrfs_transaction_in_commit(struct btrfs_fs_info *info);
 void btrfs_put_transaction(struct btrfs_transaction *transaction);
-void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info);
 void btrfs_add_dropped_root(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
 void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans);
+
+int __init btrfs_transaction_init(void);
+void __cold btrfs_transaction_exit(void);
 
 #endif

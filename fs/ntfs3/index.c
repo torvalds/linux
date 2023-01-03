@@ -47,7 +47,7 @@ static int cmp_fnames(const void *key1, size_t l1, const void *key2, size_t l2,
 	if (l2 < fsize2)
 		return -1;
 
-	both_case = f2->type != FILE_NAME_DOS /*&& !sbi->options.nocase*/;
+	both_case = f2->type != FILE_NAME_DOS && !sbi->options->nocase;
 	if (!l1) {
 		const struct le_str *s2 = (struct le_str *)&f2->name_len;
 
@@ -323,7 +323,7 @@ static int indx_mark_used(struct ntfs_index *indx, struct ntfs_inode *ni,
 	if (err)
 		return err;
 
-	__set_bit(bit - bbuf.bit, bbuf.buf);
+	__set_bit_le(bit - bbuf.bit, bbuf.buf);
 
 	bmp_buf_put(&bbuf, true);
 
@@ -343,7 +343,7 @@ static int indx_mark_free(struct ntfs_index *indx, struct ntfs_inode *ni,
 	if (err)
 		return err;
 
-	__clear_bit(bit - bbuf.bit, bbuf.buf);
+	__clear_bit_le(bit - bbuf.bit, bbuf.buf);
 
 	bmp_buf_put(&bbuf, true);
 
@@ -457,7 +457,7 @@ next_run:
 
 static bool scan_for_free(const ulong *buf, u32 bit, u32 bits, size_t *ret)
 {
-	size_t pos = find_next_zero_bit(buf, bits, bit);
+	size_t pos = find_next_zero_bit_le(buf, bits, bit);
 
 	if (pos >= bits)
 		return false;
@@ -489,7 +489,7 @@ static int indx_find_free(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	if (!b->non_res) {
 		u32 nbits = 8 * le32_to_cpu(b->res.data_size);
-		size_t pos = find_next_zero_bit(resident_data(b), nbits, 0);
+		size_t pos = find_next_zero_bit_le(resident_data(b), nbits, 0);
 
 		if (pos < nbits)
 			*bit = pos;
@@ -505,7 +505,7 @@ static int indx_find_free(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 static bool scan_for_used(const ulong *buf, u32 bit, u32 bits, size_t *ret)
 {
-	size_t pos = find_next_bit(buf, bits, bit);
+	size_t pos = find_next_bit_le(buf, bits, bit);
 
 	if (pos >= bits)
 		return false;
@@ -536,7 +536,7 @@ int indx_used_bit(struct ntfs_index *indx, struct ntfs_inode *ni, size_t *bit)
 
 	if (!b->non_res) {
 		u32 nbits = le32_to_cpu(b->res.data_size) * 8;
-		size_t pos = find_next_bit(resident_data(b), nbits, from);
+		size_t pos = find_next_bit_le(resident_data(b), nbits, from);
 
 		if (pos < nbits)
 			*bit = pos;
@@ -605,11 +605,58 @@ static const struct NTFS_DE *hdr_insert_head(struct INDEX_HDR *hdr,
 	return e;
 }
 
+/*
+ * index_hdr_check
+ *
+ * return true if INDEX_HDR is valid
+ */
+static bool index_hdr_check(const struct INDEX_HDR *hdr, u32 bytes)
+{
+	u32 end = le32_to_cpu(hdr->used);
+	u32 tot = le32_to_cpu(hdr->total);
+	u32 off = le32_to_cpu(hdr->de_off);
+
+	if (!IS_ALIGNED(off, 8) || tot > bytes || end > tot ||
+	    off + sizeof(struct NTFS_DE) > end) {
+		/* incorrect index buffer. */
+		return false;
+	}
+
+	return true;
+}
+
+/*
+ * index_buf_check
+ *
+ * return true if INDEX_BUFFER seems is valid
+ */
+static bool index_buf_check(const struct INDEX_BUFFER *ib, u32 bytes,
+			    const CLST *vbn)
+{
+	const struct NTFS_RECORD_HEADER *rhdr = &ib->rhdr;
+	u16 fo = le16_to_cpu(rhdr->fix_off);
+	u16 fn = le16_to_cpu(rhdr->fix_num);
+
+	if (bytes <= offsetof(struct INDEX_BUFFER, ihdr) ||
+	    rhdr->sign != NTFS_INDX_SIGNATURE ||
+	    fo < sizeof(struct INDEX_BUFFER)
+	    /* Check index buffer vbn. */
+	    || (vbn && *vbn != le64_to_cpu(ib->vbn)) || (fo % sizeof(short)) ||
+	    fo + fn * sizeof(short) >= bytes ||
+	    fn != ((bytes >> SECTOR_SHIFT) + 1)) {
+		/* incorrect index buffer. */
+		return false;
+	}
+
+	return index_hdr_check(&ib->ihdr,
+			       bytes - offsetof(struct INDEX_BUFFER, ihdr));
+}
+
 void fnd_clear(struct ntfs_fnd *fnd)
 {
 	int i;
 
-	for (i = 0; i < fnd->level; i++) {
+	for (i = fnd->level - 1; i >= 0; i--) {
 		struct indx_node *n = fnd->nodes[i];
 
 		if (!n)
@@ -625,9 +672,8 @@ void fnd_clear(struct ntfs_fnd *fnd)
 static int fnd_push(struct ntfs_fnd *fnd, struct indx_node *n,
 		    struct NTFS_DE *e)
 {
-	int i;
+	int i = fnd->level;
 
-	i = fnd->level;
 	if (i < 0 || i >= ARRAY_SIZE(fnd->nodes))
 		return -EINVAL;
 	fnd->nodes[i] = n;
@@ -820,9 +866,16 @@ int indx_init(struct ntfs_index *indx, struct ntfs_sb_info *sbi,
 	u32 t32;
 	const struct INDEX_ROOT *root = resident_data(attr);
 
+	t32 = le32_to_cpu(attr->res.data_size);
+	if (t32 <= offsetof(struct INDEX_ROOT, ihdr) ||
+	    !index_hdr_check(&root->ihdr,
+			     t32 - offsetof(struct INDEX_ROOT, ihdr))) {
+		goto out;
+	}
+
 	/* Check root fields. */
 	if (!root->index_block_clst)
-		return -EINVAL;
+		goto out;
 
 	indx->type = type;
 	indx->idx2vbn_bits = __ffs(root->index_block_clst);
@@ -834,19 +887,19 @@ int indx_init(struct ntfs_index *indx, struct ntfs_sb_info *sbi,
 	if (t32 < sbi->cluster_size) {
 		/* Index record is smaller than a cluster, use 512 blocks. */
 		if (t32 != root->index_block_clst * SECTOR_SIZE)
-			return -EINVAL;
+			goto out;
 
 		/* Check alignment to a cluster. */
 		if ((sbi->cluster_size >> SECTOR_SHIFT) &
 		    (root->index_block_clst - 1)) {
-			return -EINVAL;
+			goto out;
 		}
 
 		indx->vbn2vbo_bits = SECTOR_SHIFT;
 	} else {
 		/* Index record must be a multiple of cluster size. */
 		if (t32 != root->index_block_clst << sbi->cluster_bits)
-			return -EINVAL;
+			goto out;
 
 		indx->vbn2vbo_bits = sbi->cluster_bits;
 	}
@@ -854,7 +907,14 @@ int indx_init(struct ntfs_index *indx, struct ntfs_sb_info *sbi,
 	init_rwsem(&indx->run_lock);
 
 	indx->cmp = get_cmp_func(root);
-	return indx->cmp ? 0 : -EINVAL;
+	if (!indx->cmp)
+		goto out;
+
+	return 0;
+
+out:
+	ntfs_set_state(sbi, NTFS_DIRTY_DIRTY);
+	return -EINVAL;
 }
 
 static struct indx_node *indx_new(struct ntfs_index *indx,
@@ -1012,9 +1072,22 @@ int indx_read(struct ntfs_index *indx, struct ntfs_inode *ni, CLST vbn,
 		goto out;
 
 ok:
+	if (!index_buf_check(ib, bytes, &vbn)) {
+		ntfs_inode_err(&ni->vfs_inode, "directory corrupted");
+		ntfs_set_state(ni->mi.sbi, NTFS_DIRTY_ERROR);
+		err = -EINVAL;
+		goto out;
+	}
+
 	if (err == -E_NTFS_FIXUP) {
 		ntfs_write_bh(ni->mi.sbi, &ib->rhdr, &in->nb, 0);
 		err = 0;
+	}
+
+	/* check for index header length */
+	if (offsetof(struct INDEX_BUFFER, ihdr) + ib->ihdr.used > bytes) {
+		err = -EINVAL;
+		goto out;
 	}
 
 	in->index = ib;
@@ -1341,8 +1414,8 @@ static int indx_create_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	run_init(&run);
 
-	err = attr_allocate_clusters(sbi, &run, 0, 0, len, NULL, 0, &alen, 0,
-				     NULL);
+	err = attr_allocate_clusters(sbi, &run, 0, 0, len, NULL, ALLOCATE_DEF,
+				     &alen, 0, NULL, NULL);
 	if (err)
 		goto out;
 
@@ -1439,6 +1512,9 @@ static int indx_add_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 			goto out2;
 		goto out1;
 	}
+
+	if (in->name == I30_NAME)
+		ni->vfs_inode.i_size = data_size;
 
 	*vbn = bit << indx->idx2vbn_bits;
 
@@ -1593,9 +1669,9 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	if (err) {
 		/* Restore root. */
-		if (mi_resize_attr(mi, attr, -ds_root))
+		if (mi_resize_attr(mi, attr, -ds_root)) {
 			memcpy(attr, a_root, asize);
-		else {
+		} else {
 			/* Bug? */
 			ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
 		}
@@ -1947,7 +2023,7 @@ static int indx_shrink(struct ntfs_index *indx, struct ntfs_inode *ni,
 		if (bit >= nbits)
 			return 0;
 
-		pos = find_next_bit(bm, nbits, bit);
+		pos = find_next_bit_le(bm, nbits, bit);
 		if (pos < nbits)
 			return 0;
 	} else {
@@ -1972,6 +2048,9 @@ static int indx_shrink(struct ntfs_index *indx, struct ntfs_inode *ni,
 			    &indx->alloc_run, new_data, &new_data, false, NULL);
 	if (err)
 		return err;
+
+	if (in->name == I30_NAME)
+		ni->vfs_inode.i_size = new_data;
 
 	bpb = bitmap_size(bit);
 	if (bpb * 8 == nbits)
@@ -2115,9 +2194,10 @@ static int indx_get_entry_to_replace(struct ntfs_index *indx,
 	fnd->de[level] = e;
 	indx_write(indx, ni, n, 0);
 
-	/* Check to see if this action created an empty leaf. */
-	if (ib_is_leaf(ib) && ib_is_empty(ib))
+	if (ib_is_leaf(ib) && ib_is_empty(ib)) {
+		/* An empty leaf. */
 		return 0;
+	}
 
 out:
 	fnd_clear(fnd);
@@ -2455,6 +2535,9 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 		err = attr_set_size(ni, ATTR_ALLOC, in->name, in->name_len,
 				    &indx->alloc_run, 0, NULL, false, NULL);
+		if (in->name == I30_NAME)
+			ni->vfs_inode.i_size = 0;
+
 		err = ni_remove_attr(ni, ATTR_ALLOC, in->name, in->name_len,
 				     false, NULL);
 		run_close(&indx->alloc_run);

@@ -183,7 +183,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * cases, and 32-bit non-hash with 32-bit PTEs.
 	 */
 #if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
-	ptep->pte = ptep->pte1 = ptep->pte2 = ptep->pte3 = pte_val(pte);
+	ptep->pte3 = ptep->pte2 = ptep->pte1 = ptep->pte = pte_val(pte);
 #else
 	*ptep = pte;
 #endif

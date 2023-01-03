@@ -1644,8 +1644,6 @@ static int validate_sku(struct mxl *state)
 		default:
 			return -1;
 		}
-	} else {
-
 	}
 	return -1;
 }

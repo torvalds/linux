@@ -298,7 +298,9 @@
 	le32_get_bits(*((const __le32 *)ie), GENMASK(11, 5))
 #define RTW89_GET_PHY_STS_IE01_CH_IDX(ie) \
 	le32_get_bits(*((const __le32 *)ie), GENMASK(23, 16))
-#define RTW89_GET_PHY_STS_IE01_CFO(ie) \
+#define RTW89_GET_PHY_STS_IE01_FD_CFO(ie) \
+	le32_get_bits(*((const __le32 *)(ie) + 1), GENMASK(19, 8))
+#define RTW89_GET_PHY_STS_IE01_PREMB_CFO(ie) \
 	le32_get_bits(*((const __le32 *)(ie) + 1), GENMASK(31, 20))
 
 enum rtw89_tx_channel {

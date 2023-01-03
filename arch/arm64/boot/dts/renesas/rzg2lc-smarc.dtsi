@@ -8,37 +8,9 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
 
-/*
- * DIP-Switch SW1 setting on SoM
- * 1 : High; 0: Low
- * SW1-2 : SW_SD0_DEV_SEL	(1: eMMC; 0: uSD)
- * SW1-3 : SW_SCIF_CAN		(1: CAN1; 0: SCIF1)
- * SW1-4 : SW_RSPI_CAN		(1: CAN1; 0: RSPI1)
- * SW1-5 : SW_I2S0_I2S1		(1: I2S2 (HDMI audio); 0: I2S0)
- * Please change below macros according to SW1 setting
- */
-
-#define SW_SD0_DEV_SEL	1
-
-#define SW_SCIF_CAN	0
-#if (SW_SCIF_CAN)
-/* Due to HW routing, SW_RSPI_CAN is always 0 when SW_SCIF_CAN is set to 1 */
-#define SW_RSPI_CAN	0
-#else
-/* Please set SW_RSPI_CAN. Default value is 1 */
-#define SW_RSPI_CAN	1
-#endif
-
-#if (SW_SCIF_CAN && SW_RSPI_CAN)
-#error "Can not set 1 to both SW_SCIF_CAN and SW_RSPI_CAN due to HW routing"
-#endif
-
-#include "rzg2lc-smarc-som.dtsi"
 #include "rzg2lc-smarc-pinfunction.dtsi"
 #include "rz-smarc-common.dtsi"
 
-/* comment the #define statement to disable SCIF1 (SER0) on PMOD1 (CN7) */
-#define PMOD1_SER0	1
 
 / {
 	aliases {

@@ -80,8 +80,8 @@ have the number 1 and the number then must increase by 1 for each additional
 subtest within the same test at the same nesting level.
 
 The description is a description of the test, generally the name of
-the test, and can be any string of words (can't include #). The
-description is optional, but recommended.
+the test, and can be any string of characters other than # or a
+newline.  The description is optional, but recommended.
 
 The directive and any diagnostic data is optional. If either are present, they
 must follow a hash sign, "#".

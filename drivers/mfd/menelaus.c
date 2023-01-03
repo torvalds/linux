@@ -1142,8 +1142,7 @@ static inline void menelaus_rtc_init(struct menelaus_chip *m)
 
 static struct i2c_driver menelaus_i2c_driver;
 
-static int menelaus_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int menelaus_probe(struct i2c_client *client)
 {
 	struct menelaus_chip	*menelaus;
 	int			rev = 0;
@@ -1241,7 +1240,7 @@ static struct i2c_driver menelaus_i2c_driver = {
 	.driver = {
 		.name		= DRIVER_NAME,
 	},
-	.probe		= menelaus_probe,
+	.probe_new	= menelaus_probe,
 	.remove		= menelaus_remove,
 	.id_table	= menelaus_id,
 };

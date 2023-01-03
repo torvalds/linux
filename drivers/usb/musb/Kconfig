@@ -70,12 +70,6 @@ config USB_MUSB_SUNXI
 	select GENERIC_PHY
 	select SUNXI_SRAM
 
-config USB_MUSB_DAVINCI
-	tristate "DaVinci"
-	depends on ARCH_DAVINCI_DMx
-	depends on NOP_USB_XCEIV
-	depends on BROKEN
-
 config USB_MUSB_DA8XX
 	tristate "DA8xx/OMAP-L1x"
 	depends on ARCH_DAVINCI_DA8XX
@@ -94,11 +88,6 @@ config USB_MUSB_OMAP2PLUS
 	depends on OMAP_CONTROL_PHY || !OMAP_CONTROL_PHY
 	select GENERIC_PHY
 
-config USB_MUSB_AM35X
-	tristate "AM35x"
-	depends on ARCH_OMAP
-	depends on NOP_USB_XCEIV
-
 config USB_MUSB_DSPS
 	tristate "TI DSPS platforms"
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
@@ -113,7 +102,6 @@ config USB_MUSB_JZ4740
 	depends on OF
 	depends on MIPS || COMPILE_TEST
 	depends on USB_MUSB_GADGET
-	depends on USB=n || USB_OTG_DISABLE_EXTERNAL_HUB
 	select USB_ROLE_SWITCH
 
 config USB_MUSB_MEDIATEK
@@ -160,12 +148,6 @@ config USB_INVENTRA_DMA
 	depends on USB_MUSB_OMAP2PLUS || USB_MUSB_MEDIATEK || USB_MUSB_JZ4740 || USB_MUSB_POLARFIRE_SOC
 	help
 	  Enable DMA transfers using Mentor's engine.
-
-config USB_TI_CPPI_DMA
-	bool 'TI CPPI (Davinci)'
-	depends on USB_MUSB_DAVINCI
-	help
-	  Enable DMA transfers when TI CPPI DMA is available.
 
 config USB_TI_CPPI41_DMA
 	bool 'TI CPPI 4.1'

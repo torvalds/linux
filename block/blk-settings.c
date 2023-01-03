@@ -481,7 +481,7 @@ void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 }
 EXPORT_SYMBOL(blk_queue_io_opt);
 
-static int queue_limit_alignment_offset(struct queue_limits *lim,
+static int queue_limit_alignment_offset(const struct queue_limits *lim,
 		sector_t sector)
 {
 	unsigned int granularity = max(lim->physical_block_size, lim->io_min);
@@ -491,8 +491,8 @@ static int queue_limit_alignment_offset(struct queue_limits *lim,
 	return (granularity + lim->alignment_offset - alignment) % granularity;
 }
 
-static unsigned int queue_limit_discard_alignment(struct queue_limits *lim,
-		sector_t sector)
+static unsigned int queue_limit_discard_alignment(
+		const struct queue_limits *lim, sector_t sector)
 {
 	unsigned int alignment, granularity, offset;
 

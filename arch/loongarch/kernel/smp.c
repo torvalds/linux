@@ -16,6 +16,7 @@
 #include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/export.h>
+#include <linux/syscore_ops.h>
 #include <linux/time.h>
 #include <linux/tracepoint.h>
 #include <linux/sched/hotplug.h>
@@ -149,6 +150,17 @@ void loongson_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 		ipi_write_action(cpu_logical_map(i), (u32)action);
 }
 
+/*
+ * This function sends a 'reschedule' IPI to another CPU.
+ * it goes straight through and wastes no time serializing
+ * anything. Worst case is that we lose a reschedule ...
+ */
+void smp_send_reschedule(int cpu)
+{
+	loongson_send_ipi_single(cpu, SMP_RESCHEDULE);
+}
+EXPORT_SYMBOL_GPL(smp_send_reschedule);
+
 irqreturn_t loongson_ipi_interrupt(int irq, void *dev)
 {
 	unsigned int action;
@@ -169,8 +181,42 @@ irqreturn_t loongson_ipi_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static void __init fdt_smp_setup(void)
+{
+#ifdef CONFIG_OF
+	unsigned int cpu, cpuid;
+	struct device_node *node = NULL;
+
+	for_each_of_cpu_node(node) {
+		if (!of_device_is_available(node))
+			continue;
+
+		cpuid = of_get_cpu_hwid(node, 0);
+		if (cpuid >= nr_cpu_ids)
+			continue;
+
+		if (cpuid == loongson_sysconf.boot_cpu_id) {
+			cpu = 0;
+			numa_add_cpu(cpu);
+		} else {
+			cpu = cpumask_next_zero(-1, cpu_present_mask);
+		}
+
+		num_processors++;
+		set_cpu_possible(cpu, true);
+		set_cpu_present(cpu, true);
+		__cpu_number_map[cpuid] = cpu;
+		__cpu_logical_map[cpu] = cpuid;
+	}
+
+	loongson_sysconf.nr_cpus = num_processors;
+#endif
+}
+
 void __init loongson_smp_setup(void)
 {
+	fdt_smp_setup();
+
 	cpu_data[0].core = cpu_logical_map(0) % loongson_sysconf.cores_per_package;
 	cpu_data[0].package = cpu_logical_map(0) / loongson_sysconf.cores_per_package;
 

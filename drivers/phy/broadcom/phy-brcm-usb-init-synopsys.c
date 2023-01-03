@@ -18,14 +18,14 @@
 #define PIARBCTL_CAM			0x00
 #define PIARBCTL_SPLITTER		0x04
 #define PIARBCTL_MISC			0x08
-#define   PIARBCTL_MISC_SECURE_MASK			0x80000000
-#define   PIARBCTL_MISC_USB_SELECT_MASK			0x40000000
-#define   PIARBCTL_MISC_USB_4G_SDRAM_MASK		0x20000000
-#define   PIARBCTL_MISC_USB_PRIORITY_MASK		0x000f0000
-#define   PIARBCTL_MISC_USB_MEM_PAGE_MASK		0x0000f000
-#define   PIARBCTL_MISC_CAM1_MEM_PAGE_MASK		0x00000f00
-#define   PIARBCTL_MISC_CAM0_MEM_PAGE_MASK		0x000000f0
-#define   PIARBCTL_MISC_SATA_PRIORITY_MASK		0x0000000f
+#define   PIARBCTL_MISC_SATA_PRIORITY_MASK		GENMASK(3, 0)
+#define   PIARBCTL_MISC_CAM0_MEM_PAGE_MASK		GENMASK(7, 4)
+#define   PIARBCTL_MISC_CAM1_MEM_PAGE_MASK		GENMASK(11, 8)
+#define   PIARBCTL_MISC_USB_MEM_PAGE_MASK		GENMASK(15, 12)
+#define   PIARBCTL_MISC_USB_PRIORITY_MASK		GENMASK(19, 16)
+#define   PIARBCTL_MISC_USB_4G_SDRAM_MASK		BIT(29)
+#define   PIARBCTL_MISC_USB_SELECT_MASK			BIT(30)
+#define   PIARBCTL_MISC_SECURE_MASK			BIT(31)
 
 #define PIARBCTL_MISC_USB_ONLY_MASK		\
 	(PIARBCTL_MISC_USB_SELECT_MASK |	\
@@ -35,46 +35,47 @@
 
 /* Register definitions for the USB CTRL block */
 #define USB_CTRL_SETUP			0x00
-#define   USB_CTRL_SETUP_STRAP_IPP_SEL_MASK		0x02000000
-#define   USB_CTRL_SETUP_SCB2_EN_MASK			0x00008000
-#define   USB_CTRL_SETUP_tca_drv_sel_MASK		0x01000000
-#define   USB_CTRL_SETUP_SCB1_EN_MASK			0x00004000
-#define   USB_CTRL_SETUP_SOFT_SHUTDOWN_MASK		0x00000200
-#define   USB_CTRL_SETUP_IPP_MASK			0x00000020
-#define   USB_CTRL_SETUP_IOC_MASK			0x00000010
+#define   USB_CTRL_SETUP_IOC_MASK			BIT(4)
+#define   USB_CTRL_SETUP_IPP_MASK			BIT(5)
+#define   USB_CTRL_SETUP_SOFT_SHUTDOWN_MASK		BIT(9)
+#define   USB_CTRL_SETUP_SCB1_EN_MASK			BIT(14)
+#define   USB_CTRL_SETUP_SCB2_EN_MASK			BIT(15)
+#define   USB_CTRL_SETUP_tca_drv_sel_MASK		BIT(24)
+#define   USB_CTRL_SETUP_STRAP_IPP_SEL_MASK		BIT(25)
 #define USB_CTRL_USB_PM			0x04
-#define   USB_CTRL_USB_PM_USB_PWRDN_MASK		0x80000000
-#define   USB_CTRL_USB_PM_SOFT_RESET_MASK		0x40000000
-#define   USB_CTRL_USB_PM_BDC_SOFT_RESETB_MASK		0x00800000
-#define   USB_CTRL_USB_PM_XHC_SOFT_RESETB_MASK		0x00400000
-#define   USB_CTRL_USB_PM_XHC_PME_EN_MASK		0x00000010
-#define   USB_CTRL_USB_PM_XHC_S2_CLK_SWITCH_EN_MASK	0x00000008
+#define   USB_CTRL_USB_PM_XHC_S2_CLK_SWITCH_EN_MASK	BIT(3)
+#define   USB_CTRL_USB_PM_XHC_PME_EN_MASK		BIT(4)
+#define   USB_CTRL_USB_PM_XHC_SOFT_RESETB_MASK		BIT(22)
+#define   USB_CTRL_USB_PM_BDC_SOFT_RESETB_MASK		BIT(23)
+#define   USB_CTRL_USB_PM_SOFT_RESET_MASK		BIT(30)
+#define   USB_CTRL_USB_PM_USB_PWRDN_MASK		BIT(31)
 #define USB_CTRL_USB_PM_STATUS		0x08
 #define USB_CTRL_USB_DEVICE_CTL1	0x10
-#define   USB_CTRL_USB_DEVICE_CTL1_PORT_MODE_MASK	0x00000003
+#define   USB_CTRL_USB_DEVICE_CTL1_PORT_MODE_MASK	GENMASK(1, 0)
 #define USB_CTRL_TEST_PORT_CTL		0x30
-#define   USB_CTRL_TEST_PORT_CTL_TPOUT_SEL_MASK	0x000000ff
+#define   USB_CTRL_TEST_PORT_CTL_TPOUT_SEL_MASK		GENMASK(7, 0)
 #define   USB_CTRL_TEST_PORT_CTL_TPOUT_SEL_PME_GEN_MASK	0x0000002e
 #define USB_CTRL_TP_DIAG1		0x34
-#define   USB_CTLR_TP_DIAG1_wake_MASK	0x00000002
+#define   USB_CTLR_TP_DIAG1_wake_MASK			BIT(1)
 #define USB_CTRL_CTLR_CSHCR		0x50
-#define   USB_CTRL_CTLR_CSHCR_ctl_pme_en_MASK	0x00040000
+#define   USB_CTRL_CTLR_CSHCR_ctl_pme_en_MASK		BIT(18)
 
 /* Register definitions for the USB_PHY block in 7211b0 */
 #define USB_PHY_PLL_CTL			0x00
-#define   USB_PHY_PLL_CTL_PLL_RESETB_MASK		0x40000000
+#define   USB_PHY_PLL_CTL_PLL_SUSPEND_MASK		BIT(27)
+#define   USB_PHY_PLL_CTL_PLL_RESETB_MASK		BIT(30)
 #define USB_PHY_PLL_LDO_CTL		0x08
-#define   USB_PHY_PLL_LDO_CTL_AFE_CORERDY_MASK		0x00000004
-#define   USB_PHY_PLL_LDO_CTL_AFE_LDO_PWRDWNB_MASK	0x00000002
-#define   USB_PHY_PLL_LDO_CTL_AFE_BG_PWRDWNB_MASK	0x00000001
+#define   USB_PHY_PLL_LDO_CTL_AFE_BG_PWRDWNB_MASK	BIT(0)
+#define   USB_PHY_PLL_LDO_CTL_AFE_LDO_PWRDWNB_MASK	BIT(1)
+#define   USB_PHY_PLL_LDO_CTL_AFE_CORERDY_MASK		BIT(2)
 #define USB_PHY_UTMI_CTL_1		0x04
-#define   USB_PHY_UTMI_CTL_1_POWER_UP_FSM_EN_MASK	0x00000800
-#define   USB_PHY_UTMI_CTL_1_PHY_MODE_MASK		0x0000000c
+#define   USB_PHY_UTMI_CTL_1_PHY_MODE_MASK		GENMASK(3, 2)
 #define   USB_PHY_UTMI_CTL_1_PHY_MODE_SHIFT		2
+#define   USB_PHY_UTMI_CTL_1_POWER_UP_FSM_EN_MASK	BIT(11)
 #define USB_PHY_IDDQ			0x1c
-#define   USB_PHY_IDDQ_phy_iddq_MASK			0x00000001
+#define   USB_PHY_IDDQ_phy_iddq_MASK			BIT(0)
 #define USB_PHY_STATUS			0x20
-#define   USB_PHY_STATUS_pll_lock_MASK			0x00000001
+#define   USB_PHY_STATUS_pll_lock_MASK			BIT(0)
 
 /* Register definitions for the MDIO registers in the DWC2 block of
  * the 7211b0.
@@ -86,7 +87,7 @@
 
 /* Register definitions for the BDC EC block in 7211b0 */
 #define BDC_EC_AXIRDA			0x0c
-#define   BDC_EC_AXIRDA_RTS_MASK			0xf0000000
+#define   BDC_EC_AXIRDA_RTS_MASK			GENMASK(31, 28)
 #define   BDC_EC_AXIRDA_RTS_SHIFT			28
 
 
@@ -195,10 +196,10 @@ static void usb_init_common(struct brcm_usb_init_params *params)
 	if (USB_CTRL_MASK(USB_DEVICE_CTL1, PORT_MODE)) {
 		reg = brcm_usb_readl(USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 		reg &= ~USB_CTRL_MASK(USB_DEVICE_CTL1, PORT_MODE);
-		reg |= params->mode;
+		reg |= params->port_mode;
 		brcm_usb_writel(reg, USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 	}
-	switch (params->mode) {
+	switch (params->supported_port_modes) {
 	case USB_CTLR_MODE_HOST:
 		USB_CTRL_UNSET(ctrl, USB_PM, BDC_SOFT_RESETB);
 		break;
@@ -259,6 +260,11 @@ static void usb_init_common_7211b0(struct brcm_usb_init_params *params)
 		brcm_usb_writel(reg, usb_phy + USB_PHY_UTMI_CTL_1);
 	}
 
+	/* Disable PLL auto suspend */
+	reg = brcm_usb_readl(usb_phy + USB_PHY_PLL_CTL);
+	reg |= USB_PHY_PLL_CTL_PLL_SUSPEND_MASK;
+	brcm_usb_writel(reg, usb_phy + USB_PHY_PLL_CTL);
+
 	/* Init the PHY */
 	reg = USB_PHY_PLL_LDO_CTL_AFE_CORERDY_MASK |
 		USB_PHY_PLL_LDO_CTL_AFE_LDO_PWRDWNB_MASK |
@@ -276,7 +282,7 @@ static void usb_init_common_7211b0(struct brcm_usb_init_params *params)
 	/* Set the PHY_MODE */
 	reg = brcm_usb_readl(usb_phy + USB_PHY_UTMI_CTL_1);
 	reg &= ~USB_PHY_UTMI_CTL_1_PHY_MODE_MASK;
-	reg |= params->mode << USB_PHY_UTMI_CTL_1_PHY_MODE_SHIFT;
+	reg |= params->supported_port_modes << USB_PHY_UTMI_CTL_1_PHY_MODE_SHIFT;
 	brcm_usb_writel(reg, usb_phy + USB_PHY_UTMI_CTL_1);
 
 	usb_init_common(params);
@@ -286,7 +292,7 @@ static void usb_init_common_7211b0(struct brcm_usb_init_params *params)
 	 * the default "Read Transaction Size" of 6 (1024 bytes).
 	 * Set it to 4 (256 bytes).
 	 */
-	if ((params->mode != USB_CTLR_MODE_HOST) && bdc_ec) {
+	if ((params->supported_port_modes != USB_CTLR_MODE_HOST) && bdc_ec) {
 		reg = brcm_usb_readl(bdc_ec + BDC_EC_AXIRDA);
 		reg &= ~BDC_EC_AXIRDA_RTS_MASK;
 		reg |= (0x4 << BDC_EC_AXIRDA_RTS_SHIFT);
@@ -331,13 +337,12 @@ static void usb_uninit_common_7216(struct brcm_usb_init_params *params)
 
 	pr_debug("%s\n", __func__);
 
-	if (!params->wake_enabled) {
-		USB_CTRL_SET(ctrl, USB_PM, USB_PWRDN);
-
+	if (params->wake_enabled) {
 		/* Switch to using slower clock during suspend to save power */
 		USB_CTRL_SET(ctrl, USB_PM, XHC_S2_CLK_SWITCH_EN);
-	} else {
 		usb_wake_enable_7216(params, true);
+	} else {
+		USB_CTRL_SET(ctrl, USB_PM, USB_PWRDN);
 	}
 }
 
@@ -385,7 +390,7 @@ static int usb_get_dual_select(struct brcm_usb_init_params *params)
 	return reg;
 }
 
-static void usb_set_dual_select(struct brcm_usb_init_params *params, int mode)
+static void usb_set_dual_select(struct brcm_usb_init_params *params)
 {
 	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
 	u32 reg;
@@ -394,7 +399,7 @@ static void usb_set_dual_select(struct brcm_usb_init_params *params, int mode)
 
 	reg = brcm_usb_readl(USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 	reg &= ~USB_CTRL_MASK(USB_DEVICE_CTL1, PORT_MODE);
-	reg |= mode;
+	reg |= params->port_mode;
 	brcm_usb_writel(reg, USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 }
 
@@ -425,7 +430,6 @@ void brcm_usb_dvr_init_7216(struct brcm_usb_init_params *params)
 
 	params->family_name = "7216";
 	params->ops = &bcm7216_ops;
-	params->suspend_with_clocks = true;
 }
 
 void brcm_usb_dvr_init_7211b0(struct brcm_usb_init_params *params)
@@ -435,5 +439,4 @@ void brcm_usb_dvr_init_7211b0(struct brcm_usb_init_params *params)
 
 	params->family_name = "7211";
 	params->ops = &bcm7211b0_ops;
-	params->suspend_with_clocks = true;
 }

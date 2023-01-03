@@ -1811,7 +1811,12 @@ static int __init tridentfb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("tridentfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("tridentfb", &option))
 		return -ENODEV;
 	tridentfb_setup(option);

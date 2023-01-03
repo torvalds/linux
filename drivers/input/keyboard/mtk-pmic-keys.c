@@ -231,7 +231,7 @@ static int mtk_pmic_key_setup(struct mtk_pmic_keys *keys,
 	return 0;
 }
 
-static int __maybe_unused mtk_pmic_keys_suspend(struct device *dev)
+static int mtk_pmic_keys_suspend(struct device *dev)
 {
 	struct mtk_pmic_keys *keys = dev_get_drvdata(dev);
 	int index;
@@ -247,7 +247,7 @@ static int __maybe_unused mtk_pmic_keys_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mtk_pmic_keys_resume(struct device *dev)
+static int mtk_pmic_keys_resume(struct device *dev)
 {
 	struct mtk_pmic_keys *keys = dev_get_drvdata(dev);
 	int index;
@@ -263,8 +263,8 @@ static int __maybe_unused mtk_pmic_keys_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(mtk_pmic_keys_pm_ops, mtk_pmic_keys_suspend,
-			mtk_pmic_keys_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mtk_pmic_keys_pm_ops, mtk_pmic_keys_suspend,
+				mtk_pmic_keys_resume);
 
 static const struct of_device_id of_mtk_pmic_keys_match_tbl[] = {
 	{
@@ -387,7 +387,7 @@ static struct platform_driver pmic_keys_pdrv = {
 	.driver = {
 		   .name = "mtk-pmic-keys",
 		   .of_match_table = of_mtk_pmic_keys_match_tbl,
-		   .pm = &mtk_pmic_keys_pm_ops,
+		   .pm = pm_sleep_ptr(&mtk_pmic_keys_pm_ops),
 	},
 };
 

@@ -8,13 +8,12 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/gpio/driver.h>
+#include <linux/kernel.h>
 #include <linux/mfd/core.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <linux/mfd/wm8350/core.h>
 #include <linux/mfd/wm8350/gpio.h>

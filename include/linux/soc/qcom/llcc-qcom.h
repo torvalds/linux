@@ -42,7 +42,19 @@
 #define LLCC_CPUHWT      36
 #define LLCC_MDMCLAD2    37
 #define LLCC_CAMEXP1     38
+#define LLCC_CMPTHCP     39
+#define LLCC_LCPDARE     40
 #define LLCC_AENPU       45
+#define LLCC_ISLAND1     46
+#define LLCC_ISLAND2     47
+#define LLCC_ISLAND3     48
+#define LLCC_ISLAND4     49
+#define LLCC_CAMEXP2	 50
+#define LLCC_CAMEXP3	 51
+#define LLCC_CAMEXP4	 52
+#define LLCC_DISP_WB	 53
+#define LLCC_DISP_1	 54
+#define LLCC_VIDVSP	 64
 
 /**
  * struct llcc_slice_desc - Cache slice descriptor

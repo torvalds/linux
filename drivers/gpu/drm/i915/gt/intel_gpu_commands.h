@@ -187,6 +187,10 @@
 #define   MI_BATCH_RESOURCE_STREAMER REG_BIT(10)
 #define   MI_BATCH_PREDICATE         REG_BIT(15) /* HSW+ on RCS only*/
 
+#define MI_OPCODE(x)		(((x) >> 23) & 0x3f)
+#define IS_MI_LRI_CMD(x)	(MI_OPCODE(x) == MI_OPCODE(MI_INSTR(0x22, 0)))
+#define MI_LRI_LEN(x)		(((x) & 0xff) + 1)
+
 /*
  * 3D instructions used by the kernel
  */

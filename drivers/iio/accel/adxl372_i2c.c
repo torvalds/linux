@@ -18,9 +18,9 @@ static const struct regmap_config adxl372_regmap_config = {
 	.readable_noinc_reg = adxl372_readable_noinc_reg,
 };
 
-static int adxl372_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int adxl372_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct regmap *regmap;
 	unsigned int regval;
 	int ret;
@@ -58,7 +58,7 @@ static struct i2c_driver adxl372_i2c_driver = {
 		.name = "adxl372_i2c",
 		.of_match_table = adxl372_of_match,
 	},
-	.probe = adxl372_i2c_probe,
+	.probe_new = adxl372_i2c_probe,
 	.id_table = adxl372_i2c_id,
 };
 

@@ -567,6 +567,8 @@ static int pcf8563_probe(struct i2c_client *client)
 								client->irq);
 			return err;
 		}
+	} else {
+		clear_bit(RTC_FEATURE_ALARM, pcf8563->rtc->features);
 	}
 
 	err = devm_rtc_register_device(pcf8563->rtc);

@@ -261,25 +261,20 @@ void handle_aggr(int mother, struct nlattr *na, int fd)
 
 int main(int argc, char *argv[])
 {
-	int c, rc, rep_len, aggr_len, len2;
-	int cmd_type = TASKSTATS_CMD_ATTR_UNSPEC;
+	int c, rc, rep_len;
 	__u16 id;
 	__u32 mypid;
 
 	struct nlattr *na;
 	int nl_sd = -1;
 	int len = 0;
-	pid_t tid = 0;
 
 	int fd = 0;
 	int write_file = 0;
 	int maskset = 0;
 	char *logfile = NULL;
-	int containerset = 0;
-	char *containerpath = NULL;
 	int cfd = 0;
 	int forking = 0;
-	sigset_t sigset;
 
 	struct msgtemplate msg;
 

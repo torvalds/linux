@@ -19,8 +19,7 @@ struct btrfs_fid {
 } __attribute__ ((packed));
 
 struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
-				u64 root_objectid, u64 generation,
-				int check_generation);
+				u64 root_objectid, u64 generation);
 struct dentry *btrfs_get_parent(struct dentry *child);
 
 #endif

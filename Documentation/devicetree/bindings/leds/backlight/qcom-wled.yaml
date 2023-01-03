@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/leds/backlight/qcom-wled.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding for Qualcomm Technologies, Inc. WLED driver
+title: Qualcomm Technologies, Inc. WLED driver
 
 maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>

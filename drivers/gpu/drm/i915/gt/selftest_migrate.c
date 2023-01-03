@@ -6,6 +6,7 @@
 #include <linux/sort.h>
 
 #include "gem/i915_gem_internal.h"
+#include "gem/i915_gem_lmem.h"
 
 #include "selftests/i915_random.h"
 

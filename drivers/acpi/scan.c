@@ -30,7 +30,7 @@ extern struct acpi_device *acpi_root;
 #define ACPI_BUS_HID			"LNXSYBUS"
 #define ACPI_BUS_DEVICE_NAME		"System Bus"
 
-#define INVALID_ACPI_HANDLE	((acpi_handle)empty_zero_page)
+#define INVALID_ACPI_HANDLE	((acpi_handle)ZERO_PAGE(0))
 
 static const char *dummy_hid = "device";
 

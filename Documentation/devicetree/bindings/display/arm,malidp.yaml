@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/arm,malidp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Arm Mali Display Processor (Mali-DP) binding
+title: Arm Mali Display Processor (Mali-DP)
 
 maintainers:
   - Liviu Dudau <Liviu.Dudau@arm.com>

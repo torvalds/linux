@@ -8,7 +8,6 @@ struct nvkm_device_tegra {
 	const struct nvkm_device_tegra_func *func;
 	struct nvkm_device device;
 	struct platform_device *pdev;
-	int irq;
 
 	struct reset_control *rst;
 	struct clk *clk;

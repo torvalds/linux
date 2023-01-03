@@ -7,6 +7,8 @@
 #include "btrfs_inode.h"
 #include "print-tree.h"
 #include "export.h"
+#include "accessors.h"
+#include "super.h"
 
 #define BTRFS_FID_SIZE_NON_CONNECTABLE (offsetof(struct btrfs_fid, \
 						 parent_objectid) / 4)
@@ -57,9 +59,20 @@ static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	return type;
 }
 
+/*
+ * Read dentry of inode with @objectid from filesystem root @root_objectid.
+ *
+ * @sb:             the filesystem super block
+ * @objectid:       inode objectid
+ * @root_objectid:  object id of the subvolume root where to look up the inode
+ * @generation:     optional, if not zero, verify that the found inode
+ *                  generation matches
+ *
+ * Return dentry alias for the inode, otherwise an error. In case the
+ * generation does not match return ESTALE.
+ */
 struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
-				u64 root_objectid, u64 generation,
-				int check_generation)
+				u64 root_objectid, u64 generation)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	struct btrfs_root *root;
@@ -77,7 +90,7 @@ struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 
-	if (check_generation && generation != inode->i_generation) {
+	if (generation != 0 && generation != inode->i_generation) {
 		iput(inode);
 		return ERR_PTR(-ESTALE);
 	}
@@ -106,7 +119,7 @@ static struct dentry *btrfs_fh_to_parent(struct super_block *sb, struct fid *fh,
 	objectid = fid->parent_objectid;
 	generation = fid->parent_gen;
 
-	return btrfs_get_dentry(sb, objectid, root_objectid, generation, 1);
+	return btrfs_get_dentry(sb, objectid, root_objectid, generation);
 }
 
 static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
@@ -128,7 +141,7 @@ static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 	root_objectid = fid->root_objectid;
 	generation = fid->gen;
 
-	return btrfs_get_dentry(sb, objectid, root_objectid, generation, 1);
+	return btrfs_get_dentry(sb, objectid, root_objectid, generation);
 }
 
 struct dentry *btrfs_get_parent(struct dentry *child)
@@ -188,7 +201,7 @@ struct dentry *btrfs_get_parent(struct dentry *child)
 
 	if (found_key.type == BTRFS_ROOT_BACKREF_KEY) {
 		return btrfs_get_dentry(fs_info->sb, key.objectid,
-					found_key.offset, 0, 0);
+					found_key.offset, 0);
 	}
 
 	return d_obtain_alias(btrfs_iget(fs_info->sb, key.objectid, root));

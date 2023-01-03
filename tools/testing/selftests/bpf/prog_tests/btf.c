@@ -3949,6 +3949,20 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Invalid return type",
 },
 {
+	.descr = "decl_tag test #17, func proto, argument",
+	.raw_types = {
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DECL_TAG, 0, 0), 4), (-1),	/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 0), /* [2] */
+		BTF_FUNC_PROTO_ENC(0, 1),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_VAR_ENC(NAME_TBD, 2, 0),			/* [4] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0local\0tag1\0var"),
+	.btf_load_err = true,
+	.err_str = "Invalid arg#1",
+},
+{
 	.descr = "type_tag test #1",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
@@ -7133,7 +7147,7 @@ static struct btf_dedup_test dedup_tests[] = {
 				BTF_ENUM_ENC(NAME_NTH(4), 456),
 			/* [4] fwd enum 'e2' after full enum */
 			BTF_TYPE_ENC(NAME_NTH(3), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 0), 4),
-			/* [5] incompatible fwd enum with different size */
+			/* [5] fwd enum with different size, size does not matter for fwd */
 			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 0), 1),
 			/* [6] incompatible full enum with different value */
 			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),
@@ -7150,9 +7164,7 @@ static struct btf_dedup_test dedup_tests[] = {
 			/* [2] full enum 'e2' */
 			BTF_TYPE_ENC(NAME_NTH(3), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),
 				BTF_ENUM_ENC(NAME_NTH(4), 456),
-			/* [3] incompatible fwd enum with different size */
-			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 0), 1),
-			/* [4] incompatible full enum with different value */
+			/* [3] incompatible full enum with different value */
 			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),
 				BTF_ENUM_ENC(NAME_NTH(2), 321),
 			BTF_END_RAW,
@@ -7611,7 +7623,263 @@ static struct btf_dedup_test dedup_tests[] = {
 		BTF_STR_SEC("\0e1\0e1_val"),
 	},
 },
-
+{
+	.descr = "dedup: enum of different size: no dedup",
+	.input = {
+		.raw_types = {
+			/* [1] enum 'e1' */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),
+				BTF_ENUM_ENC(NAME_NTH(2), 1),
+			/* [2] enum 'e1' */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 2),
+				BTF_ENUM_ENC(NAME_NTH(2), 1),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0e1\0e1_val"),
+	},
+	.expect = {
+		.raw_types = {
+			/* [1] enum 'e1' */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),
+				BTF_ENUM_ENC(NAME_NTH(2), 1),
+			/* [2] enum 'e1' */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 2),
+				BTF_ENUM_ENC(NAME_NTH(2), 1),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0e1\0e1_val"),
+	},
+},
+{
+	.descr = "dedup: enum fwd to enum64",
+	.input = {
+		.raw_types = {
+			/* [1] enum64 'e1' */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM64, 0, 1), 8),
+				BTF_ENUM64_ENC(NAME_NTH(2), 1, 0),
+			/* [2] enum 'e1' fwd */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 0), 4),
+			/* [3] typedef enum 'e1' td */
+			BTF_TYPE_ENC(NAME_NTH(3), BTF_INFO_ENC(BTF_KIND_TYPEDEF, 0, 0), 2),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0e1\0e1_val\0td"),
+	},
+	.expect = {
+		.raw_types = {
+			/* [1] enum64 'e1' */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM64, 0, 1), 8),
+				BTF_ENUM64_ENC(NAME_NTH(2), 1, 0),
+			/* [2] typedef enum 'e1' td */
+			BTF_TYPE_ENC(NAME_NTH(3), BTF_INFO_ENC(BTF_KIND_TYPEDEF, 0, 0), 1),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0e1\0e1_val\0td"),
+	},
+},
+{
+	.descr = "dedup: enum64 fwd to enum",
+	.input = {
+		.raw_types = {
+			/* [1] enum 'e1' */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),
+				BTF_ENUM_ENC(NAME_NTH(2), 1),
+			/* [2] enum64 'e1' fwd */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM64, 0, 0), 8),
+			/* [3] typedef enum 'e1' td */
+			BTF_TYPE_ENC(NAME_NTH(3), BTF_INFO_ENC(BTF_KIND_TYPEDEF, 0, 0), 2),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0e1\0e1_val\0td"),
+	},
+	.expect = {
+		.raw_types = {
+			/* [1] enum 'e1' */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),
+				BTF_ENUM_ENC(NAME_NTH(2), 1),
+			/* [2] typedef enum 'e1' td */
+			BTF_TYPE_ENC(NAME_NTH(3), BTF_INFO_ENC(BTF_KIND_TYPEDEF, 0, 0), 1),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0e1\0e1_val\0td"),
+	},
+},
+{
+	.descr = "dedup: standalone fwd declaration struct",
+	/*
+	 * Verify that CU1:foo and CU2:foo would be unified and that
+	 * typedef/ptr would be updated to point to CU1:foo.
+	 *
+	 * // CU 1:
+	 * struct foo { int x; };
+	 *
+	 * // CU 2:
+	 * struct foo;
+	 * typedef struct foo *foo_ptr;
+	 */
+	.input = {
+		.raw_types = {
+			/* CU 1 */
+			BTF_STRUCT_ENC(NAME_NTH(1), 1, 4),             /* [1] */
+			BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4), /* [2] */
+			/* CU 2 */
+			BTF_FWD_ENC(NAME_NTH(1), 0),                   /* [3] */
+			BTF_PTR_ENC(3),                                /* [4] */
+			BTF_TYPEDEF_ENC(NAME_NTH(3), 4),               /* [5] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0foo\0x\0foo_ptr"),
+	},
+	.expect = {
+		.raw_types = {
+			BTF_STRUCT_ENC(NAME_NTH(1), 1, 4),             /* [1] */
+			BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4), /* [2] */
+			BTF_PTR_ENC(1),                                /* [3] */
+			BTF_TYPEDEF_ENC(NAME_NTH(3), 3),               /* [4] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0foo\0x\0foo_ptr"),
+	},
+},
+{
+	.descr = "dedup: standalone fwd declaration union",
+	/*
+	 * Verify that CU1:foo and CU2:foo would be unified and that
+	 * typedef/ptr would be updated to point to CU1:foo.
+	 * Same as "dedup: standalone fwd declaration struct" but for unions.
+	 *
+	 * // CU 1:
+	 * union foo { int x; };
+	 *
+	 * // CU 2:
+	 * union foo;
+	 * typedef union foo *foo_ptr;
+	 */
+	.input = {
+		.raw_types = {
+			/* CU 1 */
+			BTF_UNION_ENC(NAME_NTH(1), 1, 4),              /* [1] */
+			BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4), /* [2] */
+			/* CU 2 */
+			BTF_FWD_ENC(NAME_TBD, 1),                      /* [3] */
+			BTF_PTR_ENC(3),                                /* [4] */
+			BTF_TYPEDEF_ENC(NAME_NTH(3), 4),               /* [5] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0foo\0x\0foo_ptr"),
+	},
+	.expect = {
+		.raw_types = {
+			BTF_UNION_ENC(NAME_NTH(1), 1, 4),              /* [1] */
+			BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4), /* [2] */
+			BTF_PTR_ENC(1),                                /* [3] */
+			BTF_TYPEDEF_ENC(NAME_NTH(3), 3),               /* [4] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0foo\0x\0foo_ptr"),
+	},
+},
+{
+	.descr = "dedup: standalone fwd declaration wrong kind",
+	/*
+	 * Negative test for btf_dedup_resolve_fwds:
+	 * - CU1:foo is a struct, C2:foo is a union, thus CU2:foo is not deduped;
+	 * - typedef/ptr should remain unchanged as well.
+	 *
+	 * // CU 1:
+	 * struct foo { int x; };
+	 *
+	 * // CU 2:
+	 * union foo;
+	 * typedef union foo *foo_ptr;
+	 */
+	.input = {
+		.raw_types = {
+			/* CU 1 */
+			BTF_STRUCT_ENC(NAME_NTH(1), 1, 4),             /* [1] */
+			BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4), /* [2] */
+			/* CU 2 */
+			BTF_FWD_ENC(NAME_NTH(3), 1),                   /* [3] */
+			BTF_PTR_ENC(3),                                /* [4] */
+			BTF_TYPEDEF_ENC(NAME_NTH(3), 4),               /* [5] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0foo\0x\0foo_ptr"),
+	},
+	.expect = {
+		.raw_types = {
+			/* CU 1 */
+			BTF_STRUCT_ENC(NAME_NTH(1), 1, 4),             /* [1] */
+			BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4), /* [2] */
+			/* CU 2 */
+			BTF_FWD_ENC(NAME_NTH(3), 1),                   /* [3] */
+			BTF_PTR_ENC(3),                                /* [4] */
+			BTF_TYPEDEF_ENC(NAME_NTH(3), 4),               /* [5] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0foo\0x\0foo_ptr"),
+	},
+},
+{
+	.descr = "dedup: standalone fwd declaration name conflict",
+	/*
+	 * Negative test for btf_dedup_resolve_fwds:
+	 * - two candidates for CU2:foo dedup, thus it is unchanged;
+	 * - typedef/ptr should remain unchanged as well.
+	 *
+	 * // CU 1:
+	 * struct foo { int x; };
+	 *
+	 * // CU 2:
+	 * struct foo;
+	 * typedef struct foo *foo_ptr;
+	 *
+	 * // CU 3:
+	 * struct foo { int x; int y; };
+	 */
+	.input = {
+		.raw_types = {
+			/* CU 1 */
+			BTF_STRUCT_ENC(NAME_NTH(1), 1, 4),             /* [1] */
+			BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4), /* [2] */
+			/* CU 2 */
+			BTF_FWD_ENC(NAME_NTH(1), 0),                   /* [3] */
+			BTF_PTR_ENC(3),                                /* [4] */
+			BTF_TYPEDEF_ENC(NAME_NTH(4), 4),               /* [5] */
+			/* CU 3 */
+			BTF_STRUCT_ENC(NAME_NTH(1), 2, 8),             /* [6] */
+			BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			BTF_MEMBER_ENC(NAME_NTH(3), 2, 0),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0foo\0x\0y\0foo_ptr"),
+	},
+	.expect = {
+		.raw_types = {
+			/* CU 1 */
+			BTF_STRUCT_ENC(NAME_NTH(1), 1, 4),             /* [1] */
+			BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4), /* [2] */
+			/* CU 2 */
+			BTF_FWD_ENC(NAME_NTH(1), 0),                   /* [3] */
+			BTF_PTR_ENC(3),                                /* [4] */
+			BTF_TYPEDEF_ENC(NAME_NTH(4), 4),               /* [5] */
+			/* CU 3 */
+			BTF_STRUCT_ENC(NAME_NTH(1), 2, 8),             /* [6] */
+			BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			BTF_MEMBER_ENC(NAME_NTH(3), 2, 0),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0foo\0x\0y\0foo_ptr"),
+	},
+},
 };
 
 static int btf_type_size(const struct btf_type *t)

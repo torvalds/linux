@@ -801,9 +801,6 @@ static u8 hci_cc_write_auth_payload_timeout(struct hci_dev *hdev, void *data,
 
 	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
 
-	if (rp->status)
-		return rp->status;
-
 	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_AUTH_PAYLOAD_TO);
 	if (!sent)
 		return rp->status;
@@ -811,9 +808,17 @@ static u8 hci_cc_write_auth_payload_timeout(struct hci_dev *hdev, void *data,
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(rp->handle));
-	if (conn)
+	if (!conn) {
+		rp->status = 0xff;
+		goto unlock;
+	}
+
+	if (!rp->status)
 		conn->auth_payload_timeout = get_unaligned_le16(sent + 2);
 
+	hci_encrypt_cfm(conn, 0);
+
+unlock:
 	hci_dev_unlock(hdev);
 
 	return rp->status;
@@ -3680,8 +3685,13 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, void *data,
 
 		cp.handle = cpu_to_le16(conn->handle);
 		cp.timeout = cpu_to_le16(hdev->auth_payload_timeout);
-		hci_send_cmd(conn->hdev, HCI_OP_WRITE_AUTH_PAYLOAD_TO,
-			     sizeof(cp), &cp);
+		if (hci_send_cmd(conn->hdev, HCI_OP_WRITE_AUTH_PAYLOAD_TO,
+				 sizeof(cp), &cp)) {
+			bt_dev_err(hdev, "write auth payload timeout failed");
+			goto notify;
+		}
+
+		goto unlock;
 	}
 
 notify:
@@ -6494,7 +6504,7 @@ static void hci_le_ext_adv_report_evt(struct hci_dev *hdev, void *data,
 					info->length))
 			break;
 
-		evt_type = __le16_to_cpu(info->type);
+		evt_type = __le16_to_cpu(info->type) & LE_EXT_ADV_EVT_TYPE_MASK;
 		legacy_evt_type = ext_evt_type_to_legacy(hdev, evt_type);
 		if (legacy_evt_type != LE_ADV_INVALID) {
 			process_adv_report(hdev, legacy_evt_type, &info->bdaddr,

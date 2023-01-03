@@ -1439,6 +1439,10 @@ N: Justin Guyett
 E: jguyett@andrew.cmu.edu
 D: via-rhine net driver hacking
 
+N: Nitin Gupta
+E: ngupta@vflare.org
+D: zsmalloc memory allocator and zram block device driver
+
 N: Danny ter Haar
 E: dth@cistron.nl
 D: /proc/cpuinfo, reboot on panic , kernel pre-patch tester ;)

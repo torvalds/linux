@@ -3,6 +3,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/kstrtox.h>
 #include <linux/nls.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget_configfs.h>
@@ -800,7 +801,7 @@ static ssize_t os_desc_use_store(struct config_item *item, const char *page,
 	bool use;
 
 	mutex_lock(&gi->lock);
-	ret = strtobool(page, &use);
+	ret = kstrtobool(page, &use);
 	if (!ret) {
 		gi->use_os_desc = use;
 		ret = len;

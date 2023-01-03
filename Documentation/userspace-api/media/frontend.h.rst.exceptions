@@ -86,6 +86,13 @@ ignore symbol APSK_16
 ignore symbol APSK_32
 ignore symbol DQPSK
 ignore symbol QAM_4_NR
+ignore symbol QAM_1024
+ignore symbol QAM_4096
+ignore symbol APSK_8_L
+ignore symbol APSK_16_L
+ignore symbol APSK_32_L
+ignore symbol APSK_64
+ignore symbol APSK_64_L
 
 ignore symbol SEC_VOLTAGE_13
 ignore symbol SEC_VOLTAGE_18
@@ -119,6 +126,22 @@ ignore symbol FEC_AUTO
 ignore symbol FEC_3_5
 ignore symbol FEC_9_10
 ignore symbol FEC_2_5
+ignore symbol FEC_1_3
+ignore symbol FEC_1_4
+ignore symbol FEC_5_9
+ignore symbol FEC_7_9
+ignore symbol FEC_8_15
+ignore symbol FEC_11_15
+ignore symbol FEC_13_18
+ignore symbol FEC_9_20
+ignore symbol FEC_11_20
+ignore symbol FEC_23_36
+ignore symbol FEC_25_36
+ignore symbol FEC_13_45
+ignore symbol FEC_26_45
+ignore symbol FEC_28_45
+ignore symbol FEC_32_45
+ignore symbol FEC_77_90
 
 ignore symbol TRANSMISSION_MODE_AUTO
 ignore symbol TRANSMISSION_MODE_1K
@@ -143,6 +166,7 @@ ignore symbol GUARD_INTERVAL_19_256
 ignore symbol GUARD_INTERVAL_PN420
 ignore symbol GUARD_INTERVAL_PN595
 ignore symbol GUARD_INTERVAL_PN945
+ignore symbol GUARD_INTERVAL_1_64
 
 ignore symbol HIERARCHY_NONE
 ignore symbol HIERARCHY_AUTO
@@ -163,6 +187,9 @@ ignore symbol ROLLOFF_35
 ignore symbol ROLLOFF_20
 ignore symbol ROLLOFF_25
 ignore symbol ROLLOFF_AUTO
+ignore symbol ROLLOFF_15
+ignore symbol ROLLOFF_10
+ignore symbol ROLLOFF_5
 
 ignore symbol INVERSION_ON
 ignore symbol INVERSION_OFF
@@ -187,6 +214,7 @@ ignore symbol SYS_DAB
 ignore symbol SYS_DSS
 ignore symbol SYS_CMMB
 ignore symbol SYS_DVBH
+ignore symbol SYS_DVBC2
 
 ignore symbol ATSCMH_SCCC_BLK_SEP
 ignore symbol ATSCMH_SCCC_BLK_COMB

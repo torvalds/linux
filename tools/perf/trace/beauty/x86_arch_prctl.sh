@@ -15,8 +15,8 @@ print_range () {
 	printf "static const char *x86_arch_prctl_codes_%d[] = {\n" $idx
 	regex=`printf '^[[:space:]]*#[[:space:]]*define[[:space:]]+ARCH_([[:alnum:]_]+)[[:space:]]+(%s[[:xdigit:]]+).*' ${prefix}`
 	fmt="\t[%#x - ${first_entry}]= \"%s\",\n"
-	egrep -q $regex ${prctl_arch_header} && \
-	(egrep $regex ${prctl_arch_header} | \
+	grep -E -q $regex ${prctl_arch_header} && \
+	(grep -E $regex ${prctl_arch_header} | \
 		sed -r "s/$regex/\2 \1/g"	| \
 		xargs printf "$fmt")
 	printf "};\n\n"

@@ -66,4 +66,17 @@ config ERRATA_THEAD_CMO
 
 	  If you don't know what to do here, say "Y".
 
+config ERRATA_THEAD_PMU
+	bool "Apply T-Head PMU errata"
+	depends on ERRATA_THEAD && RISCV_PMU_SBI
+	default y
+	help
+	  The T-Head C9xx cores implement a PMU overflow extension very
+	  similar to the core SSCOFPMF extension.
+
+	  This will apply the overflow errata to handle the non-standard
+	  behaviour via the regular SBI PMU driver and interface.
+
+	  If you don't know what to do here, say "Y".
+
 endmenu # "CPU errata selection"

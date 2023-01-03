@@ -1295,6 +1295,81 @@ static int ksz9131_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+#define MII_KSZ9131_AUTO_MDIX		0x1C
+#define MII_KSZ9131_AUTO_MDI_SET	BIT(7)
+#define MII_KSZ9131_AUTO_MDIX_SWAP_OFF	BIT(6)
+
+static int ksz9131_mdix_update(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, MII_KSZ9131_AUTO_MDIX);
+	if (ret < 0)
+		return ret;
+
+	if (ret & MII_KSZ9131_AUTO_MDIX_SWAP_OFF) {
+		if (ret & MII_KSZ9131_AUTO_MDI_SET)
+			phydev->mdix_ctrl = ETH_TP_MDI;
+		else
+			phydev->mdix_ctrl = ETH_TP_MDI_X;
+	} else {
+		phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+	}
+
+	if (ret & MII_KSZ9131_AUTO_MDI_SET)
+		phydev->mdix = ETH_TP_MDI;
+	else
+		phydev->mdix = ETH_TP_MDI_X;
+
+	return 0;
+}
+
+static int ksz9131_config_mdix(struct phy_device *phydev, u8 ctrl)
+{
+	u16 val;
+
+	switch (ctrl) {
+	case ETH_TP_MDI:
+		val = MII_KSZ9131_AUTO_MDIX_SWAP_OFF |
+		      MII_KSZ9131_AUTO_MDI_SET;
+		break;
+	case ETH_TP_MDI_X:
+		val = MII_KSZ9131_AUTO_MDIX_SWAP_OFF;
+		break;
+	case ETH_TP_MDI_AUTO:
+		val = 0;
+		break;
+	default:
+		return 0;
+	}
+
+	return phy_modify(phydev, MII_KSZ9131_AUTO_MDIX,
+			  MII_KSZ9131_AUTO_MDIX_SWAP_OFF |
+			  MII_KSZ9131_AUTO_MDI_SET, val);
+}
+
+static int ksz9131_read_status(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = ksz9131_mdix_update(phydev);
+	if (ret < 0)
+		return ret;
+
+	return genphy_read_status(phydev);
+}
+
+static int ksz9131_config_aneg(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = ksz9131_config_mdix(phydev, phydev->mdix_ctrl);
+	if (ret)
+		return ret;
+
+	return genphy_config_aneg(phydev);
+}
+
 #define KSZ8873MLL_GLOBAL_CONTROL_4	0x06
 #define KSZ8873MLL_GLOBAL_CONTROL_4_DUPLEX	BIT(6)
 #define KSZ8873MLL_GLOBAL_CONTROL_4_SPEED	BIT(4)
@@ -3304,6 +3379,8 @@ static struct phy_driver ksphy_driver[] = {
 	.probe		= kszphy_probe,
 	.config_init	= ksz9131_config_init,
 	.config_intr	= kszphy_config_intr,
+	.config_aneg	= ksz9131_config_aneg,
+	.read_status	= ksz9131_read_status,
 	.handle_interrupt = kszphy_handle_interrupt,
 	.get_sset_count = kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,

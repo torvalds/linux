@@ -76,6 +76,8 @@ struct amdgpu_cs_parser {
 
 	unsigned			num_post_deps;
 	struct amdgpu_cs_post_dep	*post_deps;
+
+	struct amdgpu_sync		sync;
 };
 
 int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,

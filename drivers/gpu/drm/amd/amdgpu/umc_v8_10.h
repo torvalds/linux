@@ -66,5 +66,9 @@ extern const uint32_t
 				[UMC_V8_10_UMC_INSTANCE_NUM]
 				[UMC_V8_10_CHANNEL_INSTANCE_NUM];
 
+extern const uint32_t
+	umc_v8_10_channel_idx_tbl_ext0[]
+				[UMC_V8_10_UMC_INSTANCE_NUM]
+				[UMC_V8_10_CHANNEL_INSTANCE_NUM];
 #endif
 

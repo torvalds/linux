@@ -2879,7 +2879,6 @@ static struct mpt_pci_driver mptctl_driver = {
 static int __init mptctl_init(void)
 {
 	int err;
-	int where = 1;
 
 	show_mptmod_ver(my_NAME, my_VERSION);
 
@@ -2898,7 +2897,6 @@ static int __init mptctl_init(void)
 	/*
 	 *  Install our handler
 	 */
-	++where;
 	mptctl_id = mpt_register(mptctl_reply, MPTCTL_DRIVER,
 	    "mptctl_reply");
 	if (!mptctl_id || mptctl_id >= MPT_MAX_PROTOCOL_DRIVERS) {

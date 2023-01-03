@@ -14,7 +14,6 @@
 #include "rtl8188e_xmit.h"
 #include "rtl8188e_cmd.h"
 #include "rtw_efuse.h"
-#include "odm_types.h"
 #include "odm.h"
 #include "odm_HWConfig.h"
 #include "odm_RegDefine11N.h"
@@ -88,7 +87,7 @@ struct txpowerinfo24g {
 /*  9bytes + 1byt + 5bytes and pre 1byte. */
 /*  For worst case: */
 /*  | 2byte|----8bytes----|1byte|--7bytes--| 92D */
-/*  PG data exclude header, dummy 7 bytes frome CP test and reserved 1byte. */
+/*  PG data exclude header, dummy 7 bytes from CP test and reserved 1byte. */
 #define		EFUSE_OOB_PROTECT_BYTES_88E	18
 
 #define EFUSE_PROTECT_BYTES_BANK	16
@@ -165,9 +164,9 @@ void Hal_ReadTxPowerInfo88E(struct adapter *padapter, u8 *hwinfo,
 
 void rtl8188e_EfuseParseChnlPlan(struct adapter *padapter, u8 *hwinfo,
 				 bool AutoLoadFail);
-void Hal_ReadAntennaDiversity88E(struct adapter *pAdapter,u8 *PROMContent,
+void Hal_ReadAntennaDiversity88E(struct adapter *pAdapter, u8 *PROMContent,
 				 bool AutoLoadFail);
-void Hal_ReadThermalMeter_88E(struct adapter *	dapter, u8 *PROMContent,
+void Hal_ReadThermalMeter_88E(struct adapter *padapter, u8 *PROMContent,
 			      bool AutoloadFail);
 void Hal_EfuseParseXtal_8188E(struct adapter *pAdapter, u8 *hwinfo,
 			      bool AutoLoadFail);

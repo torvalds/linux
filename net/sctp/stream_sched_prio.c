@@ -222,32 +222,6 @@ static void sctp_sched_prio_free_sid(struct sctp_stream *stream, __u16 sid)
 	kfree(prio);
 }
 
-static void sctp_sched_prio_free(struct sctp_stream *stream)
-{
-	struct sctp_stream_priorities *prio, *n;
-	LIST_HEAD(list);
-	int i;
-
-	/* As we don't keep a list of priorities, to avoid multiple
-	 * frees we have to do it in 3 steps:
-	 *   1. unsched everyone, so the lists are free to use in 2.
-	 *   2. build the list of the priorities
-	 *   3. free the list
-	 */
-	sctp_sched_prio_unsched_all(stream);
-	for (i = 0; i < stream->outcnt; i++) {
-		if (!SCTP_SO(stream, i)->ext)
-			continue;
-		prio = SCTP_SO(stream, i)->ext->prio_head;
-		if (prio && list_empty(&prio->prio_sched))
-			list_add(&prio->prio_sched, &list);
-	}
-	list_for_each_entry_safe(prio, n, &list, prio_sched) {
-		list_del_init(&prio->prio_sched);
-		kfree(prio);
-	}
-}
-
 static void sctp_sched_prio_enqueue(struct sctp_outq *q,
 				    struct sctp_datamsg *msg)
 {
@@ -342,7 +316,6 @@ static struct sctp_sched_ops sctp_sched_prio = {
 	.init = sctp_sched_prio_init,
 	.init_sid = sctp_sched_prio_init_sid,
 	.free_sid = sctp_sched_prio_free_sid,
-	.free = sctp_sched_prio_free,
 	.enqueue = sctp_sched_prio_enqueue,
 	.dequeue = sctp_sched_prio_dequeue,
 	.dequeue_done = sctp_sched_prio_dequeue_done,

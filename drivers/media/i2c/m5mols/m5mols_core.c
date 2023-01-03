@@ -939,8 +939,7 @@ static irqreturn_t m5mols_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int m5mols_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int m5mols_probe(struct i2c_client *client)
 {
 	const struct m5mols_platform_data *pdata = client->dev.platform_data;
 	struct m5mols_info *info;
@@ -1039,7 +1038,7 @@ static struct i2c_driver m5mols_i2c_driver = {
 	.driver = {
 		.name	= MODULE_NAME,
 	},
-	.probe		= m5mols_probe,
+	.probe_new	= m5mols_probe,
 	.remove		= m5mols_remove,
 	.id_table	= m5mols_id,
 };

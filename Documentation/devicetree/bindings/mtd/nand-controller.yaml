@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/nand-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NAND Chip and NAND Controller Generic Binding
+title: NAND Controller Common Properties
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
@@ -51,7 +51,6 @@ properties:
 
 patternProperties:
   "^nand@[a-f0-9]$":
-    type: object
     $ref: "nand-chip.yaml#"
 
     properties:
@@ -130,6 +129,7 @@ required:
   - "#address-cells"
   - "#size-cells"
 
+# This is a generic file other binding inherit from and extend
 additionalProperties: true
 
 examples:

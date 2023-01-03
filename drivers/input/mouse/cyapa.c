@@ -1244,8 +1244,7 @@ static void cyapa_disable_regulator(void *data)
 	regulator_disable(cyapa->vcc);
 }
 
-static int cyapa_probe(struct i2c_client *client,
-		       const struct i2c_device_id *dev_id)
+static int cyapa_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct cyapa *cyapa;
@@ -1490,7 +1489,7 @@ static struct i2c_driver cyapa_driver = {
 		.of_match_table = of_match_ptr(cyapa_of_match),
 	},
 
-	.probe = cyapa_probe,
+	.probe_new = cyapa_probe,
 	.id_table = cyapa_id_table,
 };
 

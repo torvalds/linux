@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/silead,gsl1680.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Silead GSL1680 Touchscreen Controller Device Tree Bindings
+title: Silead GSL1680 Touchscreen Controller
 
 maintainers:
   - Dmitry Torokhov <dmitry.torokhov@gmail.com>

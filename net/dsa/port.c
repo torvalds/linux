@@ -12,7 +12,11 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 
-#include "dsa_priv.h"
+#include "dsa.h"
+#include "port.h"
+#include "slave.h"
+#include "switch.h"
+#include "tag_8021q.h"
 
 /**
  * dsa_port_notify - Notify the switching fabric of changes to a port
@@ -1552,16 +1556,14 @@ static void dsa_port_phylink_validate(struct phylink_config *config,
 				      unsigned long *supported,
 				      struct phylink_link_state *state)
 {
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->phylink_validate) {
-		if (config->mac_capabilities)
-			phylink_generic_validate(config, supported, state);
-		return;
-	}
-
-	ds->ops->phylink_validate(ds, dp->index, supported, state);
+	/* Skip call for drivers which don't yet set mac_capabilities,
+	 * since validating in that case would mean their PHY will advertise
+	 * nothing. In turn, skipping validation makes them advertise
+	 * everything that the PHY supports, so those drivers should be
+	 * converted ASAP.
+	 */
+	if (config->mac_capabilities)
+		phylink_generic_validate(config, supported, state);
 }
 
 static void dsa_port_phylink_mac_pcs_get_state(struct phylink_config *config,

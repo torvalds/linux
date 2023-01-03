@@ -58,10 +58,10 @@
  * supported then @frame_id is filled, otherwise it stays %0.
  */
 struct thunderbolt_ip_frame_header {
-	u32 frame_size;
-	u16 frame_index;
-	u16 frame_id;
-	u32 frame_count;
+	__le32 frame_size;
+	__le16 frame_index;
+	__le16 frame_id;
+	__le32 frame_count;
 };
 
 enum thunderbolt_ip_frame_pdf {
@@ -914,6 +914,7 @@ static int tbnet_open(struct net_device *dev)
 				eof_mask, tbnet_start_poll, net);
 	if (!ring) {
 		netdev_err(dev, "failed to allocate Rx ring\n");
+		tb_xdomain_release_out_hopid(xd, hopid);
 		tb_ring_free(net->tx_ring.ring);
 		net->tx_ring.ring = NULL;
 		return -ENOMEM;
@@ -1051,7 +1052,7 @@ static void *tbnet_kmap_frag(struct sk_buff *skb, unsigned int frag_num,
 	const skb_frag_t *frag = &skb_shinfo(skb)->frags[frag_num];
 
 	*len = skb_frag_size(frag);
-	return kmap_atomic(skb_frag_page(frag)) + skb_frag_off(frag);
+	return kmap_local_page(skb_frag_page(frag)) + skb_frag_off(frag);
 }
 
 static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
@@ -1109,7 +1110,7 @@ static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
 			dest += len;
 
 			if (unmap) {
-				kunmap_atomic(src);
+				kunmap_local(src);
 				unmap = false;
 			}
 
@@ -1147,7 +1148,7 @@ static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
 		dest += len;
 
 		if (unmap) {
-			kunmap_atomic(src);
+			kunmap_local(src);
 			unmap = false;
 		}
 
@@ -1162,7 +1163,7 @@ static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
 	memcpy(dest, src, data_len);
 
 	if (unmap)
-		kunmap_atomic(src);
+		kunmap_local(src);
 
 	if (!tbnet_xmit_csum_and_map(net, skb, frames, frame_index + 1))
 		goto err_drop;
@@ -1319,7 +1320,7 @@ static void tbnet_shutdown(struct tb_service *svc)
 	tbnet_tear_down(tb_service_get_drvdata(svc), true);
 }
 
-static int __maybe_unused tbnet_suspend(struct device *dev)
+static int tbnet_suspend(struct device *dev)
 {
 	struct tb_service *svc = tb_to_service(dev);
 	struct tbnet *net = tb_service_get_drvdata(svc);
@@ -1334,7 +1335,7 @@ static int __maybe_unused tbnet_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tbnet_resume(struct device *dev)
+static int tbnet_resume(struct device *dev)
 {
 	struct tb_service *svc = tb_to_service(dev);
 	struct tbnet *net = tb_service_get_drvdata(svc);
@@ -1350,9 +1351,7 @@ static int __maybe_unused tbnet_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops tbnet_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(tbnet_suspend, tbnet_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(tbnet_pm_ops, tbnet_suspend, tbnet_resume);
 
 static const struct tb_service_id tbnet_ids[] = {
 	{ TB_SERVICE("network", 1) },
@@ -1364,7 +1363,7 @@ static struct tb_service_driver tbnet_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "thunderbolt-net",
-		.pm = &tbnet_pm_ops,
+		.pm = pm_sleep_ptr(&tbnet_pm_ops),
 	},
 	.probe = tbnet_probe,
 	.remove = tbnet_remove,

@@ -1,499 +1,461 @@
 [
     {
-        "BriefDescription": "IMC Clockticks at DCLK frequency",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x01",
-        "EventName": "UNC_M_CLOCKTICKS",
-        "PerPkg": "1",
-        "UMask": "0x0000000001",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "IMC Clockticks at HCLK frequency",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x01",
-        "EventName": "UNC_M_HCLOCKTICKS",
-        "PerPkg": "1",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "All DRAM read CAS commands issued (does not include underfills)",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x05",
-        "EventName": "UNC_M_CAS_COUNT.RD_REG",
-        "PerPkg": "1",
-        "UMask": "0x00000000c1",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM underfill read CAS commands issued",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x05",
-        "EventName": "UNC_M_CAS_COUNT.RD_UNDERFILL",
-        "PerPkg": "1",
-        "UMask": "0x00000000c4",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "All DRAM read CAS commands issued (including underfills)",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x05",
-        "EventName": "UNC_M_CAS_COUNT.RD",
-        "PerPkg": "1",
-        "UMask": "0x00000000cf",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "All DRAM write CAS commands issued",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x05",
-        "EventName": "UNC_M_CAS_COUNT.WR",
-        "PerPkg": "1",
-        "UMask": "0x00000000f0",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "Read Pending Queue Allocations",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x10",
-        "EventName": "UNC_M_RPQ_INSERTS.PCH0",
-        "PerPkg": "1",
-        "UMask": "0x0000000001",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "Read Pending Queue Allocations",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x10",
-        "EventName": "UNC_M_RPQ_INSERTS.PCH1",
-        "PerPkg": "1",
-        "UMask": "0x0000000002",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "Write Pending Queue Allocations",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x20",
-        "EventName": "UNC_M_WPQ_INSERTS.PCH0",
-        "PerPkg": "1",
-        "UMask": "0x0000000001",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "Write Pending Queue Allocations",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x20",
-        "EventName": "UNC_M_WPQ_INSERTS.PCH1",
-        "PerPkg": "1",
-        "UMask": "0x0000000002",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "Read Pending Queue Occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x80",
-        "EventName": "UNC_M_RPQ_OCCUPANCY_PCH0",
-        "PerPkg": "1",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "Read Pending Queue Occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x81",
-        "EventName": "UNC_M_RPQ_OCCUPANCY_PCH1",
-        "PerPkg": "1",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "Write Pending Queue Occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x82",
-        "EventName": "UNC_M_WPQ_OCCUPANCY_PCH0",
-        "PerPkg": "1",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "Write Pending Queue Occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x83",
-        "EventName": "UNC_M_WPQ_OCCUPANCY_PCH1",
-        "PerPkg": "1",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "PMM Read Pending Queue occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0xe0",
-        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.ALL_SCH0",
-        "PerPkg": "1",
-        "UMask": "0x0000000001",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "PMM Read Pending Queue occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0xe0",
-        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.ALL_SCH1",
-        "PerPkg": "1",
-        "UMask": "0x0000000002",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "PMM Read Pending Queue inserts",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0xe3",
-        "EventName": "UNC_M_PMM_RPQ_INSERTS",
-        "PerPkg": "1",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "PMM Write Pending Queue Occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0xe4",
-        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.ALL",
-        "PerPkg": "1",
-        "UMask": "0x03",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "PMM Write Pending Queue inserts",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0xe7",
-        "EventName": "UNC_M_PMM_WPQ_INSERTS",
-        "PerPkg": "1",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "PMM Write Pending Queue Occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0xE4",
-        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.ALL_SCH0",
-        "PerPkg": "1",
-        "UMask": "0x0000000001",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "PMM Write Pending Queue Occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0xE4",
-        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.ALL_SCH1",
-        "PerPkg": "1",
-        "UMask": "0x0000000002",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
         "BriefDescription": "Activate due to read, write, underfill, or bypass",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
         "EventCode": "0x02",
         "EventName": "UNC_M_ACT_COUNT.ALL",
         "PerPkg": "1",
-        "UMask": "0x00000000ff",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "Precharge due to read on page miss",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.RD",
-        "PerPkg": "1",
-        "UMask": "0x0000000011",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "Precharge due to write on page miss",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.WR",
-        "PerPkg": "1",
-        "UMask": "0x0000000022",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM Precharge commands. : Precharge due to (?)",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.PGT",
-        "PerPkg": "1",
-        "UMask": "0x0000000088",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "Precharge due to read, write, underfill, or PGT",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.ALL",
-        "PerPkg": "1",
-        "UMask": "0x00000000ff",
-        "UMaskExt": "0x00000000",
+        "PublicDescription": "DRAM Activate Count : Counts the number of DRAM Activate commands sent on this channel.  Activate commands are issued to open up a page on the DRAM devices so that it can be read or written to with a CAS.  One can calculate the number of Page Misses by subtracting the number of Page Miss precharges from the number of Activates.",
+        "UMask": "0xff",
         "Unit": "iMC"
     },
     {
         "BriefDescription": "All DRAM CAS commands issued",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
         "EventCode": "0x05",
         "EventName": "UNC_M_CAS_COUNT.ALL",
         "PerPkg": "1",
-        "UMask": "0x00000000ff",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x05",
-        "EventName": "UNC_M_CAS_COUNT.RD_PRE_REG",
-        "PerPkg": "1",
-        "UMask": "0x00000000c2",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x05",
-        "EventName": "UNC_M_CAS_COUNT.RD_PRE_UNDERFILL",
-        "PerPkg": "1",
-        "UMask": "0x00000000c8",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x05",
-        "EventName": "UNC_M_CAS_COUNT.WR_PRE",
-        "PerPkg": "1",
-        "UMask": "0x00000000e0",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "PMM Read Pending Queue Occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0xe0",
-        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.NO_GNT_SCH0",
-        "PerPkg": "1",
-        "UMask": "0x0000000004",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "PMM Read Pending Queue Occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0xe0",
-        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.NO_GNT_SCH1",
-        "PerPkg": "1",
-        "UMask": "0x0000000008",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM Precharge commands. : Precharge due to read",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.RD_PCH0",
-        "PerPkg": "1",
-        "UMask": "0x0000000001",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM Precharge commands. : Precharge due to write",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.WR_PCH0",
-        "PerPkg": "1",
-        "UMask": "0x0000000002",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM Precharge commands",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.UFILL_PCH0",
-        "PerPkg": "1",
-        "UMask": "0x0000000004",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM Precharge commands. : Prechages from Page Table",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.PGT_PCH0",
-        "PerPkg": "1",
-        "UMask": "0x0000000008",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM Precharge commands",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.RD_PCH1",
-        "PerPkg": "1",
-        "UMask": "0x0000000010",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM Precharge commands",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.WR_PCH1",
-        "PerPkg": "1",
-        "UMask": "0x0000000020",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM Precharge commands",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.UFILL_PCH1",
-        "PerPkg": "1",
-        "UMask": "0x0000000040",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM Precharge commands",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.PGT_PCH1",
-        "PerPkg": "1",
-        "UMask": "0x0000000080",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM Precharge commands",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x03",
-        "EventName": "UNC_M_PRE_COUNT.UFILL",
-        "PerPkg": "1",
-        "UMask": "0x0000000044",
-        "UMaskExt": "0x00000000",
-        "Unit": "iMC"
-    },
-    {
-        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM WR_CAS commands w/o auto-pre",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
-        "EventCode": "0x05",
-        "EventName": "UNC_M_CAS_COUNT.WR_NONPRE",
-        "PerPkg": "1",
-        "UMask": "0x00000000D0",
-        "UMaskExt": "0x00000000",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : All DRAM Read and Write actions : DRAM RD_CAS and WR_CAS Commands : Counts the total number of DRAM CAS commands issued on this channel.",
+        "UMask": "0xff",
         "Unit": "iMC"
     },
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands. : Pseudo Channel 0",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
         "EventCode": "0x05",
         "EventName": "UNC_M_CAS_COUNT.PCH0",
         "PerPkg": "1",
-        "UMask": "0x0000000040",
-        "UMaskExt": "0x00000000",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : Pseudo Channel 0 : DRAM RD_CAS and WR_CAS Commands",
+        "UMask": "0x40",
         "Unit": "iMC"
     },
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands. : Pseudo Channel 1",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
         "EventCode": "0x05",
         "EventName": "UNC_M_CAS_COUNT.PCH1",
         "PerPkg": "1",
-        "UMask": "0x0000000080",
-        "UMaskExt": "0x00000000",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : Pseudo Channel 1 : DRAM RD_CAS and WR_CAS Commands",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM read CAS commands issued (including underfills)",
+        "EventCode": "0x05",
+        "EventName": "UNC_M_CAS_COUNT.RD",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands : Counts the total number of DRAM Read CAS commands issued on this channel.  This includes underfills.",
+        "UMask": "0xcf",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.",
+        "EventCode": "0x05",
+        "EventName": "UNC_M_CAS_COUNT.RD_PRE_REG",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM RD_CAS and WR_CAS Commands",
+        "UMask": "0xc2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.",
+        "EventCode": "0x05",
+        "EventName": "UNC_M_CAS_COUNT.RD_PRE_UNDERFILL",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM RD_CAS and WR_CAS Commands",
+        "UMask": "0xc8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM read CAS commands issued (does not include underfills)",
+        "EventCode": "0x05",
+        "EventName": "UNC_M_CAS_COUNT.RD_REG",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM RD_CAS commands w/out auto-pre : DRAM RD_CAS and WR_CAS Commands : Counts the total number or DRAM Read CAS commands issued on this channel.  This includes both regular RD CAS commands as well as those with implicit Precharge.   We do not filter based on major mode, as RD_CAS is not issued during WMM (with the exception of underfills).",
+        "UMask": "0xc1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM underfill read CAS commands issued",
+        "EventCode": "0x05",
+        "EventName": "UNC_M_CAS_COUNT.RD_UNDERFILL",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : Underfill Read Issued : DRAM RD_CAS and WR_CAS Commands",
+        "UMask": "0xc4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM write CAS commands issued",
+        "EventCode": "0x05",
+        "EventName": "UNC_M_CAS_COUNT.WR",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands : Counts the total number of DRAM Write CAS commands issued on this channel.",
+        "UMask": "0xf0",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM WR_CAS commands w/o auto-pre",
+        "EventCode": "0x05",
+        "EventName": "UNC_M_CAS_COUNT.WR_NONPRE",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM WR_CAS commands w/o auto-pre : DRAM RD_CAS and WR_CAS Commands",
+        "UMask": "0xd0",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.",
+        "EventCode": "0x05",
+        "EventName": "UNC_M_CAS_COUNT.WR_PRE",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM RD_CAS and WR_CAS Commands",
+        "UMask": "0xe0",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "IMC Clockticks at DCLK frequency",
+        "EventCode": "0x01",
+        "EventName": "UNC_M_CLOCKTICKS",
+        "PerPkg": "1",
+        "PublicDescription": "Number of DRAM DCLK clock cycles while the event is enabled",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "IMC Clockticks at HCLK frequency",
+        "EventCode": "0x01",
+        "EventName": "UNC_M_HCLOCKTICKS",
+        "PerPkg": "1",
+        "PublicDescription": "Number of DRAM HCLK clock cycles while the event is enabled",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Pending Queue inserts",
+        "EventCode": "0xe3",
+        "EventName": "UNC_M_PMM_RPQ_INSERTS",
+        "PerPkg": "1",
+        "PublicDescription": "Counts number of read requests allocated in the PMM Read Pending Queue.",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Pending Queue occupancy",
+        "EventCode": "0xe0",
+        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.ALL_SCH0",
+        "PerPkg": "1",
+        "PublicDescription": "Accumulates the per cycle occupancy of the PMM Read Pending Queue.",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Pending Queue occupancy",
+        "EventCode": "0xe0",
+        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.ALL_SCH1",
+        "PerPkg": "1",
+        "PublicDescription": "Accumulates the per cycle occupancy of the PMM Read Pending Queue.",
+        "UMask": "0x2",
         "Unit": "iMC"
     },
     {
         "BriefDescription": "PMM Read Pending Queue Occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
         "EventCode": "0xE0",
         "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.GNT_WAIT_SCH0",
         "PerPkg": "1",
-        "UMask": "0x0000000010",
-        "UMaskExt": "0x00000000",
+        "PublicDescription": "PMM Read Pending Queue Occupancy : Accumulates the per cycle occupancy of the PMM Read Pending Queue.",
+        "UMask": "0x10",
         "Unit": "iMC"
     },
     {
         "BriefDescription": "PMM Read Pending Queue Occupancy",
-        "Counter": "0,1,2,3",
-        "CounterType": "PGMABLE",
         "EventCode": "0xE0",
         "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.GNT_WAIT_SCH1",
         "PerPkg": "1",
-        "UMask": "0x0000000020",
-        "UMaskExt": "0x00000000",
+        "PublicDescription": "PMM Read Pending Queue Occupancy : Accumulates the per cycle occupancy of the PMM Read Pending Queue.",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Pending Queue Occupancy",
+        "EventCode": "0xe0",
+        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.NO_GNT_SCH0",
+        "PerPkg": "1",
+        "PublicDescription": "Accumulates the per cycle occupancy of the PMM Read Pending Queue.",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Pending Queue Occupancy",
+        "EventCode": "0xe0",
+        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.NO_GNT_SCH1",
+        "PerPkg": "1",
+        "PublicDescription": "Accumulates the per cycle occupancy of the PMM Read Pending Queue.",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Pending Queue inserts",
+        "EventCode": "0xe7",
+        "EventName": "UNC_M_PMM_WPQ_INSERTS",
+        "PerPkg": "1",
+        "PublicDescription": "Counts number of  write requests allocated in the PMM Write Pending Queue.",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Pending Queue Occupancy",
+        "EventCode": "0xe4",
+        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.ALL",
+        "PerPkg": "1",
+        "PublicDescription": "PMM Write Pending Queue Occupancy : Accumulates the per cycle occupancy of the Write Pending Queue to the PMM DIMM.",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Pending Queue Occupancy",
+        "EventCode": "0xE4",
+        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.ALL_SCH0",
+        "PerPkg": "1",
+        "PublicDescription": "PMM Write Pending Queue Occupancy : Accumulates the per cycle occupancy of the PMM Write Pending Queue.",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Pending Queue Occupancy",
+        "EventCode": "0xE4",
+        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.ALL_SCH1",
+        "PerPkg": "1",
+        "PublicDescription": "PMM Write Pending Queue Occupancy : Accumulates the per cycle occupancy of the PMM Write Pending Queue.",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Channel PPD Cycles",
+        "EventCode": "0x85",
+        "EventName": "UNC_M_POWER_CHANNEL_PPD",
+        "PerPkg": "1",
+        "PublicDescription": "Channel PPD Cycles : Number of cycles when all the ranks in the channel are in PPD mode.  If IBT=off is enabled, then this can be used to count those cycles.  If it is not enabled, then this can count the number of cycles when that could have been taken advantage of.",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank : DIMM ID",
+        "EventCode": "0x47",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_0",
+        "PerPkg": "1",
+        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank : DIMM ID",
+        "EventCode": "0x47",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_1",
+        "PerPkg": "1",
+        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank : DIMM ID",
+        "EventCode": "0x47",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_2",
+        "PerPkg": "1",
+        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank : DIMM ID",
+        "EventCode": "0x47",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_3",
+        "PerPkg": "1",
+        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Clock-Enabled Self-Refresh",
+        "EventCode": "0x43",
+        "EventName": "UNC_M_POWER_SELF_REFRESH",
+        "PerPkg": "1",
+        "PublicDescription": "Clock-Enabled Self-Refresh : Counts the number of cycles when the iMC is in self-refresh and the iMC still has a clock.  This happens in some package C-states.  For example, the PCU may ask the iMC to enter self-refresh even though some of the cores are still processing.  One use of this is for Monroe technology.  Self-refresh is required during package C3 and C6, but there is no clock in the iMC at this time, so it is not possible to count these cases.",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Precharge due to read, write, underfill, or PGT.",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.ALL",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Counts the number of DRAM Precharge commands sent on this channel.",
+        "UMask": "0xff",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands. : Precharge due to (?)",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.PGT",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Precharge due to (?) : Counts the number of DRAM Precharge commands sent on this channel.",
+        "UMask": "0x88",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands. : Prechages from Page Table",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.PGT_PCH0",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Prechages from Page Table : Counts the number of DRAM Precharge commands sent on this channel. : Equivalent to PAGE_EMPTY",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands.",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.PGT_PCH1",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Counts the number of DRAM Precharge commands sent on this channel.",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Precharge due to read on page miss",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.RD",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Counts the number of DRAM Precharge commands sent on this channel.",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands. : Precharge due to read",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.RD_PCH0",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Precharge due to read : Counts the number of DRAM Precharge commands sent on this channel. : Precharge from read bank scheduler",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands.",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.RD_PCH1",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Counts the number of DRAM Precharge commands sent on this channel.",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands.",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.UFILL",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Counts the number of DRAM Precharge commands sent on this channel.",
+        "UMask": "0x44",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands.",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.UFILL_PCH0",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Counts the number of DRAM Precharge commands sent on this channel.",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands.",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.UFILL_PCH1",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Counts the number of DRAM Precharge commands sent on this channel.",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Precharge due to write on page miss",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.WR",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Counts the number of DRAM Precharge commands sent on this channel.",
+        "UMask": "0x22",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands. : Precharge due to write",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.WR_PCH0",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Precharge due to write : Counts the number of DRAM Precharge commands sent on this channel. : Precharge from write bank scheduler",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands.",
+        "EventCode": "0x03",
+        "EventName": "UNC_M_PRE_COUNT.WR_PCH1",
+        "PerPkg": "1",
+        "PublicDescription": "DRAM Precharge commands. : Counts the number of DRAM Precharge commands sent on this channel.",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Allocations",
+        "EventCode": "0x10",
+        "EventName": "UNC_M_RPQ_INSERTS.PCH0",
+        "PerPkg": "1",
+        "PublicDescription": "Read Pending Queue Allocations : Counts the number of allocations into the Read Pending Queue.  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This includes both ISOCH and non-ISOCH requests.",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Allocations",
+        "EventCode": "0x10",
+        "EventName": "UNC_M_RPQ_INSERTS.PCH1",
+        "PerPkg": "1",
+        "PublicDescription": "Read Pending Queue Allocations : Counts the number of allocations into the Read Pending Queue.  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This includes both ISOCH and non-ISOCH requests.",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Occupancy",
+        "EventCode": "0x80",
+        "EventName": "UNC_M_RPQ_OCCUPANCY_PCH0",
+        "PerPkg": "1",
+        "PublicDescription": "Read Pending Queue Occupancy : Accumulates the occupancies of the Read Pending Queue each cycle.  This can then be used to calculate both the average occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC. They deallocate after the CAS command has been issued to memory.",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Occupancy",
+        "EventCode": "0x81",
+        "EventName": "UNC_M_RPQ_OCCUPANCY_PCH1",
+        "PerPkg": "1",
+        "PublicDescription": "Read Pending Queue Occupancy : Accumulates the occupancies of the Read Pending Queue each cycle.  This can then be used to calculate both the average occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC. They deallocate after the CAS command has been issued to memory.",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Allocations",
+        "EventCode": "0x20",
+        "EventName": "UNC_M_WPQ_INSERTS.PCH0",
+        "PerPkg": "1",
+        "PublicDescription": "Write Pending Queue Allocations : Counts the number of allocations into the Write Pending Queue.  This can then be used to calculate the average queuing latency (in conjunction with the WPQ occupancy count).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC.  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Allocations",
+        "EventCode": "0x20",
+        "EventName": "UNC_M_WPQ_INSERTS.PCH1",
+        "PerPkg": "1",
+        "PublicDescription": "Write Pending Queue Allocations : Counts the number of allocations into the Write Pending Queue.  This can then be used to calculate the average queuing latency (in conjunction with the WPQ occupancy count).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC.  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Occupancy",
+        "EventCode": "0x82",
+        "EventName": "UNC_M_WPQ_OCCUPANCY_PCH0",
+        "PerPkg": "1",
+        "PublicDescription": "Write Pending Queue Occupancy : Accumulates the occupancies of the Write Pending Queue each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is not to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually not useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or not.  By using the not posted filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The posted filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Occupancy",
+        "EventCode": "0x83",
+        "EventName": "UNC_M_WPQ_OCCUPANCY_PCH1",
+        "PerPkg": "1",
+        "PublicDescription": "Write Pending Queue Occupancy : Accumulates the occupancies of the Write Pending Queue each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is not to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually not useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or not.  By using the not posted filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The posted filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
         "Unit": "iMC"
     }
 ]

@@ -50,6 +50,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 			      struct drm_display_mode *mode,
 			      int x, int y,
 			      struct drm_framebuffer *old_fb);
+int drm_crtc_helper_atomic_check(struct drm_crtc *crtc,
+				 struct drm_atomic_state *state);
 bool drm_helper_crtc_in_use(struct drm_crtc *crtc);
 bool drm_helper_encoder_in_use(struct drm_encoder *encoder);
 

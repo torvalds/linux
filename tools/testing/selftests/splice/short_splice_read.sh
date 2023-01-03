@@ -127,7 +127,7 @@ expect_success "proc_handler: special read splice" test_splice /proc/sys/kernel/
 if ! [ -d /sys/module/test_module/sections ] ; then
 	expect_success "test_module kernel module load" modprobe test_module
 fi
-expect_failure "kernfs attr splice" test_splice /sys/module/test_module/coresize
-expect_failure "kernfs binattr splice" test_splice /sys/module/test_module/sections/.init.text
+expect_success "kernfs attr splice" test_splice /sys/module/test_module/coresize
+expect_success "kernfs binattr splice" test_splice /sys/module/test_module/sections/.init.text
 
 exit $ret

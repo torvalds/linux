@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/thermal/imx8mm-thermal.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NXP i.MX8M Mini Thermal Binding
+title: NXP i.MX8M Mini Thermal
 
 maintainers:
   - Anson Huang <Anson.Huang@nxp.com>
@@ -31,6 +31,13 @@ properties:
 
   clocks:
     maxItems: 1
+
+  nvmem-cells:
+    maxItems: 1
+    description: Phandle to the calibration data provided by ocotp
+
+  nvmem-cell-names:
+    const: calib
 
   "#thermal-sensor-cells":
     description: |

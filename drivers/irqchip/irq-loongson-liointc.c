@@ -167,7 +167,12 @@ static int liointc_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
 	if (WARN_ON(intsize < 1))
 		return -EINVAL;
 	*out_hwirq = intspec[0] - GSI_MIN_CPU_IRQ;
-	*out_type = IRQ_TYPE_NONE;
+
+	if (intsize > 1)
+		*out_type = intspec[1] & IRQ_TYPE_SENSE_MASK;
+	else
+		*out_type = IRQ_TYPE_NONE;
+
 	return 0;
 }
 
@@ -207,10 +212,13 @@ static int liointc_init(phys_addr_t addr, unsigned long size, int revision,
 					"reg-names", core_reg_names[i]);
 
 			if (index < 0)
-				goto out_iounmap;
+				continue;
 
 			priv->core_isr[i] = of_iomap(node, index);
 		}
+
+		if (!priv->core_isr[0])
+			goto out_iounmap;
 	}
 
 	/* Setup IRQ domain */
@@ -349,6 +357,26 @@ IRQCHIP_DECLARE(loongson_liointc_2_0, "loongson,liointc-2.0", liointc_of_init);
 #endif
 
 #ifdef CONFIG_ACPI
+static int __init htintc_parse_madt(union acpi_subtable_headers *header,
+					const unsigned long end)
+{
+	struct acpi_madt_ht_pic *htintc_entry = (struct acpi_madt_ht_pic *)header;
+	struct irq_domain *parent = irq_find_matching_fwnode(liointc_handle, DOMAIN_BUS_ANY);
+
+	return htvec_acpi_init(parent, htintc_entry);
+}
+
+static int __init acpi_cascade_irqdomain_init(void)
+{
+	int r;
+
+	r = acpi_table_parse_madt(ACPI_MADT_TYPE_HT_PIC, htintc_parse_madt, 0);
+	if (r < 0)
+		return r;
+
+	return 0;
+}
+
 int __init liointc_acpi_init(struct irq_domain *parent, struct acpi_madt_lio_pic *acpi_liointc)
 {
 	int ret;
@@ -365,9 +393,12 @@ int __init liointc_acpi_init(struct irq_domain *parent, struct acpi_madt_lio_pic
 		pr_err("Unable to allocate domain handle\n");
 		return -ENOMEM;
 	}
+
 	ret = liointc_init(acpi_liointc->address, acpi_liointc->size,
 			   1, domain_handle, NULL);
-	if (ret)
+	if (ret == 0)
+		ret = acpi_cascade_irqdomain_init();
+	else
 		irq_domain_free_fwnode(domain_handle);
 
 	return ret;

@@ -1405,6 +1405,11 @@ static int avs_widget_load(struct snd_soc_component *comp, int index,
 	if (!le32_to_cpu(dw->priv.size))
 		return 0;
 
+	if (w->ignore_suspend && !AVS_S0IX_SUPPORTED) {
+		dev_info_once(comp->dev, "Device does not support S0IX, check BIOS settings\n");
+		w->ignore_suspend = false;
+	}
+
 	tplg = acomp->tplg;
 	mach = dev_get_platdata(comp->card->dev);
 
@@ -1442,6 +1447,11 @@ static int avs_dai_load(struct snd_soc_component *comp, int index,
 static int avs_link_load(struct snd_soc_component *comp, int index, struct snd_soc_dai_link *link,
 			 struct snd_soc_tplg_link_config *cfg)
 {
+	if (link->ignore_suspend && !AVS_S0IX_SUPPORTED) {
+		dev_info_once(comp->dev, "Device does not support S0IX, check BIOS settings\n");
+		link->ignore_suspend = false;
+	}
+
 	if (!link->no_pcm) {
 		/* Stream control handled by IPCs. */
 		link->nonatomic = true;

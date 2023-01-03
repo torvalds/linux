@@ -36,6 +36,7 @@ struct wm_adsp {
 	int fw;
 
 	struct work_struct boot_work;
+	int (*pre_run)(struct wm_adsp *dsp);
 
 	bool preloaded;
 	bool fatal_error;

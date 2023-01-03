@@ -387,6 +387,65 @@ static bool is_signed_bpf_cond(u8 cond)
 	       cond == BPF_JSGE || cond == BPF_JSLE;
 }
 
+#define BPF_FIXUP_REG_MASK	GENMASK(31, 27)
+#define BPF_FIXUP_OFFSET_MASK	GENMASK(26, 0)
+
+bool ex_handler_bpf(const struct exception_table_entry *ex,
+		    struct pt_regs *regs)
+{
+	int dst_reg = FIELD_GET(BPF_FIXUP_REG_MASK, ex->fixup);
+	off_t offset = FIELD_GET(BPF_FIXUP_OFFSET_MASK, ex->fixup);
+
+	regs->regs[dst_reg] = 0;
+	regs->csr_era = (unsigned long)&ex->fixup - offset;
+
+	return true;
+}
+
+/* For accesses to BTF pointers, add an entry to the exception table */
+static int add_exception_handler(const struct bpf_insn *insn,
+				 struct jit_ctx *ctx,
+				 int dst_reg)
+{
+	unsigned long pc;
+	off_t offset;
+	struct exception_table_entry *ex;
+
+	if (!ctx->image || !ctx->prog->aux->extable || BPF_MODE(insn->code) != BPF_PROBE_MEM)
+		return 0;
+
+	if (WARN_ON_ONCE(ctx->num_exentries >= ctx->prog->aux->num_exentries))
+		return -EINVAL;
+
+	ex = &ctx->prog->aux->extable[ctx->num_exentries];
+	pc = (unsigned long)&ctx->image[ctx->idx - 1];
+
+	offset = pc - (long)&ex->insn;
+	if (WARN_ON_ONCE(offset >= 0 || offset < INT_MIN))
+		return -ERANGE;
+
+	ex->insn = offset;
+
+	/*
+	 * Since the extable follows the program, the fixup offset is always
+	 * negative and limited to BPF_JIT_REGION_SIZE. Store a positive value
+	 * to keep things simple, and put the destination register in the upper
+	 * bits. We don't need to worry about buildtime or runtime sort
+	 * modifying the upper bits because the table is already sorted, and
+	 * isn't part of the main exception table.
+	 */
+	offset = (long)&ex->fixup - (pc + LOONGARCH_INSN_SIZE);
+	if (!FIELD_FIT(BPF_FIXUP_OFFSET_MASK, offset))
+		return -ERANGE;
+
+	ex->type = EX_TYPE_BPF;
+	ex->fixup = FIELD_PREP(BPF_FIXUP_OFFSET_MASK, offset) | FIELD_PREP(BPF_FIXUP_REG_MASK, dst_reg);
+
+	ctx->num_exentries++;
+
+	return 0;
+}
+
 static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool extra_pass)
 {
 	u8 tm = -1;
@@ -816,6 +875,10 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 	case BPF_LDX | BPF_MEM | BPF_H:
 	case BPF_LDX | BPF_MEM | BPF_W:
 	case BPF_LDX | BPF_MEM | BPF_DW:
+	case BPF_LDX | BPF_PROBE_MEM | BPF_DW:
+	case BPF_LDX | BPF_PROBE_MEM | BPF_W:
+	case BPF_LDX | BPF_PROBE_MEM | BPF_H:
+	case BPF_LDX | BPF_PROBE_MEM | BPF_B:
 		switch (BPF_SIZE(code)) {
 		case BPF_B:
 			if (is_signed_imm12(off)) {
@@ -854,6 +917,10 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 			}
 			break;
 		}
+
+		ret = add_exception_handler(insn, ctx, dst);
+		if (ret)
+			return ret;
 		break;
 
 	/* *(size *)(dst + off) = imm */
@@ -1018,6 +1085,9 @@ static int validate_code(struct jit_ctx *ctx)
 			return -1;
 	}
 
+	if (WARN_ON_ONCE(ctx->num_exentries != ctx->prog->aux->num_exentries))
+		return -1;
+
 	return 0;
 }
 
@@ -1025,7 +1095,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 {
 	bool tmp_blinded = false, extra_pass = false;
 	u8 *image_ptr;
-	int image_size;
+	int image_size, prog_size, extable_size;
 	struct jit_ctx ctx;
 	struct jit_data *jit_data;
 	struct bpf_binary_header *header;
@@ -1066,7 +1136,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		image_ptr = jit_data->image;
 		header = jit_data->header;
 		extra_pass = true;
-		image_size = sizeof(u32) * ctx.idx;
+		prog_size = sizeof(u32) * ctx.idx;
 		goto skip_init_ctx;
 	}
 
@@ -1088,12 +1158,15 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	ctx.epilogue_offset = ctx.idx;
 	build_epilogue(&ctx);
 
+	extable_size = prog->aux->num_exentries * sizeof(struct exception_table_entry);
+
 	/* Now we know the actual image size.
 	 * As each LoongArch instruction is of length 32bit,
 	 * we are translating number of JITed intructions into
 	 * the size required to store these JITed code.
 	 */
-	image_size = sizeof(u32) * ctx.idx;
+	prog_size = sizeof(u32) * ctx.idx;
+	image_size = prog_size + extable_size;
 	/* Now we know the size of the structure to make */
 	header = bpf_jit_binary_alloc(image_size, &image_ptr,
 				      sizeof(u32), jit_fill_hole);
@@ -1104,9 +1177,12 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 	/* 2. Now, the actual pass to generate final JIT code */
 	ctx.image = (union loongarch_instruction *)image_ptr;
+	if (extable_size)
+		prog->aux->extable = (void *)image_ptr + prog_size;
 
 skip_init_ctx:
 	ctx.idx = 0;
+	ctx.num_exentries = 0;
 
 	build_prologue(&ctx);
 	if (build_body(&ctx, extra_pass)) {
@@ -1125,7 +1201,7 @@ skip_init_ctx:
 
 	/* And we're done */
 	if (bpf_jit_enable > 1)
-		bpf_jit_dump(prog->len, image_size, 2, ctx.image);
+		bpf_jit_dump(prog->len, prog_size, 2, ctx.image);
 
 	/* Update the icache */
 	flush_icache_range((unsigned long)header, (unsigned long)(ctx.image + ctx.idx));
@@ -1147,7 +1223,7 @@ skip_init_ctx:
 		jit_data->header = header;
 	}
 	prog->jited = 1;
-	prog->jited_len = image_size;
+	prog->jited_len = prog_size;
 	prog->bpf_func = (void *)ctx.image;
 
 	if (!prog->is_func || extra_pass) {

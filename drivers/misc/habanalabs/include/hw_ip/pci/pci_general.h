@@ -20,4 +20,11 @@
 #define PCI_CONFIG_ELBI_STS_MASK	(PCI_CONFIG_ELBI_STS_ERR | \
 					PCI_CONFIG_ELBI_STS_DONE)
 
+enum hl_revision_id {
+	/* PCI revision ID 0 is not legal */
+	REV_ID_INVALID				= 0x00,
+	REV_ID_A				= 0x01,
+	REV_ID_B				= 0x02,
+};
+
 #endif /* INCLUDE_PCI_GENERAL_H_ */

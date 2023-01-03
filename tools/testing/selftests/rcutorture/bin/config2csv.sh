@@ -30,9 +30,8 @@ else
 fi
 scenarios="`echo $scenariosarg | sed -e "s/\<CFLIST\>/$defaultconfigs/g"`"
 
-T=/tmp/config2latex.sh.$$
+T=`mktemp -d /tmp/config2latex.sh.XXXXXX`
 trap 'rm -rf $T' 0
-mkdir $T
 
 cat << '---EOF---' >> $T/p.awk
 END	{

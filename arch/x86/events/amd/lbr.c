@@ -352,7 +352,7 @@ void amd_pmu_lbr_add(struct perf_event *event)
 		cpuc->br_sel = reg->reg;
 	}
 
-	perf_sched_cb_inc(event->ctx->pmu);
+	perf_sched_cb_inc(event->pmu);
 
 	if (!cpuc->lbr_users++ && !event->total_time_running)
 		amd_pmu_lbr_reset();
@@ -370,10 +370,10 @@ void amd_pmu_lbr_del(struct perf_event *event)
 
 	cpuc->lbr_users--;
 	WARN_ON_ONCE(cpuc->lbr_users < 0);
-	perf_sched_cb_dec(event->ctx->pmu);
+	perf_sched_cb_dec(event->pmu);
 }
 
-void amd_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
+void amd_pmu_lbr_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_in)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 

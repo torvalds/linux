@@ -36,9 +36,6 @@ do {									\
 } while (0)
 
 #define FORMAT_FLAGS_PACKED       0x01
-extern void cx25821_video_wakeup(struct cx25821_dev *dev,
-				 struct cx25821_dmaqueue *q, u32 count);
-
 extern int cx25821_start_video_dma(struct cx25821_dev *dev,
 				   struct cx25821_dmaqueue *q,
 				   struct cx25821_buffer *buf,

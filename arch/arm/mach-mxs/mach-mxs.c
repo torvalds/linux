@@ -17,7 +17,6 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/phy.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/sys_soc.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

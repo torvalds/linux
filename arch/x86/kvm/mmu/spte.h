@@ -188,7 +188,7 @@ extern u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
  * should not modify the SPTE.
  *
  * Use a semi-arbitrary value that doesn't set RWX bits, i.e. is not-present on
- * bot AMD and Intel CPUs, and doesn't set PFN bits, i.e. doesn't create a L1TF
+ * both AMD and Intel CPUs, and doesn't set PFN bits, i.e. doesn't create a L1TF
  * vulnerability.  Use only low bits to avoid 64-bit immediates.
  *
  * Only used by the TDP MMU.
@@ -218,6 +218,23 @@ static inline int spte_index(u64 *sptep)
  * high and low parts.  This mask covers the lower bits of the GFN.
  */
 extern u64 __read_mostly shadow_nonpresent_or_rsvd_lower_gfn_mask;
+
+static inline struct kvm_mmu_page *to_shadow_page(hpa_t shadow_page)
+{
+	struct page *page = pfn_to_page((shadow_page) >> PAGE_SHIFT);
+
+	return (struct kvm_mmu_page *)page_private(page);
+}
+
+static inline struct kvm_mmu_page *spte_to_child_sp(u64 spte)
+{
+	return to_shadow_page(spte & SPTE_BASE_ADDR_MASK);
+}
+
+static inline struct kvm_mmu_page *sptep_to_sp(u64 *sptep)
+{
+	return to_shadow_page(__pa(sptep));
+}
 
 static inline bool is_mmio_spte(u64 spte)
 {
@@ -346,7 +363,7 @@ static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
  * A shadow-present leaf SPTE may be non-writable for 4 possible reasons:
  *
  *  1. To intercept writes for dirty logging. KVM write-protects huge pages
- *     so that they can be split be split down into the dirty logging
+ *     so that they can be split down into the dirty logging
  *     granularity (4KiB) whenever the guest writes to them. KVM also
  *     write-protects 4KiB pages so that writes can be recorded in the dirty log
  *     (e.g. if not using PML). SPTEs are write-protected for dirty logging

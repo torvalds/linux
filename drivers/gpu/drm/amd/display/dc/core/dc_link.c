@@ -3378,7 +3378,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 		case FAMILY_YELLOW_CARP:
 		case AMDGPU_FAMILY_GC_10_3_6:
 		case AMDGPU_FAMILY_GC_11_0_1:
-			if (dc->debug.disable_z10)
+			if (dc->debug.disable_z10 || dc->debug.psr_skip_crtc_disable)
 				psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
 			break;
 		default:
@@ -4229,6 +4229,7 @@ static void fpga_dp_hpo_enable_link_and_stream(struct dc_state *state, struct pi
 		link_hwss->ext.set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
 
 	dc->hwss.unblank_stream(pipe_ctx, &stream->link->cur_link_settings);
+	dc->hwss.enable_audio_stream(pipe_ctx);
 }
 
 void core_link_enable_stream(
@@ -4308,10 +4309,7 @@ void core_link_enable_stream(
 			/* Still enable stream features & audio on seamless boot for DP external displays */
 			if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT) {
 				enable_stream_features(pipe_ctx);
-				if (pipe_ctx->stream_res.audio != NULL) {
-					pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
-					dc->hwss.enable_audio_stream(pipe_ctx);
-				}
+				dc->hwss.enable_audio_stream(pipe_ctx);
 			}
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
@@ -4664,6 +4662,10 @@ void dc_link_set_preferred_training_settings(struct dc *dc,
 		link->preferred_link_setting.lane_count = LANE_COUNT_UNKNOWN;
 		link->preferred_link_setting.link_rate = LINK_RATE_UNKNOWN;
 	}
+
+	if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
+			link->type == dc_connection_mst_branch)
+		dm_helpers_dp_mst_update_branch_bandwidth(dc->ctx, link);
 
 	/* Retrain now, or wait until next stream update to apply */
 	if (skip_immediate_retrain == false)

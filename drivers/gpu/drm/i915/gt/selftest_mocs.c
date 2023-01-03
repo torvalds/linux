@@ -7,6 +7,7 @@
 #include "gt/intel_gpu_commands.h"
 #include "i915_selftest.h"
 
+#include "gem/selftests/igt_gem_utils.h"
 #include "gem/selftests/mock_context.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_spinner.h"
@@ -228,9 +229,7 @@ static int check_mocs_engine(struct live_mocs *arg,
 		return PTR_ERR(rq);
 
 	i915_vma_lock(vma);
-	err = i915_request_await_object(rq, vma->obj, true);
-	if (!err)
-		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unlock(vma);
 
 	/* Read the mocs tables back using SRM */

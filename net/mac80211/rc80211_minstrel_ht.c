@@ -1963,9 +1963,6 @@ minstrel_ht_alloc(struct ieee80211_hw *hw)
 		/* safe default, does not necessarily have to match hw properties */
 		mp->max_retry = 7;
 
-	if (hw->max_rates >= 4)
-		mp->has_mrr = true;
-
 	mp->hw = hw;
 	mp->update_interval = HZ / 20;
 

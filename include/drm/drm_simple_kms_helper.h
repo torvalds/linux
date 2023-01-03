@@ -136,6 +136,26 @@ struct drm_simple_display_pipe_funcs {
 			   struct drm_plane_state *plane_state);
 
 	/**
+	 * @begin_fb_access:
+	 *
+	 * Optional, called by &drm_plane_helper_funcs.begin_fb_access. Please read
+	 * the documentation for the &drm_plane_helper_funcs.begin_fb_access hook for
+	 * more details.
+	 */
+	int (*begin_fb_access)(struct drm_simple_display_pipe *pipe,
+			       struct drm_plane_state *new_plane_state);
+
+	/**
+	 * @end_fb_access:
+	 *
+	 * Optional, called by &drm_plane_helper_funcs.end_fb_access. Please read
+	 * the documentation for the &drm_plane_helper_funcs.end_fb_access hook for
+	 * more details.
+	 */
+	void (*end_fb_access)(struct drm_simple_display_pipe *pipe,
+			      struct drm_plane_state *plane_state);
+
+	/**
 	 * @enable_vblank:
 	 *
 	 * Optional, called by &drm_crtc_funcs.enable_vblank. Please read

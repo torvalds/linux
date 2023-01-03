@@ -34,4 +34,24 @@ nvkm_blob_dtor(struct nvkm_blob *blob)
 	blob->data = NULL;
 	blob->size = 0;
 }
+
+#define nvkm_list_find_next(p,h,m,c) ({                                                      \
+	typeof(p) _p = NULL;                                                                 \
+	list_for_each_entry_continue(p, (h), m) {                                            \
+		if (c) {                                                                     \
+			_p = p;                                                              \
+			break;                                                               \
+		}                                                                            \
+	}                                                                                    \
+	_p;                                                                                  \
+})
+#define nvkm_list_find(p,h,m,c)                                                              \
+	(p = container_of((h), typeof(*p), m), nvkm_list_find_next(p, (h), m, (c)))
+#define nvkm_list_foreach(p,h,m,c)                                                           \
+	for (p = nvkm_list_find(p, (h), m, (c)); p; p = nvkm_list_find_next(p, (h), m, (c)))
+
+/*FIXME: remove after */
+#define nvkm_fifo_chan nvkm_chan
+#define nvkm_fifo_chan_func nvkm_chan_func
+#define nvkm_fifo_cgrp nvkm_cgrp
 #endif

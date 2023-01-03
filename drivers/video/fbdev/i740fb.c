@@ -1285,7 +1285,12 @@ static int __init i740fb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("i740fb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("i740fb", &option))
 		return -ENODEV;
 	i740fb_setup(option);

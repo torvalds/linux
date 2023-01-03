@@ -4506,7 +4506,8 @@ int sd_execute_write_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 				if (CHK_SD(sd_card)) {
 					retval = reset_sd(chip);
 					if (retval != STATUS_SUCCESS) {
-						sd_card->sd_lock_status &= ~(SD_UNLOCK_POW_ON | SD_SDR_RST);
+						sd_card->sd_lock_status &=
+							~(SD_UNLOCK_POW_ON | SD_SDR_RST);
 						goto sd_execute_write_cmd_failed;
 					}
 				}

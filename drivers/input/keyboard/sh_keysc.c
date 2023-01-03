@@ -283,7 +283,6 @@ static int sh_keysc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sh_keysc_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -316,17 +315,16 @@ static int sh_keysc_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(sh_keysc_dev_pm_ops,
-			 sh_keysc_suspend, sh_keysc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(sh_keysc_dev_pm_ops,
+				sh_keysc_suspend, sh_keysc_resume);
 
 static struct platform_driver sh_keysc_device_driver = {
 	.probe		= sh_keysc_probe,
 	.remove		= sh_keysc_remove,
 	.driver		= {
 		.name	= "sh_keysc",
-		.pm	= &sh_keysc_dev_pm_ops,
+		.pm	= pm_sleep_ptr(&sh_keysc_dev_pm_ops),
 	}
 };
 module_platform_driver(sh_keysc_device_driver);

@@ -332,10 +332,10 @@ EXPORT_SYMBOL_GPL(of_device_modalias);
 
 /**
  * of_device_uevent - Display OF related uevent information
- * @dev:	Device to apply DMA configuration
- * @env:	Kernel object's userspace event reference
+ * @dev:	Device to display the uevent information for
+ * @env:	Kernel object's userspace event reference to fill up
  */
-void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+void of_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	const char *compat, *type;
 	struct alias_prop *app;

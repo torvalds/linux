@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/opp/opp-v2.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Generic OPP (Operating Performance Points) Bindings
+title: Generic OPP (Operating Performance Points)
 
 maintainers:
   - Viresh Kumar <viresh.kumar@linaro.org>
@@ -155,7 +155,7 @@ examples:
             opp-hz = /bits/ 64 <1200000000>;
             opp-microvolt = <1025000>;
             opp-microamp = <90000>;
-            lock-latency-ns = <290000>;
+            clock-latency-ns = <290000>;
             turbo-mode;
         };
     };

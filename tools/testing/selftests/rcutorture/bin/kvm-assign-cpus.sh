@@ -7,9 +7,8 @@
 #
 # Usage: kvm-assign-cpus.sh /path/to/sysfs
 
-T=/tmp/kvm-assign-cpus.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/kvm-assign-cpus.sh.XXXXXX`"
 trap 'rm -rf $T' 0 2
-mkdir $T
 
 sysfsdir=${1-/sys/devices/system/node}
 if ! cd "$sysfsdir" > $T/msg 2>&1

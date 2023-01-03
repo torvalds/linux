@@ -10,6 +10,26 @@ empty   :=
 space   := $(empty) $(empty)
 space_escape := _-_SPACE_-_
 pound := \#
+define newline
+
+
+endef
+
+###
+# Comparison macros.
+# Usage: $(call test-lt, $(CONFIG_LLD_VERSION), 150000)
+#
+# Use $(intcmp ...) if supported. (Make >= 4.4)
+# Otherwise, fall back to the 'test' shell command.
+ifeq ($(intcmp 1,0,,,y),y)
+test-ge = $(intcmp $(strip $1)0, $(strip $2)0,,y,y)
+test-gt = $(intcmp $(strip $1)0, $(strip $2)0,,,y)
+else
+test-ge = $(shell test $(strip $1)0 -ge $(strip $2)0 && echo y)
+test-gt = $(shell test $(strip $1)0 -gt $(strip $2)0 && echo y)
+endif
+test-le = $(call test-ge, $2, $1)
+test-lt = $(call test-gt, $2, $1)
 
 ###
 # Name of target with a '.' as filename prefix. foo/bar.o => foo/.bar.o
@@ -39,6 +59,21 @@ escsq = $(subst $(squote),'\$(squote)',$1)
 ###
 # Quote a string to pass it to C files. foo => '"foo"'
 stringify = $(squote)$(quote)$1$(quote)$(squote)
+
+###
+# The path to Kbuild or Makefile. Kbuild has precedence over Makefile.
+kbuild-dir = $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
+kbuild-file = $(or $(wildcard $(kbuild-dir)/Kbuild),$(kbuild-dir)/Makefile)
+
+###
+# Read a file, replacing newlines with spaces
+#
+# Make 4.2 or later can read a file by using its builtin function.
+ifneq ($(filter-out 3.% 4.0 4.1, $(MAKE_VERSION)),)
+read-file = $(subst $(newline),$(space),$(file < $1))
+else
+read-file = $(shell cat $1 2>/dev/null)
+endif
 
 ###
 # Easy method for doing a status message
@@ -150,9 +185,6 @@ endif
 make-cmd = $(call escsq,$(subst $(pound),$$(pound),$(subst $$,$$$$,$(cmd_$(1)))))
 
 # Find any prerequisites that are newer than target or that do not exist.
-# (This is not true for now; $? should contain any non-existent prerequisites,
-# but it does not work as expected when .SECONDARY is present. This seems a bug
-# of GNU Make.)
 # PHONY targets skipped in both cases.
 newer-prereqs = $(filter-out $(PHONY),$?)
 
@@ -228,4 +260,14 @@ endif
 .DELETE_ON_ERROR:
 
 # do not delete intermediate files automatically
+#
+# .NOTINTERMEDIATE is more correct, but only available on newer Make versions.
+# Make 4.4 introduced .NOTINTERMEDIATE, and it appears in .FEATURES, but the
+# global .NOTINTERMEDIATE does not work. We can use it on Make > 4.4.
+# Use .SECONDARY for older Make versions, but "newer-prereq" cannot detect
+# deleted files.
+ifneq ($(and $(filter notintermediate, $(.FEATURES)),$(filter-out 4.4,$(MAKE_VERSION))),)
+.NOTINTERMEDIATE:
+else
 .SECONDARY:
+endif

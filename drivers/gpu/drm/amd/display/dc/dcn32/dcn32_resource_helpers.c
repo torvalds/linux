@@ -97,14 +97,14 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 			 * FLOOR(vp_x_start, blk_width)
 			 */
 			full_vp_width_blk_aligned = ((pipe->plane_res.scl_data.viewport.x +
-					pipe->plane_res.scl_data.viewport.width + mblk_width - 1) / mblk_width * mblk_width) +
+					pipe->plane_res.scl_data.viewport.width + mblk_width - 1) / mblk_width * mblk_width) -
 					(pipe->plane_res.scl_data.viewport.x / mblk_width * mblk_width);
 
 			/* full_vp_height_blk_aligned = FLOOR(vp_y_start + full_vp_height + blk_height - 1, blk_height) -
 			 * FLOOR(vp_y_start, blk_height)
 			 */
 			full_vp_height_blk_aligned = ((pipe->plane_res.scl_data.viewport.y +
-					full_vp_height + mblk_height - 1) / mblk_height * mblk_height) +
+					full_vp_height + mblk_height - 1) / mblk_height * mblk_height) -
 					(pipe->plane_res.scl_data.viewport.y / mblk_height * mblk_height);
 
 			/* mall_alloc_width_blk_aligned_l/c = full_vp_width_blk_aligned_l/c */
@@ -121,14 +121,19 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 			 */
 			num_mblks = ((mall_alloc_width_blk_aligned + mblk_width - 1) / mblk_width) *
 					((mall_alloc_height_blk_aligned + mblk_height - 1) / mblk_height);
+
+			/*For DCC:
+			 * meta_num_mblk = CEILING(meta_pitch*full_vp_height*Bpe/256/mblk_bytes, 1)
+			 */
+			if (pipe->plane_state->dcc.enable)
+				num_mblks += (pipe->plane_state->dcc.meta_pitch * pipe->plane_res.scl_data.viewport.height * bytes_per_pixel +
+								(256 * DCN3_2_MALL_MBLK_SIZE_BYTES) - 1) / (256 * DCN3_2_MALL_MBLK_SIZE_BYTES);
+
 			bytes_in_mall = num_mblks * DCN3_2_MALL_MBLK_SIZE_BYTES;
 			// cache lines used is total bytes / cache_line size. Add +2 for worst case alignment
 			// (MALL is 64-byte aligned)
 			cache_lines_per_plane = bytes_in_mall / dc->caps.cache_line_size + 2;
 
-			/* For DCC divide by 256 */
-			if (pipe->plane_state->dcc.enable)
-				cache_lines_per_plane = cache_lines_per_plane + (cache_lines_per_plane / 256) + 1;
 			cache_lines_used += cache_lines_per_plane;
 		}
 	}

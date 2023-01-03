@@ -6,8 +6,8 @@ config CRYPTO_GHASH_ARM64_CE
 	tristate "Hash functions: GHASH (ARMv8 Crypto Extensions)"
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_HASH
-	select CRYPTO_GF128MUL
 	select CRYPTO_LIB_AES
+	select CRYPTO_LIB_GF128MUL
 	select CRYPTO_AEAD
 	help
 	  GCM GHASH function (NIST SP800-38D)
@@ -95,6 +95,17 @@ config CRYPTO_SHA3_ARM64
 
 	  Architecture: arm64 using:
 	  - ARMv8.2 Crypto Extensions
+
+config CRYPTO_SM3_NEON
+	tristate "Hash functions: SM3 (NEON)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_HASH
+	select CRYPTO_SM3
+	help
+	  SM3 (ShangMi 3) secure hash function (OSCCA GM/T 0004-2012)
+
+	  Architecture: arm64 using:
+	  - NEON (Advanced SIMD) extensions
 
 config CRYPTO_SM3_ARM64_CE
 	tristate "Hash functions: SM3 (ARMv8.2 Crypto Extensions)"
@@ -220,7 +231,7 @@ config CRYPTO_SM4_ARM64_CE
 	  - NEON (Advanced SIMD) extensions
 
 config CRYPTO_SM4_ARM64_CE_BLK
-	tristate "Ciphers: SM4, modes: ECB/CBC/CFB/CTR (ARMv8 Crypto Extensions)"
+	tristate "Ciphers: SM4, modes: ECB/CBC/CFB/CTR/XTS (ARMv8 Crypto Extensions)"
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SM4
@@ -231,6 +242,8 @@ config CRYPTO_SM4_ARM64_CE_BLK
 	  - CBC (Cipher Block Chaining) mode (NIST SP800-38A)
 	  - CFB (Cipher Feedback) mode (NIST SP800-38A)
 	  - CTR (Counter) mode (NIST SP800-38A)
+	  - XTS (XOR Encrypt XOR with ciphertext stealing) mode (NIST SP800-38E
+	    and IEEE 1619)
 
 	  Architecture: arm64 using:
 	  - ARMv8 Crypto Extensions
@@ -266,6 +279,38 @@ config CRYPTO_AES_ARM64_CE_CCM
 
 	  Architecture: arm64 using:
 	  - ARMv8 Crypto Extensions
+	  - NEON (Advanced SIMD) extensions
+
+config CRYPTO_SM4_ARM64_CE_CCM
+	tristate "AEAD cipher: SM4 in CCM mode (ARMv8 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
+	select CRYPTO_SM4
+	select CRYPTO_SM4_ARM64_CE_BLK
+	help
+	  AEAD cipher: SM4 cipher algorithms (OSCCA GB/T 32907-2016) with
+	  CCM (Counter with Cipher Block Chaining-Message Authentication Code)
+	  authenticated encryption mode (NIST SP800-38C)
+
+	  Architecture: arm64 using:
+	  - ARMv8 Crypto Extensions
+	  - NEON (Advanced SIMD) extensions
+
+config CRYPTO_SM4_ARM64_CE_GCM
+	tristate "AEAD cipher: SM4 in GCM mode (ARMv8 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
+	select CRYPTO_SM4
+	select CRYPTO_SM4_ARM64_CE_BLK
+	help
+	  AEAD cipher: SM4 cipher algorithms (OSCCA GB/T 32907-2016) with
+	  GCM (Galois/Counter Mode) authenticated encryption mode (NIST SP800-38D)
+
+	  Architecture: arm64 using:
+	  - ARMv8 Crypto Extensions
+	  - PMULL (Polynomial Multiply Long) instructions
 	  - NEON (Advanced SIMD) extensions
 
 config CRYPTO_CRCT10DIF_ARM64_CE

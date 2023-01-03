@@ -333,14 +333,12 @@ dump_elf_task(elf_greg_t *dest, struct task_struct *task)
 }
 EXPORT_SYMBOL(dump_elf_task);
 
-int
-dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task)
+int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
 {
-	struct switch_stack *sw = (struct switch_stack *)task_pt_regs(task) - 1;
-	memcpy(dest, sw->fp, 32 * 8);
+	struct switch_stack *sw = (struct switch_stack *)task_pt_regs(t) - 1;
+	memcpy(fpu, sw->fp, 32 * 8);
 	return 1;
 }
-EXPORT_SYMBOL(dump_elf_task_fp);
 
 /*
  * Return saved PC of a blocked thread.  This assumes the frame

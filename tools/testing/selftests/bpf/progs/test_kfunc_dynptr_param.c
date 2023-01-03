@@ -33,18 +33,6 @@ int err, pid;
 char _license[] SEC("license") = "GPL";
 
 SEC("?lsm.s/bpf")
-int BPF_PROG(dynptr_type_not_supp, int cmd, union bpf_attr *attr,
-	     unsigned int size)
-{
-	char write_data[64] = "hello there, world!!";
-	struct bpf_dynptr ptr;
-
-	bpf_ringbuf_reserve_dynptr(&ringbuf, sizeof(write_data), 0, &ptr);
-
-	return bpf_verify_pkcs7_signature(&ptr, &ptr, NULL);
-}
-
-SEC("?lsm.s/bpf")
 int BPF_PROG(not_valid_dynptr, int cmd, union bpf_attr *attr, unsigned int size)
 {
 	unsigned long val;

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/realtek,rt1015p.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Realtek rt1015p codec devicetree bindings
+title: Realtek rt1015p codec
 
 maintainers:
   - Tzung-Bi Shih <tzungbi@kernel.org>

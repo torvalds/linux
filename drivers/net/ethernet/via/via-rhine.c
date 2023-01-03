@@ -2217,16 +2217,16 @@ rhine_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	netdev_stats_to_stats64(stats, &dev->stats);
 
 	do {
-		start = u64_stats_fetch_begin_irq(&rp->rx_stats.syncp);
+		start = u64_stats_fetch_begin(&rp->rx_stats.syncp);
 		stats->rx_packets = rp->rx_stats.packets;
 		stats->rx_bytes = rp->rx_stats.bytes;
-	} while (u64_stats_fetch_retry_irq(&rp->rx_stats.syncp, start));
+	} while (u64_stats_fetch_retry(&rp->rx_stats.syncp, start));
 
 	do {
-		start = u64_stats_fetch_begin_irq(&rp->tx_stats.syncp);
+		start = u64_stats_fetch_begin(&rp->tx_stats.syncp);
 		stats->tx_packets = rp->tx_stats.packets;
 		stats->tx_bytes = rp->tx_stats.bytes;
-	} while (u64_stats_fetch_retry_irq(&rp->tx_stats.syncp, start));
+	} while (u64_stats_fetch_retry(&rp->tx_stats.syncp, start));
 }
 
 static void rhine_set_rx_mode(struct net_device *dev)

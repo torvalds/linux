@@ -151,6 +151,7 @@ BTF_ID_LIST_SINGLE(bpf_ima_inode_hash_btf_ids, struct, inode)
 static const struct bpf_func_proto bpf_ima_inode_hash_proto = {
 	.func		= bpf_ima_inode_hash,
 	.gpl_only	= false,
+	.might_sleep	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_BTF_ID,
 	.arg1_btf_id	= &bpf_ima_inode_hash_btf_ids[0],
@@ -169,6 +170,7 @@ BTF_ID_LIST_SINGLE(bpf_ima_file_hash_btf_ids, struct, file)
 static const struct bpf_func_proto bpf_ima_file_hash_proto = {
 	.func		= bpf_ima_file_hash,
 	.gpl_only	= false,
+	.might_sleep	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_BTF_ID,
 	.arg1_btf_id	= &bpf_ima_file_hash_btf_ids[0],
@@ -221,9 +223,9 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_bprm_opts_set:
 		return &bpf_bprm_opts_set_proto;
 	case BPF_FUNC_ima_inode_hash:
-		return prog->aux->sleepable ? &bpf_ima_inode_hash_proto : NULL;
+		return &bpf_ima_inode_hash_proto;
 	case BPF_FUNC_ima_file_hash:
-		return prog->aux->sleepable ? &bpf_ima_file_hash_proto : NULL;
+		return &bpf_ima_file_hash_proto;
 	case BPF_FUNC_get_attach_cookie:
 		return bpf_prog_has_trampoline(prog) ? &bpf_get_attach_cookie_proto : NULL;
 #ifdef CONFIG_NET
@@ -343,9 +345,25 @@ BTF_ID(func, bpf_lsm_task_to_inode)
 BTF_ID(func, bpf_lsm_userns_create)
 BTF_SET_END(sleepable_lsm_hooks)
 
+BTF_SET_START(untrusted_lsm_hooks)
+BTF_ID(func, bpf_lsm_bpf_map_free_security)
+BTF_ID(func, bpf_lsm_bpf_prog_alloc_security)
+BTF_ID(func, bpf_lsm_bpf_prog_free_security)
+BTF_ID(func, bpf_lsm_file_alloc_security)
+BTF_ID(func, bpf_lsm_file_free_security)
+BTF_ID(func, bpf_lsm_sk_alloc_security)
+BTF_ID(func, bpf_lsm_sk_free_security)
+BTF_ID(func, bpf_lsm_task_free)
+BTF_SET_END(untrusted_lsm_hooks)
+
 bool bpf_lsm_is_sleepable_hook(u32 btf_id)
 {
 	return btf_id_set_contains(&sleepable_lsm_hooks, btf_id);
+}
+
+bool bpf_lsm_is_trusted(const struct bpf_prog *prog)
+{
+	return !btf_id_set_contains(&untrusted_lsm_hooks, prog->aux->attach_btf_id);
 }
 
 const struct bpf_prog_ops lsm_prog_ops = {

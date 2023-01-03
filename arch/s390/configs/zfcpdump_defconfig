@@ -58,7 +58,6 @@ CONFIG_ZFCP=y
 # CONFIG_VMCP is not set
 # CONFIG_MONWRITER is not set
 # CONFIG_S390_VMUR is not set
-# CONFIG_RANDOM_TRUST_BOOTLOADER is not set
 # CONFIG_HID is not set
 # CONFIG_VIRTIO_MENU is not set
 # CONFIG_VHOST_MENU is not set

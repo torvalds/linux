@@ -158,9 +158,9 @@ static int ad5272_reset(struct ad5272_data *data)
 	return 0;
 }
 
-static int ad5272_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ad5272_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct ad5272_data *data;
@@ -218,7 +218,7 @@ static struct i2c_driver ad5272_driver = {
 		.name	= "ad5272",
 		.of_match_table = ad5272_dt_ids,
 	},
-	.probe		= ad5272_probe,
+	.probe_new	= ad5272_probe,
 	.id_table	= ad5272_id,
 };
 

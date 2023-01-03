@@ -182,7 +182,7 @@ void mt76x2_init_txpower(struct mt76x02_dev *dev,
 {
 	struct ieee80211_channel *chan;
 	struct mt76x2_tx_power_info txp;
-	struct mt76_rate_power t = {};
+	struct mt76x02_rate_power t = {};
 	int i;
 
 	for (i = 0; i < sband->n_channels; i++) {

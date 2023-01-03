@@ -14,6 +14,11 @@
 		stdout-path = &uart2;
 	};
 
+	aliases {
+		mmc0 = &usdhc3;
+		mmc1 = &usdhc4;
+	};
+
 	memory@10000000 {
 		device_type = "memory";
 		reg = <0x10000000 0x40000000>;

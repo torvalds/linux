@@ -49,6 +49,7 @@ struct mlxsw_sp_ipip_ops {
 	int dev_type;
 	enum mlxsw_sp_l3proto ul_proto; /* Underlay. */
 	bool inc_parsing_depth;
+	bool double_rif_entry;
 
 	struct mlxsw_sp_ipip_parms
 	(*parms_init)(const struct net_device *ol_dev);

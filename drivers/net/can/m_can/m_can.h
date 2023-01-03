@@ -7,27 +7,27 @@
 #define _CAN_M_CAN_H_
 
 #include <linux/can/core.h>
+#include <linux/can/dev.h>
 #include <linux/can/rx-offload.h>
+#include <linux/clk.h>
 #include <linux/completion.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/freezer.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/pm_runtime.h>
-#include <linux/iopoll.h>
-#include <linux/can/dev.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/phy/phy.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
 /* m_can lec values */
 enum m_can_lec_type {
@@ -38,7 +38,7 @@ enum m_can_lec_type {
 	LEC_BIT1_ERROR,
 	LEC_BIT0_ERROR,
 	LEC_CRC_ERROR,
-	LEC_UNUSED,
+	LEC_NO_CHANGE,
 };
 
 enum m_can_mram_cfg {

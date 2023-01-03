@@ -1973,7 +1973,7 @@ static u16 otx2_select_queue(struct net_device *netdev, struct sk_buff *skb,
 #endif
 
 #ifdef CONFIG_DCB
-	if (!skb->vlan_present)
+	if (!skb_vlan_tag_present(skb))
 		goto pick_tx;
 
 	vlan_prio = skb->vlan_tci >> 13;

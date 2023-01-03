@@ -34,6 +34,8 @@
 #include <drm/display/drm_hdcp_helper.h>
 
 #include "i915_drv.h"
+#include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_gmbus.h"
@@ -49,9 +51,27 @@ struct intel_gmbus {
 	struct drm_i915_private *i915;
 };
 
+enum gmbus_gpio {
+	GPIOA,
+	GPIOB,
+	GPIOC,
+	GPIOD,
+	GPIOE,
+	GPIOF,
+	GPIOG,
+	GPIOH,
+	__GPIOI_UNUSED,
+	GPIOJ,
+	GPIOK,
+	GPIOL,
+	GPIOM,
+	GPION,
+	GPIOO,
+};
+
 struct gmbus_pin {
 	const char *name;
-	enum i915_gpio gpio;
+	enum gmbus_gpio gpio;
 };
 
 /* Map gmbus pin pairs to names and registers. */

@@ -271,6 +271,13 @@ int mlx5dr_cmd_sync_steering(struct mlx5_core_dev *mdev)
 {
 	u32 in[MLX5_ST_SZ_DW(sync_steering_in)] = {};
 
+	/* Skip SYNC in case the device is internal error state.
+	 * Besides a device error, this also happens when we're
+	 * in fast teardown
+	 */
+	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
+		return 0;
+
 	MLX5_SET(sync_steering_in, in, opcode, MLX5_CMD_OP_SYNC_STEERING);
 
 	return mlx5_cmd_exec_in(mdev, sync_steering, in);
@@ -555,6 +562,83 @@ void mlx5dr_cmd_destroy_reformat_ctx(struct mlx5_core_dev *mdev,
 		 reformat_id);
 
 	mlx5_cmd_exec_in(mdev, dealloc_packet_reformat_context, in);
+}
+
+static void dr_cmd_set_definer_format(void *ptr, u16 format_id,
+				      u8 *dw_selectors,
+				      u8 *byte_selectors)
+{
+	if (format_id != MLX5_IFC_DEFINER_FORMAT_ID_SELECT)
+		return;
+
+	MLX5_SET(match_definer, ptr, format_select_dw0, dw_selectors[0]);
+	MLX5_SET(match_definer, ptr, format_select_dw1, dw_selectors[1]);
+	MLX5_SET(match_definer, ptr, format_select_dw2, dw_selectors[2]);
+	MLX5_SET(match_definer, ptr, format_select_dw3, dw_selectors[3]);
+	MLX5_SET(match_definer, ptr, format_select_dw4, dw_selectors[4]);
+	MLX5_SET(match_definer, ptr, format_select_dw5, dw_selectors[5]);
+	MLX5_SET(match_definer, ptr, format_select_dw6, dw_selectors[6]);
+	MLX5_SET(match_definer, ptr, format_select_dw7, dw_selectors[7]);
+	MLX5_SET(match_definer, ptr, format_select_dw8, dw_selectors[8]);
+
+	MLX5_SET(match_definer, ptr, format_select_byte0, byte_selectors[0]);
+	MLX5_SET(match_definer, ptr, format_select_byte1, byte_selectors[1]);
+	MLX5_SET(match_definer, ptr, format_select_byte2, byte_selectors[2]);
+	MLX5_SET(match_definer, ptr, format_select_byte3, byte_selectors[3]);
+	MLX5_SET(match_definer, ptr, format_select_byte4, byte_selectors[4]);
+	MLX5_SET(match_definer, ptr, format_select_byte5, byte_selectors[5]);
+	MLX5_SET(match_definer, ptr, format_select_byte6, byte_selectors[6]);
+	MLX5_SET(match_definer, ptr, format_select_byte7, byte_selectors[7]);
+}
+
+int mlx5dr_cmd_create_definer(struct mlx5_core_dev *mdev,
+			      u16 format_id,
+			      u8 *dw_selectors,
+			      u8 *byte_selectors,
+			      u8 *match_mask,
+			      u32 *definer_id)
+{
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
+	u32 in[MLX5_ST_SZ_DW(create_match_definer_in)] = {};
+	void *ptr;
+	int err;
+
+	ptr = MLX5_ADDR_OF(create_match_definer_in, in,
+			   general_obj_in_cmd_hdr);
+	MLX5_SET(general_obj_in_cmd_hdr, ptr, opcode,
+		 MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, ptr, obj_type,
+		 MLX5_OBJ_TYPE_MATCH_DEFINER);
+
+	ptr = MLX5_ADDR_OF(create_match_definer_in, in, obj_context);
+	MLX5_SET(match_definer, ptr, format_id, format_id);
+
+	dr_cmd_set_definer_format(ptr, format_id,
+				  dw_selectors, byte_selectors);
+
+	ptr = MLX5_ADDR_OF(match_definer, ptr, match_mask);
+	memcpy(ptr, match_mask, MLX5_FLD_SZ_BYTES(match_definer, match_mask));
+
+	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	*definer_id = MLX5_GET(general_obj_out_cmd_hdr, out, obj_id);
+
+	return 0;
+}
+
+void
+mlx5dr_cmd_destroy_definer(struct mlx5_core_dev *mdev, u32 definer_id)
+{
+	u32 in[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)] = {};
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
+
+	MLX5_SET(general_obj_in_cmd_hdr, in, opcode, MLX5_CMD_OP_DESTROY_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type, MLX5_OBJ_TYPE_MATCH_DEFINER);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_id, definer_id);
+
+	mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 }
 
 int mlx5dr_cmd_query_gid(struct mlx5_core_dev *mdev, u8 vhca_port_num,

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/edt-ft5x06.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: FocalTech EDT-FT5x06 Polytouch Bindings
+title: FocalTech EDT-FT5x06 Polytouch
 
 description: |
              There are 5 variants of the chip for various touch panel sizes

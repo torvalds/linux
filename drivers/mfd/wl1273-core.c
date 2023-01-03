@@ -156,8 +156,7 @@ static int wl1273_fm_set_volume(struct wl1273_core *core, unsigned int volume)
 	return 0;
 }
 
-static int wl1273_core_probe(struct i2c_client *client,
-				       const struct i2c_device_id *id)
+static int wl1273_core_probe(struct i2c_client *client)
 {
 	struct wl1273_fm_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct wl1273_core *core;
@@ -233,7 +232,7 @@ static struct i2c_driver wl1273_core_driver = {
 	.driver = {
 		.name = WL1273_FM_DRIVER_NAME,
 	},
-	.probe = wl1273_core_probe,
+	.probe_new = wl1273_core_probe,
 	.id_table = wl1273_driver_id_table,
 };
 

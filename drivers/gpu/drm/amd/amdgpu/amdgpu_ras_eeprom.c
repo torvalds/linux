@@ -33,12 +33,29 @@
 
 #include "amdgpu_reset.h"
 
-#define EEPROM_I2C_MADDR_VEGA20         0x0
-#define EEPROM_I2C_MADDR_ARCTURUS       0x40000
-#define EEPROM_I2C_MADDR_ARCTURUS_D342  0x0
-#define EEPROM_I2C_MADDR_SIENNA_CICHLID 0x0
-#define EEPROM_I2C_MADDR_ALDEBARAN      0x0
-#define EEPROM_I2C_MADDR_SMU_13_0_0     (0x54UL << 16)
+/* These are memory addresses as would be seen by one or more EEPROM
+ * chips strung on the I2C bus, usually by manipulating pins 1-3 of a
+ * set of EEPROM devices. They form a continuous memory space.
+ *
+ * The I2C device address includes the device type identifier, 1010b,
+ * which is a reserved value and indicates that this is an I2C EEPROM
+ * device. It also includes the top 3 bits of the 19 bit EEPROM memory
+ * address, namely bits 18, 17, and 16. This makes up the 7 bit
+ * address sent on the I2C bus with bit 0 being the direction bit,
+ * which is not represented here, and sent by the hardware directly.
+ *
+ * For instance,
+ *   50h = 1010000b => device type identifier 1010b, bits 18:16 = 000b, address 0.
+ *   54h = 1010100b => --"--, bits 18:16 = 100b, address 40000h.
+ *   56h = 1010110b => --"--, bits 18:16 = 110b, address 60000h.
+ * Depending on the size of the I2C EEPROM device(s), bits 18:16 may
+ * address memory in a device or a device on the I2C bus, depending on
+ * the status of pins 1-3. See top of amdgpu_eeprom.c.
+ *
+ * The RAS table lives either at address 0 or address 40000h of EEPROM.
+ */
+#define EEPROM_I2C_MADDR_0      0x0
+#define EEPROM_I2C_MADDR_4      0x40000
 
 /*
  * The 2 macros bellow represent the actual size in bytes that
@@ -90,6 +107,16 @@
 
 static bool __is_ras_eeprom_supported(struct amdgpu_device *adev)
 {
+	if (adev->asic_type == CHIP_IP_DISCOVERY) {
+		switch (adev->ip_versions[MP1_HWIP][0]) {
+		case IP_VERSION(13, 0, 0):
+		case IP_VERSION(13, 0, 10):
+			return true;
+		default:
+			return false;
+		}
+	}
+
 	return  adev->asic_type == CHIP_VEGA20 ||
 		adev->asic_type == CHIP_ARCTURUS ||
 		adev->asic_type == CHIP_SIENNA_CICHLID ||
@@ -107,16 +134,30 @@ static bool __get_eeprom_i2c_addr_arct(struct amdgpu_device *adev,
 	if (strnstr(atom_ctx->vbios_version,
 	            "D342",
 		    sizeof(atom_ctx->vbios_version)))
-		control->i2c_address = EEPROM_I2C_MADDR_ARCTURUS_D342;
+		control->i2c_address = EEPROM_I2C_MADDR_0;
 	else
-		control->i2c_address = EEPROM_I2C_MADDR_ARCTURUS;
+		control->i2c_address = EEPROM_I2C_MADDR_4;
 
 	return true;
+}
+
+static bool __get_eeprom_i2c_addr_ip_discovery(struct amdgpu_device *adev,
+				       struct amdgpu_ras_eeprom_control *control)
+{
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 0):
+	case IP_VERSION(13, 0, 10):
+		control->i2c_address = EEPROM_I2C_MADDR_4;
+		return true;
+	default:
+		return false;
+	}
 }
 
 static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 				  struct amdgpu_ras_eeprom_control *control)
 {
+	struct atom_context *atom_ctx = adev->mode_info.atom_context;
 	u8 i2c_addr;
 
 	if (!control)
@@ -139,19 +180,26 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
-		control->i2c_address = EEPROM_I2C_MADDR_VEGA20;
+		control->i2c_address = EEPROM_I2C_MADDR_0;
 		break;
 
 	case CHIP_ARCTURUS:
 		return __get_eeprom_i2c_addr_arct(adev, control);
 
 	case CHIP_SIENNA_CICHLID:
-		control->i2c_address = EEPROM_I2C_MADDR_SIENNA_CICHLID;
+		control->i2c_address = EEPROM_I2C_MADDR_0;
 		break;
 
 	case CHIP_ALDEBARAN:
-		control->i2c_address = EEPROM_I2C_MADDR_ALDEBARAN;
+		if (strnstr(atom_ctx->vbios_version, "D673",
+			    sizeof(atom_ctx->vbios_version)))
+			control->i2c_address = EEPROM_I2C_MADDR_4;
+		else
+			control->i2c_address = EEPROM_I2C_MADDR_0;
 		break;
+
+	case CHIP_IP_DISCOVERY:
+		return __get_eeprom_i2c_addr_ip_discovery(adev, control);
 
 	default:
 		return false;
@@ -159,7 +207,7 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(13, 0, 0):
-		control->i2c_address = EEPROM_I2C_MADDR_SMU_13_0_0;
+		control->i2c_address = EEPROM_I2C_MADDR_4;
 		break;
 
 	default:

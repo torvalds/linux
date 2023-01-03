@@ -433,7 +433,7 @@ config RTC_DRV_ISL12022
 
 config RTC_DRV_ISL12026
 	tristate "Intersil ISL12026"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  If you say yes here you get support for the
 	  Intersil ISL12026 RTC chip.
@@ -539,12 +539,6 @@ config RTC_DRV_BQ32K
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-bq32k.
-
-config RTC_DRV_DM355EVM
-	tristate "TI DaVinci DM355 EVM RTC"
-	depends on MFD_DM355EVM_MSP
-	help
-	  Supports the RTC firmware in the MSP430 on the DM355 EVM.
 
 config RTC_DRV_TWL92330
 	bool "TI TWL92330/Menelaus"
@@ -1350,16 +1344,6 @@ config RTC_DRV_ASM9260
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-asm9260.
-
-config RTC_DRV_DAVINCI
-	tristate "TI DaVinci RTC"
-	depends on ARCH_DAVINCI_DM365 || COMPILE_TEST
-	help
-	  If you say yes here you get support for the RTC on the
-	  DaVinci platforms (DM365).
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-davinci.
 
 config RTC_DRV_DIGICOLOR
 	tristate "Conexant Digicolor RTC"

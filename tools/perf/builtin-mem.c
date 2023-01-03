@@ -20,6 +20,7 @@
 #include "util/symbol.h"
 #include "util/pmu.h"
 #include "util/pmu-hybrid.h"
+#include "util/sample.h"
 #include "util/string2.h"
 #include <linux/err.h>
 

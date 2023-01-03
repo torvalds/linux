@@ -81,7 +81,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 
 		/* first set the pipeline to PAUSED state */
 		if (pipeline->state != SOF_IPC4_PIPE_PAUSED) {
-			ret = sof_ipc4_set_pipeline_state(sdev, swidget->pipeline_id,
+			ret = sof_ipc4_set_pipeline_state(sdev, pipeline_widget->instance_id,
 							  SOF_IPC4_PIPE_PAUSED);
 			if (ret < 0) {
 				dev_err(sdev->dev, "failed to pause pipeline %d\n",
@@ -96,7 +96,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 			continue;
 
 		/* then set the final state */
-		ret = sof_ipc4_set_pipeline_state(sdev, swidget->pipeline_id, state);
+		ret = sof_ipc4_set_pipeline_state(sdev, pipeline_widget->instance_id, state);
 		if (ret < 0) {
 			dev_err(sdev->dev, "failed to set state %d for pipeline %d\n",
 				state, swidget->pipeline_id);

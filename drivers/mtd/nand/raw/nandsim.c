@@ -1405,9 +1405,9 @@ static void ns_do_bit_flips(struct nandsim *ns, int num)
 	if (bitflips && get_random_u16() < (1 << 6)) {
 		int flips = 1;
 		if (bitflips > 1)
-			flips = prandom_u32_max(bitflips) + 1;
+			flips = get_random_u32_inclusive(1, bitflips);
 		while (flips--) {
-			int pos = prandom_u32_max(num * 8);
+			int pos = get_random_u32_below(num * 8);
 			ns->buf.byte[pos / 8] ^= (1 << (pos % 8));
 			NS_WARN("read_page: flipping bit %d in page %d "
 				"reading from %d ecc: corrected=%u failed=%u\n",

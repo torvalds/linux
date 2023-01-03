@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/qcom,pm8058-led.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm PM8058 PMIC LED
+
+maintainers:
+  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+
+description: |
+  The Qualcomm PM8058 contains an LED block for up to six LEDs:: three normal
+  LEDs, two "flash" LEDs and one "keypad backlight" LED. The names are quoted
+  because sometimes these LED drivers are used for wildly different things than
+  flash or keypad backlight:: their names are more of a suggestion than a
+  hard-wired usecase.
+
+  Hardware-wise the different LEDs support slightly different output currents.
+  The "flash" LEDs do not need to charge nor do they support external triggers.
+  They are just powerful LED drivers.
+
+allOf:
+  - $ref: common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - qcom,pm8058-led
+      - qcom,pm8058-keypad-led
+      - qcom,pm8058-flash-led
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/leds/common.h>
+
+    pmic {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        led@131 {
+            compatible = "qcom,pm8058-led";
+            reg = <0x131>;
+            label = "pm8058:red";
+            color = <LED_COLOR_ID_RED>;
+            default-state = "off";
+        };
+    };

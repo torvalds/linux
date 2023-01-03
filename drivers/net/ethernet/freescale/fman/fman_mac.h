@@ -170,20 +170,10 @@ struct fman_mac_params {
 	 * 0 - FM_MAX_NUM_OF_10G_MACS
 	 */
 	u8 mac_id;
-	/* Note that the speed should indicate the maximum rate that
-	 * this MAC should support rather than the actual speed;
-	 */
-	u16 max_speed;
 	/* A handle to the FM object this port related to */
 	void *fm;
 	fman_mac_exception_cb *event_cb;    /* MDIO Events Callback Routine */
 	fman_mac_exception_cb *exception_cb;/* Exception Callback Routine */
-	/* SGMII/QSGII interface with 1000BaseX auto-negotiation between MAC
-	 * and phy or backplane; Note: 1000BaseX auto-negotiation relates only
-	 * to interface between MAC and phy/backplane, SGMII phy can still
-	 * synchronize with far-end phy at 10Mbps, 100Mbps or 1000Mbps
-	*/
-	bool basex_if;
 };
 
 struct eth_hash_t {

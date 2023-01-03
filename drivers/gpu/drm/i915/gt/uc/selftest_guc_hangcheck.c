@@ -35,10 +35,13 @@ static int intel_hang_guc(void *arg)
 	struct i915_request *rq;
 	intel_wakeref_t wakeref;
 	struct i915_gpu_error *global = &gt->i915->gpu_error;
-	struct intel_engine_cs *engine;
+	struct intel_engine_cs *engine = intel_selftest_find_any_engine(gt);
 	unsigned int reset_count;
 	u32 guc_status;
 	u32 old_beat;
+
+	if (!engine)
+		return 0;
 
 	ctx = kernel_context(gt->i915, NULL);
 	if (IS_ERR(ctx)) {
@@ -48,14 +51,13 @@ static int intel_hang_guc(void *arg)
 
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 
-	ce = intel_context_create(gt->engine[BCS0]);
+	ce = intel_context_create(engine);
 	if (IS_ERR(ce)) {
 		ret = PTR_ERR(ce);
 		drm_err(&gt->i915->drm, "Failed to create spinner request: %d\n", ret);
 		goto err;
 	}
 
-	engine = ce->engine;
 	reset_count = i915_reset_count(global);
 
 	old_beat = engine->props.heartbeat_interval_ms;

@@ -79,6 +79,17 @@ MODULE_FIRMWARE("amdgpu/beige_goby_smc.bin");
 #define mmTHM_BACO_CNTL_ARCT			0xA7
 #define mmTHM_BACO_CNTL_ARCT_BASE_IDX		0
 
+static void smu_v11_0_poll_baco_exit(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t data, loop = 0;
+
+	do {
+		usleep_range(1000, 1100);
+		data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
+	} while ((data & 0x100) && (++loop < 100));
+}
+
 int smu_v11_0_init_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -1588,6 +1599,10 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 	if (amdgpu_sriov_vf(smu->adev) || !smu_baco->platform_support)
 		return false;
 
+	/* return true if ASIC is in BACO state already */
+	if (smu_v11_0_baco_get_state(smu) == SMU_BACO_STATE_ENTER)
+		return true;
+
 	/* Arcturus does not support this bit mask */
 	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
 	   !smu_cmn_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
@@ -1685,7 +1700,18 @@ int smu_v11_0_baco_enter(struct smu_context *smu)
 
 int smu_v11_0_baco_exit(struct smu_context *smu)
 {
-	return smu_v11_0_baco_set_state(smu, SMU_BACO_STATE_EXIT);
+	int ret;
+
+	ret = smu_v11_0_baco_set_state(smu, SMU_BACO_STATE_EXIT);
+	if (!ret) {
+		/*
+		 * Poll BACO exit status to ensure FW has completed
+		 * BACO exit process to avoid timing issues.
+		 */
+		smu_v11_0_poll_baco_exit(smu);
+	}
+
+	return ret;
 }
 
 int smu_v11_0_mode1_reset(struct smu_context *smu)

@@ -106,7 +106,7 @@ enum i2c_addr {
 #define NPCM_I2CCST3			0x19
 #define I2C_VER				0x1F
 
-/*BANK0 regs*/
+/* BANK 0 regs */
 #define NPCM_I2CADDR3			0x10
 #define NPCM_I2CADDR7			0x11
 #define NPCM_I2CADDR4			0x12
@@ -115,6 +115,20 @@ enum i2c_addr {
 #define NPCM_I2CADDR9			0x15
 #define NPCM_I2CADDR6			0x16
 #define NPCM_I2CADDR10			0x17
+#define NPCM_I2CCTL4			0x1A
+#define NPCM_I2CCTL5			0x1B
+#define NPCM_I2CSCLLT			0x1C /* SCL Low Time */
+#define NPCM_I2CFIF_CTL			0x1D /* FIFO Control */
+#define NPCM_I2CSCLHT			0x1E /* SCL High Time */
+
+/* BANK 1 regs */
+#define NPCM_I2CFIF_CTS			0x10 /* Both FIFOs Control and Status */
+#define NPCM_I2CTXF_CTL			0x12 /* Tx-FIFO Control */
+#define NPCM_I2CT_OUT			0x14 /* Bus T.O. */
+#define NPCM_I2CPEC			0x16 /* PEC Data */
+#define NPCM_I2CTXF_STS			0x1A /* Tx-FIFO Status */
+#define NPCM_I2CRXF_STS			0x1C /* Rx-FIFO Status */
+#define NPCM_I2CRXF_CTL			0x1E /* Rx-FIFO Control */
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 /*
@@ -131,66 +145,51 @@ static const int npcm_i2caddr[I2C_NUM_OWN_ADDR] = {
 };
 #endif
 
-#define NPCM_I2CCTL4			0x1A
-#define NPCM_I2CCTL5			0x1B
-#define NPCM_I2CSCLLT			0x1C /* SCL Low Time */
-#define NPCM_I2CFIF_CTL			0x1D /* FIFO Control */
-#define NPCM_I2CSCLHT			0x1E /* SCL High Time */
-
-/* BANK 1 regs */
-#define NPCM_I2CFIF_CTS			0x10 /* Both FIFOs Control and Status */
-#define NPCM_I2CTXF_CTL			0x12 /* Tx-FIFO Control */
-#define NPCM_I2CT_OUT			0x14 /* Bus T.O. */
-#define NPCM_I2CPEC			0x16 /* PEC Data */
-#define NPCM_I2CTXF_STS			0x1A /* Tx-FIFO Status */
-#define NPCM_I2CRXF_STS			0x1C /* Rx-FIFO Status */
-#define NPCM_I2CRXF_CTL			0x1E /* Rx-FIFO Control */
-
 /* NPCM_I2CST reg fields */
-#define NPCM_I2CST_XMIT			BIT(0)
-#define NPCM_I2CST_MASTER		BIT(1)
-#define NPCM_I2CST_NMATCH		BIT(2)
-#define NPCM_I2CST_STASTR		BIT(3)
-#define NPCM_I2CST_NEGACK		BIT(4)
-#define NPCM_I2CST_BER			BIT(5)
-#define NPCM_I2CST_SDAST		BIT(6)
-#define NPCM_I2CST_SLVSTP		BIT(7)
+#define NPCM_I2CST_XMIT			BIT(0)	/* Transmit mode */
+#define NPCM_I2CST_MASTER		BIT(1)	/* Master mode */
+#define NPCM_I2CST_NMATCH		BIT(2)	/* New match */
+#define NPCM_I2CST_STASTR		BIT(3)	/* Stall after start */
+#define NPCM_I2CST_NEGACK		BIT(4)	/* Negative ACK */
+#define NPCM_I2CST_BER			BIT(5)	/* Bus error */
+#define NPCM_I2CST_SDAST		BIT(6)	/* SDA status */
+#define NPCM_I2CST_SLVSTP		BIT(7)	/* Slave stop */
 
 /* NPCM_I2CCST reg fields */
-#define NPCM_I2CCST_BUSY		BIT(0)
-#define NPCM_I2CCST_BB			BIT(1)
-#define NPCM_I2CCST_MATCH		BIT(2)
-#define NPCM_I2CCST_GCMATCH		BIT(3)
-#define NPCM_I2CCST_TSDA		BIT(4)
-#define NPCM_I2CCST_TGSCL		BIT(5)
-#define NPCM_I2CCST_MATCHAF		BIT(6)
-#define NPCM_I2CCST_ARPMATCH		BIT(7)
+#define NPCM_I2CCST_BUSY		BIT(0)	/* Busy */
+#define NPCM_I2CCST_BB			BIT(1)	/* Bus busy */
+#define NPCM_I2CCST_MATCH		BIT(2)	/* Address match */
+#define NPCM_I2CCST_GCMATCH		BIT(3)	/* Global call match */
+#define NPCM_I2CCST_TSDA		BIT(4)	/* Test SDA line */
+#define NPCM_I2CCST_TGSCL		BIT(5)	/* Toggle SCL line */
+#define NPCM_I2CCST_MATCHAF		BIT(6)	/* Match address field */
+#define NPCM_I2CCST_ARPMATCH		BIT(7)	/* ARP address match */
 
 /* NPCM_I2CCTL1 reg fields */
-#define NPCM_I2CCTL1_START		BIT(0)
-#define NPCM_I2CCTL1_STOP		BIT(1)
-#define NPCM_I2CCTL1_INTEN		BIT(2)
+#define NPCM_I2CCTL1_START		BIT(0)	/* Generate start condition */
+#define NPCM_I2CCTL1_STOP		BIT(1)	/* Generate stop condition */
+#define NPCM_I2CCTL1_INTEN		BIT(2)	/* Interrupt enable */
 #define NPCM_I2CCTL1_EOBINTE		BIT(3)
 #define NPCM_I2CCTL1_ACK		BIT(4)
-#define NPCM_I2CCTL1_GCMEN		BIT(5)
-#define NPCM_I2CCTL1_NMINTE		BIT(6)
-#define NPCM_I2CCTL1_STASTRE		BIT(7)
+#define NPCM_I2CCTL1_GCMEN		BIT(5)	/* Global call match enable */
+#define NPCM_I2CCTL1_NMINTE		BIT(6)	/* New match interrupt enable */
+#define NPCM_I2CCTL1_STASTRE		BIT(7)	/* Stall after start enable */
 
 /* RW1S fields (inside a RW reg): */
 #define NPCM_I2CCTL1_RWS   \
 	(NPCM_I2CCTL1_START | NPCM_I2CCTL1_STOP | NPCM_I2CCTL1_ACK)
 
 /* npcm_i2caddr reg fields */
-#define NPCM_I2CADDR_A			GENMASK(6, 0)
-#define NPCM_I2CADDR_SAEN		BIT(7)
+#define NPCM_I2CADDR_A			GENMASK(6, 0)	/* Address */
+#define NPCM_I2CADDR_SAEN		BIT(7)		/* Slave address enable */
 
 /* NPCM_I2CCTL2 reg fields */
-#define I2CCTL2_ENABLE			BIT(0)
-#define I2CCTL2_SCLFRQ6_0		GENMASK(7, 1)
+#define I2CCTL2_ENABLE			BIT(0)		/* Module enable */
+#define I2CCTL2_SCLFRQ6_0		GENMASK(7, 1)	/* Bits 0:6 of frequency divisor */
 
 /* NPCM_I2CCTL3 reg fields */
-#define I2CCTL3_SCLFRQ8_7		GENMASK(1, 0)
-#define I2CCTL3_ARPMEN			BIT(2)
+#define I2CCTL3_SCLFRQ8_7		GENMASK(1, 0)	/* Bits 7:8 of frequency divisor */
+#define I2CCTL3_ARPMEN			BIT(2)	/* ARP match enable */
 #define I2CCTL3_IDL_START		BIT(3)
 #define I2CCTL3_400K_MODE		BIT(4)
 #define I2CCTL3_BNK_SEL			BIT(5)

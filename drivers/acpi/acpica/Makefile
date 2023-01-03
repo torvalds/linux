@@ -155,6 +155,7 @@ acpi-y +=		\
 	utalloc.o	\
 	utascii.o	\
 	utbuffer.o	\
+	utcksum.o	\
 	utcopy.o	\
 	utexcep.o	\
 	utdebug.o	\

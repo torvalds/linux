@@ -164,7 +164,7 @@ config NVMEM_MICROCHIP_OTPC
 	depends on ARCH_AT91 || COMPILE_TEST
 	help
 	  This driver enable the OTP controller available on Microchip SAMA7G5
-	  SoCs. It controlls the access to the OTP memory connected to it.
+	  SoCs. It controls the access to the OTP memory connected to it.
 
 config NVMEM_MTK_EFUSE
 	tristate "Mediatek SoCs EFUSE support"

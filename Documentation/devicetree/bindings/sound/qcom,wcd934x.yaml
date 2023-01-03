@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/qcom,wcd934x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for Qualcomm WCD9340/WCD9341 Audio Codec
+title: Qualcomm WCD9340/WCD9341 Audio Codec
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>

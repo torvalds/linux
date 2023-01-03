@@ -1128,8 +1128,7 @@ static inline int da9121_of_get_id(struct device *dev)
 	return (uintptr_t)id->data;
 }
 
-static int da9121_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int da9121_i2c_probe(struct i2c_client *i2c)
 {
 	struct da9121 *chip;
 	const int mask_all[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
@@ -1197,7 +1196,7 @@ static struct i2c_driver da9121_regulator_driver = {
 		.name = "da9121",
 		.of_match_table = of_match_ptr(da9121_dt_ids),
 	},
-	.probe = da9121_i2c_probe,
+	.probe_new = da9121_i2c_probe,
 	.remove = da9121_i2c_remove,
 	.id_table = da9121_i2c_id,
 };

@@ -23,7 +23,9 @@ static int brcmstb_qspi_probe(struct platform_device *pdev)
 
 static int brcmstb_qspi_remove(struct platform_device *pdev)
 {
-	return bcm_qspi_remove(pdev);
+	bcm_qspi_remove(pdev);
+
+	return 0;
 }
 
 static struct platform_driver brcmstb_qspi_driver = {

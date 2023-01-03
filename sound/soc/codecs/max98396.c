@@ -1731,9 +1731,9 @@ static void max98396_supply_disable(void *r)
 	regulator_disable((struct regulator *) r);
 }
 
-static int max98396_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int max98396_i2c_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct max98396_priv *max98396 = NULL;
 	int i, ret, reg;
 
@@ -1907,7 +1907,7 @@ static struct i2c_driver max98396_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(max98396_acpi_match),
 		.pm = &max98396_pm,
 	},
-	.probe = max98396_i2c_probe,
+	.probe_new = max98396_i2c_probe,
 	.id_table = max98396_i2c_id,
 };
 

@@ -114,6 +114,31 @@ void nvme_failover_req(struct request *req)
 	kblockd_schedule_work(&ns->head->requeue_work);
 }
 
+void nvme_mpath_start_request(struct request *rq)
+{
+	struct nvme_ns *ns = rq->q->queuedata;
+	struct gendisk *disk = ns->head->disk;
+
+	if (!blk_queue_io_stat(disk->queue) || blk_rq_is_passthrough(rq))
+		return;
+
+	nvme_req(rq)->flags |= NVME_MPATH_IO_STATS;
+	nvme_req(rq)->start_time = bdev_start_io_acct(disk->part0,
+					blk_rq_bytes(rq) >> SECTOR_SHIFT,
+					req_op(rq), jiffies);
+}
+EXPORT_SYMBOL_GPL(nvme_mpath_start_request);
+
+void nvme_mpath_end_request(struct request *rq)
+{
+	struct nvme_ns *ns = rq->q->queuedata;
+
+	if (!(nvme_req(rq)->flags & NVME_MPATH_IO_STATS))
+		return;
+	bdev_end_io_acct(ns->head->disk->part0, req_op(rq),
+		nvme_req(rq)->start_time);
+}
+
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns;
@@ -506,6 +531,7 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, head->disk->queue);
 	blk_queue_flag_set(QUEUE_FLAG_NOWAIT, head->disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_IO_STAT, head->disk->queue);
 	/*
 	 * This assumes all controllers that refer to a namespace either
 	 * support poll queues or not.  That is not a strict guarantee,

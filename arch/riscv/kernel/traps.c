@@ -208,18 +208,18 @@ int is_valid_bugaddr(unsigned long pc)
 #endif /* CONFIG_GENERIC_BUG */
 
 #ifdef CONFIG_VMAP_STACK
+/*
+ * Extra stack space that allows us to provide panic messages when the kernel
+ * has overflowed its stack.
+ */
 static DEFINE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)],
 		overflow_stack)__aligned(16);
 /*
- * shadow stack, handled_ kernel_ stack_ overflow(in kernel/entry.S) is used
- * to get per-cpu overflow stack(get_overflow_stack).
+ * A temporary stack for use by handle_kernel_stack_overflow.  This is used so
+ * we can call into C code to get the per-hart overflow stack.  Usage of this
+ * stack must be protected by spin_shadow_stack.
  */
-long shadow_stack[SHADOW_OVERFLOW_STACK_SIZE/sizeof(long)];
-asmlinkage unsigned long get_overflow_stack(void)
-{
-	return (unsigned long)this_cpu_ptr(overflow_stack) +
-		OVERFLOW_STACK_SIZE;
-}
+long shadow_stack[SHADOW_OVERFLOW_STACK_SIZE/sizeof(long)] __aligned(16);
 
 /*
  * A pseudo spinlock to protect the shadow stack from being used by multiple
@@ -229,6 +229,12 @@ asmlinkage unsigned long get_overflow_stack(void)
  * checking a proper spinlock gives us doesn't matter.
  */
 unsigned long spin_shadow_stack;
+
+asmlinkage unsigned long get_overflow_stack(void)
+{
+	return (unsigned long)this_cpu_ptr(overflow_stack) +
+		OVERFLOW_STACK_SIZE;
+}
 
 asmlinkage void handle_bad_stack(struct pt_regs *regs)
 {

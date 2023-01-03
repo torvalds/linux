@@ -858,7 +858,7 @@ CIFS kernel module parameters
 These module parameters can be specified or modified either during the time of
 module loading or during the runtime by using the interface::
 
-	/proc/module/cifs/parameters/<param>
+	/sys/module/cifs/parameters/<param>
 
 i.e.::
 

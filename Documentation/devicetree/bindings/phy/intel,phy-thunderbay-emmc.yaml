@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/intel,phy-thunderbay-emmc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Intel Thunder Bay eMMC PHY bindings
+title: Intel Thunder Bay eMMC PHY
 
 maintainers:
   - Srikandan Nandhini <nandhini.srikandan@intel.com>
@@ -36,11 +36,10 @@ additionalProperties: false
 
 examples:
   - |
-     mmc_phy@80440800 {
-     #phy-cells = <0x0>;
-     compatible = "intel,thunderbay-emmc-phy";
-     status = "okay";
-     reg = <0x80440800 0x100>;
-     clocks = <&emmc>;
-     clock-names = "emmcclk";
-     };
+    mmc_phy@80440800 {
+        #phy-cells = <0x0>;
+        compatible = "intel,thunderbay-emmc-phy";
+        reg = <0x80440800 0x100>;
+        clocks = <&emmc>;
+        clock-names = "emmcclk";
+    };

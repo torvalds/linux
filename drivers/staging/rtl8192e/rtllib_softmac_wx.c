@@ -359,11 +359,11 @@ void rtllib_wx_sync_scan_wq(void *data)
 	if (ieee->ScanOperationBackupHandler)
 		ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_BACKUP);
 
-	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT &&
-	    ieee->pHTInfo->bCurBW40MHz) {
+	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht &&
+	    ieee->ht_info->bCurBW40MHz) {
 		b40M = 1;
-		chan_offset = ieee->pHTInfo->CurSTAExtChnlOffset;
-		bandwidth = (enum ht_channel_width)ieee->pHTInfo->bCurBW40MHz;
+		chan_offset = ieee->ht_info->CurSTAExtChnlOffset;
+		bandwidth = (enum ht_channel_width)ieee->ht_info->bCurBW40MHz;
 		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20,
 				       HT_EXTCHNL_OFFSET_NO_EXT);
 	}
@@ -391,10 +391,10 @@ void rtllib_wx_sync_scan_wq(void *data)
 	/* Notify AP that I wake up again */
 	rtllib_sta_ps_send_null_frame(ieee, 0);
 
-	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod == 0 ||
-	    ieee->LinkDetectInfo.NumRecvDataInPeriod == 0) {
-		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
-		ieee->LinkDetectInfo.NumRecvDataInPeriod = 1;
+	if (ieee->link_detect_info.NumRecvBcnInPeriod == 0 ||
+	    ieee->link_detect_info.NumRecvDataInPeriod == 0) {
+		ieee->link_detect_info.NumRecvBcnInPeriod = 1;
+		ieee->link_detect_info.NumRecvDataInPeriod = 1;
 	}
 
 	if (ieee->data_hard_resume)
@@ -564,9 +564,8 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 		ieee->ps = RTLLIB_PS_DISABLED;
 		goto exit;
 	}
-	if (wrqu->power.flags & IW_POWER_TIMEOUT) {
+	if (wrqu->power.flags & IW_POWER_TIMEOUT)
 		ieee->ps_timeout = wrqu->power.value / 1000;
-	}
 
 	if (wrqu->power.flags & IW_POWER_PERIOD)
 		ieee->ps_period = wrqu->power.value / 1000;

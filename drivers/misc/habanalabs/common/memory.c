@@ -1689,7 +1689,7 @@ static int hl_dmabuf_attach(struct dma_buf *dmabuf,
 	hl_dmabuf = dmabuf->priv;
 	hdev = hl_dmabuf->ctx->hdev;
 
-	rc = pci_p2pdma_distance_many(hdev->pdev, &attachment->dev, 1, true);
+	rc = pci_p2pdma_distance(hdev->pdev, attachment->dev, true);
 
 	if (rc < 0)
 		attachment->peer2peer = false;
@@ -2109,7 +2109,7 @@ static int hl_ts_alloc_buf(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *args)
 
 	/* Allocate the internal kernel buffer */
 	size = num_elements * sizeof(struct hl_user_pending_interrupt);
-	p = vmalloc(size);
+	p = vzalloc(size);
 	if (!p)
 		goto free_user_buff;
 
@@ -2312,8 +2312,7 @@ static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
 	if (!userptr->pages)
 		return -ENOMEM;
 
-	rc = pin_user_pages_fast(start, npages,
-				 FOLL_FORCE | FOLL_WRITE | FOLL_LONGTERM,
+	rc = pin_user_pages_fast(start, npages, FOLL_WRITE | FOLL_LONGTERM,
 				 userptr->pages);
 
 	if (rc != npages) {
@@ -2508,24 +2507,20 @@ static int va_range_init(struct hl_device *hdev, struct hl_va_range **va_ranges,
 
 	/*
 	 * PAGE_SIZE alignment
-	 * it is the callers responsibility to align the addresses if the
+	 * it is the caller's responsibility to align the addresses if the
 	 * page size is not a power of 2
 	 */
 
 	if (is_power_of_2(page_size)) {
-		if (start & (PAGE_SIZE - 1)) {
-			start &= PAGE_MASK;
-			start += PAGE_SIZE;
-		}
+		start = round_up(start, page_size);
 
 		/*
 		 * The end of the range is inclusive, hence we need to align it
 		 * to the end of the last full page in the range. For example if
 		 * end = 0x3ff5 with page size 0x1000, we need to align it to
-		 * 0x2fff. The remainig 0xff5 bytes do not form a full page.
+		 * 0x2fff. The remaining 0xff5 bytes do not form a full page.
 		 */
-		if ((end + 1) & (PAGE_SIZE - 1))
-			end = ((end + 1) & PAGE_MASK) - 1;
+		end = round_down(end + 1, page_size) - 1;
 	}
 
 	if (start >= end) {

@@ -301,13 +301,13 @@ static void ipvlan_get_stats64(struct net_device *dev,
 		for_each_possible_cpu(idx) {
 			pcptr = per_cpu_ptr(ipvlan->pcpu_stats, idx);
 			do {
-				strt= u64_stats_fetch_begin_irq(&pcptr->syncp);
+				strt = u64_stats_fetch_begin(&pcptr->syncp);
 				rx_pkts = u64_stats_read(&pcptr->rx_pkts);
 				rx_bytes = u64_stats_read(&pcptr->rx_bytes);
 				rx_mcast = u64_stats_read(&pcptr->rx_mcast);
 				tx_pkts = u64_stats_read(&pcptr->tx_pkts);
 				tx_bytes = u64_stats_read(&pcptr->tx_bytes);
-			} while (u64_stats_fetch_retry_irq(&pcptr->syncp,
+			} while (u64_stats_fetch_retry(&pcptr->syncp,
 							   strt));
 
 			s->rx_packets += rx_pkts;

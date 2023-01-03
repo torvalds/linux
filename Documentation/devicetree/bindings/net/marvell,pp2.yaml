@@ -1,0 +1,305 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/marvell,pp2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell CN913X / Marvell Armada 375, 7K, 8K Ethernet Controller
+
+maintainers:
+  - Marcin Wojtas <mw@semihalf.com>
+  - Russell King <linux@armlinux.org>
+
+description: |
+  Marvell Armada 375 Ethernet Controller (PPv2.1)
+  Marvell Armada 7K/8K Ethernet Controller (PPv2.2)
+  Marvell CN913X Ethernet Controller (PPv2.3)
+
+properties:
+  compatible:
+    enum:
+      - marvell,armada-375-pp2
+      - marvell,armada-7k-pp22
+
+  reg:
+    minItems: 3
+    maxItems: 4
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  clocks:
+    minItems: 2
+    items:
+      - description: main controller clock
+      - description: GOP clock
+      - description: MG clock
+      - description: MG Core clock
+      - description: AXI clock
+
+  clock-names:
+    minItems: 2
+    items:
+      - const: pp_clk
+      - const: gop_clk
+      - const: mg_clk
+      - const: mg_core_clk
+      - const: axi_clk
+
+  dma-coherent: true
+
+  marvell,system-controller:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: a phandle to the system controller.
+
+patternProperties:
+  '^(ethernet-)?port@[0-2]$':
+    type: object
+    description: subnode for each ethernet port.
+    $ref: ethernet-controller.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        description: ID of the port from the MAC point of view.
+        maximum: 2
+
+      interrupts:
+        minItems: 1
+        maxItems: 10
+        description: interrupt(s) for the port
+
+      interrupt-names:
+        minItems: 1
+        items:
+          - const: hif0
+          - const: hif1
+          - const: hif2
+          - const: hif3
+          - const: hif4
+          - const: hif5
+          - const: hif6
+          - const: hif7
+          - const: hif8
+          - const: link
+
+        description: >
+          if more than a single interrupt for is given, must be the
+          name associated to the interrupts listed. Valid names are:
+          "hifX", with X in [0..8], and "link". The names "tx-cpu0",
+          "tx-cpu1", "tx-cpu2", "tx-cpu3" and "rx-shared" are supported
+          for backward compatibility but shouldn't be used for new
+          additions.
+
+      phys:
+        minItems: 1
+        maxItems: 2
+        description: >
+          Generic PHY, providing SerDes connectivity. For most modes,
+          one lane is sufficient, but some (e.g. RXAUI) may require two.
+
+      phy-mode:
+        enum:
+          - gmii
+          - sgmii
+          - rgmii-id
+          - 1000base-x
+          - 2500base-x
+          - 5gbase-r
+          - rxaui
+          - 10gbase-r
+
+      port-id:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        deprecated: true
+        description: >
+          ID of the port from the MAC point of view.
+          Legacy binding for backward compatibility.
+
+      marvell,loopback:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: port is loopback mode.
+
+      gop-port-id:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: >
+          only for marvell,armada-7k-pp22, ID of the port from the
+          GOP (Group Of Ports) point of view. This ID is used to index the
+          per-port registers in the second register area.
+
+    required:
+      - reg
+      - interrupts
+      - phy-mode
+      - port-id
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          const: marvell,armada-7k-pp22
+    then:
+      properties:
+        reg:
+          items:
+            - description: Packet Processor registers
+            - description: Networking interfaces registers
+            - description: CM3 address space used for TX Flow Control
+
+        clocks:
+          minItems: 5
+
+        clock-names:
+          minItems: 5
+
+      patternProperties:
+        '^(ethernet-)?port@[0-2]$':
+          required:
+            - gop-port-id
+
+      required:
+        - marvell,system-controller
+    else:
+      properties:
+        reg:
+          items:
+            - description: Packet Processor registers
+            - description: LMS registers
+            - description: Register area per eth0
+            - description: Register area per eth1
+
+        clocks:
+          maxItems: 2
+
+        clock-names:
+          maxItems: 2
+
+      patternProperties:
+        '^(ethernet-)?port@[0-1]$':
+          properties:
+            reg:
+              maximum: 1
+
+            gop-port-id: false
+
+additionalProperties: false
+
+examples:
+  - |
+    // For Armada 375 variant
+    #include <dt-bindings/interrupt-controller/mvebu-icu.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    ethernet@f0000 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        compatible = "marvell,armada-375-pp2";
+        reg = <0xf0000 0xa000>,
+              <0xc0000 0x3060>,
+              <0xc4000 0x100>,
+              <0xc5000 0x100>;
+        clocks = <&gateclk 3>, <&gateclk 19>;
+        clock-names = "pp_clk", "gop_clk";
+
+        ethernet-port@0 {
+            interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+            reg = <0>;
+            port-id = <0>; /* For backward compatibility. */
+            phy = <&phy0>;
+            phy-mode = "rgmii-id";
+        };
+
+        ethernet-port@1 {
+            interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+            reg = <1>;
+            port-id = <1>; /* For backward compatibility. */
+            phy = <&phy3>;
+            phy-mode = "gmii";
+        };
+    };
+
+  - |
+    // For Armada 7k/8k and Cn913x variants
+    #include <dt-bindings/interrupt-controller/mvebu-icu.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    ethernet@0 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        compatible = "marvell,armada-7k-pp22";
+        reg = <0x0 0x100000>, <0x129000 0xb000>, <0x220000 0x800>;
+        clocks = <&cp0_clk 1 3>, <&cp0_clk 1 9>,
+                 <&cp0_clk 1 5>, <&cp0_clk 1 6>, <&cp0_clk 1 18>;
+        clock-names = "pp_clk", "gop_clk", "mg_clk", "mg_core_clk", "axi_clk";
+        marvell,system-controller = <&cp0_syscon0>;
+
+        ethernet-port@0 {
+            interrupts = <ICU_GRP_NSR 39 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 43 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 47 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 51 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 55 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 59 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 63 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 67 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 71 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 129 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "hif0", "hif1", "hif2", "hif3", "hif4",
+                              "hif5", "hif6", "hif7", "hif8", "link";
+            phy-mode = "10gbase-r";
+            phys = <&cp0_comphy4 0>;
+            reg = <0>;
+            port-id = <0>; /* For backward compatibility. */
+            gop-port-id = <0>;
+        };
+
+        ethernet-port@1 {
+            interrupts = <ICU_GRP_NSR 40 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 44 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 48 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 52 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 56 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 60 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 64 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 68 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 72 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 128 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "hif0", "hif1", "hif2", "hif3", "hif4",
+                              "hif5", "hif6", "hif7", "hif8", "link";
+            phy-mode = "rgmii-id";
+            reg = <1>;
+            port-id = <1>; /* For backward compatibility. */
+            gop-port-id = <2>;
+        };
+
+        ethernet-port@2 {
+            interrupts = <ICU_GRP_NSR 41 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 45 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 49 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 53 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 57 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 61 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 65 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 69 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 73 IRQ_TYPE_LEVEL_HIGH>,
+                         <ICU_GRP_NSR 127 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "hif0", "hif1", "hif2", "hif3", "hif4",
+                              "hif5", "hif6", "hif7", "hif8", "link";
+            phy-mode = "2500base-x";
+            managed = "in-band-status";
+            phys = <&cp0_comphy5 2>;
+            sfp = <&sfp_eth3>;
+            reg = <2>;
+            port-id = <2>; /* For backward compatibility. */
+            gop-port-id = <3>;
+        };
+    };

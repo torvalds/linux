@@ -25,6 +25,9 @@ description: >
   inactive-delay, the GPIO is driven active again.  After a delay specified by wait-delay, the
   restart handler completes allowing other restart handlers to be attempted.
 
+allOf:
+  - $ref: restart-handler.yaml#
+
 properties:
   compatible:
     const: gpio-restart
@@ -41,16 +44,6 @@ properties:
       in its inactive state.
 
   priority:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    description: |
-      A priority ranging from 0 to 255 (default 129) according to the following guidelines:
-
-        0:   Restart handler of last resort, with limited restart capabilities.
-        128: Default restart handler; use if no other restart handler is expected to be available,
-             and/or if restart functionality is sufficient to restart the entire system.
-        255: Highest priority restart handler, will preempt all other restart handlers.
-    minimum: 0
-    maximum: 255
     default: 129
 
   active-delay:

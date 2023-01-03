@@ -198,8 +198,7 @@ static void rmi_i2c_unregister_transport(void *data)
 	rmi_unregister_transport_device(&rmi_i2c->xport);
 }
 
-static int rmi_i2c_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int rmi_i2c_probe(struct i2c_client *client)
 {
 	struct rmi_device_platform_data *pdata;
 	struct rmi_device_platform_data *client_pdata =
@@ -383,7 +382,7 @@ static struct i2c_driver rmi_i2c_driver = {
 		.of_match_table = of_match_ptr(rmi_i2c_of_match),
 	},
 	.id_table	= rmi_id,
-	.probe		= rmi_i2c_probe,
+	.probe_new	= rmi_i2c_probe,
 };
 
 module_i2c_driver(rmi_i2c_driver);

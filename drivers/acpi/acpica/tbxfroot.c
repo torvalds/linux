@@ -74,14 +74,14 @@ acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp)
 
 	/* Check the standard checksum */
 
-	if (acpi_tb_checksum((u8 *) rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0) {
+	if (acpi_ut_checksum((u8 *)rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0) {
 		return (AE_BAD_CHECKSUM);
 	}
 
 	/* Check extended checksum if table version >= 2 */
 
 	if ((rsdp->revision >= 2) &&
-	    (acpi_tb_checksum((u8 *) rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0)) {
+	    (acpi_ut_checksum((u8 *)rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0)) {
 		return (AE_BAD_CHECKSUM);
 	}
 
@@ -114,6 +114,7 @@ acpi_find_root_pointer(acpi_physical_address *table_address)
 	u8 *table_ptr;
 	u8 *mem_rover;
 	u32 physical_address;
+	u32 ebda_window_size;
 
 	ACPI_FUNCTION_TRACE(acpi_find_root_pointer);
 
@@ -139,26 +140,37 @@ acpi_find_root_pointer(acpi_physical_address *table_address)
 
 	/* EBDA present? */
 
-	if (physical_address > 0x400) {
+	/*
+	 * Check that the EBDA pointer from memory is sane and does not point
+	 * above valid low memory
+	 */
+	if (physical_address > 0x400 && physical_address < 0xA0000) {
 		/*
-		 * 1b) Search EBDA paragraphs (EBDA is required to be a
-		 *     minimum of 1K length)
+		 * Calculate the scan window size
+		 * The EBDA is not guaranteed to be larger than a ki_b and in case
+		 * that it is smaller, the scanning function would leave the low
+		 * memory and continue to the VGA range.
+		 */
+		ebda_window_size = ACPI_MIN(ACPI_EBDA_WINDOW_SIZE,
+					    0xA0000 - physical_address);
+
+		/*
+		 * 1b) Search EBDA paragraphs
 		 */
 		table_ptr = acpi_os_map_memory((acpi_physical_address)
 					       physical_address,
-					       ACPI_EBDA_WINDOW_SIZE);
+					       ebda_window_size);
 		if (!table_ptr) {
 			ACPI_ERROR((AE_INFO,
 				    "Could not map memory at 0x%8.8X for length %u",
-				    physical_address, ACPI_EBDA_WINDOW_SIZE));
+				    physical_address, ebda_window_size));
 
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
 		mem_rover =
-		    acpi_tb_scan_memory_for_rsdp(table_ptr,
-						 ACPI_EBDA_WINDOW_SIZE);
-		acpi_os_unmap_memory(table_ptr, ACPI_EBDA_WINDOW_SIZE);
+		    acpi_tb_scan_memory_for_rsdp(table_ptr, ebda_window_size);
+		acpi_os_unmap_memory(table_ptr, ebda_window_size);
 
 		if (mem_rover) {
 

@@ -6,7 +6,6 @@
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/sched/task.h>
-#include <linux/intel-svm.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
@@ -100,7 +99,7 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 	filp->private_data = ctx;
 
 	if (device_user_pasid_enabled(idxd)) {
-		sva = iommu_sva_bind_device(dev, current->mm, NULL);
+		sva = iommu_sva_bind_device(dev, current->mm);
 		if (IS_ERR(sva)) {
 			rc = PTR_ERR(sva);
 			dev_err(dev, "pasid allocation failed: %d\n", rc);

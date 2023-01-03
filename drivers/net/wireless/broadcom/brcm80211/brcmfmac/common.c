@@ -110,9 +110,9 @@ static int brcmf_c_download(struct brcmf_if *ifp, u16 flag,
 	dload_buf->dload_type = cpu_to_le16(DL_TYPE_CLM);
 	dload_buf->len = cpu_to_le32(len);
 	dload_buf->crc = cpu_to_le32(0);
-	len = sizeof(*dload_buf) + len - 1;
 
-	err = brcmf_fil_iovar_data_set(ifp, "clmload", dload_buf, len);
+	err = brcmf_fil_iovar_data_set(ifp, "clmload", dload_buf,
+				       struct_size(dload_buf, data, len));
 
 	return err;
 }
@@ -139,7 +139,8 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 		return 0;
 	}
 
-	chunk_buf = kzalloc(sizeof(*chunk_buf) + MAX_CHUNK_LEN - 1, GFP_KERNEL);
+	chunk_buf = kzalloc(struct_size(chunk_buf, data, MAX_CHUNK_LEN),
+			    GFP_KERNEL);
 	if (!chunk_buf) {
 		err = -ENOMEM;
 		goto done;
@@ -305,8 +306,12 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	brcmf_info("Firmware: %s %s\n", ri->chipname, buf);
 
 	/* locate firmware version number for ethtool */
-	ptr = strrchr(buf, ' ') + 1;
-	strscpy(ifp->drvr->fwver, ptr, sizeof(ifp->drvr->fwver));
+	ptr = strrchr(buf, ' ');
+	if (!ptr) {
+		bphy_err(drvr, "Retrieving version number failed");
+		goto done;
+	}
+	strscpy(ifp->drvr->fwver, ptr + 1, sizeof(ifp->drvr->fwver));
 
 	/* Query for 'clmver' to get CLM version info from firmware */
 	memset(buf, 0, sizeof(buf));

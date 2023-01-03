@@ -28,7 +28,6 @@
 
 #include <linux/pci.h>
 
-#include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
@@ -80,7 +79,6 @@ int ast_mm_init(struct ast_private *ast)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	resource_size_t base, size;
 	u32 vram_size;
-	int ret;
 
 	base = pci_resource_start(pdev, 0);
 	size = pci_resource_len(pdev, 0);
@@ -91,11 +89,13 @@ int ast_mm_init(struct ast_private *ast)
 
 	vram_size = ast_get_vram_size(ast);
 
-	ret = drmm_vram_helper_init(dev, base, vram_size);
-	if (ret) {
-		drm_err(dev, "Error initializing VRAM MM; %d\n", ret);
-		return ret;
-	}
+	ast->vram = devm_ioremap_wc(dev->dev, base, vram_size);
+	if (!ast->vram)
+		return -ENOMEM;
+
+	ast->vram_base = base;
+	ast->vram_size = vram_size;
+	ast->vram_fb_available = vram_size;
 
 	return 0;
 }

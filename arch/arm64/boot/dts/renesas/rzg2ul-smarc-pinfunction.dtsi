@@ -99,6 +99,13 @@
 		input-enable;
 	};
 
+	spi1_pins: spi1 {
+		pinmux = <RZG2L_PORT_PINMUX(4, 0, 2)>, /* CK */
+			 <RZG2L_PORT_PINMUX(4, 1, 2)>, /* MOSI */
+			 <RZG2L_PORT_PINMUX(4, 2, 2)>, /* MISO */
+			 <RZG2L_PORT_PINMUX(4, 3, 2)>; /* SSL */
+	};
+
 	ssi1_pins: ssi1 {
 		pinmux = <RZG2L_PORT_PINMUX(3, 0, 2)>, /* BCK */
 			 <RZG2L_PORT_PINMUX(3, 1, 2)>, /* RCK */

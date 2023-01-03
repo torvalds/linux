@@ -84,4 +84,6 @@ unsigned long __get_wchan(struct task_struct *p);
 
 #define cpu_relax() barrier()
 
+register unsigned long current_stack_pointer __asm__("sp");
+
 #endif /* __ASM_CSKY_PROCESSOR_H */
