@@ -334,9 +334,9 @@ static const struct parent_map gcc_parent_map_7[] = {
 	{ P_GPLL6_OUT, 3 },
 };
 
-static const struct clk_parent_data gcc_parent_data_7[] = {
-	{ .hw = &gpll0_vote.hw },
-	{ .hw = &gpll6_vote.hw },
+static const struct clk_hw * gcc_parent_hws_7[] = {
+	&gpll0_vote.hw,
+	&gpll6_vote.hw,
 };
 
 static const struct parent_map gcc_parent_map_8[] = {
@@ -363,8 +363,8 @@ static const struct parent_map gcc_parent_map_8_gp[] = {
 	{ P_GPLL0_OUT_MAIN, 1 },
 };
 
-static const struct clk_parent_data gcc_parent_data_8_gp[] = {
-	{ .hw = &gpll0_vote.hw },
+static const struct clk_hw *gcc_parent_hws_8_gp[] = {
+	&gpll0_vote.hw,
 };
 
 static const struct parent_map gcc_parent_map_9[] = {
@@ -952,8 +952,8 @@ static struct clk_rcg2 camss_gp0_clk_src = {
 	.freq_tbl = ftbl_camss_gp0_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "camss_gp0_clk_src",
-		.parent_data = gcc_parent_data_8_gp,
-		.num_parents = ARRAY_SIZE(gcc_parent_data_8_gp),
+		.parent_hws = gcc_parent_hws_8_gp,
+		.num_parents = ARRAY_SIZE(gcc_parent_hws_8_gp),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -973,8 +973,8 @@ static struct clk_rcg2 camss_gp1_clk_src = {
 	.freq_tbl = ftbl_camss_gp1_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "camss_gp1_clk_src",
-		.parent_data = gcc_parent_data_8_gp,
-		.num_parents = ARRAY_SIZE(gcc_parent_data_8_gp),
+		.parent_hws = gcc_parent_hws_8_gp,
+		.num_parents = ARRAY_SIZE(gcc_parent_hws_8_gp),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1015,8 +1015,8 @@ static struct clk_rcg2 mclk0_clk_src = {
 	.freq_tbl = ftbl_mclk_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "mclk0_clk_src",
-		.parent_data = gcc_parent_data_7,
-		.num_parents = ARRAY_SIZE(gcc_parent_data_7),
+		.parent_hws = gcc_parent_hws_7,
+		.num_parents = ARRAY_SIZE(gcc_parent_hws_7),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1029,8 +1029,8 @@ static struct clk_rcg2 mclk1_clk_src = {
 	.freq_tbl = ftbl_mclk_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "mclk1_clk_src",
-		.parent_data = gcc_parent_data_7,
-		.num_parents = ARRAY_SIZE(gcc_parent_data_7),
+		.parent_hws = gcc_parent_hws_7,
+		.num_parents = ARRAY_SIZE(gcc_parent_hws_7),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1043,8 +1043,8 @@ static struct clk_rcg2 mclk2_clk_src = {
 	.freq_tbl = ftbl_mclk_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "mclk2_clk_src",
-		.parent_data = gcc_parent_data_7,
-		.num_parents = ARRAY_SIZE(gcc_parent_data_7),
+		.parent_hws = gcc_parent_hws_7,
+		.num_parents = ARRAY_SIZE(gcc_parent_hws_7),
 		.ops = &clk_rcg2_ops,
 	},
 };
