@@ -5,7 +5,8 @@
 
 #include <kunit/test.h>
 
-#include <asm-generic/unaligned.h>
+#include <asm/unaligned.h>
+
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 
