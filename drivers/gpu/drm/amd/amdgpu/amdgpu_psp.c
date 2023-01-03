@@ -3278,41 +3278,76 @@ static int parse_ta_bin_descriptor(struct psp_context *psp,
 	return 0;
 }
 
-int psp_init_ta_microcode(struct psp_context *psp,
-			  const char *chip_name)
+static int parse_ta_v1_microcode(struct psp_context *psp)
 {
+	const struct ta_firmware_header_v1_0 *ta_hdr;
 	struct amdgpu_device *adev = psp->adev;
-	char fw_name[PSP_FW_NAME_LEN];
+
+	ta_hdr = (const struct ta_firmware_header_v1_0 *) adev->psp.ta_fw->data;
+
+	if (le16_to_cpu(ta_hdr->header.header_version_major) != 1)
+		return -EINVAL;
+
+	adev->psp.xgmi_context.context.bin_desc.fw_version =
+		le32_to_cpu(ta_hdr->xgmi.fw_version);
+	adev->psp.xgmi_context.context.bin_desc.size_bytes =
+		le32_to_cpu(ta_hdr->xgmi.size_bytes);
+	adev->psp.xgmi_context.context.bin_desc.start_addr =
+		(uint8_t *)ta_hdr +
+		le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
+
+	adev->psp.ras_context.context.bin_desc.fw_version =
+		le32_to_cpu(ta_hdr->ras.fw_version);
+	adev->psp.ras_context.context.bin_desc.size_bytes =
+		le32_to_cpu(ta_hdr->ras.size_bytes);
+	adev->psp.ras_context.context.bin_desc.start_addr =
+		(uint8_t *)adev->psp.xgmi_context.context.bin_desc.start_addr +
+		le32_to_cpu(ta_hdr->ras.offset_bytes);
+
+	adev->psp.hdcp_context.context.bin_desc.fw_version =
+		le32_to_cpu(ta_hdr->hdcp.fw_version);
+	adev->psp.hdcp_context.context.bin_desc.size_bytes =
+		le32_to_cpu(ta_hdr->hdcp.size_bytes);
+	adev->psp.hdcp_context.context.bin_desc.start_addr =
+		(uint8_t *)ta_hdr +
+		le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
+
+	adev->psp.dtm_context.context.bin_desc.fw_version =
+		le32_to_cpu(ta_hdr->dtm.fw_version);
+	adev->psp.dtm_context.context.bin_desc.size_bytes =
+		le32_to_cpu(ta_hdr->dtm.size_bytes);
+	adev->psp.dtm_context.context.bin_desc.start_addr =
+		(uint8_t *)adev->psp.hdcp_context.context.bin_desc.start_addr +
+		le32_to_cpu(ta_hdr->dtm.offset_bytes);
+
+	adev->psp.securedisplay_context.context.bin_desc.fw_version =
+		le32_to_cpu(ta_hdr->securedisplay.fw_version);
+	adev->psp.securedisplay_context.context.bin_desc.size_bytes =
+		le32_to_cpu(ta_hdr->securedisplay.size_bytes);
+	adev->psp.securedisplay_context.context.bin_desc.start_addr =
+		(uint8_t *)adev->psp.hdcp_context.context.bin_desc.start_addr +
+		le32_to_cpu(ta_hdr->securedisplay.offset_bytes);
+
+	adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
+
+	return 0;
+}
+
+static int parse_ta_v2_microcode(struct psp_context *psp)
+{
 	const struct ta_firmware_header_v2_0 *ta_hdr;
+	struct amdgpu_device *adev = psp->adev;
 	int err = 0;
 	int ta_index = 0;
 
-	if (!chip_name) {
-		dev_err(adev->dev, "invalid chip name for ta microcode\n");
-		return -EINVAL;
-	}
-
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
-	err = request_firmware(&adev->psp.ta_fw, fw_name, adev->dev);
-	if (err)
-		goto out;
-
-	err = amdgpu_ucode_validate(adev->psp.ta_fw);
-	if (err)
-		goto out;
-
 	ta_hdr = (const struct ta_firmware_header_v2_0 *)adev->psp.ta_fw->data;
 
-	if (le16_to_cpu(ta_hdr->header.header_version_major) != 2) {
-		dev_err(adev->dev, "unsupported TA header version\n");
-		err = -EINVAL;
-		goto out;
-	}
+	if (le16_to_cpu(ta_hdr->header.header_version_major) != 2)
+		return -EINVAL;
 
 	if (le32_to_cpu(ta_hdr->ta_fw_bin_count) >= UCODE_MAX_PSP_PACKAGING) {
 		dev_err(adev->dev, "packed TA count exceeds maximum limit\n");
-		err = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	for (ta_index = 0; ta_index < le32_to_cpu(ta_hdr->ta_fw_bin_count); ta_index++) {
@@ -3320,14 +3355,46 @@ int psp_init_ta_microcode(struct psp_context *psp,
 					      &ta_hdr->ta_fw_bin[ta_index],
 					      ta_hdr);
 		if (err)
-			goto out;
+			return err;
 	}
 
 	return 0;
-out:
-	dev_err(adev->dev, "fail to initialize ta microcode\n");
-	release_firmware(adev->psp.ta_fw);
-	adev->psp.ta_fw = NULL;
+}
+
+int psp_init_ta_microcode(struct psp_context *psp, const char *chip_name)
+{
+	const struct common_firmware_header *hdr;
+	struct amdgpu_device *adev = psp->adev;
+	char fw_name[PSP_FW_NAME_LEN];
+	int err;
+
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
+	err = request_firmware(&adev->psp.ta_fw, fw_name, adev->dev);
+	if (err)
+		return err;
+	err = amdgpu_ucode_validate(adev->psp.ta_fw);
+	if (err)
+		return err;
+
+	hdr = (const struct common_firmware_header *)adev->psp.ta_fw->data;
+	switch (le16_to_cpu(hdr->header_version_major)) {
+	case 1:
+		err = parse_ta_v1_microcode(psp);
+		break;
+	case 2:
+		err = parse_ta_v2_microcode(psp);
+		break;
+	default:
+		dev_err(adev->dev, "unsupported TA header version\n");
+		err = -EINVAL;
+	}
+
+	if (err) {
+		dev_err(adev->dev, "fail to initialize ta microcode\n");
+		release_firmware(adev->psp.ta_fw);
+		adev->psp.ta_fw = NULL;
+	}
+
 	return err;
 }
 
