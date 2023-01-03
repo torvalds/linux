@@ -67,6 +67,7 @@ struct vdpasim {
 	u64 features;
 	u32 groups;
 	bool running;
+	bool pending_kick;
 	/* spinlock to synchronize iommu table */
 	spinlock_t iommu_lock;
 };

@@ -358,6 +358,12 @@ static void vdpasim_kick_vq(struct vdpa_device *vdpa, u16 idx)
 	struct vdpasim *vdpasim = vdpa_to_sim(vdpa);
 	struct vdpasim_virtqueue *vq = &vdpasim->vqs[idx];
 
+	if (!vdpasim->running &&
+	    (vdpasim->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+		vdpasim->pending_kick = true;
+		return;
+	}
+
 	if (vq->ready)
 		schedule_work(&vdpasim->work);
 }
@@ -523,6 +529,27 @@ static int vdpasim_suspend(struct vdpa_device *vdpa)
 
 	spin_lock(&vdpasim->lock);
 	vdpasim->running = false;
+	spin_unlock(&vdpasim->lock);
+
+	return 0;
+}
+
+static int vdpasim_resume(struct vdpa_device *vdpa)
+{
+	struct vdpasim *vdpasim = vdpa_to_sim(vdpa);
+	int i;
+
+	spin_lock(&vdpasim->lock);
+	vdpasim->running = true;
+
+	if (vdpasim->pending_kick) {
+		/* Process pending descriptors */
+		for (i = 0; i < vdpasim->dev_attr.nvqs; ++i)
+			vdpasim_kick_vq(vdpa, i);
+
+		vdpasim->pending_kick = false;
+	}
+
 	spin_unlock(&vdpasim->lock);
 
 	return 0;
@@ -720,6 +747,7 @@ static const struct vdpa_config_ops vdpasim_config_ops = {
 	.set_status             = vdpasim_set_status,
 	.reset			= vdpasim_reset,
 	.suspend		= vdpasim_suspend,
+	.resume			= vdpasim_resume,
 	.get_config_size        = vdpasim_get_config_size,
 	.get_config             = vdpasim_get_config,
 	.set_config             = vdpasim_set_config,
@@ -753,6 +781,7 @@ static const struct vdpa_config_ops vdpasim_batch_config_ops = {
 	.set_status             = vdpasim_set_status,
 	.reset			= vdpasim_reset,
 	.suspend		= vdpasim_suspend,
+	.resume			= vdpasim_resume,
 	.get_config_size        = vdpasim_get_config_size,
 	.get_config             = vdpasim_get_config,
 	.set_config             = vdpasim_set_config,
