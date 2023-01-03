@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd.
+/*
+ * V0.0X01.0X01 fix get wrong time info issue.
+ */
 
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -15,7 +18,7 @@
 #include <media/v4l2-device.h>
 #include <linux/compat.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
 #define SGM3784_NAME			"sgm3784"
 
 #define SGM3784_REG_ID			0x00
@@ -454,14 +457,16 @@ static int sgm3784_init_controls(struct sgm3784_flash *flash,
 }
 
 static void sgm3784_get_time_info(struct v4l2_subdev *sd,
-				  struct old_timeval32 *compat_ti)
+				  struct __kernel_old_timeval *ti)
 {
 	struct sgm3784_led *led =
 		container_of(sd, struct sgm3784_led, sd);
 
-	memset(compat_ti, 0, sizeof(*compat_ti));
-	compat_ti->tv_sec = led->timestamp.tv_sec;
-	compat_ti->tv_usec = led->timestamp.tv_usec;
+	memset(ti, 0, sizeof(*ti));
+	ti->tv_sec = led->timestamp.tv_sec;
+	ti->tv_usec = led->timestamp.tv_usec;
+	v4l2_dbg(1, debug, sd,
+		 "%s: tv_sec:%ld, tv_usec:%ld\n", __func__, ti->tv_sec, ti->tv_usec);
 }
 
 static long sgm3784_ioctl(struct v4l2_subdev *sd,
@@ -471,7 +476,7 @@ static long sgm3784_ioctl(struct v4l2_subdev *sd,
 
 	switch (cmd) {
 	case RK_VIDIOC_FLASH_TIMEINFO:
-		sgm3784_get_time_info(sd, (struct old_timeval32 *)arg);
+		sgm3784_get_time_info(sd, (struct __kernel_old_timeval *)arg);
 		break;
 
 	default:
@@ -492,6 +497,7 @@ static long sgm3784_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct old_timeval32 *compat_t;
 	long ret;
+	struct __kernel_old_timeval t;
 
 	v4l2_dbg(1, debug, sd,
 		 "%s: cmd 0x%x\n", __func__, cmd);
@@ -503,8 +509,10 @@ static long sgm3784_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = -ENOMEM;
 			return ret;
 		}
-		ret = sgm3784_ioctl(sd, RK_VIDIOC_FLASH_TIMEINFO, compat_t);
+		ret = sgm3784_ioctl(sd, RK_VIDIOC_FLASH_TIMEINFO, &t);
 		if (!ret) {
+			compat_t->tv_sec = t.tv_sec;
+			compat_t->tv_usec = t.tv_usec;
 			ret = copy_to_user(up, compat_t, sizeof(*compat_t));
 			if (ret)
 				ret = -EFAULT;
