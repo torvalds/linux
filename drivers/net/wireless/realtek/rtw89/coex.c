@@ -1772,16 +1772,17 @@ static void _fw_set_policy(struct rtw89_dev *rtwdev, u16 policy_type,
 
 static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 type)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 
 	switch (type) {
 	case CXDRVINFO_INIT:
 		rtw89_fw_h2c_cxdrv_init(rtwdev);
 		break;
 	case CXDRVINFO_ROLE:
-		if (chip->chip_id == RTL8852A)
+		if (ver->fwlrole == 0)
 			rtw89_fw_h2c_cxdrv_role(rtwdev);
-		else
+		else if (ver->fwlrole == 1)
 			rtw89_fw_h2c_cxdrv_role_v1(rtwdev);
 		break;
 	case CXDRVINFO_CTRL:
