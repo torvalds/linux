@@ -7964,6 +7964,7 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 	struct brcmf_dump_survey survey = {};
 	struct ieee80211_supported_band *band;
+	enum nl80211_band band_id;
 	struct cca_msrmnt_query req;
 	u32 noise;
 	int err;
@@ -7976,21 +7977,23 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 		return -EBUSY;
 	}
 
-	band = wiphy->bands[NL80211_BAND_2GHZ];
-	if (band && idx >= band->n_channels) {
-		idx -= band->n_channels;
-		band = NULL;
-	}
+	for (band_id = 0; band_id < NUM_NL80211_BANDS; band_id++) {
+		band = wiphy->bands[band_id];
+		if (!band)
+			continue;
+		if (idx >= band->n_channels) {
+			idx -= band->n_channels;
+			continue;
+		}
 
-	if (!band || idx >= band->n_channels) {
-		band = wiphy->bands[NL80211_BAND_5GHZ];
-		if (idx >= band->n_channels)
-			return -ENOENT;
+		info->channel = &band->channels[idx];
+		break;
 	}
+	if (band_id == NUM_NL80211_BANDS)
+		return -ENOENT;
 
 	/* Setting current channel to the requested channel */
 	info->filled = 0;
-	info->channel = &band->channels[idx];
 	if (cfg80211_set_channel(wiphy, ndev, info->channel, NL80211_CHAN_HT20))
 		return 0;
 
