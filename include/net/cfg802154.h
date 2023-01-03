@@ -246,6 +246,17 @@ static inline void wpan_phy_net_set(struct wpan_phy *wpan_phy, struct net *net)
 	write_pnet(&wpan_phy->_net, net);
 }
 
+static inline bool ieee802154_chan_is_valid(struct wpan_phy *phy,
+					    u8 page, u8 channel)
+{
+	if (page > IEEE802154_MAX_PAGE ||
+	    channel > IEEE802154_MAX_CHANNEL ||
+	    !(phy->supported.channels[page] & BIT(channel)))
+		return false;
+
+	return true;
+}
+
 /**
  * struct ieee802154_addr - IEEE802.15.4 device address
  * @mode: Address mode from frame header. Can be one of:
