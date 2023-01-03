@@ -206,19 +206,9 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	r = request_firmware(&adev->vcn.fw, fw_name, adev->dev);
+	r = amdgpu_ucode_request(adev, &adev->vcn.fw, fw_name);
 	if (r) {
-		dev_err(adev->dev, "amdgpu_vcn: Can't load firmware \"%s\"\n",
-			fw_name);
-		return r;
-	}
-
-	r = amdgpu_ucode_validate(adev->vcn.fw);
-	if (r) {
-		dev_err(adev->dev, "amdgpu_vcn: Can't validate firmware \"%s\"\n",
-			fw_name);
-		release_firmware(adev->vcn.fw);
-		adev->vcn.fw = NULL;
+		amdgpu_ucode_release(&adev->vcn.fw);
 		return r;
 	}
 
@@ -339,7 +329,7 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 			amdgpu_ring_fini(&adev->vcn.inst[j].ring_enc[i]);
 	}
 
-	release_firmware(adev->vcn.fw);
+	amdgpu_ucode_release(&adev->vcn.fw);
 	mutex_destroy(&adev->vcn.vcn1_jpeg1_workaround);
 	mutex_destroy(&adev->vcn.vcn_pg_lock);
 
