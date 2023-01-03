@@ -109,10 +109,7 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", ucode_prefix);
 
-	err = request_firmware(&adev->pm.fw, fw_name, adev->dev);
-	if (err)
-		goto out;
-	err = amdgpu_ucode_validate(adev->pm.fw);
+	err = amdgpu_ucode_request(adev, &adev->pm.fw, fw_name);
 	if (err)
 		goto out;
 
@@ -130,12 +127,8 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 	}
 
 out:
-	if (err) {
-		DRM_ERROR("smu_v11_0: Failed to load firmware \"%s\"\n",
-			  fw_name);
-		release_firmware(adev->pm.fw);
-		adev->pm.fw = NULL;
-	}
+	if (err)
+		amdgpu_ucode_release(&adev->pm.fw);
 	return err;
 }
 
@@ -143,8 +136,7 @@ void smu_v11_0_fini_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	release_firmware(adev->pm.fw);
-	adev->pm.fw = NULL;
+	amdgpu_ucode_release(&adev->pm.fw);
 	adev->pm.fw_version = 0;
 }
 
