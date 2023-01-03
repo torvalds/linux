@@ -359,6 +359,14 @@ static bool vhost_vdpa_can_suspend(const struct vhost_vdpa *v)
 	return ops->suspend;
 }
 
+static bool vhost_vdpa_can_resume(const struct vhost_vdpa *v)
+{
+	struct vdpa_device *vdpa = v->vdpa;
+	const struct vdpa_config_ops *ops = vdpa->config;
+
+	return ops->resume;
+}
+
 static long vhost_vdpa_get_features(struct vhost_vdpa *v, u64 __user *featurep)
 {
 	struct vdpa_device *vdpa = v->vdpa;
@@ -606,10 +614,14 @@ static long vhost_vdpa_unlocked_ioctl(struct file *filep,
 		if (copy_from_user(&features, featurep, sizeof(features)))
 			return -EFAULT;
 		if (features & ~(VHOST_VDPA_BACKEND_FEATURES |
-				 BIT_ULL(VHOST_BACKEND_F_SUSPEND)))
+				 BIT_ULL(VHOST_BACKEND_F_SUSPEND) |
+				 BIT_ULL(VHOST_BACKEND_F_RESUME)))
 			return -EOPNOTSUPP;
 		if ((features & BIT_ULL(VHOST_BACKEND_F_SUSPEND)) &&
 		     !vhost_vdpa_can_suspend(v))
+			return -EOPNOTSUPP;
+		if ((features & BIT_ULL(VHOST_BACKEND_F_RESUME)) &&
+		     !vhost_vdpa_can_resume(v))
 			return -EOPNOTSUPP;
 		vhost_set_backend_features(&v->vdev, features);
 		return 0;
@@ -662,6 +674,8 @@ static long vhost_vdpa_unlocked_ioctl(struct file *filep,
 		features = VHOST_VDPA_BACKEND_FEATURES;
 		if (vhost_vdpa_can_suspend(v))
 			features |= BIT_ULL(VHOST_BACKEND_F_SUSPEND);
+		if (vhost_vdpa_can_resume(v))
+			features |= BIT_ULL(VHOST_BACKEND_F_RESUME);
 		if (copy_to_user(featurep, &features, sizeof(features)))
 			r = -EFAULT;
 		break;
