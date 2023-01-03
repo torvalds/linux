@@ -1480,7 +1480,7 @@ enum rtw89_btc_bt_sta_counter {
 	BTC_BCNT_STA_MAX
 };
 
-struct rtw89_btc_fbtc_rpt_ctrl {
+struct rtw89_btc_fbtc_rpt_ctrl_v1 {
 	u16 fver; /* btc_ver::fcxbtcrpt */
 	u16 rpt_cnt; /* tmr counters */
 	u32 wl_fw_coex_ver; /* match which driver's coex version */
@@ -1533,7 +1533,7 @@ struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox {
 	struct rtw89_btc_fbtc_rpt_ctrl_a2dp_empty a2dp;
 } __packed;
 
-struct rtw89_btc_fbtc_rpt_ctrl_v1 {
+struct rtw89_btc_fbtc_rpt_ctrl_v4 {
 	u8 fver;
 	u8 rsvd;
 	__le16 rsvd1;
@@ -1543,6 +1543,11 @@ struct rtw89_btc_fbtc_rpt_ctrl_v1 {
 	__le32 bt_cnt[BTC_BCNT_STA_MAX];
 	struct rtw89_mac_ax_gnt gnt_val[RTW89_PHY_MAX];
 } __packed;
+
+union rtw89_btc_fbtc_rpt_ctrl_ver_info {
+	struct rtw89_btc_fbtc_rpt_ctrl_v1 v1;
+	struct rtw89_btc_fbtc_rpt_ctrl_v4 v4;
+};
 
 enum rtw89_fbtc_ext_ctrl_type {
 	CXECTL_OFF = 0x0, /* tdma off */
@@ -2015,10 +2020,7 @@ union rtw89_btc_fbtc_btafh_info {
 
 struct rtw89_btc_report_ctrl_state {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	union {
-		struct rtw89_btc_fbtc_rpt_ctrl finfo; /* info from fw for 52A*/
-		struct rtw89_btc_fbtc_rpt_ctrl_v1 finfo_v1; /* info from fw for 52C*/
-	};
+	union rtw89_btc_fbtc_rpt_ctrl_ver_info finfo;
 };
 
 struct rtw89_btc_rpt_fbtc_tdma {
