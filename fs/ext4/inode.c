@@ -5788,7 +5788,7 @@ static int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
 	ext4_group_t groups, ngroups = ext4_get_groups_count(inode->i_sb);
 	int gdpblocks;
 	int idxblocks;
-	int ret = 0;
+	int ret;
 
 	/*
 	 * How many index blocks need to touch to map @lblocks logical blocks
