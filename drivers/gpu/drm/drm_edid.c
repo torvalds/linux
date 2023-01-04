@@ -4522,24 +4522,6 @@ static int do_y420vdb_modes(struct drm_connector *connector,
 	return modes;
 }
 
-/*
- * drm_add_cmdb_modes - Add a YCBCR 420 mode into bitmap
- * @connector: connector corresponding to the HDMI sink
- * @vic: CEA vic for the video mode to be added in the map
- *
- * Makes an entry for a videomode in the YCBCR 420 bitmap
- */
-static void
-drm_add_cmdb_modes(struct drm_connector *connector, u8 vic)
-{
-	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
-
-	if (!drm_valid_cea_vic(vic))
-		return;
-
-	bitmap_set(hdmi->y420_cmdb_modes, vic, 1);
-}
-
 /**
  * drm_display_mode_from_cea_vic() - return a mode for CEA VIC
  * @dev: DRM device
@@ -4572,7 +4554,6 @@ EXPORT_SYMBOL(drm_display_mode_from_cea_vic);
 static int add_cta_vdb_modes(struct drm_connector *connector)
 {
 	const struct drm_display_info *info = &connector->display_info;
-	const struct drm_hdmi_info *hdmi = &info->hdmi;
 	int i, modes = 0;
 
 	if (!info->vics)
@@ -4583,18 +4564,6 @@ static int add_cta_vdb_modes(struct drm_connector *connector)
 
 		mode = drm_display_mode_from_vic_index(connector, i);
 		if (mode) {
-			/*
-			 * YCBCR420 capability block contains a bitmap which
-			 * gives the index of CEA modes from CEA VDB, which
-			 * can support YCBCR 420 sampling output also (apart
-			 * from RGB/YCBCR444 etc).
-			 * For example, if the bit 0 in bitmap is set,
-			 * first mode in VDB can support YCBCR420 output too.
-			 * Add YCBCR420 modes only if sink is HDMI 2.0 capable.
-			 */
-			if (i < 64 && hdmi->y420_cmdb_map & (1ULL << i))
-				drm_add_cmdb_modes(connector, info->vics[i]);
-
 			drm_mode_probed_add(connector, mode);
 			modes++;
 		}
@@ -5188,20 +5157,26 @@ static int edid_hfeeodb_extension_block_count(const struct edid *edid)
 	return cta[4 + 2];
 }
 
-static void drm_parse_y420cmdb_bitmap(struct drm_connector *connector,
-				      const u8 *db)
+/*
+ * CTA-861 YCbCr 4:2:0 Capability Map Data Block (CTA Y420CMDB)
+ *
+ * Y420CMDB contains a bitmap which gives the index of CTA modes from CTA VDB,
+ * which can support YCBCR 420 sampling output also (apart from RGB/YCBCR444
+ * etc). For example, if the bit 0 in bitmap is set, first mode in VDB can
+ * support YCBCR420 output too.
+ */
+static void parse_cta_y420cmdb(struct drm_connector *connector,
+			       const struct cea_db *db, u64 *y420cmdb_map)
 {
 	struct drm_display_info *info = &connector->display_info;
-	struct drm_hdmi_info *hdmi = &info->hdmi;
-	u8 map_len = cea_db_payload_len(db) - 1;
-	u8 count;
+	int i, map_len = cea_db_payload_len(db) - 1;
+	const u8 *data = cea_db_data(db) + 1;
 	u64 map = 0;
 
 	if (map_len == 0) {
 		/* All CEA modes support ycbcr420 sampling also.*/
-		hdmi->y420_cmdb_map = U64_MAX;
-		info->color_formats |= DRM_COLOR_FORMAT_YCBCR420;
-		return;
+		map = U64_MAX;
+		goto out;
 	}
 
 	/*
@@ -5219,13 +5194,14 @@ static void drm_parse_y420cmdb_bitmap(struct drm_connector *connector,
 	if (WARN_ON_ONCE(map_len > 8))
 		map_len = 8;
 
-	for (count = 0; count < map_len; count++)
-		map |= (u64)db[2 + count] << (8 * count);
+	for (i = 0; i < map_len; i++)
+		map |= (u64)data[i] << (8 * i);
 
+out:
 	if (map)
 		info->color_formats |= DRM_COLOR_FORMAT_YCBCR420;
 
-	hdmi->y420_cmdb_map = map;
+	*y420cmdb_map = map;
 }
 
 static int add_cea_modes(struct drm_connector *connector,
@@ -5864,6 +5840,26 @@ static void parse_cta_vdb(struct drm_connector *connector, const struct cea_db *
 	}
 }
 
+/*
+ * Update y420_cmdb_modes based on previously parsed CTA VDB and Y420CMDB.
+ *
+ * Translate the y420cmdb_map based on VIC indexes to y420_cmdb_modes indexed
+ * using the VICs themselves.
+ */
+static void update_cta_y420cmdb(struct drm_connector *connector, u64 y420cmdb_map)
+{
+	struct drm_display_info *info = &connector->display_info;
+	struct drm_hdmi_info *hdmi = &info->hdmi;
+	int i, len = min_t(int, info->vics_len, BITS_PER_TYPE(y420cmdb_map));
+
+	for (i = 0; i < len; i++) {
+		u8 vic = info->vics[i];
+
+		if (vic && y420cmdb_map & BIT_ULL(i))
+			bitmap_set(hdmi->y420_cmdb_modes, vic, 1);
+	}
+}
+
 static bool cta_vdb_has_vic(const struct drm_connector *connector, u8 vic)
 {
 	const struct drm_display_info *info = &connector->display_info;
@@ -6181,6 +6177,7 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 	const struct cea_db *db;
 	struct cea_db_iter iter;
 	const u8 *edid_ext;
+	u64 y420cmdb_map = 0;
 
 	drm_edid_iter_begin(drm_edid, &edid_iter);
 	drm_edid_iter_for_each(edid_ext, &edid_iter) {
@@ -6218,7 +6215,7 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 		else if (cea_db_is_microsoft_vsdb(db))
 			drm_parse_microsoft_vsdb(connector, data);
 		else if (cea_db_is_y420cmdb(db))
-			drm_parse_y420cmdb_bitmap(connector, data);
+			parse_cta_y420cmdb(connector, db, &y420cmdb_map);
 		else if (cea_db_is_vcdb(db))
 			drm_parse_vcdb(connector, data);
 		else if (cea_db_is_hdmi_hdr_metadata_block(db))
@@ -6227,6 +6224,9 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 			parse_cta_vdb(connector, db);
 	}
 	cea_db_iter_end(&iter);
+
+	if (y420cmdb_map)
+		update_cta_y420cmdb(connector, y420cmdb_map);
 }
 
 static
