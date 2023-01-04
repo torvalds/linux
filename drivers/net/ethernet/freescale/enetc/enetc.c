@@ -1305,6 +1305,10 @@ static int enetc_xdp_frame_to_xdp_tx_swbd(struct enetc_bdr *tx_ring,
 	xdp_tx_swbd->xdp_frame = NULL;
 
 	n++;
+
+	if (!xdp_frame_has_frags(xdp_frame))
+		goto out;
+
 	xdp_tx_swbd = &xdp_tx_arr[n];
 
 	shinfo = xdp_get_shared_info_from_frame(xdp_frame);
@@ -1334,7 +1338,7 @@ static int enetc_xdp_frame_to_xdp_tx_swbd(struct enetc_bdr *tx_ring,
 		n++;
 		xdp_tx_swbd = &xdp_tx_arr[n];
 	}
-
+out:
 	xdp_tx_arr[n - 1].is_eof = true;
 	xdp_tx_arr[n - 1].xdp_frame = xdp_frame;
 
@@ -1390,16 +1394,12 @@ static void enetc_map_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
 {
 	struct enetc_rx_swbd *rx_swbd = enetc_get_rx_buff(rx_ring, i, size);
 	void *hard_start = page_address(rx_swbd->page) + rx_swbd->page_offset;
-	struct skb_shared_info *shinfo;
 
 	/* To be used for XDP_TX */
 	rx_swbd->len = size;
 
 	xdp_prepare_buff(xdp_buff, hard_start - rx_ring->buffer_offset,
 			 rx_ring->buffer_offset, size, false);
-
-	shinfo = xdp_get_shared_info_from_buff(xdp_buff);
-	shinfo->nr_frags = 0;
 }
 
 static void enetc_add_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
@@ -1407,7 +1407,7 @@ static void enetc_add_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
 {
 	struct skb_shared_info *shinfo = xdp_get_shared_info_from_buff(xdp_buff);
 	struct enetc_rx_swbd *rx_swbd = enetc_get_rx_buff(rx_ring, i, size);
-	skb_frag_t *frag = &shinfo->frags[shinfo->nr_frags];
+	skb_frag_t *frag;
 
 	/* To be used for XDP_TX */
 	rx_swbd->len = size;
@@ -1415,6 +1415,7 @@ static void enetc_add_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
 	if (!xdp_buff_has_frags(xdp_buff)) {
 		xdp_buff_set_frags_flag(xdp_buff);
 		shinfo->xdp_frags_size = size;
+		shinfo->nr_frags = 0;
 	} else {
 		shinfo->xdp_frags_size += size;
 	}
@@ -1422,6 +1423,7 @@ static void enetc_add_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
 	if (page_is_pfmemalloc(rx_swbd->page))
 		xdp_buff_set_frag_pfmemalloc(xdp_buff);
 
+	frag = &shinfo->frags[shinfo->nr_frags];
 	skb_frag_off_set(frag, rx_swbd->page_offset);
 	skb_frag_size_set(frag, size);
 	__skb_frag_set_page(frag, rx_swbd->page);
