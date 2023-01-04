@@ -127,6 +127,29 @@ out_power_put:
 	return IRQ_HANDLED;
 }
 
+static void ipa_interrupt_enabled_update(struct ipa *ipa)
+{
+	const struct ipa_reg *reg = ipa_reg(ipa, IPA_IRQ_EN);
+
+	iowrite32(ipa->interrupt->enabled, ipa->reg_virt + ipa_reg_offset(reg));
+}
+
+/* Enable an IPA interrupt type */
+static void ipa_interrupt_enable(struct ipa *ipa, enum ipa_irq_id ipa_irq)
+{
+	/* Update the IPA interrupt mask to enable it */
+	ipa->interrupt->enabled |= BIT(ipa_irq);
+	ipa_interrupt_enabled_update(ipa);
+}
+
+/* Disable an IPA interrupt type */
+static void ipa_interrupt_disable(struct ipa *ipa, enum ipa_irq_id ipa_irq)
+{
+	/* Update the IPA interrupt mask to disable it */
+	ipa->interrupt->enabled &= ~BIT(ipa_irq);
+	ipa_interrupt_enabled_update(ipa);
+}
+
 /* Common function used to enable/disable TX_SUSPEND for an endpoint */
 static void ipa_interrupt_suspend_control(struct ipa_interrupt *interrupt,
 					  u32 endpoint_id, bool enable)
@@ -204,36 +227,22 @@ void ipa_interrupt_simulate_suspend(struct ipa_interrupt *interrupt)
 void ipa_interrupt_add(struct ipa_interrupt *interrupt,
 		       enum ipa_irq_id ipa_irq, ipa_irq_handler_t handler)
 {
-	struct ipa *ipa = interrupt->ipa;
-	const struct ipa_reg *reg;
-
 	if (WARN_ON(ipa_irq >= IPA_IRQ_COUNT))
 		return;
 
 	interrupt->handler[ipa_irq] = handler;
 
-	/* Update the IPA interrupt mask to enable it */
-	interrupt->enabled |= BIT(ipa_irq);
-
-	reg = ipa_reg(ipa, IPA_IRQ_EN);
-	iowrite32(interrupt->enabled, ipa->reg_virt + ipa_reg_offset(reg));
+	ipa_interrupt_enable(interrupt->ipa, ipa_irq);
 }
 
 /* Remove the handler for an IPA interrupt type */
 void
 ipa_interrupt_remove(struct ipa_interrupt *interrupt, enum ipa_irq_id ipa_irq)
 {
-	struct ipa *ipa = interrupt->ipa;
-	const struct ipa_reg *reg;
-
 	if (WARN_ON(ipa_irq >= IPA_IRQ_COUNT))
 		return;
 
-	/* Update the IPA interrupt mask to disable it */
-	interrupt->enabled &= ~BIT(ipa_irq);
-
-	reg = ipa_reg(ipa, IPA_IRQ_EN);
-	iowrite32(interrupt->enabled, ipa->reg_virt + ipa_reg_offset(reg));
+	ipa_interrupt_disable(interrupt->ipa, ipa_irq);
 
 	interrupt->handler[ipa_irq] = NULL;
 }
