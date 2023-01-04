@@ -280,6 +280,7 @@ static int apple_soc_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = transition_latency;
 	policy->dvfs_possible_from_any_cpu = true;
 	policy->fast_switch_possible = true;
+	policy->suspend_freq = freq_table[0].frequency;
 
 	if (policy_has_boost_freq(policy)) {
 		ret = cpufreq_enable_boost_support();
@@ -328,6 +329,7 @@ static struct cpufreq_driver apple_soc_cpufreq_driver = {
 	.fast_switch	= apple_soc_cpufreq_fast_switch,
 	.register_em	= cpufreq_register_em_with_opp,
 	.attr		= apple_soc_cpufreq_hw_attr,
+	.suspend	= cpufreq_generic_suspend,
 };
 
 static int __init apple_soc_cpufreq_module_init(void)
