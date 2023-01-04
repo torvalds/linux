@@ -26,11 +26,8 @@
  * call drm_gem_plane_helper_prepare_fb() from their implementation of
  * struct &drm_plane_helper.prepare_fb . It sets the plane's fence from
  * the framebuffer so that the DRM core can synchronize access automatically.
- *
  * drm_gem_plane_helper_prepare_fb() can also be used directly as
- * implementation of prepare_fb. For drivers based on
- * struct drm_simple_display_pipe, drm_gem_simple_display_pipe_prepare_fb()
- * provides equivalent functionality.
+ * implementation of prepare_fb.
  *
  * .. code-block:: c
  *
@@ -39,11 +36,6 @@
  *	struct drm_plane_helper_funcs driver_plane_helper_funcs = {
  *		...,
  *		. prepare_fb = drm_gem_plane_helper_prepare_fb,
- *	};
- *
- *	struct drm_simple_display_pipe_funcs driver_pipe_funcs = {
- *		...,
- *		. prepare_fb = drm_gem_simple_display_pipe_prepare_fb,
  *	};
  *
  * A driver using a shadow buffer copies the content of the shadow buffers
@@ -204,27 +196,6 @@ error:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(drm_gem_plane_helper_prepare_fb);
-
-/**
- * drm_gem_simple_display_pipe_prepare_fb - prepare_fb helper for &drm_simple_display_pipe
- * @pipe: Simple display pipe
- * @plane_state: Plane state
- *
- * This function uses drm_gem_plane_helper_prepare_fb() to extract the fences
- * from &drm_gem_object.resv and attaches them to the plane state for the atomic
- * helper to wait on. This is necessary to correctly implement implicit
- * synchronization for any buffers shared as a struct &dma_buf. Drivers can use
- * this as their &drm_simple_display_pipe_funcs.prepare_fb callback.
- *
- * See drm_gem_plane_helper_prepare_fb() for a discussion of implicit and
- * explicit fencing in atomic modeset updates.
- */
-int drm_gem_simple_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
-					   struct drm_plane_state *plane_state)
-{
-	return drm_gem_plane_helper_prepare_fb(&pipe->plane, plane_state);
-}
-EXPORT_SYMBOL(drm_gem_simple_display_pipe_prepare_fb);
 
 /*
  * Shadow-buffered Planes

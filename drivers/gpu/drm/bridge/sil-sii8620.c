@@ -2284,8 +2284,7 @@ static const struct drm_bridge_funcs sii8620_bridge_funcs = {
 	.mode_valid = sii8620_mode_valid,
 };
 
-static int sii8620_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sii8620_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct sii8620 *ctx;
@@ -2379,7 +2378,7 @@ static struct i2c_driver sii8620_driver = {
 		.name	= "sii8620",
 		.of_match_table = of_match_ptr(sii8620_dt_match),
 	},
-	.probe		= sii8620_probe,
+	.probe_new	= sii8620_probe,
 	.remove		= sii8620_remove,
 	.id_table = sii8620_id,
 };

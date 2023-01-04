@@ -63,6 +63,12 @@ config DRM_USE_DYNAMIC_DEBUG
 	  bytes per callsite, the .data costs can be substantial, and
 	  are therefore configurable.
 
+config DRM_KUNIT_TEST_HELPERS
+	tristate
+	depends on DRM && KUNIT
+	help
+	  KUnit Helpers for KMS drivers.
+
 config DRM_KUNIT_TEST
 	tristate "KUnit tests for DRM" if !KUNIT_ALL_TESTS
 	depends on DRM && KUNIT
@@ -73,6 +79,7 @@ config DRM_KUNIT_TEST
 	select DRM_KMS_HELPER
 	select DRM_BUDDY
 	select DRM_EXPORT_FOR_TESTS if m
+	select DRM_KUNIT_TEST_HELPERS
 	default KUNIT_ALL_TESTS
 	help
 	  This builds unit tests for DRM. This option is not useful for

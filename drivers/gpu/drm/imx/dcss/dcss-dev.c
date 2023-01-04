@@ -249,8 +249,7 @@ void dcss_dev_destroy(struct dcss_dev *dcss)
 	kfree(dcss);
 }
 
-#ifdef CONFIG_PM_SLEEP
-int dcss_dev_suspend(struct device *dev)
+static int dcss_dev_suspend(struct device *dev)
 {
 	struct dcss_dev *dcss = dcss_drv_dev_to_dcss(dev);
 	struct drm_device *ddev = dcss_drv_dev_to_drm(dev);
@@ -273,7 +272,7 @@ int dcss_dev_suspend(struct device *dev)
 	return 0;
 }
 
-int dcss_dev_resume(struct device *dev)
+static int dcss_dev_resume(struct device *dev)
 {
 	struct dcss_dev *dcss = dcss_drv_dev_to_dcss(dev);
 	struct drm_device *ddev = dcss_drv_dev_to_drm(dev);
@@ -296,10 +295,8 @@ int dcss_dev_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM
-int dcss_dev_runtime_suspend(struct device *dev)
+static int dcss_dev_runtime_suspend(struct device *dev)
 {
 	struct dcss_dev *dcss = dcss_drv_dev_to_dcss(dev);
 	int ret;
@@ -313,7 +310,7 @@ int dcss_dev_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-int dcss_dev_runtime_resume(struct device *dev)
+static int dcss_dev_runtime_resume(struct device *dev)
 {
 	struct dcss_dev *dcss = dcss_drv_dev_to_dcss(dev);
 
@@ -325,4 +322,8 @@ int dcss_dev_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
+
+EXPORT_GPL_DEV_PM_OPS(dcss_dev_pm_ops) = {
+	RUNTIME_PM_OPS(dcss_dev_runtime_suspend, dcss_dev_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(dcss_dev_suspend, dcss_dev_resume)
+};

@@ -28,6 +28,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <drm/ttm/ttm_tt.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_chan.h"

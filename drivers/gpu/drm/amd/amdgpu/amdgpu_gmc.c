@@ -35,6 +35,7 @@
 #include "amdgpu_xgmi.h"
 
 #include <drm/drm_drv.h>
+#include <drm/ttm/ttm_tt.h>
 
 /**
  * amdgpu_gmc_pdb0_alloc - allocate vram for pdb0

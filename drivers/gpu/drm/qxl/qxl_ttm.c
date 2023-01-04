@@ -29,10 +29,10 @@
 #include <drm/drm_file.h>
 #include <drm/drm_debugfs.h>
 #include <drm/qxl_drm.h>
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_range_manager.h>
+#include <drm/ttm/ttm_tt.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"

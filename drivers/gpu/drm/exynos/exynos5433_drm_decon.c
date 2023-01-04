@@ -710,7 +710,6 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_PM
 static int exynos5433_decon_suspend(struct device *dev)
 {
 	struct decon_context *ctx = dev_get_drvdata(dev);
@@ -741,14 +740,10 @@ err:
 
 	return ret;
 }
-#endif
 
-static const struct dev_pm_ops exynos5433_decon_pm_ops = {
-	SET_RUNTIME_PM_OPS(exynos5433_decon_suspend, exynos5433_decon_resume,
-			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				     pm_runtime_force_resume)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(exynos5433_decon_pm_ops,
+				 exynos5433_decon_suspend,
+				 exynos5433_decon_resume, NULL);
 
 static const struct of_device_id exynos5433_decon_driver_dt_match[] = {
 	{
@@ -881,7 +876,7 @@ struct platform_driver exynos5433_decon_driver = {
 	.remove		= exynos5433_decon_remove,
 	.driver		= {
 		.name	= "exynos5433-decon",
-		.pm	= &exynos5433_decon_pm_ops,
+		.pm	= pm_ptr(&exynos5433_decon_pm_ops),
 		.of_match_table = exynos5433_decon_driver_dt_match,
 	},
 };

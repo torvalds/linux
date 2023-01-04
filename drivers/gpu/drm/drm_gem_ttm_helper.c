@@ -3,6 +3,8 @@
 #include <linux/module.h>
 
 #include <drm/drm_gem_ttm_helper.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_tt.h>
 
 /**
  * DOC: overview

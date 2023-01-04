@@ -12,8 +12,8 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_writeback.h>
 
-#define XRES_MIN    20
-#define YRES_MIN    20
+#define XRES_MIN    10
+#define YRES_MIN    10
 
 #define XRES_DEF  1024
 #define YRES_DEF   768

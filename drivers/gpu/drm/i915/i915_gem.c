@@ -1099,7 +1099,7 @@ void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 {
 	while (atomic_read(&i915->mm.free_count)) {
 		flush_work(&i915->mm.free_work);
-		flush_delayed_work(&i915->bdev.wq);
+		drain_workqueue(i915->bdev.wq);
 		rcu_barrier();
 	}
 }

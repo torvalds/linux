@@ -1018,8 +1018,7 @@ static int tc358768_get_regulators(struct tc358768_priv *priv)
 	return ret;
 }
 
-static int tc358768_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int tc358768_i2c_probe(struct i2c_client *client)
 {
 	struct tc358768_priv *priv;
 	struct device *dev = &client->dev;
@@ -1085,7 +1084,7 @@ static struct i2c_driver tc358768_driver = {
 		.of_match_table = tc358768_of_ids,
 	},
 	.id_table = tc358768_i2c_ids,
-	.probe = tc358768_i2c_probe,
+	.probe_new = tc358768_i2c_probe,
 	.remove	= tc358768_i2c_remove,
 };
 module_i2c_driver(tc358768_driver);

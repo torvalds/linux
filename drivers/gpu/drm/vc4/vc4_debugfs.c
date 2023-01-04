@@ -34,9 +34,9 @@ vc4_debugfs_init(struct drm_minor *minor)
 
 static int vc4_debugfs_regset32(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *drm = node->minor->dev;
-	struct debugfs_regset32 *regset = node->info_ent->data;
+	struct drm_debugfs_entry *entry = m->private;
+	struct drm_device *drm = entry->dev;
+	struct debugfs_regset32 *regset = entry->file.data;
 	struct drm_printer p = drm_seq_file_printer(m);
 	int idx;
 
@@ -50,31 +50,9 @@ static int vc4_debugfs_regset32(struct seq_file *m, void *unused)
 	return 0;
 }
 
-int vc4_debugfs_add_file(struct drm_minor *minor,
-			 const char *name,
-			 int (*show)(struct seq_file*, void*),
-			 void *data)
+void vc4_debugfs_add_regset32(struct drm_device *drm,
+			      const char *name,
+			      struct debugfs_regset32 *regset)
 {
-	struct drm_device *dev = minor->dev;
-	struct dentry *root = minor->debugfs_root;
-	struct drm_info_list *file;
-
-	file = drmm_kzalloc(dev, sizeof(*file), GFP_KERNEL);
-	if (!file)
-		return -ENOMEM;
-
-	file->name = name;
-	file->show = show;
-	file->data = data;
-
-	drm_debugfs_create_files(file, 1, root, minor);
-
-	return 0;
-}
-
-int vc4_debugfs_add_regset32(struct drm_minor *minor,
-			     const char *name,
-			     struct debugfs_regset32 *regset)
-{
-	return vc4_debugfs_add_file(minor, name, vc4_debugfs_regset32, regset);
+	drm_debugfs_add_file(drm, name, vc4_debugfs_regset32, regset);
 }

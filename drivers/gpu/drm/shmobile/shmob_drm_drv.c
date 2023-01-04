@@ -143,7 +143,6 @@ static const struct drm_driver shmob_drm_driver = {
  * Power management
  */
 
-#ifdef CONFIG_PM_SLEEP
 static int shmob_drm_pm_suspend(struct device *dev)
 {
 	struct shmob_drm_device *sdev = dev_get_drvdata(dev);
@@ -165,11 +164,9 @@ static int shmob_drm_pm_resume(struct device *dev)
 	drm_kms_helper_poll_enable(sdev->ddev);
 	return 0;
 }
-#endif
 
-static const struct dev_pm_ops shmob_drm_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(shmob_drm_pm_suspend, shmob_drm_pm_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(shmob_drm_pm_ops,
+				shmob_drm_pm_suspend, shmob_drm_pm_resume);
 
 /* -----------------------------------------------------------------------------
  * Platform driver
@@ -292,7 +289,7 @@ static struct platform_driver shmob_drm_platform_driver = {
 	.remove		= shmob_drm_remove,
 	.driver		= {
 		.name	= "shmob-drm",
-		.pm	= &shmob_drm_pm_ops,
+		.pm	= pm_sleep_ptr(&shmob_drm_pm_ops),
 	},
 };
 

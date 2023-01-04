@@ -5,8 +5,8 @@
 
 #include <linux/shmem_fs.h>
 
-#include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_tt.h>
 #include <drm/drm_buddy.h>
 
 #include "i915_drv.h"
@@ -599,13 +599,16 @@ i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
 static int i915_ttm_truncate(struct drm_i915_gem_object *obj)
 {
 	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
-	int err;
+	long err;
 
 	WARN_ON_ONCE(obj->mm.madv == I915_MADV_WILLNEED);
 
-	err = ttm_bo_wait(bo, true, false);
-	if (err)
+	err = dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP,
+				    true, 15 * HZ);
+	if (err < 0)
 		return err;
+	if (err == 0)
+		return -EBUSY;
 
 	err = i915_ttm_move_notify(bo);
 	if (err)

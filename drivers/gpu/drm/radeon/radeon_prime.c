@@ -29,6 +29,8 @@
 #include <drm/drm_prime.h>
 #include <drm/radeon_drm.h>
 
+#include <drm/ttm/ttm_tt.h>
+
 #include "radeon.h"
 #include "radeon_prime.h"
 

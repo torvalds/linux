@@ -1214,8 +1214,7 @@ static const u16 anx78xx_chipid_list[] = {
 	0x7818,
 };
 
-static int anx78xx_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int anx78xx_i2c_probe(struct i2c_client *client)
 {
 	struct anx78xx *anx78xx;
 	struct anx78xx_platform_data *pdata;
@@ -1390,7 +1389,7 @@ static struct i2c_driver anx78xx_driver = {
 		   .name = "anx7814",
 		   .of_match_table = of_match_ptr(anx78xx_match_table),
 		  },
-	.probe = anx78xx_i2c_probe,
+	.probe_new = anx78xx_i2c_probe,
 	.remove = anx78xx_i2c_remove,
 	.id_table = anx78xx_id,
 };

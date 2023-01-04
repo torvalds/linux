@@ -19,11 +19,12 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <drm/ttm/ttm_tt.h>
+
 #include "nouveau_mem.h"
 #include "nouveau_drv.h"
 #include "nouveau_bo.h"
 
-#include <drm/ttm/ttm_bo_driver.h>
 
 #include <nvif/class.h>
 #include <nvif/if000a.h>

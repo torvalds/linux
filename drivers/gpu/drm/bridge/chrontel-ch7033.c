@@ -528,8 +528,7 @@ static const struct regmap_config ch7033_regmap_config = {
 	.max_register = 0x7f,
 };
 
-static int ch7033_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ch7033_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ch7033_priv *priv;
@@ -604,7 +603,7 @@ static const struct i2c_device_id ch7033_ids[] = {
 MODULE_DEVICE_TABLE(i2c, ch7033_ids);
 
 static struct i2c_driver ch7033_driver = {
-	.probe = ch7033_probe,
+	.probe_new = ch7033_probe,
 	.remove = ch7033_remove,
 	.driver = {
 		.name = "ch7033",
