@@ -24,14 +24,13 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 
-#include "display/intel_dp.h"
-
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_dp.h"
 #include "intel_dp_aux.h"
 #include "intel_hdmi.h"
 #include "intel_psr.h"

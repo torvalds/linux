@@ -24,15 +24,15 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
-#include <acpi/video.h>
+#include <linux/dma-resv.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/dma-resv.h>
 #include <linux/slab.h>
 #include <linux/string_helpers.h>
 #include <linux/vga_switcheroo.h>
+#include <acpi/video.h>
 
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_atomic.h>
@@ -45,28 +45,6 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
 
-#include "display/intel_audio.h"
-#include "display/intel_crt.h"
-#include "display/intel_ddi.h"
-#include "display/intel_display_debugfs.h"
-#include "display/intel_display_power.h"
-#include "display/intel_dp.h"
-#include "display/intel_dp_mst.h"
-#include "display/intel_dpll.h"
-#include "display/intel_dpll_mgr.h"
-#include "display/intel_drrs.h"
-#include "display/intel_dsi.h"
-#include "display/intel_dvo.h"
-#include "display/intel_fb.h"
-#include "display/intel_gmbus.h"
-#include "display/intel_hdmi.h"
-#include "display/intel_lvds.h"
-#include "display/intel_sdvo.h"
-#include "display/intel_snps_phy.h"
-#include "display/intel_tv.h"
-#include "display/intel_vdsc.h"
-#include "display/intel_vrr.h"
-
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_object.h"
 
@@ -76,31 +54,48 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
+#include "i9xx_plane.h"
 #include "icl_dsi.h"
 #include "intel_acpi.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
+#include "intel_audio.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_color.h"
+#include "intel_crt.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
+#include "intel_ddi.h"
 #include "intel_de.h"
+#include "intel_display_debugfs.h"
+#include "intel_display_power.h"
 #include "intel_display_types.h"
 #include "intel_dmc.h"
+#include "intel_dp.h"
 #include "intel_dp_link_training.h"
+#include "intel_dp_mst.h"
 #include "intel_dpio_phy.h"
+#include "intel_dpll.h"
+#include "intel_dpll_mgr.h"
 #include "intel_dpt.h"
+#include "intel_drrs.h"
+#include "intel_dsi.h"
+#include "intel_dvo.h"
+#include "intel_fb.h"
 #include "intel_fbc.h"
 #include "intel_fbdev.h"
 #include "intel_fdi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_frontbuffer.h"
+#include "intel_gmbus.h"
 #include "intel_hdcp.h"
+#include "intel_hdmi.h"
 #include "intel_hotplug.h"
 #include "intel_hti.h"
-#include "intel_modeset_verify.h"
+#include "intel_lvds.h"
 #include "intel_modeset_setup.h"
+#include "intel_modeset_verify.h"
 #include "intel_overlay.h"
 #include "intel_panel.h"
 #include "intel_pch_display.h"
@@ -112,10 +107,14 @@
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_quirks.h"
+#include "intel_sdvo.h"
+#include "intel_snps_phy.h"
 #include "intel_sprite.h"
 #include "intel_tc.h"
+#include "intel_tv.h"
+#include "intel_vdsc.h"
 #include "intel_vga.h"
-#include "i9xx_plane.h"
+#include "intel_vrr.h"
 #include "skl_scaler.h"
 #include "skl_universal_plane.h"
 #include "skl_watermark.h"
