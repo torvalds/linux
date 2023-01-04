@@ -487,6 +487,13 @@ int bch2_btree_key_cache_journal_flush(struct journal *j,
 		six_unlock_read(&ck->c.lock);
 		goto unlock;
 	}
+
+	if (ck->seq != seq) {
+		bch2_journal_pin_update(&c->journal, ck->seq, &ck->journal,
+					bch2_btree_key_cache_journal_flush);
+		six_unlock_read(&ck->c.lock);
+		goto unlock;
+	}
 	six_unlock_read(&ck->c.lock);
 
 	ret = bch2_trans_do(c, NULL, NULL, 0,
@@ -547,8 +554,9 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 			kick_reclaim = true;
 	}
 
-	bch2_journal_pin_update(&c->journal, trans->journal_res.seq,
-				&ck->journal, bch2_btree_key_cache_journal_flush);
+	bch2_journal_pin_add(&c->journal, trans->journal_res.seq,
+			     &ck->journal, bch2_btree_key_cache_journal_flush);
+	ck->seq = trans->journal_res.seq;
 
 	if (kick_reclaim)
 		journal_reclaim_kick(&c->journal);
