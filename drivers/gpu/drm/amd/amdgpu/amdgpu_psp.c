@@ -1907,7 +1907,7 @@ out_unlock:
 static int psp_securedisplay_initialize(struct psp_context *psp)
 {
 	int ret;
-	struct securedisplay_cmd *securedisplay_cmd;
+	struct ta_securedisplay_cmd *securedisplay_cmd;
 
 	/*
 	 * TODO: bypass the initialize in sriov for now

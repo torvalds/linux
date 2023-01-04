@@ -103,7 +103,7 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 {
 	struct secure_display_context *secure_display_ctx;
 	struct psp_context *psp;
-	struct securedisplay_cmd *securedisplay_cmd;
+	struct ta_securedisplay_cmd *securedisplay_cmd;
 	struct drm_crtc *crtc;
 	struct dc_stream_state *stream;
 	uint8_t phy_inst;
