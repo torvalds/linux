@@ -1236,13 +1236,18 @@ static void io_req_local_work_add(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	if (!llist_add(&req->io_task_work.node, &ctx->work_llist))
+	percpu_ref_get(&ctx->refs);
+
+	if (!llist_add(&req->io_task_work.node, &ctx->work_llist)) {
+		percpu_ref_put(&ctx->refs);
 		return;
+	}
 	/* need it for the following io_cqring_wake() */
 	smp_mb__after_atomic();
 
 	if (unlikely(atomic_read(&req->task->io_uring->in_idle))) {
 		io_move_task_work_from_local(ctx);
+		percpu_ref_put(&ctx->refs);
 		return;
 	}
 
@@ -1252,6 +1257,7 @@ static void io_req_local_work_add(struct io_kiocb *req)
 	if (ctx->has_evfd)
 		io_eventfd_signal(ctx);
 	__io_cqring_wake(ctx);
+	percpu_ref_put(&ctx->refs);
 }
 
 void __io_req_task_work_add(struct io_kiocb *req, bool allow_local)
