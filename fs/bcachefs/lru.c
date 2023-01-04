@@ -19,6 +19,12 @@ int bch2_lru_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		return -BCH_ERR_invalid_bkey;
 	}
 
+	if (!k.k->p.offset) {
+		prt_printf(err, "lru entry at time=0");
+		return -BCH_ERR_invalid_bkey;
+
+	}
+
 	return 0;
 }
 
