@@ -4497,10 +4497,8 @@ drm_display_mode_from_vic_index(struct drm_connector *connector, int vic_index)
 static int do_y420vdb_modes(struct drm_connector *connector,
 			    const u8 *svds, u8 svds_len)
 {
-	int modes = 0, i;
 	struct drm_device *dev = connector->dev;
-	struct drm_display_info *info = &connector->display_info;
-	struct drm_hdmi_info *hdmi = &info->hdmi;
+	int modes = 0, i;
 
 	for (i = 0; i < svds_len; i++) {
 		u8 vic = svd_to_vic(svds[i]);
@@ -4512,13 +4510,10 @@ static int do_y420vdb_modes(struct drm_connector *connector,
 		newmode = drm_mode_duplicate(dev, cea_mode_for_vic(vic));
 		if (!newmode)
 			break;
-		bitmap_set(hdmi->y420_vdb_modes, vic, 1);
 		drm_mode_probed_add(connector, newmode);
 		modes++;
 	}
 
-	if (modes > 0)
-		info->color_formats |= DRM_COLOR_FORMAT_YCBCR420;
 	return modes;
 }
 
@@ -5876,6 +5871,26 @@ static bool cta_vdb_has_vic(const struct drm_connector *connector, u8 vic)
 	return false;
 }
 
+/* CTA-861-H YCbCr 4:2:0 Video Data Block (CTA Y420VDB) */
+static void parse_cta_y420vdb(struct drm_connector *connector,
+			      const struct cea_db *db)
+{
+	struct drm_display_info *info = &connector->display_info;
+	struct drm_hdmi_info *hdmi = &info->hdmi;
+	const u8 *svds = cea_db_data(db) + 1;
+	int i;
+
+	for (i = 0; i < cea_db_payload_len(db) - 1; i++) {
+		u8 vic = svd_to_vic(svds[i]);
+
+		if (!drm_valid_cea_vic(vic))
+			continue;
+
+		bitmap_set(hdmi->y420_vdb_modes, vic, 1);
+		info->color_formats |= DRM_COLOR_FORMAT_YCBCR420;
+	}
+}
+
 static void drm_parse_vcdb(struct drm_connector *connector, const u8 *db)
 {
 	struct drm_display_info *info = &connector->display_info;
@@ -6216,6 +6231,8 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 			drm_parse_microsoft_vsdb(connector, data);
 		else if (cea_db_is_y420cmdb(db))
 			parse_cta_y420cmdb(connector, db, &y420cmdb_map);
+		else if (cea_db_is_y420vdb(db))
+			parse_cta_y420vdb(connector, db);
 		else if (cea_db_is_vcdb(db))
 			drm_parse_vcdb(connector, data);
 		else if (cea_db_is_hdmi_hdr_metadata_block(db))
