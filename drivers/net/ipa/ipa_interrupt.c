@@ -135,7 +135,7 @@ static void ipa_interrupt_enabled_update(struct ipa *ipa)
 }
 
 /* Enable an IPA interrupt type */
-static void ipa_interrupt_enable(struct ipa *ipa, enum ipa_irq_id ipa_irq)
+void ipa_interrupt_enable(struct ipa *ipa, enum ipa_irq_id ipa_irq)
 {
 	/* Update the IPA interrupt mask to enable it */
 	ipa->interrupt->enabled |= BIT(ipa_irq);
@@ -143,7 +143,7 @@ static void ipa_interrupt_enable(struct ipa *ipa, enum ipa_irq_id ipa_irq)
 }
 
 /* Disable an IPA interrupt type */
-static void ipa_interrupt_disable(struct ipa *ipa, enum ipa_irq_id ipa_irq)
+void ipa_interrupt_disable(struct ipa *ipa, enum ipa_irq_id ipa_irq)
 {
 	/* Update the IPA interrupt mask to disable it */
 	ipa->interrupt->enabled &= ~BIT(ipa_irq);
@@ -231,8 +231,6 @@ void ipa_interrupt_add(struct ipa_interrupt *interrupt,
 		return;
 
 	interrupt->handler[ipa_irq] = handler;
-
-	ipa_interrupt_enable(interrupt->ipa, ipa_irq);
 }
 
 /* Remove the handler for an IPA interrupt type */
@@ -241,8 +239,6 @@ ipa_interrupt_remove(struct ipa_interrupt *interrupt, enum ipa_irq_id ipa_irq)
 {
 	if (WARN_ON(ipa_irq >= IPA_IRQ_COUNT))
 		return;
-
-	ipa_interrupt_disable(interrupt->ipa, ipa_irq);
 
 	interrupt->handler[ipa_irq] = NULL;
 }

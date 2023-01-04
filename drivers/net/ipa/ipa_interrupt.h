@@ -11,6 +11,7 @@
 
 struct ipa;
 struct ipa_interrupt;
+enum ipa_irq_id;
 
 /**
  * typedef ipa_irq_handler_t - IPA interrupt handler function type
@@ -84,6 +85,20 @@ void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt);
  * channel is suspended.
  */
 void ipa_interrupt_simulate_suspend(struct ipa_interrupt *interrupt);
+
+/**
+ * ipa_interrupt_enable() - Enable an IPA interrupt type
+ * @ipa:	IPA pointer
+ * @ipa_irq:	IPA interrupt ID
+ */
+void ipa_interrupt_enable(struct ipa *ipa, enum ipa_irq_id ipa_irq);
+
+/**
+ * ipa_interrupt_disable() - Disable an IPA interrupt type
+ * @ipa:	IPA pointer
+ * @ipa_irq:	IPA interrupt ID
+ */
+void ipa_interrupt_disable(struct ipa *ipa, enum ipa_irq_id ipa_irq);
 
 /**
  * ipa_interrupt_config() - Configure the IPA interrupt framework

@@ -337,10 +337,13 @@ int ipa_power_setup(struct ipa *ipa)
 
 	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_TX_SUSPEND,
 			  ipa_suspend_handler);
+	ipa_interrupt_enable(ipa, IPA_IRQ_TX_SUSPEND);
 
 	ret = device_init_wakeup(&ipa->pdev->dev, true);
-	if (ret)
+	if (ret) {
+		ipa_interrupt_disable(ipa, IPA_IRQ_TX_SUSPEND);
 		ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
+	}
 
 	return ret;
 }
@@ -348,6 +351,7 @@ int ipa_power_setup(struct ipa *ipa)
 void ipa_power_teardown(struct ipa *ipa)
 {
 	(void)device_init_wakeup(&ipa->pdev->dev, false);
+	ipa_interrupt_disable(ipa, IPA_IRQ_TX_SUSPEND);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
 }
 
