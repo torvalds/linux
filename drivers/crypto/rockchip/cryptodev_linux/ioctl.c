@@ -682,19 +682,6 @@ cryptodev_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int
-clonefd(struct file *filp)
-{
-	int ret;
-	ret = get_unused_fd_flags(0);
-	if (ret >= 0) {
-			get_file(filp);
-			fd_install(ret, filp);
-	}
-
-	return ret;
-}
-
 #ifdef ENABLE_ASYNC
 /* enqueue a job for asynchronous completion
  *
@@ -961,18 +948,19 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 	case CIOCASYMFEAT:
 		return put_user(0, p);
 	case CRIOGET:
-		fd = clonefd(filp);
+		fd = get_unused_fd_flags(0);
+		if (unlikely(fd < 0))
+			return fd;
+
 		ret = put_user(fd, p);
 		if (unlikely(ret)) {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0))
-			sys_close(fd);
-#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0))
-			ksys_close(fd);
-#else
-			close_fd(fd);
-#endif
+			put_unused_fd(fd);
 			return ret;
 		}
+
+		get_file(filp);
+		fd_install(fd, filp);
+
 		return ret;
 	case CIOCGSESSION:
 		if (unlikely(copy_from_user(&sop, arg, sizeof(sop))))
