@@ -30,6 +30,8 @@
 #include "ipa_uc.h"
 #include "ipa_interrupt.h"
 
+typedef void (*ipa_irq_handler_t)(struct ipa *ipa, enum ipa_irq_id irq_id);
+
 /**
  * struct ipa_interrupt - IPA interrupt information
  * @ipa:		IPA pointer
@@ -223,20 +225,6 @@ void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt)
 void ipa_interrupt_simulate_suspend(struct ipa_interrupt *interrupt)
 {
 	ipa_interrupt_process(interrupt, IPA_IRQ_TX_SUSPEND);
-}
-
-/* Add a handler for an IPA interrupt */
-void ipa_interrupt_add(struct ipa_interrupt *interrupt,
-		       enum ipa_irq_id ipa_irq, ipa_irq_handler_t handler)
-{
-	WARN_ON(ipa_irq >= IPA_IRQ_COUNT);
-}
-
-/* Remove the handler for an IPA interrupt type */
-void
-ipa_interrupt_remove(struct ipa_interrupt *interrupt, enum ipa_irq_id ipa_irq)
-{
-	WARN_ON(ipa_irq >= IPA_IRQ_COUNT);
 }
 
 /* Configure the IPA interrupt framework */

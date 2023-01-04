@@ -182,13 +182,9 @@ void ipa_uc_interrupt_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 /* Configure the IPA microcontroller subsystem */
 void ipa_uc_config(struct ipa *ipa)
 {
-	struct ipa_interrupt *interrupt = ipa->interrupt;
-
 	ipa->uc_powered = false;
 	ipa->uc_loaded = false;
-	ipa_interrupt_add(interrupt, IPA_IRQ_UC_0, ipa_uc_interrupt_handler);
 	ipa_interrupt_enable(ipa, IPA_IRQ_UC_0);
-	ipa_interrupt_add(interrupt, IPA_IRQ_UC_1, ipa_uc_interrupt_handler);
 	ipa_interrupt_enable(ipa, IPA_IRQ_UC_1);
 }
 
@@ -198,9 +194,7 @@ void ipa_uc_deconfig(struct ipa *ipa)
 	struct device *dev = &ipa->pdev->dev;
 
 	ipa_interrupt_disable(ipa, IPA_IRQ_UC_1);
-	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_1);
 	ipa_interrupt_disable(ipa, IPA_IRQ_UC_0);
-	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_0);
 	if (ipa->uc_loaded)
 		ipa_power_retention(ipa, false);
 
