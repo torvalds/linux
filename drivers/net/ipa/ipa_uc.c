@@ -170,7 +170,7 @@ static void ipa_uc_response_hdlr(struct ipa *ipa)
 	}
 }
 
-static void ipa_uc_interrupt_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
+void ipa_uc_interrupt_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 {
 	/* Silently ignore anything unrecognized */
 	if (irq_id == IPA_IRQ_UC_0)

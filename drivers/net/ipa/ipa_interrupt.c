@@ -26,6 +26,8 @@
 #include "ipa.h"
 #include "ipa_reg.h"
 #include "ipa_endpoint.h"
+#include "ipa_power.h"
+#include "ipa_uc.h"
 #include "ipa_interrupt.h"
 
 /**
@@ -227,20 +229,14 @@ void ipa_interrupt_simulate_suspend(struct ipa_interrupt *interrupt)
 void ipa_interrupt_add(struct ipa_interrupt *interrupt,
 		       enum ipa_irq_id ipa_irq, ipa_irq_handler_t handler)
 {
-	if (WARN_ON(ipa_irq >= IPA_IRQ_COUNT))
-		return;
-
-	interrupt->handler[ipa_irq] = handler;
+	WARN_ON(ipa_irq >= IPA_IRQ_COUNT);
 }
 
 /* Remove the handler for an IPA interrupt type */
 void
 ipa_interrupt_remove(struct ipa_interrupt *interrupt, enum ipa_irq_id ipa_irq)
 {
-	if (WARN_ON(ipa_irq >= IPA_IRQ_COUNT))
-		return;
-
-	interrupt->handler[ipa_irq] = NULL;
+	WARN_ON(ipa_irq >= IPA_IRQ_COUNT);
 }
 
 /* Configure the IPA interrupt framework */
@@ -282,6 +278,10 @@ struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa)
 		dev_err(dev, "error %d enabling wakeup for \"ipa\" IRQ\n", ret);
 		goto err_free_irq;
 	}
+
+	interrupt->handler[IPA_IRQ_UC_0] = ipa_uc_interrupt_handler;
+	interrupt->handler[IPA_IRQ_UC_1] = ipa_uc_interrupt_handler;
+	interrupt->handler[IPA_IRQ_TX_SUSPEND] = ipa_power_suspend_handler;
 
 	return interrupt;
 
