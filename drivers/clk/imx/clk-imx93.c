@@ -326,6 +326,8 @@ static int imx93_clocks_probe(struct platform_device *pdev)
 		goto unregister_hws;
 	}
 
+	imx_register_uart_clocks();
+
 	return 0;
 
 unregister_hws:
