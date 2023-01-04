@@ -32,6 +32,7 @@ struct am65_cpsw_slave_data {
 	struct device_node		*phy_node;
 	phy_interface_t			phy_if;
 	struct phy			*ifphy;
+	struct phy			*serdes_phy;
 	bool				rx_pause;
 	bool				tx_pause;
 	u8				mac_addr[ETH_ALEN];
