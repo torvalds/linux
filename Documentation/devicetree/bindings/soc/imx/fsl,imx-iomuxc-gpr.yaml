@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/imx/fsl,imx-iomuxc-gpr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale IOMUX Controller General Purpose Registers
+
+maintainers:
+  - Peng Fan <peng.fan@nxp.com>
+
+description:
+  i.MX Processors have an IOMUXC General Purpose Register group for
+  various System Settings
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: fsl,imx8mq-iomuxc-gpr
+          - const: syscon
+          - const: simple-mfd
+      - items:
+          - enum:
+              - fsl,imx8mm-iomuxc-gpr
+              - fsl,imx8mn-iomuxc-gpr
+              - fsl,imx8mp-iomuxc-gpr
+          - const: syscon
+
+  reg:
+    maxItems: 1
+
+  mux-controller:
+    type: object
+    $ref: /schemas/mux/reg-mux.yaml
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  # Pinmux controller node
+  - |
+    iomuxc_gpr: syscon@30340000 {
+        compatible = "fsl,imx8mq-iomuxc-gpr", "syscon", "simple-mfd";
+        reg = <0x30340000 0x10000>;
+
+        mux: mux-controller {
+            compatible = "mmio-mux";
+            #mux-control-cells = <1>;
+            mux-reg-masks = <0x34 0x00000004>; /* MIPI_MUX_SEL */
+        };
+    };
+
+...
