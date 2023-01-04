@@ -124,7 +124,7 @@ static struct ipa_uc_mem_area *ipa_uc_shared(struct ipa *ipa)
 }
 
 /* Microcontroller event IPA interrupt handler */
-static void ipa_uc_event_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
+static void ipa_uc_event_handler(struct ipa *ipa)
 {
 	struct ipa_uc_mem_area *shared = ipa_uc_shared(ipa);
 	struct device *dev = &ipa->pdev->dev;
@@ -138,7 +138,7 @@ static void ipa_uc_event_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 }
 
 /* Microcontroller response IPA interrupt handler */
-static void ipa_uc_response_hdlr(struct ipa *ipa, enum ipa_irq_id irq_id)
+static void ipa_uc_response_hdlr(struct ipa *ipa)
 {
 	struct ipa_uc_mem_area *shared = ipa_uc_shared(ipa);
 	struct device *dev = &ipa->pdev->dev;
@@ -170,13 +170,24 @@ static void ipa_uc_response_hdlr(struct ipa *ipa, enum ipa_irq_id irq_id)
 	}
 }
 
+static void ipa_uc_interrupt_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
+{
+	/* Silently ignore anything unrecognized */
+	if (irq_id == IPA_IRQ_UC_0)
+		ipa_uc_event_handler(ipa);
+	else if (irq_id == IPA_IRQ_UC_1)
+		ipa_uc_response_hdlr(ipa);
+}
+
 /* Configure the IPA microcontroller subsystem */
 void ipa_uc_config(struct ipa *ipa)
 {
+	struct ipa_interrupt *interrupt = ipa->interrupt;
+
 	ipa->uc_powered = false;
 	ipa->uc_loaded = false;
-	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_UC_0, ipa_uc_event_handler);
-	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_UC_1, ipa_uc_response_hdlr);
+	ipa_interrupt_add(interrupt, IPA_IRQ_UC_0, ipa_uc_interrupt_handler);
+	ipa_interrupt_add(interrupt, IPA_IRQ_UC_1, ipa_uc_interrupt_handler);
 }
 
 /* Inverse of ipa_uc_config() */
