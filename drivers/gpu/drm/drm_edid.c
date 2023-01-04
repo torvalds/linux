@@ -6522,6 +6522,18 @@ out:
 	if (info->quirks & EDID_QUIRK_CAP_DSC_15BPP)
 		info->max_dsc_bpp = 15;
 
+	if (info->quirks & EDID_QUIRK_FORCE_6BPC)
+		info->bpc = 6;
+
+	if (info->quirks & EDID_QUIRK_FORCE_8BPC)
+		info->bpc = 8;
+
+	if (info->quirks & EDID_QUIRK_FORCE_10BPC)
+		info->bpc = 10;
+
+	if (info->quirks & EDID_QUIRK_FORCE_12BPC)
+		info->bpc = 12;
+
 	/* Depends on info->cea_rev set by drm_parse_cea_ext() above */
 	drm_edid_to_eld(connector, drm_edid);
 }
@@ -6621,7 +6633,7 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
 static int _drm_edid_connector_update(struct drm_connector *connector,
 				      const struct drm_edid *drm_edid)
 {
-	struct drm_display_info *info = &connector->display_info;
+	const struct drm_display_info *info = &connector->display_info;
 	int num_modes = 0;
 
 	/*
@@ -6660,18 +6672,6 @@ static int _drm_edid_connector_update(struct drm_connector *connector,
 
 	if (info->quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector);
-
-	if (info->quirks & EDID_QUIRK_FORCE_6BPC)
-		info->bpc = 6;
-
-	if (info->quirks & EDID_QUIRK_FORCE_8BPC)
-		info->bpc = 8;
-
-	if (info->quirks & EDID_QUIRK_FORCE_10BPC)
-		info->bpc = 10;
-
-	if (info->quirks & EDID_QUIRK_FORCE_12BPC)
-		info->bpc = 12;
 
 	return num_modes;
 }
