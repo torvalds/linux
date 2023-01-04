@@ -213,6 +213,8 @@ struct amdgpu_gfx_ras {
 	int (*rlc_gc_fed_irq)(struct amdgpu_device *adev,
 				struct amdgpu_irq_src *source,
 				struct amdgpu_iv_entry *entry);
+	int (*poison_consumption_handler)(struct amdgpu_device *adev,
+						struct amdgpu_iv_entry *entry);
 };
 
 struct amdgpu_gfx_funcs {
@@ -437,4 +439,6 @@ int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev);
 void amdgpu_gfx_cp_init_microcode(struct amdgpu_device *adev, uint32_t ucode_id);
 
 int amdgpu_gfx_ras_sw_init(struct amdgpu_device *adev);
+int amdgpu_gfx_poison_consumption_handler(struct amdgpu_device *adev,
+						struct amdgpu_iv_entry *entry);
 #endif

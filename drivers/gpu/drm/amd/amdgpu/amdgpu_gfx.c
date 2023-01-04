@@ -731,6 +731,15 @@ int amdgpu_gfx_ras_sw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+int amdgpu_gfx_poison_consumption_handler(struct amdgpu_device *adev,
+						struct amdgpu_iv_entry *entry)
+{
+	if (adev->gfx.ras && adev->gfx.ras->poison_consumption_handler)
+		return adev->gfx.ras->poison_consumption_handler(adev, entry);
+
+	return 0;
+}
+
 int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
 		void *err_data,
 		struct amdgpu_iv_entry *entry)

@@ -70,6 +70,19 @@ static int gfx_v11_0_3_rlc_gc_fed_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int gfx_v11_0_3_poison_consumption_handler(struct amdgpu_device *adev,
+					struct amdgpu_iv_entry *entry)
+{
+	/* Workaround: when vmid and pasid are both zero, trigger gpu reset in KGD. */
+	if (entry && (entry->client_id == SOC21_IH_CLIENTID_GFX) &&
+	    (entry->src_id == GFX_11_0_0__SRCID__RLC_GC_FED_INTERRUPT) &&
+	     !entry->vmid && !entry->pasid)
+		amdgpu_ras_reset_gpu(adev);
+
+	return 0;
+}
+
 struct amdgpu_gfx_ras gfx_v11_0_3_ras = {
 	.rlc_gc_fed_irq = gfx_v11_0_3_rlc_gc_fed_irq,
+	.poison_consumption_handler = gfx_v11_0_3_poison_consumption_handler,
 };
