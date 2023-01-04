@@ -414,7 +414,7 @@
 				reg = <0x30330000 0x10000>;
 			};
 
-			gpr: iomuxc-gpr@30340000 {
+			gpr: syscon@30340000 {
 				compatible = "fsl,imx8mp-iomuxc-gpr", "syscon";
 				reg = <0x30340000 0x10000>;
 			};
