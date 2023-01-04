@@ -5864,6 +5864,22 @@ static void parse_cta_vdb(struct drm_connector *connector, const struct cea_db *
 	}
 }
 
+static bool cta_vdb_has_vic(const struct drm_connector *connector, u8 vic)
+{
+	const struct drm_display_info *info = &connector->display_info;
+	int i;
+
+	if (!vic || !info->vics)
+		return false;
+
+	for (i = 0; i < info->vics_len; i++) {
+		if (info->vics[i] == vic)
+			return true;
+	}
+
+	return false;
+}
+
 static void drm_parse_vcdb(struct drm_connector *connector, const u8 *db)
 {
 	struct drm_display_info *info = &connector->display_info;
@@ -6909,10 +6925,14 @@ static u8 drm_mode_cea_vic(const struct drm_connector *connector,
  *
  * HDMI 1.4 (CTA-861-D) VIC range: [1..64]
  * HDMI 2.0 (CTA-861-F) VIC range: [1..107]
+ *
+ * If the sink lists the VIC in CTA VDB, assume it's fine, regardless of HDMI
+ * version.
  */
 static u8 vic_for_avi_infoframe(const struct drm_connector *connector, u8 vic)
 {
-	if (!is_hdmi2_sink(connector) && vic > 64)
+	if (!is_hdmi2_sink(connector) && vic > 64 &&
+	    !cta_vdb_has_vic(connector, vic))
 		return 0;
 
 	return vic;
