@@ -87,6 +87,14 @@ static struct platform_device *it87_pdev[2];
 #define	DEVID	0x20	/* Register: Device ID */
 #define	DEVREV	0x22	/* Register: Device Revision */
 
+static inline void __superio_enter(int ioreg)
+{
+	outb(0x87, ioreg);
+	outb(0x01, ioreg);
+	outb(0x55, ioreg);
+	outb(ioreg == REG_4E ? 0xaa : 0x55, ioreg);
+}
+
 static inline int superio_inb(int ioreg, int reg)
 {
 	outb(reg, ioreg);
@@ -124,10 +132,7 @@ static inline int superio_enter(int ioreg)
 	if (!request_muxed_region(ioreg, 2, DRVNAME))
 		return -EBUSY;
 
-	outb(0x87, ioreg);
-	outb(0x01, ioreg);
-	outb(0x55, ioreg);
-	outb(ioreg == REG_4E ? 0xaa : 0x55, ioreg);
+	__superio_enter(ioreg);
 	return 0;
 }
 
