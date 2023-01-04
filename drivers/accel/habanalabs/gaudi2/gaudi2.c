@@ -676,14 +676,13 @@ static const char * const gaudi2_kdma_core_interrupts_cause[GAUDI2_NUM_OF_DMA_CO
 struct gaudi2_sm_sei_cause_data {
 	const char *cause_name;
 	const char *log_name;
-	u32 log_mask;
 };
 
 static const struct gaudi2_sm_sei_cause_data
 gaudi2_sm_sei_cause[GAUDI2_NUM_OF_SM_SEI_ERR_CAUSE] = {
-	{"calculated SO value overflow/underflow", "SOB group ID", 0x7FF},
-	{"payload address of monitor is not aligned to 4B", "monitor addr", 0xFFFF},
-	{"armed monitor write got BRESP (SLVERR or DECERR)", "AXI id", 0xFFFF},
+	{"calculated SO value overflow/underflow", "SOB ID"},
+	{"payload address of monitor is not aligned to 4B", "monitor addr"},
+	{"armed monitor write got BRESP (SLVERR or DECERR)", "AXI id"},
 };
 
 static const char * const
@@ -8418,7 +8417,7 @@ static int gaudi2_handle_sm_err(struct hl_device *hdev, u16 event_type, u8 sm_in
 				"err cause: %s. %s: 0x%X\n",
 				gaudi2_sm_sei_cause[i].cause_name,
 				gaudi2_sm_sei_cause[i].log_name,
-				sei_cause_log & gaudi2_sm_sei_cause[i].log_mask);
+				sei_cause_log);
 			error_count++;
 			break;
 		}
