@@ -113,11 +113,6 @@ static void fill_cacheinfo(struct cacheinfo **this_leaf,
 	}
 }
 
-int init_cache_level(unsigned int cpu)
-{
-	return init_of_cache_level(cpu);
-}
-
 int populate_cache_leaves(unsigned int cpu)
 {
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
