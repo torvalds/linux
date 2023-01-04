@@ -710,11 +710,12 @@ ssize_t mcopy_continue(struct mm_struct *dst_mm, unsigned long start,
 			      mmap_changing, 0);
 }
 
-void uffd_wp_range(struct mm_struct *dst_mm, struct vm_area_struct *dst_vma,
+long uffd_wp_range(struct mm_struct *dst_mm, struct vm_area_struct *dst_vma,
 		   unsigned long start, unsigned long len, bool enable_wp)
 {
 	unsigned int mm_cp_flags;
 	struct mmu_gather tlb;
+	long ret;
 
 	if (enable_wp)
 		mm_cp_flags = MM_CP_UFFD_WP;
@@ -730,8 +731,10 @@ void uffd_wp_range(struct mm_struct *dst_mm, struct vm_area_struct *dst_vma,
 	if (!enable_wp && vma_wants_manual_pte_write_upgrade(dst_vma))
 		mm_cp_flags |= MM_CP_TRY_CHANGE_WRITABLE;
 	tlb_gather_mmu(&tlb, dst_mm);
-	change_protection(&tlb, dst_vma, start, start + len, mm_cp_flags);
+	ret = change_protection(&tlb, dst_vma, start, start + len, mm_cp_flags);
 	tlb_finish_mmu(&tlb);
+
+	return ret;
 }
 
 int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
@@ -740,7 +743,7 @@ int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
 {
 	struct vm_area_struct *dst_vma;
 	unsigned long page_mask;
-	int err;
+	long err;
 
 	/*
 	 * Sanitize the command parameters:
@@ -779,9 +782,12 @@ int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
 			goto out_unlock;
 	}
 
-	uffd_wp_range(dst_mm, dst_vma, start, len, enable_wp);
+	err = uffd_wp_range(dst_mm, dst_vma, start, len, enable_wp);
 
-	err = 0;
+	/* Return 0 on success, <0 on failures */
+	if (err > 0)
+		err = 0;
+
 out_unlock:
 	mmap_read_unlock(dst_mm);
 	return err;

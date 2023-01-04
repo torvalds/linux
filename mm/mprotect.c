@@ -330,28 +330,34 @@ uffd_wp_protect_file(struct vm_area_struct *vma, unsigned long cp_flags)
 /*
  * If wr-protecting the range for file-backed, populate pgtable for the case
  * when pgtable is empty but page cache exists.  When {pte|pmd|...}_alloc()
- * failed it means no memory, we don't have a better option but stop.
+ * failed we treat it the same way as pgtable allocation failures during
+ * page faults by kicking OOM and returning error.
  */
 #define  change_pmd_prepare(vma, pmd, cp_flags)				\
-	do {								\
+	({								\
+		long err = 0;						\
 		if (unlikely(uffd_wp_protect_file(vma, cp_flags))) {	\
-			if (WARN_ON_ONCE(pte_alloc(vma->vm_mm, pmd)))	\
-				break;					\
+			if (pte_alloc(vma->vm_mm, pmd))			\
+				err = -ENOMEM;				\
 		}							\
-	} while (0)
+		err;							\
+	})
+
 /*
  * This is the general pud/p4d/pgd version of change_pmd_prepare(). We need to
  * have separate change_pmd_prepare() because pte_alloc() returns 0 on success,
  * while {pmd|pud|p4d}_alloc() returns the valid pointer on success.
  */
 #define  change_prepare(vma, high, low, addr, cp_flags)			\
-	do {								\
+	  ({								\
+		long err = 0;						\
 		if (unlikely(uffd_wp_protect_file(vma, cp_flags))) {	\
 			low##_t *p = low##_alloc(vma->vm_mm, high, addr); \
-			if (WARN_ON_ONCE(p == NULL))			\
-				break;					\
+			if (p == NULL)					\
+				err = -ENOMEM;				\
 		}							\
-	} while (0)
+		err;							\
+	})
 
 static inline long change_pmd_range(struct mmu_gather *tlb,
 		struct vm_area_struct *vma, pud_t *pud, unsigned long addr,
@@ -367,11 +373,15 @@ static inline long change_pmd_range(struct mmu_gather *tlb,
 
 	pmd = pmd_offset(pud, addr);
 	do {
-		long this_pages;
+		long ret;
 
 		next = pmd_addr_end(addr, end);
 
-		change_pmd_prepare(vma, pmd, cp_flags);
+		ret = change_pmd_prepare(vma, pmd, cp_flags);
+		if (ret) {
+			pages = ret;
+			break;
+		}
 		/*
 		 * Automatic NUMA balancing walks the tables with mmap_lock
 		 * held for read. It's possible a parallel update to occur
@@ -401,7 +411,11 @@ static inline long change_pmd_range(struct mmu_gather *tlb,
 				 * cleared; make sure pmd populated if
 				 * necessary, then fall-through to pte level.
 				 */
-				change_pmd_prepare(vma, pmd, cp_flags);
+				ret = change_pmd_prepare(vma, pmd, cp_flags);
+				if (ret) {
+					pages = ret;
+					break;
+				}
 			} else {
 				/*
 				 * change_huge_pmd() does not defer TLB flushes,
@@ -422,9 +436,8 @@ static inline long change_pmd_range(struct mmu_gather *tlb,
 			}
 			/* fall through, the trans huge pmd just split */
 		}
-		this_pages = change_pte_range(tlb, vma, pmd, addr, next,
-					      newprot, cp_flags);
-		pages += this_pages;
+		pages += change_pte_range(tlb, vma, pmd, addr, next,
+					  newprot, cp_flags);
 next:
 		cond_resched();
 	} while (pmd++, addr = next, addr != end);
@@ -443,12 +456,14 @@ static inline long change_pud_range(struct mmu_gather *tlb,
 {
 	pud_t *pud;
 	unsigned long next;
-	long pages = 0;
+	long pages = 0, ret;
 
 	pud = pud_offset(p4d, addr);
 	do {
 		next = pud_addr_end(addr, end);
-		change_prepare(vma, pud, pmd, addr, cp_flags);
+		ret = change_prepare(vma, pud, pmd, addr, cp_flags);
+		if (ret)
+			return ret;
 		if (pud_none_or_clear_bad(pud))
 			continue;
 		pages += change_pmd_range(tlb, vma, pud, addr, next, newprot,
@@ -464,12 +479,14 @@ static inline long change_p4d_range(struct mmu_gather *tlb,
 {
 	p4d_t *p4d;
 	unsigned long next;
-	long pages = 0;
+	long pages = 0, ret;
 
 	p4d = p4d_offset(pgd, addr);
 	do {
 		next = p4d_addr_end(addr, end);
-		change_prepare(vma, p4d, pud, addr, cp_flags);
+		ret = change_prepare(vma, p4d, pud, addr, cp_flags);
+		if (ret)
+			return ret;
 		if (p4d_none_or_clear_bad(p4d))
 			continue;
 		pages += change_pud_range(tlb, vma, p4d, addr, next, newprot,
@@ -486,14 +503,18 @@ static long change_protection_range(struct mmu_gather *tlb,
 	struct mm_struct *mm = vma->vm_mm;
 	pgd_t *pgd;
 	unsigned long next;
-	long pages = 0;
+	long pages = 0, ret;
 
 	BUG_ON(addr >= end);
 	pgd = pgd_offset(mm, addr);
 	tlb_start_vma(tlb, vma);
 	do {
 		next = pgd_addr_end(addr, end);
-		change_prepare(vma, pgd, p4d, addr, cp_flags);
+		ret = change_prepare(vma, pgd, p4d, addr, cp_flags);
+		if (ret) {
+			pages = ret;
+			break;
+		}
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
 		pages += change_p4d_range(tlb, vma, pgd, addr, next, newprot,
