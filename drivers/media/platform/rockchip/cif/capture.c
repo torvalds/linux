@@ -2802,8 +2802,10 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	fourcc = stream->cif_fmt_out->fourcc;
 	if (fourcc == V4L2_PIX_FMT_YUYV || fourcc == V4L2_PIX_FMT_YVYU ||
 	    fourcc == V4L2_PIX_FMT_UYVY || fourcc == V4L2_PIX_FMT_VYUY) {
-		channel->fmt_val = CSI_WRDDR_TYPE_RAW8;
-		channel->width *= 2;
+		if (dev->chip_id < CHIP_RK3588_CIF) {
+			channel->fmt_val = CSI_WRDDR_TYPE_RAW8;
+			channel->width *= 2;
+		}
 		channel->virtual_width *= 2;
 	}
 	if (stream->cif_fmt_in->field == V4L2_FIELD_INTERLACED) {
