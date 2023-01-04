@@ -28,14 +28,18 @@ struct moving_context {
 	wait_queue_head_t	wait;
 };
 
-#define move_ctxt_wait_event(_ctxt, _trans, _cond)		\
-do {								\
-	bch2_moving_ctxt_do_pending_writes(_ctxt, _trans);	\
-								\
-	if (_cond)						\
-		break;						\
-	__wait_event((_ctxt)->wait,				\
-		     bch2_moving_ctxt_next_pending_write(_ctxt) || (_cond));\
+#define move_ctxt_wait_event(_ctxt, _trans, _cond)			\
+do {									\
+	bool cond_finished = false;					\
+	bch2_moving_ctxt_do_pending_writes(_ctxt, _trans);		\
+									\
+	if (_cond)							\
+		break;							\
+	__wait_event((_ctxt)->wait,					\
+		     bch2_moving_ctxt_next_pending_write(_ctxt) ||	\
+		     (cond_finished = (_cond)));			\
+	if (cond_finished)						\
+		break;							\
 } while (1)
 
 typedef bool (*move_pred_fn)(struct bch_fs *, void *, struct bkey_s_c,
