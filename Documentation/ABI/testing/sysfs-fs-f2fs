@@ -708,3 +708,12 @@ Description:	Support configuring fault injection type, should be
 		FAULT_LOCK_OP            0x000020000
 		FAULT_BLKADDR            0x000040000
 		===================      ===========
+
+What:		/sys/fs/f2fs/<disk>/discard_io_aware_gran
+Date:		January 2023
+Contact:	"Yangtao Li" <frank.li@vivo.com>
+Description:	Controls background discard granularity of inner discard thread
+		when is not in idle. Inner thread will not issue discards with size that
+		is smaller than granularity. The unit size is one block(4KB), now only
+		support configuring in range of [0, 512].
+		Default: 512
