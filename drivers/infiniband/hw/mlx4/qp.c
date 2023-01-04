@@ -102,6 +102,14 @@ enum mlx4_ib_source_type {
 	MLX4_IB_RWQ_SRC	= 1,
 };
 
+struct mlx4_ib_qp_event_work {
+	struct work_struct work;
+	struct mlx4_qp *qp;
+	enum mlx4_event type;
+};
+
+static struct workqueue_struct *mlx4_ib_qp_event_wq;
+
 static int is_tunnel_qp(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp)
 {
 	if (!mlx4_is_master(dev->dev))
@@ -200,50 +208,77 @@ static void stamp_send_wqe(struct mlx4_ib_qp *qp, int n)
 	}
 }
 
+static void mlx4_ib_handle_qp_event(struct work_struct *_work)
+{
+	struct mlx4_ib_qp_event_work *qpe_work =
+		container_of(_work, struct mlx4_ib_qp_event_work, work);
+	struct ib_qp *ibqp = &to_mibqp(qpe_work->qp)->ibqp;
+	struct ib_event event = {};
+
+	event.device = ibqp->device;
+	event.element.qp = ibqp;
+
+	switch (qpe_work->type) {
+	case MLX4_EVENT_TYPE_PATH_MIG:
+		event.event = IB_EVENT_PATH_MIG;
+		break;
+	case MLX4_EVENT_TYPE_COMM_EST:
+		event.event = IB_EVENT_COMM_EST;
+		break;
+	case MLX4_EVENT_TYPE_SQ_DRAINED:
+		event.event = IB_EVENT_SQ_DRAINED;
+		break;
+	case MLX4_EVENT_TYPE_SRQ_QP_LAST_WQE:
+		event.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		break;
+	case MLX4_EVENT_TYPE_WQ_CATAS_ERROR:
+		event.event = IB_EVENT_QP_FATAL;
+		break;
+	case MLX4_EVENT_TYPE_PATH_MIG_FAILED:
+		event.event = IB_EVENT_PATH_MIG_ERR;
+		break;
+	case MLX4_EVENT_TYPE_WQ_INVAL_REQ_ERROR:
+		event.event = IB_EVENT_QP_REQ_ERR;
+		break;
+	case MLX4_EVENT_TYPE_WQ_ACCESS_ERROR:
+		event.event = IB_EVENT_QP_ACCESS_ERR;
+		break;
+	default:
+		pr_warn("Unexpected event type %d on QP %06x\n",
+			qpe_work->type, qpe_work->qp->qpn);
+		goto out;
+	}
+
+	ibqp->event_handler(&event, ibqp->qp_context);
+
+out:
+	mlx4_put_qp(qpe_work->qp);
+	kfree(qpe_work);
+}
+
 static void mlx4_ib_qp_event(struct mlx4_qp *qp, enum mlx4_event type)
 {
-	struct ib_event event;
 	struct ib_qp *ibqp = &to_mibqp(qp)->ibqp;
+	struct mlx4_ib_qp_event_work *qpe_work;
 
 	if (type == MLX4_EVENT_TYPE_PATH_MIG)
 		to_mibqp(qp)->port = to_mibqp(qp)->alt_port;
 
-	if (ibqp->event_handler) {
-		event.device     = ibqp->device;
-		event.element.qp = ibqp;
-		switch (type) {
-		case MLX4_EVENT_TYPE_PATH_MIG:
-			event.event = IB_EVENT_PATH_MIG;
-			break;
-		case MLX4_EVENT_TYPE_COMM_EST:
-			event.event = IB_EVENT_COMM_EST;
-			break;
-		case MLX4_EVENT_TYPE_SQ_DRAINED:
-			event.event = IB_EVENT_SQ_DRAINED;
-			break;
-		case MLX4_EVENT_TYPE_SRQ_QP_LAST_WQE:
-			event.event = IB_EVENT_QP_LAST_WQE_REACHED;
-			break;
-		case MLX4_EVENT_TYPE_WQ_CATAS_ERROR:
-			event.event = IB_EVENT_QP_FATAL;
-			break;
-		case MLX4_EVENT_TYPE_PATH_MIG_FAILED:
-			event.event = IB_EVENT_PATH_MIG_ERR;
-			break;
-		case MLX4_EVENT_TYPE_WQ_INVAL_REQ_ERROR:
-			event.event = IB_EVENT_QP_REQ_ERR;
-			break;
-		case MLX4_EVENT_TYPE_WQ_ACCESS_ERROR:
-			event.event = IB_EVENT_QP_ACCESS_ERR;
-			break;
-		default:
-			pr_warn("Unexpected event type %d "
-			       "on QP %06x\n", type, qp->qpn);
-			return;
-		}
+	if (!ibqp->event_handler)
+		goto out_no_handler;
 
-		ibqp->event_handler(&event, ibqp->qp_context);
-	}
+	qpe_work = kzalloc(sizeof(*qpe_work), GFP_ATOMIC);
+	if (!qpe_work)
+		goto out_no_handler;
+
+	qpe_work->qp = qp;
+	qpe_work->type = type;
+	INIT_WORK(&qpe_work->work, mlx4_ib_handle_qp_event);
+	queue_work(mlx4_ib_qp_event_wq, &qpe_work->work);
+	return;
+
+out_no_handler:
+	mlx4_put_qp(qp);
 }
 
 static void mlx4_ib_wq_event(struct mlx4_qp *qp, enum mlx4_event type)
@@ -4467,4 +4502,18 @@ void mlx4_ib_drain_rq(struct ib_qp *qp)
 	}
 
 	handle_drain_completion(cq, &rdrain, dev);
+}
+
+int mlx4_ib_qp_event_init(void)
+{
+	mlx4_ib_qp_event_wq = alloc_ordered_workqueue("mlx4_ib_qp_event_wq", 0);
+	if (!mlx4_ib_qp_event_wq)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void mlx4_ib_qp_event_cleanup(void)
+{
+	destroy_workqueue(mlx4_ib_qp_event_wq);
 }

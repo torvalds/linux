@@ -135,7 +135,8 @@ static int rsc_event_notifier(struct notifier_block *nb,
 	case MLX5_RES_SQ:
 		qp = (struct mlx5_core_qp *)common;
 		qp->event(qp, event_type);
-		break;
+		/* Need to put resource in event handler */
+		return NOTIFY_OK;
 	case MLX5_RES_DCT:
 		dct = (struct mlx5_core_dct *)common;
 		if (event_type == MLX5_EVENT_TYPE_DCT_DRAINED)

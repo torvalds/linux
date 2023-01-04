@@ -1168,7 +1168,7 @@ enum ib_qp_create_flags {
  */
 
 struct ib_qp_init_attr {
-	/* Consumer's event_handler callback must not block */
+	/* This callback occurs in workqueue context */
 	void                  (*event_handler)(struct ib_event *, void *);
 
 	void		       *qp_context;
