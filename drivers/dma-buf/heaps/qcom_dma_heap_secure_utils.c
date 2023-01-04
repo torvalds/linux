@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
 #include <soc/qcom/secure_buffer.h>
 #include <linux/qcom_dma_heap.h>
+#include <linux/qcom_scm.h>
 
 int get_secure_vmid(unsigned long flags)
 {
@@ -254,18 +256,31 @@ int hyp_assign_from_flags(u64 base, u64 size, unsigned long flags)
 {
 	int *vmids, *modes;
 	u32 nr;
-	u32 src_vm = VMID_HLOS;
+	u64 src_vm = BIT(QCOM_SCM_VMID_HLOS);
+	struct qcom_scm_vmperm *newvm;
 	int ret;
+	int i;
 
 	ret = get_vmperm_from_ion_flags(flags, &vmids, &modes, &nr);
 	if (ret)
 		return ret;
 
-	ret = hyp_assign_phys(base, size, &src_vm, 1, vmids, modes, nr);
+	newvm = kcalloc(nr, sizeof(struct qcom_scm_vmperm), GFP_KERNEL);
+	if (!newvm) {
+		ret = -ENOMEM;
+		goto kcalloc_fail;
+	}
+	for (i = 0; i < nr; i++) {
+		newvm[i].vmid = vmids[i];
+		newvm[i].perm = modes[i];
+	}
+	ret = qcom_scm_assign_mem(base, size, &src_vm, newvm, nr);
 	if (ret)
 		pr_err("%s: Assign call failed, flags 0x%lx\n", __func__,
 		       flags);
 
+	kfree(newvm);
+kcalloc_fail:
 	kfree(modes);
 	kfree(vmids);
 	return ret;
