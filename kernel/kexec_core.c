@@ -922,7 +922,7 @@ int kimage_load_segment(struct kimage *image,
 
 struct kimage *kexec_image;
 struct kimage *kexec_crash_image;
-int kexec_load_disabled;
+static int kexec_load_disabled;
 #ifdef CONFIG_SYSCTL
 static struct ctl_table kexec_core_sysctls[] = {
 	{
@@ -945,6 +945,15 @@ static int __init kexec_core_sysctl_init(void)
 }
 late_initcall(kexec_core_sysctl_init);
 #endif
+
+bool kexec_load_permitted(void)
+{
+	/*
+	 * Only the superuser can use the kexec syscall and if it has not
+	 * been disabled.
+	 */
+	return capable(CAP_SYS_BOOT) && !kexec_load_disabled;
+}
 
 /*
  * No panic_cpu check version of crash_kexec().  This function is called
