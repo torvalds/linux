@@ -731,6 +731,8 @@ static bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data,
 	size_t ocq_size = sizeof(struct io_overflow_cqe);
 	bool is_cqe32 = (ctx->flags & IORING_SETUP_CQE32);
 
+	lockdep_assert_held(&ctx->completion_lock);
+
 	if (is_cqe32)
 		ocq_size += sizeof(struct io_uring_cqe);
 
@@ -819,9 +821,6 @@ static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 			      u32 cflags)
 {
 	struct io_uring_cqe *cqe;
-
-	if (!ctx->task_complete)
-		lockdep_assert_held(&ctx->completion_lock);
 
 	ctx->cq_extra++;
 
