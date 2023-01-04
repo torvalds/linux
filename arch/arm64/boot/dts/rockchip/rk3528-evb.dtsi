@@ -69,6 +69,7 @@
 		rockchip,card-name = "rockchip,hdmi";
 		rockchip,cpu = <&sai3>;
 		rockchip,codec = <&hdmi>;
+		rockchip,jack-det;
 	};
 
 	pdmics: dummy-codec {
