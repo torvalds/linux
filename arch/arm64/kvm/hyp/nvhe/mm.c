@@ -102,13 +102,40 @@ int __pkvm_create_private_mapping(phys_addr_t phys, size_t size,
 	return err;
 }
 
+#ifdef CONFIG_NVHE_EL2_DEBUG
+static unsigned long mod_range_start = ULONG_MAX;
+static unsigned long mod_range_end;
+
+static void update_mod_range(unsigned long addr, size_t size)
+{
+	mod_range_start = min(mod_range_start, addr);
+	mod_range_end = max(mod_range_end, addr + size);
+}
+
+static void assert_in_mod_range(unsigned long addr)
+{
+	/*
+	 * This is not entirely watertight if there are private range
+	 * allocations between modules being loaded, but in practice that is
+	 * probably going to be allocation initiated by the modules themselves.
+	 */
+	WARN_ON(addr < mod_range_start || mod_range_end <= addr);
+}
+#else
+static inline void update_mod_range(unsigned long addr, size_t size) { }
+static inline void assert_in_mod_range(unsigned long addr) { }
+#endif
+
 void *__pkvm_alloc_module_va(u64 nr_pages)
 {
+	size_t size = nr_pages << PAGE_SHIFT;
 	unsigned long addr = 0;
 
 	pkvm_modules_lock();
-	if (pkvm_modules_enabled())
-		pkvm_alloc_private_va_range(nr_pages << PAGE_SHIFT, &addr);
+	if (pkvm_modules_enabled()) {
+		if (!pkvm_alloc_private_va_range(size, &addr))
+			update_mod_range(addr, size);
+	}
 	pkvm_modules_unlock();
 
 	return (void *)addr;
@@ -116,9 +143,12 @@ void *__pkvm_alloc_module_va(u64 nr_pages)
 
 int __pkvm_map_module_page(u64 pfn, void *va, enum kvm_pgtable_prot prot)
 {
+	unsigned long addr = (unsigned long)va;
 	int ret = -EACCES;
 
 	pkvm_modules_lock();
+
+	assert_in_mod_range(addr);
 
 	if (!pkvm_modules_enabled())
 		goto err;
@@ -127,7 +157,7 @@ int __pkvm_map_module_page(u64 pfn, void *va, enum kvm_pgtable_prot prot)
 	if (ret)
 		goto err;
 
-	ret = __pkvm_create_mappings((unsigned long)va, PAGE_SIZE, hyp_pfn_to_phys(pfn), prot);
+	ret = __pkvm_create_mappings(addr, PAGE_SIZE, hyp_pfn_to_phys(pfn), prot);
 err:
 	pkvm_modules_unlock();
 
