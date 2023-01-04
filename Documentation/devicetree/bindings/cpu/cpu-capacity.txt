@@ -1,12 +1,12 @@
 ==========================================
-ARM CPUs capacity bindings
+CPU capacity bindings
 ==========================================
 
 ==========================================
 1 - Introduction
 ==========================================
 
-ARM systems may be configured to have cpus with different power/performance
+Some systems may be configured to have cpus with different power/performance
 characteristics within the same chip. In this case, additional information has
 to be made available to the kernel for it to be aware of such differences and
 take decisions accordingly.
