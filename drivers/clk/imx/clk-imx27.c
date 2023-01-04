@@ -165,7 +165,7 @@ static void __init _mx27_clocks_init(unsigned long fref)
 
 	clk_prepare_enable(clk[IMX27_CLK_EMI_AHB_GATE]);
 
-	imx_register_uart_clocks(7);
+	imx_register_uart_clocks();
 
 	imx_print_silicon_rev("i.MX27", mx27_revision());
 }

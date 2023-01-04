@@ -165,7 +165,7 @@ __setup_param("earlycon", imx_keep_uart_earlycon,
 __setup_param("earlyprintk", imx_keep_uart_earlyprintk,
 	      imx_keep_uart_clocks_param, 0);
 
-void imx_register_uart_clocks(unsigned int clk_count)
+void imx_register_uart_clocks(void)
 {
 	unsigned int num __maybe_unused;
 
