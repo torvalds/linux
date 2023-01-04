@@ -19,6 +19,8 @@ struct pkvm_module_ops {
 	int (*create_private_mapping)(phys_addr_t phys, size_t size,
 				      enum kvm_pgtable_prot prot,
 				      unsigned long *haddr);
+	void *(*alloc_module_va)(u64 nr_pages);
+	int (*map_module_page)(u64 pfn, void *va, enum kvm_pgtable_prot prot);
 	int (*register_serial_driver)(void (*hyp_putc_cb)(char));
 	void (*puts)(const char *str);
 	void (*putx64)(u64 num);

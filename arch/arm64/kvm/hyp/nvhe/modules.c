@@ -95,6 +95,8 @@ int __pkvm_close_module_registration(void)
 
 const struct pkvm_module_ops module_ops = {
 	.create_private_mapping = __pkvm_create_private_mapping,
+	.alloc_module_va = __pkvm_alloc_module_va,
+	.map_module_page = __pkvm_map_module_page,
 	.register_serial_driver = __pkvm_register_serial_driver,
 	.puts = hyp_puts,
 	.putx64 = hyp_putx64,
