@@ -310,6 +310,44 @@ int mlx5_ib_read_wqe_srq(struct mlx5_ib_srq *srq, int wqe_index, void *buffer,
 	return mlx5_ib_read_user_wqe_srq(srq, wqe_index, buffer, buflen, bc);
 }
 
+static void mlx5_ib_qp_err_syndrome(struct ib_qp *ibqp)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
+	int outlen = MLX5_ST_SZ_BYTES(query_qp_out);
+	struct mlx5_ib_qp *qp = to_mqp(ibqp);
+	void *pas_ext_union, *err_syn;
+	u32 *outb;
+	int err;
+
+	if (!MLX5_CAP_GEN(dev->mdev, qpc_extension) ||
+	    !MLX5_CAP_GEN(dev->mdev, qp_error_syndrome))
+		return;
+
+	outb = kzalloc(outlen, GFP_KERNEL);
+	if (!outb)
+		return;
+
+	err = mlx5_core_qp_query(dev, &qp->trans_qp.base.mqp, outb, outlen,
+				 true);
+	if (err)
+		goto out;
+
+	pas_ext_union =
+		MLX5_ADDR_OF(query_qp_out, outb, qp_pas_or_qpc_ext_and_pas);
+	err_syn = MLX5_ADDR_OF(qpc_extension_and_pas_list_in, pas_ext_union,
+			       qpc_data_extension.error_syndrome);
+
+	pr_err("%s/%d: QP %d error: %s (0x%x 0x%x 0x%x)\n",
+	       ibqp->device->name, ibqp->port, ibqp->qp_num,
+	       ib_wc_status_msg(
+		       MLX5_GET(cqe_error_syndrome, err_syn, syndrome)),
+	       MLX5_GET(cqe_error_syndrome, err_syn, vendor_error_syndrome),
+	       MLX5_GET(cqe_error_syndrome, err_syn, hw_syndrome_type),
+	       MLX5_GET(cqe_error_syndrome, err_syn, hw_error_syndrome));
+out:
+	kfree(outb);
+}
+
 static void mlx5_ib_handle_qp_event(struct work_struct *_work)
 {
 	struct mlx5_ib_qp_event_work *qpe_work =
@@ -349,6 +387,10 @@ static void mlx5_ib_handle_qp_event(struct work_struct *_work)
 			qpe_work->type, qpe_work->qp->qpn);
 		goto out;
 	}
+
+	if ((event.event == IB_EVENT_QP_FATAL) ||
+	    (event.event == IB_EVENT_QP_ACCESS_ERR))
+		mlx5_ib_qp_err_syndrome(ibqp);
 
 	ibqp->event_handler(&event, ibqp->qp_context);
 
@@ -4862,7 +4904,8 @@ static int query_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (!outb)
 		return -ENOMEM;
 
-	err = mlx5_core_qp_query(dev, &qp->trans_qp.base.mqp, outb, outlen);
+	err = mlx5_core_qp_query(dev, &qp->trans_qp.base.mqp, outb, outlen,
+				 false);
 	if (err)
 		goto out;
 
