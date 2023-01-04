@@ -21,6 +21,12 @@ properties:
   reg:
     maxItems: 1
 
+  nuvoton,spk-btl:
+    description:
+      If set, configure the two loudspeaker outputs as a Bridge Tied Load output
+      to drive a high power external loudspeaker.
+    $ref: /schemas/types.yaml#/definitions/flag
+
 required:
   - compatible
   - reg
