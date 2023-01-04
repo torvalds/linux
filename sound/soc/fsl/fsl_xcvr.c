@@ -22,6 +22,7 @@
 struct fsl_xcvr_soc_data {
 	const char *fw_name;
 	bool spdif_only;
+	bool use_edma;
 };
 
 struct fsl_xcvr {
@@ -537,6 +538,16 @@ static int fsl_xcvr_startup(struct snd_pcm_substream *substream,
 		dev_err(dai->dev, "%sX busy\n", tx ? "T" : "R");
 		return -EBUSY;
 	}
+
+	/*
+	 * EDMA controller needs period size to be a multiple of
+	 * tx/rx maxburst
+	 */
+	if (xcvr->soc_data->use_edma)
+		snd_pcm_hw_constraint_step(substream->runtime, 0,
+					   SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					   tx ? xcvr->dma_prms_tx.maxburst :
+					   xcvr->dma_prms_rx.maxburst);
 
 	switch (xcvr->mode) {
 	case FSL_XCVR_MODE_SPDIF:
@@ -1207,6 +1218,7 @@ static const struct fsl_xcvr_soc_data fsl_xcvr_imx8mp_data = {
 
 static const struct fsl_xcvr_soc_data fsl_xcvr_imx93_data = {
 	.spdif_only = true,
+	.use_edma = true,
 };
 
 static const struct of_device_id fsl_xcvr_dt_ids[] = {
