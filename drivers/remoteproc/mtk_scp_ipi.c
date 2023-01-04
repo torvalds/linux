@@ -160,7 +160,6 @@ int scp_ipi_send(struct mtk_scp *scp, u32 id, void *buf, unsigned int len,
 		 unsigned int wait)
 {
 	struct mtk_share_obj __iomem *send_obj = scp->send_buf;
-	unsigned long timeout;
 	u32 val;
 	int ret;
 
@@ -197,10 +196,9 @@ int scp_ipi_send(struct mtk_scp *scp, u32 id, void *buf, unsigned int len,
 
 	if (wait) {
 		/* wait for SCP's ACK */
-		timeout = msecs_to_jiffies(wait);
 		ret = wait_event_timeout(scp->ack_wq,
 					 scp->ipi_id_ack[id],
-					 timeout);
+					 msecs_to_jiffies(wait));
 		scp->ipi_id_ack[id] = false;
 		if (WARN(!ret, "scp ipi %d ack time out !", id))
 			ret = -EIO;
