@@ -5862,6 +5862,36 @@ drm_default_rgb_quant_range(const struct drm_display_mode *mode)
 }
 EXPORT_SYMBOL(drm_default_rgb_quant_range);
 
+/* CTA-861 Video Data Block (CTA VDB) */
+static void parse_cta_vdb(struct drm_connector *connector, const struct cea_db *db)
+{
+	struct drm_display_info *info = &connector->display_info;
+	int i, vic_index, len = cea_db_payload_len(db);
+	const u8 *svds = cea_db_data(db);
+	u8 *vics;
+
+	if (!len)
+		return;
+
+	/* Gracefully handle multiple VDBs, however unlikely that is */
+	vics = krealloc(info->vics, info->vics_len + len, GFP_KERNEL);
+	if (!vics)
+		return;
+
+	vic_index = info->vics_len;
+	info->vics_len += len;
+	info->vics = vics;
+
+	for (i = 0; i < len; i++) {
+		u8 vic = svd_to_vic(svds[i]);
+
+		if (!drm_valid_cea_vic(vic))
+			vic = 0;
+
+		info->vics[vic_index++] = vic;
+	}
+}
+
 static void drm_parse_vcdb(struct drm_connector *connector, const u8 *db)
 {
 	struct drm_display_info *info = &connector->display_info;
@@ -6205,6 +6235,8 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 			drm_parse_vcdb(connector, data);
 		else if (cea_db_is_hdmi_hdr_metadata_block(db))
 			drm_parse_hdr_metadata_block(connector, data);
+		else if (cea_db_tag(db) == CTA_DB_VIDEO)
+			parse_cta_vdb(connector, db);
 	}
 	cea_db_iter_end(&iter);
 }
@@ -6372,6 +6404,10 @@ static void drm_reset_display_info(struct drm_connector *connector)
 	info->mso_stream_count = 0;
 	info->mso_pixel_overlap = 0;
 	info->max_dsc_bpp = 0;
+
+	kfree(info->vics);
+	info->vics = NULL;
+	info->vics_len = 0;
 }
 
 static u32 update_display_info(struct drm_connector *connector,

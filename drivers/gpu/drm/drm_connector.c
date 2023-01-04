@@ -565,6 +565,7 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	ida_free(&dev->mode_config.connector_ida, connector->index);
 
 	kfree(connector->display_info.bus_formats);
+	kfree(connector->display_info.vics);
 	drm_mode_object_unregister(dev, &connector->base);
 	kfree(connector->name);
 	connector->name = NULL;
