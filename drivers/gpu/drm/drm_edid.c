@@ -4685,6 +4685,16 @@ static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
 	return modes;
 }
 
+static bool hdmi_vsdb_latency_present(const u8 *db)
+{
+	return db[8] & BIT(7);
+}
+
+static bool hdmi_vsdb_i_latency_present(const u8 *db)
+{
+	return hdmi_vsdb_latency_present(db) && db[8] & BIT(6);
+}
+
 /*
  * do_hdmi_vsdb_modes - Parse the HDMI Vendor Specific data block
  * @connector: connector corresponding to the HDMI sink
@@ -5357,6 +5367,7 @@ drm_parse_hdr_metadata_block(struct drm_connector *connector, const u8 *db)
 	}
 }
 
+/* HDMI Vendor-Specific Data Block (HDMI VSDB, H14b-VSDB) */
 static void
 drm_parse_hdmi_vsdb_audio(struct drm_connector *connector, const u8 *db)
 {
@@ -5364,18 +5375,18 @@ drm_parse_hdmi_vsdb_audio(struct drm_connector *connector, const u8 *db)
 
 	if (len >= 6 && (db[6] & (1 << 7)))
 		connector->eld[DRM_ELD_SAD_COUNT_CONN_TYPE] |= DRM_ELD_SUPPORTS_AI;
-	if (len >= 8) {
-		connector->latency_present[0] = db[8] >> 7;
-		connector->latency_present[1] = (db[8] >> 6) & 1;
-	}
-	if (len >= 9)
+
+	if (len >= 10 && hdmi_vsdb_latency_present(db)) {
+		connector->latency_present[0] = true;
 		connector->video_latency[0] = db[9];
-	if (len >= 10)
 		connector->audio_latency[0] = db[10];
-	if (len >= 11)
+	}
+
+	if (len >= 12 && hdmi_vsdb_i_latency_present(db)) {
+		connector->latency_present[1] = true;
 		connector->video_latency[1] = db[11];
-	if (len >= 12)
 		connector->audio_latency[1] = db[12];
+	}
 
 	drm_dbg_kms(connector->dev,
 		    "[CONNECTOR:%d:%s] HDMI: latency present %d %d, video latency %d %d, audio latency %d %d\n",
