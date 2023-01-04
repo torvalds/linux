@@ -386,7 +386,7 @@ static void __init osk_init(void)
 MACHINE_START(OMAP_OSK, "TI-OSK")
 	/* Maintainer: Dirk Behme <dirk.behme@de.bosch.com> */
 	.atag_offset	= 0x100,
-	.map_io		= omap16xx_map_io,
+	.map_io		= omap1_map_io,
 	.init_early	= omap1_init_early,
 	.init_irq	= omap1_init_irq,
 	.handle_irq	= omap1_handle_irq,
