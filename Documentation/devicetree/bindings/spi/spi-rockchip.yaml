@@ -69,6 +69,17 @@ properties:
       (may need to be fine tuned for high capacitance lines).
       If not specified 0 will be used.
 
+  csm:
+    default: 0
+    description:
+      ss_n be high for half or one sclk_out cycle after every frame data
+      is transferred.
+      If not specified 0 will be used.
+    enum:
+      - 0 # keep low
+      - 1 # half sclk_out
+      - 2 # one sclk_out
+
   pinctrl-names:
     minItems: 1
     items:
