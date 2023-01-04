@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/atomic.h>
@@ -557,6 +557,7 @@ struct haptics_play_info {
 	struct brake_cfg	*brake;
 	struct fifo_play_status	fifo_status;
 	struct mutex		lock;
+	atomic_t		gain;
 	u32			vmax_mv;
 	u32			length_us;
 	enum pattern_src	pattern_src;
@@ -608,6 +609,7 @@ struct haptics_chip {
 	struct hrtimer			hbst_off_timer;
 	struct notifier_block		hboost_nb;
 	struct mutex			vmax_lock;
+	struct work_struct		set_gain_work;
 	int				fifo_empty_irq;
 	u32				hpwr_voltage_mv;
 	u32				effects_count;
@@ -2778,22 +2780,17 @@ static int haptics_erase(struct input_dev *dev, int effect_id)
 	return rc;
 }
 
-static void haptics_set_gain(struct input_dev *dev, u16 gain)
+static void haptics_set_gain_work(struct work_struct *work)
 {
-	struct haptics_chip *chip = input_get_drvdata(dev);
+	struct haptics_chip *chip =
+		container_of(work, struct haptics_chip, set_gain_work);
 	struct haptics_hw_config *config = &chip->config;
 	struct haptics_play_info *play = &chip->play;
 	u32 vmax_mv, amplitude;
-
-	if (gain == 0)
-		return;
+	u16 gain;
 
 	mutex_lock(&play->lock);
-	if (gain > 0x7fff)
-		gain = 0x7fff;
-
-	dev_dbg(chip->dev, "Set gain: %#x\n", gain);
-
+	gain = atomic_read(&play->gain);
 	/* scale amplitude when playing in DIRECT_PLAY mode */
 	if (chip->play.pattern_src == DIRECT_PLAY) {
 		amplitude = get_direct_play_max_amplitude(chip);
@@ -2817,6 +2814,22 @@ static void haptics_set_gain(struct input_dev *dev, u16 gain)
 	play->vmax_mv = ((u32)(gain * vmax_mv)) / 0x7fff;
 	haptics_set_vmax_mv(chip, play->vmax_mv);
 	mutex_unlock(&play->lock);
+}
+
+static void haptics_set_gain(struct input_dev *dev, u16 gain)
+{
+	struct haptics_chip *chip = input_get_drvdata(dev);
+	struct haptics_play_info *play = &chip->play;
+
+	if (gain == 0)
+		return;
+
+	if (gain > 0x7fff)
+		gain = 0x7fff;
+
+	atomic_set(&play->gain, gain);
+	schedule_work(&chip->set_gain_work);
+	dev_dbg(chip->dev, "Set gain: %#x\n", gain);
 }
 
 static int haptics_store_cl_brake_settings(struct haptics_chip *chip)
@@ -5579,6 +5592,7 @@ static int haptics_probe(struct platform_device *pdev)
 	hrtimer_init(&chip->hbst_off_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	chip->hbst_off_timer.function = haptics_disable_hbst_timer;
 	INIT_DELAYED_WORK(&chip->stop_work, haptics_stop_constant_effect_play);
+	INIT_WORK(&chip->set_gain_work, haptics_set_gain_work);
 
 	atomic_set(&chip->play.fifo_status.is_busy, 0);
 	atomic_set(&chip->play.fifo_status.written_done, 0);
