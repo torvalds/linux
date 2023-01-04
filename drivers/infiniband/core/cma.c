@@ -2819,8 +2819,8 @@ int rdma_set_min_rnr_timer(struct rdma_cm_id *id, u8 min_rnr_timer)
 }
 EXPORT_SYMBOL(rdma_set_min_rnr_timer);
 
-static void route_set_path_rec_inbound(struct cma_work *work,
-				       struct sa_path_rec *path_rec)
+static int route_set_path_rec_inbound(struct cma_work *work,
+				      struct sa_path_rec *path_rec)
 {
 	struct rdma_route *route = &work->id->id.route;
 
@@ -2828,14 +2828,15 @@ static void route_set_path_rec_inbound(struct cma_work *work,
 		route->path_rec_inbound =
 			kzalloc(sizeof(*route->path_rec_inbound), GFP_KERNEL);
 		if (!route->path_rec_inbound)
-			return;
+			return -ENOMEM;
 	}
 
 	*route->path_rec_inbound = *path_rec;
+	return 0;
 }
 
-static void route_set_path_rec_outbound(struct cma_work *work,
-					struct sa_path_rec *path_rec)
+static int route_set_path_rec_outbound(struct cma_work *work,
+				       struct sa_path_rec *path_rec)
 {
 	struct rdma_route *route = &work->id->id.route;
 
@@ -2843,14 +2844,15 @@ static void route_set_path_rec_outbound(struct cma_work *work,
 		route->path_rec_outbound =
 			kzalloc(sizeof(*route->path_rec_outbound), GFP_KERNEL);
 		if (!route->path_rec_outbound)
-			return;
+			return -ENOMEM;
 	}
 
 	*route->path_rec_outbound = *path_rec;
+	return 0;
 }
 
 static void cma_query_handler(int status, struct sa_path_rec *path_rec,
-			      int num_prs, void *context)
+			      unsigned int num_prs, void *context)
 {
 	struct cma_work *work = context;
 	struct rdma_route *route;
@@ -2865,13 +2867,15 @@ static void cma_query_handler(int status, struct sa_path_rec *path_rec,
 		if (!path_rec[i].flags || (path_rec[i].flags & IB_PATH_GMP))
 			*route->path_rec = path_rec[i];
 		else if (path_rec[i].flags & IB_PATH_INBOUND)
-			route_set_path_rec_inbound(work, &path_rec[i]);
+			status = route_set_path_rec_inbound(work, &path_rec[i]);
 		else if (path_rec[i].flags & IB_PATH_OUTBOUND)
-			route_set_path_rec_outbound(work, &path_rec[i]);
-	}
-	if (!route->path_rec) {
-		status = -EINVAL;
-		goto fail;
+			status = route_set_path_rec_outbound(work,
+							     &path_rec[i]);
+		else
+			status = -EINVAL;
+
+		if (status)
+			goto fail;
 	}
 
 	route->num_pri_alt_paths = 1;
