@@ -728,6 +728,11 @@ struct drm_display_info {
 	 * @vics_len: Number of elements in vics. Internal to EDID parsing.
 	 */
 	int vics_len;
+
+	/**
+	 * @quirks: EDID based quirks. Internal to EDID parsing.
+	 */
+	u32 quirks;
 };
 
 int drm_display_info_set_bus_formats(struct drm_display_info *info,
