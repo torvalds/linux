@@ -204,6 +204,7 @@ struct rockchip_spi {
 
 	u8 n_bytes;
 	u8 rsd;
+	u8 csm;
 
 	bool cs_asserted[ROCKCHIP_SPI_MAX_CS_NUM];
 
@@ -554,6 +555,7 @@ static int rockchip_spi_config(struct rockchip_spi *rs,
 	rs->slave_abort = false;
 
 	cr0 |= rs->rsd << CR0_RSD_OFFSET;
+	cr0 |= rs->csm << CR0_CSM_OFFSET;
 	cr0 |= (spi->mode & 0x3U) << CR0_SCPH_OFFSET;
 	if (spi->mode & SPI_LSB_FIRST)
 		cr0 |= CR0_FBM_LSB << CR0_FBM_OFFSET;
@@ -850,7 +852,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	struct resource *mem;
 	struct device_node *np = pdev->dev.of_node;
-	u32 rsd_nsecs, num_cs;
+	u32 rsd_nsecs, num_cs, csm;
 	bool slave_mode;
 	struct pinctrl *pinctrl = NULL;
 	const struct rockchip_spi_quirks *quirks_cfg;
@@ -958,6 +960,15 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 					CR0_RSD_MAX * 1000000000U / rs->freq);
 		}
 		rs->rsd = rsd;
+	}
+
+	if (!device_property_read_u32(&pdev->dev, "csm", &csm)) {
+		if (csm > CR0_CSM_ONE)	{
+			dev_warn(rs->dev, "The csm value %u exceeds the limit, clamping at %u\n",
+				 csm, CR0_CSM_ONE);
+			csm = CR0_CSM_ONE;
+		}
+		rs->csm = csm;
 	}
 
 	rs->version = readl_relaxed(rs->regs + ROCKCHIP_SPI_VERSION);
