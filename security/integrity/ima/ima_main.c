@@ -563,7 +563,7 @@ static int __ima_inode_hash(struct inode *inode, struct file *file, char *buf,
 	 * ima_file_hash can be called when ima_collect_measurement has still
 	 * not been called, we might not always have a hash.
 	 */
-	if (!iint->ima_hash) {
+	if (!iint->ima_hash || !(iint->flags & IMA_COLLECTED)) {
 		mutex_unlock(&iint->mutex);
 		return -EOPNOTSUPP;
 	}
