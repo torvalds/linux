@@ -3170,6 +3170,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			hdmi->update = true;
 			hdmi_writeb(hdmi, HDMI_FC_GCP_SET_AVMUTE, HDMI_FC_GCP);
 			mdelay(50);
+			handle_plugged_change(hdmi, false);
 		} else {
 			hdmi->update = false;
 			crtc_state->mode_changed = true;
@@ -3233,6 +3234,7 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 	if (hdmi->update) {
 		dw_hdmi_setup(hdmi, hdmi->curr_conn, &hdmi->previous_mode);
 		mdelay(50);
+		handle_plugged_change(hdmi, true);
 		hdmi_writeb(hdmi, HDMI_FC_GCP_CLEAR_AVMUTE, HDMI_FC_GCP);
 		hdmi->update = false;
 	}
@@ -3831,6 +3833,7 @@ static void dw_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
 
 	mutex_lock(&hdmi->mutex);
 	hdmi->disabled = true;
+	handle_plugged_change(hdmi, false);
 	hdmi->curr_conn = NULL;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
@@ -3852,6 +3855,7 @@ static void dw_hdmi_bridge_atomic_enable(struct drm_bridge *bridge,
 	hdmi->curr_conn = connector;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
+	handle_plugged_change(hdmi, true);
 	mutex_unlock(&hdmi->mutex);
 }
 
