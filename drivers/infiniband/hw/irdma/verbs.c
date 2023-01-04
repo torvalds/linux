@@ -2771,7 +2771,6 @@ static struct ib_mr *irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 	bool use_pbles = false;
 	unsigned long flags;
 	int err = -EINVAL;
-	int ret;
 
 	if (len > iwdev->rf->sc_dev.hw_attrs.max_mr_size)
 		return ERR_PTR(-EINVAL);
@@ -2871,9 +2870,9 @@ static struct ib_mr *irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 			goto error;
 
 		if (use_pbles) {
-			ret = irdma_check_mr_contiguous(palloc,
+			err = irdma_check_mr_contiguous(palloc,
 							iwmr->page_size);
-			if (ret) {
+			if (err) {
 				irdma_free_pble(iwdev->rf->pble_rsrc, palloc);
 				iwpbl->pbl_allocated = false;
 			}
