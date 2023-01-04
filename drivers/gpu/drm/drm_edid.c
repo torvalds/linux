@@ -4695,6 +4695,16 @@ static bool hdmi_vsdb_i_latency_present(const u8 *db)
 	return hdmi_vsdb_latency_present(db) && db[8] & BIT(6);
 }
 
+static int hdmi_vsdb_latency_length(const u8 *db)
+{
+	if (hdmi_vsdb_i_latency_present(db))
+		return 4;
+	else if (hdmi_vsdb_latency_present(db))
+		return 2;
+	else
+		return 0;
+}
+
 /*
  * do_hdmi_vsdb_modes - Parse the HDMI Vendor Specific data block
  * @connector: connector corresponding to the HDMI sink
@@ -4720,13 +4730,7 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len)
 	if (!(db[8] & (1 << 5)))
 		goto out;
 
-	/* Latency_Fields_Present */
-	if (db[8] & (1 << 7))
-		offset += 2;
-
-	/* I_Latency_Fields_Present */
-	if (db[8] & (1 << 6))
-		offset += 2;
+	offset += hdmi_vsdb_latency_length(db);
 
 	/* the declared length is not long enough for the 2 first bytes
 	 * of additional video format capabilities */
