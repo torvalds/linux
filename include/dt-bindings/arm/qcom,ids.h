@@ -165,6 +165,7 @@
 
 #define QCOM_BOARD_ID_MTP			8
 #define QCOM_BOARD_ID_DRAGONBOARD		10
+#define QCOM_BOARD_ID_QRD			11
 #define QCOM_BOARD_ID_SBC			24
 
 #endif /* _DT_BINDINGS_ARM_QCOM_IDS_H */
