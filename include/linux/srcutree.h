@@ -92,16 +92,29 @@ struct srcu_struct {
 	struct lockdep_map dep_map;
 };
 
-/* Values for size state variable (->srcu_size_state). */
-#define SRCU_SIZE_SMALL		0
-#define SRCU_SIZE_ALLOC		1
-#define SRCU_SIZE_WAIT_BARRIER	2
-#define SRCU_SIZE_WAIT_CALL	3
-#define SRCU_SIZE_WAIT_CBS1	4
-#define SRCU_SIZE_WAIT_CBS2	5
-#define SRCU_SIZE_WAIT_CBS3	6
-#define SRCU_SIZE_WAIT_CBS4	7
-#define SRCU_SIZE_BIG		8
+// Values for size state variable (->srcu_size_state).  Once the state
+// has been set to SRCU_SIZE_ALLOC, the grace-period code advances through
+// this state machine one step per grace period until the SRCU_SIZE_BIG state
+// is reached.  Otherwise, the state machine remains in the SRCU_SIZE_SMALL
+// state indefinitely.
+#define SRCU_SIZE_SMALL		0	// No srcu_node combining tree, ->node == NULL
+#define SRCU_SIZE_ALLOC		1	// An srcu_node tree is being allocated, initialized,
+					//  and then referenced by ->node.  It will not be used.
+#define SRCU_SIZE_WAIT_BARRIER	2	// The srcu_node tree starts being used by everything
+					//  except call_srcu(), especially by srcu_barrier().
+					//  By the end of this state, all CPUs and threads
+					//  are aware of this tree's existence.
+#define SRCU_SIZE_WAIT_CALL	3	// The srcu_node tree starts being used by call_srcu().
+					//  By the end of this state, all of the call_srcu()
+					//  invocations that were running on a non-boot CPU
+					//  and using the boot CPU's callback queue will have
+					//  completed.
+#define SRCU_SIZE_WAIT_CBS1	4	// Don't trust the ->srcu_have_cbs[] grace-period
+#define SRCU_SIZE_WAIT_CBS2	5	//  sequence elements or the ->srcu_data_have_cbs[]
+#define SRCU_SIZE_WAIT_CBS3	6	//  CPU-bitmask elements until all four elements of
+#define SRCU_SIZE_WAIT_CBS4	7	//  each array have been initialized.
+#define SRCU_SIZE_BIG		8	// The srcu_node combining tree is fully initialized
+					//  and all aspects of it are being put to use.
 
 /* Values for state variable (bottom bits of ->srcu_gp_seq). */
 #define SRCU_STATE_IDLE		0
