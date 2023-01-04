@@ -1199,6 +1199,42 @@ static const struct super_operations zonefs_sops = {
 	.show_options	= zonefs_show_options,
 };
 
+static int zonefs_get_zgroup_inodes(struct super_block *sb)
+{
+	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
+	struct inode *dir_inode;
+	enum zonefs_ztype ztype;
+
+	for (ztype = 0; ztype < ZONEFS_ZTYPE_MAX; ztype++) {
+		if (!sbi->s_zgroup[ztype].g_nr_zones)
+			continue;
+
+		dir_inode = zonefs_get_zgroup_inode(sb, ztype);
+		if (IS_ERR(dir_inode))
+			return PTR_ERR(dir_inode);
+
+		sbi->s_zgroup[ztype].g_inode = dir_inode;
+	}
+
+	return 0;
+}
+
+static void zonefs_release_zgroup_inodes(struct super_block *sb)
+{
+	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
+	enum zonefs_ztype ztype;
+
+	if (!sbi)
+		return;
+
+	for (ztype = 0; ztype < ZONEFS_ZTYPE_MAX; ztype++) {
+		if (sbi->s_zgroup[ztype].g_inode) {
+			iput(sbi->s_zgroup[ztype].g_inode);
+			sbi->s_zgroup[ztype].g_inode = NULL;
+		}
+	}
+}
+
 /*
  * Check that the device is zoned. If it is, get the list of zones and create
  * sub-directories and files according to the device zone configuration and
@@ -1297,6 +1333,14 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root)
 		goto cleanup;
 
+	/*
+	 * Take a reference on the zone groups directory inodes
+	 * to keep them in the inode cache.
+	 */
+	ret = zonefs_get_zgroup_inodes(sb);
+	if (ret)
+		goto cleanup;
+
 	ret = zonefs_sysfs_register(sb);
 	if (ret)
 		goto cleanup;
@@ -1304,6 +1348,7 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 
 cleanup:
+	zonefs_release_zgroup_inodes(sb);
 	zonefs_free_zgroups(sb);
 
 	return ret;
@@ -1318,6 +1363,9 @@ static struct dentry *zonefs_mount(struct file_system_type *fs_type,
 static void zonefs_kill_super(struct super_block *sb)
 {
 	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
+
+	/* Release the reference on the zone group directory inodes */
+	zonefs_release_zgroup_inodes(sb);
 
 	kill_block_super(sb);
 

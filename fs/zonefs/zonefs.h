@@ -76,6 +76,7 @@ struct zonefs_zone {
  * as files, one file per zone.
  */
 struct zonefs_zone_group {
+	struct inode		*g_inode;
 	unsigned int		g_nr_zones;
 	struct zonefs_zone	*g_zones;
 };
