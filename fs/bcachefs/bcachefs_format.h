@@ -1404,7 +1404,8 @@ struct bch_sb_field_disk_groups {
 	x(trans_traverse_all,				71)	\
 	x(transaction_commit,				72)	\
 	x(write_super,					73)	\
-	x(trans_restart_would_deadlock_recursion_limit,	74)
+	x(trans_restart_would_deadlock_recursion_limit,	74)	\
+	x(trans_restart_write_buffer_flush,		75)
 
 enum bch_persistent_counters {
 #define x(t, n, ...) BCH_COUNTER_##t,
@@ -1633,6 +1634,7 @@ LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DELAY,struct bch_sb, flags[3], 30, 62);
 LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DISABLED,struct bch_sb, flags[3], 62, 63);
 LE64_BITMASK(BCH_SB_JOURNAL_RECLAIM_DELAY,struct bch_sb, flags[4], 0, 32);
 LE64_BITMASK(BCH_SB_JOURNAL_TRANSACTION_NAMES,struct bch_sb, flags[4], 32, 33);
+LE64_BITMASK(BCH_SB_WRITE_BUFFER_SIZE,	struct bch_sb, flags[4], 34, 54);
 
 /*
  * Features:

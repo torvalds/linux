@@ -42,6 +42,7 @@
 	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_realloced)\
 	x(BCH_ERR_transaction_restart,	transaction_restart_journal_preres_get)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_split_race)		\
+	x(BCH_ERR_transaction_restart,	transaction_restart_write_buffer_flush)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_nested)		\
 	x(0,				no_btree_node)				\
 	x(BCH_ERR_no_btree_node,	no_btree_node_relock)			\
@@ -58,6 +59,7 @@
 	x(BCH_ERR_btree_insert_fail,	btree_insert_need_mark_replicas)	\
 	x(BCH_ERR_btree_insert_fail,	btree_insert_need_journal_res)		\
 	x(BCH_ERR_btree_insert_fail,	btree_insert_need_journal_reclaim)	\
+	x(BCH_ERR_btree_insert_fail,	btree_insert_need_flush_buffer)		\
 	x(0,				lock_fail_root_changed)			\
 	x(0,				journal_reclaim_would_deadlock)		\
 	x(0,				fsck)					\

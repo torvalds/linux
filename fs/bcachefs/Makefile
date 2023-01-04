@@ -16,6 +16,7 @@ bcachefs-y		:=	\
 	btree_locking.o		\
 	btree_update_interior.o	\
 	btree_update_leaf.o	\
+	btree_write_buffer.o	\
 	buckets.o		\
 	buckets_waiting_for_journal.o	\
 	chardev.o		\

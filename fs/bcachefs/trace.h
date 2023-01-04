@@ -1111,6 +1111,51 @@ TRACE_EVENT(trans_restart_key_cache_key_realloced,
 		  __entry->new_u64s)
 );
 
+DEFINE_EVENT(transaction_event,	trans_restart_write_buffer_flush,
+	TP_PROTO(struct btree_trans *trans,
+		 unsigned long caller_ip),
+	TP_ARGS(trans, caller_ip)
+);
+
+TRACE_EVENT(write_buffer_flush,
+	TP_PROTO(struct btree_trans *trans, size_t nr, size_t skipped, size_t fast, size_t size),
+	TP_ARGS(trans, nr, skipped, fast, size),
+
+	TP_STRUCT__entry(
+		__field(size_t,		nr		)
+		__field(size_t,		skipped		)
+		__field(size_t,		fast		)
+		__field(size_t,		size		)
+	),
+
+	TP_fast_assign(
+		__entry->nr	= nr;
+		__entry->skipped = skipped;
+		__entry->fast	= fast;
+		__entry->size	= size;
+	),
+
+	TP_printk("%zu/%zu skipped %zu fast %zu",
+		  __entry->nr, __entry->size, __entry->skipped, __entry->fast)
+);
+
+TRACE_EVENT(write_buffer_flush_slowpath,
+	TP_PROTO(struct btree_trans *trans, size_t nr, size_t size),
+	TP_ARGS(trans, nr, size),
+
+	TP_STRUCT__entry(
+		__field(size_t,		nr		)
+		__field(size_t,		size		)
+	),
+
+	TP_fast_assign(
+		__entry->nr	= nr;
+		__entry->size	= size;
+	),
+
+	TP_printk("%zu/%zu", __entry->nr, __entry->size)
+);
+
 #endif /* _TRACE_BCACHEFS_H */
 
 /* This part must be outside protection */

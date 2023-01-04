@@ -1278,6 +1278,47 @@ int bch2_mark_reflink_p(struct btree_trans *trans,
 	return ret;
 }
 
+void bch2_trans_fs_usage_revert(struct btree_trans *trans,
+				struct replicas_delta_list *deltas)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_fs_usage *dst;
+	struct replicas_delta *d, *top = (void *) deltas->d + deltas->used;
+	s64 added = 0;
+	unsigned i;
+
+	percpu_down_read(&c->mark_lock);
+	preempt_disable();
+	dst = fs_usage_ptr(c, trans->journal_res.seq, false);
+
+	/* revert changes: */
+	for (d = deltas->d; d != top; d = replicas_delta_next(d)) {
+		switch (d->r.data_type) {
+		case BCH_DATA_btree:
+		case BCH_DATA_user:
+		case BCH_DATA_parity:
+			added += d->delta;
+		}
+		BUG_ON(__update_replicas(c, dst, &d->r, -d->delta));
+	}
+
+	dst->nr_inodes -= deltas->nr_inodes;
+
+	for (i = 0; i < BCH_REPLICAS_MAX; i++) {
+		added				-= deltas->persistent_reserved[i];
+		dst->reserved			-= deltas->persistent_reserved[i];
+		dst->persistent_reserved[i]	-= deltas->persistent_reserved[i];
+	}
+
+	if (added > 0) {
+		trans->disk_res->sectors += added;
+		this_cpu_add(*c->online_reserved, added);
+	}
+
+	preempt_enable();
+	percpu_up_read(&c->mark_lock);
+}
+
 int bch2_trans_fs_usage_apply(struct btree_trans *trans,
 			      struct replicas_delta_list *deltas)
 {

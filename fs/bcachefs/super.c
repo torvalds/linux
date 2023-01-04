@@ -16,6 +16,7 @@
 #include "btree_key_cache.h"
 #include "btree_update_interior.h"
 #include "btree_io.h"
+#include "btree_write_buffer.h"
 #include "buckets_waiting_for_journal.h"
 #include "chardev.h"
 #include "checksum.h"
@@ -463,6 +464,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 	bch2_fs_compress_exit(c);
 	bch2_journal_keys_free(&c->journal_keys);
 	bch2_journal_entries_free(c);
+	bch2_fs_btree_write_buffer_exit(c);
 	percpu_free_rwsem(&c->mark_lock);
 	free_percpu(c->online_reserved);
 
@@ -816,6 +818,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_btree_iter_init(c) ?:
 	    bch2_fs_btree_interior_update_init(c) ?:
 	    bch2_fs_buckets_waiting_for_journal_init(c) ?:
+	    bch2_fs_btree_write_buffer_init(c) ?:
 	    bch2_fs_subvolumes_init(c) ?:
 	    bch2_fs_io_init(c) ?:
 	    bch2_fs_encryption_init(c) ?:
