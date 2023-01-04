@@ -2,6 +2,7 @@
 /* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <dt-bindings/regulator/qcom,rpmh-regulator-levels.h>
+#include <dt-bindings/interconnect/qcom,icc.h>
 #include <linux/aer.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
@@ -36,6 +37,9 @@
 #include <linux/uaccess.h>
 #include <linux/kfifo.h>
 #include <linux/clk/qcom.h>
+#include <soc/qcom/crm.h>
+#include <linux/pinctrl/qcom-pinctrl.h>
+#include <soc/qcom/pcie-pdc.h>
 
 #include "../pci.h"
 
@@ -312,6 +316,7 @@ enum msm_pcie_res {
 	MSM_PCIE_RES_ELBI,
 	MSM_PCIE_RES_IATU,
 	MSM_PCIE_RES_CONF,
+	MSM_PCIE_RES_SM,
 	MSM_PCIE_RES_TCSR,
 	MSM_PCIE_RES_RUMI,
 	MSM_PCIE_MAX_RES,
@@ -657,8 +662,6 @@ struct msm_pcie_drv_info {
 	u16 seq;
 	u16 reply_seq;
 	u32 timeout_ms; /* IPC command timeout */
-	u32 l1ss_timeout_us;
-	u32 l1ss_sleep_disable;
 	struct completion completion;
 };
 
@@ -875,6 +878,82 @@ static const char * const aer_agent_string[] = {
 	"Transmitter ID"
 };
 
+/* PCIe SM register indexes as defined by module param*/
+enum msm_pcie_sm_regs {
+	PCIE_SM_BASE,
+	PCIE_SM_PWR_CTRL_OFFSET,
+	PCIE_SM_PWR_MASK_OFFSET,
+	PCIE_SM_PWR_INSTANCE_OFFSET,
+	PCIE_SM_NUM_INSTANCES,
+	MAX_PCIE_SM_REGS,
+};
+
+/*
+ * This array contains the address of the PCIE_SM
+ * PWR_CTRL, PWR_CTRL_MASK registers so that these
+ * can be programmed for override. If the override
+ * is not done then CX Power Collapse won't happen.
+ *
+ * Format of the array is <address of PCIE_SM reg base>,
+ * <offset of PWR_CTRL register>, <offset of PWR_CTRL_MASK register>,
+ * <offset of next PCIE instance>, <number of PCIE instances>.
+ */
+static int pcie_sm_regs[MAX_PCIE_SM_REGS];
+static int count;
+module_param_array(pcie_sm_regs, int, &count, 0644);
+MODULE_PARM_DESC(pcie_sm_regs, "This is needed to override the PWR_CTRL/MASK regs");
+
+/* PCIe State Manager instructions info */
+struct msm_pcie_sm_info {
+	u32 branch_offset;
+	u32 start_offset;
+	u32 *sm_seq;
+	u32 *branch_seq;
+	int sm_seq_len;
+	int sm_branch_len;
+};
+
+/* CESTA power state index */
+enum msm_pcie_cesta_pwr_idx {
+	POWER_STATE_0,
+	POWER_STATE_1,
+	MAX_POWER_STATE,
+};
+
+/* CESTA perf level index */
+enum msm_pcie_cesta_perf_idx {
+	PERF_LVL_D3COLD,
+	PERF_LVL_L1SS,
+	PERF_LVL_GEN1,
+	PERF_LVL_GEN2,
+	PERF_LVL_GEN3,
+	PERF_LVL_GEN4,
+	MAX_PERF_LVL,
+};
+
+/* CESTA usage scenarios */
+enum msm_pcie_cesta_map_idx {
+	D3COLD_STATE,	// Move to D3 Cold state
+	D0_STATE,	// Move to D0 state
+	DRV_STATE,	// Move to DRV state
+	MAX_MAP_IDX,
+};
+
+/* CESTA states debug info */
+static const char * const msm_pcie_cesta_states[] = {
+	"D3 Cold state",
+	"D0 state",
+	"DRV state",
+	"Invalid state",
+};
+
+/* CESTA Power state to Perf level mapping w.r.t CESTA usage scenarios */
+static u32 msm_pcie_cesta_map[MAX_PERF_LVL][MAX_POWER_STATE] = {
+	{PERF_LVL_D3COLD, PERF_LVL_D3COLD},
+	{MAX_PERF_LVL, MAX_PERF_LVL},
+	{PERF_LVL_L1SS, MAX_PERF_LVL},
+};
+
 /* msm pcie device structure */
 struct msm_pcie_dev_t {
 	struct platform_device *pdev;
@@ -1056,6 +1135,18 @@ struct msm_pcie_dev_t {
 
 	u32 dbi_debug_reg_len;
 	u32 *dbi_debug_reg;
+
+	/* CESTA related structs */
+	/* Device handler when using the crm driver APIs */
+	const struct device *crm_dev;
+	/* Register space of pcie state manager */
+	void __iomem *pcie_sm;
+	/* pcie state manager instructions sequence info */
+	struct msm_pcie_sm_info *sm_info;
+	/* Need to configure the l1ss TO when using cesta */
+	u32 l1ss_timeout_us;
+	u32 l1ss_sleep_disable;
+	u32 clkreq_gpio;
 };
 
 struct msm_root_dev_t {
@@ -1197,6 +1288,7 @@ static const struct msm_pcie_res_info_t msm_pcie_res_info[MSM_PCIE_MAX_RES] = {
 	{"elbi", NULL, NULL},
 	{"iatu", NULL, NULL},
 	{"conf", NULL, NULL},
+	{"pcie_sm", NULL, NULL},
 	{"tcsr", NULL, NULL},
 	{"rumi", NULL, NULL}
 };
@@ -1215,6 +1307,12 @@ enum msm_pcie_reg_dump_type_t {
 	MSM_PCIE_DUMP_DBI_REG,
 	MSM_PCIE_DUMP_PHY_REG,
 };
+
+/* Rpmsg device functions */
+static int msm_pcie_drv_rpmsg_probe(struct rpmsg_device *rpdev);
+static void msm_pcie_drv_rpmsg_remove(struct rpmsg_device *rpdev);
+static int msm_pcie_drv_rpmsg_cb(struct rpmsg_device *rpdev, void *data,
+						int len, void *priv, u32 src);
 
 static int msm_pcie_drv_send_rpmsg(struct msm_pcie_dev_t *pcie_dev,
 				   struct msm_pcie_drv_msg *msg);
@@ -1536,6 +1634,32 @@ static void pcie_parf_dump(struct msm_pcie_dev_t *dev)
 	}
 }
 
+static void pcie_sm_dump(struct msm_pcie_dev_t *dev)
+{
+	int i;
+	u32 size;
+
+	if (!dev->pcie_sm)
+		return;
+
+	PCIE_DUMP(dev, "PCIe: RC%d State Manager reg dump\n", dev->rc_idx);
+
+	size = resource_size(dev->res[MSM_PCIE_RES_SM].resource);
+
+	for (i = 0; i < size; i += 32) {
+		PCIE_DUMP(dev,
+			"RC%d: 0x%04x %08x %08x %08x %08x %08x %08x %08x %08x\n",
+			dev->rc_idx, i,
+			readl_relaxed(dev->pcie_sm + i),
+			readl_relaxed(dev->pcie_sm + (i + 4)),
+			readl_relaxed(dev->pcie_sm + (i + 8)),
+			readl_relaxed(dev->pcie_sm + (i + 12)),
+			readl_relaxed(dev->pcie_sm + (i + 16)),
+			readl_relaxed(dev->pcie_sm + (i + 20)),
+			readl_relaxed(dev->pcie_sm + (i + 24)),
+			readl_relaxed(dev->pcie_sm + (i + 28)));
+	}
+}
 static void pcie_dm_core_dump(struct msm_pcie_dev_t *dev)
 {
 	int i, size;
@@ -1680,6 +1804,8 @@ static void msm_pcie_show_status(struct msm_pcie_dev_t *dev)
 		dev->link_turned_off_counter);
 	PCIE_DBG_FS(dev, "l23_rdy_poll_timeout: %llu\n",
 		dev->l23_rdy_poll_timeout);
+	PCIE_DBG_FS(dev, "PCIe CESTA is %s\n",
+		dev->pcie_sm ? "supported" : "not_supported");
 }
 
 static void msm_pcie_access_reg(struct msm_pcie_dev_t *dev, bool wr)
@@ -3193,6 +3319,249 @@ static struct pci_ops msm_pcie_ops = {
 	.write = msm_pcie_wr_conf,
 };
 
+/* This function will load the instruction sequence to pcie state manager */
+static void msm_pcie_cesta_load_sm_seq(struct msm_pcie_dev_t *dev)
+{
+	int i = 0;
+	struct msm_pcie_sm_info *sm_info = dev->sm_info;
+
+	/* Remove the PWR_CTRL Overrides set for this pcie instance */
+	msm_pcie_write_reg(dev->pcie_sm,
+			pcie_sm_regs[PCIE_SM_PWR_CTRL_OFFSET] +
+		(dev->rc_idx * pcie_sm_regs[PCIE_SM_PWR_INSTANCE_OFFSET]),
+									0x0);
+
+	/* Remove the PWR_CTRL_MASK Overrides set for this pcie instance */
+	msm_pcie_write_reg(dev->pcie_sm,
+			pcie_sm_regs[PCIE_SM_PWR_MASK_OFFSET] +
+		(dev->rc_idx * pcie_sm_regs[PCIE_SM_PWR_INSTANCE_OFFSET]),
+									0x0);
+
+	/* Loading the pcie state manager sequence */
+	for (i = 0; i < sm_info->sm_seq_len; i++) {
+		PCIE_DBG(dev, "sm seq val 0x%x\n", sm_info->sm_seq[i]);
+		msm_pcie_write_reg(dev->pcie_sm, 4*i, sm_info->sm_seq[i]);
+	}
+
+	/* Loading the pcie state manager branch sequence */
+	for (i = 0; i < sm_info->sm_branch_len; i++) {
+		PCIE_DBG(dev, "branch seq val 0x%x\n", sm_info->branch_seq[i]);
+		msm_pcie_write_reg(dev->pcie_sm, sm_info->branch_offset + 4*i,
+						sm_info->branch_seq[i]);
+	}
+
+	/* Enable the pcie state manager once the sequence is loaded */
+	msm_pcie_write_reg_field(dev->pcie_sm, sm_info->start_offset,
+								BIT(0), 1);
+}
+
+/* This function will get the pcie state manager sequence from DT node */
+static int msm_pcie_cesta_get_sm_seq(struct msm_pcie_dev_t *dev)
+{
+	int ret, size = 0;
+	struct platform_device *pdev = dev->pdev;
+	struct msm_pcie_sm_info *sm_info;
+
+	of_get_property(pdev->dev.of_node, "qcom,pcie-sm-seq", &size);
+	if (!size) {
+		PCIE_DBG(dev,
+			"PCIe: RC%d: state manager seq is not present in DT\n",
+			dev->rc_idx);
+		return -EIO;
+	}
+
+	sm_info = devm_kzalloc(&pdev->dev, sizeof(struct msm_pcie_sm_info),
+								GFP_KERNEL);
+	if (!sm_info)
+		return -ENOMEM;
+
+	sm_info->sm_seq_len = size / sizeof(u32);
+
+	sm_info->sm_seq = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+
+	ret = of_property_read_u32_array(pdev->dev.of_node,
+			"qcom,pcie-sm-seq", sm_info->sm_seq,
+						sm_info->sm_seq_len);
+	if (ret)
+		return -EIO;
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+			"qcom,pcie-sm-branch-offset", &sm_info->branch_offset);
+	if (ret)
+		return -EIO;
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+			"qcom,pcie-sm-start-offset", &sm_info->start_offset);
+	if (ret)
+		return -EIO;
+
+	of_get_property(pdev->dev.of_node, "qcom,pcie-sm-branch-seq", &size);
+	if (!size) {
+		PCIE_DBG(dev,
+			"PCIe: RC%d: sm branch seq is not present in DT\n",
+			dev->rc_idx);
+		return -EIO;
+	}
+
+	sm_info->sm_branch_len = size / sizeof(u32);
+
+	sm_info->branch_seq = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+
+	ret = of_property_read_u32_array(pdev->dev.of_node,
+			"qcom,pcie-sm-branch-seq", sm_info->branch_seq,
+						sm_info->sm_branch_len);
+	if (ret)
+		return -EIO;
+
+	dev->sm_info = sm_info;
+
+	return 0;
+}
+
+/*
+ * Arm the l1ss sleep timeout so that pcie controller can send the
+ * l1ss TO signal to pcie state manager and state manager can further
+ * go into l1ss sleep state to turn off the resources.
+ */
+static void msm_pcie_cesta_enable_l1ss_to(struct msm_pcie_dev_t *dev)
+{
+	u32 val;
+
+	msm_pcie_write_reg(dev->parf, PCIE20_PARF_L1SUB_AHB_CLK_MAX_TIMER,
+				PCIE20_PARF_L1SUB_AHB_CLK_MAX_TIMER_RESET);
+
+	val = PCIE20_PARF_L1SUB_AHB_CLK_MAX_TIMER_RESET |
+		L1SS_TIMEOUT_US_TO_TICKS(dev->l1ss_timeout_us,
+						dev->aux_clk_freq);
+
+	msm_pcie_write_reg(dev->parf, PCIE20_PARF_L1SUB_AHB_CLK_MAX_TIMER,
+									val);
+}
+
+/* Disable L1ss timeout timer */
+static void msm_pcie_cesta_disable_l1ss_to(struct msm_pcie_dev_t *dev)
+{
+	msm_pcie_write_reg(dev->parf, PCIE20_PARF_L1SUB_AHB_CLK_MAX_TIMER, 0);
+}
+
+/*
+ * This function is used for configuring the CESTA power state
+ * to the perf level mapping based on the Gen speed provided in
+ * the argument
+ */
+static void msm_pcie_cesta_map_save(int gen_speed)
+{
+	/* Gen1 speed is equal to perf levle 2 */
+	gen_speed += PERF_LVL_L1SS;
+
+	msm_pcie_cesta_map[D0_STATE][POWER_STATE_0] = gen_speed;
+	msm_pcie_cesta_map[D0_STATE][POWER_STATE_1] = gen_speed;
+	msm_pcie_cesta_map[DRV_STATE][POWER_STATE_1] = gen_speed;
+}
+
+/*
+ * Apply the cesta power state <--> perf ol mapping using the
+ * crm driver APIs.
+ */
+static int msm_pcie_cesta_map_apply(struct msm_pcie_dev_t *dev, u32 cesta_st)
+{
+	int ret = 0;
+	struct crm_cmd cmd;
+	u32 pwr_st;
+
+	if (!dev->pcie_sm)
+		return 0;
+
+	PCIE_DBG(dev, "Setting the scenario to %s and perf_idx %d\n",
+			msm_pcie_cesta_states[cesta_st],
+			msm_pcie_cesta_map[cesta_st][POWER_STATE_1]);
+
+	for (pwr_st = 0; pwr_st < MAX_POWER_STATE; pwr_st++) {
+		cmd.pwr_state.hw = pwr_st;
+		cmd.resource_idx = dev->rc_idx;
+		cmd.data = msm_pcie_cesta_map[cesta_st][pwr_st];
+
+		ret = crm_write_perf_ol(dev->crm_dev, CRM_HW_DRV, dev->rc_idx,
+									&cmd);
+		if (ret) {
+			PCIE_DBG(dev, "PCIe: RC%d: pwr_st %d perf_ol %d\n",
+					dev->rc_idx, pwr_st, ret);
+			return ret;
+		}
+	}
+
+	ret = crm_write_pwr_states(dev->crm_dev, dev->rc_idx);
+	if (ret) {
+		PCIE_DBG(dev, "PCIe: RC%d: pwr_st %d pwr_states %d\n",
+				dev->rc_idx, pwr_st, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * This function will cause the entry into drv state by
+ * configuring CESTA to drv state
+ */
+static void msm_pcie_cesta_enable_drv(struct msm_pcie_dev_t *dev,
+							bool enable_to)
+{
+	int ret;
+
+	if (!dev->pcie_sm)
+		return;
+
+	if (enable_to)
+		msm_pcie_cesta_enable_l1ss_to(dev);
+
+	/*
+	 * Use CLKREQ as wake up capable gpio so that when APPS
+	 * is in sleep CESTA block can still get the CLKREQ
+	 * assertion event.
+	 */
+	ret = msm_gpio_mpm_wake_set(dev->clkreq_gpio, true);
+	if (ret)
+		PCIE_ERR(dev, "Failed to make clkreq wakeup capable%d\n", ret);
+
+	ret = pcie_pdc_cfg_irq(dev->clkreq_gpio, IRQ_TYPE_EDGE_FALLING, true);
+	if (ret)
+		PCIE_ERR(dev, "Failed to make clkreq pdc wakeup capable%d\n", ret);
+
+	/* Use CESTA to manage the resources in DRV state */
+	ret = msm_pcie_cesta_map_apply(dev, DRV_STATE);
+	if (ret)
+		PCIE_ERR(dev, "Failed to move to DRV state %d\n", ret);
+}
+
+/*
+ * This function will configure CESTA to move to D0 state
+ * from the drv state
+ */
+static void msm_pcie_cesta_disable_drv(struct msm_pcie_dev_t *dev)
+{
+	int ret;
+
+	if (!dev->pcie_sm)
+		return;
+
+	msm_pcie_cesta_disable_l1ss_to(dev);
+
+	/* Use CESTA to turn on the resources into D0 state from DRV state*/
+	ret = msm_pcie_cesta_map_apply(dev, D0_STATE);
+	if (ret)
+		PCIE_ERR(dev, "Failed to move to D0 State %d\n", ret);
+
+	/* Remove CLKREQ as wake up capable gpio */
+	ret = msm_gpio_mpm_wake_set(dev->clkreq_gpio, false);
+	if (ret)
+		PCIE_ERR(dev, "Fail to remove clkreq wakeup capable%d\n", ret);
+
+	ret = pcie_pdc_cfg_irq(dev->clkreq_gpio, IRQ_TYPE_EDGE_FALLING, false);
+	if (ret)
+		PCIE_ERR(dev, "Fail to remove clkreq pdc wakeup capable%d\n", ret);
+}
+
 static int msm_pcie_gpio_init(struct msm_pcie_dev_t *dev)
 {
 	int rc = 0, i;
@@ -3466,6 +3835,55 @@ static int msm_pcie_core_phy_reset(struct msm_pcie_dev_t *dev)
 	return rc;
 }
 
+static int msm_pcie_icc_vote(struct msm_pcie_dev_t *dev, u32 icc_ab,
+						u32 icc_ib, bool drv_state)
+{
+	int rc = 0;
+	u32 icc_tags;
+
+	if (dev->icc_path) {
+		icc_tags = drv_state ? QCOM_ICC_TAG_PWR_ST_1 :
+			QCOM_ICC_TAG_PWR_ST_0 | QCOM_ICC_TAG_PWR_ST_1;
+
+		/*
+		 * This API icc_set_tag() call is needed when CESTA is enabled.
+		 * Instead of pcie driver settiing up the icc bandwidth votes
+		 * for different power states of CESTA, icc driver will take
+		 * care of it when we call icc_set_tag API.
+		 */
+		if (dev->pcie_sm)
+			icc_set_tag(dev->icc_path, icc_tags);
+
+		PCIE_DBG(dev, "PCIe: RC%d: putting ICC vote ab = %d ib = %d\n",
+			dev->rc_idx, icc_ab, icc_ib);
+
+		rc = icc_set_bw(dev->icc_path, icc_ab, icc_ib);
+		if (rc)
+			PCIE_ERR(dev,
+				"PCIe: RC%d: failed to put the ICC vote %d.\n",
+				dev->rc_idx, rc);
+		else
+			PCIE_DBG(dev,
+				"PCIe: RC%d: ICC vote successful\n",
+				dev->rc_idx);
+
+		/*
+		 * When PCIe-CESTA is enabled, need to explicitly call
+		 * crm_write_pwr_states() API so that the icc votes are
+		 * reflected at the HW level.
+		 */
+		if (dev->pcie_sm) {
+			rc = crm_write_pwr_states(dev->crm_dev, dev->rc_idx);
+			if (rc) {
+				PCIE_DBG(dev, "PCIe: RC%d: pwr_states %d\n",
+						dev->rc_idx, rc);
+			}
+		}
+	}
+
+	return rc;
+}
+
 static int msm_pcie_clk_init(struct msm_pcie_dev_t *dev)
 {
 	int i, rc = 0;
@@ -3477,21 +3895,9 @@ static int msm_pcie_clk_init(struct msm_pcie_dev_t *dev)
 	if (dev->pipe_clk_mux && dev->pipe_clk_ext_src)
 		clk_set_parent(dev->pipe_clk_mux, dev->pipe_clk_ext_src);
 
-	if (dev->icc_path) {
-		PCIE_DBG(dev, "PCIe: RC%d: setting ICC path vote\n",
-			dev->rc_idx);
-
-		rc = icc_set_bw(dev->icc_path, ICC_AVG_BW, ICC_PEAK_BW);
-		if (rc) {
-			PCIE_ERR(dev,
-				"PCIe: RC%d: failed to set ICC path vote. ret %d\n",
-				dev->rc_idx, rc);
-			return rc;
-		}
-
-		PCIE_DBG2(dev, "PCIe: RC%d: successfully set ICC path vote\n",
-			dev->rc_idx);
-	}
+	rc = msm_pcie_icc_vote(dev, ICC_AVG_BW, ICC_PEAK_BW, false);
+	if (rc)
+		return rc;
 
 	for (i = 0; i < dev->num_clk; i++) {
 		info = &dev->clk[i];
@@ -3547,7 +3953,6 @@ static int msm_pcie_clk_init(struct msm_pcie_dev_t *dev)
 static void msm_pcie_clk_deinit(struct msm_pcie_dev_t *dev)
 {
 	int i;
-	int rc;
 
 	PCIE_DBG(dev, "RC%d: entry\n", dev->rc_idx);
 
@@ -3555,20 +3960,7 @@ static void msm_pcie_clk_deinit(struct msm_pcie_dev_t *dev)
 		if (dev->clk[i].hdl)
 			clk_disable_unprepare(dev->clk[i].hdl);
 
-	if (dev->icc_path) {
-		PCIE_DBG(dev, "PCIe: RC%d: removing ICC path vote\n",
-			dev->rc_idx);
-
-		rc = icc_set_bw(dev->icc_path, 0, 0);
-		if (rc)
-			PCIE_ERR(dev,
-				"PCIe: RC%d: failed to remove ICC path vote. ret %d.\n",
-				dev->rc_idx, rc);
-		else
-			PCIE_DBG(dev,
-				"PCIe: RC%d: successfully removed ICC path vote\n",
-				dev->rc_idx);
-	}
+	msm_pcie_icc_vote(dev, 0, 0, false);
 
 	/* switch phy aux clock mux to xo before turning off gdsc-core */
 	if (dev->phy_aux_clk_mux && dev->ref_clk_src)
@@ -3883,7 +4275,7 @@ static int msm_pcie_get_clk(struct msm_pcie_dev_t *pcie_dev)
 		PCIE_ERR(pcie_dev,
 			 "PCIe: RC%d: failed to get clocks: ret: %d\n",
 			 pcie_dev->rc_idx, ret);
-		return -EIO;
+		goto out;
 	}
 
 	total_num_clk = ret;
@@ -3910,7 +4302,7 @@ static int msm_pcie_get_clk(struct msm_pcie_dev_t *pcie_dev)
 		PCIE_ERR(pcie_dev,
 			 "PCIe: RC%d: failed to get clock frequencies: ret: %d\n",
 			 pcie_dev->rc_idx, ret);
-		return -EIO;
+		goto out;
 	}
 
 	ret = of_property_count_elems_of_size(pdev->dev.of_node,
@@ -3936,7 +4328,7 @@ static int msm_pcie_get_clk(struct msm_pcie_dev_t *pcie_dev)
 		PCIE_ERR(pcie_dev,
 			 "PCIe: RC%d: failed to get clock suppressible info: ret: %d\n",
 			 pcie_dev->rc_idx, ret);
-		return -EIO;
+		goto out;
 	}
 
 	/* setup array of PCIe clock info */
@@ -3971,7 +4363,9 @@ static int msm_pcie_get_clk(struct msm_pcie_dev_t *pcie_dev)
 		PCIE_ERR(pcie_dev,
 			 "PCIe: RC%d: could not find entry for pcie_pipe_clk\n",
 			 pcie_dev->rc_idx);
-		return -EIO;
+		/* Mask the error when PCIe resources are managed by CESTA */
+		if (!pcie_dev->pcie_sm)
+			goto out;
 	}
 
 	pcie_dev->num_clk = total_num_clk - pcie_dev->num_pipe_clk;
@@ -4019,6 +4413,8 @@ static int msm_pcie_get_clk(struct msm_pcie_dev_t *pcie_dev)
 	}
 
 	return 0;
+out:
+	return -EIO;
 }
 
 static int msm_pcie_get_vreg(struct msm_pcie_dev_t *pcie_dev)
@@ -4041,7 +4437,7 @@ static int msm_pcie_get_vreg(struct msm_pcie_dev_t *pcie_dev)
 		}
 
 		if (IS_ERR(vreg_info->hdl)) {
-			if (vreg_info->required) {
+			if (vreg_info->required && !pcie_dev->pcie_sm) {
 				PCIE_DBG(pcie_dev, "Vreg %s doesn't exist\n",
 					vreg_info->name);
 				return PTR_ERR(vreg_info->hdl);
@@ -4084,7 +4480,8 @@ static int msm_pcie_get_vreg(struct msm_pcie_dev_t *pcie_dev)
 		if (PTR_ERR(pcie_dev->gdsc_core) == -EPROBE_DEFER)
 			PCIE_DBG(pcie_dev, "PCIe: EPROBE_DEFER for %s GDSC-CORE\n",
 				 pdev->name);
-		return PTR_ERR(pcie_dev->gdsc_core);
+		if (!pcie_dev->pcie_sm)
+			return PTR_ERR(pcie_dev->gdsc_core);
 	}
 
 	pcie_dev->gdsc_phy = devm_regulator_get(&pdev->dev, "gdsc-phy-vdd");
@@ -4096,7 +4493,8 @@ static int msm_pcie_get_vreg(struct msm_pcie_dev_t *pcie_dev)
 		if (PTR_ERR(pcie_dev->gdsc_phy) == -EPROBE_DEFER)
 			PCIE_DBG(pcie_dev, "PCIe: EPROBE_DEFER for %s GDSC-PHY\n",
 				pdev->name);
-		return PTR_ERR(pcie_dev->gdsc_phy);
+		if (!pcie_dev->pcie_sm)
+			return PTR_ERR(pcie_dev->gdsc_phy);
 	}
 
 	return 0;
@@ -4459,6 +4857,7 @@ static int msm_pcie_get_reg(struct msm_pcie_dev_t *pcie_dev)
 	pcie_dev->iatu = pcie_dev->res[MSM_PCIE_RES_IATU].base;
 	pcie_dev->dm_core = pcie_dev->res[MSM_PCIE_RES_DM_CORE].base;
 	pcie_dev->conf = pcie_dev->res[MSM_PCIE_RES_CONF].base;
+	pcie_dev->pcie_sm = pcie_dev->res[MSM_PCIE_RES_SM].base;
 	pcie_dev->tcsr = pcie_dev->res[MSM_PCIE_RES_TCSR].base;
 	pcie_dev->rumi = pcie_dev->res[MSM_PCIE_RES_RUMI].base;
 
@@ -4590,6 +4989,7 @@ static void msm_pcie_release_resources(struct msm_pcie_dev_t *dev)
 	dev->iatu = NULL;
 	dev->dm_core = NULL;
 	dev->conf = NULL;
+	dev->pcie_sm = NULL;
 	dev->tcsr = NULL;
 	dev->rumi = NULL;
 	kfree(dev->parf_debug_reg);
@@ -4606,6 +5006,7 @@ static void msm_pcie_scale_link_bandwidth(struct msm_pcie_dev_t *pcie_dev,
 {
 	struct msm_pcie_bw_scale_info_t *bw_scale;
 	u32 index = target_link_speed - PCI_EXP_LNKCTL2_TLS_2_5GT;
+	int ret;
 
 	if (!pcie_dev->bw_scale)
 		return;
@@ -4614,6 +5015,22 @@ static void msm_pcie_scale_link_bandwidth(struct msm_pcie_dev_t *pcie_dev,
 		PCIE_ERR(pcie_dev,
 			"PCIe: RC%d: invalid target link speed: %d\n",
 			pcie_dev->rc_idx, target_link_speed);
+		return;
+	}
+
+	/* Use CESTA to scale the resources */
+	if (pcie_dev->pcie_sm) {
+
+		/* If CESTA already voted for required speed then bail out */
+		if (target_link_speed + PERF_LVL_L1SS ==
+				msm_pcie_cesta_map[D0_STATE][POWER_STATE_1])
+			return;
+
+		msm_pcie_cesta_map_save(target_link_speed);
+		ret = msm_pcie_cesta_map_apply(pcie_dev, D0_STATE);
+		if (ret)
+			PCIE_ERR(pcie_dev, "Failed to move to D0 state %d\n",
+									ret);
 		return;
 	}
 
@@ -4821,7 +5238,8 @@ static int msm_pcie_enable_link(struct msm_pcie_dev_t *dev)
 		return ret;
 
 	if (dev->pcie_cesta_clkreq)
-		msm_pcie_write_reg(dev->parf, dev->pcie_cesta_clkreq, 0x0);
+		msm_pcie_write_reg_field(dev->parf, dev->pcie_cesta_clkreq,
+								BIT(0), 0);
 
 	/* switch phy aux clock source from xo to phy aux clk */
 	if (dev->phy_aux_clk_mux && dev->phy_aux_clk_ext_src)
@@ -4893,6 +5311,38 @@ static int msm_pcie_enable_link(struct msm_pcie_dev_t *dev)
 	return ret;
 }
 
+static int msm_pcie_enable_cesta(struct msm_pcie_dev_t *dev)
+{
+	int ret = 0;
+
+	if (dev->pcie_sm) {
+		/*
+		 * Make sure that resources are scaled to link up in max
+		 * possible Gen speed and scale down the resources if link
+		 * up happens in lower speeds.
+		 */
+		msm_pcie_cesta_map_save(dev->bw_gen_max);
+
+		ret = msm_pcie_cesta_map_apply(dev, D0_STATE);
+		if (ret)
+			PCIE_ERR(dev, "Fail to go to D0 State %d\n", ret);
+	}
+
+	return ret;
+}
+
+static void msm_pcie_disable_cesta(struct msm_pcie_dev_t *dev)
+{
+	int ret = 0;
+
+	if (dev->pcie_sm) {
+		ret = msm_pcie_cesta_map_apply(dev, D3COLD_STATE);
+		if (ret)
+			PCIE_ERR(dev, "Fail to move to D3 cold state %d\n",
+									ret);
+	}
+}
+
 static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 {
 	int ret = 0;
@@ -4933,6 +5383,11 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 	if (ret)
 		goto clk_fail;
 
+	/* Use CESTA to turn on the resources */
+	ret = msm_pcie_enable_cesta(dev);
+	if (ret)
+		goto reset_fail;
+
 	/* reset pcie controller and phy */
 	ret = msm_pcie_core_phy_reset(dev);
 	/* ensure that changes propagated to the hardware */
@@ -4967,12 +5422,18 @@ link_fail:
 	if (dev->phy_power_down_offset)
 		msm_pcie_write_reg(dev->phy, dev->phy_power_down_offset, 0);
 
+	/* Use CESTA to turn off the resources */
+	msm_pcie_disable_cesta(dev);
+
 	msm_pcie_pipe_clk_deinit(dev);
 reset_fail:
+
 	msm_pcie_clk_deinit(dev);
 clk_fail:
+
 	msm_pcie_gdsc_deinit(dev);
 gdsc_fail:
+
 	msm_pcie_vreg_deinit(dev);
 out:
 	mutex_unlock(&dev->setup_lock);
@@ -4984,6 +5445,8 @@ out:
 
 static void msm_pcie_disable(struct msm_pcie_dev_t *dev)
 {
+	int ret;
+
 	PCIE_DBG(dev, "RC%d: entry\n", dev->rc_idx);
 
 	mutex_lock(&dev->setup_lock);
@@ -5019,6 +5482,14 @@ static void msm_pcie_disable(struct msm_pcie_dev_t *dev)
 
 	/* Enable override for fal10_veto logic to assert Qactive signal.*/
 	msm_pcie_write_mask(dev->parf + PCIE20_PARF_CFG_BITS_3, 0, BIT(0));
+
+	/* Use CESTA to turn off the resources */
+	if (dev->pcie_sm) {
+		ret = msm_pcie_cesta_map_apply(dev, D3COLD_STATE);
+		if (ret)
+			PCIE_ERR(dev, "Failed to move to D3 cold state %d\n",
+									ret);
+	}
 
 	msm_pcie_clk_deinit(dev);
 	msm_pcie_gdsc_deinit(dev);
@@ -5706,6 +6177,7 @@ static void msm_handle_error_source(struct pci_dev *dev,
 		pcie_parf_dump(rdev);
 		pcie_dm_core_dump(rdev);
 		pcie_phy_dump(rdev);
+		pcie_sm_dump(rdev);
 
 		if (rdev->panic_on_aer)
 			panic("AER error severity %d\n", info->severity);
@@ -5921,6 +6393,7 @@ static irqreturn_t handle_wake_irq(int irq, void *data)
 			pcie_phy_dump(dev);
 			pcie_parf_dump(dev);
 			pcie_dm_core_dump(dev);
+			pcie_sm_dump(dev);
 		}
 
 		msm_pcie_notify_client(dev, MSM_PCIE_EVENT_WAKEUP);
@@ -5996,6 +6469,7 @@ static void msm_pcie_handle_linkdown(struct msm_pcie_dev_t *dev)
 		pcie_phy_dump(dev);
 		pcie_parf_dump(dev);
 		pcie_dm_core_dump(dev);
+		pcie_sm_dump(dev);
 	}
 
 	/* Attempt link-down recovery instead of PERST if supported */
@@ -6685,25 +7159,13 @@ static int msm_pcie_setup_drv(struct msm_pcie_dev_t *pcie_dev,
 			 struct device_node *of_node)
 {
 	struct msm_pcie_drv_info *drv_info;
-	int ret;
 
 	drv_info = devm_kzalloc(&pcie_dev->pdev->dev, sizeof(*drv_info),
 				GFP_KERNEL);
 	if (!drv_info)
 		return -ENOMEM;
 
-	ret = of_property_read_u32(of_node, "qcom,drv-l1ss-timeout-us",
-					&drv_info->l1ss_timeout_us);
-	if (ret)
-		drv_info->l1ss_timeout_us = L1SS_TIMEOUT_US;
-
-	PCIE_DBG(pcie_dev, "PCIe: RC%d: DRV L1ss timeout: %dus\n",
-		pcie_dev->rc_idx, drv_info->l1ss_timeout_us);
-
 	drv_info->dev_id = pcie_dev->rc_idx;
-
-	of_property_read_u32(of_node, "qcom,l1ss-sleep-disable",
-					&drv_info->l1ss_sleep_disable);
 
 	msm_pcie_setup_drv_msg(&drv_info->drv_enable, drv_info->dev_id,
 				MSM_PCIE_DRV_CMD_ENABLE);
@@ -6715,7 +7177,7 @@ static int msm_pcie_setup_drv(struct msm_pcie_dev_t *pcie_dev,
 				drv_info->dev_id,
 				MSM_PCIE_DRV_CMD_ENABLE_L1SS_SLEEP);
 	drv_info->drv_enable_l1ss_sleep.pkt.dword[2] =
-					drv_info->l1ss_timeout_us / 1000;
+					pcie_dev->l1ss_timeout_us / 1000;
 
 	msm_pcie_setup_drv_msg(&drv_info->drv_disable_l1ss_sleep,
 				drv_info->dev_id,
@@ -6732,6 +7194,38 @@ static int msm_pcie_setup_drv(struct msm_pcie_dev_t *pcie_dev,
 	pcie_dev->drv_info = drv_info;
 
 	return 0;
+}
+
+static struct rpmsg_device_id msm_pcie_drv_rpmsg_match_table[] = {
+	{ .name = "pcie_drv" },
+	{},
+};
+
+static struct rpmsg_driver msm_pcie_drv_rpmsg_driver = {
+	.id_table = msm_pcie_drv_rpmsg_match_table,
+	.probe = msm_pcie_drv_rpmsg_probe,
+	.remove = msm_pcie_drv_rpmsg_remove,
+	.callback = msm_pcie_drv_rpmsg_cb,
+	.drv = {
+		.name = "pci-msm-drv",
+	},
+};
+
+static void msm_pcie_drv_cesta_connect_worker(struct work_struct *work)
+{
+	struct pcie_drv_sta *pcie_drv = container_of(work, struct pcie_drv_sta,
+							drv_connect);
+	struct msm_pcie_dev_t *pcie_itr = pcie_drv->msm_pcie_dev;
+	int i;
+
+	for (i = 0; i < MAX_RC_NUM; i++, pcie_itr++) {
+
+		if (!pcie_itr->pcie_sm)
+			continue;
+
+		msm_pcie_notify_client(pcie_itr,
+				       MSM_PCIE_EVENT_DRV_CONNECT);
+	}
 }
 
 static void msm_pcie_read_dt(struct msm_pcie_dev_t *pcie_dev, int rc_idx,
@@ -6942,6 +7436,17 @@ static void msm_pcie_read_dt(struct msm_pcie_dev_t *pcie_dev, int rc_idx,
 		INIT_WORK(&pcie_dev->link_recover_wq, handle_link_recover);
 	}
 
+	of_property_read_u32(of_node, "qcom,l1ss-sleep-disable",
+					&pcie_dev->l1ss_sleep_disable);
+
+	ret = of_property_read_u32(of_node, "qcom,drv-l1ss-timeout-us",
+					&pcie_dev->l1ss_timeout_us);
+	if (ret)
+		pcie_dev->l1ss_timeout_us = L1SS_TIMEOUT_US;
+
+	PCIE_DBG(pcie_dev, "PCIe: RC%d: DRV L1ss timeout: %dus\n",
+			pcie_dev->rc_idx, pcie_dev->l1ss_timeout_us);
+
 	ret = of_property_read_string(of_node, "qcom,drv-name",
 				      &pcie_dev->drv_name);
 	if (!ret) {
@@ -6955,6 +7460,41 @@ static void msm_pcie_read_dt(struct msm_pcie_dev_t *pcie_dev, int rc_idx,
 
 	pcie_dev->panic_genspeed_mismatch = of_property_read_bool(of_node,
 						"qcom,panic-genspeed-mismatch");
+}
+
+static int msm_pcie_cesta_init(struct msm_pcie_dev_t *pcie_dev,
+					struct device_node *of_node)
+{
+	int ret = 0;
+
+	ret = of_property_read_u32(of_node, "qcom,pcie-clkreq-gpio",
+			&pcie_dev->clkreq_gpio);
+	if (ret) {
+		PCIE_ERR(pcie_dev, "Couldn't find clkreq gpio %d\n",
+								ret);
+		return ret;
+	}
+
+	ret = msm_pcie_cesta_get_sm_seq(pcie_dev);
+	if (ret)
+		return ret;
+
+	msm_pcie_cesta_load_sm_seq(pcie_dev);
+
+	pcie_dev->crm_dev = crm_get_device("pcie_crm");
+
+	if (IS_ERR(pcie_dev->crm_dev)) {
+		PCIE_ERR(pcie_dev, "PCIe: RC%d: fail to get crm_dev\n",
+				pcie_dev->rc_idx);
+		return ret;
+	}
+
+	msm_pcie_cesta_map_save(pcie_dev->bw_gen_max);
+	INIT_WORK(&pcie_drv.drv_connect,
+			msm_pcie_drv_cesta_connect_worker);
+	pcie_dev->drv_supported = true;
+
+	return 0;
 }
 
 static void msm_pcie_get_pinctrl(struct msm_pcie_dev_t *pcie_dev,
@@ -7043,6 +7583,21 @@ static int msm_pcie_probe(struct platform_device *pdev)
 	if (pcie_dev->rumi)
 		pcie_dev->rumi_init = msm_pcie_rumi_init;
 
+	if (pcie_dev->pcie_sm) {
+		PCIE_DBG(pcie_dev, "pcie CESTA is supported\n");
+
+		ret = msm_pcie_cesta_init(pcie_dev, of_node);
+		if (ret)
+			goto decrease_rc_num;
+
+	} else {
+		ret = register_rpmsg_driver(&msm_pcie_drv_rpmsg_driver);
+		if (ret && ret != -EBUSY)
+			PCIE_ERR(pcie_dev,
+				"PCIe %d: DRV: rpmsg register fail: ret: %d\n",
+							pcie_dev->rc_idx, ret);
+	}
+
 	msm_pcie_get_pinctrl(pcie_dev, pdev);
 
 	ret = msm_pcie_gpio_init(pcie_dev);
@@ -7125,6 +7680,10 @@ static int msm_pcie_remove(struct platform_device *pdev)
 	if (msm_pcie_dev[rc_idx].default_state)
 		pci_load_and_free_saved_state(msm_pcie_dev[rc_idx].dev,
 				      &msm_pcie_dev[rc_idx].default_state);
+
+	/* Use CESTA to turn off the resources */
+	if (msm_pcie_dev[rc_idx].pcie_sm)
+		msm_pcie_cesta_map_apply(&msm_pcie_dev[rc_idx], D3COLD_STATE);
 
 	msm_pcie_irq_deinit(&msm_pcie_dev[rc_idx]);
 	msm_pcie_vreg_deinit(&msm_pcie_dev[rc_idx]);
@@ -7343,6 +7902,7 @@ int msm_pcie_prevent_l1(struct pci_dev *pci_dev)
 			pcie_parf_dump(pcie_dev);
 			pcie_dm_core_dump(pcie_dev);
 			pcie_phy_dump(pcie_dev);
+			pcie_sm_dump(pcie_dev);
 			ret = -EIO;
 			goto err;
 		}
@@ -7758,21 +8318,6 @@ static int msm_pcie_drv_rpmsg_cb(struct rpmsg_device *rpdev, void *data,
 	return 0;
 }
 
-static struct rpmsg_device_id msm_pcie_drv_rpmsg_match_table[] = {
-	{ .name = "pcie_drv" },
-	{},
-};
-
-static struct rpmsg_driver msm_pcie_drv_rpmsg_driver = {
-	.id_table = msm_pcie_drv_rpmsg_match_table,
-	.probe = msm_pcie_drv_rpmsg_probe,
-	.remove = msm_pcie_drv_rpmsg_remove,
-	.callback = msm_pcie_drv_rpmsg_cb,
-	.drv = {
-		.name = "pci-msm-drv",
-	},
-};
-
 static int msm_pcie_ssr_notifier(struct notifier_block *nb,
 				       unsigned long action, void *data)
 {
@@ -7848,6 +8393,7 @@ static int __init pcie_init(void)
 {
 	int ret = 0, i;
 	char rc_name[MAX_RC_NAME_LEN];
+	void __iomem *reg_addr;
 
 	pr_alert("pcie:%s.\n", __func__);
 
@@ -7910,6 +8456,27 @@ static int __init pcie_init(void)
 
 	msm_pcie_debugfs_init();
 
+	if (count == MAX_PCIE_SM_REGS) {
+		for (i = 0; i < pcie_sm_regs[PCIE_SM_NUM_INSTANCES]; i++) {
+
+			reg_addr = ioremap(pcie_sm_regs[PCIE_SM_BASE] +
+				pcie_sm_regs[PCIE_SM_PWR_CTRL_OFFSET] +
+			(i * pcie_sm_regs[PCIE_SM_PWR_INSTANCE_OFFSET]), 4);
+
+			msm_pcie_write_reg(reg_addr, 0x0, 0x1);
+
+			iounmap(reg_addr);
+
+			reg_addr = ioremap(pcie_sm_regs[PCIE_SM_BASE] +
+				pcie_sm_regs[PCIE_SM_PWR_MASK_OFFSET] +
+			(i * pcie_sm_regs[PCIE_SM_PWR_INSTANCE_OFFSET]), 4);
+
+			msm_pcie_write_reg(reg_addr, 0x0, 0x1);
+
+			iounmap(reg_addr);
+		}
+	}
+
 	ret = pci_register_driver(&msm_pci_driver);
 	if (ret)
 		return ret;
@@ -7922,11 +8489,6 @@ static int __init pcie_init(void)
 	pcie_drv.nb.notifier_call = msm_pcie_ssr_notifier;
 	INIT_WORK(&pcie_drv.drv_connect, msm_pcie_drv_connect_worker);
 	pcie_drv.msm_pcie_dev = msm_pcie_dev;
-
-	ret = register_rpmsg_driver(&msm_pcie_drv_rpmsg_driver);
-	if (ret)
-		pr_warn("PCIe: DRV: failed to register with rpmsg: ret: %d\n",
-			ret);
 
 	ret = platform_driver_register(&msm_pcie_driver);
 	if (ret)
@@ -8247,6 +8809,10 @@ static int msm_pcie_drv_send_rpmsg(struct msm_pcie_dev_t *pcie_dev,
 	int ret, re_try = 5; /* sleep 5 ms per re-try */
 	struct rpmsg_device *rpdev;
 
+	/* This function becomes a dummy call when CESTA support is present */
+	if (pcie_dev->pcie_sm)
+		return 0;
+
 	mutex_lock(&pcie_drv.rpmsg_lock);
 	rpdev = pcie_drv.rpdev;
 	if (!pcie_drv.rpdev) {
@@ -8313,7 +8879,7 @@ static int msm_pcie_drv_resume(struct msm_pcie_dev_t *pcie_dev)
 
 	/* if DRV hand-off was done and DRV subsystem is powered up */
 	if (PCIE_RC_DRV_ENABLED(pcie_dev->rc_idx) &&
-	    !drv_info->l1ss_sleep_disable)
+	    !pcie_dev->l1ss_sleep_disable)
 		rpmsg_ret = msm_pcie_drv_send_rpmsg(pcie_dev,
 					&drv_info->drv_disable_l1ss_sleep);
 
@@ -8331,13 +8897,11 @@ static int msm_pcie_drv_resume(struct msm_pcie_dev_t *pcie_dev)
 
 	PCIE_DBG(pcie_dev, "PCIe: RC%d:set ICC path vote\n", pcie_dev->rc_idx);
 
-	if (pcie_dev->icc_path) {
-		ret = icc_set_bw(pcie_dev->icc_path, ICC_AVG_BW, ICC_PEAK_BW);
-		if (ret)
-			PCIE_ERR(pcie_dev,
-				"PCIe: RC%d: failed to set ICC path vote. ret %d\n",
-				pcie_dev->rc_idx, ret);
-	}
+	ret = msm_pcie_icc_vote(pcie_dev, ICC_AVG_BW, ICC_PEAK_BW, false);
+	if (ret)
+		goto out;
+
+	msm_pcie_cesta_disable_drv(pcie_dev);
 
 	PCIE_DBG(pcie_dev, "PCIe: RC%d:turn on unsuppressible clks\n",
 		pcie_dev->rc_idx);
@@ -8441,7 +9005,8 @@ static int msm_pcie_drv_resume(struct msm_pcie_dev_t *pcie_dev)
 
 	/* if DRV hand-off was done and DRV subsystem is powered up */
 	if (PCIE_RC_DRV_ENABLED(pcie_dev->rc_idx) && !rpmsg_ret) {
-		msm_pcie_drv_send_rpmsg(pcie_dev, &drv_info->drv_disable);
+		msm_pcie_drv_send_rpmsg(pcie_dev,
+					&drv_info->drv_disable);
 		clear_bit(pcie_dev->rc_idx, &pcie_drv.rc_drv_enabled);
 	}
 
@@ -8463,12 +9028,19 @@ static int msm_pcie_drv_resume(struct msm_pcie_dev_t *pcie_dev)
 		msm_msi_config_access(dev_get_msi_domain(&pcie_dev->dev->dev),
 				      true);
 
-	enable_irq(pcie_dev->irq[MSM_PCIE_INT_GLOBAL_INT].num);
+	if (!pcie_dev->pcie_sm)
+		enable_irq(pcie_dev->irq[MSM_PCIE_INT_GLOBAL_INT].num);
 
 	mutex_unlock(&pcie_dev->setup_lock);
 	mutex_unlock(&pcie_dev->recovery_lock);
 
 	return 0;
+
+out:
+	mutex_unlock(&pcie_dev->setup_lock);
+	mutex_unlock(&pcie_dev->recovery_lock);
+
+	return ret;
 }
 
 static int msm_pcie_drv_suspend(struct msm_pcie_dev_t *pcie_dev,
@@ -8477,8 +9049,10 @@ static int msm_pcie_drv_suspend(struct msm_pcie_dev_t *pcie_dev,
 	struct msm_pcie_drv_info *drv_info = pcie_dev->drv_info;
 	struct msm_pcie_clk_info_t *clk_info;
 	int ret, i;
+	u32 ab = 0, ib = 0;
 
-	if (!drv_info->ep_connected) {
+	/* If CESTA is available then drv is always supported */
+	if (!pcie_dev->pcie_sm && !drv_info->ep_connected) {
 		PCIE_ERR(pcie_dev,
 			"PCIe: RC%d: DRV: client requests to DRV suspend while not connected\n",
 			pcie_dev->rc_idx);
@@ -8488,7 +9062,8 @@ static int msm_pcie_drv_suspend(struct msm_pcie_dev_t *pcie_dev,
 	mutex_lock(&pcie_dev->recovery_lock);
 
 	/* disable global irq - no more linkdown/aer detection */
-	disable_irq(pcie_dev->irq[MSM_PCIE_INT_GLOBAL_INT].num);
+	if (!pcie_dev->pcie_sm)
+		disable_irq(pcie_dev->irq[MSM_PCIE_INT_GLOBAL_INT].num);
 
 	ret = msm_pcie_drv_send_rpmsg(pcie_dev, &drv_info->drv_enable);
 	if (ret) {
@@ -8520,15 +9095,24 @@ static int msm_pcie_drv_suspend(struct msm_pcie_dev_t *pcie_dev,
 		if (clk_info->hdl && !clk_info->suppressible)
 			clk_disable_unprepare(clk_info->hdl);
 
-	if (pcie_dev->icc_path) {
-		PCIE_DBG(pcie_dev, "PCIe: RC%d: removing ICC path vote\n",
-			pcie_dev->rc_idx);
+	/* enable L1ss sleep if client allows it */
+	if (!pcie_dev->l1ss_sleep_disable &&
+		!(options & MSM_PCIE_CONFIG_NO_L1SS_TO))
+		msm_pcie_drv_send_rpmsg(pcie_dev,
+					&drv_info->drv_enable_l1ss_sleep);
 
-		ret = icc_set_bw(pcie_dev->icc_path, 0, 0);
-		if (ret)
-			PCIE_ERR(pcie_dev,
-				"PCIe: RC%d: failed to remove ICC path vote. ret %d.\n",
-				pcie_dev->rc_idx, ret);
+	if (pcie_dev->pcie_sm) {
+		msm_pcie_cesta_enable_drv(pcie_dev,
+				!(options & MSM_PCIE_CONFIG_NO_L1SS_TO));
+		ab = ICC_AVG_BW;
+		ib = ICC_PEAK_BW;
+	}
+
+	ret = msm_pcie_icc_vote(pcie_dev, ab, ib, true);
+	if (ret) {
+		mutex_unlock(&pcie_dev->setup_lock);
+		mutex_unlock(&pcie_dev->recovery_lock);
+		return ret;
 	}
 
 	if (pcie_dev->gdsc_core)
@@ -8536,18 +9120,13 @@ static int msm_pcie_drv_suspend(struct msm_pcie_dev_t *pcie_dev,
 
 	msm_pcie_vreg_deinit(pcie_dev);
 
-	/* enable L1ss sleep if client allows it */
-	if (!drv_info->l1ss_sleep_disable &&
-		!(options & MSM_PCIE_CONFIG_NO_L1SS_TO))
-		msm_pcie_drv_send_rpmsg(pcie_dev,
-					&drv_info->drv_enable_l1ss_sleep);
-
 	mutex_unlock(&pcie_dev->setup_lock);
 	mutex_unlock(&pcie_dev->recovery_lock);
 
 	return 0;
 out:
-	enable_irq(pcie_dev->irq[MSM_PCIE_INT_GLOBAL_INT].num);
+	if (!pcie_dev->pcie_sm)
+		enable_irq(pcie_dev->irq[MSM_PCIE_INT_GLOBAL_INT].num);
 	mutex_unlock(&pcie_dev->recovery_lock);
 	return ret;
 }
@@ -8779,6 +9358,10 @@ int msm_pcie_pm_control(enum msm_pcie_pm_opt pm_opt, u32 busnr, void *user,
 		PCIE_DBG(pcie_dev,
 			 "User of RC%d requests handling drv pc options %u.\n",
 			 pcie_dev->rc_idx, options);
+
+		/* Mask the DRV_PC_CTRL if CESTA is supported */
+		if (pcie_dev->pcie_sm)
+			break;
 
 		mutex_lock(&pcie_dev->drv_pc_lock);
 		pcie_dev->drv_disable_pc_vote =
