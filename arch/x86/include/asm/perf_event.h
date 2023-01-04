@@ -160,6 +160,14 @@ union cpuid10_edx {
 };
 
 /*
+ * Intel "Architectural Performance Monitoring extension" CPUID
+ * detection/enumeration details:
+ */
+#define ARCH_PERFMON_EXT_LEAF			0x00000023
+#define ARCH_PERFMON_NUM_COUNTER_LEAF_BIT	0x1
+#define ARCH_PERFMON_NUM_COUNTER_LEAF		0x1
+
+/*
  * Intel Architectural LBR CPUID detection/enumeration details:
  */
 union cpuid28_eax {

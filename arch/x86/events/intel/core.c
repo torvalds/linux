@@ -4588,6 +4588,25 @@ static void flip_smm_bit(void *data)
 	}
 }
 
+static void intel_pmu_check_num_counters(int *num_counters,
+					 int *num_counters_fixed,
+					 u64 *intel_ctrl, u64 fixed_mask);
+
+static void update_pmu_cap(struct x86_hybrid_pmu *pmu)
+{
+	unsigned int sub_bitmaps = cpuid_eax(ARCH_PERFMON_EXT_LEAF);
+	unsigned int eax, ebx, ecx, edx;
+
+	if (sub_bitmaps & ARCH_PERFMON_NUM_COUNTER_LEAF_BIT) {
+		cpuid_count(ARCH_PERFMON_EXT_LEAF, ARCH_PERFMON_NUM_COUNTER_LEAF,
+			    &eax, &ebx, &ecx, &edx);
+		pmu->num_counters = fls(eax);
+		pmu->num_counters_fixed = fls(ebx);
+		intel_pmu_check_num_counters(&pmu->num_counters, &pmu->num_counters_fixed,
+					     &pmu->intel_ctrl, ebx);
+	}
+}
+
 static bool init_hybrid_pmu(int cpu)
 {
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
@@ -4612,6 +4631,9 @@ static bool init_hybrid_pmu(int cpu)
 	/* Only check and dump the PMU information for the first CPU */
 	if (!cpumask_empty(&pmu->supported_cpus))
 		goto end;
+
+	if (this_cpu_has(X86_FEATURE_ARCH_PERFMON_EXT))
+		update_pmu_cap(pmu);
 
 	if (!check_hw_exists(&pmu->pmu, pmu->num_counters, pmu->num_counters_fixed))
 		return false;
