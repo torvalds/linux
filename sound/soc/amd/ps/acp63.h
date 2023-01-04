@@ -88,6 +88,7 @@ struct pdm_stream_instance {
 struct pdm_dev_data {
 	u32 pdm_irq;
 	void __iomem *acp63_base;
+	struct mutex *acp_lock;
 	struct snd_pcm_substream *capture_stream;
 };
 
