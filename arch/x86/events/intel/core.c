@@ -2119,6 +2119,16 @@ static struct extra_reg intel_grt_extra_regs[] __read_mostly = {
 	EVENT_EXTRA_END
 };
 
+static struct extra_reg intel_cmt_extra_regs[] __read_mostly = {
+	/* must define OFFCORE_RSP_X first, see intel_fixup_er() */
+	INTEL_UEVENT_EXTRA_REG(0x01b7, MSR_OFFCORE_RSP_0, 0x800ff3ffffffffffull, RSP_0),
+	INTEL_UEVENT_EXTRA_REG(0x02b7, MSR_OFFCORE_RSP_1, 0xff3ffffffffffull, RSP_1),
+	INTEL_UEVENT_PEBS_LDLAT_EXTRA_REG(0x5d0),
+	INTEL_UEVENT_EXTRA_REG(0x0127, MSR_SNOOP_RSP_0, 0xffffffffffffffffull, SNOOP_0),
+	INTEL_UEVENT_EXTRA_REG(0x0227, MSR_SNOOP_RSP_1, 0xffffffffffffffffull, SNOOP_1),
+	EVENT_EXTRA_END
+};
+
 #define KNL_OT_L2_HITE		BIT_ULL(19) /* Other Tile L2 Hit */
 #define KNL_OT_L2_HITF		BIT_ULL(20) /* Other Tile L2 Hit */
 #define KNL_MCDRAM_LOCAL	BIT_ULL(21)
@@ -4182,6 +4192,12 @@ static int hsw_hw_config(struct perf_event *event)
 static struct event_constraint counter0_constraint =
 			INTEL_ALL_EVENT_CONSTRAINT(0, 0x1);
 
+static struct event_constraint counter1_constraint =
+			INTEL_ALL_EVENT_CONSTRAINT(0, 0x2);
+
+static struct event_constraint counter0_1_constraint =
+			INTEL_ALL_EVENT_CONSTRAINT(0, 0x3);
+
 static struct event_constraint counter2_constraint =
 			EVENT_CONSTRAINT(0, 0x4, 0);
 
@@ -4190,6 +4206,9 @@ static struct event_constraint fixed0_constraint =
 
 static struct event_constraint fixed0_counter0_constraint =
 			INTEL_ALL_EVENT_CONSTRAINT(0, 0x100000001ULL);
+
+static struct event_constraint fixed0_counter0_1_constraint =
+			INTEL_ALL_EVENT_CONSTRAINT(0, 0x100000003ULL);
 
 static struct event_constraint *
 hsw_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
@@ -4317,6 +4336,54 @@ adl_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 		return spr_get_event_constraints(cpuc, idx, event);
 	else if (pmu->cpu_type == hybrid_small)
 		return tnt_get_event_constraints(cpuc, idx, event);
+
+	WARN_ON(1);
+	return &emptyconstraint;
+}
+
+static struct event_constraint *
+cmt_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+			  struct perf_event *event)
+{
+	struct event_constraint *c;
+
+	c = intel_get_event_constraints(cpuc, idx, event);
+
+	/*
+	 * The :ppp indicates the Precise Distribution (PDist) facility, which
+	 * is only supported on the GP counter 0 & 1 and Fixed counter 0.
+	 * If a :ppp event which is not available on the above eligible counters,
+	 * error out.
+	 */
+	if (event->attr.precise_ip == 3) {
+		/* Force instruction:ppp on PMC0, 1 and Fixed counter 0 */
+		if (constraint_match(&fixed0_constraint, event->hw.config))
+			return &fixed0_counter0_1_constraint;
+
+		switch (c->idxmsk64 & 0x3ull) {
+		case 0x1:
+			return &counter0_constraint;
+		case 0x2:
+			return &counter1_constraint;
+		case 0x3:
+			return &counter0_1_constraint;
+		}
+		return &emptyconstraint;
+	}
+
+	return c;
+}
+
+static struct event_constraint *
+mtl_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+			  struct perf_event *event)
+{
+	struct x86_hybrid_pmu *pmu = hybrid_pmu(event->pmu);
+
+	if (pmu->cpu_type == hybrid_big)
+		return spr_get_event_constraints(cpuc, idx, event);
+	if (pmu->cpu_type == hybrid_small)
+		return cmt_get_event_constraints(cpuc, idx, event);
 
 	WARN_ON(1);
 	return &emptyconstraint;
@@ -5463,6 +5530,12 @@ static struct attribute *adl_hybrid_mem_attrs[] = {
 	NULL,
 };
 
+static struct attribute *mtl_hybrid_mem_attrs[] = {
+	EVENT_PTR(mem_ld_adl),
+	EVENT_PTR(mem_st_adl),
+	NULL
+};
+
 EVENT_ATTR_STR_HYBRID(tx-start,          tx_start_adl,          "event=0xc9,umask=0x1",          hybrid_big);
 EVENT_ATTR_STR_HYBRID(tx-commit,         tx_commit_adl,         "event=0xc9,umask=0x2",          hybrid_big);
 EVENT_ATTR_STR_HYBRID(tx-abort,          tx_abort_adl,          "event=0xc9,umask=0x4",          hybrid_big);
@@ -5490,20 +5563,40 @@ FORMAT_ATTR_HYBRID(offcore_rsp, hybrid_big_small);
 FORMAT_ATTR_HYBRID(ldlat,       hybrid_big_small);
 FORMAT_ATTR_HYBRID(frontend,    hybrid_big);
 
+#define ADL_HYBRID_RTM_FORMAT_ATTR	\
+	FORMAT_HYBRID_PTR(in_tx),	\
+	FORMAT_HYBRID_PTR(in_tx_cp)
+
+#define ADL_HYBRID_FORMAT_ATTR		\
+	FORMAT_HYBRID_PTR(offcore_rsp),	\
+	FORMAT_HYBRID_PTR(ldlat),	\
+	FORMAT_HYBRID_PTR(frontend)
+
 static struct attribute *adl_hybrid_extra_attr_rtm[] = {
-	FORMAT_HYBRID_PTR(in_tx),
-	FORMAT_HYBRID_PTR(in_tx_cp),
-	FORMAT_HYBRID_PTR(offcore_rsp),
-	FORMAT_HYBRID_PTR(ldlat),
-	FORMAT_HYBRID_PTR(frontend),
-	NULL,
+	ADL_HYBRID_RTM_FORMAT_ATTR,
+	ADL_HYBRID_FORMAT_ATTR,
+	NULL
 };
 
 static struct attribute *adl_hybrid_extra_attr[] = {
-	FORMAT_HYBRID_PTR(offcore_rsp),
-	FORMAT_HYBRID_PTR(ldlat),
-	FORMAT_HYBRID_PTR(frontend),
-	NULL,
+	ADL_HYBRID_FORMAT_ATTR,
+	NULL
+};
+
+PMU_FORMAT_ATTR_SHOW(snoop_rsp, "config1:0-63");
+FORMAT_ATTR_HYBRID(snoop_rsp,	hybrid_small);
+
+static struct attribute *mtl_hybrid_extra_attr_rtm[] = {
+	ADL_HYBRID_RTM_FORMAT_ATTR,
+	ADL_HYBRID_FORMAT_ATTR,
+	FORMAT_HYBRID_PTR(snoop_rsp),
+	NULL
+};
+
+static struct attribute *mtl_hybrid_extra_attr[] = {
+	ADL_HYBRID_FORMAT_ATTR,
+	FORMAT_HYBRID_PTR(snoop_rsp),
+	NULL
 };
 
 static bool is_attr_for_this_pmu(struct kobject *kobj, struct attribute *attr)
@@ -5723,6 +5816,12 @@ static void intel_pmu_check_hybrid_pmus(u64 fixed_mask)
 
 		intel_pmu_check_extra_regs(pmu->extra_regs);
 	}
+}
+
+static __always_inline bool is_mtl(u8 x86_model)
+{
+	return (x86_model == INTEL_FAM6_METEORLAKE) ||
+	       (x86_model == INTEL_FAM6_METEORLAKE_L);
 }
 
 __init int intel_pmu_init(void)
@@ -6381,6 +6480,8 @@ __init int intel_pmu_init(void)
 	case INTEL_FAM6_RAPTORLAKE:
 	case INTEL_FAM6_RAPTORLAKE_P:
 	case INTEL_FAM6_RAPTORLAKE_S:
+	case INTEL_FAM6_METEORLAKE:
+	case INTEL_FAM6_METEORLAKE_L:
 		/*
 		 * Alder Lake has 2 types of CPU, core and atom.
 		 *
@@ -6400,9 +6501,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
 		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
 		x86_pmu.flags |= PMU_FL_INSTR_LATENCY;
-		x86_pmu.flags |= PMU_FL_MEM_LOADS_AUX;
 		x86_pmu.lbr_pt_coexist = true;
-		intel_pmu_pebs_data_source_adl();
 		x86_pmu.pebs_latency_data = adl_latency_data_small;
 		x86_pmu.num_topdown_events = 8;
 		static_call_update(intel_pmu_update_topdown_event,
@@ -6489,8 +6588,22 @@ __init int intel_pmu_init(void)
 		pmu->event_constraints = intel_slm_event_constraints;
 		pmu->pebs_constraints = intel_grt_pebs_event_constraints;
 		pmu->extra_regs = intel_grt_extra_regs;
-		pr_cont("Alderlake Hybrid events, ");
-		name = "alderlake_hybrid";
+		if (is_mtl(boot_cpu_data.x86_model)) {
+			x86_pmu.pebs_latency_data = mtl_latency_data_small;
+			extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
+				mtl_hybrid_extra_attr_rtm : mtl_hybrid_extra_attr;
+			mem_attr = mtl_hybrid_mem_attrs;
+			intel_pmu_pebs_data_source_mtl();
+			x86_pmu.get_event_constraints = mtl_get_event_constraints;
+			pmu->extra_regs = intel_cmt_extra_regs;
+			pr_cont("Meteorlake Hybrid events, ");
+			name = "meteorlake_hybrid";
+		} else {
+			x86_pmu.flags |= PMU_FL_MEM_LOADS_AUX;
+			intel_pmu_pebs_data_source_adl();
+			pr_cont("Alderlake Hybrid events, ");
+			name = "alderlake_hybrid";
+		}
 		break;
 
 	default:

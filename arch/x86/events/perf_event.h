@@ -35,15 +35,17 @@
  * per-core reg tables.
  */
 enum extra_reg_type {
-	EXTRA_REG_NONE  = -1,	/* not used */
+	EXTRA_REG_NONE		= -1, /* not used */
 
-	EXTRA_REG_RSP_0 = 0,	/* offcore_response_0 */
-	EXTRA_REG_RSP_1 = 1,	/* offcore_response_1 */
-	EXTRA_REG_LBR   = 2,	/* lbr_select */
-	EXTRA_REG_LDLAT = 3,	/* ld_lat_threshold */
-	EXTRA_REG_FE    = 4,    /* fe_* */
+	EXTRA_REG_RSP_0		= 0,  /* offcore_response_0 */
+	EXTRA_REG_RSP_1		= 1,  /* offcore_response_1 */
+	EXTRA_REG_LBR		= 2,  /* lbr_select */
+	EXTRA_REG_LDLAT		= 3,  /* ld_lat_threshold */
+	EXTRA_REG_FE		= 4,  /* fe_* */
+	EXTRA_REG_SNOOP_0	= 5,  /* snoop response 0 */
+	EXTRA_REG_SNOOP_1	= 6,  /* snoop response 1 */
 
-	EXTRA_REG_MAX		/* number of entries needed */
+	EXTRA_REG_MAX		      /* number of entries needed */
 };
 
 struct event_constraint {
@@ -647,6 +649,7 @@ enum {
 };
 
 #define PERF_PEBS_DATA_SOURCE_MAX	0x10
+#define PERF_PEBS_DATA_SOURCE_MASK	(PERF_PEBS_DATA_SOURCE_MAX - 1)
 
 struct x86_hybrid_pmu {
 	struct pmu			pmu;
@@ -1486,6 +1489,8 @@ int intel_pmu_drain_bts_buffer(void);
 
 u64 adl_latency_data_small(struct perf_event *event, u64 status);
 
+u64 mtl_latency_data_small(struct perf_event *event, u64 status);
+
 extern struct event_constraint intel_core2_pebs_event_constraints[];
 
 extern struct event_constraint intel_atom_pebs_event_constraints[];
@@ -1596,6 +1601,8 @@ void intel_pmu_pebs_data_source_skl(bool pmem);
 void intel_pmu_pebs_data_source_adl(void);
 
 void intel_pmu_pebs_data_source_grt(void);
+
+void intel_pmu_pebs_data_source_mtl(void);
 
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 
