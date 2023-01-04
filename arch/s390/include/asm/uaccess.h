@@ -407,8 +407,8 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 
 		shift = (3 ^ (address & 3)) << 3;
 		address ^= address & 3;
-		_old = (old & 0xff) << shift;
-		_new = (new & 0xff) << shift;
+		_old = ((unsigned int)old & 0xff) << shift;
+		_new = ((unsigned int)new & 0xff) << shift;
 		mask = ~(0xff << shift);
 		asm volatile(
 			"	spka	0(%[key])\n"
@@ -455,8 +455,8 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 
 		shift = (2 ^ (address & 2)) << 3;
 		address ^= address & 2;
-		_old = (old & 0xffff) << shift;
-		_new = (new & 0xffff) << shift;
+		_old = ((unsigned int)old & 0xffff) << shift;
+		_new = ((unsigned int)new & 0xffff) << shift;
 		mask = ~(0xffff << shift);
 		asm volatile(
 			"	spka	0(%[key])\n"
