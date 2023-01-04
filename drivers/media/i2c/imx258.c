@@ -9,6 +9,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fwnode.h>
 #include <asm/unaligned.h>
 
 #define IMX258_REG_VALUE_08BIT		1
@@ -1148,6 +1149,7 @@ static const struct v4l2_subdev_internal_ops imx258_internal_ops = {
 static int imx258_init_controls(struct imx258 *imx258)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&imx258->sd);
+	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 vblank_def;
 	s64 vblank_min;
@@ -1156,7 +1158,7 @@ static int imx258_init_controls(struct imx258 *imx258)
 	int ret;
 
 	ctrl_hdlr = &imx258->ctrl_handler;
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 8);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 11);
 	if (ret)
 		return ret;
 
@@ -1231,6 +1233,15 @@ static int imx258_init_controls(struct imx258 *imx258)
 				__func__, ret);
 		goto error;
 	}
+
+	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	if (ret)
+		goto error;
+
+	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &imx258_ctrl_ops,
+					      &props);
+	if (ret)
+		goto error;
 
 	imx258->sd.ctrl_handler = ctrl_hdlr;
 
