@@ -167,10 +167,14 @@ static void get_acp63_device_config(u32 config, struct pci_dev *pci,
 	}
 }
 
-void acp63_fill_platform_dev_info(struct platform_device_info *pdevinfo, struct device *parent,
-				  struct fwnode_handle *fw_node, char *name, unsigned int id,
-				  const struct resource *res, unsigned int num_res,
-				  const void *data, size_t size_data)
+static void acp63_fill_platform_dev_info(struct platform_device_info *pdevinfo,
+					 struct device *parent,
+					 struct fwnode_handle *fw_node,
+					 char *name, unsigned int id,
+					 const struct resource *res,
+					 unsigned int num_res,
+					 const void *data,
+					 size_t size_data)
 {
 	pdevinfo->name = name;
 	pdevinfo->id = id;
