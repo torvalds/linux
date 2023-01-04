@@ -504,7 +504,7 @@ void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr)
 	}
 }
 
-int amdgpu_ucode_validate(const struct firmware *fw)
+static int amdgpu_ucode_validate(const struct firmware *fw)
 {
 	const struct common_firmware_header *hdr =
 		(const struct common_firmware_header *)fw->data;
