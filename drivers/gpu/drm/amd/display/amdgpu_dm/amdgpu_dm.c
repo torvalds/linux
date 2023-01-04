@@ -1883,20 +1883,13 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 		return 0;
 	}
 
-	r = request_firmware_direct(&adev->dm.fw_dmcu, fw_name_dmcu, adev->dev);
-	if (r == -ENOENT) {
+	r = amdgpu_ucode_request(adev, &adev->dm.fw_dmcu, fw_name_dmcu);
+	if (r == -ENODEV) {
 		/* DMCU firmware is not necessary, so don't raise a fuss if it's missing */
 		DRM_DEBUG_KMS("dm: DMCU firmware not found\n");
 		adev->dm.fw_dmcu = NULL;
 		return 0;
 	}
-	if (r) {
-		dev_err(adev->dev, "amdgpu_dm: Can't load firmware \"%s\"\n",
-			fw_name_dmcu);
-		return r;
-	}
-
-	r = amdgpu_ucode_validate(adev->dm.fw_dmcu);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_dm: Can't validate firmware \"%s\"\n",
 			fw_name_dmcu);
