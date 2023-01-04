@@ -113,6 +113,11 @@ static const struct rk_serdes_reg rkx120_regs[] = {
 		.reg_len = 0x1c0,
 	},
 	{
+		.name = "pwm",
+		.reg_base = RKX120_PWM_BASE,
+		.reg_len = 0x100,
+	},
+	{
 		.name = "pma0",
 		.reg_base = RKX120_DES_PMA0_BASE,
 		.reg_len = 0x100,

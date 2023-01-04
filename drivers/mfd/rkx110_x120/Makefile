@@ -18,6 +18,7 @@ rkx110_x120-objs := \
 	rkx120_combtxphy.o \
 	rkx120_dsi_tx.o \
 	rkx120_linkrx.o \
-	serdes_combphy.o
+	serdes_combphy.o \
+	rkx120_pwm.o
 
 obj-$(CONFIG_ROCKCHIP_SERDES_DRM_PANEL) += rkx110_x120_panel.o

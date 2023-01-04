@@ -519,6 +519,12 @@ enum {
 #define RKX120_DES_PCS_OFFSET		0x00001000
 
 #define RKX120_PWM_BASE			0x01080000
+#define PWM_REG(x)			((x) + RKX120_PWM_BASE)
+#define PWM_CNT(ch)			(PWM_REG(0x0000) + 0x10 * ch)
+#define PWM_PERIOD_HPR(ch)		(PWM_REG(0x0004) + 0x10 * ch)
+#define PWM_DUTY_LPR(ch)		(PWM_REG(0x0008) + 0x10 * ch)
+#define PWM_CTRL(ch)			(PWM_REG(0x000C) + 0x10 * ch)
+
 #define RKX120_EFUSE_BASE		0x01090000
 #define RKX120_MIPI_LVDS_TX_PHY0_BASE	0x010A0000
 #define RKX120_MIPI_LVDS_TX_PHY1_BASE	0x010B0000

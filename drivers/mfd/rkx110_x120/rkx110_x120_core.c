@@ -27,6 +27,38 @@ static const struct mfd_cell rkx110_x120_devs[] = {
 		.name = "rockchip-serdes-panel",
 		.of_compatible = "rockchip,serdes-panel",
 	},
+	{
+		.name = "rkx120-pwm0",
+		.of_compatible = "rockchip,rkx120-pwm",
+	},
+	{
+		.name = "rkx120-pwm1",
+		.of_compatible = "rockchip,rkx120-pwm",
+	},
+	{
+		.name = "rkx120-pwm2",
+		.of_compatible = "rockchip,rkx120-pwm",
+	},
+	{
+		.name = "rkx120-pwm3",
+		.of_compatible = "rockchip,rkx120-pwm",
+	},
+	{
+		.name = "rkx120-pwm4",
+		.of_compatible = "rockchip,rkx120-pwm",
+	},
+	{
+		.name = "rkx120-pwm5",
+		.of_compatible = "rockchip,rkx120-pwm",
+	},
+	{
+		.name = "rkx120-pwm6",
+		.of_compatible = "rockchip,rkx120-pwm",
+	},
+	{
+		.name = "rkx120-pwm7",
+		.of_compatible = "rockchip,rkx120-pwm",
+	},
 };
 
 static int rk_serdes_i2c_read(struct i2c_client *client, u32 addr, u32 *value)
