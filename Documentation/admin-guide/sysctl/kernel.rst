@@ -464,6 +464,24 @@ allowing a system to set up (and later use) an image without it being
 altered.
 Generally used together with the `modules_disabled`_ sysctl.
 
+kexec_load_limit_panic
+======================
+
+This parameter specifies a limit to the number of times the syscalls
+``kexec_load`` and ``kexec_file_load`` can be called with a crash
+image. It can only be set with a more restrictive value than the
+current one.
+
+== ======================================================
+-1 Unlimited calls to kexec. This is the default setting.
+N  Number of calls left.
+== ======================================================
+
+kexec_load_limit_reboot
+=======================
+
+Similar functionality as ``kexec_load_limit_panic``, but for a normal
+image.
 
 kptr_restrict
 =============
