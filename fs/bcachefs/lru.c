@@ -37,6 +37,15 @@ void bch2_lru_to_text(struct printbuf *out, struct bch_fs *c,
 	prt_printf(out, "idx %llu", le64_to_cpu(lru->idx));
 }
 
+void bch2_lru_pos_to_text(struct printbuf *out, struct bpos lru)
+{
+	prt_printf(out, "%llu:%llu -> %llu:%llu",
+		   lru_pos_id(lru),
+		   lru_pos_time(lru),
+		   u64_to_bucket(lru.offset).inode,
+		   u64_to_bucket(lru.offset).offset);
+}
+
 static int __bch2_lru_set(struct btree_trans *trans, u16 lru_id,
 			u64 dev_bucket, u64 time, unsigned key_type)
 {
