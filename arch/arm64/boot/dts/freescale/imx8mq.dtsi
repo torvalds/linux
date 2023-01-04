@@ -575,8 +575,7 @@
 			};
 
 			iomuxc_gpr: syscon@30340000 {
-				compatible = "fsl,imx8mq-iomuxc-gpr", "fsl,imx6q-iomuxc-gpr",
-					     "syscon", "simple-mfd";
+				compatible = "fsl,imx8mq-iomuxc-gpr", "syscon", "simple-mfd";
 				reg = <0x30340000 0x10000>;
 
 				mux: mux-controller {
