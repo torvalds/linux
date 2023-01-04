@@ -106,6 +106,7 @@ struct acp63_dev_data {
 	struct resource *res;
 	bool acp63_audio_mode;
 	struct platform_device *pdev[ACP63_DEVS];
+	struct mutex acp_lock; /* protect shared registers */
 	u16 pdev_mask;
 	u16 pdev_count;
 	u16 pdm_dev_index;
