@@ -31,6 +31,12 @@ def have_command(cmd):
 # Get Sphinx version
 major, minor, patch = sphinx.version_info[:3]
 
+#
+# Warn about older versions that we don't want to support for much
+# longer.
+#
+if (major < 2) or (major == 2 and minor < 4):
+    print('WARNING: support for Sphinx < 2.4 will be removed soon.')
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
