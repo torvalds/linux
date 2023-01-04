@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(kasan_restore_multi_shot);
  * Whether the KASAN KUnit test suite is currently being executed.
  * Updated in kasan_test.c.
  */
-bool kasan_kunit_executing;
+static bool kasan_kunit_executing;
 
 void kasan_kunit_test_suite_start(void)
 {
