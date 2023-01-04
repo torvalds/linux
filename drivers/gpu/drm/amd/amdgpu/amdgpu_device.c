@@ -1985,17 +1985,10 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_gpu_info.bin", chip_name);
-	err = request_firmware(&adev->firmware.gpu_info_fw, fw_name, adev->dev);
+	err = amdgpu_ucode_request(adev, &adev->firmware.gpu_info_fw, fw_name);
 	if (err) {
 		dev_err(adev->dev,
-			"Failed to load gpu_info firmware \"%s\"\n",
-			fw_name);
-		goto out;
-	}
-	err = amdgpu_ucode_validate(adev->firmware.gpu_info_fw);
-	if (err) {
-		dev_err(adev->dev,
-			"Failed to validate gpu_info firmware \"%s\"\n",
+			"Failed to get gpu_info firmware \"%s\"\n",
 			fw_name);
 		goto out;
 	}
@@ -4033,8 +4026,7 @@ void amdgpu_device_fini_sw(struct amdgpu_device *adev)
 
 	amdgpu_fence_driver_sw_fini(adev);
 	amdgpu_device_ip_fini(adev);
-	release_firmware(adev->firmware.gpu_info_fw);
-	adev->firmware.gpu_info_fw = NULL;
+	amdgpu_ucode_release(&adev->firmware.gpu_info_fw);
 	adev->accel_working = false;
 	dma_fence_put(rcu_dereference_protected(adev->gang_submit, true));
 
