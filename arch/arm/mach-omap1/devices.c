@@ -21,7 +21,6 @@
 #include "tc.h"
 #include "mux.h"
 
-#include "omap7xx.h"
 #include "hardware.h"
 #include "common.h"
 #include "clock.h"
