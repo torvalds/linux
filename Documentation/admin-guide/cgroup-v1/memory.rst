@@ -13,7 +13,7 @@ Memory Resource Controller
       memory controller in this document. Do not confuse memory controller
       used here with the memory controller that is used in hardware.
 
-(For editors) In this document:
+.. hint::
       When we mention a cgroup (cgroupfs's directory) with memory controller,
       we call it "memory cgroup". When you see git-log and source code, you'll
       see patch's title and function names tend to use "memcg".
