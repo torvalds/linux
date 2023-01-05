@@ -642,12 +642,12 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 	if (WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root.hpa)))
 		goto out_gpte_changed;
 
-	for (shadow_walk_init(&it, vcpu, fault->addr);
-	     shadow_walk_okay(&it) && it.level > gw->level;
-	     shadow_walk_next(&it)) {
+	for_each_shadow_entry(vcpu, fault->addr, it) {
 		gfn_t table_gfn;
 
 		clear_sp_write_flooding_count(it.sptep);
+		if (it.level == gw->level)
+			break;
 
 		table_gfn = gw->table_gfn[it.level - 2];
 		access = gw->pt_access[it.level - 2];
@@ -692,8 +692,6 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 	trace_kvm_mmu_spte_requested(fault);
 
 	for (; shadow_walk_okay(&it); shadow_walk_next(&it)) {
-		clear_sp_write_flooding_count(it.sptep);
-
 		/*
 		 * We cannot overwrite existing page tables with an NX
 		 * large page, as the leaf could be executable.
