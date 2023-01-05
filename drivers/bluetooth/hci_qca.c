@@ -128,13 +128,13 @@ struct qca_memdump_event_hdr {
 	__u8    evt;
 	__u8    plen;
 	__u16   opcode;
-	__u16   seq_no;
+	__le16   seq_no;
 	__u8    reserved;
 } __packed;
 
 
 struct qca_dump_size {
-	u32 dump_size;
+	__le32 dump_size;
 } __packed;
 
 struct qca_data {
