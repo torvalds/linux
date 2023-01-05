@@ -210,6 +210,9 @@ struct amdgpu_gfx_ras {
 	struct amdgpu_ras_block_object  ras_block;
 	void (*enable_watchdog_timer)(struct amdgpu_device *adev);
 	bool (*query_utcl2_poison_status)(struct amdgpu_device *adev);
+	int (*rlc_gc_fed_irq)(struct amdgpu_device *adev,
+				struct amdgpu_irq_src *source,
+				struct amdgpu_iv_entry *entry);
 };
 
 struct amdgpu_gfx_funcs {
@@ -323,6 +326,7 @@ struct amdgpu_gfx {
 	struct amdgpu_irq_src		priv_inst_irq;
 	struct amdgpu_irq_src		cp_ecc_error_irq;
 	struct amdgpu_irq_src		sq_irq;
+	struct amdgpu_irq_src		rlc_gc_fed_irq;
 	struct sq_work			sq_work;
 
 	/* gfx status */
