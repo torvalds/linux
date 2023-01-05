@@ -2419,8 +2419,7 @@ struct io_wait_queue {
 static inline bool io_has_work(struct io_ring_ctx *ctx)
 {
 	return test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq) ||
-	       ((ctx->flags & IORING_SETUP_DEFER_TASKRUN) &&
-		!llist_empty(&ctx->work_llist));
+	       !llist_empty(&ctx->work_llist);
 }
 
 static inline bool io_should_wake(struct io_wait_queue *iowq)
