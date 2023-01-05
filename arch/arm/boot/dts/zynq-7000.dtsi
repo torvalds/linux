@@ -343,7 +343,7 @@
 			};
 		};
 
-		dmac_s: dmac@f8003000 {
+		dmac_s: dma-controller@f8003000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0xf8003000 0x1000>;
 			interrupt-parent = <&intc>;
