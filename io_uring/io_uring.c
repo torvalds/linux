@@ -2470,24 +2470,19 @@ static inline int io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 					  struct io_wait_queue *iowq,
 					  ktime_t *timeout)
 {
-	int ret;
-
 	if (unlikely(READ_ONCE(ctx->check_cq)))
 		return 1;
-	/* make sure we run task_work before checking for signals */
-	ret = io_run_task_work_sig(ctx);
-	if (ret || io_should_wake(iowq))
-		return ret;
+	if (unlikely(!llist_empty(&ctx->work_llist)))
+		return 1;
+	if (unlikely(test_thread_flag(TIF_NOTIFY_SIGNAL)))
+		return 1;
+	if (unlikely(task_sigpending(current)))
+		return -EINTR;
+	if (unlikely(io_should_wake(iowq)))
+		return 0;
 	if (!schedule_hrtimeout(timeout, HRTIMER_MODE_ABS))
 		return -ETIME;
-
-	/*
-	 * Run task_work after scheduling. If we got woken because of
-	 * task_work being processed, run it now rather than let the caller
-	 * do another wait loop.
-	 */
-	ret = io_run_task_work_sig(ctx);
-	return ret < 0 ? ret : 1;
+	return 0;
 }
 
 /*
@@ -2548,6 +2543,16 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		prepare_to_wait_exclusive(&ctx->cq_wait, &iowq.wq,
 						TASK_INTERRUPTIBLE);
 		ret = io_cqring_wait_schedule(ctx, &iowq, &timeout);
+		if (ret < 0)
+			break;
+		/*
+		 * Run task_work after scheduling and before io_should_wake().
+		 * If we got woken because of task_work being processed, run it
+		 * now rather than let the caller do another wait loop.
+		 */
+		io_run_task_work();
+		if (!llist_empty(&ctx->work_llist))
+			io_run_local_work(ctx);
 
 		check_cq = READ_ONCE(ctx->check_cq);
 		if (unlikely(check_cq)) {
@@ -2562,10 +2567,12 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 			}
 		}
 
-		if (__io_cqring_events_user(ctx) >= min_events)
+		if (io_should_wake(&iowq)) {
+			ret = 0;
 			break;
+		}
 		cond_resched();
-	} while (ret > 0);
+	} while (1);
 
 	finish_wait(&ctx->cq_wait, &iowq.wq);
 	restore_saved_sigmask_unless(ret == -EINTR);
