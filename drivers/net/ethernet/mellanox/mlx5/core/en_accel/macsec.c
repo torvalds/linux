@@ -1804,7 +1804,7 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 
 	macsec->mdev = mdev;
 
-	macsec_fs = mlx5_macsec_fs_init(mdev, priv->netdev);
+	macsec_fs = mlx5_macsec_fs_init(mdev);
 	if (!macsec_fs) {
 		err = -ENOMEM;
 		goto err_out;

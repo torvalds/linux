@@ -43,7 +43,7 @@ enum mlx5_macsec_action {
 void mlx5_macsec_fs_cleanup(struct mlx5_macsec_fs *macsec_fs);
 
 struct mlx5_macsec_fs *
-mlx5_macsec_fs_init(struct mlx5_core_dev *mdev, struct net_device *netdev);
+mlx5_macsec_fs_init(struct mlx5_core_dev *mdev);
 
 union mlx5_macsec_rule *
 mlx5_macsec_fs_add_rule(struct mlx5_macsec_fs *macsec_fs,
