@@ -4340,6 +4340,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vp->splice_mode_right = false;
 	vp->loader_protect = false;
 	splice_vp->splice_mode_right = false;
+	memset(&vp->active_tv_state, 0, sizeof(vp->active_tv_state));
 	vop2_unlock(vop2);
 
 	vop2_set_system_status(vop2);
