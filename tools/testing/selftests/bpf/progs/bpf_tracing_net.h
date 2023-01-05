@@ -50,6 +50,12 @@
 #define ICSK_TIME_LOSS_PROBE	5
 #define ICSK_TIME_REO_TIMEOUT	6
 
+#define ETH_HLEN		14
+#define ETH_P_IPV6		0x86DD
+
+#define CHECKSUM_NONE		0
+#define CHECKSUM_PARTIAL	3
+
 #define IFNAMSIZ		16
 
 #define RTF_GATEWAY		0x0002
