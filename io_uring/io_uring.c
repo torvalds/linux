@@ -2510,18 +2510,16 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 	if (!io_allowed_run_tw(ctx))
 		return -EEXIST;
-
-	do {
-		/* always run at least 1 task work to process local work */
-		ret = io_run_task_work_ctx(ctx);
+	if (!llist_empty(&ctx->work_llist)) {
+		ret = io_run_local_work(ctx);
 		if (ret < 0)
 			return ret;
-		io_cqring_overflow_flush(ctx);
-
-		/* if user messes with these they will just get an early return */
-		if (__io_cqring_events_user(ctx) >= min_events)
-			return 0;
-	} while (ret > 0);
+	}
+	io_run_task_work();
+	io_cqring_overflow_flush(ctx);
+	/* if user messes with these they will just get an early return */
+	if (__io_cqring_events_user(ctx) >= min_events)
+		return 0;
 
 	if (sig) {
 #ifdef CONFIG_COMPAT
