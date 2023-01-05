@@ -12488,16 +12488,14 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 
 static void kvm_mmu_update_cpu_dirty_logging(struct kvm *kvm, bool enable)
 {
-	struct kvm_arch *ka = &kvm->arch;
+	int nr_slots;
 
 	if (!kvm_x86_ops.cpu_dirty_log_size)
 		return;
 
-	if ((enable && ++ka->cpu_dirty_logging_count == 1) ||
-	    (!enable && --ka->cpu_dirty_logging_count == 0))
+	nr_slots = atomic_read(&kvm->nr_memslots_dirty_logging);
+	if ((enable && nr_slots == 1) || !nr_slots)
 		kvm_make_all_cpus_request(kvm, KVM_REQ_UPDATE_CPU_DIRTY_LOGGING);
-
-	WARN_ON_ONCE(ka->cpu_dirty_logging_count < 0);
 }
 
 static void kvm_mmu_slot_apply_flags(struct kvm *kvm,

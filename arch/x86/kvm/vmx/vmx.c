@@ -4606,7 +4606,7 @@ static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 	 * it needs to be set here when dirty logging is already active, e.g.
 	 * if this vCPU was created after dirty logging was enabled.
 	 */
-	if (!vcpu->kvm->arch.cpu_dirty_logging_count)
+	if (!enable_pml || !atomic_read(&vcpu->kvm->nr_memslots_dirty_logging))
 		exec_control &= ~SECONDARY_EXEC_ENABLE_PML;
 
 	if (cpu_has_vmx_xsaves()) {
@@ -7988,17 +7988,20 @@ void vmx_update_cpu_dirty_logging(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
+	if (WARN_ON_ONCE(!enable_pml))
+		return;
+
 	if (is_guest_mode(vcpu)) {
 		vmx->nested.update_vmcs01_cpu_dirty_logging = true;
 		return;
 	}
 
 	/*
-	 * Note, cpu_dirty_logging_count can be changed concurrent with this
+	 * Note, nr_memslots_dirty_logging can be changed concurrent with this
 	 * code, but in that case another update request will be made and so
 	 * the guest will never run with a stale PML value.
 	 */
-	if (vcpu->kvm->arch.cpu_dirty_logging_count)
+	if (atomic_read(&vcpu->kvm->nr_memslots_dirty_logging))
 		secondary_exec_controls_setbit(vmx, SECONDARY_EXEC_ENABLE_PML);
 	else
 		secondary_exec_controls_clearbit(vmx, SECONDARY_EXEC_ENABLE_PML);
