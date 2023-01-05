@@ -519,60 +519,59 @@ will be charged as a new owner of it.
 5.2 stat file
 -------------
 
-memory.stat file includes following statistics
+memory.stat file includes following statistics:
 
-per-memory cgroup local status
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  * per-memory cgroup local status
 
-=============== ===============================================================
-cache		# of bytes of page cache memory.
-rss		# of bytes of anonymous and swap cache memory (includes
-		transparent hugepages).
-rss_huge	# of bytes of anonymous transparent hugepages.
-mapped_file	# of bytes of mapped file (includes tmpfs/shmem)
-pgpgin		# of charging events to the memory cgroup. The charging
-		event happens each time a page is accounted as either mapped
-		anon page(RSS) or cache page(Page Cache) to the cgroup.
-pgpgout		# of uncharging events to the memory cgroup. The uncharging
-		event happens each time a page is unaccounted from the cgroup.
-swap		# of bytes of swap usage
-dirty		# of bytes that are waiting to get written back to the disk.
-writeback	# of bytes of file/anon cache that are queued for syncing to
-		disk.
-inactive_anon	# of bytes of anonymous and swap cache memory on inactive
-		LRU list.
-active_anon	# of bytes of anonymous and swap cache memory on active
-		LRU list.
-inactive_file	# of bytes of file-backed memory and MADV_FREE anonymous memory(
-                LazyFree pages) on inactive LRU list.
-active_file	# of bytes of file-backed memory on active LRU list.
-unevictable	# of bytes of memory that cannot be reclaimed (mlocked etc).
-=============== ===============================================================
+    =============== ===============================================================
+    cache           # of bytes of page cache memory.
+    rss             # of bytes of anonymous and swap cache memory (includes
+                    transparent hugepages).
+    rss_huge        # of bytes of anonymous transparent hugepages.
+    mapped_file     # of bytes of mapped file (includes tmpfs/shmem)
+    pgpgin          # of charging events to the memory cgroup. The charging
+                    event happens each time a page is accounted as either mapped
+                    anon page(RSS) or cache page(Page Cache) to the cgroup.
+    pgpgout         # of uncharging events to the memory cgroup. The uncharging
+                    event happens each time a page is unaccounted from the
+                    cgroup.
+    swap            # of bytes of swap usage
+    dirty           # of bytes that are waiting to get written back to the disk.
+    writeback       # of bytes of file/anon cache that are queued for syncing to
+                    disk.
+    inactive_anon   # of bytes of anonymous and swap cache memory on inactive
+                    LRU list.
+    active_anon     # of bytes of anonymous and swap cache memory on active
+                    LRU list.
+    inactive_file   # of bytes of file-backed memory and MADV_FREE anonymous
+                    memory (LazyFree pages) on inactive LRU list.
+    active_file     # of bytes of file-backed memory on active LRU list.
+    unevictable     # of bytes of memory that cannot be reclaimed (mlocked etc).
+    =============== ===============================================================
 
-status considering hierarchy (see memory.use_hierarchy settings)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  * status considering hierarchy (see memory.use_hierarchy settings):
 
-========================= ===================================================
-hierarchical_memory_limit # of bytes of memory limit with regard to hierarchy
-			  under which the memory cgroup is
-hierarchical_memsw_limit  # of bytes of memory+swap limit with regard to
-			  hierarchy under which memory cgroup is.
+    ========================= ===================================================
+    hierarchical_memory_limit # of bytes of memory limit with regard to
+                              hierarchy
+                              under which the memory cgroup is
+    hierarchical_memsw_limit  # of bytes of memory+swap limit with regard to
+                              hierarchy under which memory cgroup is.
 
-total_<counter>		  # hierarchical version of <counter>, which in
-			  addition to the cgroup's own value includes the
-			  sum of all hierarchical children's values of
-			  <counter>, i.e. total_cache
-========================= ===================================================
+    total_<counter>           # hierarchical version of <counter>, which in
+                              addition to the cgroup's own value includes the
+                              sum of all hierarchical children's values of
+                              <counter>, i.e. total_cache
+    ========================= ===================================================
 
-The following additional stats are dependent on CONFIG_DEBUG_VM
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  * additional vm parameters (depends on CONFIG_DEBUG_VM):
 
-========================= ========================================
-recent_rotated_anon	  VM internal parameter. (see mm/vmscan.c)
-recent_rotated_file	  VM internal parameter. (see mm/vmscan.c)
-recent_scanned_anon	  VM internal parameter. (see mm/vmscan.c)
-recent_scanned_file	  VM internal parameter. (see mm/vmscan.c)
-========================= ========================================
+    ========================= ========================================
+    recent_rotated_anon       VM internal parameter. (see mm/vmscan.c)
+    recent_rotated_file       VM internal parameter. (see mm/vmscan.c)
+    recent_scanned_anon       VM internal parameter. (see mm/vmscan.c)
+    recent_scanned_file       VM internal parameter. (see mm/vmscan.c)
+    ========================= ========================================
 
 .. hint::
 	recent_rotated means recent frequency of LRU rotation.
