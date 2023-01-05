@@ -495,6 +495,62 @@ void qcom_free_io_pgtable_ops(struct io_pgtable_ops *ops)
 }
 EXPORT_SYMBOL(qcom_free_io_pgtable_ops);
 
+#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_ANDROID_VENDOR_OEM_DATA)
+/*
+ * iovad->vendor_data1 i.e, ANDROID_VENDOR_DATA(1), field is a 64-bit field.
+ *
+ * Use Bits 7:0 to encode the max_alignment_shift.
+ * Use Bit 16 for selecting best_fit algorithm.
+ * Reserve remaining bits for future use.
+ */
+#define QCOM_IOVAD_VENDOR_BEST_FIT_MASK		BIT_MASK(16)
+#define QCOM_IOVAD_VENDOR_MAX_ALIGN_SHIFT_MASK	GENMASK(7, 0)
+
+static inline void iovad_set_best_fit_iova(struct iova_domain *iovad)
+{
+	iovad->android_vendor_data1 |= QCOM_IOVAD_VENDOR_BEST_FIT_MASK;
+}
+
+static inline bool iovad_use_best_fit_iova(struct iova_domain *iovad)
+{
+	return !!(iovad->android_vendor_data1 & QCOM_IOVAD_VENDOR_BEST_FIT_MASK);
+}
+
+static inline void iovad_set_max_align_shift(struct iova_domain *iovad,
+					     unsigned long max_shift)
+{
+	if (max_shift > QCOM_IOVAD_VENDOR_MAX_ALIGN_SHIFT_MASK) {
+		/* Use the default value of 9, or 2M alignment for 4K pages */
+		WARN_ON_ONCE("Invalid value of max_align_shift!\n");
+		max_shift = 9;
+	}
+
+	/*
+	 * When extracting/computing max_align_shift, we assume that it
+	 * is encoded in the LSB of ->android_vendor_data. Ensure this
+	 * with BUILD_BUG_ON.
+	 */
+	BUILD_BUG_ON(QCOM_IOVAD_VENDOR_MAX_ALIGN_SHIFT_MASK > 255);
+	iovad->android_vendor_data1 |= max_shift;
+}
+
+static inline unsigned long iovad_get_max_align_shift(struct iova_domain *iovad)
+{
+	u64 max_shift = iovad->android_vendor_data1;
+
+	/*
+	 * When extracting/computing max_align_shift, we assume that it
+	 * is encoded in the LSB of ->android_vendor_data. Ensure this
+	 * with BUILD_BUG_ON.
+	 */
+	BUILD_BUG_ON(QCOM_IOVAD_VENDOR_MAX_ALIGN_SHIFT_MASK > 255);
+
+	max_shift &= QCOM_IOVAD_VENDOR_MAX_ALIGN_SHIFT_MASK;
+
+	return (unsigned long)max_shift;
+}
+#endif
+
 /*
  * These tables must have the same length.
  * It is allowed to have a NULL exitcall corresponding to a non-NULL initcall.
