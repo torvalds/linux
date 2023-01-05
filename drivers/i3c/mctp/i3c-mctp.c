@@ -611,6 +611,8 @@ static const struct i3c_device_id i3c_mctp_ids[] = {
 	I3C_DEVICE(0x3f6, 0x8000, (void *)0),
 	I3C_DEVICE(0x3f6, 0x8001, (void *)0),
 	I3C_DEVICE(0x3f6, 0xA001, (void *)0),
+	I3C_DEVICE(0x3f6, 0xA003, (void *)0),
+	I3C_DEVICE(0x3f6, 0x0503, (void *)0),
 	{ },
 };
 
