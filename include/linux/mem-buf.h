@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _MEM_BUF_H
@@ -29,6 +29,13 @@ bool mem_buf_dma_buf_exclusive_owner(struct dma_buf *dmabuf);
  */
 int mem_buf_dma_buf_copy_vmperm(struct dma_buf *dmabuf, int **vmids, int **perms,
 		int *nr_acl_entries);
+
+/*
+ * Returns 0 if @dmabuf has a valid memparcel handle and stores it in
+ * memparcel_hdl
+ */
+int mem_buf_dma_buf_get_memparcel_hdl(struct dma_buf *dmabuf,
+				      gh_memparcel_handle_t *memparcel_hdl);
 
 typedef int (*mem_buf_dma_buf_destructor)(void *dtor_data);
 int mem_buf_dma_buf_set_destructor(struct dma_buf *dmabuf,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "mem_buf_vmperm: " fmt
@@ -684,3 +684,20 @@ err_vmids:
 }
 EXPORT_SYMBOL(mem_buf_dma_buf_copy_vmperm);
 
+int mem_buf_dma_buf_get_memparcel_hdl(struct dma_buf *dmabuf,
+				      gh_memparcel_handle_t *memparcel_hdl)
+{
+	struct mem_buf_vmperm *vmperm;
+
+	vmperm = to_mem_buf_vmperm(dmabuf);
+	if (IS_ERR(vmperm))
+		return PTR_ERR(vmperm);
+
+	if (vmperm->memparcel_hdl == MEM_BUF_MEMPARCEL_INVALID)
+		return -EINVAL;
+
+	*memparcel_hdl = vmperm->memparcel_hdl;
+
+	return 0;
+}
+EXPORT_SYMBOL(mem_buf_dma_buf_get_memparcel_hdl);

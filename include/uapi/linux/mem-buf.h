@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _UAPI_LINUX_MEM_BUF_H
@@ -233,5 +233,20 @@ struct mem_buf_exclusive_owner_ioctl_arg {
 
 #define MEM_BUF_IOC_EXCLUSIVE_OWNER	_IOWR(MEM_BUF_IOC_MAGIC, 2,\
 					      struct mem_buf_exclusive_owner_ioctl_arg)
+
+/**
+ * struct mem_buf_get_memparcel_hdl_ioctl_arg: A request to get the Gunyah
+ * memparcel handle from a DMA-BUF, given that it has one.
+ * @memparcel_hdl: The handle associated with the DMA-BUF, if it exists
+ * @dma_buf_fd: The fd of the dma-buf the user wants to obtain a handle from
+ */
+struct mem_buf_get_memparcel_hdl_ioctl_arg {
+	__u64 memparcel_hdl;
+	__u32 dma_buf_fd;
+	__u32 padding;
+};
+
+#define MEM_BUF_IOC_GET_MEMPARCEL_HDL	_IOWR(MEM_BUF_IOC_MAGIC, 5,\
+					      struct mem_buf_get_memparcel_hdl_ioctl_arg)
 
 #endif /* _UAPI_LINUX_MEM_BUF_H */
