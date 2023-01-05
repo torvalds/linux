@@ -515,10 +515,10 @@ static void **nvme_pci_iod_list(struct request *req)
 	return (void **)(iod->sgt.sgl + blk_rq_nr_phys_segments(req));
 }
 
-static inline bool nvme_pci_use_sgls(struct nvme_dev *dev, struct request *req)
+static inline bool nvme_pci_use_sgls(struct nvme_dev *dev, struct request *req,
+				     int nseg)
 {
 	struct nvme_queue *nvmeq = req->mq_hctx->driver_data;
-	int nseg = blk_rq_nr_phys_segments(req);
 	unsigned int avg_seg_size;
 
 	avg_seg_size = DIV_ROUND_UP(blk_rq_payload_bytes(req), nseg);
@@ -818,7 +818,7 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 		goto out_free_sg;
 	}
 
-	iod->use_sgl = nvme_pci_use_sgls(dev, req);
+	iod->use_sgl = nvme_pci_use_sgls(dev, req, iod->sgt.nents);
 	if (iod->use_sgl)
 		ret = nvme_pci_setup_sgls(dev, req, &cmnd->rw);
 	else
