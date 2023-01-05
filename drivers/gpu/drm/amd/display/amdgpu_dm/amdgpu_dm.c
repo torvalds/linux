@@ -8866,22 +8866,15 @@ static void get_freesync_config_for_crtc(
 	struct drm_display_mode *mode = &new_crtc_state->base.mode;
 	int vrefresh = drm_mode_vrefresh(mode);
 	bool fs_vid_mode = false;
-	bool drr_active = false;
 
 	new_crtc_state->vrr_supported = new_con_state->freesync_capable &&
 					vrefresh >= aconnector->min_vfreq &&
 					vrefresh <= aconnector->max_vfreq;
 
-	drr_active = new_crtc_state->vrr_supported &&
-		new_crtc_state->freesync_config.state != VRR_STATE_DISABLED &&
-		new_crtc_state->freesync_config.state != VRR_STATE_INACTIVE &&
-		new_crtc_state->freesync_config.state != VRR_STATE_UNSUPPORTED;
-
-	if (drr_active)
-		new_crtc_state->stream->ignore_msa_timing_param = true;
-
 	if (new_crtc_state->vrr_supported) {
+		new_crtc_state->stream->ignore_msa_timing_param = true;
 		fs_vid_mode = new_crtc_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
+
 		config.min_refresh_in_uhz = aconnector->min_vfreq * 1000000;
 		config.max_refresh_in_uhz = aconnector->max_vfreq * 1000000;
 		config.vsif_supported = true;
