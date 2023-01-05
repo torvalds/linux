@@ -366,8 +366,7 @@ void intel_fdi_normal_train(struct intel_crtc *crtc)
 
 	/* IVB wants error correction enabled */
 	if (IS_IVYBRIDGE(dev_priv))
-		intel_de_write(dev_priv, reg,
-			       intel_de_read(dev_priv, reg) | FDI_FS_ERRC_ENABLE | FDI_FE_ERRC_ENABLE);
+		intel_de_rmw(dev_priv, reg, 0, FDI_FS_ERRC_ENABLE | FDI_FE_ERRC_ENABLE);
 }
 
 /* The FDI link training functions for ILK/Ibexpeak. */
