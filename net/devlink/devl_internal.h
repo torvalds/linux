@@ -87,6 +87,10 @@ extern struct genl_family devlink_nl_family;
 	     devlink; devlink = devlinks_xa_find_get_next(net, &index))
 
 struct devlink *
+devlinks_xa_find_get(struct net *net, unsigned long *indexp,
+		     void * (*xa_find_fn)(struct xarray *, unsigned long *,
+					  unsigned long, xa_mark_t));
+struct devlink *
 devlinks_xa_find_get_first(struct net *net, unsigned long *indexp);
 struct devlink *
 devlinks_xa_find_get_next(struct net *net, unsigned long *indexp);
@@ -104,6 +108,7 @@ enum devlink_multicast_groups {
 
 /* state held across netlink dumps */
 struct devlink_nl_dump_state {
+	unsigned long instance;
 	int idx;
 	union {
 		/* DEVLINK_CMD_REGION_READ */
@@ -116,6 +121,17 @@ struct devlink_nl_dump_state {
 		};
 	};
 };
+
+/* Iterate over registered devlink instances for devlink dump.
+ * devlink_put() needs to be called for each iterated devlink pointer
+ * in loop body in order to release the reference.
+ * Note: this is NOT a generic iterator, it makes assumptions about the use
+ *	 of @state and can only be used once per dumpit implementation.
+ */
+#define devlink_dump_for_each_instance_get(msg, state, devlink)		\
+	for (; (devlink = devlinks_xa_find_get(sock_net(msg->sk),	\
+					       &state->instance, xa_find)); \
+	     state->instance++)
 
 extern const struct genl_small_ops devlink_nl_ops[56];
 
