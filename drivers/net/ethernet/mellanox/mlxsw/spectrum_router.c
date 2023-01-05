@@ -2951,7 +2951,7 @@ struct mlxsw_sp_nexthop_group_info {
 	   gateway:1, /* routes using the group use a gateway */
 	   is_resilient:1;
 	struct list_head list; /* member in nh_res_grp_list */
-	struct mlxsw_sp_nexthop nexthops[0];
+	struct mlxsw_sp_nexthop nexthops[];
 #define nh_rif	nexthops[0].rif
 };
 
