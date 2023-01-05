@@ -556,7 +556,7 @@ static int module_init_hyp(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
 		return -ENOEXEC;
 
 	mod->arch.hyp.relocs = (void *)s->sh_addr;
-	mod->arch.hyp.nr_relocs = s->sh_size / sizeof(mod->arch.hyp.relocs);
+	mod->arch.hyp.nr_relocs = s->sh_size / sizeof(*mod->arch.hyp.relocs);
 #endif
 	return 0;
 }
