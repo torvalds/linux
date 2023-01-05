@@ -356,6 +356,7 @@ static umode_t fts_is_visible(const void *devdata, enum hwmon_sensor_types type,
 	case hwmon_fan:
 		switch (attr) {
 		case hwmon_fan_input:
+		case hwmon_fan_fault:
 			return 0444;
 		case hwmon_fan_alarm:
 			return 0644;
@@ -410,6 +411,10 @@ static int fts_read(struct device *dev, enum hwmon_sensor_types type, u32 attr, 
 			return 0;
 		case hwmon_fan_alarm:
 			*val = !!(data->fan_alarm & BIT(channel));
+
+			return 0;
+		case hwmon_fan_fault:
+			*val = !(data->fan_present & BIT(channel));
 
 			return 0;
 		default:
@@ -536,14 +541,14 @@ static const struct hwmon_channel_info *fts_info[] = {
 			   HWMON_T_INPUT | HWMON_T_ALARM | HWMON_T_FAULT
 			   ),
 	HWMON_CHANNEL_INFO(fan,
-			   HWMON_F_INPUT | HWMON_F_ALARM,
-			   HWMON_F_INPUT | HWMON_F_ALARM,
-			   HWMON_F_INPUT | HWMON_F_ALARM,
-			   HWMON_F_INPUT | HWMON_F_ALARM,
-			   HWMON_F_INPUT | HWMON_F_ALARM,
-			   HWMON_F_INPUT | HWMON_F_ALARM,
-			   HWMON_F_INPUT | HWMON_F_ALARM,
-			   HWMON_F_INPUT | HWMON_F_ALARM
+			   HWMON_F_INPUT | HWMON_F_ALARM | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_ALARM | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_ALARM | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_ALARM | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_ALARM | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_ALARM | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_ALARM | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_ALARM | HWMON_F_FAULT
 			   ),
 	HWMON_CHANNEL_INFO(pwm,
 			   HWMON_PWM_AUTO_CHANNELS_TEMP,
