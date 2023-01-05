@@ -2,8 +2,9 @@ load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//build/bazel_common_rules/test_mappings:test_mappings.bzl", "test_mappings_dist")
 load(
     "//build/kernel/kleaf:kernel.bzl",
-    "kernel_build_abi",
-    "kernel_build_abi_dist",
+    "kernel_abi",
+    "kernel_abi_dist",
+    "kernel_build",
     "kernel_build_config",
     "kernel_compile_commands",
     "kernel_images",
@@ -117,10 +118,10 @@ def _define_kernel_build(
         define_abi_targets,
         define_compile_commands,
         kmi_enforced):
-    """Creates a `kernel_build_abi` and other associated definitions
+    """Creates a `kernel_build` and other associated definitions
 
     This is where the main kernel build target is created (e.g. `//msm-kernel:kalama_gki`).
-    Many other rules will take this `kernel_build_abi` as an input.
+    Many other rules will take this `kernel_build` as an input.
 
     Args:
       target: name of main Bazel target (e.g. `kalama_gki`)
@@ -138,7 +139,7 @@ def _define_kernel_build(
     if dtbo_list:
         out_list += dtbo_list
 
-    kernel_build_abi(
+    kernel_build(
         name = target,
         module_outs = in_tree_module_list,
         module_implicit_outs = implicit_out_list,
@@ -147,13 +148,20 @@ def _define_kernel_build(
         dtstree = dtstree,
         base_kernel = base_kernel,
         kmi_symbol_list = "//msm-kernel:android/abi_gki_aarch64_qcom" if define_abi_targets else None,
-        kmi_enforced = kmi_enforced,
         additional_kmi_symbol_lists = ["{}_all_kmi_symbol_lists".format(base_kernel)] if define_abi_targets else None,
-        define_abi_targets = define_abi_targets,
-        abi_definition = "//msm-kernel:android/abi_gki_aarch64.xml" if define_abi_targets else None,
         enable_interceptor = define_compile_commands,
         visibility = ["//visibility:public"],
     )
+
+    if define_abi_targets:
+        kernel_abi(
+            name = "{}_abi".format(target),
+            kernel_build = ":{}".format(target),
+            define_abi_targets = True,
+            abi_definition = "//msm-kernel:android/abi_gki_aarch64.xml",
+            kmi_enforced = kmi_enforced,
+            visibility = ["//visibility:public"],
+        )
 
     kernel_modules_install(
         name = "{}_modules_install".format(target),
@@ -260,9 +268,9 @@ def _define_kernel_dist(target, base_kernel):
         ":{}_build_config".format(target),
     ]
 
-    kernel_build_abi_dist(
+    kernel_abi_dist(
         name = "{}_abi_dist".format(target),
-        kernel_build_abi = ":{}".format(target),
+        kernel_abi = ":{}_abi".format(target),
         data = msm_dist_targets,
         dist_dir = dist_dir,
         flat = True,
