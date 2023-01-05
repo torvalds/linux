@@ -1138,13 +1138,12 @@ static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 			priv->rx.stopped = true;
 		/* Polling the RX_CMD_RECEIVE_INT to ensure rx_tasklet can find the data */
 		regmap_read(priv->map, ASPEED_MCTP_INT_STS, &mctp_int_sts);
-		if (mctp_int_sts & RX_CMD_RECEIVE_INT) {
+		if (mctp_int_sts & RX_CMD_RECEIVE_INT)
 			regmap_write(priv->map, ASPEED_MCTP_INT_STS,
 				     mctp_int_sts);
-			tasklet_hi_schedule(&priv->rx.tasklet);
-		}
 	}
 
+	tasklet_hi_schedule(&priv->rx.tasklet);
 	rx_packet = ptr_ring_consume_bh(&client->rx_queue);
 	if (!rx_packet)
 		return -EAGAIN;
@@ -1728,13 +1727,12 @@ static __poll_t aspeed_mctp_poll(struct file *file,
 			rx->stopped = true;
 		/* Polling the RX_CMD_RECEIVE_INT to ensure rx_tasklet can find the data */
 		regmap_read(priv->map, ASPEED_MCTP_INT_STS, &mctp_int_sts);
-		if (mctp_int_sts & RX_CMD_RECEIVE_INT) {
+		if (mctp_int_sts & RX_CMD_RECEIVE_INT)
 			regmap_write(priv->map, ASPEED_MCTP_INT_STS,
 				     mctp_int_sts);
-			tasklet_hi_schedule(&priv->rx.tasklet);
-		}
 	}
 
+	tasklet_hi_schedule(&priv->rx.tasklet);
 	poll_wait(file, &client->wait_queue, pt);
 
 	if (!ptr_ring_full_bh(&client->tx_queue))
