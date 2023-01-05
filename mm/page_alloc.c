@@ -4288,7 +4288,7 @@ retry:
 			 * Watermark failed for this zone, but see if we can
 			 * grow this zone if it contains deferred pages.
 			 */
-			if (static_branch_unlikely(&deferred_pages)) {
+			if (deferred_pages_enabled()) {
 				if (_deferred_grow_zone(zone, order))
 					goto try_this_zone;
 			}
@@ -4337,7 +4337,7 @@ try_this_zone:
 		} else {
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
 			/* Try again if zone has deferred pages */
-			if (static_branch_unlikely(&deferred_pages)) {
+			if (deferred_pages_enabled()) {
 				if (_deferred_grow_zone(zone, order))
 					goto try_this_zone;
 			}
