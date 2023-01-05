@@ -5,6 +5,7 @@
  */
 
 #include <net/genetlink.h>
+#include <net/sock.h>
 
 #include "devl_internal.h"
 
@@ -175,6 +176,39 @@ static void devlink_nl_post_doit(const struct genl_split_ops *ops,
 	}
 	devl_unlock(devlink);
 	devlink_put(devlink);
+}
+
+static const struct devlink_gen_cmd *devl_gen_cmds[] = {
+	[DEVLINK_CMD_RATE_GET]		= &devl_gen_rate_get,
+};
+
+int devlink_nl_instance_iter_dump(struct sk_buff *msg,
+				  struct netlink_callback *cb)
+{
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
+	const struct devlink_gen_cmd *cmd;
+	struct devlink *devlink;
+	int err = 0;
+
+	cmd = devl_gen_cmds[info->op.cmd];
+
+	devlink_dump_for_each_instance_get(msg, state, devlink) {
+		devl_lock(devlink);
+		err = cmd->dump_one(msg, devlink, cb);
+		devl_unlock(devlink);
+		devlink_put(devlink);
+
+		if (err)
+			break;
+
+		/* restart sub-object walk for the next instance */
+		state->idx = 0;
+	}
+
+	if (err != -EMSGSIZE)
+		return err;
+	return msg->len;
 }
 
 struct genl_family devlink_nl_family __ro_after_init = {

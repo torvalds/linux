@@ -122,6 +122,11 @@ struct devlink_nl_dump_state {
 	};
 };
 
+struct devlink_gen_cmd {
+	int (*dump_one)(struct sk_buff *msg, struct devlink *devlink,
+			struct netlink_callback *cb);
+};
+
 /* Iterate over registered devlink instances for devlink dump.
  * devlink_put() needs to be called for each iterated devlink pointer
  * in loop body in order to release the reference.
@@ -139,6 +144,9 @@ struct devlink *devlink_get_from_attrs(struct net *net, struct nlattr **attrs);
 
 void devlink_notify_unregister(struct devlink *devlink);
 void devlink_notify_register(struct devlink *devlink);
+
+int devlink_nl_instance_iter_dump(struct sk_buff *msg,
+				  struct netlink_callback *cb);
 
 static inline struct devlink_nl_dump_state *
 devlink_dump_state(struct netlink_callback *cb)
@@ -175,6 +183,8 @@ devlink_linecard_get_from_info(struct devlink *devlink, struct genl_info *info);
 void devlink_linecard_put(struct devlink_linecard *linecard);
 
 /* Rates */
+extern const struct devlink_gen_cmd devl_gen_rate_get;
+
 struct devlink_rate *
 devlink_rate_get_from_info(struct devlink *devlink, struct genl_info *info);
 struct devlink_rate *

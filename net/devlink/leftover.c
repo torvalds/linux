@@ -1219,46 +1219,39 @@ static void devlink_rate_notify(struct devlink_rate *devlink_rate,
 				0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
-static int devlink_nl_cmd_rate_get_dumpit(struct sk_buff *msg,
-					  struct netlink_callback *cb)
+static int
+devlink_nl_cmd_rate_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
+				 struct netlink_callback *cb)
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
-	struct devlink *devlink;
+	struct devlink_rate *devlink_rate;
+	int idx = 0;
 	int err = 0;
 
-	devlink_dump_for_each_instance_get(msg, state, devlink) {
-		struct devlink_rate *devlink_rate;
-		int idx = 0;
+	list_for_each_entry(devlink_rate, &devlink->rate_list, list) {
+		enum devlink_command cmd = DEVLINK_CMD_RATE_NEW;
+		u32 id = NETLINK_CB(cb->skb).portid;
 
-		devl_lock(devlink);
-		list_for_each_entry(devlink_rate, &devlink->rate_list, list) {
-			enum devlink_command cmd = DEVLINK_CMD_RATE_NEW;
-			u32 id = NETLINK_CB(cb->skb).portid;
-
-			if (idx < state->idx) {
-				idx++;
-				continue;
-			}
-			err = devlink_nl_rate_fill(msg, devlink_rate, cmd, id,
-						   cb->nlh->nlmsg_seq,
-						   NLM_F_MULTI, NULL);
-			if (err) {
-				devl_unlock(devlink);
-				devlink_put(devlink);
-				state->idx = idx;
-				goto out;
-			}
+		if (idx < state->idx) {
 			idx++;
+			continue;
 		}
-		devl_unlock(devlink);
-		devlink_put(devlink);
+		err = devlink_nl_rate_fill(msg, devlink_rate, cmd, id,
+					   cb->nlh->nlmsg_seq,
+					   NLM_F_MULTI, NULL);
+		if (err) {
+			state->idx = idx;
+			break;
+		}
+		idx++;
 	}
-out:
-	if (err != -EMSGSIZE)
-		return err;
 
-	return msg->len;
+	return err;
 }
+
+const struct devlink_gen_cmd devl_gen_rate_get = {
+	.dump_one		= devlink_nl_cmd_rate_get_dump_one,
+};
 
 static int devlink_nl_cmd_rate_get_doit(struct sk_buff *skb,
 					struct genl_info *info)
@@ -9130,7 +9123,7 @@ const struct genl_small_ops devlink_nl_ops[56] = {
 	{
 		.cmd = DEVLINK_CMD_RATE_GET,
 		.doit = devlink_nl_cmd_rate_get_doit,
-		.dumpit = devlink_nl_cmd_rate_get_dumpit,
+		.dumpit = devlink_nl_instance_iter_dump,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_RATE,
 		/* can be retrieved by unprivileged users */
 	},
