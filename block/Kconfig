@@ -6,7 +6,6 @@ menuconfig BLOCK
        bool "Enable the block layer" if EXPERT
        default y
        select SBITMAP
-       select SRCU
        help
 	 Provide block layer support for the kernel.
 
