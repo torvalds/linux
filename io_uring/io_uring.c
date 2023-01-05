@@ -2479,7 +2479,9 @@ static inline int io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 		return -EINTR;
 	if (unlikely(io_should_wake(iowq)))
 		return 0;
-	if (!schedule_hrtimeout(timeout, HRTIMER_MODE_ABS))
+	if (*timeout == KTIME_MAX)
+		schedule();
+	else if (!schedule_hrtimeout(timeout, HRTIMER_MODE_ABS))
 		return -ETIME;
 	return 0;
 }
