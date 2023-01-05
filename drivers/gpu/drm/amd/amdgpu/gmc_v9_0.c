@@ -1238,17 +1238,12 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 			mtype = MTYPE_RW;
 		} else {
 			/* dGPU */
-			/*
-			if ((mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) &&
-			    bo_adev == adev)
-				mapping_flags |= AMDGPU_VM_MTYPE_RW;
+			if (is_vram && bo_adev == adev)
+				mtype = MTYPE_RW;
+			else if (is_vram)
+				mtype = MTYPE_NC;
 			else
-			*/
-			/* Temporarily comment out above lines and use MTYPE_NC
-			 * on both VRAM and system memory access until
-			 * MTYPE_RW can properly work on VRAM access
-			 */
-			mtype = MTYPE_NC;
+				mtype = MTYPE_UC;
 		}
 
 		break;
