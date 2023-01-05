@@ -301,15 +301,6 @@ config MFD_CS47L92
 	help
 	  Support for Cirrus Logic CS42L92, CS47L92 and CS47L93 Smart Codecs
 
-config MFD_ASIC3
-	bool "Compaq ASIC3"
-	depends on GPIOLIB
-	depends on ARM || COMPILE_TEST
-	select MFD_CORE
-	help
-	  This driver supports the ASIC3 multifunction chip found on many
-	  PDAs (mainly iPAQ and HTC based ones)
-
 config PMIC_DA903X
 	bool "Dialog Semiconductor DA9030/DA9034 PMIC Support"
 	depends on I2C=y
@@ -1795,35 +1786,6 @@ config MFD_TC3589X
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
-
-config MFD_TMIO
-	bool
-	default n
-
-config MFD_T7L66XB
-	bool "Toshiba T7L66XB"
-	depends on ARM && HAVE_CLK
-	select MFD_CORE
-	select MFD_TMIO
-	help
-	  Support for Toshiba Mobile IO Controller T7L66XB
-
-config MFD_TC6387XB
-	bool "Toshiba TC6387XB"
-	depends on ARM && HAVE_CLK
-	select MFD_CORE
-	select MFD_TMIO
-	help
-	  Support for Toshiba Mobile IO Controller TC6387XB
-
-config MFD_TC6393XB
-	bool "Toshiba TC6393XB"
-	depends on ARM && HAVE_CLK
-	select GPIOLIB
-	select MFD_CORE
-	select MFD_TMIO
-	help
-	  Support for Toshiba Mobile IO Controller TC6393XB
 
 config MFD_TQMX86
 	tristate "TQ-Systems IO controller TQMX86"
