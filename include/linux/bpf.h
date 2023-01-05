@@ -1523,9 +1523,9 @@ struct bpf_array {
 	u32 index_mask;
 	struct bpf_array_aux *aux;
 	union {
-		char value[0] __aligned(8);
-		void *ptrs[0] __aligned(8);
-		void __percpu *pptrs[0] __aligned(8);
+		DECLARE_FLEX_ARRAY(char, value) __aligned(8);
+		DECLARE_FLEX_ARRAY(void *, ptrs) __aligned(8);
+		DECLARE_FLEX_ARRAY(void __percpu *, pptrs) __aligned(8);
 	};
 };
 
