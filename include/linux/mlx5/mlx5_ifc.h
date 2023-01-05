@@ -315,6 +315,11 @@ enum {
 	MLX5_CMD_OP_GENERAL_END = 0xd00,
 };
 
+enum {
+	MLX5_FT_NIC_RX_2_NIC_RX_RDMA = BIT(0),
+	MLX5_FT_NIC_TX_RDMA_2_NIC_TX = BIT(1),
+};
+
 struct mlx5_ifc_flow_table_fields_supported_bits {
 	u8         outer_dmac[0x1];
 	u8         outer_smac[0x1];
@@ -1903,7 +1908,8 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 
 	u8	   reserved_at_e0[0xc0];
 
-	u8	   reserved_at_1a0[0xb];
+	u8	   flow_table_type_2_type[0x8];
+	u8	   reserved_at_1a8[0x3];
 	u8	   log_min_mkey_entity_size[0x5];
 	u8	   reserved_at_1b0[0x10];
 
@@ -1927,6 +1933,7 @@ enum mlx5_ifc_flow_destination_type {
 	MLX5_IFC_FLOW_DESTINATION_TYPE_TIR          = 0x2,
 	MLX5_IFC_FLOW_DESTINATION_TYPE_FLOW_SAMPLER = 0x6,
 	MLX5_IFC_FLOW_DESTINATION_TYPE_UPLINK       = 0x8,
+	MLX5_IFC_FLOW_DESTINATION_TYPE_TABLE_TYPE   = 0xA,
 };
 
 enum mlx5_flow_table_miss_action {
@@ -1941,7 +1948,8 @@ struct mlx5_ifc_dest_format_struct_bits {
 
 	u8         destination_eswitch_owner_vhca_id_valid[0x1];
 	u8         packet_reformat[0x1];
-	u8         reserved_at_22[0xe];
+	u8         reserved_at_22[0x6];
+	u8         destination_table_type[0x8];
 	u8         destination_eswitch_owner_vhca_id[0x10];
 };
 
