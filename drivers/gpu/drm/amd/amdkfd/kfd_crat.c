@@ -2005,7 +2005,10 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 	/* Fill in IOLINK subtype.
 	 * TODO: Fill-in other fields of iolink subtype
 	 */
-	if (kdev->adev->gmc.xgmi.connected_to_cpu) {
+	if (kdev->adev->gmc.xgmi.connected_to_cpu ||
+	    (KFD_GC_VERSION(kdev) == IP_VERSION(9, 4, 3) &&
+	     kdev->adev->smuio.funcs->get_pkg_type(kdev->adev) ==
+	     AMDGPU_PKG_TYPE_APU)) {
 		bool ext_cpu = KFD_GC_VERSION(kdev) != IP_VERSION(9, 4, 3);
 		int mem_bw = 819200, weight = ext_cpu ? KFD_CRAT_XGMI_WEIGHT :
 							KFD_CRAT_INTRA_SOCKET_WEIGHT;
