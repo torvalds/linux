@@ -334,7 +334,8 @@ out:
 }
 
 /* IPsec TX flow steering */
-static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx)
+static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx,
+		     struct mlx5_ipsec_fs *roce)
 {
 	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_table *ft;
@@ -357,8 +358,15 @@ static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx)
 	err = ipsec_miss_create(mdev, tx->ft.pol, &tx->pol, &dest);
 	if (err)
 		goto err_pol_miss;
+
+	err = mlx5_ipsec_fs_roce_tx_create(mdev, roce, tx->ft.pol);
+	if (err)
+		goto err_roce;
 	return 0;
 
+err_roce:
+	mlx5_del_flow_rules(tx->pol.rule);
+	mlx5_destroy_flow_group(tx->pol.group);
 err_pol_miss:
 	mlx5_destroy_flow_table(tx->ft.pol);
 err_pol_ft:
@@ -376,9 +384,10 @@ static struct mlx5e_ipsec_tx *tx_ft_get(struct mlx5_core_dev *mdev,
 	if (tx->ft.refcnt)
 		goto skip;
 
-	err = tx_create(mdev, tx);
+	err = tx_create(mdev, tx, ipsec->roce);
 	if (err)
 		goto out;
+
 skip:
 	tx->ft.refcnt++;
 out:
@@ -397,6 +406,7 @@ static void tx_ft_put(struct mlx5e_ipsec *ipsec)
 	if (tx->ft.refcnt)
 		goto out;
 
+	mlx5_ipsec_fs_roce_tx_destroy(ipsec->roce);
 	mlx5_del_flow_rules(tx->pol.rule);
 	mlx5_destroy_flow_group(tx->pol.group);
 	mlx5_destroy_flow_table(tx->ft.pol);

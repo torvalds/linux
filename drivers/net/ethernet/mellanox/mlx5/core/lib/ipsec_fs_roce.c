@@ -20,9 +20,17 @@ struct mlx5_ipsec_rx_roce {
 	struct mlx5_flow_namespace *ns_rdma;
 };
 
+struct mlx5_ipsec_tx_roce {
+	struct mlx5_flow_group *g;
+	struct mlx5_flow_table *ft;
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_namespace *ns;
+};
+
 struct mlx5_ipsec_fs {
 	struct mlx5_ipsec_rx_roce ipv4_rx;
 	struct mlx5_ipsec_rx_roce ipv6_rx;
+	struct mlx5_ipsec_tx_roce tx;
 };
 
 static void ipsec_fs_roce_setup_udp_dport(struct mlx5_flow_spec *spec,
@@ -83,6 +91,105 @@ fail_add_default_rule:
 	mlx5_del_flow_rules(roce->rule);
 fail_add_rule:
 	kvfree(spec);
+	return err;
+}
+
+static int ipsec_fs_roce_tx_rule_setup(struct mlx5_core_dev *mdev,
+				       struct mlx5_ipsec_tx_roce *roce,
+				       struct mlx5_flow_table *pol_ft)
+{
+	struct mlx5_flow_destination dst = {};
+	MLX5_DECLARE_FLOW_ACT(flow_act);
+	struct mlx5_flow_handle *rule;
+	int err = 0;
+
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	dst.type = MLX5_FLOW_DESTINATION_TYPE_TABLE_TYPE;
+	dst.ft = pol_ft;
+	rule = mlx5_add_flow_rules(roce->ft, NULL, &flow_act, &dst,
+				   1);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		mlx5_core_err(mdev, "Fail to add TX RoCE IPsec rule err=%d\n",
+			      err);
+		goto out;
+	}
+	roce->rule = rule;
+
+out:
+	return err;
+}
+
+void mlx5_ipsec_fs_roce_tx_destroy(struct mlx5_ipsec_fs *ipsec_roce)
+{
+	struct mlx5_ipsec_tx_roce *tx_roce;
+
+	if (!ipsec_roce)
+		return;
+
+	tx_roce = &ipsec_roce->tx;
+
+	mlx5_del_flow_rules(tx_roce->rule);
+	mlx5_destroy_flow_group(tx_roce->g);
+	mlx5_destroy_flow_table(tx_roce->ft);
+}
+
+#define MLX5_TX_ROCE_GROUP_SIZE BIT(0)
+
+int mlx5_ipsec_fs_roce_tx_create(struct mlx5_core_dev *mdev,
+				 struct mlx5_ipsec_fs *ipsec_roce,
+				 struct mlx5_flow_table *pol_ft)
+{
+	struct mlx5_flow_table_attr ft_attr = {};
+	struct mlx5_ipsec_tx_roce *roce;
+	struct mlx5_flow_table *ft;
+	struct mlx5_flow_group *g;
+	int ix = 0;
+	int err;
+	u32 *in;
+
+	if (!ipsec_roce)
+		return 0;
+
+	roce = &ipsec_roce->tx;
+
+	in = kvzalloc(MLX5_ST_SZ_BYTES(create_flow_group_in), GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	ft_attr.max_fte = 1;
+	ft = mlx5_create_flow_table(roce->ns, &ft_attr);
+	if (IS_ERR(ft)) {
+		err = PTR_ERR(ft);
+		mlx5_core_err(mdev, "Fail to create RoCE IPsec tx ft err=%d\n", err);
+		return err;
+	}
+
+	roce->ft = ft;
+
+	MLX5_SET_CFG(in, start_flow_index, ix);
+	ix += MLX5_TX_ROCE_GROUP_SIZE;
+	MLX5_SET_CFG(in, end_flow_index, ix - 1);
+	g = mlx5_create_flow_group(ft, in);
+	if (IS_ERR(g)) {
+		err = PTR_ERR(g);
+		mlx5_core_err(mdev, "Fail to create RoCE IPsec tx group err=%d\n", err);
+		goto fail;
+	}
+	roce->g = g;
+
+	err = ipsec_fs_roce_tx_rule_setup(mdev, roce, pol_ft);
+	if (err) {
+		mlx5_core_err(mdev, "Fail to create RoCE IPsec tx rules err=%d\n", err);
+		goto rule_fail;
+	}
+
+	return 0;
+
+rule_fail:
+	mlx5_destroy_flow_group(roce->g);
+fail:
+	mlx5_destroy_flow_table(ft);
 	return err;
 }
 
@@ -245,5 +352,17 @@ struct mlx5_ipsec_fs *mlx5_ipsec_fs_roce_init(struct mlx5_core_dev *mdev)
 	roce_ipsec->ipv4_rx.ns_rdma = ns;
 	roce_ipsec->ipv6_rx.ns_rdma = ns;
 
+	ns = mlx5_get_flow_namespace(mdev, MLX5_FLOW_NAMESPACE_RDMA_TX_IPSEC);
+	if (!ns) {
+		mlx5_core_err(mdev, "Failed to get RoCE tx ns\n");
+		goto err_tx;
+	}
+
+	roce_ipsec->tx.ns = ns;
+
 	return roce_ipsec;
+
+err_tx:
+	kfree(roce_ipsec);
+	return NULL;
 }
