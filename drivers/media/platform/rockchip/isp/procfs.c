@@ -958,12 +958,25 @@ static int isp_show(struct seq_file *p, void *v)
 					 !dev->procfs.is_fs_wait,
 					 msecs_to_jiffies(1000));
 		seq_printf(p, "****************HW REG*Ret:%d**************\n", ret);
-		for (i = 0; i < ISP3X_RAWAWB_RAM_DATA_BASE; i += 16)
-			seq_printf(p, "%04x:  %08x %08x %08x %08x\n", i,
-				   rkisp_read(dev, i, true),
-				   rkisp_read(dev, i + 4, true),
-				   rkisp_read(dev, i + 8, true),
-				   rkisp_read(dev, i + 12, true));
+		for (i = 0; i < ISP3X_RAWAWB_RAM_DATA_BASE; i += 16) {
+			if (!dev->hw_dev->is_unite) {
+				seq_printf(p, "%04x:  %08x %08x %08x %08x\n", i,
+					   rkisp_read(dev, i, true),
+					   rkisp_read(dev, i + 4, true),
+					   rkisp_read(dev, i + 8, true),
+					   rkisp_read(dev, i + 12, true));
+			} else {
+				seq_printf(p, "%04x:  %08x %08x %08x %08x | %08x %08x %08x %08x\n", i,
+					   rkisp_read(dev, i, true),
+					   rkisp_read(dev, i + 4, true),
+					   rkisp_read(dev, i + 8, true),
+					   rkisp_read(dev, i + 12, true),
+					   rkisp_next_read(dev, i, true),
+					   rkisp_next_read(dev, i + 4, true),
+					   rkisp_next_read(dev, i + 8, true),
+					   rkisp_next_read(dev, i + 12, true));
+			}
+		}
 	}
 	return 0;
 }
