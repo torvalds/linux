@@ -430,8 +430,6 @@ struct mlx5_core_health {
 	u8				synd;
 	u32				fatal_error;
 	u32				crdump_size;
-	/* wq spinlock to synchronize draining */
-	spinlock_t			wq_lock;
 	struct workqueue_struct	       *wq;
 	unsigned long			flags;
 	struct work_struct		fatal_report_work;
