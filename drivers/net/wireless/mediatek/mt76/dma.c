@@ -165,7 +165,7 @@ mt76_free_pending_txwi(struct mt76_dev *dev)
 	local_bh_enable();
 }
 
-static void
+void
 mt76_free_pending_rxwi(struct mt76_dev *dev)
 {
 	struct mt76_txwi_cache *t;
@@ -178,6 +178,7 @@ mt76_free_pending_rxwi(struct mt76_dev *dev)
 	}
 	local_bh_enable();
 }
+EXPORT_SYMBOL_GPL(mt76_free_pending_rxwi);
 
 static void
 mt76_dma_sync_idx(struct mt76_dev *dev, struct mt76_queue *q)

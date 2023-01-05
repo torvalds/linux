@@ -609,6 +609,8 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
 
 		mt76_put_rxwi(&dev->mt76, t);
 	}
+
+	mt76_free_pending_rxwi(&dev->mt76);
 }
 
 static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
