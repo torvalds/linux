@@ -3779,9 +3779,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 		 */
 		VOP_CTRL_SET(vop2, if_ctrl_cfg_done_imd, 1);
 
-		VOP_CTRL_SET(vop2, axi_outstanding_max_num, 30);
-		VOP_CTRL_SET(vop2, axi_max_outstanding_en, 1);
-
 		vop2_layer_map_initial(vop2, current_vp_id);
 		vop2_axi_irqs_enable(vop2);
 		vop2->is_enabled = true;
@@ -7614,20 +7611,19 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		DRM_DEV_INFO(vop2->dev, "set %s to %ld, get %ld\n",
 			      __clk_get_name(vp->dclk), dclk->rate, clk_get_rate(vp->dclk));
 	} else {
-		clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
+		/*
+		 * For RK3528, the path of CVBS output is like:
+		 * VOP BT656 ENCODER -> CVBS BT656 DECODER -> CVBS ENCODER -> CVBS VDAC
+		 * The vop2 dclk should be four times crtc_clock for CVBS sampling clock needs.
+		 */
+		if (vop2->version == VOP_VERSION_RK3528 && vcstate->output_if & VOP_OUTPUT_IF_BT656)
+			clk_set_rate(vp->dclk, 4 * adjusted_mode->crtc_clock * 1000);
+		else
+			clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
 	}
 
 	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
 		vop2_post_config(crtc);
-	/*
-	 * For RK3528, the path of CVBS output is like:
-	 * VOP BT656 ENCODER -> CVBS BT656 DECODER -> CVBS ENCODER -> CVBS VDAC
-	 * The vop2 dclk should be four times crtc_clock for CVBS sampling clock needs.
-	 */
-	if (vop2->version == VOP_VERSION_RK3528 && vcstate->output_if & VOP_OUTPUT_IF_BT656)
-		clk_set_rate(vp->dclk, 4 * adjusted_mode->crtc_clock * 1000);
-	else
-		clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
 
 	VOP_MODULE_SET(vop2, vp, almost_full_or_en, 1);
 	VOP_MODULE_SET(vop2, vp, line_flag_or_en, 1);
@@ -7699,6 +7695,30 @@ static int vop2_zpos_cmp(const void *a, const void *b)
 static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 				  struct drm_crtc_state *crtc_state)
 {
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2_video_port *splice_vp;
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct rockchip_crtc_state *new_vcstate = to_rockchip_crtc_state(crtc_state);
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+
+	if (vop2_has_feature(vop2, VOP_FEATURE_SPLICE)) {
+		if (adjusted_mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
+			vcstate->splice_mode = true;
+			splice_vp = &vop2->vps[vp_data->splice_vp_id];
+			splice_vp->splice_mode_right = true;
+			splice_vp->left_vp = vp;
+		}
+	}
+
+	if ((vcstate->request_refresh_rate != new_vcstate->request_refresh_rate) ||
+	    crtc_state->active_changed || crtc_state->mode_changed)
+		vp->refresh_rate_change = true;
+	else
+		vp->refresh_rate_change = false;
+
 	return 0;
 }
 
@@ -8714,7 +8734,7 @@ static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
 	else
 		pre_scan_dly = bg_dly + (hdisplay >> 1) - 1;
 
-	if (vop2->version >= VOP_VERSION_RK3588 && hsync_len < 8)
+	if (vop2->version == VOP_VERSION_RK3588 && hsync_len < 8)
 		hsync_len = 8;
 
 	pre_scan_dly = (pre_scan_dly << 16) | hsync_len;
