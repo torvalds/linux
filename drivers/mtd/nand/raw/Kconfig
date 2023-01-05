@@ -193,13 +193,6 @@ config MTD_NAND_PASEMI
 	  Enables support for NAND Flash interface on PA Semi PWRficient
 	  based boards
 
-config MTD_NAND_TMIO
-	tristate "Toshiba Mobile IO NAND controller"
-	depends on MFD_TMIO
-	help
-	  Support for NAND flash connected to a Toshiba Mobile IO
-	  Controller in some PDAs, including the Sharp SL6000x.
-
 source "drivers/mtd/nand/raw/brcmnand/Kconfig"
 
 config MTD_NAND_BCM47XXNFLASH
