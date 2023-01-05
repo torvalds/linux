@@ -5,6 +5,15 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 
+struct lock_filter {
+	int			nr_types;
+	int			nr_addrs;
+	int			nr_syms;
+	unsigned int		*types;
+	unsigned long		*addrs;
+	char			**syms;
+};
+
 struct lock_stat {
 	struct hlist_node	hash_entry;
 	struct rb_node		rb;		/* used for sorting */
@@ -113,6 +122,7 @@ struct lock_contention {
 	struct target *target;
 	struct machine *machine;
 	struct hlist_head *result;
+	struct lock_filter *filters;
 	unsigned long map_nr_entries;
 	int lost;
 	int max_stack;

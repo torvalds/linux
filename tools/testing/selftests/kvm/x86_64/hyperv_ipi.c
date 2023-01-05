@@ -193,8 +193,9 @@ static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
 	GUEST_SYNC(stage++);
 	/*
 	 * 'XMM Fast' HvCallSendSyntheticClusterIpiEx to HV_GENERIC_SET_ALL.
-	 * Nothing to write anything to XMM regs.
 	 */
+	ipi_ex->vp_set.valid_bank_mask = 0;
+	hyperv_write_xmm_input(&ipi_ex->vp_set.valid_bank_mask, 2);
 	hyperv_hypercall(HVCALL_SEND_IPI_EX | HV_HYPERCALL_FAST_BIT,
 			 IPI_VECTOR, HV_GENERIC_SET_ALL);
 	nop_loop();

@@ -115,9 +115,63 @@ test_aggr_addr()
 	fi
 
 	# the perf lock contention output goes to the stderr
-	perf lock con -a -b -t -E 1 -q -- perf bench sched messaging > /dev/null 2> ${result}
+	perf lock con -a -b -l -E 1 -q -- perf bench sched messaging > /dev/null 2> ${result}
 	if [ $(cat "${result}" | wc -l) != "1" ]; then
 		echo "[Fail] BPF result count is not 1:" $(cat "${result}" | wc -l)
+		err=1
+		exit
+	fi
+}
+
+test_type_filter()
+{
+	echo "Testing perf lock contention --type-filter (w/ spinlock)"
+	perf lock contention -i ${perfdata} -Y spinlock -q 2> ${result}
+	if [ $(grep -c -v spinlock "${result}") != "0" ]; then
+		echo "[Fail] Recorded should not have non-spinlocks:" $(cat "${result}")
+		err=1
+		exit
+	fi
+
+	if ! perf lock con -b true > /dev/null 2>&1 ; then
+		return
+	fi
+
+	perf lock con -a -b -Y spinlock -q -- perf bench sched messaging > /dev/null 2> ${result}
+	if [ $(grep -c -v spinlock "${result}") != "0" ]; then
+		echo "[Fail] Recorded should not have non-spinlocks:" $(cat "${result}")
+		err=1
+		exit
+	fi
+}
+
+test_lock_filter()
+{
+	echo "Testing perf lock contention --lock-filter (w/ tasklist_lock)"
+	perf lock contention -i ${perfdata} -l -q 2> ${result}
+	if [ $(grep -c tasklist_lock "${result}") != "1" ]; then
+		echo "[Skip] Could not find 'tasklist_lock'"
+		return
+	fi
+
+	perf lock contention -i ${perfdata} -L tasklist_lock -q 2> ${result}
+
+	# find out the type of tasklist_lock
+	local type=$(head -1 "${result}" | awk '{ print $8 }' | sed -e 's/:.*//')
+
+	if [ $(grep -c -v "${type}" "${result}") != "0" ]; then
+		echo "[Fail] Recorded should not have non-${type} locks:" $(cat "${result}")
+		err=1
+		exit
+	fi
+
+	if ! perf lock con -b true > /dev/null 2>&1 ; then
+		return
+	fi
+
+	perf lock con -a -b -L tasklist_lock -q -- perf bench sched messaging > /dev/null 2> ${result}
+	if [ $(grep -c -v "${type}" "${result}") != "0" ]; then
+		echo "[Fail] Recorded should not have non-${type} locks:" $(cat "${result}")
 		err=1
 		exit
 	fi
@@ -130,5 +184,7 @@ test_bpf
 test_record_concurrent
 test_aggr_task
 test_aggr_addr
+test_type_filter
+test_lock_filter
 
 exit ${err}

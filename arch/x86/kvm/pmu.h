@@ -140,7 +140,8 @@ static inline u64 get_sample_period(struct kvm_pmc *pmc, u64 counter_value)
 
 static inline void pmc_update_sample_period(struct kvm_pmc *pmc)
 {
-	if (!pmc->perf_event || pmc->is_paused)
+	if (!pmc->perf_event || pmc->is_paused ||
+	    !is_sampling_event(pmc->perf_event))
 		return;
 
 	perf_event_period(pmc->perf_event,

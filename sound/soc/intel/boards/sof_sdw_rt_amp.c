@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2022 Intel Corporation
 
 /*
- *  sof_sdw_rt1308 - Helpers to handle RT1308 from generic machine driver
+ *  sof_sdw_rt_amp - Helpers to handle RT1308/RT1316/RT1318 from generic machine driver
  */
 
 #include <linux/device.h>
@@ -18,14 +18,24 @@
 #include "sof_sdw_amp_coeff_tables.h"
 #include "../../codecs/rt1308.h"
 
-struct rt1308_platform_data {
+#define CODEC_NAME_SIZE	7
+
+/* choose a larger value to resolve compatibility issues */
+#define RT_AMP_MAX_BQ_REG RT1316_MAX_BQ_REG
+
+struct rt_amp_platform_data {
 	const unsigned char *bq_params;
 	const unsigned int bq_params_cnt;
 };
 
-static const struct rt1308_platform_data dell_0a5d_platform_data = {
+static const struct rt_amp_platform_data dell_0a5d_platform_data = {
 	.bq_params = dell_0a5d_bq_params,
 	.bq_params_cnt = ARRAY_SIZE(dell_0a5d_bq_params),
+};
+
+static const struct rt_amp_platform_data dell_0b00_platform_data = {
+	.bq_params = dell_0b00_bq_params,
+	.bq_params_cnt = ARRAY_SIZE(dell_0b00_bq_params),
 };
 
 static const struct dmi_system_id dmi_platform_data[] = {
@@ -59,15 +69,45 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		},
 		.driver_data = (void *)&dell_0a5d_platform_data,
 	},
+	/* AlderLake devices */
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0B00")
+		},
+		.driver_data = (void *)&dell_0b00_platform_data,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0B01")
+		},
+		.driver_data = (void *)&dell_0b00_platform_data,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0AFF")
+		},
+		.driver_data = (void *)&dell_0b00_platform_data,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0AFE")
+		},
+		.driver_data = (void *)&dell_0b00_platform_data,
+	},
+	{},
 };
 
-static int rt1308_add_device_props(struct device *sdw_dev)
+static int rt_amp_add_device_props(struct device *sdw_dev)
 {
 	struct property_entry props[3] = {};
 	struct fwnode_handle *fwnode;
 	const struct dmi_system_id *dmi_data;
-	const struct rt1308_platform_data *pdata;
-	unsigned char params[RT1308_MAX_BQ_REG];
+	const struct rt_amp_platform_data *pdata;
+	unsigned char params[RT_AMP_MAX_BQ_REG];
 	int ret;
 
 	dmi_data = dmi_first_match(dmi_platform_data);
@@ -91,15 +131,19 @@ static int rt1308_add_device_props(struct device *sdw_dev)
 	return ret;
 }
 
-static const struct snd_soc_dapm_widget rt1308_widgets[] = {
+static const struct snd_kcontrol_new rt_amp_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Speaker"),
+};
+
+static const struct snd_soc_dapm_widget rt_amp_widgets[] = {
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
 /*
- * dapm routes for rt1308 will be registered dynamically according
- * to the number of rt1308 used. The first two entries will be registered
- * for one codec case, and the last two entries are also registered
- * if two 1308s are used.
+ * dapm routes for rt1308/rt1316/rt1318 will be registered dynamically
+ * according to the number of rt1308/rt1316/rt1318 used. The first two
+ * entries will be registered for one codec case, and the last two entries
+ * are also registered if two 1308s/1316s/1318s are used.
  */
 static const struct snd_soc_dapm_route rt1308_map[] = {
 	{ "Speaker", NULL, "rt1308-1 SPOL" },
@@ -108,36 +152,69 @@ static const struct snd_soc_dapm_route rt1308_map[] = {
 	{ "Speaker", NULL, "rt1308-2 SPOR" },
 };
 
-static const struct snd_kcontrol_new rt1308_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Speaker"),
+static const struct snd_soc_dapm_route rt1316_map[] = {
+	{ "Speaker", NULL, "rt1316-1 SPOL" },
+	{ "Speaker", NULL, "rt1316-1 SPOR" },
+	{ "Speaker", NULL, "rt1316-2 SPOL" },
+	{ "Speaker", NULL, "rt1316-2 SPOR" },
 };
+
+static const struct snd_soc_dapm_route rt1318_map[] = {
+	{ "Speaker", NULL, "rt1318-1 SPOL" },
+	{ "Speaker", NULL, "rt1318-1 SPOR" },
+	{ "Speaker", NULL, "rt1318-2 SPOL" },
+	{ "Speaker", NULL, "rt1318-2 SPOR" },
+};
+
+static const struct snd_soc_dapm_route *get_codec_name_and_route(struct snd_soc_pcm_runtime *rtd,
+								 char *codec_name)
+{
+	const char *dai_name;
+
+	dai_name = rtd->dai_link->codecs->dai_name;
+
+	/* get the codec name */
+	snprintf(codec_name, CODEC_NAME_SIZE, "%s", dai_name);
+
+	/* choose the right codec's map  */
+	if (strcmp(codec_name, "rt1308") == 0)
+		return rt1308_map;
+	else if (strcmp(codec_name, "rt1316") == 0)
+		return rt1316_map;
+	else
+		return rt1318_map;
+}
 
 static int first_spk_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	const struct snd_soc_dapm_route *rt_amp_map;
+	char codec_name[CODEC_NAME_SIZE];
 	int ret;
 
+	rt_amp_map = get_codec_name_and_route(rtd, codec_name);
+
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
-					  "%s spk:rt1308",
-					  card->components);
+					  "%s spk:%s",
+					  card->components, codec_name);
 	if (!card->components)
 		return -ENOMEM;
 
-	ret = snd_soc_add_card_controls(card, rt1308_controls,
-					ARRAY_SIZE(rt1308_controls));
+	ret = snd_soc_add_card_controls(card, rt_amp_controls,
+					ARRAY_SIZE(rt_amp_controls));
 	if (ret) {
-		dev_err(card->dev, "rt1308 controls addition failed: %d\n", ret);
+		dev_err(card->dev, "%s controls addition failed: %d\n", codec_name, ret);
 		return ret;
 	}
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt1308_widgets,
-					ARRAY_SIZE(rt1308_widgets));
+	ret = snd_soc_dapm_new_controls(&card->dapm, rt_amp_widgets,
+					ARRAY_SIZE(rt_amp_widgets));
 	if (ret) {
-		dev_err(card->dev, "rt1308 widgets addition failed: %d\n", ret);
+		dev_err(card->dev, "%s widgets addition failed: %d\n", codec_name, ret);
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, rt1308_map, 2);
+	ret = snd_soc_dapm_add_routes(&card->dapm, rt_amp_map, 2);
 	if (ret)
 		dev_err(rtd->dev, "failed to add first SPK map: %d\n", ret);
 
@@ -147,9 +224,13 @@ static int first_spk_init(struct snd_soc_pcm_runtime *rtd)
 static int second_spk_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	const struct snd_soc_dapm_route *rt_amp_map;
+	char codec_name[CODEC_NAME_SIZE];
 	int ret;
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, rt1308_map + 2, 2);
+	rt_amp_map = get_codec_name_and_route(rtd, codec_name);
+
+	ret = snd_soc_dapm_add_routes(&card->dapm, rt_amp_map + 2, 2);
 	if (ret)
 		dev_err(rtd->dev, "failed to add second SPK map: %d\n", ret);
 
@@ -204,7 +285,7 @@ struct snd_soc_ops sof_sdw_rt1308_i2s_ops = {
 	.hw_params = rt1308_i2s_hw_params,
 };
 
-int sof_sdw_rt1308_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
+int sof_sdw_rt_amp_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 
@@ -221,7 +302,7 @@ int sof_sdw_rt1308_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_
 	return 0;
 }
 
-int sof_sdw_rt1308_init(struct snd_soc_card *card,
+int sof_sdw_rt_amp_init(struct snd_soc_card *card,
 			const struct snd_soc_acpi_link_adr *link,
 			struct snd_soc_dai_link *dai_links,
 			struct sof_sdw_codec_info *info,
@@ -244,7 +325,7 @@ int sof_sdw_rt1308_init(struct snd_soc_card *card,
 		if (!sdw_dev1)
 			return -EPROBE_DEFER;
 
-		ret = rt1308_add_device_props(sdw_dev1);
+		ret = rt_amp_add_device_props(sdw_dev1);
 		if (ret < 0) {
 			put_device(sdw_dev1);
 			return ret;
@@ -255,7 +336,7 @@ int sof_sdw_rt1308_init(struct snd_soc_card *card,
 		if (!sdw_dev2)
 			return -EPROBE_DEFER;
 
-		ret = rt1308_add_device_props(sdw_dev2);
+		ret = rt_amp_add_device_props(sdw_dev2);
 		if (ret < 0) {
 			put_device(sdw_dev2);
 			return ret;
@@ -263,7 +344,7 @@ int sof_sdw_rt1308_init(struct snd_soc_card *card,
 		ctx->amp_dev2 = sdw_dev2;
 
 		/*
-		 * if two 1308s are in one dai link, the init function
+		 * if two amps are in one dai link, the init function
 		 * in this dai link will be first set for the first speaker,
 		 * and it should be reset to initialize all speakers when
 		 * the second speaker is found.

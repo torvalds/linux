@@ -1062,7 +1062,7 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 			continue;
 
 		req->cqe.flags = io_put_kbuf(req, 0);
-		__io_fill_cqe_req(req->ctx, req);
+		io_fill_cqe_req(req->ctx, req);
 	}
 
 	if (unlikely(!nr_events))

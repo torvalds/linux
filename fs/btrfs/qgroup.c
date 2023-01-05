@@ -2787,6 +2787,7 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans)
 			 * current root. It's safe inside commit_transaction().
 			 */
 			ctx.trans = trans;
+			ctx.time_seq = BTRFS_SEQ_LAST;
 			ret = btrfs_find_all_roots(&ctx, false);
 			if (ret < 0)
 				goto cleanup;

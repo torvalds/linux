@@ -84,7 +84,6 @@ typedef u32 CLST;
 
 #define COMPRESSION_UNIT     4
 #define COMPRESS_MAX_CLUSTER 0x1000
-#define MFT_INCREASE_CHUNK   1024
 
 enum RECORD_NUM {
 	MFT_REC_MFT		= 0,
@@ -715,12 +714,13 @@ static inline struct NTFS_DE *hdr_first_de(const struct INDEX_HDR *hdr)
 {
 	u32 de_off = le32_to_cpu(hdr->de_off);
 	u32 used = le32_to_cpu(hdr->used);
-	struct NTFS_DE *e = Add2Ptr(hdr, de_off);
+	struct NTFS_DE *e;
 	u16 esize;
 
-	if (de_off >= used || de_off >= le32_to_cpu(hdr->total))
+	if (de_off >= used || de_off + sizeof(struct NTFS_DE) > used )
 		return NULL;
 
+	e = Add2Ptr(hdr, de_off);
 	esize = le16_to_cpu(e->size);
 	if (esize < sizeof(struct NTFS_DE) || de_off + esize > used)
 		return NULL;

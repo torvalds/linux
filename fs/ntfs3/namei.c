@@ -7,6 +7,8 @@
 
 #include <linux/fs.h>
 #include <linux/nls.h>
+#include <linux/ctype.h>
+#include <linux/posix_acl.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -303,6 +305,8 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *dir,
 
 	ni_lock_dir(dir_ni);
 	ni_lock(ni);
+	if (dir_ni != new_dir_ni)
+		ni_lock_dir2(new_dir_ni);
 
 	is_bad = false;
 	err = ni_rename(dir_ni, new_dir_ni, ni, de, new_de, &is_bad);
@@ -326,10 +330,110 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *dir,
 			ntfs_sync_inode(inode);
 	}
 
+	if (dir_ni != new_dir_ni)
+		ni_unlock(new_dir_ni);
 	ni_unlock(ni);
 	ni_unlock(dir_ni);
 out:
 	__putname(de);
+	return err;
+}
+
+/*
+ * ntfs_atomic_open
+ *
+ * inode_operations::atomic_open
+ */
+static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
+			    struct file *file, u32 flags, umode_t mode)
+{
+	int err;
+	struct inode *inode;
+	struct ntfs_fnd *fnd = NULL;
+	struct ntfs_inode *ni = ntfs_i(dir);
+	struct dentry *d = NULL;
+	struct cpu_str *uni = __getname();
+	bool locked = false;
+
+	if (!uni)
+		return -ENOMEM;
+
+	err = ntfs_nls_to_utf16(ni->mi.sbi, dentry->d_name.name,
+				dentry->d_name.len, uni, NTFS_NAME_LEN,
+				UTF16_HOST_ENDIAN);
+	if (err < 0)
+		goto out;
+
+#ifdef CONFIG_NTFS3_FS_POSIX_ACL
+	if (IS_POSIXACL(dir)) {
+		/* 
+		 * Load in cache current acl to avoid ni_lock(dir):
+		 * ntfs_create_inode -> ntfs_init_acl -> posix_acl_create ->
+		 * ntfs_get_acl -> ntfs_get_acl_ex -> ni_lock
+		 */
+		struct posix_acl *p = get_inode_acl(dir, ACL_TYPE_DEFAULT);
+
+		if (IS_ERR(p)) {
+			err = PTR_ERR(p);
+			goto out;
+		}
+		posix_acl_release(p);
+	}
+#endif
+
+	if (d_in_lookup(dentry)) {
+		ni_lock_dir(ni);
+		locked = true;
+		fnd = fnd_get();
+		if (!fnd) {
+			err = -ENOMEM;
+			goto out1;
+		}
+
+		d = d_splice_alias(dir_search_u(dir, uni, fnd), dentry);
+		if (IS_ERR(d)) {
+			err = PTR_ERR(d);
+			d = NULL;
+			goto out2;
+		}
+
+		if (d)
+			dentry = d;
+	}
+
+	if (!(flags & O_CREAT) || d_really_is_positive(dentry)) {
+		err = finish_no_open(file, d);
+		goto out2;
+	}
+
+	file->f_mode |= FMODE_CREATED;
+
+	/*
+	 * fnd contains tree's path to insert to.
+	 * If fnd is not NULL then dir is locked.
+	 */
+
+	/*
+	 * Unfortunately I don't know how to get here correct 'struct nameidata *nd'
+	 * or 'struct user_namespace *mnt_userns'.
+	 * See atomic_open in fs/namei.c.
+	 * This is why xfstest/633 failed.
+	 * Looks like ntfs_atomic_open must accept 'struct user_namespace *mnt_userns' as argument.
+	 */
+
+	inode = ntfs_create_inode(&init_user_ns, dir, dentry, uni, mode, 0,
+				  NULL, 0, fnd);
+	err = IS_ERR(inode) ? PTR_ERR(inode)
+			    : finish_open(file, dentry, ntfs_file_open);
+	dput(d);
+
+out2:
+	fnd_put(fnd);
+out1:
+	if (locked)
+		ni_unlock(ni);
+out:
+	__putname(uni);
 	return err;
 }
 
@@ -355,6 +459,133 @@ struct dentry *ntfs3_get_parent(struct dentry *child)
 	return ERR_PTR(-ENOENT);
 }
 
+/*
+ * dentry_operations::d_hash
+ */
+static int ntfs_d_hash(const struct dentry *dentry, struct qstr *name)
+{
+	struct ntfs_sb_info *sbi;
+	const char *n = name->name;
+	unsigned int len = name->len;
+	unsigned long hash;
+	struct cpu_str *uni;
+	unsigned int c;
+	int err;
+
+	/* First try fast implementation. */
+	hash = init_name_hash(dentry);
+
+	for (;;) {
+		if (!len--) {
+			name->hash = end_name_hash(hash);
+			return 0;
+		}
+
+		c = *n++;
+		if (c >= 0x80)
+			break;
+
+		hash = partial_name_hash(toupper(c), hash);
+	}
+
+	/*
+	 * Try slow way with current upcase table
+	 */
+	uni = __getname();
+	if (!uni)
+		return -ENOMEM;
+
+	sbi = dentry->d_sb->s_fs_info;
+
+	err = ntfs_nls_to_utf16(sbi, name->name, name->len, uni, NTFS_NAME_LEN,
+				UTF16_HOST_ENDIAN);
+	if (err < 0)
+		goto out;
+
+	if (!err) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	hash = ntfs_names_hash(uni->name, uni->len, sbi->upcase,
+			       init_name_hash(dentry));
+	name->hash = end_name_hash(hash);
+	err = 0;
+
+out:
+	__putname(uni);
+	return err;
+}
+
+/*
+ * dentry_operations::d_compare
+ */
+static int ntfs_d_compare(const struct dentry *dentry, unsigned int len1,
+			  const char *str, const struct qstr *name)
+{
+	struct ntfs_sb_info *sbi;
+	int ret;
+	const char *n1 = str;
+	const char *n2 = name->name;
+	unsigned int len2 = name->len;
+	unsigned int lm = min(len1, len2);
+	unsigned char c1, c2;
+	struct cpu_str *uni1;
+	struct le_str *uni2;
+
+	/* First try fast implementation. */
+	for (;;) {
+		if (!lm--)
+			return len1 != len2;
+
+		if ((c1 = *n1++) == (c2 = *n2++))
+			continue;
+
+		if (c1 >= 0x80 || c2 >= 0x80)
+			break;
+
+		if (toupper(c1) != toupper(c2))
+			return 1;
+	}
+
+	/*
+	 * Try slow way with current upcase table
+	 */
+	sbi = dentry->d_sb->s_fs_info;
+	uni1 = __getname();
+	if (!uni1)
+		return -ENOMEM;
+
+	ret = ntfs_nls_to_utf16(sbi, str, len1, uni1, NTFS_NAME_LEN,
+				UTF16_HOST_ENDIAN);
+	if (ret < 0)
+		goto out;
+
+	if (!ret) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	uni2 = Add2Ptr(uni1, 2048);
+
+	ret = ntfs_nls_to_utf16(sbi, name->name, name->len,
+				(struct cpu_str *)uni2, NTFS_NAME_LEN,
+				UTF16_LITTLE_ENDIAN);
+	if (ret < 0)
+		goto out;
+
+	if (!ret) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = !ntfs_cmp_names_cpu(uni1, uni2, sbi->upcase, false) ? 0 : 1;
+
+out:
+	__putname(uni1);
+	return ret;
+}
+
 // clang-format off
 const struct inode_operations ntfs_dir_inode_operations = {
 	.lookup		= ntfs_lookup,
@@ -372,6 +603,7 @@ const struct inode_operations ntfs_dir_inode_operations = {
 	.setattr	= ntfs3_setattr,
 	.getattr	= ntfs_getattr,
 	.listxattr	= ntfs_listxattr,
+	.atomic_open	= ntfs_atomic_open,
 	.fiemap		= ntfs_fiemap,
 };
 
@@ -382,4 +614,10 @@ const struct inode_operations ntfs_special_inode_operations = {
 	.get_inode_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
 };
+
+const struct dentry_operations ntfs_dentry_ops = {
+	.d_hash		= ntfs_d_hash,
+	.d_compare	= ntfs_d_compare,
+};
+
 // clang-format on

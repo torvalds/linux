@@ -878,6 +878,78 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 	return snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
 }
 
+static unsigned int hda_dsp_check_for_dma_streams(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct hdac_stream *s;
+	unsigned int active_streams = 0;
+	int sd_offset;
+	u32 val;
+
+	list_for_each_entry(s, &bus->stream_list, list) {
+		sd_offset = SOF_STREAM_SD_OFFSET(s);
+		val = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
+				       sd_offset);
+		if (val & SOF_HDA_SD_CTL_DMA_START)
+			active_streams |= BIT(s->index);
+	}
+
+	return active_streams;
+}
+
+static int hda_dsp_s5_quirk(struct snd_sof_dev *sdev)
+{
+	int ret;
+
+	/*
+	 * Do not assume a certain timing between the prior
+	 * suspend flow, and running of this quirk function.
+	 * This is needed if the controller was just put
+	 * to reset before calling this function.
+	 */
+	usleep_range(500, 1000);
+
+	/*
+	 * Take controller out of reset to flush DMA
+	 * transactions.
+	 */
+	ret = hda_dsp_ctrl_link_reset(sdev, false);
+	if (ret < 0)
+		return ret;
+
+	usleep_range(500, 1000);
+
+	/* Restore state for shutdown, back to reset */
+	ret = hda_dsp_ctrl_link_reset(sdev, true);
+	if (ret < 0)
+		return ret;
+
+	return ret;
+}
+
+int hda_dsp_shutdown_dma_flush(struct snd_sof_dev *sdev)
+{
+	unsigned int active_streams;
+	int ret, ret2;
+
+	/* check if DMA cleanup has been successful */
+	active_streams = hda_dsp_check_for_dma_streams(sdev);
+
+	sdev->system_suspend_target = SOF_SUSPEND_S3;
+	ret = snd_sof_suspend(sdev->dev);
+
+	if (active_streams) {
+		dev_warn(sdev->dev,
+			 "There were active DSP streams (%#x) at shutdown, trying to recover\n",
+			 active_streams);
+		ret2 = hda_dsp_s5_quirk(sdev);
+		if (ret2 < 0)
+			dev_err(sdev->dev, "shutdown recovery failed (%d)\n", ret2);
+	}
+
+	return ret;
+}
+
 int hda_dsp_shutdown(struct snd_sof_dev *sdev)
 {
 	sdev->system_suspend_target = SOF_SUSPEND_S3;

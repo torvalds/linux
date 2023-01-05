@@ -241,7 +241,8 @@
 	__SMU_DUMMY_MAP(GetGfxOffEntryCount),		 \
 	__SMU_DUMMY_MAP(LogGfxOffResidency),			\
 	__SMU_DUMMY_MAP(SetNumBadMemoryPagesRetired),		\
-	__SMU_DUMMY_MAP(SetBadMemoryPagesRetiredFlagsPerChannel),
+	__SMU_DUMMY_MAP(SetBadMemoryPagesRetiredFlagsPerChannel), \
+	__SMU_DUMMY_MAP(AllowGpo),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

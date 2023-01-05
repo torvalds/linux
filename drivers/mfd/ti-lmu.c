@@ -133,8 +133,9 @@ TI_LMU_DATA(lm3633, LM3633_MAX_REG);
 TI_LMU_DATA(lm3695, LM3695_MAX_REG);
 TI_LMU_DATA(lm36274, LM36274_MAX_REG);
 
-static int ti_lmu_probe(struct i2c_client *cl, const struct i2c_device_id *id)
+static int ti_lmu_probe(struct i2c_client *cl)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(cl);
 	struct device *dev = &cl->dev;
 	const struct ti_lmu_data *data;
 	struct regmap_config regmap_cfg;
@@ -216,7 +217,7 @@ static const struct i2c_device_id ti_lmu_ids[] = {
 MODULE_DEVICE_TABLE(i2c, ti_lmu_ids);
 
 static struct i2c_driver ti_lmu_driver = {
-	.probe = ti_lmu_probe,
+	.probe_new = ti_lmu_probe,
 	.driver = {
 		.name = "ti-lmu",
 		.of_match_table = ti_lmu_of_match,

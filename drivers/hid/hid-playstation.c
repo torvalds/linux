@@ -1916,7 +1916,7 @@ static int dualshock4_get_mac_address(struct dualshock4 *ds4)
 		if (ret != sizeof(ds4->base.mac_address))
 			return -EINVAL;
 
-		ret = 0;
+		return 0;
 	}
 
 err_free:

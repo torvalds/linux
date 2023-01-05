@@ -702,7 +702,7 @@ void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
 }
 
 /**
- * intel_gt_mcr_wait_for_reg_fw - wait until MCR register matches expected state
+ * intel_gt_mcr_wait_for_reg - wait until MCR register matches expected state
  * @gt: GT structure
  * @reg: the register to read
  * @mask: mask to apply to register value

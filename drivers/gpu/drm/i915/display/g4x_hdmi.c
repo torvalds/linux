@@ -157,10 +157,8 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 			     &pipe_config->infoframes.hdmi);
 }
 
-static void g4x_enable_hdmi(struct intel_atomic_state *state,
-			    struct intel_encoder *encoder,
-			    const struct intel_crtc_state *pipe_config,
-			    const struct drm_connector_state *conn_state)
+static void g4x_hdmi_enable_port(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -175,6 +173,16 @@ static void g4x_enable_hdmi(struct intel_atomic_state *state,
 
 	intel_de_write(dev_priv, intel_hdmi->hdmi_reg, temp);
 	intel_de_posting_read(dev_priv, intel_hdmi->hdmi_reg);
+}
+
+static void g4x_enable_hdmi(struct intel_atomic_state *state,
+			    struct intel_encoder *encoder,
+			    const struct intel_crtc_state *pipe_config,
+			    const struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	g4x_hdmi_enable_port(encoder, pipe_config);
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_audio &&
 		    !pipe_config->has_hdmi_sink);
@@ -294,6 +302,11 @@ static void vlv_enable_hdmi(struct intel_atomic_state *state,
 			    const struct intel_crtc_state *pipe_config,
 			    const struct drm_connector_state *conn_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	drm_WARN_ON(&dev_priv->drm, pipe_config->has_audio &&
+		    !pipe_config->has_hdmi_sink);
+	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 
 static void intel_disable_hdmi(struct intel_atomic_state *state,
@@ -415,7 +428,7 @@ static void vlv_hdmi_pre_enable(struct intel_atomic_state *state,
 			      pipe_config->has_infoframe,
 			      pipe_config, conn_state);
 
-	g4x_enable_hdmi(state, encoder, pipe_config, conn_state);
+	g4x_hdmi_enable_port(encoder, pipe_config);
 
 	vlv_wait_port_ready(dev_priv, dig_port, 0x0);
 }
@@ -492,7 +505,7 @@ static void chv_hdmi_pre_enable(struct intel_atomic_state *state,
 			      pipe_config->has_infoframe,
 			      pipe_config, conn_state);
 
-	g4x_enable_hdmi(state, encoder, pipe_config, conn_state);
+	g4x_hdmi_enable_port(encoder, pipe_config);
 
 	vlv_wait_port_ready(dev_priv, dig_port, 0x0);
 

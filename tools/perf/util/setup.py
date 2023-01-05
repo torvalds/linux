@@ -3,11 +3,20 @@ from subprocess import Popen, PIPE
 from re import sub
 
 cc = getenv("CC")
-cc_is_clang = b"clang version" in Popen([cc.split()[0], "-v"], stderr=PIPE).stderr.readline()
+
+# Check if CC has options, as is the case in yocto, where it uses CC="cc --sysroot..."
+cc_tokens = cc.split()
+if len(cc_tokens) > 1:
+    cc = cc_tokens[0]
+    cc_options = " ".join([str(e) for e in cc_tokens[1:]]) + " "
+else:
+    cc_options = ""
+
+cc_is_clang = b"clang version" in Popen([cc, "-v"], stderr=PIPE).stderr.readline()
 src_feature_tests  = getenv('srctree') + '/tools/build/feature'
 
 def clang_has_option(option):
-    cc_output = Popen([cc.split()[0], str(cc.split()[1:]) + option, path.join(src_feature_tests, "test-hello.c") ], stderr=PIPE).stderr.readlines()
+    cc_output = Popen([cc, cc_options + option, path.join(src_feature_tests, "test-hello.c") ], stderr=PIPE).stderr.readlines()
     return [o for o in cc_output if ((b"unknown argument" in o) or (b"is not supported" in o))] == [ ]
 
 if cc_is_clang:

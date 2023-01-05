@@ -214,6 +214,7 @@ static void avs_hda_probe_work(struct work_struct *work)
 	adev->nhlt = intel_nhlt_init(adev->dev);
 	if (!adev->nhlt)
 		dev_info(bus->dev, "platform has no NHLT\n");
+	avs_debugfs_init(adev);
 
 	avs_register_all_boards(adev);
 
@@ -491,6 +492,7 @@ static void avs_pci_remove(struct pci_dev *pci)
 
 	avs_unregister_all_boards(adev);
 
+	avs_debugfs_exit(adev);
 	if (adev->nhlt)
 		intel_nhlt_free(adev->nhlt);
 

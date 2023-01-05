@@ -538,7 +538,7 @@ static void io_eventfd_signal(struct io_ring_ctx *ctx)
 	} else {
 		atomic_inc(&ev_fd->refs);
 		if (!atomic_fetch_or(BIT(IO_EVENTFD_OP_SIGNAL_BIT), &ev_fd->ops))
-			call_rcu(&ev_fd->rcu, io_eventfd_ops);
+			call_rcu_hurry(&ev_fd->rcu, io_eventfd_ops);
 		else
 			atomic_dec(&ev_fd->refs);
 	}
@@ -572,12 +572,11 @@ static void io_eventfd_flush_signal(struct io_ring_ctx *ctx)
 
 void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 {
-	if (ctx->off_timeout_used || ctx->drain_active) {
+	if (ctx->off_timeout_used)
+		io_flush_timeouts(ctx);
+	if (ctx->drain_active) {
 		spin_lock(&ctx->completion_lock);
-		if (ctx->off_timeout_used)
-			io_flush_timeouts(ctx);
-		if (ctx->drain_active)
-			io_queue_deferred(ctx);
+		io_queue_deferred(ctx);
 		spin_unlock(&ctx->completion_lock);
 	}
 	if (ctx->has_evfd)
@@ -595,6 +594,18 @@ static inline void __io_cq_unlock(struct io_ring_ctx *ctx)
 {
 	if (!ctx->task_complete)
 		spin_unlock(&ctx->completion_lock);
+}
+
+static inline void io_cq_lock(struct io_ring_ctx *ctx)
+	__acquires(ctx->completion_lock)
+{
+	spin_lock(&ctx->completion_lock);
+}
+
+static inline void io_cq_unlock(struct io_ring_ctx *ctx)
+	__releases(ctx->completion_lock)
+{
+	spin_unlock(&ctx->completion_lock);
 }
 
 /* keep it inlined for io_submit_flush_completions() */
@@ -666,16 +677,20 @@ static void __io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 	io_cq_unlock_post(ctx);
 }
 
+static void io_cqring_do_overflow_flush(struct io_ring_ctx *ctx)
+{
+	/* iopoll syncs against uring_lock, not completion_lock */
+	if (ctx->flags & IORING_SETUP_IOPOLL)
+		mutex_lock(&ctx->uring_lock);
+	__io_cqring_overflow_flush(ctx);
+	if (ctx->flags & IORING_SETUP_IOPOLL)
+		mutex_unlock(&ctx->uring_lock);
+}
+
 static void io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 {
-	if (test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq)) {
-		/* iopoll syncs against uring_lock, not completion_lock */
-		if (ctx->flags & IORING_SETUP_IOPOLL)
-			mutex_lock(&ctx->uring_lock);
-		__io_cqring_overflow_flush(ctx);
-		if (ctx->flags & IORING_SETUP_IOPOLL)
-			mutex_unlock(&ctx->uring_lock);
-	}
+	if (test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq))
+		io_cqring_do_overflow_flush(ctx);
 }
 
 void __io_put_task(struct task_struct *task, int nr)
@@ -916,7 +931,7 @@ static void __io_req_complete_post(struct io_kiocb *req)
 
 	io_cq_lock(ctx);
 	if (!(req->flags & REQ_F_CQE_SKIP))
-		__io_fill_cqe_req(ctx, req);
+		io_fill_cqe_req(ctx, req);
 
 	/*
 	 * If we're the last reference to this request, add to our locked
@@ -1074,9 +1089,9 @@ static void __io_req_find_next_prep(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	io_cq_lock(ctx);
+	spin_lock(&ctx->completion_lock);
 	io_disarm_next(req);
-	io_cq_unlock_post(ctx);
+	spin_unlock(&ctx->completion_lock);
 }
 
 static inline struct io_kiocb *io_req_find_next(struct io_kiocb *req)
@@ -2470,7 +2485,14 @@ static inline int io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 	}
 	if (!schedule_hrtimeout(&timeout, HRTIMER_MODE_ABS))
 		return -ETIME;
-	return 1;
+
+	/*
+	 * Run task_work after scheduling. If we got woken because of
+	 * task_work being processed, run it now rather than let the caller
+	 * do another wait loop.
+	 */
+	ret = io_run_task_work_sig(ctx);
+	return ret < 0 ? ret : 1;
 }
 
 /*
@@ -2531,10 +2553,15 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 	trace_io_uring_cqring_wait(ctx, min_events);
 	do {
-		io_cqring_overflow_flush(ctx);
+		if (test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq)) {
+			finish_wait(&ctx->cq_wait, &iowq.wq);
+			io_cqring_do_overflow_flush(ctx);
+		}
 		prepare_to_wait_exclusive(&ctx->cq_wait, &iowq.wq,
 						TASK_INTERRUPTIBLE);
 		ret = io_cqring_wait_schedule(ctx, &iowq, timeout);
+		if (__io_cqring_events_user(ctx) >= min_events)
+			break;
 		cond_resched();
 	} while (ret > 0);
 
@@ -3993,8 +4020,6 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		return -EEXIST;
 
 	if (ctx->restricted) {
-		if (opcode >= IORING_REGISTER_LAST)
-			return -EINVAL;
 		opcode = array_index_nospec(opcode, IORING_REGISTER_LAST);
 		if (!test_bit(opcode, ctx->restrictions.register_op))
 			return -EACCES;
@@ -4149,6 +4174,9 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 	struct io_ring_ctx *ctx;
 	long ret = -EBADF;
 	struct fd f;
+
+	if (opcode >= IORING_REGISTER_LAST)
+		return -EINVAL;
 
 	f = fdget(fd);
 	if (!f.file)

@@ -291,6 +291,33 @@ static void board_pdev_unregister(void *data)
 	platform_device_unregister(data);
 }
 
+static int __maybe_unused avs_register_probe_board(struct avs_dev *adev)
+{
+	struct platform_device *board;
+	struct snd_soc_acpi_mach mach = {{0}};
+	int ret;
+
+	ret = avs_probe_platform_register(adev, "probe-platform");
+	if (ret < 0)
+		return ret;
+
+	mach.mach_params.platform = "probe-platform";
+
+	board = platform_device_register_data(NULL, "avs_probe_mb", PLATFORM_DEVID_NONE,
+					      (const void *)&mach, sizeof(mach));
+	if (IS_ERR(board)) {
+		dev_err(adev->dev, "probe board register failed\n");
+		return PTR_ERR(board);
+	}
+
+	ret = devm_add_action(adev->dev, board_pdev_unregister, board);
+	if (ret < 0) {
+		platform_device_unregister(board);
+		return ret;
+	}
+	return 0;
+}
+
 static int avs_register_dmic_board(struct avs_dev *adev)
 {
 	struct platform_device *codec, *board;
@@ -499,6 +526,12 @@ static int avs_register_hda_boards(struct avs_dev *adev)
 int avs_register_all_boards(struct avs_dev *adev)
 {
 	int ret;
+
+#ifdef CONFIG_DEBUG_FS
+	ret = avs_register_probe_board(adev);
+	if (ret < 0)
+		dev_warn(adev->dev, "enumerate PROBE endpoints failed: %d\n", ret);
+#endif
 
 	ret = avs_register_dmic_board(adev);
 	if (ret < 0)

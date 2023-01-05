@@ -159,7 +159,7 @@ static void dcn10_log_hubbub_state(struct dc *dc,
 		DTN_INFO_MICRO_SEC(s->pte_meta_urgent);
 		DTN_INFO_MICRO_SEC(s->sr_enter);
 		DTN_INFO_MICRO_SEC(s->sr_exit);
-		DTN_INFO_MICRO_SEC(s->dram_clk_chanage);
+		DTN_INFO_MICRO_SEC(s->dram_clk_change);
 		DTN_INFO("\n");
 	}
 
