@@ -609,9 +609,6 @@ static void setup_pmc_cpu(void *flags)
 		if (err)
 			pr_err("Switching off the sampling facility failed "
 			       "with rc %i\n", err);
-		debug_sprintf_event(sfdbg, 5,
-				    "%s: initialized: cpuhw %p\n", __func__,
-				    cpusf);
 		break;
 	case PMC_RELEASE:
 		cpusf->flags &= ~PMU_F_RESERVED;
@@ -621,9 +618,6 @@ static void setup_pmc_cpu(void *flags)
 			       "with rc %i\n", err);
 		} else
 			deallocate_buffers(cpusf);
-		debug_sprintf_event(sfdbg, 5,
-				    "%s: released: cpuhw %p\n", __func__,
-				    cpusf);
 		break;
 	}
 	if (err)
