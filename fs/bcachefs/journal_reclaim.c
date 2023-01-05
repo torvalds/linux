@@ -346,13 +346,13 @@ void bch2_journal_pin_put(struct journal *j, u64 seq)
 	}
 }
 
-static inline void __journal_pin_drop(struct journal *j,
+static inline bool __journal_pin_drop(struct journal *j,
 				      struct journal_entry_pin *pin)
 {
 	struct journal_entry_pin_list *pin_list;
 
 	if (!journal_pin_active(pin))
-		return;
+		return false;
 
 	if (j->flush_in_progress == pin)
 		j->flush_in_progress_dropped = true;
@@ -365,16 +365,16 @@ static inline void __journal_pin_drop(struct journal *j,
 	 * Unpinning a journal entry make make journal_next_bucket() succeed, if
 	 * writing a new last_seq will now make another bucket available:
 	 */
-	if (atomic_dec_and_test(&pin_list->count) &&
-	    pin_list == &fifo_peek_front(&j->pin))
-		bch2_journal_reclaim_fast(j);
+	return atomic_dec_and_test(&pin_list->count) &&
+		pin_list == &fifo_peek_front(&j->pin);
 }
 
 void bch2_journal_pin_drop(struct journal *j,
 			   struct journal_entry_pin *pin)
 {
 	spin_lock(&j->lock);
-	__journal_pin_drop(j, pin);
+	if (__journal_pin_drop(j, pin))
+		bch2_journal_reclaim_fast(j);
 	spin_unlock(&j->lock);
 }
 
@@ -383,6 +383,7 @@ void bch2_journal_pin_set(struct journal *j, u64 seq,
 			  journal_pin_flush_fn flush_fn)
 {
 	struct journal_entry_pin_list *pin_list;
+	bool reclaim;
 
 	spin_lock(&j->lock);
 
@@ -399,7 +400,7 @@ void bch2_journal_pin_set(struct journal *j, u64 seq,
 
 	pin_list = journal_seq_pin(j, seq);
 
-	__journal_pin_drop(j, pin);
+	reclaim = __journal_pin_drop(j, pin);
 
 	atomic_inc(&pin_list->count);
 	pin->seq	= seq;
@@ -411,6 +412,9 @@ void bch2_journal_pin_set(struct journal *j, u64 seq,
 		list_add(&pin->list, &pin_list->list);
 	else
 		list_add(&pin->list, &pin_list->flushed);
+
+	if (reclaim)
+		bch2_journal_reclaim_fast(j);
 	spin_unlock(&j->lock);
 
 	/*
