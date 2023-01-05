@@ -308,7 +308,6 @@ static void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
-	u32 val;
 
 	/* FDI relies on the transcoder */
 	assert_fdi_tx_disabled(dev_priv, pipe);
@@ -318,21 +317,16 @@ static void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 	assert_pch_ports_disabled(dev_priv, pipe);
 
 	reg = PCH_TRANSCONF(pipe);
-	val = intel_de_read(dev_priv, reg);
-	val &= ~TRANS_ENABLE;
-	intel_de_write(dev_priv, reg, val);
+	intel_de_rmw(dev_priv, reg, TRANS_ENABLE, 0);
 	/* wait for PCH transcoder off, transcoder state */
 	if (intel_de_wait_for_clear(dev_priv, reg, TRANS_STATE_ENABLE, 50))
 		drm_err(&dev_priv->drm, "failed to disable transcoder %c\n",
 			pipe_name(pipe));
 
-	if (HAS_PCH_CPT(dev_priv)) {
+	if (HAS_PCH_CPT(dev_priv))
 		/* Workaround: Clear the timing override chicken bit again. */
-		reg = TRANS_CHICKEN2(pipe);
-		val = intel_de_read(dev_priv, reg);
-		val &= ~TRANS_CHICKEN2_TIMING_OVERRIDE;
-		intel_de_write(dev_priv, reg, val);
-	}
+		intel_de_rmw(dev_priv, TRANS_CHICKEN2(pipe),
+			     TRANS_CHICKEN2_TIMING_OVERRIDE, 0);
 }
 
 void ilk_pch_pre_enable(struct intel_atomic_state *state,
@@ -457,21 +451,14 @@ void ilk_pch_post_disable(struct intel_atomic_state *state,
 	ilk_disable_pch_transcoder(crtc);
 
 	if (HAS_PCH_CPT(dev_priv)) {
-		i915_reg_t reg;
-		u32 temp;
-
 		/* disable TRANS_DP_CTL */
-		reg = TRANS_DP_CTL(pipe);
-		temp = intel_de_read(dev_priv, reg);
-		temp &= ~(TRANS_DP_OUTPUT_ENABLE |
-			  TRANS_DP_PORT_SEL_MASK);
-		temp |= TRANS_DP_PORT_SEL_NONE;
-		intel_de_write(dev_priv, reg, temp);
+		intel_de_rmw(dev_priv, TRANS_DP_CTL(pipe),
+			     TRANS_DP_OUTPUT_ENABLE | TRANS_DP_PORT_SEL_MASK,
+			     TRANS_DP_PORT_SEL_NONE);
 
 		/* disable DPLL_SEL */
-		temp = intel_de_read(dev_priv, PCH_DPLL_SEL);
-		temp &= ~(TRANS_DPLL_ENABLE(pipe) | TRANS_DPLLB_SEL(pipe));
-		intel_de_write(dev_priv, PCH_DPLL_SEL, temp);
+		intel_de_rmw(dev_priv, PCH_DPLL_SEL,
+			     TRANS_DPLL_ENABLE(pipe) | TRANS_DPLLB_SEL(pipe), 0);
 	}
 
 	ilk_fdi_pll_disable(crtc);
@@ -581,20 +568,14 @@ static void lpt_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 
 static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
 {
-	u32 val;
-
-	val = intel_de_read(dev_priv, LPT_TRANSCONF);
-	val &= ~TRANS_ENABLE;
-	intel_de_write(dev_priv, LPT_TRANSCONF, val);
+	intel_de_rmw(dev_priv, LPT_TRANSCONF, TRANS_ENABLE, 0);
 	/* wait for PCH transcoder off, transcoder state */
 	if (intel_de_wait_for_clear(dev_priv, LPT_TRANSCONF,
 				    TRANS_STATE_ENABLE, 50))
 		drm_err(&dev_priv->drm, "Failed to disable PCH transcoder\n");
 
 	/* Workaround: clear timing override bit. */
-	val = intel_de_read(dev_priv, TRANS_CHICKEN2(PIPE_A));
-	val &= ~TRANS_CHICKEN2_TIMING_OVERRIDE;
-	intel_de_write(dev_priv, TRANS_CHICKEN2(PIPE_A), val);
+	intel_de_rmw(dev_priv, TRANS_CHICKEN2(PIPE_A), TRANS_CHICKEN2_TIMING_OVERRIDE, 0);
 }
 
 void lpt_pch_enable(struct intel_atomic_state *state,
