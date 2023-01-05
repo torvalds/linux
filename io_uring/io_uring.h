@@ -284,26 +284,6 @@ static inline bool io_task_work_pending(struct io_ring_ctx *ctx)
 	return task_work_pending(current) || !wq_list_empty(&ctx->work_llist);
 }
 
-static inline int io_run_task_work_ctx(struct io_ring_ctx *ctx)
-{
-	int ret = 0;
-	int ret2;
-
-	if (!llist_empty(&ctx->work_llist))
-		ret = io_run_local_work(ctx);
-
-	/* want to run this after in case more is added */
-	ret2 = io_run_task_work();
-
-	/* Try propagate error in favour of if tasks were run,
-	 * but still make sure to run them if requested
-	 */
-	if (ret >= 0)
-		ret += ret2;
-
-	return ret;
-}
-
 static inline int io_run_local_work_locked(struct io_ring_ctx *ctx)
 {
 	bool locked;
