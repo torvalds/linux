@@ -289,7 +289,7 @@ static inline int io_run_task_work_ctx(struct io_ring_ctx *ctx)
 	int ret = 0;
 	int ret2;
 
-	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN)
+	if (!llist_empty(&ctx->work_llist))
 		ret = io_run_local_work(ctx);
 
 	/* want to run this after in case more is added */
