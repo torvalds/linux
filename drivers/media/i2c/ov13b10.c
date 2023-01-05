@@ -243,7 +243,6 @@ static const struct ov13b10_reg mipi_data_rate_1120mbps[] = {
 	{0x5047, 0xa4},
 	{0x5048, 0x20},
 	{0x5049, 0xa4},
-	{0x0100, 0x01},
 };
 
 static const struct ov13b10_reg mode_4208x3120_regs[] = {
