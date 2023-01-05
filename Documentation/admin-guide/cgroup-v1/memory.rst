@@ -387,29 +387,29 @@ U != 0, K >= U:
 3. User Interface
 =================
 
-3.0. Configuration
-------------------
+To use the user interface:
 
-a. Enable CONFIG_CGROUPS
-b. Enable CONFIG_MEMCG
-
-3.1. Prepare the cgroups (see cgroups.txt, Why are cgroups needed?)
--------------------------------------------------------------------
-
-::
+1. Enable CONFIG_CGROUPS and CONFIG_MEMCG options
+2. Prepare the cgroups (see :ref:`Why are cgroups needed?
+   <cgroups-why-needed>` for the background information)::
 
 	# mount -t tmpfs none /sys/fs/cgroup
 	# mkdir /sys/fs/cgroup/memory
 	# mount -t cgroup none /sys/fs/cgroup/memory -o memory
 
-3.2. Make the new group and move bash into it::
+3. Make the new group and move bash into it::
 
 	# mkdir /sys/fs/cgroup/memory/0
 	# echo $$ > /sys/fs/cgroup/memory/0/tasks
 
-Since now we're in the 0 cgroup, we can alter the memory limit::
+4. Since now we're in the 0 cgroup, we can alter the memory limit::
 
 	# echo 4M > /sys/fs/cgroup/memory/0/memory.limit_in_bytes
+
+   The limit can now be queried::
+
+	# cat /sys/fs/cgroup/memory/0/memory.limit_in_bytes
+	4194304
 
 .. note::
    We can use a suffix (k, K, m, M, g or G) to indicate values in kilo,
@@ -422,10 +422,6 @@ Since now we're in the 0 cgroup, we can alter the memory limit::
 .. note::
    We cannot set limits on the root cgroup any more.
 
-::
-
-  # cat /sys/fs/cgroup/memory/0/memory.limit_in_bytes
-  4194304
 
 We can check the usage::
 
