@@ -147,7 +147,8 @@ specific data structure (mem_cgroup) associated with it.
 2.2. Accounting
 ---------------
 
-::
+.. code-block::
+   :caption: Figure 1: Hierarchy of Accounting
 
 		+--------------------+
 		|  mem_cgroup        |
@@ -167,7 +168,6 @@ specific data structure (mem_cgroup) associated with it.
            |               |           |               |
            +---------------+           +---------------+
 
-             (Figure 1: Hierarchy of Accounting)
 
 
 Figure 1 shows the important aspects of the controller
