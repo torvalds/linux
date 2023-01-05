@@ -90,13 +90,6 @@ config LCD_PLATFORM
 	  This driver provides a platform-device registered LCD power
 	  control interface.
 
-config LCD_TOSA
-	tristate "Sharp SL-6000 LCD Driver"
-	depends on I2C && SPI && MACH_TOSA
-	help
-	  If you have an Sharp SL-6000 Zaurus say Y to enable a driver
-	  for its LCD.
-
 config LCD_HP700
 	tristate "HP Jornada 700 series LCD Driver"
 	depends on SA1100_JORNADA720_SSP && !PREEMPTION
@@ -287,13 +280,6 @@ config BACKLIGHT_APPLE
 	help
 	  If you have an Intel-based Apple say Y to enable a driver for its
 	  backlight.
-
-config BACKLIGHT_TOSA
-	tristate "Sharp SL-6000 Backlight Driver"
-	depends on I2C && MACH_TOSA && LCD_TOSA
-	help
-	  If you have an Sharp SL-6000 Zaurus say Y to enable a driver
-	  for its backlight
 
 config BACKLIGHT_QCOM_WLED
 	tristate "Qualcomm PMIC WLED Driver"

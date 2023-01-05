@@ -15,7 +15,6 @@ obj-$(CONFIG_LCD_LTV350QV)		+= ltv350qv.o
 obj-$(CONFIG_LCD_OTM3225A)		+= otm3225a.o
 obj-$(CONFIG_LCD_PLATFORM)		+= platform_lcd.o
 obj-$(CONFIG_LCD_TDO24M)		+= tdo24m.o
-obj-$(CONFIG_LCD_TOSA)			+= tosa_lcd.o
 obj-$(CONFIG_LCD_VGG2432A4)		+= vgg2432a4.o
 
 obj-$(CONFIG_BACKLIGHT_88PM860X)	+= 88pm860x_bl.o
@@ -53,7 +52,6 @@ obj-$(CONFIG_BACKLIGHT_QCOM_WLED)	+= qcom-wled.o
 obj-$(CONFIG_BACKLIGHT_RT4831)		+= rt4831-backlight.o
 obj-$(CONFIG_BACKLIGHT_SAHARA)		+= kb3886_bl.o
 obj-$(CONFIG_BACKLIGHT_SKY81452)	+= sky81452-backlight.o
-obj-$(CONFIG_BACKLIGHT_TOSA)		+= tosa_bl.o
 obj-$(CONFIG_BACKLIGHT_TPS65217)	+= tps65217_bl.o
 obj-$(CONFIG_BACKLIGHT_WM831X)		+= wm831x_bl.o
 obj-$(CONFIG_BACKLIGHT_ARCXCNN) 	+= arcxcnn_bl.o
