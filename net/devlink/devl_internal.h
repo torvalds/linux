@@ -156,6 +156,21 @@ devlink_dump_state(struct netlink_callback *cb)
 	return (struct devlink_nl_dump_state *)cb->ctx;
 }
 
+/* gen cmds */
+extern const struct devlink_gen_cmd devl_gen_inst;
+extern const struct devlink_gen_cmd devl_gen_port;
+extern const struct devlink_gen_cmd devl_gen_sb;
+extern const struct devlink_gen_cmd devl_gen_sb_pool;
+extern const struct devlink_gen_cmd devl_gen_sb_port_pool;
+extern const struct devlink_gen_cmd devl_gen_sb_tc_pool_bind;
+extern const struct devlink_gen_cmd devl_gen_selftests;
+extern const struct devlink_gen_cmd devl_gen_param;
+extern const struct devlink_gen_cmd devl_gen_region;
+extern const struct devlink_gen_cmd devl_gen_info;
+extern const struct devlink_gen_cmd devl_gen_trap;
+extern const struct devlink_gen_cmd devl_gen_trap_group;
+extern const struct devlink_gen_cmd devl_gen_trap_policer;
+
 /* Ports */
 int devlink_port_netdevice_event(struct notifier_block *nb,
 				 unsigned long event, void *ptr);

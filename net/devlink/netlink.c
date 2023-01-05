@@ -179,7 +179,20 @@ static void devlink_nl_post_doit(const struct genl_split_ops *ops,
 }
 
 static const struct devlink_gen_cmd *devl_gen_cmds[] = {
+	[DEVLINK_CMD_GET]		= &devl_gen_inst,
+	[DEVLINK_CMD_PORT_GET]		= &devl_gen_port,
+	[DEVLINK_CMD_SB_GET]		= &devl_gen_sb,
+	[DEVLINK_CMD_SB_POOL_GET]	= &devl_gen_sb_pool,
+	[DEVLINK_CMD_SB_PORT_POOL_GET]	= &devl_gen_sb_port_pool,
+	[DEVLINK_CMD_SB_TC_POOL_BIND_GET] = &devl_gen_sb_tc_pool_bind,
+	[DEVLINK_CMD_PARAM_GET]		= &devl_gen_param,
+	[DEVLINK_CMD_REGION_GET]	= &devl_gen_region,
+	[DEVLINK_CMD_INFO_GET]		= &devl_gen_info,
 	[DEVLINK_CMD_RATE_GET]		= &devl_gen_rate_get,
+	[DEVLINK_CMD_TRAP_GET]		= &devl_gen_trap,
+	[DEVLINK_CMD_TRAP_GROUP_GET]	= &devl_gen_trap_group,
+	[DEVLINK_CMD_TRAP_POLICER_GET]	= &devl_gen_trap_policer,
+	[DEVLINK_CMD_SELFTESTS_GET]	= &devl_gen_selftests,
 };
 
 int devlink_nl_instance_iter_dump(struct sk_buff *msg,
