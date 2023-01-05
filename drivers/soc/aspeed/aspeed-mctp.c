@@ -765,7 +765,7 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 		 */
 		rx_buf = (struct mctp_pcie_packet_data *)rx->data.vaddr;
 		hdr = (u32 *)&rx_buf[rx->wr_ptr];
-		if (!*hdr) {
+		if (!*hdr && priv->rx_warmup) {
 			u32 tmp_wr_ptr = rx->wr_ptr;
 
 			/*
