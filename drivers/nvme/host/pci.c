@@ -548,22 +548,6 @@ static void nvme_free_prps(struct nvme_dev *dev, struct request *req)
 	}
 }
 
-static void nvme_free_sgls(struct nvme_dev *dev, struct request *req)
-{
-	const int last_sg = SGES_PER_PAGE - 1;
-	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
-	dma_addr_t dma_addr = iod->first_dma;
-	int i;
-
-	for (i = 0; i < iod->nr_allocations; i++) {
-		struct nvme_sgl_desc *sg_list = nvme_pci_iod_list(req)[i];
-		dma_addr_t next_dma_addr = le64_to_cpu((sg_list[last_sg]).addr);
-
-		dma_pool_free(dev->prp_page_pool, sg_list, dma_addr);
-		dma_addr = next_dma_addr;
-	}
-}
-
 static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
@@ -582,7 +566,8 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 		dma_pool_free(dev->prp_small_pool, nvme_pci_iod_list(req)[0],
 			      iod->first_dma);
 	else if (iod->use_sgl)
-		nvme_free_sgls(dev, req);
+		dma_pool_free(dev->prp_page_pool, nvme_pci_iod_list(req)[0],
+			      iod->first_dma);
 	else
 		nvme_free_prps(dev, req);
 	mempool_free(iod->sgt.sgl, dev->iod_mempool);
@@ -705,13 +690,8 @@ static void nvme_pci_sgl_set_seg(struct nvme_sgl_desc *sge,
 		dma_addr_t dma_addr, int entries)
 {
 	sge->addr = cpu_to_le64(dma_addr);
-	if (entries < SGES_PER_PAGE) {
-		sge->length = cpu_to_le32(entries * sizeof(*sge));
-		sge->type = NVME_SGL_FMT_LAST_SEG_DESC << 4;
-	} else {
-		sge->length = cpu_to_le32(NVME_CTRL_PAGE_SIZE);
-		sge->type = NVME_SGL_FMT_SEG_DESC << 4;
-	}
+	sge->length = cpu_to_le32(entries * sizeof(*sge));
+	sge->type = NVME_SGL_FMT_LAST_SEG_DESC << 4;
 }
 
 static blk_status_t nvme_pci_setup_sgls(struct nvme_dev *dev,
@@ -751,30 +731,12 @@ static blk_status_t nvme_pci_setup_sgls(struct nvme_dev *dev,
 	iod->first_dma = sgl_dma;
 
 	nvme_pci_sgl_set_seg(&cmd->dptr.sgl, sgl_dma, entries);
-
 	do {
-		if (i == SGES_PER_PAGE) {
-			struct nvme_sgl_desc *old_sg_desc = sg_list;
-			struct nvme_sgl_desc *link = &old_sg_desc[i - 1];
-
-			sg_list = dma_pool_alloc(pool, GFP_ATOMIC, &sgl_dma);
-			if (!sg_list)
-				goto free_sgls;
-
-			i = 0;
-			nvme_pci_iod_list(req)[iod->nr_allocations++] = sg_list;
-			sg_list[i++] = *link;
-			nvme_pci_sgl_set_seg(link, sgl_dma, entries);
-		}
-
 		nvme_pci_sgl_set_data(&sg_list[i++], sg);
 		sg = sg_next(sg);
 	} while (--entries > 0);
 
 	return BLK_STS_OK;
-free_sgls:
-	nvme_free_sgls(dev, req);
-	return BLK_STS_RESOURCE;
 }
 
 static blk_status_t nvme_setup_prp_simple(struct nvme_dev *dev,
@@ -3532,6 +3494,7 @@ static int __init nvme_init(void)
 	BUILD_BUG_ON(IRQ_AFFINITY_MAX_SETS < 2);
 	BUILD_BUG_ON(DIV_ROUND_UP(nvme_pci_npages_prp(), NVME_CTRL_PAGE_SIZE) >
 		     S8_MAX);
+	BUILD_BUG_ON(NVME_MAX_SEGS > SGES_PER_PAGE);
 
 	return pci_register_driver(&nvme_driver);
 }
