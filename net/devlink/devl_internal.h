@@ -97,12 +97,29 @@ devlinks_xa_find_get_next(struct net *net, unsigned long *indexp,
 			  xa_mark_t filter);
 
 /* Netlink */
+#define DEVLINK_NL_FLAG_NEED_PORT		BIT(0)
+#define DEVLINK_NL_FLAG_NEED_DEVLINK_OR_PORT	BIT(1)
+#define DEVLINK_NL_FLAG_NEED_RATE		BIT(2)
+#define DEVLINK_NL_FLAG_NEED_RATE_NODE		BIT(3)
+#define DEVLINK_NL_FLAG_NEED_LINECARD		BIT(4)
+
+enum devlink_multicast_groups {
+	DEVLINK_MCGRP_CONFIG,
+};
+
+extern const struct genl_small_ops devlink_nl_ops[56];
+
+struct devlink *devlink_get_from_attrs(struct net *net, struct nlattr **attrs);
+
 void devlink_notify_unregister(struct devlink *devlink);
 void devlink_notify_register(struct devlink *devlink);
 
 /* Ports */
 int devlink_port_netdevice_event(struct notifier_block *nb,
 				 unsigned long event, void *ptr);
+
+struct devlink_port *
+devlink_port_get_from_info(struct devlink *devlink, struct genl_info *info);
 
 /* Reload */
 bool devlink_reload_actions_valid(const struct devlink_ops *ops);
@@ -115,3 +132,17 @@ static inline bool devlink_reload_supported(const struct devlink_ops *ops)
 {
 	return ops->reload_down && ops->reload_up;
 }
+
+/* Line cards */
+struct devlink_linecard;
+
+struct devlink_linecard *
+devlink_linecard_get_from_info(struct devlink *devlink, struct genl_info *info);
+void devlink_linecard_put(struct devlink_linecard *linecard);
+
+/* Rates */
+struct devlink_rate *
+devlink_rate_get_from_info(struct devlink *devlink, struct genl_info *info);
+struct devlink_rate *
+devlink_rate_node_get_from_info(struct devlink *devlink,
+				struct genl_info *info);
