@@ -23,7 +23,7 @@ Benefits and Purpose of the memory controller
 =============================================
 
 The memory controller isolates the memory behaviour of a group of tasks
-from the rest of the system. The article on LWN [12] mentions some probable
+from the rest of the system. The article on LWN [12]_ mentions some probable
 uses of the memory controller. The memory controller can be used to
 
 a. Isolate an application or a group of applications
@@ -107,16 +107,16 @@ Brief summary of control files.
 ==========
 
 The memory controller has a long history. A request for comments for the memory
-controller was posted by Balbir Singh [1]. At the time the RFC was posted
+controller was posted by Balbir Singh [1]_. At the time the RFC was posted
 there were several implementations for memory control. The goal of the
 RFC was to build consensus and agreement for the minimal features required
-for memory control. The first RSS controller was posted by Balbir Singh[2]
-in Feb 2007. Pavel Emelianov [3][4][5] has since posted three versions of the
-RSS controller. At OLS, at the resource management BoF, everyone suggested
-that we handle both page cache and RSS together. Another request was raised
-to allow user space handling of OOM. The current memory controller is
+for memory control. The first RSS controller was posted by Balbir Singh [2]_
+in Feb 2007. Pavel Emelianov [3]_ [4]_ [5]_ has since posted three versions
+of the RSS controller. At OLS, at the resource management BoF, everyone
+suggested that we handle both page cache and RSS together. Another request was
+raised to allow user space handling of OOM. The current memory controller is
 at version 6; it combines both mapped (RSS) and unmapped Page
-Cache Control [11].
+Cache Control [11]_.
 
 2. Memory Control
 =================
@@ -960,15 +960,16 @@ commented and discussed quite extensively in the community.
 References
 ==========
 
-1. Singh, Balbir. RFC: Memory Controller, http://lwn.net/Articles/206697/
-2. Singh, Balbir. Memory Controller (RSS Control),
+.. [1] Singh, Balbir. RFC: Memory Controller, http://lwn.net/Articles/206697/
+.. [2] Singh, Balbir. Memory Controller (RSS Control),
    http://lwn.net/Articles/222762/
-3. Emelianov, Pavel. Resource controllers based on process cgroups
+.. [3] Emelianov, Pavel. Resource controllers based on process cgroups
    https://lore.kernel.org/r/45ED7DEC.7010403@sw.ru
-4. Emelianov, Pavel. RSS controller based on process cgroups (v2)
+.. [4] Emelianov, Pavel. RSS controller based on process cgroups (v2)
    https://lore.kernel.org/r/461A3010.90403@sw.ru
-5. Emelianov, Pavel. RSS controller based on process cgroups (v3)
+.. [5] Emelianov, Pavel. RSS controller based on process cgroups (v3)
    https://lore.kernel.org/r/465D9739.8070209@openvz.org
+
 6. Menage, Paul. Control Groups v10, http://lwn.net/Articles/236032/
 7. Vaidyanathan, Srinivasan, Control Groups: Pagecache accounting and control
    subsystem (v3), http://lwn.net/Articles/235534/
@@ -978,7 +979,8 @@ References
    https://lore.kernel.org/r/464D267A.50107@linux.vnet.ibm.com
 10. Singh, Balbir. Memory controller v6 test results,
     https://lore.kernel.org/r/20070819094658.654.84837.sendpatchset@balbir-laptop
-11. Singh, Balbir. Memory controller introduction (v6),
-    https://lore.kernel.org/r/20070817084228.26003.12568.sendpatchset@balbir-laptop
-12. Corbet, Jonathan, Controlling memory use in cgroups,
-    http://lwn.net/Articles/243795/
+
+.. [11] Singh, Balbir. Memory controller introduction (v6),
+   https://lore.kernel.org/r/20070817084228.26003.12568.sendpatchset@balbir-laptop
+.. [12] Corbet, Jonathan, Controlling memory use in cgroups,
+   http://lwn.net/Articles/243795/
