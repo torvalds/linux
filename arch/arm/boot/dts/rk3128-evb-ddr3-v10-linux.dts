@@ -598,6 +598,7 @@
 		compatible = "rtc,hym8563";
 		reg = <0x51>;
 		irq_gpio = <&gpio0 RK_PD4 IRQ_TYPE_EDGE_FALLING>;
+		wakeup-source;
 	};
 
 	rk805: rk805@18 {
