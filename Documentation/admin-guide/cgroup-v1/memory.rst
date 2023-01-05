@@ -287,7 +287,7 @@ When oom event notifier is registered, event will be delivered.
 2.6 Locking
 -----------
 
-Lock order is as follows:
+Lock order is as follows::
 
   Page lock (PG_locked bit of page->flags)
     mm->page_table_lock or split pte_lock
