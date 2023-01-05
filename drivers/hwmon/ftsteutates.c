@@ -6,9 +6,7 @@
  *		  Thilo Cestonaro <thilo.cestonaro@ts.fujitsu.com>
  */
 #include <linux/err.h>
-#include <linux/fs.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
@@ -16,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 #include <linux/watchdog.h>
 
 #define FTS_DEVICE_ID_REG		0x0000
@@ -47,6 +44,8 @@
 #define FTS_NO_FAN_SENSORS		0x08
 #define FTS_NO_TEMP_SENSORS		0x10
 #define FTS_NO_VOLT_SENSORS		0x04
+
+#define FTS_FAN_SOURCE_INVALID		0xff
 
 static const unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
 
@@ -187,7 +186,7 @@ static int fts_update_device(struct fts_data *data)
 			data->fan_source[i] = err;
 		} else {
 			data->fan_input[i] = 0;
-			data->fan_source[i] = 0;
+			data->fan_source[i] = FTS_FAN_SOURCE_INVALID;
 		}
 	}
 
@@ -339,50 +338,6 @@ static int fts_watchdog_init(struct fts_data *data)
 	return devm_watchdog_register_device(&data->client->dev, &data->wdd);
 }
 
-static ssize_t fan_source_show(struct device *dev,
-			       struct device_attribute *devattr, char *buf)
-{
-	struct fts_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(devattr)->index;
-	int err;
-
-	err = fts_update_device(data);
-	if (err < 0)
-		return err;
-
-	return sprintf(buf, "%u\n", data->fan_source[index]);
-}
-
-static SENSOR_DEVICE_ATTR_RO(fan1_source, fan_source, 0);
-static SENSOR_DEVICE_ATTR_RO(fan2_source, fan_source, 1);
-static SENSOR_DEVICE_ATTR_RO(fan3_source, fan_source, 2);
-static SENSOR_DEVICE_ATTR_RO(fan4_source, fan_source, 3);
-static SENSOR_DEVICE_ATTR_RO(fan5_source, fan_source, 4);
-static SENSOR_DEVICE_ATTR_RO(fan6_source, fan_source, 5);
-static SENSOR_DEVICE_ATTR_RO(fan7_source, fan_source, 6);
-static SENSOR_DEVICE_ATTR_RO(fan8_source, fan_source, 7);
-
-static struct attribute *fts_fan_attrs[] = {
-	&sensor_dev_attr_fan1_source.dev_attr.attr,
-	&sensor_dev_attr_fan2_source.dev_attr.attr,
-	&sensor_dev_attr_fan3_source.dev_attr.attr,
-	&sensor_dev_attr_fan4_source.dev_attr.attr,
-	&sensor_dev_attr_fan5_source.dev_attr.attr,
-	&sensor_dev_attr_fan6_source.dev_attr.attr,
-	&sensor_dev_attr_fan7_source.dev_attr.attr,
-	&sensor_dev_attr_fan8_source.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group fts_attr_group = {
-	.attrs = fts_fan_attrs
-};
-
-static const struct attribute_group *fts_attr_groups[] = {
-	&fts_attr_group,
-	NULL
-};
-
 static umode_t fts_is_visible(const void *devdata, enum hwmon_sensor_types type, u32 attr,
 			      int channel)
 {
@@ -408,6 +363,7 @@ static umode_t fts_is_visible(const void *devdata, enum hwmon_sensor_types type,
 			break;
 		}
 		break;
+	case hwmon_pwm:
 	case hwmon_in:
 		return 0444;
 	default:
@@ -454,6 +410,19 @@ static int fts_read(struct device *dev, enum hwmon_sensor_types type, u32 attr, 
 			return 0;
 		case hwmon_fan_alarm:
 			*val = !!(data->fan_alarm & BIT(channel));
+
+			return 0;
+		default:
+			break;
+		}
+		break;
+	case hwmon_pwm:
+		switch (attr) {
+		case hwmon_pwm_auto_channels_temp:
+			if (data->fan_source[channel] == FTS_FAN_SOURCE_INVALID)
+				*val = 0;
+			else
+				*val = BIT(data->fan_source[channel]);
 
 			return 0;
 		default:
@@ -576,6 +545,16 @@ static const struct hwmon_channel_info *fts_info[] = {
 			   HWMON_F_INPUT | HWMON_F_ALARM,
 			   HWMON_F_INPUT | HWMON_F_ALARM
 			   ),
+	HWMON_CHANNEL_INFO(pwm,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP,
+			   HWMON_PWM_AUTO_CHANNELS_TEMP
+			   ),
 	HWMON_CHANNEL_INFO(in,
 			   HWMON_I_INPUT,
 			   HWMON_I_INPUT,
@@ -672,7 +651,7 @@ static int fts_probe(struct i2c_client *client)
 	revision = err;
 
 	hwmon_dev = devm_hwmon_device_register_with_info(&client->dev, "ftsteutates", data,
-							 &fts_chip_info, fts_attr_groups);
+							 &fts_chip_info, NULL);
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
