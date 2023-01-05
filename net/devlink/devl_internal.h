@@ -81,20 +81,15 @@ extern struct genl_family devlink_nl_family;
  * devlink_put() needs to be called for each iterated devlink pointer
  * in loop body in order to release the reference.
  */
-#define devlinks_xa_for_each_get(net, index, devlink, filter)		\
-	for (index = 0,							\
-	     devlink = devlinks_xa_find_get_first(net, &index, filter);	\
-	     devlink; devlink = devlinks_xa_find_get_next(net, &index, filter))
-
 #define devlinks_xa_for_each_registered_get(net, index, devlink)	\
-	devlinks_xa_for_each_get(net, index, devlink, DEVLINK_REGISTERED)
+	for (index = 0,							\
+	     devlink = devlinks_xa_find_get_first(net, &index);	\
+	     devlink; devlink = devlinks_xa_find_get_next(net, &index))
 
 struct devlink *
-devlinks_xa_find_get_first(struct net *net, unsigned long *indexp,
-			   xa_mark_t filter);
+devlinks_xa_find_get_first(struct net *net, unsigned long *indexp);
 struct devlink *
-devlinks_xa_find_get_next(struct net *net, unsigned long *indexp,
-			  xa_mark_t filter);
+devlinks_xa_find_get_next(struct net *net, unsigned long *indexp);
 
 /* Netlink */
 #define DEVLINK_NL_FLAG_NEED_PORT		BIT(0)
