@@ -3800,13 +3800,10 @@ static int hv_pci_bus_exit(struct hv_device *hdev, bool keep_devs)
 /**
  * hv_pci_remove() - Remove routine for this VMBus channel
  * @hdev:	VMBus's tracking struct for this root PCI bus
- *
- * Return: 0 on success, -errno on failure
  */
-static int hv_pci_remove(struct hv_device *hdev)
+static void hv_pci_remove(struct hv_device *hdev)
 {
 	struct hv_pcibus_device *hbus;
-	int ret;
 
 	hbus = hv_get_drvdata(hdev);
 	if (hbus->state == hv_pcibus_installed) {
@@ -3829,7 +3826,7 @@ static int hv_pci_remove(struct hv_device *hdev)
 		pci_unlock_rescan_remove();
 	}
 
-	ret = hv_pci_bus_exit(hdev, false);
+	hv_pci_bus_exit(hdev, false);
 
 	vmbus_close(hdev->channel);
 
@@ -3842,7 +3839,6 @@ static int hv_pci_remove(struct hv_device *hdev)
 	hv_put_dom_num(hbus->bridge->domain_nr);
 
 	kfree(hbus);
-	return ret;
 }
 
 static int hv_pci_suspend(struct hv_device *hdev)

@@ -602,7 +602,7 @@ error1:
 	return ret;
 }
 
-static int util_remove(struct hv_device *dev)
+static void util_remove(struct hv_device *dev)
 {
 	struct hv_util_service *srv = hv_get_drvdata(dev);
 
@@ -610,8 +610,6 @@ static int util_remove(struct hv_device *dev)
 		srv->util_deinit();
 	vmbus_close(dev->channel);
 	kfree(srv->recv_buffer);
-
-	return 0;
 }
 
 /*
