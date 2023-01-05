@@ -131,7 +131,7 @@ struct devlink_nl_dump_state {
 #define devlink_dump_for_each_instance_get(msg, state, devlink)		\
 	for (; (devlink = devlinks_xa_find_get(sock_net(msg->sk),	\
 					       &state->instance, xa_find)); \
-	     state->instance++)
+	     state->instance++, state->idx = 0)
 
 extern const struct genl_small_ops devlink_nl_ops[56];
 
