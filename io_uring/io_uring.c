@@ -1301,14 +1301,13 @@ int __io_run_local_work(struct io_ring_ctx *ctx, bool *locked)
 	struct llist_node *node;
 	struct llist_node fake;
 	struct llist_node *current_final = NULL;
-	int ret;
+	int ret = 0;
 	unsigned int loops = 1;
 
-	if (unlikely(ctx->submitter_task != current))
+	if (WARN_ON_ONCE(ctx->submitter_task != current))
 		return -EEXIST;
 
 	node = io_llist_xchg(&ctx->work_llist, &fake);
-	ret = 0;
 again:
 	while (node != current_final) {
 		struct llist_node *next = node->next;
@@ -2514,11 +2513,8 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 	if (!io_allowed_run_tw(ctx))
 		return -EEXIST;
-	if (!llist_empty(&ctx->work_llist)) {
-		ret = io_run_local_work(ctx);
-		if (ret < 0)
-			return ret;
-	}
+	if (!llist_empty(&ctx->work_llist))
+		io_run_local_work(ctx);
 	io_run_task_work();
 	io_cqring_overflow_flush(ctx);
 	/* if user messes with these they will just get an early return */
@@ -3055,7 +3051,8 @@ static __cold bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 		}
 	}
 
-	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN)
+	if ((ctx->flags & IORING_SETUP_DEFER_TASKRUN) &&
+	    io_allowed_defer_tw_run(ctx))
 		ret |= io_run_local_work(ctx) > 0;
 	ret |= io_cancel_defer_files(ctx, task, cancel_all);
 	mutex_lock(&ctx->uring_lock);

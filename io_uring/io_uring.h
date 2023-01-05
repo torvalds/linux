@@ -367,6 +367,11 @@ static inline struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 	return container_of(node, struct io_kiocb, comp_list);
 }
 
+static inline bool io_allowed_defer_tw_run(struct io_ring_ctx *ctx)
+{
+	return likely(ctx->submitter_task == current);
+}
+
 static inline bool io_allowed_run_tw(struct io_ring_ctx *ctx)
 {
 	return likely(!(ctx->flags & IORING_SETUP_DEFER_TASKRUN) ||
