@@ -76,10 +76,14 @@ properties:
         minItems: 4
 
   dmas:
-    maxItems: 2
+    items:
+      - description: DMA controller phandle and request line for RX
+      - description: DMA controller phandle and request line for TX
 
   dma-names:
-    maxItems: 2
+    items:
+      - const: rx
+      - const: tx
 
   interrupts:
     items:
@@ -143,31 +147,6 @@ properties:
 allOf:
   - $ref: dai-common.yaml#
   - if:
-      properties:
-        compatible:
-          contains:
-            const: fsl,vf610-sai
-    then:
-      properties:
-        dmas:
-          items:
-            - description: DMA controller phandle and request line for TX
-            - description: DMA controller phandle and request line for RX
-        dma-names:
-          items:
-            - const: tx
-            - const: rx
-    else:
-      properties:
-        dmas:
-          items:
-            - description: DMA controller phandle and request line for RX
-            - description: DMA controller phandle and request line for TX
-        dma-names:
-          items:
-            - const: rx
-            - const: tx
-  - if:
       required:
         - fsl,sai-asynchronous
     then:
@@ -199,9 +178,8 @@ examples:
                  <&clks VF610_CLK_SAI2>,
                  <&clks 0>, <&clks 0>;
         clock-names = "bus", "mclk1", "mclk2", "mclk3";
-        dma-names = "tx", "rx";
-        dmas = <&edma0 0 21>,
-               <&edma0 0 20>;
+        dma-names = "rx", "tx";
+        dmas = <&edma0 0 20>, <&edma0 0 21>;
         big-endian;
         lsb-first;
     };
