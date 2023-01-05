@@ -3426,7 +3426,7 @@ ice_vsi_rebuild_set_coalesce(struct ice_vsi *vsi,
  * @prev_txq: Number of Tx rings before ring reallocation
  * @prev_rxq: Number of Rx rings before ring reallocation
  */
-static int
+static void
 ice_vsi_realloc_stat_arrays(struct ice_vsi *vsi, int prev_txq, int prev_rxq)
 {
 	struct ice_vsi_stats *vsi_stat;
@@ -3434,9 +3434,9 @@ ice_vsi_realloc_stat_arrays(struct ice_vsi *vsi, int prev_txq, int prev_rxq)
 	int i;
 
 	if (!prev_txq || !prev_rxq)
-		return 0;
+		return;
 	if (vsi->type == ICE_VSI_CHNL)
-		return 0;
+		return;
 
 	vsi_stat = pf->vsi_stats[vsi->idx];
 
@@ -3457,8 +3457,6 @@ ice_vsi_realloc_stat_arrays(struct ice_vsi *vsi, int prev_txq, int prev_rxq)
 			}
 		}
 	}
-
-	return 0;
 }
 
 /**
@@ -3515,8 +3513,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, u32 vsi_flags)
 		}
 	}
 
-	if (ice_vsi_realloc_stat_arrays(vsi, prev_txq, prev_rxq))
-		goto err_vsi_cfg_tc_lan;
+	ice_vsi_realloc_stat_arrays(vsi, prev_txq, prev_rxq);
 
 	ice_vsi_rebuild_set_coalesce(vsi, coalesce, prev_num_q_vectors);
 	kfree(coalesce);
