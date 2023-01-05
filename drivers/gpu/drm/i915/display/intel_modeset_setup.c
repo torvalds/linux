@@ -649,17 +649,14 @@ static void intel_early_display_was(struct drm_i915_private *i915)
 	 * Also known as Wa_14010480278.
 	 */
 	if (IS_DISPLAY_VER(i915, 10, 12))
-		intel_de_write(i915, GEN9_CLKGATE_DIS_0,
-			       intel_de_read(i915, GEN9_CLKGATE_DIS_0) | DARBF_GATING_DIS);
+		intel_de_rmw(i915, GEN9_CLKGATE_DIS_0, 0, DARBF_GATING_DIS);
 
-	if (IS_HASWELL(i915)) {
-		/*
-		 * WaRsPkgCStateDisplayPMReq:hsw
-		 * System hang if this isn't done before disabling all planes!
-		 */
-		intel_de_write(i915, CHICKEN_PAR1_1,
-			       intel_de_read(i915, CHICKEN_PAR1_1) | FORCE_ARB_IDLE_PLANES);
-	}
+	/*
+	 * WaRsPkgCStateDisplayPMReq:hsw
+	 * System hang if this isn't done before disabling all planes!
+	 */
+	if (IS_HASWELL(i915))
+		intel_de_rmw(i915, CHICKEN_PAR1_1, 0, FORCE_ARB_IDLE_PLANES);
 
 	if (IS_KABYLAKE(i915) || IS_COFFEELAKE(i915) || IS_COMETLAKE(i915)) {
 		/* Display WA #1142:kbl,cfl,cml */

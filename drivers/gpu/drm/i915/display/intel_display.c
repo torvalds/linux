@@ -201,11 +201,11 @@ static void
 skl_wa_827(struct drm_i915_private *dev_priv, enum pipe pipe, bool enable)
 {
 	if (enable)
-		intel_de_write(dev_priv, CLKGATE_DIS_PSL(pipe),
-		               intel_de_read(dev_priv, CLKGATE_DIS_PSL(pipe)) | DUPS1_GATING_DIS | DUPS2_GATING_DIS);
+		intel_de_rmw(dev_priv, CLKGATE_DIS_PSL(pipe),
+			     0, DUPS1_GATING_DIS | DUPS2_GATING_DIS);
 	else
-		intel_de_write(dev_priv, CLKGATE_DIS_PSL(pipe),
-		               intel_de_read(dev_priv, CLKGATE_DIS_PSL(pipe)) & ~(DUPS1_GATING_DIS | DUPS2_GATING_DIS));
+		intel_de_rmw(dev_priv, CLKGATE_DIS_PSL(pipe),
+			     DUPS1_GATING_DIS | DUPS2_GATING_DIS, 0);
 }
 
 /* Wa_2006604312:icl,ehl */
@@ -214,11 +214,9 @@ icl_wa_scalerclkgating(struct drm_i915_private *dev_priv, enum pipe pipe,
 		       bool enable)
 {
 	if (enable)
-		intel_de_write(dev_priv, CLKGATE_DIS_PSL(pipe),
-		               intel_de_read(dev_priv, CLKGATE_DIS_PSL(pipe)) | DPFR_GATING_DIS);
+		intel_de_rmw(dev_priv, CLKGATE_DIS_PSL(pipe), 0, DPFR_GATING_DIS);
 	else
-		intel_de_write(dev_priv, CLKGATE_DIS_PSL(pipe),
-		               intel_de_read(dev_priv, CLKGATE_DIS_PSL(pipe)) & ~DPFR_GATING_DIS);
+		intel_de_rmw(dev_priv, CLKGATE_DIS_PSL(pipe), DPFR_GATING_DIS, 0);
 }
 
 /* Wa_1604331009:icl,jsl,ehl */
@@ -1710,12 +1708,10 @@ static void hsw_set_frame_start_delay(const struct intel_crtc_state *crtc_state)
 	enum transcoder transcoder = crtc_state->cpu_transcoder;
 	i915_reg_t reg = DISPLAY_VER(dev_priv) >= 14 ? MTL_CHICKEN_TRANS(transcoder) :
 			 CHICKEN_TRANS(transcoder);
-	u32 val;
 
-	val = intel_de_read(dev_priv, reg);
-	val &= ~HSW_FRAME_START_DELAY_MASK;
-	val |= HSW_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
-	intel_de_write(dev_priv, reg, val);
+	intel_de_rmw(dev_priv, reg,
+		     HSW_FRAME_START_DELAY_MASK,
+		     HSW_FRAME_START_DELAY(crtc_state->framestart_delay - 1));
 }
 
 static void icl_ddi_bigjoiner_pre_enable(struct intel_atomic_state *state,
