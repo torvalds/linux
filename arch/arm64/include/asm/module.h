@@ -14,12 +14,50 @@ struct mod_plt_sec {
 	int			plt_max_entries;
 };
 
-struct mod_arch_specific {
-	struct mod_plt_sec	core;
-	struct mod_plt_sec	init;
-
-	/* for CONFIG_DYNAMIC_FTRACE */
+#define ARM64_MODULE_PLTS_ARCHDATA					\
+	struct mod_plt_sec	core;					\
+	struct mod_plt_sec	init;					\
+									\
+	/* for CONFIG_DYNAMIC_FTRACE */					\
 	struct plt_entry	*ftrace_trampolines;
+#else
+#define ARM64_MODULE_PLTS_ARCHDATA
+#endif
+
+#ifdef CONFIG_KVM
+struct pkvm_module_section {
+	void *start;
+	void *end;
+};
+
+typedef s32 kvm_nvhe_reloc_t;
+struct pkvm_module_ops;
+
+struct pkvm_el2_module {
+	struct pkvm_module_section text;
+	struct pkvm_module_section bss;
+	struct pkvm_module_section rodata;
+	struct pkvm_module_section data;
+	kvm_nvhe_reloc_t *relocs;
+	unsigned int nr_relocs;
+	int (*init)(const struct pkvm_module_ops *ops);
+};
+
+void kvm_apply_hyp_module_relocations(void *mod_start, void *hyp_va,
+				      kvm_nvhe_reloc_t *begin,
+				      kvm_nvhe_reloc_t *end);
+
+#define ARM64_MODULE_KVM_ARCHDATA					\
+	/* For pKVM hypervisor modules */				\
+	struct pkvm_el2_module	hyp;
+#else
+#define ARM64_MODULE_KVM_ARCHDATA
+#endif
+
+#ifdef CONFIG_HAVE_MOD_ARCH_SPECIFIC
+struct mod_arch_specific {
+	ARM64_MODULE_PLTS_ARCHDATA
+	ARM64_MODULE_KVM_ARCHDATA
 };
 #endif
 
