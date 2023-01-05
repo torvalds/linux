@@ -193,6 +193,17 @@ config USB_RENESAS_USB3
 	   dynamically linked module called "renesas_usb3" and force all
 	   gadget drivers to also be dynamically linked.
 
+config USB_RENESAS_USBF
+	tristate 'Renesas USB Function controller'
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	   Renesas USB Function controller is a USB peripheral controller
+	   available on RZ/N1 Renesas SoCs.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "renesas_usbf" and force all
+	   gadget drivers to also be dynamically linked.
+
 config USB_PXA27X
 	tristate "PXA 27x"
 	depends on HAS_IOMEM
