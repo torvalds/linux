@@ -9942,8 +9942,8 @@ void devlink_set_features(struct devlink *devlink, u64 features)
 }
 EXPORT_SYMBOL_GPL(devlink_set_features);
 
-static int devlink_netdevice_event(struct notifier_block *nb,
-				   unsigned long event, void *ptr);
+static int devlink_port_netdevice_event(struct notifier_block *nb,
+					unsigned long event, void *ptr);
 
 /**
  *	devlink_alloc_ns - Allocate new devlink instance resources
@@ -9978,7 +9978,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	if (ret < 0)
 		goto err_xa_alloc;
 
-	devlink->netdevice_nb.notifier_call = devlink_netdevice_event;
+	devlink->netdevice_nb.notifier_call = devlink_port_netdevice_event;
 	ret = register_netdevice_notifier_net(net, &devlink->netdevice_nb);
 	if (ret)
 		goto err_register_netdevice_notifier;
@@ -10480,8 +10480,8 @@ void devlink_port_type_clear(struct devlink_port *devlink_port)
 }
 EXPORT_SYMBOL_GPL(devlink_port_type_clear);
 
-static int devlink_netdevice_event(struct notifier_block *nb,
-				   unsigned long event, void *ptr)
+static int devlink_port_netdevice_event(struct notifier_block *nb,
+					unsigned long event, void *ptr)
 {
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 	struct devlink_port *devlink_port = netdev->devlink_port;
