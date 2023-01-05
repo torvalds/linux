@@ -2544,6 +2544,7 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		ret = io_cqring_wait_schedule(ctx, &iowq, &timeout);
 		if (ret < 0)
 			break;
+		__set_current_state(TASK_RUNNING);
 		/*
 		 * Run task_work after scheduling and before io_should_wake().
 		 * If we got woken because of task_work being processed, run it
@@ -2556,10 +2557,8 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		check_cq = READ_ONCE(ctx->check_cq);
 		if (unlikely(check_cq)) {
 			/* let the caller flush overflows, retry */
-			if (check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT)) {
-				finish_wait(&ctx->cq_wait, &iowq.wq);
+			if (check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT))
 				io_cqring_do_overflow_flush(ctx);
-			}
 			if (check_cq & BIT(IO_CHECK_CQ_DROPPED_BIT)) {
 				ret = -EBADR;
 				break;
