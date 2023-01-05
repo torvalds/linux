@@ -626,3 +626,6 @@ EXTRA_CLEAN := $(TEST_CUSTOM_PROGS) $(SCRATCH_DIR) $(HOST_SCRATCH_DIR)	\
 			       liburandom_read.so)
 
 .PHONY: docs docs-clean
+
+# Delete partially updated (corrupted) files on error
+.DELETE_ON_ERROR:

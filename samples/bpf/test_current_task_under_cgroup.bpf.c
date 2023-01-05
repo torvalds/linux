@@ -5,12 +5,11 @@
  * License as published by the Free Software Foundation.
  */
 
-#include <linux/ptrace.h>
-#include <uapi/linux/bpf.h>
+#include "vmlinux.h"
 #include <linux/version.h>
 #include <bpf/bpf_helpers.h>
-#include <uapi/linux/utsname.h>
-#include "trace_common.h"
+#include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
 
 struct {
 	__uint(type, BPF_MAP_TYPE_CGROUP_ARRAY);
@@ -27,8 +26,8 @@ struct {
 } perf_map SEC(".maps");
 
 /* Writes the last PID that called sync to a map at index 0 */
-SEC("kprobe/" SYSCALL(sys_sync))
-int bpf_prog1(struct pt_regs *ctx)
+SEC("ksyscall/sync")
+int BPF_KSYSCALL(bpf_prog1)
 {
 	u64 pid = bpf_get_current_pid_tgid();
 	int idx = 0;

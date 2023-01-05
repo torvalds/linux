@@ -5319,7 +5319,6 @@ static struct ctl_table bpf_syscall_table[] = {
 	{
 		.procname	= "bpf_stats_enabled",
 		.data		= &bpf_stats_enabled_key.key,
-		.maxlen		= sizeof(bpf_stats_enabled_key),
 		.mode		= 0644,
 		.proc_handler	= bpf_stats_handler,
 	},

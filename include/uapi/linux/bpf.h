@@ -2001,6 +2001,9 @@ union bpf_attr {
  * 			sending the packet. This flag was added for GRE
  * 			encapsulation, but might be used with other protocols
  * 			as well in the future.
+ * 		**BPF_F_NO_TUNNEL_KEY**
+ * 			Add a flag to tunnel metadata indicating that no tunnel
+ * 			key should be set in the resulting tunnel header.
  *
  * 		Here is a typical usage on the transmit path:
  *
@@ -5764,6 +5767,7 @@ enum {
 	BPF_F_ZERO_CSUM_TX		= (1ULL << 1),
 	BPF_F_DONT_FRAGMENT		= (1ULL << 2),
 	BPF_F_SEQ_NUMBER		= (1ULL << 3),
+	BPF_F_NO_TUNNEL_KEY		= (1ULL << 4),
 };
 
 /* BPF_FUNC_skb_get_tunnel_key flags. */

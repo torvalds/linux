@@ -1402,9 +1402,11 @@ static void ___mark_reg_known(struct bpf_reg_state *reg, u64 imm)
  */
 static void __mark_reg_known(struct bpf_reg_state *reg, u64 imm)
 {
-	/* Clear id, off, and union(map_ptr, range) */
+	/* Clear off and union(map_ptr, range) */
 	memset(((u8 *)reg) + sizeof(reg->type), 0,
 	       offsetof(struct bpf_reg_state, var_off) - sizeof(reg->type));
+	reg->id = 0;
+	reg->ref_obj_id = 0;
 	___mark_reg_known(reg, imm);
 }
 
@@ -1750,11 +1752,13 @@ static void __mark_reg_unknown(const struct bpf_verifier_env *env,
 			       struct bpf_reg_state *reg)
 {
 	/*
-	 * Clear type, id, off, and union(map_ptr, range) and
+	 * Clear type, off, and union(map_ptr, range) and
 	 * padding between 'type' and union
 	 */
 	memset(reg, 0, offsetof(struct bpf_reg_state, var_off));
 	reg->type = SCALAR_VALUE;
+	reg->id = 0;
+	reg->ref_obj_id = 0;
 	reg->var_off = tnum_unknown;
 	reg->frameno = 0;
 	reg->precise = !env->bpf_capable;
@@ -7612,6 +7616,7 @@ static int check_bpf_snprintf_call(struct bpf_verifier_env *env,
 	struct bpf_reg_state *fmt_reg = &regs[BPF_REG_3];
 	struct bpf_reg_state *data_len_reg = &regs[BPF_REG_5];
 	struct bpf_map *fmt_map = fmt_reg->map_ptr;
+	struct bpf_bprintf_data data = {};
 	int err, fmt_map_off, num_args;
 	u64 fmt_addr;
 	char *fmt;
@@ -7636,7 +7641,7 @@ static int check_bpf_snprintf_call(struct bpf_verifier_env *env,
 	/* We are also guaranteed that fmt+fmt_map_off is NULL terminated, we
 	 * can focus on validating the format specifiers.
 	 */
-	err = bpf_bprintf_prepare(fmt, UINT_MAX, NULL, NULL, num_args);
+	err = bpf_bprintf_prepare(fmt, UINT_MAX, NULL, num_args, &data);
 	if (err < 0)
 		verbose(env, "Invalid format string\n");
 
@@ -8771,21 +8776,22 @@ static int process_kf_arg_ptr_to_list_node(struct bpf_verifier_env *env,
 
 	field = meta->arg_list_head.field;
 
-	et = btf_type_by_id(field->list_head.btf, field->list_head.value_btf_id);
+	et = btf_type_by_id(field->graph_root.btf, field->graph_root.value_btf_id);
 	t = btf_type_by_id(reg->btf, reg->btf_id);
-	if (!btf_struct_ids_match(&env->log, reg->btf, reg->btf_id, 0, field->list_head.btf,
-				  field->list_head.value_btf_id, true)) {
+	if (!btf_struct_ids_match(&env->log, reg->btf, reg->btf_id, 0, field->graph_root.btf,
+				  field->graph_root.value_btf_id, true)) {
 		verbose(env, "operation on bpf_list_head expects arg#1 bpf_list_node at offset=%d "
 			"in struct %s, but arg is at offset=%d in struct %s\n",
-			field->list_head.node_offset, btf_name_by_offset(field->list_head.btf, et->name_off),
+			field->graph_root.node_offset,
+			btf_name_by_offset(field->graph_root.btf, et->name_off),
 			list_node_off, btf_name_by_offset(reg->btf, t->name_off));
 		return -EINVAL;
 	}
 
-	if (list_node_off != field->list_head.node_offset) {
+	if (list_node_off != field->graph_root.node_offset) {
 		verbose(env, "arg#1 offset=%d, but expected bpf_list_node at offset=%d in struct %s\n",
-			list_node_off, field->list_head.node_offset,
-			btf_name_by_offset(field->list_head.btf, et->name_off));
+			list_node_off, field->graph_root.node_offset,
+			btf_name_by_offset(field->graph_root.btf, et->name_off));
 		return -EINVAL;
 	}
 	/* Set arg#1 for expiration after unlock */
@@ -9227,9 +9233,9 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 
 				mark_reg_known_zero(env, regs, BPF_REG_0);
 				regs[BPF_REG_0].type = PTR_TO_BTF_ID | MEM_ALLOC;
-				regs[BPF_REG_0].btf = field->list_head.btf;
-				regs[BPF_REG_0].btf_id = field->list_head.value_btf_id;
-				regs[BPF_REG_0].off = field->list_head.node_offset;
+				regs[BPF_REG_0].btf = field->graph_root.btf;
+				regs[BPF_REG_0].btf_id = field->graph_root.value_btf_id;
+				regs[BPF_REG_0].off = field->graph_root.node_offset;
 			} else if (meta.func_id == special_kfunc_list[KF_bpf_cast_to_kern_ctx]) {
 				mark_reg_known_zero(env, regs, BPF_REG_0);
 				regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_TRUSTED;
@@ -12941,6 +12947,13 @@ static bool check_ids(u32 old_id, u32 cur_id, struct bpf_id_pair *idmap)
 {
 	unsigned int i;
 
+	/* either both IDs should be set or both should be zero */
+	if (!!old_id != !!cur_id)
+		return false;
+
+	if (old_id == 0) /* cur_id == 0 as well */
+		return true;
+
 	for (i = 0; i < BPF_ID_MAP_SIZE; i++) {
 		if (!idmap[i].old) {
 			/* Reached an empty slot; haven't seen this id before */
@@ -13052,79 +13065,74 @@ next:
 	}
 }
 
+static bool regs_exact(const struct bpf_reg_state *rold,
+		       const struct bpf_reg_state *rcur,
+		       struct bpf_id_pair *idmap)
+{
+	return memcmp(rold, rcur, offsetof(struct bpf_reg_state, id)) == 0 && 
+	       check_ids(rold->id, rcur->id, idmap) &&
+	       check_ids(rold->ref_obj_id, rcur->ref_obj_id, idmap);
+}
+
 /* Returns true if (rold safe implies rcur safe) */
 static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 		    struct bpf_reg_state *rcur, struct bpf_id_pair *idmap)
 {
-	bool equal;
-
 	if (!(rold->live & REG_LIVE_READ))
 		/* explored state didn't use this */
 		return true;
-
-	equal = memcmp(rold, rcur, offsetof(struct bpf_reg_state, parent)) == 0;
-
 	if (rold->type == NOT_INIT)
 		/* explored state can't have used this */
 		return true;
 	if (rcur->type == NOT_INIT)
 		return false;
+
+	/* Enforce that register types have to match exactly, including their
+	 * modifiers (like PTR_MAYBE_NULL, MEM_RDONLY, etc), as a general
+	 * rule.
+	 *
+	 * One can make a point that using a pointer register as unbounded
+	 * SCALAR would be technically acceptable, but this could lead to
+	 * pointer leaks because scalars are allowed to leak while pointers
+	 * are not. We could make this safe in special cases if root is
+	 * calling us, but it's probably not worth the hassle.
+	 *
+	 * Also, register types that are *not* MAYBE_NULL could technically be
+	 * safe to use as their MAYBE_NULL variants (e.g., PTR_TO_MAP_VALUE
+	 * is safe to be used as PTR_TO_MAP_VALUE_OR_NULL, provided both point
+	 * to the same map).
+	 * However, if the old MAYBE_NULL register then got NULL checked,
+	 * doing so could have affected others with the same id, and we can't
+	 * check for that because we lost the id when we converted to
+	 * a non-MAYBE_NULL variant.
+	 * So, as a general rule we don't allow mixing MAYBE_NULL and
+	 * non-MAYBE_NULL registers as well.
+	 */
+	if (rold->type != rcur->type)
+		return false;
+
 	switch (base_type(rold->type)) {
 	case SCALAR_VALUE:
-		if (equal)
+		if (regs_exact(rold, rcur, idmap))
 			return true;
 		if (env->explore_alu_limits)
 			return false;
-		if (rcur->type == SCALAR_VALUE) {
-			if (!rold->precise)
-				return true;
-			/* new val must satisfy old val knowledge */
-			return range_within(rold, rcur) &&
-			       tnum_in(rold->var_off, rcur->var_off);
-		} else {
-			/* We're trying to use a pointer in place of a scalar.
-			 * Even if the scalar was unbounded, this could lead to
-			 * pointer leaks because scalars are allowed to leak
-			 * while pointers are not. We could make this safe in
-			 * special cases if root is calling us, but it's
-			 * probably not worth the hassle.
-			 */
-			return false;
-		}
+		if (!rold->precise)
+			return true;
+		/* new val must satisfy old val knowledge */
+		return range_within(rold, rcur) &&
+		       tnum_in(rold->var_off, rcur->var_off);
 	case PTR_TO_MAP_KEY:
 	case PTR_TO_MAP_VALUE:
-		/* a PTR_TO_MAP_VALUE could be safe to use as a
-		 * PTR_TO_MAP_VALUE_OR_NULL into the same map.
-		 * However, if the old PTR_TO_MAP_VALUE_OR_NULL then got NULL-
-		 * checked, doing so could have affected others with the same
-		 * id, and we can't check for that because we lost the id when
-		 * we converted to a PTR_TO_MAP_VALUE.
-		 */
-		if (type_may_be_null(rold->type)) {
-			if (!type_may_be_null(rcur->type))
-				return false;
-			if (memcmp(rold, rcur, offsetof(struct bpf_reg_state, id)))
-				return false;
-			/* Check our ids match any regs they're supposed to */
-			return check_ids(rold->id, rcur->id, idmap);
-		}
-
 		/* If the new min/max/var_off satisfy the old ones and
 		 * everything else matches, we are OK.
-		 * 'id' is not compared, since it's only used for maps with
-		 * bpf_spin_lock inside map element and in such cases if
-		 * the rest of the prog is valid for one map element then
-		 * it's valid for all map elements regardless of the key
-		 * used in bpf_map_lookup()
 		 */
-		return memcmp(rold, rcur, offsetof(struct bpf_reg_state, id)) == 0 &&
+		return memcmp(rold, rcur, offsetof(struct bpf_reg_state, var_off)) == 0 &&
 		       range_within(rold, rcur) &&
 		       tnum_in(rold->var_off, rcur->var_off) &&
 		       check_ids(rold->id, rcur->id, idmap);
 	case PTR_TO_PACKET_META:
 	case PTR_TO_PACKET:
-		if (rcur->type != rold->type)
-			return false;
 		/* We must have at least as much range as the old ptr
 		 * did, so that any accesses which were safe before are
 		 * still safe.  This is true even if old range < old off,
@@ -13139,7 +13147,7 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 		if (rold->off != rcur->off)
 			return false;
 		/* id relations must be preserved */
-		if (rold->id && !check_ids(rold->id, rcur->id, idmap))
+		if (!check_ids(rold->id, rcur->id, idmap))
 			return false;
 		/* new val must satisfy old val knowledge */
 		return range_within(rold, rcur) &&
@@ -13148,15 +13156,10 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 		/* two stack pointers are equal only if they're pointing to
 		 * the same stack frame, since fp-8 in foo != fp-8 in bar
 		 */
-		return equal && rold->frameno == rcur->frameno;
+		return regs_exact(rold, rcur, idmap) && rold->frameno == rcur->frameno;
 	default:
-		/* Only valid matches are exact, which memcmp() */
-		return equal;
+		return regs_exact(rold, rcur, idmap);
 	}
-
-	/* Shouldn't get here; if we do, say it's not safe */
-	WARN_ON_ONCE(1);
-	return false;
 }
 
 static bool stacksafe(struct bpf_verifier_env *env, struct bpf_func_state *old,
@@ -13222,12 +13225,20 @@ static bool stacksafe(struct bpf_verifier_env *env, struct bpf_func_state *old,
 	return true;
 }
 
-static bool refsafe(struct bpf_func_state *old, struct bpf_func_state *cur)
+static bool refsafe(struct bpf_func_state *old, struct bpf_func_state *cur,
+		    struct bpf_id_pair *idmap)
 {
+	int i;
+
 	if (old->acquired_refs != cur->acquired_refs)
 		return false;
-	return !memcmp(old->refs, cur->refs,
-		       sizeof(*old->refs) * old->acquired_refs);
+
+	for (i = 0; i < old->acquired_refs; i++) {
+		if (!check_ids(old->refs[i].id, cur->refs[i].id, idmap))
+			return false;
+	}
+
+	return true;
 }
 
 /* compare two verifier states
@@ -13269,7 +13280,7 @@ static bool func_states_equal(struct bpf_verifier_env *env, struct bpf_func_stat
 	if (!stacksafe(env, old, cur, env->idmap_scratch))
 		return false;
 
-	if (!refsafe(old, cur))
+	if (!refsafe(old, cur, env->idmap_scratch))
 		return false;
 
 	return true;

@@ -92,6 +92,26 @@ struct bpf_reg_state {
 
 		u32 subprogno; /* for PTR_TO_FUNC */
 	};
+	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
+	 * the actual value.
+	 * For pointer types, this represents the variable part of the offset
+	 * from the pointed-to object, and is shared with all bpf_reg_states
+	 * with the same id as us.
+	 */
+	struct tnum var_off;
+	/* Used to determine if any memory access using this register will
+	 * result in a bad access.
+	 * These refer to the same value as var_off, not necessarily the actual
+	 * contents of the register.
+	 */
+	s64 smin_value; /* minimum possible (s64)value */
+	s64 smax_value; /* maximum possible (s64)value */
+	u64 umin_value; /* minimum possible (u64)value */
+	u64 umax_value; /* maximum possible (u64)value */
+	s32 s32_min_value; /* minimum possible (s32)value */
+	s32 s32_max_value; /* maximum possible (s32)value */
+	u32 u32_min_value; /* minimum possible (u32)value */
+	u32 u32_max_value; /* maximum possible (u32)value */
 	/* For PTR_TO_PACKET, used to find other pointers with the same variable
 	 * offset, so they can share range knowledge.
 	 * For PTR_TO_MAP_VALUE_OR_NULL this is used to share which map value we
@@ -144,26 +164,6 @@ struct bpf_reg_state {
 	 * allowed and has the same effect as bpf_sk_release(sk).
 	 */
 	u32 ref_obj_id;
-	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
-	 * the actual value.
-	 * For pointer types, this represents the variable part of the offset
-	 * from the pointed-to object, and is shared with all bpf_reg_states
-	 * with the same id as us.
-	 */
-	struct tnum var_off;
-	/* Used to determine if any memory access using this register will
-	 * result in a bad access.
-	 * These refer to the same value as var_off, not necessarily the actual
-	 * contents of the register.
-	 */
-	s64 smin_value; /* minimum possible (s64)value */
-	s64 smax_value; /* maximum possible (s64)value */
-	u64 umin_value; /* minimum possible (u64)value */
-	u64 umax_value; /* maximum possible (u64)value */
-	s32 s32_min_value; /* minimum possible (s32)value */
-	s32 s32_max_value; /* maximum possible (s32)value */
-	u32 u32_min_value; /* minimum possible (u32)value */
-	u32 u32_max_value; /* maximum possible (u32)value */
 	/* parentage chain for liveness checking */
 	struct bpf_reg_state *parent;
 	/* Inside the callee two registers can be both PTR_TO_STACK like

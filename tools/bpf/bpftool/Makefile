@@ -289,3 +289,6 @@ FORCE:
 .PHONY: all FORCE bootstrap clean install-bin install uninstall
 .PHONY: doc doc-clean doc-install doc-uninstall
 .DEFAULT_GOAL := all
+
+# Delete partially updated (corrupted) files on error
+.DELETE_ON_ERROR:

@@ -32,6 +32,9 @@
 #elif defined(__TARGET_ARCH_arc)
 	#define bpf_target_arc
 	#define bpf_target_defined
+#elif defined(__TARGET_ARCH_loongarch)
+	#define bpf_target_loongarch
+	#define bpf_target_defined
 #else
 
 /* Fall back to what the compiler says */
@@ -61,6 +64,9 @@
 	#define bpf_target_defined
 #elif defined(__arc__)
 	#define bpf_target_arc
+	#define bpf_target_defined
+#elif defined(__loongarch__)
+	#define bpf_target_loongarch
 	#define bpf_target_defined
 #endif /* no compiler target */
 
@@ -137,7 +143,7 @@ struct pt_regs___s390 {
 #define __PT_PARM3_REG gprs[4]
 #define __PT_PARM4_REG gprs[5]
 #define __PT_PARM5_REG gprs[6]
-#define __PT_RET_REG grps[14]
+#define __PT_RET_REG gprs[14]
 #define __PT_FP_REG gprs[11]	/* Works only with CONFIG_FRAME_POINTER */
 #define __PT_RC_REG gprs[2]
 #define __PT_SP_REG gprs[15]
@@ -256,6 +262,23 @@ struct pt_regs___arm64 {
 #define __PT_SP_REG scratch.sp
 #define __PT_IP_REG scratch.ret
 /* arc does not select ARCH_HAS_SYSCALL_WRAPPER. */
+#define PT_REGS_SYSCALL_REGS(ctx) ctx
+
+#elif defined(bpf_target_loongarch)
+
+/* https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html */
+
+#define __PT_PARM1_REG regs[4]
+#define __PT_PARM2_REG regs[5]
+#define __PT_PARM3_REG regs[6]
+#define __PT_PARM4_REG regs[7]
+#define __PT_PARM5_REG regs[8]
+#define __PT_RET_REG regs[1]
+#define __PT_FP_REG regs[22]
+#define __PT_RC_REG regs[4]
+#define __PT_SP_REG regs[3]
+#define __PT_IP_REG csr_era
+/* loongarch does not select ARCH_HAS_SYSCALL_WRAPPER. */
 #define PT_REGS_SYSCALL_REGS(ctx) ctx
 
 #endif
