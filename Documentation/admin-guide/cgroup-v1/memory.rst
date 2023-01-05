@@ -55,7 +55,8 @@ Features:
  - Root cgroup has no limit controls.
 
  Kernel memory support is a work in progress, and the current version provides
- basically functionality. (See Section 2.7)
+ basically functionality. (See :ref:`section 2.7
+ <cgroup-v1-memory-kernel-extension>`)
 
 Brief summary of control files.
 
@@ -221,8 +222,9 @@ behind this approach is that a cgroup that aggressively uses a shared
 page will eventually get charged for it (once it is uncharged from
 the cgroup that brought it in -- this will happen on memory pressure).
 
-But see section 8.2: when moving a task to another cgroup, its pages may
-be recharged to the new cgroup, if move_charge_at_immigrate has been chosen.
+But see :ref:`section 8.2 <cgroup-v1-memory-movable-charges>` when moving a
+task to another cgroup, its pages may be recharged to the new cgroup, if
+move_charge_at_immigrate has been chosen.
 
 2.4 Swap Extension
 --------------------------------------
@@ -270,7 +272,7 @@ global VM. When a cgroup goes over its limit, we first try
 to reclaim memory from the cgroup so as to make space for the new
 pages that the cgroup has touched. If the reclaim is unsuccessful,
 an OOM routine is invoked to select and kill the bulkiest task in the
-cgroup. (See 10. OOM Control below.)
+cgroup. (See :ref:`10. OOM Control <cgroup-v1-memory-oom-control>` below.)
 
 The reclaim algorithm has not been modified for cgroups, except that
 pages that are selected for reclaiming come from the per-cgroup LRU
@@ -284,7 +286,7 @@ list.
    When panic_on_oom is set to "2", the whole system will panic.
 
 When oom event notifier is registered, event will be delivered.
-(See oom_control section)
+(See :ref:`oom_control <cgroup-v1-memory-oom-control>` section)
 
 2.6 Locking
 -----------
@@ -300,6 +302,8 @@ Lock order is as follows::
 Per-node-per-memcgroup LRU (cgroup's private LRU) is guarded by
 lruvec->lru_lock; PG_lru bit of page->flags is cleared before
 isolating a page from its LRU under lruvec->lru_lock.
+
+.. _cgroup-v1-memory-kernel-extension:
 
 2.7 Kernel Memory Extension
 -----------------------------------------------
@@ -460,6 +464,8 @@ test because it has noise of shared objects/status.
 But the above two are testing extreme situations.
 Trying usual test under memory controller is always helpful.
 
+.. _cgroup-v1-memory-test-troubleshoot:
+
 4.1 Troubleshooting
 -------------------
 
@@ -472,8 +478,11 @@ terminated by the OOM killer. There are several causes for this:
 A sync followed by echo 1 > /proc/sys/vm/drop_caches will help get rid of
 some of the pages cached in the cgroup (page cache pages).
 
-To know what happens, disabling OOM_Kill as per "10. OOM Control" (below) and
-seeing what happens will be helpful.
+To know what happens, disabling OOM_Kill as per :ref:`"10. OOM Control"
+<cgroup-v1-memory-oom-control>` (below) and seeing what happens will be
+helpful.
+
+.. _cgroup-v1-memory-test-task-migration:
 
 4.2 Task migration
 ------------------
@@ -484,15 +493,16 @@ remain charged to it, the charge is dropped when the page is freed or
 reclaimed.
 
 You can move charges of a task along with task migration.
-See 8. "Move charges at task migration"
+See :ref:`8. "Move charges at task migration" <cgroup-v1-memory-move-charges>`
 
 4.3 Removing a cgroup
 ---------------------
 
-A cgroup can be removed by rmdir, but as discussed in sections 4.1 and 4.2, a
-cgroup might have some charge associated with it, even though all
-tasks have migrated away from it. (because we charge against pages, not
-against tasks.)
+A cgroup can be removed by rmdir, but as discussed in :ref:`sections 4.1
+<cgroup-v1-memory-test-troubleshoot>` and :ref:`4.2
+<cgroup-v1-memory-test-task-migration>`, a cgroup might have some charge
+associated with it, even though all tasks have migrated away from it. (because
+we charge against pages, not against tasks.)
 
 We move the stats to parent, and no change on the charge except uncharging
 from the child.
@@ -719,6 +729,8 @@ If we want to change this to 1G, we can at any time use::
        It is recommended to set the soft limit always below the hard limit,
        otherwise the hard limit will take precedence.
 
+.. _cgroup-v1-memory-move-charges:
+
 8. Move charges at task migration
 =================================
 
@@ -739,7 +751,8 @@ If you want to enable it::
 
 .. note::
       Each bits of move_charge_at_immigrate has its own meaning about what type
-      of charges should be moved. See 8.2 for details.
+      of charges should be moved. See :ref:`section 8.2
+      <cgroup-v1-memory-movable-charges>` for details.
 
 .. note::
       Charges are moved only when you move mm->owner, in other words,
@@ -756,6 +769,8 @@ If you want to enable it::
 And if you want disable it again::
 
 	# echo 0 > memory.move_charge_at_immigrate
+
+.. _cgroup-v1-memory-movable-charges:
 
 8.2 Type of charges which can be moved
 --------------------------------------
@@ -805,6 +820,8 @@ Application will be notified through eventfd when memory usage crosses
 threshold in any direction.
 
 It's applicable for root and non-root cgroup.
+
+.. _cgroup-v1-memory-oom-control:
 
 10. OOM Control
 ===============
