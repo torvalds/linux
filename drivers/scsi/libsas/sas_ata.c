@@ -716,7 +716,7 @@ int sas_ata_add_dev(struct domain_device *parent, struct ex_phy *phy,
 
 	rphy = sas_end_device_alloc(phy->port);
 	if (!rphy)
-		return ret;
+		return -ENOMEM;
 
 	rphy->identify.phy_identifier = phy_id;
 	child->rphy = rphy;
