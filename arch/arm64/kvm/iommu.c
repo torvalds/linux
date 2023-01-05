@@ -16,6 +16,7 @@ int pkvm_iommu_driver_init(u64 drv, void *data, size_t size)
 {
 	return kvm_call_hyp_nvhe(__pkvm_iommu_driver_init, drv, data, size);
 }
+EXPORT_SYMBOL_GPL(pkvm_iommu_driver_init);
 
 int pkvm_iommu_register(struct device *dev, u64 drv, phys_addr_t pa,
 			size_t size, struct device *parent)
@@ -41,6 +42,7 @@ int pkvm_iommu_register(struct device *dev, u64 drv, phys_addr_t pa,
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(pkvm_iommu_register);
 
 int pkvm_iommu_suspend(struct device *dev)
 {
