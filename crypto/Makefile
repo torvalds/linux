@@ -214,7 +214,7 @@ crypto-fips-objs := drbg.o ecb.o cbc.o ctr.o cts.o gcm.o xts.o hmac.o cmac.o \
 		    gf128mul.o aes_generic.o lib-crypto-aes.o \
 		    jitterentropy.o jitterentropy-kcapi.o \
 		    sha1_generic.o sha256_generic.o sha512_generic.o \
-		    lib-sha1.o lib-crypto-sha256.o
+		    lib-memneq.o lib-sha1.o lib-crypto-sha256.o
 crypto-fips-objs := $(foreach o,$(crypto-fips-objs),$(o:.o=-fips.o))
 
 # get the arch to add its objects to $(crypto-fips-objs)
