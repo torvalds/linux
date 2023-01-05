@@ -598,8 +598,8 @@ static int cs35l41_system_suspend(struct device *dev)
 	dev_dbg(cs35l41->dev, "System Suspend\n");
 
 	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
-		dev_err(cs35l41->dev, "System Suspend not supported\n");
-		return -EINVAL;
+		dev_err_once(cs35l41->dev, "System Suspend not supported\n");
+		return 0; /* don't block the whole system suspend */
 	}
 
 	ret = pm_runtime_force_suspend(dev);
@@ -624,8 +624,8 @@ static int cs35l41_system_resume(struct device *dev)
 	dev_dbg(cs35l41->dev, "System Resume\n");
 
 	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
-		dev_err(cs35l41->dev, "System Resume not supported\n");
-		return -EINVAL;
+		dev_err_once(cs35l41->dev, "System Resume not supported\n");
+		return 0; /* don't block the whole system resume */
 	}
 
 	if (cs35l41->reset_gpio) {
