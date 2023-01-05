@@ -957,6 +957,47 @@ int sdei_event_routing_set(u32 event_num, unsigned long flags,
 
 	return err;
 }
+
+static int sdei_api_interrupt_bind(u32 intr_num, u64 *result)
+{
+	return invoke_sdei_fn(SDEI_1_0_FN_SDEI_INTERRUPT_BIND, intr_num, 0, 0, 0,
+			      0, result);
+}
+
+int sdei_interrupt_bind(u32 intr_num, u32 *event_num)
+{
+	int err;
+	u64 result;
+
+	err = sdei_api_interrupt_bind(intr_num, &result);
+	if (!err)
+		*event_num = (u32)result;
+
+	return err;
+}
+
+static int sdei_api_interrupt_release(u32 event_num)
+{
+	return invoke_sdei_fn(SDEI_1_0_FN_SDEI_INTERRUPT_RELEASE, event_num, 0, 0, 0,
+			      0, NULL);
+}
+
+int sdei_interrupt_release(u32 event_num)
+{
+	struct sdei_event *event;
+
+	mutex_lock(&sdei_events_lock);
+	event = sdei_event_find(event_num);
+	mutex_unlock(&sdei_events_lock);
+
+	if (event) {
+		pr_err("%s: need unregister event:%d before release\n",
+		       __func__, event_num);
+		return SDEI_DENIED;
+	}
+
+	return sdei_api_interrupt_release(event_num);
+}
 #endif
 
 static int sdei_get_conduit(struct platform_device *pdev)
