@@ -3076,7 +3076,9 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 
 	b = READ_ONCE(trans->locking);
 	if (b) {
-		prt_str(out, "  want");
+		prt_printf(out, "  blocked for %lluus on",
+			   div_u64(local_clock() - trans->locking_wait.start_time,
+				   1000));
 		prt_newline(out);
 		prt_printf(out, "    %c", lock_types[trans->locking_wait.lock_want]);
 		bch2_btree_bkey_cached_common_to_text(out, b);
