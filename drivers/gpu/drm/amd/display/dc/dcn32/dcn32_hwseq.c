@@ -807,6 +807,16 @@ void dcn32_init_hw(struct dc *dc)
 					!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
 
 		dcn32_initialize_min_clocks(dc);
+
+		/* On HW init, allow idle optimizations after pipes have been turned off.
+		 *
+		 * In certain D3 cases (i.e. BOCO / BOMACO) it's possible that hardware state
+		 * is reset (i.e. not in idle at the time hw init is called), but software state
+		 * still has idle_optimizations = true, so we must disable idle optimizations first
+		 * (i.e. set false), then re-enable (set true).
+		 */
+		dc_allow_idle_optimizations(dc, false);
+		dc_allow_idle_optimizations(dc, true);
 	}
 
 	/* In headless boot cases, DIG may be turned
