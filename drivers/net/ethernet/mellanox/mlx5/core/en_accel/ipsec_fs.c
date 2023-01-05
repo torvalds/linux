@@ -6,6 +6,7 @@
 #include "en/fs.h"
 #include "ipsec.h"
 #include "fs_core.h"
+#include "lib/ipsec_fs_roce.h"
 
 #define NUM_IPSEC_FTE BIT(15)
 
@@ -166,7 +167,8 @@ out:
 	return err;
 }
 
-static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_rx *rx)
+static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
+		       struct mlx5e_ipsec_rx *rx, u32 family)
 {
 	mlx5_del_flow_rules(rx->pol.rule);
 	mlx5_destroy_flow_group(rx->pol.group);
@@ -179,6 +181,8 @@ static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_rx *rx)
 	mlx5_del_flow_rules(rx->status.rule);
 	mlx5_modify_header_dealloc(mdev, rx->status.modify_hdr);
 	mlx5_destroy_flow_table(rx->ft.status);
+
+	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family);
 }
 
 static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
@@ -186,18 +190,35 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 {
 	struct mlx5_flow_namespace *ns = mlx5e_fs_get_ns(ipsec->fs, false);
 	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
+	struct mlx5_flow_destination default_dest;
 	struct mlx5_flow_destination dest[2];
 	struct mlx5_flow_table *ft;
 	int err;
 
+	default_dest = mlx5_ttc_get_default_dest(ttc, family2tt(family));
+	err = mlx5_ipsec_fs_roce_rx_create(mdev, ipsec->roce, ns, &default_dest,
+					   family, MLX5E_ACCEL_FS_ESP_FT_ROCE_LEVEL,
+					   MLX5E_NIC_PRIO);
+	if (err)
+		return err;
+
 	ft = ipsec_ft_create(ns, MLX5E_ACCEL_FS_ESP_FT_ERR_LEVEL,
 			     MLX5E_NIC_PRIO, 1);
-	if (IS_ERR(ft))
-		return PTR_ERR(ft);
+	if (IS_ERR(ft)) {
+		err = PTR_ERR(ft);
+		goto err_fs_ft_status;
+	}
 
 	rx->ft.status = ft;
 
-	dest[0] = mlx5_ttc_get_default_dest(ttc, family2tt(family));
+	ft = mlx5_ipsec_fs_roce_ft_get(ipsec->roce, family);
+	if (ft) {
+		dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+		dest[0].ft = ft;
+	} else {
+		dest[0] = default_dest;
+	}
+
 	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
 	dest[1].counter_id = mlx5_fc_id(rx->fc->cnt);
 	err = ipsec_status_rule(mdev, rx, dest);
@@ -245,6 +266,8 @@ err_fs_ft:
 	mlx5_modify_header_dealloc(mdev, rx->status.modify_hdr);
 err_add:
 	mlx5_destroy_flow_table(rx->ft.status);
+err_fs_ft_status:
+	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family);
 	return err;
 }
 
@@ -304,7 +327,7 @@ static void rx_ft_put(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	mlx5_ttc_fwd_default_dest(ttc, family2tt(family));
 
 	/* remove FT */
-	rx_destroy(mdev, rx);
+	rx_destroy(mdev, ipsec, rx, family);
 
 out:
 	mutex_unlock(&rx->ft.mutex);
@@ -1008,6 +1031,9 @@ void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec)
 	if (!ipsec->tx)
 		return;
 
+	if (mlx5_ipsec_device_caps(ipsec->mdev) & MLX5_IPSEC_CAP_ROCE)
+		mlx5_ipsec_fs_roce_cleanup(ipsec->roce);
+
 	ipsec_fs_destroy_counters(ipsec);
 	mutex_destroy(&ipsec->tx->ft.mutex);
 	WARN_ON(ipsec->tx->ft.refcnt);
@@ -1024,6 +1050,7 @@ void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec)
 
 int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec)
 {
+	struct mlx5_core_dev *mdev = ipsec->mdev;
 	struct mlx5_flow_namespace *ns;
 	int err = -ENOMEM;
 
@@ -1052,6 +1079,9 @@ int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec)
 	mutex_init(&ipsec->rx_ipv4->ft.mutex);
 	mutex_init(&ipsec->rx_ipv6->ft.mutex);
 	ipsec->tx->ns = ns;
+
+	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_ROCE)
+		ipsec->roce = mlx5_ipsec_fs_roce_init(mdev);
 
 	return 0;
 
