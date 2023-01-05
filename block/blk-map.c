@@ -31,7 +31,8 @@ static struct bio_map_data *bio_alloc_map_data(struct iov_iter *data,
 		return NULL;
 	memcpy(bmd->iov, data->iov, sizeof(struct iovec) * data->nr_segs);
 	bmd->iter = *data;
-	bmd->iter.iov = bmd->iov;
+	if (iter_is_iovec(data))
+		bmd->iter.iov = bmd->iov;
 	return bmd;
 }
 
@@ -641,7 +642,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		copy = true;
 	else if (iov_iter_is_bvec(iter))
 		map_bvec = true;
-	else if (!iter_is_iovec(iter))
+	else if (!user_backed_iter(iter))
 		copy = true;
 	else if (queue_virt_boundary(q))
 		copy = queue_virt_boundary(q) & iov_iter_gap_alignment(iter);
@@ -682,9 +683,8 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 		    struct rq_map_data *map_data, void __user *ubuf,
 		    unsigned long len, gfp_t gfp_mask)
 {
-	struct iovec iov;
 	struct iov_iter i;
-	int ret = import_single_range(rq_data_dir(rq), ubuf, len, &iov, &i);
+	int ret = import_ubuf(rq_data_dir(rq), ubuf, len, &i);
 
 	if (unlikely(ret < 0))
 		return ret;
