@@ -1756,24 +1756,21 @@ err:
 	return DRM_FORMAT_INVALID;
 }
 
-static uint32_t drm_fb_helper_find_cmdline_format(struct drm_fb_helper *fb_helper,
-						  const uint32_t *formats, size_t format_count,
-						  const struct drm_cmdline_mode *cmdline_mode)
+static uint32_t drm_fb_helper_find_color_mode_format(struct drm_fb_helper *fb_helper,
+						     const uint32_t *formats, size_t format_count,
+						     unsigned int color_mode)
 {
 	struct drm_device *dev = fb_helper->dev;
 	uint32_t bpp, depth;
 
-	if (!cmdline_mode->bpp_specified)
-		return DRM_FORMAT_INVALID;
-
-	switch (cmdline_mode->bpp) {
+	switch (color_mode) {
 	case 1:
 	case 2:
 	case 4:
 	case 8:
 	case 16:
 	case 24:
-		bpp = depth = cmdline_mode->bpp;
+		bpp = depth = color_mode;
 		break;
 	case 15:
 		bpp = 16;
@@ -1784,7 +1781,7 @@ static uint32_t drm_fb_helper_find_cmdline_format(struct drm_fb_helper *fb_helpe
 		depth = 24;
 		break;
 	default:
-		drm_info(dev, "unsupported bpp value of %d\n", cmdline_mode->bpp);
+		drm_info(dev, "unsupported color mode of %d\n", color_mode);
 		return DRM_FORMAT_INVALID;
 	}
 
@@ -1817,10 +1814,13 @@ static int __drm_fb_helper_find_sizes(struct drm_fb_helper *fb_helper, int prefe
 		drm_client_for_each_connector_iter(connector, &conn_iter) {
 			struct drm_cmdline_mode *cmdline_mode = &connector->cmdline_mode;
 
-			surface_format = drm_fb_helper_find_cmdline_format(fb_helper,
-									   plane->format_types,
-									   plane->format_count,
-									   cmdline_mode);
+			if (!cmdline_mode->bpp_specified)
+				continue;
+
+			surface_format = drm_fb_helper_find_color_mode_format(fb_helper,
+									      plane->format_types,
+									      plane->format_count,
+									      cmdline_mode->bpp);
 			if (surface_format != DRM_FORMAT_INVALID)
 				break; /* found supported format */
 		}
@@ -1829,17 +1829,23 @@ static int __drm_fb_helper_find_sizes(struct drm_fb_helper *fb_helper, int prefe
 		if (surface_format != DRM_FORMAT_INVALID)
 			break; /* found supported format */
 
-		/* try preferred bpp/depth */
-		surface_format = drm_fb_helper_find_format(fb_helper, plane->format_types,
-							   plane->format_count, preferred_bpp,
-							   dev->mode_config.preferred_depth);
+		/* try preferred color mode */
+		surface_format = drm_fb_helper_find_color_mode_format(fb_helper,
+								      plane->format_types,
+								      plane->format_count,
+								      preferred_bpp);
 		if (surface_format != DRM_FORMAT_INVALID)
 			break; /* found supported format */
 	}
 
 	if (surface_format == DRM_FORMAT_INVALID) {
+		/*
+		 * If none of the given color modes works, fall back
+		 * to XRGB8888. Drivers are expected to provide this
+		 * format for compatibility with legacy applications.
+		 */
 		drm_warn(dev, "No compatible format found\n");
-		return -EAGAIN;
+		surface_format = drm_driver_legacy_fb_format(dev, 32, 24);
 	}
 
 	info = drm_format_info(surface_format);
