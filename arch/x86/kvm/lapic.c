@@ -2442,7 +2442,8 @@ int kvm_alloc_apic_access_page(struct kvm *kvm)
 	int ret = 0;
 
 	mutex_lock(&kvm->slots_lock);
-	if (kvm->arch.apic_access_memslot_enabled)
+	if (kvm->arch.apic_access_memslot_enabled ||
+	    kvm->arch.apic_access_memslot_inhibited)
 		goto out;
 
 	hva = __x86_set_memory_region(kvm, APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
@@ -2469,6 +2470,41 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kvm_alloc_apic_access_page);
+
+void kvm_inhibit_apic_access_page(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+
+	if (!kvm->arch.apic_access_memslot_enabled)
+		return;
+
+	kvm_vcpu_srcu_read_unlock(vcpu);
+
+	mutex_lock(&kvm->slots_lock);
+
+	if (kvm->arch.apic_access_memslot_enabled) {
+		__x86_set_memory_region(kvm, APIC_ACCESS_PAGE_PRIVATE_MEMSLOT, 0, 0);
+		/*
+		 * Clear "enabled" after the memslot is deleted so that a
+		 * different vCPU doesn't get a false negative when checking
+		 * the flag out of slots_lock.  No additional memory barrier is
+		 * needed as modifying memslots requires waiting other vCPUs to
+		 * drop SRCU (see above), and false positives are ok as the
+		 * flag is rechecked after acquiring slots_lock.
+		 */
+		kvm->arch.apic_access_memslot_enabled = false;
+
+		/*
+		 * Mark the memslot as inhibited to prevent reallocating the
+		 * memslot during vCPU creation, e.g. if a vCPU is hotplugged.
+		 */
+		kvm->arch.apic_access_memslot_inhibited = true;
+	}
+
+	mutex_unlock(&kvm->slots_lock);
+
+	kvm_vcpu_srcu_read_lock(vcpu);
+}
 
 void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
