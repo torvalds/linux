@@ -400,7 +400,7 @@ int sdei_fiq_debugger_is_enabled(void)
 	return rk_fiq_sdei.fiq_en;
 }
 
-int fiq_sdei_event_callback(u32 event, struct pt_regs *regs, void *arg)
+static int fiq_sdei_event_callback(u32 event, struct pt_regs *regs, void *arg)
 {
 	int cpu_id = get_logical_index(read_cpuid_mpidr() &
 				       MPIDR_HWID_BITMASK);
@@ -409,7 +409,7 @@ int fiq_sdei_event_callback(u32 event, struct pt_regs *regs, void *arg)
 	return 0;
 }
 
-void rk_fiq_sdei_event_sw_cpu(int wait_disable)
+static void rk_fiq_sdei_event_sw_cpu(int wait_disable)
 {
 	unsigned long affinity;
 	int cnt = 100000;
@@ -431,7 +431,7 @@ void rk_fiq_sdei_event_sw_cpu(int wait_disable)
 	rk_fiq_sdei.cur_cpu = rk_fiq_sdei.sw_cpu;
 }
 
-int fiq_sdei_sw_cpu_event_callback(u32 event, struct pt_regs *regs, void *arg)
+static int fiq_sdei_sw_cpu_event_callback(u32 event, struct pt_regs *regs, void *arg)
 {
 	int cnt = 10000;
 	int ret = 0;
@@ -524,6 +524,7 @@ static struct notifier_block fiq_dbg_sdei_pm_nb = {
 static int fiq_debugger_sdei_enable(struct rk_fiq_debugger *t)
 {
 	int ret, cpu, i;
+	int is_dyn_event = false;
 
 	ret = sip_fiq_debugger_sdei_get_event_id(&rk_fiq_sdei.event_id,
 						 &rk_fiq_sdei.cpu_sw_event_id,
@@ -532,6 +533,17 @@ static int fiq_debugger_sdei_enable(struct rk_fiq_debugger *t)
 	if (ret) {
 		pr_err("%s: get event id error!\n", __func__);
 		return ret;
+	}
+
+	/* If we can't get a valid fiq event, use dynamic event instead */
+	if (rk_fiq_sdei.event_id == 0) {
+		ret = sdei_interrupt_bind(serial_hwirq, &rk_fiq_sdei.event_id);
+		if (ret) {
+			pr_err("%s: bind intr:%d error!\n", __func__, serial_hwirq);
+			return ret;
+		}
+
+		is_dyn_event = true;
 	}
 
 	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
@@ -611,6 +623,9 @@ cpu_sw_err:
 err:
 	unregister_pm_notifier(&fiq_dbg_sdei_pm_nb);
 	sdei_event_unregister(rk_fiq_sdei.event_id);
+
+	if (is_dyn_event)
+		sdei_interrupt_release(rk_fiq_sdei.event_id);
 
 	return ret;
 }
@@ -759,9 +774,9 @@ exit:
 }
 #endif
 
-void rk_serial_debug_init(void __iomem *base, phys_addr_t phy_base,
-			  int irq, int signal_irq,
-			  int wakeup_irq, unsigned int baudrate)
+static void rk_serial_debug_init(void __iomem *base, phys_addr_t phy_base,
+				 int irq, int signal_irq,
+				 int wakeup_irq, unsigned int baudrate)
 {
 	struct rk_fiq_debugger *t = NULL;
 	struct platform_device *pdev = NULL;
@@ -883,7 +898,7 @@ out2:
 	kfree(t);
 }
 
-void rk_serial_debug_init_dummy(void)
+static void rk_serial_debug_init_dummy(void)
 {
 	struct rk_fiq_debugger *t = NULL;
 	struct platform_device *pdev = NULL;
