@@ -122,7 +122,6 @@ bool PageMovable(struct page *page)
 
 	return false;
 }
-EXPORT_SYMBOL(PageMovable);
 
 void __SetPageMovable(struct page *page, const struct movable_operations *mops)
 {
