@@ -669,8 +669,7 @@ out:
 	dput(file);
 }
 
-static void maybe_delete_incomplete_file(struct file *f,
-					 struct data_file *df)
+static void handle_file_completed(struct file *f, struct data_file *df)
 {
 	struct backing_file_context *bfc;
 	struct mount_info *mi = df->df_mount_info;
@@ -678,9 +677,6 @@ static void maybe_delete_incomplete_file(struct file *f,
 	struct dentry *incomplete_file_dentry = NULL;
 	const struct cred *old_cred = override_creds(mi->mi_owner);
 	int error;
-
-	if (atomic_read(&df->df_data_blocks_written) < df->df_data_block_count)
-		goto out;
 
 	/* Truncate file to remove any preallocated space */
 	bfc = df->df_backing_file_context;
@@ -740,6 +736,7 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 	u8 *data_buf = NULL;
 	ssize_t error = 0;
 	int i = 0;
+	bool complete = false;
 
 	if (!df)
 		return -EBADF;
@@ -781,7 +778,7 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 							     data_buf);
 		} else {
 			error = incfs_process_new_data_block(df, &fill_block,
-							     data_buf);
+							data_buf, &complete);
 		}
 		if (error)
 			break;
@@ -790,7 +787,8 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 	if (data_buf)
 		free_pages((unsigned long)data_buf, get_order(data_buf_size));
 
-	maybe_delete_incomplete_file(f, df);
+	if (complete)
+		handle_file_completed(f, df);
 
 	/*
 	 * Only report the error if no records were processed, otherwise

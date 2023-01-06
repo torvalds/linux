@@ -1381,7 +1381,8 @@ ssize_t incfs_read_merkle_tree_blocks(struct mem_range dst,
 }
 
 int incfs_process_new_data_block(struct data_file *df,
-				 struct incfs_fill_block *block, u8 *data)
+				 struct incfs_fill_block *block, u8 *data,
+				 bool *complete)
 {
 	struct mount_info *mi = NULL;
 	struct backing_file_context *bfc = NULL;
@@ -1420,27 +1421,42 @@ int incfs_process_new_data_block(struct data_file *df,
 
 	if (error)
 		return error;
-	if (is_data_block_present(&existing_block)) {
+	if (is_data_block_present(&existing_block))
 		/* Block is already present, nothing to do here */
 		return 0;
-	}
 
 	error = down_write_killable(&segment->rwsem);
 	if (error)
 		return error;
 
-	error = mutex_lock_interruptible(&bfc->bc_mutex);
-	if (!error) {
-		error = incfs_write_data_block_to_backing_file(
-			bfc, range(data, block->data_len), block->block_index,
-			df->df_blockmap_off, flags);
-		mutex_unlock(&bfc->bc_mutex);
-	}
-	if (!error) {
-		notify_pending_reads(mi, segment, block->block_index);
-		atomic_inc(&df->df_data_blocks_written);
-	}
+	/* Recheck inside write lock */
+	error = get_data_file_block(df, block->block_index, &existing_block);
+	if (error)
+		goto out_up_write;
 
+	if (is_data_block_present(&existing_block))
+		goto out_up_write;
+
+	error = mutex_lock_interruptible(&bfc->bc_mutex);
+	if (error)
+		goto out_up_write;
+
+	error = incfs_write_data_block_to_backing_file(bfc,
+			range(data, block->data_len), block->block_index,
+			df->df_blockmap_off, flags);
+	if (error)
+		goto out_mutex_unlock;
+
+	if (atomic_inc_return(&df->df_data_blocks_written)
+			>= df->df_data_block_count)
+		*complete = true;
+
+out_mutex_unlock:
+	mutex_unlock(&bfc->bc_mutex);
+	if (!error)
+		notify_pending_reads(mi, segment, block->block_index);
+
+out_up_write:
 	up_write(&segment->rwsem);
 
 	if (error)

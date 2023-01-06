@@ -441,7 +441,8 @@ int incfs_get_filled_blocks(struct data_file *df,
 int incfs_read_file_signature(struct data_file *df, struct mem_range dst);
 
 int incfs_process_new_data_block(struct data_file *df,
-				 struct incfs_fill_block *block, u8 *data);
+				 struct incfs_fill_block *block, u8 *data,
+				 bool *complete);
 
 int incfs_process_new_hash_block(struct data_file *df,
 				 struct incfs_fill_block *block, u8 *data);
