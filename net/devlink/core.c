@@ -67,6 +67,15 @@ void devl_unlock(struct devlink *devlink)
 }
 EXPORT_SYMBOL_GPL(devl_unlock);
 
+/**
+ * devlink_try_get() - try to obtain a reference on a devlink instance
+ * @devlink: instance to reference
+ *
+ * Obtain a reference on a devlink instance. A reference on a devlink instance
+ * only implies that it's safe to take the instance lock. It does not imply
+ * that the instance is registered, use devl_is_registered() after taking
+ * the instance lock to check registration status.
+ */
 struct devlink *__must_check devlink_try_get(struct devlink *devlink)
 {
 	if (refcount_inc_not_zero(&devlink->refcount))
@@ -300,10 +309,12 @@ static void __net_exit devlink_pernet_pre_exit(struct net *net)
 	devlinks_xa_for_each_registered_get(net, index, devlink) {
 		WARN_ON(!(devlink->features & DEVLINK_F_RELOAD));
 		devl_lock(devlink);
-		err = devlink_reload(devlink, &init_net,
-				     DEVLINK_RELOAD_ACTION_DRIVER_REINIT,
-				     DEVLINK_RELOAD_LIMIT_UNSPEC,
-				     &actions_performed, NULL);
+		err = 0;
+		if (devl_is_registered(devlink))
+			err = devlink_reload(devlink, &init_net,
+					     DEVLINK_RELOAD_ACTION_DRIVER_REINIT,
+					     DEVLINK_RELOAD_LIMIT_UNSPEC,
+					     &actions_performed, NULL);
 		devl_unlock(devlink);
 		devlink_put(devlink);
 

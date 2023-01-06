@@ -98,7 +98,8 @@ devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs)
 
 	devlinks_xa_for_each_registered_get(net, index, devlink) {
 		devl_lock(devlink);
-		if (strcmp(devlink->dev->bus->name, busname) == 0 &&
+		if (devl_is_registered(devlink) &&
+		    strcmp(devlink->dev->bus->name, busname) == 0 &&
 		    strcmp(dev_name(devlink->dev), devname) == 0)
 			return devlink;
 		devl_unlock(devlink);
@@ -211,7 +212,12 @@ int devlink_nl_instance_iter_dump(struct sk_buff *msg,
 
 	devlink_dump_for_each_instance_get(msg, state, devlink) {
 		devl_lock(devlink);
-		err = cmd->dump_one(msg, devlink, cb);
+
+		if (devl_is_registered(devlink))
+			err = cmd->dump_one(msg, devlink, cb);
+		else
+			err = 0;
+
 		devl_unlock(devlink);
 		devlink_put(devlink);
 

@@ -2130,6 +2130,9 @@ static int devlink_nl_cmd_linecard_get_dumpit(struct sk_buff *msg,
 		int idx = 0;
 
 		mutex_lock(&devlink->linecards_lock);
+		if (!devl_is_registered(devlink))
+			goto next_devlink;
+
 		list_for_each_entry(linecard, &devlink->linecard_list, list) {
 			if (idx < state->idx) {
 				idx++;
@@ -2151,6 +2154,7 @@ static int devlink_nl_cmd_linecard_get_dumpit(struct sk_buff *msg,
 			}
 			idx++;
 		}
+next_devlink:
 		mutex_unlock(&devlink->linecards_lock);
 		devlink_put(devlink);
 	}
@@ -7809,6 +7813,12 @@ devlink_nl_cmd_health_reporter_get_dumpit(struct sk_buff *msg,
 		int idx = 0;
 
 		mutex_lock(&devlink->reporters_lock);
+		if (!devl_is_registered(devlink)) {
+			mutex_unlock(&devlink->reporters_lock);
+			devlink_put(devlink);
+			continue;
+		}
+
 		list_for_each_entry(reporter, &devlink->reporter_list,
 				    list) {
 			if (idx < state->idx) {
@@ -7830,6 +7840,9 @@ devlink_nl_cmd_health_reporter_get_dumpit(struct sk_buff *msg,
 		mutex_unlock(&devlink->reporters_lock);
 
 		devl_lock(devlink);
+		if (!devl_is_registered(devlink))
+			goto next_devlink;
+
 		xa_for_each(&devlink->ports, port_index, port) {
 			mutex_lock(&port->reporters_lock);
 			list_for_each_entry(reporter, &port->reporter_list, list) {
@@ -7853,6 +7866,7 @@ devlink_nl_cmd_health_reporter_get_dumpit(struct sk_buff *msg,
 			}
 			mutex_unlock(&port->reporters_lock);
 		}
+next_devlink:
 		devl_unlock(devlink);
 		devlink_put(devlink);
 	}
@@ -12218,7 +12232,8 @@ void devlink_compat_running_version(struct devlink *devlink,
 		return;
 
 	devl_lock(devlink);
-	__devlink_compat_running_version(devlink, buf, len);
+	if (devl_is_registered(devlink))
+		__devlink_compat_running_version(devlink, buf, len);
 	devl_unlock(devlink);
 }
 
@@ -12227,20 +12242,28 @@ int devlink_compat_flash_update(struct devlink *devlink, const char *file_name)
 	struct devlink_flash_update_params params = {};
 	int ret;
 
-	if (!devlink->ops->flash_update)
-		return -EOPNOTSUPP;
+	devl_lock(devlink);
+	if (!devl_is_registered(devlink)) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	if (!devlink->ops->flash_update) {
+		ret = -EOPNOTSUPP;
+		goto out_unlock;
+	}
 
 	ret = request_firmware(&params.fw, file_name, devlink->dev);
 	if (ret)
-		return ret;
+		goto out_unlock;
 
-	devl_lock(devlink);
 	devlink_flash_update_begin_notify(devlink);
 	ret = devlink->ops->flash_update(devlink, &params, NULL);
 	devlink_flash_update_end_notify(devlink);
-	devl_unlock(devlink);
 
 	release_firmware(params.fw);
+out_unlock:
+	devl_unlock(devlink);
 
 	return ret;
 }
