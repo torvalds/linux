@@ -82,18 +82,9 @@ extern struct genl_family devlink_nl_family;
  * in loop body in order to release the reference.
  */
 #define devlinks_xa_for_each_registered_get(net, index, devlink)	\
-	for (index = 0,							\
-	     devlink = devlinks_xa_find_get_first(net, &index);	\
-	     devlink; devlink = devlinks_xa_find_get_next(net, &index))
+	for (index = 0; (devlink = devlinks_xa_find_get(net, &index)); index++)
 
-struct devlink *
-devlinks_xa_find_get(struct net *net, unsigned long *indexp,
-		     void * (*xa_find_fn)(struct xarray *, unsigned long *,
-					  unsigned long, xa_mark_t));
-struct devlink *
-devlinks_xa_find_get_first(struct net *net, unsigned long *indexp);
-struct devlink *
-devlinks_xa_find_get_next(struct net *net, unsigned long *indexp);
+struct devlink *devlinks_xa_find_get(struct net *net, unsigned long *indexp);
 
 /* Netlink */
 #define DEVLINK_NL_FLAG_NEED_PORT		BIT(0)
@@ -135,7 +126,7 @@ struct devlink_gen_cmd {
  */
 #define devlink_dump_for_each_instance_get(msg, state, devlink)		\
 	for (; (devlink = devlinks_xa_find_get(sock_net(msg->sk),	\
-					       &state->instance, xa_find)); \
+					       &state->instance));	\
 	     state->instance++, state->idx = 0)
 
 extern const struct genl_small_ops devlink_nl_ops[56];
