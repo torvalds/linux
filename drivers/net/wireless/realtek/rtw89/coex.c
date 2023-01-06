@@ -4873,7 +4873,7 @@ void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode)
 	_write_scbd(rtwdev,
 		    BTC_WSCB_ACTIVE | BTC_WSCB_ON | BTC_WSCB_BTLOG, true);
 	_update_bt_scbd(rtwdev, true);
-	if (rtw89_mac_get_ctrl_path(rtwdev) && chip->chip_id == RTL8852A) {
+	if (rtw89_mac_get_ctrl_path(rtwdev)) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): PTA owner warning!!\n",
 			    __func__);
@@ -7082,10 +7082,7 @@ static void _show_mreg(struct rtw89_dev *rtwdev, struct seq_file *m)
 
 	/* To avoid I/O if WL LPS or power-off  */
 	if (!wl->status.map.lps && !wl->status.map.rf_off) {
-		if (chip->chip_id == RTL8852A)
-			btc->dm.pta_owner = rtw89_mac_get_ctrl_path(rtwdev);
-		else if (chip->chip_id == RTL8852C)
-			btc->dm.pta_owner = 0;
+		btc->dm.pta_owner = rtw89_mac_get_ctrl_path(rtwdev);
 
 		_get_gnt(rtwdev, &gnt_cfg);
 		gnt = gnt_cfg.band[0];
