@@ -1716,18 +1716,10 @@ int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
 		 */
 		delete.k.p = iter.pos;
 
-		if (iter.flags & BTREE_ITER_IS_EXTENTS) {
-			unsigned max_sectors =
-				KEY_SIZE_MAX & (~0 << trans->c->block_bits);
-
-			/* create the biggest key we can */
-			bch2_key_resize(&delete.k, max_sectors);
-			bch2_cut_back(end, &delete);
-
-			ret = bch2_extent_trim_atomic(trans, &iter, &delete);
-			if (ret)
-				goto err;
-		}
+		if (iter.flags & BTREE_ITER_IS_EXTENTS)
+			bch2_key_resize(&delete.k,
+					bpos_min(end, k.k->p).offset -
+					iter.pos.offset);
 
 		ret   = bch2_trans_update(trans, &iter, &delete, update_flags) ?:
 			bch2_trans_commit(trans, &disk_res, journal_seq,
