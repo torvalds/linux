@@ -1295,7 +1295,8 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	if (!(info->flags & IEEE80211_TX_CTL_DONTFRAG)) {
 		if (!(tx->flags & IEEE80211_TX_UNICAST) ||
 		    skb->len + FCS_LEN <= local->hw.wiphy->frag_threshold ||
-		    info->flags & IEEE80211_TX_CTL_AMPDU)
+		    (info->flags & IEEE80211_TX_CTL_AMPDU &&
+		     !local->ops->wake_tx_queue))
 			info->flags |= IEEE80211_TX_CTL_DONTFRAG;
 	}
 
@@ -3725,7 +3726,6 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 		return NULL;
 
 begin:
-	skb = NULL;
 	spin_lock(&local->queue_stop_reason_lock);
 	q_stopped = local->queue_stop_reasons[q];
 	spin_unlock(&local->queue_stop_reason_lock);
@@ -3738,9 +3738,6 @@ begin:
 
 	spin_lock_bh(&fq->lock);
 
-	if (unlikely(test_bit(IEEE80211_TXQ_STOP, &txqi->flags)))
-		goto out;
-
 	/* Make sure fragments stay together. */
 	skb = __skb_dequeue(&txqi->frags);
 	if (unlikely(skb)) {
@@ -3750,6 +3747,9 @@ begin:
 		IEEE80211_SKB_CB(skb)->control.flags &=
 			~IEEE80211_TX_INTCFL_NEED_TXPROCESSING;
 	} else {
+		if (unlikely(test_bit(IEEE80211_TXQ_STOP, &txqi->flags)))
+			goto out;
+
 		skb = fq_tin_dequeue(fq, tin, fq_tin_dequeue_func);
 	}
 
@@ -3800,7 +3800,8 @@ begin:
 	}
 
 	if (test_bit(IEEE80211_TXQ_AMPDU, &txqi->flags))
-		info->flags |= IEEE80211_TX_CTL_AMPDU;
+		info->flags |= (IEEE80211_TX_CTL_AMPDU |
+				IEEE80211_TX_CTL_DONTFRAG);
 	else
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 
