@@ -562,16 +562,19 @@ static int cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if ((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
 		rc = SMBQueryInformation(xid, tcon, full_path, &fi, cifs_sb->local_nls,
 					 cifs_remap(cifs_sb));
-		if (!rc)
-			move_cifs_info_to_smb2(&data->fi, &fi);
 		*adjustTZ = true;
 	}
 
-	if (!rc && (le32_to_cpu(fi.Attributes) & ATTR_REPARSE)) {
+	if (!rc) {
 		int tmprc;
 		int oplock = 0;
 		struct cifs_fid fid;
 		struct cifs_open_parms oparms;
+
+		move_cifs_info_to_smb2(&data->fi, &fi);
+
+		if (!(le32_to_cpu(fi.Attributes) & ATTR_REPARSE))
+			return 0;
 
 		oparms.tcon = tcon;
 		oparms.cifs_sb = cifs_sb;
