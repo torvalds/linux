@@ -1563,7 +1563,7 @@ int nsim_drv_probe(struct nsim_bus_dev *nsim_bus_dev)
 	err = devlink_params_register(devlink, nsim_devlink_params,
 				      ARRAY_SIZE(nsim_devlink_params));
 	if (err)
-		goto err_dl_unregister;
+		goto err_resource_unregister;
 	nsim_devlink_set_params_init_values(nsim_dev, devlink);
 
 	err = nsim_dev_dummy_region_init(nsim_dev, devlink);
@@ -1629,7 +1629,7 @@ err_dummy_region_exit:
 err_params_unregister:
 	devlink_params_unregister(devlink, nsim_devlink_params,
 				  ARRAY_SIZE(nsim_devlink_params));
-err_dl_unregister:
+err_resource_unregister:
 	devl_resources_unregister(devlink);
 err_vfc_free:
 	kfree(nsim_dev->vfconfigs);
