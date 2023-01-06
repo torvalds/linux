@@ -483,7 +483,7 @@ static int fiq_dbg_sdei_cpu_off_migrate_fiq(unsigned int cpu)
 	int cnt = 10000;
 
 	if (rk_fiq_sdei.cur_cpu == cpu) {
-		target_cpu = cpumask_first(cpu_online_mask);
+		target_cpu = cpumask_any_but(cpu_online_mask, cpu);
 		_rk_fiq_dbg_sdei_switch_cpu(target_cpu, 1);
 
 		while (rk_fiq_sdei.cur_cpu == cpu && cnt) {
@@ -681,7 +681,7 @@ static int fiq_debugger_cpu_offine_migrate_fiq(unsigned int cpu)
 
 	if ((sip_fiq_debugger_is_enabled()) &&
 	    (sip_fiq_debugger_get_target_cpu() == cpu)) {
-		target_cpu = cpumask_first(cpu_online_mask);
+		target_cpu = cpumask_any_but(cpu_online_mask, cpu);
 		sip_fiq_debugger_switch_cpu(target_cpu);
 	}
 
