@@ -218,6 +218,134 @@ static void kvm_apic_map_free(struct rcu_head *rcu)
 	kvfree(map);
 }
 
+static int kvm_recalculate_phys_map(struct kvm_apic_map *new,
+				    struct kvm_vcpu *vcpu,
+				    bool *xapic_id_mismatch)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	u32 x2apic_id = kvm_x2apic_id(apic);
+	u32 xapic_id = kvm_xapic_id(apic);
+	u32 physical_id;
+
+	/*
+	 * Deliberately truncate the vCPU ID when detecting a mismatched APIC
+	 * ID to avoid false positives if the vCPU ID, i.e. x2APIC ID, is a
+	 * 32-bit value.  Any unwanted aliasing due to truncation results will
+	 * be detected below.
+	 */
+	if (!apic_x2apic_mode(apic) && xapic_id != (u8)vcpu->vcpu_id)
+		*xapic_id_mismatch = true;
+
+	/*
+	 * Apply KVM's hotplug hack if userspace has enable 32-bit APIC IDs.
+	 * Allow sending events to vCPUs by their x2APIC ID even if the target
+	 * vCPU is in legacy xAPIC mode, and silently ignore aliased xAPIC IDs
+	 * (the x2APIC ID is truncated to 8 bits, causing IDs > 0xff to wrap
+	 * and collide).
+	 *
+	 * Honor the architectural (and KVM's non-optimized) behavior if
+	 * userspace has not enabled 32-bit x2APIC IDs.  Each APIC is supposed
+	 * to process messages independently.  If multiple vCPUs have the same
+	 * effective APIC ID, e.g. due to the x2APIC wrap or because the guest
+	 * manually modified its xAPIC IDs, events targeting that ID are
+	 * supposed to be recognized by all vCPUs with said ID.
+	 */
+	if (vcpu->kvm->arch.x2apic_format) {
+		/* See also kvm_apic_match_physical_addr(). */
+		if ((apic_x2apic_mode(apic) || x2apic_id > 0xff) &&
+			x2apic_id <= new->max_apic_id)
+			new->phys_map[x2apic_id] = apic;
+
+		if (!apic_x2apic_mode(apic) && !new->phys_map[xapic_id])
+			new->phys_map[xapic_id] = apic;
+	} else {
+		/*
+		 * Disable the optimized map if the physical APIC ID is already
+		 * mapped, i.e. is aliased to multiple vCPUs.  The optimized
+		 * map requires a strict 1:1 mapping between IDs and vCPUs.
+		 */
+		if (apic_x2apic_mode(apic))
+			physical_id = x2apic_id;
+		else
+			physical_id = xapic_id;
+
+		if (new->phys_map[physical_id])
+			return -EINVAL;
+
+		new->phys_map[physical_id] = apic;
+	}
+
+	return 0;
+}
+
+static void kvm_recalculate_logical_map(struct kvm_apic_map *new,
+					struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	enum kvm_apic_logical_mode logical_mode;
+	struct kvm_lapic **cluster;
+	u16 mask;
+	u32 ldr;
+
+	if (new->logical_mode == KVM_APIC_MODE_MAP_DISABLED)
+		return;
+
+	if (!kvm_apic_sw_enabled(apic))
+		return;
+
+	ldr = kvm_lapic_get_reg(apic, APIC_LDR);
+	if (!ldr)
+		return;
+
+	if (apic_x2apic_mode(apic)) {
+		logical_mode = KVM_APIC_MODE_X2APIC;
+	} else {
+		ldr = GET_APIC_LOGICAL_ID(ldr);
+		if (kvm_lapic_get_reg(apic, APIC_DFR) == APIC_DFR_FLAT)
+			logical_mode = KVM_APIC_MODE_XAPIC_FLAT;
+		else
+			logical_mode = KVM_APIC_MODE_XAPIC_CLUSTER;
+	}
+
+	/*
+	 * To optimize logical mode delivery, all software-enabled APICs must
+	 * be configured for the same mode.
+	 */
+	if (new->logical_mode == KVM_APIC_MODE_SW_DISABLED) {
+		new->logical_mode = logical_mode;
+	} else if (new->logical_mode != logical_mode) {
+		new->logical_mode = KVM_APIC_MODE_MAP_DISABLED;
+		return;
+	}
+
+	/*
+	 * In x2APIC mode, the LDR is read-only and derived directly from the
+	 * x2APIC ID, thus is guaranteed to be addressable.  KVM reuses
+	 * kvm_apic_map.phys_map to optimize logical mode x2APIC interrupts by
+	 * reversing the LDR calculation to get cluster of APICs, i.e. no
+	 * additional work is required.
+	 */
+	if (apic_x2apic_mode(apic)) {
+		WARN_ON_ONCE(ldr != kvm_apic_calc_x2apic_ldr(kvm_x2apic_id(apic)));
+		return;
+	}
+
+	if (WARN_ON_ONCE(!kvm_apic_map_get_logical_dest(new, ldr,
+							&cluster, &mask))) {
+		new->logical_mode = KVM_APIC_MODE_MAP_DISABLED;
+		return;
+	}
+
+	if (!mask)
+		return;
+
+	ldr = ffs(mask) - 1;
+	if (!is_power_of_2(mask) || cluster[ldr])
+		new->logical_mode = KVM_APIC_MODE_MAP_DISABLED;
+	else
+		cluster[ldr] = apic;
+}
+
 /*
  * CLEAN -> DIRTY and UPDATE_IN_PROGRESS -> DIRTY changes happen without a lock.
  *
@@ -272,128 +400,16 @@ void kvm_recalculate_apic_map(struct kvm *kvm)
 	new->logical_mode = KVM_APIC_MODE_SW_DISABLED;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		struct kvm_lapic *apic = vcpu->arch.apic;
-		struct kvm_lapic **cluster;
-		enum kvm_apic_logical_mode logical_mode;
-		u32 x2apic_id, physical_id;
-		u16 mask;
-		u32 ldr;
-		u8 xapic_id;
-
 		if (!kvm_apic_present(vcpu))
 			continue;
 
-		xapic_id = kvm_xapic_id(apic);
-		x2apic_id = kvm_x2apic_id(apic);
-
-		/*
-		 * Deliberately truncate the vCPU ID when detecting a mismatched
-		 * APIC ID to avoid false positives if the vCPU ID, i.e. x2APIC
-		 * ID, is a 32-bit value.  Any unwanted aliasing due to
-		 * truncation results will be detected below.
-		 */
-		if (!apic_x2apic_mode(apic) && xapic_id != (u8)vcpu->vcpu_id)
-			xapic_id_mismatch = true;
-
-		/*
-		 * Apply KVM's hotplug hack if userspace has enable 32-bit APIC
-		 * IDs.  Allow sending events to vCPUs by their x2APIC ID even
-		 * if the target vCPU is in legacy xAPIC mode, and silently
-		 * ignore aliased xAPIC IDs (the x2APIC ID is truncated to 8
-		 * bits, causing IDs > 0xff to wrap and collide).
-		 *
-		 * Honor the architectural (and KVM's non-optimized) behavior
-		 * if userspace has not enabled 32-bit x2APIC IDs.  Each APIC
-		 * is supposed to process messages independently.  If multiple
-		 * vCPUs have the same effective APIC ID, e.g. due to the
-		 * x2APIC wrap or because the guest manually modified its xAPIC
-		 * IDs, events targeting that ID are supposed to be recognized
-		 * by all vCPUs with said ID.
-		 */
-		if (kvm->arch.x2apic_format) {
-			/* See also kvm_apic_match_physical_addr(). */
-			if ((apic_x2apic_mode(apic) || x2apic_id > 0xff) &&
-			    x2apic_id <= new->max_apic_id)
-				new->phys_map[x2apic_id] = apic;
-
-			if (!apic_x2apic_mode(apic) && !new->phys_map[xapic_id])
-				new->phys_map[xapic_id] = apic;
-		} else {
-			/*
-			 * Disable the optimized map if the physical APIC ID is
-			 * already mapped, i.e. is aliased to multiple vCPUs.
-			 * The optimized map requires a strict 1:1 mapping
-			 * between IDs and vCPUs.
-			 */
-			if (apic_x2apic_mode(apic))
-				physical_id = x2apic_id;
-			else
-				physical_id = xapic_id;
-
-			if (new->phys_map[physical_id]) {
-				kvfree(new);
-				new = NULL;
-				goto out;
-			}
-			new->phys_map[physical_id] = apic;
+		if (kvm_recalculate_phys_map(new, vcpu, &xapic_id_mismatch)) {
+			kvfree(new);
+			new = NULL;
+			goto out;
 		}
 
-		if (new->logical_mode == KVM_APIC_MODE_MAP_DISABLED ||
-		    !kvm_apic_sw_enabled(apic))
-			continue;
-
-		ldr = kvm_lapic_get_reg(apic, APIC_LDR);
-		if (!ldr)
-			continue;
-
-		if (apic_x2apic_mode(apic)) {
-			logical_mode = KVM_APIC_MODE_X2APIC;
-		} else {
-			ldr = GET_APIC_LOGICAL_ID(ldr);
-			if (kvm_lapic_get_reg(apic, APIC_DFR) == APIC_DFR_FLAT)
-				logical_mode = KVM_APIC_MODE_XAPIC_FLAT;
-			else
-				logical_mode = KVM_APIC_MODE_XAPIC_CLUSTER;
-		}
-
-		/*
-		 * To optimize logical mode delivery, all software-enabled APICs must
-		 * be configured for the same mode.
-		 */
-		if (new->logical_mode == KVM_APIC_MODE_SW_DISABLED) {
-			new->logical_mode = logical_mode;
-		} else if (new->logical_mode != logical_mode) {
-			new->logical_mode = KVM_APIC_MODE_MAP_DISABLED;
-			continue;
-		}
-
-		/*
-		 * In x2APIC mode, the LDR is read-only and derived directly
-		 * from the x2APIC ID, thus is guaranteed to be addressable.
-		 * KVM reuses kvm_apic_map.phys_map to optimize logical mode
-		 * x2APIC interrupts by reversing the LDR calculation to get
-		 * cluster of APICs, i.e. no additional work is required.
-		 */
-		if (apic_x2apic_mode(apic)) {
-			WARN_ON_ONCE(ldr != kvm_apic_calc_x2apic_ldr(x2apic_id));
-			continue;
-		}
-
-		if (WARN_ON_ONCE(!kvm_apic_map_get_logical_dest(new, ldr,
-								&cluster, &mask))) {
-			new->logical_mode = KVM_APIC_MODE_MAP_DISABLED;
-			continue;
-		}
-
-		if (!mask)
-			continue;
-
-		ldr = ffs(mask) - 1;
-		if (!is_power_of_2(mask) || cluster[ldr]) {
-			new->logical_mode = KVM_APIC_MODE_MAP_DISABLED;
-			continue;
-		}
-		cluster[ldr] = apic;
+		kvm_recalculate_logical_map(new, vcpu);
 	}
 out:
 	/*
