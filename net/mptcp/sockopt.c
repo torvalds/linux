@@ -18,7 +18,7 @@
 
 static struct sock *__mptcp_tcp_fallback(struct mptcp_sock *msk)
 {
-	sock_owned_by_me((const struct sock *)msk);
+	msk_owned_by_me(msk);
 
 	if (likely(!__mptcp_check_fallback(msk)))
 		return NULL;
