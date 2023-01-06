@@ -12,7 +12,6 @@
 #include <net/net_namespace.h>
 
 #define DEVLINK_REGISTERED XA_MARK_1
-#define DEVLINK_UNREGISTERING XA_MARK_2
 
 #define DEVLINK_RELOAD_STATS_ARRAY_SIZE \
 	(__DEVLINK_RELOAD_LIMIT_MAX * __DEVLINK_RELOAD_ACTION_MAX)
@@ -52,7 +51,6 @@ struct devlink {
 	struct lock_class_key lock_key;
 	u8 reload_failed:1;
 	refcount_t refcount;
-	struct completion comp;
 	struct rcu_head rcu;
 	struct notifier_block netdevice_nb;
 	char priv[] __aligned(NETDEV_ALIGN);
@@ -82,18 +80,17 @@ extern struct genl_family devlink_nl_family;
  * in loop body in order to release the reference.
  */
 #define devlinks_xa_for_each_registered_get(net, index, devlink)	\
-	for (index = 0,							\
-	     devlink = devlinks_xa_find_get_first(net, &index);	\
-	     devlink; devlink = devlinks_xa_find_get_next(net, &index))
+	for (index = 0; (devlink = devlinks_xa_find_get(net, &index)); index++)
 
-struct devlink *
-devlinks_xa_find_get(struct net *net, unsigned long *indexp,
-		     void * (*xa_find_fn)(struct xarray *, unsigned long *,
-					  unsigned long, xa_mark_t));
-struct devlink *
-devlinks_xa_find_get_first(struct net *net, unsigned long *indexp);
-struct devlink *
-devlinks_xa_find_get_next(struct net *net, unsigned long *indexp);
+struct devlink *devlinks_xa_find_get(struct net *net, unsigned long *indexp);
+
+static inline bool devl_is_registered(struct devlink *devlink)
+{
+	/* To prevent races the caller must hold the instance lock
+	 * or another lock taken during unregistration.
+	 */
+	return xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED);
+}
 
 /* Netlink */
 #define DEVLINK_NL_FLAG_NEED_PORT		BIT(0)
@@ -135,12 +132,13 @@ struct devlink_gen_cmd {
  */
 #define devlink_dump_for_each_instance_get(msg, state, devlink)		\
 	for (; (devlink = devlinks_xa_find_get(sock_net(msg->sk),	\
-					       &state->instance, xa_find)); \
+					       &state->instance));	\
 	     state->instance++, state->idx = 0)
 
 extern const struct genl_small_ops devlink_nl_ops[56];
 
-struct devlink *devlink_get_from_attrs(struct net *net, struct nlattr **attrs);
+struct devlink *
+devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs);
 
 void devlink_notify_unregister(struct devlink *devlink);
 void devlink_notify_register(struct devlink *devlink);

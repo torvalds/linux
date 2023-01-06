@@ -2130,6 +2130,9 @@ static int devlink_nl_cmd_linecard_get_dumpit(struct sk_buff *msg,
 		int idx = 0;
 
 		mutex_lock(&devlink->linecards_lock);
+		if (!devl_is_registered(devlink))
+			goto next_devlink;
+
 		list_for_each_entry(linecard, &devlink->linecard_list, list) {
 			if (idx < state->idx) {
 				idx++;
@@ -2151,6 +2154,7 @@ static int devlink_nl_cmd_linecard_get_dumpit(struct sk_buff *msg,
 			}
 			idx++;
 		}
+next_devlink:
 		mutex_unlock(&devlink->linecards_lock);
 		devlink_put(devlink);
 	}
@@ -5259,7 +5263,13 @@ static void devlink_param_notify(struct devlink *devlink,
 	WARN_ON(cmd != DEVLINK_CMD_PARAM_NEW && cmd != DEVLINK_CMD_PARAM_DEL &&
 		cmd != DEVLINK_CMD_PORT_PARAM_NEW &&
 		cmd != DEVLINK_CMD_PORT_PARAM_DEL);
-	ASSERT_DEVLINK_REGISTERED(devlink);
+
+	/* devlink_notify_register() / devlink_notify_unregister()
+	 * will replay the notifications if the params are added/removed
+	 * outside of the lifetime of the instance.
+	 */
+	if (!devl_is_registered(devlink))
+		return;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -6314,11 +6324,9 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 
 	start_offset = state->start_offset;
 
-	devlink = devlink_get_from_attrs(sock_net(cb->skb->sk), attrs);
+	devlink = devlink_get_from_attrs_lock(sock_net(cb->skb->sk), attrs);
 	if (IS_ERR(devlink))
 		return PTR_ERR(devlink);
-
-	devl_lock(devlink);
 
 	if (!attrs[DEVLINK_ATTR_REGION_NAME]) {
 		NL_SET_ERR_MSG(cb->extack, "No region name provided");
@@ -7735,9 +7743,10 @@ devlink_health_reporter_get_from_cb(struct netlink_callback *cb)
 	struct nlattr **attrs = info->attrs;
 	struct devlink *devlink;
 
-	devlink = devlink_get_from_attrs(sock_net(cb->skb->sk), attrs);
+	devlink = devlink_get_from_attrs_lock(sock_net(cb->skb->sk), attrs);
 	if (IS_ERR(devlink))
 		return NULL;
+	devl_unlock(devlink);
 
 	reporter = devlink_health_reporter_get_from_attrs(devlink, attrs);
 	devlink_put(devlink);
@@ -7810,6 +7819,12 @@ devlink_nl_cmd_health_reporter_get_dumpit(struct sk_buff *msg,
 		int idx = 0;
 
 		mutex_lock(&devlink->reporters_lock);
+		if (!devl_is_registered(devlink)) {
+			mutex_unlock(&devlink->reporters_lock);
+			devlink_put(devlink);
+			continue;
+		}
+
 		list_for_each_entry(reporter, &devlink->reporter_list,
 				    list) {
 			if (idx < state->idx) {
@@ -7831,6 +7846,9 @@ devlink_nl_cmd_health_reporter_get_dumpit(struct sk_buff *msg,
 		mutex_unlock(&devlink->reporters_lock);
 
 		devl_lock(devlink);
+		if (!devl_is_registered(devlink))
+			goto next_devlink;
+
 		xa_for_each(&devlink->ports, port_index, port) {
 			mutex_lock(&port->reporters_lock);
 			list_for_each_entry(reporter, &port->reporter_list, list) {
@@ -7854,6 +7872,7 @@ devlink_nl_cmd_health_reporter_get_dumpit(struct sk_buff *msg,
 			}
 			mutex_unlock(&port->reporters_lock);
 		}
+next_devlink:
 		devl_unlock(devlink);
 		devlink_put(devlink);
 	}
@@ -10902,8 +10921,6 @@ int devlink_params_register(struct devlink *devlink,
 	const struct devlink_param *param = params;
 	int i, err;
 
-	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
-
 	for (i = 0; i < params_count; i++, param++) {
 		err = devlink_param_register(devlink, param);
 		if (err)
@@ -10934,8 +10951,6 @@ void devlink_params_unregister(struct devlink *devlink,
 	const struct devlink_param *param = params;
 	int i;
 
-	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
-
 	for (i = 0; i < params_count; i++, param++)
 		devlink_param_unregister(devlink, param);
 }
@@ -10955,8 +10970,6 @@ int devlink_param_register(struct devlink *devlink,
 {
 	struct devlink_param_item *param_item;
 
-	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
-
 	WARN_ON(devlink_param_verify(param));
 	WARN_ON(devlink_param_find_by_name(&devlink->param_list, param->name));
 
@@ -10972,6 +10985,7 @@ int devlink_param_register(struct devlink *devlink,
 	param_item->param = param;
 
 	list_add_tail(&param_item->list, &devlink->param_list);
+	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_param_register);
@@ -10986,11 +11000,10 @@ void devlink_param_unregister(struct devlink *devlink,
 {
 	struct devlink_param_item *param_item;
 
-	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
-
 	param_item =
 		devlink_param_find_by_name(&devlink->param_list, param->name);
 	WARN_ON(!param_item);
+	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_DEL);
 	list_del(&param_item->list);
 	kfree(param_item);
 }
@@ -11050,8 +11063,6 @@ int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 {
 	struct devlink_param_item *param_item;
 
-	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
-
 	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
 	if (!param_item)
 		return -EINVAL;
@@ -11065,6 +11076,8 @@ int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 	else
 		param_item->driverinit_value = init_val;
 	param_item->driverinit_value_valid = true;
+
+	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_set);
@@ -12219,7 +12232,8 @@ void devlink_compat_running_version(struct devlink *devlink,
 		return;
 
 	devl_lock(devlink);
-	__devlink_compat_running_version(devlink, buf, len);
+	if (devl_is_registered(devlink))
+		__devlink_compat_running_version(devlink, buf, len);
 	devl_unlock(devlink);
 }
 
@@ -12228,20 +12242,28 @@ int devlink_compat_flash_update(struct devlink *devlink, const char *file_name)
 	struct devlink_flash_update_params params = {};
 	int ret;
 
-	if (!devlink->ops->flash_update)
-		return -EOPNOTSUPP;
+	devl_lock(devlink);
+	if (!devl_is_registered(devlink)) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	if (!devlink->ops->flash_update) {
+		ret = -EOPNOTSUPP;
+		goto out_unlock;
+	}
 
 	ret = request_firmware(&params.fw, file_name, devlink->dev);
 	if (ret)
-		return ret;
+		goto out_unlock;
 
-	devl_lock(devlink);
 	devlink_flash_update_begin_notify(devlink);
 	ret = devlink->ops->flash_update(devlink, &params, NULL);
 	devlink_flash_update_end_notify(devlink);
-	devl_unlock(devlink);
 
 	release_firmware(params.fw);
+out_unlock:
+	devl_unlock(devlink);
 
 	return ret;
 }
