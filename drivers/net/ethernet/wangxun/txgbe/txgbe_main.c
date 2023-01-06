@@ -14,7 +14,6 @@
 #include "../libwx/wx_hw.h"
 #include "txgbe_type.h"
 #include "txgbe_hw.h"
-#include "txgbe.h"
 
 char txgbe_driver_name[] = "txgbe";
 

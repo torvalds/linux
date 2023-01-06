@@ -12,7 +12,6 @@
 #include "../libwx/wx_hw.h"
 #include "txgbe_type.h"
 #include "txgbe_hw.h"
-#include "txgbe.h"
 
 /**
  *  txgbe_init_thermal_sensor_thresh - Inits thermal sensor thresholds
