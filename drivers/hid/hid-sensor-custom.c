@@ -911,21 +911,28 @@ hid_sensor_custom_get_known(struct hid_sensor_hub_device *hsdev,
 	int ret;
 	const struct hid_sensor_custom_match *match =
 		hid_sensor_custom_known_table;
-	struct hid_sensor_custom_properties prop;
+	struct hid_sensor_custom_properties *prop;
 
-	ret = hid_sensor_custom_properties_get(hsdev, &prop);
+	prop = kmalloc(sizeof(struct hid_sensor_custom_properties), GFP_KERNEL);
+	if (!prop)
+		return -ENOMEM;
+
+	ret = hid_sensor_custom_properties_get(hsdev, prop);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	while (match->tag) {
-		if (hid_sensor_custom_do_match(hsdev, match, &prop)) {
+		if (hid_sensor_custom_do_match(hsdev, match, prop)) {
 			*known = match;
-			return 0;
+			ret = 0;
+			goto out;
 		}
 		match++;
 	}
-
-	return -ENODATA;
+	ret = -ENODATA;
+out:
+	kfree(prop);
+	return ret;
 }
 
 static struct platform_device *
