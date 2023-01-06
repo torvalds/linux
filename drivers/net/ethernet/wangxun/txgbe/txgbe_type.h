@@ -67,8 +67,22 @@
 #define TXGBE_PBANUM1_PTR                       0x06
 #define TXGBE_PBANUM_PTR_GUARD                  0xFAFA
 
-struct txgbe_hw {
+struct txgbe_mac_addr {
+	u8 addr[ETH_ALEN];
+	u16 state; /* bitmask */
+	u64 pools;
+};
+
+/* board specific private data structure */
+struct txgbe_adapter {
+	u8 __iomem *io_addr;
+	/* OS defined structs */
+	struct net_device *netdev;
+	struct pci_dev *pdev;
 	struct wx_hw wxhw;
+	u16 msg_enable;
+	struct txgbe_mac_addr *mac_table;
+	char eeprom_id[32];
 };
 
 #endif /* _TXGBE_TYPE_H_ */

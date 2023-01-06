@@ -16,14 +16,13 @@
 
 /**
  *  txgbe_init_thermal_sensor_thresh - Inits thermal sensor thresholds
- *  @hw: pointer to hardware structure
+ *  @wxhw: pointer to hardware structure
  *
  *  Inits the thermal sensor thresholds according to the NVM map
  *  and save off the threshold and location values into mac.thermal_sensor_data
  **/
-static void txgbe_init_thermal_sensor_thresh(struct txgbe_hw *hw)
+static void txgbe_init_thermal_sensor_thresh(struct wx_hw *wxhw)
 {
-	struct wx_hw *wxhw = &hw->wxhw;
 	struct wx_thermal_sensor_data *data = &wxhw->mac.sensor;
 
 	memset(data, 0, sizeof(struct wx_thermal_sensor_data));
@@ -46,16 +45,15 @@ static void txgbe_init_thermal_sensor_thresh(struct txgbe_hw *hw)
 
 /**
  *  txgbe_read_pba_string - Reads part number string from EEPROM
- *  @hw: pointer to hardware structure
+ *  @wxhw: pointer to hardware structure
  *  @pba_num: stores the part number string from the EEPROM
  *  @pba_num_size: part number string buffer length
  *
  *  Reads the part number string from the EEPROM.
  **/
-int txgbe_read_pba_string(struct txgbe_hw *hw, u8 *pba_num, u32 pba_num_size)
+int txgbe_read_pba_string(struct wx_hw *wxhw, u8 *pba_num, u32 pba_num_size)
 {
 	u16 pba_ptr, offset, length, data;
-	struct wx_hw *wxhw = &hw->wxhw;
 	int ret_val;
 
 	if (!pba_num) {
@@ -155,14 +153,13 @@ int txgbe_read_pba_string(struct txgbe_hw *hw, u8 *pba_num, u32 pba_num_size)
 
 /**
  *  txgbe_calc_eeprom_checksum - Calculates and returns the checksum
- *  @hw: pointer to hardware structure
+ *  @wxhw: pointer to hardware structure
  *  @checksum: pointer to cheksum
  *
  *  Returns a negative error code on error
  **/
-static int txgbe_calc_eeprom_checksum(struct txgbe_hw *hw, u16 *checksum)
+static int txgbe_calc_eeprom_checksum(struct wx_hw *wxhw, u16 *checksum)
 {
-	struct wx_hw *wxhw = &hw->wxhw;
 	u16 *eeprom_ptrs = NULL;
 	u32 buffer_size = 0;
 	u16 *buffer = NULL;
@@ -210,15 +207,14 @@ static int txgbe_calc_eeprom_checksum(struct txgbe_hw *hw, u16 *checksum)
 
 /**
  *  txgbe_validate_eeprom_checksum - Validate EEPROM checksum
- *  @hw: pointer to hardware structure
+ *  @wxhw: pointer to hardware structure
  *  @checksum_val: calculated checksum
  *
  *  Performs checksum calculation and validates the EEPROM checksum.  If the
  *  caller does not need checksum_val, the value can be NULL.
  **/
-int txgbe_validate_eeprom_checksum(struct txgbe_hw *hw, u16 *checksum_val)
+int txgbe_validate_eeprom_checksum(struct wx_hw *wxhw, u16 *checksum_val)
 {
-	struct wx_hw *wxhw = &hw->wxhw;
 	u16 read_checksum = 0;
 	u16 checksum;
 	int status;
@@ -234,7 +230,7 @@ int txgbe_validate_eeprom_checksum(struct txgbe_hw *hw, u16 *checksum_val)
 	}
 
 	checksum = 0;
-	status = txgbe_calc_eeprom_checksum(hw, &checksum);
+	status = txgbe_calc_eeprom_checksum(wxhw, &checksum);
 	if (status != 0)
 		return status;
 
@@ -258,25 +254,25 @@ int txgbe_validate_eeprom_checksum(struct txgbe_hw *hw, u16 *checksum_val)
 	return status;
 }
 
-static void txgbe_reset_misc(struct txgbe_hw *hw)
+static void txgbe_reset_misc(struct txgbe_adapter *adapter)
 {
-	struct wx_hw *wxhw = &hw->wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 
 	wx_reset_misc(wxhw);
-	txgbe_init_thermal_sensor_thresh(hw);
+	txgbe_init_thermal_sensor_thresh(wxhw);
 }
 
 /**
  *  txgbe_reset_hw - Perform hardware reset
- *  @hw: pointer to hardware structure
+ *  @adapter: pointer to adapter structure
  *
  *  Resets the hardware by resetting the transmit and receive units, masks
  *  and clears all interrupts, perform a PHY reset, and perform a link (MAC)
  *  reset.
  **/
-int txgbe_reset_hw(struct txgbe_hw *hw)
+int txgbe_reset_hw(struct txgbe_adapter *adapter)
 {
-	struct wx_hw *wxhw = &hw->wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 	int status;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
@@ -294,7 +290,7 @@ int txgbe_reset_hw(struct txgbe_hw *hw)
 	if (status != 0)
 		return status;
 
-	txgbe_reset_misc(hw);
+	txgbe_reset_misc(adapter);
 
 	/* Store the permanent mac address */
 	wx_get_mac_addr(wxhw, wxhw->mac.perm_addr);

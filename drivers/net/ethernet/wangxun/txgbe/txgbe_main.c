@@ -75,8 +75,7 @@ static int txgbe_enumerate_functions(struct txgbe_adapter *adapter)
 
 static void txgbe_sync_mac_table(struct txgbe_adapter *adapter)
 {
-	struct txgbe_hw *hw = &adapter->hw;
-	struct wx_hw *wxhw = &hw->wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 	int i;
 
 	for (i = 0; i < wxhw->mac.num_rar_entries; i++) {
@@ -98,7 +97,7 @@ static void txgbe_sync_mac_table(struct txgbe_adapter *adapter)
 static void txgbe_mac_set_default_filter(struct txgbe_adapter *adapter,
 					 u8 *addr)
 {
-	struct wx_hw *wxhw = &adapter->hw.wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 
 	memcpy(&adapter->mac_table[0].addr, addr, ETH_ALEN);
 	adapter->mac_table[0].pools = 1ULL;
@@ -111,7 +110,7 @@ static void txgbe_mac_set_default_filter(struct txgbe_adapter *adapter,
 
 static void txgbe_flush_sw_mac_table(struct txgbe_adapter *adapter)
 {
-	struct wx_hw *wxhw = &adapter->hw.wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 	u32 i;
 
 	for (i = 0; i < wxhw->mac.num_rar_entries; i++) {
@@ -125,7 +124,7 @@ static void txgbe_flush_sw_mac_table(struct txgbe_adapter *adapter)
 
 static int txgbe_del_mac_filter(struct txgbe_adapter *adapter, u8 *addr, u16 pool)
 {
-	struct wx_hw *wxhw = &adapter->hw.wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 	u32 i;
 
 	if (is_zero_ether_addr(addr))
@@ -160,8 +159,7 @@ static int txgbe_del_mac_filter(struct txgbe_adapter *adapter, u8 *addr, u16 poo
 
 static void txgbe_up_complete(struct txgbe_adapter *adapter)
 {
-	struct txgbe_hw *hw = &adapter->hw;
-	struct wx_hw *wxhw = &hw->wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 
 	wx_control_hw(wxhw, true);
 }
@@ -169,11 +167,10 @@ static void txgbe_up_complete(struct txgbe_adapter *adapter)
 static void txgbe_reset(struct txgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct txgbe_hw *hw = &adapter->hw;
 	u8 old_addr[ETH_ALEN];
 	int err;
 
-	err = txgbe_reset_hw(hw);
+	err = txgbe_reset_hw(adapter);
 	if (err != 0)
 		dev_err(&adapter->pdev->dev, "Hardware Error: %d\n", err);
 
@@ -186,7 +183,7 @@ static void txgbe_reset(struct txgbe_adapter *adapter)
 static void txgbe_disable_device(struct txgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct wx_hw *wxhw = &adapter->hw.wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 
 	wx_disable_pcie_master(wxhw);
 	/* disable receives */
@@ -225,8 +222,7 @@ static void txgbe_down(struct txgbe_adapter *adapter)
 static int txgbe_sw_init(struct txgbe_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
-	struct txgbe_hw *hw = &adapter->hw;
-	struct wx_hw *wxhw = &hw->wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 	int err;
 
 	wxhw->hw_addr = adapter->io_addr;
@@ -313,7 +309,7 @@ static int txgbe_close(struct net_device *netdev)
 	struct txgbe_adapter *adapter = netdev_priv(netdev);
 
 	txgbe_down(adapter);
-	wx_control_hw(&adapter->hw.wxhw, false);
+	wx_control_hw(&adapter->wxhw, false);
 
 	return 0;
 }
@@ -322,8 +318,7 @@ static void txgbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
 	struct txgbe_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
-	struct txgbe_hw *hw = &adapter->hw;
-	struct wx_hw *wxhw = &hw->wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 
 	netif_device_detach(netdev);
 
@@ -365,7 +360,7 @@ static netdev_tx_t txgbe_xmit_frame(struct sk_buff *skb,
 static int txgbe_set_mac(struct net_device *netdev, void *p)
 {
 	struct txgbe_adapter *adapter = netdev_priv(netdev);
-	struct wx_hw *wxhw = &adapter->hw.wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 	struct sockaddr *addr = p;
 	int retval;
 
@@ -405,7 +400,6 @@ static int txgbe_probe(struct pci_dev *pdev,
 		       const struct pci_device_id __always_unused *ent)
 {
 	struct txgbe_adapter *adapter = NULL;
-	struct txgbe_hw *hw = NULL;
 	struct wx_hw *wxhw = NULL;
 	struct net_device *netdev;
 	int err, expected_gts;
@@ -453,8 +447,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
-	hw = &adapter->hw;
-	wxhw = &hw->wxhw;
+	wxhw = &adapter->wxhw;
 	adapter->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
 
 	adapter->io_addr = devm_ioremap(&pdev->dev,
@@ -486,7 +479,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 		goto err_free_mac_table;
 	}
 
-	err = txgbe_reset_hw(hw);
+	err = txgbe_reset_hw(adapter);
 	if (err) {
 		dev_err(&pdev->dev, "HW Init failed: %d\n", err);
 		goto err_free_mac_table;
@@ -495,7 +488,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	netdev->features |= NETIF_F_HIGHDMA;
 
 	/* make sure the EEPROM is good */
-	err = txgbe_validate_eeprom_checksum(hw, NULL);
+	err = txgbe_validate_eeprom_checksum(wxhw, NULL);
 	if (err != 0) {
 		dev_err(&pdev->dev, "The EEPROM Checksum Is Not Valid\n");
 		wr32(wxhw, WX_MIS_RST, WX_MIS_RST_SW_RST);
@@ -565,7 +558,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 		dev_warn(&pdev->dev, "Failed to enumerate PF devices.\n");
 
 	/* First try to read PBA as a string */
-	err = txgbe_read_pba_string(hw, part_str, TXGBE_PBANUM_LENGTH);
+	err = txgbe_read_pba_string(wxhw, part_str, TXGBE_PBANUM_LENGTH);
 	if (err)
 		strncpy(part_str, "Unknown", TXGBE_PBANUM_LENGTH);
 
