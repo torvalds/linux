@@ -73,11 +73,11 @@ struct pcf857x {
 	struct gpio_chip	chip;
 	struct i2c_client	*client;
 	struct mutex		lock;		/* protect 'out' */
-	unsigned		out;		/* software latch */
-	unsigned		status;		/* current status */
-	unsigned		irq_enabled;	/* enabled irqs */
+	unsigned int		out;		/* software latch */
+	unsigned int		status;		/* current status */
+	unsigned int		irq_enabled;	/* enabled irqs */
 
-	int (*write)(struct i2c_client *client, unsigned data);
+	int (*write)(struct i2c_client *client, unsigned int data);
 	int (*read)(struct i2c_client *client);
 };
 
@@ -85,7 +85,7 @@ struct pcf857x {
 
 /* Talk to 8-bit I/O expander */
 
-static int i2c_write_le8(struct i2c_client *client, unsigned data)
+static int i2c_write_le8(struct i2c_client *client, unsigned int data)
 {
 	return i2c_smbus_write_byte(client, data);
 }
@@ -97,7 +97,7 @@ static int i2c_read_le8(struct i2c_client *client)
 
 /* Talk to 16-bit I/O expander */
 
-static int i2c_write_le16(struct i2c_client *client, unsigned word)
+static int i2c_write_le16(struct i2c_client *client, unsigned int word)
 {
 	u8 buf[2] = { word & 0xff, word >> 8, };
 	int status;
@@ -119,7 +119,7 @@ static int i2c_read_le16(struct i2c_client *client)
 
 /*-------------------------------------------------------------------------*/
 
-static int pcf857x_input(struct gpio_chip *chip, unsigned offset)
+static int pcf857x_input(struct gpio_chip *chip, unsigned int offset)
 {
 	struct pcf857x	*gpio = gpiochip_get_data(chip);
 	int		status;
@@ -132,7 +132,7 @@ static int pcf857x_input(struct gpio_chip *chip, unsigned offset)
 	return status;
 }
 
-static int pcf857x_get(struct gpio_chip *chip, unsigned offset)
+static int pcf857x_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct pcf857x	*gpio = gpiochip_get_data(chip);
 	int		value;
@@ -141,10 +141,10 @@ static int pcf857x_get(struct gpio_chip *chip, unsigned offset)
 	return (value < 0) ? value : !!(value & (1 << offset));
 }
 
-static int pcf857x_output(struct gpio_chip *chip, unsigned offset, int value)
+static int pcf857x_output(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct pcf857x	*gpio = gpiochip_get_data(chip);
-	unsigned	bit = 1 << offset;
+	unsigned int	bit = 1 << offset;
 	int		status;
 
 	mutex_lock(&gpio->lock);
@@ -158,7 +158,7 @@ static int pcf857x_output(struct gpio_chip *chip, unsigned offset, int value)
 	return status;
 }
 
-static void pcf857x_set(struct gpio_chip *chip, unsigned offset, int value)
+static void pcf857x_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	pcf857x_output(chip, offset, value);
 }
