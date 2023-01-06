@@ -1,0 +1,20 @@
+[
+  {
+    "PublicDescription": "CPU Cycles",
+    "EventCode": "0x00",
+    "EventName": "riscv_cycles",
+    "BriefDescription": "CPU cycles RISC-V generic counter"
+  },
+  {
+    "PublicDescription": "CPU Time",
+      "EventCode": "0x01",
+      "EventName": "riscv_time",
+      "BriefDescription": "CPU time RISC-V generic counter"
+  },
+  {
+    "PublicDescription": "CPU Instructions",
+      "EventCode": "0x02",
+      "EventName": "riscv_instret",
+      "BriefDescription": "CPU retired instructions RISC-V generic counter"
+  }
+]
