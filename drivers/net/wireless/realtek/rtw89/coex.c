@@ -6345,9 +6345,6 @@ static void _show_fbtc_tdma(struct rtw89_dev *rtwdev, struct seq_file *m)
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
 	struct rtw89_btc_rpt_cmn_info *pcinfo = NULL;
 	struct rtw89_btc_fbtc_tdma *t = NULL;
-	struct rtw89_btc_fbtc_slot *s = NULL;
-	struct rtw89_btc_dm *dm = &btc->dm;
-	u8 i, cnt = 0;
 
 	pcinfo = &pfwinfo->rpt_fbtc_tdma.cinfo;
 	if (!pcinfo->valid)
@@ -6373,61 +6370,29 @@ static void _show_fbtc_tdma(struct rtw89_dev *rtwdev, struct seq_file *m)
 		   "policy_type:%d",
 		   (u32)btc->policy_type);
 
-	s = pfwinfo->rpt_fbtc_slots.finfo.slot;
-
-	for (i = 0; i < CXST_MAX; i++) {
-		if (dm->update_slot_map == BIT(CXST_MAX) - 1)
-			break;
-
-		if (!(dm->update_slot_map & BIT(i)))
-			continue;
-
-		if (cnt % 6 == 0)
-			seq_printf(m,
-				   " %-15s : %d[%d/0x%x/%d]",
-				   "[slot_policy]",
-				   (u32)i,
-				   s[i].dur, s[i].cxtbl, s[i].cxtype);
-		else
-			seq_printf(m,
-				   ", %d[%d/0x%x/%d]",
-				   (u32)i,
-				   s[i].dur, s[i].cxtbl, s[i].cxtype);
-		if (cnt % 6 == 5)
-			seq_puts(m, "\n");
-		cnt++;
-	}
 	seq_puts(m, "\n");
 }
 
 static void _show_fbtc_slots(struct rtw89_dev *rtwdev, struct seq_file *m)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
-	struct rtw89_btc_rpt_cmn_info *pcinfo = NULL;
-	struct rtw89_btc_fbtc_slots *pslots = NULL;
-	struct rtw89_btc_fbtc_slot s;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	struct rtw89_btc_fbtc_slot *s;
 	u8 i = 0;
 
-	pcinfo = &pfwinfo->rpt_fbtc_slots.cinfo;
-	if (!pcinfo->valid)
-		return;
-
-	pslots = &pfwinfo->rpt_fbtc_slots.finfo;
-
 	for (i = 0; i < CXST_MAX; i++) {
-		s = pslots->slot[i];
+		s = &dm->slot_now[i];
 		if (i % 6 == 0)
 			seq_printf(m,
 				   " %-15s : %02d[%03d/0x%x/%d]",
 				   "[slot_list]",
 				   (u32)i,
-				   s.dur, s.cxtbl, s.cxtype);
+				   s->dur, s->cxtbl, s->cxtype);
 		else
 			seq_printf(m,
 				   ", %02d[%03d/0x%x/%d]",
 				   (u32)i,
-				   s.dur, s.cxtbl, s.cxtype);
+				   s->dur, s->cxtbl, s->cxtype);
 		if (i % 6 == 5)
 			seq_puts(m, "\n");
 	}
