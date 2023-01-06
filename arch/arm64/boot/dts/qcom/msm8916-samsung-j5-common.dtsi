@@ -3,6 +3,7 @@
 #include "msm8916-pm8916.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	aliases {
@@ -58,6 +59,29 @@
 			linux,code = <KEY_HOMEPAGE>;
 		};
 	};
+
+	i2c_muic: i2c-muic {
+		compatible = "i2c-gpio";
+		sda-gpios = <&msmgpio 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&msmgpio 106 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&muic_i2c_default>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		muic: extcon@25 {
+			compatible = "siliconmitus,sm5703-muic";
+			reg = <0x25>;
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&muic_int_default>;
+		};
+	};
 };
 
 &blsp1_uart2 {
@@ -67,11 +91,6 @@
 &pm8916_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
-};
-
-/* FIXME: Replace with SM5703 MUIC when driver is available */
-&pm8916_usbin {
-	status = "okay";
 };
 
 &pronto {
@@ -97,13 +116,12 @@
 };
 
 &usb {
+	extcon = <&muic>, <&muic>;
 	status = "okay";
-	dr_mode = "peripheral";
-	extcon = <&pm8916_usbin>;
 };
 
 &usb_hs_phy {
-	extcon = <&pm8916_usbin>;
+	extcon = <&muic>;
 };
 
 &smd_rpm_regulators {
@@ -224,5 +242,21 @@
 
 		drive-strength = <2>;
 		bias-pull-up;
+	};
+
+	muic_i2c_default: muic-i2c-default-state {
+		pins = "gpio105", "gpio106";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	muic_int_default: muic-int-default-state {
+		pins = "gpio12";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
 	};
 };

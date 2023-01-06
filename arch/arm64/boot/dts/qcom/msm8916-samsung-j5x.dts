@@ -9,3 +9,11 @@
 	compatible = "samsung,j5x", "qcom,msm8916";
 	chassis-type = "handset";
 };
+
+&muic {
+	interrupts = <121 IRQ_TYPE_EDGE_FALLING>;
+};
+
+&muic_int_default {
+	pins = "gpio121";
+};
