@@ -59,6 +59,7 @@ struct jh7110_clk {
 	unsigned int idx;
 	unsigned int max_div;
 	unsigned int reg_flags;
+	u32 saved_reg_value;
 };
 
 struct jh7110_clk_priv {
