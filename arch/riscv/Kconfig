@@ -544,6 +544,16 @@ config XIP_PHYS_ADDR
 	  be linked for and stored to.  This address is dependent on your
 	  own flash usage.
 
+config ARCH_SUSPEND_POSSIBLE
+        def_bool y
+
+config ARCH_HIBERNATION_POSSIBLE
+       def_bool y
+
+config ARCH_HIBERNATION_HEADER
+       def_bool y
+       depends on HIBERNATION
+
 endmenu
 
 config BUILTIN_DTB
