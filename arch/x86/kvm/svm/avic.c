@@ -256,39 +256,6 @@ static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
 	return &avic_physical_id_table[index];
 }
 
-/*
- * Note:
- * AVIC hardware walks the nested page table to check permissions,
- * but does not use the SPA address specified in the leaf page
- * table entry since it uses  address in the AVIC_BACKING_PAGE pointer
- * field of the VMCB. Therefore, we set up the
- * APIC_ACCESS_PAGE_PRIVATE_MEMSLOT (4KB) here.
- */
-static int avic_alloc_access_page(struct kvm *kvm)
-{
-	void __user *ret;
-	int r = 0;
-
-	mutex_lock(&kvm->slots_lock);
-
-	if (kvm->arch.apic_access_memslot_enabled)
-		goto out;
-
-	ret = __x86_set_memory_region(kvm,
-				      APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
-				      APIC_DEFAULT_PHYS_BASE,
-				      PAGE_SIZE);
-	if (IS_ERR(ret)) {
-		r = PTR_ERR(ret);
-		goto out;
-	}
-
-	kvm->arch.apic_access_memslot_enabled = true;
-out:
-	mutex_unlock(&kvm->slots_lock);
-	return r;
-}
-
 static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 {
 	u64 *entry, new_entry;
@@ -305,7 +272,13 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	if (kvm_apicv_activated(vcpu->kvm)) {
 		int ret;
 
-		ret = avic_alloc_access_page(vcpu->kvm);
+		/*
+		 * Note, AVIC hardware walks the nested page table to check
+		 * permissions, but does not use the SPA address specified in
+		 * the leaf SPTE since it uses address in the AVIC_BACKING_PAGE
+		 * pointer field of the VMCB.
+		 */
+		ret = kvm_alloc_apic_access_page(vcpu->kvm);
 		if (ret)
 			return ret;
 	}
