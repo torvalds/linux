@@ -19,6 +19,8 @@
 #define	UBLK_CMD_GET_PARAMS	0x09
 #define	UBLK_CMD_START_USER_RECOVERY	0x10
 #define	UBLK_CMD_END_USER_RECOVERY	0x11
+#define	UBLK_CMD_GET_DEV_INFO2		0x12
+
 /*
  * IO commands, issued by ublk server, and handled by ublk driver.
  *
@@ -79,6 +81,27 @@
 
 #define UBLK_F_USER_RECOVERY_REISSUE	(1UL << 4)
 
+/*
+ * Unprivileged user can create /dev/ublkcN and /dev/ublkbN.
+ *
+ * /dev/ublk-control needs to be available for unprivileged user, and it
+ * can be done via udev rule to make all control commands available to
+ * unprivileged user. Except for the command of UBLK_CMD_ADD_DEV, all
+ * other commands are only allowed for the owner of the specified device.
+ *
+ * When userspace sends UBLK_CMD_ADD_DEV, the device pair's owner_uid and
+ * owner_gid are stored to ublksrv_ctrl_dev_info by kernel, so far only
+ * the current user's uid/gid is stored, that said owner of the created
+ * device is always the current user.
+ *
+ * We still need udev rule to apply OWNER/GROUP with the stored owner_uid
+ * and owner_gid.
+ *
+ * Then ublk server can be run as unprivileged user, and /dev/ublkbN can
+ * be accessed and managed by its owner represented by owner_uid/owner_gid.
+ */
+#define UBLK_F_UNPRIVILEGED_DEV	(1UL << 5)
+
 /* device state */
 #define UBLK_S_DEV_DEAD	0
 #define UBLK_S_DEV_LIVE	1
@@ -98,7 +121,15 @@ struct ublksrv_ctrl_cmd {
 	__u64	addr;
 
 	/* inline data */
-	__u64	data[2];
+	__u64	data[1];
+
+	/*
+	 * Used for UBLK_F_UNPRIVILEGED_DEV and UBLK_CMD_GET_DEV_INFO2
+	 * only, include null char
+	 */
+	__u16	dev_path_len;
+	__u16	pad;
+	__u32	reserved;
 };
 
 struct ublksrv_ctrl_dev_info {
@@ -118,7 +149,8 @@ struct ublksrv_ctrl_dev_info {
 	/* For ublksrv internal use, invisible to ublk driver */
 	__u64	ublksrv_flags;
 
-	__u64	reserved0;
+	__u32	owner_uid;	/* store by kernel */
+	__u32	owner_gid;	/* store by kernel */
 	__u64	reserved1;
 	__u64   reserved2;
 };
