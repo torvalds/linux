@@ -222,7 +222,7 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 		break;
 	default:
 		dev_dbg(&pci->dev, "No PDM devices found\n");
-		goto de_init;
+		return 0;
 	}
 
 	for (index = 0; index < adata->pdev_count; index++) {
