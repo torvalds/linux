@@ -11,10 +11,10 @@
 #include "ngbe_hw.h"
 #include "ngbe.h"
 
-int ngbe_eeprom_chksum_hostif(struct ngbe_hw *hw)
+int ngbe_eeprom_chksum_hostif(struct ngbe_adapter *adapter)
 {
 	struct wx_hic_read_shadow_ram buffer;
-	struct wx_hw *wxhw = &hw->wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 	int status;
 	int tmp;
 
@@ -38,14 +38,14 @@ int ngbe_eeprom_chksum_hostif(struct ngbe_hw *hw)
 	return -EIO;
 }
 
-static int ngbe_reset_misc(struct ngbe_hw *hw)
+static int ngbe_reset_misc(struct ngbe_adapter *adapter)
 {
-	struct wx_hw *wxhw = &hw->wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 
 	wx_reset_misc(wxhw);
-	if (hw->mac_type == ngbe_mac_type_rgmii)
+	if (adapter->mac_type == ngbe_mac_type_rgmii)
 		wr32(wxhw, NGBE_MDIO_CLAUSE_SELECT, 0xF);
-	if (hw->gpio_ctrl) {
+	if (adapter->gpio_ctrl) {
 		/* gpio0 is used to power on/off control*/
 		wr32(wxhw, NGBE_GPIO_DDR, 0x1);
 		wr32(wxhw, NGBE_GPIO_DR, NGBE_GPIO_DR_0);
@@ -55,15 +55,15 @@ static int ngbe_reset_misc(struct ngbe_hw *hw)
 
 /**
  *  ngbe_reset_hw - Perform hardware reset
- *  @hw: pointer to hardware structure
+ *  @adapter: pointer to hardware structure
  *
  *  Resets the hardware by resetting the transmit and receive units, masks
  *  and clears all interrupts, perform a PHY reset, and perform a link (MAC)
  *  reset.
  **/
-int ngbe_reset_hw(struct ngbe_hw *hw)
+int ngbe_reset_hw(struct ngbe_adapter *adapter)
 {
-	struct wx_hw *wxhw = &hw->wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 	int status = 0;
 	u32 reset = 0;
 
@@ -73,7 +73,7 @@ int ngbe_reset_hw(struct ngbe_hw *hw)
 		return status;
 	reset = WX_MIS_RST_LAN_RST(wxhw->bus.func);
 	wr32(wxhw, WX_MIS_RST, reset | rd32(wxhw, WX_MIS_RST));
-	ngbe_reset_misc(hw);
+	ngbe_reset_misc(adapter);
 
 	/* Store the permanent mac address */
 	wx_get_mac_addr(wxhw, wxhw->mac.perm_addr);

@@ -127,7 +127,19 @@ struct ngbe_phy_info {
 
 };
 
-struct ngbe_hw {
+struct ngbe_mac_addr {
+	u8 addr[ETH_ALEN];
+	u16 state; /* bitmask */
+	u64 pools;
+};
+
+/* board specific private data structure */
+struct ngbe_adapter {
+	u8 __iomem *io_addr;    /* Mainly for iounmap use */
+	/* OS defined structs */
+	struct net_device *netdev;
+	struct pci_dev *pdev;
+
 	struct wx_hw wxhw;
 	struct ngbe_phy_info phy;
 	enum ngbe_mac_type mac_type;
@@ -135,5 +147,34 @@ struct ngbe_hw {
 	bool wol_enabled;
 	bool ncsi_enabled;
 	bool gpio_ctrl;
+
+	struct ngbe_mac_addr *mac_table;
+	u16 msg_enable;
+
+	/* Tx fast path data */
+	int num_tx_queues;
+	u16 tx_itr_setting;
+	u16 tx_work_limit;
+
+	/* Rx fast path data */
+	int num_rx_queues;
+	u16 rx_itr_setting;
+	u16 rx_work_limit;
+
+	int num_q_vectors;      /* current number of q_vectors for device */
+	int max_q_vectors;      /* upper limit of q_vectors for device */
+
+	u32 tx_ring_count;
+	u32 rx_ring_count;
+
+#define NGBE_MAX_RETA_ENTRIES 128
+	u8 rss_indir_tbl[NGBE_MAX_RETA_ENTRIES];
+
+#define NGBE_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
+	u32 *rss_key;
+	u32 wol;
+
+	u16 bd_number;
 };
+
 #endif /* _NGBE_TYPE_H_ */

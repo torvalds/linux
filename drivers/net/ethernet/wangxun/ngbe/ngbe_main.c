@@ -41,25 +41,23 @@ static const struct pci_device_id ngbe_pci_tbl[] = {
 
 static void ngbe_mac_set_default_filter(struct ngbe_adapter *adapter, u8 *addr)
 {
-	struct ngbe_hw *hw = &adapter->hw;
-
 	memcpy(&adapter->mac_table[0].addr, addr, ETH_ALEN);
 	adapter->mac_table[0].pools = 1ULL;
 	adapter->mac_table[0].state = (NGBE_MAC_STATE_DEFAULT |
 				       NGBE_MAC_STATE_IN_USE);
-	wx_set_rar(&hw->wxhw, 0, adapter->mac_table[0].addr,
+	wx_set_rar(&adapter->wxhw, 0, adapter->mac_table[0].addr,
 		   adapter->mac_table[0].pools,
 		   WX_PSR_MAC_SWC_AD_H_AV);
 }
 
 /**
  *  ngbe_init_type_code - Initialize the shared code
- *  @hw: pointer to hardware structure
+ *  @adapter: pointer to hardware structure
  **/
-static void ngbe_init_type_code(struct ngbe_hw *hw)
+static void ngbe_init_type_code(struct ngbe_adapter *adapter)
 {
+	struct wx_hw *wxhw = &adapter->wxhw;
 	int wol_mask = 0, ncsi_mask = 0;
-	struct wx_hw *wxhw = &hw->wxhw;
 	u16 type_mask = 0;
 
 	wxhw->mac.type = wx_mac_em;
@@ -70,39 +68,39 @@ static void ngbe_init_type_code(struct ngbe_hw *hw)
 	switch (type_mask) {
 	case NGBE_SUBID_M88E1512_SFP:
 	case NGBE_SUBID_LY_M88E1512_SFP:
-		hw->phy.type = ngbe_phy_m88e1512_sfi;
+		adapter->phy.type = ngbe_phy_m88e1512_sfi;
 		break;
 	case NGBE_SUBID_M88E1512_RJ45:
-		hw->phy.type = ngbe_phy_m88e1512;
+		adapter->phy.type = ngbe_phy_m88e1512;
 		break;
 	case NGBE_SUBID_M88E1512_MIX:
-		hw->phy.type = ngbe_phy_m88e1512_unknown;
+		adapter->phy.type = ngbe_phy_m88e1512_unknown;
 		break;
 	case NGBE_SUBID_YT8521S_SFP:
 	case NGBE_SUBID_YT8521S_SFP_GPIO:
 	case NGBE_SUBID_LY_YT8521S_SFP:
-		hw->phy.type = ngbe_phy_yt8521s_sfi;
+		adapter->phy.type = ngbe_phy_yt8521s_sfi;
 		break;
 	case NGBE_SUBID_INTERNAL_YT8521S_SFP:
 	case NGBE_SUBID_INTERNAL_YT8521S_SFP_GPIO:
-		hw->phy.type = ngbe_phy_internal_yt8521s_sfi;
+		adapter->phy.type = ngbe_phy_internal_yt8521s_sfi;
 		break;
 	case NGBE_SUBID_RGMII_FPGA:
 	case NGBE_SUBID_OCP_CARD:
 		fallthrough;
 	default:
-		hw->phy.type = ngbe_phy_internal;
+		adapter->phy.type = ngbe_phy_internal;
 		break;
 	}
 
-	if (hw->phy.type == ngbe_phy_internal ||
-	    hw->phy.type == ngbe_phy_internal_yt8521s_sfi)
-		hw->mac_type = ngbe_mac_type_mdi;
+	if (adapter->phy.type == ngbe_phy_internal ||
+	    adapter->phy.type == ngbe_phy_internal_yt8521s_sfi)
+		adapter->mac_type = ngbe_mac_type_mdi;
 	else
-		hw->mac_type = ngbe_mac_type_rgmii;
+		adapter->mac_type = ngbe_mac_type_rgmii;
 
-	hw->wol_enabled = (wol_mask == NGBE_WOL_SUP) ? 1 : 0;
-	hw->ncsi_enabled = (ncsi_mask == NGBE_NCSI_MASK ||
+	adapter->wol_enabled = (wol_mask == NGBE_WOL_SUP) ? 1 : 0;
+	adapter->ncsi_enabled = (ncsi_mask == NGBE_NCSI_MASK ||
 			   type_mask == NGBE_SUBID_OCP_CARD) ? 1 : 0;
 
 	switch (type_mask) {
@@ -110,10 +108,10 @@ static void ngbe_init_type_code(struct ngbe_hw *hw)
 	case NGBE_SUBID_LY_M88E1512_SFP:
 	case NGBE_SUBID_YT8521S_SFP_GPIO:
 	case NGBE_SUBID_INTERNAL_YT8521S_SFP_GPIO:
-		hw->gpio_ctrl = 1;
+		adapter->gpio_ctrl = 1;
 		break;
 	default:
-		hw->gpio_ctrl = 0;
+		adapter->gpio_ctrl = 0;
 		break;
 	}
 }
@@ -147,8 +145,7 @@ static inline int ngbe_init_rss_key(struct ngbe_adapter *adapter)
 static int ngbe_sw_init(struct ngbe_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
-	struct ngbe_hw *hw = &adapter->hw;
-	struct wx_hw *wxhw = &hw->wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 	u16 msix_count = 0;
 	int err = 0;
 
@@ -164,7 +161,7 @@ static int ngbe_sw_init(struct ngbe_adapter *adapter)
 	}
 
 	/* mac type, phy type , oem type */
-	ngbe_init_type_code(hw);
+	ngbe_init_type_code(adapter);
 
 	wxhw->mac.max_rx_queues = NGBE_MAX_RX_QUEUES;
 	wxhw->mac.max_tx_queues = NGBE_MAX_TX_QUEUES;
@@ -221,8 +218,7 @@ static void ngbe_down(struct ngbe_adapter *adapter)
 static int ngbe_open(struct net_device *netdev)
 {
 	struct ngbe_adapter *adapter = netdev_priv(netdev);
-	struct ngbe_hw *hw = &adapter->hw;
-	struct wx_hw *wxhw = &hw->wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 
 	wx_control_hw(wxhw, true);
 
@@ -245,7 +241,7 @@ static int ngbe_close(struct net_device *netdev)
 	struct ngbe_adapter *adapter = netdev_priv(netdev);
 
 	ngbe_down(adapter);
-	wx_control_hw(&adapter->hw.wxhw, false);
+	wx_control_hw(&adapter->wxhw, false);
 
 	return 0;
 }
@@ -266,7 +262,7 @@ static netdev_tx_t ngbe_xmit_frame(struct sk_buff *skb,
 static int ngbe_set_mac(struct net_device *netdev, void *p)
 {
 	struct ngbe_adapter *adapter = netdev_priv(netdev);
-	struct wx_hw *wxhw = &adapter->hw.wxhw;
+	struct wx_hw *wxhw = &adapter->wxhw;
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
@@ -291,7 +287,7 @@ static void ngbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	if (netif_running(netdev))
 		ngbe_down(adapter);
 	rtnl_unlock();
-	wx_control_hw(&adapter->hw.wxhw, false);
+	wx_control_hw(&adapter->wxhw, false);
 
 	pci_disable_device(pdev);
 }
@@ -334,7 +330,6 @@ static int ngbe_probe(struct pci_dev *pdev,
 		      const struct pci_device_id __always_unused *ent)
 {
 	struct ngbe_adapter *adapter = NULL;
-	struct ngbe_hw *hw = NULL;
 	struct wx_hw *wxhw = NULL;
 	struct net_device *netdev;
 	u32 e2rom_cksum_cap = 0;
@@ -381,8 +376,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
-	hw = &adapter->hw;
-	wxhw = &hw->wxhw;
+	wxhw = &adapter->wxhw;
 	adapter->msg_enable = BIT(3) - 1;
 
 	adapter->io_addr = devm_ioremap(&pdev->dev,
@@ -417,7 +411,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 		goto err_free_mac_table;
 	}
 
-	err = ngbe_reset_hw(hw);
+	err = ngbe_reset_hw(adapter);
 	if (err) {
 		dev_err(&pdev->dev, "HW Init failed: %d\n", err);
 		goto err_free_mac_table;
@@ -434,7 +428,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 	wx_init_eeprom_params(wxhw);
 	if (wxhw->bus.func == 0 || e2rom_cksum_cap == 0) {
 		/* make sure the EEPROM is ready */
-		err = ngbe_eeprom_chksum_hostif(hw);
+		err = ngbe_eeprom_chksum_hostif(adapter);
 		if (err) {
 			dev_err(&pdev->dev, "The EEPROM Checksum Is Not Valid\n");
 			err = -EIO;
@@ -443,10 +437,10 @@ static int ngbe_probe(struct pci_dev *pdev,
 	}
 
 	adapter->wol = 0;
-	if (hw->wol_enabled)
+	if (adapter->wol_enabled)
 		adapter->wol = NGBE_PSR_WKUP_CTL_MAG;
 
-	hw->wol_enabled = !!(adapter->wol);
+	adapter->wol_enabled = !!(adapter->wol);
 	wr32(wxhw, NGBE_PSR_WKUP_CTL, adapter->wol);
 
 	device_set_wakeup_enable(&pdev->dev, adapter->wol);
@@ -479,7 +473,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 
 	netif_info(adapter, probe, netdev,
 		   "PHY: %s, PBA No: Wang Xun GbE Family Controller\n",
-		   hw->phy.type == ngbe_phy_internal ? "Internal" : "External");
+		   adapter->phy.type == ngbe_phy_internal ? "Internal" : "External");
 	netif_info(adapter, probe, netdev, "%pM\n", netdev->dev_addr);
 
 	return 0;
