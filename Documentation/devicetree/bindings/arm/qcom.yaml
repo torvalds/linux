@@ -217,6 +217,7 @@ properties:
               - samsung,e7
               - samsung,grandmax
               - samsung,j5
+              - samsung,j5x
               - samsung,serranove
               - wingtech,wt88047
           - const: qcom,msm8916
