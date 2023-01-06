@@ -1305,6 +1305,10 @@ static int enetc_xdp_frame_to_xdp_tx_swbd(struct enetc_bdr *tx_ring,
 	xdp_tx_swbd->xdp_frame = NULL;
 
 	n++;
+
+	if (!xdp_frame_has_frags(xdp_frame))
+		goto out;
+
 	xdp_tx_swbd = &xdp_tx_arr[n];
 
 	shinfo = xdp_get_shared_info_from_frame(xdp_frame);
@@ -1334,7 +1338,7 @@ static int enetc_xdp_frame_to_xdp_tx_swbd(struct enetc_bdr *tx_ring,
 		n++;
 		xdp_tx_swbd = &xdp_tx_arr[n];
 	}
-
+out:
 	xdp_tx_arr[n - 1].is_eof = true;
 	xdp_tx_arr[n - 1].xdp_frame = xdp_frame;
 
@@ -1390,16 +1394,12 @@ static void enetc_map_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
 {
 	struct enetc_rx_swbd *rx_swbd = enetc_get_rx_buff(rx_ring, i, size);
 	void *hard_start = page_address(rx_swbd->page) + rx_swbd->page_offset;
-	struct skb_shared_info *shinfo;
 
 	/* To be used for XDP_TX */
 	rx_swbd->len = size;
 
 	xdp_prepare_buff(xdp_buff, hard_start - rx_ring->buffer_offset,
 			 rx_ring->buffer_offset, size, false);
-
-	shinfo = xdp_get_shared_info_from_buff(xdp_buff);
-	shinfo->nr_frags = 0;
 }
 
 static void enetc_add_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
@@ -1407,11 +1407,23 @@ static void enetc_add_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
 {
 	struct skb_shared_info *shinfo = xdp_get_shared_info_from_buff(xdp_buff);
 	struct enetc_rx_swbd *rx_swbd = enetc_get_rx_buff(rx_ring, i, size);
-	skb_frag_t *frag = &shinfo->frags[shinfo->nr_frags];
+	skb_frag_t *frag;
 
 	/* To be used for XDP_TX */
 	rx_swbd->len = size;
 
+	if (!xdp_buff_has_frags(xdp_buff)) {
+		xdp_buff_set_frags_flag(xdp_buff);
+		shinfo->xdp_frags_size = size;
+		shinfo->nr_frags = 0;
+	} else {
+		shinfo->xdp_frags_size += size;
+	}
+
+	if (page_is_pfmemalloc(rx_swbd->page))
+		xdp_buff_set_frag_pfmemalloc(xdp_buff);
+
+	frag = &shinfo->frags[shinfo->nr_frags];
 	skb_frag_off_set(frag, rx_swbd->page_offset);
 	skb_frag_size_set(frag, size);
 	__skb_frag_set_page(frag, rx_swbd->page);
@@ -1584,20 +1596,6 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 			}
 			break;
 		case XDP_REDIRECT:
-			/* xdp_return_frame does not support S/G in the sense
-			 * that it leaks the fragments (__xdp_return should not
-			 * call page_frag_free only for the initial buffer).
-			 * Until XDP_REDIRECT gains support for S/G let's keep
-			 * the code structure in place, but dead. We drop the
-			 * S/G frames ourselves to avoid memory leaks which
-			 * would otherwise leave the kernel OOM.
-			 */
-			if (unlikely(cleaned_cnt - orig_cleaned_cnt != 1)) {
-				enetc_xdp_drop(rx_ring, orig_i, i);
-				rx_ring->stats.xdp_redirect_sg++;
-				break;
-			}
-
 			err = xdp_do_redirect(rx_ring->ndev, &xdp_buff, prog);
 			if (unlikely(err)) {
 				enetc_xdp_drop(rx_ring, orig_i, i);

@@ -70,7 +70,6 @@ struct enetc_ring_stats {
 	unsigned int xdp_tx_drops;
 	unsigned int xdp_redirect;
 	unsigned int xdp_redirect_failures;
-	unsigned int xdp_redirect_sg;
 	unsigned int recycles;
 	unsigned int recycle_failures;
 	unsigned int win_drop;
