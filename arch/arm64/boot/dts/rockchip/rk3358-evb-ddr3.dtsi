@@ -97,33 +97,26 @@
 		status = "okay";
 	};
 
-	rk809-sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,rk809-codec";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,widgets =
-			"Microphone", "Mic Jack",
-			"Headphone", "Headphone Jack";
-		simple-audio-card,routing =
-			"Mic Jack", "MICBIAS1",
-			"IN1P", "Mic Jack",
-			"Headphone Jack", "HPOL",
-			"Headphone Jack", "HPOR";
-		simple-audio-card,cpu {
-			sound-dai = <&i2s1_2ch>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&rk809_codec>;
-		};
-	};
-
-	rk_headset: rk-headset {
-		compatible = "rockchip_headset";
-		headset_gpio = <&gpio2 RK_PB0 GPIO_ACTIVE_LOW>;
+	rk809_sound: rk809-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-rk809";
+		hp-det-gpio = <&gpio2 RK_PB0 GPIO_ACTIVE_LOW>;
+		io-channels = <&saradc 1>;
+		io-channel-names = "adc-detect";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s1_2ch>;
+		rockchip,codec = <&rk809_codec>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_det>;
-		io-channels = <&saradc 1>;
+		play-pause-key {
+			label = "playpause";
+			linux,code = <KEY_PLAYPAUSE>;
+			press-threshold-microvolt = <2000>;
+		};
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
