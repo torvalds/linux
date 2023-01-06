@@ -189,6 +189,8 @@
 #define WX_MAC_STATE_MODIFIED        0x2
 #define WX_MAC_STATE_IN_USE          0x4
 
+#define WX_CFG_PORT_ST               0x14404
+
 /* Host Interface Command Structures */
 struct wx_hic_hdr {
 	u8 cmd;
@@ -253,6 +255,12 @@ enum wx_mac_type {
 	wx_mac_em
 };
 
+enum em_mac_type {
+	em_mac_type_unknown = 0,
+	em_mac_type_mdi,
+	em_mac_type_rgmii
+};
+
 struct wx_mac_info {
 	enum wx_mac_type type;
 	bool set_lben;
@@ -306,6 +314,7 @@ struct wx {
 	struct net_device *netdev;
 	struct wx_bus_info bus;
 	struct wx_mac_info mac;
+	enum em_mac_type mac_type;
 	struct wx_eeprom_info eeprom;
 	struct wx_addr_filter_info addr_ctrl;
 	struct wx_mac_addr *mac_table;
@@ -320,6 +329,35 @@ struct wx {
 	bool adapter_stopped;
 	char eeprom_id[32];
 	enum wx_reset_type reset_type;
+
+	bool wol_enabled;
+	bool ncsi_enabled;
+	bool gpio_ctrl;
+
+	/* Tx fast path data */
+	int num_tx_queues;
+	u16 tx_itr_setting;
+	u16 tx_work_limit;
+
+	/* Rx fast path data */
+	int num_rx_queues;
+	u16 rx_itr_setting;
+	u16 rx_work_limit;
+
+	int num_q_vectors;      /* current number of q_vectors for device */
+	int max_q_vectors;      /* upper limit of q_vectors for device */
+
+	u32 tx_ring_count;
+	u32 rx_ring_count;
+
+#define WX_MAX_RETA_ENTRIES 128
+	u8 rss_indir_tbl[WX_MAX_RETA_ENTRIES];
+
+#define WX_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
+	u32 *rss_key;
+	u32 wol;
+
+	u16 bd_number;
 };
 
 #define WX_INTR_ALL (~0ULL)
