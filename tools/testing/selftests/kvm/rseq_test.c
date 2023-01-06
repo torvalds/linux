@@ -41,18 +41,6 @@ static void guest_code(void)
 		GUEST_SYNC(0);
 }
 
-/*
- * We have to perform direct system call for getcpu() because it's
- * not available until glic 2.29.
- */
-static void sys_getcpu(unsigned *cpu)
-{
-	int r;
-
-	r = syscall(__NR_getcpu, cpu, NULL, NULL);
-	TEST_ASSERT(!r, "getcpu failed, errno = %d (%s)", errno, strerror(errno));
-}
-
 static int next_cpu(int cpu)
 {
 	/*
@@ -249,7 +237,9 @@ int main(int argc, char *argv[])
 			 * across the seq_cnt reads.
 			 */
 			smp_rmb();
-			sys_getcpu(&cpu);
+			r = sys_getcpu(&cpu, NULL);
+			TEST_ASSERT(!r, "getcpu failed, errno = %d (%s)",
+				    errno, strerror(errno));
 			rseq_cpu = rseq_current_cpu_raw();
 			smp_rmb();
 		} while (snapshot != atomic_read(&seq_cnt));
