@@ -39,17 +39,6 @@ static const struct pci_device_id ngbe_pci_tbl[] = {
 	{ .device = 0 }
 };
 
-static void ngbe_mac_set_default_filter(struct ngbe_adapter *adapter, u8 *addr)
-{
-	memcpy(&adapter->mac_table[0].addr, addr, ETH_ALEN);
-	adapter->mac_table[0].pools = 1ULL;
-	adapter->mac_table[0].state = (NGBE_MAC_STATE_DEFAULT |
-				       NGBE_MAC_STATE_IN_USE);
-	wx_set_rar(&adapter->wxhw, 0, adapter->mac_table[0].addr,
-		   adapter->mac_table[0].pools,
-		   WX_PSR_MAC_SWC_AD_H_AV);
-}
-
 /**
  *  ngbe_init_type_code - Initialize the shared code
  *  @adapter: pointer to hardware structure
@@ -152,6 +141,10 @@ static int ngbe_sw_init(struct ngbe_adapter *adapter)
 	wxhw->hw_addr = adapter->io_addr;
 	wxhw->pdev = pdev;
 
+	wxhw->mac.num_rar_entries = NGBE_RAR_ENTRIES;
+	wxhw->mac.max_rx_queues = NGBE_MAX_RX_QUEUES;
+	wxhw->mac.max_tx_queues = NGBE_MAX_TX_QUEUES;
+
 	/* PCI config space info */
 	err = wx_sw_init(wxhw);
 	if (err < 0) {
@@ -163,24 +156,12 @@ static int ngbe_sw_init(struct ngbe_adapter *adapter)
 	/* mac type, phy type , oem type */
 	ngbe_init_type_code(adapter);
 
-	wxhw->mac.max_rx_queues = NGBE_MAX_RX_QUEUES;
-	wxhw->mac.max_tx_queues = NGBE_MAX_TX_QUEUES;
-	wxhw->mac.num_rar_entries = NGBE_RAR_ENTRIES;
 	/* Set common capability flags and settings */
 	adapter->max_q_vectors = NGBE_MAX_MSIX_VECTORS;
-
 	err = wx_get_pcie_msix_counts(wxhw, &msix_count, NGBE_MAX_MSIX_VECTORS);
 	if (err)
 		dev_err(&pdev->dev, "Do not support MSI-X\n");
 	wxhw->mac.max_msix_vectors = msix_count;
-
-	adapter->mac_table = kcalloc(wxhw->mac.num_rar_entries,
-				     sizeof(struct ngbe_mac_addr),
-				     GFP_KERNEL);
-	if (!adapter->mac_table) {
-		dev_err(&pdev->dev, "mac_table allocation failed: %d\n", err);
-		return -ENOMEM;
-	}
 
 	if (ngbe_init_rss_key(adapter))
 		return -ENOMEM;
@@ -252,30 +233,6 @@ static netdev_tx_t ngbe_xmit_frame(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-/**
- * ngbe_set_mac - Change the Ethernet Address of the NIC
- * @netdev: network interface device structure
- * @p: pointer to an address structure
- *
- * Returns 0 on success, negative on failure
- **/
-static int ngbe_set_mac(struct net_device *netdev, void *p)
-{
-	struct ngbe_adapter *adapter = netdev_priv(netdev);
-	struct wx_hw *wxhw = &adapter->wxhw;
-	struct sockaddr *addr = p;
-
-	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
-
-	eth_hw_addr_set(netdev, addr->sa_data);
-	memcpy(wxhw->mac.addr, addr->sa_data, netdev->addr_len);
-
-	ngbe_mac_set_default_filter(adapter, wxhw->mac.addr);
-
-	return 0;
-}
-
 static void ngbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
 	struct ngbe_adapter *adapter = pci_get_drvdata(pdev);
@@ -312,7 +269,7 @@ static const struct net_device_ops ngbe_netdev_ops = {
 	.ndo_stop               = ngbe_close,
 	.ndo_start_xmit         = ngbe_xmit_frame,
 	.ndo_validate_addr      = eth_validate_addr,
-	.ndo_set_mac_address    = ngbe_set_mac,
+	.ndo_set_mac_address    = wx_set_mac,
 };
 
 /**
@@ -377,6 +334,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 	wxhw = &adapter->wxhw;
+	wxhw->netdev = netdev;
 	adapter->msg_enable = BIT(3) - 1;
 
 	adapter->io_addr = devm_ioremap(&pdev->dev,
@@ -463,7 +421,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 	}
 
 	eth_hw_addr_set(netdev, wxhw->mac.perm_addr);
-	ngbe_mac_set_default_filter(adapter, wxhw->mac.perm_addr);
+	wx_mac_set_default_filter(wxhw, wxhw->mac.perm_addr);
 
 	err = register_netdev(netdev);
 	if (err)
@@ -481,7 +439,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 err_register:
 	wx_control_hw(wxhw, false);
 err_free_mac_table:
-	kfree(adapter->mac_table);
+	kfree(wxhw->mac_table);
 err_pci_release_regions:
 	pci_disable_pcie_error_reporting(pdev);
 	pci_release_selected_regions(pdev,
@@ -503,6 +461,7 @@ err_pci_disable_dev:
 static void ngbe_remove(struct pci_dev *pdev)
 {
 	struct ngbe_adapter *adapter = pci_get_drvdata(pdev);
+	struct wx_hw *wxhw = &adapter->wxhw;
 	struct net_device *netdev;
 
 	netdev = adapter->netdev;
@@ -510,7 +469,7 @@ static void ngbe_remove(struct pci_dev *pdev)
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 
-	kfree(adapter->mac_table);
+	kfree(wxhw->mac_table);
 	pci_disable_pcie_error_reporting(pdev);
 
 	pci_disable_device(pdev);

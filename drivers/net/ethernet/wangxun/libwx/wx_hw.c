@@ -2,6 +2,7 @@
 /* Copyright (c) 2015 - 2022 Beijing WangXun Technology Co., Ltd. */
 
 #include <linux/etherdevice.h>
+#include <linux/netdevice.h>
 #include <linux/if_ether.h>
 #include <linux/iopoll.h>
 #include <linux/pci.h>
@@ -536,8 +537,8 @@ EXPORT_SYMBOL(wx_get_mac_addr);
  *
  *  Puts an ethernet address into a receive address register.
  **/
-int wx_set_rar(struct wx_hw *wxhw, u32 index, u8 *addr, u64 pools,
-	       u32 enable_addr)
+static int wx_set_rar(struct wx_hw *wxhw, u32 index, u8 *addr, u64 pools,
+		      u32 enable_addr)
 {
 	u32 rar_entries = wxhw->mac.num_rar_entries;
 	u32 rar_low, rar_high;
@@ -581,7 +582,6 @@ int wx_set_rar(struct wx_hw *wxhw, u32 index, u8 *addr, u64 pools,
 
 	return 0;
 }
-EXPORT_SYMBOL(wx_set_rar);
 
 /**
  *  wx_clear_rar - Remove Rx address register
@@ -590,7 +590,7 @@ EXPORT_SYMBOL(wx_set_rar);
  *
  *  Clears an ethernet address from a receive address register.
  **/
-int wx_clear_rar(struct wx_hw *wxhw, u32 index)
+static int wx_clear_rar(struct wx_hw *wxhw, u32 index)
 {
 	u32 rar_entries = wxhw->mac.num_rar_entries;
 
@@ -618,7 +618,6 @@ int wx_clear_rar(struct wx_hw *wxhw, u32 index)
 
 	return 0;
 }
-EXPORT_SYMBOL(wx_clear_rar);
 
 /**
  *  wx_clear_vmdq - Disassociate a VMDq pool index from a rx address
@@ -721,6 +720,105 @@ void wx_init_rx_addrs(struct wx_hw *wxhw)
 	wx_init_uta_tables(wxhw);
 }
 EXPORT_SYMBOL(wx_init_rx_addrs);
+
+static void wx_sync_mac_table(struct wx_hw *wxhw)
+{
+	int i;
+
+	for (i = 0; i < wxhw->mac.num_rar_entries; i++) {
+		if (wxhw->mac_table[i].state & WX_MAC_STATE_MODIFIED) {
+			if (wxhw->mac_table[i].state & WX_MAC_STATE_IN_USE) {
+				wx_set_rar(wxhw, i,
+					   wxhw->mac_table[i].addr,
+					   wxhw->mac_table[i].pools,
+					   WX_PSR_MAC_SWC_AD_H_AV);
+			} else {
+				wx_clear_rar(wxhw, i);
+			}
+			wxhw->mac_table[i].state &= ~(WX_MAC_STATE_MODIFIED);
+		}
+	}
+}
+
+/* this function destroys the first RAR entry */
+void wx_mac_set_default_filter(struct wx_hw *wxhw, u8 *addr)
+{
+	memcpy(&wxhw->mac_table[0].addr, addr, ETH_ALEN);
+	wxhw->mac_table[0].pools = 1ULL;
+	wxhw->mac_table[0].state = (WX_MAC_STATE_DEFAULT | WX_MAC_STATE_IN_USE);
+	wx_set_rar(wxhw, 0, wxhw->mac_table[0].addr,
+		   wxhw->mac_table[0].pools,
+		   WX_PSR_MAC_SWC_AD_H_AV);
+}
+EXPORT_SYMBOL(wx_mac_set_default_filter);
+
+void wx_flush_sw_mac_table(struct wx_hw *wxhw)
+{
+	u32 i;
+
+	for (i = 0; i < wxhw->mac.num_rar_entries; i++) {
+		if (!(wxhw->mac_table[i].state & WX_MAC_STATE_IN_USE))
+			continue;
+
+		wxhw->mac_table[i].state |= WX_MAC_STATE_MODIFIED;
+		wxhw->mac_table[i].state &= ~WX_MAC_STATE_IN_USE;
+		memset(wxhw->mac_table[i].addr, 0, ETH_ALEN);
+		wxhw->mac_table[i].pools = 0;
+	}
+	wx_sync_mac_table(wxhw);
+}
+EXPORT_SYMBOL(wx_flush_sw_mac_table);
+
+static int wx_del_mac_filter(struct wx_hw *wxhw, u8 *addr, u16 pool)
+{
+	u32 i;
+
+	if (is_zero_ether_addr(addr))
+		return -EINVAL;
+
+	/* search table for addr, if found, set to 0 and sync */
+	for (i = 0; i < wxhw->mac.num_rar_entries; i++) {
+		if (!ether_addr_equal(addr, wxhw->mac_table[i].addr))
+			continue;
+
+		wxhw->mac_table[i].state |= WX_MAC_STATE_MODIFIED;
+		wxhw->mac_table[i].pools &= ~(1ULL << pool);
+		if (!wxhw->mac_table[i].pools) {
+			wxhw->mac_table[i].state &= ~WX_MAC_STATE_IN_USE;
+			memset(wxhw->mac_table[i].addr, 0, ETH_ALEN);
+		}
+		wx_sync_mac_table(wxhw);
+		return 0;
+	}
+	return -ENOMEM;
+}
+
+/**
+ * wx_set_mac - Change the Ethernet Address of the NIC
+ * @netdev: network interface device structure
+ * @p: pointer to an address structure
+ *
+ * Returns 0 on success, negative on failure
+ **/
+int wx_set_mac(struct net_device *netdev, void *p)
+{
+	struct wx_hw *wxhw = container_of(&netdev, struct wx_hw, netdev);
+	struct sockaddr *addr = p;
+	int retval;
+
+	retval = eth_prepare_mac_addr_change(netdev, addr);
+	if (retval)
+		return retval;
+
+	wx_del_mac_filter(wxhw, wxhw->mac.addr, 0);
+	eth_hw_addr_set(netdev, addr->sa_data);
+	memcpy(wxhw->mac.addr, addr->sa_data, netdev->addr_len);
+
+	wx_mac_set_default_filter(wxhw, wxhw->mac.addr);
+
+	return 0;
+}
+EXPORT_SYMBOL(wx_set_mac);
 
 void wx_disable_rx(struct wx_hw *wxhw)
 {
@@ -927,6 +1025,14 @@ int wx_sw_init(struct wx_hw *wxhw)
 			wxhw->subsystem_device_id = swab16((u16)ssid);
 
 		return err;
+	}
+
+	wxhw->mac_table = kcalloc(wxhw->mac.num_rar_entries,
+				  sizeof(struct wx_mac_addr),
+				  GFP_KERNEL);
+	if (!wxhw->mac_table) {
+		wx_err(wxhw, "mac_table allocation failed\n");
+		return -ENOMEM;
 	}
 
 	return 0;

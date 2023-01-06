@@ -15,9 +15,10 @@ int wx_read_ee_hostif_buffer(struct wx_hw *wxhw,
 int wx_reset_hostif(struct wx_hw *wxhw);
 void wx_init_eeprom_params(struct wx_hw *wxhw);
 void wx_get_mac_addr(struct wx_hw *wxhw, u8 *mac_addr);
-int wx_set_rar(struct wx_hw *wxhw, u32 index, u8 *addr, u64 pools, u32 enable_addr);
-int wx_clear_rar(struct wx_hw *wxhw, u32 index);
 void wx_init_rx_addrs(struct wx_hw *wxhw);
+void wx_mac_set_default_filter(struct wx_hw *wxhw, u8 *addr);
+void wx_flush_sw_mac_table(struct wx_hw *wxhw);
+int wx_set_mac(struct net_device *netdev, void *p);
 void wx_disable_rx(struct wx_hw *wxhw);
 int wx_disable_pcie_master(struct wx_hw *wxhw);
 int wx_stop_adapter(struct wx_hw *wxhw);

@@ -72,90 +72,6 @@ static int txgbe_enumerate_functions(struct txgbe_adapter *adapter)
 	return physfns;
 }
 
-static void txgbe_sync_mac_table(struct txgbe_adapter *adapter)
-{
-	struct wx_hw *wxhw = &adapter->wxhw;
-	int i;
-
-	for (i = 0; i < wxhw->mac.num_rar_entries; i++) {
-		if (adapter->mac_table[i].state & TXGBE_MAC_STATE_MODIFIED) {
-			if (adapter->mac_table[i].state & TXGBE_MAC_STATE_IN_USE) {
-				wx_set_rar(wxhw, i,
-					   adapter->mac_table[i].addr,
-					   adapter->mac_table[i].pools,
-					   WX_PSR_MAC_SWC_AD_H_AV);
-			} else {
-				wx_clear_rar(wxhw, i);
-			}
-			adapter->mac_table[i].state &= ~(TXGBE_MAC_STATE_MODIFIED);
-		}
-	}
-}
-
-/* this function destroys the first RAR entry */
-static void txgbe_mac_set_default_filter(struct txgbe_adapter *adapter,
-					 u8 *addr)
-{
-	struct wx_hw *wxhw = &adapter->wxhw;
-
-	memcpy(&adapter->mac_table[0].addr, addr, ETH_ALEN);
-	adapter->mac_table[0].pools = 1ULL;
-	adapter->mac_table[0].state = (TXGBE_MAC_STATE_DEFAULT |
-				       TXGBE_MAC_STATE_IN_USE);
-	wx_set_rar(wxhw, 0, adapter->mac_table[0].addr,
-		   adapter->mac_table[0].pools,
-		   WX_PSR_MAC_SWC_AD_H_AV);
-}
-
-static void txgbe_flush_sw_mac_table(struct txgbe_adapter *adapter)
-{
-	struct wx_hw *wxhw = &adapter->wxhw;
-	u32 i;
-
-	for (i = 0; i < wxhw->mac.num_rar_entries; i++) {
-		adapter->mac_table[i].state |= TXGBE_MAC_STATE_MODIFIED;
-		adapter->mac_table[i].state &= ~TXGBE_MAC_STATE_IN_USE;
-		memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
-		adapter->mac_table[i].pools = 0;
-	}
-	txgbe_sync_mac_table(adapter);
-}
-
-static int txgbe_del_mac_filter(struct txgbe_adapter *adapter, u8 *addr, u16 pool)
-{
-	struct wx_hw *wxhw = &adapter->wxhw;
-	u32 i;
-
-	if (is_zero_ether_addr(addr))
-		return -EINVAL;
-
-	/* search table for addr, if found, set to 0 and sync */
-	for (i = 0; i < wxhw->mac.num_rar_entries; i++) {
-		if (ether_addr_equal(addr, adapter->mac_table[i].addr)) {
-			if (adapter->mac_table[i].pools & (1ULL << pool)) {
-				adapter->mac_table[i].state |= TXGBE_MAC_STATE_MODIFIED;
-				adapter->mac_table[i].state &= ~TXGBE_MAC_STATE_IN_USE;
-				adapter->mac_table[i].pools &= ~(1ULL << pool);
-				txgbe_sync_mac_table(adapter);
-			}
-			return 0;
-		}
-
-		if (adapter->mac_table[i].pools != (1 << pool))
-			continue;
-		if (!ether_addr_equal(addr, adapter->mac_table[i].addr))
-			continue;
-
-		adapter->mac_table[i].state |= TXGBE_MAC_STATE_MODIFIED;
-		adapter->mac_table[i].state &= ~TXGBE_MAC_STATE_IN_USE;
-		memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
-		adapter->mac_table[i].pools = 0;
-		txgbe_sync_mac_table(adapter);
-		return 0;
-	}
-	return -ENOMEM;
-}
-
 static void txgbe_up_complete(struct txgbe_adapter *adapter)
 {
 	struct wx_hw *wxhw = &adapter->wxhw;
@@ -166,6 +82,7 @@ static void txgbe_up_complete(struct txgbe_adapter *adapter)
 static void txgbe_reset(struct txgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct wx_hw *wxhw = &adapter->wxhw;
 	u8 old_addr[ETH_ALEN];
 	int err;
 
@@ -174,9 +91,9 @@ static void txgbe_reset(struct txgbe_adapter *adapter)
 		dev_err(&adapter->pdev->dev, "Hardware Error: %d\n", err);
 
 	/* do not flush user set addresses */
-	memcpy(old_addr, &adapter->mac_table[0].addr, netdev->addr_len);
-	txgbe_flush_sw_mac_table(adapter);
-	txgbe_mac_set_default_filter(adapter, old_addr);
+	memcpy(old_addr, &wxhw->mac_table[0].addr, netdev->addr_len);
+	wx_flush_sw_mac_table(wxhw);
+	wx_mac_set_default_filter(wxhw, old_addr);
 }
 
 static void txgbe_disable_device(struct txgbe_adapter *adapter)
@@ -227,6 +144,11 @@ static int txgbe_sw_init(struct txgbe_adapter *adapter)
 	wxhw->hw_addr = adapter->io_addr;
 	wxhw->pdev = pdev;
 
+	wxhw->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
+	wxhw->mac.max_tx_queues = TXGBE_SP_MAX_TX_QUEUES;
+	wxhw->mac.max_rx_queues = TXGBE_SP_MAX_RX_QUEUES;
+	wxhw->mac.mcft_size = TXGBE_SP_MC_TBL_SIZE;
+
 	/* PCI config space info */
 	err = wx_sw_init(wxhw);
 	if (err < 0) {
@@ -243,20 +165,6 @@ static int txgbe_sw_init(struct txgbe_adapter *adapter)
 	default:
 		wxhw->mac.type = wx_mac_unknown;
 		break;
-	}
-
-	wxhw->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
-	wxhw->mac.max_tx_queues = TXGBE_SP_MAX_TX_QUEUES;
-	wxhw->mac.max_rx_queues = TXGBE_SP_MAX_RX_QUEUES;
-	wxhw->mac.mcft_size = TXGBE_SP_MC_TBL_SIZE;
-
-	adapter->mac_table = kcalloc(wxhw->mac.num_rar_entries,
-				     sizeof(struct txgbe_mac_addr),
-				     GFP_KERNEL);
-	if (!adapter->mac_table) {
-		netif_err(adapter, probe, adapter->netdev,
-			  "mac_table allocation failed\n");
-		return -ENOMEM;
 	}
 
 	return 0;
@@ -349,39 +257,12 @@ static netdev_tx_t txgbe_xmit_frame(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-/**
- * txgbe_set_mac - Change the Ethernet Address of the NIC
- * @netdev: network interface device structure
- * @p: pointer to an address structure
- *
- * Returns 0 on success, negative on failure
- **/
-static int txgbe_set_mac(struct net_device *netdev, void *p)
-{
-	struct txgbe_adapter *adapter = netdev_priv(netdev);
-	struct wx_hw *wxhw = &adapter->wxhw;
-	struct sockaddr *addr = p;
-	int retval;
-
-	retval = eth_prepare_mac_addr_change(netdev, addr);
-	if (retval)
-		return retval;
-
-	txgbe_del_mac_filter(adapter, wxhw->mac.addr, 0);
-	eth_hw_addr_set(netdev, addr->sa_data);
-	memcpy(wxhw->mac.addr, addr->sa_data, netdev->addr_len);
-
-	txgbe_mac_set_default_filter(adapter, wxhw->mac.addr);
-
-	return 0;
-}
-
 static const struct net_device_ops txgbe_netdev_ops = {
 	.ndo_open               = txgbe_open,
 	.ndo_stop               = txgbe_close,
 	.ndo_start_xmit         = txgbe_xmit_frame,
 	.ndo_validate_addr      = eth_validate_addr,
-	.ndo_set_mac_address    = txgbe_set_mac,
+	.ndo_set_mac_address    = wx_set_mac,
 };
 
 /**
@@ -447,6 +328,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 	wxhw = &adapter->wxhw;
+	wxhw->netdev = netdev;
 	adapter->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
 
 	adapter->io_addr = devm_ioremap(&pdev->dev,
@@ -496,7 +378,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	}
 
 	eth_hw_addr_set(netdev, wxhw->mac.perm_addr);
-	txgbe_mac_set_default_filter(adapter, wxhw->mac.perm_addr);
+	wx_mac_set_default_filter(wxhw, wxhw->mac.perm_addr);
 
 	/* Save off EEPROM version number and Option Rom version which
 	 * together make a unique identify for the eeprom
@@ -568,7 +450,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 err_release_hw:
 	wx_control_hw(wxhw, false);
 err_free_mac_table:
-	kfree(adapter->mac_table);
+	kfree(wxhw->mac_table);
 err_pci_release_regions:
 	pci_disable_pcie_error_reporting(pdev);
 	pci_release_selected_regions(pdev,
@@ -598,7 +480,7 @@ static void txgbe_remove(struct pci_dev *pdev)
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 
-	kfree(adapter->mac_table);
+	kfree(adapter->wxhw.mac_table);
 
 	pci_disable_pcie_error_reporting(pdev);
 

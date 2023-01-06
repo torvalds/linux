@@ -110,10 +110,6 @@
 #define NGBE_MAX_RXD				8192
 #define NGBE_MIN_RXD				128
 
-#define NGBE_MAC_STATE_DEFAULT		0x1
-#define NGBE_MAC_STATE_MODIFIED		0x2
-#define NGBE_MAC_STATE_IN_USE		0x4
-
 enum ngbe_phy_type {
 	ngbe_phy_unknown = 0,
 	ngbe_phy_none,
@@ -151,12 +147,6 @@ struct ngbe_phy_info {
 
 };
 
-struct ngbe_mac_addr {
-	u8 addr[ETH_ALEN];
-	u16 state; /* bitmask */
-	u64 pools;
-};
-
 /* board specific private data structure */
 struct ngbe_adapter {
 	u8 __iomem *io_addr;    /* Mainly for iounmap use */
@@ -172,7 +162,6 @@ struct ngbe_adapter {
 	bool ncsi_enabled;
 	bool gpio_ctrl;
 
-	struct ngbe_mac_addr *mac_table;
 	u16 msg_enable;
 
 	/* Tx fast path data */
