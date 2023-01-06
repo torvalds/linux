@@ -855,7 +855,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(&pdev->dev, &priv->card);
 	if (ret) {
-		dev_err_probe(&pdev->dev, ret, "snd_soc_register_card failed\n");
+		dev_err_probe(&pdev->dev, ret, "snd_soc_register_card failed: %d\n", ret);
 		goto asrc_fail;
 	}
 
