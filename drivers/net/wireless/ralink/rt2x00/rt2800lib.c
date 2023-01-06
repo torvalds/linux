@@ -8924,8 +8924,6 @@ static void rt2800_rxiq_calibration(struct rt2x00_dev *rt2x00dev)
 
 				if (i < 2 && (bbptemp & 0x800000))
 					result = (bbptemp & 0xffffff) - 0x1000000;
-				else if (i == 4)
-					result = bbptemp;
 				else
 					result = bbptemp;
 
