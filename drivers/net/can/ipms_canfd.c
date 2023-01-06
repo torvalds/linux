@@ -959,7 +959,8 @@ static int canfd_driver_open(struct net_device *ndev)
 
 	ret = pm_runtime_get_sync(priv->dev);
 	if (ret < 0) {
-		dev_err(priv->dev, " %s: pm_runtime_get failed\n", __func__);
+		netdev_err(ndev, "%s: pm_runtime_get failed(%d)\n",
+			   __func__, ret);
 		goto err;
 	}
 
@@ -1172,6 +1173,46 @@ static int canfd_driver_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int __maybe_unused canfd_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+
+	if (netif_running(ndev)) {
+		netif_stop_queue(ndev);
+		netif_device_detach(ndev);
+		canfd_driver_stop(ndev);
+	}
+
+	return pm_runtime_force_suspend(dev);
+}
+
+static int __maybe_unused canfd_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret) {
+		dev_err(dev, "pm_runtime_force_resume failed on resume\n");
+		return ret;
+	}
+
+	if (netif_running(ndev)) {
+		ret = canfd_chip_start(ndev);
+		if (ret) {
+			dev_err(dev, "canfd_chip_start failed on resume\n");
+			return ret;
+		}
+
+		netif_device_attach(ndev);
+		netif_start_queue(ndev);
+	}
+
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_PM
 static int canfd_runtime_suspend(struct device *dev)
 {
@@ -1205,8 +1246,7 @@ static int canfd_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops canfd_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(canfd_suspend, canfd_resume)
 	SET_RUNTIME_PM_OPS(canfd_runtime_suspend,
 			   canfd_runtime_resume, NULL)
 };
