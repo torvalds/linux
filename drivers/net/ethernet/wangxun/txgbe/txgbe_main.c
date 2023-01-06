@@ -34,26 +34,26 @@ static const struct pci_device_id txgbe_pci_tbl[] = {
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
 
-static void txgbe_check_minimum_link(struct txgbe_adapter *adapter)
+static void txgbe_check_minimum_link(struct wx *wx)
 {
 	struct pci_dev *pdev;
 
-	pdev = adapter->pdev;
+	pdev = wx->pdev;
 	pcie_print_link_status(pdev);
 }
 
 /**
  * txgbe_enumerate_functions - Get the number of ports this device has
- * @adapter: adapter structure
+ * @wx: wx structure
  *
  * This function enumerates the phsyical functions co-located on a single slot,
  * in order to determine how many ports a device has. This is most useful in
  * determining the required GT/s of PCIe bandwidth necessary for optimal
  * performance.
  **/
-static int txgbe_enumerate_functions(struct txgbe_adapter *adapter)
+static int txgbe_enumerate_functions(struct wx *wx)
 {
-	struct pci_dev *entry, *pdev = adapter->pdev;
+	struct pci_dev *entry, *pdev = wx->pdev;
 	int physfns = 0;
 
 	list_for_each_entry(entry, &pdev->bus->devices, bus_list) {
@@ -72,23 +72,20 @@ static int txgbe_enumerate_functions(struct txgbe_adapter *adapter)
 	return physfns;
 }
 
-static void txgbe_up_complete(struct txgbe_adapter *adapter)
+static void txgbe_up_complete(struct wx *wx)
 {
-	struct wx *wx = &adapter->wx;
-
 	wx_control_hw(wx, true);
 }
 
-static void txgbe_reset(struct txgbe_adapter *adapter)
+static void txgbe_reset(struct wx *wx)
 {
-	struct net_device *netdev = adapter->netdev;
-	struct wx *wx = &adapter->wx;
+	struct net_device *netdev = wx->netdev;
 	u8 old_addr[ETH_ALEN];
 	int err;
 
-	err = txgbe_reset_hw(adapter);
+	err = txgbe_reset_hw(wx);
 	if (err != 0)
-		dev_err(&adapter->pdev->dev, "Hardware Error: %d\n", err);
+		wx_err(wx, "Hardware Error: %d\n", err);
 
 	/* do not flush user set addresses */
 	memcpy(old_addr, &wx->mac_table[0].addr, netdev->addr_len);
@@ -96,10 +93,9 @@ static void txgbe_reset(struct txgbe_adapter *adapter)
 	wx_mac_set_default_filter(wx, old_addr);
 }
 
-static void txgbe_disable_device(struct txgbe_adapter *adapter)
+static void txgbe_disable_device(struct wx *wx)
 {
-	struct net_device *netdev = adapter->netdev;
-	struct wx *wx = &adapter->wx;
+	struct net_device *netdev = wx->netdev;
 
 	wx_disable_pcie_master(wx);
 	/* disable receives */
@@ -111,9 +107,8 @@ static void txgbe_disable_device(struct txgbe_adapter *adapter)
 	if (wx->bus.func < 2)
 		wr32m(wx, TXGBE_MIS_PRB_CTL, TXGBE_MIS_PRB_CTL_LAN_UP(wx->bus.func), 0);
 	else
-		dev_err(&adapter->pdev->dev,
-			"%s: invalid bus lan id %d\n",
-			__func__, wx->bus.func);
+		wx_err(wx, "%s: invalid bus lan id %d\n",
+		       __func__, wx->bus.func);
 
 	if (!(((wx->subsystem_device_id & WX_NCSI_MASK) == WX_NCSI_SUP) ||
 	      ((wx->subsystem_device_id & WX_WOL_MASK) == WX_WOL_SUP))) {
@@ -125,24 +120,19 @@ static void txgbe_disable_device(struct txgbe_adapter *adapter)
 	wr32m(wx, WX_TDM_CTL, WX_TDM_CTL_TE, 0);
 }
 
-static void txgbe_down(struct txgbe_adapter *adapter)
+static void txgbe_down(struct wx *wx)
 {
-	txgbe_disable_device(adapter);
-	txgbe_reset(adapter);
+	txgbe_disable_device(wx);
+	txgbe_reset(wx);
 }
 
 /**
- * txgbe_sw_init - Initialize general software structures (struct txgbe_adapter)
- * @adapter: board private structure to initialize
+ * txgbe_sw_init - Initialize general software structures (struct wx)
+ * @wx: board private structure to initialize
  **/
-static int txgbe_sw_init(struct txgbe_adapter *adapter)
+static int txgbe_sw_init(struct wx *wx)
 {
-	struct pci_dev *pdev = adapter->pdev;
-	struct wx *wx = &adapter->wx;
 	int err;
-
-	wx->hw_addr = adapter->io_addr;
-	wx->pdev = pdev;
 
 	wx->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
 	wx->mac.max_tx_queues = TXGBE_SP_MAX_TX_QUEUES;
@@ -152,8 +142,7 @@ static int txgbe_sw_init(struct txgbe_adapter *adapter)
 	/* PCI config space info */
 	err = wx_sw_init(wx);
 	if (err < 0) {
-		netif_err(adapter, probe, adapter->netdev,
-			  "read of internal subsystem device id failed\n");
+		wx_err(wx, "read of internal subsystem device id failed\n");
 		return err;
 	}
 
@@ -181,23 +170,23 @@ static int txgbe_sw_init(struct txgbe_adapter *adapter)
  **/
 static int txgbe_open(struct net_device *netdev)
 {
-	struct txgbe_adapter *adapter = netdev_priv(netdev);
+	struct wx *wx = netdev_priv(netdev);
 
-	txgbe_up_complete(adapter);
+	txgbe_up_complete(wx);
 
 	return 0;
 }
 
 /**
  * txgbe_close_suspend - actions necessary to both suspend and close flows
- * @adapter: the private adapter struct
+ * @wx: the private wx struct
  *
  * This function should contain the necessary work common to both suspending
  * and closing of the device.
  */
-static void txgbe_close_suspend(struct txgbe_adapter *adapter)
+static void txgbe_close_suspend(struct wx *wx)
 {
-	txgbe_disable_device(adapter);
+	txgbe_disable_device(wx);
 }
 
 /**
@@ -213,25 +202,25 @@ static void txgbe_close_suspend(struct txgbe_adapter *adapter)
  **/
 static int txgbe_close(struct net_device *netdev)
 {
-	struct txgbe_adapter *adapter = netdev_priv(netdev);
+	struct wx *wx = netdev_priv(netdev);
 
-	txgbe_down(adapter);
-	wx_control_hw(&adapter->wx, false);
+	txgbe_down(wx);
+	wx_control_hw(wx, false);
 
 	return 0;
 }
 
 static void txgbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
-	struct txgbe_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev = adapter->netdev;
-	struct wx *wx = &adapter->wx;
+	struct wx *wx = pci_get_drvdata(pdev);
+	struct net_device *netdev;
 
+	netdev = wx->netdev;
 	netif_device_detach(netdev);
 
 	rtnl_lock();
 	if (netif_running(netdev))
-		txgbe_close_suspend(adapter);
+		txgbe_close_suspend(wx);
 	rtnl_unlock();
 
 	wx_control_hw(wx, false);
@@ -273,16 +262,15 @@ static const struct net_device_ops txgbe_netdev_ops = {
  * Returns 0 on success, negative on failure
  *
  * txgbe_probe initializes an adapter identified by a pci_dev structure.
- * The OS initialization, configuring of the adapter private structure,
+ * The OS initialization, configuring of the wx private structure,
  * and a hardware reset occur.
  **/
 static int txgbe_probe(struct pci_dev *pdev,
 		       const struct pci_device_id __always_unused *ent)
 {
-	struct txgbe_adapter *adapter = NULL;
-	struct wx *wx = NULL;
 	struct net_device *netdev;
 	int err, expected_gts;
+	struct wx *wx = NULL;
 
 	u16 eeprom_verh = 0, eeprom_verl = 0, offset = 0;
 	u16 eeprom_cfg_blkh = 0, eeprom_cfg_blkl = 0;
@@ -314,7 +302,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	netdev = devm_alloc_etherdev_mqs(&pdev->dev,
-					 sizeof(struct txgbe_adapter),
+					 sizeof(struct wx),
 					 TXGBE_MAX_TX_QUEUES,
 					 TXGBE_MAX_RX_QUEUES);
 	if (!netdev) {
@@ -324,17 +312,16 @@ static int txgbe_probe(struct pci_dev *pdev,
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
-	adapter = netdev_priv(netdev);
-	adapter->netdev = netdev;
-	adapter->pdev = pdev;
-	wx = &adapter->wx;
+	wx = netdev_priv(netdev);
 	wx->netdev = netdev;
-	adapter->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
+	wx->pdev = pdev;
 
-	adapter->io_addr = devm_ioremap(&pdev->dev,
-					pci_resource_start(pdev, 0),
-					pci_resource_len(pdev, 0));
-	if (!adapter->io_addr) {
+	wx->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
+
+	wx->hw_addr = devm_ioremap(&pdev->dev,
+				   pci_resource_start(pdev, 0),
+				   pci_resource_len(pdev, 0));
+	if (!wx->hw_addr) {
 		err = -EIO;
 		goto err_pci_release_regions;
 	}
@@ -342,7 +329,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	netdev->netdev_ops = &txgbe_netdev_ops;
 
 	/* setup the private structure */
-	err = txgbe_sw_init(adapter);
+	err = txgbe_sw_init(wx);
 	if (err)
 		goto err_free_mac_table;
 
@@ -360,7 +347,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 		goto err_free_mac_table;
 	}
 
-	err = txgbe_reset_hw(adapter);
+	err = txgbe_reset_hw(wx);
 	if (err) {
 		dev_err(&pdev->dev, "HW Init failed: %d\n", err);
 		goto err_free_mac_table;
@@ -406,15 +393,15 @@ static int txgbe_probe(struct pci_dev *pdev,
 			build = (eeprom_cfg_blkl << 8) | (eeprom_cfg_blkh >> 8);
 			patch = eeprom_cfg_blkh & 0x00ff;
 
-			snprintf(adapter->eeprom_id, sizeof(adapter->eeprom_id),
+			snprintf(wx->eeprom_id, sizeof(wx->eeprom_id),
 				 "0x%08x, %d.%d.%d", etrack_id, major, build,
 				 patch);
 		} else {
-			snprintf(adapter->eeprom_id, sizeof(adapter->eeprom_id),
+			snprintf(wx->eeprom_id, sizeof(wx->eeprom_id),
 				 "0x%08x", etrack_id);
 		}
 	} else {
-		snprintf(adapter->eeprom_id, sizeof(adapter->eeprom_id),
+		snprintf(wx->eeprom_id, sizeof(wx->eeprom_id),
 			 "0x%08x", etrack_id);
 	}
 
@@ -422,7 +409,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_release_hw;
 
-	pci_set_drvdata(pdev, adapter);
+	pci_set_drvdata(pdev, wx);
 
 	/* calculate the expected PCIe bandwidth required for optimal
 	 * performance. Note that some older parts will never have enough
@@ -430,11 +417,11 @@ static int txgbe_probe(struct pci_dev *pdev,
 	 * parts to ensure that no warning is displayed, as this could confuse
 	 * users otherwise.
 	 */
-	expected_gts = txgbe_enumerate_functions(adapter) * 10;
+	expected_gts = txgbe_enumerate_functions(wx) * 10;
 
 	/* don't check link if we failed to enumerate functions */
 	if (expected_gts > 0)
-		txgbe_check_minimum_link(adapter);
+		txgbe_check_minimum_link(wx);
 	else
 		dev_warn(&pdev->dev, "Failed to enumerate PF devices.\n");
 
@@ -443,7 +430,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	if (err)
 		strncpy(part_str, "Unknown", TXGBE_PBANUM_LENGTH);
 
-	netif_info(adapter, probe, netdev, "%pM\n", netdev->dev_addr);
+	netif_info(wx, probe, netdev, "%pM\n", netdev->dev_addr);
 
 	return 0;
 
@@ -471,16 +458,16 @@ err_pci_disable_dev:
  **/
 static void txgbe_remove(struct pci_dev *pdev)
 {
-	struct txgbe_adapter *adapter = pci_get_drvdata(pdev);
+	struct wx *wx = pci_get_drvdata(pdev);
 	struct net_device *netdev;
 
-	netdev = adapter->netdev;
+	netdev = wx->netdev;
 	unregister_netdev(netdev);
 
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 
-	kfree(adapter->wx.mac_table);
+	kfree(wx->mac_table);
 
 	pci_disable_pcie_error_reporting(pdev);
 

@@ -77,18 +77,6 @@
 #define TXGBE_SP_RAR_ENTRIES    128
 #define TXGBE_SP_MC_TBL_SIZE    128
 
-/* board specific private data structure */
-struct txgbe_adapter {
-	u8 __iomem *io_addr;
-	/* OS defined structs */
-	struct net_device *netdev;
-	struct pci_dev *pdev;
-	struct wx wx;
-	u16 msg_enable;
-
-	char eeprom_id[32];
-};
-
 extern char txgbe_driver_name[];
 
 #endif /* _TXGBE_TYPE_H_ */

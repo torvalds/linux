@@ -802,7 +802,7 @@ static int wx_del_mac_filter(struct wx *wx, u8 *addr, u16 pool)
  **/
 int wx_set_mac(struct net_device *netdev, void *p)
 {
-	struct wx *wx = container_of(&netdev, struct wx, netdev);
+	struct wx *wx = netdev_priv(netdev);
 	struct sockaddr *addr = p;
 	int retval;
 

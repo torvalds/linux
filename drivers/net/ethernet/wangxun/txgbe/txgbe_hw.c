@@ -253,25 +253,22 @@ int txgbe_validate_eeprom_checksum(struct wx *wx, u16 *checksum_val)
 	return status;
 }
 
-static void txgbe_reset_misc(struct txgbe_adapter *adapter)
+static void txgbe_reset_misc(struct wx *wx)
 {
-	struct wx *wx = &adapter->wx;
-
 	wx_reset_misc(wx);
 	txgbe_init_thermal_sensor_thresh(wx);
 }
 
 /**
  *  txgbe_reset_hw - Perform hardware reset
- *  @adapter: pointer to adapter structure
+ *  @wx: pointer to wx structure
  *
  *  Resets the hardware by resetting the transmit and receive units, masks
  *  and clears all interrupts, perform a PHY reset, and perform a link (MAC)
  *  reset.
  **/
-int txgbe_reset_hw(struct txgbe_adapter *adapter)
+int txgbe_reset_hw(struct wx *wx)
 {
-	struct wx *wx = &adapter->wx;
 	int status;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
@@ -289,7 +286,7 @@ int txgbe_reset_hw(struct txgbe_adapter *adapter)
 	if (status != 0)
 		return status;
 
-	txgbe_reset_misc(adapter);
+	txgbe_reset_misc(wx);
 
 	/* Store the permanent mac address */
 	wx_get_mac_addr(wx, wx->mac.perm_addr);

@@ -316,7 +316,9 @@ struct wx {
 	u8 revision_id;
 	u16 oem_ssid;
 	u16 oem_svid;
+	u16 msg_enable;
 	bool adapter_stopped;
+	char eeprom_id[32];
 	enum wx_reset_type reset_type;
 };
 
