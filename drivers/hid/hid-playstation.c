@@ -1815,19 +1815,22 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	 */
 	speed_2x = (gyro_speed_plus + gyro_speed_minus);
 	ds4->gyro_calib_data[0].abs_code = ABS_RX;
-	ds4->gyro_calib_data[0].bias = gyro_pitch_bias;
+	ds4->gyro_calib_data[0].bias = 0;
 	ds4->gyro_calib_data[0].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	ds4->gyro_calib_data[0].sens_denom = gyro_pitch_plus - gyro_pitch_minus;
+	ds4->gyro_calib_data[0].sens_denom = abs(gyro_pitch_plus - gyro_pitch_bias) +
+			abs(gyro_pitch_minus - gyro_pitch_bias);
 
 	ds4->gyro_calib_data[1].abs_code = ABS_RY;
-	ds4->gyro_calib_data[1].bias = gyro_yaw_bias;
+	ds4->gyro_calib_data[1].bias = 0;
 	ds4->gyro_calib_data[1].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	ds4->gyro_calib_data[1].sens_denom = gyro_yaw_plus - gyro_yaw_minus;
+	ds4->gyro_calib_data[1].sens_denom = abs(gyro_yaw_plus - gyro_yaw_bias) +
+			abs(gyro_yaw_minus - gyro_yaw_bias);
 
 	ds4->gyro_calib_data[2].abs_code = ABS_RZ;
-	ds4->gyro_calib_data[2].bias = gyro_roll_bias;
+	ds4->gyro_calib_data[2].bias = 0;
 	ds4->gyro_calib_data[2].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	ds4->gyro_calib_data[2].sens_denom = gyro_roll_plus - gyro_roll_minus;
+	ds4->gyro_calib_data[2].sens_denom = abs(gyro_roll_plus - gyro_roll_bias) +
+			abs(gyro_roll_minus - gyro_roll_bias);
 
 	/*
 	 * Set accelerometer calibration and normalization parameters.
@@ -2178,8 +2181,7 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	for (i = 0; i < ARRAY_SIZE(ds4_report->gyro); i++) {
 		int raw_data = (short)le16_to_cpu(ds4_report->gyro[i]);
 		int calib_data = mult_frac(ds4->gyro_calib_data[i].sens_numer,
-					   raw_data - ds4->gyro_calib_data[i].bias,
-					   ds4->gyro_calib_data[i].sens_denom);
+					   raw_data, ds4->gyro_calib_data[i].sens_denom);
 
 		input_report_abs(ds4->sensors, ds4->gyro_calib_data[i].abs_code, calib_data);
 	}
