@@ -83,21 +83,10 @@ struct devlink *__must_check devlink_try_get(struct devlink *devlink)
 	return NULL;
 }
 
-static void __devlink_put_rcu(struct rcu_head *head)
-{
-	struct devlink *devlink = container_of(head, struct devlink, rcu);
-
-	complete(&devlink->comp);
-}
-
 void devlink_put(struct devlink *devlink)
 {
 	if (refcount_dec_and_test(&devlink->refcount))
-		/* Make sure unregister operation that may await the completion
-		 * is unblocked only after all users are after the end of
-		 * RCU grace period.
-		 */
-		call_rcu(&devlink->rcu, __devlink_put_rcu);
+		kfree_rcu(devlink, rcu);
 }
 
 struct devlink *devlinks_xa_find_get(struct net *net, unsigned long *indexp)
@@ -109,13 +98,6 @@ retry:
 	devlink = xa_find(&devlinks, indexp, ULONG_MAX, DEVLINK_REGISTERED);
 	if (!devlink)
 		goto unlock;
-
-	/* In case devlink_unregister() was already called and "unregistering"
-	 * mark was set, do not allow to get a devlink reference here.
-	 * This prevents live-lock of devlink_unregister() wait for completion.
-	 */
-	if (xa_get_mark(&devlinks, *indexp, DEVLINK_UNREGISTERING))
-		goto next;
 
 	if (!devlink_try_get(devlink))
 		goto next;
@@ -152,37 +134,48 @@ void devlink_set_features(struct devlink *devlink, u64 features)
 EXPORT_SYMBOL_GPL(devlink_set_features);
 
 /**
- *	devlink_register - Register devlink instance
- *
- *	@devlink: devlink
+ * devl_register - Register devlink instance
+ * @devlink: devlink
  */
-void devlink_register(struct devlink *devlink)
+int devl_register(struct devlink *devlink)
 {
 	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
-	/* Make sure that we are in .probe() routine */
+	devl_assert_locked(devlink);
 
 	xa_set_mark(&devlinks, devlink->index, DEVLINK_REGISTERED);
 	devlink_notify_register(devlink);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devl_register);
+
+void devlink_register(struct devlink *devlink)
+{
+	devl_lock(devlink);
+	devl_register(devlink);
+	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_register);
 
 /**
- *	devlink_unregister - Unregister devlink instance
- *
- *	@devlink: devlink
+ * devl_unregister - Unregister devlink instance
+ * @devlink: devlink
  */
-void devlink_unregister(struct devlink *devlink)
+void devl_unregister(struct devlink *devlink)
 {
 	ASSERT_DEVLINK_REGISTERED(devlink);
-	/* Make sure that we are in .remove() routine */
-
-	xa_set_mark(&devlinks, devlink->index, DEVLINK_UNREGISTERING);
-	devlink_put(devlink);
-	wait_for_completion(&devlink->comp);
+	devl_assert_locked(devlink);
 
 	devlink_notify_unregister(devlink);
 	xa_clear_mark(&devlinks, devlink->index, DEVLINK_REGISTERED);
-	xa_clear_mark(&devlinks, devlink->index, DEVLINK_UNREGISTERING);
+}
+EXPORT_SYMBOL_GPL(devl_unregister);
+
+void devlink_unregister(struct devlink *devlink)
+{
+	devl_lock(devlink);
+	devl_unregister(devlink);
+	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_unregister);
 
@@ -246,7 +239,6 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	mutex_init(&devlink->reporters_lock);
 	mutex_init(&devlink->linecards_lock);
 	refcount_set(&devlink->refcount, 1);
-	init_completion(&devlink->comp);
 
 	return devlink;
 
@@ -292,7 +284,7 @@ void devlink_free(struct devlink *devlink)
 
 	xa_erase(&devlinks, devlink->index);
 
-	kfree(devlink);
+	devlink_put(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_free);
 

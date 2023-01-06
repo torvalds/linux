@@ -12,7 +12,6 @@
 #include <net/net_namespace.h>
 
 #define DEVLINK_REGISTERED XA_MARK_1
-#define DEVLINK_UNREGISTERING XA_MARK_2
 
 #define DEVLINK_RELOAD_STATS_ARRAY_SIZE \
 	(__DEVLINK_RELOAD_LIMIT_MAX * __DEVLINK_RELOAD_ACTION_MAX)
@@ -52,7 +51,6 @@ struct devlink {
 	struct lock_class_key lock_key;
 	u8 reload_failed:1;
 	refcount_t refcount;
-	struct completion comp;
 	struct rcu_head rcu;
 	struct notifier_block netdevice_nb;
 	char priv[] __aligned(NETDEV_ALIGN);
