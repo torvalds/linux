@@ -9,7 +9,6 @@
 #include "../libwx/wx_hw.h"
 #include "ngbe_type.h"
 #include "ngbe_hw.h"
-#include "ngbe.h"
 
 int ngbe_eeprom_chksum_hostif(struct ngbe_adapter *adapter)
 {
