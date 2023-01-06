@@ -2423,7 +2423,7 @@ static const struct rtw89_chip_ops rtw8852b_chip_ops = {
 	.btc_update_bt_cnt	= rtw8852b_btc_update_bt_cnt,
 	.btc_wl_s1_standby	= rtw8852b_btc_wl_s1_standby,
 	.btc_set_wl_rx_gain	= rtw8852b_btc_set_wl_rx_gain,
-	.btc_set_policy		= rtw89_btc_set_policy,
+	.btc_set_policy		= rtw89_btc_set_policy_v1,
 };
 
 const struct rtw89_chip_info rtw8852b_chip_info = {
