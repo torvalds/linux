@@ -83,7 +83,7 @@ struct txgbe_adapter {
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct wx_hw wxhw;
+	struct wx wx;
 	u16 msg_enable;
 
 	char eeprom_id[32];

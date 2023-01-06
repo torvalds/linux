@@ -13,7 +13,7 @@
 int ngbe_eeprom_chksum_hostif(struct ngbe_adapter *adapter)
 {
 	struct wx_hic_read_shadow_ram buffer;
-	struct wx_hw *wxhw = &adapter->wxhw;
+	struct wx *wx = &adapter->wx;
 	int status;
 	int tmp;
 
@@ -26,12 +26,12 @@ int ngbe_eeprom_chksum_hostif(struct ngbe_adapter *adapter)
 	/* one word */
 	buffer.length = 0;
 
-	status = wx_host_interface_command(wxhw, (u32 *)&buffer, sizeof(buffer),
+	status = wx_host_interface_command(wx, (u32 *)&buffer, sizeof(buffer),
 					   WX_HI_COMMAND_TIMEOUT, false);
 
 	if (status < 0)
 		return status;
-	tmp = rd32a(wxhw, WX_MNG_MBOX, 1);
+	tmp = rd32a(wx, WX_MNG_MBOX, 1);
 	if (tmp == NGBE_FW_CMD_ST_PASS)
 		return 0;
 	return -EIO;
@@ -39,15 +39,15 @@ int ngbe_eeprom_chksum_hostif(struct ngbe_adapter *adapter)
 
 static int ngbe_reset_misc(struct ngbe_adapter *adapter)
 {
-	struct wx_hw *wxhw = &adapter->wxhw;
+	struct wx *wx = &adapter->wx;
 
-	wx_reset_misc(wxhw);
+	wx_reset_misc(wx);
 	if (adapter->mac_type == ngbe_mac_type_rgmii)
-		wr32(wxhw, NGBE_MDIO_CLAUSE_SELECT, 0xF);
+		wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0xF);
 	if (adapter->gpio_ctrl) {
 		/* gpio0 is used to power on/off control*/
-		wr32(wxhw, NGBE_GPIO_DDR, 0x1);
-		wr32(wxhw, NGBE_GPIO_DR, NGBE_GPIO_DR_0);
+		wr32(wx, NGBE_GPIO_DDR, 0x1);
+		wr32(wx, NGBE_GPIO_DR, NGBE_GPIO_DR_0);
 	}
 	return 0;
 }
@@ -62,25 +62,25 @@ static int ngbe_reset_misc(struct ngbe_adapter *adapter)
  **/
 int ngbe_reset_hw(struct ngbe_adapter *adapter)
 {
-	struct wx_hw *wxhw = &adapter->wxhw;
+	struct wx *wx = &adapter->wx;
 	int status = 0;
 	u32 reset = 0;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
-	status = wx_stop_adapter(wxhw);
+	status = wx_stop_adapter(wx);
 	if (status != 0)
 		return status;
-	reset = WX_MIS_RST_LAN_RST(wxhw->bus.func);
-	wr32(wxhw, WX_MIS_RST, reset | rd32(wxhw, WX_MIS_RST));
+	reset = WX_MIS_RST_LAN_RST(wx->bus.func);
+	wr32(wx, WX_MIS_RST, reset | rd32(wx, WX_MIS_RST));
 	ngbe_reset_misc(adapter);
 
 	/* Store the permanent mac address */
-	wx_get_mac_addr(wxhw, wxhw->mac.perm_addr);
+	wx_get_mac_addr(wx, wx->mac.perm_addr);
 
 	/* reset num_rar_entries to 128 */
-	wxhw->mac.num_rar_entries = NGBE_RAR_ENTRIES;
-	wx_init_rx_addrs(wxhw);
-	pci_set_master(wxhw->pdev);
+	wx->mac.num_rar_entries = NGBE_RAR_ENTRIES;
+	wx_init_rx_addrs(wx);
+	pci_set_master(wx->pdev);
 
 	return 0;
 }

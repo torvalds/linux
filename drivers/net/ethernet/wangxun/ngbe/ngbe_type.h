@@ -154,7 +154,7 @@ struct ngbe_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 
-	struct wx_hw wxhw;
+	struct wx wx;
 	struct ngbe_phy_info phy;
 	enum ngbe_mac_type mac_type;
 

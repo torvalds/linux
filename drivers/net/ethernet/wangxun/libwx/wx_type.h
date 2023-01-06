@@ -300,7 +300,7 @@ enum wx_reset_type {
 	WX_GLOBAL_RESET
 };
 
-struct wx_hw {
+struct wx {
 	u8 __iomem *hw_addr;
 	struct pci_dev *pdev;
 	struct net_device *netdev;
@@ -331,23 +331,23 @@ struct wx_hw {
 	wr32((a), (reg) + ((off) << 2), (val))
 
 static inline u32
-rd32m(struct wx_hw *wxhw, u32 reg, u32 mask)
+rd32m(struct wx *wx, u32 reg, u32 mask)
 {
 	u32 val;
 
-	val = rd32(wxhw, reg);
+	val = rd32(wx, reg);
 	return val & mask;
 }
 
 static inline void
-wr32m(struct wx_hw *wxhw, u32 reg, u32 mask, u32 field)
+wr32m(struct wx *wx, u32 reg, u32 mask, u32 field)
 {
 	u32 val;
 
-	val = rd32(wxhw, reg);
+	val = rd32(wx, reg);
 	val = ((val & ~mask) | (field & mask));
 
-	wr32(wxhw, reg, val);
+	wr32(wx, reg, val);
 }
 
 /* On some domestic CPU platforms, sometimes IO is not synchronized with
@@ -355,10 +355,10 @@ wr32m(struct wx_hw *wxhw, u32 reg, u32 mask, u32 field)
  */
 #define WX_WRITE_FLUSH(H) rd32(H, WX_MIS_PWR)
 
-#define wx_err(wxhw, fmt, arg...) \
-	dev_err(&(wxhw)->pdev->dev, fmt, ##arg)
+#define wx_err(wx, fmt, arg...) \
+	dev_err(&(wx)->pdev->dev, fmt, ##arg)
 
-#define wx_dbg(wxhw, fmt, arg...) \
-	dev_dbg(&(wxhw)->pdev->dev, fmt, ##arg)
+#define wx_dbg(wx, fmt, arg...) \
+	dev_dbg(&(wx)->pdev->dev, fmt, ##arg)
 
 #endif /* _WX_TYPE_H_ */

@@ -74,15 +74,15 @@ static int txgbe_enumerate_functions(struct txgbe_adapter *adapter)
 
 static void txgbe_up_complete(struct txgbe_adapter *adapter)
 {
-	struct wx_hw *wxhw = &adapter->wxhw;
+	struct wx *wx = &adapter->wx;
 
-	wx_control_hw(wxhw, true);
+	wx_control_hw(wx, true);
 }
 
 static void txgbe_reset(struct txgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct wx_hw *wxhw = &adapter->wxhw;
+	struct wx *wx = &adapter->wx;
 	u8 old_addr[ETH_ALEN];
 	int err;
 
@@ -91,38 +91,38 @@ static void txgbe_reset(struct txgbe_adapter *adapter)
 		dev_err(&adapter->pdev->dev, "Hardware Error: %d\n", err);
 
 	/* do not flush user set addresses */
-	memcpy(old_addr, &wxhw->mac_table[0].addr, netdev->addr_len);
-	wx_flush_sw_mac_table(wxhw);
-	wx_mac_set_default_filter(wxhw, old_addr);
+	memcpy(old_addr, &wx->mac_table[0].addr, netdev->addr_len);
+	wx_flush_sw_mac_table(wx);
+	wx_mac_set_default_filter(wx, old_addr);
 }
 
 static void txgbe_disable_device(struct txgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct wx_hw *wxhw = &adapter->wxhw;
+	struct wx *wx = &adapter->wx;
 
-	wx_disable_pcie_master(wxhw);
+	wx_disable_pcie_master(wx);
 	/* disable receives */
-	wx_disable_rx(wxhw);
+	wx_disable_rx(wx);
 
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
 
-	if (wxhw->bus.func < 2)
-		wr32m(wxhw, TXGBE_MIS_PRB_CTL, TXGBE_MIS_PRB_CTL_LAN_UP(wxhw->bus.func), 0);
+	if (wx->bus.func < 2)
+		wr32m(wx, TXGBE_MIS_PRB_CTL, TXGBE_MIS_PRB_CTL_LAN_UP(wx->bus.func), 0);
 	else
 		dev_err(&adapter->pdev->dev,
 			"%s: invalid bus lan id %d\n",
-			__func__, wxhw->bus.func);
+			__func__, wx->bus.func);
 
-	if (!(((wxhw->subsystem_device_id & WX_NCSI_MASK) == WX_NCSI_SUP) ||
-	      ((wxhw->subsystem_device_id & WX_WOL_MASK) == WX_WOL_SUP))) {
+	if (!(((wx->subsystem_device_id & WX_NCSI_MASK) == WX_NCSI_SUP) ||
+	      ((wx->subsystem_device_id & WX_WOL_MASK) == WX_WOL_SUP))) {
 		/* disable mac transmiter */
-		wr32m(wxhw, WX_MAC_TX_CFG, WX_MAC_TX_CFG_TE, 0);
+		wr32m(wx, WX_MAC_TX_CFG, WX_MAC_TX_CFG_TE, 0);
 	}
 
 	/* Disable the Tx DMA engine */
-	wr32m(wxhw, WX_TDM_CTL, WX_TDM_CTL_TE, 0);
+	wr32m(wx, WX_TDM_CTL, WX_TDM_CTL_TE, 0);
 }
 
 static void txgbe_down(struct txgbe_adapter *adapter)
@@ -138,32 +138,32 @@ static void txgbe_down(struct txgbe_adapter *adapter)
 static int txgbe_sw_init(struct txgbe_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
-	struct wx_hw *wxhw = &adapter->wxhw;
+	struct wx *wx = &adapter->wx;
 	int err;
 
-	wxhw->hw_addr = adapter->io_addr;
-	wxhw->pdev = pdev;
+	wx->hw_addr = adapter->io_addr;
+	wx->pdev = pdev;
 
-	wxhw->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
-	wxhw->mac.max_tx_queues = TXGBE_SP_MAX_TX_QUEUES;
-	wxhw->mac.max_rx_queues = TXGBE_SP_MAX_RX_QUEUES;
-	wxhw->mac.mcft_size = TXGBE_SP_MC_TBL_SIZE;
+	wx->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
+	wx->mac.max_tx_queues = TXGBE_SP_MAX_TX_QUEUES;
+	wx->mac.max_rx_queues = TXGBE_SP_MAX_RX_QUEUES;
+	wx->mac.mcft_size = TXGBE_SP_MC_TBL_SIZE;
 
 	/* PCI config space info */
-	err = wx_sw_init(wxhw);
+	err = wx_sw_init(wx);
 	if (err < 0) {
 		netif_err(adapter, probe, adapter->netdev,
 			  "read of internal subsystem device id failed\n");
 		return err;
 	}
 
-	switch (wxhw->device_id) {
+	switch (wx->device_id) {
 	case TXGBE_DEV_ID_SP1000:
 	case TXGBE_DEV_ID_WX1820:
-		wxhw->mac.type = wx_mac_sp;
+		wx->mac.type = wx_mac_sp;
 		break;
 	default:
-		wxhw->mac.type = wx_mac_unknown;
+		wx->mac.type = wx_mac_unknown;
 		break;
 	}
 
@@ -216,7 +216,7 @@ static int txgbe_close(struct net_device *netdev)
 	struct txgbe_adapter *adapter = netdev_priv(netdev);
 
 	txgbe_down(adapter);
-	wx_control_hw(&adapter->wxhw, false);
+	wx_control_hw(&adapter->wx, false);
 
 	return 0;
 }
@@ -225,7 +225,7 @@ static void txgbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
 	struct txgbe_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
-	struct wx_hw *wxhw = &adapter->wxhw;
+	struct wx *wx = &adapter->wx;
 
 	netif_device_detach(netdev);
 
@@ -234,7 +234,7 @@ static void txgbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		txgbe_close_suspend(adapter);
 	rtnl_unlock();
 
-	wx_control_hw(wxhw, false);
+	wx_control_hw(wx, false);
 
 	pci_disable_device(pdev);
 }
@@ -280,7 +280,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 		       const struct pci_device_id __always_unused *ent)
 {
 	struct txgbe_adapter *adapter = NULL;
-	struct wx_hw *wxhw = NULL;
+	struct wx *wx = NULL;
 	struct net_device *netdev;
 	int err, expected_gts;
 
@@ -327,8 +327,8 @@ static int txgbe_probe(struct pci_dev *pdev,
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
-	wxhw = &adapter->wxhw;
-	wxhw->netdev = netdev;
+	wx = &adapter->wx;
+	wx->netdev = netdev;
 	adapter->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
 
 	adapter->io_addr = devm_ioremap(&pdev->dev,
@@ -347,14 +347,14 @@ static int txgbe_probe(struct pci_dev *pdev,
 		goto err_free_mac_table;
 
 	/* check if flash load is done after hw power up */
-	err = wx_check_flash_load(wxhw, TXGBE_SPI_ILDR_STATUS_PERST);
+	err = wx_check_flash_load(wx, TXGBE_SPI_ILDR_STATUS_PERST);
 	if (err)
 		goto err_free_mac_table;
-	err = wx_check_flash_load(wxhw, TXGBE_SPI_ILDR_STATUS_PWRRST);
+	err = wx_check_flash_load(wx, TXGBE_SPI_ILDR_STATUS_PWRRST);
 	if (err)
 		goto err_free_mac_table;
 
-	err = wx_mng_present(wxhw);
+	err = wx_mng_present(wx);
 	if (err) {
 		dev_err(&pdev->dev, "Management capability is not present\n");
 		goto err_free_mac_table;
@@ -369,36 +369,36 @@ static int txgbe_probe(struct pci_dev *pdev,
 	netdev->features |= NETIF_F_HIGHDMA;
 
 	/* make sure the EEPROM is good */
-	err = txgbe_validate_eeprom_checksum(wxhw, NULL);
+	err = txgbe_validate_eeprom_checksum(wx, NULL);
 	if (err != 0) {
 		dev_err(&pdev->dev, "The EEPROM Checksum Is Not Valid\n");
-		wr32(wxhw, WX_MIS_RST, WX_MIS_RST_SW_RST);
+		wr32(wx, WX_MIS_RST, WX_MIS_RST_SW_RST);
 		err = -EIO;
 		goto err_free_mac_table;
 	}
 
-	eth_hw_addr_set(netdev, wxhw->mac.perm_addr);
-	wx_mac_set_default_filter(wxhw, wxhw->mac.perm_addr);
+	eth_hw_addr_set(netdev, wx->mac.perm_addr);
+	wx_mac_set_default_filter(wx, wx->mac.perm_addr);
 
 	/* Save off EEPROM version number and Option Rom version which
 	 * together make a unique identify for the eeprom
 	 */
-	wx_read_ee_hostif(wxhw,
-			  wxhw->eeprom.sw_region_offset + TXGBE_EEPROM_VERSION_H,
+	wx_read_ee_hostif(wx,
+			  wx->eeprom.sw_region_offset + TXGBE_EEPROM_VERSION_H,
 			  &eeprom_verh);
-	wx_read_ee_hostif(wxhw,
-			  wxhw->eeprom.sw_region_offset + TXGBE_EEPROM_VERSION_L,
+	wx_read_ee_hostif(wx,
+			  wx->eeprom.sw_region_offset + TXGBE_EEPROM_VERSION_L,
 			  &eeprom_verl);
 	etrack_id = (eeprom_verh << 16) | eeprom_verl;
 
-	wx_read_ee_hostif(wxhw,
-			  wxhw->eeprom.sw_region_offset + TXGBE_ISCSI_BOOT_CONFIG,
+	wx_read_ee_hostif(wx,
+			  wx->eeprom.sw_region_offset + TXGBE_ISCSI_BOOT_CONFIG,
 			  &offset);
 
 	/* Make sure offset to SCSI block is valid */
 	if (!(offset == 0x0) && !(offset == 0xffff)) {
-		wx_read_ee_hostif(wxhw, offset + 0x84, &eeprom_cfg_blkh);
-		wx_read_ee_hostif(wxhw, offset + 0x83, &eeprom_cfg_blkl);
+		wx_read_ee_hostif(wx, offset + 0x84, &eeprom_cfg_blkh);
+		wx_read_ee_hostif(wx, offset + 0x83, &eeprom_cfg_blkl);
 
 		/* Only display Option Rom if exist */
 		if (eeprom_cfg_blkl && eeprom_cfg_blkh) {
@@ -439,7 +439,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 		dev_warn(&pdev->dev, "Failed to enumerate PF devices.\n");
 
 	/* First try to read PBA as a string */
-	err = txgbe_read_pba_string(wxhw, part_str, TXGBE_PBANUM_LENGTH);
+	err = txgbe_read_pba_string(wx, part_str, TXGBE_PBANUM_LENGTH);
 	if (err)
 		strncpy(part_str, "Unknown", TXGBE_PBANUM_LENGTH);
 
@@ -448,9 +448,9 @@ static int txgbe_probe(struct pci_dev *pdev,
 	return 0;
 
 err_release_hw:
-	wx_control_hw(wxhw, false);
+	wx_control_hw(wx, false);
 err_free_mac_table:
-	kfree(wxhw->mac_table);
+	kfree(wx->mac_table);
 err_pci_release_regions:
 	pci_disable_pcie_error_reporting(pdev);
 	pci_release_selected_regions(pdev,
@@ -480,7 +480,7 @@ static void txgbe_remove(struct pci_dev *pdev)
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 
-	kfree(adapter->wxhw.mac_table);
+	kfree(adapter->wx.mac_table);
 
 	pci_disable_pcie_error_reporting(pdev);
 
