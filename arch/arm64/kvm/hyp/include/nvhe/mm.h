@@ -31,7 +31,7 @@ int __pkvm_create_private_mapping(phys_addr_t phys, size_t size,
 int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr);
 void pkvm_remove_mappings(void *from, void *to);
 
-int __pkvm_map_module_page(u64 pfn, void *va, enum kvm_pgtable_prot prot);
+int __pkvm_map_module_page(u64 pfn, void *va, enum kvm_pgtable_prot prot, bool is_protected);
 void __pkvm_unmap_module_page(u64 pfn, void *va);
 void *__pkvm_alloc_module_va(u64 nr_pages);
 #endif /* __KVM_HYP_MM_H */

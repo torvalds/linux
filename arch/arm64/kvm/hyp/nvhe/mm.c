@@ -142,24 +142,24 @@ void *__pkvm_alloc_module_va(u64 nr_pages)
 	return (void *)addr;
 }
 
-int __pkvm_map_module_page(u64 pfn, void *va, enum kvm_pgtable_prot prot)
+int __pkvm_map_module_page(u64 pfn, void *va, enum kvm_pgtable_prot prot, bool is_protected)
 {
 	unsigned long addr = (unsigned long)va;
 	int ret;
 
 	assert_in_mod_range(addr);
 
-	ret = __pkvm_host_donate_hyp(pfn, 1);
-	if (ret)
-		return ret;
-
-	ret = __pkvm_create_mappings(addr, PAGE_SIZE, hyp_pfn_to_phys(pfn), prot);
-	if (ret) {
-		WARN_ON(__pkvm_hyp_donate_host(pfn, 1));
-		return ret;
+	if (!is_protected) {
+		ret = __pkvm_host_donate_hyp(pfn, 1);
+		if (ret)
+			return ret;
 	}
 
-	return 0;
+	ret = __pkvm_create_mappings(addr, PAGE_SIZE, hyp_pfn_to_phys(pfn), prot);
+	if (ret && !is_protected)
+		WARN_ON(__pkvm_hyp_donate_host(pfn, 1));
+
+	return ret;
 }
 
 void __pkvm_unmap_module_page(u64 pfn, void *va)
