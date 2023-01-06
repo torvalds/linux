@@ -920,9 +920,6 @@ static struct amdgpu_ras_block_object *amdgpu_ras_get_ras_block(struct amdgpu_de
 	if (block >= AMDGPU_RAS_BLOCK__LAST)
 		return NULL;
 
-	if (!amdgpu_ras_is_supported(adev, block))
-		return NULL;
-
 	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
 		if (!node->ras_obj) {
 			dev_warn(adev->dev, "Warning: abnormal ras list node.\n");
