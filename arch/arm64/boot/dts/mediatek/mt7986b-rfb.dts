@@ -167,7 +167,15 @@
 	status = "okay";
 };
 
+&ssusb {
+	status = "okay";
+};
+
 &uart0 {
+	status = "okay";
+};
+
+&usb_phy {
 	status = "okay";
 };
 

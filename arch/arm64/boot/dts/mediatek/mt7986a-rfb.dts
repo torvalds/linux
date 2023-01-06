@@ -140,6 +140,10 @@
 	status = "okay";
 };
 
+&ssusb {
+	status = "okay";
+};
+
 &switch {
 	ports {
 		#address-cells = <1>;
@@ -198,6 +202,10 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
+	status = "okay";
+};
+
+&usb_phy {
 	status = "okay";
 };
 
