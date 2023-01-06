@@ -141,6 +141,21 @@ static int pcf857x_get(struct gpio_chip *chip, unsigned int offset)
 	return (value < 0) ? value : !!(value & (1 << offset));
 }
 
+static int pcf857x_get_multiple(struct gpio_chip *chip, unsigned long *mask,
+				unsigned long *bits)
+{
+	struct pcf857x *gpio = gpiochip_get_data(chip);
+	int value = gpio->read(gpio->client);
+
+	if (value < 0)
+		return value;
+
+	*bits &= ~*mask;
+	*bits |= value & *mask;
+
+	return 0;
+}
+
 static int pcf857x_output(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct pcf857x *gpio = gpiochip_get_data(chip);
@@ -161,6 +176,18 @@ static int pcf857x_output(struct gpio_chip *chip, unsigned int offset, int value
 static void pcf857x_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	pcf857x_output(chip, offset, value);
+}
+
+static void pcf857x_set_multiple(struct gpio_chip *chip, unsigned long *mask,
+				 unsigned long *bits)
+{
+	struct pcf857x *gpio = gpiochip_get_data(chip);
+
+	mutex_lock(&gpio->lock);
+	gpio->out &= ~*mask;
+	gpio->out |= *bits & *mask;
+	gpio->write(gpio->client, gpio->out);
+	mutex_unlock(&gpio->lock);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -275,7 +302,9 @@ static int pcf857x_probe(struct i2c_client *client)
 	gpio->chip.parent		= &client->dev;
 	gpio->chip.owner		= THIS_MODULE;
 	gpio->chip.get			= pcf857x_get;
+	gpio->chip.get_multiple		= pcf857x_get_multiple;
 	gpio->chip.set			= pcf857x_set;
+	gpio->chip.set_multiple		= pcf857x_set_multiple;
 	gpio->chip.direction_input	= pcf857x_input;
 	gpio->chip.direction_output	= pcf857x_output;
 	gpio->chip.ngpio		= id->driver_data;
