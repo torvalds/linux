@@ -1737,6 +1737,7 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	int speed_2x;
 	int range_2g;
 	int ret = 0;
+	int i;
 	uint8_t *buf;
 
 	if (ds4->base.hdev->bus == BUS_USB) {
@@ -1831,6 +1832,21 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	ds4->gyro_calib_data[2].sens_denom = gyro_roll_plus - gyro_roll_minus;
 
 	/*
+	 * Sanity check gyro calibration data. This is needed to prevent crashes
+	 * during report handling of virtual, clone or broken devices not implementing
+	 * calibration data properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ds4->gyro_calib_data); i++) {
+		if (ds4->gyro_calib_data[i].sens_denom == 0) {
+			hid_warn(hdev, "Invalid gyro calibration data for axis (%d), disabling calibration.",
+					ds4->gyro_calib_data[i].abs_code);
+			ds4->gyro_calib_data[i].bias = 0;
+			ds4->gyro_calib_data[i].sens_numer = DS4_GYRO_RANGE;
+			ds4->gyro_calib_data[i].sens_denom = S16_MAX;
+		}
+	}
+
+	/*
 	 * Set accelerometer calibration and normalization parameters.
 	 * Data values will be normalized to 1/DS4_ACC_RES_PER_G g.
 	 */
@@ -1851,6 +1867,21 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	ds4->accel_calib_data[2].bias = acc_z_plus - range_2g / 2;
 	ds4->accel_calib_data[2].sens_numer = 2*DS4_ACC_RES_PER_G;
 	ds4->accel_calib_data[2].sens_denom = range_2g;
+
+	/*
+	 * Sanity check accelerometer calibration data. This is needed to prevent crashes
+	 * during report handling of virtual, clone or broken devices not implementing calibration
+	 * data properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ds4->accel_calib_data); i++) {
+		if (ds4->accel_calib_data[i].sens_denom == 0) {
+			hid_warn(hdev, "Invalid accelerometer calibration data for axis (%d), disabling calibration.",
+					ds4->accel_calib_data[i].abs_code);
+			ds4->accel_calib_data[i].bias = 0;
+			ds4->accel_calib_data[i].sens_numer = DS4_ACC_RANGE;
+			ds4->accel_calib_data[i].sens_denom = S16_MAX;
+		}
+	}
 
 err_free:
 	kfree(buf);
