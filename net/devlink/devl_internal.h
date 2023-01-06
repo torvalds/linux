@@ -131,7 +131,8 @@ struct devlink_gen_cmd {
 
 extern const struct genl_small_ops devlink_nl_ops[56];
 
-struct devlink *devlink_get_from_attrs(struct net *net, struct nlattr **attrs);
+struct devlink *
+devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs);
 
 void devlink_notify_unregister(struct devlink *devlink);
 void devlink_notify_register(struct devlink *devlink);

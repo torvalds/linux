@@ -82,7 +82,8 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_REGION_DIRECT] = { .type = NLA_FLAG },
 };
 
-struct devlink *devlink_get_from_attrs(struct net *net, struct nlattr **attrs)
+struct devlink *
+devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs)
 {
 	struct devlink *devlink;
 	unsigned long index;
@@ -96,9 +97,11 @@ struct devlink *devlink_get_from_attrs(struct net *net, struct nlattr **attrs)
 	devname = nla_data(attrs[DEVLINK_ATTR_DEV_NAME]);
 
 	devlinks_xa_for_each_registered_get(net, index, devlink) {
+		devl_lock(devlink);
 		if (strcmp(devlink->dev->bus->name, busname) == 0 &&
 		    strcmp(dev_name(devlink->dev), devname) == 0)
 			return devlink;
+		devl_unlock(devlink);
 		devlink_put(devlink);
 	}
 
@@ -113,10 +116,10 @@ static int devlink_nl_pre_doit(const struct genl_split_ops *ops,
 	struct devlink *devlink;
 	int err;
 
-	devlink = devlink_get_from_attrs(genl_info_net(info), info->attrs);
+	devlink = devlink_get_from_attrs_lock(genl_info_net(info), info->attrs);
 	if (IS_ERR(devlink))
 		return PTR_ERR(devlink);
-	devl_lock(devlink);
+
 	info->user_ptr[0] = devlink;
 	if (ops->internal_flags & DEVLINK_NL_FLAG_NEED_PORT) {
 		devlink_port = devlink_port_get_from_info(devlink, info);
