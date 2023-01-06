@@ -299,15 +299,16 @@ static void __net_exit devlink_pernet_pre_exit(struct net *net)
 	 */
 	devlinks_xa_for_each_registered_get(net, index, devlink) {
 		WARN_ON(!(devlink->features & DEVLINK_F_RELOAD));
-		mutex_lock(&devlink->lock);
+		devl_lock(devlink);
 		err = devlink_reload(devlink, &init_net,
 				     DEVLINK_RELOAD_ACTION_DRIVER_REINIT,
 				     DEVLINK_RELOAD_LIMIT_UNSPEC,
 				     &actions_performed, NULL);
-		mutex_unlock(&devlink->lock);
+		devl_unlock(devlink);
+		devlink_put(devlink);
+
 		if (err && err != -EOPNOTSUPP)
 			pr_warn("Failed to reload devlink instance into init_net\n");
-		devlink_put(devlink);
 	}
 }
 
