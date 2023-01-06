@@ -1663,6 +1663,25 @@ static int starfive_jh7110_pinctrl_probe(struct platform_device *pdev)
 	return starfive_pinctrl_probe(pdev, pinctrl_info);
 }
 
+static int __maybe_unused starfive_pinctrl_suspend(struct device *dev)
+{
+	struct starfive_pinctrl *pctl = dev_get_drvdata(dev);
+
+	return pinctrl_force_sleep(pctl->pctl_dev);
+}
+
+static int __maybe_unused starfive_pinctrl_resume(struct device *dev)
+{
+	struct starfive_pinctrl *pctl = dev_get_drvdata(dev);
+
+	return pinctrl_force_default(pctl->pctl_dev);
+}
+
+const struct dev_pm_ops starfive_pinctrl_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(starfive_pinctrl_suspend,
+				     starfive_pinctrl_resume)
+};
+
 static struct platform_driver starfive_jh7110_pinctrl_driver = {
 	.driver = {
 		.name = "starfive_jh7110-pinctrl",

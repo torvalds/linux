@@ -474,25 +474,6 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(starfive_pinctrl_probe);
 
-static int __maybe_unused starfive_pinctrl_suspend(struct device *dev)
-{
-	struct starfive_pinctrl *pctl = dev_get_drvdata(dev);
-
-	return pinctrl_force_sleep(pctl->pctl_dev);
-}
-
-static int __maybe_unused starfive_pinctrl_resume(struct device *dev)
-{
-	struct starfive_pinctrl *pctl = dev_get_drvdata(dev);
-
-	return pinctrl_force_default(pctl->pctl_dev);
-}
-
-const struct dev_pm_ops starfive_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(starfive_pinctrl_suspend,
-					starfive_pinctrl_resume)
-};
-EXPORT_SYMBOL_GPL(starfive_pinctrl_pm_ops);
 MODULE_DESCRIPTION("Pinctrl driver for StarFive JH7110 SoC");
 MODULE_AUTHOR("jenny.zhang <jenny.zhang@starfivetech.com>");
 MODULE_LICENSE("GPL v2");

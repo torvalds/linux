@@ -20,7 +20,6 @@
 struct platform_device;
 
 extern const struct pinmux_ops starfive_pmx_ops;
-extern const struct dev_pm_ops starfive_pinctrl_pm_ops;
 
 struct starfive_pin_config {
 	unsigned long io_config;
