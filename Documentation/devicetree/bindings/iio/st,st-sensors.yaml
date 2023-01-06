@@ -39,6 +39,7 @@ properties:
           - st,lis3lv02dl-accel
           - st,lng2dm-accel
           - st,lsm303agr-accel
+          - st,lsm303c-accel
           - st,lsm303dl-accel
           - st,lsm303dlh-accel
           - st,lsm303dlhc-accel
@@ -66,6 +67,7 @@ properties:
           - st,lis2mdl
           - st,lis3mdl-magn
           - st,lsm303agr-magn
+          - st,lsm303c-magn
           - st,lsm303dlh-magn
           - st,lsm303dlhc-magn
           - st,lsm303dlm-magn
