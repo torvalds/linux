@@ -882,7 +882,7 @@ void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 		kfree(rsv);
 
 	list_for_each_entry_safe(rsv, temp, &mgr->reserved_pages, blocks) {
-		drm_buddy_free_list(&mgr->mm, &rsv->blocks);
+		drm_buddy_free_list(&mgr->mm, &rsv->allocated);
 		kfree(rsv);
 	}
 	drm_buddy_fini(&mgr->mm);
