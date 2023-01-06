@@ -808,7 +808,8 @@ static ssize_t config_reset_write(struct file *filp,
 				  const char __user *user_buf, size_t count,
 				  loff_t *ppos)
 {
-	unsigned int val, ret;
+	unsigned int val;
+	int ret;
 	struct dcc_drvdata *drvdata = filp->private_data;
 
 	ret = kstrtouint_from_user(user_buf, count, 0, &val);
