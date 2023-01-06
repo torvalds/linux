@@ -113,4 +113,12 @@ config VIRT_WIFI
 	  This option adds support for ethernet connections to appear as if they
 	  are wifi connections through a special rtnetlink device.
 
+config CNSS2_DEBUG
+	bool "CNSS2 Platform Driver Debug Support"
+	help
+	  This option is to enable CNSS2 platform driver debug support which
+	  primarily includes providing additional verbose logs for certain
+	  features, enabling kernel panic for certain cases to aid the
+	  debugging, and enabling any other debug mechanisms.
+
 endif # WLAN
