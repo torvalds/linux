@@ -120,6 +120,7 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_clean)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_quota)			\
 	x(BCH_ERR_invalid,		invalid_bkey)				\
+	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
 
 enum bch_errcode {
 	BCH_ERR_START		= 2048,

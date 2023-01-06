@@ -411,6 +411,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
 	unsigned i, reserve_sectors = k.k->size * data_opts.extra_replicas;
+	unsigned int ptrs_locked = 0;
 	int ret;
 
 	bch2_bkey_buf_init(&m->k);
@@ -436,6 +437,8 @@ int bch2_data_update_init(struct btree_trans *trans,
 
 	i = 0;
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		bool locked;
+
 		if (((1U << i) & m->data_opts.rewrite_ptrs) &&
 		    p.ptr.cached)
 			BUG();
@@ -461,11 +464,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible)
 			m->op.incompressible = true;
 
-		i++;
-
 		if (ctxt) {
-			bool locked;
-
 			move_ctxt_wait_event(ctxt, trans,
 					(locked = bch2_bucket_nocow_trylock(&c->nocow_locks,
 								  PTR_BUCKET_POS(c, &p.ptr), 0)) ||
@@ -475,9 +474,14 @@ int bch2_data_update_init(struct btree_trans *trans,
 				bch2_bucket_nocow_lock(&c->nocow_locks,
 						       PTR_BUCKET_POS(c, &p.ptr), 0);
 		} else {
-			bch2_bucket_nocow_lock(&c->nocow_locks,
-					       PTR_BUCKET_POS(c, &p.ptr), 0);
+			if (!bch2_bucket_nocow_trylock(&c->nocow_locks,
+						       PTR_BUCKET_POS(c, &p.ptr), 0)) {
+				ret = -BCH_ERR_nocow_lock_blocked;
+				goto err;
+			}
 		}
+		ptrs_locked |= (1U << i);
+		i++;
 	}
 
 	if (reserve_sectors) {
@@ -499,9 +503,13 @@ int bch2_data_update_init(struct btree_trans *trans,
 		return -BCH_ERR_unwritten_extent_update;
 	return 0;
 err:
-	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-		bch2_bucket_nocow_unlock(&c->nocow_locks,
-				       PTR_BUCKET_POS(c, &p.ptr), 0);
+	i = 0;
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		if ((1U << i) & ptrs_locked)
+			bch2_bucket_nocow_unlock(&c->nocow_locks,
+						PTR_BUCKET_POS(c, &p.ptr), 0);
+		i++;
+	}
 
 	bch2_bkey_buf_exit(&m->k, c);
 	bch2_bio_free_pages_pool(c, &m->op.wbio.bio);
