@@ -1175,6 +1175,12 @@ enum kvm_apicv_inhibit {
 	APICV_INHIBIT_REASON_BLOCKIRQ,
 
 	/*
+	 * APICv is disabled because not all vCPUs have a 1:1 mapping between
+	 * APIC ID and vCPU, _and_ KVM is not applying its x2APIC hotplug hack.
+	 */
+	APICV_INHIBIT_REASON_PHYSICAL_ID_ALIASED,
+
+	/*
 	 * For simplicity, the APIC acceleration is inhibited
 	 * first time either APIC ID or APIC base are changed by the guest
 	 * from their reset values.
