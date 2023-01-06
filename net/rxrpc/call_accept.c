@@ -343,13 +343,13 @@ bool rxrpc_new_incoming_call(struct rxrpc_local *local,
 	if (sp->hdr.type != RXRPC_PACKET_TYPE_DATA)
 		return rxrpc_protocol_error(skb, rxrpc_eproto_no_service_call);
 
-	rcu_read_lock();
+	read_lock(&local->services_lock);
 
 	/* Weed out packets to services we're not offering.  Packets that would
 	 * begin a call are explicitly rejected and the rest are just
 	 * discarded.
 	 */
-	rx = rcu_dereference(local->service);
+	rx = local->service;
 	if (!rx || (sp->hdr.serviceId != rx->srx.srx_service &&
 		    sp->hdr.serviceId != rx->second_service)
 	    ) {
@@ -399,7 +399,7 @@ bool rxrpc_new_incoming_call(struct rxrpc_local *local,
 	spin_unlock(&conn->state_lock);
 
 	spin_unlock(&rx->incoming_lock);
-	rcu_read_unlock();
+	read_unlock(&local->services_lock);
 
 	if (hlist_unhashed(&call->error_link)) {
 		spin_lock(&call->peer->lock);
@@ -413,20 +413,20 @@ bool rxrpc_new_incoming_call(struct rxrpc_local *local,
 	return true;
 
 unsupported_service:
-	rcu_read_unlock();
+	read_unlock(&local->services_lock);
 	return rxrpc_direct_abort(skb, rxrpc_abort_service_not_offered,
 				  RX_INVALID_OPERATION, -EOPNOTSUPP);
 unsupported_security:
-	rcu_read_unlock();
+	read_unlock(&local->services_lock);
 	return rxrpc_direct_abort(skb, rxrpc_abort_service_not_offered,
 				  RX_INVALID_OPERATION, -EKEYREJECTED);
 no_call:
 	spin_unlock(&rx->incoming_lock);
-	rcu_read_unlock();
+	read_unlock(&local->services_lock);
 	_leave(" = f [%u]", skb->mark);
 	return false;
 discard:
-	rcu_read_unlock();
+	read_unlock(&local->services_lock);
 	return true;
 }
 

@@ -155,10 +155,10 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 		if (service_id) {
 			write_lock(&local->services_lock);
-			if (rcu_access_pointer(local->service))
+			if (local->service)
 				goto service_in_use;
 			rx->local = local;
-			rcu_assign_pointer(local->service, rx);
+			local->service = rx;
 			write_unlock(&local->services_lock);
 
 			rx->sk.sk_state = RXRPC_SERVER_BOUND;
@@ -875,9 +875,9 @@ static int rxrpc_release_sock(struct sock *sk)
 
 	sk->sk_state = RXRPC_CLOSE;
 
-	if (rx->local && rcu_access_pointer(rx->local->service) == rx) {
+	if (rx->local && rx->local->service == rx) {
 		write_lock(&rx->local->services_lock);
-		rcu_assign_pointer(rx->local->service, NULL);
+		rx->local->service = NULL;
 		write_unlock(&rx->local->services_lock);
 	}
 

@@ -178,9 +178,9 @@ struct key *rxrpc_look_up_server_security(struct rxrpc_connection *conn,
 		sprintf(kdesc, "%u:%u",
 			sp->hdr.serviceId, sp->hdr.securityIndex);
 
-	rcu_read_lock();
+	read_lock(&conn->local->services_lock);
 
-	rx = rcu_dereference(conn->local->service);
+	rx = conn->local->service;
 	if (!rx)
 		goto out;
 
@@ -202,6 +202,6 @@ struct key *rxrpc_look_up_server_security(struct rxrpc_connection *conn,
 	}
 
 out:
-	rcu_read_unlock();
+	read_unlock(&conn->local->services_lock);
 	return key;
 }
