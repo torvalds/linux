@@ -453,11 +453,8 @@ static void emit_pte(struct xe_migrate *m,
 		while (chunk--) {
 			u64 addr;
 
-			XE_BUG_ON(cur->start & (PAGE_SIZE - 1));
-
+			addr = xe_res_dma(cur) & PAGE_MASK;
 			if (is_vram) {
-				addr = cur->start;
-
 				/* Is this a 64K PTE entry? */
 				if ((m->eng->vm->flags & XE_VM_FLAGS_64K) &&
 				    !(cur_ofs & (16 * 8 - 1))) {
@@ -466,14 +463,12 @@ static void emit_pte(struct xe_migrate *m,
 				}
 
 				addr |= GEN12_PPGTT_PTE_LM;
-			} else {
-				addr = xe_res_dma(cur);
 			}
 			addr |= PPAT_CACHED | GEN8_PAGE_PRESENT | GEN8_PAGE_RW;
 			bb->cs[bb->len++] = lower_32_bits(addr);
 			bb->cs[bb->len++] = upper_32_bits(addr);
 
-			xe_res_next(cur, PAGE_SIZE);
+			xe_res_next(cur, min(size, (u32)PAGE_SIZE));
 			cur_ofs += 8;
 		}
 	}
@@ -615,13 +610,13 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 	bool copy_system_ccs = copy_ccs && (!src_is_vram || !dst_is_vram);
 
 	if (!src_is_vram)
-		xe_res_first_sg(xe_bo_get_sg(bo), 0, bo->size, &src_it);
+		xe_res_first_sg(xe_bo_get_sg(bo), 0, size, &src_it);
 	else
-		xe_res_first(src, 0, bo->size, &src_it);
+		xe_res_first(src, 0, size, &src_it);
 	if (!dst_is_vram)
-		xe_res_first_sg(xe_bo_get_sg(bo), 0, bo->size, &dst_it);
+		xe_res_first_sg(xe_bo_get_sg(bo), 0, size, &dst_it);
 	else
-		xe_res_first(dst, 0, bo->size, &dst_it);
+		xe_res_first(dst, 0, size, &dst_it);
 
 	if (copy_system_ccs)
 		xe_res_first_sg(xe_bo_get_sg(bo), xe_bo_ccs_pages_start(bo),
