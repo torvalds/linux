@@ -600,7 +600,7 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 	u32 chn;
 	union int_status status;
 	union int_clear clears;
-	u32 reg, val;
+	u32 reg, val, mask;
 
 	/* ELBI helper, only check the valid bits, and discard the rest interrupts */
 	dlbi_reg = dw_pcie_readl_dbi(pci, PCIE_ELBI_LOCAL_BASE + PCIE_ELBI_APP_ELBI_INT_GEN0);
@@ -612,8 +612,8 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 	rockchip_pcie_elbi_clear(rockchip);
 
 	/* DMA helper */
-	status.asdword = dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET +
-					   PCIE_DMA_WR_INT_STATUS);
+	mask = dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK);
+	status.asdword = dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_STATUS) & (~mask);
 	for (chn = 0; chn < PCIE_DMA_CHANEL_MAX_NUM; chn++) {
 		if (status.donesta & BIT(chn)) {
 			clears.doneclr = 0x1 << chn;
@@ -631,8 +631,8 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 		}
 	}
 
-	status.asdword = dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET +
-					   PCIE_DMA_RD_INT_STATUS);
+	mask = dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK);
+	status.asdword = dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_STATUS) & (~mask);
 	for (chn = 0; chn < PCIE_DMA_CHANEL_MAX_NUM; chn++) {
 		if (status.donesta & BIT(chn)) {
 			clears.doneclr = 0x1 << chn;
