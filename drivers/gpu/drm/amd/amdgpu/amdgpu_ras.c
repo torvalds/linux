@@ -3022,11 +3022,26 @@ int amdgpu_ras_set_context(struct amdgpu_device *adev, struct amdgpu_ras *ras_co
 int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 		unsigned int block)
 {
+	int ret = 0;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	if (block >= AMDGPU_RAS_BLOCK_COUNT)
 		return 0;
-	return ras && (adev->ras_enabled & (1 << block));
+
+	ret = ras && (adev->ras_enabled & (1 << block));
+
+	/* For the special asic with mem ecc enabled but sram ecc
+	 * not enabled, even if the ras block is not supported on
+	 * .ras_enabled, if the asic supports poison mode and the
+	 * ras block has ras configuration, it can be considered
+	 * that the ras block supports ras function.
+	 */
+	if (!ret &&
+	    amdgpu_ras_is_poison_mode_supported(adev) &&
+	    amdgpu_ras_get_ras_block(adev, block, 0))
+		ret = 1;
+
+	return ret;
 }
 
 int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
