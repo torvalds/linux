@@ -2075,6 +2075,7 @@ static void _set_bt_afh_info(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
 	struct rtw89_btc_bt_link_info *b = &bt->link_info;
@@ -2088,7 +2089,7 @@ static void _set_bt_afh_info(struct rtw89_dev *rtwdev)
 	if (btc->ctrl.manual || wl->status.map.scan)
 		return;
 
-	if (chip->chip_id == RTL8852A) {
+	if (ver->fwlrole == 0) {
 		mode = wl_rinfo->link_mode;
 		connect_cnt = wl_rinfo->connect_cnt;
 	} else {
@@ -2107,13 +2108,13 @@ static void _set_bt_afh_info(struct rtw89_dev *rtwdev)
 			r = &wl_rinfo->active_role[i];
 			r1 = &wl_rinfo_v1->active_role_v1[i];
 
-			if (chip->chip_id == RTL8852A &&
+			if (ver->fwlrole == 0 &&
 			    (r->role == RTW89_WIFI_ROLE_P2P_GO ||
 			     r->role == RTW89_WIFI_ROLE_P2P_CLIENT)) {
 				ch = r->ch;
 				bw = r->bw;
 				break;
-			} else if (chip->chip_id != RTL8852A &&
+			} else if (ver->fwlrole == 1 &&
 				   (r1->role == RTW89_WIFI_ROLE_P2P_GO ||
 				    r1->role == RTW89_WIFI_ROLE_P2P_CLIENT)) {
 				ch = r1->ch;
@@ -2128,12 +2129,12 @@ static void _set_bt_afh_info(struct rtw89_dev *rtwdev)
 			r = &wl_rinfo->active_role[i];
 			r1 = &wl_rinfo_v1->active_role_v1[i];
 
-			if (chip->chip_id == RTL8852A &&
+			if (ver->fwlrole == 0 &&
 			    r->connected && r->band == RTW89_BAND_2G) {
 				ch = r->ch;
 				bw = r->bw;
 				break;
-			} else if (chip->chip_id != RTL8852A &&
+			} else if (ver->fwlrole == 1 &&
 				   r1->connected && r1->band == RTW89_BAND_2G) {
 				ch = r1->ch;
 				bw = r1->bw;
@@ -3581,8 +3582,8 @@ static void _action_wl_rfk(struct rtw89_dev *rtwdev)
 
 static void _set_btg_ctrl(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_role_info *wl_rinfo = &wl->role_info;
 	struct rtw89_btc_wl_role_info_v1 *wl_rinfo_v1 = &wl->role_info_v1;
@@ -3593,7 +3594,7 @@ static void _set_btg_ctrl(struct rtw89_dev *rtwdev)
 	if (btc->ctrl.manual)
 		return;
 
-	if (chip->chip_id == RTL8852A)
+	if (ver->fwlrole == 0)
 		mode = wl_rinfo->link_mode;
 	else
 		mode = wl_rinfo_v1->link_mode;
@@ -3686,8 +3687,8 @@ static void rtw89_tx_time_iter(void *data, struct ieee80211_sta *sta)
 
 static void _set_wl_tx_limit(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
@@ -3707,7 +3708,7 @@ static void _set_wl_tx_limit(struct rtw89_dev *rtwdev)
 	if (btc->ctrl.manual)
 		return;
 
-	if (chip->chip_id == RTL8852A)
+	if (ver->fwlrole == 0)
 		mode = wl_rinfo->link_mode;
 	else
 		mode = wl_rinfo_v1->link_mode;
@@ -3755,8 +3756,8 @@ static void _set_wl_tx_limit(struct rtw89_dev *rtwdev)
 
 static void _set_bt_rx_agc(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_role_info *wl_rinfo = &wl->role_info;
 	struct rtw89_btc_wl_role_info_v1 *wl_rinfo_v1 = &wl->role_info_v1;
@@ -3764,7 +3765,7 @@ static void _set_bt_rx_agc(struct rtw89_dev *rtwdev)
 	bool bt_hi_lna_rx = false;
 	u8 mode;
 
-	if (chip->chip_id == RTL8852A)
+	if (ver->fwlrole == 0)
 		mode = wl_rinfo->link_mode;
 	else
 		mode = wl_rinfo_v1->link_mode;
@@ -4628,8 +4629,8 @@ static bool _chk_wl_rfk_request(struct rtw89_dev *rtwdev)
 static
 void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_dm *dm = &rtwdev->btc.dm;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
@@ -4644,7 +4645,7 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 	_update_dm_step(rtwdev, reason);
 	_update_btc_state_map(rtwdev);
 
-	if (chip->chip_id == RTL8852A)
+	if (ver->fwlrole == 0)
 		mode = wl_rinfo->link_mode;
 	else
 		mode = wl_rinfo_v1->link_mode;
@@ -4766,9 +4767,9 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 		break;
 	case BTC_WLINK_2G_SCC:
 		bt->scan_rx_low_pri = true;
-		if (chip->chip_id == RTL8852A)
+		if (ver->fwlrole == 0)
 			_action_wl_2g_scc(rtwdev);
-		else if (chip->chip_id == RTL8852C)
+		else if (ver->fwlrole == 1)
 			_action_wl_2g_scc_v1(rtwdev);
 		break;
 	case BTC_WLINK_2G_MCC:
@@ -5206,10 +5207,10 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif
 			      struct rtw89_sta *rtwsta, enum btc_role_state state)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
-	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 	struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta);
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_link_info r = {0};
 	struct rtw89_btc_wl_link_info *wlinfo = NULL;
@@ -5273,7 +5274,7 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif
 	wlinfo = &wl->link_info[r.pid];
 
 	memcpy(wlinfo, &r, sizeof(*wlinfo));
-	if (chip->chip_id == RTL8852A)
+	if (ver->fwlrole == 0)
 		_update_wl_info(rtwdev);
 	else
 		_update_wl_info_v1(rtwdev);
@@ -5789,8 +5790,8 @@ static void _show_wl_role_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 
 static void _show_wl_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
 	struct rtw89_btc_wl_role_info *wl_rinfo = &wl->role_info;
@@ -5802,7 +5803,7 @@ static void _show_wl_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 
 	seq_puts(m, "========== [WL Status] ==========\n");
 
-	if (chip->chip_id == RTL8852A)
+	if (ver->fwlrole == 0)
 		mode = wl_rinfo->link_mode;
 	else
 		mode = wl_rinfo_v1->link_mode;
