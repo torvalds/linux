@@ -7424,7 +7424,7 @@ static bool is_content_protection_different(struct drm_crtc_state *new_crtc_stat
 			new_conn_state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
 			pr_debug("[HDCP_DM] ENABLED->DESIRED & mode_changed %s :true\n", __func__);
 			return true;
-		};
+		}
 		new_conn_state->content_protection = DRM_MODE_CONTENT_PROTECTION_ENABLED;
 		pr_debug("[HDCP_DM] ENABLED -> DESIRED %s :false\n", __func__);
 		return false;
@@ -7478,11 +7478,11 @@ static bool is_content_protection_different(struct drm_crtc_state *new_crtc_stat
 				pr_debug("[HDCP_DM] DESIRED->DESIRED or ENABLE->ENABLE mode_change %s :true\n",
 					__func__);
 				return true;
-			};
+			}
 			pr_debug("[HDCP_DM] DESIRED->DESIRED & ENABLE->ENABLE %s :false\n",
 				__func__);
 			return false;
-		};
+		}
 
 		pr_debug("[HDCP_DM] UNDESIRED->UNDESIRED %s :false\n", __func__);
 		return false;
