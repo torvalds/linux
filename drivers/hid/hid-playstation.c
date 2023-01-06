@@ -1759,11 +1759,10 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 				if (retries < 2) {
 					hid_warn(hdev, "Retrying DualShock 4 get calibration report (0x02) request\n");
 					continue;
-				} else {
-					ret = -EILSEQ;
-					goto err_free;
 				}
+
 				hid_err(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
+				ret = -EILSEQ;
 				goto err_free;
 			} else {
 				break;
