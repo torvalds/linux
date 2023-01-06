@@ -186,6 +186,15 @@ static wait_queue_head_t ublk_idr_wq;	/* wait until one idr is freed */
 
 static DEFINE_MUTEX(ublk_ctl_mutex);
 
+/*
+ * Max ublk devices allowed to add
+ *
+ * It can be extended to one per-user limit in future or even controlled
+ * by cgroup.
+ */
+static unsigned int ublks_max = 64;
+static unsigned int ublks_added;	/* protected by ublk_ctl_mutex */
+
 static struct miscdevice ublk_misc;
 
 static void ublk_dev_param_basic_apply(struct ublk_device *ub)
@@ -1441,6 +1450,8 @@ static int ublk_add_chdev(struct ublk_device *ub)
 	ret = cdev_device_add(&ub->cdev, dev);
 	if (ret)
 		goto fail;
+
+	ublks_added++;
 	return 0;
  fail:
 	put_device(dev);
@@ -1483,6 +1494,7 @@ static void ublk_remove(struct ublk_device *ub)
 	cancel_work_sync(&ub->quiesce_work);
 	cdev_device_del(&ub->cdev, &ub->cdev_dev);
 	put_device(&ub->cdev_dev);
+	ublks_added--;
 }
 
 static struct ublk_device *ublk_get_device_from_id(int idx)
@@ -1641,6 +1653,10 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 	ret = mutex_lock_killable(&ublk_ctl_mutex);
 	if (ret)
 		return ret;
+
+	ret = -EACCES;
+	if (ublks_added >= ublks_max)
+		goto out_unlock;
 
 	ret = -ENOMEM;
 	ub = kzalloc(sizeof(*ub), GFP_KERNEL);
@@ -2094,6 +2110,9 @@ static void __exit ublk_exit(void)
 
 module_init(ublk_init);
 module_exit(ublk_exit);
+
+module_param(ublks_max, int, 0444);
+MODULE_PARM_DESC(ublks_max, "max number of ublk devices allowed to add(default: 64)");
 
 MODULE_AUTHOR("Ming Lei <ming.lei@redhat.com>");
 MODULE_LICENSE("GPL");
