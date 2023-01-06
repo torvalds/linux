@@ -125,8 +125,6 @@ next:
  */
 void devlink_set_features(struct devlink *devlink, u64 features)
 {
-	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
-
 	WARN_ON(features & DEVLINK_F_RELOAD &&
 		!devlink_reload_supported(devlink->ops));
 	devlink->features = features;
