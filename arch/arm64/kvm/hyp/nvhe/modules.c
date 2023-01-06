@@ -69,6 +69,7 @@ const struct pkvm_module_ops module_ops = {
 	.flush_dcache_to_poc = __kvm_flush_dcache_to_poc,
 	.register_host_perm_fault_handler = hyp_register_host_perm_fault_handler,
 	.protect_host_page = hyp_protect_host_page,
+	.host_stage2_get_leaf = host_stage2_get_leaf,
 	.register_host_smc_handler = __pkvm_register_host_smc_handler,
 	.register_default_trap_handler = __pkvm_register_default_trap_handler,
 	.register_illegal_abt_notifier = __pkvm_register_illegal_abt_notifier,
