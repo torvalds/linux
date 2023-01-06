@@ -36,13 +36,10 @@
 	non-removable;
 	cap-mmc-hw-reset;
 	post-power-on-delay-ms = <200>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins>;
 	status = "okay";
 };
 
 &sdio1 {
-	clock-frequency = <102400000>;
 	max-frequency = <100000000>;
 	card-detect-delay = <300>;
 	bus-width = <8>;
@@ -50,8 +47,6 @@
 	non-removable;
 	cap-mmc-highspeed;
 	post-power-on-delay-ms = <200>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&emmc1_pins>;
 	status = "okay";
 };
 

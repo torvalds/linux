@@ -21,8 +21,6 @@
 	broken-cd;
 	cap-sd-highspeed;
 	post-power-on-delay-ms = <200>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdcard0_pins>;
 	status = "okay";
 };
 
