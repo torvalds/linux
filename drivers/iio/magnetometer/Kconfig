@@ -119,7 +119,7 @@ config IIO_ST_MAGN_3AXIS
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics magnetometers:
-	  LSM303DLHC, LSM303DLM, LIS3MDL.
+	  LSM303C, LSM303DLHC, LSM303DLM, LIS3MDL.
 
 	  Also need to enable at least one of I2C and SPI interface drivers
 	  below.
