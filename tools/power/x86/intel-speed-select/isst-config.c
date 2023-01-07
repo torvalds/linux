@@ -2066,6 +2066,9 @@ static void set_fact_enable(int arg)
 			if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
 				continue;
 
+			if (is_cpu_online(i) != 1)
+				continue;
+
 			set_isst_id(&id, i);
 			ret = set_clos_param(&id, 0, 0, 0, 0, 0xff);
 			if (ret)
