@@ -495,7 +495,7 @@ static unsigned int compute_syt_offset(unsigned int syt, unsigned int cycle,
 static unsigned int calculate_cached_cycle_count(struct amdtp_stream *s, unsigned int head)
 {
 	const unsigned int cache_size = s->ctx_data.tx.cache.size;
-	unsigned int cycles = s->ctx_data.tx.cache.tail;
+	unsigned int cycles = s->ctx_data.tx.cache.pos;
 
 	if (cycles < head)
 		cycles += cache_size;
@@ -509,12 +509,12 @@ static void cache_seq(struct amdtp_stream *s, const struct pkt_desc *descs, unsi
 	const unsigned int transfer_delay = s->transfer_delay;
 	const unsigned int cache_size = s->ctx_data.tx.cache.size;
 	struct seq_desc *cache = s->ctx_data.tx.cache.descs;
-	unsigned int cache_tail = s->ctx_data.tx.cache.tail;
+	unsigned int cache_pos = s->ctx_data.tx.cache.pos;
 	bool aware_syt = !(s->flags & CIP_UNAWARE_SYT);
 	int i;
 
 	for (i = 0; i < desc_count; ++i) {
-		struct seq_desc *dst = cache + cache_tail;
+		struct seq_desc *dst = cache + cache_pos;
 		const struct pkt_desc *src = descs + i;
 
 		if (aware_syt && src->syt != CIP_SYT_NO_INFO)
@@ -523,10 +523,10 @@ static void cache_seq(struct amdtp_stream *s, const struct pkt_desc *descs, unsi
 			dst->syt_offset = CIP_SYT_NO_INFO;
 		dst->data_blocks = src->data_blocks;
 
-		cache_tail = (cache_tail + 1) % cache_size;
+		cache_pos = (cache_pos + 1) % cache_size;
 	}
 
-	s->ctx_data.tx.cache.tail = cache_tail;
+	s->ctx_data.tx.cache.pos = cache_pos;
 }
 
 static void pool_ideal_seq_descs(struct amdtp_stream *s, struct seq_desc *descs, unsigned int size,
@@ -881,11 +881,9 @@ static inline u32 compute_ohci_it_cycle(const __be32 ctx_header_tstamp,
 	return increment_ohci_cycle_count(cycle, queue_size);
 }
 
-static int generate_device_pkt_descs(struct amdtp_stream *s,
-				     struct pkt_desc *descs,
-				     const __be32 *ctx_header,
-				     unsigned int packets,
-				     unsigned int *desc_count)
+static int generate_tx_packet_descs(struct amdtp_stream *s, struct pkt_desc *descs,
+				    const __be32 *ctx_header, unsigned int packet_count,
+				    unsigned int *desc_count)
 {
 	unsigned int next_cycle = s->next_cycle;
 	unsigned int dbc = s->data_block_counter;
@@ -895,7 +893,7 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 	int err;
 
 	*desc_count = 0;
-	for (i = 0; i < packets; ++i) {
+	for (i = 0; i < packet_count; ++i) {
 		struct pkt_desc *desc = descs + *desc_count;
 		unsigned int cycle;
 		bool lost;
@@ -1199,7 +1197,7 @@ static void process_tx_packets(struct fw_iso_context *context, u32 tstamp, size_
 {
 	struct amdtp_stream *s = private_data;
 	__be32 *ctx_header = header;
-	unsigned int packets;
+	unsigned int packet_count;
 	unsigned int desc_count;
 	int i;
 	int err;
@@ -1208,10 +1206,10 @@ static void process_tx_packets(struct fw_iso_context *context, u32 tstamp, size_
 		return;
 
 	// Calculate the number of packets in buffer and check XRUN.
-	packets = header_length / s->ctx_data.tx.ctx_header_size;
+	packet_count = header_length / s->ctx_data.tx.ctx_header_size;
 
 	desc_count = 0;
-	err = generate_device_pkt_descs(s, s->pkt_descs, ctx_header, packets, &desc_count);
+	err = generate_tx_packet_descs(s, s->pkt_descs, ctx_header, packet_count, &desc_count);
 	if (err < 0) {
 		if (err != -EAGAIN) {
 			cancel_stream(s);
@@ -1226,7 +1224,7 @@ static void process_tx_packets(struct fw_iso_context *context, u32 tstamp, size_
 			cache_seq(s, s->pkt_descs, desc_count);
 	}
 
-	for (i = 0; i < packets; ++i) {
+	for (i = 0; i < packet_count; ++i) {
 		struct fw_iso_packet params = {0};
 
 		if (queue_in_packet(s, &params) < 0) {
@@ -1611,7 +1609,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 			// possible to cache much unexpectedly.
 			s->ctx_data.tx.cache.size = max_t(unsigned int, s->syt_interval * 2,
 							  queue_size * 3 / 2);
-			s->ctx_data.tx.cache.tail = 0;
+			s->ctx_data.tx.cache.pos = 0;
 			s->ctx_data.tx.cache.descs = kcalloc(s->ctx_data.tx.cache.size,
 						sizeof(*s->ctx_data.tx.cache.descs), GFP_KERNEL);
 			if (!s->ctx_data.tx.cache.descs) {
