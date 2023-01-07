@@ -90,50 +90,26 @@
 #define NGBE_FW_CMD_ST_PASS			0x80658383
 #define NGBE_FW_CMD_ST_FAIL			0x70657376
 
-enum ngbe_phy_type {
-	ngbe_phy_unknown = 0,
-	ngbe_phy_none,
-	ngbe_phy_internal,
-	ngbe_phy_m88e1512,
-	ngbe_phy_m88e1512_sfi,
-	ngbe_phy_m88e1512_unknown,
-	ngbe_phy_yt8521s,
-	ngbe_phy_yt8521s_sfi,
-	ngbe_phy_internal_yt8521s_sfi,
-	ngbe_phy_generic
-};
+#define NGBE_MAX_FDIR_INDICES			7
 
-enum ngbe_media_type {
-	ngbe_media_type_unknown = 0,
-	ngbe_media_type_fiber,
-	ngbe_media_type_copper,
-	ngbe_media_type_backplane,
-};
+#define NGBE_MAX_RX_QUEUES			(NGBE_MAX_FDIR_INDICES + 1)
+#define NGBE_MAX_TX_QUEUES			(NGBE_MAX_FDIR_INDICES + 1)
 
-enum ngbe_mac_type {
-	ngbe_mac_type_unknown = 0,
-	ngbe_mac_type_mdi,
-	ngbe_mac_type_rgmii
-};
+#define NGBE_ETH_LENGTH_OF_ADDRESS		6
+#define NGBE_MAX_MSIX_VECTORS			0x09
+#define NGBE_RAR_ENTRIES			32
 
-struct ngbe_phy_info {
-	enum ngbe_phy_type type;
-	enum ngbe_media_type media_type;
+/* TX/RX descriptor defines */
+#define NGBE_DEFAULT_TXD			512 /* default ring size */
+#define NGBE_DEFAULT_TX_WORK			256
+#define NGBE_MAX_TXD				8192
+#define NGBE_MIN_TXD				128
 
-	u32 addr;
-	u32 id;
+#define NGBE_DEFAULT_RXD			512 /* default ring size */
+#define NGBE_DEFAULT_RX_WORK			256
+#define NGBE_MAX_RXD				8192
+#define NGBE_MIN_RXD				128
 
-	bool reset_if_overtemp;
+extern char ngbe_driver_name[];
 
-};
-
-struct ngbe_hw {
-	struct wx_hw wxhw;
-	struct ngbe_phy_info phy;
-	enum ngbe_mac_type mac_type;
-
-	bool wol_enabled;
-	bool ncsi_enabled;
-	bool gpio_ctrl;
-};
 #endif /* _NGBE_TYPE_H_ */

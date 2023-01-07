@@ -7,6 +7,6 @@
 #ifndef _NGBE_HW_H_
 #define _NGBE_HW_H_
 
-int ngbe_eeprom_chksum_hostif(struct ngbe_hw *hw);
-int ngbe_reset_hw(struct ngbe_hw *hw);
+int ngbe_eeprom_chksum_hostif(struct wx *wx);
+int ngbe_reset_hw(struct wx *wx);
 #endif /* _NGBE_HW_H_ */

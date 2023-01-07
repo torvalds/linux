@@ -185,6 +185,12 @@
 
 #define WX_SW_REGION_PTR             0x1C
 
+#define WX_MAC_STATE_DEFAULT         0x1
+#define WX_MAC_STATE_MODIFIED        0x2
+#define WX_MAC_STATE_IN_USE          0x4
+
+#define WX_CFG_PORT_ST               0x14404
+
 /* Host Interface Command Structures */
 struct wx_hic_hdr {
 	u8 cmd;
@@ -249,6 +255,12 @@ enum wx_mac_type {
 	wx_mac_em
 };
 
+enum em_mac_type {
+	em_mac_type_unknown = 0,
+	em_mac_type_mdi,
+	em_mac_type_rgmii
+};
+
 struct wx_mac_info {
 	enum wx_mac_type type;
 	bool set_lben;
@@ -284,19 +296,28 @@ struct wx_addr_filter_info {
 	bool user_set_promisc;
 };
 
+struct wx_mac_addr {
+	u8 addr[ETH_ALEN];
+	u16 state; /* bitmask */
+	u64 pools;
+};
+
 enum wx_reset_type {
 	WX_LAN_RESET = 0,
 	WX_SW_RESET,
 	WX_GLOBAL_RESET
 };
 
-struct wx_hw {
+struct wx {
 	u8 __iomem *hw_addr;
 	struct pci_dev *pdev;
+	struct net_device *netdev;
 	struct wx_bus_info bus;
 	struct wx_mac_info mac;
+	enum em_mac_type mac_type;
 	struct wx_eeprom_info eeprom;
 	struct wx_addr_filter_info addr_ctrl;
+	struct wx_mac_addr *mac_table;
 	u16 device_id;
 	u16 vendor_id;
 	u16 subsystem_device_id;
@@ -304,8 +325,39 @@ struct wx_hw {
 	u8 revision_id;
 	u16 oem_ssid;
 	u16 oem_svid;
+	u16 msg_enable;
 	bool adapter_stopped;
+	char eeprom_id[32];
 	enum wx_reset_type reset_type;
+
+	bool wol_enabled;
+	bool ncsi_enabled;
+	bool gpio_ctrl;
+
+	/* Tx fast path data */
+	int num_tx_queues;
+	u16 tx_itr_setting;
+	u16 tx_work_limit;
+
+	/* Rx fast path data */
+	int num_rx_queues;
+	u16 rx_itr_setting;
+	u16 rx_work_limit;
+
+	int num_q_vectors;      /* current number of q_vectors for device */
+	int max_q_vectors;      /* upper limit of q_vectors for device */
+
+	u32 tx_ring_count;
+	u32 rx_ring_count;
+
+#define WX_MAX_RETA_ENTRIES 128
+	u8 rss_indir_tbl[WX_MAX_RETA_ENTRIES];
+
+#define WX_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
+	u32 *rss_key;
+	u32 wol;
+
+	u16 bd_number;
 };
 
 #define WX_INTR_ALL (~0ULL)
@@ -319,23 +371,23 @@ struct wx_hw {
 	wr32((a), (reg) + ((off) << 2), (val))
 
 static inline u32
-rd32m(struct wx_hw *wxhw, u32 reg, u32 mask)
+rd32m(struct wx *wx, u32 reg, u32 mask)
 {
 	u32 val;
 
-	val = rd32(wxhw, reg);
+	val = rd32(wx, reg);
 	return val & mask;
 }
 
 static inline void
-wr32m(struct wx_hw *wxhw, u32 reg, u32 mask, u32 field)
+wr32m(struct wx *wx, u32 reg, u32 mask, u32 field)
 {
 	u32 val;
 
-	val = rd32(wxhw, reg);
+	val = rd32(wx, reg);
 	val = ((val & ~mask) | (field & mask));
 
-	wr32(wxhw, reg, val);
+	wr32(wx, reg, val);
 }
 
 /* On some domestic CPU platforms, sometimes IO is not synchronized with
@@ -343,10 +395,10 @@ wr32m(struct wx_hw *wxhw, u32 reg, u32 mask, u32 field)
  */
 #define WX_WRITE_FLUSH(H) rd32(H, WX_MIS_PWR)
 
-#define wx_err(wxhw, fmt, arg...) \
-	dev_err(&(wxhw)->pdev->dev, fmt, ##arg)
+#define wx_err(wx, fmt, arg...) \
+	dev_err(&(wx)->pdev->dev, fmt, ##arg)
 
-#define wx_dbg(wxhw, fmt, arg...) \
-	dev_dbg(&(wxhw)->pdev->dev, fmt, ##arg)
+#define wx_dbg(wx, fmt, arg...) \
+	dev_dbg(&(wx)->pdev->dev, fmt, ##arg)
 
 #endif /* _WX_TYPE_H_ */
