@@ -301,7 +301,7 @@ static inline bool folio_ref_try_add_rcu(struct folio *folio, int count)
  *
  * You can also use this function if you're holding a lock that prevents
  * pages being frozen & removed; eg the i_pages lock for the page cache
- * or the mmap_sem or page table lock for page tables.  In this case,
+ * or the mmap_lock or page table lock for page tables.  In this case,
  * it will always succeed, and you could have used a plain folio_get(),
  * but it's sometimes more convenient to have a common function called
  * from both locked and RCU-protected contexts.
