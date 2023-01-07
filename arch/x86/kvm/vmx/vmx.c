@@ -4031,7 +4031,7 @@ static void vmx_update_msr_bitmap_x2apic(struct kvm_vcpu *vcpu)
 	u64 *msr_bitmap = (u64 *)vmx->vmcs01.msr_bitmap;
 	u8 mode;
 
-	if (!cpu_has_vmx_msr_bitmap())
+	if (!cpu_has_vmx_msr_bitmap() || WARN_ON_ONCE(!lapic_in_kernel(vcpu)))
 		return;
 
 	if (cpu_has_secondary_exec_ctrls() &&
@@ -4053,11 +4053,11 @@ static void vmx_update_msr_bitmap_x2apic(struct kvm_vcpu *vcpu)
 	 * Reset the bitmap for MSRs 0x800 - 0x83f.  Leave AMD's uber-extended
 	 * registers (0x840 and above) intercepted, KVM doesn't support them.
 	 * Intercept all writes by default and poke holes as needed.  Pass
-	 * through all reads by default in x2APIC+APICv mode, as all registers
-	 * except the current timer count are passed through for read.
+	 * through reads for all valid registers by default in x2APIC+APICv
+	 * mode, only the current timer count needs on-demand emulation by KVM.
 	 */
 	if (mode & MSR_BITMAP_MODE_X2APIC_APICV)
-		msr_bitmap[read_idx] = 0;
+		msr_bitmap[read_idx] = ~kvm_lapic_readable_reg_mask(vcpu->arch.apic);
 	else
 		msr_bitmap[read_idx] = ~0ull;
 	msr_bitmap[write_idx] = ~0ull;
