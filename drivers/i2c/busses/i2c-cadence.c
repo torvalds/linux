@@ -173,7 +173,6 @@ enum cdns_i2c_slave_state {
  * @send_count:		Number of bytes still expected to send
  * @recv_count:		Number of bytes still expected to receive
  * @curr_recv_count:	Number of bytes to be received in current transfer
- * @irq:		IRQ number
  * @input_clk:		Input clock to I2C controller
  * @i2c_clk:		Maximum I2C clock speed
  * @bus_hold_flag:	Flag used in repeated start for clearing HOLD bit
@@ -198,7 +197,6 @@ struct cdns_i2c {
 	unsigned int send_count;
 	unsigned int recv_count;
 	unsigned int curr_recv_count;
-	int irq;
 	unsigned long input_clk;
 	unsigned int i2c_clk;
 	unsigned int bus_hold_flag;
@@ -1244,7 +1242,7 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 {
 	struct resource *r_mem;
 	struct cdns_i2c *id;
-	int ret;
+	int ret, irq;
 	const struct of_device_id *match;
 
 	id = devm_kzalloc(&pdev->dev, sizeof(*id), GFP_KERNEL);
@@ -1275,10 +1273,9 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(id->membase))
 		return PTR_ERR(id->membase);
 
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0)
-		return ret;
-	id->irq = ret;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	id->adap.owner = THIS_MODULE;
 	id->adap.dev.of_node = pdev->dev.of_node;
@@ -1329,10 +1326,10 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 		goto err_clk_dis;
 	}
 
-	ret = devm_request_irq(&pdev->dev, id->irq, cdns_i2c_isr, 0,
+	ret = devm_request_irq(&pdev->dev, irq, cdns_i2c_isr, 0,
 				 DRIVER_NAME, id);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot get irq %d\n", id->irq);
+		dev_err(&pdev->dev, "cannot get irq %d\n", irq);
 		goto err_clk_dis;
 	}
 	cdns_i2c_init(id);
@@ -1342,7 +1339,7 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 		goto err_clk_dis;
 
 	dev_info(&pdev->dev, "%u kHz mmio %08lx irq %d\n",
-		 id->i2c_clk / 1000, (unsigned long)r_mem->start, id->irq);
+		 id->i2c_clk / 1000, (unsigned long)r_mem->start, irq);
 
 	return 0;
 
