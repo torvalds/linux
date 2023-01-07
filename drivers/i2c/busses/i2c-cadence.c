@@ -1030,8 +1030,7 @@ static int cdns_i2c_calc_divs(unsigned long *f, unsigned long input_clk,
 		if (actual_fscl > fscl)
 			continue;
 
-		current_error = ((actual_fscl > fscl) ? (actual_fscl - fscl) :
-							(fscl - actual_fscl));
+		current_error = fscl - actual_fscl;
 
 		if (last_error > current_error) {
 			calc_div_a = div_a;
