@@ -81,10 +81,19 @@ struct starfive_timer {
 	u32 timer_base[NR_TIMERS];
 };
 
+struct starfive_timer_misc_count {
+	u8 clk_count;
+	bool flg_init_clk;
+};
+
 struct starfive_clkevt {
 	struct clock_event_device evt;
+	struct clocksource cs;
+	struct device_node *device_node;
+	struct starfive_timer_misc_count *misc;
 	struct clk *clk;
 	char name[20];
+	int index;
 	int irq;
 	u64 periodic;
 	u64 rate;

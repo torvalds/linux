@@ -369,19 +369,6 @@ config RISCV_ISA_C
 
 	   If you don't know what to do here, say Y.
 
-menu "supported PMU type"
-	depends on PERF_EVENTS
-
-config RISCV_BASE_PMU
-	bool "Base Performance Monitoring Unit"
-	def_bool y
-	help
-	  A base PMU that serves as a reference implementation and has limited
-	  feature of perf.  It can run on any RISC-V machines so serves as the
-	  fallback, but this option can also be disable to reduce kernel size.
-
-endmenu
-
 config FPU
 	bool "FPU support"
 	default y
@@ -556,6 +543,16 @@ config XIP_PHYS_ADDR
 	  This is the physical address in your flash memory the kernel will
 	  be linked for and stored to.  This address is dependent on your
 	  own flash usage.
+
+config ARCH_SUSPEND_POSSIBLE
+        def_bool y
+
+config ARCH_HIBERNATION_POSSIBLE
+       def_bool y
+
+config ARCH_HIBERNATION_HEADER
+       def_bool y
+       depends on HIBERNATION
 
 endmenu
 
