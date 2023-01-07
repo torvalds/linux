@@ -1573,7 +1573,6 @@ static int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
 		APIC_REG_MASK(APIC_TASKPRI) |
 		APIC_REG_MASK(APIC_PROCPRI) |
 		APIC_REG_MASK(APIC_LDR) |
-		APIC_REG_MASK(APIC_DFR) |
 		APIC_REG_MASK(APIC_SPIV) |
 		APIC_REGS_MASK(APIC_ISR, APIC_ISR_NR) |
 		APIC_REGS_MASK(APIC_TMR, APIC_ISR_NR) |
@@ -1594,12 +1593,13 @@ static int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
 		valid_reg_mask |= APIC_REG_MASK(APIC_LVTCMCI);
 
 	/*
-	 * ARBPRI and ICR2 are not valid in x2APIC mode.  WARN if KVM reads ICR
-	 * in x2APIC mode as it's an 8-byte register in x2APIC and needs to be
-	 * manually handled by the caller.
+	 * ARBPRI, DFR, and ICR2 are not valid in x2APIC mode.  WARN if KVM
+	 * reads ICR in x2APIC mode as it's an 8-byte register in x2APIC and
+	 * needs to be manually handled by the caller.
 	 */
 	if (!apic_x2apic_mode(apic))
 		valid_reg_mask |= APIC_REG_MASK(APIC_ARBPRI) |
+				  APIC_REG_MASK(APIC_DFR) |
 				  APIC_REG_MASK(APIC_ICR2);
 	else
 		WARN_ON_ONCE(offset == APIC_ICR);
@@ -3145,9 +3145,6 @@ int kvm_x2apic_msr_read(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
 	u32 reg = (msr - APIC_BASE_MSR) << 4;
 
 	if (!lapic_in_kernel(vcpu) || !apic_x2apic_mode(apic))
-		return 1;
-
-	if (reg == APIC_DFR)
 		return 1;
 
 	return kvm_lapic_msr_read(apic, reg, data);
