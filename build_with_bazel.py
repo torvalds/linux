@@ -128,7 +128,7 @@ class BazelBuilder:
                     cmdline, cwd=self.workspace, stdout=subprocess.PIPE
                 )
                 self.process_list.append(query_cmd)
-                target_list = query_cmd.stdout.read().splitlines()
+                target_list = [l.decode("utf-8") for l in query_cmd.stdout.read().splitlines()]
             except Exception as e:
                 logging.error(e)
                 sys.exit(1)
@@ -172,7 +172,7 @@ class BazelBuilder:
                 cmdline, cwd=self.workspace, stdout=subprocess.PIPE
             )
             self.process_list.append(query_cmd)
-            toolchain = query_cmd.stdout.read().strip()
+            toolchain = query_cmd.stdout.read().strip().decode("utf-8")
         except Exception as e:
             logging.error(e)
             sys.exit(1)
