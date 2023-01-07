@@ -6492,11 +6492,8 @@ static int kvm_vm_ioctl_set_msr_filter(struct kvm *kvm,
 	}
 
 	mutex_lock(&kvm->lock);
-
 	/* The per-VM filter is protected by kvm->lock... */
-	old_filter = srcu_dereference_check(kvm->arch.msr_filter, &kvm->srcu, 1);
-
-	rcu_assign_pointer(kvm->arch.msr_filter, new_filter);
+	old_filter = rcu_replace_pointer(kvm->arch.msr_filter, new_filter, 1);
 	mutex_unlock(&kvm->lock);
 	synchronize_srcu(&kvm->srcu);
 
