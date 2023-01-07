@@ -413,6 +413,33 @@ int get_topo_max_cpus(void)
 	return topo_max_cpus;
 }
 
+static unsigned int is_cpu_online(int cpu)
+{
+	char buffer[128];
+	int fd, ret;
+	unsigned char online;
+
+	snprintf(buffer, sizeof(buffer),
+		 "/sys/devices/system/cpu/cpu%d/online", cpu);
+
+	fd = open(buffer, O_RDONLY);
+	if (fd < 0)
+		return fd;
+
+	ret = read(fd, &online, sizeof(online));
+	close(fd);
+
+	if (ret == -1)
+		return ret;
+
+	if (online == '1')
+		online = 1;
+	else
+		online = 0;
+
+	return online;
+}
+
 void set_cpu_online_offline(int cpu, int state)
 {
 	char buffer[128];
@@ -1603,6 +1630,9 @@ static void set_scaling_min_to_cpuinfo_max(struct isst_id *id)
 		if (!is_cpu_in_power_domain(i, id))
 			continue;
 
+		if (is_cpu_online(i) != 1)
+			continue;
+
 		adjust_scaling_max_from_base_freq(i);
 		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 0);
 		adjust_scaling_min_from_base_freq(i);
@@ -1615,6 +1645,9 @@ static void set_scaling_min_to_cpuinfo_min(struct isst_id *id)
 
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
 		if (!is_cpu_in_power_domain(i, id))
+			continue;
+
+		if (is_cpu_online(i) != 1)
 			continue;
 
 		adjust_scaling_max_from_base_freq(i);
