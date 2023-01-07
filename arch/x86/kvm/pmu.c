@@ -634,6 +634,7 @@ int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 	mutex_lock(&kvm->lock);
 	filter = rcu_replace_pointer(kvm->arch.pmu_event_filter, filter,
 				     mutex_is_locked(&kvm->lock));
+	mutex_unlock(&kvm->lock);
 	synchronize_srcu_expedited(&kvm->srcu);
 
 	BUILD_BUG_ON(sizeof(((struct kvm_pmu *)0)->reprogram_pmi) >
@@ -643,8 +644,6 @@ int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 		atomic64_set(&vcpu_to_pmu(vcpu)->__reprogram_pmi, -1ull);
 
 	kvm_make_all_cpus_request(kvm, KVM_REQ_PMU);
-
-	mutex_unlock(&kvm->lock);
 
 	r = 0;
 cleanup:
