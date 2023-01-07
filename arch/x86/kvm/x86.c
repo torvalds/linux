@@ -4291,8 +4291,8 @@ static int msr_io(struct kvm_vcpu *vcpu, struct kvm_msrs __user *user_msrs,
 {
 	struct kvm_msrs msrs;
 	struct kvm_msr_entry *entries;
-	int r, n;
 	unsigned size;
+	int r;
 
 	r = -EFAULT;
 	if (copy_from_user(&msrs, user_msrs, sizeof(msrs)))
@@ -4309,17 +4309,11 @@ static int msr_io(struct kvm_vcpu *vcpu, struct kvm_msrs __user *user_msrs,
 		goto out;
 	}
 
-	r = n = __msr_io(vcpu, &msrs, entries, do_msr);
-	if (r < 0)
-		goto out_free;
+	r = __msr_io(vcpu, &msrs, entries, do_msr);
 
-	r = -EFAULT;
 	if (writeback && copy_to_user(user_msrs->entries, entries, size))
-		goto out_free;
+		r = -EFAULT;
 
-	r = n;
-
-out_free:
 	kfree(entries);
 out:
 	return r;
