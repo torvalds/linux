@@ -4537,7 +4537,7 @@ static irqreturn_t msm_dwc3_pwr_irq(int irq, void *data)
 {
 	struct dwc3_msm *mdwc = data;
 
-	dev_dbg(mdwc->dev, "%s received\n", __func__);
+	dev_dbg(mdwc->dev, "%s received %d\n", __func__, irq);
 	/*
 	 * When in Low Power Mode, can't read PWR_EVNT_IRQ_STAT_REG to acertain
 	 * which interrupts have been triggered, as the clocks are disabled.
