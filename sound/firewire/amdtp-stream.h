@@ -159,7 +159,7 @@ struct amdtp_stream {
 			struct {
 				struct seq_desc *descs;
 				unsigned int size;
-				unsigned int tail;
+				unsigned int pos;
 				unsigned int head;
 			} seq;
 
