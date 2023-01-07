@@ -333,8 +333,7 @@ quiet_cmd_rustc_procmacro = $(RUSTC_OR_CLIPPY_QUIET) P $@
 	$(RUSTC_OR_CLIPPY) $(rust_common_flags) \
 		--emit=dep-info=$(depfile) --emit=link=$@ --extern proc_macro \
 		--crate-type proc-macro \
-		--crate-name $(patsubst lib%.so,%,$(notdir $@)) $<; \
-	sed -i '/^\#/d' $(depfile)
+		--crate-name $(patsubst lib%.so,%,$(notdir $@)) $<
 
 # Procedural macros can only be used with the `rustc` that compiled it.
 # Therefore, to get `libmacros.so` automatically recompiled when the compiler
@@ -350,8 +349,7 @@ quiet_cmd_rustc_library = $(if $(skip_clippy),RUSTC,$(RUSTC_OR_CLIPPY_QUIET)) L 
 		--emit=dep-info=$(depfile) --emit=obj=$@ \
 		--emit=metadata=$(dir $@)$(patsubst %.o,lib%.rmeta,$(notdir $@)) \
 		--crate-type rlib -L$(objtree)/$(obj) \
-		--crate-name $(patsubst %.o,%,$(notdir $@)) $<; \
-	sed -i '/^\#/d' $(depfile) \
+		--crate-name $(patsubst %.o,%,$(notdir $@)) $< \
 	$(if $(rustc_objcopy),;$(OBJCOPY) $(rustc_objcopy) $@)
 
 rust-analyzer:

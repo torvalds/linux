@@ -148,8 +148,7 @@ $(host-cxxobjs): $(obj)/%.o: $(src)/%.cc FORCE
 # host-rust -> Executable
 quiet_cmd_host-rust	= HOSTRUSTC $@
       cmd_host-rust	= \
-	$(HOSTRUSTC) $(hostrust_flags) --emit=link=$@ $<; \
-	sed -i '/^\#/d' $(depfile)
+	$(HOSTRUSTC) $(hostrust_flags) --emit=link=$@ $<
 $(host-rust): $(obj)/%: $(src)/%.rs FORCE
 	$(call if_changed_dep,host-rust)
 

@@ -289,9 +289,6 @@ rust_common_cmd = \
 	--crate-name $(basename $(notdir $@)) \
 	--emit=dep-info=$(depfile)
 
-rust_handle_depfile = \
-	sed -i '/^\#/d' $(depfile)
-
 # `--emit=obj`, `--emit=asm` and `--emit=llvm-ir` imply a single codegen unit
 # will be used. We explicitly request `-Ccodegen-units=1` in any case, and
 # the compiler shows a warning if it is not 1. However, if we ever stop
@@ -301,9 +298,7 @@ rust_handle_depfile = \
 # would not match each other.
 
 quiet_cmd_rustc_o_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
-      cmd_rustc_o_rs = \
-	$(rust_common_cmd) --emit=obj=$@ $<; \
-	$(rust_handle_depfile)
+      cmd_rustc_o_rs = $(rust_common_cmd) --emit=obj=$@ $<
 
 $(obj)/%.o: $(src)/%.rs FORCE
 	$(call if_changed_dep,rustc_o_rs)
@@ -311,24 +306,19 @@ $(obj)/%.o: $(src)/%.rs FORCE
 quiet_cmd_rustc_rsi_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
       cmd_rustc_rsi_rs = \
 	$(rust_common_cmd) -Zunpretty=expanded $< >$@; \
-	command -v $(RUSTFMT) >/dev/null && $(RUSTFMT) $@; \
-	$(rust_handle_depfile)
+	command -v $(RUSTFMT) >/dev/null && $(RUSTFMT) $@
 
 $(obj)/%.rsi: $(src)/%.rs FORCE
 	$(call if_changed_dep,rustc_rsi_rs)
 
 quiet_cmd_rustc_s_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
-      cmd_rustc_s_rs = \
-	$(rust_common_cmd) --emit=asm=$@ $<; \
-	$(rust_handle_depfile)
+      cmd_rustc_s_rs = $(rust_common_cmd) --emit=asm=$@ $<
 
 $(obj)/%.s: $(src)/%.rs FORCE
 	$(call if_changed_dep,rustc_s_rs)
 
 quiet_cmd_rustc_ll_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
-      cmd_rustc_ll_rs = \
-	$(rust_common_cmd) --emit=llvm-ir=$@ $<; \
-	$(rust_handle_depfile)
+      cmd_rustc_ll_rs = $(rust_common_cmd) --emit=llvm-ir=$@ $<
 
 $(obj)/%.ll: $(src)/%.rs FORCE
 	$(call if_changed_dep,rustc_ll_rs)
