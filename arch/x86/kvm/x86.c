@@ -6466,7 +6466,7 @@ static int kvm_vm_ioctl_set_msr_filter(struct kvm *kvm,
 	struct kvm_x86_msr_filter *new_filter, *old_filter;
 	bool default_allow;
 	bool empty = true;
-	int r = 0;
+	int r;
 	u32 i;
 
 	if (filter->flags & ~KVM_MSR_FILTER_VALID_MASK)
