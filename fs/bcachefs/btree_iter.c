@@ -1011,12 +1011,11 @@ retry_all:
 	}
 
 	/*
-	 * BTREE_ITER_NEED_RELOCK is ok here - if we called bch2_trans_unlock()
-	 * and relock(), relock() won't relock since path->should_be_locked
-	 * isn't set yet, which is all fine
+	 * We used to assert that all paths had been traversed here
+	 * (path->uptodate < BTREE_ITER_NEED_TRAVERSE); however, since
+	 * path->Should_be_locked is not set yet, we we might have unlocked and
+	 * then failed to relock a path - that's fine.
 	 */
-	trans_for_each_path(trans, path)
-		BUG_ON(path->uptodate >= BTREE_ITER_NEED_TRAVERSE);
 err:
 	bch2_btree_cache_cannibalize_unlock(c);
 
