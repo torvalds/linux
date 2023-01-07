@@ -141,6 +141,10 @@ void *qcom_mdt_read_metadata(struct device *dev, const struct firmware *fw, cons
 	ehdr_size = phdrs[0].p_filesz;
 	hash_size = phdrs[hash_index].p_filesz;
 
+	/* Overflow check */
+	if (ehdr_size >  SIZE_MAX - hash_size)
+		return ERR_PTR(-ENOMEM);
+
 	/*
 	 * During the scm call memory protection will be enabled for the metadata
 	 * blob, so make sure it's physically contiguous, 4K aligned and
