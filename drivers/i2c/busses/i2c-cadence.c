@@ -612,9 +612,7 @@ static void cdns_i2c_mrecv(struct cdns_i2c *id)
 	}
 
 	/* Determine hold_clear based on number of bytes to receive and hold flag */
-	if (!id->bus_hold_flag &&
-	    ((id->p_msg->flags & I2C_M_RECV_LEN) != I2C_M_RECV_LEN) &&
-	    (id->recv_count <= CDNS_I2C_FIFO_DEPTH)) {
+	if (!id->bus_hold_flag && id->recv_count <= CDNS_I2C_FIFO_DEPTH) {
 		if (cdns_i2c_readreg(CDNS_I2C_CR_OFFSET) & CDNS_I2C_CR_HOLD) {
 			hold_clear = true;
 			if (id->quirks & CDNS_I2C_BROKEN_HOLD_BIT)
