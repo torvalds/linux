@@ -250,6 +250,15 @@ static int is_ignored_file(const char *s, int len)
 	       str_ends_with(s, len, "include/generated/autoksyms.h");
 }
 
+/* Do not parse these files */
+static int is_no_parse_file(const char *s, int len)
+{
+	/* rustc may list binary files in dep-info */
+	return str_ends_with(s, len, ".rlib") ||
+	       str_ends_with(s, len, ".rmeta") ||
+	       str_ends_with(s, len, ".so");
+}
+
 /*
  * Important: The below generated source_foo.o and deps_foo.o variable
  * assignments are parsed not only by make, but also by the rather simple
@@ -382,7 +391,7 @@ static void parse_dep_file(char *p, const char *target)
 			need_parse = true;
 		}
 
-		if (need_parse) {
+		if (need_parse && !is_no_parse_file(p, q - p)) {
 			void *buf;
 
 			buf = read_file(p);
