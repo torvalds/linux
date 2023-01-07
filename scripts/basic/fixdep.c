@@ -94,6 +94,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -251,75 +252,139 @@ static int is_ignored_file(const char *s, int len)
  * assignments are parsed not only by make, but also by the rather simple
  * parser in scripts/mod/sumversion.c.
  */
-static void parse_dep_file(char *m, const char *target)
+static void parse_dep_file(char *p, const char *target)
 {
-	char *p;
-	int is_last, is_target;
-	int saw_any_target = 0;
-	int is_first_dep = 0;
-	void *buf;
+	bool saw_any_target = false;
+	bool is_target = true;
+	bool is_source = false;
+	bool need_parse;
+	char *q, saved_c;
 
-	while (1) {
-		/* Skip any "white space" */
-		while (*m == ' ' || *m == '\\' || *m == '\n')
-			m++;
-
-		if (!*m)
-			break;
-
-		/* Find next "white space" */
-		p = m;
-		while (*p && *p != ' ' && *p != '\\' && *p != '\n')
-			p++;
-		is_last = (*p == '\0');
-		/* Is the token we found a target name? */
-		is_target = (*(p-1) == ':');
-		/* Don't write any target names into the dependency file */
-		if (is_target) {
-			/* The /next/ file is the first dependency */
-			is_first_dep = 1;
-		} else if (!is_ignored_file(m, p - m)) {
-			*p = '\0';
-
+	while (*p) {
+		/* handle some special characters first. */
+		switch (*p) {
+		case '#':
 			/*
-			 * Do not list the source file as dependency, so that
-			 * kbuild is not confused if a .c file is rewritten
-			 * into .S or vice versa. Storing it in source_* is
-			 * needed for modpost to compute srcversions.
+			 * skip comments.
+			 * rustc may emit comments to dep-info.
 			 */
-			if (is_first_dep) {
+			p++;
+			while (*p != '\0' && *p != '\n') {
 				/*
-				 * If processing the concatenation of multiple
-				 * dependency files, only process the first
-				 * target name, which will be the original
-				 * source name, and ignore any other target
-				 * names, which will be intermediate temporary
-				 * files.
+				 * escaped newlines continue the comment across
+				 * multiple lines.
 				 */
-				if (!saw_any_target) {
-					saw_any_target = 1;
-					printf("source_%s := %s\n\n",
-					       target, m);
-					printf("deps_%s := \\\n", target);
+				if (*p == '\\')
+					p++;
+				p++;
+			}
+			continue;
+		case ' ':
+		case '\t':
+			/* skip whitespaces */
+			p++;
+			continue;
+		case '\\':
+			/*
+			 * backslash/newline combinations continue the
+			 * statement. Skip it just like a whitespace.
+			 */
+			if (*(p + 1) == '\n') {
+				p += 2;
+				continue;
+			}
+			break;
+		case '\n':
+			/*
+			 * Makefiles use a line-based syntax, where the newline
+			 * is the end of a statement. After seeing a newline,
+			 * we expect the next token is a target.
+			 */
+			p++;
+			is_target = true;
+			continue;
+		case ':':
+			/*
+			 * assume the first dependency after a colon as the
+			 * source file.
+			 */
+			p++;
+			is_target = false;
+			is_source = true;
+			continue;
+		}
+
+		/* find the end of the token */
+		q = p;
+		while (*q != ' ' && *q != '\t' && *q != '\n' && *q != '#' && *q != ':') {
+			if (*q == '\\') {
+				/*
+				 * backslash/newline combinations work like as
+				 * a whitespace, so this is the end of token.
+				 */
+				if (*(q + 1) == '\n')
+					break;
+
+				/* escaped special characters */
+				if (*(q + 1) == '#' || *(q + 1) == ':') {
+					memmove(p + 1, p, q - p);
+					p++;
 				}
-				is_first_dep = 0;
-			} else {
-				printf("  %s \\\n", m);
+
+				q++;
 			}
 
-			buf = read_file(m);
+			if (*q == '\0')
+				break;
+			q++;
+		}
+
+		/* Just discard the target */
+		if (is_target) {
+			p = q;
+			continue;
+		}
+
+		saved_c = *q;
+		*q = '\0';
+		need_parse = false;
+
+		/*
+		 * Do not list the source file as dependency, so that kbuild is
+		 * not confused if a .c file is rewritten into .S or vice versa.
+		 * Storing it in source_* is needed for modpost to compute
+		 * srcversions.
+		 */
+		if (is_source) {
+			/*
+			 * The DT build rule concatenates multiple dep files.
+			 * When processing them, only process the first source
+			 * name, which will be the original one, and ignore any
+			 * other source names, which will be intermediate
+			 * temporary files.
+			 */
+			if (!saw_any_target) {
+				saw_any_target = true;
+				printf("source_%s := %s\n\n", target, p);
+				printf("deps_%s := \\\n", target);
+				need_parse = true;
+			}
+		} else if (!is_ignored_file(p, q - p)) {
+			printf("  %s \\\n", p);
+			need_parse = true;
+		}
+
+		if (need_parse) {
+			void *buf;
+
+			buf = read_file(p);
 			parse_config_file(buf);
 			free(buf);
 		}
 
-		if (is_last)
-			break;
-
-		/*
-		 * Start searching for next token immediately after the first
-		 * "whitespace" character that follows this token.
-		 */
-		m = p + 1;
+		is_source = false;
+		*q = saved_c;
+		p = q;
 	}
 
 	if (!saw_any_target) {
