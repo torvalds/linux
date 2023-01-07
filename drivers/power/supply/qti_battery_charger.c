@@ -981,8 +981,6 @@ static const char *get_usb_type_name(u32 usb_type)
 	return "Unknown";
 }
 
-#define CDP_MAX_ICL_UA 1500000
-
 static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 {
 	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_USB];
@@ -999,11 +997,8 @@ static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 	switch (pst->prop[USB_ADAP_TYPE]) {
 	case POWER_SUPPLY_USB_TYPE_SDP:
 	case POWER_SUPPLY_USB_TYPE_PD:
-		break;
 	case POWER_SUPPLY_USB_TYPE_CDP:
-		if (val == 0 || val == CDP_MAX_ICL_UA)
-			break;
-		fallthrough;
+		break;
 	default:
 		return -EINVAL;
 	}
