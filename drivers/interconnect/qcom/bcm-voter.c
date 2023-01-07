@@ -16,6 +16,9 @@
 #include "bcm-voter.h"
 #include "icc-rpmh.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 static LIST_HEAD(bcm_voters);
 static DEFINE_MUTEX(bcm_voter_lock);
 
@@ -259,6 +262,29 @@ void qcom_icc_bcm_voter_add(struct bcm_voter *voter, struct qcom_icc_bcm *bcm)
 }
 EXPORT_SYMBOL_GPL(qcom_icc_bcm_voter_add);
 
+static void qcom_icc_bcm_log(struct bcm_voter *voter, enum rpmh_state state,
+			     const struct tcs_cmd *cmd, const u32 *commit_idx)
+{
+	static const char * const rpmh_state[] = {
+			"RPMH_SLEEP_STATE",
+			"RPMH_WAKE_ONLY_STATE",
+			"RPMH_ACTIVE_ONLY_STATE"
+	};
+	int i, count = 0;
+
+	if (!cmd || !commit_idx)
+		return;
+
+	while (commit_idx[count] > 0)
+		count++;
+
+	if (!count)
+		return;
+
+	for (i = 0; i < count; i++)
+		trace_bcm_voter_commit(rpmh_state[state], cmd);
+}
+
 /**
  * qcom_icc_bcm_voter_commit - generates and commits tcs cmds based on bcms
  * @voter: voter that needs flushing
@@ -306,6 +332,7 @@ int qcom_icc_bcm_voter_commit(struct bcm_voter *voter)
 
 	rpmh_invalidate(voter->dev);
 
+	qcom_icc_bcm_log(voter, RPMH_ACTIVE_ONLY_STATE, cmds, commit_idx);
 	ret = rpmh_write_batch(voter->dev, RPMH_ACTIVE_ONLY_STATE,
 			       cmds, commit_idx);
 
@@ -349,6 +376,7 @@ int qcom_icc_bcm_voter_commit(struct bcm_voter *voter)
 	list_sort(NULL, &voter->commit_list, cmp_vcd);
 
 	tcs_list_gen(voter, QCOM_ICC_BUCKET_WAKE, cmds, commit_idx);
+	qcom_icc_bcm_log(voter, RPMH_WAKE_ONLY_STATE, cmds, commit_idx);
 
 	ret = rpmh_write_batch(voter->dev, RPMH_WAKE_ONLY_STATE, cmds, commit_idx);
 	if (ret) {
@@ -357,6 +385,7 @@ int qcom_icc_bcm_voter_commit(struct bcm_voter *voter)
 	}
 
 	tcs_list_gen(voter, QCOM_ICC_BUCKET_SLEEP, cmds, commit_idx);
+	qcom_icc_bcm_log(voter, RPMH_SLEEP_STATE, cmds, commit_idx);
 
 	ret = rpmh_write_batch(voter->dev, RPMH_SLEEP_STATE, cmds, commit_idx);
 	if (ret) {
