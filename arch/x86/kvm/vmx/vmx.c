@@ -4018,26 +4018,17 @@ void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type)
 		vmx_set_msr_bitmap_write(msr_bitmap, msr);
 }
 
-static void vmx_reset_x2apic_msrs(struct kvm_vcpu *vcpu, u8 mode)
-{
-	unsigned long *msr_bitmap = to_vmx(vcpu)->vmcs01.msr_bitmap;
-	unsigned long read_intercept;
-	int msr;
-
-	read_intercept = (mode & MSR_BITMAP_MODE_X2APIC_APICV) ? 0 : ~0;
-
-	for (msr = 0x800; msr <= 0x8ff; msr += BITS_PER_LONG) {
-		unsigned int read_idx = msr / BITS_PER_LONG;
-		unsigned int write_idx = read_idx + (0x800 / sizeof(long));
-
-		msr_bitmap[read_idx] = read_intercept;
-		msr_bitmap[write_idx] = ~0ul;
-	}
-}
-
 static void vmx_update_msr_bitmap_x2apic(struct kvm_vcpu *vcpu)
 {
+	/*
+	 * x2APIC indices for 64-bit accesses into the RDMSR and WRMSR halves
+	 * of the MSR bitmap.  KVM emulates APIC registers up through 0x3f0,
+	 * i.e. MSR 0x83f, and so only needs to dynamically manipulate 64 bits.
+	 */
+	const int read_idx = APIC_BASE_MSR / BITS_PER_LONG_LONG;
+	const int write_idx = read_idx + (0x800 / sizeof(u64));
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u64 *msr_bitmap = (u64 *)vmx->vmcs01.msr_bitmap;
 	u8 mode;
 
 	if (!cpu_has_vmx_msr_bitmap())
@@ -4058,7 +4049,18 @@ static void vmx_update_msr_bitmap_x2apic(struct kvm_vcpu *vcpu)
 
 	vmx->x2apic_msr_bitmap_mode = mode;
 
-	vmx_reset_x2apic_msrs(vcpu, mode);
+	/*
+	 * Reset the bitmap for MSRs 0x800 - 0x83f.  Leave AMD's uber-extended
+	 * registers (0x840 and above) intercepted, KVM doesn't support them.
+	 * Intercept all writes by default and poke holes as needed.  Pass
+	 * through all reads by default in x2APIC+APICv mode, as all registers
+	 * except the current timer count are passed through for read.
+	 */
+	if (mode & MSR_BITMAP_MODE_X2APIC_APICV)
+		msr_bitmap[read_idx] = 0;
+	else
+		msr_bitmap[read_idx] = ~0ull;
+	msr_bitmap[write_idx] = ~0ull;
 
 	/*
 	 * TPR reads and writes can be virtualized even if virtual interrupt
