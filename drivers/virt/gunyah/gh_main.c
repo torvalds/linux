@@ -387,7 +387,7 @@ static long gh_vm_ioctl_create_vcpu(struct gh_vm *vm, u32 id)
 	char name[MAX_VCPU_NAME];
 	int fd, err = 0;
 
-	if (id > GH_MAX_VCPUS)
+	if (id >= GH_MAX_VCPUS)
 		return -EINVAL;
 
 	mutex_lock(&vm->vm_lock);
