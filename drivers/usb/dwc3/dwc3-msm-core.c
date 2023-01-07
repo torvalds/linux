@@ -521,7 +521,7 @@ struct dwc3_msm {
 	bool			in_restart;
 	struct workqueue_struct *dwc3_wq;
 	struct workqueue_struct *sm_usb_wq;
-	struct delayed_work	sm_work;
+	struct work_struct	sm_work;
 	unsigned long		inputs;
 	enum dwc3_drd_state	drd_state;
 	enum usb_dr_mode	dr_mode;
@@ -2988,7 +2988,7 @@ static void dwc3_restart_usb_work(struct work_struct *w)
 		dwc3_resume_work(&mdwc->resume_work);
 
 	mdwc->err_evt_seen = false;
-	flush_delayed_work(&mdwc->sm_work);
+	flush_work(&mdwc->sm_work);
 }
 
 /*
@@ -4113,7 +4113,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool force_power_collapse)
 
 	/* kick_sm if it is waiting for lpm sequence to finish */
 	if (test_and_clear_bit(WAIT_FOR_LPM, &mdwc->inputs))
-		queue_delayed_work(mdwc->sm_usb_wq, &mdwc->sm_work, 0);
+		queue_work(mdwc->sm_usb_wq, &mdwc->sm_work);
 
 	mutex_unlock(&mdwc->suspend_resume_mutex);
 
@@ -4284,7 +4284,7 @@ error:
 static void dwc3_ext_event_notify(struct dwc3_msm *mdwc)
 {
 	/* Flush processing any pending events before handling new ones */
-	flush_delayed_work(&mdwc->sm_work);
+	flush_work(&mdwc->sm_work);
 
 	dbg_log_string("enter: mdwc->inputs:%lx hs_phy_flags:%x\n",
 				mdwc->inputs, mdwc->hs_phy->flags);
@@ -4362,7 +4362,7 @@ static void dwc3_ext_event_notify(struct dwc3_msm *mdwc)
 	}
 
 	dbg_log_string("exit: mdwc->inputs:%lx\n", mdwc->inputs);
-	queue_delayed_work(mdwc->sm_usb_wq, &mdwc->sm_work, 0);
+	queue_work(mdwc->sm_usb_wq, &mdwc->sm_work);
 }
 
 static void dwc3_resume_work(struct work_struct *w)
@@ -5161,7 +5161,7 @@ static int dwc_dpdm_cb(struct notifier_block *nb, unsigned long evt, void *p)
 		dev_dbg(mdwc->dev, "%s: disable state:%s\n", __func__,
 				dwc3_drd_state_string(mdwc->drd_state));
 		if (mdwc->drd_state == DRD_STATE_UNDEFINED)
-			queue_delayed_work(mdwc->sm_usb_wq, &mdwc->sm_work, 0);
+			queue_work(mdwc->sm_usb_wq, &mdwc->sm_work);
 		break;
 	default:
 		dev_dbg(mdwc->dev, "%s: unknown event state:%s\n", __func__,
@@ -5695,7 +5695,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&mdwc->req_complete_list);
 	INIT_WORK(&mdwc->resume_work, dwc3_resume_work);
 	INIT_WORK(&mdwc->restart_usb_work, dwc3_restart_usb_work);
-	INIT_DELAYED_WORK(&mdwc->sm_work, dwc3_otg_sm_work);
+	INIT_WORK(&mdwc->sm_work, dwc3_otg_sm_work);
 	INIT_DELAYED_WORK(&mdwc->perf_vote_work, msm_dwc3_perf_vote_work);
 
 	dwc3_msm_debug_init(mdwc);
@@ -5924,8 +5924,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 					&mdwc->dpdm_nb);
 		} else {
 			if (!mdwc->role_switch)
-				queue_delayed_work(mdwc->sm_usb_wq,
-							&mdwc->sm_work, 0);
+				queue_work(mdwc->sm_usb_wq, &mdwc->sm_work);
 		}
 	}
 
@@ -6010,7 +6009,7 @@ static int dwc3_msm_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&mdwc->perf_vote_work);
 	msm_dwc3_perf_vote_update(mdwc, false);
-	cancel_delayed_work_sync(&mdwc->sm_work);
+	cancel_work_sync(&mdwc->sm_work);
 
 	if (mdwc->hs_phy)
 		mdwc->hs_phy->flags &= ~PHY_HOST_MODE;
@@ -6524,11 +6523,10 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
  */
 static void dwc3_otg_sm_work(struct work_struct *w)
 {
-	struct dwc3_msm *mdwc = container_of(w, struct dwc3_msm, sm_work.work);
+	struct dwc3_msm *mdwc = container_of(w, struct dwc3_msm, sm_work);
 	struct dwc3 *dwc = NULL;
 	bool work = false;
 	int ret = 0;
-	unsigned long delay = 0;
 	const char *state;
 
 	if (mdwc->dwc3)
@@ -6713,7 +6711,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 	}
 
 	if (work)
-		queue_delayed_work(mdwc->sm_usb_wq, &mdwc->sm_work, delay);
+		queue_work(mdwc->sm_usb_wq, &mdwc->sm_work);
 
 ret:
 	return;
