@@ -46,6 +46,7 @@
 #include <linux/usb/role.h>
 #include <linux/usb/redriver.h>
 #include <linux/usb/composite.h>
+#include <linux/soc/qcom/wcd939x-i2c.h>
 
 #include "core.h"
 #include "gadget.h"
@@ -475,6 +476,7 @@ struct extcon_nb {
 #define B_SESS_VLD		1
 #define B_SUSPEND		2
 #define WAIT_FOR_LPM		3
+#define CONN_DONE		4
 
 #define PM_QOS_SAMPLE_SEC	2
 #define PM_QOS_THRESHOLD	400
@@ -601,6 +603,8 @@ struct dwc3_msm {
 
 	int			orientation_gpio;
 	bool			has_orientation_gpio;
+
+	bool			wcd_usbss;
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -3296,6 +3300,8 @@ void dwc3_msm_notify_event(struct dwc3 *dwc,
 
 		atomic_set(&mdwc->in_lpm, 0);
 		mdwc3_update_u1u2_value(dwc);
+		set_bit(CONN_DONE, &mdwc->inputs);
+		queue_work(mdwc->sm_usb_wq, &mdwc->sm_work);
 		break;
 	case DWC3_GSI_EVT_BUF_ALLOC:
 		dev_dbg(mdwc->dev, "DWC3_GSI_EVT_BUF_ALLOC\n");
@@ -5602,7 +5608,7 @@ static int dwc3_msm_parse_core_params(struct dwc3_msm *mdwc, struct device_node 
 
 static int dwc3_msm_parse_params(struct dwc3_msm *mdwc, struct device_node *node)
 {
-	struct device_node *diag_node;
+	struct device_node *diag_node, *wcd_node;
 	struct device	*dev = mdwc->dev;
 	int ret, size = 0, i;
 
@@ -5672,6 +5678,12 @@ static int dwc3_msm_parse_params(struct dwc3_msm *mdwc, struct device_node *node
 		pr_warn("diag: failed to find diag_dload imem node\n");
 
 	diag_dload  = diag_node ? of_iomap(diag_node, 0) : NULL;
+	of_node_put(diag_node);
+
+	wcd_node = of_parse_phandle(node, "qcom,wcd_usbss", 0);
+	if (of_device_is_available(wcd_node))
+		mdwc->wcd_usbss = true;
+	of_node_put(wcd_node);
 
 	return 0;
 }
@@ -5860,6 +5872,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	}
 
 	ret = dwc3_msm_parse_core_params(mdwc, dwc3_node);
+	of_node_put(dwc3_node);
 	if (ret < 0)
 		goto err;
 
@@ -6143,6 +6156,10 @@ static int dwc3_msm_host_notifier(struct notifier_block *nb,
 				mdwc->max_rh_port_speed = USB_SPEED_HIGH;
 				dwc3_msm_update_bus_bw(mdwc, BUS_VOTE_SVS);
 				dwc3_msm_host_ss_powerdown(mdwc);
+
+				if (mdwc->wcd_usbss)
+					wcd_usbss_dpdm_switch_update(true,
+							udev->speed == USB_SPEED_HIGH);
 			} else {
 				if (mdwc->max_rh_port_speed < USB_SPEED_SUPER)
 					dwc3_msm_host_ss_powerup(mdwc);
@@ -6159,6 +6176,9 @@ static int dwc3_msm_host_notifier(struct notifier_block *nb,
 
 			if (udev->parent->speed >= USB_SPEED_SUPER)
 				usb_redriver_host_powercycle(mdwc->redriver);
+
+			if (mdwc->wcd_usbss)
+				wcd_usbss_dpdm_switch_update(true, true);
 		}
 	} else if (!udev->parent) {
 		/* USB root hub device */
@@ -6226,6 +6246,10 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		dev_dbg(mdwc->dev, "%s: turn on host\n", __func__);
 		mdwc->hs_phy->flags |= PHY_HOST_MODE;
 		dbg_event(0xFF, "hs_phy_flag:", mdwc->hs_phy->flags);
+
+		if (mdwc->wcd_usbss)
+			wcd_usbss_switch_update(WCD_USBSS_USB, WCD_USBSS_CABLE_CONNECT);
+
 		ret = pm_runtime_resume_and_get(mdwc->dev);
 		if (ret < 0) {
 			dev_err(mdwc->dev, "%s: pm_runtime_resume_and_get failed\n", __func__);
@@ -6369,6 +6393,9 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		pm_runtime_put_sync_suspend(&mdwc->dwc3->dev);
 		dbg_event(0xFF, "StopHost psync",
 			atomic_read(&mdwc->dev->power.usage_count));
+
+		if (mdwc->wcd_usbss)
+			wcd_usbss_switch_update(WCD_USBSS_USB, WCD_USBSS_CABLE_DISCONNECT);
 	}
 
 	return 0;
@@ -6417,6 +6444,9 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 
 	if (on) {
 		dev_dbg(mdwc->dev, "%s: turn on gadget\n", __func__);
+
+		if (mdwc->wcd_usbss)
+			wcd_usbss_switch_update(WCD_USBSS_USB, WCD_USBSS_CABLE_CONNECT);
 
 		pm_runtime_get_sync(&mdwc->dwc3->dev);
 		/*
@@ -6505,6 +6535,9 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 
 		/* wait for LPM, to ensure h/w is reset after stop_peripheral */
 		set_bit(WAIT_FOR_LPM, &mdwc->inputs);
+
+		if (mdwc->wcd_usbss)
+			wcd_usbss_switch_update(WCD_USBSS_USB, WCD_USBSS_CABLE_DISCONNECT);
 	}
 
 	pm_runtime_put_sync(mdwc->dev);
@@ -6658,6 +6691,12 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 			pm_runtime_put_autosuspend(mdwc->dev);
 			dbg_event(0xFF, "SUSP put",
 				atomic_read(&mdwc->dev->power.usage_count));
+		} else if (test_and_clear_bit(CONN_DONE, &mdwc->inputs) && mdwc->wcd_usbss) {
+			if (dwc->gadget->speed >= USB_SPEED_SUPER)
+				wcd_usbss_dpdm_switch_update(false, false);
+			else
+				wcd_usbss_dpdm_switch_update(true,
+					dwc->gadget->speed == USB_SPEED_HIGH);
 		}
 		break;
 

@@ -166,7 +166,9 @@ static int wcd_usbss_switch_update_defaults(struct wcd_usbss_ctxt *priv)
 	/* Select DN for DNL_SWITHCES and DP for DPR_SWITCHES */
 	regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SELECT0, 0x3C, 0x14);
 	/* Enable DNL_SWITCHES and DPR_SWITCHES */
-	regmap_write_bits(priv->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x18, 0x18);
+	regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x18, 0x18);
+	/* Enable Equalizer */
+	regmap_update_bits(priv->regmap, WCD_USBSS_EQUALIZER1, 0x80, 0x80);
 	/* Once plug-out done, restore to MANUAL mode */
 	audio_fsm_mode = WCD_USBSS_AUDIO_MANUAL;
 	return 0;
@@ -229,13 +231,14 @@ static int wcd_usbss_display_port_switch_update(struct wcd_usbss_ctxt *priv,
 #define DPDM_SW_DISABLE     0x0
 
 /*
- * wcd_usbss_dpdm_switch_update - configure WCD USBSS DPDM switch position
+ * wcd_usbss_dpdm_switch_update - configure WCD USBSS DP/DM switch position
  *
- * @enable: value as 0 (to disable) or 1 (to enable)
+ * @sw_en: enable or disable DP/DM switches.
+ * @eq_en: enable or disable equalizer. Usually true in case of USB high-speed.
  *
  * Returns zero for success, a negative number on error.
  */
-int wcd_usbss_dpdm_switch_update(bool enable)
+int wcd_usbss_dpdm_switch_update(bool sw_en, bool eq_en)
 {
 	int ret = 0;
 
@@ -247,15 +250,21 @@ int wcd_usbss_dpdm_switch_update(bool enable)
 		return -EINVAL;
 
 	ret = regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SWITCH_SELECT0,
-				DPDM_SEL_MASK, (enable ? DPDM_SEL_ENABLE : DPDM_SEL_DISABLE));
+				DPDM_SEL_MASK, (sw_en ? DPDM_SEL_ENABLE : DPDM_SEL_DISABLE));
 
 	if (ret)
 		pr_err("%s(): Failed to write dpdm_sel_value ret:%d\n", __func__, ret);
 
 	ret = regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE,
-				DPDM_SW_EN_MASK, (enable ? DPDM_SW_ENABLE : DPDM_SW_DISABLE));
+				DPDM_SW_EN_MASK, (sw_en ? DPDM_SW_ENABLE : DPDM_SW_DISABLE));
 	if (ret)
 		pr_err("%s(): Failed to write dpdm_en_value ret:%d\n", __func__, ret);
+
+	ret = regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_EQUALIZER1,
+				WCD_USBSS_EQUALIZER1_EQ_EN_MASK,
+				(eq_en ? WCD_USBSS_EQUALIZER1_EQ_EN_MASK : 0x0));
+	if (ret)
+		pr_err("%s(): Failed to write equalizer1_en ret:%d\n", __func__, ret);
 
 	return ret;
 }
@@ -288,6 +297,7 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 	} else if (connect_status == WCD_USBSS_CABLE_CONNECT) {
 		switch (ctype) {
 		case WCD_USBSS_USB:
+			wcd_usbss_dpdm_switch_update(true, true);
 			break;
 		case WCD_USBSS_AATC:
 			/* for AATC plug-in, change mode to FSM */
