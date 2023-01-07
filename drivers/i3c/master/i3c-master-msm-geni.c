@@ -269,6 +269,10 @@ struct geni_ibi {
 	int err;
 	u32 ctrl_id;
 	struct rcvd_ibi_data data;
+	bool ibic_naon;
+	struct clk *core_clk;
+	struct clk *ahb_clk;
+	struct clk *src_clk;
 };
 
 struct msm_geni_i3c_rsc {
@@ -357,6 +361,7 @@ struct geni_i3c_clk_fld {
 
 static void geni_i3c_enable_ibi_ctrl(struct geni_i3c_dev *gi3c, bool enable);
 static void geni_i3c_enable_ibi_irq(struct geni_i3c_dev *gi3c, bool enable);
+static int geni_i3c_enable_naon_ibi_clks(struct geni_i3c_dev *gi3c, bool enable);
 
 static struct geni_i3c_dev *i3c_geni_dev[MAX_I3C_SE];
 static int i3c_nos;
@@ -1727,6 +1732,14 @@ static void qcom_geni_i3c_ibi_conf(struct geni_i3c_dev *gi3c)
 	/* set the configuration for 100Khz OD speed */
 	geni_write_reg(0x5FD74322, gi3c->ibi.ibi_base, IBI_SCL_PP_TIMING_CONFIG);
 
+
+	if (gi3c->ibi.ibic_naon) {
+		if (geni_i3c_enable_naon_ibi_clks(gi3c, true)) {
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				"%s:  NAON clock failure\n", __func__);
+			return;
+		}
+	}
 	geni_i3c_enable_ibi_ctrl(gi3c, true);
 	geni_i3c_enable_ibi_irq(gi3c, true);
 	gi3c->ibi.is_init = true;
@@ -1927,6 +1940,56 @@ static void geni_i3c_enable_ibi_ctrl(struct geni_i3c_dev *gi3c, bool enable)
 	}
 }
 
+/**
+ * geni_i3c_enable_naon_ibi_clks() - Enable/Disable clocks for NAON IBI ctrlr
+ * @gi3c: I3C device handle
+ * @clk_en: True if clks to be enabled, false to disable
+ *
+ * Call this function to enable/disable NAON based IBI controller as required.
+ * Return: True OR respective failure code/value.
+ */
+static int geni_i3c_enable_naon_ibi_clks(struct geni_i3c_dev *gi3c, bool clk_en)
+{
+	int ret = 0;
+
+	if (!gi3c->ibi.ibic_naon)
+		return -EINVAL;
+
+	if (clk_en) {
+		ret = clk_prepare_enable(gi3c->ibi.core_clk);
+		if (ret) {
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				"%s failed at NAON core clk enable ret=%d\n",
+				__func__, ret);
+			return ret;
+		}
+
+		ret = clk_prepare_enable(gi3c->ibi.ahb_clk);
+		if (ret) {
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				"%s failed at NAON ahb clk enable ret=%d\n",
+				__func__, ret);
+			clk_disable_unprepare(gi3c->ibi.core_clk);
+			return ret;
+		}
+
+		ret = clk_prepare_enable(gi3c->ibi.src_clk);
+		if (ret) {
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				"%s failed at NAON src clk enable ret=%d\n",
+				__func__, ret);
+			clk_disable_unprepare(gi3c->ibi.core_clk);
+			clk_disable_unprepare(gi3c->ibi.ahb_clk);
+			return ret;
+		}
+	} else {
+		clk_disable_unprepare(gi3c->ibi.core_clk);
+		clk_disable_unprepare(gi3c->ibi.ahb_clk);
+		clk_disable_unprepare(gi3c->ibi.src_clk);
+	}
+
+	return ret;
+}
 
 static void qcom_geni_i3c_ibi_unconf(struct geni_i3c_dev *gi3c)
 {
@@ -2025,6 +2088,32 @@ static int i3c_geni_rsrcs_clk_init(struct geni_i3c_dev *gi3c)
 		return ret;
 	}
 
+	if (gi3c->ibi.ibic_naon) {
+		gi3c->ibi.core_clk = devm_clk_get(gi3c->se.dev,
+							"ibic-core-clk");
+		if (IS_ERR(gi3c->ibi.core_clk)) {
+			ret = PTR_ERR(gi3c->ibi.core_clk);
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				"Error getting NAON IBI Core clk %d\n", ret);
+			return ret;
+		}
+
+		gi3c->ibi.ahb_clk = devm_clk_get(dev->parent, "ibic-ahb-clk");
+		if (IS_ERR(gi3c->ibi.ahb_clk)) {
+			ret = PTR_ERR(gi3c->ibi.ahb_clk);
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				"Error getting NAON AHB clk %d\n", ret);
+			return ret;
+		}
+
+		gi3c->ibi.src_clk = devm_clk_get(dev->parent, "ibic-src-clk");
+		if (IS_ERR(gi3c->ibi.src_clk)) {
+			ret = PTR_ERR(gi3c->ibi.src_clk);
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				"Error getting NAON src clk %d\n", ret);
+			return ret;
+		}
+	}
 	return 0;
 }
 
@@ -2146,6 +2235,12 @@ static int i3c_ibi_rsrcs_init(struct geni_i3c_dev *gi3c,
 		return -ENXIO;
 	}
 
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,ibic-naon")) {
+		gi3c->ibi.ibic_naon = true;
+		I3C_LOG_DBG(gi3c->ipcl, false,  gi3c->se.dev,
+			 "IBI is NAON controller\n");
+	}
+
 	/* Enable TLMM I3C MODE registers */
 	msm_qup_write(gi3c->ibi.ctrl_id, TLMM_I3C_MODE);
 
@@ -2192,12 +2287,14 @@ static int i3c_ibi_rsrcs_init(struct geni_i3c_dev *gi3c,
 	}
 
 	/* set mngr irq as wake-up irq */
-	ret = irq_set_irq_wake(gi3c->ibi.mngr_irq, 1);
-	if (ret) {
-		I3C_LOG_ERR(gi3c->ipcl, false, gi3c->se.dev,
-			"Failed to set mngr IRQ(%d) wake: err:%d\n",
-			gi3c->ibi.mngr_irq, ret);
-		return ret;
+	if (!gi3c->ibi.ibic_naon) {
+		ret = irq_set_irq_wake(gi3c->ibi.mngr_irq, 1);
+		if (ret) {
+			I3C_LOG_ERR(gi3c->ipcl, false, gi3c->se.dev,
+				"Failed to set mngr IRQ(%d) wake: err:%d\n",
+				gi3c->ibi.mngr_irq, ret);
+			return ret;
+		}
 	}
 
 	/* Register GPII interrupt */
@@ -2218,12 +2315,14 @@ static int i3c_ibi_rsrcs_init(struct geni_i3c_dev *gi3c,
 	}
 
 	/* set gpii irq as wake-up irq */
-	ret = irq_set_irq_wake(gi3c->ibi.gpii_irq[0], 1);
-	if (ret) {
-		I3C_LOG_ERR(gi3c->ipcl, false, gi3c->se.dev,
-			"Failed to set gpii IRQ(%d) wake: err:%d\n",
-			gi3c->ibi.gpii_irq[0], ret);
-		return ret;
+	if (!gi3c->ibi.ibic_naon) {
+		ret = irq_set_irq_wake(gi3c->ibi.gpii_irq[0], 1);
+		if (ret) {
+			I3C_LOG_ERR(gi3c->ipcl, false, gi3c->se.dev,
+				"Failed to set gpii IRQ(%d) wake: err:%d\n",
+				gi3c->ibi.gpii_irq[0], ret);
+			return ret;
+		}
 	}
 
 	qcom_geni_i3c_ibi_conf(gi3c);
