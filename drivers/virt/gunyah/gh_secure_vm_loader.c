@@ -83,7 +83,7 @@ static struct gh_sec_vm_dev *get_sec_vm_dev_by_name(const char *vm_name)
 }
 
 static u64 gh_sec_load_metadata(struct gh_sec_vm_dev *vm_dev,
-					void *mdata, size_t mdata_size)
+					void *mdata, size_t mdata_size_act)
 {
 	struct device *dev = vm_dev->dev;
 	const struct elf32_phdr *phdrs;
@@ -92,6 +92,7 @@ static u64 gh_sec_load_metadata(struct gh_sec_vm_dev *vm_dev,
 	bool relocatable = false;
 	void *metadata_start;
 	u64 image_start_addr = 0;
+	size_t mdata_size = 0;
 	u64 image_end_addr;
 	u64 image_size = 0;
 	u32 max_paddr = 0;
@@ -101,7 +102,12 @@ static u64 gh_sec_load_metadata(struct gh_sec_vm_dev *vm_dev,
 	ehdr = (struct elf32_hdr *)mdata;
 	phdrs = (struct elf32_phdr *)(ehdr + 1);
 
-	mdata_size = PAGE_ROUND_UP(mdata_size);
+	mdata_size = PAGE_ROUND_UP(mdata_size_act);
+	if (mdata_size < mdata_size_act) {
+		dev_err(dev, "Overflow detected while calculating metadata size\"%s\"\n",
+			vm_dev->vm_name);
+		return 0;
+	}
 
 	/* Calculate total image size */
 	for (i = 0; i < ehdr->e_phnum; i++) {
@@ -144,7 +150,7 @@ static u64 gh_sec_load_metadata(struct gh_sec_vm_dev *vm_dev,
 
 	if (image_end_addr <= (image_start_addr + moffset)) {
 		metadata_start = vm_dev->fw_virt + moffset;
-		memcpy(metadata_start, mdata, mdata_size);
+		memcpy(metadata_start, mdata, mdata_size_act);
 		return moffset;
 	}
 
