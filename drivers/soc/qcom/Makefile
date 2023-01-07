@@ -81,6 +81,7 @@ wcd_usbss_i2c-y	+= wcd-usbss-regmap.o
 wcd_usbss_i2c-y += wcd-usbss-tables.o
 wcd_usbss_i2c-y += wcd-usbss-utils.o
 wcd_usbss_i2c-y += wcd939x-i2c.o
+obj-$(CONFIG_QCOM_ADSP_SLEEPMON) += adsp_sleepmon.o
 obj-$(CONFIG_QCOM_PANEL_EVENT_NOTIFIER) += panel_event_notifier.o
 obj-$(CONFIG_QCOM_DEBUG_SYMBOL) += debug_symbol.o
 obj-$(CONFIG_QCOM_VM_DMESG_DUMPER) += dmesg_dumper.o
