@@ -113,7 +113,7 @@ struct item {
 };
 
 #define HASHSZ 256
-static struct item *config_hashtab[HASHSZ];
+static struct item *config_hashtab[HASHSZ], *file_hashtab[HASHSZ];
 
 static unsigned int strhash(const char *str, unsigned int sz)
 {
@@ -365,6 +365,10 @@ static void parse_dep_file(char *p, const char *target)
 			 * name, which will be the original one, and ignore any
 			 * other source names, which will be intermediate
 			 * temporary files.
+			 *
+			 * rustc emits the same dependency list for each
+			 * emission type. It is enough to list the source name
+			 * just once.
 			 */
 			if (!saw_any_target) {
 				saw_any_target = true;
@@ -372,7 +376,8 @@ static void parse_dep_file(char *p, const char *target)
 				printf("deps_%s := \\\n", target);
 				need_parse = true;
 			}
-		} else if (!is_ignored_file(p, q - p)) {
+		} else if (!is_ignored_file(p, q - p) &&
+			   !in_hashtable(p, q - p, file_hashtab)) {
 			printf("  %s \\\n", p);
 			need_parse = true;
 		}
