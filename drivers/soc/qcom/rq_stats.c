@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2010-2015, 2017, 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/init.h>
@@ -127,13 +128,6 @@ static int __init msm_rq_stats_init(void)
 	return ret;
 }
 late_initcall(msm_rq_stats_init);
-
-static __exit void msm_rq_stats_exit(void)
-{
-	destroy_workqueue(rq_wq);
-	kobject_del(rq_info.kobj);
-}
-module_exit(msm_rq_stats_exit);
 
 MODULE_DESCRIPTION("QCOM Run Queue Stats");
 MODULE_LICENSE("GPL v2");
