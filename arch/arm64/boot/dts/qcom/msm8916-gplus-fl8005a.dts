@@ -21,6 +21,22 @@
 		stdout-path = "serial0";
 	};
 
+	flash-led-controller {
+		/* Actually qcom,leds-gpio-flash */
+		compatible = "sgmicro,sgm3140";
+		enable-gpios = <&msmgpio 31 GPIO_ACTIVE_HIGH>;
+		flash-gpios = <&msmgpio 32 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-0 = <&camera_flash_default>;
+		pinctrl-names = "default";
+
+		flash_led: led {
+			function = LED_FUNCTION_FLASH;
+			color = <LED_COLOR_ID_WHITE>;
+			flash-max-timeout-us = <250000>;
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -237,6 +253,13 @@
 };
 
 &msmgpio {
+	camera_flash_default: camera-flash-default-state {
+		pins = "gpio31", "gpio32";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	gpio_keys_default: gpio-keys-default-state {
 		pins = "gpio107";
 		function = "gpio";
