@@ -1042,7 +1042,7 @@ $(clean-files).
 
 When executing "make clean", the file "crc32table.h" will be deleted.
 Kbuild will assume files to be in the same relative directory as the
-Makefile, except if prefixed with $(objtree).
+Makefile.
 
 To exclude certain files or directories from make clean, use the
 $(no-clean-files) variable.
