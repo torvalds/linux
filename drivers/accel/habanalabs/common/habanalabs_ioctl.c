@@ -1123,8 +1123,6 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 			retcode = -EFAULT;
 			goto out_err;
 		}
-	} else if (cmd & IOC_OUT) {
-		memset(kdata, 0, usize);
 	}
 
 	retcode = func(hpriv, kdata);
