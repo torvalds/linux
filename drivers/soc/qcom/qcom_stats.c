@@ -831,6 +831,10 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	if (!d)
 		return -ENOMEM;
 
+	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
+	if (!drv)
+		return -ENOMEM;
+
 	for (i = 0; i < config->num_records; i++)
 		d[i].appended_stats_avail = config->appended_stats_avail;
 
@@ -840,10 +844,6 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	qcom_create_soc_sleep_stat_files(root, reg, d, config);
 	qcom_create_ddr_stat_files(root, reg, d, config);
 
-	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
-	if (!drv)
-		return -ENOMEM;
-
 	drv->d = d;
 	drv->config = config;
 	drv->base = reg;
@@ -851,15 +851,17 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	drv->ddr_freqsync_msg_time = 0;
 	mutex_init(&drv->lock);
 
-	if (config->read_ddr_votes && config->ddr_stats_offset) {
-		drv->qmp = qmp_get(&pdev->dev);
-		if (IS_ERR(drv->qmp))
-			return PTR_ERR(drv->qmp);
-	}
-
 	ret = qcom_create_stats_device(drv);
 	if (ret)
-		return ret;
+		goto fail_create_stats_device;
+
+	if (config->read_ddr_votes && config->ddr_stats_offset) {
+		drv->qmp = qmp_get(&pdev->dev);
+		if (IS_ERR(drv->qmp)) {
+			ret = PTR_ERR(drv->qmp);
+			goto fail;
+		}
+	}
 
 	subsystem_stats_debug_on = false;
 	b_subsystem_stats = devm_kcalloc(&pdev->dev, ARRAY_SIZE(subsystems),
@@ -899,6 +901,7 @@ fail:
 	class_destroy(drv->stats_class);
 	cdev_del(&drv->stats_cdev);
 	unregister_chrdev_region(drv->dev_no, 1);
+fail_create_stats_device:
 	debugfs_remove_recursive(drv->root);
 	return ret;
 }
