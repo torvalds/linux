@@ -685,9 +685,11 @@ void walt_lb_tick(struct rq *rq)
 	if (new_cpu < 0)
 		goto out_unlock;
 
-
 	/* prevent active task migration to busy or same/lower capacity CPU */
 	if (!available_idle_cpu(new_cpu) || !check_for_higher_capacity(new_cpu, prev_cpu))
+		goto out_unlock;
+
+	if (!is_min_cluster_cpu(prev_cpu) && !task_fits_max(p, new_cpu))
 		goto out_unlock;
 
 	raw_spin_lock(&rq->__lock);
