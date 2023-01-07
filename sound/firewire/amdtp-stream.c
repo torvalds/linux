@@ -546,16 +546,16 @@ static void pool_replayed_seq(struct amdtp_stream *s, struct seq_desc *descs, un
 	struct amdtp_stream *target = s->ctx_data.rx.replay_target;
 	const struct seq_desc *cache = target->ctx_data.tx.cache.descs;
 	const unsigned int cache_size = target->ctx_data.tx.cache.size;
-	unsigned int cache_head = s->ctx_data.rx.cache_head;
+	unsigned int cache_pos = s->ctx_data.rx.cache_pos;
 	int i;
 
 	for (i = 0; i < count; ++i) {
-		descs[pos] = cache[cache_head];
-		cache_head = (cache_head + 1) % cache_size;
+		descs[pos] = cache[cache_pos];
+		cache_pos = (cache_pos + 1) % cache_size;
 		pos = (pos + 1) % size;
 	}
 
-	s->ctx_data.rx.cache_head = cache_head;
+	s->ctx_data.rx.cache_pos = cache_pos;
 }
 
 static void pool_seq_descs(struct amdtp_stream *s, struct seq_desc *descs, unsigned int size,
@@ -573,8 +573,8 @@ static void pool_seq_descs(struct amdtp_stream *s, struct seq_desc *descs, unsig
 		} else {
 			struct amdtp_stream *tx = s->ctx_data.rx.replay_target;
 			const unsigned int cache_size = tx->ctx_data.tx.cache.size;
-			const unsigned int cache_head = s->ctx_data.rx.cache_head;
-			unsigned int cached_cycles = calculate_cached_cycle_count(tx, cache_head);
+			const unsigned int cache_pos = s->ctx_data.rx.cache_pos;
+			unsigned int cached_cycles = calculate_cached_cycle_count(tx, cache_pos);
 
 			if (cached_cycles > count && cached_cycles > cache_size / 2)
 				pool_seq_descs = pool_replayed_seq;
@@ -1180,6 +1180,9 @@ static void process_rx_packets_intermediately(struct fw_iso_context *context, u3
 	if (offset < packets) {
 		s->ready_processing = true;
 		wake_up(&s->ready_wait);
+
+		if (d->replay.enable)
+			s->ctx_data.rx.cache_pos = 0;
 
 		process_rx_packets(context, tstamp, header_length, ctx_header, private_data);
 		if (amdtp_streaming_error(s))
@@ -1909,7 +1912,6 @@ static int make_association(struct amdtp_domain *d)
 			}
 
 			rx->ctx_data.rx.replay_target = tx;
-			rx->ctx_data.rx.cache_head = 0;
 
 			++dst_index;
 		}
