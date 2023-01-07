@@ -6497,12 +6497,12 @@ static int kvm_vm_ioctl_set_msr_filter(struct kvm *kvm,
 	old_filter = srcu_dereference_check(kvm->arch.msr_filter, &kvm->srcu, 1);
 
 	rcu_assign_pointer(kvm->arch.msr_filter, new_filter);
+	mutex_unlock(&kvm->lock);
 	synchronize_srcu(&kvm->srcu);
 
 	kvm_free_msr_filter(old_filter);
 
 	kvm_make_all_cpus_request(kvm, KVM_REQ_MSR_FILTER_CHANGED);
-	mutex_unlock(&kvm->lock);
 
 	return 0;
 }
