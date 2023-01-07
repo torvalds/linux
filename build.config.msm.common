@@ -174,7 +174,7 @@ if [[ "${PREPARE_SYSTEM_DLKM}" == "1"  && ! -z "${SYSTEM_DLKM_MODULES_LIST}" ]];
   {
     awk -F'/' '{print $NF}' ${SYSTEM_DLKM_MODULES_LIST}
     [ -f "${MODULES_LIST}" ] && cat "${MODULES_LIST}"
-  } > ${COMBINED_MODULE_LIST}
+  } | sed -e '/^$/d' > ${COMBINED_MODULE_LIST}
 fi
 
 function prepare_vendor_dlkm() {
@@ -191,6 +191,10 @@ function prepare_vendor_dlkm() {
       grep -w -v ${module_list_flag} - > ${MODULES_STAGING_DIR}/vendor_dlkm.modules.load
 
     VENDOR_DLKM_MODULES_LIST="${MODULES_STAGING_DIR}/vendor_dlkm.modules.load"
+    if [[ ! -s ${VENDOR_DLKM_MODULES_LIST} ]]; then
+      echo "========================================================"
+      echo "WARNING: ${VENDOR_DLKM_MODULES_LIST} is empty file!"
+    fi
   fi
 
   SUPER_IMAGE_CONTENTS+=("${DIST_DIR}/vendor_dlkm.img")
