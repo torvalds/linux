@@ -2827,7 +2827,7 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 		bch2_trans_relock(trans);
 	}
 
-	if (unlikely(time_after(jiffies, trans->srcu_lock_time + HZ)))
+	if (unlikely(time_after(jiffies, trans->srcu_lock_time + msecs_to_jiffies(10))))
 		bch2_trans_reset_srcu_lock(trans);
 
 	trans->last_restarted_ip = _RET_IP_;

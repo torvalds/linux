@@ -196,6 +196,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 	struct btree_key_cache *bc = &c->btree_key_cache;
 	struct bkey_cached *ck = NULL;
 	bool pcpu_readers = btree_uses_pcpu_readers(path->btree_id);
+	int ret;
 
 	if (!pcpu_readers) {
 #ifdef __KERNEL__
@@ -263,23 +264,34 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 		return ck;
 	}
 
-	/* GFP_NOFS because we're holding btree locks: */
-	ck = kmem_cache_alloc(bch2_key_cache, GFP_NOFS|__GFP_ZERO);
-	if (likely(ck)) {
-		INIT_LIST_HEAD(&ck->list);
-		__six_lock_init(&ck->c.lock, "b->c.lock", &bch2_btree_node_lock_key);
-		lockdep_set_novalidate_class(&ck->c.lock);
-		if (pcpu_readers)
-			six_lock_pcpu_alloc(&ck->c.lock);
+	ck = kmem_cache_zalloc(bch2_key_cache, GFP_NOWAIT|__GFP_NOWARN);
+	if (likely(ck))
+		goto init;
 
-		ck->c.cached = true;
-		BUG_ON(!six_trylock_intent(&ck->c.lock));
-		BUG_ON(!six_trylock_write(&ck->c.lock));
-		*was_new = true;
-		return ck;
+	bch2_trans_unlock(trans);
+
+	ck = kmem_cache_zalloc(bch2_key_cache, GFP_KERNEL);
+
+	ret = bch2_trans_relock(trans);
+	if (ret) {
+		kmem_cache_free(bch2_key_cache, ck);
+		return ERR_PTR(ret);
 	}
 
-	return NULL;
+	if (!ck)
+		return NULL;
+init:
+	INIT_LIST_HEAD(&ck->list);
+	__six_lock_init(&ck->c.lock, "b->c.lock", &bch2_btree_node_lock_key);
+	lockdep_set_novalidate_class(&ck->c.lock);
+	if (pcpu_readers)
+		six_lock_pcpu_alloc(&ck->c.lock);
+
+	ck->c.cached = true;
+	BUG_ON(!six_trylock_intent(&ck->c.lock));
+	BUG_ON(!six_trylock_write(&ck->c.lock));
+	*was_new = true;
+	return ck;
 }
 
 static struct bkey_cached *
@@ -385,7 +397,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 
 	if (!bch2_btree_node_relock(trans, ck_path, 0)) {
 		trace_and_count(trans->c, trans_restart_relock_key_cache_fill, trans, _THIS_IP_, ck_path);
-		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_raced);
+		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_fill);
 		goto err;
 	}
 
@@ -404,12 +416,30 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 
 	if (new_u64s > ck->u64s) {
 		new_u64s = roundup_pow_of_two(new_u64s);
-		new_k = kmalloc(new_u64s * sizeof(u64), GFP_NOFS);
+		new_k = kmalloc(new_u64s * sizeof(u64), GFP_NOWAIT|__GFP_NOWARN);
 		if (!new_k) {
-			bch_err(trans->c, "error allocating memory for key cache key, btree %s u64s %u",
-				bch2_btree_ids[ck->key.btree_id], new_u64s);
-			ret = -ENOMEM;
-			goto err;
+			bch2_trans_unlock(trans);
+
+			new_k = kmalloc(new_u64s * sizeof(u64), GFP_KERNEL);
+			if (!new_k) {
+				bch_err(trans->c, "error allocating memory for key cache key, btree %s u64s %u",
+					bch2_btree_ids[ck->key.btree_id], new_u64s);
+				ret = -ENOMEM;
+				goto err;
+			}
+
+			if (!bch2_btree_node_relock(trans, ck_path, 0)) {
+				kfree(new_k);
+				trace_and_count(trans->c, trans_restart_relock_key_cache_fill, trans, _THIS_IP_, ck_path);
+				ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_fill);
+				goto err;
+			}
+
+			ret = bch2_trans_relock(trans);
+			if (ret) {
+				kfree(new_k);
+				goto err;
+			}
 		}
 	}
 
