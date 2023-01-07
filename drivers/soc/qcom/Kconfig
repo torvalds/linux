@@ -804,6 +804,24 @@ config QCOM_SYSMON_SUBSYSTEM_STATS
 	  SMEM region for each DSP subsystem which is updated periodically
 	  by the respective subsystems.
 
+config QCOM_CDSP_RM
+	tristate "CDSP request manager"
+	depends on RPMSG
+	help
+	  This driver serves CDSP requests for CPU L3 clock and CPU QoS thus
+	  improving CDSP performance. Using this driver, CDSP can set appropriate
+	  CPU L3 clock for improving IO-Coherent throughput and opt for QoS mode
+	  to improve RPC latency. The driver also registers cooling devices for
+	  CDSP subsystem and implements Cx ipeak limit management.
+
+config CDSPRM_VTCM_DYNAMIC_DEBUG
+	bool "Enable for VTCM parition test enablement"
+	help
+	  The VTCM dynamic debug flag is used to enable the vtcm partition test
+	  feature from the debugfs node from cdsprm driver.When the test is
+	  enabled, the vtcm partition details are sent to the CDSP via rpmsg
+	  channel.
+
 config MINIDUMP_MAX_ENTRIES
 	int "Minidump Maximum num of entries"
 	default 200

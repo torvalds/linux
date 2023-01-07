@@ -77,6 +77,7 @@ obj-$(CONFIG_QTI_SYS_PM_VX)	+= sys_pm_vx.o
 obj-$(CONFIG_MSM_PERFORMANCE) += msm_performance.o
 obj-$(CONFIG_QCOM_WCD_USBSS_I2C) += wcd_usbss_i2c.o
 obj-$(CONFIG_QCOM_SYSMON_SUBSYSTEM_STATS) += sysmon_subsystem_stats.o
+obj-$(CONFIG_QCOM_CDSP_RM) += cdsprm.o
 wcd_usbss_i2c-y	+= wcd-usbss-regmap.o
 wcd_usbss_i2c-y += wcd-usbss-tables.o
 wcd_usbss_i2c-y += wcd-usbss-utils.o
