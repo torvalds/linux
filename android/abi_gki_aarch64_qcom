@@ -1359,6 +1359,7 @@
   icc_put
   icc_set_bw
   icc_set_tag
+  icc_sync_state
   ida_alloc_range
   ida_free
   idr_alloc
