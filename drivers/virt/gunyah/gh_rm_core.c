@@ -188,25 +188,21 @@ int gh_rm_unregister_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL(gh_rm_unregister_notifier);
 
 static int
-gh_rm_validate_vm_exited_notif(struct gh_rm_rpc_hdr *hdr,
-				void *payload, size_t recv_buff_size)
+gh_rm_validate_vm_exited_notif(void *payload, size_t payload_size)
 {
 	struct gh_rm_notif_vm_exited_payload *vm_exited_payload;
-	size_t min_buff_sz = sizeof(*hdr) + sizeof(*vm_exited_payload);
 
-	if (recv_buff_size < min_buff_sz)
+	if (payload_size < sizeof(*vm_exited_payload))
 		return -EINVAL;
 
 	vm_exited_payload = payload;
 
 	switch (vm_exited_payload->exit_type) {
 	case GH_RM_VM_EXIT_TYPE_VM_EXIT:
-		if ((vm_exited_payload->exit_reason_size !=
-					MAX_EXIT_REASON_SIZE) ||
-					(recv_buff_size != min_buff_sz +
-			sizeof(struct gh_vm_exit_reason_vm_exit))) {
+		if (payload_size !=
+		    sizeof(*vm_exited_payload) + sizeof(struct gh_vm_exit_reason_vm_exit)) {
 			pr_err("%s: Invalid size for type VM_EXIT: %u\n",
-				__func__, recv_buff_size - sizeof(*hdr));
+				__func__, payload_size);
 			return -EINVAL;
 		}
 		break;
@@ -219,8 +215,7 @@ gh_rm_validate_vm_exited_notif(struct gh_rm_rpc_hdr *hdr,
 	case GH_RM_VM_EXIT_TYPE_VM_STOP_FORCED:
 		break;
 	default:
-		if (gh_arch_validate_vm_exited_notif(recv_buff_size,
-			sizeof(*hdr), vm_exited_payload)) {
+		if (gh_arch_validate_vm_exited_notif(payload_size, vm_exited_payload)) {
 			pr_err("%s: Unknown exit type: %u\n", __func__,
 				vm_exited_payload->exit_type);
 			return -EINVAL;
@@ -261,7 +256,7 @@ static void gh_rm_validate_notif(struct work_struct *work)
 	struct gh_rm_connection *connection = NULL;
 	struct gh_rm_notif_validate *validate_work;
 	void *recv_buff;
-	size_t recv_buff_size;
+	size_t payload_size;
 	void *payload;
 	struct gh_rm_rpc_hdr *hdr;
 	u32 notification;
@@ -269,8 +264,8 @@ static void gh_rm_validate_notif(struct work_struct *work)
 	validate_work = container_of(work, struct gh_rm_notif_validate,
 							validate_work);
 	recv_buff = validate_work->recv_buff;
-	recv_buff_size = validate_work->recv_buff_size;
 	payload = validate_work->payload;
+	payload_size = validate_work->recv_buff_size - sizeof(*hdr);
 	connection = validate_work->conn;
 	hdr = recv_buff;
 	notification = hdr->msg_id;
@@ -278,89 +273,82 @@ static void gh_rm_validate_notif(struct work_struct *work)
 
 	switch (notification) {
 	case GH_RM_NOTIF_VM_STATUS:
-		if (recv_buff_size != sizeof(*hdr) +
-			sizeof(struct gh_rm_notif_vm_status_payload)) {
+		if (payload_size != sizeof(struct gh_rm_notif_vm_status_payload)) {
 			pr_err("%s: Invalid size for VM_STATUS notif: %u\n",
-				__func__, recv_buff_size - sizeof(*hdr));
+				__func__, payload_size);
 			goto err;
 		}
 		break;
 	case GH_RM_NOTIF_VM_EXITED:
-		if (gh_rm_validate_vm_exited_notif(hdr,
-						payload, recv_buff_size))
+		if (gh_rm_validate_vm_exited_notif(payload, payload_size))
 			goto err;
 		break;
 	case GH_RM_NOTIF_VM_SHUTDOWN:
-		if (recv_buff_size != sizeof(*hdr) +
-			sizeof(struct gh_rm_notif_vm_shutdown_payload)) {
+		if (payload_size != sizeof(struct gh_rm_notif_vm_shutdown_payload)) {
 			pr_err("%s: Invalid size for VM_SHUTDOWN notif: %u\n",
-				__func__, recv_buff_size - sizeof(*hdr));
+				__func__, payload_size);
 			goto err;
 		}
 		break;
 	case GH_RM_NOTIF_VM_IRQ_LENT:
-		if (recv_buff_size != sizeof(*hdr) +
-			sizeof(struct gh_rm_notif_vm_irq_lent_payload)) {
+		if (payload_size != sizeof(struct gh_rm_notif_vm_irq_lent_payload)) {
 			pr_err("%s: Invalid size for VM_IRQ_LENT notif: %u\n",
-				__func__, recv_buff_size - sizeof(*hdr));
+				__func__, payload_size);
 			goto err;
 		}
 		break;
 	case GH_RM_NOTIF_VM_IRQ_RELEASED:
-		if (recv_buff_size != sizeof(*hdr) +
-			sizeof(struct gh_rm_notif_vm_irq_released_payload)) {
+		if (payload_size != sizeof(struct gh_rm_notif_vm_irq_released_payload)) {
 			pr_err("%s: Invalid size for VM_IRQ_REL notif: %u\n",
-				__func__, recv_buff_size - sizeof(*hdr));
+				__func__, payload_size);
 			goto err;
 		}
 		break;
 	case GH_RM_NOTIF_VM_IRQ_ACCEPTED:
-		if (recv_buff_size != sizeof(*hdr) +
-			sizeof(struct gh_rm_notif_vm_irq_accepted_payload)) {
+		if (payload_size != sizeof(struct gh_rm_notif_vm_irq_accepted_payload)) {
 			pr_err("%s: Invalid size for VM_IRQ_ACCEPTED notif: %u\n",
-				__func__, recv_buff_size - sizeof(*hdr));
+				__func__, payload_size);
 			goto err;
 		}
 		break;
 	case GH_RM_NOTIF_MEM_SHARED:
-		if (recv_buff_size < sizeof(*hdr) +
-			sizeof(struct gh_rm_notif_mem_shared_payload)) {
+		if (payload_size < sizeof(struct gh_rm_notif_mem_shared_payload)) {
 			pr_err("%s: Invalid size for MEM_SHARED notif: %u\n",
-				__func__, recv_buff_size - sizeof(*hdr));
+				__func__, payload_size);
 			goto err;
 		}
 		break;
 	case GH_RM_NOTIF_MEM_RELEASED:
-		if (recv_buff_size != sizeof(*hdr) +
-			sizeof(struct gh_rm_notif_mem_released_payload)) {
+		if (payload_size != sizeof(struct gh_rm_notif_mem_released_payload)) {
 			pr_err("%s: Invalid size for MEM_RELEASED notif: %u\n",
-				__func__, recv_buff_size - sizeof(*hdr));
+				__func__, payload_size);
 			goto err;
 		}
 		break;
 	case GH_RM_NOTIF_MEM_ACCEPTED:
-		if (recv_buff_size != sizeof(*hdr) +
-			sizeof(struct gh_rm_notif_mem_accepted_payload)) {
+		if (payload_size != sizeof(struct gh_rm_notif_mem_accepted_payload)) {
 			pr_err("%s: Invalid size for MEM_ACCEPTED notif: %u\n",
-				__func__, recv_buff_size - sizeof(*hdr));
+				__func__, payload_size);
 			goto err;
 		}
 		break;
 	case GH_RM_NOTIF_VM_CONSOLE_CHARS:
-		if (recv_buff_size < sizeof(*hdr) +
-			sizeof(struct gh_rm_notif_vm_console_chars)) {
+		if (payload_size >= sizeof(struct gh_rm_notif_vm_console_chars)) {
 			struct gh_rm_notif_vm_console_chars *console_chars;
 			u16 num_bytes;
 
-			console_chars = recv_buff + sizeof(*hdr);
+			console_chars = payload;
 			num_bytes = console_chars->num_bytes;
 
-			if (sizeof(*hdr) + sizeof(*console_chars) + num_bytes !=
-				recv_buff_size) {
+			if (sizeof(*console_chars) + num_bytes != payload_size) {
 				pr_err("%s: Invalid size for VM_CONSOLE_CHARS notify %u\n",
-				       __func__, recv_buff_size - sizeof(*hdr));
+				       __func__, payload_size);
 				goto err;
 			}
+		} else {
+			pr_err("%s: Invalid size for VM_CONSOLE_CHARS notify %u\n",
+				__func__, payload_size);
+			goto err;
 		}
 		break;
 	default:

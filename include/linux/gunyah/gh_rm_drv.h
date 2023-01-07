@@ -269,7 +269,7 @@ int gh_get_irq(u32 virq, u32 type, struct fwnode_handle *handle);
 int gh_put_irq(int irq);
 int gh_get_virq(int base_virq, int virq);
 int gh_put_virq(int irq);
-int gh_arch_validate_vm_exited_notif(size_t buff_size, size_t hdr_size,
+int gh_arch_validate_vm_exited_notif(size_t payload_size,
 	struct gh_rm_notif_vm_exited_payload *payload);
 #else
 static inline int gh_get_irq(u32 virq, u32 type,
@@ -289,8 +289,8 @@ static inline int gh_put_virq(int irq)
 {
 	return -EINVAL;
 }
-static inline int gh_arch_validate_vm_exited_notif(size_t buff_size,
-	size_t hdr_size, struct gh_rm_notif_vm_exited_payload *payload)
+static inline int gh_arch_validate_vm_exited_notif(size_t payload_size,
+	struct gh_rm_notif_vm_exited_payload *payload)
 {
 	return -EINVAL;
 }
