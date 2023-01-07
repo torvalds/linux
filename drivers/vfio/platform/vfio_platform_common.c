@@ -150,9 +150,6 @@ static int vfio_platform_regions_init(struct vfio_platform_device *vdev)
 		struct resource *res =
 			vdev->get_resource(vdev, i);
 
-		if (!res)
-			goto err;
-
 		vdev->regions[i].addr = res->start;
 		vdev->regions[i].size = resource_size(res);
 		vdev->regions[i].flags = 0;
