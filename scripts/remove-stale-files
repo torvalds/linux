@@ -27,3 +27,5 @@ rm -f arch/x86/purgatory/kexec-purgatory.c
 rm -f scripts/extract-cert
 
 rm -f scripts/kconfig/[gmnq]conf-cfg
+
+rm -f rust/target.json
