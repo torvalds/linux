@@ -216,6 +216,8 @@ properties:
               - samsung,e5
               - samsung,e7
               - samsung,grandmax
+              - samsung,gt510
+              - samsung,gt58
               - samsung,j5
               - samsung,j5x
               - samsung,serranove
