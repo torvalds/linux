@@ -183,7 +183,17 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 
 		/* Add new ptrs: */
 		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry) {
-			if (bch2_bkey_has_device(bkey_i_to_s_c(insert), p.ptr.dev)) {
+			const struct bch_extent_ptr *existing_ptr =
+				bch2_bkey_has_device(bkey_i_to_s_c(insert), p.ptr.dev);
+
+			if (existing_ptr && existing_ptr->cached) {
+				/*
+				 * We're replacing a cached pointer with a non
+				 * cached pointer:
+				 */
+				bch2_bkey_drop_device_noerror(bkey_i_to_s(insert),
+							      existing_ptr->dev);
+			} else if (existing_ptr) {
 				/*
 				 * raced with another move op? extent already
 				 * has a pointer to the device we just wrote
@@ -334,7 +344,8 @@ int bch2_data_update_init(struct bch_fs *c, struct data_update *m,
 		    p.ptr.cached)
 			BUG();
 
-		if (!((1U << i) & m->data_opts.rewrite_ptrs))
+		if (!((1U << i) & m->data_opts.rewrite_ptrs) &&
+		    !p.ptr.cached)
 			bch2_dev_list_add_dev(&m->op.devs_have, p.ptr.dev);
 
 		if (((1U << i) & m->data_opts.rewrite_ptrs) &&
