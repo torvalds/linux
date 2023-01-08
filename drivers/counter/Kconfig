@@ -41,6 +41,7 @@ config FTM_QUADDEC
 
 config INTEL_QEP
 	tristate "Intel Quadrature Encoder Peripheral driver"
+	depends on X86
 	depends on PCI
 	help
 	  Select this option to enable the Intel Quadrature Encoder Peripheral
