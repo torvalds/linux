@@ -1262,6 +1262,8 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 		if (rqstp->rq_prog == progp->pg_prog)
 			break;
 
+	svcxdr_init_encode(rqstp);
+
 	/*
 	 * Decode auth data, and add verifier to reply buffer.
 	 * We do this before anything else in order to get a decent

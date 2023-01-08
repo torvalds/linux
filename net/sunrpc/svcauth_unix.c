@@ -772,7 +772,6 @@ svcauth_null_accept(struct svc_rqst *rqstp)
 	if (cred->cr_group_info == NULL)
 		return SVC_CLOSE; /* kmalloc failure - client must retry */
 
-	svcxdr_init_encode(rqstp);
 	if (xdr_stream_encode_opaque_auth(&rqstp->rq_res_stream,
 					  RPC_AUTH_NULL, NULL, 0) < 0)
 		return SVC_CLOSE;
@@ -855,7 +854,6 @@ svcauth_tls_accept(struct svc_rqst *rqstp)
 	if (cred->cr_group_info == NULL)
 		return SVC_CLOSE;
 
-	svcxdr_init_encode(rqstp);
 	if (rqstp->rq_xprt->xpt_ops->xpo_start_tls) {
 		p = xdr_reserve_space(&rqstp->rq_res_stream, XDR_UNIT * 2 + 8);
 		if (!p)
@@ -959,7 +957,6 @@ svcauth_unix_accept(struct svc_rqst *rqstp)
 		return SVC_DENIED;
 	}
 
-	svcxdr_init_encode(rqstp);
 	if (xdr_stream_encode_opaque_auth(&rqstp->rq_res_stream,
 					  RPC_AUTH_NULL, NULL, 0) < 0)
 		return SVC_CLOSE;
