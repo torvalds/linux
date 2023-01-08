@@ -1225,7 +1225,7 @@ EXPORT_SYMBOL_GPL(svc_generic_init_request);
  * Common routine for processing the RPC request.
  */
 static int
-svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
+svc_process_common(struct svc_rqst *rqstp)
 {
 	struct xdr_stream	*xdr = &rqstp->rq_res_stream;
 	struct svc_program	*progp;
@@ -1455,7 +1455,7 @@ svc_process(struct svc_rqst *rqstp)
 	if (unlikely(*p != rpc_call))
 		goto out_baddir;
 
-	if (!svc_process_common(rqstp, resv))
+	if (!svc_process_common(rqstp))
 		goto out_drop;
 	return svc_send(rqstp);
 
@@ -1478,7 +1478,6 @@ int
 bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 	       struct svc_rqst *rqstp)
 {
-	struct kvec	*resv = &rqstp->rq_res.head[0];
 	struct rpc_task *task;
 	int proc_error;
 	int error;
@@ -1509,22 +1508,21 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 		rqstp->rq_arg.len = rqstp->rq_arg.head[0].iov_len +
 			rqstp->rq_arg.page_len;
 
-	/* reset result send buffer "put" position */
-	resv->iov_len = 0;
-
-	svcxdr_init_decode(rqstp);
+	/* Reset the response buffer */
+	rqstp->rq_res.head[0].iov_len = 0;
 
 	/*
 	 * Skip the XID and calldir fields because they've already
 	 * been processed by the caller.
 	 */
+	svcxdr_init_decode(rqstp);
 	if (!xdr_inline_decode(&rqstp->rq_arg_stream, XDR_UNIT * 2)) {
 		error = -EINVAL;
 		goto out;
 	}
 
 	/* Parse and execute the bc call */
-	proc_error = svc_process_common(rqstp, resv);
+	proc_error = svc_process_common(rqstp);
 
 	atomic_dec(&req->rq_xprt->bc_slot_count);
 	if (!proc_error) {
