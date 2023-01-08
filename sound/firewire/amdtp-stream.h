@@ -145,7 +145,7 @@ struct amdtp_stream {
 			struct {
 				struct seq_desc *descs;
 				unsigned int size;
-				unsigned int tail;
+				unsigned int pos;
 			} cache;
 		} tx;
 		struct {
@@ -159,8 +159,7 @@ struct amdtp_stream {
 			struct {
 				struct seq_desc *descs;
 				unsigned int size;
-				unsigned int tail;
-				unsigned int head;
+				unsigned int pos;
 			} seq;
 
 			unsigned int data_block_state;
@@ -168,7 +167,7 @@ struct amdtp_stream {
 			unsigned int last_syt_offset;
 
 			struct amdtp_stream *replay_target;
-			unsigned int cache_head;
+			unsigned int cache_pos;
 		} rx;
 	} ctx_data;
 
