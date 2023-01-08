@@ -174,7 +174,6 @@ struct ov2680_device {
 	struct media_pad pad;
 	struct mutex input_lock;
 	struct i2c_client *client;
-	struct ov2680_resolution *res;
 	struct camera_sensor_platform_data *platform_data;
 	bool power_on;
 	bool is_streaming;

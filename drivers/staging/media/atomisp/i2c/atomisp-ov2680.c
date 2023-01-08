@@ -541,10 +541,6 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 
 	/* Restore value of all ctrls */
 	ret = __v4l2_ctrl_handler_setup(&dev->ctrls.handler);
-	if (ret < 0)
-		goto err;
-
-	dev->res = res;
 err:
 	mutex_unlock(&dev->input_lock);
 	return ret;
@@ -832,7 +828,6 @@ static int ov2680_probe(struct i2c_client *client)
 	mutex_init(&dev->input_lock);
 
 	dev->client = client;
-	dev->res = &ov2680_res_preview[0];
 	v4l2_i2c_subdev_init(&dev->sd, client, &ov2680_ops);
 
 	pdata = gmin_camera_platform_data(&dev->sd,
