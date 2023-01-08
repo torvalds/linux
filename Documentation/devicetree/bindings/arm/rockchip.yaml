@@ -100,6 +100,11 @@ properties:
           - const: embedfire,lubancat-1
           - const: rockchip,rk3566
 
+      - description: EmbedFire LubanCat 2
+        items:
+          - const: embedfire,lubancat-2
+          - const: rockchip,rk3568
+
       - description: Engicam PX30.Core C.TOUCH 2.0
         items:
           - const: engicam,px30-core-ctouch2
