@@ -409,23 +409,25 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 
 	err = mv88e6xxx_g1_read_atu_violation(chip);
 	if (err)
-		goto out;
+		goto out_unlock;
 
 	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_ATU_OP, &val);
 	if (err)
-		goto out;
+		goto out_unlock;
 
 	err = mv88e6xxx_g1_atu_fid_read(chip, &fid);
 	if (err)
-		goto out;
+		goto out_unlock;
 
 	err = mv88e6xxx_g1_atu_data_read(chip, &entry);
 	if (err)
-		goto out;
+		goto out_unlock;
 
 	err = mv88e6xxx_g1_atu_mac_read(chip, &entry);
 	if (err)
-		goto out;
+		goto out_unlock;
+
+	mv88e6xxx_reg_unlock(chip);
 
 	spid = entry.state;
 
@@ -449,13 +451,11 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 						   fid);
 		chip->ports[spid].atu_full_violation++;
 	}
-	mv88e6xxx_reg_unlock(chip);
 
 	return IRQ_HANDLED;
 
-out:
+out_unlock:
 	mv88e6xxx_reg_unlock(chip);
-
 	dev_err(chip->dev, "ATU problem: error %d while handling interrupt\n",
 		err);
 	return IRQ_HANDLED;
