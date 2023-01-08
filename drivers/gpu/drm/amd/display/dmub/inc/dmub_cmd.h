@@ -3112,7 +3112,7 @@ struct dmub_rb_cmd_panel_cntl {
 struct dmub_cmd_lvtma_control_data {
 	uint8_t uc_pwr_action; /**< LVTMA_ACTION */
 	uint8_t bypass_panel_control_wait;
-	uint8_t reserved_0[2];
+	uint8_t reserved_0[2]; /**< For future use */
 	uint8_t panel_inst; /**< LVTMA control instance */
 	uint8_t reserved_1[3]; /**< For future use */
 };
