@@ -56,13 +56,12 @@ static bool bkey_cached_lock_for_evict(struct bkey_cached *ck)
 	if (!six_trylock_intent(&ck->c.lock))
 		return false;
 
-	if (!six_trylock_write(&ck->c.lock)) {
+	if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
 		six_unlock_intent(&ck->c.lock);
 		return false;
 	}
 
-	if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
-		six_unlock_write(&ck->c.lock);
+	if (!six_trylock_write(&ck->c.lock)) {
 		six_unlock_intent(&ck->c.lock);
 		return false;
 	}
