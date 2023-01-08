@@ -208,6 +208,7 @@ DECLARE_EVENT_CLASS(rpcgss_svc_gssapi_class,
 
 DEFINE_SVC_GSSAPI_EVENT(unwrap);
 DEFINE_SVC_GSSAPI_EVENT(mic);
+DEFINE_SVC_GSSAPI_EVENT(get_mic);
 
 TRACE_EVENT(rpcgss_svc_unwrap_failed,
 	TP_PROTO(

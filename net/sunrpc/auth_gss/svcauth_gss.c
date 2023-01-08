@@ -1782,10 +1782,9 @@ static int svcauth_gss_wrap_integ(struct svc_rqst *rqstp)
 	struct xdr_buf *buf = &rqstp->rq_res;
 	struct xdr_buf databody_integ;
 	struct xdr_netobj checksum;
+	u32 offset, len, maj_stat;
 	struct kvec *resv;
-	u32 offset, len;
 	__be32 *p;
-	int stat = -EINVAL;
 
 	p = svcauth_gss_prepare_to_wrap(buf, gsd);
 	if (p == NULL)
@@ -1796,21 +1795,20 @@ static int svcauth_gss_wrap_integ(struct svc_rqst *rqstp)
 		goto out;
 	*p++ = htonl(len);
 	*p++ = htonl(gc->gc_seq);
-	if (xdr_buf_subsegment(buf, &databody_integ, offset, len)) {
-		WARN_ON_ONCE(1);
-		goto out_err;
-	}
+	if (xdr_buf_subsegment(buf, &databody_integ, offset, len))
+		goto wrap_failed;
 	if (!buf->tail[0].iov_base) {
 		if (buf->head[0].iov_len + RPC_MAX_AUTH_SIZE > PAGE_SIZE)
-			goto out_err;
+			goto wrap_failed;
 		buf->tail[0].iov_base = buf->head[0].iov_base
 						+ buf->head[0].iov_len;
 		buf->tail[0].iov_len = 0;
 	}
 	resv = &buf->tail[0];
 	checksum.data = (u8 *)resv->iov_base + resv->iov_len + 4;
-	if (gss_get_mic(gsd->rsci->mechctx, &databody_integ, &checksum))
-		goto out_err;
+	maj_stat = gss_get_mic(gsd->rsci->mechctx, &databody_integ, &checksum);
+	if (maj_stat != GSS_S_COMPLETE)
+		goto bad_mic;
 	svc_putnl(resv, checksum.len);
 	memset(checksum.data + checksum.len, 0,
 	       round_up_to_quad(checksum.len) - checksum.len);
@@ -1818,11 +1816,13 @@ static int svcauth_gss_wrap_integ(struct svc_rqst *rqstp)
 	/* not strictly required: */
 	buf->len += XDR_QUADLEN(checksum.len) << 2;
 	if (resv->iov_len > PAGE_SIZE)
-		goto out_err;
+		goto wrap_failed;
 out:
-	stat = 0;
-out_err:
-	return stat;
+	return 0;
+bad_mic:
+	trace_rpcgss_svc_get_mic(rqstp, maj_stat);
+wrap_failed:
+	return -EINVAL;
 }
 
 static inline int
