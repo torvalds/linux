@@ -1758,49 +1758,65 @@ svcauth_gss_prepare_to_wrap(struct xdr_buf *resbuf, struct gss_svc_data *gsd)
 	return p;
 }
 
-static inline int
-svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
+/*
+ * RFC 2203, Section 5.3.2.2
+ *
+ *	struct rpc_gss_integ_data {
+ *		opaque databody_integ<>;
+ *		opaque checksum<>;
+ *	};
+ *
+ *	struct rpc_gss_data_t {
+ *		unsigned int seq_num;
+ *		proc_req_arg_t arg;
+ *	};
+ *
+ * The RPC Reply message has already been XDR-encoded. rq_res_stream
+ * is now positioned so that the checksum can be written just past
+ * the RPC Reply message.
+ */
+static int svcauth_gss_wrap_integ(struct svc_rqst *rqstp)
 {
-	struct gss_svc_data *gsd = (struct gss_svc_data *)rqstp->rq_auth_data;
+	struct gss_svc_data *gsd = rqstp->rq_auth_data;
 	struct rpc_gss_wire_cred *gc = &gsd->clcred;
-	struct xdr_buf *resbuf = &rqstp->rq_res;
-	struct xdr_buf integ_buf;
-	struct xdr_netobj mic;
+	struct xdr_buf *buf = &rqstp->rq_res;
+	struct xdr_buf databody_integ;
+	struct xdr_netobj checksum;
 	struct kvec *resv;
+	u32 offset, len;
 	__be32 *p;
-	int integ_offset, integ_len;
 	int stat = -EINVAL;
 
-	p = svcauth_gss_prepare_to_wrap(resbuf, gsd);
+	p = svcauth_gss_prepare_to_wrap(buf, gsd);
 	if (p == NULL)
 		goto out;
-	integ_offset = (u8 *)(p + 1) - (u8 *)resbuf->head[0].iov_base;
-	integ_len = resbuf->len - integ_offset;
-	if (integ_len & 3)
+	offset = (u8 *)(p + 1) - (u8 *)buf->head[0].iov_base;
+	len = buf->len - offset;
+	if (len & 3)
 		goto out;
-	*p++ = htonl(integ_len);
+	*p++ = htonl(len);
 	*p++ = htonl(gc->gc_seq);
-	if (xdr_buf_subsegment(resbuf, &integ_buf, integ_offset, integ_len)) {
+	if (xdr_buf_subsegment(buf, &databody_integ, offset, len)) {
 		WARN_ON_ONCE(1);
 		goto out_err;
 	}
-	if (resbuf->tail[0].iov_base == NULL) {
-		if (resbuf->head[0].iov_len + RPC_MAX_AUTH_SIZE > PAGE_SIZE)
+	if (!buf->tail[0].iov_base) {
+		if (buf->head[0].iov_len + RPC_MAX_AUTH_SIZE > PAGE_SIZE)
 			goto out_err;
-		resbuf->tail[0].iov_base = resbuf->head[0].iov_base
-						+ resbuf->head[0].iov_len;
-		resbuf->tail[0].iov_len = 0;
+		buf->tail[0].iov_base = buf->head[0].iov_base
+						+ buf->head[0].iov_len;
+		buf->tail[0].iov_len = 0;
 	}
-	resv = &resbuf->tail[0];
-	mic.data = (u8 *)resv->iov_base + resv->iov_len + 4;
-	if (gss_get_mic(gsd->rsci->mechctx, &integ_buf, &mic))
+	resv = &buf->tail[0];
+	checksum.data = (u8 *)resv->iov_base + resv->iov_len + 4;
+	if (gss_get_mic(gsd->rsci->mechctx, &databody_integ, &checksum))
 		goto out_err;
-	svc_putnl(resv, mic.len);
-	memset(mic.data + mic.len, 0,
-			round_up_to_quad(mic.len) - mic.len);
-	resv->iov_len += XDR_QUADLEN(mic.len) << 2;
+	svc_putnl(resv, checksum.len);
+	memset(checksum.data + checksum.len, 0,
+	       round_up_to_quad(checksum.len) - checksum.len);
+	resv->iov_len += XDR_QUADLEN(checksum.len) << 2;
 	/* not strictly required: */
-	resbuf->len += XDR_QUADLEN(mic.len) << 2;
+	buf->len += XDR_QUADLEN(checksum.len) << 2;
 	if (resv->iov_len > PAGE_SIZE)
 		goto out_err;
 out:
@@ -1909,7 +1925,7 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 	case RPC_GSS_SVC_NONE:
 		break;
 	case RPC_GSS_SVC_INTEGRITY:
-		stat = svcauth_gss_wrap_resp_integ(rqstp);
+		stat = svcauth_gss_wrap_integ(rqstp);
 		if (stat)
 			goto out_err;
 		break;
