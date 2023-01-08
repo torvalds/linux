@@ -1232,9 +1232,9 @@ svc_process_common(struct svc_rqst *rqstp)
 	const struct svc_procedure *procp = NULL;
 	struct svc_serv		*serv = rqstp->rq_server;
 	struct svc_process_info process;
-	__be32			*p, *statp;
 	int			auth_res, rc;
 	unsigned int		aoffset;
+	__be32			*p;
 
 	/* Will be turned off by GSS integrity and privacy services */
 	set_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
@@ -1314,8 +1314,8 @@ svc_process_common(struct svc_rqst *rqstp)
 	trace_svc_process(rqstp, progp->pg_name);
 
 	aoffset = xdr_stream_pos(xdr);
-	statp = xdr_reserve_space(&rqstp->rq_res_stream, XDR_UNIT);
-	*statp = rpc_success;
+	rqstp->rq_accept_statp = xdr_reserve_space(&rqstp->rq_res_stream, XDR_UNIT);
+	*rqstp->rq_accept_statp = rpc_success;
 
 	/* un-reserve some of the out-queue now that we have a
 	 * better idea of reply size
@@ -1324,7 +1324,7 @@ svc_process_common(struct svc_rqst *rqstp)
 		svc_reserve_auth(rqstp, procp->pc_xdrressize<<2);
 
 	/* Call the function that processes the request. */
-	rc = process.dispatch(rqstp, statp);
+	rc = process.dispatch(rqstp);
 	if (procp->pc_release)
 		procp->pc_release(rqstp);
 	if (!rc)
@@ -1332,7 +1332,7 @@ svc_process_common(struct svc_rqst *rqstp)
 	if (rqstp->rq_auth_stat != rpc_auth_ok)
 		goto err_bad_auth;
 
-	if (*statp != rpc_success)
+	if (*rqstp->rq_accept_statp != rpc_success)
 		xdr_truncate_encode(xdr, aoffset);
 
 	if (procp->pc_encode == NULL)

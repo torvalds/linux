@@ -980,11 +980,11 @@ out_invalidcred:
 }
 
 static int
-nfs_callback_dispatch(struct svc_rqst *rqstp, __be32 *statp)
+nfs_callback_dispatch(struct svc_rqst *rqstp)
 {
 	const struct svc_procedure *procp = rqstp->rq_procinfo;
 
-	*statp = procp->pc_func(rqstp);
+	*rqstp->rq_accept_statp = procp->pc_func(rqstp);
 	return 1;
 }
 

@@ -1022,7 +1022,6 @@ out:
 /**
  * nfsd_dispatch - Process an NFS or NFSACL Request
  * @rqstp: incoming request
- * @statp: pointer to location of accept_stat field in RPC Reply buffer
  *
  * This RPC dispatcher integrates the NFS server's duplicate reply cache.
  *
@@ -1030,9 +1029,10 @@ out:
  *  %0: Processing complete; do not send a Reply
  *  %1: Processing complete; send Reply in rqstp->rq_res
  */
-int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
+int nfsd_dispatch(struct svc_rqst *rqstp)
 {
 	const struct svc_procedure *proc = rqstp->rq_procinfo;
+	__be32 *statp = rqstp->rq_accept_statp;
 
 	/*
 	 * Give the xdr decoder a chance to change this if it wants

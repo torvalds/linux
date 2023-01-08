@@ -251,6 +251,7 @@ struct svc_rqst {
 
 	void *			rq_argp;	/* decoded arguments */
 	void *			rq_resp;	/* xdr'd results */
+	__be32			*rq_accept_statp;
 	void *			rq_auth_data;	/* flavor-specific data */
 	__be32			rq_auth_stat;	/* authentication status */
 	int			rq_auth_slack;	/* extra space xdr code
@@ -337,7 +338,7 @@ struct svc_deferred_req {
 
 struct svc_process_info {
 	union {
-		int  (*dispatch)(struct svc_rqst *, __be32 *);
+		int  (*dispatch)(struct svc_rqst *rqstp);
 		struct {
 			unsigned int lovers;
 			unsigned int hivers;
@@ -389,7 +390,7 @@ struct svc_version {
 	bool			vs_need_cong_ctrl;
 
 	/* Dispatch function */
-	int			(*vs_dispatch)(struct svc_rqst *, __be32 *);
+	int			(*vs_dispatch)(struct svc_rqst *rqstp);
 };
 
 /*
