@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 /*
@@ -874,67 +874,6 @@ static void adspsleepmon_timer_cb(struct timer_list *unused)
 	wake_up_interruptible(&adspsleepmon_wq);
 }
 
-static int adspsleepmon_driver_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-
-	g_adspsleepmon.b_config_panic_lpm = of_property_read_bool(dev->of_node,
-			"qcom,enable_panic_lpm");
-
-	g_adspsleepmon.b_config_panic_lpi = of_property_read_bool(dev->of_node,
-			"qcom,enable_panic_lpi");
-
-	g_adspsleepmon.b_config_adsp_panic_lpm = of_property_read_bool(dev->of_node,
-			"qcom,enable_adsp_panic_lpm");
-
-	g_adspsleepmon.b_config_adsp_panic_lpi = of_property_read_bool(dev->of_node,
-			"qcom,enable_adsp_panic_lpi");
-
-	g_adspsleepmon.b_config_adsp_panic_lpm_overall = of_property_read_bool(dev->of_node,
-			"qcom,enable_adsp_panic_lpm_overall");
-
-	of_property_read_u32(dev->of_node, "qcom,wait_time_lpm",
-						 &g_adspsleepmon.lpm_wait_time);
-
-	of_property_read_u32(dev->of_node, "qcom,wait_time_lpi",
-						 &g_adspsleepmon.lpi_wait_time);
-
-	of_property_read_u32(dev->of_node, "qcom,wait_time_lpm_overall",
-						 &g_adspsleepmon.lpm_wait_time_overall);
-
-	of_property_read_u32(dev->of_node, "qcom,min_required_resumes",
-						 &g_adspsleepmon.min_required_resumes);
-
-	g_adspsleepmon.b_panic_lpm = g_adspsleepmon.b_config_panic_lpm;
-	g_adspsleepmon.b_panic_lpi = g_adspsleepmon.b_config_panic_lpi;
-
-	if (g_adspsleepmon.b_config_panic_lpm ||
-			g_adspsleepmon.b_config_panic_lpi) {
-		g_adspsleepmon.debugfs_panic_file =
-				debugfs_create_file("panic-state",
-				 0644, g_adspsleepmon.debugfs_dir, NULL, &panic_state_fops);
-
-		if (!g_adspsleepmon.debugfs_panic_file)
-			dev_err(dev, "Unable to create file in debugfs\n");
-	}
-
-	g_adspsleepmon.debugfs_read_panic_state =
-			debugfs_create_file("read_panic_state",
-			 0444, g_adspsleepmon.debugfs_dir, NULL, &read_panic_state_fops);
-
-	if (!g_adspsleepmon.debugfs_read_panic_state)
-		dev_err(dev, "Unable to create read panic state file in debugfs\n");
-
-#if IS_ENABLED(CONFIG_QCOM_ADSP_SLEEPMON_RPROC_RESTART)
-	of_property_read_u32(dev->of_node, "qcom,rproc-handle",
-				&g_adspsleepmon.adsp_rproc_phandle);
-#endif
-
-	dev_dbg(dev, "ADSP sleep monitor probe called\n");
-
-	return 0;
-}
-
 static void sleepmon_get_dsppm_clients(void)
 {
 	int result = 0;
@@ -1258,7 +1197,7 @@ static int adspsleepmon_worker(void *data)
 		mutex_unlock(&g_adspsleepmon.lock);
 	}
 
-	do_exit(0);
+	return 0;
 }
 
 static int adspsleepmon_device_open(struct inode *inode, struct file *fp)
@@ -1501,6 +1440,7 @@ static long adspsleepmon_device_ioctl(struct file *file,
 		switch (audio_param.command) {
 		case ADSPSLEEPMON_AUDIO_ACTIVITY_LPI_START:
 			fl->num_lpi_sessions++;
+			__attribute__((__fallthrough__));
 		case ADSPSLEEPMON_AUDIO_ACTIVITY_START:
 			fl->num_sessions++;
 		break;
@@ -1510,6 +1450,7 @@ static long adspsleepmon_device_ioctl(struct file *file,
 				fl->num_lpi_sessions--;
 			else
 				pr_info("Received AUDIO LPI activity stop when none active!\n");
+			__attribute__((__fallthrough__));
 		case ADSPSLEEPMON_AUDIO_ACTIVITY_STOP:
 			if (fl->num_sessions)
 				fl->num_sessions--;
@@ -1606,19 +1547,6 @@ static const struct file_operations fops = {
 	.compat_ioctl = adspsleepmon_device_ioctl,
 };
 
-static const struct of_device_id adspsleepmon_match_table[] = {
-	{ .compatible = "qcom,adsp-sleepmon" },
-	{ },
-};
-
-static struct platform_driver adspsleepmon = {
-	.probe = adspsleepmon_driver_probe,
-	.driver = {
-		.name = "adsp_sleepmon",
-		.of_match_table = adspsleepmon_match_table,
-	},
-};
-
 static const struct of_device_id sleepmon_rpmsg_of_match[] = {
 	{ .compatible = "qcom,msm-adspsleepmon-rpmsg" },
 	{ },
@@ -1671,8 +1599,9 @@ static struct rpmsg_driver sleepmon_rpmsg_client = {
 	},
 };
 
-static int __init adspsleepmon_init(void)
+static int adspsleepmon_driver_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int ret = 0;
 	struct adspsleepmon *me = &g_adspsleepmon;
 
@@ -1691,7 +1620,7 @@ static int __init adspsleepmon_init(void)
 					NULL, "adspsleepmon-worker");
 
 	if (!g_adspsleepmon.worker_task) {
-		pr_err("Failed to create kernel thread\n");
+		dev_err(dev, "Failed to create kernel thread\n");
 		return -ENOMEM;
 	}
 
@@ -1699,8 +1628,8 @@ static int __init adspsleepmon_init(void)
 	ret = alloc_chrdev_region(&me->devno, 0, 1, ADSPSLEEPMON_DEVICE_NAME_LOCAL);
 
 	if (ret != 0) {
-		pr_err("Failed to allocate char device region\n");
-		goto bail;
+		dev_err(dev, "Failed to allocate char device region\n");
+		goto rpmsg_bail;
 	}
 
 	cdev_init(&me->cdev, &fops);
@@ -1708,14 +1637,14 @@ static int __init adspsleepmon_init(void)
 	ret = cdev_add(&me->cdev, MKDEV(MAJOR(me->devno), 0), 1);
 
 	if (ret != 0) {
-		pr_err("Failed to add cdev\n");
+		dev_err(dev, "Failed to add cdev\n");
 		goto cdev_bail;
 	}
 
 	me->class = class_create(THIS_MODULE, "adspsleepmon");
 
 	if (IS_ERR(me->class)) {
-		pr_err("Failed to create a class\n");
+		dev_err(dev, "Failed to create a class\n");
 		goto class_bail;
 	}
 
@@ -1723,54 +1652,102 @@ static int __init adspsleepmon_init(void)
 			MKDEV(MAJOR(me->devno), 0), NULL, ADSPSLEEPMON_DEVICE_NAME_LOCAL);
 
 	if (IS_ERR_OR_NULL(me->dev)) {
-		pr_err("Failed to create a device\n");
+		dev_err(dev, "Failed to create a device\n");
 		goto device_bail;
 	}
 
 	g_adspsleepmon.debugfs_dir = debugfs_create_dir("adspsleepmon", NULL);
 
 	if (!g_adspsleepmon.debugfs_dir) {
-		pr_err("Failed to create debugfs directory for adspsleepmon\n");
+		dev_err(dev, "Failed to create debugfs directory for adspsleepmon\n");
 		goto debugfs_bail;
 	}
 
-	ret = platform_driver_register(&adspsleepmon);
+	g_adspsleepmon.b_config_panic_lpm = of_property_read_bool(dev->of_node,
+			"qcom,enable_panic_lpm");
 
-	if (ret) {
-		pr_err("Platform driver registration failed for adsp-sleepmon: %d\n", ret);
-		goto debugfs_bail;
+	g_adspsleepmon.b_config_panic_lpi = of_property_read_bool(dev->of_node,
+			"qcom,enable_panic_lpi");
+
+	g_adspsleepmon.b_config_adsp_panic_lpm = of_property_read_bool(dev->of_node,
+			"qcom,enable_adsp_panic_lpm");
+
+	g_adspsleepmon.b_config_adsp_panic_lpi = of_property_read_bool(dev->of_node,
+			"qcom,enable_adsp_panic_lpi");
+
+	g_adspsleepmon.b_config_adsp_panic_lpm_overall = of_property_read_bool(dev->of_node,
+			"qcom,enable_adsp_panic_lpm_overall");
+
+	of_property_read_u32(dev->of_node, "qcom,wait_time_lpm",
+						 &g_adspsleepmon.lpm_wait_time);
+
+	of_property_read_u32(dev->of_node, "qcom,wait_time_lpi",
+						 &g_adspsleepmon.lpi_wait_time);
+
+	of_property_read_u32(dev->of_node, "qcom,wait_time_lpm_overall",
+						 &g_adspsleepmon.lpm_wait_time_overall);
+
+	of_property_read_u32(dev->of_node, "qcom,min_required_resumes",
+						 &g_adspsleepmon.min_required_resumes);
+
+#if IS_ENABLED(CONFIG_QCOM_ADSP_SLEEPMON_RPROC_RESTART)
+	of_property_read_u32(dev->of_node, "qcom,rproc-handle",
+				&g_adspsleepmon.adsp_rproc_phandle);
+#endif
+
+	g_adspsleepmon.b_panic_lpm = g_adspsleepmon.b_config_panic_lpm;
+	g_adspsleepmon.b_panic_lpi = g_adspsleepmon.b_config_panic_lpi;
+
+	if (g_adspsleepmon.b_config_panic_lpm ||
+			g_adspsleepmon.b_config_panic_lpi) {
+		g_adspsleepmon.debugfs_panic_file =
+				debugfs_create_file("panic-state",
+				 0644, g_adspsleepmon.debugfs_dir, NULL, &panic_state_fops);
+
+		if (!g_adspsleepmon.debugfs_panic_file)
+			dev_err(dev, "Unable to create file in debugfs\n");
 	}
+
+	g_adspsleepmon.debugfs_read_panic_state =
+			debugfs_create_file("read_panic_state",
+			 0444, g_adspsleepmon.debugfs_dir, NULL, &read_panic_state_fops);
+
+	if (!g_adspsleepmon.debugfs_read_panic_state)
+		dev_err(dev, "Unable to create read panic state file in debugfs\n");
 
 	g_adspsleepmon.debugfs_master_stats =
 			debugfs_create_file("master_stats",
 			 0444, g_adspsleepmon.debugfs_dir, NULL, &master_stats_fops);
 
 	if (!g_adspsleepmon.debugfs_master_stats)
-		pr_err("Failed to create debugfs file for master stats\n");
+		dev_err(dev, "Failed to create debugfs file for master stats\n");
 
 	g_adspsleepmon.debugfs_adsp_panic_file =
 			debugfs_create_file("adsp_panic_state",
 			0644, g_adspsleepmon.debugfs_dir, NULL, &adsp_panic_state_fops);
 
 	if (!g_adspsleepmon.debugfs_adsp_panic_file)
-		pr_err("Unable to create SSR state file in debugfs\n");
+		dev_err(dev, "Unable to create SSR state file in debugfs\n");
 
 	g_adspsleepmon.debugfs_read_adsp_panic_state =
 			debugfs_create_file("read_adsp_panic_state",
 			0444, g_adspsleepmon.debugfs_dir, NULL, &read_adsp_panic_state_fops);
 
 	if (!g_adspsleepmon.debugfs_read_adsp_panic_state)
-		pr_err("Unable to create SSR state read file in debugfs\n");
+		dev_err(dev, "Unable to create SSR state read file in debugfs\n");
 
 	ret = register_rpmsg_driver(&sleepmon_rpmsg_client);
 
 	if (ret) {
-		pr_err("Failed registering rpmsg driver with return %d\n",
+		dev_err(dev, "Failed registering rpmsg driver with return %d\n",
 				ret);
 		goto rpmsg_bail;
 	}
 	g_adspsleepmon.b_rpmsg_register = true;
 	init_completion(&g_adspsleepmon.sem);
+
+
+	dev_info(dev, "ADSP sleep monitor probe called\n");
 	return 0;
 
 debugfs_bail:
@@ -1781,19 +1758,18 @@ class_bail:
 	cdev_del(&me->cdev);
 cdev_bail:
 	unregister_chrdev_region(me->devno, 1);
-bail:
-	platform_driver_unregister(&adspsleepmon);
 rpmsg_bail:
 	return ret;
 }
 
-static void __exit adspsleepmon_exit(void)
+static int adspsleepmon_driver_remove(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+
 	device_destroy(g_adspsleepmon.class, g_adspsleepmon.cdev.dev);
 	class_destroy(g_adspsleepmon.class);
 	cdev_del(&g_adspsleepmon.cdev);
 	unregister_chrdev_region(g_adspsleepmon.devno, 1);
-	platform_driver_unregister(&adspsleepmon);
 	debugfs_remove_recursive(g_adspsleepmon.debugfs_dir);
 	unregister_pm_notifier(&adsp_sleepmon_pm_nb);
 
@@ -1803,10 +1779,24 @@ static void __exit adspsleepmon_exit(void)
 		g_adspsleepmon.adsp_version = 0;
 	}
 
-	pr_info("exit completed\n");
+	dev_info(dev, "ADSP sleep monitor remove called\n");
+	return 0;
 }
 
-module_init(adspsleepmon_init);
-module_exit(adspsleepmon_exit);
+static const struct of_device_id adspsleepmon_match_table[] = {
+	{ .compatible = "qcom,adsp-sleepmon" },
+	{ },
+};
+
+static struct platform_driver adspsleepmon = {
+	.probe = adspsleepmon_driver_probe,
+	.remove = adspsleepmon_driver_remove,
+	.driver = {
+		.name = "adsp_sleepmon",
+		.of_match_table = adspsleepmon_match_table,
+	},
+};
+
+module_platform_driver(adspsleepmon);
 
 MODULE_LICENSE("GPL");
