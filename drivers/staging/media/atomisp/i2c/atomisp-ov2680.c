@@ -678,11 +678,8 @@ fail_power_on:
 static int ov2680_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *interval)
 {
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
-
 	interval->interval.numerator = 1;
-	interval->interval.denominator = dev->res->fps;
-
+	interval->interval.denominator = OV2680_FPS;
 	return 0;
 }
 
@@ -726,8 +723,8 @@ static int ov2680_enum_frame_interval(struct v4l2_subdev *sd,
 	    fie->which > V4L2_SUBDEV_FORMAT_ACTIVE)
 		return -EINVAL;
 
-	fract.denominator = ov2680_res_preview[fie->index].fps;
 	fract.numerator = 1;
+	fract.denominator = OV2680_FPS;
 
 	fie->interval = fract;
 
@@ -736,12 +733,7 @@ static int ov2680_enum_frame_interval(struct v4l2_subdev *sd,
 
 static int ov2680_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 {
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
-
-	mutex_lock(&dev->input_lock);
-	*frames = dev->res->skip_frames;
-	mutex_unlock(&dev->input_lock);
-
+	*frames = OV2680_SKIP_FRAMES;
 	return 0;
 }
 
@@ -785,7 +777,7 @@ static int ov2680_init_controls(struct ov2680_device *sensor)
 	const struct v4l2_ctrl_ops *ops = &ov2680_ctrl_ops;
 	struct ov2680_ctrls *ctrls = &sensor->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
-	int exp_max = sensor->res->lines_per_frame - OV2680_INTEGRATION_TIME_MARGIN;
+	int exp_max = OV2680_LINES_PER_FRAME - OV2680_INTEGRATION_TIME_MARGIN;
 
 	v4l2_ctrl_handler_init(hdl, 4);
 
