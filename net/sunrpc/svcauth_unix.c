@@ -822,9 +822,9 @@ svcauth_tls_accept(struct svc_rqst *rqstp)
 {
 	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct svc_cred	*cred = &rqstp->rq_cred;
-	struct kvec *resv = rqstp->rq_res.head;
 	u32 flavor, len;
 	void *body;
+	__be32 *p;
 
 	/* Length of Call's credential body field: */
 	if (xdr_stream_decode_u32(xdr, &len) < 0)
@@ -855,17 +855,21 @@ svcauth_tls_accept(struct svc_rqst *rqstp)
 	if (cred->cr_group_info == NULL)
 		return SVC_CLOSE;
 
-	/* Reply's verifier */
-	svc_putnl(resv, RPC_AUTH_NULL);
+	svcxdr_init_encode(rqstp);
 	if (rqstp->rq_xprt->xpt_ops->xpo_start_tls) {
-		svc_putnl(resv, 8);
-		memcpy(resv->iov_base + resv->iov_len, "STARTTLS", 8);
-		resv->iov_len += 8;
-	} else
-		svc_putnl(resv, 0);
+		p = xdr_reserve_space(&rqstp->rq_res_stream, XDR_UNIT * 2 + 8);
+		if (!p)
+			return SVC_CLOSE;
+		*p++ = rpc_auth_null;
+		*p++ = cpu_to_be32(8);
+		memcpy(p, "STARTTLS", 8);
+	} else {
+		if (xdr_stream_encode_opaque_auth(&rqstp->rq_res_stream,
+						  RPC_AUTH_NULL, NULL, 0) < 0)
+			return SVC_CLOSE;
+	}
 
 	rqstp->rq_cred.cr_flavor = RPC_AUTH_TLS;
-	svcxdr_init_encode(rqstp);
 	return SVC_OK;
 }
 
