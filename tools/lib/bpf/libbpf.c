@@ -7355,7 +7355,7 @@ static int bpf_object__sanitize_maps(struct bpf_object *obj)
 		if (!bpf_map__is_internal(m))
 			continue;
 		if (!kernel_supports(obj, FEAT_ARRAY_MMAP))
-			m->def.map_flags ^= BPF_F_MMAPABLE;
+			m->def.map_flags &= ~BPF_F_MMAPABLE;
 	}
 
 	return 0;
