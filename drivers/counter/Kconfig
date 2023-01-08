@@ -63,6 +63,7 @@ config INTERRUPT_CNT
 
 config MICROCHIP_TCB_CAPTURE
 	tristate "Microchip Timer Counter Capture driver"
+	depends on CONFIG_SOC_AT91SAM9 || CONFIG_SOC_SAM_V7 || COMPILE_TEST
 	depends on HAS_IOMEM && OF
 	select REGMAP_MMIO
 	help
