@@ -10,15 +10,23 @@
 
 enum {
 	NVME_IOCTL_VEC		= (1 << 0),
+	NVME_IOCTL_PARTITION	= (1 << 1),
 };
 
 static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
-		fmode_t mode)
+		unsigned int flags, fmode_t mode)
 {
 	u32 effects;
 
 	if (capable(CAP_SYS_ADMIN))
 		return true;
+
+	/*
+	 * Do not allow unprivileged passthrough on partitions, as that allows an
+	 * escape from the containment of the partition.
+	 */
+	if (flags & NVME_IOCTL_PARTITION)
+		return false;
 
 	/*
 	 * Do not allow unprivileged processes to send vendor specific or fabrics
@@ -327,7 +335,8 @@ static bool nvme_validate_passthru_nsid(struct nvme_ctrl *ctrl,
 }
 
 static int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
-			struct nvme_passthru_cmd __user *ucmd, fmode_t mode)
+		struct nvme_passthru_cmd __user *ucmd, unsigned int flags,
+		fmode_t mode)
 {
 	struct nvme_passthru_cmd cmd;
 	struct nvme_command c;
@@ -355,7 +364,7 @@ static int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	c.common.cdw14 = cpu_to_le32(cmd.cdw14);
 	c.common.cdw15 = cpu_to_le32(cmd.cdw15);
 
-	if (!nvme_cmd_allowed(ns, &c, mode))
+	if (!nvme_cmd_allowed(ns, &c, 0, mode))
 		return -EACCES;
 
 	if (cmd.timeout_ms)
@@ -402,7 +411,7 @@ static int nvme_user_cmd64(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	c.common.cdw14 = cpu_to_le32(cmd.cdw14);
 	c.common.cdw15 = cpu_to_le32(cmd.cdw15);
 
-	if (!nvme_cmd_allowed(ns, &c, mode))
+	if (!nvme_cmd_allowed(ns, &c, flags, mode))
 		return -EACCES;
 
 	if (cmd.timeout_ms)
@@ -571,7 +580,7 @@ static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	c.common.cdw14 = cpu_to_le32(READ_ONCE(cmd->cdw14));
 	c.common.cdw15 = cpu_to_le32(READ_ONCE(cmd->cdw15));
 
-	if (!nvme_cmd_allowed(ns, &c, ioucmd->file->f_mode))
+	if (!nvme_cmd_allowed(ns, &c, 0, ioucmd->file->f_mode))
 		return -EACCES;
 
 	d.metadata = READ_ONCE(cmd->metadata);
@@ -641,7 +650,7 @@ static int nvme_ctrl_ioctl(struct nvme_ctrl *ctrl, unsigned int cmd,
 {
 	switch (cmd) {
 	case NVME_IOCTL_ADMIN_CMD:
-		return nvme_user_cmd(ctrl, NULL, argp, mode);
+		return nvme_user_cmd(ctrl, NULL, argp, 0, mode);
 	case NVME_IOCTL_ADMIN64_CMD:
 		return nvme_user_cmd64(ctrl, NULL, argp, 0, mode);
 	default:
@@ -668,16 +677,14 @@ struct nvme_user_io32 {
 #endif /* COMPAT_FOR_U64_ALIGNMENT */
 
 static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned int cmd,
-		void __user *argp, fmode_t mode)
+		void __user *argp, unsigned int flags, fmode_t mode)
 {
-	unsigned int flags = 0;
-
 	switch (cmd) {
 	case NVME_IOCTL_ID:
 		force_successful_syscall_return();
 		return ns->head->ns_id;
 	case NVME_IOCTL_IO_CMD:
-		return nvme_user_cmd(ns->ctrl, ns, argp, mode);
+		return nvme_user_cmd(ns->ctrl, ns, argp, flags, mode);
 	/*
 	 * struct nvme_user_io can have different padding on some 32-bit ABIs.
 	 * Just accept the compat version as all fields that are used are the
@@ -703,10 +710,14 @@ int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	struct nvme_ns *ns = bdev->bd_disk->private_data;
 	void __user *argp = (void __user *)arg;
+	unsigned int flags = 0;
+
+	if (bdev_is_partition(bdev))
+		flags |= NVME_IOCTL_PARTITION;
 
 	if (is_ctrl_ioctl(cmd))
 		return nvme_ctrl_ioctl(ns->ctrl, cmd, argp, mode);
-	return nvme_ns_ioctl(ns, cmd, argp, mode);
+	return nvme_ns_ioctl(ns, cmd, argp, flags, mode);
 }
 
 long nvme_ns_chr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -717,7 +728,7 @@ long nvme_ns_chr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	if (is_ctrl_ioctl(cmd))
 		return nvme_ctrl_ioctl(ns->ctrl, cmd, argp, file->f_mode);
-	return nvme_ns_ioctl(ns, cmd, argp, file->f_mode);
+	return nvme_ns_ioctl(ns, cmd, argp, 0, file->f_mode);
 }
 
 static int nvme_uring_cmd_checks(unsigned int issue_flags)
@@ -807,6 +818,10 @@ int nvme_ns_head_ioctl(struct block_device *bdev, fmode_t mode,
 	void __user *argp = (void __user *)arg;
 	struct nvme_ns *ns;
 	int srcu_idx, ret = -EWOULDBLOCK;
+	unsigned int flags = 0;
+
+	if (bdev_is_partition(bdev))
+		flags |= NVME_IOCTL_PARTITION;
 
 	srcu_idx = srcu_read_lock(&head->srcu);
 	ns = nvme_find_path(head);
@@ -822,7 +837,7 @@ int nvme_ns_head_ioctl(struct block_device *bdev, fmode_t mode,
 		return nvme_ns_head_ctrl_ioctl(ns, cmd, argp, head, srcu_idx,
 					mode);
 
-	ret = nvme_ns_ioctl(ns, cmd, argp, mode);
+	ret = nvme_ns_ioctl(ns, cmd, argp, flags, mode);
 out_unlock:
 	srcu_read_unlock(&head->srcu, srcu_idx);
 	return ret;
@@ -847,7 +862,7 @@ long nvme_ns_head_chr_ioctl(struct file *file, unsigned int cmd,
 		return nvme_ns_head_ctrl_ioctl(ns, cmd, argp, head, srcu_idx,
 				file->f_mode);
 
-	ret = nvme_ns_ioctl(ns, cmd, argp, file->f_mode);
+	ret = nvme_ns_ioctl(ns, cmd, argp, 0, file->f_mode);
 out_unlock:
 	srcu_read_unlock(&head->srcu, srcu_idx);
 	return ret;
@@ -946,7 +961,7 @@ static int nvme_dev_user_cmd(struct nvme_ctrl *ctrl, void __user *argp,
 	kref_get(&ns->kref);
 	up_read(&ctrl->namespaces_rwsem);
 
-	ret = nvme_user_cmd(ctrl, ns, argp, mode);
+	ret = nvme_user_cmd(ctrl, ns, argp, 0, mode);
 	nvme_put_ns(ns);
 	return ret;
 
@@ -963,7 +978,7 @@ long nvme_dev_ioctl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case NVME_IOCTL_ADMIN_CMD:
-		return nvme_user_cmd(ctrl, NULL, argp, file->f_mode);
+		return nvme_user_cmd(ctrl, NULL, argp, 0, file->f_mode);
 	case NVME_IOCTL_ADMIN64_CMD:
 		return nvme_user_cmd64(ctrl, NULL, argp, 0, file->f_mode);
 	case NVME_IOCTL_IO_CMD:
