@@ -1732,17 +1732,19 @@ out:
 }
 
 static __be32 *
-svcauth_gss_prepare_to_wrap(struct xdr_buf *resbuf, struct gss_svc_data *gsd)
+svcauth_gss_prepare_to_wrap(struct svc_rqst *rqstp, struct gss_svc_data *gsd)
 {
+	struct xdr_buf *resbuf = &rqstp->rq_res;
 	__be32 *p;
 	u32 verf_len;
 
 	p = gsd->verf_start;
 	gsd->verf_start = NULL;
 
-	/* If the reply stat is nonzero, don't wrap: */
-	if (*(p-1) != rpc_success)
+	/* AUTH_ERROR replies are not wrapped. */
+	if (rqstp->rq_auth_stat != rpc_auth_ok)
 		return NULL;
+
 	/* Skip the verifier: */
 	p += 1;
 	verf_len = ntohl(*p++);
@@ -1786,7 +1788,7 @@ static int svcauth_gss_wrap_integ(struct svc_rqst *rqstp)
 	u32 offset, len, maj_stat;
 	__be32 *p;
 
-	p = svcauth_gss_prepare_to_wrap(buf, gsd);
+	p = svcauth_gss_prepare_to_wrap(rqstp, gsd);
 	if (p == NULL)
 		goto out;
 
@@ -1846,7 +1848,7 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 	u32 offset, pad, maj_stat;
 	__be32 *p, *lenp;
 
-	p = svcauth_gss_prepare_to_wrap(buf, gsd);
+	p = svcauth_gss_prepare_to_wrap(rqstp, gsd);
 	if (p == NULL)
 		return 0;
 
