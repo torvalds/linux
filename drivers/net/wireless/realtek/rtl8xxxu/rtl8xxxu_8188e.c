@@ -1784,6 +1784,11 @@ rtl8188e_update_rate_mask(struct rtl8xxxu_priv *priv,
 	rtl8188e_arfb_refresh(ra);
 }
 
+static void rtl8188e_ra_set_rssi(struct rtl8xxxu_priv *priv, u8 macid, u8 rssi)
+{
+	priv->ra_info.rssi_sta_ra = rssi;
+}
+
 void rtl8188e_ra_info_init_all(struct rtl8xxxu_ra_info *ra)
 {
 	ra->decision_rate = DESC_RATE_MCS7;
@@ -1842,6 +1847,7 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.set_tx_power = rtl8188f_set_tx_power,
 	.update_rate_mask = rtl8188e_update_rate_mask,
 	.report_connect = rtl8xxxu_gen2_report_connect,
+	.report_rssi = rtl8188e_ra_set_rssi,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v3,
 	.set_crystal_cap = rtl8188f_set_crystal_cap,
 	.cck_rssi = rtl8188e_cck_rssi,

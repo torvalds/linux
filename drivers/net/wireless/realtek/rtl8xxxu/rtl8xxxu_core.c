@@ -4461,6 +4461,37 @@ void rtl8xxxu_gen2_report_connect(struct rtl8xxxu_priv *priv,
 	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.media_status_rpt));
 }
 
+void rtl8xxxu_gen1_report_rssi(struct rtl8xxxu_priv *priv, u8 macid, u8 rssi)
+{
+	struct h2c_cmd h2c;
+	const int h2c_size = 4;
+
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+
+	h2c.rssi_report.cmd = H2C_SET_RSSI;
+	h2c.rssi_report.macid = macid;
+	h2c.rssi_report.rssi = rssi;
+
+	rtl8xxxu_gen1_h2c_cmd(priv, &h2c, h2c_size);
+}
+
+void rtl8xxxu_gen2_report_rssi(struct rtl8xxxu_priv *priv, u8 macid, u8 rssi)
+{
+	struct h2c_cmd h2c;
+	int h2c_size = sizeof(h2c.rssi_report);
+
+	if (priv->rtl_chip == RTL8723B)
+		h2c_size = 4;
+
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+
+	h2c.rssi_report.cmd = H2C_8723B_RSSI_SETTING;
+	h2c.rssi_report.macid = macid;
+	h2c.rssi_report.rssi = rssi;
+
+	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, h2c_size);
+}
+
 void rtl8xxxu_gen1_init_aggregation(struct rtl8xxxu_priv *priv)
 {
 	u8 agg_ctrl, usb_spec, page_thresh, timeout;
@@ -6696,6 +6727,9 @@ static void rtl8xxxu_watchdog_callback(struct work_struct *work)
 		rcu_read_unlock();
 
 		signal = ieee80211_ave_rssi(vif);
+
+		priv->fops->report_rssi(priv, 0,
+					rtl8xxxu_signal_to_snr(signal));
 
 		if (priv->fops->set_crystal_cap)
 			rtl8xxxu_track_cfo(priv);

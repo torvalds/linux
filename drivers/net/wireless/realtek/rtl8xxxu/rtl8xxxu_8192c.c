@@ -609,6 +609,7 @@ struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.set_tx_power = rtl8xxxu_gen1_set_tx_power,
 	.update_rate_mask = rtl8xxxu_update_rate_mask,
 	.report_connect = rtl8xxxu_gen1_report_connect,
+	.report_rssi = rtl8xxxu_gen1_report_rssi,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v1,
 	.cck_rssi = rtl8723a_cck_rssi,
 	.writeN_block_size = 128,

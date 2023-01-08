@@ -1784,6 +1784,7 @@ struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.set_tx_power = rtl8192e_set_tx_power,
 	.update_rate_mask = rtl8xxxu_gen2_update_rate_mask,
 	.report_connect = rtl8xxxu_gen2_report_connect,
+	.report_rssi = rtl8xxxu_gen2_report_rssi,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v2,
 	.set_crystal_cap = rtl8723a_set_crystal_cap,
 	.cck_rssi = rtl8192e_cck_rssi,

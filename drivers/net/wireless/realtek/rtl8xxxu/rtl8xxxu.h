@@ -1168,6 +1168,26 @@ struct h2c_cmd {
 			u8 cmd;
 			u8 data;
 		} __packed bt_grant;
+		struct {
+			u8 cmd;
+			u8 macid;
+			u8 unknown0;
+			u8 rssi;
+			/*
+			 * [0]   - is_rx
+			 * [1]   - stbc_en
+			 * [2]   - noisy_decision
+			 * [6]   - bf_en
+			 */
+			u8 data;
+			/*
+			 * [0:6] - ra_th_offset
+			 * [7]   - ra_offset_direction
+			 */
+			u8 ra_th_offset;
+			u8 unknown1;
+			u8 unknown2;
+		} __packed rssi_report;
 	};
 };
 
@@ -1585,6 +1605,7 @@ struct rtl8xxxu_fileops {
 				  u32 ramask, u8 rateid, int sgi, int txbw_40mhz);
 	void (*report_connect) (struct rtl8xxxu_priv *priv,
 				u8 macid, bool connect);
+	void (*report_rssi) (struct rtl8xxxu_priv *priv, u8 macid, u8 rssi);
 	void (*fill_txdesc) (struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 			     struct ieee80211_tx_info *tx_info,
 			     struct rtl8xxxu_txdesc32 *tx_desc, bool sgi,
@@ -1686,6 +1707,8 @@ void rtl8xxxu_gen1_report_connect(struct rtl8xxxu_priv *priv,
 				  u8 macid, bool connect);
 void rtl8xxxu_gen2_report_connect(struct rtl8xxxu_priv *priv,
 				  u8 macid, bool connect);
+void rtl8xxxu_gen1_report_rssi(struct rtl8xxxu_priv *priv, u8 macid, u8 rssi);
+void rtl8xxxu_gen2_report_rssi(struct rtl8xxxu_priv *priv, u8 macid, u8 rssi);
 void rtl8xxxu_gen1_init_aggregation(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen1_enable_rf(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen1_disable_rf(struct rtl8xxxu_priv *priv);
