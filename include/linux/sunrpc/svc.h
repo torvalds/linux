@@ -193,40 +193,6 @@ extern u32 svc_max_payload(const struct svc_rqst *rqstp);
 #define RPCSVC_MAXPAGES		((RPCSVC_MAXPAYLOAD+PAGE_SIZE-1)/PAGE_SIZE \
 				+ 2 + 1)
 
-static inline u32 svc_getnl(struct kvec *iov)
-{
-	__be32 val, *vp;
-	vp = iov->iov_base;
-	val = *vp++;
-	iov->iov_base = (void*)vp;
-	iov->iov_len -= sizeof(__be32);
-	return ntohl(val);
-}
-
-static inline void svc_putnl(struct kvec *iov, u32 val)
-{
-	__be32 *vp = iov->iov_base + iov->iov_len;
-	*vp = htonl(val);
-	iov->iov_len += sizeof(__be32);
-}
-
-static inline __be32 svc_getu32(struct kvec *iov)
-{
-	__be32 val, *vp;
-	vp = iov->iov_base;
-	val = *vp++;
-	iov->iov_base = (void*)vp;
-	iov->iov_len -= sizeof(__be32);
-	return val;
-}
-
-static inline void svc_putu32(struct kvec *iov, __be32 val)
-{
-	__be32 *vp = iov->iov_base + iov->iov_len;
-	*vp = val;
-	iov->iov_len += sizeof(__be32);
-}
-
 /*
  * The context of a single thread, including the request currently being
  * processed.
@@ -343,29 +309,6 @@ static inline struct sockaddr_in6 *svc_daddr_in6(const struct svc_rqst *rqst)
 static inline struct sockaddr *svc_daddr(const struct svc_rqst *rqst)
 {
 	return (struct sockaddr *) &rqst->rq_daddr;
-}
-
-/*
- * Check buffer bounds after decoding arguments
- */
-static inline int
-xdr_argsize_check(struct svc_rqst *rqstp, __be32 *p)
-{
-	char *cp = (char *)p;
-	struct kvec *vec = &rqstp->rq_arg.head[0];
-	return cp >= (char*)vec->iov_base
-		&& cp <= (char*)vec->iov_base + vec->iov_len;
-}
-
-static inline int
-xdr_ressize_check(struct svc_rqst *rqstp, __be32 *p)
-{
-	struct kvec *vec = &rqstp->rq_res.head[0];
-	char *cp = (char*)p;
-
-	vec->iov_len = cp - (char*)vec->iov_base;
-
-	return vec->iov_len <= PAGE_SIZE;
 }
 
 static inline void svc_free_res_pages(struct svc_rqst *rqstp)
@@ -540,9 +483,6 @@ static inline void svc_reserve_auth(struct svc_rqst *rqstp, int space)
  * svcxdr_init_decode - Prepare an xdr_stream for Call decoding
  * @rqstp: controlling server RPC transaction context
  *
- * This function currently assumes the RPC header in rq_arg has
- * already been decoded. Upon return, xdr->p points to the
- * location of the upper layer header.
  */
 static inline void svcxdr_init_decode(struct svc_rqst *rqstp)
 {
@@ -550,11 +490,7 @@ static inline void svcxdr_init_decode(struct svc_rqst *rqstp)
 	struct xdr_buf *buf = &rqstp->rq_arg;
 	struct kvec *argv = buf->head;
 
-	/*
-	 * svc_getnl() and friends do not keep the xdr_buf's ::len
-	 * field up to date. Refresh that field before initializing
-	 * the argument decoding stream.
-	 */
+	WARN_ON(buf->len != buf->head->iov_len + buf->page_len + buf->tail->iov_len);
 	buf->len = buf->head->iov_len + buf->page_len + buf->tail->iov_len;
 
 	xdr_init_decode(xdr, buf, argv->iov_base, NULL);
