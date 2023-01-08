@@ -179,14 +179,11 @@ int rtw_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *data)
 	struct io_priv *io_priv = &adapter->iopriv;
 	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
-	int ret;
 
 	if (length > VENDOR_CMD_MAX_DATA_LEN)
-		return _FAIL;
+		return -EINVAL;
 
-	ret = usb_write(intf, value, data, length);
-
-	return RTW_STATUS_CODE(ret);
+	return usb_write(intf, value, data, length);
 }
 
 static void handle_txrpt_ccx_88e(struct adapter *adapter, u8 *buf)
