@@ -1232,11 +1232,8 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 	struct svc_serv		*serv = rqstp->rq_server;
 	struct svc_process_info process;
 	__be32			*p, *statp;
-	__be32			rpc_stat;
 	int			auth_res, rc;
 	__be32			*reply_statp;
-
-	rpc_stat = rpc_success;
 
 	/* Will be turned off by GSS integrity and privacy services */
 	set_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
@@ -1279,10 +1276,9 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 	case SVC_OK:
 		break;
 	case SVC_GARBAGE:
-		goto err_garbage;
+		goto err_garbage_args;
 	case SVC_SYSERR:
-		rpc_stat = rpc_system_err;
-		goto err_bad;
+		goto err_system_err;
 	case SVC_DENIED:
 		goto err_bad_auth;
 	case SVC_CLOSE:
@@ -1296,8 +1292,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 	if (progp == NULL)
 		goto err_bad_prog;
 
-	rpc_stat = progp->pg_init_request(rqstp, progp, &process);
-	switch (rpc_stat) {
+	switch (progp->pg_init_request(rqstp, progp, &process)) {
 	case rpc_success:
 		break;
 	case rpc_prog_unavail:
@@ -1408,13 +1403,16 @@ err_bad_proc:
 	svc_putnl(resv, RPC_PROC_UNAVAIL);
 	goto sendit;
 
-err_garbage:
-	svc_printk(rqstp, "failed to decode args\n");
+err_garbage_args:
+	svc_printk(rqstp, "failed to decode RPC header\n");
 
-	rpc_stat = rpc_garbage_args;
-err_bad:
 	serv->sv_stats->rpcbadfmt++;
-	svc_putnl(resv, ntohl(rpc_stat));
+	svc_putnl(resv, RPC_GARBAGE_ARGS);
+	goto sendit;
+
+err_system_err:
+	serv->sv_stats->rpcbadfmt++;
+	svc_putnl(resv, RPC_SYSTEM_ERR);
 	goto sendit;
 }
 
