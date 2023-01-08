@@ -8,6 +8,10 @@
 #include <linux/io_uring.h>
 #include "nvme.h"
 
+enum {
+	NVME_IOCTL_VEC		= (1 << 0),
+};
+
 static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 		fmode_t mode)
 {
@@ -150,7 +154,7 @@ static struct request *nvme_alloc_user_request(struct request_queue *q,
 static int nvme_map_user_request(struct request *req, u64 ubuffer,
 		unsigned bufflen, void __user *meta_buffer, unsigned meta_len,
 		u32 meta_seed, void **metap, struct io_uring_cmd *ioucmd,
-		bool vec)
+		unsigned int flags)
 {
 	struct request_queue *q = req->q;
 	struct nvme_ns *ns = q->queuedata;
@@ -163,7 +167,7 @@ static int nvme_map_user_request(struct request *req, u64 ubuffer,
 		struct iov_iter iter;
 
 		/* fixedbufs is only for non-vectored io */
-		if (WARN_ON_ONCE(vec))
+		if (WARN_ON_ONCE(flags & NVME_IOCTL_VEC))
 			return -EINVAL;
 		ret = io_uring_cmd_import_fixed(ubuffer, bufflen,
 				rq_data_dir(req), &iter, ioucmd);
@@ -172,8 +176,8 @@ static int nvme_map_user_request(struct request *req, u64 ubuffer,
 		ret = blk_rq_map_user_iov(q, req, NULL, &iter, GFP_KERNEL);
 	} else {
 		ret = blk_rq_map_user_io(req, NULL, nvme_to_user_ptr(ubuffer),
-				bufflen, GFP_KERNEL, vec, 0, 0,
-				rq_data_dir(req));
+				bufflen, GFP_KERNEL, flags & NVME_IOCTL_VEC, 0,
+				0, rq_data_dir(req));
 	}
 
 	if (ret)
@@ -203,9 +207,9 @@ out:
 }
 
 static int nvme_submit_user_cmd(struct request_queue *q,
-		struct nvme_command *cmd, u64 ubuffer,
-		unsigned bufflen, void __user *meta_buffer, unsigned meta_len,
-		u32 meta_seed, u64 *result, unsigned timeout, bool vec)
+		struct nvme_command *cmd, u64 ubuffer, unsigned bufflen,
+		void __user *meta_buffer, unsigned meta_len, u32 meta_seed,
+		u64 *result, unsigned timeout, unsigned int flags)
 {
 	struct nvme_ctrl *ctrl;
 	struct request *req;
@@ -221,7 +225,7 @@ static int nvme_submit_user_cmd(struct request_queue *q,
 	req->timeout = timeout;
 	if (ubuffer && bufflen) {
 		ret = nvme_map_user_request(req, ubuffer, bufflen, meta_buffer,
-				meta_len, meta_seed, &meta, NULL, vec);
+				meta_len, meta_seed, &meta, NULL, flags);
 		if (ret)
 			return ret;
 	}
@@ -304,10 +308,8 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.apptag = cpu_to_le16(io.apptag);
 	c.rw.appmask = cpu_to_le16(io.appmask);
 
-	return nvme_submit_user_cmd(ns->queue, &c,
-			io.addr, length,
-			metadata, meta_len, lower_32_bits(io.slba), NULL, 0,
-			false);
+	return nvme_submit_user_cmd(ns->queue, &c, io.addr, length, metadata,
+			meta_len, lower_32_bits(io.slba), NULL, 0, 0);
 }
 
 static bool nvme_validate_passthru_nsid(struct nvme_ctrl *ctrl,
@@ -360,9 +362,8 @@ static int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 		timeout = msecs_to_jiffies(cmd.timeout_ms);
 
 	status = nvme_submit_user_cmd(ns ? ns->queue : ctrl->admin_q, &c,
-			cmd.addr, cmd.data_len,
-			nvme_to_user_ptr(cmd.metadata), cmd.metadata_len,
-			0, &result, timeout, false);
+			cmd.addr, cmd.data_len, nvme_to_user_ptr(cmd.metadata),
+			cmd.metadata_len, 0, &result, timeout, 0);
 
 	if (status >= 0) {
 		if (put_user(result, &ucmd->result))
@@ -373,8 +374,8 @@ static int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 }
 
 static int nvme_user_cmd64(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
-			struct nvme_passthru_cmd64 __user *ucmd, bool vec,
-			fmode_t mode)
+		struct nvme_passthru_cmd64 __user *ucmd, unsigned int flags,
+		fmode_t mode)
 {
 	struct nvme_passthru_cmd64 cmd;
 	struct nvme_command c;
@@ -408,9 +409,8 @@ static int nvme_user_cmd64(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 		timeout = msecs_to_jiffies(cmd.timeout_ms);
 
 	status = nvme_submit_user_cmd(ns ? ns->queue : ctrl->admin_q, &c,
-			cmd.addr, cmd.data_len,
-			nvme_to_user_ptr(cmd.metadata), cmd.metadata_len,
-			0, &cmd.result, timeout, vec);
+			cmd.addr, cmd.data_len, nvme_to_user_ptr(cmd.metadata),
+			cmd.metadata_len, 0, &cmd.result, timeout, flags);
 
 	if (status >= 0) {
 		if (put_user(cmd.result, &ucmd->result))
@@ -643,7 +643,7 @@ static int nvme_ctrl_ioctl(struct nvme_ctrl *ctrl, unsigned int cmd,
 	case NVME_IOCTL_ADMIN_CMD:
 		return nvme_user_cmd(ctrl, NULL, argp, mode);
 	case NVME_IOCTL_ADMIN64_CMD:
-		return nvme_user_cmd64(ctrl, NULL, argp, false, mode);
+		return nvme_user_cmd64(ctrl, NULL, argp, 0, mode);
 	default:
 		return sed_ioctl(ctrl->opal_dev, cmd, argp);
 	}
@@ -670,6 +670,8 @@ struct nvme_user_io32 {
 static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned int cmd,
 		void __user *argp, fmode_t mode)
 {
+	unsigned int flags = 0;
+
 	switch (cmd) {
 	case NVME_IOCTL_ID:
 		force_successful_syscall_return();
@@ -686,10 +688,11 @@ static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned int cmd,
 #endif
 	case NVME_IOCTL_SUBMIT_IO:
 		return nvme_submit_io(ns, argp);
-	case NVME_IOCTL_IO64_CMD:
-		return nvme_user_cmd64(ns->ctrl, ns, argp, false, mode);
 	case NVME_IOCTL_IO64_CMD_VEC:
-		return nvme_user_cmd64(ns->ctrl, ns, argp, true, mode);
+		flags |= NVME_IOCTL_VEC;
+		fallthrough;
+	case NVME_IOCTL_IO64_CMD:
+		return nvme_user_cmd64(ns->ctrl, ns, argp, flags, mode);
 	default:
 		return -ENOTTY;
 	}
@@ -962,7 +965,7 @@ long nvme_dev_ioctl(struct file *file, unsigned int cmd,
 	case NVME_IOCTL_ADMIN_CMD:
 		return nvme_user_cmd(ctrl, NULL, argp, file->f_mode);
 	case NVME_IOCTL_ADMIN64_CMD:
-		return nvme_user_cmd64(ctrl, NULL, argp, false, file->f_mode);
+		return nvme_user_cmd64(ctrl, NULL, argp, 0, file->f_mode);
 	case NVME_IOCTL_IO_CMD:
 		return nvme_dev_user_cmd(ctrl, argp, file->f_mode);
 	case NVME_IOCTL_RESET:
