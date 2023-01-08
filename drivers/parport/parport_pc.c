@@ -2000,11 +2000,12 @@ static int parport_dma_probe(struct parport *p)
 static LIST_HEAD(ports_list);
 static DEFINE_SPINLOCK(ports_lock);
 
-struct parport *parport_pc_probe_port(unsigned long int base,
-				      unsigned long int base_hi,
-				      int irq, int dma,
-				      struct device *dev,
-				      int irqflags)
+static struct parport *__parport_pc_probe_port(unsigned long int base,
+					       unsigned long int base_hi,
+					       int irq, int dma,
+					       struct device *dev,
+					       int irqflags,
+					       unsigned int mode_mask)
 {
 	struct parport_pc_private *priv;
 	struct parport_operations *ops;
@@ -2116,18 +2117,28 @@ struct parport *parport_pc_probe_port(unsigned long int base,
 	    p->dma != PARPORT_DMA_NOFIFO &&
 	    priv->fifo_depth > 0 && p->irq != PARPORT_IRQ_NONE) {
 		p->modes |= PARPORT_MODE_ECP | PARPORT_MODE_COMPAT;
-		p->ops->compat_write_data = parport_pc_compat_write_block_pio;
-#ifdef CONFIG_PARPORT_1284
-		p->ops->ecp_write_data = parport_pc_ecp_write_block_pio;
-#endif /* IEEE 1284 support */
-		if (p->dma != PARPORT_DMA_NONE) {
-			pr_cont(", dma %d", p->dma);
+		if (p->dma != PARPORT_DMA_NONE)
 			p->modes |= PARPORT_MODE_DMA;
-		} else
-			pr_cont(", using FIFO");
 	} else
 		/* We can't use the DMA channel after all. */
 		p->dma = PARPORT_DMA_NONE;
+#endif /* Allowed to use FIFO/DMA */
+
+	p->modes &= ~mode_mask;
+
+#ifdef CONFIG_PARPORT_PC_FIFO
+	if ((p->modes & PARPORT_MODE_COMPAT) != 0)
+		p->ops->compat_write_data = parport_pc_compat_write_block_pio;
+#ifdef CONFIG_PARPORT_1284
+	if ((p->modes & PARPORT_MODE_ECP) != 0)
+		p->ops->ecp_write_data = parport_pc_ecp_write_block_pio;
+#endif
+	if ((p->modes & (PARPORT_MODE_ECP | PARPORT_MODE_COMPAT)) != 0) {
+		if ((p->modes & PARPORT_MODE_DMA) != 0)
+			pr_cont(", dma %d", p->dma);
+		else
+			pr_cont(", using FIFO");
+	}
 #endif /* Allowed to use FIFO/DMA */
 
 	pr_cont(" [");
@@ -2236,6 +2247,16 @@ out1:
 	if (pdev)
 		platform_device_unregister(pdev);
 	return NULL;
+}
+
+struct parport *parport_pc_probe_port(unsigned long int base,
+				      unsigned long int base_hi,
+				      int irq, int dma,
+				      struct device *dev,
+				      int irqflags)
+{
+	return __parport_pc_probe_port(base, base_hi, irq, dma,
+				       dev, irqflags, 0);
 }
 EXPORT_SYMBOL(parport_pc_probe_port);
 
