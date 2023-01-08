@@ -137,8 +137,8 @@ setup() {
 		if [ "$type" = "gre" ]; then
 			type="ip6gretap"
 		fi
-		ip addr add fdd1:ced0:5d88:3fce::1/64 dev veth0
-		$ns ip addr add fdd1:ced0:5d88:3fce::2/64 dev veth1
+		ip addr add fdd1:ced0:5d88:3fce::1/64 dev veth0 nodad
+		$ns ip addr add fdd1:ced0:5d88:3fce::2/64 dev veth1 nodad
 		ip link add name tep0 type $type $local_addr1 \
 		remote fdd1:ced0:5d88:3fce::2 tos $test_tos ttl $test_ttl \
 		$vxlan $geneve
@@ -170,8 +170,8 @@ setup() {
 		ip addr add 198.19.0.1/24 brd + dev ${parent}0
 		$ns ip addr add 198.19.0.2/24 brd + dev ${parent}1
 	elif [ "$inner" = "6" ]; then
-		ip addr add fdd4:96cf:4eae:443b::1/64 dev ${parent}0
-		$ns ip addr add fdd4:96cf:4eae:443b::2/64 dev ${parent}1
+		ip addr add fdd4:96cf:4eae:443b::1/64 dev ${parent}0 nodad
+		$ns ip addr add fdd4:96cf:4eae:443b::2/64 dev ${parent}1 nodad
 	fi
 }
 
