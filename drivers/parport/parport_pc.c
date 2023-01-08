@@ -2659,6 +2659,9 @@ static struct parport_pc_pci {
 		/* -1 if not there, >6 for offset-method (max BAR is 6) */
 	} addr[4];
 
+	/* Bit field of parport modes to exclude. */
+	unsigned int mode_mask;
+
 	/* If set, this is called immediately after pci_enable_device.
 	 * If it returns non-zero, no probing will take place and the
 	 * ports will not be used. */
@@ -2862,9 +2865,10 @@ static int parport_pc_pci_probe(struct pci_dev *dev,
 			       id->vendor, id->device, io_lo, io_hi, irq);
 		}
 		data->ports[count] =
-			parport_pc_probe_port(io_lo, io_hi, irq,
-					       PARPORT_DMA_NONE, &dev->dev,
-					       IRQF_SHARED);
+			__parport_pc_probe_port(io_lo, io_hi, irq,
+						PARPORT_DMA_NONE, &dev->dev,
+						IRQF_SHARED,
+						cards[i].mode_mask, 0);
 		if (data->ports[count])
 			count++;
 	}
