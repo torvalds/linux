@@ -2310,3 +2310,32 @@ ssize_t xdr_stream_decode_opaque_auth(struct xdr_stream *xdr, u32 *flavor,
 	return len + ret;
 }
 EXPORT_SYMBOL_GPL(xdr_stream_decode_opaque_auth);
+
+/**
+ * xdr_stream_encode_opaque_auth - Encode struct opaque_auth (RFC5531 S8.2)
+ * @xdr: pointer to xdr_stream
+ * @flavor: verifier flavor to encode
+ * @body: content of body to encode
+ * @body_len: length of body to encode
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EBADMSG on XDR buffer overflow
+ *   %-EMSGSIZE if the size of @body exceeds 400 octets
+ */
+ssize_t xdr_stream_encode_opaque_auth(struct xdr_stream *xdr, u32 flavor,
+				      void *body, unsigned int body_len)
+{
+	ssize_t ret, len;
+
+	if (unlikely(body_len > RPC_MAX_AUTH_SIZE))
+		return -EMSGSIZE;
+	len = xdr_stream_encode_u32(xdr, flavor);
+	if (unlikely(len < 0))
+		return len;
+	ret = xdr_stream_encode_opaque(xdr, body, body_len);
+	if (unlikely(ret < 0))
+		return ret;
+	return len + ret;
+}
+EXPORT_SYMBOL_GPL(xdr_stream_encode_opaque_auth);
