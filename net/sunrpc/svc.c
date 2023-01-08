@@ -1314,8 +1314,6 @@ svc_process_common(struct svc_rqst *rqstp)
 	trace_svc_process(rqstp, progp->pg_name);
 
 	aoffset = xdr_stream_pos(xdr);
-	rqstp->rq_accept_statp = xdr_reserve_space(&rqstp->rq_res_stream, XDR_UNIT);
-	*rqstp->rq_accept_statp = rpc_success;
 
 	/* un-reserve some of the out-queue now that we have a
 	 * better idea of reply size

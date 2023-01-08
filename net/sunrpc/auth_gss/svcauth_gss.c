@@ -1220,7 +1220,7 @@ svcauth_gss_legacy_init(struct svc_rqst *rqstp,
 	if (!svcauth_gss_proc_init_verf(sn->rsc_cache, rqstp, &rsip->out_handle,
 					&rsip->major_status, GSS_SEQ_WIN))
 		goto out;
-	if (xdr_stream_encode_u32(&rqstp->rq_res_stream, RPC_SUCCESS) < 0)
+	if (!svcxdr_set_accept_stat(rqstp))
 		goto out;
 	if (!svcxdr_encode_gss_init_res(&rqstp->rq_res_stream, &rsip->out_handle,
 					&rsip->out_token, rsip->major_status,
@@ -1348,7 +1348,7 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 	if (!svcauth_gss_proc_init_verf(sn->rsc_cache, rqstp, &cli_handle,
 					&ud.major_status, GSS_SEQ_WIN))
 		goto out;
-	if (xdr_stream_encode_u32(&rqstp->rq_res_stream, RPC_SUCCESS) < 0)
+	if (!svcxdr_set_accept_stat(rqstp))
 		goto out;
 	if (!svcxdr_encode_gss_init_res(&rqstp->rq_res_stream, &cli_handle,
 					&ud.out_token, ud.major_status,
@@ -1640,15 +1640,17 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 	case RPC_GSS_PROC_DESTROY:
 		if (!svcauth_gss_encode_verf(rqstp, rsci->mechctx, gc->gc_seq))
 			goto auth_err;
+		if (!svcxdr_set_accept_stat(rqstp))
+			goto auth_err;
 		/* Delete the entry from the cache_list and call cache_put */
 		sunrpc_cache_unhash(sn->rsc_cache, &rsci->h);
-		if (xdr_stream_encode_u32(&rqstp->rq_res_stream, RPC_SUCCESS) < 0)
-			goto auth_err;
 		goto complete;
 	case RPC_GSS_PROC_DATA:
 		rqstp->rq_auth_stat = rpcsec_gsserr_ctxproblem;
 		svcdata->verf_start = xdr_reserve_space(&rqstp->rq_res_stream, 0);
 		if (!svcauth_gss_encode_verf(rqstp, rsci->mechctx, gc->gc_seq))
+			goto auth_err;
+		if (!svcxdr_set_accept_stat(rqstp))
 			goto auth_err;
 		rqstp->rq_cred = rsci->cred;
 		get_group_info(rsci->cred.cr_group_info);
@@ -1706,7 +1708,6 @@ out:
 static __be32 *
 svcauth_gss_prepare_to_wrap(struct svc_rqst *rqstp, struct gss_svc_data *gsd)
 {
-	struct xdr_buf *resbuf = &rqstp->rq_res;
 	__be32 *p;
 	u32 verf_len;
 
@@ -1721,13 +1722,11 @@ svcauth_gss_prepare_to_wrap(struct svc_rqst *rqstp, struct gss_svc_data *gsd)
 	p += 1;
 	verf_len = ntohl(*p++);
 	p += XDR_QUADLEN(verf_len);
-	/* move accept_stat to right place: */
-	memcpy(p, p + 2, 4);
-	/* Also don't wrap if the accept stat is nonzero: */
-	if (*p != rpc_success) {
-		resbuf->head[0].iov_len -= 2 * 4;
+
+	/* Also don't wrap if the accept_stat is nonzero: */
+	if (*rqstp->rq_accept_statp != rpc_success)
 		return NULL;
-	}
+
 	p++;
 	return p;
 }

@@ -544,4 +544,23 @@ static inline void svcxdr_set_auth_slack(struct svc_rqst *rqstp, int slack)
 	WARN_ON(xdr->p > xdr->end);
 }
 
+/**
+ * svcxdr_set_accept_stat - Reserve space for the accept_stat field
+ * @rqstp: RPC transaction context
+ *
+ * Return values:
+ *   %true: Success
+ *   %false: No response buffer space was available
+ */
+static inline bool svcxdr_set_accept_stat(struct svc_rqst *rqstp)
+{
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
+
+	rqstp->rq_accept_statp = xdr_reserve_space(xdr, XDR_UNIT);
+	if (unlikely(!rqstp->rq_accept_statp))
+		return false;
+	*rqstp->rq_accept_statp = rpc_success;
+	return true;
+}
+
 #endif /* SUNRPC_SVC_H */
