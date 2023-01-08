@@ -97,18 +97,18 @@ struct utp_upiu_req {
 };
 
 struct ufs_arpmb_meta {
-	__u16	req_resp_type;
+	__be16	req_resp_type;
 	__u8	nonce[16];
-	__u32	write_counter;
-	__u16	addr_lun;
-	__u16	block_count;
-	__u16	result;
+	__be32	write_counter;
+	__be16	addr_lun;
+	__be16	block_count;
+	__be16	result;
 } __attribute__((__packed__));
 
 struct ufs_ehs {
 	__u8	length;
 	__u8	ehs_type;
-	__u16	ehssub_type;
+	__be16	ehssub_type;
 	struct ufs_arpmb_meta meta;
 	__u8	mac_key[32];
 } __attribute__((__packed__));
