@@ -1813,7 +1813,9 @@ out:
 
 bad_mic:
 	trace_rpcgss_svc_get_mic(rqstp, maj_stat);
+	return -EINVAL;
 wrap_failed:
+	trace_rpcgss_svc_wrap_failed(rqstp);
 	return -EINVAL;
 }
 
@@ -1834,18 +1836,16 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 	struct gss_svc_data *gsd = rqstp->rq_auth_data;
 	struct rpc_gss_wire_cred *gc = &gsd->clcred;
 	struct xdr_buf *buf = &rqstp->rq_res;
-	struct page **inpages = NULL;
+	u32 offset, pad, maj_stat;
 	__be32 *p, *lenp;
-	int offset;
-	int pad;
 
 	p = svcauth_gss_prepare_to_wrap(buf, gsd);
 	if (p == NULL)
 		return 0;
+
 	lenp = p++;
 	offset = (u8 *)p - (u8 *)buf->head[0].iov_base;
 	*p++ = htonl(gc->gc_seq);
-	inpages = buf->pages;
 	/* XXX: Would be better to write some xdr helper functions for
 	 * nfs{2,3,4}xdr.c that place the data right, instead of copying: */
 
@@ -1859,12 +1859,12 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 	if (buf->tail[0].iov_base) {
 		if (buf->tail[0].iov_base >=
 			buf->head[0].iov_base + PAGE_SIZE)
-			return -EINVAL;
+			goto wrap_failed;
 		if (buf->tail[0].iov_base < buf->head[0].iov_base)
-			return -EINVAL;
+			goto wrap_failed;
 		if (buf->tail[0].iov_len + buf->head[0].iov_len
 				+ 2 * RPC_MAX_AUTH_SIZE > PAGE_SIZE)
-			return -ENOMEM;
+			goto wrap_failed;
 		memmove(buf->tail[0].iov_base + RPC_MAX_AUTH_SIZE,
 			buf->tail[0].iov_base,
 			buf->tail[0].iov_len);
@@ -1879,13 +1879,16 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 	 */
 	if (!buf->tail[0].iov_base) {
 		if (buf->head[0].iov_len + 2 * RPC_MAX_AUTH_SIZE > PAGE_SIZE)
-			return -ENOMEM;
+			goto wrap_failed;
 		buf->tail[0].iov_base = buf->head[0].iov_base
 			+ buf->head[0].iov_len + RPC_MAX_AUTH_SIZE;
 		buf->tail[0].iov_len = 0;
 	}
-	if (gss_wrap(gsd->rsci->mechctx, offset, buf, inpages))
-		return -ENOMEM;
+
+	maj_stat = gss_wrap(gsd->rsci->mechctx, offset, buf, buf->pages);
+	if (maj_stat != GSS_S_COMPLETE)
+		goto bad_wrap;
+
 	*lenp = htonl(buf->len - offset);
 	pad = 3 - ((buf->len - offset - 1) & 3);
 	p = (__be32 *)(buf->tail[0].iov_base + buf->tail[0].iov_len);
@@ -1894,6 +1897,12 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 	buf->len += pad;
 
 	return 0;
+wrap_failed:
+	trace_rpcgss_svc_wrap_failed(rqstp);
+	return -EINVAL;
+bad_wrap:
+	trace_rpcgss_svc_wrap(rqstp, maj_stat);
+	return -ENOMEM;
 }
 
 /**
