@@ -969,12 +969,6 @@ bad_mic:
 	return -EINVAL;
 }
 
-static inline int
-total_buf_len(struct xdr_buf *buf)
-{
-	return buf->head[0].iov_len + buf->page_len + buf->tail[0].iov_len;
-}
-
 /*
  * RFC 2203, Section 5.3.2.3
  *
@@ -1882,14 +1876,25 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 	return 0;
 }
 
+/**
+ * svcauth_gss_release - Wrap payload and release resources
+ * @rqstp: RPC transaction context
+ *
+ * Return values:
+ *    %0: the Reply is ready to be sent
+ *    %-ENOMEM: failed to allocate memory
+ *    %-EINVAL: encoding error
+ *
+ * XXX: These return values do not match the return values documented
+ *      for the auth_ops ->release method in linux/sunrpc/svcauth.h.
+ */
 static int
 svcauth_gss_release(struct svc_rqst *rqstp)
 {
-	struct gss_svc_data *gsd = (struct gss_svc_data *)rqstp->rq_auth_data;
-	struct rpc_gss_wire_cred *gc;
-	struct xdr_buf *resbuf = &rqstp->rq_res;
-	int stat = -EINVAL;
 	struct sunrpc_net *sn = net_generic(SVC_NET(rqstp), sunrpc_net_id);
+	struct gss_svc_data *gsd = rqstp->rq_auth_data;
+	struct rpc_gss_wire_cred *gc;
+	int stat;
 
 	if (!gsd)
 		goto out;
@@ -1899,10 +1904,7 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 	/* Release can be called twice, but we only wrap once. */
 	if (gsd->verf_start == NULL)
 		goto out;
-	/* normally not set till svc_send, but we need it here: */
-	/* XXX: what for?  Do we mess it up the moment we call svc_putu32
-	 * or whatever? */
-	resbuf->len = total_buf_len(resbuf);
+
 	switch (gc->gc_svc) {
 	case RPC_GSS_SVC_NONE:
 		break;
