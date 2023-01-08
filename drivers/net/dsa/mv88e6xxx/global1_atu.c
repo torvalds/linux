@@ -12,6 +12,7 @@
 
 #include "chip.h"
 #include "global1.h"
+#include "switchdev.h"
 #include "trace.h"
 
 /* Offset 0x01: ATU FID Register */
@@ -443,6 +444,13 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 						   entry.portvec, entry.mac,
 						   fid);
 		chip->ports[spid].atu_miss_violation++;
+
+		if (fid != MV88E6XXX_FID_STANDALONE && chip->ports[spid].mab) {
+			err = mv88e6xxx_handle_miss_violation(chip, spid,
+							      &entry, fid);
+			if (err)
+				goto out;
+		}
 	}
 
 	if (val & MV88E6XXX_G1_ATU_OP_FULL_VIOLATION) {
@@ -456,6 +464,8 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 
 out_unlock:
 	mv88e6xxx_reg_unlock(chip);
+
+out:
 	dev_err(chip->dev, "ATU problem: error %d while handling interrupt\n",
 		err);
 	return IRQ_HANDLED;
