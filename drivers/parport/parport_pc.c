@@ -2657,7 +2657,7 @@ static struct parport_pc_pci {
 		int lo;
 		int hi;
 		/* -1 if not there, >6 for offset-method (max BAR is 6) */
-	} addr[4];
+	} addr[2];
 
 	/* Bit field of parport modes to exclude. */
 	unsigned int mode_mask;
