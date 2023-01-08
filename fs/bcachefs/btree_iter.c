@@ -999,7 +999,10 @@ retry_all:
 		 * the same position:
 		 */
 		if (path->uptodate) {
+			__btree_path_get(path, false);
 			ret = btree_path_traverse_one(trans, path, 0, _THIS_IP_);
+			__btree_path_put(path, false);
+
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
 			    ret == -ENOMEM)
 				goto retry_all;
