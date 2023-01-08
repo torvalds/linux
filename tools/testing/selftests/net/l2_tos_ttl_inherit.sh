@@ -12,13 +12,16 @@
 # In addition this script also checks if forcing a specific field in the
 # outer header is working.
 
+# Return 4 by default (Kselftest SKIP code)
+ERR=4
+
 if [ "$(id -u)" != "0" ]; then
 	echo "Please run as root."
-	exit 0
+	exit $ERR
 fi
 if ! which tcpdump > /dev/null 2>&1; then
 	echo "No tcpdump found. Required for this test."
-	exit 0
+	exit $ERR
 fi
 
 expected_tos="0x00"
@@ -340,7 +343,7 @@ verify() {
 		fi
 	fi
 	kill -9 $ping_pid
-	wait $ping_pid 2>/dev/null
+	wait $ping_pid 2>/dev/null || true
 	result="FAIL"
 	if [ "$outer" = "4" ]; then
 		captured_ttl="$(get_field "ttl" "$out")"
@@ -380,6 +383,31 @@ cleanup() {
 	ip netns del "${NS1}" 2>/dev/null
 }
 
+exit_handler() {
+	# Don't exit immediately if one of the intermediate commands fails.
+	# We might be called at the end of the script, when the network
+	# namespaces have already been deleted. So cleanup() may fail, but we
+	# still need to run until 'exit $ERR' or the script won't return the
+	# correct error code.
+	set +e
+
+	cleanup
+
+	exit $ERR
+}
+
+# Restore the default SIGINT handler (just in case) and exit.
+# The exit handler will take care of cleaning everything up.
+interrupted() {
+	trap - INT
+
+	exit $ERR
+}
+
+set -e
+trap exit_handler EXIT
+trap interrupted INT
+
 printf "┌────────┬───────┬───────┬──────────────┬"
 printf "──────────────┬───────┬────────┐\n"
 for type in gre vxlan geneve; do
@@ -409,6 +437,10 @@ done
 printf "└────────┴───────┴───────┴──────────────┴"
 printf "──────────────┴───────┴────────┘\n"
 
+# All tests done.
+# Set ERR appropriately: it will be returned by the exit handler.
 if $failed; then
-	exit 1
+	ERR=1
+else
+	ERR=0
 fi
