@@ -695,28 +695,26 @@ static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned int cmd,
 	}
 }
 
-static int __nvme_ioctl(struct nvme_ns *ns, unsigned int cmd, void __user *arg,
-			fmode_t mode)
-{
-	if (is_ctrl_ioctl(cmd))
-		return nvme_ctrl_ioctl(ns->ctrl, cmd, arg, mode);
-	return nvme_ns_ioctl(ns, cmd, arg, mode);
-}
-
 int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, unsigned long arg)
 {
 	struct nvme_ns *ns = bdev->bd_disk->private_data;
+	void __user *argp = (void __user *)arg;
 
-	return __nvme_ioctl(ns, cmd, (void __user *)arg, mode);
+	if (is_ctrl_ioctl(cmd))
+		return nvme_ctrl_ioctl(ns->ctrl, cmd, argp, mode);
+	return nvme_ns_ioctl(ns, cmd, argp, mode);
 }
 
 long nvme_ns_chr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct nvme_ns *ns =
 		container_of(file_inode(file)->i_cdev, struct nvme_ns, cdev);
+	void __user *argp = (void __user *)arg;
 
-	return __nvme_ioctl(ns, cmd, (void __user *)arg, file->f_mode);
+	if (is_ctrl_ioctl(cmd))
+		return nvme_ctrl_ioctl(ns->ctrl, cmd, argp, file->f_mode);
+	return nvme_ns_ioctl(ns, cmd, argp, file->f_mode);
 }
 
 static int nvme_uring_cmd_checks(unsigned int issue_flags)
