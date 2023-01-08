@@ -1227,13 +1227,14 @@ EXPORT_SYMBOL_GPL(svc_generic_init_request);
 static int
 svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 {
+	struct xdr_stream	*xdr = &rqstp->rq_res_stream;
 	struct svc_program	*progp;
 	const struct svc_procedure *procp = NULL;
 	struct svc_serv		*serv = rqstp->rq_server;
 	struct svc_process_info process;
 	__be32			*p, *statp;
 	int			auth_res, rc;
-	__be32			*reply_statp;
+	unsigned int		aoffset;
 
 	/* Will be turned off by GSS integrity and privacy services */
 	set_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
@@ -1242,9 +1243,9 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 	clear_bit(RQ_DROPME, &rqstp->rq_flags);
 
 	/* Construct the first words of the reply: */
-	svc_putu32(resv, rqstp->rq_xid);
-	svc_putnl(resv, RPC_REPLY);
-	reply_statp = resv->iov_base + resv->iov_len;
+	svcxdr_init_encode(rqstp);
+	xdr_stream_encode_be32(xdr, rqstp->rq_xid);
+	xdr_stream_encode_be32(xdr, rpc_reply);
 
 	p = xdr_inline_decode(&rqstp->rq_arg_stream, XDR_UNIT * 4);
 	if (unlikely(!p))
@@ -1252,7 +1253,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 	if (*p++ != cpu_to_be32(RPC_VERSION))
 		goto err_bad_rpc;
 
-	svc_putnl(resv, 0);		/* ACCEPT */
+	xdr_stream_encode_be32(xdr, rpc_msg_accepted);
 
 	rqstp->rq_prog = be32_to_cpup(p++);
 	rqstp->rq_vers = be32_to_cpup(p++);
@@ -1261,8 +1262,6 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 	for (progp = serv->sv_program; progp; progp = progp->pg_next)
 		if (rqstp->rq_prog == progp->pg_prog)
 			break;
-
-	svcxdr_init_encode(rqstp);
 
 	/*
 	 * Decode auth data, and add verifier to reply buffer.
@@ -1314,6 +1313,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 	serv->sv_stats->rpccnt++;
 	trace_svc_process(rqstp, progp->pg_name);
 
+	aoffset = xdr_stream_pos(xdr);
 	statp = xdr_reserve_space(&rqstp->rq_res_stream, XDR_UNIT);
 	*statp = rpc_success;
 
@@ -1332,9 +1332,8 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 	if (rqstp->rq_auth_stat != rpc_auth_ok)
 		goto err_bad_auth;
 
-	/* Check RPC status result */
 	if (*statp != rpc_success)
-		resv->iov_len = ((void*)statp)  - resv->iov_base + 4;
+		xdr_truncate_encode(xdr, aoffset);
 
 	if (procp->pc_encode == NULL)
 		goto dropit;
@@ -1364,27 +1363,28 @@ err_short_len:
 
 err_bad_rpc:
 	serv->sv_stats->rpcbadfmt++;
-	svc_putnl(resv, 1);	/* REJECT */
-	svc_putnl(resv, 0);	/* RPC_MISMATCH */
-	svc_putnl(resv, 2);	/* Only RPCv2 supported */
-	svc_putnl(resv, 2);
+	xdr_stream_encode_u32(xdr, RPC_MSG_DENIED);
+	xdr_stream_encode_u32(xdr, RPC_MISMATCH);
+	/* Only RPCv2 supported */
+	xdr_stream_encode_u32(xdr, RPC_VERSION);
+	xdr_stream_encode_u32(xdr, RPC_VERSION);
 	goto sendit;
 
 err_bad_auth:
 	dprintk("svc: authentication failed (%d)\n",
 		be32_to_cpu(rqstp->rq_auth_stat));
 	serv->sv_stats->rpcbadauth++;
-	/* Restore write pointer to location of accept status: */
-	xdr_ressize_check(rqstp, reply_statp);
-	svc_putnl(resv, 1);	/* REJECT */
-	svc_putnl(resv, 1);	/* AUTH_ERROR */
-	svc_putu32(resv, rqstp->rq_auth_stat);	/* status */
+	/* Restore write pointer to location of reply status: */
+	xdr_truncate_encode(xdr, XDR_UNIT * 2);
+	xdr_stream_encode_u32(xdr, RPC_MSG_DENIED);
+	xdr_stream_encode_u32(xdr, RPC_AUTH_ERROR);
+	xdr_stream_encode_be32(xdr, rqstp->rq_auth_stat);
 	goto sendit;
 
 err_bad_prog:
 	dprintk("svc: unknown program %d\n", rqstp->rq_prog);
 	serv->sv_stats->rpcbadfmt++;
-	svc_putnl(resv, RPC_PROG_UNAVAIL);
+	xdr_stream_encode_u32(xdr, RPC_PROG_UNAVAIL);
 	goto sendit;
 
 err_bad_vers:
@@ -1392,28 +1392,28 @@ err_bad_vers:
 		       rqstp->rq_vers, rqstp->rq_prog, progp->pg_name);
 
 	serv->sv_stats->rpcbadfmt++;
-	svc_putnl(resv, RPC_PROG_MISMATCH);
-	svc_putnl(resv, process.mismatch.lovers);
-	svc_putnl(resv, process.mismatch.hivers);
+	xdr_stream_encode_u32(xdr, RPC_PROG_MISMATCH);
+	xdr_stream_encode_u32(xdr, process.mismatch.lovers);
+	xdr_stream_encode_u32(xdr, process.mismatch.hivers);
 	goto sendit;
 
 err_bad_proc:
 	svc_printk(rqstp, "unknown procedure (%d)\n", rqstp->rq_proc);
 
 	serv->sv_stats->rpcbadfmt++;
-	svc_putnl(resv, RPC_PROC_UNAVAIL);
+	xdr_stream_encode_u32(xdr, RPC_PROC_UNAVAIL);
 	goto sendit;
 
 err_garbage_args:
 	svc_printk(rqstp, "failed to decode RPC header\n");
 
 	serv->sv_stats->rpcbadfmt++;
-	svc_putnl(resv, RPC_GARBAGE_ARGS);
+	xdr_stream_encode_u32(xdr, RPC_GARBAGE_ARGS);
 	goto sendit;
 
 err_system_err:
 	serv->sv_stats->rpcbadfmt++;
-	svc_putnl(resv, RPC_SYSTEM_ERR);
+	xdr_stream_encode_u32(xdr, RPC_SYSTEM_ERR);
 	goto sendit;
 }
 
