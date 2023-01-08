@@ -1830,6 +1830,11 @@ wrap_failed:
  *		unsigned int seq_num;
  *		proc_req_arg_t arg;
  *	};
+ *
+ * gss_wrap() expands the size of the RPC message payload in the
+ * response buffer. The main purpose of svcauth_gss_wrap_priv()
+ * is to ensure there is adequate space in the response buffer to
+ * avoid overflow during the wrap.
  */
 static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 {
@@ -1847,9 +1852,9 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 
 	lenp = p++;
 	offset = (u8 *)p - (u8 *)head->iov_base;
-	*p++ = htonl(gc->gc_seq);
-	/* XXX: Would be better to write some xdr helper functions for
-	 * nfs{2,3,4}xdr.c that place the data right, instead of copying: */
+	/* Buffer space for this field has already been reserved
+	 * in svcauth_gss_accept(). */
+	*p = cpu_to_be32(gc->gc_seq);
 
 	/*
 	 * If there is currently tail data, make sure there is
@@ -1889,8 +1894,8 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 	if (maj_stat != GSS_S_COMPLETE)
 		goto bad_wrap;
 
-	*lenp = htonl(buf->len - offset);
-	pad = 3 - ((buf->len - offset - 1) & 3);
+	*lenp = cpu_to_be32(buf->len - offset);
+	pad = xdr_pad_size(buf->len - offset);
 	p = (__be32 *)(tail->iov_base + tail->iov_len);
 	memset(p, 0, pad);
 	tail->iov_len += pad;
