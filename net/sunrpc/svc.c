@@ -1312,16 +1312,14 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 	serv->sv_stats->rpccnt++;
 	trace_svc_process(rqstp, progp->pg_name);
 
-	/* Build the reply header. */
-	statp = resv->iov_base +resv->iov_len;
-	svc_putnl(resv, RPC_SUCCESS);
+	statp = xdr_reserve_space(&rqstp->rq_res_stream, XDR_UNIT);
+	*statp = rpc_success;
 
 	/* un-reserve some of the out-queue now that we have a
 	 * better idea of reply size
 	 */
 	if (procp->pc_xdrressize)
 		svc_reserve_auth(rqstp, procp->pc_xdrressize<<2);
-	svcxdr_init_encode(rqstp);
 
 	/* Call the function that processes the request. */
 	rc = process.dispatch(rqstp, statp);

@@ -1250,6 +1250,7 @@ svcauth_gss_legacy_init(struct svc_rqst *rqstp,
 		goto out;
 
 	ret = SVC_COMPLETE;
+	svcxdr_init_encode(rqstp);
 out:
 	cache_put(&rsip->h, sn->rsi_cache);
 	return ret;
@@ -1378,6 +1379,7 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 		goto out;
 
 	ret = SVC_COMPLETE;
+	svcxdr_init_encode(rqstp);
 out:
 	gss_free_in_token_pages(&ud.in_token);
 	gssp_free_upcall_data(&ud);
@@ -1680,6 +1682,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 		rqstp->rq_auth_stat = rpc_autherr_badcred;
 		switch (gc->gc_svc) {
 		case RPC_GSS_SVC_NONE:
+			svcxdr_init_encode(rqstp);
 			break;
 		case RPC_GSS_SVC_INTEGRITY:
 			/* placeholders for length and seq. number: */
@@ -1689,6 +1692,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 						     rsci->mechctx))
 				goto garbage_args;
 			rqstp->rq_auth_slack = RPC_MAX_AUTH_SIZE;
+			svcxdr_init_encode(rqstp);
 			break;
 		case RPC_GSS_SVC_PRIVACY:
 			/* placeholders for length and seq. number: */
@@ -1698,6 +1702,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 						    rsci->mechctx))
 				goto garbage_args;
 			rqstp->rq_auth_slack = RPC_MAX_AUTH_SIZE * 2;
+			svcxdr_init_encode(rqstp);
 			break;
 		default:
 			goto auth_err;
