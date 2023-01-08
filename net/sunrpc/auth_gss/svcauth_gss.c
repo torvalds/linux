@@ -71,9 +71,7 @@
 struct gss_svc_data {
 	/* decoded gss client cred: */
 	struct rpc_gss_wire_cred	clcred;
-	/* save a pointer to the beginning of the encoded verifier,
-	 * for use in encryption/checksumming in svcauth_gss_release: */
-	__be32				*verf_start;
+	u32				gsd_databody_offset;
 	struct rsc			*rsci;
 
 	/* for temporary results */
@@ -1595,7 +1593,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 	if (!svcdata)
 		goto auth_err;
 	rqstp->rq_auth_data = svcdata;
-	svcdata->verf_start = NULL;
+	svcdata->gsd_databody_offset = 0;
 	svcdata->rsci = NULL;
 	gc = &svcdata->clcred;
 
@@ -1647,11 +1645,11 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 		goto complete;
 	case RPC_GSS_PROC_DATA:
 		rqstp->rq_auth_stat = rpcsec_gsserr_ctxproblem;
-		svcdata->verf_start = xdr_reserve_space(&rqstp->rq_res_stream, 0);
 		if (!svcauth_gss_encode_verf(rqstp, rsci->mechctx, gc->gc_seq))
 			goto auth_err;
 		if (!svcxdr_set_accept_stat(rqstp))
 			goto auth_err;
+		svcdata->gsd_databody_offset = xdr_stream_pos(&rqstp->rq_res_stream);
 		rqstp->rq_cred = rsci->cred;
 		get_group_info(rsci->cred.cr_group_info);
 		rqstp->rq_auth_stat = rpc_autherr_badcred;
@@ -1705,30 +1703,24 @@ out:
 	return ret;
 }
 
-static __be32 *
+static u32
 svcauth_gss_prepare_to_wrap(struct svc_rqst *rqstp, struct gss_svc_data *gsd)
 {
-	__be32 *p;
-	u32 verf_len;
+	u32 offset;
 
-	p = gsd->verf_start;
-	gsd->verf_start = NULL;
+	/* Release can be called twice, but we only wrap once. */
+	offset = gsd->gsd_databody_offset;
+	gsd->gsd_databody_offset = 0;
 
 	/* AUTH_ERROR replies are not wrapped. */
 	if (rqstp->rq_auth_stat != rpc_auth_ok)
-		return NULL;
-
-	/* Skip the verifier: */
-	p += 1;
-	verf_len = ntohl(*p++);
-	p += XDR_QUADLEN(verf_len);
+		return 0;
 
 	/* Also don't wrap if the accept_stat is nonzero: */
 	if (*rqstp->rq_accept_statp != rpc_success)
-		return NULL;
+		return 0;
 
-	p++;
-	return p;
+	return offset;
 }
 
 /*
@@ -1756,21 +1748,21 @@ static int svcauth_gss_wrap_integ(struct svc_rqst *rqstp)
 	struct xdr_buf *buf = xdr->buf;
 	struct xdr_buf databody_integ;
 	struct xdr_netobj checksum;
-	u32 offset, len, maj_stat;
-	__be32 *p;
+	u32 offset, maj_stat;
 
-	p = svcauth_gss_prepare_to_wrap(rqstp, gsd);
-	if (p == NULL)
+	offset = svcauth_gss_prepare_to_wrap(rqstp, gsd);
+	if (!offset)
 		goto out;
 
-	offset = (u8 *)(p + 1) - (u8 *)buf->head[0].iov_base;
-	len = buf->len - offset;
-	if (xdr_buf_subsegment(buf, &databody_integ, offset, len))
+	if (xdr_buf_subsegment(buf, &databody_integ, offset + XDR_UNIT,
+			       buf->len - offset - XDR_UNIT))
 		goto wrap_failed;
 	/* Buffer space for these has already been reserved in
 	 * svcauth_gss_accept(). */
-	*p++ = cpu_to_be32(len);
-	*p = cpu_to_be32(gc->gc_seq);
+	if (xdr_encode_word(buf, offset, databody_integ.len))
+		goto wrap_failed;
+	if (xdr_encode_word(buf, offset + XDR_UNIT, gc->gc_seq))
+		goto wrap_failed;
 
 	checksum.data = gsd->gsd_scratch;
 	maj_stat = gss_get_mic(gsd->rsci->mechctx, &databody_integ, &checksum);
@@ -1817,17 +1809,19 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 	struct kvec *head = buf->head;
 	struct kvec *tail = buf->tail;
 	u32 offset, pad, maj_stat;
-	__be32 *p, *lenp;
+	__be32 *p;
 
-	p = svcauth_gss_prepare_to_wrap(rqstp, gsd);
-	if (p == NULL)
+	offset = svcauth_gss_prepare_to_wrap(rqstp, gsd);
+	if (!offset)
 		return 0;
 
-	lenp = p++;
-	offset = (u8 *)p - (u8 *)head->iov_base;
-	/* Buffer space for this field has already been reserved
-	 * in svcauth_gss_accept(). */
-	*p = cpu_to_be32(gc->gc_seq);
+	/*
+	 * Buffer space for this field has already been reserved
+	 * in svcauth_gss_accept(). Note that the GSS sequence
+	 * number is encrypted along with the RPC reply payload.
+	 */
+	if (xdr_encode_word(buf, offset + XDR_UNIT, gc->gc_seq))
+		goto wrap_failed;
 
 	/*
 	 * If there is currently tail data, make sure there is
@@ -1863,12 +1857,15 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 		tail->iov_len = 0;
 	}
 
-	maj_stat = gss_wrap(gsd->rsci->mechctx, offset, buf, buf->pages);
+	maj_stat = gss_wrap(gsd->rsci->mechctx, offset + XDR_UNIT, buf,
+			    buf->pages);
 	if (maj_stat != GSS_S_COMPLETE)
 		goto bad_wrap;
 
-	*lenp = cpu_to_be32(buf->len - offset);
-	pad = xdr_pad_size(buf->len - offset);
+	/* Wrapping can change the size of databody_priv. */
+	if (xdr_encode_word(buf, offset, buf->len - offset - XDR_UNIT))
+		goto wrap_failed;
+	pad = xdr_pad_size(buf->len - offset - XDR_UNIT);
 	p = (__be32 *)(tail->iov_base + tail->iov_len);
 	memset(p, 0, pad);
 	tail->iov_len += pad;
@@ -1907,9 +1904,6 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 		goto out;
 	gc = &gsd->clcred;
 	if (gc->gc_proc != RPC_GSS_PROC_DATA)
-		goto out;
-	/* Release can be called twice, but we only wrap once. */
-	if (gsd->verf_start == NULL)
 		goto out;
 
 	switch (gc->gc_svc) {
