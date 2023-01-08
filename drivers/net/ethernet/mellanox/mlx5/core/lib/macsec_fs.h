@@ -53,10 +53,11 @@ mlx5_macsec_fs_add_rule(struct mlx5_macsec_fs *macsec_fs,
 
 void mlx5_macsec_fs_del_rule(struct mlx5_macsec_fs *macsec_fs,
 			     union mlx5_macsec_rule *macsec_rule,
-			     int action);
+			     int action, void *macdev, u32 sa_fs_id);
 
 void mlx5_macsec_fs_get_stats_fill(struct mlx5_macsec_fs *macsec_fs, void *macsec_stats);
 struct mlx5_macsec_stats *mlx5_macsec_fs_get_stats(struct mlx5_macsec_fs *macsec_fs);
+u32 mlx5_macsec_fs_get_fs_id_from_hashtable(struct mlx5_macsec_fs *macsec_fs, sci_t *sci);
 
 #endif
 
