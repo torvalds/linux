@@ -142,7 +142,7 @@ static int vfio_platform_regions_init(struct vfio_platform_device *vdev)
 		cnt++;
 
 	vdev->regions = kcalloc(cnt, sizeof(struct vfio_platform_region),
-				GFP_KERNEL);
+				GFP_KERNEL_ACCOUNT);
 	if (!vdev->regions)
 		return -ENOMEM;
 
