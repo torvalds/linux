@@ -17,6 +17,7 @@
 #include <linux/blk-mq.h>
 #include <linux/devfreq.h>
 #include <linux/pm_runtime.h>
+#include <linux/dma-direction.h>
 #include <scsi/scsi_device.h>
 #include <ufs/unipro.h>
 #include <ufs/ufs.h>
