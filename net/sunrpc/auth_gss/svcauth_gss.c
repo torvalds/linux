@@ -1797,15 +1797,8 @@ static int svcauth_gss_wrap_integ(struct svc_rqst *rqstp)
 	*p++ = htonl(gc->gc_seq);
 	if (xdr_buf_subsegment(buf, &databody_integ, offset, len))
 		goto wrap_failed;
-	if (!buf->tail[0].iov_base) {
-		if (buf->head[0].iov_len + RPC_MAX_AUTH_SIZE > PAGE_SIZE)
-			goto wrap_failed;
-		buf->tail[0].iov_base = buf->head[0].iov_base
-						+ buf->head[0].iov_len;
-		buf->tail[0].iov_len = 0;
-	}
-	resv = &buf->tail[0];
-	checksum.data = (u8 *)resv->iov_base + resv->iov_len + 4;
+
+	checksum.data = gsd->gsd_scratch;
 	maj_stat = gss_get_mic(gsd->rsci->mechctx, &databody_integ, &checksum);
 	if (maj_stat != GSS_S_COMPLETE)
 		goto bad_mic;
