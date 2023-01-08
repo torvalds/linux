@@ -1824,6 +1824,19 @@ static int parse_line_opt(const struct option *opt __maybe_unused,
 	return 0;
 }
 
+static bool slab_legacy_tp_is_exposed(void)
+{
+	/*
+	 * The tracepoints "kmem:kmalloc_node" and
+	 * "kmem:kmem_cache_alloc_node" have been removed on the latest
+	 * kernel, if the tracepoint "kmem:kmalloc_node" is existed it
+	 * means the tool is running on an old kernel, we need to
+	 * rollback to support these legacy tracepoints.
+	 */
+	return IS_ERR(trace_event__tp_format("kmem", "kmalloc_node")) ?
+		false : true;
+}
+
 static int __cmd_record(int argc, const char **argv)
 {
 	const char * const record_args[] = {
@@ -1831,11 +1844,13 @@ static int __cmd_record(int argc, const char **argv)
 	};
 	const char * const slab_events[] = {
 	"-e", "kmem:kmalloc",
-	"-e", "kmem:kmalloc_node",
 	"-e", "kmem:kfree",
 	"-e", "kmem:kmem_cache_alloc",
-	"-e", "kmem:kmem_cache_alloc_node",
 	"-e", "kmem:kmem_cache_free",
+	};
+	const char * const slab_legacy_events[] = {
+	"-e", "kmem:kmalloc_node",
+	"-e", "kmem:kmem_cache_alloc_node",
 	};
 	const char * const page_events[] = {
 	"-e", "kmem:mm_page_alloc",
@@ -1843,10 +1858,14 @@ static int __cmd_record(int argc, const char **argv)
 	};
 	unsigned int rec_argc, i, j;
 	const char **rec_argv;
+	unsigned int slab_legacy_tp_exposed = slab_legacy_tp_is_exposed();
 
 	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
-	if (kmem_slab)
+	if (kmem_slab) {
 		rec_argc += ARRAY_SIZE(slab_events);
+		if (slab_legacy_tp_exposed)
+			rec_argc += ARRAY_SIZE(slab_legacy_events);
+	}
 	if (kmem_page)
 		rec_argc += ARRAY_SIZE(page_events) + 1; /* for -g */
 
@@ -1861,6 +1880,10 @@ static int __cmd_record(int argc, const char **argv)
 	if (kmem_slab) {
 		for (j = 0; j < ARRAY_SIZE(slab_events); j++, i++)
 			rec_argv[i] = strdup(slab_events[j]);
+		if (slab_legacy_tp_exposed) {
+			for (j = 0; j < ARRAY_SIZE(slab_legacy_events); j++, i++)
+				rec_argv[i] = strdup(slab_legacy_events[j]);
+		}
 	}
 	if (kmem_page) {
 		rec_argv[i++] = strdup("-g");
