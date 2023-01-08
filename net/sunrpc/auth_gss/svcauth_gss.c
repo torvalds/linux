@@ -1685,24 +1685,22 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 			svcxdr_init_encode(rqstp);
 			break;
 		case RPC_GSS_SVC_INTEGRITY:
-			/* placeholders for length and seq. number: */
-			svc_putnl(resv, 0);
-			svc_putnl(resv, 0);
+			svcxdr_init_encode(rqstp);
+			/* placeholders for body length and seq. number: */
+			xdr_reserve_space(&rqstp->rq_res_stream, XDR_UNIT * 2);
 			if (svcauth_gss_unwrap_integ(rqstp, gc->gc_seq,
 						     rsci->mechctx))
 				goto garbage_args;
-			rqstp->rq_auth_slack = RPC_MAX_AUTH_SIZE;
-			svcxdr_init_encode(rqstp);
+			svcxdr_set_auth_slack(rqstp, RPC_MAX_AUTH_SIZE);
 			break;
 		case RPC_GSS_SVC_PRIVACY:
-			/* placeholders for length and seq. number: */
-			svc_putnl(resv, 0);
-			svc_putnl(resv, 0);
+			svcxdr_init_encode(rqstp);
+			/* placeholders for body length and seq. number: */
+			xdr_reserve_space(&rqstp->rq_res_stream, XDR_UNIT * 2);
 			if (svcauth_gss_unwrap_priv(rqstp, gc->gc_seq,
 						    rsci->mechctx))
 				goto garbage_args;
-			rqstp->rq_auth_slack = RPC_MAX_AUTH_SIZE * 2;
-			svcxdr_init_encode(rqstp);
+			svcxdr_set_auth_slack(rqstp, RPC_MAX_AUTH_SIZE * 2);
 			break;
 		default:
 			goto auth_err;

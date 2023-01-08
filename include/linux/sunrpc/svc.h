@@ -577,12 +577,34 @@ static inline void svcxdr_init_encode(struct svc_rqst *rqstp)
 	xdr->buf = buf;
 	xdr->iov = resv;
 	xdr->p   = resv->iov_base + resv->iov_len;
-	xdr->end = resv->iov_base + PAGE_SIZE - rqstp->rq_auth_slack;
+	xdr->end = resv->iov_base + PAGE_SIZE;
 	buf->len = resv->iov_len;
 	xdr->page_ptr = buf->pages - 1;
 	buf->buflen = PAGE_SIZE * (rqstp->rq_page_end - buf->pages);
-	buf->buflen -= rqstp->rq_auth_slack;
 	xdr->rqst = NULL;
+}
+
+/**
+ * svcxdr_set_auth_slack -
+ * @rqstp: RPC transaction
+ * @slack: buffer space to reserve for the transaction's security flavor
+ *
+ * Set the request's slack space requirement, and set aside that much
+ * space in the rqstp's rq_res.head for use when the auth wraps the Reply.
+ */
+static inline void svcxdr_set_auth_slack(struct svc_rqst *rqstp, int slack)
+{
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
+	struct xdr_buf *buf = &rqstp->rq_res;
+	struct kvec *resv = buf->head;
+
+	rqstp->rq_auth_slack = slack;
+
+	xdr->end -= XDR_QUADLEN(slack);
+	buf->buflen -= rqstp->rq_auth_slack;
+
+	WARN_ON(xdr->iov != resv);
+	WARN_ON(xdr->p > xdr->end);
 }
 
 #endif /* SUNRPC_SVC_H */
