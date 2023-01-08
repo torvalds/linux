@@ -2111,7 +2111,6 @@ config SND_SOC_MT6660
 
 config SND_SOC_NAU8315
 	tristate "Nuvoton Technology Corporation NAU8315 CODEC"
-	depends on GPIOLIB
 
 config SND_SOC_NAU8540
 	tristate "Nuvoton Technology Corporation NAU85L40 CODEC"
