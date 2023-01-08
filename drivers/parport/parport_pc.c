@@ -2119,8 +2119,6 @@ struct parport *parport_pc_probe_port(unsigned long int base,
 		p->ops->compat_write_data = parport_pc_compat_write_block_pio;
 #ifdef CONFIG_PARPORT_1284
 		p->ops->ecp_write_data = parport_pc_ecp_write_block_pio;
-		/* currently broken, but working on it.. (FB) */
-		/* p->ops->ecp_read_data = parport_pc_ecp_read_block_pio; */
 #endif /* IEEE 1284 support */
 		if (p->dma != PARPORT_DMA_NONE) {
 			pr_cont(", dma %d", p->dma);
