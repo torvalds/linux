@@ -1036,14 +1036,14 @@ mlx5vf_create_rc_qp(struct mlx5_core_dev *mdev,
 	if (!qp)
 		return ERR_PTR(-ENOMEM);
 
-	qp->rq.wqe_cnt = roundup_pow_of_two(max_recv_wr);
-	log_rq_stride = ilog2(MLX5_SEND_WQE_DS);
-	log_rq_sz = ilog2(qp->rq.wqe_cnt);
 	err = mlx5_db_alloc_node(mdev, &qp->db, mdev->priv.numa_node);
 	if (err)
 		goto err_free;
 
 	if (max_recv_wr) {
+		qp->rq.wqe_cnt = roundup_pow_of_two(max_recv_wr);
+		log_rq_stride = ilog2(MLX5_SEND_WQE_DS);
+		log_rq_sz = ilog2(qp->rq.wqe_cnt);
 		err = mlx5_frag_buf_alloc_node(mdev,
 			wq_get_byte_sz(log_rq_sz, log_rq_stride),
 			&qp->buf, mdev->priv.numa_node);
