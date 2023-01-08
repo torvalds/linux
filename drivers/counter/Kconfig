@@ -31,6 +31,7 @@ config 104_QUAD_8
 
 config FTM_QUADDEC
 	tristate "Flex Timer Module Quadrature decoder driver"
+	depends on SOC_LS1021A || COMPILE_TEST
 	depends on HAS_IOMEM && OF
 	help
 	  Select this option to enable the Flex Timer Quadrature decoder
