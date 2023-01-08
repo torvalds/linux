@@ -1836,6 +1836,8 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 	struct gss_svc_data *gsd = rqstp->rq_auth_data;
 	struct rpc_gss_wire_cred *gc = &gsd->clcred;
 	struct xdr_buf *buf = &rqstp->rq_res;
+	struct kvec *head = buf->head;
+	struct kvec *tail = buf->tail;
 	u32 offset, pad, maj_stat;
 	__be32 *p, *lenp;
 
@@ -1844,7 +1846,7 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 		return 0;
 
 	lenp = p++;
-	offset = (u8 *)p - (u8 *)buf->head[0].iov_base;
+	offset = (u8 *)p - (u8 *)head->iov_base;
 	*p++ = htonl(gc->gc_seq);
 	/* XXX: Would be better to write some xdr helper functions for
 	 * nfs{2,3,4}xdr.c that place the data right, instead of copying: */
@@ -1856,19 +1858,17 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 	 * there is RPC_MAX_AUTH_SIZE slack space available in
 	 * both the head and tail.
 	 */
-	if (buf->tail[0].iov_base) {
-		if (buf->tail[0].iov_base >=
-			buf->head[0].iov_base + PAGE_SIZE)
+	if (tail->iov_base) {
+		if (tail->iov_base >= head->iov_base + PAGE_SIZE)
 			goto wrap_failed;
-		if (buf->tail[0].iov_base < buf->head[0].iov_base)
+		if (tail->iov_base < head->iov_base)
 			goto wrap_failed;
-		if (buf->tail[0].iov_len + buf->head[0].iov_len
+		if (tail->iov_len + head->iov_len
 				+ 2 * RPC_MAX_AUTH_SIZE > PAGE_SIZE)
 			goto wrap_failed;
-		memmove(buf->tail[0].iov_base + RPC_MAX_AUTH_SIZE,
-			buf->tail[0].iov_base,
-			buf->tail[0].iov_len);
-		buf->tail[0].iov_base += RPC_MAX_AUTH_SIZE;
+		memmove(tail->iov_base + RPC_MAX_AUTH_SIZE, tail->iov_base,
+			tail->iov_len);
+		tail->iov_base += RPC_MAX_AUTH_SIZE;
 	}
 	/*
 	 * If there is no current tail data, make sure there is
@@ -1877,12 +1877,12 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 	 * is RPC_MAX_AUTH_SIZE slack space available in both the
 	 * head and tail.
 	 */
-	if (!buf->tail[0].iov_base) {
-		if (buf->head[0].iov_len + 2 * RPC_MAX_AUTH_SIZE > PAGE_SIZE)
+	if (!tail->iov_base) {
+		if (head->iov_len + 2 * RPC_MAX_AUTH_SIZE > PAGE_SIZE)
 			goto wrap_failed;
-		buf->tail[0].iov_base = buf->head[0].iov_base
-			+ buf->head[0].iov_len + RPC_MAX_AUTH_SIZE;
-		buf->tail[0].iov_len = 0;
+		tail->iov_base = head->iov_base
+			+ head->iov_len + RPC_MAX_AUTH_SIZE;
+		tail->iov_len = 0;
 	}
 
 	maj_stat = gss_wrap(gsd->rsci->mechctx, offset, buf, buf->pages);
@@ -1891,9 +1891,9 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 
 	*lenp = htonl(buf->len - offset);
 	pad = 3 - ((buf->len - offset - 1) & 3);
-	p = (__be32 *)(buf->tail[0].iov_base + buf->tail[0].iov_len);
+	p = (__be32 *)(tail->iov_base + tail->iov_len);
 	memset(p, 0, pad);
-	buf->tail[0].iov_len += pad;
+	tail->iov_len += pad;
 	buf->len += pad;
 
 	return 0;
