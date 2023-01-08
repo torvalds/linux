@@ -106,15 +106,22 @@ static int pnp_registered_parport;
 static void frob_econtrol(struct parport *pb, unsigned char m,
 			   unsigned char v)
 {
+	const struct parport_pc_private *priv = pb->physport->private_data;
+	unsigned char ecr_writable = priv->ecr_writable;
 	unsigned char ectr = 0;
+	unsigned char new;
 
 	if (m != 0xff)
 		ectr = inb(ECONTROL(pb));
 
-	pr_debug("frob_econtrol(%02x,%02x): %02x -> %02x\n",
-		 m, v, ectr, (ectr & ~m) ^ v);
+	new = (ectr & ~m) ^ v;
+	if (ecr_writable)
+		/* All known users of the ECR mask require bit 0 to be set. */
+		new = (new & ecr_writable) | 1;
 
-	outb((ectr & ~m) ^ v, ECONTROL(pb));
+	pr_debug("frob_econtrol(%02x,%02x): %02x -> %02x\n", m, v, ectr, new);
+
+	outb(new, ECONTROL(pb));
 }
 
 static inline void frob_set_mode(struct parport *p, int mode)
@@ -1479,21 +1486,24 @@ static int parport_ECR_present(struct parport *pb)
 	struct parport_pc_private *priv = pb->private_data;
 	unsigned char r = 0xc;
 
-	outb(r, CONTROL(pb));
-	if ((inb(ECONTROL(pb)) & 0x3) == (r & 0x3)) {
-		outb(r ^ 0x2, CONTROL(pb)); /* Toggle bit 1 */
+	if (!priv->ecr_writable) {
+		outb(r, CONTROL(pb));
+		if ((inb(ECONTROL(pb)) & 0x3) == (r & 0x3)) {
+			outb(r ^ 0x2, CONTROL(pb)); /* Toggle bit 1 */
 
-		r = inb(CONTROL(pb));
-		if ((inb(ECONTROL(pb)) & 0x2) == (r & 0x2))
-			goto no_reg; /* Sure that no ECR register exists */
+			r = inb(CONTROL(pb));
+			if ((inb(ECONTROL(pb)) & 0x2) == (r & 0x2))
+				/* Sure that no ECR register exists */
+				goto no_reg;
+		}
+
+		if ((inb(ECONTROL(pb)) & 0x3) != 0x1)
+			goto no_reg;
+
+		ECR_WRITE(pb, 0x34);
+		if (inb(ECONTROL(pb)) != 0x35)
+			goto no_reg;
 	}
-
-	if ((inb(ECONTROL(pb)) & 0x3) != 0x1)
-		goto no_reg;
-
-	ECR_WRITE(pb, 0x34);
-	if (inb(ECONTROL(pb)) != 0x35)
-		goto no_reg;
 
 	priv->ecr = 1;
 	outb(0xc, CONTROL(pb));
@@ -2005,7 +2015,8 @@ static struct parport *__parport_pc_probe_port(unsigned long int base,
 					       int irq, int dma,
 					       struct device *dev,
 					       int irqflags,
-					       unsigned int mode_mask)
+					       unsigned int mode_mask,
+					       unsigned char ecr_writable)
 {
 	struct parport_pc_private *priv;
 	struct parport_operations *ops;
@@ -2054,6 +2065,7 @@ static struct parport *__parport_pc_probe_port(unsigned long int base,
 	priv->ctr = 0xc;
 	priv->ctr_writable = ~0x10;
 	priv->ecr = 0;
+	priv->ecr_writable = ecr_writable;
 	priv->fifo_depth = 0;
 	priv->dma_buf = NULL;
 	priv->dma_handle = 0;
@@ -2256,7 +2268,7 @@ struct parport *parport_pc_probe_port(unsigned long int base,
 				      int irqflags)
 {
 	return __parport_pc_probe_port(base, base_hi, irq, dma,
-				       dev, irqflags, 0);
+				       dev, irqflags, 0, 0);
 }
 EXPORT_SYMBOL(parport_pc_probe_port);
 
