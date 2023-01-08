@@ -1817,24 +1817,35 @@ wrap_failed:
 	return -EINVAL;
 }
 
-static inline int
-svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
+/*
+ * RFC 2203, Section 5.3.2.3
+ *
+ *	struct rpc_gss_priv_data {
+ *		opaque databody_priv<>
+ *	};
+ *
+ *	struct rpc_gss_data_t {
+ *		unsigned int seq_num;
+ *		proc_req_arg_t arg;
+ *	};
+ */
+static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 {
-	struct gss_svc_data *gsd = (struct gss_svc_data *)rqstp->rq_auth_data;
+	struct gss_svc_data *gsd = rqstp->rq_auth_data;
 	struct rpc_gss_wire_cred *gc = &gsd->clcred;
-	struct xdr_buf *resbuf = &rqstp->rq_res;
+	struct xdr_buf *buf = &rqstp->rq_res;
 	struct page **inpages = NULL;
-	__be32 *p, *len;
+	__be32 *p, *lenp;
 	int offset;
 	int pad;
 
-	p = svcauth_gss_prepare_to_wrap(resbuf, gsd);
+	p = svcauth_gss_prepare_to_wrap(buf, gsd);
 	if (p == NULL)
 		return 0;
-	len = p++;
-	offset = (u8 *)p - (u8 *)resbuf->head[0].iov_base;
+	lenp = p++;
+	offset = (u8 *)p - (u8 *)buf->head[0].iov_base;
 	*p++ = htonl(gc->gc_seq);
-	inpages = resbuf->pages;
+	inpages = buf->pages;
 	/* XXX: Would be better to write some xdr helper functions for
 	 * nfs{2,3,4}xdr.c that place the data right, instead of copying: */
 
@@ -1845,19 +1856,19 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 	 * there is RPC_MAX_AUTH_SIZE slack space available in
 	 * both the head and tail.
 	 */
-	if (resbuf->tail[0].iov_base) {
-		if (resbuf->tail[0].iov_base >=
-			resbuf->head[0].iov_base + PAGE_SIZE)
+	if (buf->tail[0].iov_base) {
+		if (buf->tail[0].iov_base >=
+			buf->head[0].iov_base + PAGE_SIZE)
 			return -EINVAL;
-		if (resbuf->tail[0].iov_base < resbuf->head[0].iov_base)
+		if (buf->tail[0].iov_base < buf->head[0].iov_base)
 			return -EINVAL;
-		if (resbuf->tail[0].iov_len + resbuf->head[0].iov_len
+		if (buf->tail[0].iov_len + buf->head[0].iov_len
 				+ 2 * RPC_MAX_AUTH_SIZE > PAGE_SIZE)
 			return -ENOMEM;
-		memmove(resbuf->tail[0].iov_base + RPC_MAX_AUTH_SIZE,
-			resbuf->tail[0].iov_base,
-			resbuf->tail[0].iov_len);
-		resbuf->tail[0].iov_base += RPC_MAX_AUTH_SIZE;
+		memmove(buf->tail[0].iov_base + RPC_MAX_AUTH_SIZE,
+			buf->tail[0].iov_base,
+			buf->tail[0].iov_len);
+		buf->tail[0].iov_base += RPC_MAX_AUTH_SIZE;
 	}
 	/*
 	 * If there is no current tail data, make sure there is
@@ -1866,21 +1877,22 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 	 * is RPC_MAX_AUTH_SIZE slack space available in both the
 	 * head and tail.
 	 */
-	if (resbuf->tail[0].iov_base == NULL) {
-		if (resbuf->head[0].iov_len + 2*RPC_MAX_AUTH_SIZE > PAGE_SIZE)
+	if (!buf->tail[0].iov_base) {
+		if (buf->head[0].iov_len + 2 * RPC_MAX_AUTH_SIZE > PAGE_SIZE)
 			return -ENOMEM;
-		resbuf->tail[0].iov_base = resbuf->head[0].iov_base
-			+ resbuf->head[0].iov_len + RPC_MAX_AUTH_SIZE;
-		resbuf->tail[0].iov_len = 0;
+		buf->tail[0].iov_base = buf->head[0].iov_base
+			+ buf->head[0].iov_len + RPC_MAX_AUTH_SIZE;
+		buf->tail[0].iov_len = 0;
 	}
-	if (gss_wrap(gsd->rsci->mechctx, offset, resbuf, inpages))
+	if (gss_wrap(gsd->rsci->mechctx, offset, buf, inpages))
 		return -ENOMEM;
-	*len = htonl(resbuf->len - offset);
-	pad = 3 - ((resbuf->len - offset - 1)&3);
-	p = (__be32 *)(resbuf->tail[0].iov_base + resbuf->tail[0].iov_len);
+	*lenp = htonl(buf->len - offset);
+	pad = 3 - ((buf->len - offset - 1) & 3);
+	p = (__be32 *)(buf->tail[0].iov_base + buf->tail[0].iov_len);
 	memset(p, 0, pad);
-	resbuf->tail[0].iov_len += pad;
-	resbuf->len += pad;
+	buf->tail[0].iov_len += pad;
+	buf->len += pad;
+
 	return 0;
 }
 
@@ -1922,7 +1934,7 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 			goto out_err;
 		break;
 	case RPC_GSS_SVC_PRIVACY:
-		stat = svcauth_gss_wrap_resp_priv(rqstp);
+		stat = svcauth_gss_wrap_priv(rqstp);
 		if (stat)
 			goto out_err;
 		break;
