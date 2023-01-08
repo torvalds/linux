@@ -704,7 +704,6 @@ static int nlmsvc_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	if (*statp != rpc_success)
 		return 1;
 
-	svcxdr_init_encode(rqstp);
 	if (!procp->pc_encode(rqstp, &rqstp->rq_res_stream))
 		goto out_encode_err;
 

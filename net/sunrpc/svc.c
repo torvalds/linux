@@ -1321,6 +1321,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *resv)
 	 */
 	if (procp->pc_xdrressize)
 		svc_reserve_auth(rqstp, procp->pc_xdrressize<<2);
+	svcxdr_init_encode(rqstp);
 
 	/* Call the function that processes the request. */
 	rc = process.dispatch(rqstp, statp);

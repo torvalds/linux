@@ -475,6 +475,27 @@ xdr_stream_encode_u32(struct xdr_stream *xdr, __u32 n)
 }
 
 /**
+ * xdr_stream_encode_be32 - Encode a big-endian 32-bit integer
+ * @xdr: pointer to xdr_stream
+ * @n: integer to encode
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EMSGSIZE on XDR buffer overflow
+ */
+static inline ssize_t
+xdr_stream_encode_be32(struct xdr_stream *xdr, __be32 n)
+{
+	const size_t len = sizeof(n);
+	__be32 *p = xdr_reserve_space(xdr, len);
+
+	if (unlikely(!p))
+		return -EMSGSIZE;
+	*p = n;
+	return len;
+}
+
+/**
  * xdr_stream_encode_u64 - Encode a 64-bit integer
  * @xdr: pointer to xdr_stream
  * @n: 64-bit integer to encode

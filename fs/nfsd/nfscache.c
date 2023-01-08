@@ -488,7 +488,7 @@ found_entry:
 	case RC_NOCACHE:
 		break;
 	case RC_REPLSTAT:
-		svc_putu32(&rqstp->rq_res.head[0], rp->c_replstat);
+		xdr_stream_encode_be32(&rqstp->rq_res_stream, rp->c_replstat);
 		rtn = RC_REPLY;
 		break;
 	case RC_REPLBUFF:

@@ -1052,12 +1052,6 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 		goto out_dropit;
 	}
 
-	/*
-	 * Need to grab the location to store the status, as
-	 * NFSv4 does some encoding while processing
-	 */
-	svcxdr_init_encode(rqstp);
-
 	*statp = proc->pc_func(rqstp);
 	if (test_bit(RQ_DROPME, &rqstp->rq_flags))
 		goto out_update_drop;
