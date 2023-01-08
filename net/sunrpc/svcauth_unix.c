@@ -894,7 +894,6 @@ struct auth_ops svcauth_tls = {
 static int
 svcauth_unix_accept(struct svc_rqst *rqstp)
 {
-	struct kvec	*resv = &rqstp->rq_res.head[0];
 	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct svc_cred	*cred = &rqstp->rq_cred;
 	struct user_namespace *userns;
@@ -956,12 +955,12 @@ svcauth_unix_accept(struct svc_rqst *rqstp)
 		return SVC_DENIED;
 	}
 
-	/* Put NULL verifier */
-	svc_putnl(resv, RPC_AUTH_NULL);
-	svc_putnl(resv, 0);
+	svcxdr_init_encode(rqstp);
+	if (xdr_stream_encode_opaque_auth(&rqstp->rq_res_stream,
+					  RPC_AUTH_NULL, NULL, 0) < 0)
+		return SVC_CLOSE;
 
 	rqstp->rq_cred.cr_flavor = RPC_AUTH_UNIX;
-	svcxdr_init_encode(rqstp);
 	return SVC_OK;
 
 badcred:
