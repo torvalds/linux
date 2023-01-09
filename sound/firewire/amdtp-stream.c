@@ -1028,13 +1028,13 @@ static inline void cancel_stream(struct amdtp_stream *s)
 
 static void process_ctx_payloads(struct amdtp_stream *s,
 				 const struct pkt_desc *descs,
-				 unsigned int packets)
+				 unsigned int count)
 {
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
 
 	pcm = READ_ONCE(s->pcm);
-	pcm_frames = s->process_ctx_payloads(s, descs, packets, pcm);
+	pcm_frames = s->process_ctx_payloads(s, descs, count, pcm);
 	if (pcm)
 		update_pcm_pointers(s, pcm, pcm_frames);
 }

@@ -110,7 +110,7 @@ struct amdtp_stream;
 typedef unsigned int (*amdtp_stream_process_ctx_payloads_t)(
 						struct amdtp_stream *s,
 						const struct pkt_desc *desc,
-						unsigned int packets,
+						unsigned int count,
 						struct snd_pcm_substream *pcm);
 
 struct amdtp_domain;

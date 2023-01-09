@@ -113,15 +113,14 @@ int amdtp_ff_add_pcm_hw_constraints(struct amdtp_stream *s,
 }
 
 static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
-					   const struct pkt_desc *descs,
-					   unsigned int packets,
+					   const struct pkt_desc *desc,
+					   unsigned int count,
 					   struct snd_pcm_substream *pcm)
 {
 	unsigned int pcm_frames = 0;
 	int i;
 
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__le32 *buf = (__le32 *)desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 
@@ -131,21 +130,22 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 		} else {
 			write_pcm_silence(s, buf, data_blocks);
 		}
+
+		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
 
 	return pcm_frames;
 }
 
 static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *descs,
-					    unsigned int packets,
+					    const struct pkt_desc *desc,
+					    unsigned int count,
 					    struct snd_pcm_substream *pcm)
 {
 	unsigned int pcm_frames = 0;
 	int i;
 
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__le32 *buf = (__le32 *)desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 
@@ -153,6 +153,8 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 			read_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
 			pcm_frames += data_blocks;
 		}
+
+		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
 
 	return pcm_frames;
