@@ -741,19 +741,19 @@ static int unprogram_rcvarray(struct hfi1_filedata *fd, u32 tidinfo,
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	struct tid_rb_node *node;
-	u8 tidctrl = EXP_TID_GET(tidinfo, CTRL);
+	u32 tidctrl = EXP_TID_GET(tidinfo, CTRL);
 	u32 tididx = EXP_TID_GET(tidinfo, IDX) << 1, rcventry;
 
-	if (tididx >= uctxt->expected_count) {
-		dd_dev_err(dd, "Invalid RcvArray entry (%u) index for ctxt %u\n",
-			   tididx, uctxt->ctxt);
-		return -EINVAL;
-	}
-
-	if (tidctrl == 0x3)
+	if (tidctrl == 0x3 || tidctrl == 0x0)
 		return -EINVAL;
 
 	rcventry = tididx + (tidctrl - 1);
+
+	if (rcventry >= uctxt->expected_count) {
+		dd_dev_err(dd, "Invalid RcvArray entry (%u) index for ctxt %u\n",
+			   rcventry, uctxt->ctxt);
+		return -EINVAL;
+	}
 
 	node = fd->entry_to_rb[rcventry];
 	if (!node || node->rcventry != (uctxt->expected_base + rcventry))
