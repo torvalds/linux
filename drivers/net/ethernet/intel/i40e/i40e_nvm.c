@@ -1429,8 +1429,8 @@ static int i40e_nvmupd_exec_aq(struct i40e_hw *hw,
 				       buff_size, &cmd_details);
 	if (status) {
 		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "%s err %d aq_err %s\n",
-			   __func__, status,
+			   "%s err %pe aq_err %s\n",
+			   __func__, ERR_PTR(status),
 			   i40e_aq_str(hw, hw->aq.asq_last_status));
 		*perrno = i40e_aq_rc_to_posix(status, hw->aq.asq_last_status);
 		return status;
