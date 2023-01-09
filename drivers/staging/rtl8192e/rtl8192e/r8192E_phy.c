@@ -535,9 +535,9 @@ static bool _rtl92e_bb_config_para_file(struct net_device *dev)
 
 	if (priv->IC_Cut  > VERSION_8190_BD) {
 		if (priv->rf_type == RF_2T4R)
-			dwRegValue = priv->AntennaTxPwDiff[2]<<8 |
-				      priv->AntennaTxPwDiff[1]<<4 |
-				      priv->AntennaTxPwDiff[0];
+			dwRegValue = priv->antenna_tx_pwr_diff[2] << 8 |
+				      priv->antenna_tx_pwr_diff[1] << 4 |
+				      priv->antenna_tx_pwr_diff[0];
 		else
 			dwRegValue = 0x0;
 		rtl92e_set_bb_reg(dev, rFPGA0_TxGainStage,
@@ -561,17 +561,17 @@ void rtl92e_get_tx_power(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	priv->MCSTxPowerLevelOriginalOffset[0] =
+	priv->mcs_tx_pwr_level_org_offset[0] =
 		rtl92e_readl(dev, rTxAGC_Rate18_06);
-	priv->MCSTxPowerLevelOriginalOffset[1] =
+	priv->mcs_tx_pwr_level_org_offset[1] =
 		rtl92e_readl(dev, rTxAGC_Rate54_24);
-	priv->MCSTxPowerLevelOriginalOffset[2] =
+	priv->mcs_tx_pwr_level_org_offset[2] =
 		rtl92e_readl(dev, rTxAGC_Mcs03_Mcs00);
-	priv->MCSTxPowerLevelOriginalOffset[3] =
+	priv->mcs_tx_pwr_level_org_offset[3] =
 		rtl92e_readl(dev, rTxAGC_Mcs07_Mcs04);
-	priv->MCSTxPowerLevelOriginalOffset[4] =
+	priv->mcs_tx_pwr_level_org_offset[4] =
 		rtl92e_readl(dev, rTxAGC_Mcs11_Mcs08);
-	priv->MCSTxPowerLevelOriginalOffset[5] =
+	priv->mcs_tx_pwr_level_org_offset[5] =
 		rtl92e_readl(dev, rTxAGC_Mcs15_Mcs12);
 
 	priv->DefaultInitialGain[0] = rtl92e_readb(dev, rOFDM0_XAAGCCore1);
@@ -609,13 +609,13 @@ void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
 
 			ant_pwr_diff &= 0xf;
 
-			priv->AntennaTxPwDiff[2] = 0;
-			priv->AntennaTxPwDiff[1] = (u8)(ant_pwr_diff);
-			priv->AntennaTxPwDiff[0] = 0;
+			priv->antenna_tx_pwr_diff[2] = 0;
+			priv->antenna_tx_pwr_diff[1] = (u8)(ant_pwr_diff);
+			priv->antenna_tx_pwr_diff[0] = 0;
 
-			u4RegValue = priv->AntennaTxPwDiff[2]<<8 |
-				      priv->AntennaTxPwDiff[1]<<4 |
-				      priv->AntennaTxPwDiff[0];
+			u4RegValue = priv->antenna_tx_pwr_diff[2] << 8 |
+				      priv->antenna_tx_pwr_diff[1] << 4 |
+				      priv->antenna_tx_pwr_diff[0];
 
 			rtl92e_set_bb_reg(dev, rFPGA0_TxGainStage,
 					  (bXBTxAGC|bXCTxAGC|bXDTxAGC),

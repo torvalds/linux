@@ -413,12 +413,12 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 				priv->tx_pwr_level_ofdm_24g[i] =
 					 priv->EEPROMTxPowerLevelOFDM24G[i];
 			}
-			priv->LegacyHTTxPowerDiff =
+			priv->legacy_ht_tx_pwr_diff =
 					 priv->EEPROMLegacyHTTxPowerDiff;
-			priv->AntennaTxPwDiff[0] = priv->EEPROMAntPwDiff & 0xf;
-			priv->AntennaTxPwDiff[1] = (priv->EEPROMAntPwDiff &
+			priv->antenna_tx_pwr_diff[0] = priv->EEPROMAntPwDiff & 0xf;
+			priv->antenna_tx_pwr_diff[1] = (priv->EEPROMAntPwDiff &
 							0xf0) >> 4;
-			priv->AntennaTxPwDiff[2] = (priv->EEPROMAntPwDiff &
+			priv->antenna_tx_pwr_diff[2] = (priv->EEPROMAntPwDiff &
 							0xf00) >> 8;
 			priv->CrystalCap = priv->EEPROMCrystalCap;
 			priv->ThermalMeter[0] = priv->EEPROMThermalMeter & 0xf;
@@ -456,11 +456,11 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 				priv->tx_pwr_level_ofdm_24g_c[i] =
 					 priv->EEPROMRfCOfdmChnlTxPwLevel[2];
 			}
-			priv->LegacyHTTxPowerDiff =
+			priv->legacy_ht_tx_pwr_diff =
 				 priv->EEPROMLegacyHTTxPowerDiff;
-			priv->AntennaTxPwDiff[0] = 0;
-			priv->AntennaTxPwDiff[1] = 0;
-			priv->AntennaTxPwDiff[2] = 0;
+			priv->antenna_tx_pwr_diff[0] = 0;
+			priv->antenna_tx_pwr_diff[1] = 0;
+			priv->antenna_tx_pwr_diff[2] = 0;
 			priv->CrystalCap = priv->EEPROMCrystalCap;
 			priv->ThermalMeter[0] = priv->EEPROMThermalMeter & 0xf;
 			priv->ThermalMeter[1] = (priv->EEPROMThermalMeter &

@@ -469,16 +469,16 @@ struct r8192_priv {
 	s8 cck_present_attn;
 	long undecorated_smoothed_pwdb;
 
-	u32 MCSTxPowerLevelOriginalOffset[6];
+	u32 mcs_tx_pwr_level_org_offset[6];
 	u8 tx_pwr_level_cck[14];
 	u8 tx_pwr_level_cck_a[14];
 	u8 tx_pwr_level_cck_c[14];
 	u8 tx_pwr_level_ofdm_24g[14];
 	u8 tx_pwr_level_ofdm_24g_a[14];
 	u8 tx_pwr_level_ofdm_24g_c[14];
-	u8		LegacyHTTxPowerDiff;
+	u8 legacy_ht_tx_pwr_diff;
 	s8		RF_C_TxPwDiff;
-	u8		AntennaTxPwDiff[3];
+	u8 antenna_tx_pwr_diff[3];
 
 	bool		bDynamicTxHighPower;
 	bool		bDynamicTxLowPower;

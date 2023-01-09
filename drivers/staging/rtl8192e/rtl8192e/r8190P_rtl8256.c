@@ -169,7 +169,7 @@ void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 	u16 RegOffset[6] = {0xe00, 0xe04, 0xe10, 0xe14, 0xe18, 0xe1c};
 	u8 byte0, byte1, byte2, byte3;
 
-	powerBase0 = powerlevel + priv->LegacyHTTxPowerDiff;
+	powerBase0 = powerlevel + priv->legacy_ht_tx_pwr_diff;
 	powerBase0 = (powerBase0 << 24) | (powerBase0 << 16) |
 		     (powerBase0 << 8) | powerBase0;
 	powerBase1 = powerlevel;
@@ -177,7 +177,7 @@ void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 		     (powerBase1 << 8) | powerBase1;
 
 	for (index = 0; index < 6; index++) {
-		writeVal = (u32)(priv->MCSTxPowerLevelOriginalOffset[index] +
+		writeVal = (u32)(priv->mcs_tx_pwr_level_org_offset[index] +
 			   ((index < 2) ? powerBase0 : powerBase1));
 		byte0 = writeVal & 0x7f;
 		byte1 = (writeVal & 0x7f00) >> 8;
