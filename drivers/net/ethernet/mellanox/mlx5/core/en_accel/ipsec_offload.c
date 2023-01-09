@@ -320,7 +320,6 @@ static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 	if (ret)
 		goto unlock;
 
-	aso->use_cache = true;
 	if (attrs->esn_trigger &&
 	    !MLX5_GET(ipsec_aso, aso->ctx, esn_event_arm)) {
 		u32 mode_param = MLX5_GET(ipsec_aso, aso->ctx, mode_parameter);
@@ -333,7 +332,6 @@ static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 		    !MLX5_GET(ipsec_aso, aso->ctx, hard_lft_arm) ||
 		    !MLX5_GET(ipsec_aso, aso->ctx, remove_flow_enable))
 			xfrm_state_check_expire(sa_entry->x);
-	aso->use_cache = false;
 
 unlock:
 	spin_unlock(&sa_entry->x->lock);
@@ -458,9 +456,6 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 	u8 ds_cnt;
 
 	lockdep_assert_held(&sa_entry->x->lock);
-	if (aso->use_cache)
-		return 0;
-
 	res = &mdev->mlx5e_res.hw_objs;
 
 	memset(aso->ctx, 0, sizeof(aso->ctx));
