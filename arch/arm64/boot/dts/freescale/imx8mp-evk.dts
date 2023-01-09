@@ -36,8 +36,8 @@
 
 	pcie0_refclk: pcie0-refclk {
 		compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <100000000>;
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
 	};
 
 	reg_can1_stby: regulator-can1-stby {
