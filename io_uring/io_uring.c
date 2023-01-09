@@ -1337,7 +1337,7 @@ again:
 
 }
 
-int io_run_local_work(struct io_ring_ctx *ctx)
+static int io_run_local_work(struct io_ring_ctx *ctx)
 {
 	bool locked = mutex_trylock(&ctx->uring_lock);
 	int ret;
