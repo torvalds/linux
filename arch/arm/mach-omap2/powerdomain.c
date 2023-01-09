@@ -37,8 +37,8 @@
 
 #define PWRDM_TRACE_STATES_FLAG	(1<<31)
 
-void pwrdms_save_context(void);
-void pwrdms_restore_context(void);
+static void pwrdms_save_context(void);
+static void pwrdms_restore_context(void);
 
 enum {
 	PWRDM_STATE_NOW = 0,
@@ -1149,82 +1149,6 @@ osps_out:
 }
 
 /**
- * pwrdm_get_context_loss_count - get powerdomain's context loss count
- * @pwrdm: struct powerdomain * to wait for
- *
- * Context loss count is the sum of powerdomain off-mode counter, the
- * logic off counter and the per-bank memory off counter.  Returns negative
- * (and WARNs) upon error, otherwise, returns the context loss count.
- */
-int pwrdm_get_context_loss_count(struct powerdomain *pwrdm)
-{
-	int i, count;
-
-	if (!pwrdm) {
-		WARN(1, "powerdomain: %s: pwrdm is null\n", __func__);
-		return -ENODEV;
-	}
-
-	count = pwrdm->state_counter[PWRDM_POWER_OFF];
-	count += pwrdm->ret_logic_off_counter;
-
-	for (i = 0; i < pwrdm->banks; i++)
-		count += pwrdm->ret_mem_off_counter[i];
-
-	/*
-	 * Context loss count has to be a non-negative value. Clear the sign
-	 * bit to get a value range from 0 to INT_MAX.
-	 */
-	count &= INT_MAX;
-
-	pr_debug("powerdomain: %s: context loss count = %d\n",
-		 pwrdm->name, count);
-
-	return count;
-}
-
-/**
- * pwrdm_can_ever_lose_context - can this powerdomain ever lose context?
- * @pwrdm: struct powerdomain *
- *
- * Given a struct powerdomain * @pwrdm, returns 1 if the powerdomain
- * can lose either memory or logic context or if @pwrdm is invalid, or
- * returns 0 otherwise.  This function is not concerned with how the
- * powerdomain registers are programmed (i.e., to go off or not); it's
- * concerned with whether it's ever possible for this powerdomain to
- * go off while some other part of the chip is active.  This function
- * assumes that every powerdomain can go to either ON or INACTIVE.
- */
-bool pwrdm_can_ever_lose_context(struct powerdomain *pwrdm)
-{
-	int i;
-
-	if (!pwrdm) {
-		pr_debug("powerdomain: %s: invalid powerdomain pointer\n",
-			 __func__);
-		return true;
-	}
-
-	if (pwrdm->pwrsts & PWRSTS_OFF)
-		return true;
-
-	if (pwrdm->pwrsts & PWRSTS_RET) {
-		if (pwrdm->pwrsts_logic_ret & PWRSTS_OFF)
-			return true;
-
-		for (i = 0; i < pwrdm->banks; i++)
-			if (pwrdm->pwrsts_mem_ret[i] & PWRSTS_OFF)
-				return true;
-	}
-
-	for (i = 0; i < pwrdm->banks; i++)
-		if (pwrdm->pwrsts_mem_on[i] & PWRSTS_OFF)
-			return true;
-
-	return false;
-}
-
-/**
  * pwrdm_save_context - save powerdomain registers
  *
  * Register state is going to be lost due to a suspend or hibernate
@@ -1250,36 +1174,12 @@ static int pwrdm_restore_context(struct powerdomain *pwrdm, void *unused)
 	return 0;
 }
 
-static int pwrdm_lost_power(struct powerdomain *pwrdm, void *unused)
-{
-	int state;
-
-	/*
-	 * Power has been lost across all powerdomains, increment the
-	 * counter.
-	 */
-
-	state = pwrdm_read_pwrst(pwrdm);
-	if (state != PWRDM_POWER_OFF) {
-		pwrdm->state_counter[state]++;
-		pwrdm->state_counter[PWRDM_POWER_OFF]++;
-	}
-	pwrdm->state = state;
-
-	return 0;
-}
-
-void pwrdms_save_context(void)
+static void pwrdms_save_context(void)
 {
 	pwrdm_for_each(pwrdm_save_context, NULL);
 }
 
-void pwrdms_restore_context(void)
+static void pwrdms_restore_context(void)
 {
 	pwrdm_for_each(pwrdm_restore_context, NULL);
-}
-
-void pwrdms_lost_power(void)
-{
-	pwrdm_for_each(pwrdm_lost_power, NULL);
 }

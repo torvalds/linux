@@ -1465,19 +1465,6 @@ config ATAGS
 	  the ARM_ATAG_DTB_COMPAT option) then you may unselect this option
 	  to remove ATAGS support from your kernel binary.
 
-config UNUSED_BOARD_FILES
-	bool "Board support for machines without known users"
-	depends on ATAGS
-	help
-	  Most ATAGS based board files are completely unused and are
-	  scheduled for removal in early 2023, and left out of kernels
-	  by default now.  If you are using a board file that is marked
-	  as unused, turn on this option to build support into the kernel.
-
-	  To keep support for your individual board from being removed,
-	  send a reply to the email discussion at
-	  https://lore.kernel.org/all/CAK8P3a0Z9vGEQbVRBo84bSyPFM-LF+hs5w8ZA51g2Z+NsdtDQA@mail.gmail.com/
-
 config DEPRECATED_PARAM_STRUCT
 	bool "Provide old way to pass kernel parameters"
 	depends on ATAGS

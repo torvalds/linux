@@ -7,7 +7,7 @@
 obj-y := id.o io.o control.o devices.o fb.o pm.o \
 	 common.o dma.o omap-headsmp.o sram.o
 
-hwmod-common				= omap_hwmod.o omap_hwmod_reset.o \
+hwmod-common				= omap_hwmod.o \
 					  omap_hwmod_common_data.o \
 					  omap_hwmod_common_ipblock_data.o \
 					  omap_device.o display.o hdq1w.o \
@@ -80,7 +80,6 @@ obj-$(CONFIG_ARCH_OMAP4)		+= $(omap-4-5-pm-common)
 obj-$(CONFIG_SOC_OMAP5)			+= $(omap-4-5-pm-common)
 
 ifeq ($(CONFIG_PM),y)
-obj-$(CONFIG_ARCH_OMAP2)		+= pm24xx.o
 obj-$(CONFIG_ARCH_OMAP2)		+= sleep24xx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= pm34xx.o sleep34xx.o
 omap-4-5-pm-common			+= pm44xx.o
