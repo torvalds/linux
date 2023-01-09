@@ -154,10 +154,6 @@ struct subsys_dev_iter {
 	struct klist_iter		ki;
 	const struct device_type	*type;
 };
-void subsys_dev_iter_init(struct subsys_dev_iter *iter,
-			 struct bus_type *subsys,
-			 struct device *start,
-			 const struct device_type *type);
 struct device *subsys_dev_iter_next(struct subsys_dev_iter *iter);
 void subsys_dev_iter_exit(struct subsys_dev_iter *iter);
 

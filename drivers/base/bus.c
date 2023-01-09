@@ -923,8 +923,8 @@ EXPORT_SYMBOL_GPL(bus_sort_breadthfirst);
  * otherwise if it is NULL, the iteration starts at the beginning of
  * the list.
  */
-void subsys_dev_iter_init(struct subsys_dev_iter *iter, struct bus_type *subsys,
-			  struct device *start, const struct device_type *type)
+static void subsys_dev_iter_init(struct subsys_dev_iter *iter, struct bus_type *subsys,
+				 struct device *start, const struct device_type *type)
 {
 	struct klist_node *start_knode = NULL;
 
@@ -933,7 +933,6 @@ void subsys_dev_iter_init(struct subsys_dev_iter *iter, struct bus_type *subsys,
 	klist_iter_init_node(&subsys->p->klist_devices, &iter->ki, start_knode);
 	iter->type = type;
 }
-EXPORT_SYMBOL_GPL(subsys_dev_iter_init);
 
 /**
  * subsys_dev_iter_next - iterate to the next device
