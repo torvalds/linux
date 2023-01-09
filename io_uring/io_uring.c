@@ -1339,11 +1339,9 @@ again:
 
 int io_run_local_work(struct io_ring_ctx *ctx)
 {
-	bool locked;
+	bool locked = mutex_trylock(&ctx->uring_lock);
 	int ret;
 
-	__set_current_state(TASK_RUNNING);
-	locked = mutex_trylock(&ctx->uring_lock);
 	ret = __io_run_local_work(ctx, &locked);
 	if (locked)
 		mutex_unlock(&ctx->uring_lock);
@@ -2453,6 +2451,7 @@ static int io_wake_function(struct wait_queue_entry *curr, unsigned int mode,
 int io_run_task_work_sig(struct io_ring_ctx *ctx)
 {
 	if (!llist_empty(&ctx->work_llist)) {
+		__set_current_state(TASK_RUNNING);
 		if (io_run_local_work(ctx) > 0)
 			return 1;
 	}
