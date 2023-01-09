@@ -1296,7 +1296,7 @@ static void __cold io_move_task_work_from_local(struct io_ring_ctx *ctx)
 	}
 }
 
-int __io_run_local_work(struct io_ring_ctx *ctx, bool *locked)
+static int __io_run_local_work(struct io_ring_ctx *ctx, bool *locked)
 {
 	struct llist_node *node;
 	struct llist_node fake;
@@ -1335,6 +1335,22 @@ again:
 	trace_io_uring_local_work_run(ctx, ret, loops);
 	return ret;
 
+}
+
+static inline int io_run_local_work_locked(struct io_ring_ctx *ctx)
+{
+	bool locked;
+	int ret;
+
+	if (llist_empty(&ctx->work_llist))
+		return 0;
+
+	locked = true;
+	ret = __io_run_local_work(ctx, &locked);
+	/* shouldn't happen! */
+	if (WARN_ON_ONCE(!locked))
+		mutex_lock(&ctx->uring_lock);
+	return ret;
 }
 
 static int io_run_local_work(struct io_ring_ctx *ctx)

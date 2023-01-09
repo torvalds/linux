@@ -28,7 +28,6 @@ enum {
 struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx, bool overflow);
 bool io_req_cqe_overflow(struct io_kiocb *req);
 int io_run_task_work_sig(struct io_ring_ctx *ctx);
-int __io_run_local_work(struct io_ring_ctx *ctx, bool *locked);
 void io_req_defer_failed(struct io_kiocb *req, s32 res);
 void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags);
 bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags);
@@ -281,22 +280,6 @@ static inline int io_run_task_work(void)
 static inline bool io_task_work_pending(struct io_ring_ctx *ctx)
 {
 	return task_work_pending(current) || !wq_list_empty(&ctx->work_llist);
-}
-
-static inline int io_run_local_work_locked(struct io_ring_ctx *ctx)
-{
-	bool locked;
-	int ret;
-
-	if (llist_empty(&ctx->work_llist))
-		return 0;
-
-	locked = true;
-	ret = __io_run_local_work(ctx, &locked);
-	/* shouldn't happen! */
-	if (WARN_ON_ONCE(!locked))
-		mutex_lock(&ctx->uring_lock);
-	return ret;
 }
 
 static inline void io_tw_lock(struct io_ring_ctx *ctx, bool *locked)
