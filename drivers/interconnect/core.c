@@ -1083,6 +1083,7 @@ static const struct of_device_id __maybe_unused ignore_list[] = {
 	{ .compatible = "qcom,sc7180-ipa-virt" },
 	{ .compatible = "qcom,sdx55-ipa-virt" },
 	{ .compatible = "qcom,sm8150-ipa-virt" },
+	{ .compatible = "qcom,sm8250-ipa-virt" },
 	{}
 };
 
