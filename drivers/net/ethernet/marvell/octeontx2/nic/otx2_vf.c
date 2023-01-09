@@ -758,6 +758,8 @@ static void otx2vf_remove(struct pci_dev *pdev)
 	if (vf->otx2_wq)
 		destroy_workqueue(vf->otx2_wq);
 	otx2_ptp_destroy(vf);
+	otx2_mcam_flow_del(vf);
+	otx2_shutdown_tc(vf);
 	otx2vf_disable_mbox_intr(vf);
 	otx2_detach_resources(&vf->mbox);
 	if (test_bit(CN10K_LMTST, &vf->hw.cap_flag))
