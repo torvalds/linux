@@ -1690,6 +1690,9 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 	case RATE_MCS_CHAN_WIDTH_160:
 		rx_status->bw = RATE_INFO_BW_160;
 		break;
+	case RATE_MCS_CHAN_WIDTH_320:
+		rx_status->bw = RATE_INFO_BW_320;
+		break;
 	}
 
 	/* must be before L-SIG data */
@@ -1726,6 +1729,9 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 		rx_status->he_dcm =
 			!!(rate_n_flags & RATE_HE_DUAL_CARRIER_MODE_MSK);
 		break;
+	case RATE_MCS_EHT_MSK:
+		rx_status->encoding = RX_ENC_EHT;
+		break;
 	}
 
 	switch (format) {
@@ -1736,6 +1742,7 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 		break;
 	case RATE_MCS_VHT_MSK:
 	case RATE_MCS_HE_MSK:
+	case RATE_MCS_EHT_MSK:
 		rx_status->nss =
 			u32_get_bits(rate_n_flags, RATE_MCS_NSS_MSK) + 1;
 		rx_status->rate_idx = rate_n_flags & RATE_MCS_CODE_MSK;
