@@ -339,47 +339,6 @@ struct device *bus_find_device(struct bus_type *bus,
 }
 EXPORT_SYMBOL_GPL(bus_find_device);
 
-/**
- * subsys_find_device_by_id - find a device with a specific enumeration number
- * @subsys: subsystem
- * @id: index 'id' in struct device
- * @hint: device to check first
- *
- * Check the hint's next object and if it is a match return it directly,
- * otherwise, fall back to a full list search. Either way a reference for
- * the returned object is taken.
- */
-struct device *subsys_find_device_by_id(struct bus_type *subsys, unsigned int id,
-					struct device *hint)
-{
-	struct klist_iter i;
-	struct device *dev;
-
-	if (!subsys)
-		return NULL;
-
-	if (hint) {
-		klist_iter_init_node(&subsys->p->klist_devices, &i, &hint->p->knode_bus);
-		dev = next_device(&i);
-		if (dev && dev->id == id && get_device(dev)) {
-			klist_iter_exit(&i);
-			return dev;
-		}
-		klist_iter_exit(&i);
-	}
-
-	klist_iter_init_node(&subsys->p->klist_devices, &i, NULL);
-	while ((dev = next_device(&i))) {
-		if (dev->id == id && get_device(dev)) {
-			klist_iter_exit(&i);
-			return dev;
-		}
-	}
-	klist_iter_exit(&i);
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(subsys_find_device_by_id);
-
 static struct device_driver *next_driver(struct klist_iter *i)
 {
 	struct klist_node *n = klist_next(i);

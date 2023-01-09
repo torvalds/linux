@@ -250,8 +250,6 @@ bus_find_device_by_acpi_dev(struct bus_type *bus, const void *adev)
 }
 #endif
 
-struct device *subsys_find_device_by_id(struct bus_type *bus, unsigned int id,
-					struct device *hint);
 int bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
 		     void *data, int (*fn)(struct device_driver *, void *));
 void bus_sort_breadthfirst(struct bus_type *bus,
