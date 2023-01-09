@@ -269,7 +269,6 @@ struct	xmit_priv {
 	struct adapter	*adapter;
 	u8   vcs_setting;
 	u8	vcs;
-	u8	vcs_type;
 	u64	tx_bytes;
 	u64	tx_pkts;
 	u64	tx_drop;
