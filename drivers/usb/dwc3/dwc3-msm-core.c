@@ -4975,7 +4975,7 @@ static int dwc3_msm_set_role(struct dwc3_msm *mdwc, enum usb_role role)
 	case USB_ROLE_HOST:
 		mdwc->vbus_active = false;
 		mdwc->id_state = DWC3_ID_GROUND;
-		WARN_ON(mdwc->refcnt_dp_usb);
+		dbg_log_string("refcnt:%d start host mode\n", mdwc->refcnt_dp_usb);
 		mdwc->refcnt_dp_usb++;
 		break;
 
@@ -5428,6 +5428,7 @@ int dwc3_msm_set_dp_mode(struct device *dev, bool dp_connected, int lanes)
 		return -EAGAIN;
 	}
 
+	dev_dbg(dev, "lanes %d, connect %d\n", lanes, dp_connected);
 	/* flush any pending work */
 	flush_work(&mdwc->resume_work);
 	flush_workqueue(mdwc->sm_usb_wq);
