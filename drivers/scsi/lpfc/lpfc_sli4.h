@@ -291,8 +291,9 @@ struct lpfc_sli4_link {
 	uint8_t type;
 	uint8_t number;
 	uint8_t fault;
-	uint32_t logical_speed;
+	uint8_t link_status;
 	uint16_t topology;
+	uint32_t logical_speed;
 };
 
 struct lpfc_fcf_rec {
