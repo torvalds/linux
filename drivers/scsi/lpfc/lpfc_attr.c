@@ -1941,33 +1941,25 @@ lpfc_xcvr_data_show(struct device *dev, struct device_attribute *attr,
 			&rdp_context->page_a0[SSF_TRANSCEIVER_CODE_B7];
 
 	len += scnprintf(buf + len, PAGE_SIZE - len, "Speeds: \t");
-		if (*(uint8_t *)trasn_code_byte7 == 0) {
-			len += scnprintf(buf + len, PAGE_SIZE - len,
-					 "Unknown\n");
-		} else {
-			if (trasn_code_byte7->fc_sp_100MB)
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						 "1 ");
-			if (trasn_code_byte7->fc_sp_200mb)
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						 "2 ");
-			if (trasn_code_byte7->fc_sp_400MB)
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						 "4 ");
-			if (trasn_code_byte7->fc_sp_800MB)
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						 "8 ");
-			if (trasn_code_byte7->fc_sp_1600MB)
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						 "16 ");
-			if (trasn_code_byte7->fc_sp_3200MB)
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						 "32 ");
-			if (trasn_code_byte7->speed_chk_ecc)
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						 "64 ");
-			len += scnprintf(buf + len, PAGE_SIZE - len, "GB\n");
-		}
+	if (*(uint8_t *)trasn_code_byte7 == 0) {
+		len += scnprintf(buf + len, PAGE_SIZE - len, "Unknown\n");
+	} else {
+		if (trasn_code_byte7->fc_sp_100MB)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "1 ");
+		if (trasn_code_byte7->fc_sp_200mb)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "2 ");
+		if (trasn_code_byte7->fc_sp_400MB)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "4 ");
+		if (trasn_code_byte7->fc_sp_800MB)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "8 ");
+		if (trasn_code_byte7->fc_sp_1600MB)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "16 ");
+		if (trasn_code_byte7->fc_sp_3200MB)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "32 ");
+		if (trasn_code_byte7->speed_chk_ecc)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "64 ");
+		len += scnprintf(buf + len, PAGE_SIZE - len, "GB\n");
+	}
 	temperature = (rdp_context->page_a2[SFF_TEMPERATURE_B1] << 8 |
 		       rdp_context->page_a2[SFF_TEMPERATURE_B0]);
 	vcc = (rdp_context->page_a2[SFF_VCC_B1] << 8 |
