@@ -14,6 +14,24 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 
 #ifdef CONFIG_PRINTK
 
+#ifdef CONFIG_PRINTK_CALLER
+#define PREFIX_MAX		48
+#else
+#define PREFIX_MAX		32
+#endif
+
+/* the maximum size of a formatted record (i.e. with prefix added per line) */
+#define CONSOLE_LOG_MAX		1024
+
+/* the maximum size of a formatted extended record */
+#define CONSOLE_EXT_LOG_MAX	8192
+
+/* the maximum size for a dropped text message */
+#define DROPPED_TEXT_MAX	64
+
+/* the maximum size allowed to be reserved for a record */
+#define LOG_LINE_MAX		(CONSOLE_LOG_MAX - PREFIX_MAX)
+
 /* Flags for a single printk record. */
 enum printk_info_flags {
 	LOG_NEWLINE	= 2,	/* text ended with a newline */
@@ -47,6 +65,12 @@ void defer_console_output(void);
 u16 printk_parse_prefix(const char *text, int *level,
 			enum printk_info_flags *flags);
 #else
+
+#define PREFIX_MAX		0
+#define CONSOLE_LOG_MAX		0
+#define CONSOLE_EXT_LOG_MAX	0
+#define DROPPED_TEXT_MAX	0
+#define LOG_LINE_MAX		0
 
 /*
  * In !PRINTK builds we still export console_sem
