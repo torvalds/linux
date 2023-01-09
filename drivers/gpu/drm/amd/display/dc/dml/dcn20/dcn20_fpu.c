@@ -26,7 +26,6 @@
 
 #include "resource.h"
 #include "clk_mgr.h"
-#include "dc_link_dp.h"
 #include "dchubbub.h"
 #include "dcn20/dcn20_resource.h"
 #include "dcn21/dcn21_resource.h"

@@ -46,7 +46,6 @@
 #include "atomfirmware.h"
 #include "resource.h"
 #include "link_enc_cfg.h"
-#include "dc_link_dp.h"
 #include "dc_dmub_srv.h"
 
 #define DC_LOGGER \

@@ -51,7 +51,6 @@
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dcn32_resource.h"
 #include "link.h"
-#include "dc_link_dp.h"
 #include "dmub/inc/dmub_subvp_state.h"
 
 #define DC_LOGGER_INIT(logger)

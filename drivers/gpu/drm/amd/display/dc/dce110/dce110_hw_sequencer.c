@@ -47,7 +47,6 @@
 #include "link_enc_cfg.h"
 #include "link_hwss.h"
 #include "link.h"
-#include "dc_link_dp.h"
 #include "dccg.h"
 #include "clock_source.h"
 #include "clk_mgr.h"

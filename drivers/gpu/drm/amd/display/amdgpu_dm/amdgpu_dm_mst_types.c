@@ -39,7 +39,6 @@
 #include "dc.h"
 #include "dm_helpers.h"
 
-#include "dc_link_dp.h"
 #include "ddc_service_types.h"
 #include "dpcd_defs.h"
 

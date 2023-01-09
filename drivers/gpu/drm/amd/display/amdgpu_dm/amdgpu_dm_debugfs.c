@@ -34,8 +34,6 @@
 #include "dmub/dmub_srv.h"
 #include "resource.h"
 #include "dsc.h"
-#include "dc_link_dp.h"
-#include "dc_link.h"
 #include "link_hwss.h"
 #include "dc/dc_dmub_srv.h"
 

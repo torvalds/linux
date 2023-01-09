@@ -40,7 +40,6 @@
 #include "amdgpu_dm_mst_types.h"
 #include "dpcd_defs.h"
 #include "dc/inc/core_types.h"
-#include "dc_link_dp.h"
 
 #include "dm_helpers.h"
 #include "ddc_service_types.h"

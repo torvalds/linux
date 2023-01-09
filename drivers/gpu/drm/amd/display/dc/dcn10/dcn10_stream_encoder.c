@@ -28,7 +28,7 @@
 #include "dcn10_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
-#include "dc_link_dp.h"
+#include "link.h"
 #include "dpcd_defs.h"
 #include "dcn30/dcn30_afmt.h"
 

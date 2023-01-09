@@ -30,7 +30,7 @@
 #include "dcn314_dio_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
-#include "dc_link_dp.h"
+#include "link.h"
 #include "dpcd_defs.h"
 
 #define DC_LOGGER \

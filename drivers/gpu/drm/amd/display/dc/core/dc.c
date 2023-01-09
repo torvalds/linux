@@ -58,7 +58,6 @@
 #include "dm_helpers.h"
 #include "mem_input.h"
 
-#include "dc_link_dp.h"
 #include "dc_dmub_srv.h"
 
 #include "dsc.h"

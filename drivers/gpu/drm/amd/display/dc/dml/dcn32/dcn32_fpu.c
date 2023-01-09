@@ -24,7 +24,6 @@
  *
  */
 #include "dcn32_fpu.h"
-#include "dc_link_dp.h"
 #include "dcn32/dcn32_resource.h"
 #include "dcn20/dcn20_resource.h"
 #include "display_mode_vba_util_32.h"

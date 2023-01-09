@@ -28,7 +28,6 @@
 
 #include "dm_services_types.h"
 #include "dc.h"
-#include "dc_link_dp.h"
 #include "link_enc_cfg.h"
 #include "dc/inc/core_types.h"
 #include "dal_asic_id.h"

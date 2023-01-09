@@ -46,7 +46,7 @@
 #define DC_LOGGER \
 	clk_mgr->base.base.ctx->logger
 
-#include "dc_link_dp.h"
+#include "link.h"
 
 #define TO_CLK_MGR_DCN315(clk_mgr)\
 	container_of(clk_mgr, struct clk_mgr_dcn315, base)

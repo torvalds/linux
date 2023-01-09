@@ -40,7 +40,6 @@
 #include "virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
 #include "link_enc_cfg.h"
-#include "dc_link_dp.h"
 #include "link.h"
 #include "virtual/virtual_link_hwss.h"
 #include "link/hwss/link_hwss_dio.h"

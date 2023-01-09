@@ -26,6 +26,7 @@
 #define __LINK_HWSS_HPO_DP_H__
 
 #include "link_hwss.h"
+#include "link.h"
 
 bool can_use_hpo_dp_link_hwss(const struct dc_link *link,
 		const struct link_resource *link_res);

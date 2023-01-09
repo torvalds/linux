@@ -24,7 +24,6 @@
  */
 #include "link_hwss_dio.h"
 #include "core_types.h"
-#include "dc_link_dp.h"
 #include "link_enc_cfg.h"
 
 void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
