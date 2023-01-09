@@ -38,7 +38,7 @@
 #define FT_REG_FW_SUB_MIN_VER	0xB3
 
 #define VALID_TD_STATUS_VAL		10
-#define MAX_TOUCH_POINTS		1
+#define MAX_TOUCH_POINTS		5
 
 #define FT_PRESS			0x7F
 #define FT_MAX_ID			0x0F
