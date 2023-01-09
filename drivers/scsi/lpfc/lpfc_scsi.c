@@ -1689,7 +1689,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	struct lpfc_pde6 *pde6 = NULL;
 	struct lpfc_pde7 *pde7 = NULL;
 	dma_addr_t dataphysaddr, protphysaddr;
-	unsigned short curr_data = 0, curr_prot = 0;
+	unsigned short curr_prot = 0;
 	unsigned int split_offset;
 	unsigned int protgroup_len, protgroup_offset = 0, protgroup_remainder;
 	unsigned int protgrp_blks, protgrp_bytes;
@@ -1858,7 +1858,6 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 			bpl->tus.w = le32_to_cpu(bpl->tus.w);
 
 			num_bde++;
-			curr_data++;
 
 			if (split_offset)
 				break;
@@ -2119,7 +2118,7 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	struct scatterlist *sgpe = NULL; /* s/g prot entry */
 	struct sli4_sge_diseed *diseed = NULL;
 	dma_addr_t dataphysaddr, protphysaddr;
-	unsigned short curr_data = 0, curr_prot = 0;
+	unsigned short curr_prot = 0;
 	unsigned int split_offset;
 	unsigned int protgroup_len, protgroup_offset = 0, protgroup_remainder;
 	unsigned int protgrp_blks, protgrp_bytes;
@@ -2364,7 +2363,6 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				dma_offset += dma_len;
 
 				num_sge++;
-				curr_data++;
 
 				if (split_offset) {
 					sgl++;

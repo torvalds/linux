@@ -253,7 +253,6 @@ int lpfc_read_object(struct lpfc_hba *phba, char *s, uint32_t *datap,
 		     uint32_t len);
 
 void lpfc_sli4_cleanup_poll_list(struct lpfc_hba *phba);
-int lpfc_sli4_poll_eq(struct lpfc_queue *q, uint8_t path);
 void lpfc_sli4_poll_hbtimer(struct timer_list *t);
 void lpfc_sli4_start_polling(struct lpfc_queue *q);
 void lpfc_sli4_stop_polling(struct lpfc_queue *q);
