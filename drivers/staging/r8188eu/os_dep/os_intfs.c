@@ -392,7 +392,6 @@ static void rtw_init_default_value(struct adapter *padapter)
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 
 	/* xmit_priv */
-	pxmitpriv->vcs_setting = pregistrypriv->vrtl_carrier_sense;
 	pxmitpriv->frag_len = pregistrypriv->frag_thresh;
 
 	/* mlme_priv */

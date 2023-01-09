@@ -267,7 +267,6 @@ struct	xmit_priv {
 	struct __queue free_xmit_queue;
 	uint	frag_len;
 	struct adapter	*adapter;
-	u8   vcs_setting;
 	u64	tx_bytes;
 	u64	tx_pkts;
 	u64	tx_drop;
