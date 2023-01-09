@@ -36,7 +36,7 @@ properties:
               - samsung,exynos850-sysreg
               - samsung,exynosautov9-sysreg
           - const: syscon
-            deprecated: true
+        deprecated: true
       - items:
           - enum:
               - samsung,exynos850-cmgp-sysreg
