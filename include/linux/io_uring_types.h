@@ -195,11 +195,7 @@ struct io_alloc_cache {
 struct io_ring_ctx {
 	/* const or read-mostly hot data */
 	struct {
-		struct percpu_ref	refs;
-
-		struct io_rings		*rings;
 		unsigned int		flags;
-		enum task_work_notify_mode	notify_method;
 		unsigned int		compat: 1;
 		unsigned int		drain_next: 1;
 		unsigned int		restricted: 1;
@@ -210,6 +206,11 @@ struct io_ring_ctx {
 		unsigned int		syscall_iopoll: 1;
 		/* all CQEs should be posted only by the submitter task */
 		unsigned int		task_complete: 1;
+
+		enum task_work_notify_mode	notify_method;
+		struct io_rings			*rings;
+		struct task_struct		*submitter_task;
+		struct percpu_ref		refs;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -320,7 +321,6 @@ struct io_ring_ctx {
 	/* Keep this last, we don't need it for the fast path */
 
 	struct io_restriction		restrictions;
-	struct task_struct		*submitter_task;
 
 	/* slow path rsrc auxilary data, used by update/register */
 	struct io_rsrc_node		*rsrc_backup_node;
