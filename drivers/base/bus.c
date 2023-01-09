@@ -946,7 +946,7 @@ static void subsys_dev_iter_init(struct subsys_dev_iter *iter, struct bus_type *
  * free to do whatever it wants to do with the device including
  * calling back into subsys code.
  */
-struct device *subsys_dev_iter_next(struct subsys_dev_iter *iter)
+static struct device *subsys_dev_iter_next(struct subsys_dev_iter *iter)
 {
 	struct klist_node *knode;
 	struct device *dev;
@@ -960,7 +960,6 @@ struct device *subsys_dev_iter_next(struct subsys_dev_iter *iter)
 			return dev;
 	}
 }
-EXPORT_SYMBOL_GPL(subsys_dev_iter_next);
 
 /**
  * subsys_dev_iter_exit - finish iteration
