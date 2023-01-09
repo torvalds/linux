@@ -21,7 +21,7 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 		return;
 	}
 
-	for (eRFPath = 0; eRFPath < priv->NumTotalRFPath; eRFPath++) {
+	for (eRFPath = 0; eRFPath < priv->num_total_rf_path; eRFPath++) {
 		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 			continue;
 
@@ -63,10 +63,10 @@ bool rtl92e_config_rf(struct net_device *dev)
 	u8	ConstRetryTimes = 5, RetryTimes = 5;
 	u8 ret = 0;
 
-	priv->NumTotalRFPath = RTL819X_TOTAL_RF_PATH;
+	priv->num_total_rf_path = RTL819X_TOTAL_RF_PATH;
 
 	for (eRFPath = (enum rf90_radio_path)RF90_PATH_A;
-	     eRFPath < priv->NumTotalRFPath; eRFPath++) {
+	     eRFPath < priv->num_total_rf_path; eRFPath++) {
 		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 			continue;
 
@@ -195,7 +195,7 @@ void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 		if (index == 3) {
 			writeVal_tmp = (byte3 << 24) | (byte2 << 16) |
 				       (byte1 << 8) | byte0;
-			priv->Pwr_Track = writeVal_tmp;
+			priv->pwr_track = writeVal_tmp;
 		}
 
 		if (priv->bDynamicTxHighPower)

@@ -615,14 +615,14 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 	u8	RF_Type, tmp_report[5] = {0, 0, 0, 0, 0};
 	u32	Value;
 	u8	Pwr_Flag;
-	u16	Avg_TSSI_Meas, TSSI_13dBm, Avg_TSSI_Meas_from_driver = 0;
+	u16	Avg_TSSI_Meas, tssi_13dBm, Avg_TSSI_Meas_from_driver = 0;
 	u32	delta = 0;
 
 	rtl92e_writeb(dev, Pw_Track_Flag, 0);
 	rtl92e_writeb(dev, FW_Busy_Flag, 0);
 	priv->rtllib->bdynamic_txpower_enable = false;
 
-	powerlevelOFDM24G = priv->Pwr_Track >> 24;
+	powerlevelOFDM24G = priv->pwr_track >> 24;
 	RF_Type = priv->rf_type;
 	Value = (RF_Type<<8) | powerlevelOFDM24G;
 
@@ -688,12 +688,12 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 				Avg_TSSI_Meas_from_driver += tmp_report[k];
 
 			Avg_TSSI_Meas_from_driver *= 100 / 5;
-			TSSI_13dBm = priv->TSSI_13dBm;
+			tssi_13dBm = priv->tssi_13dBm;
 
-			if (Avg_TSSI_Meas_from_driver > TSSI_13dBm)
-				delta = Avg_TSSI_Meas_from_driver - TSSI_13dBm;
+			if (Avg_TSSI_Meas_from_driver > tssi_13dBm)
+				delta = Avg_TSSI_Meas_from_driver - tssi_13dBm;
 			else
-				delta = TSSI_13dBm - Avg_TSSI_Meas_from_driver;
+				delta = tssi_13dBm - Avg_TSSI_Meas_from_driver;
 
 			if (delta <= E_FOR_TX_POWER_TRACK) {
 				priv->rtllib->bdynamic_txpower_enable = true;
@@ -701,7 +701,7 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 				rtl92e_writeb(dev, FW_Busy_Flag, 0);
 				return;
 			}
-			if (Avg_TSSI_Meas_from_driver < TSSI_13dBm - E_FOR_TX_POWER_TRACK)
+			if (Avg_TSSI_Meas_from_driver < tssi_13dBm - E_FOR_TX_POWER_TRACK)
 				_rtl92e_dm_tx_update_tssi_weak_signal(dev,
 								      RF_Type);
 			else

@@ -445,7 +445,7 @@ struct r8192_priv {
 	u8 nCur40MhzPrimeSC;
 
 	u32 RfReg0Value[4];
-	u8 NumTotalRFPath;
+	u8 num_total_rf_path;
 	bool brfpath_rxenable[4];
 
 	bool bTXPowerDataReadFromEEPORM;
@@ -461,8 +461,8 @@ struct r8192_priv {
 	u8 DM_Type;
 
 	u8 cck_pwr_enl;
-	u16 TSSI_13dBm;
-	u32 Pwr_Track;
+	u16 tssi_13dBm;
+	u32 pwr_track;
 	u8 CCKPresentAttentuation_20Mdefault;
 	u8 CCKPresentAttentuation_40Mdefault;
 	s8 CCKPresentAttentuation_difference;

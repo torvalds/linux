@@ -904,7 +904,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 				break;
 			case CmdID_RF_WriteReg:
 				for (eRFPath = 0; eRFPath <
-				     priv->NumTotalRFPath; eRFPath++)
+				     priv->num_total_rf_path; eRFPath++)
 					rtl92e_set_rf_reg(dev,
 						 (enum rf90_radio_path)eRFPath,
 						 CurrentCmd->Para1, bMask12Bits,
