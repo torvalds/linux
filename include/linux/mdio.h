@@ -459,11 +459,6 @@ static inline int mdiodev_modify_changed(struct mdio_device *mdiodev,
 				      mask, set);
 }
 
-static inline u32 mdiobus_c45_addr(int devad, u16 regnum)
-{
-	return MII_ADDR_C45 | devad << MII_DEVADDR_C45_SHIFT | regnum;
-}
-
 static inline u16 mdiobus_c45_regad(u32 regnum)
 {
 	return FIELD_GET(MII_REGADDR_C45_MASK, regnum);
