@@ -968,11 +968,10 @@ static struct device *subsys_dev_iter_next(struct subsys_dev_iter *iter)
  * Finish an iteration.  Always call this function after iteration is
  * complete whether the iteration ran till the end or not.
  */
-void subsys_dev_iter_exit(struct subsys_dev_iter *iter)
+static void subsys_dev_iter_exit(struct subsys_dev_iter *iter)
 {
 	klist_iter_exit(&iter->ki);
 }
-EXPORT_SYMBOL_GPL(subsys_dev_iter_exit);
 
 int subsys_interface_register(struct subsys_interface *sif)
 {
