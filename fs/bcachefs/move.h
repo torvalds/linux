@@ -24,6 +24,8 @@ struct moving_context {
 	/* in flight sectors: */
 	atomic_t		read_sectors;
 	atomic_t		write_sectors;
+	atomic_t		read_ios;
+	atomic_t		write_ios;
 
 	wait_queue_head_t	wait;
 };

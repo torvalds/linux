@@ -74,6 +74,7 @@ static void move_write_done(struct bch_write_op *op)
 		ctxt->write_error = true;
 
 	atomic_sub(io->write_sectors, &io->write.ctxt->write_sectors);
+	atomic_dec(&io->write.ctxt->write_ios);
 	move_free(io);
 	closure_put(&ctxt->cl);
 }
@@ -87,6 +88,7 @@ static void move_write(struct moving_io *io)
 
 	closure_get(&io->write.ctxt->cl);
 	atomic_add(io->write_sectors, &io->write.ctxt->write_sectors);
+	atomic_inc(&io->write.ctxt->write_ios);
 
 	bch2_data_update_read_done(&io->write, io->rbio.pick.crc);
 }
@@ -105,6 +107,7 @@ static void move_read_endio(struct bio *bio)
 	struct moving_context *ctxt = io->write.ctxt;
 
 	atomic_sub(io->read_sectors, &ctxt->read_sectors);
+	atomic_dec(&ctxt->read_ios);
 	io->read_completed = true;
 
 	wake_up(&ctxt->wait);
@@ -139,7 +142,11 @@ void bch2_moving_ctxt_exit(struct moving_context *ctxt)
 {
 	move_ctxt_wait_event(ctxt, NULL, list_empty(&ctxt->reads));
 	closure_sync(&ctxt->cl);
+
 	EBUG_ON(atomic_read(&ctxt->write_sectors));
+	EBUG_ON(atomic_read(&ctxt->write_ios));
+	EBUG_ON(atomic_read(&ctxt->read_sectors));
+	EBUG_ON(atomic_read(&ctxt->read_ios));
 
 	if (ctxt->stats) {
 		progress_list_del(ctxt->c, ctxt->stats);
@@ -314,6 +321,7 @@ static int bch2_move_extent(struct btree_trans *trans,
 	trace_move_extent_read(k.k);
 
 	atomic_add(io->read_sectors, &ctxt->read_sectors);
+	atomic_inc(&ctxt->read_ios);
 	list_add_tail(&io->list, &ctxt->reads);
 
 	/*
@@ -403,13 +411,15 @@ static int move_ratelimit(struct btree_trans *trans,
 		}
 	} while (delay);
 
+	/*
+	 * XXX: these limits really ought to be per device, SSDs and hard drives
+	 * will want different limits
+	 */
 	move_ctxt_wait_event(ctxt, trans,
-		atomic_read(&ctxt->write_sectors) <
-		c->opts.move_bytes_in_flight >> 9);
-
-	move_ctxt_wait_event(ctxt, trans,
-		atomic_read(&ctxt->read_sectors) <
-		c->opts.move_bytes_in_flight >> 9);
+		atomic_read(&ctxt->write_sectors) < c->opts.move_bytes_in_flight >> 9 &&
+		atomic_read(&ctxt->read_sectors) < c->opts.move_bytes_in_flight >> 9 &&
+		atomic_read(&ctxt->write_ios) < c->opts.move_ios_in_flight &&
+		atomic_read(&ctxt->read_ios) < c->opts.move_ios_in_flight);
 
 	return 0;
 }

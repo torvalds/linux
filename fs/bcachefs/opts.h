@@ -299,7 +299,12 @@ enum opt_type {
 	  OPT_HUMAN_READABLE|OPT_FS|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_UINT(1024, U32_MAX),					\
 	  BCH2_NO_SB_OPT,		1U << 20,			\
-	  NULL,		"Amount of IO in flight to keep in flight by the move path")\
+	  NULL,		"Maximum Amount of IO to keep in flight by the move path")\
+	x(move_ios_in_flight,		u32,				\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_UINT(1, 1024),						\
+	  BCH2_NO_SB_OPT,		32,				\
+	  NULL,		"Maximum number of IOs to keep in flight by the move path")\
 	x(fsck,				u8,				\
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
