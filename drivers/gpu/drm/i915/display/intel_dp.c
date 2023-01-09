@@ -713,9 +713,9 @@ u16 intel_dp_dsc_get_output_bpp(struct drm_i915_private *i915,
 
 	/*
 	 * Available Link Bandwidth(Kbits/sec) = (NumberOfLanes)*
-	 * (LinkSymbolClock)* 8 * (TimeSlotsPerMTP)
-	 * for SST -> TimeSlotsPerMTP is 1,
-	 * for MST -> TimeSlotsPerMTP has to be calculated
+	 * (LinkSymbolClock)* 8 * (TimeSlots / 64)
+	 * for SST -> TimeSlots is 64(i.e all TimeSlots that are available)
+	 * for MST -> TimeSlots has to be calculated, based on mode requirements
 	 */
 	bits_per_pixel = DIV_ROUND_UP((link_clock * lane_count) * timeslots,
 				      intel_dp_mode_to_fec_clock(mode_clock) * 8);
@@ -1685,7 +1685,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 			    str_yes_no(ret), str_yes_no(joiner_needs_dsc),
 			    str_yes_no(intel_dp->force_dsc_en));
 		ret = intel_dp_dsc_compute_config(intel_dp, pipe_config,
-						  conn_state, &limits, 1, true);
+						  conn_state, &limits, 64, true);
 		if (ret < 0)
 			return ret;
 	}
