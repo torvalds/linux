@@ -26,9 +26,6 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 /* the maximum size of a formatted extended record */
 #define CONSOLE_EXT_LOG_MAX	8192
 
-/* the maximum size for a dropped text message */
-#define DROPPED_TEXT_MAX	64
-
 /* the maximum size allowed to be reserved for a record */
 #define LOG_LINE_MAX		(CONSOLE_LOG_MAX - PREFIX_MAX)
 
@@ -69,7 +66,6 @@ u16 printk_parse_prefix(const char *text, int *level,
 #define PREFIX_MAX		0
 #define CONSOLE_LOG_MAX		0
 #define CONSOLE_EXT_LOG_MAX	0
-#define DROPPED_TEXT_MAX	0
 #define LOG_LINE_MAX		0
 
 /*
