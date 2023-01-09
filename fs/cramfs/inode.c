@@ -238,8 +238,7 @@ static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
 		struct page *page = pages[i];
 
 		if (page) {
-			memcpy(data, kmap(page), PAGE_SIZE);
-			kunmap(page);
+			memcpy_from_page(data, page, 0, PAGE_SIZE);
 			put_page(page);
 		} else
 			memset(data, 0, PAGE_SIZE);
@@ -815,7 +814,7 @@ static int cramfs_read_folio(struct file *file, struct folio *folio)
 
 	maxblock = (inode->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	bytes_filled = 0;
-	pgdata = kmap(page);
+	pgdata = kmap_local_page(page);
 
 	if (page->index < maxblock) {
 		struct super_block *sb = inode->i_sb;
@@ -903,13 +902,13 @@ static int cramfs_read_folio(struct file *file, struct folio *folio)
 
 	memset(pgdata + bytes_filled, 0, PAGE_SIZE - bytes_filled);
 	flush_dcache_page(page);
-	kunmap(page);
+	kunmap_local(pgdata);
 	SetPageUptodate(page);
 	unlock_page(page);
 	return 0;
 
 err:
-	kunmap(page);
+	kunmap_local(pgdata);
 	ClearPageUptodate(page);
 	SetPageError(page);
 	unlock_page(page);
