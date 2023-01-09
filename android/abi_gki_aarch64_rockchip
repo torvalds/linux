@@ -1087,6 +1087,7 @@
   scsi_ioctl_block_when_processing_errors
   sdev_prefix_printk
   sdhci_add_host
+  sdhci_execute_tuning
   sdhci_get_property
   sdhci_pltfm_clk_get_max_clock
   sdhci_pltfm_free
@@ -2442,9 +2443,11 @@
   component_unbind_all
   devm_of_phy_get_by_index
   driver_find_device
+  drm_add_modes_noedid
   drm_atomic_commit
   drm_atomic_get_connector_state
   drm_atomic_get_plane_state
+  drm_atomic_helper_bridge_propagate_bus_fmt
   drm_atomic_helper_check
   drm_atomic_helper_check_plane_state
   drm_atomic_helper_cleanup_planes
@@ -2477,6 +2480,10 @@
   __drm_atomic_state_free
   drm_bridge_chain_mode_set
   drm_bridge_get_edid
+  drm_connector_attach_content_protection_property
+  drm_connector_list_iter_begin
+  drm_connector_list_iter_end
+  drm_connector_list_iter_next
   drm_connector_list_update
   drm_crtc_cleanup
   drm_crtc_enable_color_mgmt
@@ -2522,6 +2529,7 @@
   drm_gem_unmap_dma_buf
   drm_get_format_info
   drm_get_format_name
+  drm_hdcp_update_content_protection
   drm_helper_mode_fill_fb_struct
   drm_kms_helper_poll_enable
   drm_kms_helper_poll_fini
@@ -2547,6 +2555,7 @@
   drm_mode_prune_invalid
   drm_mode_set_crtcinfo
   drm_modeset_lock_all
+  drm_modeset_unlock
   drm_modeset_unlock_all
   drm_mode_sort
   drm_mode_validate_size
@@ -2560,6 +2569,7 @@
   drm_plane_create_zpos_property
   drm_prime_get_contiguous_size
   __drm_printfn_seq_file
+  drm_property_blob_put
   drm_property_create
   drm_property_create_bitmask
   drm_property_create_bool
@@ -2567,6 +2577,8 @@
   drm_property_create_object
   drm_property_create_range
   drm_property_destroy
+  drm_property_lookup_blob
+  drm_property_replace_blob
   __drm_puts_seq_file
   drm_rect_calc_hscale
   drm_self_refresh_helper_cleanup
@@ -2608,7 +2620,6 @@
   sdhci_cqe_irq
   sdhci_dumpregs
   sdhci_enable_clk
-  sdhci_execute_tuning
   sdhci_pltfm_unregister
   sdhci_set_power_and_bus_voltage
   sdhci_set_uhs_signaling
@@ -2620,6 +2631,7 @@
   sdhci_adma_write_desc
   sdhci_remove_host
   sdhci_request
+  sdhci_reset_tuning
 
 # required by sg.ko
   blk_get_request
