@@ -62,7 +62,13 @@
 		};
 	};
 
-	cpu_opp_table: cpu-opp-table {
+	firmware {
+		scm {
+			compatible = "qcom,scm-sdx55", "qcom,scm";
+		};
+	};
+
+	cpu_opp_table: opp-table-cpu {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -84,12 +90,6 @@
 		opp-1555200000 {
 			opp-hz = /bits/ 64 <1555200000>;
 			required-opps = <&rpmhpd_opp_turbo>;
-		};
-	};
-
-	firmware {
-		scm {
-			compatible = "qcom,scm-sdx55", "qcom,scm";
 		};
 	};
 

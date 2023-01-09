@@ -61,7 +61,19 @@
 		};
 	};
 
-	cpu_opp_table: cpu-opp-table {
+	firmware {
+		scm {
+			compatible = "qcom,scm-sdx65", "qcom,scm";
+		};
+	};
+
+	mc_virt: interconnect-mc-virt {
+		compatible = "qcom,sdx65-mc-virt";
+		#interconnect-cells = <1>;
+		qcom,bcm-voters = <&apps_bcm_voter>;
+	};
+
+	cpu_opp_table: opp-table-cpu {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -84,18 +96,6 @@
 			opp-hz = /bits/ 64 <1497600000>;
 			required-opps = <&rpmhpd_opp_turbo>;
 		};
-	};
-
-	firmware {
-		scm {
-			compatible = "qcom,scm-sdx65", "qcom,scm";
-		};
-	};
-
-	mc_virt: interconnect-mc-virt {
-		compatible = "qcom,sdx65-mc-virt";
-		#interconnect-cells = <1>;
-		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
 	psci {
