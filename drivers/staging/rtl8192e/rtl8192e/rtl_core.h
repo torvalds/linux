@@ -473,9 +473,9 @@ struct r8192_priv {
 	u8 tx_pwr_level_cck[14];
 	u8 tx_pwr_level_cck_a[14];
 	u8 tx_pwr_level_cck_c[14];
-	u8		TxPowerLevelOFDM24G[14];
-	u8		TxPowerLevelOFDM24G_A[14];
-	u8		TxPowerLevelOFDM24G_C[14];
+	u8 tx_pwr_level_ofdm_24g[14];
+	u8 tx_pwr_level_ofdm_24g_a[14];
+	u8 tx_pwr_level_ofdm_24g_c[14];
 	u8		LegacyHTTxPowerDiff;
 	s8		RF_C_TxPwDiff;
 	u8		AntennaTxPwDiff[3];
