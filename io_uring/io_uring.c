@@ -1263,7 +1263,7 @@ static void io_req_local_work_add(struct io_kiocb *req)
 		percpu_ref_put(&ctx->refs);
 		return;
 	}
-	/* need it for the following io_cqring_wake() */
+	/* needed for the following wake up */
 	smp_mb__after_atomic();
 
 	if (unlikely(atomic_read(&req->task->io_uring->in_idle))) {
@@ -1274,10 +1274,9 @@ static void io_req_local_work_add(struct io_kiocb *req)
 
 	if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
 		atomic_or(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
-
 	if (ctx->has_evfd)
 		io_eventfd_signal(ctx);
-	__io_cqring_wake(ctx);
+	wake_up_state(ctx->submitter_task, TASK_INTERRUPTIBLE);
 	percpu_ref_put(&ctx->refs);
 }
 
@@ -2576,12 +2575,17 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 	do {
 		unsigned long check_cq;
 
-		prepare_to_wait_exclusive(&ctx->cq_wait, &iowq.wq,
-						TASK_INTERRUPTIBLE);
+		if (ctx->flags & IORING_SETUP_DEFER_TASKRUN) {
+			set_current_state(TASK_INTERRUPTIBLE);
+		} else {
+			prepare_to_wait_exclusive(&ctx->cq_wait, &iowq.wq,
+							TASK_INTERRUPTIBLE);
+		}
+
 		ret = io_cqring_wait_schedule(ctx, &iowq);
+		__set_current_state(TASK_RUNNING);
 		if (ret < 0)
 			break;
-		__set_current_state(TASK_RUNNING);
 		/*
 		 * Run task_work after scheduling and before io_should_wake().
 		 * If we got woken because of task_work being processed, run it
@@ -2609,7 +2613,8 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		cond_resched();
 	} while (1);
 
-	finish_wait(&ctx->cq_wait, &iowq.wq);
+	if (!(ctx->flags & IORING_SETUP_DEFER_TASKRUN))
+		finish_wait(&ctx->cq_wait, &iowq.wq);
 	restore_saved_sigmask_unless(ret == -EINTR);
 
 	return READ_ONCE(rings->cq.head) == READ_ONCE(rings->cq.tail) ? ret : 0;
