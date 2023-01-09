@@ -206,6 +206,7 @@ struct io_ring_ctx {
 		unsigned int		syscall_iopoll: 1;
 		/* all CQEs should be posted only by the submitter task */
 		unsigned int		task_complete: 1;
+		unsigned int		poll_activated: 1;
 
 		enum task_work_notify_mode	notify_method;
 		struct io_rings			*rings;
@@ -357,6 +358,7 @@ struct io_ring_ctx {
 	u32				iowq_limits[2];
 	bool				iowq_limits_set;
 
+	struct callback_head		poll_wq_task_work;
 	struct list_head		defer_list;
 	unsigned			sq_thread_idle;
 	/* protected by ->completion_lock */

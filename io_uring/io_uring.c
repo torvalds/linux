@@ -573,6 +573,8 @@ static void io_eventfd_flush_signal(struct io_ring_ctx *ctx)
 
 void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 {
+	if (ctx->poll_activated)
+		io_poll_wq_wake(ctx);
 	if (ctx->off_timeout_used)
 		io_flush_timeouts(ctx);
 	if (ctx->drain_active) {
@@ -2782,10 +2784,52 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	kfree(ctx);
 }
 
+static __cold void io_activate_pollwq_cb(struct callback_head *cb)
+{
+	struct io_ring_ctx *ctx = container_of(cb, struct io_ring_ctx,
+					       poll_wq_task_work);
+
+	mutex_lock(&ctx->uring_lock);
+	ctx->poll_activated = true;
+	mutex_unlock(&ctx->uring_lock);
+
+	/*
+	 * Wake ups for some events between start of polling and activation
+	 * might've been lost due to loose synchronisation.
+	 */
+	wake_up_all(&ctx->poll_wq);
+	percpu_ref_put(&ctx->refs);
+}
+
+static __cold void io_activate_pollwq(struct io_ring_ctx *ctx)
+{
+	spin_lock(&ctx->completion_lock);
+	/* already activated or in progress */
+	if (ctx->poll_activated || ctx->poll_wq_task_work.func)
+		goto out;
+	if (WARN_ON_ONCE(!ctx->task_complete))
+		goto out;
+	if (!ctx->submitter_task)
+		goto out;
+	/*
+	 * with ->submitter_task only the submitter task completes requests, we
+	 * only need to sync with it, which is done by injecting a tw
+	 */
+	init_task_work(&ctx->poll_wq_task_work, io_activate_pollwq_cb);
+	percpu_ref_get(&ctx->refs);
+	if (task_work_add(ctx->submitter_task, &ctx->poll_wq_task_work, TWA_SIGNAL))
+		percpu_ref_put(&ctx->refs);
+out:
+	spin_unlock(&ctx->completion_lock);
+}
+
 static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 {
 	struct io_ring_ctx *ctx = file->private_data;
 	__poll_t mask = 0;
+
+	if (unlikely(!ctx->poll_activated))
+		io_activate_pollwq(ctx);
 
 	poll_wait(file, &ctx->poll_wq, wait);
 	/*
@@ -3594,6 +3638,13 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 		ctx->task_complete = true;
 
 	/*
+	 * lazy poll_wq activation relies on ->task_complete for synchronisation
+	 * purposes, see io_activate_pollwq()
+	 */
+	if (!ctx->task_complete)
+		ctx->poll_activated = true;
+
+	/*
 	 * When SETUP_IOPOLL and SETUP_SQPOLL are both enabled, user
 	 * space applications don't need to do io completion events
 	 * polling again, they can rely on io_sq_thread to do polling
@@ -3886,8 +3937,15 @@ static int io_register_enable_rings(struct io_ring_ctx *ctx)
 	if (!(ctx->flags & IORING_SETUP_R_DISABLED))
 		return -EBADFD;
 
-	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER && !ctx->submitter_task)
+	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER && !ctx->submitter_task) {
 		WRITE_ONCE(ctx->submitter_task, get_task_struct(current));
+		/*
+		 * Lazy activation attempts would fail if it was polled before
+		 * submitter_task is set.
+		 */
+		if (wq_has_sleeper(&ctx->poll_wq))
+			io_activate_pollwq(ctx);
+	}
 
 	if (ctx->restrictions.registered)
 		ctx->restricted = 1;
