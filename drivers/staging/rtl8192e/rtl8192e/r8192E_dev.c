@@ -345,9 +345,9 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 	}
 
 	if (priv->card_8192_version > VERSION_8190_BD)
-		priv->bTXPowerDataReadFromEEPORM = true;
+		priv->tx_pwr_data_read_from_eeprom = true;
 	else
-		priv->bTXPowerDataReadFromEEPORM = false;
+		priv->tx_pwr_data_read_from_eeprom = false;
 
 	priv->rf_type = RTL819X_DEFAULT_RF_TYPE;
 

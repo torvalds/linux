@@ -101,17 +101,17 @@ static u32 _rtl92e_phy_rf_read(struct net_device *dev,
 	if (priv->rf_chip == RF_8256) {
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);
 		if (Offset >= 31) {
-			priv->RfReg0Value[eRFPath] |= 0x140;
+			priv->rf_reg_0value[eRFPath] |= 0x140;
 			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
 					  bMaskDWord,
-					  (priv->RfReg0Value[eRFPath]<<16));
+					  (priv->rf_reg_0value[eRFPath] << 16));
 			NewOffset = Offset - 30;
 		} else if (Offset >= 16) {
-			priv->RfReg0Value[eRFPath] |= 0x100;
-			priv->RfReg0Value[eRFPath] &= (~0x40);
+			priv->rf_reg_0value[eRFPath] |= 0x100;
+			priv->rf_reg_0value[eRFPath] &= (~0x40);
 			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
 					  bMaskDWord,
-					  (priv->RfReg0Value[eRFPath]<<16));
+					  (priv->rf_reg_0value[eRFPath] << 16));
 
 			NewOffset = Offset - 15;
 		} else
@@ -130,10 +130,10 @@ static u32 _rtl92e_phy_rf_read(struct net_device *dev,
 				bLSSIReadBackData);
 
 	if (priv->rf_chip == RF_8256) {
-		priv->RfReg0Value[eRFPath] &= 0xebf;
+		priv->rf_reg_0value[eRFPath] &= 0xebf;
 
 		rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset, bMaskDWord,
-				  (priv->RfReg0Value[eRFPath] << 16));
+				  (priv->rf_reg_0value[eRFPath] << 16));
 
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);
 	}
@@ -156,17 +156,17 @@ static void _rtl92e_phy_rf_write(struct net_device *dev,
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);
 
 		if (Offset >= 31) {
-			priv->RfReg0Value[eRFPath] |= 0x140;
+			priv->rf_reg_0value[eRFPath] |= 0x140;
 			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
 					  bMaskDWord,
-					  (priv->RfReg0Value[eRFPath] << 16));
+					  (priv->rf_reg_0value[eRFPath] << 16));
 			NewOffset = Offset - 30;
 		} else if (Offset >= 16) {
-			priv->RfReg0Value[eRFPath] |= 0x100;
-			priv->RfReg0Value[eRFPath] &= (~0x40);
+			priv->rf_reg_0value[eRFPath] |= 0x100;
+			priv->rf_reg_0value[eRFPath] &= (~0x40);
 			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
 					  bMaskDWord,
-					  (priv->RfReg0Value[eRFPath] << 16));
+					  (priv->rf_reg_0value[eRFPath] << 16));
 			NewOffset = Offset - 15;
 		} else
 			NewOffset = Offset;
@@ -179,14 +179,14 @@ static void _rtl92e_phy_rf_write(struct net_device *dev,
 	rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset, bMaskDWord, DataAndAddr);
 
 	if (Offset == 0x0)
-		priv->RfReg0Value[eRFPath] = Data;
+		priv->rf_reg_0value[eRFPath] = Data;
 
 	if (priv->rf_chip == RF_8256) {
 		if (Offset != 0) {
-			priv->RfReg0Value[eRFPath] &= 0xebf;
+			priv->rf_reg_0value[eRFPath] &= 0xebf;
 			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
 					  bMaskDWord,
-					  (priv->RfReg0Value[eRFPath] << 16));
+					  (priv->rf_reg_0value[eRFPath] << 16));
 		}
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);
 	}
@@ -306,7 +306,7 @@ void rtl92e_config_mac(struct net_device *dev)
 	u32 *pdwArray = NULL;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bTXPowerDataReadFromEEPORM) {
+	if (priv->tx_pwr_data_read_from_eeprom) {
 		dwArrayLen = MACPHY_Array_PGLength;
 		pdwArray = Rtl819XMACPHY_Array_PG;
 
@@ -1309,9 +1309,9 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 	u8	i = 0, QueueID = 0;
 	struct rtl8192_tx_ring  *ring = NULL;
 
-	if (priv->SetRFPowerStateInProgress)
+	if (priv->set_rf_pwr_state_in_progress)
 		return false;
-	priv->SetRFPowerStateInProgress = true;
+	priv->set_rf_pwr_state_in_progress = true;
 
 	switch (priv->rf_chip) {
 	case RF_8256:
@@ -1331,7 +1331,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 					netdev_err(dev,
 						   "%s(): Failed to initialize Adapter.\n",
 						   __func__);
-					priv->SetRFPowerStateInProgress = false;
+					priv->set_rf_pwr_state_in_progress = false;
 					return false;
 				}
 
@@ -1438,7 +1438,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 		}
 	}
 
-	priv->SetRFPowerStateInProgress = false;
+	priv->set_rf_pwr_state_in_progress = false;
 	return bResult;
 }
 

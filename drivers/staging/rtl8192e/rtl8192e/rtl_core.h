@@ -444,18 +444,18 @@ struct r8192_priv {
 
 	u8 nCur40MhzPrimeSC;
 
-	u32 RfReg0Value[4];
+	u32 rf_reg_0value[4];
 	u8 num_total_rf_path;
 	bool brfpath_rxenable[4];
 
-	bool bTXPowerDataReadFromEEPORM;
+	bool tx_pwr_data_read_from_eeprom;
 
 	u16 reg_chnl_plan;
 	u16 chnl_plan;
 	u8 hw_rf_off_action;
 
 	bool rf_change_in_progress;
-	bool SetRFPowerStateInProgress;
+	bool set_rf_pwr_state_in_progress;
 	bool bdisable_nic;
 
 	u8 DM_Type;
