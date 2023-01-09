@@ -295,6 +295,7 @@ struct io_ring_ctx {
 		spinlock_t		completion_lock;
 
 		bool			poll_multi_queue;
+		bool			cq_waiting;
 
 		/*
 		 * ->iopoll_list is protected by the ctx->uring_lock for
