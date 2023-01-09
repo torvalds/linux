@@ -441,7 +441,6 @@ void kbase_device_vinstr_term(struct kbase_device *kbdev)
 	kbase_vinstr_term(kbdev->vinstr_ctx);
 }
 
-#if defined(CONFIG_DEBUG_FS) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 int kbase_device_kinstr_prfcnt_init(struct kbase_device *kbdev)
 {
 	return kbase_kinstr_prfcnt_init(kbdev->hwcnt_gpu_virt,
@@ -453,6 +452,7 @@ void kbase_device_kinstr_prfcnt_term(struct kbase_device *kbdev)
 	kbase_kinstr_prfcnt_term(kbdev->kinstr_prfcnt_ctx);
 }
 
+#if defined(CONFIG_DEBUG_FS) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 int kbase_device_io_history_init(struct kbase_device *kbdev)
 {
 	return kbase_io_history_init(&kbdev->io_history,
