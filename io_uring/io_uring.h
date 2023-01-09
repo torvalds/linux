@@ -220,9 +220,18 @@ static inline void io_commit_cqring(struct io_ring_ctx *ctx)
 	smp_store_release(&ctx->rings->cq.tail, ctx->cached_cq_tail);
 }
 
+static inline void io_poll_wq_wake(struct io_ring_ctx *ctx)
+{
+	if (waitqueue_active(&ctx->poll_wq))
+		__wake_up(&ctx->poll_wq, TASK_NORMAL, 0,
+				poll_to_key(EPOLL_URING_WAKE | EPOLLIN));
+}
+
 /* requires smb_mb() prior, see wq_has_sleeper() */
 static inline void __io_cqring_wake(struct io_ring_ctx *ctx)
 {
+	io_poll_wq_wake(ctx);
+
 	/*
 	 * Trigger waitqueue handler on all waiters on our waitqueue. This
 	 * won't necessarily wake up all the tasks, io_should_wake() will make

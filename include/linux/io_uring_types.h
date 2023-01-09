@@ -319,7 +319,7 @@ struct io_ring_ctx {
 	} ____cacheline_aligned_in_smp;
 
 	/* Keep this last, we don't need it for the fast path */
-
+	struct wait_queue_head		poll_wq;
 	struct io_restriction		restrictions;
 
 	/* slow path rsrc auxilary data, used by update/register */
