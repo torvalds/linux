@@ -30,6 +30,9 @@
 #include "../kselftest.h"
 #include "vm_util.h"
 
+#ifndef MADV_PAGEOUT
+#define MADV_PAGEOUT 21
+#endif
 #ifndef MADV_COLLAPSE
 #define MADV_COLLAPSE 25
 #endif
