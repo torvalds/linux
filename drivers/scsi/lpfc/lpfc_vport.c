@@ -534,7 +534,7 @@ disable_vport(struct fc_vport *fc_vport)
 {
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+	struct lpfc_nodelist *ndlp = NULL;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	/* Can't disable during an outstanding delete. */
@@ -546,17 +546,7 @@ disable_vport(struct fc_vport *fc_vport)
 		(void)lpfc_send_npiv_logo(vport, ndlp);
 
 	lpfc_sli_host_down(vport);
-
-	/* Mark all nodes for discovery so we can remove them by
-	 * calling lpfc_cleanup_rpis(vport, 1)
-	 */
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
-			continue;
-		lpfc_disc_state_machine(vport, ndlp, NULL,
-					NLP_EVT_DEVICE_RECOVERY);
-	}
-	lpfc_cleanup_rpis(vport, 1);
+	lpfc_cleanup_rpis(vport, 0);
 
 	lpfc_stop_vport_timers(vport);
 	lpfc_unreg_all_rpis(vport);
