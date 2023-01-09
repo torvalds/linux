@@ -268,7 +268,6 @@ struct	xmit_priv {
 	uint	frag_len;
 	struct adapter	*adapter;
 	u8   vcs_setting;
-	u8	vcs;
 	u64	tx_bytes;
 	u64	tx_pkts;
 	u64	tx_drop;
@@ -312,7 +311,6 @@ s32 rtw_free_xmitbuf(struct xmit_priv *pxmitpriv,
 		     struct xmit_buf *pxmitbuf);
 void rtw_count_tx_stats(struct adapter *padapter,
 			struct xmit_frame *pxmitframe, int sz);
-void rtw_update_protection(struct adapter *padapter, u8 *ie, uint ie_len);
 s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr,
 		     struct pkt_attrib *pattrib);
 s32 rtw_put_snap(u8 *data, u16 h_proto);

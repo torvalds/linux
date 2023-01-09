@@ -1099,40 +1099,6 @@ s32 rtw_put_snap(u8 *data, u16 h_proto)
 	return SNAP_SIZE + sizeof(u16);
 }
 
-void rtw_update_protection(struct adapter *padapter, u8 *ie, uint ie_len)
-{
-	uint	protection;
-	u8	*perp;
-	int	 erp_len;
-	struct	xmit_priv *pxmitpriv = &padapter->xmitpriv;
-	struct	registry_priv *pregistrypriv = &padapter->registrypriv;
-
-	switch (pxmitpriv->vcs_setting) {
-	case DISABLE_VCS:
-		pxmitpriv->vcs = NONE_VCS;
-		break;
-	case ENABLE_VCS:
-		break;
-	case AUTO_VCS:
-	default:
-		perp = rtw_get_ie(ie, _ERPINFO_IE_, &erp_len, ie_len);
-		if (!perp) {
-			pxmitpriv->vcs = NONE_VCS;
-		} else {
-			protection = (*(perp + 2)) & BIT(1);
-			if (protection) {
-				if (pregistrypriv->vcs_type == RTS_CTS)
-					pxmitpriv->vcs = RTS_CTS;
-				else
-					pxmitpriv->vcs = CTS_TO_SELF;
-			} else {
-				pxmitpriv->vcs = NONE_VCS;
-			}
-		}
-		break;
-	}
-}
-
 void rtw_count_tx_stats(struct adapter *padapter, struct xmit_frame *pxmitframe, int sz)
 {
 	struct sta_info *psta = NULL;
