@@ -897,11 +897,10 @@ struct kset *bus_get_kset(struct bus_type *bus)
 }
 EXPORT_SYMBOL_GPL(bus_get_kset);
 
-struct klist *bus_get_device_klist(struct bus_type *bus)
+static struct klist *bus_get_device_klist(struct bus_type *bus)
 {
 	return &bus->p->klist_devices;
 }
-EXPORT_SYMBOL_GPL(bus_get_device_klist);
 
 /*
  * Yes, this forcibly breaks the klist abstraction temporarily.  It
