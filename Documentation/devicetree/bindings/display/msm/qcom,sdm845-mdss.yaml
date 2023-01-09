@@ -46,6 +46,12 @@ patternProperties:
       compatible:
         const: qcom,sdm845-dpu
 
+  "^displayport-controller@[0-9a-f]+$":
+    type: object
+    properties:
+      compatible:
+        const: qcom,sdm845-dp
+
   "^dsi@[0-9a-f]+$":
     type: object
     properties:
