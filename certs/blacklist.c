@@ -192,7 +192,7 @@ static int mark_raw_hash_blacklisted(const char *hash)
 				   KEY_ALLOC_NOT_IN_QUOTA |
 				   KEY_ALLOC_BUILT_IN);
 	if (IS_ERR(key)) {
-		pr_err("Problem blacklisting hash (%ld)\n", PTR_ERR(key));
+		pr_err("Problem blacklisting hash %s: %pe\n", hash, key);
 		return PTR_ERR(key);
 	}
 	return 0;
