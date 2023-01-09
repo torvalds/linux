@@ -454,6 +454,13 @@ struct mv88e6xxx_ops {
 			 struct mii_bus *bus,
 			 int addr, int reg, u16 val);
 
+	int (*phy_read_c45)(struct mv88e6xxx_chip *chip,
+			    struct mii_bus *bus,
+			    int addr, int devad, int reg, u16 *val);
+	int (*phy_write_c45)(struct mv88e6xxx_chip *chip,
+			     struct mii_bus *bus,
+			     int addr, int devad, int reg, u16 val);
+
 	/* Priority Override Table operations */
 	int (*pot_clear)(struct mv88e6xxx_chip *chip);
 
