@@ -181,6 +181,15 @@ config QCOM_OCMEM
 	  requirements. This is typically used by the GPU, camera/video, and
 	  audio components on some Snapdragon SoCs.
 
+config QCOM_PCIE_PDC
+	tristate "Qualcomm Technologies, Inc. (QTI) PCIe PDC driver"
+	depends on QCOM_CRM && (ARCH_QCOM || COMPILE_TEST)
+	help
+	  Support for enabling PCIe PDC interrupts in Qualcomm Technologies, Inc.
+	  (QTI) SoCs. PCIe PDC driver provides interfaces to configure PDC interrupt
+	  type and enable or disable them so that during system sleep can exit without
+	  involving CPU subsystem.
+
 config QCOM_PDR_HELPERS
 	tristate "Qualcomm Technologies, Inc. Protection Domain Restart(PDR) driver"
 	select QCOM_QMI_HELPERS
