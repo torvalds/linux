@@ -79,50 +79,44 @@ static void damon_pa_prepare_access_checks(struct damon_ctx *ctx)
 	}
 }
 
-struct damon_pa_access_chk_result {
-	bool accessed;
-};
-
 static bool __damon_pa_young(struct folio *folio, struct vm_area_struct *vma,
 		unsigned long addr, void *arg)
 {
-	struct damon_pa_access_chk_result *result = arg;
+	bool *accessed = arg;
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, addr, 0);
 
-	result->accessed = false;
+	*accessed = false;
 	while (page_vma_mapped_walk(&pvmw)) {
 		addr = pvmw.address;
 		if (pvmw.pte) {
-			result->accessed = pte_young(*pvmw.pte) ||
+			*accessed = pte_young(*pvmw.pte) ||
 				!folio_test_idle(folio) ||
 				mmu_notifier_test_young(vma->vm_mm, addr);
 		} else {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-			result->accessed = pmd_young(*pvmw.pmd) ||
+			*accessed = pmd_young(*pvmw.pmd) ||
 				!folio_test_idle(folio) ||
 				mmu_notifier_test_young(vma->vm_mm, addr);
 #else
 			WARN_ON_ONCE(1);
 #endif	/* CONFIG_TRANSPARENT_HUGEPAGE */
 		}
-		if (result->accessed) {
+		if (*accessed) {
 			page_vma_mapped_walk_done(&pvmw);
 			break;
 		}
 	}
 
 	/* If accessed, stop walking */
-	return !result->accessed;
+	return *accessed == false;
 }
 
 static bool damon_pa_young(unsigned long paddr, unsigned long *folio_sz)
 {
 	struct folio *folio = damon_get_folio(PHYS_PFN(paddr));
-	struct damon_pa_access_chk_result result = {
-		.accessed = false,
-	};
+	bool accessed = false;
 	struct rmap_walk_control rwc = {
-		.arg = &result,
+		.arg = &accessed,
 		.rmap_one = __damon_pa_young,
 		.anon_lock = folio_lock_anon_vma_read,
 	};
@@ -133,9 +127,9 @@ static bool damon_pa_young(unsigned long paddr, unsigned long *folio_sz)
 
 	if (!folio_mapped(folio) || !folio_raw_mapping(folio)) {
 		if (folio_test_idle(folio))
-			result.accessed = false;
+			accessed = false;
 		else
-			result.accessed = true;
+			accessed = true;
 		folio_put(folio);
 		goto out;
 	}
@@ -154,7 +148,7 @@ static bool damon_pa_young(unsigned long paddr, unsigned long *folio_sz)
 
 out:
 	*folio_sz = folio_size(folio);
-	return result.accessed;
+	return accessed;
 }
 
 static void __damon_pa_check_access(struct damon_region *r)
