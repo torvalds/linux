@@ -747,7 +747,7 @@ SYM_FUNC_START_LOCAL(__secondary_switched)
 	ldr	x2, [x0, #CPU_BOOT_TASK]
 	cbz	x2, __secondary_too_slow
 	msr	sp_el0, x2
-	scs_load x2, x3
+	scs_load_current
 	mov	x29, #0
 	mov	x30, #0
 

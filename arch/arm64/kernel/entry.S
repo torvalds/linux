@@ -221,7 +221,7 @@ alternative_else_nop_endif
 
 	ptrauth_keys_install_kernel tsk, x20, x22, x23
 
-	scs_load tsk, x20
+	scs_load_current
 	.else
 	add	x21, sp, #S_FRAME_SIZE
 	get_current_task tsk
@@ -1025,7 +1025,7 @@ SYM_FUNC_START(cpu_switch_to)
 	msr	sp_el0, x1
 	ptrauth_keys_install_kernel x1, x8, x9, x10
 	scs_save x0, x8
-	scs_load x1, x8
+	scs_load_current
 	ret
 SYM_FUNC_END(cpu_switch_to)
 NOKPROBE(cpu_switch_to)
