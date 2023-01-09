@@ -1123,6 +1123,9 @@ stop_rr_fcf_flogi:
 	if (sp->cmn.priority_tagging)
 		vport->phba->pport->vmid_flag |= (LPFC_VMID_ISSUE_QFPA |
 						  LPFC_VMID_TYPE_PRIO);
+	/* reinitialize the VMID datastructure before returning */
+	if (lpfc_is_vmid_enabled(phba))
+		lpfc_reinit_vmid(vport);
 
 	/*
 	 * Address a timing race with dev_loss.  If dev_loss is active on

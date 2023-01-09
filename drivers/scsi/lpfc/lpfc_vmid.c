@@ -284,3 +284,42 @@ int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid,
 	}
 	return rc;
 }
+
+/*
+ * lpfc_reinit_vmid - reinitializes the vmid data structure
+ * @vport: pointer to vport data structure
+ *
+ * This routine reinitializes the vmid post flogi completion
+ *
+ * Return codes
+ *	None
+ */
+void
+lpfc_reinit_vmid(struct lpfc_vport *vport)
+{
+	u32 bucket, i, cpu;
+	struct lpfc_vmid *cur;
+	struct lpfc_vmid *vmp = NULL;
+	struct hlist_node *tmp;
+
+	write_lock(&vport->vmid_lock);
+	vport->cur_vmid_cnt = 0;
+
+	for (i = 0; i < vport->max_vmid; i++) {
+		vmp = &vport->vmid[i];
+		vmp->flag = LPFC_VMID_SLOT_FREE;
+		memset(vmp->host_vmid, 0, sizeof(vmp->host_vmid));
+		vmp->io_rd_cnt = 0;
+		vmp->io_wr_cnt = 0;
+
+		if (vmp->last_io_time)
+			for_each_possible_cpu(cpu)
+				*per_cpu_ptr(vmp->last_io_time, cpu) = 0;
+	}
+
+	/* for all elements in the hash table */
+	if (!hash_empty(vport->hash_table))
+		hash_for_each_safe(vport->hash_table, bucket, tmp, cur, hnode)
+			hash_del(&cur->hnode);
+	write_unlock(&vport->vmid_lock);
+}
