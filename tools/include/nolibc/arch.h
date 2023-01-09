@@ -27,6 +27,8 @@
 #include "arch-mips.h"
 #elif defined(__riscv)
 #include "arch-riscv.h"
+#elif defined(__s390x__)
+#include "arch-s390.h"
 #endif
 
 #endif /* _NOLIBC_ARCH_H */
