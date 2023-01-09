@@ -463,9 +463,9 @@ struct r8192_priv {
 	u8 cck_pwr_enl;
 	u16 tssi_13dBm;
 	u32 pwr_track;
-	u8 CCKPresentAttentuation_20Mdefault;
-	u8 CCKPresentAttentuation_40Mdefault;
-	s8 CCKPresentAttentuation_difference;
+	u8 cck_present_attn_20m_def;
+	u8 cck_present_attn_40m_def;
+	s8 cck_present_attn_diff;
 	s8 cck_present_attn;
 	long undecorated_smoothed_pwdb;
 
