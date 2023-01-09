@@ -689,7 +689,7 @@ static ssize_t fuse_get_res_by_io(struct fuse_io_priv *io)
 	return io->bytes < 0 ? io->size : io->bytes;
 }
 
-/**
+/*
  * In case of short read, the caller sets 'pos' to the position of
  * actual end of fuse request in IO request. Otherwise, if bytes_requested
  * == bytes_transferred or rw == WRITE, the caller sets 'pos' to -1.

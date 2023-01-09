@@ -145,7 +145,7 @@ static void fuse_dir_changed(struct inode *dir)
 	inode_maybe_inc_iversion(dir, false);
 }
 
-/**
+/*
  * Mark the attributes as stale due to an atime change.  Avoid the invalidate if
  * atime is not used.
  */
