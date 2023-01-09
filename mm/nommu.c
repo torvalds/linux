@@ -1509,7 +1509,8 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len, struct list
 erase_whole_vma:
 	if (delete_vma_from_mm(vma))
 		ret = -ENOMEM;
-	delete_vma(mm, vma);
+	else
+		delete_vma(mm, vma);
 	return ret;
 }
 
