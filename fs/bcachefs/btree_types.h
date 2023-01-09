@@ -289,6 +289,9 @@ struct btree_iter {
 	/* BTREE_ITER_WITH_JOURNAL: */
 	size_t			journal_idx;
 	struct bpos		journal_pos;
+#ifdef CONFIG_BCACHEFS_DEBUG
+	unsigned long		ip_allocated;
+#endif
 };
 
 struct btree_key_cache_freelist {

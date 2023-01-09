@@ -1452,7 +1452,7 @@ static noinline int flush_new_cached_update(struct btree_trans *trans,
 	i->flags |= BTREE_TRIGGER_NORUN;
 
 	btree_path = bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
-				   BTREE_ITER_INTENT);
+				   BTREE_ITER_INTENT, _THIS_IP_);
 
 	ret = bch2_btree_path_traverse(trans, btree_path, 0);
 	if (ret)
@@ -1590,11 +1590,13 @@ int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter 
 			if (!iter->key_cache_path)
 				iter->key_cache_path =
 					bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
-						      BTREE_ITER_INTENT|BTREE_ITER_CACHED);
+						      BTREE_ITER_INTENT|
+						      BTREE_ITER_CACHED, _THIS_IP_);
 
 			iter->key_cache_path =
 				bch2_btree_path_set_pos(trans, iter->key_cache_path, path->pos,
-							iter->flags & BTREE_ITER_INTENT);
+							iter->flags & BTREE_ITER_INTENT,
+							_THIS_IP_);
 
 			ret = bch2_btree_path_traverse(trans, iter->key_cache_path,
 						       BTREE_ITER_CACHED);

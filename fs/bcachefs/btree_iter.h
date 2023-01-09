@@ -144,39 +144,40 @@ __trans_next_path_with_node(struct btree_trans *trans, struct btree *b,
 	     _path = __trans_next_path_with_node((_trans), (_b),	\
 						 (_path)->idx + 1))
 
-struct btree_path *__bch2_btree_path_make_mut(struct btree_trans *,
-					      struct btree_path *, bool);
+struct btree_path *__bch2_btree_path_make_mut(struct btree_trans *, struct btree_path *,
+			 bool, unsigned long);
 
 static inline struct btree_path * __must_check
 bch2_btree_path_make_mut(struct btree_trans *trans,
-			 struct btree_path *path, bool intent)
+			 struct btree_path *path, bool intent,
+			 unsigned long ip)
 {
 	if (path->ref > 1 || path->preserve)
-		path = __bch2_btree_path_make_mut(trans, path, intent);
+		path = __bch2_btree_path_make_mut(trans, path, intent, ip);
 	path->should_be_locked = false;
 	return path;
 }
 
 struct btree_path * __must_check
 __bch2_btree_path_set_pos(struct btree_trans *, struct btree_path *,
-			  struct bpos, bool, int);
+			struct bpos, bool, unsigned long, int);
 
 static inline struct btree_path * __must_check
 bch2_btree_path_set_pos(struct btree_trans *trans,
 		   struct btree_path *path, struct bpos new_pos,
-		   bool intent)
+		   bool intent, unsigned long ip)
 {
 	int cmp = bpos_cmp(new_pos, path->pos);
 
 	return cmp
-		? __bch2_btree_path_set_pos(trans, path, new_pos, intent, cmp)
+		? __bch2_btree_path_set_pos(trans, path, new_pos, intent, ip, cmp)
 		: path;
 }
 
 int __must_check bch2_btree_path_traverse(struct btree_trans *,
 					  struct btree_path *, unsigned);
 struct btree_path *bch2_path_get(struct btree_trans *, enum btree_id, struct bpos,
-				 unsigned, unsigned, unsigned);
+				 unsigned, unsigned, unsigned, unsigned long);
 struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *, struct bkey *);
 
 struct bkey_i *bch2_btree_journal_peek_slot(struct btree_trans *,
@@ -359,7 +360,8 @@ static inline void bch2_trans_iter_init_common(struct btree_trans *trans,
 					  unsigned btree_id, struct bpos pos,
 					  unsigned locks_want,
 					  unsigned depth,
-					  unsigned flags)
+					  unsigned flags,
+					  unsigned long ip)
 {
 	memset(iter, 0, sizeof(*iter));
 	iter->trans	= trans;
@@ -369,8 +371,11 @@ static inline void bch2_trans_iter_init_common(struct btree_trans *trans,
 	iter->pos	= pos;
 	iter->k.p	= pos;
 
+#ifdef CONFIG_BCACHEFS_DEBUG
+	iter->ip_allocated = ip;
+#endif
 	iter->path = bch2_path_get(trans, btree_id, iter->pos,
-				   locks_want, depth, flags);
+				   locks_want, depth, flags, ip);
 }
 
 void bch2_trans_iter_init_outlined(struct btree_trans *, struct btree_iter *,
@@ -384,7 +389,8 @@ static inline void bch2_trans_iter_init(struct btree_trans *trans,
 	if (__builtin_constant_p(btree_id) &&
 	    __builtin_constant_p(flags))
 		bch2_trans_iter_init_common(trans, iter, btree_id, pos, 0, 0,
-				bch2_btree_iter_flags(trans, btree_id, flags));
+				bch2_btree_iter_flags(trans, btree_id, flags),
+				_THIS_IP_);
 	else
 		bch2_trans_iter_init_outlined(trans, iter, btree_id, pos, flags);
 }
