@@ -147,6 +147,12 @@ int tmecom_process_request(const void *reqbuf, size_t reqsize, void *respbuf,
 	print_hex_dump_bytes("tmecom received bytes : ",
 			DUMP_PREFIX_ADDRESS, tdev->pkt.data, tdev->pkt.size);
 
+	if (tdev->pkt.size <= TMECOM_RX_HDR_SIZE) {
+		dev_err(tdev->dev, "invalid pkt.size received\n");
+		ret = -EPROTO;
+		goto err_exit;
+	}
+
 	*respsize = tmecom_decode(tdev, respbuf);
 
 	tdev->rx_done = false;
