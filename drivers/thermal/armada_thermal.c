@@ -761,8 +761,7 @@ static void armada_set_sane_name(struct platform_device *pdev,
 	}
 
 	/* Save the name locally */
-	strncpy(priv->zone_name, name, THERMAL_NAME_LENGTH - 1);
-	priv->zone_name[THERMAL_NAME_LENGTH - 1] = '\0';
+	strscpy(priv->zone_name, name, THERMAL_NAME_LENGTH);
 
 	/* Then check there are no '-' or hwmon core will complain */
 	do {
@@ -785,33 +784,34 @@ static int armada_configure_overheat_int(struct armada_thermal_priv *priv,
 					 int sensor_id)
 {
 	/* Retrieve the critical trip point to enable the overheat interrupt */
-	const struct thermal_trip *trips = of_thermal_get_trip_points(tz);
+	struct thermal_trip trip;
 	int ret;
 	int i;
 
-	if (!trips)
-		return -EINVAL;
+	for (i = 0; i < thermal_zone_get_num_trips(tz); i++) {
 
-	for (i = 0; i < of_thermal_get_ntrips(tz); i++)
-		if (trips[i].type == THERMAL_TRIP_CRITICAL)
-			break;
+		ret = thermal_zone_get_trip(tz, i, &trip);
+		if (ret)
+			return ret;
 
-	if (i == of_thermal_get_ntrips(tz))
-		return -EINVAL;
+		if (trip.type != THERMAL_TRIP_CRITICAL)
+			continue;
 
-	ret = armada_select_channel(priv, sensor_id);
-	if (ret)
-		return ret;
+		ret = armada_select_channel(priv, sensor_id);
+		if (ret)
+			return ret;
 
-	armada_set_overheat_thresholds(priv,
-				       trips[i].temperature,
-				       trips[i].hysteresis);
-	priv->overheat_sensor = tz;
-	priv->interrupt_source = sensor_id;
+		armada_set_overheat_thresholds(priv, trip.temperature,
+					       trip.hysteresis);
+		priv->overheat_sensor = tz;
+		priv->interrupt_source = sensor_id;
 
-	armada_enable_overheat_interrupt(priv);
+		armada_enable_overheat_interrupt(priv);
 
-	return 0;
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 static int armada_thermal_probe(struct platform_device *pdev)
