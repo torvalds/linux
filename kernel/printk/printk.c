@@ -2728,14 +2728,6 @@ static void __console_unlock(void)
  * Print one record for the given console. The record printed is whatever
  * record is the next available record for the given console.
  *
- * @text is a buffer of size CONSOLE_LOG_MAX.
- *
- * If extended messages should be printed, @ext_text is a buffer of size
- * CONSOLE_EXT_LOG_MAX. Otherwise @ext_text must be NULL.
- *
- * If dropped messages should be printed, @dropped_text is a buffer of size
- * DROPPED_TEXT_MAX. Otherwise @dropped_text must be NULL.
- *
  * @handover will be set to true if a printk waiter has taken over the
  * console_lock, in which case the caller is no longer holding both the
  * console_lock and the SRCU read lock. Otherwise it is set to false.
@@ -2747,17 +2739,33 @@ static void __console_unlock(void)
  *
  * Requires the console_lock and the SRCU read lock.
  */
-static bool console_emit_next_record(struct console *con, char *text, char *ext_text,
-				     char *dropped_text, bool *handover, int cookie)
+static bool console_emit_next_record(struct console *con, bool *handover, int cookie)
 {
+	static char dropped_text[DROPPED_TEXT_MAX];
+	static struct printk_buffers pbufs;
 	static int panic_console_dropped;
+
+	bool is_extended = console_srcu_read_flags(con) & CON_EXTENDED;
+	const size_t scratchbuf_sz = sizeof(pbufs.scratchbuf);
+	const size_t outbuf_sz = sizeof(pbufs.outbuf);
+	char *scratchbuf = &pbufs.scratchbuf[0];
+	char *outbuf = &pbufs.outbuf[0];
 	struct printk_info info;
 	struct printk_record r;
 	unsigned long flags;
-	char *write_text;
 	size_t len;
 
-	prb_rec_init_rd(&r, &info, text, CONSOLE_LOG_MAX);
+	/*
+	 * Formatting extended messages requires a separate buffer, so use the
+	 * scratch buffer to read in the ringbuffer text.
+	 *
+	 * Formatting normal messages is done in-place, so read the ringbuffer
+	 * text directly into the output buffer.
+	 */
+	if (is_extended)
+		prb_rec_init_rd(&r, &info, scratchbuf, scratchbuf_sz);
+	else
+		prb_rec_init_rd(&r, &info, outbuf, outbuf_sz);
 
 	*handover = false;
 
@@ -2779,13 +2787,11 @@ static bool console_emit_next_record(struct console *con, char *text, char *ext_
 		goto skip;
 	}
 
-	if (ext_text) {
-		write_text = ext_text;
-		len = info_print_ext_header(ext_text, CONSOLE_EXT_LOG_MAX, r.info);
-		len += msg_print_ext_body(ext_text + len, CONSOLE_EXT_LOG_MAX - len,
+	if (is_extended) {
+		len = info_print_ext_header(outbuf, outbuf_sz, r.info);
+		len += msg_print_ext_body(outbuf + len, outbuf_sz - len,
 					  &r.text_buf[0], r.info->text_len, &r.info->dev_info);
 	} else {
-		write_text = text;
 		len = record_print_text(&r, console_msg_format & MSG_FORMAT_SYSLOG, printk_time);
 	}
 
@@ -2803,7 +2809,8 @@ static bool console_emit_next_record(struct console *con, char *text, char *ext_
 	console_lock_spinning_enable();
 
 	stop_critical_timings();	/* don't trace print latency */
-	call_console_driver(con, write_text, len, dropped_text);
+	call_console_driver(con, outbuf, len,
+			    is_extended ? NULL : dropped_text);
 	start_critical_timings();
 
 	con->seq++;
@@ -2839,9 +2846,6 @@ skip:
  */
 static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handover)
 {
-	static char dropped_text[DROPPED_TEXT_MAX];
-	static char ext_text[CONSOLE_EXT_LOG_MAX];
-	static char text[CONSOLE_LOG_MAX];
 	bool any_usable = false;
 	struct console *con;
 	bool any_progress;
@@ -2861,16 +2865,7 @@ static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handove
 				continue;
 			any_usable = true;
 
-			if (console_srcu_read_flags(con) & CON_EXTENDED) {
-				/* Extended consoles do not print "dropped messages". */
-				progress = console_emit_next_record(con, &text[0],
-								    &ext_text[0], NULL,
-								    handover, cookie);
-			} else {
-				progress = console_emit_next_record(con, &text[0],
-								    NULL, &dropped_text[0],
-								    handover, cookie);
-			}
+			progress = console_emit_next_record(con, handover, cookie);
 
 			/*
 			 * If a handover has occurred, the SRCU read lock

@@ -82,3 +82,13 @@ u16 printk_parse_prefix(const char *text, int *level,
 
 static inline bool printk_percpu_data_ready(void) { return false; }
 #endif /* CONFIG_PRINTK */
+
+/**
+ * struct printk_buffers - Buffers to read/format/output printk messages.
+ * @outbuf:	After formatting, contains text to output.
+ * @scratchbuf:	Used as temporary ringbuffer reading and string-print space.
+ */
+struct printk_buffers {
+	char	outbuf[CONSOLE_EXT_LOG_MAX];
+	char	scratchbuf[LOG_LINE_MAX];
+};
