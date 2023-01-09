@@ -3354,7 +3354,7 @@ bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
 	bool search_io_tree = true;
 	bool ret = false;
 
-	while (cur_offset < end) {
+	while (cur_offset <= end) {
 		u64 delalloc_start;
 		u64 delalloc_end;
 		bool delalloc;

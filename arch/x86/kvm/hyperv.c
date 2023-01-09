@@ -1769,6 +1769,7 @@ static bool hv_is_vp_in_sparse_set(u32 vp_id, u64 valid_bank_mask, u64 sparse_ba
 }
 
 struct kvm_hv_hcall {
+	/* Hypercall input data */
 	u64 param;
 	u64 ingpa;
 	u64 outgpa;
@@ -1779,12 +1780,21 @@ struct kvm_hv_hcall {
 	bool fast;
 	bool rep;
 	sse128_t xmm[HV_HYPERCALL_MAX_XMM_REGISTERS];
+
+	/*
+	 * Current read offset when KVM reads hypercall input data gradually,
+	 * either offset in bytes from 'ingpa' for regular hypercalls or the
+	 * number of already consumed 'XMM halves' for 'fast' hypercalls.
+	 */
+	union {
+		gpa_t data_offset;
+		int consumed_xmm_halves;
+	};
 };
 
 
 static int kvm_hv_get_hc_data(struct kvm *kvm, struct kvm_hv_hcall *hc,
-			      u16 orig_cnt, u16 cnt_cap, u64 *data,
-			      int consumed_xmm_halves, gpa_t offset)
+			      u16 orig_cnt, u16 cnt_cap, u64 *data)
 {
 	/*
 	 * Preserve the original count when ignoring entries via a "cap", KVM
@@ -1799,11 +1809,11 @@ static int kvm_hv_get_hc_data(struct kvm *kvm, struct kvm_hv_hcall *hc,
 		 * Each XMM holds two sparse banks, but do not count halves that
 		 * have already been consumed for hypercall parameters.
 		 */
-		if (orig_cnt > 2 * HV_HYPERCALL_MAX_XMM_REGISTERS - consumed_xmm_halves)
+		if (orig_cnt > 2 * HV_HYPERCALL_MAX_XMM_REGISTERS - hc->consumed_xmm_halves)
 			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 
 		for (i = 0; i < cnt; i++) {
-			j = i + consumed_xmm_halves;
+			j = i + hc->consumed_xmm_halves;
 			if (j % 2)
 				data[i] = sse128_hi(hc->xmm[j / 2]);
 			else
@@ -1812,27 +1822,24 @@ static int kvm_hv_get_hc_data(struct kvm *kvm, struct kvm_hv_hcall *hc,
 		return 0;
 	}
 
-	return kvm_read_guest(kvm, hc->ingpa + offset, data,
+	return kvm_read_guest(kvm, hc->ingpa + hc->data_offset, data,
 			      cnt * sizeof(*data));
 }
 
 static u64 kvm_get_sparse_vp_set(struct kvm *kvm, struct kvm_hv_hcall *hc,
-				 u64 *sparse_banks, int consumed_xmm_halves,
-				 gpa_t offset)
+				 u64 *sparse_banks)
 {
 	if (hc->var_cnt > HV_MAX_SPARSE_VCPU_BANKS)
 		return -EINVAL;
 
 	/* Cap var_cnt to ignore banks that cannot contain a legal VP index. */
 	return kvm_hv_get_hc_data(kvm, hc, hc->var_cnt, KVM_HV_MAX_SPARSE_VCPU_SET_BITS,
-				  sparse_banks, consumed_xmm_halves, offset);
+				  sparse_banks);
 }
 
-static int kvm_hv_get_tlb_flush_entries(struct kvm *kvm, struct kvm_hv_hcall *hc, u64 entries[],
-					int consumed_xmm_halves, gpa_t offset)
+static int kvm_hv_get_tlb_flush_entries(struct kvm *kvm, struct kvm_hv_hcall *hc, u64 entries[])
 {
-	return kvm_hv_get_hc_data(kvm, hc, hc->rep_cnt, hc->rep_cnt,
-				  entries, consumed_xmm_halves, offset);
+	return kvm_hv_get_hc_data(kvm, hc, hc->rep_cnt, hc->rep_cnt, entries);
 }
 
 static void hv_tlb_flush_enqueue(struct kvm_vcpu *vcpu,
@@ -1926,8 +1933,6 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 	struct kvm_vcpu *v;
 	unsigned long i;
 	bool all_cpus;
-	int consumed_xmm_halves = 0;
-	gpa_t data_offset;
 
 	/*
 	 * The Hyper-V TLFS doesn't allow more than HV_MAX_SPARSE_VCPU_BANKS
@@ -1955,12 +1960,12 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 			flush.address_space = hc->ingpa;
 			flush.flags = hc->outgpa;
 			flush.processor_mask = sse128_lo(hc->xmm[0]);
-			consumed_xmm_halves = 1;
+			hc->consumed_xmm_halves = 1;
 		} else {
 			if (unlikely(kvm_read_guest(kvm, hc->ingpa,
 						    &flush, sizeof(flush))))
 				return HV_STATUS_INVALID_HYPERCALL_INPUT;
-			data_offset = sizeof(flush);
+			hc->data_offset = sizeof(flush);
 		}
 
 		trace_kvm_hv_flush_tlb(flush.processor_mask,
@@ -1985,12 +1990,12 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 			flush_ex.flags = hc->outgpa;
 			memcpy(&flush_ex.hv_vp_set,
 			       &hc->xmm[0], sizeof(hc->xmm[0]));
-			consumed_xmm_halves = 2;
+			hc->consumed_xmm_halves = 2;
 		} else {
 			if (unlikely(kvm_read_guest(kvm, hc->ingpa, &flush_ex,
 						    sizeof(flush_ex))))
 				return HV_STATUS_INVALID_HYPERCALL_INPUT;
-			data_offset = sizeof(flush_ex);
+			hc->data_offset = sizeof(flush_ex);
 		}
 
 		trace_kvm_hv_flush_tlb_ex(flush_ex.hv_vp_set.valid_bank_mask,
@@ -2009,8 +2014,7 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 			if (!hc->var_cnt)
 				goto ret_success;
 
-			if (kvm_get_sparse_vp_set(kvm, hc, sparse_banks,
-						  consumed_xmm_halves, data_offset))
+			if (kvm_get_sparse_vp_set(kvm, hc, sparse_banks))
 				return HV_STATUS_INVALID_HYPERCALL_INPUT;
 		}
 
@@ -2021,8 +2025,10 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 		 * consumed_xmm_halves to make sure TLB flush entries are read
 		 * from the correct offset.
 		 */
-		data_offset += hc->var_cnt * sizeof(sparse_banks[0]);
-		consumed_xmm_halves += hc->var_cnt;
+		if (hc->fast)
+			hc->consumed_xmm_halves += hc->var_cnt;
+		else
+			hc->data_offset += hc->var_cnt * sizeof(sparse_banks[0]);
 	}
 
 	if (hc->code == HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE ||
@@ -2030,8 +2036,7 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 	    hc->rep_cnt > ARRAY_SIZE(__tlb_flush_entries)) {
 		tlb_flush_entries = NULL;
 	} else {
-		if (kvm_hv_get_tlb_flush_entries(kvm, hc, __tlb_flush_entries,
-						consumed_xmm_halves, data_offset))
+		if (kvm_hv_get_tlb_flush_entries(kvm, hc, __tlb_flush_entries))
 			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 		tlb_flush_entries = __tlb_flush_entries;
 	}
@@ -2180,9 +2185,13 @@ static u64 kvm_hv_send_ipi(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 		if (!hc->var_cnt)
 			goto ret_success;
 
-		if (kvm_get_sparse_vp_set(kvm, hc, sparse_banks, 1,
-					  offsetof(struct hv_send_ipi_ex,
-						   vp_set.bank_contents)))
+		if (!hc->fast)
+			hc->data_offset = offsetof(struct hv_send_ipi_ex,
+						   vp_set.bank_contents);
+		else
+			hc->consumed_xmm_halves = 1;
+
+		if (kvm_get_sparse_vp_set(kvm, hc, sparse_banks))
 			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 	}
 
