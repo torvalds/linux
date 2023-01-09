@@ -96,4 +96,7 @@ int ispunct(int c)
 	return isgraph(c) && !isalnum(c);
 }
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #endif /* _NOLIBC_CTYPE_H */

@@ -209,4 +209,7 @@ struct stat {
 })
 #endif
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #endif /* _NOLIBC_TYPES_H */
