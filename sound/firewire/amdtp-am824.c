@@ -347,16 +347,15 @@ static void read_midi_messages(struct amdtp_stream *s, __be32 *buffer,
 }
 
 static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *descs,
-					    unsigned int packets,
+					    const struct pkt_desc *desc,
+					    unsigned int count,
 					    struct snd_pcm_substream *pcm)
 {
 	struct amdtp_am824 *p = s->protocol;
 	unsigned int pcm_frames = 0;
 	int i;
 
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 
@@ -371,22 +370,23 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 			write_midi_messages(s, buf, data_blocks,
 					    desc->data_block_counter);
 		}
+
+		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
 
 	return pcm_frames;
 }
 
 static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *descs,
-					    unsigned int packets,
+					    const struct pkt_desc *desc,
+					    unsigned int count,
 					    struct snd_pcm_substream *pcm)
 {
 	struct amdtp_am824 *p = s->protocol;
 	unsigned int pcm_frames = 0;
 	int i;
 
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 
@@ -399,6 +399,8 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 			read_midi_messages(s, buf, data_blocks,
 					   desc->data_block_counter);
 		}
+
+		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
 
 	return pcm_frames;
