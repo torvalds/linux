@@ -124,10 +124,15 @@ static int acp_card_hs_startup(struct snd_pcm_substream *substream)
 	int ret;
 	unsigned int fmt;
 
-	if (drvdata->soc_mclk)
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
 	else
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret =  snd_soc_dai_set_fmt(codec_dai, fmt);
 	if (ret < 0) {
@@ -169,10 +174,15 @@ static int acp_card_rt5682_hw_params(struct snd_pcm_substream *substream,
 	ch = params_channels(params);
 	format = 8 * params_format(params);
 
-	if (drvdata->soc_mclk)
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
 	else
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
 	if (ret && ret != -ENOTSUPP) {
@@ -184,6 +194,23 @@ static int acp_card_rt5682_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0) {
 		dev_err(rtd->card->dev, "Failed to set dai fmt: %d\n", ret);
 		return ret;
+	}
+
+	if (drvdata->tdm_mode) {
+		/**
+		 * As codec supports slot 0 and slot 1 for playback and capture.
+		 */
+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 8, 16);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x3, 0x3, 8, 16);
+		if (ret < 0) {
+			dev_warn(rtd->dev, "set TDM slot err:%d\n", ret);
+			return ret;
+		}
 	}
 
 	ret = snd_soc_dai_set_pll(codec_dai, RT5682_PLL2, RT5682_PLL2_S_MCLK,
@@ -291,10 +318,15 @@ static int acp_card_rt5682s_hw_params(struct snd_pcm_substream *substream,
 	ch = params_channels(params);
 	format = 8 * params_format(params);
 
-	if (drvdata->soc_mclk)
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
 	else
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
 	if (ret && ret != -ENOTSUPP) {
@@ -306,6 +338,23 @@ static int acp_card_rt5682s_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0) {
 		dev_err(rtd->card->dev, "Failed to set dai fmt: %d\n", ret);
 		return ret;
+	}
+
+	if (drvdata->tdm_mode) {
+		/**
+		 * As codec supports slot 0 and slot 1 for playback and capture.
+		 */
+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 8, 16);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x3, 0x3, 8, 16);
+		if (ret < 0) {
+			dev_warn(rtd->dev, "set TDM slot err:%d\n", ret);
+			return ret;
+		}
 	}
 
 	ret = snd_soc_dai_set_pll(codec_dai, RT5682S_PLL2, RT5682S_PLL_S_MCLK,
@@ -417,10 +466,15 @@ static int acp_card_rt1019_hw_params(struct snd_pcm_substream *substream,
 	if (drvdata->amp_codec_id != RT1019)
 		return -EINVAL;
 
-	if (drvdata->soc_mclk)
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
 	else
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
 	if (ret && ret != -ENOTSUPP) {
@@ -428,12 +482,28 @@ static int acp_card_rt1019_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	if (drvdata->tdm_mode) {
+		/**
+		 * As codec supports slot 2 and slot 3 for playback.
+		 */
+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0xC, 0, 8, 16);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
+			return ret;
+		}
+	}
+
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		if (strcmp(codec_dai->name, "rt1019-aif"))
 			continue;
 
-		ret = snd_soc_dai_set_pll(codec_dai, 0, RT1019_PLL_S_BCLK,
-					  ch * format * srate, 256 * srate);
+		if (drvdata->tdm_mode)
+			ret = snd_soc_dai_set_pll(codec_dai, 0, RT1019_PLL_S_BCLK,
+						  TDM_CHANNELS * format * srate, 256 * srate);
+		else
+			ret = snd_soc_dai_set_pll(codec_dai, 0, RT1019_PLL_S_BCLK,
+						  ch * format * srate, 256 * srate);
+
 		if (ret < 0)
 			return ret;
 
@@ -441,6 +511,33 @@ static int acp_card_rt1019_hw_params(struct snd_pcm_substream *substream,
 					     256 * srate, SND_SOC_CLOCK_IN);
 		if (ret < 0)
 			return ret;
+
+		if (drvdata->tdm_mode) {
+			ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A
+							| SND_SOC_DAIFMT_NB_NF);
+			if (ret < 0) {
+				dev_err(rtd->card->dev, "Failed to set dai fmt: %d\n", ret);
+				return ret;
+			}
+
+			/**
+			 * As codec supports slot 2 for left channel playback.
+			 */
+			if (!strcmp(codec_dai->component->name, "i2c-10EC1019:00")) {
+				ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x4, 0x4, 8, 16);
+				if (ret < 0)
+					break;
+			}
+
+			/**
+			 * As codec supports slot 3 for right channel playback.
+			 */
+			if (!strcmp(codec_dai->component->name, "i2c-10EC1019:01")) {
+				ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x8, 0x8, 8, 16);
+				if (ret < 0)
+					break;
+			}
+		}
 	}
 
 	if (!drvdata->soc_mclk) {
@@ -507,15 +604,31 @@ static int acp_card_maxim_hw_params(struct snd_pcm_substream *substream,
 	ch = params_channels(params);
 	format = 8 * params_format(params);
 
-	if (drvdata->soc_mclk)
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
 	else
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
 	if (ret && ret != -ENOTSUPP) {
 		dev_err(rtd->dev, "Failed to set dai fmt: %d\n", ret);
 		return ret;
+	}
+
+	if (drvdata->tdm_mode) {
+		/**
+		 * As codec supports slot 2 and slot 3 for playback.
+		 */
+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0xC, 0, 8, 16);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
+			return ret;
+		}
 	}
 
 	if (!drvdata->soc_mclk) {
@@ -603,10 +716,15 @@ static int acp_nau8825_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	if (drvdata->soc_mclk)
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
 	else
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
 	if (ret && ret != -ENOTSUPP) {
@@ -620,6 +738,22 @@ static int acp_nau8825_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	if (drvdata->tdm_mode) {
+		/**
+		 * As codec supports slot 4 and slot 5 for playback and slot 6 for capture.
+		 */
+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x30, 0xC0, 8, 16);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x40, 0x30, 8, 16);
+		if (ret < 0) {
+			dev_warn(rtd->dev, "set TDM slot err:%d\n", ret);
+			return ret;
+		}
+	}
 	return ret;
 }
 
