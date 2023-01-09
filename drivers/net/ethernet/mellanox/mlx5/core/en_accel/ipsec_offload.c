@@ -396,6 +396,7 @@ int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec)
 		goto err_aso_create;
 	}
 
+	spin_lock_init(&aso->lock);
 	ipsec->nb.notifier_call = mlx5e_ipsec_event;
 	mlx5_notifier_register(mdev, &ipsec->nb);
 
@@ -454,10 +455,12 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 	struct mlx5e_hw_objs *res;
 	struct mlx5_aso_wqe *wqe;
 	u8 ds_cnt;
+	int ret;
 
 	lockdep_assert_held(&sa_entry->x->lock);
 	res = &mdev->mlx5e_res.hw_objs;
 
+	spin_lock_bh(&aso->lock);
 	memset(aso->ctx, 0, sizeof(aso->ctx));
 	wqe = mlx5_aso_get_wqe(aso->aso);
 	ds_cnt = DIV_ROUND_UP(sizeof(*wqe), MLX5_SEND_WQE_DS);
@@ -472,7 +475,9 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 	mlx5e_ipsec_aso_copy(ctrl, data);
 
 	mlx5_aso_post_wqe(aso->aso, false, &wqe->ctrl);
-	return mlx5_aso_poll_cq(aso->aso, false);
+	ret = mlx5_aso_poll_cq(aso->aso, false);
+	spin_unlock_bh(&aso->lock);
+	return ret;
 }
 
 void mlx5e_ipsec_aso_update_curlft(struct mlx5e_ipsec_sa_entry *sa_entry,
