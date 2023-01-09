@@ -82,6 +82,8 @@
   __bitmap_weight
   bitmap_zalloc
   __blk_alloc_disk
+  blk_execute_rq_nowait
+  blk_mq_free_request
   blk_mq_rq_cpu
   blk_queue_flag_clear
   blk_queue_flag_set
@@ -91,6 +93,8 @@
   blk_queue_max_discard_sectors
   blk_queue_max_write_zeroes_sectors
   blk_queue_physical_block_size
+  blk_rq_map_user_io
+  blk_rq_unmap_user
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
@@ -265,6 +269,7 @@
   class_destroy
   class_find_device
   class_for_each_device
+  class_interface_unregister
   __class_register
   class_unregister
   cleanup_srcu_struct
@@ -995,6 +1000,7 @@
   extcon_set_state
   extcon_set_state_sync
   extcon_unregister_notifier
+  fasync_helper
   __fdget
   fd_install
   fget
@@ -1105,6 +1111,7 @@
   get_random_bytes
   get_random_u16
   get_random_u32
+  get_sg_io_hdr
   get_state_synchronize_rcu
   get_state_synchronize_srcu
   __get_task_comm
@@ -1569,6 +1576,7 @@
   kfree_skb_reason
   kick_all_cpus_sync
   kill_anon_super
+  kill_fasync
   kimage_vaddr
   kimage_voffset
   __kmalloc
@@ -1746,6 +1754,7 @@
   mod_delayed_work_on
   mod_node_page_state
   mod_timer
+  __module_get
   module_layout
   module_put
   __msecs_to_jiffies
@@ -2169,6 +2178,7 @@
   put_iova_domain
   __put_net
   put_pid
+  put_sg_io_hdr
   __put_task_struct
   put_unused_fd
   put_user_ifreq
@@ -2271,6 +2281,7 @@
   __register_blkdev
   register_candev
   __register_chrdev
+  register_chrdev_region
   register_console
   register_die_notifier
   register_ftrace_export
@@ -2294,6 +2305,7 @@
   __register_rpmsg_driver
   register_shrinker
   register_syscore_ops
+  register_sysctl
   register_sysctl_table
   regmap_bulk_read
   regmap_bulk_write
@@ -2448,7 +2460,21 @@
   scmi_protocol_register
   scmi_protocol_unregister
   scnprintf
+  scsi_alloc_request
+  scsi_autopm_get_device
+  scsi_autopm_put_device
+  scsi_block_when_processing_errors
+  scsi_cmd_allowed
+  scsi_command_size_tbl
+  scsi_device_get
+  scsi_device_put
+  scsi_ioctl
+  scsi_ioctl_block_when_processing_errors
   __scsi_iterate_devices
+  scsi_normalize_sense
+  __scsi_print_sense
+  scsi_register_interface
+  sdev_prefix_printk
   __sdhci_add_host
   sdhci_add_host
   sdhci_cleanup_host
@@ -2764,6 +2790,7 @@
   tasklet_setup
   tasklet_unlock_wait
   tasklist_lock
+  __task_pid_nr_ns
   __task_rq_lock
   thermal_cdev_update
   thermal_cooling_device_register
@@ -3001,6 +3028,7 @@
   unregister_restart_handler
   unregister_rpmsg_driver
   unregister_shrinker
+  unregister_sysctl_table
   up
   update_devfreq
   update_rq_clock
