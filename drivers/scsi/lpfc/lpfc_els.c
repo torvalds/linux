@@ -2373,14 +2373,29 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		/* PRLI failed */
 		lpfc_printf_vlog(vport, mode, loglevel,
 				 "2754 PRLI failure DID:%06X Status:x%x/x%x, "
-				 "data: x%x\n",
+				 "data: x%x x%x\n",
 				 ndlp->nlp_DID, ulp_status,
-				 ulp_word4, ndlp->fc4_prli_sent);
+				 ulp_word4, ndlp->nlp_state,
+				 ndlp->fc4_prli_sent);
 
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
 		if (!lpfc_error_lost_link(ulp_status, ulp_word4))
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_CMPL_PRLI);
+
+		/* The following condition catches an inflight transition
+		 * mismatch typically caused by an RSCN. Skip any
+		 * processing to allow recovery.
+		 */
+		if (ndlp->nlp_state >= NLP_STE_PLOGI_ISSUE &&
+		    ndlp->nlp_state <= NLP_STE_REG_LOGIN_ISSUE) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
+					 "2784 PRLI cmpl: state mismatch "
+					 "DID x%06x nstate x%x nflag x%x\n",
+					 ndlp->nlp_DID, ndlp->nlp_state,
+					 ndlp->nlp_flag);
+				goto out;
+		}
 
 		/*
 		 * For P2P topology, retain the node so that PLOGI can be
@@ -4673,6 +4688,15 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				/* the nameserver fails */
 				maxretry = 0;
 				delay = 100;
+			} else if (cmd == ELS_CMD_PRLI &&
+				   ndlp->nlp_state != NLP_STE_PRLI_ISSUE) {
+				/* State-command disagreement.  The PRLI was
+				 * failed with an invalid rpi meaning there
+				 * some unexpected state change.  Don't retry.
+				 */
+				maxretry = 0;
+				retry = 0;
+				break;
 			}
 			retry = 1;
 			break;
