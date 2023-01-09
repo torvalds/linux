@@ -1905,8 +1905,7 @@ lpfc_xcvr_data_show(struct device *dev, struct device_attribute *attr,
 		goto out_free_rdp;
 	}
 
-	strncpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_NAME], 16);
-	chbuf[16] = 0;
+	strscpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_NAME], 16);
 
 	len = scnprintf(buf, PAGE_SIZE - len, "VendorName:\t%s\n", chbuf);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
@@ -1914,17 +1913,13 @@ lpfc_xcvr_data_show(struct device *dev, struct device_attribute *attr,
 			 (uint8_t)rdp_context->page_a0[SSF_VENDOR_OUI],
 			 (uint8_t)rdp_context->page_a0[SSF_VENDOR_OUI + 1],
 			 (uint8_t)rdp_context->page_a0[SSF_VENDOR_OUI + 2]);
-	strncpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_PN], 16);
-	chbuf[16] = 0;
+	strscpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_PN], 16);
 	len += scnprintf(buf + len, PAGE_SIZE - len, "VendorPN:\t%s\n", chbuf);
-	strncpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_SN], 16);
-	chbuf[16] = 0;
+	strscpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_SN], 16);
 	len += scnprintf(buf + len, PAGE_SIZE - len, "VendorSN:\t%s\n", chbuf);
-	strncpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_REV], 4);
-	chbuf[4] = 0;
+	strscpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_REV], 4);
 	len += scnprintf(buf + len, PAGE_SIZE - len, "VendorRev:\t%s\n", chbuf);
-	strncpy(chbuf, &rdp_context->page_a0[SSF_DATE_CODE], 8);
-	chbuf[8] = 0;
+	strscpy(chbuf, &rdp_context->page_a0[SSF_DATE_CODE], 8);
 	len += scnprintf(buf + len, PAGE_SIZE - len, "DateCode:\t%s\n", chbuf);
 	len += scnprintf(buf + len, PAGE_SIZE - len, "Identifier:\t%xh\n",
 			 (uint8_t)rdp_context->page_a0[SSF_IDENTIFIER]);
