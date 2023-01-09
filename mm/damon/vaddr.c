@@ -475,7 +475,7 @@ regular_page:
 		goto out;
 	if (pte_young(*pte) || !folio_test_idle(folio) ||
 			mmu_notifier_test_young(walk->mm, addr)) {
-		*priv->folio_sz = PAGE_SIZE;
+		*priv->folio_sz = folio_size(folio);
 		priv->young = true;
 	}
 	folio_put(folio);
