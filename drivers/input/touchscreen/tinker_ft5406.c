@@ -26,10 +26,6 @@
 #include <linux/module.h>
 #include <linux/workqueue.h>
 
-#define LOG_DBG(fmt, arg...) pr_debug("tinker-ft5406: %s: "fmt, __func__, ##arg)
-#define LOG_INFO(fmt, arg...) pr_info("tinker-ft5406: %s: "fmt, __func__, ##arg)
-#define LOG_ERR(fmt, arg...) pr_err("tinker-ft5406: %s: "fmt, __func__, ##arg)
-
 #define RETRY_COUNT 10
 #define FT_ONE_TCH_LEN	6
 
@@ -110,7 +106,7 @@ static int fts_i2c_read(struct i2c_client *client, char *writebuf,
 		};
 		ret = i2c_transfer(client->adapter, msgs, 2);
 		if (ret < 0)
-			LOG_ERR("i2c read error, %d\n", ret);
+			dev_err(&client->dev, "i2c read error, %d\n", ret);
 	} else {
 		struct i2c_msg msgs[] = {
 			{
@@ -122,7 +118,7 @@ static int fts_i2c_read(struct i2c_client *client, char *writebuf,
 		};
 		ret = i2c_transfer(client->adapter, msgs, 1);
 		if (ret < 0)
-			LOG_ERR("i2c read error, %d\n", ret);
+			dev_err(&client->dev, "i2c read error, %d\n", ret);
 	}
 
 	return ret;
@@ -153,7 +149,8 @@ static int fts_check_fw_ver(struct i2c_client *client)
 	if (ret < 0)
 		goto error;
 
-	LOG_INFO("Firmware version = %d.%d.%d\n", fw_ver[0], fw_ver[1], fw_ver[2]);
+	dev_info(&client->dev, "Firmware version = %d.%d.%d\n",
+			fw_ver[0], fw_ver[1], fw_ver[2]);
 	return 0;
 
 error:
@@ -167,7 +164,8 @@ static int fts_read_td_status(struct tinker_ft5406_data *ts_data)
 
 	ret = fts_read_reg(ts_data->client, FT_TD_STATUS_REG, &td_status);
 	if (ret < 0) {
-		LOG_ERR("get reg td_status failed, %d\n", ret);
+		dev_err(&ts_data->client->dev,
+				"Get reg td_status failed, %d\n", ret);
 		return ret;
 	}
 	return (int)td_status;
@@ -184,7 +182,7 @@ static int fts_read_touchdata(struct tinker_ft5406_data *ts_data)
 		reg_addr = FT_TOUCH_X_H_REG + (i * FT_ONE_TCH_LEN);
 		ret = fts_i2c_read(ts_data->client, &reg_addr, 1, buf, FT_ONE_TCH_LEN-2);
 		if (ret < 0) {
-			LOG_ERR("read touchdata failed.\n");
+			dev_err(&ts_data->client->dev, "Read touchdata failed.\n");
 			return ret;
 		}
 
@@ -226,7 +224,7 @@ static void fts_report_value(struct tinker_ft5406_data *ts_data)
 					event->au16_y[i]);
 
 			if (!((1 << event->au8_finger_id[i]) & ts_data->known_ids))
-				LOG_DBG("Touch id-%d: x = %d, y = %d\n",
+				dev_dbg(&ts_data->client->dev, "Touch id-%d: x = %d, y = %d\n",
 					event->au8_finger_id[i],
 					event->au16_x[i],
 					event->au16_y[i]);
@@ -236,7 +234,7 @@ static void fts_report_value(struct tinker_ft5406_data *ts_data)
 	released_ids = ts_data->known_ids & ~modified_ids;
 	for (i = 0; released_ids && i < MAX_TOUCH_POINTS; i++) {
 		if (released_ids & (1<<i)) {
-			LOG_DBG("Release id-%d, known = %x modified = %x\n",
+			dev_dbg(&ts_data->client->dev, "Release id-%d, known = %x modified = %x\n",
 					i, ts_data->known_ids, modified_ids);
 			input_mt_slot(ts_data->input_dev, i);
 			input_mt_report_slot_state(ts_data->input_dev, MT_TOOL_FINGER, false);
@@ -257,12 +255,13 @@ static void fts_retry_clear(struct tinker_ft5406_data *ts_data)
 static int fts_retry_wait(struct tinker_ft5406_data *ts_data)
 {
 	if (ts_data->retry_count < RETRY_COUNT) {
-		LOG_INFO("wait and retry, count = %d\n", ts_data->retry_count);
+		dev_info(&ts_data->client->dev,
+			"Wait and retry, count = %d\n", ts_data->retry_count);
 		ts_data->retry_count++;
 		msleep(1000);
 		return 1;
 	}
-	LOG_ERR("attach retry count\n");
+	dev_err(&ts_data->client->dev, "Attach retry count\n");
 	return 0;
 }
 
@@ -277,7 +276,7 @@ static void tinker_ft5406_work(struct work_struct *work)
 		if (td_status < 0) {
 			ret = fts_retry_wait(g_ts_data);
 			if (ret == 0) {
-				LOG_ERR("stop touch polling\n");
+				dev_err(&g_ts_data->client->dev, "Stop touch polling\n");
 				break;
 			}
 		} else if (td_status < VALID_TD_STATUS_VAL + 1 &&
@@ -312,11 +311,11 @@ static int tinker_ft5406_probe(struct i2c_client *client,
 	struct input_dev *input_dev;
 	int ret = 0;
 
-	LOG_INFO("address = 0x%x\n", client->addr);
+	dev_info(&client->dev, "Address = 0x%x\n", client->addr);
 
 	g_ts_data = kzalloc(sizeof(struct tinker_ft5406_data), GFP_KERNEL);
 	if (g_ts_data == NULL) {
-		LOG_ERR("no memory for device\n");
+		dev_err(&client->dev, "No memory for device\n");
 		return -ENOMEM;
 	}
 
@@ -327,18 +326,18 @@ static int tinker_ft5406_probe(struct i2c_client *client,
 	g_ts_data->screen_height = 480;
 	g_ts_data->xy_reverse = 1;
 
-	LOG_INFO("width = %d, height = %d, reverse = %d\n",
+	dev_info(&client->dev, "width = %d, height = %d, reverse = %d\n",
 			g_ts_data->screen_width, g_ts_data->screen_height, g_ts_data->xy_reverse);
 
 	ret = fts_check_fw_ver(g_ts_data->client);
 	if (ret) {
-		LOG_ERR("checking touch ic failed\n");
+		dev_err(&client->dev, "Checking touch ic failed\n");
 		goto check_fw_err;
 	}
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {
-		LOG_ERR("failed to allocate input device\n");
+		dev_err(&client->dev, "Failed to allocate input device\n");
 		goto input_allocate_failed;
 	}
 	input_dev->name = "fts_ts";
@@ -361,7 +360,7 @@ static int tinker_ft5406_probe(struct i2c_client *client,
 
 	ret = input_register_device(input_dev);
 	if (ret) {
-		LOG_ERR("Input device registration failed\n");
+		dev_err(&client->dev, "Input device registration failed\n");
 		goto input_register_failed;
 	}
 
