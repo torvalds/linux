@@ -519,19 +519,8 @@ again:
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k)) &&
 	       bkey_cmp(k.k->p, POS(0, max)) < 0) {
-		while (pos < iter->pos.offset) {
-			if (!bch2_btree_key_cache_find(c, BTREE_ID_inodes, POS(0, pos)))
-				goto found_slot;
-
-			pos++;
-		}
-
-		if (k.k->p.snapshot == snapshot &&
-		    !bkey_is_inode(k.k) &&
-		    !bch2_btree_key_cache_find(c, BTREE_ID_inodes, SPOS(0, pos, snapshot))) {
-			bch2_btree_iter_advance(iter);
-			continue;
-		}
+		if (pos < iter->pos.offset)
+			goto found_slot;
 
 		/*
 		 * We don't need to iterate over keys in every snapshot once
@@ -541,12 +530,8 @@ again:
 		bch2_btree_iter_set_pos(iter, POS(0, pos));
 	}
 
-	while (!ret && pos < max) {
-		if (!bch2_btree_key_cache_find(c, BTREE_ID_inodes, POS(0, pos)))
-			goto found_slot;
-
-		pos++;
-	}
+	if (!ret && pos < max)
+		goto found_slot;
 
 	if (!ret && start == min)
 		ret = -ENOSPC;
@@ -568,11 +553,6 @@ found_slot:
 		bch2_trans_iter_exit(trans, iter);
 		return ret;
 	}
-
-	/* We may have raced while the iterator wasn't pointing at pos: */
-	if (bkey_is_inode(k.k) ||
-	    bch2_btree_key_cache_find(c, BTREE_ID_inodes, k.k->p))
-		goto again;
 
 	*hint			= k.k->p.offset;
 	inode_u->bi_inum	= k.k->p.offset;
